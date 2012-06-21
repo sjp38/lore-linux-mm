@@ -1,208 +1,211 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
-	by kanga.kvack.org (Postfix) with SMTP id E1ECB6B011F
-	for <linux-mm@kvack.org>; Thu, 21 Jun 2012 19:12:35 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id E88E63EE081
-	for <linux-mm@kvack.org>; Fri, 22 Jun 2012 08:12:33 +0900 (JST)
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id D102945DE56
-	for <linux-mm@kvack.org>; Fri, 22 Jun 2012 08:12:33 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id B9C2845DE55
-	for <linux-mm@kvack.org>; Fri, 22 Jun 2012 08:12:33 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id AD1DF1DB804D
-	for <linux-mm@kvack.org>; Fri, 22 Jun 2012 08:12:33 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 5D7061DB804C
-	for <linux-mm@kvack.org>; Fri, 22 Jun 2012 08:12:33 +0900 (JST)
-Message-ID: <4FE3A998.3000606@jp.fujitsu.com>
-Date: Fri, 22 Jun 2012 08:09:12 +0900
-From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 2/2] memcg: add per cgroup dirty pages accounting
-References: <1339761611-29033-1-git-send-email-handai.szj@taobao.com> <1339761717-29070-1-git-send-email-handai.szj@taobao.com> <xr93k3z8twtg.fsf@gthelen.mtv.corp.google.com> <4FDC28F0.8050805@jp.fujitsu.com> <CAFj3OHXuX7tpDe4famK3fFMZBcj2w-9mDs9mD9P_-SwaRKx8tg@mail.gmail.com> <4FE2D2F4.2020202@jp.fujitsu.com> <xr938vfgmz4y.fsf@gthelen.mtv.corp.google.com>
-In-Reply-To: <xr938vfgmz4y.fsf@gthelen.mtv.corp.google.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 8bit
+Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
+	by kanga.kvack.org (Postfix) with SMTP id E3EBD6B0121
+	for <linux-mm@kvack.org>; Thu, 21 Jun 2012 19:21:52 -0400 (EDT)
+Received: by wefh52 with SMTP id h52so73077wef.2
+        for <linux-mm@kvack.org>; Thu, 21 Jun 2012 16:21:51 -0700 (PDT)
+Subject: mmotm 2012-06-21-16-20 uploaded
+From: akpm@linux-foundation.org
+Date: Thu, 21 Jun 2012 16:21:49 -0700
+Message-Id: <20120621232149.F0286A026A@akpm.mtv.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg Thelen <gthelen@google.com>
-Cc: Sha Zhengju <handai.szj@gmail.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, yinghan@google.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, mhocko@suse.cz, Sha Zhengju <handai.szj@taobao.com>
+To: mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org
 
-(2012/06/22 1:02), Greg Thelen wrote:
-> On Thu, Jun 21 2012, Kamezawa Hiroyuki wrote:
->
->> (2012/06/19 23:31), Sha Zhengju wrote:
->>> On Sat, Jun 16, 2012 at 2:34 PM, Kamezawa Hiroyuki
->>> <kamezawa.hiroyu@jp.fujitsu.com>   wrote:
->>>> (2012/06/16 0:32), Greg Thelen wrote:
->>>>>
->>>>> On Fri, Jun 15 2012, Sha Zhengju wrote:
->>>>>
->>>>>> This patch adds memcg routines to count dirty pages. I notice that
->>>>>> the list has talked about per-cgroup dirty page limiting
->>>>>> (http://lwn.net/Articles/455341/) before, but it did not get merged.
->>>>>
->>>>>
->>>>> Good timing, I was just about to make another effort to get some of
->>>>> these patches upstream.  Like you, I was going to start with some basic
->>>>> counters.
->>>>>
->>>>> Your approach is similar to what I have in mind.  While it is good to
->>>>> use the existing PageDirty flag, rather than introducing a new
->>>>> page_cgroup flag, there are locking complications (see below) to handle
->>>>> races between moving pages between memcg and the pages being {un}marked
->>>>> dirty.
->>>>>
->>>>>> I've no idea how is this going now, but maybe we can add per cgroup
->>>>>> dirty pages accounting first. This allows the memory controller to
->>>>>> maintain an accurate view of the amount of its memory that is dirty
->>>>>> and can provide some infomation while group's direct reclaim is working.
->>>>>>
->>>>>> After commit 89c06bd5 (memcg: use new logic for page stat accounting),
->>>>>> we do not need per page_cgroup flag anymore and can directly use
->>>>>> struct page flag.
->>>>>>
->>>>>>
->>>>>> Signed-off-by: Sha Zhengju<handai.szj@taobao.com>
->>>>>> ---
->>>>>>    include/linux/memcontrol.h |    1 +
->>>>>>    mm/filemap.c               |    1 +
->>>>>>    mm/memcontrol.c            |   32 +++++++++++++++++++++++++-------
->>>>>>    mm/page-writeback.c        |    2 ++
->>>>>>    mm/truncate.c              |    1 +
->>>>>>    5 files changed, 30 insertions(+), 7 deletions(-)
->>>>>>
->>>>>> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
->>>>>> index a337c2e..8154ade 100644
->>>>>> --- a/include/linux/memcontrol.h
->>>>>> +++ b/include/linux/memcontrol.h
->>>>>> @@ -39,6 +39,7 @@ enum mem_cgroup_stat_index {
->>>>>>          MEM_CGROUP_STAT_FILE_MAPPED,  /* # of pages charged as file rss */
->>>>>>          MEM_CGROUP_STAT_SWAPOUT, /* # of pages, swapped out */
->>>>>>          MEM_CGROUP_STAT_DATA, /* end of data requires synchronization */
->>>>>> +       MEM_CGROUP_STAT_FILE_DIRTY,  /* # of dirty pages in page cache */
->>>>>>          MEM_CGROUP_STAT_NSTATS,
->>>>>>    };
->>>>>>
->>>>>> diff --git a/mm/filemap.c b/mm/filemap.c
->>>>>> index 79c4b2b..5b5c121 100644
->>>>>> --- a/mm/filemap.c
->>>>>> +++ b/mm/filemap.c
->>>>>> @@ -141,6 +141,7 @@ void __delete_from_page_cache(struct page *page)
->>>>>>           * having removed the page entirely.
->>>>>>           */
->>>>>>          if (PageDirty(page)&&     mapping_cap_account_dirty(mapping)) {
->>>>>> +               mem_cgroup_dec_page_stat(page,
->>>>>> MEM_CGROUP_STAT_FILE_DIRTY);
->>>>>
->>>>>
->>>>> You need to use mem_cgroup_{begin,end}_update_page_stat around critical
->>>>> sections that:
->>>>> 1) check PageDirty
->>>>> 2) update MEM_CGROUP_STAT_FILE_DIRTY counter
->>>>>
->>>>> This protects against the page from being moved between memcg while
->>>>> accounting.  Same comment applies to all of your new calls to
->>>>> mem_cgroup_{dec,inc}_page_stat.  For usage pattern, see
->>>>> page_add_file_rmap.
->>>>>
->>>>
->>>> If you feel some difficulty with mem_cgroup_{begin,end}_update_page_stat(),
->>>> please let me know...I hope they should work enough....
->>>>
->>>
->>> Hi, Kame
->>>
->>> While digging into the bigger lock of mem_cgroup_{begin,end}_update_page_stat(),
->>> I find the reality is more complex than I thought. Simply stated,
->>> modifying page info
->>> and update page stat may be wide apart and in different level (eg.
->>> mm&fs), so if we
->>> use the big lock it may lead to scalability and maintainability issues.
->>>
->>> For example:
->>>        mem_cgroup_begin_update_page_stat()
->>>        modify page information                 =>   TestSetPageDirty ina??ceph_set_page_dirty() (fs/ceph/addr.c)
->>>        XXXXXX                                  =>   other fs operations
->>>        mem_cgroup_update_page_stat()   =>   account_page_dirtied() ina??mm/page-writeback.c
->>>        mem_cgroup_end_update_page_stat().
->>>
->>> We can choose to get lock in higher level meaning vfs set_page_dirty()
->>> but this may span
->>> too much and can also have some missing cases.
->>> What's your opinion of this problem?
->>>
->>
->> yes, that's sad....If set_page_dirty() is always called under lock_page(), the
->> story will be easier (we'll take lock_page() in move side.)
->> but the comment on set_page_dirty() says it's not true.....Now, I haven't found a magical
->> way for avoiding the race.
->> (*) If holding lock_page() in move_account() can be a generic solution, it will be good.
->>      A proposal from me is a small-start. You can start from adding hooks to a
->> generic
->> functions as set_page_dirty() and __set_page_dirty_nobuffers(), clear_page_dirty_for_io().
->>
->> And see what happens. I guess we can add WARN_ONCE() against callers of update_page_stat()
->> who don't take mem_cgroup_begin/end_update_page_stat()
->> (by some new check, for example, checking !rcu_read_lock_held() in update_stat())
->>
->> I think we can make TODO list and catch up remaining things one by one.
->>
->> Thanks,
->> -Kame
->
-> This might be a crazy idea.  Synchronization of PageDirty with the
-> page->memcg->nr_dirty counter is a challenge because page->memcg can be
-> reassigned due to inter-memcg page moving.
+The mm-of-the-moment snapshot 2012-06-21-16-20 has been uploaded to
 
-Yes. That's the heart of the problem.
+   http://www.ozlabs.org/~akpm/mmotm/
 
-> Could we avoid moving dirty pages between memcg?
+It contains the following patches against 3.5-rc3:
+(patches marked "*" will be included in linux-next)
 
-How to detect it is the proebm here....
-
-> Specifically, could we make them clean before moving.
-
-I considered that but a case
-
-		CPU-A				CPU-B
-	wait_for_page_cleaned
-	.....					SetPageDirty()
-	account-memcg-nr_dirty
-
-is problematic. _If_
-
-		CPU-A			
-	lock_page()
-	move_page_for_accounting()
-	unlock_page()
-
-can help 99% of cases, I think this is a choice. But I haven't investigated
-how many callers of set_page_dirty() holds locks....
-(I guess CleraPageDirty() callers are under lock_page() always...by quick look.)
-
-If most of callers calls lock_page() or mem_cgroup_begin/end_update....I think
-adding WARNING(!page_locked(page) || !rcu_read_locked()) to update_stat() will
-be a proof of concept and automatically shows what we should do more...
-
-> This problem feels similar to page migration.  This would slow
-> down inter-memcg page movement, because it would require writeback.  But
-> I'm suspect that this is an infrequent operation.
-
-I agree. But, IIUC, the reason page-migration waits for the end of I/O is that migrating
-pages under I/O (in being copied by devices) seems crazy. So, just lock_page()
-will be an enough help....
-
-Thanks,
--Kame
-
-
-
-
-
+  origin.patch
+* selinux-fix-something.patch
+  linux-next.patch
+  i-need-old-gcc.patch
+  arch-alpha-kernel-systblss-remove-debug-check.patch
+  drivers-block-nvmec-stop-breaking-my-i386-build.patch
+  thermal-constify-type-argument-for-the-registration-routine.patch
+* memory-hotplug-fix-invalid-memory-access-caused-by-stale-kswapd-pointer.patch
+* memory-hotplug-fix-invalid-memory-access-caused-by-stale-kswapd-pointer-fix.patch
+* drivers-rtc-rtc-spearc-fix-use-after-free-in-spear_rtc_remove.patch
+* mn10300-move-setup_jiffies_interrupt-to-cevt-mn10300c.patch
+* mn10300-remove-duplicate-definition-of-ptrace_o_tracesysgood.patch
+* mn10300-kernel-internalh-needs-linux-irqreturnh.patch
+* mn10300-kernel-trapsc-needs-linux-exporth.patch
+* mn10300-mm-dma-allocc-needs-linux-exporth.patch
+* mn10300-use-elif-definedconfig_-instead-of-elif-config_.patch
+* ocfs2-fix-null-pointer-dereferrence-in-__ocfs2_change_file_space.patch
+* c-r-prctl-less-paranoid-prctl_set_mm_exe_file.patch
+* drivers-gpio-devresc-export-devm_gpio_request_one-to-modules.patch
+* mm-thp-abort-compaction-if-migration-page-cannot-be-charged-to-memcg.patch
+* fs-jbd2-commitc-use-new-kmap_atomic-api.patch
+* cciss-fix-incorrect-scsi-status-reporting.patch
+* drivers-media-video-pmsc-needs-linux-slabh.patch
+* arch-x86-platform-iris-irisc-register-a-platform-device-and-a-platform-driver.patch
+* arch-x86-include-asm-spinlockh-fix-comment.patch
+* arch-x86-kernel-cpu-perf_event_intel_uncoreh-make-uncore_pmu_hrtimer_interval-64-bit.patch
+  cyber2000fb-avoid-palette-corruption-at-higher-clocks.patch
+* timeconstpl-remove-deprecated-defined-array.patch
+* time-dont-inline-export_symbol-functions.patch
+* thermal-fix-potential-out-of-bounds-memory-access.patch
+* ocfs2-use-find_last_bit.patch
+* ocfs2-use-bitmap_weight.patch
+* drivers-scsi-ufs-use-module_pci_driver.patch
+* drivers-scsi-ufs-reverse-the-ufshcd_is_device_present-logic.patch
+* ufs-fix-incorrect-return-value-about-success-and-failed.patch
+* drivers-scsi-atp870uc-fix-bad-use-of-udelay.patch
+* vfs-increment-iversion-when-a-file-is-truncated.patch
+* fs-push-rcu_barrier-from-deactivate_locked_super-to-filesystems.patch
+* hfs-push-lock_super-down.patch
+* hfs-get-rid-of-lock_super.patch
+* hfs-remove-extra-mdb-write-on-unmount.patch
+* hfs-simplify-a-bit-checking-for-r-o.patch
+* hfs-introduce-vfs-superblock-object-back-reference.patch
+* hfs-get-rid-of-hfs_sync_super.patch
+* hfs-get-rid-of-hfs_sync_super-checkpatch-fixes.patch
+* fs-xattrc-getxattr-improve-handling-of-allocation-failures.patch
+* fs-add-link-restrictions.patch
+* mm-slab-remove-duplicate-check.patch
+* slab-move-full-state-transition-to-an-initcall.patch
+  mm.patch
+* vmalloc-walk-vmap_areas-by-sorted-list-instead-of-rb_next.patch
+* mm-make-vb_alloc-more-foolproof.patch
+* mm-make-vb_alloc-more-foolproof-fix.patch
+* memcg-rename-mem_cgroup_stat_swapout-as-mem_cgroup_stat_swap.patch
+* memcg-rename-mem_cgroup_charge_type_mapped-as-mem_cgroup_charge_type_anon.patch
+* memcg-remove-mem_cgroup_charge_type_force.patch
+* swap-allow-swap-readahead-to-be-merged.patch
+* documentation-update-how-page-cluster-affects-swap-i-o.patch
+* mm-account-the-total_vm-in-the-vm_stat_account.patch
+* mm-compaction-handle-incorrect-migrate_unmovable-type-pageblocks.patch
+* mm-compaction-handle-incorrect-migrate_unmovable-type-pageblocks-fix.patch
+* mm-buddy-cleanup-on-should_fail_alloc_page.patch
+* mm-prepare-for-removal-of-obsolete-proc-sys-vm-nr_pdflush_threads.patch
+* hugetlb-rename-max_hstate-to-hugetlb_max_hstate.patch
+* hugetlb-dont-use-err_ptr-with-vm_fault-values.patch
+* hugetlb-add-an-inline-helper-for-finding-hstate-index.patch
+* hugetlb-use-mmu_gather-instead-of-a-temporary-linked-list-for-accumulating-pages.patch
+* hugetlb-avoid-taking-i_mmap_mutex-in-unmap_single_vma-for-hugetlb.patch
+* hugetlb-simplify-migrate_huge_page.patch
+* hugetlb-add-a-list-for-tracking-in-use-hugetlb-pages.patch
+* hugetlb-make-some-static-variables-global.patch
+* hugetlb-make-some-static-variables-global-mark-hugelb_max_hstate-__read_mostly.patch
+* mm-hugetlb-add-new-hugetlb-cgroup.patch
+* mm-hugetlb-add-new-hugetlb-cgroup-mark-root_h_cgroup-static.patch
+* hugetlb-cgroup-add-the-cgroup-pointer-to-page-lru.patch
+* hugetlb-cgroup-add-charge-uncharge-routines-for-hugetlb-cgroup.patch
+* hugetlb-cgroup-add-support-for-cgroup-removal.patch
+* hugetlb-cgroup-add-hugetlb-cgroup-control-files.patch
+* hugetlb-cgroup-migrate-hugetlb-cgroup-info-from-oldpage-to-new-page-during-migration.patch
+* hugetlb-cgroup-add-hugetlb-controller-documentation.patch
+* hugetlb-move-all-the-in-use-pages-to-active-list.patch
+* hugetlb-cgroup-assign-the-page-hugetlb-cgroup-when-we-move-the-page-to-active-list.patch
+* hugetlb-cgroup-remove-exclude-and-wakeup-rmdir-calls-from-migrate.patch
+* mm-oom-do-not-schedule-if-current-has-been-killed.patch
+* mm-memblockc-memblock_double_array-cosmetic-cleanups.patch
+* memcg-remove-check-for-signal_pending-during-rmdir.patch
+* memcg-clean-up-force_empty_list-return-value-check.patch
+* memcg-mem_cgroup_move_parent-doesnt-need-gfp_mask.patch
+* memcg-make-mem_cgroup_force_empty_list-return-bool.patch
+* memcg-make-mem_cgroup_force_empty_list-return-bool-fix.patch
+* mm-compaction-cleanup-on-compaction_deferred.patch
+* memcg-prevent-oom-with-too-many-dirty-pages.patch
+* tmpfs-implement-numa-node-interleaving.patch
+* tmpfs-implement-numa-node-interleaving-fix.patch
+* avr32-mm-faultc-port-oom-changes-to-do_page_fault.patch
+* avr32-mm-faultc-port-oom-changes-to-do_page_fault-fix.patch
+* clk-add-non-config_have_clk-routines.patch
+* clk-remove-redundant-depends-on-from-drivers-kconfig.patch
+* i2c-i2c-pxa-remove-conditional-compilation-of-clk-code.patch
+* usb-marvell-remove-conditional-compilation-of-clk-code.patch
+* usb-musb-remove-conditional-compilation-of-clk-code.patch
+* ata-pata_arasan-remove-conditional-compilation-of-clk-code.patch
+* net-c_can-remove-conditional-compilation-of-clk-code.patch
+* net-stmmac-remove-conditional-compilation-of-clk-code.patch
+* gadget-m66592-remove-conditional-compilation-of-clk-code.patch
+* gadget-r8a66597-remove-conditional-compilation-of-clk-code.patch
+* usb-host-r8a66597-remove-conditional-compilation-of-clk-code.patch
+* clk-validate-pointer-in-__clk_disable.patch
+* nmi-watchdog-fix-for-lockup-detector-breakage-on-resume.patch
+* kmsg-dev-kmsg-properly-return-possible-copy_from_user-failure.patch
+* printk-add-generic-functions-to-find-kern_level-headers.patch
+* printk-add-generic-functions-to-find-kern_level-headers-fix.patch
+* printk-add-kern_levelsh-to-make-kern_level-available-for-asm-use.patch
+* arch-remove-direct-definitions-of-kern_level-uses.patch
+* btrfs-use-printk_get_level-and-printk_skip_level-add-__printf-fix-fallout.patch
+* btrfs-use-printk_get_level-and-printk_skip_level-add-__printf-fix-fallout-fix.patch
+* btrfs-use-printk_get_level-and-printk_skip_level-add-__printf-fix-fallout-checkpatch-fixes.patch
+* sound-use-printk_get_level-and-printk_skip_level.patch
+* printk-convert-the-format-for-kern_level-to-a-2-byte-pattern.patch
+* printk-only-look-for-prefix-levels-in-kernel-messages.patch
+* printk-remove-the-now-unnecessary-c-annotation-for-kern_cont.patch
+* vsprintf-add-%pmr-for-bluetooth-mac-address.patch
+* vsprintf-add-%pmr-for-bluetooth-mac-address-fix.patch
+* lib-vsprintfc-remind-people-to-update-documentation-printk-formatstxt-when-adding-printk-formats.patch
+* drivers-video-backlight-atmel-pwm-blc-use-devm_-functions.patch
+* drivers-video-backlight-ot200_blc-use-devm_-functions.patch
+* drivers-video-backlight-lm3533_blc-use-devm_-functions.patch
+* backlight-atmel-pwm-bl-use-devm_gpio_request.patch
+* backlight-ot200_bl-use-devm_gpio_request.patch
+* backlight-tosa_lcd-use-devm_gpio_request.patch
+* backlight-tosa_bl-use-devm_gpio_request.patch
+* backlight-lms283gf05-use-devm_gpio_request.patch
+* backlight-corgi_lcd-use-devm_gpio_request.patch
+* backlight-l4f00242t03-use-devm_gpio_request_one.patch
+* string-introduce-memweight.patch
+* string-introduce-memweight-fix.patch
+* string-introduce-memweight-fix-build-error-caused-by-memweight-introduction.patch
+* qnx4fs-use-memweight.patch
+* dm-use-memweight.patch
+* affs-use-memweight.patch
+* video-uvc-use-memweight.patch
+* ocfs2-use-memweight.patch
+* ext2-use-memweight.patch
+* ext3-use-memweight.patch
+* ext4-use-memweight.patch
+* checkpatch-update-alignment-check.patch
+* checkpatch-test-for-non-standard-signatures.patch
+* checkpatch-check-usleep_range-arguments.patch
+* drivers-rtc-rtc-coh901331c-use-clk_prepare-unprepare.patch
+* drivers-rtc-rtc-coh901331c-use-devm-allocation.patch
+* drivers-rtc-rtc-ab8500c-use-irqf_oneshot-when-requesting-a-threaded-irq.patch
+* rtc-pl031-encapsulate-per-vendor-ops.patch
+* rtc-pl031-use-per-vendor-variables-for-special-init.patch
+* rtc-pl031-fix-up-irq-flags.patch
+* drivers-rtc-rtc-ab8500c-use-uie-emulation.patch
+* drivers-rtc-rtc-ab8500c-use-uie-emulation-checkpatch-fixes.patch
+* drivers-rtc-rtc-ab8500c-remove-fix-for-ab8500-ed-version.patch
+* drivers-rtc-rtc-r9701c-avoid-second-call-to-rtc_valid_tm.patch
+* drivers-rtc-rtc-r9701c-check-that-r9701_set_datetime-succeeded.patch
+* hfsplus-use-enomem-when-kzalloc-fails.patch
+* hfsplus-make-hfsplus_sync_fs-static.patch
+* hfsplus-amend-debugging-print.patch
+* hfsplus-remove-useless-check.patch
+* hfsplus-get-rid-of-write_super.patch
+* hfsplus-get-rid-of-write_super-checkpatch-fixes.patch
+* kmod-avoid-deadlock-from-recursive-kmod-call.patch
+* fork-use-vma_pages-to-simplify-the-code.patch
+* fork-use-vma_pages-to-simplify-the-code-fix.patch
+* ipc-semc-alternatives-to-preempt_disable.patch
+* drivers-char-ipmi-ipmi_watchdogc-remove-local-ioctl-defines-replaced-by-generic-ones.patch
+* fs-cachefiles-add-support-for-large-files-in-filesystem-caching.patch
+* fs-cachefiles-add-support-for-large-files-in-filesystem-caching-fix.patch
+* c-r-fcntl-add-f_getowner_uids-option.patch
+* notify_change-check-that-i_mutex-is-held.patch
+  make-sure-nobodys-leaking-resources.patch
+  journal_add_journal_head-debug.patch
+  releasing-resources-with-children.patch
+  make-frame_pointer-default=y.patch
+  mutex-subsystem-synchro-test-module.patch
+  mutex-subsystem-synchro-test-module-fix.patch
+  slab-leaks3-default-y.patch
+  put_bh-debug.patch
+  add-debugging-aid-for-memory-initialisation-problems.patch
+  workaround-for-a-pci-restoring-bug.patch
+  prio_tree-debugging-patch.patch
+  single_open-seq_release-leak-diagnostics.patch
+  add-a-refcount-check-in-dput.patch
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
