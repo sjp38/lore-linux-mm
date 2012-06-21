@@ -1,43 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
-	by kanga.kvack.org (Postfix) with SMTP id 606C96B00EF
-	for <linux-mm@kvack.org>; Thu, 21 Jun 2012 15:09:50 -0400 (EDT)
-Received: from /spool/local
-	by e33.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
-	Thu, 21 Jun 2012 13:09:46 -0600
-Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
-	by d03dlp03.boulder.ibm.com (Postfix) with ESMTP id 907D419D8B8A
-	for <linux-mm@kvack.org>; Thu, 21 Jun 2012 18:51:38 +0000 (WET)
-Received: from d03av06.boulder.ibm.com (d03av06.boulder.ibm.com [9.17.195.245])
-	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q5LIpZYG205802
-	for <linux-mm@kvack.org>; Thu, 21 Jun 2012 12:51:37 -0600
-Received: from d03av06.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av06.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q5LIqW5f011731
-	for <linux-mm@kvack.org>; Thu, 21 Jun 2012 12:52:32 -0600
-Message-ID: <4FE36D32.3030408@linux.vnet.ibm.com>
-Date: Thu, 21 Jun 2012 13:51:30 -0500
-From: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
+	by kanga.kvack.org (Postfix) with SMTP id 86D776B00F1
+	for <linux-mm@kvack.org>; Thu, 21 Jun 2012 15:22:56 -0400 (EDT)
+Date: Thu, 21 Jun 2012 21:22:53 +0200
+From: Borislav Petkov <bp@alien8.de>
+Subject: Re: [PATCH -mm 4/7] mm: make page colouring code generic
+Message-ID: <20120621192253.GD15472@liondog.tnic>
+Reply-To: Borislav Petkov <borislav.petkov@amd.com>
+References: <1340057126-31143-1-git-send-email-riel@redhat.com>
+ <1340057126-31143-5-git-send-email-riel@redhat.com>
+ <20120619162747.fa31c86a.akpm@linux-foundation.org>
+ <4FE35F4E.3080002@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 01/10] zcache: fix preemptable memory allocation in atomic
- context
-References: <4FE0392E.3090300@linux.vnet.ibm.com>
-In-Reply-To: <4FE0392E.3090300@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <4FE35F4E.3080002@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+To: Rik van Riel <riel@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, aarcange@redhat.com, peterz@infradead.org, minchan@gmail.com, kosaki.motohiro@gmail.com, andi@firstfloor.org, hannes@cmpxchg.org, mel@csn.ul.ie, linux-kernel@vger.kernel.org, Rik van Riel <riel@surriel.com>
 
-I just noticed you sent this patchset to Andrew, but the
-staging tree is maintained by Greg.  You're going to want to
-send these patches to him.
+On Thu, Jun 21, 2012 at 01:52:14PM -0400, Rik van Riel wrote:
+> >Some performance tests on the result would be interesting.  iirc, we've
+> >often had trouble demonstrating much or any benefit from coloring.
+> 
+> On AMD Bulldozer, I do not know what the benefits are.
 
-Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+I have arranged for running a bunch of benchmarks with and without your
+patchset on Bulldozer, basically everything you can get in autotest.
 
---
-Seth
+Also, if you have any other microbenchmarks or tests your want run, ping
+me.
+
+Thanks.
+
+-- 
+Regards/Gruss,
+    Boris.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
