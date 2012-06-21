@@ -1,73 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
-	by kanga.kvack.org (Postfix) with SMTP id 0D2896B0089
-	for <linux-mm@kvack.org>; Thu, 21 Jun 2012 04:04:58 -0400 (EDT)
-Received: by dakp5 with SMTP id p5so654307dak.14
-        for <linux-mm@kvack.org>; Thu, 21 Jun 2012 01:04:58 -0700 (PDT)
-Date: Thu, 21 Jun 2012 01:04:55 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 4/4] don't do __ClearPageSlab before freeing slab page.
-In-Reply-To: <1340225959-1966-5-git-send-email-glommer@parallels.com>
-Message-ID: <alpine.DEB.2.00.1206210103350.31077@chino.kir.corp.google.com>
-References: <1340225959-1966-1-git-send-email-glommer@parallels.com> <1340225959-1966-5-git-send-email-glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
+	by kanga.kvack.org (Postfix) with SMTP id A963E6B008C
+	for <linux-mm@kvack.org>; Thu, 21 Jun 2012 04:11:31 -0400 (EDT)
+Message-ID: <4FE2D73C.3060001@kernel.org>
+Date: Thu, 21 Jun 2012 17:11:40 +0900
+From: Minchan Kim <minchan@kernel.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [patch] mm, thp: abort compaction if migration page cannot be
+ charged to memcg
+References: <alpine.DEB.2.00.1206202351030.28770@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.00.1206202351030.28770@chino.kir.corp.google.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, Cristoph Lameter <cl@linux.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Michal Hocko <mhocko@suse.cz>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Suleiman Souhlal <suleiman@google.com>
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Thu, 21 Jun 2012, Glauber Costa wrote:
+On 06/21/2012 03:52 PM, David Rientjes wrote:
 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 6092f33..fdec73e 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -698,8 +698,10 @@ static bool free_pages_prepare(struct page *page, unsigned int order)
+> If page migration cannot charge the new page to the memcg,
+> migrate_pages() will return -ENOMEM.  This isn't considered in memory
+> compaction however, and the loop continues to iterate over all pageblocks
+> trying in a futile attempt to continue migrations which are only bound to
+> fail.
+
+
+Hmm, it might be dumb question.
+I imagine that pages in next pageblock could be in another memcg so it could be successful.
+Why should we stop compaction once it fails to migrate pages in current pageblock/memcg?
+
+> 
+> This will short circuit and fail memory compaction if migrate_pages()
+> returns -ENOMEM.  COMPACT_PARTIAL is returned in case some migrations
+> were successful so that the page allocator will retry.
+> 
+> Signed-off-by: David Rientjes <rientjes@google.com>
+> ---
+>  mm/compaction.c |    5 ++++-
+>  1 file changed, 4 insertions(+), 1 deletion(-)
+> 
+> diff --git a/mm/compaction.c b/mm/compaction.c
+> --- a/mm/compaction.c
+> +++ b/mm/compaction.c
+> @@ -701,8 +701,11 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
+>  		if (err) {
+>  			putback_lru_pages(&cc->migratepages);
+>  			cc->nr_migratepages = 0;
+> +			if (err == -ENOMEM) {
+> +				ret = COMPACT_PARTIAL;
+> +				goto out;
+> +			}
+>  		}
+> -
+>  	}
 >  
->  	if (PageAnon(page))
->  		page->mapping = NULL;
-> -	for (i = 0; i < (1 << order); i++)
-> +	for (i = 0; i < (1 << order); i++) {
-> +		__ClearPageSlab(page + i);
->  		bad += free_pages_check(page + i);
-> +	}
->  	if (bad)
->  		return false;
->  
-> @@ -2561,6 +2563,7 @@ EXPORT_SYMBOL(get_zeroed_page);
->  void __free_pages(struct page *page, unsigned int order)
->  {
->  	if (put_page_testzero(page)) {
-> +		__ClearPageSlab(page);
->  		if (order == 0)
->  			free_hot_cold_page(page, 0);
->  		else
+>  out:
 
-These are called from a number of different places that has nothing to do 
-with slab so it's certainly out of place here.  Is there really no 
-alternative way of doing this?
 
-> diff --git a/mm/slab.c b/mm/slab.c
-> index cb6da05..3e578fc 100644
-> --- a/mm/slab.c
-> +++ b/mm/slab.c
-> @@ -1821,11 +1821,6 @@ static void kmem_freepages(struct kmem_cache *cachep, void *addr)
->  	else
->  		sub_zone_page_state(page_zone(page),
->  				NR_SLAB_UNRECLAIMABLE, nr_freed);
-> -	while (i--) {
-> -		BUG_ON(!PageSlab(page));
-> -		__ClearPageSlab(page);
-> -		page++;
-> -	}
->  	if (current->reclaim_state)
->  		current->reclaim_state->reclaimed_slab += nr_freed;
->  	free_pages((unsigned long)addr, cachep->gfporder);
 
-And we lose this validation in slab.
-
-I'm hoping there's an alternative.
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
