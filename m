@@ -1,46 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
-	by kanga.kvack.org (Postfix) with SMTP id D783B6B004D
-	for <linux-mm@kvack.org>; Wed, 20 Jun 2012 21:00:15 -0400 (EDT)
-Received: by dakp5 with SMTP id p5so125295dak.14
-        for <linux-mm@kvack.org>; Wed, 20 Jun 2012 18:00:15 -0700 (PDT)
-Date: Wed, 20 Jun 2012 18:00:12 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
+	by kanga.kvack.org (Postfix) with SMTP id 12E926B004D
+	for <linux-mm@kvack.org>; Wed, 20 Jun 2012 21:19:42 -0400 (EDT)
+Received: by pbbrp2 with SMTP id rp2so1752067pbb.14
+        for <linux-mm@kvack.org>; Wed, 20 Jun 2012 18:19:41 -0700 (PDT)
+Date: Wed, 20 Jun 2012 18:19:38 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: [patch 3.5-rc3] mm, mempolicy: fix mbind() to do synchronous
- migration
-Message-ID: <alpine.DEB.2.00.1206201758500.3068@chino.kir.corp.google.com>
+Subject: Re: [PATCH] mm/buddy: get the allownodes for dump at once
+In-Reply-To: <1339662910-25774-1-git-send-email-shangw@linux.vnet.ibm.com>
+Message-ID: <alpine.DEB.2.00.1206201815100.3702@chino.kir.corp.google.com>
+References: <1339662910-25774-1-git-send-email-shangw@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mgorman@suse.de>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Gavin Shan <shangw@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, minchan@kernel.org, mgorman@suse.de, akpm@linux-foundation.org
 
-If the range passed to mbind() is not allocated on nodes set in the
-nodemask, it migrates the pages to respect the constraint.
+On Thu, 14 Jun 2012, Gavin Shan wrote:
 
-The final formal of migrate_pages() is a mode of type enum migrate_mode,
-not a boolean.  do_mbind() is currently passing "true" which is the
-equivalent of MIGRATE_SYNC_LIGHT.  This should instead be MIGRATE_SYNC
-for synchronous page migration.
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 7892f84..211004e 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -2765,11 +2765,19 @@ out:
+>   */
+>  void show_free_areas(unsigned int filter)
+>  {
+> -	int cpu;
+> +	int nid, cpu;
+> +	nodemask_t allownodes;
+>  	struct zone *zone;
+>  
 
-Signed-off-by: David Rientjes <rientjes@google.com>
----
- mm/mempolicy.c |    2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+I saw this added to the -mm tree today, but it has to be nacked with 
+apologies for not seeing the patch on the mailing list earlier.
 
-diff --git a/mm/mempolicy.c b/mm/mempolicy.c
---- a/mm/mempolicy.c
-+++ b/mm/mempolicy.c
-@@ -1177,7 +1177,7 @@ static long do_mbind(unsigned long start, unsigned long len,
- 		if (!list_empty(&pagelist)) {
- 			nr_failed = migrate_pages(&pagelist, new_vma_page,
- 						(unsigned long)vma,
--						false, true);
-+						false, MIGRATE_SYNC);
- 			if (nr_failed)
- 				putback_lru_pages(&pagelist);
- 		}
+show_free_areas() is called by the oom killer, so we know two things: it 
+can be called potentially very deep in the callchain and current is out of 
+memory.  Both are killers for this patch since you're allocating 
+nodemask_t on the stack here which could cause an overflow and because you 
+can't easily fix that case with NODEMASK_ALLOC() since it allocates slab 
+with GFP_KERNEL when we we're oom, which would simply suppress vital 
+meminfo from being shown.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
