@@ -1,33 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
-	by kanga.kvack.org (Postfix) with SMTP id 766CE6B005C
-	for <linux-mm@kvack.org>; Wed, 20 Jun 2012 21:37:52 -0400 (EDT)
-Received: by dakp5 with SMTP id p5so163871dak.14
-        for <linux-mm@kvack.org>; Wed, 20 Jun 2012 18:37:51 -0700 (PDT)
-Date: Wed, 20 Jun 2012 18:37:49 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] slab: do not call compound_head() in page_get_cache()
-In-Reply-To: <1340233273-10994-1-git-send-email-walken@google.com>
-Message-ID: <alpine.DEB.2.00.1206201837320.7850@chino.kir.corp.google.com>
-References: <1340233273-10994-1-git-send-email-walken@google.com>
+Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
+	by kanga.kvack.org (Postfix) with SMTP id ABF3E6B005C
+	for <linux-mm@kvack.org>; Wed, 20 Jun 2012 21:39:28 -0400 (EDT)
+Received: by ghrr18 with SMTP id r18so91970ghr.14
+        for <linux-mm@kvack.org>; Wed, 20 Jun 2012 18:39:27 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <4FE26470.90401@kernel.org>
+References: <4FE169B1.7020600@kernel.org> <4FE16E80.9000306@gmail.com>
+ <4FE18187.3050103@kernel.org> <4FE23069.5030702@gmail.com> <4FE26470.90401@kernel.org>
+From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Date: Wed, 20 Jun 2012 21:39:07 -0400
+Message-ID: <CAHGf_=pjoiHQ9vxXXe-GtbkYRzhxdDhu3pf6pwDsCe5pBQE8Nw@mail.gmail.com>
+Subject: Re: Accounting problem of MIGRATE_ISOLATED freed page
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michel Lespinasse <walken@google.com>
-Cc: linux-mm@kvack.org, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Aaditya Kumar <aaditya.kumar.30@gmail.com>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Wed, 20 Jun 2012, Michel Lespinasse wrote:
+>> number of isolate page block is almost always 0. then if we have such counter,
+>> we almost always can avoid zone->lock. Just idea.
+>
+> Yeb. I thought about it but unfortunately we can't have a counter for MIGRATE_ISOLATE.
+> Because we have to tweak in page free path for pages which are going to free later after we
+> mark pageblock type to MIGRATE_ISOLATE.
 
-> page_get_cache() does not need to call compound_head(), as its unique
-> caller virt_to_slab() already makes sure to return a head page.
-> 
-> Additionally, removing the compound_head() call makes page_get_cache()
-> consistent with page_get_slab().
-> 
-> Signed-off-by: Michel Lespinasse <walken@google.com>
+I mean,
 
-Acked-by: David Rientjes <rientjes@google.com>
+if (nr_isolate_pageblock != 0)
+   free_pages -= nr_isolated_free_pages(); // your counting logic
+
+return __zone_watermark_ok(z, alloc_order, mark,
+                              classzone_idx, alloc_flags, free_pages);
+
+
+I don't think this logic affect your race. zone_watermark_ok() is already
+racy. then new little race is no big matter.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
