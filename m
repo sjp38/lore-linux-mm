@@ -1,48 +1,29 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
-	by kanga.kvack.org (Postfix) with SMTP id 12E926B004D
-	for <linux-mm@kvack.org>; Wed, 20 Jun 2012 21:19:42 -0400 (EDT)
-Received: by pbbrp2 with SMTP id rp2so1752067pbb.14
-        for <linux-mm@kvack.org>; Wed, 20 Jun 2012 18:19:41 -0700 (PDT)
-Date: Wed, 20 Jun 2012 18:19:38 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
+	by kanga.kvack.org (Postfix) with SMTP id 250786B004D
+	for <linux-mm@kvack.org>; Wed, 20 Jun 2012 21:23:52 -0400 (EDT)
+Received: by dakp5 with SMTP id p5so148991dak.14
+        for <linux-mm@kvack.org>; Wed, 20 Jun 2012 18:23:51 -0700 (PDT)
+Date: Wed, 20 Jun 2012 18:23:49 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] mm/buddy: get the allownodes for dump at once
-In-Reply-To: <1339662910-25774-1-git-send-email-shangw@linux.vnet.ibm.com>
-Message-ID: <alpine.DEB.2.00.1206201815100.3702@chino.kir.corp.google.com>
-References: <1339662910-25774-1-git-send-email-shangw@linux.vnet.ibm.com>
+Subject: Re: [patch v3] mm, oom: do not schedule if current has been killed
+In-Reply-To: <4FE11B6C.6020706@jp.fujitsu.com>
+Message-ID: <alpine.DEB.2.00.1206201823380.3702@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.1206181807060.13281@chino.kir.corp.google.com> <4FDFDCA7.8060607@jp.fujitsu.com> <alpine.DEB.2.00.1206181918390.13293@chino.kir.corp.google.com> <alpine.DEB.2.00.1206181930550.13293@chino.kir.corp.google.com> <20120619135551.GA24542@redhat.com>
+ <alpine.DEB.2.00.1206191323470.17985@chino.kir.corp.google.com> <alpine.DEB.2.00.1206191358030.21795@chino.kir.corp.google.com> <4FE0F1A9.7050607@gmail.com> <4FE11B6C.6020706@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Gavin Shan <shangw@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org, minchan@kernel.org, mgorman@suse.de, akpm@linux-foundation.org
+To: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org
 
-On Thu, 14 Jun 2012, Gavin Shan wrote:
+On Wed, 20 Jun 2012, Kamezawa Hiroyuki wrote:
 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 7892f84..211004e 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -2765,11 +2765,19 @@ out:
->   */
->  void show_free_areas(unsigned int filter)
->  {
-> -	int cpu;
-> +	int nid, cpu;
-> +	nodemask_t allownodes;
->  	struct zone *zone;
->  
+> I'll check memcg part to make it consistent to this when this goes to -mm.
+> 
 
-I saw this added to the -mm tree today, but it has to be nacked with 
-apologies for not seeing the patch on the mailing list earlier.
-
-show_free_areas() is called by the oom killer, so we know two things: it 
-can be called potentially very deep in the callchain and current is out of 
-memory.  Both are killers for this patch since you're allocating 
-nodemask_t on the stack here which could cause an overflow and because you 
-can't easily fix that case with NODEMASK_ALLOC() since it allocates slab 
-with GFP_KERNEL when we we're oom, which would simply suppress vital 
-meminfo from being shown.
+It's merged.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
