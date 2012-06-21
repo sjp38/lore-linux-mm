@@ -1,127 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
-	by kanga.kvack.org (Postfix) with SMTP id 9D6196B009B
-	for <linux-mm@kvack.org>; Thu, 21 Jun 2012 04:28:23 -0400 (EDT)
-Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id D6E5E3EE0BD
-	for <linux-mm@kvack.org>; Thu, 21 Jun 2012 17:28:21 +0900 (JST)
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 8AA9D45DE56
-	for <linux-mm@kvack.org>; Thu, 21 Jun 2012 17:28:21 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 676B645DE51
-	for <linux-mm@kvack.org>; Thu, 21 Jun 2012 17:28:21 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 554361DB802F
-	for <linux-mm@kvack.org>; Thu, 21 Jun 2012 17:28:21 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 0CCFEE18002
-	for <linux-mm@kvack.org>; Thu, 21 Jun 2012 17:28:21 +0900 (JST)
-Message-ID: <4FE2DAA3.20606@jp.fujitsu.com>
-Date: Thu, 21 Jun 2012 17:26:11 +0900
-From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
+	by kanga.kvack.org (Postfix) with SMTP id F10A76B009D
+	for <linux-mm@kvack.org>; Thu, 21 Jun 2012 04:30:50 -0400 (EDT)
+Received: by pbbrp2 with SMTP id rp2so2306542pbb.14
+        for <linux-mm@kvack.org>; Thu, 21 Jun 2012 01:30:50 -0700 (PDT)
+Date: Thu, 21 Jun 2012 01:30:47 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch] mm, thp: abort compaction if migration page cannot be
+ charged to memcg
+In-Reply-To: <4FE2D73C.3060001@kernel.org>
+Message-ID: <alpine.DEB.2.00.1206210124380.6635@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.1206202351030.28770@chino.kir.corp.google.com> <4FE2D73C.3060001@kernel.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/2] memcg: remove -EINTR at rmdir()
-References: <4FDF17A3.9060202@jp.fujitsu.com> <20120618133012.GB2313@tiehlicka.suse.cz> <4FDFC34B.3010003@jp.fujitsu.com> <20120619124036.GB22254@tiehlicka.suse.cz>
-In-Reply-To: <20120619124036.GB22254@tiehlicka.suse.cz>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, cgroups@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-(2012/06/19 21:40), Michal Hocko wrote:
-> On Tue 19-06-12 09:09:47, KAMEZAWA Hiroyuki wrote:
->> (2012/06/18 22:30), Michal Hocko wrote:
->>> On Mon 18-06-12 20:57:23, KAMEZAWA Hiroyuki wrote:
->>>> 2 follow-up patches for "memcg: move charges to root cgroup if use_hierarchy=0",
->>>> developped/tested onto memcg-devel tree. Maybe no HUNK with -next and -mm....
->>>> -Kame
->>>> ==
->>>> memcg: remove -EINTR at rmdir()
->>>>
->>>> By commit "memcg: move charges to root cgroup if use_hierarchy=0",
->>>> no memory reclaiming will occur at removing memory cgroup.
->>>
->>> OK, so the there are only 2 reasons why move_parent could fail in this
->>> path. 1) it races with somebody else who is uncharging or moving the
->>> charge and 2) THP split.
->>> 1) works for us and 2) doens't seem to be serious enough to expect that
->>> it would stall rmdir on the group for unbound amount of time so the
->>> change is safe (can we make this into the changelog please?).
->>>
->>
->> Yes. But the failure of move_parent() (-EBUSY) will be retried.
->>
->> Remaining problems are
->>   - attaching task while pre_destroy() is called.
->>   - creating child cgroup while pre_destroy() is called.
->
-> I don't know why but I thought that tasks and subgroups are not alowed
-> when pre_destroy is called. If this is possible then we probably want to
-> check for pending signals or at least add cond_resched.
+On Thu, 21 Jun 2012, Minchan Kim wrote:
 
+> > If page migration cannot charge the new page to the memcg,
+> > migrate_pages() will return -ENOMEM.  This isn't considered in memory
+> > compaction however, and the loop continues to iterate over all pageblocks
+> > trying in a futile attempt to continue migrations which are only bound to
+> > fail.
+> 
+> 
+> Hmm, it might be dumb question.
+> I imagine that pages in next pageblock could be in another memcg so it could be successful.
+> Why should we stop compaction once it fails to migrate pages in current pageblock/memcg?
+> 
 
-Now, pre_destroy() call is done as
+ [ You included the gmane.linux.kernel and gmane.linux.kernel.mm
+   newsgroups in your reply, not sure why, so I removed them. ]
 
-	lock_cgroup_mutex();
-	do some pre-check, no child, no tasks.
-	unlock_cgroup_mutex();
+This was inspired by a system running with a single oom memcg running with 
+thp that continuously tried migrating pages resulting in vmstats such as 
+this:
 
-	->pre_destroy()
+compact_blocks_moved 59473599
+compact_pages_moved 50041548
+compact_pagemigrate_failed 1494277831
+compact_stall 1013
+compact_fail 573
 
-	lock_cgroup_mutex()
-	check css's refcnt....
+Obviously not a good result.
 
-What I take care of now is following case.
-		CPU A			    CPU-B
-	unlock_cgroup_mutex()
-	->pre_destroy()
+We could certainly continue the iteration in cases like this, but I 
+thought it would be better to fail and rely on direct reclaim to actually 
+try to free some memory, especially if that oom memcg happens to include 
+current.
 
-	<delay by something>		attach new task
-					add new charge
-					detach the task
-	lock_cgroup_mutex()
-	check rss' refcnt
+It's possible that subsequent pageblocks would contain memory allocated 
+from solely non-oom memcgs, but it's certainly not a guarantee and results 
+in terrible performance as exhibited above.  Is there another good 
+criteria to use when deciding when to stop isolating and attempting to 
+migrate all of these pageblocks?
 
-This will cause account leak even if I think this will not happen in the real world.
-I'd like to disable attach task.
-
-Now, our ->pre_destroy() is quite fast because we don't have no memory reclaim.
-I believe we can call ->pre_destroy() without dropping cgroup_mutex.
-
-	lock_cgroup_mutex()
-	do pre-check
-
-	->pre_destroy()
-
-	check css's refcnt
-
-I think this is straightforward. I'd like to post a patch.
-Thanks,
--Kame
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+Other ideas?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
