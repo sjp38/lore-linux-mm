@@ -1,247 +1,208 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
-	by kanga.kvack.org (Postfix) with SMTP id 81B336B011A
-	for <linux-mm@kvack.org>; Thu, 21 Jun 2012 17:58:12 -0400 (EDT)
-From: Rik van Riel <riel@surriel.com>
-Subject: [PATCH -mm v2 09/11] mm: remove MIPS arch_get_unmapped_area code
-Date: Thu, 21 Jun 2012 17:57:13 -0400
-Message-Id: <1340315835-28571-10-git-send-email-riel@surriel.com>
-In-Reply-To: <1340315835-28571-1-git-send-email-riel@surriel.com>
-References: <1340315835-28571-1-git-send-email-riel@surriel.com>
+Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
+	by kanga.kvack.org (Postfix) with SMTP id E1ECB6B011F
+	for <linux-mm@kvack.org>; Thu, 21 Jun 2012 19:12:35 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id E88E63EE081
+	for <linux-mm@kvack.org>; Fri, 22 Jun 2012 08:12:33 +0900 (JST)
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id D102945DE56
+	for <linux-mm@kvack.org>; Fri, 22 Jun 2012 08:12:33 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id B9C2845DE55
+	for <linux-mm@kvack.org>; Fri, 22 Jun 2012 08:12:33 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id AD1DF1DB804D
+	for <linux-mm@kvack.org>; Fri, 22 Jun 2012 08:12:33 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 5D7061DB804C
+	for <linux-mm@kvack.org>; Fri, 22 Jun 2012 08:12:33 +0900 (JST)
+Message-ID: <4FE3A998.3000606@jp.fujitsu.com>
+Date: Fri, 22 Jun 2012 08:09:12 +0900
+From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH 2/2] memcg: add per cgroup dirty pages accounting
+References: <1339761611-29033-1-git-send-email-handai.szj@taobao.com> <1339761717-29070-1-git-send-email-handai.szj@taobao.com> <xr93k3z8twtg.fsf@gthelen.mtv.corp.google.com> <4FDC28F0.8050805@jp.fujitsu.com> <CAFj3OHXuX7tpDe4famK3fFMZBcj2w-9mDs9mD9P_-SwaRKx8tg@mail.gmail.com> <4FE2D2F4.2020202@jp.fujitsu.com> <xr938vfgmz4y.fsf@gthelen.mtv.corp.google.com>
+In-Reply-To: <xr938vfgmz4y.fsf@gthelen.mtv.corp.google.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: akpm@linux-foundation.org, aarcange@redhat.com, peterz@infradead.org, minchan@gmail.com, kosaki.motohiro@gmail.com, andi@firstfloor.org, hannes@cmpxchg.org, mel@csn.ul.ie, linux-kernel@vger.kernel.org, Rik van Riel <riel@surriel.com>, Ralf Baechle <ralf@linux-mips.org>, sjhill@mips.com, linux-mips@linux-mips.org, Rik van Riel <riel@redhat.com>
+To: Greg Thelen <gthelen@google.com>
+Cc: Sha Zhengju <handai.szj@gmail.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, yinghan@google.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, mhocko@suse.cz, Sha Zhengju <handai.szj@taobao.com>
 
-Remove all the MIPS specific arch_get_unmapped_area(_topdown) and
-page colouring code, now that the generic code should be able to
-handle things.
+(2012/06/22 1:02), Greg Thelen wrote:
+> On Thu, Jun 21 2012, Kamezawa Hiroyuki wrote:
+>
+>> (2012/06/19 23:31), Sha Zhengju wrote:
+>>> On Sat, Jun 16, 2012 at 2:34 PM, Kamezawa Hiroyuki
+>>> <kamezawa.hiroyu@jp.fujitsu.com>   wrote:
+>>>> (2012/06/16 0:32), Greg Thelen wrote:
+>>>>>
+>>>>> On Fri, Jun 15 2012, Sha Zhengju wrote:
+>>>>>
+>>>>>> This patch adds memcg routines to count dirty pages. I notice that
+>>>>>> the list has talked about per-cgroup dirty page limiting
+>>>>>> (http://lwn.net/Articles/455341/) before, but it did not get merged.
+>>>>>
+>>>>>
+>>>>> Good timing, I was just about to make another effort to get some of
+>>>>> these patches upstream.  Like you, I was going to start with some basic
+>>>>> counters.
+>>>>>
+>>>>> Your approach is similar to what I have in mind.  While it is good to
+>>>>> use the existing PageDirty flag, rather than introducing a new
+>>>>> page_cgroup flag, there are locking complications (see below) to handle
+>>>>> races between moving pages between memcg and the pages being {un}marked
+>>>>> dirty.
+>>>>>
+>>>>>> I've no idea how is this going now, but maybe we can add per cgroup
+>>>>>> dirty pages accounting first. This allows the memory controller to
+>>>>>> maintain an accurate view of the amount of its memory that is dirty
+>>>>>> and can provide some infomation while group's direct reclaim is working.
+>>>>>>
+>>>>>> After commit 89c06bd5 (memcg: use new logic for page stat accounting),
+>>>>>> we do not need per page_cgroup flag anymore and can directly use
+>>>>>> struct page flag.
+>>>>>>
+>>>>>>
+>>>>>> Signed-off-by: Sha Zhengju<handai.szj@taobao.com>
+>>>>>> ---
+>>>>>>    include/linux/memcontrol.h |    1 +
+>>>>>>    mm/filemap.c               |    1 +
+>>>>>>    mm/memcontrol.c            |   32 +++++++++++++++++++++++++-------
+>>>>>>    mm/page-writeback.c        |    2 ++
+>>>>>>    mm/truncate.c              |    1 +
+>>>>>>    5 files changed, 30 insertions(+), 7 deletions(-)
+>>>>>>
+>>>>>> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+>>>>>> index a337c2e..8154ade 100644
+>>>>>> --- a/include/linux/memcontrol.h
+>>>>>> +++ b/include/linux/memcontrol.h
+>>>>>> @@ -39,6 +39,7 @@ enum mem_cgroup_stat_index {
+>>>>>>          MEM_CGROUP_STAT_FILE_MAPPED,  /* # of pages charged as file rss */
+>>>>>>          MEM_CGROUP_STAT_SWAPOUT, /* # of pages, swapped out */
+>>>>>>          MEM_CGROUP_STAT_DATA, /* end of data requires synchronization */
+>>>>>> +       MEM_CGROUP_STAT_FILE_DIRTY,  /* # of dirty pages in page cache */
+>>>>>>          MEM_CGROUP_STAT_NSTATS,
+>>>>>>    };
+>>>>>>
+>>>>>> diff --git a/mm/filemap.c b/mm/filemap.c
+>>>>>> index 79c4b2b..5b5c121 100644
+>>>>>> --- a/mm/filemap.c
+>>>>>> +++ b/mm/filemap.c
+>>>>>> @@ -141,6 +141,7 @@ void __delete_from_page_cache(struct page *page)
+>>>>>>           * having removed the page entirely.
+>>>>>>           */
+>>>>>>          if (PageDirty(page)&&     mapping_cap_account_dirty(mapping)) {
+>>>>>> +               mem_cgroup_dec_page_stat(page,
+>>>>>> MEM_CGROUP_STAT_FILE_DIRTY);
+>>>>>
+>>>>>
+>>>>> You need to use mem_cgroup_{begin,end}_update_page_stat around critical
+>>>>> sections that:
+>>>>> 1) check PageDirty
+>>>>> 2) update MEM_CGROUP_STAT_FILE_DIRTY counter
+>>>>>
+>>>>> This protects against the page from being moved between memcg while
+>>>>> accounting.  Same comment applies to all of your new calls to
+>>>>> mem_cgroup_{dec,inc}_page_stat.  For usage pattern, see
+>>>>> page_add_file_rmap.
+>>>>>
+>>>>
+>>>> If you feel some difficulty with mem_cgroup_{begin,end}_update_page_stat(),
+>>>> please let me know...I hope they should work enough....
+>>>>
+>>>
+>>> Hi, Kame
+>>>
+>>> While digging into the bigger lock of mem_cgroup_{begin,end}_update_page_stat(),
+>>> I find the reality is more complex than I thought. Simply stated,
+>>> modifying page info
+>>> and update page stat may be wide apart and in different level (eg.
+>>> mm&fs), so if we
+>>> use the big lock it may lead to scalability and maintainability issues.
+>>>
+>>> For example:
+>>>        mem_cgroup_begin_update_page_stat()
+>>>        modify page information                 =>   TestSetPageDirty ina??ceph_set_page_dirty() (fs/ceph/addr.c)
+>>>        XXXXXX                                  =>   other fs operations
+>>>        mem_cgroup_update_page_stat()   =>   account_page_dirtied() ina??mm/page-writeback.c
+>>>        mem_cgroup_end_update_page_stat().
+>>>
+>>> We can choose to get lock in higher level meaning vfs set_page_dirty()
+>>> but this may span
+>>> too much and can also have some missing cases.
+>>> What's your opinion of this problem?
+>>>
+>>
+>> yes, that's sad....If set_page_dirty() is always called under lock_page(), the
+>> story will be easier (we'll take lock_page() in move side.)
+>> but the comment on set_page_dirty() says it's not true.....Now, I haven't found a magical
+>> way for avoiding the race.
+>> (*) If holding lock_page() in move_account() can be a generic solution, it will be good.
+>>      A proposal from me is a small-start. You can start from adding hooks to a
+>> generic
+>> functions as set_page_dirty() and __set_page_dirty_nobuffers(), clear_page_dirty_for_io().
+>>
+>> And see what happens. I guess we can add WARN_ONCE() against callers of update_page_stat()
+>> who don't take mem_cgroup_begin/end_update_page_stat()
+>> (by some new check, for example, checking !rcu_read_lock_held() in update_stat())
+>>
+>> I think we can make TODO list and catch up remaining things one by one.
+>>
+>> Thanks,
+>> -Kame
+>
+> This might be a crazy idea.  Synchronization of PageDirty with the
+> page->memcg->nr_dirty counter is a challenge because page->memcg can be
+> reassigned due to inter-memcg page moving.
 
-Untested, because I do not have any MIPS systems.
+Yes. That's the heart of the problem.
 
-Cc: Ralf Baechle <ralf@linux-mips.org>
-Cc: sjhill@mips.com
-Cc: linux-mips@linux-mips.org
-Signed-off-by: Rik van Riel <riel@redhat.com>
----
- arch/mips/include/asm/pgtable.h |    8 --
- arch/mips/mm/mmap.c             |  175 ---------------------------------------
- 2 files changed, 0 insertions(+), 183 deletions(-)
+> Could we avoid moving dirty pages between memcg?
 
-diff --git a/arch/mips/include/asm/pgtable.h b/arch/mips/include/asm/pgtable.h
-index f133a4c..5f9c49a 100644
---- a/arch/mips/include/asm/pgtable.h
-+++ b/arch/mips/include/asm/pgtable.h
-@@ -410,14 +410,6 @@ int phys_mem_access_prot_allowed(struct file *file, unsigned long pfn,
- #endif
- 
- /*
-- * We provide our own get_unmapped area to cope with the virtual aliasing
-- * constraints placed on us by the cache architecture.
-- */
--#define HAVE_ARCH_UNMAPPED_AREA
--#define HAVE_ARCH_UNMAPPED_AREA_TOPDOWN
--#define HAVE_ARCH_ALIGN_ADDR
--
--/*
-  * No page table caches to initialise
-  */
- #define pgtable_cache_init()	do { } while (0)
-diff --git a/arch/mips/mm/mmap.c b/arch/mips/mm/mmap.c
-index 3f8af17..ac342bd 100644
---- a/arch/mips/mm/mmap.c
-+++ b/arch/mips/mm/mmap.c
-@@ -15,9 +15,6 @@
- #include <linux/random.h>
- #include <linux/sched.h>
- 
--unsigned long shm_align_mask = PAGE_SIZE - 1;	/* Sane caches */
--EXPORT_SYMBOL(shm_align_mask);
--
- /* gap between mmap and stack */
- #define MIN_GAP (128*1024*1024UL)
- #define MAX_GAP ((TASK_SIZE)/6*5)
-@@ -45,178 +42,6 @@ static unsigned long mmap_base(unsigned long rnd)
- 	return PAGE_ALIGN(TASK_SIZE - gap - rnd);
- }
- 
--static inline unsigned long COLOUR_ALIGN_DOWN(unsigned long addr,
--					      unsigned long pgoff)
--{
--	unsigned long base = addr & ~shm_align_mask;
--	unsigned long off = (pgoff << PAGE_SHIFT) & shm_align_mask;
--
--	if (base + off <= addr)
--		return base + off;
--
--	return base - off;
--}
--
--#define COLOUR_ALIGN(addr, pgoff)				\
--	((((addr) + shm_align_mask) & ~shm_align_mask) +	\
--	 (((pgoff) << PAGE_SHIFT) & shm_align_mask))
--
--static unsigned long arch_get_unmapped_area_common(struct file *filp,
--	unsigned long addr0, unsigned long len, unsigned long pgoff,
--	unsigned long flags, enum mmap_allocation_direction dir)
--{
--	struct mm_struct *mm = current->mm;
--	struct vm_area_struct *vma;
--	unsigned long addr = addr0;
--	int do_color_align;
--
--	if (unlikely(len > TASK_SIZE))
--		return -ENOMEM;
--
--	if (flags & MAP_FIXED) {
--		/* Even MAP_FIXED mappings must reside within TASK_SIZE */
--		if (TASK_SIZE - len < addr)
--			return -EINVAL;
--
--		/*
--		 * We do not accept a shared mapping if it would violate
--		 * cache aliasing constraints.
--		 */
--		if ((flags & MAP_SHARED) &&
--		    ((addr - (pgoff << PAGE_SHIFT)) & shm_align_mask))
--			return -EINVAL;
--		return addr;
--	}
--
--	do_color_align = 0;
--	if (filp || (flags & MAP_SHARED))
--		do_color_align = 1;
--
--	/* requesting a specific address */
--	if (addr) {
--		if (do_color_align)
--			addr = COLOUR_ALIGN(addr, pgoff);
--		else
--			addr = PAGE_ALIGN(addr);
--
--		vma = find_vma(mm, addr);
--		if (TASK_SIZE - len >= addr &&
--		    (!vma || addr + len <= vma->vm_start))
--			return addr;
--	}
--
--	if (dir == ALLOC_UP) {
--		addr = mm->mmap_base;
--		if (do_color_align)
--			addr = COLOUR_ALIGN(addr, pgoff);
--		else
--			addr = PAGE_ALIGN(addr);
--
--		for (vma = find_vma(current->mm, addr); ; vma = vma->vm_next) {
--			/* At this point:  (!vma || addr < vma->vm_end). */
--			if (TASK_SIZE - len < addr)
--				return -ENOMEM;
--			if (!vma || addr + len <= vma->vm_start)
--				return addr;
--			addr = vma->vm_end;
--			if (do_color_align)
--				addr = COLOUR_ALIGN(addr, pgoff);
--		 }
--	 } else {
--		/* check if free_area_cache is useful for us */
--		if (len <= mm->cached_hole_size) {
--			mm->cached_hole_size = 0;
--			mm->free_area_cache = mm->mmap_base;
--		}
--
--		/*
--		 * either no address requested, or the mapping can't fit into
--		 * the requested address hole
--		 */
--		addr = mm->free_area_cache;
--		if (do_color_align) {
--			unsigned long base =
--				COLOUR_ALIGN_DOWN(addr - len, pgoff);
--			addr = base + len;
--		}
--
--		/* make sure it can fit in the remaining address space */
--		if (likely(addr > len)) {
--			vma = find_vma(mm, addr - len);
--			if (!vma || addr <= vma->vm_start) {
--				/* cache the address as a hint for next time */
--				return mm->free_area_cache = addr - len;
--			}
--		}
--
--		if (unlikely(mm->mmap_base < len))
--			goto bottomup;
--
--		addr = mm->mmap_base - len;
--		if (do_color_align)
--			addr = COLOUR_ALIGN_DOWN(addr, pgoff);
--
--		do {
--			/*
--			 * Lookup failure means no vma is above this address,
--			 * else if new region fits below vma->vm_start,
--			 * return with success:
--			 */
--			vma = find_vma(mm, addr);
--			if (likely(!vma || addr + len <= vma->vm_start)) {
--				/* cache the address as a hint for next time */
--				return mm->free_area_cache = addr;
--			}
--
--			/* remember the largest hole we saw so far */
--			if (addr + mm->cached_hole_size < vma->vm_start)
--				mm->cached_hole_size = vma->vm_start - addr;
--
--			/* try just below the current vma->vm_start */
--			addr = vma->vm_start - len;
--			if (do_color_align)
--				addr = COLOUR_ALIGN_DOWN(addr, pgoff);
--		} while (likely(len < vma->vm_start));
--
--bottomup:
--		/*
--		 * A failed mmap() very likely causes application failure,
--		 * so fall back to the bottom-up function here. This scenario
--		 * can happen with large stack limits and large mmap()
--		 * allocations.
--		 */
--		mm->cached_hole_size = ~0UL;
--		mm->free_area_cache = TASK_UNMAPPED_BASE;
--		addr = arch_get_unmapped_area(filp, addr0, len, pgoff, flags);
--		/*
--		 * Restore the topdown base:
--		 */
--		mm->free_area_cache = mm->mmap_base;
--		mm->cached_hole_size = ~0UL;
--
--		return addr;
--	}
--}
--
--unsigned long arch_get_unmapped_area(struct file *filp, unsigned long addr0,
--	unsigned long len, unsigned long pgoff, unsigned long flags)
--{
--	return arch_get_unmapped_area_common(filp,
--			addr0, len, pgoff, flags, ALLOC_UP);
--}
--
--/*
-- * There is no need to export this but sched.h declares the function as
-- * extern so making it static here results in an error.
-- */
--unsigned long arch_get_unmapped_area_topdown(struct file *filp,
--	unsigned long addr0, unsigned long len, unsigned long pgoff,
--	unsigned long flags)
--{
--	return arch_get_unmapped_area_common(filp,
--			addr0, len, pgoff, flags, ALLOC_DOWN);
--}
--
- void arch_pick_mmap_layout(struct mm_struct *mm)
- {
- 	unsigned long random_factor = 0UL;
--- 
-1.7.7.6
+How to detect it is the proebm here....
+
+> Specifically, could we make them clean before moving.
+
+I considered that but a case
+
+		CPU-A				CPU-B
+	wait_for_page_cleaned
+	.....					SetPageDirty()
+	account-memcg-nr_dirty
+
+is problematic. _If_
+
+		CPU-A			
+	lock_page()
+	move_page_for_accounting()
+	unlock_page()
+
+can help 99% of cases, I think this is a choice. But I haven't investigated
+how many callers of set_page_dirty() holds locks....
+(I guess CleraPageDirty() callers are under lock_page() always...by quick look.)
+
+If most of callers calls lock_page() or mem_cgroup_begin/end_update....I think
+adding WARNING(!page_locked(page) || !rcu_read_locked()) to update_stat() will
+be a proof of concept and automatically shows what we should do more...
+
+> This problem feels similar to page migration.  This would slow
+> down inter-memcg page movement, because it would require writeback.  But
+> I'm suspect that this is an infrequent operation.
+
+I agree. But, IIUC, the reason page-migration waits for the end of I/O is that migrating
+pages under I/O (in being copied by devices) seems crazy. So, just lock_page()
+will be an enough help....
+
+Thanks,
+-Kame
+
+
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
