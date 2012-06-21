@@ -1,29 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
-	by kanga.kvack.org (Postfix) with SMTP id 250786B004D
-	for <linux-mm@kvack.org>; Wed, 20 Jun 2012 21:23:52 -0400 (EDT)
-Received: by dakp5 with SMTP id p5so148991dak.14
-        for <linux-mm@kvack.org>; Wed, 20 Jun 2012 18:23:51 -0700 (PDT)
-Date: Wed, 20 Jun 2012 18:23:49 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
+	by kanga.kvack.org (Postfix) with SMTP id 48A446B004D
+	for <linux-mm@kvack.org>; Wed, 20 Jun 2012 21:25:11 -0400 (EDT)
+Received: by pbbrp2 with SMTP id rp2so1757648pbb.14
+        for <linux-mm@kvack.org>; Wed, 20 Jun 2012 18:25:10 -0700 (PDT)
+Date: Wed, 20 Jun 2012 18:25:07 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch v3] mm, oom: do not schedule if current has been killed
-In-Reply-To: <4FE11B6C.6020706@jp.fujitsu.com>
-Message-ID: <alpine.DEB.2.00.1206201823380.3702@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.1206181807060.13281@chino.kir.corp.google.com> <4FDFDCA7.8060607@jp.fujitsu.com> <alpine.DEB.2.00.1206181918390.13293@chino.kir.corp.google.com> <alpine.DEB.2.00.1206181930550.13293@chino.kir.corp.google.com> <20120619135551.GA24542@redhat.com>
- <alpine.DEB.2.00.1206191323470.17985@chino.kir.corp.google.com> <alpine.DEB.2.00.1206191358030.21795@chino.kir.corp.google.com> <4FE0F1A9.7050607@gmail.com> <4FE11B6C.6020706@jp.fujitsu.com>
+Subject: Re: [PATCH RESEND 1/2] mm/compaction: cleanup on
+ compaction_deferred
+In-Reply-To: <1340156348-18875-1-git-send-email-shangw@linux.vnet.ibm.com>
+Message-ID: <alpine.DEB.2.00.1206201824550.3702@chino.kir.corp.google.com>
+References: <1340156348-18875-1-git-send-email-shangw@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org
+To: Gavin Shan <shangw@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, hannes@cmpxchg.org, minchan@kernel.org, akpm@linux-foundation.org
 
-On Wed, 20 Jun 2012, Kamezawa Hiroyuki wrote:
+On Wed, 20 Jun 2012, Gavin Shan wrote:
 
-> I'll check memcg part to make it consistent to this when this goes to -mm.
+> When CONFIG_COMPACTION is enabled, compaction_deferred() tries
+> to recalculate the deferred limit again, which isn't necessary.
 > 
+> When CONFIG_COMPACTION is disabled, compaction_deferred() should
+> return "true" or "false" since it has "bool" for its return value.
+> 
+> Signed-off-by: Gavin Shan <shangw@linux.vnet.ibm.com>
+> Acked-by: Minchan Kim <minchan@kernel.org>
+> Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 
-It's merged.
+Acked-by: David Rientjes <rientjes@google.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
