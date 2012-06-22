@@ -1,104 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
-	by kanga.kvack.org (Postfix) with SMTP id 983446B0145
-	for <linux-mm@kvack.org>; Fri, 22 Jun 2012 02:57:08 -0400 (EDT)
-Message-ID: <4FE41752.8050305@kernel.org>
-Date: Fri, 22 Jun 2012 15:57:22 +0900
-From: Minchan Kim <minchan@kernel.org>
+Received: from psmtp.com (na3sys010amx101.postini.com [74.125.245.101])
+	by kanga.kvack.org (Postfix) with SMTP id 4B3F46B0147
+	for <linux-mm@kvack.org>; Fri, 22 Jun 2012 03:12:50 -0400 (EDT)
+Received: by wibhr4 with SMTP id hr4so263265wib.8
+        for <linux-mm@kvack.org>; Fri, 22 Jun 2012 00:12:48 -0700 (PDT)
+Date: Fri, 22 Jun 2012 09:12:43 +0200
+From: Ingo Molnar <mingo@kernel.org>
+Subject: Re: [patch 3.5-rc3] mm, mempolicy: fix mbind() to do synchronous
+ migration
+Message-ID: <20120622071243.GB22167@gmail.com>
+References: <alpine.DEB.2.00.1206201758500.3068@chino.kir.corp.google.com>
+ <20120621164606.4ae1a71d.akpm@linux-foundation.org>
+ <CA+55aFzPXMD3N3Oy-om6utDCQYmrBDnDgdqpVC5cgKe-v6uZ3w@mail.gmail.com>
+ <20120621184536.6dd97746.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Subject: Re: RFC:  Easy-Reclaimable LRU list
-References: <4FE012CD.6010605@kernel.org> <4FE37434.808@linaro.org>
-In-Reply-To: <4FE37434.808@linaro.org>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120621184536.6dd97746.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: John Stultz <john.stultz@linaro.org>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Anton Vorontsov <anton.vorontsov@linaro.org>, Pekka Enberg <penberg@kernel.org>, Wu Fengguang <fengguang.wu@intel.com>, Hugh Dickins <hughd@google.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Peter Zijlstra <a.p.zijlstra@chello.nl>, Ingo Molnar <mingo@elte.hu>
 
-Hi John,
 
-On 06/22/2012 04:21 AM, John Stultz wrote:
+* Andrew Morton <akpm@linux-foundation.org> wrote:
 
-> On 06/18/2012 10:49 PM, Minchan Kim wrote:
->> Hi everybody!
->>
->> Recently, there are some efforts to handle system memory pressure.
->>
->> 1) low memory notification - [1]
->> 2) fallocate(VOLATILE) - [2]
->> 3) fadvise(NOREUSE) - [3]
->>
->> For them, I would like to add new LRU list, aka "Ereclaimable" which
->> is opposite of "unevictable".
->> Reclaimable LRU list includes _easy_ reclaimable pages.
->> For example, easy reclaimable pages are following as.
->>
->> 1. invalidated but remained LRU list.
->> 2. pageout pages for reclaim(PG_reclaim pages)
->> 3. fadvise(NOREUSE)
->> 4. fallocate(VOLATILE)
->>
->> Their pages shouldn't stir normal LRU list and compaction might not
->> migrate them, even.
->> Reclaimer can reclaim Ereclaimable pages before normal lru list and
->> will avoid unnecessary
->> swapout in anon pages in easy-reclaimable LRU list.
+> On Thu, 21 Jun 2012 17:46:52 -0700 Linus Torvalds <torvalds@linux-foundation.org> wrote:
 > 
-> I was hoping there would be further comment on this by more core VM
-> devs, but so far things have been quiet (is everyone on vacation?).
-
-
-At least, there are no dissent comment until now.
-Let be a positive. :)
-
+> > On Thu, Jun 21, 2012 at 4:46 PM, Andrew Morton
+> > <akpm@linux-foundation.org> wrote:
+> > >
+> > > I can't really do anything with this patch - it's a bug 
+> > > added by Peter's "mm/mpol: Simplify do_mbind()" and added 
+> > > to linux-next via one of Ingo's trees.
+> > >
+> > > And I can't cleanly take the patch over as it's all bound 
+> > > up with the other changes for sched/numa balancing.
+> > 
+> > I took the patch, it looked obviously correct (passing in a 
+> > boolean was clearly crap).
 > 
-> Overall this seems reasonable for the volatile ranges functionality. 
-> The one down-side being that dealing with the ranges on a per-page basis
-> can make marking and unmarking larger ranges as volatile fairly
-> expensive. In my tests with my last patchset, it was over 75x slower
-> (~1.5ms) marking and umarking a 1meg range when we deactivate and
-> activate all of the pages, instead of just inserting the volatile range
-> into an interval tree and purge via the shrinker (~20us).  Granted, my
-> initial approach is somewhat naive, and some pagevec batching has
-> improved things three-fold (down to ~500us) , but I'm still ~25x slower
-> when iterating over all the pages.
+> Ah, OK, the bug was actually "retained" by "mm/mpol: Simplify 
+> do_mbind()".
 > 
-> There's surely further improvements to be made, but this added cost
-> worries me, as users are unlikely to generously volunteer up memory to
-> the kernel as volatile if doing so frequently adds significant overhead.
-> 
-> This makes me wonder if having something like an early-shrinker which
-> gets called prior to shrinking the lrus might be a better approach for
-> volatile ranges. It would still be numa-unaware, but would keep the
-> overhead very light to both volatile users and non users.
+> I do still ask what the plans are for that patchset..
 
+Somewhat off topic, but the main sched/numa objections were over 
+the mbind/etc. syscalls and the extra configuration space - we 
+dropped those bits and just turned it all into an improved NUMA 
+scheduling feature, as suggested by Peter and me in the original 
+discussion.
 
-How about doing it in background?
-In your process context, you can schedule your work to workqueue and when work is executed,
-you can move the pages into lru list you want.
-Just an idea.
+There were no objections to that approach so the reworked NUMA 
+scheduling/balancing scheme is now in the scheduler tree 
+(tip:sched/core).
 
-> 
-> Even so, I'd be interested in seeing more about your approach, in the
-> hopes that it might not be as costly as my initial attempt. Do you have
-> any plans to start prototyping this?
+The mbind/etc. syscall changes and all the related cleanups, 
+speedups and reorganization of the MM code are still in limbo.
 
+I dropped them with the rest of tip:sched/numa as nobody from 
+the MM side expressed much interest in them and I wanted to keep 
+things simple and not carry objected-to commits.
 
-I will wait response a few day and if anyone doesn't raise critical problems, will start.
-But please keep in mind.I guess it's never trivial so you shouldn't depend on my schedule.
-Thanks.
+We can revive them if there's interest and consensus. I suspect 
+once we gather experience with the automatic NUMA scheduling 
+feature we'll see whether it's worth exposing that to user-space 
+as an ABI - or whether we should go back to random placement and 
+forget about it all.
 
-> 
-> thanks
-> -john
-> 
+Thanks,
 
-
-
--- 
-Kind regards,
-Minchan Kim
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
