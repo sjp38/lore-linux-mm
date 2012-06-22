@@ -1,90 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
-	by kanga.kvack.org (Postfix) with SMTP id 32E016B01F2
-	for <linux-mm@kvack.org>; Fri, 22 Jun 2012 10:35:16 -0400 (EDT)
-Date: Fri, 22 Jun 2012 09:35:13 -0500
-From: Nathan Zimmer <nzimmer@sgi.com>
-Subject: [PATCH v3] tmpfs not interleaving properly
-Message-ID: <20120622143512.GA18468@gulag1.americas.sgi.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
+	by kanga.kvack.org (Postfix) with SMTP id B8EDF6B01FB
+	for <linux-mm@kvack.org>; Fri, 22 Jun 2012 10:38:13 -0400 (EDT)
+Message-ID: <1340375872.18025.77.camel@twins>
+Subject: Re: [PATCH -mm v2 01/11] mm: track free size between VMAs in VMA
+ rbtree
+From: Peter Zijlstra <peterz@infradead.org>
+Date: Fri, 22 Jun 2012 16:37:52 +0200
+In-Reply-To: <4FE48054.5090407@redhat.com>
+References: <1340315835-28571-1-git-send-email-riel@surriel.com>
+	   <1340315835-28571-2-git-send-email-riel@surriel.com>
+	  <1340359115.18025.57.camel@twins> <4FE47D0E.3000804@redhat.com>
+	 <1340374439.18025.75.camel@twins> <4FE48054.5090407@redhat.com>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: quoted-printable
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>, Nick Piggin <npiggin@gmail.com>, Hugh Dickins <hughd@google.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, riel@redhat.com
+To: Rik van Riel <riel@redhat.com>
+Cc: Rik van Riel <riel@surriel.com>, linux-mm@kvack.org, akpm@linux-foundation.org, aarcange@redhat.com, minchan@gmail.com, kosaki.motohiro@gmail.com, andi@firstfloor.org, hannes@cmpxchg.org, mel@csn.ul.ie, linux-kernel@vger.kernel.org
 
-When tmpfs has the memory policy interleaved it always starts allocating at each
-file at node 0.  When there are many small files the lower nodes fill up
-disproportionately.
-This patch attempts to spread out node usage by starting files at nodes other
-then 0.  I disturbed the addr parameter since alloc_pages_vma will only use it
-when the policy is MPOL_INTERLEAVE.  A files preferred node is selected by 
-the cpu_mem_spread_node rotor.
+On Fri, 2012-06-22 at 10:25 -0400, Rik van Riel wrote:
+> On 06/22/2012 10:13 AM, Peter Zijlstra wrote:
+> > On Fri, 2012-06-22 at 10:11 -0400, Rik van Riel wrote:
+> >>
+> >> I am still trying to wrap my brain around your alternative
+> >> search algorithm, not sure if/how it can be combined with
+> >> arbitrary address limits and alignment...
+> >
+> > for alignment we can do: len +=3D align - 1;
+>=20
+> We could, but that might lead us to returning -ENOMEM
+> when we actually have memory available.
+>=20
+> When you consider architectures like HPPA, which use
+> a pretty large alignment, but align everything the same,
+> chances are pretty much every freed hole will have the
+> right alignment...
 
-v2: passed preferred node via addr
-v3: using current->cpuset_mem_spread_rotor instead of random_node
+Well, if you don't your gap heap is next to useless and you'll revert to
+simply walking all gaps until you find a suitable one.
 
-Cc: Christoph Lameter <cl@linux.com>
-Cc: Nick Piggin <npiggin@gmail.com>
-Cc: Hugh Dickins <hughd@google.com>
-Cc: Lee Schermerhorn <lee.schermerhorn@hp.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Acked-by: Rik van Riel <riel@redhat.com>
-Signed-off-by: Nathan T Zimmer <nzimmer@sgi.com>
----
-
- include/linux/shmem_fs.h |    1 +
- mm/shmem.c               |    9 +++++++--
- 2 files changed, 8 insertions(+), 2 deletions(-)
-
-diff --git a/include/linux/shmem_fs.h b/include/linux/shmem_fs.h
-index bef2cf0..cfe8a34 100644
---- a/include/linux/shmem_fs.h
-+++ b/include/linux/shmem_fs.h
-@@ -17,6 +17,7 @@ struct shmem_inode_info {
- 		char		*symlink;	/* unswappable short symlink */
- 	};
- 	struct shared_policy	policy;		/* NUMA memory alloc policy */
-+	unsigned long           node_offset;	/* bias for interleaved nodes */
- 	struct list_head	swaplist;	/* chain of maybes on swap */
- 	struct list_head	xattr_list;	/* list of shmem_xattr */
- 	struct inode		vfs_inode;
-diff --git a/mm/shmem.c b/mm/shmem.c
-index a15a466..93801b3 100644
---- a/mm/shmem.c
-+++ b/mm/shmem.c
-@@ -64,6 +64,7 @@ static struct vfsmount *shm_mnt;
- #include <linux/highmem.h>
- #include <linux/seq_file.h>
- #include <linux/magic.h>
-+#include <linux/cpuset.h>
- 
- #include <asm/uaccess.h>
- #include <asm/pgtable.h>
-@@ -938,9 +939,12 @@ static struct page *shmem_alloc_page(gfp_t gfp,
- 	pvma.vm_policy = mpol_shared_policy_lookup(&info->policy, index);
- 
- 	/*
--	 * alloc_page_vma() will drop the shared policy reference
-+	 * alloc_page_vma() will drop the shared policy reference.
-+	 *
-+	 * To avoid allocating all tmpfs pages on node 0, we fake up a virtual
-+	 * address based on this file's predetermined preferred node.
- 	 */
--	return alloc_page_vma(gfp, &pvma, 0);
-+	return alloc_page_vma(gfp, &pvma, info->node_offset << PAGE_SHIFT);
- }
- #else /* !CONFIG_NUMA */
- #ifdef CONFIG_TMPFS
-@@ -1374,6 +1378,7 @@ static struct inode *shmem_get_inode(struct super_block *sb, const struct inode
- 			inode->i_fop = &shmem_file_operations;
- 			mpol_shared_policy_init(&info->policy,
- 						 shmem_get_sbmpol(sbinfo));
-+			info->node_offset = cpuset_mem_spread_node();
- 			break;
- 		case S_IFDIR:
- 			inc_nlink(inode);
+I really worry about this search function of yours, its complexity is
+very non obvious.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
