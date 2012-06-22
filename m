@@ -1,89 +1,188 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
-	by kanga.kvack.org (Postfix) with SMTP id CAF3F6B013F
-	for <linux-mm@kvack.org>; Thu, 21 Jun 2012 23:59:29 -0400 (EDT)
-Received: by wibhr4 with SMTP id hr4so168806wib.8
-        for <linux-mm@kvack.org>; Thu, 21 Jun 2012 20:59:27 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
+	by kanga.kvack.org (Postfix) with SMTP id 91BF26B0141
+	for <linux-mm@kvack.org>; Fri, 22 Jun 2012 02:45:39 -0400 (EDT)
+Message-ID: <4FE414A2.3000700@kernel.org>
+Date: Fri, 22 Jun 2012 15:45:54 +0900
+From: Minchan Kim <minchan@kernel.org>
 MIME-Version: 1.0
-In-Reply-To: <CA+55aFwBc=OxwU=qNYQs0rg4dPGBQObqg-EGnDDS-TWWpy0G2A@mail.gmail.com>
-References: <alpine.DEB.2.00.1206201758500.3068@chino.kir.corp.google.com>
- <20120621164606.4ae1a71d.akpm@linux-foundation.org> <CA+55aFzPXMD3N3Oy-om6utDCQYmrBDnDgdqpVC5cgKe-v6uZ3w@mail.gmail.com>
- <20120621184536.6dd97746.akpm@linux-foundation.org> <CA+55aFwBc=OxwU=qNYQs0rg4dPGBQObqg-EGnDDS-TWWpy0G2A@mail.gmail.com>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Thu, 21 Jun 2012 20:59:07 -0700
-Message-ID: <CA+55aFydstt7+oBy+ABVdkwUmiwDp-3qyAFmZbzi=PYTVyOXLw@mail.gmail.com>
-Subject: Re: [patch 3.5-rc3] mm, mempolicy: fix mbind() to do synchronous migration
+Subject: Re: Accounting problem of MIGRATE_ISOLATED freed page
+References: <4FE169B1.7020600@kernel.org> <4FE16E80.9000306@gmail.com> <4FE18187.3050103@kernel.org> <4FE23069.5030702@gmail.com> <4FE26470.90401@kernel.org> <CAHGf_=pjoiHQ9vxXXe-GtbkYRzhxdDhu3pf6pwDsCe5pBQE8Nw@mail.gmail.com> <4FE27F15.8050102@kernel.org> <CAHGf_=pDw4axwG2tQ+B5hPks-sz2S5+G1Kk-=HSDmo=DSXOkEw@mail.gmail.com> <4FE2A937.6040701@kernel.org> <4FE2FCFB.4040808@jp.fujitsu.com> <4FE3C4E4.2050107@kernel.org>
+In-Reply-To: <4FE3C4E4.2050107@kernel.org>
 Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Peter Zijlstra <a.p.zijlstra@chello.nl>, Ingo Molnar <mingo@elte.hu>
+Cc: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Aaditya Kumar <aaditya.kumar.30@gmail.com>, Mel Gorman <mel@csn.ul.ie>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Thu, Jun 21, 2012 at 8:33 PM, Linus Torvalds
-<torvalds@linux-foundation.org> wrote:
->
-> I'll see what it looks like if I only warn about casting *to* an enum.
+On 06/22/2012 10:05 AM, Minchan Kim wrote:
 
-Hmm. That results in much fewer warnings. Not that I'm sure that my
-sparse hack is right. But for my normal build (which is pretty
-minimal), I get:
+> Second approach which is suggested by KOSAKI is what you mentioned.
+> But the concern about second approach is how to make sure matched count increase/decrease of nr_isolated_areas.
+> I mean how to make sure nr_isolated_areas would be zero when isolation is done.
+> Of course, we can investigate all of current caller and make sure they don't make mistake
+> now. But it's very error-prone if we consider future's user.
+> So we might need test_set_pageblock_migratetype(page, MIGRATE_ISOLATE);
 
-    drivers/ata/libahci.c:1786:16: warning: casting to an enum type
-    drivers/ata/libata-sff.c:1662:16: warning: casting to an enum type
-    drivers/gpu/drm/i915/i915_irq.c:2300:16: warning: casting to an enum type
-    drivers/gpu/drm/i915/i915_irq.c:2544:16: warning: casting to an enum type
-    drivers/gpu/drm/i915/i915_irq.c:740:16: warning: casting to an enum type
-    drivers/gpu/drm/i915/intel_panel.c:319:50: warning: casting to an enum type
-    drivers/input/mouse/lifebook.c:148:59: warning: casting to an enum type
-    drivers/input/mouse/lifebook.c:153:80: warning: casting to an enum type
-    drivers/input/mouse/lifebook.c:156:59: warning: casting to an enum type
-    drivers/input/mouse/lifebook.c:159:73: warning: casting to an enum type
-    drivers/input/mouse/synaptics.c:1129:86: warning: casting to an enum type
-    drivers/input/serio/i8042.c:533:16: warning: casting to an enum type
-    drivers/input/serio/i8042.c:693:16: warning: casting to an enum type
-    drivers/net/ethernet/realtek/r8169.c:5860:16: warning: casting to
-an enum type
-    drivers/pci/probe.c:511:26: warning: casting to an enum type
-    drivers/tty/serial/8250/8250.c:1556:16: warning: casting to an enum type
-    drivers/usb/host/xhci-ring.c:2419:24: warning: casting to an enum type
-    fs/sysfs/sysfs.h:114:51: warning: casting to an enum type
-    include/linux/mm.h:660:47: warning: casting to an enum type
-    kernel/sched/rt.c:32:21: warning: casting to an enum type
-    kernel/time/alarmtimer.c:231:16: warning: casting to an enum type
-    kernel/time/alarmtimer.c:439:16: warning: casting to an enum type
-    lib/zlib_deflate/deflate.c:1035:13: warning: casting to an enum type
-    lib/zlib_deflate/deflate.c:1041:13: warning: casting to an enum type
-    lib/zlib_deflate/deflate.c:1044:5: warning: casting to an enum type
-    lib/zlib_deflate/deflate.c:1045:30: warning: casting to an enum type
-    lib/zlib_deflate/deflate.c:1138:21: warning: casting to an enum type
-    lib/zlib_deflate/deflate.c:1140:5: warning: casting to an enum type
-    lib/zlib_deflate/deflate.c:1141:30: warning: casting to an enum type
-    lib/zlib_deflate/deflate.c:1233:25: warning: casting to an enum type
-    lib/zlib_deflate/deflate.c:1262:5: warning: casting to an enum type
-    lib/zlib_deflate/deflate.c:1263:30: warning: casting to an enum type
-    net/ipv4/ipmr.c:449:24: warning: casting to an enum type
-    net/ipv4/netfilter/nf_defrag_ipv4.c:58:47: warning: casting to an enum type
-    net/ipv4/netfilter/nf_defrag_ipv4.c:60:48: warning: casting to an enum type
-    net/ipv6/netfilter/nf_defrag_ipv6_hooks.c:49:48: warning: casting
-to an enum type
-    net/ipv6/netfilter/nf_defrag_ipv6_hooks.c:51:49: warning: casting
-to an enum type
-    sound/pci/intel8x0.c:821:24: warning: casting to an enum type
 
-but the ones I looked at were all ok. Admittedly I only looked at a
-few (maybe five), though.
+It's an implementation about above approach.
 
-That said, the drivers/pci/probe.c case is actually ugly code. That
-"agp_speeds[]" array *could* be an array of the proper enum's, rather
-than "unsigned char". I don't know why it isn't (but 'unsigned char'
-may be more efficient than a compiler that might make it an 'int').
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+index bf3404e..3e9a9e1 100644
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -474,6 +474,11 @@ struct zone {
+         * rarely used fields:
+         */  
+        const char              *name;
++       /*
++        * the number of MIGRATE_ISOLATE pageblock
++        * We need this for accurate free page counting.
++        */
++       atomic_t                nr_migrate_isolate;
+ } ____cacheline_internodealigned_in_smp;
+ 
+ typedef enum {
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 2c29b1c..6cb1f9f 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -219,6 +219,11 @@ EXPORT_SYMBOL(nr_online_nodes);
+ 
+ int page_group_by_mobility_disabled __read_mostly;
+ 
++/*
++ * NOTE:
++ * Don't use set_pageblock_migratetype(page, MIGRATE_ISOLATE) direclty.
++ * Instead, use {un}set_pageblock_isolate.
++ */
+ void set_pageblock_migratetype(struct page *page, int migratetype)
+ {
+        if (unlikely(page_group_by_mobility_disabled))
+@@ -1622,6 +1627,28 @@ bool zone_watermark_ok(struct zone *z, int order, unsigned long mark,
+                                        zone_page_state(z, NR_FREE_PAGES));
+ }
+ 
++unsigned long migrate_isolate_pages(struct zone *zone)
++{
++       unsigned long nr_pages = 0;
++
++       if (unlikely(atomic_read(&zone->nr_migrate_isolate))) {
++               unsigned long flags;
++               int order;
++               spin_lock_irqsave(&zone->lock, flags);
++               for (order = 0; order < MAX_ORDER; order++) {
++                       struct free_area *area = &zone->free_area[order];
++                       long count = 0;
++                       struct list_head *curr;
++
++                       list_for_each(curr, &area->free_list[MIGRATE_ISOLATE])
++                               count++;
++                       nr_pages += (count << order);
++               }
++               spin_unlock_irqrestore(&zone->lock, flags);
++       }
++       return nr_pages;
++}
++
+ bool zone_watermark_ok_safe(struct zone *z, int order, unsigned long mark,
+                      int classzone_idx, int alloc_flags)
+ {
+@@ -1630,6 +1657,14 @@ bool zone_watermark_ok_safe(struct zone *z, int order, unsigned long mark,
+        if (z->percpu_drift_mark && free_pages < z->percpu_drift_mark)
+                free_pages = zone_page_state_snapshot(z, NR_FREE_PAGES);
+ 
++       /*
++        * If the zone has MIGRATE_ISOLATE type free page,
++        * we should consider it, too. Otherwise, kswapd can sleep forever.
++        */
++       free_pages -= migrate_isolate_pages(z);
++       if (free_pages < 0)
++               free_pages = 0;
++
+        return __zone_watermark_ok(z, order, mark, classzone_idx, alloc_flags,
+                                                                free_pages);
+ }
+@@ -4408,6 +4443,7 @@ static void __paginginit free_area_init_core(struct pglist_data *pgdat,
+                lruvec_init(&zone->lruvec, zone);
+                zap_zone_vm_stats(zone);
+                zone->flags = 0;
++               atomic_set(&zone->nr_migrate_isolate, 0);
+                if (!size)
+                        continue;
+ 
+@@ -5555,6 +5591,45 @@ bool is_pageblock_removable_nolock(struct page *page)
+        return __count_immobile_pages(zone, page, 0);
+ }
+ 
++static void set_pageblock_isolate(struct zone *zone, struct page *page)
++{
++       int old_migratetype;
++       assert_spin_locked(&zone->lock);
++
++        if (unlikely(page_group_by_mobility_disabled)) {
++               set_pageblock_flags_group(page, MIGRATE_UNMOVABLE,
++                                       PB_migrate, PB_migrate_end);
++               return;
++       }
++
++       old_migratetype = get_pageblock_migratetype(page);
++       set_pageblock_flags_group(page, MIGRATE_ISOLATE,
++                                       PB_migrate, PB_migrate_end);
++
++       if (old_migratetype != MIGRATE_ISOLATE)
++               atomic_inc(&zone->nr_migrate_isolate);
++}
++
++static void unset_pageblock_isolate(struct zone *zone, struct page *page,
++                               unsigned long migratetype)
++{
++       assert_spin_locked(&zone->lock);
++
++        if (unlikely(page_group_by_mobility_disabled)) {
++               set_pageblock_flags_group(page, migratetype,
++                                       PB_migrate, PB_migrate_end);
++               return;
++       }
++
++       BUG_ON(get_pageblock_migratetype(page) != MIGRATE_ISOLATE);
++       BUG_ON(migratetype == MIGRATE_ISOLATE);
++
++       set_pageblock_flags_group(page, migratetype,
++                                       PB_migrate, PB_migrate_end);
++       atomic_dec(&zone->nr_migrate_isolate);
++       BUG_ON(atomic_read(&zone->nr_migrate_isolate) < 0);
++}
++
+ int set_migratetype_isolate(struct page *page)
+ {
+        struct zone *zone;
+@@ -5601,7 +5676,7 @@ int set_migratetype_isolate(struct page *page)
+ 
+ out:
+        if (!ret) {
+-               set_pageblock_migratetype(page, MIGRATE_ISOLATE);
++               set_pageblock_isolate(zone, page);
+                move_freepages_block(zone, page, MIGRATE_ISOLATE);
+        }
+ 
+@@ -5619,8 +5694,8 @@ void unset_migratetype_isolate(struct page *page, unsigned migratetype)
+        spin_lock_irqsave(&zone->lock, flags);
+        if (get_pageblock_migratetype(page) != MIGRATE_ISOLATE)
+                goto out;
+-       set_pageblock_migratetype(page, migratetype);
+        move_freepages_block(zone, page, migratetype);
++       unset_pageblock_isolate(zone, page, migratetype);
+ out:
+        spin_unlock_irqrestore(&zone->lock, flags);
+ }
+-- 
+1.7.9.5
 
-So the warning *may* be useful. However, to get sparse to give that
-warning I had to do some hacks that broke other parts of sparse, so I
-don't have a good sparse patch yet. I'll look at it some more
-tomorrow.
 
-               Linus
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
