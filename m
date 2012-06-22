@@ -1,70 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
-	by kanga.kvack.org (Postfix) with SMTP id 802206B026B
-	for <linux-mm@kvack.org>; Fri, 22 Jun 2012 18:03:04 -0400 (EDT)
-Date: Fri, 22 Jun 2012 15:03:02 -0700
+Received: from psmtp.com (na3sys010amx135.postini.com [74.125.245.135])
+	by kanga.kvack.org (Postfix) with SMTP id 56ACA6B026D
+	for <linux-mm@kvack.org>; Fri, 22 Jun 2012 18:06:33 -0400 (EDT)
+Date: Fri, 22 Jun 2012 15:06:31 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
 Subject: Re: [PATCH] hugeltb: Mark hugelb_max_hstate __read_mostly
-Message-Id: <20120622150302.f0e349e4.akpm@linux-foundation.org>
-In-Reply-To: <87pq91m7fz.fsf@skywalker.in.ibm.com>
+Message-Id: <20120622150631.9a7c4d17.akpm@linux-foundation.org>
+In-Reply-To: <alpine.DEB.2.00.1206150948120.20541@router.home>
 References: <1339682178-29059-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 	<20120614141257.GQ27397@tiehlicka.suse.cz>
-	<87pq91m7fz.fsf@skywalker.in.ibm.com>
+	<alpine.DEB.2.00.1206141538060.12773@router.home>
+	<87sjdxm7jd.fsf@skywalker.in.ibm.com>
+	<alpine.DEB.2.00.1206150857150.19708@router.home>
+	<20120615143342.GE8100@tiehlicka.suse.cz>
+	<alpine.DEB.2.00.1206150948120.20541@router.home>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com
+To: Christoph Lameter <cl@linux.com>
+Cc: Michal Hocko <mhocko@suse.cz>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com
 
-On Fri, 15 Jun 2012 11:40:24 +0530
-"Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com> wrote:
+On Fri, 15 Jun 2012 09:50:00 -0500 (CDT)
+Christoph Lameter <cl@linux.com> wrote:
 
-> Michal Hocko <mhocko@suse.cz> writes:
+> On Fri, 15 Jun 2012, Michal Hocko wrote:
 > 
-> > On Thu 14-06-12 19:26:18, Aneesh Kumar K.V wrote:
-> >> From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-> >> 
-> >> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
-> >> ---
-> >>  include/linux/hugetlb.h |    2 +-
-> >>  mm/hugetlb.c            |    2 +-
-> >>  2 files changed, 2 insertions(+), 2 deletions(-)
-> >> 
-> >> diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
-> >> index 9650bb1..0f0877e 100644
-> >> --- a/include/linux/hugetlb.h
-> >> +++ b/include/linux/hugetlb.h
-> >> @@ -23,7 +23,7 @@ struct hugepage_subpool {
-> >>  };
-> >>  
-> >>  extern spinlock_t hugetlb_lock;
-> >> -extern int hugetlb_max_hstate;
-> >> +extern int hugetlb_max_hstate __read_mostly;
+> > > Thats all? There is no performance gain from this change?
 > >
-> > It should be used only for definition
-> >
-> I looked at the rest of the source and found multiple place where we
-> specify __read_mostly in extern.
+> > Is that required in order to put data in the read mostly section?
 > 
-> arch/x86/kernel/cpu/perf_event.h extern struct x86_pmu x86_pmu __read_mostly;
+> I thought so. The read_mostly section is specially designed for data that
+> causes excessive cacheline bounces and has to be grouped with rarely
+> accessed other data. That was at least the intend when we created it.
+> 
 
-We have had one situation in the past where the lack of a section
-annotation on a declaration caused an architecture (arm?) to fail to
-build.  iirc the compiler emitted some short-mode relative-addressed
-opcode to reference the variable, but when the linker came along to
-resolve the offset it discovered that it exceeded the short-mode
-addressing range, because that variable was in a section which landed
-far away from .data.
+The __read_mostly thing really is a bit of a crapshoot.  The runtime
+effects are extremely dependent upon Kconfig settings and toolchain
+behaviour.  I do recall one or two cases where people did fix
+real-world observed performance issues by adding __read_mostly.
 
-That's only happened once, and that architecture might have changed,
-and we're missing the section annotation on many variables anyway, so
-I'd be inclined to just leave it off - if we ever hit significant
-problems with this, we have a lot of work to do.
+Literally "one or two".  We have more than one or two __read_mostly
+annotations in there!
 
-Also, we currently have no automated way of keeping the annotation on
-the declaration and definition in sync.
+As that hugelb_max_hstate is write-once, it's a good candidate.  I'll
+apply the patch and hope that it improves someone's kernel somewhere
+someday.  Shrug.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
