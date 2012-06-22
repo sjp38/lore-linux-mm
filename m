@@ -1,76 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx101.postini.com [74.125.245.101])
-	by kanga.kvack.org (Postfix) with SMTP id 4B3F46B0147
-	for <linux-mm@kvack.org>; Fri, 22 Jun 2012 03:12:50 -0400 (EDT)
-Received: by wibhr4 with SMTP id hr4so263265wib.8
-        for <linux-mm@kvack.org>; Fri, 22 Jun 2012 00:12:48 -0700 (PDT)
-Date: Fri, 22 Jun 2012 09:12:43 +0200
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [patch 3.5-rc3] mm, mempolicy: fix mbind() to do synchronous
- migration
-Message-ID: <20120622071243.GB22167@gmail.com>
-References: <alpine.DEB.2.00.1206201758500.3068@chino.kir.corp.google.com>
- <20120621164606.4ae1a71d.akpm@linux-foundation.org>
- <CA+55aFzPXMD3N3Oy-om6utDCQYmrBDnDgdqpVC5cgKe-v6uZ3w@mail.gmail.com>
- <20120621184536.6dd97746.akpm@linux-foundation.org>
+Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
+	by kanga.kvack.org (Postfix) with SMTP id 413F36B0149
+	for <linux-mm@kvack.org>; Fri, 22 Jun 2012 03:13:50 -0400 (EDT)
+Message-ID: <4FE41B3F.6090106@kernel.org>
+Date: Fri, 22 Jun 2012 16:14:07 +0900
+From: Minchan Kim <minchan@kernel.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120621184536.6dd97746.akpm@linux-foundation.org>
+Subject: Re: mmotm 2012-06-21-16-20 uploaded
+References: <20120621232149.F0286A026A@akpm.mtv.corp.google.com>
+In-Reply-To: <20120621232149.F0286A026A@akpm.mtv.corp.google.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Peter Zijlstra <a.p.zijlstra@chello.nl>, Ingo Molnar <mingo@elte.hu>
+To: akpm@linux-foundation.org
+Cc: mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
 
+Hi Andrew,
 
-* Andrew Morton <akpm@linux-foundation.org> wrote:
+On 06/22/2012 08:21 AM, akpm@linux-foundation.org wrote:
 
-> On Thu, 21 Jun 2012 17:46:52 -0700 Linus Torvalds <torvalds@linux-foundation.org> wrote:
+> The mm-of-the-moment snapshot 2012-06-21-16-20 has been uploaded to
 > 
-> > On Thu, Jun 21, 2012 at 4:46 PM, Andrew Morton
-> > <akpm@linux-foundation.org> wrote:
-> > >
-> > > I can't really do anything with this patch - it's a bug 
-> > > added by Peter's "mm/mpol: Simplify do_mbind()" and added 
-> > > to linux-next via one of Ingo's trees.
-> > >
-> > > And I can't cleanly take the patch over as it's all bound 
-> > > up with the other changes for sched/numa balancing.
-> > 
-> > I took the patch, it looked obviously correct (passing in a 
-> > boolean was clearly crap).
+>    http://www.ozlabs.org/~akpm/mmotm/
 > 
-> Ah, OK, the bug was actually "retained" by "mm/mpol: Simplify 
-> do_mbind()".
+> It contains the following patches against 3.5-rc3:
+> (patches marked "*" will be included in linux-next)
 > 
-> I do still ask what the plans are for that patchset..
+>   origin.patch
+> * selinux-fix-something.patch
 
-Somewhat off topic, but the main sched/numa objections were over 
-the mbind/etc. syscalls and the extra configuration space - we 
-dropped those bits and just turned it all into an improved NUMA 
-scheduling feature, as suggested by Peter and me in the original 
-discussion.
+< snip>
 
-There were no objections to that approach so the reworked NUMA 
-scheduling/balancing scheme is now in the scheduler tree 
-(tip:sched/core).
+> * mm-compaction-handle-incorrect-migrate_unmovable-type-pageblocks.patch
+> * mm-compaction-handle-incorrect-migrate_unmovable-type-pageblocks-fix.patch
 
-The mbind/etc. syscall changes and all the related cleanups, 
-speedups and reorganization of the MM code are still in limbo.
 
-I dropped them with the rest of tip:sched/numa as nobody from 
-the MM side expressed much interest in them and I wanted to keep 
-things simple and not carry objected-to commits.
+Above two patch should be dropped. It has a bug.
+Ref: https://lkml.org/lkml/2012/6/13/529
 
-We can revive them if there's interest and consensus. I suspect 
-once we gather experience with the automatic NUMA scheduling 
-feature we'll see whether it's worth exposing that to user-space 
-as an ABI - or whether we should go back to random placement and 
-forget about it all.
+I sent bug fix patch.
+1. https://lkml.org/lkml/2012/6/13/568
 
-Thanks,
+And then, clean up patch.
+2. https://lkml.org/lkml/2012/6/13/570
 
-	Ingo
+Bartlomiej rebased his patch on above two patches.
+
+3. https://lkml.org/lkml/2012/6/14/361
+
+I hope I am not too late.
+
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
