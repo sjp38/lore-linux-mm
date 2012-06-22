@@ -1,66 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
-	by kanga.kvack.org (Postfix) with SMTP id 3F2D36B015F
-	for <linux-mm@kvack.org>; Fri, 22 Jun 2012 06:00:38 -0400 (EDT)
-Date: Fri, 22 Jun 2012 11:00:32 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 10/17] netvm: Allow skb allocation to use PFMEMALLOC
- reserves
-Message-ID: <20120622100032.GB8271@suse.de>
-References: <1340192652-31658-1-git-send-email-mgorman@suse.de>
- <1340192652-31658-11-git-send-email-mgorman@suse.de>
- <20120621160902.GA6045@breakpoint.cc>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20120621160902.GA6045@breakpoint.cc>
+Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
+	by kanga.kvack.org (Postfix) with SMTP id 3254C6B0160
+	for <linux-mm@kvack.org>; Fri, 22 Jun 2012 06:03:07 -0400 (EDT)
+Message-ID: <1340359379.18025.60.camel@twins>
+Subject: Re: [PATCH -mm v2 01/11] mm: track free size between VMAs in VMA
+ rbtree
+From: Peter Zijlstra <peterz@infradead.org>
+Date: Fri, 22 Jun 2012 12:02:59 +0200
+In-Reply-To: <1340315835-28571-2-git-send-email-riel@surriel.com>
+References: <1340315835-28571-1-git-send-email-riel@surriel.com>
+	 <1340315835-28571-2-git-send-email-riel@surriel.com>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: quoted-printable
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sebastian Andrzej Siewior <sebastian@breakpoint.cc>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Linux-Netdev <netdev@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, David Miller <davem@davemloft.net>, Neil Brown <neilb@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mike Christie <michaelc@cs.wisc.edu>, Eric B Munson <emunson@mgebm.net>
+To: Rik van Riel <riel@surriel.com>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, aarcange@redhat.com, minchan@gmail.com, kosaki.motohiro@gmail.com, andi@firstfloor.org, hannes@cmpxchg.org, mel@csn.ul.ie, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>
 
-On Thu, Jun 21, 2012 at 06:09:02PM +0200, Sebastian Andrzej Siewior wrote:
-> > <SNIP>
-> >
-> If merge this chunk
-> 
-> diff --git a/include/linux/skbuff.h b/include/linux/skbuff.h
-> index 6510a5d..2acfec9 100644
-> --- a/include/linux/skbuff.h
-> +++ b/include/linux/skbuff.h
-> @@ -510,7 +510,7 @@ struct sk_buff {
->  #define SKB_ALLOC_RX		0x02
->  
->  /* Returns true if the skb was allocated from PFMEMALLOC reserves */
-> -static inline bool skb_pfmemalloc(struct sk_buff *skb)
-> +static inline bool skb_pfmemalloc(const struct sk_buff *skb)
->  {
->  	return unlikely(skb->pfmemalloc);
->  }
-> diff --git a/net/core/skbuff.c b/net/core/skbuff.c
-> index c44ab68..6ce94b5 100644
-> --- a/net/core/skbuff.c
-> +++ b/net/core/skbuff.c
-> @@ -852,7 +852,7 @@ static void copy_skb_header(struct sk_buff *new, const struct sk_buff *old)
->  
->  static inline int skb_alloc_rx_flag(const struct sk_buff *skb)
->  {
-> -	if (skb_pfmemalloc((struct sk_buff *)skb))
-> +	if (skb_pfmemalloc(skb))
->  		return SKB_ALLOC_RX;
->  	return 0;
->  }
-> 
-> 
-> Then you should be able to drop the case in skb_alloc_rx_flag() without adding
-> a warning.
-> 
+On Thu, 2012-06-21 at 17:57 -0400, Rik van Riel wrote:
+> +static unsigned long largest_free_gap(struct rb_node *node)
+> +{
+> +       struct vm_area_struct *vma, *prev, *left =3D NULL, *right =3D NUL=
+L;
+> +       unsigned long largest =3D 0;
+> +
+> +       if (node->rb_left)
+> +               left =3D rb_to_vma(node->rb_left);
+> +       if (node->rb_right)
+> +               right =3D rb_to_vma(node->rb_right);
+> +
+> +       /* Calculate the free gap size between us and the VMA to our left=
+. */
+> +       vma =3D rb_to_vma(node);
+> +       prev =3D vma->vm_prev;
+> +
+> +       if (prev)
+> +               largest =3D vma->vm_start - prev->vm_end;
+> +       else
+> +               largest =3D vma->vm_start;
+> +
+> +       /* We propagate the largest of our own, or our children's free ga=
+ps. */
+> +       if (left)
+> +               largest =3D max(largest, left->free_gap);
+> +       if (right)
+> +               largest =3D max(largest, right->free_gap);
+> +
+> +       return largest;
+> +}=20
 
-You're right. Thanks.
+If you introduce helpers like:
 
--- 
-Mel Gorman
-SUSE Labs
+static inline struct vm_area_struct *vma_of(struct rb_node *node)
+{
+        return container_of(node, struct vm_area_struct, vm_rb);
+}
+
+static inline unsigned long max_gap_of(struct rb_node *node)
+{
+        return vma_of(node)->free_gap;
+}
+
+static unsigned long gap_of(struct rb_node *node)
+{
+        struct vm_area_struct *vma =3D vma_of(node);
+
+        if (!vma->vm_prev)
+                return vma->vm_start;
+
+        return vma->vm_start - vma->vm_prev->vm_end;
+}
+
+You can write your largest free gap as:
+
+unsigned long largest_gap(struct rb_node *node)
+{
+	unsigned long gap =3D gap_of(node);
+
+	if (node->rb_left)
+		gap =3D max(gap, max_gap_of(node->rb_left));
+	if (node->rb_right)
+		gap =3D max(gap, max_gap_of(node->rb_right));
+
+	return gap;
+}
+
+And as shown, you can re-used those {max_,}gap_of() function in the
+lookup function in the next patch.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
