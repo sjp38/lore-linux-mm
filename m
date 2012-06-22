@@ -1,50 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx165.postini.com [74.125.245.165])
-	by kanga.kvack.org (Postfix) with SMTP id 08F596B0157
-	for <linux-mm@kvack.org>; Fri, 22 Jun 2012 05:34:38 -0400 (EDT)
-Date: Fri, 22 Jun 2012 10:34:32 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 01/17] mm: sl[au]b: Add knowledge of PFMEMALLOC reserve
- pages
-Message-ID: <20120622093432.GA8271@suse.de>
-References: <1340192652-31658-1-git-send-email-mgorman@suse.de>
- <1340192652-31658-2-git-send-email-mgorman@suse.de>
- <4FE39290.8020609@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <4FE39290.8020609@redhat.com>
+Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
+	by kanga.kvack.org (Postfix) with SMTP id 61D066B0159
+	for <linux-mm@kvack.org>; Fri, 22 Jun 2012 05:49:54 -0400 (EDT)
+Message-ID: <1340358580.18025.53.camel@twins>
+Subject: Re: [PATCH -mm v2 04/11] rbtree: add helpers to find nearest uncle
+ node
+From: Peter Zijlstra <peterz@infradead.org>
+Date: Fri, 22 Jun 2012 11:49:40 +0200
+In-Reply-To: <1340315835-28571-5-git-send-email-riel@surriel.com>
+References: <1340315835-28571-1-git-send-email-riel@surriel.com>
+	 <1340315835-28571-5-git-send-email-riel@surriel.com>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: quoted-printable
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Linux-Netdev <netdev@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, David Miller <davem@davemloft.net>, Neil Brown <neilb@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mike Christie <michaelc@cs.wisc.edu>, Eric B Munson <emunson@mgebm.net>, Sebastian Andrzej Siewior <sebastian@breakpoint.cc>
+To: Rik van Riel <riel@surriel.com>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, aarcange@redhat.com, minchan@gmail.com, kosaki.motohiro@gmail.com, andi@firstfloor.org, hannes@cmpxchg.org, mel@csn.ul.ie, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>
 
-On Thu, Jun 21, 2012 at 05:30:56PM -0400, Rik van Riel wrote:
-> On 06/20/2012 07:43 AM, Mel Gorman wrote:
-> 
-> >+/* Clears ac->pfmemalloc if no slabs have pfmalloc set */
-> >+static void check_ac_pfmemalloc(struct kmem_cache *cachep,
-> >+						struct array_cache *ac)
-> >+{
-> 
-> >+	pfmemalloc_active = false;
-> >+out:
-> >+	spin_unlock_irqrestore(&l3->list_lock, flags);
-> >+}
-> 
-> The comment and the function do not seem to match.
-> 
+On Thu, 2012-06-21 at 17:57 -0400, Rik van Riel wrote:
+> It is useful to search an augmented rbtree based on the augmented
+> data, ie. not using the sort key as the primary search criterium.
+> However, we may still need to limit our search to a sub-part of the
+> whole tree, using the sort key as limiters where we can search.
+>=20
+> In that case, we may need to stop searching in one part of the tree,
+> and continue the search at the nearest (great-?)uncle node in a particula=
+r
+> direction.
+>=20
+> Add helper functions to find the nearest uncle node.
 
-Well spotted. There used to be ac->pfmemalloc and obviously I failed to
-update the comment when it was removed.
+I don't think we need these at all, in fact, I cannot prove your lookup
+function is O(log n) at all, since the uncle might not have a suitable
+max gap size, so you might need to find yet another uncle etc.
 
-> Otherwise, the patch looks reasonable.
-
-Thanks.
-
--- 
-Mel Gorman
-SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
