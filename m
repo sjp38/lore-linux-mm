@@ -1,100 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
-	by kanga.kvack.org (Postfix) with SMTP id 508926B0205
-	for <linux-mm@kvack.org>; Fri, 22 Jun 2012 11:04:05 -0400 (EDT)
-Date: Fri, 22 Jun 2012 17:03:59 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH V2] memcg: cleanup typos in mem cgroup
-Message-ID: <20120622150358.GB16628@tiehlicka.suse.cz>
-References: <1340369199-29535-1-git-send-email-liwp.linux@gmail.com>
+Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
+	by kanga.kvack.org (Postfix) with SMTP id 1398D6B0204
+	for <linux-mm@kvack.org>; Fri, 22 Jun 2012 11:41:43 -0400 (EDT)
+Message-ID: <4FE4922D.8070501@surriel.com>
+Date: Fri, 22 Jun 2012 11:41:33 -0400
+From: Rik van Riel <riel@surriel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1340369199-29535-1-git-send-email-liwp.linux@gmail.com>
+Subject: Re: [PATCH -mm v2 01/11] mm: track free size between VMAs in VMA
+ rbtree
+References: <1340315835-28571-1-git-send-email-riel@surriel.com>    <1340315835-28571-2-git-send-email-riel@surriel.com>   <1340359115.18025.57.camel@twins> <4FE47D0E.3000804@redhat.com>  <1340374439.18025.75.camel@twins> <4FE48054.5090407@redhat.com> <1340375872.18025.77.camel@twins>
+In-Reply-To: <1340375872.18025.77.camel@twins>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wanpeng Li <liwp.linux@gmail.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, cgroups@vger.kernel.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Frederic Weisbecker <fweisbec@gmail.com>, Han Ying <yinghan@google.com>, Glauber Costa <glommer@parallels.com>, Tejun Heo <tj@kernel.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Hiroyuki Kamezawa <kamezawa.hiroyuki@gmail.com>, Linux Kernel <linux-kernel@vger.kernel.org>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, akpm@linux-foundation.org, aarcange@redhat.com, minchan@gmail.com, kosaki.motohiro@gmail.com, andi@firstfloor.org, hannes@cmpxchg.org, mel@csn.ul.ie, linux-kernel@vger.kernel.org
 
-Have you used any tool to find those typos? Have you gone through the
-whole memcontrol.c file?
-I am not agains fixes like this but I would much prefer if it was one
-batch of all fixes. I bet there are more typose ;)
+On 06/22/2012 10:37 AM, Peter Zijlstra wrote:
+> On Fri, 2012-06-22 at 10:25 -0400, Rik van Riel wrote:
+>> On 06/22/2012 10:13 AM, Peter Zijlstra wrote:
+>>> On Fri, 2012-06-22 at 10:11 -0400, Rik van Riel wrote:
+>>>>
+>>>> I am still trying to wrap my brain around your alternative
+>>>> search algorithm, not sure if/how it can be combined with
+>>>> arbitrary address limits and alignment...
+>>>
+>>> for alignment we can do: len += align - 1;
+>>
+>> We could, but that might lead us to returning -ENOMEM
+>> when we actually have memory available.
+>>
+>> When you consider architectures like HPPA, which use
+>> a pretty large alignment, but align everything the same,
+>> chances are pretty much every freed hole will have the
+>> right alignment...
+>
+> Well, if you don't your gap heap is next to useless and you'll revert to
+> simply walking all gaps until you find a suitable one.
 
-On Fri 22-06-12 20:46:39, Wanpeng Li wrote:
-> From: Wanpeng Li <liwp@linux.vnet.ibm.com>
-> 
-> Signed-off-by: Wanpeng Li <liwp.linux@gmail.com>
-> ---
->  mm/memcontrol.c |   11 +++++------
->  1 file changed, 5 insertions(+), 6 deletions(-)
-> 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 776fc57..503ddd0 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -115,8 +115,8 @@ static const char * const mem_cgroup_events_names[] = {
->  
->  /*
->   * Per memcg event counter is incremented at every pagein/pageout. With THP,
-> - * it will be incremated by the number of pages. This counter is used for
-> - * for trigger some periodic events. This is straightforward and better
-> + * it will be incremented by the number of pages. This counter is used to
-> + * trigger some periodic events. This is straightforward and better
->   * than using jiffies etc. to handle periodic memcg event.
->   */
->  enum mem_cgroup_events_target {
-> @@ -678,7 +678,7 @@ mem_cgroup_largest_soft_limit_node(struct mem_cgroup_tree_per_zone *mctz)
->   *
->   * If there are kernel internal actions which can make use of some not-exact
->   * value, and reading all cpu value can be performance bottleneck in some
-> - * common workload, threashold and synchonization as vmstat[] should be
-> + * common workload, threshold and synchonization as vmstat[] should be
->   * implemented.
->   */
->  static long mem_cgroup_read_stat(struct mem_cgroup *memcg,
-> @@ -2213,7 +2213,6 @@ static int mem_cgroup_do_charge(struct mem_cgroup *memcg, gfp_t gfp_mask,
->  	if (mem_cgroup_wait_acct_move(mem_over_limit))
->  		return CHARGE_RETRY;
->  
-> -	/* If we don't need to call oom-killer at el, return immediately */
->  	if (!oom_check)
->  		return CHARGE_NOMEM;
->  	/* check OOM */
-> @@ -2291,7 +2290,7 @@ again:
->  		 * In that case, "memcg" can point to root or p can be NULL with
->  		 * race with swapoff. Then, we have small risk of mis-accouning.
->  		 * But such kind of mis-account by race always happens because
-> -		 * we don't have cgroup_mutex(). It's overkill and we allo that
-> +		 * we don't have cgroup_mutex(). It's overkill and we allow that
->  		 * small race, here.
->  		 * (*) swapoff at el will charge against mm-struct not against
->  		 * task-struct. So, mm->owner can be NULL.
-> @@ -2396,7 +2395,7 @@ static void __mem_cgroup_cancel_charge(struct mem_cgroup *memcg,
->  }
->  
->  /*
-> - * Cancel chrages in this cgroup....doesn't propagate to parent cgroup.
-> + * Cancel charges in this cgroup....doesn't propagate to parent cgroup.
->   * This is useful when moving usage to parent cgroup.
->   */
->  static void __mem_cgroup_cancel_local_charge(struct mem_cgroup *memcg,
-> -- 
-> 1.7.9.5
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+I could see how that might potentially be a problem,
+especially when we have a small allocation with large
+alignment constraints, eg. HPPA cache alignment.
+
+> I really worry about this search function of yours, its complexity is
+> very non obvious.
+
+Let me try implementing your algorithm with arbitrary
+address constraints and alignment/colouring.
+
+Basically, we need to remember if the allocation failed
+due to bad alignment.  If it did, we add shm_align_mask
+to the allocation length, and try a second search.
+
+This should result in at worst two whole tree traversals
+and one partial traversal. Less on sane architectures,
+or for non-MAP_SHARED allocations.
 
 -- 
-Michal Hocko
-SUSE Labs
-SUSE LINUX s.r.o.
-Lihovarska 1060/12
-190 00 Praha 9    
-Czech Republic
+All rights reversed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
