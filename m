@@ -1,311 +1,126 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
-	by kanga.kvack.org (Postfix) with SMTP id C67F36B0271
-	for <linux-mm@kvack.org>; Fri, 22 Jun 2012 18:29:20 -0400 (EDT)
-Date: Fri, 22 Jun 2012 23:27:56 +0100
-From: Russell King - ARM Linux <linux@arm.linux.org.uk>
-Subject: Re: [PATCH -mm v2 10/11] mm: remove ARM arch_get_unmapped_area
-	functions
-Message-ID: <20120622222756.GF30087@n2100.arm.linux.org.uk>
-References: <1340315835-28571-1-git-send-email-riel@surriel.com> <1340315835-28571-11-git-send-email-riel@surriel.com>
+Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
+	by kanga.kvack.org (Postfix) with SMTP id DD6D06B0273
+	for <linux-mm@kvack.org>; Fri, 22 Jun 2012 18:54:27 -0400 (EDT)
+Received: by ghrr18 with SMTP id r18so2466328ghr.14
+        for <linux-mm@kvack.org>; Fri, 22 Jun 2012 15:54:26 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1340315835-28571-11-git-send-email-riel@surriel.com>
+In-Reply-To: <alpine.DEB.2.00.1206221444370.23486@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.1206221444370.23486@chino.kir.corp.google.com>
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Date: Fri, 22 Jun 2012 18:54:06 -0400
+Message-ID: <CAHGf_=p4SS7qA_eRpBF0PawyUa8DpYncL0LS-=B4tHFaDUKV-w@mail.gmail.com>
+Subject: Re: [patch] mm, oom: replace some information in tasklist dump
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@surriel.com>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, aarcange@redhat.com, peterz@infradead.org, minchan@gmail.com, kosaki.motohiro@gmail.com, andi@firstfloor.org, hannes@cmpxchg.org, mel@csn.ul.ie, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
 
-On Thu, Jun 21, 2012 at 05:57:14PM -0400, Rik van Riel wrote:
-> Remove the ARM special variants of arch_get_unmapped_area since the
-> generic functions should now be able to handle everything.
-> 
-> ARM only needs page colouring if cache_is_vipt_aliasing; leave
-> shm_align_mask at PAGE_SIZE-1 unless we need colouring.
-> 
-> Untested because I have no ARM hardware.
-
-And I'll need other bits of the patch set to be able to test this for you...
-
-> Cc: Russell King <linux@arm.linux.org.uk>
-> Signed-off-by: Rik van Riel <riel@redhat.com>
+On Fri, Jun 22, 2012 at 5:45 PM, David Rientjes <rientjes@google.com> wrote=
+:
+> The number of ptes and swap entries are used in the oom killer's badness
+> heuristic, so they should be shown in the tasklist dump.
+>
+> This patch adds those fields and replaces cpu and oom_adj values that are
+> currently emitted. =A0Cpu isn't interesting and oom_adj is deprecated and
+> will be removed later this year, the same information is already
+> displayed as oom_score_adj which is used internally.
+>
+> At the same time, make the documentation a little more clear to state
+> this information is helpful to determine why the oom killer chose the
+> task it did to kill.
+>
+> Signed-off-by: David Rientjes <rientjes@google.com>
 > ---
->  arch/arm/include/asm/pgtable.h |    6 -
->  arch/arm/mm/init.c             |    4 +
->  arch/arm/mm/mmap.c             |  217 ----------------------------------------
->  3 files changed, 4 insertions(+), 223 deletions(-)
-> 
-> diff --git a/arch/arm/include/asm/pgtable.h b/arch/arm/include/asm/pgtable.h
-> index f66626d..6754183 100644
-> --- a/arch/arm/include/asm/pgtable.h
-> +++ b/arch/arm/include/asm/pgtable.h
-> @@ -296,12 +296,6 @@ static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
->  #include <asm-generic/pgtable.h>
->  
->  /*
-> - * We provide our own arch_get_unmapped_area to cope with VIPT caches.
-> - */
-> -#define HAVE_ARCH_UNMAPPED_AREA
-> -#define HAVE_ARCH_UNMAPPED_AREA_TOPDOWN
-> -
-> -/*
->   * remap a physical page `pfn' of size `size' with page protection `prot'
->   * into virtual address `from'
->   */
-> diff --git a/arch/arm/mm/init.c b/arch/arm/mm/init.c
-> index f54d592..abaf862 100644
-> --- a/arch/arm/mm/init.c
-> +++ b/arch/arm/mm/init.c
-> @@ -600,6 +600,10 @@ void __init mem_init(void)
->  	extern u32 itcm_end;
->  #endif
->  
-> +	/* Tell the page colouring code what we need. */
-> +	if (cache_is_vipt_aliasing())
-> +		shm_align_mask = SHMLBA - 1;
-> +
->  	max_mapnr   = pfn_to_page(max_pfn + PHYS_PFN_OFFSET) - mem_map;
->  
->  	/* this will put all unused low memory onto the freelists */
-> diff --git a/arch/arm/mm/mmap.c b/arch/arm/mm/mmap.c
-> index ce8cb19..d90969b 100644
-> --- a/arch/arm/mm/mmap.c
-> +++ b/arch/arm/mm/mmap.c
-> @@ -11,22 +11,6 @@
->  #include <linux/random.h>
->  #include <asm/cachetype.h>
->  
-> -static inline unsigned long COLOUR_ALIGN_DOWN(unsigned long addr,
-> -					      unsigned long pgoff)
-> -{
-> -	unsigned long base = addr & ~(SHMLBA-1);
-> -	unsigned long off = (pgoff << PAGE_SHIFT) & (SHMLBA-1);
-> -
-> -	if (base + off <= addr)
-> -		return base + off;
-> -
-> -	return base - off;
-> -}
-> -
-> -#define COLOUR_ALIGN(addr,pgoff)		\
-> -	((((addr)+SHMLBA-1)&~(SHMLBA-1)) +	\
-> -	 (((pgoff)<<PAGE_SHIFT) & (SHMLBA-1)))
-> -
->  /* gap between mmap and stack */
->  #define MIN_GAP (128*1024*1024UL)
->  #define MAX_GAP ((TASK_SIZE)/6*5)
-> @@ -54,207 +38,6 @@ static unsigned long mmap_base(unsigned long rnd)
->  	return PAGE_ALIGN(TASK_SIZE - gap - rnd);
->  }
->  
-> -/*
-> - * We need to ensure that shared mappings are correctly aligned to
-> - * avoid aliasing issues with VIPT caches.  We need to ensure that
-> - * a specific page of an object is always mapped at a multiple of
-> - * SHMLBA bytes.
-> - *
-> - * We unconditionally provide this function for all cases, however
-> - * in the VIVT case, we optimise out the alignment rules.
-> - */
-> -unsigned long
-> -arch_get_unmapped_area(struct file *filp, unsigned long addr,
-> -		unsigned long len, unsigned long pgoff, unsigned long flags)
-> -{
-> -	struct mm_struct *mm = current->mm;
-> -	struct vm_area_struct *vma;
-> -	unsigned long start_addr;
-> -	int do_align = 0;
-> -	int aliasing = cache_is_vipt_aliasing();
-> -
-> -	/*
-> -	 * We only need to do colour alignment if either the I or D
-> -	 * caches alias.
-> -	 */
-> -	if (aliasing)
-> -		do_align = filp || (flags & MAP_SHARED);
-> -
-> -	/*
-> -	 * We enforce the MAP_FIXED case.
-> -	 */
-> -	if (flags & MAP_FIXED) {
-> -		if (aliasing && flags & MAP_SHARED &&
-> -		    (addr - (pgoff << PAGE_SHIFT)) & (SHMLBA - 1))
-> -			return -EINVAL;
-> -		return addr;
-> -	}
-> -
-> -	if (len > TASK_SIZE)
-> -		return -ENOMEM;
-> -
-> -	if (addr) {
-> -		if (do_align)
-> -			addr = COLOUR_ALIGN(addr, pgoff);
-> -		else
-> -			addr = PAGE_ALIGN(addr);
-> -
-> -		vma = find_vma(mm, addr);
-> -		if (TASK_SIZE - len >= addr &&
-> -		    (!vma || addr + len <= vma->vm_start))
-> -			return addr;
-> -	}
-> -	if (len > mm->cached_hole_size) {
-> -	        start_addr = addr = mm->free_area_cache;
-> -	} else {
-> -	        start_addr = addr = mm->mmap_base;
-> -	        mm->cached_hole_size = 0;
-> -	}
-> -
-> -full_search:
-> -	if (do_align)
-> -		addr = COLOUR_ALIGN(addr, pgoff);
-> -	else
-> -		addr = PAGE_ALIGN(addr);
-> -
-> -	for (vma = find_vma(mm, addr); ; vma = vma->vm_next) {
-> -		/* At this point:  (!vma || addr < vma->vm_end). */
-> -		if (TASK_SIZE - len < addr) {
-> -			/*
-> -			 * Start a new search - just in case we missed
-> -			 * some holes.
-> -			 */
-> -			if (start_addr != TASK_UNMAPPED_BASE) {
-> -				start_addr = addr = TASK_UNMAPPED_BASE;
-> -				mm->cached_hole_size = 0;
-> -				goto full_search;
-> -			}
-> -			return -ENOMEM;
-> -		}
-> -		if (!vma || addr + len <= vma->vm_start) {
-> -			/*
-> -			 * Remember the place where we stopped the search:
-> -			 */
-> -			mm->free_area_cache = addr + len;
-> -			return addr;
-> -		}
-> -		if (addr + mm->cached_hole_size < vma->vm_start)
-> -		        mm->cached_hole_size = vma->vm_start - addr;
-> -		addr = vma->vm_end;
-> -		if (do_align)
-> -			addr = COLOUR_ALIGN(addr, pgoff);
-> -	}
-> -}
-> -
-> -unsigned long
-> -arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
-> -			const unsigned long len, const unsigned long pgoff,
-> -			const unsigned long flags)
-> -{
-> -	struct vm_area_struct *vma;
-> -	struct mm_struct *mm = current->mm;
-> -	unsigned long addr = addr0;
-> -	int do_align = 0;
-> -	int aliasing = cache_is_vipt_aliasing();
-> -
-> -	/*
-> -	 * We only need to do colour alignment if either the I or D
-> -	 * caches alias.
-> -	 */
-> -	if (aliasing)
-> -		do_align = filp || (flags & MAP_SHARED);
-> -
-> -	/* requested length too big for entire address space */
-> -	if (len > TASK_SIZE)
-> -		return -ENOMEM;
-> -
-> -	if (flags & MAP_FIXED) {
-> -		if (aliasing && flags & MAP_SHARED &&
-> -		    (addr - (pgoff << PAGE_SHIFT)) & (SHMLBA - 1))
-> -			return -EINVAL;
-> -		return addr;
-> -	}
-> -
-> -	/* requesting a specific address */
-> -	if (addr) {
-> -		if (do_align)
-> -			addr = COLOUR_ALIGN(addr, pgoff);
-> -		else
-> -			addr = PAGE_ALIGN(addr);
-> -		vma = find_vma(mm, addr);
-> -		if (TASK_SIZE - len >= addr &&
-> -				(!vma || addr + len <= vma->vm_start))
-> -			return addr;
-> -	}
-> -
-> -	/* check if free_area_cache is useful for us */
-> -	if (len <= mm->cached_hole_size) {
-> -		mm->cached_hole_size = 0;
-> -		mm->free_area_cache = mm->mmap_base;
-> -	}
-> -
-> -	/* either no address requested or can't fit in requested address hole */
-> -	addr = mm->free_area_cache;
-> -	if (do_align) {
-> -		unsigned long base = COLOUR_ALIGN_DOWN(addr - len, pgoff);
-> -		addr = base + len;
-> -	}
-> -
-> -	/* make sure it can fit in the remaining address space */
-> -	if (addr > len) {
-> -		vma = find_vma(mm, addr-len);
-> -		if (!vma || addr <= vma->vm_start)
-> -			/* remember the address as a hint for next time */
-> -			return (mm->free_area_cache = addr-len);
-> -	}
-> -
-> -	if (mm->mmap_base < len)
-> -		goto bottomup;
-> -
-> -	addr = mm->mmap_base - len;
-> -	if (do_align)
-> -		addr = COLOUR_ALIGN_DOWN(addr, pgoff);
-> -
-> -	do {
-> -		/*
-> -		 * Lookup failure means no vma is above this address,
-> -		 * else if new region fits below vma->vm_start,
-> -		 * return with success:
-> -		 */
-> -		vma = find_vma(mm, addr);
-> -		if (!vma || addr+len <= vma->vm_start)
-> -			/* remember the address as a hint for next time */
-> -			return (mm->free_area_cache = addr);
-> -
-> -		/* remember the largest hole we saw so far */
-> -		if (addr + mm->cached_hole_size < vma->vm_start)
-> -			mm->cached_hole_size = vma->vm_start - addr;
-> -
-> -		/* try just below the current vma->vm_start */
-> -		addr = vma->vm_start - len;
-> -		if (do_align)
-> -			addr = COLOUR_ALIGN_DOWN(addr, pgoff);
-> -	} while (len < vma->vm_start);
-> -
-> -bottomup:
-> -	/*
-> -	 * A failed mmap() very likely causes application failure,
-> -	 * so fall back to the bottom-up function here. This scenario
-> -	 * can happen with large stack limits and large mmap()
-> -	 * allocations.
-> -	 */
-> -	mm->cached_hole_size = ~0UL;
-> -	mm->free_area_cache = TASK_UNMAPPED_BASE;
-> -	addr = arch_get_unmapped_area(filp, addr0, len, pgoff, flags);
-> -	/*
-> -	 * Restore the topdown base:
-> -	 */
-> -	mm->free_area_cache = mm->mmap_base;
-> -	mm->cached_hole_size = ~0UL;
-> -
-> -	return addr;
-> -}
-> -
->  void arch_pick_mmap_layout(struct mm_struct *mm)
->  {
->  	unsigned long random_factor = 0UL;
-> -- 
-> 1.7.7.6
-> 
+> =A0Documentation/sysctl/vm.txt | =A0 =A07 ++++---
+> =A0mm/oom_kill.c =A0 =A0 =A0 =A0 =A0 =A0 =A0 | =A0 11 ++++++-----
+> =A02 files changed, 10 insertions(+), 8 deletions(-)
+>
+> diff --git a/Documentation/sysctl/vm.txt b/Documentation/sysctl/vm.txt
+> --- a/Documentation/sysctl/vm.txt
+> +++ b/Documentation/sysctl/vm.txt
+> @@ -502,9 +502,10 @@ oom_dump_tasks
+>
+> =A0Enables a system-wide task dump (excluding kernel threads) to be
+> =A0produced when the kernel performs an OOM-killing and includes such
+> -information as pid, uid, tgid, vm size, rss, cpu, oom_adj score, and
+> -name. =A0This is helpful to determine why the OOM killer was invoked
+> -and to identify the rogue task that caused it.
+> +information as pid, uid, tgid, vm size, rss, nr_ptes, swapents,
+> +oom_score_adj score, and name. =A0This is helpful to determine why the
+> +OOM killer was invoked, to identify the rogue task that caused it,
+> +and to determine why the OOM killer chose the task it did to kill.
+>
+> =A0If this is set to zero, this information is suppressed. =A0On very
+> =A0large systems with thousands of tasks it may not be feasible to dump
+> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+> --- a/mm/oom_kill.c
+> +++ b/mm/oom_kill.c
+> @@ -371,8 +371,8 @@ static struct task_struct *select_bad_process(unsigne=
+d int *ppoints,
+> =A0* Dumps the current memory state of all eligible tasks. =A0Tasks not i=
+n the same
+> =A0* memcg, not in the same cpuset, or bound to a disjoint set of mempoli=
+cy nodes
+> =A0* are not shown.
+> - * State information includes task's pid, uid, tgid, vm size, rss, cpu, =
+oom_adj
+> - * value, oom_score_adj value, and name.
+> + * State information includes task's pid, uid, tgid, vm size, rss, nr_pt=
+es,
+> + * swapents, oom_score_adj value, and name.
+> =A0*
+> =A0* Call with tasklist_lock read-locked.
+> =A0*/
+> @@ -381,7 +381,7 @@ static void dump_tasks(const struct mem_cgroup *memcg=
+, const nodemask_t *nodemas
+> =A0 =A0 =A0 =A0struct task_struct *p;
+> =A0 =A0 =A0 =A0struct task_struct *task;
+>
+> - =A0 =A0 =A0 pr_info("[ pid ] =A0 uid =A0tgid total_vm =A0 =A0 =A0rss cp=
+u oom_adj oom_score_adj name\n");
+> + =A0 =A0 =A0 pr_info("[ pid ] =A0 uid =A0tgid total_vm =A0 =A0 =A0rss nr=
+_ptes swapents oom_score_adj name\n");
+> =A0 =A0 =A0 =A0for_each_process(p) {
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0if (oom_unkillable_task(p, memcg, nodemask=
+))
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0continue;
+> @@ -396,10 +396,11 @@ static void dump_tasks(const struct mem_cgroup *mem=
+cg, const nodemask_t *nodemas
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0continue;
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0}
+>
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 pr_info("[%5d] %5d %5d %8lu %8lu %3u =A0 =
+=A0 %3d =A0 =A0 =A0 =A0 %5d %s\n",
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 pr_info("[%5d] %5d %5d %8lu %8lu %7lu %8lu =
+=A0 =A0 =A0 =A0 %5d %s\n",
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0task->pid, from_kuid(&init=
+_user_ns, task_uid(task)),
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0task->tgid, task->mm->tota=
+l_vm, get_mm_rss(task->mm),
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 task_cpu(task), task->signa=
+l->oom_adj,
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 task->mm->nr_ptes,
+
+nr_ptes should be folded into rss. it's "resident".
+btw, /proc rss info should be fixed too.
+
+
+
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 get_mm_counter(task->mm, MM=
+_SWAPENTS),
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0task->signal->oom_score_ad=
+j, task->comm);
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0task_unlock(task);
+> =A0 =A0 =A0 =A0}
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org. =A0For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
