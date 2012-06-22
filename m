@@ -1,33 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
-	by kanga.kvack.org (Postfix) with SMTP id 51E8D6B0259
-	for <linux-mm@kvack.org>; Fri, 22 Jun 2012 16:19:03 -0400 (EDT)
-Date: Fri, 22 Jun 2012 13:19:01 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm: clear pages_scanned only if draining a pcp adds
- pages to the buddy allocator again
-Message-Id: <20120622131901.28f273e3.akpm@linux-foundation.org>
-In-Reply-To: <1339690570-7471-1-git-send-email-kosaki.motohiro@gmail.com>
-References: <1339690570-7471-1-git-send-email-kosaki.motohiro@gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
+	by kanga.kvack.org (Postfix) with SMTP id 5C8D06B005A
+	for <linux-mm@kvack.org>; Fri, 22 Jun 2012 16:23:11 -0400 (EDT)
+Received: by pbbrp2 with SMTP id rp2so5026495pbb.14
+        for <linux-mm@kvack.org>; Fri, 22 Jun 2012 13:23:10 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20120622201429.GM4642@google.com>
+References: <20120619041154.GA28651@shangw>
+	<20120619212059.GJ32733@google.com>
+	<20120619212618.GK32733@google.com>
+	<CAE9FiQVECyRBie-kgBETmqxPaMx24kUt1W07qAqoGD4vNus5xQ@mail.gmail.com>
+	<20120621201728.GB4642@google.com>
+	<CAE9FiQXubmnKHjnqOxVeoJknJZFNuStCcW=1XC6jLE7eznkTmg@mail.gmail.com>
+	<20120622185113.GK4642@google.com>
+	<CAE9FiQVV+WOWywnanrP7nX-wai=aXmQS1Dcvt4PxJg5XWynC+Q@mail.gmail.com>
+	<20120622192919.GL4642@google.com>
+	<CAE9FiQWcxEcuCjCSoAucvAOZ-6FCqRvjPoYc+JRmxdL50nyNxg@mail.gmail.com>
+	<20120622201429.GM4642@google.com>
+Date: Fri, 22 Jun 2012 13:23:10 -0700
+Message-ID: <CAE9FiQXygFrvDzRScwgzsTT2_j7Xz2LbbBGSUKs5gwOv4Sd3Rw@mail.gmail.com>
+Subject: Re: Early boot panic on machine with lots of memory
+From: Yinghai Lu <yinghai@kernel.org>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kosaki.motohiro@gmail.com
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, Mel Gorman <mel@csn.ul.ie>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan.kim@gmail.com>, Wu Fengguang <fengguang.wu@intel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>
+To: Tejun Heo <tj@kernel.org>
+Cc: Gavin Shan <shangw@linux.vnet.ibm.com>, Sasha Levin <levinsasha928@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, David Miller <davem@davemloft.net>, hpa@linux.intel.com, linux-mm <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-On Thu, 14 Jun 2012 12:16:10 -0400
-kosaki.motohiro@gmail.com wrote:
+On Fri, Jun 22, 2012 at 1:14 PM, Tejun Heo <tj@kernel.org> wrote:
+>
+> Alternatively, you can use mutt for patch sending / processing. =A0With
+> caches turned on (set header_cache, set message_cachedir), it's
+> actually pretty useable w/ gmail.
 
-> commit 2ff754fa8f (mm: clear pages_scanned only if draining a pcp adds pages
-> to the buddy allocator again) fixed one free_pcppages_bulk() misuse. But two
-> another miuse still exist.
+will try this.
 
-This changelog is irritating.  One can understand it a bit if one
-happens to have a git repo handy (and why do this to the reader?), but
-the changelog for 2ff754fa8f indicates that the patch might fix a
-livelock.  Is that true of this patch?  Who knows...
+i like to use gmail web client, and other way to send patch but keep
+the threading.
+
+Thanks
+
+Yinghai
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
