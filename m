@@ -1,34 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx110.postini.com [74.125.245.110])
-	by kanga.kvack.org (Postfix) with SMTP id 36DB06B025D
-	for <linux-mm@kvack.org>; Fri, 22 Jun 2012 17:01:46 -0400 (EDT)
-Date: Fri, 22 Jun 2012 14:01:43 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH -V2 1/2] hugetlb: Move all the in use pages to active
- list
-Message-Id: <20120622140143.6cf0551d.akpm@linux-foundation.org>
-In-Reply-To: <1339756263-20378-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-References: <1339756263-20378-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
+	by kanga.kvack.org (Postfix) with SMTP id AE18E6B025F
+	for <linux-mm@kvack.org>; Fri, 22 Jun 2012 17:06:43 -0400 (EDT)
+Received: by pbbrp2 with SMTP id rp2so5071633pbb.14
+        for <linux-mm@kvack.org>; Fri, 22 Jun 2012 14:06:43 -0700 (PDT)
+Date: Fri, 22 Jun 2012 14:06:40 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch v2] mm, thp: print useful information when mmap_sem is
+ unlocked in zap_pmd_range
+In-Reply-To: <alpine.DEB.2.00.1206110214150.6843@chino.kir.corp.google.com>
+Message-ID: <alpine.DEB.2.00.1206221405430.20954@chino.kir.corp.google.com>
+References: <20120606165330.GA27744@redhat.com> <alpine.DEB.2.00.1206091904030.7832@chino.kir.corp.google.com> <alpine.DEB.2.00.1206110214150.6843@chino.kir.corp.google.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, mhocko@suse.cz
+To: Dave Jones <davej@redhat.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>, Sasha Levin <levinsasha928@gmail.com>, Andrew Morton <akpm@linux-foundation.org>
 
-On Fri, 15 Jun 2012 16:01:02 +0530
-"Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com> wrote:
+On Mon, 11 Jun 2012, David Rientjes wrote:
 
-> When we fail to allocate pages from the reserve pool, hugetlb
-> do try to allocate huge pages using alloc_buddy_huge_page.
-> Add these to the active list. We also need to add the huge
-> page we allocate when we soft offline the oldpage to active
-> list.
+> diff --git a/mm/memory.c b/mm/memory.c
+> --- a/mm/memory.c
+> +++ b/mm/memory.c
+> @@ -1225,7 +1225,15 @@ static inline unsigned long zap_pmd_range(struct mmu_gather *tlb,
+>  		next = pmd_addr_end(addr, end);
+>  		if (pmd_trans_huge(*pmd)) {
+>  			if (next - addr != HPAGE_PMD_SIZE) {
+> -				VM_BUG_ON(!rwsem_is_locked(&tlb->mm->mmap_sem));
+> +#ifdef CONFIG_DEBUG_VM
+> +				if (!rwsem_is_locked(&tlb->mm->mmap_sem)) {
+> +					pr_err("%s: mmap_sem is unlocked! addr=0x%lx end=0x%lx vma->vm_start=0x%lx vma->vm_end=0x%lx\n",
+> +						__func__, addr, end,
+> +						vma->vm_start,
+> +						vma->vm_end);
+> +					BUG();
+> +				}
+> +#endif
+>  				split_huge_page_pmd(vma->vm_mm, pmd);
+>  			} else if (zap_huge_pmd(tlb, vma, pmd, addr))
+>  				goto next;
 
-When fixing a bug, please describe the end-user-visible effects of that bug.
-
-Fully.  Every time.  No exceptions.
+This patch is now in Linus' tree so if you are able to hit this issue and 
+capture it again, we should be able to get much more useful information.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
