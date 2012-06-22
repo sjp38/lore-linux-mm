@@ -1,57 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
-	by kanga.kvack.org (Postfix) with SMTP id 7A4E76B0263
-	for <linux-mm@kvack.org>; Fri, 22 Jun 2012 17:39:05 -0400 (EDT)
-Date: Fri, 22 Jun 2012 14:39:03 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm: clear pages_scanned only if draining a pcp adds
- pages to the buddy allocator again
-Message-Id: <20120622143903.ea1c6484.akpm@linux-foundation.org>
-In-Reply-To: <CAHGf_=rQ6AaZBjfvkWWKi+a5q+1R29_PGWDyD77VFisgJHPQEA@mail.gmail.com>
-References: <1339690570-7471-1-git-send-email-kosaki.motohiro@gmail.com>
-	<20120622131901.28f273e3.akpm@linux-foundation.org>
-	<CAHGf_=rQ6AaZBjfvkWWKi+a5q+1R29_PGWDyD77VFisgJHPQEA@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx135.postini.com [74.125.245.135])
+	by kanga.kvack.org (Postfix) with SMTP id 7BA636B0265
+	for <linux-mm@kvack.org>; Fri, 22 Jun 2012 17:44:37 -0400 (EDT)
+Received: by dakp5 with SMTP id p5so3510751dak.14
+        for <linux-mm@kvack.org>; Fri, 22 Jun 2012 14:44:36 -0700 (PDT)
+Date: Fri, 22 Jun 2012 14:44:34 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: [patch 3.5-rc3] mm, oom: fix potential killing of thread that is
+ disabled from oom killing
+Message-ID: <alpine.DEB.2.00.1206221443210.23486@chino.kir.corp.google.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Mel Gorman <mel@csn.ul.ie>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan.kim@gmail.com>, Wu Fengguang <fengguang.wu@intel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>
+To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Fri, 22 Jun 2012 17:10:59 -0400
-KOSAKI Motohiro <kosaki.motohiro@gmail.com> wrote:
+/proc/sys/vm/oom_kill_allocating_task will immediately kill current when
+the oom killer is called to avoid a potentially expensive tasklist scan
+for large systems.
 
-> On Fri, Jun 22, 2012 at 4:19 PM, Andrew Morton
-> <akpm@linux-foundation.org> wrote:
-> > On Thu, 14 Jun 2012 12:16:10 -0400
-> > kosaki.motohiro@gmail.com wrote:
-> >
-> >> commit 2ff754fa8f (mm: clear pages_scanned only if draining a pcp adds pages
-> >> to the buddy allocator again) fixed one free_pcppages_bulk() misuse. But two
-> >> another miuse still exist.
-> >
-> > This changelog is irritating. __One can understand it a bit if one
-> > happens to have a git repo handy (and why do this to the reader?), but
-> > the changelog for 2ff754fa8f indicates that the patch might fix a
-> > livelock. __Is that true of this patch? __Who knows...
-> 
-> The code in this simple patch speak the right usage, isn't it?
+Currently, however, it is not checking current's oom_score_adj value
+which may be OOM_SCORE_ADJ_MIN, meaning that it has been disabled from
+oom killing.
 
-It depends who is listening.
+This patch avoids killing current in such a condition and simply falls
+back to the tasklist scan since memory still needs to be freed.
 
-Please, put yourself in the position of poor-scmuck@linux-distro.com
-who is reading your patch and wondering whether it will fix some
-customer bug report he is working on.  Or wondering whether he should
-backport it into his company's next kernel release.  He simply won't be
-able to do this with the information which was provided here.  And if
-we don't tell him, who will?
+Signed-off-by: David Rientjes <rientjes@google.com>
+---
+ mm/oom_kill.c |    4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
-> And yes,
-> this patch also fixes a possibility of live lock. (but i haven't seen actual
-> live lock cause from this mistake)
-
-hrm, I guess I'll put it in the 3.6 pile.
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -720,9 +720,9 @@ void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask,
+ 	check_panic_on_oom(constraint, gfp_mask, order, mpol_mask);
+ 
+ 	read_lock(&tasklist_lock);
+-	if (sysctl_oom_kill_allocating_task &&
++	if (sysctl_oom_kill_allocating_task && current->mm &&
+ 	    !oom_unkillable_task(current, NULL, nodemask) &&
+-	    current->mm) {
++	    current->signal->oom_score_adj != OOM_SCORE_ADJ_MIN) {
+ 		oom_kill_process(current, gfp_mask, order, 0, totalpages, NULL,
+ 				 nodemask,
+ 				 "Out of memory (oom_kill_allocating_task)");
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
