@@ -1,48 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
-	by kanga.kvack.org (Postfix) with SMTP id AE18E6B025F
-	for <linux-mm@kvack.org>; Fri, 22 Jun 2012 17:06:43 -0400 (EDT)
-Received: by pbbrp2 with SMTP id rp2so5071633pbb.14
-        for <linux-mm@kvack.org>; Fri, 22 Jun 2012 14:06:43 -0700 (PDT)
-Date: Fri, 22 Jun 2012 14:06:40 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch v2] mm, thp: print useful information when mmap_sem is
- unlocked in zap_pmd_range
-In-Reply-To: <alpine.DEB.2.00.1206110214150.6843@chino.kir.corp.google.com>
-Message-ID: <alpine.DEB.2.00.1206221405430.20954@chino.kir.corp.google.com>
-References: <20120606165330.GA27744@redhat.com> <alpine.DEB.2.00.1206091904030.7832@chino.kir.corp.google.com> <alpine.DEB.2.00.1206110214150.6843@chino.kir.corp.google.com>
+Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
+	by kanga.kvack.org (Postfix) with SMTP id 1F3516B0261
+	for <linux-mm@kvack.org>; Fri, 22 Jun 2012 17:11:21 -0400 (EDT)
+Received: by ggm4 with SMTP id 4so2398597ggm.14
+        for <linux-mm@kvack.org>; Fri, 22 Jun 2012 14:11:20 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <20120622131901.28f273e3.akpm@linux-foundation.org>
+References: <1339690570-7471-1-git-send-email-kosaki.motohiro@gmail.com> <20120622131901.28f273e3.akpm@linux-foundation.org>
+From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Date: Fri, 22 Jun 2012 17:10:59 -0400
+Message-ID: <CAHGf_=rQ6AaZBjfvkWWKi+a5q+1R29_PGWDyD77VFisgJHPQEA@mail.gmail.com>
+Subject: Re: [PATCH] mm: clear pages_scanned only if draining a pcp adds pages
+ to the buddy allocator again
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Jones <davej@redhat.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>, Sasha Levin <levinsasha928@gmail.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Mel Gorman <mel@csn.ul.ie>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan.kim@gmail.com>, Wu Fengguang <fengguang.wu@intel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>
 
-On Mon, 11 Jun 2012, David Rientjes wrote:
+On Fri, Jun 22, 2012 at 4:19 PM, Andrew Morton
+<akpm@linux-foundation.org> wrote:
+> On Thu, 14 Jun 2012 12:16:10 -0400
+> kosaki.motohiro@gmail.com wrote:
+>
+>> commit 2ff754fa8f (mm: clear pages_scanned only if draining a pcp adds p=
+ages
+>> to the buddy allocator again) fixed one free_pcppages_bulk() misuse. But=
+ two
+>> another miuse still exist.
+>
+> This changelog is irritating. =A0One can understand it a bit if one
+> happens to have a git repo handy (and why do this to the reader?), but
+> the changelog for 2ff754fa8f indicates that the patch might fix a
+> livelock. =A0Is that true of this patch? =A0Who knows...
 
-> diff --git a/mm/memory.c b/mm/memory.c
-> --- a/mm/memory.c
-> +++ b/mm/memory.c
-> @@ -1225,7 +1225,15 @@ static inline unsigned long zap_pmd_range(struct mmu_gather *tlb,
->  		next = pmd_addr_end(addr, end);
->  		if (pmd_trans_huge(*pmd)) {
->  			if (next - addr != HPAGE_PMD_SIZE) {
-> -				VM_BUG_ON(!rwsem_is_locked(&tlb->mm->mmap_sem));
-> +#ifdef CONFIG_DEBUG_VM
-> +				if (!rwsem_is_locked(&tlb->mm->mmap_sem)) {
-> +					pr_err("%s: mmap_sem is unlocked! addr=0x%lx end=0x%lx vma->vm_start=0x%lx vma->vm_end=0x%lx\n",
-> +						__func__, addr, end,
-> +						vma->vm_start,
-> +						vma->vm_end);
-> +					BUG();
-> +				}
-> +#endif
->  				split_huge_page_pmd(vma->vm_mm, pmd);
->  			} else if (zap_huge_pmd(tlb, vma, pmd, addr))
->  				goto next;
+The code in this simple patch speak the right usage, isn't it? And yes,
+this patch also fixes a possibility of live lock. (but i haven't seen actua=
+l
+live lock cause from this mistake)
 
-This patch is now in Linus' tree so if you are able to hit this issue and 
-capture it again, we should be able to get much more useful information.
+When anyone find a function misuse and fixes it, He/She should confirm othe=
+r
+callsite and should all of mistake too. Otherwise we observe the same issue
+sooner of later.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
