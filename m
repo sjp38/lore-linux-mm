@@ -1,47 +1,34 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
-	by kanga.kvack.org (Postfix) with SMTP id 5C8D06B005A
-	for <linux-mm@kvack.org>; Fri, 22 Jun 2012 16:23:11 -0400 (EDT)
-Received: by pbbrp2 with SMTP id rp2so5026495pbb.14
-        for <linux-mm@kvack.org>; Fri, 22 Jun 2012 13:23:10 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20120622201429.GM4642@google.com>
-References: <20120619041154.GA28651@shangw>
-	<20120619212059.GJ32733@google.com>
-	<20120619212618.GK32733@google.com>
-	<CAE9FiQVECyRBie-kgBETmqxPaMx24kUt1W07qAqoGD4vNus5xQ@mail.gmail.com>
-	<20120621201728.GB4642@google.com>
-	<CAE9FiQXubmnKHjnqOxVeoJknJZFNuStCcW=1XC6jLE7eznkTmg@mail.gmail.com>
-	<20120622185113.GK4642@google.com>
-	<CAE9FiQVV+WOWywnanrP7nX-wai=aXmQS1Dcvt4PxJg5XWynC+Q@mail.gmail.com>
-	<20120622192919.GL4642@google.com>
-	<CAE9FiQWcxEcuCjCSoAucvAOZ-6FCqRvjPoYc+JRmxdL50nyNxg@mail.gmail.com>
-	<20120622201429.GM4642@google.com>
-Date: Fri, 22 Jun 2012 13:23:10 -0700
-Message-ID: <CAE9FiQXygFrvDzRScwgzsTT2_j7Xz2LbbBGSUKs5gwOv4Sd3Rw@mail.gmail.com>
-Subject: Re: Early boot panic on machine with lots of memory
-From: Yinghai Lu <yinghai@kernel.org>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Received: from psmtp.com (na3sys010amx110.postini.com [74.125.245.110])
+	by kanga.kvack.org (Postfix) with SMTP id 36DB06B025D
+	for <linux-mm@kvack.org>; Fri, 22 Jun 2012 17:01:46 -0400 (EDT)
+Date: Fri, 22 Jun 2012 14:01:43 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH -V2 1/2] hugetlb: Move all the in use pages to active
+ list
+Message-Id: <20120622140143.6cf0551d.akpm@linux-foundation.org>
+In-Reply-To: <1339756263-20378-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+References: <1339756263-20378-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Gavin Shan <shangw@linux.vnet.ibm.com>, Sasha Levin <levinsasha928@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, David Miller <davem@davemloft.net>, hpa@linux.intel.com, linux-mm <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, mhocko@suse.cz
 
-On Fri, Jun 22, 2012 at 1:14 PM, Tejun Heo <tj@kernel.org> wrote:
->
-> Alternatively, you can use mutt for patch sending / processing. =A0With
-> caches turned on (set header_cache, set message_cachedir), it's
-> actually pretty useable w/ gmail.
+On Fri, 15 Jun 2012 16:01:02 +0530
+"Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com> wrote:
 
-will try this.
+> When we fail to allocate pages from the reserve pool, hugetlb
+> do try to allocate huge pages using alloc_buddy_huge_page.
+> Add these to the active list. We also need to add the huge
+> page we allocate when we soft offline the oldpage to active
+> list.
 
-i like to use gmail web client, and other way to send patch but keep
-the threading.
+When fixing a bug, please describe the end-user-visible effects of that bug.
 
-Thanks
-
-Yinghai
+Fully.  Every time.  No exceptions.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
