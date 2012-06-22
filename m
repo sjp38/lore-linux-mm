@@ -1,134 +1,155 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
-	by kanga.kvack.org (Postfix) with SMTP id 063D46B014B
-	for <linux-mm@kvack.org>; Fri, 22 Jun 2012 03:22:41 -0400 (EDT)
-Received: by ggm4 with SMTP id 4so1622710ggm.14
-        for <linux-mm@kvack.org>; Fri, 22 Jun 2012 00:22:40 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
+	by kanga.kvack.org (Postfix) with SMTP id EF8526B014D
+	for <linux-mm@kvack.org>; Fri, 22 Jun 2012 03:42:02 -0400 (EDT)
+Received: by wgbds1 with SMTP id ds1so476548wgb.2
+        for <linux-mm@kvack.org>; Fri, 22 Jun 2012 00:42:00 -0700 (PDT)
+Date: Fri, 22 Jun 2012 09:41:56 +0200
+From: Ingo Molnar <mingo@kernel.org>
+Subject: Re: [patch 3.5-rc3] mm, mempolicy: fix mbind() to do synchronous
+ migration
+Message-ID: <20120622074156.GA23682@gmail.com>
+References: <alpine.DEB.2.00.1206201758500.3068@chino.kir.corp.google.com>
+ <20120621164606.4ae1a71d.akpm@linux-foundation.org>
+ <CA+55aFzPXMD3N3Oy-om6utDCQYmrBDnDgdqpVC5cgKe-v6uZ3w@mail.gmail.com>
+ <20120621184536.6dd97746.akpm@linux-foundation.org>
+ <20120622071243.GB22167@gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <4FE3C4E4.2050107@kernel.org>
-References: <4FE169B1.7020600@kernel.org> <4FE16E80.9000306@gmail.com>
- <4FE18187.3050103@kernel.org> <4FE23069.5030702@gmail.com>
- <4FE26470.90401@kernel.org> <CAHGf_=pjoiHQ9vxXXe-GtbkYRzhxdDhu3pf6pwDsCe5pBQE8Nw@mail.gmail.com>
- <4FE27F15.8050102@kernel.org> <CAHGf_=pDw4axwG2tQ+B5hPks-sz2S5+G1Kk-=HSDmo=DSXOkEw@mail.gmail.com>
- <4FE2A937.6040701@kernel.org> <4FE2FCFB.4040808@jp.fujitsu.com> <4FE3C4E4.2050107@kernel.org>
-From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-Date: Fri, 22 Jun 2012 03:22:19 -0400
-Message-ID: <CAHGf_=oo5GrsbjTRPF2vC-g8R1XVOhjLAMQg6ik49-fr8D=Q+g@mail.gmail.com>
-Subject: Re: Accounting problem of MIGRATE_ISOLATED freed page
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120622071243.GB22167@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Aaditya Kumar <aaditya.kumar.30@gmail.com>, Mel Gorman <mel@csn.ul.ie>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
-
-> Let me summary again.
->
-> The problem:
->
-> when hotplug offlining happens on zone A, it starts to freed page as MIGR=
-ATE_ISOLATE type in buddy.
-> (MIGRATE_ISOLATE is very irony type because it's apparently on buddy but =
-we can't allocate them)
-> When the memory shortage happens during hotplug offlining, current task s=
-tarts to reclaim, then wake up kswapd.
-> Kswapd checks watermark, then go sleep BECAUSE current zone_watermark_ok_=
-safe doesn't consider
-> MIGRATE_ISOLATE freed page count. Current task continue to reclaim in dir=
-ect reclaim path without kswapd's help.
-> The problem is that zone->all_unreclaimable is set by only kswapd so that=
- current task would be looping forever
-> like below.
->
-> __alloc_pages_slowpath
-> restart:
-> =A0 =A0 =A0 =A0wake_all_kswapd
-> rebalance:
-> =A0 =A0 =A0 =A0__alloc_pages_direct_reclaim
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0do_try_to_free_pages
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0if global_reclaim && !all_=
-unreclaimable
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0return 1; =
-/* It means we did did_some_progress */
-> =A0 =A0 =A0 =A0skip __alloc_pages_may_oom
-> =A0 =A0 =A0 =A0should_alloc_retry
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0goto rebalance;
->
-> If we apply KOSAKI's patch[1] which doesn't depends on kswapd about setti=
-ng zone->all_unreclaimable,
-> we can solve this problem by killing some task. But it doesn't wake up ks=
-wapd, still.
-> It could be a problem still if other subsystem needs GFP_ATOMIC request.
-> So kswapd should consider MIGRATE_ISOLATE when it calculate free pages be=
-fore going sleep.
-
-I agree. And I believe we should remove rebalance label and alloc
-retrying should always wake up kswapd.
-because wake_all_kswapd is unreliable, it have no guarantee to success
-to wake up kswapd. then this
-micro optimization is NOT optimization. Just trouble source. Our
-memory reclaim logic has a lot of race
-by design. then any reclaim code shouldn't believe some one else works fine=
-.
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Peter Zijlstra <a.p.zijlstra@chello.nl>, Ingo Molnar <mingo@elte.hu>
 
 
+* Ingo Molnar <mingo@kernel.org> wrote:
 
-> Firstly I tried to solve this problem by this.
-> https://lkml.org/lkml/2012/6/20/30
-> The patch's goal was to NOT increase nr_free and NR_FREE_PAGES when we fr=
-ee page into MIGRATE_ISOLATED.
-> But it increases little overhead in higher order free page but I think it=
-'s not a big deal.
-> More problem is duplicated codes for handling only MIGRATE_ISOLATE freed =
-page.
->
-> Second approach which is suggested by KOSAKI is what you mentioned.
-> But the concern about second approach is how to make sure matched count i=
-ncrease/decrease of nr_isolated_areas.
-> I mean how to make sure nr_isolated_areas would be zero when isolation is=
- done.
-> Of course, we can investigate all of current caller and make sure they do=
-n't make mistake
-> now. But it's very error-prone if we consider future's user.
-> So we might need test_set_pageblock_migratetype(page, MIGRATE_ISOLATE);
->
-> IMHO, ideal solution is that we remove MIGRATE_ISOLATE type totally in bu=
-ddy.
-> For it, there is no problem to isolate already freed page in buddy alloca=
-tor but the concern is how to handle
-> freed page later by do_migrate_range in memory_hotplug.c.
-> We can create custom putback_lru_pages
->
-> put_page_hotplug(page)
-> {
-> =A0 =A0 =A0 =A0int migratetype =3D get_pageblock_migratetype(page)
-> =A0 =A0 =A0 =A0VM_BUG_ON(migratetype !=3D MIGRATE_ISOLATE);
-> =A0 =A0 =A0 =A0__page_cache_release(page);
-> =A0 =A0 =A0 =A0free_one_page(zone, page, 0, MIGRATE_ISOLATE);
-> }
->
-> putback_lru_pages_hotplug(&source)
-> {
-> =A0 =A0 =A0 =A0foreach page from source
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0put_page_hotplug(page)
-> }
->
-> do_migrate_range()
-> {
-> =A0 =A0 =A0 =A0migrate_pages(&source);
-> =A0 =A0 =A0 =A0putback_lru_pages_hotplug(&source);
-> }
->
-> I hope this summary can help you, Kame and If I miss something, please le=
-t me know it.
+> > I do still ask what the plans are for that patchset..
+> 
+> Somewhat off topic, but the main sched/numa objections were 
+> over the mbind/etc. syscalls and the extra configuration space 
+> - we dropped those bits and just turned it all into an 
+> improved NUMA scheduling feature, as suggested by Peter and me 
+> in the original discussion.
+> 
+> There were no objections to that approach so the reworked NUMA 
+> scheduling/balancing scheme is now in the scheduler tree 
+> (tip:sched/core).
+> 
+> The mbind/etc. syscall changes and all the related cleanups, 
+> speedups and reorganization of the MM code are still in limbo.
+> 
+> I dropped them with the rest of tip:sched/numa as nobody from 
+> the MM side expressed much interest in them and I wanted to 
+> keep things simple and not carry objected-to commits.
 
-I disagree this. Because of, memory hotplug intentionally don't use
-stopmachine. It is because
-we don't stop any system service when memory is being unpluged. That's
-said various subsystem
-try to allocate memory during page migration for memory unplug. IOW,
-we shouldn't do_migrate_page()
-is only one caller.
+>From your mail it appears that you weren't aware that this was 
+all queued up (clearly our fault) - so here's a quick status 
+dump, please let us know what you think and whether we can keep 
+them.
+
+The ones with mm/ effect that we kept are these, which are 
+needed for scheduler directed opportunistic/lazy memory 
+migration between nodes:
+
+ e9941dae8708 mm/mpol: Lazy migrate a process/vma
+ a9ea2f1e496e mm/mpol: Make mempolicy home-node aware
+ 5dca4a911980 mm/mpol: Split and explose some mempolicy functions
+ f1b39afe3e55 mm/mpol: Introduce vma_put_policy()
+ 9fc52f506a4e mm/mpol: Introduce vma_dup_policy()
+ 6494a5f2cb89 mm/mpol: Simplify do_mbind()
+ 65699050e8aa mm: Handle misplaced anon pages
+ 4783af477d3d mm: Migrate misplaced page
+ 147c5c460202 mm/mpol: Check for misplaced page
+ 84f1e3478238 mm/mpol: Add MPOL_MF_NOOP
+ 68d9661d42bf mm/mpol: Add MPOL_MF_LAZY ...
+ 03ed7b538ca0 mm/mpol: Make MPOL_LOCAL a real policy
+ e975d6ac08f3 mm/mpol: Remove NUMA_INTERLEAVE_HIT
+ 8c41549ed1b3 mm/mpol: Re-implement check_*_range() using walk_page_range()
+ 2ab41dd59922 mm: Optimize put_mems_allowed() usage
+
+Or with diffstats:
+
+e9941dae8708 mm/mpol: Lazy migrate a process/vma
+ mm/mempolicy.c |   84 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 84 insertions(+)
+
+a9ea2f1e496e mm/mpol: Make mempolicy home-node aware
+ mm/mempolicy.c |   29 +++++++++++++++++++++++++++--
+ 1 file changed, 27 insertions(+), 2 deletions(-)
+
+5dca4a911980 mm/mpol: Split and explose some mempolicy functions
+ mm/mempolicy.c |  111 ++++++++++++++++++++++++++++++++------------------------
+ 1 file changed, 63 insertions(+), 48 deletions(-)
+
+f1b39afe3e55 mm/mpol: Introduce vma_put_policy()
+ mm/mempolicy.c |    5 +++++
+ mm/mmap.c      |    8 ++++----
+ 2 files changed, 9 insertions(+), 4 deletions(-)
+
+9fc52f506a4e mm/mpol: Introduce vma_dup_policy()
+ mm/mempolicy.c |   11 +++++++++++
+ mm/mmap.c      |   17 +++++------------
+ 2 files changed, 16 insertions(+), 12 deletions(-)
+
+6494a5f2cb89 mm/mpol: Simplify do_mbind()
+ mm/mempolicy.c |   73 +++++++++++++++++++++++++++++---------------------------
+ 1 file changed, 38 insertions(+), 35 deletions(-)
+
+65699050e8aa mm: Handle misplaced anon pages
+ mm/memory.c   |   17 +++++++++++++++++
+ mm/swapfile.c |   13 +++++++++++++
+ 2 files changed, 30 insertions(+)
+
+4783af477d3d mm: Migrate misplaced page
+ mm/mempolicy.c |   19 +++++++++
+ mm/migrate.c   |  130 +++++++++++++++++++++++++++++++++++++++++++++++++++++++-
+ 2 files changed, 148 insertions(+), 1 deletion(-)
+
+147c5c460202 mm/mpol: Check for misplaced page
+ mm/mempolicy.c |   79 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 79 insertions(+)
+
+84f1e3478238 mm/mpol: Add MPOL_MF_NOOP
+ mm/mempolicy.c |    8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
+
+68d9661d42bf mm/mpol: Add MPOL_MF_LAZY ...
+ mm/mempolicy.c |   20 +++++++-----
+ mm/migrate.c   |   96 ++++++++++++++++++++++++++++++++++++++++++++++++++++++--
+ mm/rmap.c      |    6 ++--
+ 3 files changed, 109 insertions(+), 13 deletions(-)
+
+03ed7b538ca0 mm/mpol: Make MPOL_LOCAL a real policy
+ mm/mempolicy.c |    9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)
+
+e975d6ac08f3 mm/mpol: Remove NUMA_INTERLEAVE_HIT
+ mm/mempolicy.c |   68 +++++++++++++++++---------------------------------------
+ 1 file changed, 21 insertions(+), 47 deletions(-)
+
+8c41549ed1b3 mm/mpol: Re-implement check_*_range() using walk_page_range()
+ mm/mempolicy.c |  141 ++++++++++++++++++--------------------------------------
+ 1 file changed, 45 insertions(+), 96 deletions(-)
+
+2ab41dd59922 mm: Optimize put_mems_allowed() usage
+ mm/filemap.c    |    4 ++--
+ mm/hugetlb.c    |    4 ++--
+ mm/mempolicy.c  |   14 +++++++-------
+ mm/page_alloc.c |    8 ++++----
+ mm/slab.c       |    4 ++--
+ mm/slub.c       |   16 +++-------------
+ 6 files changed, 20 insertions(+), 30 deletions(-)
+
+These are mostly lazy migration facility enablers. On a second 
+note, should we internalize MPOL_MF_LAZY as well, to not expose 
+it to user-space?
+
+Thanks,
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
