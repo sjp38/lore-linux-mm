@@ -1,43 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
-	by kanga.kvack.org (Postfix) with SMTP id 4E56B6B0167
-	for <linux-mm@kvack.org>; Fri, 22 Jun 2012 07:28:12 -0400 (EDT)
-Date: Fri, 22 Jun 2012 13:27:51 +0200
-From: Sebastian Andrzej Siewior <sebastian@breakpoint.cc>
-Subject: Re: [PATCH 10/17] netvm: Allow skb allocation to use PFMEMALLOC
- reserves
-Message-ID: <20120622112750.GA6596@breakpoint.cc>
-References: <1340192652-31658-1-git-send-email-mgorman@suse.de>
- <1340192652-31658-11-git-send-email-mgorman@suse.de>
- <20120621163029.GB6045@breakpoint.cc>
- <20120622105451.GC8271@suse.de>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120622105451.GC8271@suse.de>
+Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
+	by kanga.kvack.org (Postfix) with SMTP id C8CEA6B0169
+	for <linux-mm@kvack.org>; Fri, 22 Jun 2012 08:00:08 -0400 (EDT)
+Received: by dakp5 with SMTP id p5so2776072dak.14
+        for <linux-mm@kvack.org>; Fri, 22 Jun 2012 05:00:08 -0700 (PDT)
+From: Wanpeng Li <liwp.linux@gmail.com>
+Subject: [PATCH 1/2] memcg: use existing function to judge root mem cgroup
+Date: Fri, 22 Jun 2012 19:57:22 +0800
+Message-Id: <1340366243-28104-1-git-send-email-liwp.linux@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Linux-Netdev <netdev@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, David Miller <davem@davemloft.net>, Neil Brown <neilb@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mike Christie <michaelc@cs.wisc.edu>, Eric B Munson <emunson@mgebm.net>
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: cgroups@vger.kernel.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Frederic Weisbecker <fweisbec@gmail.com>, Han Ying <yinghan@google.com>, Glauber Costa <glommer@parallels.com>, Tejun Heo <tj@kernel.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Hiroyuki Kamezawa <kamezawa.hiroyuki@gmail.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Wanpeng Li <liwp.linux@gmail.com>
 
-On Fri, Jun 22, 2012 at 11:54:51AM +0100, Mel Gorman wrote:
-> > This is mostly used by nic to refil their RX skb pool. You add the
-> > __GFP_MEMALLOC to the allocation to rise the change of a successfull refill
-> > for the swap case.
-> > A few drivers use build_skb() to create the skb. __netdev_alloc_skb()
-> > shouldn't be affected since the allocation happens with GFP_ATOMIC. Looking at
-> > TG3 it uses build_skb() and get_pages() / kmalloc(). Shouldn't this be some
-> > considered?
-> > 
-> 
-> While TG3 is not exactly as you describe after rebasing build_skb should
-> make a similar check to __alloc_skb. As it is always used for RX allocation
-> from the skbuff_head_cache cache the following should be suitable. Thanks.
+From: Wanpeng Li <liwp@linux.vnet.ibm.com>
 
-As Eric pointed out you end up in netdev_alloc_frag() which is using
-alloc_page(). This is also used by __netdev_alloc_skb().
+Signed-off-by: Wanpeng Li <liwp.linux@gmail.com>
+---
+ mm/memcontrol.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-Sebastian
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index f72b5e5..776fc57 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -4873,7 +4873,7 @@ mem_cgroup_create(struct cgroup *cont)
+ 			goto free_out;
+ 
+ 	/* root ? */
+-	if (cont->parent == NULL) {
++	if (!(mem_cgroup_is_root(cont))) {
+ 		int cpu;
+ 		enable_swap_cgroup();
+ 		parent = NULL;
+-- 
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
