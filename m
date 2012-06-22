@@ -1,52 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx135.postini.com [74.125.245.135])
-	by kanga.kvack.org (Postfix) with SMTP id 56ACA6B026D
-	for <linux-mm@kvack.org>; Fri, 22 Jun 2012 18:06:33 -0400 (EDT)
-Date: Fri, 22 Jun 2012 15:06:31 -0700
+Received: from psmtp.com (na3sys010amx178.postini.com [74.125.245.178])
+	by kanga.kvack.org (Postfix) with SMTP id 853BB6B026F
+	for <linux-mm@kvack.org>; Fri, 22 Jun 2012 18:11:23 -0400 (EDT)
+Date: Fri, 22 Jun 2012 15:11:21 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] hugeltb: Mark hugelb_max_hstate __read_mostly
-Message-Id: <20120622150631.9a7c4d17.akpm@linux-foundation.org>
-In-Reply-To: <alpine.DEB.2.00.1206150948120.20541@router.home>
-References: <1339682178-29059-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-	<20120614141257.GQ27397@tiehlicka.suse.cz>
-	<alpine.DEB.2.00.1206141538060.12773@router.home>
-	<87sjdxm7jd.fsf@skywalker.in.ibm.com>
-	<alpine.DEB.2.00.1206150857150.19708@router.home>
-	<20120615143342.GE8100@tiehlicka.suse.cz>
-	<alpine.DEB.2.00.1206150948120.20541@router.home>
+Subject: Re: [PATCH -V9 11/15] hugetlb/cgroup: Add charge/uncharge routines
+ for hugetlb cgroup
+Message-Id: <20120622151121.917178eb.akpm@linux-foundation.org>
+In-Reply-To: <4FD9A79D.9030303@huawei.com>
+References: <1339583254-895-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+	<1339583254-895-12-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+	<4FD9A79D.9030303@huawei.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Michal Hocko <mhocko@suse.cz>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com
+To: Li Zefan <lizefan@huawei.com>
+Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, dhillf@gmail.com, rientjes@google.com, mhocko@suse.cz, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org
 
-On Fri, 15 Jun 2012 09:50:00 -0500 (CDT)
-Christoph Lameter <cl@linux.com> wrote:
+On Thu, 14 Jun 2012 16:58:05 +0800
+Li Zefan <lizefan@huawei.com> wrote:
 
-> On Fri, 15 Jun 2012, Michal Hocko wrote:
+> > +int hugetlb_cgroup_charge_cgroup(int idx, unsigned long nr_pages,
 > 
-> > > Thats all? There is no performance gain from this change?
-> >
-> > Is that required in order to put data in the read mostly section?
+> > +				 struct hugetlb_cgroup **ptr)
+> > +{
+> > +	int ret = 0;
+> > +	struct res_counter *fail_res;
+> > +	struct hugetlb_cgroup *h_cg = NULL;
+> > +	unsigned long csize = nr_pages * PAGE_SIZE;
+> > +
+> > +	if (hugetlb_cgroup_disabled())
+> > +		goto done;
+> > +	/*
+> > +	 * We don't charge any cgroup if the compound page have less
+> > +	 * than 3 pages.
+> > +	 */
+> > +	if (huge_page_order(&hstates[idx]) < HUGETLB_CGROUP_MIN_ORDER)
+> > +		goto done;
+> > +again:
+> > +	rcu_read_lock();
+> > +	h_cg = hugetlb_cgroup_from_task(current);
+> > +	if (!h_cg)
 > 
-> I thought so. The read_mostly section is specially designed for data that
-> causes excessive cacheline bounces and has to be grouped with rarely
-> accessed other data. That was at least the intend when we created it.
+> 
+> In no circumstances should h_cg be NULL.
 > 
 
-The __read_mostly thing really is a bit of a crapshoot.  The runtime
-effects are extremely dependent upon Kconfig settings and toolchain
-behaviour.  I do recall one or two cases where people did fix
-real-world observed performance issues by adding __read_mostly.
-
-Literally "one or two".  We have more than one or two __read_mostly
-annotations in there!
-
-As that hugelb_max_hstate is write-once, it's a good candidate.  I'll
-apply the patch and hope that it improves someone's kernel somewhere
-someday.  Shrug.
+Aneesh?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
