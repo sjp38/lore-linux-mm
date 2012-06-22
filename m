@@ -1,65 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
-	by kanga.kvack.org (Postfix) with SMTP id E97C06B01A9
-	for <linux-mm@kvack.org>; Fri, 22 Jun 2012 10:31:25 -0400 (EDT)
-From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 12/12] Avoid dereferencing bd_disk during swap_entry_free for network storage
-Date: Fri, 22 Jun 2012 15:31:08 +0100
-Message-Id: <1340375468-22509-13-git-send-email-mgorman@suse.de>
-In-Reply-To: <1340375468-22509-1-git-send-email-mgorman@suse.de>
-References: <1340375468-22509-1-git-send-email-mgorman@suse.de>
+Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
+	by kanga.kvack.org (Postfix) with SMTP id 32E016B01F2
+	for <linux-mm@kvack.org>; Fri, 22 Jun 2012 10:35:16 -0400 (EDT)
+Date: Fri, 22 Jun 2012 09:35:13 -0500
+From: Nathan Zimmer <nzimmer@sgi.com>
+Subject: [PATCH v3] tmpfs not interleaving properly
+Message-ID: <20120622143512.GA18468@gulag1.americas.sgi.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Linux-MM <linux-mm@kvack.org>, Linux-Netdev <netdev@vger.kernel.org>, Linux-NFS <linux-nfs@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, David Miller <davem@davemloft.net>, Trond Myklebust <Trond.Myklebust@netapp.com>, Neil Brown <neilb@suse.de>, Christoph Hellwig <hch@infradead.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mike Christie <michaelc@cs.wisc.edu>, Eric B Munson <emunson@mgebm.net>, Mel Gorman <mgorman@suse.de>
+To: Christoph Lameter <cl@linux.com>, Nick Piggin <npiggin@gmail.com>, Hugh Dickins <hughd@google.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, riel@redhat.com
 
-Commit [b3a27d: swap: Add swap slot free callback to
-block_device_operations] dereferences p->bdev->bd_disk but this is a
-NULL dereference if using swap-over-NFS. This patch checks SWP_BLKDEV
-on the swap_info_struct before dereferencing.
+When tmpfs has the memory policy interleaved it always starts allocating at each
+file at node 0.  When there are many small files the lower nodes fill up
+disproportionately.
+This patch attempts to spread out node usage by starting files at nodes other
+then 0.  I disturbed the addr parameter since alloc_pages_vma will only use it
+when the policy is MPOL_INTERLEAVE.  A files preferred node is selected by 
+the cpu_mem_spread_node rotor.
 
-With reference to this callback, Christoph Hellwig stated "Please
-just remove the callback entirely.  It has no user outside the staging
-tree and was added clearly against the rules for that staging tree".
-This would also be my preference but there was not an obvious way of
-keeping zram in staging/ happy.
+v2: passed preferred node via addr
+v3: using current->cpuset_mem_spread_rotor instead of random_node
 
-Signed-off-by: Xiaotian Feng <dfeng@redhat.com>
-Signed-off-by: Mel Gorman <mgorman@suse.de>
+Cc: Christoph Lameter <cl@linux.com>
+Cc: Nick Piggin <npiggin@gmail.com>
+Cc: Hugh Dickins <hughd@google.com>
+Cc: Lee Schermerhorn <lee.schermerhorn@hp.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 Acked-by: Rik van Riel <riel@redhat.com>
+Signed-off-by: Nathan T Zimmer <nzimmer@sgi.com>
 ---
- mm/swapfile.c |    9 +++++----
- 1 file changed, 5 insertions(+), 4 deletions(-)
 
-diff --git a/mm/swapfile.c b/mm/swapfile.c
-index 1d77b13..f4c802d 100644
---- a/mm/swapfile.c
-+++ b/mm/swapfile.c
-@@ -549,7 +549,6 @@ static unsigned char swap_entry_free(struct swap_info_struct *p,
+ include/linux/shmem_fs.h |    1 +
+ mm/shmem.c               |    9 +++++++--
+ 2 files changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/include/linux/shmem_fs.h b/include/linux/shmem_fs.h
+index bef2cf0..cfe8a34 100644
+--- a/include/linux/shmem_fs.h
++++ b/include/linux/shmem_fs.h
+@@ -17,6 +17,7 @@ struct shmem_inode_info {
+ 		char		*symlink;	/* unswappable short symlink */
+ 	};
+ 	struct shared_policy	policy;		/* NUMA memory alloc policy */
++	unsigned long           node_offset;	/* bias for interleaved nodes */
+ 	struct list_head	swaplist;	/* chain of maybes on swap */
+ 	struct list_head	xattr_list;	/* list of shmem_xattr */
+ 	struct inode		vfs_inode;
+diff --git a/mm/shmem.c b/mm/shmem.c
+index a15a466..93801b3 100644
+--- a/mm/shmem.c
++++ b/mm/shmem.c
+@@ -64,6 +64,7 @@ static struct vfsmount *shm_mnt;
+ #include <linux/highmem.h>
+ #include <linux/seq_file.h>
+ #include <linux/magic.h>
++#include <linux/cpuset.h>
  
- 	/* free if no reference */
- 	if (!usage) {
--		struct gendisk *disk = p->bdev->bd_disk;
- 		if (offset < p->lowest_bit)
- 			p->lowest_bit = offset;
- 		if (offset > p->highest_bit)
-@@ -560,9 +559,11 @@ static unsigned char swap_entry_free(struct swap_info_struct *p,
- 		nr_swap_pages++;
- 		p->inuse_pages--;
- 		frontswap_invalidate_page(p->type, offset);
--		if ((p->flags & SWP_BLKDEV) &&
--				disk->fops->swap_slot_free_notify)
--			disk->fops->swap_slot_free_notify(p->bdev, offset);
-+		if (p->flags & SWP_BLKDEV) {
-+			struct gendisk *disk = p->bdev->bd_disk;
-+			if (disk->fops->swap_slot_free_notify)
-+				disk->fops->swap_slot_free_notify(p->bdev, offset);
-+		}
- 	}
+ #include <asm/uaccess.h>
+ #include <asm/pgtable.h>
+@@ -938,9 +939,12 @@ static struct page *shmem_alloc_page(gfp_t gfp,
+ 	pvma.vm_policy = mpol_shared_policy_lookup(&info->policy, index);
  
- 	return usage;
--- 
-1.7.9.2
+ 	/*
+-	 * alloc_page_vma() will drop the shared policy reference
++	 * alloc_page_vma() will drop the shared policy reference.
++	 *
++	 * To avoid allocating all tmpfs pages on node 0, we fake up a virtual
++	 * address based on this file's predetermined preferred node.
+ 	 */
+-	return alloc_page_vma(gfp, &pvma, 0);
++	return alloc_page_vma(gfp, &pvma, info->node_offset << PAGE_SHIFT);
+ }
+ #else /* !CONFIG_NUMA */
+ #ifdef CONFIG_TMPFS
+@@ -1374,6 +1378,7 @@ static struct inode *shmem_get_inode(struct super_block *sb, const struct inode
+ 			inode->i_fop = &shmem_file_operations;
+ 			mpol_shared_policy_init(&info->policy,
+ 						 shmem_get_sbmpol(sbinfo));
++			info->node_offset = cpuset_mem_spread_node();
+ 			break;
+ 		case S_IFDIR:
+ 			inc_nlink(inode);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
