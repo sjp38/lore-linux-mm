@@ -1,66 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
-	by kanga.kvack.org (Postfix) with SMTP id 3861E6B0275
-	for <linux-mm@kvack.org>; Fri, 22 Jun 2012 19:03:16 -0400 (EDT)
-Received: by ggm4 with SMTP id 4so2464924ggm.14
-        for <linux-mm@kvack.org>; Fri, 22 Jun 2012 16:03:15 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
+	by kanga.kvack.org (Postfix) with SMTP id 555D26B0277
+	for <linux-mm@kvack.org>; Fri, 22 Jun 2012 19:10:59 -0400 (EDT)
+Received: by dakp5 with SMTP id p5so3588620dak.14
+        for <linux-mm@kvack.org>; Fri, 22 Jun 2012 16:10:58 -0700 (PDT)
+Date: Fri, 22 Jun 2012 16:10:56 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch] mm, oom: replace some information in tasklist dump
+In-Reply-To: <CAHGf_=p4SS7qA_eRpBF0PawyUa8DpYncL0LS-=B4tHFaDUKV-w@mail.gmail.com>
+Message-ID: <alpine.DEB.2.00.1206221609220.15114@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.1206221444370.23486@chino.kir.corp.google.com> <CAHGf_=p4SS7qA_eRpBF0PawyUa8DpYncL0LS-=B4tHFaDUKV-w@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.00.1206221443210.23486@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.1206221443210.23486@chino.kir.corp.google.com>
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Date: Fri, 22 Jun 2012 19:02:55 -0400
-Message-ID: <CAHGf_=qyj25z2fair3J+BSTeFQpFVSv9DGoXQUpZHxRZp-ySgA@mail.gmail.com>
-Subject: Re: [patch 3.5-rc3] mm, oom: fix potential killing of thread that is
- disabled from oom killing
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: MULTIPART/MIXED; BOUNDARY="397155492-351438479-1340406657=:15114"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
 
-On Fri, Jun 22, 2012 at 5:44 PM, David Rientjes <rientjes@google.com> wrote=
-:
-> /proc/sys/vm/oom_kill_allocating_task will immediately kill current when
-> the oom killer is called to avoid a potentially expensive tasklist scan
-> for large systems.
->
-> Currently, however, it is not checking current's oom_score_adj value
-> which may be OOM_SCORE_ADJ_MIN, meaning that it has been disabled from
-> oom killing.
->
-> This patch avoids killing current in such a condition and simply falls
-> back to the tasklist scan since memory still needs to be freed.
->
-> Signed-off-by: David Rientjes <rientjes@google.com>
-> ---
-> =A0mm/oom_kill.c | =A0 =A04 ++--
-> =A01 file changed, 2 insertions(+), 2 deletions(-)
->
-> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> --- a/mm/oom_kill.c
-> +++ b/mm/oom_kill.c
-> @@ -720,9 +720,9 @@ void out_of_memory(struct zonelist *zonelist, gfp_t g=
-fp_mask,
-> =A0 =A0 =A0 =A0check_panic_on_oom(constraint, gfp_mask, order, mpol_mask)=
-;
->
-> =A0 =A0 =A0 =A0read_lock(&tasklist_lock);
-> - =A0 =A0 =A0 if (sysctl_oom_kill_allocating_task &&
-> + =A0 =A0 =A0 if (sysctl_oom_kill_allocating_task && current->mm &&
-> =A0 =A0 =A0 =A0 =A0 =A0!oom_unkillable_task(current, NULL, nodemask) &&
-> - =A0 =A0 =A0 =A0 =A0 current->mm) {
-> + =A0 =A0 =A0 =A0 =A0 current->signal->oom_score_adj !=3D OOM_SCORE_ADJ_M=
-IN) {
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0oom_kill_process(current, gfp_mask, order,=
- 0, totalpages, NULL,
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 nodemask,
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 "Out of m=
-emory (oom_kill_allocating_task)");
+  This message is in MIME format.  The first part should be readable text,
+  while the remaining parts are likely unreadable without MIME-aware tools.
 
-Seems straight forward and reasonable.
+--397155492-351438479-1340406657=:15114
+Content-Type: TEXT/PLAIN; charset=ISO-8859-1
+Content-Transfer-Encoding: 8BIT
 
-Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+On Fri, 22 Jun 2012, KOSAKI Motohiro wrote:
+
+> > @@ -396,10 +396,11 @@ static void dump_tasks(const struct mem_cgroup *memcg, const nodemask_t *nodemas
+> >                        continue;
+> >                }
+> >
+> > -               pr_info("[%5d] %5d %5d %8lu %8lu %3u     %3d         %5d %s\n",
+> > +               pr_info("[%5d] %5d %5d %8lu %8lu %7lu %8lu         %5d %s\n",
+> >                        task->pid, from_kuid(&init_user_ns, task_uid(task)),
+> >                        task->tgid, task->mm->total_vm, get_mm_rss(task->mm),
+> > -                       task_cpu(task), task->signal->oom_adj,
+> > +                       task->mm->nr_ptes,
+> 
+> nr_ptes should be folded into rss. it's "resident".
+> btw, /proc rss info should be fixed too.
+> 
+
+If we can fold rss into get_mm_rss() and every caller is ok with that, 
+then we can remove showing it here and adding it explicitly in 
+oom_badness().
+--397155492-351438479-1340406657=:15114--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
