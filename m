@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx103.postini.com [74.125.245.103])
-	by kanga.kvack.org (Postfix) with SMTP id 5FD6B6B029D
-	for <linux-mm@kvack.org>; Sat, 23 Jun 2012 02:17:54 -0400 (EDT)
-Received: by dakp5 with SMTP id p5so3916562dak.14
-        for <linux-mm@kvack.org>; Fri, 22 Jun 2012 23:17:53 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx177.postini.com [74.125.245.177])
+	by kanga.kvack.org (Postfix) with SMTP id E6FF86B029F
+	for <linux-mm@kvack.org>; Sat, 23 Jun 2012 02:19:22 -0400 (EDT)
+Received: by dakp5 with SMTP id p5so3917750dak.14
+        for <linux-mm@kvack.org>; Fri, 22 Jun 2012 23:19:22 -0700 (PDT)
 From: Wanpeng Li <liwp.linux@gmail.com>
-Subject: [PATCH 4/6] memcg: move recent_rotated and recent_scanned informations
-Date: Sat, 23 Jun 2012 14:17:39 +0800
-Message-Id: <1340432259-5317-1-git-send-email-liwp.linux@gmail.com>
+Subject: [PATCH 5/6] memcg: optimize memcg_get_hierarchical_limit
+Date: Sat, 23 Jun 2012 14:18:17 +0800
+Message-Id: <1340432297-5362-1-git-send-email-liwp.linux@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
@@ -15,86 +15,28 @@ Cc: Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Balbir 
 
 From: Wanpeng Li <liwp@linux.vnet.ibm.com>
 
-Move recent_rotated and recent_scanned prints next to inactive_anon,
-ative_anon, inactive_file, active_file, and unevictable prints to
-save developers' time. Since they have to go a long way(when cat memory.stat)
-to find recent_rotated and recent_scanned prints which has relationship
-with the memory cgroup we care. These prints are behind total_* which
-not just focus on the memory cgroup we care currently.
+Optimize memcg_get_hierarchical_limit to save cpu cycle.
 
 Signed-off-by: Wanpeng Li <liwp.linux@gmail.com>
 ---
- mm/memcontrol.c |   50 +++++++++++++++++++++++++-------------------------
- 1 file changed, 25 insertions(+), 25 deletions(-)
+ mm/memcontrol.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 2e81328..c821e36 100644
+index c821e36..1ca79e2 100644
 --- a/mm/memcontrol.c
 +++ b/mm/memcontrol.c
-@@ -4080,6 +4080,31 @@ static int mem_cgroup_stat_show(struct cgroup *cont, struct cftype *cft,
- 		seq_printf(m, "%s %lu\n", mem_cgroup_lru_names[i],
- 			   mem_cgroup_nr_lru_pages(memcg, BIT(i)) * PAGE_SIZE);
+@@ -3917,9 +3917,9 @@ static void memcg_get_hierarchical_limit(struct mem_cgroup *memcg,
  
-+#ifdef CONFIG_DEBUG_VM
-+	{
-+		int nid, zid;
-+		struct mem_cgroup_per_zone *mz;
-+		struct zone_reclaim_stat *rstat;
-+		unsigned long recent_rotated[2] = {0, 0};
-+		unsigned long recent_scanned[2] = {0, 0};
-+
-+		for_each_online_node(nid)
-+			for (zid = 0; zid < MAX_NR_ZONES; zid++) {
-+				mz = mem_cgroup_zoneinfo(memcg, nid, zid);
-+				rstat = &mz->lruvec.reclaim_stat;
-+
-+				recent_rotated[0] += rstat->recent_rotated[0];
-+				recent_rotated[1] += rstat->recent_rotated[1];
-+				recent_scanned[0] += rstat->recent_scanned[0];
-+				recent_scanned[1] += rstat->recent_scanned[1];
-+			}
-+		seq_printf(m, "recent_rotated_anon %lu\n", recent_rotated[0]);
-+		seq_printf(m, "recent_rotated_file %lu\n", recent_rotated[1]);
-+		seq_printf(m, "recent_scanned_anon %lu\n", recent_scanned[0]);
-+		seq_printf(m, "recent_scanned_file %lu\n", recent_scanned[1]);
-+	}
-+#endif
-+
- 	/* Hierarchical information */
- 	{
- 		unsigned long long limit, memsw_limit;
-@@ -4117,31 +4142,6 @@ static int mem_cgroup_stat_show(struct cgroup *cont, struct cftype *cft,
- 		seq_printf(m, "total_%s %llu\n", mem_cgroup_lru_names[i], val);
- 	}
+ 	min_limit = res_counter_read_u64(&memcg->res, RES_LIMIT);
+ 	min_memsw_limit = res_counter_read_u64(&memcg->memsw, RES_LIMIT);
+-	cgroup = memcg->css.cgroup;
+ 	if (!memcg->use_hierarchy)
+ 		goto out;
++	cgroup = memcg->css.cgroup;
  
--#ifdef CONFIG_DEBUG_VM
--	{
--		int nid, zid;
--		struct mem_cgroup_per_zone *mz;
--		struct zone_reclaim_stat *rstat;
--		unsigned long recent_rotated[2] = {0, 0};
--		unsigned long recent_scanned[2] = {0, 0};
--
--		for_each_online_node(nid)
--			for (zid = 0; zid < MAX_NR_ZONES; zid++) {
--				mz = mem_cgroup_zoneinfo(memcg, nid, zid);
--				rstat = &mz->lruvec.reclaim_stat;
--
--				recent_rotated[0] += rstat->recent_rotated[0];
--				recent_rotated[1] += rstat->recent_rotated[1];
--				recent_scanned[0] += rstat->recent_scanned[0];
--				recent_scanned[1] += rstat->recent_scanned[1];
--			}
--		seq_printf(m, "recent_rotated_anon %lu\n", recent_rotated[0]);
--		seq_printf(m, "recent_rotated_file %lu\n", recent_rotated[1]);
--		seq_printf(m, "recent_scanned_anon %lu\n", recent_scanned[0]);
--		seq_printf(m, "recent_scanned_file %lu\n", recent_scanned[1]);
--	}
--#endif
--
- 	return 0;
- }
- 
+ 	while (cgroup->parent) {
+ 		cgroup = cgroup->parent;
 -- 
 1.7.9.5
 
