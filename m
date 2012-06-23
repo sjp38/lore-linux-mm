@@ -1,51 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
-	by kanga.kvack.org (Postfix) with SMTP id C32096B02AF
-	for <linux-mm@kvack.org>; Sat, 23 Jun 2012 06:05:42 -0400 (EDT)
-From: Cong Wang <amwang@redhat.com>
-Subject: [PATCH 11/12] vmalloc: remove KM_USER0 from comments
-Date: Sat, 23 Jun 2012 18:04:22 +0800
-Message-Id: <1340445863-16111-12-git-send-email-amwang@redhat.com>
-In-Reply-To: <1340445863-16111-1-git-send-email-amwang@redhat.com>
-References: <1340445863-16111-1-git-send-email-amwang@redhat.com>
+Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
+	by kanga.kvack.org (Postfix) with SMTP id 19F526B02B2
+	for <linux-mm@kvack.org>; Sat, 23 Jun 2012 06:13:44 -0400 (EDT)
+Received: by dakp5 with SMTP id p5so4086395dak.14
+        for <linux-mm@kvack.org>; Sat, 23 Jun 2012 03:13:44 -0700 (PDT)
+Date: Sat, 23 Jun 2012 18:13:28 +0800
+From: Wanpeng Li <liwp.linux@gmail.com>
+Subject: Re: [PATCH 4/6] memcg: move recent_rotated and recent_scanned
+ informations
+Message-ID: <20120623101328.GA2153@kernel>
+Reply-To: Wanpeng Li <liwp.linux@gmail.com>
+References: <1340432259-5317-1-git-send-email-liwp.linux@gmail.com>
+ <20120623095112.GO27816@cmpxchg.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120623095112.GO27816@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, Cong Wang <amwang@redhat.com>, David Rientjes <rientjes@google.com>, Joe Perches <joe@perches.com>, David Vrabel <david.vrabel@citrix.com>, Kautuk Consul <consul.kautuk@gmail.com>, linux-mm@kvack.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: linux-mm@kvack.org, Michal Hocko <mhocko@suse.cz>, Balbir Singh <bsingharora@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Minchan Kim <minchan@kernel.org>, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, Gavin Shan <shangw@linux.vnet.ibm.com>, Wanpeng Li <liwp.linux@gmail.com>
 
-Signed-off-by: Cong Wang <amwang@redhat.com>
----
- mm/vmalloc.c |    8 ++------
- 1 files changed, 2 insertions(+), 6 deletions(-)
+On Sat, Jun 23, 2012 at 11:51:13AM +0200, Johannes Weiner wrote:
+>On Sat, Jun 23, 2012 at 02:17:39PM +0800, Wanpeng Li wrote:
+>> From: Wanpeng Li <liwp@linux.vnet.ibm.com>
+>> 
+>> Move recent_rotated and recent_scanned prints next to inactive_anon,
+>> ative_anon, inactive_file, active_file, and unevictable prints to
+>> save developers' time. Since they have to go a long way(when cat memory.stat)
+>> to find recent_rotated and recent_scanned prints which has relationship
+>> with the memory cgroup we care. These prints are behind total_* which
+>> not just focus on the memory cgroup we care currently.
+>
+>The hierarchical stats are about that memcg, too.  And I don't want to
 
-diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-index 2aad499..c7ac8e1 100644
---- a/mm/vmalloc.c
-+++ b/mm/vmalloc.c
-@@ -1975,9 +1975,7 @@ static int aligned_vwrite(char *buf, char *addr, unsigned long count)
-  *	IOREMAP area is treated as memory hole and no copy is done.
-  *
-  *	If [addr...addr+count) doesn't includes any intersects with alive
-- *	vm_struct area, returns 0.
-- *	@buf should be kernel's buffer. Because	this function uses KM_USER0,
-- *	the caller should guarantee KM_USER0 is not used.
-+ *	vm_struct area, returns 0. @buf should be kernel's buffer.
-  *
-  *	Note: In usual ops, vread() is never necessary because the caller
-  *	should know vmalloc() area is valid and can use memcpy().
-@@ -2051,9 +2049,7 @@ finished:
-  *	IOREMAP area is treated as memory hole and no copy is done.
-  *
-  *	If [addr...addr+count) doesn't includes any intersects with alive
-- *	vm_struct area, returns 0.
-- *	@buf should be kernel's buffer. Because	this function uses KM_USER0,
-- *	the caller should guarantee KM_USER0 is not used.
-+ *	vm_struct area, returns 0. @buf should be kernel's buffer.
-  *
-  *	Note: In usual ops, vwrite() is never necessary because the caller
-  *	should know vmalloc() area is valid and can use memcpy().
--- 
-1.7.7.6
+Move recent_rotated and recent_scanned prints next to file lru lists
+just because the pageout code in vmscan.c keeps track of how many of 
+the mem/swap backed and file backed pages are referenced, and the 
+higher the rotated/scanned ratio, the more valuable that cache is. 
+Move five lru lists and associated debug informations together can 
+make things convenience. :-)
+
+Regards,
+Wanpeng Li
+
+>turn on debugging and then look for the extra information hiding in
+>the middle of regular stats.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
