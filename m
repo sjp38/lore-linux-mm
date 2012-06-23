@@ -1,111 +1,204 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
-	by kanga.kvack.org (Postfix) with SMTP id 63C946B0283
-	for <linux-mm@kvack.org>; Fri, 22 Jun 2012 22:16:23 -0400 (EDT)
-Received: by dakp5 with SMTP id p5so3728387dak.14
-        for <linux-mm@kvack.org>; Fri, 22 Jun 2012 19:16:22 -0700 (PDT)
-Date: Sat, 23 Jun 2012 10:16:01 +0800
-From: Wanpeng Li <liwp.linux@gmail.com>
-Subject: Re: [PATCH V2] memcg: cleanup typos in mem cgroup
-Message-ID: <20120623021547.GA2227@kernel>
-Reply-To: Wanpeng Li <liwp.linux@gmail.com>
-References: <1340369199-29535-1-git-send-email-liwp.linux@gmail.com>
- <20120622150358.GB16628@tiehlicka.suse.cz>
+Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
+	by kanga.kvack.org (Postfix) with SMTP id C15986B0285
+	for <linux-mm@kvack.org>; Fri, 22 Jun 2012 22:57:04 -0400 (EDT)
+Received: by vbkv13 with SMTP id v13so1503095vbk.14
+        for <linux-mm@kvack.org>; Fri, 22 Jun 2012 19:57:03 -0700 (PDT)
+Message-ID: <4FE53074.50809@gmail.com>
+Date: Fri, 22 Jun 2012 22:56:52 -0400
+From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120622150358.GB16628@tiehlicka.suse.cz>
+Subject: Re: Accounting problem of MIGRATE_ISOLATED freed page
+References: <4FE169B1.7020600@kernel.org> <4FE16E80.9000306@gmail.com> <4FE18187.3050103@kernel.org> <4FE23069.5030702@gmail.com> <4FE26470.90401@kernel.org> <CAHGf_=pjoiHQ9vxXXe-GtbkYRzhxdDhu3pf6pwDsCe5pBQE8Nw@mail.gmail.com> <4FE27F15.8050102@kernel.org> <CAHGf_=pDw4axwG2tQ+B5hPks-sz2S5+G1Kk-=HSDmo=DSXOkEw@mail.gmail.com> <4FE2A937.6040701@kernel.org> <4FE2FCFB.4040808@jp.fujitsu.com> <4FE3C4E4.2050107@kernel.org> <4FE414A2.3000700@kernel.org>
+In-Reply-To: <4FE414A2.3000700@kernel.org>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, cgroups@vger.kernel.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Frederic Weisbecker <fweisbec@gmail.com>, Han Ying <yinghan@google.com>, Glauber Costa <glommer@parallels.com>, Tejun Heo <tj@kernel.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Hiroyuki Kamezawa <kamezawa.hiroyuki@gmail.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Wanpeng Li <liwp.linux@gmail.com>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Aaditya Kumar <aaditya.kumar.30@gmail.com>, Mel Gorman <mel@csn.ul.ie>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Fri, Jun 22, 2012 at 05:03:59PM +0200, Michal Hocko wrote:
->Have you used any tool to find those typos? Have you gone through the
->whole memcontrol.c file?
->I am not agains fixes like this but I would much prefer if it was one
->batch of all fixes. I bet there are more typose ;)
+(6/22/12 2:45 AM), Minchan Kim wrote:
+> On 06/22/2012 10:05 AM, Minchan Kim wrote:
+> 
+>> Second approach which is suggested by KOSAKI is what you mentioned.
+>> But the concern about second approach is how to make sure matched count increase/decrease of nr_isolated_areas.
+>> I mean how to make sure nr_isolated_areas would be zero when isolation is done.
+>> Of course, we can investigate all of current caller and make sure they don't make mistake
+>> now. But it's very error-prone if we consider future's user.
+>> So we might need test_set_pageblock_migratetype(page, MIGRATE_ISOLATE);
+> 
+> 
+> It's an implementation about above approach.
+> 
+> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+> index bf3404e..3e9a9e1 100644
+> --- a/include/linux/mmzone.h
+> +++ b/include/linux/mmzone.h
+> @@ -474,6 +474,11 @@ struct zone {
+>          * rarely used fields:
+>          */  
+>         const char              *name;
+> +       /*
+> +        * the number of MIGRATE_ISOLATE pageblock
+> +        * We need this for accurate free page counting.
+> +        */
+> +       atomic_t                nr_migrate_isolate;
 
-OK, I will figure out them and resend the patch.
+#ifdef CONFIG_MEMORY_HOTPLUG?
 
-Regards,
-Wanpeng Li
 
->
->On Fri 22-06-12 20:46:39, Wanpeng Li wrote:
->> From: Wanpeng Li <liwp@linux.vnet.ibm.com>
->> 
->> Signed-off-by: Wanpeng Li <liwp.linux@gmail.com>
->> ---
->>  mm/memcontrol.c |   11 +++++------
->>  1 file changed, 5 insertions(+), 6 deletions(-)
->> 
->> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
->> index 776fc57..503ddd0 100644
->> --- a/mm/memcontrol.c
->> +++ b/mm/memcontrol.c
->> @@ -115,8 +115,8 @@ static const char * const mem_cgroup_events_names[] = {
->>  
->>  /*
->>   * Per memcg event counter is incremented at every pagein/pageout. With THP,
->> - * it will be incremated by the number of pages. This counter is used for
->> - * for trigger some periodic events. This is straightforward and better
->> + * it will be incremented by the number of pages. This counter is used to
->> + * trigger some periodic events. This is straightforward and better
->>   * than using jiffies etc. to handle periodic memcg event.
->>   */
->>  enum mem_cgroup_events_target {
->> @@ -678,7 +678,7 @@ mem_cgroup_largest_soft_limit_node(struct mem_cgroup_tree_per_zone *mctz)
->>   *
->>   * If there are kernel internal actions which can make use of some not-exact
->>   * value, and reading all cpu value can be performance bottleneck in some
->> - * common workload, threashold and synchonization as vmstat[] should be
->> + * common workload, threshold and synchonization as vmstat[] should be
->>   * implemented.
->>   */
->>  static long mem_cgroup_read_stat(struct mem_cgroup *memcg,
->> @@ -2213,7 +2213,6 @@ static int mem_cgroup_do_charge(struct mem_cgroup *memcg, gfp_t gfp_mask,
->>  	if (mem_cgroup_wait_acct_move(mem_over_limit))
->>  		return CHARGE_RETRY;
->>  
->> -	/* If we don't need to call oom-killer at el, return immediately */
->>  	if (!oom_check)
->>  		return CHARGE_NOMEM;
->>  	/* check OOM */
->> @@ -2291,7 +2290,7 @@ again:
->>  		 * In that case, "memcg" can point to root or p can be NULL with
->>  		 * race with swapoff. Then, we have small risk of mis-accouning.
->>  		 * But such kind of mis-account by race always happens because
->> -		 * we don't have cgroup_mutex(). It's overkill and we allo that
->> +		 * we don't have cgroup_mutex(). It's overkill and we allow that
->>  		 * small race, here.
->>  		 * (*) swapoff at el will charge against mm-struct not against
->>  		 * task-struct. So, mm->owner can be NULL.
->> @@ -2396,7 +2395,7 @@ static void __mem_cgroup_cancel_charge(struct mem_cgroup *memcg,
->>  }
->>  
->>  /*
->> - * Cancel chrages in this cgroup....doesn't propagate to parent cgroup.
->> + * Cancel charges in this cgroup....doesn't propagate to parent cgroup.
->>   * This is useful when moving usage to parent cgroup.
->>   */
->>  static void __mem_cgroup_cancel_local_charge(struct mem_cgroup *memcg,
->> -- 
->> 1.7.9.5
->> 
->> --
->> To unsubscribe, send a message with 'unsubscribe linux-mm' in
->> the body to majordomo@kvack.org.  For more info on Linux MM,
->> see: http://www.linux-mm.org/ .
->> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
->
->-- 
->Michal Hocko
->SUSE Labs
->SUSE LINUX s.r.o.
->Lihovarska 1060/12
->190 00 Praha 9    
->Czech Republic
+>  } ____cacheline_internodealigned_in_smp;
+>  
+>  typedef enum {
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 2c29b1c..6cb1f9f 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -219,6 +219,11 @@ EXPORT_SYMBOL(nr_online_nodes);
+>  
+>  int page_group_by_mobility_disabled __read_mostly;
+>  
+> +/*
+> + * NOTE:
+> + * Don't use set_pageblock_migratetype(page, MIGRATE_ISOLATE) direclty.
+> + * Instead, use {un}set_pageblock_isolate.
+> + */
+>  void set_pageblock_migratetype(struct page *page, int migratetype)
+>  {
+>         if (unlikely(page_group_by_mobility_disabled))
+> @@ -1622,6 +1627,28 @@ bool zone_watermark_ok(struct zone *z, int order, unsigned long mark,
+>                                         zone_page_state(z, NR_FREE_PAGES));
+>  }
+>  
+> +unsigned long migrate_isolate_pages(struct zone *zone)
+> +{
+> +       unsigned long nr_pages = 0;
+> +
+> +       if (unlikely(atomic_read(&zone->nr_migrate_isolate))) {
+> +               unsigned long flags;
+> +               int order;
+> +               spin_lock_irqsave(&zone->lock, flags);
+> +               for (order = 0; order < MAX_ORDER; order++) {
+> +                       struct free_area *area = &zone->free_area[order];
+> +                       long count = 0;
+> +                       struct list_head *curr;
+> +
+> +                       list_for_each(curr, &area->free_list[MIGRATE_ISOLATE])
+> +                               count++;
+> +                       nr_pages += (count << order);
+> +               }
+> +               spin_unlock_irqrestore(&zone->lock, flags);
+> +       }
+> +       return nr_pages;
+> +}
+> +
+>  bool zone_watermark_ok_safe(struct zone *z, int order, unsigned long mark,
+>                       int classzone_idx, int alloc_flags)
+>  {
+> @@ -1630,6 +1657,14 @@ bool zone_watermark_ok_safe(struct zone *z, int order, unsigned long mark,
+>         if (z->percpu_drift_mark && free_pages < z->percpu_drift_mark)
+>                 free_pages = zone_page_state_snapshot(z, NR_FREE_PAGES);
+>  
+> +       /*
+> +        * If the zone has MIGRATE_ISOLATE type free page,
+> +        * we should consider it, too. Otherwise, kswapd can sleep forever.
+> +        */
+> +       free_pages -= migrate_isolate_pages(z);
+> +       if (free_pages < 0)
+> +               free_pages = 0;
+> +
+>         return __zone_watermark_ok(z, order, mark, classzone_idx, alloc_flags,
+>                                                                 free_pages);
+>  }
+> @@ -4408,6 +4443,7 @@ static void __paginginit free_area_init_core(struct pglist_data *pgdat,
+>                 lruvec_init(&zone->lruvec, zone);
+>                 zap_zone_vm_stats(zone);
+>                 zone->flags = 0;
+> +               atomic_set(&zone->nr_migrate_isolate, 0);
+>                 if (!size)
+>                         continue;
+>  
+> @@ -5555,6 +5591,45 @@ bool is_pageblock_removable_nolock(struct page *page)
+>         return __count_immobile_pages(zone, page, 0);
+>  }
+>  
+> +static void set_pageblock_isolate(struct zone *zone, struct page *page)
+> +{
+> +       int old_migratetype;
+> +       assert_spin_locked(&zone->lock);
+> +
+> +        if (unlikely(page_group_by_mobility_disabled)) {
+
+
+We don't need this check. page_group_by_mobility_disabled is an optimization for
+low memory system. but memory hotplug should work even though run on low memory.
+
+In other words, current upstream code is buggy. :-)
+
+
+> +               set_pageblock_flags_group(page, MIGRATE_UNMOVABLE,
+> +                                       PB_migrate, PB_migrate_end);
+> +               return;
+> +       }
+> +
+> +       old_migratetype = get_pageblock_migratetype(page);
+> +       set_pageblock_flags_group(page, MIGRATE_ISOLATE,
+> +                                       PB_migrate, PB_migrate_end);
+> +
+> +       if (old_migratetype != MIGRATE_ISOLATE)
+> +               atomic_inc(&zone->nr_migrate_isolate);
+> +}
+> +
+> +static void unset_pageblock_isolate(struct zone *zone, struct page *page,
+> +                               unsigned long migratetype)
+> +{
+> +       assert_spin_locked(&zone->lock);
+> +
+> +        if (unlikely(page_group_by_mobility_disabled)) {
+> +               set_pageblock_flags_group(page, migratetype,
+> +                                       PB_migrate, PB_migrate_end);
+> +               return;
+> +       }
+> +
+> +       BUG_ON(get_pageblock_migratetype(page) != MIGRATE_ISOLATE);
+> +       BUG_ON(migratetype == MIGRATE_ISOLATE);
+> +
+> +       set_pageblock_flags_group(page, migratetype,
+> +                                       PB_migrate, PB_migrate_end);
+> +       atomic_dec(&zone->nr_migrate_isolate);
+> +       BUG_ON(atomic_read(&zone->nr_migrate_isolate) < 0);
+> +}
+> +
+>  int set_migratetype_isolate(struct page *page)
+>  {
+>         struct zone *zone;
+> @@ -5601,7 +5676,7 @@ int set_migratetype_isolate(struct page *page)
+>  
+>  out:
+>         if (!ret) {
+> -               set_pageblock_migratetype(page, MIGRATE_ISOLATE);
+> +               set_pageblock_isolate(zone, page);
+>                 move_freepages_block(zone, page, MIGRATE_ISOLATE);
+>         }
+>  
+> @@ -5619,8 +5694,8 @@ void unset_migratetype_isolate(struct page *page, unsigned migratetype)
+>         spin_lock_irqsave(&zone->lock, flags);
+>         if (get_pageblock_migratetype(page) != MIGRATE_ISOLATE)
+>                 goto out;
+> -       set_pageblock_migratetype(page, migratetype);
+>         move_freepages_block(zone, page, migratetype);
+> +       unset_pageblock_isolate(zone, page, migratetype);
+
+I don't think this order change is unnecessary. Why did you swap?
+
+
+Other than that, looks very good to me.
+
+
+>  out:
+>         spin_unlock_irqrestore(&zone->lock, flags);
+>  }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
