@@ -1,35 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
-	by kanga.kvack.org (Postfix) with SMTP id E58E56B02B0
-	for <linux-mm@kvack.org>; Sat, 23 Jun 2012 05:51:53 -0400 (EDT)
-Date: Sat, 23 Jun 2012 11:51:13 +0200
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 4/6] memcg: move recent_rotated and recent_scanned
- informations
-Message-ID: <20120623095112.GO27816@cmpxchg.org>
-References: <1340432259-5317-1-git-send-email-liwp.linux@gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1340432259-5317-1-git-send-email-liwp.linux@gmail.com>
+Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
+	by kanga.kvack.org (Postfix) with SMTP id C32096B02AF
+	for <linux-mm@kvack.org>; Sat, 23 Jun 2012 06:05:42 -0400 (EDT)
+From: Cong Wang <amwang@redhat.com>
+Subject: [PATCH 11/12] vmalloc: remove KM_USER0 from comments
+Date: Sat, 23 Jun 2012 18:04:22 +0800
+Message-Id: <1340445863-16111-12-git-send-email-amwang@redhat.com>
+In-Reply-To: <1340445863-16111-1-git-send-email-amwang@redhat.com>
+References: <1340445863-16111-1-git-send-email-amwang@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wanpeng Li <liwp.linux@gmail.com>
-Cc: linux-mm@kvack.org, Michal Hocko <mhocko@suse.cz>, Balbir Singh <bsingharora@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Minchan Kim <minchan@kernel.org>, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, Gavin Shan <shangw@linux.vnet.ibm.com>
+To: linux-kernel@vger.kernel.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Cong Wang <amwang@redhat.com>, David Rientjes <rientjes@google.com>, Joe Perches <joe@perches.com>, David Vrabel <david.vrabel@citrix.com>, Kautuk Consul <consul.kautuk@gmail.com>, linux-mm@kvack.org
 
-On Sat, Jun 23, 2012 at 02:17:39PM +0800, Wanpeng Li wrote:
-> From: Wanpeng Li <liwp@linux.vnet.ibm.com>
-> 
-> Move recent_rotated and recent_scanned prints next to inactive_anon,
-> ative_anon, inactive_file, active_file, and unevictable prints to
-> save developers' time. Since they have to go a long way(when cat memory.stat)
-> to find recent_rotated and recent_scanned prints which has relationship
-> with the memory cgroup we care. These prints are behind total_* which
-> not just focus on the memory cgroup we care currently.
+Signed-off-by: Cong Wang <amwang@redhat.com>
+---
+ mm/vmalloc.c |    8 ++------
+ 1 files changed, 2 insertions(+), 6 deletions(-)
 
-The hierarchical stats are about that memcg, too.  And I don't want to
-turn on debugging and then look for the extra information hiding in
-the middle of regular stats.
+diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+index 2aad499..c7ac8e1 100644
+--- a/mm/vmalloc.c
++++ b/mm/vmalloc.c
+@@ -1975,9 +1975,7 @@ static int aligned_vwrite(char *buf, char *addr, unsigned long count)
+  *	IOREMAP area is treated as memory hole and no copy is done.
+  *
+  *	If [addr...addr+count) doesn't includes any intersects with alive
+- *	vm_struct area, returns 0.
+- *	@buf should be kernel's buffer. Because	this function uses KM_USER0,
+- *	the caller should guarantee KM_USER0 is not used.
++ *	vm_struct area, returns 0. @buf should be kernel's buffer.
+  *
+  *	Note: In usual ops, vread() is never necessary because the caller
+  *	should know vmalloc() area is valid and can use memcpy().
+@@ -2051,9 +2049,7 @@ finished:
+  *	IOREMAP area is treated as memory hole and no copy is done.
+  *
+  *	If [addr...addr+count) doesn't includes any intersects with alive
+- *	vm_struct area, returns 0.
+- *	@buf should be kernel's buffer. Because	this function uses KM_USER0,
+- *	the caller should guarantee KM_USER0 is not used.
++ *	vm_struct area, returns 0. @buf should be kernel's buffer.
+  *
+  *	Note: In usual ops, vwrite() is never necessary because the caller
+  *	should know vmalloc() area is valid and can use memcpy().
+-- 
+1.7.7.6
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
