@@ -1,109 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
-	by kanga.kvack.org (Postfix) with SMTP id 5AC476B02B5
-	for <linux-mm@kvack.org>; Sat, 23 Jun 2012 07:05:02 -0400 (EDT)
-Date: Sat, 23 Jun 2012 13:04:50 +0200
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH] mm: consider all swapped back pages in used-once logic
-Message-ID: <20120623110450.GP27816@cmpxchg.org>
-References: <1337246033-13719-1-git-send-email-mhocko@suse.cz>
- <20120517195342.GB1800@cmpxchg.org>
- <20120521025149.GA32375@gmail.com>
- <20120521073632.GL1406@cmpxchg.org>
- <20120521085951.GA4687@gmail.com>
- <20120521093705.GM1406@cmpxchg.org>
- <20120521110659.GA7143@gmail.com>
+Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
+	by kanga.kvack.org (Postfix) with SMTP id 413536B02B7
+	for <linux-mm@kvack.org>; Sat, 23 Jun 2012 10:58:55 -0400 (EDT)
+Received: by pbbrp2 with SMTP id rp2so5902422pbb.14
+        for <linux-mm@kvack.org>; Sat, 23 Jun 2012 07:58:54 -0700 (PDT)
+From: Akinobu Mita <akinobu.mita@gmail.com>
+Subject: [PATCH -v4 0/6] notifier error injection
+Date: Sat, 23 Jun 2012 23:58:16 +0900
+Message-Id: <1340463502-15341-1-git-send-email-akinobu.mita@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120521110659.GA7143@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zheng Liu <gnehzuil.liu@gmail.com>
-Cc: Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>
+To: linux-kernel@vger.kernel.org, akpm@linux-foundation.org
+Cc: Akinobu Mita <akinobu.mita@gmail.com>, Pavel Machek <pavel@ucw.cz>, "Rafael J. Wysocki" <rjw@sisk.pl>, linux-pm@lists.linux-foundation.org, Greg KH <greg@kroah.com>, linux-mm@kvack.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, linuxppc-dev@lists.ozlabs.org, =?UTF-8?q?Am=C3=A9rico=20Wang?= <xiyou.wangcong@gmail.com>, Michael Ellerman <michael@ellerman.id.au>
 
-On Mon, May 21, 2012 at 07:07:00PM +0800, Zheng Liu wrote:
-> On Mon, May 21, 2012 at 11:37:05AM +0200, Johannes Weiner wrote:
-> [snip]
-> > > > Is it because the read()/write() IO is high throughput and pushes
-> > > > pages through the LRU lists faster than the mmap pages are referenced?
-> > > 
-> > > Yes, in this application, one query needs to access mapped file page
-> > > twice and file page cache twice.  Namely, one query needs to do 4 disk
-> > > I/Os.  We have used fadvise(2) to reduce file page cache accessing to
-> > > only once.  For mapped file page, in fact them are accessed only once
-> > > because in one query the same data is accessed twice.  Thus, one query
-> > > causes 2 disk I/Os now.  The size of read/write is quite larger than
-> > > mmap/munmap.  So, as you see, if we can keep mmap/munmap file in memory
-> > > as much as possible, we will gain the better performance.
-> > 
-> > You access the same unmapped cache twice, i.e. repeated reads or
-> > writes against the same file offset?
-> 
-> No.  We access the same mapped file twice.
-> 
-> > 
-> > How do you use fadvise?
-> 
-> We access the header and content of the file respectively using read/write.
-> The header and content are sequentially.  So we use fadivse(2) with
-> FADV_WILLNEED flag to do a readahead.
-> 
-> > > In addition, another factor also has some impacts for this application.
-> > > In inactive_file_is_low_global(), it is different between 2.6.18 and
-> > > upstream kernel.  IMHO, it causes that mapped file pages in active list
-> > > are moved into inactive list frequently.
-> > > 
-> > > Currently, we add a parameter in inactive_file_is_low_global() to adjust
-> > > this ratio.  Meanwhile we activate every mapped file pages for the first
-> > > time.  Then the performance gets better, but it still doesn't reach the
-> > > performance of 2.6.18.
-> > 
-> > 2.6.18 didn't have the active list protection at all and always
-> > forcibly deactivated pages during reclaim.  Have you tried fully
-> > reverting to this by making inactive_file_is_low_global() return true
-> > unconditionally?
-> 
-> No, I don't try it.  AFAIK, 2.6.18 didn't protect the active list.  But
-> it doesn't always forcibly deactivate the pages.  I remember that in
-> 2.6.18 kernel we calculate 'mapped_ratio' in shrink_active_list(), and
-> then we get 'swap_tendency' according to 'mapped_ratio', 'distress', and
-> 'sc->swappiness'.  If 'swap_tendency' is not greater than 100.  It
-> doesn't reclaim mapped file pages.  By this equation, if the sum of the
-> anonymous pages and mapped file pages is not greater than the 50% of
-> total pages, we don't deactivate these pages.  Am I missing something?
+This provides kernel modules that can be used to test the error handling
+of notifier call chain failures by injecting artifical errors to the
+following notifier chain callbacks.
 
-I think we need to go back to protecting mapped pages based on how
-much of reclaimable memory they make up, one way or another.
+ * CPU notifier
+ * PM notifier
+ * memory hotplug notifier
+ * powerpc pSeries reconfig notifier
 
-Minchan suggested recently to have a separate LRU list for easily
-reclaimable pages.  If we balance the lists according to relative
-size, we have pressure on mapped pages dictated by availability of
-clean cache that is easier to reclaim.
+Example: Inject CPU offline error (-1 == -EPERM)
 
-Rik, Minchan, what do you think?
+	# cd /sys/kernel/debug/notifier-error-inject/cpu
+	# echo -1 > actions/CPU_DOWN_PREPARE/error
+	# echo 0 > /sys/devices/system/cpu/cpu1/online
+	bash: echo: write error: Operation not permitted
 
-> > Could it be that by accessing your "used-once" unmapped cache twice in
-> > short succession, you accidentally activate it all?
-> 
-> It could not happen.  Certainly it is possible to access a file twice at
-> the same offset in product system.  That is reason why we use buffered
-> IO rather than direct IO.  But in testing system we could not access the
-> same file twice at the same offset.
-> 
-> > Thereby having ONLY mapped file pages on the inactive list, adding to
-> > the pressure on them?
-> > 
-> > And, by having the wrong pages on the active list, actually benefit
-> > from the active list not being protected from inactive list cycle
-> > speed and instead pushed out quickly again?
-> 
-> Sorry, you mean that in 2.6.18 kernel it benefits from the wrong pages
-> on the active list, isn't it?
+There are also handy shell scripts to test CPU and memory hotplug notifier.
+Note that these tests didn't detect error handling bugs on my machine but
+I still think this feature is usefull to test the code path which is rarely
+executed.
 
-I meant that at least 2.6.18 wouldn't be so eager to protect active
-pages, which a workload with many "false" active pages would benefit
-from.  But it's a moot point, as it's not what happens in your case.
+Changelog:
+
+* v4 (It is about 11 months since v3)
+- prefix all APIs with notifier_err_inject_*
+- rearrange debugfs interface
+  (e.g. $DEBUGFS/cpu-notifier-error-inject/CPU_DOWN_PREPARE -->
+        $DEBUGFS/notifier-error-inject/cpu/actions/CPU_DOWN_PREPARE/error)
+- update modules to follow new interface
+- add -r option for memory-notifier.sh to specify percent of offlining
+  memory blocks
+
+* v3
+- rewrite to be kernel modules instead of initializing at late_initcall()s
+  (it makes the diffstat look different but most code remains unchanged)
+- export err_inject_notifier_block_{init,cleanup} for modules
+- export pSeries_reconfig_notifier_{,un}register symbols for a module
+- notifier priority can be specified as a module parameter
+- add testing scripts in tools/testing/fault-injection
+
+* v2
+- "PM: Improve error code of pm_notifier_call_chain()" is now in -next
+- "debugfs: add debugfs_create_int" is dropped
+- put a comment in err_inject_notifier_block_init()
+- only allow valid errno to be injected (-MAX_ERRNO <= errno <= 0)
+- improve Kconfig help text
+- make CONFIG_PM_NOTIFIER_ERROR_INJECTION visible even if PM_DEBUG is disabled
+- make CONFIG_PM_NOTIFIER_ERROR_INJECTION default if PM_DEBUG is enabled
+
+Akinobu Mita (6):
+  fault-injection: notifier error injection
+  cpu: rewrite cpu-notifier-error-inject module
+  PM: PM notifier error injection module
+  memory: memory notifier error injection module
+  powerpc: pSeries reconfig notifier error injection module
+  fault-injection: add notifier error injection testing scripts
+
+ lib/Kconfig.debug                                |   91 ++++++++++-
+ lib/Makefile                                     |    5 +
+ lib/cpu-notifier-error-inject.c                  |   63 +++-----
+ lib/memory-notifier-error-inject.c               |   48 ++++++
+ lib/notifier-error-inject.c                      |  112 ++++++++++++++
+ lib/notifier-error-inject.h                      |   24 +++
+ lib/pSeries-reconfig-notifier-error-inject.c     |   51 +++++++
+ lib/pm-notifier-error-inject.c                   |   49 ++++++
+ tools/testing/fault-injection/cpu-notifier.sh    |  169 +++++++++++++++++++++
+ tools/testing/fault-injection/memory-notifier.sh |  176 ++++++++++++++++++++++
+ 10 files changed, 748 insertions(+), 40 deletions(-)
+ create mode 100644 lib/memory-notifier-error-inject.c
+ create mode 100644 lib/notifier-error-inject.c
+ create mode 100644 lib/notifier-error-inject.h
+ create mode 100644 lib/pSeries-reconfig-notifier-error-inject.c
+ create mode 100644 lib/pm-notifier-error-inject.c
+ create mode 100755 tools/testing/fault-injection/cpu-notifier.sh
+ create mode 100755 tools/testing/fault-injection/memory-notifier.sh
+
+Cc: Pavel Machek <pavel@ucw.cz>
+Cc: "Rafael J. Wysocki" <rjw@sisk.pl>
+Cc: linux-pm@lists.linux-foundation.org
+Cc: Greg KH <greg@kroah.com>
+Cc: linux-mm@kvack.org
+Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Cc: Paul Mackerras <paulus@samba.org>
+Cc: linuxppc-dev@lists.ozlabs.org
+Cc: AmA(C)rico Wang <xiyou.wangcong@gmail.com>
+Cc: Michael Ellerman <michael@ellerman.id.au>
+
+-- 
+1.7.10.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
