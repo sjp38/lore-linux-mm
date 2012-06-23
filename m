@@ -1,40 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
-	by kanga.kvack.org (Postfix) with SMTP id 700886B02C2
-	for <linux-mm@kvack.org>; Sat, 23 Jun 2012 11:53:31 -0400 (EDT)
-Message-ID: <4FE5E66C.6080309@redhat.com>
-Date: Sat, 23 Jun 2012 11:53:16 -0400
-From: Rik van Riel <riel@redhat.com>
-MIME-Version: 1.0
-Subject: Re: RFC:  Easy-Reclaimable LRU list
-References: <4FE012CD.6010605@kernel.org> <4FE37434.808@linaro.org> <4FE41752.8050305@kernel.org> <4FE549E8.2050905@jp.fujitsu.com>
-In-Reply-To: <4FE549E8.2050905@jp.fujitsu.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
+	by kanga.kvack.org (Postfix) with SMTP id 28D586B02C5
+	for <linux-mm@kvack.org>; Sat, 23 Jun 2012 11:54:06 -0400 (EDT)
+Received: from /spool/local
+	by e38.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <shangw@linux.vnet.ibm.com>;
+	Sat, 23 Jun 2012 09:54:05 -0600
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by d03dlp01.boulder.ibm.com (Postfix) with ESMTP id 10743C40005
+	for <linux-mm@kvack.org>; Sat, 23 Jun 2012 15:53:46 +0000 (WET)
+Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
+	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q5NFrG3L217764
+	for <linux-mm@kvack.org>; Sat, 23 Jun 2012 09:53:31 -0600
+Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av03.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q5NFr01H015001
+	for <linux-mm@kvack.org>; Sat, 23 Jun 2012 09:53:00 -0600
+From: Gavin Shan <shangw@linux.vnet.ibm.com>
+Subject: [PATCH 1/5] mm/sparse: check size of struct mm_section
+Date: Sat, 23 Jun 2012 23:52:52 +0800
+Message-Id: <1340466776-4976-1-git-send-email-shangw@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Minchan Kim <minchan@kernel.org>, John Stultz <john.stultz@linaro.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Anton Vorontsov <anton.vorontsov@linaro.org>, Pekka Enberg <penberg@kernel.org>, Wu Fengguang <fengguang.wu@intel.com>, Hugh Dickins <hughd@google.com>
+To: linux-mm@kvack.org
+Cc: rientjes@google.com, hannes@cmpxchg.org, akpm@linux-foundation.org, Gavin Shan <shangw@linux.vnet.ibm.com>
 
-On 06/23/2012 12:45 AM, Kamezawa Hiroyuki wrote:
+Platforms like PPC might need two level mem_section for SPARSEMEM
+with enabled CONFIG_SPARSEMEM_EXTREME. On the other hand, the
+memory section descriptor might be allocated from bootmem allocator
+with PAGE_SIZE alignment. In order to fully utilize the memory chunk
+allocated from bootmem allocator, it'd better to assure memory
+sector descriptor won't run across the boundary (PAGE_SIZE).
 
-> I think this is interesting approach. Major concern is how to guarantee
-> EReclaimable
-> pages are really EReclaimable...Do you have any idea ? madviced pages
-> are really EReclaimable ?
+The patch introduces the check on size of "struct mm_section" to
+assure that.
 
-I suspect the EReclaimable pages can only be clean page
-cache pages that are not mapped by any processes.
+Signed-off-by: Gavin Shan <shangw@linux.vnet.ibm.com>
+---
+ mm/sparse.c |    9 +++++++++
+ 1 file changed, 9 insertions(+)
 
-Once somebody tries to use the page, mark_page_accessed
-will move it to another list.
-
-> A (very) small concern is will you use one more page-flags for this ? ;)
-
-This could be an issue on a 32 bit system, true.
-
+diff --git a/mm/sparse.c b/mm/sparse.c
+index 6a4bf91..afd0998 100644
+--- a/mm/sparse.c
++++ b/mm/sparse.c
+@@ -63,6 +63,15 @@ static struct mem_section noinline __init_refok *sparse_index_alloc(int nid)
+ 	unsigned long array_size = SECTIONS_PER_ROOT *
+ 				   sizeof(struct mem_section);
+ 
++	/*
++	 * The root memory section descriptor might be allocated
++	 * from bootmem, which has minimal memory chunk requirement
++	 * of page. In order to fully utilize the memory, the sparse
++	 * memory section descriptor shouldn't run across the boundary
++	 * that bootmem allocator has.
++	 */
++	BUILD_BUG_ON(PAGE_SIZE % sizeof(struct mem_section));
++
+ 	if (slab_is_available()) {
+ 		if (node_state(nid, N_HIGH_MEMORY))
+ 			section = kmalloc_node(array_size, GFP_KERNEL, nid);
 -- 
-All rights reversed
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
