@@ -1,97 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
-	by kanga.kvack.org (Postfix) with SMTP id 9D7CE6B028F
-	for <linux-mm@kvack.org>; Sat, 23 Jun 2012 00:40:13 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id ECA833EE0AE
-	for <linux-mm@kvack.org>; Sat, 23 Jun 2012 13:40:11 +0900 (JST)
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 46E8445DE5A
-	for <linux-mm@kvack.org>; Sat, 23 Jun 2012 13:40:11 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 2D4C645DE56
-	for <linux-mm@kvack.org>; Sat, 23 Jun 2012 13:40:11 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 073D4E38001
-	for <linux-mm@kvack.org>; Sat, 23 Jun 2012 13:40:11 +0900 (JST)
+Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
+	by kanga.kvack.org (Postfix) with SMTP id 0D0B06B0291
+	for <linux-mm@kvack.org>; Sat, 23 Jun 2012 00:47:46 -0400 (EDT)
+Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 5BB613EE0BB
+	for <linux-mm@kvack.org>; Sat, 23 Jun 2012 13:47:45 +0900 (JST)
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 435CA45DE53
+	for <linux-mm@kvack.org>; Sat, 23 Jun 2012 13:47:45 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 14A5345DE4F
+	for <linux-mm@kvack.org>; Sat, 23 Jun 2012 13:47:45 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 02FE61DB803F
+	for <linux-mm@kvack.org>; Sat, 23 Jun 2012 13:47:45 +0900 (JST)
 Received: from m1000.s.css.fujitsu.com (m1000.s.css.fujitsu.com [10.240.81.136])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id B6CAD1DB804B
-	for <linux-mm@kvack.org>; Sat, 23 Jun 2012 13:40:10 +0900 (JST)
-Message-ID: <4FE5482C.3010501@jp.fujitsu.com>
-Date: Sat, 23 Jun 2012 13:38:04 +0900
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id B19E41DB8037
+	for <linux-mm@kvack.org>; Sat, 23 Jun 2012 13:47:44 +0900 (JST)
+Message-ID: <4FE549E8.2050905@jp.fujitsu.com>
+Date: Sat, 23 Jun 2012 13:45:28 +0900
 From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: Accounting problem of MIGRATE_ISOLATED freed page
-References: <4FE169B1.7020600@kernel.org> <4FE16E80.9000306@gmail.com> <4FE18187.3050103@kernel.org> <4FE23069.5030702@gmail.com> <4FE26470.90401@kernel.org> <CAHGf_=pjoiHQ9vxXXe-GtbkYRzhxdDhu3pf6pwDsCe5pBQE8Nw@mail.gmail.com> <4FE27F15.8050102@kernel.org> <CAHGf_=pDw4axwG2tQ+B5hPks-sz2S5+G1Kk-=HSDmo=DSXOkEw@mail.gmail.com> <4FE2A937.6040701@kernel.org> <4FE2FCFB.4040808@jp.fujitsu.com> <4FE3C4E4.2050107@kernel.org> <4FE414A2.3000700@kernel.org>
-In-Reply-To: <4FE414A2.3000700@kernel.org>
+Subject: Re: RFC:  Easy-Reclaimable LRU list
+References: <4FE012CD.6010605@kernel.org> <4FE37434.808@linaro.org> <4FE41752.8050305@kernel.org>
+In-Reply-To: <4FE41752.8050305@kernel.org>
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Minchan Kim <minchan@kernel.org>
-Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Aaditya Kumar <aaditya.kumar.30@gmail.com>, Mel Gorman <mel@csn.ul.ie>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+Cc: John Stultz <john.stultz@linaro.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Anton Vorontsov <anton.vorontsov@linaro.org>, Pekka Enberg <penberg@kernel.org>, Wu Fengguang <fengguang.wu@intel.com>, Hugh Dickins <hughd@google.com>
 
-(2012/06/22 15:45), Minchan Kim wrote:
-> On 06/22/2012 10:05 AM, Minchan Kim wrote:
+(2012/06/22 15:57), Minchan Kim wrote:
+> Hi John,
 >
->> Second approach which is suggested by KOSAKI is what you mentioned.
->> But the concern about second approach is how to make sure matched count increase/decrease of nr_isolated_areas.
->> I mean how to make sure nr_isolated_areas would be zero when isolation is done.
->> Of course, we can investigate all of current caller and make sure they don't make mistake
->> now. But it's very error-prone if we consider future's user.
->> So we might need test_set_pageblock_migratetype(page, MIGRATE_ISOLATE);
+> On 06/22/2012 04:21 AM, John Stultz wrote:
+>
+>> On 06/18/2012 10:49 PM, Minchan Kim wrote:
+>>> Hi everybody!
+>>>
+>>> Recently, there are some efforts to handle system memory pressure.
+>>>
+>>> 1) low memory notification - [1]
+>>> 2) fallocate(VOLATILE) - [2]
+>>> 3) fadvise(NOREUSE) - [3]
+>>>
+>>> For them, I would like to add new LRU list, aka "Ereclaimable" which
+>>> is opposite of "unevictable".
+>>> Reclaimable LRU list includes _easy_ reclaimable pages.
+>>> For example, easy reclaimable pages are following as.
+>>>
+>>> 1. invalidated but remained LRU list.
+>>> 2. pageout pages for reclaim(PG_reclaim pages)
+>>> 3. fadvise(NOREUSE)
+>>> 4. fallocate(VOLATILE)
+>>>
+>>> Their pages shouldn't stir normal LRU list and compaction might not
+>>> migrate them, even.
+>>> Reclaimer can reclaim Ereclaimable pages before normal lru list and
+>>> will avoid unnecessary
+>>> swapout in anon pages in easy-reclaimable LRU list.
+>>
+>> I was hoping there would be further comment on this by more core VM
+>> devs, but so far things have been quiet (is everyone on vacation?).
 >
 >
-> It's an implementation about above approach.
->
+> At least, there are no dissent comment until now.
+> Let be a positive. :)
 
-I like this approach.
+I think this is interesting approach. Major concern is how to guarantee EReclaimable
+pages are really EReclaimable...Do you have any idea ? madviced pages are really
+EReclaimable ?
 
-
-> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-> index bf3404e..3e9a9e1 100644
-> --- a/include/linux/mmzone.h
-> +++ b/include/linux/mmzone.h
-> @@ -474,6 +474,11 @@ struct zone {
->           * rarely used fields:
->           */
->          const char              *name;
-> +       /*
-> +        * the number of MIGRATE_ISOLATE pageblock
-> +        * We need this for accurate free page counting.
-> +        */
-> +       atomic_t                nr_migrate_isolate;
->   } ____cacheline_internodealigned_in_smp;
-
-Isn't this counter modified only under zone->lock ?
-
-
->
->   typedef enum {
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 2c29b1c..6cb1f9f 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -219,6 +219,11 @@ EXPORT_SYMBOL(nr_online_nodes);
->
->   int page_group_by_mobility_disabled __read_mostly;
->
-> +/*
-> + * NOTE:
-> + * Don't use set_pageblock_migratetype(page, MIGRATE_ISOLATE) direclty.
-> + * Instead, use {un}set_pageblock_isolate.
-> + */
->   void set_pageblock_migratetype(struct page *page, int migratetype)
->   {
->          if (unlikely(page_group_by_mobility_disabled))
-> @@ -1622,6 +1627,28 @@ bool zone_watermark_ok(struct zone *z, int order, unsigned long mark,
->                                          zone_page_state(z, NR_FREE_PAGES));
->   }
-
-I'm glad if this function can be static...Hm. With easy grep, I think it can be...
+A (very) small concern is will you use one more page-flags for this ? ;)
 
 Thanks,
 -Kame
+
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
