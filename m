@@ -1,48 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx177.postini.com [74.125.245.177])
-	by kanga.kvack.org (Postfix) with SMTP id ECB116B02DD
-	for <linux-mm@kvack.org>; Sun, 24 Jun 2012 07:09:51 -0400 (EDT)
-Received: by yenr5 with SMTP id r5so2896880yen.14
-        for <linux-mm@kvack.org>; Sun, 24 Jun 2012 04:09:51 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx178.postini.com [74.125.245.178])
+	by kanga.kvack.org (Postfix) with SMTP id 6ABA76B02DE
+	for <linux-mm@kvack.org>; Sun, 24 Jun 2012 12:45:07 -0400 (EDT)
+Received: from /spool/local
+	by e28smtp02.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Sun, 24 Jun 2012 22:15:02 +0530
+Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
+	by d28relay05.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q5OGiwTx61079758
+	for <linux-mm@kvack.org>; Sun, 24 Jun 2012 22:14:58 +0530
+Received: from d28av01.in.ibm.com (loopback [127.0.0.1])
+	by d28av01.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q5OMEVwm005956
+	for <linux-mm@kvack.org>; Mon, 25 Jun 2012 03:44:32 +0530
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: Re: [PATCH -V9 11/15] hugetlb/cgroup: Add charge/uncharge routines for hugetlb cgroup
+In-Reply-To: <20120622151121.917178eb.akpm@linux-foundation.org>
+References: <1339583254-895-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <1339583254-895-12-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <4FD9A79D.9030303@huawei.com> <20120622151121.917178eb.akpm@linux-foundation.org>
+Date: Sun, 24 Jun 2012 22:14:51 +0530
+Message-ID: <87txy07j7g.fsf@skywalker.in.ibm.com>
 MIME-Version: 1.0
-In-Reply-To: <4FE5E66C.6080309@redhat.com>
-References: <4FE012CD.6010605@kernel.org> <4FE37434.808@linaro.org>
- <4FE41752.8050305@kernel.org> <4FE549E8.2050905@jp.fujitsu.com> <4FE5E66C.6080309@redhat.com>
-From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-Date: Sun, 24 Jun 2012 07:09:30 -0400
-Message-ID: <CAHGf_=rqTnmm-kTBZQs8NwOX2yKh=fxJ58-uPcL6cb7K3tk9Og@mail.gmail.com>
-Subject: Re: RFC: Easy-Reclaimable LRU list
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Minchan Kim <minchan@kernel.org>, John Stultz <john.stultz@linaro.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Anton Vorontsov <anton.vorontsov@linaro.org>, Pekka Enberg <penberg@kernel.org>, Wu Fengguang <fengguang.wu@intel.com>, Hugh Dickins <hughd@google.com>
+To: Andrew Morton <akpm@linux-foundation.org>, Li Zefan <lizefan@huawei.com>
+Cc: linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, dhillf@gmail.com, rientjes@google.com, mhocko@suse.cz, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org
 
-On Sat, Jun 23, 2012 at 11:53 AM, Rik van Riel <riel@redhat.com> wrote:
-> On 06/23/2012 12:45 AM, Kamezawa Hiroyuki wrote:
+
+
+Hi Andrew,
+
+Andrew Morton <akpm@linux-foundation.org> writes:
+
+> On Thu, 14 Jun 2012 16:58:05 +0800
+> Li Zefan <lizefan@huawei.com> wrote:
 >
->> I think this is interesting approach. Major concern is how to guarantee
->> EReclaimable
->> pages are really EReclaimable...Do you have any idea ? madviced pages
->> are really EReclaimable ?
+>> > +int hugetlb_cgroup_charge_cgroup(int idx, unsigned long nr_pages,
+>> 
+>> > +				 struct hugetlb_cgroup **ptr)
+>> > +{
+>> > +	int ret = 0;
+>> > +	struct res_counter *fail_res;
+>> > +	struct hugetlb_cgroup *h_cg = NULL;
+>> > +	unsigned long csize = nr_pages * PAGE_SIZE;
+>> > +
+>> > +	if (hugetlb_cgroup_disabled())
+>> > +		goto done;
+>> > +	/*
+>> > +	 * We don't charge any cgroup if the compound page have less
+>> > +	 * than 3 pages.
+>> > +	 */
+>> > +	if (huge_page_order(&hstates[idx]) < HUGETLB_CGROUP_MIN_ORDER)
+>> > +		goto done;
+>> > +again:
+>> > +	rcu_read_lock();
+>> > +	h_cg = hugetlb_cgroup_from_task(current);
+>> > +	if (!h_cg)
+>> 
+>> 
+>> In no circumstances should h_cg be NULL.
+>> 
 >
-> I suspect the EReclaimable pages can only be clean page
-> cache pages that are not mapped by any processes.
->
-> Once somebody tries to use the page, mark_page_accessed
-> will move it to another list.
+> Aneesh?
 
-100% agree.
+I missed this in the last review. Thanks for reminding. I will send a
+patch addressing this and another related comment in
+4FD9A6B6.50503@huawei.com as a separate mail.
 
-
->> A (very) small concern is will you use one more page-flags for this ? ;)
->
-> This could be an issue on a 32 bit system, true.
-
-Do we really need SwapBacked bit? Actually swap-backed is
-per-superblock attribute and don't change dynamically (i.e. no race
-happen). thus this bit
-might be able to move into page->mapping or page->mapping->host.
+-aneesh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
