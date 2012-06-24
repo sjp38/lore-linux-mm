@@ -1,28 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
-	by kanga.kvack.org (Postfix) with SMTP id 761716B02E5
-	for <linux-mm@kvack.org>; Sun, 24 Jun 2012 15:18:21 -0400 (EDT)
-Received: by yhjj52 with SMTP id j52so3187723yhj.8
-        for <linux-mm@kvack.org>; Sun, 24 Jun 2012 12:18:20 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
+	by kanga.kvack.org (Postfix) with SMTP id E49366B02E7
+	for <linux-mm@kvack.org>; Sun, 24 Jun 2012 15:52:42 -0400 (EDT)
+Date: Sun, 24 Jun 2012 15:52:36 -0400
+From: Dave Jones <davej@redhat.com>
+Subject: Re: [patch v2] mm, thp: print useful information when mmap_sem is
+ unlocked in zap_pmd_range
+Message-ID: <20120624195236.GA2153@redhat.com>
+References: <20120606165330.GA27744@redhat.com>
+ <alpine.DEB.2.00.1206091904030.7832@chino.kir.corp.google.com>
+ <alpine.DEB.2.00.1206110214150.6843@chino.kir.corp.google.com>
+ <alpine.DEB.2.00.1206221405430.20954@chino.kir.corp.google.com>
 MIME-Version: 1.0
-In-Reply-To: <1340466776-4976-5-git-send-email-shangw@linux.vnet.ibm.com>
-References: <1340466776-4976-1-git-send-email-shangw@linux.vnet.ibm.com> <1340466776-4976-5-git-send-email-shangw@linux.vnet.ibm.com>
-From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-Date: Sun, 24 Jun 2012 15:18:00 -0400
-Message-ID: <CAHGf_=o7CGkJevngH0UGn-FWaEEO1zTkFD+DjWDA_NDeHcVnnw@mail.gmail.com>
-Subject: Re: [PATCH 5/5] mm/sparse: return 0 if root mem_section exists
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.00.1206221405430.20954@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Gavin Shan <shangw@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org, rientjes@google.com, hannes@cmpxchg.org, akpm@linux-foundation.org
+To: David Rientjes <rientjes@google.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>, Sasha Levin <levinsasha928@gmail.com>, Andrew Morton <akpm@linux-foundation.org>
 
-On Sat, Jun 23, 2012 at 11:52 AM, Gavin Shan <shangw@linux.vnet.ibm.com> wrote:
-> Function sparse_index_init() is used to setup memory section descriptors
-> dynamically. zero should be returned while mem_section[root] already has
-> been allocated.
+On Fri, Jun 22, 2012 at 02:06:40PM -0700, David Rientjes wrote:
+ > On Mon, 11 Jun 2012, David Rientjes wrote:
+ > 
+ > > diff --git a/mm/memory.c b/mm/memory.c
+ > > --- a/mm/memory.c
+ > > +++ b/mm/memory.c
+ > > @@ -1225,7 +1225,15 @@ static inline unsigned long zap_pmd_range(struct mmu_gather *tlb,
+ > >  		next = pmd_addr_end(addr, end);
+ > >  		if (pmd_trans_huge(*pmd)) {
+ > >  			if (next - addr != HPAGE_PMD_SIZE) {
+ > > -				VM_BUG_ON(!rwsem_is_locked(&tlb->mm->mmap_sem));
+ > > +#ifdef CONFIG_DEBUG_VM
+ > > +				if (!rwsem_is_locked(&tlb->mm->mmap_sem)) {
+ > > +					pr_err("%s: mmap_sem is unlocked! addr=0x%lx end=0x%lx vma->vm_start=0x%lx vma->vm_end=0x%lx\n",
+ > > +						__func__, addr, end,
+ > > +						vma->vm_start,
+ > > +						vma->vm_end);
+ > > +					BUG();
+ > > +				}
+ > > +#endif
+ > >  				split_huge_page_pmd(vma->vm_mm, pmd);
+ > >  			} else if (zap_huge_pmd(tlb, vma, pmd, addr))
+ > >  				goto next;
+ > 
+ > This patch is now in Linus' tree so if you are able to hit this issue and 
+ > capture it again, we should be able to get much more useful information.
 
-Why?
+I've had it applied in my local builds for a while, but haven't managed
+to hit it again recently.  Though I've not been doing as many overnight runs
+this last week or two because temperatures at home have been icky enough
+without computers belching out hot air (no ac)
+
+	Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
