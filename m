@@ -1,85 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
-	by kanga.kvack.org (Postfix) with SMTP id D9F476B0340
-	for <linux-mm@kvack.org>; Mon, 25 Jun 2012 09:22:08 -0400 (EDT)
-Date: Mon, 25 Jun 2012 15:22:05 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH] fix bad behavior in use_hierarchy file
-Message-ID: <20120625132205.GN19805@tiehlicka.suse.cz>
-References: <1340616061-1955-1-git-send-email-glommer@parallels.com>
- <20120625120823.GK19805@tiehlicka.suse.cz>
- <4FE85555.1010209@parallels.com>
- <20120625124905.GM19805@tiehlicka.suse.cz>
- <4FE85FC3.4050908@parallels.com>
+Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
+	by kanga.kvack.org (Postfix) with SMTP id CAC7A6B0343
+	for <linux-mm@kvack.org>; Mon, 25 Jun 2012 09:50:12 -0400 (EDT)
+Received: from /spool/local
+	by e4.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
+	Mon, 25 Jun 2012 09:50:10 -0400
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by d01dlp02.pok.ibm.com (Postfix) with ESMTP id C07E96E81B5
+	for <linux-mm@kvack.org>; Mon, 25 Jun 2012 09:48:34 -0400 (EDT)
+Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
+	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q5PDmXiQ146786
+	for <linux-mm@kvack.org>; Mon, 25 Jun 2012 09:48:34 -0400
+Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av04.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q5PDmIfR015421
+	for <linux-mm@kvack.org>; Mon, 25 Jun 2012 07:48:18 -0600
+Message-ID: <4FE86C1D.2020302@linux.vnet.ibm.com>
+Date: Mon, 25 Jun 2012 08:48:13 -0500
+From: Seth Jennings <sjenning@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4FE85FC3.4050908@parallels.com>
+Subject: Re: [PATCH 01/10] zcache: fix preemptable memory allocation in atomic
+ context
+References: <4FE0392E.3090300@linux.vnet.ibm.com> <4FE36D32.3030408@linux.vnet.ibm.com> <20120623030052.GA18440@kroah.com>
+In-Reply-To: <20120623030052.GA18440@kroah.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, devel@openvz.org, Dhaval Giani <dhaval.giani@gmail.com>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>
+To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Cc: Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-On Mon 25-06-12 16:55:31, Glauber Costa wrote:
-> On 06/25/2012 04:49 PM, Michal Hocko wrote:
-> >On Mon 25-06-12 16:11:01, Glauber Costa wrote:
-> >>On 06/25/2012 04:08 PM, Michal Hocko wrote:
-> >>>On Mon 25-06-12 13:21:01, Glauber Costa wrote:
-> >[...]
-> >>>>diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> >>>>index ac35bcc..cccebbc 100644
-> >>>>--- a/mm/memcontrol.c
-> >>>>+++ b/mm/memcontrol.c
-> >>>>@@ -3779,6 +3779,10 @@ static int mem_cgroup_hierarchy_write(struct cgroup *cont, struct cftype *cft,
-> >>>>  		parent_memcg = mem_cgroup_from_cont(parent);
-> >>>>
-> >>>>  	cgroup_lock();
-> >>>>+
-> >>>>+	if (memcg->use_hierarchy == val)
-> >>>>+		goto out;
-> >>>>+		
-> >>>
-> >>>Why do you need cgroup_lock to check the value? Even if we have 2
-> >>>CPUs racing (one trying to set to 0 other to 1 with use_hierarchy==0)
-> >>>then the "set to 0" operation might fail depending on who hits the
-> >>>cgroup_lock first anyway.
-> >>>
-> >>>So while this is correct I think there is not much point to take the global
-> >>>cgroup lock in this case.
-> >>>
-> >>Well, no.
-> >>
-> >>All operations will succeed, unless the cgroup breeds new children.
-> >>That's the operation we're racing against.
-> >
-> >I am not sure I understand. The changelog says that you want to handle
-> >a situation where you are copying a hierarchy along with their
-> >attributes and you don't want to fail when setting sane values.
-> >
-> >If we race with a new child creation then the success always depends on
-> >the lock ordering but once the value is set then it is final so the test
-> >will work even outside of the lock. Or am I still missing something?
-> >
-> >Just to make it clear the lock is necessary in the function I just do
-> >not see why it should be held while we are trying to handle no-change
-> >case.
-> >
+On 06/22/2012 10:00 PM, Greg Kroah-Hartman wrote:
+> On Thu, Jun 21, 2012 at 01:51:30PM -0500, Seth Jennings wrote:
+>> I just noticed you sent this patchset to Andrew, but the
+>> staging tree is maintained by Greg.  You're going to want to
+>> send these patches to him.
+>>
+>> Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 > 
-> I think you are right in this specific case. But do you think it is
-> necessary to submit a version of it that tests outside the lock?
-> 
-> We don't gain too much with that anyway.
+> After this series is redone, right?  As it is, this submission didn't
+> look ok, so I'm hoping a second round is forthcoming...
 
-Well, it was just a concern that the lock is global and the test doesn't
-seem to need it. But maybe you are right and it is not worth it.
+Yes. That is the cleanest way since there are dependencies
+among the patches.  You could pull 04-08 and be ok, but you
+might just prefer a repost.
 
--- 
-Michal Hocko
-SUSE Labs
-SUSE LINUX s.r.o.
-Lihovarska 1060/12
-190 00 Praha 9    
-Czech Republic
+--
+Seth
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
