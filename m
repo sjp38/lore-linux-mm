@@ -1,76 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
-	by kanga.kvack.org (Postfix) with SMTP id 37F9F6B0366
-	for <linux-mm@kvack.org>; Mon, 25 Jun 2012 12:03:25 -0400 (EDT)
-Date: Mon, 25 Jun 2012 18:03:22 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH 1/5] mm/sparse: check size of struct mm_section
-Message-ID: <20120625160322.GE19810@tiehlicka.suse.cz>
-References: <1340466776-4976-1-git-send-email-shangw@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1340466776-4976-1-git-send-email-shangw@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
+	by kanga.kvack.org (Postfix) with SMTP id F36A16B0369
+	for <linux-mm@kvack.org>; Mon, 25 Jun 2012 12:23:06 -0400 (EDT)
+Received: from /spool/local
+	by e5.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
+	Mon, 25 Jun 2012 12:23:04 -0400
+Received: from d01relay03.pok.ibm.com (d01relay03.pok.ibm.com [9.56.227.235])
+	by d01dlp02.pok.ibm.com (Postfix) with ESMTP id 704CD6E806D
+	for <linux-mm@kvack.org>; Mon, 25 Jun 2012 12:14:49 -0400 (EDT)
+Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
+	by d01relay03.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q5PGEnfJ179224
+	for <linux-mm@kvack.org>; Mon, 25 Jun 2012 12:14:49 -0400
+Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
+	by d01av03.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q5PGEkf3002547
+	for <linux-mm@kvack.org>; Mon, 25 Jun 2012 13:14:48 -0300
+From: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Subject: [PATCH 1/3] zram/zcache: swtich Kconfig dependency from X86 to ZSMALLOC
+Date: Mon, 25 Jun 2012 11:14:36 -0500
+Message-Id: <1340640878-27536-2-git-send-email-sjenning@linux.vnet.ibm.com>
+In-Reply-To: <1340640878-27536-1-git-send-email-sjenning@linux.vnet.ibm.com>
+References: <1340640878-27536-1-git-send-email-sjenning@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Gavin Shan <shangw@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org, rientjes@google.com, hannes@cmpxchg.org, akpm@linux-foundation.org
+To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Nitin Gupta <ngupta@vflare.org>, Minchan Kim <minchan@kernel.org>, Robert Jennings <rcj@linux.vnet.ibm.com>, linux-mm@kvack.org, devel@driverdev.osuosl.org, linux-kernel@vger.kernel.org
 
-On Sat 23-06-12 23:52:52, Gavin Shan wrote:
-> Platforms like PPC might need two level mem_section for SPARSEMEM
-> with enabled CONFIG_SPARSEMEM_EXTREME. On the other hand, the
-> memory section descriptor might be allocated from bootmem allocator
-> with PAGE_SIZE alignment. In order to fully utilize the memory chunk
-> allocated from bootmem allocator, it'd better to assure memory
-> sector descriptor won't run across the boundary (PAGE_SIZE).
+This patch switches zcache and zram dependency to ZSMALLOC
+rather than X86.  There is no net change since ZSMALLOC
+depends on X86, however, this prevent further changes to
+these files as zsmalloc dependencies change.
 
-Why? The memory is continuous, right?
+Signed-off-by: Seth Jennings <sjenning@linux.vnet.ibm.com>
+---
+ drivers/staging/zcache/Kconfig |    5 +----
+ drivers/staging/zram/Kconfig   |    5 +----
+ 2 files changed, 2 insertions(+), 8 deletions(-)
 
-> 
-> The patch introduces the check on size of "struct mm_section" to
-> assure that.
-> 
-> Signed-off-by: Gavin Shan <shangw@linux.vnet.ibm.com>
-> ---
->  mm/sparse.c |    9 +++++++++
->  1 file changed, 9 insertions(+)
-> 
-> diff --git a/mm/sparse.c b/mm/sparse.c
-> index 6a4bf91..afd0998 100644
-> --- a/mm/sparse.c
-> +++ b/mm/sparse.c
-> @@ -63,6 +63,15 @@ static struct mem_section noinline __init_refok *sparse_index_alloc(int nid)
->  	unsigned long array_size = SECTIONS_PER_ROOT *
->  				   sizeof(struct mem_section);
->  
-> +	/*
-> +	 * The root memory section descriptor might be allocated
-> +	 * from bootmem, which has minimal memory chunk requirement
-> +	 * of page. In order to fully utilize the memory, the sparse
-> +	 * memory section descriptor shouldn't run across the boundary
-> +	 * that bootmem allocator has.
-> +	 */
-> +	BUILD_BUG_ON(PAGE_SIZE % sizeof(struct mem_section));
-> +
->  	if (slab_is_available()) {
->  		if (node_state(nid, N_HIGH_MEMORY))
->  			section = kmalloc_node(array_size, GFP_KERNEL, nid);
-> -- 
-> 1.7.9.5
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-
+diff --git a/drivers/staging/zcache/Kconfig b/drivers/staging/zcache/Kconfig
+index 7048e01..4881839 100644
+--- a/drivers/staging/zcache/Kconfig
++++ b/drivers/staging/zcache/Kconfig
+@@ -1,9 +1,6 @@
+ config ZCACHE
+ 	bool "Dynamic compression of swap pages and clean pagecache pages"
+-	# X86 dependency is because zsmalloc uses non-portable pte/tlb
+-	# functions
+-	depends on (CLEANCACHE || FRONTSWAP) && CRYPTO=y && X86
+-	select ZSMALLOC
++	depends on (CLEANCACHE || FRONTSWAP) && CRYPTO=y && ZSMALLOC=y
+ 	select CRYPTO_LZO
+ 	default n
+ 	help
+diff --git a/drivers/staging/zram/Kconfig b/drivers/staging/zram/Kconfig
+index 9d11a4c..be5abe8 100644
+--- a/drivers/staging/zram/Kconfig
++++ b/drivers/staging/zram/Kconfig
+@@ -1,9 +1,6 @@
+ config ZRAM
+ 	tristate "Compressed RAM block device support"
+-	# X86 dependency is because zsmalloc uses non-portable pte/tlb
+-	# functions
+-	depends on BLOCK && SYSFS && X86
+-	select ZSMALLOC
++	depends on BLOCK && SYSFS && ZSMALLOC
+ 	select LZO_COMPRESS
+ 	select LZO_DECOMPRESS
+ 	default n
 -- 
-Michal Hocko
-SUSE Labs
-SUSE LINUX s.r.o.
-Lihovarska 1060/12
-190 00 Praha 9    
-Czech Republic
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
