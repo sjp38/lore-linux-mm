@@ -1,71 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
-	by kanga.kvack.org (Postfix) with SMTP id 3836A6B0307
-	for <linux-mm@kvack.org>; Mon, 25 Jun 2012 00:26:50 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 30FFF3EE0BC
-	for <linux-mm@kvack.org>; Mon, 25 Jun 2012 13:26:48 +0900 (JST)
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 01B4E45DE55
-	for <linux-mm@kvack.org>; Mon, 25 Jun 2012 13:26:48 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id CCE7945DE50
-	for <linux-mm@kvack.org>; Mon, 25 Jun 2012 13:26:47 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id BE641E18007
-	for <linux-mm@kvack.org>; Mon, 25 Jun 2012 13:26:47 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 76CB21DB803E
-	for <linux-mm@kvack.org>; Mon, 25 Jun 2012 13:26:47 +0900 (JST)
-Message-ID: <4FE7E7FA.80702@jp.fujitsu.com>
-Date: Mon, 25 Jun 2012 13:24:26 +0900
-From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 1/6] memcg: replace unsigned long by u64 to avoid overflow
-References: <1340432134-5178-1-git-send-email-liwp.linux@gmail.com> <20120623081514.GJ27816@cmpxchg.org> <20120623090339.GA6184@kernel> <20120623092654.GL27816@cmpxchg.org>
-In-Reply-To: <20120623092654.GL27816@cmpxchg.org>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
+	by kanga.kvack.org (Postfix) with SMTP id 9D0FC6B0309
+	for <linux-mm@kvack.org>; Mon, 25 Jun 2012 00:59:30 -0400 (EDT)
+From: Minchan Kim <minchan@kernel.org>
+Subject: [PATCH 0/2] fix livelock because of kswapd stop
+Date: Mon, 25 Jun 2012 13:59:25 +0900
+Message-Id: <1340600367-23620-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Wanpeng Li <liwp.linux@gmail.com>, linux-mm@kvack.org, Michal Hocko <mhocko@suse.cz>, Balbir Singh <bsingharora@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Minchan Kim <minchan@kernel.org>, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, Gavin Shan <shangw@linux.vnet.ibm.com>
+To: akpm@linux-foundation.org
+Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Aaditya Kumar <aaditya.kumar.30@gmail.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Minchan Kim <minchan@kernel.org>
 
-(2012/06/23 18:26), Johannes Weiner wrote:
-> On Sat, Jun 23, 2012 at 05:03:39PM +0800, Wanpeng Li wrote:
->> On Sat, Jun 23, 2012 at 10:15:14AM +0200, Johannes Weiner wrote:
->>> On Sat, Jun 23, 2012 at 02:15:34PM +0800, Wanpeng Li wrote:
->>>> From: Wanpeng Li <liwp@linux.vnet.ibm.com>
->>>>
->>>> Since the return value variable in mem_cgroup_zone_nr_lru_pages and
->>>> mem_cgroup_node_nr_lru_pages functions are u64, so replace the return
->>>> value of funtions by u64 to avoid overflow.
->>>
->>> I wonder what 16 TB of memory must think running on a 32-bit kernel...
->>> "What is this, an address space for ants?"
->>
->> Hi Johannes,
->>
->> You mean change all u64 in memcg to unsigned long? or something I
->> miss....
->
-> Not _all_ of them, we have some that count bytes.  But those counting
-> pages should probably be ulong, yes.
->
-> I think Kame added the ones that you wanted to adjust the surroundings
-> for in particular, so let's ask him.  Kame?
->
+When hotplug offlining happens on zone A, it starts to mark freed page
+as MIGRATE_ISOLATE type in buddy for preventing further allocation.
+(MIGRATE_ISOLATE is very irony type because it's apparently on buddy
+but we can't allocate them).
+When the memory shortage happens during hotplug offlining,
+current task starts to reclaim, then wake up kswapd.
+Kswapd checks watermark, then go sleep because current zone_watermark_ok_safe
+doesn't consider MIGRATE_ISOLATE freed page count.
+Current task continue to reclaim in direct reclaim path without kswapd's helping.
+The problem is that zone->all_unreclaimable is set by only kswapd
+so that current task would be looping forever like below.
 
-I've been using 'unsigned long' for the number of pages and 'u64' for the number of
-bytes. I think it's enough and it should be. I don't have any reason to use u64 for
-the number of pages on 32bit archs.
-If 'bytes' are handled by 'unsigned long', please fix it.
+__alloc_pages_slowpath
+restart:
+	wake_all_kswapd
+rebalance:
+	__alloc_pages_direct_reclaim
+		do_try_to_free_pages
+			if global_reclaim && !all_unreclaimable
+				return 1; /* It means we did did_some_progress */
+	skip __alloc_pages_may_oom
+	should_alloc_retry
+		goto rebalance;
 
-BTW, zone_page_state()::/include/linux/vmstat.h returns 'unsigned long'.
-If you want to change this in memcg, please change zone's ones first.
+[1/2] factor out memory-isolation functions from page_alloc.c to mm/page_isolation.c
+      This patch can be merged regardless of [2/2].
 
-Thanks,
--Kame
+[2/2] fix this problem.
+      Aaditya, Could you confirm this patch can solve your problem?
+
+Minchan Kim (2):
+  mm: Factor out memory isolate functions
+  memory-hotplug: fix kswapd looping forever problem
+
+ drivers/base/Kconfig           |    1 +
+ include/linux/mmzone.h         |    8 +++
+ include/linux/page-isolation.h |    8 +--
+ mm/Kconfig                     |    5 ++
+ mm/Makefile                    |    4 +-
+ mm/page_alloc.c                |  107 +++++++++++++-------------------------
+ mm/page_isolation.c            |  110 ++++++++++++++++++++++++++++++++++++++++
+ 7 files changed, 166 insertions(+), 77 deletions(-)
+
+-- 
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
