@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
-	by kanga.kvack.org (Postfix) with SMTP id B78886B0357
-	for <linux-mm@kvack.org>; Mon, 25 Jun 2012 10:19:49 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
+	by kanga.kvack.org (Postfix) with SMTP id CF4616B0359
+	for <linux-mm@kvack.org>; Mon, 25 Jun 2012 10:19:53 -0400 (EDT)
 From: Glauber Costa <glommer@parallels.com>
-Subject: [PATCH 08/11] memcg: disable kmem code when not in use.
-Date: Mon, 25 Jun 2012 18:15:25 +0400
-Message-Id: <1340633728-12785-9-git-send-email-glommer@parallels.com>
+Subject: [PATCH 09/11] memcg: propagate kmem limiting information to children
+Date: Mon, 25 Jun 2012 18:15:26 +0400
+Message-Id: <1340633728-12785-10-git-send-email-glommer@parallels.com>
 In-Reply-To: <1340633728-12785-1-git-send-email-glommer@parallels.com>
 References: <1340633728-12785-1-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,18 +13,29 @@ List-ID: <linux-mm.kvack.org>
 To: cgroups@vger.kernel.org
 Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Frederic Weisbecker <fweisbec@gmail.com>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Lameter <cl@linux.com>, devel@openvz.org, kamezawa.hiroyu@jp.fujitsu.com, Tejun Heo <tj@kernel.org>, Glauber Costa <glommer@parallels.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Suleiman Souhlal <suleiman@google.com>
 
-We can use jump labels to patch the code in or out
-when not used.
+The current memcg slab cache management fails to present satisfatory hierarchical
+behavior in the following scenario:
 
-Because the assignment: memcg->kmem_accounted = true
-is done after the jump labels increment, we guarantee
-that the root memcg will always be selected until
-all call sites are patched (see mem_cgroup_kmem_enabled).
-This guarantees that no mischarges are applied.
+-> /cgroups/memory/A/B/C
 
-Jump label decrement happens when the last reference
-count from the memcg dies. This will only happen when
-the caches are all dead.
+* kmem limit set at A
+* A and B empty taskwise
+* bash in C does find /
+
+Because kmem_accounted is a boolean that was not set for C, no accounting
+would be done. This is, however, not what we expect.
+
+The basic idea, is that when a cgroup is limited, we walk the tree
+upwards (something Kame and I already thought about doing for other purposes),
+and make sure that we store the information about the parent being limited in
+kmem_accounted (that is turned into a bitmap: two booleans would not be space
+efficient). The code for that is taken from sched/core.c. My reasons for not
+putting it into a common place is to dodge the type issues that would arise
+from a common implementation between memcg and the scheduler - but I think
+that it should ultimately happen, so if you want me to do it now, let me
+know.
+
+We do the reverse operation when a formerly limited cgroup becomes unlimited.
 
 Signed-off-by: Glauber Costa <glommer@parallels.com>
 CC: Christoph Lameter <cl@linux.com>
@@ -34,100 +45,134 @@ CC: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 CC: Johannes Weiner <hannes@cmpxchg.org>
 CC: Suleiman Souhlal <suleiman@google.com>
 ---
- include/linux/memcontrol.h |    4 +++-
- mm/memcontrol.c            |   28 ++++++++++++++++++++++++++--
- 2 files changed, 29 insertions(+), 3 deletions(-)
+ mm/memcontrol.c |   86 +++++++++++++++++++++++++++++++++++++++++++++----------
+ 1 file changed, 71 insertions(+), 15 deletions(-)
 
-diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index 22479eb..4d69ff8 100644
---- a/include/linux/memcontrol.h
-+++ b/include/linux/memcontrol.h
-@@ -22,6 +22,7 @@
- #include <linux/cgroup.h>
- #include <linux/vm_event_item.h>
- #include <linux/hardirq.h>
-+#include <linux/jump_label.h>
- 
- struct mem_cgroup;
- struct page_cgroup;
-@@ -411,7 +412,8 @@ struct sock;
- void sock_update_memcg(struct sock *sk);
- void sock_release_memcg(struct sock *sk);
- 
--#define mem_cgroup_kmem_on 1
-+extern struct static_key mem_cgroup_kmem_enabled_key;
-+#define mem_cgroup_kmem_on static_key_false(&mem_cgroup_kmem_enabled_key)
- bool __mem_cgroup_new_kmem_page(gfp_t gfp, void *handle, int order);
- void __mem_cgroup_commit_kmem_page(struct page *page, void *handle, int order);
- void __mem_cgroup_free_kmem_page(struct page *page, int order);
 diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 27b2b6f..fe5388e 100644
+index fe5388e..a6a440b 100644
 --- a/mm/memcontrol.c
 +++ b/mm/memcontrol.c
-@@ -425,6 +425,10 @@ static void mem_cgroup_put(struct mem_cgroup *memcg);
- #include <net/sock.h>
- #include <net/ip.h>
+@@ -287,7 +287,11 @@ struct mem_cgroup {
+ 	 * Should the accounting and control be hierarchical, per subtree?
+ 	 */
+ 	bool use_hierarchy;
+-	bool kmem_accounted;
++	/*
++	 * bit0: accounted by this cgroup
++	 * bit1: accounted by a parent.
++	 */
++	volatile unsigned long kmem_accounted;
  
-+struct static_key mem_cgroup_kmem_enabled_key;
-+/* so modules can inline the checks */
-+EXPORT_SYMBOL(mem_cgroup_kmem_enabled_key);
-+
- static bool mem_cgroup_is_root(struct mem_cgroup *memcg);
- static int memcg_charge_kmem(struct mem_cgroup *memcg, gfp_t gfp, s64 delta);
- static void memcg_uncharge_kmem(struct mem_cgroup *memcg, s64 delta);
-@@ -582,6 +586,16 @@ void __mem_cgroup_free_kmem_page(struct page *page, int order)
- 	mem_cgroup_put(memcg);
- }
- EXPORT_SYMBOL(__mem_cgroup_free_kmem_page);
-+
-+static void disarm_kmem_keys(struct mem_cgroup *memcg)
-+{
-+	if (memcg->kmem_accounted)
-+		static_key_slow_dec(&mem_cgroup_kmem_enabled_key);
-+}
-+#else
-+static void disarm_kmem_keys(struct mem_cgroup *memcg)
-+{
-+}
- #endif /* CONFIG_CGROUP_MEM_RES_CTLR_KMEM */
- 
- #if defined(CONFIG_INET) && defined(CONFIG_CGROUP_MEM_RES_CTLR_KMEM)
-@@ -597,6 +611,12 @@ static void disarm_sock_keys(struct mem_cgroup *memcg)
- }
+ 	bool		oom_lock;
+ 	atomic_t	under_oom;
+@@ -340,6 +344,9 @@ struct mem_cgroup {
  #endif
+ };
  
-+static void disarm_static_keys(struct mem_cgroup *memcg)
-+{
-+	disarm_sock_keys(memcg);
-+	disarm_kmem_keys(memcg);
-+}
++#define KMEM_ACCOUNTED_THIS	0
++#define KMEM_ACCOUNTED_PARENT	1
 +
- static void drain_all_stock_async(struct mem_cgroup *memcg);
+ /* Stuffs for move charges at task migration. */
+ /*
+  * Types of charges to be moved. "move_charge_at_immitgrate" is treated as a
+@@ -589,7 +596,7 @@ EXPORT_SYMBOL(__mem_cgroup_free_kmem_page);
  
- static struct mem_cgroup_per_zone *
-@@ -4051,8 +4071,12 @@ static int mem_cgroup_write(struct cgroup *cont, struct cftype *cft,
- 			 *
- 			 * But it is not worth the trouble
- 			 */
--			if (!memcg->kmem_accounted && val != RESOURCE_MAX)
-+			mutex_lock(&set_limit_mutex);
-+			if (!memcg->kmem_accounted && val != RESOURCE_MAX) {
-+				static_key_slow_inc(&mem_cgroup_kmem_enabled_key);
- 				memcg->kmem_accounted = true;
+ static void disarm_kmem_keys(struct mem_cgroup *memcg)
+ {
+-	if (memcg->kmem_accounted)
++	if (test_bit(KMEM_ACCOUNTED_THIS, &memcg->kmem_accounted))
+ 		static_key_slow_dec(&mem_cgroup_kmem_enabled_key);
+ }
+ #else
+@@ -4027,6 +4034,66 @@ static ssize_t mem_cgroup_read(struct cgroup *cont, struct cftype *cft,
+ 	len = scnprintf(str, sizeof(str), "%llu\n", (unsigned long long)val);
+ 	return simple_read_from_buffer(buf, nbytes, ppos, str, len);
+ }
++
++#ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM
++static void mem_cgroup_update_kmem_limit(struct mem_cgroup *memcg, u64 val)
++{
++	struct mem_cgroup *iter;
++
++	mutex_lock(&set_limit_mutex);
++	if (!test_and_set_bit(KMEM_ACCOUNTED_THIS, &memcg->kmem_accounted) &&
++		val != RESOURCE_MAX) {
++
++		/*
++		 * Once enabled, can't be disabled. We could in theory
++		 * disable it if we haven't yet created any caches, or
++		 * if we can shrink them all to death.
++		 *
++		 * But it is not worth the trouble
++		 */
++		static_key_slow_inc(&mem_cgroup_kmem_enabled_key);
++
++		if (!memcg->use_hierarchy)
++			goto out;
++
++		for_each_mem_cgroup_tree(iter, memcg) {
++			if (iter == memcg)
++				continue;
++			set_bit(KMEM_ACCOUNTED_PARENT, &iter->kmem_accounted);
++		}
++
++	} else if (test_and_clear_bit(KMEM_ACCOUNTED_THIS, &memcg->kmem_accounted)
++		&& val == RESOURCE_MAX) {
++
++		if (!memcg->use_hierarchy)
++			goto out;
++
++		for_each_mem_cgroup_tree(iter, memcg) {
++			struct mem_cgroup *parent;
++			if (iter == memcg)
++				continue;
++			/*
++			 * We should only have our parent bit cleared if none of
++			 * ouri parents are accounted. The transversal order of
++			 * our iter function forces us to always look at the
++			 * parents.
++			 */
++			parent = parent_mem_cgroup(iter);
++			while (parent && (parent != memcg)) {
++				if (test_bit(KMEM_ACCOUNTED_THIS, &parent->kmem_accounted))
++					goto noclear;
++					
++				parent = parent_mem_cgroup(parent);
 +			}
-+			mutex_unlock(&set_limit_mutex);
++			clear_bit(KMEM_ACCOUNTED_PARENT, &iter->kmem_accounted);
++noclear:
++			continue;
++		}
++	}
++out:
++	mutex_unlock(&set_limit_mutex);
++}
++#endif
+ /*
+  * The user of this function is...
+  * RES_LIMIT.
+@@ -4064,19 +4131,8 @@ static int mem_cgroup_write(struct cgroup *cont, struct cftype *cft,
+ 			ret = res_counter_set_limit(&memcg->kmem, val);
+ 			if (ret)
+ 				break;
+-			/*
+-			 * Once enabled, can't be disabled. We could in theory
+-			 * disable it if we haven't yet created any caches, or
+-			 * if we can shrink them all to death.
+-			 *
+-			 * But it is not worth the trouble
+-			 */
+-			mutex_lock(&set_limit_mutex);
+-			if (!memcg->kmem_accounted && val != RESOURCE_MAX) {
+-				static_key_slow_inc(&mem_cgroup_kmem_enabled_key);
+-				memcg->kmem_accounted = true;
+-			}
+-			mutex_unlock(&set_limit_mutex);
++			mem_cgroup_update_kmem_limit(memcg, val);
++			break;
  		}
  #endif
  		else
-@@ -4927,7 +4951,7 @@ static void free_work(struct work_struct *work)
- 	 * to move this code around, and make sure it is outside
- 	 * the cgroup_lock.
- 	 */
--	disarm_sock_keys(memcg);
-+	disarm_static_keys(memcg);
- 	if (size < PAGE_SIZE)
- 		kfree(memcg);
- 	else
 -- 
 1.7.10.2
 
