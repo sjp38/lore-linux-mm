@@ -1,55 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx104.postini.com [74.125.245.104])
-	by kanga.kvack.org (Postfix) with SMTP id 22FE56B02FF
-	for <linux-mm@kvack.org>; Sun, 24 Jun 2012 21:19:15 -0400 (EDT)
-Message-ID: <4FE7BCAD.4090002@kernel.org>
-Date: Mon, 25 Jun 2012 10:19:41 +0900
-From: Minchan Kim <minchan@kernel.org>
+Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
+	by kanga.kvack.org (Postfix) with SMTP id 0BAD96B0302
+	for <linux-mm@kvack.org>; Sun, 24 Jun 2012 22:12:22 -0400 (EDT)
+Date: Mon, 25 Jun 2012 11:11:21 +0900
+From: Paul Mundt <lethal@linux-sh.org>
+Subject: Re: [PATCH -mm v2 11/11] mm: remove SH arch_get_unmapped_area
+ functions
+Message-ID: <20120625021121.GA9317@linux-sh.org>
+References: <1340315835-28571-1-git-send-email-riel@surriel.com>
+ <1340315835-28571-12-git-send-email-riel@surriel.com>
 MIME-Version: 1.0
-Subject: Re: Accounting problem of MIGRATE_ISOLATED freed page
-References: <4FE169B1.7020600@kernel.org> <4FE16E80.9000306@gmail.com> <4FE18187.3050103@kernel.org> <4FE23069.5030702@gmail.com> <4FE26470.90401@kernel.org> <CAHGf_=pjoiHQ9vxXXe-GtbkYRzhxdDhu3pf6pwDsCe5pBQE8Nw@mail.gmail.com> <4FE27F15.8050102@kernel.org> <CAHGf_=pDw4axwG2tQ+B5hPks-sz2S5+G1Kk-=HSDmo=DSXOkEw@mail.gmail.com> <4FE2A937.6040701@kernel.org> <4FE2FCFB.4040808@jp.fujitsu.com> <4FE3C4E4.2050107@kernel.org> <4FE414A2.3000700@kernel.org> <4FE530F7.1060108@gmail.com>
-In-Reply-To: <4FE530F7.1060108@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1340315835-28571-12-git-send-email-riel@surriel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-Cc: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Aaditya Kumar <aaditya.kumar.30@gmail.com>, Mel Gorman <mel@csn.ul.ie>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Rik van Riel <riel@surriel.com>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, aarcange@redhat.com, peterz@infradead.org, minchan@gmail.com, kosaki.motohiro@gmail.com, andi@firstfloor.org, hannes@cmpxchg.org, mel@csn.ul.ie, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>, Magnus Damm <magnus.damm@gmail.com>, linux-sh@vger.kernel.org
 
-On 06/23/2012 11:59 AM, KOSAKI Motohiro wrote:
-
+On Thu, Jun 21, 2012 at 05:57:15PM -0400, Rik van Riel wrote:
+> Remove the SH special variants of arch_get_unmapped_area since
+> the generic functions should now be able to handle everything.
 > 
-> One more.
+> Paul, does anything in NOMMU SH need shm_align_mask?
 > 
+> Untested because I have no SH hardware.
 > 
->> +/*
->> + * NOTE:
->> + * Don't use set_pageblock_migratetype(page, MIGRATE_ISOLATE) direclty.
->> + * Instead, use {un}set_pageblock_isolate.
->> + */
->>  void set_pageblock_migratetype(struct page *page, int migratetype)
->>  {
->>         if (unlikely(page_group_by_mobility_disabled))
-> 
-> I don't think we need this comment. please just add BUG_ON.
+> Signed-off-by: Rik van Riel <riel@redhat.com>
+> Cc: Paul Mundt <lethal@linux-sh.org>
+> Cc: Magnus Damm <magnus.damm@gmail.com>
+> Cc: linux-sh@vger.kernel.org
 
+We don't particularly need it for the nommu case, it's just using the
+default PAGE_SIZE case there. The primary reason for having it defined
+is so we can use the same cache alias checking and d-cache purging code
+on parts that can operate with or without the MMU enabled.
 
-It adds new condition check in __rmqueue_fallback.
-If it's okay, no problem.
-
-But as you know, calling MIGRATE_ISOLATE is very very rare and we can
-make sure it's no problem on existing code. So the problem is future
-user and I hope they can look at the code comment before using and we mm
-have strong review system rather than other subsystem, I believe. :)
-
-If you can't agree, I am willing to add BUG_ON but not sure others
-like it. (Especially, Mel).
-
-
-
--- 
-Kind regards,
-Minchan Kim
+So it would be nice to have the variable generally accessible regardless
+of CONFIG_MMU setting, rather than having to have a private definition
+for the nommu case.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
