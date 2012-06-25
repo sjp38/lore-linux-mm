@@ -1,108 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
-	by kanga.kvack.org (Postfix) with SMTP id 07BD26B007D
-	for <linux-mm@kvack.org>; Sun, 24 Jun 2012 20:14:42 -0400 (EDT)
-Message-ID: <4FE7AD8A.2080508@kernel.org>
-Date: Mon, 25 Jun 2012 09:15:06 +0900
+Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
+	by kanga.kvack.org (Postfix) with SMTP id 1A9316B02F5
+	for <linux-mm@kvack.org>; Sun, 24 Jun 2012 21:00:55 -0400 (EDT)
+Message-ID: <4FE7B861.6020906@kernel.org>
+Date: Mon, 25 Jun 2012 10:01:21 +0900
 From: Minchan Kim <minchan@kernel.org>
 MIME-Version: 1.0
-Subject: Re: RFC:  Easy-Reclaimable LRU list
-References: <4FE012CD.6010605@kernel.org> <4FE37434.808@linaro.org> <4FE41752.8050305@kernel.org> <4FE549E8.2050905@jp.fujitsu.com>
-In-Reply-To: <4FE549E8.2050905@jp.fujitsu.com>
+Subject: Re: Accounting problem of MIGRATE_ISOLATED freed page
+References: <4FE169B1.7020600@kernel.org> <4FE16E80.9000306@gmail.com> <4FE18187.3050103@kernel.org> <4FE23069.5030702@gmail.com> <4FE26470.90401@kernel.org> <CAHGf_=pjoiHQ9vxXXe-GtbkYRzhxdDhu3pf6pwDsCe5pBQE8Nw@mail.gmail.com> <4FE27F15.8050102@kernel.org> <CAHGf_=pDw4axwG2tQ+B5hPks-sz2S5+G1Kk-=HSDmo=DSXOkEw@mail.gmail.com> <4FE2A937.6040701@kernel.org> <4FE2FCFB.4040808@jp.fujitsu.com> <4FE3C4E4.2050107@kernel.org> <4FE414A2.3000700@kernel.org> <4FE5482C.3010501@jp.fujitsu.com>
+In-Reply-To: <4FE5482C.3010501@jp.fujitsu.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: John Stultz <john.stultz@linaro.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Anton Vorontsov <anton.vorontsov@linaro.org>, Pekka Enberg <penberg@kernel.org>, Wu Fengguang <fengguang.wu@intel.com>, Hugh Dickins <hughd@google.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Aaditya Kumar <aaditya.kumar.30@gmail.com>, Mel Gorman <mel@csn.ul.ie>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-Hi Kame,
+On 06/23/2012 01:38 PM, Kamezawa Hiroyuki wrote:
 
-On 06/23/2012 01:45 PM, Kamezawa Hiroyuki wrote:
-
-> (2012/06/22 15:57), Minchan Kim wrote:
->> Hi John,
+> (2012/06/22 15:45), Minchan Kim wrote:
+>> On 06/22/2012 10:05 AM, Minchan Kim wrote:
 >>
->> On 06/22/2012 04:21 AM, John Stultz wrote:
->>
->>> On 06/18/2012 10:49 PM, Minchan Kim wrote:
->>>> Hi everybody!
->>>>
->>>> Recently, there are some efforts to handle system memory pressure.
->>>>
->>>> 1) low memory notification - [1]
->>>> 2) fallocate(VOLATILE) - [2]
->>>> 3) fadvise(NOREUSE) - [3]
->>>>
->>>> For them, I would like to add new LRU list, aka "Ereclaimable" which
->>>> is opposite of "unevictable".
->>>> Reclaimable LRU list includes _easy_ reclaimable pages.
->>>> For example, easy reclaimable pages are following as.
->>>>
->>>> 1. invalidated but remained LRU list.
->>>> 2. pageout pages for reclaim(PG_reclaim pages)
->>>> 3. fadvise(NOREUSE)
->>>> 4. fallocate(VOLATILE)
->>>>
->>>> Their pages shouldn't stir normal LRU list and compaction might not
->>>> migrate them, even.
->>>> Reclaimer can reclaim Ereclaimable pages before normal lru list and
->>>> will avoid unnecessary
->>>> swapout in anon pages in easy-reclaimable LRU list.
->>>
->>> I was hoping there would be further comment on this by more core VM
->>> devs, but so far things have been quiet (is everyone on vacation?).
+>>> Second approach which is suggested by KOSAKI is what you mentioned.
+>>> But the concern about second approach is how to make sure matched
+>>> count increase/decrease of nr_isolated_areas.
+>>> I mean how to make sure nr_isolated_areas would be zero when
+>>> isolation is done.
+>>> Of course, we can investigate all of current caller and make sure
+>>> they don't make mistake
+>>> now. But it's very error-prone if we consider future's user.
+>>> So we might need test_set_pageblock_migratetype(page, MIGRATE_ISOLATE);
 >>
 >>
->> At least, there are no dissent comment until now.
->> Let be a positive. :)
+>> It's an implementation about above approach.
+>>
 > 
-> I think this is interesting approach. Major concern is how to guarantee
-> EReclaimable
-> pages are really EReclaimable...Do you have any idea ? madviced pages
-> are really
-> EReclaimable ?
-
-
-I would like to select just discardable pages.
-
-1. unmapped file page 
-2. PG_reclaimed page - (that pages would have no mapped and a candidate 
-   for reclaim ASAP)
-3. fallocate(VOLATILE) - (We can just discard them without swapout)
-4. madvise(MADV_DONTNEED)/fadvise(NOREUSE) -
-   (It could be difficult than (1,2,3) but it's very likely to reclaim easily than others.
+> I like this approach.
 
 > 
-> A (very) small concern is will you use one more page-flags for this ? ;)
+
+> 
+>> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+>> index bf3404e..3e9a9e1 100644
+>> --- a/include/linux/mmzone.h
+>> +++ b/include/linux/mmzone.h
+>> @@ -474,6 +474,11 @@ struct zone {
+>>           * rarely used fields:
+>>           */
+>>          const char              *name;
+>> +       /*
+>> +        * the number of MIGRATE_ISOLATE pageblock
+>> +        * We need this for accurate free page counting.
+>> +        */
+>> +       atomic_t                nr_migrate_isolate;
+>>   } ____cacheline_internodealigned_in_smp;
+> 
+> Isn't this counter modified only under zone->lock ?
 
 
-Maybe and it could be a serious problem on 32 bit machine.
-I didn't dive into that but I guess we can reuse PG_reclaim bit.
-PG_reclaim is always used by with !PageActive and Ereclaimable LRU list doesn't have 
-active LRU list. so we can change following as
+AFAIUC, you want to add comment about it. It's no problem. :)
 
-- #define PG_reclaim
-+ #define PG_Ereclaim
+Off-topic:
+As I look the code, I found this. Could you confirm this problem?
 
-SetPageReclaim(page)
-{
-	page->flags |= (PG_Ereclaim|PG_active);
-}
 
-TestPageReclaim(page)
-{
-	if (((page->flags && PG_Ereclaim|PG_active)) == (PG_Ereclaim|PG_active)) 
-		return true;
-	return false;
-}
+	CPU A					CPU B
 
-SetPageEreclaim(page)
-{
-	page->flags |= PG_Ereclaim;
-}
+start_isolate_page_range
+set_migratetype_isolate
+spin_lock_irqsave(zone->lock)
+					free_hot_cold_page(Page A)
+					migratetype = get_pageblock_migratetype(Page A); /* without zone->lock holding */
+					list_add_tail(&page->lru, &pcp->lists[migratetype]); /* Page A could return page into !MIGRATE_ISOLATE */
+set_pageblock_migrate
+move_freepages_block
+drain_all_pages
+					/* Page A could be in MIGRATE_MOVABLE of buddy. */
+check_pages_isolated
+__test_page_isolated_in_pageblock
+if (PageBuddy(page A))
+	pfn += 1 << page_order(page A);
+					/* Page A could be allocated */
 
-Thanks for the comment, Kame.
+__offline_isolated_pages
+	BUG_ON(!PageBuddy(page A)); <- HIT! or offline the page is used by someone.
+
+> 
+> 
+>>
+>>   typedef enum {
+>> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+>> index 2c29b1c..6cb1f9f 100644
+>> --- a/mm/page_alloc.c
+>> +++ b/mm/page_alloc.c
+>> @@ -219,6 +219,11 @@ EXPORT_SYMBOL(nr_online_nodes);
+>>
+>>   int page_group_by_mobility_disabled __read_mostly;
+>>
+>> +/*
+>> + * NOTE:
+>> + * Don't use set_pageblock_migratetype(page, MIGRATE_ISOLATE) direclty.
+>> + * Instead, use {un}set_pageblock_isolate.
+>> + */
+>>   void set_pageblock_migratetype(struct page *page, int migratetype)
+>>   {
+>>          if (unlikely(page_group_by_mobility_disabled))
+>> @@ -1622,6 +1627,28 @@ bool zone_watermark_ok(struct zone *z, int
+>> order, unsigned long mark,
+>>                                          zone_page_state(z,
+>> NR_FREE_PAGES));
+>>   }
+> 
+> I'm glad if this function can be static...Hm. With easy grep, I think it
+> can be...
+
+
+Yes. :)
+
 -- 
 Kind regards,
 Minchan Kim
