@@ -1,83 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
-	by kanga.kvack.org (Postfix) with SMTP id 34DDA6B039E
-	for <linux-mm@kvack.org>; Mon, 25 Jun 2012 19:01:28 -0400 (EDT)
-Received: by wgbdt14 with SMTP id dt14so4229269wgb.26
-        for <linux-mm@kvack.org>; Mon, 25 Jun 2012 16:01:26 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
+	by kanga.kvack.org (Postfix) with SMTP id 98FCA6B03A9
+	for <linux-mm@kvack.org>; Mon, 25 Jun 2012 19:02:54 -0400 (EDT)
+Date: Mon, 25 Jun 2012 18:02:52 -0500
+From: Nathan Zimmer <nzimmer@sgi.com>
+Subject: Re: [PATCH v3] tmpfs not interleaving properly
+Message-ID: <20120625230251.GA4305@gulag1.americas.sgi.com>
+References: <20120622143512.GA18468@gulag1.americas.sgi.com> <4FE50F42.6010401@gmail.com>
 MIME-Version: 1.0
-Reply-To: konrad@darnok.org
-In-Reply-To: <1340640878-27536-4-git-send-email-sjenning@linux.vnet.ibm.com>
-References: <1340640878-27536-1-git-send-email-sjenning@linux.vnet.ibm.com>
-	<1340640878-27536-4-git-send-email-sjenning@linux.vnet.ibm.com>
-Date: Mon, 25 Jun 2012 19:01:26 -0400
-Message-ID: <CAPbh3rvkKZOuGh_Pn9WpeV5_=vA=k9=x17oa2GoT8fEgRMr+WQ@mail.gmail.com>
-Subject: Re: [PATCH 3/3] x86: add local_tlb_flush_kernel_range()
-From: Konrad Rzeszutek Wilk <konrad@darnok.org>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4FE50F42.6010401@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Seth Jennings <sjenning@linux.vnet.ibm.com>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Nitin Gupta <ngupta@vflare.org>, Minchan Kim <minchan@kernel.org>, Robert Jennings <rcj@linux.vnet.ibm.com>, linux-mm@kvack.org, devel@driverdev.osuosl.org, linux-kernel@vger.kernel.org
+To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Cc: Nathan Zimmer <nzimmer@sgi.com>, Christoph Lameter <cl@linux.com>, Nick Piggin <npiggin@gmail.com>, Hugh Dickins <hughd@google.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, riel@redhat.com
 
-On Mon, Jun 25, 2012 at 12:14 PM, Seth Jennings
-<sjenning@linux.vnet.ibm.com> wrote:
-> This patch adds support for a local_tlb_flush_kernel_range()
-> function for the x86 arch. =A0This function allows for CPU-local
-> TLB flushing, potentially using invlpg for single entry flushing,
-> using an arch independent function name.
+On Fri, Jun 22, 2012 at 08:35:14PM -0400, KOSAKI Motohiro wrote:
+> (6/22/12 10:35 AM), Nathan Zimmer wrote:
+> > When tmpfs has the memory policy interleaved it always starts allocating at each
+> > file at node 0.  When there are many small files the lower nodes fill up
+> > disproportionately.
+> > This patch attempts to spread out node usage by starting files at nodes other
+> > then 0.  I disturbed the addr parameter since alloc_pages_vma will only use it
+> > when the policy is MPOL_INTERLEAVE.  A files preferred node is selected by 
+> > the cpu_mem_spread_node rotor.
+> > 
+> > v2: passed preferred node via addr
+> > v3: using current->cpuset_mem_spread_rotor instead of random_node
+> > 
+> > Cc: Christoph Lameter <cl@linux.com>
+> > Cc: Nick Piggin <npiggin@gmail.com>
+> > Cc: Hugh Dickins <hughd@google.com>
+> > Cc: Lee Schermerhorn <lee.schermerhorn@hp.com>
+> > Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> > Acked-by: Rik van Riel <riel@redhat.com>
+> > Signed-off-by: Nathan T Zimmer <nzimmer@sgi.com>
+> > ---
+> > 
+> >  include/linux/shmem_fs.h |    1 +
+> >  mm/shmem.c               |    9 +++++++--
+> >  2 files changed, 8 insertions(+), 2 deletions(-)
+> > 
+> > diff --git a/include/linux/shmem_fs.h b/include/linux/shmem_fs.h
+> > index bef2cf0..cfe8a34 100644
+> > --- a/include/linux/shmem_fs.h
+> > +++ b/include/linux/shmem_fs.h
+> > @@ -17,6 +17,7 @@ struct shmem_inode_info {
+> >  		char		*symlink;	/* unswappable short symlink */
+> >  	};
+> >  	struct shared_policy	policy;		/* NUMA memory alloc policy */
+> > +	unsigned long           node_offset;	/* bias for interleaved nodes */
+> >  	struct list_head	swaplist;	/* chain of maybes on swap */
+> >  	struct list_head	xattr_list;	/* list of shmem_xattr */
+> >  	struct inode		vfs_inode;
+> > diff --git a/mm/shmem.c b/mm/shmem.c
+> > index a15a466..93801b3 100644
+> > --- a/mm/shmem.c
+> > +++ b/mm/shmem.c
+> > @@ -64,6 +64,7 @@ static struct vfsmount *shm_mnt;
+> >  #include <linux/highmem.h>
+> >  #include <linux/seq_file.h>
+> >  #include <linux/magic.h>
+> > +#include <linux/cpuset.h>
+> >  
+> >  #include <asm/uaccess.h>
+> >  #include <asm/pgtable.h>
+> > @@ -938,9 +939,12 @@ static struct page *shmem_alloc_page(gfp_t gfp,
+> >  	pvma.vm_policy = mpol_shared_policy_lookup(&info->policy, index);
+> >  
+> >  	/*
+> > -	 * alloc_page_vma() will drop the shared policy reference
+> > +	 * alloc_page_vma() will drop the shared policy reference.
+> > +	 *
+> > +	 * To avoid allocating all tmpfs pages on node 0, we fake up a virtual
+> > +	 * address based on this file's predetermined preferred node.
+> >  	 */
+> > -	return alloc_page_vma(gfp, &pvma, 0);
+> > +	return alloc_page_vma(gfp, &pvma, info->node_offset << PAGE_SHIFT);
+> 
+> Still unacceptable. Please stop to pass hacky fake address.
 
-What x86 hardware did you use to figure the optimal number?
-
->
-> Signed-off-by: Seth Jennings <sjenning@linux.vnet.ibm.com>
-> ---
-> =A0arch/x86/include/asm/tlbflush.h | =A0 21 +++++++++++++++++++++
-> =A01 file changed, 21 insertions(+)
->
-> diff --git a/arch/x86/include/asm/tlbflush.h b/arch/x86/include/asm/tlbfl=
-ush.h
-> index 36a1a2a..92a280b 100644
-> --- a/arch/x86/include/asm/tlbflush.h
-> +++ b/arch/x86/include/asm/tlbflush.h
-> @@ -168,4 +168,25 @@ static inline void flush_tlb_kernel_range(unsigned l=
-ong start,
-> =A0 =A0 =A0 =A0flush_tlb_all();
-> =A0}
->
-> +#define __HAVE_LOCAL_FLUSH_TLB_KERNEL_RANGE
-> +/*
-> + * INVLPG_BREAK_EVEN_PAGES is the number of pages after which single tlb
-> + * flushing becomes more costly than just doing a complete tlb flush.
-> + * While this break even point varies among x86 hardware, tests have sho=
-wn
-> + * that 8 is a good generic value.
-> +*/
-> +#define INVLPG_BREAK_EVEN_PAGES 8
-> +static inline void local_flush_tlb_kernel_range(unsigned long start,
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 unsigned long end)
-> +{
-> + =A0 =A0 =A0 if (cpu_has_invlpg &&
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 (end - start)/PAGE_SIZE <=3D INVLPG_BREAK_E=
-VEN_PAGES) {
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 while (start < end) {
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 __flush_tlb_single(start);
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 start +=3D PAGE_SIZE;
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 }
-> + =A0 =A0 =A0 } else
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 local_flush_tlb();
-> +}
-> +
-> =A0#endif /* _ASM_X86_TLBFLUSH_H */
-> --
-> 1.7.9.5
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org. =A0For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>
->
+I am open to suggestion here. The reason it was placed there was because the 
+effect would only occur when the policy was interleaved and it would be clear 
+the call to mpol_shared_policy_lookup should still used the unaltered index. 
+ 
+> 
+> >  }
+> >  #else /* !CONFIG_NUMA */
+> >  #ifdef CONFIG_TMPFS
+> > @@ -1374,6 +1378,7 @@ static struct inode *shmem_get_inode(struct super_block *sb, const struct inode
+> >  			inode->i_fop = &shmem_file_operations;
+> >  			mpol_shared_policy_init(&info->policy,
+> >  						 shmem_get_sbmpol(sbinfo));
+> > +			info->node_offset = cpuset_mem_spread_node();
+> 
+> cpuset_mem_spread_node is designed for using allocation time.
+> 
+> 
+> 
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
