@@ -1,62 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
-	by kanga.kvack.org (Postfix) with SMTP id 1D51D6B0379
-	for <linux-mm@kvack.org>; Mon, 25 Jun 2012 13:19:44 -0400 (EDT)
-Received: by dakp5 with SMTP id p5so6906102dak.14
-        for <linux-mm@kvack.org>; Mon, 25 Jun 2012 10:19:43 -0700 (PDT)
-Date: Mon, 25 Jun 2012 10:19:39 -0700
-From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Subject: Re: [PATCH 2/3] zsmalloc: add generic path and remove x86 dependency
-Message-ID: <20120625171939.GA29371@kroah.com>
-References: <1340640878-27536-1-git-send-email-sjenning@linux.vnet.ibm.com>
- <1340640878-27536-3-git-send-email-sjenning@linux.vnet.ibm.com>
- <20120625165915.GA20464@kroah.com>
- <4FE89BA1.3030709@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
+	by kanga.kvack.org (Postfix) with SMTP id F18476B037B
+	for <linux-mm@kvack.org>; Mon, 25 Jun 2012 13:23:40 -0400 (EDT)
+Received: by lbok6 with SMTP id k6so9067402lbo.18
+        for <linux-mm@kvack.org>; Mon, 25 Jun 2012 10:23:32 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4FE89BA1.3030709@linux.vnet.ibm.com>
+In-Reply-To: <alpine.DEB.2.00.1206241345060.13297@chino.kir.corp.google.com>
+References: <CAJ7qFSdiGw1krDbWg6HvwBymp2gwrYKb8UuA00wSP0rgZi-EMw@mail.gmail.com>
+	<alpine.DEB.2.00.1206241345060.13297@chino.kir.corp.google.com>
+Date: Mon, 25 Jun 2012 22:53:32 +0530
+Message-ID: <CAJ7qFSdZpXq=s8Kq6x6QxPjYOK6jp-OrPHY_TLJd9tgOuSTRfQ@mail.gmail.com>
+Subject: Re: Crash with VMALLOC api
+From: "R, Sricharan" <r.sricharan@ti.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Seth Jennings <sjenning@linux.vnet.ibm.com>
-Cc: devel@driverdev.osuosl.org, Dan Magenheimer <dan.magenheimer@oracle.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Robert Jennings <rcj@linux.vnet.ibm.com>, Nitin Gupta <ngupta@vflare.org>
+To: David Rientjes <rientjes@google.com>
+Cc: linux-mm@kvack.org, Santosh Shilimkar <santosh.shilimkar@ti.com>, linux-omap@vger.kernel.org
 
-On Mon, Jun 25, 2012 at 12:10:57PM -0500, Seth Jennings wrote:
-> On 06/25/2012 11:59 AM, Greg Kroah-Hartman wrote:
-> > On Mon, Jun 25, 2012 at 11:14:37AM -0500, Seth Jennings wrote:
-> >> This patch adds generic pages mapping methods that
-> >> work on all archs in the absence of support for
-> >> local_tlb_flush_kernel_range() advertised by the
-> >> arch through __HAVE_LOCAL_TLB_FLUSH_KERNEL_RANGE
-> > 
-> > Is this #define something that other arches define now?  Or is this
-> > something new that you are adding here?
-> 
-> Something new I'm adding.
+Hi David,
 
-Ah, ok.
+On Mon, Jun 25, 2012 at 2:17 AM, David Rientjes <rientjes@google.com> wrote=
+:
+> On Sat, 23 Jun 2012, R, Sricharan wrote:
+>
+>> Hi,
+>> =A0 I am observing a below crash with VMALLOC call on mainline kernel.
+>> =A0 The issue happens when there is insufficent vmalloc space.
+>> =A0 Isn't it expected that the API should return a NULL instead of crash=
+ing when
+>> =A0 there is not enough memory?.
+>
+> Yes.
+>
+>> =A0 This can be reproduced with succesive vmalloc
+>> =A0 calls for a size of about say 10MB, without a vfree, thus exhausting
+>> the memory.
+>>
+>> =A0Strangely when vmalloc is requested for a large chunk, then at that t=
+ime API
+>> =A0does not crash instead returns a NULL correctly.
+>>
+>> =A0 Please correct me if my understanding is not correct..
+>>
+>> ------------------------------------------------------------------------=
+--------------
+>>
+>> [ =A0345.059841] Unable to handle kernel paging request at virtual
+>> address 90011000
+>> [ =A0345.067063] pgd =3D ebc34000
+>> [ =A0345.069793] [90011000] *pgd=3D00000000
+>> [ =A0345.073383] Internal error: Oops: 5 [#1] PREEMPT SMP ARM
+>> [ =A0345.078685] Modules linked in: bcmdhd cfg80211 inv_mpu_ak8975
+>> inv_mpu_kxtf9 mpu3050
+>> [ =A0345.086380] CPU: 0 =A0 =A0Tainted: G =A0 =A0 =A0 =A0W =A0 =A0 (3.4.=
+0-rc1-05660-g0d4b175 #1)
+>> [ =A0345.093351] PC is at vmap_page_range_noflush+0xf0/0x200
+>> [ =A0345.098569] LR is at vmap_page_range+0x14/0x50
+>> [ =A0345.103005] pc : [<c01091c8>] =A0 =A0lr : [<c01092ec>] =A0 =A0psr: =
+80000013
+>> [ =A0345.103009] sp : ebc41e38 =A0ip : fe000fff =A0fp : 00002000
+>> [ =A0345.114472] r10: c0a78480 =A0r9 : 90011000 =A0r8 : c096e2ac
+>> [ =A0345.119685] r7 : 90011000 =A0r6 : 00000000 =A0r5 : fe000000 =A0r4 :=
+ 00000000
+>> [ =A0345.126198] r3 : 50011452 =A0r2 : f385c400 =A0r1 : fe000fff =A0r0 :=
+ f385c400
+>> [ =A0345.132713] Flags: Nzcv =A0IRQs on =A0FIQs on =A0Mode SVC_32 =A0ISA=
+ ARM =A0Segment user
+>> [ =A0345.139835] Control: 10c5387d =A0Table: abc3404a =A0DAC: 00000015
+>
+> Couple requests:
+>
+> =A0- since you're already running an -rc kernel, would it be possible to
+> =A0 try 3.5-rc4, which was released today, instead?
+>
+> =A0- could you disassemble vmap_page_range_noflush and post the output or
+> =A0 map the offset back to the line in the code?
 
-> The precedent for this approach is the __HAVE_ARCH_* defines
-> that let the arch independent stuff know if a generic
-> function needs to be defined or if there is an arch specific
-> function.
-> 
-> You can "grep -R __HAVE_ARCH_* arch/x86/" to see the ones
-> that already exist.
-> 
-> I guess I should have called it
-> __HAVE_ARCH_LOCAL_TLB_FLUSH_KERNEL_RANGE though, not
-> __HAVE_LOCAL_TLB_FLUSH_KERNEL_RANGE.
+      Thanks a lot for the response.
 
-You need to get the mm developers to agree with this before I can take
-it.
+      Debugged this further and the real issue was because of
+      static mapping for a 1MB io page and the vmalloc mapping for a
+     1MB dram page falling in to one PGD entry (PGDIR_SHIFT is 0x21).
 
-But, why even depend on this?  Can't you either live without it, or
-just implement it for all arches somehow?
+     While trying to setup the pagetables for the dram page,
+     the PGD entry of static io map is used, resulting in the paging fault.
 
-thanks,
+     This was because of a recent change that brought the static io mapping=
+s
+    under the vmalloc space.
 
-greg k-h
+Thanks,
+ Sricharan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
