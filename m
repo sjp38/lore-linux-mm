@@ -1,111 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
-	by kanga.kvack.org (Postfix) with SMTP id A67866B0375
-	for <linux-mm@kvack.org>; Mon, 25 Jun 2012 13:01:42 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
+	by kanga.kvack.org (Postfix) with SMTP id E24826B0377
+	for <linux-mm@kvack.org>; Mon, 25 Jun 2012 13:11:15 -0400 (EDT)
 Received: from /spool/local
-	by e1.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <shangw@linux.vnet.ibm.com>;
-	Mon, 25 Jun 2012 13:01:36 -0400
-Received: from d01relay06.pok.ibm.com (d01relay06.pok.ibm.com [9.56.227.116])
-	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id 2EBED38C9DC5
-	for <linux-mm@kvack.org>; Mon, 25 Jun 2012 12:35:56 -0400 (EDT)
-Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
-	by d01relay06.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q5PGZj9414876694
-	for <linux-mm@kvack.org>; Mon, 25 Jun 2012 12:35:46 -0400
-Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av01.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q5PGZZDo001783
-	for <linux-mm@kvack.org>; Mon, 25 Jun 2012 10:35:35 -0600
-Date: Tue, 26 Jun 2012 00:35:22 +0800
-From: Gavin Shan <shangw@linux.vnet.ibm.com>
-Subject: Re: [PATCH 1/5] mm/sparse: check size of struct mm_section
-Message-ID: <20120625163522.GA5476@shangw>
-Reply-To: Gavin Shan <shangw@linux.vnet.ibm.com>
-References: <1340466776-4976-1-git-send-email-shangw@linux.vnet.ibm.com>
- <20120625160322.GE19810@tiehlicka.suse.cz>
+	by e36.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
+	Mon, 25 Jun 2012 11:11:14 -0600
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by d01dlp03.pok.ibm.com (Postfix) with ESMTP id 1FFA1C90073
+	for <linux-mm@kvack.org>; Mon, 25 Jun 2012 13:11:09 -0400 (EDT)
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q5PHBAaY144096
+	for <linux-mm@kvack.org>; Mon, 25 Jun 2012 13:11:10 -0400
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q5PHB2Rh012696
+	for <linux-mm@kvack.org>; Mon, 25 Jun 2012 14:11:08 -0300
+Message-ID: <4FE89BA1.3030709@linux.vnet.ibm.com>
+Date: Mon, 25 Jun 2012 12:10:57 -0500
+From: Seth Jennings <sjenning@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120625160322.GE19810@tiehlicka.suse.cz>
+Subject: Re: [PATCH 2/3] zsmalloc: add generic path and remove x86 dependency
+References: <1340640878-27536-1-git-send-email-sjenning@linux.vnet.ibm.com> <1340640878-27536-3-git-send-email-sjenning@linux.vnet.ibm.com> <20120625165915.GA20464@kroah.com>
+In-Reply-To: <20120625165915.GA20464@kroah.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Gavin Shan <shangw@linux.vnet.ibm.com>, linux-mm@kvack.org, rientjes@google.com, hannes@cmpxchg.org, akpm@linux-foundation.org
+To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Cc: devel@driverdev.osuosl.org, Dan Magenheimer <dan.magenheimer@oracle.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Robert Jennings <rcj@linux.vnet.ibm.com>, Nitin Gupta <ngupta@vflare.org>
 
->> Platforms like PPC might need two level mem_section for SPARSEMEM
->> with enabled CONFIG_SPARSEMEM_EXTREME. On the other hand, the
->> memory section descriptor might be allocated from bootmem allocator
->> with PAGE_SIZE alignment. In order to fully utilize the memory chunk
->> allocated from bootmem allocator, it'd better to assure memory
->> sector descriptor won't run across the boundary (PAGE_SIZE).
->
->Why? The memory is continuous, right?
->
+On 06/25/2012 11:59 AM, Greg Kroah-Hartman wrote:
+> On Mon, Jun 25, 2012 at 11:14:37AM -0500, Seth Jennings wrote:
+>> This patch adds generic pages mapping methods that
+>> work on all archs in the absence of support for
+>> local_tlb_flush_kernel_range() advertised by the
+>> arch through __HAVE_LOCAL_TLB_FLUSH_KERNEL_RANGE
+> 
+> Is this #define something that other arches define now?  Or is this
+> something new that you are adding here?
 
-Yes, the memory is conginous and the capacity of specific entry
-in mem_section[NR_SECTION_ROOTS] has been defined as follows:
+Something new I'm adding.
 
+The precedent for this approach is the __HAVE_ARCH_* defines
+that let the arch independent stuff know if a generic
+function needs to be defined or if there is an arch specific
+function.
 
-#define SECTIONS_PER_ROOT       (PAGE_SIZE / sizeof (struct mem_section))
+You can "grep -R __HAVE_ARCH_* arch/x86/" to see the ones
+that already exist.
 
-Also, the memory is prone to be allocated from bootmem by function
-alloc_bootmem_node(), which has PAGE_SIZE alignment. So I think it's
-reasonable to introduce the extra check here from my personal view :-)
+I guess I should have called it
+__HAVE_ARCH_LOCAL_TLB_FLUSH_KERNEL_RANGE though, not
+__HAVE_LOCAL_TLB_FLUSH_KERNEL_RANGE.
 
-Thanks,
-Gavin
-
->> 
->> The patch introduces the check on size of "struct mm_section" to
->> assure that.
->> 
->> Signed-off-by: Gavin Shan <shangw@linux.vnet.ibm.com>
->> ---
->>  mm/sparse.c |    9 +++++++++
->>  1 file changed, 9 insertions(+)
->> 
->> diff --git a/mm/sparse.c b/mm/sparse.c
->> index 6a4bf91..afd0998 100644
->> --- a/mm/sparse.c
->> +++ b/mm/sparse.c
->> @@ -63,6 +63,15 @@ static struct mem_section noinline __init_refok *sparse_index_alloc(int nid)
->>  	unsigned long array_size = SECTIONS_PER_ROOT *
->>  				   sizeof(struct mem_section);
->>  
->> +	/*
->> +	 * The root memory section descriptor might be allocated
->> +	 * from bootmem, which has minimal memory chunk requirement
->> +	 * of page. In order to fully utilize the memory, the sparse
->> +	 * memory section descriptor shouldn't run across the boundary
->> +	 * that bootmem allocator has.
->> +	 */
->> +	BUILD_BUG_ON(PAGE_SIZE % sizeof(struct mem_section));
->> +
->>  	if (slab_is_available()) {
->>  		if (node_state(nid, N_HIGH_MEMORY))
->>  			section = kmalloc_node(array_size, GFP_KERNEL, nid);
->> -- 
->> 1.7.9.5
->> 
->> --
->> To unsubscribe, send a message with 'unsubscribe linux-mm' in
->> the body to majordomo@kvack.org.  For more info on Linux MM,
->> see: http://www.linux-mm.org/ .
->> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
->
->-- 
->Michal Hocko
->SUSE Labs
->SUSE LINUX s.r.o.
->Lihovarska 1060/12
->190 00 Praha 9    
->Czech Republic
->
->--
->To unsubscribe, send a message with 'unsubscribe linux-mm' in
->the body to majordomo@kvack.org.  For more info on Linux MM,
->see: http://www.linux-mm.org/ .
->Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
->
+--
+Seth
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
