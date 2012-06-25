@@ -1,66 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
-	by kanga.kvack.org (Postfix) with SMTP id BCC916B03A5
-	for <linux-mm@kvack.org>; Mon, 25 Jun 2012 18:49:47 -0400 (EDT)
-Received: by dakp5 with SMTP id p5so7309602dak.14
-        for <linux-mm@kvack.org>; Mon, 25 Jun 2012 15:49:47 -0700 (PDT)
-Date: Mon, 25 Jun 2012 15:49:42 -0700
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH 09/11] memcg: propagate kmem limiting information to
- children
-Message-ID: <20120625224942.GN3869@google.com>
-References: <1340633728-12785-1-git-send-email-glommer@parallels.com>
- <1340633728-12785-10-git-send-email-glommer@parallels.com>
- <20120625182907.GF3869@google.com>
- <4FE8E7EB.2020804@parallels.com>
+Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
+	by kanga.kvack.org (Postfix) with SMTP id 34DDA6B039E
+	for <linux-mm@kvack.org>; Mon, 25 Jun 2012 19:01:28 -0400 (EDT)
+Received: by wgbdt14 with SMTP id dt14so4229269wgb.26
+        for <linux-mm@kvack.org>; Mon, 25 Jun 2012 16:01:26 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4FE8E7EB.2020804@parallels.com>
+Reply-To: konrad@darnok.org
+In-Reply-To: <1340640878-27536-4-git-send-email-sjenning@linux.vnet.ibm.com>
+References: <1340640878-27536-1-git-send-email-sjenning@linux.vnet.ibm.com>
+	<1340640878-27536-4-git-send-email-sjenning@linux.vnet.ibm.com>
+Date: Mon, 25 Jun 2012 19:01:26 -0400
+Message-ID: <CAPbh3rvkKZOuGh_Pn9WpeV5_=vA=k9=x17oa2GoT8fEgRMr+WQ@mail.gmail.com>
+Subject: Re: [PATCH 3/3] x86: add local_tlb_flush_kernel_range()
+From: Konrad Rzeszutek Wilk <konrad@darnok.org>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Frederic Weisbecker <fweisbec@gmail.com>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Lameter <cl@linux.com>, devel@openvz.org, kamezawa.hiroyu@jp.fujitsu.com, Pekka Enberg <penberg@cs.helsinki.fi>, Suleiman Souhlal <suleiman@google.com>
+To: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Nitin Gupta <ngupta@vflare.org>, Minchan Kim <minchan@kernel.org>, Robert Jennings <rcj@linux.vnet.ibm.com>, linux-mm@kvack.org, devel@driverdev.osuosl.org, linux-kernel@vger.kernel.org
 
-Hello, Glauber.
+On Mon, Jun 25, 2012 at 12:14 PM, Seth Jennings
+<sjenning@linux.vnet.ibm.com> wrote:
+> This patch adds support for a local_tlb_flush_kernel_range()
+> function for the x86 arch. =A0This function allows for CPU-local
+> TLB flushing, potentially using invlpg for single entry flushing,
+> using an arch independent function name.
 
-On Tue, Jun 26, 2012 at 02:36:27AM +0400, Glauber Costa wrote:
-> >Is the volatile declaration really necessary?  Why is it necessary?
-> >Why no comment explaining it?
-> 
-> Seems to be required by set_bit and friends. gcc will complain if it
-> is not volatile (take a look at the bit function headers)
+What x86 hardware did you use to figure the optimal number?
 
-Hmmm?  Are you sure gcc includes volatile in type check?  There are a
-lot of bitops users in the kernel but most of them don't use volatile
-decl on the variable.
-
-> >>+			 */
-> >>+			parent = parent_mem_cgroup(iter);
-> >>+			while (parent && (parent != memcg)) {
-> >>+				if (test_bit(KMEM_ACCOUNTED_THIS, &parent->kmem_accounted))
-> >>+					goto noclear;
-> >>+					
-> >>+				parent = parent_mem_cgroup(parent);
-> >>+			}
-> >
-> >Better written in for (;;)?  Also, if we're breaking on parent ==
-> >memcg, can we ever hit NULL parent in the above loop?
-> 
-> I can simplify to test parent != memcg only, indeed it is not
-> expected to be NULL (but if it happens to be due to any kind of bug,
-> we protect against NULL-dereference, that is why I like to write
-> this way)
-
-I personally don't really like that.  It doesn't really add meaningful
-protection (if that happens the tree walking is already severely
-broken) while causes confusion to future readers of the code (when can
-parent be NULL?).
-
-Thanks.
-
--- 
-tejun
+>
+> Signed-off-by: Seth Jennings <sjenning@linux.vnet.ibm.com>
+> ---
+> =A0arch/x86/include/asm/tlbflush.h | =A0 21 +++++++++++++++++++++
+> =A01 file changed, 21 insertions(+)
+>
+> diff --git a/arch/x86/include/asm/tlbflush.h b/arch/x86/include/asm/tlbfl=
+ush.h
+> index 36a1a2a..92a280b 100644
+> --- a/arch/x86/include/asm/tlbflush.h
+> +++ b/arch/x86/include/asm/tlbflush.h
+> @@ -168,4 +168,25 @@ static inline void flush_tlb_kernel_range(unsigned l=
+ong start,
+> =A0 =A0 =A0 =A0flush_tlb_all();
+> =A0}
+>
+> +#define __HAVE_LOCAL_FLUSH_TLB_KERNEL_RANGE
+> +/*
+> + * INVLPG_BREAK_EVEN_PAGES is the number of pages after which single tlb
+> + * flushing becomes more costly than just doing a complete tlb flush.
+> + * While this break even point varies among x86 hardware, tests have sho=
+wn
+> + * that 8 is a good generic value.
+> +*/
+> +#define INVLPG_BREAK_EVEN_PAGES 8
+> +static inline void local_flush_tlb_kernel_range(unsigned long start,
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 unsigned long end)
+> +{
+> + =A0 =A0 =A0 if (cpu_has_invlpg &&
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 (end - start)/PAGE_SIZE <=3D INVLPG_BREAK_E=
+VEN_PAGES) {
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 while (start < end) {
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 __flush_tlb_single(start);
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 start +=3D PAGE_SIZE;
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 }
+> + =A0 =A0 =A0 } else
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 local_flush_tlb();
+> +}
+> +
+> =A0#endif /* _ASM_X86_TLBFLUSH_H */
+> --
+> 1.7.9.5
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org. =A0For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
