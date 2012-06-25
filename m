@@ -1,52 +1,240 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx167.postini.com [74.125.245.167])
-	by kanga.kvack.org (Postfix) with SMTP id C0ED56B03C3
-	for <linux-mm@kvack.org>; Mon, 25 Jun 2012 19:49:52 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
+	by kanga.kvack.org (Postfix) with SMTP id 3DF716B0195
+	for <linux-mm@kvack.org>; Mon, 25 Jun 2012 19:58:33 -0400 (EDT)
+Date: Mon, 25 Jun 2012 20:57:40 -0300
+From: Rafael Aquini <aquini@redhat.com>
+Subject: Re: [PATCH 1/4] mm: introduce compaction and migration for virtio
+ ballooned pages
+Message-ID: <20120625235739.GA1887@t510.redhat.com>
+References: <cover.1340665087.git.aquini@redhat.com>
+ <7f83427b3894af7969c67acc0f27ab5aa68b4279.1340665087.git.aquini@redhat.com>
+ <CAPbh3rvN0U=xVuqb=7wHkbEAgM=dC67uG-1=m=8GAv9MNX7LWg@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-From: Roland McGrath <roland@hack.frob.com>
-Subject: Re: Fwd: [PATCH-V2] perf symbols: fix symbol offset breakage with
- separated debug info
-In-Reply-To: Dave Martin's message of  Wednesday, 13 June 2012 11:14:36 +0100 <20120613101436.GA2122@linaro.org>
-References: <4FA0DBEE.3040909@linux.vnet.ibm.com>
-	<4FD5D3CE.2010307@linux.vnet.ibm.com>
-	<20120611135352.GA2202@infradead.org>
-	<20120613101436.GA2122@linaro.org>
-Message-Id: <20120625234951.B839C2C08D@topped-with-meat.com>
-Date: Mon, 25 Jun 2012 16:49:51 -0700 (PDT)
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <CAPbh3rvN0U=xVuqb=7wHkbEAgM=dC67uG-1=m=8GAv9MNX7LWg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Martin <dave.martin@linaro.org>
-Cc: Arnaldo Carvalho de Melo <acme@infradead.org>, Prashanth Nageshappa <prashanth@linux.vnet.ibm.com>, peterz@infradead.org, akpm@linux-foundation.org, torvalds@linux-foundation.org, ananth@in.ibm.com, jkenisto@linux.vnet.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, oleg@redhat.com, andi@firstfloor.org, hch@infradead.org, rostedt@goodmis.org, masami.hiramatsu.pt@hitachi.com, tglx@linutronix.de, anton@redhat.com, srikar@linux.vnet.ibm.com, linux-perf-users@vger.kernel.org, mingo@elte.hu
+To: Konrad Rzeszutek Wilk <konrad@darnok.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, Rusty Russell <rusty@rustcorp.com.au>, "Michael S. Tsirkin" <mst@redhat.com>, Rik van Riel <riel@redhat.com>
 
-> For one thing, I assumed that the section headers for a debug-only image
-> may be bogus garbage and not useful for some aspects of symbol
-> processing.  I'm no longer sure that this is the case: if not, then we
-> don't need to bother with saving the section headers because once we
-> have chosen a reference image for the symbols, we know that image is
-> good enough for all the symbol processing.  My previous assumption
-> that we may need to juggle parts of two ELF images in order to do the
-> symbol processing does complicate things -- hopefully we don't need it.
+On Mon, Jun 25, 2012 at 07:31:38PM -0400, Konrad Rzeszutek Wilk wrote:
+> On Mon, Jun 25, 2012 at 7:25 PM, Rafael Aquini <aquini@redhat.com> wrote:
+> > This patch introduces helper functions that teach compaction and migration bits
+> > how to cope with pages which are part of a guest memory balloon, in order to
+> > make them movable by memory compaction procedures.
+> >
+> 
+> Should the names that are exported be prefixed with kvm_?
+>
+I rather let them as generic as possible, specially because I believe other
+balloon drivers can leverage the same technique to make their page lists movable
+as well, in the near future. However, I do agree with your tip if we ended up
+finding out no one else can reuse this piece of code.
 
-The section headers in a .debug file are never "bogus garbage".  Aside
-from sh_offset fields, they match the original unstripped file except
-that sh_type is changed to SHT_NOBITS for each section that is kept only
-in the stripped file.
-
-The one issue you have to deal with (in ET_DYN files) is that the
-addresses used in the section headers and everywhere else in the .debug
-file (symbol table st_value fields, all DWARF data containing addresses,
-etc.) may no longer match the addresses used in the stripped file, if
-prelink has changed that file after stripping.  For this, all you need
-to do is calculate the offset between .debug file and stripped-file
-addresses.  The way to do that is to examine the PT_LOAD program headers
-(just the first one is all you really need), and take the difference
-between the p_vaddr fields of the same PT_LOAD command in the two files.
-
-
-Thanks,
-Roland
+ 
+> > Signed-off-by: Rafael Aquini <aquini@redhat.com>
+> > ---
+> >  include/linux/mm.h |   17 +++++++++++++
+> >  mm/compaction.c    |   72 ++++++++++++++++++++++++++++++++++++++++++++++++++++
+> >  mm/migrate.c       |   30 +++++++++++++++++++++-
+> >  3 files changed, 118 insertions(+), 1 deletion(-)
+> >
+> > diff --git a/include/linux/mm.h b/include/linux/mm.h
+> > index b36d08c..360656e 100644
+> > --- a/include/linux/mm.h
+> > +++ b/include/linux/mm.h
+> > @@ -1629,5 +1629,22 @@ static inline unsigned int debug_guardpage_minorder(void) { return 0; }
+> >  static inline bool page_is_guard(struct page *page) { return false; }
+> >  #endif /* CONFIG_DEBUG_PAGEALLOC */
+> >
+> > +#if (defined(CONFIG_VIRTIO_BALLOON) || \
+> > +       defined(CONFIG_VIRTIO_BALLOON_MODULE)) && defined(CONFIG_COMPACTION)
+> > +extern int is_balloon_page(struct page *);
+> > +extern int isolate_balloon_page(struct page *);
+> > +extern int putback_balloon_page(struct page *);
+> > +
+> > +/* return 1 if page is part of a guest's memory balloon, 0 otherwise */
+> > +static inline int PageBalloon(struct page *page)
+> > +{
+> > +       return is_balloon_page(page);
+> > +}
+> > +#else
+> > +static inline int PageBalloon(struct page *page)               { return 0; }
+> > +static inline int isolate_balloon_page(struct page *page)      { return 0; }
+> > +static inline int putback_balloon_page(struct page *page)      { return 0; }
+> > +#endif /* (VIRTIO_BALLOON || VIRTIO_BALLOON_MODULE) && COMPACTION */
+> > +
+> >  #endif /* __KERNEL__ */
+> >  #endif /* _LINUX_MM_H */
+> > diff --git a/mm/compaction.c b/mm/compaction.c
+> > index 7ea259d..8835d55 100644
+> > --- a/mm/compaction.c
+> > +++ b/mm/compaction.c
+> > @@ -14,6 +14,7 @@
+> >  #include <linux/backing-dev.h>
+> >  #include <linux/sysctl.h>
+> >  #include <linux/sysfs.h>
+> > +#include <linux/export.h>
+> >  #include "internal.h"
+> >
+> >  #if defined CONFIG_COMPACTION || defined CONFIG_CMA
+> > @@ -312,6 +313,14 @@ isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
+> >                        continue;
+> >                }
+> >
+> > +               /*
+> > +                * For ballooned pages, we need to isolate them before testing
+> > +                * for PageLRU, as well as skip the LRU page isolation steps.
+> > +                */
+> > +               if (PageBalloon(page))
+> > +                       if (isolate_balloon_page(page))
+> > +                               goto isolated_balloon_page;
+> > +
+> >                if (!PageLRU(page))
+> >                        continue;
+> >
+> > @@ -338,6 +347,7 @@ isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
+> >
+> >                /* Successfully isolated */
+> >                del_page_from_lru_list(page, lruvec, page_lru(page));
+> > +isolated_balloon_page:
+> >                list_add(&page->lru, migratelist);
+> >                cc->nr_migratepages++;
+> >                nr_isolated++;
+> > @@ -903,4 +913,66 @@ void compaction_unregister_node(struct node *node)
+> >  }
+> >  #endif /* CONFIG_SYSFS && CONFIG_NUMA */
+> >
+> > +#if defined(CONFIG_VIRTIO_BALLOON) || defined(CONFIG_VIRTIO_BALLOON_MODULE)
+> > +/*
+> > + * Balloon pages special page->mapping.
+> > + * users must properly allocate and initiliaze an instance of balloon_mapping,
+> > + * and set it as the page->mapping for balloon enlisted page instances.
+> > + *
+> > + * address_space_operations necessary methods for ballooned pages:
+> > + *   .migratepage    - used to perform balloon's page migration (as is)
+> > + *   .invalidatepage - used to isolate a page from balloon's page list
+> > + *   .freepage       - used to reinsert an isolated page to balloon's page list
+> > + */
+> > +struct address_space *balloon_mapping;
+> > +EXPORT_SYMBOL(balloon_mapping);
+> > +
+> > +/* ballooned page id check */
+> > +int is_balloon_page(struct page *page)
+> > +{
+> > +       struct address_space *mapping = page->mapping;
+> > +       if (mapping == balloon_mapping)
+> > +               return 1;
+> > +       return 0;
+> > +}
+> > +
+> > +/* __isolate_lru_page() counterpart for a ballooned page */
+> > +int isolate_balloon_page(struct page *page)
+> > +{
+> > +       struct address_space *mapping = page->mapping;
+> > +       if (mapping->a_ops->invalidatepage) {
+> > +               /*
+> > +                * We can race against move_to_new_page() and stumble across a
+> > +                * locked 'newpage'. If we succeed on isolating it, the result
+> > +                * tends to be disastrous. So, we sanely skip PageLocked here.
+> > +                */
+> > +               if (likely(!PageLocked(page) && get_page_unless_zero(page))) {
+> > +                       /*
+> > +                        * A ballooned page, by default, has just one refcount.
+> > +                        * Prevent concurrent compaction threads from isolating
+> > +                        * an already isolated balloon page.
+> > +                        */
+> > +                       if (page_count(page) == 2) {
+> > +                               mapping->a_ops->invalidatepage(page, 0);
+> > +                               return 1;
+> > +                       }
+> > +                       /* Drop refcount taken for this already isolated page */
+> > +                       put_page(page);
+> > +               }
+> > +       }
+> > +       return 0;
+> > +}
+> > +
+> > +/* putback_lru_page() counterpart for a ballooned page */
+> > +int putback_balloon_page(struct page *page)
+> > +{
+> > +       struct address_space *mapping = page->mapping;
+> > +       if (mapping->a_ops->freepage) {
+> > +               mapping->a_ops->freepage(page);
+> > +               put_page(page);
+> > +               return 1;
+> > +       }
+> > +       return 0;
+> > +}
+> > +#endif /* CONFIG_VIRTIO_BALLOON || CONFIG_VIRTIO_BALLOON_MODULE */
+> >  #endif /* CONFIG_COMPACTION */
+> > diff --git a/mm/migrate.c b/mm/migrate.c
+> > index be26d5c..ffc02a4 100644
+> > --- a/mm/migrate.c
+> > +++ b/mm/migrate.c
+> > @@ -78,7 +78,10 @@ void putback_lru_pages(struct list_head *l)
+> >                list_del(&page->lru);
+> >                dec_zone_page_state(page, NR_ISOLATED_ANON +
+> >                                page_is_file_cache(page));
+> > -               putback_lru_page(page);
+> > +               if (unlikely(PageBalloon(page)))
+> > +                       VM_BUG_ON(!putback_balloon_page(page));
+> > +               else
+> > +                       putback_lru_page(page);
+> >        }
+> >  }
+> >
+> > @@ -783,6 +786,17 @@ static int __unmap_and_move(struct page *page, struct page *newpage,
+> >                }
+> >        }
+> >
+> > +       if (PageBalloon(page)) {
+> > +               /*
+> > +                * A ballooned page does not need any special attention from
+> > +                * physical to virtual reverse mapping procedures.
+> > +                * To avoid burning cycles at rmap level,
+> > +                * skip attempts to unmap PTEs or remap swapcache.
+> > +                */
+> > +               remap_swapcache = 0;
+> > +               goto skip_unmap;
+> > +       }
+> > +
+> >        /*
+> >         * Corner case handling:
+> >         * 1. When a new swap-cache page is read into, it is added to the LRU
+> > @@ -852,6 +866,20 @@ static int unmap_and_move(new_page_t get_new_page, unsigned long private,
+> >                        goto out;
+> >
+> >        rc = __unmap_and_move(page, newpage, force, offlining, mode);
+> > +
+> > +       if (PageBalloon(newpage)) {
+> > +               /*
+> > +                * A ballooned page has been migrated already. Now, it is the
+> > +                * time to wrap-up counters, handle the old page back to Buddy
+> > +                * and return.
+> > +                */
+> > +               list_del(&page->lru);
+> > +               dec_zone_page_state(page, NR_ISOLATED_ANON +
+> > +                                   page_is_file_cache(page));
+> > +               put_page(page);
+> > +               __free_page(page);
+> > +               return rc;
+> > +       }
+> >  out:
+> >        if (rc != -EAGAIN) {
+> >                /*
+> > --
+> > 1.7.10.2
+> >
+> > --
+> > To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> > the body to majordomo@kvack.org.  For more info on Linux MM,
+> > see: http://www.linux-mm.org/ .
+> > Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> >
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
