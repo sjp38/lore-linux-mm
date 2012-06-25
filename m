@@ -1,59 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
-	by kanga.kvack.org (Postfix) with SMTP id 345076B02E4
-	for <linux-mm@kvack.org>; Mon, 25 Jun 2012 03:37:23 -0400 (EDT)
-Received: by vbkv13 with SMTP id v13so2301559vbk.14
-        for <linux-mm@kvack.org>; Mon, 25 Jun 2012 00:37:22 -0700 (PDT)
-Message-ID: <4FE81531.90500@gmail.com>
-Date: Mon, 25 Jun 2012 03:37:21 -0400
-From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
+	by kanga.kvack.org (Postfix) with SMTP id CB8126B0311
+	for <linux-mm@kvack.org>; Mon, 25 Jun 2012 04:08:44 -0400 (EDT)
+Date: Mon, 25 Jun 2012 10:08:32 +0200
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH] mm: consider all swapped back pages in used-once logic
+Message-ID: <20120625080832.GX27816@cmpxchg.org>
+References: <1337246033-13719-1-git-send-email-mhocko@suse.cz>
+ <20120517195342.GB1800@cmpxchg.org>
+ <20120521025149.GA32375@gmail.com>
+ <20120521073632.GL1406@cmpxchg.org>
+ <20120521085951.GA4687@gmail.com>
+ <20120521093705.GM1406@cmpxchg.org>
+ <20120521110659.GA7143@gmail.com>
+ <20120623110450.GP27816@cmpxchg.org>
+ <4FE7A867.70207@kernel.org>
 MIME-Version: 1.0
-Subject: Re: [patch] mm, oom: replace some information in tasklist dump
-References: <alpine.DEB.2.00.1206221444370.23486@chino.kir.corp.google.com> <CAHGf_=p4SS7qA_eRpBF0PawyUa8DpYncL0LS-=B4tHFaDUKV-w@mail.gmail.com> <alpine.DEB.2.00.1206221609220.15114@chino.kir.corp.google.com> <CAHGf_=q=6uWb4wpZxnZNGY=VohoaWrDJtiQk0Rn59unNSMTnyQ@mail.gmail.com> <alpine.DEB.2.00.1206221634230.18408@chino.kir.corp.google.com> <4FE50B81.5080603@gmail.com> <alpine.DEB.2.00.1206241340400.13297@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.00.1206241340400.13297@chino.kir.corp.google.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4FE7A867.70207@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: Zheng Liu <gnehzuil.liu@gmail.com>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>
 
-(6/24/12 4:43 PM), David Rientjes wrote:
-> On Fri, 22 Jun 2012, KOSAKI Motohiro wrote:
+On Mon, Jun 25, 2012 at 08:53:11AM +0900, Minchan Kim wrote:
+> Hi Hannes,
 > 
->>>> No worth to make fragile ABI. Do you have any benefit?
->>>>
->>>
->>> Yes, because this is exactly where we would discover something like a 
->>> mm->nr_ptes accounting issue since it would result in an oom kill and we'd 
->>> notice the mismatch between nr_ptes and rss in the tasklist dump.
->>
->> Below patch is better, then. tasklist dump should show brief summary and
->> final killed process output should show most detail info. And, now all of
->> get_mm_rss() callsite got consistent.
->>
+> On 06/23/2012 08:04 PM, Johannes Weiner wrote:
 > 
-> No, it's not.
+> > On Mon, May 21, 2012 at 07:07:00PM +0800, Zheng Liu wrote:
+> >> On Mon, May 21, 2012 at 11:37:05AM +0200, Johannes Weiner wrote:
+> >> [snip]
+> >>>>> Is it because the read()/write() IO is high throughput and pushes
+> >>>>> pages through the LRU lists faster than the mmap pages are referenced?
+> >>>>
+> >>>> Yes, in this application, one query needs to access mapped file page
+> >>>> twice and file page cache twice.  Namely, one query needs to do 4 disk
+> >>>> I/Os.  We have used fadvise(2) to reduce file page cache accessing to
+> >>>> only once.  For mapped file page, in fact them are accessed only once
+> >>>> because in one query the same data is accessed twice.  Thus, one query
+> >>>> causes 2 disk I/Os now.  The size of read/write is quite larger than
+> >>>> mmap/munmap.  So, as you see, if we can keep mmap/munmap file in memory
+> >>>> as much as possible, we will gain the better performance.
+> >>>
+> >>> You access the same unmapped cache twice, i.e. repeated reads or
+> >>> writes against the same file offset?
+> >>
+> >> No.  We access the same mapped file twice.
+> >>
+> >>>
+> >>> How do you use fadvise?
+> >>
+> >> We access the header and content of the file respectively using read/write.
+> >> The header and content are sequentially.  So we use fadivse(2) with
+> >> FADV_WILLNEED flag to do a readahead.
+> >>
+> >>>> In addition, another factor also has some impacts for this application.
+> >>>> In inactive_file_is_low_global(), it is different between 2.6.18 and
+> >>>> upstream kernel.  IMHO, it causes that mapped file pages in active list
+> >>>> are moved into inactive list frequently.
+> >>>>
+> >>>> Currently, we add a parameter in inactive_file_is_low_global() to adjust
+> >>>> this ratio.  Meanwhile we activate every mapped file pages for the first
+> >>>> time.  Then the performance gets better, but it still doesn't reach the
+> >>>> performance of 2.6.18.
+> >>>
+> >>> 2.6.18 didn't have the active list protection at all and always
+> >>> forcibly deactivated pages during reclaim.  Have you tried fully
+> >>> reverting to this by making inactive_file_is_low_global() return true
+> >>> unconditionally?
+> >>
+> >> No, I don't try it.  AFAIK, 2.6.18 didn't protect the active list.  But
+> >> it doesn't always forcibly deactivate the pages.  I remember that in
+> >> 2.6.18 kernel we calculate 'mapped_ratio' in shrink_active_list(), and
+> >> then we get 'swap_tendency' according to 'mapped_ratio', 'distress', and
+> >> 'sc->swappiness'.  If 'swap_tendency' is not greater than 100.  It
+> >> doesn't reclaim mapped file pages.  By this equation, if the sum of the
+> >> anonymous pages and mapped file pages is not greater than the 50% of
+> >> total pages, we don't deactivate these pages.  Am I missing something?
+> > 
+> > I think we need to go back to protecting mapped pages based on how
+> > much of reclaimable memory they make up, one way or another.
 > 
-> Your patch is factoring ptes into get_mm_rss() throughout the kernel, my 
-> patch is showing get_mm_rss() and nr_ptes in the oom killer tasklist dump 
-> since they are both (currently) factored in seperately.  They are two 
-> functionally different changes.
+> 
+> I partly agreed it with POV regression.
+> But I would like to understand rationale of "Why we should handle specially mmapped page".
+> In case of code pages(VM_EXEC), we already have handled it specially and
+> I understand why we did. At least, my opinion was that our LRU algorithm doesn't consider
+> _frequency_ fully while it does _recency_ well. I thought code page would be high frequency of access
+> compared to other pages.
+> But in case of mapped data pages, why we should handle specially?
+> I guess mapped data pages would have higher access chance than unmapped page because
+> unmapped page doesn't have any owner(it's just for caching for reducing I/O) while mapped page
+> has a owner above.
+> 
+> Doesn't it make sense?
 
-I said they should not showed separetly. That's all. Don't request talk the
-same repeat.
+I agree that the reason behind protecting VM_EXEC pages was that our
+frequency information for mapped pages is at LRU cycle granularity.
 
-
-
-
-
-> If you want to factor ptes into get_mm_rss() and make that change 
-> throughout the kernel, then you should patch linux-next which includes my 
-> oom patch, write an actual changelog for why ptes should now be included 
-> in get_mm_rss() -- which I'll nack because it significantly changes 
-> /proc/pid/stat output for applications between kernel versions that we 
-> depend very heavily on -- and propose it seperately.
-
+But I don't see why you think this problem wouldn't apply to all
+mapped pages in general.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
