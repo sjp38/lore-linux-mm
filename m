@@ -1,43 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx135.postini.com [74.125.245.135])
-	by kanga.kvack.org (Postfix) with SMTP id 7FE246B031F
-	for <linux-mm@kvack.org>; Mon, 25 Jun 2012 04:48:57 -0400 (EDT)
-Message-ID: <4FE82555.2010704@parallels.com>
-Date: Mon, 25 Jun 2012 12:46:13 +0400
-From: Glauber Costa <glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
+	by kanga.kvack.org (Postfix) with SMTP id 1073C6B0321
+	for <linux-mm@kvack.org>; Mon, 25 Jun 2012 05:17:00 -0400 (EDT)
+Received: by dakp5 with SMTP id p5so6216354dak.14
+        for <linux-mm@kvack.org>; Mon, 25 Jun 2012 02:16:59 -0700 (PDT)
+Date: Mon, 25 Jun 2012 02:16:56 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch] mm, oom: replace some information in tasklist dump
+In-Reply-To: <4FE81531.90500@gmail.com>
+Message-ID: <alpine.DEB.2.00.1206250215510.24381@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.1206221444370.23486@chino.kir.corp.google.com> <CAHGf_=p4SS7qA_eRpBF0PawyUa8DpYncL0LS-=B4tHFaDUKV-w@mail.gmail.com> <alpine.DEB.2.00.1206221609220.15114@chino.kir.corp.google.com> <CAHGf_=q=6uWb4wpZxnZNGY=VohoaWrDJtiQk0Rn59unNSMTnyQ@mail.gmail.com>
+ <alpine.DEB.2.00.1206221634230.18408@chino.kir.corp.google.com> <4FE50B81.5080603@gmail.com> <alpine.DEB.2.00.1206241340400.13297@chino.kir.corp.google.com> <4FE81531.90500@gmail.com>
 MIME-Version: 1.0
-Subject: Re: RFC:  Easy-Reclaimable LRU list
-References: <4FE012CD.6010605@kernel.org>
-In-Reply-To: <4FE012CD.6010605@kernel.org>
-Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Anton Vorontsov <anton.vorontsov@linaro.org>, John Stultz <john.stultz@linaro.org>, Pekka Enberg <penberg@kernel.org>, Wu Fengguang <fengguang.wu@intel.com>, Hugh Dickins <hughd@google.com>
+To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
 
-On 06/19/2012 09:49 AM, Minchan Kim wrote:
-> Hi everybody!
->
-> Recently, there are some efforts to handle system memory pressure.
->
-> 1) low memory notification - [1]
-> 2) fallocate(VOLATILE) - [2]
-> 3) fadvise(NOREUSE) - [3]
->
-> For them, I would like to add new LRU list, aka "Ereclaimable" which is opposite of "unevictable".
-> Reclaimable LRU list includes_easy_  reclaimable pages.
-> For example, easy reclaimable pages are following as.
->
-> 1. invalidated but remained LRU list.
-> 2. pageout pages for reclaim(PG_reclaim pages)
-> 3. fadvise(NOREUSE)
-> 4. fallocate(VOLATILE)
->
-> Their pages shouldn't stir normal LRU list and compaction might not migrate them, even.
-What about other things moving memory like CMA ?
+On Mon, 25 Jun 2012, KOSAKI Motohiro wrote:
 
+> > Your patch is factoring ptes into get_mm_rss() throughout the kernel, my 
+> > patch is showing get_mm_rss() and nr_ptes in the oom killer tasklist dump 
+> > since they are both (currently) factored in seperately.  They are two 
+> > functionally different changes.
+> 
+> I said they should not showed separetly. That's all. Don't request talk the
+> same repeat.
+> 
 
+I'm sorry, but I don't understand what you're trying to say.  If you have 
+a patch to build upon in -mm (since my patch is already in it), feel free 
+to post it with a changelog.  Thanks!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
