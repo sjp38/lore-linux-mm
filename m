@@ -1,45 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
-	by kanga.kvack.org (Postfix) with SMTP id 79A736B03BF
-	for <linux-mm@kvack.org>; Mon, 25 Jun 2012 19:33:30 -0400 (EDT)
-Received: by obhx4 with SMTP id x4so9272035obh.14
-        for <linux-mm@kvack.org>; Mon, 25 Jun 2012 16:33:29 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
+	by kanga.kvack.org (Postfix) with SMTP id 302C86B03C1
+	for <linux-mm@kvack.org>; Mon, 25 Jun 2012 19:37:43 -0400 (EDT)
+Received: by dakp5 with SMTP id p5so7356843dak.14
+        for <linux-mm@kvack.org>; Mon, 25 Jun 2012 16:37:42 -0700 (PDT)
+Date: Mon, 25 Jun 2012 16:37:37 -0700
+From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Subject: Re: [PATCH 2/3] zsmalloc: add generic path and remove x86 dependency
+Message-ID: <20120625233737.GA3493@kroah.com>
+References: <1340640878-27536-1-git-send-email-sjenning@linux.vnet.ibm.com>
+ <1340640878-27536-3-git-send-email-sjenning@linux.vnet.ibm.com>
+ <20120625165915.GA20464@kroah.com>
+ <4FE89BA1.3030709@linux.vnet.ibm.com>
+ <20120625171939.GA29371@kroah.com>
+ <4FE8ACDD.3070007@linux.vnet.ibm.com>
 MIME-Version: 1.0
-In-Reply-To: <1340633728-12785-3-git-send-email-glommer@parallels.com>
-References: <1340633728-12785-1-git-send-email-glommer@parallels.com>
-	<1340633728-12785-3-git-send-email-glommer@parallels.com>
-Date: Mon, 25 Jun 2012 16:33:29 -0700
-Message-ID: <CABCjUKD0h089StLF8BwVRU-St70Ai9PTw-cjis40_aLLG3MAQQ@mail.gmail.com>
-Subject: Re: [PATCH 02/11] memcg: Reclaim when more than one page needed.
-From: Suleiman Souhlal <suleiman@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4FE8ACDD.3070007@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Frederic Weisbecker <fweisbec@gmail.com>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Lameter <cl@linux.com>, devel@openvz.org, kamezawa.hiroyu@jp.fujitsu.com, Tejun Heo <tj@kernel.org>
+To: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Cc: devel@driverdev.osuosl.org, Dan Magenheimer <dan.magenheimer@oracle.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Robert Jennings <rcj@linux.vnet.ibm.com>, Nitin Gupta <ngupta@vflare.org>
 
-On Mon, Jun 25, 2012 at 7:15 AM, Glauber Costa <glommer@parallels.com> wrote:
-> From: Suleiman Souhlal <ssouhlal@FreeBSD.org>
->
-> mem_cgroup_do_charge() was written before slab accounting, and expects
-> three cases: being called for 1 page, being called for a stock of 32 pages,
-> or being called for a hugepage.  If we call for 2 or 3 pages (and several
-> slabs used in process creation are such, at least with the debug options I
-> had), it assumed it's being called for stock and just retried without reclaiming.
->
-> Fix that by passing down a minsize argument in addition to the csize.
->
-> And what to do about that (csize == PAGE_SIZE && ret) retry?  If it's
-> needed at all (and presumably is since it's there, perhaps to handle
-> races), then it should be extended to more than PAGE_SIZE, yet how far?
-> And should there be a retry count limit, of what?  For now retry up to
-> COSTLY_ORDER (as page_alloc.c does), stay safe with a cond_resched(),
-> and make sure not to do it if __GFP_NORETRY.
+On Mon, Jun 25, 2012 at 01:24:29PM -0500, Seth Jennings wrote:
+> On 06/25/2012 12:19 PM, Greg Kroah-Hartman wrote:
+> > On Mon, Jun 25, 2012 at 12:10:57PM -0500, Seth Jennings wrote:
+> >> On 06/25/2012 11:59 AM, Greg Kroah-Hartman wrote:
+> >>> On Mon, Jun 25, 2012 at 11:14:37AM -0500, Seth Jennings wrote:
+> >>>> This patch adds generic pages mapping methods that
+> >>>> work on all archs in the absence of support for
+> >>>> local_tlb_flush_kernel_range() advertised by the
+> >>>> arch through __HAVE_LOCAL_TLB_FLUSH_KERNEL_RANGE
+> >>>
+> >>> Is this #define something that other arches define now?  Or is this
+> >>> something new that you are adding here?
+> >>
+> >> Something new I'm adding.
+> > 
+> > Ah, ok.
+> > 
+> >> The precedent for this approach is the __HAVE_ARCH_* defines
+> >> that let the arch independent stuff know if a generic
+> >> function needs to be defined or if there is an arch specific
+> >> function.
+> >>
+> >> You can "grep -R __HAVE_ARCH_* arch/x86/" to see the ones
+> >> that already exist.
+> >>
+> >> I guess I should have called it
+> >> __HAVE_ARCH_LOCAL_TLB_FLUSH_KERNEL_RANGE though, not
+> >> __HAVE_LOCAL_TLB_FLUSH_KERNEL_RANGE.
+> > 
+> > You need to get the mm developers to agree with this before I can take
+> > it.
+> > 
+> > But, why even depend on this?  Can't you either live without it
+> 
+> The whole point of the patch is _not_ to depend on it.  It
+> just performs worse without it.  We could just rip out all
+> the the page table assisted page mapping, but, for the
+> arches that have support for it, we'd be degrading
+> performance in exchange for portability.  Why choose when we
+> can have both?
 
-The commit description mentions COSTLY_ORDER, but it's not actually
-used in the patch.
+Ok, I'll let you fight it out with the mm people before applying these 2
+patches, I've applied the first one only for now.
 
--- Suleiman
+greg k-h
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
