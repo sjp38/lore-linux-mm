@@ -1,56 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
-	by kanga.kvack.org (Postfix) with SMTP id 7209E6B0371
-	for <linux-mm@kvack.org>; Mon, 25 Jun 2012 12:56:16 -0400 (EDT)
-Message-ID: <4FE89807.50708@redhat.com>
-Date: Mon, 25 Jun 2012 18:55:35 +0200
-From: Frederic Weisbecker <fweisbec@redhat.com>
+Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
+	by kanga.kvack.org (Postfix) with SMTP id 367566B0373
+	for <linux-mm@kvack.org>; Mon, 25 Jun 2012 12:59:22 -0400 (EDT)
+Received: by dakp5 with SMTP id p5so6878853dak.14
+        for <linux-mm@kvack.org>; Mon, 25 Jun 2012 09:59:21 -0700 (PDT)
+Date: Mon, 25 Jun 2012 09:59:16 -0700
+From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Subject: Re: [PATCH 2/3] zsmalloc: add generic path and remove x86 dependency
+Message-ID: <20120625165915.GA20464@kroah.com>
+References: <1340640878-27536-1-git-send-email-sjenning@linux.vnet.ibm.com>
+ <1340640878-27536-3-git-send-email-sjenning@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 11/11] protect architectures where THREAD_SIZE >= PAGE_SIZE
- against fork bombs
-References: <1340633728-12785-1-git-send-email-glommer@parallels.com> <1340633728-12785-12-git-send-email-glommer@parallels.com>
-In-Reply-To: <1340633728-12785-12-git-send-email-glommer@parallels.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1340640878-27536-3-git-send-email-sjenning@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Frederic Weisbecker <fweisbec@gmail.com>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Lameter <cl@linux.com>, devel@openvz.org, kamezawa.hiroyu@jp.fujitsu.com, Tejun Heo <tj@kernel.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Suleiman Souhlal <suleiman@google.com>
+To: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Cc: devel@driverdev.osuosl.org, Dan Magenheimer <dan.magenheimer@oracle.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Robert Jennings <rcj@linux.vnet.ibm.com>, Nitin Gupta <ngupta@vflare.org>
 
-On 06/25/2012 04:15 PM, Glauber Costa wrote:
+On Mon, Jun 25, 2012 at 11:14:37AM -0500, Seth Jennings wrote:
+> This patch adds generic pages mapping methods that
+> work on all archs in the absence of support for
+> local_tlb_flush_kernel_range() advertised by the
+> arch through __HAVE_LOCAL_TLB_FLUSH_KERNEL_RANGE
 
-> Because those architectures will draw their stacks directly from
-> the page allocator, rather than the slab cache, we can directly
-> pass __GFP_KMEMCG flag, and issue the corresponding free_pages.
-> 
-> This code path is taken when the architecture doesn't define
-> CONFIG_ARCH_THREAD_INFO_ALLOCATOR (only ia64 seems to), and has
-> THREAD_SIZE >= PAGE_SIZE. Luckily, most - if not all - of the
-> remaining architectures fall in this category.
-> 
-> This will guarantee that every stack page is accounted to the memcg
-> the process currently lives on, and will have the allocations to fail
-> if they go over limit.
-> 
-> For the time being, I am defining a new variant of THREADINFO_GFP, not
-> to mess with the other path. Once the slab is also tracked by memcg,
-> we can get rid of that flag.
-> 
-> Tested to successfully protect against :(){ :|:& };:
-> 
-> Signed-off-by: Glauber Costa <glommer@parallels.com>
-> CC: Christoph Lameter <cl@linux.com>
-> CC: Pekka Enberg <penberg@cs.helsinki.fi>
-> CC: Michal Hocko <mhocko@suse.cz>
-> CC: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> CC: Johannes Weiner <hannes@cmpxchg.org>
-> CC: Suleiman Souhlal <suleiman@google.com>
+Is this #define something that other arches define now?  Or is this
+something new that you are adding here?
 
+thanks,
 
-Acked-by: Frederic Weisbecker <fweisbec@redhat.com>
-
-
-Thanks!
+greg k-h
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
