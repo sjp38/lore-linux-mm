@@ -1,70 +1,30 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
-	by kanga.kvack.org (Postfix) with SMTP id E16766B033B
-	for <linux-mm@kvack.org>; Mon, 25 Jun 2012 08:58:12 -0400 (EDT)
-Message-ID: <4FE85FC3.4050908@parallels.com>
-Date: Mon, 25 Jun 2012 16:55:31 +0400
+Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
+	by kanga.kvack.org (Postfix) with SMTP id 598B86B033D
+	for <linux-mm@kvack.org>; Mon, 25 Jun 2012 09:05:43 -0400 (EDT)
+Message-ID: <4FE86188.6060700@parallels.com>
+Date: Mon, 25 Jun 2012 17:03:04 +0400
 From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] fix bad behavior in use_hierarchy file
-References: <1340616061-1955-1-git-send-email-glommer@parallels.com> <20120625120823.GK19805@tiehlicka.suse.cz> <4FE85555.1010209@parallels.com> <20120625124905.GM19805@tiehlicka.suse.cz>
-In-Reply-To: <20120625124905.GM19805@tiehlicka.suse.cz>
+Subject: Re: [PATCH v4 06/25] memcg: Make it possible to use the stock for
+ more than one page.
+References: <1340015298-14133-1-git-send-email-glommer@parallels.com> <1340015298-14133-7-git-send-email-glommer@parallels.com> <20120620132804.GF5541@tiehlicka.suse.cz>
+In-Reply-To: <20120620132804.GF5541@tiehlicka.suse.cz>
 Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@suse.cz>
-Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, devel@openvz.org, Dhaval Giani <dhaval.giani@gmail.com>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>
+Cc: linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, Cristoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, cgroups@vger.kernel.org, devel@openvz.org, kamezawa.hiroyu@jp.fujitsu.com, linux-kernel@vger.kernel.org, Frederic Weisbecker <fweisbec@gmail.com>, Suleiman Souhlal <suleiman@google.com>
 
-On 06/25/2012 04:49 PM, Michal Hocko wrote:
-> On Mon 25-06-12 16:11:01, Glauber Costa wrote:
->> On 06/25/2012 04:08 PM, Michal Hocko wrote:
->>> On Mon 25-06-12 13:21:01, Glauber Costa wrote:
-> [...]
->>>> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
->>>> index ac35bcc..cccebbc 100644
->>>> --- a/mm/memcontrol.c
->>>> +++ b/mm/memcontrol.c
->>>> @@ -3779,6 +3779,10 @@ static int mem_cgroup_hierarchy_write(struct cgroup *cont, struct cftype *cft,
->>>>   		parent_memcg = mem_cgroup_from_cont(parent);
->>>>
->>>>   	cgroup_lock();
->>>> +
->>>> +	if (memcg->use_hierarchy == val)
->>>> +		goto out;
->>>> +		
->>>
->>> Why do you need cgroup_lock to check the value? Even if we have 2
->>> CPUs racing (one trying to set to 0 other to 1 with use_hierarchy==0)
->>> then the "set to 0" operation might fail depending on who hits the
->>> cgroup_lock first anyway.
->>>
->>> So while this is correct I think there is not much point to take the global
->>> cgroup lock in this case.
->>>
->> Well, no.
->>
->> All operations will succeed, unless the cgroup breeds new children.
->> That's the operation we're racing against.
+On 06/20/2012 05:28 PM, Michal Hocko wrote:
+> I guess you want:
+> 	if (nr_pages > CHARGE_BATCH)
+> 		return false;
 >
-> I am not sure I understand. The changelog says that you want to handle
-> a situation where you are copying a hierarchy along with their
-> attributes and you don't want to fail when setting sane values.
->
-> If we race with a new child creation then the success always depends on
-> the lock ordering but once the value is set then it is final so the test
-> will work even outside of the lock. Or am I still missing something?
->
-> Just to make it clear the lock is necessary in the function I just do
-> not see why it should be held while we are trying to handle no-change
-> case.
->
+> because you don't want to try to use stock for THP pages.
 
-I think you are right in this specific case. But do you think it is 
-necessary to submit a version of it that tests outside the lock?
-
-We don't gain too much with that anyway.
-
+Done, thanks.
 
 
 --
