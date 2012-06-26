@@ -1,71 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
-	by kanga.kvack.org (Postfix) with SMTP id 631F46B014C
-	for <linux-mm@kvack.org>; Tue, 26 Jun 2012 03:20:31 -0400 (EDT)
-Message-ID: <4FE9621D.2050002@parallels.com>
-Date: Tue, 26 Jun 2012 11:17:49 +0400
+Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
+	by kanga.kvack.org (Postfix) with SMTP id 80A736B014F
+	for <linux-mm@kvack.org>; Tue, 26 Jun 2012 03:24:07 -0400 (EDT)
+Message-ID: <4FE962F2.2050701@parallels.com>
+Date: Tue, 26 Jun 2012 11:21:22 +0400
 From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 00/11] kmem controller for memcg: stripped down version
-References: <1340633728-12785-1-git-send-email-glommer@parallels.com> <20120625162745.eabe4f03.akpm@linux-foundation.org>
-In-Reply-To: <20120625162745.eabe4f03.akpm@linux-foundation.org>
-Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
+Subject: Re: [PATCH 10/11] memcg: allow a memcg with kmem charges to be destructed.
+References: <1340633728-12785-1-git-send-email-glommer@parallels.com> <1340633728-12785-11-git-send-email-glommer@parallels.com> <4FE94FDC.7070105@jp.fujitsu.com>
+In-Reply-To: <4FE94FDC.7070105@jp.fujitsu.com>
+Content-Type: text/plain; charset="ISO-2022-JP"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Frederic Weisbecker <fweisbec@gmail.com>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Lameter <cl@linux.com>, devel@openvz.org, kamezawa.hiroyu@jp.fujitsu.com, Tejun Heo <tj@kernel.org>
+To: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Frederic Weisbecker <fweisbec@gmail.com>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Lameter <cl@linux.com>, devel@openvz.org, Tejun Heo <tj@kernel.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Suleiman Souhlal <suleiman@google.com>
 
-On 06/26/2012 03:27 AM, Andrew Morton wrote:
-> On Mon, 25 Jun 2012 18:15:17 +0400
-> Glauber Costa <glommer@parallels.com> wrote:
->
->> What I am proposing with this series is a stripped down version of the
->> kmem controller for memcg that would allow us to merge significant parts
->> of the infrastructure, while leaving out, for now, the polemic bits about
->> the slab while it is being reworked by Cristoph.
+On 06/26/2012 09:59 AM, Kamezawa Hiroyuki wrote:
+> (2012/06/25 23:15), Glauber Costa wrote:
+>> Because the ultimate goal of the kmem tracking in memcg is to
+>> track slab pages as well, we can't guarantee that we'll always
+>> be able to point a page to a particular process, and migrate
+>> the charges along with it - since in the common case, a page
+>> will contain data belonging to multiple processes.
 >>
->> Me reasoning for that is that after the last change to introduce a gfp
->> flag to mark kernel allocations, it became clear to me that tracking other
->> resources like the stack would then follow extremely naturaly. I figured
->> that at some point we'd have to solve the issue pointed by David, and avoid
->> testing the Slab flag in the page allocator, since it would soon be made
->> more generic. I do that by having the callers to explicit mark it.
+>> Because of that, when we destroy a memcg, we only make sure
+>> the destruction will succeed by discounting the kmem charges
+>> from the user charges when we try to empty the cgroup.
 >>
->> So to demonstrate how it would work, I am introducing a stack tracker here,
->> that is already a functionality per-se: it successfully stops fork bombs to
->> happen. (Sorry for doing all your work, Frederic =p ). Note that after all
->> memcg infrastructure is deployed, it becomes very easy to track anything.
->> The last patch of this series is extremely simple.
+>> Signed-off-by: Glauber Costa <glommer@parallels.com>
+>> CC: Christoph Lameter <cl@linux.com>
+>> CC: Pekka Enberg <penberg@cs.helsinki.fi>
+>> CC: Michal Hocko <mhocko@suse.cz>
+>> CC: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+>> CC: Johannes Weiner <hannes@cmpxchg.org>
+>> CC: Suleiman Souhlal <suleiman@google.com>
+>> ---
+>>    mm/memcontrol.c |   10 +++++++++-
+>>    1 file changed, 9 insertions(+), 1 deletion(-)
 >>
->> The infrastructure is exactly the same we had in memcg, but stripped down
->> of the slab parts. And because what we have after those patches is a feature
->> per-se, I think it could be considered for merging.
->
-> hm.  None of this new code makes the kernel smaller, faster, easier to
-> understand or more fun to read!
-Not sure if this is a general comment - in case I agree - or if targeted 
-to my statement that this is "stripped down". If so, it is of course 
-smaller relative to my previous slab accounting patches.
+>> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+>> index a6a440b..bb9b6fe 100644
+>> --- a/mm/memcontrol.c
+>> +++ b/mm/memcontrol.c
+>> @@ -598,6 +598,11 @@ static void disarm_kmem_keys(struct mem_cgroup *memcg)
+>>    {
+>>    	if (test_bit(KMEM_ACCOUNTED_THIS, &memcg->kmem_accounted))
+>>    		static_key_slow_dec(&mem_cgroup_kmem_enabled_key);
+>> +	/*
+>> +	 * This check can't live in kmem destruction function,
+>> +	 * since the charges will outlive the cgroup
+>> +	 */
+>> +	BUG_ON(res_counter_read_u64(&memcg->kmem, RES_USAGE) != 0);
+>>    }
+>>    #else
+>>    static void disarm_kmem_keys(struct mem_cgroup *memcg)
+>> @@ -3838,6 +3843,7 @@ static int mem_cgroup_force_empty(struct mem_cgroup *memcg, bool free_all)
+>>    	int node, zid, shrink;
+>>    	int nr_retries = MEM_CGROUP_RECLAIM_RETRIES;
+>>    	struct cgroup *cgrp = memcg->css.cgroup;
+>> +	u64 usage;
+>>    
+>>    	css_get(&memcg->css);
+>>    
+>> @@ -3877,8 +3883,10 @@ move_account:
+>>    		if (ret == -ENOMEM)
+>>    			goto try_to_free;
+>>    		cond_resched();
+>> +		usage = res_counter_read_u64(&memcg->res, RES_USAGE) -
+>> +			res_counter_read_u64(&memcg->kmem, RES_USAGE);
+>>    	/* "ret" should also be checked to ensure all lists are empty. */
+>> -	} while (res_counter_read_u64(&memcg->res, RES_USAGE) > 0 || ret);
+>> +	} while (usage > 0 || ret);
+>>    out:
+>>    	css_put(&memcg->css);
+>>    	return ret;
+>>
+> Hm....maybe work enough. Could you add more comments on the code ?
+> 
+> Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> 
 
-The infrastructure is largely common, but I realized that a future user,
-tracking the stack, would be a lot simpler and could be done first.
-
-> Presumably we're getting some benefit for all the downside.  When the
-> time is appropriate, please do put some time into explaining that
-> benefit, so that others can agree that it is a worthwhile tradeoff.
->
-
-Well, for one thing, we stop fork bombs for processes inside cgroups.
-I think the justification for that was already given when you asked 
-people about reasoning for merging Frederic's process tracking cgroup.
-
-Just that wasn't merged because people were largely unhappy with the 
-form it took. I can't speak for everybody here, but AFAIK, tracking the 
-stack through the memory it used, therefore using my proposed kmem 
-controller, was an idea that good quite a bit of traction with the 
-memcg/memory people. So here you have something that people already 
-asked a lot for, in a shape and interface that seem to be acceptable.
+I always can.
 
 
 --
