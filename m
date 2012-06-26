@@ -1,72 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
-	by kanga.kvack.org (Postfix) with SMTP id 29A406B005A
-	for <linux-mm@kvack.org>; Tue, 26 Jun 2012 13:55:18 -0400 (EDT)
-Received: by pbbrp2 with SMTP id rp2so474995pbb.14
-        for <linux-mm@kvack.org>; Tue, 26 Jun 2012 10:55:17 -0700 (PDT)
-Date: Tue, 26 Jun 2012 10:55:13 -0700
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH] fix bad behavior in use_hierarchy file
-Message-ID: <20120626175513.GO3869@google.com>
-References: <1340616061-1955-1-git-send-email-glommer@parallels.com>
- <20120625204908.GL3869@google.com>
- <20120626075653.GD6713@tiehlicka.suse.cz>
+Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
+	by kanga.kvack.org (Postfix) with SMTP id D09016B004D
+	for <linux-mm@kvack.org>; Tue, 26 Jun 2012 13:57:08 -0400 (EDT)
+Date: Tue, 26 Jun 2012 19:57:05 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH 1/5] mm/sparse: check size of struct mm_section
+Message-ID: <20120626175704.GA17803@tiehlicka.suse.cz>
+References: <1340466776-4976-1-git-send-email-shangw@linux.vnet.ibm.com>
+ <20120625160322.GE19810@tiehlicka.suse.cz>
+ <20120625163522.GA5476@shangw>
+ <20120626073913.GC6713@tiehlicka.suse.cz>
+ <20120626074854.GA29491@shangw>
+ <20120626080628.GE6713@tiehlicka.suse.cz>
+ <20120626082439.GA1617@shangw>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20120626075653.GD6713@tiehlicka.suse.cz>
+In-Reply-To: <20120626082439.GA1617@shangw>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Glauber Costa <glommer@parallels.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, devel@openvz.org, Dhaval Giani <dhaval.giani@gmail.com>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Ying Han <yinghan@google.com>, gthelen@google.com
+To: Gavin Shan <shangw@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, rientjes@google.com, hannes@cmpxchg.org, akpm@linux-foundation.org
 
-Hello,
-
-On Tue, Jun 26, 2012 at 09:56:53AM +0200, Michal Hocko wrote:
-> [Adding Ying to CC - they are using hierarchies AFAIU in their workloads]
-
-Ooh, I'm they. :) Asking around.... okay, so google does use
-.use_hierarchy but it's a tree-wide thing and would be perfectly happy
-with a global switch.
-
-> On Mon 25-06-12 13:49:08, Tejun Heo wrote:
-> [...]
-> > A bit of delta but is there any chance we can either deprecate
-> > .use_hierarhcy or at least make it global toggle instead of subtree
-> > thing?  
+On Tue 26-06-12 16:24:39, Gavin Shan wrote:
+> >> >> >> In order to fully utilize the memory chunk allocated from bootmem
+> >> >> >> allocator, it'd better to assure memory sector descriptor won't run
+> >> >> >> across the boundary (PAGE_SIZE).
+> >> >
+> >> >OK, I misread this part of the changelog changelog.
+> >> >
+> >> 
+> >> I should have clarified that more clear :-)
+> >> 
+> >> >> >
+> >> >> >Why? The memory is continuous, right?
+> >> >> 
+> >> >> Yes, the memory is conginous and the capacity of specific entry
+> >> >> in mem_section[NR_SECTION_ROOTS] has been defined as follows:
+> >> >> 
+> >> >> 
+> >> >> #define SECTIONS_PER_ROOT       (PAGE_SIZE / sizeof (struct mem_section))
+> >> >> 
+> >> >> Also, the memory is prone to be allocated from bootmem by function
+> >> >> alloc_bootmem_node(), which has PAGE_SIZE alignment. So I think it's
+> >> >> reasonable to introduce the extra check here from my personal view :-)
+> >> >
+> >> >No it is not necessary because we will never cross the page boundary
+> >> >because (SECTIONS_PER_ROOT uses an int division)
+> >> 
+> >> Current situation is that we don't cross the page foundary, but somebody
+> >> else might change the data struct (struct mem_section) in future. 
+> >
+> >No, this is safe even if the structure size changes (unless it is bigger
+> >than PAGE_SIZE).
 > 
-> So what you are proposing is to have all subtrees of the root either
-> hierarchical or not, right?
+> Yeah, but it can't fully utilize the allocated memory chunk if the size of
+> the struct isn't aligned well.
 
-Yeap.  Just make it a global switch.  Probably determined on mount
-time.
+And you think that this is justification is sufficient to fail
+compilation? I don't think so...
 
-> > This seems needlessly complicated. :(
 > 
-> Toggle wouldn't help much I am afraid. We would still have to
-> distinguish (non)hierarchical cases. And I am not sure we can make
-> everything hierarchical easily. 
-
-I'm kinda confused by this paragraph.  What do you mean by "wouldn't
-help much"?  Do you mean in terms of complexity?
-
-> Most users (from my experience) ignored use_hierarchy for some reasons
-> and the end results might be really unexpected for them if they used
-> deeper subtrees (which might be needed due to combination with other
-> controller(s)).
-
-Oh yeah, we can't change the default behavior like that.  The
-transition should be a lot more gradual.  Even if making
-.use_hierarchy doesn't help much in terms of reducing complexity right
-now, it would at least allow us to weed out and prevent wacky woo-hoo
-mom-look-at-what-I-can-do configurations which will be a lot more
-difficult to deal with for both us and such users (if we end up
-forcing hierarchy).
-
-Thanks.
+> Let me drop it in next revision :-)
+> 
+> Thanks,
+> Gavin
 
 -- 
-tejun
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
