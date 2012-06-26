@@ -1,89 +1,136 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx162.postini.com [74.125.245.162])
-	by kanga.kvack.org (Postfix) with SMTP id 566D86B0145
+Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
+	by kanga.kvack.org (Postfix) with SMTP id 4A4956B0144
 	for <linux-mm@kvack.org>; Tue, 26 Jun 2012 03:15:04 -0400 (EDT)
-Message-ID: <4FE960D6.4040409@parallels.com>
-Date: Tue, 26 Jun 2012 11:12:22 +0400
-From: Glauber Costa <glommer@parallels.com>
+Received: from /spool/local
+	by e36.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <shangw@linux.vnet.ibm.com>;
+	Tue, 26 Jun 2012 01:15:03 -0600
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by d03dlp03.boulder.ibm.com (Postfix) with ESMTP id 4276819D804A
+	for <linux-mm@kvack.org>; Tue, 26 Jun 2012 07:14:37 +0000 (WET)
+Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
+	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q5Q7E9lI174830
+	for <linux-mm@kvack.org>; Tue, 26 Jun 2012 01:14:24 -0600
+Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av03.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q5Q7DrU2017930
+	for <linux-mm@kvack.org>; Tue, 26 Jun 2012 01:13:53 -0600
+Date: Tue, 26 Jun 2012 15:13:50 +0800
+From: Gavin Shan <shangw@linux.vnet.ibm.com>
+Subject: Re: [PATCH 2/5] mm/sparse: optimize sparse_index_alloc
+Message-ID: <20120626071350.GA22907@shangw>
+Reply-To: Gavin Shan <shangw@linux.vnet.ibm.com>
+References: <1340466776-4976-1-git-send-email-shangw@linux.vnet.ibm.com>
+ <1340466776-4976-2-git-send-email-shangw@linux.vnet.ibm.com>
+ <20120625153035.GB19810@tiehlicka.suse.cz>
+ <20120626060735.GA9483@shangw>
+ <20120626070421.GA6713@tiehlicka.suse.cz>
 MIME-Version: 1.0
-Subject: Re: [PATCH 02/11] memcg: Reclaim when more than one page needed.
-References: <1340633728-12785-1-git-send-email-glommer@parallels.com> <1340633728-12785-3-git-send-email-glommer@parallels.com> <alpine.DEB.2.00.1206252106430.26640@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.00.1206252106430.26640@chino.kir.corp.google.com>
-Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120626070421.GA6713@tiehlicka.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Frederic Weisbecker <fweisbec@gmail.com>, Pekka Enberg <penberg@kernel.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Lameter <cl@linux.com>, devel@openvz.org, kamezawa.hiroyu@jp.fujitsu.com, Tejun Heo <tj@kernel.org>, Suleiman Souhlal <suleiman@google.com>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Gavin Shan <shangw@linux.vnet.ibm.com>, linux-mm@kvack.org, rientjes@google.com, hannes@cmpxchg.org, akpm@linux-foundation.org
 
-
+On Tue, Jun 26, 2012 at 09:04:21AM +0200, Michal Hocko wrote:
+>On Tue 26-06-12 14:07:35, Gavin Shan wrote:
+>> >> With CONFIG_SPARSEMEM_EXTREME, the two level of memory section
+>> >> descriptors are allocated from slab or bootmem. When allocating
+>> >> from slab, let slab allocator to clear the memory chunk. However,
+>> >> the memory chunk from bootmem allocator, we have to clear that
+>> >> explicitly.
+>> >
+>> >I am sorry but I do not see how this optimize the current code. What is
+>> >the difference between slab doing memset and doing it explicitly for all
+>> >cases?
+>> >
+>> 
+>> Yeah, I do agree it won't do much optimization here. However, I'm wandering
+>> if I can remove the whole peice of code doing memset(setion, 0, array_size)
+>> since it seems that alloc_bootmem_node() also clears the allocated memory
+>> chunk :-)
 >
->> + * retries
->> + */
->> +#define NR_PAGES_TO_RETRY 2
->> +
+>Yes, alloc_bootem_node clears the memory (strange, I thought it doesn't
+>do that), so the memset is really not necessary after s/kmalloc/kzalloc/.
 >
-> Should be 1 << PAGE_ALLOC_COSTLY_ORDER?  Where does this number come from?
-> The changelog doesn't specify.
 
-Hocko complained about that, and I changed. Where the number comes from, 
-is stated in the comments: it is a number small enough to have high 
-changes of had been freed by the previous reclaim, and yet around the 
-number of pages of a kernel allocation.
+Thanks for the confirm, Michal. Let me remove it in next revision :-)
 
-Of course there are allocations for nr_pages > 2. But 2 will already 
-service the stack most of the time, and most of the slab caches.
+Thanks,
+Gavin
 
->>   static int mem_cgroup_do_charge(struct mem_cgroup *memcg, gfp_t gfp_mask,
->> -				unsigned int nr_pages, bool oom_check)
->> +				unsigned int nr_pages, unsigned int min_pages,
->> +				bool oom_check)
->>   {
->>   	unsigned long csize = nr_pages * PAGE_SIZE;
->>   	struct mem_cgroup *mem_over_limit;
->> @@ -2182,18 +2190,18 @@ static int mem_cgroup_do_charge(struct mem_cgroup *memcg, gfp_t gfp_mask,
->>   	} else
->>   		mem_over_limit = mem_cgroup_from_res_counter(fail_res, res);
->>   	/*
->> -	 * nr_pages can be either a huge page (HPAGE_PMD_NR), a batch
->> -	 * of regular pages (CHARGE_BATCH), or a single regular page (1).
->> -	 *
->>   	 * Never reclaim on behalf of optional batching, retry with a
->>   	 * single page instead.
->>   	 */
->> -	if (nr_pages == CHARGE_BATCH)
->> +	if (nr_pages > min_pages)
->>   		return CHARGE_RETRY;
->>
->>   	if (!(gfp_mask & __GFP_WAIT))
->>   		return CHARGE_WOULDBLOCK;
->>
->> +	if (gfp_mask & __GFP_NORETRY)
->> +		return CHARGE_NOMEM;
->> +
->>   	ret = mem_cgroup_reclaim(mem_over_limit, gfp_mask, flags);
->>   	if (mem_cgroup_margin(mem_over_limit) >= nr_pages)
->>   		return CHARGE_RETRY;
->> @@ -2206,7 +2214,7 @@ static int mem_cgroup_do_charge(struct mem_cgroup *memcg, gfp_t gfp_mask,
->>   	 * unlikely to succeed so close to the limit, and we fall back
->>   	 * to regular pages anyway in case of failure.
->>   	 */
->> -	if (nr_pages == 1 && ret)
->> +	if (nr_pages <= NR_PAGES_TO_RETRY && ret)
->>   		return CHARGE_RETRY;
->>
->>   	/*
->> @@ -2341,7 +2349,8 @@ again:
->>   			nr_oom_retries = MEM_CGROUP_RECLAIM_RETRIES;
->>   		}
->>
->> -		ret = mem_cgroup_do_charge(memcg, gfp_mask, batch, oom_check);
->> +		ret = mem_cgroup_do_charge(memcg, gfp_mask, batch, nr_pages,
->> +		    oom_check);
->>   		switch (ret) {
->>   		case CHARGE_OK:
->>   			break;
-
+>> 
+>> Please correct me if I'm wrong about alloc_bootmem_node() :-)
+>> 
+>> Thanks,
+>> Gavin
+>> 
+>> >> 
+>> >> Signed-off-by: Gavin Shan <shangw@linux.vnet.ibm.com>
+>> >> ---
+>> >>  mm/sparse.c |   12 ++++++------
+>> >>  1 file changed, 6 insertions(+), 6 deletions(-)
+>> >> 
+>> >> diff --git a/mm/sparse.c b/mm/sparse.c
+>> >> index afd0998..ce50c8b 100644
+>> >> --- a/mm/sparse.c
+>> >> +++ b/mm/sparse.c
+>> >> @@ -74,14 +74,14 @@ static struct mem_section noinline __init_refok *sparse_index_alloc(int nid)
+>> >>  
+>> >>  	if (slab_is_available()) {
+>> >>  		if (node_state(nid, N_HIGH_MEMORY))
+>> >> -			section = kmalloc_node(array_size, GFP_KERNEL, nid);
+>> >> +			section = kzalloc_node(array_size, GFP_KERNEL, nid);
+>> >>  		else
+>> >> -			section = kmalloc(array_size, GFP_KERNEL);
+>> >> -	} else
+>> >> +			section = kzalloc(array_size, GFP_KERNEL);
+>> >> +	} else {
+>> >>  		section = alloc_bootmem_node(NODE_DATA(nid), array_size);
+>> >> -
+>> >> -	if (section)
+>> >> -		memset(section, 0, array_size);
+>> >> +		if (section)
+>> >> +			memset(section, 0, array_size);
+>> >> +	}
+>> >>  
+>> >>  	return section;
+>> >>  }
+>> >> -- 
+>> >> 1.7.9.5
+>> >> 
+>> >> --
+>> >> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>> >> the body to majordomo@kvack.org.  For more info on Linux MM,
+>> >> see: http://www.linux-mm.org/ .
+>> >> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>> >
+>> >-- 
+>> >Michal Hocko
+>> >SUSE Labs
+>> >SUSE LINUX s.r.o.
+>> >Lihovarska 1060/12
+>> >190 00 Praha 9    
+>> >Czech Republic
+>> >
+>> >--
+>> >To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>> >the body to majordomo@kvack.org.  For more info on Linux MM,
+>> >see: http://www.linux-mm.org/ .
+>> >Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>> >
+>> 
+>
+>-- 
+>Michal Hocko
+>SUSE Labs
+>SUSE LINUX s.r.o.
+>Lihovarska 1060/12
+>190 00 Praha 9    
+>Czech Republic
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
