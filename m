@@ -1,40 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
-	by kanga.kvack.org (Postfix) with SMTP id 40D206B005A
-	for <linux-mm@kvack.org>; Tue, 26 Jun 2012 11:37:29 -0400 (EDT)
-Date: Tue, 26 Jun 2012 17:37:19 +0200
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH] memcg: first step towards hierarchical controller
-Message-ID: <20120626153719.GC27816@cmpxchg.org>
-References: <1340717428-9009-1-git-send-email-glommer@parallels.com>
- <20120626141127.GA27816@cmpxchg.org>
- <4FE9D5C9.805@parallels.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4FE9D5C9.805@parallels.com>
+Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
+	by kanga.kvack.org (Postfix) with SMTP id F0EB16B005C
+	for <linux-mm@kvack.org>; Tue, 26 Jun 2012 11:50:02 -0400 (EDT)
+From: Glauber Costa <glommer@parallels.com>
+Subject: [PATCH 0/2] fix and deprecate use_hierarchy file
+Date: Tue, 26 Jun 2012 19:47:12 +0400
+Message-Id: <1340725634-9017-1-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, Peter Zijlstra <a.p.zijlstra@chello.nl>, Michal Hocko <mhocko@suse.cz>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Tejun Heo <tj@kernel.org>
+To: cgroups@vger.kernel.org
+Cc: linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>
 
-On Tue, Jun 26, 2012 at 07:31:21PM +0400, Glauber Costa wrote:
-> On 06/26/2012 06:11 PM, Johannes Weiner wrote:
-> >I find the warning message a bit terse.  Maybe include something like
-> >"restructure the cgroup directory structure to match your accounting
-> >requirements or complain to (linux-mm, cgroups list etc.)  if not
-> >possible"
-> 
-> How about:
-> 
-> WARN_ONCE(!parent_memcg && memcg->use_hierarchy,
->    "Non-hierarchical memcg is considered for deprecation\n"
->    "Please consider reorganizing your tree to work with hierarchical
-> accounting\n"
->    "If you have any reason not to, let us know at
-> cgroups@vger.kernel.org\n");
+Hi,
 
-Sounds good to me, thanks!
+I am just bundling my last two patches for use_hierarchy together,
+so it gets easier to track and apply.
+
+After these patches, use_hierarchy will default to true, and will
+need to be disabled at the root level to fallback to non-hierarchical.
+
+Still need, of course, to hear Kame's opinion on this.
+
+Thanks
+
+Glauber Costa (2):
+  fix bad behavior in use_hierarchy file
+  memcg: first step towards hierarchical controller
+
+ mm/memcontrol.c |   11 +++++++++++
+ 1 file changed, 11 insertions(+)
+
+-- 
+1.7.10.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
