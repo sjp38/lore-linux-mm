@@ -1,41 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
-	by kanga.kvack.org (Postfix) with SMTP id CAA416B004D
-	for <linux-mm@kvack.org>; Tue, 26 Jun 2012 16:34:02 -0400 (EDT)
-Date: Tue, 26 Jun 2012 22:34:00 +0200
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [PATCH 1/4] mm: introduce compaction and migration for virtio ballooned pages
-Message-ID: <20120626203400.GA11413@one.firstfloor.org>
-References: <cover.1340665087.git.aquini@redhat.com> <7f83427b3894af7969c67acc0f27ab5aa68b4279.1340665087.git.aquini@redhat.com> <20120626101729.GF8103@csn.ul.ie> <20120626165258.GY11413@one.firstfloor.org> <20120626201513.GJ8103@csn.ul.ie>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120626201513.GJ8103@csn.ul.ie>
+Received: from psmtp.com (na3sys010amx178.postini.com [74.125.245.178])
+	by kanga.kvack.org (Postfix) with SMTP id 45F2D6B004D
+	for <linux-mm@kvack.org>; Tue, 26 Jun 2012 16:38:15 -0400 (EDT)
+Received: by pbbrp2 with SMTP id rp2so685797pbb.14
+        for <linux-mm@kvack.org>; Tue, 26 Jun 2012 13:38:14 -0700 (PDT)
+Date: Tue, 26 Jun 2012 13:38:12 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [rfc][patch 3/3] mm, memcg: introduce own oom handler to iterate
+ only over its own threads
+In-Reply-To: <4FE94968.6010500@jp.fujitsu.com>
+Message-ID: <alpine.DEB.2.00.1206261323260.8673@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.1206251846020.24838@chino.kir.corp.google.com> <alpine.DEB.2.00.1206251847180.24838@chino.kir.corp.google.com> <4FE94968.6010500@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Andi Kleen <andi@firstfloor.org>, Rafael Aquini <aquini@redhat.com>, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, "Michael S. Tsirkin" <mst@redhat.com>, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org
+To: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, cgroups@vger.kernel.org
 
-> How is the compiler meant to optimise away "cond" if it's a function
-> call?
+On Tue, 26 Jun 2012, Kamezawa Hiroyuki wrote:
 
-Inlines can be optimized away.  These tests are usually inlines.
+> > This still requires tasklist_lock for the tasklist dump, iterating
+> > children of the selected process, and killing all other threads on the
+> > system sharing the same memory as the selected victim.  So while this
+> > isn't a complete solution to tasklist_lock starvation, it significantly
+> > reduces the amount of time that it is held.
+> > 
+> > Signed-off-by: David Rientjes <rientjes@google.com>
+> 
+> This seems good. Thank you!
+> 
+> Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> 
 
-> What did I miss? If nothing, then I will revert this particular change
-> and Rafael will need to be sure his patch is not using VM_BUG_ON to call
-> a function with side-effects.
+Thanks for the ack!
 
-Do you have an example where the code is actually different,
-or are you just speculating?
+It's still not a perfect solution for the above reason.  We need 
+tasklist_lock for oom_kill_process() for a few reasons:
 
-FWIW for my config both generates the same code:
+ (1) if /proc/sys/vm/oom_dump_tasks is enabled, which is the default, 
+     to iterate the tasklist
 
-size vmlinux-andi-vmbug vmlinux-vmbug-nothing 
-   text    data     bss     dec     hex filename
-11809704        1457352 1159168 14426224         dc2070 vmlinux-andi-vmbug
-11809704        1457352 1159168 14426224         dc2070 vmlinux-vmbug-nothing
+ (2) to iterate the selected process's children, and
 
--Andi
+ (3) to iterate the tasklist to kill all other processes sharing the 
+     same memory.
+
+I'm hoping we can avoid taking tasklist_lock entirely for memcg ooms to 
+avoid the starvation problem at all.  We definitely still need to do (3) 
+to avoid mm->mmap_sem deadlock if another thread sharing the same memory 
+is holding the semaphore trying to allocate memory and waiting for current 
+to exit, which needs the semaphore itself.  That can be done with 
+rcu_read_lock(), however, and doesn't require tasklist_lock.
+
+(1) can be done with rcu_read_lock() as well but I'm wondering if there 
+would be a significant advantage doing this by a cgroup iterator as well.  
+It may not be worth it just for the sanity of the code.
+
+We can do (2) if we change to list_for_each_entry_rcu().
+
+So I think I'll add another patch on top of this series to split up 
+tasklist_lock handling even for the global oom killer and take references 
+on task_struct like it is done in this patchset which should make avoiding 
+taking tasklist_lock at all for memcg ooms much easier.
+
+Comments?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
