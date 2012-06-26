@@ -1,78 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
-	by kanga.kvack.org (Postfix) with SMTP id D09016B004D
-	for <linux-mm@kvack.org>; Tue, 26 Jun 2012 13:57:08 -0400 (EDT)
-Date: Tue, 26 Jun 2012 19:57:05 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH 1/5] mm/sparse: check size of struct mm_section
-Message-ID: <20120626175704.GA17803@tiehlicka.suse.cz>
-References: <1340466776-4976-1-git-send-email-shangw@linux.vnet.ibm.com>
- <20120625160322.GE19810@tiehlicka.suse.cz>
- <20120625163522.GA5476@shangw>
- <20120626073913.GC6713@tiehlicka.suse.cz>
- <20120626074854.GA29491@shangw>
- <20120626080628.GE6713@tiehlicka.suse.cz>
- <20120626082439.GA1617@shangw>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120626082439.GA1617@shangw>
+Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
+	by kanga.kvack.org (Postfix) with SMTP id EF81C6B004D
+	for <linux-mm@kvack.org>; Tue, 26 Jun 2012 14:00:41 -0400 (EDT)
+Date: Tue, 26 Jun 2012 11:01:42 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 06/11] memcg: kmem controller infrastructure
+Message-Id: <20120626110142.b7cf6d7c.akpm@linux-foundation.org>
+In-Reply-To: <4FE9CEBB.80108@parallels.com>
+References: <1340633728-12785-1-git-send-email-glommer@parallels.com>
+	<1340633728-12785-7-git-send-email-glommer@parallels.com>
+	<20120625161720.ae13ae90.akpm@linux-foundation.org>
+	<4FE9CEBB.80108@parallels.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Gavin Shan <shangw@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org, rientjes@google.com, hannes@cmpxchg.org, akpm@linux-foundation.org
+To: Glauber Costa <glommer@parallels.com>
+Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Frederic Weisbecker <fweisbec@gmail.com>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Lameter <cl@linux.com>, devel@openvz.org, kamezawa.hiroyu@jp.fujitsu.com, Tejun Heo <tj@kernel.org>, Pekka Enberg <penberg@cs.helsinki.fi>
 
-On Tue 26-06-12 16:24:39, Gavin Shan wrote:
-> >> >> >> In order to fully utilize the memory chunk allocated from bootmem
-> >> >> >> allocator, it'd better to assure memory sector descriptor won't run
-> >> >> >> across the boundary (PAGE_SIZE).
+On Tue, 26 Jun 2012 19:01:15 +0400 Glauber Costa <glommer@parallels.com> wrote:
+
+> On 06/26/2012 03:17 AM, Andrew Morton wrote:
+> >> +	memcg_uncharge_kmem(memcg, size);
+> >> >+	mem_cgroup_put(memcg);
+> >> >+}
+> >> >+EXPORT_SYMBOL(__mem_cgroup_free_kmem_page);
+> >> >  #endif /* CONFIG_CGROUP_MEM_RES_CTLR_KMEM */
 > >> >
-> >> >OK, I misread this part of the changelog changelog.
+> >> >  #if defined(CONFIG_INET) && defined(CONFIG_CGROUP_MEM_RES_CTLR_KMEM)
+> >> >@@ -5645,3 +5751,69 @@ static int __init enable_swap_account(char *s)
+> >> >  __setup("swapaccount=", enable_swap_account);
 > >> >
-> >> 
-> >> I should have clarified that more clear :-)
-> >> 
-> >> >> >
-> >> >> >Why? The memory is continuous, right?
-> >> >> 
-> >> >> Yes, the memory is conginous and the capacity of specific entry
-> >> >> in mem_section[NR_SECTION_ROOTS] has been defined as follows:
-> >> >> 
-> >> >> 
-> >> >> #define SECTIONS_PER_ROOT       (PAGE_SIZE / sizeof (struct mem_section))
-> >> >> 
-> >> >> Also, the memory is prone to be allocated from bootmem by function
-> >> >> alloc_bootmem_node(), which has PAGE_SIZE alignment. So I think it's
-> >> >> reasonable to introduce the extra check here from my personal view :-)
-> >> >
-> >> >No it is not necessary because we will never cross the page boundary
-> >> >because (SECTIONS_PER_ROOT uses an int division)
-> >> 
-> >> Current situation is that we don't cross the page foundary, but somebody
-> >> else might change the data struct (struct mem_section) in future. 
+> >> >  #endif
+> >> >+
+> >> >+#ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM
+> > gargh.  CONFIG_MEMCG_KMEM, please!
 > >
-> >No, this is safe even if the structure size changes (unless it is bigger
-> >than PAGE_SIZE).
 > 
-> Yeah, but it can't fully utilize the allocated memory chunk if the size of
-> the struct isn't aligned well.
-
-And you think that this is justification is sufficient to fail
-compilation? I don't think so...
-
+> Here too. I like it as much as you do.
 > 
-> Let me drop it in next revision :-)
-> 
-> Thanks,
-> Gavin
+> But that is consistent with the rest of the file, and I'd rather have
+> it this way.
 
--- 
-Michal Hocko
-SUSE Labs
-SUSE LINUX s.r.o.
-Lihovarska 1060/12
-190 00 Praha 9    
-Czech Republic
+There's not much point in being consistent with something which is so
+unpleasant.  I'm on a little campaign to rename
+CONFIG_CGROUP_MEM_RES_CTLR to CONFIG_MEMCG, only nobody has taken my
+bait yet.  Be first!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
