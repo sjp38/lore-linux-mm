@@ -1,46 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
-	by kanga.kvack.org (Postfix) with SMTP id 972AF6B005A
-	for <linux-mm@kvack.org>; Tue, 26 Jun 2012 19:57:59 -0400 (EDT)
-Received: by vcbfl10 with SMTP id fl10so402502vcb.14
-        for <linux-mm@kvack.org>; Tue, 26 Jun 2012 16:57:58 -0700 (PDT)
-Date: Tue, 26 Jun 2012 19:57:55 -0400
-From: Konrad Rzeszutek Wilk <konrad@darnok.org>
-Subject: Re: [PATCH 1/4] mm: introduce compaction and migration for virtio
- ballooned pages
-Message-ID: <20120626235754.GB14782@localhost.localdomain>
-References: <cover.1340665087.git.aquini@redhat.com>
- <7f83427b3894af7969c67acc0f27ab5aa68b4279.1340665087.git.aquini@redhat.com>
+Received: from psmtp.com (na3sys010amx110.postini.com [74.125.245.110])
+	by kanga.kvack.org (Postfix) with SMTP id 04C4E6B005C
+	for <linux-mm@kvack.org>; Tue, 26 Jun 2012 19:58:16 -0400 (EDT)
+Date: Tue, 26 Jun 2012 19:58:04 -0400
+From: Dave Jones <davej@redhat.com>
+Subject: Re: [linux-pm] [PATCH -v4 6/6] fault-injection: add notifier error
+ injection testing scripts
+Message-ID: <20120626235804.GA7525@redhat.com>
+References: <1340463502-15341-1-git-send-email-akinobu.mita@gmail.com>
+ <1340463502-15341-7-git-send-email-akinobu.mita@gmail.com>
+ <20120626163147.93181e21.akpm@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <7f83427b3894af7969c67acc0f27ab5aa68b4279.1340665087.git.aquini@redhat.com>
+In-Reply-To: <20120626163147.93181e21.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rafael Aquini <aquini@redhat.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, Rusty Russell <rusty@rustcorp.com.au>, "Michael S. Tsirkin" <mst@redhat.com>, Rik van Riel <riel@redhat.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Akinobu Mita <akinobu.mita@gmail.com>, Greg KH <greg@kroah.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Paul Mackerras <paulus@samba.org>, =?iso-8859-1?Q?Am=E9rico?= Wang <xiyou.wangcong@gmail.com>, linux-pm@lists.linux-foundation.org, linuxppc-dev@lists.ozlabs.org
 
-> +#if defined(CONFIG_VIRTIO_BALLOON) || defined(CONFIG_VIRTIO_BALLOON_MODULE)
-> +/*
-> + * Balloon pages special page->mapping.
-> + * users must properly allocate and initiliaze an instance of balloon_mapping,
+On Tue, Jun 26, 2012 at 04:31:47PM -0700, Andrew Morton wrote:
 
-initialize
+ > My overall take on the fault-injection code is that there has been a
+ > disappointing amount of uptake: I don't see many developers using them
+ > for whitebox testing their stuff.  I guess this patchset addresses
+ > that, in a way.
 
-> + * and set it as the page->mapping for balloon enlisted page instances.
-> + *
-> + * address_space_operations necessary methods for ballooned pages:
-> + *   .migratepage    - used to perform balloon's page migration (as is)
-> + *   .invalidatepage - used to isolate a page from balloon's page list
-> + *   .freepage       - used to reinsert an isolated page to balloon's page list
-> + */
-> +struct address_space *balloon_mapping;
-> +EXPORT_SYMBOL(balloon_mapping);
+I added support for make-it-fail to my syscall fuzzer a while ago.
+(if the file exists, the child processes set it before calling the fuzzed syscall).
+I've not had a chance to really play with it, because I find enough problems
+already even without it.
 
-Why don't you call this kvm_balloon_mapping - and when other balloon
-drivers use it, then change it to something more generic. Also at that
-future point the other balloon drivers might do it a bit differently so
-it might be that will be reworked completly.
+	Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
