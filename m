@@ -1,145 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
-	by kanga.kvack.org (Postfix) with SMTP id 490D16B0174
-	for <linux-mm@kvack.org>; Tue, 26 Jun 2012 04:52:59 -0400 (EDT)
-Received: from /spool/local
-	by e28smtp09.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <xiaoguangrong@linux.vnet.ibm.com>;
-	Tue, 26 Jun 2012 14:22:55 +0530
-Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
-	by d28relay03.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q5Q8qr7d7471486
-	for <linux-mm@kvack.org>; Tue, 26 Jun 2012 14:22:53 +0530
-Received: from d28av01.in.ibm.com (loopback [127.0.0.1])
-	by d28av01.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q5QEMRvU010382
-	for <linux-mm@kvack.org>; Tue, 26 Jun 2012 19:52:27 +0530
-Message-ID: <4FE97862.10004@linux.vnet.ibm.com>
-Date: Tue, 26 Jun 2012 16:52:50 +0800
-From: Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
+	by kanga.kvack.org (Postfix) with SMTP id 152536B0176
+	for <linux-mm@kvack.org>; Tue, 26 Jun 2012 04:54:13 -0400 (EDT)
+Received: by pbbrp2 with SMTP id rp2so9606635pbb.14
+        for <linux-mm@kvack.org>; Tue, 26 Jun 2012 01:54:12 -0700 (PDT)
+Date: Tue, 26 Jun 2012 01:54:09 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH 02/11] memcg: Reclaim when more than one page needed.
+In-Reply-To: <4FE960D6.4040409@parallels.com>
+Message-ID: <alpine.DEB.2.00.1206260146010.16020@chino.kir.corp.google.com>
+References: <1340633728-12785-1-git-send-email-glommer@parallels.com> <1340633728-12785-3-git-send-email-glommer@parallels.com> <alpine.DEB.2.00.1206252106430.26640@chino.kir.corp.google.com> <4FE960D6.4040409@parallels.com>
 MIME-Version: 1.0
-Subject: [PATCH v2 9/9] zcache: cleanup the code between tmem_obj_init and
- tmem_obj_find
-References: <4FE97792.9020807@linux.vnet.ibm.com>
-In-Reply-To: <4FE97792.9020807@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Konrad Wilk <konrad.wilk@oracle.com>, Nitin Gupta <ngupta@vflare.org>, linux-mm@kvack.org
+To: Glauber Costa <glommer@parallels.com>
+Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Frederic Weisbecker <fweisbec@gmail.com>, Pekka Enberg <penberg@kernel.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Lameter <cl@linux.com>, devel@openvz.org, kamezawa.hiroyu@jp.fujitsu.com, Tejun Heo <tj@kernel.org>, Suleiman Souhlal <suleiman@google.com>
 
-tmem_obj_find and insertion tmem-obj have the some logic, we can integrate
-the code
+On Tue, 26 Jun 2012, Glauber Costa wrote:
 
-Signed-off-by: Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>
----
- drivers/staging/zcache/tmem.c |   63 +++++++++++++++++++++-------------------
- 1 files changed, 33 insertions(+), 30 deletions(-)
+> > > + * retries
+> > > + */
+> > > +#define NR_PAGES_TO_RETRY 2
+> > > +
+> > 
+> > Should be 1 << PAGE_ALLOC_COSTLY_ORDER?  Where does this number come from?
+> > The changelog doesn't specify.
+> 
+> Hocko complained about that, and I changed. Where the number comes from, is
+> stated in the comments: it is a number small enough to have high changes of
+> had been freed by the previous reclaim, and yet around the number of pages of
+> a kernel allocation.
+> 
 
-diff --git a/drivers/staging/zcache/tmem.c b/drivers/staging/zcache/tmem.c
-index 1ca66ea..eaa9021 100644
---- a/drivers/staging/zcache/tmem.c
-+++ b/drivers/staging/zcache/tmem.c
-@@ -72,33 +72,49 @@ void tmem_register_pamops(struct tmem_pamops *m)
-  * the hashbucket lock must be held.
-  */
+PAGE_ALLOC_COSTLY_ORDER _is_ the threshold used to determine where reclaim 
+and compaction is deemed to be too costly to continuously retry, I'm not 
+sure why this is any different?
 
--/* searches for object==oid in pool, returns locked object if found */
--static struct tmem_obj *tmem_obj_find(struct tmem_hashbucket *hb,
--					struct tmem_oid *oidp)
-+static struct tmem_obj
-+*__tmem_obj_find(struct tmem_hashbucket*hb, struct tmem_oid *oidp,
-+		 struct rb_node **parent, struct rb_node ***link)
- {
--	struct rb_node *rbnode;
--	struct tmem_obj *obj;
--
--	rbnode = hb->obj_rb_root.rb_node;
--	while (rbnode) {
--		BUG_ON(RB_EMPTY_NODE(rbnode));
--		obj = rb_entry(rbnode, struct tmem_obj, rb_tree_node);
-+	struct rb_node *_parent = NULL, **rbnode;
-+	struct tmem_obj *obj = NULL;
-+
-+	rbnode = &hb->obj_rb_root.rb_node;
-+	while (*rbnode) {
-+		BUG_ON(RB_EMPTY_NODE(*rbnode));
-+		_parent = *rbnode;
-+		obj = rb_entry(*rbnode, struct tmem_obj,
-+			       rb_tree_node);
- 		switch (tmem_oid_compare(oidp, &obj->oid)) {
- 		case 0: /* equal */
- 			goto out;
- 		case -1:
--			rbnode = rbnode->rb_left;
-+			rbnode = &(*rbnode)->rb_left;
- 			break;
- 		case 1:
--			rbnode = rbnode->rb_right;
-+			rbnode = &(*rbnode)->rb_right;
- 			break;
- 		}
- 	}
-+
-+	if (parent)
-+		*parent = _parent;
-+	if (link)
-+		*link = rbnode;
-+
- 	obj = NULL;
- out:
- 	return obj;
- }
+And this is certainly not "around the number of pages of a kernel 
+allocation", that depends very heavily on the slab allocator being used; 
+slub very often uses order-2 and order-3 page allocations as the default 
+settings (it is capped at, you guessed it, PAGE_ALLOC_COSTLY_ORDER 
+internally by default) and can be significantly increased on the command 
+line.
 
-+
-+/* searches for object==oid in pool, returns locked object if found */
-+static struct tmem_obj *tmem_obj_find(struct tmem_hashbucket *hb,
-+					struct tmem_oid *oidp)
-+{
-+	return __tmem_obj_find(hb, oidp, NULL, NULL);
-+}
-+
- static void tmem_pampd_destroy_all_in_obj(struct tmem_obj *);
+> Of course there are allocations for nr_pages > 2. But 2 will already service
+> the stack most of the time, and most of the slab caches.
+> 
 
- /* free an object that has no more pampds in it */
-@@ -131,8 +147,7 @@ static void tmem_obj_init(struct tmem_obj *obj, struct tmem_hashbucket *hb,
- 					struct tmem_oid *oidp)
- {
- 	struct rb_root *root = &hb->obj_rb_root;
--	struct rb_node **new = &(root->rb_node), *parent = NULL;
--	struct tmem_obj *this;
-+	struct rb_node **new = NULL, *parent = NULL;
-
- 	BUG_ON(pool == NULL);
- 	atomic_inc(&pool->obj_count);
-@@ -144,22 +159,10 @@ static void tmem_obj_init(struct tmem_obj *obj, struct tmem_hashbucket *hb,
- 	obj->pampd_count = 0;
- 	(*tmem_pamops.new_obj)(obj);
- 	SET_SENTINEL(obj, OBJ);
--	while (*new) {
--		BUG_ON(RB_EMPTY_NODE(*new));
--		this = rb_entry(*new, struct tmem_obj, rb_tree_node);
--		parent = *new;
--		switch (tmem_oid_compare(oidp, &this->oid)) {
--		case 0:
--			BUG(); /* already present; should never happen! */
--			break;
--		case -1:
--			new = &(*new)->rb_left;
--			break;
--		case 1:
--			new = &(*new)->rb_right;
--			break;
--		}
--	}
-+
-+	if (__tmem_obj_find(hb, oidp, &parent, &new))
-+		BUG();
-+
- 	rb_link_node(&obj->rb_tree_node, parent, new);
- 	rb_insert_color(&obj->rb_tree_node, root);
- }
--- 
-1.7.7.6
+Nope, have you checked the output of /sys/kernel/slab/.../order when 
+running slub?  On my workstation 127 out of 316 caches have order-2 or 
+higher by default.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
