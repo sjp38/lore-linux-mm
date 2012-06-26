@@ -1,60 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
-	by kanga.kvack.org (Postfix) with SMTP id 34F556B017F
-	for <linux-mm@kvack.org>; Tue, 26 Jun 2012 05:17:48 -0400 (EDT)
-Received: by dakp5 with SMTP id p5so8048803dak.14
-        for <linux-mm@kvack.org>; Tue, 26 Jun 2012 02:17:47 -0700 (PDT)
-Date: Tue, 26 Jun 2012 02:17:45 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 02/11] memcg: Reclaim when more than one page needed.
-In-Reply-To: <4FE97C20.8010500@parallels.com>
-Message-ID: <alpine.DEB.2.00.1206260214310.16020@chino.kir.corp.google.com>
-References: <1340633728-12785-1-git-send-email-glommer@parallels.com> <1340633728-12785-3-git-send-email-glommer@parallels.com> <alpine.DEB.2.00.1206252106430.26640@chino.kir.corp.google.com> <4FE960D6.4040409@parallels.com>
- <alpine.DEB.2.00.1206260146010.16020@chino.kir.corp.google.com> <4FE97C20.8010500@parallels.com>
+Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
+	by kanga.kvack.org (Postfix) with SMTP id 0C04D6B0130
+	for <linux-mm@kvack.org>; Tue, 26 Jun 2012 05:20:19 -0400 (EDT)
+Message-ID: <4FE97E31.3010201@parallels.com>
+Date: Tue, 26 Jun 2012 13:17:37 +0400
+From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH 06/11] memcg: kmem controller infrastructure
+References: <1340633728-12785-1-git-send-email-glommer@parallels.com> <1340633728-12785-7-git-send-email-glommer@parallels.com> <alpine.DEB.2.00.1206260210200.16020@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.00.1206260210200.16020@chino.kir.corp.google.com>
+Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Frederic Weisbecker <fweisbec@gmail.com>, Pekka Enberg <penberg@kernel.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Lameter <cl@linux.com>, devel@openvz.org, kamezawa.hiroyu@jp.fujitsu.com, Tejun Heo <tj@kernel.org>, Suleiman Souhlal <suleiman@google.com>
+To: David Rientjes <rientjes@google.com>
+Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Frederic Weisbecker <fweisbec@gmail.com>, Pekka Enberg <penberg@kernel.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Lameter <cl@linux.com>, devel@openvz.org, kamezawa.hiroyu@jp.fujitsu.com, Tejun Heo <tj@kernel.org>, Pekka Enberg <penberg@cs.helsinki.fi>
 
-On Tue, 26 Jun 2012, Glauber Costa wrote:
+On 06/26/2012 01:12 PM, David Rientjes wrote:
+> On Mon, 25 Jun 2012, Glauber Costa wrote:
+>
+>> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+>> index 83e7ba9..22479eb 100644
+>> --- a/include/linux/memcontrol.h
+>> +++ b/include/linux/memcontrol.h
+>> @@ -21,6 +21,7 @@
+>>   #define _LINUX_MEMCONTROL_H
+>>   #include <linux/cgroup.h>
+>>   #include <linux/vm_event_item.h>
+>> +#include <linux/hardirq.h>
+>>
+>>   struct mem_cgroup;
+>>   struct page_cgroup;
+>> @@ -409,6 +410,12 @@ struct sock;
+>>   #ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM
+>>   void sock_update_memcg(struct sock *sk);
+>>   void sock_release_memcg(struct sock *sk);
+>> +
+>> +#define mem_cgroup_kmem_on 1
+>> +bool __mem_cgroup_new_kmem_page(gfp_t gfp, void *handle, int order);
+>> +void __mem_cgroup_commit_kmem_page(struct page *page, void *handle, int order);
+>> +void __mem_cgroup_free_kmem_page(struct page *page, int order);
+>> +#define is_kmem_tracked_alloc (gfp & __GFP_KMEMCG)
+>>   #else
+>>   static inline void sock_update_memcg(struct sock *sk)
+>>   {
+>> @@ -416,6 +423,43 @@ static inline void sock_update_memcg(struct sock *sk)
+>>   static inline void sock_release_memcg(struct sock *sk)
+>>   {
+>>   }
+>> +
+>> +#define mem_cgroup_kmem_on 0
+>> +#define __mem_cgroup_new_kmem_page(a, b, c) false
+>> +#define __mem_cgroup_free_kmem_page(a,b )
+>> +#define __mem_cgroup_commit_kmem_page(a, b, c)
+>> +#define is_kmem_tracked_alloc (false)
+>>   #endif /* CONFIG_CGROUP_MEM_RES_CTLR_KMEM */
+>> +
+>> +static __always_inline
+>> +bool mem_cgroup_new_kmem_page(gfp_t gfp, void *handle, int order)
+>> +{
+>> +	if (!mem_cgroup_kmem_on)
+>> +		return true;
+>> +	if (!is_kmem_tracked_alloc)
+>> +		return true;
+>> +	if (!current->mm)
+>> +		return true;
+>> +	if (in_interrupt())
+>> +		return true;
+>
+> You can't test for current->mm in irq context, so you need to check for
+> in_interrupt() first.
+ >
+Right, thanks.
 
-> > Nope, have you checked the output of /sys/kernel/slab/.../order when
-> > running slub?  On my workstation 127 out of 316 caches have order-2 or
-> > higher by default.
-> > 
-> 
-> Well, this is still on the side of my argument, since this is still a majority
-> of them being low ordered.
+> Also, what prevents __mem_cgroup_new_kmem_page()
+> from being called for a kthread that has called use_mm() before
+> unuse_mm()?
 
-Ok, so what happens if I pass slub_min_order=2 on the command line?  We 
-never retry?
-
-> The code here does not necessarily have to retry -
-> if I understand it correctly - we just retry for very small allocations
-> because that is where our likelihood of succeeding is.
-> 
-
-Well, the comment for NR_PAGES_TO_RETRY says
-
-	/*
-	 * We need a number that is small enough to be likely to have been
-	 * reclaimed even under pressure, but not too big to trigger unnecessary 
-	 * retries
-	 */
-
-and mmzone.h says
-
-	/*
-	 * PAGE_ALLOC_COSTLY_ORDER is the order at which allocations are deemed
-	 * costly to service.  That is between allocation orders which should
-	 * coalesce naturally under reasonable reclaim pressure and those which
-	 * will not.
-	 */
-	#define PAGE_ALLOC_COSTLY_ORDER 3
-
-so I'm trying to reconcile which one is correct.
+Nothing, but I also don't see how to prevent that.
+At a first glance, it seems fair to me to say that if a kernel thread 
+uses the mm of a process, it poses as this process for any accounting 
+purpose.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
