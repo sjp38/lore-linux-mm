@@ -1,58 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
-	by kanga.kvack.org (Postfix) with SMTP id 224F86B0113
-	for <linux-mm@kvack.org>; Tue, 26 Jun 2012 09:33:30 -0400 (EDT)
-From: Glauber Costa <glommer@parallels.com>
-Subject: [PATCH] memcg: first step towards hierarchical controller
-Date: Tue, 26 Jun 2012 17:30:28 +0400
-Message-Id: <1340717428-9009-1-git-send-email-glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
+	by kanga.kvack.org (Postfix) with SMTP id 699B46B0113
+	for <linux-mm@kvack.org>; Tue, 26 Jun 2012 09:38:48 -0400 (EDT)
+Received: by qcsp15 with SMTP id p15so3330664qcs.30
+        for <linux-mm@kvack.org>; Tue, 26 Jun 2012 06:38:47 -0700 (PDT)
+Date: Tue, 26 Jun 2012 15:38:41 +0200
+From: Frederic Weisbecker <fweisbec@gmail.com>
+Subject: Re: [PATCH 11/11] protect architectures where THREAD_SIZE >=
+ PAGE_SIZE against fork bombs
+Message-ID: <20120626133838.GA11519@somewhere.redhat.com>
+References: <1340633728-12785-1-git-send-email-glommer@parallels.com>
+ <1340633728-12785-12-git-send-email-glommer@parallels.com>
+ <4FE89807.50708@redhat.com>
+ <20120625183818.GH3869@google.com>
+ <4FE9AF88.5070803@parallels.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4FE9AF88.5070803@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: cgroups@vger.kernel.org, linux-mm@kvack.org
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Glauber Costa <glommer@parallels.com>, Michal Hocko <mhocko@suse.cz>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>
+To: Glauber Costa <glommer@parallels.com>
+Cc: Tejun Heo <tj@kernel.org>, Frederic Weisbecker <fweisbec@redhat.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Lameter <cl@linux.com>, devel@openvz.org, kamezawa.hiroyu@jp.fujitsu.com, Pekka Enberg <penberg@cs.helsinki.fi>, Suleiman Souhlal <suleiman@google.com>
 
-Okay, so after recent discussions, I am proposing the following
-patch. It won't remove hierarchy, or anything like that. Just default
-to true in the root cgroup, and print a warning once if you try
-to set it back to 0.
+On Tue, Jun 26, 2012 at 04:48:08PM +0400, Glauber Costa wrote:
+> On 06/25/2012 10:38 PM, Tejun Heo wrote:
+> >On Mon, Jun 25, 2012 at 06:55:35PM +0200, Frederic Weisbecker wrote:
+> >>On 06/25/2012 04:15 PM, Glauber Costa wrote:
+> >>
+> >>>Because those architectures will draw their stacks directly from
+> >>>the page allocator, rather than the slab cache, we can directly
+> >>>pass __GFP_KMEMCG flag, and issue the corresponding free_pages.
+> >>>
+> >>>This code path is taken when the architecture doesn't define
+> >>>CONFIG_ARCH_THREAD_INFO_ALLOCATOR (only ia64 seems to), and has
+> >>>THREAD_SIZE >= PAGE_SIZE. Luckily, most - if not all - of the
+> >>>remaining architectures fall in this category.
+> >>>
+> >>>This will guarantee that every stack page is accounted to the memcg
+> >>>the process currently lives on, and will have the allocations to fail
+> >>>if they go over limit.
+> >>>
+> >>>For the time being, I am defining a new variant of THREADINFO_GFP, not
+> >>>to mess with the other path. Once the slab is also tracked by memcg,
+> >>>we can get rid of that flag.
+> >>>
+> >>>Tested to successfully protect against :(){ :|:& };:
+> >>>
+> >>>Signed-off-by: Glauber Costa <glommer@parallels.com>
+> >>>CC: Christoph Lameter <cl@linux.com>
+> >>>CC: Pekka Enberg <penberg@cs.helsinki.fi>
+> >>>CC: Michal Hocko <mhocko@suse.cz>
+> >>>CC: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> >>>CC: Johannes Weiner <hannes@cmpxchg.org>
+> >>>CC: Suleiman Souhlal <suleiman@google.com>
+> >>
+> >>
+> >>Acked-by: Frederic Weisbecker <fweisbec@redhat.com>
+> >
+> >Frederic, does this (with proper slab accounting added later) achieve
+> >what you wanted with the task counter?
+> >
+> 
+> A note: Frederic may confirm, but I think he doesn't even need
+> the slab accounting to follow to achieve that goal.
 
-I am not adding it to feature-removal-schedule.txt because I don't
-view it as a consensus. Rather, changing the default would allow us
-to give it a time around in the open, and see if people complain
-and what we can learn about that.
-
-Signed-off-by: Glauber Costa <glommer@parallels.com>
-CC: Michal Hocko <mhocko@suse.cz>
-CC: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-CC: Johannes Weiner <hannes@cmpxchg.org>
-CC: Tejun Heo <tj@kernel.org>
----
- mm/memcontrol.c |    3 +++
- 1 file changed, 3 insertions(+)
-
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 9e710bc..037ddd4 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -3949,6 +3949,8 @@ static int mem_cgroup_hierarchy_write(struct cgroup *cont, struct cftype *cft,
- 	if (memcg->use_hierarchy == val)
- 		goto out;
- 
-+	WARN_ONCE((!parent_memcg && memcg->use_hierarchy && val == false),
-+		"Non-hierarchical memcg is considered for deprecation");
- 	/*
- 	 * If parent's use_hierarchy is set, we can't make any modifications
- 	 * in the child subtrees. If it is unset, then the change can
-@@ -5175,6 +5177,7 @@ mem_cgroup_create(struct cgroup *cont)
- 			INIT_WORK(&stock->work, drain_local_stock);
- 		}
- 		hotcpu_notifier(memcg_cpu_hotplug_callback, 0);
-+		memcg->use_hierarchy = true;
- 	} else {
- 		parent = mem_cgroup_from_cont(cont->parent);
- 		memcg->use_hierarchy = parent->use_hierarchy;
--- 
-1.7.10.2
+Limiting is enough. But that requires internal accounting.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
