@@ -1,59 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
-	by kanga.kvack.org (Postfix) with SMTP id 16BD16B00FA
-	for <linux-mm@kvack.org>; Tue, 26 Jun 2012 04:51:31 -0400 (EDT)
-Received: from /spool/local
-	by e23smtp02.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <xiaoguangrong@linux.vnet.ibm.com>;
-	Tue, 26 Jun 2012 08:31:51 +1000
-Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
-	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q5Q8hcU650135178
-	for <linux-mm@kvack.org>; Tue, 26 Jun 2012 18:43:38 +1000
-Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
-	by d23av04.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q5Q8pD6E022136
-	for <linux-mm@kvack.org>; Tue, 26 Jun 2012 18:51:13 +1000
-Message-ID: <4FE977FE.6080203@linux.vnet.ibm.com>
-Date: Tue, 26 Jun 2012 16:51:10 +0800
-From: Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
+	by kanga.kvack.org (Postfix) with SMTP id 854626B0118
+	for <linux-mm@kvack.org>; Tue, 26 Jun 2012 04:51:34 -0400 (EDT)
+Received: by lbjn8 with SMTP id n8so9818782lbj.14
+        for <linux-mm@kvack.org>; Tue, 26 Jun 2012 01:51:32 -0700 (PDT)
+Message-ID: <4FE9780E.5050403@openvz.org>
+Date: Tue, 26 Jun 2012 12:51:26 +0400
+From: Konstantin Khlebnikov <khlebnikov@openvz.org>
 MIME-Version: 1.0
-Subject: [PATCH v2 5/9] zcache: cleanup zbud_init
-References: <4FE97792.9020807@linux.vnet.ibm.com>
-In-Reply-To: <4FE97792.9020807@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=UTF-8
+Subject: Re: ashmem_shrink with long term stable kernel [3.0.36]
+References: <CADArhcAxf3g=SLgDaJJMpzNpL_X7fbVbL1jzBYiyjPQFxXLYTA@mail.gmail.com>
+In-Reply-To: <CADArhcAxf3g=SLgDaJJMpzNpL_X7fbVbL1jzBYiyjPQFxXLYTA@mail.gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Konrad Wilk <konrad.wilk@oracle.com>, Nitin Gupta <ngupta@vflare.org>, linux-mm@kvack.org
+To: Akhilesh Kumar <akhilesh.lxr@gmail.com>
+Cc: "david@fromorbit.com" <david@fromorbit.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "mgorman@suse.de" <mgorman@suse.de>, "riel@redhat.com" <riel@redhat.com>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-Need not set global parameters to 0
+Akhilesh Kumar wrote:
+> Hi All,
+>
+> During mm performance testing sometimes we observed below kernel messages
+>
+> shrink_slab: ashmem_shrink+0x0/0x114 negative objects to delete nr=-2133936901
+> shrink_slab: ashmem_shrink+0x0/0x114 negative objects to delete nr=-2139256767
+> shrink_slab: ashmem_shrink+0x0/0x114 negative objects to delete nr=-2079333971
+> shrink_slab: ashmem_shrink+0x0/0x114 negative objects to delete nr=-2096156269
+> shrink_slab: ashmem_shrink+0x0/0x114 negative objects to delete nr=-20658392
+>
+>   After debugging is we fount below patch mm/vmscan
+> http://git.kernel.org/?p=linux/kernel/git/stable/linux-stable.git;a=commitdiff;h=635697c663f38106063d5659f0cf2e45afcd4bb5
+> Since patch fix critical issue and same is not integrated with long term stable kernel (3.0.36)
+> and  we are using below patch with long term stable kernel (3.0.36) is there any side effects ?
 
-Acked-by: Seth Jennings <sjenning@linux.vnet.ibm.com>
-Signed-off-by: Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>
----
- drivers/staging/zcache/zcache-main.c |    6 ++----
- 1 files changed, 2 insertions(+), 4 deletions(-)
+Nothing special, your patch should work fine.
 
-diff --git a/drivers/staging/zcache/zcache-main.c b/drivers/staging/zcache/zcache-main.c
-index a77cacb..0529b46 100644
---- a/drivers/staging/zcache/zcache-main.c
-+++ b/drivers/staging/zcache/zcache-main.c
-@@ -605,11 +605,9 @@ static void __init zbud_init(void)
- 	int i;
-
- 	INIT_LIST_HEAD(&zbud_buddied_list);
--	zcache_zbud_buddied_count = 0;
--	for (i = 0; i < NCHUNKS; i++) {
-+
-+	for (i = 0; i < NCHUNKS; i++)
- 		INIT_LIST_HEAD(&zbud_unbuddied[i].list);
--		zbud_unbuddied[i].count = 0;
--	}
- }
-
- #ifdef CONFIG_SYSFS
--- 
-1.7.7.6
+> @@ -248,10 +248,12 @@ unsigned long shrink_slab(struct shrink_control *shrink,
+>
+>          list_for_each_entry(shrinker, &shrinker_list, list) {
+>                  unsigned long long delta;
+> -               unsigned long total_scan;
+> -               unsigned long max_pass;
+> +               long total_scan;
+> +               long max_pass;
+>
+>                  max_pass = do_shrinker_shrink(shrinker, shrink, 0);
+> +               if (max_pass <= 0)
+> +                       continue;
+>                  delta = (4 * nr_pages_scanned) / shrinker->seeks;
+>                  delta *= max_pass;
+>                  do_div(delta, lru_pages + 1);
+> --
+> Please review and share ur comments.
+> Thanks,
+> Akhilesh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
