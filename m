@@ -1,63 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
-	by kanga.kvack.org (Postfix) with SMTP id 0BC786B0161
-	for <linux-mm@kvack.org>; Tue, 26 Jun 2012 04:06:31 -0400 (EDT)
-Date: Tue, 26 Jun 2012 10:06:28 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH 1/5] mm/sparse: check size of struct mm_section
-Message-ID: <20120626080628.GE6713@tiehlicka.suse.cz>
-References: <1340466776-4976-1-git-send-email-shangw@linux.vnet.ibm.com>
- <20120625160322.GE19810@tiehlicka.suse.cz>
- <20120625163522.GA5476@shangw>
- <20120626073913.GC6713@tiehlicka.suse.cz>
- <20120626074854.GA29491@shangw>
+Received: from psmtp.com (na3sys010amx127.postini.com [74.125.245.127])
+	by kanga.kvack.org (Postfix) with SMTP id 425A06B0163
+	for <linux-mm@kvack.org>; Tue, 26 Jun 2012 04:09:57 -0400 (EDT)
+Message-ID: <4FE96DAF.3050208@parallels.com>
+Date: Tue, 26 Jun 2012 12:07:11 +0400
+From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120626074854.GA29491@shangw>
+Subject: Re: RFC:  Easy-Reclaimable LRU list
+References: <4FE012CD.6010605@kernel.org> <4FE82555.2010704@parallels.com> <4FE8FE70.6050107@kernel.org>
+In-Reply-To: <4FE8FE70.6050107@kernel.org>
+Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Gavin Shan <shangw@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org, rientjes@google.com, hannes@cmpxchg.org, akpm@linux-foundation.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Anton Vorontsov <anton.vorontsov@linaro.org>, John Stultz <john.stultz@linaro.org>, Pekka Enberg <penberg@kernel.org>, Wu Fengguang <fengguang.wu@intel.com>, Hugh Dickins <hughd@google.com>
 
-On Tue 26-06-12 15:48:54, Gavin Shan wrote:
-> >> >> In order to fully utilize the memory chunk allocated from bootmem
-> >> >> allocator, it'd better to assure memory sector descriptor won't run
-> >> >> across the boundary (PAGE_SIZE).
-> >
-> >OK, I misread this part of the changelog changelog.
-> >
-> 
-> I should have clarified that more clear :-)
-> 
-> >> >
-> >> >Why? The memory is continuous, right?
-> >> 
-> >> Yes, the memory is conginous and the capacity of specific entry
-> >> in mem_section[NR_SECTION_ROOTS] has been defined as follows:
-> >> 
-> >> 
-> >> #define SECTIONS_PER_ROOT       (PAGE_SIZE / sizeof (struct mem_section))
-> >> 
-> >> Also, the memory is prone to be allocated from bootmem by function
-> >> alloc_bootmem_node(), which has PAGE_SIZE alignment. So I think it's
-> >> reasonable to introduce the extra check here from my personal view :-)
-> >
-> >No it is not necessary because we will never cross the page boundary
-> >because (SECTIONS_PER_ROOT uses an int division)
-> 
-> Current situation is that we don't cross the page foundary, but somebody
-> else might change the data struct (struct mem_section) in future. 
+On 06/26/2012 04:12 AM, Minchan Kim wrote:
+> On 06/25/2012 05:46 PM, Glauber Costa wrote:
+>
+>> On 06/19/2012 09:49 AM, Minchan Kim wrote:
+>>> Hi everybody!
+>>>
+>>> Recently, there are some efforts to handle system memory pressure.
+>>>
+>>> 1) low memory notification - [1]
+>>> 2) fallocate(VOLATILE) - [2]
+>>> 3) fadvise(NOREUSE) - [3]
+>>>
+>>> For them, I would like to add new LRU list, aka "Ereclaimable" which
+>>> is opposite of "unevictable".
+>>> Reclaimable LRU list includes_easy_  reclaimable pages.
+>>> For example, easy reclaimable pages are following as.
+>>>
+>>> 1. invalidated but remained LRU list.
+>>> 2. pageout pages for reclaim(PG_reclaim pages)
+>>> 3. fadvise(NOREUSE)
+>>> 4. fallocate(VOLATILE)
+>>>
+>>> Their pages shouldn't stir normal LRU list and compaction might not
+>>> migrate them, even.
+>> What about other things moving memory like CMA ?
+>
+>
+> Sorry for not being able to understand your point.
+> Can you elaborate a bit more?
+>
 
-No, this is safe even if the structure size changes (unless it is bigger
-than PAGE_SIZE).
--- 
-Michal Hocko
-SUSE Labs
-SUSE LINUX s.r.o.
-Lihovarska 1060/12
-190 00 Praha 9    
-Czech Republic
+Well, maybe I didn't =)
+I was just wondering why exactly it is that troubles your scheme with 
+compaction, and if such restriction would also apply to memory movement
+schemes like CMA.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
