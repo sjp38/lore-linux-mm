@@ -1,64 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
-	by kanga.kvack.org (Postfix) with SMTP id 202686B0117
-	for <linux-mm@kvack.org>; Tue, 26 Jun 2012 08:50:55 -0400 (EDT)
-Message-ID: <4FE9AF88.5070803@parallels.com>
-Date: Tue, 26 Jun 2012 16:48:08 +0400
-From: Glauber Costa <glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx174.postini.com [74.125.245.174])
+	by kanga.kvack.org (Postfix) with SMTP id 1B1AF6B0117
+	for <linux-mm@kvack.org>; Tue, 26 Jun 2012 09:06:39 -0400 (EDT)
+Message-ID: <4FE9B3B4.1050305@redhat.com>
+Date: Tue, 26 Jun 2012 09:05:56 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 11/11] protect architectures where THREAD_SIZE >= PAGE_SIZE
- against fork bombs
-References: <1340633728-12785-1-git-send-email-glommer@parallels.com> <1340633728-12785-12-git-send-email-glommer@parallels.com> <4FE89807.50708@redhat.com> <20120625183818.GH3869@google.com>
-In-Reply-To: <20120625183818.GH3869@google.com>
-Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
+Subject: Re: [PATCH -mm v2 01/11] mm: track free size between VMAs in VMA
+ rbtree
+References: <1340315835-28571-1-git-send-email-riel@surriel.com>      <1340315835-28571-2-git-send-email-riel@surriel.com>     <1340359115.18025.57.camel@twins> <4FE47D0E.3000804@redhat.com>    <1340374439.18025.75.camel@twins> <4FE48054.5090407@redhat.com>   <1340375872.18025.77.camel@twins> <4FE4922D.8070501@surriel.com>  <1340652578.21991.18.camel@twins> <4FE8DD80.9040108@redhat.com> <1340699507.21991.32.camel@twins>
+In-Reply-To: <1340699507.21991.32.camel@twins>
+Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Frederic Weisbecker <fweisbec@redhat.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Frederic Weisbecker <fweisbec@gmail.com>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Lameter <cl@linux.com>, devel@openvz.org, kamezawa.hiroyu@jp.fujitsu.com, Pekka Enberg <penberg@cs.helsinki.fi>, Suleiman Souhlal <suleiman@google.com>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Rik van Riel <riel@surriel.com>, linux-mm@kvack.org, akpm@linux-foundation.org, aarcange@redhat.com, minchan@gmail.com, kosaki.motohiro@gmail.com, andi@firstfloor.org, hannes@cmpxchg.org, mel@csn.ul.ie, linux-kernel@vger.kernel.org, danielfsantos@att.net
 
-On 06/25/2012 10:38 PM, Tejun Heo wrote:
-> On Mon, Jun 25, 2012 at 06:55:35PM +0200, Frederic Weisbecker wrote:
->> On 06/25/2012 04:15 PM, Glauber Costa wrote:
->>
->>> Because those architectures will draw their stacks directly from
->>> the page allocator, rather than the slab cache, we can directly
->>> pass __GFP_KMEMCG flag, and issue the corresponding free_pages.
->>>
->>> This code path is taken when the architecture doesn't define
->>> CONFIG_ARCH_THREAD_INFO_ALLOCATOR (only ia64 seems to), and has
->>> THREAD_SIZE >= PAGE_SIZE. Luckily, most - if not all - of the
->>> remaining architectures fall in this category.
->>>
->>> This will guarantee that every stack page is accounted to the memcg
->>> the process currently lives on, and will have the allocations to fail
->>> if they go over limit.
->>>
->>> For the time being, I am defining a new variant of THREADINFO_GFP, not
->>> to mess with the other path. Once the slab is also tracked by memcg,
->>> we can get rid of that flag.
->>>
->>> Tested to successfully protect against :(){ :|:& };:
->>>
->>> Signed-off-by: Glauber Costa <glommer@parallels.com>
->>> CC: Christoph Lameter <cl@linux.com>
->>> CC: Pekka Enberg <penberg@cs.helsinki.fi>
->>> CC: Michal Hocko <mhocko@suse.cz>
->>> CC: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
->>> CC: Johannes Weiner <hannes@cmpxchg.org>
->>> CC: Suleiman Souhlal <suleiman@google.com>
->>
->>
->> Acked-by: Frederic Weisbecker <fweisbec@redhat.com>
+On 06/26/2012 04:31 AM, Peter Zijlstra wrote:
+
+> If you look at your patch 1, __vma_unlink has an adjust_free_gap() right
+> next to the rb_augment_erase(), vma_adjust() has 3 adjust_free_gap()
+> calls right next to each other.
 >
-> Frederic, does this (with proper slab accounting added later) achieve
-> what you wanted with the task counter?
->
+> All these will do an entire path walk back to the root. I would think we
+> could save quite a bit of updating by not having them all walk back to
+> the root. No point in re-computing the top levels if you know the next
+> update will change them again anyway.
 
-A note: Frederic may confirm, but I think he doesn't even need
-the slab accounting to follow to achieve that goal.
+The problem is, unless we look at the augmented data at
+rotate time, we do not know when it is safe to stop
+iterating up the tree.
 
-
+-- 
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
