@@ -1,39 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx135.postini.com [74.125.245.135])
-	by kanga.kvack.org (Postfix) with SMTP id 4721B6B016E
-	for <linux-mm@kvack.org>; Tue, 26 Jun 2012 05:03:17 -0400 (EDT)
-Received: by pbbrp2 with SMTP id rp2so9621798pbb.14
-        for <linux-mm@kvack.org>; Tue, 26 Jun 2012 02:03:15 -0700 (PDT)
-Date: Tue, 26 Jun 2012 02:03:13 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
+	by kanga.kvack.org (Postfix) with SMTP id 309B56B0179
+	for <linux-mm@kvack.org>; Tue, 26 Jun 2012 05:05:50 -0400 (EDT)
+Received: by dakp5 with SMTP id p5so8027714dak.14
+        for <linux-mm@kvack.org>; Tue, 26 Jun 2012 02:05:49 -0700 (PDT)
+Date: Tue, 26 Jun 2012 02:05:47 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 05/11] Add a __GFP_KMEMCG flag
-In-Reply-To: <4FE95FF0.3000300@parallels.com>
-Message-ID: <alpine.DEB.2.00.1206260202190.16020@chino.kir.corp.google.com>
-References: <1340633728-12785-1-git-send-email-glommer@parallels.com> <1340633728-12785-6-git-send-email-glommer@parallels.com> <alpine.DEB.2.00.1206252123230.26640@chino.kir.corp.google.com> <4FE95FF0.3000300@parallels.com>
+Subject: Re: [PATCH 11/11] protect architectures where THREAD_SIZE >= PAGE_SIZE
+ against fork bombs
+In-Reply-To: <4FE9765D.2050301@parallels.com>
+Message-ID: <alpine.DEB.2.00.1206260203400.16020@chino.kir.corp.google.com>
+References: <1340633728-12785-1-git-send-email-glommer@parallels.com> <1340633728-12785-12-git-send-email-glommer@parallels.com> <alpine.DEB.2.00.1206252157000.30072@chino.kir.corp.google.com> <4FE96358.6080601@parallels.com>
+ <alpine.DEB.2.00.1206260143450.16020@chino.kir.corp.google.com> <4FE9765D.2050301@parallels.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Glauber Costa <glommer@parallels.com>
-Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Frederic Weisbecker <fweisbec@gmail.com>, Pekka Enberg <penberg@kernel.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Lameter <cl@linux.com>, devel@openvz.org, kamezawa.hiroyu@jp.fujitsu.com, Tejun Heo <tj@kernel.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Suleiman Souhlal <suleiman@google.com>
+Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Frederic Weisbecker <fweisbec@gmail.com>, Pekka Enberg <penberg@kernel.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Lameter <cl@linux.com>, devel@openvz.org, kamezawa.hiroyu@jp.fujitsu.com, Tejun Heo <tj@kernel.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Suleiman Souhlal <suleiman@google.com>, Frederic Weisbecker <fweisbec@redhat.com>
 
 On Tue, 26 Jun 2012, Glauber Costa wrote:
 
-> > > >This flag is used to indicate to the callees that this allocation will be
-> > > >serviced to the kernel. It is not supposed to be passed by the callers
-> > > >of kmem_cache_alloc, but rather by the cache core itself.
-> > > >
-> > Not sure what "serviced to the kernel" means, does this mean that the
-> > memory will not be accounted for to the root memcg?
+> > Right, because I'm sure that __GFP_KMEMCG will be used in additional
+> > places outside of this patchset and it will be a shame if we have to
+> > always add #ifdef's.  I see no reason why we would care if __GFP_KMEMCG
+> > was used when CONFIG_CGROUP_MEM_RES_CTLR_KMEM=n with the semantics that it
+> > as in this patchset.  It's much cleaner by making it 0x0 when disabled.
 > > 
-> In this context, it means that is a kernel allocation, not a userspace one
-> (but in process context, of course), *and* it is to be accounted a
-> specific memcg.
+> 
+> What I can do, instead, is to WARN_ON conditionally to the config option in
+> the page allocator, and make sure no one is actually passing the flag in that
+> case.
 > 
 
-Ah, that makes sense.  I think it would help if this was included in the 
-changelog as well as a specifying that it is accounted to current's memcg 
-at the time of the allocation in a comment in the code.
+I don't think adding a conditional to the page allocator's fastpath when 
+CONFIG_CGROUP_MEM_RES_CTLR_KMEM=n is appropriate.  I don't understand why 
+this can't be 0x0 for such a configuration, __GFP_KMEM certainly means 
+nothing when we don't have it enabled so how is this different at all from 
+kmemcheck?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
