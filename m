@@ -1,56 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
-	by kanga.kvack.org (Postfix) with SMTP id 131DE6B005C
-	for <linux-mm@kvack.org>; Tue, 26 Jun 2012 11:54:28 -0400 (EDT)
-Date: Tue, 26 Jun 2012 17:54:22 +0200
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 1/2] fix bad behavior in use_hierarchy file
-Message-ID: <20120626155422.GD27816@cmpxchg.org>
-References: <1340725634-9017-1-git-send-email-glommer@parallels.com>
- <1340725634-9017-2-git-send-email-glommer@parallels.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1340725634-9017-2-git-send-email-glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
+	by kanga.kvack.org (Postfix) with SMTP id B10676B004D
+	for <linux-mm@kvack.org>; Tue, 26 Jun 2012 12:13:03 -0400 (EDT)
+Received: from epcpsbgm2.samsung.com (mailout2.samsung.com [203.254.224.25])
+ by mailout2.samsung.com
+ (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
+ 17 2011)) with ESMTP id <0M68000SJFPLAF70@mailout2.samsung.com> for
+ linux-mm@kvack.org; Wed, 27 Jun 2012 01:13:01 +0900 (KST)
+Received: from bzolnier-desktop.localnet ([106.116.147.136])
+ by mmp1.samsung.com
+ (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
+ 17 2011)) with ESMTPA id <0M6800GPNFPNK180@mmp1.samsung.com> for
+ linux-mm@kvack.org; Wed, 27 Jun 2012 01:13:01 +0900 (KST)
+From: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
+Subject: [announce] pagemap-demo-ng tools
+Date: Tue, 26 Jun 2012 18:11:48 +0200
+MIME-version: 1.0
+Message-id: <201206261811.48256.b.zolnierkie@samsung.com>
+Content-type: Text/Plain; charset=us-ascii
+Content-transfer-encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Dhaval Giani <dhaval.giani@gmail.com>
+To: linux-mm@kvack.org
+Cc: Matt Mackall <mpm@selenic.com>, Kyungmin Park <kyungmin.park@samsung.com>
 
-On Tue, Jun 26, 2012 at 07:47:13PM +0400, Glauber Costa wrote:
-> I have an application that does the following:
-> 
-> * copy the state of all controllers attached to a hierarchy
-> * replicate it as a child of the current level.
-> 
-> I would expect writes to the files to mostly succeed, since they
-> are inheriting sane values from parents.
-> 
-> But that is not the case for use_hierarchy. If it is set to 0, we
-> succeed ok. If we're set to 1, the value of the file is automatically
-> set to 1 in the children, but if userspace tries to write the
-> very same 1, it will fail. That same situation happens if we
-> set use_hierarchy, create a child, and then try to write 1 again.
-> 
-> Now, there is no reason whatsoever for failing to write a value
-> that is already there. It doesn't even match the comments, that
-> states:
-> 
->  /* If parent's use_hierarchy is set, we can't make any modifications
->   * in the child subtrees...
-> 
-> since we are not changing anything.
-> 
-> The following patch tests the new value against the one we're storing,
-> and automatically return 0 if we're not proposing a change.
-> 
-> Signed-off-by: Glauber Costa <glommer@parallels.com>
-> CC: Dhaval Giani <dhaval.giani@gmail.com>
-> CC: Michal Hocko <mhocko@suse.cz>
-> CC: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> CC: Johannes Weiner <hannes@cmpxchg.org>
 
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+Hi,
+
+I got agreement from Matt to takeover maintenance of demo scripts
+for the /proc/$pid/pagemap and /proc/kpage[count,flags] interfaces
+(originally hosted at http://selenic.com/repo/pagemap/).
+
+The updated tools are available at:
+
+	https://github.com/bzolnier/pagemap-demo-ng
+
+Changes include:
+
+* support for recent kernels
+* support for platforms using ARCH_PFN_OFFSET (i.e ARM Exynos)
+  (needs [1] & [2])
+* possibility to work on data captured on another machine
+* optional support for monitoring free/used pages (needs [3])
+* optional support for monitoring pageblock type changes (needs [4])
+
+[1] http://article.gmane.org/gmane.linux.kernel.mm/79435/
+[2] http://article.gmane.org/gmane.linux.kernel.mm/79432/ 
+[3] http://article.gmane.org/gmane.linux.kernel.mm/79431/
+[4] http://article.gmane.org/gmane.linux.kernel.mm/79433/
+
+Best regards,
+--
+Bartlomiej Zolnierkiewicz
+Samsung Poland R&D Center
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
