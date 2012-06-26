@@ -1,53 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
-	by kanga.kvack.org (Postfix) with SMTP id CAFBD6B004D
-	for <linux-mm@kvack.org>; Tue, 26 Jun 2012 18:30:48 -0400 (EDT)
-Received: by dakp5 with SMTP id p5so592869dak.14
-        for <linux-mm@kvack.org>; Tue, 26 Jun 2012 15:30:48 -0700 (PDT)
-Date: Tue, 26 Jun 2012 15:30:43 -0700
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH 1/2] fix bad behavior in use_hierarchy file
-Message-ID: <20120626223043.GC15811@google.com>
-References: <1340725634-9017-1-git-send-email-glommer@parallels.com>
- <1340725634-9017-2-git-send-email-glommer@parallels.com>
- <20120626152522.c7161b5a.akpm@linux-foundation.org>
+Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
+	by kanga.kvack.org (Postfix) with SMTP id 9455D6B004D
+	for <linux-mm@kvack.org>; Tue, 26 Jun 2012 18:36:56 -0400 (EDT)
+Received: by vcbfl10 with SMTP id fl10so362995vcb.14
+        for <linux-mm@kvack.org>; Tue, 26 Jun 2012 15:36:55 -0700 (PDT)
+Date: Tue, 26 Jun 2012 18:36:51 -0400
+From: Konrad Rzeszutek Wilk <konrad@darnok.org>
+Subject: Re: [PATCH v2 1/9] zcache: fix refcount leak
+Message-ID: <20120626223651.GB6561@localhost.localdomain>
+References: <4FE97792.9020807@linux.vnet.ibm.com>
+ <4FE977AA.2090003@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20120626152522.c7161b5a.akpm@linux-foundation.org>
+In-Reply-To: <4FE977AA.2090003@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Glauber Costa <glommer@parallels.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Dhaval Giani <dhaval.giani@gmail.com>, Li Zefan <lizefan@huawei.com>
+To: Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Konrad Wilk <konrad.wilk@oracle.com>, Nitin Gupta <ngupta@vflare.org>, linux-mm@kvack.org
 
-(cc'ing Li)
+On Tue, Jun 26, 2012 at 04:49:46PM +0800, Xiao Guangrong wrote:
+> In zcache_get_pool_by_id, the refcount of zcache_host is not increased, but
+> it is always decreased in zcache_put_pool
 
-Hello, Andrew.
+All of the patches (1-9) look good to me, so please also
+affix 'Reviewed-by: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>'.
 
-On Tue, Jun 26, 2012 at 03:25:22PM -0700, Andrew Morton wrote:
-> hm.  The various .write_u64() implementations go and return zero on
-> success and cgroup_write_X64() sees this and rewrites the return value
-> to `nbytes'.
+You also might want to send this patch series with Greg KH being
+on the To line- not just as CC -as he is the one committing the
+patches in the git tree.
+
 > 
-> That was a bit naughty of us - it prevents a .write_u64() instance from
-> being able to fully implement a partial write.  We can *partially*
-> implement a partial write, by returning a value between 1 and nbytes-1,
-> but we can't return zero.  It's a weird interface, it's a surprising
-> interface and it was quite unnecessary to do it this way.  Someone
-> please slap Paul.
+> Acked-by: Seth Jennings <sjenning@linux.vnet.ibm.com>
+> Signed-off-by: Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>
+> ---
+>  drivers/staging/zcache/zcache-main.c |    3 ++-
+>  1 files changed, 2 insertions(+), 1 deletions(-)
 > 
-> It's hardly a big problem I, but that's why the unix write() interface
-> was designed the way it is.
-
-The whole file interface is severely over-designed like a lot of other
-things in cgorup.  I'm thinking about consolidating all the different
-read/write methods into one generic pair, likely based on seq_file and
-make all others helpers.
-
-Thanks.
-
--- 
-tejun
+> diff --git a/drivers/staging/zcache/zcache-main.c b/drivers/staging/zcache/zcache-main.c
+> index c9e08bb..55fbe3d 100644
+> --- a/drivers/staging/zcache/zcache-main.c
+> +++ b/drivers/staging/zcache/zcache-main.c
+> @@ -946,8 +946,9 @@ static struct tmem_pool *zcache_get_pool_by_id(uint16_t cli_id, uint16_t poolid)
+>  		cli = &zcache_clients[cli_id];
+>  		if (cli == NULL)
+>  			goto out;
+> -		atomic_inc(&cli->refcount);
+>  	}
+> +
+> +	atomic_inc(&cli->refcount);
+>  	pool = idr_find(&cli->tmem_pools, poolid);
+>  	if (pool != NULL)
+>  		atomic_inc(&pool->refcount);
+> -- 
+> 1.7.7.6
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
