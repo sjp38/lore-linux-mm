@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
-	by kanga.kvack.org (Postfix) with SMTP id B069A6B005C
-	for <linux-mm@kvack.org>; Tue, 26 Jun 2012 11:52:32 -0400 (EDT)
-Date: Tue, 26 Jun 2012 17:52:29 +0200
-From: Michal Hocko <mhocko@suse.cz>
+Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
+	by kanga.kvack.org (Postfix) with SMTP id 131DE6B005C
+	for <linux-mm@kvack.org>; Tue, 26 Jun 2012 11:54:28 -0400 (EDT)
+Date: Tue, 26 Jun 2012 17:54:22 +0200
+From: Johannes Weiner <hannes@cmpxchg.org>
 Subject: Re: [PATCH 1/2] fix bad behavior in use_hierarchy file
-Message-ID: <20120626155229.GH9566@tiehlicka.suse.cz>
+Message-ID: <20120626155422.GD27816@cmpxchg.org>
 References: <1340725634-9017-1-git-send-email-glommer@parallels.com>
  <1340725634-9017-2-git-send-email-glommer@parallels.com>
 MIME-Version: 1.0
@@ -15,9 +15,9 @@ In-Reply-To: <1340725634-9017-2-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Glauber Costa <glommer@parallels.com>
-Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Dhaval Giani <dhaval.giani@gmail.com>
+Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Dhaval Giani <dhaval.giani@gmail.com>
 
-On Tue 26-06-12 19:47:13, Glauber Costa wrote:
+On Tue, Jun 26, 2012 at 07:47:13PM +0400, Glauber Costa wrote:
 > I have an application that does the following:
 > 
 > * copy the state of all controllers attached to a hierarchy
@@ -50,51 +50,7 @@ On Tue 26-06-12 19:47:13, Glauber Costa wrote:
 > CC: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 > CC: Johannes Weiner <hannes@cmpxchg.org>
 
-Acked-by: Michal Hocko <mhocko@suse.cz>
-
-> ---
->  mm/memcontrol.c |    6 ++++++
->  1 file changed, 6 insertions(+)
-> 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index df8c9fb..85f7790 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -3989,6 +3989,10 @@ static int mem_cgroup_hierarchy_write(struct cgroup *cont, struct cftype *cft,
->  		parent_memcg = mem_cgroup_from_cont(parent);
->  
->  	cgroup_lock();
-> +
-> +	if (memcg->use_hierarchy == val)
-> +		goto out;
-> +
->  	/*
->  	 * If parent's use_hierarchy is set, we can't make any modifications
->  	 * in the child subtrees. If it is unset, then the change can
-> @@ -4005,6 +4009,8 @@ static int mem_cgroup_hierarchy_write(struct cgroup *cont, struct cftype *cft,
->  			retval = -EBUSY;
->  	} else
->  		retval = -EINVAL;
-> +
-> +out:
->  	cgroup_unlock();
->  
->  	return retval;
-> -- 
-> 1.7.10.2
-> 
-> --
-> To unsubscribe from this list: send the line "unsubscribe cgroups" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-
--- 
-Michal Hocko
-SUSE Labs
-SUSE LINUX s.r.o.
-Lihovarska 1060/12
-190 00 Praha 9    
-Czech Republic
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
