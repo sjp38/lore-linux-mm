@@ -1,66 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
-	by kanga.kvack.org (Postfix) with SMTP id 9455D6B004D
-	for <linux-mm@kvack.org>; Tue, 26 Jun 2012 18:36:56 -0400 (EDT)
-Received: by vcbfl10 with SMTP id fl10so362995vcb.14
-        for <linux-mm@kvack.org>; Tue, 26 Jun 2012 15:36:55 -0700 (PDT)
-Date: Tue, 26 Jun 2012 18:36:51 -0400
-From: Konrad Rzeszutek Wilk <konrad@darnok.org>
-Subject: Re: [PATCH v2 1/9] zcache: fix refcount leak
-Message-ID: <20120626223651.GB6561@localhost.localdomain>
-References: <4FE97792.9020807@linux.vnet.ibm.com>
- <4FE977AA.2090003@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4FE977AA.2090003@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx167.postini.com [74.125.245.167])
+	by kanga.kvack.org (Postfix) with SMTP id 8862D6B004D
+	for <linux-mm@kvack.org>; Tue, 26 Jun 2012 19:31:50 -0400 (EDT)
+Date: Tue, 26 Jun 2012 16:31:47 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH -v4 6/6] fault-injection: add notifier error injection
+ testing scripts
+Message-Id: <20120626163147.93181e21.akpm@linux-foundation.org>
+In-Reply-To: <1340463502-15341-7-git-send-email-akinobu.mita@gmail.com>
+References: <1340463502-15341-1-git-send-email-akinobu.mita@gmail.com>
+	<1340463502-15341-7-git-send-email-akinobu.mita@gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Konrad Wilk <konrad.wilk@oracle.com>, Nitin Gupta <ngupta@vflare.org>, linux-mm@kvack.org
+To: Akinobu Mita <akinobu.mita@gmail.com>
+Cc: linux-kernel@vger.kernel.org, Pavel Machek <pavel@ucw.cz>, "Rafael J. Wysocki" <rjw@sisk.pl>, linux-pm@lists.linux-foundation.org, Greg KH <greg@kroah.com>, linux-mm@kvack.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, linuxppc-dev@lists.ozlabs.org, =?ISO-8859-1?Q?Am=E9rico?= Wang <xiyou.wangcong@gmail.com>
 
-On Tue, Jun 26, 2012 at 04:49:46PM +0800, Xiao Guangrong wrote:
-> In zcache_get_pool_by_id, the refcount of zcache_host is not increased, but
-> it is always decreased in zcache_put_pool
+On Sat, 23 Jun 2012 23:58:22 +0900
+Akinobu Mita <akinobu.mita@gmail.com> wrote:
 
-All of the patches (1-9) look good to me, so please also
-affix 'Reviewed-by: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>'.
+> This adds two testing scripts with notifier error injection
 
-You also might want to send this patch series with Greg KH being
-on the To line- not just as CC -as he is the one committing the
-patches in the git tree.
+Can we move these into tools/testing/selftests/, so that a "make
+run_tests" runs these tests?
 
-> 
-> Acked-by: Seth Jennings <sjenning@linux.vnet.ibm.com>
-> Signed-off-by: Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>
-> ---
->  drivers/staging/zcache/zcache-main.c |    3 ++-
->  1 files changed, 2 insertions(+), 1 deletions(-)
-> 
-> diff --git a/drivers/staging/zcache/zcache-main.c b/drivers/staging/zcache/zcache-main.c
-> index c9e08bb..55fbe3d 100644
-> --- a/drivers/staging/zcache/zcache-main.c
-> +++ b/drivers/staging/zcache/zcache-main.c
-> @@ -946,8 +946,9 @@ static struct tmem_pool *zcache_get_pool_by_id(uint16_t cli_id, uint16_t poolid)
->  		cli = &zcache_clients[cli_id];
->  		if (cli == NULL)
->  			goto out;
-> -		atomic_inc(&cli->refcount);
->  	}
-> +
-> +	atomic_inc(&cli->refcount);
->  	pool = idr_find(&cli->tmem_pools, poolid);
->  	if (pool != NULL)
->  		atomic_inc(&pool->refcount);
-> -- 
-> 1.7.7.6
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
+Also, I don't think it's appropriate that "fault-injection" be in the
+path - that's an implementation detail.  What we're testing here is
+memory hotplug, pm, cpu hotplug, etc.  So each test would go into, say,
+tools/testing/selftests/cpu-hotplug.
+
+Now, your cpu-hotplug test only tests a tiny part of the cpu-hotplug
+code.  But it is a start, and creates the place where additional tests
+will be placed in the future.
+
+
+If the kernel configuration means that the tests cannot be run, the
+attempt should succeed so that other tests are not disrupted.  I guess
+that printing a warning in this case is useful.
+
+Probably the selftests will require root permissions - we haven't
+really thought about that much.  If these tests require root (I assume
+they do?) then a sensible approach would be to check for that and to
+emit a warning and return "success".
+
+My overall take on the fault-injection code is that there has been a
+disappointing amount of uptake: I don't see many developers using them
+for whitebox testing their stuff.  I guess this patchset addresses
+that, in a way.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
