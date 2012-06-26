@@ -1,34 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
-	by kanga.kvack.org (Postfix) with SMTP id DC2CE6B005A
-	for <linux-mm@kvack.org>; Tue, 26 Jun 2012 11:32:26 -0400 (EDT)
-Message-ID: <4FE9D568.4050802@parallels.com>
-Date: Tue, 26 Jun 2012 19:29:44 +0400
+	by kanga.kvack.org (Postfix) with SMTP id EA3826B005A
+	for <linux-mm@kvack.org>; Tue, 26 Jun 2012 11:34:05 -0400 (EDT)
+Message-ID: <4FE9D5C9.805@parallels.com>
+Date: Tue, 26 Jun 2012 19:31:21 +0400
 From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 06/11] memcg: kmem controller infrastructure
-References: <1340633728-12785-1-git-send-email-glommer@parallels.com> <1340633728-12785-7-git-send-email-glommer@parallels.com> <20120625161720.ae13ae90.akpm@linux-foundation.org>
-In-Reply-To: <20120625161720.ae13ae90.akpm@linux-foundation.org>
+Subject: Re: [PATCH] memcg: first step towards hierarchical controller
+References: <1340717428-9009-1-git-send-email-glommer@parallels.com> <20120626141127.GA27816@cmpxchg.org>
+In-Reply-To: <20120626141127.GA27816@cmpxchg.org>
 Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Frederic Weisbecker <fweisbec@gmail.com>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Lameter <cl@linux.com>, devel@openvz.org, kamezawa.hiroyu@jp.fujitsu.com, Tejun Heo <tj@kernel.org>, Pekka Enberg <penberg@cs.helsinki.fi>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, Peter Zijlstra <a.p.zijlstra@chello.nl>, Michal Hocko <mhocko@suse.cz>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Tejun Heo <tj@kernel.org>
 
-On 06/26/2012 03:17 AM, Andrew Morton wrote:
->> +	if (ret == -EINTR)  {
->> >+		nofail = true;
->> >+		/*
->> >+		 * __mem_cgroup_try_charge() chose to bypass to root due
->> >+		 * to OOM kill or fatal signal.
-> Is "bypass" correct?  Maybe "fall back"?
->
+On 06/26/2012 06:11 PM, Johannes Weiner wrote:
+> I find the warning message a bit terse.  Maybe include something like
+> "restructure the cgroup directory structure to match your accounting
+> requirements or complain to (linux-mm, cgroups list etc.)  if not
+> possible"
 
-Heh, forgot this one, sorry =(
+How about:
 
-__mem_cgroup_try_charge does "goto bypass", so I believe the term
-"bypass" is better to allow whoever is following this code to follow it.
+WARN_ONCE(!parent_memcg && memcg->use_hierarchy,
+    "Non-hierarchical memcg is considered for deprecation\n"
+    "Please consider reorganizing your tree to work with hierarchical 
+accounting\n"
+    "If you have any reason not to, let us know at 
+cgroups@vger.kernel.org\n");
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
