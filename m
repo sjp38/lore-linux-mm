@@ -1,71 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
-	by kanga.kvack.org (Postfix) with SMTP id 699B46B0113
-	for <linux-mm@kvack.org>; Tue, 26 Jun 2012 09:38:48 -0400 (EDT)
-Received: by qcsp15 with SMTP id p15so3330664qcs.30
-        for <linux-mm@kvack.org>; Tue, 26 Jun 2012 06:38:47 -0700 (PDT)
-Date: Tue, 26 Jun 2012 15:38:41 +0200
-From: Frederic Weisbecker <fweisbec@gmail.com>
-Subject: Re: [PATCH 11/11] protect architectures where THREAD_SIZE >=
- PAGE_SIZE against fork bombs
-Message-ID: <20120626133838.GA11519@somewhere.redhat.com>
-References: <1340633728-12785-1-git-send-email-glommer@parallels.com>
- <1340633728-12785-12-git-send-email-glommer@parallels.com>
- <4FE89807.50708@redhat.com>
- <20120625183818.GH3869@google.com>
- <4FE9AF88.5070803@parallels.com>
+Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
+	by kanga.kvack.org (Postfix) with SMTP id 34BAC6B0113
+	for <linux-mm@kvack.org>; Tue, 26 Jun 2012 09:39:51 -0400 (EDT)
+Received: from /spool/local
+	by e2.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
+	Tue, 26 Jun 2012 09:39:47 -0400
+Received: from d01relay01.pok.ibm.com (d01relay01.pok.ibm.com [9.56.227.233])
+	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id BEF1338C806B
+	for <linux-mm@kvack.org>; Tue, 26 Jun 2012 09:39:14 -0400 (EDT)
+Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
+	by d01relay01.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q5QDdEjx163180
+	for <linux-mm@kvack.org>; Tue, 26 Jun 2012 09:39:14 -0400
+Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
+	by d01av01.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q5QJA4kS008579
+	for <linux-mm@kvack.org>; Tue, 26 Jun 2012 15:10:06 -0400
+Message-ID: <4FE9BB7B.2050009@linux.vnet.ibm.com>
+Date: Tue, 26 Jun 2012 08:39:07 -0500
+From: Seth Jennings <sjenning@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4FE9AF88.5070803@parallels.com>
+Subject: Re: [PATCH 3/3] x86: add local_tlb_flush_kernel_range()
+References: <1340640878-27536-1-git-send-email-sjenning@linux.vnet.ibm.com> <1340640878-27536-4-git-send-email-sjenning@linux.vnet.ibm.com> <CAPbh3rvkKZOuGh_Pn9WpeV5_=vA=k9=x17oa2GoT8fEgRMr+WQ@mail.gmail.com>
+In-Reply-To: <CAPbh3rvkKZOuGh_Pn9WpeV5_=vA=k9=x17oa2GoT8fEgRMr+WQ@mail.gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: Tejun Heo <tj@kernel.org>, Frederic Weisbecker <fweisbec@redhat.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Lameter <cl@linux.com>, devel@openvz.org, kamezawa.hiroyu@jp.fujitsu.com, Pekka Enberg <penberg@cs.helsinki.fi>, Suleiman Souhlal <suleiman@google.com>
+To: konrad@darnok.org
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Nitin Gupta <ngupta@vflare.org>, Minchan Kim <minchan@kernel.org>, Robert Jennings <rcj@linux.vnet.ibm.com>, linux-mm@kvack.org, devel@driverdev.osuosl.org, linux-kernel@vger.kernel.org
 
-On Tue, Jun 26, 2012 at 04:48:08PM +0400, Glauber Costa wrote:
-> On 06/25/2012 10:38 PM, Tejun Heo wrote:
-> >On Mon, Jun 25, 2012 at 06:55:35PM +0200, Frederic Weisbecker wrote:
-> >>On 06/25/2012 04:15 PM, Glauber Costa wrote:
-> >>
-> >>>Because those architectures will draw their stacks directly from
-> >>>the page allocator, rather than the slab cache, we can directly
-> >>>pass __GFP_KMEMCG flag, and issue the corresponding free_pages.
-> >>>
-> >>>This code path is taken when the architecture doesn't define
-> >>>CONFIG_ARCH_THREAD_INFO_ALLOCATOR (only ia64 seems to), and has
-> >>>THREAD_SIZE >= PAGE_SIZE. Luckily, most - if not all - of the
-> >>>remaining architectures fall in this category.
-> >>>
-> >>>This will guarantee that every stack page is accounted to the memcg
-> >>>the process currently lives on, and will have the allocations to fail
-> >>>if they go over limit.
-> >>>
-> >>>For the time being, I am defining a new variant of THREADINFO_GFP, not
-> >>>to mess with the other path. Once the slab is also tracked by memcg,
-> >>>we can get rid of that flag.
-> >>>
-> >>>Tested to successfully protect against :(){ :|:& };:
-> >>>
-> >>>Signed-off-by: Glauber Costa <glommer@parallels.com>
-> >>>CC: Christoph Lameter <cl@linux.com>
-> >>>CC: Pekka Enberg <penberg@cs.helsinki.fi>
-> >>>CC: Michal Hocko <mhocko@suse.cz>
-> >>>CC: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> >>>CC: Johannes Weiner <hannes@cmpxchg.org>
-> >>>CC: Suleiman Souhlal <suleiman@google.com>
-> >>
-> >>
-> >>Acked-by: Frederic Weisbecker <fweisbec@redhat.com>
-> >
-> >Frederic, does this (with proper slab accounting added later) achieve
-> >what you wanted with the task counter?
-> >
+On 06/25/2012 06:01 PM, Konrad Rzeszutek Wilk wrote:
+> On Mon, Jun 25, 2012 at 12:14 PM, Seth Jennings
+> <sjenning@linux.vnet.ibm.com> wrote:
+>> This patch adds support for a local_tlb_flush_kernel_range()
+>> function for the x86 arch.  This function allows for CPU-local
+>> TLB flushing, potentially using invlpg for single entry flushing,
+>> using an arch independent function name.
 > 
-> A note: Frederic may confirm, but I think he doesn't even need
-> the slab accounting to follow to achieve that goal.
+> What x86 hardware did you use to figure the optimal number?
 
-Limiting is enough. But that requires internal accounting.
+Actually I didn't.  I used Alex Shi's numbers.
+
+https://lkml.org/lkml/2012/6/25/39
+
+"Like some machine in my hands, balance points is 16 entries
+on Romely-EP; while it is at 8 entries on Bloomfield NHM-EP;
+and is 256 on IVB mobile CPU. but on model 15 core2 Xeon
+using invlpg has nothing help.
+
+For untested machine, do a conservative optimization, same
+as NHM CPU."
+
+--
+Seth
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
