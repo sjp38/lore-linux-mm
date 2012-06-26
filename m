@@ -1,37 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
-	by kanga.kvack.org (Postfix) with SMTP id AAFFB6B0154
-	for <linux-mm@kvack.org>; Tue, 26 Jun 2012 03:26:26 -0400 (EDT)
-Message-ID: <4FE9637F.3050500@parallels.com>
-Date: Tue, 26 Jun 2012 11:23:43 +0400
-From: Glauber Costa <glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx141.postini.com [74.125.245.141])
+	by kanga.kvack.org (Postfix) with SMTP id B7FD86B0146
+	for <linux-mm@kvack.org>; Tue, 26 Jun 2012 03:39:16 -0400 (EDT)
+Date: Tue, 26 Jun 2012 09:39:13 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH 1/5] mm/sparse: check size of struct mm_section
+Message-ID: <20120626073913.GC6713@tiehlicka.suse.cz>
+References: <1340466776-4976-1-git-send-email-shangw@linux.vnet.ibm.com>
+ <20120625160322.GE19810@tiehlicka.suse.cz>
+ <20120625163522.GA5476@shangw>
 MIME-Version: 1.0
-Subject: Re: [PATCH 09/11] memcg: propagate kmem limiting information to children
-References: <1340633728-12785-1-git-send-email-glommer@parallels.com> <1340633728-12785-10-git-send-email-glommer@parallels.com> <20120625162352.51997c5a.akpm@linux-foundation.org> <alpine.DEB.2.00.1206252224350.30072@chino.kir.corp.google.com> <20120625223136.86ebee05.akpm@linux-foundation.org>
-In-Reply-To: <20120625223136.86ebee05.akpm@linux-foundation.org>
-Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120625163522.GA5476@shangw>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: David Rientjes <rientjes@google.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Frederic Weisbecker <fweisbec@gmail.com>, Pekka Enberg <penberg@kernel.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Lameter <cl@linux.com>, devel@openvz.org, kamezawa.hiroyu@jp.fujitsu.com, Tejun Heo <tj@kernel.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Suleiman Souhlal <suleiman@google.com>
+To: Gavin Shan <shangw@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, rientjes@google.com, hannes@cmpxchg.org, akpm@linux-foundation.org
 
-On 06/26/2012 09:31 AM, Andrew Morton wrote:
-> On Mon, 25 Jun 2012 22:24:44 -0700 (PDT) David Rientjes <rientjes@google.com> wrote:
->
->>>> +#define KMEM_ACCOUNTED_THIS	0
->>>> +#define KMEM_ACCOUNTED_PARENT	1
->>>
->>> And then document the fields here.
->>>
->>
->> In hex, please?
->
-> Well, they're bit numbers, not masks.  Decimal 0-31 is OK, or an enum.
->
-enum it will be.
+On Tue 26-06-12 00:35:22, Gavin Shan wrote:
+[...]
+> >> In order to fully utilize the memory chunk allocated from bootmem
+> >> allocator, it'd better to assure memory sector descriptor won't run
+> >> across the boundary (PAGE_SIZE).
 
+OK, I misread this part of the changelog changelog.
 
+> >
+> >Why? The memory is continuous, right?
+> 
+> Yes, the memory is conginous and the capacity of specific entry
+> in mem_section[NR_SECTION_ROOTS] has been defined as follows:
+> 
+> 
+> #define SECTIONS_PER_ROOT       (PAGE_SIZE / sizeof (struct mem_section))
+> 
+> Also, the memory is prone to be allocated from bootmem by function
+> alloc_bootmem_node(), which has PAGE_SIZE alignment. So I think it's
+> reasonable to introduce the extra check here from my personal view :-)
+
+No it is not necessary because we will never cross the page boundary
+because (SECTIONS_PER_ROOT uses an int division)
+-- 
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
