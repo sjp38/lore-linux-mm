@@ -1,56 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
-	by kanga.kvack.org (Postfix) with SMTP id E46B36B0133
-	for <linux-mm@kvack.org>; Tue, 26 Jun 2012 02:05:25 -0400 (EDT)
-Received: by ggm4 with SMTP id 4so4385669ggm.14
-        for <linux-mm@kvack.org>; Mon, 25 Jun 2012 23:05:24 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
+	by kanga.kvack.org (Postfix) with SMTP id 7BB106B0135
+	for <linux-mm@kvack.org>; Tue, 26 Jun 2012 02:08:47 -0400 (EDT)
+Received: from /spool/local
+	by e34.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <shangw@linux.vnet.ibm.com>;
+	Tue, 26 Jun 2012 00:08:45 -0600
+Received: from d03relay05.boulder.ibm.com (d03relay05.boulder.ibm.com [9.17.195.107])
+	by d03dlp03.boulder.ibm.com (Postfix) with ESMTP id 2B13D19D804F
+	for <linux-mm@kvack.org>; Tue, 26 Jun 2012 06:07:50 +0000 (WET)
+Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
+	by d03relay05.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q5Q67r59261606
+	for <linux-mm@kvack.org>; Tue, 26 Jun 2012 00:07:53 -0600
+Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av01.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q5Q67qYc017763
+	for <linux-mm@kvack.org>; Tue, 26 Jun 2012 00:07:53 -0600
+Date: Tue, 26 Jun 2012 14:07:35 +0800
+From: Gavin Shan <shangw@linux.vnet.ibm.com>
+Subject: Re: [PATCH 2/5] mm/sparse: optimize sparse_index_alloc
+Message-ID: <20120626060735.GA9483@shangw>
+Reply-To: Gavin Shan <shangw@linux.vnet.ibm.com>
+References: <1340466776-4976-1-git-send-email-shangw@linux.vnet.ibm.com>
+ <1340466776-4976-2-git-send-email-shangw@linux.vnet.ibm.com>
+ <20120625153035.GB19810@tiehlicka.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <4FE92AF9.4050309@jp.fujitsu.com>
-References: <alpine.DEB.2.00.1206251846020.24838@chino.kir.corp.google.com>
- <alpine.DEB.2.00.1206251846450.24838@chino.kir.corp.google.com> <4FE92AF9.4050309@jp.fujitsu.com>
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Date: Tue, 26 Jun 2012 02:05:04 -0400
-Message-ID: <CAHGf_=pOvakOtZA9fWRGchgSb8k80O0Y8D-yUrmFWuoQOqkePQ@mail.gmail.com>
-Subject: Re: [rfc][patch 2/3] mm, oom: introduce helper function to process
- threads during scan
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120625153035.GB19810@tiehlicka.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, cgroups@vger.kernel.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Gavin Shan <shangw@linux.vnet.ibm.com>, linux-mm@kvack.org, rientjes@google.com, hannes@cmpxchg.org, akpm@linux-foundation.org
 
-On Mon, Jun 25, 2012 at 11:22 PM, Kamezawa Hiroyuki
-<kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> (2012/06/26 10:47), David Rientjes wrote:
->>
->> This patch introduces a helper function to process each thread during th=
-e
->> iteration over the tasklist. =A0A new return type, enum oom_scan_t, is
->> defined to determine the future behavior of the iteration:
->>
->> =A0- OOM_SCAN_OK: continue scanning the thread and find its badness,
->>
->> =A0- OOM_SCAN_CONTINUE: do not consider this thread for oom kill, it's
->> =A0 =A0ineligible,
->>
->> =A0- OOM_SCAN_ABORT: abort the iteration and return, or
->>
->> =A0- OOM_SCAN_SELECT: always select this thread with the highest badness
->> =A0 =A0possible.
->>
->> There is no functional change with this patch. =A0This new helper functi=
-on
->> will be used in the next patch in the memory controller.
->>
->> Signed-off-by: David Rientjes <rientjes@google.com>
+>> With CONFIG_SPARSEMEM_EXTREME, the two level of memory section
+>> descriptors are allocated from slab or bootmem. When allocating
+>> from slab, let slab allocator to clear the memory chunk. However,
+>> the memory chunk from bootmem allocator, we have to clear that
+>> explicitly.
 >
+>I am sorry but I do not see how this optimize the current code. What is
+>the difference between slab doing memset and doing it explicitly for all
+>cases?
 >
-> I like this.
->
-> Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Yeah, I do agree it won't do much optimization here. However, I'm wandering
+if I can remove the whole peice of code doing memset(setion, 0, array_size)
+since it seems that alloc_bootmem_node() also clears the allocated memory
+chunk :-)
+
+Please correct me if I'm wrong about alloc_bootmem_node() :-)
+
+Thanks,
+Gavin
+
+>> 
+>> Signed-off-by: Gavin Shan <shangw@linux.vnet.ibm.com>
+>> ---
+>>  mm/sparse.c |   12 ++++++------
+>>  1 file changed, 6 insertions(+), 6 deletions(-)
+>> 
+>> diff --git a/mm/sparse.c b/mm/sparse.c
+>> index afd0998..ce50c8b 100644
+>> --- a/mm/sparse.c
+>> +++ b/mm/sparse.c
+>> @@ -74,14 +74,14 @@ static struct mem_section noinline __init_refok *sparse_index_alloc(int nid)
+>>  
+>>  	if (slab_is_available()) {
+>>  		if (node_state(nid, N_HIGH_MEMORY))
+>> -			section = kmalloc_node(array_size, GFP_KERNEL, nid);
+>> +			section = kzalloc_node(array_size, GFP_KERNEL, nid);
+>>  		else
+>> -			section = kmalloc(array_size, GFP_KERNEL);
+>> -	} else
+>> +			section = kzalloc(array_size, GFP_KERNEL);
+>> +	} else {
+>>  		section = alloc_bootmem_node(NODE_DATA(nid), array_size);
+>> -
+>> -	if (section)
+>> -		memset(section, 0, array_size);
+>> +		if (section)
+>> +			memset(section, 0, array_size);
+>> +	}
+>>  
+>>  	return section;
+>>  }
+>> -- 
+>> 1.7.9.5
+>> 
+>> --
+>> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>> the body to majordomo@kvack.org.  For more info on Linux MM,
+>> see: http://www.linux-mm.org/ .
+>> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>
+>-- 
+>Michal Hocko
+>SUSE Labs
+>SUSE LINUX s.r.o.
+>Lihovarska 1060/12
+>190 00 Praha 9    
+>Czech Republic
+>
+>--
+>To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>the body to majordomo@kvack.org.  For more info on Linux MM,
+>see: http://www.linux-mm.org/ .
+>Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
