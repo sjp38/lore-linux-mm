@@ -1,71 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
-	by kanga.kvack.org (Postfix) with SMTP id 9D8AD6B0148
-	for <linux-mm@kvack.org>; Tue, 26 Jun 2012 03:17:28 -0400 (EDT)
-Received: from /spool/local
-	by e36.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <shangw@linux.vnet.ibm.com>;
-	Tue, 26 Jun 2012 01:17:28 -0600
-Received: from d03relay01.boulder.ibm.com (d03relay01.boulder.ibm.com [9.17.195.226])
-	by d03dlp02.boulder.ibm.com (Postfix) with ESMTP id 793703E4004C
-	for <linux-mm@kvack.org>; Tue, 26 Jun 2012 07:17:24 +0000 (WET)
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d03relay01.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q5Q7HP9c207926
-	for <linux-mm@kvack.org>; Tue, 26 Jun 2012 01:17:25 -0600
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q5Q7HOO8022771
-	for <linux-mm@kvack.org>; Tue, 26 Jun 2012 01:17:24 -0600
-Date: Tue, 26 Jun 2012 15:17:21 +0800
-From: Gavin Shan <shangw@linux.vnet.ibm.com>
-Subject: Re: [PATCH 3/5] mm/sparse: fix possible memory leak
-Message-ID: <20120626071721.GA23641@shangw>
-Reply-To: Gavin Shan <shangw@linux.vnet.ibm.com>
-References: <1340466776-4976-1-git-send-email-shangw@linux.vnet.ibm.com>
- <1340466776-4976-3-git-send-email-shangw@linux.vnet.ibm.com>
- <20120625154851.GD19810@tiehlicka.suse.cz>
- <20120626061147.GB9483@shangw>
- <20120626071436.GB6713@tiehlicka.suse.cz>
+Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
+	by kanga.kvack.org (Postfix) with SMTP id 631F46B014C
+	for <linux-mm@kvack.org>; Tue, 26 Jun 2012 03:20:31 -0400 (EDT)
+Message-ID: <4FE9621D.2050002@parallels.com>
+Date: Tue, 26 Jun 2012 11:17:49 +0400
+From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120626071436.GB6713@tiehlicka.suse.cz>
+Subject: Re: [PATCH 00/11] kmem controller for memcg: stripped down version
+References: <1340633728-12785-1-git-send-email-glommer@parallels.com> <20120625162745.eabe4f03.akpm@linux-foundation.org>
+In-Reply-To: <20120625162745.eabe4f03.akpm@linux-foundation.org>
+Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Gavin Shan <shangw@linux.vnet.ibm.com>, linux-mm@kvack.org, rientjes@google.com, hannes@cmpxchg.org, akpm@linux-foundation.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Frederic Weisbecker <fweisbec@gmail.com>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Lameter <cl@linux.com>, devel@openvz.org, kamezawa.hiroyu@jp.fujitsu.com, Tejun Heo <tj@kernel.org>
 
->> >> With CONFIG_SPARSEMEM_EXTREME, the root memory section descriptors
->> >> are allocated by slab or bootmem allocator. Also, the descriptors
->> >> might have been allocated and initialized by others. However, the
->> >> memory chunk allocated in current implementation wouldn't be put
->> >> into the available pool if others have allocated memory chunk for
->> >> that.
->> >
->> >Who is others? I assume that we can race in hotplug because other than
->> >that this is an early initialization code. How can others race?
->> >
->> 
->> I'm sorry that I don't have the real bug against the issue. 
+On 06/26/2012 03:27 AM, Andrew Morton wrote:
+> On Mon, 25 Jun 2012 18:15:17 +0400
+> Glauber Costa <glommer@parallels.com> wrote:
 >
->I am not saying the bug is not real. It is just that the changelog
->doesn's say how the bug is hit, who is affected and when it has been
->introduced. These is essential for stable.
+>> What I am proposing with this series is a stripped down version of the
+>> kmem controller for memcg that would allow us to merge significant parts
+>> of the infrastructure, while leaving out, for now, the polemic bits about
+>> the slab while it is being reworked by Cristoph.
+>>
+>> Me reasoning for that is that after the last change to introduce a gfp
+>> flag to mark kernel allocations, it became clear to me that tracking other
+>> resources like the stack would then follow extremely naturaly. I figured
+>> that at some point we'd have to solve the issue pointed by David, and avoid
+>> testing the Slab flag in the page allocator, since it would soon be made
+>> more generic. I do that by having the callers to explicit mark it.
+>>
+>> So to demonstrate how it would work, I am introducing a stack tracker here,
+>> that is already a functionality per-se: it successfully stops fork bombs to
+>> happen. (Sorry for doing all your work, Frederic =p ). Note that after all
+>> memcg infrastructure is deployed, it becomes very easy to track anything.
+>> The last patch of this series is extremely simple.
+>>
+>> The infrastructure is exactly the same we had in memcg, but stripped down
+>> of the slab parts. And because what we have after those patches is a feature
+>> per-se, I think it could be considered for merging.
+>
+> hm.  None of this new code makes the kernel smaller, faster, easier to
+> understand or more fun to read!
+Not sure if this is a general comment - in case I agree - or if targeted 
+to my statement that this is "stripped down". If so, it is of course 
+smaller relative to my previous slab accounting patches.
+
+The infrastructure is largely common, but I realized that a future user,
+tracking the stack, would be a lot simpler and could be done first.
+
+> Presumably we're getting some benefit for all the downside.  When the
+> time is appropriate, please do put some time into explaining that
+> benefit, so that others can agree that it is a worthwhile tradeoff.
 >
 
-Thanks, Michal. Let me replace "others" with "hotplug" in next revision :-)
+Well, for one thing, we stop fork bombs for processes inside cgroups.
+I think the justification for that was already given when you asked 
+people about reasoning for merging Frederic's process tracking cgroup.
 
-Thanks,
-Gavin
+Just that wasn't merged because people were largely unhappy with the 
+form it took. I can't speak for everybody here, but AFAIK, tracking the 
+stack through the memory it used, therefore using my proposed kmem 
+controller, was an idea that good quite a bit of traction with the 
+memcg/memory people. So here you have something that people already 
+asked a lot for, in a shape and interface that seem to be acceptable.
 
->
->-- 
->Michal Hocko
->SUSE Labs
->SUSE LINUX s.r.o.
->Lihovarska 1060/12
->190 00 Praha 9    
->Czech Republic
->
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
