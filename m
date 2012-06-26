@@ -1,42 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
-	by kanga.kvack.org (Postfix) with SMTP id 23C216B004D
-	for <linux-mm@kvack.org>; Tue, 26 Jun 2012 17:37:05 -0400 (EDT)
-Received: from akpm.mtv.corp.google.com (216-239-45-4.google.com [216.239.45.4])
-	by mail.linuxfoundation.org (Postfix) with ESMTPSA id 7760E280
-	for <linux-mm@kvack.org>; Tue, 26 Jun 2012 21:37:04 +0000 (UTC)
-Date: Tue, 26 Jun 2012 14:37:03 -0700
+Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
+	by kanga.kvack.org (Postfix) with SMTP id 2431E6B004D
+	for <linux-mm@kvack.org>; Tue, 26 Jun 2012 17:55:41 -0400 (EDT)
+Date: Tue, 26 Jun 2012 14:55:39 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: needed lru_add_drain_all() change
-Message-Id: <20120626143703.396d6d66.akpm@linux-foundation.org>
+Subject: Re: [PATCH 00/11] kmem controller for memcg: stripped down version
+Message-Id: <20120626145539.eeeab909.akpm@linux-foundation.org>
+In-Reply-To: <4FE9621D.2050002@parallels.com>
+References: <1340633728-12785-1-git-send-email-glommer@parallels.com>
+	<20120625162745.eabe4f03.akpm@linux-foundation.org>
+	<4FE9621D.2050002@parallels.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
+To: Glauber Costa <glommer@parallels.com>
+Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Frederic Weisbecker <fweisbec@gmail.com>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Lameter <cl@linux.com>, devel@openvz.org, kamezawa.hiroyu@jp.fujitsu.com, Tejun Heo <tj@kernel.org>
 
-https://bugzilla.kernel.org/show_bug.cgi?id=43811
+On Tue, 26 Jun 2012 11:17:49 +0400
+Glauber Costa <glommer@parallels.com> wrote:
 
-lru_add_drain_all() uses schedule_on_each_cpu().  But
-schedule_on_each_cpu() hangs if a realtime thread is spinning, pinned
-to a CPU.  There's no intention to change the scheduler behaviour, so I
-think we should remove schedule_on_each_cpu() from the kernel.
+> On 06/26/2012 03:27 AM, Andrew Morton wrote:
+> > On Mon, 25 Jun 2012 18:15:17 +0400
+> > Glauber Costa <glommer@parallels.com> wrote:
+> >
+> >> What I am proposing with this series is a stripped down version of the
+> >> kmem controller for memcg that would allow us to merge significant parts
+> >> of the infrastructure, while leaving out, for now, the polemic bits about
+> >> the slab while it is being reworked by Cristoph.
+> >>
+> >> Me reasoning for that is that after the last change to introduce a gfp
+> >> flag to mark kernel allocations, it became clear to me that tracking other
+> >> resources like the stack would then follow extremely naturaly. I figured
+> >> that at some point we'd have to solve the issue pointed by David, and avoid
+> >> testing the Slab flag in the page allocator, since it would soon be made
+> >> more generic. I do that by having the callers to explicit mark it.
+> >>
+> >> So to demonstrate how it would work, I am introducing a stack tracker here,
+> >> that is already a functionality per-se: it successfully stops fork bombs to
+> >> happen. (Sorry for doing all your work, Frederic =p ). Note that after all
+> >> memcg infrastructure is deployed, it becomes very easy to track anything.
+> >> The last patch of this series is extremely simple.
+> >>
+> >> The infrastructure is exactly the same we had in memcg, but stripped down
+> >> of the slab parts. And because what we have after those patches is a feature
+> >> per-se, I think it could be considered for merging.
+> >
+> > hm.  None of this new code makes the kernel smaller, faster, easier to
+> > understand or more fun to read!
+> Not sure if this is a general comment - in case I agree - or if targeted 
+> to my statement that this is "stripped down". If so, it is of course 
+> smaller relative to my previous slab accounting patches.
 
-The biggest user of schedule_on_each_cpu() is lru_add_drain_all().
+It's a general comment.  The patch adds overhead: runtime costs and
+maintenance costs.  Do its benefits justify that cost?
 
-Does anyone have any thoughts on how we can do this?  The obvious
-approach is to declare these:
+> The infrastructure is largely common, but I realized that a future user,
+> tracking the stack, would be a lot simpler and could be done first.
+> 
+> > Presumably we're getting some benefit for all the downside.  When the
+> > time is appropriate, please do put some time into explaining that
+> > benefit, so that others can agree that it is a worthwhile tradeoff.
+> >
+> 
+> Well, for one thing, we stop fork bombs for processes inside cgroups.
 
-static DEFINE_PER_CPU(struct pagevec[NR_LRU_LISTS], lru_add_pvecs);
-static DEFINE_PER_CPU(struct pagevec, lru_rotate_pvecs);
-static DEFINE_PER_CPU(struct pagevec, lru_deactivate_pvecs);
+"inside cgroups" is a significant limitation!  Is this capability
+important enough to justify adding the new code?  That's unobvious
+(to me).
 
-to be irq-safe and use on_each_cpu().  lru_rotate_pvecs is already
-irq-safe and converting lru_add_pvecs and lru_deactivate_pvecs looks
-pretty simple.
+Are there any other user-facing things which we can do with this
+feature?  Present, or planned?
 
-Thoughts?
+> I can't speak for everybody here, but AFAIK, tracking the stack through
+> the memory it used, therefore using my proposed kmem controller, was an
+> idea that good quite a bit of traction with the memcg/memory people. 
+> So here you have something that people already asked a lot for, in a
+> shape and interface that seem to be acceptable.
+
+mm, maybe.  Kernel developers tend to look at code from the point of
+view "does it work as designed", "is it clean", "is it efficient", "do
+I understand it", etc.  We often forget to step back and really
+consider whether or not it should be merged at all.
+
+I mean, unless the code is an explicit simplification, we should have
+a very strong bias towards "don't merge".
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
