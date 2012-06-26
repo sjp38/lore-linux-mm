@@ -1,42 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
-	by kanga.kvack.org (Postfix) with SMTP id 701DD6B016D
-	for <linux-mm@kvack.org>; Tue, 26 Jun 2012 04:37:56 -0400 (EDT)
-Message-ID: <1340699831.21991.34.camel@twins>
-Subject: Re: [PATCH -mm v2 01/11] mm: track free size between VMAs in VMA
- rbtree
-From: Peter Zijlstra <peterz@infradead.org>
-Date: Tue, 26 Jun 2012 10:37:11 +0200
-In-Reply-To: <4FE8DD80.9040108@redhat.com>
-References: <1340315835-28571-1-git-send-email-riel@surriel.com>
-	     <1340315835-28571-2-git-send-email-riel@surriel.com>
-	    <1340359115.18025.57.camel@twins> <4FE47D0E.3000804@redhat.com>
-	   <1340374439.18025.75.camel@twins> <4FE48054.5090407@redhat.com>
-	  <1340375872.18025.77.camel@twins> <4FE4922D.8070501@surriel.com>
-	 <1340652578.21991.18.camel@twins> <4FE8DD80.9040108@redhat.com>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: quoted-printable
-Mime-Version: 1.0
+Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
+	by kanga.kvack.org (Postfix) with SMTP id 5D4816B016F
+	for <linux-mm@kvack.org>; Tue, 26 Jun 2012 04:42:38 -0400 (EDT)
+Message-ID: <4FE9755B.1040905@parallels.com>
+Date: Tue, 26 Jun 2012 12:39:55 +0400
+From: Glauber Costa <glommer@parallels.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH 02/11] memcg: Reclaim when more than one page needed.
+References: <1340633728-12785-1-git-send-email-glommer@parallels.com> <1340633728-12785-3-git-send-email-glommer@parallels.com> <CABCjUKD0h089StLF8BwVRU-St70Ai9PTw-cjis40_aLLG3MAQQ@mail.gmail.com>
+In-Reply-To: <CABCjUKD0h089StLF8BwVRU-St70Ai9PTw-cjis40_aLLG3MAQQ@mail.gmail.com>
+Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Rik van Riel <riel@surriel.com>, linux-mm@kvack.org, akpm@linux-foundation.org, aarcange@redhat.com, minchan@gmail.com, kosaki.motohiro@gmail.com, andi@firstfloor.org, hannes@cmpxchg.org, mel@csn.ul.ie, linux-kernel@vger.kernel.org
+To: Suleiman Souhlal <suleiman@google.com>
+Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Frederic Weisbecker <fweisbec@gmail.com>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Lameter <cl@linux.com>, devel@openvz.org, kamezawa.hiroyu@jp.fujitsu.com, Tejun Heo <tj@kernel.org>
 
-On Mon, 2012-06-25 at 17:52 -0400, Rik van Riel wrote:
-> > The thing you propose, the double search, once for len, and once for le=
-n
-> > +align-1 doesn't guarantee you'll find a hole. All holes of len might b=
-e
-> > mis-aligned but the len+align-1 search might overlook a hole of suitabl=
-e
-> > size and alignment, you'd have to search the entire range: [len, len
-> > +align-1], and that's somewhat silly.
->=20
-> This may still be good enough.=20
+On 06/26/2012 03:33 AM, Suleiman Souhlal wrote:
+> On Mon, Jun 25, 2012 at 7:15 AM, Glauber Costa <glommer@parallels.com> wrote:
+>> From: Suleiman Souhlal <ssouhlal@FreeBSD.org>
+>>
+>> mem_cgroup_do_charge() was written before slab accounting, and expects
+>> three cases: being called for 1 page, being called for a stock of 32 pages,
+>> or being called for a hugepage.  If we call for 2 or 3 pages (and several
+>> slabs used in process creation are such, at least with the debug options I
+>> had), it assumed it's being called for stock and just retried without reclaiming.
+>>
+>> Fix that by passing down a minsize argument in addition to the csize.
+>>
+>> And what to do about that (csize == PAGE_SIZE && ret) retry?  If it's
+>> needed at all (and presumably is since it's there, perhaps to handle
+>> races), then it should be extended to more than PAGE_SIZE, yet how far?
+>> And should there be a retry count limit, of what?  For now retry up to
+>> COSTLY_ORDER (as page_alloc.c does), stay safe with a cond_resched(),
+>> and make sure not to do it if __GFP_NORETRY.
+>
+> The commit description mentions COSTLY_ORDER, but it's not actually
+> used in the patch.
+>
+> -- Suleiman
+>
+Yeah, forgot to update the changelog =(
 
-OK, as long as this is clearly mentioned in a comment near there.
-
-It just annoys me that I cannot come up with anything better :-)
+But much more importantly, are you still happy with those changes?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
