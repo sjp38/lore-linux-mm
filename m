@@ -1,22 +1,23 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
-	by kanga.kvack.org (Postfix) with SMTP id 8E7146B0172
-	for <linux-mm@kvack.org>; Tue, 26 Jun 2012 04:52:27 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
+	by kanga.kvack.org (Postfix) with SMTP id 490D16B0174
+	for <linux-mm@kvack.org>; Tue, 26 Jun 2012 04:52:59 -0400 (EDT)
 Received: from /spool/local
-	by e23smtp01.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e28smtp09.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <xiaoguangrong@linux.vnet.ibm.com>;
-	Tue, 26 Jun 2012 08:42:55 +1000
-Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q5Q8qKj439780570
-	for <linux-mm@kvack.org>; Tue, 26 Jun 2012 18:52:20 +1000
-Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
-	by d23av04.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q5Q8qJYx024433
-	for <linux-mm@kvack.org>; Tue, 26 Jun 2012 18:52:20 +1000
-Message-ID: <4FE97841.7070404@linux.vnet.ibm.com>
-Date: Tue, 26 Jun 2012 16:52:17 +0800
+	Tue, 26 Jun 2012 14:22:55 +0530
+Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
+	by d28relay03.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q5Q8qr7d7471486
+	for <linux-mm@kvack.org>; Tue, 26 Jun 2012 14:22:53 +0530
+Received: from d28av01.in.ibm.com (loopback [127.0.0.1])
+	by d28av01.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q5QEMRvU010382
+	for <linux-mm@kvack.org>; Tue, 26 Jun 2012 19:52:27 +0530
+Message-ID: <4FE97862.10004@linux.vnet.ibm.com>
+Date: Tue, 26 Jun 2012 16:52:50 +0800
 From: Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Subject: [PATCH v2 8/9] zcache: introduce get_zcache_client
+Subject: [PATCH v2 9/9] zcache: cleanup the code between tmem_obj_init and
+ tmem_obj_find
 References: <4FE97792.9020807@linux.vnet.ibm.com>
 In-Reply-To: <4FE97792.9020807@linux.vnet.ibm.com>
 Content-Type: text/plain; charset=UTF-8
@@ -26,109 +27,117 @@ List-ID: <linux-mm.kvack.org>
 To: Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>
 Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Konrad Wilk <konrad.wilk@oracle.com>, Nitin Gupta <ngupta@vflare.org>, linux-mm@kvack.org
 
-Introduce get_zcache_client to remove the common code
+tmem_obj_find and insertion tmem-obj have the some logic, we can integrate
+the code
 
-Acked-by: Seth Jennings <sjenning@linux.vnet.ibm.com>
 Signed-off-by: Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>
 ---
- drivers/staging/zcache/zcache-main.c |   46 +++++++++++++++++-----------------
- 1 files changed, 23 insertions(+), 23 deletions(-)
+ drivers/staging/zcache/tmem.c |   63 +++++++++++++++++++++-------------------
+ 1 files changed, 33 insertions(+), 30 deletions(-)
 
-diff --git a/drivers/staging/zcache/zcache-main.c b/drivers/staging/zcache/zcache-main.c
-index fbd9bcf..2b5c73c 100644
---- a/drivers/staging/zcache/zcache-main.c
-+++ b/drivers/staging/zcache/zcache-main.c
-@@ -74,6 +74,17 @@ static inline uint16_t get_client_id_from_client(struct zcache_client *cli)
- 	return cli - &zcache_clients[0];
+diff --git a/drivers/staging/zcache/tmem.c b/drivers/staging/zcache/tmem.c
+index 1ca66ea..eaa9021 100644
+--- a/drivers/staging/zcache/tmem.c
++++ b/drivers/staging/zcache/tmem.c
+@@ -72,33 +72,49 @@ void tmem_register_pamops(struct tmem_pamops *m)
+  * the hashbucket lock must be held.
+  */
+
+-/* searches for object==oid in pool, returns locked object if found */
+-static struct tmem_obj *tmem_obj_find(struct tmem_hashbucket *hb,
+-					struct tmem_oid *oidp)
++static struct tmem_obj
++*__tmem_obj_find(struct tmem_hashbucket*hb, struct tmem_oid *oidp,
++		 struct rb_node **parent, struct rb_node ***link)
+ {
+-	struct rb_node *rbnode;
+-	struct tmem_obj *obj;
+-
+-	rbnode = hb->obj_rb_root.rb_node;
+-	while (rbnode) {
+-		BUG_ON(RB_EMPTY_NODE(rbnode));
+-		obj = rb_entry(rbnode, struct tmem_obj, rb_tree_node);
++	struct rb_node *_parent = NULL, **rbnode;
++	struct tmem_obj *obj = NULL;
++
++	rbnode = &hb->obj_rb_root.rb_node;
++	while (*rbnode) {
++		BUG_ON(RB_EMPTY_NODE(*rbnode));
++		_parent = *rbnode;
++		obj = rb_entry(*rbnode, struct tmem_obj,
++			       rb_tree_node);
+ 		switch (tmem_oid_compare(oidp, &obj->oid)) {
+ 		case 0: /* equal */
+ 			goto out;
+ 		case -1:
+-			rbnode = rbnode->rb_left;
++			rbnode = &(*rbnode)->rb_left;
+ 			break;
+ 		case 1:
+-			rbnode = rbnode->rb_right;
++			rbnode = &(*rbnode)->rb_right;
+ 			break;
+ 		}
+ 	}
++
++	if (parent)
++		*parent = _parent;
++	if (link)
++		*link = rbnode;
++
+ 	obj = NULL;
+ out:
+ 	return obj;
  }
 
-+static struct zcache_client *get_zcache_client(uint16_t cli_id)
++
++/* searches for object==oid in pool, returns locked object if found */
++static struct tmem_obj *tmem_obj_find(struct tmem_hashbucket *hb,
++					struct tmem_oid *oidp)
 +{
-+	if (cli_id == LOCAL_CLIENT)
-+		return &zcache_host;
-+
-+	if ((unsigned int)cli_id < MAX_CLIENTS)
-+		return &zcache_clients[cli_id];
-+
-+	return NULL;
++	return __tmem_obj_find(hb, oidp, NULL, NULL);
 +}
 +
- static inline bool is_local_client(struct zcache_client *cli)
- {
- 	return cli == &zcache_host;
-@@ -935,15 +946,9 @@ static struct tmem_pool *zcache_get_pool_by_id(uint16_t cli_id, uint16_t poolid)
- 	struct tmem_pool *pool = NULL;
- 	struct zcache_client *cli = NULL;
+ static void tmem_pampd_destroy_all_in_obj(struct tmem_obj *);
 
--	if (cli_id == LOCAL_CLIENT)
--		cli = &zcache_host;
--	else {
--		if (cli_id >= MAX_CLIENTS)
--			goto out;
--		cli = &zcache_clients[cli_id];
--		if (cli == NULL)
--			goto out;
+ /* free an object that has no more pampds in it */
+@@ -131,8 +147,7 @@ static void tmem_obj_init(struct tmem_obj *obj, struct tmem_hashbucket *hb,
+ 					struct tmem_oid *oidp)
+ {
+ 	struct rb_root *root = &hb->obj_rb_root;
+-	struct rb_node **new = &(root->rb_node), *parent = NULL;
+-	struct tmem_obj *this;
++	struct rb_node **new = NULL, *parent = NULL;
+
+ 	BUG_ON(pool == NULL);
+ 	atomic_inc(&pool->obj_count);
+@@ -144,22 +159,10 @@ static void tmem_obj_init(struct tmem_obj *obj, struct tmem_hashbucket *hb,
+ 	obj->pampd_count = 0;
+ 	(*tmem_pamops.new_obj)(obj);
+ 	SET_SENTINEL(obj, OBJ);
+-	while (*new) {
+-		BUG_ON(RB_EMPTY_NODE(*new));
+-		this = rb_entry(*new, struct tmem_obj, rb_tree_node);
+-		parent = *new;
+-		switch (tmem_oid_compare(oidp, &this->oid)) {
+-		case 0:
+-			BUG(); /* already present; should never happen! */
+-			break;
+-		case -1:
+-			new = &(*new)->rb_left;
+-			break;
+-		case 1:
+-			new = &(*new)->rb_right;
+-			break;
+-		}
 -	}
-+	cli = get_zcache_client(cli_id);
-+	if (!cli)
-+		goto out;
-
- 	atomic_inc(&cli->refcount);
- 	pool = idr_find(&cli->tmem_pools, poolid);
-@@ -966,13 +971,11 @@ static void zcache_put_pool(struct tmem_pool *pool)
-
- int zcache_new_client(uint16_t cli_id)
- {
--	struct zcache_client *cli = NULL;
-+	struct zcache_client *cli;
- 	int ret = -1;
-
--	if (cli_id == LOCAL_CLIENT)
--		cli = &zcache_host;
--	else if ((unsigned int)cli_id < MAX_CLIENTS)
--		cli = &zcache_clients[cli_id];
-+	cli = get_zcache_client(cli_id);
 +
- 	if (cli == NULL)
- 		goto out;
- 	if (cli->allocated)
-@@ -1649,17 +1652,16 @@ static int zcache_flush_object(int cli_id, int pool_id,
- static int zcache_destroy_pool(int cli_id, int pool_id)
- {
- 	struct tmem_pool *pool = NULL;
--	struct zcache_client *cli = NULL;
-+	struct zcache_client *cli;
- 	int ret = -1;
-
- 	if (pool_id < 0)
- 		goto out;
--	if (cli_id == LOCAL_CLIENT)
--		cli = &zcache_host;
--	else if ((unsigned int)cli_id < MAX_CLIENTS)
--		cli = &zcache_clients[cli_id];
++	if (__tmem_obj_find(hb, oidp, &parent, &new))
++		BUG();
 +
-+	cli = get_zcache_client(cli_id);
- 	if (cli == NULL)
- 		goto out;
-+
- 	atomic_inc(&cli->refcount);
- 	pool = idr_find(&cli->tmem_pools, pool_id);
- 	if (pool == NULL)
-@@ -1686,12 +1688,10 @@ static int zcache_new_pool(uint16_t cli_id, uint32_t flags)
- 	struct zcache_client *cli = NULL;
- 	int r;
-
--	if (cli_id == LOCAL_CLIENT)
--		cli = &zcache_host;
--	else if ((unsigned int)cli_id < MAX_CLIENTS)
--		cli = &zcache_clients[cli_id];
-+	cli = get_zcache_client(cli_id);
- 	if (cli == NULL)
- 		goto out;
-+
- 	atomic_inc(&cli->refcount);
- 	pool = kmalloc(sizeof(struct tmem_pool), GFP_ATOMIC);
- 	if (pool == NULL) {
+ 	rb_link_node(&obj->rb_tree_node, parent, new);
+ 	rb_insert_color(&obj->rb_tree_node, root);
+ }
 -- 
 1.7.7.6
 
