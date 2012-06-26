@@ -1,115 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
-	by kanga.kvack.org (Postfix) with SMTP id A63056B00B5
-	for <linux-mm@kvack.org>; Mon, 25 Jun 2012 22:58:36 -0400 (EDT)
-Received: from /spool/local
-	by e28smtp02.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <zhong@linux.vnet.ibm.com>;
-	Tue, 26 Jun 2012 08:28:29 +0530
-Received: from d28av02.in.ibm.com (d28av02.in.ibm.com [9.184.220.64])
-	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q5Q2wQKT262404
-	for <linux-mm@kvack.org>; Tue, 26 Jun 2012 08:28:26 +0530
-Received: from d28av02.in.ibm.com (loopback [127.0.0.1])
-	by d28av02.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q5Q8T5mg017604
-	for <linux-mm@kvack.org>; Tue, 26 Jun 2012 18:29:05 +1000
-Message-ID: <1340679504.16381.23.camel@ThinkPad-T420>
-Subject: Re: [PATCH SLUB 1/2] duplicate the cache name in saved_alias list
-From: Li Zhong <zhong@linux.vnet.ibm.com>
-Date: Tue, 26 Jun 2012 10:58:24 +0800
-In-Reply-To: <4FE84741.9000703@parallels.com>
-References: <1340617984.13778.37.camel@ThinkPad-T420>
-	 <4FE84741.9000703@parallels.com>
-Content-Type: text/plain; charset="UTF-8"
+Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
+	by kanga.kvack.org (Postfix) with SMTP id DE8AD6B00CD
+	for <linux-mm@kvack.org>; Mon, 25 Jun 2012 23:14:13 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id EE8233EE0AE
+	for <linux-mm@kvack.org>; Tue, 26 Jun 2012 12:14:11 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id D3B2D45DEB5
+	for <linux-mm@kvack.org>; Tue, 26 Jun 2012 12:14:11 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id B8DAC45DEAD
+	for <linux-mm@kvack.org>; Tue, 26 Jun 2012 12:14:11 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id A5E0A1DB803C
+	for <linux-mm@kvack.org>; Tue, 26 Jun 2012 12:14:11 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 5CDDD1DB803B
+	for <linux-mm@kvack.org>; Tue, 26 Jun 2012 12:14:11 +0900 (JST)
+Message-ID: <4FE9284F.5040001@jp.fujitsu.com>
+Date: Tue, 26 Jun 2012 12:11:11 +0900
+From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+MIME-Version: 1.0
+Subject: Re: [patch] mm, thp: abort compaction if migration page cannot be
+ charged to memcg
+References: <alpine.DEB.2.00.1206202351030.28770@chino.kir.corp.google.com> <4FE8CCCD.7080503@redhat.com> <alpine.DEB.2.00.1206251726040.1895@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.00.1206251726040.1895@chino.kir.corp.google.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
-Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, linux-mm <linux-mm@kvack.org>, PowerPC email list <linuxppc-dev@lists.ozlabs.org>
+To: David Rientjes <rientjes@google.com>
+Cc: Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Mon, 2012-06-25 at 15:10 +0400, Glauber Costa wrote:
-> On 06/25/2012 01:53 PM, Li Zhong wrote:
-> > SLUB duplicates the cache name in kmem_cache_create(). However if the
-> > cache could be merged to others during early booting, the name pointer
-> > is saved in saved_alias list, and the string needs to be kept valid
-> > before slab_sysfs_init() is called.
-> >
-> > This patch tries to duplicate the cache name in saved_alias list, so
-> > that the cache name could be safely kfreed after calling
-> > kmem_cache_create(), if that name is kmalloced.
-> >
-> > Signed-off-by: Li Zhong <zhong@linux.vnet.ibm.com>
-> > ---
-> >   mm/slub.c |    6 ++++++
-> >   1 files changed, 6 insertions(+), 0 deletions(-)
-> >
-> > diff --git a/mm/slub.c b/mm/slub.c
-> > index 8c691fa..3dc8ed5 100644
-> > --- a/mm/slub.c
-> > +++ b/mm/slub.c
-> > @@ -5373,6 +5373,11 @@ static int sysfs_slab_alias(struct kmem_cache *s,
-> > const char *name)
-> >
-> >   	al->s = s;
-> >   	al->name = name;
-> > +	al->name = kstrdup(name, GFP_KERNEL);
-> > +	if (!al->name) {
-> > +		kfree(al);
-> > +		return -ENOMEM;
-> > +	}
-> >   	al->next = alias_list;
-> >   	alias_list = al;
-> >   	return 0;
-> > @@ -5409,6 +5414,7 @@ static int __init slab_sysfs_init(void)
-> >   		if (err)
-> >   			printk(KERN_ERR "SLUB: Unable to add boot slab alias"
-> >   					" %s to sysfs\n", s->name);
-> > +		kfree(al->name);
-> >   		kfree(al);
-> >   	}
-> >
-> >
-> 
-> What's unsafe about the current state of affairs ?
-> Whenever we alias, we'll increase the reference counter.
-> kmem_cache_destroy will only actually destroy the structure whenever 
-> that refcnt reaches zero.
-> 
-> This means that kfree shouldn't happen until then. So what is exactly 
-> that you are seeing?
+(2012/06/26 9:32), David Rientjes wrote:
+> On Mon, 25 Jun 2012, Rik van Riel wrote:
+>
+>> The patch makes sense, however I wonder if it would make
+>> more sense in the long run to allow migrate/compaction to
+>> temporarily exceed the memcg memory limit for a cgroup,
+>> because the original page will get freed again soon anyway.
+>>
+>> That has the potential to improve compaction success, and
+>> reduce compaction related CPU use.
+>>
+>
+> Yeah, Kame brought up the same point with a sample patch by allowing the
+> temporary charge for the new page.  It would certainly solve this problem
+> in a way that we don't have to even touch compaction, it's disappointing
+> that we have to charge memory to do a page migration.  I'm not so sure
+> about the approach of temporarily allowing the excess charge, however,
+> since it would scale with the number of cpus doing compaction or
+> migration, which could end up with PAGE_SIZE * nr_cpu_ids.
+>
 
-Maybe I didn't describe it clearly ... It is only about the name string
-passed into kmem_cache_create() during early boot. 
+I don't think it's problem. Even if there are 4096 cpus, it's only 16MB
+on that system, which tends to have terabytes of memory.
+(We already have 32pages of per-cpu-cache....)
 
-kmem_cache_create() checks whether it is mergeable before creating one.
-If not mergeable, the name is duplicated: n = kstrdup(name, GFP_KERNEL);
+I'd like to post that patch with updating to mmotm.
 
-If it is mergeable, it calls sysfs_slab_alias(). If the sysfs is ready
-(slab_state == SYSFS ), then the name is duplicated (or dropped if no
-SYSFS support ) in sysfs_create_link() for use. 
+> I haven't looked at it (yet), but I'm hoping that there's a way to avoid
+> charging the temporary page at all until after move_to_new_page()
+> succeeds, i.e. find a way to uncharge page before charging newpage.
 
-For the above cases, we could safely kfree the name string after calling
-cache create. 
+Hmm...this code has been verrry racy and we did many mis-accounting.
+So, I'd like to start from a safe way.
 
-However, During early boot, before sysfs is ready ( slab_state <
-SYSFS ), the sysfs_slab_alias() saves the pointer of name in the
-alias_list. And those entries in the list are added to sysfs later after
-slab_sysfs_init() is called. So we need to keep the name string valid
-until slab_sysfs_init() is called to set up the sysfs stuff. By
-duplicating the name string here also, we are able to kfree the name
-string after calling the cache create. 
-
-> 
-> Now, if you ask me, keeping the name around in user-visible files like 
-> /proc/slabinfo for caches that are removed already can be a bit 
-> confusing (that is because we don't add aliases to the slab_cache list)
-> 
-> If you want to touch this, one thing you can do is to keep a list of 
-> names bundled in an alias. If an alias is removed, you free that name. 
-> If that name is the representative name of the bundle, you move to the 
-> next one.
-> 
-
+THanks,
+-Kame
 
 
 --
