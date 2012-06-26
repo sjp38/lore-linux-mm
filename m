@@ -1,55 +1,34 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
-	by kanga.kvack.org (Postfix) with SMTP id 566F16B013C
-	for <linux-mm@kvack.org>; Tue, 26 Jun 2012 03:08:37 -0400 (EDT)
-Received: from /spool/local
-	by e28smtp08.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <xiaoguangrong@linux.vnet.ibm.com>;
-	Tue, 26 Jun 2012 12:38:33 +0530
-Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
-	by d28relay03.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q5Q78TZn14877114
-	for <linux-mm@kvack.org>; Tue, 26 Jun 2012 12:38:29 +0530
-Received: from d28av01.in.ibm.com (loopback [127.0.0.1])
-	by d28av01.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q5QCc2aP010213
-	for <linux-mm@kvack.org>; Tue, 26 Jun 2012 18:08:02 +0530
-Message-ID: <4FE95FE8.3060406@linux.vnet.ibm.com>
-Date: Tue, 26 Jun 2012 15:08:24 +0800
-From: Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx133.postini.com [74.125.245.133])
+	by kanga.kvack.org (Postfix) with SMTP id 14C6D6B013E
+	for <linux-mm@kvack.org>; Tue, 26 Jun 2012 03:11:23 -0400 (EDT)
+Message-ID: <4FE95FF0.3000300@parallels.com>
+Date: Tue, 26 Jun 2012 11:08:32 +0400
+From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 01/10] zcache: fix preemptable memory allocation in atomic
- context
-References: <4FE0392E.3090300@linux.vnet.ibm.com> <4FE36D32.3030408@linux.vnet.ibm.com> <20120623030052.GA18440@kroah.com> <4FE86C1D.2020302@linux.vnet.ibm.com> <20120625141145.GA32567@kroah.com>
-In-Reply-To: <20120625141145.GA32567@kroah.com>
-Content-Type: text/plain; charset=UTF-8
+Subject: Re: [PATCH 05/11] Add a __GFP_KMEMCG flag
+References: <1340633728-12785-1-git-send-email-glommer@parallels.com> <1340633728-12785-6-git-send-email-glommer@parallels.com> <alpine.DEB.2.00.1206252123230.26640@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.00.1206252123230.26640@chino.kir.corp.google.com>
+Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: David Rientjes <rientjes@google.com>
+Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Frederic Weisbecker <fweisbec@gmail.com>, Pekka Enberg <penberg@kernel.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Lameter <cl@linux.com>, devel@openvz.org, kamezawa.hiroyu@jp.fujitsu.com, Tejun Heo <tj@kernel.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Suleiman Souhlal <suleiman@google.com>
 
-On 06/25/2012 10:11 PM, Greg Kroah-Hartman wrote:
-
-> On Mon, Jun 25, 2012 at 08:48:13AM -0500, Seth Jennings wrote:
->> On 06/22/2012 10:00 PM, Greg Kroah-Hartman wrote:
->>> On Thu, Jun 21, 2012 at 01:51:30PM -0500, Seth Jennings wrote:
->>>> I just noticed you sent this patchset to Andrew, but the
->>>> staging tree is maintained by Greg.  You're going to want to
->>>> send these patches to him.
->>>>
->>>> Greg Kroah-Hartman <gregkh@linuxfoundation.org>
->>>
->>> After this series is redone, right?  As it is, this submission didn't
->>> look ok, so I'm hoping a second round is forthcoming...
->>
->> Yes. That is the cleanest way since there are dependencies
->> among the patches.  You could pull 04-08 and be ok, but you
->> might just prefer a repost.
-> 
-> I do prefer a repost, thanks.
-
-
-Sorry for the delay reply since i was on my vacation. I will
-post the v2 soon. Thank you all!
+On 06/26/2012 08:25 AM, David Rientjes wrote:
+> On Mon, 25 Jun 2012, Glauber Costa wrote:
+>
+>> >This flag is used to indicate to the callees that this allocation will be
+>> >serviced to the kernel. It is not supposed to be passed by the callers
+>> >of kmem_cache_alloc, but rather by the cache core itself.
+>> >
+> Not sure what "serviced to the kernel" means, does this mean that the
+> memory will not be accounted for to the root memcg?
+>
+In this context, it means that is a kernel allocation, not a userspace 
+one (but in process context, of course), *and* it is to be accounted a
+specific memcg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
