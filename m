@@ -1,60 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
-	by kanga.kvack.org (Postfix) with SMTP id 404926B0071
-	for <linux-mm@kvack.org>; Tue, 26 Jun 2012 11:51:25 -0400 (EDT)
-Message-ID: <4FE9DA1C.1010305@redhat.com>
-Date: Tue, 26 Jun 2012 11:49:48 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
+	by kanga.kvack.org (Postfix) with SMTP id B069A6B005C
+	for <linux-mm@kvack.org>; Tue, 26 Jun 2012 11:52:32 -0400 (EDT)
+Date: Tue, 26 Jun 2012 17:52:29 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH 1/2] fix bad behavior in use_hierarchy file
+Message-ID: <20120626155229.GH9566@tiehlicka.suse.cz>
+References: <1340725634-9017-1-git-send-email-glommer@parallels.com>
+ <1340725634-9017-2-git-send-email-glommer@parallels.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH -mm v2 01/11] mm: track free size between VMAs in VMA
- rbtree
-References: <1340315835-28571-1-git-send-email-riel@surriel.com>       <1340315835-28571-2-git-send-email-riel@surriel.com>      <1340359115.18025.57.camel@twins> <4FE47D0E.3000804@redhat.com>     <1340374439.18025.75.camel@twins> <4FE48054.5090407@redhat.com>    <1340375872.18025.77.camel@twins> <4FE4922D.8070501@surriel.com>   <1340652578.21991.18.camel@twins> <4FE8DD80.9040108@redhat.com>  <1340699507.21991.32.camel@twins> <4FE9B3B4.1050305@redhat.com> <1340718349.21991.81.camel@twins>
-In-Reply-To: <1340718349.21991.81.camel@twins>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1340725634-9017-2-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Rik van Riel <riel@surriel.com>, linux-mm@kvack.org, akpm@linux-foundation.org, aarcange@redhat.com, minchan@gmail.com, kosaki.motohiro@gmail.com, andi@firstfloor.org, hannes@cmpxchg.org, mel@csn.ul.ie, linux-kernel@vger.kernel.org, danielfsantos@att.net
+To: Glauber Costa <glommer@parallels.com>
+Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Dhaval Giani <dhaval.giani@gmail.com>
 
-On 06/26/2012 09:45 AM, Peter Zijlstra wrote:
-> On Tue, 2012-06-26 at 09:05 -0400, Rik van Riel wrote:
->> On 06/26/2012 04:31 AM, Peter Zijlstra wrote:
->>
->>> If you look at your patch 1, __vma_unlink has an adjust_free_gap() right
->>> next to the rb_augment_erase(), vma_adjust() has 3 adjust_free_gap()
->>> calls right next to each other.
->>>
->>> All these will do an entire path walk back to the root. I would think we
->>> could save quite a bit of updating by not having them all walk back to
->>> the root. No point in re-computing the top levels if you know the next
->>> update will change them again anyway.
->>
->> The problem is, unless we look at the augmented data at
->> rotate time, we do not know when it is safe to stop
->> iterating up the tree.
->
-> argh,.. you're using adjust_vma_gap() for insertions instead of
-> rb_augment_insert().
->
-> I was going on the premise that you're doing updates for augmented data
-> without modifying the tree structure and that doing insert/delete will
-> keep the stuff up-to-date.
->
-> So now I'm not sure why you do if (insert) adjust_free_gap(insert),
-> since __insert_vm_struct(mm, insert) ->  __vma_link() ->  __vma_link_rb()
-> already does an augment update.
+On Tue 26-06-12 19:47:13, Glauber Costa wrote:
+> I have an application that does the following:
+> 
+> * copy the state of all controllers attached to a hierarchy
+> * replicate it as a child of the current level.
+> 
+> I would expect writes to the files to mostly succeed, since they
+> are inheriting sane values from parents.
+> 
+> But that is not the case for use_hierarchy. If it is set to 0, we
+> succeed ok. If we're set to 1, the value of the file is automatically
+> set to 1 in the children, but if userspace tries to write the
+> very same 1, it will fail. That same situation happens if we
+> set use_hierarchy, create a child, and then try to write 1 again.
+> 
+> Now, there is no reason whatsoever for failing to write a value
+> that is already there. It doesn't even match the comments, that
+> states:
+> 
+>  /* If parent's use_hierarchy is set, we can't make any modifications
+>   * in the child subtrees...
+> 
+> since we are not changing anything.
+> 
+> The following patch tests the new value against the one we're storing,
+> and automatically return 0 if we're not proposing a change.
+> 
+> Signed-off-by: Glauber Costa <glommer@parallels.com>
+> CC: Dhaval Giani <dhaval.giani@gmail.com>
+> CC: Michal Hocko <mhocko@suse.cz>
+> CC: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> CC: Johannes Weiner <hannes@cmpxchg.org>
 
-I have fixed that in patch 3/11 of this series,
-which I kept separate for this round of submission
-to make it easier for reviewers to see what I
-changed there.
+Acked-by: Michal Hocko <mhocko@suse.cz>
 
-However, doing an insert or delete changes the
-gap size for the _next_ vma, and potentially a
-change in the maximum gap size for the parent
-node, so both insert and delete cause two tree
-walks :(
+> ---
+>  mm/memcontrol.c |    6 ++++++
+>  1 file changed, 6 insertions(+)
+> 
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index df8c9fb..85f7790 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -3989,6 +3989,10 @@ static int mem_cgroup_hierarchy_write(struct cgroup *cont, struct cftype *cft,
+>  		parent_memcg = mem_cgroup_from_cont(parent);
+>  
+>  	cgroup_lock();
+> +
+> +	if (memcg->use_hierarchy == val)
+> +		goto out;
+> +
+>  	/*
+>  	 * If parent's use_hierarchy is set, we can't make any modifications
+>  	 * in the child subtrees. If it is unset, then the change can
+> @@ -4005,6 +4009,8 @@ static int mem_cgroup_hierarchy_write(struct cgroup *cont, struct cftype *cft,
+>  			retval = -EBUSY;
+>  	} else
+>  		retval = -EINVAL;
+> +
+> +out:
+>  	cgroup_unlock();
+>  
+>  	return retval;
+> -- 
+> 1.7.10.2
+> 
+> --
+> To unsubscribe from this list: send the line "unsubscribe cgroups" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+
+-- 
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
