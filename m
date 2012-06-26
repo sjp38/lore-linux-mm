@@ -1,89 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
-	by kanga.kvack.org (Postfix) with SMTP id AB32A6B004D
-	for <linux-mm@kvack.org>; Tue, 26 Jun 2012 14:04:56 -0400 (EDT)
-Received: by dakp5 with SMTP id p5so270788dak.14
-        for <linux-mm@kvack.org>; Tue, 26 Jun 2012 11:04:56 -0700 (PDT)
-Date: Tue, 26 Jun 2012 11:04:51 -0700
+Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
+	by kanga.kvack.org (Postfix) with SMTP id C0A056B004D
+	for <linux-mm@kvack.org>; Tue, 26 Jun 2012 14:08:13 -0400 (EDT)
+Received: by pbbrp2 with SMTP id rp2so492045pbb.14
+        for <linux-mm@kvack.org>; Tue, 26 Jun 2012 11:08:13 -0700 (PDT)
+Date: Tue, 26 Jun 2012 11:08:05 -0700
 From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH 2/2] memcg: first step towards hierarchical controller
-Message-ID: <20120626180451.GP3869@google.com>
-References: <1340725634-9017-1-git-send-email-glommer@parallels.com>
- <1340725634-9017-3-git-send-email-glommer@parallels.com>
+Subject: Re: [PATCH 06/11] memcg: kmem controller infrastructure
+Message-ID: <20120626180805.GQ3869@google.com>
+References: <1340633728-12785-1-git-send-email-glommer@parallels.com>
+ <1340633728-12785-7-git-send-email-glommer@parallels.com>
+ <20120625161720.ae13ae90.akpm@linux-foundation.org>
+ <4FE9CEBB.80108@parallels.com>
+ <20120626110142.b7cf6d7c.akpm@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1340725634-9017-3-git-send-email-glommer@parallels.com>
+In-Reply-To: <20120626110142.b7cf6d7c.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Glauber Costa <glommer@parallels.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Frederic Weisbecker <fweisbec@gmail.com>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Lameter <cl@linux.com>, devel@openvz.org, kamezawa.hiroyu@jp.fujitsu.com, Pekka Enberg <penberg@cs.helsinki.fi>
 
-On Tue, Jun 26, 2012 at 07:47:14PM +0400, Glauber Costa wrote:
-> Okay, so after recent discussions, I am proposing the following
-> patch. It won't remove hierarchy, or anything like that. Just default
-> to true in the root cgroup, and print a warning once if you try
-> to set it back to 0.
+On Tue, Jun 26, 2012 at 11:01:42AM -0700, Andrew Morton wrote:
+> On Tue, 26 Jun 2012 19:01:15 +0400 Glauber Costa <glommer@parallels.com> wrote:
 > 
-> I am not adding it to feature-removal-schedule.txt because I don't
-> view it as a consensus. Rather, changing the default would allow us
-> to give it a time around in the open, and see if people complain
-> and what we can learn about that.
+> > On 06/26/2012 03:17 AM, Andrew Morton wrote:
+> > >> +	memcg_uncharge_kmem(memcg, size);
+> > >> >+	mem_cgroup_put(memcg);
+> > >> >+}
+> > >> >+EXPORT_SYMBOL(__mem_cgroup_free_kmem_page);
+> > >> >  #endif /* CONFIG_CGROUP_MEM_RES_CTLR_KMEM */
+> > >> >
+> > >> >  #if defined(CONFIG_INET) && defined(CONFIG_CGROUP_MEM_RES_CTLR_KMEM)
+> > >> >@@ -5645,3 +5751,69 @@ static int __init enable_swap_account(char *s)
+> > >> >  __setup("swapaccount=", enable_swap_account);
+> > >> >
+> > >> >  #endif
+> > >> >+
+> > >> >+#ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM
+> > > gargh.  CONFIG_MEMCG_KMEM, please!
+> > >
+> > 
+> > Here too. I like it as much as you do.
+> > 
+> > But that is consistent with the rest of the file, and I'd rather have
+> > it this way.
 > 
-> Signed-off-by: Glauber Costa <glommer@parallels.com>
-> Acked-by: Johannes Weiner <hannes@cmpxchg.org>
-> CC: Michal Hocko <mhocko@suse.cz>
-> CC: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> CC: Tejun Heo <tj@kernel.org>
-> ---
->  mm/memcontrol.c |    5 +++++
->  1 file changed, 5 insertions(+)
-> 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 85f7790..c37e4c1 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -3993,6 +3993,10 @@ static int mem_cgroup_hierarchy_write(struct cgroup *cont, struct cftype *cft,
->  	if (memcg->use_hierarchy == val)
->  		goto out;
->  
-> +	WARN_ONCE(!parent_memcg && memcg->use_hierarchy,
-> +	"Non-hierarchical memcg is considered for deprecation\n"
-> +	"Please consider reorganizing your tree to work with hierarchical accounting\n"
-> +	"If you have any reason not to, let us know at cgroups@vger.kernel.org\n");
->  	/*
->  	 * If parent's use_hierarchy is set, we can't make any modifications
->  	 * in the child subtrees. If it is unset, then the change can
-> @@ -5221,6 +5225,7 @@ mem_cgroup_create(struct cgroup *cont)
->  			INIT_WORK(&stock->work, drain_local_stock);
->  		}
->  		hotcpu_notifier(memcg_cpu_hotplug_callback, 0);
-> +		memcg->use_hierarchy = true;
->  	} else {
->  		parent = mem_cgroup_from_cont(cont->parent);
->  		memcg->use_hierarchy = parent->use_hierarchy;
+> There's not much point in being consistent with something which is so
+> unpleasant.  I'm on a little campaign to rename
+> CONFIG_CGROUP_MEM_RES_CTLR to CONFIG_MEMCG, only nobody has taken my
+> bait yet.  Be first!
 
-So, ummm, I don't think we can do this.  We CAN NOT silently flip the
-default behavior like this.  Hell, no.  What we can do is something
-like the following.
++1.
 
-1. Make .use_hierarchy a global property and convert .use_hierarchy
-   file to reject writes to the setting which is different from the
-   global one.  Rip out partial hierarchy related code (how little
-   they may be).  Note that the default should still be flat
-   hierarchy.
-
-2. Mark flat hierarchy deprecated and produce a warning message if
-   memcg is mounted w/o hierarchy option for a year or two.
-
-3. After the existing users had enough chance to move away from flat
-   hierarchy, rip out flat hierarchy code and error if hierarchy
-   option is not specified.
-
-Later on, we may decide to get rid of the hierarchy mount option but I
-don't think that matters all that much.
-
-Thanks.
+Block cgroup recently did blkio / blkiocg / blkio_cgroup -> blkcg.
+Join the cool crowd!  :P
 
 -- 
 tejun
