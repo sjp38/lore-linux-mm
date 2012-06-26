@@ -1,240 +1,407 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
-	by kanga.kvack.org (Postfix) with SMTP id 3DF716B0195
-	for <linux-mm@kvack.org>; Mon, 25 Jun 2012 19:58:33 -0400 (EDT)
-Date: Mon, 25 Jun 2012 20:57:40 -0300
-From: Rafael Aquini <aquini@redhat.com>
-Subject: Re: [PATCH 1/4] mm: introduce compaction and migration for virtio
- ballooned pages
-Message-ID: <20120625235739.GA1887@t510.redhat.com>
-References: <cover.1340665087.git.aquini@redhat.com>
- <7f83427b3894af7969c67acc0f27ab5aa68b4279.1340665087.git.aquini@redhat.com>
- <CAPbh3rvN0U=xVuqb=7wHkbEAgM=dC67uG-1=m=8GAv9MNX7LWg@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
+	by kanga.kvack.org (Postfix) with SMTP id 01FCC6B014E
+	for <linux-mm@kvack.org>; Mon, 25 Jun 2012 20:10:23 -0400 (EDT)
+Message-ID: <4FE8FDEF.7030306@kernel.org>
+Date: Tue, 26 Jun 2012 09:10:23 +0900
+From: Minchan Kim <minchan@kernel.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <CAPbh3rvN0U=xVuqb=7wHkbEAgM=dC67uG-1=m=8GAv9MNX7LWg@mail.gmail.com>
+Subject: Re: [PATCH 2/2] memory-hotplug: fix kswapd looping forever problem
+References: <1340600367-23620-1-git-send-email-minchan@kernel.org> <1340600367-23620-3-git-send-email-minchan@kernel.org> <20120625100247.GC8103@csn.ul.ie>
+In-Reply-To: <20120625100247.GC8103@csn.ul.ie>
+Content-Type: text/plain; charset=ISO-8859-15
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konrad Rzeszutek Wilk <konrad@darnok.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, Rusty Russell <rusty@rustcorp.com.au>, "Michael S. Tsirkin" <mst@redhat.com>, Rik van Riel <riel@redhat.com>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: akpm@linux-foundation.org, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Aaditya Kumar <aaditya.kumar.30@gmail.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Mel Gorman <mgorman@suse.de>
 
-On Mon, Jun 25, 2012 at 07:31:38PM -0400, Konrad Rzeszutek Wilk wrote:
-> On Mon, Jun 25, 2012 at 7:25 PM, Rafael Aquini <aquini@redhat.com> wrote:
-> > This patch introduces helper functions that teach compaction and migration bits
-> > how to cope with pages which are part of a guest memory balloon, in order to
-> > make them movable by memory compaction procedures.
-> >
+Hi Mel,
+
+On 06/25/2012 07:02 PM, Mel Gorman wrote:
+
+> On Mon, Jun 25, 2012 at 01:59:27PM +0900, Minchan Kim wrote:
+>> When hotplug offlining happens on zone A, it starts to mark freed page
+>> as MIGRATE_ISOLATE type in buddy for preventing further allocation.
+>> (MIGRATE_ISOLATE is very irony type because it's apparently on buddy
+>> but we can't allocate them).
+>> When the memory shortage happens during hotplug offlining,
+>> current task starts to reclaim, then wake up kswapd.
+>> Kswapd checks watermark, then go sleep because current zone_watermark_ok_safe
+>> doesn't consider MIGRATE_ISOLATE freed page count.
+>> Current task continue to reclaim in direct reclaim path without kswapd's helping.
+>> The problem is that zone->all_unreclaimable is set by only kswapd
+>> so that current task would be looping forever like below.
+>>
+>> __alloc_pages_slowpath
+>> restart:
+>> 	wake_all_kswapd
+>> rebalance:
+>> 	__alloc_pages_direct_reclaim
+>> 		do_try_to_free_pages
+>> 			if global_reclaim && !all_unreclaimable
+>> 				return 1; /* It means we did did_some_progress */
+>> 	skip __alloc_pages_may_oom
+>> 	should_alloc_retry
+>> 		goto rebalance;
+>>
+>> If we apply KOSAKI's patch[1] which doesn't depends on kswapd
+>> about setting zone->all_unreclaimable, we can solve this problem
+>> by killing some task in direct reclaim path. But it doesn't wake up kswapd, still.
+>> It could be a problem still if other subsystem needs GFP_ATOMIC request.
+>> So kswapd should consider MIGRATE_ISOLATE when it calculate free pages
+>> BEFORE going sleep.
+>>
+>> This patch counts the number of MIGRATE_ISOLATE page block and
+>> zone_watermark_ok_safe will consider it if the system has such blocks
+>> (fortunately, it's very rare so no problem in POV overhead and kswapd is never
+>> hotpath).
+>>
+>> [1] http://lkml.org/lkml/2012/6/14/74
+>>
 > 
-> Should the names that are exported be prefixed with kvm_?
->
-I rather let them as generic as possible, specially because I believe other
-balloon drivers can leverage the same technique to make their page lists movable
-as well, in the near future. However, I do agree with your tip if we ended up
-finding out no one else can reuse this piece of code.
+> I have not been following this discussion at all but reading through the
+> patch I wonder again why memory hotplug is not "allocating" the pageblocks
+> when they are fully isolated like a balloon driver. This would keep the
+> free space accounting as it is currently without introducing something
+> memory hotplug specific to kswapd.
+> 
+> I think historically that memory hotplug did not allocate pages because
+> it would be difficult to detect if a pageblock was isolated or if part of
+> some balloon. Allocating just full pageblocks would work around this.
+> However, it would play very badly with CMA.
+> 
+> It'd be worth mentioning this in the changelog in case someone tries to
+> "fix" it.
+> 
+>> Suggested-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+>> Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+>> Cc: Aaditya Kumar <aaditya.kumar.30@gmail.com>
+>> Cc: Mel Gorman <mgorman@suse.de>
+>> Signed-off-by: Minchan Kim <minchan@kernel.org>
+>> ---
+>>
+>> Aaditya, coul you confirm this patch solve your problem and 
+>> make sure nr_migrate_isolate is zero after hotplug end?
+>>
+>> Thanks!
+>>
+>>  include/linux/mmzone.h |    8 ++++++++
+>>  mm/page_alloc.c        |   36 ++++++++++++++++++++++++++++++++++++
+>>  mm/page_isolation.c    |   43 +++++++++++++++++++++++++++++++++++++++++--
+>>  3 files changed, 85 insertions(+), 2 deletions(-)
+>>
+>> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+>> index bf3404e..290e186 100644
+>> --- a/include/linux/mmzone.h
+>> +++ b/include/linux/mmzone.h
+>> @@ -474,6 +474,14 @@ struct zone {
+>>  	 * rarely used fields:
+>>  	 */
+>>  	const char		*name;
+>> +#ifdef CONFIG_MEMORY_ISOLATION
+>> +	/*
+>> +	 * the number of MIGRATE_ISOLATE pageblock
+>> +	 * We need this for accurate free page counting.
+>> +	 * It's protected by zone->lock
+>> +	 */
+>> +	atomic_t		nr_migrate_isolate;
+>> +#endif
+> 
+> If it's protected by the zone->lock then it does not need to be atomic.
 
- 
-> > Signed-off-by: Rafael Aquini <aquini@redhat.com>
-> > ---
-> >  include/linux/mm.h |   17 +++++++++++++
-> >  mm/compaction.c    |   72 ++++++++++++++++++++++++++++++++++++++++++++++++++++
-> >  mm/migrate.c       |   30 +++++++++++++++++++++-
-> >  3 files changed, 118 insertions(+), 1 deletion(-)
-> >
-> > diff --git a/include/linux/mm.h b/include/linux/mm.h
-> > index b36d08c..360656e 100644
-> > --- a/include/linux/mm.h
-> > +++ b/include/linux/mm.h
-> > @@ -1629,5 +1629,22 @@ static inline unsigned int debug_guardpage_minorder(void) { return 0; }
-> >  static inline bool page_is_guard(struct page *page) { return false; }
-> >  #endif /* CONFIG_DEBUG_PAGEALLOC */
-> >
-> > +#if (defined(CONFIG_VIRTIO_BALLOON) || \
-> > +       defined(CONFIG_VIRTIO_BALLOON_MODULE)) && defined(CONFIG_COMPACTION)
-> > +extern int is_balloon_page(struct page *);
-> > +extern int isolate_balloon_page(struct page *);
-> > +extern int putback_balloon_page(struct page *);
-> > +
-> > +/* return 1 if page is part of a guest's memory balloon, 0 otherwise */
-> > +static inline int PageBalloon(struct page *page)
-> > +{
-> > +       return is_balloon_page(page);
-> > +}
-> > +#else
-> > +static inline int PageBalloon(struct page *page)               { return 0; }
-> > +static inline int isolate_balloon_page(struct page *page)      { return 0; }
-> > +static inline int putback_balloon_page(struct page *page)      { return 0; }
-> > +#endif /* (VIRTIO_BALLOON || VIRTIO_BALLOON_MODULE) && COMPACTION */
-> > +
-> >  #endif /* __KERNEL__ */
-> >  #endif /* _LINUX_MM_H */
-> > diff --git a/mm/compaction.c b/mm/compaction.c
-> > index 7ea259d..8835d55 100644
-> > --- a/mm/compaction.c
-> > +++ b/mm/compaction.c
-> > @@ -14,6 +14,7 @@
-> >  #include <linux/backing-dev.h>
-> >  #include <linux/sysctl.h>
-> >  #include <linux/sysfs.h>
-> > +#include <linux/export.h>
-> >  #include "internal.h"
-> >
-> >  #if defined CONFIG_COMPACTION || defined CONFIG_CMA
-> > @@ -312,6 +313,14 @@ isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
-> >                        continue;
-> >                }
-> >
-> > +               /*
-> > +                * For ballooned pages, we need to isolate them before testing
-> > +                * for PageLRU, as well as skip the LRU page isolation steps.
-> > +                */
-> > +               if (PageBalloon(page))
-> > +                       if (isolate_balloon_page(page))
-> > +                               goto isolated_balloon_page;
-> > +
-> >                if (!PageLRU(page))
-> >                        continue;
-> >
-> > @@ -338,6 +347,7 @@ isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
-> >
-> >                /* Successfully isolated */
-> >                del_page_from_lru_list(page, lruvec, page_lru(page));
-> > +isolated_balloon_page:
-> >                list_add(&page->lru, migratelist);
-> >                cc->nr_migratepages++;
-> >                nr_isolated++;
-> > @@ -903,4 +913,66 @@ void compaction_unregister_node(struct node *node)
-> >  }
-> >  #endif /* CONFIG_SYSFS && CONFIG_NUMA */
-> >
-> > +#if defined(CONFIG_VIRTIO_BALLOON) || defined(CONFIG_VIRTIO_BALLOON_MODULE)
-> > +/*
-> > + * Balloon pages special page->mapping.
-> > + * users must properly allocate and initiliaze an instance of balloon_mapping,
-> > + * and set it as the page->mapping for balloon enlisted page instances.
-> > + *
-> > + * address_space_operations necessary methods for ballooned pages:
-> > + *   .migratepage    - used to perform balloon's page migration (as is)
-> > + *   .invalidatepage - used to isolate a page from balloon's page list
-> > + *   .freepage       - used to reinsert an isolated page to balloon's page list
-> > + */
-> > +struct address_space *balloon_mapping;
-> > +EXPORT_SYMBOL(balloon_mapping);
-> > +
-> > +/* ballooned page id check */
-> > +int is_balloon_page(struct page *page)
-> > +{
-> > +       struct address_space *mapping = page->mapping;
-> > +       if (mapping == balloon_mapping)
-> > +               return 1;
-> > +       return 0;
-> > +}
-> > +
-> > +/* __isolate_lru_page() counterpart for a ballooned page */
-> > +int isolate_balloon_page(struct page *page)
-> > +{
-> > +       struct address_space *mapping = page->mapping;
-> > +       if (mapping->a_ops->invalidatepage) {
-> > +               /*
-> > +                * We can race against move_to_new_page() and stumble across a
-> > +                * locked 'newpage'. If we succeed on isolating it, the result
-> > +                * tends to be disastrous. So, we sanely skip PageLocked here.
-> > +                */
-> > +               if (likely(!PageLocked(page) && get_page_unless_zero(page))) {
-> > +                       /*
-> > +                        * A ballooned page, by default, has just one refcount.
-> > +                        * Prevent concurrent compaction threads from isolating
-> > +                        * an already isolated balloon page.
-> > +                        */
-> > +                       if (page_count(page) == 2) {
-> > +                               mapping->a_ops->invalidatepage(page, 0);
-> > +                               return 1;
-> > +                       }
-> > +                       /* Drop refcount taken for this already isolated page */
-> > +                       put_page(page);
-> > +               }
-> > +       }
-> > +       return 0;
-> > +}
-> > +
-> > +/* putback_lru_page() counterpart for a ballooned page */
-> > +int putback_balloon_page(struct page *page)
-> > +{
-> > +       struct address_space *mapping = page->mapping;
-> > +       if (mapping->a_ops->freepage) {
-> > +               mapping->a_ops->freepage(page);
-> > +               put_page(page);
-> > +               return 1;
-> > +       }
-> > +       return 0;
-> > +}
-> > +#endif /* CONFIG_VIRTIO_BALLOON || CONFIG_VIRTIO_BALLOON_MODULE */
-> >  #endif /* CONFIG_COMPACTION */
-> > diff --git a/mm/migrate.c b/mm/migrate.c
-> > index be26d5c..ffc02a4 100644
-> > --- a/mm/migrate.c
-> > +++ b/mm/migrate.c
-> > @@ -78,7 +78,10 @@ void putback_lru_pages(struct list_head *l)
-> >                list_del(&page->lru);
-> >                dec_zone_page_state(page, NR_ISOLATED_ANON +
-> >                                page_is_file_cache(page));
-> > -               putback_lru_page(page);
-> > +               if (unlikely(PageBalloon(page)))
-> > +                       VM_BUG_ON(!putback_balloon_page(page));
-> > +               else
-> > +                       putback_lru_page(page);
-> >        }
-> >  }
-> >
-> > @@ -783,6 +786,17 @@ static int __unmap_and_move(struct page *page, struct page *newpage,
-> >                }
-> >        }
-> >
-> > +       if (PageBalloon(page)) {
-> > +               /*
-> > +                * A ballooned page does not need any special attention from
-> > +                * physical to virtual reverse mapping procedures.
-> > +                * To avoid burning cycles at rmap level,
-> > +                * skip attempts to unmap PTEs or remap swapcache.
-> > +                */
-> > +               remap_swapcache = 0;
-> > +               goto skip_unmap;
-> > +       }
-> > +
-> >        /*
-> >         * Corner case handling:
-> >         * 1. When a new swap-cache page is read into, it is added to the LRU
-> > @@ -852,6 +866,20 @@ static int unmap_and_move(new_page_t get_new_page, unsigned long private,
-> >                        goto out;
-> >
-> >        rc = __unmap_and_move(page, newpage, force, offlining, mode);
-> > +
-> > +       if (PageBalloon(newpage)) {
-> > +               /*
-> > +                * A ballooned page has been migrated already. Now, it is the
-> > +                * time to wrap-up counters, handle the old page back to Buddy
-> > +                * and return.
-> > +                */
-> > +               list_del(&page->lru);
-> > +               dec_zone_page_state(page, NR_ISOLATED_ANON +
-> > +                                   page_is_file_cache(page));
-> > +               put_page(page);
-> > +               __free_page(page);
-> > +               return rc;
-> > +       }
-> >  out:
-> >        if (rc != -EAGAIN) {
-> >                /*
-> > --
-> > 1.7.10.2
-> >
-> > --
-> > To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> > the body to majordomo@kvack.org.  For more info on Linux MM,
-> > see: http://www.linux-mm.org/ .
-> > Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> >
+
+Slaps self. :-(
+
+> 
+>>  } ____cacheline_internodealigned_in_smp;
+>>  
+>>  typedef enum {
+>> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+>> index c175fa9..626f877 100644
+>> --- a/mm/page_alloc.c
+>> +++ b/mm/page_alloc.c
+>> @@ -218,6 +218,11 @@ EXPORT_SYMBOL(nr_online_nodes);
+>>  
+>>  int page_group_by_mobility_disabled __read_mostly;
+>>  
+>> +/*
+>> + * NOTE:
+>> + * Don't use set_pageblock_migratetype(page, MIGRATE_ISOLATE) direclty.
+> 
+> s/direclty/directly/
+
+
+Will fix.
+
+> 
+>> + * Instead, use {un}set_pageblock_isolate.
+>> + */
+>>  void set_pageblock_migratetype(struct page *page, int migratetype)
+>>  {
+>>  	if (unlikely(page_group_by_mobility_disabled))
+>> @@ -1614,6 +1619,28 @@ static bool __zone_watermark_ok(struct zone *z, int order, unsigned long mark,
+>>  	return true;
+>>  }
+>>  
+>> +static unsigned long migrate_isolate_pages(struct zone *zone)
+>> +{
+> 
+> This name is very misleading as nothing is being migrated. The
+
+
+Agree.
+
+> other zone-based counters are stored in vmstat[] and accessed
+> with zone_page_state(). I doubt you want to use vmstat but
+> nr_isolated_zone_pages() would have been a better name.
+
+
+I feel it's kinda NR_ISOLATE_{ANON + FILE}.
+So I think it would be better to use nr_zone_isolate_freepages.
+
+> 
+>> +	unsigned long nr_pages = 0;
+>> +
+>> +	if (unlikely(atomic_read(&zone->nr_migrate_isolate))) {
+>> +		unsigned long flags;
+>> +		int order;
+>> +		spin_lock_irqsave(&zone->lock, flags);
+>> +		for (order = 0; order < MAX_ORDER; order++) {
+>> +			struct free_area *area = &zone->free_area[order];
+>> +			long count = 0;
+>> +			struct list_head *curr;
+>> +
+>> +			list_for_each(curr, &area->free_list[MIGRATE_ISOLATE])
+>> +				count++;
+>> +			nr_pages += (count << order);
+>> +		}
+>> +		spin_unlock_irqrestore(&zone->lock, flags);
+>> +	}
+> 
+> We have a zone->nr_migrate_isolate counter but have to search the buddy
+> lists to count how many pages are isolated? Don't bother. If the pageblocks
+> really have been isolated just assume that they are fully isolated for the
+> purposes of figuring out if kswapd should wake up or not. The consequences
+> of an inaccurate count is that kswapd wakes up when it potentially could
+> have stayed asleep but for memory hotplug that is desirable.
+
+
+Fair enough.
+
+> 
+>> +	return nr_pages;
+>> +}
+>> +
+>>  bool zone_watermark_ok(struct zone *z, int order, unsigned long mark,
+>>  		      int classzone_idx, int alloc_flags)
+>>  {
+>> @@ -1629,6 +1656,14 @@ bool zone_watermark_ok_safe(struct zone *z, int order, unsigned long mark,
+>>  	if (z->percpu_drift_mark && free_pages < z->percpu_drift_mark)
+>>  		free_pages = zone_page_state_snapshot(z, NR_FREE_PAGES);
+>>  
+>> +	/*
+>> +	 * If the zone has MIGRATE_ISOLATE type free page,
+>> +	 * we should consider it, too. Otherwise, kswapd can sleep forever.
+>> +	 */
+>> +	free_pages -= migrate_isolate_pages(z);
+>> +	if (free_pages < 0)
+>> +		free_pages = 0;
+>> +
+> 
+> You are already taking into account that the numbet of isolated pages may
+> be inaccurate so an exact count in migrate_isolate_pages is unnecessary.
+
+
+I will use following code instead of migrate_isolate_pages's accurate counter.
+
+int migrate_isolate_pages(struct zone *z)
+{
+	return z->nr_migrate_isolate * pageblock_nr_pages;
+}
+
+
+free_pages -= migrate_isolate_pages(z);
+if (free_pages < 0)
+	free_pages = 0;
+
+Otherwise, simply, we can always wake up kswapd during hot-plug because it's temporal action and
+would end sooner or later.
+It is likely to make unnecessary aging and CPU consumption but it would be very rare.
+
+zone_watermark_ok_safe()
+{
+	if (z->nr_migrate_isolate > 0)
+		return false;
+	..
+	..
+}
+
+> 
+>>  	return __zone_watermark_ok(z, order, mark, classzone_idx, alloc_flags,
+>>  								free_pages);
+>>  }
+>> @@ -4407,6 +4442,7 @@ static void __paginginit free_area_init_core(struct pglist_data *pgdat,
+>>  		lruvec_init(&zone->lruvec, zone);
+>>  		zap_zone_vm_stats(zone);
+>>  		zone->flags = 0;
+>> +		atomic_set(&zone->nr_migrate_isolate, 0);
+>>  		if (!size)
+>>  			continue;
+>>  
+>> diff --git a/mm/page_isolation.c b/mm/page_isolation.c
+>> index 1a9cb36..e95a792 100644
+>> --- a/mm/page_isolation.c
+>> +++ b/mm/page_isolation.c
+>> @@ -8,6 +8,45 @@
+>>  #include <linux/memory.h>
+>>  #include "internal.h"
+>>  
+>> +static void set_pageblock_isolate(struct zone *zone, struct page *page)
+>> +{
+>> +	int old_migratetype;
+>> +	assert_spin_locked(&zone->lock);
+>> +
+>> +	if (unlikely(page_group_by_mobility_disabled)) {
+>> +		set_pageblock_flags_group(page, MIGRATE_UNMOVABLE,
+>> +				PB_migrate, PB_migrate_end);
+>> +		return;
+>> +	}
+> 
+> Not sure why this is necessary.
+
+
+Yeb. hotplug should work regardless of small memory system(KOSAKI already pointed out)
+but current hotplug code have used set_pageblock_migratetype(page, MIGRATE_ISOLATE)
+which already check page_group_by_mobility_disabled. It's like buggy.
+But I think it should be fixed as another patch. 
+
+> 
+>> +
+>> +	old_migratetype = get_pageblock_migratetype(page);
+>> +	set_pageblock_flags_group(page, MIGRATE_ISOLATE,
+>> +			PB_migrate, PB_migrate_end);
+>> +
+>> +	if (old_migratetype != MIGRATE_ISOLATE)
+>> +		atomic_inc(&zone->nr_migrate_isolate);
+>> +}
+> 
+> If the old type was MIGRATE_ISOLATE then it was also unnecessary to call
+> set_pageblock_flags_group() or anything else. It's also unnecessary to
+> pass in zone because you can figure it out from the page but no harm.
+> 
+> This could have been a lot easier to read with something like;
+> 
+> static void set_pageblock_isolate(struct zone *zone, struct page *page)
+> {
+> 	BUG_ON(page_zone(page) ! = zone);
+> 	if (get_pageblock_migratetype(page) == MIGRATE_ISOLATE)
+> 		return;
+> 
+> 	set_pageblock_migratetype(page, MIGRATE_ISOLATE);
+> 	zone->nr_pageblock_isolate++;
+> }
+> 
+> If set_migratetype_isolate is the only caller then it barely warrents a
+> helper functions because it simply looks like
+> 
+> if (get_pageblock_migratetype(page) != MIGRATE_ISOLATE) {
+> 	set_pageblock_migratetype(page, MIGRATE_ISOLATE);
+> 	zone->nr_pageblock_isolate++;
+> }
+> 	
+> 
+>> +
+>> +static void unset_pageblock_isolate(struct zone *zone, struct page *page,
+>> +		unsigned long migratetype)
+>> +{
+> 
+> The word "unset" in this context would normally refer to a boolean but
+> you're actually restoring an old value. Hence reset_pageblock_isolate or
+> restore_pageblock_migratetype would have been more appropriate.
+
+> 
+
+> Oh, I see you are matching the naming of unset_migratetype_isolate().
+> That sucks, hope it was not me that suggested that name originally :/
+
+
+Naming/comment is very hard part rather than coding on non-native speakers. 
+Will fix.
+
+> 
+> migratetype is almost always int too, not sure where that unsigned long
+> came out of.
+
+
+Will fix. 
+
+> 
+>> +	assert_spin_locked(&zone->lock);
+>> +
+>> +	if (unlikely(page_group_by_mobility_disabled)) {
+>> +		set_pageblock_flags_group(page, migratetype,
+>> +				PB_migrate, PB_migrate_end);
+>> +		return;
+>> +	}
+>> +
+>> +	BUG_ON(get_pageblock_migratetype(page) != MIGRATE_ISOLATE);
+>> +	BUG_ON(migratetype == MIGRATE_ISOLATE);
+>> +
+>> +	set_pageblock_flags_group(page, migratetype,
+>> +			PB_migrate, PB_migrate_end);
+>> +	atomic_dec(&zone->nr_migrate_isolate);
+>> +	BUG_ON(atomic_read(&zone->nr_migrate_isolate) < 0);
+>> +}
+>> +
+> 
+> static void reset_pageblock_isolate(struct zone *zone, struct page *page,
+> 				    int migratetype)
+> {
+> 	if (WARN_ON(get_pageblock_migratetype(page) != MIGRATE_ISOLATE))
+> 		return;
+> 
+> 	BUG_ON(zone->nr_pageblock_isolate == 0);
+> 	set_pageblock_migratetype(page, migratetype);
+> 	zone->nr_pageblock_isolate--;
+> }
+> 
+> 
+>>  int set_migratetype_isolate(struct page *page)
+>>  {
+>>  	struct zone *zone;
+>> @@ -54,7 +93,7 @@ int set_migratetype_isolate(struct page *page)
+>>  
+>>  out:
+>>  	if (!ret) {
+>> -		set_pageblock_migratetype(page, MIGRATE_ISOLATE);
+>> +		set_pageblock_isolate(zone, page);
+>>  		move_freepages_block(zone, page, MIGRATE_ISOLATE);
+>>  	}
+>>  
+>> @@ -72,8 +111,8 @@ void unset_migratetype_isolate(struct page *page, unsigned migratetype)
+>>  	spin_lock_irqsave(&zone->lock, flags);
+>>  	if (get_pageblock_migratetype(page) != MIGRATE_ISOLATE)
+>>  		goto out;
+>> -	set_pageblock_migratetype(page, migratetype);
+>>  	move_freepages_block(zone, page, migratetype);
+>> +	unset_pageblock_isolate(zone, page, migratetype);
+>>  out:
+>>  	spin_unlock_irqrestore(&zone->lock, flags);
+>>  }
+> 
+> While this patch looks like it would work as advertised I also think that
+> it is more complicated than it needs to be. The use of atomics and exact
+> counts of isolated pages look unnecessary.  set_migeratetype_isolate and
+> unset_pageblock_isolate could have been a lot easier to read.
+> 
+
+
+Thanks for the good review, Mel!
+
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
