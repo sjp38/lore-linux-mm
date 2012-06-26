@@ -1,81 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
-	by kanga.kvack.org (Postfix) with SMTP id 02B076B0113
-	for <linux-mm@kvack.org>; Tue, 26 Jun 2012 09:44:21 -0400 (EDT)
-Received: by qcsp15 with SMTP id p15so3334666qcs.30
-        for <linux-mm@kvack.org>; Tue, 26 Jun 2012 06:44:21 -0700 (PDT)
-Date: Tue, 26 Jun 2012 15:44:15 +0200
-From: Frederic Weisbecker <fweisbec@gmail.com>
-Subject: Re: [PATCH 11/11] protect architectures where THREAD_SIZE >=
- PAGE_SIZE against fork bombs
-Message-ID: <20120626134412.GB11519@somewhere.redhat.com>
-References: <1340633728-12785-1-git-send-email-glommer@parallels.com>
- <1340633728-12785-12-git-send-email-glommer@parallels.com>
- <4FE89807.50708@redhat.com>
- <20120625183818.GH3869@google.com>
- <4FE9AF88.5070803@parallels.com>
- <20120626133838.GA11519@somewhere.redhat.com>
- <4FE9BB25.60905@parallels.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4FE9BB25.60905@parallels.com>
+Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
+	by kanga.kvack.org (Postfix) with SMTP id 2FBFE6B0068
+	for <linux-mm@kvack.org>; Tue, 26 Jun 2012 09:46:04 -0400 (EDT)
+Message-ID: <1340718349.21991.81.camel@twins>
+Subject: Re: [PATCH -mm v2 01/11] mm: track free size between VMAs in VMA
+ rbtree
+From: Peter Zijlstra <peterz@infradead.org>
+Date: Tue, 26 Jun 2012 15:45:49 +0200
+In-Reply-To: <4FE9B3B4.1050305@redhat.com>
+References: <1340315835-28571-1-git-send-email-riel@surriel.com>
+	      <1340315835-28571-2-git-send-email-riel@surriel.com>
+	     <1340359115.18025.57.camel@twins> <4FE47D0E.3000804@redhat.com>
+	    <1340374439.18025.75.camel@twins> <4FE48054.5090407@redhat.com>
+	   <1340375872.18025.77.camel@twins> <4FE4922D.8070501@surriel.com>
+	  <1340652578.21991.18.camel@twins> <4FE8DD80.9040108@redhat.com>
+	 <1340699507.21991.32.camel@twins> <4FE9B3B4.1050305@redhat.com>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: quoted-printable
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: Tejun Heo <tj@kernel.org>, Frederic Weisbecker <fweisbec@redhat.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Lameter <cl@linux.com>, devel@openvz.org, kamezawa.hiroyu@jp.fujitsu.com, Pekka Enberg <penberg@cs.helsinki.fi>, Suleiman Souhlal <suleiman@google.com>
+To: Rik van Riel <riel@redhat.com>
+Cc: Rik van Riel <riel@surriel.com>, linux-mm@kvack.org, akpm@linux-foundation.org, aarcange@redhat.com, minchan@gmail.com, kosaki.motohiro@gmail.com, andi@firstfloor.org, hannes@cmpxchg.org, mel@csn.ul.ie, linux-kernel@vger.kernel.org, danielfsantos@att.net
 
-On Tue, Jun 26, 2012 at 05:37:41PM +0400, Glauber Costa wrote:
-> On 06/26/2012 05:38 PM, Frederic Weisbecker wrote:
-> >On Tue, Jun 26, 2012 at 04:48:08PM +0400, Glauber Costa wrote:
-> >>On 06/25/2012 10:38 PM, Tejun Heo wrote:
-> >>>On Mon, Jun 25, 2012 at 06:55:35PM +0200, Frederic Weisbecker wrote:
-> >>>>On 06/25/2012 04:15 PM, Glauber Costa wrote:
-> >>>>
-> >>>>>Because those architectures will draw their stacks directly from
-> >>>>>the page allocator, rather than the slab cache, we can directly
-> >>>>>pass __GFP_KMEMCG flag, and issue the corresponding free_pages.
-> >>>>>
-> >>>>>This code path is taken when the architecture doesn't define
-> >>>>>CONFIG_ARCH_THREAD_INFO_ALLOCATOR (only ia64 seems to), and has
-> >>>>>THREAD_SIZE >= PAGE_SIZE. Luckily, most - if not all - of the
-> >>>>>remaining architectures fall in this category.
-> >>>>>
-> >>>>>This will guarantee that every stack page is accounted to the memcg
-> >>>>>the process currently lives on, and will have the allocations to fail
-> >>>>>if they go over limit.
-> >>>>>
-> >>>>>For the time being, I am defining a new variant of THREADINFO_GFP, not
-> >>>>>to mess with the other path. Once the slab is also tracked by memcg,
-> >>>>>we can get rid of that flag.
-> >>>>>
-> >>>>>Tested to successfully protect against :(){ :|:& };:
-> >>>>>
-> >>>>>Signed-off-by: Glauber Costa <glommer@parallels.com>
-> >>>>>CC: Christoph Lameter <cl@linux.com>
-> >>>>>CC: Pekka Enberg <penberg@cs.helsinki.fi>
-> >>>>>CC: Michal Hocko <mhocko@suse.cz>
-> >>>>>CC: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> >>>>>CC: Johannes Weiner <hannes@cmpxchg.org>
-> >>>>>CC: Suleiman Souhlal <suleiman@google.com>
-> >>>>
-> >>>>
-> >>>>Acked-by: Frederic Weisbecker <fweisbec@redhat.com>
-> >>>
-> >>>Frederic, does this (with proper slab accounting added later) achieve
-> >>>what you wanted with the task counter?
-> >>>
-> >>
-> >>A note: Frederic may confirm, but I think he doesn't even need
-> >>the slab accounting to follow to achieve that goal.
+On Tue, 2012-06-26 at 09:05 -0400, Rik van Riel wrote:
+> On 06/26/2012 04:31 AM, Peter Zijlstra wrote:
+>=20
+> > If you look at your patch 1, __vma_unlink has an adjust_free_gap() righ=
+t
+> > next to the rb_augment_erase(), vma_adjust() has 3 adjust_free_gap()
+> > calls right next to each other.
 > >
-> >Limiting is enough. But that requires internal accounting.
-> >
-> Yes, but why the *slab* needs to get involved?
-> accounting task stack pages should be equivalent to what you
-> were doing, even without slab accounting. Right ?
+> > All these will do an entire path walk back to the root. I would think w=
+e
+> > could save quite a bit of updating by not having them all walk back to
+> > the root. No point in re-computing the top levels if you know the next
+> > update will change them again anyway.
+>=20
+> The problem is, unless we look at the augmented data at
+> rotate time, we do not know when it is safe to stop
+> iterating up the tree.
 
-Yeah that alone should be fine.
+argh,.. you're using adjust_vma_gap() for insertions instead of
+rb_augment_insert().
+
+I was going on the premise that you're doing updates for augmented data
+without modifying the tree structure and that doing insert/delete will
+keep the stuff up-to-date.
+
+So now I'm not sure why you do if (insert) adjust_free_gap(insert),
+since __insert_vm_struct(mm, insert) -> __vma_link() -> __vma_link_rb()
+already does an augment update.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
