@@ -1,176 +1,118 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
-	by kanga.kvack.org (Postfix) with SMTP id 037F36B004D
-	for <linux-mm@kvack.org>; Tue, 26 Jun 2012 18:02:32 -0400 (EDT)
-Date: Tue, 26 Jun 2012 19:01:56 -0300
-From: Rafael Aquini <aquini@redhat.com>
-Subject: Re: [PATCH 1/4] mm: introduce compaction and migration for virtio
- ballooned pages
-Message-ID: <20120626220155.GA2292@t510.redhat.com>
-References: <cover.1340665087.git.aquini@redhat.com>
- <7f83427b3894af7969c67acc0f27ab5aa68b4279.1340665087.git.aquini@redhat.com>
- <20120626101729.GF8103@csn.ul.ie>
+Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
+	by kanga.kvack.org (Postfix) with SMTP id 13C1C6B004D
+	for <linux-mm@kvack.org>; Tue, 26 Jun 2012 18:08:14 -0400 (EDT)
+Date: Wed, 27 Jun 2012 00:08:09 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH 2/2] memcg: first step towards hierarchical controller
+Message-ID: <20120626220809.GA4653@tiehlicka.suse.cz>
+References: <1340725634-9017-1-git-send-email-glommer@parallels.com>
+ <1340725634-9017-3-git-send-email-glommer@parallels.com>
+ <20120626180451.GP3869@google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20120626101729.GF8103@csn.ul.ie>
+In-Reply-To: <20120626180451.GP3869@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Andi Kleen <andi@firstfloor.org>, "Michael S. Tsirkin" <mst@redhat.com>, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org
+To: Tejun Heo <tj@kernel.org>
+Cc: Glauber Costa <glommer@parallels.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>
 
-Mel,
-
-First and foremost, thank you for taking the time to review these bits and
-provide such valuable feedback.
-
-On Tue, Jun 26, 2012 at 11:17:29AM +0100, Mel Gorman wrote:
-> > +/* return 1 if page is part of a guest's memory balloon, 0 otherwise */
-> > +static inline int PageBalloon(struct page *page)
-> > +{
-> > +	return is_balloon_page(page);
-> > +}
-> 
-> bool
-> 
-> Why is there both is_balloon_page and PageBalloon? 
-> 
-> is_ballon_page is so simple it should just be a static inline here
-> 
-> extern struct address_space *balloon_mapping;
-> static inline bool is_balloon_page(page)
-> {
-> 	return page->mapping == balloon_mapping;
-> }
-> 	
-I was thinking about sustain the same syntax other page tests utilize,
-but I rather stick to your suggestion on this one.
-
- 
-> >  #if defined CONFIG_COMPACTION || defined CONFIG_CMA
-> > @@ -312,6 +313,14 @@ isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
-> >  			continue;
+On Tue 26-06-12 11:04:51, Tejun Heo wrote:
+> On Tue, Jun 26, 2012 at 07:47:14PM +0400, Glauber Costa wrote:
+[...]
+> > @@ -5221,6 +5225,7 @@ mem_cgroup_create(struct cgroup *cont)
+> >  			INIT_WORK(&stock->work, drain_local_stock);
 > >  		}
-> >  
-> > +		/*
-> > +		 * For ballooned pages, we need to isolate them before testing
-> > +		 * for PageLRU, as well as skip the LRU page isolation steps.
-> > +		 */
+> >  		hotcpu_notifier(memcg_cpu_hotplug_callback, 0);
+> > +		memcg->use_hierarchy = true;
+> >  	} else {
+> >  		parent = mem_cgroup_from_cont(cont->parent);
+> >  		memcg->use_hierarchy = parent->use_hierarchy;
 > 
-> This says what, but not why.
+> So, ummm, I don't think we can do this.  We CAN NOT silently flip the
+> default behavior like this.  Hell, no.  What we can do is something
+> like the following.
 > 
-> I didn't check the exact mechanics of a balloon page but I expect it's that
-> balloon pages are not on the LRU. If they are on the LRU, that's pretty dumb.
-> 
-> 
-> /*
->  * Balloon pages can be migrated but are not on the LRU. Isolate
->  * them before LRU checks.
->  */
-> 
-> 
-> It would be nicer to do this without gotos
-> 
-> /*
->  * It is possible to migrate LRU pages and balloon pages. Skip
->  * any other type of page
->  */
-> if (is_balloon_page(page)) {
-> 	if (!isolate_balloon_page(page))
-> 		continue;
-> } else if (PageLRU(page)) {
-> 	....
-> }
-> 
-> You will need to shuffle things around a little to make it work properly
-> but if we handle other page types in the future it will be neater
-> overall.
->
-I'm glad you've put things this way on this one. Despite I was thinking on doing it
-the way you suggested, I took the goto approach because I was afraid of doing
-otherwise could be considered as an unnecessary radical surgery on established code.
-Will do it, certainly.
+> 1. Make .use_hierarchy a global property and convert .use_hierarchy
+>    file to reject writes to the setting which is different from the
+>    global one. 
 
- 	
-> > +struct address_space *balloon_mapping;
-> > +EXPORT_SYMBOL(balloon_mapping);
-> > +
-> 
-> EXPORT_SYMBOL_GPL?
-> 
-> I don't mind how it is exported as such. I'm idly curious if there are
-> external closed modules that use the driver.
-> 
-To be honest with you, that was picked with no particular case in mind. And, since
-you've raised this question, I'm also curious. However, after giving a thought
-on your feedback, I believe EXPORT_SYMBOL_GPL suits far better.
+Yes, that's how I understood your global knob suggestion and I liked it
+in the beginning but then I realized that this would just mean "tweak it
+to work and don't report anything because that's easy to find in forums"
+for most users, which is not good because we would end up stuck in this
+half (not)hierarchical state for ever which is not a desirable state -
+at least from my POV.
 
+According to my experience, people usually create deeper subtrees
+just because they want to have memcg hierarchy together with other
+controller(s) and the other controller requires a different topology
+but then they do not care about memory.* attributes in parents.
+Those cases are not affected by this change because parents are
+unlimited by default.
+Deeper subtrees without hierarchy and independent limits are usually
+mis-configurations, and we would like to hear about those to help to fix
+them, or they are unfixable usecases which we want to know about as well
+(because then we have a blocker for the unified cgroup hierarchy, don't
+we).
 
-> > +/* ballooned page id check */
-> > +int is_balloon_page(struct page *page)
-> > +{
-> > +	struct address_space *mapping = page->mapping;
-> > +	if (mapping == balloon_mapping)
-> > +		return 1;
-> > +	return 0;
-> > +}
-> > +
-> > +/* __isolate_lru_page() counterpart for a ballooned page */
-> > +int isolate_balloon_page(struct page *page)
-> > +{
-> > +	struct address_space *mapping = page->mapping;
-> 
-> This is a publicly visible function and while your current usage looks
-> correct it would not hurt to do something like this;
-> 
-> if (WARN_ON(!is_page_ballon(page))
-> 	return 0;
->
-Excellent point!
- 
+>    Rip out partial hierarchy related code (how little
+>    they may be).
 
-> > +	if (mapping->a_ops->invalidatepage) {
-> > +		/*
-> > +		 * We can race against move_to_new_page() and stumble across a
-> > +		 * locked 'newpage'. If we succeed on isolating it, the result
-> > +		 * tends to be disastrous. So, we sanely skip PageLocked here.
-> > +		 */
-> > +		if (likely(!PageLocked(page) && get_page_unless_zero(page))) {
-> 
-> But the page can get locked after this point.
-> 
-> Would it not be better to do a trylock_page() and unlock the page on
-> exit after the isolation completes?
-> 
-Far better, for sure! thanks (again)
+I double checked this and it's really a surprisingly small amount of
+code (I expected much more, to be honest).
+The only interesting parts are mem_cgroup_swappiness_write and
+mem_cgroup_oom_control_write which don't allow the value setting if
+the parent is hierarchical (the values are consistent throughout the
+hierarchy). This will need to be changed and it is definitely required
+before this change can be introduced (sorry I should have noticed
+that sooner). 
+Anyway, both changes should be OK to ignore parent's use_hierarchy
+because both the reclaim and oom happens on the root of the subtree
+which hit the limit (and the global vm_swapiness resp. global OOM will
+be used if we get up to root).
+So what is the result in the end? We will reduce few annoying
+use_hierarchy checks in the end but I guess that the more important
+part is a reasonable semantic. Does it really make sense to build non
+hierarchical subtrees? How does it work along with other controllers
+which are hierarchical?
+The original implementation enabled that, all right, but we know that
+many things were over-designed in this area (and in cgroups in general)
+and we should rather fix them.
 
+>   Note that the default should still be flat hierarchy.
+> 
+> 2. Mark flat hierarchy deprecated and produce a warning message if
+>    memcg is mounted w/o hierarchy option for a year or two.
 
-> > @@ -78,7 +78,10 @@ void putback_lru_pages(struct list_head *l)
-> >  		list_del(&page->lru);
-> >  		dec_zone_page_state(page, NR_ISOLATED_ANON +
-> >  				page_is_file_cache(page));
-> > -		putback_lru_page(page);
-> > +		if (unlikely(PageBalloon(page)))
-> > +			VM_BUG_ON(!putback_balloon_page(page));
-> 
-> Why not BUG_ON?
-> 
-> What shocked me actually is that VM_BUG_ON code is executed on
-> !CONFIG_DEBUG_VM builds and has been since 2.6.36 due to commit [4e60c86bd:
-> gcc-4.6: mm: fix unused but set warnings]. I thought the whole point of
-> VM_BUG_ON was to avoid expensive and usually unnecessary checks. Andi,
-> was this deliberate?
-> 
-> Either way, you always want to call putback_ballon_page() so BUG_ON is
-> more appropriate although gracefully recovering from the situation and a
-> WARN would be better.
-> 
-Shame on me!
- I was lazy enough to not carefully read VM_BUG_ON's definition and get its
-original purpose. Will change it, for sure.
+I would agree with you on this with many kernel configurables but
+this one doesn't fall in. There is a trivial fallback (set root to
+use_hierarchy=0) so the mount option seems like an overkill - yet
+another API to keep for some time...
 
+So in short, I do think we should go the sanity path and end up
+with hierarchical trees and sooner we start the better.
 
-Once more, thank you!
+> 3. After the existing users had enough chance to move away from flat
+>    hierarchy, rip out flat hierarchy code and error if hierarchy
+>    option is not specified.
+> 
+> Later on, we may decide to get rid of the hierarchy mount option but I
+> don't think that matters all that much.
+> 
+> Thanks.
+> 
+> -- 
+> tejun
+
+-- 
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
