@@ -1,91 +1,176 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
-	by kanga.kvack.org (Postfix) with SMTP id 2431E6B004D
-	for <linux-mm@kvack.org>; Tue, 26 Jun 2012 17:55:41 -0400 (EDT)
-Date: Tue, 26 Jun 2012 14:55:39 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 00/11] kmem controller for memcg: stripped down version
-Message-Id: <20120626145539.eeeab909.akpm@linux-foundation.org>
-In-Reply-To: <4FE9621D.2050002@parallels.com>
-References: <1340633728-12785-1-git-send-email-glommer@parallels.com>
-	<20120625162745.eabe4f03.akpm@linux-foundation.org>
-	<4FE9621D.2050002@parallels.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
+	by kanga.kvack.org (Postfix) with SMTP id 037F36B004D
+	for <linux-mm@kvack.org>; Tue, 26 Jun 2012 18:02:32 -0400 (EDT)
+Date: Tue, 26 Jun 2012 19:01:56 -0300
+From: Rafael Aquini <aquini@redhat.com>
+Subject: Re: [PATCH 1/4] mm: introduce compaction and migration for virtio
+ ballooned pages
+Message-ID: <20120626220155.GA2292@t510.redhat.com>
+References: <cover.1340665087.git.aquini@redhat.com>
+ <7f83427b3894af7969c67acc0f27ab5aa68b4279.1340665087.git.aquini@redhat.com>
+ <20120626101729.GF8103@csn.ul.ie>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120626101729.GF8103@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Frederic Weisbecker <fweisbec@gmail.com>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Lameter <cl@linux.com>, devel@openvz.org, kamezawa.hiroyu@jp.fujitsu.com, Tejun Heo <tj@kernel.org>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Andi Kleen <andi@firstfloor.org>, "Michael S. Tsirkin" <mst@redhat.com>, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org
 
-On Tue, 26 Jun 2012 11:17:49 +0400
-Glauber Costa <glommer@parallels.com> wrote:
+Mel,
 
-> On 06/26/2012 03:27 AM, Andrew Morton wrote:
-> > On Mon, 25 Jun 2012 18:15:17 +0400
-> > Glauber Costa <glommer@parallels.com> wrote:
-> >
-> >> What I am proposing with this series is a stripped down version of the
-> >> kmem controller for memcg that would allow us to merge significant parts
-> >> of the infrastructure, while leaving out, for now, the polemic bits about
-> >> the slab while it is being reworked by Cristoph.
-> >>
-> >> Me reasoning for that is that after the last change to introduce a gfp
-> >> flag to mark kernel allocations, it became clear to me that tracking other
-> >> resources like the stack would then follow extremely naturaly. I figured
-> >> that at some point we'd have to solve the issue pointed by David, and avoid
-> >> testing the Slab flag in the page allocator, since it would soon be made
-> >> more generic. I do that by having the callers to explicit mark it.
-> >>
-> >> So to demonstrate how it would work, I am introducing a stack tracker here,
-> >> that is already a functionality per-se: it successfully stops fork bombs to
-> >> happen. (Sorry for doing all your work, Frederic =p ). Note that after all
-> >> memcg infrastructure is deployed, it becomes very easy to track anything.
-> >> The last patch of this series is extremely simple.
-> >>
-> >> The infrastructure is exactly the same we had in memcg, but stripped down
-> >> of the slab parts. And because what we have after those patches is a feature
-> >> per-se, I think it could be considered for merging.
-> >
-> > hm.  None of this new code makes the kernel smaller, faster, easier to
-> > understand or more fun to read!
-> Not sure if this is a general comment - in case I agree - or if targeted 
-> to my statement that this is "stripped down". If so, it is of course 
-> smaller relative to my previous slab accounting patches.
+First and foremost, thank you for taking the time to review these bits and
+provide such valuable feedback.
 
-It's a general comment.  The patch adds overhead: runtime costs and
-maintenance costs.  Do its benefits justify that cost?
-
-> The infrastructure is largely common, but I realized that a future user,
-> tracking the stack, would be a lot simpler and could be done first.
+On Tue, Jun 26, 2012 at 11:17:29AM +0100, Mel Gorman wrote:
+> > +/* return 1 if page is part of a guest's memory balloon, 0 otherwise */
+> > +static inline int PageBalloon(struct page *page)
+> > +{
+> > +	return is_balloon_page(page);
+> > +}
 > 
-> > Presumably we're getting some benefit for all the downside.  When the
-> > time is appropriate, please do put some time into explaining that
-> > benefit, so that others can agree that it is a worthwhile tradeoff.
-> >
+> bool
 > 
-> Well, for one thing, we stop fork bombs for processes inside cgroups.
+> Why is there both is_balloon_page and PageBalloon? 
+> 
+> is_ballon_page is so simple it should just be a static inline here
+> 
+> extern struct address_space *balloon_mapping;
+> static inline bool is_balloon_page(page)
+> {
+> 	return page->mapping == balloon_mapping;
+> }
+> 	
+I was thinking about sustain the same syntax other page tests utilize,
+but I rather stick to your suggestion on this one.
 
-"inside cgroups" is a significant limitation!  Is this capability
-important enough to justify adding the new code?  That's unobvious
-(to me).
+ 
+> >  #if defined CONFIG_COMPACTION || defined CONFIG_CMA
+> > @@ -312,6 +313,14 @@ isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
+> >  			continue;
+> >  		}
+> >  
+> > +		/*
+> > +		 * For ballooned pages, we need to isolate them before testing
+> > +		 * for PageLRU, as well as skip the LRU page isolation steps.
+> > +		 */
+> 
+> This says what, but not why.
+> 
+> I didn't check the exact mechanics of a balloon page but I expect it's that
+> balloon pages are not on the LRU. If they are on the LRU, that's pretty dumb.
+> 
+> 
+> /*
+>  * Balloon pages can be migrated but are not on the LRU. Isolate
+>  * them before LRU checks.
+>  */
+> 
+> 
+> It would be nicer to do this without gotos
+> 
+> /*
+>  * It is possible to migrate LRU pages and balloon pages. Skip
+>  * any other type of page
+>  */
+> if (is_balloon_page(page)) {
+> 	if (!isolate_balloon_page(page))
+> 		continue;
+> } else if (PageLRU(page)) {
+> 	....
+> }
+> 
+> You will need to shuffle things around a little to make it work properly
+> but if we handle other page types in the future it will be neater
+> overall.
+>
+I'm glad you've put things this way on this one. Despite I was thinking on doing it
+the way you suggested, I took the goto approach because I was afraid of doing
+otherwise could be considered as an unnecessary radical surgery on established code.
+Will do it, certainly.
 
-Are there any other user-facing things which we can do with this
-feature?  Present, or planned?
+ 	
+> > +struct address_space *balloon_mapping;
+> > +EXPORT_SYMBOL(balloon_mapping);
+> > +
+> 
+> EXPORT_SYMBOL_GPL?
+> 
+> I don't mind how it is exported as such. I'm idly curious if there are
+> external closed modules that use the driver.
+> 
+To be honest with you, that was picked with no particular case in mind. And, since
+you've raised this question, I'm also curious. However, after giving a thought
+on your feedback, I believe EXPORT_SYMBOL_GPL suits far better.
 
-> I can't speak for everybody here, but AFAIK, tracking the stack through
-> the memory it used, therefore using my proposed kmem controller, was an
-> idea that good quite a bit of traction with the memcg/memory people. 
-> So here you have something that people already asked a lot for, in a
-> shape and interface that seem to be acceptable.
 
-mm, maybe.  Kernel developers tend to look at code from the point of
-view "does it work as designed", "is it clean", "is it efficient", "do
-I understand it", etc.  We often forget to step back and really
-consider whether or not it should be merged at all.
+> > +/* ballooned page id check */
+> > +int is_balloon_page(struct page *page)
+> > +{
+> > +	struct address_space *mapping = page->mapping;
+> > +	if (mapping == balloon_mapping)
+> > +		return 1;
+> > +	return 0;
+> > +}
+> > +
+> > +/* __isolate_lru_page() counterpart for a ballooned page */
+> > +int isolate_balloon_page(struct page *page)
+> > +{
+> > +	struct address_space *mapping = page->mapping;
+> 
+> This is a publicly visible function and while your current usage looks
+> correct it would not hurt to do something like this;
+> 
+> if (WARN_ON(!is_page_ballon(page))
+> 	return 0;
+>
+Excellent point!
+ 
 
-I mean, unless the code is an explicit simplification, we should have
-a very strong bias towards "don't merge".
+> > +	if (mapping->a_ops->invalidatepage) {
+> > +		/*
+> > +		 * We can race against move_to_new_page() and stumble across a
+> > +		 * locked 'newpage'. If we succeed on isolating it, the result
+> > +		 * tends to be disastrous. So, we sanely skip PageLocked here.
+> > +		 */
+> > +		if (likely(!PageLocked(page) && get_page_unless_zero(page))) {
+> 
+> But the page can get locked after this point.
+> 
+> Would it not be better to do a trylock_page() and unlock the page on
+> exit after the isolation completes?
+> 
+Far better, for sure! thanks (again)
+
+
+> > @@ -78,7 +78,10 @@ void putback_lru_pages(struct list_head *l)
+> >  		list_del(&page->lru);
+> >  		dec_zone_page_state(page, NR_ISOLATED_ANON +
+> >  				page_is_file_cache(page));
+> > -		putback_lru_page(page);
+> > +		if (unlikely(PageBalloon(page)))
+> > +			VM_BUG_ON(!putback_balloon_page(page));
+> 
+> Why not BUG_ON?
+> 
+> What shocked me actually is that VM_BUG_ON code is executed on
+> !CONFIG_DEBUG_VM builds and has been since 2.6.36 due to commit [4e60c86bd:
+> gcc-4.6: mm: fix unused but set warnings]. I thought the whole point of
+> VM_BUG_ON was to avoid expensive and usually unnecessary checks. Andi,
+> was this deliberate?
+> 
+> Either way, you always want to call putback_ballon_page() so BUG_ON is
+> more appropriate although gracefully recovering from the situation and a
+> WARN would be better.
+> 
+Shame on me!
+ I was lazy enough to not carefully read VM_BUG_ON's definition and get its
+original purpose. Will change it, for sure.
+
+
+Once more, thank you!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
