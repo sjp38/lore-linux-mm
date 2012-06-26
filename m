@@ -1,45 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
-	by kanga.kvack.org (Postfix) with SMTP id 264A36B0112
-	for <linux-mm@kvack.org>; Tue, 26 Jun 2012 09:20:59 -0400 (EDT)
-Date: Tue, 26 Jun 2012 14:20:55 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 1/4] mm: introduce compaction and migration for virtio
- ballooned pages
-Message-ID: <20120626132055.GI8103@csn.ul.ie>
-References: <cover.1340665087.git.aquini@redhat.com>
- <7f83427b3894af7969c67acc0f27ab5aa68b4279.1340665087.git.aquini@redhat.com>
- <4FE9B677.8040409@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <4FE9B677.8040409@redhat.com>
+Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
+	by kanga.kvack.org (Postfix) with SMTP id 224F86B0113
+	for <linux-mm@kvack.org>; Tue, 26 Jun 2012 09:33:30 -0400 (EDT)
+From: Glauber Costa <glommer@parallels.com>
+Subject: [PATCH] memcg: first step towards hierarchical controller
+Date: Tue, 26 Jun 2012 17:30:28 +0400
+Message-Id: <1340717428-9009-1-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Rafael Aquini <aquini@redhat.com>, linux-mm@kvack.org, "Michael S. Tsirkin" <mst@redhat.com>, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org
+To: cgroups@vger.kernel.org, linux-mm@kvack.org
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Glauber Costa <glommer@parallels.com>, Michal Hocko <mhocko@suse.cz>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>
 
-On Tue, Jun 26, 2012 at 09:17:43AM -0400, Rik van Riel wrote:
-> On 06/25/2012 07:25 PM, Rafael Aquini wrote:
-> >This patch introduces helper functions that teach compaction and migration bits
-> >how to cope with pages which are part of a guest memory balloon, in order to
-> >make them movable by memory compaction procedures.
-> >
-> >Signed-off-by: Rafael Aquini<aquini@redhat.com>
-> 
-> The function fill_balloon in drivers/virtio/virtio_balloon.c
-> should probably add __GFP_MOVABLE to the gfp mask for alloc_pages,
-> to keep the pageblock where balloon pages are allocated marked
-> as movable.
-> 
+Okay, so after recent discussions, I am proposing the following
+patch. It won't remove hierarchy, or anything like that. Just default
+to true in the root cgroup, and print a warning once if you try
+to set it back to 0.
 
-You're right, but patch 3 is already doing that at the same time the
-migration primitives are introduced. It does mean the full series has to
-be applied to do anything but I think it's bisect safe.
+I am not adding it to feature-removal-schedule.txt because I don't
+view it as a consensus. Rather, changing the default would allow us
+to give it a time around in the open, and see if people complain
+and what we can learn about that.
 
+Signed-off-by: Glauber Costa <glommer@parallels.com>
+CC: Michal Hocko <mhocko@suse.cz>
+CC: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+CC: Johannes Weiner <hannes@cmpxchg.org>
+CC: Tejun Heo <tj@kernel.org>
+---
+ mm/memcontrol.c |    3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 9e710bc..037ddd4 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -3949,6 +3949,8 @@ static int mem_cgroup_hierarchy_write(struct cgroup *cont, struct cftype *cft,
+ 	if (memcg->use_hierarchy == val)
+ 		goto out;
+ 
++	WARN_ONCE((!parent_memcg && memcg->use_hierarchy && val == false),
++		"Non-hierarchical memcg is considered for deprecation");
+ 	/*
+ 	 * If parent's use_hierarchy is set, we can't make any modifications
+ 	 * in the child subtrees. If it is unset, then the change can
+@@ -5175,6 +5177,7 @@ mem_cgroup_create(struct cgroup *cont)
+ 			INIT_WORK(&stock->work, drain_local_stock);
+ 		}
+ 		hotcpu_notifier(memcg_cpu_hotplug_callback, 0);
++		memcg->use_hierarchy = true;
+ 	} else {
+ 		parent = mem_cgroup_from_cont(cont->parent);
+ 		memcg->use_hierarchy = parent->use_hierarchy;
 -- 
-Mel Gorman
-SUSE Labs
+1.7.10.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
