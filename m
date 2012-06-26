@@ -1,22 +1,22 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
-	by kanga.kvack.org (Postfix) with SMTP id B738C6B00F6
-	for <linux-mm@kvack.org>; Tue, 26 Jun 2012 04:50:57 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
+	by kanga.kvack.org (Postfix) with SMTP id 16BD16B00FA
+	for <linux-mm@kvack.org>; Tue, 26 Jun 2012 04:51:31 -0400 (EDT)
 Received: from /spool/local
-	by e23smtp08.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e23smtp02.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <xiaoguangrong@linux.vnet.ibm.com>;
-	Tue, 26 Jun 2012 08:47:43 +1000
+	Tue, 26 Jun 2012 08:31:51 +1000
 Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q5Q8orau54198400
-	for <linux-mm@kvack.org>; Tue, 26 Jun 2012 18:50:53 +1000
+	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q5Q8hcU650135178
+	for <linux-mm@kvack.org>; Tue, 26 Jun 2012 18:43:38 +1000
 Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
-	by d23av04.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q5Q8orqf021766
-	for <linux-mm@kvack.org>; Tue, 26 Jun 2012 18:50:53 +1000
-Message-ID: <4FE977EA.70200@linux.vnet.ibm.com>
-Date: Tue, 26 Jun 2012 16:50:50 +0800
+	by d23av04.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q5Q8pD6E022136
+	for <linux-mm@kvack.org>; Tue, 26 Jun 2012 18:51:13 +1000
+Message-ID: <4FE977FE.6080203@linux.vnet.ibm.com>
+Date: Tue, 26 Jun 2012 16:51:10 +0800
 From: Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Subject: [PATCH v2 4/9] zcache: mark zbud_init/zcache_comp_init as __init
+Subject: [PATCH v2 5/9] zcache: cleanup zbud_init
 References: <4FE97792.9020807@linux.vnet.ibm.com>
 In-Reply-To: <4FE97792.9020807@linux.vnet.ibm.com>
 Content-Type: text/plain; charset=UTF-8
@@ -26,37 +26,32 @@ List-ID: <linux-mm.kvack.org>
 To: Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>
 Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Konrad Wilk <konrad.wilk@oracle.com>, Nitin Gupta <ngupta@vflare.org>, linux-mm@kvack.org
 
-These functions are called only when system is initializing, so mark __init
-for them to free memory
+Need not set global parameters to 0
 
 Acked-by: Seth Jennings <sjenning@linux.vnet.ibm.com>
 Signed-off-by: Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>
 ---
- drivers/staging/zcache/zcache-main.c |    4 ++--
- 1 files changed, 2 insertions(+), 2 deletions(-)
+ drivers/staging/zcache/zcache-main.c |    6 ++----
+ 1 files changed, 2 insertions(+), 4 deletions(-)
 
 diff --git a/drivers/staging/zcache/zcache-main.c b/drivers/staging/zcache/zcache-main.c
-index 36c3b05..a77cacb 100644
+index a77cacb..0529b46 100644
 --- a/drivers/staging/zcache/zcache-main.c
 +++ b/drivers/staging/zcache/zcache-main.c
-@@ -600,7 +600,7 @@ out:
- 	return;
- }
-
--static void zbud_init(void)
-+static void __init zbud_init(void)
- {
+@@ -605,11 +605,9 @@ static void __init zbud_init(void)
  	int i;
 
-@@ -1985,7 +1985,7 @@ static int __init enable_zcache_compressor(char *s)
- __setup("zcache=", enable_zcache_compressor);
+ 	INIT_LIST_HEAD(&zbud_buddied_list);
+-	zcache_zbud_buddied_count = 0;
+-	for (i = 0; i < NCHUNKS; i++) {
++
++	for (i = 0; i < NCHUNKS; i++)
+ 		INIT_LIST_HEAD(&zbud_unbuddied[i].list);
+-		zbud_unbuddied[i].count = 0;
+-	}
+ }
 
-
--static int zcache_comp_init(void)
-+static int __init zcache_comp_init(void)
- {
- 	int ret = 0;
-
+ #ifdef CONFIG_SYSFS
 -- 
 1.7.7.6
 
