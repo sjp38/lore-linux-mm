@@ -1,24 +1,24 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx159.postini.com [74.125.245.159])
-	by kanga.kvack.org (Postfix) with SMTP id 222436B0062
-	for <linux-mm@kvack.org>; Wed, 27 Jun 2012 00:17:44 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
+	by kanga.kvack.org (Postfix) with SMTP id 69C856B0068
+	for <linux-mm@kvack.org>; Wed, 27 Jun 2012 00:17:45 -0400 (EDT)
 Received: from /spool/local
-	by e1.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e34.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <john.stultz@linaro.org>;
-	Wed, 27 Jun 2012 00:17:42 -0400
-Received: from d01relay05.pok.ibm.com (d01relay05.pok.ibm.com [9.56.227.237])
-	by d01dlp02.pok.ibm.com (Postfix) with ESMTP id A70336E804F
-	for <linux-mm@kvack.org>; Wed, 27 Jun 2012 00:17:39 -0400 (EDT)
+	Tue, 26 Jun 2012 22:17:44 -0600
+Received: from d01relay01.pok.ibm.com (d01relay01.pok.ibm.com [9.56.227.233])
+	by d01dlp03.pok.ibm.com (Postfix) with ESMTP id 2BA26C90063
+	for <linux-mm@kvack.org>; Wed, 27 Jun 2012 00:17:40 -0400 (EDT)
 Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay05.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q5R4HdnI191904
-	for <linux-mm@kvack.org>; Wed, 27 Jun 2012 00:17:39 -0400
+	by d01relay01.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q5R4HfIM164122
+	for <linux-mm@kvack.org>; Wed, 27 Jun 2012 00:17:41 -0400
 Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q5R4HZ55019915
-	for <linux-mm@kvack.org>; Wed, 27 Jun 2012 01:17:38 -0300
+	by d01av02.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q5R4HZfK019947
+	for <linux-mm@kvack.org>; Wed, 27 Jun 2012 01:17:41 -0300
 From: John Stultz <john.stultz@linaro.org>
-Subject: [PATCH 1/5] [RFC] Add volatile range management code
-Date: Wed, 27 Jun 2012 00:17:11 -0400
-Message-Id: <1340770635-9909-2-git-send-email-john.stultz@linaro.org>
+Subject: [PATCH 3/5] [RFC] ashmem: Convert ashmem to use volatile ranges
+Date: Wed, 27 Jun 2012 00:17:13 -0400
+Message-Id: <1340770635-9909-4-git-send-email-john.stultz@linaro.org>
 In-Reply-To: <1340770635-9909-1-git-send-email-john.stultz@linaro.org>
 References: <1340770635-9909-1-git-send-email-john.stultz@linaro.org>
 Sender: owner-linux-mm@kvack.org
@@ -26,41 +26,19 @@ List-ID: <linux-mm.kvack.org>
 To: LKML <linux-kernel@vger.kernel.org>
 Cc: John Stultz <john.stultz@linaro.org>, Andrew Morton <akpm@linux-foundation.org>, Android Kernel Team <kernel-team@android.com>, Robert Love <rlove@google.com>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Dmitry Adamushko <dmitry.adamushko@gmail.com>, Dave Chinner <david@fromorbit.com>, Neil Brown <neilb@suse.de>, Andrea Righi <andrea@betterlinux.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Taras Glek <tgek@mozilla.com>, Mike Hommey <mh@glandium.org>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Michel Lespinasse <walken@google.com>, Minchan Kim <minchan@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-This patch provides the volatile range management code
-that filesystems can utilize when implementing
-FALLOC_FL_MARK_VOLATILE.
+Rework of my first pass attempt at getting ashmem to utilize
+the volatile range code, now using the fallocate interface.
 
-It tracks a collection of page ranges against a mapping
-stored in an interval-tree. This code handles coalescing
-overlapping and adjacent ranges, as well as splitting
-ranges when sub-chunks are removed.
+In this implementaiton GET_PIN_STATUS is unimplemented, due to
+the fact that adding a ISVOLATILE check wasn't considered
+terribly useful in earlier reviews. It would be trivial to
+re-add that functionality, but I wanted to check w/ the
+Android developers to see how often GET_PIN_STATUS is actually
+used?
 
-The ranges can be marked purged or unpurged. And there is
-a per-fs lru list that tracks all the unpurged ranges for
-that fs.
-
-v2:
-* Fix bug in volatile_ranges_get_last_used returning bad
-  start,end values
-* Rework for intervaltree renaming
-* Optimize volatile_range_lru_size to avoid running through
-  lru list each time.
-
-v3:
-* Improve function name to make it clear what the
-  volatile_ranges_pluck_lru() code does.
-* Drop volatile_range_lru_size and unpurged_page_count
-  mangement as its now unused
-
-v4:
-* Re-add volatile_range_lru_size and unpruged_page_count
-* Fix bug in range_remove when we split ranges, we add
-  an overlapping range before resizing the existing range.
-
-v5:
-* Drop intervaltree for prio_tree usage per Michel &
-  Dmitry's suggestions.
-* Cleanups
+Similarly the ashmem PURGE_ALL_CACHES ioctl does not function,
+as the volatile range purging is no longer directly under its
+control.
 
 CC: Andrew Morton <akpm@linux-foundation.org>
 CC: Android Kernel Team <kernel-team@android.com>
@@ -83,592 +61,433 @@ CC: Minchan Kim <minchan@kernel.org>
 CC: linux-mm@kvack.org <linux-mm@kvack.org>
 Signed-off-by: John Stultz <john.stultz@linaro.org>
 ---
- include/linux/volatile.h |   45 ++++
- mm/Makefile              |    2 +-
- mm/volatile.c            |  509 ++++++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 555 insertions(+), 1 deletion(-)
- create mode 100644 include/linux/volatile.h
- create mode 100644 mm/volatile.c
+ drivers/staging/android/ashmem.c |  331 ++------------------------------------
+ 1 file changed, 9 insertions(+), 322 deletions(-)
 
-diff --git a/include/linux/volatile.h b/include/linux/volatile.h
-new file mode 100644
-index 0000000..6f41b98
---- /dev/null
-+++ b/include/linux/volatile.h
-@@ -0,0 +1,45 @@
-+#ifndef _LINUX_VOLATILE_H
-+#define _LINUX_VOLATILE_H
-+
-+#include <linux/fs.h>
-+
-+struct volatile_fs_head {
-+	struct mutex lock;
-+	struct list_head lru_head;
-+	s64 unpurged_page_count;
-+};
-+
-+
-+#define DEFINE_VOLATILE_FS_HEAD(name) struct volatile_fs_head name = {	\
-+	.lock = __MUTEX_INITIALIZER(name.lock),				\
-+	.lru_head = LIST_HEAD_INIT(name.lru_head),			\
-+	.unpurged_page_count = 0,					\
-+}
-+
-+
-+static inline void volatile_range_lock(struct volatile_fs_head *head)
-+{
-+	mutex_lock(&head->lock);
-+}
-+
-+static inline void volatile_range_unlock(struct volatile_fs_head *head)
-+{
-+	mutex_unlock(&head->lock);
-+}
-+
-+extern long volatile_range_add(struct volatile_fs_head *head,
-+				struct address_space *mapping,
-+				pgoff_t start_index, pgoff_t end_index);
-+extern long volatile_range_remove(struct volatile_fs_head *head,
-+				struct address_space *mapping,
-+				pgoff_t start_index, pgoff_t end_index);
-+
-+extern s64 volatile_range_lru_size(struct volatile_fs_head *head);
-+
-+extern void volatile_range_clear(struct volatile_fs_head *head,
-+					struct address_space *mapping);
-+
-+extern s64 volatile_ranges_pluck_lru(struct volatile_fs_head *head,
-+				struct address_space **mapping,
-+				pgoff_t *start, pgoff_t *end);
-+#endif /* _LINUX_VOLATILE_H */
-diff --git a/mm/Makefile b/mm/Makefile
-index 2e2fbbe..3e3cd6f 100644
---- a/mm/Makefile
-+++ b/mm/Makefile
-@@ -16,7 +16,7 @@ obj-y			:= filemap.o mempool.o oom_kill.o fadvise.o \
- 			   readahead.o swap.o truncate.o vmscan.o shmem.o \
- 			   prio_tree.o util.o mmzone.o vmstat.o backing-dev.o \
- 			   page_isolation.o mm_init.o mmu_context.o percpu.o \
--			   compaction.o $(mmu-y)
-+			   compaction.o volatile.o $(mmu-y)
- obj-y += init-mm.o
+diff --git a/drivers/staging/android/ashmem.c b/drivers/staging/android/ashmem.c
+index e84dbec..9e8fe37 100644
+--- a/drivers/staging/android/ashmem.c
++++ b/drivers/staging/android/ashmem.c
+@@ -50,26 +50,6 @@ struct ashmem_area {
+ };
  
- ifdef CONFIG_NO_BOOTMEM
-diff --git a/mm/volatile.c b/mm/volatile.c
-new file mode 100644
-index 0000000..d05a767
---- /dev/null
-+++ b/mm/volatile.c
-@@ -0,0 +1,509 @@
-+/* mm/volatile.c
-+ *
-+ * Volatile page range managment.
-+ *      Copyright 2011 Linaro
-+ *
-+ * Based on mm/ashmem.c
-+ *      by Robert Love <rlove@google.com>
-+ *      Copyright (C) 2008 Google, Inc.
-+ *
-+ *
-+ * This software is licensed under the terms of the GNU General Public
-+ * License version 2, as published by the Free Software Foundation, and
-+ * may be copied, distributed, and modified under those terms.
-+ *
-+ * This program is distributed in the hope that it will be useful,
-+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
-+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-+ * GNU General Public License for more details.
-+ *
-+ * The volatile range management is a helper layer on top of the range tree
-+ * code, which is used to help filesystems manage page ranges that are volatile.
-+ *
-+ * These ranges are stored in a per-mapping range tree. Storing both purged and
-+ * unpurged ranges connected to that address_space. Unpurged ranges are also
-+ * linked together in an lru list that is per-volatile-fs-head (basically
-+ * per-filesystem).
-+ *
-+ * The goal behind volatile ranges is to allow applications to interact
-+ * with the kernel's cache management infrastructure.  In particular an
-+ * application can say "this memory contains data that might be useful in
-+ * the future, but can be reconstructed if necessary, so if the kernel
-+ * needs, it can zap and reclaim this memory without having to swap it out.
-+ *
-+ * The proposed mechanism - at a high level - is for user-space to be able
-+ * to say "This memory is volatile" and then later "this memory is no longer
-+ * volatile".  If the content of the memory is still available the second
-+ * request succeeds.  If not, the memory is marked non-volatile and an
-+ * error is returned to denote that the contents have been lost.
-+ *
-+ * Credits to Neil Brown for the above description.
-+ *
-+ */
-+
-+#include <linux/kernel.h>
-+#include <linux/fs.h>
-+#include <linux/mm.h>
-+#include <linux/slab.h>
-+#include <linux/pagemap.h>
-+#include <linux/volatile.h>
-+#include <linux/rbtree.h>
-+#include <linux/hash.h>
-+#include <linux/shmem_fs.h>
-+
-+
-+struct volatile_range {
-+	struct list_head		lru;
-+	struct prio_tree_node		node;
-+	unsigned int			purged;
-+	struct address_space		*mapping;
-+};
-+
-+
-+/*
-+ * To avoid bloating the address_space structure, we use
-+ * a hash structure to map from address_space mappings to
-+ * the interval_tree root that stores volatile ranges
-+ */
-+static DEFINE_MUTEX(hash_mutex);
-+static struct hlist_head *mapping_hash;
-+static long mapping_hash_shift = 8;
-+struct mapping_hash_entry {
-+	struct prio_tree_root		root;
-+	struct address_space		*mapping;
-+	struct hlist_node		hnode;
-+};
-+
-+
-+static inline
-+struct prio_tree_root *__mapping_to_root(struct address_space *mapping)
-+{
-+	struct hlist_node *elem;
-+	struct mapping_hash_entry *entry;
-+	struct prio_tree_root *ret = NULL;
-+
-+	hlist_for_each_entry_rcu(entry, elem,
-+			&mapping_hash[hash_ptr(mapping, mapping_hash_shift)],
-+				hnode)
-+		if (entry->mapping == mapping)
-+			ret =  &entry->root;
-+
-+	return ret;
-+}
-+
-+
-+static inline
-+struct prio_tree_root *mapping_to_root(struct address_space *mapping)
-+{
-+	struct prio_tree_root *ret;
-+
-+	mutex_lock(&hash_mutex);
-+	ret =  __mapping_to_root(mapping);
-+	mutex_unlock(&hash_mutex);
-+	return ret;
-+}
-+
-+
-+static inline
-+struct prio_tree_root *mapping_allocate_root(struct address_space *mapping)
-+{
-+	struct mapping_hash_entry *entry;
-+	struct prio_tree_root *dblchk;
-+	struct prio_tree_root *ret = NULL;
-+
-+	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
-+	if (!entry)
-+		return NULL;
-+
-+	mutex_lock(&hash_mutex);
-+	/* Since we dropped the lock, double check that no one has
-+	 * created the same hash entry.
-+	 */
-+	dblchk = __mapping_to_root(mapping);
-+	if (dblchk) {
-+		kfree(entry);
-+		ret = dblchk;
-+		goto out;
-+	}
-+
-+	INIT_HLIST_NODE(&entry->hnode);
-+	entry->mapping = mapping;
-+	INIT_PRIO_TREE_ROOT(&entry->root);
-+
-+	hlist_add_head_rcu(&entry->hnode,
-+		&mapping_hash[hash_ptr(mapping, mapping_hash_shift)]);
-+
-+	ret = &entry->root;
-+out:
-+	mutex_unlock(&hash_mutex);
-+	return ret;
-+}
-+
-+
-+static inline void mapping_free_root(struct prio_tree_root *root)
-+{
-+	struct mapping_hash_entry *entry;
-+
-+	mutex_lock(&hash_mutex);
-+	entry = container_of(root, struct mapping_hash_entry, root);
-+
-+	hlist_del_rcu(&entry->hnode);
-+	kfree(entry);
-+	mutex_unlock(&hash_mutex);
-+}
-+
-+
-+/* volatile range helpers */
-+static inline void vrange_resize(struct volatile_fs_head *head,
-+				struct prio_tree_root *root,
-+				struct volatile_range *vrange,
-+				pgoff_t start_index, pgoff_t end_index)
-+{
-+	pgoff_t old_size, new_size;
-+
-+	old_size = vrange->node.last - vrange->node.start;
-+	new_size = end_index-start_index;
-+
-+	if (!vrange->purged)
-+		head->unpurged_page_count += new_size - old_size;
-+
-+	prio_tree_remove(root, &vrange->node);
-+	vrange->node.start = start_index;
-+	vrange->node.last = end_index;
-+	prio_tree_insert(root, &vrange->node);
-+}
-+
-+static struct volatile_range *vrange_alloc(void)
-+{
-+	struct volatile_range *new;
-+
-+	new = kzalloc(sizeof(struct volatile_range), GFP_KERNEL);
-+	if (!new)
-+		return 0;
-+	INIT_PRIO_TREE_NODE(&new->node);
-+	return new;
-+}
-+
-+
-+static void vrange_add(struct volatile_fs_head *head,
-+				struct prio_tree_root *root,
-+				struct volatile_range *vrange)
-+{
-+
-+	prio_tree_insert(root, &vrange->node);
-+
-+	/* Only add unpurged ranges to LRU */
-+	if (!vrange->purged) {
-+		head->unpurged_page_count += vrange->node.last - vrange->node.start;
-+		list_add_tail(&vrange->lru, &head->lru_head);
-+	}
-+
-+}
-+
-+
-+
-+static void vrange_del(struct volatile_fs_head *head,
-+				struct prio_tree_root *root,
-+				struct volatile_range *vrange)
-+{
-+	if (!vrange->purged) {
-+		head->unpurged_page_count -= vrange->node.last - vrange->node.start;
-+		list_del(&vrange->lru);
-+	}
-+	prio_tree_remove(root, &vrange->node);
-+	kfree(vrange);
-+}
-+
-+
-+/**
-+ * volatile_range_add: Marks a page interval as volatile
-+ * @head: per-fs volatile head
-+ * @mapping: address space who's range is being marked volatile
-+ * @start_index: Starting page in range to be marked volatile
-+ * @end_index: Ending page in range to be marked volatile
-+ *
-+ * Mark a region as volatile. Coalesces overlapping and neighboring regions.
-+ *
-+ * Must lock the volatile_fs_head before calling!
-+ *
-+ * Returns 1 if the range was coalesced with any purged ranges.
-+ * Returns 0 on success.
-+ */
-+long volatile_range_add(struct volatile_fs_head *head,
-+				struct address_space *mapping,
-+				pgoff_t start, pgoff_t end)
-+{
-+	struct prio_tree_node *node;
-+	struct prio_tree_iter iter;
-+	struct volatile_range *new, *vrange;
-+	struct prio_tree_root *root;
-+	int purged = 0;
-+
-+	/* Make sure we're properly locked */
-+	WARN_ON(!mutex_is_locked(&head->lock));
-+
-+	/*
-+	 * Because the lock might be held in a shrinker, release
-+	 * it during allocation.
-+	 */
-+	mutex_unlock(&head->lock);
-+	new = vrange_alloc();
-+	mutex_lock(&head->lock);
-+	if (!new)
-+		return -ENOMEM;
-+
-+	root = mapping_to_root(mapping);
-+	if (!root) {
-+		mutex_unlock(&head->lock);
-+		root = mapping_allocate_root(mapping);
-+		mutex_lock(&head->lock);
-+		if (!root) {
-+			kfree(new);
-+			return -ENOMEM;
-+		}
-+	}
-+
-+
-+	/* First, find any existing intervals that overlap */
-+	prio_tree_iter_init(&iter, root, start, end);
-+	node = prio_tree_next(&iter);
-+	while (node) {
-+		vrange = container_of(node, struct volatile_range, node);
-+
-+		/* Already entirely marked volatile, so we're done */
-+		if (vrange->node.start < start && vrange->node.last > end) {
-+			/* don't need the allocated value */
-+			kfree(new);
-+			return purged;
-+		}
-+
-+		/* Resize the new range to cover all overlapping ranges */
-+		start = min_t(u64, start, vrange->node.start);
-+		end = max_t(u64, end, vrange->node.last);
-+
-+		/* Inherit purged state from overlapping ranges */
-+		purged |= vrange->purged;
-+
-+		/* See if there's a next range that overlaps */
-+		node = prio_tree_next(&iter);
-+
-+		/* Delete the old range, as we consume it */
-+		vrange_del(head, root, vrange);
-+
-+	}
-+
-+	/* Coalesce left-adjacent ranges */
-+	prio_tree_iter_init(&iter, root, start-1, start);
-+	node = prio_tree_next(&iter);
-+	while (node) {
-+		vrange = container_of(node, struct volatile_range, node);
-+		node = prio_tree_next(&iter);
-+		/* Only coalesce if both are either purged or unpurged */
-+		if (vrange->purged == purged) {
-+			/* resize new range */
-+			start = min_t(u64, start, vrange->node.start);
-+			end = max_t(u64, end, vrange->node.last);
-+			/* delete old range */
-+			vrange_del(head, root, vrange);
-+		}
-+	}
-+
-+	/* Coalesce right-adjacent ranges */
-+	prio_tree_iter_init(&iter, root, end, end+1);
-+	node = prio_tree_next(&iter);
-+	while (node) {
-+		vrange = container_of(node, struct volatile_range, node);
-+		node = prio_tree_next(&iter);
-+		/* Only coalesce if both are either purged or unpurged */
-+		if (vrange->purged == purged) {
-+			/* resize new range */
-+			start = min_t(u64, start, vrange->node.start);
-+			end = max_t(u64, end, vrange->node.last);
-+			/* delete old range */
-+			vrange_del(head, root, vrange);
-+		}
-+	}
-+	/* Assign and store the new range in the range tree */
-+	new->mapping = mapping;
-+	new->node.start = start;
-+	new->node.last = end;
-+	new->purged = purged;
-+	vrange_add(head, root, new);
-+
-+	return purged;
-+}
-+
-+
-+/**
-+ * volatile_range_remove: Marks a page interval as nonvolatile
-+ * @head: per-fs volatile head
-+ * @mapping: address space who's range is being marked nonvolatile
-+ * @start_index: Starting page in range to be marked nonvolatile
-+ * @end_index: Ending page in range to be marked nonvolatile
-+ *
-+ * Mark a region as nonvolatile. And remove any contained pages
-+ * from the volatile range tree.
-+ *
-+ * Must lock the volatile_fs_head before calling!
-+ *
-+ * Returns 1 if any portion of the range was purged.
-+ * Returns 0 on success.
-+ */
-+long volatile_range_remove(struct volatile_fs_head *head,
-+				struct address_space *mapping,
-+				pgoff_t start, pgoff_t end)
-+{
-+	struct prio_tree_node *node;
-+	struct prio_tree_iter iter;
-+	struct volatile_range *new, *vrange;
-+	struct prio_tree_root *root;
-+	int ret		= 0;
-+	int used_new	= 0;
-+
-+	/* Make sure we're properly locked */
-+	WARN_ON(!mutex_is_locked(&head->lock));
-+
-+	/*
-+	 * Because the lock might be held in a shrinker, release
-+	 * it during allocation.
-+	 */
-+	mutex_unlock(&head->lock);
-+	new = vrange_alloc();
-+	mutex_lock(&head->lock);
-+	if (!new)
-+		return -ENOMEM;
-+
-+	root = mapping_to_root(mapping);
-+	if (!root)
-+		goto out;
-+
-+
-+	/* Find any overlapping ranges */
-+	prio_tree_iter_init(&iter, root, start, end);
-+	node = prio_tree_next(&iter);
-+	while (node) {
-+		vrange = container_of(node, struct volatile_range, node);
-+		node = prio_tree_next(&iter);
-+
-+		ret |= vrange->purged;
-+
-+		if (start <= vrange->node.start && end >= vrange->node.last) {
-+			/* delete: volatile range is totally within range */
-+			vrange_del(head, root, vrange);
-+		} else if (vrange->node.start >= start) {
-+			/* resize: volatile range right-overlaps range */
-+			vrange_resize(head, root, vrange, end+1, vrange->node.last);
-+		} else if (vrange->node.last <= end) {
-+			/* resize: volatile range left-overlaps range */
-+			vrange_resize(head, root, vrange, vrange->node.start, start-1);
-+		} else {
-+			/* split: range is totally within a volatile range */
-+			used_new = 1; /* we only do this once */
-+			new->mapping = mapping;
-+			new->node.start = end + 1;
-+			new->node.last = vrange->node.last;
-+			new->purged = vrange->purged;
-+			vrange_resize(head, root, vrange, vrange->node.start, start-1);
-+			vrange_add(head, root, new);
-+			break;
-+		}
-+	}
-+
-+out:
-+	if (!used_new)
-+		kfree(new);
-+
-+	return ret;
-+}
-+
-+/**
-+ * volatile_range_lru_size: Returns the number of unpurged pages on the lru
-+ * @head: per-fs volatile head
-+ *
-+ * Returns the number of unpurged pages on the LRU
-+ *
-+ * Must lock the volatile_fs_head before calling!
-+ *
-+ */
-+s64 volatile_range_lru_size(struct volatile_fs_head *head)
-+{
-+	WARN_ON(!mutex_is_locked(&head->lock));
-+	return head->unpurged_page_count;
-+}
-+
-+
-+/**
-+ * volatile_ranges_pluck_lru: Returns mapping and size of lru unpurged range
-+ * @head: per-fs volatile head
-+ * @mapping: dbl pointer to mapping who's range is being purged
-+ * @start: Pointer to starting address of range being purged
-+ * @end: Pointer to ending address of range being purged
-+ *
-+ * Returns the mapping, start and end values of the least recently used
-+ * range. Marks the range as purged and removes it from the LRU.
-+ *
-+ * Must lock the volatile_fs_head before calling!
-+ *
-+ * Returns 1 on success if a range was returned
-+ * Return 0 if no ranges were found.
-+ */
-+s64 volatile_ranges_pluck_lru(struct volatile_fs_head *head,
-+				struct address_space **mapping,
-+				pgoff_t *start, pgoff_t *end)
-+{
-+	struct volatile_range *range;
-+
-+	WARN_ON(!mutex_is_locked(&head->lock));
-+
-+	if (list_empty(&head->lru_head))
-+		return 0;
-+
-+	range = list_first_entry(&head->lru_head, struct volatile_range, lru);
-+
-+	*start = range->node.start;
-+	*end = range->node.last;
-+	*mapping = range->mapping;
-+
-+	head->unpurged_page_count -= *end - *start;
-+	list_del(&range->lru);
-+	range->purged = 1;
-+
-+	return 1;
-+}
-+
-+
-+/*
-+ * Cleans up any volatile ranges.
-+ */
-+void volatile_range_clear(struct volatile_fs_head *head,
-+				struct address_space *mapping)
-+{
-+	struct volatile_range *tozap;
-+	struct prio_tree_root *root;
-+
-+	WARN_ON(!mutex_is_locked(&head->lock));
-+
-+	root = mapping_to_root(mapping);
-+	if (!root)
-+		return;
-+
-+	while (!prio_tree_empty(root)) {
-+		tozap = container_of(root->prio_tree_node, struct volatile_range, node);
-+		vrange_del(head, root, tozap);
-+	}
-+	mapping_free_root(root);
-+}
-+
-+
-+static int __init volatile_init(void)
-+{
-+	int i, size;
-+
-+	size = 1U << mapping_hash_shift;
-+	mapping_hash = kzalloc(sizeof(mapping_hash)*size, GFP_KERNEL);
-+	for (i = 0; i < size; i++)
-+		INIT_HLIST_HEAD(&mapping_hash[i]);
-+
-+	return 0;
-+}
-+arch_initcall(volatile_init);
+ /*
+- * ashmem_range - represents an interval of unpinned (evictable) pages
+- * Lifecycle: From unpin to pin
+- * Locking: Protected by `ashmem_mutex'
+- */
+-struct ashmem_range {
+-	struct list_head lru;		/* entry in LRU list */
+-	struct list_head unpinned;	/* entry in its area's unpinned list */
+-	struct ashmem_area *asma;	/* associated area */
+-	size_t pgstart;			/* starting page, inclusive */
+-	size_t pgend;			/* ending page, inclusive */
+-	unsigned int purged;		/* ASHMEM_NOT or ASHMEM_WAS_PURGED */
+-};
+-
+-/* LRU list of unpinned pages, protected by ashmem_mutex */
+-static LIST_HEAD(ashmem_lru_list);
+-
+-/* Count of pages on our LRU list, protected by ashmem_mutex */
+-static unsigned long lru_count;
+-
+-/*
+  * ashmem_mutex - protects the list of and each individual ashmem_area
+  *
+  * Lock Ordering: ashmex_mutex -> i_mutex -> i_alloc_sem
+@@ -77,102 +57,9 @@ static unsigned long lru_count;
+ static DEFINE_MUTEX(ashmem_mutex);
+ 
+ static struct kmem_cache *ashmem_area_cachep __read_mostly;
+-static struct kmem_cache *ashmem_range_cachep __read_mostly;
+-
+-#define range_size(range) \
+-	((range)->pgend - (range)->pgstart + 1)
+-
+-#define range_on_lru(range) \
+-	((range)->purged == ASHMEM_NOT_PURGED)
+-
+-#define page_range_subsumes_range(range, start, end) \
+-	(((range)->pgstart >= (start)) && ((range)->pgend <= (end)))
+-
+-#define page_range_subsumed_by_range(range, start, end) \
+-	(((range)->pgstart <= (start)) && ((range)->pgend >= (end)))
+-
+-#define page_in_range(range, page) \
+-	(((range)->pgstart <= (page)) && ((range)->pgend >= (page)))
+-
+-#define page_range_in_range(range, start, end) \
+-	(page_in_range(range, start) || page_in_range(range, end) || \
+-		page_range_subsumes_range(range, start, end))
+-
+-#define range_before_page(range, page) \
+-	((range)->pgend < (page))
+ 
+ #define PROT_MASK		(PROT_EXEC | PROT_READ | PROT_WRITE)
+ 
+-static inline void lru_add(struct ashmem_range *range)
+-{
+-	list_add_tail(&range->lru, &ashmem_lru_list);
+-	lru_count += range_size(range);
+-}
+-
+-static inline void lru_del(struct ashmem_range *range)
+-{
+-	list_del(&range->lru);
+-	lru_count -= range_size(range);
+-}
+-
+-/*
+- * range_alloc - allocate and initialize a new ashmem_range structure
+- *
+- * 'asma' - associated ashmem_area
+- * 'prev_range' - the previous ashmem_range in the sorted asma->unpinned list
+- * 'purged' - initial purge value (ASMEM_NOT_PURGED or ASHMEM_WAS_PURGED)
+- * 'start' - starting page, inclusive
+- * 'end' - ending page, inclusive
+- *
+- * Caller must hold ashmem_mutex.
+- */
+-static int range_alloc(struct ashmem_area *asma,
+-		       struct ashmem_range *prev_range, unsigned int purged,
+-		       size_t start, size_t end)
+-{
+-	struct ashmem_range *range;
+-
+-	range = kmem_cache_zalloc(ashmem_range_cachep, GFP_KERNEL);
+-	if (unlikely(!range))
+-		return -ENOMEM;
+-
+-	range->asma = asma;
+-	range->pgstart = start;
+-	range->pgend = end;
+-	range->purged = purged;
+-
+-	list_add_tail(&range->unpinned, &prev_range->unpinned);
+-
+-	if (range_on_lru(range))
+-		lru_add(range);
+-
+-	return 0;
+-}
+-
+-static void range_del(struct ashmem_range *range)
+-{
+-	list_del(&range->unpinned);
+-	if (range_on_lru(range))
+-		lru_del(range);
+-	kmem_cache_free(ashmem_range_cachep, range);
+-}
+-
+-/*
+- * range_shrink - shrinks a range
+- *
+- * Caller must hold ashmem_mutex.
+- */
+-static inline void range_shrink(struct ashmem_range *range,
+-				size_t start, size_t end)
+-{
+-	size_t pre = range_size(range);
+-
+-	range->pgstart = start;
+-	range->pgend = end;
+-
+-	if (range_on_lru(range))
+-		lru_count -= pre - range_size(range);
+-}
+ 
+ static int ashmem_open(struct inode *inode, struct file *file)
+ {
+@@ -198,12 +85,6 @@ static int ashmem_open(struct inode *inode, struct file *file)
+ static int ashmem_release(struct inode *ignored, struct file *file)
+ {
+ 	struct ashmem_area *asma = file->private_data;
+-	struct ashmem_range *range, *next;
+-
+-	mutex_lock(&ashmem_mutex);
+-	list_for_each_entry_safe(range, next, &asma->unpinned_list, unpinned)
+-		range_del(range);
+-	mutex_unlock(&ashmem_mutex);
+ 
+ 	if (asma->file)
+ 		fput(asma->file);
+@@ -337,56 +218,6 @@ out:
+ 	return ret;
+ }
+ 
+-/*
+- * ashmem_shrink - our cache shrinker, called from mm/vmscan.c :: shrink_slab
+- *
+- * 'nr_to_scan' is the number of objects (pages) to prune, or 0 to query how
+- * many objects (pages) we have in total.
+- *
+- * 'gfp_mask' is the mask of the allocation that got us into this mess.
+- *
+- * Return value is the number of objects (pages) remaining, or -1 if we cannot
+- * proceed without risk of deadlock (due to gfp_mask).
+- *
+- * We approximate LRU via least-recently-unpinned, jettisoning unpinned partial
+- * chunks of ashmem regions LRU-wise one-at-a-time until we hit 'nr_to_scan'
+- * pages freed.
+- */
+-static int ashmem_shrink(struct shrinker *s, struct shrink_control *sc)
+-{
+-	struct ashmem_range *range, *next;
+-
+-	/* We might recurse into filesystem code, so bail out if necessary */
+-	if (sc->nr_to_scan && !(sc->gfp_mask & __GFP_FS))
+-		return -1;
+-	if (!sc->nr_to_scan)
+-		return lru_count;
+-
+-	mutex_lock(&ashmem_mutex);
+-	list_for_each_entry_safe(range, next, &ashmem_lru_list, lru) {
+-		loff_t start = range->pgstart * PAGE_SIZE;
+-		loff_t end = (range->pgend + 1) * PAGE_SIZE;
+-
+-		do_fallocate(range->asma->file,
+-				FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE,
+-				start, end - start);
+-		range->purged = ASHMEM_WAS_PURGED;
+-		lru_del(range);
+-
+-		sc->nr_to_scan -= range_size(range);
+-		if (sc->nr_to_scan <= 0)
+-			break;
+-	}
+-	mutex_unlock(&ashmem_mutex);
+-
+-	return lru_count;
+-}
+-
+-static struct shrinker ashmem_shrinker = {
+-	.shrink = ashmem_shrink,
+-	.seeks = DEFAULT_SEEKS * 4,
+-};
+-
+ static int set_prot_mask(struct ashmem_area *asma, unsigned long prot)
+ {
+ 	int ret = 0;
+@@ -459,136 +290,10 @@ static int get_name(struct ashmem_area *asma, void __user *name)
+ 	return ret;
+ }
+ 
+-/*
+- * ashmem_pin - pin the given ashmem region, returning whether it was
+- * previously purged (ASHMEM_WAS_PURGED) or not (ASHMEM_NOT_PURGED).
+- *
+- * Caller must hold ashmem_mutex.
+- */
+-static int ashmem_pin(struct ashmem_area *asma, size_t pgstart, size_t pgend)
+-{
+-	struct ashmem_range *range, *next;
+-	int ret = ASHMEM_NOT_PURGED;
+-
+-	list_for_each_entry_safe(range, next, &asma->unpinned_list, unpinned) {
+-		/* moved past last applicable page; we can short circuit */
+-		if (range_before_page(range, pgstart))
+-			break;
+-
+-		/*
+-		 * The user can ask us to pin pages that span multiple ranges,
+-		 * or to pin pages that aren't even unpinned, so this is messy.
+-		 *
+-		 * Four cases:
+-		 * 1. The requested range subsumes an existing range, so we
+-		 *    just remove the entire matching range.
+-		 * 2. The requested range overlaps the start of an existing
+-		 *    range, so we just update that range.
+-		 * 3. The requested range overlaps the end of an existing
+-		 *    range, so we just update that range.
+-		 * 4. The requested range punches a hole in an existing range,
+-		 *    so we have to update one side of the range and then
+-		 *    create a new range for the other side.
+-		 */
+-		if (page_range_in_range(range, pgstart, pgend)) {
+-			ret |= range->purged;
+-
+-			/* Case #1: Easy. Just nuke the whole thing. */
+-			if (page_range_subsumes_range(range, pgstart, pgend)) {
+-				range_del(range);
+-				continue;
+-			}
+-
+-			/* Case #2: We overlap from the start, so adjust it */
+-			if (range->pgstart >= pgstart) {
+-				range_shrink(range, pgend + 1, range->pgend);
+-				continue;
+-			}
+-
+-			/* Case #3: We overlap from the rear, so adjust it */
+-			if (range->pgend <= pgend) {
+-				range_shrink(range, range->pgstart, pgstart-1);
+-				continue;
+-			}
+-
+-			/*
+-			 * Case #4: We eat a chunk out of the middle. A bit
+-			 * more complicated, we allocate a new range for the
+-			 * second half and adjust the first chunk's endpoint.
+-			 */
+-			range_alloc(asma, range, range->purged,
+-				    pgend + 1, range->pgend);
+-			range_shrink(range, range->pgstart, pgstart - 1);
+-			break;
+-		}
+-	}
+-
+-	return ret;
+-}
+-
+-/*
+- * ashmem_unpin - unpin the given range of pages. Returns zero on success.
+- *
+- * Caller must hold ashmem_mutex.
+- */
+-static int ashmem_unpin(struct ashmem_area *asma, size_t pgstart, size_t pgend)
+-{
+-	struct ashmem_range *range, *next;
+-	unsigned int purged = ASHMEM_NOT_PURGED;
+-
+-restart:
+-	list_for_each_entry_safe(range, next, &asma->unpinned_list, unpinned) {
+-		/* short circuit: this is our insertion point */
+-		if (range_before_page(range, pgstart))
+-			break;
+-
+-		/*
+-		 * The user can ask us to unpin pages that are already entirely
+-		 * or partially pinned. We handle those two cases here.
+-		 */
+-		if (page_range_subsumed_by_range(range, pgstart, pgend))
+-			return 0;
+-		if (page_range_in_range(range, pgstart, pgend)) {
+-			pgstart = min_t(size_t, range->pgstart, pgstart),
+-			pgend = max_t(size_t, range->pgend, pgend);
+-			purged |= range->purged;
+-			range_del(range);
+-			goto restart;
+-		}
+-	}
+-
+-	return range_alloc(asma, range, purged, pgstart, pgend);
+-}
+-
+-/*
+- * ashmem_get_pin_status - Returns ASHMEM_IS_UNPINNED if _any_ pages in the
+- * given interval are unpinned and ASHMEM_IS_PINNED otherwise.
+- *
+- * Caller must hold ashmem_mutex.
+- */
+-static int ashmem_get_pin_status(struct ashmem_area *asma, size_t pgstart,
+-				 size_t pgend)
+-{
+-	struct ashmem_range *range;
+-	int ret = ASHMEM_IS_PINNED;
+-
+-	list_for_each_entry(range, &asma->unpinned_list, unpinned) {
+-		if (range_before_page(range, pgstart))
+-			break;
+-		if (page_range_in_range(range, pgstart, pgend)) {
+-			ret = ASHMEM_IS_UNPINNED;
+-			break;
+-		}
+-	}
+-
+-	return ret;
+-}
+-
+ static int ashmem_pin_unpin(struct ashmem_area *asma, unsigned long cmd,
+ 			    void __user *p)
+ {
+ 	struct ashmem_pin pin;
+-	size_t pgstart, pgend;
+ 	int ret = -EINVAL;
+ 
+ 	if (unlikely(!asma->file))
+@@ -610,20 +315,24 @@ static int ashmem_pin_unpin(struct ashmem_area *asma, unsigned long cmd,
+ 	if (unlikely(PAGE_ALIGN(asma->size) < pin.offset + pin.len))
+ 		return -EINVAL;
+ 
+-	pgstart = pin.offset / PAGE_SIZE;
+-	pgend = pgstart + (pin.len / PAGE_SIZE) - 1;
+ 
+ 	mutex_lock(&ashmem_mutex);
+ 
+ 	switch (cmd) {
+ 	case ASHMEM_PIN:
+-		ret = ashmem_pin(asma, pgstart, pgend);
++		ret = do_fallocate(asma->file, FALLOC_FL_MARK_VOLATILE,
++					pin.offset, pin.len);
+ 		break;
+ 	case ASHMEM_UNPIN:
+-		ret = ashmem_unpin(asma, pgstart, pgend);
++		ret = do_fallocate(asma->file, FALLOC_FL_UNMARK_VOLATILE,
++					pin.offset, pin.len);
+ 		break;
+ 	case ASHMEM_GET_PIN_STATUS:
+-		ret = ashmem_get_pin_status(asma, pgstart, pgend);
++		/*
++		 * XXX - volatile ranges currently don't provide status,
++		 * due to questionable utility
++		 */
++		ret = -EINVAL;
+ 		break;
+ 	}
+ 
+@@ -667,15 +376,6 @@ static long ashmem_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+ 		break;
+ 	case ASHMEM_PURGE_ALL_CACHES:
+ 		ret = -EPERM;
+-		if (capable(CAP_SYS_ADMIN)) {
+-			struct shrink_control sc = {
+-				.gfp_mask = GFP_KERNEL,
+-				.nr_to_scan = 0,
+-			};
+-			ret = ashmem_shrink(&ashmem_shrinker, &sc);
+-			sc.nr_to_scan = ret;
+-			ashmem_shrink(&ashmem_shrinker, &sc);
+-		}
+ 		break;
+ 	}
+ 
+@@ -711,22 +411,12 @@ static int __init ashmem_init(void)
+ 		return -ENOMEM;
+ 	}
+ 
+-	ashmem_range_cachep = kmem_cache_create("ashmem_range_cache",
+-					  sizeof(struct ashmem_range),
+-					  0, 0, NULL);
+-	if (unlikely(!ashmem_range_cachep)) {
+-		printk(KERN_ERR "ashmem: failed to create slab cache\n");
+-		return -ENOMEM;
+-	}
+-
+ 	ret = misc_register(&ashmem_misc);
+ 	if (unlikely(ret)) {
+ 		printk(KERN_ERR "ashmem: failed to register misc device!\n");
+ 		return ret;
+ 	}
+ 
+-	register_shrinker(&ashmem_shrinker);
+-
+ 	printk(KERN_INFO "ashmem: initialized\n");
+ 
+ 	return 0;
+@@ -736,13 +426,10 @@ static void __exit ashmem_exit(void)
+ {
+ 	int ret;
+ 
+-	unregister_shrinker(&ashmem_shrinker);
+-
+ 	ret = misc_deregister(&ashmem_misc);
+ 	if (unlikely(ret))
+ 		printk(KERN_ERR "ashmem: failed to unregister misc device!\n");
+ 
+-	kmem_cache_destroy(ashmem_range_cachep);
+ 	kmem_cache_destroy(ashmem_area_cachep);
+ 
+ 	printk(KERN_INFO "ashmem: unloaded\n");
 -- 
 1.7.9.5
 
