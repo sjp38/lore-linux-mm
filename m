@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
-	by kanga.kvack.org (Postfix) with SMTP id 539696B009C
-	for <linux-mm@kvack.org>; Wed, 27 Jun 2012 18:06:55 -0400 (EDT)
-Received: by dakp5 with SMTP id p5so2405855dak.14
-        for <linux-mm@kvack.org>; Wed, 27 Jun 2012 15:06:54 -0700 (PDT)
-Date: Wed, 27 Jun 2012 15:06:52 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
+	by kanga.kvack.org (Postfix) with SMTP id 4BDD86B009C
+	for <linux-mm@kvack.org>; Wed, 27 Jun 2012 18:07:43 -0400 (EDT)
+Received: by pbbrp2 with SMTP id rp2so2626063pbb.14
+        for <linux-mm@kvack.org>; Wed, 27 Jun 2012 15:07:42 -0700 (PDT)
+Date: Wed, 27 Jun 2012 15:07:40 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH v2 3/3] mm/sparse: more check on mem_section number
-In-Reply-To: <1340814968-2948-3-git-send-email-shangw@linux.vnet.ibm.com>
-Message-ID: <alpine.DEB.2.00.1206271506260.22985@chino.kir.corp.google.com>
-References: <1340814968-2948-1-git-send-email-shangw@linux.vnet.ibm.com> <1340814968-2948-3-git-send-email-shangw@linux.vnet.ibm.com>
+Subject: Re: [PATCH v2 2/3] mm/sparse: fix possible memory leak
+In-Reply-To: <1340814968-2948-2-git-send-email-shangw@linux.vnet.ibm.com>
+Message-ID: <alpine.DEB.2.00.1206271501240.22985@chino.kir.corp.google.com>
+References: <1340814968-2948-1-git-send-email-shangw@linux.vnet.ibm.com> <1340814968-2948-2-git-send-email-shangw@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -20,17 +20,34 @@ Cc: linux-mm@kvack.org, mhocko@suse.cz, dave@linux.vnet.ibm.com, hannes@cmpxchg.
 On Thu, 28 Jun 2012, Gavin Shan wrote:
 
 > diff --git a/mm/sparse.c b/mm/sparse.c
-> index a803599..8b8250e 100644
+> index 781fa04..a803599 100644
 > --- a/mm/sparse.c
 > +++ b/mm/sparse.c
-> @@ -149,6 +149,8 @@ int __section_nr(struct mem_section* ms)
->  		     break;
->  	}
+> @@ -75,6 +75,22 @@ static struct mem_section noinline __init_refok *sparse_index_alloc(int nid)
+>  	return section;
+>  }
 >  
-> +	VM_BUG_ON(root_nr >= NR_SECTION_ROOTS);
-> +
+> +static void noinline __init_refok sparse_index_free(struct mem_section *section,
+> +						    int nid)
 
-VM_BUG_ON(root_nr == NR_SECTION_ROOTS);
+noinline is unecessary, this is only referenced from sparse_index_init() 
+and it's perfectly legimitate to inline.  Also, this should be __meminit 
+and not __init.
+
+> +{
+> +	unsigned long size = SECTIONS_PER_ROOT *
+> +			     sizeof(struct mem_section);
+> +
+> +	if (!section)
+> +		return;
+> +
+> +	if (slab_is_available())
+> +		kfree(section);
+> +	else
+> +		free_bootmem_node(NODE_DATA(nid),
+> +			virt_to_phys(section), size);
+
+Did you check what happens here if !node_state(nid, N_HIGH_MEMORY)?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
