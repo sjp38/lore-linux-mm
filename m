@@ -1,84 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
-	by kanga.kvack.org (Postfix) with SMTP id E44496B005A
-	for <linux-mm@kvack.org>; Wed, 27 Jun 2012 08:28:36 -0400 (EDT)
-Message-ID: <1340800064.10063.48.camel@twins>
-Subject: Re: [PATCH -mm v2 01/11] mm: track free size between VMAs in VMA
- rbtree
-From: Peter Zijlstra <peterz@infradead.org>
-Date: Wed, 27 Jun 2012 14:27:44 +0200
-In-Reply-To: <4FE9DA1C.1010305@redhat.com>
-References: <1340315835-28571-1-git-send-email-riel@surriel.com>
-	       <1340315835-28571-2-git-send-email-riel@surriel.com>
-	      <1340359115.18025.57.camel@twins> <4FE47D0E.3000804@redhat.com>
-	     <1340374439.18025.75.camel@twins> <4FE48054.5090407@redhat.com>
-	    <1340375872.18025.77.camel@twins> <4FE4922D.8070501@surriel.com>
-	   <1340652578.21991.18.camel@twins> <4FE8DD80.9040108@redhat.com>
-	  <1340699507.21991.32.camel@twins> <4FE9B3B4.1050305@redhat.com>
-	 <1340718349.21991.81.camel@twins> <4FE9DA1C.1010305@redhat.com>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: quoted-printable
-Mime-Version: 1.0
+Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
+	by kanga.kvack.org (Postfix) with SMTP id 0F1D66B005A
+	for <linux-mm@kvack.org>; Wed, 27 Jun 2012 08:29:34 -0400 (EDT)
+Received: by yhq56 with SMTP id 56so1128335yhq.31
+        for <linux-mm@kvack.org>; Wed, 27 Jun 2012 05:29:34 -0700 (PDT)
+Date: Wed, 27 Jun 2012 14:29:27 +0200
+From: Frederic Weisbecker <fweisbec@gmail.com>
+Subject: Re: Fork bomb limitation in memcg WAS: Re: [PATCH 00/11] kmem
+ controller for memcg: stripped down version
+Message-ID: <20120627122924.GD20638@somewhere.redhat.com>
+References: <1340633728-12785-1-git-send-email-glommer@parallels.com>
+ <20120625162745.eabe4f03.akpm@linux-foundation.org>
+ <4FE9621D.2050002@parallels.com>
+ <20120626145539.eeeab909.akpm@linux-foundation.org>
+ <4FEAD260.4000603@parallels.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4FEAD260.4000603@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Rik van Riel <riel@surriel.com>, linux-mm@kvack.org, akpm@linux-foundation.org, aarcange@redhat.com, minchan@gmail.com, kosaki.motohiro@gmail.com, andi@firstfloor.org, hannes@cmpxchg.org, mel@csn.ul.ie, linux-kernel@vger.kernel.org, danielfsantos@att.net
+To: Glauber Costa <glommer@parallels.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Lameter <cl@linux.com>, devel@openvz.org, kamezawa.hiroyu@jp.fujitsu.com, Tejun Heo <tj@kernel.org>, Rik van Riel <riel@redhat.com>, Daniel Lezcano <daniel.lezcano@linaro.org>, Kay Sievers <kay.sievers@vrfy.org>, Lennart Poettering <lennart@poettering.net>, "Kirill A. Shutemov" <kirill@shutemov.name>, Kir Kolyshkin <kir@parallels.com>
 
-On Tue, 2012-06-26 at 11:49 -0400, Rik van Riel wrote:
->=20
-> However, doing an insert or delete changes the
-> gap size for the _next_ vma, and potentially a
-> change in the maximum gap size for the parent
-> node, so both insert and delete cause two tree
-> walks :(=20
+On Wed, Jun 27, 2012 at 01:29:04PM +0400, Glauber Costa wrote:
+> On 06/27/2012 01:55 AM, Andrew Morton wrote:
+> >>I can't speak for everybody here, but AFAIK, tracking the stack through
+> >>the memory it used, therefore using my proposed kmem controller, was an
+> >>idea that good quite a bit of traction with the memcg/memory people.
+> >>So here you have something that people already asked a lot for, in a
+> >>shape and interface that seem to be acceptable.
+> >
+> >mm, maybe.  Kernel developers tend to look at code from the point of
+> >view "does it work as designed", "is it clean", "is it efficient", "do
+> >I understand it", etc.  We often forget to step back and really
+> >consider whether or not it should be merged at all.
+> >
+> >I mean, unless the code is an explicit simplification, we should have
+> >a very strong bias towards "don't merge".
+> 
+> Well, simplifications are welcome - this series itself was
+> simplified beyond what I thought initially possible through the
+> valuable comments
+> of other people.
+> 
+> But of course, this adds more complexity to the kernel as a whole.
+> And this is true to every single new feature we may add, now or in
+> the
+> future.
+> 
+> What I can tell you about this particular one, is that the justification
+> for it doesn't come out of nowhere, but from a rather real use case that
+> we support and maintain in OpenVZ and our line of products for years.
 
-Right,.. don't have anything smart for that :/
+Right and we really need a solution to protect against forkbombs in LXC.
+The task counter was more simple but only useful for our usecase and
+defining the number of tasks as a resource was considered unnatural.
 
-I guess there's nothing to it but create a number of variants of
-rb_insert/rb_erase, possibly using Daniel's 'template' stuff so we don't
-actually have to maintain multiple copies of the code.
-
-Maybe something simple like:
-
-static void __always_inline
-__rb_insert(struct rb_node *node, struct rb_root *root, rb_augment_f func, =
-bool threaded)
-{
-	/* all the fancy code */
-}
-
-void rb_insert(struct rb_node *node, struct rb_root *root)
-{
-	__rb_insert(node, root, NULL, false);
-}
-
-void rb_insert_threaded(struct rb_node *node, struct rb_root *root)
-{
-	__rb_insert(node, root, NULL, true);
-}
-
-void rb_insert_augment(struct rb_node *node, struct rb_root *root, rb_augme=
-nt_f func)
-{
-	__rb_insert(node, root, func, false);
-}
-
-void rb_insert_augment_threaded(struct rb_node *node, struct rb_root *root,=
- rb_augment_f func)
-{
-	__rb_insert(node, root, func, true);
-}
-
-Would do, except it wouldn't be able to inline the augment function. For
-that to happen we'd need to move __rb_insert() and the
-__rb_insert_augment*() variants into rbtree.h.
-
-But it would create clean variants without augmentation/threading
-without too much duplicate code.
-
-
-BTW, is there a reason rb_link_node() and rb_insert_color() are separate
-functions? They seem to always be used together in sequence.
+So limiting kernel stack allocations works for us. This patchset implements
+this so I'm happy with it. If this is more broadly useful by limiting
+resources others are interested in, that's even better. I doubt we are
+interested in a solution that only concerns kernel stack allocation.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
