@@ -1,48 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
-	by kanga.kvack.org (Postfix) with SMTP id 978F76B0071
-	for <linux-mm@kvack.org>; Wed, 27 Jun 2012 15:48:44 -0400 (EDT)
-Received: by dakp5 with SMTP id p5so2236319dak.14
-        for <linux-mm@kvack.org>; Wed, 27 Jun 2012 12:48:43 -0700 (PDT)
-Date: Wed, 27 Jun 2012 12:48:41 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx144.postini.com [74.125.245.144])
+	by kanga.kvack.org (Postfix) with SMTP id CAA976B0069
+	for <linux-mm@kvack.org>; Wed, 27 Jun 2012 16:04:54 -0400 (EDT)
+Received: by pbbrp2 with SMTP id rp2so2475489pbb.14
+        for <linux-mm@kvack.org>; Wed, 27 Jun 2012 13:04:54 -0700 (PDT)
+Date: Wed, 27 Jun 2012 13:04:51 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 02/11] memcg: Reclaim when more than one page needed.
-In-Reply-To: <4FEADA55.4060409@parallels.com>
-Message-ID: <alpine.DEB.2.00.1206271246380.22162@chino.kir.corp.google.com>
-References: <1340633728-12785-1-git-send-email-glommer@parallels.com> <1340633728-12785-3-git-send-email-glommer@parallels.com> <alpine.DEB.2.00.1206252106430.26640@chino.kir.corp.google.com> <4FEADA55.4060409@parallels.com>
+Subject: Re: memcg: cat: memory.memsw.* : Operation not supported
+In-Reply-To: <20120627154827.GA4420@tiehlicka.suse.cz>
+Message-ID: <alpine.DEB.2.00.1206271256120.22162@chino.kir.corp.google.com>
+References: <2a1a74bf-fbb5-4a6e-b958-44fff8debff2@zmail13.collab.prod.int.phx2.redhat.com> <34bb8049-8007-496c-8ffb-11118c587124@zmail13.collab.prod.int.phx2.redhat.com> <20120627154827.GA4420@tiehlicka.suse.cz>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Frederic Weisbecker <fweisbec@gmail.com>, Pekka Enberg <penberg@kernel.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Lameter <cl@linux.com>, devel@openvz.org, kamezawa.hiroyu@jp.fujitsu.com, Tejun Heo <tj@kernel.org>, Suleiman Souhlal <suleiman@google.com>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Zhouping Liu <zliu@redhat.com>, linux-mm@kvack.org, Li Zefan <lizefan@huawei.com>, Tejun Heo <tj@kernel.org>, CAI Qian <caiqian@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>
 
-On Wed, 27 Jun 2012, Glauber Costa wrote:
+On Wed, 27 Jun 2012, Michal Hocko wrote:
 
-> > @@ -2206,7 +2214,7 @@ static int mem_cgroup_do_charge(struct mem_cgroup
-> > *memcg, gfp_t gfp_mask,
-> > >  	 * unlikely to succeed so close to the limit, and we fall back
-> > >  	 * to regular pages anyway in case of failure.
-> > >  	 */
-> > > -	if (nr_pages == 1 && ret)
-> > > +	if (nr_pages <= NR_PAGES_TO_RETRY && ret)
-> > >  		return CHARGE_RETRY;
+> > # mount -t cgroup -o memory xxx /cgroup/
+> > # ll /cgroup/memory.memsw.*
+> > -rw-r--r--. 1 root root 0 Jun 26 23:17 /cgroup/memory.memsw.failcnt
+> > -rw-r--r--. 1 root root 0 Jun 26 23:17 /cgroup/memory.memsw.limit_in_bytes
+> > -rw-r--r--. 1 root root 0 Jun 26 23:17 /cgroup/memory.memsw.max_usage_in_bytes
+> > -r--r--r--. 1 root root 0 Jun 26 23:17 /cgroup/memory.memsw.usage_in_bytes
+> > # cat /cgroup/memory.memsw.*
+> > cat: /cgroup/memory.memsw.failcnt: Operation not supported
+> > cat: /cgroup/memory.memsw.limit_in_bytes: Operation not supported
+> > cat: /cgroup/memory.memsw.max_usage_in_bytes: Operation not supported
+> > cat: /cgroup/memory.memsw.usage_in_bytes: Operation not supported
+> > 
+> > I'm confusing why it can't read memory.memsw.* files.
 > 
-> Changed to costly order.
-> 
-
-1 << PAGE_ALLOC_COSTLY_ORDER was the suggestion.
-
-> One more thing. The original version of this patch included
-> a cond_resched() here, that was also removed. From my re-reading
-> of the code in page_alloc.c and vmscan.c now, I tend to think
-> this is indeed not needed, since any cond_resched()s that might
-> be needed to ensure the safety of the code will be properly
-> inserted by the reclaim code itself, so there is no need for us
-> to include any when we signal that a retry is needed.
+> Those files are exported if CONFIG_CGROUP_MEM_RES_CTLR_SWAP=y even
+> if the feature is turned off when any attempt to open the file returns
+> EOPNOTSUPP which is exactly what you are seeing.
+> This is a deliberate decision see: b6d9270d (memcg: always create memsw
+> files if CONFIG_CGROUP_MEM_RES_CTLR_SWAP).
 > 
 
-For __GFP_WAIT, that sounds like a safe guarantee.
+You mean af36f906c0f4?
+
+> Does this help to explain your problem? Do you actually see any problem
+> with this behavior?
+> 
+
+I think it's a crappy solution and one that is undocumented in 
+Documentation/cgroups/memory.txt.  If you can only enable swap accounting 
+at boot either via .config or the command line then these files should 
+never be added for CONFIG_CGROUP_MEM_RES_CTLR_SWAP=n or when 
+do_swap_account is 0.  It's much easier to test if the feature is enabled 
+by checking for the presence of these files at the memcg mount point 
+rather than doing an open(2) and checking for -EOPNOTSUPP, which isn't 
+even a listed error code.  I don't care how much cleaner it makes the 
+internal memcg code.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
