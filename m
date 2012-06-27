@@ -1,49 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
-	by kanga.kvack.org (Postfix) with SMTP id 071866B005C
-	for <linux-mm@kvack.org>; Tue, 26 Jun 2012 22:49:52 -0400 (EDT)
-Message-ID: <4FEA74D6.8030107@kernel.org>
-Date: Wed, 27 Jun 2012 11:49:58 +0900
-From: Minchan Kim <minchan@kernel.org>
+Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
+	by kanga.kvack.org (Postfix) with SMTP id 4E5216B005C
+	for <linux-mm@kvack.org>; Tue, 26 Jun 2012 23:02:08 -0400 (EDT)
+Received: from /spool/local
+	by e36.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <shangw@linux.vnet.ibm.com>;
+	Tue, 26 Jun 2012 21:02:07 -0600
+Received: from d03relay05.boulder.ibm.com (d03relay05.boulder.ibm.com [9.17.195.107])
+	by d03dlp01.boulder.ibm.com (Postfix) with ESMTP id F1D7A1FF001A
+	for <linux-mm@kvack.org>; Wed, 27 Jun 2012 03:01:55 +0000 (WET)
+Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
+	by d03relay05.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q5R31ZSX016784
+	for <linux-mm@kvack.org>; Tue, 26 Jun 2012 21:01:38 -0600
+Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av03.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q5R31YZF015265
+	for <linux-mm@kvack.org>; Tue, 26 Jun 2012 21:01:34 -0600
+Date: Wed, 27 Jun 2012 11:01:31 +0800
+From: Gavin Shan <shangw@linux.vnet.ibm.com>
+Subject: Re: [PATCH 1/5] mm/sparse: check size of struct mm_section
+Message-ID: <20120627030130.GA14213@shangw>
+Reply-To: Gavin Shan <shangw@linux.vnet.ibm.com>
+References: <1340466776-4976-1-git-send-email-shangw@linux.vnet.ibm.com>
+ <20120625160322.GE19810@tiehlicka.suse.cz>
+ <20120625163522.GA5476@shangw>
+ <20120626073913.GC6713@tiehlicka.suse.cz>
+ <20120626074854.GA29491@shangw>
+ <20120626080628.GE6713@tiehlicka.suse.cz>
+ <20120626082439.GA1617@shangw>
+ <20120626175704.GA17803@tiehlicka.suse.cz>
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/3] zram/zcache: swtich Kconfig dependency from X86 to
- ZSMALLOC
-References: <1340640878-27536-1-git-send-email-sjenning@linux.vnet.ibm.com> <1340640878-27536-2-git-send-email-sjenning@linux.vnet.ibm.com> <4FEA71E5.5090808@kernel.org> <20120627024301.GA8468@kroah.com>
-In-Reply-To: <20120627024301.GA8468@kroah.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120626175704.GA17803@tiehlicka.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>, devel@driverdev.osuosl.org, Dan Magenheimer <dan.magenheimer@oracle.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Robert Jennings <rcj@linux.vnet.ibm.com>, Nitin Gupta <ngupta@vflare.org>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Gavin Shan <shangw@linux.vnet.ibm.com>, linux-mm@kvack.org, rientjes@google.com, hannes@cmpxchg.org, akpm@linux-foundation.org
 
-Hi Greg,
+>> >> >
+>> >> 
+>> >> I should have clarified that more clear :-)
+>> >> 
+>> >> >> >
+>> >> >> >Why? The memory is continuous, right?
+>> >> >> 
+>> >> >> Yes, the memory is conginous and the capacity of specific entry
+>> >> >> in mem_section[NR_SECTION_ROOTS] has been defined as follows:
+>> >> >> 
+>> >> >> 
+>> >> >> #define SECTIONS_PER_ROOT       (PAGE_SIZE / sizeof (struct mem_section))
+>> >> >> 
+>> >> >> Also, the memory is prone to be allocated from bootmem by function
+>> >> >> alloc_bootmem_node(), which has PAGE_SIZE alignment. So I think it's
+>> >> >> reasonable to introduce the extra check here from my personal view :-)
+>> >> >
+>> >> >No it is not necessary because we will never cross the page boundary
+>> >> >because (SECTIONS_PER_ROOT uses an int division)
+>> >> 
+>> >> Current situation is that we don't cross the page foundary, but somebody
+>> >> else might change the data struct (struct mem_section) in future. 
+>> >
+>> >No, this is safe even if the structure size changes (unless it is bigger
+>> >than PAGE_SIZE).
+>> 
+>> Yeah, but it can't fully utilize the allocated memory chunk if the size of
+>> the struct isn't aligned well.
+>
+>And you think that this is justification is sufficient to fail
+>compilation? I don't think so...
+>
 
-On 06/27/2012 11:43 AM, Greg Kroah-Hartman wrote:
+Yeah, it's not reasonable to breat the compilation. So I'm not sure if
+linux already had one macro to do warning for the case?
 
-> On Wed, Jun 27, 2012 at 11:37:25AM +0900, Minchan Kim wrote:
->> On 06/26/2012 01:14 AM, Seth Jennings wrote:
->>
->>> This patch switches zcache and zram dependency to ZSMALLOC
->>> rather than X86.  There is no net change since ZSMALLOC
->>> depends on X86, however, this prevent further changes to
->>> these files as zsmalloc dependencies change.
->>>
->>> Signed-off-by: Seth Jennings <sjenning@linux.vnet.ibm.com>
->>
->> Reviewed-by: Minchan Kim <minchan@kernel.org>
->>
->> It could be merged regardless of other patches in this series.
-> 
-> I already did :)
+Thanks,
+Gavin
 
-
-It would have been better if you send merge mail to Ccing people.
-Anyway, Thanks!
-
--- 
-Kind regards,
-Minchan Kim
+>> 
+>> Let me drop it in next revision :-)
+>> 
+>> Thanks,
+>> Gavin
+>
+>-- 
+>Michal Hocko
+>SUSE Labs
+>SUSE LINUX s.r.o.
+>Lihovarska 1060/12
+>190 00 Praha 9    
+>Czech Republic
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
