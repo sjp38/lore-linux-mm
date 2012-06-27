@@ -1,34 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
-	by kanga.kvack.org (Postfix) with SMTP id 2FC6E6B005C
-	for <linux-mm@kvack.org>; Wed, 27 Jun 2012 16:26:28 -0400 (EDT)
-Received: by pbbrp2 with SMTP id rp2so2503979pbb.14
-        for <linux-mm@kvack.org>; Wed, 27 Jun 2012 13:26:27 -0700 (PDT)
-Date: Wed, 27 Jun 2012 13:26:24 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: memcg: cat: memory.memsw.* : Operation not supported
-In-Reply-To: <20120627202430.GS15811@google.com>
-Message-ID: <alpine.DEB.2.00.1206271326110.22162@chino.kir.corp.google.com>
-References: <2a1a74bf-fbb5-4a6e-b958-44fff8debff2@zmail13.collab.prod.int.phx2.redhat.com> <34bb8049-8007-496c-8ffb-11118c587124@zmail13.collab.prod.int.phx2.redhat.com> <20120627154827.GA4420@tiehlicka.suse.cz> <alpine.DEB.2.00.1206271256120.22162@chino.kir.corp.google.com>
- <20120627200926.GR15811@google.com> <alpine.DEB.2.00.1206271316070.22162@chino.kir.corp.google.com> <20120627202430.GS15811@google.com>
+Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
+	by kanga.kvack.org (Postfix) with SMTP id E95256B005A
+	for <linux-mm@kvack.org>; Wed, 27 Jun 2012 16:50:14 -0400 (EDT)
+Message-ID: <4FEB715C.3090102@parallels.com>
+Date: Thu, 28 Jun 2012 00:47:24 +0400
+From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH 02/11] memcg: Reclaim when more than one page needed.
+References: <1340633728-12785-1-git-send-email-glommer@parallels.com> <1340633728-12785-3-git-send-email-glommer@parallels.com> <alpine.DEB.2.00.1206252106430.26640@chino.kir.corp.google.com> <4FEADA55.4060409@parallels.com> <alpine.DEB.2.00.1206271246380.22162@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.00.1206271246380.22162@chino.kir.corp.google.com>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Michal Hocko <mhocko@suse.cz>, Zhouping Liu <zliu@redhat.com>, linux-mm@kvack.org, Li Zefan <lizefan@huawei.com>, CAI Qian <caiqian@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: David Rientjes <rientjes@google.com>
+Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Frederic Weisbecker <fweisbec@gmail.com>, Pekka Enberg <penberg@kernel.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Lameter <cl@linux.com>, devel@openvz.org, kamezawa.hiroyu@jp.fujitsu.com, Tejun Heo <tj@kernel.org>, Suleiman Souhlal <suleiman@google.com>
 
-On Wed, 27 Jun 2012, Tejun Heo wrote:
-
-> >    text	   data	    bss	    dec	    hex	filename
-> >   25777	   3644	   4128	  33549	   830d	memcontrol.o.swap_disabled
-> >   27294	   4476	   4128	  35898	   8c3a	memcontrol.o.swap_enabled
+On 06/27/2012 11:48 PM, David Rientjes wrote:
+> On Wed, 27 Jun 2012, Glauber Costa wrote:
 > 
-> I still wish it's folded into CONFIG_MEMCG and conditionalized just on
-> CONFIG_SWAP tho.
+>>> @@ -2206,7 +2214,7 @@ static int mem_cgroup_do_charge(struct mem_cgroup
+>>> *memcg, gfp_t gfp_mask,
+>>>>  	 * unlikely to succeed so close to the limit, and we fall back
+>>>>  	 * to regular pages anyway in case of failure.
+>>>>  	 */
+>>>> -	if (nr_pages == 1 && ret)
+>>>> +	if (nr_pages <= NR_PAGES_TO_RETRY && ret)
+>>>>  		return CHARGE_RETRY;
+>>
+>> Changed to costly order.
+>>
+> 
+> 1 << PAGE_ALLOC_COSTLY_ORDER was the suggestion.
+
+That is what I meant - to the costly order suggestion - , should have
+been more explicit.
+
+>> One more thing. The original version of this patch included
+>> a cond_resched() here, that was also removed. From my re-reading
+>> of the code in page_alloc.c and vmscan.c now, I tend to think
+>> this is indeed not needed, since any cond_resched()s that might
+>> be needed to ensure the safety of the code will be properly
+>> inserted by the reclaim code itself, so there is no need for us
+>> to include any when we signal that a retry is needed.
+>>
+> 
+> For __GFP_WAIT, that sounds like a safe guarantee.
 > 
 
-Agreed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
