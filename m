@@ -1,115 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx165.postini.com [74.125.245.165])
-	by kanga.kvack.org (Postfix) with SMTP id 9059A6B0080
-	for <linux-mm@kvack.org>; Wed, 27 Jun 2012 04:45:02 -0400 (EDT)
-Message-ID: <4FEAC916.7030506@cn.fujitsu.com>
-Date: Wed, 27 Jun 2012 16:49:26 +0800
-From: Wen Congyang <wency@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
+	by kanga.kvack.org (Postfix) with SMTP id 4BAE16B0070
+	for <linux-mm@kvack.org>; Wed, 27 Jun 2012 04:55:09 -0400 (EDT)
+Message-ID: <4FEAC9CB.2010800@parallels.com>
+Date: Wed, 27 Jun 2012 12:52:27 +0400
+From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Subject: Re: [RFC PATCH 2/12] memory-hogplug : check memory offline in offline_pages
-References: <4FEA9C88.1070800@jp.fujitsu.com> <4FEA9DB1.7010303@jp.fujitsu.com>
-In-Reply-To: <4FEA9DB1.7010303@jp.fujitsu.com>
+Subject: Re: [PATCH 2/2] memcg: first step towards hierarchical controller
+References: <1340725634-9017-1-git-send-email-glommer@parallels.com> <1340725634-9017-3-git-send-email-glommer@parallels.com> <20120626180451.GP3869@google.com> <20120626220809.GA4653@tiehlicka.suse.cz> <20120626221452.GA15811@google.com>
+In-Reply-To: <20120626221452.GA15811@google.com>
+Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
 Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset=ISO-2022-JP
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com
+To: Tejun Heo <tj@kernel.org>
+Cc: Michal Hocko <mhocko@suse.cz>, cgroups@vger.kernel.org, linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>
 
-At 06/27/2012 01:44 PM, Yasuaki Ishimatsu Wrote:
-> When offline_pages() is called to offlined memory, the function fails since
-> all memory has been offlined. In this case, the function should succeed.
-> The patch adds the check function into offline_pages().
+On 06/27/2012 02:14 AM, Tejun Heo wrote:
+> Hello, Michal.
+>
+> On Wed, Jun 27, 2012 at 12:08:09AM +0200, Michal Hocko wrote:
+>> According to my experience, people usually create deeper subtrees
+>> just because they want to have memcg hierarchy together with other
+>> controller(s) and the other controller requires a different topology
+>> but then they do not care about memory.* attributes in parents.
+>> Those cases are not affected by this change because parents are
+>> unlimited by default.
+>> Deeper subtrees without hierarchy and independent limits are usually
+>> mis-configurations, and we would like to hear about those to help to fix
+>> them, or they are unfixable usecases which we want to know about as well
+>> (because then we have a blocker for the unified cgroup hierarchy, don't
+>> we).
+>
+> Yeah, this is something I'm seriously considering doing from cgroup
+> core.  ie. generating a warning message if the user nests cgroups w/
+> controllers which don't support full hierarchy.
+>
+>>>    Note that the default should still be flat hierarchy.
+>>>
+>>> 2. Mark flat hierarchy deprecated and produce a warning message if
+>>>     memcg is mounted w/o hierarchy option for a year or two.
+>>
+>> I would agree with you on this with many kernel configurables but
+>> this one doesn't fall in. There is a trivial fallback (set root to
+>> use_hierarchy=0) so the mount option seems like an overkill - yet
+>> another API to keep for some time...
+>
+> Just disallow clearing .use_hierarchy if it was mounted with the
+> option?  We can later either make the file RO 1 for compatibility's
+> sake or remove it.
 
-You miss such case: some pages are online, while some pages are offline.
-offline_pages() will fail too in such case.
+How will it buy us anything, if it is clear by default??
 
-Thanks
-Wen Congyang
+>> So in short, I do think we should go the sanity path and end up
+>> with hierarchical trees and sooner we start the better.
+>
+> I do agree with you in principle, but I still don't think we can
+> switch the default behavior underneath the users.
+>
 
-> 
-> CC: Len Brown <len.brown@intel.com>
-> CC: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-> CC: Paul Mackerras <paulus@samba.org>
-> CC: Christoph Lameter <cl@linux.com>
-> Cc: Minchan Kim <minchan.kim@gmail.com>
-> CC: Andrew Morton <akpm@linux-foundation.org>
-> CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> CC: Wen Congyang <wency@cn.fujitsu.com>
-> Signed-off-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-> 
-> ---
->  drivers/base/memory.c  |   20 ++++++++++++++++++++
->  include/linux/memory.h |    1 +
->  mm/memory_hotplug.c    |    5 +++++
->  3 files changed, 26 insertions(+)
-> 
-> Index: linux-3.5-rc4/drivers/base/memory.c
-> ===================================================================
-> --- linux-3.5-rc4.orig/drivers/base/memory.c	2012-06-26 13:28:16.726211752 +0900
-> +++ linux-3.5-rc4/drivers/base/memory.c	2012-06-26 13:34:22.423639904 +0900
-> @@ -70,6 +70,26 @@ void unregister_memory_isolate_notifier(
->  }
->  EXPORT_SYMBOL(unregister_memory_isolate_notifier);
-> 
-> +bool memory_is_offline(unsigned long start_pfn, unsigned long end_pfn)
-> +{
-> +	struct memory_block *mem;
-> +	struct mem_section *section;
-> +	unsigned long pfn, section_nr;
-> +
-> +	for (pfn = start_pfn; pfn < end_pfn; pfn += PAGES_PER_SECTION) {
-> +		section_nr = pfn_to_section_nr(pfn);
-> +		section = __nr_to_section(section_nr);
-> +		mem = find_memory_block(section);
-> +		if (!mem)
-> +			continue;
-> +		if (mem->state == MEM_OFFLINE)
-> +			continue;
-> +		return false;
-> +	}
-> +
-> +	return true;
-> +}
-> +
->  /*
->   * register_memory - Setup a sysfs device for a memory block
->   */
-> Index: linux-3.5-rc4/include/linux/memory.h
-> ===================================================================
-> --- linux-3.5-rc4.orig/include/linux/memory.h	2012-06-25 04:53:04.000000000 +0900
-> +++ linux-3.5-rc4/include/linux/memory.h	2012-06-26 13:34:22.424639891 +0900
-> @@ -120,6 +120,7 @@ extern int memory_isolate_notify(unsigne
->  extern struct memory_block *find_memory_block_hinted(struct mem_section *,
->  							struct memory_block *);
->  extern struct memory_block *find_memory_block(struct mem_section *);
-> +extern bool memory_is_offline(unsigned long start_pfn, unsigned long end_pfn);
->  #define CONFIG_MEM_BLOCK_SIZE	(PAGES_PER_SECTION<<PAGE_SHIFT)
->  enum mem_add_context { BOOT, HOTPLUG };
->  #endif /* CONFIG_MEMORY_HOTPLUG_SPARSE */
-> Index: linux-3.5-rc4/mm/memory_hotplug.c
-> ===================================================================
-> --- linux-3.5-rc4.orig/mm/memory_hotplug.c	2012-06-26 13:28:16.743211538 +0900
-> +++ linux-3.5-rc4/mm/memory_hotplug.c	2012-06-26 13:48:38.264940468 +0900
-> @@ -887,6 +887,11 @@ static int __ref offline_pages(unsigned
-> 
->  	lock_memory_hotplug();
-> 
-> +	if (memory_is_offline(start_pfn, end_pfn)) {
-> +		ret = 0;
-> +		goto out;
-> +	}
-> +
->  	zone = page_zone(pfn_to_page(start_pfn));
->  	node = zone_to_nid(zone);
->  	nr_pages = end_pfn - start_pfn;
-> 
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
-> 
+I think we all agree with that. I can't speak for Johannes here, but I 
+risk saying that he agrees with that as well.
+
+The problem is that we may differ in what means "default behavior".
+
+It is very clear in a system call, API, or any documented feature. We 
+never made the guarantee, *ever*, that non-hierarchical might be the 
+default.
+
+I understand that users may have grown accustomed to it. But users grow 
+accustomed to bugs as well! Bugs change behaviors. In fact, in hardware 
+emulation - where it matters, because it is harder to change it - we 
+have emulator people actually emulating bugs - because that is what 
+software expects.
+
+Is this reason for us to keep bugs around, because people grew 
+accustomed to it? Hell no. Well, it might be: If we have a proven user 
+base that is big and solid on top of that, it may be fair to say: "Well, 
+this is unfortunate, but this is how it plays".
+
+Here, we're discussing - or handwaving as Hannes stated, about whether 
+or not we have *some* users relying on this behavior. We must certainly 
+agree that this is not by far a solid and big usersbase, or anything at 
+the like.
+
+Another analogy I believe it is pertinent: I consider this change much 
+closer to icon or button placement in the Desktop market: No one *ever* 
+said a particular button stays at a particular place. Yet it was there 
+for many releases. If you change it, some people will feel it. So what?
+People change it anyway. Because that is *not* anything set in stone.
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
