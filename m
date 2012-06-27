@@ -1,83 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
-	by kanga.kvack.org (Postfix) with SMTP id 978FF6B005C
-	for <linux-mm@kvack.org>; Wed, 27 Jun 2012 14:13:13 -0400 (EDT)
-Received: from /spool/local
-	by e36.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <shangw@linux.vnet.ibm.com>;
-	Wed, 27 Jun 2012 12:13:12 -0600
-Received: from d01relay06.pok.ibm.com (d01relay06.pok.ibm.com [9.56.227.116])
-	by d01dlp03.pok.ibm.com (Postfix) with ESMTP id 2E9363C604A0
-	for <linux-mm@kvack.org>; Wed, 27 Jun 2012 12:36:33 -0400 (EDT)
-Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
-	by d01relay06.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q5RGaHsG33489064
-	for <linux-mm@kvack.org>; Wed, 27 Jun 2012 12:36:17 -0400
-Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
-	by d01av01.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q5RM78X5031924
-	for <linux-mm@kvack.org>; Wed, 27 Jun 2012 18:07:09 -0400
-From: Gavin Shan <shangw@linux.vnet.ibm.com>
-Subject: [PATCH v2 2/3] mm/sparse: fix possible memory leak
-Date: Thu, 28 Jun 2012 00:36:07 +0800
-Message-Id: <1340814968-2948-2-git-send-email-shangw@linux.vnet.ibm.com>
-In-Reply-To: <1340814968-2948-1-git-send-email-shangw@linux.vnet.ibm.com>
-References: <1340814968-2948-1-git-send-email-shangw@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
+	by kanga.kvack.org (Postfix) with SMTP id E84156B0062
+	for <linux-mm@kvack.org>; Wed, 27 Jun 2012 14:13:35 -0400 (EDT)
+Received: by dakp5 with SMTP id p5so2117143dak.14
+        for <linux-mm@kvack.org>; Wed, 27 Jun 2012 11:13:35 -0700 (PDT)
+Date: Wed, 27 Jun 2012 11:13:30 -0700
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: Early boot panic on machine with lots of memory
+Message-ID: <20120627181330.GN15811@google.com>
+References: <20120619041154.GA28651@shangw>
+ <20120619212059.GJ32733@google.com>
+ <20120619212618.GK32733@google.com>
+ <CAE9FiQVECyRBie-kgBETmqxPaMx24kUt1W07qAqoGD4vNus5xQ@mail.gmail.com>
+ <20120621201728.GB4642@google.com>
+ <CAE9FiQXubmnKHjnqOxVeoJknJZFNuStCcW=1XC6jLE7eznkTmg@mail.gmail.com>
+ <20120622185113.GK4642@google.com>
+ <CAE9FiQVV+WOWywnanrP7nX-wai=aXmQS1Dcvt4PxJg5XWynC+Q@mail.gmail.com>
+ <20120622192919.GL4642@google.com>
+ <CAE9FiQVeJYwpgHjAFp5Q7PazOjeDvN_etrnej987Rc94TjXfAg@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <CAE9FiQVeJYwpgHjAFp5Q7PazOjeDvN_etrnej987Rc94TjXfAg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: mhocko@suse.cz, dave@linux.vnet.ibm.com, rientjes@google.com, hannes@cmpxchg.org, akpm@linux-foundation.org, Gavin Shan <shangw@linux.vnet.ibm.com>
+To: Yinghai Lu <yinghai@kernel.org>
+Cc: Gavin Shan <shangw@linux.vnet.ibm.com>, Sasha Levin <levinsasha928@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, David Miller <davem@davemloft.net>, hpa@linux.intel.com, linux-mm <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-With CONFIG_SPARSEMEM_EXTREME, the root memory section descriptors
-are allocated by slab or bootmem allocator. Also, the descriptors
-might have been allocated and initialized during the hotplug path.
-However, the memory chunk allocated in current implementation wouldn't
-be put into the available pool if that has been allocated. The situation
-will lead to memory leak.
+Hello, Yinghai.
 
-Signed-off-by: Gavin Shan <shangw@linux.vnet.ibm.com>
-Reviewed-by: Michal Hocko <mhocko@suse.cz>
----
- mm/sparse.c |   19 +++++++++++++++++++
- 1 file changed, 19 insertions(+)
+Sorry about the delay.  I'm in bug storm somehow. :(
 
-diff --git a/mm/sparse.c b/mm/sparse.c
-index 781fa04..a803599 100644
---- a/mm/sparse.c
-+++ b/mm/sparse.c
-@@ -75,6 +75,22 @@ static struct mem_section noinline __init_refok *sparse_index_alloc(int nid)
- 	return section;
- }
- 
-+static void noinline __init_refok sparse_index_free(struct mem_section *section,
-+						    int nid)
-+{
-+	unsigned long size = SECTIONS_PER_ROOT *
-+			     sizeof(struct mem_section);
-+
-+	if (!section)
-+		return;
-+
-+	if (slab_is_available())
-+		kfree(section);
-+	else
-+		free_bootmem_node(NODE_DATA(nid),
-+			virt_to_phys(section), size);
-+}
-+
- static int __meminit sparse_index_init(unsigned long section_nr, int nid)
- {
- 	static DEFINE_SPINLOCK(index_init_lock);
-@@ -102,6 +118,9 @@ static int __meminit sparse_index_init(unsigned long section_nr, int nid)
- 	mem_section[root] = section;
- out:
- 	spin_unlock(&index_init_lock);
-+	if (ret)
-+		sparse_index_free(section, nid);
-+
- 	return ret;
- }
- #else /* !SPARSEMEM_EXTREME */
+On Fri, Jun 22, 2012 at 07:14:43PM -0700, Yinghai Lu wrote:
+> On Fri, Jun 22, 2012 at 12:29 PM, Tejun Heo <tj@kernel.org> wrote:
+> > I wish we had a single call - say, memblock_die(), or whatever - so
+> > that there's a clear indication that memblock usage is done, but yeah
+> > maybe another day.  Will review the patch itself.  BTW, can't you post
+> > patches inline anymore?  Attaching is better than corrupt but is still
+> > a bit annoying for review.
+> 
+> please check the three patches:
+
+Heh, reviewing is cumbersome this way but here are my comments.
+
+* "[PATCH] memblock: free allocated memblock_reserved_regions later"
+  looks okay to me.
+
+* "[PATCH] memblock: Free allocated memblock.memory.regions" makes me
+  wonder whether it would be better to have something like the
+  following instead.
+
+  typedef void memblock_free_region_fn_t(unsigned long start, unsigned size);
+
+  void memblock_free_regions(memblock_free_region_fn_t free_fn)
+  {
+	/* call free_fn() on reserved and memory regions arrays */
+	/* clear both structures so that any further usage triggers warning */
+  }
+
+* "memblock: Add checking about illegal using memblock".
+  Hmm... wouldn't it be better to be less explicit?  I think it's
+  adding too much opencoded identical checks.  Maybe implement a
+  common check & warning function?
+
+Thanks.
+
 -- 
-1.7.9.5
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
