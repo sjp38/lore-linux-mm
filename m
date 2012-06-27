@@ -1,115 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
-	by kanga.kvack.org (Postfix) with SMTP id B1E786B005A
-	for <linux-mm@kvack.org>; Wed, 27 Jun 2012 01:44:36 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id F24763EE0BD
-	for <linux-mm@kvack.org>; Wed, 27 Jun 2012 14:44:34 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id D850F45DEB2
-	for <linux-mm@kvack.org>; Wed, 27 Jun 2012 14:44:34 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id B2A7045DE9E
-	for <linux-mm@kvack.org>; Wed, 27 Jun 2012 14:44:34 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id A5BEC1DB803E
-	for <linux-mm@kvack.org>; Wed, 27 Jun 2012 14:44:34 +0900 (JST)
-Received: from g01jpexchkw07.g01.fujitsu.local (g01jpexchkw07.g01.fujitsu.local [10.0.194.46])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 560E51DB803B
-	for <linux-mm@kvack.org>; Wed, 27 Jun 2012 14:44:34 +0900 (JST)
-Message-ID: <4FEA9DB1.7010303@jp.fujitsu.com>
-Date: Wed, 27 Jun 2012 14:44:17 +0900
-From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
+	by kanga.kvack.org (Postfix) with SMTP id 57A156B005C
+	for <linux-mm@kvack.org>; Wed, 27 Jun 2012 01:45:02 -0400 (EDT)
+Received: by dakp5 with SMTP id p5so1045606dak.14
+        for <linux-mm@kvack.org>; Tue, 26 Jun 2012 22:45:00 -0700 (PDT)
+Date: Tue, 26 Jun 2012 22:44:56 -0700
+From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Subject: Re: [PATCH v2 1/9] zcache: fix refcount leak
+Message-ID: <20120627054456.GA18869@kroah.com>
+References: <4FE97792.9020807@linux.vnet.ibm.com>
+ <4FE977AA.2090003@linux.vnet.ibm.com>
+ <20120626223651.GB6561@localhost.localdomain>
+ <4FEA905A.4070207@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Subject: [RFC PATCH 2/12] memory-hogplug : check memory offline in offline_pages
-References: <4FEA9C88.1070800@jp.fujitsu.com>
-In-Reply-To: <4FEA9C88.1070800@jp.fujitsu.com>
-Content-Type: text/plain; charset="ISO-2022-JP"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4FEA905A.4070207@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org
-Cc: len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, wency@cn.fujitsu.com
+To: Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>
+Cc: Konrad Rzeszutek Wilk <konrad@darnok.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Konrad Wilk <konrad.wilk@oracle.com>, Nitin Gupta <ngupta@vflare.org>, linux-mm@kvack.org
 
-When offline_pages() is called to offlined memory, the function fails since
-all memory has been offlined. In this case, the function should succeed.
-The patch adds the check function into offline_pages().
+On Wed, Jun 27, 2012 at 12:47:22PM +0800, Xiao Guangrong wrote:
+> On 06/27/2012 06:36 AM, Konrad Rzeszutek Wilk wrote:
+> > On Tue, Jun 26, 2012 at 04:49:46PM +0800, Xiao Guangrong wrote:
+> >> In zcache_get_pool_by_id, the refcount of zcache_host is not increased, but
+> >> it is always decreased in zcache_put_pool
+> > 
+> > All of the patches (1-9) look good to me, so please also
+> > affix 'Reviewed-by: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>'.
+> > 
+> 
+> Thank you, Konrad!
+> 
+> Greg, need i repost this patchset with Konrad's Reviewed-by?
 
-CC: Len Brown <len.brown@intel.com>
-CC: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-CC: Paul Mackerras <paulus@samba.org>
-CC: Christoph Lameter <cl@linux.com>
-Cc: Minchan Kim <minchan.kim@gmail.com>
-CC: Andrew Morton <akpm@linux-foundation.org>
-CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-CC: Wen Congyang <wency@cn.fujitsu.com>
-Signed-off-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+No, I can add it when I apply them.
 
----
- drivers/base/memory.c  |   20 ++++++++++++++++++++
- include/linux/memory.h |    1 +
- mm/memory_hotplug.c    |    5 +++++
- 3 files changed, 26 insertions(+)
-
-Index: linux-3.5-rc4/drivers/base/memory.c
-===================================================================
---- linux-3.5-rc4.orig/drivers/base/memory.c	2012-06-26 13:28:16.726211752 +0900
-+++ linux-3.5-rc4/drivers/base/memory.c	2012-06-26 13:34:22.423639904 +0900
-@@ -70,6 +70,26 @@ void unregister_memory_isolate_notifier(
- }
- EXPORT_SYMBOL(unregister_memory_isolate_notifier);
-
-+bool memory_is_offline(unsigned long start_pfn, unsigned long end_pfn)
-+{
-+	struct memory_block *mem;
-+	struct mem_section *section;
-+	unsigned long pfn, section_nr;
-+
-+	for (pfn = start_pfn; pfn < end_pfn; pfn += PAGES_PER_SECTION) {
-+		section_nr = pfn_to_section_nr(pfn);
-+		section = __nr_to_section(section_nr);
-+		mem = find_memory_block(section);
-+		if (!mem)
-+			continue;
-+		if (mem->state == MEM_OFFLINE)
-+			continue;
-+		return false;
-+	}
-+
-+	return true;
-+}
-+
- /*
-  * register_memory - Setup a sysfs device for a memory block
-  */
-Index: linux-3.5-rc4/include/linux/memory.h
-===================================================================
---- linux-3.5-rc4.orig/include/linux/memory.h	2012-06-25 04:53:04.000000000 +0900
-+++ linux-3.5-rc4/include/linux/memory.h	2012-06-26 13:34:22.424639891 +0900
-@@ -120,6 +120,7 @@ extern int memory_isolate_notify(unsigne
- extern struct memory_block *find_memory_block_hinted(struct mem_section *,
- 							struct memory_block *);
- extern struct memory_block *find_memory_block(struct mem_section *);
-+extern bool memory_is_offline(unsigned long start_pfn, unsigned long end_pfn);
- #define CONFIG_MEM_BLOCK_SIZE	(PAGES_PER_SECTION<<PAGE_SHIFT)
- enum mem_add_context { BOOT, HOTPLUG };
- #endif /* CONFIG_MEMORY_HOTPLUG_SPARSE */
-Index: linux-3.5-rc4/mm/memory_hotplug.c
-===================================================================
---- linux-3.5-rc4.orig/mm/memory_hotplug.c	2012-06-26 13:28:16.743211538 +0900
-+++ linux-3.5-rc4/mm/memory_hotplug.c	2012-06-26 13:48:38.264940468 +0900
-@@ -887,6 +887,11 @@ static int __ref offline_pages(unsigned
-
- 	lock_memory_hotplug();
-
-+	if (memory_is_offline(start_pfn, end_pfn)) {
-+		ret = 0;
-+		goto out;
-+	}
-+
- 	zone = page_zone(pfn_to_page(start_pfn));
- 	node = zone_to_nid(zone);
- 	nr_pages = end_pfn - start_pfn;
+greg k-h
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
