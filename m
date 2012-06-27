@@ -1,64 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx127.postini.com [74.125.245.127])
-	by kanga.kvack.org (Postfix) with SMTP id EA5576B005A
-	for <linux-mm@kvack.org>; Wed, 27 Jun 2012 11:39:06 -0400 (EDT)
-Date: Wed, 27 Jun 2012 11:30:23 -0400
+Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
+	by kanga.kvack.org (Postfix) with SMTP id E966D6B005C
+	for <linux-mm@kvack.org>; Wed, 27 Jun 2012 11:47:07 -0400 (EDT)
+Date: Wed, 27 Jun 2012 11:39:11 -0400
 From: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-Subject: Re: [PATCH 1/4] mm: introduce compaction and migration for virtio
- ballooned pages
-Message-ID: <20120627153023.GF17154@phenom.dumpdata.com>
-References: <cover.1340665087.git.aquini@redhat.com>
- <7f83427b3894af7969c67acc0f27ab5aa68b4279.1340665087.git.aquini@redhat.com>
- <20120626235754.GB14782@localhost.localdomain>
- <20120627151716.GA3653@t510.redhat.com>
+Subject: Re: [PATCH 3/3] x86: add local_tlb_flush_kernel_range()
+Message-ID: <20120627153911.GH17154@phenom.dumpdata.com>
+References: <1340640878-27536-1-git-send-email-sjenning@linux.vnet.ibm.com>
+ <1340640878-27536-4-git-send-email-sjenning@linux.vnet.ibm.com>
+ <4FEA9FDD.6030102@kernel.org>
+ <4FEAA4AA.3000406@intel.com>
+ <4FEAA7A1.9020307@kernel.org>
+ <90bcc2c8-bcac-4620-b3c0-6b65f8d9174d@default>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20120627151716.GA3653@t510.redhat.com>
+In-Reply-To: <90bcc2c8-bcac-4620-b3c0-6b65f8d9174d@default>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rafael Aquini <aquini@redhat.com>
-Cc: Konrad Rzeszutek Wilk <konrad@darnok.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, Rusty Russell <rusty@rustcorp.com.au>, "Michael S. Tsirkin" <mst@redhat.com>, Rik van Riel <riel@redhat.com>
+To: Dan Magenheimer <dan.magenheimer@oracle.com>
+Cc: Minchan Kim <minchan@kernel.org>, Alex Shi <alex.shi@intel.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, devel@driverdev.osuosl.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Robert Jennings <rcj@linux.vnet.ibm.com>, Nitin Gupta <ngupta@vflare.org>
 
-On Wed, Jun 27, 2012 at 12:17:17PM -0300, Rafael Aquini wrote:
-> On Tue, Jun 26, 2012 at 07:57:55PM -0400, Konrad Rzeszutek Wilk wrote:
-> > > +#if defined(CONFIG_VIRTIO_BALLOON) || defined(CONFIG_VIRTIO_BALLOON_MODULE)
-.. snip..
-> > > +struct address_space *balloon_mapping;
-> > > +EXPORT_SYMBOL(balloon_mapping);
+On Wed, Jun 27, 2012 at 08:12:56AM -0700, Dan Magenheimer wrote:
+> > From: Minchan Kim [mailto:minchan@kernel.org]
+> > Subject: Re: [PATCH 3/3] x86: add local_tlb_flush_kernel_range()
 > > 
-> > Why don't you call this kvm_balloon_mapping - and when other balloon
-> > drivers use it, then change it to something more generic. Also at that
-> > future point the other balloon drivers might do it a bit differently so
-> > it might be that will be reworked completly.
+> > Hello,
+> > 
+> > On 06/27/2012 03:14 PM, Alex Shi wrote:
+> > 
+> > > On 06/27/2012 01:53 PM, Minchan Kim wrote:
+> > >
+> > >> On 06/26/2012 01:14 AM, Seth Jennings wrote:
+> > >>
+> > >>> This patch adds support for a local_tlb_flush_kernel_range()
+> > >>> function for the x86 arch.  This function allows for CPU-local
+> > >>> TLB flushing, potentially using invlpg for single entry flushing,
+> > >>> using an arch independent function name.
+> > >>>
+> > >>> Signed-off-by: Seth Jennings <sjenning@linux.vnet.ibm.com>
+> > >>
+> > >>
+> > >> Anyway, we don't matter INVLPG_BREAK_EVEN_PAGES's optimization point is 8 or something.
+> > >
+> > >
+> > > Different CPU type has different balance point on the invlpg replacing
+> > > flush all. and some CPU never get benefit from invlpg, So, it's better
+> > > to use different value for different CPU, not a fixed
+> > > INVLPG_BREAK_EVEN_PAGES.
+> > 
+> > I think it could be another patch as further step and someone who are
+> > very familiar with architecture could do better than.
+> > So I hope it could be merged if it doesn't have real big problem.
+> > 
+> > Thanks for the comment, Alex.
 > 
-> Ok, I see your point. However I really think it's better to keep the naming as
-> generic as possible today and, in the future, those who need to change it a bit can
-> do it with no pain at all. I believe this way we potentially prevent unnecessary code
-> duplication, as it will just be a matter of adjusting those preprocessor checking to
-> include other balloon driver to the scheme, or get rid of all of them (in case all 
-> balloon drivers assume the very same technique for their page mobility primitives).
+> Just my opinion, but I have to agree with Alex.  Hardcoding
+> behavior that is VERY processor-specific is a bad idea.  TLBs should
+> only be messed with when absolutely necessary, not for the
+> convenience of defending an abstraction that is nice-to-have
+> but, in current OS kernel code, unnecessary.
 
-Either way, if a driver is going to use this, they would need to adjust the
-preprocessor checking (as you pointed out) to include: #ifdef CONFIG_HYPERVISORX_BALLOON
-in this file. At which point they might as well rename the exported symbol to be more
-generic - and do whatever else they need to do (add extra stuff maybe?).
+At least put a big fat comment in the patch saying:
+"This is based on research done by Alex, where ...
+
+
+This needs to be redone where it is automatically figured
+out based on the CPUID, but ." [include what Dan just
+said about breakeven point]
+
 
 > 
-> As I can be utterly wrong on this, lets see if other folks raise the same
-> concerns about this naming scheme I'm using here. If it ends up being a general
-> concern that it would be better not being generic at this point, I'll happily
-> switch my approach to whatever comes up to be the most feasible way of doing it.
+> IIUC, zsmalloc only cares that the breakeven point is greater
+> than two.  An arch-specific choice of (A) two page flushes
+> vs (B) one all-TLB flush should be all that is necessary right
+> now.  (And, per separate discussion, even this isn't really
+> necessary either.)
+> 
+> If zsmalloc _ever_ gets extended to support items that might
+> span three or more pages, a more generic TLB flush-pages-vs-flush-all
+> approach may be warranted and, by then, may already exist in some
+> future kernel.  Until then, IMHO, keep it simple.
 
-My point here is that its more of name-space pollution. I've gotten flak on doing
-this with drivers - which had very generic sounding names, and it made more sense
-to rename them with a proper prefix. You are adding pieces of code for the
-benefit of one driver.
-
-But that (getting flak on the namespace) might be because the mailing list where I
-had posted had more aggressive reviewers and this one is composed of more mellow folks
-who are OK with this. Andrew is the final man - and I am not sure what he
-prefers.
+Comments are simple :-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
