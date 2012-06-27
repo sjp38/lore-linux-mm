@@ -1,54 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
-	by kanga.kvack.org (Postfix) with SMTP id 5E4516B0062
-	for <linux-mm@kvack.org>; Wed, 27 Jun 2012 15:20:33 -0400 (EDT)
-Date: Wed, 27 Jun 2012 20:18:01 +0100
-From: Russell King - ARM Linux <linux@arm.linux.org.uk>
-Subject: Re: [PATCH] [RESEND] arm: limit memblock base address for
-	early_pte_alloc
-Message-ID: <20120627191801.GD25319@n2100.arm.linux.org.uk>
-References: <1338880312-17561-1-git-send-email-minchan@kernel.org> <025701cd457e$d5065410$7f12fc30$@lge.com>
+Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
+	by kanga.kvack.org (Postfix) with SMTP id A2FC56B0069
+	for <linux-mm@kvack.org>; Wed, 27 Jun 2012 15:22:15 -0400 (EDT)
+Received: by pbbrp2 with SMTP id rp2so2421381pbb.14
+        for <linux-mm@kvack.org>; Wed, 27 Jun 2012 12:22:15 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <025701cd457e$d5065410$7f12fc30$@lge.com>
+In-Reply-To: <20120627181330.GN15811@google.com>
+References: <20120619041154.GA28651@shangw>
+	<20120619212059.GJ32733@google.com>
+	<20120619212618.GK32733@google.com>
+	<CAE9FiQVECyRBie-kgBETmqxPaMx24kUt1W07qAqoGD4vNus5xQ@mail.gmail.com>
+	<20120621201728.GB4642@google.com>
+	<CAE9FiQXubmnKHjnqOxVeoJknJZFNuStCcW=1XC6jLE7eznkTmg@mail.gmail.com>
+	<20120622185113.GK4642@google.com>
+	<CAE9FiQVV+WOWywnanrP7nX-wai=aXmQS1Dcvt4PxJg5XWynC+Q@mail.gmail.com>
+	<20120622192919.GL4642@google.com>
+	<CAE9FiQVeJYwpgHjAFp5Q7PazOjeDvN_etrnej987Rc94TjXfAg@mail.gmail.com>
+	<20120627181330.GN15811@google.com>
+Date: Wed, 27 Jun 2012 12:22:14 -0700
+Message-ID: <CAE9FiQXk4abAzuKN8xiA5p5OJaG4UMzQR_Jzx2SsKOuUnKON_A@mail.gmail.com>
+Subject: Re: Early boot panic on machine with lots of memory
+From: Yinghai Lu <yinghai@kernel.org>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kim, Jong-Sung" <neidhard.kim@lge.com>
-Cc: 'Minchan Kim' <minchan@kernel.org>, 'Nicolas Pitre' <nico@linaro.org>, 'Catalin Marinas' <catalin.marinas@arm.com>, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, 'Chanho Min' <chanho.min@lge.com>, linux-mm@kvack.org
+To: Tejun Heo <tj@kernel.org>
+Cc: Gavin Shan <shangw@linux.vnet.ibm.com>, Sasha Levin <levinsasha928@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, David Miller <davem@davemloft.net>, hpa@linux.intel.com, linux-mm <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-On Fri, Jun 08, 2012 at 10:58:50PM +0900, Kim, Jong-Sung wrote:
-> > From: Minchan Kim [mailto:minchan@kernel.org]
-> > Sent: Tuesday, June 05, 2012 4:12 PM
-> > 
-> > If we do arm_memblock_steal with a page which is not aligned with section
-> > size, panic can happen during boot by page fault in map_lowmem.
-> > 
-> > Detail:
-> > 
-> > 1) mdesc->reserve can steal a page which is allocated at 0x1ffff000 by
-> > memblock
-> >    which prefers tail pages of regions.
-> > 2) map_lowmem maps 0x00000000 - 0x1fe00000
-> > 3) map_lowmem try to map 0x1fe00000 but it's not aligned by section due to
-> 1.
-> > 4) calling alloc_init_pte allocates a new page for new pte by
-> memblock_alloc
-> > 5) allocated memory for pte is 0x1fffe000 -> it's not mapped yet.
-> > 6) memset(ptr, 0, sz) in early_alloc_aligned got PANICed!
-> 
-> May I suggest another simple approach? The first continuous couples of
-> sections are always safely section-mapped inside alloc_init_section funtion.
-> So, by limiting memblock_alloc to the end of the first continuous couples of
-> sections at the start of map_lowmem, map_lowmem can safely memblock_alloc &
-> memset even if we have one or more section-unaligned memory regions. The
-> limit can be extended back to arm_lowmem_limit after the map_lowmem is done.
+On Wed, Jun 27, 2012 at 11:13 AM, Tejun Heo <tj@kernel.org> wrote:
+> Hello, Yinghai.
+>
+> Sorry about the delay. =A0I'm in bug storm somehow. :(
+>
+> On Fri, Jun 22, 2012 at 07:14:43PM -0700, Yinghai Lu wrote:
+>> On Fri, Jun 22, 2012 at 12:29 PM, Tejun Heo <tj@kernel.org> wrote:
+>> > I wish we had a single call - say, memblock_die(), or whatever - so
+>> > that there's a clear indication that memblock usage is done, but yeah
+>> > maybe another day. =A0Will review the patch itself. =A0BTW, can't you =
+post
+>> > patches inline anymore? =A0Attaching is better than corrupt but is sti=
+ll
+>> > a bit annoying for review.
+>>
+>> please check the three patches:
+>
+> Heh, reviewing is cumbersome this way but here are my comments.
+>
+> * "[PATCH] memblock: free allocated memblock_reserved_regions later"
+> =A0looks okay to me.
 
-No.  What if the first block of memory is not large enough to handle all
-the allocations?
+Good, this one should go to 3.5, right?
 
-I think the real problem is folk trying to reserve small amounts.  I have
-said all reservations must be aligned to 1MB.
+
+>
+> * "[PATCH] memblock: Free allocated memblock.memory.regions" makes me
+> =A0wonder whether it would be better to have something like the
+> =A0following instead.
+>
+> =A0typedef void memblock_free_region_fn_t(unsigned long start, unsigned s=
+ize);
+>
+> =A0void memblock_free_regions(memblock_free_region_fn_t free_fn)
+> =A0{
+> =A0 =A0 =A0 =A0/* call free_fn() on reserved and memory regions arrays */
+> =A0 =A0 =A0 =A0/* clear both structures so that any further usage trigger=
+s warning */
+> =A0}
+
+ok, will check it.
+
+>
+> * "memblock: Add checking about illegal using memblock".
+> =A0Hmm... wouldn't it be better to be less explicit? =A0I think it's
+> =A0adding too much opencoded identical checks. =A0Maybe implement a
+> =A0common check & warning function?
+
+yes.
+
+Thanks
+
+Yinghai
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
