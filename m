@@ -1,53 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx176.postini.com [74.125.245.176])
-	by kanga.kvack.org (Postfix) with SMTP id E4F6C6B0075
-	for <linux-mm@kvack.org>; Wed, 27 Jun 2012 04:43:53 -0400 (EDT)
-Date: Wed, 27 Jun 2012 09:43:48 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 11/16] netvm: Propagate page->pfmemalloc from
- skb_alloc_page to skb
-Message-ID: <20120627084348.GG8271@suse.de>
-References: <1340375443-22455-1-git-send-email-mgorman@suse.de>
- <1340375443-22455-12-git-send-email-mgorman@suse.de>
- <20120626201328.GI6509@breakpoint.cc>
+Received: from psmtp.com (na3sys010amx165.postini.com [74.125.245.165])
+	by kanga.kvack.org (Postfix) with SMTP id 9059A6B0080
+	for <linux-mm@kvack.org>; Wed, 27 Jun 2012 04:45:02 -0400 (EDT)
+Message-ID: <4FEAC916.7030506@cn.fujitsu.com>
+Date: Wed, 27 Jun 2012 16:49:26 +0800
+From: Wen Congyang <wency@cn.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20120626201328.GI6509@breakpoint.cc>
+Subject: Re: [RFC PATCH 2/12] memory-hogplug : check memory offline in offline_pages
+References: <4FEA9C88.1070800@jp.fujitsu.com> <4FEA9DB1.7010303@jp.fujitsu.com>
+In-Reply-To: <4FEA9DB1.7010303@jp.fujitsu.com>
+Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=ISO-2022-JP
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sebastian Andrzej Siewior <sebastian@breakpoint.cc>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Linux-Netdev <netdev@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, David Miller <davem@davemloft.net>, Neil Brown <neilb@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mike Christie <michaelc@cs.wisc.edu>, Eric B Munson <emunson@mgebm.net>, Eric Dumazet <eric.dumazet@gmail.com>
+To: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com
 
-On Tue, Jun 26, 2012 at 10:13:28PM +0200, Sebastian Andrzej Siewior wrote:
-> On Fri, Jun 22, 2012 at 03:30:38PM +0100, Mel Gorman wrote:
-> >  drivers/net/ethernet/chelsio/cxgb4/sge.c          |    2 +-
-> >  drivers/net/ethernet/chelsio/cxgb4vf/sge.c        |    2 +-
-> >  drivers/net/ethernet/intel/igb/igb_main.c         |    2 +-
-> >  drivers/net/ethernet/intel/ixgbe/ixgbe_main.c     |    4 +-
-> >  drivers/net/ethernet/intel/ixgbevf/ixgbevf_main.c |    3 +-
-> >  drivers/net/usb/cdc-phonet.c                      |    2 +-
-> >  drivers/usb/gadget/f_phonet.c                     |    2 +-
+At 06/27/2012 01:44 PM, Yasuaki Ishimatsu Wrote:
+> When offline_pages() is called to offlined memory, the function fails since
+> all memory has been offlined. In this case, the function should succeed.
+> The patch adds the check function into offline_pages().
+
+You miss such case: some pages are online, while some pages are offline.
+offline_pages() will fail too in such case.
+
+Thanks
+Wen Congyang
+
 > 
-> You did not touch all drivers which use alloc_page(s)() like e1000(e). Was
-> this on purpose?
+> CC: Len Brown <len.brown@intel.com>
+> CC: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+> CC: Paul Mackerras <paulus@samba.org>
+> CC: Christoph Lameter <cl@linux.com>
+> Cc: Minchan Kim <minchan.kim@gmail.com>
+> CC: Andrew Morton <akpm@linux-foundation.org>
+> CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> CC: Wen Congyang <wency@cn.fujitsu.com>
+> Signed-off-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 > 
-
-Yes. The ones I changed were the semi-obvious ones and carried over from
-when the patches were completely out of tree.  As the changelog notes
-it is not critical that these annotation happens and can be fixed on a
-per-driver basis if there are complains about network swapping being slow.
-
-In the e1000 case, alloc_page is called from e1000_alloc_jumbo_rx_buffers
-and I would not have paid quite as close attention to jumbo configurations
-even though e1000 does not depend on high-order allocations like some
-other drivers do. I can update e1000 if you like but it's not critical
-to do so and in fact getting a bug reporting saying that network swap
-was slow on e1000 would be useful to me in its own way :)
-
--- 
-Mel Gorman
-SUSE Labs
+> ---
+>  drivers/base/memory.c  |   20 ++++++++++++++++++++
+>  include/linux/memory.h |    1 +
+>  mm/memory_hotplug.c    |    5 +++++
+>  3 files changed, 26 insertions(+)
+> 
+> Index: linux-3.5-rc4/drivers/base/memory.c
+> ===================================================================
+> --- linux-3.5-rc4.orig/drivers/base/memory.c	2012-06-26 13:28:16.726211752 +0900
+> +++ linux-3.5-rc4/drivers/base/memory.c	2012-06-26 13:34:22.423639904 +0900
+> @@ -70,6 +70,26 @@ void unregister_memory_isolate_notifier(
+>  }
+>  EXPORT_SYMBOL(unregister_memory_isolate_notifier);
+> 
+> +bool memory_is_offline(unsigned long start_pfn, unsigned long end_pfn)
+> +{
+> +	struct memory_block *mem;
+> +	struct mem_section *section;
+> +	unsigned long pfn, section_nr;
+> +
+> +	for (pfn = start_pfn; pfn < end_pfn; pfn += PAGES_PER_SECTION) {
+> +		section_nr = pfn_to_section_nr(pfn);
+> +		section = __nr_to_section(section_nr);
+> +		mem = find_memory_block(section);
+> +		if (!mem)
+> +			continue;
+> +		if (mem->state == MEM_OFFLINE)
+> +			continue;
+> +		return false;
+> +	}
+> +
+> +	return true;
+> +}
+> +
+>  /*
+>   * register_memory - Setup a sysfs device for a memory block
+>   */
+> Index: linux-3.5-rc4/include/linux/memory.h
+> ===================================================================
+> --- linux-3.5-rc4.orig/include/linux/memory.h	2012-06-25 04:53:04.000000000 +0900
+> +++ linux-3.5-rc4/include/linux/memory.h	2012-06-26 13:34:22.424639891 +0900
+> @@ -120,6 +120,7 @@ extern int memory_isolate_notify(unsigne
+>  extern struct memory_block *find_memory_block_hinted(struct mem_section *,
+>  							struct memory_block *);
+>  extern struct memory_block *find_memory_block(struct mem_section *);
+> +extern bool memory_is_offline(unsigned long start_pfn, unsigned long end_pfn);
+>  #define CONFIG_MEM_BLOCK_SIZE	(PAGES_PER_SECTION<<PAGE_SHIFT)
+>  enum mem_add_context { BOOT, HOTPLUG };
+>  #endif /* CONFIG_MEMORY_HOTPLUG_SPARSE */
+> Index: linux-3.5-rc4/mm/memory_hotplug.c
+> ===================================================================
+> --- linux-3.5-rc4.orig/mm/memory_hotplug.c	2012-06-26 13:28:16.743211538 +0900
+> +++ linux-3.5-rc4/mm/memory_hotplug.c	2012-06-26 13:48:38.264940468 +0900
+> @@ -887,6 +887,11 @@ static int __ref offline_pages(unsigned
+> 
+>  	lock_memory_hotplug();
+> 
+> +	if (memory_is_offline(start_pfn, end_pfn)) {
+> +		ret = 0;
+> +		goto out;
+> +	}
+> +
+>  	zone = page_zone(pfn_to_page(start_pfn));
+>  	node = zone_to_nid(zone);
+>  	nr_pages = end_pfn - start_pfn;
+> 
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
