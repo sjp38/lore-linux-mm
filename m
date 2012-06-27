@@ -1,33 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx202.postini.com [74.125.245.202])
-	by kanga.kvack.org (Postfix) with SMTP id D48F56B005A
-	for <linux-mm@kvack.org>; Wed, 27 Jun 2012 08:52:40 -0400 (EDT)
-Message-ID: <4FEB0177.1070303@parallels.com>
-Date: Wed, 27 Jun 2012 16:49:59 +0400
-From: Glauber Costa <glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx140.postini.com [74.125.245.140])
+	by kanga.kvack.org (Postfix) with SMTP id A6A3D6B005A
+	for <linux-mm@kvack.org>; Wed, 27 Jun 2012 11:13:36 -0400 (EDT)
 MIME-Version: 1.0
-Subject: Re: [PATCH 2/2] memcg: first step towards hierarchical controller
-References: <1340725634-9017-1-git-send-email-glommer@parallels.com> <1340725634-9017-3-git-send-email-glommer@parallels.com> <20120626180451.GP3869@google.com> <20120626220809.GA4653@tiehlicka.suse.cz> <20120626221452.GA15811@google.com> <20120627125119.GE5683@tiehlicka.suse.cz>
-In-Reply-To: <20120627125119.GE5683@tiehlicka.suse.cz>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Message-ID: <90bcc2c8-bcac-4620-b3c0-6b65f8d9174d@default>
+Date: Wed, 27 Jun 2012 08:12:56 -0700 (PDT)
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Subject: RE: [PATCH 3/3] x86: add local_tlb_flush_kernel_range()
+References: <1340640878-27536-1-git-send-email-sjenning@linux.vnet.ibm.com>
+ <1340640878-27536-4-git-send-email-sjenning@linux.vnet.ibm.com>
+ <4FEA9FDD.6030102@kernel.org> <4FEAA4AA.3000406@intel.com>
+ <4FEAA7A1.9020307@kernel.org>
+In-Reply-To: <4FEAA7A1.9020307@kernel.org>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Tejun Heo <tj@kernel.org>, cgroups@vger.kernel.org, linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Minchan Kim <minchan@kernel.org>, Alex Shi <alex.shi@intel.com>
+Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, devel@driverdev.osuosl.org, Konrad Wilk <konrad.wilk@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Robert Jennings <rcj@linux.vnet.ibm.com>, Nitin Gupta <ngupta@vflare.org>
 
-On 06/27/2012 04:51 PM, Michal Hocko wrote:
->> > Just disallow clearing .use_hierarchy if it was mounted with the
->> > option? 
-> Dunno, mount option just doesn't feel right. We do not offer other
-> attributes to be set by them so it would be just confusing. Besides that
-> it would require an integration into existing tools like cgconfig which
-> is yet another pain just because of something that we never promissed to
-> keep a certain way. There are many people who don't work with mount&fs
-> cgroups directly but rather use libcgroup for that...
+> From: Minchan Kim [mailto:minchan@kernel.org]
+> Subject: Re: [PATCH 3/3] x86: add local_tlb_flush_kernel_range()
+>=20
+> Hello,
+>=20
+> On 06/27/2012 03:14 PM, Alex Shi wrote:
+>=20
+> > On 06/27/2012 01:53 PM, Minchan Kim wrote:
+> >
+> >> On 06/26/2012 01:14 AM, Seth Jennings wrote:
+> >>
+> >>> This patch adds support for a local_tlb_flush_kernel_range()
+> >>> function for the x86 arch.  This function allows for CPU-local
+> >>> TLB flushing, potentially using invlpg for single entry flushing,
+> >>> using an arch independent function name.
+> >>>
+> >>> Signed-off-by: Seth Jennings <sjenning@linux.vnet.ibm.com>
+> >>
+> >>
+> >> Anyway, we don't matter INVLPG_BREAK_EVEN_PAGES's optimization point i=
+s 8 or something.
+> >
+> >
+> > Different CPU type has different balance point on the invlpg replacing
+> > flush all. and some CPU never get benefit from invlpg, So, it's better
+> > to use different value for different CPU, not a fixed
+> > INVLPG_BREAK_EVEN_PAGES.
+>=20
+> I think it could be another patch as further step and someone who are
+> very familiar with architecture could do better than.
+> So I hope it could be merged if it doesn't have real big problem.
+>=20
+> Thanks for the comment, Alex.
 
-myself included.
+Just my opinion, but I have to agree with Alex.  Hardcoding
+behavior that is VERY processor-specific is a bad idea.  TLBs should
+only be messed with when absolutely necessary, not for the
+convenience of defending an abstraction that is nice-to-have
+but, in current OS kernel code, unnecessary.
 
+IIUC, zsmalloc only cares that the breakeven point is greater
+than two.  An arch-specific choice of (A) two page flushes
+vs (B) one all-TLB flush should be all that is necessary right
+now.  (And, per separate discussion, even this isn't really
+necessary either.)
+
+If zsmalloc _ever_ gets extended to support items that might
+span three or more pages, a more generic TLB flush-pages-vs-flush-all
+approach may be warranted and, by then, may already exist in some
+future kernel.  Until then, IMHO, keep it simple.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
