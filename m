@@ -1,67 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
-	by kanga.kvack.org (Postfix) with SMTP id A90706B005A
-	for <linux-mm@kvack.org>; Wed, 27 Jun 2012 13:07:39 -0400 (EDT)
-Received: by pbbrp2 with SMTP id rp2so2247029pbb.14
-        for <linux-mm@kvack.org>; Wed, 27 Jun 2012 10:07:38 -0700 (PDT)
-Date: Wed, 27 Jun 2012 10:07:34 -0700
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH 2/2] memcg: first step towards hierarchical controller
-Message-ID: <20120627170734.GI15811@google.com>
-References: <1340725634-9017-1-git-send-email-glommer@parallels.com>
- <1340725634-9017-3-git-send-email-glommer@parallels.com>
- <20120626180451.GP3869@google.com>
- <20120626185542.GE27816@cmpxchg.org>
- <20120626191450.GT3869@google.com>
- <20120626205924.GH27816@cmpxchg.org>
- <20120626211907.GX3869@google.com>
- <4FEACAE8.6000500@parallels.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4FEACAE8.6000500@parallels.com>
+Received: from psmtp.com (na3sys010amx202.postini.com [74.125.245.202])
+	by kanga.kvack.org (Postfix) with SMTP id E1F4A6B005A
+	for <linux-mm@kvack.org>; Wed, 27 Jun 2012 13:29:08 -0400 (EDT)
+Received: from /spool/local
+	by e39.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <shangw@linux.vnet.ibm.com>;
+	Wed, 27 Jun 2012 11:29:07 -0600
+Received: from d03relay01.boulder.ibm.com (d03relay01.boulder.ibm.com [9.17.195.226])
+	by d03dlp03.boulder.ibm.com (Postfix) with ESMTP id 7321B19D834F
+	for <linux-mm@kvack.org>; Wed, 27 Jun 2012 16:36:38 +0000 (WET)
+Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
+	by d03relay01.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q5RGaPDo167042
+	for <linux-mm@kvack.org>; Wed, 27 Jun 2012 10:36:26 -0600
+Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av04.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q5RGaFaV001564
+	for <linux-mm@kvack.org>; Wed, 27 Jun 2012 10:36:15 -0600
+From: Gavin Shan <shangw@linux.vnet.ibm.com>
+Subject: [PATCH v2 3/3] mm/sparse: more check on mem_section number
+Date: Thu, 28 Jun 2012 00:36:08 +0800
+Message-Id: <1340814968-2948-3-git-send-email-shangw@linux.vnet.ibm.com>
+In-Reply-To: <1340814968-2948-1-git-send-email-shangw@linux.vnet.ibm.com>
+References: <1340814968-2948-1-git-send-email-shangw@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, cgroups@vger.kernel.org, linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>
+To: linux-mm@kvack.org
+Cc: mhocko@suse.cz, dave@linux.vnet.ibm.com, rientjes@google.com, hannes@cmpxchg.org, akpm@linux-foundation.org, Gavin Shan <shangw@linux.vnet.ibm.com>
 
-On Wed, Jun 27, 2012 at 12:57:12PM +0400, Glauber Costa wrote:
-> >I have to disagree with that.  Deployment sometimes can be very
-> >painful.  In some cases, even flipping single parameter in sysfs
-> >depending on kernel version takes considerable effort.  The behavior
-> >has been the contract that we offered userland for quite some time
-> >now.  We shouldn't be changing that underneath them without any clear
-> >way for them to notice it.
-> 
-> Yes, and that's why once you deploy, you keep your updates to a
-> minimum. Because hell, even *perfectly legitimate bug fixes* can
-> change your behavior in a way you don't want. And you don't expect
-> people to refrain from fixing bugs because of that.
+Function __section_nr() was implemented to retrieve the corresponding
+memory section number according to its descriptor. It's possible that
+the specified memory section descriptor isn't existing in the global
+array. So here to add more check on that and report error for wrong
+case.
 
-Dude, there are numerous organizations running all types of
-infrastructures.  I personally know some running debian + mainline
-kernel with regular kernel refresh (no, they aren't small).  Silent
-behavior switches like this will be a big glowing fuck-you to those
-people and I don't wanna do that.  And then there are infrastructures
-where new machines are continuously deployed and you know what? new
-machines often require new kernels.  What are you gonna tell them?
-Don't cycle-upgrade your machines once you're in production?
+Signed-off-by: Gavin Shan <shangw@linux.vnet.ibm.com>
+Reviewed-by: Dave Hansen <dave@linux.vnet.ibm.com>
+---
+ mm/sparse.c |    2 ++
+ 1 file changed, 2 insertions(+)
 
-Please stop trying to argue that silently switching major behavior
-like this is okay.  It simply isn't.  This is breaching one of the
-most basic assumptions that our direct users make.  NONONONONONONO.
-
-> That is precisely why people in serious environments tend to run
-> -stable, distro LTSes, or anything like that. Because they don't
-> want any change, however minor, to potentially affect their stamped
-> behavior. I am not proposing this patch to -stable, btw...
-
-Yeah, because once an environment is in prod, the only update they
-need is -stable and we can switch behaviors willy-nilly on any
-release.  Ugh......
-
+diff --git a/mm/sparse.c b/mm/sparse.c
+index a803599..8b8250e 100644
+--- a/mm/sparse.c
++++ b/mm/sparse.c
+@@ -149,6 +149,8 @@ int __section_nr(struct mem_section* ms)
+ 		     break;
+ 	}
+ 
++	VM_BUG_ON(root_nr >= NR_SECTION_ROOTS);
++
+ 	return (root_nr * SECTIONS_PER_ROOT) + (ms - root);
+ }
+ 
 -- 
-tejun
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
