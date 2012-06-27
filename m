@@ -1,52 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx103.postini.com [74.125.245.103])
-	by kanga.kvack.org (Postfix) with SMTP id 3CE536B005A
-	for <linux-mm@kvack.org>; Wed, 27 Jun 2012 02:26:34 -0400 (EDT)
-Message-ID: <4FEAA7A1.9020307@kernel.org>
-Date: Wed, 27 Jun 2012 15:26:41 +0900
+Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
+	by kanga.kvack.org (Postfix) with SMTP id 2BC956B005A
+	for <linux-mm@kvack.org>; Wed, 27 Jun 2012 02:33:02 -0400 (EDT)
+Message-ID: <4FEAA925.9020202@kernel.org>
+Date: Wed, 27 Jun 2012 15:33:09 +0900
 From: Minchan Kim <minchan@kernel.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH 3/3] x86: add local_tlb_flush_kernel_range()
-References: <1340640878-27536-1-git-send-email-sjenning@linux.vnet.ibm.com> <1340640878-27536-4-git-send-email-sjenning@linux.vnet.ibm.com> <4FEA9FDD.6030102@kernel.org> <4FEAA4AA.3000406@intel.com>
-In-Reply-To: <4FEAA4AA.3000406@intel.com>
+Subject: Re: needed lru_add_drain_all() change
+References: <20120626143703.396d6d66.akpm@linux-foundation.org> <4FEA59EE.8060804@kernel.org> <20120626181504.23b8b73d.akpm@linux-foundation.org> <4FEA6B5B.5000205@kernel.org> <20120626221217.1682572a.akpm@linux-foundation.org> <4FEA9D13.6070409@kernel.org> <20120626225544.068df1b9.akpm@linux-foundation.org>
+In-Reply-To: <20120626225544.068df1b9.akpm@linux-foundation.org>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alex Shi <alex.shi@intel.com>
-Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, devel@driverdev.osuosl.org, Dan Magenheimer <dan.magenheimer@oracle.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Robert Jennings <rcj@linux.vnet.ibm.com>, Nitin Gupta <ngupta@vflare.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Peter Zijlstra <peterz@infradead.org>
 
-Hello,
+On 06/27/2012 02:55 PM, Andrew Morton wrote:
 
-On 06/27/2012 03:14 PM, Alex Shi wrote:
-
-> On 06/27/2012 01:53 PM, Minchan Kim wrote:
+> On Wed, 27 Jun 2012 14:41:39 +0900 Minchan Kim <minchan@kernel.org> wrote:
 > 
->> On 06/26/2012 01:14 AM, Seth Jennings wrote:
+>> On 06/27/2012 02:12 PM, Andrew Morton wrote:
 >>
->>> This patch adds support for a local_tlb_flush_kernel_range()
->>> function for the x86 arch.  This function allows for CPU-local
->>> TLB flushing, potentially using invlpg for single entry flushing,
->>> using an arch independent function name.
+>>> On Wed, 27 Jun 2012 11:09:31 +0900 Minchan Kim <minchan@kernel.org> wrote:
 >>>
->>> Signed-off-by: Seth Jennings <sjenning@linux.vnet.ibm.com>
+>>>> On 06/27/2012 10:15 AM, Andrew Morton wrote:
+>>>>
+>>>>>> Considering mlock and CPU pinning
+>>>>>>> of realtime thread is very rare, it might be rather expensive solution.
+>>>>>>> Unfortunately, I have no idea better than you suggested. :(
+>>>>>>>
+>>>>>>> And looking 8891d6da17, mlock's lru_add_drain_all isn't must.
+>>>>>>> If it's really bother us, couldn't we remove it?
+>>>>> "grep lru_add_drain_all mm/*.c".  They're all problematic.
+>>>>
+>>>>
+>>>> Yeb but I'm not sure such system modeling is good.
+>>>> Potentially, It could make problem once we use workqueue of other CPU.
+>>>
+>>> whut?
+>>>
+>>> My suggestion is that we switch lru_add_drain_all() to on_each_cpu()
+>>> and delete schedule_on_each_cpu().  No workqueues.
 >>
 >>
->> Anyway, we don't matter INVLPG_BREAK_EVEN_PAGES's optimization point is 8 or something.
+>> Current problem is that RT thread doesn't yield his CPU so other tasks can't be scheduled in.
+>> schedule_on_each_cpu uses system workqueue so if there are any user to try using
+>> workqueue for the CPU(ex, schedule_work_on), he can make trouble, too.
+>> So my question is I doubt such greedy RT thread modeling is good.
+>>
 > 
-> 
-> Different CPU type has different balance point on the invlpg replacing
-> flush all. and some CPU never get benefit from invlpg, So, it's better
-> to use different value for different CPU, not a fixed
-> INVLPG_BREAK_EVEN_PAGES.
+> There's no way of fixing this without significantly degrading the
+> service which rt priority offers.  As we don't wish to degrade that
+> service, schedule_work_on() and schedule_on_each_cpu() cannot be
+> implemented reliably.  So we delete them.
 
 
-I think it could be another patch as further step and someone who are
-very familiar with architecture could do better than.
-So I hope it could be merged if it doesn't have real big problem.
+Okay. I'm not against strongly if local_irq_save/restore isn't expensive
+as a first step for removing them because I have no good idea.
+I want to add some comment on schedule_work_on and friends.
+"You shouldn't use it any more and we will try to remove this".
 
-Thanks for the comment, Alex.
-
+Anyway, let's wait further answer, especially, RT folks. 
 
 -- 
 Kind regards,
