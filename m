@@ -1,56 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
-	by kanga.kvack.org (Postfix) with SMTP id 400596B005A
-	for <linux-mm@kvack.org>; Wed, 27 Jun 2012 15:13:28 -0400 (EDT)
-Received: from /spool/local
-	by e36.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
-	Wed, 27 Jun 2012 13:13:27 -0600
-Received: from d03relay05.boulder.ibm.com (d03relay05.boulder.ibm.com [9.17.195.107])
-	by d03dlp01.boulder.ibm.com (Postfix) with ESMTP id 3CB5DC40124
-	for <linux-mm@kvack.org>; Wed, 27 Jun 2012 19:12:32 +0000 (WET)
-Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
-	by d03relay05.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q5RJA8Y6212538
-	for <linux-mm@kvack.org>; Wed, 27 Jun 2012 13:10:11 -0600
-Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av03.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q5RJ9wDf021497
-	for <linux-mm@kvack.org>; Wed, 27 Jun 2012 13:09:59 -0600
-Message-ID: <4FEB5A7E.8040500@linux.vnet.ibm.com>
-Date: Wed, 27 Jun 2012 14:09:50 -0500
-From: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
+	by kanga.kvack.org (Postfix) with SMTP id 5E4516B0062
+	for <linux-mm@kvack.org>; Wed, 27 Jun 2012 15:20:33 -0400 (EDT)
+Date: Wed, 27 Jun 2012 20:18:01 +0100
+From: Russell King - ARM Linux <linux@arm.linux.org.uk>
+Subject: Re: [PATCH] [RESEND] arm: limit memblock base address for
+	early_pte_alloc
+Message-ID: <20120627191801.GD25319@n2100.arm.linux.org.uk>
+References: <1338880312-17561-1-git-send-email-minchan@kernel.org> <025701cd457e$d5065410$7f12fc30$@lge.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 2/3] zsmalloc: add generic path and remove x86 dependency
-References: <1340640878-27536-1-git-send-email-sjenning@linux.vnet.ibm.com> <1340640878-27536-3-git-send-email-sjenning@linux.vnet.ibm.com> <4FEA9A0D.4020000@kernel.org>
-In-Reply-To: <4FEA9A0D.4020000@kernel.org>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <025701cd457e$d5065410$7f12fc30$@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, devel@driverdev.osuosl.org, Dan Magenheimer <dan.magenheimer@oracle.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Robert Jennings <rcj@linux.vnet.ibm.com>, Nitin Gupta <ngupta@vflare.org>
+To: "Kim, Jong-Sung" <neidhard.kim@lge.com>
+Cc: 'Minchan Kim' <minchan@kernel.org>, 'Nicolas Pitre' <nico@linaro.org>, 'Catalin Marinas' <catalin.marinas@arm.com>, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, 'Chanho Min' <chanho.min@lge.com>, linux-mm@kvack.org
 
-On 06/27/2012 12:28 AM, Minchan Kim wrote:
->> +{
->> +	if (area->vm)
->> +		return 0;
+On Fri, Jun 08, 2012 at 10:58:50PM +0900, Kim, Jong-Sung wrote:
+> > From: Minchan Kim [mailto:minchan@kernel.org]
+> > Sent: Tuesday, June 05, 2012 4:12 PM
+> > 
+> > If we do arm_memblock_steal with a page which is not aligned with section
+> > size, panic can happen during boot by page fault in map_lowmem.
+> > 
+> > Detail:
+> > 
+> > 1) mdesc->reserve can steal a page which is allocated at 0x1ffff000 by
+> > memblock
+> >    which prefers tail pages of regions.
+> > 2) map_lowmem maps 0x00000000 - 0x1fe00000
+> > 3) map_lowmem try to map 0x1fe00000 but it's not aligned by section due to
+> 1.
+> > 4) calling alloc_init_pte allocates a new page for new pte by
+> memblock_alloc
+> > 5) allocated memory for pte is 0x1fffe000 -> it's not mapped yet.
+> > 6) memset(ptr, 0, sz) in early_alloc_aligned got PANICed!
 > 
-> 
-> Just out of curiosity.
-> When do we need above check?
+> May I suggest another simple approach? The first continuous couples of
+> sections are always safely section-mapped inside alloc_init_section funtion.
+> So, by limiting memblock_alloc to the end of the first continuous couples of
+> sections at the start of map_lowmem, map_lowmem can safely memblock_alloc &
+> memset even if we have one or more section-unaligned memory regions. The
+> limit can be extended back to arm_lowmem_limit after the map_lowmem is done.
 
-I did this in the case that there was a race between the for
-loop in zs_init(), calling zs_cpu_notifier(), and a CPU
-coming online.  I've never seen the condition hit, but if it
-did, it would leak memory without this check.
+No.  What if the first block of memory is not large enough to handle all
+the allocations?
 
-I would move the cpu notifier registration after the loop in
-zs_init(), but then I could miss a cpu up event and we
-wouldn't have the needed per-cpu resources for mapping.
-
-All other suggestions are accepted.  Thanks for the feedback!
-
---
-Seth
+I think the real problem is folk trying to reserve small amounts.  I have
+said all reservations must be aligned to 1MB.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
