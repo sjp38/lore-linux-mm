@@ -1,61 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
-	by kanga.kvack.org (Postfix) with SMTP id 337466B0073
-	for <linux-mm@kvack.org>; Wed, 27 Jun 2012 04:32:51 -0400 (EDT)
-Date: Wed, 27 Jun 2012 09:32:46 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 09/16] netvm: Allow skb allocation to use PFMEMALLOC
- reserves
-Message-ID: <20120627083246.GF8271@suse.de>
-References: <1340375443-22455-1-git-send-email-mgorman@suse.de>
- <1340375443-22455-10-git-send-email-mgorman@suse.de>
- <20120626152734.GA6509@breakpoint.cc>
+Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
+	by kanga.kvack.org (Postfix) with SMTP id 9FC9D6B0078
+	for <linux-mm@kvack.org>; Wed, 27 Jun 2012 04:42:42 -0400 (EDT)
+Message-ID: <4FEAC6DA.1010806@parallels.com>
+Date: Wed, 27 Jun 2012 12:39:54 +0400
+From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20120626152734.GA6509@breakpoint.cc>
+Subject: Re: [PATCH 00/11] kmem controller for memcg: stripped down version
+References: <1340633728-12785-1-git-send-email-glommer@parallels.com> <20120625162745.eabe4f03.akpm@linux-foundation.org> <4FE9621D.2050002@parallels.com> <20120626145539.eeeab909.akpm@linux-foundation.org> <alpine.DEB.2.00.1206261804160.11287@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.00.1206261804160.11287@chino.kir.corp.google.com>
+Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sebastian Andrzej Siewior <sebastian@breakpoint.cc>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Linux-Netdev <netdev@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, David Miller <davem@davemloft.net>, Neil Brown <neilb@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mike Christie <michaelc@cs.wisc.edu>, Eric B Munson <emunson@mgebm.net>, Eric Dumazet <eric.dumazet@gmail.com>
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Frederic Weisbecker <fweisbec@gmail.com>, Pekka Enberg <penberg@kernel.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Lameter <cl@linux.com>, devel@openvz.org, kamezawa.hiroyu@jp.fujitsu.com, Tejun
+ Heo <tj@kernel.org>
 
-On Tue, Jun 26, 2012 at 05:27:34PM +0200, Sebastian Andrzej Siewior wrote:
-> On Fri, Jun 22, 2012 at 03:30:36PM +0100, Mel Gorman wrote:
-> > diff --git a/net/core/sock.c b/net/core/sock.c
-> > index 5c9ca2b..159dccc 100644
-> > --- a/net/core/sock.c
-> > +++ b/net/core/sock.c
-> > @@ -271,6 +271,9 @@ __u32 sysctl_rmem_default __read_mostly = SK_RMEM_MAX;
-> >  int sysctl_optmem_max __read_mostly = sizeof(unsigned long)*(2*UIO_MAXIOV+512);
-> >  EXPORT_SYMBOL(sysctl_optmem_max);
-> >  
-> > +struct static_key memalloc_socks = STATIC_KEY_INIT_FALSE;
-> > +EXPORT_SYMBOL_GPL(memalloc_socks);
-> > +
-> 
-> This is used via sk_memalloc_socks() by SLAB.
-> 
-> From 3da9ab9972845974da114c5a6624335e6371b2d5 Mon Sep 17 00:00:00 2001
-> From: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
-> Date: Tue, 26 Jun 2012 17:18:20 +0200
-> Subject: [PATCH] export sk_memalloc_socks() only with CONFIG_NET
-> 
-> |mm/built-in.o: In function `atomic_read':
-> |include/asm/atomic.h:25: undefined reference to `memalloc_socks'
-> |include/asm/atomic.h:25: undefined reference to `memalloc_socks'
-> |include/asm/atomic.h:25: undefined reference to `memalloc_socks'
-> |include/asm/atomic.h:25: undefined reference to `memalloc_socks'
-> |include/asm/atomic.h:25: undefined reference to `memalloc_socks'
-> |mm/built-in.o:include/asm/atomic.h:25: more undefined references to `memalloc_socks' follow
-> 
-> Signed-off-by: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
+On 06/27/2012 05:08 AM, David Rientjes wrote:
+> On Tue, 26 Jun 2012, Andrew Morton wrote:
+>
+>> mm, maybe.  Kernel developers tend to look at code from the point of
+>> view "does it work as designed", "is it clean", "is it efficient", "do
+>> I understand it", etc.  We often forget to step back and really
+>> consider whether or not it should be merged at all.
+>>
+>
+> It's appropriate for true memory isolation so that applications cannot
+> cause an excess of slab to be consumed.  This allows other applications to
+> have higher reservations without the risk of incurring a global oom
+> condition as the result of the usage of other memcgs.
 
-Well caught. I had not tested build with !CONFIG_NET. I've folded in
-this patch and the credits accordingly. Thanks.
+Just a note for Andrew, we we're in the same page: The slab cache 
+limitation is not included in *this* particular series. The goal was 
+always to have other kernel resources limited as well, and the general 
+argument from David holds: we want a set of applications to run truly 
+independently from others, without creating memory pressure on the 
+global system.
 
--- 
-Mel Gorman
-SUSE Labs
+The way history develop in this series, I started from the slab cache, 
+and a page-level tracking appeared on that series. I then figured it 
+would be better to start tracking something that is totally page-based, 
+such as the stack - that already accounts for 70 % of the 
+infrastructure, and then merge the slab code later. In this sense, it 
+was just a strategy inversion. But both are, and were, in the goals.
+
+> I'm not sure whether it would ever be appropriate to limit the amount of
+> slab for an individual slab cache, however, instead of limiting the sum of
+> all slab for a set of processes.  With cache merging in slub this would
+> seem to be difficult to do correctly.
+
+Yes, I do agree.
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
