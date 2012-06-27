@@ -1,98 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
-	by kanga.kvack.org (Postfix) with SMTP id 051E96B005A
-	for <linux-mm@kvack.org>; Wed, 27 Jun 2012 17:16:00 -0400 (EDT)
-MIME-Version: 1.0
-Message-ID: <80ad7298-23de-4c5e-9a8d-483198ae4ef1@default>
-Date: Wed, 27 Jun 2012 14:15:25 -0700 (PDT)
-From: Dan Magenheimer <dan.magenheimer@oracle.com>
-Subject: RE: [PATCH 3/3] x86: add local_tlb_flush_kernel_range()
-References: <1340640878-27536-1-git-send-email-sjenning@linux.vnet.ibm.com>
- <1340640878-27536-4-git-send-email-sjenning@linux.vnet.ibm.com>
- <4FEA9FDD.6030102@kernel.org> <4FEAA4AA.3000406@intel.com>
- <4FEAA7A1.9020307@kernel.org> <90bcc2c8-bcac-4620-b3c0-6b65f8d9174d@default>
- <4FEB5204.3090707@linux.vnet.ibm.com>
-In-Reply-To: <4FEB5204.3090707@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: quoted-printable
+Received: from psmtp.com (na3sys010amx174.postini.com [74.125.245.174])
+	by kanga.kvack.org (Postfix) with SMTP id 5DAAA6B005A
+	for <linux-mm@kvack.org>; Wed, 27 Jun 2012 17:41:14 -0400 (EDT)
+Message-Id: <20120627212831.137126018@chello.nl>
+Date: Wed, 27 Jun 2012 23:15:48 +0200
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Subject: [PATCH 08/20] mm: Optimize fullmm TLB flushing
+References: <20120627211540.459910855@chello.nl>
+Content-Disposition: inline; filename=mmu_gather_fullmm.patch
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Seth Jennings <sjenning@linux.vnet.ibm.com>
-Cc: Minchan Kim <minchan@kernel.org>, Alex Shi <alex.shi@intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, devel@driverdev.osuosl.org, Konrad Wilk <konrad.wilk@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Robert Jennings <rcj@linux.vnet.ibm.com>, Nitin Gupta <ngupta@vflare.org>
+To: linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org
+Cc: Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, akpm@linux-foundation.org, Linus Torvalds <torvalds@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <npiggin@kernel.dk>, Alex Shi <alex.shi@intel.com>, "Nikunj A. Dadhania" <nikunj@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, David Miller <davem@davemloft.net>, Russell King <rmk@arm.linux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Chris Metcalf <cmetcalf@tilera.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Tony Luck <tony.luck@intel.com>, Paul Mundt <lethal@linux-sh.org>, Jeff Dike <jdike@addtoit.com>, Richard Weinberger <richard@nod.at>, Hans-Christian Egtvedt <hans-christian.egtvedt@atmel.com>, Ralf Baechle <ralf@linux-mips.org>, Kyle McMartin <kyle@mcmartin.ca>, James Bottomley <jejb@parisc-linux.org>, Chris Zankel <chris@zankel.net>
 
-> From: Seth Jennings [mailto:sjenning@linux.vnet.ibm.com]
-> Sent: Wednesday, June 27, 2012 12:34 PM
-> To: Dan Magenheimer
-> Cc: Minchan Kim; Alex Shi; Greg Kroah-Hartman; devel@driverdev.osuosl.org=
-; Konrad Wilk; linux-
-> kernel@vger.kernel.org; linux-mm@kvack.org; Andrew Morton; Robert Jenning=
-s; Nitin Gupta
-> Subject: Re: [PATCH 3/3] x86: add local_tlb_flush_kernel_range()
->=20
-> On 06/27/2012 10:12 AM, Dan Magenheimer wrote:
-> >> From: Minchan Kim [mailto:minchan@kernel.org]
-> >> Subject: Re: [PATCH 3/3] x86: add local_tlb_flush_kernel_range()
-> >>
-> >> On 06/27/2012 03:14 PM, Alex Shi wrote:
-> >>>
-> >>> On 06/27/2012 01:53 PM, Minchan Kim wrote:
-> >>> Different CPU type has different balance point on the invlpg replacin=
-g
-> >>> flush all. and some CPU never get benefit from invlpg, So, it's bette=
-r
-> >>> to use different value for different CPU, not a fixed
-> >>> INVLPG_BREAK_EVEN_PAGES.
-> >>
-> >> I think it could be another patch as further step and someone who are
-> >> very familiar with architecture could do better than.
-> >> So I hope it could be merged if it doesn't have real big problem.
-> >>
-> >> Thanks for the comment, Alex.
-> >
-> > Just my opinion, but I have to agree with Alex.  Hardcoding
-> > behavior that is VERY processor-specific is a bad idea.  TLBs should
-> > only be messed with when absolutely necessary, not for the
-> > convenience of defending an abstraction that is nice-to-have
-> > but, in current OS kernel code, unnecessary.
->=20
-> I agree that it's not optimal.  The selection based on CPUID
-> is part of Alex's patchset, and I'll be glad to use that
-> code when it gets integrated.
->=20
-> But the real discussion is are we going to:
-> 1) wait until Alex's patches to be integrated, degrading
-> zsmalloc in the meantime or
-> 2) put in some simple temporary logic that works well (not
-> best) for most cases
->=20
-> > IIUC, zsmalloc only cares that the breakeven point is greater
-> > than two.  An arch-specific choice of (A) two page flushes
-> > vs (B) one all-TLB flush should be all that is necessary right
-> > now.  (And, per separate discussion, even this isn't really
-> > necessary either.)
-> >
-> > If zsmalloc _ever_ gets extended to support items that might
-> > span three or more pages, a more generic TLB flush-pages-vs-flush-all
-> > approach may be warranted and, by then, may already exist in some
-> > future kernel.  Until then, IMHO, keep it simple.
->=20
-> I guess I'm not following.  Are you supporting the removal
-> of the "break even" logic?  I added that logic as a
-> compromise for Peter's feedback:
->=20
-> http://lkml.org/lkml/2012/5/17/177
+This originated from s390 which does something similar and would allow
+s390 to use the generic TLB flushing code.
 
-Yes, as long as I am correct that zsmalloc never has to map/flush
-more than two pages at a time, I think dealing with the break-even
-logic is overkill.  I see Peter isn't on this dist list... maybe
-you should ask him if he agrees, as long as we are only always
-talking about flush-two-TLB-pages vs flush-all.
+The idea is to flush the mm wide cache and tlb a priory and not bother
+with multiple flushes if the batching isn't large enough.
 
-(And, of course, per previous discussion, I think even mapping/flushing
-two TLB pages is unnecessary and overkill required only for protecting an
-abstraction, but will stop beating that dead horse. ;-)
+This can be safely done since there cannot be any concurrency on this
+mm, its either after the process died (exit) or in the middle of
+execve where the thread switched to the new mm.
 
-Dan
+Cc: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+---
+ mm/memory.c |   14 ++++++++++----
+ 1 file changed, 10 insertions(+), 4 deletions(-)
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -215,16 +215,22 @@ void tlb_gather_mmu(struct mmu_gather *t
+ 	tlb->active     = &tlb->local;
+ 
+ 	tlb_table_init(tlb);
++
++	if (fullmm) {
++		flush_cache_mm(mm);
++		flush_tlb_mm(mm);
++	}
+ }
+ 
+ void tlb_flush_mmu(struct mmu_gather *tlb)
+ {
+ 	struct mmu_gather_batch *batch;
+ 
+-	if (!tlb->need_flush)
+-		return;
+-	tlb->need_flush = 0;
+-	flush_tlb_mm(tlb->mm);
++	if (!tlb->fullmm && tlb->need_flush) {
++		tlb->need_flush = 0;
++		flush_tlb_mm(tlb->mm);
++	}
++
+ 	tlb_table_flush(tlb);
+ 
+ 	if (tlb_fast_mode(tlb))
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
