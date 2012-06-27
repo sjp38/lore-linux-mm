@@ -1,58 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx151.postini.com [74.125.245.151])
-	by kanga.kvack.org (Postfix) with SMTP id A9C456B005A
-	for <linux-mm@kvack.org>; Tue, 26 Jun 2012 23:21:06 -0400 (EDT)
-Received: by pbbrp2 with SMTP id rp2so1112678pbb.14
-        for <linux-mm@kvack.org>; Tue, 26 Jun 2012 20:21:05 -0700 (PDT)
-Date: Tue, 26 Jun 2012 20:21:01 -0700
-From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Subject: Re: [PATCH 1/3] zram/zcache: swtich Kconfig dependency from X86 to
- ZSMALLOC
-Message-ID: <20120627032101.GA16419@kroah.com>
-References: <1340640878-27536-1-git-send-email-sjenning@linux.vnet.ibm.com>
- <1340640878-27536-2-git-send-email-sjenning@linux.vnet.ibm.com>
- <4FEA71E5.5090808@kernel.org>
- <20120627024301.GA8468@kroah.com>
- <4FEA74D6.8030107@kernel.org>
+Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
+	by kanga.kvack.org (Postfix) with SMTP id 3333C6B0062
+	for <linux-mm@kvack.org>; Tue, 26 Jun 2012 23:49:39 -0400 (EDT)
+Date: Tue, 26 Jun 2012 23:49:15 -0400 (EDT)
+From: Zhouping Liu <zliu@redhat.com>
+Subject: memcg: cat: memory.memsw.* : Operation not supported
+Message-ID: <34bb8049-8007-496c-8ffb-11118c587124@zmail13.collab.prod.int.phx2.redhat.com>
+In-Reply-To: <2a1a74bf-fbb5-4a6e-b958-44fff8debff2@zmail13.collab.prod.int.phx2.redhat.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4FEA74D6.8030107@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>, devel@driverdev.osuosl.org, Dan Magenheimer <dan.magenheimer@oracle.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Robert Jennings <rcj@linux.vnet.ibm.com>, Nitin Gupta <ngupta@vflare.org>
+To: linux-mm@kvack.org
+Cc: Li Zefan <lizefan@huawei.com>, Tejun Heo <tj@kernel.org>, CAI Qian <caiqian@redhat.com>, LKML <linux-kernel@vger.kernel.org>
 
-On Wed, Jun 27, 2012 at 11:49:58AM +0900, Minchan Kim wrote:
-> Hi Greg,
-> 
-> On 06/27/2012 11:43 AM, Greg Kroah-Hartman wrote:
-> 
-> > On Wed, Jun 27, 2012 at 11:37:25AM +0900, Minchan Kim wrote:
-> >> On 06/26/2012 01:14 AM, Seth Jennings wrote:
-> >>
-> >>> This patch switches zcache and zram dependency to ZSMALLOC
-> >>> rather than X86.  There is no net change since ZSMALLOC
-> >>> depends on X86, however, this prevent further changes to
-> >>> these files as zsmalloc dependencies change.
-> >>>
-> >>> Signed-off-by: Seth Jennings <sjenning@linux.vnet.ibm.com>
-> >>
-> >> Reviewed-by: Minchan Kim <minchan@kernel.org>
-> >>
-> >> It could be merged regardless of other patches in this series.
-> > 
-> > I already did :)
-> 
-> 
-> It would have been better if you send merge mail to Ccing people.
-> Anyway, Thanks!
+hi, all
 
-I do, for people on the cc: in the signed-off-by area of the patch.  For
-me to manually add the people on the cc: of the email, I would have to
-modify git to add them to the commit somehow, sorry.
+when I used memory cgroup in latest mainline, the following error occurred:
 
-greg k-h
+# mount -t cgroup -o memory xxx /cgroup/
+# ll /cgroup/memory.memsw.*
+-rw-r--r--. 1 root root 0 Jun 26 23:17 /cgroup/memory.memsw.failcnt
+-rw-r--r--. 1 root root 0 Jun 26 23:17 /cgroup/memory.memsw.limit_in_bytes
+-rw-r--r--. 1 root root 0 Jun 26 23:17 /cgroup/memory.memsw.max_usage_in_bytes
+-r--r--r--. 1 root root 0 Jun 26 23:17 /cgroup/memory.memsw.usage_in_bytes
+# cat /cgroup/memory.memsw.*
+cat: /cgroup/memory.memsw.failcnt: Operation not supported
+cat: /cgroup/memory.memsw.limit_in_bytes: Operation not supported
+cat: /cgroup/memory.memsw.max_usage_in_bytes: Operation not supported
+cat: /cgroup/memory.memsw.usage_in_bytes: Operation not supported
+
+I'm confusing why it can't read memory.memsw.* files.
+
+as commit:a42c390cfa0c said, CGROUP_MEM_RES_CTLR_SWAP_ENABLED and
+swapaccount kernel parameter control memcg swap accounting,
+but I confirmed the two options all don't be set:
+
+# cat /usr/lib/modules/3.5.0-rc4+/source/.config | grep CGROUP_MEM
+CONFIG_CGROUP_MEM_RES_CTLR=y
+CONFIG_CGROUP_MEM_RES_CTLR_SWAP=y
+# CONFIG_CGROUP_MEM_RES_CTLR_SWAP_ENABLED is not set
+CONFIG_CGROUP_MEM_RES_CTLR_KMEM=y
+# cat /proc/cmdline 
+BOOT_IMAGE=/vmlinuz-3.5.0-rc4+ root=/dev/mapper/vg_amd--pike--06-lv_root ro rd.lvm.lv=vg_amd-pike-06/lv_swap rd.md=0 LANG=en_US.UTF-8 console=ttyS0,115200n81 KEYTABLE=us SYSFONT=True rd.luks=0 rd.dm=0 rd.lvm.lv=vg_amd-pike-06/lv_root
+
+so I have two problems here:
+ 1. when kernel neither set 'CONFIG_CGROUP_MEM_RES_CTLR_SWAP_ENABLED' nor 'swapaccount' options,
+    why memcg have memory.memsw.* files ?
+
+ 2. why we can't read memory.memsw.* ?
+
+Addition info:
+when I open CONFIG_CGROUP_MEM_RES_CTLR_SWAP_ENABLED option, the above issues are gone.
+also I tested v3.4.0, there aren't the two issues, so please take a look.
+
+-- 
+Thanks,
+Zhouping
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
