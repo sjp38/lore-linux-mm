@@ -1,62 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
-	by kanga.kvack.org (Postfix) with SMTP id 526E96B005A
-	for <linux-mm@kvack.org>; Wed, 27 Jun 2012 13:58:23 -0400 (EDT)
-Received: by pbbrp2 with SMTP id rp2so2314805pbb.14
-        for <linux-mm@kvack.org>; Wed, 27 Jun 2012 10:58:22 -0700 (PDT)
-Date: Wed, 27 Jun 2012 10:58:18 -0700
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH v3][0/6] memcg: prevent -ENOMEM in pre_destroy()
-Message-ID: <20120627175818.GM15811@google.com>
-References: <4FACDED0.3020400@jp.fujitsu.com>
- <20120621202043.GD4642@google.com>
- <4FE3ADDD.9060908@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4FE3ADDD.9060908@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
+	by kanga.kvack.org (Postfix) with SMTP id 978FF6B005C
+	for <linux-mm@kvack.org>; Wed, 27 Jun 2012 14:13:13 -0400 (EDT)
+Received: from /spool/local
+	by e36.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <shangw@linux.vnet.ibm.com>;
+	Wed, 27 Jun 2012 12:13:12 -0600
+Received: from d01relay06.pok.ibm.com (d01relay06.pok.ibm.com [9.56.227.116])
+	by d01dlp03.pok.ibm.com (Postfix) with ESMTP id 2E9363C604A0
+	for <linux-mm@kvack.org>; Wed, 27 Jun 2012 12:36:33 -0400 (EDT)
+Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
+	by d01relay06.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q5RGaHsG33489064
+	for <linux-mm@kvack.org>; Wed, 27 Jun 2012 12:36:17 -0400
+Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
+	by d01av01.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q5RM78X5031924
+	for <linux-mm@kvack.org>; Wed, 27 Jun 2012 18:07:09 -0400
+From: Gavin Shan <shangw@linux.vnet.ibm.com>
+Subject: [PATCH v2 2/3] mm/sparse: fix possible memory leak
+Date: Thu, 28 Jun 2012 00:36:07 +0800
+Message-Id: <1340814968-2948-2-git-send-email-shangw@linux.vnet.ibm.com>
+In-Reply-To: <1340814968-2948-1-git-send-email-shangw@linux.vnet.ibm.com>
+References: <1340814968-2948-1-git-send-email-shangw@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "cgroups@vger.kernel.org" <cgroups@vger.kernel.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Frederic Weisbecker <fweisbec@gmail.com>, Han Ying <yinghan@google.com>, Glauber Costa <glommer@parallels.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Hiroyuki Kamezawa <kamezawa.hiroyuki@gmail.com>, Linux Kernel <linux-kernel@vger.kernel.org>
+To: linux-mm@kvack.org
+Cc: mhocko@suse.cz, dave@linux.vnet.ibm.com, rientjes@google.com, hannes@cmpxchg.org, akpm@linux-foundation.org, Gavin Shan <shangw@linux.vnet.ibm.com>
 
-Hello, KAME.
+With CONFIG_SPARSEMEM_EXTREME, the root memory section descriptors
+are allocated by slab or bootmem allocator. Also, the descriptors
+might have been allocated and initialized during the hotplug path.
+However, the memory chunk allocated in current implementation wouldn't
+be put into the available pool if that has been allocated. The situation
+will lead to memory leak.
 
-On Fri, Jun 22, 2012 at 08:27:25AM +0900, Kamezawa Hiroyuki wrote:
-> Remaining 20% of work is based on a modification to cgroup layer
-> 
-> How do you think this patch ? (This patch is not tested yet...so
-> may have troubles...) I think callers of pre_destory() is not so many...
-> 
-> ==
-> From a28db946f91f3509d25779e8c5db249506cc4b07 Mon Sep 17 00:00:00 2001
-> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> Date: Fri, 22 Jun 2012 08:38:38 +0900
-> Subject: [PATCH] cgroup: keep cgroup_mutex() while calling ->pre_destroy()
-> 
-> In past, memcg's pre_destroy() was verrry slow because of the possibility
-> of page reclaiming in it. So, cgroup_mutex() was released before calling
-> pre_destroy() callbacks. Now, it's enough fast. memcg just scans the list
-> and move pages to other cgroup, no memory reclaim happens.
-> Then, we can keep cgroup_mutex() there.
-> 
-> By holding looks, we can avoid following cases
->    1. new task is attached while rmdir().
->    2. new child cgroup is created while rmdir()
->    3. new task is attached to cgroup and removed from cgroup before
->       checking css's count. So, ->destroy() will be called even if
->       some trashes by the task remains
-> 
-> (3. is terrible case...even if I think it will not happen in real world..)
+Signed-off-by: Gavin Shan <shangw@linux.vnet.ibm.com>
+Reviewed-by: Michal Hocko <mhocko@suse.cz>
+---
+ mm/sparse.c |   19 +++++++++++++++++++
+ 1 file changed, 19 insertions(+)
 
-Ooh, once memcg drops the __DEPRECATED_clear_css_refs, cgroup_rmdir()
-will mark the cgroup dead before start calling pre_destroy() and none
-of the above will happen.
-
-Thanks.
-
+diff --git a/mm/sparse.c b/mm/sparse.c
+index 781fa04..a803599 100644
+--- a/mm/sparse.c
++++ b/mm/sparse.c
+@@ -75,6 +75,22 @@ static struct mem_section noinline __init_refok *sparse_index_alloc(int nid)
+ 	return section;
+ }
+ 
++static void noinline __init_refok sparse_index_free(struct mem_section *section,
++						    int nid)
++{
++	unsigned long size = SECTIONS_PER_ROOT *
++			     sizeof(struct mem_section);
++
++	if (!section)
++		return;
++
++	if (slab_is_available())
++		kfree(section);
++	else
++		free_bootmem_node(NODE_DATA(nid),
++			virt_to_phys(section), size);
++}
++
+ static int __meminit sparse_index_init(unsigned long section_nr, int nid)
+ {
+ 	static DEFINE_SPINLOCK(index_init_lock);
+@@ -102,6 +118,9 @@ static int __meminit sparse_index_init(unsigned long section_nr, int nid)
+ 	mem_section[root] = section;
+ out:
+ 	spin_unlock(&index_init_lock);
++	if (ret)
++		sparse_index_free(section, nid);
++
+ 	return ret;
+ }
+ #else /* !SPARSEMEM_EXTREME */
 -- 
-tejun
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
