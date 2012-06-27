@@ -1,313 +1,227 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
-	by kanga.kvack.org (Postfix) with SMTP id D994D6B005C
-	for <linux-mm@kvack.org>; Wed, 27 Jun 2012 03:51:53 -0400 (EDT)
+	by kanga.kvack.org (Postfix) with SMTP id F35486B0068
+	for <linux-mm@kvack.org>; Wed, 27 Jun 2012 03:51:56 -0400 (EDT)
 From: Minchan Kim <minchan@kernel.org>
-Subject: [PATCH 1/2 v2] mm: Factor out memory isolate functions
-Date: Wed, 27 Jun 2012 16:51:53 +0900
-Message-Id: <1340783514-8150-2-git-send-email-minchan@kernel.org>
+Subject: [PATCH 2/2 v2] memory-hotplug: fix kswapd looping forever problem
+Date: Wed, 27 Jun 2012 16:51:54 +0900
+Message-Id: <1340783514-8150-3-git-send-email-minchan@kernel.org>
 In-Reply-To: <1340783514-8150-1-git-send-email-minchan@kernel.org>
 References: <1340783514-8150-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org
-Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Aaditya Kumar <aaditya.kumar.30@gmail.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Minchan Kim <minchan@kernel.org>, Andi Kleen <andi@firstfloor.org>, Marek Szyprowski <m.szyprowski@samsung.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Aaditya Kumar <aaditya.kumar.30@gmail.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>
 
-Now mm/page_alloc.c has some memory isolation functions but they
-are used oly when we enable CONFIG_{CMA|MEMORY_HOTPLUG|MEMORY_FAILURE}.
-So let's make it configurable by new CONFIG_MEMORY_ISOLATION so that it
-can reduce binary size and we can check it simple by
-CONFIG_MEMORY_ISOLATION,
-not if defined CONFIG_{CMA|MEMORY_HOTPLUG|MEMORY_FAILURE}.
+When hotplug offlining happens on zone A, it starts to mark freed page
+as MIGRATE_ISOLATE type in buddy for preventing further allocation.
+(MIGRATE_ISOLATE is very irony type because it's apparently on buddy
+but we can't allocate them).
+When the memory shortage happens during hotplug offlining,
+current task starts to reclaim, then wake up kswapd.
+Kswapd checks watermark, then go sleep because current zone_watermark_ok_safe
+doesn't consider MIGRATE_ISOLATE freed page count.
+Current task continue to reclaim in direct reclaim path without kswapd's helping.
+The problem is that zone->all_unreclaimable is set by only kswapd
+so that current task would be looping forever like below.
 
-This patch is based on next-20120626
+__alloc_pages_slowpath
+restart:
+	wake_all_kswapd
+rebalance:
+	__alloc_pages_direct_reclaim
+		do_try_to_free_pages
+			if global_reclaim && !all_unreclaimable
+				return 1; /* It means we did did_some_progress */
+	skip __alloc_pages_may_oom
+	should_alloc_retry
+		goto rebalance;
+
+If we apply KOSAKI's patch[1] which doesn't depends on kswapd
+about setting zone->all_unreclaimable, we can solve this problem
+by killing some task in direct reclaim path. But it doesn't wake up kswapd, still.
+It could be a problem still if other subsystem needs GFP_ATOMIC request.
+So kswapd should consider MIGRATE_ISOLATE when it calculate free pages
+BEFORE going sleep.
+
+This patch counts the number of MIGRATE_ISOLATE page block and
+zone_watermark_ok_safe will consider it if the system has such blocks
+(fortunately, it's very rare so no problem in POV overhead and kswapd is never
+hotpath).
+
+Copy/modify from Mel's quote
+"
+Ideal solution would be "allocating" the pageblock.
+It would keep the free space accounting as it is but historically,
+memory hotplug didn't allocate pages because it would be difficult to
+detect if a pageblock was isolated or if part of some balloon.
+Allocating just full pageblocks would work around this, However,
+it would play very badly with CMA.
+"
+
+[1] http://lkml.org/lkml/2012/6/14/74
 
 * from v1
- - rebase on next-20120626
+ - add changelog
+ - make functions simple
+ - remove atomic variable
+ - discard exact isolated free page accounting.
+ - rebased on next-20120626
 
-Cc: Andi Kleen <andi@firstfloor.org>
-Cc: Marek Szyprowski <m.szyprowski@samsung.com>
+Suggested-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Aaditya Kumar <aaditya.kumar.30@gmail.com>
+Cc: Mel Gorman <mgorman@suse.de>
 Signed-off-by: Minchan Kim <minchan@kernel.org>
 ---
 
-Andrew, I know this patch is conflict with current mmotm totally but
-I don't know what tree I should use. I hope it's a git tree instead of
-quit-based version. Anyway, If you feel it's inconvenient,
-let me know it and I will resend it on tree you mention.
-Thanks.
+Aaditya, coul you confirm this patch solve your problem and 
+make sure nr_pageblock_isolate is zero after hotplug end?
 
- drivers/base/Kconfig           |    1 +
- include/linux/page-isolation.h |    8 ++---
- mm/Kconfig                     |    5 +++
- mm/Makefile                    |    4 +--
- mm/page_alloc.c                |   71 ----------------------------------------
- mm/page_isolation.c            |   71 ++++++++++++++++++++++++++++++++++++++++
- 6 files changed, 83 insertions(+), 77 deletions(-)
+Thanks!
 
-diff --git a/drivers/base/Kconfig b/drivers/base/Kconfig
-index 9b21469..08b4c52 100644
---- a/drivers/base/Kconfig
-+++ b/drivers/base/Kconfig
-@@ -196,6 +196,7 @@ config CMA
- 	bool "Contiguous Memory Allocator (EXPERIMENTAL)"
- 	depends on HAVE_DMA_CONTIGUOUS && HAVE_MEMBLOCK && EXPERIMENTAL
- 	select MIGRATION
-+	select MEMORY_ISOLATION
- 	help
- 	  This enables the Contiguous Memory Allocator which allows drivers
- 	  to allocate big physically-contiguous blocks of memory for use with
-diff --git a/include/linux/page-isolation.h b/include/linux/page-isolation.h
-index 3bdcab3..0569a3e 100644
---- a/include/linux/page-isolation.h
-+++ b/include/linux/page-isolation.h
-@@ -10,7 +10,7 @@
-  * free all pages in the range. test_page_isolated() can be used for
-  * test it.
-  */
--extern int
-+int
- start_isolate_page_range(unsigned long start_pfn, unsigned long end_pfn,
- 			 unsigned migratetype);
+ include/linux/mmzone.h |    8 ++++++++
+ mm/page_alloc.c        |   31 +++++++++++++++++++++++++++++++
+ mm/page_isolation.c    |   29 +++++++++++++++++++++++++++--
+ 3 files changed, 66 insertions(+), 2 deletions(-)
+
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+index dbc876e..6ee83b8 100644
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -474,6 +474,14 @@ struct zone {
+ 	 * rarely used fields:
+ 	 */
+ 	const char		*name;
++#ifdef CONFIG_MEMORY_ISOLATION
++	/*
++	 * the number of MIGRATE_ISOLATE *pageblock*.
++	 * We need this for free page counting. Look at zone_watermark_ok_safe.
++	 * It's protected by zone->lock
++	 */
++	int		nr_pageblock_isolate;
++#endif
+ } ____cacheline_internodealigned_in_smp;
  
-@@ -18,7 +18,7 @@ start_isolate_page_range(unsigned long start_pfn, unsigned long end_pfn,
-  * Changes MIGRATE_ISOLATE to MIGRATE_MOVABLE.
-  * target range is [start_pfn, end_pfn)
-  */
--extern int
-+int
- undo_isolate_page_range(unsigned long start_pfn, unsigned long end_pfn,
- 			unsigned migratetype);
- 
-@@ -30,8 +30,8 @@ int test_pages_isolated(unsigned long start_pfn, unsigned long end_pfn);
- /*
-  * Internal functions. Changes pageblock's migrate type.
-  */
--extern int set_migratetype_isolate(struct page *page);
--extern void unset_migratetype_isolate(struct page *page, unsigned migratetype);
-+int set_migratetype_isolate(struct page *page);
-+void unset_migratetype_isolate(struct page *page, unsigned migratetype);
- 
- 
- #endif
-diff --git a/mm/Kconfig b/mm/Kconfig
-index 82fed4e..d5c8019 100644
---- a/mm/Kconfig
-+++ b/mm/Kconfig
-@@ -140,9 +140,13 @@ config ARCH_DISCARD_MEMBLOCK
- config NO_BOOTMEM
- 	boolean
- 
-+config MEMORY_ISOLATION
-+	boolean
-+
- # eventually, we can have this option just 'select SPARSEMEM'
- config MEMORY_HOTPLUG
- 	bool "Allow for memory hot-add"
-+	select MEMORY_ISOLATION
- 	depends on SPARSEMEM || X86_64_ACPI_NUMA
- 	depends on HOTPLUG && ARCH_ENABLE_MEMORY_HOTPLUG
- 	depends on (IA64 || X86 || PPC_BOOK3S_64 || SUPERH || S390)
-@@ -272,6 +276,7 @@ config MEMORY_FAILURE
- 	depends on MMU
- 	depends on ARCH_SUPPORTS_MEMORY_FAILURE
- 	bool "Enable recovery from hardware memory errors"
-+	select MEMORY_ISOLATION
- 	help
- 	  Enables code to recover from some memory failures on systems
- 	  with MCA recovery. This allows a system to continue running
-diff --git a/mm/Makefile b/mm/Makefile
-index 25e8002..a0c7725 100644
---- a/mm/Makefile
-+++ b/mm/Makefile
-@@ -15,8 +15,7 @@ obj-y			:= filemap.o mempool.o oom_kill.o fadvise.o \
- 			   maccess.o page_alloc.o page-writeback.o \
- 			   readahead.o swap.o truncate.o vmscan.o shmem.o \
- 			   prio_tree.o util.o mmzone.o vmstat.o backing-dev.o \
--			   page_isolation.o mm_init.o mmu_context.o percpu.o \
--			   compaction.o $(mmu-y)
-+			   mm_init.o mmu_context.o percpu.o compaction.o $(mmu-y)
- obj-y += init-mm.o
- 
- ifdef CONFIG_NO_BOOTMEM
-@@ -55,3 +54,4 @@ obj-$(CONFIG_HWPOISON_INJECT) += hwpoison-inject.o
- obj-$(CONFIG_DEBUG_KMEMLEAK) += kmemleak.o
- obj-$(CONFIG_DEBUG_KMEMLEAK_TEST) += kmemleak-test.o
- obj-$(CONFIG_CLEANCACHE) += cleancache.o
-+obj-$(CONFIG_MEMORY_ISOLATION) += page_isolation.o
+ typedef enum {
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 2c29b1c..c175fa9 100644
+index c175fa9..b12c8ec 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -51,7 +51,6 @@
- #include <linux/page_cgroup.h>
- #include <linux/debugobjects.h>
- #include <linux/kmemleak.h>
--#include <linux/memory.h>
- #include <linux/compaction.h>
- #include <trace/events/kmem.h>
- #include <linux/ftrace_event.h>
-@@ -5555,76 +5554,6 @@ bool is_pageblock_removable_nolock(struct page *page)
- 	return __count_immobile_pages(zone, page, 0);
+@@ -218,6 +218,11 @@ EXPORT_SYMBOL(nr_online_nodes);
+ 
+ int page_group_by_mobility_disabled __read_mostly;
+ 
++/*
++ * NOTE:
++ * Don't use set_pageblock_migratetype(page, MIGRATE_ISOLATE) directly.
++ * Instead, use {un}set_pageblock_isolate.
++ */
+ void set_pageblock_migratetype(struct page *page, int migratetype)
+ {
+ 	if (unlikely(page_group_by_mobility_disabled))
+@@ -1614,6 +1619,23 @@ static bool __zone_watermark_ok(struct zone *z, int order, unsigned long mark,
+ 	return true;
  }
  
--int set_migratetype_isolate(struct page *page)
--{
--	struct zone *zone;
--	unsigned long flags, pfn;
--	struct memory_isolate_notify arg;
--	int notifier_ret;
--	int ret = -EBUSY;
--
--	zone = page_zone(page);
--
--	spin_lock_irqsave(&zone->lock, flags);
--
--	pfn = page_to_pfn(page);
--	arg.start_pfn = pfn;
--	arg.nr_pages = pageblock_nr_pages;
--	arg.pages_found = 0;
--
--	/*
--	 * It may be possible to isolate a pageblock even if the
--	 * migratetype is not MIGRATE_MOVABLE. The memory isolation
--	 * notifier chain is used by balloon drivers to return the
--	 * number of pages in a range that are held by the balloon
--	 * driver to shrink memory. If all the pages are accounted for
--	 * by balloons, are free, or on the LRU, isolation can continue.
--	 * Later, for example, when memory hotplug notifier runs, these
--	 * pages reported as "can be isolated" should be isolated(freed)
--	 * by the balloon driver through the memory notifier chain.
--	 */
--	notifier_ret = memory_isolate_notify(MEM_ISOLATE_COUNT, &arg);
--	notifier_ret = notifier_to_errno(notifier_ret);
--	if (notifier_ret)
--		goto out;
--	/*
--	 * FIXME: Now, memory hotplug doesn't call shrink_slab() by itself.
--	 * We just check MOVABLE pages.
--	 */
--	if (__count_immobile_pages(zone, page, arg.pages_found))
--		ret = 0;
--
--	/*
--	 * immobile means "not-on-lru" paes. If immobile is larger than
--	 * removable-by-driver pages reported by notifier, we'll fail.
--	 */
--
--out:
--	if (!ret) {
--		set_pageblock_migratetype(page, MIGRATE_ISOLATE);
--		move_freepages_block(zone, page, MIGRATE_ISOLATE);
--	}
--
--	spin_unlock_irqrestore(&zone->lock, flags);
--	if (!ret)
--		drain_all_pages();
--	return ret;
--}
--
--void unset_migratetype_isolate(struct page *page, unsigned migratetype)
--{
--	struct zone *zone;
--	unsigned long flags;
--	zone = page_zone(page);
--	spin_lock_irqsave(&zone->lock, flags);
--	if (get_pageblock_migratetype(page) != MIGRATE_ISOLATE)
--		goto out;
--	set_pageblock_migratetype(page, migratetype);
--	move_freepages_block(zone, page, migratetype);
--out:
--	spin_unlock_irqrestore(&zone->lock, flags);
--}
--
- #ifdef CONFIG_CMA
++#ifdef CONFIG_MEMORY_ISOLATION
++static inline unsigned long nr_zone_isolate_freepages(struct zone *zone)
++{
++	unsigned long nr_pages = 0;
++
++	if (unlikely(zone->nr_pageblock_isolate)) {
++		nr_pages = zone->nr_pageblock_isolate * pageblock_nr_pages;
++	}
++	return nr_pages;
++}
++#else
++static inline unsigned long nr_zone_isolate_freepages(struct zone *zone)
++{
++	return 0;
++}
++#endif
++
+ bool zone_watermark_ok(struct zone *z, int order, unsigned long mark,
+ 		      int classzone_idx, int alloc_flags)
+ {
+@@ -1629,6 +1651,14 @@ bool zone_watermark_ok_safe(struct zone *z, int order, unsigned long mark,
+ 	if (z->percpu_drift_mark && free_pages < z->percpu_drift_mark)
+ 		free_pages = zone_page_state_snapshot(z, NR_FREE_PAGES);
  
- static unsigned long pfn_max_align_down(unsigned long pfn)
++	/*
++	 * If the zone has MIGRATE_ISOLATE type free page,
++	 * we should consider it. nr_zone_isolate_freepages is never
++	 * accurate so kswapd might not sleep although she can.
++	 * But it's more desirable for memory hotplug rather than
++	 * forever sleep which cause livelock in direct reclaim path.
++	 */
++	free_pages -= nr_zone_isolate_freepages(z);
+ 	return __zone_watermark_ok(z, order, mark, classzone_idx, alloc_flags,
+ 								free_pages);
+ }
+@@ -4407,6 +4437,7 @@ static void __paginginit free_area_init_core(struct pglist_data *pgdat,
+ 		lruvec_init(&zone->lruvec, zone);
+ 		zap_zone_vm_stats(zone);
+ 		zone->flags = 0;
++		zone->nr_pageblock_isolate = 0;
+ 		if (!size)
+ 			continue;
+ 
 diff --git a/mm/page_isolation.c b/mm/page_isolation.c
-index c9f0477..1a9cb36 100644
+index 1a9cb36..c721ec0 100644
 --- a/mm/page_isolation.c
 +++ b/mm/page_isolation.c
-@@ -5,8 +5,79 @@
- #include <linux/mm.h>
- #include <linux/page-isolation.h>
- #include <linux/pageblock-flags.h>
-+#include <linux/memory.h>
+@@ -8,6 +8,31 @@
+ #include <linux/memory.h>
  #include "internal.h"
  
-+int set_migratetype_isolate(struct page *page)
++/* called by holding zone->lock */
++static void set_pageblock_isolate(struct zone *zone, struct page *page)
 +{
-+	struct zone *zone;
-+	unsigned long flags, pfn;
-+	struct memory_isolate_notify arg;
-+	int notifier_ret;
-+	int ret = -EBUSY;
++	BUG_ON(page_zone(page) != zone);
 +
-+	zone = page_zone(page);
++	if (get_pageblock_migratetype(page) == MIGRATE_ISOLATE)
++		return;
 +
-+	spin_lock_irqsave(&zone->lock, flags);
-+
-+	pfn = page_to_pfn(page);
-+	arg.start_pfn = pfn;
-+	arg.nr_pages = pageblock_nr_pages;
-+	arg.pages_found = 0;
-+
-+	/*
-+	 * It may be possible to isolate a pageblock even if the
-+	 * migratetype is not MIGRATE_MOVABLE. The memory isolation
-+	 * notifier chain is used by balloon drivers to return the
-+	 * number of pages in a range that are held by the balloon
-+	 * driver to shrink memory. If all the pages are accounted for
-+	 * by balloons, are free, or on the LRU, isolation can continue.
-+	 * Later, for example, when memory hotplug notifier runs, these
-+	 * pages reported as "can be isolated" should be isolated(freed)
-+	 * by the balloon driver through the memory notifier chain.
-+	 */
-+	notifier_ret = memory_isolate_notify(MEM_ISOLATE_COUNT, &arg);
-+	notifier_ret = notifier_to_errno(notifier_ret);
-+	if (notifier_ret)
-+		goto out;
-+	/*
-+	 * FIXME: Now, memory hotplug doesn't call shrink_slab() by itself.
-+	 * We just check MOVABLE pages.
-+	 */
-+	if (__count_immobile_pages(zone, page, arg.pages_found))
-+		ret = 0;
-+
-+	/*
-+	 * immobile means "not-on-lru" paes. If immobile is larger than
-+	 * removable-by-driver pages reported by notifier, we'll fail.
-+	 */
-+
-+out:
-+	if (!ret) {
-+		set_pageblock_migratetype(page, MIGRATE_ISOLATE);
-+		move_freepages_block(zone, page, MIGRATE_ISOLATE);
-+	}
-+
-+	spin_unlock_irqrestore(&zone->lock, flags);
-+	if (!ret)
-+		drain_all_pages();
-+	return ret;
++	set_pageblock_migratetype(page, MIGRATE_ISOLATE);
++	zone->nr_pageblock_isolate++;
 +}
 +
-+void unset_migratetype_isolate(struct page *page, unsigned migratetype)
++/* called by holding zone->lock */
++static void restore_pageblock_isolate(struct zone *zone, struct page *page,
++		int migratetype)
 +{
-+	struct zone *zone;
-+	unsigned long flags;
-+	zone = page_zone(page);
-+	spin_lock_irqsave(&zone->lock, flags);
-+	if (get_pageblock_migratetype(page) != MIGRATE_ISOLATE)
-+		goto out;
++	BUG_ON(page_zone(page) != zone);
++	if (WARN_ON(get_pageblock_migratetype(page) != MIGRATE_ISOLATE))
++		return;
++
++	BUG_ON(zone->nr_pageblock_isolate <= 0);
 +	set_pageblock_migratetype(page, migratetype);
-+	move_freepages_block(zone, page, migratetype);
-+out:
-+	spin_unlock_irqrestore(&zone->lock, flags);
++	zone->nr_pageblock_isolate--;
 +}
 +
- static inline struct page *
- __first_valid_page(unsigned long pfn, unsigned long nr_pages)
+ int set_migratetype_isolate(struct page *page)
  {
+ 	struct zone *zone;
+@@ -54,7 +79,7 @@ int set_migratetype_isolate(struct page *page)
+ 
+ out:
+ 	if (!ret) {
+-		set_pageblock_migratetype(page, MIGRATE_ISOLATE);
++		set_pageblock_isolate(zone, page);
+ 		move_freepages_block(zone, page, MIGRATE_ISOLATE);
+ 	}
+ 
+@@ -72,8 +97,8 @@ void unset_migratetype_isolate(struct page *page, unsigned migratetype)
+ 	spin_lock_irqsave(&zone->lock, flags);
+ 	if (get_pageblock_migratetype(page) != MIGRATE_ISOLATE)
+ 		goto out;
+-	set_pageblock_migratetype(page, migratetype);
+ 	move_freepages_block(zone, page, migratetype);
++	restore_pageblock_isolate(zone, page, migratetype);
+ out:
+ 	spin_unlock_irqrestore(&zone->lock, flags);
+ }
 -- 
 1.7.9.5
 
