@@ -1,51 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx135.postini.com [74.125.245.135])
-	by kanga.kvack.org (Postfix) with SMTP id 0FAD36B005C
-	for <linux-mm@kvack.org>; Wed, 27 Jun 2012 00:47:30 -0400 (EDT)
-Received: from /spool/local
-	by e28smtp06.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <xiaoguangrong@linux.vnet.ibm.com>;
-	Wed, 27 Jun 2012 10:17:27 +0530
-Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
-	by d28relay03.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q5R4lON310486238
-	for <linux-mm@kvack.org>; Wed, 27 Jun 2012 10:17:24 +0530
-Received: from d28av05.in.ibm.com (loopback [127.0.0.1])
-	by d28av05.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q5RAHuhW015192
-	for <linux-mm@kvack.org>; Wed, 27 Jun 2012 20:17:57 +1000
-Message-ID: <4FEA905A.4070207@linux.vnet.ibm.com>
-Date: Wed, 27 Jun 2012 12:47:22 +0800
-From: Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx174.postini.com [74.125.245.174])
+	by kanga.kvack.org (Postfix) with SMTP id 2ACF56B005A
+	for <linux-mm@kvack.org>; Wed, 27 Jun 2012 01:09:25 -0400 (EDT)
+Received: from ucsinet22.oracle.com (ucsinet22.oracle.com [156.151.31.94])
+	by rcsinet15.oracle.com (Sentrion-MTA-4.2.2/Sentrion-MTA-4.2.2) with ESMTP id q5R59NEN022333
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-SHA bits=256 verify=OK)
+	for <linux-mm@kvack.org>; Wed, 27 Jun 2012 05:09:24 GMT
+Received: from acsmt356.oracle.com (acsmt356.oracle.com [141.146.40.156])
+	by ucsinet22.oracle.com (8.14.4+Sun/8.14.4) with ESMTP id q5R59MZH012939
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-SHA bits=256 verify=NO)
+	for <linux-mm@kvack.org>; Wed, 27 Jun 2012 05:09:23 GMT
+Received: from abhmt110.oracle.com (abhmt110.oracle.com [141.146.116.62])
+	by acsmt356.oracle.com (8.12.11.20060308/8.12.11) with ESMTP id q5R59MUd030515
+	for <linux-mm@kvack.org>; Wed, 27 Jun 2012 00:09:22 -0500
+Message-ID: <4FEA9568.4030902@oracle.com>
+Date: Wed, 27 Jun 2012 13:08:56 +0800
+From: Jeff Liu <jeff.liu@oracle.com>
+Reply-To: jeff.liu@oracle.com
 MIME-Version: 1.0
-Subject: Re: [PATCH v2 1/9] zcache: fix refcount leak
-References: <4FE97792.9020807@linux.vnet.ibm.com> <4FE977AA.2090003@linux.vnet.ibm.com> <20120626223651.GB6561@localhost.localdomain>
-In-Reply-To: <20120626223651.GB6561@localhost.localdomain>
-Content-Type: text/plain; charset=UTF-8
+Subject: [PATCH] mm/memory.c:  print_vma_addr()  call up_read(&mm->mmap_sem)
+ directly
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konrad Rzeszutek Wilk <konrad@darnok.org>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Konrad Wilk <konrad.wilk@oracle.com>, Nitin Gupta <ngupta@vflare.org>, linux-mm@kvack.org
+To: linux-mm@kvack.org
 
-On 06/27/2012 06:36 AM, Konrad Rzeszutek Wilk wrote:
-> On Tue, Jun 26, 2012 at 04:49:46PM +0800, Xiao Guangrong wrote:
->> In zcache_get_pool_by_id, the refcount of zcache_host is not increased, but
->> it is always decreased in zcache_put_pool
-> 
-> All of the patches (1-9) look good to me, so please also
-> affix 'Reviewed-by: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>'.
-> 
+Hello,
 
-Thank you, Konrad!
+We can call up_read(&mm->mmap_sem) directly since we have already got mm
+via current->mm at the beginning of print_vma_addr().
 
-Greg, need i repost this patchset with Konrad's Reviewed-by?
+Thanks,
+-Jeff
 
-> You also might want to send this patch series with Greg KH being
-> on the To line- not just as CC -as he is the one committing the
-> patches in the git tree.
+Signed-off-by: Jie Liu <jeff.liu@oracle.com>
 
-Yes, i did it in the [PATCH 0/9], but i do not know why it was missed
-in mm list, the later patches replied this patch, so my mail is in
-the To line-. :(
+---
+ mm/memory.c |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
+
+diff --git a/mm/memory.c b/mm/memory.c
+index 2466d12..6e49113 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -3929,7 +3929,7 @@ void print_vma_addr(char *prefix, unsigned long ip)
+ 			free_page((unsigned long)buf);
+ 		}
+ 	}
+-	up_read(&current->mm->mmap_sem);
++	up_read(&mm->mmap_sem);
+ }
+
+ #ifdef CONFIG_PROVE_LOCKING
+-- 
+1.7.9
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
