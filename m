@@ -1,60 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx174.postini.com [74.125.245.174])
-	by kanga.kvack.org (Postfix) with SMTP id 2ACF56B005A
-	for <linux-mm@kvack.org>; Wed, 27 Jun 2012 01:09:25 -0400 (EDT)
-Received: from ucsinet22.oracle.com (ucsinet22.oracle.com [156.151.31.94])
-	by rcsinet15.oracle.com (Sentrion-MTA-4.2.2/Sentrion-MTA-4.2.2) with ESMTP id q5R59NEN022333
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-SHA bits=256 verify=OK)
-	for <linux-mm@kvack.org>; Wed, 27 Jun 2012 05:09:24 GMT
-Received: from acsmt356.oracle.com (acsmt356.oracle.com [141.146.40.156])
-	by ucsinet22.oracle.com (8.14.4+Sun/8.14.4) with ESMTP id q5R59MZH012939
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-SHA bits=256 verify=NO)
-	for <linux-mm@kvack.org>; Wed, 27 Jun 2012 05:09:23 GMT
-Received: from abhmt110.oracle.com (abhmt110.oracle.com [141.146.116.62])
-	by acsmt356.oracle.com (8.12.11.20060308/8.12.11) with ESMTP id q5R59MUd030515
-	for <linux-mm@kvack.org>; Wed, 27 Jun 2012 00:09:22 -0500
-Message-ID: <4FEA9568.4030902@oracle.com>
-Date: Wed, 27 Jun 2012 13:08:56 +0800
-From: Jeff Liu <jeff.liu@oracle.com>
-Reply-To: jeff.liu@oracle.com
-MIME-Version: 1.0
-Subject: [PATCH] mm/memory.c:  print_vma_addr()  call up_read(&mm->mmap_sem)
- directly
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from psmtp.com (na3sys010amx162.postini.com [74.125.245.162])
+	by kanga.kvack.org (Postfix) with SMTP id 88B8C6B005A
+	for <linux-mm@kvack.org>; Wed, 27 Jun 2012 01:11:14 -0400 (EDT)
+Date: Tue, 26 Jun 2012 22:12:17 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: needed lru_add_drain_all() change
+Message-Id: <20120626221217.1682572a.akpm@linux-foundation.org>
+In-Reply-To: <4FEA6B5B.5000205@kernel.org>
+References: <20120626143703.396d6d66.akpm@linux-foundation.org>
+	<4FEA59EE.8060804@kernel.org>
+	<20120626181504.23b8b73d.akpm@linux-foundation.org>
+	<4FEA6B5B.5000205@kernel.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: linux-mm@kvack.org, KOSAKI Motohiro <kosaki.motohiro@gmail.com>
 
-Hello,
+On Wed, 27 Jun 2012 11:09:31 +0900 Minchan Kim <minchan@kernel.org> wrote:
 
-We can call up_read(&mm->mmap_sem) directly since we have already got mm
-via current->mm at the beginning of print_vma_addr().
+> On 06/27/2012 10:15 AM, Andrew Morton wrote:
+> 
+> >> Considering mlock and CPU pinning
+> >> > of realtime thread is very rare, it might be rather expensive solution.
+> >> > Unfortunately, I have no idea better than you suggested. :(
+> >> > 
+> >> > And looking 8891d6da17, mlock's lru_add_drain_all isn't must.
+> >> > If it's really bother us, couldn't we remove it?
+> > "grep lru_add_drain_all mm/*.c".  They're all problematic.
+> 
+> 
+> Yeb but I'm not sure such system modeling is good.
+> Potentially, It could make problem once we use workqueue of other CPU.
 
-Thanks,
--Jeff
+whut?
 
-Signed-off-by: Jie Liu <jeff.liu@oracle.com>
-
----
- mm/memory.c |    2 +-
- 1 files changed, 1 insertions(+), 1 deletions(-)
-
-diff --git a/mm/memory.c b/mm/memory.c
-index 2466d12..6e49113 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -3929,7 +3929,7 @@ void print_vma_addr(char *prefix, unsigned long ip)
- 			free_page((unsigned long)buf);
- 		}
- 	}
--	up_read(&current->mm->mmap_sem);
-+	up_read(&mm->mmap_sem);
- }
-
- #ifdef CONFIG_PROVE_LOCKING
--- 
-1.7.9
+My suggestion is that we switch lru_add_drain_all() to on_each_cpu()
+and delete schedule_on_each_cpu().  No workqueues.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
