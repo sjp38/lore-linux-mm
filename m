@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
-	by kanga.kvack.org (Postfix) with SMTP id 3C9ED6B005A
-	for <linux-mm@kvack.org>; Wed, 27 Jun 2012 02:40:16 -0400 (EDT)
-Date: Tue, 26 Jun 2012 23:41:19 -0700
+Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
+	by kanga.kvack.org (Postfix) with SMTP id AFBD86B005A
+	for <linux-mm@kvack.org>; Wed, 27 Jun 2012 02:44:59 -0400 (EDT)
+Date: Tue, 26 Jun 2012 23:46:03 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
 Subject: Re: needed lru_add_drain_all() change
-Message-Id: <20120626234119.755af455.akpm@linux-foundation.org>
+Message-Id: <20120626234603.779f5cbb.akpm@linux-foundation.org>
 In-Reply-To: <4FEAA925.9020202@kernel.org>
 References: <20120626143703.396d6d66.akpm@linux-foundation.org>
 	<4FEA59EE.8060804@kernel.org>
@@ -23,14 +23,14 @@ List-ID: <linux-mm.kvack.org>
 To: Minchan Kim <minchan@kernel.org>
 Cc: linux-mm@kvack.org, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Peter Zijlstra <peterz@infradead.org>
 
-On Wed, 27 Jun 2012 15:33:09 +0900 Minchan Kim <minchan@kernel.org> wrote:
 
-> Anyway, let's wait further answer, especially, RT folks. 
+btw, the first step should be to audit all lru_add_drain_all() sites
+and work out exactly why they are calling lru_add_drain_all() - what
+are they trying to achive?
 
-rt folks said "it isn't changing", and I agree with them.  It isn't
-worth breaking the rt-prio quality of service because a few odd parts
-of the kernel did something inappropriate.  Especially when those
-few sites have alternatives.
+Because we may be able to use a more lightweight approach there, or
+handle the asynchronous behaviour in a more graceful fashion, rather
+than forcing this massive synchronization barrier.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
