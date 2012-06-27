@@ -1,37 +1,64 @@
-Return-Path: <RoyceRusell@ntti.net.sg>
-Received: from las8mmmsmlr5542 (127.0.0.1) by vmta87.message.myspace.com id hnv40o16bnci for <linux-mm@kvack.org>; Tue, 26 Jun 2012 04:18:15 -0800 (envelope-from <noreply@message.myspace.com>)
-MIME-Version: 1.0
-From: "Myspace"
- <noreply@message.myspace.com>
-Reply-To: "Myspace"
- <noreply@message.myspace.com>
-Date: Tue, 26 Jun 2012 04:18:15 -0800
-Subject: Buy Ciails and Viarga online!
-Message-ID: <SNT0-MC2-1QBSPE0BAU5T52URLP@SNT0-MC2-F24.Snt0.hotmail.com>
-Content-Type: multipart/alternative;
-	boundary="----=_Part_1037313_1076891164.6605916782435"
-To: linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
+	by kanga.kvack.org (Postfix) with SMTP id 834746B005A
+	for <linux-mm@kvack.org>; Wed, 27 Jun 2012 03:51:51 -0400 (EDT)
+From: Minchan Kim <minchan@kernel.org>
+Subject: [PATCH 0/2 v2] fix livelock because of kswapd stop
+Date: Wed, 27 Jun 2012 16:51:52 +0900
+Message-Id: <1340783514-8150-1-git-send-email-minchan@kernel.org>
+Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
+To: akpm@linux-foundation.org
+Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Aaditya Kumar <aaditya.kumar.30@gmail.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Minchan Kim <minchan@kernel.org>
 
-------=_Part_1037313_1076891164.6605916782435
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+When hotplug offlining happens on zone A, it starts to mark freed page
+as MIGRATE_ISOLATE type in buddy for preventing further allocation.
+(MIGRATE_ISOLATE is very irony type because it's apparently on buddy
+but we can't allocate them).
+When the memory shortage happens during hotplug offlining,
+current task starts to reclaim, then wake up kswapd.
+Kswapd checks watermark, then go sleep because current zone_watermark_ok_safe
+doesn't consider MIGRATE_ISOLATE freed page count.
+Current task continue to reclaim in direct reclaim path without kswapd's helping.
+The problem is that zone->all_unreclaimable is set by only kswapd
+so that current task would be looping forever like below.
 
+__alloc_pages_slowpath
+restart:
+	wake_all_kswapd
+rebalance:
+	__alloc_pages_direct_reclaim
+		do_try_to_free_pages
+			if global_reclaim && !all_unreclaimable
+				return 1; /* It means we did did_some_progress */
+	skip __alloc_pages_may_oom
+	should_alloc_retry
+		goto rebalance;
 
-USPS Delivery Shipping 1-4 Day USA
-U.S. & Canada Licensed Pharmaices
-ORDER NOW! 
+[1/2] factor out memory-isolation functions from page_alloc.c to mm/page_isolation.c
+      This patch can be merged regardless of [2/2].
 
+[2/2] fix this problem.
+      Aaditya, Could you confirm this patch can solve your problem?
 
-------=_Part_1037313_1076891164.6605916782435
-Content-Type: text/html; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Minchan Kim (2):
+  mm: Factor out memory isolate functions
+  memory-hotplug: fix kswapd looping forever problem
 
-<html>
-  <body >
-<br>USPS Delivery Shipping 1-4 Day USA<br>
-U.S. & Canada Licensed Pharmaices<br>
+ drivers/base/Kconfig           |    1 +
+ include/linux/mmzone.h         |    8 ++++
+ include/linux/page-isolation.h |    8 ++--
+ mm/Kconfig                     |    5 ++
+ mm/Makefile                    |    4 +-
+ mm/page_alloc.c                |  102 ++++++++++++----------------------------
+ mm/page_isolation.c            |   96 +++++++++++++++++++++++++++++++++++++
+ 7 files changed, 147 insertions(+), 77 deletions(-)
 
-<a href="http://doctorpatr.ru">ORDER NOW! </a></body>
-</html>
-------=_Part_1037313_1076891164.6605916782435--
+-- 
+1.7.9.5
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
