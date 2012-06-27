@@ -1,88 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
-	by kanga.kvack.org (Postfix) with SMTP id E966D6B005C
-	for <linux-mm@kvack.org>; Wed, 27 Jun 2012 11:47:07 -0400 (EDT)
-Date: Wed, 27 Jun 2012 11:39:11 -0400
+Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
+	by kanga.kvack.org (Postfix) with SMTP id 46BBF6B0062
+	for <linux-mm@kvack.org>; Wed, 27 Jun 2012 11:47:56 -0400 (EDT)
+Date: Wed, 27 Jun 2012 11:40:03 -0400
 From: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-Subject: Re: [PATCH 3/3] x86: add local_tlb_flush_kernel_range()
-Message-ID: <20120627153911.GH17154@phenom.dumpdata.com>
+Subject: Re: [PATCH 1/3] zram/zcache: swtich Kconfig dependency from X86 to
+ ZSMALLOC
+Message-ID: <20120627154003.GI17154@phenom.dumpdata.com>
 References: <1340640878-27536-1-git-send-email-sjenning@linux.vnet.ibm.com>
- <1340640878-27536-4-git-send-email-sjenning@linux.vnet.ibm.com>
- <4FEA9FDD.6030102@kernel.org>
- <4FEAA4AA.3000406@intel.com>
- <4FEAA7A1.9020307@kernel.org>
- <90bcc2c8-bcac-4620-b3c0-6b65f8d9174d@default>
+ <1340640878-27536-2-git-send-email-sjenning@linux.vnet.ibm.com>
+ <4FEA71E5.5090808@kernel.org>
+ <20120627024301.GA8468@kroah.com>
+ <4FEA74D6.8030107@kernel.org>
+ <20120627032101.GA16419@kroah.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <90bcc2c8-bcac-4620-b3c0-6b65f8d9174d@default>
+In-Reply-To: <20120627032101.GA16419@kroah.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Magenheimer <dan.magenheimer@oracle.com>
-Cc: Minchan Kim <minchan@kernel.org>, Alex Shi <alex.shi@intel.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, devel@driverdev.osuosl.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Robert Jennings <rcj@linux.vnet.ibm.com>, Nitin Gupta <ngupta@vflare.org>
+To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Cc: Minchan Kim <minchan@kernel.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, devel@driverdev.osuosl.org, Dan Magenheimer <dan.magenheimer@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Robert Jennings <rcj@linux.vnet.ibm.com>, Nitin Gupta <ngupta@vflare.org>
 
-On Wed, Jun 27, 2012 at 08:12:56AM -0700, Dan Magenheimer wrote:
-> > From: Minchan Kim [mailto:minchan@kernel.org]
-> > Subject: Re: [PATCH 3/3] x86: add local_tlb_flush_kernel_range()
+On Tue, Jun 26, 2012 at 08:21:01PM -0700, Greg Kroah-Hartman wrote:
+> On Wed, Jun 27, 2012 at 11:49:58AM +0900, Minchan Kim wrote:
+> > Hi Greg,
 > > 
-> > Hello,
+> > On 06/27/2012 11:43 AM, Greg Kroah-Hartman wrote:
 > > 
-> > On 06/27/2012 03:14 PM, Alex Shi wrote:
-> > 
-> > > On 06/27/2012 01:53 PM, Minchan Kim wrote:
-> > >
+> > > On Wed, Jun 27, 2012 at 11:37:25AM +0900, Minchan Kim wrote:
 > > >> On 06/26/2012 01:14 AM, Seth Jennings wrote:
 > > >>
-> > >>> This patch adds support for a local_tlb_flush_kernel_range()
-> > >>> function for the x86 arch.  This function allows for CPU-local
-> > >>> TLB flushing, potentially using invlpg for single entry flushing,
-> > >>> using an arch independent function name.
+> > >>> This patch switches zcache and zram dependency to ZSMALLOC
+> > >>> rather than X86.  There is no net change since ZSMALLOC
+> > >>> depends on X86, however, this prevent further changes to
+> > >>> these files as zsmalloc dependencies change.
 > > >>>
 > > >>> Signed-off-by: Seth Jennings <sjenning@linux.vnet.ibm.com>
 > > >>
+> > >> Reviewed-by: Minchan Kim <minchan@kernel.org>
 > > >>
-> > >> Anyway, we don't matter INVLPG_BREAK_EVEN_PAGES's optimization point is 8 or something.
-> > >
-> > >
-> > > Different CPU type has different balance point on the invlpg replacing
-> > > flush all. and some CPU never get benefit from invlpg, So, it's better
-> > > to use different value for different CPU, not a fixed
-> > > INVLPG_BREAK_EVEN_PAGES.
+> > >> It could be merged regardless of other patches in this series.
+> > > 
+> > > I already did :)
 > > 
-> > I think it could be another patch as further step and someone who are
-> > very familiar with architecture could do better than.
-> > So I hope it could be merged if it doesn't have real big problem.
 > > 
-> > Thanks for the comment, Alex.
+> > It would have been better if you send merge mail to Ccing people.
+> > Anyway, Thanks!
 > 
-> Just my opinion, but I have to agree with Alex.  Hardcoding
-> behavior that is VERY processor-specific is a bad idea.  TLBs should
-> only be messed with when absolutely necessary, not for the
-> convenience of defending an abstraction that is nice-to-have
-> but, in current OS kernel code, unnecessary.
+> I do, for people on the cc: in the signed-off-by area of the patch.  For
+> me to manually add the people on the cc: of the email, I would have to
+> modify git to add them to the commit somehow, sorry.
 
-At least put a big fat comment in the patch saying:
-"This is based on research done by Alex, where ...
-
-
-This needs to be redone where it is automatically figured
-out based on the CPUID, but ." [include what Dan just
-said about breakeven point]
-
-
-> 
-> IIUC, zsmalloc only cares that the breakeven point is greater
-> than two.  An arch-specific choice of (A) two page flushes
-> vs (B) one all-TLB flush should be all that is necessary right
-> now.  (And, per separate discussion, even this isn't really
-> necessary either.)
-> 
-> If zsmalloc _ever_ gets extended to support items that might
-> span three or more pages, a more generic TLB flush-pages-vs-flush-all
-> approach may be warranted and, by then, may already exist in some
-> future kernel.  Until then, IMHO, keep it simple.
-
-Comments are simple :-)
+Is that some other script you have that does that?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
