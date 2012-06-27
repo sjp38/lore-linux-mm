@@ -1,188 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx110.postini.com [74.125.245.110])
-	by kanga.kvack.org (Postfix) with SMTP id F084E6B005A
-	for <linux-mm@kvack.org>; Wed, 27 Jun 2012 17:42:10 -0400 (EDT)
-Message-Id: <20120627212831.353649870@chello.nl>
-Date: Wed, 27 Jun 2012 23:15:51 +0200
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 11/20] mm, s390: Convert to use generic mmu_gather
-References: <20120627211540.459910855@chello.nl>
-Content-Disposition: inline; filename=s390-mmu_range.patch
+Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
+	by kanga.kvack.org (Postfix) with SMTP id 856596B0081
+	for <linux-mm@kvack.org>; Wed, 27 Jun 2012 17:42:24 -0400 (EDT)
+Received: from /spool/local
+	by e8.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
+	Wed, 27 Jun 2012 17:42:22 -0400
+Received: from d01relay07.pok.ibm.com (d01relay07.pok.ibm.com [9.56.227.147])
+	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id 303D338C801D
+	for <linux-mm@kvack.org>; Wed, 27 Jun 2012 17:41:52 -0400 (EDT)
+Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
+	by d01relay07.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q5RLfp0J32505882
+	for <linux-mm@kvack.org>; Wed, 27 Jun 2012 17:41:51 -0400
+Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
+	by d01av03.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q5RLfnSq001466
+	for <linux-mm@kvack.org>; Wed, 27 Jun 2012 18:41:51 -0300
+Message-ID: <4FEB7E19.8040702@linux.vnet.ibm.com>
+Date: Wed, 27 Jun 2012 16:41:45 -0500
+From: Seth Jennings <sjenning@linux.vnet.ibm.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH 3/3] x86: add local_tlb_flush_kernel_range()
+References: <1340640878-27536-1-git-send-email-sjenning@linux.vnet.ibm.com> <1340640878-27536-4-git-send-email-sjenning@linux.vnet.ibm.com> <4FEA9FDD.6030102@kernel.org> <4FEAA4AA.3000406@intel.com> <4FEAA7A1.9020307@kernel.org> <90bcc2c8-bcac-4620-b3c0-6b65f8d9174d@default> <4FEB5204.3090707@linux.vnet.ibm.com> <80ad7298-23de-4c5e-9a8d-483198ae4ef1@default>
+In-Reply-To: <80ad7298-23de-4c5e-9a8d-483198ae4ef1@default>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org
-Cc: Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, akpm@linux-foundation.org, Linus Torvalds <torvalds@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <npiggin@kernel.dk>, Alex Shi <alex.shi@intel.com>, "Nikunj A. Dadhania" <nikunj@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, David Miller <davem@davemloft.net>, Russell King <rmk@arm.linux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Chris Metcalf <cmetcalf@tilera.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Tony Luck <tony.luck@intel.com>, Paul Mundt <lethal@linux-sh.org>, Jeff Dike <jdike@addtoit.com>, Richard Weinberger <richard@nod.at>, Hans-Christian Egtvedt <hans-christian.egtvedt@atmel.com>, Ralf Baechle <ralf@linux-mips.org>, Kyle McMartin <kyle@mcmartin.ca>, James Bottomley <jejb@parisc-linux.org>, Chris Zankel <chris@zankel.net>
+To: Dan Magenheimer <dan.magenheimer@oracle.com>
+Cc: Minchan Kim <minchan@kernel.org>, Alex Shi <alex.shi@intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, devel@driverdev.osuosl.org, Konrad Wilk <konrad.wilk@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Robert Jennings <rcj@linux.vnet.ibm.com>, Nitin Gupta <ngupta@vflare.org>
 
-Now that s390 is using the generic RCU freeing of page-table pages,
-all that remains different wrt the generic mmu_gather code is the lack
-of mmu_gather based TLB flushing for regular entries.
+On 06/27/2012 04:15 PM, Dan Magenheimer wrote:
+>> From: Seth Jennings [mailto:sjenning@linux.vnet.ibm.com]
+>> I guess I'm not following.  Are you supporting the removal
+>> of the "break even" logic?  I added that logic as a
+>> compromise for Peter's feedback:
+>>
+>> http://lkml.org/lkml/2012/5/17/177
+> 
+> Yes, as long as I am correct that zsmalloc never has to map/flush
+> more than two pages at a time, I think dealing with the break-even
+> logic is overkill.
 
-S390 doesn't need a TLB flush after ptep_get_and_clear_full() and
-before __tlb_remove_page() because its ptep_get_and_clear*() family
-already does a full TLB invalidate. Therefore force it to use
-tlb_fast_mode.
+The implementation of local_flush_tlb_kernel_range()
+shouldn't be influenced by zsmalloc at all.  Additionally,
+we can't assume that zsmalloc will always be the only user
+of this function.
 
-Cc: Martin Schwidefsky <schwidefsky@de.ibm.com>
-Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
----
- arch/s390/include/asm/pgtable.h |    1 
- arch/s390/include/asm/tlb.h     |   85 ++++------------------------------------
- include/asm-generic/tlb.h       |    7 +++
- 3 files changed, 17 insertions(+), 76 deletions(-)
---- a/arch/s390/include/asm/pgtable.h
-+++ b/arch/s390/include/asm/pgtable.h
-@@ -1242,6 +1242,7 @@ extern int s390_enable_sie(void);
-  * No page table caches to initialise
-  */
- #define pgtable_cache_init()	do { } while (0)
-+#define check_pgt_cache()	do { } while (0)
- 
- #include <asm-generic/pgtable.h>
- 
---- a/arch/s390/include/asm/tlb.h
-+++ b/arch/s390/include/asm/tlb.h
-@@ -28,82 +28,16 @@
- #include <asm/pgalloc.h>
- #include <asm/tlbflush.h>
- 
--struct mmu_gather {
--	struct mm_struct *mm;
--#ifdef CONFIG_HAVE_RCU_TABLE_FREE
--	struct mmu_table_batch *batch;
--#endif
--	unsigned int fullmm;
--	unsigned int need_flush;
--};
--
--#ifdef CONFIG_HAVE_RCU_TABLE_FREE
--struct mmu_table_batch {
--	struct rcu_head		rcu;
--	unsigned int		nr;
--	void			*tables[0];
--};
--
--#define MAX_TABLE_BATCH		\
--	((PAGE_SIZE - sizeof(struct mmu_table_batch)) / sizeof(void *))
--
--extern void tlb_table_flush(struct mmu_gather *tlb);
--extern void tlb_remove_table(struct mmu_gather *tlb, void *table);
--#endif
--
--static inline void tlb_gather_mmu(struct mmu_gather *tlb,
--				  struct mm_struct *mm,
--				  unsigned int full_mm_flush)
--{
--	tlb->mm = mm;
--	tlb->fullmm = full_mm_flush;
--	tlb->need_flush = 0;
--#ifdef CONFIG_HAVE_RCU_TABLE_FREE
--	tlb->batch = NULL;
--#endif
--	if (tlb->fullmm)
--		__tlb_flush_mm(mm);
--}
--
--static inline void tlb_flush_mmu(struct mmu_gather *tlb)
--{
--	if (!tlb->need_flush)
--		return;
--	tlb->need_flush = 0;
--	__tlb_flush_mm(tlb->mm);
--#ifdef CONFIG_HAVE_RCU_TABLE_FREE
--	tlb_table_flush(tlb);
--#endif
--}
--
--static inline void tlb_finish_mmu(struct mmu_gather *tlb,
--				  unsigned long start, unsigned long end)
--{
--	tlb_flush_mmu(tlb);
--}
-+#define tlb_fast_mode(tlb)	(1)
- 
--/*
-- * Release the page cache reference for a pte removed by
-- * tlb_ptep_clear_flush. In both flush modes the tlb for a page cache page
-- * has already been freed, so just do free_page_and_swap_cache.
-- */
--static inline int __tlb_remove_page(struct mmu_gather *tlb, struct page *page)
--{
--	free_page_and_swap_cache(page);
--	return 1; /* avoid calling tlb_flush_mmu */
--}
--
--static inline void tlb_remove_page(struct mmu_gather *tlb, struct page *page)
--{
--	free_page_and_swap_cache(page);
--}
-+#include <asm-generic/tlb.h>
- 
- /*
-  * pte_free_tlb frees a pte table and clears the CRSTE for the
-  * page table from the tlb.
-  */
--static inline void pte_free_tlb(struct mmu_gather *tlb, pgtable_t pte,
--				unsigned long address, unsigned long end)
-+static inline void __pte_free_tlb(struct mmu_gather *tlb, pgtable_t pte,
-+				unsigned long address)
- {
- #ifdef CONFIG_HAVE_RCU_TABLE_FREE
- 	if (!tlb->fullmm)
-@@ -119,8 +53,8 @@ static inline void pte_free_tlb(struct m
-  * as the pgd. pmd_free_tlb checks the asce_limit against 2GB
-  * to avoid the double free of the pmd in this case.
-  */
--static inline void pmd_free_tlb(struct mmu_gather *tlb, pmd_t *pmd,
--				unsigned long address, unsigned long end)
-+static inline void __pmd_free_tlb(struct mmu_gather *tlb, pmd_t *pmd,
-+				unsigned long address)
- {
- #ifdef CONFIG_64BIT
- 	if (tlb->mm->context.asce_limit <= (1UL << 31))
-@@ -140,8 +74,8 @@ static inline void pmd_free_tlb(struct m
-  * as the pgd. pud_free_tlb checks the asce_limit against 4TB
-  * to avoid the double free of the pud in this case.
-  */
--static inline void pud_free_tlb(struct mmu_gather *tlb, pud_t *pud,
--				unsigned long address, unsigned long end)
-+static inline void __pud_free_tlb(struct mmu_gather *tlb, pud_t *pud,
-+				unsigned long address)
- {
- #ifdef CONFIG_64BIT
- 	if (tlb->mm->context.asce_limit <= (1UL << 42))
-@@ -156,7 +90,6 @@ static inline void pud_free_tlb(struct m
- 
- #define tlb_start_vma(tlb, vma)			do { } while (0)
- #define tlb_end_vma(tlb, vma)			do { } while (0)
--#define tlb_remove_tlb_entry(tlb, ptep, addr)	do { } while (0)
--#define tlb_migrate_finish(mm)			do { } while (0)
-+#define __tlb_remove_tlb_entry(tlb, ptep, addr)	do { } while (0)
- 
- #endif /* _S390_TLB_H */
---- a/include/asm-generic/tlb.h
-+++ b/include/asm-generic/tlb.h
-@@ -207,6 +207,12 @@ static inline void tlb_flush(struct mmu_
- 
- #endif /* CONFIG_HAVE_MMU_GATHER_RANGE */
- 
-+/*
-+ * Some architectures (s390) do a TLB flush from their ptep_get_and_clear*()
-+ * functions, these archs don't need another TLB invalidate and can free their
-+ * pages immediately. They'll over-ride tlb_fast_mode with a constant enable.
-+ */
-+#ifndef tlb_fast_mode
- static inline int tlb_fast_mode(struct mmu_gather *tlb)
- {
- #ifdef CONFIG_SMP
-@@ -219,6 +225,7 @@ static inline int tlb_fast_mode(struct m
- 	return 1;
- #endif
- }
-+#endif
- 
- void tlb_gather_mmu(struct mmu_gather *tlb, struct mm_struct *mm, bool fullmm);
- void tlb_finish_mmu(struct mmu_gather *tlb, unsigned long start, unsigned long end);
+> I see Peter isn't on this dist list... maybe
+> you should ask him if he agrees, as long as we are only always
+> talking about flush-two-TLB-pages vs flush-all.
 
+Yes, I'm planning to send out the next version of patches
+tomorrow (minus the first that has already been accepted)
+and I'll include him like I should have the first time :-/
+
+> (And, of course, per previous discussion, I think even mapping/flushing
+> two TLB pages is unnecessary and overkill required only for protecting an
+> abstraction, but will stop beating that dead horse. ;-)
+
+With this patchset, I actually quantified the the
+performance gain with page table assisted mapping vs mapping
+via copy, and there is a significant 40% difference in
+single-threaded performance.
+
+You can do the test yourself by commenting out the
+#define __HAVE_ARCH_LOCAL_FLUSH_TLB_KERNEL_RANGE
+in tlbflush.h which will cause the new mapping via copy
+method to be used.
+
+--
+Seth
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
