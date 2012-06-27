@@ -1,203 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx165.postini.com [74.125.245.165])
-	by kanga.kvack.org (Postfix) with SMTP id F3DB96B005A
-	for <linux-mm@kvack.org>; Wed, 27 Jun 2012 17:15:16 -0400 (EDT)
-Received: by pbbrp2 with SMTP id rp2so2565985pbb.14
-        for <linux-mm@kvack.org>; Wed, 27 Jun 2012 14:15:16 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
+	by kanga.kvack.org (Postfix) with SMTP id 051E96B005A
+	for <linux-mm@kvack.org>; Wed, 27 Jun 2012 17:16:00 -0400 (EDT)
 MIME-Version: 1.0
-In-Reply-To: <20120627192608.GQ15811@google.com>
-References: <20120619212618.GK32733@google.com>
-	<CAE9FiQVECyRBie-kgBETmqxPaMx24kUt1W07qAqoGD4vNus5xQ@mail.gmail.com>
-	<20120621201728.GB4642@google.com>
-	<CAE9FiQXubmnKHjnqOxVeoJknJZFNuStCcW=1XC6jLE7eznkTmg@mail.gmail.com>
-	<20120622185113.GK4642@google.com>
-	<CAE9FiQVV+WOWywnanrP7nX-wai=aXmQS1Dcvt4PxJg5XWynC+Q@mail.gmail.com>
-	<20120622192919.GL4642@google.com>
-	<CAE9FiQVeJYwpgHjAFp5Q7PazOjeDvN_etrnej987Rc94TjXfAg@mail.gmail.com>
-	<20120627181330.GN15811@google.com>
-	<CAE9FiQXk4abAzuKN8xiA5p5OJaG4UMzQR_Jzx2SsKOuUnKON_A@mail.gmail.com>
-	<20120627192608.GQ15811@google.com>
-Date: Wed, 27 Jun 2012 14:15:15 -0700
-Message-ID: <CAE9FiQXqb4NVnWeJR75+gfwCkKMtBh2GDwoSijPf4JEezfqcnQ@mail.gmail.com>
-Subject: Re: Early boot panic on machine with lots of memory
-From: Yinghai Lu <yinghai@kernel.org>
-Content-Type: multipart/mixed; boundary=047d7b15ae5524117504c37ab60b
+Message-ID: <80ad7298-23de-4c5e-9a8d-483198ae4ef1@default>
+Date: Wed, 27 Jun 2012 14:15:25 -0700 (PDT)
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Subject: RE: [PATCH 3/3] x86: add local_tlb_flush_kernel_range()
+References: <1340640878-27536-1-git-send-email-sjenning@linux.vnet.ibm.com>
+ <1340640878-27536-4-git-send-email-sjenning@linux.vnet.ibm.com>
+ <4FEA9FDD.6030102@kernel.org> <4FEAA4AA.3000406@intel.com>
+ <4FEAA7A1.9020307@kernel.org> <90bcc2c8-bcac-4620-b3c0-6b65f8d9174d@default>
+ <4FEB5204.3090707@linux.vnet.ibm.com>
+In-Reply-To: <4FEB5204.3090707@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>
-Cc: Gavin Shan <shangw@linux.vnet.ibm.com>, Sasha Levin <levinsasha928@gmail.com>, David Miller <davem@davemloft.net>, hpa@linux.intel.com, linux-mm <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Cc: Minchan Kim <minchan@kernel.org>, Alex Shi <alex.shi@intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, devel@driverdev.osuosl.org, Konrad Wilk <konrad.wilk@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Robert Jennings <rcj@linux.vnet.ibm.com>, Nitin Gupta <ngupta@vflare.org>
 
---047d7b15ae5524117504c37ab60b
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+> From: Seth Jennings [mailto:sjenning@linux.vnet.ibm.com]
+> Sent: Wednesday, June 27, 2012 12:34 PM
+> To: Dan Magenheimer
+> Cc: Minchan Kim; Alex Shi; Greg Kroah-Hartman; devel@driverdev.osuosl.org=
+; Konrad Wilk; linux-
+> kernel@vger.kernel.org; linux-mm@kvack.org; Andrew Morton; Robert Jenning=
+s; Nitin Gupta
+> Subject: Re: [PATCH 3/3] x86: add local_tlb_flush_kernel_range()
+>=20
+> On 06/27/2012 10:12 AM, Dan Magenheimer wrote:
+> >> From: Minchan Kim [mailto:minchan@kernel.org]
+> >> Subject: Re: [PATCH 3/3] x86: add local_tlb_flush_kernel_range()
+> >>
+> >> On 06/27/2012 03:14 PM, Alex Shi wrote:
+> >>>
+> >>> On 06/27/2012 01:53 PM, Minchan Kim wrote:
+> >>> Different CPU type has different balance point on the invlpg replacin=
+g
+> >>> flush all. and some CPU never get benefit from invlpg, So, it's bette=
+r
+> >>> to use different value for different CPU, not a fixed
+> >>> INVLPG_BREAK_EVEN_PAGES.
+> >>
+> >> I think it could be another patch as further step and someone who are
+> >> very familiar with architecture could do better than.
+> >> So I hope it could be merged if it doesn't have real big problem.
+> >>
+> >> Thanks for the comment, Alex.
+> >
+> > Just my opinion, but I have to agree with Alex.  Hardcoding
+> > behavior that is VERY processor-specific is a bad idea.  TLBs should
+> > only be messed with when absolutely necessary, not for the
+> > convenience of defending an abstraction that is nice-to-have
+> > but, in current OS kernel code, unnecessary.
+>=20
+> I agree that it's not optimal.  The selection based on CPUID
+> is part of Alex's patchset, and I'll be glad to use that
+> code when it gets integrated.
+>=20
+> But the real discussion is are we going to:
+> 1) wait until Alex's patches to be integrated, degrading
+> zsmalloc in the meantime or
+> 2) put in some simple temporary logic that works well (not
+> best) for most cases
+>=20
+> > IIUC, zsmalloc only cares that the breakeven point is greater
+> > than two.  An arch-specific choice of (A) two page flushes
+> > vs (B) one all-TLB flush should be all that is necessary right
+> > now.  (And, per separate discussion, even this isn't really
+> > necessary either.)
+> >
+> > If zsmalloc _ever_ gets extended to support items that might
+> > span three or more pages, a more generic TLB flush-pages-vs-flush-all
+> > approach may be warranted and, by then, may already exist in some
+> > future kernel.  Until then, IMHO, keep it simple.
+>=20
+> I guess I'm not following.  Are you supporting the removal
+> of the "break even" logic?  I added that logic as a
+> compromise for Peter's feedback:
+>=20
+> http://lkml.org/lkml/2012/5/17/177
 
-On Wed, Jun 27, 2012 at 12:26 PM, Tejun Heo <tj@kernel.org> wrote:
-> On Wed, Jun 27, 2012 at 12:22:14PM -0700, Yinghai Lu wrote:
->> On Wed, Jun 27, 2012 at 11:13 AM, Tejun Heo <tj@kernel.org> wrote:
->> > Hello, Yinghai.
->> >
->> > Sorry about the delay. =A0I'm in bug storm somehow. :(
->> >
->> > On Fri, Jun 22, 2012 at 07:14:43PM -0700, Yinghai Lu wrote:
->> >> On Fri, Jun 22, 2012 at 12:29 PM, Tejun Heo <tj@kernel.org> wrote:
->> >> > I wish we had a single call - say, memblock_die(), or whatever - so
->> >> > that there's a clear indication that memblock usage is done, but ye=
-ah
->> >> > maybe another day. =A0Will review the patch itself. =A0BTW, can't y=
-ou post
->> >> > patches inline anymore? =A0Attaching is better than corrupt but is =
-still
->> >> > a bit annoying for review.
->> >>
->> >> please check the three patches:
->> >
->> > Heh, reviewing is cumbersome this way but here are my comments.
->> >
->> > * "[PATCH] memblock: free allocated memblock_reserved_regions later"
->> > =A0looks okay to me.
->>
->> Good, this one should go to 3.5, right?
->
-> Yes, I think so.
->
+Yes, as long as I am correct that zsmalloc never has to map/flush
+more than two pages at a time, I think dealing with the break-even
+logic is overkill.  I see Peter isn't on this dist list... maybe
+you should ask him if he agrees, as long as we are only always
+talking about flush-two-TLB-pages vs flush-all.
 
-Andrew,
+(And, of course, per previous discussion, I think even mapping/flushing
+two TLB pages is unnecessary and overkill required only for protecting an
+abstraction, but will stop beating that dead horse. ;-)
 
-can you push attached to Linus ?
-or we need to route it through tip?
-
-Thanks
-
-Yinghai
-
---047d7b15ae5524117504c37ab60b
-Content-Type: application/octet-stream;
-	name="fix_free_memblock_reserve_v4_5.patch"
-Content-Disposition: attachment;
-	filename="fix_free_memblock_reserve_v4_5.patch"
-Content-Transfer-Encoding: base64
-X-Attachment-Id: f_h3ywi6k20
-
-U3ViamVjdDogW1BBVENIXSBtZW1ibG9jazogZnJlZSBhbGxvY2F0ZWQgbWVtYmxvY2tfcmVzZXJ2
-ZWRfcmVnaW9ucyBsYXRlcgoKSW4gbWVtYmxvY2tfZnJlZV9yZXNlcnZlZF9yZWdpb25zLCB3aWxs
-IGNhbGwgbWVtYmxvY2tfZnJlZSgpLApidXQgbWVtYmxvY2tfZnJlZSgpIHdvdWxkIGRvdWJsZSBy
-ZXNlcnZlZC5yZWdpb25zIHRvbywgc28gd2UgY291bGQgZnJlZQpvbGQgcmFuZ2UgZm9yIHJlc2Vy
-dmVkLnJlZ2lvbnMuCgpBbHNvIHRqIHNhaWQgdGhlcmUgaXMgYW5vdGhlciBidWcgY291bGQgYmUg
-cmVsYXRlZCB0byB0aGlzIHRvby4KCnwgSSBkb24ndCB0aGluayB3ZSdyZSBzYXZpbmcgYW55IG5v
-dGljZWFibGUKfCBhbW91bnQgYnkgZG9pbmcgdGhpcyAiZnJlZSAtIGdpdmUgaXQgdG8gcGFnZSBh
-bGxvY2F0b3IgLSByZXNlcnZlCnwgYWdhaW4iIGRhbmNpbmcuICBXZSBzaG91bGQganVzdCBhbGxv
-Y2F0ZSByZWdpb25zIGFsaWduZWQgdG8gcGFnZQp8IGJvdW5kYXJpZXMgYW5kIGZyZWUgdGhlbSBs
-YXRlciB3aGVuIG1lbWJsb2NrIGlzIG5vIGxvbmdlciBpbiB1c2UuCgpTbyB0cnkgdG8gYWxsb2Nh
-dGUgdGhhdCBpbiBQQUdFX1NJWkUgYWxpZ25tZW50IGFuZCBmcmVlIHRoYXQgbGF0ZXIuCgotdjU6
-IFVzZSBuZXdfYWxsb2Nfc2l6ZSwgYW5kIG9sZF9hbGxvY19zaXplIHRvIHNpbXBsaWZ5IGl0IGFj
-Y29yZGluZyB0byB0ai4KCkFja2VkLWJ5OiBUZWp1biBIZW8gPHRqQGtlcm5lbC5vcmc+CkNjOiBC
-ZW5qYW1pbiBIZXJyZW5zY2htaWR0IDxiZW5oQGtlcm5lbC5jcmFzaGluZy5vcmc+CkNjOiBBbmRy
-ZXcgTW9ydG9uIDxha3BtQGxpbnV4LWZvdW5kYXRpb24ub3JnPgpTaWduZWQtb2ZmLWJ5OiBZaW5n
-aGFpIEx1IDx5aW5naGFpQGtlcm5lbC5vcmc+CgotLS0KIGluY2x1ZGUvbGludXgvbWVtYmxvY2su
-aCB8ICAgIDQgLS0tCiBtbS9tZW1ibG9jay5jICAgICAgICAgICAgfCAgIDUxICsrKysrKysrKysr
-KysrKysrKysrKy0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tCiBtbS9ub2Jvb3RtZW0uYyAgICAg
-ICAgICAgfCAgIDM2ICsrKysrKysrKysrKysrKysrKysrLS0tLS0tLS0tLS0tLQogMyBmaWxlcyBj
-aGFuZ2VkLCA0NiBpbnNlcnRpb25zKCspLCA0NSBkZWxldGlvbnMoLSkKCkluZGV4OiBsaW51eC0y
-LjYvaW5jbHVkZS9saW51eC9tZW1ibG9jay5oCj09PT09PT09PT09PT09PT09PT09PT09PT09PT09
-PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT0KLS0tIGxpbnV4LTIuNi5vcmln
-L2luY2x1ZGUvbGludXgvbWVtYmxvY2suaAorKysgbGludXgtMi42L2luY2x1ZGUvbGludXgvbWVt
-YmxvY2suaApAQCAtNTAsOSArNTAsNyBAQCBwaHlzX2FkZHJfdCBtZW1ibG9ja19maW5kX2luX3Jh
-bmdlX25vZGUoCiAJCQkJcGh5c19hZGRyX3Qgc2l6ZSwgcGh5c19hZGRyX3QgYWxpZ24sIGludCBu
-aWQpOwogcGh5c19hZGRyX3QgbWVtYmxvY2tfZmluZF9pbl9yYW5nZShwaHlzX2FkZHJfdCBzdGFy
-dCwgcGh5c19hZGRyX3QgZW5kLAogCQkJCSAgIHBoeXNfYWRkcl90IHNpemUsIHBoeXNfYWRkcl90
-IGFsaWduKTsKLWludCBtZW1ibG9ja19mcmVlX3Jlc2VydmVkX3JlZ2lvbnModm9pZCk7Ci1pbnQg
-bWVtYmxvY2tfcmVzZXJ2ZV9yZXNlcnZlZF9yZWdpb25zKHZvaWQpOwotCitwaHlzX2FkZHJfdCBn
-ZXRfYWxsb2NhdGVkX21lbWJsb2NrX3Jlc2VydmVkX3JlZ2lvbnNfaW5mbyhwaHlzX2FkZHJfdCAq
-YWRkcik7CiB2b2lkIG1lbWJsb2NrX2FsbG93X3Jlc2l6ZSh2b2lkKTsKIGludCBtZW1ibG9ja19h
-ZGRfbm9kZShwaHlzX2FkZHJfdCBiYXNlLCBwaHlzX2FkZHJfdCBzaXplLCBpbnQgbmlkKTsKIGlu
-dCBtZW1ibG9ja19hZGQocGh5c19hZGRyX3QgYmFzZSwgcGh5c19hZGRyX3Qgc2l6ZSk7CkluZGV4
-OiBsaW51eC0yLjYvbW0vbWVtYmxvY2suYwo9PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09
-PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09Ci0tLSBsaW51eC0yLjYub3JpZy9t
-bS9tZW1ibG9jay5jCisrKyBsaW51eC0yLjYvbW0vbWVtYmxvY2suYwpAQCAtMTQzLDMwICsxNDMs
-NiBAQCBwaHlzX2FkZHJfdCBfX2luaXRfbWVtYmxvY2sgbWVtYmxvY2tfZmluCiAJCQkJCSAgIE1B
-WF9OVU1OT0RFUyk7CiB9CiAKLS8qCi0gKiBGcmVlIG1lbWJsb2NrLnJlc2VydmVkLnJlZ2lvbnMK
-LSAqLwotaW50IF9faW5pdF9tZW1ibG9jayBtZW1ibG9ja19mcmVlX3Jlc2VydmVkX3JlZ2lvbnMo
-dm9pZCkKLXsKLQlpZiAobWVtYmxvY2sucmVzZXJ2ZWQucmVnaW9ucyA9PSBtZW1ibG9ja19yZXNl
-cnZlZF9pbml0X3JlZ2lvbnMpCi0JCXJldHVybiAwOwotCi0JcmV0dXJuIG1lbWJsb2NrX2ZyZWUo
-X19wYShtZW1ibG9jay5yZXNlcnZlZC5yZWdpb25zKSwKLQkJIHNpemVvZihzdHJ1Y3QgbWVtYmxv
-Y2tfcmVnaW9uKSAqIG1lbWJsb2NrLnJlc2VydmVkLm1heCk7Ci19Ci0KLS8qCi0gKiBSZXNlcnZl
-IG1lbWJsb2NrLnJlc2VydmVkLnJlZ2lvbnMKLSAqLwotaW50IF9faW5pdF9tZW1ibG9jayBtZW1i
-bG9ja19yZXNlcnZlX3Jlc2VydmVkX3JlZ2lvbnModm9pZCkKLXsKLQlpZiAobWVtYmxvY2sucmVz
-ZXJ2ZWQucmVnaW9ucyA9PSBtZW1ibG9ja19yZXNlcnZlZF9pbml0X3JlZ2lvbnMpCi0JCXJldHVy
-biAwOwotCi0JcmV0dXJuIG1lbWJsb2NrX3Jlc2VydmUoX19wYShtZW1ibG9jay5yZXNlcnZlZC5y
-ZWdpb25zKSwKLQkJIHNpemVvZihzdHJ1Y3QgbWVtYmxvY2tfcmVnaW9uKSAqIG1lbWJsb2NrLnJl
-c2VydmVkLm1heCk7Ci19Ci0KIHN0YXRpYyB2b2lkIF9faW5pdF9tZW1ibG9jayBtZW1ibG9ja19y
-ZW1vdmVfcmVnaW9uKHN0cnVjdCBtZW1ibG9ja190eXBlICp0eXBlLCB1bnNpZ25lZCBsb25nIHIp
-CiB7CiAJdHlwZS0+dG90YWxfc2l6ZSAtPSB0eXBlLT5yZWdpb25zW3JdLnNpemU7CkBAIC0xODQs
-NiArMTYwLDE4IEBAIHN0YXRpYyB2b2lkIF9faW5pdF9tZW1ibG9jayBtZW1ibG9ja19yZW0KIAl9
-CiB9CiAKK3BoeXNfYWRkcl90IF9faW5pdF9tZW1ibG9jayBnZXRfYWxsb2NhdGVkX21lbWJsb2Nr
-X3Jlc2VydmVkX3JlZ2lvbnNfaW5mbygKKwkJCQkJcGh5c19hZGRyX3QgKmFkZHIpCit7CisJaWYg
-KG1lbWJsb2NrLnJlc2VydmVkLnJlZ2lvbnMgPT0gbWVtYmxvY2tfcmVzZXJ2ZWRfaW5pdF9yZWdp
-b25zKQorCQlyZXR1cm4gMDsKKworCSphZGRyID0gX19wYShtZW1ibG9jay5yZXNlcnZlZC5yZWdp
-b25zKTsKKworCXJldHVybiBQQUdFX0FMSUdOKHNpemVvZihzdHJ1Y3QgbWVtYmxvY2tfcmVnaW9u
-KSAqCisJCQkgIG1lbWJsb2NrLnJlc2VydmVkLm1heCk7Cit9CisKIC8qKgogICogbWVtYmxvY2tf
-ZG91YmxlX2FycmF5IC0gZG91YmxlIHRoZSBzaXplIG9mIHRoZSBtZW1ibG9jayByZWdpb25zIGFy
-cmF5CiAgKiBAdHlwZTogbWVtYmxvY2sgdHlwZSBvZiB0aGUgcmVnaW9ucyBhcnJheSBiZWluZyBk
-b3VibGVkCkBAIC0yMDQsNiArMTkyLDcgQEAgc3RhdGljIGludCBfX2luaXRfbWVtYmxvY2sgbWVt
-YmxvY2tfZG91YgogCQkJCQkJcGh5c19hZGRyX3QgbmV3X2FyZWFfc2l6ZSkKIHsKIAlzdHJ1Y3Qg
-bWVtYmxvY2tfcmVnaW9uICpuZXdfYXJyYXksICpvbGRfYXJyYXk7CisJcGh5c19hZGRyX3Qgb2xk
-X2FsbG9jX3NpemUsIG5ld19hbGxvY19zaXplOwogCXBoeXNfYWRkcl90IG9sZF9zaXplLCBuZXdf
-c2l6ZSwgYWRkcjsKIAlpbnQgdXNlX3NsYWIgPSBzbGFiX2lzX2F2YWlsYWJsZSgpOwogCWludCAq
-aW5fc2xhYjsKQEAgLTIxNyw2ICsyMDYsMTIgQEAgc3RhdGljIGludCBfX2luaXRfbWVtYmxvY2sg
-bWVtYmxvY2tfZG91YgogCS8qIENhbGN1bGF0ZSBuZXcgZG91YmxlZCBzaXplICovCiAJb2xkX3Np
-emUgPSB0eXBlLT5tYXggKiBzaXplb2Yoc3RydWN0IG1lbWJsb2NrX3JlZ2lvbik7CiAJbmV3X3Np
-emUgPSBvbGRfc2l6ZSA8PCAxOworCS8qCisJICogV2UgbmVlZCB0byBhbGxvY2F0ZWQgbmV3IG9u
-ZSBhbGlnbiB0byBQQUdFX1NJWkUsCisJICogIHNvIGxhdGUgY291bGQgZnJlZSB0aGVtIGNvbXBs
-ZXRlbHkuCisJICovCisJb2xkX2FsbG9jX3NpemUgPSBQQUdFX0FMSUdOKG9sZF9zaXplKTsKKwlu
-ZXdfYWxsb2Nfc2l6ZSA9IFBBR0VfQUxJR04obmV3X3NpemUpOwogCiAJLyogUmV0cmlldmUgdGhl
-IHNsYWIgZmxhZyAqLwogCWlmICh0eXBlID09ICZtZW1ibG9jay5tZW1vcnkpCkBAIC0yNDUsMTEg
-KzI0MCwxMSBAQCBzdGF0aWMgaW50IF9faW5pdF9tZW1ibG9jayBtZW1ibG9ja19kb3ViCiAKIAkJ
-YWRkciA9IG1lbWJsb2NrX2ZpbmRfaW5fcmFuZ2UobmV3X2FyZWFfc3RhcnQgKyBuZXdfYXJlYV9z
-aXplLAogCQkJCQkJbWVtYmxvY2suY3VycmVudF9saW1pdCwKLQkJCQkJCW5ld19zaXplLCBzaXpl
-b2YocGh5c19hZGRyX3QpKTsKKwkJCQkJCW5ld19hbGxvY19zaXplLCBQQUdFX1NJWkUpOwogCQlp
-ZiAoIWFkZHIgJiYgbmV3X2FyZWFfc2l6ZSkKIAkJCWFkZHIgPSBtZW1ibG9ja19maW5kX2luX3Jh
-bmdlKDAsCiAJCQkJCW1pbihuZXdfYXJlYV9zdGFydCwgbWVtYmxvY2suY3VycmVudF9saW1pdCks
-Ci0JCQkJCW5ld19zaXplLCBzaXplb2YocGh5c19hZGRyX3QpKTsKKwkJCQkJbmV3X2FsbG9jX3Np
-emUsIFBBR0VfU0laRSk7CiAKIAkJbmV3X2FycmF5ID0gYWRkciA/IF9fdmEoYWRkcikgOiAwOwog
-CX0KQEAgLTI3OSwxMyArMjc0LDEzIEBAIHN0YXRpYyBpbnQgX19pbml0X21lbWJsb2NrIG1lbWJs
-b2NrX2RvdWIKIAkJa2ZyZWUob2xkX2FycmF5KTsKIAllbHNlIGlmIChvbGRfYXJyYXkgIT0gbWVt
-YmxvY2tfbWVtb3J5X2luaXRfcmVnaW9ucyAmJgogCQkgb2xkX2FycmF5ICE9IG1lbWJsb2NrX3Jl
-c2VydmVkX2luaXRfcmVnaW9ucykKLQkJbWVtYmxvY2tfZnJlZShfX3BhKG9sZF9hcnJheSksIG9s
-ZF9zaXplKTsKKwkJbWVtYmxvY2tfZnJlZShfX3BhKG9sZF9hcnJheSksIG9sZF9hbGxvY19zaXpl
-KTsKIAogCS8qIFJlc2VydmUgdGhlIG5ldyBhcnJheSBpZiB0aGF0IGNvbWVzIGZyb20gdGhlIG1l
-bWJsb2NrLgogCSAqIE90aGVyd2lzZSwgd2UgbmVlZG4ndCBkbyBpdAogCSAqLwogCWlmICghdXNl
-X3NsYWIpCi0JCUJVR19PTihtZW1ibG9ja19yZXNlcnZlKGFkZHIsIG5ld19zaXplKSk7CisJCUJV
-R19PTihtZW1ibG9ja19yZXNlcnZlKGFkZHIsIG5ld19hbGxvY19zaXplKSk7CiAKIAkvKiBVcGRh
-dGUgc2xhYiBmbGFnICovCiAJKmluX3NsYWIgPSB1c2Vfc2xhYjsKSW5kZXg6IGxpbnV4LTIuNi9t
-bS9ub2Jvb3RtZW0uYwo9PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09
-PT09PT09PT09PT09PT09PT09PT09PT09Ci0tLSBsaW51eC0yLjYub3JpZy9tbS9ub2Jvb3RtZW0u
-YworKysgbGludXgtMi42L21tL25vYm9vdG1lbS5jCkBAIC0xMDUsMjcgKzEwNSwzNSBAQCBzdGF0
-aWMgdm9pZCBfX2luaXQgX19mcmVlX3BhZ2VzX21lbW9yeSh1CiAJCV9fZnJlZV9wYWdlc19ib290
-bWVtKHBmbl90b19wYWdlKGkpLCAwKTsKIH0KIAorc3RhdGljIHVuc2lnbmVkIGxvbmcgX19pbml0
-IF9fZnJlZV9tZW1vcnlfY29yZShwaHlzX2FkZHJfdCBzdGFydCwKKwkJCQkgcGh5c19hZGRyX3Qg
-ZW5kKQoreworCXVuc2lnbmVkIGxvbmcgc3RhcnRfcGZuID0gUEZOX1VQKHN0YXJ0KTsKKwl1bnNp
-Z25lZCBsb25nIGVuZF9wZm4gPSBtaW5fdCh1bnNpZ25lZCBsb25nLAorCQkJCSAgICAgIFBGTl9E
-T1dOKGVuZCksIG1heF9sb3dfcGZuKTsKKworCWlmIChzdGFydF9wZm4gPiBlbmRfcGZuKQorCQly
-ZXR1cm4gMDsKKworCV9fZnJlZV9wYWdlc19tZW1vcnkoc3RhcnRfcGZuLCBlbmRfcGZuKTsKKwor
-CXJldHVybiBlbmRfcGZuIC0gc3RhcnRfcGZuOworfQorCiB1bnNpZ25lZCBsb25nIF9faW5pdCBm
-cmVlX2xvd19tZW1vcnlfY29yZV9lYXJseShpbnQgbm9kZWlkKQogewogCXVuc2lnbmVkIGxvbmcg
-Y291bnQgPSAwOwotCXBoeXNfYWRkcl90IHN0YXJ0LCBlbmQ7CisJcGh5c19hZGRyX3Qgc3RhcnQs
-IGVuZCwgc2l6ZTsKIAl1NjQgaTsKIAotCS8qIGZyZWUgcmVzZXJ2ZWQgYXJyYXkgdGVtcG9yYXJp
-bHkgc28gdGhhdCBpdCdzIHRyZWF0ZWQgYXMgZnJlZSBhcmVhICovCi0JbWVtYmxvY2tfZnJlZV9y
-ZXNlcnZlZF9yZWdpb25zKCk7CisJZm9yX2VhY2hfZnJlZV9tZW1fcmFuZ2UoaSwgTUFYX05VTU5P
-REVTLCAmc3RhcnQsICZlbmQsIE5VTEwpCisJCWNvdW50ICs9IF9fZnJlZV9tZW1vcnlfY29yZShz
-dGFydCwgZW5kKTsKIAotCWZvcl9lYWNoX2ZyZWVfbWVtX3JhbmdlKGksIE1BWF9OVU1OT0RFUywg
-JnN0YXJ0LCAmZW5kLCBOVUxMKSB7Ci0JCXVuc2lnbmVkIGxvbmcgc3RhcnRfcGZuID0gUEZOX1VQ
-KHN0YXJ0KTsKLQkJdW5zaWduZWQgbG9uZyBlbmRfcGZuID0gbWluX3QodW5zaWduZWQgbG9uZywK
-LQkJCQkJICAgICAgUEZOX0RPV04oZW5kKSwgbWF4X2xvd19wZm4pOwotCQlpZiAoc3RhcnRfcGZu
-IDwgZW5kX3BmbikgewotCQkJX19mcmVlX3BhZ2VzX21lbW9yeShzdGFydF9wZm4sIGVuZF9wZm4p
-OwotCQkJY291bnQgKz0gZW5kX3BmbiAtIHN0YXJ0X3BmbjsKLQkJfQotCX0KKwkvKiBmcmVlIHJh
-bmdlIHRoYXQgaXMgdXNlZCBmb3IgcmVzZXJ2ZWQgYXJyYXkgaWYgd2UgYWxsb2NhdGUgaXQgKi8K
-KwlzaXplID0gZ2V0X2FsbG9jYXRlZF9tZW1ibG9ja19yZXNlcnZlZF9yZWdpb25zX2luZm8oJnN0
-YXJ0KTsKKwlpZiAoc2l6ZSkKKwkJY291bnQgKz0gX19mcmVlX21lbW9yeV9jb3JlKHN0YXJ0LCBz
-dGFydCArIHNpemUpOwogCi0JLyogcHV0IHJlZ2lvbiBhcnJheSBiYWNrPyAqLwotCW1lbWJsb2Nr
-X3Jlc2VydmVfcmVzZXJ2ZWRfcmVnaW9ucygpOwogCXJldHVybiBjb3VudDsKIH0KIAo=
---047d7b15ae5524117504c37ab60b--
+Dan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
