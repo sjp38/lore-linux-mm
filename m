@@ -1,74 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx140.postini.com [74.125.245.140])
-	by kanga.kvack.org (Postfix) with SMTP id A6A3D6B005A
-	for <linux-mm@kvack.org>; Wed, 27 Jun 2012 11:13:36 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
+	by kanga.kvack.org (Postfix) with SMTP id 06EEC6B005A
+	for <linux-mm@kvack.org>; Wed, 27 Jun 2012 11:18:19 -0400 (EDT)
+Date: Wed, 27 Jun 2012 12:17:17 -0300
+From: Rafael Aquini <aquini@redhat.com>
+Subject: Re: [PATCH 1/4] mm: introduce compaction and migration for virtio
+ ballooned pages
+Message-ID: <20120627151716.GA3653@t510.redhat.com>
+References: <cover.1340665087.git.aquini@redhat.com>
+ <7f83427b3894af7969c67acc0f27ab5aa68b4279.1340665087.git.aquini@redhat.com>
+ <20120626235754.GB14782@localhost.localdomain>
 MIME-Version: 1.0
-Message-ID: <90bcc2c8-bcac-4620-b3c0-6b65f8d9174d@default>
-Date: Wed, 27 Jun 2012 08:12:56 -0700 (PDT)
-From: Dan Magenheimer <dan.magenheimer@oracle.com>
-Subject: RE: [PATCH 3/3] x86: add local_tlb_flush_kernel_range()
-References: <1340640878-27536-1-git-send-email-sjenning@linux.vnet.ibm.com>
- <1340640878-27536-4-git-send-email-sjenning@linux.vnet.ibm.com>
- <4FEA9FDD.6030102@kernel.org> <4FEAA4AA.3000406@intel.com>
- <4FEAA7A1.9020307@kernel.org>
-In-Reply-To: <4FEAA7A1.9020307@kernel.org>
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: quoted-printable
+Content-Disposition: inline
+In-Reply-To: <20120626235754.GB14782@localhost.localdomain>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>, Alex Shi <alex.shi@intel.com>
-Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, devel@driverdev.osuosl.org, Konrad Wilk <konrad.wilk@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Robert Jennings <rcj@linux.vnet.ibm.com>, Nitin Gupta <ngupta@vflare.org>
+To: Konrad Rzeszutek Wilk <konrad@darnok.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, Rusty Russell <rusty@rustcorp.com.au>, "Michael S. Tsirkin" <mst@redhat.com>, Rik van Riel <riel@redhat.com>
 
-> From: Minchan Kim [mailto:minchan@kernel.org]
-> Subject: Re: [PATCH 3/3] x86: add local_tlb_flush_kernel_range()
->=20
-> Hello,
->=20
-> On 06/27/2012 03:14 PM, Alex Shi wrote:
->=20
-> > On 06/27/2012 01:53 PM, Minchan Kim wrote:
-> >
-> >> On 06/26/2012 01:14 AM, Seth Jennings wrote:
-> >>
-> >>> This patch adds support for a local_tlb_flush_kernel_range()
-> >>> function for the x86 arch.  This function allows for CPU-local
-> >>> TLB flushing, potentially using invlpg for single entry flushing,
-> >>> using an arch independent function name.
-> >>>
-> >>> Signed-off-by: Seth Jennings <sjenning@linux.vnet.ibm.com>
-> >>
-> >>
-> >> Anyway, we don't matter INVLPG_BREAK_EVEN_PAGES's optimization point i=
-s 8 or something.
-> >
-> >
-> > Different CPU type has different balance point on the invlpg replacing
-> > flush all. and some CPU never get benefit from invlpg, So, it's better
-> > to use different value for different CPU, not a fixed
-> > INVLPG_BREAK_EVEN_PAGES.
->=20
-> I think it could be another patch as further step and someone who are
-> very familiar with architecture could do better than.
-> So I hope it could be merged if it doesn't have real big problem.
->=20
-> Thanks for the comment, Alex.
+On Tue, Jun 26, 2012 at 07:57:55PM -0400, Konrad Rzeszutek Wilk wrote:
+> > +#if defined(CONFIG_VIRTIO_BALLOON) || defined(CONFIG_VIRTIO_BALLOON_MODULE)
+> > +/*
+> > + * Balloon pages special page->mapping.
+> > + * users must properly allocate and initiliaze an instance of balloon_mapping,
+> 
+> initialize
+>
+Thanks! will fix it.
+ 
+> > + * and set it as the page->mapping for balloon enlisted page instances.
+> > + *
+> > + * address_space_operations necessary methods for ballooned pages:
+> > + *   .migratepage    - used to perform balloon's page migration (as is)
+> > + *   .invalidatepage - used to isolate a page from balloon's page list
+> > + *   .freepage       - used to reinsert an isolated page to balloon's page list
+> > + */
+> > +struct address_space *balloon_mapping;
+> > +EXPORT_SYMBOL(balloon_mapping);
+> 
+> Why don't you call this kvm_balloon_mapping - and when other balloon
+> drivers use it, then change it to something more generic. Also at that
+> future point the other balloon drivers might do it a bit differently so
+> it might be that will be reworked completly.
 
-Just my opinion, but I have to agree with Alex.  Hardcoding
-behavior that is VERY processor-specific is a bad idea.  TLBs should
-only be messed with when absolutely necessary, not for the
-convenience of defending an abstraction that is nice-to-have
-but, in current OS kernel code, unnecessary.
+Ok, I see your point. However I really think it's better to keep the naming as
+generic as possible today and, in the future, those who need to change it a bit can
+do it with no pain at all. I believe this way we potentially prevent unnecessary code
+duplication, as it will just be a matter of adjusting those preprocessor checking to
+include other balloon driver to the scheme, or get rid of all of them (in case all 
+balloon drivers assume the very same technique for their page mobility primitives).
 
-IIUC, zsmalloc only cares that the breakeven point is greater
-than two.  An arch-specific choice of (A) two page flushes
-vs (B) one all-TLB flush should be all that is necessary right
-now.  (And, per separate discussion, even this isn't really
-necessary either.)
+As I can be utterly wrong on this, lets see if other folks raise the same
+concerns about this naming scheme I'm using here. If it ends up being a general
+concern that it would be better not being generic at this point, I'll happily
+switch my approach to whatever comes up to be the most feasible way of doing it.
 
-If zsmalloc _ever_ gets extended to support items that might
-span three or more pages, a more generic TLB flush-pages-vs-flush-all
-approach may be warranted and, by then, may already exist in some
-future kernel.  Until then, IMHO, keep it simple.
+Thanks a lot for taking such consideration and provide good feedback on this
+work.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
