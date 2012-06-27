@@ -1,69 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx165.postini.com [74.125.245.165])
-	by kanga.kvack.org (Postfix) with SMTP id 4C31C6B005A
-	for <linux-mm@kvack.org>; Wed, 27 Jun 2012 13:01:56 -0400 (EDT)
-Received: from /spool/local
-	by e9.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <dave@linux.vnet.ibm.com>;
-	Wed, 27 Jun 2012 13:01:55 -0400
-Received: from d01relay06.pok.ibm.com (d01relay06.pok.ibm.com [9.56.227.116])
-	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id 2547B38C8024
-	for <linux-mm@kvack.org>; Wed, 27 Jun 2012 13:01:51 -0400 (EDT)
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay06.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q5RH1kY835979464
-	for <linux-mm@kvack.org>; Wed, 27 Jun 2012 13:01:47 -0400
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q5RH1hhA008049
-	for <linux-mm@kvack.org>; Wed, 27 Jun 2012 14:01:43 -0300
-Message-ID: <4FEB3C67.6070604@linux.vnet.ibm.com>
-Date: Wed, 27 Jun 2012 10:01:27 -0700
-From: Dave Hansen <dave@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
+	by kanga.kvack.org (Postfix) with SMTP id A90706B005A
+	for <linux-mm@kvack.org>; Wed, 27 Jun 2012 13:07:39 -0400 (EDT)
+Received: by pbbrp2 with SMTP id rp2so2247029pbb.14
+        for <linux-mm@kvack.org>; Wed, 27 Jun 2012 10:07:38 -0700 (PDT)
+Date: Wed, 27 Jun 2012 10:07:34 -0700
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH 2/2] memcg: first step towards hierarchical controller
+Message-ID: <20120627170734.GI15811@google.com>
+References: <1340725634-9017-1-git-send-email-glommer@parallels.com>
+ <1340725634-9017-3-git-send-email-glommer@parallels.com>
+ <20120626180451.GP3869@google.com>
+ <20120626185542.GE27816@cmpxchg.org>
+ <20120626191450.GT3869@google.com>
+ <20120626205924.GH27816@cmpxchg.org>
+ <20120626211907.GX3869@google.com>
+ <4FEACAE8.6000500@parallels.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2 2/3] mm/sparse: fix possible memory leak
-References: <1340814968-2948-1-git-send-email-shangw@linux.vnet.ibm.com> <1340814968-2948-2-git-send-email-shangw@linux.vnet.ibm.com>
-In-Reply-To: <1340814968-2948-2-git-send-email-shangw@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4FEACAE8.6000500@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Gavin Shan <shangw@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org, mhocko@suse.cz, rientjes@google.com, hannes@cmpxchg.org, akpm@linux-foundation.org
+To: Glauber Costa <glommer@parallels.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, cgroups@vger.kernel.org, linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>
 
-On 06/27/2012 09:36 AM, Gavin Shan wrote:
-> With CONFIG_SPARSEMEM_EXTREME, the root memory section descriptors
-> are allocated by slab or bootmem allocator. Also, the descriptors
-> might have been allocated and initialized during the hotplug path.
-> However, the memory chunk allocated in current implementation wouldn't
-> be put into the available pool if that has been allocated. The situation
-> will lead to memory leak.
+On Wed, Jun 27, 2012 at 12:57:12PM +0400, Glauber Costa wrote:
+> >I have to disagree with that.  Deployment sometimes can be very
+> >painful.  In some cases, even flipping single parameter in sysfs
+> >depending on kernel version takes considerable effort.  The behavior
+> >has been the contract that we offered userland for quite some time
+> >now.  We shouldn't be changing that underneath them without any clear
+> >way for them to notice it.
+> 
+> Yes, and that's why once you deploy, you keep your updates to a
+> minimum. Because hell, even *perfectly legitimate bug fixes* can
+> change your behavior in a way you don't want. And you don't expect
+> people to refrain from fixing bugs because of that.
 
-I've read this changelog about ten times and I'm still not really clear
-what the bug is here.
+Dude, there are numerous organizations running all types of
+infrastructures.  I personally know some running debian + mainline
+kernel with regular kernel refresh (no, they aren't small).  Silent
+behavior switches like this will be a big glowing fuck-you to those
+people and I don't wanna do that.  And then there are infrastructures
+where new machines are continuously deployed and you know what? new
+machines often require new kernels.  What are you gonna tell them?
+Don't cycle-upgrade your machines once you're in production?
 
---
+Please stop trying to argue that silently switching major behavior
+like this is okay.  It simply isn't.  This is breaching one of the
+most basic assumptions that our direct users make.  NONONONONONONO.
 
-sparse_index_init() is designed to be safe if two copies of it race.  It
-uses "index_init_lock" to ensure that, even in the case of a race, only
-one CPU will manage to do:
+> That is precisely why people in serious environments tend to run
+> -stable, distro LTSes, or anything like that. Because they don't
+> want any change, however minor, to potentially affect their stamped
+> behavior. I am not proposing this patch to -stable, btw...
 
-	mem_section[root] = section;
+Yeah, because once an environment is in prod, the only update they
+need is -stable and we can switch behaviors willy-nilly on any
+release.  Ugh......
 
-However, in the case where two copies of sparse_index_init() _do_ race,
-the one that loses the race will leak the "section" that
-sparse_index_alloc() allocated for it.  This patch fixes that leak.
-
---
-
-Technically, I'm not sure that we can race during the time when we'd be
-using bootmem.  I think we do all those initializations single-threaded
-at the moment, and we'd finish them before we turn the slab on.  So,
-technically, we probably don't need the bootmem stuff in
-sparse_index_free().  But, I guess it doesn't hurt, and it's fine for
-completeness.
-
-Gavin, have you actually tested this in some way?  It looks OK to me,
-but I worry that you've just added a block of code that's exceedingly
-unlikely to get run.
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
