@@ -1,39 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx207.postini.com [74.125.245.207])
-	by kanga.kvack.org (Postfix) with SMTP id 0CB196B005A
-	for <linux-mm@kvack.org>; Tue, 26 Jun 2012 21:08:16 -0400 (EDT)
-Received: by pbbrp2 with SMTP id rp2so975340pbb.14
-        for <linux-mm@kvack.org>; Tue, 26 Jun 2012 18:08:16 -0700 (PDT)
-Date: Tue, 26 Jun 2012 18:08:13 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 00/11] kmem controller for memcg: stripped down version
-In-Reply-To: <20120626145539.eeeab909.akpm@linux-foundation.org>
-Message-ID: <alpine.DEB.2.00.1206261804160.11287@chino.kir.corp.google.com>
-References: <1340633728-12785-1-git-send-email-glommer@parallels.com> <20120625162745.eabe4f03.akpm@linux-foundation.org> <4FE9621D.2050002@parallels.com> <20120626145539.eeeab909.akpm@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
+	by kanga.kvack.org (Postfix) with SMTP id A72DB6B005A
+	for <linux-mm@kvack.org>; Tue, 26 Jun 2012 21:14:02 -0400 (EDT)
+Date: Tue, 26 Jun 2012 18:15:04 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: needed lru_add_drain_all() change
+Message-Id: <20120626181504.23b8b73d.akpm@linux-foundation.org>
+In-Reply-To: <4FEA59EE.8060804@kernel.org>
+References: <20120626143703.396d6d66.akpm@linux-foundation.org>
+	<4FEA59EE.8060804@kernel.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Glauber Costa <glommer@parallels.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Frederic Weisbecker <fweisbec@gmail.com>, Pekka Enberg <penberg@kernel.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Lameter <cl@linux.com>, devel@openvz.org, kamezawa.hiroyu@jp.fujitsu.com, Tejun Heo <tj@kernel.org>
+To: Minchan Kim <minchan@kernel.org>
+Cc: linux-mm@kvack.org, KOSAKI Motohiro <kosaki.motohiro@gmail.com>
 
-On Tue, 26 Jun 2012, Andrew Morton wrote:
+On Wed, 27 Jun 2012 09:55:10 +0900 Minchan Kim <minchan@kernel.org> wrote:
 
-> mm, maybe.  Kernel developers tend to look at code from the point of
-> view "does it work as designed", "is it clean", "is it efficient", "do
-> I understand it", etc.  We often forget to step back and really
-> consider whether or not it should be merged at all.
+> On 06/27/2012 06:37 AM, Andrew Morton wrote:
 > 
+> > https://bugzilla.kernel.org/show_bug.cgi?id=43811
+> > 
+> > lru_add_drain_all() uses schedule_on_each_cpu().  But
+> > schedule_on_each_cpu() hangs if a realtime thread is spinning, pinned
+> > to a CPU.  There's no intention to change the scheduler behaviour, so I
+> > think we should remove schedule_on_each_cpu() from the kernel.
+> > 
+> > The biggest user of schedule_on_each_cpu() is lru_add_drain_all().
+> > 
+> > Does anyone have any thoughts on how we can do this?  The obvious
+> > approach is to declare these:
+> > 
+> > static DEFINE_PER_CPU(struct pagevec[NR_LRU_LISTS], lru_add_pvecs);
+> > static DEFINE_PER_CPU(struct pagevec, lru_rotate_pvecs);
+> > static DEFINE_PER_CPU(struct pagevec, lru_deactivate_pvecs);
+> 
+> 
+> One more 
+> static DEFINE_PER_CPU(struct pagevec, activate_page_pvecs);
+> 
+> > 
+> > to be irq-safe and use on_each_cpu().  lru_rotate_pvecs is already
+> > irq-safe and converting lru_add_pvecs and lru_deactivate_pvecs looks
+> > pretty simple.
+> 
+> 
+> Yes. Changing looks simple.
+> I'm okay with lru_[activate_page|deactivate]_pvecs because it's not hot
+> but lru_rotate_pvecs is hotter than others.
 
-It's appropriate for true memory isolation so that applications cannot 
-cause an excess of slab to be consumed.  This allows other applications to 
-have higher reservations without the risk of incurring a global oom 
-condition as the result of the usage of other memcgs.
+I don't think any change is needed for lru_rotate_pvecs?
 
-I'm not sure whether it would ever be appropriate to limit the amount of 
-slab for an individual slab cache, however, instead of limiting the sum of 
-all slab for a set of processes.  With cache merging in slub this would 
-seem to be difficult to do correctly.
+> Considering mlock and CPU pinning
+> of realtime thread is very rare, it might be rather expensive solution.
+> Unfortunately, I have no idea better than you suggested. :(
+> 
+> And looking 8891d6da17, mlock's lru_add_drain_all isn't must.
+> If it's really bother us, couldn't we remove it?
+
+"grep lru_add_drain_all mm/*.c".  They're all problematic.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
