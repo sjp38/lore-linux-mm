@@ -1,137 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
-	by kanga.kvack.org (Postfix) with SMTP id 200BA6B005A
-	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 08:36:16 -0400 (EDT)
-Date: Thu, 28 Jun 2012 14:36:11 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: memcg: cat: memory.memsw.* : Operation not supported
-Message-ID: <20120628123611.GA16042@tiehlicka.suse.cz>
-References: <2a1a74bf-fbb5-4a6e-b958-44fff8debff2@zmail13.collab.prod.int.phx2.redhat.com>
- <34bb8049-8007-496c-8ffb-11118c587124@zmail13.collab.prod.int.phx2.redhat.com>
- <20120627154827.GA4420@tiehlicka.suse.cz>
- <alpine.DEB.2.00.1206271256120.22162@chino.kir.corp.google.com>
+Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
+	by kanga.kvack.org (Postfix) with SMTP id 519E96B005A
+	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 08:37:40 -0400 (EDT)
+Date: Thu, 28 Jun 2012 13:37:34 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 10/12] nfs: enable swap on NFS
+Message-ID: <20120628123734.GH8271@suse.de>
+References: <1340375468-22509-1-git-send-email-mgorman@suse.de>
+ <1340375468-22509-11-git-send-email-mgorman@suse.de>
+ <20120628082725.33b71097@corrin.poochiereds.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1206271256120.22162@chino.kir.corp.google.com>
+In-Reply-To: <20120628082725.33b71097@corrin.poochiereds.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Zhouping Liu <zliu@redhat.com>, linux-mm@kvack.org, Li Zefan <lizefan@huawei.com>, Tejun Heo <tj@kernel.org>, CAI Qian <caiqian@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, aneesh.kumar@linux.vnet.ibm.com
+To: Jeff Layton <jlayton@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Linux-Netdev <netdev@vger.kernel.org>, Linux-NFS <linux-nfs@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, David Miller <davem@davemloft.net>, Trond Myklebust <Trond.Myklebust@netapp.com>, Neil Brown <neilb@suse.de>, Christoph Hellwig <hch@infradead.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mike Christie <michaelc@cs.wisc.edu>, Eric B Munson <emunson@mgebm.net>
 
-[Adding Kame and Aneesh to CC]
-
-On Wed 27-06-12 13:04:51, David Rientjes wrote:
-> On Wed, 27 Jun 2012, Michal Hocko wrote:
+On Thu, Jun 28, 2012 at 08:27:25AM -0400, Jeff Layton wrote:
+> > <SNIP>
+> > @@ -2108,11 +2156,15 @@ static void xs_tcp_setup_socket(struct work_struct *work)
+> >  		container_of(work, struct sock_xprt, connect_worker.work);
+> >  	struct socket *sock = transport->sock;
+> >  	struct rpc_xprt *xprt = &transport->xprt;
+> > +	unsigned long pflags = current->flags;
+> >  	int status = -EIO;
+> >  
+> >  	if (xprt->shutdown)
+> >  		goto out;
+> >  
+> > +	if (xprt->swapper)
+> > +		current->flags |= PF_MEMALLOC;
+> > +
+> >  	if (!sock) {
+> >  		clear_bit(XPRT_CONNECTION_ABORT, &xprt->state);
+> >  		sock = xs_create_sock(xprt, transport,
+> > @@ -2174,6 +2226,7 @@ out_eagain:
+> >  out:
+> >  	xprt_clear_connecting(xprt);
+> >  	xprt_wake_pending_tasks(xprt, status);
+> > +	tsk_restore_flags(current, pflags, PF_MEMALLOC);
+> >  }
+> >  
+> >  /**
 > 
-> > > # mount -t cgroup -o memory xxx /cgroup/
-> > > # ll /cgroup/memory.memsw.*
-> > > -rw-r--r--. 1 root root 0 Jun 26 23:17 /cgroup/memory.memsw.failcnt
-> > > -rw-r--r--. 1 root root 0 Jun 26 23:17 /cgroup/memory.memsw.limit_in_bytes
-> > > -rw-r--r--. 1 root root 0 Jun 26 23:17 /cgroup/memory.memsw.max_usage_in_bytes
-> > > -r--r--r--. 1 root root 0 Jun 26 23:17 /cgroup/memory.memsw.usage_in_bytes
-> > > # cat /cgroup/memory.memsw.*
-> > > cat: /cgroup/memory.memsw.failcnt: Operation not supported
-> > > cat: /cgroup/memory.memsw.limit_in_bytes: Operation not supported
-> > > cat: /cgroup/memory.memsw.max_usage_in_bytes: Operation not supported
-> > > cat: /cgroup/memory.memsw.usage_in_bytes: Operation not supported
-> > > 
-> > > I'm confusing why it can't read memory.memsw.* files.
-> > 
-> > Those files are exported if CONFIG_CGROUP_MEM_RES_CTLR_SWAP=y even
-> > if the feature is turned off when any attempt to open the file returns
-> > EOPNOTSUPP which is exactly what you are seeing.
-> > This is a deliberate decision see: b6d9270d (memcg: always create memsw
-> > files if CONFIG_CGROUP_MEM_RES_CTLR_SWAP).
-> > 
+> Apologies if this is fixed in another patch and I didn't see it...
 > 
-> You mean af36f906c0f4?
 
-Ahh, right. The other one was from the mm tree. Sorry about the confusion.
+No apologies necessary. Even if it was fixed in another patch, it would
+still be wrong for bisection reasons and for being rude to reviewers.
 
-> > Does this help to explain your problem? Do you actually see any problem
-> > with this behavior?
-> > 
+> There's a place in the above function that returns without going
+> through "out:". I think you also want to tsk_restore_flags() in that
+> spot too.
 > 
-> I think it's a crappy solution and one that is undocumented in 
-> Documentation/cgroups/memory.txt.  
 
-Yes the documentation part is really missing. I don't think the current
-state is ideal as well...
+You're right. The case that it would trigger would be some corner case
+but very nicely spotted.
 
-> If you can only enable swap accounting at boot either via .config     
-> or the command line then these files should never be added for        
-> CONFIG_CGROUP_MEM_RES_CTLR_SWAP=n or when do_swap_account is 0.       
-
-Yes, I think we can enhance the internal implementation to support
-configurable files (hugetlb controler would benefit from it as well
-because the exported files depend on the supported/configured huge page
-sizes). What about something like (totally untested) patch bellow? If
-this sounds like a reasonable thing to support I can spin a regular
-patch...
----
-diff --git a/include/linux/cgroup.h b/include/linux/cgroup.h
-index d3f5fba..3fc7859 100644
---- a/include/linux/cgroup.h
-+++ b/include/linux/cgroup.h
-@@ -527,6 +527,7 @@ struct cgroup_subsys {
- 
- 	/* base cftypes, automatically [de]registered with subsys itself */
- 	struct cftype *base_cftypes;
-+	bool (*cftype_enabled)(const char *name);
- 	struct cftype_set base_cftset;
- 
- 	/* should be defined only by modular subsystems */
-diff --git a/kernel/cgroup.c b/kernel/cgroup.c
-index 0f3527d..0d1a25d 100644
---- a/kernel/cgroup.c
-+++ b/kernel/cgroup.c
-@@ -2726,6 +2726,9 @@ static int cgroup_addrm_files(struct cgroup *cgrp, struct cgroup_subsys *subsys,
- 	int err, ret = 0;
- 
- 	for (cft = cfts; cft->name[0] != '\0'; cft++) {
-+		if (subsys->cftype_enabled && !subsys->cftype_enabled(cft->name))
-+			continue;
-+
- 		if (is_add)
- 			err = cgroup_add_file(cgrp, subsys, cft);
- 		else
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index a2677e0..45b65ba 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -72,6 +72,13 @@ static int really_do_swap_account __initdata = 1;
- static int really_do_swap_account __initdata = 0;
- #endif
- 
-+bool mem_cgroup_file_enabled(const char *name)
-+{
-+	if (!strncmp("memsw.", name, 6))
-+		return do_swap_account;
-+	return true;
-+}
-+
- #else
- #define do_swap_account		0
- #endif
-@@ -5521,6 +5528,9 @@ struct cgroup_subsys mem_cgroup_subsys = {
- 	.cancel_attach = mem_cgroup_cancel_attach,
- 	.attach = mem_cgroup_move_task,
- 	.base_cftypes = mem_cgroup_files,
-+#ifdef CONFIG_CGROUP_MEM_RES_CTLR_SWAP
-+	.cftype_enabled = mem_cgroup_file_enabled,
-+#endif
- 	.early_init = 0,
- 	.use_id = 1,
- 	.__DEPRECATED_clear_css_refs = true,
-
--- 
-Michal Hocko
-SUSE Labs
-SUSE LINUX s.r.o.
-Lihovarska 1060/12
-190 00 Praha 9    
-Czech Republic
+diff --git a/net/sunrpc/xprtsock.c b/net/sunrpc/xprtsock.c
+index b84df34..3d58b92 100644
+--- a/net/sunrpc/xprtsock.c
++++ b/net/sunrpc/xprtsock.c
+@@ -2214,6 +2214,7 @@ static void xs_tcp_setup_socket(struct work_struct *work)
+ 	case -EINPROGRESS:
+ 	case -EALREADY:
+ 		xprt_clear_connecting(xprt);
++		tsk_restore_flags(current, pflags, PF_MEMALLOC);
+ 		return;
+ 	case -EINVAL:
+ 		/* Happens, for instance, if the user specified a link
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
