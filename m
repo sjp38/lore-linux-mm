@@ -1,43 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
-	by kanga.kvack.org (Postfix) with SMTP id DA0826B0078
-	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 11:55:23 -0400 (EDT)
-Received: from /spool/local
-	by e38.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
-	Thu, 28 Jun 2012 09:55:22 -0600
-Received: from d01relay05.pok.ibm.com (d01relay05.pok.ibm.com [9.56.227.237])
-	by d01dlp03.pok.ibm.com (Postfix) with ESMTP id 54A0F3C707FC
-	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 11:21:26 -0400 (EDT)
-Received: from d03av05.boulder.ibm.com (d03av05.boulder.ibm.com [9.17.195.85])
-	by d01relay05.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q5SFLQDp266122
-	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 11:21:27 -0400
-Received: from d03av05.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av05.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q5SFLKa4003181
-	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 09:21:21 -0600
-Message-ID: <4FEC7668.3000403@linux.vnet.ibm.com>
-Date: Thu, 28 Jun 2012 10:21:12 -0500
-From: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
+	by kanga.kvack.org (Postfix) with SMTP id 89F696B0075
+	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 12:00:50 -0400 (EDT)
+Date: Thu, 28 Jun 2012 17:00:46 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH 05/40] autonuma: define _PAGE_NUMA_PTE and _PAGE_NUMA_PMD
+Message-ID: <20120628150046.GA6676@redhat.com>
+References: <1340888180-15355-1-git-send-email-aarcange@redhat.com>
+ <1340888180-15355-6-git-send-email-aarcange@redhat.com>
+ <4FEC7487.9020909@hp.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 3/3] x86: add local_tlb_flush_kernel_range()
-References: <1340640878-27536-1-git-send-email-sjenning@linux.vnet.ibm.com> <1340640878-27536-4-git-send-email-sjenning@linux.vnet.ibm.com> <4FEA9FDD.6030102@kernel.org> <4FEAA4AA.3000406@intel.com> <4FEAA7A1.9020307@kernel.org> <90bcc2c8-bcac-4620-b3c0-6b65f8d9174d@default> <4FEB5204.3090707@linux.vnet.ibm.com> <4FEBBB5C.5000505@intel.com>
-In-Reply-To: <4FEBBB5C.5000505@intel.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4FEC7487.9020909@hp.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alex Shi <alex.shi@intel.com>
-Cc: Dan Magenheimer <dan.magenheimer@oracle.com>, Minchan Kim <minchan@kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, devel@driverdev.osuosl.org, Konrad Wilk <konrad.wilk@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Robert Jennings <rcj@linux.vnet.ibm.com>, Nitin Gupta <ngupta@vflare.org>, "H. Peter Anvin" <hpa@zytor.com>
+To: Don Morris <don.morris@hp.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 06/27/2012 09:03 PM, Alex Shi wrote:
-> Peter Anvin is merging my TLB patch set into tip tree, x86/mm branch.
+Hi Don,
 
-Great! I don't know the integration path of this tree.  Will
-these patches go into mainline in the next merge window from
-here?
+On Thu, Jun 28, 2012 at 08:13:11AM -0700, Don Morris wrote:
+> On 06/28/2012 05:55 AM, Andrea Arcangeli wrote:
+> > We will set these bitflags only when the pmd and pte is non present.
+> > 
+> 
+> Just a couple grammar nitpicks.
+> 
+> > They work like PROT_NONE but they identify a request for the numa
+> > hinting page fault to trigger.
+> > 
+> > Because we want to be able to set these bitflag in any established pte
+> 
+> these bitflags
+> 
+> > or pmd (while clearing the present bit at the same time) without
+> > losing information, these bitflags must never be set when the pte and
+> > pmd are present.
+> > 
+> > For _PAGE_NUMA_PTE the pte bitflag used is _PAGE_PSE, which cannot be
+> > set on ptes and it also fits in between _PAGE_FILE and _PAGE_PROTNONE
+> > which avoids having to alter the swp entries format.
+> > 
+> > For _PAGE_NUMA_PMD, we use a reserved bitflag. pmds never contain
+> > swap_entries but if in the future we'll swap transparent hugepages, we
+> > must keep in mind not to use the _PAGE_UNUSED2 bitflag in the swap
+> > entry format and to start the swap entry offset above it.
+> > 
+> > PAGE_UNUSED2 is used by Xen but only on ptes established by ioremap,
+> > but it's never used on pmds so there's no risk of collision with Xen.
+> 
+> Maybe "but only on ptes established by ioremap, never on pmds so
+> there's no risk of collision with Xen." ? The extra "but" just
+> doesn't flow in the original.
 
---
-Seth
+Agreed and applied, thanks!
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
