@@ -1,60 +1,184 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
-	by kanga.kvack.org (Postfix) with SMTP id C22636B004D
-	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 13:50:21 -0400 (EDT)
-Received: by qcsd16 with SMTP id d16so1425458qcs.14
-        for <linux-mm@kvack.org>; Thu, 28 Jun 2012 10:50:20 -0700 (PDT)
-Date: Thu, 28 Jun 2012 13:50:16 -0400 (EDT)
-From: Nicolas Pitre <nicolas.pitre@linaro.org>
-Subject: Re: [PATCH] [RESEND] arm: limit memblock base address for
- early_pte_alloc
-In-Reply-To: <20120628090827.GH19026@n2100.arm.linux.org.uk>
-Message-ID: <alpine.LFD.2.02.1206281338170.31003@xanadu.home>
-References: <1338880312-17561-1-git-send-email-minchan@kernel.org> <20120627161224.GB2310@linaro.org> <alpine.LFD.2.02.1206280019160.31003@xanadu.home> <20120628090827.GH19026@n2100.arm.linux.org.uk>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
+	by kanga.kvack.org (Postfix) with SMTP id A3D366B004D
+	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 13:55:56 -0400 (EDT)
+Date: Thu, 28 Jun 2012 13:55:20 -0400
+From: Rik van Riel <riel@redhat.com>
+Subject: [PATCH -mm v2] mm: have order > 0 compaction start off where it
+ left
+Message-ID: <20120628135520.0c48b066@annuminas.surriel.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Russell King - ARM Linux <linux@arm.linux.org.uk>
-Cc: Dave Martin <dave.martin@linaro.org>, Minchan Kim <minchan@kernel.org>, Catalin Marinas <catalin.marinas@arm.com>, Chanho Min <chanho.min@lge.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Jongsung Kim <neidhard.kim@lge.com>, linux-arm-kernel@lists.infradead.org
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, jaschut@sandia.gov, minchan@kernel.org, kamezawa.hiroyu@jp.fujitsu.com
 
-On Thu, 28 Jun 2012, Russell King - ARM Linux wrote:
+Order > 0 compaction stops when enough free pages of the correct
+page order have been coalesced. When doing subsequent higher order
+allocations, it is possible for compaction to be invoked many times.
 
-> Err, I don't think you understand what's going on here.
-> 
-> The sequence is:
-> 
-> 1. setup the initial mappings so we can run the kernel in virtual space.
-> 2. provide the memory areas to memblock
-> 3. ask the platform to reserve whatever memory it wants from memblock
->    [this means using memblock_reserve or arm_memblock_steal).  The
->    reserved memory is *not* expected to be mapped at this point, and is
->    therefore inaccessible.
-> 4. Setup the lowmem mappings.
+However, the compaction code always starts out looking for things to
+compact at the start of the zone, and for free pages to compact things
+to at the end of the zone.
 
-I do understand that pretty well so far.
+This can cause quadratic behaviour, with isolate_freepages starting
+at the end of the zone each time, even though previous invocations
+of the compaction code already filled up all free memory on that end
+of the zone.
 
-> And when we're setting up the lowmem mappings, we do *not* expect to
-> create any non-section page mappings, which again means we have no reason
-> to use the memblock allocator to obtain memory that we want to immediately
-> use.
+This can cause isolate_freepages to take enormous amounts of CPU
+with certain workloads on larger memory systems.
 
-And why does this have to remain so?
+The obvious solution is to have isolate_freepages remember where
+it left off last time, and continue at that point the next time
+it gets invoked for an order > 0 compaction. This could cause
+compaction to fail if cc->free_pfn and cc->migrate_pfn are close
+together initially, in that case we restart from the end of the
+zone and try once more.
 
-> So I don't know where you're claim of being "fragile" is coming from.
+Forced full (order == -1) compactions are left alone.
 
-It doesn't come from anything you've described so far. It comes from 
-those previous attempts at lifting this limitation.  I think that my 
-proposal is much less fragile than the other ones.
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Mel Gorman <mel@csn.ul.ie>
+Reported-by: Jim Schutt <jaschut@sandia.gov>
+Signed-off-by: Rik van Riel <riel@redhat.com>
+---
+v2: implement Mel's suggestions, handling wrap-around etc
 
-> What is fragile is people wanting to use arm_memblock_steal() without
-> following the rules for it I layed down.
+ include/linux/mmzone.h |    4 ++++
+ mm/compaction.c        |   48 ++++++++++++++++++++++++++++++++++++++++++++----
+ mm/internal.h          |    2 ++
+ mm/page_alloc.c        |    5 +++++
+ 4 files changed, 55 insertions(+), 4 deletions(-)
 
-What about enhancing your rules if the technical limitations they were 
-based on are lifted?
-
-
-Nicolas
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+index 2427706..e629594 100644
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -369,6 +369,10 @@ struct zone {
+ 	 */
+ 	spinlock_t		lock;
+ 	int                     all_unreclaimable; /* All pages pinned */
++#if defined CONFIG_COMPACTION || defined CONFIG_CMA
++	/* pfn where the last order > 0 compaction isolated free pages */
++	unsigned long		compact_cached_free_pfn;
++#endif
+ #ifdef CONFIG_MEMORY_HOTPLUG
+ 	/* see spanned/present_pages for more description */
+ 	seqlock_t		span_seqlock;
+diff --git a/mm/compaction.c b/mm/compaction.c
+index 7ea259d..2668b77 100644
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -422,6 +422,17 @@ static void isolate_freepages(struct zone *zone,
+ 					pfn -= pageblock_nr_pages) {
+ 		unsigned long isolated;
+ 
++		/*
++		 * Skip ahead if another thread is compacting in the area
++		 * simultaneously. If we wrapped around, we can only skip
++		 * ahead if zone->compact_cached_free_pfn also wrapped to
++		 * above our starting point.
++		 */
++		if (cc->order > 0 && (!cc->wrapped ||
++				      zone->compact_cached_free_pfn >
++				      cc->start_free_pfn))
++			pfn = min(pfn, zone->compact_cached_free_pfn);
++
+ 		if (!pfn_valid(pfn))
+ 			continue;
+ 
+@@ -463,6 +474,8 @@ static void isolate_freepages(struct zone *zone,
+ 		 */
+ 		if (isolated)
+ 			high_pfn = max(high_pfn, pfn);
++		if (cc->order > 0)
++			zone->compact_cached_free_pfn = high_pfn;
+ 	}
+ 
+ 	/* split_free_page does not map the pages */
+@@ -565,8 +578,27 @@ static int compact_finished(struct zone *zone,
+ 	if (fatal_signal_pending(current))
+ 		return COMPACT_PARTIAL;
+ 
+-	/* Compaction run completes if the migrate and free scanner meet */
+-	if (cc->free_pfn <= cc->migrate_pfn)
++	/*
++	 * A full (order == -1) compaction run starts at the beginning and
++	 * end of a zone; it completes when the migrate and free scanner meet. 
++	 * A partial (order > 0) compaction can start with the free scanner
++	 * at a random point in the zone, and may have to restart.
++	 */
++	if (cc->free_pfn <= cc->migrate_pfn) {
++		if (cc->order > 0 && !cc->wrapped) {
++			/* We started partway through; restart at the end. */
++			unsigned long free_pfn;
++			free_pfn = zone->zone_start_pfn + zone->spanned_pages;
++			free_pfn &= ~(pageblock_nr_pages-1);
++			zone->compact_cached_free_pfn = free_pfn;
++			cc->wrapped = 1;
++			return COMPACT_CONTINUE;
++		}
++		return COMPACT_COMPLETE;
++	}
++
++	/* We wrapped around and ended up where we started. */
++	if (cc->wrapped && cc->free_pfn <= cc->start_free_pfn)
+ 		return COMPACT_COMPLETE;
+ 
+ 	/*
+@@ -664,8 +696,16 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
+ 
+ 	/* Setup to move all movable pages to the end of the zone */
+ 	cc->migrate_pfn = zone->zone_start_pfn;
+-	cc->free_pfn = cc->migrate_pfn + zone->spanned_pages;
+-	cc->free_pfn &= ~(pageblock_nr_pages-1);
++
++	if (cc->order > 0) {
++		/* Incremental compaction. Start where the last one stopped. */
++		cc->free_pfn = zone->compact_cached_free_pfn;
++		cc->start_free_pfn = cc->free_pfn;
++	} else {
++		/* Order == -1 starts at the end of the zone. */
++		cc->free_pfn = cc->migrate_pfn + zone->spanned_pages;
++		cc->free_pfn &= ~(pageblock_nr_pages-1);
++	}
+ 
+ 	migrate_prep_local();
+ 
+diff --git a/mm/internal.h b/mm/internal.h
+index 2ba87fb..0b72461 100644
+--- a/mm/internal.h
++++ b/mm/internal.h
+@@ -118,8 +118,10 @@ struct compact_control {
+ 	unsigned long nr_freepages;	/* Number of isolated free pages */
+ 	unsigned long nr_migratepages;	/* Number of pages to migrate */
+ 	unsigned long free_pfn;		/* isolate_freepages search base */
++	unsigned long start_free_pfn;	/* where we started the search */
+ 	unsigned long migrate_pfn;	/* isolate_migratepages search base */
+ 	bool sync;			/* Synchronous migration */
++	bool wrapped;			/* Last round for order>0 compaction */
+ 
+ 	int order;			/* order a direct compactor needs */
+ 	int migratetype;		/* MOVABLE, RECLAIMABLE etc */
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 4403009..c353a61 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -4394,6 +4394,11 @@ static void __paginginit free_area_init_core(struct pglist_data *pgdat,
+ 
+ 		zone->spanned_pages = size;
+ 		zone->present_pages = realsize;
++#if defined CONFIG_COMPACTION || defined CONFIG_CMA
++		zone->compact_cached_free_pfn = zone->zone_start_pfn +
++						zone->spanned_pages;
++		zone->compact_cached_free_pfn &= ~(pageblock_nr_pages-1);
++#endif
+ #ifdef CONFIG_NUMA
+ 		zone->node = nid;
+ 		zone->min_unmapped_pages = (realsize*sysctl_min_unmapped_ratio)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
