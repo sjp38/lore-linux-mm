@@ -1,35 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
-	by kanga.kvack.org (Postfix) with SMTP id 1A1D06B005A
-	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 14:35:37 -0400 (EDT)
-Date: Fri, 29 Jun 2012 03:32:51 +0900
-From: Paul Mundt <lethal@linux-sh.org>
-Subject: Re: [PATCH 14/20] mm, sh: Convert sh to generic tlb
-Message-ID: <20120628183251.GA7250@linux-sh.org>
-References: <20120627211540.459910855@chello.nl>
- <20120627212831.578578936@chello.nl>
+Received: from psmtp.com (na3sys010amx133.postini.com [74.125.245.133])
+	by kanga.kvack.org (Postfix) with SMTP id 40D946B005A
+	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 16:19:55 -0400 (EDT)
+Message-ID: <4FECBC50.2060705@sandia.gov>
+Date: Thu, 28 Jun 2012 14:19:28 -0600
+From: "Jim Schutt" <jaschut@sandia.gov>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120627212831.578578936@chello.nl>
+Subject: Re: [PATCH -mm v2] mm: have order > 0 compaction start off
+ where it left
+References: <20120628135520.0c48b066@annuminas.surriel.com>
+In-Reply-To: <20120628135520.0c48b066@annuminas.surriel.com>
+Content-Type: text/plain;
+ charset=utf-8;
+ format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, akpm@linux-foundation.org, Linus Torvalds <torvalds@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <npiggin@kernel.dk>, Alex Shi <alex.shi@intel.com>, "Nikunj A. Dadhania" <nikunj@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, David Miller <davem@davemloft.net>, Russell King <rmk@arm.linux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Chris Metcalf <cmetcalf@tilera.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Tony Luck <tony.luck@intel.com>, Jeff Dike <jdike@addtoit.com>, Richard Weinberger <richard@nod.at>, Hans-Christian Egtvedt <hans-christian.egtvedt@atmel.com>, Ralf Baechle <ralf@linux-mips.org>, Kyle McMartin <kyle@mcmartin.ca>, James Bottomley <jejb@parisc-linux.org>, Chris Zankel <chris@zankel.net>
+To: Rik van Riel <riel@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, minchan@kernel.org, kamezawa.hiroyu@jp.fujitsu.com
 
-On Wed, Jun 27, 2012 at 11:15:54PM +0200, Peter Zijlstra wrote:
-> Cc: Paul Mundt <lethal@linux-sh.org>
-> Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+On 06/28/2012 11:55 AM, Rik van Riel wrote:
+
 > ---
->  arch/sh/Kconfig           |    1 
->  arch/sh/include/asm/tlb.h |   98 ++--------------------------------------------
->  2 files changed, 6 insertions(+), 93 deletions(-)
+> v2: implement Mel's suggestions, handling wrap-around etc
+>
 
-This blows up in the same way as last time.
+So far I've run a total of ~28 TB of data over seventy minutes
+or so through 12 machines running this version of the patch;
+still no hint of trouble, still great performance.
 
-I direct you to the same bug report and patch as before:
+Tested-by: Jim Schutt <jaschut@sandia.gov>
 
-http://marc.info/?l=linux-kernel&m=133722116507075&w=2
+Thanks!
+
+-- Jim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
