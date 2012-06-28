@@ -1,43 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx133.postini.com [74.125.245.133])
-	by kanga.kvack.org (Postfix) with SMTP id 0797D6B0069
-	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 02:54:56 -0400 (EDT)
-From: "Kim, Jong-Sung" <neidhard.kim@lge.com>
-References: <1338880312-17561-1-git-send-email-minchan@kernel.org> <025701cd457e$d5065410$7f12fc30$@lge.com> <20120627160220.GA2310@linaro.org> <00e801cd54f0$eb8a3540$c29e9fc0$@lge.com> <alpine.LFD.2.02.1206280223250.31003@xanadu.home>
-In-Reply-To: <alpine.LFD.2.02.1206280223250.31003@xanadu.home>
-Subject: RE: [PATCH] [RESEND] arm: limit memblock base address for early_pte_alloc
-Date: Thu, 28 Jun 2012 15:54:49 +0900
-Message-ID: <010e01cd54fa$e9c93fd0$bd5bbf70$@lge.com>
+Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
+	by kanga.kvack.org (Postfix) with SMTP id BA2B76B0069
+	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 03:01:24 -0400 (EDT)
+Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 4B7283EE0BB
+	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 16:01:23 +0900 (JST)
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 2F83845DE72
+	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 16:01:23 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 14A1145DE6E
+	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 16:01:23 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 039E81DB8042
+	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 16:01:23 +0900 (JST)
+Received: from g01jpexchkw02.g01.fujitsu.local (g01jpexchkw02.g01.fujitsu.local [10.0.194.41])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id AC6A81DB803F
+	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 16:01:22 +0900 (JST)
+Message-ID: <4FEC012E.5030209@jp.fujitsu.com>
+Date: Thu, 28 Jun 2012 16:01:02 +0900
+From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="us-ascii"
+Subject: Re: [RFC PATCH 2/12] memory-hogplug : check memory offline in offline_pages
+References: <4FEA9C88.1070800@jp.fujitsu.com> <4FEA9DB1.7010303@jp.fujitsu.com> <alpine.DEB.2.00.1206262313440.32567@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.00.1206262313440.32567@chino.kir.corp.google.com>
+Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
 Content-Transfer-Encoding: 7bit
-Content-Language: ko
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Nicolas Pitre' <nicolas.pitre@linaro.org>
-Cc: 'Dave Martin' <dave.martin@linaro.org>, 'Minchan Kim' <minchan@kernel.org>, 'Russell King' <linux@arm.linux.org.uk>, 'Catalin Marinas' <catalin.marinas@arm.com>, 'Chanho Min' <chanho.min@lge.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org
+To: David Rientjes <rientjes@google.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, wency@cn.fujitsu.com
 
-> From: Nicolas Pitre [mailto:nicolas.pitre@linaro.org]
-> Sent: Thursday, June 28, 2012 3:26 PM
-> 
-> On Thu, 28 Jun 2012, Kim, Jong-Sung wrote:
-> 
-> > Thank you for your comment, Dave! It was not that sophisticated
-> > choice, but I thought that normal embedded system trying to reduce the
-> > BOM would have a big-enough first memblock memory region. However
-> > you're right. There can be exceptional systems. Then, how do you think
-> about following manner:
-> [...]
-> 
-> This still has some possibilities for failure.
-> 
-Can you kindly describe the possible failure path?
+Hi David,
 
-> Please have a look at the two patches I've posted to fix this in a better
-> way.
-> 
-I'm setting up for your elegant patches. ;-)
+2012/06/27 15:16, David Rientjes wrote:
+> On Wed, 27 Jun 2012, Yasuaki Ishimatsu wrote:
+>
+>> Index: linux-3.5-rc4/mm/memory_hotplug.c
+>> ===================================================================
+>> --- linux-3.5-rc4.orig/mm/memory_hotplug.c	2012-06-26 13:28:16.743211538 +0900
+>> +++ linux-3.5-rc4/mm/memory_hotplug.c	2012-06-26 13:48:38.264940468 +0900
+>> @@ -887,6 +887,11 @@ static int __ref offline_pages(unsigned
+>>
+>>   	lock_memory_hotplug();
+>>
+>> +	if (memory_is_offline(start_pfn, end_pfn)) {
+>> +		ret = 0;
+>> +		goto out;
+>> +	}
+>> +
+>>   	zone = page_zone(pfn_to_page(start_pfn));
+>>   	node = zone_to_nid(zone);
+>>   	nr_pages = end_pfn - start_pfn;
+>
+> Are there additional prerequisites for this patch?  Otherwise it changes
+> the return value of offline_memory() which will now call
+> acpi_memory_powerdown_device() in the acpi memhotplug case when disabling.
+> Is that a problem?
+
+I have understood there is a person who expects "offline_pages()" to fail
+in this case by kosaki's comment. So I'll move memory_is_offline to caller
+side.
+
+Thanks,
+Yasuaki Ishimatsu
+
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>
 
 
 
