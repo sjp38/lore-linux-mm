@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx110.postini.com [74.125.245.110])
-	by kanga.kvack.org (Postfix) with SMTP id C6F1F6B007B
+Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
+	by kanga.kvack.org (Postfix) with SMTP id D64726B0092
 	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 08:57:06 -0400 (EDT)
 From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: [PATCH 03/40] autonuma: export is_vma_temporary_stack() even if CONFIG_TRANSPARENT_HUGEPAGE=n
-Date: Thu, 28 Jun 2012 14:55:43 +0200
-Message-Id: <1340888180-15355-4-git-send-email-aarcange@redhat.com>
+Subject: [PATCH 01/40] mm: add unlikely to the mm allocation failure check
+Date: Thu, 28 Jun 2012 14:55:41 +0200
+Message-Id: <1340888180-15355-2-git-send-email-aarcange@redhat.com>
 In-Reply-To: <1340888180-15355-1-git-send-email-aarcange@redhat.com>
 References: <1340888180-15355-1-git-send-email-aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,35 +13,26 @@ List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 Cc: Hillf Danton <dhillf@gmail.com>, Dan Smith <danms@us.ibm.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Srivatsa Vaddagiri <vatsa@linux.vnet.ibm.com>, Christoph Lameter <cl@linux.com>, Alex Shi <alex.shi@intel.com>, Mauricio Faria de Oliveira <mauricfo@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Don Morris <don.morris@hp.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
 
-is_vma_temporary_stack() is needed by mm/autonuma.c too, and without
-this the build breaks with CONFIG_TRANSPARENT_HUGEPAGE=n.
+Very minor optimization to hint gcc.
 
-Reported-by: Petr Holasek <pholasek@redhat.com>
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 ---
- include/linux/huge_mm.h |    4 ++--
- 1 files changed, 2 insertions(+), 2 deletions(-)
+ kernel/fork.c |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
 
-diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
-index 4c59b11..ad4e2e0 100644
---- a/include/linux/huge_mm.h
-+++ b/include/linux/huge_mm.h
-@@ -54,13 +54,13 @@ extern pmd_t *page_check_address_pmd(struct page *page,
- #define HPAGE_PMD_ORDER (HPAGE_PMD_SHIFT-PAGE_SHIFT)
- #define HPAGE_PMD_NR (1<<HPAGE_PMD_ORDER)
+diff --git a/kernel/fork.c b/kernel/fork.c
+index ab5211b..5fcfa70 100644
+--- a/kernel/fork.c
++++ b/kernel/fork.c
+@@ -572,7 +572,7 @@ struct mm_struct *mm_alloc(void)
+ 	struct mm_struct *mm;
  
-+extern bool is_vma_temporary_stack(struct vm_area_struct *vma);
-+
- #ifdef CONFIG_TRANSPARENT_HUGEPAGE
- #define HPAGE_PMD_SHIFT HPAGE_SHIFT
- #define HPAGE_PMD_MASK HPAGE_MASK
- #define HPAGE_PMD_SIZE HPAGE_SIZE
+ 	mm = allocate_mm();
+-	if (!mm)
++	if (unlikely(!mm))
+ 		return NULL;
  
--extern bool is_vma_temporary_stack(struct vm_area_struct *vma);
--
- #define transparent_hugepage_enabled(__vma)				\
- 	((transparent_hugepage_flags &					\
- 	  (1<<TRANSPARENT_HUGEPAGE_FLAG) ||				\
+ 	memset(mm, 0, sizeof(*mm));
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
