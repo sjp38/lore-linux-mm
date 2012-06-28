@@ -1,48 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
-	by kanga.kvack.org (Postfix) with SMTP id 9F28C6B0062
-	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 06:42:05 -0400 (EDT)
-Message-ID: <1340879984.20977.80.camel@pasglop>
-Subject: Re: [PATCH 08/20] mm: Optimize fullmm TLB flushing
-From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Date: Thu, 28 Jun 2012 20:39:44 +1000
-In-Reply-To: <20120628091627.GB8573@arm.com>
-References: <20120627211540.459910855@chello.nl>
-	 <20120627212831.137126018@chello.nl>
-	 <CA+55aFwZoVK76ue7tFveV0XZpPUmoCVXJx8550OxPm+XKCSSZA@mail.gmail.com>
-	 <1340838154.10063.86.camel@twins> <1340838807.10063.90.camel@twins>
-	 <CA+55aFy6m967fMxyBsRoXVecdpGtSphXi_XdhwS0DB81Qaocdw@mail.gmail.com>
-	 <CA+55aFzLNsVRkp_US8rAmygEkQpp1s1YdakV86Ck-4RZM7TTdA@mail.gmail.com>
-	 <20120628091627.GB8573@arm.com>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 7bit
-Mime-Version: 1.0
+Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
+	by kanga.kvack.org (Postfix) with SMTP id DDBD56B0068
+	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 06:55:15 -0400 (EDT)
+Received: by dakp5 with SMTP id p5so3323460dak.14
+        for <linux-mm@kvack.org>; Thu, 28 Jun 2012 03:55:15 -0700 (PDT)
+From: Sha Zhengju <handai.szj@gmail.com>
+Subject: [PATCH 0/7] Per-cgroup page stat accounting
+Date: Thu, 28 Jun 2012 18:54:45 +0800
+Message-Id: <1340880885-5427-1-git-send-email-handai.szj@taobao.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Catalin Marinas <catalin.marinas@arm.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <npiggin@kernel.dk>, Alex Shi <alex.shi@intel.com>, "Nikunj A. Dadhania" <nikunj@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad@darnok.org>, David Miller <davem@davemloft.net>, Russell King <rmk@arm.linux.org.uk>, Chris Metcalf <cmetcalf@tilera.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Tony Luck <tony.luck@intel.com>, Paul Mundt <lethal@linux-sh.org>, Jeff Dike <jdike@addtoit.com>, Richard Weinberger <richard@nod.at>, Ralf Baechle <ralf@linux-mips.org>, Kyle McMartin <kyle@mcmartin.ca>, James Bottomley <jejb@parisc-linux.org>, Chris Zankel <chris@zankel.net>
+To: linux-mm@kvack.org, cgroups@vger.kernel.org
+Cc: kamezawa.hiroyu@jp.fujitsu.com, gthelen@google.com, yinghan@google.com, akpm@linux-foundation.org, mhocko@suse.cz, linux-kernel@vger.kernel.org, Sha Zhengju <handai.szj@taobao.com>
 
-On Thu, 2012-06-28 at 10:16 +0100, Catalin Marinas wrote:
-> That's definitely an issue on ARM and it was hit on older kernels.
-> Basically ARM processors can cache any page translation level in the
-> TLB. We need to make sure that no page entry at any level (either cached
-> in the TLB or not) points to an invalid next level table (hence the TLB
-> shootdown). For example, in cases like free_pgd_range(), if the cached
-> pgd entry points to an already freed pud/pmd table (pgd_clear is not
-> enough) it may walk the page tables speculatively cache another entry in
-> the TLB. Depending on the random data it reads from an old table page,
-> it may find a global entry (it's just a bit in the pte) which is not
-> tagged with an ASID (application specific id). A latter flush_tlb_mm()
-> only flushes the current ASID and doesn't touch global entries (used
-> only by kernel mappings). So we end up with global TLB entry in user
-> space that overrides any other application mapping.
+This patch series provide the ability for each memory cgroup to have independent
+dirty/writeback page stats. This can provide some information for per-cgroup direct
+reclaim. Meanwhile, we add more detailed dump messages for memcg OOMs.
 
-Right, that's the typical scenario. I haven't looked at your flush
-implementation though, but surely you can defer the actual freeing so
-you can batch them & limit the number of TLB flushes right ?
+Three features are included in this patch series:
+ (0).prepare patches for page accounting
+  1. memcg dirty page accounting
+  2. memcg writeback page accounting
+  3. memcg OOMs dump info
 
-Cheers,
-Ben.
+In (0) prepare patches, we have reworked vfs set page dirty routines to make "modify
+page info" and "dirty page accouting" stay in one function as much as possible for
+the sake of memcg bigger lock.
+
+These patches are cooked based on Andrew's akpm tree.
+
+Sha Zhengju (7):
+	memcg-update-cgroup-memory-document.patch
+	memcg-remove-MEMCG_NR_FILE_MAPPED.patch
+	Make-TestSetPageDirty-and-dirty-page-accounting-in-o.patch
+	Use-vfs-__set_page_dirty-interface-instead-of-doing-.patch
+	memcg-add-per-cgroup-dirty-pages-accounting.patch
+	memcg-add-per-cgroup-writeback-pages-accounting.patch
+	memcg-print-more-detailed-info-while-memcg-oom-happe.patch	
+
+ Documentation/cgroups/memory.txt |    2 +
+ fs/buffer.c                      |   36 +++++++++-----
+ fs/ceph/addr.c                   |   20 +-------
+ include/linux/buffer_head.h      |    2 +
+ include/linux/memcontrol.h       |   27 +++++++---
+ mm/filemap.c                     |    5 ++
+ mm/memcontrol.c                  |   99 +++++++++++++++++++++++--------------
+ mm/page-writeback.c              |   42 ++++++++++++++--
+ mm/rmap.c                        |    4 +-
+ mm/truncate.c                    |    6 ++
+ 10 files changed, 159 insertions(+), 84 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
