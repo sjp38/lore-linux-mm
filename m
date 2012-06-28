@@ -1,111 +1,194 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
-	by kanga.kvack.org (Postfix) with SMTP id 621B06B005C
-	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 06:25:17 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 4743C3EE0CD
-	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 19:25:15 +0900 (JST)
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 2581345DE5C
-	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 19:25:15 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 0303D45DE59
-	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 19:25:15 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id E3EDBE38005
-	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 19:25:14 +0900 (JST)
-Received: from m1000.s.css.fujitsu.com (m1000.s.css.fujitsu.com [10.240.81.136])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 9C9B01DB804D
-	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 19:25:14 +0900 (JST)
-Message-ID: <4FEC308F.4020909@jp.fujitsu.com>
-Date: Thu, 28 Jun 2012 19:23:11 +0900
-From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
+	by kanga.kvack.org (Postfix) with SMTP id E868A6B005A
+	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 06:29:23 -0400 (EDT)
+Date: Thu, 28 Jun 2012 11:29:19 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH -mm] mm: have order>0 compaction start off where it left
+Message-ID: <20120628102919.GQ8103@csn.ul.ie>
+References: <20120627233742.53225fc7@annuminas.surriel.com>
 MIME-Version: 1.0
-Subject: [RFC][PATCH 2/2] memcg : remove -ENOMEM at page migration.
-References: <4FEC300A.7040209@jp.fujitsu.com>
-In-Reply-To: <4FEC300A.7040209@jp.fujitsu.com>
-Content-Type: text/plain; charset=ISO-2022-JP
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20120627233742.53225fc7@annuminas.surriel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm <linux-mm@kvack.org>
-Cc: Michal Hocko <mhocko@suse.cz>, David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>
+To: Rik van Riel <riel@redhat.com>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, kamezawa.hiroyu@jp.fujitsu.com, minchan@kernel.org, linux-kernel@vger.kernel.org, jaschut@sandia.gov
 
-For handling many kinds of races, memcg adds an extra charge to
-page's memcg at page migration. But this affects the page compaction
-and make it fail if the memcg is under OOM.
+On Wed, Jun 27, 2012 at 11:37:42PM -0400, Rik van Riel wrote:
+> Order > 0 compaction stops when enough free pages of the correct
+> page order have been coalesced. When doing subsequent higher order
+> allocations, it is possible for compaction to be invoked many times.
+> 
+> However, the compaction code always starts out looking for things to
+> compact at the start of the zone, and for free pages to compact things
+> to at the end of the zone.
+> 
+> This can cause quadratic behaviour, with isolate_freepages starting
+> at the end of the zone each time, even though previous invocations
+> of the compaction code already filled up all free memory on that end
+> of the zone.
+> 
+> This can cause isolate_freepages to take enormous amounts of CPU
+> with certain workloads on larger memory systems.
+> 
+> The obvious solution is to have isolate_freepages remember where
+> it left off last time, and continue at that point the next time
+> it gets invoked for an order > 0 compaction. This could cause
+> compaction to fail if cc->free_pfn and cc->migrate_pfn are close
+> together initially, in that case we restart from the end of the
+> zone and try once more.
+> 
+> Forced full (order == -1) compactions are left alone.
+> 
+> Reported-by: Jim Schutt <jaschut@sandia.gov>
+> Signed-off-by: Rik van Riel <riel@redhat.com>
 
-This patch uses res_counter_charge_nofail() in page migration path
-and remove -ENOMEM. By this, page migration will not fail by the
-status of memcg.
+In principal, this is a good idea and I like it. Not so sure about the
+details :)
 
-Reported-by: David Rientjes <rientjes@google.com>
-Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
----
- mm/memcontrol.c |   26 +++++++-------------------
- 1 files changed, 7 insertions(+), 19 deletions(-)
+> ---
+> CAUTION: due to the time of day, I have only COMPILE tested this code
+> 
+>  include/linux/mmzone.h |    4 ++++
+>  mm/compaction.c        |   25 +++++++++++++++++++++++--
+>  mm/internal.h          |    1 +
+>  mm/page_alloc.c        |    4 ++++
+>  4 files changed, 32 insertions(+), 2 deletions(-)
+> 
+> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+> index 2427706..b8a5c36 100644
+> --- a/include/linux/mmzone.h
+> +++ b/include/linux/mmzone.h
+> @@ -369,6 +369,10 @@ struct zone {
+>  	 */
+>  	spinlock_t		lock;
+>  	int                     all_unreclaimable; /* All pages pinned */
+> +#if defined CONFIG_COMPACTION || defined CONFIG_CMA
+> +	/* pfn where the last order > 0 compaction isolated free pages */
+> +	unsigned long		last_free_pfn;
+> +#endif
 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index a2677e0..7424fab 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -3168,6 +3168,7 @@ int mem_cgroup_prepare_migration(struct page *page,
- 	struct page *newpage, struct mem_cgroup **memcgp, gfp_t gfp_mask)
- {
- 	struct mem_cgroup *memcg = NULL;
-+	struct res_counter *dummy;
- 	struct page_cgroup *pc;
- 	enum charge_type ctype;
- 	int ret = 0;
-@@ -3222,29 +3223,16 @@ int mem_cgroup_prepare_migration(struct page *page,
- 	 */
- 	if (!memcg)
- 		return 0;
--
--	*memcgp = memcg;
--	ret = __mem_cgroup_try_charge(NULL, gfp_mask, 1, memcgp, false);
--	css_put(&memcg->css);/* drop extra refcnt */
--	if (ret) {
--		if (PageAnon(page)) {
--			lock_page_cgroup(pc);
--			ClearPageCgroupMigration(pc);
--			unlock_page_cgroup(pc);
--			/*
--			 * The old page may be fully unmapped while we kept it.
--			 */
--			mem_cgroup_uncharge_page(page);
--		}
--		/* we'll need to revisit this error code (we have -EINTR) */
--		return -ENOMEM;
--	}
- 	/*
- 	 * We charge new page before it's used/mapped. So, even if unlock_page()
- 	 * is called before end_migration, we can catch all events on this new
- 	 * page. In the case new page is migrated but not remapped, new page's
- 	 * mapcount will be finally 0 and we call uncharge in end_migration().
- 	 */
-+	res_counter_charge_nofail(&memcg->res, PAGE_SIZE, &dummy);
-+	if (do_swap_account)
-+		res_counter_charge_nofail(&memcg->memsw, PAGE_SIZE, &dummy);
-+
- 	if (PageAnon(page))
- 		ctype = MEM_CGROUP_CHARGE_TYPE_ANON;
- 	else if (page_is_file_cache(page))
-@@ -3807,9 +3795,9 @@ static inline u64 mem_cgroup_usage(struct mem_cgroup *memcg, bool swap)
- 
- 	if (!mem_cgroup_is_root(memcg)) {
- 		if (!swap)
--			return res_counter_read_u64(&memcg->res, RES_USAGE);
-+			return res_counter_usage_safe(&memcg->res);
- 		else
--			return res_counter_read_u64(&memcg->memsw, RES_USAGE);
-+			return res_counter_usage_safe(&memcg->memsw);
- 	}
- 
- 	val = mem_cgroup_recursive_stat(memcg, MEM_CGROUP_STAT_CACHE);
+last_free_pfn could be misleading as a name. At a glance it implies that
+it stores the PFN of the highest free page. compact_cached_free_pfn?
+
+>  #ifdef CONFIG_MEMORY_HOTPLUG
+>  	/* see spanned/present_pages for more description */
+>  	seqlock_t		span_seqlock;
+> diff --git a/mm/compaction.c b/mm/compaction.c
+> index 7ea259d..0e9e995 100644
+> --- a/mm/compaction.c
+> +++ b/mm/compaction.c
+> @@ -422,6 +422,10 @@ static void isolate_freepages(struct zone *zone,
+>  					pfn -= pageblock_nr_pages) {
+>  		unsigned long isolated;
+>  
+> +		/* Skip ahead if somebody else is compacting simultaneously. */
+> +		if (cc->order > 0)
+> +			pfn = min(pfn, zone->last_free_pfn);
+> +
+>  		if (!pfn_valid(pfn))
+>  			continue;
+>  
+> @@ -463,6 +467,8 @@ static void isolate_freepages(struct zone *zone,
+>  		 */
+>  		if (isolated)
+>  			high_pfn = max(high_pfn, pfn);
+> +		if (cc->order > 0)
+> +			zone->last_free_pfn = high_pfn;
+>  	}
+>  
+>  	/* split_free_page does not map the pages */
+
+This is not necessarily good behaviour.
+
+Lets say there are two parallel compactions running. Process A meets
+the migration PFN and moves to the end of the zone to restart. Process B
+finishes scanning mid-way through the zone and updates last_free_pfn. This
+will cause Process A to "jump" to where Process B left off which is not
+necessarily desirable.
+
+Another side effect is that a workload that allocations/frees
+aggressively will not compact as well as the "free" scanner is not
+scanning the end of the zone each time. It would be better if
+last_free_pfn was updated when a full pageblock was encountered
+
+So;
+
+1. Initialise last_free_pfn to the end of the zone
+2. On compaction, scan from last_free_pfn and record where it started
+3. If a pageblock is full, update last_free_pfn
+4. If the migration and free scanner meet, reset last_free_pfn and
+   the free scanner. Abort if the free scanner wraps to where it started
+
+Does that make sense?
+
+> @@ -565,9 +571,24 @@ static int compact_finished(struct zone *zone,
+>  	if (fatal_signal_pending(current))
+>  		return COMPACT_PARTIAL;
+>  
+> -	/* Compaction run completes if the migrate and free scanner meet */
+> -	if (cc->free_pfn <= cc->migrate_pfn)
+> +	/*
+> +	 * A full (order == -1) compaction run starts at the beginning and
+> +	 * end of a zone; it completes when the migrate and free scanner meet. 
+> +	 * A partial (order > 0) compaction can start with the free scanner
+> +	 * at a random point in the zone, and may have to restart.
+> +	 */
+> +	if (cc->free_pfn <= cc->migrate_pfn) {
+> +		if (cc->order > 0 && !cc->last_round) {
+> +			/* We started partway through; restart at the end. */
+> +			unsigned long free_pfn;
+> +			free_pfn = zone->zone_start_pfn + zone->spanned_pages;
+> +			free_pfn &= ~(pageblock_nr_pages-1);
+> +			zone->last_free_pfn = free_pfn;
+> +			cc->last_round = 1;
+> +			return COMPACT_CONTINUE;
+> +		}
+>  		return COMPACT_COMPLETE;
+> +	}
+>  
+>  	/*
+>  	 * order == -1 is expected when compacting via
+> diff --git a/mm/internal.h b/mm/internal.h
+> index 2ba87fb..b041874 100644
+> --- a/mm/internal.h
+> +++ b/mm/internal.h
+> @@ -120,6 +120,7 @@ struct compact_control {
+>  	unsigned long free_pfn;		/* isolate_freepages search base */
+>  	unsigned long migrate_pfn;	/* isolate_migratepages search base */
+>  	bool sync;			/* Synchronous migration */
+> +	bool last_round;		/* Last round for order>0 compaction */
+>  
+
+I don't get what you mean by last_round. Did you mean "wrapped". When
+false, it means the free scanner started from last_pfn and when true it
+means it started from last_pfn, met the migrate scanner and wrapped
+around to the end of the zone?
+
+>  	int order;			/* order a direct compactor needs */
+>  	int migratetype;		/* MOVABLE, RECLAIMABLE etc */
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 4403009..86de652 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -4394,6 +4394,10 @@ static void __paginginit free_area_init_core(struct pglist_data *pgdat,
+>  
+>  		zone->spanned_pages = size;
+>  		zone->present_pages = realsize;
+> +#if defined CONFIG_COMPACTION || defined CONFIG_CMA
+> +		zone->last_free_pfn = zone->zone_start_pfn + zone->spanned_pages;
+> +		zone->last_free_pfn &= ~(pageblock_nr_pages-1);
+> +#endif
+>  #ifdef CONFIG_NUMA
+>  		zone->node = nid;
+>  		zone->min_unmapped_pages = (realsize*sysctl_min_unmapped_ratio)
+> 
+
 -- 
-1.7.4.1
-
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
