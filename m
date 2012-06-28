@@ -1,54 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx127.postini.com [74.125.245.127])
-	by kanga.kvack.org (Postfix) with SMTP id 21A2C6B0069
-	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 07:00:55 -0400 (EDT)
-Message-ID: <1340881196.28750.16.camel@twins>
-Subject: Re: [PATCH 08/20] mm: Optimize fullmm TLB flushing
-From: Peter Zijlstra <peterz@infradead.org>
-Date: Thu, 28 Jun 2012 12:59:56 +0200
-In-Reply-To: <1340879984.20977.80.camel@pasglop>
-References: <20120627211540.459910855@chello.nl>
-	 <20120627212831.137126018@chello.nl>
-	 <CA+55aFwZoVK76ue7tFveV0XZpPUmoCVXJx8550OxPm+XKCSSZA@mail.gmail.com>
-	 <1340838154.10063.86.camel@twins> <1340838807.10063.90.camel@twins>
-	 <CA+55aFy6m967fMxyBsRoXVecdpGtSphXi_XdhwS0DB81Qaocdw@mail.gmail.com>
-	 <CA+55aFzLNsVRkp_US8rAmygEkQpp1s1YdakV86Ck-4RZM7TTdA@mail.gmail.com>
-	 <20120628091627.GB8573@arm.com> <1340879984.20977.80.camel@pasglop>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: quoted-printable
-Mime-Version: 1.0
+Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
+	by kanga.kvack.org (Postfix) with SMTP id DBF6E6B005C
+	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 07:01:29 -0400 (EDT)
+Received: by dakp5 with SMTP id p5so3331868dak.14
+        for <linux-mm@kvack.org>; Thu, 28 Jun 2012 04:01:29 -0700 (PDT)
+From: Sha Zhengju <handai.szj@gmail.com>
+Subject: [PATCH 3/7] Make TestSetPageDirty and dirty page accounting in one func
+Date: Thu, 28 Jun 2012 19:01:15 +0800
+Message-Id: <1340881275-5651-1-git-send-email-handai.szj@taobao.com>
+In-Reply-To: <1340880885-5427-1-git-send-email-handai.szj@taobao.com>
+References: <1340880885-5427-1-git-send-email-handai.szj@taobao.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Cc: Catalin Marinas <catalin.marinas@arm.com>, Linus Torvalds <torvalds@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <npiggin@kernel.dk>, Alex Shi <alex.shi@intel.com>, "Nikunj A. Dadhania" <nikunj@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad@darnok.org>, David Miller <davem@davemloft.net>, Russell King <rmk@arm.linux.org.uk>, Chris Metcalf <cmetcalf@tilera.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Tony Luck <tony.luck@intel.com>, Paul Mundt <lethal@linux-sh.org>, Jeff Dike <jdike@addtoit.com>, Richard Weinberger <richard@nod.at>, Ralf Baechle <ralf@linux-mips.org>, Kyle McMartin <kyle@mcmartin.ca>, James Bottomley <jejb@parisc-linux.org>, Chris Zankel <chris@zankel.net>
+To: linux-mm@kvack.org, cgroups@vger.kernel.org
+Cc: kamezawa.hiroyu@jp.fujitsu.com, gthelen@google.com, yinghan@google.com, akpm@linux-foundation.org, mhocko@suse.cz, linux-kernel@vger.kernel.org, torvalds@linux-foundation.org, viro@zeniv.linux.org.uk, linux-fsdevel@vger.kernel.org, Sha Zhengju <handai.szj@taobao.com>
 
-On Thu, 2012-06-28 at 20:39 +1000, Benjamin Herrenschmidt wrote:
-> On Thu, 2012-06-28 at 10:16 +0100, Catalin Marinas wrote:
-> > That's definitely an issue on ARM and it was hit on older kernels.
-> > Basically ARM processors can cache any page translation level in the
-> > TLB. We need to make sure that no page entry at any level (either cache=
-d
-> > in the TLB or not) points to an invalid next level table (hence the TLB
-> > shootdown). For example, in cases like free_pgd_range(), if the cached
-> > pgd entry points to an already freed pud/pmd table (pgd_clear is not
-> > enough) it may walk the page tables speculatively cache another entry i=
-n
-> > the TLB. Depending on the random data it reads from an old table page,
-> > it may find a global entry (it's just a bit in the pte) which is not
-> > tagged with an ASID (application specific id). A latter flush_tlb_mm()
-> > only flushes the current ASID and doesn't touch global entries (used
-> > only by kernel mappings). So we end up with global TLB entry in user
-> > space that overrides any other application mapping.
->=20
-> Right, that's the typical scenario. I haven't looked at your flush
-> implementation though, but surely you can defer the actual freeing so
-> you can batch them & limit the number of TLB flushes right ?
+From: Sha Zhengju <handai.szj@taobao.com>
 
-Yes they do.. its just the up-front TLB invalidate for fullmm that's a
-problem.
+Commit a8e7d49a(Fix race in create_empty_buffers() vs __set_page_dirty_buffers())
+extracts TestSetPageDirty from __set_page_dirty and is far away from
+account_page_dirtied.But it's better to make the two operations in one single
+function to keep modular.So in order to avoid the potential race mentioned in
+commit a8e7d49a, we can hold private_lock until __set_page_dirty completes.
+I guess there's no deadlock between ->private_lock and ->tree_lock by quick look.
 
-s390 really wants this so it can avoid the per pte invalidate otherwise
-required by ptep_get_and_clear_full().
+It's a prepare patch for following memcg dirty page accounting patches.
+
+Signed-off-by: Sha Zhengju <handai.szj@taobao.com>
+---
+ fs/buffer.c |   25 +++++++++++++------------
+ 1 files changed, 13 insertions(+), 12 deletions(-)
+
+diff --git a/fs/buffer.c b/fs/buffer.c
+index 838a9cf..e8d96b8 100644
+--- a/fs/buffer.c
++++ b/fs/buffer.c
+@@ -610,9 +610,15 @@ EXPORT_SYMBOL(mark_buffer_dirty_inode);
+  * If warn is true, then emit a warning if the page is not uptodate and has
+  * not been truncated.
+  */
+-static void __set_page_dirty(struct page *page,
++static int __set_page_dirty(struct page *page,
+ 		struct address_space *mapping, int warn)
+ {
++	if (unlikely(!mapping))
++		return !TestSetPageDirty(page);
++
++	if (TestSetPageDirty(page))
++		return 0;
++
+ 	spin_lock_irq(&mapping->tree_lock);
+ 	if (page->mapping) {	/* Race with truncate? */
+ 		WARN_ON_ONCE(warn && !PageUptodate(page));
+@@ -622,6 +628,8 @@ static void __set_page_dirty(struct page *page,
+ 	}
+ 	spin_unlock_irq(&mapping->tree_lock);
+ 	__mark_inode_dirty(mapping->host, I_DIRTY_PAGES);
++
++	return 1;
+ }
+ 
+ /*
+@@ -667,11 +675,9 @@ int __set_page_dirty_buffers(struct page *page)
+ 			bh = bh->b_this_page;
+ 		} while (bh != head);
+ 	}
+-	newly_dirty = !TestSetPageDirty(page);
++	newly_dirty = __set_page_dirty(page, mapping, 1);
+ 	spin_unlock(&mapping->private_lock);
+ 
+-	if (newly_dirty)
+-		__set_page_dirty(page, mapping, 1);
+ 	return newly_dirty;
+ }
+ EXPORT_SYMBOL(__set_page_dirty_buffers);
+@@ -1115,14 +1121,9 @@ void mark_buffer_dirty(struct buffer_head *bh)
+ 			return;
+ 	}
+ 
+-	if (!test_set_buffer_dirty(bh)) {
+-		struct page *page = bh->b_page;
+-		if (!TestSetPageDirty(page)) {
+-			struct address_space *mapping = page_mapping(page);
+-			if (mapping)
+-				__set_page_dirty(page, mapping, 0);
+-		}
+-	}
++	if (!test_set_buffer_dirty(bh))
++		__set_page_dirty(bh->b_page, page_mapping(bh->b_page), 0);
++
+ }
+ EXPORT_SYMBOL(mark_buffer_dirty);
+ 
+-- 
+1.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
