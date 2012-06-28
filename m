@@ -1,96 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
-	by kanga.kvack.org (Postfix) with SMTP id DBF6E6B005C
-	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 07:01:29 -0400 (EDT)
-Received: by dakp5 with SMTP id p5so3331868dak.14
-        for <linux-mm@kvack.org>; Thu, 28 Jun 2012 04:01:29 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
+	by kanga.kvack.org (Postfix) with SMTP id E214F6B005C
+	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 07:03:58 -0400 (EDT)
+Received: by dakp5 with SMTP id p5so3335257dak.14
+        for <linux-mm@kvack.org>; Thu, 28 Jun 2012 04:03:57 -0700 (PDT)
 From: Sha Zhengju <handai.szj@gmail.com>
-Subject: [PATCH 3/7] Make TestSetPageDirty and dirty page accounting in one func
-Date: Thu, 28 Jun 2012 19:01:15 +0800
-Message-Id: <1340881275-5651-1-git-send-email-handai.szj@taobao.com>
+Subject: [PATCH 4/7] Use vfs __set_page_dirty interface instead of doing it inside filesystem
+Date: Thu, 28 Jun 2012 19:03:43 +0800
+Message-Id: <1340881423-5703-1-git-send-email-handai.szj@taobao.com>
 In-Reply-To: <1340880885-5427-1-git-send-email-handai.szj@taobao.com>
 References: <1340880885-5427-1-git-send-email-handai.szj@taobao.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, cgroups@vger.kernel.org
-Cc: kamezawa.hiroyu@jp.fujitsu.com, gthelen@google.com, yinghan@google.com, akpm@linux-foundation.org, mhocko@suse.cz, linux-kernel@vger.kernel.org, torvalds@linux-foundation.org, viro@zeniv.linux.org.uk, linux-fsdevel@vger.kernel.org, Sha Zhengju <handai.szj@taobao.com>
+Cc: kamezawa.hiroyu@jp.fujitsu.com, gthelen@google.com, yinghan@google.com, akpm@linux-foundation.org, mhocko@suse.cz, linux-kernel@vger.kernel.org, torvalds@linux-foundation.org, viro@zeniv.linux.org.uk, linux-fsdevel@vger.kernel.org, sage@newdream.net, ceph-devel@vger.kernel.org, Sha Zhengju <handai.szj@taobao.com>
 
 From: Sha Zhengju <handai.szj@taobao.com>
 
-Commit a8e7d49a(Fix race in create_empty_buffers() vs __set_page_dirty_buffers())
-extracts TestSetPageDirty from __set_page_dirty and is far away from
-account_page_dirtied.But it's better to make the two operations in one single
-function to keep modular.So in order to avoid the potential race mentioned in
-commit a8e7d49a, we can hold private_lock until __set_page_dirty completes.
-I guess there's no deadlock between ->private_lock and ->tree_lock by quick look.
-
-It's a prepare patch for following memcg dirty page accounting patches.
+Following we will treat SetPageDirty and dirty page accounting as an integrated
+operation. Filesystems had better use vfs interface directly to avoid those details.
 
 Signed-off-by: Sha Zhengju <handai.szj@taobao.com>
 ---
- fs/buffer.c |   25 +++++++++++++------------
- 1 files changed, 13 insertions(+), 12 deletions(-)
+ fs/buffer.c                 |    2 +-
+ fs/ceph/addr.c              |   20 ++------------------
+ include/linux/buffer_head.h |    2 ++
+ 3 files changed, 5 insertions(+), 19 deletions(-)
 
 diff --git a/fs/buffer.c b/fs/buffer.c
-index 838a9cf..e8d96b8 100644
+index e8d96b8..55522dd 100644
 --- a/fs/buffer.c
 +++ b/fs/buffer.c
-@@ -610,9 +610,15 @@ EXPORT_SYMBOL(mark_buffer_dirty_inode);
+@@ -610,7 +610,7 @@ EXPORT_SYMBOL(mark_buffer_dirty_inode);
   * If warn is true, then emit a warning if the page is not uptodate and has
   * not been truncated.
   */
--static void __set_page_dirty(struct page *page,
-+static int __set_page_dirty(struct page *page,
+-static int __set_page_dirty(struct page *page,
++int __set_page_dirty(struct page *page,
  		struct address_space *mapping, int warn)
  {
-+	if (unlikely(!mapping))
-+		return !TestSetPageDirty(page);
-+
-+	if (TestSetPageDirty(page))
-+		return 0;
-+
- 	spin_lock_irq(&mapping->tree_lock);
- 	if (page->mapping) {	/* Race with truncate? */
- 		WARN_ON_ONCE(warn && !PageUptodate(page));
-@@ -622,6 +628,8 @@ static void __set_page_dirty(struct page *page,
- 	}
- 	spin_unlock_irq(&mapping->tree_lock);
- 	__mark_inode_dirty(mapping->host, I_DIRTY_PAGES);
-+
-+	return 1;
- }
+ 	if (unlikely(!mapping))
+diff --git a/fs/ceph/addr.c b/fs/ceph/addr.c
+index 8b67304..d028fbe 100644
+--- a/fs/ceph/addr.c
++++ b/fs/ceph/addr.c
+@@ -5,6 +5,7 @@
+ #include <linux/mm.h>
+ #include <linux/pagemap.h>
+ #include <linux/writeback.h>	/* generic_writepages */
++#include <linux/buffer_head.h>
+ #include <linux/slab.h>
+ #include <linux/pagevec.h>
+ #include <linux/task_io_accounting_ops.h>
+@@ -73,14 +74,8 @@ static int ceph_set_page_dirty(struct page *page)
+ 	int undo = 0;
+ 	struct ceph_snap_context *snapc;
  
- /*
-@@ -667,11 +675,9 @@ int __set_page_dirty_buffers(struct page *page)
- 			bh = bh->b_this_page;
- 		} while (bh != head);
- 	}
--	newly_dirty = !TestSetPageDirty(page);
-+	newly_dirty = __set_page_dirty(page, mapping, 1);
- 	spin_unlock(&mapping->private_lock);
- 
--	if (newly_dirty)
--		__set_page_dirty(page, mapping, 1);
- 	return newly_dirty;
- }
- EXPORT_SYMBOL(__set_page_dirty_buffers);
-@@ -1115,14 +1121,9 @@ void mark_buffer_dirty(struct buffer_head *bh)
- 			return;
- 	}
- 
--	if (!test_set_buffer_dirty(bh)) {
--		struct page *page = bh->b_page;
--		if (!TestSetPageDirty(page)) {
--			struct address_space *mapping = page_mapping(page);
--			if (mapping)
--				__set_page_dirty(page, mapping, 0);
--		}
+-	if (unlikely(!mapping))
+-		return !TestSetPageDirty(page);
+-
+-	if (TestSetPageDirty(page)) {
+-		dout("%p set_page_dirty %p idx %lu -- already dirty\n",
+-		     mapping->host, page, page->index);
++	if (!__set_page_dirty(page, mapping, 1))
+ 		return 0;
 -	}
-+	if (!test_set_buffer_dirty(bh))
-+		__set_page_dirty(bh->b_page, page_mapping(bh->b_page), 0);
-+
+ 
+ 	inode = mapping->host;
+ 	ci = ceph_inode(inode);
+@@ -107,14 +102,7 @@ static int ceph_set_page_dirty(struct page *page)
+ 	     snapc, snapc->seq, snapc->num_snaps);
+ 	spin_unlock(&ci->i_ceph_lock);
+ 
+-	/* now adjust page */
+-	spin_lock_irq(&mapping->tree_lock);
+ 	if (page->mapping) {	/* Race with truncate? */
+-		WARN_ON_ONCE(!PageUptodate(page));
+-		account_page_dirtied(page, page->mapping);
+-		radix_tree_tag_set(&mapping->page_tree,
+-				page_index(page), PAGECACHE_TAG_DIRTY);
+-
+ 		/*
+ 		 * Reference snap context in page->private.  Also set
+ 		 * PagePrivate so that we get invalidatepage callback.
+@@ -126,14 +114,10 @@ static int ceph_set_page_dirty(struct page *page)
+ 		undo = 1;
+ 	}
+ 
+-	spin_unlock_irq(&mapping->tree_lock);
+-
+ 	if (undo)
+ 		/* whoops, we failed to dirty the page */
+ 		ceph_put_wrbuffer_cap_refs(ci, 1, snapc);
+ 
+-	__mark_inode_dirty(mapping->host, I_DIRTY_PAGES);
+-
+ 	BUG_ON(!PageDirty(page));
+ 	return 1;
  }
- EXPORT_SYMBOL(mark_buffer_dirty);
+diff --git a/include/linux/buffer_head.h b/include/linux/buffer_head.h
+index 458f497..0a331a8 100644
+--- a/include/linux/buffer_head.h
++++ b/include/linux/buffer_head.h
+@@ -336,6 +336,8 @@ static inline void lock_buffer(struct buffer_head *bh)
+ }
+ 
+ extern int __set_page_dirty_buffers(struct page *page);
++extern int __set_page_dirty(struct page *page,
++		struct address_space *mapping, int warn);
+ 
+ #else /* CONFIG_BLOCK */
  
 -- 
 1.7.1
