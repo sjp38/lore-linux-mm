@@ -1,55 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
-	by kanga.kvack.org (Postfix) with SMTP id 6FD826B005A
-	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 14:30:04 -0400 (EDT)
-Received: by pbbrp2 with SMTP id rp2so4165907pbb.14
-        for <linux-mm@kvack.org>; Thu, 28 Jun 2012 11:30:03 -0700 (PDT)
-Date: Thu, 28 Jun 2012 11:29:34 -0700
+Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
+	by kanga.kvack.org (Postfix) with SMTP id B06D96B005A
+	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 14:31:50 -0400 (EDT)
+Received: by dakp5 with SMTP id p5so3965442dak.14
+        for <linux-mm@kvack.org>; Thu, 28 Jun 2012 11:31:50 -0700 (PDT)
+Date: Thu, 28 Jun 2012 11:31:45 -0700
 From: Tejun Heo <tj@kernel.org>
 Subject: Re: memcg: cat: memory.memsw.* : Operation not supported
-Message-ID: <20120628182934.GD22641@google.com>
+Message-ID: <20120628183145.GE22641@google.com>
 References: <2a1a74bf-fbb5-4a6e-b958-44fff8debff2@zmail13.collab.prod.int.phx2.redhat.com>
  <34bb8049-8007-496c-8ffb-11118c587124@zmail13.collab.prod.int.phx2.redhat.com>
  <20120627154827.GA4420@tiehlicka.suse.cz>
  <alpine.DEB.2.00.1206271256120.22162@chino.kir.corp.google.com>
- <20120628123611.GA16042@tiehlicka.suse.cz>
+ <20120627200926.GR15811@google.com>
+ <alpine.DEB.2.00.1206271316070.22162@chino.kir.corp.google.com>
+ <20120627202430.GS15811@google.com>
+ <4FEBD7C0.7090906@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20120628123611.GA16042@tiehlicka.suse.cz>
+In-Reply-To: <4FEBD7C0.7090906@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: David Rientjes <rientjes@google.com>, Zhouping Liu <zliu@redhat.com>, linux-mm@kvack.org, Li Zefan <lizefan@huawei.com>, CAI Qian <caiqian@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, aneesh.kumar@linux.vnet.ibm.com
+To: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: David Rientjes <rientjes@google.com>, Michal Hocko <mhocko@suse.cz>, Zhouping Liu <zliu@redhat.com>, linux-mm@kvack.org, Li Zefan <lizefan@huawei.com>, CAI Qian <caiqian@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>
 
-Hello, Michal.
+Hello, KAME.
 
-On Thu, Jun 28, 2012 at 02:36:11PM +0200, Michal Hocko wrote:
-> @@ -2726,6 +2726,9 @@ static int cgroup_addrm_files(struct cgroup *cgrp, struct cgroup_subsys *subsys,
->  	int err, ret = 0;
->  
->  	for (cft = cfts; cft->name[0] != '\0'; cft++) {
-> +		if (subsys->cftype_enabled && !subsys->cftype_enabled(cft->name))
-> +			continue;
-> +
->  		if (is_add)
->  			err = cgroup_add_file(cgrp, subsys, cft);
->  		else
+On Thu, Jun 28, 2012 at 01:04:16PM +0900, Kamezawa Hiroyuki wrote:
+> >I still wish it's folded into CONFIG_MEMCG and conditionalized just on
+> >CONFIG_SWAP tho.
+> >
+> 
+> In old days, memsw controller was not very stable. So, we devided the config.
+> And, it makes size of memory for swap-device double (adds 2bytes per swapent.)
+> That is the problem.
 
-I hope we could avoid this dynamic decision.  That was one of the main
-reasons behind doing the cftype thing.  It's better to be able to
-"declare" these kind of things rather than being able to implement
-fully flexible dynamic logic.  Too much flexibility often doesn't
-achieve much while being a hindrance to evolution of code base (trying
-to improve / simplify X - ooh... there's this single wacko corner case
-YYY here which is really different from all other users).
+I see.  Do you think it's now reasonable to drop the separate config
+option?  Having memcg enabled but swap unaccounted sounds half-broken
+to me.
 
-really_do_swap_account can't change once booted, right?  Why not just
-separate out memsw cfts into a separate array and call
-cgroup_add_cftypes() from init path?  Can't we do that from
-enable_swap_cgroup()?
+> IIRC...at that time, we made decision, cgroup has no feature to
+> 'create files dynamically'. Then, we made it in static, decision was done
+> at compile time and ignores "do_swap_account".
+> 
+> Now, IIUC, we have the feature. So, it's may be a time to create the file
+> with regard to "do_swap_account", making decision at boot time.
 
-Thanks.
+Heh, yeah, maybe I'm confused about how it happened.  Anyways, let's
+get it fixed.
+
+Thanks!
 
 -- 
 tejun
