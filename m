@@ -1,145 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
-	by kanga.kvack.org (Postfix) with SMTP id E403F6B005C
-	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 05:14:57 -0400 (EDT)
-Message-ID: <4FEC1FF1.4020300@parallels.com>
-Date: Thu, 28 Jun 2012 13:12:17 +0400
-From: Glauber Costa <glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
+	by kanga.kvack.org (Postfix) with SMTP id 740DC6B005C
+	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 05:19:58 -0400 (EDT)
+Date: Thu, 28 Jun 2012 10:16:27 +0100
+From: Catalin Marinas <catalin.marinas@arm.com>
+Subject: Re: [PATCH 08/20] mm: Optimize fullmm TLB flushing
+Message-ID: <20120628091627.GB8573@arm.com>
+References: <20120627211540.459910855@chello.nl>
+ <20120627212831.137126018@chello.nl>
+ <CA+55aFwZoVK76ue7tFveV0XZpPUmoCVXJx8550OxPm+XKCSSZA@mail.gmail.com>
+ <1340838154.10063.86.camel@twins>
+ <1340838807.10063.90.camel@twins>
+ <CA+55aFy6m967fMxyBsRoXVecdpGtSphXi_XdhwS0DB81Qaocdw@mail.gmail.com>
+ <CA+55aFzLNsVRkp_US8rAmygEkQpp1s1YdakV86Ck-4RZM7TTdA@mail.gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 2/2] memcg: first step towards hierarchical controller
-References: <1340725634-9017-1-git-send-email-glommer@parallels.com> <1340725634-9017-3-git-send-email-glommer@parallels.com> <20120626180451.GP3869@google.com> <20120626220809.GA4653@tiehlicka.suse.cz> <20120626221452.GA15811@google.com> <20120627125119.GE5683@tiehlicka.suse.cz> <20120627173336.GJ15811@google.com> <4FEC19C9.4090708@jp.fujitsu.com>
-In-Reply-To: <4FEC19C9.4090708@jp.fujitsu.com>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CA+55aFzLNsVRkp_US8rAmygEkQpp1s1YdakV86Ck-4RZM7TTdA@mail.gmail.com>
+Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Tejun Heo <tj@kernel.org>, Michal Hocko <mhocko@suse.cz>, cgroups@vger.kernel.org, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, David
- Rientjes <rientjes@google.com>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Peter Zijlstra <peterz@infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <npiggin@kernel.dk>, Alex Shi <alex.shi@intel.com>, "Nikunj A. Dadhania" <nikunj@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, David Miller <davem@davemloft.net>, Russell King <rmk@arm.linux.org.uk>, Chris Metcalf <cmetcalf@tilera.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Tony Luck <tony.luck@intel.com>, Paul Mundt <lethal@linux-sh.org>, Jeff Dike <jdike@addtoit.com>, Richard Weinberger <richard@nod.at>, Ralf Baechle <ralf@linux-mips.org>, Kyle McMartin <kyle@mcmartin.ca>, James Bottomley <jejb@parisc-linux.org>, Chris Zankel <chris@zankel.net>
 
-On 06/28/2012 12:46 PM, Kamezawa Hiroyuki wrote:
-> (2012/06/28 2:33), Tejun Heo wrote:
->> Hello, Michal.
->>
->> On Wed, Jun 27, 2012 at 02:51:19PM +0200, Michal Hocko wrote:
->>>> Yeah, this is something I'm seriously considering doing from cgroup
->>>> core.  ie. generating a warning message if the user nests cgroups w/
->>>> controllers which don't support full hierarchy.
->>>
->>> This is a good idea.
->>
->> And I want each controller either to do proper hierarchy or not at all
->> and disallow switching the behavior while mounted - at least disallow
->> switching off hierarchy support dynamically.
->>
->>>> Just disallow clearing .use_hierarchy if it was mounted with the
->>>> option?
->>>
->>> Dunno, mount option just doesn't feel right. We do not offer other
->>> attributes to be set by them so it would be just confusing. Besides that
->>> it would require an integration into existing tools like cgconfig which
->>> is yet another pain just because of something that we never promissed to
->>> keep a certain way. There are many people who don't work with mount&fs
->>> cgroups directly but rather use libcgroup for that...
->>
->> If the default behavior has to be switched without extra input from
->> userland, that should be noisy like hell and slow.  e.g. generate
->> warning messages whenever userland does something which is to be
->> deprecated - nesting when .use_hierarchy == 0, mixing .use_hierarchy
->> == 0 / 1, and maybe later on, using .use_hierarchy == 0 at all.
->>
->> Hmm.... we need to switch other controllers over to hierarchical
->> behavior too.  We may as well just do it from cgroup core.  Once we
->> rule out all users of pseudo hierarchy - nesting with controllers
->> which don't support hierarchy - switching on hierarchy support
->> per-controller shouldn't cause much problem.
->>
->> How about the following then?
->>
->> * I'll add a way for controllers to tell cgroup core that full
->>    hierarchy support is supported and a cgroup mount option to enable
->>    hierarchy (cgroup core itself already uses a number of mount options
->>    and libgroup or whatever should be able to deal with it).
->>
->>    cgroup will refuse to mount if the hierarchy option is specified
->>    with a controller which doesn't support hierarchy and it will also
->>    whine like crazy if the userland tries to nest without the mount
->>    option specified.
->>
->>    Each controller must enforce hierarchy once so directed by cgroup
->>    mount option.
->>
->> * While doing that, all applicable controllers will be updated to
->>    support hierarchy.
->>
->> * After sufficient time has passed, nesting without the mount option
->>    specified will be failed by cgroup core.
->>
->> As for memcg's .use_hierarchy, make it RO 1 if the cgroup indicates
->> that hierarchy should be used.  Otherwise, I don't know but make sure
->> it gets phased out out use somehow.
->>
+On Thu, Jun 28, 2012 at 12:33:44AM +0100, Linus Torvalds wrote:
+> On Wed, Jun 27, 2012 at 4:23 PM, Linus Torvalds
+> <torvalds@linux-foundation.org> wrote:
+> > But the branch prediction tables are obviously just predictions, and
+> > they easily contain user addresses etc in them. So the kernel may well
+> > end up speculatively doing a TLB fill on a user access.
 > 
+> That should be ".. on a user *address*", hopefully that was clear from
+> the context, if not from the text.
 > 
->  The reason for use_hierarchy file was just _performance_, it _was_
-> terrible.
->  Now it's not very good but not terrible.
-> 
-> 
-> You all may think this as crazy idea. How about versioning ?
-> 
-> Creating 'memory2'(memory cgroup v2) cgroup and mark 'memory' cgroup as
-> deprecated,
-> and put it to feature-removal-list.
-> 
-> Of course, memory2 cgroup doesn't have use_hierarchy file and have kmem
-> accounting.
-> We should disallow to use memory and memory2 at the same time.
-> 
-> Or, add version file to cgroup subsys ? select v2 as default...user can
-> choose v1
-> with mount option if necessary, but it will not be maintained.
-> Is it too difficult or messy ?
-> 
-> To keep user experience, versioning is a way. And we can see how the
-> changes
-> affects users.
-> 
+> IOW, the point I'm trying to make is that even if there are zero
+> *actual* accesses of user space (because user space is dead, and the
+> kernel hopefully does no "get_user()/put_user()" stuff at this point
+> any more), the CPU may speculatively use user addresses for the
+> bog-standard kernel addresses that happen.
 
-I think it needs more consideration.
+That's definitely an issue on ARM and it was hit on older kernels.
+Basically ARM processors can cache any page translation level in the
+TLB. We need to make sure that no page entry at any level (either cached
+in the TLB or not) points to an invalid next level table (hence the TLB
+shootdown). For example, in cases like free_pgd_range(), if the cached
+pgd entry points to an already freed pud/pmd table (pgd_clear is not
+enough) it may walk the page tables speculatively cache another entry in
+the TLB. Depending on the random data it reads from an old table page,
+it may find a global entry (it's just a bit in the pte) which is not
+tagged with an ASID (application specific id). A latter flush_tlb_mm()
+only flushes the current ASID and doesn't touch global entries (used
+only by kernel mappings). So we end up with global TLB entry in user
+space that overrides any other application mapping.
 
-Let's consider the following points:
-
-* We are having a hard time getting rid of a file we know we hurt us.
-* We can identify at least a bazillion other points in which we suck.
-  Some of them may be user visible, and we'll have an equally hard time
-  fixing it
-* People like Michal and David are raising points on the lines of
-  "I have this setup working, everything we add or remove may break it"
-  I agree with it sometimes, disagree at others(*).
-* I really doubt memcg as it is now - even considered kmem in, is
-  "finished". This means more additions are likely to follow, and
-  waiting for it to ever be "finished" would be waiting forever.
-
-I don't necessarily agree with versioning. Mainly, because we have no
-one in the other end negotiating the features. Versioning makes more
-sense in those environments, where you can actually adapt your
-application to whatever you see in the version field, and conversely
-request a version you are safe with.
-
-But the point I want to make here is that whatever we agree on, we
-should work towards something that will allow us to more freely change
-and fix memcg in the future, without going through this discussion every
-single time.
-
-
-
-(*) Please note that I am not saying it is okay to break setups!!! I am
-only saying that I disagree that some actions will break setups that are
-used within reasonability.
-
-
-
+-- 
+Catalin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
