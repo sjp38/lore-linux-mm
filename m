@@ -1,184 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
-	by kanga.kvack.org (Postfix) with SMTP id A3D366B004D
-	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 13:55:56 -0400 (EDT)
-Date: Thu, 28 Jun 2012 13:55:20 -0400
-From: Rik van Riel <riel@redhat.com>
-Subject: [PATCH -mm v2] mm: have order > 0 compaction start off where it
- left
-Message-ID: <20120628135520.0c48b066@annuminas.surriel.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
+	by kanga.kvack.org (Postfix) with SMTP id 6FD826B005A
+	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 14:30:04 -0400 (EDT)
+Received: by pbbrp2 with SMTP id rp2so4165907pbb.14
+        for <linux-mm@kvack.org>; Thu, 28 Jun 2012 11:30:03 -0700 (PDT)
+Date: Thu, 28 Jun 2012 11:29:34 -0700
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: memcg: cat: memory.memsw.* : Operation not supported
+Message-ID: <20120628182934.GD22641@google.com>
+References: <2a1a74bf-fbb5-4a6e-b958-44fff8debff2@zmail13.collab.prod.int.phx2.redhat.com>
+ <34bb8049-8007-496c-8ffb-11118c587124@zmail13.collab.prod.int.phx2.redhat.com>
+ <20120627154827.GA4420@tiehlicka.suse.cz>
+ <alpine.DEB.2.00.1206271256120.22162@chino.kir.corp.google.com>
+ <20120628123611.GA16042@tiehlicka.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120628123611.GA16042@tiehlicka.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, jaschut@sandia.gov, minchan@kernel.org, kamezawa.hiroyu@jp.fujitsu.com
+To: Michal Hocko <mhocko@suse.cz>
+Cc: David Rientjes <rientjes@google.com>, Zhouping Liu <zliu@redhat.com>, linux-mm@kvack.org, Li Zefan <lizefan@huawei.com>, CAI Qian <caiqian@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, aneesh.kumar@linux.vnet.ibm.com
 
-Order > 0 compaction stops when enough free pages of the correct
-page order have been coalesced. When doing subsequent higher order
-allocations, it is possible for compaction to be invoked many times.
+Hello, Michal.
 
-However, the compaction code always starts out looking for things to
-compact at the start of the zone, and for free pages to compact things
-to at the end of the zone.
+On Thu, Jun 28, 2012 at 02:36:11PM +0200, Michal Hocko wrote:
+> @@ -2726,6 +2726,9 @@ static int cgroup_addrm_files(struct cgroup *cgrp, struct cgroup_subsys *subsys,
+>  	int err, ret = 0;
+>  
+>  	for (cft = cfts; cft->name[0] != '\0'; cft++) {
+> +		if (subsys->cftype_enabled && !subsys->cftype_enabled(cft->name))
+> +			continue;
+> +
+>  		if (is_add)
+>  			err = cgroup_add_file(cgrp, subsys, cft);
+>  		else
 
-This can cause quadratic behaviour, with isolate_freepages starting
-at the end of the zone each time, even though previous invocations
-of the compaction code already filled up all free memory on that end
-of the zone.
+I hope we could avoid this dynamic decision.  That was one of the main
+reasons behind doing the cftype thing.  It's better to be able to
+"declare" these kind of things rather than being able to implement
+fully flexible dynamic logic.  Too much flexibility often doesn't
+achieve much while being a hindrance to evolution of code base (trying
+to improve / simplify X - ooh... there's this single wacko corner case
+YYY here which is really different from all other users).
 
-This can cause isolate_freepages to take enormous amounts of CPU
-with certain workloads on larger memory systems.
+really_do_swap_account can't change once booted, right?  Why not just
+separate out memsw cfts into a separate array and call
+cgroup_add_cftypes() from init path?  Can't we do that from
+enable_swap_cgroup()?
 
-The obvious solution is to have isolate_freepages remember where
-it left off last time, and continue at that point the next time
-it gets invoked for an order > 0 compaction. This could cause
-compaction to fail if cc->free_pfn and cc->migrate_pfn are close
-together initially, in that case we restart from the end of the
-zone and try once more.
+Thanks.
 
-Forced full (order == -1) compactions are left alone.
-
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mel@csn.ul.ie>
-Reported-by: Jim Schutt <jaschut@sandia.gov>
-Signed-off-by: Rik van Riel <riel@redhat.com>
----
-v2: implement Mel's suggestions, handling wrap-around etc
-
- include/linux/mmzone.h |    4 ++++
- mm/compaction.c        |   48 ++++++++++++++++++++++++++++++++++++++++++++----
- mm/internal.h          |    2 ++
- mm/page_alloc.c        |    5 +++++
- 4 files changed, 55 insertions(+), 4 deletions(-)
-
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index 2427706..e629594 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -369,6 +369,10 @@ struct zone {
- 	 */
- 	spinlock_t		lock;
- 	int                     all_unreclaimable; /* All pages pinned */
-+#if defined CONFIG_COMPACTION || defined CONFIG_CMA
-+	/* pfn where the last order > 0 compaction isolated free pages */
-+	unsigned long		compact_cached_free_pfn;
-+#endif
- #ifdef CONFIG_MEMORY_HOTPLUG
- 	/* see spanned/present_pages for more description */
- 	seqlock_t		span_seqlock;
-diff --git a/mm/compaction.c b/mm/compaction.c
-index 7ea259d..2668b77 100644
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -422,6 +422,17 @@ static void isolate_freepages(struct zone *zone,
- 					pfn -= pageblock_nr_pages) {
- 		unsigned long isolated;
- 
-+		/*
-+		 * Skip ahead if another thread is compacting in the area
-+		 * simultaneously. If we wrapped around, we can only skip
-+		 * ahead if zone->compact_cached_free_pfn also wrapped to
-+		 * above our starting point.
-+		 */
-+		if (cc->order > 0 && (!cc->wrapped ||
-+				      zone->compact_cached_free_pfn >
-+				      cc->start_free_pfn))
-+			pfn = min(pfn, zone->compact_cached_free_pfn);
-+
- 		if (!pfn_valid(pfn))
- 			continue;
- 
-@@ -463,6 +474,8 @@ static void isolate_freepages(struct zone *zone,
- 		 */
- 		if (isolated)
- 			high_pfn = max(high_pfn, pfn);
-+		if (cc->order > 0)
-+			zone->compact_cached_free_pfn = high_pfn;
- 	}
- 
- 	/* split_free_page does not map the pages */
-@@ -565,8 +578,27 @@ static int compact_finished(struct zone *zone,
- 	if (fatal_signal_pending(current))
- 		return COMPACT_PARTIAL;
- 
--	/* Compaction run completes if the migrate and free scanner meet */
--	if (cc->free_pfn <= cc->migrate_pfn)
-+	/*
-+	 * A full (order == -1) compaction run starts at the beginning and
-+	 * end of a zone; it completes when the migrate and free scanner meet. 
-+	 * A partial (order > 0) compaction can start with the free scanner
-+	 * at a random point in the zone, and may have to restart.
-+	 */
-+	if (cc->free_pfn <= cc->migrate_pfn) {
-+		if (cc->order > 0 && !cc->wrapped) {
-+			/* We started partway through; restart at the end. */
-+			unsigned long free_pfn;
-+			free_pfn = zone->zone_start_pfn + zone->spanned_pages;
-+			free_pfn &= ~(pageblock_nr_pages-1);
-+			zone->compact_cached_free_pfn = free_pfn;
-+			cc->wrapped = 1;
-+			return COMPACT_CONTINUE;
-+		}
-+		return COMPACT_COMPLETE;
-+	}
-+
-+	/* We wrapped around and ended up where we started. */
-+	if (cc->wrapped && cc->free_pfn <= cc->start_free_pfn)
- 		return COMPACT_COMPLETE;
- 
- 	/*
-@@ -664,8 +696,16 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
- 
- 	/* Setup to move all movable pages to the end of the zone */
- 	cc->migrate_pfn = zone->zone_start_pfn;
--	cc->free_pfn = cc->migrate_pfn + zone->spanned_pages;
--	cc->free_pfn &= ~(pageblock_nr_pages-1);
-+
-+	if (cc->order > 0) {
-+		/* Incremental compaction. Start where the last one stopped. */
-+		cc->free_pfn = zone->compact_cached_free_pfn;
-+		cc->start_free_pfn = cc->free_pfn;
-+	} else {
-+		/* Order == -1 starts at the end of the zone. */
-+		cc->free_pfn = cc->migrate_pfn + zone->spanned_pages;
-+		cc->free_pfn &= ~(pageblock_nr_pages-1);
-+	}
- 
- 	migrate_prep_local();
- 
-diff --git a/mm/internal.h b/mm/internal.h
-index 2ba87fb..0b72461 100644
---- a/mm/internal.h
-+++ b/mm/internal.h
-@@ -118,8 +118,10 @@ struct compact_control {
- 	unsigned long nr_freepages;	/* Number of isolated free pages */
- 	unsigned long nr_migratepages;	/* Number of pages to migrate */
- 	unsigned long free_pfn;		/* isolate_freepages search base */
-+	unsigned long start_free_pfn;	/* where we started the search */
- 	unsigned long migrate_pfn;	/* isolate_migratepages search base */
- 	bool sync;			/* Synchronous migration */
-+	bool wrapped;			/* Last round for order>0 compaction */
- 
- 	int order;			/* order a direct compactor needs */
- 	int migratetype;		/* MOVABLE, RECLAIMABLE etc */
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 4403009..c353a61 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -4394,6 +4394,11 @@ static void __paginginit free_area_init_core(struct pglist_data *pgdat,
- 
- 		zone->spanned_pages = size;
- 		zone->present_pages = realsize;
-+#if defined CONFIG_COMPACTION || defined CONFIG_CMA
-+		zone->compact_cached_free_pfn = zone->zone_start_pfn +
-+						zone->spanned_pages;
-+		zone->compact_cached_free_pfn &= ~(pageblock_nr_pages-1);
-+#endif
- #ifdef CONFIG_NUMA
- 		zone->node = nid;
- 		zone->min_unmapped_pages = (realsize*sysctl_min_unmapped_ratio)
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
