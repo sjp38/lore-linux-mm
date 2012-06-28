@@ -1,168 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
-	by kanga.kvack.org (Postfix) with SMTP id CB8396B0062
-	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 06:58:38 -0400 (EDT)
-Received: by dakp5 with SMTP id p5so3327838dak.14
-        for <linux-mm@kvack.org>; Thu, 28 Jun 2012 03:58:38 -0700 (PDT)
-From: Sha Zhengju <handai.szj@gmail.com>
-Subject: [PATCH 2/7] memcg: remove MEMCG_NR_FILE_MAPPED
-Date: Thu, 28 Jun 2012 18:58:31 +0800
-Message-Id: <1340881111-5576-1-git-send-email-handai.szj@taobao.com>
-In-Reply-To: <1340880885-5427-1-git-send-email-handai.szj@taobao.com>
-References: <1340880885-5427-1-git-send-email-handai.szj@taobao.com>
+Received: from psmtp.com (na3sys010amx190.postini.com [74.125.245.190])
+	by kanga.kvack.org (Postfix) with SMTP id 540B26B0062
+	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 07:00:03 -0400 (EDT)
+Message-ID: <4FEC3891.2000702@parallels.com>
+Date: Thu, 28 Jun 2012 14:57:21 +0400
+From: Glauber Costa <glommer@parallels.com>
+MIME-Version: 1.0
+Subject: Re: [RFC][PATCH 1/2] add res_counter_usage_safe
+References: <4FEC300A.7040209@jp.fujitsu.com>
+In-Reply-To: <4FEC300A.7040209@jp.fujitsu.com>
+Content-Type: text/plain; charset="ISO-2022-JP"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, cgroups@vger.kernel.org
-Cc: kamezawa.hiroyu@jp.fujitsu.com, gthelen@google.com, yinghan@google.com, akpm@linux-foundation.org, mhocko@suse.cz, linux-kernel@vger.kernel.org, Sha Zhengju <handai.szj@taobao.com>
+To: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: linux-mm <linux-mm@kvack.org>, Michal Hocko <mhocko@suse.cz>, David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>
 
-From: Sha Zhengju <handai.szj@taobao.com>
+On 06/28/2012 02:20 PM, Kamezawa Hiroyuki wrote:
+> I think usage > limit means a sign of BUG. But, sometimes,
+> res_counter_charge_nofail() is very convenient. tcp_memcg uses it.
+> And I'd like to use it for helping page migration.
+> 
+> This patch adds res_counter_usage_safe() which returns min(usage,limit).
+> By this we can use res_counter_charge_nofail() without breaking
+> user experience.
+> 
+> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-While accounting memcg page stat, it's not worth to use MEMCG_NR_FILE_MAPPED
-as an extra layer of indirection because of the complexity and presumed
-performance overhead. We can use MEM_CGROUP_STAT_FILE_MAPPED directly.
+I totally agree.
 
-Signed-off-by: Sha Zhengju <handai.szj@taobao.com>
----
- include/linux/memcontrol.h |   25 +++++++++++++++++--------
- mm/memcontrol.c            |   24 +-----------------------
- mm/rmap.c                  |    4 ++--
- 3 files changed, 20 insertions(+), 33 deletions(-)
+It would be very nice to never go over limit, but truth is, sometimes
+we're forced too - for a limited time. In those circumstances, it is
+better to actually charge memcg, so the charges won't unbalance and
+disappear. Every work around proposed so far for those has been to
+basically add some form of "extra_charge" to the memcg, that would
+effectively charge to it, but not display it.
 
-diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index 83e7ba9..20b0f2d 100644
---- a/include/linux/memcontrol.h
-+++ b/include/linux/memcontrol.h
-@@ -27,9 +27,18 @@ struct page_cgroup;
- struct page;
- struct mm_struct;
- 
--/* Stats that can be updated by kernel. */
--enum mem_cgroup_page_stat_item {
--	MEMCG_NR_FILE_MAPPED, /* # of pages charged as file rss */
-+/*
-+ * Statistics for memory cgroup.
-+ */
-+enum mem_cgroup_stat_index {
-+	/*
-+	 * For MEM_CONTAINER_TYPE_ALL, usage = pagecache + rss.
-+	 */
-+	MEM_CGROUP_STAT_CACHE, 	   /* # of pages charged as cache */
-+	MEM_CGROUP_STAT_RSS,	   /* # of pages charged as anon rss */
-+	MEM_CGROUP_STAT_FILE_MAPPED,  /* # of pages charged as file rss */
-+	MEM_CGROUP_STAT_SWAP, /* # of pages, swapped out */
-+	MEM_CGROUP_STAT_NSTATS,
- };
- 
- struct mem_cgroup_reclaim_cookie {
-@@ -164,17 +173,17 @@ static inline void mem_cgroup_end_update_page_stat(struct page *page,
- }
- 
- void mem_cgroup_update_page_stat(struct page *page,
--				 enum mem_cgroup_page_stat_item idx,
-+				 enum mem_cgroup_stat_index idx,
- 				 int val);
- 
- static inline void mem_cgroup_inc_page_stat(struct page *page,
--					    enum mem_cgroup_page_stat_item idx)
-+					    enum mem_cgroup_stat_index idx)
- {
- 	mem_cgroup_update_page_stat(page, idx, 1);
- }
- 
- static inline void mem_cgroup_dec_page_stat(struct page *page,
--					    enum mem_cgroup_page_stat_item idx)
-+					    enum mem_cgroup_stat_index idx)
- {
- 	mem_cgroup_update_page_stat(page, idx, -1);
- }
-@@ -349,12 +358,12 @@ static inline void mem_cgroup_end_update_page_stat(struct page *page,
- }
- 
- static inline void mem_cgroup_inc_page_stat(struct page *page,
--					    enum mem_cgroup_page_stat_item idx)
-+					    enum mem_cgroup_stat_index idx)
- {
- }
- 
- static inline void mem_cgroup_dec_page_stat(struct page *page,
--					    enum mem_cgroup_page_stat_item idx)
-+					    enum mem_cgroup_stat_index idx)
- {
- }
- 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index a2677e0..ebed1ca 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -77,20 +77,6 @@ static int really_do_swap_account __initdata = 0;
- #endif
- 
- 
--/*
-- * Statistics for memory cgroup.
-- */
--enum mem_cgroup_stat_index {
--	/*
--	 * For MEM_CONTAINER_TYPE_ALL, usage = pagecache + rss.
--	 */
--	MEM_CGROUP_STAT_CACHE, 	   /* # of pages charged as cache */
--	MEM_CGROUP_STAT_RSS,	   /* # of pages charged as anon rss */
--	MEM_CGROUP_STAT_FILE_MAPPED,  /* # of pages charged as file rss */
--	MEM_CGROUP_STAT_SWAP, /* # of pages, swapped out */
--	MEM_CGROUP_STAT_NSTATS,
--};
--
- static const char * const mem_cgroup_stat_names[] = {
- 	"cache",
- 	"rss",
-@@ -1926,7 +1912,7 @@ void __mem_cgroup_end_update_page_stat(struct page *page, unsigned long *flags)
- }
- 
- void mem_cgroup_update_page_stat(struct page *page,
--				 enum mem_cgroup_page_stat_item idx, int val)
-+				 enum mem_cgroup_stat_index idx, int val)
- {
- 	struct mem_cgroup *memcg;
- 	struct page_cgroup *pc = lookup_page_cgroup(page);
-@@ -1939,14 +1925,6 @@ void mem_cgroup_update_page_stat(struct page *page,
- 	if (unlikely(!memcg || !PageCgroupUsed(pc)))
- 		return;
- 
--	switch (idx) {
--	case MEMCG_NR_FILE_MAPPED:
--		idx = MEM_CGROUP_STAT_FILE_MAPPED;
--		break;
--	default:
--		BUG();
--	}
--
- 	this_cpu_add(memcg->stat->count[idx], val);
- }
- 
-diff --git a/mm/rmap.c b/mm/rmap.c
-index 2144160..d6b93df 100644
---- a/mm/rmap.c
-+++ b/mm/rmap.c
-@@ -1148,7 +1148,7 @@ void page_add_file_rmap(struct page *page)
- 	mem_cgroup_begin_update_page_stat(page, &locked, &flags);
- 	if (atomic_inc_and_test(&page->_mapcount)) {
- 		__inc_zone_page_state(page, NR_FILE_MAPPED);
--		mem_cgroup_inc_page_stat(page, MEMCG_NR_FILE_MAPPED);
-+		mem_cgroup_inc_page_stat(page, MEM_CGROUP_STAT_FILE_MAPPED);
- 	}
- 	mem_cgroup_end_update_page_stat(page, &locked, &flags);
- }
-@@ -1202,7 +1202,7 @@ void page_remove_rmap(struct page *page)
- 					      NR_ANON_TRANSPARENT_HUGEPAGES);
- 	} else {
- 		__dec_zone_page_state(page, NR_FILE_MAPPED);
--		mem_cgroup_dec_page_stat(page, MEMCG_NR_FILE_MAPPED);
-+		mem_cgroup_dec_page_stat(page, MEM_CGROUP_STAT_FILE_MAPPED);
- 	}
- 	/*
- 	 * It would be tidy to reset the PageAnon mapping here,
--- 
-1.7.1
+The good fix is in the display side.
+
+We should just be careful to always have good justification for no_fail
+usage. It should be reserved to those situations where we really need
+it, but that's on us on future reviews.
+
+For the idea:
+
+Acked-by: Glauber Costa <glommer@parallels.com>
+
+For the patch itself: I believe we can take the lock once in
+res_counter_usage_safe, and then read the value and the limit under it.
+
+Calling res_counter_read_u64 two times seems not only wasteful but
+potentially wrong, since they can change under our nose.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
