@@ -1,52 +1,250 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
-	by kanga.kvack.org (Postfix) with SMTP id 323DA6B0062
-	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 07:31:32 -0400 (EDT)
-Message-ID: <1340883048.28750.25.camel@twins>
-Subject: Re: [PATCH 08/20] mm: Optimize fullmm TLB flushing
-From: Peter Zijlstra <peterz@infradead.org>
-Date: Thu, 28 Jun 2012 13:30:48 +0200
-In-Reply-To: <20120628131950.0afe39f0@de.ibm.com>
-References: <20120627211540.459910855@chello.nl>
-	 <20120627212831.137126018@chello.nl>
-	 <CA+55aFwZoVK76ue7tFveV0XZpPUmoCVXJx8550OxPm+XKCSSZA@mail.gmail.com>
-	 <1340838154.10063.86.camel@twins> <1340838807.10063.90.camel@twins>
-	 <CA+55aFy6m967fMxyBsRoXVecdpGtSphXi_XdhwS0DB81Qaocdw@mail.gmail.com>
-	 <CA+55aFzLNsVRkp_US8rAmygEkQpp1s1YdakV86Ck-4RZM7TTdA@mail.gmail.com>
-	 <1340880904.28750.13.camel@twins> <20120628131950.0afe39f0@de.ibm.com>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: quoted-printable
-Mime-Version: 1.0
+Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
+	by kanga.kvack.org (Postfix) with SMTP id E27FF6B0062
+	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 07:33:05 -0400 (EDT)
+Received: by pbbrp2 with SMTP id rp2so3572160pbb.14
+        for <linux-mm@kvack.org>; Thu, 28 Jun 2012 04:33:05 -0700 (PDT)
+Message-ID: <4FEC40EB.2000000@gmail.com>
+Date: Thu, 28 Jun 2012 19:32:59 +0800
+From: Sha Zhengju <handai.szj@gmail.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH 2/2] memcg: add per cgroup dirty pages accounting
+References: <1339761611-29033-1-git-send-email-handai.szj@taobao.com> <1339761717-29070-1-git-send-email-handai.szj@taobao.com> <xr93k3z8twtg.fsf@gthelen.mtv.corp.google.com> <4FDC28F0.8050805@jp.fujitsu.com> <CAFj3OHXuX7tpDe4famK3fFMZBcj2w-9mDs9mD9P_-SwaRKx8tg@mail.gmail.com> <4FE2D2F4.2020202@jp.fujitsu.com> <xr938vfgmz4y.fsf@gthelen.mtv.corp.google.com> <4FE3A998.3000606@jp.fujitsu.com>
+In-Reply-To: <4FE3A998.3000606@jp.fujitsu.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Martin Schwidefsky <schwidefsky@de.ibm.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, akpm@linux-foundation.org, Rik van Riel <riel@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <npiggin@kernel.dk>, Alex Shi <alex.shi@intel.com>, "Nikunj A.
- Dadhania" <nikunj@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, David Miller <davem@davemloft.net>, Russell King <rmk@arm.linux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Chris Metcalf <cmetcalf@tilera.com>, Tony Luck <tony.luck@intel.com>, Paul Mundt <lethal@linux-sh.org>, Jeff Dike <jdike@addtoit.com>, Richard Weinberger <richard@nod.at>, Ralf Baechle <ralf@linux-mips.org>, Kyle McMartin <kyle@mcmartin.ca>, James Bottomley <jejb@parisc-linux.org>, Chris Zankel <chris@zankel.net>
+To: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Greg Thelen <gthelen@google.com>, Sha Zhengju <handai.szj@gmail.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, yinghan@google.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, mhocko@suse.cz
 
-On Thu, 2012-06-28 at 13:19 +0200, Martin Schwidefsky wrote:
+On 06/22/2012 07:09 AM, Kamezawa Hiroyuki wrote:
+> (2012/06/22 1:02), Greg Thelen wrote:
+>> On Thu, Jun 21 2012, Kamezawa Hiroyuki wrote:
+>>
+>>> (2012/06/19 23:31), Sha Zhengju wrote:
+>>>> On Sat, Jun 16, 2012 at 2:34 PM, Kamezawa Hiroyuki
+>>>> <kamezawa.hiroyu@jp.fujitsu.com>   wrote:
+>>>>> (2012/06/16 0:32), Greg Thelen wrote:
+>>>>>>
+>>>>>> On Fri, Jun 15 2012, Sha Zhengju wrote:
+>>>>>>
+>>>>>>> This patch adds memcg routines to count dirty pages. I notice that
+>>>>>>> the list has talked about per-cgroup dirty page limiting
+>>>>>>> (http://lwn.net/Articles/455341/) before, but it did not get 
+>>>>>>> merged.
+>>>>>>
+>>>>>>
+>>>>>> Good timing, I was just about to make another effort to get some of
+>>>>>> these patches upstream.  Like you, I was going to start with some 
+>>>>>> basic
+>>>>>> counters.
+>>>>>>
+>>>>>> Your approach is similar to what I have in mind.  While it is 
+>>>>>> good to
+>>>>>> use the existing PageDirty flag, rather than introducing a new
+>>>>>> page_cgroup flag, there are locking complications (see below) to 
+>>>>>> handle
+>>>>>> races between moving pages between memcg and the pages being 
+>>>>>> {un}marked
+>>>>>> dirty.
+>>>>>>
+>>>>>>> I've no idea how is this going now, but maybe we can add per cgroup
+>>>>>>> dirty pages accounting first. This allows the memory controller to
+>>>>>>> maintain an accurate view of the amount of its memory that is dirty
+>>>>>>> and can provide some infomation while group's direct reclaim is 
+>>>>>>> working.
+>>>>>>>
+>>>>>>> After commit 89c06bd5 (memcg: use new logic for page stat 
+>>>>>>> accounting),
+>>>>>>> we do not need per page_cgroup flag anymore and can directly use
+>>>>>>> struct page flag.
+>>>>>>>
+>>>>>>>
+>>>>>>> Signed-off-by: Sha Zhengju<handai.szj@taobao.com>
+>>>>>>> ---
+>>>>>>>    include/linux/memcontrol.h |    1 +
+>>>>>>>    mm/filemap.c               |    1 +
+>>>>>>>    mm/memcontrol.c            |   32 
+>>>>>>> +++++++++++++++++++++++++-------
+>>>>>>>    mm/page-writeback.c        |    2 ++
+>>>>>>>    mm/truncate.c              |    1 +
+>>>>>>>    5 files changed, 30 insertions(+), 7 deletions(-)
+>>>>>>>
+>>>>>>> diff --git a/include/linux/memcontrol.h 
+>>>>>>> b/include/linux/memcontrol.h
+>>>>>>> index a337c2e..8154ade 100644
+>>>>>>> --- a/include/linux/memcontrol.h
+>>>>>>> +++ b/include/linux/memcontrol.h
+>>>>>>> @@ -39,6 +39,7 @@ enum mem_cgroup_stat_index {
+>>>>>>>          MEM_CGROUP_STAT_FILE_MAPPED,  /* # of pages charged as 
+>>>>>>> file rss */
+>>>>>>>          MEM_CGROUP_STAT_SWAPOUT, /* # of pages, swapped out */
+>>>>>>>          MEM_CGROUP_STAT_DATA, /* end of data requires 
+>>>>>>> synchronization */
+>>>>>>> +       MEM_CGROUP_STAT_FILE_DIRTY,  /* # of dirty pages in page 
+>>>>>>> cache */
+>>>>>>>          MEM_CGROUP_STAT_NSTATS,
+>>>>>>>    };
+>>>>>>>
+>>>>>>> diff --git a/mm/filemap.c b/mm/filemap.c
+>>>>>>> index 79c4b2b..5b5c121 100644
+>>>>>>> --- a/mm/filemap.c
+>>>>>>> +++ b/mm/filemap.c
+>>>>>>> @@ -141,6 +141,7 @@ void __delete_from_page_cache(struct page 
+>>>>>>> *page)
+>>>>>>>           * having removed the page entirely.
+>>>>>>>           */
+>>>>>>>          if (PageDirty(page)&&     
+>>>>>>> mapping_cap_account_dirty(mapping)) {
+>>>>>>> +               mem_cgroup_dec_page_stat(page,
+>>>>>>> MEM_CGROUP_STAT_FILE_DIRTY);
+>>>>>>
+>>>>>>
+>>>>>> You need to use mem_cgroup_{begin,end}_update_page_stat around 
+>>>>>> critical
+>>>>>> sections that:
+>>>>>> 1) check PageDirty
+>>>>>> 2) update MEM_CGROUP_STAT_FILE_DIRTY counter
+>>>>>>
+>>>>>> This protects against the page from being moved between memcg while
+>>>>>> accounting.  Same comment applies to all of your new calls to
+>>>>>> mem_cgroup_{dec,inc}_page_stat.  For usage pattern, see
+>>>>>> page_add_file_rmap.
+>>>>>>
+>>>>>
+>>>>> If you feel some difficulty with 
+>>>>> mem_cgroup_{begin,end}_update_page_stat(),
+>>>>> please let me know...I hope they should work enough....
+>>>>>
+>>>>
+>>>> Hi, Kame
+>>>>
+>>>> While digging into the bigger lock of 
+>>>> mem_cgroup_{begin,end}_update_page_stat(),
+>>>> I find the reality is more complex than I thought. Simply stated,
+>>>> modifying page info
+>>>> and update page stat may be wide apart and in different level (eg.
+>>>> mm&fs), so if we
+>>>> use the big lock it may lead to scalability and maintainability 
+>>>> issues.
+>>>>
+>>>> For example:
+>>>>        mem_cgroup_begin_update_page_stat()
+>>>>        modify page information                 =>   
+>>>> TestSetPageDirty ina??ceph_set_page_dirty() (fs/ceph/addr.c)
+>>>>        XXXXXX                                  =>   other fs 
+>>>> operations
+>>>>        mem_cgroup_update_page_stat()   =>   account_page_dirtied() 
+>>>> ina??mm/page-writeback.c
+>>>>        mem_cgroup_end_update_page_stat().
+>>>>
+>>>> We can choose to get lock in higher level meaning vfs set_page_dirty()
+>>>> but this may span
+>>>> too much and can also have some missing cases.
+>>>> What's your opinion of this problem?
+>>>>
+>>>
+>>> yes, that's sad....If set_page_dirty() is always called under 
+>>> lock_page(), the
+>>> story will be easier (we'll take lock_page() in move side.)
+>>> but the comment on set_page_dirty() says it's not true.....Now, I 
+>>> haven't found a magical
+>>> way for avoiding the race.
+>>> (*) If holding lock_page() in move_account() can be a generic 
+>>> solution, it will be good.
+>>>      A proposal from me is a small-start. You can start from adding 
+>>> hooks to a
+>>> generic
+>>> functions as set_page_dirty() and __set_page_dirty_nobuffers(), 
+>>> clear_page_dirty_for_io().
+>>>
+>>> And see what happens. I guess we can add WARN_ONCE() against callers 
+>>> of update_page_stat()
+>>> who don't take mem_cgroup_begin/end_update_page_stat()
+>>> (by some new check, for example, checking !rcu_read_lock_held() in 
+>>> update_stat())
+>>>
+>>> I think we can make TODO list and catch up remaining things one by one.
+>>>
+>>> Thanks,
+>>> -Kame
+>>
+>> This might be a crazy idea.  Synchronization of PageDirty with the
+>> page->memcg->nr_dirty counter is a challenge because page->memcg can be
+>> reassigned due to inter-memcg page moving.
+>
+> Yes. That's the heart of the problem.
+>
+>> Could we avoid moving dirty pages between memcg?
+>
+> How to detect it is the proebm here....
+>
+>> Specifically, could we make them clean before moving.
+>
+> I considered that but a case
+>
+>         CPU-A                CPU-B
+>     wait_for_page_cleaned
+>     .....                    SetPageDirty()
+>     account-memcg-nr_dirty
+>
+> is problematic. _If_
+>
+>         CPU-A
+>     lock_page()
+>     move_page_for_accounting()
+>     unlock_page()
+>
+> can help 99% of cases, I think this is a choice. But I haven't 
+> investigated
+> how many callers of set_page_dirty() holds locks....
+> (I guess CleraPageDirty() callers are under lock_page() always...by 
+> quick look.)
+>
+> If most of callers calls lock_page() or 
+> mem_cgroup_begin/end_update....I think
+> adding WARNING(!page_locked(page) || !rcu_read_locked()) to 
+> update_stat() will
+> be a proof of concept and automatically shows what we should do more...
+>
+>> This problem feels similar to page migration.  This would slow
+>> down inter-memcg page movement, because it would require writeback.  But
+>> I'm suspect that this is an infrequent operation.
+>
+> I agree. But, IIUC, the reason page-migration waits for the end of I/O 
+> is that migrating
+> pages under I/O (in being copied by devices) seems crazy. So, just 
+> lock_page()
+> will be an enough help....
+>
+Hi, Kame
 
-> The cpu can create speculative TLB entries, but only if it runs in the
-> mode that uses the respective mm. We have two mm's active at the same
-> time, the kernel mm (init_mm) and the user mm. While the cpu runs only
-> in kernel mode it is not allowed to create TLBs for the user mm.
-> While running in user mode it is allowed to speculatively create TLBs.
+I've checked some set_page_dirty callers and found that dozes of them 
+don't lock the page.
+Following is some comments of __set_page_dirty_nobuffers:
 
-OK, that's neat.
+  * Most callers have locked the page, which pins the address_space in 
+memory.
+  * But zap_pte_range() does not lock the page, however in that case the
+  * mapping is pinned by the vma's ->vm_file reference.
 
-> Basically we have two special requirements on s390:
-> 1) do not modify ptes while attached to another cpu except with the
->    special IPTE / IDTE instructions
+So lock_page() may not be enough too.
+Meanwhile, the move side have already  token mem_cgroup_begin/end_update 
+lock for
+FILE_MAPPED page accounting and it may be too heavy to hold another page 
+lock.
 
-Right, and your fullmm case works by doing a global invalidate after all
-threads have ceased userspace execution, this allows you to do away with
-the IPTE/IDTE instructions since there's no other active cpus on the
-userspace mm anymore.
+I try to rework vfs set dirty page routines to make SetPageDirty and 
+dirty page accounting be
+in generic interfaces and still use mem_cgroup_begin/end_update lock. I 
+also add writeback
+page accounting in similar way but more easier.
 
+I've sent out the patch set. Please feel free to point out any mistakes.
 
-> 2) do a TLB flush before freeing any kind of page table page, s390
->    needs a flush for pud, pmd & pte tables.=20
-
-Right, we do that (now)..
+Thanks,
+Sha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
