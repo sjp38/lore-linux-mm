@@ -1,42 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
-	by kanga.kvack.org (Postfix) with SMTP id 525E36B0075
-	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 12:03:04 -0400 (EDT)
-Message-ID: <4FEC7F97.5010209@redhat.com>
-Date: Thu, 28 Jun 2012 19:00:23 +0300
-From: Avi Kivity <avi@redhat.com>
+Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
+	by kanga.kvack.org (Postfix) with SMTP id C5B036B007B
+	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 12:06:27 -0400 (EDT)
+Received: by lbjn8 with SMTP id n8so4221184lbj.14
+        for <linux-mm@kvack.org>; Thu, 28 Jun 2012 09:06:25 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [PATCH 08/20] mm: Optimize fullmm TLB flushing
-References: <20120627211540.459910855@chello.nl>  <20120627212831.137126018@chello.nl>  <CA+55aFwZoVK76ue7tFveV0XZpPUmoCVXJx8550OxPm+XKCSSZA@mail.gmail.com>  <1340838154.10063.86.camel@twins> <1340838807.10063.90.camel@twins>  <CA+55aFy6m967fMxyBsRoXVecdpGtSphXi_XdhwS0DB81Qaocdw@mail.gmail.com>  <CA+55aFzLNsVRkp_US8rAmygEkQpp1s1YdakV86Ck-4RZM7TTdA@mail.gmail.com>  <1340880904.28750.13.camel@twins> <20120628131950.0afe39f0@de.ibm.com> <1340883048.28750.25.camel@twins>
-In-Reply-To: <1340883048.28750.25.camel@twins>
+In-Reply-To: <4FEC16EF.40408@jp.fujitsu.com>
+References: <4FACDED0.3020400@jp.fujitsu.com>
+	<20120621202043.GD4642@google.com>
+	<4FE3ADDD.9060908@jp.fujitsu.com>
+	<20120627175818.GM15811@google.com>
+	<4FEC16EF.40408@jp.fujitsu.com>
+Date: Thu, 28 Jun 2012 09:06:25 -0700
+Message-ID: <CAOS58YNuSMjDB00UgOPjGCSFcRx-gjvMrW+e4uW0ug8WMsuFSw@mail.gmail.com>
+Subject: Re: [PATCH v3][0/6] memcg: prevent -ENOMEM in pre_destroy()
+From: Tejun Heo <tj@kernel.org>
 Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Martin Schwidefsky <schwidefsky@de.ibm.com>, Linus Torvalds <torvalds@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, akpm@linux-foundation.org, Rik van Riel <riel@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <npiggin@kernel.dk>, Alex Shi <alex.shi@intel.com>, "Nikunj A. Dadhania" <nikunj@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, David Miller <davem@davemloft.net>, Russell King <rmk@arm.linux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Chris Metcalf <cmetcalf@tilera.com>, Tony Luck <tony.luck@intel.com>, Paul Mundt <lethal@linux-sh.org>, Jeff Dike <jdike@addtoit.com>, Richard Weinberger <richard@nod.at>, Ralf Baechle <ralf@linux-mips.org>, Kyle McMartin <kyle@mcmartin.ca>, James Bottomley <jejb@parisc-linux.org>, Chris Zankel <chris@zankel.net>
+To: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "cgroups@vger.kernel.org" <cgroups@vger.kernel.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Frederic Weisbecker <fweisbec@gmail.com>, Han Ying <yinghan@google.com>, Glauber Costa <glommer@parallels.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Hiroyuki Kamezawa <kamezawa.hiroyuki@gmail.com>, Linux Kernel <linux-kernel@vger.kernel.org>
 
-On 06/28/2012 02:30 PM, Peter Zijlstra wrote:
-> On Thu, 2012-06-28 at 13:19 +0200, Martin Schwidefsky wrote:
-> 
->> The cpu can create speculative TLB entries, but only if it runs in the
->> mode that uses the respective mm. We have two mm's active at the same
->> time, the kernel mm (init_mm) and the user mm. While the cpu runs only
->> in kernel mode it is not allowed to create TLBs for the user mm.
->> While running in user mode it is allowed to speculatively create TLBs.
-> 
-> OK, that's neat.
+Hello, KAME.
 
-Note that we can do that for x86 now using the new PCID feature.
-Basically you get a tagged TLB, so you can switch between the
-kernel-only address space and the kernel+user address space quickly.
+On Thu, Jun 28, 2012 at 1:33 AM, Kamezawa Hiroyuki
+<kamezawa.hiroyu@jp.fujitsu.com> wrote:
+>> Ooh, once memcg drops the __DEPRECATED_clear_css_refs, cgroup_rmdir()
+>> will mark the cgroup dead before start calling pre_destroy() and none
+>> of the above will happen.
+>>
+>
+> Hm, threads which touches memcg should hold memcg's reference count rather
+> than css.
+> Right ? IIUC, one of reason is a reference from kswapd etc...hm. I'll check
+> it.
 
-It's still going to be slower than what we do now, but it might please
-some security people if the kernel can't accidentally access user data.
+Not sure I'm following. I meant that css_tryget() will always fail
+once pre_destroy() calls being for the cgroup, so no new child or
+reference can be created for it after that point.
+
+Thanks.
 
 -- 
-error compiling committee.c: too many arguments to function
-
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
