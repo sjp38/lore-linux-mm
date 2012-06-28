@@ -1,67 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
-	by kanga.kvack.org (Postfix) with SMTP id A02C46B005A
-	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 02:08:41 -0400 (EDT)
-From: "Kim, Jong-Sung" <neidhard.kim@lge.com>
-References: <1338880312-17561-1-git-send-email-minchan@kernel.org> <025701cd457e$d5065410$7f12fc30$@lge.com> <20120627191801.GD25319@n2100.arm.linux.org.uk>
-In-Reply-To: <20120627191801.GD25319@n2100.arm.linux.org.uk>
-Subject: RE: [PATCH] [RESEND] arm: limit memblock base address for	early_pte_alloc
-Date: Thu, 28 Jun 2012 15:08:39 +0900
-Message-ID: <00e901cd54f4$76773650$6365a2f0$@lge.com>
+Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
+	by kanga.kvack.org (Postfix) with SMTP id E3F8E6B005A
+	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 02:17:07 -0400 (EDT)
+Received: from /spool/local
+	by e39.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <shangw@linux.vnet.ibm.com>;
+	Thu, 28 Jun 2012 00:17:07 -0600
+Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
+	by d03dlp02.boulder.ibm.com (Postfix) with ESMTP id 879933E4005B
+	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 06:17:00 +0000 (WET)
+Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q5S6H1eW056346
+	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 00:17:01 -0600
+Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av04.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q5S6GxU5015518
+	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 00:17:00 -0600
+Date: Thu, 28 Jun 2012 14:16:58 +0800
+From: Gavin Shan <shangw@linux.vnet.ibm.com>
+Subject: Re: [PATCH v2 2/3] mm/sparse: fix possible memory leak
+Message-ID: <20120628061658.GA27958@shangw>
+Reply-To: Gavin Shan <shangw@linux.vnet.ibm.com>
+References: <1340814968-2948-1-git-send-email-shangw@linux.vnet.ibm.com>
+ <1340814968-2948-2-git-send-email-shangw@linux.vnet.ibm.com>
+ <alpine.DEB.2.00.1206271501240.22985@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: 7bit
-Content-Language: ko
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.00.1206271501240.22985@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Russell King - ARM Linux' <linux@arm.linux.org.uk>
-Cc: 'Minchan Kim' <minchan@kernel.org>, 'Nicolas Pitre' <nico@linaro.org>, 'Catalin Marinas' <catalin.marinas@arm.com>, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, 'Chanho Min' <chanho.min@lge.com>, linux-mm@kvack.org
+To: David Rientjes <rientjes@google.com>
+Cc: Gavin Shan <shangw@linux.vnet.ibm.com>, linux-mm@kvack.org, mhocko@suse.cz, dave@linux.vnet.ibm.com, hannes@cmpxchg.org, akpm@linux-foundation.org
 
-> From: Russell King - ARM Linux [mailto:linux@arm.linux.org.uk]
-> Sent: Thursday, June 28, 2012 4:18 AM
-> On Fri, Jun 08, 2012 at 10:58:50PM +0900, Kim, Jong-Sung wrote:
-> >
-> > May I suggest another simple approach? The first continuous couples of
-> > sections are always safely section-mapped inside alloc_init_section
-> funtion.
-> > So, by limiting memblock_alloc to the end of the first continuous
-> > couples of sections at the start of map_lowmem, map_lowmem can safely
-> > memblock_alloc & memset even if we have one or more section-unaligned
-> > memory regions. The limit can be extended back to arm_lowmem_limit after
-> the map_lowmem is done.
-> 
-> No.  What if the first block of memory is not large enough to handle all
-the
-> allocations?
-> 
-Thank you for your comment, Russell. I sent a modified patch not to limit to
-the first memory memblock_region as a reply to Dave's message.
-
-> I think the real problem is folk trying to reserve small amounts.  I have
-> said all reservations must be aligned to 1MB.
+>> diff --git a/mm/sparse.c b/mm/sparse.c
+>> index 781fa04..a803599 100644
+>> --- a/mm/sparse.c
+>> +++ b/mm/sparse.c
+>> @@ -75,6 +75,22 @@ static struct mem_section noinline __init_refok *sparse_index_alloc(int nid)
+>>  	return section;
+>>  }
+>>  
+>> +static void noinline __init_refok sparse_index_free(struct mem_section *section,
+>> +						    int nid)
 >
-Ok, now I know your thought about arm_memblock_steal(). Then, how about
-adding a simple aligning to prevent the possible problem just like me:
+>noinline is unecessary, this is only referenced from sparse_index_init() 
+>and it's perfectly legimitate to inline.  Also, this should be __meminit 
+>and not __init.
+>
 
-diff --git a/arch/arm/mm/init.c b/arch/arm/mm/init.c
-index f54d592..d0daf0d 100644
---- a/arch/arm/mm/init.c
-+++ b/arch/arm/mm/init.c
-@@ -324,6 +324,8 @@ phys_addr_t __init arm_memblock_steal(phys_addr_t size,
-phys
- 
-        BUG_ON(!arm_memblock_steal_permitted);
- 
-+       size = ALIGN(size, SECTION_SIZE);
-+
-        phys = memblock_alloc(size, align);
-        memblock_free(phys, size);
-        memblock_remove(phys, size);
+Thanks for your comments. I'll change it into "inline __meminit" in next version :-)
 
-or, leaving a few comments about the restriction kindly..?
+>> +{
+>> +	unsigned long size = SECTIONS_PER_ROOT *
+>> +			     sizeof(struct mem_section);
+>> +
+>> +	if (!section)
+>> +		return;
+>> +
+>> +	if (slab_is_available())
+>> +		kfree(section);
+>> +	else
+>> +		free_bootmem_node(NODE_DATA(nid),
+>> +			virt_to_phys(section), size);
+>
+>Did you check what happens here if !node_state(nid, N_HIGH_MEMORY)?
+>
 
+I'm sorry that I'm not catching your point. Please explain for more
+if necessary.
 
+I'm not sure you're talking about "kfree(section);" since the memory
+chunk is allocated either by kzalloc_node() or kzalloc().
+
+Thanks,
+Gavin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
