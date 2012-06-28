@@ -1,75 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
-	by kanga.kvack.org (Postfix) with SMTP id 00D8B6B004D
-	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 13:26:07 -0400 (EDT)
-Message-ID: <4FEC9392.2090904@redhat.com>
-Date: Thu, 28 Jun 2012 13:25:38 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
+	by kanga.kvack.org (Postfix) with SMTP id C22636B004D
+	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 13:50:21 -0400 (EDT)
+Received: by qcsd16 with SMTP id d16so1425458qcs.14
+        for <linux-mm@kvack.org>; Thu, 28 Jun 2012 10:50:20 -0700 (PDT)
+Date: Thu, 28 Jun 2012 13:50:16 -0400 (EDT)
+From: Nicolas Pitre <nicolas.pitre@linaro.org>
+Subject: Re: [PATCH] [RESEND] arm: limit memblock base address for
+ early_pte_alloc
+In-Reply-To: <20120628090827.GH19026@n2100.arm.linux.org.uk>
+Message-ID: <alpine.LFD.2.02.1206281338170.31003@xanadu.home>
+References: <1338880312-17561-1-git-send-email-minchan@kernel.org> <20120627161224.GB2310@linaro.org> <alpine.LFD.2.02.1206280019160.31003@xanadu.home> <20120628090827.GH19026@n2100.arm.linux.org.uk>
 MIME-Version: 1.0
-Subject: Re: [PATCH -mm] mm: have order>0 compaction start off where it left
-References: <20120627233742.53225fc7@annuminas.surriel.com> <4FEC9181.9060000@sandia.gov>
-In-Reply-To: <4FEC9181.9060000@sandia.gov>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jim Schutt <jaschut@sandia.gov>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, Mel Gorman <mel@csn.ul.ie>, kamezawa.hiroyu@jp.fujitsu.com, minchan@kernel.org, linux-kernel@vger.kernel.org
+To: Russell King - ARM Linux <linux@arm.linux.org.uk>
+Cc: Dave Martin <dave.martin@linaro.org>, Minchan Kim <minchan@kernel.org>, Catalin Marinas <catalin.marinas@arm.com>, Chanho Min <chanho.min@lge.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Jongsung Kim <neidhard.kim@lge.com>, linux-arm-kernel@lists.infradead.org
 
-On 06/28/2012 01:16 PM, Jim Schutt wrote:
->
-> On 06/27/2012 09:37 PM, Rik van Riel wrote:
->> Order> 0 compaction stops when enough free pages of the correct
->> page order have been coalesced. When doing subsequent higher order
->> allocations, it is possible for compaction to be invoked many times.
->>
->> However, the compaction code always starts out looking for things to
->> compact at the start of the zone, and for free pages to compact things
->> to at the end of the zone.
->>
->> This can cause quadratic behaviour, with isolate_freepages starting
->> at the end of the zone each time, even though previous invocations
->> of the compaction code already filled up all free memory on that end
->> of the zone.
->>
->> This can cause isolate_freepages to take enormous amounts of CPU
->> with certain workloads on larger memory systems.
->>
->> The obvious solution is to have isolate_freepages remember where
->> it left off last time, and continue at that point the next time
->> it gets invoked for an order> 0 compaction. This could cause
->> compaction to fail if cc->free_pfn and cc->migrate_pfn are close
->> together initially, in that case we restart from the end of the
->> zone and try once more.
->>
->> Forced full (order == -1) compactions are left alone.
->>
->> Reported-by: Jim Schutt<jaschut@sandia.gov>
->> Signed-off-by: Rik van Riel<riel@redhat.com>
->
-> Tested-by: Jim Schutt<jaschut@sandia.gov>
->
-> Please let me know if you further refine this patch
-> and would like me to test it with my workload.
+On Thu, 28 Jun 2012, Russell King - ARM Linux wrote:
 
-Mel pointed out a serious problem with the way wrapping
-cc->free_pfn back to the top of the zone is handled.
+> Err, I don't think you understand what's going on here.
+> 
+> The sequence is:
+> 
+> 1. setup the initial mappings so we can run the kernel in virtual space.
+> 2. provide the memory areas to memblock
+> 3. ask the platform to reserve whatever memory it wants from memblock
+>    [this means using memblock_reserve or arm_memblock_steal).  The
+>    reserved memory is *not* expected to be mapped at this point, and is
+>    therefore inaccessible.
+> 4. Setup the lowmem mappings.
 
-I will send you a new patch once I have a fix for that.
+I do understand that pretty well so far.
 
-> So far I've run a total of ~20 TB of data over fifty minutes
-> or so through 12 machines running this patch; no hint of
-> trouble, great performance.
->
-> Without this patch I would typically start having trouble
-> after just a few minutes of this load.
+> And when we're setting up the lowmem mappings, we do *not* expect to
+> create any non-section page mappings, which again means we have no reason
+> to use the memblock allocator to obtain memory that we want to immediately
+> use.
 
-Good to hear that!
+And why does this have to remain so?
 
-Thank you for testing last night's version.
+> So I don't know where you're claim of being "fragile" is coming from.
 
--- 
-All rights reversed
+It doesn't come from anything you've described so far. It comes from 
+those previous attempts at lifting this limitation.  I think that my 
+proposal is much less fragile than the other ones.
+
+> What is fragile is people wanting to use arm_memblock_steal() without
+> following the rules for it I layed down.
+
+What about enhancing your rules if the technical limitations they were 
+based on are lifted?
+
+
+Nicolas
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
