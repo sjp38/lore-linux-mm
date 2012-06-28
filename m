@@ -1,111 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
-	by kanga.kvack.org (Postfix) with SMTP id 17C626B0069
-	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 17:50:43 -0400 (EDT)
-From: Rafael Aquini <aquini@redhat.com>
-Subject: [PATCH v2 4/4] mm: add vm event counters for balloon pages compaction
-Date: Thu, 28 Jun 2012 18:49:42 -0300
-Message-Id: <d1826d0e66be31077ebf381ab776a11bf4e23a70.1340916058.git.aquini@redhat.com>
-In-Reply-To: <cover.1340916058.git.aquini@redhat.com>
-References: <cover.1340916058.git.aquini@redhat.com>
-In-Reply-To: <cover.1340916058.git.aquini@redhat.com>
-References: <cover.1340916058.git.aquini@redhat.com>
+Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
+	by kanga.kvack.org (Postfix) with SMTP id D49226B005A
+	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 17:59:19 -0400 (EDT)
+Message-ID: <1340920641.20977.103.camel@pasglop>
+Subject: Re: [PATCH 08/20] mm: Optimize fullmm TLB flushing
+From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Date: Fri, 29 Jun 2012 07:57:21 +1000
+In-Reply-To: <1340902329.28750.83.camel@twins>
+References: <20120627211540.459910855@chello.nl>
+	 <20120627212831.137126018@chello.nl>
+	 <CA+55aFwZoVK76ue7tFveV0XZpPUmoCVXJx8550OxPm+XKCSSZA@mail.gmail.com>
+	 <1340838154.10063.86.camel@twins> <1340838807.10063.90.camel@twins>
+	 <CA+55aFy6m967fMxyBsRoXVecdpGtSphXi_XdhwS0DB81Qaocdw@mail.gmail.com>
+	 <CA+55aFzLNsVRkp_US8rAmygEkQpp1s1YdakV86Ck-4RZM7TTdA@mail.gmail.com>
+	 <20120628091627.GB8573@arm.com> <1340879984.20977.80.camel@pasglop>
+	 <1340881196.28750.16.camel@twins> <20120628145327.GA17242@arm.com>
+	 <1340900425.28750.73.camel@twins>
+	 <CA+55aFwByDWu5bP__e3sw34E7s88f_2P=8m=i6SuP6s+NZgF6w@mail.gmail.com>
+	 <1340902329.28750.83.camel@twins>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 7bit
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, Rusty Russell <rusty@rustcorp.com.au>, "Michael S. Tsirkin" <mst@redhat.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Rafael Aquini <aquini@redhat.com>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Catalin Marinas <catalin.marinas@arm.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <npiggin@kernel.dk>, Alex Shi <alex.shi@intel.com>, "Nikunj A. Dadhania" <nikunj@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad@darnok.org>, David Miller <davem@davemloft.net>, Russell King <rmk@arm.linux.org.uk>, Chris Metcalf <cmetcalf@tilera.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Tony Luck <tony.luck@intel.com>, Paul Mundt <lethal@linux-sh.org>, Jeff Dike <jdike@addtoit.com>, Richard Weinberger <richard@nod.at>, Ralf Baechle <ralf@linux-mips.org>, Kyle McMartin <kyle@mcmartin.ca>, James Bottomley <jejb@parisc-linux.org>, Chris Zankel <chris@zankel.net>
 
-This patch is only for testing report purposes and shall be dropped in case of
-the rest of this patchset getting accepted for merging.
+On Thu, 2012-06-28 at 18:52 +0200, Peter Zijlstra wrote:
+> No I think you're right (as always).. also an IPI will not force
+> schedule the thread that might be running on the receiving cpu, also
+> we'd have to wait for any such schedule to complete in order to
+> guarantee the mm isn't lazily used anymore.
+> 
+> Bugger.. 
 
-Signed-off-by: Rafael Aquini <aquini@redhat.com>
----
- drivers/virtio/virtio_balloon.c |    1 +
- include/linux/vm_event_item.h   |    2 ++
- mm/compaction.c                 |    1 +
- mm/migrate.c                    |    6 ++++--
- mm/vmstat.c                     |    4 ++++
- 5 files changed, 12 insertions(+), 2 deletions(-)
+You can still do it if the mm count is 1 no ? Ie, current is the last
+holder of a reference to the mm struct... which will probably be the
+common case for short lived programs.
 
-diff --git a/drivers/virtio/virtio_balloon.c b/drivers/virtio/virtio_balloon.c
-index 53386aa..c4a929d 100644
---- a/drivers/virtio/virtio_balloon.c
-+++ b/drivers/virtio/virtio_balloon.c
-@@ -406,6 +406,7 @@ int virtballoon_migratepage(struct address_space *mapping,
- 	spin_unlock(&vb->pfn_list_lock);
- 	tell_host(vb, vb->deflate_vq, &sg);
- 
-+	count_vm_event(COMPACTBALLOONMIGRATED);
- 	return 0;
- }
- 
-diff --git a/include/linux/vm_event_item.h b/include/linux/vm_event_item.h
-index 06f8e38..e330c5a 100644
---- a/include/linux/vm_event_item.h
-+++ b/include/linux/vm_event_item.h
-@@ -40,6 +40,8 @@ enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
- #ifdef CONFIG_COMPACTION
- 		COMPACTBLOCKS, COMPACTPAGES, COMPACTPAGEFAILED,
- 		COMPACTSTALL, COMPACTFAIL, COMPACTSUCCESS,
-+		COMPACTBALLOONMIGRATED, COMPACTBALLOONFAILED,
-+		COMPACTBALLOONISOLATED, COMPACTBALLOONFREED,
- #endif
- #ifdef CONFIG_HUGETLB_PAGE
- 		HTLB_BUDDY_PGALLOC, HTLB_BUDDY_PGALLOC_FAIL,
-diff --git a/mm/compaction.c b/mm/compaction.c
-index 6c6e572..650cdda 100644
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -947,6 +947,7 @@ bool isolate_balloon_page(struct page *page)
- 			if (is_balloon_page(page) && (page_count(page) == 2)) {
- 				page->mapping->a_ops->invalidatepage(page, 0);
- 				unlock_page(page);
-+				count_vm_event(COMPACTBALLOONISOLATED);
- 				return true;
- 			}
- 			unlock_page(page);
-diff --git a/mm/migrate.c b/mm/migrate.c
-index 59c7bc5..5838719 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -78,9 +78,10 @@ void putback_lru_pages(struct list_head *l)
- 		list_del(&page->lru);
- 		dec_zone_page_state(page, NR_ISOLATED_ANON +
- 				page_is_file_cache(page));
--		if (unlikely(is_balloon_page(page)))
-+		if (unlikely(is_balloon_page(page))) {
-+			count_vm_event(COMPACTBALLOONFAILED);
- 			WARN_ON(!putback_balloon_page(page));
--		else
-+		} else
- 			putback_lru_page(page);
- 	}
- }
-@@ -878,6 +879,7 @@ static int unmap_and_move(new_page_t get_new_page, unsigned long private,
- 				    page_is_file_cache(page));
- 		put_page(page);
- 		__free_page(page);
-+		count_vm_event(COMPACTBALLOONFREED);
- 		return rc;
- 	}
- out:
-diff --git a/mm/vmstat.c b/mm/vmstat.c
-index 1bbbbd9..3b7109f 100644
---- a/mm/vmstat.c
-+++ b/mm/vmstat.c
-@@ -767,6 +767,10 @@ const char * const vmstat_text[] = {
- 	"compact_stall",
- 	"compact_fail",
- 	"compact_success",
-+	"compact_balloon_migrated",
-+	"compact_balloon_failed",
-+	"compact_balloon_isolated",
-+	"compact_balloon_freed",
- #endif
- 
- #ifdef CONFIG_HUGETLB_PAGE
--- 
-1.7.10.2
+Cheers,
+Ben.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
