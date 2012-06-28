@@ -1,101 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
-	by kanga.kvack.org (Postfix) with SMTP id F21CC6B005A
-	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 17:24:58 -0400 (EDT)
-Message-ID: <4FECCB89.2050400@redhat.com>
-Date: Thu, 28 Jun 2012 17:24:25 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
+	by kanga.kvack.org (Postfix) with SMTP id E5A956B005A
+	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 17:34:31 -0400 (EDT)
+Received: by pbbrp2 with SMTP id rp2so4398651pbb.14
+        for <linux-mm@kvack.org>; Thu, 28 Jun 2012 14:34:31 -0700 (PDT)
+Date: Thu, 28 Jun 2012 14:34:29 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH v2 2/3] mm/sparse: fix possible memory leak
+In-Reply-To: <20120628061658.GA27958@shangw>
+Message-ID: <alpine.DEB.2.00.1206281431510.1652@chino.kir.corp.google.com>
+References: <1340814968-2948-1-git-send-email-shangw@linux.vnet.ibm.com> <1340814968-2948-2-git-send-email-shangw@linux.vnet.ibm.com> <alpine.DEB.2.00.1206271501240.22985@chino.kir.corp.google.com> <20120628061658.GA27958@shangw>
 MIME-Version: 1.0
-Subject: Re: [PATCH -mm v2] mm: have order > 0 compaction start off where
- it left
-References: <20120628135520.0c48b066@annuminas.surriel.com> <20120628135940.2c26ada9.akpm@linux-foundation.org>
-In-Reply-To: <20120628135940.2c26ada9.akpm@linux-foundation.org>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mel@csn.ul.ie>, jaschut@sandia.gov, minchan@kernel.org, kamezawa.hiroyu@jp.fujitsu.com
+To: Gavin Shan <shangw@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, mhocko@suse.cz, dave@linux.vnet.ibm.com, hannes@cmpxchg.org, akpm@linux-foundation.org
 
-On 06/28/2012 04:59 PM, Andrew Morton wrote:
-> On Thu, 28 Jun 2012 13:55:20 -0400
-> Rik van Riel<riel@redhat.com>  wrote:
->
->> Order>  0 compaction stops when enough free pages of the correct
->> page order have been coalesced. When doing subsequent higher order
->> allocations, it is possible for compaction to be invoked many times.
->>
->> However, the compaction code always starts out looking for things to
->> compact at the start of the zone, and for free pages to compact things
->> to at the end of the zone.
->>
->> This can cause quadratic behaviour, with isolate_freepages starting
->> at the end of the zone each time, even though previous invocations
->> of the compaction code already filled up all free memory on that end
->> of the zone.
->>
->> This can cause isolate_freepages to take enormous amounts of CPU
->> with certain workloads on larger memory systems.
->>
->> The obvious solution is to have isolate_freepages remember where
->> it left off last time, and continue at that point the next time
->> it gets invoked for an order>  0 compaction. This could cause
->> compaction to fail if cc->free_pfn and cc->migrate_pfn are close
->> together initially, in that case we restart from the end of the
->> zone and try once more.
->>
->> Forced full (order == -1) compactions are left alone.
->
-> Is there a quality of service impact here?  Newly-compactable pages
-> at lower pfns than compact_cached_free_pfn will now get missed, leading
-> to a form of fragmentation?
+On Thu, 28 Jun 2012, Gavin Shan wrote:
 
-The compaction side of the zone always starts at the
-very beginning of the zone.  I believe we can get
-away with this, because skipping a whole transparent
-hugepage or non-movable block is 512 times faster than
-scanning an entire block for target pages in
-isolate_freepages.
+> >> +{
+> >> +	unsigned long size = SECTIONS_PER_ROOT *
+> >> +			     sizeof(struct mem_section);
+> >> +
+> >> +	if (!section)
+> >> +		return;
+> >> +
+> >> +	if (slab_is_available())
+> >> +		kfree(section);
+> >> +	else
+> >> +		free_bootmem_node(NODE_DATA(nid),
+> >> +			virt_to_phys(section), size);
+> >
+> >Did you check what happens here if !node_state(nid, N_HIGH_MEMORY)?
+> >
+> 
+> I'm sorry that I'm not catching your point. Please explain for more
+> if necessary.
+> 
 
->> @@ -463,6 +474,8 @@ static void isolate_freepages(struct zone *zone,
->>   		 */
->>   		if (isolated)
->>   			high_pfn = max(high_pfn, pfn);
->> +		if (cc->order>  0)
->> +			zone->compact_cached_free_pfn = high_pfn;
->
-> Is high_pfn guaranteed to be aligned to pageblock_nr_pages here?  I
-> assume so, if lots of code in other places is correct but it's
-> unobvious from reading this function.
+I'm asking specifically about the free_bootmem_node(NODE_DATA(nid), ...).
 
-Reading the code a few more times, I believe that it is
-indeed aligned to pageblock size.
+If this section was allocated in sparse_index_alloc() before 
+slab_is_available() with alloc_bootmem_node() and nid is not in 
+N_HIGH_MEMORY, will alloc_bootmem_node() fallback to any node or return 
+NULL?
 
->> --- a/mm/internal.h
->> +++ b/mm/internal.h
->> @@ -118,8 +118,10 @@ struct compact_control {
->>   	unsigned long nr_freepages;	/* Number of isolated free pages */
->>   	unsigned long nr_migratepages;	/* Number of pages to migrate */
->>   	unsigned long free_pfn;		/* isolate_freepages search base */
->> +	unsigned long start_free_pfn;	/* where we started the search */
->>   	unsigned long migrate_pfn;	/* isolate_migratepages search base */
->>   	bool sync;			/* Synchronous migration */
->> +	bool wrapped;			/* Last round for order>0 compaction */
->
-> This comment is incomprehensible :(
-
-Agreed.  I'm not sure how to properly describe that variable
-in 30 or so characters :)
-
-It denotes whether the current invocation of compaction,
-called with order > 0, has had free_pfn and migrate_pfn
-meet, resulting in free_pfn being reset to the top of
-the zone.
-
-Now, how to describe that briefly?
-
--- 
-All rights reversed
+If it falls back to any node, is it safe to try to free that section by 
+passing NODE_DATA(nid) here when it wasn't allocated on that nid?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
