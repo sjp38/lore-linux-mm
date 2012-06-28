@@ -1,77 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
-	by kanga.kvack.org (Postfix) with SMTP id 53CBA6B007B
-	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 12:31:20 -0400 (EDT)
-Message-ID: <4FEC86BA.9050004@redhat.com>
-Date: Thu, 28 Jun 2012 12:30:50 -0400
-From: Rik van Riel <riel@redhat.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH -mm] mm: have order>0 compaction start off where it left
-References: <20120627233742.53225fc7@annuminas.surriel.com> <20120628102919.GQ8103@csn.ul.ie>
-In-Reply-To: <20120628102919.GQ8103@csn.ul.ie>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx133.postini.com [74.125.245.133])
+	by kanga.kvack.org (Postfix) with SMTP id CBE6E6B0075
+	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 12:39:06 -0400 (EDT)
+Message-ID: <1340901493.28750.76.camel@twins>
+Subject: Re: [PATCH 08/20] mm: Optimize fullmm TLB flushing
+From: Peter Zijlstra <peterz@infradead.org>
+Date: Thu, 28 Jun 2012 18:38:13 +0200
+In-Reply-To: <1340900425.28750.73.camel@twins>
+References: <20120627211540.459910855@chello.nl>
+	 <20120627212831.137126018@chello.nl>
+	 <CA+55aFwZoVK76ue7tFveV0XZpPUmoCVXJx8550OxPm+XKCSSZA@mail.gmail.com>
+	 <1340838154.10063.86.camel@twins> <1340838807.10063.90.camel@twins>
+	 <CA+55aFy6m967fMxyBsRoXVecdpGtSphXi_XdhwS0DB81Qaocdw@mail.gmail.com>
+	 <CA+55aFzLNsVRkp_US8rAmygEkQpp1s1YdakV86Ck-4RZM7TTdA@mail.gmail.com>
+	 <20120628091627.GB8573@arm.com> <1340879984.20977.80.camel@pasglop>
+	 <1340881196.28750.16.camel@twins> <20120628145327.GA17242@arm.com>
+	 <1340900425.28750.73.camel@twins>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: quoted-printable
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, kamezawa.hiroyu@jp.fujitsu.com, minchan@kernel.org, linux-kernel@vger.kernel.org, jaschut@sandia.gov
+To: Catalin Marinas <catalin.marinas@arm.com>
+Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>, Linus Torvalds <torvalds@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <npiggin@kernel.dk>, Alex Shi <alex.shi@intel.com>, "Nikunj A. Dadhania" <nikunj@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad@darnok.org>, David Miller <davem@davemloft.net>, Russell King <rmk@arm.linux.org.uk>, Chris Metcalf <cmetcalf@tilera.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Tony Luck <tony.luck@intel.com>, Paul Mundt <lethal@linux-sh.org>, Jeff Dike <jdike@addtoit.com>, Richard Weinberger <richard@nod.at>, Ralf Baechle <ralf@linux-mips.org>, Kyle McMartin <kyle@mcmartin.ca>, James Bottomley <jejb@parisc-linux.org>, Chris Zankel <chris@zankel.net>
 
-On 06/28/2012 06:29 AM, Mel Gorman wrote:
+On Thu, 2012-06-28 at 18:20 +0200, Peter Zijlstra wrote:
+> Now the switch_mm should imply the same cache+TBL flush we'd otherwise
+> do, and I'd think that that would be the majority of the cost. Am I
+> wrong there?=20
 
-> Lets say there are two parallel compactions running. Process A meets
-> the migration PFN and moves to the end of the zone to restart. Process B
-> finishes scanning mid-way through the zone and updates last_free_pfn. This
-> will cause Process A to "jump" to where Process B left off which is not
-> necessarily desirable.
->
-> Another side effect is that a workload that allocations/frees
-> aggressively will not compact as well as the "free" scanner is not
-> scanning the end of the zone each time. It would be better if
-> last_free_pfn was updated when a full pageblock was encountered
->
-> So;
->
-> 1. Initialise last_free_pfn to the end of the zone
-> 2. On compaction, scan from last_free_pfn and record where it started
-> 3. If a pageblock is full, update last_free_pfn
-> 4. If the migration and free scanner meet, reset last_free_pfn and
->     the free scanner. Abort if the free scanner wraps to where it started
->
-> Does that make sense?
-
-Yes, that makes sense.  We still have to keep track
-of whether we have wrapped around, but I guess that
-allows for a better name for the bool :)
-
-Maybe cc->wrapped?
-
-Does anyone have a better name?
-
-As for point (4), should we abort when we wrap
-around to where we started, or should we abort
-when free_pfn and migrate_pfn meet after we
-wrapped around?
-
->> diff --git a/mm/internal.h b/mm/internal.h
->> index 2ba87fb..b041874 100644
->> --- a/mm/internal.h
->> +++ b/mm/internal.h
->> @@ -120,6 +120,7 @@ struct compact_control {
->>   	unsigned long free_pfn;		/* isolate_freepages search base */
->>   	unsigned long migrate_pfn;	/* isolate_migratepages search base */
->>   	bool sync;			/* Synchronous migration */
->> +	bool last_round;		/* Last round for order>0 compaction */
->>
->
-> I don't get what you mean by last_round. Did you mean "wrapped". When
-> false, it means the free scanner started from last_pfn and when true it
-> means it started from last_pfn, met the migrate scanner and wrapped
-> around to the end of the zone?
-
-Yes, I do mean "wrapped" :)
-
--- 
-All rights reversed
+The advantage of doing this is that you don't need any of the batching
+and possibly multiple invalidate nonsense you otherwise need. So it
+might still be an over-all win, even if the switch is slightly more
+expensive than a regular flush. Simply because you can avoid most (if
+not all) the usual complexities.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
