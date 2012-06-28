@@ -1,59 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
-	by kanga.kvack.org (Postfix) with SMTP id B06D96B005A
-	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 14:31:50 -0400 (EDT)
-Received: by dakp5 with SMTP id p5so3965442dak.14
-        for <linux-mm@kvack.org>; Thu, 28 Jun 2012 11:31:50 -0700 (PDT)
-Date: Thu, 28 Jun 2012 11:31:45 -0700
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: memcg: cat: memory.memsw.* : Operation not supported
-Message-ID: <20120628183145.GE22641@google.com>
-References: <2a1a74bf-fbb5-4a6e-b958-44fff8debff2@zmail13.collab.prod.int.phx2.redhat.com>
- <34bb8049-8007-496c-8ffb-11118c587124@zmail13.collab.prod.int.phx2.redhat.com>
- <20120627154827.GA4420@tiehlicka.suse.cz>
- <alpine.DEB.2.00.1206271256120.22162@chino.kir.corp.google.com>
- <20120627200926.GR15811@google.com>
- <alpine.DEB.2.00.1206271316070.22162@chino.kir.corp.google.com>
- <20120627202430.GS15811@google.com>
- <4FEBD7C0.7090906@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
+	by kanga.kvack.org (Postfix) with SMTP id 1A1D06B005A
+	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 14:35:37 -0400 (EDT)
+Date: Fri, 29 Jun 2012 03:32:51 +0900
+From: Paul Mundt <lethal@linux-sh.org>
+Subject: Re: [PATCH 14/20] mm, sh: Convert sh to generic tlb
+Message-ID: <20120628183251.GA7250@linux-sh.org>
+References: <20120627211540.459910855@chello.nl>
+ <20120627212831.578578936@chello.nl>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <4FEBD7C0.7090906@jp.fujitsu.com>
+In-Reply-To: <20120627212831.578578936@chello.nl>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: David Rientjes <rientjes@google.com>, Michal Hocko <mhocko@suse.cz>, Zhouping Liu <zliu@redhat.com>, linux-mm@kvack.org, Li Zefan <lizefan@huawei.com>, CAI Qian <caiqian@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, akpm@linux-foundation.org, Linus Torvalds <torvalds@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <npiggin@kernel.dk>, Alex Shi <alex.shi@intel.com>, "Nikunj A. Dadhania" <nikunj@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, David Miller <davem@davemloft.net>, Russell King <rmk@arm.linux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Chris Metcalf <cmetcalf@tilera.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Tony Luck <tony.luck@intel.com>, Jeff Dike <jdike@addtoit.com>, Richard Weinberger <richard@nod.at>, Hans-Christian Egtvedt <hans-christian.egtvedt@atmel.com>, Ralf Baechle <ralf@linux-mips.org>, Kyle McMartin <kyle@mcmartin.ca>, James Bottomley <jejb@parisc-linux.org>, Chris Zankel <chris@zankel.net>
 
-Hello, KAME.
+On Wed, Jun 27, 2012 at 11:15:54PM +0200, Peter Zijlstra wrote:
+> Cc: Paul Mundt <lethal@linux-sh.org>
+> Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+> ---
+>  arch/sh/Kconfig           |    1 
+>  arch/sh/include/asm/tlb.h |   98 ++--------------------------------------------
+>  2 files changed, 6 insertions(+), 93 deletions(-)
 
-On Thu, Jun 28, 2012 at 01:04:16PM +0900, Kamezawa Hiroyuki wrote:
-> >I still wish it's folded into CONFIG_MEMCG and conditionalized just on
-> >CONFIG_SWAP tho.
-> >
-> 
-> In old days, memsw controller was not very stable. So, we devided the config.
-> And, it makes size of memory for swap-device double (adds 2bytes per swapent.)
-> That is the problem.
+This blows up in the same way as last time.
 
-I see.  Do you think it's now reasonable to drop the separate config
-option?  Having memcg enabled but swap unaccounted sounds half-broken
-to me.
+I direct you to the same bug report and patch as before:
 
-> IIRC...at that time, we made decision, cgroup has no feature to
-> 'create files dynamically'. Then, we made it in static, decision was done
-> at compile time and ignores "do_swap_account".
-> 
-> Now, IIUC, we have the feature. So, it's may be a time to create the file
-> with regard to "do_swap_account", making decision at boot time.
-
-Heh, yeah, maybe I'm confused about how it happened.  Anyways, let's
-get it fixed.
-
-Thanks!
-
--- 
-tejun
+http://marc.info/?l=linux-kernel&m=133722116507075&w=2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
