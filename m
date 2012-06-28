@@ -1,58 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
-	by kanga.kvack.org (Postfix) with SMTP id 88A986B005A
-	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 02:18:33 -0400 (EDT)
-Received: from /spool/local
-	by e2.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <shangw@linux.vnet.ibm.com>;
-	Thu, 28 Jun 2012 02:18:32 -0400
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id DE35E38C801D
-	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 02:18:13 -0400 (EDT)
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q5S6IDWg181232
-	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 02:18:13 -0400
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q5S6IDAZ027072
-	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 03:18:13 -0300
-Date: Thu, 28 Jun 2012 14:18:10 +0800
-From: Gavin Shan <shangw@linux.vnet.ibm.com>
-Subject: Re: [PATCH v2 3/3] mm/sparse: more check on mem_section number
-Message-ID: <20120628061810.GB27958@shangw>
-Reply-To: Gavin Shan <shangw@linux.vnet.ibm.com>
-References: <1340814968-2948-1-git-send-email-shangw@linux.vnet.ibm.com>
- <1340814968-2948-3-git-send-email-shangw@linux.vnet.ibm.com>
- <alpine.DEB.2.00.1206271506260.22985@chino.kir.corp.google.com>
+Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
+	by kanga.kvack.org (Postfix) with SMTP id 56CCD6B005A
+	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 02:23:51 -0400 (EDT)
+Received: by ggm4 with SMTP id 4so1954446ggm.14
+        for <linux-mm@kvack.org>; Wed, 27 Jun 2012 23:23:50 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1206271506260.22985@chino.kir.corp.google.com>
+In-Reply-To: <20120626143703.396d6d66.akpm@linux-foundation.org>
+References: <20120626143703.396d6d66.akpm@linux-foundation.org>
+From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Date: Thu, 28 Jun 2012 02:23:30 -0400
+Message-ID: <CAHGf_=ra6eXSVyhox3z2X-4csrwWeeDgMjS83i-J2nJwuWpqhg@mail.gmail.com>
+Subject: Re: needed lru_add_drain_all() change
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Gavin Shan <shangw@linux.vnet.ibm.com>, linux-mm@kvack.org, mhocko@suse.cz, dave@linux.vnet.ibm.com, hannes@cmpxchg.org, akpm@linux-foundation.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org
 
-On Wed, Jun 27, 2012 at 03:06:52PM -0700, David Rientjes wrote:
->On Thu, 28 Jun 2012, Gavin Shan wrote:
+On Tue, Jun 26, 2012 at 5:37 PM, Andrew Morton
+<akpm@linux-foundation.org> wrote:
+> https://bugzilla.kernel.org/show_bug.cgi?id=3D43811
 >
->> diff --git a/mm/sparse.c b/mm/sparse.c
->> index a803599..8b8250e 100644
->> --- a/mm/sparse.c
->> +++ b/mm/sparse.c
->> @@ -149,6 +149,8 @@ int __section_nr(struct mem_section* ms)
->>  		     break;
->>  	}
->>  
->> +	VM_BUG_ON(root_nr >= NR_SECTION_ROOTS);
->> +
+> lru_add_drain_all() uses schedule_on_each_cpu(). =A0But
+> schedule_on_each_cpu() hangs if a realtime thread is spinning, pinned
+> to a CPU. =A0There's no intention to change the scheduler behaviour, so I
+> think we should remove schedule_on_each_cpu() from the kernel.
 >
->VM_BUG_ON(root_nr == NR_SECTION_ROOTS);
+> The biggest user of schedule_on_each_cpu() is lru_add_drain_all().
 >
+> Does anyone have any thoughts on how we can do this? =A0The obvious
+> approach is to declare these:
+>
+> static DEFINE_PER_CPU(struct pagevec[NR_LRU_LISTS], lru_add_pvecs);
+> static DEFINE_PER_CPU(struct pagevec, lru_rotate_pvecs);
+> static DEFINE_PER_CPU(struct pagevec, lru_deactivate_pvecs);
+>
+> to be irq-safe and use on_each_cpu(). =A0lru_rotate_pvecs is already
+> irq-safe and converting lru_add_pvecs and lru_deactivate_pvecs looks
+> pretty simple.
+>
+> Thoughts?
 
-Thanks, David. I will change it according to your comments.
+I agree.
 
-Thanks,
-Gavin
+But i hope more. In these days, we have plenty lru_add_drain_all()
+callsite. So,
+i think we should remove struct pagevec and should aim migration aware new
+batch mechanism. maybe. This also improve compaction success rate.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
