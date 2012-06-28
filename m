@@ -1,73 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx101.postini.com [74.125.245.101])
-	by kanga.kvack.org (Postfix) with SMTP id 0BB366B0068
-	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 04:57:43 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 419D63EE0BD
-	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 17:57:42 +0900 (JST)
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 296A445DE50
-	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 17:57:42 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 100D145DE52
-	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 17:57:42 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id EF210EF8007
-	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 17:57:41 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id A35A81DB803A
-	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 17:57:41 +0900 (JST)
-Message-ID: <4FEC1C06.70802@jp.fujitsu.com>
-Date: Thu, 28 Jun 2012 17:55:34 +0900
-From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
+	by kanga.kvack.org (Postfix) with SMTP id 2EA0A6B006C
+	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 05:04:14 -0400 (EDT)
+Message-ID: <4FEC1D63.6000903@parallels.com>
+Date: Thu, 28 Jun 2012 13:01:23 +0400
+From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Subject: Re: [rfc][patch 3/3] mm, memcg: introduce own oom handler to iterate
- only over its own threads
-References: <alpine.DEB.2.00.1206251846020.24838@chino.kir.corp.google.com> <alpine.DEB.2.00.1206251847180.24838@chino.kir.corp.google.com> <4FE94968.6010500@jp.fujitsu.com> <alpine.DEB.2.00.1206261323260.8673@chino.kir.corp.google.com> <alpine.DEB.2.00.1206262229380.32567@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.00.1206262229380.32567@chino.kir.corp.google.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Subject: Re: Fork bomb limitation in memcg WAS: Re: [PATCH 00/11] kmem controller
+ for memcg: stripped down version
+References: <1340633728-12785-1-git-send-email-glommer@parallels.com> <20120625162745.eabe4f03.akpm@linux-foundation.org> <4FE9621D.2050002@parallels.com> <20120626145539.eeeab909.akpm@linux-foundation.org> <4FEAD260.4000603@parallels.com> <alpine.DEB.2.00.1206271233080.22162@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.00.1206271233080.22162@chino.kir.corp.google.com>
+Content-Type: text/plain; charset="ISO-8859-1"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, cgroups@vger.kernel.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Frederic Weisbecker <fweisbec@gmail.com>, Pekka Enberg <penberg@kernel.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Lameter <cl@linux.com>, devel@openvz.org, kamezawa.hiroyu@jp.fujitsu.com, Tejun Heo <tj@kernel.org>, Rik van Riel <riel@redhat.com>, Daniel Lezcano <daniel.lezcano@linaro.org>, Kay Sievers <kay.sievers@vrfy.org>, Lennart Poettering <lennart@poettering.net>, "Kirill A. Shutemov" <kirill@shutemov.name>, Kir Kolyshkin <kir@parallels.com>
 
-(2012/06/27 14:35), David Rientjes wrote:
-> On Tue, 26 Jun 2012, David Rientjes wrote:
->
->> It's still not a perfect solution for the above reason.  We need
->> tasklist_lock for oom_kill_process() for a few reasons:
+On 06/27/2012 11:38 PM, David Rientjes wrote:
+> On Wed, 27 Jun 2012, Glauber Costa wrote:
+> 
+>> fork bombs are a way bad behaved processes interfere with the rest of
+>> the system. In here, I propose fork bomb stopping as a natural
+>> consequence of the fact that the amount of kernel memory can be limited,
+>> and each process uses 1 or 2 pages for the stack, that are freed when the
+>> process goes away.
 >>
->>   (1) if /proc/sys/vm/oom_dump_tasks is enabled, which is the default,
->>       to iterate the tasklist
->>
->>   (2) to iterate the selected process's children, and
->>
->>   (3) to iterate the tasklist to kill all other processes sharing the
->>       same memory.
->>
->> I'm hoping we can avoid taking tasklist_lock entirely for memcg ooms to
->> avoid the starvation problem at all.  We definitely still need to do (3)
->> to avoid mm->mmap_sem deadlock if another thread sharing the same memory
->> is holding the semaphore trying to allocate memory and waiting for current
->> to exit, which needs the semaphore itself.  That can be done with
->> rcu_read_lock(), however, and doesn't require tasklist_lock.
->>
->> (1) can be done with rcu_read_lock() as well but I'm wondering if there
->> would be a significant advantage doing this by a cgroup iterator as well.
->> It may not be worth it just for the sanity of the code.
->>
->> We can do (2) if we change to list_for_each_entry_rcu().
->>
->
-> It turns out that task->children is not an rcu-protected list so this
-> doesn't work.
+> 
+> The obvious disadvantage is that if you use the full-featured kmem 
+> controller that builds upon this patchset, then you're limiting the about 
+> of all kmem, not just the stack that this particular set limits.  I hope 
+> you're not proposing it to go upstream before full support for the kmem 
+> controller is added so that users who use it only to protect again 
+> forkbombs soon realize that's no longer possible if your applications do 
+> any substantial slab allocations, particularly anything that does a lot of 
+> I/O.
 
-Can't we use sighand->lock to iterate children ?
+Point by point:
 
+1) This is not a disadvantage. The whole point of implementing it as
+kmem, not as a "fork controller" or anything in the like, was our
+understanding that people should not be "protecting against a x number
+of processes". Because this is unnatural. All you have is total of
+kernel memory, because that's what the interface gives you. If you can
+overuse memory, you can't fork bomb. But that's a consequence.
 
-Thanks,
--Kame
+I'll grant that maybe it was a mistake of mine to try to sell it this
+way here, because it may give the wrong idea. In this case I welcome
+your comment because it will allow me to be more careful in future
+communications. But this was just me trying to show off the feature.
+
+2) No admin should never, ever tune the system to a particular kmem
+limit value. And again, this is the whole point of not limiting "number
+of processes". I agree that adding slab tracking will raise kernel
+memory consumption by a reasonable amount. But reality is that even if
+this controller is totally stable, that not only can, but will happen.
+
+Unlike user memory, where whoever writes the application control its
+behavior (forget about the libraries for a moment), users never really
+control the internals of the kernel. If you ever rely on the fact that
+you are currently using X Gb of kmem, and that should be enough, your
+setup will break when the data structure grows - as they do - when the
+kernel memory consumption rises naturally by algorithms - as it does,
+and so on.
+
+3) Agreeing that of course, preventing disruption if we can help it is
+good, this feature is not only marked experimental, but default of. This
+was done precisely not to disrupt the amount of *user* memory used,
+where I actually think it makes a lot of sense ("My application
+allocates 4G, that's what I'll give it!"). Even if support is compiled
+in, it won't be until you start limiting it that anything will happen.
+Kernel Memory won't even be tracked until then. And I also understand
+that our use case here may be quite unique: We want the kernel memory
+limit to be way lower than the user limit (like 20 % - but that's still
+a percentage, not a tune!). When I discussed this around with other
+people, the vast majority of them wanted to set kmem = umem. Which
+basically means "user memory is the limit, but we want the kernel memory
+to be accounted as well".
+
+So yes, although I understand your point - but not fully agree, I would
+like to get it merged as is. I don't believe adding slab memory later
+will be disruptive, in the same way I didn't believe adding stack later
+- in my original slab tracking patch - would be. As I originally stated,
+this would allow me to greatly simplify the slab tracking patches, since
+we'll be able to focus on that only, instead of a gigantic patch that
+does a lot.
+
+Other people have interest in this, so this would allow them to start
+building on it as well. That said, I won't oppose adding more code if
+you suggest so to make sure people rely less on the accidental fact that
+we're only tracking a part of what we will, even if they shouldn't.
+
+ - It's already experimental
+ - It's already default off.
+ - I could add a warn message first time it is set.
+ - I could add a boot option.
+
+Or anything like this.
+
+Last, but not least, note that it is totally within my interests to
+merge the slab tracking as fast as we can. it'll be a matter of going
+back to it, and agreeing in the final form.
+
+> 
+> In other words, if I want to run netperf in a memcg with the full-featured 
+> kmem controller enabled, then its kmem limit must be high enough so that 
+> it doesn't degrade performance that any limitation on stack allocations 
+> would be too high to effectively stop forkbombs.
+> 
+
+That is a user setup problem. As I explained before, That's exactly what
+we want to discourage by exposing "kernel memory" instead of a
+particular tunable.
+
+As it is, I agree, it will stop fork bombs but will take a lot more time
+for it than it should. But this only makes it analogous to the
+evolutionary precursors to the human eye: It's not perfect, but will
+achieve something that may be already of great value for a class of
+users. Improvements are certain to follow.
+
+Thank you David!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
