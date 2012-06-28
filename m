@@ -1,47 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
-	by kanga.kvack.org (Postfix) with SMTP id E74036B0099
-	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 08:57:09 -0400 (EDT)
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: [PATCH 25/40] autonuma: follow_page check for pte_numa/pmd_numa
-Date: Thu, 28 Jun 2012 14:56:05 +0200
-Message-Id: <1340888180-15355-26-git-send-email-aarcange@redhat.com>
-In-Reply-To: <1340888180-15355-1-git-send-email-aarcange@redhat.com>
-References: <1340888180-15355-1-git-send-email-aarcange@redhat.com>
+Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
+	by kanga.kvack.org (Postfix) with SMTP id 8AE356B0087
+	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 08:57:46 -0400 (EDT)
+Date: Thu, 28 Jun 2012 14:57:42 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH v2 2/3] mm/sparse: fix possible memory leak
+Message-ID: <20120628125742.GC16042@tiehlicka.suse.cz>
+References: <1340814968-2948-1-git-send-email-shangw@linux.vnet.ibm.com>
+ <1340814968-2948-2-git-send-email-shangw@linux.vnet.ibm.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1340814968-2948-2-git-send-email-shangw@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: Hillf Danton <dhillf@gmail.com>, Dan Smith <danms@us.ibm.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Srivatsa Vaddagiri <vatsa@linux.vnet.ibm.com>, Christoph Lameter <cl@linux.com>, Alex Shi <alex.shi@intel.com>, Mauricio Faria de Oliveira <mauricfo@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Don Morris <don.morris@hp.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
+To: Gavin Shan <shangw@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, dave@linux.vnet.ibm.com, rientjes@google.com, hannes@cmpxchg.org, akpm@linux-foundation.org
 
-Without this, follow_page wouldn't trigger the NUMA hinting faults.
+On Thu 28-06-12 00:36:07, Gavin Shan wrote:
+> With CONFIG_SPARSEMEM_EXTREME, the root memory section descriptors
+> are allocated by slab or bootmem allocator. Also, the descriptors
+> might have been allocated and initialized during the hotplug path.
+> However, the memory chunk allocated in current implementation wouldn't
+> be put into the available pool if that has been allocated. The situation
+> will lead to memory leak.
+> 
+> Signed-off-by: Gavin Shan <shangw@linux.vnet.ibm.com>
+> Reviewed-by: Michal Hocko <mhocko@suse.cz>
 
-Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
----
- mm/memory.c |    4 ++--
- 1 files changed, 2 insertions(+), 2 deletions(-)
+And again!
+To quote my answers to this patch in previous run:
+"
+I am not saying the bug is not real. It is just that the changelog
+doesn's say how the bug is hit, who is affected and when it has been
+introduced. These is essential for stable.
+"
 
-diff --git a/mm/memory.c b/mm/memory.c
-index 2e9cab2..78b6acc 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -1491,7 +1491,7 @@ struct page *follow_page(struct vm_area_struct *vma, unsigned long address,
- 		goto no_page_table;
- 
- 	pmd = pmd_offset(pud, address);
--	if (pmd_none(*pmd))
-+	if (pmd_none(*pmd) || pmd_numa(*pmd))
- 		goto no_page_table;
- 	if (pmd_huge(*pmd) && vma->vm_flags & VM_HUGETLB) {
- 		BUG_ON(flags & FOLL_GET);
-@@ -1525,7 +1525,7 @@ split_fallthrough:
- 	ptep = pte_offset_map_lock(mm, pmd, address, &ptl);
- 
- 	pte = *ptep;
--	if (!pte_present(pte))
-+	if (!pte_present(pte) || pte_numa(pte))
- 		goto no_page;
- 	if ((flags & FOLL_WRITE) && !pte_write(pte))
- 		goto unlock;
+Does this sound like Reviewed-by? Hell no!
+
+This changelog btw. doesn't say this either!
+
+> ---
+>  mm/sparse.c |   19 +++++++++++++++++++
+>  1 file changed, 19 insertions(+)
+> 
+> diff --git a/mm/sparse.c b/mm/sparse.c
+> index 781fa04..a803599 100644
+> --- a/mm/sparse.c
+> +++ b/mm/sparse.c
+> @@ -75,6 +75,22 @@ static struct mem_section noinline __init_refok *sparse_index_alloc(int nid)
+>  	return section;
+>  }
+>  
+> +static void noinline __init_refok sparse_index_free(struct mem_section *section,
+> +						    int nid)
+> +{
+> +	unsigned long size = SECTIONS_PER_ROOT *
+> +			     sizeof(struct mem_section);
+> +
+> +	if (!section)
+> +		return;
+> +
+> +	if (slab_is_available())
+> +		kfree(section);
+> +	else
+> +		free_bootmem_node(NODE_DATA(nid),
+> +			virt_to_phys(section), size);
+> +}
+> +
+>  static int __meminit sparse_index_init(unsigned long section_nr, int nid)
+>  {
+>  	static DEFINE_SPINLOCK(index_init_lock);
+> @@ -102,6 +118,9 @@ static int __meminit sparse_index_init(unsigned long section_nr, int nid)
+>  	mem_section[root] = section;
+>  out:
+>  	spin_unlock(&index_init_lock);
+> +	if (ret)
+> +		sparse_index_free(section, nid);
+> +
+>  	return ret;
+>  }
+>  #else /* !SPARSEMEM_EXTREME */
+> -- 
+> 1.7.9.5
+> 
+
+-- 
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
