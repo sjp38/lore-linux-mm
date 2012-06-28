@@ -1,250 +1,140 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
-	by kanga.kvack.org (Postfix) with SMTP id E27FF6B0062
-	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 07:33:05 -0400 (EDT)
-Received: by pbbrp2 with SMTP id rp2so3572160pbb.14
-        for <linux-mm@kvack.org>; Thu, 28 Jun 2012 04:33:05 -0700 (PDT)
-Message-ID: <4FEC40EB.2000000@gmail.com>
-Date: Thu, 28 Jun 2012 19:32:59 +0800
-From: Sha Zhengju <handai.szj@gmail.com>
+Received: from psmtp.com (na3sys010amx167.postini.com [74.125.245.167])
+	by kanga.kvack.org (Postfix) with SMTP id BA2486B005A
+	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 07:36:22 -0400 (EDT)
+Date: Thu, 28 Jun 2012 12:36:19 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: excessive CPU utilization by isolate_freepages?
+Message-ID: <20120628113619.GR8103@csn.ul.ie>
+References: <4FEB8237.6030402@sandia.gov>
 MIME-Version: 1.0
-Subject: Re: [PATCH 2/2] memcg: add per cgroup dirty pages accounting
-References: <1339761611-29033-1-git-send-email-handai.szj@taobao.com> <1339761717-29070-1-git-send-email-handai.szj@taobao.com> <xr93k3z8twtg.fsf@gthelen.mtv.corp.google.com> <4FDC28F0.8050805@jp.fujitsu.com> <CAFj3OHXuX7tpDe4famK3fFMZBcj2w-9mDs9mD9P_-SwaRKx8tg@mail.gmail.com> <4FE2D2F4.2020202@jp.fujitsu.com> <xr938vfgmz4y.fsf@gthelen.mtv.corp.google.com> <4FE3A998.3000606@jp.fujitsu.com>
-In-Reply-To: <4FE3A998.3000606@jp.fujitsu.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <4FEB8237.6030402@sandia.gov>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Greg Thelen <gthelen@google.com>, Sha Zhengju <handai.szj@gmail.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, yinghan@google.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, mhocko@suse.cz
+To: Jim Schutt <jaschut@sandia.gov>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "ceph-devel@vger.kernel.org" <ceph-devel@vger.kernel.org>
 
-On 06/22/2012 07:09 AM, Kamezawa Hiroyuki wrote:
-> (2012/06/22 1:02), Greg Thelen wrote:
->> On Thu, Jun 21 2012, Kamezawa Hiroyuki wrote:
->>
->>> (2012/06/19 23:31), Sha Zhengju wrote:
->>>> On Sat, Jun 16, 2012 at 2:34 PM, Kamezawa Hiroyuki
->>>> <kamezawa.hiroyu@jp.fujitsu.com>   wrote:
->>>>> (2012/06/16 0:32), Greg Thelen wrote:
->>>>>>
->>>>>> On Fri, Jun 15 2012, Sha Zhengju wrote:
->>>>>>
->>>>>>> This patch adds memcg routines to count dirty pages. I notice that
->>>>>>> the list has talked about per-cgroup dirty page limiting
->>>>>>> (http://lwn.net/Articles/455341/) before, but it did not get 
->>>>>>> merged.
->>>>>>
->>>>>>
->>>>>> Good timing, I was just about to make another effort to get some of
->>>>>> these patches upstream.  Like you, I was going to start with some 
->>>>>> basic
->>>>>> counters.
->>>>>>
->>>>>> Your approach is similar to what I have in mind.  While it is 
->>>>>> good to
->>>>>> use the existing PageDirty flag, rather than introducing a new
->>>>>> page_cgroup flag, there are locking complications (see below) to 
->>>>>> handle
->>>>>> races between moving pages between memcg and the pages being 
->>>>>> {un}marked
->>>>>> dirty.
->>>>>>
->>>>>>> I've no idea how is this going now, but maybe we can add per cgroup
->>>>>>> dirty pages accounting first. This allows the memory controller to
->>>>>>> maintain an accurate view of the amount of its memory that is dirty
->>>>>>> and can provide some infomation while group's direct reclaim is 
->>>>>>> working.
->>>>>>>
->>>>>>> After commit 89c06bd5 (memcg: use new logic for page stat 
->>>>>>> accounting),
->>>>>>> we do not need per page_cgroup flag anymore and can directly use
->>>>>>> struct page flag.
->>>>>>>
->>>>>>>
->>>>>>> Signed-off-by: Sha Zhengju<handai.szj@taobao.com>
->>>>>>> ---
->>>>>>>    include/linux/memcontrol.h |    1 +
->>>>>>>    mm/filemap.c               |    1 +
->>>>>>>    mm/memcontrol.c            |   32 
->>>>>>> +++++++++++++++++++++++++-------
->>>>>>>    mm/page-writeback.c        |    2 ++
->>>>>>>    mm/truncate.c              |    1 +
->>>>>>>    5 files changed, 30 insertions(+), 7 deletions(-)
->>>>>>>
->>>>>>> diff --git a/include/linux/memcontrol.h 
->>>>>>> b/include/linux/memcontrol.h
->>>>>>> index a337c2e..8154ade 100644
->>>>>>> --- a/include/linux/memcontrol.h
->>>>>>> +++ b/include/linux/memcontrol.h
->>>>>>> @@ -39,6 +39,7 @@ enum mem_cgroup_stat_index {
->>>>>>>          MEM_CGROUP_STAT_FILE_MAPPED,  /* # of pages charged as 
->>>>>>> file rss */
->>>>>>>          MEM_CGROUP_STAT_SWAPOUT, /* # of pages, swapped out */
->>>>>>>          MEM_CGROUP_STAT_DATA, /* end of data requires 
->>>>>>> synchronization */
->>>>>>> +       MEM_CGROUP_STAT_FILE_DIRTY,  /* # of dirty pages in page 
->>>>>>> cache */
->>>>>>>          MEM_CGROUP_STAT_NSTATS,
->>>>>>>    };
->>>>>>>
->>>>>>> diff --git a/mm/filemap.c b/mm/filemap.c
->>>>>>> index 79c4b2b..5b5c121 100644
->>>>>>> --- a/mm/filemap.c
->>>>>>> +++ b/mm/filemap.c
->>>>>>> @@ -141,6 +141,7 @@ void __delete_from_page_cache(struct page 
->>>>>>> *page)
->>>>>>>           * having removed the page entirely.
->>>>>>>           */
->>>>>>>          if (PageDirty(page)&&     
->>>>>>> mapping_cap_account_dirty(mapping)) {
->>>>>>> +               mem_cgroup_dec_page_stat(page,
->>>>>>> MEM_CGROUP_STAT_FILE_DIRTY);
->>>>>>
->>>>>>
->>>>>> You need to use mem_cgroup_{begin,end}_update_page_stat around 
->>>>>> critical
->>>>>> sections that:
->>>>>> 1) check PageDirty
->>>>>> 2) update MEM_CGROUP_STAT_FILE_DIRTY counter
->>>>>>
->>>>>> This protects against the page from being moved between memcg while
->>>>>> accounting.  Same comment applies to all of your new calls to
->>>>>> mem_cgroup_{dec,inc}_page_stat.  For usage pattern, see
->>>>>> page_add_file_rmap.
->>>>>>
->>>>>
->>>>> If you feel some difficulty with 
->>>>> mem_cgroup_{begin,end}_update_page_stat(),
->>>>> please let me know...I hope they should work enough....
->>>>>
->>>>
->>>> Hi, Kame
->>>>
->>>> While digging into the bigger lock of 
->>>> mem_cgroup_{begin,end}_update_page_stat(),
->>>> I find the reality is more complex than I thought. Simply stated,
->>>> modifying page info
->>>> and update page stat may be wide apart and in different level (eg.
->>>> mm&fs), so if we
->>>> use the big lock it may lead to scalability and maintainability 
->>>> issues.
->>>>
->>>> For example:
->>>>        mem_cgroup_begin_update_page_stat()
->>>>        modify page information                 =>   
->>>> TestSetPageDirty ina??ceph_set_page_dirty() (fs/ceph/addr.c)
->>>>        XXXXXX                                  =>   other fs 
->>>> operations
->>>>        mem_cgroup_update_page_stat()   =>   account_page_dirtied() 
->>>> ina??mm/page-writeback.c
->>>>        mem_cgroup_end_update_page_stat().
->>>>
->>>> We can choose to get lock in higher level meaning vfs set_page_dirty()
->>>> but this may span
->>>> too much and can also have some missing cases.
->>>> What's your opinion of this problem?
->>>>
->>>
->>> yes, that's sad....If set_page_dirty() is always called under 
->>> lock_page(), the
->>> story will be easier (we'll take lock_page() in move side.)
->>> but the comment on set_page_dirty() says it's not true.....Now, I 
->>> haven't found a magical
->>> way for avoiding the race.
->>> (*) If holding lock_page() in move_account() can be a generic 
->>> solution, it will be good.
->>>      A proposal from me is a small-start. You can start from adding 
->>> hooks to a
->>> generic
->>> functions as set_page_dirty() and __set_page_dirty_nobuffers(), 
->>> clear_page_dirty_for_io().
->>>
->>> And see what happens. I guess we can add WARN_ONCE() against callers 
->>> of update_page_stat()
->>> who don't take mem_cgroup_begin/end_update_page_stat()
->>> (by some new check, for example, checking !rcu_read_lock_held() in 
->>> update_stat())
->>>
->>> I think we can make TODO list and catch up remaining things one by one.
->>>
->>> Thanks,
->>> -Kame
->>
->> This might be a crazy idea.  Synchronization of PageDirty with the
->> page->memcg->nr_dirty counter is a challenge because page->memcg can be
->> reassigned due to inter-memcg page moving.
->
-> Yes. That's the heart of the problem.
->
->> Could we avoid moving dirty pages between memcg?
->
-> How to detect it is the proebm here....
->
->> Specifically, could we make them clean before moving.
->
-> I considered that but a case
->
->         CPU-A                CPU-B
->     wait_for_page_cleaned
->     .....                    SetPageDirty()
->     account-memcg-nr_dirty
->
-> is problematic. _If_
->
->         CPU-A
->     lock_page()
->     move_page_for_accounting()
->     unlock_page()
->
-> can help 99% of cases, I think this is a choice. But I haven't 
-> investigated
-> how many callers of set_page_dirty() holds locks....
-> (I guess CleraPageDirty() callers are under lock_page() always...by 
-> quick look.)
->
-> If most of callers calls lock_page() or 
-> mem_cgroup_begin/end_update....I think
-> adding WARNING(!page_locked(page) || !rcu_read_locked()) to 
-> update_stat() will
-> be a proof of concept and automatically shows what we should do more...
->
->> This problem feels similar to page migration.  This would slow
->> down inter-memcg page movement, because it would require writeback.  But
->> I'm suspect that this is an infrequent operation.
->
-> I agree. But, IIUC, the reason page-migration waits for the end of I/O 
-> is that migrating
-> pages under I/O (in being copied by devices) seems crazy. So, just 
-> lock_page()
-> will be an enough help....
->
-Hi, Kame
+On Wed, Jun 27, 2012 at 03:59:19PM -0600, Jim Schutt wrote:
+> Hi,
+> 
+> I'm running into trouble with systems going unresponsive,
+> and perf suggests it's excessive CPU usage by isolate_freepages().
+> I'm currently testing 3.5-rc4, but I think this problem may have
+> first shown up in 3.4.  I'm only just learning how to use perf,
+> so I only currently have results to report for 3.5-rc4.
+> 
 
-I've checked some set_page_dirty callers and found that dozes of them 
-don't lock the page.
-Following is some comments of __set_page_dirty_nobuffers:
+Out of curiosity, why do you think it showed up in 3.4? It's not
+surprising as such if it did show up there but I'm wondering what you
+are basing it on.
 
-  * Most callers have locked the page, which pins the address_space in 
-memory.
-  * But zap_pte_range() does not lock the page, however in that case the
-  * mapping is pinned by the vma's ->vm_file reference.
+It's not a suprise because it's also where reclaim/compaction stopped
+depending on lumpy reclaim. In the past we would have reclaimed more
+pages but now rely on compaction more. It's plassible that for many
+parallel compactions that there would be higher CPU usage now.
 
-So lock_page() may not be enough too.
-Meanwhile, the move side have already  token mem_cgroup_begin/end_update 
-lock for
-FILE_MAPPED page accounting and it may be too heavy to hold another page 
-lock.
+> <SNIP>
+> 2012-06-27 14:00:03.219-06:00
+> vmstat -w 4 16
+> procs -------------------memory------------------ ---swap-- -----io---- --system-- -----cpu-------
+>  r  b       swpd       free       buff      cache   si   so    bi    bo   in   cs  us sy  id wa st
+> 75  1          0     566988        576   35664800    0    0     2  1355   21    3   1  4  95  0  0
+> 433  1          0     964052        576   35069112    0    0     7 456359 102256 20901   2 98   0  0  0
+> 547  3          0     820116        576   34893932    0    0    57 560507 114878 28115   3 96   0  0  0
+> 806  2          0     606992        576   34848180    0    0   339 309668 101230 21056   2 98   0  0  0
+> 708  1          0     529624        576   34708000    0    0   248 370886 101327 20062   2 97   0  0  0
+> 231  5          0     504772        576   34663880    0    0   305 334824 95045 20407   2 97   1  1  0
+> 158  6          0    1063088        576   33518536    0    0   531 847435 130696 47140   4 92   1  2  0
+> 193  0          0    1449156        576   33035572    0    0   363 371279 94470 18955   2 96   1  1  0
+> 266  6          0    1623512        576   32728164    0    0    77 241114 95730 15483   2 98   0  0  0
+> 243  8          0    1629504        576   32653080    0    0    81 471018 100223 20920   3 96   0  1  0
+> 70 11          0    1342140        576   33084020    0    0   100 925869 139876 56599   6 88   3  3  0
+> 211  7          0    1130316        576   33470432    0    0   290 1008984 150699 74320   6 83   6  5  0
+> 365  3          0     776736        576   34072772    0    0   182 747167 139436 67135   5 88   4  3  0
+> 29  1          0    1528412        576   34110640    0    0    50 612181 137403 77609   4 87   6  3  0
+> 266  5          0    1657688        576   34105696    0    0     3 258307 62879 38508   2 93   3  2  0
+> 1159  2          0    2002256        576   33775476    0    0    19 88554 42112 14230   1 98   0  0  0
+> 
 
-I try to rework vfs set dirty page routines to make SetPageDirty and 
-dirty page accounting be
-in generic interfaces and still use mem_cgroup_begin/end_update lock. I 
-also add writeback
-page accounting in similar way but more easier.
+ok, so System CPU usage through the roof.
 
-I've sent out the patch set. Please feel free to point out any mistakes.
+> 
+> Right around 14:00 I was able to get a "perf -a -g"; here's the
+> beginning of what "perf report --sort symbol --call-graph fractal,5"
+> had to say:
+> 
+> #
+>     64.86%  [k] _raw_spin_lock_irqsave
+>             |
+>             |--97.94%-- isolate_freepages
+>             |          compaction_alloc
+>             |          unmap_and_move
+>             |          migrate_pages
+>             |          compact_zone
+>             |          |
+>             |          |--99.56%-- try_to_compact_pages
+>             |          |          __alloc_pages_direct_compact
+>             |          |          __alloc_pages_slowpath
+>             |          |          __alloc_pages_nodemask
+>             |          |          alloc_pages_vma
+>             |          |          do_huge_pmd_anonymous_page
+>             |          |          handle_mm_fault
+>             |          |          do_page_fault
+>             |          |          page_fault
+>             |          |          |
+>             |          |          |--53.53%-- skb_copy_datagram_iovec
+>             |          |          |          tcp_recvmsg
+>             |          |          |          inet_recvmsg
+>             |          |          |          sock_recvmsg
+>             |          |          |          sys_recvfrom
+>             |          |          |          system_call_fastpath
+>             |          |          |          __recv
+>             |          |          |          |
+>             |          |          |           --100.00%-- (nil)
+>             |          |          |
+>             |          |          |--27.80%-- __pthread_create_2_1
+>             |          |          |          (nil)
+>             |          |          |
+>             |          |           --18.67%-- memcpy
+>             |          |                     |
+>             |          |                     |--57.38%-- 0x50d000005
+>             |          |                     |
+>             |          |                     |--34.52%-- 0x3b300bf271940a35
+>             |          |                     |
+>             |          |                      --8.10%-- 0x1500000000000009
+>             |           --0.44%-- [...]
+>              --2.06%-- [...]
+> 
 
-Thanks,
-Sha
+This looks like lock contention to me on zone->lock which
+isolate_freepages takes and releases frequently. You do not describe the
+exact memory layout but it's likely that there are two very large zones
+with 12 CPUs each. If they all were running compaction they would pound
+zone->lock pretty heavily.
+
+> <SNIP>
+
+The other call traces also look like they are pounding zone->lock
+heavily.
+
+Rik's patch has the potential to reduce contention by virtue of the fact
+that less scanning is required. I'd be interested in hearing how much of
+an impact that patch has so please test that first.
+
+If that approach does not work I'll put together a patch that either
+backs off compaction on zone->lock contention.
+
+> I seem to be able to recreate this issue at will, so please
+> let me know what I can do to help learn what is going on.
+> 
+
+Thanks very much for testing.
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
