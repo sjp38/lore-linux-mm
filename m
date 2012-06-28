@@ -1,128 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
-	by kanga.kvack.org (Postfix) with SMTP id 9D96C6B005A
-	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 03:46:13 -0400 (EDT)
-Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 3DF683EE0AE
-	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 16:46:12 +0900 (JST)
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 252EB45DE54
-	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 16:46:12 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id ED62845DE50
-	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 16:46:11 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id E005CE08003
-	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 16:46:11 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 997F01DB803E
-	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 16:46:11 +0900 (JST)
-Message-ID: <4FEC0B3F.7070108@jp.fujitsu.com>
-Date: Thu, 28 Jun 2012 16:43:59 +0900
-From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-MIME-Version: 1.0
-Subject: Re: needed lru_add_drain_all() change
-References: <20120626143703.396d6d66.akpm@linux-foundation.org>
-In-Reply-To: <20120626143703.396d6d66.akpm@linux-foundation.org>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
+	by kanga.kvack.org (Postfix) with SMTP id ED8BB6B0062
+	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 04:05:51 -0400 (EDT)
+Message-ID: <1340870676.1976.1.camel@localhost>
+Subject: Re: [announce] pagemap-demo-ng tools
+From: Anton Arapov <anton@redhat.com>
+Date: Thu, 28 Jun 2012 10:04:36 +0200
+In-Reply-To: <201206261811.48256.b.zolnierkie@samsung.com>
+References: <201206261811.48256.b.zolnierkie@samsung.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org
+To: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
+Cc: linux-mm@kvack.org, Matt Mackall <mpm@selenic.com>, Kyungmin Park <kyungmin.park@samsung.com>
 
-(2012/06/27 6:37), Andrew Morton wrote:
-> https://bugzilla.kernel.org/show_bug.cgi?id=43811
->
-> lru_add_drain_all() uses schedule_on_each_cpu().  But
-> schedule_on_each_cpu() hangs if a realtime thread is spinning, pinned
-> to a CPU.  There's no intention to change the scheduler behaviour, so I
-> think we should remove schedule_on_each_cpu() from the kernel.
->
-> The biggest user of schedule_on_each_cpu() is lru_add_drain_all().
->
-> Does anyone have any thoughts on how we can do this?  The obvious
-> approach is to declare these:
->
-> static DEFINE_PER_CPU(struct pagevec[NR_LRU_LISTS], lru_add_pvecs);
-> static DEFINE_PER_CPU(struct pagevec, lru_rotate_pvecs);
-> static DEFINE_PER_CPU(struct pagevec, lru_deactivate_pvecs);
->
-> to be irq-safe and use on_each_cpu().  lru_rotate_pvecs is already
-> irq-safe and converting lru_add_pvecs and lru_deactivate_pvecs looks
-> pretty simple.
->
-> Thoughts?
->
+  / apologizes for the top post /
 
-How about this kind of RCU synchronization ?
-==
-/*
-  * Double buffered pagevec for quick drain.
-  * The usual per-cpu-pvec user need to take rcu_read_lock() before accessing.
-  * External drainer of pvecs will relpace pvec vector and call synchroize_rcu(),
-  * and drain all pages on unused pvecs in turn.
-  */
-static DEFINE_PER_CPU(struct pagevec[NR_LRU_LISTS * 2], lru_pvecs);
+Please,
+  also take a look at: https://fedorahosted.org/libpagemap/ project.
 
-atomic_t pvec_idx; /* must be placed onto some aligned address...*/
+thanks,
+Anton.
 
-
-struct pagevec *my_pagevec(enum lru)
-{
-	return  pvec = &__get_cpu_var(lru_pvecs[lru << atomic_read(pvec_idx)]);
-}
-
-/*
-  * percpu pagevec access should be surrounded by these calls.
-  */
-static inline void pagevec_start_access()
-{
-	rcu_read_lock();
-}
-
-static inline void pagevec_end_access()
-{
-	rcu_read_unlock();
-}
-
-
-/*
-  * changing pagevec array vec 0 <-> 1
-  */
-static void lru_pvec_update()
-{
-	if (atomic_read(&pvec_idx))
-		atomic_set(&pvec_idx, 0);
-	else
-		atomic_set(&pvec_idx, 1);
-}
-
-/*
-  * drain all LRUS on per-cpu pagevecs.
-  */
-DEFINE_MUTEX(lru_add_drain_all_mutex);
-static void lru_add_drain_all()
-{
-	mutex_lock(&lru_add_drain_mutex);
-	lru_pvec_update();
-	synchronize_rcu();  /* waits for all accessors to pvec quits. */
-	for_each_cpu(cpu)
-		drain_pvec_of_the_cpu(cpu);
-	mutex_unlock(&lru_add_drain_mutex);
-}
-==
-
-
-
-
-
-
-
-
-
-
-
+On Tue, 2012-06-26 at 18:11 +0200, Bartlomiej Zolnierkiewicz wrote:
+> Hi,
+> 
+> I got agreement from Matt to takeover maintenance of demo scripts
+> for the /proc/$pid/pagemap and /proc/kpage[count,flags] interfaces
+> (originally hosted at http://selenic.com/repo/pagemap/).
+> 
+> The updated tools are available at:
+> 
+> 	https://github.com/bzolnier/pagemap-demo-ng
+> 
+> Changes include:
+> 
+> * support for recent kernels
+> * support for platforms using ARCH_PFN_OFFSET (i.e ARM Exynos)
+>   (needs [1] & [2])
+> * possibility to work on data captured on another machine
+> * optional support for monitoring free/used pages (needs [3])
+> * optional support for monitoring pageblock type changes (needs [4])
+> 
+> [1] http://article.gmane.org/gmane.linux.kernel.mm/79435/
+> [2] http://article.gmane.org/gmane.linux.kernel.mm/79432/ 
+> [3] http://article.gmane.org/gmane.linux.kernel.mm/79431/
+> [4] http://article.gmane.org/gmane.linux.kernel.mm/79433/
+> 
+> Best regards,
+> --
+> Bartlomiej Zolnierkiewicz
+> Samsung Poland R&D Center
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 
 
