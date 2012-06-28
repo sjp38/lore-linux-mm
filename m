@@ -1,49 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
-	by kanga.kvack.org (Postfix) with SMTP id 0A3BF6B0062
-	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 06:56:41 -0400 (EDT)
-Message-ID: <1340880904.28750.13.camel@twins>
-Subject: Re: [PATCH 08/20] mm: Optimize fullmm TLB flushing
-From: Peter Zijlstra <peterz@infradead.org>
-Date: Thu, 28 Jun 2012 12:55:04 +0200
-In-Reply-To: <CA+55aFzLNsVRkp_US8rAmygEkQpp1s1YdakV86Ck-4RZM7TTdA@mail.gmail.com>
-References: <20120627211540.459910855@chello.nl>
-	 <20120627212831.137126018@chello.nl>
-	 <CA+55aFwZoVK76ue7tFveV0XZpPUmoCVXJx8550OxPm+XKCSSZA@mail.gmail.com>
-	 <1340838154.10063.86.camel@twins> <1340838807.10063.90.camel@twins>
-	 <CA+55aFy6m967fMxyBsRoXVecdpGtSphXi_XdhwS0DB81Qaocdw@mail.gmail.com>
-	 <CA+55aFzLNsVRkp_US8rAmygEkQpp1s1YdakV86Ck-4RZM7TTdA@mail.gmail.com>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: quoted-printable
-Mime-Version: 1.0
+Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
+	by kanga.kvack.org (Postfix) with SMTP id 48C2A6B0068
+	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 06:57:43 -0400 (EDT)
+Received: by pbbrp2 with SMTP id rp2so3524381pbb.14
+        for <linux-mm@kvack.org>; Thu, 28 Jun 2012 03:57:42 -0700 (PDT)
+From: Sha Zhengju <handai.szj@gmail.com>
+Subject: [PATCH 1/7] memcg: update cgroup memory document
+Date: Thu, 28 Jun 2012 18:57:35 +0800
+Message-Id: <1340881055-5511-1-git-send-email-handai.szj@taobao.com>
+In-Reply-To: <1340880885-5427-1-git-send-email-handai.szj@taobao.com>
+References: <1340880885-5427-1-git-send-email-handai.szj@taobao.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, akpm@linux-foundation.org, Rik van Riel <riel@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <npiggin@kernel.dk>, Alex Shi <alex.shi@intel.com>, "Nikunj A.
- Dadhania" <nikunj@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, David Miller <davem@davemloft.net>, Russell King <rmk@arm.linux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Chris Metcalf <cmetcalf@tilera.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Tony Luck <tony.luck@intel.com>, Paul Mundt <lethal@linux-sh.org>, Jeff Dike <jdike@addtoit.com>, Richard Weinberger <richard@nod.at>, Ralf Baechle <ralf@linux-mips.org>, Kyle McMartin <kyle@mcmartin.ca>, James Bottomley <jejb@parisc-linux.org>, Chris Zankel <chris@zankel.net>
+To: linux-mm@kvack.org, cgroups@vger.kernel.org
+Cc: kamezawa.hiroyu@jp.fujitsu.com, gthelen@google.com, yinghan@google.com, akpm@linux-foundation.org, mhocko@suse.cz, linux-kernel@vger.kernel.org, Sha Zhengju <handai.szj@taobao.com>
 
-On Wed, 2012-06-27 at 16:33 -0700, Linus Torvalds wrote:
-> IOW, the point I'm trying to make is that even if there are zero
-> *actual* accesses of user space (because user space is dead, and the
-> kernel hopefully does no "get_user()/put_user()" stuff at this point
-> any more), the CPU may speculatively use user addresses for the
-> bog-standard kernel addresses that happen.=20
+From: Sha Zhengju <handai.szj@taobao.com>
 
-Right.. and s390 having done this only says that s390 appears to be ok
-with it. Martin, does s390 hardware guarantee no speculative stuff like
-Linus explained, or might there even be a latent issue on s390?
+Document cgroup dirty/writeback memory statistics.
 
-But it looks like we cannot do this in general, and esp. ARM (as already
-noted by Catalin) has very aggressive speculative behaviour.
+The implementation for these new interface routines come in a series
+of following patches.
 
-The alternative is that we do a switch_mm() to init_mm instead of the
-TLB flush. On x86 that should be about the same cost, but I've not
-looked at other architectures yet.
+Signed-off-by: Sha Zhengju <handai.szj@taobao.com>
+---
+ Documentation/cgroups/memory.txt |    2 ++
+ 1 files changed, 2 insertions(+), 0 deletions(-)
 
-The second and least favourite alternative is of course special casing
-this for s390 if it turns out its a safe thing to do for them.
-
-/me goes look through arch code.
+diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/memory.txt
+index dd88540..24d7e3c 100644
+--- a/Documentation/cgroups/memory.txt
++++ b/Documentation/cgroups/memory.txt
+@@ -420,6 +420,8 @@ pgpgin		- # of charging events to the memory cgroup. The charging
+ pgpgout		- # of uncharging events to the memory cgroup. The uncharging
+ 		event happens each time a page is unaccounted from the cgroup.
+ swap		- # of bytes of swap usage
++dirty		- # of bytes that are waiting to get written back to the disk.
++writeback	- # of bytes that are actively being written back to the disk.
+ inactive_anon	- # of bytes of anonymous memory and swap cache memory on
+ 		LRU list.
+ active_anon	- # of bytes of anonymous and swap cache memory on active
+-- 
+1.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
