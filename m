@@ -1,177 +1,131 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx103.postini.com [74.125.245.103])
-	by kanga.kvack.org (Postfix) with SMTP id 3035B6B005A
-	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 19:34:30 -0400 (EDT)
-Message-ID: <4FECEA16.4060200@kernel.org>
-Date: Fri, 29 Jun 2012 08:34:46 +0900
+Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
+	by kanga.kvack.org (Postfix) with SMTP id F37AE6B005A
+	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 19:42:28 -0400 (EDT)
+Message-ID: <4FECEBF4.7010202@kernel.org>
+Date: Fri, 29 Jun 2012 08:42:44 +0900
 From: Minchan Kim <minchan@kernel.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH 2/2 v2] memory-hotplug: fix kswapd looping forever problem
-References: <1340783514-8150-1-git-send-email-minchan@kernel.org> <1340783514-8150-3-git-send-email-minchan@kernel.org> <4FEC042C.5070509@jp.fujitsu.com>
-In-Reply-To: <4FEC042C.5070509@jp.fujitsu.com>
-Content-Type: text/plain; charset=ISO-2022-JP
+Subject: Re: needed lru_add_drain_all() change
+References: <20120626143703.396d6d66.akpm@linux-foundation.org> <4FEC0B3F.7070108@jp.fujitsu.com>
+In-Reply-To: <4FEC0B3F.7070108@jp.fujitsu.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: akpm@linux-foundation.org, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Mel Gorman <mel@csn.ul.ie>, Aaditya Kumar <aaditya.kumar.30@gmail.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Mel Gorman <mgorman@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 
-Hi Kame,
+On 06/28/2012 04:43 PM, Kamezawa Hiroyuki wrote:
 
-On 06/28/2012 04:13 PM, Kamezawa Hiroyuki wrote:
-
-> (2012/06/27 16:51), Minchan Kim wrote:
->> When hotplug offlining happens on zone A, it starts to mark freed page
->> as MIGRATE_ISOLATE type in buddy for preventing further allocation.
->> (MIGRATE_ISOLATE is very irony type because it's apparently on buddy
->> but we can't allocate them).
->> When the memory shortage happens during hotplug offlining,
->> current task starts to reclaim, then wake up kswapd.
->> Kswapd checks watermark, then go sleep because current zone_watermark_ok_safe
->> doesn't consider MIGRATE_ISOLATE freed page count.
->> Current task continue to reclaim in direct reclaim path without kswapd's helping.
->> The problem is that zone->all_unreclaimable is set by only kswapd
->> so that current task would be looping forever like below.
+> (2012/06/27 6:37), Andrew Morton wrote:
+>> https://bugzilla.kernel.org/show_bug.cgi?id=43811
 >>
->> __alloc_pages_slowpath
->> restart:
->> 	wake_all_kswapd
->> rebalance:
->> 	__alloc_pages_direct_reclaim
->> 		do_try_to_free_pages
->> 			if global_reclaim && !all_unreclaimable
->> 				return 1; /* It means we did did_some_progress */
->> 	skip __alloc_pages_may_oom
->> 	should_alloc_retry
->> 		goto rebalance;
+>> lru_add_drain_all() uses schedule_on_each_cpu().  But
+>> schedule_on_each_cpu() hangs if a realtime thread is spinning, pinned
+>> to a CPU.  There's no intention to change the scheduler behaviour, so I
+>> think we should remove schedule_on_each_cpu() from the kernel.
 >>
->> If we apply KOSAKI's patch[1] which doesn't depends on kswapd
->> about setting zone->all_unreclaimable, we can solve this problem
->> by killing some task in direct reclaim path. But it doesn't wake up kswapd, still.
->> It could be a problem still if other subsystem needs GFP_ATOMIC request.
->> So kswapd should consider MIGRATE_ISOLATE when it calculate free pages
->> BEFORE going sleep.
+>> The biggest user of schedule_on_each_cpu() is lru_add_drain_all().
 >>
->> This patch counts the number of MIGRATE_ISOLATE page block and
->> zone_watermark_ok_safe will consider it if the system has such blocks
->> (fortunately, it's very rare so no problem in POV overhead and kswapd is never
->> hotpath).
+>> Does anyone have any thoughts on how we can do this?  The obvious
+>> approach is to declare these:
 >>
->> Copy/modify from Mel's quote
->> "
->> Ideal solution would be "allocating" the pageblock.
->> It would keep the free space accounting as it is but historically,
->> memory hotplug didn't allocate pages because it would be difficult to
->> detect if a pageblock was isolated or if part of some balloon.
->> Allocating just full pageblocks would work around this, However,
->> it would play very badly with CMA.
->> "
+>> static DEFINE_PER_CPU(struct pagevec[NR_LRU_LISTS], lru_add_pvecs);
+>> static DEFINE_PER_CPU(struct pagevec, lru_rotate_pvecs);
+>> static DEFINE_PER_CPU(struct pagevec, lru_deactivate_pvecs);
 >>
->> [1] http://lkml.org/lkml/2012/6/14/74
+>> to be irq-safe and use on_each_cpu().  lru_rotate_pvecs is already
+>> irq-safe and converting lru_add_pvecs and lru_deactivate_pvecs looks
+>> pretty simple.
 >>
->> * from v1
->>   - add changelog
->>   - make functions simple
->>   - remove atomic variable
->>   - discard exact isolated free page accounting.
->>   - rebased on next-20120626
+>> Thoughts?
 >>
->> Suggested-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
->> Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
->> Cc: Aaditya Kumar <aaditya.kumar.30@gmail.com>
->> Cc: Mel Gorman <mgorman@suse.de>
->> Signed-off-by: Minchan Kim <minchan@kernel.org>
->> ---
->>
->> Aaditya, coul you confirm this patch solve your problem and
->> make sure nr_pageblock_isolate is zero after hotplug end?
->>
->> Thanks!
->>
->>   include/linux/mmzone.h |    8 ++++++++
->>   mm/page_alloc.c        |   31 +++++++++++++++++++++++++++++++
->>   mm/page_isolation.c    |   29 +++++++++++++++++++++++++++--
->>   3 files changed, 66 insertions(+), 2 deletions(-)
->>
->> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
->> index dbc876e..6ee83b8 100644
->> --- a/include/linux/mmzone.h
->> +++ b/include/linux/mmzone.h
->> @@ -474,6 +474,14 @@ struct zone {
->>   	 * rarely used fields:
->>   	 */
->>   	const char		*name;
->> +#ifdef CONFIG_MEMORY_ISOLATION
->> +	/*
->> +	 * the number of MIGRATE_ISOLATE *pageblock*.
->> +	 * We need this for free page counting. Look at zone_watermark_ok_safe.
->> +	 * It's protected by zone->lock
->> +	 */
->> +	int		nr_pageblock_isolate;
->> +#endif
->>   } ____cacheline_internodealigned_in_smp;
->>   
->>   typedef enum {
->> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
->> index c175fa9..b12c8ec 100644
->> --- a/mm/page_alloc.c
->> +++ b/mm/page_alloc.c
->> @@ -218,6 +218,11 @@ EXPORT_SYMBOL(nr_online_nodes);
->>   
->>   int page_group_by_mobility_disabled __read_mostly;
->>   
->> +/*
->> + * NOTE:
->> + * Don't use set_pageblock_migratetype(page, MIGRATE_ISOLATE) directly.
->> + * Instead, use {un}set_pageblock_isolate.
->> + */
->>   void set_pageblock_migratetype(struct page *page, int migratetype)
->>   {
->>   	if (unlikely(page_group_by_mobility_disabled))
->> @@ -1614,6 +1619,23 @@ static bool __zone_watermark_ok(struct zone *z, int order, unsigned long mark,
->>   	return true;
->>   }
->>   
->> +#ifdef CONFIG_MEMORY_ISOLATION
->> +static inline unsigned long nr_zone_isolate_freepages(struct zone *zone)
->> +{
->> +	unsigned long nr_pages = 0;
->> +
->> +	if (unlikely(zone->nr_pageblock_isolate)) {
->> +		nr_pages = zone->nr_pageblock_isolate * pageblock_nr_pages;
->> +	}
->> +	return nr_pages;
->> +}
->> +#else
->> +static inline unsigned long nr_zone_isolate_freepages(struct zone *zone)
->> +{
->> +	return 0;
->> +}
->> +#endif
->> +
->>   bool zone_watermark_ok(struct zone *z, int order, unsigned long mark,
->>   		      int classzone_idx, int alloc_flags)
->>   {
->> @@ -1629,6 +1651,14 @@ bool zone_watermark_ok_safe(struct zone *z, int order, unsigned long mark,
->>   	if (z->percpu_drift_mark && free_pages < z->percpu_drift_mark)
->>   		free_pages = zone_page_state_snapshot(z, NR_FREE_PAGES);
->>   
->> +	/*
->> +	 * If the zone has MIGRATE_ISOLATE type free page,
->> +	 * we should consider it. nr_zone_isolate_freepages is never
->> +	 * accurate so kswapd might not sleep although she can.
->> +	 * But it's more desirable for memory hotplug rather than
->> +	 * forever sleep which cause livelock in direct reclaim path.
->> +	 */
->> +	free_pages -= nr_zone_isolate_freepages(z);
 > 
-> Here, free_pages could be < 0 ?
+> How about this kind of RCU synchronization ?
+> ==
+> /*
+>  * Double buffered pagevec for quick drain.
+>  * The usual per-cpu-pvec user need to take rcu_read_lock() before
+> accessing.
+>  * External drainer of pvecs will relpace pvec vector and call
+> synchroize_rcu(),
+>  * and drain all pages on unused pvecs in turn.
+>  */
+> static DEFINE_PER_CPU(struct pagevec[NR_LRU_LISTS * 2], lru_pvecs);
+> 
+> atomic_t pvec_idx; /* must be placed onto some aligned address...*/
+> 
+> 
+> struct pagevec *my_pagevec(enum lru)
+> {
+>     return  pvec = &__get_cpu_var(lru_pvecs[lru << atomic_read(pvec_idx)]);
+> }
+> 
+> /*
+>  * percpu pagevec access should be surrounded by these calls.
+>  */
+> static inline void pagevec_start_access()
+> {
+>     rcu_read_lock();
+> }
+> 
+> static inline void pagevec_end_access()
+> {
+>     rcu_read_unlock();
+> }
+> 
+> 
+> /*
+>  * changing pagevec array vec 0 <-> 1
+>  */
+> static void lru_pvec_update()
+> {
+>     if (atomic_read(&pvec_idx))
+>         atomic_set(&pvec_idx, 0);
+>     else
+>         atomic_set(&pvec_idx, 1);
+> }
+> 
+> /*
+>  * drain all LRUS on per-cpu pagevecs.
+>  */
+> DEFINE_MUTEX(lru_add_drain_all_mutex);
+> static void lru_add_drain_all()
+> {
+>     mutex_lock(&lru_add_drain_mutex);
+>     lru_pvec_update();
+>     synchronize_rcu();  /* waits for all accessors to pvec quits. */
 
 
-It could but __zone_watermark_ok returns false so kswapd is going to work
-without sleep. It's not bad because nr_zone_isolate_freepages already
-isn't accurate
-and hotplug event is temporal so kswapd should work well after end hotplug.
+I don't know RCU internal but conceptually, I understood synchronize_rcu need 
+context switching of all CPU. If it's partly true, it could be a problem, too.
+
+>     for_each_cpu(cpu)
+>         drain_pvec_of_the_cpu(cpu);
+>     mutex_unlock(&lru_add_drain_mutex);
+> }
+> ==
+> 
+> 
+> 
+> 
+> 
+> 
+> 
+> 
+> 
+> 
+> 
+> 
+> 
+> 
+> -- 
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> 
 
 
 
