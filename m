@@ -1,27 +1,29 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
-	by kanga.kvack.org (Postfix) with SMTP id 83F8E6B005C
-	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 06:23:15 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 6DF6D3EE0B6
-	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 19:23:13 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 5513E45DEB2
-	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 19:23:13 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 3F83745DE9E
-	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 19:23:13 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 354DFE08004
-	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 19:23:13 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id E04421DB803C
-	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 19:23:12 +0900 (JST)
-Message-ID: <4FEC300A.7040209@jp.fujitsu.com>
-Date: Thu, 28 Jun 2012 19:20:58 +0900
+Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
+	by kanga.kvack.org (Postfix) with SMTP id 621B06B005C
+	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 06:25:17 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 4743C3EE0CD
+	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 19:25:15 +0900 (JST)
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 2581345DE5C
+	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 19:25:15 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 0303D45DE59
+	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 19:25:15 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id E3EDBE38005
+	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 19:25:14 +0900 (JST)
+Received: from m1000.s.css.fujitsu.com (m1000.s.css.fujitsu.com [10.240.81.136])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 9C9B01DB804D
+	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 19:25:14 +0900 (JST)
+Message-ID: <4FEC308F.4020909@jp.fujitsu.com>
+Date: Thu, 28 Jun 2012 19:23:11 +0900
 From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: [RFC][PATCH 1/2] add res_counter_usage_safe
+Subject: [RFC][PATCH 2/2] memcg : remove -ENOMEM at page migration.
+References: <4FEC300A.7040209@jp.fujitsu.com>
+In-Reply-To: <4FEC300A.7040209@jp.fujitsu.com>
 Content-Type: text/plain; charset=ISO-2022-JP
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -29,76 +31,78 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm <linux-mm@kvack.org>
 Cc: Michal Hocko <mhocko@suse.cz>, David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>
 
-This series is a cleaned up patches discussed in a few days ago, the topic
-was how to make compaction works well even if there is a memcg under OOM.
-==
-memcg: add res_counter_usage_safe()
+For handling many kinds of races, memcg adds an extra charge to
+page's memcg at page migration. But this affects the page compaction
+and make it fail if the memcg is under OOM.
 
-I think usage > limit means a sign of BUG. But, sometimes,
-res_counter_charge_nofail() is very convenient. tcp_memcg uses it.
-And I'd like to use it for helping page migration.
+This patch uses res_counter_charge_nofail() in page migration path
+and remove -ENOMEM. By this, page migration will not fail by the
+status of memcg.
 
-This patch adds res_counter_usage_safe() which returns min(usage,limit).
-By this we can use res_counter_charge_nofail() without breaking
-user experience.
-
+Reported-by: David Rientjes <rientjes@google.com>
 Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 ---
- include/linux/res_counter.h |    2 ++
- kernel/res_counter.c        |   15 +++++++++++++++
- net/ipv4/tcp_memcontrol.c   |    2 +-
- 3 files changed, 18 insertions(+), 1 deletions(-)
+ mm/memcontrol.c |   26 +++++++-------------------
+ 1 files changed, 7 insertions(+), 19 deletions(-)
 
-diff --git a/include/linux/res_counter.h b/include/linux/res_counter.h
-index 7d7fbe2..a6f8cc5 100644
---- a/include/linux/res_counter.h
-+++ b/include/linux/res_counter.h
-@@ -226,4 +226,6 @@ res_counter_set_soft_limit(struct res_counter *cnt,
- 	return 0;
- }
- 
-+u64 res_counter_usage_safe(struct res_counter *cnt);
-+
- #endif
-diff --git a/kernel/res_counter.c b/kernel/res_counter.c
-index ad581aa..e84149b 100644
---- a/kernel/res_counter.c
-+++ b/kernel/res_counter.c
-@@ -171,6 +171,21 @@ u64 res_counter_read_u64(struct res_counter *counter, int member)
- }
- #endif
- 
-+/*
-+ * Returns usage. If usage > limit, limit is returned.
-+ * This is useful not to break user experiance if the excess
-+ * is temporal.
-+ */
-+u64 res_counter_usage_safe(struct res_counter *counter)
-+{
-+	u64 usage, limit;
-+
-+	limit = res_counter_read_u64(counter, RES_LIMIT);
-+	usage = res_counter_read_u64(counter, RES_USAGE);
-+
-+	return min(usage, limit);
-+}
-+
- int res_counter_memparse_write_strategy(const char *buf,
- 					unsigned long long *res)
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index a2677e0..7424fab 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -3168,6 +3168,7 @@ int mem_cgroup_prepare_migration(struct page *page,
+ 	struct page *newpage, struct mem_cgroup **memcgp, gfp_t gfp_mask)
  {
-diff --git a/net/ipv4/tcp_memcontrol.c b/net/ipv4/tcp_memcontrol.c
-index b6f3583..a73dce6 100644
---- a/net/ipv4/tcp_memcontrol.c
-+++ b/net/ipv4/tcp_memcontrol.c
-@@ -180,7 +180,7 @@ static u64 tcp_read_usage(struct mem_cgroup *memcg)
- 		return atomic_long_read(&tcp_memory_allocated) << PAGE_SHIFT;
+ 	struct mem_cgroup *memcg = NULL;
++	struct res_counter *dummy;
+ 	struct page_cgroup *pc;
+ 	enum charge_type ctype;
+ 	int ret = 0;
+@@ -3222,29 +3223,16 @@ int mem_cgroup_prepare_migration(struct page *page,
+ 	 */
+ 	if (!memcg)
+ 		return 0;
+-
+-	*memcgp = memcg;
+-	ret = __mem_cgroup_try_charge(NULL, gfp_mask, 1, memcgp, false);
+-	css_put(&memcg->css);/* drop extra refcnt */
+-	if (ret) {
+-		if (PageAnon(page)) {
+-			lock_page_cgroup(pc);
+-			ClearPageCgroupMigration(pc);
+-			unlock_page_cgroup(pc);
+-			/*
+-			 * The old page may be fully unmapped while we kept it.
+-			 */
+-			mem_cgroup_uncharge_page(page);
+-		}
+-		/* we'll need to revisit this error code (we have -EINTR) */
+-		return -ENOMEM;
+-	}
+ 	/*
+ 	 * We charge new page before it's used/mapped. So, even if unlock_page()
+ 	 * is called before end_migration, we can catch all events on this new
+ 	 * page. In the case new page is migrated but not remapped, new page's
+ 	 * mapcount will be finally 0 and we call uncharge in end_migration().
+ 	 */
++	res_counter_charge_nofail(&memcg->res, PAGE_SIZE, &dummy);
++	if (do_swap_account)
++		res_counter_charge_nofail(&memcg->memsw, PAGE_SIZE, &dummy);
++
+ 	if (PageAnon(page))
+ 		ctype = MEM_CGROUP_CHARGE_TYPE_ANON;
+ 	else if (page_is_file_cache(page))
+@@ -3807,9 +3795,9 @@ static inline u64 mem_cgroup_usage(struct mem_cgroup *memcg, bool swap)
  
- 	tcp = tcp_from_cgproto(cg_proto);
--	return res_counter_read_u64(&tcp->tcp_memory_allocated, RES_USAGE);
-+	return res_counter_usage_safe(&tcp->tcp_memory_allocated);
- }
+ 	if (!mem_cgroup_is_root(memcg)) {
+ 		if (!swap)
+-			return res_counter_read_u64(&memcg->res, RES_USAGE);
++			return res_counter_usage_safe(&memcg->res);
+ 		else
+-			return res_counter_read_u64(&memcg->memsw, RES_USAGE);
++			return res_counter_usage_safe(&memcg->memsw);
+ 	}
  
- static u64 tcp_cgroup_read(struct cgroup *cont, struct cftype *cft)
+ 	val = mem_cgroup_recursive_stat(memcg, MEM_CGROUP_STAT_CACHE);
 -- 
 1.7.4.1
 
