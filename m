@@ -1,165 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
-	by kanga.kvack.org (Postfix) with SMTP id EF4E76B0062
-	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 11:30:44 -0400 (EDT)
-Message-ID: <4FEC7878.6000906@sandia.gov>
-Date: Thu, 28 Jun 2012 09:30:00 -0600
-From: "Jim Schutt" <jaschut@sandia.gov>
+Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
+	by kanga.kvack.org (Postfix) with SMTP id DA0826B0078
+	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 11:55:23 -0400 (EDT)
+Received: from /spool/local
+	by e38.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
+	Thu, 28 Jun 2012 09:55:22 -0600
+Received: from d01relay05.pok.ibm.com (d01relay05.pok.ibm.com [9.56.227.237])
+	by d01dlp03.pok.ibm.com (Postfix) with ESMTP id 54A0F3C707FC
+	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 11:21:26 -0400 (EDT)
+Received: from d03av05.boulder.ibm.com (d03av05.boulder.ibm.com [9.17.195.85])
+	by d01relay05.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q5SFLQDp266122
+	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 11:21:27 -0400
+Received: from d03av05.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av05.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q5SFLKa4003181
+	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 09:21:21 -0600
+Message-ID: <4FEC7668.3000403@linux.vnet.ibm.com>
+Date: Thu, 28 Jun 2012 10:21:12 -0500
+From: Seth Jennings <sjenning@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Subject: Re: excessive CPU utilization by isolate_freepages?
-References: <4FEB8237.6030402@sandia.gov>
- <20120628113619.GR8103@csn.ul.ie>
-In-Reply-To: <20120628113619.GR8103@csn.ul.ie>
-Content-Type: text/plain;
- charset=utf-8;
- format=flowed
+Subject: Re: [PATCH 3/3] x86: add local_tlb_flush_kernel_range()
+References: <1340640878-27536-1-git-send-email-sjenning@linux.vnet.ibm.com> <1340640878-27536-4-git-send-email-sjenning@linux.vnet.ibm.com> <4FEA9FDD.6030102@kernel.org> <4FEAA4AA.3000406@intel.com> <4FEAA7A1.9020307@kernel.org> <90bcc2c8-bcac-4620-b3c0-6b65f8d9174d@default> <4FEB5204.3090707@linux.vnet.ibm.com> <4FEBBB5C.5000505@intel.com>
+In-Reply-To: <4FEBBB5C.5000505@intel.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "ceph-devel@vger.kernel.org" <ceph-devel@vger.kernel.org>
+To: Alex Shi <alex.shi@intel.com>
+Cc: Dan Magenheimer <dan.magenheimer@oracle.com>, Minchan Kim <minchan@kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, devel@driverdev.osuosl.org, Konrad Wilk <konrad.wilk@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Robert Jennings <rcj@linux.vnet.ibm.com>, Nitin Gupta <ngupta@vflare.org>, "H. Peter Anvin" <hpa@zytor.com>
 
-On 06/28/2012 05:36 AM, Mel Gorman wrote:
-> On Wed, Jun 27, 2012 at 03:59:19PM -0600, Jim Schutt wrote:
->> Hi,
->>
->> I'm running into trouble with systems going unresponsive,
->> and perf suggests it's excessive CPU usage by isolate_freepages().
->> I'm currently testing 3.5-rc4, but I think this problem may have
->> first shown up in 3.4.  I'm only just learning how to use perf,
->> so I only currently have results to report for 3.5-rc4.
->>
->
-> Out of curiosity, why do you think it showed up in 3.4? It's not
-> surprising as such if it did show up there but I'm wondering what you
-> are basing it on.
+On 06/27/2012 09:03 PM, Alex Shi wrote:
+> Peter Anvin is merging my TLB patch set into tip tree, x86/mm branch.
 
-If I remember correctly, when I was testing this workload on 3.4 is
-when I first saw hundreds of runable threads being reported by vmstat.
-At that time I couldn't reproduce quite as reliably, and I didn't
-know how to get perf to give me call chains, so I didn't follow up :(
+Great! I don't know the integration path of this tree.  Will
+these patches go into mainline in the next merge window from
+here?
 
->
-> It's not a suprise because it's also where reclaim/compaction stopped
-> depending on lumpy reclaim. In the past we would have reclaimed more
-> pages but now rely on compaction more. It's plassible that for many
-> parallel compactions that there would be higher CPU usage now.
->
->> <SNIP>
->> 2012-06-27 14:00:03.219-06:00
->> vmstat -w 4 16
->> procs -------------------memory------------------ ---swap-- -----io---- --system-- -----cpu-------
->>   r  b       swpd       free       buff      cache   si   so    bi    bo   in   cs  us sy  id wa st
->> 75  1          0     566988        576   35664800    0    0     2  1355   21    3   1  4  95  0  0
->> 433  1          0     964052        576   35069112    0    0     7 456359 102256 20901   2 98   0  0  0
->> 547  3          0     820116        576   34893932    0    0    57 560507 114878 28115   3 96   0  0  0
->> 806  2          0     606992        576   34848180    0    0   339 309668 101230 21056   2 98   0  0  0
->> 708  1          0     529624        576   34708000    0    0   248 370886 101327 20062   2 97   0  0  0
->> 231  5          0     504772        576   34663880    0    0   305 334824 95045 20407   2 97   1  1  0
->> 158  6          0    1063088        576   33518536    0    0   531 847435 130696 47140   4 92   1  2  0
->> 193  0          0    1449156        576   33035572    0    0   363 371279 94470 18955   2 96   1  1  0
->> 266  6          0    1623512        576   32728164    0    0    77 241114 95730 15483   2 98   0  0  0
->> 243  8          0    1629504        576   32653080    0    0    81 471018 100223 20920   3 96   0  1  0
->> 70 11          0    1342140        576   33084020    0    0   100 925869 139876 56599   6 88   3  3  0
->> 211  7          0    1130316        576   33470432    0    0   290 1008984 150699 74320   6 83   6  5  0
->> 365  3          0     776736        576   34072772    0    0   182 747167 139436 67135   5 88   4  3  0
->> 29  1          0    1528412        576   34110640    0    0    50 612181 137403 77609   4 87   6  3  0
->> 266  5          0    1657688        576   34105696    0    0     3 258307 62879 38508   2 93   3  2  0
->> 1159  2          0    2002256        576   33775476    0    0    19 88554 42112 14230   1 98   0  0  0
->>
->
-> ok, so System CPU usage through the roof.
->
->>
->> Right around 14:00 I was able to get a "perf -a -g"; here's the
->> beginning of what "perf report --sort symbol --call-graph fractal,5"
->> had to say:
->>
->> #
->>      64.86%  [k] _raw_spin_lock_irqsave
->>              |
->>              |--97.94%-- isolate_freepages
->>              |          compaction_alloc
->>              |          unmap_and_move
->>              |          migrate_pages
->>              |          compact_zone
->>              |          |
->>              |          |--99.56%-- try_to_compact_pages
->>              |          |          __alloc_pages_direct_compact
->>              |          |          __alloc_pages_slowpath
->>              |          |          __alloc_pages_nodemask
->>              |          |          alloc_pages_vma
->>              |          |          do_huge_pmd_anonymous_page
->>              |          |          handle_mm_fault
->>              |          |          do_page_fault
->>              |          |          page_fault
->>              |          |          |
->>              |          |          |--53.53%-- skb_copy_datagram_iovec
->>              |          |          |          tcp_recvmsg
->>              |          |          |          inet_recvmsg
->>              |          |          |          sock_recvmsg
->>              |          |          |          sys_recvfrom
->>              |          |          |          system_call_fastpath
->>              |          |          |          __recv
->>              |          |          |          |
->>              |          |          |           --100.00%-- (nil)
->>              |          |          |
->>              |          |          |--27.80%-- __pthread_create_2_1
->>              |          |          |          (nil)
->>              |          |          |
->>              |          |           --18.67%-- memcpy
->>              |          |                     |
->>              |          |                     |--57.38%-- 0x50d000005
->>              |          |                     |
->>              |          |                     |--34.52%-- 0x3b300bf271940a35
->>              |          |                     |
->>              |          |                      --8.10%-- 0x1500000000000009
->>              |           --0.44%-- [...]
->>               --2.06%-- [...]
->>
->
-> This looks like lock contention to me on zone->lock which
-> isolate_freepages takes and releases frequently. You do not describe the
-> exact memory layout but it's likely that there are two very large zones
-> with 12 CPUs each. If they all were running compaction they would pound
-> zone->lock pretty heavily.
-
-Does this tell you what you need to know?
-If not, let me know what you'd like to see.
-
-# grep -H MemTotal /sys/devices/system/node/node*/meminfo
-/sys/devices/system/node/node0/meminfo:Node 0 MemTotal:       25156644 kB
-/sys/devices/system/node/node1/meminfo:Node 1 MemTotal:       25165824 kB
-
->
->> <SNIP>
->
-> The other call traces also look like they are pounding zone->lock
-> heavily.
->
-> Rik's patch has the potential to reduce contention by virtue of the fact
-> that less scanning is required. I'd be interested in hearing how much of
-> an impact that patch has so please test that first.
-
-Working on that now....
-
->
-> If that approach does not work I'll put together a patch that either
-> backs off compaction on zone->lock contention.
->
->> I seem to be able to recreate this issue at will, so please
->> let me know what I can do to help learn what is going on.
->>
->
-> Thanks very much for testing.
->
-
-No problem.  Thanks to you all for jumping on this so quickly.
-
-FWIW, perf rocks!  Thanks to all who've helped make it so great!
-
--- Jim
-
+--
+Seth
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
