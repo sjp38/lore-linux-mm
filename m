@@ -1,60 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
-	by kanga.kvack.org (Postfix) with SMTP id 740DC6B005C
-	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 05:19:58 -0400 (EDT)
-Date: Thu, 28 Jun 2012 10:16:27 +0100
-From: Catalin Marinas <catalin.marinas@arm.com>
-Subject: Re: [PATCH 08/20] mm: Optimize fullmm TLB flushing
-Message-ID: <20120628091627.GB8573@arm.com>
-References: <20120627211540.459910855@chello.nl>
- <20120627212831.137126018@chello.nl>
- <CA+55aFwZoVK76ue7tFveV0XZpPUmoCVXJx8550OxPm+XKCSSZA@mail.gmail.com>
- <1340838154.10063.86.camel@twins>
- <1340838807.10063.90.camel@twins>
- <CA+55aFy6m967fMxyBsRoXVecdpGtSphXi_XdhwS0DB81Qaocdw@mail.gmail.com>
- <CA+55aFzLNsVRkp_US8rAmygEkQpp1s1YdakV86Ck-4RZM7TTdA@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
+	by kanga.kvack.org (Postfix) with SMTP id 83F8E6B005C
+	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 06:23:15 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 6DF6D3EE0B6
+	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 19:23:13 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 5513E45DEB2
+	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 19:23:13 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 3F83745DE9E
+	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 19:23:13 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 354DFE08004
+	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 19:23:13 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id E04421DB803C
+	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 19:23:12 +0900 (JST)
+Message-ID: <4FEC300A.7040209@jp.fujitsu.com>
+Date: Thu, 28 Jun 2012 19:20:58 +0900
+From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CA+55aFzLNsVRkp_US8rAmygEkQpp1s1YdakV86Ck-4RZM7TTdA@mail.gmail.com>
-Content-Language: en-US
+Subject: [RFC][PATCH 1/2] add res_counter_usage_safe
+Content-Type: text/plain; charset=ISO-2022-JP
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Peter Zijlstra <peterz@infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <npiggin@kernel.dk>, Alex Shi <alex.shi@intel.com>, "Nikunj A. Dadhania" <nikunj@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, David Miller <davem@davemloft.net>, Russell King <rmk@arm.linux.org.uk>, Chris Metcalf <cmetcalf@tilera.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Tony Luck <tony.luck@intel.com>, Paul Mundt <lethal@linux-sh.org>, Jeff Dike <jdike@addtoit.com>, Richard Weinberger <richard@nod.at>, Ralf Baechle <ralf@linux-mips.org>, Kyle McMartin <kyle@mcmartin.ca>, James Bottomley <jejb@parisc-linux.org>, Chris Zankel <chris@zankel.net>
+To: linux-mm <linux-mm@kvack.org>
+Cc: Michal Hocko <mhocko@suse.cz>, David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>
 
-On Thu, Jun 28, 2012 at 12:33:44AM +0100, Linus Torvalds wrote:
-> On Wed, Jun 27, 2012 at 4:23 PM, Linus Torvalds
-> <torvalds@linux-foundation.org> wrote:
-> > But the branch prediction tables are obviously just predictions, and
-> > they easily contain user addresses etc in them. So the kernel may well
-> > end up speculatively doing a TLB fill on a user access.
-> 
-> That should be ".. on a user *address*", hopefully that was clear from
-> the context, if not from the text.
-> 
-> IOW, the point I'm trying to make is that even if there are zero
-> *actual* accesses of user space (because user space is dead, and the
-> kernel hopefully does no "get_user()/put_user()" stuff at this point
-> any more), the CPU may speculatively use user addresses for the
-> bog-standard kernel addresses that happen.
+This series is a cleaned up patches discussed in a few days ago, the topic
+was how to make compaction works well even if there is a memcg under OOM.
+==
+memcg: add res_counter_usage_safe()
 
-That's definitely an issue on ARM and it was hit on older kernels.
-Basically ARM processors can cache any page translation level in the
-TLB. We need to make sure that no page entry at any level (either cached
-in the TLB or not) points to an invalid next level table (hence the TLB
-shootdown). For example, in cases like free_pgd_range(), if the cached
-pgd entry points to an already freed pud/pmd table (pgd_clear is not
-enough) it may walk the page tables speculatively cache another entry in
-the TLB. Depending on the random data it reads from an old table page,
-it may find a global entry (it's just a bit in the pte) which is not
-tagged with an ASID (application specific id). A latter flush_tlb_mm()
-only flushes the current ASID and doesn't touch global entries (used
-only by kernel mappings). So we end up with global TLB entry in user
-space that overrides any other application mapping.
+I think usage > limit means a sign of BUG. But, sometimes,
+res_counter_charge_nofail() is very convenient. tcp_memcg uses it.
+And I'd like to use it for helping page migration.
 
+This patch adds res_counter_usage_safe() which returns min(usage,limit).
+By this we can use res_counter_charge_nofail() without breaking
+user experience.
+
+Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+---
+ include/linux/res_counter.h |    2 ++
+ kernel/res_counter.c        |   15 +++++++++++++++
+ net/ipv4/tcp_memcontrol.c   |    2 +-
+ 3 files changed, 18 insertions(+), 1 deletions(-)
+
+diff --git a/include/linux/res_counter.h b/include/linux/res_counter.h
+index 7d7fbe2..a6f8cc5 100644
+--- a/include/linux/res_counter.h
++++ b/include/linux/res_counter.h
+@@ -226,4 +226,6 @@ res_counter_set_soft_limit(struct res_counter *cnt,
+ 	return 0;
+ }
+ 
++u64 res_counter_usage_safe(struct res_counter *cnt);
++
+ #endif
+diff --git a/kernel/res_counter.c b/kernel/res_counter.c
+index ad581aa..e84149b 100644
+--- a/kernel/res_counter.c
++++ b/kernel/res_counter.c
+@@ -171,6 +171,21 @@ u64 res_counter_read_u64(struct res_counter *counter, int member)
+ }
+ #endif
+ 
++/*
++ * Returns usage. If usage > limit, limit is returned.
++ * This is useful not to break user experiance if the excess
++ * is temporal.
++ */
++u64 res_counter_usage_safe(struct res_counter *counter)
++{
++	u64 usage, limit;
++
++	limit = res_counter_read_u64(counter, RES_LIMIT);
++	usage = res_counter_read_u64(counter, RES_USAGE);
++
++	return min(usage, limit);
++}
++
+ int res_counter_memparse_write_strategy(const char *buf,
+ 					unsigned long long *res)
+ {
+diff --git a/net/ipv4/tcp_memcontrol.c b/net/ipv4/tcp_memcontrol.c
+index b6f3583..a73dce6 100644
+--- a/net/ipv4/tcp_memcontrol.c
++++ b/net/ipv4/tcp_memcontrol.c
+@@ -180,7 +180,7 @@ static u64 tcp_read_usage(struct mem_cgroup *memcg)
+ 		return atomic_long_read(&tcp_memory_allocated) << PAGE_SHIFT;
+ 
+ 	tcp = tcp_from_cgproto(cg_proto);
+-	return res_counter_read_u64(&tcp->tcp_memory_allocated, RES_USAGE);
++	return res_counter_usage_safe(&tcp->tcp_memory_allocated);
+ }
+ 
+ static u64 tcp_cgroup_read(struct cgroup *cont, struct cftype *cft)
 -- 
-Catalin
+1.7.4.1
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
