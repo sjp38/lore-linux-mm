@@ -1,106 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx104.postini.com [74.125.245.104])
-	by kanga.kvack.org (Postfix) with SMTP id EC04A6B0071
-	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 07:07:00 -0400 (EDT)
-Received: by pbbrp2 with SMTP id rp2so3537203pbb.14
-        for <linux-mm@kvack.org>; Thu, 28 Jun 2012 04:07:00 -0700 (PDT)
-From: Sha Zhengju <handai.szj@gmail.com>
-Subject: [PATCH 7/7] memcg: print more detailed info while memcg oom happening
-Date: Thu, 28 Jun 2012 19:06:49 +0800
-Message-Id: <1340881609-5935-1-git-send-email-handai.szj@taobao.com>
-In-Reply-To: <1340880885-5427-1-git-send-email-handai.szj@taobao.com>
-References: <1340880885-5427-1-git-send-email-handai.szj@taobao.com>
+Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
+	by kanga.kvack.org (Postfix) with SMTP id 096556B0062
+	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 07:20:25 -0400 (EDT)
+Received: from /spool/local
+	by e06smtp15.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <schwidefsky@de.ibm.com>;
+	Thu, 28 Jun 2012 12:20:24 +0100
+Received: from d06av06.portsmouth.uk.ibm.com (d06av06.portsmouth.uk.ibm.com [9.149.37.217])
+	by d06nrmr1707.portsmouth.uk.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q5SBJsob2560204
+	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 12:19:54 +0100
+Received: from d06av06.portsmouth.uk.ibm.com (loopback [127.0.0.1])
+	by d06av06.portsmouth.uk.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q5SBJq17016228
+	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 05:19:54 -0600
+Date: Thu, 28 Jun 2012 13:19:50 +0200
+From: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Subject: Re: [PATCH 08/20] mm: Optimize fullmm TLB flushing
+Message-ID: <20120628131950.0afe39f0@de.ibm.com>
+In-Reply-To: <1340880904.28750.13.camel@twins>
+References: <20120627211540.459910855@chello.nl>
+	<20120627212831.137126018@chello.nl>
+	<CA+55aFwZoVK76ue7tFveV0XZpPUmoCVXJx8550OxPm+XKCSSZA@mail.gmail.com>
+	<1340838154.10063.86.camel@twins>
+	<1340838807.10063.90.camel@twins>
+	<CA+55aFy6m967fMxyBsRoXVecdpGtSphXi_XdhwS0DB81Qaocdw@mail.gmail.com>
+	<CA+55aFzLNsVRkp_US8rAmygEkQpp1s1YdakV86Ck-4RZM7TTdA@mail.gmail.com>
+	<1340880904.28750.13.camel@twins>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, cgroups@vger.kernel.org
-Cc: kamezawa.hiroyu@jp.fujitsu.com, gthelen@google.com, yinghan@google.com, akpm@linux-foundation.org, mhocko@suse.cz, linux-kernel@vger.kernel.org, Sha Zhengju <handai.szj@taobao.com>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, akpm@linux-foundation.org, Rik van Riel <riel@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <npiggin@kernel.dk>, Alex Shi <alex.shi@intel.com>, "Nikunj A.
+ Dadhania" <nikunj@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, David Miller <davem@davemloft.net>, Russell King <rmk@arm.linux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Chris Metcalf <cmetcalf@tilera.com>, Tony Luck <tony.luck@intel.com>, Paul Mundt <lethal@linux-sh.org>, Jeff Dike <jdike@addtoit.com>, Richard Weinberger <richard@nod.at>, Ralf Baechle <ralf@linux-mips.org>, Kyle McMartin <kyle@mcmartin.ca>, James Bottomley <jejb@parisc-linux.org>, Chris Zankel <chris@zankel.net>
 
-From: Sha Zhengju <handai.szj@taobao.com>
+On Thu, 28 Jun 2012 12:55:04 +0200
+Peter Zijlstra <peterz@infradead.org> wrote:
 
-While memcg oom happening, the dump info is limited, so add this
-to provide memcg page stat.
+> On Wed, 2012-06-27 at 16:33 -0700, Linus Torvalds wrote:
+> > IOW, the point I'm trying to make is that even if there are zero
+> > *actual* accesses of user space (because user space is dead, and the
+> > kernel hopefully does no "get_user()/put_user()" stuff at this point
+> > any more), the CPU may speculatively use user addresses for the
+> > bog-standard kernel addresses that happen. 
+> 
+> Right.. and s390 having done this only says that s390 appears to be ok
+> with it. Martin, does s390 hardware guarantee no speculative stuff like
+> Linus explained, or might there even be a latent issue on s390?
 
-Signed-off-by: Sha Zhengju <handai.szj@taobao.com>
----
- mm/memcontrol.c |   42 ++++++++++++++++++++++++++++++++++--------
- 1 files changed, 34 insertions(+), 8 deletions(-)
+The cpu can create speculative TLB entries, but only if it runs in the
+mode that uses the respective mm. We have two mm's active at the same
+time, the kernel mm (init_mm) and the user mm. While the cpu runs only
+in kernel mode it is not allowed to create TLBs for the user mm.
+While running in user mode it is allowed to speculatively create TLBs.
+ 
+> But it looks like we cannot do this in general, and esp. ARM (as already
+> noted by Catalin) has very aggressive speculative behaviour.
+> 
+> The alternative is that we do a switch_mm() to init_mm instead of the
+> TLB flush. On x86 that should be about the same cost, but I've not
+> looked at other architectures yet.
+> 
+> The second and least favourite alternative is of course special casing
+> this for s390 if it turns out its a safe thing to do for them.
+> 
+> /me goes look through arch code.
 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 8493119..3ed41e9 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -101,6 +101,14 @@ static const char * const mem_cgroup_events_names[] = {
- 	"pgmajfault",
- };
- 
-+static const char * const mem_cgroup_lru_names[] = {
-+	"inactive_anon",
-+	"active_anon",
-+	"inactive_file",
-+	"active_file",
-+	"unevictable",
-+};
-+
- /*
-  * Per memcg event counter is incremented at every pagein/pageout. With THP,
-  * it will be incremated by the number of pages. This counter is used for
-@@ -1358,6 +1366,30 @@ static void move_unlock_mem_cgroup(struct mem_cgroup *memcg,
- 	spin_unlock_irqrestore(&memcg->move_lock, *flags);
- }
- 
-+#define K(x) ((x) << (PAGE_SHIFT-10))
-+static void mem_cgroup_print_oom_stat(struct mem_cgroup *memcg)
-+{
-+	int i;
-+
-+	printk(KERN_INFO "Memory cgroup stat:\n");
-+	for (i = 0; i < MEM_CGROUP_STAT_NSTATS; i++) {
-+		if (i == MEM_CGROUP_STAT_SWAP && !do_swap_account)
-+			continue;
-+		printk(KERN_CONT "%s:%ldKB ", mem_cgroup_stat_names[i],
-+			   K(mem_cgroup_read_stat(memcg, i)));
-+	}
-+
-+	for (i = 0; i < MEM_CGROUP_EVENTS_NSTATS; i++)
-+		printk(KERN_CONT "%s:%lu ", mem_cgroup_events_names[i],
-+			   mem_cgroup_read_events(memcg, i));
-+
-+	for (i = 0; i < NR_LRU_LISTS; i++)
-+		printk(KERN_CONT "%s:%luKB ", mem_cgroup_lru_names[i],
-+			   K(mem_cgroup_nr_lru_pages(memcg, BIT(i))));
-+	printk(KERN_CONT "\n");
-+
-+}
-+
- /**
-  * mem_cgroup_print_oom_info: Called from OOM with tasklist_lock held in read mode.
-  * @memcg: The memory cgroup that went over limit
-@@ -1422,6 +1454,8 @@ done:
- 		res_counter_read_u64(&memcg->memsw, RES_USAGE) >> 10,
- 		res_counter_read_u64(&memcg->memsw, RES_LIMIT) >> 10,
- 		res_counter_read_u64(&memcg->memsw, RES_FAILCNT));
-+
-+	mem_cgroup_print_oom_stat(memcg);
- }
- 
- /*
-@@ -4043,14 +4077,6 @@ static int mem_control_numa_stat_show(struct cgroup *cont, struct cftype *cft,
- }
- #endif /* CONFIG_NUMA */
- 
--static const char * const mem_cgroup_lru_names[] = {
--	"inactive_anon",
--	"active_anon",
--	"inactive_file",
--	"active_file",
--	"unevictable",
--};
--
- static inline void mem_cgroup_lru_names_not_uptodate(void)
- {
- 	BUILD_BUG_ON(ARRAY_SIZE(mem_cgroup_lru_names) != NR_LRU_LISTS);
+Basically we have two special requirements on s390:
+1) do not modify ptes while attached to another cpu except with the
+   special IPTE / IDTE instructions
+2) do a TLB flush before freeing any kind of page table page, s390
+   needs a flush for pud, pmd & pte tables.
+
 -- 
-1.7.1
+blue skies,
+   Martin.
+
+"Reality continues to ruin my life." - Calvin.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
