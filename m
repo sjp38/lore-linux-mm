@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
-	by kanga.kvack.org (Postfix) with SMTP id E6E536B006C
-	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 08:57:09 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx144.postini.com [74.125.245.144])
+	by kanga.kvack.org (Postfix) with SMTP id D769A6B0093
+	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 08:57:06 -0400 (EDT)
 From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: [PATCH 18/40] autonuma: call autonuma_setup_new_exec()
-Date: Thu, 28 Jun 2012 14:55:58 +0200
-Message-Id: <1340888180-15355-19-git-send-email-aarcange@redhat.com>
+Subject: [PATCH 38/40] autonuma: autonuma_migrate_head[0] dynamic size
+Date: Thu, 28 Jun 2012 14:56:18 +0200
+Message-Id: <1340888180-15355-39-git-send-email-aarcange@redhat.com>
 In-Reply-To: <1340888180-15355-1-git-send-email-aarcange@redhat.com>
 References: <1340888180-15355-1-git-send-email-aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,57 +13,180 @@ List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 Cc: Hillf Danton <dhillf@gmail.com>, Dan Smith <danms@us.ibm.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Srivatsa Vaddagiri <vatsa@linux.vnet.ibm.com>, Christoph Lameter <cl@linux.com>, Alex Shi <alex.shi@intel.com>, Mauricio Faria de Oliveira <mauricfo@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Don Morris <don.morris@hp.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
 
-This resets all per-thread and per-process statistics across exec
-syscalls or after kernel threads detached from the mm. The past
-statistical NUMA information is unlikely to be relevant for the future
-in these cases.
+Reduce the autonuma_migrate_head array entries from MAX_NUMNODES to
+num_possible_nodes() or zero if autonuma_impossible() is true.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 ---
- fs/exec.c        |    3 +++
- mm/mmu_context.c |    2 ++
- 2 files changed, 5 insertions(+), 0 deletions(-)
+ arch/x86/mm/numa.c             |    6 ++++--
+ arch/x86/mm/numa_32.c          |    3 ++-
+ include/linux/memory_hotplug.h |    3 ++-
+ include/linux/mmzone.h         |    8 +++++++-
+ include/linux/page_autonuma.h  |   10 ++++++++--
+ mm/memory_hotplug.c            |    2 +-
+ mm/page_autonuma.c             |    5 +++--
+ 7 files changed, 27 insertions(+), 10 deletions(-)
 
-diff --git a/fs/exec.c b/fs/exec.c
-index da27b91..146ced2 100644
---- a/fs/exec.c
-+++ b/fs/exec.c
-@@ -55,6 +55,7 @@
- #include <linux/pipe_fs_i.h>
- #include <linux/oom.h>
- #include <linux/compat.h>
-+#include <linux/autonuma.h>
- 
- #include <asm/uaccess.h>
- #include <asm/mmu_context.h>
-@@ -1172,6 +1173,8 @@ void setup_new_exec(struct linux_binprm * bprm)
- 			
- 	flush_signal_handlers(current, 0);
- 	flush_old_files(current->files);
-+
-+	autonuma_setup_new_exec(current);
- }
- EXPORT_SYMBOL(setup_new_exec);
- 
-diff --git a/mm/mmu_context.c b/mm/mmu_context.c
-index 3dcfaf4..40f0f13 100644
---- a/mm/mmu_context.c
-+++ b/mm/mmu_context.c
-@@ -7,6 +7,7 @@
- #include <linux/mmu_context.h>
- #include <linux/export.h>
+diff --git a/arch/x86/mm/numa.c b/arch/x86/mm/numa.c
+index 2d125be..a4a9e92 100644
+--- a/arch/x86/mm/numa.c
++++ b/arch/x86/mm/numa.c
+@@ -11,6 +11,7 @@
+ #include <linux/nodemask.h>
  #include <linux/sched.h>
-+#include <linux/autonuma.h>
+ #include <linux/topology.h>
++#include <linux/page_autonuma.h>
  
- #include <asm/mmu_context.h>
+ #include <asm/e820.h>
+ #include <asm/proto.h>
+@@ -192,7 +193,8 @@ int __init numa_add_memblk(int nid, u64 start, u64 end)
+ /* Initialize NODE_DATA for a node on the local memory */
+ static void __init setup_node_data(int nid, u64 start, u64 end)
+ {
+-	const size_t nd_size = roundup(sizeof(pg_data_t), PAGE_SIZE);
++	const size_t nd_size = roundup(autonuma_pglist_data_size(),
++				       PAGE_SIZE);
+ 	bool remapped = false;
+ 	u64 nd_pa;
+ 	void *nd;
+@@ -239,7 +241,7 @@ static void __init setup_node_data(int nid, u64 start, u64 end)
+ 		printk(KERN_INFO "    NODE_DATA(%d) on node %d\n", nid, tnid);
  
-@@ -58,5 +59,6 @@ void unuse_mm(struct mm_struct *mm)
- 	/* active_mm is still 'mm' */
- 	enter_lazy_tlb(mm, tsk);
- 	task_unlock(tsk);
-+	autonuma_setup_new_exec(tsk);
+ 	node_data[nid] = nd;
+-	memset(NODE_DATA(nid), 0, sizeof(pg_data_t));
++	memset(NODE_DATA(nid), 0, autonuma_pglist_data_size());
+ 	NODE_DATA(nid)->node_id = nid;
+ 	NODE_DATA(nid)->node_start_pfn = start >> PAGE_SHIFT;
+ 	NODE_DATA(nid)->node_spanned_pages = (end - start) >> PAGE_SHIFT;
+diff --git a/arch/x86/mm/numa_32.c b/arch/x86/mm/numa_32.c
+index 534255a..d32d6cc 100644
+--- a/arch/x86/mm/numa_32.c
++++ b/arch/x86/mm/numa_32.c
+@@ -25,6 +25,7 @@
+ #include <linux/bootmem.h>
+ #include <linux/memblock.h>
+ #include <linux/module.h>
++#include <linux/page_autonuma.h>
+ 
+ #include "numa_internal.h"
+ 
+@@ -194,7 +195,7 @@ void __init init_alloc_remap(int nid, u64 start, u64 end)
+ 
+ 	/* calculate the necessary space aligned to large page size */
+ 	size = node_memmap_size_bytes(nid, start_pfn, end_pfn);
+-	size += ALIGN(sizeof(pg_data_t), PAGE_SIZE);
++	size += ALIGN(autonuma_pglist_data_size(), PAGE_SIZE);
+ 	size = ALIGN(size, LARGE_PAGE_BYTES);
+ 
+ 	/* allocate node memory and the lowmem remap area */
+diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
+index 910550f..76b1840 100644
+--- a/include/linux/memory_hotplug.h
++++ b/include/linux/memory_hotplug.h
+@@ -5,6 +5,7 @@
+ #include <linux/spinlock.h>
+ #include <linux/notifier.h>
+ #include <linux/bug.h>
++#include <linux/page_autonuma.h>
+ 
+ struct page;
+ struct zone;
+@@ -130,7 +131,7 @@ extern void arch_refresh_nodedata(int nid, pg_data_t *pgdat);
+  */
+ #define generic_alloc_nodedata(nid)				\
+ ({								\
+-	kzalloc(sizeof(pg_data_t), GFP_KERNEL);			\
++	kzalloc(autonuma_pglist_data_size(), GFP_KERNEL);	\
+ })
+ /*
+  * This definition is just for error path in node hotadd.
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+index e66da74..ed5b0c0 100644
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -701,10 +701,16 @@ typedef struct pglist_data {
+ #if !defined(CONFIG_SPARSEMEM)
+ 	struct page_autonuma *node_page_autonuma;
+ #endif
+-	struct list_head autonuma_migrate_head[MAX_NUMNODES];
+ 	unsigned long autonuma_nr_migrate_pages;
+ 	wait_queue_head_t autonuma_knuma_migrated_wait;
+ 	spinlock_t autonuma_lock;
++	/*
++	 * Archs supporting AutoNUMA should allocate the pgdat with
++	 * size autonuma_pglist_data_size() after including
++	 * <linux/page_autonuma.h> and the below field must remain the
++	 * last one of this structure.
++	 */
++	struct list_head autonuma_migrate_head[0];
+ #endif
+ } pg_data_t;
+ 
+diff --git a/include/linux/page_autonuma.h b/include/linux/page_autonuma.h
+index d748aa2..bc7a629 100644
+--- a/include/linux/page_autonuma.h
++++ b/include/linux/page_autonuma.h
+@@ -10,6 +10,7 @@ static inline void __init page_autonuma_init_flatmem(void) {}
+ #ifdef CONFIG_AUTONUMA
+ 
+ #include <linux/autonuma_flags.h>
++#include <linux/autonuma_types.h>
+ 
+ extern void __meminit page_autonuma_map_init(struct page *page,
+ 					     struct page_autonuma *page_autonuma,
+@@ -29,11 +30,10 @@ extern void __meminit pgdat_autonuma_init(struct pglist_data *);
+ struct page_autonuma;
+ #define PAGE_AUTONUMA_SIZE 0
+ #define SECTION_PAGE_AUTONUMA_SIZE 0
++#endif
+ 
+ #define autonuma_impossible() true
+ 
+-#endif
+-
+ static inline void pgdat_autonuma_init(struct pglist_data *pgdat) {}
+ 
+ #endif /* CONFIG_AUTONUMA */
+@@ -50,4 +50,10 @@ extern void __init sparse_early_page_autonuma_alloc_node(struct page_autonuma **
+ 							 int nodeid);
+ #endif
+ 
++/* inline won't work here */
++#define autonuma_pglist_data_size() (sizeof(struct pglist_data) +	\
++				     (autonuma_impossible() ? 0 :	\
++				      sizeof(struct list_head) * \
++				      num_possible_nodes()))
++
+ #endif /* _LINUX_PAGE_AUTONUMA_H */
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index 0d7e3ec..604995b 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -164,7 +164,7 @@ void register_page_bootmem_info_node(struct pglist_data *pgdat)
+ 	struct page *page;
+ 	struct zone *zone;
+ 
+-	nr_pages = PAGE_ALIGN(sizeof(struct pglist_data)) >> PAGE_SHIFT;
++	nr_pages = PAGE_ALIGN(autonuma_pglist_data_size()) >> PAGE_SHIFT;
+ 	page = virt_to_page(pgdat);
+ 
+ 	for (i = 0; i < nr_pages; i++, page++)
+diff --git a/mm/page_autonuma.c b/mm/page_autonuma.c
+index 2468c9e..d7c5e4a 100644
+--- a/mm/page_autonuma.c
++++ b/mm/page_autonuma.c
+@@ -23,8 +23,9 @@ static void __meminit __pgdat_autonuma_init(struct pglist_data *pgdat)
+ 	spin_lock_init(&pgdat->autonuma_lock);
+ 	init_waitqueue_head(&pgdat->autonuma_knuma_migrated_wait);
+ 	pgdat->autonuma_nr_migrate_pages = 0;
+-	for_each_node(node_iter)
+-		INIT_LIST_HEAD(&pgdat->autonuma_migrate_head[node_iter]);
++	if (!autonuma_impossible())
++		for_each_node(node_iter)
++			INIT_LIST_HEAD(&pgdat->autonuma_migrate_head[node_iter]);
  }
- EXPORT_SYMBOL_GPL(unuse_mm);
+ 
+ #if !defined(CONFIG_SPARSEMEM)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
