@@ -1,88 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
-	by kanga.kvack.org (Postfix) with SMTP id 6E3BE6B005A
-	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 02:03:49 -0400 (EDT)
-Received: from /spool/local
-	by e39.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <shangw@linux.vnet.ibm.com>;
-	Thu, 28 Jun 2012 00:03:48 -0600
-Received: from d03relay05.boulder.ibm.com (d03relay05.boulder.ibm.com [9.17.195.107])
-	by d03dlp02.boulder.ibm.com (Postfix) with ESMTP id EE7C43E4005E
-	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 06:03:43 +0000 (WET)
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d03relay05.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q5S63XXS225880
-	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 00:03:37 -0600
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q5S63Xse029989
-	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 00:03:33 -0600
-Date: Thu, 28 Jun 2012 14:03:30 +0800
-From: Gavin Shan <shangw@linux.vnet.ibm.com>
-Subject: Re: [PATCH v2 2/3] mm/sparse: fix possible memory leak
-Message-ID: <20120628060330.GA26576@shangw>
-Reply-To: Gavin Shan <shangw@linux.vnet.ibm.com>
-References: <1340814968-2948-1-git-send-email-shangw@linux.vnet.ibm.com>
- <1340814968-2948-2-git-send-email-shangw@linux.vnet.ibm.com>
- <4FEB3C67.6070604@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
+	by kanga.kvack.org (Postfix) with SMTP id A02C46B005A
+	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 02:08:41 -0400 (EDT)
+From: "Kim, Jong-Sung" <neidhard.kim@lge.com>
+References: <1338880312-17561-1-git-send-email-minchan@kernel.org> <025701cd457e$d5065410$7f12fc30$@lge.com> <20120627191801.GD25319@n2100.arm.linux.org.uk>
+In-Reply-To: <20120627191801.GD25319@n2100.arm.linux.org.uk>
+Subject: RE: [PATCH] [RESEND] arm: limit memblock base address for	early_pte_alloc
+Date: Thu, 28 Jun 2012 15:08:39 +0900
+Message-ID: <00e901cd54f4$76773650$6365a2f0$@lge.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4FEB3C67.6070604@linux.vnet.ibm.com>
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: 7bit
+Content-Language: ko
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@linux.vnet.ibm.com>
-Cc: Gavin Shan <shangw@linux.vnet.ibm.com>, linux-mm@kvack.org, mhocko@suse.cz, rientjes@google.com, hannes@cmpxchg.org, akpm@linux-foundation.org
+To: 'Russell King - ARM Linux' <linux@arm.linux.org.uk>
+Cc: 'Minchan Kim' <minchan@kernel.org>, 'Nicolas Pitre' <nico@linaro.org>, 'Catalin Marinas' <catalin.marinas@arm.com>, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, 'Chanho Min' <chanho.min@lge.com>, linux-mm@kvack.org
 
->> With CONFIG_SPARSEMEM_EXTREME, the root memory section descriptors
->> are allocated by slab or bootmem allocator. Also, the descriptors
->> might have been allocated and initialized during the hotplug path.
->> However, the memory chunk allocated in current implementation wouldn't
->> be put into the available pool if that has been allocated. The situation
->> will lead to memory leak.
->
->I've read this changelog about ten times and I'm still not really clear
->what the bug is here.
->
+> From: Russell King - ARM Linux [mailto:linux@arm.linux.org.uk]
+> Sent: Thursday, June 28, 2012 4:18 AM
+> On Fri, Jun 08, 2012 at 10:58:50PM +0900, Kim, Jong-Sung wrote:
+> >
+> > May I suggest another simple approach? The first continuous couples of
+> > sections are always safely section-mapped inside alloc_init_section
+> funtion.
+> > So, by limiting memblock_alloc to the end of the first continuous
+> > couples of sections at the start of map_lowmem, map_lowmem can safely
+> > memblock_alloc & memset even if we have one or more section-unaligned
+> > memory regions. The limit can be extended back to arm_lowmem_limit after
+> the map_lowmem is done.
+> 
+> No.  What if the first block of memory is not large enough to handle all
+the
+> allocations?
+> 
+Thank you for your comment, Russell. I sent a modified patch not to limit to
+the first memory memblock_region as a reply to Dave's message.
 
-yep, I need improve my written English definitely :-)
-
->--
+> I think the real problem is folk trying to reserve small amounts.  I have
+> said all reservations must be aligned to 1MB.
 >
->sparse_index_init() is designed to be safe if two copies of it race.  It
->uses "index_init_lock" to ensure that, even in the case of a race, only
->one CPU will manage to do:
->
->	mem_section[root] = section;
->
->However, in the case where two copies of sparse_index_init() _do_ race,
->the one that loses the race will leak the "section" that
->sparse_index_alloc() allocated for it.  This patch fixes that leak.
->
->--
+Ok, now I know your thought about arm_memblock_steal(). Then, how about
+adding a simple aligning to prevent the possible problem just like me:
 
-Thank you very much, Dave. Let me merge your changelog into next version.
+diff --git a/arch/arm/mm/init.c b/arch/arm/mm/init.c
+index f54d592..d0daf0d 100644
+--- a/arch/arm/mm/init.c
++++ b/arch/arm/mm/init.c
+@@ -324,6 +324,8 @@ phys_addr_t __init arm_memblock_steal(phys_addr_t size,
+phys
+ 
+        BUG_ON(!arm_memblock_steal_permitted);
+ 
++       size = ALIGN(size, SECTION_SIZE);
++
+        phys = memblock_alloc(size, align);
+        memblock_free(phys, size);
+        memblock_remove(phys, size);
 
->
->Technically, I'm not sure that we can race during the time when we'd be
->using bootmem.  I think we do all those initializations single-threaded
->at the moment, and we'd finish them before we turn the slab on.  So,
->technically, we probably don't need the bootmem stuff in
->sparse_index_free().  But, I guess it doesn't hurt, and it's fine for
->completeness.
->
->Gavin, have you actually tested this in some way?  It looks OK to me,
->but I worry that you've just added a block of code that's exceedingly
->unlikely to get run.
+or, leaving a few comments about the restriction kindly..?
 
-I didn't test this and I just catch the point while reading the source
-code. By the way, I would like to know the popular utilities used for
-memory testing. If you can share some information regarding that, that
-would be great.
 
-	- memory related benchmark testing utility.
-	- some documents on Linux memory testing.
-
-Thanks,
-Gavin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
