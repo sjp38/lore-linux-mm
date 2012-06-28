@@ -1,72 +1,131 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
-	by kanga.kvack.org (Postfix) with SMTP id 150E06B005C
-	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 07:06:07 -0400 (EDT)
-Message-ID: <1340881511.28750.19.camel@twins>
-Subject: Re: [PATCH 02/20] mm: Add optional TLB flush to generic RCU
- page-table freeing
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Date: Thu, 28 Jun 2012 13:05:11 +0200
-In-Reply-To: <1340867364.20977.65.camel@pasglop>
-References: <20120627211540.459910855@chello.nl>
-	 <20120627212830.693232452@chello.nl>
-	 <CA+55aFwa41fzvx8EZG_gODvw7hSpr+iP+w5fXp6jUcQh-4nFgQ@mail.gmail.com>
-	 <1340838106.10063.85.camel@twins> <1340867364.20977.65.camel@pasglop>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: quoted-printable
-Mime-Version: 1.0
+Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
+	by kanga.kvack.org (Postfix) with SMTP id 68CD96B006E
+	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 07:06:11 -0400 (EDT)
+Received: by dakp5 with SMTP id p5so3338359dak.14
+        for <linux-mm@kvack.org>; Thu, 28 Jun 2012 04:06:09 -0700 (PDT)
+From: Sha Zhengju <handai.szj@gmail.com>
+Subject: [PATCH 6/7] memcg: add per cgroup writeback pages accounting
+Date: Thu, 28 Jun 2012 19:06:02 +0800
+Message-Id: <1340881562-5900-1-git-send-email-handai.szj@taobao.com>
+In-Reply-To: <1340880885-5427-1-git-send-email-handai.szj@taobao.com>
+References: <1340880885-5427-1-git-send-email-handai.szj@taobao.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, akpm@linux-foundation.org, Rik van Riel <riel@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <npiggin@kernel.dk>, Alex Shi <alex.shi@intel.com>, "Nikunj A.
- Dadhania" <nikunj@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad@darnok.org>, David Miller <davem@davemloft.net>, Russell King <rmk@arm.linux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Chris Metcalf <cmetcalf@tilera.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Tony Luck <tony.luck@intel.com>, Paul Mundt <lethal@linux-sh.org>, Jeff Dike <jdike@addtoit.com>, Richard Weinberger <richard@nod.at>, Ralf Baechle <ralf@linux-mips.org>, Kyle McMartin <kyle@mcmartin.ca>, James Bottomley <jejb@parisc-linux.org>, Chris Zankel <chris@zankel.net>
+To: linux-mm@kvack.org, cgroups@vger.kernel.org
+Cc: kamezawa.hiroyu@jp.fujitsu.com, gthelen@google.com, yinghan@google.com, akpm@linux-foundation.org, mhocko@suse.cz, linux-kernel@vger.kernel.org, Sha Zhengju <handai.szj@taobao.com>
 
-On Thu, 2012-06-28 at 17:09 +1000, Benjamin Herrenschmidt wrote:
-> On Thu, 2012-06-28 at 01:01 +0200, Peter Zijlstra wrote:
-> > On Wed, 2012-06-27 at 15:23 -0700, Linus Torvalds wrote:
-> >=20
-> > > Plus it really isn't about hardware page table walkers at all. It's
-> > > more about the possibility of speculative TLB fils, it has nothing to
-> > > do with *how* they are done. Sure, it's likely that a software
-> > > pagetable walker wouldn't be something that gets called speculatively=
-,
-> > > but it's not out of the question.
-> > >=20
-> > Hmm, I would call gup_fast() as speculative as we can get in software.
-> > It does a lock-less walk of the page-tables. That's what the RCU free'd
-> > page-table stuff is for to begin with.
->=20
-> Strictly speaking it's not :-) To *begin with* (as in the origin of that
-> code) it comes from powerpc hash table code which walks the linux page
-> tables locklessly :-) It then came in handy with gup_fast :-)
+From: Sha Zhengju <handai.szj@taobao.com>
 
-Ah, ok my bad.
+Similar to dirty page, we add per cgroup writeback pages accounting. The lock
+rule still is:
+	mem_cgroup_begin_update_page_stat()
+	modify page WRITEBACK stat
+	mem_cgroup_update_page_stat()
+	mem_cgroup_end_update_page_stat()
 
-> > > IOW, if Sparc/PPC really want to guarantee that they never fill TLB
-> > > entries speculatively, and that if we are in a kernel thread they wil=
-l
-> > > *never* fill the TLB with anything else, then make them enable
-> > > CONFIG_STRICT_TLB_FILL or something in their architecture Kconfig
-> > > files.=20
-> >=20
-> > Since we've dealt with the speculative software side by using RCU-ish
-> > stuff, the only thing that's left is hardware, now neither sparc64 nor
-> > ppc actually know about the linux page-tables from what I understood,
-> > they only look at their hash-table thing.
->=20
-> Some embedded ppc's know about the lowest level (SW loaded PMD) but
-> that's not an issue here. We flush these special TLB entries
-> specifically and synchronously in __pte_free_tlb().
+There're two writeback interface to modify: test_clear/set_page_writeback.
 
-OK, I missed that.. is that
-arch/powerpc/mm/tlb_nohash.c:tlb_flush_pgtable() ?
+Signed-off-by: Sha Zhengju <handai.szj@taobao.com>
+---
+ include/linux/memcontrol.h |    1 +
+ mm/memcontrol.c            |    5 +++++
+ mm/page-writeback.c        |   12 ++++++++++++
+ 3 files changed, 18 insertions(+), 0 deletions(-)
 
-> > So even if the hardware did do speculative tlb fills, it would do them
-> > from the hash-table, but that's already cleared out.
->=20
-> Right,
-
-Phew at least I got the important thing right ;-)
+diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+index ad37b59..9193d93 100644
+--- a/include/linux/memcontrol.h
++++ b/include/linux/memcontrol.h
+@@ -39,6 +39,7 @@ enum mem_cgroup_stat_index {
+ 	MEM_CGROUP_STAT_FILE_MAPPED,  /* # of pages charged as file rss */
+ 	MEM_CGROUP_STAT_SWAP, /* # of pages, swapped out */
+ 	MEM_CGROUP_STAT_FILE_DIRTY,  /* # of dirty pages in page cache */
++	MEM_CGROUP_STAT_FILE_WRITEBACK,  /* # of pages under writeback */
+ 	MEM_CGROUP_STAT_NSTATS,
+ };
+ 
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 90e2946..8493119 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -83,6 +83,7 @@ static const char * const mem_cgroup_stat_names[] = {
+ 	"mapped_file",
+ 	"swap",
+ 	"dirty",
++	"writeback",
+ };
+ 
+ enum mem_cgroup_events_index {
+@@ -2604,6 +2605,10 @@ static int mem_cgroup_move_account(struct page *page,
+ 		mem_cgroup_move_account_page_stat(from, to,
+ 				MEM_CGROUP_STAT_FILE_DIRTY);
+ 
++	if (PageWriteback(page))
++		mem_cgroup_move_account_page_stat(from, to,
++				MEM_CGROUP_STAT_FILE_WRITEBACK);
++
+ 	mem_cgroup_charge_statistics(from, anon, -nr_pages);
+ 
+ 	/* caller should have done css_get */
+diff --git a/mm/page-writeback.c b/mm/page-writeback.c
+index e79a2f7..7398836 100644
+--- a/mm/page-writeback.c
++++ b/mm/page-writeback.c
+@@ -1981,6 +1981,7 @@ EXPORT_SYMBOL(account_page_dirtied);
+  */
+ void account_page_writeback(struct page *page)
+ {
++	mem_cgroup_inc_page_stat(page, MEM_CGROUP_STAT_FILE_WRITEBACK);
+ 	inc_zone_page_state(page, NR_WRITEBACK);
+ }
+ EXPORT_SYMBOL(account_page_writeback);
+@@ -2214,7 +2215,10 @@ int test_clear_page_writeback(struct page *page)
+ {
+ 	struct address_space *mapping = page_mapping(page);
+ 	int ret;
++	bool locked;
++	unsigned long flags;
+ 
++	mem_cgroup_begin_update_page_stat(page, &locked, &flags);
+ 	if (mapping) {
+ 		struct backing_dev_info *bdi = mapping->backing_dev_info;
+ 		unsigned long flags;
+@@ -2235,9 +2239,12 @@ int test_clear_page_writeback(struct page *page)
+ 		ret = TestClearPageWriteback(page);
+ 	}
+ 	if (ret) {
++		mem_cgroup_dec_page_stat(page, MEM_CGROUP_STAT_FILE_WRITEBACK);
+ 		dec_zone_page_state(page, NR_WRITEBACK);
+ 		inc_zone_page_state(page, NR_WRITTEN);
+ 	}
++
++	mem_cgroup_end_update_page_stat(page, &locked, &flags);
+ 	return ret;
+ }
+ 
+@@ -2245,7 +2252,10 @@ int test_set_page_writeback(struct page *page)
+ {
+ 	struct address_space *mapping = page_mapping(page);
+ 	int ret;
++	bool locked;
++	unsigned long flags;
+ 
++	mem_cgroup_begin_update_page_stat(page, &locked, &flags);
+ 	if (mapping) {
+ 		struct backing_dev_info *bdi = mapping->backing_dev_info;
+ 		unsigned long flags;
+@@ -2272,6 +2282,8 @@ int test_set_page_writeback(struct page *page)
+ 	}
+ 	if (!ret)
+ 		account_page_writeback(page);
++
++	mem_cgroup_end_update_page_stat(page, &locked, &flags);
+ 	return ret;
+ 
+ }
+-- 
+1.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
