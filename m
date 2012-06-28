@@ -1,52 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
-	by kanga.kvack.org (Postfix) with SMTP id 2E4E76B005A
-	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 08:02:06 -0400 (EDT)
-Message-ID: <1340884801.20977.84.camel@pasglop>
-Subject: Re: [PATCH 02/20] mm: Add optional TLB flush to generic RCU
- page-table freeing
-From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Date: Thu, 28 Jun 2012 22:00:01 +1000
-In-Reply-To: <1340881511.28750.19.camel@twins>
-References: <20120627211540.459910855@chello.nl>
-	 <20120627212830.693232452@chello.nl>
-	 <CA+55aFwa41fzvx8EZG_gODvw7hSpr+iP+w5fXp6jUcQh-4nFgQ@mail.gmail.com>
-	 <1340838106.10063.85.camel@twins> <1340867364.20977.65.camel@pasglop>
-	 <1340881511.28750.19.camel@twins>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
+	by kanga.kvack.org (Postfix) with SMTP id 965956B005A
+	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 08:27:48 -0400 (EDT)
+Date: Thu, 28 Jun 2012 08:27:25 -0400
+From: Jeff Layton <jlayton@redhat.com>
+Subject: Re: [PATCH 10/12] nfs: enable swap on NFS
+Message-ID: <20120628082725.33b71097@corrin.poochiereds.net>
+In-Reply-To: <1340375468-22509-11-git-send-email-mgorman@suse.de>
+References: <1340375468-22509-1-git-send-email-mgorman@suse.de>
+	<1340375468-22509-11-git-send-email-mgorman@suse.de>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, akpm@linux-foundation.org, Rik van Riel <riel@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <npiggin@kernel.dk>, Alex Shi <alex.shi@intel.com>, "Nikunj A.
- Dadhania" <nikunj@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad@darnok.org>, David Miller <davem@davemloft.net>, Russell King <rmk@arm.linux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Chris Metcalf <cmetcalf@tilera.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Tony Luck <tony.luck@intel.com>, Paul Mundt <lethal@linux-sh.org>, Jeff Dike <jdike@addtoit.com>, Richard Weinberger <richard@nod.at>, Ralf Baechle <ralf@linux-mips.org>, Kyle McMartin <kyle@mcmartin.ca>, James Bottomley <jejb@parisc-linux.org>, Chris Zankel <chris@zankel.net>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Linux-Netdev <netdev@vger.kernel.org>, Linux-NFS <linux-nfs@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, David Miller <davem@davemloft.net>, Trond Myklebust <Trond.Myklebust@netapp.com>, Neil Brown <neilb@suse.de>, Christoph Hellwig <hch@infradead.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mike Christie <michaelc@cs.wisc.edu>, Eric B Munson <emunson@mgebm.net>
 
-On Thu, 2012-06-28 at 13:05 +0200, Peter Zijlstra wrote:
+On Fri, 22 Jun 2012 15:31:06 +0100
+Mel Gorman <mgorman@suse.de> wrote:
+
+> Implement the new swapfile a_ops for NFS and hook up ->direct_IO. This
+> will set the NFS socket to SOCK_MEMALLOC and run socket reconnect
+> under PF_MEMALLOC as well as reset SOCK_MEMALLOC before engaging the
+> protocol ->connect() method.
 > 
-> > Some embedded ppc's know about the lowest level (SW loaded PMD) but
-> > that's not an issue here. We flush these special TLB entries
-> > specifically and synchronously in __pte_free_tlb().
+> PF_MEMALLOC should allow the allocation of struct socket and related
+> objects and the early (re)setting of SOCK_MEMALLOC should allow us
+> to receive the packets required for the TCP connection buildup.
 > 
-> OK, I missed that.. is that
-> arch/powerpc/mm/tlb_nohash.c:tlb_flush_pgtable() ?
-
-Yup.
-
-> > > So even if the hardware did do speculative tlb fills, it would do
-> them
-> > > from the hash-table, but that's already cleared out.
-> > 
-> > Right,
+> [dfeng@redhat.com: Fix handling of multiple swap files]
+> [a.p.zijlstra@chello.nl: Original patch]
+> Signed-off-by: Mel Gorman <mgorman@suse.de>
+> Acked-by: Rik van Riel <riel@redhat.com>
+> ---
+>  fs/nfs/Kconfig              |    8 +++++
+>  fs/nfs/direct.c             |   82 ++++++++++++++++++++++++++++---------------
+>  fs/nfs/file.c               |   22 ++++++++++--
+>  include/linux/nfs_fs.h      |    4 +--
+>  include/linux/sunrpc/xprt.h |    3 ++
+>  net/sunrpc/Kconfig          |    5 +++
+>  net/sunrpc/clnt.c           |    2 ++
+>  net/sunrpc/sched.c          |    7 ++--
+>  net/sunrpc/xprtsock.c       |   53 ++++++++++++++++++++++++++++
+>  9 files changed, 152 insertions(+), 34 deletions(-)
 > 
-> Phew at least I got the important thing right ;-)
 
-Yeah as long as we have that hash :-) The day we move on (if ever) it
-will be as bad as ARM :-)
+[...snip...]
 
-Cheers,
-Ben.
+> @@ -2108,11 +2156,15 @@ static void xs_tcp_setup_socket(struct work_struct *work)
+>  		container_of(work, struct sock_xprt, connect_worker.work);
+>  	struct socket *sock = transport->sock;
+>  	struct rpc_xprt *xprt = &transport->xprt;
+> +	unsigned long pflags = current->flags;
+>  	int status = -EIO;
+>  
+>  	if (xprt->shutdown)
+>  		goto out;
+>  
+> +	if (xprt->swapper)
+> +		current->flags |= PF_MEMALLOC;
+> +
+>  	if (!sock) {
+>  		clear_bit(XPRT_CONNECTION_ABORT, &xprt->state);
+>  		sock = xs_create_sock(xprt, transport,
+> @@ -2174,6 +2226,7 @@ out_eagain:
+>  out:
+>  	xprt_clear_connecting(xprt);
+>  	xprt_wake_pending_tasks(xprt, status);
+> +	tsk_restore_flags(current, pflags, PF_MEMALLOC);
+>  }
+>  
+>  /**
 
+Apologies if this is fixed in another patch and I didn't see it...
+
+There's a place in the above function that returns without going
+through "out:". I think you also want to tsk_restore_flags() in that
+spot too.
+
+-- 
+Jeff Layton <jlayton@redhat.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
