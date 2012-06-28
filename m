@@ -1,53 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
-	by kanga.kvack.org (Postfix) with SMTP id 56CCD6B005A
-	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 02:23:51 -0400 (EDT)
-Received: by ggm4 with SMTP id 4so1954446ggm.14
-        for <linux-mm@kvack.org>; Wed, 27 Jun 2012 23:23:50 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
+	by kanga.kvack.org (Postfix) with SMTP id 20D3E6B005A
+	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 02:26:03 -0400 (EDT)
+Received: by qabg27 with SMTP id g27so3159677qab.14
+        for <linux-mm@kvack.org>; Wed, 27 Jun 2012 23:26:02 -0700 (PDT)
+Date: Thu, 28 Jun 2012 02:25:59 -0400 (EDT)
+From: Nicolas Pitre <nicolas.pitre@linaro.org>
+Subject: RE: [PATCH] [RESEND] arm: limit memblock base address for
+ early_pte_alloc
+In-Reply-To: <00e801cd54f0$eb8a3540$c29e9fc0$@lge.com>
+Message-ID: <alpine.LFD.2.02.1206280223250.31003@xanadu.home>
+References: <1338880312-17561-1-git-send-email-minchan@kernel.org> <025701cd457e$d5065410$7f12fc30$@lge.com> <20120627160220.GA2310@linaro.org> <00e801cd54f0$eb8a3540$c29e9fc0$@lge.com>
 MIME-Version: 1.0
-In-Reply-To: <20120626143703.396d6d66.akpm@linux-foundation.org>
-References: <20120626143703.396d6d66.akpm@linux-foundation.org>
-From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-Date: Thu, 28 Jun 2012 02:23:30 -0400
-Message-ID: <CAHGf_=ra6eXSVyhox3z2X-4csrwWeeDgMjS83i-J2nJwuWpqhg@mail.gmail.com>
-Subject: Re: needed lru_add_drain_all() change
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org
+To: "Kim, Jong-Sung" <neidhard.kim@lge.com>
+Cc: 'Dave Martin' <dave.martin@linaro.org>, 'Minchan Kim' <minchan@kernel.org>, 'Russell King' <linux@arm.linux.org.uk>, 'Catalin Marinas' <catalin.marinas@arm.com>, 'Chanho Min' <chanho.min@lge.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org
 
-On Tue, Jun 26, 2012 at 5:37 PM, Andrew Morton
-<akpm@linux-foundation.org> wrote:
-> https://bugzilla.kernel.org/show_bug.cgi?id=3D43811
->
-> lru_add_drain_all() uses schedule_on_each_cpu(). =A0But
-> schedule_on_each_cpu() hangs if a realtime thread is spinning, pinned
-> to a CPU. =A0There's no intention to change the scheduler behaviour, so I
-> think we should remove schedule_on_each_cpu() from the kernel.
->
-> The biggest user of schedule_on_each_cpu() is lru_add_drain_all().
->
-> Does anyone have any thoughts on how we can do this? =A0The obvious
-> approach is to declare these:
->
-> static DEFINE_PER_CPU(struct pagevec[NR_LRU_LISTS], lru_add_pvecs);
-> static DEFINE_PER_CPU(struct pagevec, lru_rotate_pvecs);
-> static DEFINE_PER_CPU(struct pagevec, lru_deactivate_pvecs);
->
-> to be irq-safe and use on_each_cpu(). =A0lru_rotate_pvecs is already
-> irq-safe and converting lru_add_pvecs and lru_deactivate_pvecs looks
-> pretty simple.
->
-> Thoughts?
+On Thu, 28 Jun 2012, Kim, Jong-Sung wrote:
 
-I agree.
+> > From: Dave Martin [mailto:dave.martin@linaro.org]
+> > Sent: Thursday, June 28, 2012 1:02 AM
+> > 
+> > For me, it appears that this block just contains the initial region passed
+> > in ATAG_MEM or on the command line, with some reservations for
+> > swapper_pg_dir, the kernel text/data, device tree and initramfs.
+> > 
+> > So far as I can tell, the only memory guaranteed to be mapped here is the
+> > kernel image: there may be no guarantee that there is any unused space in
+> > this region which could be used to allocate extra page tables.
+> > The rest appears during the execution of map_lowmem().
+> > 
+> > Cheers
+> > ---Dave
+> 
+> Thank you for your comment, Dave! It was not that sophisticated choice, but
+> I thought that normal embedded system trying to reduce the BOM would have a
+> big-enough first memblock memory region. However you're right. There can be
+> exceptional systems. Then, how do you think about following manner:
+[...]
 
-But i hope more. In these days, we have plenty lru_add_drain_all()
-callsite. So,
-i think we should remove struct pagevec and should aim migration aware new
-batch mechanism. maybe. This also improve compaction success rate.
+This still has some possibilities for failure.
+
+Please have a look at the two patches I've posted to fix this in a 
+better way.
+
+
+Nicolas
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
