@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
-	by kanga.kvack.org (Postfix) with SMTP id EDDF26B00A0
+Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
+	by kanga.kvack.org (Postfix) with SMTP id CD6656B009E
 	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 08:57:10 -0400 (EDT)
 From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: [PATCH 23/40] autonuma: sched_set_autonuma_need_balance
-Date: Thu, 28 Jun 2012 14:56:03 +0200
-Message-Id: <1340888180-15355-24-git-send-email-aarcange@redhat.com>
+Subject: [PATCH 34/40] autonuma: add CONFIG_AUTONUMA and CONFIG_AUTONUMA_DEFAULT_ENABLED
+Date: Thu, 28 Jun 2012 14:56:14 +0200
+Message-Id: <1340888180-15355-35-git-send-email-aarcange@redhat.com>
 In-Reply-To: <1340888180-15355-1-git-send-email-aarcange@redhat.com>
 References: <1340888180-15355-1-git-send-email-aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,28 +13,46 @@ List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 Cc: Hillf Danton <dhillf@gmail.com>, Dan Smith <danms@us.ibm.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Srivatsa Vaddagiri <vatsa@linux.vnet.ibm.com>, Christoph Lameter <cl@linux.com>, Alex Shi <alex.shi@intel.com>, Mauricio Faria de Oliveira <mauricfo@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Don Morris <don.morris@hp.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
 
-Invoke autonuma_balance only on the busy CPUs at the same frequency of
-the CFS load balance.
+Add the config options to allow building the kernel with AutoNUMA.
+
+If CONFIG_AUTONUMA_DEFAULT_ENABLED is "=y", then
+/sys/kernel/mm/autonuma/enabled will be equal to 1, and AutoNUMA will
+be enabled automatically at boot.
+
+CONFIG_AUTONUMA currently depends on X86, because no other arch
+implements the pte/pmd_numa yet and selecting =y would result in a
+failed build, but this shall be relaxed in the future. Porting
+AutoNUMA to other archs should be pretty simple.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 ---
- kernel/sched/fair.c |    3 +++
- 1 files changed, 3 insertions(+), 0 deletions(-)
+ mm/Kconfig |   13 +++++++++++++
+ 1 files changed, 13 insertions(+), 0 deletions(-)
 
-diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
-index dab9bdd..ff288c0 100644
---- a/kernel/sched/fair.c
-+++ b/kernel/sched/fair.c
-@@ -4906,6 +4906,9 @@ static void run_rebalance_domains(struct softirq_action *h)
+diff --git a/mm/Kconfig b/mm/Kconfig
+index 82fed4e..330dd51 100644
+--- a/mm/Kconfig
++++ b/mm/Kconfig
+@@ -207,6 +207,19 @@ config MIGRATION
+ 	  pages as migration can relocate pages to satisfy a huge page
+ 	  allocation instead of reclaiming.
  
- 	rebalance_domains(this_cpu, idle);
- 
-+	if (!this_rq->idle_balance)
-+		sched_set_autonuma_need_balance();
++config AUTONUMA
++	bool "Auto NUMA"
++	select MIGRATION
++	depends on NUMA && X86
++	help
++	  Automatic NUMA CPU scheduling and memory migration.
 +
- 	/*
- 	 * If this cpu has a pending nohz_balance_kick, then do the
- 	 * balancing on behalf of the other idle cpus whose ticks are
++config AUTONUMA_DEFAULT_ENABLED
++	bool "Auto NUMA default enabled"
++	depends on AUTONUMA
++	help
++	  Automatic NUMA CPU scheduling and memory migration enabled at boot.
++
+ config PHYS_ADDR_T_64BIT
+ 	def_bool 64BIT || ARCH_PHYS_ADDR_T_64BIT
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
