@@ -1,86 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
-	by kanga.kvack.org (Postfix) with SMTP id 6EF5C6B004D
-	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 13:18:43 -0400 (EDT)
-Date: Thu, 28 Jun 2012 19:16:18 +0200
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: [rfc][patch 3/3] mm, memcg: introduce own oom handler to
-	iterate only over its own threads
-Message-ID: <20120628171618.GA27089@redhat.com>
-References: <alpine.DEB.2.00.1206251846020.24838@chino.kir.corp.google.com> <alpine.DEB.2.00.1206251847180.24838@chino.kir.corp.google.com> <4FE94968.6010500@jp.fujitsu.com> <alpine.DEB.2.00.1206261323260.8673@chino.kir.corp.google.com> <alpine.DEB.2.00.1206262229380.32567@chino.kir.corp.google.com> <alpine.DEB.2.00.1206271837460.14446@chino.kir.corp.google.com>
+Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
+	by kanga.kvack.org (Postfix) with SMTP id BEBFE6B004D
+	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 13:20:26 -0400 (EDT)
+Date: Thu, 28 Jun 2012 19:20:20 +0200
+From: Paul Slootman <paul@wurtel.net>
+Subject: Re: memory leak in recent (3.x) kernels?
+Message-ID: <20120628172020.GB4389@msgid.wurtel.net>
+References: <20120622112614.GA17413@msgid.wurtel.net>
+ <20120628152208.GA16222@tiehlicka.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1206271837460.14446@chino.kir.corp.google.com>
+In-Reply-To: <20120628152208.GA16222@tiehlicka.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, cgroups@vger.kernel.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 06/27, David Rientjes wrote:
->
-> On Tue, 26 Jun 2012, David Rientjes wrote:
->
-> > It turns out that task->children is not an rcu-protected list so this
-> > doesn't work.
+On Thu 28 Jun 2012, Michal Hocko wrote:
+> On Fri 22-06-12 13:26:14, Paul Slootman wrote:
 
-Yes. And just in case, we can't rcuify ->children because of re-parenting.
+> > Perhaps I'm triggering something that exists since before 3.0, but
+> > anyway:
+> > 
+> > After some time, all swap space gets gradually used up, without a clear
+> > indication what's using it (at least, I haven't managed to find out).
+> > 
+> > System is running debian testing, and most usage is a lot of rxvt
+> > processes mostly ssh'ed out to other systems, and google chrome.
+> > I suspect google chrome may be the cause of the problem.
+> > Root is btrfs, /home is NFS.
+> > 
+> > The system earlier had 4GB RAM and swap is currently 5 x 2GB LVM
+> > partitions. With that config I needed to reboot after about a week, as
+> > the system ended up thrashing the swap.  I've added 8GB RAM, and now the
+> > uptime is 42 days, system still usable.
+> > 
+> > Stopping google-chrome at such a point in time usually does not help.
+> > 
+> > At every reboot I upgrade to the latest kernel :) Currently running
+> > 3.4.0-rc6, but I saw the same behaviour with all 3.x kernels I tried.
 
-> It's a tough patch to review, but the basics are that
->
->  - oom_kill_process() is made to no longer need tasklist_lock; it's only
->    taken for the iteration over children and everything else, including
->    dump_header() is protected by rcu_read_lock() for kernels enabling
->    /proc/sys/vm/oom_dump_tasks,
->
->  - oom_kill_process() assumes that we have a reference to p, the victim,
->    when it's called.  It can release this reference and grab a child's
->    reference if necessary and drops it before returning, and
->
->  - select_bad_process() does not require tasklist_lock, it gets
->    protected by rcu_read_lock() as well.
+Memory was full again yesterday, at which point I tried 3.5.0-rc4.
+Unfortunately something there (or something I may have changed in the
+config) prevents my google chrome from starting all of my open tabs;
+about 1/3 remain blank with a loading spinner running. Opening a new tab
+and entering one of those URLs gives "window not responding" error after
+some time. Wierd.
 
-Looks correct at first glance... (ignoring the fact we need the fixes
-in while_each_thread/rcu interaction but this is off-topic and should
-be fixed anyway).
 
-> @@ -348,6 +348,7 @@ static struct task_struct *select_bad_process(unsigned int *ppoints,
->  	struct task_struct *chosen = NULL;
->  	unsigned long chosen_points = 0;
->
-> +	rcu_read_lock();
->  	do_each_thread(g, p) {
->  		unsigned int points;
->
-> @@ -370,6 +371,9 @@ static struct task_struct *select_bad_process(unsigned int *ppoints,
->  			chosen_points = points;
->  		}
->  	} while_each_thread(g, p);
-> +	if (chosen)
-> +		get_task_struct(chosen);
+> > I would have thought that with almost 10GB memory free (w/o cache) such
+> > a swapoff should succeed.  I also wonder why that 9GB cached memory is
+> > being held; it's not released after echo 3 > drop_caches .
 
-OK, so the caller should do put_task_struct().
+> > Shmem:           9181016 kB <<<
 
-But, unless I misread the patch,
+> Because the most of the memory is anonymous and shmem.
+> ipcs -pm should tell you about the current segments and pids behind.
 
-> @@ -454,6 +458,7 @@ void oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
-> ...
-> +	rcu_read_lock();
-> +	p = find_lock_task_mm(victim);
-> +	if (!p) {
-> +		rcu_read_unlock();
-> +		put_task_struct(victim);
->  		return;
-> +	} else
-> +		victim = p;
+OK, I'll do that the next time, thanks. I hadn't noticed the Shmem line
+(I didn't really know where to begin looking :-)
+I find it a bit unexpected that this is shown by "free" as cached
+memory.
 
-And, before return,
+I did notice however, that after restarting the X server the memory
+apparently _was_ released (stopping all the windows didn't seem to
+help).
 
-> +	put_task_struct(victim);
 
-Doesn't look right if victim != p.
 
-Oleg.
+Paul
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
