@@ -1,67 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
-	by kanga.kvack.org (Postfix) with SMTP id C9CEC6B005A
-	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 02:02:03 -0400 (EDT)
-Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id A76C83EE0C1
-	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 15:02:01 +0900 (JST)
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 831DA45DE54
-	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 15:02:01 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 5A38445DE4F
-	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 15:02:01 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 44070E08002
-	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 15:02:01 +0900 (JST)
-Received: from g01jpexchyt05.g01.fujitsu.local (g01jpexchyt05.g01.fujitsu.local [10.128.194.44])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id DE0AAE08006
-	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 15:02:00 +0900 (JST)
-Message-ID: <4FEBF342.9030303@jp.fujitsu.com>
-Date: Thu, 28 Jun 2012 15:01:38 +0900
-From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
+	by kanga.kvack.org (Postfix) with SMTP id 6E3BE6B005A
+	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 02:03:49 -0400 (EDT)
+Received: from /spool/local
+	by e39.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <shangw@linux.vnet.ibm.com>;
+	Thu, 28 Jun 2012 00:03:48 -0600
+Received: from d03relay05.boulder.ibm.com (d03relay05.boulder.ibm.com [9.17.195.107])
+	by d03dlp02.boulder.ibm.com (Postfix) with ESMTP id EE7C43E4005E
+	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 06:03:43 +0000 (WET)
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay05.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q5S63XXS225880
+	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 00:03:37 -0600
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q5S63Xse029989
+	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 00:03:33 -0600
+Date: Thu, 28 Jun 2012 14:03:30 +0800
+From: Gavin Shan <shangw@linux.vnet.ibm.com>
+Subject: Re: [PATCH v2 2/3] mm/sparse: fix possible memory leak
+Message-ID: <20120628060330.GA26576@shangw>
+Reply-To: Gavin Shan <shangw@linux.vnet.ibm.com>
+References: <1340814968-2948-1-git-send-email-shangw@linux.vnet.ibm.com>
+ <1340814968-2948-2-git-send-email-shangw@linux.vnet.ibm.com>
+ <4FEB3C67.6070604@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Subject: Re: [RFC PATCH 2/12] memory-hogplug : check memory offline in offline_pages
-References: <4FEA9C88.1070800@jp.fujitsu.com> <4FEA9DB1.7010303@jp.fujitsu.com> <4FEAC916.7030506@cn.fujitsu.com> <4FEBE646.5090801@jp.fujitsu.com> <CAHGf_=rzRthh+hpKWAVF9OyL+P_NhFw4y+W-tF3j0zB8pr0QjA@mail.gmail.com>
-In-Reply-To: <CAHGf_=rzRthh+hpKWAVF9OyL+P_NhFw4y+W-tF3j0zB8pr0QjA@mail.gmail.com>
-Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4FEB3C67.6070604@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Wen Congyang <wency@cn.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, akpm@linux-foundation.org
+To: Dave Hansen <dave@linux.vnet.ibm.com>
+Cc: Gavin Shan <shangw@linux.vnet.ibm.com>, linux-mm@kvack.org, mhocko@suse.cz, rientjes@google.com, hannes@cmpxchg.org, akpm@linux-foundation.org
 
-Hi Kosaki-san,
-
-2012/06/28 14:27, KOSAKI Motohiro wrote:
-> On Thu, Jun 28, 2012 at 1:06 AM, Yasuaki Ishimatsu
-> <isimatu.yasuaki@jp.fujitsu.com> wrote:
->> Hi Wen,
->>
->> 2012/06/27 17:49, Wen Congyang wrote:
->>> At 06/27/2012 01:44 PM, Yasuaki Ishimatsu Wrote:
->>>> When offline_pages() is called to offlined memory, the function fails since
->>>> all memory has been offlined. In this case, the function should succeed.
->>>> The patch adds the check function into offline_pages().
->>>
->>> You miss such case: some pages are online, while some pages are offline.
->>> offline_pages() will fail too in such case.
->>
->> You are right. But current code fails, when the function is called to offline
->> memory. In this case, the function should succeed. So the patch confirms
->> whether the memory was offlined or not. And if memory has already been
->> offlined, offline_pages return 0.
+>> With CONFIG_SPARSEMEM_EXTREME, the root memory section descriptors
+>> are allocated by slab or bootmem allocator. Also, the descriptors
+>> might have been allocated and initialized during the hotplug path.
+>> However, the memory chunk allocated in current implementation wouldn't
+>> be put into the available pool if that has been allocated. The situation
+>> will lead to memory leak.
 >
-> Can you please explain why the caller can't check it? I hope to avoid
-> an ignorance
-> as far as we can.
+>I've read this changelog about ten times and I'm still not really clear
+>what the bug is here.
+>
 
-Of course, caller side can check it. But there is a possibility that
-offline_pages() is called by many functions. So I do not think that it
-is good that all functions which call offline_pages() check it.
+yep, I need improve my written English definitely :-)
+
+>--
+>
+>sparse_index_init() is designed to be safe if two copies of it race.  It
+>uses "index_init_lock" to ensure that, even in the case of a race, only
+>one CPU will manage to do:
+>
+>	mem_section[root] = section;
+>
+>However, in the case where two copies of sparse_index_init() _do_ race,
+>the one that loses the race will leak the "section" that
+>sparse_index_alloc() allocated for it.  This patch fixes that leak.
+>
+>--
+
+Thank you very much, Dave. Let me merge your changelog into next version.
+
+>
+>Technically, I'm not sure that we can race during the time when we'd be
+>using bootmem.  I think we do all those initializations single-threaded
+>at the moment, and we'd finish them before we turn the slab on.  So,
+>technically, we probably don't need the bootmem stuff in
+>sparse_index_free().  But, I guess it doesn't hurt, and it's fine for
+>completeness.
+>
+>Gavin, have you actually tested this in some way?  It looks OK to me,
+>but I worry that you've just added a block of code that's exceedingly
+>unlikely to get run.
+
+I didn't test this and I just catch the point while reading the source
+code. By the way, I would like to know the popular utilities used for
+memory testing. If you can share some information regarding that, that
+would be great.
+
+	- memory related benchmark testing utility.
+	- some documents on Linux memory testing.
 
 Thanks,
-Yasuaki Ishimatsu
+Gavin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
