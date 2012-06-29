@@ -1,112 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
-	by kanga.kvack.org (Postfix) with SMTP id 9BE3C6B0073
-	for <linux-mm@kvack.org>; Fri, 29 Jun 2012 11:30:23 -0400 (EDT)
-Date: Fri, 29 Jun 2012 16:26:46 +0100
-From: Catalin Marinas <catalin.marinas@arm.com>
-Subject: Re: [PATCH 08/20] mm: Optimize fullmm TLB flushing
-Message-ID: <20120629152645.GG17837@arm.com>
-References: <CA+55aFy6m967fMxyBsRoXVecdpGtSphXi_XdhwS0DB81Qaocdw@mail.gmail.com>
- <CA+55aFzLNsVRkp_US8rAmygEkQpp1s1YdakV86Ck-4RZM7TTdA@mail.gmail.com>
- <20120628091627.GB8573@arm.com>
- <1340879984.20977.80.camel@pasglop>
- <1340881196.28750.16.camel@twins>
- <20120628145327.GA17242@arm.com>
- <1340900425.28750.73.camel@twins>
- <CA+55aFwByDWu5bP__e3sw34E7s88f_2P=8m=i6SuP6s+NZgF6w@mail.gmail.com>
- <1340902329.28750.83.camel@twins>
- <1340920641.20977.103.camel@pasglop>
+Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
+	by kanga.kvack.org (Postfix) with SMTP id 551B06B0073
+	for <linux-mm@kvack.org>; Fri, 29 Jun 2012 11:32:01 -0400 (EDT)
+Date: Fri, 29 Jun 2012 16:31:57 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH v2 1/4] mm: introduce compaction and migration for virtio
+ ballooned pages
+Message-ID: <20120629153157.GB13141@csn.ul.ie>
+References: <cover.1340916058.git.aquini@redhat.com>
+ <d0f33a6492501a0d420abbf184f9b956cff3e3fc.1340916058.git.aquini@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <1340920641.20977.103.camel@pasglop>
+In-Reply-To: <d0f33a6492501a0d420abbf184f9b956cff3e3fc.1340916058.git.aquini@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Cc: Peter Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <npiggin@kernel.dk>, Alex Shi <alex.shi@intel.com>, "Nikunj A. Dadhania" <nikunj@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad@darnok.org>, David Miller <davem@davemloft.net>, Russell King <rmk@arm.linux.org.uk>, Chris Metcalf <cmetcalf@tilera.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Tony Luck <tony.luck@intel.com>, Paul Mundt <lethal@linux-sh.org>, Jeff Dike <jdike@addtoit.com>, Richard Weinberger <richard@nod.at>, Ralf Baechle <ralf@linux-mips.org>, Kyle McMartin <kyle@mcmartin.ca>, James Bottomley <jejb@parisc-linux.org>, Chris Zankel <chris@zankel.net>
+To: Rafael Aquini <aquini@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, Rusty Russell <rusty@rustcorp.com.au>, "Michael S. Tsirkin" <mst@redhat.com>, Rik van Riel <riel@redhat.com>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
 
-On Thu, Jun 28, 2012 at 10:57:21PM +0100, Benjamin Herrenschmidt wrote:
-> On Thu, 2012-06-28 at 18:52 +0200, Peter Zijlstra wrote:
-> > No I think you're right (as always).. also an IPI will not force
-> > schedule the thread that might be running on the receiving cpu, also
-> > we'd have to wait for any such schedule to complete in order to
-> > guarantee the mm isn't lazily used anymore.
-> > 
-> > Bugger.. 
+On Thu, Jun 28, 2012 at 06:49:39PM -0300, Rafael Aquini wrote:
+> This patch introduces the helper functions as well as the necessary changes
+> to teach compaction and migration bits how to cope with pages which are
+> part of a guest memory balloon, in order to make them movable by memory
+> compaction procedures.
 > 
-> You can still do it if the mm count is 1 no ? Ie, current is the last
-> holder of a reference to the mm struct... which will probably be the
-> common case for short lived programs.
+> Signed-off-by: Rafael Aquini <aquini@redhat.com>
 
-BTW, can we not move the free_pgtables() call in exit_mmap() to
-__mmdrop()? Something like below but I'm not entirely sure about its
-implications:
+I have two minor comments but it is not critical they be addressed. If you
+doa V3 then fix it but if it is picked up as it is, I'm ok with that.
+>From a compaction point of view;
 
+Acked-by: Mel Gorman <mel@csn.ul.ie>
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index b36d08c..507ee9f 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -1372,6 +1372,7 @@ extern void unlink_file_vma(struct vm_area_struct *);
- extern struct vm_area_struct *copy_vma(struct vm_area_struct **,
- 	unsigned long addr, unsigned long len, pgoff_t pgoff);
- extern void exit_mmap(struct mm_struct *);
-+extern void exit_pgtables(struct mm_struct *mm);
- 
- extern int mm_take_all_locks(struct mm_struct *mm);
- extern void mm_drop_all_locks(struct mm_struct *mm);
-diff --git a/kernel/fork.c b/kernel/fork.c
-index ab5211b..3412b1a 100644
---- a/kernel/fork.c
-+++ b/kernel/fork.c
-@@ -588,6 +588,7 @@ struct mm_struct *mm_alloc(void)
- void __mmdrop(struct mm_struct *mm)
- {
- 	BUG_ON(mm == &init_mm);
-+	exit_pgtables(mm);
- 	mm_free_pgd(mm);
- 	destroy_context(mm);
- 	mmu_notifier_mm_destroy(mm);
-diff --git a/mm/mmap.c b/mm/mmap.c
-index 074b487..d9ebfdb 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -2269,7 +2269,6 @@ void exit_mmap(struct mm_struct *mm)
- {
- 	struct mmu_gather tlb;
- 	struct vm_area_struct *vma;
--	unsigned long nr_accounted = 0;
- 
- 	/* mm's last user has gone, and its about to be pulled down */
- 	mmu_notifier_release(mm);
-@@ -2291,11 +2290,23 @@ void exit_mmap(struct mm_struct *mm)
- 
- 	lru_add_drain();
- 	flush_cache_mm(mm);
--	tlb_gather_mmu(&tlb, mm, 1);
-+	tlb_gather_mmu(&tlb, mm, 0);
- 	/* update_hiwater_rss(mm) here? but nobody should be looking */
- 	/* Use -1 here to ensure all VMAs in the mm are unmapped */
- 	unmap_vmas(&tlb, vma, 0, -1);
-+	tlb_finish_mmu(&tlb, 0, -1);
-+}
-+
-+void exit_pgtables(struct mm_struct *mm)
-+{
-+	struct mmu_gather tlb;
-+	struct vm_area_struct *vma;
-+	unsigned long nr_accounted = 0;
- 
-+	vma = mm->mmap;
-+	if (!vma)
-+		return;
-+	tlb_gather_mmu(&tlb, mm, 1);
- 	free_pgtables(&tlb, vma, FIRST_USER_ADDRESS, TASK_SIZE);
- 	tlb_finish_mmu(&tlb, 0, -1);
- 
+> ---
+>  include/linux/mm.h |   16 ++++++++
+>  mm/compaction.c    |  110 +++++++++++++++++++++++++++++++++++++++++++---------
+>  mm/migrate.c       |   30 +++++++++++++-
+>  3 files changed, 136 insertions(+), 20 deletions(-)
+> 
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> index b36d08c..35568fc 100644
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -1629,5 +1629,21 @@ static inline unsigned int debug_guardpage_minorder(void) { return 0; }
+>  static inline bool page_is_guard(struct page *page) { return false; }
+>  #endif /* CONFIG_DEBUG_PAGEALLOC */
+>  
+> +#if (defined(CONFIG_VIRTIO_BALLOON) || \
+> +	defined(CONFIG_VIRTIO_BALLOON_MODULE)) && defined(CONFIG_COMPACTION)
+> +extern bool isolate_balloon_page(struct page *);
+> +extern bool putback_balloon_page(struct page *);
+> +extern struct address_space *balloon_mapping;
+> +
+> +static inline bool is_balloon_page(struct page *page)
+> +{
+> +        return (page->mapping == balloon_mapping) ? true : false;
+> +}
+> +#else
+> +static inline bool is_balloon_page(struct page *page)       { return false; }
+> +static inline bool isolate_balloon_page(struct page *page)  { return false; }
+> +static inline bool putback_balloon_page(struct page *page)  { return false; }
+> +#endif /* (VIRTIO_BALLOON || VIRTIO_BALLOON_MODULE) && COMPACTION */
+> +
+>  #endif /* __KERNEL__ */
+>  #endif /* _LINUX_MM_H */
+
+isolate_balloon_page is only used in compaction.c and could declared static
+to compaction.c. You could move them all between struct compact_control
+and release_pages to avoid forward declarations.
+
+> <SNIP>
+> +/* putback_lru_page() counterpart for a ballooned page */
+> +bool putback_balloon_page(struct page *page)
+> +{
+> +	if (WARN_ON(!is_balloon_page(page)))
+> +		return false;
+> +
+> +	if (likely(trylock_page(page))) {
+> +		if(is_balloon_page(page)) {
+
+Stick a space in there. Run checkpatch.pl if you haven't already. I suspect
+it would have caught this.
+
+As I said, not worth spinning a V3 for :)
 
 -- 
-Catalin
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
