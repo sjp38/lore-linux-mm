@@ -1,36 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
-	by kanga.kvack.org (Postfix) with SMTP id 2FB1D6B0068
-	for <linux-mm@kvack.org>; Fri, 29 Jun 2012 12:05:22 -0400 (EDT)
-Date: Fri, 29 Jun 2012 18:05:10 +0200
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH v2] KSM: numa awareness sysfs knob
-Message-ID: <20120629160510.GA10082@cmpxchg.org>
-References: <1340970592-25001-1-git-send-email-pholasek@redhat.com>
+Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
+	by kanga.kvack.org (Postfix) with SMTP id 718246B0062
+	for <linux-mm@kvack.org>; Fri, 29 Jun 2012 12:11:38 -0400 (EDT)
+Message-ID: <4FEDD38F.4000601@redhat.com>
+Date: Fri, 29 Jun 2012 12:10:55 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1340970592-25001-1-git-send-email-pholasek@redhat.com>
+Subject: Re: [PATCH 11/40] autonuma: define the autonuma flags
+References: <1340888180-15355-1-git-send-email-aarcange@redhat.com> <1340888180-15355-12-git-send-email-aarcange@redhat.com>
+In-Reply-To: <1340888180-15355-12-git-send-email-aarcange@redhat.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Petr Holasek <pholasek@redhat.com>
-Cc: Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Chris Wright <chrisw@sous-sol.org>, Izik Eidus <izik.eidus@ravellosystems.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Anton Arapov <anton@redhat.com>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hillf Danton <dhillf@gmail.com>, Dan Smith <danms@us.ibm.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Johannes Weiner <hannes@cmpxchg.org>, Srivatsa Vaddagiri <vatsa@linux.vnet.ibm.com>, Christoph Lameter <cl@linux.com>, Alex Shi <alex.shi@intel.com>, Mauricio Faria de Oliveira <mauricfo@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Don Morris <don.morris@hp.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
 
-On Fri, Jun 29, 2012 at 01:49:52PM +0200, Petr Holasek wrote:
-> Introduces new sysfs boolean knob /sys/kernel/mm/ksm/merge_nodes
-> which control merging pages across different numa nodes.
-> When it is set to zero only pages from the same node are merged,
-> otherwise pages from all nodes can be merged together (default behavior).
+On 06/28/2012 08:55 AM, Andrea Arcangeli wrote:
+> These flags are the ones tweaked through sysfs, they control the
+> behavior of autonuma, from enabling disabling it, to selecting various
+> runtime options.
 
-Is it conceivable that admins may (in the future) want to merge only
-across nodes that are below a given distance threshold?
+That's all fine and dandy, but what do these flags mean?
 
-I'm not asking to implement this, just whether the knob can be
-introduced such that it's future-compatible.  Make it default to a
-Very High Number and only allow setting it to 0 for now e.g.?  And
-name it max_node_merge_distance (I'm bad at names)?
+How do you expect people to be able to maintain this code,
+or control autonuma behaviour, when these flags are not
+documented at all?
 
-What do you think?
+Please document them.
+
+> +enum autonuma_flag {
+> +	AUTONUMA_FLAG,
+> +	AUTONUMA_IMPOSSIBLE_FLAG,
+> +	AUTONUMA_DEBUG_FLAG,
+> +	AUTONUMA_SCHED_LOAD_BALANCE_STRICT_FLAG,
+> +	AUTONUMA_SCHED_CLONE_RESET_FLAG,
+> +	AUTONUMA_SCHED_FORK_RESET_FLAG,
+> +	AUTONUMA_SCAN_PMD_FLAG,
+> +	AUTONUMA_SCAN_USE_WORKING_SET_FLAG,
+> +	AUTONUMA_MIGRATE_DEFER_FLAG,
+> +};
+
+
+-- 
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
