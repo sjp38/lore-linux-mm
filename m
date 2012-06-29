@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx207.postini.com [74.125.245.207])
-	by kanga.kvack.org (Postfix) with SMTP id 8069D6B005A
-	for <linux-mm@kvack.org>; Fri, 29 Jun 2012 07:24:27 -0400 (EDT)
-Date: Fri, 29 Jun 2012 12:24:23 +0100
+Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
+	by kanga.kvack.org (Postfix) with SMTP id EB98D6B006C
+	for <linux-mm@kvack.org>; Fri, 29 Jun 2012 07:25:09 -0400 (EDT)
+Date: Fri, 29 Jun 2012 12:25:06 +0100
 From: Mel Gorman <mgorman@suse.de>
-Subject: [MMTests] IO metadata on ext4
-Message-ID: <20120629112423.GE14154@suse.de>
+Subject: [MMTests] IO metadata on XFS
+Message-ID: <20120629112505.GF14154@suse.de>
 References: <20120620113252.GE4011@suse.de>
  <20120629111932.GA14154@suse.de>
 MIME-Version: 1.0
@@ -15,23 +15,29 @@ In-Reply-To: <20120629111932.GA14154@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org
+Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, xfs@oss.sgi.com
 
-Configuration:	global-dhp__io-metadata-ext4
+Configuration:	global-dhp__io-metadata-xfs
 Benchmarks:	dbench3, fsmark-single, fsmark-threaded
 
 Summary
 =======
-  For the most part the figures look ok currently. However a number of
-  tests show that we have declined since 3.0 in a number of areas. Some
-  machines show that there were performance drops in the 3.2 and 3.3
-  kernels that have not being fully recovered.
+Most of the figures look good and in general there has been consistent good
+performance from XFS. However, fsmark-single is showing a severe performance
+dip in a few cases somewhere between 3.1 and 3.4. fs-mark running a single
+thread took a particularly bad dive in 3.4 for two machines that is worth
+examining closer. Unfortunately it is harder to easy conclusions as the
+gains/losses are not consistent between machines which may be related to
+the available number of CPU threads.
 
 Benchmark notes
 ===============
 
-mkfs was run on system startup. No attempt was made to age it. No
-special mkfs or mount options were used.
+mkfs was run on system startup.
+mkfs parameters -f -d agcount=8
+mount options inode64,delaylog,logbsize=262144,nobarrier for the most part.
+	On kernels to old to support delaylog was removed. On kernels
+	where it was the default, it was specified and the warning ignored.
 
 dbench3 was chosen as it's metadata intensive.
   o Duration was 180 seconds
@@ -55,88 +61,101 @@ FSMark
  
   FSMark is a more realistic indicator of metadata intensive workloads.
 
+
 ===========================================================
 Machine:	arnold
-Result:		http://www.csn.ul.ie/~mel/postings/mmtests-20120424/global-dhp__io-metadata-ext4/arnold/comparison.html
+Result:		http://www.csn.ul.ie/~mel/postings/mmtests-20120424/global-dhp__io-metadata-xfs/arnold/comparison.html
 Arch:		x86
 CPUs:		1 socket, 2 threads
 Model:		Pentium 4
 Disk:		Single Rotary Disk
-Status:		Fine but fsmark has declined since 3.0
+Status:		Great
 ===========================================================
 
 dbench
 ------
-  For single clients, we're doing reasonably well and this has been consistent
-  with each release.
+  XFS is showing steady improvements with a large gain for single client
+  in 2.6.39 and more or less retained since then. This is also true for
+  higher number of clients although 64 clients was suspiciously poor even
+  though 128 clients looked better. I didn't re-examine the raw data to
+  see why.
+
+  In general, dbench is looking very good.
 
 fsmark-single
 -------------
-  This is not as happy a story. Variations are quite high but 3.0 was a
-  reasonably good kernel and we've been declining ever since with 3.4
-  being marginally worse than 2.6.32.
+  Again, this is looking good. Files/sec has improved slightly with the
+  exception of a small dip in 3.2 and 3.3 which may be due to IO-Less
+  dirty throttling.
+
+  Overhead measurements are a bit all over the place. Not clear if
+  this is cause for concern or not.
 
 fsmark-threaded
 ---------------
-  The trends are very similar to fsmark-single. 3.0 was reasonably good
-  but we have degraded since and are at approximately 2.6.32 levels.
+  Improved since 2.6.32 and has been steadily good for some time. Overhead
+  measurements are all over the place. Again, not clear if this is a cause
+  for concern.
 
 ==========================================================
 Machine:	hydra
-Result:		http://www.csn.ul.ie/~mel/postings/mmtests-20120424/global-dhp__io-metadata-ext4/hydra/comparison.html
+Result:		http://www.csn.ul.ie/~mel/postings/mmtests-20120424/global-dhp__io-metadata-ext3/hydra/comparison.html
 Arch:		x86-64
 CPUs:		1 socket, 4 threads
 Model:		AMD Phenom II X4 940
 Disk:		Single Rotary Disk
-Status:		Fine but fsmark has declined since 3.0
+Status:		Ok
 ==========================================================
 
 dbench
 ------
-  Unlike arnold, this is looking good with solid gains in most kernels
-  for the single-threaded case. The exception was 3.2.9 which saw a
-  a big dip that was recovered in 3.3. For higher number of clients the
-  figures still look good. It's not clear why there is such a difference
-  between arnold and hydra for the single-threaded case.
+  The results here look very different to the arnold machine. This is curious
+  because the disks have similar size and performance characteristics. It is
+  doubtful that the difference is between 32 bit and 64 bit architectures.
+  The discrepency may be more due to the different number of CPUs and how
+  XFS does locking. One possibility is that fewer CPUs has the side-effect
+  of better batching of some operations but this is a case.
+
+  Figures areis showing that throughput is worse and highly variable in
+  3.4 for single clients. For higher number of clients figures look better
+  overall. There was a dip in 3.1-based kernels though for an unknown
+  reason. This does not exactly correlate with the ext3 figures although
+  it showed a dip in performance at 3.2.
 
 fsmark-single
 -------------
-  This is very similar to arnold in that 3.0 performed best and we have
-  declined since back to more or less the same level as 2.6.32.
+  While performance is better than 2.6.32, there was a dip in performance
+  in 3.3 and a very large dip in 3.4. 
 
 fsmark-threaded
 ---------------
-  Performance here is flat in terms of throughput. 3.4 recorded much higher
-  overhead but it is not clear if this is a cause for concern.
+  The same dip in 3.4 is visibile when multiple threads are used but it is
+  not as severe.
 
 ==========================================================
 Machine:	sandy
-Result:		http://www.csn.ul.ie/~mel/postings/mmtests-20120424/global-dhp__io-metadata-ext4/sandy/comparison.html
+Result:		http://www.csn.ul.ie/~mel/postings/mmtests-20120424/global-dhp__io-metadata-ext3/sandy/comparison.html
 Arch:		x86-64
 CPUs:		1 socket, 8 threads
 Model:		Intel Core i7-2600
 Disk:		Single Rotary Disk
-Status:		Fine but there have been recent declines
+Status:		Fine
 ==========================================================
 
 dbench
 ------
-  Like hydra, this is looking good with solid gains in most kernels for the
-  single-threaded case. The same dip in 3.2.9 is visible but unlikely hydra
-  it was not recovered until 3.4. Higher number of clients generally look
-  good as well although it is interesting to see that the dip in 3.2.9 is
-  not consistently visible.
+ Like seen on other filesystems, this data shows that there was a large dip
+ in performance around 3.2 for single threads. Unlike the hydra machine,
+ this was recovered in 3.4. As higher number of threads are used the gains
+ and losses are inconsistent making it hard to draw a solid conclusion.
 
 fsmark-single
 -------------
-  Overhead went crazy in 3.3 and there is a large drop in files/sec in
-  3.3 as well. 
+  This was doing great until 3.4 where there is a large drop.
 
 fsmark-threaded
 ---------------
-  The trends are similar to the single-threaded case. Looking reasonably
-  good but a dip in 3.3 that has not being recovered and overhead is
-  higher.
+  Unlike the single threaded case, things are looking great here.
 
 -- 
 Mel Gorman
