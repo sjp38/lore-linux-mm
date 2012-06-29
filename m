@@ -1,55 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
-	by kanga.kvack.org (Postfix) with SMTP id 6532C6B005A
-	for <linux-mm@kvack.org>; Fri, 29 Jun 2012 04:50:58 -0400 (EDT)
-Message-ID: <1340959798.28750.99.camel@twins>
-Subject: Re: [PATCH 08/20] mm: Optimize fullmm TLB flushing
-From: Peter Zijlstra <peterz@infradead.org>
-Date: Fri, 29 Jun 2012 10:49:58 +0200
-In-Reply-To: <1340920696.20977.104.camel@pasglop>
-References: <20120627211540.459910855@chello.nl>
-	 <20120627212831.137126018@chello.nl>
-	 <CA+55aFwZoVK76ue7tFveV0XZpPUmoCVXJx8550OxPm+XKCSSZA@mail.gmail.com>
-	 <1340838154.10063.86.camel@twins> <1340838807.10063.90.camel@twins>
-	 <CA+55aFy6m967fMxyBsRoXVecdpGtSphXi_XdhwS0DB81Qaocdw@mail.gmail.com>
-	 <CA+55aFzLNsVRkp_US8rAmygEkQpp1s1YdakV86Ck-4RZM7TTdA@mail.gmail.com>
-	 <20120628091627.GB8573@arm.com> <1340879984.20977.80.camel@pasglop>
-	 <1340881196.28750.16.camel@twins> <20120628145327.GA17242@arm.com>
-	 <1340900425.28750.73.camel@twins>
-	 <CA+55aFwByDWu5bP__e3sw34E7s88f_2P=8m=i6SuP6s+NZgF6w@mail.gmail.com>
-	 <1340902329.28750.83.camel@twins> <1340920641.20977.103.camel@pasglop>
-	 <1340920696.20977.104.camel@pasglop>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: quoted-printable
-Mime-Version: 1.0
+Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
+	by kanga.kvack.org (Postfix) with SMTP id C09596B005A
+	for <linux-mm@kvack.org>; Fri, 29 Jun 2012 06:03:07 -0400 (EDT)
+Date: Fri, 29 Jun 2012 11:02:58 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH -mm v2] mm: have order > 0 compaction start off where it
+ left
+Message-ID: <20120629100258.GA13141@csn.ul.ie>
+References: <20120628135520.0c48b066@annuminas.surriel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20120628135520.0c48b066@annuminas.surriel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Catalin Marinas <catalin.marinas@arm.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <npiggin@kernel.dk>, Alex Shi <alex.shi@intel.com>, "Nikunj A. Dadhania" <nikunj@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad@darnok.org>, David Miller <davem@davemloft.net>, Russell King <rmk@arm.linux.org.uk>, Chris Metcalf <cmetcalf@tilera.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Tony Luck <tony.luck@intel.com>, Paul Mundt <lethal@linux-sh.org>, Jeff Dike <jdike@addtoit.com>, Richard Weinberger <richard@nod.at>, Ralf Baechle <ralf@linux-mips.org>, Kyle McMartin <kyle@mcmartin.ca>, James Bottomley <jejb@parisc-linux.org>, Chris Zankel <chris@zankel.net>
+To: Rik van Riel <riel@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, jaschut@sandia.gov, minchan@kernel.org, kamezawa.hiroyu@jp.fujitsu.com
 
-On Fri, 2012-06-29 at 07:58 +1000, Benjamin Herrenschmidt wrote:
-> On Fri, 2012-06-29 at 07:57 +1000, Benjamin Herrenschmidt wrote:
-> > On Thu, 2012-06-28 at 18:52 +0200, Peter Zijlstra wrote:
-> > > No I think you're right (as always).. also an IPI will not force
-> > > schedule the thread that might be running on the receiving cpu, also
-> > > we'd have to wait for any such schedule to complete in order to
-> > > guarantee the mm isn't lazily used anymore.
-> > >=20
-> > > Bugger..=20
-> >=20
-> > You can still do it if the mm count is 1 no ? Ie, current is the last
-> > holder of a reference to the mm struct... which will probably be the
-> > common case for short lived programs.
->=20
-> Also I just remembered... x86 flushes in SMP via IPIs right ? So maybe
-> you can invent a "detach and flush" variant of it ?=20
+On Thu, Jun 28, 2012 at 01:55:20PM -0400, Rik van Riel wrote:
+> Order > 0 compaction stops when enough free pages of the correct
+> page order have been coalesced. When doing subsequent higher order
+> allocations, it is possible for compaction to be invoked many times.
+> 
+> However, the compaction code always starts out looking for things to
+> compact at the start of the zone, and for free pages to compact things
+> to at the end of the zone.
+> 
+> This can cause quadratic behaviour, with isolate_freepages starting
+> at the end of the zone each time, even though previous invocations
+> of the compaction code already filled up all free memory on that end
+> of the zone.
+> 
+> This can cause isolate_freepages to take enormous amounts of CPU
+> with certain workloads on larger memory systems.
+> 
+> The obvious solution is to have isolate_freepages remember where
+> it left off last time, and continue at that point the next time
+> it gets invoked for an order > 0 compaction. This could cause
+> compaction to fail if cc->free_pfn and cc->migrate_pfn are close
+> together initially, in that case we restart from the end of the
+> zone and try once more.
+> 
+> Forced full (order == -1) compactions are left alone.
+> 
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Mel Gorman <mel@csn.ul.ie>
+> Reported-by: Jim Schutt <jaschut@sandia.gov>
+> Signed-off-by: Rik van Riel <riel@redhat.com>
+> ---
+> v2: implement Mel's suggestions, handling wrap-around etc
+> 
 
-Its not just x86 I worry about.. I want to share as much as possible
-between all our architectures.
+I have not tested it myself but it looks correct! Thanks very much.
 
-But yeah, I could do it for mm_count =3D=3D 1, but I'd still need to specia=
-l
-case s390 because they always want it.
+Acked-by: Mel Gorman <mel@csn.ul.ie>
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
