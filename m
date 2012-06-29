@@ -1,50 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
-	by kanga.kvack.org (Postfix) with SMTP id 8D9B76B0062
-	for <linux-mm@kvack.org>; Fri, 29 Jun 2012 12:04:41 -0400 (EDT)
-Message-ID: <1340985857.28750.100.camel@twins>
-Subject: Re: [PATCH 09/40] autonuma: introduce kthread_bind_node()
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Date: Fri, 29 Jun 2012 18:04:17 +0200
-In-Reply-To: <4FEDCB7A.1060007@redhat.com>
-References: <1340888180-15355-1-git-send-email-aarcange@redhat.com>
-	 <1340888180-15355-10-git-send-email-aarcange@redhat.com>
-	 <4FEDCB7A.1060007@redhat.com>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: quoted-printable
-Mime-Version: 1.0
+Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
+	by kanga.kvack.org (Postfix) with SMTP id 2FB1D6B0068
+	for <linux-mm@kvack.org>; Fri, 29 Jun 2012 12:05:22 -0400 (EDT)
+Date: Fri, 29 Jun 2012 18:05:10 +0200
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH v2] KSM: numa awareness sysfs knob
+Message-ID: <20120629160510.GA10082@cmpxchg.org>
+References: <1340970592-25001-1-git-send-email-pholasek@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1340970592-25001-1-git-send-email-pholasek@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hillf Danton <dhillf@gmail.com>, Dan Smith <danms@us.ibm.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E.
- McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Johannes Weiner <hannes@cmpxchg.org>, Srivatsa Vaddagiri <vatsa@linux.vnet.ibm.com>, Christoph Lameter <cl@linux.com>, Alex Shi <alex.shi@intel.com>, Mauricio Faria de Oliveira <mauricfo@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Don Morris <don.morris@hp.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
+To: Petr Holasek <pholasek@redhat.com>
+Cc: Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Chris Wright <chrisw@sous-sol.org>, Izik Eidus <izik.eidus@ravellosystems.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Anton Arapov <anton@redhat.com>
 
-On Fri, 2012-06-29 at 11:36 -0400, Rik van Riel wrote:
-> On 06/28/2012 08:55 AM, Andrea Arcangeli wrote:
->=20
-> > --- a/include/linux/sched.h
-> > +++ b/include/linux/sched.h
-> > @@ -1792,7 +1792,7 @@ extern void thread_group_times(struct task_struct=
- *p, cputime_t *ut, cputime_t *
-> >   #define PF_SWAPWRITE	0x00800000	/* Allowed to write to swap */
-> >   #define PF_SPREAD_PAGE	0x01000000	/* Spread page cache over cpuset */
-> >   #define PF_SPREAD_SLAB	0x02000000	/* Spread some slab caches over cpu=
-set */
-> > -#define PF_THREAD_BOUND	0x04000000	/* Thread bound to specific cpu */
-> > +#define PF_THREAD_BOUND	0x04000000	/* Thread bound to specific cpus */
-> >   #define PF_MCE_EARLY    0x08000000      /* Early kill for mce process=
- policy */
-> >   #define PF_MEMPOLICY	0x10000000	/* Non-default NUMA mempolicy */
-> >   #define PF_MUTEX_TESTER	0x20000000	/* Thread belongs to the rt mutex =
-tester */
->=20
-> Changing the semantics of PF_THREAD_BOUND without so much as
-> a comment in your changelog or buy-in from the scheduler
-> maintainers is a big no-no.
+On Fri, Jun 29, 2012 at 01:49:52PM +0200, Petr Holasek wrote:
+> Introduces new sysfs boolean knob /sys/kernel/mm/ksm/merge_nodes
+> which control merging pages across different numa nodes.
+> When it is set to zero only pages from the same node are merged,
+> otherwise pages from all nodes can be merged together (default behavior).
 
-In fact I've already said a number of times this patch isn't going
-anywhere.
+Is it conceivable that admins may (in the future) want to merge only
+across nodes that are below a given distance threshold?
 
+I'm not asking to implement this, just whether the knob can be
+introduced such that it's future-compatible.  Make it default to a
+Very High Number and only allow setting it to 0 for now e.g.?  And
+name it max_node_merge_distance (I'm bad at names)?
+
+What do you think?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
