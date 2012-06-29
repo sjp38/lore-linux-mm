@@ -1,37 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
-	by kanga.kvack.org (Postfix) with SMTP id 5202C6B0062
-	for <linux-mm@kvack.org>; Fri, 29 Jun 2012 03:19:33 -0400 (EDT)
-Message-ID: <4FED5661.1030102@parallels.com>
-Date: Fri, 29 Jun 2012 11:16:49 +0400
-From: Glauber Costa <glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
+	by kanga.kvack.org (Postfix) with SMTP id 88BD16B005A
+	for <linux-mm@kvack.org>; Fri, 29 Jun 2012 04:26:01 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 6129A3EE0C3
+	for <linux-mm@kvack.org>; Fri, 29 Jun 2012 17:25:59 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 47D7A45DE7E
+	for <linux-mm@kvack.org>; Fri, 29 Jun 2012 17:25:59 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 2C89545DEAD
+	for <linux-mm@kvack.org>; Fri, 29 Jun 2012 17:25:59 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 065C51DB8041
+	for <linux-mm@kvack.org>; Fri, 29 Jun 2012 17:25:59 +0900 (JST)
+Received: from m1001.s.css.fujitsu.com (m1001.s.css.fujitsu.com [10.240.81.139])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id AFFEE1DB803E
+	for <linux-mm@kvack.org>; Fri, 29 Jun 2012 17:25:58 +0900 (JST)
+Message-ID: <4FED6604.9080603@jp.fujitsu.com>
+Date: Fri, 29 Jun 2012 17:23:32 +0900
+From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: memcg: cat: memory.memsw.* : Operation not supported
-References: <2a1a74bf-fbb5-4a6e-b958-44fff8debff2@zmail13.collab.prod.int.phx2.redhat.com> <34bb8049-8007-496c-8ffb-11118c587124@zmail13.collab.prod.int.phx2.redhat.com> <20120627154827.GA4420@tiehlicka.suse.cz> <alpine.DEB.2.00.1206271256120.22162@chino.kir.corp.google.com> <20120627200926.GR15811@google.com> <alpine.DEB.2.00.1206271316070.22162@chino.kir.corp.google.com> <20120627202430.GS15811@google.com> <4FEBD7C0.7090906@jp.fujitsu.com>
-In-Reply-To: <4FEBD7C0.7090906@jp.fujitsu.com>
-Content-Type: text/plain; charset="ISO-8859-1"
+Subject: Re: [PATCH 0/7] Per-cgroup page stat accounting
+References: <1340880885-5427-1-git-send-email-handai.szj@taobao.com>
+In-Reply-To: <1340880885-5427-1-git-send-email-handai.szj@taobao.com>
+Content-Type: text/plain; charset=ISO-2022-JP
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Tejun Heo <tj@kernel.org>, David Rientjes <rientjes@google.com>, Michal Hocko <mhocko@suse.cz>, Zhouping Liu <zliu@redhat.com>, linux-mm@kvack.org, Li Zefan <lizefan@huawei.com>, CAI Qian <caiqian@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Sha Zhengju <handai.szj@gmail.com>
+Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, gthelen@google.com, yinghan@google.com, akpm@linux-foundation.org, mhocko@suse.cz, linux-kernel@vger.kernel.org, Sha Zhengju <handai.szj@taobao.com>
 
-On 06/28/2012 08:04 AM, Kamezawa Hiroyuki wrote:
->>
->> I still wish it's folded into CONFIG_MEMCG and conditionalized just on
->> CONFIG_SWAP tho.
->>
+(2012/06/28 19:54), Sha Zhengju wrote:
+> This patch series provide the ability for each memory cgroup to have independent
+> dirty/writeback page stats. This can provide some information for per-cgroup direct
+> reclaim. Meanwhile, we add more detailed dump messages for memcg OOMs.
 > 
-> In old days, memsw controller was not very stable. So, we devided the
-> config.
-> And, it makes size of memory for swap-device double (adds 2bytes per
-> swapent.)
-> That is the problem.
+> Three features are included in this patch series:
+>   (0).prepare patches for page accounting
+>    1. memcg dirty page accounting
+>    2. memcg writeback page accounting
+>    3. memcg OOMs dump info
+> 
+> In (0) prepare patches, we have reworked vfs set page dirty routines to make "modify
+> page info" and "dirty page accouting" stay in one function as much as possible for
+> the sake of memcg bigger lock.
+> 
+> These patches are cooked based on Andrew's akpm tree.
+> 
+
+Thank you !, it seems good in general. I'll review in detail, later.
+
+Do you have any performance comparison between before/after the series ?
+I mean, set_page_dirty() is the hot-path and we should be careful to add a new accounting.
+
+Thanks,
+-Kame
 
 
-That's the tendency to happen with anything new, since we want to add it
-without disrupting what's already in there. I am not very fond of config
-options explosions myself, so I am for removing it.
+
+> Sha Zhengju (7):
+> 	memcg-update-cgroup-memory-document.patch
+> 	memcg-remove-MEMCG_NR_FILE_MAPPED.patch
+> 	Make-TestSetPageDirty-and-dirty-page-accounting-in-o.patch
+> 	Use-vfs-__set_page_dirty-interface-instead-of-doing-.patch
+> 	memcg-add-per-cgroup-dirty-pages-accounting.patch
+> 	memcg-add-per-cgroup-writeback-pages-accounting.patch
+> 	memcg-print-more-detailed-info-while-memcg-oom-happe.patch	
+> 
+>   Documentation/cgroups/memory.txt |    2 +
+>   fs/buffer.c                      |   36 +++++++++-----
+>   fs/ceph/addr.c                   |   20 +-------
+>   include/linux/buffer_head.h      |    2 +
+>   include/linux/memcontrol.h       |   27 +++++++---
+>   mm/filemap.c                     |    5 ++
+>   mm/memcontrol.c                  |   99 +++++++++++++++++++++++--------------
+>   mm/page-writeback.c              |   42 ++++++++++++++--
+>   mm/rmap.c                        |    4 +-
+>   mm/truncate.c                    |    6 ++
+>   10 files changed, 159 insertions(+), 84 deletions(-)
+> 
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
+> 
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
