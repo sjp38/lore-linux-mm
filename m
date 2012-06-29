@@ -1,92 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx141.postini.com [74.125.245.141])
-	by kanga.kvack.org (Postfix) with SMTP id AAA1C6B005A
-	for <linux-mm@kvack.org>; Fri, 29 Jun 2012 17:02:27 -0400 (EDT)
-Received: by lbjn8 with SMTP id n8so6618061lbj.14
-        for <linux-mm@kvack.org>; Fri, 29 Jun 2012 14:02:25 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
+	by kanga.kvack.org (Postfix) with SMTP id 2E65D6B0062
+	for <linux-mm@kvack.org>; Fri, 29 Jun 2012 17:06:52 -0400 (EDT)
+Received: by dakp5 with SMTP id p5so5982294dak.14
+        for <linux-mm@kvack.org>; Fri, 29 Jun 2012 14:06:51 -0700 (PDT)
+Date: Fri, 29 Jun 2012 14:06:49 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: [patch 1/5] mm, oom: move declaration for mem_cgroup_out_of_memory
+ to oom.h
+In-Reply-To: <alpine.DEB.2.00.1206251846020.24838@chino.kir.corp.google.com>
+Message-ID: <alpine.DEB.2.00.1206291404530.6040@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.1206251846020.24838@chino.kir.corp.google.com>
 MIME-Version: 1.0
-In-Reply-To: <20120629163025.GP6676@redhat.com>
-References: <1340888180-15355-1-git-send-email-aarcange@redhat.com>
-	<1340888180-15355-14-git-send-email-aarcange@redhat.com>
-	<1340894776.28750.44.camel@twins>
-	<4FEDB797.3050804@gmail.com>
-	<20120629163025.GP6676@redhat.com>
-Date: Sat, 30 Jun 2012 05:02:25 +0800
-Message-ID: <CAPQyPG62yZrZpAz1un6UABjALbUHNT+VTS3A2MhHKMJW1Ykq8Q@mail.gmail.com>
-Subject: Re: [PATCH 13/40] autonuma: CPU follow memory algorithm
-From: Nai Xia <nai.xia@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hillf Danton <dhillf@gmail.com>, Dan Smith <danms@us.ibm.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Srivatsa Vaddagiri <vatsa@linux.vnet.ibm.com>, Christoph Lameter <cl@linux.com>, Alex Shi <alex.shi@intel.com>, Mauricio Faria de Oliveira <mauricfo@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Don Morris <don.morris@hp.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan@kernel.org>, Oleg Nesterov <oleg@redhat.com>, linux-mm@kvack.org, cgroups@vger.kernel.org
 
-On Sat, Jun 30, 2012 at 12:30 AM, Andrea Arcangeli <aarcange@redhat.com> wrote:
-> Hi Nai,
->
-> On Fri, Jun 29, 2012 at 10:11:35PM +0800, Nai Xia wrote:
->> If one process do very intensive visit of a small set of pages in this
->> node, but occasional visit of a large set of pages in another node.
->> Will this algorithm do a very bad judgment? I guess the answer would
->> be: it's possible and this judgment depends on the racing pattern
->> between the process and your knuma_scand.
->
-> Depending if the knuma_scand/scan_pass_sleep_millisecs is more or less
-> occasional than the visit of a large set of pages it may behave
-> differently correct.
->
-> Note that every algorithm will have a limit on how smart it can be.
->
-> Just to make a random example: if you lookup some pagecache a million
-> times and some other pagecache a dozen times, their "aging"
-> information in the pagecache will end up identical. Yet we know one
-> set of pages is clearly higher priority than the other. We've only so
-> many levels of lrus and so many referenced/active bitflags per
-> page. Once you get at the top, then all is equal.
->
-> Does this mean the "active" list working set detection is useless just
-> because we can't differentiate a million of lookups on a few pages, vs
-> a dozen of lookups on lots of pages?
->
-> Last but not the least, in the very example you mention it's not even
-> clear that the process should be scheduled in the CPU where there is
-> the small set of pages accessed frequently, or the CPU where there's
-> the large set of pages accessed occasionally. If the small sets of
-> pages fits in the 8MBytes of the L2 cache, then it's better to put the
-> process in the other CPU where the large set of pages can't fit in the
-> L2 cache. Lots of hardware details should be evaluated, to really know
-> what's the right thing in such case even if it was you having to
-> decide.
->
-> But the real reason why the above isn't an issue and why we don't need
-> to solve that problem perfectly: there's not just a CPU follow memory
-> algorithm in AutoNUMA. There's also the memory follow CPU
-> algorithm. AutoNUMA will do its best to change the layout of your
-> example to one that has only one clear solution: the occasional lookup
-> of the large set of pages, will make those eventually go in the node
-> together with the small set of pages (or the other way around), and
-> this is how it's solved.
->
-> In any case, whatever wrong decision it will take, it will at least be
-> a better decision than the numa/sched where there's absolutely zero
-> information about what pages the process is accessing. And best of all
-> with AutoNUMA you also know which pages the _thread_ is accessing so
-> it will also be able to take optimal decisions if there are more
-> threads than CPUs in a node (as long as not all thread accesses are
-> shared).
->
-> Hope this explains things better.
-> Andrea
+mem_cgroup_out_of_memory() is defined in mm/oom_kill.c, so declare it in
+linux/oom.h rather than linux/memcontrol.h.
 
-Hi Andrea,
+Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Acked-by: Michal Hocko <mhocko@suse.cz>
+Signed-off-by: David Rientjes <rientjes@google.com>
+---
+ include/linux/memcontrol.h |    2 --
+ include/linux/oom.h        |    2 ++
+ 2 files changed, 2 insertions(+), 2 deletions(-)
 
-Sorry for being so negative, but this problem seems so clear to me.
-I might have pointed all these out, if you CC me since the first version,
-I am not always on the list watching posts....
-
-Sincerely,
-
-Nai
+diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+--- a/include/linux/memcontrol.h
++++ b/include/linux/memcontrol.h
+@@ -72,8 +72,6 @@ extern void mem_cgroup_uncharge_end(void);
+ extern void mem_cgroup_uncharge_page(struct page *page);
+ extern void mem_cgroup_uncharge_cache_page(struct page *page);
+ 
+-extern void mem_cgroup_out_of_memory(struct mem_cgroup *memcg, gfp_t gfp_mask,
+-				     int order);
+ bool __mem_cgroup_same_or_subtree(const struct mem_cgroup *root_memcg,
+ 				  struct mem_cgroup *memcg);
+ int task_in_mem_cgroup(struct task_struct *task, const struct mem_cgroup *memcg);
+diff --git a/include/linux/oom.h b/include/linux/oom.h
+--- a/include/linux/oom.h
++++ b/include/linux/oom.h
+@@ -49,6 +49,8 @@ extern unsigned long oom_badness(struct task_struct *p,
+ extern int try_set_zonelist_oom(struct zonelist *zonelist, gfp_t gfp_flags);
+ extern void clear_zonelist_oom(struct zonelist *zonelist, gfp_t gfp_flags);
+ 
++extern void mem_cgroup_out_of_memory(struct mem_cgroup *memcg, gfp_t gfp_mask,
++				     int order);
+ extern void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask,
+ 		int order, nodemask_t *mask, bool force_kill);
+ extern int register_oom_notifier(struct notifier_block *nb);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
