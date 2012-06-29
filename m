@@ -1,119 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
-	by kanga.kvack.org (Postfix) with SMTP id F132D6B0078
-	for <linux-mm@kvack.org>; Fri, 29 Jun 2012 17:18:01 -0400 (EDT)
-Date: Fri, 29 Jun 2012 14:17:59 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v2] KSM: numa awareness sysfs knob
-Message-Id: <20120629141759.3312b49e.akpm@linux-foundation.org>
-In-Reply-To: <1340970592-25001-1-git-send-email-pholasek@redhat.com>
-References: <1340970592-25001-1-git-send-email-pholasek@redhat.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
+	by kanga.kvack.org (Postfix) with SMTP id DC22B6B005A
+	for <linux-mm@kvack.org>; Fri, 29 Jun 2012 17:34:20 -0400 (EDT)
+Received: by dakp5 with SMTP id p5so6010905dak.14
+        for <linux-mm@kvack.org>; Fri, 29 Jun 2012 14:34:20 -0700 (PDT)
+Date: Fri, 29 Jun 2012 14:34:17 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [RFC][PATCH 1/2] add res_counter_usage_safe
+In-Reply-To: <4FEC300A.7040209@jp.fujitsu.com>
+Message-ID: <alpine.DEB.2.00.1206291433480.11416@chino.kir.corp.google.com>
+References: <4FEC300A.7040209@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Petr Holasek <pholasek@redhat.com>
-Cc: Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Chris Wright <chrisw@sous-sol.org>, Izik Eidus <izik.eidus@ravellosystems.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Anton Arapov <anton@redhat.com>
+To: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: linux-mm <linux-mm@kvack.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>
 
-On Fri, 29 Jun 2012 13:49:52 +0200
-Petr Holasek <pholasek@redhat.com> wrote:
+On Thu, 28 Jun 2012, Kamezawa Hiroyuki wrote:
 
-> Introduces new sysfs boolean knob /sys/kernel/mm/ksm/merge_nodes
-> which control merging pages across different numa nodes.
-> When it is set to zero only pages from the same node are merged,
-> otherwise pages from all nodes can be merged together (default behavior).
-> 
-> Typical use-case could be a lot of KVM guests on NUMA machine
-> and cpus from more distant nodes would have significant increase
-> of access latency to the merged ksm page. Sysfs knob was choosen
-> for higher scalability.
-> 
-> Every numa node has its own stable & unstable trees because
-> of faster searching and inserting. Changing of merge_nodes
-> value is possible only when there are not any ksm shared pages in system.
-
-It would be neat to have a knob which enables KSM for all anon
-mappings.  ie: pretend that MADV_MERGEABLE is always set.  For testing
-coverage purposes.
-
-> I've tested this patch on numa machines with 2, 4 and 8 nodes and
-> measured speed of memory access inside of KVM guests with memory pinned
-> to one of nodes with this benchmark:
-> 
-> http://pholasek.fedorapeople.org/alloc_pg.c
-> 
-> Population standard deviations of access times in percentage of average
-> were following:
-> 
-> merge_nodes=1
-> 2 nodes 1.4%
-> 4 nodes 1.6%
-> 8 nodes	1.7%
-> 
-> merge_nodes=0
-> 2 nodes	1%
-> 4 nodes	0.32%
-> 8 nodes	0.018%
-
-ooh, numbers!  Thanks.
-
-> --- a/Documentation/vm/ksm.txt
-> +++ b/Documentation/vm/ksm.txt
-> @@ -58,6 +58,12 @@ sleep_millisecs  - how many milliseconds ksmd should sleep before next scan
->                     e.g. "echo 20 > /sys/kernel/mm/ksm/sleep_millisecs"
->                     Default: 20 (chosen for demonstration purposes)
+> diff --git a/include/linux/res_counter.h b/include/linux/res_counter.h
+> index 7d7fbe2..a6f8cc5 100644
+> --- a/include/linux/res_counter.h
+> +++ b/include/linux/res_counter.h
+> @@ -226,4 +226,6 @@ res_counter_set_soft_limit(struct res_counter *cnt,
+>  	return 0;
+>  }
 >  
-> +merge_nodes      - specifies if pages from different numa nodes can be merged.
-> +                   When set to 0, ksm merges only pages which physically
-> +                   resides in the memory area of same NUMA node. It brings
-> +                   lower latency to access to shared page.
-> +                   Default: 1
+> +u64 res_counter_usage_safe(struct res_counter *cnt);
+> +
+>  #endif
+> diff --git a/kernel/res_counter.c b/kernel/res_counter.c
+> index ad581aa..e84149b 100644
+> --- a/kernel/res_counter.c
+> +++ b/kernel/res_counter.c
+> @@ -171,6 +171,21 @@ u64 res_counter_read_u64(struct res_counter *counter, int member)
+>  }
+>  #endif
+>  
+> +/*
+> + * Returns usage. If usage > limit, limit is returned.
+> + * This is useful not to break user experiance if the excess
+> + * is temporal.
 
-s/resides/reside/.
+s/temporal/temporary/
 
-This doc should mention that /sys/kernel/mm/ksm/run should be zeroed to
-alter merge_nodes.  Otherwise confusion will reign.
-
->
-> ...
->
-> +static ssize_t merge_nodes_store(struct kobject *kobj,
-> +				   struct kobj_attribute *attr,
-> +				   const char *buf, size_t count)
+> + */
+> +u64 res_counter_usage_safe(struct res_counter *counter)
 > +{
-> +	int err;
-> +	unsigned long knob;
+> +	u64 usage, limit;
 > +
-> +	err = kstrtoul(buf, 10, &knob);
-> +	if (err)
-> +		return err;
-> +	if (knob > 1)
-> +		return -EINVAL;
+> +	limit = res_counter_read_u64(counter, RES_LIMIT);
+> +	usage = res_counter_read_u64(counter, RES_USAGE);
 > +
-> +	if (ksm_run & KSM_RUN_MERGE)
-> +		return -EBUSY;
-> +
-> +	mutex_lock(&ksm_thread_mutex);
-> +	if (ksm_merge_nodes != knob) {
-> +		if (ksm_pages_shared > 0)
-> +			return -EBUSY;
-> +		else
-> +			ksm_merge_nodes = knob;
-> +	}
-> +	mutex_unlock(&ksm_thread_mutex);
-> +
-> +	return count;
+> +	return min(usage, limit);
 > +}
+> +
+>  int res_counter_memparse_write_strategy(const char *buf,
+>  					unsigned long long *res)
+>  {
+> diff --git a/net/ipv4/tcp_memcontrol.c b/net/ipv4/tcp_memcontrol.c
+> index b6f3583..a73dce6 100644
+> --- a/net/ipv4/tcp_memcontrol.c
+> +++ b/net/ipv4/tcp_memcontrol.c
+> @@ -180,7 +180,7 @@ static u64 tcp_read_usage(struct mem_cgroup *memcg)
+>  		return atomic_long_read(&tcp_memory_allocated) << PAGE_SHIFT;
+>  
+>  	tcp = tcp_from_cgproto(cg_proto);
+> -	return res_counter_read_u64(&tcp->tcp_memory_allocated, RES_USAGE);
+> +	return res_counter_usage_safe(&tcp->tcp_memory_allocated);
+>  }
+>  
+>  static u64 tcp_cgroup_read(struct cgroup *cont, struct cftype *cft)
 
-Seems a bit racy.  Shouldn't the test of ksm_run be inside the locked
-region?
-
-> +KSM_ATTR(merge_nodes);
-> +#endif
->
-> ...
->
+Acked-by: David Rientjes <rientjes@google.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
