@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
-	by kanga.kvack.org (Postfix) with SMTP id 47C026B005A
-	for <linux-mm@kvack.org>; Fri, 29 Jun 2012 16:01:53 -0400 (EDT)
-Received: by lbjn8 with SMTP id n8so6538009lbj.14
-        for <linux-mm@kvack.org>; Fri, 29 Jun 2012 13:01:51 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
+	by kanga.kvack.org (Postfix) with SMTP id 2C5B46B005A
+	for <linux-mm@kvack.org>; Fri, 29 Jun 2012 16:27:46 -0400 (EDT)
+Received: by lbjn8 with SMTP id n8so6572599lbj.14
+        for <linux-mm@kvack.org>; Fri, 29 Jun 2012 13:27:44 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <1340995986.28750.114.camel@twins>
+In-Reply-To: <1340996661.28750.124.camel@twins>
 References: <1340888180-15355-1-git-send-email-aarcange@redhat.com>
 	<1340888180-15355-14-git-send-email-aarcange@redhat.com>
 	<1340895238.28750.49.camel@twins>
 	<CAJd=RBA+FPgB9iq07YG0Pd=tN65SGK1ifmj98tomBDbYeKOE-Q@mail.gmail.com>
 	<20120629125517.GD32637@gmail.com>
 	<4FEDDD0C.60609@redhat.com>
-	<1340995986.28750.114.camel@twins>
-Date: Sat, 30 Jun 2012 04:01:50 +0800
-Message-ID: <CAPQyPG4R34bi0fXHBspSpR1+gDLj2PGYpPXNLPTTTBmrRL=m4g@mail.gmail.com>
+	<1340996661.28750.124.camel@twins>
+Date: Sat, 30 Jun 2012 04:27:44 +0800
+Message-ID: <CAPQyPG7SSb=vDC4OcgAN43A7CVS=E=xo7zOoFua6de+qYjLrgg@mail.gmail.com>
 Subject: Re: [PATCH 13/40] autonuma: CPU follow memory algorithm
 From: Nai Xia <nai.xia@gmail.com>
 Content-Type: text/plain; charset=ISO-8859-1
@@ -24,44 +24,28 @@ List-ID: <linux-mm.kvack.org>
 To: Peter Zijlstra <a.p.zijlstra@chello.nl>
 Cc: dlaor@redhat.com, Ingo Molnar <mingo@kernel.org>, Hillf Danton <dhillf@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dan Smith <danms@us.ibm.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Srivatsa Vaddagiri <vatsa@linux.vnet.ibm.com>, Christoph Lameter <cl@linux.com>, Alex Shi <alex.shi@intel.com>, Mauricio Faria de Oliveira <mauricfo@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Don Morris <don.morris@hp.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
 
-On Sat, Jun 30, 2012 at 2:53 AM, Peter Zijlstra <a.p.zijlstra@chello.nl> wr=
+On Sat, Jun 30, 2012 at 3:04 AM, Peter Zijlstra <a.p.zijlstra@chello.nl> wr=
 ote:
 > On Fri, 2012-06-29 at 12:51 -0400, Dor Laor wrote:
->> The previous comments were not shouts but the mother of all NAKs.
+>> Some developers have a thick skin and nothing gets in, others are human
+>> and have feelings. Using a tiny difference in behavior we can do much
+>> much better. What's works in a f2f loud discussion doesn't play well in
+>> email.
 >
-> I never said any such thing. I just said why should I bother reading
-> your stuff if you're ignoring most my feedback anyway.
+> We're all humans, we all have feelings, and I'm frigging upset.
 >
-> If you want to read that as a NAK, not my problem.
+> As a maintainer I try and do my best to support and maintain the
+> subsystems I'm responsible for. I take this very serious.
 
-Hey guys, Can I say NAK to these patches ?
+So, would you please very seriously look into my NAK ?
+It's looks very clear to me.
 
-Now I aware that this sampling algorithm is completely broken, if we take
-a few seconds to see what it is trying to solve:
-
-We all know that LRU is try to solve the question of "what are the
-pages recently accessed?",
-so its engouth to use pte bits to approximate.
-
-However, the numa balancing problem is fundamentally like this:
-
-In some time unit,
-
-      W =3D pages_accessed  *  average_page_access_frequence
-
-We are trying to move process to the node having max W,  right?
-
-Andrea's patch can only approximate the pages_accessed number in a
-time unit(scan interval),
-I don't think it can catch even 1% of  average_page_access_frequence
-on a busy workload.
-Blindly assuming that all the pages'  average_page_access_frequence is
-the same is seemly
-broken to me.
-
-Sometimes, it's good to have a good view of your problem before
-spending a lot time coding.
-
+>
+> I don't agree with the approach Andrea takes, we all know that, yet I do
+> want to talk about it. The problem is, many of the crucial details are
+> non-obvious and no sane explanation seems forthcoming.
+>
+> I really feel I'm talking to deaf ears.
 >
 > --
 > To unsubscribe, send a message with 'unsubscribe linux-mm' in
