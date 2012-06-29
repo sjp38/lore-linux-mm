@@ -1,137 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
-	by kanga.kvack.org (Postfix) with SMTP id F37AE6B005A
-	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 19:42:28 -0400 (EDT)
-Message-ID: <4FECEBF4.7010202@kernel.org>
-Date: Fri, 29 Jun 2012 08:42:44 +0900
-From: Minchan Kim <minchan@kernel.org>
+Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
+	by kanga.kvack.org (Postfix) with SMTP id 1D7EA6B005A
+	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 20:14:06 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 1BB563EE0BC
+	for <linux-mm@kvack.org>; Fri, 29 Jun 2012 09:14:04 +0900 (JST)
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 0257645DE59
+	for <linux-mm@kvack.org>; Fri, 29 Jun 2012 09:14:04 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id DE7A345DE56
+	for <linux-mm@kvack.org>; Fri, 29 Jun 2012 09:14:03 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id CC0A01DB8051
+	for <linux-mm@kvack.org>; Fri, 29 Jun 2012 09:14:03 +0900 (JST)
+Received: from m1001.s.css.fujitsu.com (m1001.s.css.fujitsu.com [10.240.81.139])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 82EC91DB804A
+	for <linux-mm@kvack.org>; Fri, 29 Jun 2012 09:14:03 +0900 (JST)
+Message-ID: <4FECF2B4.5040500@jp.fujitsu.com>
+Date: Fri, 29 Jun 2012 09:11:32 +0900
+From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: needed lru_add_drain_all() change
-References: <20120626143703.396d6d66.akpm@linux-foundation.org> <4FEC0B3F.7070108@jp.fujitsu.com>
-In-Reply-To: <4FEC0B3F.7070108@jp.fujitsu.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: memcg: cat: memory.memsw.* : Operation not supported
+References: <2a1a74bf-fbb5-4a6e-b958-44fff8debff2@zmail13.collab.prod.int.phx2.redhat.com> <34bb8049-8007-496c-8ffb-11118c587124@zmail13.collab.prod.int.phx2.redhat.com> <20120627154827.GA4420@tiehlicka.suse.cz> <alpine.DEB.2.00.1206271256120.22162@chino.kir.corp.google.com> <20120628123611.GA16042@tiehlicka.suse.cz> <20120628182934.GD22641@google.com>
+In-Reply-To: <20120628182934.GD22641@google.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+To: Tejun Heo <tj@kernel.org>
+Cc: Michal Hocko <mhocko@suse.cz>, David Rientjes <rientjes@google.com>, Zhouping Liu <zliu@redhat.com>, linux-mm@kvack.org, Li Zefan <lizefan@huawei.com>, CAI Qian <caiqian@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, aneesh.kumar@linux.vnet.ibm.com
 
-On 06/28/2012 04:43 PM, Kamezawa Hiroyuki wrote:
-
-> (2012/06/27 6:37), Andrew Morton wrote:
->> https://bugzilla.kernel.org/show_bug.cgi?id=43811
+(2012/06/29 3:29), Tejun Heo wrote:
+> Hello, Michal.
+>
+> On Thu, Jun 28, 2012 at 02:36:11PM +0200, Michal Hocko wrote:
+>> @@ -2726,6 +2726,9 @@ static int cgroup_addrm_files(struct cgroup *cgrp, struct cgroup_subsys *subsys,
+>>   	int err, ret = 0;
 >>
->> lru_add_drain_all() uses schedule_on_each_cpu().  But
->> schedule_on_each_cpu() hangs if a realtime thread is spinning, pinned
->> to a CPU.  There's no intention to change the scheduler behaviour, so I
->> think we should remove schedule_on_each_cpu() from the kernel.
->>
->> The biggest user of schedule_on_each_cpu() is lru_add_drain_all().
->>
->> Does anyone have any thoughts on how we can do this?  The obvious
->> approach is to declare these:
->>
->> static DEFINE_PER_CPU(struct pagevec[NR_LRU_LISTS], lru_add_pvecs);
->> static DEFINE_PER_CPU(struct pagevec, lru_rotate_pvecs);
->> static DEFINE_PER_CPU(struct pagevec, lru_deactivate_pvecs);
->>
->> to be irq-safe and use on_each_cpu().  lru_rotate_pvecs is already
->> irq-safe and converting lru_add_pvecs and lru_deactivate_pvecs looks
->> pretty simple.
->>
->> Thoughts?
->>
-> 
-> How about this kind of RCU synchronization ?
-> ==
-> /*
->  * Double buffered pagevec for quick drain.
->  * The usual per-cpu-pvec user need to take rcu_read_lock() before
-> accessing.
->  * External drainer of pvecs will relpace pvec vector and call
-> synchroize_rcu(),
->  * and drain all pages on unused pvecs in turn.
->  */
-> static DEFINE_PER_CPU(struct pagevec[NR_LRU_LISTS * 2], lru_pvecs);
-> 
-> atomic_t pvec_idx; /* must be placed onto some aligned address...*/
-> 
-> 
-> struct pagevec *my_pagevec(enum lru)
-> {
->     return  pvec = &__get_cpu_var(lru_pvecs[lru << atomic_read(pvec_idx)]);
-> }
-> 
-> /*
->  * percpu pagevec access should be surrounded by these calls.
->  */
-> static inline void pagevec_start_access()
-> {
->     rcu_read_lock();
-> }
-> 
-> static inline void pagevec_end_access()
-> {
->     rcu_read_unlock();
-> }
-> 
-> 
-> /*
->  * changing pagevec array vec 0 <-> 1
->  */
-> static void lru_pvec_update()
-> {
->     if (atomic_read(&pvec_idx))
->         atomic_set(&pvec_idx, 0);
->     else
->         atomic_set(&pvec_idx, 1);
-> }
-> 
-> /*
->  * drain all LRUS on per-cpu pagevecs.
->  */
-> DEFINE_MUTEX(lru_add_drain_all_mutex);
-> static void lru_add_drain_all()
-> {
->     mutex_lock(&lru_add_drain_mutex);
->     lru_pvec_update();
->     synchronize_rcu();  /* waits for all accessors to pvec quits. */
+>>   	for (cft = cfts; cft->name[0] != '\0'; cft++) {
+>> +		if (subsys->cftype_enabled && !subsys->cftype_enabled(cft->name))
+>> +			continue;
+>> +
+>>   		if (is_add)
+>>   			err = cgroup_add_file(cgrp, subsys, cft);
+>>   		else
+>
+> I hope we could avoid this dynamic decision.  That was one of the main
+> reasons behind doing the cftype thing.  It's better to be able to
+> "declare" these kind of things rather than being able to implement
+> fully flexible dynamic logic.  Too much flexibility often doesn't
+> achieve much while being a hindrance to evolution of code base (trying
+> to improve / simplify X - ooh... there's this single wacko corner case
+> YYY here which is really different from all other users).
+>
+> really_do_swap_account can't change once booted, right?  Why not just
+> separate out memsw cfts into a separate array and call
+> cgroup_add_cftypes() from init path?  Can't we do that from
+> enable_swap_cgroup()?
+>
 
+Yes, that's will be good.
 
-I don't know RCU internal but conceptually, I understood synchronize_rcu need 
-context switching of all CPU. If it's partly true, it could be a problem, too.
+Thanks,
+-Kame
 
->     for_each_cpu(cpu)
->         drain_pvec_of_the_cpu(cpu);
->     mutex_unlock(&lru_add_drain_mutex);
-> }
-> ==
-> 
-> 
-> 
-> 
-> 
-> 
-> 
-> 
-> 
-> 
-> 
-> 
-> 
-> 
-> -- 
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
-
-
-
--- 
-Kind regards,
-Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
