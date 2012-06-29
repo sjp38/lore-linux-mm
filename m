@@ -1,47 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
-	by kanga.kvack.org (Postfix) with SMTP id 24A3C6B0073
-	for <linux-mm@kvack.org>; Fri, 29 Jun 2012 11:28:10 -0400 (EDT)
-Message-ID: <4FEDC961.1060306@redhat.com>
-Date: Fri, 29 Jun 2012 11:27:29 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
+	by kanga.kvack.org (Postfix) with SMTP id 9BE3C6B0073
+	for <linux-mm@kvack.org>; Fri, 29 Jun 2012 11:30:23 -0400 (EDT)
+Date: Fri, 29 Jun 2012 16:26:46 +0100
+From: Catalin Marinas <catalin.marinas@arm.com>
+Subject: Re: [PATCH 08/20] mm: Optimize fullmm TLB flushing
+Message-ID: <20120629152645.GG17837@arm.com>
+References: <CA+55aFy6m967fMxyBsRoXVecdpGtSphXi_XdhwS0DB81Qaocdw@mail.gmail.com>
+ <CA+55aFzLNsVRkp_US8rAmygEkQpp1s1YdakV86Ck-4RZM7TTdA@mail.gmail.com>
+ <20120628091627.GB8573@arm.com>
+ <1340879984.20977.80.camel@pasglop>
+ <1340881196.28750.16.camel@twins>
+ <20120628145327.GA17242@arm.com>
+ <1340900425.28750.73.camel@twins>
+ <CA+55aFwByDWu5bP__e3sw34E7s88f_2P=8m=i6SuP6s+NZgF6w@mail.gmail.com>
+ <1340902329.28750.83.camel@twins>
+ <1340920641.20977.103.camel@pasglop>
 MIME-Version: 1.0
-Subject: Re: [PATCH 08/40] autonuma: teach gup_fast about pte_numa
-References: <1340888180-15355-1-git-send-email-aarcange@redhat.com> <1340888180-15355-9-git-send-email-aarcange@redhat.com>
-In-Reply-To: <1340888180-15355-9-git-send-email-aarcange@redhat.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1340920641.20977.103.camel@pasglop>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hillf Danton <dhillf@gmail.com>, Dan Smith <danms@us.ibm.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Johannes Weiner <hannes@cmpxchg.org>, Srivatsa Vaddagiri <vatsa@linux.vnet.ibm.com>, Christoph Lameter <cl@linux.com>, Alex Shi <alex.shi@intel.com>, Mauricio Faria de Oliveira <mauricfo@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Don Morris <don.morris@hp.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
+To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Cc: Peter Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <npiggin@kernel.dk>, Alex Shi <alex.shi@intel.com>, "Nikunj A. Dadhania" <nikunj@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad@darnok.org>, David Miller <davem@davemloft.net>, Russell King <rmk@arm.linux.org.uk>, Chris Metcalf <cmetcalf@tilera.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Tony Luck <tony.luck@intel.com>, Paul Mundt <lethal@linux-sh.org>, Jeff Dike <jdike@addtoit.com>, Richard Weinberger <richard@nod.at>, Ralf Baechle <ralf@linux-mips.org>, Kyle McMartin <kyle@mcmartin.ca>, James Bottomley <jejb@parisc-linux.org>, Chris Zankel <chris@zankel.net>
 
-On 06/28/2012 08:55 AM, Andrea Arcangeli wrote:
-> gup_fast will skip over non present ptes (pte_numa requires the pte to
-> be non present). So no explicit check is needed for pte_numa in the
-> pte case.
->
-> gup_fast will also automatically skip over THP when the trans huge pmd
-> is non present (pmd_numa requires the pmd to be non present).
->
-> But for the special pmd mode scan of knuma_scand
-> (/sys/kernel/mm/autonuma/knuma_scand/pmd == 1), the pmd may be of numa
-> type (so non present too), the pte may be present. gup_pte_range
-> wouldn't notice the pmd is of numa type. So to avoid losing a NUMA
-> hinting page fault with gup_fast we need an explicit check for
-> pmd_numa() here to be sure it will fault through gup ->
-> handle_mm_fault.
->
-> Signed-off-by: Andrea Arcangeli<aarcange@redhat.com>
+On Thu, Jun 28, 2012 at 10:57:21PM +0100, Benjamin Herrenschmidt wrote:
+> On Thu, 2012-06-28 at 18:52 +0200, Peter Zijlstra wrote:
+> > No I think you're right (as always).. also an IPI will not force
+> > schedule the thread that might be running on the receiving cpu, also
+> > we'd have to wait for any such schedule to complete in order to
+> > guarantee the mm isn't lazily used anymore.
+> > 
+> > Bugger.. 
+> 
+> You can still do it if the mm count is 1 no ? Ie, current is the last
+> holder of a reference to the mm struct... which will probably be the
+> common case for short lived programs.
 
-Assuming pmd_numa will get the documentation I asked for a few
-patches back, this patch is fine, since people will just be able
-to look at a nice comment above pmd_numa and see what is going on.
+BTW, can we not move the free_pgtables() call in exit_mmap() to
+__mmdrop()? Something like below but I'm not entirely sure about its
+implications:
 
-Acked-by: Rik van Riel <riel@redhat.com>
+
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index b36d08c..507ee9f 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -1372,6 +1372,7 @@ extern void unlink_file_vma(struct vm_area_struct *);
+ extern struct vm_area_struct *copy_vma(struct vm_area_struct **,
+ 	unsigned long addr, unsigned long len, pgoff_t pgoff);
+ extern void exit_mmap(struct mm_struct *);
++extern void exit_pgtables(struct mm_struct *mm);
+ 
+ extern int mm_take_all_locks(struct mm_struct *mm);
+ extern void mm_drop_all_locks(struct mm_struct *mm);
+diff --git a/kernel/fork.c b/kernel/fork.c
+index ab5211b..3412b1a 100644
+--- a/kernel/fork.c
++++ b/kernel/fork.c
+@@ -588,6 +588,7 @@ struct mm_struct *mm_alloc(void)
+ void __mmdrop(struct mm_struct *mm)
+ {
+ 	BUG_ON(mm == &init_mm);
++	exit_pgtables(mm);
+ 	mm_free_pgd(mm);
+ 	destroy_context(mm);
+ 	mmu_notifier_mm_destroy(mm);
+diff --git a/mm/mmap.c b/mm/mmap.c
+index 074b487..d9ebfdb 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -2269,7 +2269,6 @@ void exit_mmap(struct mm_struct *mm)
+ {
+ 	struct mmu_gather tlb;
+ 	struct vm_area_struct *vma;
+-	unsigned long nr_accounted = 0;
+ 
+ 	/* mm's last user has gone, and its about to be pulled down */
+ 	mmu_notifier_release(mm);
+@@ -2291,11 +2290,23 @@ void exit_mmap(struct mm_struct *mm)
+ 
+ 	lru_add_drain();
+ 	flush_cache_mm(mm);
+-	tlb_gather_mmu(&tlb, mm, 1);
++	tlb_gather_mmu(&tlb, mm, 0);
+ 	/* update_hiwater_rss(mm) here? but nobody should be looking */
+ 	/* Use -1 here to ensure all VMAs in the mm are unmapped */
+ 	unmap_vmas(&tlb, vma, 0, -1);
++	tlb_finish_mmu(&tlb, 0, -1);
++}
++
++void exit_pgtables(struct mm_struct *mm)
++{
++	struct mmu_gather tlb;
++	struct vm_area_struct *vma;
++	unsigned long nr_accounted = 0;
+ 
++	vma = mm->mmap;
++	if (!vma)
++		return;
++	tlb_gather_mmu(&tlb, mm, 1);
+ 	free_pgtables(&tlb, vma, FIRST_USER_ADDRESS, TASK_SIZE);
+ 	tlb_finish_mmu(&tlb, 0, -1);
+ 
 
 -- 
-All rights reversed
+Catalin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
