@@ -1,79 +1,220 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
-	by kanga.kvack.org (Postfix) with SMTP id 454806B006E
-	for <linux-mm@kvack.org>; Fri, 29 Jun 2012 14:36:19 -0400 (EDT)
-Date: Fri, 29 Jun 2012 18:30:25 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 13/40] autonuma: CPU follow memory algorithm
-Message-ID: <20120629163025.GP6676@redhat.com>
-References: <1340888180-15355-1-git-send-email-aarcange@redhat.com>
- <1340888180-15355-14-git-send-email-aarcange@redhat.com>
- <1340894776.28750.44.camel@twins>
- <4FEDB797.3050804@gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4FEDB797.3050804@gmail.com>
+Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
+	by kanga.kvack.org (Postfix) with SMTP id 8980F6B0069
+	for <linux-mm@kvack.org>; Fri, 29 Jun 2012 14:39:14 -0400 (EDT)
+From: Yinghai Lu <yinghai@kernel.org>
+Subject: [PATCH for -3.5] memblock: free allocated memblock_reserved_regions later
+Date: Fri, 29 Jun 2012 11:38:55 -0700
+Message-Id: <1340995135-11488-1-git-send-email-yinghai@kernel.org>
+In-Reply-To: <20120629183233.GC21048@google.com>
+References: <20120629183233.GC21048@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nai Xia <nai.xia@gmail.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hillf Danton <dhillf@gmail.com>, Dan Smith <danms@us.ibm.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Srivatsa Vaddagiri <vatsa@linux.vnet.ibm.com>, Christoph Lameter <cl@linux.com>, Alex Shi <alex.shi@intel.com>, Mauricio Faria de Oliveira <mauricfo@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Don Morris <don.morris@hp.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
+To: Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>, "H. Peter Anvin" <hpa@zytor.com>
+Cc: Tejun Heo <tj@kernel.org>, Sasha Levin <levinsasha928@gmail.com>, Gavin Shan <shangw@linux.vnet.ibm.com>, linux-mm <linux-mm@kvack.org>, linux-kernel@vger.kernel.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Yinghai Lu <yinghai@kernel.org>
 
-Hi Nai,
+In memblock_free_reserved_regions, will call memblock_free(),
+but memblock_free() would double reserved.regions too, so we could free
+old range for reserved.regions.
 
-On Fri, Jun 29, 2012 at 10:11:35PM +0800, Nai Xia wrote:
-> If one process do very intensive visit of a small set of pages in this
-> node, but occasional visit of a large set of pages in another node.
-> Will this algorithm do a very bad judgment? I guess the answer would
-> be: it's possible and this judgment depends on the racing pattern
-> between the process and your knuma_scand.
+Also tj said there is another bug could be related to this too.
 
-Depending if the knuma_scand/scan_pass_sleep_millisecs is more or less
-occasional than the visit of a large set of pages it may behave
-differently correct.
+| I don't think we're saving any noticeable
+| amount by doing this "free - give it to page allocator - reserve
+| again" dancing.  We should just allocate regions aligned to page
+| boundaries and free them later when memblock is no longer in use.
 
-Note that every algorithm will have a limit on how smart it can be.
+So try to allocate that in PAGE_SIZE alignment and free that later.
 
-Just to make a random example: if you lookup some pagecache a million
-times and some other pagecache a dozen times, their "aging"
-information in the pagecache will end up identical. Yet we know one
-set of pages is clearly higher priority than the other. We've only so
-many levels of lrus and so many referenced/active bitflags per
-page. Once you get at the top, then all is equal.
+-v5: Use new_alloc_size, and old_alloc_size to simplify it according to tj.
+-v6: update one comment according to tj.
 
-Does this mean the "active" list working set detection is useless just
-because we can't differentiate a million of lookups on a few pages, vs
-a dozen of lookups on lots of pages?
+Repored-by: Sasha Levin <levinsasha928@gmail.com>
+Acked-by: Tejun Heo <tj@kernel.org>
+Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Signed-off-by: Yinghai Lu <yinghai@kernel.org>
 
-Last but not the least, in the very example you mention it's not even
-clear that the process should be scheduled in the CPU where there is
-the small set of pages accessed frequently, or the CPU where there's
-the large set of pages accessed occasionally. If the small sets of
-pages fits in the 8MBytes of the L2 cache, then it's better to put the
-process in the other CPU where the large set of pages can't fit in the
-L2 cache. Lots of hardware details should be evaluated, to really know
-what's the right thing in such case even if it was you having to
-decide.
+---
+ include/linux/memblock.h |    4 ---
+ mm/memblock.c            |   51 +++++++++++++++++++++--------------------------
+ mm/nobootmem.c           |   36 ++++++++++++++++++++-------------
+ 3 files changed, 46 insertions(+), 45 deletions(-)
 
-But the real reason why the above isn't an issue and why we don't need
-to solve that problem perfectly: there's not just a CPU follow memory
-algorithm in AutoNUMA. There's also the memory follow CPU
-algorithm. AutoNUMA will do its best to change the layout of your
-example to one that has only one clear solution: the occasional lookup
-of the large set of pages, will make those eventually go in the node
-together with the small set of pages (or the other way around), and
-this is how it's solved.
-
-In any case, whatever wrong decision it will take, it will at least be
-a better decision than the numa/sched where there's absolutely zero
-information about what pages the process is accessing. And best of all
-with AutoNUMA you also know which pages the _thread_ is accessing so
-it will also be able to take optimal decisions if there are more
-threads than CPUs in a node (as long as not all thread accesses are
-shared).
-
-Hope this explains things better.
-Andrea
+Index: linux-2.6/include/linux/memblock.h
+===================================================================
+--- linux-2.6.orig/include/linux/memblock.h
++++ linux-2.6/include/linux/memblock.h
+@@ -50,9 +50,7 @@ phys_addr_t memblock_find_in_range_node(
+ 				phys_addr_t size, phys_addr_t align, int nid);
+ phys_addr_t memblock_find_in_range(phys_addr_t start, phys_addr_t end,
+ 				   phys_addr_t size, phys_addr_t align);
+-int memblock_free_reserved_regions(void);
+-int memblock_reserve_reserved_regions(void);
+-
++phys_addr_t get_allocated_memblock_reserved_regions_info(phys_addr_t *addr);
+ void memblock_allow_resize(void);
+ int memblock_add_node(phys_addr_t base, phys_addr_t size, int nid);
+ int memblock_add(phys_addr_t base, phys_addr_t size);
+Index: linux-2.6/mm/memblock.c
+===================================================================
+--- linux-2.6.orig/mm/memblock.c
++++ linux-2.6/mm/memblock.c
+@@ -143,30 +143,6 @@ phys_addr_t __init_memblock memblock_fin
+ 					   MAX_NUMNODES);
+ }
+ 
+-/*
+- * Free memblock.reserved.regions
+- */
+-int __init_memblock memblock_free_reserved_regions(void)
+-{
+-	if (memblock.reserved.regions == memblock_reserved_init_regions)
+-		return 0;
+-
+-	return memblock_free(__pa(memblock.reserved.regions),
+-		 sizeof(struct memblock_region) * memblock.reserved.max);
+-}
+-
+-/*
+- * Reserve memblock.reserved.regions
+- */
+-int __init_memblock memblock_reserve_reserved_regions(void)
+-{
+-	if (memblock.reserved.regions == memblock_reserved_init_regions)
+-		return 0;
+-
+-	return memblock_reserve(__pa(memblock.reserved.regions),
+-		 sizeof(struct memblock_region) * memblock.reserved.max);
+-}
+-
+ static void __init_memblock memblock_remove_region(struct memblock_type *type, unsigned long r)
+ {
+ 	type->total_size -= type->regions[r].size;
+@@ -184,6 +160,18 @@ static void __init_memblock memblock_rem
+ 	}
+ }
+ 
++phys_addr_t __init_memblock get_allocated_memblock_reserved_regions_info(
++					phys_addr_t *addr)
++{
++	if (memblock.reserved.regions == memblock_reserved_init_regions)
++		return 0;
++
++	*addr = __pa(memblock.reserved.regions);
++
++	return PAGE_ALIGN(sizeof(struct memblock_region) *
++			  memblock.reserved.max);
++}
++
+ /**
+  * memblock_double_array - double the size of the memblock regions array
+  * @type: memblock type of the regions array being doubled
+@@ -204,6 +192,7 @@ static int __init_memblock memblock_doub
+ 						phys_addr_t new_area_size)
+ {
+ 	struct memblock_region *new_array, *old_array;
++	phys_addr_t old_alloc_size, new_alloc_size;
+ 	phys_addr_t old_size, new_size, addr;
+ 	int use_slab = slab_is_available();
+ 	int *in_slab;
+@@ -217,6 +206,12 @@ static int __init_memblock memblock_doub
+ 	/* Calculate new doubled size */
+ 	old_size = type->max * sizeof(struct memblock_region);
+ 	new_size = old_size << 1;
++	/*
++	 * We need to allocated new one align to PAGE_SIZE,
++	 *   so we can free them completely later.
++	 */
++	old_alloc_size = PAGE_ALIGN(old_size);
++	new_alloc_size = PAGE_ALIGN(new_size);
+ 
+ 	/* Retrieve the slab flag */
+ 	if (type == &memblock.memory)
+@@ -245,11 +240,11 @@ static int __init_memblock memblock_doub
+ 
+ 		addr = memblock_find_in_range(new_area_start + new_area_size,
+ 						memblock.current_limit,
+-						new_size, sizeof(phys_addr_t));
++						new_alloc_size, PAGE_SIZE);
+ 		if (!addr && new_area_size)
+ 			addr = memblock_find_in_range(0,
+ 					min(new_area_start, memblock.current_limit),
+-					new_size, sizeof(phys_addr_t));
++					new_alloc_size, PAGE_SIZE);
+ 
+ 		new_array = addr ? __va(addr) : 0;
+ 	}
+@@ -279,13 +274,13 @@ static int __init_memblock memblock_doub
+ 		kfree(old_array);
+ 	else if (old_array != memblock_memory_init_regions &&
+ 		 old_array != memblock_reserved_init_regions)
+-		memblock_free(__pa(old_array), old_size);
++		memblock_free(__pa(old_array), old_alloc_size);
+ 
+ 	/* Reserve the new array if that comes from the memblock.
+ 	 * Otherwise, we needn't do it
+ 	 */
+ 	if (!use_slab)
+-		BUG_ON(memblock_reserve(addr, new_size));
++		BUG_ON(memblock_reserve(addr, new_alloc_size));
+ 
+ 	/* Update slab flag */
+ 	*in_slab = use_slab;
+Index: linux-2.6/mm/nobootmem.c
+===================================================================
+--- linux-2.6.orig/mm/nobootmem.c
++++ linux-2.6/mm/nobootmem.c
+@@ -105,27 +105,35 @@ static void __init __free_pages_memory(u
+ 		__free_pages_bootmem(pfn_to_page(i), 0);
+ }
+ 
++static unsigned long __init __free_memory_core(phys_addr_t start,
++				 phys_addr_t end)
++{
++	unsigned long start_pfn = PFN_UP(start);
++	unsigned long end_pfn = min_t(unsigned long,
++				      PFN_DOWN(end), max_low_pfn);
++
++	if (start_pfn > end_pfn)
++		return 0;
++
++	__free_pages_memory(start_pfn, end_pfn);
++
++	return end_pfn - start_pfn;
++}
++
+ unsigned long __init free_low_memory_core_early(int nodeid)
+ {
+ 	unsigned long count = 0;
+-	phys_addr_t start, end;
++	phys_addr_t start, end, size;
+ 	u64 i;
+ 
+-	/* free reserved array temporarily so that it's treated as free area */
+-	memblock_free_reserved_regions();
++	for_each_free_mem_range(i, MAX_NUMNODES, &start, &end, NULL)
++		count += __free_memory_core(start, end);
+ 
+-	for_each_free_mem_range(i, MAX_NUMNODES, &start, &end, NULL) {
+-		unsigned long start_pfn = PFN_UP(start);
+-		unsigned long end_pfn = min_t(unsigned long,
+-					      PFN_DOWN(end), max_low_pfn);
+-		if (start_pfn < end_pfn) {
+-			__free_pages_memory(start_pfn, end_pfn);
+-			count += end_pfn - start_pfn;
+-		}
+-	}
++	/* free range that is used for reserved array if we allocate it */
++	size = get_allocated_memblock_reserved_regions_info(&start);
++	if (size)
++		count += __free_memory_core(start, start + size);
+ 
+-	/* put region array back? */
+-	memblock_reserve_reserved_regions();
+ 	return count;
+ }
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
