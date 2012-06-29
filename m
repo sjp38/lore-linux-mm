@@ -1,81 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
-	by kanga.kvack.org (Postfix) with SMTP id 106B26B005A
-	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 23:49:45 -0400 (EDT)
-Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 0FB6A3EE081
-	for <linux-mm@kvack.org>; Fri, 29 Jun 2012 12:49:43 +0900 (JST)
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id EC3A245DE58
-	for <linux-mm@kvack.org>; Fri, 29 Jun 2012 12:49:42 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id D3E5F45DE57
-	for <linux-mm@kvack.org>; Fri, 29 Jun 2012 12:49:42 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id C7A971DB8037
-	for <linux-mm@kvack.org>; Fri, 29 Jun 2012 12:49:42 +0900 (JST)
-Received: from m1000.s.css.fujitsu.com (m1000.s.css.fujitsu.com [10.240.81.136])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 844BE1DB802F
-	for <linux-mm@kvack.org>; Fri, 29 Jun 2012 12:49:42 +0900 (JST)
-Message-ID: <4FED2554.6020601@jp.fujitsu.com>
-Date: Fri, 29 Jun 2012 12:47:32 +0900
-From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
+	by kanga.kvack.org (Postfix) with SMTP id 0FE466B005A
+	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 23:52:02 -0400 (EDT)
+Date: Fri, 29 Jun 2012 00:51:24 -0300
+From: Rafael Aquini <aquini@redhat.com>
+Subject: Re: [PATCH v2 0/4] make balloon pages movable by compaction
+Message-ID: <20120629035123.GA1763@t510.redhat.com>
+References: <cover.1340916058.git.aquini@redhat.com>
+ <4FED06C8.1090003@kernel.org>
 MIME-Version: 1.0
-Subject: Re: needed lru_add_drain_all() change
-References: <20120626143703.396d6d66.akpm@linux-foundation.org> <CAHGf_=ra6eXSVyhox3z2X-4csrwWeeDgMjS83i-J2nJwuWpqhg@mail.gmail.com>
-In-Reply-To: <CAHGf_=ra6eXSVyhox3z2X-4csrwWeeDgMjS83i-J2nJwuWpqhg@mail.gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4FED06C8.1090003@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, Rusty Russell <rusty@rustcorp.com.au>, "Michael S. Tsirkin" <mst@redhat.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
 
-(2012/06/28 15:23), KOSAKI Motohiro wrote:
-> On Tue, Jun 26, 2012 at 5:37 PM, Andrew Morton
-> <akpm@linux-foundation.org> wrote:
->> https://bugzilla.kernel.org/show_bug.cgi?id=43811
->>
->> lru_add_drain_all() uses schedule_on_each_cpu().  But
->> schedule_on_each_cpu() hangs if a realtime thread is spinning, pinned
->> to a CPU.  There's no intention to change the scheduler behaviour, so I
->> think we should remove schedule_on_each_cpu() from the kernel.
->>
->> The biggest user of schedule_on_each_cpu() is lru_add_drain_all().
->>
->> Does anyone have any thoughts on how we can do this?  The obvious
->> approach is to declare these:
->>
->> static DEFINE_PER_CPU(struct pagevec[NR_LRU_LISTS], lru_add_pvecs);
->> static DEFINE_PER_CPU(struct pagevec, lru_rotate_pvecs);
->> static DEFINE_PER_CPU(struct pagevec, lru_deactivate_pvecs);
->>
->> to be irq-safe and use on_each_cpu().  lru_rotate_pvecs is already
->> irq-safe and converting lru_add_pvecs and lru_deactivate_pvecs looks
->> pretty simple.
->>
->> Thoughts?
+On Fri, Jun 29, 2012 at 10:37:12AM +0900, Minchan Kim wrote:
+> Hi Rafael,
+> 
+> On 06/29/2012 06:49 AM, Rafael Aquini wrote:
+> 
+> > This patchset follows the main idea discussed at 2012 LSFMMS section:
+> > "Ballooning for transparent huge pages" -- http://lwn.net/Articles/490114/
+> 
+> 
+> Could you summarize the problem, solution instead of link URL in cover-letter?
+> IIUC, the problem is that it is hard to get contiguous memory in guest-side 
+> after ballooning happens because guest-side memory could be very fragmented
+> by ballooned page. It makes THP page allocation of guest-side very poor success ratio.
+> 
+> The solution is that when memory ballooning happens, we allocates ballooned page
+> as a movable page in guest-side because they can be migrated easily so compaction of
+> guest-side could put together them into either side so that we can get contiguous memory.
+> For it, compaction should be aware of ballooned page.
+> 
+> Right?
 >
-> I agree.
->
-> But i hope more. In these days, we have plenty lru_add_drain_all()
-> callsite. So,
-> i think we should remove struct pagevec and should aim migration aware new
-> batch mechanism. maybe. This also improve compaction success rate.
->
+Yes, you surely got it correct, sir. 
 
-migration-aware means an framework which isolate_xxxx_page() can work with ?
-To do that, we need to know which object points to the page. Hmm. Do you have
-anyidea ?
+Thanks Minchan, for taking time to provide me such feedback. I'll rework commit
+messages to make them more elucidative, yet concise for the next submission.
 
--Kame
+Please, let me know if you have other concerns I shall be addressing here.
 
-
-
-
-
-
-
+Best regards!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
