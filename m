@@ -1,51 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
-	by kanga.kvack.org (Postfix) with SMTP id 0FE466B005A
-	for <linux-mm@kvack.org>; Thu, 28 Jun 2012 23:52:02 -0400 (EDT)
-Date: Fri, 29 Jun 2012 00:51:24 -0300
-From: Rafael Aquini <aquini@redhat.com>
+Received: from psmtp.com (na3sys010amx165.postini.com [74.125.245.165])
+	by kanga.kvack.org (Postfix) with SMTP id 56DC16B005A
+	for <linux-mm@kvack.org>; Fri, 29 Jun 2012 00:36:19 -0400 (EDT)
+From: Rusty Russell <rusty@rustcorp.com.au>
 Subject: Re: [PATCH v2 0/4] make balloon pages movable by compaction
-Message-ID: <20120629035123.GA1763@t510.redhat.com>
+In-Reply-To: <cover.1340916058.git.aquini@redhat.com>
 References: <cover.1340916058.git.aquini@redhat.com>
- <4FED06C8.1090003@kernel.org>
+Date: Fri, 29 Jun 2012 14:01:52 +0930
+Message-ID: <87r4syzqkn.fsf@rustcorp.com.au>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4FED06C8.1090003@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, Rusty Russell <rusty@rustcorp.com.au>, "Michael S. Tsirkin" <mst@redhat.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+To: Rafael Aquini <aquini@redhat.com>, linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, "Michael S. Tsirkin" <mst@redhat.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
 
-On Fri, Jun 29, 2012 at 10:37:12AM +0900, Minchan Kim wrote:
-> Hi Rafael,
+On Thu, 28 Jun 2012 18:49:38 -0300, Rafael Aquini <aquini@redhat.com> wrote:
+> This patchset follows the main idea discussed at 2012 LSFMMS section:
+> "Ballooning for transparent huge pages" -- http://lwn.net/Articles/490114/
 > 
-> On 06/29/2012 06:49 AM, Rafael Aquini wrote:
+> to introduce the required changes to the virtio_balloon driver, as well as
+> changes to the core compaction & migration bits, in order to allow
+> memory balloon pages become movable within a guest.
 > 
-> > This patchset follows the main idea discussed at 2012 LSFMMS section:
-> > "Ballooning for transparent huge pages" -- http://lwn.net/Articles/490114/
+> Rafael Aquini (4):
+>   mm: introduce compaction and migration for virtio ballooned pages
+>   virtio_balloon: handle concurrent accesses to virtio_balloon struct
+>     elements
+>   virtio_balloon: introduce migration primitives to balloon pages
+>   mm: add vm event counters for balloon pages compaction
+> 
+>  drivers/virtio/virtio_balloon.c |  142 +++++++++++++++++++++++++++++++++++----
+>  include/linux/mm.h              |   16 +++++
+>  include/linux/virtio_balloon.h  |    6 ++
+>  include/linux/vm_event_item.h   |    2 +
+>  mm/compaction.c                 |  111 ++++++++++++++++++++++++------
+>  mm/migrate.c                    |   32 ++++++++-
+>  mm/vmstat.c                     |    4 ++
+>  7 files changed, 280 insertions(+), 33 deletions(-)
 > 
 > 
-> Could you summarize the problem, solution instead of link URL in cover-letter?
-> IIUC, the problem is that it is hard to get contiguous memory in guest-side 
-> after ballooning happens because guest-side memory could be very fragmented
-> by ballooned page. It makes THP page allocation of guest-side very poor success ratio.
-> 
-> The solution is that when memory ballooning happens, we allocates ballooned page
-> as a movable page in guest-side because they can be migrated easily so compaction of
-> guest-side could put together them into either side so that we can get contiguous memory.
-> For it, compaction should be aware of ballooned page.
-> 
-> Right?
->
-Yes, you surely got it correct, sir. 
+> V2: address Mel Gorman's review comments
 
-Thanks Minchan, for taking time to provide me such feedback. I'll rework commit
-messages to make them more elucidative, yet concise for the next submission.
+If Mel is happy, I am happy.  Seems sensible that the virtio_baloon
+changes go in at the same time as the mm changes, so:
 
-Please, let me know if you have other concerns I shall be addressing here.
+Acked-by: Rusty Russell <rusty@rustcorp.com.au>
 
-Best regards!
+Cheers,
+Rusty.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
