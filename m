@@ -1,45 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
-	by kanga.kvack.org (Postfix) with SMTP id ACE7A6B005A
-	for <linux-mm@kvack.org>; Fri, 29 Jun 2012 18:32:43 -0400 (EDT)
-Received: by dakp5 with SMTP id p5so6066995dak.14
-        for <linux-mm@kvack.org>; Fri, 29 Jun 2012 15:32:43 -0700 (PDT)
-Date: Sat, 30 Jun 2012 07:32:35 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH] vmscan: remove obsolete comment of shrinker
-Message-ID: <20120629223235.GB2079@barrios>
-References: <1340945500-14566-1-git-send-email-minchan@kernel.org>
- <jsk9pt$32e$2@dough.gmane.org>
+Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
+	by kanga.kvack.org (Postfix) with SMTP id 549606B005A
+	for <linux-mm@kvack.org>; Fri, 29 Jun 2012 18:50:34 -0400 (EDT)
+Received: by dakp5 with SMTP id p5so6084081dak.14
+        for <linux-mm@kvack.org>; Fri, 29 Jun 2012 15:50:33 -0700 (PDT)
+Date: Fri, 29 Jun 2012 15:50:31 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH v2] KSM: numa awareness sysfs knob
+In-Reply-To: <20120629141759.3312b49e.akpm@linux-foundation.org>
+Message-ID: <alpine.DEB.2.00.1206291543360.17044@chino.kir.corp.google.com>
+References: <1340970592-25001-1-git-send-email-pholasek@redhat.com> <20120629141759.3312b49e.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <jsk9pt$32e$2@dough.gmane.org>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Cong Wang <xiyou.wangcong@gmail.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Petr Holasek <pholasek@redhat.com>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Chris Wright <chrisw@sous-sol.org>, Izik Eidus <izik.eidus@ravellosystems.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Anton Arapov <anton@redhat.com>
 
-On Fri, Jun 29, 2012 at 01:15:43PM +0000, Cong Wang wrote:
-> 
-> On Fri, 29 Jun 2012 at 04:51 GMT, Minchan Kim <minchan@kernel.org> wrote:
-> > 09f363c7 fixed shrinker callback returns -1 when nr_to_scan is zero
-> > for preventing excessive the slab scanning. But 635697c6 fixed the
-> > problem, again so we can freely return -1 although nr_to_scan is zero.
-> > So let's revert 09f363c7 because the comment added in 09f363c7 made a
-> > unnecessary rule shrinker user should be aware of.
-> >
-> 
-> Please also include the subject of the commit, not just raw hash number. ;)
-> 
-> For example,
-> 
-> 09f363c7("vmscan: fix shrinker callback bug in fs/super.c")
-> 635697c6("vmscan: fix initial shrinker size handling")
+On Fri, 29 Jun 2012, Andrew Morton wrote:
 
-Yeb. It seems akpm handled it by himself.
-But I will keep in mind.
+> > I've tested this patch on numa machines with 2, 4 and 8 nodes and
+> > measured speed of memory access inside of KVM guests with memory pinned
+> > to one of nodes with this benchmark:
+> > 
+> > http://pholasek.fedorapeople.org/alloc_pg.c
+> > 
+> > Population standard deviations of access times in percentage of average
+> > were following:
+> > 
+> > merge_nodes=1
+> > 2 nodes 1.4%
+> > 4 nodes 1.6%
+> > 8 nodes	1.7%
+> > 
+> > merge_nodes=0
+> > 2 nodes	1%
+> > 4 nodes	0.32%
+> > 8 nodes	0.018%
+> 
+> ooh, numbers!  Thanks.
+> 
 
-Thanks, Cong!
+Ok, the standard deviation increases when merging pages from nodes with 
+remote distance, that makes sense.  But if that's true, then you would 
+restrict either the entire application to local memory with mempolicies or 
+cpusets, or you would use mbind() to restrict this memory to that set of 
+nodes already so that accesses, even with ksm merging, would have 
+affinity.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
