@@ -1,54 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx165.postini.com [74.125.245.165])
-	by kanga.kvack.org (Postfix) with SMTP id 56DC16B005A
-	for <linux-mm@kvack.org>; Fri, 29 Jun 2012 00:36:19 -0400 (EDT)
-From: Rusty Russell <rusty@rustcorp.com.au>
-Subject: Re: [PATCH v2 0/4] make balloon pages movable by compaction
-In-Reply-To: <cover.1340916058.git.aquini@redhat.com>
-References: <cover.1340916058.git.aquini@redhat.com>
-Date: Fri, 29 Jun 2012 14:01:52 +0930
-Message-ID: <87r4syzqkn.fsf@rustcorp.com.au>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
+	by kanga.kvack.org (Postfix) with SMTP id 6D15F6B005A
+	for <linux-mm@kvack.org>; Fri, 29 Jun 2012 00:51:24 -0400 (EDT)
+From: Minchan Kim <minchan@kernel.org>
+Subject: [PATCH] vmscan: remove obsolete comment of shrinker
+Date: Fri, 29 Jun 2012 13:51:40 +0900
+Message-Id: <1340945500-14566-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rafael Aquini <aquini@redhat.com>, linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, "Michael S. Tsirkin" <mst@redhat.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Minchan Kim <minchan@kernel.org>, Al Viro <viro@zeniv.linux.org.uk>, Mikulas Patocka <mpatocka@redhat.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>
 
-On Thu, 28 Jun 2012 18:49:38 -0300, Rafael Aquini <aquini@redhat.com> wrote:
-> This patchset follows the main idea discussed at 2012 LSFMMS section:
-> "Ballooning for transparent huge pages" -- http://lwn.net/Articles/490114/
-> 
-> to introduce the required changes to the virtio_balloon driver, as well as
-> changes to the core compaction & migration bits, in order to allow
-> memory balloon pages become movable within a guest.
-> 
-> Rafael Aquini (4):
->   mm: introduce compaction and migration for virtio ballooned pages
->   virtio_balloon: handle concurrent accesses to virtio_balloon struct
->     elements
->   virtio_balloon: introduce migration primitives to balloon pages
->   mm: add vm event counters for balloon pages compaction
-> 
->  drivers/virtio/virtio_balloon.c |  142 +++++++++++++++++++++++++++++++++++----
->  include/linux/mm.h              |   16 +++++
->  include/linux/virtio_balloon.h  |    6 ++
->  include/linux/vm_event_item.h   |    2 +
->  mm/compaction.c                 |  111 ++++++++++++++++++++++++------
->  mm/migrate.c                    |   32 ++++++++-
->  mm/vmstat.c                     |    4 ++
->  7 files changed, 280 insertions(+), 33 deletions(-)
-> 
-> 
-> V2: address Mel Gorman's review comments
+09f363c7 fixed shrinker callback returns -1 when nr_to_scan is zero
+for preventing excessive the slab scanning. But 635697c6 fixed the
+problem, again so we can freely return -1 although nr_to_scan is zero.
+So let's revert 09f363c7 because the comment added in 09f363c7 made a
+unnecessary rule shrinker user should be aware of.
 
-If Mel is happy, I am happy.  Seems sensible that the virtio_baloon
-changes go in at the same time as the mm changes, so:
+Cc: Al Viro <viro@zeniv.linux.org.uk>
+Cc: Mikulas Patocka <mpatocka@redhat.com>
+Cc: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Signed-off-by: Minchan Kim <minchan@kernel.org>
+---
+ fs/super.c               |    2 +-
+ include/linux/shrinker.h |    1 -
+ 2 files changed, 1 insertion(+), 2 deletions(-)
 
-Acked-by: Rusty Russell <rusty@rustcorp.com.au>
-
-Cheers,
-Rusty.
+diff --git a/fs/super.c b/fs/super.c
+index c2f3a1f..1c2868c 100644
+--- a/fs/super.c
++++ b/fs/super.c
+@@ -62,7 +62,7 @@ static int prune_super(struct shrinker *shrink, struct shrink_control *sc)
+ 		return -1;
+ 
+ 	if (!grab_super_passive(sb))
+-		return !sc->nr_to_scan ? 0 : -1;
++		return -1;
+ 
+ 	if (sb->s_op && sb->s_op->nr_cached_objects)
+ 		fs_objects = sb->s_op->nr_cached_objects(sb);
+diff --git a/include/linux/shrinker.h b/include/linux/shrinker.h
+index 07ceb97..ac6b8ee 100644
+--- a/include/linux/shrinker.h
++++ b/include/linux/shrinker.h
+@@ -20,7 +20,6 @@ struct shrink_control {
+  * 'nr_to_scan' entries and attempt to free them up.  It should return
+  * the number of objects which remain in the cache.  If it returns -1, it means
+  * it cannot do any scanning at this time (eg. there is a risk of deadlock).
+- * The callback must not return -1 if nr_to_scan is zero.
+  *
+  * The 'gfpmask' refers to the allocation we are currently trying to
+  * fulfil.
+-- 
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
