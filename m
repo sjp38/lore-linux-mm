@@ -1,86 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
-	by kanga.kvack.org (Postfix) with SMTP id A90B66B005A
-	for <linux-mm@kvack.org>; Fri, 29 Jun 2012 16:37:20 -0400 (EDT)
-Received: by dakp5 with SMTP id p5so5950921dak.14
-        for <linux-mm@kvack.org>; Fri, 29 Jun 2012 13:37:19 -0700 (PDT)
-Date: Fri, 29 Jun 2012 13:37:17 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [rfc][patch 3/3] mm, memcg: introduce own oom handler to iterate
- only over its own threads
-In-Reply-To: <20120628171618.GA27089@redhat.com>
-Message-ID: <alpine.DEB.2.00.1206291333080.6040@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.1206251846020.24838@chino.kir.corp.google.com> <alpine.DEB.2.00.1206251847180.24838@chino.kir.corp.google.com> <4FE94968.6010500@jp.fujitsu.com> <alpine.DEB.2.00.1206261323260.8673@chino.kir.corp.google.com>
- <alpine.DEB.2.00.1206262229380.32567@chino.kir.corp.google.com> <alpine.DEB.2.00.1206271837460.14446@chino.kir.corp.google.com> <20120628171618.GA27089@redhat.com>
+Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
+	by kanga.kvack.org (Postfix) with SMTP id E384B6B005A
+	for <linux-mm@kvack.org>; Fri, 29 Jun 2012 16:44:17 -0400 (EDT)
+Received: by bkcjc3 with SMTP id jc3so1402294bkc.14
+        for <linux-mm@kvack.org>; Fri, 29 Jun 2012 13:44:16 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <CAPQyPG4R34bi0fXHBspSpR1+gDLj2PGYpPXNLPTTTBmrRL=m4g@mail.gmail.com>
+References: <1340888180-15355-1-git-send-email-aarcange@redhat.com>
+	<1340888180-15355-14-git-send-email-aarcange@redhat.com>
+	<1340895238.28750.49.camel@twins>
+	<CAJd=RBA+FPgB9iq07YG0Pd=tN65SGK1ifmj98tomBDbYeKOE-Q@mail.gmail.com>
+	<20120629125517.GD32637@gmail.com>
+	<4FEDDD0C.60609@redhat.com>
+	<1340995986.28750.114.camel@twins>
+	<CAPQyPG4R34bi0fXHBspSpR1+gDLj2PGYpPXNLPTTTBmrRL=m4g@mail.gmail.com>
+Date: Sat, 30 Jun 2012 04:44:15 +0800
+Message-ID: <CAPQyPG6_uqKhkhjO07KgJVDb47P2Dec9EWCpTASMMU5moJkzCA@mail.gmail.com>
+Subject: Re: [PATCH 13/40] autonuma: CPU follow memory algorithm
+From: Nai Xia <nai.xia@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Oleg Nesterov <oleg@redhat.com>
-Cc: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, cgroups@vger.kernel.org
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: dlaor@redhat.com, Ingo Molnar <mingo@kernel.org>, Hillf Danton <dhillf@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dan Smith <danms@us.ibm.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Srivatsa Vaddagiri <vatsa@linux.vnet.ibm.com>, Christoph Lameter <cl@linux.com>, Alex Shi <alex.shi@intel.com>, Mauricio Faria de Oliveira <mauricfo@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Don Morris <don.morris@hp.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
 
-On Thu, 28 Jun 2012, Oleg Nesterov wrote:
+On Sat, Jun 30, 2012 at 4:01 AM, Nai Xia <nai.xia@gmail.com> wrote:
+> On Sat, Jun 30, 2012 at 2:53 AM, Peter Zijlstra <a.p.zijlstra@chello.nl> =
+wrote:
+>> On Fri, 2012-06-29 at 12:51 -0400, Dor Laor wrote:
+>>> The previous comments were not shouts but the mother of all NAKs.
+>>
+>> I never said any such thing. I just said why should I bother reading
+>> your stuff if you're ignoring most my feedback anyway.
+>>
+>> If you want to read that as a NAK, not my problem.
+>
+> Hey guys, Can I say NAK to these patches ?
+>
+> Now I aware that this sampling algorithm is completely broken, if we take
+> a few seconds to see what it is trying to solve:
+>
+> We all know that LRU is try to solve the question of "what are the
+> pages recently accessed?",
+> so its engouth to use pte bits to approximate.
+>
+> However, the numa balancing problem is fundamentally like this:
+>
+> In some time unit,
+>
+> =A0 =A0 =A0W =3D pages_accessed =A0* =A0average_page_access_frequence
+>
+> We are trying to move process to the node having max W, =A0right?
+>
+> Andrea's patch can only approximate the pages_accessed number in a
+> time unit(scan interval),
+> I don't think it can catch even 1% of =A0average_page_access_frequence
+> on a busy workload.
+> Blindly assuming that all the pages' =A0average_page_access_frequence is
 
-> > @@ -348,6 +348,7 @@ static struct task_struct *select_bad_process(unsigned int *ppoints,
-> >  	struct task_struct *chosen = NULL;
-> >  	unsigned long chosen_points = 0;
-> >
-> > +	rcu_read_lock();
-> >  	do_each_thread(g, p) {
-> >  		unsigned int points;
-> >
-> > @@ -370,6 +371,9 @@ static struct task_struct *select_bad_process(unsigned int *ppoints,
-> >  			chosen_points = points;
-> >  		}
-> >  	} while_each_thread(g, p);
-> > +	if (chosen)
-> > +		get_task_struct(chosen);
-> 
-> OK, so the caller should do put_task_struct().
-> 
+Oh, sorry for my typo,  I mean "frequency".
 
-oom_kill_process() will now do the put_task_struct() since we need a 
-reference before killing it, so callers to oom_kill_process() are 
-responsible for grabbing it before doing rcu_read_unlock().
 
-> But, unless I misread the patch,
-> 
-> > @@ -454,6 +458,7 @@ void oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
-> > ...
-> > +	rcu_read_lock();
-> > +	p = find_lock_task_mm(victim);
-> > +	if (!p) {
-> > +		rcu_read_unlock();
-> > +		put_task_struct(victim);
-
-So if the victim has no threads that have an mm, then we have raced with 
-select_bad_process() and we silently return.
-
-> >  		return;
-> > +	} else
-> > +		victim = p;
-> 
-> And, before return,
-> 
-> > +	put_task_struct(victim);
-> 
-> Doesn't look right if victim != p.
-> 
-
-Ah, good catch, we need to do
-
-	if (!p) {
-		rcu_read_unlock();
-		put_task_struct(victim);
-		return;
-	} else {
-		put_task_struct(victim);
-		victim = p;
-		get_task_struct(victim);
-		rcu_read_unlock();
-	}
-
-Thanks.
+> the same is seemly
+> broken to me.
+>
+> Sometimes, it's good to have a good view of your problem before
+> spending a lot time coding.
+>
+>>
+>> --
+>> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>> the body to majordomo@kvack.org. =A0For more info on Linux MM,
+>> see: http://www.linux-mm.org/ .
+>> Don't email: <a hrefmailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
