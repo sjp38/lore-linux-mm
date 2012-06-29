@@ -1,45 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
-	by kanga.kvack.org (Postfix) with SMTP id 928D16B005C
-	for <linux-mm@kvack.org>; Fri, 29 Jun 2012 15:20:04 -0400 (EDT)
-Message-ID: <4FEDFFB5.3010401@redhat.com>
-Date: Fri, 29 Jun 2012 15:19:17 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
+	by kanga.kvack.org (Postfix) with SMTP id 47C026B005A
+	for <linux-mm@kvack.org>; Fri, 29 Jun 2012 16:01:53 -0400 (EDT)
+Received: by lbjn8 with SMTP id n8so6538009lbj.14
+        for <linux-mm@kvack.org>; Fri, 29 Jun 2012 13:01:51 -0700 (PDT)
 MIME-Version: 1.0
+In-Reply-To: <1340995986.28750.114.camel@twins>
+References: <1340888180-15355-1-git-send-email-aarcange@redhat.com>
+	<1340888180-15355-14-git-send-email-aarcange@redhat.com>
+	<1340895238.28750.49.camel@twins>
+	<CAJd=RBA+FPgB9iq07YG0Pd=tN65SGK1ifmj98tomBDbYeKOE-Q@mail.gmail.com>
+	<20120629125517.GD32637@gmail.com>
+	<4FEDDD0C.60609@redhat.com>
+	<1340995986.28750.114.camel@twins>
+Date: Sat, 30 Jun 2012 04:01:50 +0800
+Message-ID: <CAPQyPG4R34bi0fXHBspSpR1+gDLj2PGYpPXNLPTTTBmrRL=m4g@mail.gmail.com>
 Subject: Re: [PATCH 13/40] autonuma: CPU follow memory algorithm
-References: <1340888180-15355-1-git-send-email-aarcange@redhat.com>  <1340888180-15355-14-git-send-email-aarcange@redhat.com>  <1340895238.28750.49.camel@twins>  <CAJd=RBA+FPgB9iq07YG0Pd=tN65SGK1ifmj98tomBDbYeKOE-Q@mail.gmail.com>  <20120629125517.GD32637@gmail.com> <4FEDDD0C.60609@redhat.com>  <1340995260.28750.103.camel@twins> <4FEDF81C.1010401@redhat.com>  <1340996224.28750.116.camel@twins> <1340996586.28750.122.camel@twins>
-In-Reply-To: <1340996586.28750.122.camel@twins>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+From: Nai Xia <nai.xia@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: dlaor@redhat.com, Ingo Molnar <mingo@kernel.org>, Hillf Danton <dhillf@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dan Smith <danms@us.ibm.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Johannes Weiner <hannes@cmpxchg.org>, Srivatsa Vaddagiri <vatsa@linux.vnet.ibm.com>, Christoph Lameter <cl@linux.com>, Alex Shi <alex.shi@intel.com>, Mauricio Faria de Oliveira <mauricfo@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Don Morris <don.morris@hp.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: dlaor@redhat.com, Ingo Molnar <mingo@kernel.org>, Hillf Danton <dhillf@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dan Smith <danms@us.ibm.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Srivatsa Vaddagiri <vatsa@linux.vnet.ibm.com>, Christoph Lameter <cl@linux.com>, Alex Shi <alex.shi@intel.com>, Mauricio Faria de Oliveira <mauricfo@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Don Morris <don.morris@hp.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
 
-On 06/29/2012 03:03 PM, Peter Zijlstra wrote:
-> On Fri, 2012-06-29 at 20:57 +0200, Peter Zijlstra wrote:
->> On Fri, 2012-06-29 at 14:46 -0400, Rik van Riel wrote:
->>>
->>> I am not convinced all architectures that have CONFIG_NUMA
->>> need to be a requirement, since some of them (eg. Alpha)
->>> seem to be lacking a maintainer nowadays.
->>
->> Still, this NUMA balancing stuff is not a small tweak to load-balancing.
->> Its a very significant change is how you schedule. Having such great
->> differences over architectures isn't something I look forward to.
+On Sat, Jun 30, 2012 at 2:53 AM, Peter Zijlstra <a.p.zijlstra@chello.nl> wr=
+ote:
+> On Fri, 2012-06-29 at 12:51 -0400, Dor Laor wrote:
+>> The previous comments were not shouts but the mother of all NAKs.
+>
+> I never said any such thing. I just said why should I bother reading
+> your stuff if you're ignoring most my feedback anyway.
+>
+> If you want to read that as a NAK, not my problem.
 
-I am not too worried about the performance of architectures
-that are essentially orphaned :)
+Hey guys, Can I say NAK to these patches ?
 
-> Also, Andrea keeps insisting arch support is trivial, so I don't see the
-> problem.
+Now I aware that this sampling algorithm is completely broken, if we take
+a few seconds to see what it is trying to solve:
 
-Getting it implemented in one or two additional architectures
-would be good, to get a template out there that can be used by
-other architecture maintainers.
+We all know that LRU is try to solve the question of "what are the
+pages recently accessed?",
+so its engouth to use pte bits to approximate.
 
--- 
-All rights reversed
+However, the numa balancing problem is fundamentally like this:
+
+In some time unit,
+
+      W =3D pages_accessed  *  average_page_access_frequence
+
+We are trying to move process to the node having max W,  right?
+
+Andrea's patch can only approximate the pages_accessed number in a
+time unit(scan interval),
+I don't think it can catch even 1% of  average_page_access_frequence
+on a busy workload.
+Blindly assuming that all the pages'  average_page_access_frequence is
+the same is seemly
+broken to me.
+
+Sometimes, it's good to have a good view of your problem before
+spending a lot time coding.
+
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org. =A0For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a hrefmailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
