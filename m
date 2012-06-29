@@ -1,47 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
-	by kanga.kvack.org (Postfix) with SMTP id 5B1CB6B0068
-	for <linux-mm@kvack.org>; Fri, 29 Jun 2012 14:32:34 -0400 (EDT)
-Message-ID: <4FEDF49A.9020907@redhat.com>
-Date: Fri, 29 Jun 2012 14:31:54 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
+	by kanga.kvack.org (Postfix) with SMTP id 3D2D86B0069
+	for <linux-mm@kvack.org>; Fri, 29 Jun 2012 14:32:40 -0400 (EDT)
+Received: by pbbrp2 with SMTP id rp2so6011532pbb.14
+        for <linux-mm@kvack.org>; Fri, 29 Jun 2012 11:32:39 -0700 (PDT)
+Date: Fri, 29 Jun 2012 11:32:33 -0700
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH for -3.5] memblock: free allocated
+ memblock_reserved_regions later
+Message-ID: <20120629183233.GC21048@google.com>
+References: <CAE9FiQXqb4NVnWeJR75+gfwCkKMtBh2GDwoSijPf4JEezfqcnQ@mail.gmail.com>
+ <1340994477-3122-1-git-send-email-yinghai@kernel.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH 15/40] autonuma: knuma_migrated per NUMA node queues
-References: <1340888180-15355-1-git-send-email-aarcange@redhat.com> <1340888180-15355-16-git-send-email-aarcange@redhat.com>
-In-Reply-To: <1340888180-15355-16-git-send-email-aarcange@redhat.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1340994477-3122-1-git-send-email-yinghai@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hillf Danton <dhillf@gmail.com>, Dan Smith <danms@us.ibm.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Johannes Weiner <hannes@cmpxchg.org>, Srivatsa Vaddagiri <vatsa@linux.vnet.ibm.com>, Christoph Lameter <cl@linux.com>, Alex Shi <alex.shi@intel.com>, Mauricio Faria de Oliveira <mauricfo@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Don Morris <don.morris@hp.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
+To: Yinghai Lu <yinghai@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>, "H. Peter Anvin" <hpa@zytor.com>, Sasha Levin <levinsasha928@gmail.com>, Gavin Shan <shangw@linux.vnet.ibm.com>, linux-mm <linux-mm@kvack.org>, linux-kernel@vger.kernel.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>
 
-On 06/28/2012 08:55 AM, Andrea Arcangeli wrote:
+Hello, Yinghai.
 
-> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-> index 2427706..d53b26a 100644
-> --- a/include/linux/mmzone.h
-> +++ b/include/linux/mmzone.h
-> @@ -697,6 +697,12 @@ typedef struct pglist_data {
->   	struct task_struct *kswapd;
->   	int kswapd_max_order;
->   	enum zone_type classzone_idx;
-> +#ifdef CONFIG_AUTONUMA
-> +	spinlock_t autonuma_lock;
-> +	struct list_head autonuma_migrate_head[MAX_NUMNODES];
-> +	unsigned long autonuma_nr_migrate_pages;
-> +	wait_queue_head_t autonuma_knuma_migrated_wait;
-> +#endif
->   } pg_data_t;
->
->   #define node_present_pages(nid)	(NODE_DATA(nid)->node_present_pages)
+Just one nitpick.
 
-Once again, the data structure could use documentation.
+On Fri, Jun 29, 2012 at 11:27:57AM -0700, Yinghai Lu wrote:
+>  /**
+>   * memblock_double_array - double the size of the memblock regions array
+>   * @type: memblock type of the regions array being doubled
+> @@ -204,6 +192,7 @@ static int __init_memblock memblock_doub
+>  						phys_addr_t new_area_size)
+>  {
+>  	struct memblock_region *new_array, *old_array;
+> +	phys_addr_t old_alloc_size, new_alloc_size;
+>  	phys_addr_t old_size, new_size, addr;
+>  	int use_slab = slab_is_available();
+>  	int *in_slab;
+> @@ -217,6 +206,12 @@ static int __init_memblock memblock_doub
+>  	/* Calculate new doubled size */
+>  	old_size = type->max * sizeof(struct memblock_region);
+>  	new_size = old_size << 1;
+> +	/*
+> +	 * We need to allocated new one align to PAGE_SIZE,
+> +	 *  so late could free them completely.
 
-What are these things for?
+An extra space and probably "so we can free them completely later"
+fits better.
+
+Thank you!
 
 -- 
-All rights reversed
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
