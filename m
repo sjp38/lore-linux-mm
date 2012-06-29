@@ -1,46 +1,33 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
-	by kanga.kvack.org (Postfix) with SMTP id E678D6B005A
-	for <linux-mm@kvack.org>; Fri, 29 Jun 2012 09:16:58 -0400 (EDT)
-Message-ID: <4FEDAAC6.2050202@ladisch.de>
-Date: Fri, 29 Jun 2012 15:16:54 +0200
-From: Clemens Ladisch <clemens@ladisch.de>
+Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
+	by kanga.kvack.org (Postfix) with SMTP id 9DE466B005A
+	for <linux-mm@kvack.org>; Fri, 29 Jun 2012 09:23:31 -0400 (EDT)
+Date: Fri, 29 Jun 2012 15:23:30 +0200
+From: Petr Holasek <pholasek@redhat.com>
+Subject: Re: [PATCH v2] KSM: numa awareness sysfs knob
+Message-ID: <20120629132330.GA20670@dhcp-27-244.brq.redhat.com>
+References: <1340970592-25001-1-git-send-email-pholasek@redhat.com>
+ <jsk93p$32e$1@dough.gmane.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH] common: dma-mapping: add support for generic dma_mmap_*
- calls
-References: <1339741135-7841-1-git-send-email-m.szyprowski@samsung.com> <4FED8D03.10507@ladisch.de> <00a501cd55f7$323946f0$96abd4d0$%szyprowski@samsung.com>
-In-Reply-To: <00a501cd55f7$323946f0$96abd4d0$%szyprowski@samsung.com>
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+In-Reply-To: <jsk93p$32e$1@dough.gmane.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Marek Szyprowski <m.szyprowski@samsung.com>
-Cc: linux-arm-kernel@lists.infradead.org, linuxppc-dev@lists.ozlabs.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, 'Kyungmin Park' <kyungmin.park@samsung.com>, 'Arnd Bergmann' <arnd@arndb.de>, 'Russell King - ARM Linux' <linux@arm.linux.org.uk>, 'Benjamin Herrenschmidt' <benh@kernel.crashing.org>, 'Konrad Rzeszutek Wilk' <konrad.wilk@oracle.com>, 'David Gibson' <david@gibson.dropbear.id.au>, 'Subash Patel' <subash.ramaswamy@linaro.org>, 'Sumit Semwal' <sumit.semwal@linaro.org>
+To: Cong Wang <xiyou.wangcong@gmail.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Marek Szyprowski wrote:
-> On Friday, June 29, 2012 1:10 PM Clemens Ladisch wrote:
->> Marek Szyprowski wrote:
->>> +++ b/drivers/base/dma-mapping.c
->>> ...
->>> +int dma_common_mmap(struct device *dev, struct vm_area_struct *vma,
->>> +		    void *cpu_addr, dma_addr_t dma_addr, size_t size)
->>> +{
->>> +	int ret = -ENXIO;
->>> +	...
->>> +	if (dma_mmap_from_coherent(dev, vma, cpu_addr, size, &ret))
->>> +		return ret;
->>
->> This will return -ENXIO if dma_mmap_from_coherent() succeeds.
->
-> Thanks for spotting this!
+On Fri, 29 Jun 2012, Cong Wang wrote:
+> On Fri, 29 Jun 2012 at 11:49 GMT, Petr Holasek <pholasek@redhat.com> wrote:
+> > -		root_unstable_tree = RB_ROOT;
+> > +		for (i = 0; i < MAX_NUMNODES; i++)
+> > +			root_unstable_tree[i] = RB_ROOT;
+> 
+> 
+> This is not aware of memory-hotplug, right?
+> 
 
-Sorry, I was wrong; ret is actually set by dma_mmap_from_coherent's
-output parameter.  (That function's documentation appears to be
-incomplete.)
-
-
-Regards,
-Clemens
+What makes you think so?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
