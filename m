@@ -1,46 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
-	by kanga.kvack.org (Postfix) with SMTP id D9F166B005A
-	for <linux-mm@kvack.org>; Fri, 29 Jun 2012 09:16:00 -0400 (EDT)
-Received: from list by plane.gmane.org with local (Exim 4.69)
-	(envelope-from <glkm-linux-mm-2@m.gmane.org>)
-	id 1Skb3E-0007Vx-S4
-	for linux-mm@kvack.org; Fri, 29 Jun 2012 15:15:56 +0200
-Received: from 117.57.110.131 ([117.57.110.131])
-        by main.gmane.org with esmtp (Gmexim 0.1 (Debian))
-        id 1AlnuQ-0007hv-00
-        for <linux-mm@kvack.org>; Fri, 29 Jun 2012 15:15:56 +0200
-Received: from xiyou.wangcong by 117.57.110.131 with local (Gmexim 0.1 (Debian))
-        id 1AlnuQ-0007hv-00
-        for <linux-mm@kvack.org>; Fri, 29 Jun 2012 15:15:56 +0200
-From: Cong Wang <xiyou.wangcong@gmail.com>
-Subject: Re: [PATCH] vmscan: remove obsolete comment of shrinker
-Date: Fri, 29 Jun 2012 13:15:43 +0000 (UTC)
-Message-ID: <jsk9pt$32e$2@dough.gmane.org>
-References: <1340945500-14566-1-git-send-email-minchan@kernel.org>
-Mime-Version: 1.0
+Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
+	by kanga.kvack.org (Postfix) with SMTP id E678D6B005A
+	for <linux-mm@kvack.org>; Fri, 29 Jun 2012 09:16:58 -0400 (EDT)
+Message-ID: <4FEDAAC6.2050202@ladisch.de>
+Date: Fri, 29 Jun 2012 15:16:54 +0200
+From: Clemens Ladisch <clemens@ladisch.de>
+MIME-Version: 1.0
+Subject: Re: [PATCH] common: dma-mapping: add support for generic dma_mmap_*
+ calls
+References: <1339741135-7841-1-git-send-email-m.szyprowski@samsung.com> <4FED8D03.10507@ladisch.de> <00a501cd55f7$323946f0$96abd4d0$%szyprowski@samsung.com>
+In-Reply-To: <00a501cd55f7$323946f0$96abd4d0$%szyprowski@samsung.com>
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org
+To: Marek Szyprowski <m.szyprowski@samsung.com>
+Cc: linux-arm-kernel@lists.infradead.org, linuxppc-dev@lists.ozlabs.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, 'Kyungmin Park' <kyungmin.park@samsung.com>, 'Arnd Bergmann' <arnd@arndb.de>, 'Russell King - ARM Linux' <linux@arm.linux.org.uk>, 'Benjamin Herrenschmidt' <benh@kernel.crashing.org>, 'Konrad Rzeszutek Wilk' <konrad.wilk@oracle.com>, 'David Gibson' <david@gibson.dropbear.id.au>, 'Subash Patel' <subash.ramaswamy@linaro.org>, 'Sumit Semwal' <sumit.semwal@linaro.org>
 
-
-On Fri, 29 Jun 2012 at 04:51 GMT, Minchan Kim <minchan@kernel.org> wrote:
-> 09f363c7 fixed shrinker callback returns -1 when nr_to_scan is zero
-> for preventing excessive the slab scanning. But 635697c6 fixed the
-> problem, again so we can freely return -1 although nr_to_scan is zero.
-> So let's revert 09f363c7 because the comment added in 09f363c7 made a
-> unnecessary rule shrinker user should be aware of.
+Marek Szyprowski wrote:
+> On Friday, June 29, 2012 1:10 PM Clemens Ladisch wrote:
+>> Marek Szyprowski wrote:
+>>> +++ b/drivers/base/dma-mapping.c
+>>> ...
+>>> +int dma_common_mmap(struct device *dev, struct vm_area_struct *vma,
+>>> +		    void *cpu_addr, dma_addr_t dma_addr, size_t size)
+>>> +{
+>>> +	int ret = -ENXIO;
+>>> +	...
+>>> +	if (dma_mmap_from_coherent(dev, vma, cpu_addr, size, &ret))
+>>> +		return ret;
+>>
+>> This will return -ENXIO if dma_mmap_from_coherent() succeeds.
 >
+> Thanks for spotting this!
 
-Please also include the subject of the commit, not just raw hash number. ;)
+Sorry, I was wrong; ret is actually set by dma_mmap_from_coherent's
+output parameter.  (That function's documentation appears to be
+incomplete.)
 
-For example,
 
-09f363c7("vmscan: fix shrinker callback bug in fs/super.c")
-635697c6("vmscan: fix initial shrinker size handling")
+Regards,
+Clemens
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
