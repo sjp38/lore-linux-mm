@@ -1,73 +1,124 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
-	by kanga.kvack.org (Postfix) with SMTP id D66A86B0062
-	for <linux-mm@kvack.org>; Fri, 29 Jun 2012 14:07:55 -0400 (EDT)
-Message-ID: <4FEDEE9F.4080103@redhat.com>
-Date: Fri, 29 Jun 2012 14:06:23 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
+	by kanga.kvack.org (Postfix) with SMTP id 5D2326B0062
+	for <linux-mm@kvack.org>; Fri, 29 Jun 2012 14:09:58 -0400 (EDT)
+Received: by dakp5 with SMTP id p5so5775675dak.14
+        for <linux-mm@kvack.org>; Fri, 29 Jun 2012 11:09:57 -0700 (PDT)
+Message-ID: <4FEDEF68.6000708@gmail.com>
+Date: Sat, 30 Jun 2012 02:09:44 +0800
+From: Nai Xia <nai.xia@gmail.com>
+Reply-To: nai.xia@gmail.com
 MIME-Version: 1.0
-Subject: Re: [PATCH 14/40] autonuma: add page structure fields
-References: <1340888180-15355-1-git-send-email-aarcange@redhat.com> <1340888180-15355-15-git-send-email-aarcange@redhat.com>
-In-Reply-To: <1340888180-15355-15-git-send-email-aarcange@redhat.com>
+Subject: Re: [PATCH 13/40] autonuma: CPU follow memory algorithm
+References: <1340888180-15355-1-git-send-email-aarcange@redhat.com> <1340888180-15355-14-git-send-email-aarcange@redhat.com> <1340894776.28750.44.camel@twins> <4FEDB797.3050804@gmail.com> <20120629163025.GP6676@redhat.com>
+In-Reply-To: <20120629163025.GP6676@redhat.com>
 Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hillf Danton <dhillf@gmail.com>, Dan Smith <danms@us.ibm.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Johannes Weiner <hannes@cmpxchg.org>, Srivatsa Vaddagiri <vatsa@linux.vnet.ibm.com>, Christoph Lameter <cl@linux.com>, Alex Shi <alex.shi@intel.com>, Mauricio Faria de Oliveira <mauricfo@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Don Morris <don.morris@hp.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hillf Danton <dhillf@gmail.com>, Dan Smith <danms@us.ibm.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Srivatsa Vaddagiri <vatsa@linux.vnet.ibm.com>, Christoph Lameter <cl@linux.com>, Alex Shi <alex.shi@intel.com>, Mauricio Faria de Oliveira <mauricfo@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Don Morris <don.morris@hp.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
 
-On 06/28/2012 08:55 AM, Andrea Arcangeli wrote:
-> On 64bit archs, 20 bytes are used for async memory migration (specific
-> to the knuma_migrated per-node threads), and 4 bytes are used for the
-> thread NUMA false sharing detection logic.
+
+
+On 2012a1'06ae??30ae?JPY 00:30, Andrea Arcangeli wrote:
+> Hi Nai,
 >
-> This is a bad implementation due lack of time to do a proper one.
-
-It is not ideal, no.
-
-If you document what everything does, maybe somebody else
-will understand the code well enough to help fix it.
-
-> --- a/include/linux/mm_types.h
-> +++ b/include/linux/mm_types.h
-> @@ -136,6 +136,32 @@ struct page {
->   		struct page *first_page;	/* Compound tail pages */
->   	};
+> On Fri, Jun 29, 2012 at 10:11:35PM +0800, Nai Xia wrote:
+>> If one process do very intensive visit of a small set of pages in this
+>> node, but occasional visit of a large set of pages in another node.
+>> Will this algorithm do a very bad judgment? I guess the answer would
+>> be: it's possible and this judgment depends on the racing pattern
+>> between the process and your knuma_scand.
 >
-> +#ifdef CONFIG_AUTONUMA
-> +	/*
-> +	 * FIXME: move to pgdat section along with the memcg and allocate
-> +	 * at runtime only in presence of a numa system.
-> +	 */
+> Depending if the knuma_scand/scan_pass_sleep_millisecs is more or less
+> occasional than the visit of a large set of pages it may behave
+> differently correct.
 
-Once you fix it, could you fold the fix into this patch?
+I bet this racing is more subtle than this, but since you admit
+this judgment is a racing problem. Then it doesn't matter how subtle
+it would be.
 
-> +	/*
-> +	 * To modify autonuma_last_nid lockless the architecture,
-> +	 * needs SMP atomic granularity<  sizeof(long), not all archs
-> +	 * have that, notably some ancient alpha (but none of those
-> +	 * should run in NUMA systems). Archs without that requires
-> +	 * autonuma_last_nid to be a long.
-> +	 */
-> +#if BITS_PER_LONG>  32
-> +	int autonuma_migrate_nid;
-> +	int autonuma_last_nid;
-> +#else
-> +#if MAX_NUMNODES>= 32768
-> +#error "too many nodes"
-> +#endif
-> +	/* FIXME: remember to check the updates are atomic */
-> +	short autonuma_migrate_nid;
-> +	short autonuma_last_nid;
-> +#endif
-> +	struct list_head autonuma_migrate_node;
-> +#endif
+>
+> Note that every algorithm will have a limit on how smart it can be.
+>
+> Just to make a random example: if you lookup some pagecache a million
+> times and some other pagecache a dozen times, their "aging"
+> information in the pagecache will end up identical. Yet we know one
+> set of pages is clearly higher priority than the other. We've only so
+> many levels of lrus and so many referenced/active bitflags per
+> page. Once you get at the top, then all is equal.
+>
+> Does this mean the "active" list working set detection is useless just
+> because we can't differentiate a million of lookups on a few pages, vs
+> a dozen of lookups on lots of pages?
 
-Please document what these fields mean.
+I knew you will give us an example of LRU. ;D
+But unfortunately the approximation of LRU can not justify your case:
+There are cases when LRU approximation behaves very badly,
+but enough research in history have told us that 90% of the workloads
+conforms to this kind of approximation, and even every programmer has
+been taught to write LRU conforming programs.
+
+But we have no idea how well real world workloads will conforms to your
+algo especially the racing pattern.
 
 
--- 
-All rights reversed
+>
+> Last but not the least, in the very example you mention it's not even
+> clear that the process should be scheduled in the CPU where there is
+> the small set of pages accessed frequently, or the CPU where there's
+> the large set of pages accessed occasionally. If the small sets of
+> pages fits in the 8MBytes of the L2 cache, then it's better to put the
+> process in the other CPU where the large set of pages can't fit in the
+> L2 cache. Lots of hardware details should be evaluated, to really know
+> what's the right thing in such case even if it was you having to
+> decide.
+
+That's just why I think it more subtle and why I am feeling not confident
+about your algo -- if the effectiveness of your algorithm depends on so
+many uncertain things.
+
+>
+> But the real reason why the above isn't an issue and why we don't need
+> to solve that problem perfectly: there's not just a CPU follow memory
+> algorithm in AutoNUMA. There's also the memory follow CPU
+> algorithm. AutoNUMA will do its best to change the layout of your
+> example to one that has only one clear solution: the occasional lookup
+> of the large set of pages, will make those eventually go in the node
+> together with the small set of pages (or the other way around), and
+> this is how it's solved.
+
+Not sure to follow, if you fall back on this, then why all its complexity?
+This fall back equals to "just group all the pages to the running" policy.
+
+
+>
+> In any case, whatever wrong decision it will take, it will at least be
+> a better decision than the numa/sched where there's absolutely zero
+> information about what pages the process is accessing. And best of all
+> with AutoNUMA you also know which pages the _thread_ is accessing so
+> it will also be able to take optimal decisions if there are more
+> threads than CPUs in a node (as long as not all thread accesses are
+> shared).
+
+Yeah, we need the information. But how to make best of the information
+is a big problem.
+I feel you may not address my question only by word reasoning,
+if you currently have in your hand no survey of the common page access
+patterns of real world workloads.
+
+Maybe the assumption of your algorithm is right, maybe not...
+
+
+>
+> Hope this explains things better.
+> Andrea
+
+
+Thanks,
+
+Nai
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
