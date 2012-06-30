@@ -1,62 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
-	by kanga.kvack.org (Postfix) with SMTP id ECB046B009F
-	for <linux-mm@kvack.org>; Sat, 30 Jun 2012 07:41:07 -0400 (EDT)
-Date: Sat, 30 Jun 2012 13:40:57 +0200
+Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
+	by kanga.kvack.org (Postfix) with SMTP id 03EC36B00A1
+	for <linux-mm@kvack.org>; Sat, 30 Jun 2012 08:29:29 -0400 (EDT)
+Date: Sat, 30 Jun 2012 14:29:23 +0200
 From: Petr Holasek <pholasek@redhat.com>
 Subject: Re: [PATCH v2] KSM: numa awareness sysfs knob
-Message-ID: <20120630114053.GA3036@stainedmachine.redhat.com>
+Message-ID: <20120630122919.GB3036@stainedmachine.redhat.com>
 References: <1340970592-25001-1-git-send-email-pholasek@redhat.com>
- <20120629160510.GA10082@cmpxchg.org>
- <20120629163033.GA11327@stainedmachine.redhat.com>
- <20120629164706.GA7831@cmpxchg.org>
- <alpine.DEB.2.00.1206291526180.15200@chino.kir.corp.google.com>
+ <20120629141759.3312b49e.akpm@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1206291526180.15200@chino.kir.corp.google.com>
+In-Reply-To: <20120629141759.3312b49e.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Chris Wright <chrisw@sous-sol.org>, Izik Eidus <izik.eidus@ravellosystems.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Anton Arapov <anton@redhat.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Chris Wright <chrisw@sous-sol.org>, Izik Eidus <izik.eidus@ravellosystems.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Anton Arapov <anton@redhat.com>
 
-On Fri, 29 Jun 2012, David Rientjes wrote:
-> On Fri, 29 Jun 2012, Johannes Weiner wrote:
+On Fri, 29 Jun 2012, Andrew Morton wrote:
+
+> On Fri, 29 Jun 2012 13:49:52 +0200
+> Petr Holasek <pholasek@redhat.com> wrote:
 > 
-> > > I started with exactly same idea as you described above in the first
-> > > RFC, link: https://lkml.org/lkml/2011/11/30/91
-> > > But this approach turned out to be more complicated than it looked
-> > > (see two last emails in thread) and complexity of solution would rise
-> > > a lot.
+> > Introduces new sysfs boolean knob /sys/kernel/mm/ksm/merge_nodes
+> > which control merging pages across different numa nodes.
+> > When it is set to zero only pages from the same node are merged,
+> > otherwise pages from all nodes can be merged together (default behavior).
 > > 
-> > Oh, I should have checked the archives given that it's v2.  I expected
-> > it to get complex but didn't put enough thought into it to see /that/
-> > amount of complexity.  Sorry.
+> > Typical use-case could be a lot of KVM guests on NUMA machine
+> > and cpus from more distant nodes would have significant increase
+> > of access latency to the merged ksm page. Sysfs knob was choosen
+> > for higher scalability.
 > > 
-> > Carry on, then :-)
-> > 
+> > Every numa node has its own stable & unstable trees because
+> > of faster searching and inserting. Changing of merge_nodes
+> > value is possible only when there are not any ksm shared pages in system.
 > 
-> I don't think it's an unfair amount of complexity to ask for, and I don't 
-> see the problem with ksm merging two pages that have a distance under the 
-> configured threshold and leaving the third page unmerged; by configuring 
-> the threshold (which should be a char, not an int) the admin has specified 
-> the locality that is necessary for optimal performance so has knowingly 
-> restricted ksm in that way.
+> It would be neat to have a knob which enables KSM for all anon
+> mappings.  ie: pretend that MADV_MERGEABLE is always set.  For testing
+> coverage purposes.
+
+Interesting idea, I'll try to add it in next release if /sys/kernel/mm/ksm
+directory is the right place for such debug knob.
+
+> > --- a/Documentation/vm/ksm.txt
+> > +++ b/Documentation/vm/ksm.txt
+> > @@ -58,6 +58,12 @@ sleep_millisecs  - how many milliseconds ksmd should sleep before next scan
+> >                     e.g. "echo 20 > /sys/kernel/mm/ksm/sleep_millisecs"
+> >                     Default: 20 (chosen for demonstration purposes)
+> >  
+> > +merge_nodes      - specifies if pages from different numa nodes can be merged.
+> > +                   When set to 0, ksm merges only pages which physically
+> > +                   resides in the memory area of same NUMA node. It brings
+> > +                   lower latency to access to shared page.
+> > +                   Default: 1
 > 
-> I'd rename it to ksm_merge_distance, which is more similar to 
-> reclaim_distance, and return to the first version of this patch.
+> s/resides/reside/.
+> 
+> This doc should mention that /sys/kernel/mm/ksm/run should be zeroed to
+> alter merge_nodes.  Otherwise confusion will reign.
+> 
 
-The problem of the first patch/RFC was that merging algorithm was unstable
-and could merge pages with distance higher than was set up (described by 
-Nai Xia in RFC thread [1]). Sure, this instability could be solved, but for
-ksm pages shared by many other pages on different nodes we would have to still
-recalculate which page is "in the middle" and in case of change migrate it 
-between nodes every time when ksmd reach new shareable page or when some 
-sharing page is removed.
+Oh, forgot to mention it. I'll fix it.
 
-But please correct me if I understand you wrong.
+> >
+> > ...
+> >
+> > +static ssize_t merge_nodes_store(struct kobject *kobj,
+> > +				   struct kobj_attribute *attr,
+> > +				   const char *buf, size_t count)
+> > +{
+> > +	int err;
+> > +	unsigned long knob;
+> > +
+> > +	err = kstrtoul(buf, 10, &knob);
+> > +	if (err)
+> > +		return err;
+> > +	if (knob > 1)
+> > +		return -EINVAL;
+> > +
+> > +	if (ksm_run & KSM_RUN_MERGE)
+> > +		return -EBUSY;
+> > +
+> > +	mutex_lock(&ksm_thread_mutex);
+> > +	if (ksm_merge_nodes != knob) {
+> > +		if (ksm_pages_shared > 0)
+> > +			return -EBUSY;
+> > +		else
+> > +			ksm_merge_nodes = knob;
+> > +	}
+> > +	mutex_unlock(&ksm_thread_mutex);
+> > +
+> > +	return count;
+> > +}
+> 
+> Seems a bit racy.  Shouldn't the test of ksm_run be inside the locked
+> region?
+> 
 
-[1] https://lkml.org/lkml/2011/12/1/167
+Agreed.
+
+Thanks for your review!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
