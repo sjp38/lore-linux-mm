@@ -1,251 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
-	by kanga.kvack.org (Postfix) with SMTP id DA00E6B0096
-	for <linux-mm@kvack.org>; Sat, 30 Jun 2012 04:23:04 -0400 (EDT)
-Received: by ghrr18 with SMTP id r18so4174217ghr.14
-        for <linux-mm@kvack.org>; Sat, 30 Jun 2012 01:23:04 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
+	by kanga.kvack.org (Postfix) with SMTP id 96D296B0099
+	for <linux-mm@kvack.org>; Sat, 30 Jun 2012 05:10:04 -0400 (EDT)
+From: Jiang Liu <jiang.liu@huawei.com>
+Subject: [PATCH] mm: setup pageblock_order before it's used by sparse
+Date: Sat, 30 Jun 2012 17:07:54 +0800
+Message-ID: <1341047274-5616-1-git-send-email-jiang.liu@huawei.com>
 MIME-Version: 1.0
-In-Reply-To: <4FEE9310.1050908@redhat.com>
-References: <1340888180-15355-1-git-send-email-aarcange@redhat.com>
-	<1340888180-15355-14-git-send-email-aarcange@redhat.com>
-	<1340895238.28750.49.camel@twins>
-	<CAJd=RBA+FPgB9iq07YG0Pd=tN65SGK1ifmj98tomBDbYeKOE-Q@mail.gmail.com>
-	<20120629125517.GD32637@gmail.com>
-	<4FEDDD0C.60609@redhat.com>
-	<1340995986.28750.114.camel@twins>
-	<CAPQyPG4R34bi0fXHBspSpR1+gDLj2PGYpPXNLPTTTBmrRL=m4g@mail.gmail.com>
-	<20120630012338.GY6676@redhat.com>
-	<CAPQyPG7Nx1Jdq7WBBDC41iRGOMx8CdQjcWTNOWyj1fzVeuRcgw@mail.gmail.com>
-	<4FEE9310.1050908@redhat.com>
-Date: Sat, 30 Jun 2012 16:23:03 +0800
-Message-ID: <CAPQyPG5h=p2buvCyNjD=fc2zjpVkashe0FppE9X2KNp-C-b3Yw@mail.gmail.com>
-Subject: Re: [PATCH 13/40] autonuma: CPU follow memory algorithm
-From: Nai Xia <nai.xia@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: dlaor@redhat.com
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Ingo Molnar <mingo@kernel.org>, Hillf Danton <dhillf@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dan Smith <danms@us.ibm.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Srivatsa Vaddagiri <vatsa@linux.vnet.ibm.com>, Christoph Lameter <cl@linux.com>, Alex Shi <alex.shi@intel.com>, Mauricio Faria de Oliveira <mauricfo@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Don Morris <don.morris@hp.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
+To: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Tony Luck <tony.luck@intel.com>, Yinghai Lu <yinghai@kernel.org>
+Cc: Xishi Qiu <qiuxishi@huawei.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, Minchan Kim <minchan@kernel.org>, Keping Chen <chenkeping@huawei.com>, linux-mm@kvack.org, stable@vger.kernel.org, linux-kernel@vger.kernel.org, Jiang Liu <liuj97@gmail.com>
 
-On Sat, Jun 30, 2012 at 1:48 PM, Dor Laor <dlaor@redhat.com> wrote:
-> On 06/30/2012 05:43 AM, Nai Xia wrote:
->>
->> On Sat, Jun 30, 2012 at 9:23 AM, Andrea Arcangeli <aarcange@redhat.com>
->> wrote:
->>>
->>> On Sat, Jun 30, 2012 at 04:01:50AM +0800, Nai Xia wrote:
->>>>
->>>> On Sat, Jun 30, 2012 at 2:53 AM, Peter Zijlstra <a.p.zijlstra@chello.n=
-l>
->>>> wrote:
->>>>>
->>>>> On Fri, 2012-06-29 at 12:51 -0400, Dor Laor wrote:
->>>>>>
->>>>>> The previous comments were not shouts but the mother of all NAKs.
->>>>>
->>>>>
->>>>> I never said any such thing. I just said why should I bother reading
->>>>> your stuff if you're ignoring most my feedback anyway.
->>>>>
->>>>> If you want to read that as a NAK, not my problem.
->>>>
->>>>
->>>> Hey guys, Can I say NAK to these patches ?
->>>>
->>>> Now I aware that this sampling algorithm is completely broken, if we
->>>> take
->>>> a few seconds to see what it is trying to solve:
->>>>
->>>> We all know that LRU is try to solve the question of "what are the
->>>> pages recently accessed?",
->>>> so its engouth to use pte bits to approximate.
->>>
->>>
->>> I made an example about the active list to try to explain it why your
->>> example is still going to work fine.
->>>
->>> After it becomes active (from inactive) and it's being a referenced
->>> active page, it won't become _very_active_ or _very_very_active_ or
->>> more no matter how many more times you look up the pagecache.
->>>
->>> The LRU order wasn't relevant here.
->>>
->>>> However, the numa balancing problem is fundamentally like this:
->>>>
->>>> In some time unit,
->>>>
->>>> =A0 =A0 =A0 W =3D pages_accessed =A0* =A0average_page_access_frequence
->>>>
->>>> We are trying to move process to the node having max W, =A0right?
->>>
->>>
->>> First of all, the mm_autonuma statistics are not in function of time
->>> and there is no page access frequency there.
->>>
->>> mm_autonuma is static information collected by knuma_scand from the
->>> pagetables. That's static and 100% accurate on the whole process and
->>> definitely not generated by the numa hinting page faults. I could shut
->>> off all numa hinting page faults permanently and still generate the
->>> mm_autonuma information identically.
->>>
->>> There's a knob in /sys/kernel/mm/autonuma/knuma_scand/working_set that
->>> you can enable if you want to use a "runtime" and not static
->>> information for the mm_autonuma too, but that's not the default for
->>> now (but I think it may be a better default, there wasn't enough time
->>> to test this yet)
->>>
->>> The task_autonuma (thread) statistics are the only thing that is
->>> sampled by default in a 10sec interval (the interval tunable too with
->>> sysfs, and 10sec is likely too aggressive, 30sec sounds better, we're
->>> eventually going to make it dynamic anyway)
->>>
->>> So even if you were right, the thread statistics only kicks in to
->>> balance threads against threads of the same process, most of the time
->>> what's more important are the mm_autonuma statistics.
->>>
->>> But in reality the thread statistics also works perfectly for the job,
->>> as an approximation of the NUMA memory footprint of the thread (vs the
->>> other threads). And then the rest of the memory slowly follows
->>> whatever node CPUs I placed the thread (even if that's not the
->>> absolutely best one at all times).
->>>
->>>> Andrea's patch can only approximate the pages_accessed number in a
->>>> time unit(scan interval),
->>>> I don't think it can catch even 1% of =A0average_page_access_frequence
->>>> on a busy workload.
->>>> Blindly assuming that all the pages' =A0average_page_access_frequence =
-is
->>>> the same is seemly
->>>> broken to me.
->>>
->>>
->>> All we need is an approximation to take a better than random decision,
->>> even if you get it 1% right, it's still better than 0% right by going
->>> blind. Your 1% is too pessimistic, in my tests the thread statistics
->>> are more like >90% correct in average (I monitor them with the debug
->>> mode constantly).
->>>
->>> If this 1% right, happens one a million samples, who cares, it's not
->>> going to run measurably slower anyway (and it will still be better
->>> than picking a 0% right node).
->>>
->>> What you're saying is that because the active list in the pagecache
->>> won't differentiate between 10 cache hits and 20 cache hits, we should
->>> drop the active list and stop activating pages and just threat them
->>> all the same because in some unlucky access pattern, the active list
->>> may only get right 1% of the working set. But there's a reason why the
->>> active list exists despite it may get things wrong in some corner case
->>> and possibly leave the large amount of pages accessed infrequently in
->>> the inactive list forever (even if it gets things only 1% right in
->>> those worst cases, it's still better than 0% right and no active list
->>> at all).
->>>
->>> To say it in another way, you may still crash with the car even if
->>> you're careful, but do you think it's better to watch at the street or
->>> to drive blindfolded?
->>>
->>> numa/sched drives blindfolded, autonuma watches around every 10sec
->>> very carefully for the best next turn to take with the car and to
->>> avoid obstacles, you can imagine who wins.
->>>
->>> Watching the street carefully every 10sec doesn't mean the next moment
->>> a missile won't hit your car to make you crash, you're still having
->>> better chances not to crash than by driving blindfolded.
->>>
->>> numa/sched pretends to compete without collecting information for the
->>> NUMA thread memory footprint (task_autonuma, sampled with a
->>> exponential backoff at 10sec intervals), and without process
->>> information (full static information from the pagetables, not
->>> sampled). No matter how you compute stuff, if you've nothing
->>> meaningful in input to your algorithm you lose. And it looks like you
->>> believe that you can take better decisions with nothing in input to
->>> your NUMA placement algorithm, because my thread info (task_autonuma)
->>> isn't 100% perfect at all times and it can't predict the future. The
->>> alternative is to get that information from syscalls, but even
->>> ignoring the -ENOMEM from split_vma, that will lead to userland bugs
->>> and overall the task_autonuma information may be more reliable in the
->>> end, even if it's sampled using an exponential backoff.
->>>
->>> Also note the exponential backoff thing, it's not really the last
->>> interval, it's the last interval plus half the previous interval plus
->>> 1/4 the previous interval etc... and we can trivially control the
->>> decay.
->>>
->>> All we need is to get a direction and knowing _exactly_ what the task
->>> did over the last 10 seconds (even if it can't predict the future of
->>> what the thread will do in the next 1sec), is all we need to get a
->>> direction. After we take the direction then the memory will follow so
->>> we cannot care less what it does in the next second because that will
->>> follow the CPU (after a while, last_nid anti-false-sharing logic
->>> permitting), and at least we'll know for sure that the memory accessed
->>> in the last 10sec is already local and that defines the best node to
->>> schedule the thread.
->>>
->>> I don't mean there's no room for improvement in the way the input data
->>> can be computed, and even in the way the input data can be generated,
->>> the exponential backoff decay can be tuned too, I just tried to do the
->>> simplest computations on the data to make the workloads converge fast
->>> and you're welcome to contribute.
->>>
->>> But I believe the task_autonuma information is extremely valuable and
->>> we can trust it very much knowing we'll get a great placement. The
->>> concern you have isn't invalid, but it's a very minor one and the
->>> sampling rate effects you are concerned about, while real, they're
->>> lost in the noise in practice.
->>
->>
->> Well, I think I am not convinced by your this many words. And surely
->> I =A0will NOT follow your reasoning of "Having information is always
->> good than nothing". =A0We all know that =A0an illy biased balancing is w=
-orse
->> than randomness: =A0at least randomness means "average, fair play, ...".
->> With all uncertain things, I think only a comprehensive survey
->> of real world workloads can tell if my concern is significant or not.
->>
->> So I think my suggestion to you is: =A0Show world some solid and sound
->> real world proof that your approximation is > 90% accurate, just like
->
->
-> The cover letter contained a link to the performance:
-> https://www.kernel.org/pub/linux/kernel/people/andrea/autonuma/autonuma_b=
-ench-20120530.pdf
->
-> It includes, specJbb, kernelbuild, cpuHog in guests, and handful of units
-> tests.
->
-> I'm sure anyone can beat most kernel algorithm with some pathological cas=
-e
-> including LRU and CFS. The only way to improve the numa balancing stuff i=
-s
-> to sample more, meaning faulting more =3D=3D larger overhead.
->
-> Maybe its worth to add a measurement that if we've done too many bounding=
- of
-> a particular page to stop scan that page for a while. It's an optimizatio=
-n
-> that needs to be prove it worth in real life.
->
+From: Xishi Qiu <qiuxishi@huawei.com>
 
-Oh, sorry, I think I forgot few last comments in my last post:
+On architectures with CONFIG_HUGETLB_PAGE_SIZE_VARIABLE set, such as Itanium,
+pageblock_order is a variable with default value of 0. It's set to the right
+value by set_pageblock_order() in function free_area_init_core().
 
-In case you really can take my advice and do comprehensive research,
-try to make sure that you compare the result of your fancy sampling algorit=
-hm
-with this simple logic:
+But pageblock_order may be used by sparse_init() before free_area_init_core()
+is called along path:
+sparse_init()
+    ->sparse_early_usemaps_alloc_node()
+	->usemap_size()
+	    ->SECTION_BLOCKFLAGS_BITS
+		->((1UL << (PFN_SECTION_SHIFT - pageblock_order)) *
+NR_PAGEBLOCK_BITS)
 
-   "Blindly select a node and bind the process and move all pages to it."
+The uninitialized pageblock_size will cause memory wasting because usemap_size()
+returns a much bigger value then it's really needed.
 
-Stupid it may sound, I highly suspect it can approach the benchmarks
-you already did.
+For example, on an Itanium platform,
+sparse_init() pageblock_order=0 usemap_size=24576
+free_area_init_core() before pageblock_order=0, usemap_size=24576
+free_area_init_core() after pageblock_order=12, usemap_size=8
 
-If that's really the truth, then all the sampling and weighting stuff can
-be cut off.
+That means 24K memory has been wasted for each section, so fix it by calling
+set_pageblock_order() from sparse_init().
 
+Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
+Signed-off-by: Jiang Liu <liuj97@gmail.com>
+---
+ mm/internal.h   |    2 ++
+ mm/page_alloc.c |    4 ++--
+ mm/sparse.c     |    3 +++
+ 3 files changed, 7 insertions(+), 2 deletions(-)
 
-Thanks,
+diff --git a/mm/internal.h b/mm/internal.h
+index 2ba87fb..8052379 100644
+--- a/mm/internal.h
++++ b/mm/internal.h
+@@ -347,3 +347,5 @@ extern u32 hwpoison_filter_enable;
+ extern unsigned long vm_mmap_pgoff(struct file *, unsigned long,
+         unsigned long, unsigned long,
+         unsigned long, unsigned long);
++
++extern void set_pageblock_order(void);
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 4403009..f38509b 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -4301,7 +4301,7 @@ static inline void setup_usemap(struct pglist_data *pgdat,
+ #ifdef CONFIG_HUGETLB_PAGE_SIZE_VARIABLE
+ 
+ /* Initialise the number of pages represented by NR_PAGEBLOCK_BITS */
+-static inline void __init set_pageblock_order(void)
++void __init set_pageblock_order(void)
+ {
+ 	unsigned int order;
+ 
+@@ -4329,7 +4329,7 @@ static inline void __init set_pageblock_order(void)
+  * include/linux/pageblock-flags.h for the values of pageblock_order based on
+  * the kernel config
+  */
+-static inline void set_pageblock_order(void)
++void __init set_pageblock_order(void)
+ {
+ }
+ 
+diff --git a/mm/sparse.c b/mm/sparse.c
+index fca2ab5..3a3af73 100644
+--- a/mm/sparse.c
++++ b/mm/sparse.c
+@@ -485,6 +485,9 @@ void __init sparse_init(void)
+ 	struct page **map_map;
+ #endif
+ 
++	/* Setup pageblock_order for HUGETLB_PAGE_SIZE_VARIABLE */
++	set_pageblock_order();
++
+ 	/*
+ 	 * map is using big page (aka 2M in x86 64 bit)
+ 	 * usemap is less one page (aka 24 bytes)
+-- 
+1.7.1
 
-Nai
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
