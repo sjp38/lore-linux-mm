@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
-	by kanga.kvack.org (Postfix) with SMTP id 68F756B00AB
-	for <linux-mm@kvack.org>; Sat, 30 Jun 2012 11:47:08 -0400 (EDT)
-Received: by pbbrp2 with SMTP id rp2so7105296pbb.14
-        for <linux-mm@kvack.org>; Sat, 30 Jun 2012 08:47:07 -0700 (PDT)
-Message-ID: <4FEF1F6A.6090705@gmail.com>
-Date: Sat, 30 Jun 2012 23:46:50 +0800
+Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
+	by kanga.kvack.org (Postfix) with SMTP id 13E2A6B00AD
+	for <linux-mm@kvack.org>; Sat, 30 Jun 2012 11:51:32 -0400 (EDT)
+Received: by dakp5 with SMTP id p5so6902176dak.14
+        for <linux-mm@kvack.org>; Sat, 30 Jun 2012 08:51:31 -0700 (PDT)
+Message-ID: <4FEF2075.2050603@gmail.com>
+Date: Sat, 30 Jun 2012 23:51:17 +0800
 From: Jiang Liu <liuj97@gmail.com>
 MIME-Version: 1.0
 Subject: Re: [RFC PATCH 2/12] memory-hogplug : check memory offline in offline_pages
@@ -56,9 +56,9 @@ On 06/27/2012 01:44 PM, Yasuaki Ishimatsu wrote:
 > +	for (pfn = start_pfn; pfn < end_pfn; pfn += PAGES_PER_SECTION) {
 > +		section_nr = pfn_to_section_nr(pfn);
 > +		section = __nr_to_section(section_nr);
-Is it possible for __nr_to_section return NULL here?
-
 > +		mem = find_memory_block(section);
+Seems find_memory_block_hinted() is more efficient than find_memory_block() here.
+
 > +		if (!mem)
 > +			continue;
 > +		if (mem->state == MEM_OFFLINE)
@@ -68,8 +68,6 @@ Is it possible for __nr_to_section return NULL here?
 > +
 > +	return true;
 > +}
-Need a put_dev(&mem->dev) for the last memory block device handled before return.
-
 > +
 >  /*
 >   * register_memory - Setup a sysfs device for a memory block
