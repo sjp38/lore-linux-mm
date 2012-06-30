@@ -1,175 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
-	by kanga.kvack.org (Postfix) with SMTP id 8C3A16B005A
-	for <linux-mm@kvack.org>; Fri, 29 Jun 2012 21:24:27 -0400 (EDT)
-Date: Sat, 30 Jun 2012 03:23:38 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 13/40] autonuma: CPU follow memory algorithm
-Message-ID: <20120630012338.GY6676@redhat.com>
-References: <1340888180-15355-1-git-send-email-aarcange@redhat.com>
- <1340888180-15355-14-git-send-email-aarcange@redhat.com>
- <1340895238.28750.49.camel@twins>
- <CAJd=RBA+FPgB9iq07YG0Pd=tN65SGK1ifmj98tomBDbYeKOE-Q@mail.gmail.com>
- <20120629125517.GD32637@gmail.com>
- <4FEDDD0C.60609@redhat.com>
- <1340995986.28750.114.camel@twins>
- <CAPQyPG4R34bi0fXHBspSpR1+gDLj2PGYpPXNLPTTTBmrRL=m4g@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
+	by kanga.kvack.org (Postfix) with SMTP id DBEE56B005A
+	for <linux-mm@kvack.org>; Fri, 29 Jun 2012 21:33:22 -0400 (EDT)
+Received: by pbbrp2 with SMTP id rp2so6425194pbb.14
+        for <linux-mm@kvack.org>; Fri, 29 Jun 2012 18:33:22 -0700 (PDT)
+Date: Fri, 29 Jun 2012 18:33:18 -0700
+From: Michel Lespinasse <walken@google.com>
+Subject: Re: [PATCH -mm v2 05/11] mm: get unmapped area from VMA tree
+Message-ID: <20120630013318.GB27797@google.com>
+References: <1340315835-28571-1-git-send-email-riel@surriel.com>
+ <1340315835-28571-6-git-send-email-riel@surriel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAPQyPG4R34bi0fXHBspSpR1+gDLj2PGYpPXNLPTTTBmrRL=m4g@mail.gmail.com>
+In-Reply-To: <1340315835-28571-6-git-send-email-riel@surriel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nai Xia <nai.xia@gmail.com>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, dlaor@redhat.com, Ingo Molnar <mingo@kernel.org>, Hillf Danton <dhillf@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dan Smith <danms@us.ibm.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Srivatsa Vaddagiri <vatsa@linux.vnet.ibm.com>, Christoph Lameter <cl@linux.com>, Alex Shi <alex.shi@intel.com>, Mauricio Faria de Oliveira <mauricfo@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Don Morris <don.morris@hp.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
+To: Rik van Riel <riel@surriel.com>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, aarcange@redhat.com, peterz@infradead.org, minchan@gmail.com, kosaki.motohiro@gmail.com, andi@firstfloor.org, hannes@cmpxchg.org, mel@csn.ul.ie, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>
 
-On Sat, Jun 30, 2012 at 04:01:50AM +0800, Nai Xia wrote:
-> On Sat, Jun 30, 2012 at 2:53 AM, Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
-> > On Fri, 2012-06-29 at 12:51 -0400, Dor Laor wrote:
-> >> The previous comments were not shouts but the mother of all NAKs.
-> >
-> > I never said any such thing. I just said why should I bother reading
-> > your stuff if you're ignoring most my feedback anyway.
-> >
-> > If you want to read that as a NAK, not my problem.
-> 
-> Hey guys, Can I say NAK to these patches ?
-> 
-> Now I aware that this sampling algorithm is completely broken, if we take
-> a few seconds to see what it is trying to solve:
-> 
-> We all know that LRU is try to solve the question of "what are the
-> pages recently accessed?",
-> so its engouth to use pte bits to approximate.
+On Thu, Jun 21, 2012 at 05:57:09PM -0400, Rik van Riel wrote:
+> +			if (!vma->vm_prev) {
+> +				/* This is the left-most VMA. */
+> +				if (vma->vm_start - len >= lower_limit) {
+> +					addr = lower_limit;
+> +					goto found_addr;
+> +				}
+> +			} else {
+> +				/* Is this gap large enough? Remember it. */
+> +				vma_start = max(vma->vm_prev->vm_end, lower_limit);
+> +				if (vma->vm_start - len >= vma_start) {
+> +					addr = vma_start;
+> +					found_here = true;
+> +				}
+> +			}
 
-I made an example about the active list to try to explain it why your
-example is still going to work fine.
+You could unify these two cases:
 
-After it becomes active (from inactive) and it's being a referenced
-active page, it won't become _very_active_ or _very_very_active_ or
-more no matter how many more times you look up the pagecache.
+			vma_start = lower_limit;
+			if (vma->vm_prev && vma->vm_prev->vm_end > vma_start)
+				vma_start = vma->vm_prev->vm_end;
+			if (vma->vm_start - len >= vma_start) {
+				addr = vma_start;
+				found_here = true;
+			}
 
-The LRU order wasn't relevant here.
+You don't need the goto found_addr; the search won't be going left as there
+is no node there and it won't be going right as found_here is true.
 
-> However, the numa balancing problem is fundamentally like this:
-> 
-> In some time unit,
-> 
->       W = pages_accessed  *  average_page_access_frequence
-> 
-> We are trying to move process to the node having max W,  right?
+We may also be albe to dispense with found_here and replace it with a special
+value (either NULL or something not page aligned) for addr.
 
-First of all, the mm_autonuma statistics are not in function of time
-and there is no page access frequency there.
+> +		if (!found_here && node_free_gap(rb_node->rb_right) >= len) {
+> +			/* Last known gap is to the right of this subtree. */
+> +			rb_node = rb_node->rb_right;
+> +			continue;
+> +		} else if (!addr) {
+> +			rb_node = rb_find_next_uncle(rb_node);
+> +			continue;
+>  		}
 
-mm_autonuma is static information collected by knuma_scand from the
-pagetables. That's static and 100% accurate on the whole process and
-definitely not generated by the numa hinting page faults. I could shut
-off all numa hinting page faults permanently and still generate the
-mm_autonuma information identically.
+Looks like you're already using my suggestion of using !addr to indicate
+we haven't found a suitable gap yet :)
 
-There's a knob in /sys/kernel/mm/autonuma/knuma_scand/working_set that
-you can enable if you want to use a "runtime" and not static
-information for the mm_autonuma too, but that's not the default for
-now (but I think it may be a better default, there wasn't enough time
-to test this yet)
+I don't think we want to visit just any uncle though - we want to visit one
+that has a large enough free gap somewhere in its subtree.
 
-The task_autonuma (thread) statistics are the only thing that is
-sampled by default in a 10sec interval (the interval tunable too with
-sysfs, and 10sec is likely too aggressive, 30sec sounds better, we're
-eventually going to make it dynamic anyway)
+So, maybe:
 
-So even if you were right, the thread statistics only kicks in to
-balance threads against threads of the same process, most of the time
-what's more important are the mm_autonuma statistics.
+		if (!found_here) {	// or if(!addr) or whatever
+			struct rb_node *rb_prev = NULL;
+			do {
+				if (rb_node != rb_prev &&
+				    node_free_gap(rb_node->rb_right) >= len) {
+					rb_node = rb_node->rb_right;
+					break;
+				}
+				rb_prev = rb_node;
+				rb_node = rb_parent(rb_node);
+			} while (rb_node);
+			continue;
+		}
 
-But in reality the thread statistics also works perfectly for the job,
-as an approximation of the NUMA memory footprint of the thread (vs the
-other threads). And then the rest of the memory slowly follows
-whatever node CPUs I placed the thread (even if that's not the
-absolutely best one at all times).
+> +		/* This is the left-most gap. */
+> +		goto found_addr;
+>  	}
+> +
+> +	/*
+> +	 * There is not enough space to the left of any VMA.
+> +	 * Check the far right-hand side of the VMA tree.
+> +	 */
+> +	rb_node = mm->mm_rb.rb_node;
+> +	while (rb_node->rb_right)
+> +		rb_node = rb_node->rb_right;
+> +	vma = rb_to_vma(rb_node);
+> +	addr = vma->vm_end;
+> +
+> +	/*
+> +	 * The right-most VMA ends below the lower limit. Can only happen
+> +	 * if a binary personality loads the stack below the executable.
+> +	 */
+> +	if (addr < lower_limit)
+> +		addr = lower_limit;
+> +
+> + found_addr:
+> +	if (TASK_SIZE - len < addr)
+> +		return -ENOMEM;
 
-> Andrea's patch can only approximate the pages_accessed number in a
-> time unit(scan interval),
-> I don't think it can catch even 1% of  average_page_access_frequence
-> on a busy workload.
-> Blindly assuming that all the pages'  average_page_access_frequence is
-> the same is seemly
-> broken to me.
+I'm confused - if we come from 'goto found_addr', we found a gap to the
+left of an existing vma; aren't we guaranteed that this gap ends to the
+left of TASK_SIZE too since the existing vma's vm_begin should be
+less than TASK_SIZE ?
 
-All we need is an approximation to take a better than random decision,
-even if you get it 1% right, it's still better than 0% right by going
-blind. Your 1% is too pessimistic, in my tests the thread statistics
-are more like >90% correct in average (I monitor them with the debug
-mode constantly).
-
-If this 1% right, happens one a million samples, who cares, it's not
-going to run measurably slower anyway (and it will still be better
-than picking a 0% right node).
-
-What you're saying is that because the active list in the pagecache
-won't differentiate between 10 cache hits and 20 cache hits, we should
-drop the active list and stop activating pages and just threat them
-all the same because in some unlucky access pattern, the active list
-may only get right 1% of the working set. But there's a reason why the
-active list exists despite it may get things wrong in some corner case
-and possibly leave the large amount of pages accessed infrequently in
-the inactive list forever (even if it gets things only 1% right in
-those worst cases, it's still better than 0% right and no active list
-at all).
-
-To say it in another way, you may still crash with the car even if
-you're careful, but do you think it's better to watch at the street or
-to drive blindfolded?
-
-numa/sched drives blindfolded, autonuma watches around every 10sec
-very carefully for the best next turn to take with the car and to
-avoid obstacles, you can imagine who wins.
-
-Watching the street carefully every 10sec doesn't mean the next moment
-a missile won't hit your car to make you crash, you're still having
-better chances not to crash than by driving blindfolded.
-
-numa/sched pretends to compete without collecting information for the
-NUMA thread memory footprint (task_autonuma, sampled with a
-exponential backoff at 10sec intervals), and without process
-information (full static information from the pagetables, not
-sampled). No matter how you compute stuff, if you've nothing
-meaningful in input to your algorithm you lose. And it looks like you
-believe that you can take better decisions with nothing in input to
-your NUMA placement algorithm, because my thread info (task_autonuma)
-isn't 100% perfect at all times and it can't predict the future. The
-alternative is to get that information from syscalls, but even
-ignoring the -ENOMEM from split_vma, that will lead to userland bugs
-and overall the task_autonuma information may be more reliable in the
-end, even if it's sampled using an exponential backoff.
-
-Also note the exponential backoff thing, it's not really the last
-interval, it's the last interval plus half the previous interval plus
-1/4 the previous interval etc... and we can trivially control the
-decay.
-
-All we need is to get a direction and knowing _exactly_ what the task
-did over the last 10 seconds (even if it can't predict the future of
-what the thread will do in the next 1sec), is all we need to get a
-direction. After we take the direction then the memory will follow so
-we cannot care less what it does in the next second because that will
-follow the CPU (after a while, last_nid anti-false-sharing logic
-permitting), and at least we'll know for sure that the memory accessed
-in the last 10sec is already local and that defines the best node to
-schedule the thread.
-
-I don't mean there's no room for improvement in the way the input data
-can be computed, and even in the way the input data can be generated,
-the exponential backoff decay can be tuned too, I just tried to do the
-simplest computations on the data to make the workloads converge fast
-and you're welcome to contribute.
-
-But I believe the task_autonuma information is extremely valuable and
-we can trust it very much knowing we'll get a great placement. The
-concern you have isn't invalid, but it's a very minor one and the
-sampling rate effects you are concerned about, while real, they're
-lost in the noise in practice.
+-- 
+Michel "Walken" Lespinasse
+A program is never fully debugged until the last user dies.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
