@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
-	by kanga.kvack.org (Postfix) with SMTP id DE9A56B0069
-	for <linux-mm@kvack.org>; Sat, 30 Jun 2012 00:58:30 -0400 (EDT)
-Received: by qcsd16 with SMTP id d16so2385641qcs.14
-        for <linux-mm@kvack.org>; Fri, 29 Jun 2012 21:58:30 -0700 (PDT)
-Date: Sat, 30 Jun 2012 00:58:25 -0400
+Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
+	by kanga.kvack.org (Postfix) with SMTP id 6437B6B006E
+	for <linux-mm@kvack.org>; Sat, 30 Jun 2012 01:01:49 -0400 (EDT)
+Received: by qadz32 with SMTP id z32so1164275qad.14
+        for <linux-mm@kvack.org>; Fri, 29 Jun 2012 22:01:48 -0700 (PDT)
+Date: Sat, 30 Jun 2012 01:01:44 -0400
 From: Konrad Rzeszutek Wilk <konrad@darnok.org>
 Subject: Re: [PATCH 11/40] autonuma: define the autonuma flags
-Message-ID: <20120630045825.GC3975@localhost.localdomain>
+Message-ID: <20120630050143.GD3975@localhost.localdomain>
 References: <1340888180-15355-1-git-send-email-aarcange@redhat.com>
  <1340888180-15355-12-git-send-email-aarcange@redhat.com>
 MIME-Version: 1.0
@@ -40,38 +40,26 @@ On Thu, Jun 28, 2012 at 02:55:51PM +0200, Andrea Arcangeli wrote:
 > +#define _LINUX_AUTONUMA_FLAGS_H
 > +
 > +enum autonuma_flag {
-
-These aren't really flags. They are bit-fields.
-A
 > +	AUTONUMA_FLAG,
-
-Looking at the code, this is to turn it on. Perhaps a better name such
-as: AUTONUMA_ACTIVE_FLAG ?
-
-
 > +	AUTONUMA_IMPOSSIBLE_FLAG,
 > +	AUTONUMA_DEBUG_FLAG,
 > +	AUTONUMA_SCHED_LOAD_BALANCE_STRICT_FLAG,
-
-I might have gotten my math wrong, but if you have
-AUTONUMA_SCHED_LOAD_BALACE.. set (so 3), that also means
-that bit 0 and 1 are on. In other words AUTONUMA_FLAG
-and AUTONUMA_IMPOSSIBLE_FLAG are turned on.
-
 > +	AUTONUMA_SCHED_CLONE_RESET_FLAG,
 > +	AUTONUMA_SCHED_FORK_RESET_FLAG,
 > +	AUTONUMA_SCAN_PMD_FLAG,
-
-So this is 6, which means 110 bits. So AUTONUMA_FLAG
-gets turned off.
-
-You definitly want to convert these to #defines or
-at least define the proper numbers.
 > +	AUTONUMA_SCAN_USE_WORKING_SET_FLAG,
 > +	AUTONUMA_MIGRATE_DEFER_FLAG,
 > +};
 > +
 > +extern unsigned long autonuma_flags;
+
+I could not find the this variable in the preceding patches?
+Which patch actually uses it?
+
+Also, is there a way to force the AutoNUMA framework
+from not initializing at all? Hold that thought, it probably
+is in some of the other patches.
+
 > +
 > +static inline bool autonuma_enabled(void)
 > +{
