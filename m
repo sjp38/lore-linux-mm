@@ -1,57 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
-	by kanga.kvack.org (Postfix) with SMTP id ACBEE6B005A
-	for <linux-mm@kvack.org>; Fri, 29 Jun 2012 23:48:07 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
+	by kanga.kvack.org (Postfix) with SMTP id 4E9906B005A
+	for <linux-mm@kvack.org>; Fri, 29 Jun 2012 23:53:10 -0400 (EDT)
 Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id AE2173EE0AE
-	for <linux-mm@kvack.org>; Sat, 30 Jun 2012 12:48:05 +0900 (JST)
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 55C693EE0B6
+	for <linux-mm@kvack.org>; Sat, 30 Jun 2012 12:53:08 +0900 (JST)
 Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 961C545DEAD
-	for <linux-mm@kvack.org>; Sat, 30 Jun 2012 12:48:05 +0900 (JST)
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 3B7B945DEB4
+	for <linux-mm@kvack.org>; Sat, 30 Jun 2012 12:53:08 +0900 (JST)
 Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 8008D45DE9E
-	for <linux-mm@kvack.org>; Sat, 30 Jun 2012 12:48:05 +0900 (JST)
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 213C945DEB2
+	for <linux-mm@kvack.org>; Sat, 30 Jun 2012 12:53:08 +0900 (JST)
 Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 7162C1DB803C
-	for <linux-mm@kvack.org>; Sat, 30 Jun 2012 12:48:05 +0900 (JST)
-Received: from m1001.s.css.fujitsu.com (m1001.s.css.fujitsu.com [10.240.81.139])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 211541DB8038
-	for <linux-mm@kvack.org>; Sat, 30 Jun 2012 12:48:05 +0900 (JST)
-Message-ID: <4FEE7665.6020409@jp.fujitsu.com>
-Date: Sat, 30 Jun 2012 12:45:41 +0900
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id D0BE01DB803C
+	for <linux-mm@kvack.org>; Sat, 30 Jun 2012 12:53:07 +0900 (JST)
+Received: from m1000.s.css.fujitsu.com (m1000.s.css.fujitsu.com [10.240.81.136])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 692D5E08002
+	for <linux-mm@kvack.org>; Sat, 30 Jun 2012 12:53:07 +0900 (JST)
+Message-ID: <4FEE77A4.2000302@jp.fujitsu.com>
+Date: Sat, 30 Jun 2012 12:51:00 +0900
 From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: memcg: cat: memory.memsw.* : Operation not supported
-References: <2a1a74bf-fbb5-4a6e-b958-44fff8debff2@zmail13.collab.prod.int.phx2.redhat.com> <34bb8049-8007-496c-8ffb-11118c587124@zmail13.collab.prod.int.phx2.redhat.com> <20120627154827.GA4420@tiehlicka.suse.cz> <alpine.DEB.2.00.1206271256120.22162@chino.kir.corp.google.com> <20120627200926.GR15811@google.com> <alpine.DEB.2.00.1206271316070.22162@chino.kir.corp.google.com> <20120627202430.GS15811@google.com> <4FEBD7C0.7090906@jp.fujitsu.com> <20120628183145.GE22641@google.com>
-In-Reply-To: <20120628183145.GE22641@google.com>
+Subject: Re: [PATCH -mm v2] mm: have order > 0 compaction start off where
+ it left
+References: <20120628135520.0c48b066@annuminas.surriel.com>
+In-Reply-To: <20120628135520.0c48b066@annuminas.surriel.com>
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: David Rientjes <rientjes@google.com>, Michal Hocko <mhocko@suse.cz>, Zhouping Liu <zliu@redhat.com>, linux-mm@kvack.org, Li Zefan <lizefan@huawei.com>, CAI Qian <caiqian@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Rik van Riel <riel@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, jaschut@sandia.gov, minchan@kernel.org
 
-(2012/06/29 3:31), Tejun Heo wrote:
-> Hello, KAME.
+(2012/06/29 2:55), Rik van Riel wrote:
+> Order > 0 compaction stops when enough free pages of the correct
+> page order have been coalesced. When doing subsequent higher order
+> allocations, it is possible for compaction to be invoked many times.
 >
-> On Thu, Jun 28, 2012 at 01:04:16PM +0900, Kamezawa Hiroyuki wrote:
->>> I still wish it's folded into CONFIG_MEMCG and conditionalized just on
->>> CONFIG_SWAP tho.
->>>
->>
->> In old days, memsw controller was not very stable. So, we devided the config.
->> And, it makes size of memory for swap-device double (adds 2bytes per swapent.)
->> That is the problem.
+> However, the compaction code always starts out looking for things to
+> compact at the start of the zone, and for free pages to compact things
+> to at the end of the zone.
 >
-> I see.  Do you think it's now reasonable to drop the separate config
-> option?  Having memcg enabled but swap unaccounted sounds half-broken
-> to me.
+> This can cause quadratic behaviour, with isolate_freepages starting
+> at the end of the zone each time, even though previous invocations
+> of the compaction code already filled up all free memory on that end
+> of the zone.
 >
+> This can cause isolate_freepages to take enormous amounts of CPU
+> with certain workloads on larger memory systems.
+>
+> The obvious solution is to have isolate_freepages remember where
+> it left off last time, and continue at that point the next time
+> it gets invoked for an order > 0 compaction. This could cause
+> compaction to fail if cc->free_pfn and cc->migrate_pfn are close
+> together initially, in that case we restart from the end of the
+> zone and try once more.
+>
+> Forced full (order == -1) compactions are left alone.
+>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Mel Gorman <mel@csn.ul.ie>
+> Reported-by: Jim Schutt <jaschut@sandia.gov>
+> Signed-off-by: Rik van Riel <riel@redhat.com>
 
-Hmm. Maybe it's ok if we can keep boot option. I'll cook a patch in the next week.
+Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-Thanks,
--Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
