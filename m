@@ -1,377 +1,213 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
-	by kanga.kvack.org (Postfix) with SMTP id 689F36B007D
-	for <linux-mm@kvack.org>; Sat, 30 Jun 2012 01:24:10 -0400 (EDT)
-Received: by qcsd16 with SMTP id d16so2390262qcs.14
-        for <linux-mm@kvack.org>; Fri, 29 Jun 2012 22:24:09 -0700 (PDT)
-Date: Sat, 30 Jun 2012 01:24:05 -0400
-From: Konrad Rzeszutek Wilk <konrad@darnok.org>
-Subject: Re: [PATCH 36/40] autonuma: page_autonuma
-Message-ID: <20120630052404.GH3975@localhost.localdomain>
-References: <1340888180-15355-1-git-send-email-aarcange@redhat.com>
- <1340888180-15355-37-git-send-email-aarcange@redhat.com>
+Received: from psmtp.com (na3sys010amx165.postini.com [74.125.245.165])
+	by kanga.kvack.org (Postfix) with SMTP id 2414E6B0081
+	for <linux-mm@kvack.org>; Sat, 30 Jun 2012 01:48:59 -0400 (EDT)
+Message-ID: <4FEE9310.1050908@redhat.com>
+Date: Sat, 30 Jun 2012 08:48:00 +0300
+From: Dor Laor <dlaor@redhat.com>
+Reply-To: dlaor@redhat.com
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1340888180-15355-37-git-send-email-aarcange@redhat.com>
+Subject: Re: [PATCH 13/40] autonuma: CPU follow memory algorithm
+References: <1340888180-15355-1-git-send-email-aarcange@redhat.com> <1340888180-15355-14-git-send-email-aarcange@redhat.com> <1340895238.28750.49.camel@twins> <CAJd=RBA+FPgB9iq07YG0Pd=tN65SGK1ifmj98tomBDbYeKOE-Q@mail.gmail.com> <20120629125517.GD32637@gmail.com> <4FEDDD0C.60609@redhat.com> <1340995986.28750.114.camel@twins> <CAPQyPG4R34bi0fXHBspSpR1+gDLj2PGYpPXNLPTTTBmrRL=m4g@mail.gmail.com> <20120630012338.GY6676@redhat.com> <CAPQyPG7Nx1Jdq7WBBDC41iRGOMx8CdQjcWTNOWyj1fzVeuRcgw@mail.gmail.com>
+In-Reply-To: <CAPQyPG7Nx1Jdq7WBBDC41iRGOMx8CdQjcWTNOWyj1fzVeuRcgw@mail.gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hillf Danton <dhillf@gmail.com>, Dan Smith <danms@us.ibm.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Srivatsa Vaddagiri <vatsa@linux.vnet.ibm.com>, Christoph Lameter <cl@linux.com>, Alex Shi <alex.shi@intel.com>, Mauricio Faria de Oliveira <mauricfo@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Don Morris <don.morris@hp.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
+To: Nai Xia <nai.xia@gmail.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Ingo Molnar <mingo@kernel.org>, Hillf Danton <dhillf@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dan Smith <danms@us.ibm.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Srivatsa Vaddagiri <vatsa@linux.vnet.ibm.com>, Christoph Lameter <cl@linux.com>, Alex Shi <alex.shi@intel.com>, Mauricio Faria de Oliveira <mauricfo@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Don Morris <don.morris@hp.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
 
-On Thu, Jun 28, 2012 at 02:56:16PM +0200, Andrea Arcangeli wrote:
-> Move the AutoNUMA per page information from the "struct page" to a
-> separate page_autonuma data structure allocated in the memsection
-> (with sparsemem) or in the pgdat (with flatmem).
-> 
-> This is done to avoid growing the size of the "struct page" and the
-> page_autonuma data is only allocated if the kernel has been booted on
-> real NUMA hardware (or if noautonuma is passed as parameter to the
-> kernel).
-> 
-> Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
-> ---
->  include/linux/autonuma.h       |   18 +++-
->  include/linux/autonuma_flags.h |    6 +
->  include/linux/autonuma_types.h |   55 ++++++++++
->  include/linux/mm_types.h       |   26 -----
->  include/linux/mmzone.h         |   14 +++-
->  include/linux/page_autonuma.h  |   53 +++++++++
->  init/main.c                    |    2 +
->  mm/Makefile                    |    2 +-
->  mm/autonuma.c                  |   98 ++++++++++-------
->  mm/huge_memory.c               |   26 +++--
->  mm/page_alloc.c                |   21 +---
->  mm/page_autonuma.c             |  234 ++++++++++++++++++++++++++++++++++++++++
->  mm/sparse.c                    |  126 ++++++++++++++++++++-
->  13 files changed, 577 insertions(+), 104 deletions(-)
->  create mode 100644 include/linux/page_autonuma.h
->  create mode 100644 mm/page_autonuma.c
-> 
-> diff --git a/include/linux/autonuma.h b/include/linux/autonuma.h
-> index 85ca5eb..67af86a 100644
-> --- a/include/linux/autonuma.h
-> +++ b/include/linux/autonuma.h
-> @@ -7,15 +7,26 @@
->  
->  extern void autonuma_enter(struct mm_struct *mm);
->  extern void autonuma_exit(struct mm_struct *mm);
-> -extern void __autonuma_migrate_page_remove(struct page *page);
-> +extern void __autonuma_migrate_page_remove(struct page *,
-> +					   struct page_autonuma *);
->  extern void autonuma_migrate_split_huge_page(struct page *page,
->  					     struct page *page_tail);
->  extern void autonuma_setup_new_exec(struct task_struct *p);
-> +extern struct page_autonuma *lookup_page_autonuma(struct page *page);
->  
->  static inline void autonuma_migrate_page_remove(struct page *page)
->  {
-> -	if (ACCESS_ONCE(page->autonuma_migrate_nid) >= 0)
-> -		__autonuma_migrate_page_remove(page);
-> +	struct page_autonuma *page_autonuma = lookup_page_autonuma(page);
-> +	if (ACCESS_ONCE(page_autonuma->autonuma_migrate_nid) >= 0)
-> +		__autonuma_migrate_page_remove(page, page_autonuma);
-> +}
-> +
-> +static inline void autonuma_free_page(struct page *page)
-> +{
-> +	if (!autonuma_impossible()) {
+On 06/30/2012 05:43 AM, Nai Xia wrote:
+> On Sat, Jun 30, 2012 at 9:23 AM, Andrea Arcangeli <aarcange@redhat.com> wrote:
+>> On Sat, Jun 30, 2012 at 04:01:50AM +0800, Nai Xia wrote:
+>>> On Sat, Jun 30, 2012 at 2:53 AM, Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
+>>>> On Fri, 2012-06-29 at 12:51 -0400, Dor Laor wrote:
+>>>>> The previous comments were not shouts but the mother of all NAKs.
+>>>>
+>>>> I never said any such thing. I just said why should I bother reading
+>>>> your stuff if you're ignoring most my feedback anyway.
+>>>>
+>>>> If you want to read that as a NAK, not my problem.
+>>>
+>>> Hey guys, Can I say NAK to these patches ?
+>>>
+>>> Now I aware that this sampling algorithm is completely broken, if we take
+>>> a few seconds to see what it is trying to solve:
+>>>
+>>> We all know that LRU is try to solve the question of "what are the
+>>> pages recently accessed?",
+>>> so its engouth to use pte bits to approximate.
+>>
+>> I made an example about the active list to try to explain it why your
+>> example is still going to work fine.
+>>
+>> After it becomes active (from inactive) and it's being a referenced
+>> active page, it won't become _very_active_ or _very_very_active_ or
+>> more no matter how many more times you look up the pagecache.
+>>
+>> The LRU order wasn't relevant here.
+>>
+>>> However, the numa balancing problem is fundamentally like this:
+>>>
+>>> In some time unit,
+>>>
+>>>        W = pages_accessed  *  average_page_access_frequence
+>>>
+>>> We are trying to move process to the node having max W,  right?
+>>
+>> First of all, the mm_autonuma statistics are not in function of time
+>> and there is no page access frequency there.
+>>
+>> mm_autonuma is static information collected by knuma_scand from the
+>> pagetables. That's static and 100% accurate on the whole process and
+>> definitely not generated by the numa hinting page faults. I could shut
+>> off all numa hinting page faults permanently and still generate the
+>> mm_autonuma information identically.
+>>
+>> There's a knob in /sys/kernel/mm/autonuma/knuma_scand/working_set that
+>> you can enable if you want to use a "runtime" and not static
+>> information for the mm_autonuma too, but that's not the default for
+>> now (but I think it may be a better default, there wasn't enough time
+>> to test this yet)
+>>
+>> The task_autonuma (thread) statistics are the only thing that is
+>> sampled by default in a 10sec interval (the interval tunable too with
+>> sysfs, and 10sec is likely too aggressive, 30sec sounds better, we're
+>> eventually going to make it dynamic anyway)
+>>
+>> So even if you were right, the thread statistics only kicks in to
+>> balance threads against threads of the same process, most of the time
+>> what's more important are the mm_autonuma statistics.
+>>
+>> But in reality the thread statistics also works perfectly for the job,
+>> as an approximation of the NUMA memory footprint of the thread (vs the
+>> other threads). And then the rest of the memory slowly follows
+>> whatever node CPUs I placed the thread (even if that's not the
+>> absolutely best one at all times).
+>>
+>>> Andrea's patch can only approximate the pages_accessed number in a
+>>> time unit(scan interval),
+>>> I don't think it can catch even 1% of  average_page_access_frequence
+>>> on a busy workload.
+>>> Blindly assuming that all the pages'  average_page_access_frequence is
+>>> the same is seemly
+>>> broken to me.
+>>
+>> All we need is an approximation to take a better than random decision,
+>> even if you get it 1% right, it's still better than 0% right by going
+>> blind. Your 1% is too pessimistic, in my tests the thread statistics
+>> are more like >90% correct in average (I monitor them with the debug
+>> mode constantly).
+>>
+>> If this 1% right, happens one a million samples, who cares, it's not
+>> going to run measurably slower anyway (and it will still be better
+>> than picking a 0% right node).
+>>
+>> What you're saying is that because the active list in the pagecache
+>> won't differentiate between 10 cache hits and 20 cache hits, we should
+>> drop the active list and stop activating pages and just threat them
+>> all the same because in some unlucky access pattern, the active list
+>> may only get right 1% of the working set. But there's a reason why the
+>> active list exists despite it may get things wrong in some corner case
+>> and possibly leave the large amount of pages accessed infrequently in
+>> the inactive list forever (even if it gets things only 1% right in
+>> those worst cases, it's still better than 0% right and no active list
+>> at all).
+>>
+>> To say it in another way, you may still crash with the car even if
+>> you're careful, but do you think it's better to watch at the street or
+>> to drive blindfolded?
+>>
+>> numa/sched drives blindfolded, autonuma watches around every 10sec
+>> very carefully for the best next turn to take with the car and to
+>> avoid obstacles, you can imagine who wins.
+>>
+>> Watching the street carefully every 10sec doesn't mean the next moment
+>> a missile won't hit your car to make you crash, you're still having
+>> better chances not to crash than by driving blindfolded.
+>>
+>> numa/sched pretends to compete without collecting information for the
+>> NUMA thread memory footprint (task_autonuma, sampled with a
+>> exponential backoff at 10sec intervals), and without process
+>> information (full static information from the pagetables, not
+>> sampled). No matter how you compute stuff, if you've nothing
+>> meaningful in input to your algorithm you lose. And it looks like you
+>> believe that you can take better decisions with nothing in input to
+>> your NUMA placement algorithm, because my thread info (task_autonuma)
+>> isn't 100% perfect at all times and it can't predict the future. The
+>> alternative is to get that information from syscalls, but even
+>> ignoring the -ENOMEM from split_vma, that will lead to userland bugs
+>> and overall the task_autonuma information may be more reliable in the
+>> end, even if it's sampled using an exponential backoff.
+>>
+>> Also note the exponential backoff thing, it's not really the last
+>> interval, it's the last interval plus half the previous interval plus
+>> 1/4 the previous interval etc... and we can trivially control the
+>> decay.
+>>
+>> All we need is to get a direction and knowing _exactly_ what the task
+>> did over the last 10 seconds (even if it can't predict the future of
+>> what the thread will do in the next 1sec), is all we need to get a
+>> direction. After we take the direction then the memory will follow so
+>> we cannot care less what it does in the next second because that will
+>> follow the CPU (after a while, last_nid anti-false-sharing logic
+>> permitting), and at least we'll know for sure that the memory accessed
+>> in the last 10sec is already local and that defines the best node to
+>> schedule the thread.
+>>
+>> I don't mean there's no room for improvement in the way the input data
+>> can be computed, and even in the way the input data can be generated,
+>> the exponential backoff decay can be tuned too, I just tried to do the
+>> simplest computations on the data to make the workloads converge fast
+>> and you're welcome to contribute.
+>>
+>> But I believe the task_autonuma information is extremely valuable and
+>> we can trust it very much knowing we'll get a great placement. The
+>> concern you have isn't invalid, but it's a very minor one and the
+>> sampling rate effects you are concerned about, while real, they're
+>> lost in the noise in practice.
+>
+> Well, I think I am not convinced by your this many words. And surely
+> I  will NOT follow your reasoning of "Having information is always
+> good than nothing".  We all know that  an illy biased balancing is worse
+> than randomness:  at least randomness means "average, fair play, ...".
+> With all uncertain things, I think only a comprehensive survey
+> of real world workloads can tell if my concern is significant or not.
+>
+> So I think my suggestion to you is:  Show world some solid and sound
+> real world proof that your approximation is > 90% accurate, just like
 
-I think you are better using a different name.
+The cover letter contained a link to the performance:
+https://www.kernel.org/pub/linux/kernel/people/andrea/autonuma/autonuma_bench-20120530.pdf
 
-Perhaps 'if (autonuma_on())'
+It includes, specJbb, kernelbuild, cpuHog in guests, and handful of 
+units tests.
 
-> +		autonuma_migrate_page_remove(page);
-> +		lookup_page_autonuma(page)->autonuma_last_nid = -1;
-> +	}
->  }
->  
->  #define autonuma_printk(format, args...) \
-> @@ -29,6 +40,7 @@ static inline void autonuma_migrate_page_remove(struct page *page) {}
->  static inline void autonuma_migrate_split_huge_page(struct page *page,
->  						    struct page *page_tail) {}
->  static inline void autonuma_setup_new_exec(struct task_struct *p) {}
-> +static inline void autonuma_free_page(struct page *page) {}
->  
->  #endif /* CONFIG_AUTONUMA */
->  
-> diff --git a/include/linux/autonuma_flags.h b/include/linux/autonuma_flags.h
-> index 5e29a75..035d993 100644
-> --- a/include/linux/autonuma_flags.h
-> +++ b/include/linux/autonuma_flags.h
-> @@ -15,6 +15,12 @@ enum autonuma_flag {
->  
->  extern unsigned long autonuma_flags;
->  
-> +static inline bool autonuma_impossible(void)
-> +{
-> +	return num_possible_nodes() <= 1 ||
-> +		test_bit(AUTONUMA_IMPOSSIBLE_FLAG, &autonuma_flags);
-> +}
-> +
->  static inline bool autonuma_enabled(void)
->  {
->  	return !!test_bit(AUTONUMA_FLAG, &autonuma_flags);
-> diff --git a/include/linux/autonuma_types.h b/include/linux/autonuma_types.h
-> index 9e697e3..1e860f6 100644
-> --- a/include/linux/autonuma_types.h
-> +++ b/include/linux/autonuma_types.h
-> @@ -39,6 +39,61 @@ struct task_autonuma {
->  	unsigned long task_numa_fault[0];
->  };
->  
-> +/*
-> + * Per page (or per-pageblock) structure dynamically allocated only if
-> + * autonuma is not impossible.
+I'm sure anyone can beat most kernel algorithm with some pathological 
+case including LRU and CFS. The only way to improve the numa balancing 
+stuff is to sample more, meaning faulting more == larger overhead.
 
-not impossible? So possible?
+Maybe its worth to add a measurement that if we've done too many 
+bounding of a particular page to stop scan that page for a while. It's 
+an optimization that needs to be prove it worth in real life.
 
-> + */
-> +struct page_autonuma {
-> +	/*
-> +	 * To modify autonuma_last_nid lockless the architecture,
-> +	 * needs SMP atomic granularity < sizeof(long), not all archs
-> +	 * have that, notably some ancient alpha (but none of those
-> +	 * should run in NUMA systems). Archs without that requires
-> +	 * autonuma_last_nid to be a long.
-> +	 */
-> +#if BITS_PER_LONG > 32
-> +	/*
-> +	 * autonuma_migrate_nid is -1 if the page_autonuma structure
-> +	 * is not linked into any
-> +	 * pgdat->autonuma_migrate_head. Otherwise it means the
-> +	 * page_autonuma structure is linked into the
-> +	 * &NODE_DATA(autonuma_migrate_nid)->autonuma_migrate_head[page_nid].
-> +	 * page_nid is the nid that the page (referenced by the
-> +	 * page_autonuma structure) belongs to.
-> +	 */
-> +	int autonuma_migrate_nid;
-> +	/*
-> +	 * autonuma_last_nid records which is the NUMA nid that tried
-> +	 * to access this page at the last NUMA hinting page fault.
-> +	 * If it changed, AutoNUMA will not try to migrate the page to
-> +	 * the nid where the thread is running on and to the contrary,
-> +	 * it will make different threads trashing on the same pages,
-> +	 * converge on the same NUMA node (if possible).
-> +	 */
-> +	int autonuma_last_nid;
-> +#else
-> +#if MAX_NUMNODES >= 32768
-> +#error "too many nodes"
-> +#endif
-> +	short autonuma_migrate_nid;
-> +	short autonuma_last_nid;
-> +#endif
-> +	/*
-> +	 * This is the list node that links the page (referenced by
-> +	 * the page_autonuma structure) in the
-> +	 * &NODE_DATA(dst_nid)->autonuma_migrate_head[page_nid] lru.
-> +	 */
-> +	struct list_head autonuma_migrate_node;
-> +
-> +	/*
-> +	 * To find the page starting from the autonuma_migrate_node we
-> +	 * need a backlink.
-> +	 *
-> +	 * FIXME: drop it;
-> +	 */
-> +	struct page *page;
-> +};
-> +
->  extern int alloc_task_autonuma(struct task_struct *tsk,
->  			       struct task_struct *orig,
->  			       int node);
-> diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-> index d1248cf..f0c6379 100644
-> --- a/include/linux/mm_types.h
-> +++ b/include/linux/mm_types.h
-> @@ -136,32 +136,6 @@ struct page {
->  		struct page *first_page;	/* Compound tail pages */
->  	};
->  
-> -#ifdef CONFIG_AUTONUMA
-> -	/*
-> -	 * FIXME: move to pgdat section along with the memcg and allocate
-> -	 * at runtime only in presence of a numa system.
-> -	 */
-> -	/*
-> -	 * To modify autonuma_last_nid lockless the architecture,
-> -	 * needs SMP atomic granularity < sizeof(long), not all archs
-> -	 * have that, notably some ancient alpha (but none of those
-> -	 * should run in NUMA systems). Archs without that requires
-> -	 * autonuma_last_nid to be a long.
-> -	 */
-> -#if BITS_PER_LONG > 32
-> -	int autonuma_migrate_nid;
-> -	int autonuma_last_nid;
-> -#else
-> -#if MAX_NUMNODES >= 32768
-> -#error "too many nodes"
-> -#endif
-> -	/* FIXME: remember to check the updates are atomic */
-> -	short autonuma_migrate_nid;
-> -	short autonuma_last_nid;
-> -#endif
-> -	struct list_head autonuma_migrate_node;
-> -#endif
-> -
->  	/*
->  	 * On machines where all RAM is mapped into kernel address space,
->  	 * we can simply calculate the virtual address. On machines with
-> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-> index d53b26a..e66da74 100644
-> --- a/include/linux/mmzone.h
-> +++ b/include/linux/mmzone.h
-> @@ -698,10 +698,13 @@ typedef struct pglist_data {
->  	int kswapd_max_order;
->  	enum zone_type classzone_idx;
->  #ifdef CONFIG_AUTONUMA
-> -	spinlock_t autonuma_lock;
-> +#if !defined(CONFIG_SPARSEMEM)
-> +	struct page_autonuma *node_page_autonuma;
-> +#endif
->  	struct list_head autonuma_migrate_head[MAX_NUMNODES];
->  	unsigned long autonuma_nr_migrate_pages;
->  	wait_queue_head_t autonuma_knuma_migrated_wait;
-> +	spinlock_t autonuma_lock;
->  #endif
->  } pg_data_t;
->  
-> @@ -1064,6 +1067,15 @@ struct mem_section {
->  	 * section. (see memcontrol.h/page_cgroup.h about this.)
->  	 */
->  	struct page_cgroup *page_cgroup;
-> +#endif
-> +#ifdef CONFIG_AUTONUMA
-> +	/*
-> +	 * If !SPARSEMEM, pgdat doesn't have page_autonuma pointer. We use
-> +	 * section.
-> +	 */
-> +	struct page_autonuma *section_page_autonuma;
-> +#endif
-> +#if defined(CONFIG_CGROUP_MEM_RES_CTLR) ^ defined(CONFIG_AUTONUMA)
->  	unsigned long pad;
->  #endif
->  };
-> diff --git a/include/linux/page_autonuma.h b/include/linux/page_autonuma.h
-> new file mode 100644
-> index 0000000..d748aa2
-> --- /dev/null
-> +++ b/include/linux/page_autonuma.h
-> @@ -0,0 +1,53 @@
-> +#ifndef _LINUX_PAGE_AUTONUMA_H
-> +#define _LINUX_PAGE_AUTONUMA_H
-> +
-> +#if defined(CONFIG_AUTONUMA) && !defined(CONFIG_SPARSEMEM)
-> +extern void __init page_autonuma_init_flatmem(void);
-> +#else
-> +static inline void __init page_autonuma_init_flatmem(void) {}
-> +#endif
-> +
-> +#ifdef CONFIG_AUTONUMA
-> +
-> +#include <linux/autonuma_flags.h>
-> +
-> +extern void __meminit page_autonuma_map_init(struct page *page,
-> +					     struct page_autonuma *page_autonuma,
-> +					     int nr_pages);
-> +
-> +#ifdef CONFIG_SPARSEMEM
-> +#define PAGE_AUTONUMA_SIZE (sizeof(struct page_autonuma))
-> +#define SECTION_PAGE_AUTONUMA_SIZE (PAGE_AUTONUMA_SIZE *	\
-> +				    PAGES_PER_SECTION)
-> +#endif
-> +
-> +extern void __meminit pgdat_autonuma_init(struct pglist_data *);
-> +
-> +#else /* CONFIG_AUTONUMA */
-> +
-> +#ifdef CONFIG_SPARSEMEM
-> +struct page_autonuma;
-> +#define PAGE_AUTONUMA_SIZE 0
-> +#define SECTION_PAGE_AUTONUMA_SIZE 0
-> +
-> +#define autonuma_impossible() true
-> +
-> +#endif
-> +
-> +static inline void pgdat_autonuma_init(struct pglist_data *pgdat) {}
-> +
-> +#endif /* CONFIG_AUTONUMA */
-> +
-> +#ifdef CONFIG_SPARSEMEM
-> +extern struct page_autonuma * __meminit __kmalloc_section_page_autonuma(int nid,
-> +									unsigned long nr_pages);
-> +extern void __kfree_section_page_autonuma(struct page_autonuma *page_autonuma,
-> +					  unsigned long nr_pages);
-> +extern void __init sparse_early_page_autonuma_alloc_node(struct page_autonuma **page_autonuma_map,
-> +							 unsigned long pnum_begin,
-> +							 unsigned long pnum_end,
-> +							 unsigned long map_count,
-> +							 int nodeid);
-> +#endif
-> +
-> +#endif /* _LINUX_PAGE_AUTONUMA_H */
-> diff --git a/init/main.c b/init/main.c
-> index b5cc0a7..070a377 100644
-> --- a/init/main.c
-> +++ b/init/main.c
-> @@ -68,6 +68,7 @@
->  #include <linux/shmem_fs.h>
->  #include <linux/slab.h>
->  #include <linux/perf_event.h>
-> +#include <linux/page_autonuma.h>
->  
->  #include <asm/io.h>
->  #include <asm/bugs.h>
-> @@ -455,6 +456,7 @@ static void __init mm_init(void)
->  	 * bigger than MAX_ORDER unless SPARSEMEM.
->  	 */
->  	page_cgroup_init_flatmem();
-> +	page_autonuma_init_flatmem();
->  	mem_init();
->  	kmem_cache_init();
->  	percpu_init_late();
-> diff --git a/mm/Makefile b/mm/Makefile
-> index 15900fd..a4d8354 100644
-> --- a/mm/Makefile
-> +++ b/mm/Makefile
-> @@ -33,7 +33,7 @@ obj-$(CONFIG_FRONTSWAP)	+= frontswap.o
->  obj-$(CONFIG_HAS_DMA)	+= dmapool.o
->  obj-$(CONFIG_HUGETLBFS)	+= hugetlb.o
->  obj-$(CONFIG_NUMA) 	+= mempolicy.o
-> -obj-$(CONFIG_AUTONUMA) 	+= autonuma.o
-> +obj-$(CONFIG_AUTONUMA) 	+= autonuma.o page_autonuma.o
->  obj-$(CONFIG_SPARSEMEM)	+= sparse.o
->  obj-$(CONFIG_SPARSEMEM_VMEMMAP) += sparse-vmemmap.o
->  obj-$(CONFIG_SLOB) += slob.o
-> diff --git a/mm/autonuma.c b/mm/autonuma.c
-> index f44272b..ec4d492 100644
-> --- a/mm/autonuma.c
-> +++ b/mm/autonuma.c
-> @@ -51,12 +51,6 @@ static struct knumad_scan {
->  	.mm_head = LIST_HEAD_INIT(knumad_scan.mm_head),
->  };
->  
-> -static inline bool autonuma_impossible(void)
-> -{
-> -	return num_possible_nodes() <= 1 ||
-> -		test_bit(AUTONUMA_IMPOSSIBLE_FLAG, &autonuma_flags);
-> -}
-> -
->  static inline void autonuma_migrate_lock(int nid)
->  {
->  	spin_lock(&NODE_DATA(nid)->autonuma_lock);
-> @@ -82,54 +76,63 @@ void autonuma_migrate_split_huge_page(struct page *page,
->  				      struct page *page_tail)
->  {
->  	int nid, last_nid;
-> +	struct page_autonuma *page_autonuma, *page_tail_autonuma;
->  
-> -	nid = page->autonuma_migrate_nid;
-> +	if (autonuma_impossible())
+Cheers,
+Dor
 
-Is it just better to call it 'autonuma_off()' ?
+> the pioneers already did to LRU(This problem is surely different from
+> LRU. ).  Tons of words, will not do this.
+>
+> Thanks,
+>
+> Nai
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=ilto:"dont@kvack.org"> email@kvack.org </a>
+>
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
