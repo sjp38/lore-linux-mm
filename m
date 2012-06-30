@@ -1,58 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
-	by kanga.kvack.org (Postfix) with SMTP id 8D5666B00A9
-	for <linux-mm@kvack.org>; Sat, 30 Jun 2012 11:19:51 -0400 (EDT)
-Received: by pbbrp2 with SMTP id rp2so7084407pbb.14
-        for <linux-mm@kvack.org>; Sat, 30 Jun 2012 08:19:50 -0700 (PDT)
-Message-ID: <4FEF1908.80701@gmail.com>
-Date: Sat, 30 Jun 2012 23:19:36 +0800
-From: Nai Xia <nai.xia@gmail.com>
-Reply-To: nai.xia@gmail.com
+Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
+	by kanga.kvack.org (Postfix) with SMTP id 68F756B00AB
+	for <linux-mm@kvack.org>; Sat, 30 Jun 2012 11:47:08 -0400 (EDT)
+Received: by pbbrp2 with SMTP id rp2so7105296pbb.14
+        for <linux-mm@kvack.org>; Sat, 30 Jun 2012 08:47:07 -0700 (PDT)
+Message-ID: <4FEF1F6A.6090705@gmail.com>
+Date: Sat, 30 Jun 2012 23:46:50 +0800
+From: Jiang Liu <liuj97@gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 13/40] autonuma: CPU follow memory algorithm
-References: <1340895238.28750.49.camel@twins> <CAJd=RBA+FPgB9iq07YG0Pd=tN65SGK1ifmj98tomBDbYeKOE-Q@mail.gmail.com> <20120629125517.GD32637@gmail.com> <4FEDDD0C.60609@redhat.com> <1340995986.28750.114.camel@twins> <CAPQyPG4R34bi0fXHBspSpR1+gDLj2PGYpPXNLPTTTBmrRL=m4g@mail.gmail.com> <20120630012338.GY6676@redhat.com> <CAPQyPG7Nx1Jdq7WBBDC41iRGOMx8CdQjcWTNOWyj1fzVeuRcgw@mail.gmail.com> <4FEE9310.1050908@redhat.com> <CAPQyPG50wtowNsPm1UADCNchY-gFk-cKW8oiU34L2REybhNoEg@mail.gmail.com> <20120630130446.GB6676@redhat.com>
-In-Reply-To: <20120630130446.GB6676@redhat.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 8bit
+Subject: Re: [RFC PATCH 2/12] memory-hogplug : check memory offline in offline_pages
+References: <4FEA9C88.1070800@jp.fujitsu.com> <4FEA9DB1.7010303@jp.fujitsu.com>
+In-Reply-To: <4FEA9DB1.7010303@jp.fujitsu.com>
+Content-Type: text/plain; charset=ISO-2022-JP
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: dlaor@redhat.com, Peter Zijlstra <a.p.zijlstra@chello.nl>, Ingo Molnar <mingo@kernel.org>, Hillf Danton <dhillf@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dan Smith <danms@us.ibm.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Srivatsa Vaddagiri <vatsa@linux.vnet.ibm.com>, Christoph Lameter <cl@linux.com>, Alex Shi <alex.shi@intel.com>, Mauricio Faria de Oliveira <mauricfo@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Don Morris <don.morris@hp.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
+To: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, wency@cn.fujitsu.com
 
+On 06/27/2012 01:44 PM, Yasuaki Ishimatsu wrote:
+> When offline_pages() is called to offlined memory, the function fails since
+> all memory has been offlined. In this case, the function should succeed.
+> The patch adds the check function into offline_pages().
+> 
+> CC: Len Brown <len.brown@intel.com>
+> CC: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+> CC: Paul Mackerras <paulus@samba.org>
+> CC: Christoph Lameter <cl@linux.com>
+> Cc: Minchan Kim <minchan.kim@gmail.com>
+> CC: Andrew Morton <akpm@linux-foundation.org>
+> CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> CC: Wen Congyang <wency@cn.fujitsu.com>
+> Signed-off-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+> 
+> ---
+>  drivers/base/memory.c  |   20 ++++++++++++++++++++
+>  include/linux/memory.h |    1 +
+>  mm/memory_hotplug.c    |    5 +++++
+>  3 files changed, 26 insertions(+)
+> 
+> Index: linux-3.5-rc4/drivers/base/memory.c
+> ===================================================================
+> --- linux-3.5-rc4.orig/drivers/base/memory.c	2012-06-26 13:28:16.726211752 +0900
+> +++ linux-3.5-rc4/drivers/base/memory.c	2012-06-26 13:34:22.423639904 +0900
+> @@ -70,6 +70,26 @@ void unregister_memory_isolate_notifier(
+>  }
+>  EXPORT_SYMBOL(unregister_memory_isolate_notifier);
+> 
+> +bool memory_is_offline(unsigned long start_pfn, unsigned long end_pfn)
+> +{
+> +	struct memory_block *mem;
+> +	struct mem_section *section;
+> +	unsigned long pfn, section_nr;
+> +
+> +	for (pfn = start_pfn; pfn < end_pfn; pfn += PAGES_PER_SECTION) {
+> +		section_nr = pfn_to_section_nr(pfn);
+> +		section = __nr_to_section(section_nr);
+Is it possible for __nr_to_section return NULL here?
 
+> +		mem = find_memory_block(section);
+> +		if (!mem)
+> +			continue;
+> +		if (mem->state == MEM_OFFLINE)
+> +			continue;
+> +		return false;
+> +	}
+> +
+> +	return true;
+> +}
+Need a put_dev(&mem->dev) for the last memory block device handled before return.
 
-On 2012a1'06ae??30ae?JPY 21:04, Andrea Arcangeli wrote:
-> On Sat, Jun 30, 2012 at 02:58:29PM +0800, Nai Xia wrote:
->> OK, I think I'd stop discussing this topic now. Without strict and comprehensive
->> research on this topic, further arguments seems to me to be purely based on
->> imagination.
->
-> I suggest to consider how ptep_clear_and_test_young works on the
-> pte_young bit on the VM swapping code. Then apply your "concern" to
-> the pte_young bit scan. If you can't NAK the swapping code in the
-> kernel, well I guess you can't nack AutoNUMA as well because of that
-> specific concern.
->
-> And no I'm not saying this is trivial or obvious, I appreciate your
-> thoughts a lot, just I'm quite convinced this is a subtle detail but
-> an irrelevant one that gets lost in the noise.
->
->> If you insist on ignoring any constructive suggestions from others,
->> it's pretty much ok to do so.  But I (and possibly many others who are
->> watching)
->> am pretty much  possible to do a LOL to your development style.
->
-> Well if you think answering your emails means ignoring your
-> suggestions, be my guest.
+> +
+>  /*
+>   * register_memory - Setup a sysfs device for a memory block
+>   */
+> Index: linux-3.5-rc4/include/linux/memory.h
+> ===================================================================
+> --- linux-3.5-rc4.orig/include/linux/memory.h	2012-06-25 04:53:04.000000000 +0900
+> +++ linux-3.5-rc4/include/linux/memory.h	2012-06-26 13:34:22.424639891 +0900
+> @@ -120,6 +120,7 @@ extern int memory_isolate_notify(unsigne
+>  extern struct memory_block *find_memory_block_hinted(struct mem_section *,
+>  							struct memory_block *);
+>  extern struct memory_block *find_memory_block(struct mem_section *);
+> +extern bool memory_is_offline(unsigned long start_pfn, unsigned long end_pfn);
+>  #define CONFIG_MEM_BLOCK_SIZE	(PAGES_PER_SECTION<<PAGE_SHIFT)
+>  enum mem_add_context { BOOT, HOTPLUG };
+>  #endif /* CONFIG_MEMORY_HOTPLUG_SPARSE */
+> Index: linux-3.5-rc4/mm/memory_hotplug.c
+> ===================================================================
+> --- linux-3.5-rc4.orig/mm/memory_hotplug.c	2012-06-26 13:28:16.743211538 +0900
+> +++ linux-3.5-rc4/mm/memory_hotplug.c	2012-06-26 13:48:38.264940468 +0900
+> @@ -887,6 +887,11 @@ static int __ref offline_pages(unsigned
+> 
+>  	lock_memory_hotplug();
+> 
+> +	if (memory_is_offline(start_pfn, end_pfn)) {
+> +		ret = 0;
+> +		goto out;
+> +	}
+> +
+>  	zone = page_zone(pfn_to_page(start_pfn));
+>  	node = zone_to_nid(zone);
+>  	nr_pages = end_pfn - start_pfn;
+> 
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-acpi" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> 
 
-Thanks for you kindness, I was just feeling a little bit uncomfortable
-about Dor's tune of "Anyone can beat anything". It's OK now, since
-anyone with eyes can easily find out I am not a spamming person on
-this list.
-
-
-Thanks,
-Nai
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
