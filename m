@@ -1,120 +1,141 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
-	by kanga.kvack.org (Postfix) with SMTP id DBEE56B005A
-	for <linux-mm@kvack.org>; Fri, 29 Jun 2012 21:33:22 -0400 (EDT)
-Received: by pbbrp2 with SMTP id rp2so6425194pbb.14
-        for <linux-mm@kvack.org>; Fri, 29 Jun 2012 18:33:22 -0700 (PDT)
-Date: Fri, 29 Jun 2012 18:33:18 -0700
-From: Michel Lespinasse <walken@google.com>
-Subject: Re: [PATCH -mm v2 05/11] mm: get unmapped area from VMA tree
-Message-ID: <20120630013318.GB27797@google.com>
-References: <1340315835-28571-1-git-send-email-riel@surriel.com>
- <1340315835-28571-6-git-send-email-riel@surriel.com>
+Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
+	by kanga.kvack.org (Postfix) with SMTP id 9C4F66B005A
+	for <linux-mm@kvack.org>; Fri, 29 Jun 2012 21:35:02 -0400 (EDT)
+Date: Fri, 29 Jun 2012 22:34:48 -0300
+From: Rafael Aquini <aquini@redhat.com>
+Subject: Re: [PATCH v2 1/4] mm: introduce compaction and migration for virtio
+ ballooned pages
+Message-ID: <20120630013447.GA1545@x61.redhat.com>
+References: <cover.1340916058.git.aquini@redhat.com>
+ <d0f33a6492501a0d420abbf184f9b956cff3e3fc.1340916058.git.aquini@redhat.com>
+ <4FED3DDB.1000903@kernel.org>
+ <20120629173653.GA1774@t510.redhat.com>
+ <20120629220333.GA2079@barrios>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1340315835-28571-6-git-send-email-riel@surriel.com>
+In-Reply-To: <20120629220333.GA2079@barrios>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@surriel.com>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, aarcange@redhat.com, peterz@infradead.org, minchan@gmail.com, kosaki.motohiro@gmail.com, andi@firstfloor.org, hannes@cmpxchg.org, mel@csn.ul.ie, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>
+To: Minchan Kim <minchan@kernel.org>
+Cc: linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, "Michael S. Tsirkin" <mst@redhat.com>, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>
 
-On Thu, Jun 21, 2012 at 05:57:09PM -0400, Rik van Riel wrote:
-> +			if (!vma->vm_prev) {
-> +				/* This is the left-most VMA. */
-> +				if (vma->vm_start - len >= lower_limit) {
-> +					addr = lower_limit;
-> +					goto found_addr;
-> +				}
-> +			} else {
-> +				/* Is this gap large enough? Remember it. */
-> +				vma_start = max(vma->vm_prev->vm_end, lower_limit);
-> +				if (vma->vm_start - len >= vma_start) {
-> +					addr = vma_start;
-> +					found_here = true;
-> +				}
-> +			}
+Howdy Minchan,
 
-You could unify these two cases:
+On Sat, Jun 30, 2012 at 07:03:33AM +0900, Minchan Kim wrote:
+> > > > +static inline bool is_balloon_page(struct page *page)
+> > > > +{
+> > > > +        return (page->mapping == balloon_mapping) ? true : false;
+> > > > +}
+> > > 
+> > > 
+> > > What lock should it protect?
+> > > 
+> > I'm afraid I didn't quite get what you meant by that question. If you were
+> > referring to lock protection to the address_space balloon_mapping, we don't need
+> > it. balloon_mapping, once initialized lives forever (as long as driver is
+> > loaded, actually) as a static reference that just helps us on identifying pages 
+> > that are enlisted in a memory balloon as well as it keeps the callback pointers 
+> > to functions that will make those pages mobility magic happens.
+> 
+> Thanks. That's what I want to know.
+> If anyone(like me don't know of ballooning in detail) see this, it would be very helpful.
+> 
+Good point! I'll make sure this explanation gets properly registered either at commit log or
+at a comment along with balloon_mapping declaration, then.
 
-			vma_start = lower_limit;
-			if (vma->vm_prev && vma->vm_prev->vm_end > vma_start)
-				vma_start = vma->vm_prev->vm_end;
-			if (vma->vm_start - len >= vma_start) {
-				addr = vma_start;
-				found_here = true;
-			}
 
-You don't need the goto found_addr; the search won't be going left as there
-is no node there and it won't be going right as found_here is true.
 
-We may also be albe to dispense with found_here and replace it with a special
-value (either NULL or something not page aligned) for addr.
+> > > > +		if (likely(PageLRU(page))) {
+> > > 
+> > > 
+> > > We can't make sure it is likely because there might be so many pages for kernel.
+> > > 
+> > I thought that by that far in codepath that would be the likelihood since most
+> > pages of an ordinary workload will be at LRU lists. Following that idea, it
+> > sounded neat to hint the compiler to not branch for that block. But, if in the
+> > end that is just a "bad hint", I'll get rid of it right away.
+> 
+> Yeb. I hope you remove this.
+> If you want really, it should be separated patch because it's not related to your
+> series.
+> 
+That will be removed, then.
 
-> +		if (!found_here && node_free_gap(rb_node->rb_right) >= len) {
-> +			/* Last known gap is to the right of this subtree. */
-> +			rb_node = rb_node->rb_right;
-> +			continue;
-> +		} else if (!addr) {
-> +			rb_node = rb_find_next_uncle(rb_node);
-> +			continue;
->  		}
 
-Looks like you're already using my suggestion of using !addr to indicate
-we haven't found a suitable gap yet :)
 
-I don't think we want to visit just any uncle though - we want to visit one
-that has a large enough free gap somewhere in its subtree.
+> > > > +/* __isolate_lru_page() counterpart for a ballooned page */
+> > > > +bool isolate_balloon_page(struct page *page)
+> > > > +{
+> > > > +	if (WARN_ON(!is_balloon_page(page)))
+> > > > +		return false;
+> > > > +
+> > > > +	if (likely(get_page_unless_zero(page))) {
+> > > > +		/*
+> > > > +		 * We can race against move_to_new_page() & __unmap_and_move().
+> > > > +		 * If we stumble across a locked balloon page and succeed on
+> > > > +		 * isolating it, the result tends to be disastrous.
+> > > > +		 */
+> > > > +		if (likely(trylock_page(page))) {
+> > > > +			/*
+> > > > +			 * A ballooned page, by default, has just one refcount.
+> > > > +			 * Prevent concurrent compaction threads from isolating
+> > > > +			 * an already isolated balloon page.
+> > > > +			 */
+> > > > +			if (is_balloon_page(page) && (page_count(page) == 2)) {
+> > > > +				page->mapping->a_ops->invalidatepage(page, 0);
+> > > 
+> > > 
+> > > Could you add more meaningful name wrapping raw invalidatepage?
+> > > But I don't know what is proper name. ;)
+> > > 
+> > If I understood you correctely, your suggestion is to add two extra callback
+> > pointers to struct address_space_operations, instead of re-using those which are
+> > already there, and are suitable for the mission. Is this really necessary? It
+> > seems just like unecessary bloat to struct address_space_operations, IMHO.
+> 
+> I meant this. :)
+> 
+> void isolate_page_from_balloonlist(struct page* page)
+> {
+> 	page->mapping->a_ops->invalidatepage(page, 0);
+> }
+> 
+> 	if (is_balloon_page(page) && (page_count(page) == 2)) {
+> 		isolate_page_from_balloonlist(page);
+> 	}
+> 
+Humm, my feelings on your approach here: just an unecessary indirection that
+doesn't bring the desired code readability improvement.
+If the header comment statement on balloon_mapping->a_ops is not clear enough 
+on those methods usage for ballooned pages:
 
-So, maybe:
+..... 
+/*
+ * Balloon pages special page->mapping.
+ * users must properly allocate and initialize an instance of balloon_mapping,
+ * and set it as the page->mapping for balloon enlisted page instances.
+ *
+ * address_space_operations necessary methods for ballooned pages:
+ *   .migratepage    - used to perform balloon's page migration (as is)
+ *   .invalidatepage - used to isolate a page from balloon's page list
+ *   .freepage       - used to reinsert an isolated page to balloon's page list
+ */
+struct address_space *balloon_mapping;
+EXPORT_SYMBOL_GPL(balloon_mapping);
+.....
 
-		if (!found_here) {	// or if(!addr) or whatever
-			struct rb_node *rb_prev = NULL;
-			do {
-				if (rb_node != rb_prev &&
-				    node_free_gap(rb_node->rb_right) >= len) {
-					rb_node = rb_node->rb_right;
-					break;
-				}
-				rb_prev = rb_node;
-				rb_node = rb_parent(rb_node);
-			} while (rb_node);
-			continue;
-		}
+I can add an extra commentary, to recollect folks about that usage, next to the
+points where those callbacks are used at isolate_balloon_page() &
+putback_balloon_page(). What do you think?
 
-> +		/* This is the left-most gap. */
-> +		goto found_addr;
->  	}
-> +
-> +	/*
-> +	 * There is not enough space to the left of any VMA.
-> +	 * Check the far right-hand side of the VMA tree.
-> +	 */
-> +	rb_node = mm->mm_rb.rb_node;
-> +	while (rb_node->rb_right)
-> +		rb_node = rb_node->rb_right;
-> +	vma = rb_to_vma(rb_node);
-> +	addr = vma->vm_end;
-> +
-> +	/*
-> +	 * The right-most VMA ends below the lower limit. Can only happen
-> +	 * if a binary personality loads the stack below the executable.
-> +	 */
-> +	if (addr < lower_limit)
-> +		addr = lower_limit;
-> +
-> + found_addr:
-> +	if (TASK_SIZE - len < addr)
-> +		return -ENOMEM;
 
-I'm confused - if we come from 'goto found_addr', we found a gap to the
-left of an existing vma; aren't we guaranteed that this gap ends to the
-left of TASK_SIZE too since the existing vma's vm_begin should be
-less than TASK_SIZE ?
+> Thanks!
+> 
+Thank you for such attention and valuable feedback! Have a nice weekend!
 
--- 
-Michel "Walken" Lespinasse
-A program is never fully debugged until the last user dies.
+Rafael
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
