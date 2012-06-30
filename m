@@ -1,101 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
-	by kanga.kvack.org (Postfix) with SMTP id 96D296B0099
-	for <linux-mm@kvack.org>; Sat, 30 Jun 2012 05:10:04 -0400 (EDT)
-From: Jiang Liu <jiang.liu@huawei.com>
-Subject: [PATCH] mm: setup pageblock_order before it's used by sparse
-Date: Sat, 30 Jun 2012 17:07:54 +0800
-Message-ID: <1341047274-5616-1-git-send-email-jiang.liu@huawei.com>
+Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
+	by kanga.kvack.org (Postfix) with SMTP id AA8A86B009B
+	for <linux-mm@kvack.org>; Sat, 30 Jun 2012 05:43:30 -0400 (EDT)
+Received: by wibhr14 with SMTP id hr14so1251771wib.7
+        for <linux-mm@kvack.org>; Sat, 30 Jun 2012 02:43:28 -0700 (PDT)
+Message-ID: <4FEECA3C.5070308@ravellosystems.com>
+Date: Sat, 30 Jun 2012 12:43:24 +0300
+From: Izik Eidus <izik.eidus@ravellosystems.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Subject: Re: [PATCH v2] KSM: numa awareness sysfs knob
+References: <1340970592-25001-1-git-send-email-pholasek@redhat.com> <20120629141759.3312b49e.akpm@linux-foundation.org> <alpine.DEB.2.00.1206291543360.17044@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.00.1206291543360.17044@chino.kir.corp.google.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Tony Luck <tony.luck@intel.com>, Yinghai Lu <yinghai@kernel.org>
-Cc: Xishi Qiu <qiuxishi@huawei.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, Minchan Kim <minchan@kernel.org>, Keping Chen <chenkeping@huawei.com>, linux-mm@kvack.org, stable@vger.kernel.org, linux-kernel@vger.kernel.org, Jiang Liu <liuj97@gmail.com>
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Petr Holasek <pholasek@redhat.com>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Chris Wright <chrisw@sous-sol.org>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Anton Arapov <anton@redhat.com>
 
-From: Xishi Qiu <qiuxishi@huawei.com>
+On 06/30/2012 01:50 AM, David Rientjes wrote:
+> On Fri, 29 Jun 2012, Andrew Morton wrote:
+>
+>>> I've tested this patch on numa machines with 2, 4 and 8 nodes and
+>>> measured speed of memory access inside of KVM guests with memory pinned
+>>> to one of nodes with this benchmark:
+>>>
+>>> http://pholasek.fedorapeople.org/alloc_pg.c
+>>>
+>>> Population standard deviations of access times in percentage of average
+>>> were following:
+>>>
+>>> merge_nodes=1
+>>> 2 nodes 1.4%
+>>> 4 nodes 1.6%
+>>> 8 nodes	1.7%
+>>>
+>>> merge_nodes=0
+>>> 2 nodes	1%
+>>> 4 nodes	0.32%
+>>> 8 nodes	0.018%
+>> ooh, numbers!  Thanks.
+>>
+> Ok, the standard deviation increases when merging pages from nodes with
+> remote distance, that makes sense.  But if that's true, then you would
+> restrict either the entire application to local memory with mempolicies or
+> cpusets, or you would use mbind() to restrict this memory to that set of
+> nodes already so that accesses, even with ksm merging, would have
+> affinity.
 
-On architectures with CONFIG_HUGETLB_PAGE_SIZE_VARIABLE set, such as Itanium,
-pageblock_order is a variable with default value of 0. It's set to the right
-value by set_pageblock_order() in function free_area_init_core().
-
-But pageblock_order may be used by sparse_init() before free_area_init_core()
-is called along path:
-sparse_init()
-    ->sparse_early_usemaps_alloc_node()
-	->usemap_size()
-	    ->SECTION_BLOCKFLAGS_BITS
-		->((1UL << (PFN_SECTION_SHIFT - pageblock_order)) *
-NR_PAGEBLOCK_BITS)
-
-The uninitialized pageblock_size will cause memory wasting because usemap_size()
-returns a much bigger value then it's really needed.
-
-For example, on an Itanium platform,
-sparse_init() pageblock_order=0 usemap_size=24576
-free_area_init_core() before pageblock_order=0, usemap_size=24576
-free_area_init_core() after pageblock_order=12, usemap_size=8
-
-That means 24K memory has been wasted for each section, so fix it by calling
-set_pageblock_order() from sparse_init().
-
-Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
-Signed-off-by: Jiang Liu <liuj97@gmail.com>
----
- mm/internal.h   |    2 ++
- mm/page_alloc.c |    4 ++--
- mm/sparse.c     |    3 +++
- 3 files changed, 7 insertions(+), 2 deletions(-)
-
-diff --git a/mm/internal.h b/mm/internal.h
-index 2ba87fb..8052379 100644
---- a/mm/internal.h
-+++ b/mm/internal.h
-@@ -347,3 +347,5 @@ extern u32 hwpoison_filter_enable;
- extern unsigned long vm_mmap_pgoff(struct file *, unsigned long,
-         unsigned long, unsigned long,
-         unsigned long, unsigned long);
-+
-+extern void set_pageblock_order(void);
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 4403009..f38509b 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -4301,7 +4301,7 @@ static inline void setup_usemap(struct pglist_data *pgdat,
- #ifdef CONFIG_HUGETLB_PAGE_SIZE_VARIABLE
- 
- /* Initialise the number of pages represented by NR_PAGEBLOCK_BITS */
--static inline void __init set_pageblock_order(void)
-+void __init set_pageblock_order(void)
- {
- 	unsigned int order;
- 
-@@ -4329,7 +4329,7 @@ static inline void __init set_pageblock_order(void)
-  * include/linux/pageblock-flags.h for the values of pageblock_order based on
-  * the kernel config
-  */
--static inline void set_pageblock_order(void)
-+void __init set_pageblock_order(void)
- {
- }
- 
-diff --git a/mm/sparse.c b/mm/sparse.c
-index fca2ab5..3a3af73 100644
---- a/mm/sparse.c
-+++ b/mm/sparse.c
-@@ -485,6 +485,9 @@ void __init sparse_init(void)
- 	struct page **map_map;
- #endif
- 
-+	/* Setup pageblock_order for HUGETLB_PAGE_SIZE_VARIABLE */
-+	set_pageblock_order();
-+
- 	/*
- 	 * map is using big page (aka 2M in x86 64 bit)
- 	 * usemap is less one page (aka 24 bytes)
--- 
-1.7.1
-
+While you are right for case you write your own custom application,
+but I think the KVM guest case is little bit more problomatic in case 
+the guest memory must be splitted across serval nodes.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
