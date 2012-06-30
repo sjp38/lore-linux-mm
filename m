@@ -1,576 +1,273 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
-	by kanga.kvack.org (Postfix) with SMTP id 7E2056B0088
-	for <linux-mm@kvack.org>; Sat, 30 Jun 2012 02:00:10 -0400 (EDT)
-Received: by mail-pb0-f41.google.com with SMTP id rp2so6632354pbb.14
-        for <linux-mm@kvack.org>; Fri, 29 Jun 2012 23:00:10 -0700 (PDT)
-From: Akinobu Mita <akinobu.mita@gmail.com>
-Subject: [PATCH -v5 6/6] fault-injection: add selftests for cpu and memory hotplug
-Date: Sat, 30 Jun 2012 14:59:30 +0900
-Message-Id: <1341035970-20490-7-git-send-email-akinobu.mita@gmail.com>
-In-Reply-To: <1341035970-20490-1-git-send-email-akinobu.mita@gmail.com>
-References: <1341035970-20490-1-git-send-email-akinobu.mita@gmail.com>
+Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
+	by kanga.kvack.org (Postfix) with SMTP id 828D06B0093
+	for <linux-mm@kvack.org>; Sat, 30 Jun 2012 02:58:31 -0400 (EDT)
+Received: by lbjn8 with SMTP id n8so7119049lbj.14
+        for <linux-mm@kvack.org>; Fri, 29 Jun 2012 23:58:29 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+In-Reply-To: <4FEE9310.1050908@redhat.com>
+References: <1340888180-15355-1-git-send-email-aarcange@redhat.com>
+	<1340888180-15355-14-git-send-email-aarcange@redhat.com>
+	<1340895238.28750.49.camel@twins>
+	<CAJd=RBA+FPgB9iq07YG0Pd=tN65SGK1ifmj98tomBDbYeKOE-Q@mail.gmail.com>
+	<20120629125517.GD32637@gmail.com>
+	<4FEDDD0C.60609@redhat.com>
+	<1340995986.28750.114.camel@twins>
+	<CAPQyPG4R34bi0fXHBspSpR1+gDLj2PGYpPXNLPTTTBmrRL=m4g@mail.gmail.com>
+	<20120630012338.GY6676@redhat.com>
+	<CAPQyPG7Nx1Jdq7WBBDC41iRGOMx8CdQjcWTNOWyj1fzVeuRcgw@mail.gmail.com>
+	<4FEE9310.1050908@redhat.com>
+Date: Sat, 30 Jun 2012 14:58:29 +0800
+Message-ID: <CAPQyPG50wtowNsPm1UADCNchY-gFk-cKW8oiU34L2REybhNoEg@mail.gmail.com>
+Subject: Re: [PATCH 13/40] autonuma: CPU follow memory algorithm
+From: Nai Xia <nai.xia@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, akpm@linux-foundation.org
-Cc: Akinobu Mita <akinobu.mita@gmail.com>, Pavel Machek <pavel@ucw.cz>, "Rafael J. Wysocki" <rjw@sisk.pl>, linux-pm@lists.linux-foundation.org, Greg KH <greg@kroah.com>, linux-mm@kvack.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, linuxppc-dev@lists.ozlabs.org, =?UTF-8?q?Am=C3=A9rico=20Wang?= <xiyou.wangcong@gmail.com>, Dave Jones <davej@redhat.com>
+To: dlaor@redhat.com
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Ingo Molnar <mingo@kernel.org>, Hillf Danton <dhillf@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dan Smith <danms@us.ibm.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Srivatsa Vaddagiri <vatsa@linux.vnet.ibm.com>, Christoph Lameter <cl@linux.com>, Alex Shi <alex.shi@intel.com>, Mauricio Faria de Oliveira <mauricfo@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Don Morris <don.morris@hp.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
 
-This adds two selftests
+On Sat, Jun 30, 2012 at 1:48 PM, Dor Laor <dlaor@redhat.com> wrote:
+> On 06/30/2012 05:43 AM, Nai Xia wrote:
+>>
+>> On Sat, Jun 30, 2012 at 9:23 AM, Andrea Arcangeli <aarcange@redhat.com>
+>> wrote:
+>>>
+>>> On Sat, Jun 30, 2012 at 04:01:50AM +0800, Nai Xia wrote:
+>>>>
+>>>> On Sat, Jun 30, 2012 at 2:53 AM, Peter Zijlstra <a.p.zijlstra@chello.n=
+l>
+>>>> wrote:
+>>>>>
+>>>>> On Fri, 2012-06-29 at 12:51 -0400, Dor Laor wrote:
+>>>>>>
+>>>>>> The previous comments were not shouts but the mother of all NAKs.
+>>>>>
+>>>>>
+>>>>> I never said any such thing. I just said why should I bother reading
+>>>>> your stuff if you're ignoring most my feedback anyway.
+>>>>>
+>>>>> If you want to read that as a NAK, not my problem.
+>>>>
+>>>>
+>>>> Hey guys, Can I say NAK to these patches ?
+>>>>
+>>>> Now I aware that this sampling algorithm is completely broken, if we
+>>>> take
+>>>> a few seconds to see what it is trying to solve:
+>>>>
+>>>> We all know that LRU is try to solve the question of "what are the
+>>>> pages recently accessed?",
+>>>> so its engouth to use pte bits to approximate.
+>>>
+>>>
+>>> I made an example about the active list to try to explain it why your
+>>> example is still going to work fine.
+>>>
+>>> After it becomes active (from inactive) and it's being a referenced
+>>> active page, it won't become _very_active_ or _very_very_active_ or
+>>> more no matter how many more times you look up the pagecache.
+>>>
+>>> The LRU order wasn't relevant here.
+>>>
+>>>> However, the numa balancing problem is fundamentally like this:
+>>>>
+>>>> In some time unit,
+>>>>
+>>>> =A0 =A0 =A0 W =3D pages_accessed =A0* =A0average_page_access_frequence
+>>>>
+>>>> We are trying to move process to the node having max W, =A0right?
+>>>
+>>>
+>>> First of all, the mm_autonuma statistics are not in function of time
+>>> and there is no page access frequency there.
+>>>
+>>> mm_autonuma is static information collected by knuma_scand from the
+>>> pagetables. That's static and 100% accurate on the whole process and
+>>> definitely not generated by the numa hinting page faults. I could shut
+>>> off all numa hinting page faults permanently and still generate the
+>>> mm_autonuma information identically.
+>>>
+>>> There's a knob in /sys/kernel/mm/autonuma/knuma_scand/working_set that
+>>> you can enable if you want to use a "runtime" and not static
+>>> information for the mm_autonuma too, but that's not the default for
+>>> now (but I think it may be a better default, there wasn't enough time
+>>> to test this yet)
+>>>
+>>> The task_autonuma (thread) statistics are the only thing that is
+>>> sampled by default in a 10sec interval (the interval tunable too with
+>>> sysfs, and 10sec is likely too aggressive, 30sec sounds better, we're
+>>> eventually going to make it dynamic anyway)
+>>>
+>>> So even if you were right, the thread statistics only kicks in to
+>>> balance threads against threads of the same process, most of the time
+>>> what's more important are the mm_autonuma statistics.
+>>>
+>>> But in reality the thread statistics also works perfectly for the job,
+>>> as an approximation of the NUMA memory footprint of the thread (vs the
+>>> other threads). And then the rest of the memory slowly follows
+>>> whatever node CPUs I placed the thread (even if that's not the
+>>> absolutely best one at all times).
+>>>
+>>>> Andrea's patch can only approximate the pages_accessed number in a
+>>>> time unit(scan interval),
+>>>> I don't think it can catch even 1% of =A0average_page_access_frequence
+>>>> on a busy workload.
+>>>> Blindly assuming that all the pages' =A0average_page_access_frequence =
+is
+>>>> the same is seemly
+>>>> broken to me.
+>>>
+>>>
+>>> All we need is an approximation to take a better than random decision,
+>>> even if you get it 1% right, it's still better than 0% right by going
+>>> blind. Your 1% is too pessimistic, in my tests the thread statistics
+>>> are more like >90% correct in average (I monitor them with the debug
+>>> mode constantly).
+>>>
+>>> If this 1% right, happens one a million samples, who cares, it's not
+>>> going to run measurably slower anyway (and it will still be better
+>>> than picking a 0% right node).
+>>>
+>>> What you're saying is that because the active list in the pagecache
+>>> won't differentiate between 10 cache hits and 20 cache hits, we should
+>>> drop the active list and stop activating pages and just threat them
+>>> all the same because in some unlucky access pattern, the active list
+>>> may only get right 1% of the working set. But there's a reason why the
+>>> active list exists despite it may get things wrong in some corner case
+>>> and possibly leave the large amount of pages accessed infrequently in
+>>> the inactive list forever (even if it gets things only 1% right in
+>>> those worst cases, it's still better than 0% right and no active list
+>>> at all).
+>>>
+>>> To say it in another way, you may still crash with the car even if
+>>> you're careful, but do you think it's better to watch at the street or
+>>> to drive blindfolded?
+>>>
+>>> numa/sched drives blindfolded, autonuma watches around every 10sec
+>>> very carefully for the best next turn to take with the car and to
+>>> avoid obstacles, you can imagine who wins.
+>>>
+>>> Watching the street carefully every 10sec doesn't mean the next moment
+>>> a missile won't hit your car to make you crash, you're still having
+>>> better chances not to crash than by driving blindfolded.
+>>>
+>>> numa/sched pretends to compete without collecting information for the
+>>> NUMA thread memory footprint (task_autonuma, sampled with a
+>>> exponential backoff at 10sec intervals), and without process
+>>> information (full static information from the pagetables, not
+>>> sampled). No matter how you compute stuff, if you've nothing
+>>> meaningful in input to your algorithm you lose. And it looks like you
+>>> believe that you can take better decisions with nothing in input to
+>>> your NUMA placement algorithm, because my thread info (task_autonuma)
+>>> isn't 100% perfect at all times and it can't predict the future. The
+>>> alternative is to get that information from syscalls, but even
+>>> ignoring the -ENOMEM from split_vma, that will lead to userland bugs
+>>> and overall the task_autonuma information may be more reliable in the
+>>> end, even if it's sampled using an exponential backoff.
+>>>
+>>> Also note the exponential backoff thing, it's not really the last
+>>> interval, it's the last interval plus half the previous interval plus
+>>> 1/4 the previous interval etc... and we can trivially control the
+>>> decay.
+>>>
+>>> All we need is to get a direction and knowing _exactly_ what the task
+>>> did over the last 10 seconds (even if it can't predict the future of
+>>> what the thread will do in the next 1sec), is all we need to get a
+>>> direction. After we take the direction then the memory will follow so
+>>> we cannot care less what it does in the next second because that will
+>>> follow the CPU (after a while, last_nid anti-false-sharing logic
+>>> permitting), and at least we'll know for sure that the memory accessed
+>>> in the last 10sec is already local and that defines the best node to
+>>> schedule the thread.
+>>>
+>>> I don't mean there's no room for improvement in the way the input data
+>>> can be computed, and even in the way the input data can be generated,
+>>> the exponential backoff decay can be tuned too, I just tried to do the
+>>> simplest computations on the data to make the workloads converge fast
+>>> and you're welcome to contribute.
+>>>
+>>> But I believe the task_autonuma information is extremely valuable and
+>>> we can trust it very much knowing we'll get a great placement. The
+>>> concern you have isn't invalid, but it's a very minor one and the
+>>> sampling rate effects you are concerned about, while real, they're
+>>> lost in the noise in practice.
+>>
+>>
+>> Well, I think I am not convinced by your this many words. And surely
+>> I =A0will NOT follow your reasoning of "Having information is always
+>> good than nothing". =A0We all know that =A0an illy biased balancing is w=
+orse
+>> than randomness: =A0at least randomness means "average, fair play, ...".
+>> With all uncertain things, I think only a comprehensive survey
+>> of real world workloads can tell if my concern is significant or not.
+>>
+>> So I think my suggestion to you is: =A0Show world some solid and sound
+>> real world proof that your approximation is > 90% accurate, just like
+>
+>
+> The cover letter contained a link to the performance:
+> https://www.kernel.org/pub/linux/kernel/people/andrea/autonuma/autonuma_b=
+ench-20120530.pdf
 
-* tools/testing/selftests/cpu-hotplug/on-off-test.sh is testing script
-for CPU hotplug
+Yes, I saw this. But if you consider this already a solid and
+comprehensive proof.
+You win ,  I have no other words to say.
 
-1. Online all hot-pluggable CPUs
-2. Offline all hot-pluggable CPUs
-3. Online all hot-pluggable CPUs again
-4. Exit if cpu-notifier-error-inject.ko is not available
-5. Offline all hot-pluggable CPUs in preparation for testing
-6. Test CPU hot-add error handling by injecting notifier errors
-7. Online all hot-pluggable CPUs in preparation for testing
-8. Test CPU hot-remove error handling by injecting notifier errors
+>
+> It includes, specJbb, kernelbuild, cpuHog in guests, and handful of units
+> tests.
+>
+> I'm sure anyone can beat most kernel algorithm with some pathological cas=
+e
+> including LRU and CFS. The only way to improve the numa balancing stuff i=
+s
 
-* tools/testing/selftests/memory-hotplug/on-off-test.sh is doing the
-similar thing for memory hotplug.
+Like I already put, the pathological cases for LRU were already well unders=
+tood
+for decades, they are quite valid to ignore.  And every programmer has
+be taught to
+avoid these cases.  And this conclusion took much much time of many many
+talented brains.
 
-1. Online all hot-pluggable memory
-2. Offline 10% of hot-pluggable memory
-3. Online all hot-pluggable memory again
-4. Exit if memory-notifier-error-inject.ko is not available
-5. Offline 10% of hot-pluggable memory in preparation for testing
-6. Test memory hot-add error handling by injecting notifier errors
-7. Online all hot-pluggable memory in preparation for testing
-8. Test memory hot-remove error handling by injecting notifier errors
+But the problem of this algorithm is not. And you are putting haste conclus=
+ion
+of it without bothering to do comprehensive research.
 
-Signed-off-by: Akinobu Mita <akinobu.mita@gmail.com>
-Suggested-by: Andrew Morton <akpm@linux-foundation.org>
-Cc: Pavel Machek <pavel@ucw.cz>
-Cc: "Rafael J. Wysocki" <rjw@sisk.pl>
-Cc: linux-pm@lists.linux-foundation.org
-Cc: Greg KH <greg@kroah.com>
-Cc: linux-mm@kvack.org
-Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Cc: Paul Mackerras <paulus@samba.org>
-Cc: linuxppc-dev@lists.ozlabs.org
-Cc: AmA(C)rico Wang <xiyou.wangcong@gmail.com>
-Cc: Dave Jones <davej@redhat.com>
----
-* v5
-- make testing scripts a part of tools/testing/selftests
-- do simple on/offline tests even if no notifier error injection support
+"Collect the data from a wide range of pages occasionally,
+and then do a condense computing on a small set of pages" looks a very comm=
+on
+practice to me.  But again, if you simply label this as "minor".
+I have no other words to say.
 
- tools/testing/selftests/Makefile                   |    2 +-
- tools/testing/selftests/cpu-hotplug/Makefile       |    6 +
- tools/testing/selftests/cpu-hotplug/on-off-test.sh |  221 +++++++++++++++++++
- tools/testing/selftests/memory-hotplug/Makefile    |    6 +
- .../selftests/memory-hotplug/on-off-test.sh        |  230 ++++++++++++++++++++
- 5 files changed, 464 insertions(+), 1 deletion(-)
- create mode 100644 tools/testing/selftests/cpu-hotplug/Makefile
- create mode 100755 tools/testing/selftests/cpu-hotplug/on-off-test.sh
- create mode 100644 tools/testing/selftests/memory-hotplug/Makefile
- create mode 100755 tools/testing/selftests/memory-hotplug/on-off-test.sh
+> to sample more, meaning faulting more =3D=3D larger overhead.
 
-diff --git a/tools/testing/selftests/Makefile b/tools/testing/selftests/Makefile
-index a4162e1..85baf11 100644
---- a/tools/testing/selftests/Makefile
-+++ b/tools/testing/selftests/Makefile
-@@ -1,4 +1,4 @@
--TARGETS = breakpoints kcmp mqueue vm
-+TARGETS = breakpoints kcmp mqueue vm cpu-hotplug memory-hotplug
- 
- all:
- 	for TARGET in $(TARGETS); do \
-diff --git a/tools/testing/selftests/cpu-hotplug/Makefile b/tools/testing/selftests/cpu-hotplug/Makefile
-new file mode 100644
-index 0000000..7c9c20f
---- /dev/null
-+++ b/tools/testing/selftests/cpu-hotplug/Makefile
-@@ -0,0 +1,6 @@
-+all:
-+
-+run_tests:
-+	./on-off-test.sh
-+
-+clean:
-diff --git a/tools/testing/selftests/cpu-hotplug/on-off-test.sh b/tools/testing/selftests/cpu-hotplug/on-off-test.sh
-new file mode 100755
-index 0000000..bdde7cf
---- /dev/null
-+++ b/tools/testing/selftests/cpu-hotplug/on-off-test.sh
-@@ -0,0 +1,221 @@
-+#!/bin/bash
-+
-+SYSFS=
-+
-+prerequisite()
-+{
-+	msg="skip all tests:"
-+
-+	if [ $UID != 0 ]; then
-+		echo $msg must be run as root >&2
-+		exit 0
-+	fi
-+
-+	SYSFS=`mount -t sysfs | head -1 | awk '{ print $3 }'`
-+
-+	if [ ! -d "$SYSFS" ]; then
-+		echo $msg sysfs is not mounted >&2
-+		exit 0
-+	fi
-+
-+	if ! ls $SYSFS/devices/system/cpu/cpu* > /dev/null 2>&1; then
-+		echo $msg cpu hotplug is not supported >&2
-+		exit 0
-+	fi
-+}
-+
-+#
-+# list all hot-pluggable CPUs
-+#
-+hotpluggable_cpus()
-+{
-+	local state=${1:-.\*}
-+
-+	for cpu in $SYSFS/devices/system/cpu/cpu*; do
-+		if [ -f $cpu/online ] && grep -q $state $cpu/online; then
-+			echo ${cpu##/*/cpu}
-+		fi
-+	done
-+}
-+
-+hotplaggable_offline_cpus()
-+{
-+	hotpluggable_cpus 0
-+}
-+
-+hotpluggable_online_cpus()
-+{
-+	hotpluggable_cpus 1
-+}
-+
-+cpu_is_online()
-+{
-+	grep -q 1 $SYSFS/devices/system/cpu/cpu$1/online
-+}
-+
-+cpu_is_offline()
-+{
-+	grep -q 0 $SYSFS/devices/system/cpu/cpu$1/online
-+}
-+
-+online_cpu()
-+{
-+	echo 1 > $SYSFS/devices/system/cpu/cpu$1/online
-+}
-+
-+offline_cpu()
-+{
-+	echo 0 > $SYSFS/devices/system/cpu/cpu$1/online
-+}
-+
-+online_cpu_expect_success()
-+{
-+	local cpu=$1
-+
-+	if ! online_cpu $cpu; then
-+		echo $FUNCNAME $cpu: unexpected fail >&2
-+	elif ! cpu_is_online $cpu; then
-+		echo $FUNCNAME $cpu: unexpected offline >&2
-+	fi
-+}
-+
-+online_cpu_expect_fail()
-+{
-+	local cpu=$1
-+
-+	if online_cpu $cpu 2> /dev/null; then
-+		echo $FUNCNAME $cpu: unexpected success >&2
-+	elif ! cpu_is_offline $cpu; then
-+		echo $FUNCNAME $cpu: unexpected online >&2
-+	fi
-+}
-+
-+offline_cpu_expect_success()
-+{
-+	local cpu=$1
-+
-+	if ! offline_cpu $cpu; then
-+		echo $FUNCNAME $cpu: unexpected fail >&2
-+	elif ! cpu_is_offline $cpu; then
-+		echo $FUNCNAME $cpu: unexpected offline >&2
-+	fi
-+}
-+
-+offline_cpu_expect_fail()
-+{
-+	local cpu=$1
-+
-+	if offline_cpu $cpu 2> /dev/null; then
-+		echo $FUNCNAME $cpu: unexpected success >&2
-+	elif ! cpu_is_online $cpu; then
-+		echo $FUNCNAME $cpu: unexpected offline >&2
-+	fi
-+}
-+
-+error=-12
-+priority=0
-+
-+while getopts e:hp: opt; do
-+	case $opt in
-+	e)
-+		error=$OPTARG
-+		;;
-+	h)
-+		echo "Usage $0 [ -e errno ] [ -p notifier-priority ]"
-+		exit
-+		;;
-+	p)
-+		priority=$OPTARG
-+		;;
-+	esac
-+done
-+
-+if ! [ "$error" -ge -4095 -a "$error" -lt 0 ]; then
-+	echo "error code must be -4095 <= errno < 0" >&2
-+	exit 1
-+fi
-+
-+prerequisite
-+
-+#
-+# Online all hot-pluggable CPUs
-+#
-+for cpu in `hotplaggable_offline_cpus`; do
-+	online_cpu_expect_success $cpu
-+done
-+
-+#
-+# Offline all hot-pluggable CPUs
-+#
-+for cpu in `hotpluggable_online_cpus`; do
-+	offline_cpu_expect_success $cpu
-+done
-+
-+#
-+# Online all hot-pluggable CPUs again
-+#
-+for cpu in `hotplaggable_offline_cpus`; do
-+	online_cpu_expect_success $cpu
-+done
-+
-+#
-+# Test with cpu notifier error injection
-+#
-+
-+DEBUGFS=`mount -t debugfs | head -1 | awk '{ print $3 }'`
-+NOTIFIER_ERR_INJECT_DIR=$DEBUGFS/notifier-error-inject/cpu
-+
-+prerequisite_extra()
-+{
-+	msg="skip extra tests:"
-+
-+	/sbin/modprobe -q -r cpu-notifier-error-inject
-+	/sbin/modprobe -q cpu-notifier-error-inject priority=$priority
-+
-+	if [ ! -d "$DEBUGFS" ]; then
-+		echo $msg debugfs is not mounted >&2
-+		exit 0
-+	fi
-+
-+	if [ ! -d $NOTIFIER_ERR_INJECT_DIR ]; then
-+		echo $msg cpu-notifier-error-inject module is not available >&2
-+		exit 0
-+	fi
-+}
-+
-+prerequisite_extra
-+
-+#
-+# Offline all hot-pluggable CPUs
-+#
-+echo 0 > $NOTIFIER_ERR_INJECT_DIR/actions/CPU_DOWN_PREPARE/error
-+for cpu in `hotpluggable_online_cpus`; do
-+	offline_cpu_expect_success $cpu
-+done
-+
-+#
-+# Test CPU hot-add error handling (offline => online)
-+#
-+echo $error > $NOTIFIER_ERR_INJECT_DIR/actions/CPU_UP_PREPARE/error
-+for cpu in `hotplaggable_offline_cpus`; do
-+	online_cpu_expect_fail $cpu
-+done
-+
-+#
-+# Online all hot-pluggable CPUs
-+#
-+echo 0 > $NOTIFIER_ERR_INJECT_DIR/actions/CPU_UP_PREPARE/error
-+for cpu in `hotplaggable_offline_cpus`; do
-+	online_cpu_expect_success $cpu
-+done
-+
-+#
-+# Test CPU hot-remove error handling (online => offline)
-+#
-+echo $error > $NOTIFIER_ERR_INJECT_DIR/actions/CPU_DOWN_PREPARE/error
-+for cpu in `hotpluggable_online_cpus`; do
-+	offline_cpu_expect_fail $cpu
-+done
-+
-+echo 0 > $NOTIFIER_ERR_INJECT_DIR/actions/CPU_DOWN_PREPARE/error
-+/sbin/modprobe -q -r cpu-notifier-error-inject
-diff --git a/tools/testing/selftests/memory-hotplug/Makefile b/tools/testing/selftests/memory-hotplug/Makefile
-new file mode 100644
-index 0000000..7c9c20f
---- /dev/null
-+++ b/tools/testing/selftests/memory-hotplug/Makefile
-@@ -0,0 +1,6 @@
-+all:
-+
-+run_tests:
-+	./on-off-test.sh
-+
-+clean:
-diff --git a/tools/testing/selftests/memory-hotplug/on-off-test.sh b/tools/testing/selftests/memory-hotplug/on-off-test.sh
-new file mode 100755
-index 0000000..a2816f6
---- /dev/null
-+++ b/tools/testing/selftests/memory-hotplug/on-off-test.sh
-@@ -0,0 +1,230 @@
-+#!/bin/bash
-+
-+SYSFS=
-+
-+prerequisite()
-+{
-+	msg="skip all tests:"
-+
-+	if [ $UID != 0 ]; then
-+		echo $msg must be run as root >&2
-+		exit 0
-+	fi
-+
-+	SYSFS=`mount -t sysfs | head -1 | awk '{ print $3 }'`
-+
-+	if [ ! -d "$SYSFS" ]; then
-+		echo $msg sysfs is not mounted >&2
-+		exit 0
-+	fi
-+
-+	if ! ls $SYSFS/devices/system/memory/memory* > /dev/null 2>&1; then
-+		echo $msg memory hotplug is not supported >&2
-+		exit 0
-+	fi
-+}
-+
-+#
-+# list all hot-pluggable memory
-+#
-+hotpluggable_memory()
-+{
-+	local state=${1:-.\*}
-+
-+	for memory in $SYSFS/devices/system/memory/memory*; do
-+		if grep -q 1 $memory/removable &&
-+		   grep -q $state $memory/state; then
-+			echo ${memory##/*/memory}
-+		fi
-+	done
-+}
-+
-+hotplaggable_offline_memory()
-+{
-+	hotpluggable_memory offline
-+}
-+
-+hotpluggable_online_memory()
-+{
-+	hotpluggable_memory online
-+}
-+
-+memory_is_online()
-+{
-+	grep -q online $SYSFS/devices/system/memory/memory$1/state
-+}
-+
-+memory_is_offline()
-+{
-+	grep -q offline $SYSFS/devices/system/memory/memory$1/state
-+}
-+
-+online_memory()
-+{
-+	echo online > $SYSFS/devices/system/memory/memory$1/state
-+}
-+
-+offline_memory()
-+{
-+	echo offline > $SYSFS/devices/system/memory/memory$1/state
-+}
-+
-+online_memory_expect_success()
-+{
-+	local memory=$1
-+
-+	if ! online_memory $memory; then
-+		echo $FUNCNAME $memory: unexpected fail >&2
-+	elif ! memory_is_online $memory; then
-+		echo $FUNCNAME $memory: unexpected offline >&2
-+	fi
-+}
-+
-+online_memory_expect_fail()
-+{
-+	local memory=$1
-+
-+	if online_memory $memory 2> /dev/null; then
-+		echo $FUNCNAME $memory: unexpected success >&2
-+	elif ! memory_is_offline $memory; then
-+		echo $FUNCNAME $memory: unexpected online >&2
-+	fi
-+}
-+
-+offline_memory_expect_success()
-+{
-+	local memory=$1
-+
-+	if ! offline_memory $memory; then
-+		echo $FUNCNAME $memory: unexpected fail >&2
-+	elif ! memory_is_offline $memory; then
-+		echo $FUNCNAME $memory: unexpected offline >&2
-+	fi
-+}
-+
-+offline_memory_expect_fail()
-+{
-+	local memory=$1
-+
-+	if offline_memory $memory 2> /dev/null; then
-+		echo $FUNCNAME $memory: unexpected success >&2
-+	elif ! memory_is_online $memory; then
-+		echo $FUNCNAME $memory: unexpected offline >&2
-+	fi
-+}
-+
-+error=-12
-+priority=0
-+ratio=10
-+
-+while getopts e:hp:r: opt; do
-+	case $opt in
-+	e)
-+		error=$OPTARG
-+		;;
-+	h)
-+		echo "Usage $0 [ -e errno ] [ -p notifier-priority ] [ -r percent-of-memory-to-offline ]"
-+		exit
-+		;;
-+	p)
-+		priority=$OPTARG
-+		;;
-+	r)
-+		ratio=$OPTARG
-+		;;
-+	esac
-+done
-+
-+if ! [ "$error" -ge -4095 -a "$error" -lt 0 ]; then
-+	echo "error code must be -4095 <= errno < 0" >&2
-+	exit 1
-+fi
-+
-+prerequisite
-+
-+#
-+# Online all hot-pluggable memory
-+#
-+for memory in `hotplaggable_offline_memory`; do
-+	online_memory_expect_success $memory
-+done
-+
-+#
-+# Offline $ratio percent of hot-pluggable memory
-+#
-+for memory in `hotpluggable_online_memory`; do
-+	if [ $((RANDOM % 100)) -lt $ratio ]; then
-+		offline_memory_expect_success $memory
-+	fi
-+done
-+
-+#
-+# Online all hot-pluggable memory again
-+#
-+for memory in `hotplaggable_offline_memory`; do
-+	online_memory_expect_success $memory
-+done
-+
-+#
-+# Test with memory notifier error injection
-+#
-+
-+DEBUGFS=`mount -t debugfs | head -1 | awk '{ print $3 }'`
-+NOTIFIER_ERR_INJECT_DIR=$DEBUGFS/notifier-error-inject/memory
-+
-+prerequisite_extra()
-+{
-+	msg="skip extra tests:"
-+
-+	/sbin/modprobe -q -r memory-notifier-error-inject
-+	/sbin/modprobe -q memory-notifier-error-inject priority=$priority
-+
-+	if [ ! -d "$DEBUGFS" ]; then
-+		echo $msg debugfs is not mounted >&2
-+		exit 0
-+	fi
-+
-+	if [ ! -d $NOTIFIER_ERR_INJECT_DIR ]; then
-+		echo $msg memory-notifier-error-inject module is not available >&2
-+		exit 0
-+	fi
-+}
-+
-+prerequisite_extra
-+
-+#
-+# Offline $ratio percent of hot-pluggable memory
-+#
-+echo 0 > $NOTIFIER_ERR_INJECT_DIR/actions/MEM_GOING_OFFLINE/error
-+for memory in `hotpluggable_online_memory`; do
-+	if [ $((RANDOM % 100)) -lt $ratio ]; then
-+		offline_memory_expect_success $memory
-+	fi
-+done
-+
-+#
-+# Test memory hot-add error handling (offline => online)
-+#
-+echo $error > $NOTIFIER_ERR_INJECT_DIR/actions/MEM_GOING_ONLINE/error
-+for memory in `hotplaggable_offline_memory`; do
-+	online_memory_expect_fail $memory
-+done
-+
-+#
-+# Online all hot-pluggable memory
-+#
-+echo 0 > $NOTIFIER_ERR_INJECT_DIR/actions/MEM_GOING_ONLINE/error
-+for memory in `hotplaggable_offline_memory`; do
-+	online_memory_expect_success $memory
-+done
-+
-+#
-+# Test memory hot-remove error handling (online => offline)
-+#
-+echo $error > $NOTIFIER_ERR_INJECT_DIR/actions/MEM_GOING_OFFLINE/error
-+for memory in `hotpluggable_online_memory`; do
-+	offline_memory_expect_fail $memory
-+done
-+
-+echo 0 > $NOTIFIER_ERR_INJECT_DIR/actions/MEM_GOING_OFFLINE/error
-+/sbin/modprobe -q -r memory-notifier-error-inject
--- 
-1.7.10.4
+Are you sure you really want to compete the sampling speed with CPU intensi=
+ve
+workloads?
+
+OK, I think I'd stop discussing this topic now. Without strict and comprehe=
+nsive
+research on this topic, further arguments seems to me to be purely based on
+imagination.
+
+And I have no interest in beating any of your fancy algorithm, it wouldn't =
+bring
+me 1G$.  I am just curiously about the truth.
+
+If you insist on ignoring any constructive suggestions from others,
+it's pretty much ok to do so.  But I (and possibly many others who are
+watching)
+am pretty much  possible to do a LOL to your development style.
+
+Basically, anyone has the right to laugh,  if   W =3D x * y and you only
+approximate
+x and label y as minor factor.  :D
+
+Cheer,
+
+Nai
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
