@@ -1,9 +1,9 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
-	by kanga.kvack.org (Postfix) with SMTP id 828D06B0093
-	for <linux-mm@kvack.org>; Sat, 30 Jun 2012 02:58:31 -0400 (EDT)
-Received: by lbjn8 with SMTP id n8so7119049lbj.14
-        for <linux-mm@kvack.org>; Fri, 29 Jun 2012 23:58:29 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
+	by kanga.kvack.org (Postfix) with SMTP id DA00E6B0096
+	for <linux-mm@kvack.org>; Sat, 30 Jun 2012 04:23:04 -0400 (EDT)
+Received: by ghrr18 with SMTP id r18so4174217ghr.14
+        for <linux-mm@kvack.org>; Sat, 30 Jun 2012 01:23:04 -0700 (PDT)
 MIME-Version: 1.0
 In-Reply-To: <4FEE9310.1050908@redhat.com>
 References: <1340888180-15355-1-git-send-email-aarcange@redhat.com>
@@ -17,8 +17,8 @@ References: <1340888180-15355-1-git-send-email-aarcange@redhat.com>
 	<20120630012338.GY6676@redhat.com>
 	<CAPQyPG7Nx1Jdq7WBBDC41iRGOMx8CdQjcWTNOWyj1fzVeuRcgw@mail.gmail.com>
 	<4FEE9310.1050908@redhat.com>
-Date: Sat, 30 Jun 2012 14:58:29 +0800
-Message-ID: <CAPQyPG50wtowNsPm1UADCNchY-gFk-cKW8oiU34L2REybhNoEg@mail.gmail.com>
+Date: Sat, 30 Jun 2012 16:23:03 +0800
+Message-ID: <CAPQyPG5h=p2buvCyNjD=fc2zjpVkashe0FppE9X2KNp-C-b3Yw@mail.gmail.com>
 Subject: Re: [PATCH 13/40] autonuma: CPU follow memory algorithm
 From: Nai Xia <nai.xia@gmail.com>
 Content-Type: text/plain; charset=ISO-8859-1
@@ -210,11 +210,6 @@ orse
 > The cover letter contained a link to the performance:
 > https://www.kernel.org/pub/linux/kernel/people/andrea/autonuma/autonuma_b=
 ench-20120530.pdf
-
-Yes, I saw this. But if you consider this already a solid and
-comprehensive proof.
-You win ,  I have no other words to say.
-
 >
 > It includes, specJbb, kernelbuild, cpuHog in guests, and handful of units
 > tests.
@@ -223,49 +218,32 @@ You win ,  I have no other words to say.
 e
 > including LRU and CFS. The only way to improve the numa balancing stuff i=
 s
-
-Like I already put, the pathological cases for LRU were already well unders=
-tood
-for decades, they are quite valid to ignore.  And every programmer has
-be taught to
-avoid these cases.  And this conclusion took much much time of many many
-talented brains.
-
-But the problem of this algorithm is not. And you are putting haste conclus=
-ion
-of it without bothering to do comprehensive research.
-
-"Collect the data from a wide range of pages occasionally,
-and then do a condense computing on a small set of pages" looks a very comm=
-on
-practice to me.  But again, if you simply label this as "minor".
-I have no other words to say.
-
 > to sample more, meaning faulting more =3D=3D larger overhead.
+>
+> Maybe its worth to add a measurement that if we've done too many bounding=
+ of
+> a particular page to stop scan that page for a while. It's an optimizatio=
+n
+> that needs to be prove it worth in real life.
+>
 
-Are you sure you really want to compete the sampling speed with CPU intensi=
-ve
-workloads?
+Oh, sorry, I think I forgot few last comments in my last post:
 
-OK, I think I'd stop discussing this topic now. Without strict and comprehe=
-nsive
-research on this topic, further arguments seems to me to be purely based on
-imagination.
+In case you really can take my advice and do comprehensive research,
+try to make sure that you compare the result of your fancy sampling algorit=
+hm
+with this simple logic:
 
-And I have no interest in beating any of your fancy algorithm, it wouldn't =
-bring
-me 1G$.  I am just curiously about the truth.
+   "Blindly select a node and bind the process and move all pages to it."
 
-If you insist on ignoring any constructive suggestions from others,
-it's pretty much ok to do so.  But I (and possibly many others who are
-watching)
-am pretty much  possible to do a LOL to your development style.
+Stupid it may sound, I highly suspect it can approach the benchmarks
+you already did.
 
-Basically, anyone has the right to laugh,  if   W =3D x * y and you only
-approximate
-x and label y as minor factor.  :D
+If that's really the truth, then all the sampling and weighting stuff can
+be cut off.
 
-Cheer,
+
+Thanks,
 
 Nai
 
