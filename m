@@ -1,69 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
-	by kanga.kvack.org (Postfix) with SMTP id B696C6B00D1
-	for <linux-mm@kvack.org>; Sun,  1 Jul 2012 19:35:30 -0400 (EDT)
-Message-ID: <4FF0DEE2.5080200@kernel.org>
-Date: Mon, 02 Jul 2012 08:36:02 +0900
-From: Minchan Kim <minchan@kernel.org>
+Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
+	by kanga.kvack.org (Postfix) with SMTP id E52636B00D3
+	for <linux-mm@kvack.org>; Sun,  1 Jul 2012 19:55:03 -0400 (EDT)
+Date: Mon, 2 Jul 2012 09:54:58 +1000
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [MMTests] IO metadata on XFS
+Message-ID: <20120701235458.GM19223@dastard>
+References: <20120620113252.GE4011@suse.de>
+ <20120629111932.GA14154@suse.de>
+ <20120629112505.GF14154@suse.de>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2 1/4] mm: introduce compaction and migration for virtio
- ballooned pages
-References: <cover.1340916058.git.aquini@redhat.com> <d0f33a6492501a0d420abbf184f9b956cff3e3fc.1340916058.git.aquini@redhat.com> <4FED3DDB.1000903@kernel.org> <20120629173653.GA1774@t510.redhat.com> <20120629220333.GA2079@barrios> <20120630013447.GA1545@x61.redhat.com>
-In-Reply-To: <20120630013447.GA1545@x61.redhat.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120629112505.GF14154@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rafael Aquini <aquini@redhat.com>
-Cc: linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, "Michael S. Tsirkin" <mst@redhat.com>, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Mel Gorman <mgorman@suse.de>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, xfs@oss.sgi.com
 
-On 06/30/2012 10:34 AM, Rafael Aquini wrote:
-
->> void isolate_page_from_balloonlist(struct page* page)
->> > {
->> > 	page->mapping->a_ops->invalidatepage(page, 0);
->> > }
->> > 
->> > 	if (is_balloon_page(page) && (page_count(page) == 2)) {
->> > 		isolate_page_from_balloonlist(page);
->> > 	}
->> > 
-> Humm, my feelings on your approach here: just an unecessary indirection that
-> doesn't bring the desired code readability improvement.
-> If the header comment statement on balloon_mapping->a_ops is not clear enough 
-> on those methods usage for ballooned pages:
+On Fri, Jun 29, 2012 at 12:25:06PM +0100, Mel Gorman wrote:
+> Configuration:	global-dhp__io-metadata-xfs
+> Benchmarks:	dbench3, fsmark-single, fsmark-threaded
 > 
-> ..... 
-> /*
->  * Balloon pages special page->mapping.
->  * users must properly allocate and initialize an instance of balloon_mapping,
->  * and set it as the page->mapping for balloon enlisted page instances.
->  *
->  * address_space_operations necessary methods for ballooned pages:
->  *   .migratepage    - used to perform balloon's page migration (as is)
->  *   .invalidatepage - used to isolate a page from balloon's page list
->  *   .freepage       - used to reinsert an isolated page to balloon's page list
->  */
-> struct address_space *balloon_mapping;
-> EXPORT_SYMBOL_GPL(balloon_mapping);
-> .....
-> 
-> I can add an extra commentary, to recollect folks about that usage, next to the
-> points where those callbacks are used at isolate_balloon_page() &
-> putback_balloon_page(). What do you think?
-> 
-> 
+> Summary
+> =======
+> Most of the figures look good and in general there has been consistent good
+> performance from XFS. However, fsmark-single is showing a severe performance
+> dip in a few cases somewhere between 3.1 and 3.4. fs-mark running a single
+> thread took a particularly bad dive in 3.4 for two machines that is worth
+> examining closer.
 
+That will be caused by the fact we changed all the metadata updates
+to be logged, which means a transaction every time .dirty_inode is
+called.
 
-I am not strongly against you.
-It trivial nitpick must not prevent your great work. :)
+This should mostly go away when XFS is converted to use .update_time
+rather than .dirty_inode to only issue transactions when the VFS
+updates the atime rather than every .dirty_inode call...
 
-Thanks!
+> Unfortunately it is harder to easy conclusions as the
+> gains/losses are not consistent between machines which may be related to
+> the available number of CPU threads.
 
+It increases the CPU overhead (dirty_inode can be called up to 4
+times per write(2) call, IIRC), so with limited numbers of
+threads/limited CPU power it will result in lower performance. Where
+you have lots of CPU power, there will be little difference in
+performance...
 
+Cheers,
+
+Dave.
 -- 
-Kind regards,
-Minchan Kim
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
