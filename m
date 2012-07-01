@@ -1,223 +1,275 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
-	by kanga.kvack.org (Postfix) with SMTP id 1422B6B00B9
-	for <linux-mm@kvack.org>; Sat, 30 Jun 2012 21:15:46 -0400 (EDT)
-Received: from /spool/local
-	by e35.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
-	Sat, 30 Jun 2012 19:15:44 -0600
-Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
-	by d03relay05.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q611Ff1P071712
-	for <linux-mm@kvack.org>; Sat, 30 Jun 2012 19:15:41 -0600
-Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av01.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q611Fedp007276
-	for <linux-mm@kvack.org>; Sat, 30 Jun 2012 19:15:41 -0600
-Date: Sat, 30 Jun 2012 18:15:38 -0700
-From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Subject: Re: mm,numad,rcu: hang on OOM
-Message-ID: <20120701011538.GD2907@linux.vnet.ibm.com>
-Reply-To: paulmck@linux.vnet.ibm.com
-References: <1340988281.2936.58.camel@lappy>
+Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
+	by kanga.kvack.org (Postfix) with SMTP id D169F6B00BB
+	for <linux-mm@kvack.org>; Sat, 30 Jun 2012 22:41:37 -0400 (EDT)
+Received: by pbbrp2 with SMTP id rp2so7513676pbb.14
+        for <linux-mm@kvack.org>; Sat, 30 Jun 2012 19:41:37 -0700 (PDT)
+Message-ID: <4FEFB8CB.9000302@gmail.com>
+Date: Sun, 01 Jul 2012 10:41:15 +0800
+From: Nai Xia <nai.xia@gmail.com>
+Reply-To: nai.xia@gmail.com
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1340988281.2936.58.camel@lappy>
+Subject: Re: [PATCH 13/40] autonuma: CPU follow memory algorithm
+References: <1340888180-15355-1-git-send-email-aarcange@redhat.com> <1340888180-15355-14-git-send-email-aarcange@redhat.com> <1340895238.28750.49.camel@twins> <CAJd=RBA+FPgB9iq07YG0Pd=tN65SGK1ifmj98tomBDbYeKOE-Q@mail.gmail.com> <20120629125517.GD32637@gmail.com> <4FEDDD0C.60609@redhat.com> <1340995986.28750.114.camel@twins> <CAPQyPG4R34bi0fXHBspSpR1+gDLj2PGYpPXNLPTTTBmrRL=m4g@mail.gmail.com> <20120630012338.GY6676@redhat.com> <CAPQyPG7Nx1Jdq7WBBDC41iRGOMx8CdQjcWTNOWyj1fzVeuRcgw@mail.gmail.com> <4FEE9310.1050908@redhat.com> <CAPQyPG50wtowNsPm1UADCNchY-gFk-cKW8oiU34L2REybhNoEg@mail.gmail.com> <4FEF558D.20603@redhat.com>
+In-Reply-To: <4FEF558D.20603@redhat.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <levinsasha928@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>, Peter Zijlstra <peterz@infradead.org>, linux-mm <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: dlaor@redhat.com
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Ingo Molnar <mingo@kernel.org>, Hillf Danton <dhillf@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dan Smith <danms@us.ibm.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Srivatsa Vaddagiri <vatsa@linux.vnet.ibm.com>, Christoph Lameter <cl@linux.com>, Alex Shi <alex.shi@intel.com>, Mauricio Faria de Oliveira <mauricfo@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Don Morris <don.morris@hp.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
 
-On Fri, Jun 29, 2012 at 06:44:41PM +0200, Sasha Levin wrote:
-> Hi all,
-> 
-> While fuzzing using trinity on a KVM tools guest with todays linux-next, I've hit the following lockup:
-> 
-> [  362.261729] INFO: task numad/2:27 blocked for more than 120 seconds.
-> [  362.263974] "echo 0 > /proc/sys/kernel/hung_task_timeout_secs" disables this message.
-> [  362.271684] numad/2         D 0000000000000001  5672    27      2 0x00000000
-> [  362.280052]  ffff8800294c7c58 0000000000000046 ffff8800294c7c08 ffffffff81163dba
-> [  362.294477]  ffff8800294c6000 ffff8800294c6010 ffff8800294c7fd8 ffff8800294c6000
-> [  362.306631]  ffff8800294c6010 ffff8800294c7fd8 ffff88000d5c3000 ffff8800294c8000
-> [  362.315395] Call Trace:
-> [  362.318556]  [<ffffffff81163dba>] ? __lock_release+0x1ba/0x1d0
-> [  362.325411]  [<ffffffff8372ab75>] schedule+0x55/0x60
-> [  362.328844]  [<ffffffff8372b965>] rwsem_down_failed_common+0xf5/0x130
-> [  362.332501]  [<ffffffff8115d38e>] ? put_lock_stats+0xe/0x40
-> [  362.334496]  [<ffffffff81160135>] ? __lock_contended+0x1f5/0x230
-> [  362.336723]  [<ffffffff8372b9d5>] rwsem_down_read_failed+0x15/0x17
-> [  362.339297]  [<ffffffff81985e34>] call_rwsem_down_read_failed+0x14/0x30
-> [  362.341768]  [<ffffffff83729a29>] ? down_read+0x79/0xa0
-> [  362.343669]  [<ffffffff8122d262>] ? lazy_migrate_process+0x22/0x60
-> [  362.345616]  [<ffffffff8122d262>] lazy_migrate_process+0x22/0x60
-> [  362.347464]  [<ffffffff811453c0>] process_mem_migrate+0x10/0x20
-> [  362.349340]  [<ffffffff81145090>] move_processes+0x190/0x230
-> [  362.351398]  [<ffffffff81145b7a>] numad_thread+0x7a/0x120
-> [  362.353245]  [<ffffffff81145b00>] ? find_busiest_node+0x310/0x310
-> [  362.355396]  [<ffffffff81119e82>] kthread+0xb2/0xc0
-> [  362.356996]  [<ffffffff8372ea34>] kernel_thread_helper+0x4/0x10
-> [  362.359253]  [<ffffffff8372ccb4>] ? retint_restore_args+0x13/0x13
-> [  362.361168]  [<ffffffff81119dd0>] ? __init_kthread_worker+0x70/0x70
-> [  362.363277]  [<ffffffff8372ea30>] ? gs_change+0x13/0x13
-> 
-> I've hit sysrq-t to see what might be the cause, and it appears that an OOM was in progress, and was stuck on RCU:
-> 
-> [  578.086230] trinity-child69 D ffff8800277a54c8  3968  6658   6580 0x00000000
-> [  578.086230]  ffff880022c5f518 0000000000000046 ffff880022c5f4c8 ffff88001b9d6e00
-> [  578.086230]  ffff880022c5e000 ffff880022c5e010 ffff880022c5ffd8 ffff880022c5e000
-> [  578.086230]  ffff880022c5e010 ffff880022c5ffd8 ffff880023c08000 ffff880022c33000
-> [  578.086230] Call Trace:
-> [  578.086230]  [<ffffffff8372ab75>] schedule+0x55/0x60
-> [  578.086230]  [<ffffffff837285c8>] schedule_timeout+0x38/0x2c0
-> [  578.086230]  [<ffffffff81161d16>] ? mark_held_locks+0xf6/0x120
-> [  578.086230]  [<ffffffff81163dba>] ? __lock_release+0x1ba/0x1d0
-> [  578.086230]  [<ffffffff8372c67b>] ? _raw_spin_unlock_irq+0x2b/0x80
-> [  578.086230]  [<ffffffff8372a06f>] wait_for_common+0xff/0x170
-> [  578.086230]  [<ffffffff81132c10>] ? try_to_wake_up+0x290/0x290
-> [  578.086230]  [<ffffffff8372a188>] wait_for_completion+0x18/0x20
-> [  578.086230]  [<ffffffff811a5de7>] _rcu_barrier+0x4a7/0x4e0
 
-Hmmm...  Perhaps a blocking operation is not appropriate here.  I have
-substituted a nonblocking approach, which is at -rcu (thus soon -next)
-at 1ee4c09d (Provide OOM handler to motivate lazy RCU callbacks).
-Patch below.
 
-							Thanx, Paul
+On 2012a1'07ae??01ae?JPY 03:37, Dor Laor wrote:
+> On 06/30/2012 09:58 AM, Nai Xia wrote:
+>> On Sat, Jun 30, 2012 at 1:48 PM, Dor Laor <dlaor@redhat.com> wrote:
+>>> On 06/30/2012 05:43 AM, Nai Xia wrote:
+>>>>
+>>>> On Sat, Jun 30, 2012 at 9:23 AM, Andrea Arcangeli <aarcange@redhat.com>
+>>>> wrote:
+>>>>>
+>>>>> On Sat, Jun 30, 2012 at 04:01:50AM +0800, Nai Xia wrote:
+>>>>>>
+>>>>>> On Sat, Jun 30, 2012 at 2:53 AM, Peter Zijlstra <a.p.zijlstra@chello.nl>
+>>>>>> wrote:
+>>>>>>>
+>>>>>>> On Fri, 2012-06-29 at 12:51 -0400, Dor Laor wrote:
+>>>>>>>>
+>>>>>>>> The previous comments were not shouts but the mother of all NAKs.
+>>>>>>>
+>>>>>>>
+>>>>>>> I never said any such thing. I just said why should I bother reading
+>>>>>>> your stuff if you're ignoring most my feedback anyway.
+>>>>>>>
+>>>>>>> If you want to read that as a NAK, not my problem.
+>>>>>>
+>>>>>>
+>>>>>> Hey guys, Can I say NAK to these patches ?
+>>>>>>
+>>>>>> Now I aware that this sampling algorithm is completely broken, if we
+>>>>>> take
+>>>>>> a few seconds to see what it is trying to solve:
+>>>>>>
+>>>>>> We all know that LRU is try to solve the question of "what are the
+>>>>>> pages recently accessed?",
+>>>>>> so its engouth to use pte bits to approximate.
+>>>>>
+>>>>>
+>>>>> I made an example about the active list to try to explain it why your
+>>>>> example is still going to work fine.
+>>>>>
+>>>>> After it becomes active (from inactive) and it's being a referenced
+>>>>> active page, it won't become _very_active_ or _very_very_active_ or
+>>>>> more no matter how many more times you look up the pagecache.
+>>>>>
+>>>>> The LRU order wasn't relevant here.
+>>>>>
+>>>>>> However, the numa balancing problem is fundamentally like this:
+>>>>>>
+>>>>>> In some time unit,
+>>>>>>
+>>>>>> W = pages_accessed * average_page_access_frequence
+>>>>>>
+>>>>>> We are trying to move process to the node having max W, right?
+>>>>>
+>>>>>
+>>>>> First of all, the mm_autonuma statistics are not in function of time
+>>>>> and there is no page access frequency there.
+>>>>>
+>>>>> mm_autonuma is static information collected by knuma_scand from the
+>>>>> pagetables. That's static and 100% accurate on the whole process and
+>>>>> definitely not generated by the numa hinting page faults. I could shut
+>>>>> off all numa hinting page faults permanently and still generate the
+>>>>> mm_autonuma information identically.
+>>>>>
+>>>>> There's a knob in /sys/kernel/mm/autonuma/knuma_scand/working_set that
+>>>>> you can enable if you want to use a "runtime" and not static
+>>>>> information for the mm_autonuma too, but that's not the default for
+>>>>> now (but I think it may be a better default, there wasn't enough time
+>>>>> to test this yet)
+>>>>>
+>>>>> The task_autonuma (thread) statistics are the only thing that is
+>>>>> sampled by default in a 10sec interval (the interval tunable too with
+>>>>> sysfs, and 10sec is likely too aggressive, 30sec sounds better, we're
+>>>>> eventually going to make it dynamic anyway)
+>>>>>
+>>>>> So even if you were right, the thread statistics only kicks in to
+>>>>> balance threads against threads of the same process, most of the time
+>>>>> what's more important are the mm_autonuma statistics.
+>>>>>
+>>>>> But in reality the thread statistics also works perfectly for the job,
+>>>>> as an approximation of the NUMA memory footprint of the thread (vs the
+>>>>> other threads). And then the rest of the memory slowly follows
+>>>>> whatever node CPUs I placed the thread (even if that's not the
+>>>>> absolutely best one at all times).
+>>>>>
+>>>>>> Andrea's patch can only approximate the pages_accessed number in a
+>>>>>> time unit(scan interval),
+>>>>>> I don't think it can catch even 1% of average_page_access_frequence
+>>>>>> on a busy workload.
+>>>>>> Blindly assuming that all the pages' average_page_access_frequence is
+>>>>>> the same is seemly
+>>>>>> broken to me.
+>>>>>
+>>>>>
+>>>>> All we need is an approximation to take a better than random decision,
+>>>>> even if you get it 1% right, it's still better than 0% right by going
+>>>>> blind. Your 1% is too pessimistic, in my tests the thread statistics
+>>>>> are more like >90% correct in average (I monitor them with the debug
+>>>>> mode constantly).
+>>>>>
+>>>>> If this 1% right, happens one a million samples, who cares, it's not
+>>>>> going to run measurably slower anyway (and it will still be better
+>>>>> than picking a 0% right node).
+>>>>>
+>>>>> What you're saying is that because the active list in the pagecache
+>>>>> won't differentiate between 10 cache hits and 20 cache hits, we should
+>>>>> drop the active list and stop activating pages and just threat them
+>>>>> all the same because in some unlucky access pattern, the active list
+>>>>> may only get right 1% of the working set. But there's a reason why the
+>>>>> active list exists despite it may get things wrong in some corner case
+>>>>> and possibly leave the large amount of pages accessed infrequently in
+>>>>> the inactive list forever (even if it gets things only 1% right in
+>>>>> those worst cases, it's still better than 0% right and no active list
+>>>>> at all).
+>>>>>
+>>>>> To say it in another way, you may still crash with the car even if
+>>>>> you're careful, but do you think it's better to watch at the street or
+>>>>> to drive blindfolded?
+>>>>>
+>>>>> numa/sched drives blindfolded, autonuma watches around every 10sec
+>>>>> very carefully for the best next turn to take with the car and to
+>>>>> avoid obstacles, you can imagine who wins.
+>>>>>
+>>>>> Watching the street carefully every 10sec doesn't mean the next moment
+>>>>> a missile won't hit your car to make you crash, you're still having
+>>>>> better chances not to crash than by driving blindfolded.
+>>>>>
+>>>>> numa/sched pretends to compete without collecting information for the
+>>>>> NUMA thread memory footprint (task_autonuma, sampled with a
+>>>>> exponential backoff at 10sec intervals), and without process
+>>>>> information (full static information from the pagetables, not
+>>>>> sampled). No matter how you compute stuff, if you've nothing
+>>>>> meaningful in input to your algorithm you lose. And it looks like you
+>>>>> believe that you can take better decisions with nothing in input to
+>>>>> your NUMA placement algorithm, because my thread info (task_autonuma)
+>>>>> isn't 100% perfect at all times and it can't predict the future. The
+>>>>> alternative is to get that information from syscalls, but even
+>>>>> ignoring the -ENOMEM from split_vma, that will lead to userland bugs
+>>>>> and overall the task_autonuma information may be more reliable in the
+>>>>> end, even if it's sampled using an exponential backoff.
+>>>>>
+>>>>> Also note the exponential backoff thing, it's not really the last
+>>>>> interval, it's the last interval plus half the previous interval plus
+>>>>> 1/4 the previous interval etc... and we can trivially control the
+>>>>> decay.
+>>>>>
+>>>>> All we need is to get a direction and knowing _exactly_ what the task
+>>>>> did over the last 10 seconds (even if it can't predict the future of
+>>>>> what the thread will do in the next 1sec), is all we need to get a
+>>>>> direction. After we take the direction then the memory will follow so
+>>>>> we cannot care less what it does in the next second because that will
+>>>>> follow the CPU (after a while, last_nid anti-false-sharing logic
+>>>>> permitting), and at least we'll know for sure that the memory accessed
+>>>>> in the last 10sec is already local and that defines the best node to
+>>>>> schedule the thread.
+>>>>>
+>>>>> I don't mean there's no room for improvement in the way the input data
+>>>>> can be computed, and even in the way the input data can be generated,
+>>>>> the exponential backoff decay can be tuned too, I just tried to do the
+>>>>> simplest computations on the data to make the workloads converge fast
+>>>>> and you're welcome to contribute.
+>>>>>
+>>>>> But I believe the task_autonuma information is extremely valuable and
+>>>>> we can trust it very much knowing we'll get a great placement. The
+>>>>> concern you have isn't invalid, but it's a very minor one and the
+>>>>> sampling rate effects you are concerned about, while real, they're
+>>>>> lost in the noise in practice.
+>>>>
+>>>>
+>>>> Well, I think I am not convinced by your this many words. And surely
+>>>> I will NOT follow your reasoning of "Having information is always
+>>>> good than nothing". We all know that an illy biased balancing is worse
+>>>> than randomness: at least randomness means "average, fair play, ...".
+>>>> With all uncertain things, I think only a comprehensive survey
+>>>> of real world workloads can tell if my concern is significant or not.
+>>>>
+>>>> So I think my suggestion to you is: Show world some solid and sound
+>
+> ^^^^^^^^^^^^^
+>>>> real world proof that your approximation is > 90% accurate, just like
+>>>
+>>>
+>>> The cover letter contained a link to the performance:
+>>> https://www.kernel.org/pub/linux/kernel/people/andrea/autonuma/autonuma_bench-20120530.pdf
+>>
+>> Yes, I saw this. But if you consider this already a solid and
+>> comprehensive proof.
+>> You win , I have no other words to say.
+>
+> No one says there is a proof, on contrary, I said it's possible to beat any heuristic algorithm and Andrea explained the LRU is such too.
+>
+> You asked above for real world example and that's what Andrea was trying to achieve (note that it includes tiny regression w/ parallel kernel compile on tmpfs).
+>
+>>
+>>>
+>>> It includes, specJbb, kernelbuild, cpuHog in guests, and handful of units
+>>> tests.
+>>>
+>>> I'm sure anyone can beat most kernel algorithm with some pathological case
+>>> including LRU and CFS. The only way to improve the numa balancing stuff is
+>>
+>> Like I already put, the pathological cases for LRU were already well understood
+>> for decades, they are quite valid to ignore. And every programmer has
+>> be taught to
+>> avoid these cases. And this conclusion took much much time of many many
+>> talented brains.
+>
+> Who are these programmers that you talk about? The average Java programmer is clueless w.r.t memory allocation.
+> Even w/ KVM we have an issue of double swap storm when both the guest and the host will have the same page on their LRU list.
+>
+>>
+>> But the problem of this algorithm is not. And you are putting haste conclusion
+>> of it without bothering to do comprehensive research.
+>>
+>> "Collect the data from a wide range of pages occasionally,
+>> and then do a condense computing on a small set of pages" looks a very common
+>> practice to me. But again, if you simply label this as "minor".
+>> I have no other words to say.
+>>
+>>> to sample more, meaning faulting more == larger overhead.
+>>
+>> Are you sure you really want to compete the sampling speed with CPU intensive
+>> workloads?
+>
+> You didn't understand my point - I was saying exactly this - it's not worth to sample more because it carries a huge over head.
+> Pls don't be that fast on the 'send' trigger :)
+>
+>>
+>> OK, I think I'd stop discussing this topic now. Without strict and comprehensive
+>> research on this topic, further arguments seems to me to be purely based on
+>> imagination.
+>>
+>> And I have no interest in beating any of your fancy algorithm, it wouldn't bring
+>> me 1G$. I am just curiously about the truth.
+>
+> No one said it's fancy beside you. I actually proposed a way to relax such false migrations in my previous reply.
+>
+>
+>> Basically, anyone has the right to laugh, if W = x * y and you only
+>
+> Laughing while discussing numa code is under estimated!
+> Let's not continue to spam the list, I think we've all made our points,
+> Dor
 
-------------------------------------------------------------------------
+Note, my laughing is based on your attitude of "anyone beat anything"
+which is also under estimated. I remember despite my criticism of
+the sampling, I was quite friendly to Andrea, then why the
+acidness/bitterness?
 
-rcu: Provide OOM handler to motivate lazy RCU callbacks
+But you are right. We all made our points. Let's stop it.
 
-In kernels built with CONFIG_RCU_FAST_NO_HZ=y, CPUs can accumulate a
-large number of lazy callbacks, which as the name implies will be slow
-to be invoked.  This can be a problem on small-memory systems, where the
-default 6-second sleep for CPUs having only lazy RCU callbacks could well
-be fatal.  This commit therefore installs an OOM hander that ensures that
-every CPU with non-lazy callbacks has at least one non-lazy callback,
-in turn ensuring timely advancement for these callbacks.
-
-Signed-off-by: Paul E. McKenney <paul.mckenney@linaro.org>
-Signed-off-by: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
-
-diff --git a/kernel/rcutree.h b/kernel/rcutree.h
-index 4b47fbe..dab279f 100644
---- a/kernel/rcutree.h
-+++ b/kernel/rcutree.h
-@@ -314,8 +314,11 @@ struct rcu_data {
- 	unsigned long n_rp_need_fqs;
- 	unsigned long n_rp_need_nothing;
- 
--	/* 6) _rcu_barrier() callback. */
-+	/* 6) _rcu_barrier() and OOM callbacks. */
- 	struct rcu_head barrier_head;
-+#ifdef CONFIG_RCU_FAST_NO_HZ
-+	struct rcu_head oom_head;
-+#endif /* #ifdef CONFIG_RCU_FAST_NO_HZ */
- 
- 	int cpu;
- 	struct rcu_state *rsp;
-diff --git a/kernel/rcutree_plugin.h b/kernel/rcutree_plugin.h
-index 81e53eb..1908847 100644
---- a/kernel/rcutree_plugin.h
-+++ b/kernel/rcutree_plugin.h
-@@ -25,6 +25,7 @@
-  */
- 
- #include <linux/delay.h>
-+#include <linux/oom.h>
- 
- #define RCU_KTHREAD_PRIO 1
- 
-@@ -2128,6 +2129,90 @@ static void rcu_idle_count_callbacks_posted(void)
- 	__this_cpu_add(rcu_dynticks.nonlazy_posted, 1);
- }
- 
-+/*
-+ * Data for flushing lazy RCU callbacks at OOM time.
-+ */
-+static atomic_t oom_callback_count;
-+static DECLARE_WAIT_QUEUE_HEAD(oom_callback_wq);
-+
-+/*
-+ * RCU OOM callback -- decrement the outstanding count and deliver the
-+ * wake-up if we are the last one.
-+ */
-+static void rcu_oom_callback(struct rcu_head *rhp)
-+{
-+	if (atomic_dec_and_test(&oom_callback_count))
-+		wake_up(&oom_callback_wq);
-+}
-+
-+/*
-+ * Post an rcu_oom_notify callback on the current CPU if it has at
-+ * least one lazy callback.  This will unnecessarily post callbacks
-+ * to CPUs that already have a non-lazy callback at the end of their
-+ * callback list, but this is an infrequent operation, so accept some
-+ * extra overhead to keep things simple.
-+ */
-+static void rcu_oom_notify_cpu(void *flavor)
-+{
-+	struct rcu_state *rsp = flavor;
-+	struct rcu_data *rdp = __this_cpu_ptr(rsp->rda);
-+
-+	if (rdp->qlen_lazy != 0) {
-+		atomic_inc(&oom_callback_count);
-+		rsp->call(&rdp->oom_head, rcu_oom_callback);
-+	}
-+}
-+
-+/*
-+ * If low on memory, ensure that each CPU has a non-lazy callback.
-+ * This will wake up CPUs that have only lazy callbacks, in turn
-+ * ensuring that they free up the corresponding memory in a timely manner.
-+ */
-+static int rcu_oom_notify(struct notifier_block *self,
-+                          unsigned long notused, void *nfreed)
-+{
-+	int cpu;
-+
-+	/* Wait for callbacks from earlier instance to complete. */
-+	wait_event(oom_callback_wq, atomic_read(&oom_callback_count) == 0);
-+
-+	/*
-+	 * Prevent premature wakeup: ensure that all increments happen
-+	 * before there is a chance of the counter reaching zero.
-+	 */
-+	atomic_set(&oom_callback_count, 1);
-+
-+	get_online_cpus();
-+	for_each_online_cpu(cpu) {
-+#ifdef CONFIG_PREEMPT_RCU
-+		smp_call_function_single(cpu, rcu_oom_notify_cpu,
-+					 &rcu_preempt_state, 1);
-+#endif /* #ifdef CONFIG_PREEMPT_RCU */
-+		smp_call_function_single(cpu, rcu_oom_notify_cpu,
-+					 &rcu_bh_state, 1);
-+		smp_call_function_single(cpu, rcu_oom_notify_cpu,
-+					 &rcu_sched_state, 1);
-+	}
-+	put_online_cpus();
-+
-+	/* Unconditionally decrement: no need to wake ourselves up. */
-+	atomic_dec(&oom_callback_count);
-+
-+	*(unsigned long *)nfreed = 1;
-+	return NOTIFY_OK;
-+}
-+
-+static struct notifier_block rcu_oom_nb = {
-+	.notifier_call = rcu_oom_notify
-+};
-+
-+static int __init rcu_register_oom_notifier(void)
-+{
-+	register_oom_notifier(&rcu_oom_nb);
-+	return 0;
-+}
-+early_initcall(rcu_register_oom_notifier);
-+
- #endif /* #else #if !defined(CONFIG_RCU_FAST_NO_HZ) */
- 
- #ifdef CONFIG_RCU_CPU_STALL_INFO
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
