@@ -1,38 +1,50 @@
-Return-Path: <ReubenPrejean@hsa-pa.com>
-Message-ID: <COL009-W866B5AF4BFE169D084928ED0350@phx.gbl>
-Content-Type: multipart/mixed;
-	boundary="_27826423-7855-4555-7417-897456157289_"
-From: ReubenPrejean@hotmail.com
-Subject: Buy Ciails and Viarga online!
-Date: Sun, 1 Jul 2012 04:27:08 +0600
+Return-Path: <owner-linux-mm@kvack.org>
+Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
+	by kanga.kvack.org (Postfix) with SMTP id 416306B00C9
+	for <linux-mm@kvack.org>; Sun,  1 Jul 2012 11:33:59 -0400 (EDT)
+Message-ID: <4FF06DBD.6020901@redhat.com>
+Date: Sun, 01 Jul 2012 11:33:17 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-To: linux-mm@kvack.org
+Subject: Re: [PATCH 20/40] autonuma: alloc/free/init mm_autonuma
+References: <1340888180-15355-1-git-send-email-aarcange@redhat.com> <1340888180-15355-21-git-send-email-aarcange@redhat.com>
+In-Reply-To: <1340888180-15355-21-git-send-email-aarcange@redhat.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
+Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hillf Danton <dhillf@gmail.com>, Dan Smith <danms@us.ibm.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Johannes Weiner <hannes@cmpxchg.org>, Srivatsa Vaddagiri <vatsa@linux.vnet.ibm.com>, Christoph Lameter <cl@linux.com>, Alex Shi <alex.shi@intel.com>, Mauricio Faria de Oliveira <mauricfo@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Don Morris <don.morris@hp.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
 
---_27826423-7855-4555-7417-897456157289_
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+On 06/28/2012 08:56 AM, Andrea Arcangeli wrote:
 
+> diff --git a/kernel/fork.c b/kernel/fork.c
+> index 0adbe09..3e5a0d9 100644
+> --- a/kernel/fork.c
+> +++ b/kernel/fork.c
+> @@ -527,6 +527,8 @@ static void mm_init_aio(struct mm_struct *mm)
+>
+>   static struct mm_struct *mm_init(struct mm_struct *mm, struct task_struct *p)
+>   {
+> +	if (unlikely(alloc_mm_autonuma(mm)))
+> +		goto out_free_mm;
+>   	atomic_set(&mm->mm_users, 1);
+>   	atomic_set(&mm->mm_count, 1);
+>   	init_rwsem(&mm->mmap_sem);
 
+I wonder if it would be possible to defer the allocation
+of the mm_autonuma struct to knuma_scand, so short lived
+processes never have to allocate and free the mm_autonuma
+structure.
 
-USPS Delivery Shipping 1-4 Day USA
-U.S. & Canada Licensed Pharmaices
-ORDER NOW! 
+That way we only have a function call at exit time, and
+the branch inside kfree that checks for a null pointer.
 
+-- 
+All rights reversed
 
---_27826423-7855-4555-7417-897456157289_
-Content-Type: text/html; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
-
-<html>
-<head>
-<style><!--
-background-color: #d08e69;font-family:"Lucida Sans Typewriter","Verdana",=
-"Zapfino","DejaVu Sans","Tahoma";font-size:13px;font-style: normal;
---></style>
-</head><body><br>USPS Delivery Shipping 1-4 Day USA<br>
-U.S. & Canada Licensed Pharmaices<br>
-
-<a href=3D"http://coindoctor.ru">ORDER NOW! </a></body></html>
-
---_27826423-7855-4555-7417-897456157289_--
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
