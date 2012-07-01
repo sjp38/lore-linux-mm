@@ -1,150 +1,159 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
-	by kanga.kvack.org (Postfix) with SMTP id 3FADC6B00CD
-	for <linux-mm@kvack.org>; Sun,  1 Jul 2012 13:22:56 -0400 (EDT)
-Date: Sun, 1 Jul 2012 13:22:54 -0400
-From: Eric B Munson <emunson@mgebm.net>
-Subject: Re: [PATCH 00/12] Swap-over-NFS without deadlocking V8
-Message-ID: <20120701172254.GB2470@mgebm.net>
-References: <1340976805-5799-1-git-send-email-mgorman@suse.de>
+Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
+	by kanga.kvack.org (Postfix) with SMTP id BECB16B00CF
+	for <linux-mm@kvack.org>; Sun,  1 Jul 2012 14:06:14 -0400 (EDT)
+Message-ID: <4FF07CD4.1070101@redhat.com>
+Date: Sun, 01 Jul 2012 12:37:40 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="61jdw2sOBCFtR2d/"
-Content-Disposition: inline
-In-Reply-To: <1340976805-5799-1-git-send-email-mgorman@suse.de>
+Subject: Re: [PATCH 22/40] autonuma: teach CFS about autonuma affinity
+References: <1340888180-15355-1-git-send-email-aarcange@redhat.com> <1340888180-15355-23-git-send-email-aarcange@redhat.com>
+In-Reply-To: <1340888180-15355-23-git-send-email-aarcange@redhat.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Linux-Netdev <netdev@vger.kernel.org>, Linux-NFS <linux-nfs@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, David Miller <davem@davemloft.net>, Trond Myklebust <Trond.Myklebust@netapp.com>, Neil Brown <neilb@suse.de>, Christoph Hellwig <hch@infradead.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mike Christie <michaelc@cs.wisc.edu>, Sebastian Andrzej Siewior <sebastian@breakpoint.cc>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hillf Danton <dhillf@gmail.com>, Dan Smith <danms@us.ibm.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Johannes Weiner <hannes@cmpxchg.org>, Srivatsa Vaddagiri <vatsa@linux.vnet.ibm.com>, Christoph Lameter <cl@linux.com>, Alex Shi <alex.shi@intel.com>, Mauricio Faria de Oliveira <mauricfo@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Don Morris <don.morris@hp.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
 
+On 06/28/2012 08:56 AM, Andrea Arcangeli wrote:
 
---61jdw2sOBCFtR2d/
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+> @@ -2621,6 +2622,8 @@ find_idlest_cpu(struct sched_group *group, struct task_struct *p, int this_cpu)
+>   		load = weighted_cpuload(i);
+>
+>   		if (load<  min_load || (load == min_load&&  i == this_cpu)) {
+> +			if (!task_autonuma_cpu(p, i))
+> +				continue;
+>   			min_load = load;
+>   			idlest = i;
+>   		}
 
-On Fri, 29 Jun 2012, Mel Gorman wrote:
+Is it right to only consider CPUs on the "right" NUMA
+node, or do we want to harvest idle time elsewhere as
+a last resort?
 
-> Changelog since V7
->   o Rebase to linux-next 20120629
->   o bi->page_dma instead of bi->page in intel driver
->   o Build fix for !CONFIG_NET					(sebastian)
->   o Restore PF_MEMALLOC flags correctly in all cases		(jlayton)
->=20
-> Changelog since V6
->   o Rebase to linux-next 20120622
->=20
-> Changelog since V5
->   o Rebase to v3.5-rc3
->=20
-> Changelog since V4
->   o Catch if SOCK_MEMALLOC flag is cleared with rmem tokens	(davem)
->=20
-> Changelog since V3
->   o Rebase to 3.4-rc5
->   o kmap pages for writing to swap				(akpm)
->   o Move forward declaration to reduce chance of duplication	(akpm)
->=20
-> Changelog since V2
->   o Nothing significant, just rebases. A radix tree lookup is replaced wi=
-th
->     a linear search would be the biggest rebase artifact
->=20
-> This patch series is based on top of "Swap-over-NBD without deadlocking v=
-14"
-> as it depends on the same reservation of PF_MEMALLOC reserves logic.
->=20
-> When a user or administrator requires swap for their application, they
-> create a swap partition and file, format it with mkswap and activate it w=
-ith
-> swapon. In diskless systems this is not an option so if swap if required
-> then swapping over the network is considered.  The two likely scenarios
-> are when blade servers are used as part of a cluster where the form factor
-> or maintenance costs do not allow the use of disks and thin clients.
->=20
-> The Linux Terminal Server Project recommends the use of the Network
-> Block Device (NBD) for swap but this is not always an option.  There is
-> no guarantee that the network attached storage (NAS) device is running
-> Linux or supports NBD. However, it is likely that it supports NFS so there
-> are users that want support for swapping over NFS despite any performance
-> concern. Some distributions currently carry patches that support swapping
-> over NFS but it would be preferable to support it in the mainline kernel.
->=20
-> Patch 1 avoids a stream-specific deadlock that potentially affects TCP.
->=20
-> Patch 2 is a small modification to SELinux to avoid using PFMEMALLOC
-> 	reserves.
->=20
-> Patch 3 adds three helpers for filesystems to handle swap cache pages.
-> 	For example, page_file_mapping() returns page->mapping for
-> 	file-backed pages and the address_space of the underlying
-> 	swap file for swap cache pages.
->=20
-> Patch 4 adds two address_space_operations to allow a filesystem
-> 	to pin all metadata relevant to a swapfile in memory. Upon
-> 	successful activation, the swapfile is marked SWP_FILE and
-> 	the address space operation ->direct_IO is used for writing
-> 	and ->readpage for reading in swap pages.
->=20
-> Patch 5 notes that patch 3 is bolting
-> 	filesystem-specific-swapfile-support onto the side and that
-> 	the default handlers have different information to what
-> 	is available to the filesystem. This patch refactors the
-> 	code so that there are generic handlers for each of the new
-> 	address_space operations.
->=20
-> Patch 6 adds an API to allow a vector of kernel addresses to be
-> 	translated to struct pages and pinned for IO.
->=20
-> Patch 7 adds support for using highmem pages for swap by kmapping
-> 	the pages before calling the direct_IO handler.
->=20
-> Patch 8 updates NFS to use the helpers from patch 3 where necessary.
->=20
-> Patch 9 avoids setting PF_private on PG_swapcache pages within NFS.
->=20
-> Patch 10 implements the new swapfile-related address_space operations
-> 	for NFS and teaches the direct IO handler how to manage
-> 	kernel addresses.
->=20
-> Patch 11 prevents page allocator recursions in NFS by using GFP_NOIO
-> 	where appropriate.
->=20
-> Patch 12 fixes a NULL pointer dereference that occurs when using
-> 	swap-over-NFS.
->=20
-> With the patches applied, it is possible to mount a swapfile that is on an
-> NFS filesystem. Swap performance is not great with a swap stress test tak=
-ing
-> roughly twice as long to complete than if the swap device was backed by N=
-BD.
+After your change the comment above find_idlest_cpu
+no longer matches what the function does!
 
-To test this set I am using memory cgroups to force swap usage.  I am seeing
-the cgroup controller killing my processes instead of using the nfs swapfil=
-e.
+                 if (load < min_load || (load == min_load && i == 
+this_cpu)) {
+                         min_load = load;
+                         idlest = i;
+                 }
 
-I am not yet sure if I am making a silly mistake or if something else is wr=
-ong.
+Would it make sense for task_autonuma_cpu(p, i) to be
+inside the if ( ) braces, since that is what you are
+trying to do?
 
-Eric
+		if ((load < min_load || (load == min_load &&
+			i == this_cpu)) && task_autonuma_cpu(p, i)) {
 
---61jdw2sOBCFtR2d/
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: Digital signature
+> @@ -2639,24 +2642,27 @@ static int select_idle_sibling(struct task_struct *p, int target)
 
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.11 (GNU/Linux)
+These bits make sense.
 
-iQEcBAEBAgAGBQJP8IduAAoJEH65iIruGRnNhNwIAJDCJHEJoEhnaXJSU2+g7w3j
-QOChl7plB/JNbqBzbrYG/6NtTcQVLZ+Osj+DJ5kSCzrAnZ7AEH2ubeof5MZEC1ns
-dwSnWs40tBZqG+SBd2syxytlJyyhLCVCOFPfju5o677UtgyxM7/GMs4D/sysU2pN
-yKq1CZIusNgiBn27qDkjiQSBQeisavjHh2T2tkJtGtgoeUedVMEFPPFxDmrDPw1e
-xug8LoeKHXkwfPT/H1xMSC9jN4IXWJGt6g3TvlS8gBnTRZvl6v2zCXcQlCnV6sZA
-IL0bISPhtKzJdddGbFVWGSGSDt4y2wr/xTxb3RMftx1rv07EAOdDaHRuILYMbLM=
-=9nJy
------END PGP SIGNATURE-----
+>   	/*
+>   	 * Otherwise, iterate the domains and find an elegible idle cpu.
+>   	 */
+> +	idle_target = false;
+>   	sd = rcu_dereference(per_cpu(sd_llc, target));
+>   	for_each_lower_domain(sd) {
+>   		sg = sd->groups;
+> @@ -2670,9 +2676,18 @@ static int select_idle_sibling(struct task_struct *p, int target)
+>   					goto next;
+>   			}
+>
+> -			target = cpumask_first_and(sched_group_cpus(sg),
+> -					tsk_cpus_allowed(p));
+> -			goto done;
+> +			for_each_cpu_and(i, sched_group_cpus(sg),
+> +						tsk_cpus_allowed(p)) {
+> +				/* Find autonuma cpu only in idle group */
+> +				if (task_autonuma_cpu(p, i)) {
+> +					target = i;
+> +					goto done;
+> +				}
+> +				if (!idle_target) {
+> +					idle_target = true;
+> +					target = i;
+> +				}
+> +			}
 
---61jdw2sOBCFtR2d/--
+There already is a for loop right above this:
+
+                         for_each_cpu(i, sched_group_cpus(sg)) {
+                                 if (!idle_cpu(i))
+                                         goto next;
+                         }
+
+It appears to loop over all the CPUs in a sched group, but
+not really.  If the first CPU in the sched group is idle,
+it will fall through.
+
+If the first CPU in the sched group is not idle, we move
+on to the next sched group, instead of looking at the
+other CPUs in the sched group.
+
+Peter, Ingo, what is the original code in select_idle_sibling
+supposed to do?
+
+That original for_each_cpu loop would make more sense if
+it actually looped over each cpu in the group.
+
+Then we could remember two targets. One idle target, and
+one autonuma-compliant idle target.
+
+If, after looping over the CPUs, we find no autonuma-compliant
+target, we use the other idle target.
+
+Does that make sense?
+
+Am I overlooking something about how the way select_idle_sibling
+is supposed to work?
+
+> @@ -3195,6 +3217,8 @@ static int move_one_task(struct lb_env *env)
+>   {
+>   	struct task_struct *p, *n;
+>
+> +	env->flags |= LBF_NUMA;
+> +numa_repeat:
+>   	list_for_each_entry_safe(p, n,&env->src_rq->cfs_tasks, se.group_node) {
+>   		if (throttled_lb_pair(task_group(p), env->src_rq->cpu, env->dst_cpu))
+>   			continue;
+> @@ -3209,8 +3233,14 @@ static int move_one_task(struct lb_env *env)
+>   		 * stats here rather than inside move_task().
+>   		 */
+>   		schedstat_inc(env->sd, lb_gained[env->idle]);
+> +		env->flags&= ~LBF_NUMA;
+>   		return 1;
+>   	}
+> +	if (env->flags&  LBF_NUMA) {
+> +		env->flags&= ~LBF_NUMA;
+> +		goto numa_repeat;
+> +	}
+> +
+>   	return 0;
+>   }
+
+Would it make sense to remember the first non-autonuma-compliant
+task that can be moved, and keep searching for one that fits
+autonuma's criteria further down the line?
+
+Then, if you fail to find a good autonuma task in the first
+iteration, you do not have to loop over the list a second time.
+
+> @@ -3235,6 +3265,8 @@ static int move_tasks(struct lb_env *env)
+>   	if (env->imbalance<= 0)
+>   		return 0;
+>
+> +	env->flags |= LBF_NUMA;
+> +numa_repeat:
+
+Same here.  Loops are bad enough, and it looks like it would
+only cost one pointer on the stack to avoid numa_repeat :)
+
+-- 
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
