@@ -1,29 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
-	by kanga.kvack.org (Postfix) with SMTP id 9EBD96B0068
-	for <linux-mm@kvack.org>; Mon,  2 Jul 2012 16:12:58 -0400 (EDT)
-Received: by bkcjc3 with SMTP id jc3so3173332bkc.14
-        for <linux-mm@kvack.org>; Mon, 02 Jul 2012 13:12:56 -0700 (PDT)
-Date: Mon, 2 Jul 2012 23:12:47 +0300 (EEST)
-From: Pekka Enberg <penberg@kernel.org>
-Subject: Re: [PATCH] mm: Fix signal SIGFPE in slabinfo.c.
-In-Reply-To: <alpine.DEB.2.00.1207021448340.31690@router.home>
-Message-ID: <alpine.LFD.2.02.1207022310580.1904@tux.localdomain>
-References: <201206260930282811070@gmail.com> <alpine.DEB.2.00.1207021448340.31690@router.home>
+Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
+	by kanga.kvack.org (Postfix) with SMTP id D414B6B0069
+	for <linux-mm@kvack.org>; Mon,  2 Jul 2012 16:26:38 -0400 (EDT)
+Date: Mon, 2 Jul 2012 15:26:36 -0500
+From: Nathan Zimmer <nzimmer@sgi.com>
+Subject: [PATCH 0/2 v4][rfc] tmpfs not interleaving properly
+Message-ID: <20120702202635.GA20284@gulag1.americas.sgi.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, "fengguang.wu" <fengguang.wu@intel.com>, majianpeng <majianpeng@gmail.com>, linux-mm@kvack.org
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Christoph Lameter <cl@linux.com>, Nick Piggin <npiggin@gmail.com>, Hugh Dickins <hughd@google.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>
 
-On Mon, 2 Jul 2012, Christoph Lameter wrote:
-> Acked-by: Christoph Lameter <cl@linux.com>
+When tmpfs has the memory policy interleaved it always starts allocating at each
+file at node 0.  When there are many small files the lower nodes fill up
+disproportionately.
+This patch spreads out node usage by starting files at nodes other then 0.
+The tmpfs superblock grants an offset for each inode as they are created. Each
+then uses that offset to proved a prefered first node for its interleave in
+the shmem_interleave.
 
-Applied, thanks!
+v2: passed preferred node via addr
+v3: using current->cpuset_mem_spread_rotor instead of random_node
+v4: Switching the rotor and attempting to provide an interleave function
+Also splitting the patch into two sections.
 
-[ btw, please use the penberg@kernel.org email address.
-  I don't really read the @cs.helsinki.fi one that much. ]
+Cc: Christoph Lameter <cl@linux.com>
+Cc: Nick Piggin <npiggin@gmail.com>
+Cc: Hugh Dickins <hughd@google.com>
+Cc: Lee Schermerhorn <lee.schermerhorn@hp.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Rik van Riel <riel@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Signed-off-by: Nathan T Zimmer <nzimmer@sgi.com>
+---
+
+ include/linux/mm.h       |    6 ++++++
+ include/linux/shmem_fs.h |    2 ++
+ mm/mempolicy.c           |    4 ++++
+ mm/shmem.c               |   33 ++++++++++++++++++++++++++++++---
+ 4 files changed, 42 insertions(+), 3 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
