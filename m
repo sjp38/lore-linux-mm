@@ -1,53 +1,34 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
-	by kanga.kvack.org (Postfix) with SMTP id BEB3B6B0062
-	for <linux-mm@kvack.org>; Mon,  2 Jul 2012 06:57:17 -0400 (EDT)
-Received: by lbjn8 with SMTP id n8so9554802lbj.14
-        for <linux-mm@kvack.org>; Mon, 02 Jul 2012 03:57:15 -0700 (PDT)
-Date: Mon, 2 Jul 2012 13:57:12 +0300 (EEST)
-From: Pekka Enberg <penberg@kernel.org>
-Subject: Re: [PATCH 3/4] slab: move FULL state transition to an initcall
-In-Reply-To: <alpine.DEB.2.00.1206210100260.31077@chino.kir.corp.google.com>
-Message-ID: <alpine.LFD.2.02.1207021357050.1916@tux.localdomain>
-References: <1340225959-1966-1-git-send-email-glommer@parallels.com> <1340225959-1966-4-git-send-email-glommer@parallels.com> <alpine.DEB.2.00.1206210100260.31077@chino.kir.corp.google.com>
+Received: from psmtp.com (na3sys010amx104.postini.com [74.125.245.104])
+	by kanga.kvack.org (Postfix) with SMTP id DAAAC6B0062
+	for <linux-mm@kvack.org>; Mon,  2 Jul 2012 06:59:36 -0400 (EDT)
+Date: Mon, 2 Jul 2012 12:59:34 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: mmotm 2012-06-29-17-00 uploaded
+Message-ID: <20120702105934.GD8050@tiehlicka.suse.cz>
+References: <20120630000055.AF381A02DE@akpm.mtv.corp.google.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120630000055.AF381A02DE@akpm.mtv.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Glauber Costa <glommer@parallels.com>, linux-mm@kvack.org, Cristoph Lameter <cl@linux.com>, Pekka Enberg <penberg@cs.helsinki.fi>
+To: akpm@linux-foundation.org
+Cc: mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org
 
-On Thu, 21 Jun 2012, David Rientjes wrote:
-> > During kmem_cache_init_late(), we transition to the LATE state,
-> > and after some more work, to the FULL state, its last state
-> > 
-> > This is quite different from slub, that will only transition to
-> > its last state (previously SYSFS), in a (late)initcall, after a lot
-> > more of the kernel is ready.
-> > 
-> > This means that in slab, we have no way to taking actions dependent
-> > on the initialization of other pieces of the kernel that are supposed
-> > to start way after kmem_init_late(), such as cgroups initialization.
-> > 
-> > To achieve more consistency in this behavior, that patch only
-> > transitions to the UP state in kmem_init_late. In my analysis,
-> > setup_cpu_cache() should be happy to test for >= UP, instead of
-> > == FULL. It also has passed some tests I've made.
-> > 
-> > We then only mark FULL state after the reap timers are in place,
-> > meaning that no further setup is expected.
-> > 
-> > Signed-off-by: Glauber Costa <glommer@parallels.com>
-> > Acked-by: Christoph Lameter <cl@linux.com>
-> > CC: Pekka Enberg <penberg@cs.helsinki.fi>
-> > CC: David Rientjes <rientjes@google.com>
+On Fri 29-06-12 17:00:54, Andrew Morton wrote:
+> The mm-of-the-moment snapshot 2012-06-29-17-00 has been uploaded to
 > 
-> Acked-by: David Rientjes <rientjes@google.com>
-> 
->  [ Might want to fix your address book in your email client because 
->    Christoph's name is misspelled in the cc list. ]
+>    http://www.ozlabs.org/~akpm/mmotm/
 
-Applied, thanks!
+memcg-devel tree has been updated as well
+-- 
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
