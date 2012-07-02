@@ -1,29 +1,29 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
-	by kanga.kvack.org (Postfix) with SMTP id 2E9046B0068
-	for <linux-mm@kvack.org>; Sun,  1 Jul 2012 22:57:20 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
+	by kanga.kvack.org (Postfix) with SMTP id 84A456B0069
+	for <linux-mm@kvack.org>; Sun,  1 Jul 2012 22:57:24 -0400 (EDT)
 Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 25E363EE0BC
-	for <linux-mm@kvack.org>; Mon,  2 Jul 2012 11:57:18 +0900 (JST)
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id D6A073EE0B5
+	for <linux-mm@kvack.org>; Mon,  2 Jul 2012 11:57:22 +0900 (JST)
 Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id F2A4445DEB5
-	for <linux-mm@kvack.org>; Mon,  2 Jul 2012 11:57:17 +0900 (JST)
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id B34E245DEB9
+	for <linux-mm@kvack.org>; Mon,  2 Jul 2012 11:57:22 +0900 (JST)
 Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id D9B9F45DEB2
-	for <linux-mm@kvack.org>; Mon,  2 Jul 2012 11:57:17 +0900 (JST)
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 9A3AF45DEB6
+	for <linux-mm@kvack.org>; Mon,  2 Jul 2012 11:57:22 +0900 (JST)
 Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 8BB4F1DB8042
-	for <linux-mm@kvack.org>; Mon,  2 Jul 2012 11:57:17 +0900 (JST)
-Received: from g01jpexchyt03.g01.fujitsu.local (g01jpexchyt03.g01.fujitsu.local [10.128.194.42])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id A8CFF1DB803F
-	for <linux-mm@kvack.org>; Mon,  2 Jul 2012 11:57:16 +0900 (JST)
-Message-ID: <4FF10D1C.3060601@jp.fujitsu.com>
-Date: Mon, 2 Jul 2012 11:53:16 +0900
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 79D361DB8047
+	for <linux-mm@kvack.org>; Mon,  2 Jul 2012 11:57:22 +0900 (JST)
+Received: from g01jpexchyt11.g01.fujitsu.local (g01jpexchyt11.g01.fujitsu.local [10.128.194.50])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 20BAE1DB8041
+	for <linux-mm@kvack.org>; Mon,  2 Jul 2012 11:57:22 +0900 (JST)
+Message-ID: <4FF10DF0.7000508@jp.fujitsu.com>
+Date: Mon, 2 Jul 2012 11:56:48 +0900
 From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 MIME-Version: 1.0
 Subject: Re: [RFC PATCH 2/12] memory-hogplug : check memory offline in offline_pages
-References: <4FEA9C88.1070800@jp.fujitsu.com> <4FEA9DB1.7010303@jp.fujitsu.com> <4FEF1F6A.6090705@gmail.com>
-In-Reply-To: <4FEF1F6A.6090705@gmail.com>
+References: <4FEA9C88.1070800@jp.fujitsu.com> <4FEA9DB1.7010303@jp.fujitsu.com> <4FEF2075.2050603@gmail.com>
+In-Reply-To: <4FEF2075.2050603@gmail.com>
 Content-Type: text/plain; charset="ISO-2022-JP"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -33,9 +33,7 @@ Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.
 
 Hi Jiang,
 
-Thank you for your feedback.
-
-2012/07/01 0:46, Jiang Liu wrote:
+2012/07/01 0:51, Jiang Liu wrote:
 > On 06/27/2012 01:44 PM, Yasuaki Ishimatsu wrote:
 >> When offline_pages() is called to offlined memory, the function fails since
 >> all memory has been offlined. In this case, the function should succeed.
@@ -74,12 +72,15 @@ Thank you for your feedback.
 >> +	for (pfn = start_pfn; pfn < end_pfn; pfn += PAGES_PER_SECTION) {
 >> +		section_nr = pfn_to_section_nr(pfn);
 >> +		section = __nr_to_section(section_nr);
-> Is it possible for __nr_to_section return NULL here?
+>> +		mem = find_memory_block(section);
+> Seems find_memory_block_hinted() is more efficient than find_memory_block() here.
 
-Yes. I'll add NULL check.
+Thanks. I'll update it.
+
+Thanks,
+Yasuaki Ishimatsu
 
 > 
->> +		mem = find_memory_block(section);
 >> +		if (!mem)
 >> +			continue;
 >> +		if (mem->state == MEM_OFFLINE)
@@ -89,16 +90,6 @@ Yes. I'll add NULL check.
 >> +
 >> +	return true;
 >> +}
-> Need a put_dev(&mem->dev) for the last memory block device handled before return.
-
-Thanks.
-I think kobject_put(&mem->dev.kobj) should be handled for all memory block
-devices found by find_memory_block(). I'll update it.
-
-Thanks,
-Yasuaki Ishimatsu
-
-> 
 >> +
 >>   /*
 >>    * register_memory - Setup a sysfs device for a memory block
