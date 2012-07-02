@@ -1,31 +1,26 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
-	by kanga.kvack.org (Postfix) with SMTP id D414B6B0069
-	for <linux-mm@kvack.org>; Mon,  2 Jul 2012 16:26:38 -0400 (EDT)
-Date: Mon, 2 Jul 2012 15:26:36 -0500
+Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
+	by kanga.kvack.org (Postfix) with SMTP id 0DEDB6B0068
+	for <linux-mm@kvack.org>; Mon,  2 Jul 2012 16:28:10 -0400 (EDT)
+Date: Mon, 2 Jul 2012 15:28:09 -0500
 From: Nathan Zimmer <nzimmer@sgi.com>
-Subject: [PATCH 0/2 v4][rfc] tmpfs not interleaving properly
-Message-ID: <20120702202635.GA20284@gulag1.americas.sgi.com>
+Subject: [PATCH 1/2 v4][rfc] shmem: provide vm_ops when also providing a
+	mem policy
+Message-ID: <20120702202809.GA15696@gulag1.americas.sgi.com>
+References: <20120702202635.GA20284@gulag1.americas.sgi.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <20120702202635.GA20284@gulag1.americas.sgi.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: Christoph Lameter <cl@linux.com>, Nick Piggin <npiggin@gmail.com>, Hugh Dickins <hughd@google.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>
+To: Nathan Zimmer <nzimmer@sgi.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Christoph Lameter <cl@linux.com>, Nick Piggin <npiggin@gmail.com>, Hugh Dickins <hughd@google.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>
 
-When tmpfs has the memory policy interleaved it always starts allocating at each
-file at node 0.  When there are many small files the lower nodes fill up
-disproportionately.
-This patch spreads out node usage by starting files at nodes other then 0.
-The tmpfs superblock grants an offset for each inode as they are created. Each
-then uses that offset to proved a prefered first node for its interleave in
-the shmem_interleave.
+Updating shmem_get_policy to use the vma_policy if provided.
+This is to allows us to safely provide shmem_vm_ops to the vma when the vm_file
+has not been setup which is the case on the pseudo vmas.
 
-v2: passed preferred node via addr
-v3: using current->cpuset_mem_spread_rotor instead of random_node
-v4: Switching the rotor and attempting to provide an interleave function
-Also splitting the patch into two sections.
 
 Cc: Christoph Lameter <cl@linux.com>
 Cc: Nick Piggin <npiggin@gmail.com>
@@ -33,15 +28,58 @@ Cc: Hugh Dickins <hughd@google.com>
 Cc: Lee Schermerhorn <lee.schermerhorn@hp.com>
 Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 Cc: Rik van Riel <riel@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
 Signed-off-by: Nathan T Zimmer <nzimmer@sgi.com>
 ---
 
- include/linux/mm.h       |    6 ++++++
- include/linux/shmem_fs.h |    2 ++
- mm/mempolicy.c           |    4 ++++
- mm/shmem.c               |   33 ++++++++++++++++++++++++++++++---
- 4 files changed, 42 insertions(+), 3 deletions(-)
+ mm/shmem.c |   18 +++++++++++++++---
+ 1 files changed, 15 insertions(+), 3 deletions(-)
+
+diff --git a/mm/shmem.c b/mm/shmem.c
+index a15a466..9bd599b 100644
+--- a/mm/shmem.c
++++ b/mm/shmem.c
+@@ -921,8 +921,11 @@ static struct page *shmem_swapin(swp_entry_t swap, gfp_t gfp,
+ 	/* Create a pseudo vma that just contains the policy */
+ 	pvma.vm_start = 0;
+ 	pvma.vm_pgoff = index;
+-	pvma.vm_ops = NULL;
+ 	pvma.vm_policy = spol;
++	if( pvma.vm_policy )
++		pvma.vm_ops = &shmem_vm_ops;
++	else
++		pvma.vm_ops = NULL;
+ 	return swapin_readahead(swap, gfp, &pvma, 0);
+ }
+ 
+@@ -934,8 +937,11 @@ static struct page *shmem_alloc_page(gfp_t gfp,
+ 	/* Create a pseudo vma that just contains the policy */
+ 	pvma.vm_start = 0;
+ 	pvma.vm_pgoff = index;
+-	pvma.vm_ops = NULL;
+ 	pvma.vm_policy = mpol_shared_policy_lookup(&info->policy, index);
++	if( pvma.vm_policy )
++		pvma.vm_ops = &shmem_vm_ops;
++	else
++		pvma.vm_ops = NULL;
+ 
+ 	/*
+ 	 * alloc_page_vma() will drop the shared policy reference
+@@ -1296,8 +1302,14 @@ static int shmem_set_policy(struct vm_area_struct *vma, struct mempolicy *mpol)
+ static struct mempolicy *shmem_get_policy(struct vm_area_struct *vma,
+ 					  unsigned long addr)
+ {
+-	struct inode *inode = vma->vm_file->f_path.dentry->d_inode;
+ 	pgoff_t index;
++	struct inode *inode;
++
++	// If the vma knows what policy it wants use that one.
++	if (vma->vm_policy)
++		return vma->vm_policy;
++
++	inode = vma->vm_file->f_path.dentry->d_inode;
+ 
+ 	index = ((addr - vma->vm_start) >> PAGE_SHIFT) + vma->vm_pgoff;
+ 	return mpol_shared_policy_lookup(&SHMEM_I(inode)->policy, index);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
