@@ -1,91 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
-	by kanga.kvack.org (Postfix) with SMTP id DBB9C6B0069
-	for <linux-mm@kvack.org>; Mon,  2 Jul 2012 04:31:56 -0400 (EDT)
-Received: by dakp5 with SMTP id p5so8651928dak.14
-        for <linux-mm@kvack.org>; Mon, 02 Jul 2012 01:31:56 -0700 (PDT)
-Message-ID: <4FF15C6C.80009@gmail.com>
-Date: Mon, 02 Jul 2012 16:31:40 +0800
-From: Nai Xia <nai.xia@gmail.com>
-Reply-To: nai.xia@gmail.com
-MIME-Version: 1.0
-Subject: Re: [PATCH 13/40] autonuma: CPU follow memory algorithm
-References: <1340888180-15355-1-git-send-email-aarcange@redhat.com> <1340888180-15355-14-git-send-email-aarcange@redhat.com> <1340895238.28750.49.camel@twins> <CAJd=RBA+FPgB9iq07YG0Pd=tN65SGK1ifmj98tomBDbYeKOE-Q@mail.gmail.com> <20120629125517.GD32637@gmail.com> <4FEDDD0C.60609@redhat.com> <1340995986.28750.114.camel@twins> <CAPQyPG4R34bi0fXHBspSpR1+gDLj2PGYpPXNLPTTTBmrRL=m4g@mail.gmail.com> <20120630012338.GY6676@redhat.com> <CAPQyPG7Nx1Jdq7WBBDC41iRGOMx8CdQjcWTNOWyj1fzVeuRcgw@mail.gmail.com> <20120630124816.GZ6676@redhat.com> <4FEF1703.1070506@gmail.com> <4FF14F62.2040702@redhat.com> <4FF15417.8020609@gmail.com> <4FF1590D.6020805@redhat.com>
-In-Reply-To: <4FF1590D.6020805@redhat.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 8bit
+Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
+	by kanga.kvack.org (Postfix) with SMTP id 33DD86B0062
+	for <linux-mm@kvack.org>; Mon,  2 Jul 2012 05:29:38 -0400 (EDT)
+Received: from /spool/local
+	by e6.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <shangw@linux.vnet.ibm.com>;
+	Mon, 2 Jul 2012 05:29:37 -0400
+Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
+	by d01relay06.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q629TX9V10289640
+	for <linux-mm@kvack.org>; Mon, 2 Jul 2012 05:29:33 -0400
+Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
+	by d01av01.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q62F0QOx010539
+	for <linux-mm@kvack.org>; Mon, 2 Jul 2012 11:00:26 -0400
+From: Gavin Shan <shangw@linux.vnet.ibm.com>
+Subject: [PATCH v3 2/3] mm/sparse: fix possible memory leak
+Date: Mon,  2 Jul 2012 17:28:56 +0800
+Message-Id: <1341221337-4826-2-git-send-email-shangw@linux.vnet.ibm.com>
+In-Reply-To: <1341221337-4826-1-git-send-email-shangw@linux.vnet.ibm.com>
+References: <1341221337-4826-1-git-send-email-shangw@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, dlaor@redhat.com, Ingo Molnar <mingo@kernel.org>, Hillf Danton <dhillf@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dan Smith <danms@us.ibm.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Johannes Weiner <hannes@cmpxchg.org>, Srivatsa Vaddagiri <vatsa@linux.vnet.ibm.com>, Christoph Lameter <cl@linux.com>, Alex Shi <alex.shi@intel.com>, Mauricio Faria de Oliveira <mauricfo@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Don Morris <don.morris@hp.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
+To: linux-mm@kvack.org
+Cc: dave@linux.vnet.ibm.com, mhocko@suse.cz, rientjes@google.com, akpm@linux-foundation.org, Gavin Shan <shangw@linux.vnet.ibm.com>
 
+sparse_index_init() is designed to be safe if two copies of it race.  It
+uses "index_init_lock" to ensure that, even in the case of a race, only
+one CPU will manage to do:
 
+	mem_section[root] = section;
 
-On 2012a1'07ae??02ae?JPY 16:17, Rik van Riel wrote:
-> On 07/02/2012 03:56 AM, Nai Xia wrote:
->>
->>
->> On 2012a1'07ae??02ae?JPY 15:36, Rik van Riel wrote:
->>> On 06/30/2012 11:10 AM, Nai Xia wrote:
->>>
->>>> Yes, pte_numa or pte_young works the same way and they both can
->>>> answer the problem of "which pages were accessed since last scan".
->>>> For LRU, it's OK, it's quite enough. But for numa balancing it's NOT.
->>>
->>> Getting LRU right may be much more important than getting
->>> NUMA balancing right.
->>>
->>> Retrieving wrongly evicted data from disk can be a million
->>> of times slower than fetching data from RAM, while the
->>> penalty for accessing a remote NUMA node is only 20% or so.
->>>
->>>> We also should care about the hotness of the page sets, since if the
->>>> workloads are complex we should NOT be expecting that "if this page
->>>> is accessed once, then it's always in my CPU cache during the whole
->>>> last scan interval".
->>>>
->>>> The difference between LRU and the problem you are trying to deal
->>>> with looks so obvious to me, I am so worried that you are still
->>>> messing them up :(
->>>
->>> For autonuma, it may be fine to have a lower likelyhood of
->>> obtaining an optimum result, because the penalty for getting
->>> it wrong is so much lower.
->>
->> I said, I am actually want to see some detailed analysis
->> showing that this sampling is really playing an important role
->> in benchmarks as it claims to be. Not a quick
->> "lower likelyhood than optimum" conclusion.....
->>
->> Please, Rik, I know your points, you don't have to explain
->> anymore. But I just cannot follow without research data.
->
-> What kind of data are you looking for?
->
-> I have seen a lot of generic comments in your emails,
-> and one gut feeling about Andrea's sampling algorithm,
-> but I seem to have missed the details of exactly what
-> you are looking for.
->
-> Btw, I share your feeling that Andrea's sampling
-> algorithm will probably not be able to distinguish
-> between NUMA nodes that are very frequent users of
-> a page, and NUMA nodes that use the same page much
-> less frequently.
->
-> However, I suspect that the penalty of getting it
-> wrong will be fairly low, while the overhead of
-> getting access frequency information will be
-> prohibitively high. There is a reason nobody uses
-> LRU nowadays, but a clock style algorithm instead.
->
->
+However, in the case where two copies of sparse_index_init() _do_ race,
+the one that loses the race will leak the "section" that
+sparse_index_alloc() allocated for it.  This patch fixes that leak.
 
-I think I won't repeat myself again and again and
-again and get lost in tons of words.
+Signed-off-by: Gavin Shan <shangw@linux.vnet.ibm.com>
+---
+ mm/sparse.c |   17 +++++++++++++++++
+ 1 file changed, 17 insertions(+)
 
-Thank you for your comments, Rik, and best wishes.
-This is my last reply.
+diff --git a/mm/sparse.c b/mm/sparse.c
+index 781fa04..a6984d9 100644
+--- a/mm/sparse.c
++++ b/mm/sparse.c
+@@ -75,6 +75,20 @@ static struct mem_section noinline __init_refok *sparse_index_alloc(int nid)
+ 	return section;
+ }
+ 
++static inline void __meminit sparse_index_free(struct mem_section *section)
++{
++	unsigned long size = SECTIONS_PER_ROOT *
++			     sizeof(struct mem_section);
++
++	if (!section)
++		return;
++
++	if (slab_is_available())
++		kfree(section);
++	else
++		free_bootmem(virt_to_phys(section), size);
++}
++
+ static int __meminit sparse_index_init(unsigned long section_nr, int nid)
+ {
+ 	static DEFINE_SPINLOCK(index_init_lock);
+@@ -102,6 +116,9 @@ static int __meminit sparse_index_init(unsigned long section_nr, int nid)
+ 	mem_section[root] = section;
+ out:
+ 	spin_unlock(&index_init_lock);
++	if (ret)
++		sparse_index_free(section);
++
+ 	return ret;
+ }
+ #else /* !SPARSEMEM_EXTREME */
+-- 
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
