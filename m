@@ -1,107 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx178.postini.com [74.125.245.178])
-	by kanga.kvack.org (Postfix) with SMTP id CEF1E6B0062
-	for <linux-mm@kvack.org>; Mon,  2 Jul 2012 12:52:52 -0400 (EDT)
-Date: Mon, 2 Jul 2012 18:52:50 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [RFC][PATCH 1/2] add res_counter_usage_safe
-Message-ID: <20120702165250.GH8050@tiehlicka.suse.cz>
-References: <4FEC300A.7040209@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
+	by kanga.kvack.org (Postfix) with SMTP id 3B31C6B0062
+	for <linux-mm@kvack.org>; Mon,  2 Jul 2012 12:58:17 -0400 (EDT)
+Received: from /spool/local
+	by e28smtp08.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <svaidy@linux.vnet.ibm.com>;
+	Mon, 2 Jul 2012 22:28:13 +0530
+Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
+	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q62GvdTQ9044224
+	for <linux-mm@kvack.org>; Mon, 2 Jul 2012 22:27:40 +0530
+Received: from d28av03.in.ibm.com (loopback [127.0.0.1])
+	by d28av03.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q62MQurU016673
+	for <linux-mm@kvack.org>; Tue, 3 Jul 2012 08:26:57 +1000
+Date: Mon, 2 Jul 2012 22:27:15 +0530
+From: Vaidyanathan Srinivasan <svaidy@linux.vnet.ibm.com>
+Subject: Re: [PATCH 13/40] autonuma: CPU follow memory algorithm
+Message-ID: <20120702165714.GA10952@dirshya.in.ibm.com>
+Reply-To: svaidy@linux.vnet.ibm.com
+References: <1340888180-15355-14-git-send-email-aarcange@redhat.com>
+ <1340895238.28750.49.camel@twins>
+ <CAJd=RBA+FPgB9iq07YG0Pd=tN65SGK1ifmj98tomBDbYeKOE-Q@mail.gmail.com>
+ <20120629125517.GD32637@gmail.com>
+ <4FEDDD0C.60609@redhat.com>
+ <1340995260.28750.103.camel@twins>
+ <4FEDF81C.1010401@redhat.com>
+ <1340996224.28750.116.camel@twins>
+ <1340996586.28750.122.camel@twins>
+ <4FEDFFB5.3010401@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <4FEC300A.7040209@jp.fujitsu.com>
+In-Reply-To: <4FEDFFB5.3010401@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: linux-mm <linux-mm@kvack.org>, David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>
+To: Rik van Riel <riel@redhat.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, dlaor@redhat.com, Ingo Molnar <mingo@kernel.org>, Hillf Danton <dhillf@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dan Smith <danms@us.ibm.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Johannes Weiner <hannes@cmpxchg.org>, Srivatsa Vaddagiri <vatsa@linux.vnet.ibm.com>, Christoph Lameter <cl@linux.com>, Alex Shi <alex.shi@intel.com>, Mauricio Faria de Oliveira <mauricfo@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Don Morris <don.morris@hp.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
 
-On Thu 28-06-12 19:20:58, KAMEZAWA Hiroyuki wrote:
-> This series is a cleaned up patches discussed in a few days ago, the topic
-> was how to make compaction works well even if there is a memcg under OOM.
-> ==
-> memcg: add res_counter_usage_safe()
-> 
-> I think usage > limit means a sign of BUG. But, sometimes,
-> res_counter_charge_nofail() is very convenient. tcp_memcg uses it.
-> And I'd like to use it for helping page migration.
-> 
-> This patch adds res_counter_usage_safe() which returns min(usage,limit).
-> By this we can use res_counter_charge_nofail() without breaking
-> user experience.
-> 
-> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+* Rik van Riel <riel@redhat.com> [2012-06-29 15:19:17]:
 
-Reviewed-by: Michal Hocko <mhocko@suse.cz>
+> On 06/29/2012 03:03 PM, Peter Zijlstra wrote:
+> >On Fri, 2012-06-29 at 20:57 +0200, Peter Zijlstra wrote:
+> >>On Fri, 2012-06-29 at 14:46 -0400, Rik van Riel wrote:
+> >>>
+> >>>I am not convinced all architectures that have CONFIG_NUMA
+> >>>need to be a requirement, since some of them (eg. Alpha)
+> >>>seem to be lacking a maintainer nowadays.
+> >>
+> >>Still, this NUMA balancing stuff is not a small tweak to load-balancing.
+> >>Its a very significant change is how you schedule. Having such great
+> >>differences over architectures isn't something I look forward to.
+> 
+> I am not too worried about the performance of architectures
+> that are essentially orphaned :)
+> 
+> >Also, Andrea keeps insisting arch support is trivial, so I don't see the
+> >problem.
+> 
+> Getting it implemented in one or two additional architectures
+> would be good, to get a template out there that can be used by
+> other architecture maintainers.
 
-> ---
->  include/linux/res_counter.h |    2 ++
->  kernel/res_counter.c        |   15 +++++++++++++++
->  net/ipv4/tcp_memcontrol.c   |    2 +-
->  3 files changed, 18 insertions(+), 1 deletions(-)
-> 
-> diff --git a/include/linux/res_counter.h b/include/linux/res_counter.h
-> index 7d7fbe2..a6f8cc5 100644
-> --- a/include/linux/res_counter.h
-> +++ b/include/linux/res_counter.h
-> @@ -226,4 +226,6 @@ res_counter_set_soft_limit(struct res_counter *cnt,
->  	return 0;
->  }
->  
-> +u64 res_counter_usage_safe(struct res_counter *cnt);
-> +
->  #endif
-> diff --git a/kernel/res_counter.c b/kernel/res_counter.c
-> index ad581aa..e84149b 100644
-> --- a/kernel/res_counter.c
-> +++ b/kernel/res_counter.c
-> @@ -171,6 +171,21 @@ u64 res_counter_read_u64(struct res_counter *counter, int member)
->  }
->  #endif
->  
-> +/*
-> + * Returns usage. If usage > limit, limit is returned.
-> + * This is useful not to break user experiance if the excess
-> + * is temporal.
-> + */
-> +u64 res_counter_usage_safe(struct res_counter *counter)
-> +{
-> +	u64 usage, limit;
-> +
-> +	limit = res_counter_read_u64(counter, RES_LIMIT);
-> +	usage = res_counter_read_u64(counter, RES_USAGE);
-> +
-> +	return min(usage, limit);
-> +}
-> +
->  int res_counter_memparse_write_strategy(const char *buf,
->  					unsigned long long *res)
->  {
-> diff --git a/net/ipv4/tcp_memcontrol.c b/net/ipv4/tcp_memcontrol.c
-> index b6f3583..a73dce6 100644
-> --- a/net/ipv4/tcp_memcontrol.c
-> +++ b/net/ipv4/tcp_memcontrol.c
-> @@ -180,7 +180,7 @@ static u64 tcp_read_usage(struct mem_cgroup *memcg)
->  		return atomic_long_read(&tcp_memory_allocated) << PAGE_SHIFT;
->  
->  	tcp = tcp_from_cgproto(cg_proto);
-> -	return res_counter_read_u64(&tcp->tcp_memory_allocated, RES_USAGE);
-> +	return res_counter_usage_safe(&tcp->tcp_memory_allocated);
->  }
->  
->  static u64 tcp_cgroup_read(struct cgroup *cont, struct cftype *cft)
-> -- 
-> 1.7.4.1
-> 
-> 
+I am currently porting the framework over to powerpc.  I will share
+the initial patches in couple of days.
 
--- 
-Michal Hocko
-SUSE Labs
-SUSE LINUX s.r.o.
-Lihovarska 1060/12
-190 00 Praha 9    
-Czech Republic
+--Vaidy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
