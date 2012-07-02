@@ -1,37 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx207.postini.com [74.125.245.207])
-	by kanga.kvack.org (Postfix) with SMTP id C5EEA6B0068
-	for <linux-mm@kvack.org>; Mon,  2 Jul 2012 06:59:43 -0400 (EDT)
-Message-ID: <4FF17E7D.5020302@parallels.com>
-Date: Mon, 2 Jul 2012 14:57:01 +0400
-From: Glauber Costa <glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
+	by kanga.kvack.org (Postfix) with SMTP id 74E626B0062
+	for <linux-mm@kvack.org>; Mon,  2 Jul 2012 07:04:30 -0400 (EDT)
+Received: by pbbrp2 with SMTP id rp2so9079990pbb.14
+        for <linux-mm@kvack.org>; Mon, 02 Jul 2012 04:04:29 -0700 (PDT)
+Date: Mon, 2 Jul 2012 04:04:28 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH v3 2/3] mm/sparse: fix possible memory leak
+In-Reply-To: <1341221337-4826-2-git-send-email-shangw@linux.vnet.ibm.com>
+Message-ID: <alpine.DEB.2.00.1207020404120.14758@chino.kir.corp.google.com>
+References: <1341221337-4826-1-git-send-email-shangw@linux.vnet.ibm.com> <1341221337-4826-2-git-send-email-shangw@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 4/4] make CFLGS_OFF_SLAB visible for all slabs
-References: <1339676244-27967-1-git-send-email-glommer@parallels.com> <1339676244-27967-5-git-send-email-glommer@parallels.com> <alpine.DEB.2.00.1206141019010.32075@router.home>
-In-Reply-To: <alpine.DEB.2.00.1206141019010.32075@router.home>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, cgroups@vger.kernel.org, devel@openvz.org, Pekka
- Enberg <penberg@cs.helsinki.fi>
+To: Gavin Shan <shangw@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, dave@linux.vnet.ibm.com, mhocko@suse.cz, akpm@linux-foundation.org
 
-On 06/14/2012 07:19 PM, Christoph Lameter wrote:
-> On Thu, 14 Jun 2012, Glauber Costa wrote:
-> 
->> Since we're now moving towards a unified slab allocator interface,
->> make CFLGS_OFF_SLAB visible to all allocators, even though SLAB keeps
->> being its only users. Also, make the name consistent with the other
->> flags, that start with SLAB_xx.
-> 
-> What is the significance of knowledge about internal slab structures (such
-> as the CFGLFS_OFF_SLAB) outside of the allocators?
-> 
-Pekka, please note this comment when you are scanning through the series
-(which you seem to be doing now).
+On Mon, 2 Jul 2012, Gavin Shan wrote:
 
-This one is better left off for now.
+> diff --git a/mm/sparse.c b/mm/sparse.c
+> index 781fa04..a6984d9 100644
+> --- a/mm/sparse.c
+> +++ b/mm/sparse.c
+> @@ -75,6 +75,20 @@ static struct mem_section noinline __init_refok *sparse_index_alloc(int nid)
+>  	return section;
+>  }
+>  
+> +static inline void __meminit sparse_index_free(struct mem_section *section)
+> +{
+> +	unsigned long size = SECTIONS_PER_ROOT *
+> +			     sizeof(struct mem_section);
+> +
+> +	if (!section)
+> +		return;
+> +
+> +	if (slab_is_available())
+> +		kfree(section);
+> +	else
+> +		free_bootmem(virt_to_phys(section), size);
+
+Eek, does that work?
+
+> +}
+> +
+>  static int __meminit sparse_index_init(unsigned long section_nr, int nid)
+>  {
+>  	static DEFINE_SPINLOCK(index_init_lock);
+> @@ -102,6 +116,9 @@ static int __meminit sparse_index_init(unsigned long section_nr, int nid)
+>  	mem_section[root] = section;
+>  out:
+>  	spin_unlock(&index_init_lock);
+> +	if (ret)
+> +		sparse_index_free(section);
+> +
+>  	return ret;
+>  }
+>  #else /* !SPARSEMEM_EXTREME */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
