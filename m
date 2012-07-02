@@ -1,93 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
-	by kanga.kvack.org (Postfix) with SMTP id 5BADC6B0062
-	for <linux-mm@kvack.org>; Mon,  2 Jul 2012 05:43:34 -0400 (EDT)
-Date: Mon, 2 Jul 2012 11:43:31 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH v3 2/3] mm/sparse: fix possible memory leak
-Message-ID: <20120702094331.GC8050@tiehlicka.suse.cz>
-References: <1341221337-4826-1-git-send-email-shangw@linux.vnet.ibm.com>
- <1341221337-4826-2-git-send-email-shangw@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
+	by kanga.kvack.org (Postfix) with SMTP id 08D366B0062
+	for <linux-mm@kvack.org>; Mon,  2 Jul 2012 06:03:21 -0400 (EDT)
+Message-ID: <4FF1714A.7050400@parallels.com>
+Date: Mon, 2 Jul 2012 14:00:42 +0400
+From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1341221337-4826-2-git-send-email-shangw@linux.vnet.ibm.com>
+Subject: Re: [PATCH] slab: Fix a tpyo in commit 8c138b "slab: Get rid of obj_size
+ macro"
+References: <1341210550-11038-1-git-send-email-feng.tang@intel.com>
+In-Reply-To: <1341210550-11038-1-git-send-email-feng.tang@intel.com>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Gavin Shan <shangw@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org, dave@linux.vnet.ibm.com, rientjes@google.com, akpm@linux-foundation.org
+To: Feng Tang <feng.tang@intel.com>
+Cc: penberg@kernel.org, linux-kernel@vger.kernel.org, fengguang.wu@intel.com, sfr@canb.auug.org.au, linux-mm@kvack.org, Christoph Lameter <cl@linux.com>
 
-On Mon 02-07-12 17:28:56, Gavin Shan wrote:
-> sparse_index_init() is designed to be safe if two copies of it race.  It
-> uses "index_init_lock" to ensure that, even in the case of a race, only
-> one CPU will manage to do:
+On 07/02/2012 10:29 AM, Feng Tang wrote:
+> Commit  8c138b only sits in Pekka's and linux-next tree now, which tries
+> to replace obj_size(cachep) with cachep->object_size, but has a typo in
+> kmem_cache_free() by using "size" instead of "object_size", which casues
+> some regressions.
 > 
-> 	mem_section[root] = section;
-> 
-> However, in the case where two copies of sparse_index_init() _do_ race,
-> the one that loses the race will leak the "section" that
-> sparse_index_alloc() allocated for it.  This patch fixes that leak.
-
-I would still like to hear how we can possibly race in this code path.
-I've thought that memory onlining is done from a single CPU.
-
-> 
-> Signed-off-by: Gavin Shan <shangw@linux.vnet.ibm.com>
+> Reported-and-tested-by: Fengguang Wu <wfg@linux.intel.com>
+> Signed-off-by: Feng Tang <feng.tang@intel.com>
+> Cc: Christoph Lameter <cl@linux.com>
 > ---
->  mm/sparse.c |   17 +++++++++++++++++
->  1 file changed, 17 insertions(+)
+>  mm/slab.c |    2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
 > 
-> diff --git a/mm/sparse.c b/mm/sparse.c
-> index 781fa04..a6984d9 100644
-> --- a/mm/sparse.c
-> +++ b/mm/sparse.c
-> @@ -75,6 +75,20 @@ static struct mem_section noinline __init_refok *sparse_index_alloc(int nid)
->  	return section;
->  }
+> diff --git a/mm/slab.c b/mm/slab.c
+> index 64c3d03..605b3b7 100644
+> --- a/mm/slab.c
+> +++ b/mm/slab.c
+> @@ -3890,7 +3890,7 @@ void kmem_cache_free(struct kmem_cache *cachep, void *objp)
+>  	unsigned long flags;
 >  
-> +static inline void __meminit sparse_index_free(struct mem_section *section)
-> +{
-> +	unsigned long size = SECTIONS_PER_ROOT *
-> +			     sizeof(struct mem_section);
-> +
-> +	if (!section)
-> +		return;
-> +
-> +	if (slab_is_available())
-> +		kfree(section);
-> +	else
-> +		free_bootmem(virt_to_phys(section), size);
-> +}
-> +
->  static int __meminit sparse_index_init(unsigned long section_nr, int nid)
->  {
->  	static DEFINE_SPINLOCK(index_init_lock);
-> @@ -102,6 +116,9 @@ static int __meminit sparse_index_init(unsigned long section_nr, int nid)
->  	mem_section[root] = section;
->  out:
->  	spin_unlock(&index_init_lock);
-> +	if (ret)
-> +		sparse_index_free(section);
-> +
->  	return ret;
->  }
->  #else /* !SPARSEMEM_EXTREME */
-> -- 
-> 1.7.9.5
+>  	local_irq_save(flags);
+> -	debug_check_no_locks_freed(objp, cachep->size);
+> +	debug_check_no_locks_freed(objp, cachep->object_size);
+>  	if (!(cachep->flags & SLAB_DEBUG_OBJECTS))
+>  		debug_check_no_obj_freed(objp, cachep->object_size);
+>  	__cache_free(cachep, objp, __builtin_return_address(0));
 > 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
--- 
-Michal Hocko
-SUSE Labs
-SUSE LINUX s.r.o.
-Lihovarska 1060/12
-190 00 Praha 9    
-Czech Republic
+I saw another bug in a patch that ended up not getting in, and was
+reported to Christoph, that was exactly due to a typo between size and
+object-size.
+
+So first:
+
+Acked-by: Glauber Costa <glommer@parallels.com>
+
+But this also means that that confusion can have been made in other
+points. I suggest we take an extensive look into that to make sure there
+aren't more.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
