@@ -1,34 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
-	by kanga.kvack.org (Postfix) with SMTP id 973366B0068
-	for <linux-mm@kvack.org>; Mon,  2 Jul 2012 09:36:04 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
+	by kanga.kvack.org (Postfix) with SMTP id CEDAF6B0062
+	for <linux-mm@kvack.org>; Mon,  2 Jul 2012 09:43:55 -0400 (EDT)
 Received: from /spool/local
-	by e7.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e35.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <shangw@linux.vnet.ibm.com>;
-	Mon, 2 Jul 2012 09:36:02 -0400
-Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
-	by d01relay07.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q62DWpSq10682502
-	for <linux-mm@kvack.org>; Mon, 2 Jul 2012 09:32:59 -0400
-Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av03.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q62DSYKo028173
-	for <linux-mm@kvack.org>; Mon, 2 Jul 2012 07:28:35 -0600
-Date: Mon, 2 Jul 2012 21:28:32 +0800
+	Mon, 2 Jul 2012 07:43:51 -0600
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q62DfJfB124478
+	for <linux-mm@kvack.org>; Mon, 2 Jul 2012 07:41:35 -0600
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q62DesbK005368
+	for <linux-mm@kvack.org>; Mon, 2 Jul 2012 07:40:54 -0600
+Date: Mon, 2 Jul 2012 21:40:53 +0800
 From: Gavin Shan <shangw@linux.vnet.ibm.com>
 Subject: Re: [PATCH v3 2/3] mm/sparse: fix possible memory leak
-Message-ID: <20120702132832.GA18567@shangw>
+Message-ID: <20120702134053.GA23800@shangw>
 Reply-To: Gavin Shan <shangw@linux.vnet.ibm.com>
 References: <1341221337-4826-1-git-send-email-shangw@linux.vnet.ibm.com>
  <1341221337-4826-2-git-send-email-shangw@linux.vnet.ibm.com>
- <alpine.DEB.2.00.1207020404120.14758@chino.kir.corp.google.com>
+ <20120702094331.GC8050@tiehlicka.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1207020404120.14758@chino.kir.corp.google.com>
+In-Reply-To: <20120702094331.GC8050@tiehlicka.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Gavin Shan <shangw@linux.vnet.ibm.com>, linux-mm@kvack.org, dave@linux.vnet.ibm.com, mhocko@suse.cz, akpm@linux-foundation.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Gavin Shan <shangw@linux.vnet.ibm.com>, linux-mm@kvack.org, dave@linux.vnet.ibm.com, rientjes@google.com, akpm@linux-foundation.org
 
+On Mon, Jul 02, 2012 at 11:43:31AM +0200, Michal Hocko wrote:
+>On Mon 02-07-12 17:28:56, Gavin Shan wrote:
+>> sparse_index_init() is designed to be safe if two copies of it race.  It
+>> uses "index_init_lock" to ensure that, even in the case of a race, only
+>> one CPU will manage to do:
+>> 
+>> 	mem_section[root] = section;
+>> 
+>> However, in the case where two copies of sparse_index_init() _do_ race,
+>> the one that loses the race will leak the "section" that
+>> sparse_index_alloc() allocated for it.  This patch fixes that leak.
+>
+>I would still like to hear how we can possibly race in this code path.
+>I've thought that memory onlining is done from a single CPU.
+>
+
+Hi Michael, how about to use the following changelog? :-)
+
+-----
+
+sparse_index_init() is designed to be safe if two copies of it race.  It
+uses "index_init_lock" to ensure that, even in the case of a race, only
+one CPU will manage to do:
+
+mem_section[root] = section;
+
+However, in the case where two copies of sparse_index_init() _do_ race,
+which is probablly caused by making online for multiple memory sections
+that depend on same entry of array mem_section[] simultaneously from
+different CPUs. The one that loses the race will leak the "section" that
+sparse_index_alloc() allocated for it. This patch fixes that leak.
+
+-----
+
+Thanks,
+Gavin
+
+>> 
+>> Signed-off-by: Gavin Shan <shangw@linux.vnet.ibm.com>
+>> ---
+>>  mm/sparse.c |   17 +++++++++++++++++
+>>  1 file changed, 17 insertions(+)
+>> 
 >> diff --git a/mm/sparse.c b/mm/sparse.c
 >> index 781fa04..a6984d9 100644
 >> --- a/mm/sparse.c
@@ -49,29 +92,6 @@ Cc: Gavin Shan <shangw@linux.vnet.ibm.com>, linux-mm@kvack.org, dave@linux.vnet.
 >> +		kfree(section);
 >> +	else
 >> +		free_bootmem(virt_to_phys(section), size);
->
->Eek, does that work?
->
-
-David, I think it's working fine. If my understanding is wrong, please
-correct me. Thanks a lot :-)
-
-The "section" allocated from the bootmem allocator might take following
-function call path. In the function alloc_bootmem_core(), all online nodes
-will be checked for the memory allocation. So we could have memory allocated
-from different node other than the specified one to alloc_bootmem_node()
-
-alloc_bootmem_node(nid, size)
-__alloc_bootmem_node()
-___alloc_bootmem_node_nopanic()
-alloc_bootmem_core()
-
-On the other hand, function free_bootmem() checks which node the memory
-block belongs to and then free it into that node. That looks reasonable.
-
-Thanks,
-Gavin 
-
 >> +}
 >> +
 >>  static int __meminit sparse_index_init(unsigned long section_nr, int nid)
@@ -87,6 +107,22 @@ Gavin
 >>  	return ret;
 >>  }
 >>  #else /* !SPARSEMEM_EXTREME */
+>> -- 
+>> 1.7.9.5
+>> 
+>> --
+>> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>> the body to majordomo@kvack.org.  For more info on Linux MM,
+>> see: http://www.linux-mm.org/ .
+>> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>
+>-- 
+>Michal Hocko
+>SUSE Labs
+>SUSE LINUX s.r.o.
+>Lihovarska 1060/12
+>190 00 Praha 9    
+>Czech Republic
 >
 >--
 >To unsubscribe, send a message with 'unsubscribe linux-mm' in
