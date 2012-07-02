@@ -1,48 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
-	by kanga.kvack.org (Postfix) with SMTP id AEF676B0062
-	for <linux-mm@kvack.org>; Mon,  2 Jul 2012 02:22:45 -0400 (EDT)
-Message-ID: <4FF13E0D.6000601@redhat.com>
-Date: Mon, 02 Jul 2012 02:22:05 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
+	by kanga.kvack.org (Postfix) with SMTP id DDA816B0062
+	for <linux-mm@kvack.org>; Mon,  2 Jul 2012 02:32:28 -0400 (EDT)
+Date: Mon, 2 Jul 2012 02:32:26 -0400
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: [MMTests] IO metadata on XFS
+Message-ID: <20120702063226.GA32151@infradead.org>
+References: <20120620113252.GE4011@suse.de>
+ <20120629111932.GA14154@suse.de>
+ <20120629112505.GF14154@suse.de>
+ <20120701235458.GM19223@dastard>
 MIME-Version: 1.0
-Subject: Re: [PATCH 37/40] autonuma: page_autonuma change #include for sparse
-References: <1340888180-15355-1-git-send-email-aarcange@redhat.com> <1340888180-15355-38-git-send-email-aarcange@redhat.com>
-In-Reply-To: <1340888180-15355-38-git-send-email-aarcange@redhat.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120701235458.GM19223@dastard>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hillf Danton <dhillf@gmail.com>, Dan Smith <danms@us.ibm.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Johannes Weiner <hannes@cmpxchg.org>, Srivatsa Vaddagiri <vatsa@linux.vnet.ibm.com>, Christoph Lameter <cl@linux.com>, Alex Shi <alex.shi@intel.com>, Mauricio Faria de Oliveira <mauricfo@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Don Morris <don.morris@hp.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
+To: Dave Chinner <david@fromorbit.com>
+Cc: Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, xfs@oss.sgi.com
 
-On 06/28/2012 08:56 AM, Andrea Arcangeli wrote:
-> sparse (make C=1) warns about lookup_page_autonuma not being declared,
-> that's a false positive, but we can shut it down by being less strict
-> in the includes.
->
-> Signed-off-by: Andrea Arcangeli<aarcange@redhat.com>
+On Mon, Jul 02, 2012 at 09:54:58AM +1000, Dave Chinner wrote:
+> That will be caused by the fact we changed all the metadata updates
+> to be logged, which means a transaction every time .dirty_inode is
+> called.
+> 
+> This should mostly go away when XFS is converted to use .update_time
+> rather than .dirty_inode to only issue transactions when the VFS
+> updates the atime rather than every .dirty_inode call...
 
-It is a one line change.  Please fold it into the patch
-that introduced the issue, and reduce the size of the
-patch series.
+I think the patch to do that conversion still needs review..
 
-> diff --git a/mm/page_autonuma.c b/mm/page_autonuma.c
-> index bace9b8..2468c9e 100644
-> --- a/mm/page_autonuma.c
-> +++ b/mm/page_autonuma.c
-> @@ -1,6 +1,6 @@
->   #include<linux/mm.h>
->   #include<linux/memory.h>
-> -#include<linux/autonuma_flags.h>
-> +#include<linux/autonuma.h>
->   #include<linux/page_autonuma.h>
->   #include<linux/bootmem.h>
->
+> It increases the CPU overhead (dirty_inode can be called up to 4
+> times per write(2) call, IIRC), so with limited numbers of
+> threads/limited CPU power it will result in lower performance. Where
+> you have lots of CPU power, there will be little difference in
+> performance...
 
-
--- 
-All rights reversed
+When I checked it it could only be called twice, and we'd already
+optimize away the second call.  I'd defintively like to track down where
+the performance changes happend, at least to a major version but even
+better to a -rc or git commit.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
