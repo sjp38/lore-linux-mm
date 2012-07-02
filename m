@@ -1,243 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
-	by kanga.kvack.org (Postfix) with SMTP id D52836B0062
-	for <linux-mm@kvack.org>; Sun,  1 Jul 2012 23:01:44 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 766A03EE0C1
-	for <linux-mm@kvack.org>; Mon,  2 Jul 2012 12:01:42 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 467A245DEBD
-	for <linux-mm@kvack.org>; Mon,  2 Jul 2012 12:01:42 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 0D09845DEC3
-	for <linux-mm@kvack.org>; Mon,  2 Jul 2012 12:01:42 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 00CE51DB803F
-	for <linux-mm@kvack.org>; Mon,  2 Jul 2012 12:01:42 +0900 (JST)
-Received: from g01jpexchyt07.g01.fujitsu.local (g01jpexchyt07.g01.fujitsu.local [10.128.194.46])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 313D91DB8046
-	for <linux-mm@kvack.org>; Mon,  2 Jul 2012 12:01:41 +0900 (JST)
-Message-ID: <4FF10EFF.5050803@jp.fujitsu.com>
-Date: Mon, 2 Jul 2012 12:01:19 +0900
-From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
+	by kanga.kvack.org (Postfix) with SMTP id 479696B0062
+	for <linux-mm@kvack.org>; Sun,  1 Jul 2012 23:39:19 -0400 (EDT)
+Date: Mon, 2 Jul 2012 11:39:14 +0800
+From: Fengguang Wu <fengguang.wu@intel.com>
+Subject: Re: linux-next BUG: held lock freed!
+Message-ID: <20120702033914.GA7433@localhost>
+References: <20120626145432.GA15289@localhost>
+ <20120626172918.GA16446@localhost>
+ <20120627122306.GA19252@localhost>
+ <20120702025625.GA6531@localhost>
 MIME-Version: 1.0
-Subject: Re: [RFC PATCH 10/12] memory-hotplug : free memmap of sparse-vmemmap
-References: <4FEA9C88.1070800@jp.fujitsu.com> <4FEAA09F.5000907@jp.fujitsu.com> <4FEF2214.4000205@gmail.com>
-In-Reply-To: <4FEF2214.4000205@gmail.com>
-Content-Type: text/plain; charset="ISO-2022-JP"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120702025625.GA6531@localhost>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jiang Liu <liuj97@gmail.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, wency@cn.fujitsu.com
+To: Christoph Lameter <cl@linux.com>
+Cc: Trond Myklebust <Trond.Myklebust@netapp.com>, "J. Bruce Fields" <bfields@fieldses.org>, linux-nfs@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, netdev <netdev@vger.kernel.org>, Pekka Enberg <penberg@kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Stephen Rothwell <sfr@canb.auug.org.au>
 
-Hi Jiang,
+On Mon, Jul 02, 2012 at 10:56:25AM +0800, Fengguang Wu wrote:
+> Hi all,
+> 
+> More observations on this bug:
+> 
+> The slab tree itself actually boots fine. So Christoph's commit may be
+> merely disclosing some bug hidden in another for-next tree which
+> happens to be merged before the slab tree..
 
-2012/07/01 0:58, Jiang Liu wrote:
-> On 06/27/2012 01:56 PM, Yasuaki Ishimatsu wrote:
->> I don't think that all pages of virtual mapping in removed memory can be
->> freed, since page which type is MIX_SECTION_INFO is difficult to free.
->> So, the patch only frees page which type is SECTION_INFO at first.
->>
->> CC: Len Brown <len.brown@intel.com>
->> CC: Benjamin Herrenschmidt <benh@kernel.crashing.org>
->> CC: Paul Mackerras <paulus@samba.org>
->> CC: Christoph Lameter <cl@linux.com>
->> Cc: Minchan Kim <minchan.kim@gmail.com>
->> CC: Andrew Morton <akpm@linux-foundation.org>
->> CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
->> CC: Wen Congyang <wency@cn.fujitsu.com>
->> Signed-off-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
->>
->> ---
->>   arch/x86/mm/init_64.c |   89 ++++++++++++++++++++++++++++++++++++++++++++++++++
->>   include/linux/mm.h    |    2 +
->>   mm/memory_hotplug.c   |    5 ++
->>   mm/sparse.c           |    5 +-
->>   4 files changed, 99 insertions(+), 2 deletions(-)
->>
->> Index: linux-3.5-rc4/include/linux/mm.h
->> ===================================================================
->> --- linux-3.5-rc4.orig/include/linux/mm.h	2012-06-27 09:11:13.790150442 +0900
->> +++ linux-3.5-rc4/include/linux/mm.h	2012-06-27 09:11:16.433117400 +0900
->> @@ -1588,6 +1588,8 @@ int vmemmap_populate(struct page *start_
->>   void vmemmap_populate_print_last(void);
->>   void register_page_bootmem_memmap(unsigned long section_nr, struct page *map,
->>   				  unsigned long size);
->> +void vmemmap_kfree(struct page *memmpa, unsigned long nr_pages);
->> +void vmemmap_free_bootmem(struct page *memmpa, unsigned long nr_pages);
->>
->>   enum mf_flags {
->>   	MF_COUNT_INCREASED = 1 << 0,
->> Index: linux-3.5-rc4/mm/sparse.c
->> ===================================================================
->> --- linux-3.5-rc4.orig/mm/sparse.c	2012-06-27 09:06:35.317631878 +0900
->> +++ linux-3.5-rc4/mm/sparse.c	2012-06-27 09:11:16.434117388 +0900
->> @@ -614,12 +614,13 @@ static inline struct page *kmalloc_secti
->>   	/* This will make the necessary allocations eventually. */
->>   	return sparse_mem_map_populate(pnum, nid);
->>   }
->> -static void __kfree_section_memmap(struct page *memmap, unsigned long nr_pages)
->> +static void __kfree_section_memmap(struct page *page, unsigned long nr_pages)
->>   {
->> -	return; /* XXX: Not implemented yet */
->> +	vmemmap_kfree(page, nr_pages);
->>   }
->>   static void free_map_bootmem(struct page *page, unsigned long nr_pages)
->>   {
->> +	vmemmap_free_bootmem(page, nr_pages);
->>   }
->>   #else
->>   static struct page *__kmalloc_section_memmap(unsigned long nr_pages)
->> Index: linux-3.5-rc4/arch/x86/mm/init_64.c
->> ===================================================================
->> --- linux-3.5-rc4.orig/arch/x86/mm/init_64.c	2012-06-27 09:11:13.791150430 +0900
->> +++ linux-3.5-rc4/arch/x86/mm/init_64.c	2012-06-27 09:11:59.254581998 +0900
->> @@ -978,6 +978,95 @@ vmemmap_populate(struct page *start_page
->>   	return 0;
->>   }
->>
->> +unsigned long find_and_clear_pte_page(unsigned long addr, unsigned long end,
->> +				      struct page *page)
-> I think the third parameter should be "struct page **pp" instead of "struct page *page".
-> And "page = pte_page(*pte)" should be "*pp = pte_page(*pte)".
-> Otherwise the found page pointer can't be returned to the caller and vmemmap_kfree()
-> just sees random value in variable "page".
+Sorry: the bug does appear in the standalone slab tree, where the
+dmesg is
 
-Oh, you are right. I'll update it.
+[  307.648802] blkid (2963) used greatest stack depth: 2832 bytes left
+[  307.892070] vhci_hcd: changed 0
+[  308.766647] 
+[  308.766648] =========================
+[  308.766649] [ BUG: held lock freed! ]
+[  308.766651] 3.5.0-rc1+ #44 Not tainted
+[  308.766651] -------------------------
+[  308.766653] mtd_probe/3040 is freeing memory ffff880006defdd0-ffff880006df0dcf, with a lock still held there!
+[  308.766662]  (&type->s_umount_key#31/1){+.+.+.}, at: [<ffffffff81187166>] sget+0x299/0x463
+[  308.766663] 3 locks held by mtd_probe/3040:
+[  308.766667]  #0:  (&type->s_umount_key#31/1){+.+.+.}, at: [<ffffffff81187166>] sget+0x299/0x463
+[  308.766671]  #1:  (sb_lock){+.+.-.}, at: [<ffffffff81186f00>] sget+0x33/0x463
+[  308.766675]  #2:  (unnamed_dev_lock){+.+...}, at: [<ffffffff81186711>] get_anon_bdev+0x38/0xe8
+[  308.766675] 
+[  308.766675] stack backtrace:
+[  308.766677] Pid: 3040, comm: mtd_probe Not tainted 3.5.0-rc1+ #44
+[  308.766678] Call Trace:
+[  308.766683]  [<ffffffff810ddc6e>] debug_check_no_locks_freed+0x109/0x14b
+[  308.766703]  [<ffffffff81173f7c>] kmem_cache_free+0x2e/0xa7
+[  308.766708]  [<ffffffff816a5d9d>] ida_get_new_above+0x173/0x184
+[  308.766711]  [<ffffffff810db9a4>] ? lock_acquired+0x1e4/0x219
+[  308.766713]  [<ffffffff81186727>] get_anon_bdev+0x4e/0xe8
+[  308.766715]  [<ffffffff811867d8>] set_anon_super+0x17/0x2a
+[  308.766717]  [<ffffffff81187270>] sget+0x3a3/0x463
+[  308.766719]  [<ffffffff811867c1>] ? get_anon_bdev+0xe8/0xe8
+[  308.766722]  [<ffffffff811a1fbe>] mount_pseudo+0x31/0x152
+[  308.766727]  [<ffffffff81cb1f54>] mtd_inodefs_mount+0x24/0x26
+[  308.766729]  [<ffffffff81187e34>] mount_fs+0x69/0x155
+[  308.766733]  [<ffffffff811531b2>] ? __alloc_percpu+0x10/0x12
+[  308.766736]  [<ffffffff8119ca4c>] vfs_kern_mount+0x62/0xd9
+[  308.766739]  [<ffffffff811a1b43>] simple_pin_fs+0x4c/0x9b
+[  308.766741]  [<ffffffff81cb338a>] mtdchar_open+0x42/0x188
+[  308.766744]  [<ffffffff811886ef>] chrdev_open+0x11f/0x14a
+[  308.766747]  [<ffffffff810c0880>] ? local_clock+0x19/0x52
+[  308.766750]  [<ffffffff811885d0>] ? cdev_put+0x26/0x26
+[  308.766752]  [<ffffffff811836cc>] do_dentry_open+0x1e4/0x2b2
+[  308.766754]  [<ffffffff8118434a>] nameidata_to_filp+0x5e/0xa3
+[  308.766756]  [<ffffffff8119118f>] do_last+0x68f/0x6d3
+[  308.766759]  [<ffffffff811912d8>] path_openat+0xd2/0x32a
+[  308.766762]  [<ffffffff8111eed8>] ? time_hardirqs_off+0x26/0x2a
+[  308.766765]  [<ffffffff810d9e88>] ? trace_hardirqs_off+0xd/0xf
+[  308.766767]  [<ffffffff81191630>] do_filp_open+0x38/0x86
+[  308.766771]  [<ffffffff82e95e22>] ? _raw_spin_unlock+0x28/0x3b
+[  308.766773]  [<ffffffff8119baa7>] ? alloc_fd+0xe5/0xf7
+[  308.766776]  [<ffffffff811843fd>] do_sys_open+0x6e/0xfb
+[  308.766777]  [<ffffffff811844ab>] sys_open+0x21/0x23
+[  308.766780]  [<ffffffff82e9cb69>] system_call_fastpath+0x16/0x1b
 
 Thanks,
-Yasuaki Ishimatsu
-
->> +{
->> +	pgd_t *pgd;
->> +	pud_t *pud;
->> +	pmd_t *pmd;
->> +	pte_t *pte;
->> +	unsigned long next;
->> +
->> +	page = NULL;
->> +
->> +	pgd = pgd_offset_k(addr);
->> +	if (pgd_none(*pgd))
->> +		return PAGE_SIZE;
->> +
->> +	pud = pud_offset(pgd, addr);
->> +	if (pud_none(*pud))
->> +		return PAGE_SIZE;
->> +
->> +	if (!cpu_has_pse) {
->> +		next = (addr + PAGE_SIZE) & PAGE_MASK;
->> +		pmd = pmd_offset(pud, addr);
->> +		if (pmd_none(*pmd))
->> +			return next;
->> +
->> +		pte = pte_offset_kernel(pmd, addr);
->> +		if (pte_none(*pte))
->> +			return next;
->> +
->> +		page = pte_page(*pte);
->> +		pte_clear(&init_mm, addr, pte);
->> +	} else {
->> +		next = pmd_addr_end(addr, end);
->> +
->> +		pmd = pmd_offset(pud, addr);
->> +		if (pmd_none(*pmd))
->> +			return next;
->> +
->> +		page = pmd_page(*pmd);
->> +		pmd_clear(pmd);
->> +	}
->> +
->> +	return next;
->> +}
->> +
->> +void __meminit
->> +vmemmap_kfree(struct page *memmap, unsigned long nr_pages)
->> +{
->> +	unsigned long addr = (unsigned long)memmap;
->> +	unsigned long end = (unsigned long)(memmap + nr_pages);
->> +	unsigned long next;
->> +	unsigned int order;
->> +	struct page *page;
->> +
->> +	for (; addr < end; addr = next) {
->> +		next = find_and_clear_pte_page(addr, end, page);
->> +		if (!page)
->> +			continue;
->> +
->> +		if (is_vmalloc_addr(page))
->> +			vfree(page);
->> +		else {
->> +			order = next - addr;
->> +			free_pages((unsigned long)page,
->> +				   get_order(sizeof(struct page) *  order));
->> +		}
->> +	}
->> +}
->> +
->> +void __meminit
->> +vmemmap_free_bootmem(struct page *memmap, unsigned long nr_pages)
->> +{
->> +	unsigned long addr = (unsigned long)memmap;
->> +	unsigned long end = (unsigned long)(memmap + nr_pages);
->> +	unsigned long next;
->> +	struct page *page;
->> +	unsigned long magic;
->> +
->> +	for (; addr < end; addr = next) {
->> +		next = find_and_clear_pte_page(addr, end, page);
->> +		if (!page)
->> +			continue;
->> +
->> +		magic = (unsigned long) page->lru.next;
->> +		if (magic == SECTION_INFO)
->> +			put_page_bootmem(page);
->> +	}
->> +}
->> +
->>   void __meminit
->>   register_page_bootmem_memmap(unsigned long section_nr, struct page *start_page,
->>   			     unsigned long size)
->> Index: linux-3.5-rc4/mm/memory_hotplug.c
->> ===================================================================
->> --- linux-3.5-rc4.orig/mm/memory_hotplug.c	2012-06-27 09:11:13.789150454 +0900
->> +++ linux-3.5-rc4/mm/memory_hotplug.c	2012-06-27 09:11:16.436117363 +0900
->> @@ -303,6 +303,8 @@ static int __meminit __add_section(int n
->>   #ifdef CONFIG_SPARSEMEM_VMEMMAP
->>   static int __remove_section(struct zone *zone, struct mem_section *ms)
->>   {
->> +	unsigned long flags;
->> +	struct pglist_data *pgdat = zone->zone_pgdat;
->>   	int ret;
->>
->>   	if (!valid_section(ms))
->> @@ -310,6 +312,9 @@ static int __remove_section(struct zone
->>
->>   	ret = unregister_memory_section(ms);
->>
->> +	pgdat_resize_lock(pgdat, &flags);
->> +	sparse_remove_one_section(zone, ms);
->> +	pgdat_resize_unlock(pgdat, &flags);
->>   	return ret;
->>   }
->>   #else
->>
->> --
->> To unsubscribe from this list: send the line "unsubscribe linux-acpi" in
->> the body of a message to majordomo@vger.kernel.org
->> More majordomo info at  http://vger.kernel.org/majordomo-info.html
->>
-> 
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
-
-
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
