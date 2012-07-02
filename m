@@ -1,41 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
-	by kanga.kvack.org (Postfix) with SMTP id B1DE66B0062
-	for <linux-mm@kvack.org>; Mon,  2 Jul 2012 06:46:14 -0400 (EDT)
-Received: by lbjn8 with SMTP id n8so9536486lbj.14
-        for <linux-mm@kvack.org>; Mon, 02 Jul 2012 03:46:12 -0700 (PDT)
-Date: Mon, 2 Jul 2012 13:46:09 +0300 (EEST)
-From: Pekka Enberg <penberg@kernel.org>
-Subject: Re: [PATCH] slab: Fix a tpyo in commit 8c138b "slab: Get rid of
- obj_size macro"
-In-Reply-To: <4FF17733.6020703@parallels.com>
-Message-ID: <alpine.LFD.2.02.1207021346030.1916@tux.localdomain>
-References: <1341210550-11038-1-git-send-email-feng.tang@intel.com> <4FF1714A.7050400@parallels.com> <4FF17733.6020703@parallels.com>
+Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
+	by kanga.kvack.org (Postfix) with SMTP id BF82E6B0068
+	for <linux-mm@kvack.org>; Mon,  2 Jul 2012 06:46:47 -0400 (EDT)
+Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id CAEDF3EE0AE
+	for <linux-mm@kvack.org>; Mon,  2 Jul 2012 19:46:45 +0900 (JST)
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id B032345DE53
+	for <linux-mm@kvack.org>; Mon,  2 Jul 2012 19:46:45 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 962AA45DE51
+	for <linux-mm@kvack.org>; Mon,  2 Jul 2012 19:46:45 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 860C81DB802F
+	for <linux-mm@kvack.org>; Mon,  2 Jul 2012 19:46:45 +0900 (JST)
+Received: from m1001.s.css.fujitsu.com (m1001.s.css.fujitsu.com [10.240.81.139])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 3D5791DB803F
+	for <linux-mm@kvack.org>; Mon,  2 Jul 2012 19:46:45 +0900 (JST)
+Message-ID: <4FF17B86.6090202@jp.fujitsu.com>
+Date: Mon, 02 Jul 2012 19:44:22 +0900
+From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH 2/7] memcg: remove MEMCG_NR_FILE_MAPPED
+References: <1340880885-5427-1-git-send-email-handai.szj@taobao.com> <1340881111-5576-1-git-send-email-handai.szj@taobao.com>
+In-Reply-To: <1340881111-5576-1-git-send-email-handai.szj@taobao.com>
+Content-Type: text/plain; charset=ISO-2022-JP
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: Feng Tang <feng.tang@intel.com>, linux-kernel@vger.kernel.org, fengguang.wu@intel.com, sfr@canb.auug.org.au, linux-mm@kvack.org, Christoph Lameter <cl@linux.com>
+To: Sha Zhengju <handai.szj@gmail.com>
+Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, gthelen@google.com, yinghan@google.com, akpm@linux-foundation.org, mhocko@suse.cz, linux-kernel@vger.kernel.org, Sha Zhengju <handai.szj@taobao.com>
 
-On Mon, 2 Jul 2012, Glauber Costa wrote:
-> > I saw another bug in a patch that ended up not getting in, and was
-> > reported to Christoph, that was exactly due to a typo between size and
-> > object-size.
-> > 
-> > So first:
-> > 
-> > Acked-by: Glauber Costa <glommer@parallels.com>
-> > 
-> > But this also means that that confusion can have been made in other
-> > points. I suggest we take an extensive look into that to make sure there
-> > aren't more.
-> > 
+(2012/06/28 19:58), Sha Zhengju wrote:
+> From: Sha Zhengju <handai.szj@taobao.com>
 > 
-> Which I just did. I also tried to pay attention to another simple
-> conversion spots like that. We seem to be fine.
+> While accounting memcg page stat, it's not worth to use MEMCG_NR_FILE_MAPPED
+> as an extra layer of indirection because of the complexity and presumed
+> performance overhead. We can use MEM_CGROUP_STAT_FILE_MAPPED directly.
+> 
+> Signed-off-by: Sha Zhengju <handai.szj@taobao.com>
 
-Applied, thanks guys!
+Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
