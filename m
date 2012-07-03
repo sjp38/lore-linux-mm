@@ -1,40 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
-	by kanga.kvack.org (Postfix) with SMTP id A93786B0071
-	for <linux-mm@kvack.org>; Tue,  3 Jul 2012 13:03:01 -0400 (EDT)
-Date: Tue, 3 Jul 2012 19:02:58 +0200
-From: Petr Holasek <pholasek@redhat.com>
-Subject: Re: [PATCH v2] KSM: numa awareness sysfs knob
-Message-ID: <20120703170257.GC3964@dhcp-27-244.brq.redhat.com>
+Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
+	by kanga.kvack.org (Postfix) with SMTP id 3B1946B0073
+	for <linux-mm@kvack.org>; Tue,  3 Jul 2012 13:59:22 -0400 (EDT)
+Date: Tue, 3 Jul 2012 19:56:56 +0200
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: Re: [rfc][patch 3/3] mm, memcg: introduce own oom handler to
+	iterate only over its own threads
+Message-ID: <20120703175656.GA14104@redhat.com>
+References: <alpine.DEB.2.00.1206251846020.24838@chino.kir.corp.google.com> <alpine.DEB.2.00.1206251847180.24838@chino.kir.corp.google.com> <4FE94968.6010500@jp.fujitsu.com> <alpine.DEB.2.00.1206261323260.8673@chino.kir.corp.google.com> <alpine.DEB.2.00.1206262229380.32567@chino.kir.corp.google.com> <4FEC1C06.70802@jp.fujitsu.com> <alpine.DEB.2.00.1206291329520.6040@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1207021425110.24806@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.00.1206291329520.6040@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: David Rientjes <rientjes@google.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Chris Wright <chrisw@sous-sol.org>, Izik Eidus <izik.eidus@ravellosystems.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Anton Arapov <anton@redhat.com>
+Cc: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, cgroups@vger.kernel.org
 
-On Mon, 2 Jul 2012, David Rientjes wrote:
+Sorry for delay,
 
-> > The problem of the first patch/RFC was that merging algorithm was unstable
-> > and could merge pages with distance higher than was set up (described by 
-> > Nai Xia in RFC thread [1]). Sure, this instability could be solved, but for
-> > ksm pages shared by many other pages on different nodes we would have to
-> > still
-> > recalculate which page is "in the middle" and in case of change migrate it 
-> > between nodes every time when ksmd reach new shareable page or when some 
-> > sharing page is removed.
-> > 
-> 
-> Or you could simply refuse to ever merge any page that is identical to a 
-> page on a node with a distance greater than the threshold, i.e. never 
-> merge pages even under the threshold if a page exists on a node higher 
-> than the threshold.
+On 06/29, David Rientjes wrote:
+>
+> On Thu, 28 Jun 2012, Kamezawa Hiroyuki wrote:
+>
+> > > It turns out that task->children is not an rcu-protected list so this
+> > > doesn't work.
+> >
+> > Can't we use sighand->lock to iterate children ?
+> >
+>
+> I don't think so, this list is protected by tasklist_lock.  Oleg?
 
-Position of the shared page would be really dependent on order of scanning.
-We could have shared page in the ideal middle as well as on the edge where it
-would block merging of other pages even under the threshold. 
+Yes, you are right, ->siglock can't help.
+
+Oleg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
