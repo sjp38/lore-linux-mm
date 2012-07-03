@@ -1,293 +1,144 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
-	by kanga.kvack.org (Postfix) with SMTP id 0EC186B006C
-	for <linux-mm@kvack.org>; Tue,  3 Jul 2012 03:44:54 -0400 (EDT)
-Message-ID: <4FF2A3FC.5070904@cn.fujitsu.com>
-Date: Tue, 03 Jul 2012 15:49:16 +0800
-From: Wen Congyang <wency@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
+	by kanga.kvack.org (Postfix) with SMTP id 2B69B6B006C
+	for <linux-mm@kvack.org>; Tue,  3 Jul 2012 04:58:38 -0400 (EDT)
+Date: Tue, 3 Jul 2012 09:58:31 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 00/12] Swap-over-NFS without deadlocking V8
+Message-ID: <20120703085831.GY14154@suse.de>
+References: <1340976805-5799-1-git-send-email-mgorman@suse.de>
+ <20120701172254.GB2470@mgebm.net>
+ <20120702143556.GT14154@suse.de>
+ <20120703001051.GA5508@mgebm.net>
 MIME-Version: 1.0
-Subject: Re: [RFC PATCH v2 2/13] memory-hotplug : add physical memory hotplug
- code to acpi_memory_device_remove
-References: <4FF287C3.4030901@jp.fujitsu.com> <4FF288FC.8030609@jp.fujitsu.com> <4FF28F6F.1000006@cn.fujitsu.com> <4FF2A1F1.7000901@jp.fujitsu.com>
-In-Reply-To: <4FF2A1F1.7000901@jp.fujitsu.com>
-Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset=ISO-2022-JP
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20120703001051.GA5508@mgebm.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com
+To: Eric B Munson <emunson@mgebm.net>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Linux-Netdev <netdev@vger.kernel.org>, Linux-NFS <linux-nfs@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, David Miller <davem@davemloft.net>, Trond Myklebust <Trond.Myklebust@netapp.com>, Neil Brown <neilb@suse.de>, Christoph Hellwig <hch@infradead.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mike Christie <michaelc@cs.wisc.edu>, Sebastian Andrzej Siewior <sebastian@breakpoint.cc>
 
-At 07/03/2012 03:40 PM, Yasuaki Ishimatsu Wrote:
-> Hi Wen,
+On Mon, Jul 02, 2012 at 08:10:51PM -0400, Eric B Munson wrote:
+> On Mon, 02 Jul 2012, Mel Gorman wrote:
 > 
-> 2012/07/03 15:21, Wen Congyang wrote:
->> At 07/03/2012 01:54 PM, Yasuaki Ishimatsu Wrote:
->>> acpi_memory_device_remove() has been prepared to remove physical memory.
->>> But, the function only frees acpi_memory_device currentlry.
->>>
->>> The patch adds following functions into acpi_memory_device_remove():
->>>    - offline memory
->>>    - remove physical memory (only return -EBUSY)
->>>    - free acpi_memory_device
->>>
->>> CC: David Rientjes <rientjes@google.com>
->>> CC: Jiang Liu <liuj97@gmail.com>
->>> CC: Len Brown <len.brown@intel.com>
->>> CC: Benjamin Herrenschmidt <benh@kernel.crashing.org>
->>> CC: Paul Mackerras <paulus@samba.org>
->>> CC: Christoph Lameter <cl@linux.com>
->>> Cc: Minchan Kim <minchan.kim@gmail.com>
->>> CC: Andrew Morton <akpm@linux-foundation.org>
->>> CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
->>> Signed-off-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
->>>
->>> ---
->>>   drivers/acpi/acpi_memhotplug.c |   26 +++++++++++++++++++++++++-
->>>   drivers/base/memory.c          |   38 ++++++++++++++++++++++++++++++++++++++
->>>   include/linux/memory.h         |    5 +++++
->>>   include/linux/memory_hotplug.h |    1 +
->>>   mm/memory_hotplug.c            |    8 ++++++++
->>>   5 files changed, 77 insertions(+), 1 deletion(-)
->>>
->>> Index: linux-3.5-rc4/drivers/acpi/acpi_memhotplug.c
->>> ===================================================================
->>> --- linux-3.5-rc4.orig/drivers/acpi/acpi_memhotplug.c	2012-07-03 14:21:49.458374960 +0900
->>> +++ linux-3.5-rc4/drivers/acpi/acpi_memhotplug.c	2012-07-03 14:21:58.329264059 +0900
->>> @@ -29,6 +29,7 @@
->>>   #include <linux/module.h>
->>>   #include <linux/init.h>
->>>   #include <linux/types.h>
->>> +#include <linux/memory.h>
->>>   #include <linux/memory_hotplug.h>
->>>   #include <linux/slab.h>
->>>   #include <acpi/acpi_drivers.h>
->>> @@ -452,12 +453,35 @@ static int acpi_memory_device_add(struct
->>>   static int acpi_memory_device_remove(struct acpi_device *device, int type)
->>>   {
->>>   	struct acpi_memory_device *mem_device = NULL;
->>> -
->>> +	struct acpi_memory_info *info, *tmp;
->>> +	int result;
->>> +	int node;
->>>
->>>   	if (!device || !acpi_driver_data(device))
->>>   		return -EINVAL;
->>>
->>>   	mem_device = acpi_driver_data(device);
->>> +
->>> +	node = acpi_get_node(mem_device->device->handle);
->>> +
->>> +	list_for_each_entry_safe(info, tmp, &mem_device->res_list, list) {
->>> +		if (!info->enabled)
->>> +			continue;
->>> +
->>> +		if (!is_memblk_offline(info->start_addr, info->length)) {
->>> +			result = offline_memory(info->start_addr, info->length);
->>> +			if (result)
->>> +				return result;
->>> +		}
->>> +
->>> +		result = remove_memory(node, info->start_addr, info->length);
->>> +		if (result)
->>> +			return result;
->>> +
->>> +		list_del(&info->list);
->>> +		kfree(info);
->>> +	}
->>> +
->>>   	kfree(mem_device);
->>
->> The caller does not care the return value, and after this function returns, the
->> memory device will be unbound from this driver, so we should free all memory
->> allocated for driver data.
+> > On Sun, Jul 01, 2012 at 01:22:54PM -0400, Eric B Munson wrote:
+> > > On Fri, 29 Jun 2012, Mel Gorman wrote:
+> > > 
+> > > > Changelog since V7
+> > > >   o Rebase to linux-next 20120629
+> > > >   o bi->page_dma instead of bi->page in intel driver
+> > > >   o Build fix for !CONFIG_NET					(sebastian)
+> > > >   o Restore PF_MEMALLOC flags correctly in all cases		(jlayton)
+> > > > 
+> > > > Changelog since V6
+> > > >   o Rebase to linux-next 20120622
+> > > > 
+> > > > Changelog since V5
+> > > >   o Rebase to v3.5-rc3
+> > > > 
+> > > > Changelog since V4
+> > > >   o Catch if SOCK_MEMALLOC flag is cleared with rmem tokens	(davem)
+> > > > 
+> > > > Changelog since V3
+> > > >   o Rebase to 3.4-rc5
+> > > >   o kmap pages for writing to swap				(akpm)
+> > > >   o Move forward declaration to reduce chance of duplication	(akpm)
+> > > > 
+> > > > Changelog since V2
+> > > >   o Nothing significant, just rebases. A radix tree lookup is replaced with
+> > > >     a linear search would be the biggest rebase artifact
+> > > > 
+> > > > This patch series is based on top of "Swap-over-NBD without deadlocking v14"
+> > > > as it depends on the same reservation of PF_MEMALLOC reserves logic.
+> > > > 
+> > > > When a user or administrator requires swap for their application, they
+> > > > create a swap partition and file, format it with mkswap and activate it with
+> > > > swapon. In diskless systems this is not an option so if swap if required
+> > > > then swapping over the network is considered.  The two likely scenarios
+> > > > are when blade servers are used as part of a cluster where the form factor
+> > > > or maintenance costs do not allow the use of disks and thin clients.
+> > > > 
+> > > > The Linux Terminal Server Project recommends the use of the Network
+> > > > Block Device (NBD) for swap but this is not always an option.  There is
+> > > > no guarantee that the network attached storage (NAS) device is running
+> > > > Linux or supports NBD. However, it is likely that it supports NFS so there
+> > > > are users that want support for swapping over NFS despite any performance
+> > > > concern. Some distributions currently carry patches that support swapping
+> > > > over NFS but it would be preferable to support it in the mainline kernel.
+> > > > 
+> > > > Patch 1 avoids a stream-specific deadlock that potentially affects TCP.
+> > > > 
+> > > > Patch 2 is a small modification to SELinux to avoid using PFMEMALLOC
+> > > > 	reserves.
+> > > > 
+> > > > Patch 3 adds three helpers for filesystems to handle swap cache pages.
+> > > > 	For example, page_file_mapping() returns page->mapping for
+> > > > 	file-backed pages and the address_space of the underlying
+> > > > 	swap file for swap cache pages.
+> > > > 
+> > > > Patch 4 adds two address_space_operations to allow a filesystem
+> > > > 	to pin all metadata relevant to a swapfile in memory. Upon
+> > > > 	successful activation, the swapfile is marked SWP_FILE and
+> > > > 	the address space operation ->direct_IO is used for writing
+> > > > 	and ->readpage for reading in swap pages.
+> > > > 
+> > > > Patch 5 notes that patch 3 is bolting
+> > > > 	filesystem-specific-swapfile-support onto the side and that
+> > > > 	the default handlers have different information to what
+> > > > 	is available to the filesystem. This patch refactors the
+> > > > 	code so that there are generic handlers for each of the new
+> > > > 	address_space operations.
+> > > > 
+> > > > Patch 6 adds an API to allow a vector of kernel addresses to be
+> > > > 	translated to struct pages and pinned for IO.
+> > > > 
+> > > > Patch 7 adds support for using highmem pages for swap by kmapping
+> > > > 	the pages before calling the direct_IO handler.
+> > > > 
+> > > > Patch 8 updates NFS to use the helpers from patch 3 where necessary.
+> > > > 
+> > > > Patch 9 avoids setting PF_private on PG_swapcache pages within NFS.
+> > > > 
+> > > > Patch 10 implements the new swapfile-related address_space operations
+> > > > 	for NFS and teaches the direct IO handler how to manage
+> > > > 	kernel addresses.
+> > > > 
+> > > > Patch 11 prevents page allocator recursions in NFS by using GFP_NOIO
+> > > > 	where appropriate.
+> > > > 
+> > > > Patch 12 fixes a NULL pointer dereference that occurs when using
+> > > > 	swap-over-NFS.
+> > > > 
+> > > > With the patches applied, it is possible to mount a swapfile that is on an
+> > > > NFS filesystem. Swap performance is not great with a swap stress test taking
+> > > > roughly twice as long to complete than if the swap device was backed by NBD.
+> > > 
+> > > To test this set I am using memory cgroups to force swap usage.  I am seeing
+> > > the cgroup controller killing my processes instead of using the nfs swapfile.
+> > > 
+> > 
+> > How sure are you that this is not a cgroup bug? For dirty file data on some
+> > kernels, cgroups can prematurely kill processes if pages are not being
+> > cleaned fast enough. I would not expect the same problem for anonymous
+> > pages but it's worth considering. Please also test with a normal swapfile.
+> > 
+> > If OOM is disabled and the process hangs, try capturing a sysrq+t and
+> > see where the process is stuck.
+> > 
 > 
-> We can ignore return value of remove_memory() because I think that it should
-> return 0. But we cannot ignore return value of offline_memory() because
-> kernel panic will occurs if kernel removes online memory. How do we deal with
-> online memory?
+> It looks like the problem is with cgroups, when I run without cgroups and limit
+> memory on the boot command line everything works fine.  To test I limited the
+> machine to 1G of ram then ran several memory benchmarks with work set sizes of
+> 1.5G, all completed successfully with my swap file located on an NFS share.
+> 
+> Tested-by: Eric B Munson <emunson@mgebm.net>
 
-Yes, We can not remove online memory, so just free the memory if offline_memory()
-or remove_memory() fails.
+Thanks a lot for testing.
 
-> 
->>>
->>>   	return 0;
->>> Index: linux-3.5-rc4/include/linux/memory_hotplug.h
->>> ===================================================================
->>> --- linux-3.5-rc4.orig/include/linux/memory_hotplug.h	2012-07-03 14:21:49.471374796 +0900
->>> +++ linux-3.5-rc4/include/linux/memory_hotplug.h	2012-07-03 14:21:58.330264047 +0900
->>> @@ -233,6 +233,7 @@ static inline int is_mem_section_removab
->>>   extern int mem_online_node(int nid);
->>>   extern int add_memory(int nid, u64 start, u64 size);
->>>   extern int arch_add_memory(int nid, u64 start, u64 size);
->>> +extern int remove_memory(int nid, u64 start, u64 size);
->>>   extern int offline_memory(u64 start, u64 size);
->>>   extern int sparse_add_one_section(struct zone *zone, unsigned long start_pfn,
->>>   								int nr_pages);
->>> Index: linux-3.5-rc4/mm/memory_hotplug.c
->>> ===================================================================
->>> --- linux-3.5-rc4.orig/mm/memory_hotplug.c	2012-07-03 14:21:49.466374860 +0900
->>> +++ linux-3.5-rc4/mm/memory_hotplug.c	2012-07-03 14:21:58.332264022 +0900
->>> @@ -659,6 +659,14 @@ out:
->>>   }
->>>   EXPORT_SYMBOL_GPL(add_memory);
->>>
->>> +int remove_memory(int nid, u64 start, u64 size)
->>> +{
->>> +	return -EBUSY;
->>> +
->>> +}
->>> +EXPORT_SYMBOL_GPL(remove_memory);
->>> +
->>> +
->>>   #ifdef CONFIG_MEMORY_HOTREMOVE
->>>   /*
->>>    * A free page on the buddy free lists (not the per-cpu lists) has PageBuddy
->>> Index: linux-3.5-rc4/drivers/base/memory.c
->>> ===================================================================
->>> --- linux-3.5-rc4.orig/drivers/base/memory.c	2012-07-03 14:21:49.459374948 +0900
->>> +++ linux-3.5-rc4/drivers/base/memory.c	2012-07-03 14:21:58.335263984 +0900
->>> @@ -70,6 +70,44 @@ void unregister_memory_isolate_notifier(
->>>   }
->>>   EXPORT_SYMBOL(unregister_memory_isolate_notifier);
->>>
->>> +bool is_memblk_offline(unsigned long start, unsigned long size)
->>> +{
->>> +	struct memory_block *mem = NULL;
->>> +	struct mem_section *section;
->>> +	unsigned long start_pfn, end_pfn;
->>> +	unsigned long pfn, section_nr;
->>> +
->>> +	start_pfn = PFN_DOWN(start);
->>> +	end_pfn = start_pfn + PFN_DOWN(start);
->>> +
->>> +	for (pfn = start_pfn; pfn < end_pfn; pfn += PAGES_PER_SECTION) {
->>> +		section_nr = pfn_to_section_nr(pfn);
->>> +		if (!present_section_nr(section_nr));
->>> +			continue;
->>> +
->>> +		section = __nr_to_section(section_nr);
->>> +		/* same memblock? */
->>> +		if (mem)
->>> +			if((section_nr >= mem->start_section_nr) &&
->>> +			   (section_nr <= mem->end_section_nr))
->>> +				continue;
->>> +
->>> +		mem = find_memory_block_hinted(section, mem);
->>
->> The second parameter should be NULL. Otherwise, the mem->dev.kobj will
->> be put twice:
->> 1. we put it when mem->state is MEM_OFFLINE
->> 2. we put it in find_memory_block_hinted().
-> 
-> Ah, O.K.
-> How about it?
-
-This version looks fine to me.
-
-Thanks
-Wen Congyang
-
-> 
-> +bool is_memblk_offline(unsigned long start, unsigned long size)
-> +{
-> +	struct memory_block *mem = NULL;
-> +	struct mem_section *section;
-> +	unsigned long start_pfn, end_pfn;
-> +	unsigned long pfn, section_nr;
-> +
-> +	start_pfn = PFN_DOWN(start);
-> +	end_pfn = start_pfn + PFN_DOWN(start);
-> +
-> +	for (pfn = start_pfn; pfn < end_pfn; pfn += PAGES_PER_SECTION) {
-> +		section_nr = pfn_to_section_nr(pfn);
-> +		if (!present_section_nr(section_nr));
-> +			continue;
-> +
-> +		section = __nr_to_section(section_nr);
-> +		/* same memblock? */
-> +		if (mem)
-> +			if((section_nr >= mem->start_section_nr) &&
-> +			   (section_nr <= mem->end_section_nr))
-> +				continue;
-> +
-> +		mem = find_memory_block_hinted(section, mem);
-> +		if (!mem)
-> +			continue;
-> +		if (mem->state == MEM_OFFLINE)
-> +			continue;
-> +
-> +		kobject_put(&mem->dev.kobj);
-> +		return false;
-> +	}
-> +
-> +	if (mem)
-> +		kobject_put(&mem->dev.kobj);
-> +
-> +	return true;
-> +}
-> +EXPORT_SYMBOL(is_memblk_offline);
-> 
-> Thanks,
-> Yasuaki Ishimatsu
-> 
->>
->> Thanks
->> Wen Congyang
->>
->>> +		if (!mem)
->>> +			continue;
->>> +		if (mem->state == MEM_OFFLINE) {
->>> +			kobject_put(&mem->dev.kobj);
->>> +			continue;
->>> +		}
->>> +
->>> +		kobject_put(&mem->dev.kobj);
->>> +		return false;
->>> +	}
->>> +
->>> +	return true;
->>> +}
->>> +EXPORT_SYMBOL(is_memblk_offline);
->>> +
->>>   /*
->>>    * register_memory - Setup a sysfs device for a memory block
->>>    */
->>> Index: linux-3.5-rc4/include/linux/memory.h
->>> ===================================================================
->>> --- linux-3.5-rc4.orig/include/linux/memory.h	2012-07-03 14:21:45.998418215 +0900
->>> +++ linux-3.5-rc4/include/linux/memory.h	2012-07-03 14:21:58.340263922 +0900
->>> @@ -106,6 +106,10 @@ static inline int memory_isolate_notify(
->>>   {
->>>   	return 0;
->>>   }
->>> +static inline bool is_memblk_offline(unsigned long start, unsigned long size)
->>> +{
->>> +	return false;
->>> +}
->>>   #else
->>>   extern int register_memory_notifier(struct notifier_block *nb);
->>>   extern void unregister_memory_notifier(struct notifier_block *nb);
->>> @@ -120,6 +124,7 @@ extern int memory_isolate_notify(unsigne
->>>   extern struct memory_block *find_memory_block_hinted(struct mem_section *,
->>>   							struct memory_block *);
->>>   extern struct memory_block *find_memory_block(struct mem_section *);
->>> +extern bool is_memblk_offline(unsigned long start, unsigned long size);
->>>   #define CONFIG_MEM_BLOCK_SIZE	(PAGES_PER_SECTION<<PAGE_SHIFT)
->>>   enum mem_add_context { BOOT, HOTPLUG };
->>>   #endif /* CONFIG_MEMORY_HOTPLUG_SPARSE */
->>>
->>> --
->>> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
->>> the body of a message to majordomo@vger.kernel.org
->>> More majordomo info at  http://vger.kernel.org/majordomo-info.html
->>> Please read the FAQ at  http://www.tux.org/lkml/
->>>
->>
-> 
-> 
-> 
-> 
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
