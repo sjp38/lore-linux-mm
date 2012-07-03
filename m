@@ -1,84 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
-	by kanga.kvack.org (Postfix) with SMTP id 43FFB6B009D
-	for <linux-mm@kvack.org>; Tue,  3 Jul 2012 17:07:07 -0400 (EDT)
-Date: Tue, 3 Jul 2012 14:07:05 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm: setup pageblock_order before it's used by sparse
-Message-Id: <20120703140705.af23d4d3.akpm@linux-foundation.org>
-In-Reply-To: <1341047274-5616-1-git-send-email-jiang.liu@huawei.com>
-References: <1341047274-5616-1-git-send-email-jiang.liu@huawei.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
+	by kanga.kvack.org (Postfix) with SMTP id 67BD56B00A0
+	for <linux-mm@kvack.org>; Tue,  3 Jul 2012 17:38:26 -0400 (EDT)
+Message-ID: <4FF3662A.9070700@redhat.com>
+Date: Tue, 03 Jul 2012 17:37:46 -0400
+From: Rik van Riel <riel@redhat.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH -mm v2 01/11] mm: track free size between VMAs in VMA
+ rbtree
+References: <1340315835-28571-1-git-send-email-riel@surriel.com> <1340315835-28571-2-git-send-email-riel@surriel.com> <20120629234638.GA27797@google.com>
+In-Reply-To: <20120629234638.GA27797@google.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jiang Liu <jiang.liu@huawei.com>
-Cc: Mel Gorman <mgorman@suse.de>, Tony Luck <tony.luck@intel.com>, Yinghai Lu <yinghai@kernel.org>, Xishi Qiu <qiuxishi@huawei.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, Minchan Kim <minchan@kernel.org>, Keping Chen <chenkeping@huawei.com>, linux-mm@kvack.org, stable@vger.kernel.org, linux-kernel@vger.kernel.org, Jiang Liu <liuj97@gmail.com>
+To: Michel Lespinasse <walken@google.com>
+Cc: Rik van Riel <riel@surriel.com>, linux-mm@kvack.org, akpm@linux-foundation.org, aarcange@redhat.com, peterz@infradead.org, minchan@gmail.com, kosaki.motohiro@gmail.com, andi@firstfloor.org, hannes@cmpxchg.org, mel@csn.ul.ie, linux-kernel@vger.kernel.org
 
-On Sat, 30 Jun 2012 17:07:54 +0800
-Jiang Liu <jiang.liu@huawei.com> wrote:
+On 06/29/2012 07:46 PM, Michel Lespinasse wrote:
 
-> From: Xishi Qiu <qiuxishi@huawei.com>
-> 
-> On architectures with CONFIG_HUGETLB_PAGE_SIZE_VARIABLE set, such as Itanium,
-> pageblock_order is a variable with default value of 0. It's set to the right
-> value by set_pageblock_order() in function free_area_init_core().
-> 
-> But pageblock_order may be used by sparse_init() before free_area_init_core()
-> is called along path:
-> sparse_init()
->     ->sparse_early_usemaps_alloc_node()
-> 	->usemap_size()
-> 	    ->SECTION_BLOCKFLAGS_BITS
-> 		->((1UL << (PFN_SECTION_SHIFT - pageblock_order)) *
-> NR_PAGEBLOCK_BITS)
-> 
-> The uninitialized pageblock_size will cause memory wasting because usemap_size()
-> returns a much bigger value then it's really needed.
-> 
-> For example, on an Itanium platform,
-> sparse_init() pageblock_order=0 usemap_size=24576
-> free_area_init_core() before pageblock_order=0, usemap_size=24576
-> free_area_init_core() after pageblock_order=12, usemap_size=8
-> 
-> That means 24K memory has been wasted for each section, so fix it by calling
-> set_pageblock_order() from sparse_init().
-> 
-> ...
+I have the free_gap(node) function now.
+
+>>   	rb_link_node(&vma->vm_rb, rb_parent, rb_link);
+>>   	rb_insert_color(&vma->vm_rb,&mm->mm_rb);
+>> +	adjust_free_gap(vma);
+>> +	/* Propagate the new free gap between next and us up the tree. */
+>> +	if (vma->vm_next)
+>> +		adjust_free_gap(vma->vm_next);
+>>   }
 >
-> --- a/mm/sparse.c
-> +++ b/mm/sparse.c
-> @@ -485,6 +485,9 @@ void __init sparse_init(void)
->  	struct page **map_map;
->  #endif
->  
-> +	/* Setup pageblock_order for HUGETLB_PAGE_SIZE_VARIABLE */
-> +	set_pageblock_order();
-> +
->  	/*
->  	 * map is using big page (aka 2M in x86 64 bit)
->  	 * usemap is less one page (aka 24 bytes)
+> So this will work, and may be fine for a first implementation. However,
+> the augmented rbtree support really seems inadequate here. What we
+> would want is for adjust_free_gap to adjust the node's free_gap as
+> well as its parents, and *stop* when it reaches a node that already
+> has the desired free_gap instead of going all the way to the root as
+> it does now. But, to do that we would also need rb_insert_color() to
+> adjust free_gap as needed when doing tree rotations, and it doesn't
+> have the necessary support there.
+>
+> Basically, I think lib/rbtree.c should provide augmented rbtree support
+> in the form of (versions of) rb_insert_color() and rb_erase() being able to
+> callback to adjust the augmented node information around tree rotations,
+> instead of using (conservative, overkill) loops to adjust the augmented
+> node information after the fact
 
-It's a bit ugly calling set_pageblock_order() from both sparse_init()
-and from free_area_init_core().  Can we find a single place from which
-to call it?  It looks like here:
+That is what I originally worked on.
 
---- a/init/main.c~a
-+++ a/init/main.c
-@@ -514,6 +514,7 @@ asmlinkage void __init start_kernel(void
- 		   __stop___param - __start___param,
- 		   -1, -1, &unknown_bootoption);
- 
-+	set_pageblock_order();
- 	jump_label_init();
- 
- 	/*
+I threw out that code after people told me (at LSF/MM) in
+no uncertain terms that I should use the augmented rbtree
+code :)
 
-would do the trick?
+Will CC you on the next version.
 
-(free_area_init_core is __paging_init and set_pageblock_order() is
-__init.  I'm too lazy to work out if that's wrong)
+-- 
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
