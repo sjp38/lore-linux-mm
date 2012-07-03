@@ -1,92 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx104.postini.com [74.125.245.104])
-	by kanga.kvack.org (Postfix) with SMTP id EA8226B0093
-	for <linux-mm@kvack.org>; Tue,  3 Jul 2012 16:13:39 -0400 (EDT)
-Date: Tue, 3 Jul 2012 16:13:04 -0400
-From: Rik van Riel <riel@redhat.com>
-Subject: [PATCH -mm] mm: minor fixes for compaction
-Message-ID: <20120703161304.7734fbef@annuminas.surriel.com>
-In-Reply-To: <4FECE844.2050803@kernel.org>
-References: <20120628135520.0c48b066@annuminas.surriel.com>
-	<4FECE844.2050803@kernel.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
+	by kanga.kvack.org (Postfix) with SMTP id 47C7D6B0095
+	for <linux-mm@kvack.org>; Tue,  3 Jul 2012 16:31:03 -0400 (EDT)
+Date: Tue, 3 Jul 2012 22:30:32 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH 05/40] autonuma: define _PAGE_NUMA_PTE and _PAGE_NUMA_PMD
+Message-ID: <20120703203032.GV3726@redhat.com>
+References: <1340888180-15355-1-git-send-email-aarcange@redhat.com>
+ <1340888180-15355-6-git-send-email-aarcange@redhat.com>
+ <4FEDBB1F.9030001@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4FEDBB1F.9030001@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, jaschut@sandia.gov, kamezawa.hiroyu@jp.fujitsu.com
+To: Rik van Riel <riel@redhat.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hillf Danton <dhillf@gmail.com>, Dan Smith <danms@us.ibm.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Johannes Weiner <hannes@cmpxchg.org>, Srivatsa Vaddagiri <vatsa@linux.vnet.ibm.com>, Christoph Lameter <cl@linux.com>, Alex Shi <alex.shi@intel.com>, Mauricio Faria de Oliveira <mauricfo@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Don Morris <don.morris@hp.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
 
-This patch makes the comment for cc->wrapped longer, explaining
-what is really going on. It also incorporates the comment fix
-pointed out by Minchan.
+Hi Rik,
 
-Additionally, Minchan found that, when no pages get isolated,
-high_pte could be a value that is much lower than desired,
-which might potentially cause compaction to skip a range of
-pages.
+On Fri, Jun 29, 2012 at 10:26:39AM -0400, Rik van Riel wrote:
+> On 06/28/2012 08:55 AM, Andrea Arcangeli wrote:
+> 
+> > +/*
+> > + * Cannot be set on pte. The fact it's in between _PAGE_FILE and
+> > + * _PAGE_PROTNONE avoids having to alter the swp entries.
+> > + */
+> > +#define _PAGE_NUMA_PTE	_PAGE_PSE
+> > +/*
+> > + * Cannot be set on pmd, if transparent hugepages will be swapped out
+> > + * the swap entry offset must start above it.
+> > + */
+> > +#define _PAGE_NUMA_PMD	_PAGE_UNUSED2
+> 
+> Those comments only tell us what the flags can NOT be
+> used for, not what they are actually used for.
 
-Only assign zone->compact_cache_free_pfn if we actually
-isolated free pages for compaction.
+You can find an updated version of the comments here:
 
-Signed-off-by: Rik van Riel <riel@redhat.com>
----
-This does not address the one bit in Minchan's review that I am not sure about...
+http://git.kernel.org/?p=linux/kernel/git/andrea/aa.git;a=commitdiff;h=927ca960d78fefe6fa6aaa260a5b35496abafec5
 
- include/linux/mmzone.h |    2 +-
- mm/compaction.c        |    7 ++++---
- mm/internal.h          |    6 +++++-
- 3 files changed, 10 insertions(+), 5 deletions(-)
-
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index e629594..e957fa1 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -370,7 +370,7 @@ struct zone {
- 	spinlock_t		lock;
- 	int                     all_unreclaimable; /* All pages pinned */
- #if defined CONFIG_COMPACTION || defined CONFIG_CMA
--	/* pfn where the last order > 0 compaction isolated free pages */
-+	/* pfn where the last incremental compaction isolated free pages */
- 	unsigned long		compact_cached_free_pfn;
- #endif
- #ifdef CONFIG_MEMORY_HOTPLUG
-diff --git a/mm/compaction.c b/mm/compaction.c
-index 2668b77..2867166 100644
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -472,10 +472,11 @@ static void isolate_freepages(struct zone *zone,
- 		 * looking for free pages, the search will restart here as
- 		 * page migration may have returned some pages to the allocator
- 		 */
--		if (isolated)
-+		if (isolated) {
- 			high_pfn = max(high_pfn, pfn);
--		if (cc->order > 0)
--			zone->compact_cached_free_pfn = high_pfn;
-+			if (cc->order > 0)
-+				zone->compact_cached_free_pfn = high_pfn;
-+		}
- 	}
- 
- 	/* split_free_page does not map the pages */
-diff --git a/mm/internal.h b/mm/internal.h
-index 0b72461..da6b9b2 100644
---- a/mm/internal.h
-+++ b/mm/internal.h
-@@ -121,7 +121,11 @@ struct compact_control {
- 	unsigned long start_free_pfn;	/* where we started the search */
- 	unsigned long migrate_pfn;	/* isolate_migratepages search base */
- 	bool sync;			/* Synchronous migration */
--	bool wrapped;			/* Last round for order>0 compaction */
-+	bool wrapped;			/* Order > 0 compactions are
-+					   incremental, once free_pfn
-+					   and migrate_pfn meet, we restart
-+					   from the top of the zone;
-+					   remember we wrapped around. */
- 
- 	int order;			/* order a direct compactor needs */
- 	int migratetype;		/* MOVABLE, RECLAIMABLE etc */
+Thanks for all the feedback, I didn't reply immediately but I'm
+handling all the feedback and many more bits have been improved
+already in the autonuma branch. I will post them separately for
+further review.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
