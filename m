@@ -1,27 +1,29 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
-	by kanga.kvack.org (Postfix) with SMTP id 9D5E26B006C
-	for <linux-mm@kvack.org>; Tue,  3 Jul 2012 01:49:20 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 9090D3EE0BC
-	for <linux-mm@kvack.org>; Tue,  3 Jul 2012 14:49:18 +0900 (JST)
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 7499B45DE59
-	for <linux-mm@kvack.org>; Tue,  3 Jul 2012 14:49:18 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 4E88B45DE56
-	for <linux-mm@kvack.org>; Tue,  3 Jul 2012 14:49:18 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 3EFC61DB804C
-	for <linux-mm@kvack.org>; Tue,  3 Jul 2012 14:49:18 +0900 (JST)
-Received: from g01jpexchyt11.g01.fujitsu.local (g01jpexchyt11.g01.fujitsu.local [10.128.194.50])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id DD80B1DB804B
-	for <linux-mm@kvack.org>; Tue,  3 Jul 2012 14:49:17 +0900 (JST)
-Message-ID: <4FF287C3.4030901@jp.fujitsu.com>
-Date: Tue, 3 Jul 2012 14:48:51 +0900
+Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
+	by kanga.kvack.org (Postfix) with SMTP id 3E89F6B0070
+	for <linux-mm@kvack.org>; Tue,  3 Jul 2012 01:52:49 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id AC9843EE081
+	for <linux-mm@kvack.org>; Tue,  3 Jul 2012 14:52:47 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 9484945DEA6
+	for <linux-mm@kvack.org>; Tue,  3 Jul 2012 14:52:47 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 76A5745DE7E
+	for <linux-mm@kvack.org>; Tue,  3 Jul 2012 14:52:47 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 698081DB8038
+	for <linux-mm@kvack.org>; Tue,  3 Jul 2012 14:52:47 +0900 (JST)
+Received: from g01jpexchyt10.g01.fujitsu.local (g01jpexchyt10.g01.fujitsu.local [10.128.194.49])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 185CB1DB803B
+	for <linux-mm@kvack.org>; Tue,  3 Jul 2012 14:52:47 +0900 (JST)
+Message-ID: <4FF2889C.8030800@jp.fujitsu.com>
+Date: Tue, 3 Jul 2012 14:52:28 +0900
 From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: [RFC PATCH v2 0/13] memory-hotplug : hot-remove physical memory
+Subject: [RFC PATCH v2 1/13] memory-hotplug : rename remove_memory to offline_memory
+References: <4FF287C3.4030901@jp.fujitsu.com>
+In-Reply-To: <4FF287C3.4030901@jp.fujitsu.com>
 Content-Type: text/plain; charset="ISO-2022-JP"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -29,76 +31,93 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org
 Cc: rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com
 
-This patch series aims to support physical memory hot-remove.
+remove_memory() does not remove memory but just offlines memory. The patch
+changes name of it to offline_memory().
 
-  [RFC PATCH v2 1/13] memory-hotplug : rename remove_memory to offline_memory
-  [RFC PATCH v2 2/13] memory-hotplug : add physical memory hotplug code to acpi_memory_device_remove
-  [RFC PATCH v2 3/13] memory-hotplug : unify argument of firmware_map_add_early/hotplug
-  [RFC PATCH v2 4/13] memory-hotplug : remove /sys/firmware/memmap/X sysfs
-  [RFC PATCH v2 5/13] memory-hotplug : does not release memory region in PAGES_PER_SECTION chunks
-  [RFC PATCH v2 6/13] memory-hotplug : add memory_block_release
-  [RFC PATCH v2 7/13] memory-hotplug : remove_memory calls __remove_pages
-  [RFC PATCH v2 8/13] memory-hotplug : check page type in get_page_bootmem
-  [RFC PATCH v2 9/13] memory-hotplug : move register_page_bootmem_info_node and put_page_bootmem for
-sparse-vmemmap
-  [RFC PATCH v2 10/13] memory-hotplug : implement register_page_bootmem_info_section of sparse-vmemmap
-  [RFC PATCH v2 11/13] memory-hotplug : free memmap of sparse-vmemmap
-  [RFC PATCH v2 12/13] memory-hotplug : add node_device_release
-  [RFC PATCH v2 13/13] memory-hotplug : remove sysfs file of node
-
-Even if you apply these patches, you cannot remove the physical memory
-completely since these patches are still under development. I want you to
-cooperate to improve the physical memory hot-remove. So please review these
-patches and give your comment/idea.
-
-The patches can free/remove following things:
-
-  - acpi_memory_info                          : [RFC PATCH 2/13]
-  - /sys/firmware/memmap/X/{end, start, type} : [RFC PATCH 4/13]
-  - iomem_resource                            : [RFC PATCH 5/13]
-  - mem_section and related sysfs files       : [RFC PATCH 6-11/13]
-  - node and related sysfs files              : [RFC PATCH 12-13/13]
-
-The patches cannot do following things yet:
-
-  - page table of removed memory
-
-If you find lack of function for physical memory hot-remove, please let me
-know.
-
-change log of v2:
- [RFC PATCH v2 2/13]
-   * check whether memory block is offline or not before calling offline_memory()
-   * check whether section is valid or not in is_memblk_offline()
-   * call kobject_put() for each memory_block in is_memblk_offline()
-
- [RFC PATCH v2 3/13]
-   * unify the end argument of firmware_map_add_early/hotplug
-
- [RFC PATCH v2 4/13]
-   * add release_firmware_map_entry() for freeing firmware_map_entry
-
- [RFC PATCH v2 6/13]
-  * add release_memory_block() for freeing memory_block
-
- [RFC PATCH v2 11/13]
-  * fix wrong arguments of free_pages()
+CC: David Rientjes <rientjes@google.com>
+CC: Jiang Liu <liuj97@gmail.com>
+CC: Len Brown <len.brown@intel.com>
+CC: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+CC: Paul Mackerras <paulus@samba.org>
+CC: Christoph Lameter <cl@linux.com>
+Cc: Minchan Kim <minchan.kim@gmail.com>
+CC: Andrew Morton <akpm@linux-foundation.org>
+CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Signed-off-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 
 ---
- arch/powerpc/platforms/pseries/hotplug-memory.c |   16 +-
- arch/x86/mm/init_64.c                           |  144 ++++++++++++++++++++++++
- drivers/acpi/acpi_memhotplug.c                  |   28 ++++
- drivers/base/memory.c                           |   53 ++++++++
- drivers/base/node.c                             |    7 +
- drivers/firmware/memmap.c                       |   70 +++++++++++
- include/linux/firmware-map.h                    |    6 +
- include/linux/memory.h                          |    5
- include/linux/memory_hotplug.h                  |   17 --
- include/linux/mm.h                              |    5
- mm/memory_hotplug.c                             |   98 ++++++++++++----
- mm/sparse.c                                     |    5
- 12 files changed, 406 insertions(+), 48 deletions(-)
+ drivers/acpi/acpi_memhotplug.c |    2 +-
+ drivers/base/memory.c          |    4 ++--
+ include/linux/memory_hotplug.h |    2 +-
+ mm/memory_hotplug.c            |    6 +++---
+ 4 files changed, 7 insertions(+), 7 deletions(-)
 
+Index: linux-3.5-rc4/drivers/acpi/acpi_memhotplug.c
+===================================================================
+--- linux-3.5-rc4.orig/drivers/acpi/acpi_memhotplug.c	2012-07-03 14:21:46.102416917 +0900
++++ linux-3.5-rc4/drivers/acpi/acpi_memhotplug.c	2012-07-03 14:21:49.458374960 +0900
+@@ -318,7 +318,7 @@ static int acpi_memory_disable_device(st
+ 	 */
+ 	list_for_each_entry_safe(info, n, &mem_device->res_list, list) {
+ 		if (info->enabled) {
+-			result = remove_memory(info->start_addr, info->length);
++			result = offline_memory(info->start_addr, info->length);
+ 			if (result)
+ 				return result;
+ 		}
+Index: linux-3.5-rc4/drivers/base/memory.c
+===================================================================
+--- linux-3.5-rc4.orig/drivers/base/memory.c	2012-07-03 14:21:46.095417003 +0900
++++ linux-3.5-rc4/drivers/base/memory.c	2012-07-03 14:21:49.459374948 +0900
+@@ -266,8 +266,8 @@ memory_block_action(unsigned long phys_i
+ 			break;
+ 		case MEM_OFFLINE:
+ 			start_paddr = page_to_pfn(first_page) << PAGE_SHIFT;
+-			ret = remove_memory(start_paddr,
+-					    nr_pages << PAGE_SHIFT);
++			ret = offline_memory(start_paddr,
++					     nr_pages << PAGE_SHIFT);
+ 			break;
+ 		default:
+ 			WARN(1, KERN_WARNING "%s(%ld, %ld) unknown action: "
+Index: linux-3.5-rc4/mm/memory_hotplug.c
+===================================================================
+--- linux-3.5-rc4.orig/mm/memory_hotplug.c	2012-07-03 14:21:46.102416917 +0900
++++ linux-3.5-rc4/mm/memory_hotplug.c	2012-07-03 14:21:49.466374860 +0900
+@@ -990,7 +990,7 @@ out:
+ 	return ret;
+ }
+
+-int remove_memory(u64 start, u64 size)
++int offline_memory(u64 start, u64 size)
+ {
+ 	unsigned long start_pfn, end_pfn;
+
+@@ -999,9 +999,9 @@ int remove_memory(u64 start, u64 size)
+ 	return offline_pages(start_pfn, end_pfn, 120 * HZ);
+ }
+ #else
+-int remove_memory(u64 start, u64 size)
++int offline_memory(u64 start, u64 size)
+ {
+ 	return -EINVAL;
+ }
+ #endif /* CONFIG_MEMORY_HOTREMOVE */
+-EXPORT_SYMBOL_GPL(remove_memory);
++EXPORT_SYMBOL_GPL(offline_memory);
+Index: linux-3.5-rc4/include/linux/memory_hotplug.h
+===================================================================
+--- linux-3.5-rc4.orig/include/linux/memory_hotplug.h	2012-07-03 14:21:46.102416917 +0900
++++ linux-3.5-rc4/include/linux/memory_hotplug.h	2012-07-03 14:21:49.471374796 +0900
+@@ -233,7 +233,7 @@ static inline int is_mem_section_removab
+ extern int mem_online_node(int nid);
+ extern int add_memory(int nid, u64 start, u64 size);
+ extern int arch_add_memory(int nid, u64 start, u64 size);
+-extern int remove_memory(u64 start, u64 size);
++extern int offline_memory(u64 start, u64 size);
+ extern int sparse_add_one_section(struct zone *zone, unsigned long start_pfn,
+ 								int nr_pages);
+ extern void sparse_remove_one_section(struct zone *zone, struct mem_section *ms);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
