@@ -1,45 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
-	by kanga.kvack.org (Postfix) with SMTP id C6D9F6B0068
-	for <linux-mm@kvack.org>; Mon,  2 Jul 2012 20:23:11 -0400 (EDT)
-Received: by yenr5 with SMTP id r5so5774276yen.14
-        for <linux-mm@kvack.org>; Mon, 02 Jul 2012 17:23:11 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
+	by kanga.kvack.org (Postfix) with SMTP id 974EE6B0068
+	for <linux-mm@kvack.org>; Mon,  2 Jul 2012 20:57:36 -0400 (EDT)
+Message-ID: <4FF2435F.2070302@redhat.com>
+Date: Mon, 02 Jul 2012 20:57:03 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <20120630013318.GB27797@google.com>
-References: <1340315835-28571-1-git-send-email-riel@surriel.com>
-	<1340315835-28571-6-git-send-email-riel@surriel.com>
-	<20120630013318.GB27797@google.com>
-Date: Mon, 2 Jul 2012 17:23:10 -0700
-Message-ID: <CANN689HTeEKGU=tdm-bfsCT5yttL7qGL827zV1XfEe007UE18A@mail.gmail.com>
-Subject: Re: [PATCH -mm v2 05/11] mm: get unmapped area from VMA tree
-From: Michel Lespinasse <walken@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [PATCH -mm v2] mm: have order > 0 compaction start off where
+ it left
+References: <20120628135520.0c48b066@annuminas.surriel.com>  <20120628135940.2c26ada9.akpm@linux-foundation.org>  <4FECCB89.2050400@redhat.com>  <20120628143546.d02d13f9.akpm@linux-foundation.org> <1341250950.16969.6.camel@lappy>
+In-Reply-To: <1341250950.16969.6.camel@lappy>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@surriel.com>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, aarcange@redhat.com, peterz@infradead.org, minchan@gmail.com, kosaki.motohiro@gmail.com, andi@firstfloor.org, hannes@cmpxchg.org, mel@csn.ul.ie, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>
+To: Sasha Levin <levinsasha928@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mel@csn.ul.ie>, jaschut@sandia.gov, minchan@kernel.org, kamezawa.hiroyu@jp.fujitsu.com, Dave Jones <davej@redhat.com>
 
-On Fri, Jun 29, 2012 at 6:33 PM, Michel Lespinasse <walken@google.com> wrote:
->                 if (!found_here) {      // or if(!addr) or whatever
->                         struct rb_node *rb_prev = NULL;
->                         do {
->                                 if (rb_node != rb_prev &&
+On 07/02/2012 01:42 PM, Sasha Levin wrote:
+> On Thu, 2012-06-28 at 14:35 -0700, Andrew Morton wrote:
+>> On Thu, 28 Jun 2012 17:24:25 -0400 Rik van Riel<riel@redhat.com>  wrote:
+>>>
+>>>>> @@ -463,6 +474,8 @@ static void isolate_freepages(struct zone *zone,
+>>>>>              */
+>>>>>             if (isolated)
+>>>>>                     high_pfn = max(high_pfn, pfn);
+>>>>> +          if (cc->order>   0)
+>>>>> +                  zone->compact_cached_free_pfn = high_pfn;
+>>>>
+>>>> Is high_pfn guaranteed to be aligned to pageblock_nr_pages here?  I
+>>>> assume so, if lots of code in other places is correct but it's
+>>>> unobvious from reading this function.
+>>>
+>>> Reading the code a few more times, I believe that it is
+>>> indeed aligned to pageblock size.
+>>
+>> I'll slip this into -next for a while.
+>>
+>> --- a/mm/compaction.c~isolate_freepages-check-that-high_pfn-is-aligned-as-expected
+>> +++ a/mm/compaction.c
+>> @@ -456,6 +456,7 @@ static void isolate_freepages(struct zon
+>>                  }
+>>                  spin_unlock_irqrestore(&zone->lock, flags);
+>>
+>> +               WARN_ON_ONCE(high_pfn&  (pageblock_nr_pages - 1));
+>>                  /*
+>>                   * Record the highest PFN we isolated pages from. When next
+>>                   * looking for free pages, the search will restart here as
+>
+> I've triggered the following with today's -next:
 
-Gah, that last line was meant to be if (rb_node->rb_right != rb_prev &&
+I've been staring at the migrate code for most of the afternoon,
+and am not sure how this is triggered.
 
->                                     node_free_gap(rb_node->rb_right) >= len) {
->                                         rb_node = rb_node->rb_right;
->                                         break;
->                                 }
->                                 rb_prev = rb_node;
->                                 rb_node = rb_parent(rb_node);
->                         } while (rb_node);
->                         continue;
->                 }
+At this point, I'm going to focus my attention on addressing
+Minchan's comments on my code, and hoping someone who is more
+familiar with the migrate code knows how high_pfn ends up
+being not pageblock_nr_pages aligned...
 
 -- 
-Michel "Walken" Lespinasse
-A program is never fully debugged until the last user dies.
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
