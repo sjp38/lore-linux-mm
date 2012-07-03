@@ -1,27 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx162.postini.com [74.125.245.162])
-	by kanga.kvack.org (Postfix) with SMTP id C650D6B005C
-	for <linux-mm@kvack.org>; Tue,  3 Jul 2012 14:48:04 -0400 (EDT)
-Date: Tue, 3 Jul 2012 13:48:01 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH powerpc 2/2] kfree the cache name  of pgtable cache if
- SLUB is used
-In-Reply-To: <1340618099.13778.39.camel@ThinkPad-T420>
-Message-ID: <alpine.DEB.2.00.1207031344240.14703@router.home>
-References: <1340617984.13778.37.camel@ThinkPad-T420> <1340618099.13778.39.camel@ThinkPad-T420>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
+	by kanga.kvack.org (Postfix) with SMTP id 7D16D6B0088
+	for <linux-mm@kvack.org>; Tue,  3 Jul 2012 15:44:37 -0400 (EDT)
+From: Nathan Zimmer <nzimmer@sgi.com>
+Subject: [PATCH 1/2 v5][rfc] shmem: provide vm_ops when also providing a mem policy
+Date: Tue,  3 Jul 2012 14:44:34 -0500
+Message-Id: <1341344675-17534-2-git-send-email-nzimmer@sgi.com>
+In-Reply-To: <1341344675-17534-1-git-send-email-nzimmer@sgi.com>
+References: <1341344675-17534-1-git-send-email-nzimmer@sgi.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Li Zhong <zhong@linux.vnet.ibm.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, linux-mm <linux-mm@kvack.org>, PowerPC email list <linuxppc-dev@lists.ozlabs.org>
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Nathan Zimmer <nzimmer@sgi.com>, Christoph Lameter <cl@linux.com>, Nick Piggin <npiggin@gmail.com>, Hugh Dickins <hughd@google.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>
 
-On Mon, 25 Jun 2012, Li Zhong wrote:
+Updating shmem_get_policy to use the vma_policy if provided.
+This is to allows us to safely provide shmem_vm_ops to the vma when the vm_file
+has not been setup which is the case on the pseudo vmas.
 
-> This patch tries to kfree the cache name of pgtables cache if SLUB is
-> used, as SLUB duplicates the cache name, and the original one is leaked.
+Cc: Christoph Lameter <cl@linux.com>
+Cc: Nick Piggin <npiggin@gmail.com>
+Cc: Hugh Dickins <hughd@google.com>
+Cc: Lee Schermerhorn <lee.schermerhorn@hp.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Rik van Riel <riel@redhat.com>
+Signed-off-by: Nathan Zimmer <nzimmer@sgi.com>
+---
+ mm/shmem.c |   18 +++++++++++++++---
+ 1 files changed, 15 insertions(+), 3 deletions(-)
 
-SLAB also does not free the name. Why would you have an #ifdef in there?
+diff --git a/mm/shmem.c b/mm/shmem.c
+index a15a466..d073252 100644
+--- a/mm/shmem.c
++++ b/mm/shmem.c
+@@ -921,8 +921,11 @@ static struct page *shmem_swapin(swp_entry_t swap, gfp_t gfp,
+ 	/* Create a pseudo vma that just contains the policy */
+ 	pvma.vm_start = 0;
+ 	pvma.vm_pgoff = index;
+-	pvma.vm_ops = NULL;
+ 	pvma.vm_policy = spol;
++	if (pvma.vm_policy)
++		pvma.vm_ops = &shmem_vm_ops;
++	else
++		pvma.vm_ops = NULL;
+ 	return swapin_readahead(swap, gfp, &pvma, 0);
+ }
+ 
+@@ -934,8 +937,11 @@ static struct page *shmem_alloc_page(gfp_t gfp,
+ 	/* Create a pseudo vma that just contains the policy */
+ 	pvma.vm_start = 0;
+ 	pvma.vm_pgoff = index;
+-	pvma.vm_ops = NULL;
+ 	pvma.vm_policy = mpol_shared_policy_lookup(&info->policy, index);
++	if (pvma.vm_policy)
++		pvma.vm_ops = &shmem_vm_ops;
++	else
++		pvma.vm_ops = NULL;
+ 
+ 	/*
+ 	 * alloc_page_vma() will drop the shared policy reference
+@@ -1296,8 +1302,14 @@ static int shmem_set_policy(struct vm_area_struct *vma, struct mempolicy *mpol)
+ static struct mempolicy *shmem_get_policy(struct vm_area_struct *vma,
+ 					  unsigned long addr)
+ {
+-	struct inode *inode = vma->vm_file->f_path.dentry->d_inode;
+ 	pgoff_t index;
++	struct inode *inode;
++
++	/* If the vma knows what policy it wants use that one. */
++	if (vma->vm_policy)
++		return vma->vm_policy;
++
++	inode = vma->vm_file->f_path.dentry->d_inode;
+ 
+ 	index = ((addr - vma->vm_start) >> PAGE_SHIFT) + vma->vm_pgoff;
+ 	return mpol_shared_policy_lookup(&SHMEM_I(inode)->policy, index);
+-- 
+1.6.0.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
