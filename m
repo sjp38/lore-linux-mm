@@ -1,54 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
-	by kanga.kvack.org (Postfix) with SMTP id DCBC66B0071
-	for <linux-mm@kvack.org>; Tue,  3 Jul 2012 10:04:06 -0400 (EDT)
-Received: by wibhq4 with SMTP id hq4so3599465wib.8
-        for <linux-mm@kvack.org>; Tue, 03 Jul 2012 07:04:04 -0700 (PDT)
-Date: Tue, 3 Jul 2012 16:04:01 +0200
-From: Daniel Vetter <daniel@ffwll.ch>
-Subject: Re: [MMTests] IO metadata on XFS
-Message-ID: <20120703140401.GB5103@phenom.ffwll.local>
-References: <20120620113252.GE4011@suse.de>
- <20120629111932.GA14154@suse.de>
- <20120629112505.GF14154@suse.de>
- <20120701235458.GM19223@dastard>
- <20120702063226.GA32151@infradead.org>
- <20120702143215.GS14154@suse.de>
- <20120702193516.GX14154@suse.de>
- <20120703130414.GD14154@suse.de>
+Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
+	by kanga.kvack.org (Postfix) with SMTP id ABE8A6B0070
+	for <linux-mm@kvack.org>; Tue,  3 Jul 2012 10:59:57 -0400 (EDT)
+Message-ID: <4FF308CE.4070209@redhat.com>
+Date: Tue, 03 Jul 2012 10:59:26 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120703130414.GD14154@suse.de>
+Subject: Re: [PATCH -mm v2] mm: have order > 0 compaction start off where
+ it left
+References: <20120628135520.0c48b066@annuminas.surriel.com> <4FECE844.2050803@kernel.org>
+In-Reply-To: <4FECE844.2050803@kernel.org>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Christoph Hellwig <hch@infradead.org>, Dave Chinner <david@fromorbit.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, xfs@oss.sgi.com, dri-devel@lists.freedesktop.org, Keith Packard <keithp@keithp.com>, Eugeni Dodonov <eugeni.dodonov@intel.com>, Daniel Vetter <daniel.vetter@ffwll.ch>, Chris Wilson <chris@chris-wilson.co.uk>
+To: Minchan Kim <minchan@kernel.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, jaschut@sandia.gov, kamezawa.hiroyu@jp.fujitsu.com
 
-On Tue, Jul 03, 2012 at 02:04:14PM +0100, Mel Gorman wrote:
-> On Mon, Jul 02, 2012 at 08:35:16PM +0100, Mel Gorman wrote:
-> > > <SNIP>
-> > >
-> > It was obvious very quickly that there were two distinct regression so I
-> > ran two bisections. One led to a XFS and the other led to an i915 patch
-> > that enables RC6 to reduce power usage.
-> > 
-> > [c999a223: xfs: introduce an allocation workqueue]
-> > [aa464191: drm/i915: enable plain RC6 on Sandy Bridge by default]
-> > 
-> > gdm was running on the machine so i915 would have been in use. 
-> 
-> Bah, more PEBKAC. gdm was *not* running on this machine. i915 is loaded
-> but X is not.
+On 06/28/2012 07:27 PM, Minchan Kim wrote:
 
-See my little explanation of rc6, just loading the driver will have
-effects. But I'm happy to know that the issue also happens without using
-it, makes it really unlikely it's an issue with the gpu or i915.ko ;-)
--Daniel
+>> index 7ea259d..2668b77 100644
+>> --- a/mm/compaction.c
+>> +++ b/mm/compaction.c
+>> @@ -422,6 +422,17 @@ static void isolate_freepages(struct zone *zone,
+>>   					pfn -= pageblock_nr_pages) {
+>>   		unsigned long isolated;
+>>
+>> +		/*
+>> +		 * Skip ahead if another thread is compacting in the area
+>> +		 * simultaneously. If we wrapped around, we can only skip
+>> +		 * ahead if zone->compact_cached_free_pfn also wrapped to
+>> +		 * above our starting point.
+>> +		 */
+>> +		if (cc->order>  0&&  (!cc->wrapped ||
+>
+>
+> So if (partial_compaction(cc)&&  ... ) or if (!full_compaction(cc)&&   ...
+
+I am not sure that we want to abstract away what is happening
+here.  We also are quite explicit with the meaning of cc->order
+in compact_finished and other places in the compaction code.
+
+>> +				      zone->compact_cached_free_pfn>
+>> +				      cc->start_free_pfn))
+>> +			pfn = min(pfn, zone->compact_cached_free_pfn);
+>
+>
+> The pfn can be where migrate_pfn below?
+> I mean we need this?
+>
+> if (pfn<= low_pfn)
+> 	goto out;
+
+That is a good point. I guess there is a small possibility that
+another compaction thread is below us with cc->free_pfn and
+cc->migrate_pfn, and we just inherited its cc->free_pfn via
+zone->compact_cached_free_pfn, bringing us to below our own
+cc->migrate_pfn.
+
+Given that this was already possible with parallel compaction
+in the past, I am not sure how important it is. It could result
+in wasting a little bit of CPU, but your fix for it looks easy
+enough.
+
+Mel, any downside to compaction bailing (well, wrapping around)
+a little earlier, like Minchan suggested?
+
+>> @@ -463,6 +474,8 @@ static void isolate_freepages(struct zone *zone,
+>>   		 */
+>>   		if (isolated)
+>>   			high_pfn = max(high_pfn, pfn);
+>> +		if (cc->order>  0)
+>> +			zone->compact_cached_free_pfn = high_pfn;
+>
+>
+> Why do we cache high_pfn instead of pfn?
+
+Reading the code, because we may not have isolated every
+possible free page from this memory block.  The same reason
+cc->free_pfn is set to high_pfn right before the function
+exits.
+
+> If we can't isolate any page, compact_cached_free_pfn would become low_pfn.
+> I expect it's not what you want.
+
+I guess we should only cache the value of high_pfn if
+we isolated some pages?  In other words, this:
+
+	if (isolated) {
+		high_pfn = max(high_pfn, pfn);
+		if (cc->order > 0)
+			zone->compact_cached_free_pfn = high_pfn;
+	}
+
+
 -- 
-Daniel Vetter
-Mail: daniel@ffwll.ch
-Mobile: +41 (0)79 365 57 48
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
