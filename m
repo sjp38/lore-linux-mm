@@ -1,65 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
-	by kanga.kvack.org (Postfix) with SMTP id 974EE6B0068
-	for <linux-mm@kvack.org>; Mon,  2 Jul 2012 20:57:36 -0400 (EDT)
-Message-ID: <4FF2435F.2070302@redhat.com>
-Date: Mon, 02 Jul 2012 20:57:03 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
+	by kanga.kvack.org (Postfix) with SMTP id EBEDE6B0068
+	for <linux-mm@kvack.org>; Mon,  2 Jul 2012 21:20:02 -0400 (EDT)
+Received: from /spool/local
+	by e1.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <shangw@linux.vnet.ibm.com>;
+	Mon, 2 Jul 2012 21:20:00 -0400
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id E07DD38C803A
+	for <linux-mm@kvack.org>; Mon,  2 Jul 2012 21:19:19 -0400 (EDT)
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q631JJqj297200
+	for <linux-mm@kvack.org>; Mon, 2 Jul 2012 21:19:19 -0400
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q631JJwC017759
+	for <linux-mm@kvack.org>; Mon, 2 Jul 2012 22:19:19 -0300
+Date: Tue, 3 Jul 2012 09:19:17 +0800
+From: Gavin Shan <shangw@linux.vnet.ibm.com>
+Subject: Re: [PATCH v3 2/3] mm/sparse: fix possible memory leak
+Message-ID: <20120703011917.GA8611@shangw>
+Reply-To: Gavin Shan <shangw@linux.vnet.ibm.com>
+References: <1341221337-4826-1-git-send-email-shangw@linux.vnet.ibm.com>
+ <1341221337-4826-2-git-send-email-shangw@linux.vnet.ibm.com>
+ <alpine.DEB.2.00.1207020404120.14758@chino.kir.corp.google.com>
+ <20120702132832.GA18567@shangw>
+ <alpine.DEB.2.00.1207021419150.24806@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH -mm v2] mm: have order > 0 compaction start off where
- it left
-References: <20120628135520.0c48b066@annuminas.surriel.com>  <20120628135940.2c26ada9.akpm@linux-foundation.org>  <4FECCB89.2050400@redhat.com>  <20120628143546.d02d13f9.akpm@linux-foundation.org> <1341250950.16969.6.camel@lappy>
-In-Reply-To: <1341250950.16969.6.camel@lappy>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.00.1207021419150.24806@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <levinsasha928@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mel@csn.ul.ie>, jaschut@sandia.gov, minchan@kernel.org, kamezawa.hiroyu@jp.fujitsu.com, Dave Jones <davej@redhat.com>
+To: David Rientjes <rientjes@google.com>
+Cc: Gavin Shan <shangw@linux.vnet.ibm.com>, linux-mm@kvack.org, dave@linux.vnet.ibm.com, mhocko@suse.cz, akpm@linux-foundation.org
 
-On 07/02/2012 01:42 PM, Sasha Levin wrote:
-> On Thu, 2012-06-28 at 14:35 -0700, Andrew Morton wrote:
->> On Thu, 28 Jun 2012 17:24:25 -0400 Rik van Riel<riel@redhat.com>  wrote:
->>>
->>>>> @@ -463,6 +474,8 @@ static void isolate_freepages(struct zone *zone,
->>>>>              */
->>>>>             if (isolated)
->>>>>                     high_pfn = max(high_pfn, pfn);
->>>>> +          if (cc->order>   0)
->>>>> +                  zone->compact_cached_free_pfn = high_pfn;
->>>>
->>>> Is high_pfn guaranteed to be aligned to pageblock_nr_pages here?  I
->>>> assume so, if lots of code in other places is correct but it's
->>>> unobvious from reading this function.
->>>
->>> Reading the code a few more times, I believe that it is
->>> indeed aligned to pageblock size.
->>
->> I'll slip this into -next for a while.
->>
->> --- a/mm/compaction.c~isolate_freepages-check-that-high_pfn-is-aligned-as-expected
->> +++ a/mm/compaction.c
->> @@ -456,6 +456,7 @@ static void isolate_freepages(struct zon
->>                  }
->>                  spin_unlock_irqrestore(&zone->lock, flags);
->>
->> +               WARN_ON_ONCE(high_pfn&  (pageblock_nr_pages - 1));
->>                  /*
->>                   * Record the highest PFN we isolated pages from. When next
->>                   * looking for free pages, the search will restart here as
+On Mon, Jul 02, 2012 at 02:19:39PM -0700, David Rientjes wrote:
+>On Mon, 2 Jul 2012, Gavin Shan wrote:
 >
-> I've triggered the following with today's -next:
+>> >> diff --git a/mm/sparse.c b/mm/sparse.c
+>> >> index 781fa04..a6984d9 100644
+>> >> --- a/mm/sparse.c
+>> >> +++ b/mm/sparse.c
+>> >> @@ -75,6 +75,20 @@ static struct mem_section noinline __init_refok *sparse_index_alloc(int nid)
+>> >>  	return section;
+>> >>  }
+>> >>  
+>> >> +static inline void __meminit sparse_index_free(struct mem_section *section)
+>> >> +{
+>> >> +	unsigned long size = SECTIONS_PER_ROOT *
+>> >> +			     sizeof(struct mem_section);
+>> >> +
+>> >> +	if (!section)
+>> >> +		return;
+>> >> +
+>> >> +	if (slab_is_available())
+>> >> +		kfree(section);
+>> >> +	else
+>> >> +		free_bootmem(virt_to_phys(section), size);
+>> >
+>> >Eek, does that work?
+>> >
+>> 
+>> David, I think it's working fine. If my understanding is wrong, please
+>> correct me. Thanks a lot :-)
+>> 
+>
+>I'm thinking it should be free_bootmem(__pa(section), size);
+>
 
-I've been staring at the migrate code for most of the afternoon,
-and am not sure how this is triggered.
+Thanks for pointing it out, David.
 
-At this point, I'm going to focus my attention on addressing
-Minchan's comments on my code, and hoping someone who is more
-familiar with the migrate code knows how high_pfn ends up
-being not pageblock_nr_pages aligned...
-
--- 
-All rights reversed
+Thanks,
+Gavin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
