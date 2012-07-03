@@ -1,37 +1,32 @@
-Return-Path: <JakeForee@apiceinformatica.it>
-Received: from [186.87.118.63] (account linux-mm@kvack.org HELO kvack.org) by kvack.org (CommuniGate Pro SMTP 5.3.13) with ESMTPA id 939087138 for <linux-mm@kvack.org>; Tue, 3 Jul 2012 11:37:43 -0500
-Date: Tue, 3 Jul 2012 11:37:43 -0500
-From: "BRITNI POTTER" <JakeForee@apiceinformatica.it>
-Reply-To: 4GPOTTER@kvack.org
-Message-ID: <756572192.98434368085784@kvack.org>
-Subject: Buy Ciails and Viarga online!
-MIME-Version: 1.0
-Content-Type: multipart/alternative;
-  boundary="----------8D348670C705A8"
-To: linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+Received: from psmtp.com (na3sys010amx207.postini.com [74.125.245.207])
+	by kanga.kvack.org (Postfix) with SMTP id 0B4AA6B009B
+	for <linux-mm@kvack.org>; Tue,  3 Jul 2012 16:41:21 -0400 (EDT)
+Date: Tue, 3 Jul 2012 13:41:20 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH -v5 0/6] notifier error injection
+Message-Id: <20120703134120.dc89c7ae.akpm@linux-foundation.org>
+In-Reply-To: <1341035970-20490-1-git-send-email-akinobu.mita@gmail.com>
+References: <1341035970-20490-1-git-send-email-akinobu.mita@gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
+Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
+To: Akinobu Mita <akinobu.mita@gmail.com>
+Cc: linux-kernel@vger.kernel.org, Pavel Machek <pavel@ucw.cz>, "Rafael J. Wysocki" <rjw@sisk.pl>, linux-pm@lists.linux-foundation.org, Greg KH <greg@kroah.com>, linux-mm@kvack.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, linuxppc-dev@lists.ozlabs.org, =?ISO-8859-1?Q?Am=E9rico?= Wang <xiyou.wangcong@gmail.com>, Michael Ellerman <michael@ellerman.id.au>, Dave Jones <davej@redhat.com>
 
-------------8D348670C705A8
-Content-Type: text/plain; charset=Windows-1252
-Content-Transfer-Encoding: 7bit
+On Sat, 30 Jun 2012 14:59:24 +0900
+Akinobu Mita <akinobu.mita@gmail.com> wrote:
 
+> This provides kernel modules that can be used to test the error handling
+> of notifier call chain failures by injecting artifical errors to the
+> following notifier chain callbacks.
 
-USPS Delivery Shipping 1-4 Day USA
-U.S. & Canada Licensed Pharmaices
-ORDER NOW! 
-------------8D348670C705A8
-Content-Type: text/html; charset=Windows-1252
-Content-Transfer-Encoding: 7bit
+No updates to Documentation/fault-injection/?
 
-<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
-<HTML><HEAD><TITLE></TITLE>
-</HEAD>
-<BODY>
-
-<br>USPS Delivery Shipping 1-4 Day USA<br>
-U.S. & Canada Licensed Pharmaices<br>
-
-<a href="http://dropdoctor.ru">ORDER NOW! </a>
-
-</BODY></HTML>
-------------8D348670C705A8--
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
