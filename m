@@ -1,116 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
-	by kanga.kvack.org (Postfix) with SMTP id 9AD816B0071
-	for <linux-mm@kvack.org>; Wed,  4 Jul 2012 09:13:13 -0400 (EDT)
-Date: Wed, 4 Jul 2012 15:13:02 +0200
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH v2 2/2] memcg: remove -ENOMEM at page migration.
-Message-ID: <20120704131302.GC7881@cmpxchg.org>
-References: <4FF3B0DC.5090508@jp.fujitsu.com>
- <4FF3B14E.2090300@jp.fujitsu.com>
- <20120704083019.GA7881@cmpxchg.org>
- <20120704120445.GC29842@tiehlicka.suse.cz>
+Received: from psmtp.com (na3sys010amx207.postini.com [74.125.245.207])
+	by kanga.kvack.org (Postfix) with SMTP id 1CF106B0071
+	for <linux-mm@kvack.org>; Wed,  4 Jul 2012 09:19:53 -0400 (EDT)
+Received: by ggm4 with SMTP id 4so7942802ggm.14
+        for <linux-mm@kvack.org>; Wed, 04 Jul 2012 06:19:52 -0700 (PDT)
+Date: Wed, 4 Jul 2012 21:19:42 +0800
+From: Wanpeng Li <liwp.linux@gmail.com>
+Subject: Re: [RFC][PATCH 1/2] add res_counter_usage_safe
+Message-ID: <20120704131941.GA21100@kernel>
+Reply-To: Wanpeng Li <liwp.linux@gmail.com>
+References: <4FEC300A.7040209@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20120704120445.GC29842@tiehlicka.suse.cz>
+In-Reply-To: <4FEC300A.7040209@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm <linux-mm@kvack.org>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>
+To: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: linux-mm <linux-mm@kvack.org>, Michal Hocko <mhocko@suse.cz>, David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Wanpeng Li <liwp.linux@gmail.com>
 
-On Wed, Jul 04, 2012 at 02:04:45PM +0200, Michal Hocko wrote:
-> On Wed 04-07-12 10:30:19, Johannes Weiner wrote:
-> > On Wed, Jul 04, 2012 at 11:58:22AM +0900, Kamezawa Hiroyuki wrote:
-> > > >From 257a1e6603aab8c6a3bd25648872a11e8b85ef64 Mon Sep 17 00:00:00 2001
-> > > From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> > > Date: Thu, 28 Jun 2012 19:07:24 +0900
-> > > Subject: [PATCH 2/2] 
-> > > 
-> > > For handling many kinds of races, memcg adds an extra charge to
-> > > page's memcg at page migration. But this affects the page compaction
-> > > and make it fail if the memcg is under OOM.
-> > > 
-> > > This patch uses res_counter_charge_nofail() in page migration path
-> > > and remove -ENOMEM. By this, page migration will not fail by the
-> > > status of memcg.
-> > > 
-> > > Even though res_counter_charge_nofail can silently go over the memcg
-> > > limit mem_cgroup_usage compensates that and it doesn't tell the real truth
-> > > to the userspace.
-> > > 
-> > > Excessive charges are only temporal and done on a single page per-CPU in
-> > > the worst case. This sounds tolerable and actually consumes less charges
-> > > than the current per-cpu memcg_stock.
-> > 
-> > But it still means we end up going into reclaim on charges, limit
-> > resizing etc. which we wouldn't without a bunch of pages under
-> > migration.
-> > 
-> > Can we instead not charge the new page, just commit it while holding
-> > on to a css refcount, and have end_migration call a version of
-> > __mem_cgroup_uncharge_common() that updates the stats but leaves the
-> > res counters alone?
+On Thu, Jun 28, 2012 at 07:20:58PM +0900, Kamezawa Hiroyuki wrote:
+>This series is a cleaned up patches discussed in a few days ago, the topic
+>was how to make compaction works well even if there is a memcg under OOM.
+>==
+>memcg: add res_counter_usage_safe()
+>
+>I think usage > limit means a sign of BUG. But, sometimes,
+>res_counter_charge_nofail() is very convenient. tcp_memcg uses it.
+>And I'd like to use it for helping page migration.
+>
+>This patch adds res_counter_usage_safe() which returns min(usage,limit).
+>By this we can use res_counter_charge_nofail() without breaking
+>user experience.
+>
+>Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+>---
+> include/linux/res_counter.h |    2 ++
+> kernel/res_counter.c        |   15 +++++++++++++++
+> net/ipv4/tcp_memcontrol.c   |    2 +-
+> 3 files changed, 18 insertions(+), 1 deletions(-)
+>
+>diff --git a/include/linux/res_counter.h b/include/linux/res_counter.h
+>index 7d7fbe2..a6f8cc5 100644
+>--- a/include/linux/res_counter.h
+>+++ b/include/linux/res_counter.h
+>@@ -226,4 +226,6 @@ res_counter_set_soft_limit(struct res_counter *cnt,
+> 	return 0;
+> }
 > 
-> Yes, this is also a way to go. Both approaches have to lie a bit and
-> both have a discrepancy between stat and usage_in_bytes. I guess we can
-> live with that.
-> Kame's solution seems easier but yours prevent from a corner case when
-> the reclaim is triggered due to artificial charges so I guess it is
-> better to go with yours.
-> Few (trivial) comments on the patch bellow.
-
-It's true that the cache/rss statistics still account for both pages.
-But they don't have behavioural impact and so I didn't bother.  We
-could still fix this up later, but it's less urgent, I think.
-
-> > @@ -2955,7 +2956,10 @@ __mem_cgroup_uncharge_common(struct page *page, enum charge_type ctype)
-> >  		/* fallthrough */
-> >  	case MEM_CGROUP_CHARGE_TYPE_DROP:
-> >  		/* See mem_cgroup_prepare_migration() */
-> > -		if (page_mapped(page) || PageCgroupMigration(pc))
-> > +		if (page_mapped(page))
-> > +			goto unlock_out;
+>+u64 res_counter_usage_safe(struct res_counter *cnt);
+>+
+> #endif
+>diff --git a/kernel/res_counter.c b/kernel/res_counter.c
+>index ad581aa..e84149b 100644
+>--- a/kernel/res_counter.c
+>+++ b/kernel/res_counter.c
+>@@ -171,6 +171,21 @@ u64 res_counter_read_u64(struct res_counter *counter, int member)
+> }
+> #endif
 > 
-> Don't need that test or remove the one below (seems easier to read
-> because those cases are really different things).
+>+/*
+>+ * Returns usage. If usage > limit, limit is returned.
+>+ * This is useful not to break user experiance if the excess
+                                      ^^^^^^^^
+/experiance/experience
+>+ * is temporal.
+>+ */
+>+u64 res_counter_usage_safe(struct res_counter *counter)
+>+{
+>+	u64 usage, limit;
+>+
+>+	limit = res_counter_read_u64(counter, RES_LIMIT);
+>+	usage = res_counter_read_u64(counter, RES_USAGE);
+>+
+>+	return min(usage, limit);
+>+}
+>+
+> int res_counter_memparse_write_strategy(const char *buf,
+> 					unsigned long long *res)
+> {
+>diff --git a/net/ipv4/tcp_memcontrol.c b/net/ipv4/tcp_memcontrol.c
+>index b6f3583..a73dce6 100644
+>--- a/net/ipv4/tcp_memcontrol.c
+>+++ b/net/ipv4/tcp_memcontrol.c
+>@@ -180,7 +180,7 @@ static u64 tcp_read_usage(struct mem_cgroup *memcg)
+> 		return atomic_long_read(&tcp_memory_allocated) << PAGE_SHIFT;
 > 
-> > +		if (page_mapped(page) || (!end_migration &&
-> > +					  PageCgroupMigration(pc)))
-
-My bad, I meant to remove this second page_mapped() and forgot.  Will
-fix.  I take it
-
-		if (page_mapped(page))
-			goto unlock_out;
-		if (!end_migration && PageCgroupMigration(pc))
-			goto unlock_out;
-
-is what you had in mind?
-
-> > @@ -3166,19 +3170,18 @@ static inline int mem_cgroup_move_swap_account(swp_entry_t entry,
-> >   * Before starting migration, account PAGE_SIZE to mem_cgroup that the old
-> >   * page belongs to.
-> >   */
-> > -int mem_cgroup_prepare_migration(struct page *page,
-> > +void mem_cgroup_prepare_migration(struct page *page,
-> >  	struct page *newpage, struct mem_cgroup **memcgp, gfp_t gfp_mask)
+> 	tcp = tcp_from_cgproto(cg_proto);
+>-	return res_counter_read_u64(&tcp->tcp_memory_allocated, RES_USAGE);
+>+	return res_counter_usage_safe(&tcp->tcp_memory_allocated);
+> }
 > 
-> gfp_mask is not needed anymore
-
-Good catch, will fix.
-
-> > @@ -3254,7 +3242,7 @@ int mem_cgroup_prepare_migration(struct page *page,
-> >  	else
-> >  		ctype = MEM_CGROUP_CHARGE_TYPE_SHMEM;
-> >  	__mem_cgroup_commit_charge(memcg, newpage, 1, ctype, false);
-> 
-> Perhaps a comment that we are doing commit without charge because this
-> is only temporal would be good?
-
-Yes, I'll add something.
-
-Thanks for the review!
+> static u64 tcp_cgroup_read(struct cgroup *cont, struct cftype *cft)
+>-- 
+>1.7.4.1
+>
+>
+>--
+>To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>the body to majordomo@kvack.org.  For more info on Linux MM,
+>see: http://www.linux-mm.org/ .
+>Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
