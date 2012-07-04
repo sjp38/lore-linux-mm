@@ -1,43 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
-	by kanga.kvack.org (Postfix) with SMTP id D3F496B00B2
-	for <linux-mm@kvack.org>; Tue,  3 Jul 2012 20:56:04 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx144.postini.com [74.125.245.144])
+	by kanga.kvack.org (Postfix) with SMTP id DE79C6B00A4
+	for <linux-mm@kvack.org>; Tue,  3 Jul 2012 21:43:23 -0400 (EDT)
+Message-ID: <4FF39FE5.7050702@kernel.org>
+Date: Wed, 04 Jul 2012 10:44:05 +0900
 From: Minchan Kim <minchan@kernel.org>
-Subject: [PATCH] mm: fix vmstat and zonestat mismatch
-Date: Wed,  4 Jul 2012 09:56:41 +0900
-Message-Id: <1341363401-19326-1-git-send-email-minchan@kernel.org>
+MIME-Version: 1.0
+Subject: Re: mmotm 2012-06-29-17-00 uploaded
+References: <20120630000055.AF381A02DE@akpm.mtv.corp.google.com> <20120702105934.GD8050@tiehlicka.suse.cz>
+In-Reply-To: <20120702105934.GD8050@tiehlicka.suse.cz>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Minchan Kim <minchan@kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Ingo Molnar <mingo@kernel.org>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: akpm@linux-foundation.org, mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org
 
-e975d6ac[1] in linux-next removed NUMA_INTERLEAVE_HIT
-in zone_stat_item but didn't remove it in vmstat_text
-so that cat /proc/vmstat doesn't show right count number.
+Hi Michal,
 
-[1]: mm/mpol: Remove NUMA_INTERLEAVE_HIT
+On 07/02/2012 07:59 PM, Michal Hocko wrote:
 
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Ingo Molnar <mingo@kernel.org>
-Signed-off-by: Minchan Kim <minchan@kernel.org>
----
- mm/vmstat.c |    1 -
- 1 file changed, 1 deletion(-)
+> On Fri 29-06-12 17:00:54, Andrew Morton wrote:
+>> The mm-of-the-moment snapshot 2012-06-29-17-00 has been uploaded to
+>>
+>>    http://www.ozlabs.org/~akpm/mmotm/
+> 
+> memcg-devel tree has been updated as well
 
-diff --git a/mm/vmstat.c b/mm/vmstat.c
-index 1bbbbd9..e4db312 100644
---- a/mm/vmstat.c
-+++ b/mm/vmstat.c
-@@ -717,7 +717,6 @@ const char * const vmstat_text[] = {
- 	"numa_hit",
- 	"numa_miss",
- 	"numa_foreign",
--	"numa_interleave",
- 	"numa_local",
- 	"numa_other",
- #endif
+
+It's very helpful. Thanks a lot!
+
+Just a wish.
+It could have tags like mmotm-06-29-17-00.
+
 -- 
-1.7.9.5
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
