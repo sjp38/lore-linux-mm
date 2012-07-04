@@ -1,130 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
-	by kanga.kvack.org (Postfix) with SMTP id 4C8A66B0071
-	for <linux-mm@kvack.org>; Wed,  4 Jul 2012 09:10:32 -0400 (EDT)
-Received: by yhr47 with SMTP id 47so9089338yhr.14
-        for <linux-mm@kvack.org>; Wed, 04 Jul 2012 06:10:31 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
+	by kanga.kvack.org (Postfix) with SMTP id 9AD816B0071
+	for <linux-mm@kvack.org>; Wed,  4 Jul 2012 09:13:13 -0400 (EDT)
+Date: Wed, 4 Jul 2012 15:13:02 +0200
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH v2 2/2] memcg: remove -ENOMEM at page migration.
+Message-ID: <20120704131302.GC7881@cmpxchg.org>
+References: <4FF3B0DC.5090508@jp.fujitsu.com>
+ <4FF3B14E.2090300@jp.fujitsu.com>
+ <20120704083019.GA7881@cmpxchg.org>
+ <20120704120445.GC29842@tiehlicka.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <1340389359-2407-3-git-send-email-js1304@gmail.com>
-References: <1340389359-2407-1-git-send-email-js1304@gmail.com>
-	<1340389359-2407-3-git-send-email-js1304@gmail.com>
-Date: Wed, 4 Jul 2012 16:10:31 +0300
-Message-ID: <CAOJsxLHuQBMQ31U6a9quNFKwcnWZfCcbBUmzF1GLT5ep=tkEWg@mail.gmail.com>
-Subject: Re: [PATCH 3/3] slub: release a lock if freeing object with a lock is
- failed in __slab_free()
-From: Pekka Enberg <penberg@kernel.org>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120704120445.GC29842@tiehlicka.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <js1304@gmail.com>
-Cc: Christoph Lameter <cl@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, David Rientjes <rientjes@google.com>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm <linux-mm@kvack.org>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>
 
-On Fri, Jun 22, 2012 at 9:22 PM, Joonsoo Kim <js1304@gmail.com> wrote:
-> In some case of __slab_free(), we need a lock for manipulating partial list.
-> If freeing object with a lock is failed, a lock doesn't needed anymore
-> for some reasons.
->
-> Case 1. prior is NULL, kmem_cache_debug(s) is true
->
-> In this case, another free is occured before our free is succeed.
-> When slab is full(prior is NULL), only possible operation is slab_free().
-> So in this case, we guess another free is occured.
-> It may make a slab frozen, so lock is not needed anymore.
->
-> Case 2. inuse is NULL
->
-> In this case, acquire_slab() is occured before out free is succeed.
-> We have a last object for slab, so other operation for this slab is
-> not possible except acquire_slab().
-> Acquire_slab() makes a slab frozen, so lock is not needed anymore.
->
-> Above two reason explain why we don't need a lock
-> when freeing object with a lock is failed.
->
-> So, when cmpxchg_double_slab() is failed, releasing a lock is more suitable.
-> This may reduce lock contention.
->
-> This also make logic somehow simple that 'was_frozen with a lock' case
-> is never occured. Remove it.
->
-> Signed-off-by: Joonsoo Kim <js1304@gmail.com>
->
-> diff --git a/mm/slub.c b/mm/slub.c
-> index 531d8ed..3e0b9db 100644
-> --- a/mm/slub.c
-> +++ b/mm/slub.c
-> @@ -2438,7 +2438,6 @@ static void __slab_free(struct kmem_cache *s, struct page *page,
->         void *prior;
->         void **object = (void *)x;
->         int was_frozen;
-> -       int inuse;
->         struct page new;
->         unsigned long counters;
->         struct kmem_cache_node *n = NULL;
-> @@ -2450,13 +2449,17 @@ static void __slab_free(struct kmem_cache *s, struct page *page,
->                 return;
->
->         do {
-> +               if (unlikely(n)) {
-> +                       spin_unlock_irqrestore(&n->list_lock, flags);
-> +                       n = NULL;
-> +               }
->                 prior = page->freelist;
->                 counters = page->counters;
->                 set_freepointer(s, object, prior);
->                 new.counters = counters;
->                 was_frozen = new.frozen;
->                 new.inuse--;
-> -               if ((!new.inuse || !prior) && !was_frozen && !n) {
-> +               if ((!new.inuse || !prior) && !was_frozen) {
->
->                         if (!kmem_cache_debug(s) && !prior)
->
-> @@ -2481,7 +2484,6 @@ static void __slab_free(struct kmem_cache *s, struct page *page,
->
->                         }
->                 }
-> -               inuse = new.inuse;
->
->         } while (!cmpxchg_double_slab(s, page,
->                 prior, counters,
-> @@ -2507,25 +2509,17 @@ static void __slab_free(struct kmem_cache *s, struct page *page,
->                  return;
->          }
->
-> +       if (unlikely(!new.inuse && n->nr_partial > s->min_partial))
-> +               goto slab_empty;
-> +
->         /*
-> -        * was_frozen may have been set after we acquired the list_lock in
-> -        * an earlier loop. So we need to check it here again.
-> +        * Objects left in the slab. If it was not on the partial list before
-> +        * then add it.
->          */
-> -       if (was_frozen)
-> -               stat(s, FREE_FROZEN);
-> -       else {
-> -               if (unlikely(!inuse && n->nr_partial > s->min_partial))
-> -                        goto slab_empty;
-> -
-> -               /*
-> -                * Objects left in the slab. If it was not on the partial list before
-> -                * then add it.
-> -                */
-> -               if (unlikely(!prior)) {
-> -                       remove_full(s, page);
-> -                       add_partial(n, page, DEACTIVATE_TO_TAIL);
-> -                       stat(s, FREE_ADD_PARTIAL);
-> -               }
-> +       if (kmem_cache_debug(s) && unlikely(!prior)) {
-> +               remove_full(s, page);
-> +               add_partial(n, page, DEACTIVATE_TO_TAIL);
-> +               stat(s, FREE_ADD_PARTIAL);
->         }
->         spin_unlock_irqrestore(&n->list_lock, flags);
->         return;
+On Wed, Jul 04, 2012 at 02:04:45PM +0200, Michal Hocko wrote:
+> On Wed 04-07-12 10:30:19, Johannes Weiner wrote:
+> > On Wed, Jul 04, 2012 at 11:58:22AM +0900, Kamezawa Hiroyuki wrote:
+> > > >From 257a1e6603aab8c6a3bd25648872a11e8b85ef64 Mon Sep 17 00:00:00 2001
+> > > From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> > > Date: Thu, 28 Jun 2012 19:07:24 +0900
+> > > Subject: [PATCH 2/2] 
+> > > 
+> > > For handling many kinds of races, memcg adds an extra charge to
+> > > page's memcg at page migration. But this affects the page compaction
+> > > and make it fail if the memcg is under OOM.
+> > > 
+> > > This patch uses res_counter_charge_nofail() in page migration path
+> > > and remove -ENOMEM. By this, page migration will not fail by the
+> > > status of memcg.
+> > > 
+> > > Even though res_counter_charge_nofail can silently go over the memcg
+> > > limit mem_cgroup_usage compensates that and it doesn't tell the real truth
+> > > to the userspace.
+> > > 
+> > > Excessive charges are only temporal and done on a single page per-CPU in
+> > > the worst case. This sounds tolerable and actually consumes less charges
+> > > than the current per-cpu memcg_stock.
+> > 
+> > But it still means we end up going into reclaim on charges, limit
+> > resizing etc. which we wouldn't without a bunch of pages under
+> > migration.
+> > 
+> > Can we instead not charge the new page, just commit it while holding
+> > on to a css refcount, and have end_migration call a version of
+> > __mem_cgroup_uncharge_common() that updates the stats but leaves the
+> > res counters alone?
+> 
+> Yes, this is also a way to go. Both approaches have to lie a bit and
+> both have a discrepancy between stat and usage_in_bytes. I guess we can
+> live with that.
+> Kame's solution seems easier but yours prevent from a corner case when
+> the reclaim is triggered due to artificial charges so I guess it is
+> better to go with yours.
+> Few (trivial) comments on the patch bellow.
 
-I'm confused. Does this fix a bug or is it an optimization?
+It's true that the cache/rss statistics still account for both pages.
+But they don't have behavioural impact and so I didn't bother.  We
+could still fix this up later, but it's less urgent, I think.
+
+> > @@ -2955,7 +2956,10 @@ __mem_cgroup_uncharge_common(struct page *page, enum charge_type ctype)
+> >  		/* fallthrough */
+> >  	case MEM_CGROUP_CHARGE_TYPE_DROP:
+> >  		/* See mem_cgroup_prepare_migration() */
+> > -		if (page_mapped(page) || PageCgroupMigration(pc))
+> > +		if (page_mapped(page))
+> > +			goto unlock_out;
+> 
+> Don't need that test or remove the one below (seems easier to read
+> because those cases are really different things).
+> 
+> > +		if (page_mapped(page) || (!end_migration &&
+> > +					  PageCgroupMigration(pc)))
+
+My bad, I meant to remove this second page_mapped() and forgot.  Will
+fix.  I take it
+
+		if (page_mapped(page))
+			goto unlock_out;
+		if (!end_migration && PageCgroupMigration(pc))
+			goto unlock_out;
+
+is what you had in mind?
+
+> > @@ -3166,19 +3170,18 @@ static inline int mem_cgroup_move_swap_account(swp_entry_t entry,
+> >   * Before starting migration, account PAGE_SIZE to mem_cgroup that the old
+> >   * page belongs to.
+> >   */
+> > -int mem_cgroup_prepare_migration(struct page *page,
+> > +void mem_cgroup_prepare_migration(struct page *page,
+> >  	struct page *newpage, struct mem_cgroup **memcgp, gfp_t gfp_mask)
+> 
+> gfp_mask is not needed anymore
+
+Good catch, will fix.
+
+> > @@ -3254,7 +3242,7 @@ int mem_cgroup_prepare_migration(struct page *page,
+> >  	else
+> >  		ctype = MEM_CGROUP_CHARGE_TYPE_SHMEM;
+> >  	__mem_cgroup_commit_charge(memcg, newpage, 1, ctype, false);
+> 
+> Perhaps a comment that we are doing commit without charge because this
+> is only temporal would be good?
+
+Yes, I'll add something.
+
+Thanks for the review!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
