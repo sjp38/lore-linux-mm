@@ -1,80 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
-	by kanga.kvack.org (Postfix) with SMTP id C9CAB6B0071
-	for <linux-mm@kvack.org>; Wed,  4 Jul 2012 03:35:55 -0400 (EDT)
-Received: by ghrr18 with SMTP id r18so7567316ghr.14
-        for <linux-mm@kvack.org>; Wed, 04 Jul 2012 00:35:54 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <1341386778-8002-1-git-send-email-laijs@cn.fujitsu.com>
-References: <1341386778-8002-1-git-send-email-laijs@cn.fujitsu.com>
-Date: Wed, 4 Jul 2012 16:35:54 +0900
-Message-ID: <CAEwNFnAHVHKtS2o=gEBSMGq8X18T_xFsK6CwxdfYtz1ne6KCQw@mail.gmail.com>
-Subject: Re: [RFC PATCH 0/3 V1] mm: add new migrate type and online_movable
- for hotplug
-From: Minchan Kim <minchan@kernel.org>
-Content-Type: text/plain; charset=UTF-8
+Received: from psmtp.com (na3sys010amx174.postini.com [74.125.245.174])
+	by kanga.kvack.org (Postfix) with SMTP id 7574F6B0071
+	for <linux-mm@kvack.org>; Wed,  4 Jul 2012 03:40:40 -0400 (EDT)
+Date: Wed, 4 Jul 2012 00:42:19 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH -mm v2] mm: have order > 0 compaction start off where it
+ left
+Message-Id: <20120704004219.47d0508d.akpm@linux-foundation.org>
+In-Reply-To: <4FF3ABA1.3070808@kernel.org>
+References: <20120628135520.0c48b066@annuminas.surriel.com>
+	<20120628135940.2c26ada9.akpm@linux-foundation.org>
+	<4FECCB89.2050400@redhat.com>
+	<20120628143546.d02d13f9.akpm@linux-foundation.org>
+	<1341250950.16969.6.camel@lappy>
+	<4FF2435F.2070302@redhat.com>
+	<20120703101024.GG13141@csn.ul.ie>
+	<20120703144808.4daa4244.akpm@linux-foundation.org>
+	<4FF3ABA1.3070808@kernel.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Lai Jiangshan <laijs@cn.fujitsu.com>
-Cc: Mel Gorman <mel@csn.ul.ie>, Chris Metcalf -- <cmetcalf@tilera.com>, Len Brown -- <lenb@kernel.org>, Greg Kroah-Hartman -- <gregkh@linuxfoundation.org>, Andi Kleen -- <andi@firstfloor.org>, Julia Lawall -- <julia@diku.dk>, David Howells -- <dhowells@redhat.com>, Benjamin Herrenschmidt -- <benh@kernel.crashing.org>, Kay Sievers -- <kay.sievers@vrfy.org>, Ingo Molnar -- <mingo@elte.hu>, Paul Gortmaker -- <paul.gortmaker@windriver.com>, Daniel Kiper -- <dkiper@net-space.pl>, Andrew Morton -- <akpm@linux-foundation.org>, Konrad Rzeszutek Wilk -- <konrad.wilk@oracle.com>, Michal Hocko -- <mhocko@suse.cz>, KAMEZAWA Hiroyuki -- <kamezawa.hiroyu@jp.fujitsu.com>, Michal Nazarewicz -- <mina86@mina86.com>, Marek Szyprowski -- <m.szyprowski@samsung.com>, Rik van Riel -- <riel@redhat.com>, Bjorn Helgaas -- <bhelgaas@google.com>, Christoph Lameter -- <cl@linux.com>, David Rientjes -- <rientjes@google.com>, linux-kernel@vger.kernel.org--, linux-acpi@vger.kernel.org--, linux-mm@kvack.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, Sasha Levin <levinsasha928@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, jaschut@sandia.gov, kamezawa.hiroyu@jp.fujitsu.com, Dave Jones <davej@redhat.com>
 
-Hello,
+On Wed, 04 Jul 2012 11:34:09 +0900 Minchan Kim <minchan@kernel.org> wrote:
 
-I am not sure when I can review this series by urgent other works.
-At a glance, it seems to attract me.
-But unfortunately, when I read description in cover-letter, I can't
-find "What's the problem?".
-If you provide that, it could help too many your Ccing people who can
-judge  "whether I dive into code or not"
+> > The rest of this patch takes care to ensure that
+> > ->compact_cached_free_pfn is aligned to pageblock_nr_pages.  But it now
+> > appears that this particular site will violate that.
+> > 
+> > What's up?  Do we need to fix this site, or do we remove all that
+> > make-compact_cached_free_pfn-aligned code?
+> 
+> 
+> I vote removing the warning because it doesn't related to Rik's incremental compaction.
+> Let's see. 
+> 
+> high_pfn = min(low_pfn, pfn) = cc->migrate_pfn + pageblock_nr_pages.
+> In here, cc->migrate_pfn isn't necessarily pageblock aligined.
+> So if we don't consider compact_cached_free_pfn, it can hit.
+> 
+> static void isolate_freepages()
+> {
+> 	high_pfn = min(low_pfn, pfn) = cc->migrate_pfn + pageblock_nr_pages;
+> 	for (..) {
+> 		...
+> 		 WARN_ON_ONCE(high_pfn & (pageblock_nr_pages - 1));
+> 		
+> 	}
+> }
 
-Thanks!
-
-Side-Note: What's the "--" of email addresses?
-
-On Wed, Jul 4, 2012 at 4:26 PM, Lai Jiangshan <laijs@cn.fujitsu.com> wrote:
-> The 1st patch fixes the allocation of CMA and prepares for movable-like types.
->
-> The 2nd patch add a new migrate type which stands for the movable types which
-> pages will not be changed to the other type.
->
-> I chose the name MIGRATE_HOTREMOVE from MIGRATE_HOTREMOVE
-> and MIGRATE_MOVABLE_STABLE, it just because the first usecase of this new type
-> is for hotremove.
->
-> The 3th path introduces online_movable. When a memoryblock is onlined
-> by "online_movable", the kernel will not have directly reference to the page
-> of the memoryblock, thus we can remove that memory any time when needed.
->
-> Different from ZONE_MOVABLE: it can be used for any given memroyblock.
->
-> Lai Jiangshan (3):
->   use __rmqueue_smallest when borrow memory from MIGRATE_CMA
->   add MIGRATE_HOTREMOVE type
->   add online_movable
->
->  arch/tile/mm/init.c            |    2 +-
->  drivers/acpi/acpi_memhotplug.c |    3 +-
->  drivers/base/memory.c          |   24 +++++++----
->  include/linux/memory.h         |    1 +
->  include/linux/memory_hotplug.h |    4 +-
->  include/linux/mmzone.h         |   37 +++++++++++++++++
->  include/linux/page-isolation.h |    2 +-
->  mm/compaction.c                |    6 +-
->  mm/memory-failure.c            |    8 +++-
->  mm/memory_hotplug.c            |   36 +++++++++++++---
->  mm/page_alloc.c                |   86 ++++++++++++++++-----------------------
->  mm/vmstat.c                    |    3 +
->  12 files changed, 136 insertions(+), 76 deletions(-)
->
-> --
-> 1.7.4.4
->
-
-
-
--- 
-Kind regards,
-Minchan Kim
+Please, look at the patch.  In numerous places it is aligning
+compact_cached_free_pfn to a multiple of pageblock_nr_pages.  But in
+one place it doesn't do that.  So are all those alignment operations
+necessary?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
