@@ -1,100 +1,203 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
-	by kanga.kvack.org (Postfix) with SMTP id 19EB76B0071
-	for <linux-mm@kvack.org>; Wed,  4 Jul 2012 04:00:59 -0400 (EDT)
-Message-ID: <4FF3F864.3000204@kernel.org>
-Date: Wed, 04 Jul 2012 17:01:40 +0900
-From: Minchan Kim <minchan@kernel.org>
+Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
+	by kanga.kvack.org (Postfix) with SMTP id EB16C6B0071
+	for <linux-mm@kvack.org>; Wed,  4 Jul 2012 04:11:56 -0400 (EDT)
+Received: by pbbrp2 with SMTP id rp2so12938372pbb.14
+        for <linux-mm@kvack.org>; Wed, 04 Jul 2012 01:11:56 -0700 (PDT)
+Message-ID: <4FF3FAC4.1000005@gmail.com>
+Date: Wed, 04 Jul 2012 16:11:48 +0800
+From: Sha Zhengju <handai.szj@gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH -mm v2] mm: have order > 0 compaction start off where
- it left
-References: <20120628135520.0c48b066@annuminas.surriel.com> <20120628135940.2c26ada9.akpm@linux-foundation.org> <4FECCB89.2050400@redhat.com> <20120628143546.d02d13f9.akpm@linux-foundation.org> <1341250950.16969.6.camel@lappy> <4FF2435F.2070302@redhat.com> <20120703101024.GG13141@csn.ul.ie> <20120703144808.4daa4244.akpm@linux-foundation.org> <4FF3ABA1.3070808@kernel.org> <20120704004219.47d0508d.akpm@linux-foundation.org>
-In-Reply-To: <20120704004219.47d0508d.akpm@linux-foundation.org>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [PATCH 4/7] Use vfs __set_page_dirty interface instead of doing
+ it inside filesystem
+References: <1340880885-5427-1-git-send-email-handai.szj@taobao.com> <1340881423-5703-1-git-send-email-handai.szj@taobao.com> <Pine.LNX.4.64.1206282218260.18049@cobra.newdream.net> <4FF15782.5090807@gmail.com> <Pine.LNX.4.64.1207020745180.23342@cobra.newdream.net>
+In-Reply-To: <Pine.LNX.4.64.1207020745180.23342@cobra.newdream.net>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, Sasha Levin <levinsasha928@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, jaschut@sandia.gov, kamezawa.hiroyu@jp.fujitsu.com, Dave Jones <davej@redhat.com>
+To: Sage Weil <sage@inktank.com>
+Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, gthelen@google.com, yinghan@google.com, akpm@linux-foundation.org, mhocko@suse.cz, linux-kernel@vger.kernel.org, torvalds@linux-foundation.org, viro@zeniv.linux.org.uk, linux-fsdevel@vger.kernel.org, sage@newdream.net, ceph-devel@vger.kernel.org, Sha Zhengju <handai.szj@taobao.com>
 
-On 07/04/2012 04:42 PM, Andrew Morton wrote:
-
-> On Wed, 04 Jul 2012 11:34:09 +0900 Minchan Kim <minchan@kernel.org> wrote:
-> 
->>> The rest of this patch takes care to ensure that
->>> ->compact_cached_free_pfn is aligned to pageblock_nr_pages.  But it now
->>> appears that this particular site will violate that.
+On 07/02/2012 10:49 PM, Sage Weil wrote:
+> On Mon, 2 Jul 2012, Sha Zhengju wrote:
+>> On 06/29/2012 01:21 PM, Sage Weil wrote:
+>>> On Thu, 28 Jun 2012, Sha Zhengju wrote:
 >>>
->>> What's up?  Do we need to fix this site, or do we remove all that
->>> make-compact_cached_free_pfn-aligned code?
+>>>> From: Sha Zhengju<handai.szj@taobao.com>
+>>>>
+>>>> Following we will treat SetPageDirty and dirty page accounting as an
+>>>> integrated
+>>>> operation. Filesystems had better use vfs interface directly to avoid
+>>>> those details.
+>>>>
+>>>> Signed-off-by: Sha Zhengju<handai.szj@taobao.com>
+>>>> ---
+>>>>    fs/buffer.c                 |    2 +-
+>>>>    fs/ceph/addr.c              |   20 ++------------------
+>>>>    include/linux/buffer_head.h |    2 ++
+>>>>    3 files changed, 5 insertions(+), 19 deletions(-)
+>>>>
+>>>> diff --git a/fs/buffer.c b/fs/buffer.c
+>>>> index e8d96b8..55522dd 100644
+>>>> --- a/fs/buffer.c
+>>>> +++ b/fs/buffer.c
+>>>> @@ -610,7 +610,7 @@ EXPORT_SYMBOL(mark_buffer_dirty_inode);
+>>>>     * If warn is true, then emit a warning if the page is not uptodate and
+>>>> has
+>>>>     * not been truncated.
+>>>>     */
+>>>> -static int __set_page_dirty(struct page *page,
+>>>> +int __set_page_dirty(struct page *page,
+>>>>    		struct address_space *mapping, int warn)
+>>>>    {
+>>>>    	if (unlikely(!mapping))
+>>> This also needs an EXPORT_SYMBOL(__set_page_dirty) to allow ceph to
+>>> continue to build as a module.
+>>>
+>>> With that fixed, the ceph bits are a welcome cleanup!
+>>>
+>>> Acked-by: Sage Weil<sage@inktank.com>
+>> Further, I check the path again and may it be reworked as follows to avoid
+>> undo?
+>>
+>> __set_page_dirty();
+>> __set_page_dirty();
+>> ceph operations;                ==>                     if (page->mapping)
+>> if (page->mapping)                                            ceph operations;
+>>      ;
+>> else
+>>      undo = 1;
+>> if (undo)
+>>      xxx;
+> Yep.  Taking another look at the original code, though, I'm worried that
+> one reason the __set_page_dirty() actions were spread out the way they are
+> is because we wanted to ensure that the ceph operations were always
+> performed when PagePrivate was set.
+>
+
+Sorry, I've lost something:
+
+__set_page_dirty();                        __set_page_dirty();
+ceph operations;
+if(page->mapping)         ==>      if(page->mapping) {
+        SetPagePrivate;                            SetPagePrivate;
+else                                                      ceph operations;
+     undo = 1;                                  }
+
+if (undo)
+     XXX;
+
+I think this can ensure that ceph operations are performed together with
+SetPagePrivate.
+
+> It looks like invalidatepage won't get called if private isn't set, and
+> presumably it handles the truncate race with __set_page_dirty() properly
+> (right?).  What about writeback?  Do we need to worry about writepage[s]
+> getting called with a NULL page->private?
+
+__set_page_dirty does handle racing conditions with truncate and
+writeback writepage[s] also take page->private into consideration
+which is done inside specific filesystems. I notice that ceph has handled
+this in ceph_writepage().
+Sorry, not vfs expert and maybe I've not caught your point...
+
+
+Thanks,
+Sha
+
+> Thanks!
+> sage
+>
+>
+>
 >>
 >>
->> I vote removing the warning because it doesn't related to Rik's incremental compaction.
->> Let's see. 
+>> Thanks,
+>> Sha
 >>
->> high_pfn = min(low_pfn, pfn) = cc->migrate_pfn + pageblock_nr_pages.
->> In here, cc->migrate_pfn isn't necessarily pageblock aligined.
->> So if we don't consider compact_cached_free_pfn, it can hit.
+>>>> diff --git a/fs/ceph/addr.c b/fs/ceph/addr.c
+>>>> index 8b67304..d028fbe 100644
+>>>> --- a/fs/ceph/addr.c
+>>>> +++ b/fs/ceph/addr.c
+>>>> @@ -5,6 +5,7 @@
+>>>>    #include<linux/mm.h>
+>>>>    #include<linux/pagemap.h>
+>>>>    #include<linux/writeback.h>	/* generic_writepages */
+>>>> +#include<linux/buffer_head.h>
+>>>>    #include<linux/slab.h>
+>>>>    #include<linux/pagevec.h>
+>>>>    #include<linux/task_io_accounting_ops.h>
+>>>> @@ -73,14 +74,8 @@ static int ceph_set_page_dirty(struct page *page)
+>>>>    	int undo = 0;
+>>>>    	struct ceph_snap_context *snapc;
+>>>>
+>>>> -	if (unlikely(!mapping))
+>>>> -		return !TestSetPageDirty(page);
+>>>> -
+>>>> -	if (TestSetPageDirty(page)) {
+>>>> -		dout("%p set_page_dirty %p idx %lu -- already dirty\n",
+>>>> -		     mapping->host, page, page->index);
+>>>> +	if (!__set_page_dirty(page, mapping, 1))
+>>>>    		return 0;
+>>>> -	}
+>>>>
+>>>>    	inode = mapping->host;
+>>>>    	ci = ceph_inode(inode);
+>>>> @@ -107,14 +102,7 @@ static int ceph_set_page_dirty(struct page *page)
+>>>>    	     snapc, snapc->seq, snapc->num_snaps);
+>>>>    	spin_unlock(&ci->i_ceph_lock);
+>>>>
+>>>> -	/* now adjust page */
+>>>> -	spin_lock_irq(&mapping->tree_lock);
+>>>>    	if (page->mapping) {	/* Race with truncate? */
+>>>> -		WARN_ON_ONCE(!PageUptodate(page));
+>>>> -		account_page_dirtied(page, page->mapping);
+>>>> -		radix_tree_tag_set(&mapping->page_tree,
+>>>> -				page_index(page), PAGECACHE_TAG_DIRTY);
+>>>> -
+>>>>    		/*
+>>>>    		 * Reference snap context in page->private.  Also set
+>>>>    		 * PagePrivate so that we get invalidatepage callback.
+>>>> @@ -126,14 +114,10 @@ static int ceph_set_page_dirty(struct page *page)
+>>>>    		undo = 1;
+>>>>    	}
+>>>>
+>>>> -	spin_unlock_irq(&mapping->tree_lock);
+>>>> -
+>>>>    	if (undo)
+>>>>    		/* whoops, we failed to dirty the page */
+>>>>    		ceph_put_wrbuffer_cap_refs(ci, 1, snapc);
+>>>>
+>>>> -	__mark_inode_dirty(mapping->host, I_DIRTY_PAGES);
+>>>> -
+>>>>    	BUG_ON(!PageDirty(page));
+>>>>    	return 1;
+>>>>    }
+>>>> diff --git a/include/linux/buffer_head.h b/include/linux/buffer_head.h
+>>>> index 458f497..0a331a8 100644
+>>>> --- a/include/linux/buffer_head.h
+>>>> +++ b/include/linux/buffer_head.h
+>>>> @@ -336,6 +336,8 @@ static inline void lock_buffer(struct buffer_head *bh)
+>>>>    }
+>>>>
+>>>>    extern int __set_page_dirty_buffers(struct page *page);
+>>>> +extern int __set_page_dirty(struct page *page,
+>>>> +		struct address_space *mapping, int warn);
+>>>>
+>>>>    #else /* CONFIG_BLOCK */
+>>>>
+>>>> -- 
+>>>> 1.7.1
+>>>>
+>>>> --
+>>>> To unsubscribe from this list: send the line "unsubscribe linux-fsdevel"
+>>>> in
+>>>> the body of a message to majordomo@vger.kernel.org
+>>>> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+>>>>
+>>>>
 >>
->> static void isolate_freepages()
->> {
->> 	high_pfn = min(low_pfn, pfn) = cc->migrate_pfn + pageblock_nr_pages;
->> 	for (..) {
->> 		...
->> 		 WARN_ON_ONCE(high_pfn & (pageblock_nr_pages - 1));
->> 		
->> 	}
->> }
-> 
-> Please, look at the patch.  In numerous places it is aligning
-
-> compact_cached_free_pfn to a multiple of pageblock_nr_pages.  But in
-
-> one place it doesn't do that.  So are all those alignment operations
-> necessary?
-
-
-I mean if you *really* want to check the align, you should do following as
-
-barrios@bbox:~/linux-memcg$ git diff
-diff --git a/mm/compaction.c b/mm/compaction.c
-index 6bb3e9f..12416d4 100644
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -467,16 +467,18 @@ static void isolate_freepages(struct zone *zone,
-                }
-                spin_unlock_irqrestore(&zone->lock, flags);
- 
--               WARN_ON_ONCE(high_pfn & (pageblock_nr_pages - 1));
-                /*
-                 * Record the highest PFN we isolated pages from. When next
-                 * looking for free pages, the search will restart here as
-                 * page migration may have returned some pages to the allocator
-                 */
--               if (isolated)
-+               if (isolated) {
-                        high_pfn = max(high_pfn, pfn);
--               if (cc->order > 0)
--                       zone->compact_cached_free_pfn = high_pfn;
-+                       if (cc->order > 0) {
-+                               WARN_ON_ONCE(high_pfn & (pageblock_nr_pages - 1));
-+                               zone->compact_cached_free_pfn = high_pfn;
-+                       }
-+               }
-        }
- 
-        /* split_free_page does not map the pages */
-
-
-Because high_pfn could be not aligned in loop if it doesn't reset by max(high_pfn, pfn).
-and it's legal. So regardless of Rik's patch, if you add such warning in that code,
-it could emit WARNING, too. Rik already sent a patch which was similar to above
-but he wanted to solve WARN_ON_ONCE problem by someone else.
-
-
--- 
-Kind regards,
-Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
