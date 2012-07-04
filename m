@@ -1,42 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx151.postini.com [74.125.245.151])
-	by kanga.kvack.org (Postfix) with SMTP id 896B36B0071
-	for <linux-mm@kvack.org>; Wed,  4 Jul 2012 02:40:20 -0400 (EDT)
-Received: by ggm4 with SMTP id 4so7514324ggm.14
-        for <linux-mm@kvack.org>; Tue, 03 Jul 2012 23:40:19 -0700 (PDT)
-Date: Tue, 3 Jul 2012 23:40:16 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx178.postini.com [74.125.245.178])
+	by kanga.kvack.org (Postfix) with SMTP id 9211D6B0071
+	for <linux-mm@kvack.org>; Wed,  4 Jul 2012 02:43:43 -0400 (EDT)
+Received: by yenr5 with SMTP id r5so7503641yen.14
+        for <linux-mm@kvack.org>; Tue, 03 Jul 2012 23:43:42 -0700 (PDT)
+Date: Tue, 3 Jul 2012 23:43:40 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] mm: fix vmstat and zonestat mismatch
-In-Reply-To: <1341363401-19326-1-git-send-email-minchan@kernel.org>
-Message-ID: <alpine.DEB.2.00.1207032339030.32556@chino.kir.corp.google.com>
-References: <1341363401-19326-1-git-send-email-minchan@kernel.org>
+Subject: Re: [Patch] mm/policy: use int instead of unsigned for nid
+In-Reply-To: <1341370901-14187-1-git-send-email-amwang@redhat.com>
+Message-ID: <alpine.DEB.2.00.1207032342120.32556@chino.kir.corp.google.com>
+References: <1341370901-14187-1-git-send-email-amwang@redhat.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>, Ingo Molnar <mingo@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Peter Zijlstra <a.p.zijlstra@chello.nl>
+To: Cong Wang <amwang@redhat.com>
+Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, WANG Cong <xiyou.wangcong@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org
 
-On Wed, 4 Jul 2012, Minchan Kim wrote:
+On Wed, 4 Jul 2012, Cong Wang wrote:
 
-> e975d6ac[1] in linux-next removed NUMA_INTERLEAVE_HIT
-> in zone_stat_item but didn't remove it in vmstat_text
-> so that cat /proc/vmstat doesn't show right count number.
-
-... for CONFIG_NUMA kernels.
-
-> [1]: mm/mpol: Remove NUMA_INTERLEAVE_HIT
+> From: WANG Cong <xiyou.wangcong@gmail.com>
+> 
+> 'nid' should be 'int', not 'unsigned'.
 > 
 
-That sha1 is going to become useless very soon.
+unsigned is already of type int, so you're saying these occurrences should 
+become signed, but that's not true since they never return NUMA_NO_NODE.  
+They are all safe returning unsigned.
 
-> Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>
-> Cc: Ingo Molnar <mingo@kernel.org>
-> Signed-off-by: Minchan Kim <minchan@kernel.org>
-
-Acked-by: David Rientjes <rientjes@google.com>
-
-This is for sched/numa, so it should be going to Ingo.
+And alloc_page_interleave() doesn't exist anymore since the sched/numa 
+bits were merged into sched/core, so nobody could apply this patch anyway.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
