@@ -1,45 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
-	by kanga.kvack.org (Postfix) with SMTP id 4C78D6B0073
-	for <linux-mm@kvack.org>; Wed,  4 Jul 2012 01:54:18 -0400 (EDT)
-Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id DD3AF3EE0BD
-	for <linux-mm@kvack.org>; Wed,  4 Jul 2012 14:54:16 +0900 (JST)
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id C32DE45DE52
-	for <linux-mm@kvack.org>; Wed,  4 Jul 2012 14:54:16 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id AAE3745DE4E
-	for <linux-mm@kvack.org>; Wed,  4 Jul 2012 14:54:16 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 98F8E1DB802F
-	for <linux-mm@kvack.org>; Wed,  4 Jul 2012 14:54:16 +0900 (JST)
+Received: from psmtp.com (na3sys010amx135.postini.com [74.125.245.135])
+	by kanga.kvack.org (Postfix) with SMTP id 714C56B0071
+	for <linux-mm@kvack.org>; Wed,  4 Jul 2012 02:18:52 -0400 (EDT)
+Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 52F4D3EE0AE
+	for <linux-mm@kvack.org>; Wed,  4 Jul 2012 15:18:50 +0900 (JST)
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 2E93245DE59
+	for <linux-mm@kvack.org>; Wed,  4 Jul 2012 15:18:50 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 1472E45DE50
+	for <linux-mm@kvack.org>; Wed,  4 Jul 2012 15:18:50 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id F287B1DB8046
+	for <linux-mm@kvack.org>; Wed,  4 Jul 2012 15:18:49 +0900 (JST)
 Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 402241DB803B
-	for <linux-mm@kvack.org>; Wed,  4 Jul 2012 14:54:16 +0900 (JST)
-Message-ID: <4FF3D9FD.6080502@jp.fujitsu.com>
-Date: Wed, 04 Jul 2012 14:51:57 +0900
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id A6FDB1DB8041
+	for <linux-mm@kvack.org>; Wed,  4 Jul 2012 15:18:49 +0900 (JST)
+Message-ID: <4FF3DFC5.2010409@jp.fujitsu.com>
+Date: Wed, 04 Jul 2012 15:16:37 +0900
 From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [patch 5/5] mm, memcg: move all oom handling to memcontrol.c
-References: <alpine.DEB.2.00.1206251846020.24838@chino.kir.corp.google.com> <alpine.DEB.2.00.1206291404530.6040@chino.kir.corp.google.com> <alpine.DEB.2.00.1206291406270.6040@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.00.1206291406270.6040@chino.kir.corp.google.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Subject: pci device assignment and mm, KSM.
+Content-Type: text/plain; charset=ISO-2022-JP
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan@kernel.org>, Oleg Nesterov <oleg@redhat.com>, linux-mm@kvack.org, cgroups@vger.kernel.org
+To: linux-mm <linux-mm@kvack.org>
+Cc: kvm@vger.kernel.org, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Minchan Kim <minchan@kernel.org>
 
-(2012/06/30 6:07), David Rientjes wrote:
-> By globally defining check_panic_on_oom(), the memcg oom handler can be
-> moved entirely to mm/memcontrol.c.  This removes the ugly #ifdef in the
-> oom killer and cleans up the code.
->
-> Signed-off-by: David Rientjes <rientjes@google.com>
 
-Thank you.
-Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+I'm sorry if my understanding is incorrect. Here are some topics on
+pci passthrough to guests.
+
+When pci passthrough is used with kvm, guest's all memory are pinned by extra
+reference count of get_page(). That pinned pages are never be reclaimable and
+movable by migration and cannot be merged by KSM.
+
+Now, the information that 'the page is pinned by kvm' is just represented by
+page_count(). So, there are following problems.
+
+a) pages are on ANON_LRU. So, try_to_free_page() and kswapd will scan XX GB of
+   pages hopelessly.
+
+b) KSM cannot recognize the pages in its early stage. So, it breaks transparent
+   huge page mapped by kvm into small pages. But it fails to merge them finally,
+   because of raised page_count(). So, all hugepages are split without any
+   benefits.
+
+2 ideas for fixing this....
+
+for a) I guess the pages should go to UNEVICTABLE list. But it's not mlocked.
+       I think we use PagePinned() instread of it and move pages to UNEVICTABLE list.
+       Then, kswapd etc will ignore pinned pages.
+
+for b) At first, I thought qemu should call madvise(MADV_UNMERGEABLE). But I think
+       kernel may be able to handle situation with an extra check, PagePinned() or
+       checking a flag in mm_struct. Should we avoid this in userland or kernel ?
+
+BTW, I think pinned pages cannot be freed until the kvm process exits. Is it right ?
+
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
