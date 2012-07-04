@@ -1,303 +1,283 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
-	by kanga.kvack.org (Postfix) with SMTP id 06A5E6B0078
-	for <linux-mm@kvack.org>; Wed,  4 Jul 2012 04:38:56 -0400 (EDT)
-From: Lai Jiangshan <laijs@cn.fujitsu.com>
-Subject: [RFC PATCH 3/3 V1 resend] mm, memory-hotplug: add online_movable
-Date: Wed, 4 Jul 2012 16:38:58 +0800
-Message-Id: <1341391138-9547-4-git-send-email-laijs@cn.fujitsu.com>
-In-Reply-To: <1341391138-9547-1-git-send-email-laijs@cn.fujitsu.com>
-References: <1341391138-9547-1-git-send-email-laijs@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
+	by kanga.kvack.org (Postfix) with SMTP id 2DCCB6B0074
+	for <linux-mm@kvack.org>; Wed,  4 Jul 2012 04:42:07 -0400 (EDT)
+Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id BCC3D3EE0AE
+	for <linux-mm@kvack.org>; Wed,  4 Jul 2012 17:42:05 +0900 (JST)
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 72CE045DE4D
+	for <linux-mm@kvack.org>; Wed,  4 Jul 2012 17:42:05 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 558FD45DE53
+	for <linux-mm@kvack.org>; Wed,  4 Jul 2012 17:42:05 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 321D0E08005
+	for <linux-mm@kvack.org>; Wed,  4 Jul 2012 17:42:05 +0900 (JST)
+Received: from m1001.s.css.fujitsu.com (m1001.s.css.fujitsu.com [10.240.81.139])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id D76321DB8041
+	for <linux-mm@kvack.org>; Wed,  4 Jul 2012 17:42:04 +0900 (JST)
+Message-ID: <4FF40159.6040604@jp.fujitsu.com>
+Date: Wed, 04 Jul 2012 17:39:53 +0900
+From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH v2 2/2] memcg: remove -ENOMEM at page migration.
+References: <4FF3B0DC.5090508@jp.fujitsu.com> <4FF3B14E.2090300@jp.fujitsu.com> <20120704083019.GA7881@cmpxchg.org>
+In-Reply-To: <20120704083019.GA7881@cmpxchg.org>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Chris Metcalf <cmetcalf@tilera.com>, Len Brown <lenb@kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andi Kleen <andi@firstfloor.org>, Julia Lawall <julia@diku.dk>, David Howells <dhowells@redhat.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Kay Sievers <kay.sievers@vrfy.org>, Ingo Molnar <mingo@elte.hu>, Paul Gortmaker <paul.gortmaker@windriver.com>, Daniel Kiper <dkiper@net-space.pl>, Andrew Morton <akpm@linux-foundation.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Minchan Kim <minchan@kernel.org>, Michal Nazarewicz <mina86@mina86.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Rik van Riel <riel@redhat.com>, Bjorn Helgaas <bhelgaas@google.com>, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, linux-kernel@vger.kernel.org, linux-acpi@vger.kernel.org, linux-mm@kvack.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: linux-mm <linux-mm@kvack.org>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Tejun Heo <tj@kernel.org>
 
-When a memoryblock is onlined by "online_movable", the kernel will not
-have directly reference to the page of the memoryblock,
-thus we can remove that memory any time when needed.
+(2012/07/04 17:30), Johannes Weiner wrote:
+> On Wed, Jul 04, 2012 at 11:58:22AM +0900, Kamezawa Hiroyuki wrote:
+>> >From 257a1e6603aab8c6a3bd25648872a11e8b85ef64 Mon Sep 17 00:00:00 2001
+>> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+>> Date: Thu, 28 Jun 2012 19:07:24 +0900
+>> Subject: [PATCH 2/2]
+>>
+>> For handling many kinds of races, memcg adds an extra charge to
+>> page's memcg at page migration. But this affects the page compaction
+>> and make it fail if the memcg is under OOM.
+>>
+>> This patch uses res_counter_charge_nofail() in page migration path
+>> and remove -ENOMEM. By this, page migration will not fail by the
+>> status of memcg.
+>>
+>> Even though res_counter_charge_nofail can silently go over the memcg
+>> limit mem_cgroup_usage compensates that and it doesn't tell the real truth
+>> to the userspace.
+>>
+>> Excessive charges are only temporal and done on a single page per-CPU in
+>> the worst case. This sounds tolerable and actually consumes less charges
+>> than the current per-cpu memcg_stock.
+>
+> But it still means we end up going into reclaim on charges, limit
+> resizing etc. which we wouldn't without a bunch of pages under
+> migration.
+>
+> Can we instead not charge the new page, just commit it while holding
+> on to a css refcount, and have end_migration call a version of
+> __mem_cgroup_uncharge_common() that updates the stats but leaves the
+> res counters alone?
+>
+> oldpage will not get uncharged because of the page lock and
+> PageCgroupMigration, so the charge is stable during migration.
+>
+> Patch below
+>
 
-It makes things easy when we dynamic hot-add/remove memory, make better
-utilities of memories.
+Hm, your idea is better.
 
-Signed-off-by: Lai Jiangshan <laijs@cn.fujitsu.com>
----
- arch/tile/mm/init.c            |    2 +-
- drivers/acpi/acpi_memhotplug.c |    3 ++-
- drivers/base/memory.c          |   24 +++++++++++++++---------
- include/linux/memory.h         |    1 +
- include/linux/memory_hotplug.h |    4 ++--
- include/linux/mmzone.h         |    2 ++
- mm/memory_hotplug.c            |   36 +++++++++++++++++++++++++++++-------
- mm/page_alloc.c                |    2 +-
- 8 files changed, 53 insertions(+), 21 deletions(-)
+>> --- a/mm/memcontrol.c
+>> +++ b/mm/memcontrol.c
+>> @@ -3168,6 +3168,7 @@ int mem_cgroup_prepare_migration(struct page *page,
+>>   	struct page *newpage, struct mem_cgroup **memcgp, gfp_t gfp_mask)
+>>   {
+>>   	struct mem_cgroup *memcg = NULL;
+>> +	struct res_counter *dummy;
+>>   	struct page_cgroup *pc;
+>>   	enum charge_type ctype;
+>>   	int ret = 0;
+>> @@ -3222,29 +3223,16 @@ int mem_cgroup_prepare_migration(struct page *page,
+>>   	 */
+>>   	if (!memcg)
+>>   		return 0;
+>> -
+>> -	*memcgp = memcg;
+>> -	ret = __mem_cgroup_try_charge(NULL, gfp_mask, 1, memcgp, false);
+>> -	css_put(&memcg->css);/* drop extra refcnt */
+>
+> css_get() now unbalanced?
+>
+Ah, yes. I needed to drop it.
 
-diff --git a/arch/tile/mm/init.c b/arch/tile/mm/init.c
-index 630dd2c..624d397 100644
---- a/arch/tile/mm/init.c
-+++ b/arch/tile/mm/init.c
-@@ -943,7 +943,7 @@ int arch_add_memory(u64 start, u64 size)
- 	return __add_pages(zone, start_pfn, nr_pages);
- }
- 
--int remove_memory(u64 start, u64 size)
-+int remove_memory(u64 start, u64 size, int movable)
- {
- 	return -EINVAL;
- }
-diff --git a/drivers/acpi/acpi_memhotplug.c b/drivers/acpi/acpi_memhotplug.c
-index d985713..8a9c039 100644
---- a/drivers/acpi/acpi_memhotplug.c
-+++ b/drivers/acpi/acpi_memhotplug.c
-@@ -318,7 +318,8 @@ static int acpi_memory_disable_device(struct acpi_memory_device *mem_device)
- 	 */
- 	list_for_each_entry_safe(info, n, &mem_device->res_list, list) {
- 		if (info->enabled) {
--			result = remove_memory(info->start_addr, info->length);
-+			result = remove_memory(info->start_addr,
-+					info->length, 0);
- 			if (result)
- 				return result;
- 		}
-diff --git a/drivers/base/memory.c b/drivers/base/memory.c
-index 7dda4f7..cc6c5d2 100644
---- a/drivers/base/memory.c
-+++ b/drivers/base/memory.c
-@@ -246,7 +246,7 @@ static bool pages_correctly_reserved(unsigned long start_pfn,
-  * OK to have direct references to sparsemem variables in here.
-  */
- static int
--memory_block_action(unsigned long phys_index, unsigned long action)
-+memory_block_action(unsigned long phys_index, unsigned long action, int movable)
- {
- 	unsigned long start_pfn, start_paddr;
- 	unsigned long nr_pages = PAGES_PER_SECTION * sections_per_block;
-@@ -262,12 +262,12 @@ memory_block_action(unsigned long phys_index, unsigned long action)
- 			if (!pages_correctly_reserved(start_pfn, nr_pages))
- 				return -EBUSY;
- 
--			ret = online_pages(start_pfn, nr_pages);
-+			ret = online_pages(start_pfn, nr_pages, movable);
- 			break;
- 		case MEM_OFFLINE:
- 			start_paddr = page_to_pfn(first_page) << PAGE_SHIFT;
- 			ret = remove_memory(start_paddr,
--					    nr_pages << PAGE_SHIFT);
-+					    nr_pages << PAGE_SHIFT, movable);
- 			break;
- 		default:
- 			WARN(1, KERN_WARNING "%s(%ld, %ld) unknown action: "
-@@ -279,7 +279,8 @@ memory_block_action(unsigned long phys_index, unsigned long action)
- }
- 
- static int memory_block_change_state(struct memory_block *mem,
--		unsigned long to_state, unsigned long from_state_req)
-+		unsigned long to_state, unsigned long from_state_req,
-+		int movable)
- {
- 	int ret = 0;
- 
-@@ -290,16 +291,19 @@ static int memory_block_change_state(struct memory_block *mem,
- 		goto out;
- 	}
- 
--	if (to_state == MEM_OFFLINE)
-+	if (to_state == MEM_OFFLINE) {
-+		movable = mem->movable;
- 		mem->state = MEM_GOING_OFFLINE;
-+	}
- 
--	ret = memory_block_action(mem->start_section_nr, to_state);
-+	ret = memory_block_action(mem->start_section_nr, to_state, movable);
- 
- 	if (ret) {
- 		mem->state = from_state_req;
- 		goto out;
- 	}
- 
-+	mem->movable = movable;
- 	mem->state = to_state;
- 	switch (mem->state) {
- 	case MEM_OFFLINE:
-@@ -325,10 +329,12 @@ store_mem_state(struct device *dev,
- 
- 	mem = container_of(dev, struct memory_block, dev);
- 
--	if (!strncmp(buf, "online", min((int)count, 6)))
--		ret = memory_block_change_state(mem, MEM_ONLINE, MEM_OFFLINE);
-+	if (!strncmp(buf, "online_movable", min((int)count, 14)))
-+		ret = memory_block_change_state(mem, MEM_ONLINE, MEM_OFFLINE, 1);
-+	else if (!strncmp(buf, "online", min((int)count, 6)))
-+		ret = memory_block_change_state(mem, MEM_ONLINE, MEM_OFFLINE, 0);
- 	else if(!strncmp(buf, "offline", min((int)count, 7)))
--		ret = memory_block_change_state(mem, MEM_OFFLINE, MEM_ONLINE);
-+		ret = memory_block_change_state(mem, MEM_OFFLINE, MEM_ONLINE, 0);
- 
- 	if (ret)
- 		return ret;
-diff --git a/include/linux/memory.h b/include/linux/memory.h
-index 1ac7f6e..90eae9c 100644
---- a/include/linux/memory.h
-+++ b/include/linux/memory.h
-@@ -26,6 +26,7 @@ struct memory_block {
- 	unsigned long end_section_nr;
- 	unsigned long state;
- 	int section_count;
-+	int movable;
- 
- 	/*
- 	 * This serializes all state change requests.  It isn't
-diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
-index 910550f..0e6501c 100644
---- a/include/linux/memory_hotplug.h
-+++ b/include/linux/memory_hotplug.h
-@@ -70,7 +70,7 @@ extern int zone_grow_free_lists(struct zone *zone, unsigned long new_nr_pages);
- extern int zone_grow_waitqueues(struct zone *zone, unsigned long nr_pages);
- extern int add_one_highpage(struct page *page, int pfn, int bad_ppro);
- /* VM interface that may be used by firmware interface */
--extern int online_pages(unsigned long, unsigned long);
-+extern int online_pages(unsigned long, unsigned long, int);
- extern void __offline_isolated_pages(unsigned long, unsigned long);
- 
- typedef void (*online_page_callback_t)(struct page *page);
-@@ -233,7 +233,7 @@ static inline int is_mem_section_removable(unsigned long pfn,
- extern int mem_online_node(int nid);
- extern int add_memory(int nid, u64 start, u64 size);
- extern int arch_add_memory(int nid, u64 start, u64 size);
--extern int remove_memory(u64 start, u64 size);
-+extern int remove_memory(u64 start, u64 size, int);
- extern int sparse_add_one_section(struct zone *zone, unsigned long start_pfn,
- 								int nr_pages);
- extern void sparse_remove_one_section(struct zone *zone, struct mem_section *ms);
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index 872f430..458bd0b 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -115,6 +115,8 @@ static inline int get_pageblock_migratetype(struct page *page)
- 	return get_pageblock_flags_group(page, PB_migrate, PB_migrate_end);
- }
- 
-+extern void set_pageblock_migratetype(struct page *page, int migratetype);
-+
- struct free_area {
- 	struct list_head	free_list[MIGRATE_TYPES];
- 	unsigned long		nr_free;
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index 0d7e3ec..cb49893 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -457,7 +457,7 @@ static int online_pages_range(unsigned long start_pfn, unsigned long nr_pages,
- }
- 
- 
--int __ref online_pages(unsigned long pfn, unsigned long nr_pages)
-+int __ref online_pages(unsigned long pfn, unsigned long nr_pages, int movable)
- {
- 	unsigned long onlined_pages = 0;
- 	struct zone *zone;
-@@ -466,6 +466,12 @@ int __ref online_pages(unsigned long pfn, unsigned long nr_pages)
- 	int ret;
- 	struct memory_notify arg;
- 
-+	/* at least, alignment against pageblock is necessary */
-+	if (!IS_ALIGNED(pfn, pageblock_nr_pages))
-+		return -EINVAL;
-+	if (!IS_ALIGNED(nr_pages, pageblock_nr_pages))
-+		return -EINVAL;
-+
- 	lock_memory_hotplug();
- 	arg.start_pfn = pfn;
- 	arg.nr_pages = nr_pages;
-@@ -497,6 +503,21 @@ int __ref online_pages(unsigned long pfn, unsigned long nr_pages)
- 	if (!populated_zone(zone))
- 		need_zonelists_rebuild = 1;
- 
-+#ifdef CONFIG_MEMORY_HOTREMOVE
-+	if (movable) {
-+		unsigned long offset;
-+
-+		for (offset = 0;
-+		     offset < nr_pages;
-+		     offset += pageblock_nr_pages) {
-+			spin_lock_irq(&zone->lock);
-+			set_pageblock_migratetype(pfn_to_page(pfn + offset),
-+					MIGRATE_HOTREMOVE);
-+			spin_unlock_irq(&zone->lock);
-+		}
-+	}
-+#endif
-+
- 	ret = walk_system_ram_range(pfn, nr_pages, &onlined_pages,
- 		online_pages_range);
- 	if (ret) {
-@@ -866,13 +887,14 @@ check_pages_isolated(unsigned long start_pfn, unsigned long end_pfn)
- }
- 
- static int __ref offline_pages(unsigned long start_pfn,
--		  unsigned long end_pfn, unsigned long timeout)
-+		  unsigned long end_pfn, unsigned long timeout, int movable)
- {
- 	unsigned long pfn, nr_pages, expire;
- 	long offlined_pages;
- 	int ret, drain, retry_max, node;
- 	struct zone *zone;
- 	struct memory_notify arg;
-+	int origin_mt = movable ? MIGRATE_HOTREMOVE : MIGRATE_MOVABLE;
- 
- 	BUG_ON(start_pfn >= end_pfn);
- 	/* at least, alignment against pageblock is necessary */
-@@ -892,7 +914,7 @@ static int __ref offline_pages(unsigned long start_pfn,
- 	nr_pages = end_pfn - start_pfn;
- 
- 	/* set above range as isolated */
--	ret = start_isolate_page_range(start_pfn, end_pfn, MIGRATE_MOVABLE);
-+	ret = start_isolate_page_range(start_pfn, end_pfn, origin_mt);
- 	if (ret)
- 		goto out;
- 
-@@ -983,23 +1005,23 @@ failed_removal:
- 	       ((unsigned long long) end_pfn << PAGE_SHIFT) - 1);
- 	memory_notify(MEM_CANCEL_OFFLINE, &arg);
- 	/* pushback to free area */
--	undo_isolate_page_range(start_pfn, end_pfn, MIGRATE_MOVABLE);
-+	undo_isolate_page_range(start_pfn, end_pfn, origin_mt);
- 
- out:
- 	unlock_memory_hotplug();
- 	return ret;
- }
- 
--int remove_memory(u64 start, u64 size)
-+int remove_memory(u64 start, u64 size, int movable)
- {
- 	unsigned long start_pfn, end_pfn;
- 
- 	start_pfn = PFN_DOWN(start);
- 	end_pfn = start_pfn + PFN_DOWN(size);
--	return offline_pages(start_pfn, end_pfn, 120 * HZ);
-+	return offline_pages(start_pfn, end_pfn, 120 * HZ, movable);
- }
- #else
--int remove_memory(u64 start, u64 size)
-+int remove_memory(u64 start, u64 size, int movable)
- {
- 	return -EINVAL;
- }
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 7a4a03b..801772c 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -219,7 +219,7 @@ EXPORT_SYMBOL(nr_online_nodes);
- 
- int page_group_by_mobility_disabled __read_mostly;
- 
--static void set_pageblock_migratetype(struct page *page, int migratetype)
-+void set_pageblock_migratetype(struct page *page, int migratetype)
- {
- 
- 	if (unlikely(page_group_by_mobility_disabled))
--- 
-1.7.4.4
+
+
+
+> ---
+>
+> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+> index 83e7ba9..17a09e8 100644
+> --- a/include/linux/memcontrol.h
+> +++ b/include/linux/memcontrol.h
+> @@ -100,7 +100,7 @@ int mm_match_cgroup(const struct mm_struct *mm, const struct mem_cgroup *cgroup)
+>
+>   extern struct cgroup_subsys_state *mem_cgroup_css(struct mem_cgroup *memcg);
+>
+> -extern int
+> +extern void
+>   mem_cgroup_prepare_migration(struct page *page,
+>   	struct page *newpage, struct mem_cgroup **memcgp, gfp_t gfp_mask);
+>   extern void mem_cgroup_end_migration(struct mem_cgroup *memcg,
+> @@ -279,11 +279,10 @@ static inline struct cgroup_subsys_state
+>   	return NULL;
+>   }
+>
+> -static inline int
+> +static inline void
+>   mem_cgroup_prepare_migration(struct page *page, struct page *newpage,
+>   	struct mem_cgroup **memcgp, gfp_t gfp_mask)
+>   {
+> -	return 0;
+>   }
+>
+>   static inline void mem_cgroup_end_migration(struct mem_cgroup *memcg,
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index f72b5e5..c5161f0 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -2911,7 +2911,8 @@ static void mem_cgroup_do_uncharge(struct mem_cgroup *memcg,
+>    * uncharge if !page_mapped(page)
+>    */
+>   static struct mem_cgroup *
+> -__mem_cgroup_uncharge_common(struct page *page, enum charge_type ctype)
+> +__mem_cgroup_uncharge_common(struct page *page, enum charge_type ctype,
+> +			     bool end_migration)
+>   {
+>   	struct mem_cgroup *memcg = NULL;
+>   	unsigned int nr_pages = 1;
+> @@ -2955,7 +2956,10 @@ __mem_cgroup_uncharge_common(struct page *page, enum charge_type ctype)
+>   		/* fallthrough */
+>   	case MEM_CGROUP_CHARGE_TYPE_DROP:
+>   		/* See mem_cgroup_prepare_migration() */
+> -		if (page_mapped(page) || PageCgroupMigration(pc))
+> +		if (page_mapped(page))
+> +			goto unlock_out;
+> +		if (page_mapped(page) || (!end_migration &&
+> +					  PageCgroupMigration(pc)))
+>   			goto unlock_out;
+>   		break;
+>   	case MEM_CGROUP_CHARGE_TYPE_SWAPOUT:
+> @@ -2989,7 +2993,7 @@ __mem_cgroup_uncharge_common(struct page *page, enum charge_type ctype)
+>   		mem_cgroup_swap_statistics(memcg, true);
+>   		mem_cgroup_get(memcg);
+>   	}
+> -	if (!mem_cgroup_is_root(memcg))
+> +	if (!end_migration && !mem_cgroup_is_root(memcg))
+>   		mem_cgroup_do_uncharge(memcg, nr_pages, ctype);
+>
+>   	return memcg;
+> @@ -3005,14 +3009,14 @@ void mem_cgroup_uncharge_page(struct page *page)
+>   	if (page_mapped(page))
+>   		return;
+>   	VM_BUG_ON(page->mapping && !PageAnon(page));
+> -	__mem_cgroup_uncharge_common(page, MEM_CGROUP_CHARGE_TYPE_MAPPED);
+> +	__mem_cgroup_uncharge_common(page, MEM_CGROUP_CHARGE_TYPE_MAPPED, false);
+>   }
+>
+>   void mem_cgroup_uncharge_cache_page(struct page *page)
+>   {
+>   	VM_BUG_ON(page_mapped(page));
+>   	VM_BUG_ON(page->mapping);
+> -	__mem_cgroup_uncharge_common(page, MEM_CGROUP_CHARGE_TYPE_CACHE);
+> +	__mem_cgroup_uncharge_common(page, MEM_CGROUP_CHARGE_TYPE_CACHE, false);
+>   }
+>
+>   /*
+> @@ -3076,7 +3080,7 @@ mem_cgroup_uncharge_swapcache(struct page *page, swp_entry_t ent, bool swapout)
+>   	if (!swapout) /* this was a swap cache but the swap is unused ! */
+>   		ctype = MEM_CGROUP_CHARGE_TYPE_DROP;
+>
+> -	memcg = __mem_cgroup_uncharge_common(page, ctype);
+> +	memcg = __mem_cgroup_uncharge_common(page, ctype, false);
+>
+>   	/*
+>   	 * record memcg information,  if swapout && memcg != NULL,
+> @@ -3166,19 +3170,18 @@ static inline int mem_cgroup_move_swap_account(swp_entry_t entry,
+>    * Before starting migration, account PAGE_SIZE to mem_cgroup that the old
+>    * page belongs to.
+>    */
+> -int mem_cgroup_prepare_migration(struct page *page,
+> +void mem_cgroup_prepare_migration(struct page *page,
+>   	struct page *newpage, struct mem_cgroup **memcgp, gfp_t gfp_mask)
+>   {
+>   	struct mem_cgroup *memcg = NULL;
+>   	struct page_cgroup *pc;
+>   	enum charge_type ctype;
+> -	int ret = 0;
+>
+>   	*memcgp = NULL;
+>
+>   	VM_BUG_ON(PageTransHuge(page));
+>   	if (mem_cgroup_disabled())
+> -		return 0;
+> +		return;
+>
+>   	pc = lookup_page_cgroup(page);
+>   	lock_page_cgroup(pc);
+> @@ -3223,24 +3226,9 @@ int mem_cgroup_prepare_migration(struct page *page,
+>   	 * we return here.
+>   	 */
+>   	if (!memcg)
+> -		return 0;
+> +		return;
+>
+>   	*memcgp = memcg;
+> -	ret = __mem_cgroup_try_charge(NULL, gfp_mask, 1, memcgp, false);
+> -	css_put(&memcg->css);/* drop extra refcnt */
+> -	if (ret) {
+> -		if (PageAnon(page)) {
+> -			lock_page_cgroup(pc);
+> -			ClearPageCgroupMigration(pc);
+> -			unlock_page_cgroup(pc);
+> -			/*
+> -			 * The old page may be fully unmapped while we kept it.
+> -			 */
+> -			mem_cgroup_uncharge_page(page);
+> -		}
+> -		/* we'll need to revisit this error code (we have -EINTR) */
+> -		return -ENOMEM;
+> -	}
+>   	/*
+>   	 * We charge new page before it's used/mapped. So, even if unlock_page()
+>   	 * is called before end_migration, we can catch all events on this new
+> @@ -3254,7 +3242,7 @@ int mem_cgroup_prepare_migration(struct page *page,
+>   	else
+>   		ctype = MEM_CGROUP_CHARGE_TYPE_SHMEM;
+>   	__mem_cgroup_commit_charge(memcg, newpage, 1, ctype, false);
+> -	return ret;
+> +	return;
+>   }
+>
+>   /* remove redundant charge if migration failed*/
+> @@ -3276,6 +3264,14 @@ void mem_cgroup_end_migration(struct mem_cgroup *memcg,
+>   		used = newpage;
+>   		unused = oldpage;
+>   	}
+> +
+> +	anon = PageAnon(used);
+> +	__mem_cgroup_uncharge_common(unused,
+> +		anon ? MEM_CGROUP_CHARGE_TYPE_MAPPED
+> +		     : MEM_CGROUP_CHARGE_TYPE_CACHE,
+> +		true);
+> +	css_put(&memcg->css);
+> +
+>   	/*
+>   	 * We disallowed uncharge of pages under migration because mapcount
+>   	 * of the page goes down to zero, temporarly.
+> @@ -3285,10 +3281,6 @@ void mem_cgroup_end_migration(struct mem_cgroup *memcg,
+>   	lock_page_cgroup(pc);
+>   	ClearPageCgroupMigration(pc);
+>   	unlock_page_cgroup(pc);
+> -	anon = PageAnon(used);
+> -	__mem_cgroup_uncharge_common(unused,
+> -		anon ? MEM_CGROUP_CHARGE_TYPE_MAPPED
+> -		     : MEM_CGROUP_CHARGE_TYPE_CACHE);
+>
+>   	/*
+
+Ah, ok. them, doesn't clear Migration flag before uncharge() is called.
+
+I think yours is better. Could you post a patch with description ?
+I'll drop this. BTW, how do you think about the patch 1/2 ?
+
+Thanks,
+-Kame
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
