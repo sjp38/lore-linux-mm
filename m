@@ -1,51 +1,124 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
-	by kanga.kvack.org (Postfix) with SMTP id 538B36B009F
-	for <linux-mm@kvack.org>; Tue,  3 Jul 2012 21:45:27 -0400 (EDT)
-Message-ID: <4FF39F0E.4070300@huawei.com>
-Date: Wed, 4 Jul 2012 09:40:30 +0800
-From: Jiang Liu <jiang.liu@huawei.com>
+Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
+	by kanga.kvack.org (Postfix) with SMTP id 923456B0078
+	for <linux-mm@kvack.org>; Tue,  3 Jul 2012 22:27:38 -0400 (EDT)
+Message-ID: <4FF3AA43.1000500@kernel.org>
+Date: Wed, 04 Jul 2012 11:28:19 +0900
+From: Minchan Kim <minchan@kernel.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm: setup pageblock_order before it's used by sparse
-References: <1341047274-5616-1-git-send-email-jiang.liu@huawei.com> <20120703140705.af23d4d3.akpm@linux-foundation.org>
-In-Reply-To: <20120703140705.af23d4d3.akpm@linux-foundation.org>
-Content-Type: text/plain; charset="ISO-8859-1"
+Subject: Re: [PATCH -mm v2] mm: have order > 0 compaction start off where
+ it left
+References: <20120628135520.0c48b066@annuminas.surriel.com> <4FECE844.2050803@kernel.org> <4FF308CE.4070209@redhat.com>
+In-Reply-To: <4FF308CE.4070209@redhat.com>
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mgorman@suse.de>, Tony Luck <tony.luck@intel.com>, Yinghai Lu <yinghai@kernel.org>, Xishi Qiu <qiuxishi@huawei.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, Minchan Kim <minchan@kernel.org>, Keping Chen <chenkeping@huawei.com>, linux-mm@kvack.org, stable@vger.kernel.org, linux-kernel@vger.kernel.org, Jiang Liu <liuj97@gmail.com>
+To: Rik van Riel <riel@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, jaschut@sandia.gov, kamezawa.hiroyu@jp.fujitsu.com
 
-> It's a bit ugly calling set_pageblock_order() from both sparse_init()
-> and from free_area_init_core().  Can we find a single place from which
-> to call it?  It looks like here:
-> 
-> --- a/init/main.c~a
-> +++ a/init/main.c
-> @@ -514,6 +514,7 @@ asmlinkage void __init start_kernel(void
->  		   __stop___param - __start___param,
->  		   -1, -1, &unknown_bootoption);
->  
-> +	set_pageblock_order();
->  	jump_label_init();
->  
->  	/*
-> 
-> would do the trick?
-> 
-> (free_area_init_core is __paging_init and set_pageblock_order() is
-> __init.  I'm too lazy to work out if that's wrong)
+Hi Rik,
 
-Hi Andrew,
-	Thanks for you comments. Yes, this's an issue. 
-And we are trying to find a way to setup  pageorder_block as 
-early as possible. Yinghai has suggested a good way for IA64,
-but we still need help from PPC experts because PPC has the 
-same issue and I'm not familiar with PPC architecture. 
-We will submit another patch once we find an acceptable
-solution here.
-	Thanks!
-	Gerry
+On 07/03/2012 11:59 PM, Rik van Riel wrote:
+
+> On 06/28/2012 07:27 PM, Minchan Kim wrote:
+> 
+>>> index 7ea259d..2668b77 100644
+>>> --- a/mm/compaction.c
+>>> +++ b/mm/compaction.c
+>>> @@ -422,6 +422,17 @@ static void isolate_freepages(struct zone *zone,
+>>>                       pfn -= pageblock_nr_pages) {
+>>>           unsigned long isolated;
+>>>
+>>> +        /*
+>>> +         * Skip ahead if another thread is compacting in the area
+>>> +         * simultaneously. If we wrapped around, we can only skip
+>>> +         * ahead if zone->compact_cached_free_pfn also wrapped to
+>>> +         * above our starting point.
+>>> +         */
+>>> +        if (cc->order>  0&&  (!cc->wrapped ||
+>>
+>>
+>> So if (partial_compaction(cc)&&  ... ) or if (!full_compaction(cc)&&  
+>> ...
+> 
+> I am not sure that we want to abstract away what is happening
+> here.  We also are quite explicit with the meaning of cc->order
+> in compact_finished and other places in the compaction code.
+> 
+>>> +                      zone->compact_cached_free_pfn>
+>>> +                      cc->start_free_pfn))
+>>> +            pfn = min(pfn, zone->compact_cached_free_pfn);
+>>
+>>
+>> The pfn can be where migrate_pfn below?
+>> I mean we need this?
+>>
+>> if (pfn<= low_pfn)
+>>     goto out;
+> 
+> That is a good point. I guess there is a small possibility that
+> another compaction thread is below us with cc->free_pfn and
+> cc->migrate_pfn, and we just inherited its cc->free_pfn via
+> zone->compact_cached_free_pfn, bringing us to below our own
+> cc->migrate_pfn.
+> 
+> Given that this was already possible with parallel compaction
+> in the past, I am not sure how important it is. It could result
+> in wasting a little bit of CPU, but your fix for it looks easy
+> enough.
+
+
+In the past, it was impossible since we have per-compaction context free_pfn.
+ 
+
+> 
+> Mel, any downside to compaction bailing (well, wrapping around)
+> a little earlier, like Minchan suggested?
+
+
+I can't speak for Mel. But IMHO, if we meet such case, we can ignore compact_cached_free_pfn
+, then go with just pfn instead of early bailing.
+
+> 
+>>> @@ -463,6 +474,8 @@ static void isolate_freepages(struct zone *zone,
+>>>            */
+>>>           if (isolated)
+>>>               high_pfn = max(high_pfn, pfn);
+>>> +        if (cc->order>  0)
+>>> +            zone->compact_cached_free_pfn = high_pfn;
+>>
+>>
+>> Why do we cache high_pfn instead of pfn?
+> 
+> Reading the code, because we may not have isolated every
+> possible free page from this memory block.  The same reason
+> cc->free_pfn is set to high_pfn right before the function
+> exits.
+
+> 
+
+>> If we can't isolate any page, compact_cached_free_pfn would become
+>> low_pfn.
+>> I expect it's not what you want.
+> 
+> I guess we should only cache the value of high_pfn if
+> we isolated some pages?  In other words, this:
+> 
+>     if (isolated) {
+>         high_pfn = max(high_pfn, pfn);
+>         if (cc->order > 0)
+>             zone->compact_cached_free_pfn = high_pfn;
+>     }
+> 
+> 
+
+
+I agree.
+
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
