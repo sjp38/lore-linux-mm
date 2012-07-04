@@ -1,92 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx207.postini.com [74.125.245.207])
-	by kanga.kvack.org (Postfix) with SMTP id 9FA5D6B0071
-	for <linux-mm@kvack.org>; Wed,  4 Jul 2012 04:22:58 -0400 (EDT)
-Message-ID: <4FF3FD7F.5020706@cn.fujitsu.com>
-Date: Wed, 04 Jul 2012 16:23:27 +0800
-From: Lai Jiangshan <laijs@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
+	by kanga.kvack.org (Postfix) with SMTP id 608496B005C
+	for <linux-mm@kvack.org>; Wed,  4 Jul 2012 04:24:42 -0400 (EDT)
+Received: by ggm4 with SMTP id 4so7608019ggm.14
+        for <linux-mm@kvack.org>; Wed, 04 Jul 2012 01:24:41 -0700 (PDT)
+Message-ID: <4FF3FDC3.9070108@gmail.com>
+Date: Wed, 04 Jul 2012 16:24:35 +0800
+From: Sha Zhengju <handai.szj@gmail.com>
 MIME-Version: 1.0
-Subject: Re: [RFC PATCH 0/3 V1] mm: add new migrate type and online_movable
- for hotplug
-References: <1341386778-8002-1-git-send-email-laijs@cn.fujitsu.com> <CAEwNFnAHVHKtS2o=gEBSMGq8X18T_xFsK6CwxdfYtz1ne6KCQw@mail.gmail.com>
-In-Reply-To: <CAEwNFnAHVHKtS2o=gEBSMGq8X18T_xFsK6CwxdfYtz1ne6KCQw@mail.gmail.com>
+Subject: Re: [PATCH 6/7] memcg: add per cgroup writeback pages accounting
+References: <1340880885-5427-1-git-send-email-handai.szj@taobao.com> <1340881525-5835-1-git-send-email-handai.szj@taobao.com> <4FF291BE.7030509@jp.fujitsu.com>
+In-Reply-To: <4FF291BE.7030509@jp.fujitsu.com>
+Content-Type: text/plain; charset=ISO-2022-JP
 Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Mel Gorman <mel@csn.ul.ie>, Chris Metcalf -- <cmetcalf@tilera.com>, Len Brown -- <lenb@kernel.org>, Greg Kroah-Hartman -- <gregkh@linuxfoundation.org>, Andi Kleen -- <andi@firstfloor.org>, Julia Lawall -- <julia@diku.dk>, David Howells -- <dhowells@redhat.com>, Benjamin Herrenschmidt -- <benh@kernel.crashing.org>, Kay Sievers -- <kay.sievers@vrfy.org>, Ingo Molnar -- <mingo@elte.hu>, Paul Gortmaker -- <paul.gortmaker@windriver.com>, Daniel Kiper -- <dkiper@net-space.pl>, Andrew Morton -- <akpm@linux-foundation.org>, Konrad Rzeszutek Wilk -- <konrad.wilk@oracle.com>, Michal Hocko -- <mhocko@suse.cz>, KAMEZAWA Hiroyuki -- <kamezawa.hiroyu@jp.fujitsu.com>, Michal Nazarewicz -- <mina86@mina86.com>, Marek Szyprowski -- <m.szyprowski@samsung.com>, Rik van Riel -- <riel@redhat.com>, Bjorn Helgaas -- <bhelgaas@google.com>, Christoph Lameter -- <cl@linux.com>, David Rientjes -- <rientjes@google.com>, LKML <linux-kernel@vger.kernel.org>, linux-acpi@vger.kernel.org, linux-mm@kvack.org
+To: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, gthelen@google.com, yinghan@google.com, akpm@linux-foundation.org, mhocko@suse.cz, linux-kernel@vger.kernel.org, Sha Zhengju <handai.szj@taobao.com>
 
-On 07/04/2012 03:35 PM, Minchan Kim wrote:
-> Hello,
-> 
-> I am not sure when I can review this series by urgent other works.
-> At a glance, it seems to attract me.
-> But unfortunately, when I read description in cover-letter, I can't
-> find "What's the problem?".
-> If you provide that, it could help too many your Ccing people who can
-> judge  "whether I dive into code or not"
+On 07/03/2012 02:31 PM, Kamezawa Hiroyuki wrote:
+> (2012/06/28 20:05), Sha Zhengju wrote:
+>> From: Sha Zhengju <handai.szj@taobao.com>
+>>
+>> Similar to dirty page, we add per cgroup writeback pages accounting. The lock
+>> rule still is:
+>> 	mem_cgroup_begin_update_page_stat()
+>> 	modify page WRITEBACK stat
+>> 	mem_cgroup_update_page_stat()
+>> 	mem_cgroup_end_update_page_stat()
+>>
+>> There're two writeback interface to modify: test_clear/set_page_writeback.
+>>
+>> Signed-off-by: Sha Zhengju <handai.szj@taobao.com>
+> Seems good to me. BTW, you named macros as MEM_CGROUP_STAT_FILE_XXX
+> but I wonder these counters will be used for accounting swap-out's dirty pages..
+>
+> STAT_DIRTY, STAT_WRITEBACK ? do you have better name ?
 
-This patchset adds a stable-movable-migrate-type for memory-management,
-It is used for anti-fragmentation(hugepage, big-order alloction...) and
-hot-removal-of-memory(virtualization, power-conserve, move memory between systems).
-it likes ZONE_MOVABLE, but it is more elastic.
+Okay, STAT_DIRTY/WRITEBACK seem good, I'll change them in next version.
 
-Beside it, it fixes some code of CMA.
 
 Thanks,
-Lai
-
-
-> 
-> Thanks!
-> 
-> Side-Note: What's the "--" of email addresses?
-
-Wrong script, I will resent it.
-
-> 
-> On Wed, Jul 4, 2012 at 4:26 PM, Lai Jiangshan <laijs@cn.fujitsu.com> wrote:
->> The 1st patch fixes the allocation of CMA and prepares for movable-like types.
->>
->> The 2nd patch add a new migrate type which stands for the movable types which
->> pages will not be changed to the other type.
->>
->> I chose the name MIGRATE_HOTREMOVE from MIGRATE_HOTREMOVE
->> and MIGRATE_MOVABLE_STABLE, it just because the first usecase of this new type
->> is for hotremove.
->>
->> The 3th path introduces online_movable. When a memoryblock is onlined
->> by "online_movable", the kernel will not have directly reference to the page
->> of the memoryblock, thus we can remove that memory any time when needed.
->>
->> Different from ZONE_MOVABLE: it can be used for any given memroyblock.
->>
->> Lai Jiangshan (3):
->>   use __rmqueue_smallest when borrow memory from MIGRATE_CMA
->>   add MIGRATE_HOTREMOVE type
->>   add online_movable
->>
->>  arch/tile/mm/init.c            |    2 +-
->>  drivers/acpi/acpi_memhotplug.c |    3 +-
->>  drivers/base/memory.c          |   24 +++++++----
->>  include/linux/memory.h         |    1 +
->>  include/linux/memory_hotplug.h |    4 +-
->>  include/linux/mmzone.h         |   37 +++++++++++++++++
->>  include/linux/page-isolation.h |    2 +-
->>  mm/compaction.c                |    6 +-
->>  mm/memory-failure.c            |    8 +++-
->>  mm/memory_hotplug.c            |   36 +++++++++++++---
->>  mm/page_alloc.c                |   86 ++++++++++++++++-----------------------
->>  mm/vmstat.c                    |    3 +
->>  12 files changed, 136 insertions(+), 76 deletions(-)
->>
->> --
->> 1.7.4.4
->>
-> 
-> 
-> 
+Sha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
