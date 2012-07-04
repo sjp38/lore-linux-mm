@@ -1,57 +1,149 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
-	by kanga.kvack.org (Postfix) with SMTP id 2817E6B0070
-	for <linux-mm@kvack.org>; Wed,  4 Jul 2012 12:15:23 -0400 (EDT)
-Received: by eaan1 with SMTP id n1so3691531eaa.14
-        for <linux-mm@kvack.org>; Wed, 04 Jul 2012 09:15:21 -0700 (PDT)
-Subject: Re: [PATCH 1/3 v2] slub: prefetch next freelist pointer in
- __slab_alloc()
-From: Eric Dumazet <eric.dumazet@gmail.com>
-In-Reply-To: <CAAmzW4P8itKqMLLUqAAtT7GakKecCixd0PV8y0LgFOL+=g_tZQ@mail.gmail.com>
-References: <1340389359-2407-1-git-send-email-js1304@gmail.com>
-	 <1340390729-2821-1-git-send-email-js1304@gmail.com>
-	 <CAOJsxLHSboF0rQdGv8bdgGtinBz5dTo+omQbUnj9on_ewzgNAQ@mail.gmail.com>
-	 <CAAmzW4OdDhn5C_vfMhu3ejzzcXmCCt6r0h=nXUqKJaNYZxg8Bw@mail.gmail.com>
-	 <CAOJsxLGBxeu2sE-wDT+YNyVipmXiPj7Gvmmdo-0zGmJObp2zxg@mail.gmail.com>
-	 <1341415579.2583.2134.camel@edumazet-glaptop>
-	 <CAAmzW4P8itKqMLLUqAAtT7GakKecCixd0PV8y0LgFOL+=g_tZQ@mail.gmail.com>
-Content-Type: text/plain; charset="UTF-8"
-Date: Wed, 04 Jul 2012 18:15:17 +0200
-Message-ID: <1341418517.2583.2252.camel@edumazet-glaptop>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
+	by kanga.kvack.org (Postfix) with SMTP id 2A3A66B0071
+	for <linux-mm@kvack.org>; Wed,  4 Jul 2012 12:15:58 -0400 (EDT)
+Date: Wed, 4 Jul 2012 18:15:55 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH 6/7] memcg: add per cgroup writeback pages accounting
+Message-ID: <20120704161555.GM29842@tiehlicka.suse.cz>
+References: <1340880885-5427-1-git-send-email-handai.szj@taobao.com>
+ <1340881525-5835-1-git-send-email-handai.szj@taobao.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1340881525-5835-1-git-send-email-handai.szj@taobao.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: JoonSoo Kim <js1304@gmail.com>
-Cc: Pekka Enberg <penberg@kernel.org>, Christoph Lameter <cl@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, David Rientjes <rientjes@google.com>
+To: Sha Zhengju <handai.szj@gmail.com>
+Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, gthelen@google.com, yinghan@google.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, Sha Zhengju <handai.szj@taobao.com>, Jan Kara <jack@suse.cz>, Wu Fengguang <fengguang.wu@intel.com>
 
-On Thu, 2012-07-05 at 00:48 +0900, JoonSoo Kim wrote:
-> 2012/7/5 Eric Dumazet <eric.dumazet@gmail.com>:
-> > Its the slow path. I am not convinced its useful on real workloads (not
-> > a benchmark)
-> >
-> > I mean, if a workload hits badly slow path, some more important work
-> > should be done to avoid this at a higher level.
-> >
+[Let's add writeback people]
+
+On Thu 28-06-12 19:05:25, Sha Zhengju wrote:
+> From: Sha Zhengju <handai.szj@taobao.com>
 > 
-> In hackbench test, fast path allocation is about to 93%.
-> Is it insufficient?
+> Similar to dirty page, we add per cgroup writeback pages accounting. The lock
+> rule still is:
+> 	mem_cgroup_begin_update_page_stat()
+> 	modify page WRITEBACK stat
+> 	mem_cgroup_update_page_stat()
+> 	mem_cgroup_end_update_page_stat()
+> 
+> There're two writeback interface to modify: test_clear/set_page_writeback.
+> 
+> Signed-off-by: Sha Zhengju <handai.szj@taobao.com>
+> ---
+>  include/linux/memcontrol.h |    1 +
+>  mm/memcontrol.c            |    5 +++++
+>  mm/page-writeback.c        |   12 ++++++++++++
+>  3 files changed, 18 insertions(+), 0 deletions(-)
+> 
+> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+> index ad37b59..9193d93 100644
+> --- a/include/linux/memcontrol.h
+> +++ b/include/linux/memcontrol.h
+> @@ -39,6 +39,7 @@ enum mem_cgroup_stat_index {
+>  	MEM_CGROUP_STAT_FILE_MAPPED,  /* # of pages charged as file rss */
+>  	MEM_CGROUP_STAT_SWAP, /* # of pages, swapped out */
+>  	MEM_CGROUP_STAT_FILE_DIRTY,  /* # of dirty pages in page cache */
+> +	MEM_CGROUP_STAT_FILE_WRITEBACK,  /* # of pages under writeback */
+>  	MEM_CGROUP_STAT_NSTATS,
+>  };
+>  
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 90e2946..8493119 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -83,6 +83,7 @@ static const char * const mem_cgroup_stat_names[] = {
+>  	"mapped_file",
+>  	"swap",
+>  	"dirty",
+> +	"writeback",
+>  };
+>  
+>  enum mem_cgroup_events_index {
+> @@ -2604,6 +2605,10 @@ static int mem_cgroup_move_account(struct page *page,
+>  		mem_cgroup_move_account_page_stat(from, to,
+>  				MEM_CGROUP_STAT_FILE_DIRTY);
+>  
+> +	if (PageWriteback(page))
+> +		mem_cgroup_move_account_page_stat(from, to,
+> +				MEM_CGROUP_STAT_FILE_WRITEBACK);
+> +
+>  	mem_cgroup_charge_statistics(from, anon, -nr_pages);
+>  
+>  	/* caller should have done css_get */
+> diff --git a/mm/page-writeback.c b/mm/page-writeback.c
+> index e79a2f7..7398836 100644
+> --- a/mm/page-writeback.c
+> +++ b/mm/page-writeback.c
+> @@ -1981,6 +1981,7 @@ EXPORT_SYMBOL(account_page_dirtied);
+>   */
+>  void account_page_writeback(struct page *page)
+>  {
+> +	mem_cgroup_inc_page_stat(page, MEM_CGROUP_STAT_FILE_WRITEBACK);
+>  	inc_zone_page_state(page, NR_WRITEBACK);
+>  }
+>  EXPORT_SYMBOL(account_page_writeback);
+> @@ -2214,7 +2215,10 @@ int test_clear_page_writeback(struct page *page)
+>  {
+>  	struct address_space *mapping = page_mapping(page);
+>  	int ret;
+> +	bool locked;
+> +	unsigned long flags;
+>  
+> +	mem_cgroup_begin_update_page_stat(page, &locked, &flags);
+>  	if (mapping) {
+>  		struct backing_dev_info *bdi = mapping->backing_dev_info;
+>  		unsigned long flags;
+> @@ -2235,9 +2239,12 @@ int test_clear_page_writeback(struct page *page)
+>  		ret = TestClearPageWriteback(page);
+>  	}
+>  	if (ret) {
+> +		mem_cgroup_dec_page_stat(page, MEM_CGROUP_STAT_FILE_WRITEBACK);
+>  		dec_zone_page_state(page, NR_WRITEBACK);
+>  		inc_zone_page_state(page, NR_WRITTEN);
+>  	}
+> +
+> +	mem_cgroup_end_update_page_stat(page, &locked, &flags);
+>  	return ret;
+>  }
+>  
+> @@ -2245,7 +2252,10 @@ int test_set_page_writeback(struct page *page)
+>  {
+>  	struct address_space *mapping = page_mapping(page);
+>  	int ret;
+> +	bool locked;
+> +	unsigned long flags;
+>  
+> +	mem_cgroup_begin_update_page_stat(page, &locked, &flags);
+>  	if (mapping) {
+>  		struct backing_dev_info *bdi = mapping->backing_dev_info;
+>  		unsigned long flags;
+> @@ -2272,6 +2282,8 @@ int test_set_page_writeback(struct page *page)
+>  	}
+>  	if (!ret)
+>  		account_page_writeback(page);
+> +
+> +	mem_cgroup_end_update_page_stat(page, &locked, &flags);
+>  	return ret;
+>  
+>  }
+> -- 
+> 1.7.1
+> 
+> --
+> To unsubscribe from this list: send the line "unsubscribe cgroups" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
 
-7% is insufficient I am afraid.
-
-One prefetch() in the fast path serves 93% of the allocations,
-so added icache pressure is ok.
-
-One prefetch() in slow path serves 7% of the allocations, do you see the
-difference ?
-
-Adding a prefetch() is usually a win when a benchmark uses the path one
-million times per second.
-
-But adding prefetches also increases kernel size and it hurts globally.
-(Latency of the kernel depends on its size, when cpu caches are cold)
-
-
+-- 
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
