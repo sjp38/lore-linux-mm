@@ -1,135 +1,182 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx176.postini.com [74.125.245.176])
-	by kanga.kvack.org (Postfix) with SMTP id 512106B0071
-	for <linux-mm@kvack.org>; Wed,  4 Jul 2012 04:31:31 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 847D13EE0C1
-	for <linux-mm@kvack.org>; Wed,  4 Jul 2012 17:31:29 +0900 (JST)
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 5F9EE45DE56
-	for <linux-mm@kvack.org>; Wed,  4 Jul 2012 17:31:29 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 3D01645DE52
-	for <linux-mm@kvack.org>; Wed,  4 Jul 2012 17:31:29 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 246231DB8038
-	for <linux-mm@kvack.org>; Wed,  4 Jul 2012 17:31:29 +0900 (JST)
-Received: from m1001.s.css.fujitsu.com (m1001.s.css.fujitsu.com [10.240.81.139])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id C0E761DB803A
-	for <linux-mm@kvack.org>; Wed,  4 Jul 2012 17:31:28 +0900 (JST)
-Message-ID: <4FF3FED6.9010700@jp.fujitsu.com>
-Date: Wed, 04 Jul 2012 17:29:10 +0900
-From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 7/7] memcg: print more detailed info while memcg oom happening
-References: <1340880885-5427-1-git-send-email-handai.szj@taobao.com> <1340881609-5935-1-git-send-email-handai.szj@taobao.com>
-In-Reply-To: <1340881609-5935-1-git-send-email-handai.szj@taobao.com>
-Content-Type: text/plain; charset=ISO-2022-JP
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
+	by kanga.kvack.org (Postfix) with SMTP id 13C8C6B0074
+	for <linux-mm@kvack.org>; Wed,  4 Jul 2012 04:38:52 -0400 (EDT)
+From: Lai Jiangshan <laijs@cn.fujitsu.com>
+Subject: [RFC PATCH 1/3 V1 resend] mm, page_alloc: use __rmqueue_smallest when borrow memory from MIGRATE_CMA
+Date: Wed, 4 Jul 2012 16:38:56 +0800
+Message-Id: <1341391138-9547-2-git-send-email-laijs@cn.fujitsu.com>
+In-Reply-To: <1341391138-9547-1-git-send-email-laijs@cn.fujitsu.com>
+References: <1341391138-9547-1-git-send-email-laijs@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sha Zhengju <handai.szj@gmail.com>
-Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, gthelen@google.com, yinghan@google.com, akpm@linux-foundation.org, mhocko@suse.cz, linux-kernel@vger.kernel.org, Sha Zhengju <handai.szj@taobao.com>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Chris Metcalf <cmetcalf@tilera.com>, Len Brown <lenb@kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andi Kleen <andi@firstfloor.org>, Julia Lawall <julia@diku.dk>, David Howells <dhowells@redhat.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Kay Sievers <kay.sievers@vrfy.org>, Ingo Molnar <mingo@elte.hu>, Paul Gortmaker <paul.gortmaker@windriver.com>, Daniel Kiper <dkiper@net-space.pl>, Andrew Morton <akpm@linux-foundation.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Minchan Kim <minchan@kernel.org>, Michal Nazarewicz <mina86@mina86.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Rik van Riel <riel@redhat.com>, Bjorn Helgaas <bhelgaas@google.com>, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, linux-kernel@vger.kernel.org, linux-acpi@vger.kernel.org, linux-mm@kvack.org
 
-(2012/06/28 20:06), Sha Zhengju wrote:
-> From: Sha Zhengju <handai.szj@taobao.com>
-> 
-> While memcg oom happening, the dump info is limited, so add this
-> to provide memcg page stat.
-> 
-> Signed-off-by: Sha Zhengju <handai.szj@taobao.com>
+The pages of MIGRATE_CMA can't not be changed to the other type,
+nor be moved to the other free list. 
 
-Could you split this into a different series ?
-seems good to me in general but...one concern is hierarchy handling.
+==>
+So when we use __rmqueue_fallback() to borrow memory from MIGRATE_CMA,
+one of the highest order page is borrowed and it is split.
+But the free pages resulted by splitting can NOT
+be moved to MIGRATE_MOVABLE.
 
-IIUC, the passed 'memcg' is the root of hierarchy which gets OOM.
-So, the LRU info, which is local to the root memcg, may not contain any good
-information. I think you should visit all memcg under the tree.
+==>
+So in the next time of allocation, we NEED to borrow again,
+another one of the highest order page is borrowed from CMA and it is split.
+and results some other new split free pages.
 
-Thanks,
--Kame
+==>
+So when __rmqueue_fallback() borrows (highest order)memory from MIGRATE_CMA,
+it introduces fragments at the same time and may waste tlb(only one page is used in
+a pageblock).
 
-> ---
->   mm/memcontrol.c |   42 ++++++++++++++++++++++++++++++++++--------
->   1 files changed, 34 insertions(+), 8 deletions(-)
-> 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 8493119..3ed41e9 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -101,6 +101,14 @@ static const char * const mem_cgroup_events_names[] = {
->   	"pgmajfault",
->   };
->   
-> +static const char * const mem_cgroup_lru_names[] = {
-> +	"inactive_anon",
-> +	"active_anon",
-> +	"inactive_file",
-> +	"active_file",
-> +	"unevictable",
-> +};
-> +
->   /*
->    * Per memcg event counter is incremented at every pagein/pageout. With THP,
->    * it will be incremated by the number of pages. This counter is used for
-> @@ -1358,6 +1366,30 @@ static void move_unlock_mem_cgroup(struct mem_cgroup *memcg,
->   	spin_unlock_irqrestore(&memcg->move_lock, *flags);
->   }
->   
-> +#define K(x) ((x) << (PAGE_SHIFT-10))
-> +static void mem_cgroup_print_oom_stat(struct mem_cgroup *memcg)
-> +{
-> +	int i;
-> +
-> +	printk(KERN_INFO "Memory cgroup stat:\n");
-> +	for (i = 0; i < MEM_CGROUP_STAT_NSTATS; i++) {
-> +		if (i == MEM_CGROUP_STAT_SWAP && !do_swap_account)
-> +			continue;
-> +		printk(KERN_CONT "%s:%ldKB ", mem_cgroup_stat_names[i],
-> +			   K(mem_cgroup_read_stat(memcg, i)));
-> +	}
-> +
-> +	for (i = 0; i < MEM_CGROUP_EVENTS_NSTATS; i++)
-> +		printk(KERN_CONT "%s:%lu ", mem_cgroup_events_names[i],
-> +			   mem_cgroup_read_events(memcg, i));
-> +
-> +	for (i = 0; i < NR_LRU_LISTS; i++)
-> +		printk(KERN_CONT "%s:%luKB ", mem_cgroup_lru_names[i],
-> +			   K(mem_cgroup_nr_lru_pages(memcg, BIT(i))));
-> +	printk(KERN_CONT "\n");
-> +
-> +}
-> +
->   /**
->    * mem_cgroup_print_oom_info: Called from OOM with tasklist_lock held in read mode.
->    * @memcg: The memory cgroup that went over limit
-> @@ -1422,6 +1454,8 @@ done:
->   		res_counter_read_u64(&memcg->memsw, RES_USAGE) >> 10,
->   		res_counter_read_u64(&memcg->memsw, RES_LIMIT) >> 10,
->   		res_counter_read_u64(&memcg->memsw, RES_FAILCNT));
-> +
-> +	mem_cgroup_print_oom_stat(memcg);
->   }
->   
->   /*
-> @@ -4043,14 +4077,6 @@ static int mem_control_numa_stat_show(struct cgroup *cont, struct cftype *cft,
->   }
->   #endif /* CONFIG_NUMA */
->   
-> -static const char * const mem_cgroup_lru_names[] = {
-> -	"inactive_anon",
-> -	"active_anon",
-> -	"inactive_file",
-> -	"active_file",
-> -	"unevictable",
-> -};
-> -
->   static inline void mem_cgroup_lru_names_not_uptodate(void)
->   {
->   	BUILD_BUG_ON(ARRAY_SIZE(mem_cgroup_lru_names) != NR_LRU_LISTS);
-> 
+Conclusion:
+We should borrows the smallest order memory from MIGRATE_CMA in such case
 
+Result(good):
+1) use __rmqueue_smallest when borrow memory from MIGRATE_CMA
+2) __rmqueue_fallback() don't handle CMA, it becomes much simpler
+Result(bad):
+__rmqueue_smallest() can't not be inlined to avoid function call overhead.
 
+Signed-off-by: Lai Jiangshan <laijs@cn.fujitsu.com>
+---
+ include/linux/mmzone.h |    1 +
+ mm/page_alloc.c        |   63 ++++++++++++++++--------------------------------
+ 2 files changed, 22 insertions(+), 42 deletions(-)
+
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+index bf3404e..979c333 100644
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -40,6 +40,7 @@ enum {
+ 	MIGRATE_RECLAIMABLE,
+ 	MIGRATE_MOVABLE,
+ 	MIGRATE_PCPTYPES,	/* the number of types on the pcp lists */
++	MIGRATE_PRIME_TYPES = MIGRATE_PCPTYPES,
+ 	MIGRATE_RESERVE = MIGRATE_PCPTYPES,
+ #ifdef CONFIG_CMA
+ 	/*
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 476ae3e..efc327f 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -893,17 +893,10 @@ struct page *__rmqueue_smallest(struct zone *zone, unsigned int order,
+  * This array describes the order lists are fallen back to when
+  * the free lists for the desirable migrate type are depleted
+  */
+-static int fallbacks[MIGRATE_TYPES][4] = {
+-	[MIGRATE_UNMOVABLE]   = { MIGRATE_RECLAIMABLE, MIGRATE_MOVABLE,     MIGRATE_RESERVE },
+-	[MIGRATE_RECLAIMABLE] = { MIGRATE_UNMOVABLE,   MIGRATE_MOVABLE,     MIGRATE_RESERVE },
+-#ifdef CONFIG_CMA
+-	[MIGRATE_MOVABLE]     = { MIGRATE_CMA,         MIGRATE_RECLAIMABLE, MIGRATE_UNMOVABLE, MIGRATE_RESERVE },
+-	[MIGRATE_CMA]         = { MIGRATE_RESERVE }, /* Never used */
+-#else
+-	[MIGRATE_MOVABLE]     = { MIGRATE_RECLAIMABLE, MIGRATE_UNMOVABLE,   MIGRATE_RESERVE },
+-#endif
+-	[MIGRATE_RESERVE]     = { MIGRATE_RESERVE }, /* Never used */
+-	[MIGRATE_ISOLATE]     = { MIGRATE_RESERVE }, /* Never used */
++static int fallbacks[MIGRATE_PRIME_TYPES][2] = {
++	[MIGRATE_UNMOVABLE]   = { MIGRATE_RECLAIMABLE, MIGRATE_MOVABLE   },
++	[MIGRATE_RECLAIMABLE] = { MIGRATE_UNMOVABLE,   MIGRATE_MOVABLE   },
++	[MIGRATE_MOVABLE]     = { MIGRATE_RECLAIMABLE, MIGRATE_UNMOVABLE },
+ };
+ 
+ /*
+@@ -995,16 +988,15 @@ __rmqueue_fallback(struct zone *zone, int order, int start_migratetype)
+ 	struct page *page;
+ 	int migratetype, i;
+ 
++	if (WARN_ON_ONCE(start_migratetype >= MIGRATE_PRIME_TYPES))
++		start_migratetype = MIGRATE_UNMOVABLE;
++
+ 	/* Find the largest possible block of pages in the other list */
+ 	for (current_order = MAX_ORDER-1; current_order >= order;
+ 						--current_order) {
+-		for (i = 0;; i++) {
++		for (i = 0; i < ARRAY_SIZE(fallbacks[0]); i++) {
+ 			migratetype = fallbacks[start_migratetype][i];
+ 
+-			/* MIGRATE_RESERVE handled later if necessary */
+-			if (migratetype == MIGRATE_RESERVE)
+-				break;
+-
+ 			area = &(zone->free_area[current_order]);
+ 			if (list_empty(&area->free_list[migratetype]))
+ 				continue;
+@@ -1018,17 +1010,10 @@ __rmqueue_fallback(struct zone *zone, int order, int start_migratetype)
+ 			 * pages to the preferred allocation list. If falling
+ 			 * back for a reclaimable kernel allocation, be more
+ 			 * aggressive about taking ownership of free pages
+-			 *
+-			 * On the other hand, never change migration
+-			 * type of MIGRATE_CMA pageblocks nor move CMA
+-			 * pages on different free lists. We don't
+-			 * want unmovable pages to be allocated from
+-			 * MIGRATE_CMA areas.
+ 			 */
+-			if (!is_migrate_cma(migratetype) &&
+-			    (unlikely(current_order >= pageblock_order / 2) ||
+-			     start_migratetype == MIGRATE_RECLAIMABLE ||
+-			     page_group_by_mobility_disabled)) {
++			if (unlikely(current_order >= pageblock_order / 2) ||
++			    start_migratetype == MIGRATE_RECLAIMABLE ||
++			    page_group_by_mobility_disabled) {
+ 				int pages;
+ 				pages = move_freepages_block(zone, page,
+ 								start_migratetype);
+@@ -1047,14 +1032,12 @@ __rmqueue_fallback(struct zone *zone, int order, int start_migratetype)
+ 			rmv_page_order(page);
+ 
+ 			/* Take ownership for orders >= pageblock_order */
+-			if (current_order >= pageblock_order &&
+-			    !is_migrate_cma(migratetype))
++			if (current_order >= pageblock_order)
+ 				change_pageblock_range(page, current_order,
+ 							start_migratetype);
+ 
+ 			expand(zone, page, order, current_order, area,
+-			       is_migrate_cma(migratetype)
+-			     ? migratetype : start_migratetype);
++			       start_migratetype);
+ 
+ 			trace_mm_page_alloc_extfrag(page, order, current_order,
+ 				start_migratetype, migratetype);
+@@ -1075,22 +1058,18 @@ static struct page *__rmqueue(struct zone *zone, unsigned int order,
+ {
+ 	struct page *page;
+ 
+-retry_reserve:
+ 	page = __rmqueue_smallest(zone, order, migratetype);
+ 
+-	if (unlikely(!page) && migratetype != MIGRATE_RESERVE) {
++#ifdef CONFIG_CMA
++	if (unlikely(!page) && migratetype == MIGRATE_MOVABLE)
++		page = __rmqueue_smallest(zone, order, MIGRATE_CMA);
++#endif
++
++	if (unlikely(!page))
+ 		page = __rmqueue_fallback(zone, order, migratetype);
+ 
+-		/*
+-		 * Use MIGRATE_RESERVE rather than fail an allocation. goto
+-		 * is used because __rmqueue_smallest is an inline function
+-		 * and we want just one call site
+-		 */
+-		if (!page) {
+-			migratetype = MIGRATE_RESERVE;
+-			goto retry_reserve;
+-		}
+-	}
++	if (unlikely(!page))
++		page = __rmqueue_smallest(zone, order, MIGRATE_RESERVE);
+ 
+ 	trace_mm_page_alloc_zone_locked(page, order, migratetype);
+ 	return page;
+-- 
+1.7.4.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
