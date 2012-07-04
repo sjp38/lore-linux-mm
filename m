@@ -1,41 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx144.postini.com [74.125.245.144])
-	by kanga.kvack.org (Postfix) with SMTP id DE79C6B00A4
-	for <linux-mm@kvack.org>; Tue,  3 Jul 2012 21:43:23 -0400 (EDT)
-Message-ID: <4FF39FE5.7050702@kernel.org>
-Date: Wed, 04 Jul 2012 10:44:05 +0900
-From: Minchan Kim <minchan@kernel.org>
+Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
+	by kanga.kvack.org (Postfix) with SMTP id 538B36B009F
+	for <linux-mm@kvack.org>; Tue,  3 Jul 2012 21:45:27 -0400 (EDT)
+Message-ID: <4FF39F0E.4070300@huawei.com>
+Date: Wed, 4 Jul 2012 09:40:30 +0800
+From: Jiang Liu <jiang.liu@huawei.com>
 MIME-Version: 1.0
-Subject: Re: mmotm 2012-06-29-17-00 uploaded
-References: <20120630000055.AF381A02DE@akpm.mtv.corp.google.com> <20120702105934.GD8050@tiehlicka.suse.cz>
-In-Reply-To: <20120702105934.GD8050@tiehlicka.suse.cz>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [PATCH] mm: setup pageblock_order before it's used by sparse
+References: <1341047274-5616-1-git-send-email-jiang.liu@huawei.com> <20120703140705.af23d4d3.akpm@linux-foundation.org>
+In-Reply-To: <20120703140705.af23d4d3.akpm@linux-foundation.org>
+Content-Type: text/plain; charset="ISO-8859-1"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: akpm@linux-foundation.org, mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Mel Gorman <mgorman@suse.de>, Tony Luck <tony.luck@intel.com>, Yinghai Lu <yinghai@kernel.org>, Xishi Qiu <qiuxishi@huawei.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, Minchan Kim <minchan@kernel.org>, Keping Chen <chenkeping@huawei.com>, linux-mm@kvack.org, stable@vger.kernel.org, linux-kernel@vger.kernel.org, Jiang Liu <liuj97@gmail.com>
 
-Hi Michal,
-
-On 07/02/2012 07:59 PM, Michal Hocko wrote:
-
-> On Fri 29-06-12 17:00:54, Andrew Morton wrote:
->> The mm-of-the-moment snapshot 2012-06-29-17-00 has been uploaded to
->>
->>    http://www.ozlabs.org/~akpm/mmotm/
+> It's a bit ugly calling set_pageblock_order() from both sparse_init()
+> and from free_area_init_core().  Can we find a single place from which
+> to call it?  It looks like here:
 > 
-> memcg-devel tree has been updated as well
+> --- a/init/main.c~a
+> +++ a/init/main.c
+> @@ -514,6 +514,7 @@ asmlinkage void __init start_kernel(void
+>  		   __stop___param - __start___param,
+>  		   -1, -1, &unknown_bootoption);
+>  
+> +	set_pageblock_order();
+>  	jump_label_init();
+>  
+>  	/*
+> 
+> would do the trick?
+> 
+> (free_area_init_core is __paging_init and set_pageblock_order() is
+> __init.  I'm too lazy to work out if that's wrong)
 
-
-It's very helpful. Thanks a lot!
-
-Just a wish.
-It could have tags like mmotm-06-29-17-00.
-
--- 
-Kind regards,
-Minchan Kim
+Hi Andrew,
+	Thanks for you comments. Yes, this's an issue. 
+And we are trying to find a way to setup  pageorder_block as 
+early as possible. Yinghai has suggested a good way for IA64,
+but we still need help from PPC experts because PPC has the 
+same issue and I'm not familiar with PPC architecture. 
+We will submit another patch once we find an acceptable
+solution here.
+	Thanks!
+	Gerry
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
