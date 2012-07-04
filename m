@@ -1,120 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
-	by kanga.kvack.org (Postfix) with SMTP id 923456B0078
-	for <linux-mm@kvack.org>; Tue,  3 Jul 2012 22:27:38 -0400 (EDT)
-Message-ID: <4FF3AA43.1000500@kernel.org>
-Date: Wed, 04 Jul 2012 11:28:19 +0900
+Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
+	by kanga.kvack.org (Postfix) with SMTP id 1B2DB6B0078
+	for <linux-mm@kvack.org>; Tue,  3 Jul 2012 22:33:30 -0400 (EDT)
+Message-ID: <4FF3ABA1.3070808@kernel.org>
+Date: Wed, 04 Jul 2012 11:34:09 +0900
 From: Minchan Kim <minchan@kernel.org>
 MIME-Version: 1.0
 Subject: Re: [PATCH -mm v2] mm: have order > 0 compaction start off where
  it left
-References: <20120628135520.0c48b066@annuminas.surriel.com> <4FECE844.2050803@kernel.org> <4FF308CE.4070209@redhat.com>
-In-Reply-To: <4FF308CE.4070209@redhat.com>
-Content-Type: text/plain; charset=UTF-8
+References: <20120628135520.0c48b066@annuminas.surriel.com> <20120628135940.2c26ada9.akpm@linux-foundation.org> <4FECCB89.2050400@redhat.com> <20120628143546.d02d13f9.akpm@linux-foundation.org> <1341250950.16969.6.camel@lappy> <4FF2435F.2070302@redhat.com> <20120703101024.GG13141@csn.ul.ie> <20120703144808.4daa4244.akpm@linux-foundation.org>
+In-Reply-To: <20120703144808.4daa4244.akpm@linux-foundation.org>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, jaschut@sandia.gov, kamezawa.hiroyu@jp.fujitsu.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, Sasha Levin <levinsasha928@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, jaschut@sandia.gov, kamezawa.hiroyu@jp.fujitsu.com, Dave Jones <davej@redhat.com>
 
-Hi Rik,
+Hi Andrew,
 
-On 07/03/2012 11:59 PM, Rik van Riel wrote:
+On 07/04/2012 06:48 AM, Andrew Morton wrote:
 
-> On 06/28/2012 07:27 PM, Minchan Kim wrote:
+> On Tue, 3 Jul 2012 11:10:24 +0100
+> Mel Gorman <mel@csn.ul.ie> wrote:
 > 
->>> index 7ea259d..2668b77 100644
->>> --- a/mm/compaction.c
->>> +++ b/mm/compaction.c
->>> @@ -422,6 +422,17 @@ static void isolate_freepages(struct zone *zone,
->>>                       pfn -= pageblock_nr_pages) {
->>>           unsigned long isolated;
+>>>>>>>> +          if (cc->order>   0)
+>>>>>>>> +                  zone->compact_cached_free_pfn = high_pfn;
+>>>>>>>
+>>>>>>> Is high_pfn guaranteed to be aligned to pageblock_nr_pages here?  I
+>>>>>>> assume so, if lots of code in other places is correct but it's
+>>>>>>> unobvious from reading this function.
+>>>>>>
+>>>>>> Reading the code a few more times, I believe that it is
+>>>>>> indeed aligned to pageblock size.
+>>>>>
+>>>>> I'll slip this into -next for a while.
+>>>>>
+>>>>> --- a/mm/compaction.c~isolate_freepages-check-that-high_pfn-is-aligned-as-expected
+>>>>> +++ a/mm/compaction.c
+>>>>> @@ -456,6 +456,7 @@ static void isolate_freepages(struct zon
+>>>>>                 }
+>>>>>                 spin_unlock_irqrestore(&zone->lock, flags);
+>>>>>
+>>>>> +               WARN_ON_ONCE(high_pfn&  (pageblock_nr_pages - 1));
+>>>>>                 /*
+>>>>>                  * Record the highest PFN we isolated pages from. When next
+>>>>>                  * looking for free pages, the search will restart here as
+>>>>
+>>>> I've triggered the following with today's -next:
 >>>
->>> +        /*
->>> +         * Skip ahead if another thread is compacting in the area
->>> +         * simultaneously. If we wrapped around, we can only skip
->>> +         * ahead if zone->compact_cached_free_pfn also wrapped to
->>> +         * above our starting point.
->>> +         */
->>> +        if (cc->order>  0&&  (!cc->wrapped ||
+>>> I've been staring at the migrate code for most of the afternoon,
+>>> and am not sure how this is triggered.
+>>>
 >>
+>> That warning is placed in isolate_freepages(). When the migration
+>> scanner and free scanner have almost met it is possible for high_pfn to
+>> be
 >>
->> So if (partial_compaction(cc)&&  ... ) or if (!full_compaction(cc)&&  
->> ...
-> 
-> I am not sure that we want to abstract away what is happening
-> here.  We also are quite explicit with the meaning of cc->order
-> in compact_finished and other places in the compaction code.
-> 
->>> +                      zone->compact_cached_free_pfn>
->>> +                      cc->start_free_pfn))
->>> +            pfn = min(pfn, zone->compact_cached_free_pfn);
+>> cc->migrate_pfn + pageblock_nr_pages
 >>
+>> and that is not necessarily pageblock aligned. Forcing it to be aligned
+>> raises the possibility that the free scanner moves to another zone. This
+>> is very unlikely but could happen if a high zone was very small.
 >>
->> The pfn can be where migrate_pfn below?
->> I mean we need this?
->>
->> if (pfn<= low_pfn)
->>     goto out;
+>> I should have caught this when the warning was proposed :( IMO it's
+>> safe to just drop the warning.
 > 
-> That is a good point. I guess there is a small possibility that
-> another compaction thread is below us with cc->free_pfn and
-> cc->migrate_pfn, and we just inherited its cc->free_pfn via
-> zone->compact_cached_free_pfn, bringing us to below our own
-> cc->migrate_pfn.
+> The rest of this patch takes care to ensure that
+> ->compact_cached_free_pfn is aligned to pageblock_nr_pages.  But it now
+> appears that this particular site will violate that.
 > 
-> Given that this was already possible with parallel compaction
-> in the past, I am not sure how important it is. It could result
-> in wasting a little bit of CPU, but your fix for it looks easy
-> enough.
+> What's up?  Do we need to fix this site, or do we remove all that
+> make-compact_cached_free_pfn-aligned code?
 
 
-In the past, it was impossible since we have per-compaction context free_pfn.
- 
+I vote removing the warning because it doesn't related to Rik's incremental compaction.
+Let's see. 
 
-> 
-> Mel, any downside to compaction bailing (well, wrapping around)
-> a little earlier, like Minchan suggested?
+high_pfn = min(low_pfn, pfn) = cc->migrate_pfn + pageblock_nr_pages.
+In here, cc->migrate_pfn isn't necessarily pageblock aligined.
+So if we don't consider compact_cached_free_pfn, it can hit.
 
-
-I can't speak for Mel. But IMHO, if we meet such case, we can ignore compact_cached_free_pfn
-, then go with just pfn instead of early bailing.
-
-> 
->>> @@ -463,6 +474,8 @@ static void isolate_freepages(struct zone *zone,
->>>            */
->>>           if (isolated)
->>>               high_pfn = max(high_pfn, pfn);
->>> +        if (cc->order>  0)
->>> +            zone->compact_cached_free_pfn = high_pfn;
->>
->>
->> Why do we cache high_pfn instead of pfn?
-> 
-> Reading the code, because we may not have isolated every
-> possible free page from this memory block.  The same reason
-> cc->free_pfn is set to high_pfn right before the function
-> exits.
-
-> 
-
->> If we can't isolate any page, compact_cached_free_pfn would become
->> low_pfn.
->> I expect it's not what you want.
-> 
-> I guess we should only cache the value of high_pfn if
-> we isolated some pages?  In other words, this:
-> 
->     if (isolated) {
->         high_pfn = max(high_pfn, pfn);
->         if (cc->order > 0)
->             zone->compact_cached_free_pfn = high_pfn;
->     }
-> 
-> 
-
-
-I agree.
+static void isolate_freepages()
+{
+	high_pfn = min(low_pfn, pfn) = cc->migrate_pfn + pageblock_nr_pages;
+	for (..) {
+		...
+		 WARN_ON_ONCE(high_pfn & (pageblock_nr_pages - 1));
+		
+	}
+}
 
 -- 
 Kind regards,
