@@ -1,180 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
-	by kanga.kvack.org (Postfix) with SMTP id 13C8C6B0074
-	for <linux-mm@kvack.org>; Wed,  4 Jul 2012 04:38:52 -0400 (EDT)
+	by kanga.kvack.org (Postfix) with SMTP id 524166B0078
+	for <linux-mm@kvack.org>; Wed,  4 Jul 2012 04:38:54 -0400 (EDT)
 From: Lai Jiangshan <laijs@cn.fujitsu.com>
-Subject: [RFC PATCH 1/3 V1 resend] mm, page_alloc: use __rmqueue_smallest when borrow memory from MIGRATE_CMA
-Date: Wed, 4 Jul 2012 16:38:56 +0800
-Message-Id: <1341391138-9547-2-git-send-email-laijs@cn.fujitsu.com>
-In-Reply-To: <1341391138-9547-1-git-send-email-laijs@cn.fujitsu.com>
-References: <1341391138-9547-1-git-send-email-laijs@cn.fujitsu.com>
+Subject: [RFC PATCH 0/3 V1 resend] mm: add new migrate type and online_movable for hotplug
+Date: Wed, 4 Jul 2012 16:38:55 +0800
+Message-Id: <1341391138-9547-1-git-send-email-laijs@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Mel Gorman <mel@csn.ul.ie>
 Cc: Chris Metcalf <cmetcalf@tilera.com>, Len Brown <lenb@kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andi Kleen <andi@firstfloor.org>, Julia Lawall <julia@diku.dk>, David Howells <dhowells@redhat.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Kay Sievers <kay.sievers@vrfy.org>, Ingo Molnar <mingo@elte.hu>, Paul Gortmaker <paul.gortmaker@windriver.com>, Daniel Kiper <dkiper@net-space.pl>, Andrew Morton <akpm@linux-foundation.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Minchan Kim <minchan@kernel.org>, Michal Nazarewicz <mina86@mina86.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Rik van Riel <riel@redhat.com>, Bjorn Helgaas <bhelgaas@google.com>, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, linux-kernel@vger.kernel.org, linux-acpi@vger.kernel.org, linux-mm@kvack.org
 
-The pages of MIGRATE_CMA can't not be changed to the other type,
-nor be moved to the other free list. 
+This patchset adds a stable-movable-migrate-type for memory-management,
+It is used for anti-fragmentation(hugepage, big-order allocation...),
+hot-removal-of-memory(virtualization, power-conserve, move memory between systems
+to make better utilities of memories).
 
-==>
-So when we use __rmqueue_fallback() to borrow memory from MIGRATE_CMA,
-one of the highest order page is borrowed and it is split.
-But the free pages resulted by splitting can NOT
-be moved to MIGRATE_MOVABLE.
+it likes ZONE_MOVABLE, but it is more flexible.
 
-==>
-So in the next time of allocation, we NEED to borrow again,
-another one of the highest order page is borrowed from CMA and it is split.
-and results some other new split free pages.
+o	The 1st patch fixes the allocation of CMA and do prepares
+	for movable-like types.
 
-==>
-So when __rmqueue_fallback() borrows (highest order)memory from MIGRATE_CMA,
-it introduces fragments at the same time and may waste tlb(only one page is used in
-a pageblock).
+o	The 2nd patch add a new migrate type which stands for the movable types
+	which pages will not be changed to the other type.
 
-Conclusion:
-We should borrows the smallest order memory from MIGRATE_CMA in such case
+	I chose the name MIGRATE_HOTREMOVE from MIGRATE_HOTREMOVE
+	and MIGRATE_MOVABLE_STABLE, it just because the first usecase of
+	this new type is for hotremove.
 
-Result(good):
-1) use __rmqueue_smallest when borrow memory from MIGRATE_CMA
-2) __rmqueue_fallback() don't handle CMA, it becomes much simpler
-Result(bad):
-__rmqueue_smallest() can't not be inlined to avoid function call overhead.
+o	The 3th path introduces online_movable. When a memoryblock is onlined
+	by "online_movable", the kernel will not have directly reference to
+	the page of the memoryblock, thus we can remove that memory any time
+	when needed.
 
-Signed-off-by: Lai Jiangshan <laijs@cn.fujitsu.com>
----
- include/linux/mmzone.h |    1 +
- mm/page_alloc.c        |   63 ++++++++++++++++--------------------------------
- 2 files changed, 22 insertions(+), 42 deletions(-)
+	Different from ZONE_MOVABLE: it can be used for any given memroyblock.
+	it can be set after boot(ZONE_MOVABLE zones are configured when booting)
 
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index bf3404e..979c333 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -40,6 +40,7 @@ enum {
- 	MIGRATE_RECLAIMABLE,
- 	MIGRATE_MOVABLE,
- 	MIGRATE_PCPTYPES,	/* the number of types on the pcp lists */
-+	MIGRATE_PRIME_TYPES = MIGRATE_PCPTYPES,
- 	MIGRATE_RESERVE = MIGRATE_PCPTYPES,
- #ifdef CONFIG_CMA
- 	/*
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 476ae3e..efc327f 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -893,17 +893,10 @@ struct page *__rmqueue_smallest(struct zone *zone, unsigned int order,
-  * This array describes the order lists are fallen back to when
-  * the free lists for the desirable migrate type are depleted
-  */
--static int fallbacks[MIGRATE_TYPES][4] = {
--	[MIGRATE_UNMOVABLE]   = { MIGRATE_RECLAIMABLE, MIGRATE_MOVABLE,     MIGRATE_RESERVE },
--	[MIGRATE_RECLAIMABLE] = { MIGRATE_UNMOVABLE,   MIGRATE_MOVABLE,     MIGRATE_RESERVE },
--#ifdef CONFIG_CMA
--	[MIGRATE_MOVABLE]     = { MIGRATE_CMA,         MIGRATE_RECLAIMABLE, MIGRATE_UNMOVABLE, MIGRATE_RESERVE },
--	[MIGRATE_CMA]         = { MIGRATE_RESERVE }, /* Never used */
--#else
--	[MIGRATE_MOVABLE]     = { MIGRATE_RECLAIMABLE, MIGRATE_UNMOVABLE,   MIGRATE_RESERVE },
--#endif
--	[MIGRATE_RESERVE]     = { MIGRATE_RESERVE }, /* Never used */
--	[MIGRATE_ISOLATE]     = { MIGRATE_RESERVE }, /* Never used */
-+static int fallbacks[MIGRATE_PRIME_TYPES][2] = {
-+	[MIGRATE_UNMOVABLE]   = { MIGRATE_RECLAIMABLE, MIGRATE_MOVABLE   },
-+	[MIGRATE_RECLAIMABLE] = { MIGRATE_UNMOVABLE,   MIGRATE_MOVABLE   },
-+	[MIGRATE_MOVABLE]     = { MIGRATE_RECLAIMABLE, MIGRATE_UNMOVABLE },
- };
- 
- /*
-@@ -995,16 +988,15 @@ __rmqueue_fallback(struct zone *zone, int order, int start_migratetype)
- 	struct page *page;
- 	int migratetype, i;
- 
-+	if (WARN_ON_ONCE(start_migratetype >= MIGRATE_PRIME_TYPES))
-+		start_migratetype = MIGRATE_UNMOVABLE;
-+
- 	/* Find the largest possible block of pages in the other list */
- 	for (current_order = MAX_ORDER-1; current_order >= order;
- 						--current_order) {
--		for (i = 0;; i++) {
-+		for (i = 0; i < ARRAY_SIZE(fallbacks[0]); i++) {
- 			migratetype = fallbacks[start_migratetype][i];
- 
--			/* MIGRATE_RESERVE handled later if necessary */
--			if (migratetype == MIGRATE_RESERVE)
--				break;
--
- 			area = &(zone->free_area[current_order]);
- 			if (list_empty(&area->free_list[migratetype]))
- 				continue;
-@@ -1018,17 +1010,10 @@ __rmqueue_fallback(struct zone *zone, int order, int start_migratetype)
- 			 * pages to the preferred allocation list. If falling
- 			 * back for a reclaimable kernel allocation, be more
- 			 * aggressive about taking ownership of free pages
--			 *
--			 * On the other hand, never change migration
--			 * type of MIGRATE_CMA pageblocks nor move CMA
--			 * pages on different free lists. We don't
--			 * want unmovable pages to be allocated from
--			 * MIGRATE_CMA areas.
- 			 */
--			if (!is_migrate_cma(migratetype) &&
--			    (unlikely(current_order >= pageblock_order / 2) ||
--			     start_migratetype == MIGRATE_RECLAIMABLE ||
--			     page_group_by_mobility_disabled)) {
-+			if (unlikely(current_order >= pageblock_order / 2) ||
-+			    start_migratetype == MIGRATE_RECLAIMABLE ||
-+			    page_group_by_mobility_disabled) {
- 				int pages;
- 				pages = move_freepages_block(zone, page,
- 								start_migratetype);
-@@ -1047,14 +1032,12 @@ __rmqueue_fallback(struct zone *zone, int order, int start_migratetype)
- 			rmv_page_order(page);
- 
- 			/* Take ownership for orders >= pageblock_order */
--			if (current_order >= pageblock_order &&
--			    !is_migrate_cma(migratetype))
-+			if (current_order >= pageblock_order)
- 				change_pageblock_range(page, current_order,
- 							start_migratetype);
- 
- 			expand(zone, page, order, current_order, area,
--			       is_migrate_cma(migratetype)
--			     ? migratetype : start_migratetype);
-+			       start_migratetype);
- 
- 			trace_mm_page_alloc_extfrag(page, order, current_order,
- 				start_migratetype, migratetype);
-@@ -1075,22 +1058,18 @@ static struct page *__rmqueue(struct zone *zone, unsigned int order,
- {
- 	struct page *page;
- 
--retry_reserve:
- 	page = __rmqueue_smallest(zone, order, migratetype);
- 
--	if (unlikely(!page) && migratetype != MIGRATE_RESERVE) {
-+#ifdef CONFIG_CMA
-+	if (unlikely(!page) && migratetype == MIGRATE_MOVABLE)
-+		page = __rmqueue_smallest(zone, order, MIGRATE_CMA);
-+#endif
-+
-+	if (unlikely(!page))
- 		page = __rmqueue_fallback(zone, order, migratetype);
- 
--		/*
--		 * Use MIGRATE_RESERVE rather than fail an allocation. goto
--		 * is used because __rmqueue_smallest is an inline function
--		 * and we want just one call site
--		 */
--		if (!page) {
--			migratetype = MIGRATE_RESERVE;
--			goto retry_reserve;
--		}
--	}
-+	if (unlikely(!page))
-+		page = __rmqueue_smallest(zone, order, MIGRATE_RESERVE);
- 
- 	trace_mm_page_alloc_zone_locked(page, order, migratetype);
- 	return page;
+Lai Jiangshan (3):
+  use __rmqueue_smallest when borrow memory from MIGRATE_CMA
+  add MIGRATE_HOTREMOVE type
+  add online_movable
+
+ arch/tile/mm/init.c            |    2 +-
+ drivers/acpi/acpi_memhotplug.c |    3 +-
+ drivers/base/memory.c          |   24 +++++++----
+ include/linux/memory.h         |    1 +
+ include/linux/memory_hotplug.h |    4 +-
+ include/linux/mmzone.h         |   37 +++++++++++++++++
+ include/linux/page-isolation.h |    2 +-
+ mm/compaction.c                |    6 +-
+ mm/memory-failure.c            |    8 +++-
+ mm/memory_hotplug.c            |   36 +++++++++++++---
+ mm/page_alloc.c                |   86 ++++++++++++++++-----------------------
+ mm/vmstat.c                    |    3 +
+ 12 files changed, 136 insertions(+), 76 deletions(-)
+
 -- 
 1.7.4.4
 
