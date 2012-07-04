@@ -1,127 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
-	by kanga.kvack.org (Postfix) with SMTP id 025AE6B006C
-	for <linux-mm@kvack.org>; Wed,  4 Jul 2012 02:57:08 -0400 (EDT)
-From: Rusty Russell <rusty@rustcorp.com.au>
-Subject: Re: [PATCH v3 2/4] virtio_balloon: handle concurrent accesses to virtio_balloon struct elements
-In-Reply-To: <e5f3c6d456f04adeac9fd714a6278424d71a97a0.1341353014.git.aquini@redhat.com>
-References: <cover.1341353014.git.aquini@redhat.com> <e5f3c6d456f04adeac9fd714a6278424d71a97a0.1341353014.git.aquini@redhat.com>
-Date: Wed, 04 Jul 2012 16:08:23 +0930
-Message-ID: <87vci4uj34.fsf@rustcorp.com.au>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
+	by kanga.kvack.org (Postfix) with SMTP id C6F7C6B0071
+	for <linux-mm@kvack.org>; Wed,  4 Jul 2012 03:25:56 -0400 (EDT)
+From: Lai Jiangshan <laijs@cn.fujitsu.com>
+Subject: [RFC PATCH 0/3 V1] mm: add new migrate type and online_movable for hotplug
+Date: Wed, 4 Jul 2012 15:26:15 +0800
+Message-Id: <1341386778-8002-1-git-send-email-laijs@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rafael Aquini <aquini@redhat.com>, linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, "Michael S. Tsirkin" <mst@redhat.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Minchan Kim <minchan@kernel.org>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Chris Metcalf <cmetcalf@tilera.com>, --@kvack.org, Len Brown <lenb@kernel.org>--@kvack.org, Greg Kroah-Hartman <gregkh@linuxfoundation.org>--@kvack.org, Andi Kleen <andi@firstfloor.org>--@kvack.org, Julia Lawall <julia@diku.dk>--@kvack.org, David Howells <dhowells@redhat.com>--@kvack.org, Lai Jiangshan <laijs@cn.fujitsu.com>--@kvack.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>--@kvack.org, Kay Sievers <kay.sievers@vrfy.org>--@kvack.org, Ingo Molnar <mingo@elte.hu>--@kvack.org, Paul Gortmaker <paul.gortmaker@windriver.com>--@kvack.org, Daniel Kiper <dkiper@net-space.pl>--@kvack.org, Andrew Morton <akpm@linux-foundation.org>--@kvack.org, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>--@kvack.org, Michal Hocko <mhocko@suse.cz>--@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>--@kvack.org, Minchan Kim <minchan@kernel.org>--@kvack.org, Michal Nazarewicz <mina86@mina86.com>--@kvack.org, Marek Szyprowski <m.szyprowski@samsung.com>--@kvack.org, Rik van Riel <riel@redhat.com>--@kvack.org, Bjorn Helgaas <bhelgaas@google.com>--@kvack.org, Christoph Lameter <cl@linux.com>--@kvack.org, David Rientjes <rientjes@google.com>--@kvack.org, linux-kernel@vger.kernel.org--, linux-acpi@vger.kernel.org--, linux-mm@kvack.org
 
-On Tue,  3 Jul 2012 20:48:50 -0300, Rafael Aquini <aquini@redhat.com> wrote:
-> This patch introduces access sychronization to critical elements of struct
-> virtio_balloon, in order to allow the thread concurrency compaction/migration
-> bits might ended up imposing to the balloon driver on several situations.
-> 
-> Signed-off-by: Rafael Aquini <aquini@redhat.com>
+The 1st patch fixes the allocation of CMA and prepares for movable-like types.
 
-That's pretty vague, and it's almost impossible to audit this.
+The 2nd patch add a new migrate type which stands for the movable types which
+pages will not be changed to the other type.
 
-It looks very suspicious though:
+I chose the name MIGRATE_HOTREMOVE from MIGRATE_HOTREMOVE
+and MIGRATE_MOVABLE_STABLE, it just because the first usecase of this new type
+is for hotremove.
 
-> -static void tell_host(struct virtio_balloon *vb, struct virtqueue *vq)
-> -{
-> -	struct scatterlist sg;
-> -
-> -	sg_init_one(&sg, vb->pfns, sizeof(vb->pfns[0]) * vb->num_pfns);
-> +/* Protection for concurrent accesses to balloon virtqueues and vb->acked */
-> +DEFINE_MUTEX(vb_queue_completion);
->  
-> +static void tell_host(struct virtio_balloon *vb, struct virtqueue *vq,
-> +		      struct scatterlist *sg)
-> +{
-> +	mutex_lock(&vb_queue_completion);
->  	init_completion(&vb->acked);
->  
->  	/* We should always be able to add one buffer to an empty queue. */
-> -	if (virtqueue_add_buf(vq, &sg, 1, 0, vb, GFP_KERNEL) < 0)
-> +	if (virtqueue_add_buf(vq, sg, 1, 0, vb, GFP_KERNEL) < 0)
->  		BUG();
->  	virtqueue_kick(vq);
->  
->  	/* When host has read buffer, this completes via balloon_ack */
->  	wait_for_completion(&vb->acked);
-> +	mutex_unlock(&vb_queue_completion);
->  }
+The 3th path introduces online_movable. When a memoryblock is onlined
+by "online_movable", the kernel will not have directly reference to the page
+of the memoryblock, thus we can remove that memory any time when needed.
 
-OK, this lock is superceded by Michael's patch, and AFAICT is not due to
-any requirement introduced by these patches.
+Different from ZONE_MOVABLE: it can be used for any given memroyblock.
 
->  static void set_page_pfns(u32 pfns[], struct page *page)
-> @@ -126,9 +132,12 @@ static void set_page_pfns(u32 pfns[], struct page *page)
->  
->  static void fill_balloon(struct virtio_balloon *vb, size_t num)
->  {
-> +	struct scatterlist sg;
-> +	int alloc_failed = 0;
->  	/* We can only do one array worth at a time. */
->  	num = min(num, ARRAY_SIZE(vb->pfns));
->  
-> +	spin_lock(&vb->pfn_list_lock);
->  	for (vb->num_pfns = 0; vb->num_pfns < num;
->  	     vb->num_pfns += VIRTIO_BALLOON_PAGES_PER_PAGE) {
->  		struct page *page = alloc_page(GFP_HIGHUSER | __GFP_NORETRY |
-> @@ -138,8 +147,7 @@ static void fill_balloon(struct virtio_balloon *vb, size_t num)
->  				dev_printk(KERN_INFO, &vb->vdev->dev,
->  					   "Out of puff! Can't get %zu pages\n",
->  					   num);
-> -			/* Sleep for at least 1/5 of a second before retry. */
-> -			msleep(200);
-> +			alloc_failed = 1;
->  			break;
->  		}
->  		set_page_pfns(vb->pfns + vb->num_pfns, page);
-> @@ -149,10 +157,19 @@ static void fill_balloon(struct virtio_balloon *vb, size_t num)
->  	}
->  
->  	/* Didn't get any?  Oh well. */
-> -	if (vb->num_pfns == 0)
-> +	if (vb->num_pfns == 0) {
-> +		spin_unlock(&vb->pfn_list_lock);
->  		return;
-> +	}
-> +
-> +	sg_init_one(&sg, vb->pfns, sizeof(vb->pfns[0]) * vb->num_pfns);
-> +	spin_unlock(&vb->pfn_list_lock);
->  
-> -	tell_host(vb, vb->inflate_vq);
-> +	/* alloc_page failed, sleep for at least 1/5 of a sec before retry. */
-> +	if (alloc_failed)
-> +		msleep(200);
-> +
-> +	tell_host(vb, vb->inflate_vq, &sg);
+Lai Jiangshan (3):
+  use __rmqueue_smallest when borrow memory from MIGRATE_CMA
+  add MIGRATE_HOTREMOVE type
+  add online_movable
 
-So, we drop the lock which procects vp->pfns[] and vb->num_pfns, then
-use it in tell_host?  Surely it could be corrupted between there.
+ arch/tile/mm/init.c            |    2 +-
+ drivers/acpi/acpi_memhotplug.c |    3 +-
+ drivers/base/memory.c          |   24 +++++++----
+ include/linux/memory.h         |    1 +
+ include/linux/memory_hotplug.h |    4 +-
+ include/linux/mmzone.h         |   37 +++++++++++++++++
+ include/linux/page-isolation.h |    2 +-
+ mm/compaction.c                |    6 +-
+ mm/memory-failure.c            |    8 +++-
+ mm/memory_hotplug.c            |   36 +++++++++++++---
+ mm/page_alloc.c                |   86 ++++++++++++++++-----------------------
+ mm/vmstat.c                    |    3 +
+ 12 files changed, 136 insertions(+), 76 deletions(-)
 
-> diff --git a/drivers/virtio/virtio_balloon.c b/drivers/virtio/virtio_balloon.c
-> index bfbc15c..d47c5c2 100644
-> --- a/drivers/virtio/virtio_balloon.c
-> +++ b/drivers/virtio/virtio_balloon.c
-> @@ -51,6 +51,10 @@ struct virtio_balloon
->  
->  	/* Number of balloon pages we've told the Host we're not using. */
->  	unsigned int num_pages;
-> +
-> +	/* Protect 'pages', 'pfns' & 'num_pnfs' against concurrent updates */
-> +	spinlock_t pfn_list_lock;
-> +
->  	/*
->  	 * The pages we've told the Host we're not using.
->  	 * Each page on this list adds VIRTIO_BALLOON_PAGES_PER_PAGE
-
-You might be better of taking num_pfns and pfns[] out of struct
-virtio_balloon, and putting them on the stack (maybe 64, not 256).
-
-Cheers,
-Rusty.
+-- 
+1.7.4.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
