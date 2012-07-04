@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
-	by kanga.kvack.org (Postfix) with SMTP id 1BD166B0074
-	for <linux-mm@kvack.org>; Wed,  4 Jul 2012 11:53:21 -0400 (EDT)
-Date: Wed, 4 Jul 2012 16:53:16 +0100
+Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
+	by kanga.kvack.org (Postfix) with SMTP id 9DF056B0075
+	for <linux-mm@kvack.org>; Wed,  4 Jul 2012 11:53:45 -0400 (EDT)
+Date: Wed, 4 Jul 2012 16:53:41 +0100
 From: Mel Gorman <mgorman@suse.de>
-Subject: [MMTests] Page reclaim performance on ext4
-Message-ID: <20120704155316.GK14154@suse.de>
+Subject: [MMTests] Page reclaim performance on xfs
+Message-ID: <20120704155341.GL14154@suse.de>
 References: <20120620113252.GE4011@suse.de>
  <20120629111932.GA14154@suse.de>
 MIME-Version: 1.0
@@ -15,29 +15,22 @@ In-Reply-To: <20120629111932.GA14154@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, linux-ext4@vger.kernel.org
+Cc: linux-kernel@vger.kernel.org
 
-Configuration:	global-dhp__pagereclaim-performance-ext4
-Result: 	http://www.csn.ul.ie/~mel/postings/mmtests-20120424/global-dhp__pagereclaim-performance-ext4
+Configuration:	global-dhp__pagereclaim-performance-xfs
+Result: 	http://www.csn.ul.ie/~mel/postings/mmtests-20120424/global-dhp__pagereclaim-performance-xfs
 Benchmarks:	postmark largedd fsmark-single fsmark-threaded micro
 
 Summary
 =======
 
-fsmark is showing a performance dip in 3.4 on a 32-bit machine that is
-not matched by results elsewhere.
+For the most part this is looking good. There is excessive swapping
+visible on 3.1 and 3.2 which is seen elsewhere.
 
-A number of tests show that there was swapping activity in 3.1 and 3.2
-which should have been completely unnecessary. It has been fixed but the
-fixes should have been backported as some were based on reports of poor
-interactivity performance during IO.
-
-One largedd test on hydra showed that a number of dirty pages are reaching
-the end of the LRU. This is not visible on other tests but should be
-monitored.
-
-I added linux-ext4 to the list because there are some performance drops
-that are not visible elsewhere so may be filesystem-specific.
+There is a concern with postmark figures. It is showing that we started
+entering direct reclaim in 3.1 on hydra and while the swapping problem
+has been addressed, we are still using direct reclaim and in some cases
+it is quite a high percentage. This did not happen on older kernels.
 
 Benchmark notes
 ===============
@@ -50,8 +43,11 @@ the IO scheduler or underlying filesystem.
 The workloads are predominately file-based. Anonymous page reclaim stress
 testing is covered by another test.
 
-mkfs was run on system startup. No attempt was made to age it. No
-special mkfs or mount options were used.
+mkfs was run on system startup.
+mkfs parameters -f -d agcount=8
+mount options inode64,delaylog,logbsize=262144,nobarrier for the most part.
+        On kernels to old to support delaylog was removed. On kernels
+        where it was the default, it was specified and the warning ignored.
 
 postmark
   o 15000 transactions
@@ -105,83 +101,76 @@ micro
 
 ===========================================================
 Machine:	arnold
-Result:		http://www.csn.ul.ie/~mel/postings/mmtests-20120424/global-dhp__pagereclaim-performance-ext4/arnold/comparison.html
+Result:		http://www.csn.ul.ie/~mel/postings/mmtests-20120424/global-dhp__pagereclaim-performance-xfs/arnold/comparison.html
 Arch:		x86
 CPUs:		1 socket, 2 threads
 Model:		Pentium 4
 Disk:		Single Rotary Disk
-Status:		Generally good but swapping in 3.1 and 3.2
+Status:		Generally good but postmark shows direct reclaim
 ===========================================================
 
 fsmark-single
 -------------
-  There was a performance dip in 3.4 that is not visible for ext3 and so
-  may be filesystem-specific. From a reclaim perspective the figures look ok.
+  Generally good, steady performance throughout. There was direct
+  reclaim activity in early kernels but not any more.
 
 fsmark-threaded
 ---------------
-  This also shows a large performance dip in 3.4 and an increase in variance
-  but again the reclaim stats look ok.
+  Generally good as well.
 
 postmark
 --------
-  As seen on ext3 there was a performance dip for kernels 3.1 to 3.3 that
-  is not quite been recovered in 3.4. There was also swapping activity
-  for the 3.1 and 3.2 kernels which may partially explain the problem.
+  This is interesting. There was a mild performance dip in 3.2 but
+  while the excessive swapping is visible in 3.1 and 3.2 as seen
+  on other tests, it did not translate into a performance drop.
+  What is of concern is that direct reclaim figures are still high
+  for recent kernels even if it is not swapping.
 
 largedd
 -------
-  Completion times are mixed. Again some swapping activity is visible in
-  3.1 and 3.2 which has been resolved but not backported.
+  Completion times have suffered a little and the usual swapping
+  in 3.1 and 3.2 is visible but it's tiny.
 
 micro
 -----
-  Completion figures are not looking bad for 3.4
+  Looking great.
    
 ==========================================================
 Machine:	hydra
-Result:		http://www.csn.ul.ie/~mel/postings/mmtests-20120424/global-dhp__pagereclaim-performance-ext4/hydra/comparison.html
+Result:		http://www.csn.ul.ie/~mel/postings/mmtests-20120424/global-dhp__pagereclaim-performance-xfs/hydra/comparison.html
 Arch:		x86-64
 CPUs:		1 socket, 4 threads
 Model:		AMD Phenom II X4 940
 Disk:		Single Rotary Disk
-Status:		Ok but postmark shows high inode steals
+Status:		Generally ok, but swapping in 3.1 and 3.2
 ==========================================================
 
 fsmark-single
 -------------
-  Performance was declining until 3.1 and been steady every since.
-  Some minor amounts of swapping is visible in 3.1
+  Generally good, swap in 3.1 and 3.2
 
 fsmark-threaded
 ---------------
- Surprisingly stead performance but recent kernels show some direct
- reclaim is going on. It's a tiny percentage and lower than it has
- been historically but keep an eye on it.
+  Generally good, no direct reclaim on recent kernels
 
 postmark
 -------
-  As with other tests 3.1 saw a performance dip and swapping activity. 3.2
-  was also swapping although performance was not affected. While the reclaim
-  figures currently look ok, the actual performance sucks. As the same is
-  not visible on ext3, this may be a filesystem problem.
+  Looking great other than swapping in 3.1 and 3.2 which again
+  does not appear to translate into a performance drop. Direct
+  reclaim started around kernel 3.1 and this has not eased off.
+  It's a sizable percentage.
 
 largedd
 -------
-  Completion figures look good but as before, swapping in 3.1 and 3.2.
-  What is of concern is the pages reclaimed by PageReclaim are excessively
-  high in 3.3 and 3.4. This implies that a large number of dirty pages
-  are reaching the end of the LRU and this can be a problem. Minimally
-  it increases kswapd CPU usage but can also be indicate a flushing
-  problem.
+  Completion times ok, swap on 3.1 and 3.2 is not.
 
 micro
 -----
-  Looks ok.
+  Ok.
 
 ==========================================================
 Machine:	sandy
-Result:		http://www.csn.ul.ie/~mel/postings/mmtests-20120424/global-dhp__pagereclaim-performance-ext4/sandy/comparison.html
+Result:		http://www.csn.ul.ie/~mel/postings/mmtests-20120424/global-dhp__pagereclaim-performance-xfs/sandy/comparison.html
 Arch:		x86-64
 CPUs:		1 socket, 8 threads
 Model:		Intel Core i7-2600
@@ -191,28 +180,26 @@ Status:		Generally ok, but swapping in 3.1 and 3.2
 
 fsmark-single
 -------------
-  Steady performance throughout. Tiny swap activity visible on 3.1 and 3.2
-  which caused no harm but does correlate with other tests.
+  Generally good. No swapping visible on 3.1 and 3.2 but this machine
+  also has more memory.
 
 fsmark-threaded
 ---------------
-  Also steady with the exception of 3.2 which is bizzare from a reclaim
-  perspective. There was no direct reclaim scanning but a lot of inodes
-  were reclaimed.
+  Generally good although 3.2 showed that a lot of inodes were reclaimed.
+  This matches a similar test on ext4 so something odd happened there.
 
 postmark
 --------
-  Same performance dip in 3.1 and 3.2 and accompanied by the same swapping
-  problem.
+  Looking great for performance although some swapping in 3.1 and 3.2
+  and direct reclaim scanning is still high.
 
 largedd
 -------
-  Completion figures generally looking ok although again 3.1 is bad from
-  a swapping and direct reclaim perspective.
+  Completion times look good 
 
 micro
 -----
-  Looks ok
+  Look ok.
 
 -- 
 Mel Gorman
