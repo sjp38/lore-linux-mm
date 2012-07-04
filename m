@@ -1,103 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
-	by kanga.kvack.org (Postfix) with SMTP id 08A4C6B0071
-	for <linux-mm@kvack.org>; Wed,  4 Jul 2012 05:14:37 -0400 (EDT)
-Date: Wed, 4 Jul 2012 11:14:28 +0200
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH v2 1/2] memcg: add res_counter_usage_safe()
-Message-ID: <20120704091428.GB7881@cmpxchg.org>
-References: <4FF3B0DC.5090508@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx133.postini.com [74.125.245.133])
+	by kanga.kvack.org (Postfix) with SMTP id 74B196B0071
+	for <linux-mm@kvack.org>; Wed,  4 Jul 2012 05:20:15 -0400 (EDT)
+Date: Wed, 4 Jul 2012 10:20:06 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH] mm: setup pageblock_order before it's used by sparse
+Message-ID: <20120704092006.GH14154@suse.de>
+References: <1341047274-5616-1-git-send-email-jiang.liu@huawei.com>
+ <20120703140705.af23d4d3.akpm@linux-foundation.org>
+ <4FF39F0E.4070300@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <4FF3B0DC.5090508@jp.fujitsu.com>
+In-Reply-To: <4FF39F0E.4070300@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: linux-mm <linux-mm@kvack.org>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Tejun Heo <tj@kernel.org>
+To: Jiang Liu <jiang.liu@huawei.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Tony Luck <tony.luck@intel.com>, Yinghai Lu <yinghai@kernel.org>, Xishi Qiu <qiuxishi@huawei.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, Minchan Kim <minchan@kernel.org>, Keping Chen <chenkeping@huawei.com>, linux-mm@kvack.org, stable@vger.kernel.org, linux-kernel@vger.kernel.org, Jiang Liu <liuj97@gmail.com>
 
-On Wed, Jul 04, 2012 at 11:56:28AM +0900, Kamezawa Hiroyuki wrote:
-> I think usage > limit means a sign of BUG. But, sometimes,
-> res_counter_charge_nofail() is very convenient. tcp_memcg uses it.
-> And I'd like to use it for helping page migration.
+On Wed, Jul 04, 2012 at 09:40:30AM +0800, Jiang Liu wrote:
+> > It's a bit ugly calling set_pageblock_order() from both sparse_init()
+> > and from free_area_init_core().  Can we find a single place from which
+> > to call it?  It looks like here:
+> > 
+> > --- a/init/main.c~a
+> > +++ a/init/main.c
+> > @@ -514,6 +514,7 @@ asmlinkage void __init start_kernel(void
+> >  		   __stop___param - __start___param,
+> >  		   -1, -1, &unknown_bootoption);
+> >  
+> > +	set_pageblock_order();
+> >  	jump_label_init();
+> >  
+> >  	/*
+> > 
+> > would do the trick?
+> > 
+> > (free_area_init_core is __paging_init and set_pageblock_order() is
+> > __init.  I'm too lazy to work out if that's wrong)
 > 
-> This patch adds res_counter_usage_safe() which returns min(usage,limit).
-> By this we can use res_counter_charge_nofail() without breaking
-> user experience.
-> 
-> Changelog:
->  - read res_counter directrly under lock.
->  - fixed comment.
-> 
-> Acked-by: Glauber Costa <glommer@parallels.com>
-> Acked-by: David Rientjes <rientjes@google.com>
-> Reviewed-by: Michal Hocko <mhocko@suse.cz>
-> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> ---
->  include/linux/res_counter.h |    2 ++
->  kernel/res_counter.c        |   18 ++++++++++++++++++
->  net/ipv4/tcp_memcontrol.c   |    2 +-
->  3 files changed, 21 insertions(+), 1 deletions(-)
-> 
-> diff --git a/include/linux/res_counter.h b/include/linux/res_counter.h
-> index 7d7fbe2..a6f8cc5 100644
-> --- a/include/linux/res_counter.h
-> +++ b/include/linux/res_counter.h
-> @@ -226,4 +226,6 @@ res_counter_set_soft_limit(struct res_counter *cnt,
->  	return 0;
->  }
->  
-> +u64 res_counter_usage_safe(struct res_counter *cnt);
-> +
->  #endif
-> diff --git a/kernel/res_counter.c b/kernel/res_counter.c
-> index ad581aa..f0507cd 100644
-> --- a/kernel/res_counter.c
-> +++ b/kernel/res_counter.c
-> @@ -171,6 +171,24 @@ u64 res_counter_read_u64(struct res_counter *counter, int member)
->  }
->  #endif
->  
-> +/*
-> + * Returns usage. If usage > limit, limit is returned.
-> + * This is useful not to break user experiance if the excess
-> + * is temporary.
-> + */
-> +u64 res_counter_usage_safe(struct res_counter *counter)
-> +{
-> +	unsigned long flags;
-> +	u64 usage, limit;
-> +
-> +	spin_lock_irqsave(&counter->lock, flags);
-> +	limit = counter->limit;
-> +	usage = counter->usage;
-> +	spin_unlock_irqrestore(&counter->lock, flags);
-> +
-> +	return min(usage, limit);
-> +}
-> +
->  int res_counter_memparse_write_strategy(const char *buf,
->  					unsigned long long *res)
->  {
-> diff --git a/net/ipv4/tcp_memcontrol.c b/net/ipv4/tcp_memcontrol.c
-> index b6f3583..a73dce6 100644
-> --- a/net/ipv4/tcp_memcontrol.c
-> +++ b/net/ipv4/tcp_memcontrol.c
-> @@ -180,7 +180,7 @@ static u64 tcp_read_usage(struct mem_cgroup *memcg)
->  		return atomic_long_read(&tcp_memory_allocated) << PAGE_SHIFT;
->  
->  	tcp = tcp_from_cgproto(cg_proto);
-> -	return res_counter_read_u64(&tcp->tcp_memory_allocated, RES_USAGE);
-> +	return res_counter_usage_safe(&tcp->tcp_memory_allocated);
->  }
+> Hi Andrew,
+> 	Thanks for you comments. Yes, this's an issue. 
+> And we are trying to find a way to setup  pageorder_block as 
+> early as possible. Yinghai has suggested a good way for IA64,
+> but we still need help from PPC experts because PPC has the 
+> same issue and I'm not familiar with PPC architecture. 
+> We will submit another patch once we find an acceptable
+> solution here.
 
-Hm, it depends on what you consider more important.
+I think it's overkill to try and do this on a per-architecture basis unless
+you are aware of a case where the per-architecture code cares about the
+value of pageblock_order. I find it implausible that the architecture
+needs to know the value very early in boot as pageblock_order is part of
+the arch-independent memory model. Andrew's suggestion seems reasonable
+to me once the section mess is figured out.
 
-Personally, I think it's more useful to report the truth rather than
-pretending we'd enforce an invariant that we actually don't.  And I
-think it can just be documented that we have to charge memory over the
-limit in certain contexts, so people/scripts should expect usage to
-exceed the limit.
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
