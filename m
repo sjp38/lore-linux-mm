@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
-	by kanga.kvack.org (Postfix) with SMTP id 4C26A6B0073
-	for <linux-mm@kvack.org>; Wed,  4 Jul 2012 20:45:43 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx101.postini.com [74.125.245.101])
+	by kanga.kvack.org (Postfix) with SMTP id 233EA6B0071
+	for <linux-mm@kvack.org>; Wed,  4 Jul 2012 20:45:44 -0400 (EDT)
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [patch 02/11] mm: swapfile: clean up unuse_pte race handling
-Date: Thu,  5 Jul 2012 02:44:54 +0200
-Message-Id: <1341449103-1986-3-git-send-email-hannes@cmpxchg.org>
+Subject: [patch 03/11] mm: shmem: do not try to uncharge known swapcache pages
+Date: Thu,  5 Jul 2012 02:44:55 +0200
+Message-Id: <1341449103-1986-4-git-send-email-hannes@cmpxchg.org>
 In-Reply-To: <1341449103-1986-1-git-send-email-hannes@cmpxchg.org>
 References: <1341449103-1986-1-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
@@ -13,31 +13,48 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Hugh Dickins <hughd@google.com>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-The conditional mem_cgroup_cancel_charge_swapin() is a leftover from
-when the function would continue to reestablish the page even after
-mem_cgroup_try_charge_swapin() failed.  After 85d9fc8 "memcg: fix
-refcnt handling at swapoff", the condition is always true when this
-code is reached.
+Once charged, swapcache pages can only be uncharged after they are
+removed from swapcache again.
+
+Do not try to uncharge pages that are known to be in the swapcache, to
+allow future patches to remove checks for that in the uncharge code.
 
 Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 ---
- mm/swapfile.c |    3 +--
- 1 files changed, 1 insertions(+), 2 deletions(-)
+ mm/shmem.c |   11 ++++++-----
+ 1 files changed, 6 insertions(+), 5 deletions(-)
 
-diff --git a/mm/swapfile.c b/mm/swapfile.c
-index 64408be..75881ca 100644
---- a/mm/swapfile.c
-+++ b/mm/swapfile.c
-@@ -845,8 +845,7 @@ static int unuse_pte(struct vm_area_struct *vma, pmd_t *pmd,
- 
- 	pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
- 	if (unlikely(!pte_same(*pte, swp_entry_to_pte(entry)))) {
--		if (ret > 0)
--			mem_cgroup_cancel_charge_swapin(memcg);
-+		mem_cgroup_cancel_charge_swapin(memcg);
- 		ret = 0;
- 		goto out;
+diff --git a/mm/shmem.c b/mm/shmem.c
+index ee1c5a2..d12b705 100644
+--- a/mm/shmem.c
++++ b/mm/shmem.c
+@@ -302,8 +302,6 @@ static int shmem_add_to_page_cache(struct page *page,
+ 		if (!expected)
+ 			radix_tree_preload_end();
  	}
+-	if (error)
+-		mem_cgroup_uncharge_cache_page(page);
+ 	return error;
+ }
+ 
+@@ -1184,11 +1182,14 @@ static int shmem_getpage_gfp(struct inode *inode, pgoff_t index,
+ 		__set_page_locked(page);
+ 		error = mem_cgroup_cache_charge(page, current->mm,
+ 						gfp & GFP_RECLAIM_MASK);
+-		if (!error)
+-			error = shmem_add_to_page_cache(page, mapping, index,
+-						gfp, NULL);
+ 		if (error)
+ 			goto decused;
++		error = shmem_add_to_page_cache(page, mapping, index,
++						gfp, NULL);
++		if (error) {
++			mem_cgroup_uncharge_cache_page(page);
++			goto decused;
++		}
+ 		lru_cache_add_anon(page);
+ 
+ 		spin_lock(&info->lock);
 -- 
 1.7.7.6
 
