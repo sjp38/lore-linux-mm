@@ -1,42 +1,35 @@
-Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
-	by kanga.kvack.org (Postfix) with SMTP id CB7AA6B004D
-	for <linux-mm@kvack.org>; Tue, 31 Jul 2012 23:55:04 -0400 (EDT)
-Received: by pbbrp2 with SMTP id rp2so410824pbb.14
-        for <linux-mm@kvack.org>; Tue, 31 Jul 2012 20:55:04 -0700 (PDT)
-Date: Tue, 31 Jul 2012 20:55:01 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 2/2] memcg, oom: Clarify some oom dump messages
-In-Reply-To: <1343146334-15161-1-git-send-email-handai.szj@taobao.com>
-Message-ID: <alpine.DEB.2.00.1207312052070.20073@chino.kir.corp.google.com>
-References: <1343146160-15012-1-git-send-email-handai.szj@taobao.com> <1343146334-15161-1-git-send-email-handai.szj@taobao.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
-Sender: owner-linux-mm@kvack.org
-List-ID: <linux-mm.kvack.org>
-To: Sha Zhengju <handai.szj@gmail.com>
-Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, Sha Zhengju <handai.szj@taobao.com>, kamezawa.hiroyu@jp.fujitsu.com, akpm@linux-foundation.org, mhocko@suse.cz, gthelen@google.com, hannes@cmpxchg.org
+From: Cong Wang <xiyou.wangcong@gmail.com>
+Subject: Re: [Patch] mm/policy: use int instead of unsigned for nid
+Date: Thu, 5 Jul 2012 13:37:31 +0000 (UTC)
+Message-ID: <jt45ar$lq0$3@dough.gmane.org>
+References: <1341370901-14187-1-git-send-email-amwang@redhat.com>
+ <alpine.DEB.2.00.1207032342120.32556@chino.kir.corp.google.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Return-path: <linux-kernel-owner@vger.kernel.org>
+Sender: linux-kernel-owner@vger.kernel.org
+To: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org
+List-Id: linux-mm.kvack.org
 
-On Wed, 25 Jul 2012, Sha Zhengju wrote:
+On Wed, 04 Jul 2012 at 06:43 GMT, David Rientjes <rientjes@google.com> wrote:
+> On Wed, 4 Jul 2012, Cong Wang wrote:
+>
+>> From: WANG Cong <xiyou.wangcong@gmail.com>
+>> 
+>> 'nid' should be 'int', not 'unsigned'.
+>> 
+>
+> unsigned is already of type int, so you're saying these occurrences should 
+> become signed, but that's not true since they never return NUMA_NO_NODE.  
+> They are all safe returning unsigned.
+>
 
-> From: Sha Zhengju <handai.szj@taobao.com>
-> 
-> Revise some oom dump messages to avoid misleading admin.
-> 
+Yeah, I knew, just thought using 'int' is consistent, this is a
+trivial patch, not a bugfix.
 
-The only place the oom killer emits information on what it does via the 
-kernel log so changing this has the potential for messing up a number of 
-scripts that people are using for parsing it (this would break some of our 
-log scraping code, for instance).
+> And alloc_page_interleave() doesn't exist anymore since the sched/numa 
+> bits were merged into sched/core, so nobody could apply this patch anyway.
 
-This adds nothing except a bogus message that is emitted when 
-select_bad_process() races with oom_kill_process() and no kill occurs 
-because all threads of the selected process have detached their mm.
-
-Nack.
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Ah, I made this patch against linus tree...
