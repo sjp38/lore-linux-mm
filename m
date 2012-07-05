@@ -1,86 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx140.postini.com [74.125.245.140])
-	by kanga.kvack.org (Postfix) with SMTP id 7488D6B0070
-	for <linux-mm@kvack.org>; Thu,  5 Jul 2012 15:21:54 -0400 (EDT)
-Received: by yenr5 with SMTP id r5so9647386yen.14
-        for <linux-mm@kvack.org>; Thu, 05 Jul 2012 12:21:53 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
+	by kanga.kvack.org (Postfix) with SMTP id DD7B46B0070
+	for <linux-mm@kvack.org>; Thu,  5 Jul 2012 16:07:52 -0400 (EDT)
+Date: Thu, 5 Jul 2012 22:07:32 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH 09/40] autonuma: introduce kthread_bind_node()
+Message-ID: <20120705200732.GP25422@redhat.com>
+References: <1340888180-15355-1-git-send-email-aarcange@redhat.com>
+ <1340888180-15355-10-git-send-email-aarcange@redhat.com>
+ <4FEDCB7A.1060007@redhat.com>
+ <20120629163820.GQ6676@redhat.com>
+ <4FEDDE99.2090105@redhat.com>
+ <20120705130902.GF7881@cmpxchg.org>
+ <4FF5DDFF.70900@parallels.com>
 MIME-Version: 1.0
-In-Reply-To: <20120705104520.GA6773@latitude>
-References: <4FAC200D.2080306@codeaurora.org>
-	<02fc01cd2f50$5d77e4c0$1867ae40$%szyprowski@samsung.com>
-	<4FAD89DC.2090307@codeaurora.org>
-	<CAH+eYFBhO9P7V7Nf+yi+vFPveBks7SFKRHfkz3JOQMBKqnkkUQ@mail.gmail.com>
-	<015f01cd5a95$c1525dc0$43f71940$%szyprowski@samsung.com>
-	<20120705104520.GA6773@latitude>
-Date: Thu, 5 Jul 2012 21:21:53 +0200
-Message-ID: <CA+pa1O2veiMaNJ5M0qeion5kquCyoa2gW79G2zNqb+nbWLs_Qw@mail.gmail.com>
-Subject: Re: Bad use of highmem with buffer_migrate_page?
-From: =?UTF-8?Q?Micha=C5=82_Nazarewicz?= <mina86@mina86.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4FF5DDFF.70900@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rabin Vincent <rabin@rab.in>
-Cc: Marek Szyprowski <m.szyprowski@samsung.com>, Laura Abbott <lauraa@codeaurora.org>, linaro-mm-sig@lists.linaro.org, linux-arm-msm@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Glauber Costa <glommer@parallels.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hillf Danton <dhillf@gmail.com>, Dan Smith <danms@us.ibm.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Srivatsa Vaddagiri <vatsa@linux.vnet.ibm.com>, Christoph Lameter <cl@linux.com>, Alex Shi <alex.shi@intel.com>, Mauricio Faria de Oliveira <mauricfo@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Don Morris <don.morris@hp.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
 
-2012/7/5 Rabin Vincent <rabin@rab.in>:
-> From 8a94126eb3aa2824866405fb78bb0b8316f8fd00 Mon Sep 17 00:00:00 2001
-> From: Rabin Vincent <rabin@rab.in>
-> Date: Thu, 5 Jul 2012 15:52:23 +0530
-> Subject: [PATCH] mm: cma: don't replace lowmem pages with highmem
->
-> The filesystem layer expects pages in the block device's mapping to not
-> be in highmem (the mapping's gfp mask is set in bdget()), but CMA can
-> currently replace lowmem pages with highmem pages, leading to crashes in
-> filesystem code such as the one below:
->
->   Unable to handle kernel NULL pointer dereference at virtual address 00000400
->   pgd = c0c98000
->   [00000400] *pgd=00c91831, *pte=00000000, *ppte=00000000
->   Internal error: Oops: 817 [#1] PREEMPT SMP ARM
->   CPU: 0    Not tainted  (3.5.0-rc5+ #80)
->   PC is at __memzero+0x24/0x80
->   ...
->   Process fsstress (pid: 323, stack limit = 0xc0cbc2f0)
->   Backtrace:
->   [<c010e3f0>] (ext4_getblk+0x0/0x180) from [<c010e58c>] (ext4_bread+0x1c/0x98)
->   [<c010e570>] (ext4_bread+0x0/0x98) from [<c0117944>] (ext4_mkdir+0x160/0x3bc)
->    r4:c15337f0
->   [<c01177e4>] (ext4_mkdir+0x0/0x3bc) from [<c00c29e0>] (vfs_mkdir+0x8c/0x98)
->   [<c00c2954>] (vfs_mkdir+0x0/0x98) from [<c00c2a60>] (sys_mkdirat+0x74/0xac)
->    r6:00000000 r5:c152eb40 r4:000001ff r3:c14b43f0
->   [<c00c29ec>] (sys_mkdirat+0x0/0xac) from [<c00c2ab8>] (sys_mkdir+0x20/0x24)
->    r6:beccdcf0 r5:00074000 r4:beccdbbc
->   [<c00c2a98>] (sys_mkdir+0x0/0x24) from [<c000e3c0>] (ret_fast_syscall+0x0/0x30)
->
-> Fix this by replacing only highmem pages with highmem.
->
-> Reported-by: Laura Abbott <lauraa@codeaurora.org>
-> Signed-off-by: Rabin Vincent <rabin@rab.in>
+Hi Johannes and Glauber,
 
-Acked-by: Michal Nazarewicz <mina86@mina86.com>
+> On 07/05/2012 05:09 PM, Johannes Weiner wrote:
+> > In the very first review iteration of AutoNUMA, Peter argued that the
+> > scheduler people want to use this flag in other places where they rely
+> > on this thing meaning a single cpu, not a group of them (check out the
+> > cpumask test in debug_smp_processor_id() in lib/smp_processor_id.c).
 
-> ---
->  mm/page_alloc.c |    7 ++++++-
->  1 file changed, 6 insertions(+), 1 deletion(-)
->
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 4403009..4a4f921 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -5635,7 +5635,12 @@ static struct page *
->  __alloc_contig_migrate_alloc(struct page *page, unsigned long private,
->                              int **resultp)
->  {
-> -       return alloc_page(GFP_HIGHUSER_MOVABLE);
-> +       gfp_t gfp_mask = GFP_USER | __GFP_MOVABLE;
-> +
-> +       if (PageHighMem(page))
-> +               gfp_mask |= __GFP_HIGHMEM;
-> +
-> +       return alloc_page(gfp_mask);
->  }
->
->  /* [start, end) must belong to a single zone. */
+I already suggested to add a new bitflag for that future optimization,
+when adding the future code, if that optimization is so worth it.
+
+> > 
+> > He also argued that preventing root from rebinding the numa daemons is
+> > not critical to this feature at all.  And I have to agree.
+
+It's not critical indeed, it was just a minor reliability
+improvement just like it is right now for all other usages.
+
+On Thu, Jul 05, 2012 at 10:33:35PM +0400, Glauber Costa wrote:
+> Despite not being a scheduler expert, I'll have to side with that as
+> well. The thing I have in mind is: We have people whose usecase depend
+> on completely isolating cpus, with nothing but a specialized task
+> running on it. For those people, even the hard binding between cpu0 and
+> the timer interrupt is a big problem.
+> 
+> If you force a per-node binding of a kthread, you are basically saying
+> that those people are unable to isolate a node. Or else, that they have
+> to choose between that, and AutoNUMA. Both are suboptimal choices, to
+> say the least.
+
+I'm afraid AutoNUMA in those nanosecond latency setups will be
+disabled, so knuma_migrated won't ever have a chance to run in the
+first place. I doubt they want to risk to hit on a migration fault,
+even if the migration is async with AutoNUMA there's still a chance
+for userland to hit on a migration pte. Plus who starts to alter CPU
+binding on kernel daemon and remove irqs from cpus, is likely to be
+using hard bindings on the userland app too, so not needing AutoNUMA.
+
+However we cannot fell for sure I agree, so your argument of wanting
+to isolate the CPU while leaving AutoNUMA enabled is the most
+convincing argument so far in favour of stopping setting the flag on
+knuma_migrated.
+
+Thanks,
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
