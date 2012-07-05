@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
-	by kanga.kvack.org (Postfix) with SMTP id 54C766B0071
-	for <linux-mm@kvack.org>; Thu,  5 Jul 2012 10:56:56 -0400 (EDT)
-Date: Thu, 5 Jul 2012 15:56:52 +0100
+Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
+	by kanga.kvack.org (Postfix) with SMTP id 0A5076B0071
+	for <linux-mm@kvack.org>; Thu,  5 Jul 2012 10:57:54 -0400 (EDT)
+Date: Thu, 5 Jul 2012 15:57:50 +0100
 From: Mel Gorman <mgorman@suse.de>
-Subject: [MMTests] Interactivity during IO on ext3
-Message-ID: <20120705145652.GN14154@suse.de>
+Subject: [MMTests] Interactivity during IO on ext4
+Message-ID: <20120705145750.GO14154@suse.de>
 References: <20120620113252.GE4011@suse.de>
  <20120629111932.GA14154@suse.de>
 MIME-Version: 1.0
@@ -17,19 +17,18 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org
 
-Configuration:	global-dhp__io-interactive-performance-ext3
-Result: 	http://www.csn.ul.ie/~mel/postings/mmtests-20120424/global-dhp__io-interactive-performance-ext3
+Configuration:	global-dhp__io-interactive-performance-ext4
+Result: 	http://www.csn.ul.ie/~mel/postings/mmtests-20120424/global-dhp__io-interactive-performance-ext4
 Benchmarks:	postmark largedd fsmark-single fsmark-threaded micro
 
 Summary
 =======
 
-There are some terrible results in here that might explain some of the
-interactivity mess if the distribution defaulted to ext3 or was was chosen
-by the user for any reason. In some cases average read latency has doubled,
-tripled and in one case almost quadrupled since 2.6.32. Worse, we are not
-consistently good or bad. I see patterns like great release, bad release,
-good release, bad again etc.
+Unlike ext3, these figures look generally good. There are a few wrinkles in
+there but indications are that interactivity jitter experienced by users
+may have a filesystem-specific component.  One possibility is that there
+are differences in how metadata reads are sent to the IO scheduler but I
+did not confirm this.
 
 Benchmark notes
 ===============
@@ -74,186 +73,131 @@ I'll be giving that more thought.
 
 ===========================================================
 Machine:	arnold
-Result:		http://www.csn.ul.ie/~mel/postings/mmtests-20120424/global-dhp__io-interactive-performance-ext3/arnold/comparison.html
+Result:		http://www.csn.ul.ie/~mel/postings/mmtests-20120424/global-dhp__io-interactive-performance-ext4/arnold/comparison.html
 Arch:		x86
 CPUs:		1 socket, 2 threads
 Model:		Pentium 4
 Disk:		Single Rotary Disk
+Status:		
 ===========================================================
 
 fsmark-single
 -------------
-  Completion times since 3.2 have been badly affected which coincides with
-  the introduction of IO-less dirty page throttling. 3.3 was particularly
-  bad.
+  Completion times are more or less ok. 3.2 showed a big improvement
+  which is not in line with what was experienced in ext3.
 
-  2.6.32 was TERRIBLE in terms of read-latencies with the average latency
-  and max latencies looking awful. The 90th percentile was close to 4
-  seconds and as a result the graphs are even more of a complete mess than
-  they might have been otherwise.
-
-  Otherwise it's worth looking closely at 3.0 and 3.2. In 3.0, 95% of the
-  reads were below 206ms but in 3.2 this had grown to 273ms. The latency
-  of the other 5% results increased from 481ms to 774ms.
-
-  3.4 is looking better at least.
+  As with ext3, kernel 2.6.32 was a disaster but otherwise our maximum
+  read latencies were looking up until 3.3 when there was a big jump that
+  was not fixed in 3.4. By and large though the average latencies are 
+  looking good and while the max latency is bad, the 99th percentile
+  was looking good implying that the worst latencies are rarely
+  experienced.
 
 fsmark-threaded
 ---------------
-  With multiple writers, completion times have been affected and again 3.2
-  showed a big increase.
+  Completion times look generally good with 3.1 being an exception.
 
-  Again, 2.6.32 is a complete disaster and mucks up all the graphs.
-
-  Otherwise, our average read latencies do not look too bad. However, our
-  worst-case latencies look pretty bad. Kernel 3.2 is showing that at worst
-  a read() can take 4.3 seconds when there are multiple parallel writers.
-  This must be fairly rare as 99% of the latencies were below 1 second but
-  a 4 second stall in an application sometimes would feel pretty bad.
-
-  Maximum latencies have improved a bit in 3.4 but are still around a half
-  second higher than 3.0 and 3.1 kernels.
+  Latencies are also looking good.
   
 postmark
 --------
-  This is interesting in that 3.2 kernels results show an improvement in
-  maximum read latencies and 3.4 is looking worse. The completion times
-  for postmark were very badly affected in 3.4. Almost the opposite of what
-  the fsmark workloads showed. It's hard to draw any sensible conclusions
-  from this that match up with fsmark.
+  Similar story. Completion times and latencies generally look good.
 
 largedd
 -------
-  Completion times are more or less unaffected.
+  Completion times were higher from 2.6.39 up until 3.3 taking nearly
+  two minutes to complete the copy in some cases.
 
-  Maximum read latencies are affected though. In 2.6.39, our maximum latency
-  was 781ms and was 13163ms in 3.0 and 1122ms in 3.2 which might explain 
-  some of the interactivity complains around those kernels when a large
-  cp was going on. Right now, things are looking very good.
+  This is reflected in some of the maximum latencies in that window
+  but by and large the read latencies are much improved.
 
 micro
 -----
-  Completion times look ok.
-
-  2.6.32 is again hilariously bad.
-
-  3.1 also showed very poor maximum latencies but 3.2 and later kernels
-  look good.
+  Looking good all round.
 
 
 ==========================================================
 Machine:	hydra
-Result:		http://www.csn.ul.ie/~mel/postings/mmtests-20120424/global-dhp__io-interactive-performance-ext3/hydra/comparison.html
+Result:		http://www.csn.ul.ie/~mel/postings/mmtests-20120424/global-dhp__io-interactive-performance-ext4/hydra/comparison.html
 Arch:		x86-64
 CPUs:		1 socket, 4 threads
 Model:		AMD Phenom II X4 940
 Disk:		Single Rotary Disk
+Status:		Ok
 ==========================================================
 
 fsmark-single
 -------------
-  Completion times are all over the place with a big increase in 3.2 that
-  improved a bit since but not as good as 3.1 kernels were.
+  Completion times have degraded slightly but are acceptable.
 
-  Unlike arnold, 2.6.32 is not a complete mess and makes a comparison more
-  meaningful. Our maximum latencies have jumped around a lot with 3.2
-  being particularly bad and 3.4 not being much better. 3.1 and 3.3 were
-  both good in terms of maximum latency.
-
-  Average latency is shot to hell. In 2.6.32 it was 349ms and it's now 781ms.
-  3.2 was really bad but it's not like 3.0 or 3.1 were fantastic either.
+  All the latency figures look good with some big improvements.
 
 fsmark-threaded
 ---------------
-  Completion times are more or less ok.
-
-   Maximum read latency is worse with increases of around 500ms in worst
-   latency and even the 90th percentile is not looking great.
-
-   Average latency is completely shot.
+  Same story, generally looking good with big improvements.
 
 postmark
 --------
-  Again impossible to draw sensible conclusions from this. The throughput
-  graph makes a nice sawtooth pattern suitable for poking you in the eye
-  until it bleeds.
-
-  It's all over the place in terms of completion times. Average latency
-  figures are relatively ok but still regressed. Maximum latencies have
-  increased.
+  Completion times are a bit varied but latencies look good.
 
 largedd
 -------
-  Completion times are more or less steady although 3.2 showed a large
-  jump in the length time it took to copy the files. 3.2 took almost
-  10 minutes more to copy the files than 3.1 or 3.3.
+  Completion times look good.
 
-  Maximum latencies in 3.2 were very high and the 90th percentile also
-  looked pretty bad. 3.4 is better but still way worse than 2.6.32.
-
-  Average latency would be laughable if it was not so tragic.
+  Latency has improved since 2.6.32 but there is a big wrinkle
+  in there. Maximum latency was 337ms in kernel 3.2 but in 3.3
+  it was 707ms and in 3.4 was 990ms. The 99th percentile figures
+  look good but something happened to allow bigger outliers.
 
 micro
 -----
-  This was looking better until 3.4 when max latencies jumped but by
-  and large this looks good.
+  For the most part, looks good but there was a big jump in the
+  maximum latency in kernel 3.4. Like largedd, the 99th percentil
+  did not look as bad so it might be an outlier.
 
 ==========================================================
 Machine:	sandy
-Result:		http://www.csn.ul.ie/~mel/postings/mmtests-20120424/global-dhp__io-interactive-performance-ext3/sandy/comparison.html
+Result:		http://www.csn.ul.ie/~mel/postings/mmtests-20120424/global-dhp__io-interactive-performance-ext4/sandy/comparison.html
 Arch:		x86-64
 CPUs:		1 socket, 8 threads
 Model:		Intel Core i7-2600
 Disk:		Single Rotary Disk
+Status:		
 ==========================================================
 
 fsmark-single
 -------------
-  Completion times are more or less ok. They've been worse since 3.2 
-  but still better than 3.2 by a big margin.
+  Completion times have degraded slightly but are acceptble.
 
-  Read latencies are another story. Maximum latency has increased a
-  LOT from 1.3 seconds to 3.1 seconds in kernel 3.4. Kernel 3.0 had
-  a maximum latency of 6.5 seconds!
-
-  The 90th percentile figures are not much better with latencies of
-  more than 1 second being recorded from all the way back to 2.6.39.
-
-  Average latencies have more than tripled from 230ms to 812ms.
+  All the latency figures look good with some big improvements.
 
 fsmark-threaded
 ---------------
-  Completion times are generally good.
+  Completion times are improved although curiously it is not reflected
+  in the performance figures for fsmark itself.
 
-  Read latencies are completely screwed. Kernel 3.2 had a maximum latency
-  of 15 seconds! 3.4 has improved but it's still way too high. Even
-  the 90th percentile figures look completely crap and average latency
-  is of course bad with such high latencies being recorded.
+  Maximum latency figures generally look good other than a mild jump
+  in 3.2 that has almost being recovered.
 
 postmark
 --------
-  Once again the throughput figures make a nice stab stab shape for the eyes.
+  Completion times have varied a lot and 3.4 is particularly high.
 
-  The latency figures are sufficiently crap that it depresses me to talk
-  about them.
+  The latency figures in general regressed in 3.4 in comparison to
+  3.3 but by and large the figures look good.
 
 largedd
 -------
-  Completion times look decent.
 
-  Which does not get over the shock of the latency figures were again are
-  shocking.  6 second maximum latencies in 3.3 and 3.4 kernels although
-  3.2 was actually quite good. Even 90th percentile maximum latencies have
-  almost doubled since 3.2 and of course the average latencies have almost
-  tripled in line with other results.
+  Completion times generally look good but were noticably worse for
+  a number of releases between 2.6.39 and 3.2. This same window showed
+  much higher latency figures with kernel 3.1 showing a maximum latency
+  of 1.3 seconds for example. These were mostly outliers though as
+  the 99th percentile generally looked ok.
 
 micro
 -----
-  Completion times look decent. 
-
-  The read latencies are ok. The average latency is higher because the
-  latencies to the 90th percentile are higher but the maximum latencies
-  have improved so overall I guess this is a win.
+  Generally much improved.
 
 -- 
 Mel Gorman
