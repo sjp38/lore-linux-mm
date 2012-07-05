@@ -1,64 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
-	by kanga.kvack.org (Postfix) with SMTP id 2F5706B0074
-	for <linux-mm@kvack.org>; Thu,  5 Jul 2012 08:37:48 -0400 (EDT)
-Received: by vcbfl10 with SMTP id fl10so6747356vcb.14
-        for <linux-mm@kvack.org>; Thu, 05 Jul 2012 05:37:47 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <1341412376-6272-1-git-send-email-will.deacon@arm.com>
-References: <1341412376-6272-1-git-send-email-will.deacon@arm.com>
-Date: Thu, 5 Jul 2012 20:37:46 +0800
-Message-ID: <CAJd=RBAmF3dtb8wtEbS-A7BNT=RLsb5emQQWVU8ioeQOO8D7NA@mail.gmail.com>
-Subject: Re: [PATCH] mm: hugetlb: flush dcache before returning zeroed huge
- page to userspace
-From: Hillf Danton <dhillf@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
+	by kanga.kvack.org (Postfix) with SMTP id 785EE6B0071
+	for <linux-mm@kvack.org>; Thu,  5 Jul 2012 08:46:19 -0400 (EDT)
+Received: from list by plane.gmane.org with local (Exim 4.69)
+	(envelope-from <glkm-linux-mm-2@m.gmane.org>)
+	id 1SmlRn-0006cV-Q3
+	for linux-mm@kvack.org; Thu, 05 Jul 2012 14:46:15 +0200
+Received: from 117.57.98.8 ([117.57.98.8])
+        by main.gmane.org with esmtp (Gmexim 0.1 (Debian))
+        id 1AlnuQ-0007hv-00
+        for <linux-mm@kvack.org>; Thu, 05 Jul 2012 14:46:15 +0200
+Received: from xiyou.wangcong by 117.57.98.8 with local (Gmexim 0.1 (Debian))
+        id 1AlnuQ-0007hv-00
+        for <linux-mm@kvack.org>; Thu, 05 Jul 2012 14:46:15 +0200
+From: Cong Wang <xiyou.wangcong@gmail.com>
+Subject: Re: [PATCH 1/4] mm/hotplug: correctly setup fallback zonelists when
+ creating new pgdat
+Date: Thu, 5 Jul 2012 12:46:06 +0000 (UTC)
+Message-ID: <jt42ad$e4v$1@dough.gmane.org>
+References: <1341481532-1700-1-git-send-email-jiang.liu@huawei.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Will Deacon <will.deacon@arm.com>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, mhocko@suse.cz, linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org
 
-On Wed, Jul 4, 2012 at 10:32 PM, Will Deacon <will.deacon@arm.com> wrote:
-> When allocating and returning clear huge pages to userspace as a
-> response to a fault, we may zero and return a mapping to a previously
-> dirtied physical region (for example, it may have been written by
-> a private mapping which was freed as a result of an ftruncate on the
-> backing file). On architectures with Harvard caches, this can lead to
-> I/D inconsistency since the zeroed view may not be visible to the
-> instruction stream.
->
-> This patch solves the problem by flushing the region after allocating
-> and clearing a new huge page. Note that PowerPC avoids this issue by
-> performing the flushing in their clear_user_page implementation to keep
-> the loader happy, however this is closely tied to the semantics of the
-> PG_arch_1 page flag which is architecture-specific.
->
-> Acked-by: Catalin Marinas <catalin.marinas@arm.com>
-> Signed-off-by: Will Deacon <will.deacon@arm.com>
-> ---
+On Thu, 05 Jul 2012 at 09:45 GMT, Jiang Liu <jiang.liu@huawei.com> wrote:
+> +
+> +	if (self && !node_online(self->node_id)) {
+> +		build_zonelists(self);
+> +		build_zonelist_cache(self);
+> +	}
+> +
 
-Thanks:)
-
-Acked-by: Hillf Danton <dhillf@gmail.com>
-
->  mm/hugetlb.c |    1 +
->  1 files changed, 1 insertions(+), 0 deletions(-)
->
-> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> index e198831..b83d026 100644
-> --- a/mm/hugetlb.c
-> +++ b/mm/hugetlb.c
-> @@ -2646,6 +2646,7 @@ retry:
->                         goto out;
->                 }
->                 clear_huge_page(page, address, pages_per_huge_page(h));
-> +               flush_dcache_page(page);
->                 __SetPageUptodate(page);
->
->                 if (vma->vm_flags & VM_MAYSHARE) {
-> --
-> 1.7.4.1
->
+You don't need to test !node_online() here, as you are sure it is not
+online yet.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
