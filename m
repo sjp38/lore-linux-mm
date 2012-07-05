@@ -1,119 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
-	by kanga.kvack.org (Postfix) with SMTP id 97A936B0073
-	for <linux-mm@kvack.org>; Thu,  5 Jul 2012 11:40:08 -0400 (EDT)
-Received: by ghrr18 with SMTP id r18so9362813ghr.14
-        for <linux-mm@kvack.org>; Thu, 05 Jul 2012 08:40:07 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
+	by kanga.kvack.org (Postfix) with SMTP id 4A0D86B0073
+	for <linux-mm@kvack.org>; Thu,  5 Jul 2012 11:56:13 -0400 (EDT)
+Received: by pbbrp2 with SMTP id rp2so15759112pbb.14
+        for <linux-mm@kvack.org>; Thu, 05 Jul 2012 08:56:12 -0700 (PDT)
+Message-ID: <4FF5B909.30409@gmail.com>
+Date: Thu, 05 Jul 2012 23:55:53 +0800
+From: Jiang Liu <liuj97@gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <Pine.LNX.4.64.1207050813520.18685@cobra.newdream.net>
-References: <1340880885-5427-1-git-send-email-handai.szj@taobao.com>
-	<1340881423-5703-1-git-send-email-handai.szj@taobao.com>
-	<Pine.LNX.4.64.1206282218260.18049@cobra.newdream.net>
-	<4FF15782.5090807@gmail.com>
-	<Pine.LNX.4.64.1207020745180.23342@cobra.newdream.net>
-	<4FF3FAC4.1000005@gmail.com>
-	<Pine.LNX.4.64.1207050813520.18685@cobra.newdream.net>
-Date: Thu, 5 Jul 2012 23:40:07 +0800
-Message-ID: <CAFj3OHUeMv_eQDVT3nOeY8t87VBRwcj7i9xsgO_6v9v7mu33HQ@mail.gmail.com>
-Subject: Re: [PATCH 4/7] Use vfs __set_page_dirty interface instead of doing
- it inside filesystem
-From: Sha Zhengju <handai.szj@gmail.com>
+Subject: Re: [RFC PATCH 1/4] mm: introduce a safer interface to check whether
+ a page is managed by SLxB
+References: <1341287837-7904-1-git-send-email-jiang.liu@huawei.com> <alpine.DEB.2.00.1207050942540.4984@router.home>
+In-Reply-To: <alpine.DEB.2.00.1207050942540.4984@router.home>
 Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sage Weil <sage@inktank.com>
-Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, gthelen@google.com, yinghan@google.com, akpm@linux-foundation.org, mhocko@suse.cz, linux-kernel@vger.kernel.org, torvalds@linux-foundation.org, viro@zeniv.linux.org.uk, linux-fsdevel@vger.kernel.org, sage@newdream.net, ceph-devel@vger.kernel.org, Sha Zhengju <handai.szj@taobao.com>
+To: Christoph Lameter <cl@linux.com>
+Cc: Jiang Liu <jiang.liu@huawei.com>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Mel Gorman <mgorman@suse.de>, Yinghai Lu <yinghai@kernel.org>, Tony Luck <tony.luck@intel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, Minchan Kim <minchan@kernel.org>, Keping Chen <chenkeping@huawei.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, Jul 5, 2012 at 11:20 PM, Sage Weil <sage@inktank.com> wrote:
-> On Wed, 4 Jul 2012, Sha Zhengju wrote:
->> On 07/02/2012 10:49 PM, Sage Weil wrote:
->> > On Mon, 2 Jul 2012, Sha Zhengju wrote:
->> > > On 06/29/2012 01:21 PM, Sage Weil wrote:
->> > > > On Thu, 28 Jun 2012, Sha Zhengju wrote:
->> > > >
->> > > > > From: Sha Zhengju<handai.szj@taobao.com>
->> > > > >
->> > > > > Following we will treat SetPageDirty and dirty page accounting as an
->> > > > > integrated
->> > > > > operation. Filesystems had better use vfs interface directly to avoid
->> > > > > those details.
->> > > > >
->> > > > > Signed-off-by: Sha Zhengju<handai.szj@taobao.com>
->> > > > > ---
->> > > > >    fs/buffer.c                 |    2 +-
->> > > > >    fs/ceph/addr.c              |   20 ++------------------
->> > > > >    include/linux/buffer_head.h |    2 ++
->> > > > >    3 files changed, 5 insertions(+), 19 deletions(-)
->> > > > >
->> > > > > diff --git a/fs/buffer.c b/fs/buffer.c
->> > > > > index e8d96b8..55522dd 100644
->> > > > > --- a/fs/buffer.c
->> > > > > +++ b/fs/buffer.c
->> > > > > @@ -610,7 +610,7 @@ EXPORT_SYMBOL(mark_buffer_dirty_inode);
->> > > > >     * If warn is true, then emit a warning if the page is not uptodate
->> > > > > and
->> > > > > has
->> > > > >     * not been truncated.
->> > > > >     */
->> > > > > -static int __set_page_dirty(struct page *page,
->> > > > > +int __set_page_dirty(struct page *page,
->> > > > >               struct address_space *mapping, int warn)
->> > > > >    {
->> > > > >       if (unlikely(!mapping))
->> > > > This also needs an EXPORT_SYMBOL(__set_page_dirty) to allow ceph to
->> > > > continue to build as a module.
->> > > >
->> > > > With that fixed, the ceph bits are a welcome cleanup!
->> > > >
->> > > > Acked-by: Sage Weil<sage@inktank.com>
->> > > Further, I check the path again and may it be reworked as follows to avoid
->> > > undo?
->> > >
->> > > __set_page_dirty();
->> > > __set_page_dirty();
->> > > ceph operations;                ==>                     if (page->mapping)
->> > > if (page->mapping)                                            ceph
->> > > operations;
->> > >      ;
->> > > else
->> > >      undo = 1;
->> > > if (undo)
->> > >      xxx;
->> > Yep.  Taking another look at the original code, though, I'm worried that
->> > one reason the __set_page_dirty() actions were spread out the way they are
->> > is because we wanted to ensure that the ceph operations were always
->> > performed when PagePrivate was set.
->> >
+On 07/05/2012 10:45 PM, Christoph Lameter wrote:
+> On Tue, 3 Jul 2012, Jiang Liu wrote:
+> 
+>> Several subsystems, including memory-failure, swap, sparse, DRBD etc,
+>> use PageSlab() to check whether a page is managed by SLAB/SLUB/SLOB.
+>> And they treat slab pages differently from pagecache/anonymous pages.
 >>
->> Sorry, I've lost something:
->>
->> __set_page_dirty();                        __set_page_dirty();
->> ceph operations;
->> if(page->mapping)         ==>      if(page->mapping) {
->>        SetPagePrivate;                            SetPagePrivate;
->> else                                                      ceph operations;
->>     undo = 1;                                  }
->>
->> if (undo)
->>     XXX;
->>
->> I think this can ensure that ceph operations are performed together with
->> SetPagePrivate.
->
-> Yeah, that looks right, as long as the ceph accounting operations happen
-> before SetPagePrivate.  I think it's no more or less racy than before, at
-> least.
->
-> The patch doesn't apply without the previous ones in the series, it looks
-> like.  Do you want to prepare a new version or should I?
->
-
-Good. I'm doing some test then I'll send out a new version patchset, please
-wait a bit. : )
-
-
-Thanks,
-Sha
+>> But it's unsafe to use PageSlab() to detect whether a page is managed by
+>> SLUB. SLUB allocates compound pages when page order is bigger than 0 and
+>> only sets PG_slab on head pages. So if a SLUB object is hosted by a tail
+>> page, PageSlab() will incorrectly return false for that object.
+> 
+> This is not an issue only with slab allocators. Multiple kernel systems
+> may do a compound order allocation for some or the other metadata and
+> will not mark the page in any special way. What makes the slab allocators
+> so special that you need to do this?
+HI Chris,
+	I think here PageSlab() is used to check whether a page hosting a memory
+object is managed/allocated by the slab allocator. If it's allocated by slab 
+allocator, we could use kfree() to free the object.
+	For SLUB allocator, if the memory space needed to host a memory object
+is bigger than 2 pages, it directly depends on page allocator to fulfill the
+request. But SLUB may allocate a compound page of two pages and only sets
+PG_slab on the head page. So if a memory object is hosted by the second page,
+we will get a wrong conclusion that the memory object wasn't allocated by slab.
+	We encountered this issue when trying to implement physical memory hot-removal.
+After removing a memory device, we need to tear down memory management structures
+of the removed memory device. Those memory management structures may be allocated
+by bootmem allocator at boot time, or allocated by slab allocator at runtime when
+hot-adding memory device. So in our case, PageSlab() is used to distinguish between
+bootmem allocator and slab allocator. With SLUB, some pages will never be released
+due to the issue described above.
+	Thanks!
+	Gerry
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
