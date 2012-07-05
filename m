@@ -1,112 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
-	by kanga.kvack.org (Postfix) with SMTP id 7907D6B0070
-	for <linux-mm@kvack.org>; Wed,  4 Jul 2012 19:49:50 -0400 (EDT)
-Date: Thu, 5 Jul 2012 01:45:57 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 11/40] autonuma: define the autonuma flags
-Message-ID: <20120704234557.GR25743@redhat.com>
-References: <1340888180-15355-1-git-send-email-aarcange@redhat.com>
- <1340888180-15355-12-git-send-email-aarcange@redhat.com>
- <20120630050143.GD3975@localhost.localdomain>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120630050143.GD3975@localhost.localdomain>
+Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
+	by kanga.kvack.org (Postfix) with SMTP id 405026B0070
+	for <linux-mm@kvack.org>; Wed,  4 Jul 2012 20:35:49 -0400 (EDT)
+Received: by pbbrp2 with SMTP id rp2so14354437pbb.14
+        for <linux-mm@kvack.org>; Wed, 04 Jul 2012 17:35:48 -0700 (PDT)
+From: Wanpeng Li <liwp.linux@gmail.com>
+Subject: [PATCH] mm/memcg: clarify type in memory cgroup
+Date: Thu,  5 Jul 2012 08:35:28 +0800
+Message-Id: <1341448528-3875-1-git-send-email-liwp.linux@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konrad Rzeszutek Wilk <konrad@darnok.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hillf Danton <dhillf@gmail.com>, Dan Smith <danms@us.ibm.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Srivatsa Vaddagiri <vatsa@linux.vnet.ibm.com>, Christoph Lameter <cl@linux.com>, Alex Shi <alex.shi@intel.com>, Mauricio Faria de Oliveira <mauricfo@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Don Morris <don.morris@hp.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wanpeng Li <liwp.linux@gmail.com>
 
-On Sat, Jun 30, 2012 at 01:01:44AM -0400, Konrad Rzeszutek Wilk wrote:
-> On Thu, Jun 28, 2012 at 02:55:51PM +0200, Andrea Arcangeli wrote:
-> > +extern unsigned long autonuma_flags;
-> 
-> I could not find the this variable in the preceding patches?
->
-> Which patch actually uses it?
+From: Wanpeng Li <liwp@linux.vnet.ibm.com>
 
-Well the below code also uses the above variable, but the variable is
-defined in mm/autonuma.c in a later patch.
+Generally we use 'unsigned long' for number of pages and 'u64' for
+number of bytes. But function mem_cgroup_zone_nr_lru_pages and
+mem_cgroup_node_nr_lru_pages use local variable whose type is 'u64'
+to caculate numbers of pages, however, the return value type of funtion
+which describes the numbers of pages is 'unsigned long'. Replace 'u64'
+by 'unsigned long' in order to clean up this inconsistent.
 
-The aa.git/autonuma branch is constantly tracked by Wu C=1 checker
-with the allconfig tester, every commit is built independently, so if
-I add a minuscule error that breaks inter-bisectability or if I adds a
-C=1 warning for the headers inclusion order I get an automated
-email. Any patch reordering needs to take those things into account,
-while trying to keep the size of the patches small too (I can't put
-all new files in a single patch).
+Signed-off-by: Wanpeng Li <liwp.linux@gmail.com>
+---
+ mm/memcontrol.c |    4 ++--
+ 1 files changed, 2 insertions(+), 2 deletions(-)
 
-> Also, is there a way to force the AutoNUMA framework
-> from not initializing at all? Hold that thought, it probably
-> is in some of the other patches.
-
-That is what the AUTONUMA_IMPOSSIBLE_FLAG is about, that flag is set
-if you boot with "noautonuma" as parameter to the kernel. (soon that
-flag will be renamed to AUTONUMA_POSSIBLE_FLAG and it'll work in the
-same but opposite way)
-
-The 12 byte per page overhead goes away, the
-knuma_scand/knuma_migratedN kernel daemons are not started, the
-task_autonuma/mm_autonuma are not allocated and the kernel boots as if
-the hardware is not NUMA (the only loss is a pointer in the mm
-struct... the pointer in the task struct is zero cost, stack overflow
-permitting :).
-
-> 
-> > +
-> > +static inline bool autonuma_enabled(void)
-> > +{
-> > +	return !!test_bit(AUTONUMA_FLAG, &autonuma_flags);
-> > +}
-> > +
-> > +static inline bool autonuma_debug(void)
-> > +{
-> > +	return !!test_bit(AUTONUMA_DEBUG_FLAG, &autonuma_flags);
-> > +}
-> > +
-> > +static inline bool autonuma_sched_load_balance_strict(void)
-> > +{
-> > +	return !!test_bit(AUTONUMA_SCHED_LOAD_BALANCE_STRICT_FLAG,
-> > +			  &autonuma_flags);
-> > +}
-> > +
-> > +static inline bool autonuma_sched_clone_reset(void)
-> > +{
-> > +	return !!test_bit(AUTONUMA_SCHED_CLONE_RESET_FLAG,
-> > +			  &autonuma_flags);
-> > +}
-> > +
-> > +static inline bool autonuma_sched_fork_reset(void)
-> > +{
-> > +	return !!test_bit(AUTONUMA_SCHED_FORK_RESET_FLAG,
-> > +			  &autonuma_flags);
-> > +}
-> > +
-> > +static inline bool autonuma_scan_pmd(void)
-> > +{
-> > +	return !!test_bit(AUTONUMA_SCAN_PMD_FLAG, &autonuma_flags);
-> > +}
-> > +
-> > +static inline bool autonuma_scan_use_working_set(void)
-> > +{
-> > +	return !!test_bit(AUTONUMA_SCAN_USE_WORKING_SET_FLAG,
-> > +			  &autonuma_flags);
-> > +}
-> > +
-> > +static inline bool autonuma_migrate_defer(void)
-> > +{
-> > +	return !!test_bit(AUTONUMA_MIGRATE_DEFER_FLAG, &autonuma_flags);
-> > +}
-> > +
-> > +#endif /* _LINUX_AUTONUMA_FLAGS_H */
-> > 
-> > --
-> > To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> > the body to majordomo@kvack.org.  For more info on Linux MM,
-> > see: http://www.linux-mm.org/ .
-> > Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> > 
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index f72b5e5..3d318f6 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -781,7 +781,7 @@ static unsigned long
+ mem_cgroup_node_nr_lru_pages(struct mem_cgroup *memcg,
+ 			int nid, unsigned int lru_mask)
+ {
+-	u64 total = 0;
++	unsigned long total = 0;
+ 	int zid;
+ 
+ 	for (zid = 0; zid < MAX_NR_ZONES; zid++)
+@@ -795,7 +795,7 @@ static unsigned long mem_cgroup_nr_lru_pages(struct mem_cgroup *memcg,
+ 			unsigned int lru_mask)
+ {
+ 	int nid;
+-	u64 total = 0;
++	unsigned long total = 0;
+ 
+ 	for_each_node_state(nid, N_HIGH_MEMORY)
+ 		total += mem_cgroup_node_nr_lru_pages(memcg, nid, lru_mask);
+-- 
+1.7.5.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
