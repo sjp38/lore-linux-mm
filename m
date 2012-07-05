@@ -1,77 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
-	by kanga.kvack.org (Postfix) with SMTP id 873746B0074
-	for <linux-mm@kvack.org>; Thu,  5 Jul 2012 05:29:54 -0400 (EDT)
-Received: from /spool/local
-	by e28smtp09.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <zhong@linux.vnet.ibm.com>;
-	Thu, 5 Jul 2012 14:59:49 +0530
-Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
-	by d28relay03.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q659Tj6560817418
-	for <linux-mm@kvack.org>; Thu, 5 Jul 2012 14:59:45 +0530
-Received: from d28av04.in.ibm.com (loopback [127.0.0.1])
-	by d28av04.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q65ExWrI008946
-	for <linux-mm@kvack.org>; Fri, 6 Jul 2012 00:59:33 +1000
-Message-ID: <1341480578.23916.7.camel@ThinkPad-T420>
-Subject: Re: [PATCH powerpc 2/2] kfree the cache name  of pgtable cache if
- SLUB is used
-From: Li Zhong <zhong@linux.vnet.ibm.com>
-Date: Thu, 05 Jul 2012 17:29:38 +0800
-In-Reply-To: <4FF54F18.50300@parallels.com>
-References: <1340617984.13778.37.camel@ThinkPad-T420>
-	 <1340618099.13778.39.camel@ThinkPad-T420>
-	 <alpine.DEB.2.00.1207031344240.14703@router.home>
-	 <alpine.DEB.2.00.1207031535330.14703@router.home>
-	 <1341392420.18505.41.camel@ThinkPad-T420> <4FF439D0.1000603@parallels.com>
-	 <1341452486.18505.49.camel@ThinkPad-T420> <4FF54F18.50300@parallels.com>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 7bit
-Mime-Version: 1.0
+Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
+	by kanga.kvack.org (Postfix) with SMTP id 0E7916B0071
+	for <linux-mm@kvack.org>; Thu,  5 Jul 2012 05:49:56 -0400 (EDT)
+From: Jiang Liu <jiang.liu@huawei.com>
+Subject: [PATCH 3/4] mm/hotplug: free zone->pageset when a zone becomes empty
+Date: Thu, 5 Jul 2012 17:45:31 +0800
+Message-ID: <1341481532-1700-3-git-send-email-jiang.liu@huawei.com>
+In-Reply-To: <1341481532-1700-1-git-send-email-jiang.liu@huawei.com>
+References: <1341481532-1700-1-git-send-email-jiang.liu@huawei.com>
+MIME-Version: 1.0
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: Christoph Lameter <cl@linux.com>, LKML <linux-kernel@vger.kernel.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, linux-mm <linux-mm@kvack.org>, PowerPC email list <linuxppc-dev@lists.ozlabs.org>
+To: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, Minchan Kim <minchan@kernel.org>
+Cc: Jiang Liu <jiang.liu@huawei.com>, Rusty Russell <rusty@rustcorp.com.au>, Yinghai Lu <yinghai@kernel.org>, Tony Luck <tony.luck@intel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, Bjorn Helgaas <bhelgaas@google.com>, Keping Chen <chenkeping@huawei.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Jiang Liu <liuj97@gmail.com>, Wei Wang <Bessel.Wang@huawei.com>
 
-On Thu, 2012-07-05 at 12:23 +0400, Glauber Costa wrote:
-> On 07/05/2012 05:41 AM, Li Zhong wrote:
-> > On Wed, 2012-07-04 at 16:40 +0400, Glauber Costa wrote:
-> >> On 07/04/2012 01:00 PM, Li Zhong wrote:
-> >>> On Tue, 2012-07-03 at 15:36 -0500, Christoph Lameter wrote:
-> >>>>> Looking through the emails it seems that there is an issue with alias
-> >>>>> strings. 
-> >>> To be more precise, there seems no big issue currently. I just wanted to
-> >>> make following usage of kmem_cache_create (SLUB) possible:
-> >>>
-> >>> 	name = some string kmalloced
-> >>> 	kmem_cache_create(name, ...)
-> >>> 	kfree(name);
-> >>
-> >> Out of curiosity: Why?
-> >> This is not (currently) possible with the other allocators (may change
-> >> with christoph's unification patches), so you would be making your code
-> >> slub-dependent.
-> >>
-> > 
-> > For slub itself, I think it's not good that: in some cases, the name
-> > string could be kfreed ( if it was kmalloced ) immediately after calling
-> > the cache create; in some other case, the name string needs to be kept
-> > valid until some init calls finished. 
-> > 
-> > I agree with you that it would make the code slub-dependent, so I'm now
-> > working on the consistency of the other allocators regarding this name
-> > string duplicating thing. 
-> 
-> If you really need to kfree the string, or even if it is easier for you
-> this way, it can be done. As a matter of fact, this is the case for me.
-> Just that your patch is not enough. Christoph has a patch that makes
-> this behavior consistent over all allocators.
+When a zone becomes empty after memory offlining, free zone->pageset.
+Otherwise it will cause memory leak when adding memory to the empty
+zone again because build_all_zonelists() will allocate zone->pageset
+for an empty zone.
 
-Sorry, I didn't know that. Seems I don't need to continue the half-done
-work in slab. If possible, would you please give me a link of the patch?
-Thank you. 
+Signed-off-by: Jiang Liu <liuj97@gmail.com>
+Signed-off-by: Wei Wang <Bessel.Wang@huawei.com>
+---
+ include/linux/mm.h  |    1 +
+ mm/memory_hotplug.c |    3 +++
+ mm/page_alloc.c     |   13 +++++++++++++
+ 3 files changed, 17 insertions(+), 0 deletions(-)
 
-> This just needs to be pushed again to the tree.
-> 
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index b36d08c..f8b62f2 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -1331,6 +1331,7 @@ void warn_alloc_failed(gfp_t gfp_mask, int order, const char *fmt, ...);
+ extern void setup_per_cpu_pageset(void);
+ 
+ extern void zone_pcp_update(struct zone *zone);
++extern void zone_pcp_reset(struct zone *zone);
+ 
+ /* nommu.c */
+ extern atomic_long_t mmap_pages_allocated;
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index bce80c7..998b792 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -966,6 +966,9 @@ repeat:
+ 
+ 	init_per_zone_wmark_min();
+ 
++	if (!populated_zone(zone))
++		zone_pcp_reset(zone);
++
+ 	if (!node_present_pages(node)) {
+ 		node_clear_state(node, N_HIGH_MEMORY);
+ 		kswapd_stop(node);
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index ebf319d..5964b7a 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -5872,6 +5872,19 @@ void free_contig_range(unsigned long pfn, unsigned nr_pages)
+ #endif
+ 
+ #ifdef CONFIG_MEMORY_HOTREMOVE
++void zone_pcp_reset(struct zone *zone)
++{
++	unsigned long flags;
++
++	/* avoid races with drain_pages()  */
++	local_irq_save(flags);
++	if (zone->pageset != &boot_pageset) {
++		free_percpu(zone->pageset);
++		zone->pageset = &boot_pageset;
++	}
++	local_irq_restore(flags);
++}
++
+ /*
+  * All pages in the range must be isolated before calling this.
+  */
+-- 
+1.7.1
 
 
 --
