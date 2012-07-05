@@ -1,106 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
-	by kanga.kvack.org (Postfix) with SMTP id EFFB86B0071
-	for <linux-mm@kvack.org>; Thu,  5 Jul 2012 05:05:58 -0400 (EDT)
-Date: Thu, 5 Jul 2012 10:05:54 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [RFC PATCH 0/3 V1] mm: add new migrate type and online_movable
- for hotplug
-Message-ID: <20120705090554.GR13141@csn.ul.ie>
-References: <1341386778-8002-1-git-send-email-laijs@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx135.postini.com [74.125.245.135])
+	by kanga.kvack.org (Postfix) with SMTP id C34176B0074
+	for <linux-mm@kvack.org>; Thu,  5 Jul 2012 05:29:09 -0400 (EDT)
+Received: by bkcjc3 with SMTP id jc3so5537067bkc.14
+        for <linux-mm@kvack.org>; Thu, 05 Jul 2012 02:29:07 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <1341386778-8002-1-git-send-email-laijs@cn.fujitsu.com>
+In-Reply-To: <4FAD89DC.2090307@codeaurora.org>
+References: <4FAC200D.2080306@codeaurora.org> <02fc01cd2f50$5d77e4c0$1867ae40$%szyprowski@samsung.com>
+ <4FAD89DC.2090307@codeaurora.org>
+From: Rabin Vincent <rabin@rab.in>
+Date: Thu, 5 Jul 2012 14:58:27 +0530
+Message-ID: <CAH+eYFBhO9P7V7Nf+yi+vFPveBks7SFKRHfkz3JOQMBKqnkkUQ@mail.gmail.com>
+Subject: Re: Bad use of highmem with buffer_migrate_page?
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Lai Jiangshan <laijs@cn.fujitsu.com>
-Cc: Chris Metcalf <cmetcalf@tilera.com>, Len Brown <lenb@kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andi Kleen <andi@firstfloor.org>, Julia Lawall <julia@diku.dk>, David Howells <dhowells@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Kay Sievers <kay.sievers@vrfy.org>, Ingo Molnar <mingo@elte.hu>, Paul Gortmaker <paul.gortmaker@windriver.com>, Daniel Kiper <dkiper@net-space.pl>, Andrew Morton <akpm@linux-foundation.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Minchan Kim <minchan@kernel.org>, Michal Nazarewicz <mina86@mina86.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Rik van Riel <riel@redhat.com>, Bjorn Helgaas <bhelgaas@google.com>, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, linux-kernel@vger.kernel.org, linux-acpi@vger.kernel.org, linux-mm@kvack.org
+To: Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>
+Cc: Laura Abbott <lauraa@codeaurora.org>, linaro-mm-sig@lists.linaro.org, linux-arm-msm@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Wed, Jul 04, 2012 at 03:26:15PM +0800, Lai Jiangshan wrote:
-> > <SNIP>
-> 
-> Different from ZONE_MOVABLE: it can be used for any given memroyblock.
-> 
-> Lai Jiangshan (3):
->   use __rmqueue_smallest when borrow memory from MIGRATE_CMA
->   add MIGRATE_HOTREMOVE type
->   add online_movable
-> 
->  arch/tile/mm/init.c            |    2 +-
->  drivers/acpi/acpi_memhotplug.c |    3 +-
->  drivers/base/memory.c          |   24 +++++++----
->  include/linux/memory.h         |    1 +
->  include/linux/memory_hotplug.h |    4 +-
->  include/linux/mmzone.h         |   37 +++++++++++++++++
->  include/linux/page-isolation.h |    2 +-
->  mm/compaction.c                |    6 +-
->  mm/memory-failure.c            |    8 +++-
->  mm/memory_hotplug.c            |   36 +++++++++++++---
->  mm/page_alloc.c                |   86 ++++++++++++++++-----------------------
->  mm/vmstat.c                    |    3 +
->  12 files changed, 136 insertions(+), 76 deletions(-)
-> 
+On Sat, May 12, 2012 at 3:21 AM, Laura Abbott <lauraa@codeaurora.org> wrote:
+> On 5/11/2012 1:30 AM, Marek Szyprowski wrote:
+>> On Thursday, May 10, 2012 10:08 PM Laura Abbott wrote:
+>>> I did a backport of the Contiguous Memory Allocator to a 3.0.8 tree. I
+>>> wrote fairly simple test case that, in 1MB chunks, allocs up to 40MB
+>>> from a reserved area, maps, writes, unmaps and then frees in an infinite
+>>> loop. When running this with another program in parallel to put some
+>>> stress on the filesystem, I hit data aborts in the filesystem/journal
+>>> layer, although not always the same backtrace. As an example:
+>>>
+>>> [<c02907a4>] (__ext4_check_dir_entry+0x20/0x184) from [<c029e1a8>]
+>>> (add_dirent_to_buf+0x70/0x2ac)
+>>> [<c029e1a8>] (add_dirent_to_buf+0x70/0x2ac) from [<c029f3f0>]
+>>> (ext4_add_entry+0xd8/0x4bc)
+>>> [<c029f3f0>] (ext4_add_entry+0xd8/0x4bc) from [<c029fe90>]
+>>> (ext4_add_nondir+0x14/0x64)
+>>> [<c029fe90>] (ext4_add_nondir+0x14/0x64) from [<c02a04c4>]
+>>> (ext4_create+0xd8/0x120)
+>>> [<c02a04c4>] (ext4_create+0xd8/0x120) from [<c022e134>]
+>>> (vfs_create+0x74/0xa4)
+>>> [<c022e134>] (vfs_create+0x74/0xa4) from [<c022ed3c>]
+>>> (do_last+0x588/0x8d4)
+>>> [<c022ed3c>] (do_last+0x588/0x8d4) from [<c022fe64>]
+>>> (path_openat+0xc4/0x394)
+>>> [<c022fe64>] (path_openat+0xc4/0x394) from [<c0230214>]
+>>> (do_filp_open+0x30/0x7c)
+>>> [<c0230214>] (do_filp_open+0x30/0x7c) from [<c0220cb4>]
+>>> (do_sys_open+0xd8/0x174)
+>>> [<c0220cb4>] (do_sys_open+0xd8/0x174) from [<c0105ea0>]
+>>> (ret_fast_syscall+0x0/0x30)
+>>>
+>>> Every panic had the same issue where a struct buffer_head [1] had a
+>>> b_data that was unexpectedly NULL.
+>>>
+>>> During the course of CMA, buffer_migrate_page could be called to migrate
+>>> from a CMA page to a new page. buffer_migrate_page calls set_bh_page[2]
+>>> to set the new page for the buffer_head. If the new page is a highmem
+>>> page though, the bh->b_data ends up as NULL, which could produce the
+>>> panics seen above.
+>>>
+>>> This seems to indicate that highmem pages are not not appropriate for
+>>> use as pages to migrate to. The following made the problem go away for
+>>> me:
+>>>
+>>> --- a/mm/page_alloc.c
+>>> +++ b/mm/page_alloc.c
+>>> @@ -5753,7 +5753,7 @@ static struct page *
+>>>    __alloc_contig_migrate_alloc(struct page *page, unsigned long private,
+>>>                                int **resultp)
+>>>    {
+>>> -       return alloc_page(GFP_HIGHUSER_MOVABLE);
+>>> +       return alloc_page(GFP_USER | __GFP_MOVABLE);
+>>>    }
+>>>
+>>>
+>>> Does this seem like an actual issue or is this an artifact of my
+>>> backport to 3.0? I'm not familiar enough with the filesystem layer to be
+>>> able to tell where highmem can actually be used.
+>>
+>>
+>> I will need to investigate this further as this issue doesn't appear on
+>> v3.3+ kernels, but I remember I saw something similar when I tried CMA
+>> backported to v3.0.
 
-I apologise for my crap review of the first patch to date. It was atrociously
-bad form and one of the reasons my review was so superficial was because I
-was aware of the problem below. It's pretty severe, we've encountered it on
-other occasions and it led me to dismiss the series quickly without adequate
-explanation or close review when I should have taken the time to explain it.
+The problem is still present on latest mainline.  The filesystem layer
+expects that the pages in the block device's mapping are not in highmem
+(the mapping's gfp mask is set in bdget()), but CMA replaces lowmem
+pages with highmem pages leading to the crashes.
 
-The reason ZONE_MOVABLE exists is because of page reclaim. MIGRATE_CMA
-or any migrate type that is MIGRATE_CMA-like is not understood by reclaim
-currently and is not addressed by this series just from looking the diffstat
-(no changes to vmscan.c). In low memory situations, it's actually fine
-and the system appears to work well. The problem is either when the
-MIGRATE_CMA-like area is large and is either completely free or is the
-only source of pages that can be reclaimed.
+The above fix should work, but perhaps the following is preferable since
+it should allow moving highmem pages to other highmem pages?
 
-In these cases, MIGRATE_UNMOVABLE and MIGRATE_RECLAIMABLE allocations fail
-because their lists and fallback lists are empty. However, if it enters
-direct reclaim or wakes kswapd the watermarks are fine and reclaim does
-nothing. Depending on implementation details this causes either a loop
-or OOM.
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 4403009..4a4f921 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -5635,7 +5635,12 @@ static struct page *
+ __alloc_contig_migrate_alloc(struct page *page, unsigned long private,
+ 			     int **resultp)
+ {
+-	return alloc_page(GFP_HIGHUSER_MOVABLE);
++	gfp_t gfp_mask = GFP_USER | __GFP_MOVABLE;
++
++	if (PageHighMem(page))
++		gfp_mask |= __GFP_HIGHMEM;
++
++	return alloc_page(gfp_mask);
+ }
 
-Minimally the watermark checks need to take the MIGRATE_CMA area into account
-but even then it is still fragile. If kswapd and direct reclaim are forced
-to reclaim pages, there is no guarantee they will reclaim pages that are
-usable by MIGRATE_UNMOVABLE or MIGRATE_RECLAIMABLE. To handle this you must
-either keep reclaiming pages until it works (easy to implement but disruptive
-to the system) or scan the LRU lists searching for suitable pages (higher
-CPU usage, LRU age disruption, will require the entire zone to be scanned
-in the OOM case which will be slow and subject to races and possible false
-OOMs). When these situations occur, it is very difficult to debug because it
-just looks like a hang and the exact triggering situations will be different.
-
-If the allocation then fails due to insufficient usable memory, the
-resulting OOM message will be harder to read because it'll show OOM when
-there are plenty of pages free. This can be addressed by clear accounting and
-informative messages of course but to be very clear it might be necessary
-to walk all the buddy lists to identify how many of the free pages were
-MIGRATE_CMA. You could use separate accounting of course but then you have
-accounting and memory overhead instead.
-
-In the case of CMA, this issue is less of a problem but it was discussed
-before CMA was merged. CMAs use case means that it is not likely to suffer
-severely because of the expected size of the region, how its used and how
-many slab allocations are expected on the systems it targets. It's far worse
-for memory hotplug because if the bulk of your memory is memory hotplugged,
-you may not be able to use it for metadata-intensive workloads for example
-which will result in bug reports. You could have 90% free memory and
-be unable to use any of it because you cannot increase the size of slab
-leading to odd corner cases.
-
-ZONE_MOVABLE is not great, but it handles the reclaim issues in a
-straight-forward manner, OOM is handled quickly because the whole system
-does not have to be scanned to detect the situation and the OOM messages
-are easy to read. If you want to replace it with MIGRATE_CMA or
-something MIGRATE_CMA-like, you need to take these issues into account
-or at the very least explain in detail why it is not an issue.
-
--- 
-Mel Gorman
-SUSE Labs
+ /* [start, end) must belong to a single zone. */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
