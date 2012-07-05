@@ -1,34 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
-	by kanga.kvack.org (Postfix) with SMTP id A12E76B0074
-	for <linux-mm@kvack.org>; Thu,  5 Jul 2012 08:30:11 -0400 (EDT)
-Date: Thu, 5 Jul 2012 14:28:50 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 09/40] autonuma: introduce kthread_bind_node()
-Message-ID: <20120705122849.GA25422@redhat.com>
-References: <1340888180-15355-1-git-send-email-aarcange@redhat.com>
- <1340888180-15355-10-git-send-email-aarcange@redhat.com>
- <20120630045013.GB3975@localhost.localdomain>
- <20120704231425.GP25743@redhat.com>
- <20120705120412.GA12779@localhost.localdomain>
+Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
+	by kanga.kvack.org (Postfix) with SMTP id 2F5706B0074
+	for <linux-mm@kvack.org>; Thu,  5 Jul 2012 08:37:48 -0400 (EDT)
+Received: by vcbfl10 with SMTP id fl10so6747356vcb.14
+        for <linux-mm@kvack.org>; Thu, 05 Jul 2012 05:37:47 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120705120412.GA12779@localhost.localdomain>
+In-Reply-To: <1341412376-6272-1-git-send-email-will.deacon@arm.com>
+References: <1341412376-6272-1-git-send-email-will.deacon@arm.com>
+Date: Thu, 5 Jul 2012 20:37:46 +0800
+Message-ID: <CAJd=RBAmF3dtb8wtEbS-A7BNT=RLsb5emQQWVU8ioeQOO8D7NA@mail.gmail.com>
+Subject: Re: [PATCH] mm: hugetlb: flush dcache before returning zeroed huge
+ page to userspace
+From: Hillf Danton <dhillf@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konrad Rzeszutek Wilk <konrad@darnok.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hillf Danton <dhillf@gmail.com>, Dan Smith <danms@us.ibm.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Srivatsa Vaddagiri <vatsa@linux.vnet.ibm.com>, Christoph Lameter <cl@linux.com>, Alex Shi <alex.shi@intel.com>, Mauricio Faria de Oliveira <mauricfo@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Don Morris <don.morris@hp.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
+To: Will Deacon <will.deacon@arm.com>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, mhocko@suse.cz, linux-kernel@vger.kernel.org
 
-On Thu, Jul 05, 2012 at 08:04:13AM -0400, Konrad Rzeszutek Wilk wrote:
-> Ok. How about dropping it and then if its needed for modules then
-> export it out.
+On Wed, Jul 4, 2012 at 10:32 PM, Will Deacon <will.deacon@arm.com> wrote:
+> When allocating and returning clear huge pages to userspace as a
+> response to a fault, we may zero and return a mapping to a previously
+> dirtied physical region (for example, it may have been written by
+> a private mapping which was freed as a result of an ftruncate on the
+> backing file). On architectures with Harvard caches, this can lead to
+> I/D inconsistency since the zeroed view may not be visible to the
+> instruction stream.
+>
+> This patch solves the problem by flushing the region after allocating
+> and clearing a new huge page. Note that PowerPC avoids this issue by
+> performing the flushing in their clear_user_page implementation to keep
+> the loader happy, however this is closely tied to the semantics of the
+> PG_arch_1 page flag which is architecture-specific.
+>
+> Acked-by: Catalin Marinas <catalin.marinas@arm.com>
+> Signed-off-by: Will Deacon <will.deacon@arm.com>
+> ---
 
-Ok.
+Thanks:)
 
-http://git.kernel.org/?p=linux/kernel/git/andrea/aa.git;a=commit;h=be38c0751557b02fe5141ef078f1d1571932875e
+Acked-by: Hillf Danton <dhillf@gmail.com>
 
-Now let's just hope Peter hold to his promises.
+>  mm/hugetlb.c |    1 +
+>  1 files changed, 1 insertions(+), 0 deletions(-)
+>
+> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+> index e198831..b83d026 100644
+> --- a/mm/hugetlb.c
+> +++ b/mm/hugetlb.c
+> @@ -2646,6 +2646,7 @@ retry:
+>                         goto out;
+>                 }
+>                 clear_huge_page(page, address, pages_per_huge_page(h));
+> +               flush_dcache_page(page);
+>                 __SetPageUptodate(page);
+>
+>                 if (vma->vm_flags & VM_MAYSHARE) {
+> --
+> 1.7.4.1
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
