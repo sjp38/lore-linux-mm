@@ -1,14 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
-	by kanga.kvack.org (Postfix) with SMTP id B704E6B0073
-	for <linux-mm@kvack.org>; Thu,  5 Jul 2012 13:36:18 -0400 (EDT)
-Date: Thu, 5 Jul 2012 12:36:13 -0500 (CDT)
+Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
+	by kanga.kvack.org (Postfix) with SMTP id 60A6E6B0073
+	for <linux-mm@kvack.org>; Thu,  5 Jul 2012 13:37:46 -0400 (EDT)
+Date: Thu, 5 Jul 2012 12:37:41 -0500 (CDT)
 From: Christoph Lameter <cl@linux.com>
-Subject: Re: [RFC PATCH 1/4] mm: introduce a safer interface to check whether
- a page is managed by SLxB
-In-Reply-To: <4FF5B909.30409@gmail.com>
-Message-ID: <alpine.DEB.2.00.1207051229490.8670@router.home>
-References: <1341287837-7904-1-git-send-email-jiang.liu@huawei.com> <alpine.DEB.2.00.1207050942540.4984@router.home> <4FF5B909.30409@gmail.com>
+Subject: Re: [RFC PATCH 2/4] mm: make consistent use of PG_slab flag
+In-Reply-To: <4FF5BD9D.9040101@gmail.com>
+Message-ID: <alpine.DEB.2.00.1207051236310.8670@router.home>
+References: <1341287837-7904-1-git-send-email-jiang.liu@huawei.com> <1341287837-7904-2-git-send-email-jiang.liu@huawei.com> <alpine.DEB.2.00.1207050945310.4984@router.home> <4FF5BD9D.9040101@gmail.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -16,35 +15,45 @@ List-ID: <linux-mm.kvack.org>
 To: Jiang Liu <liuj97@gmail.com>
 Cc: Jiang Liu <jiang.liu@huawei.com>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Mel Gorman <mgorman@suse.de>, Yinghai Lu <yinghai@kernel.org>, Tony Luck <tony.luck@intel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, Minchan Kim <minchan@kernel.org>, Keping Chen <chenkeping@huawei.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, 5 Jul 2012, Jiang Liu wrote:
+On Fri, 6 Jul 2012, Jiang Liu wrote:
 
-> 	I think here PageSlab() is used to check whether a page hosting a memory
-> object is managed/allocated by the slab allocator. If it's allocated by slab
-> allocator, we could use kfree() to free the object.
+> On 07/05/2012 10:47 PM, Christoph Lameter wrote:
+> > On Tue, 3 Jul 2012, Jiang Liu wrote:
+> >
+> >> PG_slabobject:	mark whether a (compound) page hosts SLUB/SLOB objects.
+> >
+> > Any subsystem may allocate a compound page to store metadata.
+> >
+> > The compound pages used by SLOB and SLUB are not managed in any way but
+> > the calls to kfree and kmalloc are converted to calls to the page
+> > allocator. There is no "management" by the slab allocators for these
+> > cases and its inaccurate to say that these are SLUB/SLOB objects since the
+> > allocators never deal with these objects.
+> >
+> Hi Chris,
+> 	I think there's a little difference with SLUB and SLOB for compound page.
+> For SLOB, it relies on the page allocator to allocate compound page to fulfill
+> request bigger than one page. For SLUB, it relies on the page allocator if the
+> request is bigger than two pages. So SLUB may allocate a 2-pages compound page
+> to host SLUB managed objects.
+> 	My proposal may be summarized as below:
+> 	1) PG_slab flag marks a memory object is allocated from slab allocator.
+> 	2) PG_slabobject marks a (compound) page hosts SLUB/SLOB managed objects.
+> 	3) Only set PG_slab/PG_slabobject on the head page of compound pages.
+> 	4) For SLAB, PG_slabobject is redundant and so not used.
+>
+> 	A summary of proposed usage of PG_slab(S) and PG_slabobject(O) with
+> SLAB/SLUB/SLOB allocators as below:
+> pagesize	SLAB			SLUB			SLOB
+> 1page		S			S,O			S,O
+> 2page		S			S,O			S
+> >=4page		S			S			S
 
-This is BS (here? what does that refer to). Could you please respond to my
-email?
+There is no point of recognizing such objects because those will be
+kmalloc objects and they can only be freed in a subsystem specific way.
+There is no standard way to even figure out which subsystem allocated
+them. So for all practical purposes those are unrecoverable.
 
-> 	We encountered this issue when trying to implement physical memory hot-removal.
-> After removing a memory device, we need to tear down memory management structures
-> of the removed memory device. Those memory management structures may be allocated
-> by bootmem allocator at boot time, or allocated by slab allocator at runtime when
-> hot-adding memory device. So in our case, PageSlab() is used to distinguish between
-> bootmem allocator and slab allocator. With SLUB, some pages will never be released
-> due to the issue described above.
-
-Trying to be more detailed that in my last email:
-
-These compound pages could also be allocated by any other kernel subsystem
-for metadata purposes and they will never be marked as slab pages. These
-generic structures generally cannot be removed.
-
-For the slab allocators: Only kmalloc memory uses the unmarked compound
-pages and those kmalloc objects are never recoverable. You can only
-recover objects that are in slabs marked reclaimable and those are
-properly marked as slab pages.
-
-AFAICT the patchset is pointless.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
