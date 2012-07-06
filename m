@@ -1,77 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
-	by kanga.kvack.org (Postfix) with SMTP id 716466B0070
-	for <linux-mm@kvack.org>; Fri,  6 Jul 2012 01:19:28 -0400 (EDT)
-Received: from /spool/local
-	by e9.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <shangw@linux.vnet.ibm.com>;
-	Fri, 6 Jul 2012 01:19:27 -0400
-Received: from d01relay05.pok.ibm.com (d01relay05.pok.ibm.com [9.56.227.237])
-	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id B941938C8056
-	for <linux-mm@kvack.org>; Fri,  6 Jul 2012 01:19:23 -0400 (EDT)
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay05.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q665JNPv362602
-	for <linux-mm@kvack.org>; Fri, 6 Jul 2012 01:19:23 -0400
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q665JMM3025568
-	for <linux-mm@kvack.org>; Fri, 6 Jul 2012 02:19:23 -0300
-Date: Fri, 6 Jul 2012 13:19:16 +0800
-From: Gavin Shan <shangw@linux.vnet.ibm.com>
-Subject: Re: [PATCH] mm/memcg: add BUG() to mem_cgroup_reset
-Message-ID: <20120706051916.GB29829@shangw>
-Reply-To: Gavin Shan <shangw@linux.vnet.ibm.com>
-References: <1341546297-6223-1-git-send-email-liwp.linux@gmail.com>
+Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
+	by kanga.kvack.org (Postfix) with SMTP id EB6AA6B0070
+	for <linux-mm@kvack.org>; Fri,  6 Jul 2012 01:24:51 -0400 (EDT)
+Received: by pbbrp2 with SMTP id rp2so16898358pbb.14
+        for <linux-mm@kvack.org>; Thu, 05 Jul 2012 22:24:51 -0700 (PDT)
+Date: Fri, 6 Jul 2012 13:24:21 +0800
+From: Wanpeng Li <liwp.linux@gmail.com>
+Subject: Re: [PATCH] mm/memcg: swappiness should between 0 and 100
+Message-ID: <20120706052421.GC5929@kernel>
+Reply-To: Wanpeng Li <liwp.linux@gmail.com>
+References: <1341550312-6815-1-git-send-email-liwp.linux@gmail.com>
+ <20120706051642.GA29829@shangw>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1341546297-6223-1-git-send-email-liwp.linux@gmail.com>
+In-Reply-To: <20120706051642.GA29829@shangw>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wanpeng Li <liwp.linux@gmail.com>
+To: Gavin Shan <shangw@linux.vnet.ibm.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, Jul 06, 2012 at 11:44:57AM +0800, Wanpeng Li wrote:
->From: Wanpeng Li <liwp@linux.vnet.ibm.com>
+On Fri, Jul 06, 2012 at 01:16:43PM +0800, Gavin Shan wrote:
+>On Fri, Jul 06, 2012 at 12:51:52PM +0800, Wanpeng Li wrote:
+>>From: Wanpeng Li <liwp@linux.vnet.ibm.com>
+>>
+>>Signed-off-by: Wanpeng Li <liwp.linux@gmail.com>
+>>---
+>> mm/memcontrol.c |    2 +-
+>> 1 files changed, 1 insertions(+), 1 deletions(-)
+>>
+>>diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+>>index 5e4d1ab..69a7d45 100644
+>>--- a/mm/memcontrol.c
+>>+++ b/mm/memcontrol.c
+>>@@ -4176,7 +4176,7 @@ static int mem_cgroup_swappiness_write(struct cgroup *cgrp, struct cftype *cft,
+>> 	struct mem_cgroup *memcg = mem_cgroup_from_cont(cgrp);
+>> 	struct mem_cgroup *parent;
+>>
+>>-	if (val > 100)
+>>+	if (val > 100 || val < 0)
 >
->Branch in mem_cgroup_reset only can be RES_MAX_USAGE, RES_FAILCNT.
+>Wanpeng, the "val" was defined as "u64". So how it could be less than 0?
 >
->Signed-off-by: Wanpeng Li <liwp.linux@gmail.com>
->---
-> mm/memcontrol.c |    2 ++
-> 1 files changed, 2 insertions(+), 0 deletions(-)
+>static int mem_cgroup_swappiness_write(struct cgroup *cgrp, struct cftype *cft,
+>                                       u64 val)
 >
->diff --git a/mm/memcontrol.c b/mm/memcontrol.c
->index a501660..5e4d1ab 100644
->--- a/mm/memcontrol.c
->+++ b/mm/memcontrol.c
->@@ -3976,6 +3976,8 @@ static int mem_cgroup_reset(struct cgroup *cont, unsigned int event)
-> 		else
-> 			res_counter_reset_failcnt(&memcg->memsw);
-> 		break;
->+	default:
->+		BUG();
+Oh, thank you! Just ignore this patch.
 
-It might be not convinced to have "BUG()" here. You might add
-something for debugging purpose. For example,
-	default:
-		printk(KERN_WARNING "%s: Unrecognized name %d\n",
-			__func__, name);
+Regards,
+Wanpeng Li 
 
-Thanks,
-Gavin
- 
-> 	}
+>Thanks,
+>Gavin
 >
-> 	return 0;
->-- 
->1.7.5.4
->
->--
->To unsubscribe, send a message with 'unsubscribe linux-mm' in
->the body to majordomo@kvack.org.  For more info on Linux MM,
->see: http://www.linux-mm.org/ .
->Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
->
+>> 		return -EINVAL;
+>>
+>> 	if (cgrp->parent == NULL)
+>>-- 
+>>1.7.5.4
+>>
+>>--
+>>To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>>the body to majordomo@kvack.org.  For more info on Linux MM,
+>>see: http://www.linux-mm.org/ .
+>>Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
