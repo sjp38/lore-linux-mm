@@ -1,30 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
-	by kanga.kvack.org (Postfix) with SMTP id 2A7F36B0074
-	for <linux-mm@kvack.org>; Fri,  6 Jul 2012 09:15:35 -0400 (EDT)
-Received: by vbkv13 with SMTP id v13so7601034vbk.14
-        for <linux-mm@kvack.org>; Fri, 06 Jul 2012 06:15:34 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20120705141700.GI3399@mudshark.cambridge.arm.com>
-References: <1341412376-6272-1-git-send-email-will.deacon@arm.com>
-	<CAJd=RBAmF3dtb8wtEbS-A7BNT=RLsb5emQQWVU8ioeQOO8D7NA@mail.gmail.com>
-	<20120705141700.GI3399@mudshark.cambridge.arm.com>
-Date: Fri, 6 Jul 2012 21:15:34 +0800
-Message-ID: <CAJd=RBC+foz61E733P8jkkwPqAkdFjYc_9uYza67Z=n3=7bv-A@mail.gmail.com>
-Subject: Re: [PATCH] mm: hugetlb: flush dcache before returning zeroed huge
- page to userspace
-From: Hillf Danton <dhillf@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Received: from psmtp.com (na3sys010amx101.postini.com [74.125.245.101])
+	by kanga.kvack.org (Postfix) with SMTP id 9978D6B0074
+	for <linux-mm@kvack.org>; Fri,  6 Jul 2012 09:40:36 -0400 (EDT)
+Received: from epcpsbgm2.samsung.com (mailout3.samsung.com [203.254.224.33])
+ by mailout3.samsung.com
+ (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
+ 17 2011)) with ESMTP id <0M6Q00FQNRBIIX00@mailout3.samsung.com> for
+ linux-mm@kvack.org; Fri, 06 Jul 2012 22:40:34 +0900 (KST)
+Received: from localhost.localdomain ([107.108.73.106])
+ by mmp2.samsung.com (Oracle Communications Messaging Server 7u4-24.01
+ (7.0.4.24.0) 64bit (built Nov 17 2011))
+ with ESMTPA id <0M6Q00JXLRBCCY80@mmp2.samsung.com> for linux-mm@kvack.org;
+ Fri, 06 Jul 2012 22:40:34 +0900 (KST)
+From: Prathyush K <prathyush.k@samsung.com>
+Subject: [PATCH] ARM: dma-mapping: modify condition check while freeing pages
+Date: Fri, 06 Jul 2012 19:24:15 +0530
+Message-id: <1341582855-4251-1-git-send-email-prathyush.k@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Will Deacon <will.deacon@arm.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "mhocko@suse.cz" <mhocko@suse.cz>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: linux-arm-kernel@lists.infradead.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org
+Cc: m.szyprowski@samsung.com, subash.ramaswamy@linaro.org
 
-On Thu, Jul 5, 2012 at 10:17 PM, Will Deacon <will.deacon@arm.com> wrote:
->
-> Which tree does this stuff usually go through?
+WARNING: at mm/vmalloc.c:1471 __iommu_free_buffer+0xcc/0xd0()
+Trying to vfree() nonexistent vm area (ef095000)
+Modules linked in:
+[<c0015a18>] (unwind_backtrace+0x0/0xfc) from [<c0025a94>] (warn_slowpath_common+0x54/0x64)
+[<c0025a94>] (warn_slowpath_common+0x54/0x64) from [<c0025b38>] (warn_slowpath_fmt+0x30/0x40)
+[<c0025b38>] (warn_slowpath_fmt+0x30/0x40) from [<c0016de0>] (__iommu_free_buffer+0xcc/0xd0)
+[<c0016de0>] (__iommu_free_buffer+0xcc/0xd0) from [<c0229a5c>] (exynos_drm_free_buf+0xe4/0x138)
+[<c0229a5c>] (exynos_drm_free_buf+0xe4/0x138) from [<c022b358>] (exynos_drm_gem_destroy+0x80/0xfc)
+[<c022b358>] (exynos_drm_gem_destroy+0x80/0xfc) from [<c0211230>] (drm_gem_object_free+0x28/0x34)
+[<c0211230>] (drm_gem_object_free+0x28/0x34) from [<c0211bd0>] (drm_gem_object_release_handle+0xcc/0xd8)
+[<c0211bd0>] (drm_gem_object_release_handle+0xcc/0xd8) from [<c01abe10>] (idr_for_each+0x74/0xb8)
+[<c01abe10>] (idr_for_each+0x74/0xb8) from [<c02114e4>] (drm_gem_release+0x1c/0x30)
+[<c02114e4>] (drm_gem_release+0x1c/0x30) from [<c0210ae8>] (drm_release+0x608/0x694)
+[<c0210ae8>] (drm_release+0x608/0x694) from [<c00b75a0>] (fput+0xb8/0x228)
+[<c00b75a0>] (fput+0xb8/0x228) from [<c00b40c4>] (filp_close+0x64/0x84)
+[<c00b40c4>] (filp_close+0x64/0x84) from [<c0029d54>] (put_files_struct+0xe8/0x104)
+[<c0029d54>] (put_files_struct+0xe8/0x104) from [<c002b930>] (do_exit+0x608/0x774)
+[<c002b930>] (do_exit+0x608/0x774) from [<c002bae4>] (do_group_exit+0x48/0xb4)
+[<c002bae4>] (do_group_exit+0x48/0xb4) from [<c002bb60>] (sys_exit_group+0x10/0x18)
+[<c002bb60>] (sys_exit_group+0x10/0x18) from [<c000ee80>] (ret_fast_syscall+0x0/0x30)
 
-mm --> next --> linus
+This patch modifies the condition while freeing to match the condition
+used while allocation. This fixes the above warning which arises when
+array size is equal to PAGE_SIZE where allocation is done using kzalloc
+but free is done using vfree.
+
+Signed-off-by: Prathyush K <prathyush.k@samsung.com>
+---
+ arch/arm/mm/dma-mapping.c |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
+
+diff --git a/arch/arm/mm/dma-mapping.c b/arch/arm/mm/dma-mapping.c
+index dc560dc..62fefac 100644
+--- a/arch/arm/mm/dma-mapping.c
++++ b/arch/arm/mm/dma-mapping.c
+@@ -1106,7 +1106,7 @@ static int __iommu_free_buffer(struct device *dev, struct page **pages, size_t s
+ 	for (i = 0; i < count; i++)
+ 		if (pages[i])
+ 			__free_pages(pages[i], 0);
+-	if (array_size < PAGE_SIZE)
++	if (array_size <= PAGE_SIZE)
+ 		kfree(pages);
+ 	else
+ 		vfree(pages);
+-- 
+1.7.0.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
