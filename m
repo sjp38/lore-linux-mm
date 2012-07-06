@@ -1,54 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
-	by kanga.kvack.org (Postfix) with SMTP id E6D586B0074
-	for <linux-mm@kvack.org>; Fri,  6 Jul 2012 04:43:30 -0400 (EDT)
-Message-ID: <4FF6A21C.9010509@huawei.com>
-Date: Fri, 6 Jul 2012 16:30:20 +0800
-From: Jiang Liu <jiang.liu@huawei.com>
+Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
+	by kanga.kvack.org (Postfix) with SMTP id C73586B0074
+	for <linux-mm@kvack.org>; Fri,  6 Jul 2012 04:44:54 -0400 (EDT)
+Received: by pbbrp2 with SMTP id rp2so17221141pbb.14
+        for <linux-mm@kvack.org>; Fri, 06 Jul 2012 01:44:54 -0700 (PDT)
+Date: Fri, 6 Jul 2012 16:44:15 +0800
+From: Wanpeng Li <liwp.linux@gmail.com>
+Subject: Re: [PATCH] mm/memcg: add BUG() to mem_cgroup_reset
+Message-ID: <20120706084415.GB9319@kernel>
+Reply-To: Wanpeng Li <liwp.linux@gmail.com>
+References: <1341546297-6223-1-git-send-email-liwp.linux@gmail.com>
+ <20120706082242.GA1230@cmpxchg.org>
 MIME-Version: 1.0
-Subject: Re: [RFC PATCH 2/4] mm: make consistent use of PG_slab flag
-References: <1341287837-7904-1-git-send-email-jiang.liu@huawei.com> <1341287837-7904-2-git-send-email-jiang.liu@huawei.com> <alpine.DEB.2.00.1207050945310.4984@router.home> <4FF5BD9D.9040101@gmail.com> <alpine.DEB.2.00.1207051236310.8670@router.home>
-In-Reply-To: <alpine.DEB.2.00.1207051236310.8670@router.home>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120706082242.GA1230@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Jiang Liu <liuj97@gmail.com>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Mel Gorman <mgorman@suse.de>, Yinghai Lu <yinghai@kernel.org>, Tony Luck <tony.luck@intel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, Minchan Kim <minchan@kernel.org>, Keping Chen <chenkeping@huawei.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wanpeng Li <liwp.linux@gmail.com>
 
-On 2012-7-6 1:37, Christoph Lameter wrote:
->> Hi Chris,
->> 	I think there's a little difference with SLUB and SLOB for compound page.
->> For SLOB, it relies on the page allocator to allocate compound page to fulfill
->> request bigger than one page. For SLUB, it relies on the page allocator if the
->> request is bigger than two pages. So SLUB may allocate a 2-pages compound page
->> to host SLUB managed objects.
->> 	My proposal may be summarized as below:
->> 	1) PG_slab flag marks a memory object is allocated from slab allocator.
->> 	2) PG_slabobject marks a (compound) page hosts SLUB/SLOB managed objects.
->> 	3) Only set PG_slab/PG_slabobject on the head page of compound pages.
->> 	4) For SLAB, PG_slabobject is redundant and so not used.
->>
->> 	A summary of proposed usage of PG_slab(S) and PG_slabobject(O) with
->> SLAB/SLUB/SLOB allocators as below:
->> pagesize	SLAB			SLUB			SLOB
->> 1page		S			S,O			S,O
->> 2page		S			S,O			S
->>> =4page		S			S			S
-> 
-> There is no point of recognizing such objects because those will be
-> kmalloc objects and they can only be freed in a subsystem specific way.
-> There is no standard way to even figure out which subsystem allocated
-> them. So for all practical purposes those are unrecoverable.
+On Fri, Jul 06, 2012 at 10:22:42AM +0200, Johannes Weiner wrote:
+>On Fri, Jul 06, 2012 at 11:44:57AM +0800, Wanpeng Li wrote:
+>> From: Wanpeng Li <liwp@linux.vnet.ibm.com>
+>> 
+>> Branch in mem_cgroup_reset only can be RES_MAX_USAGE, RES_FAILCNT.
+>
+>And nobody is passing anything else.  Which is easy to prove as this
+>is a private function.  And there wouldn't even be any harm passing
+>something else.  Please don't add stuff like this.
 
-Hi Chris,
-	This patch is not for hotplug, but is to fix some issues in current
-kernel, such as:
-	1) make show_mem() on ARM and unicore32 report consistent information
-no matter which slab allocator is used.
-	2) make /proc/kpagecount and /proc/kpageflags return accurate information.
-	3) Get rid of risks in mm/memory_failure.c and arch/ia64/kernel/mca_drv.c
-	Thanks!
+Ok, thank you for your comment.
+
+I also have another two patches, title:
+
+clarify type in memory cgroups
+return -EBUSY when oom-kill-disable modified and memcg use_hierarchy, has children
+
+Hopefully, you can review. Thank you Johannes! :-)
+
+Regards,
+Wanpeng Li 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
