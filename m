@@ -1,19 +1,24 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx151.postini.com [74.125.245.151])
-	by kanga.kvack.org (Postfix) with SMTP id 891346B0070
-	for <linux-mm@kvack.org>; Thu,  5 Jul 2012 23:21:27 -0400 (EDT)
-Received: by pbbrp2 with SMTP id rp2so16721593pbb.14
-        for <linux-mm@kvack.org>; Thu, 05 Jul 2012 20:21:26 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
+	by kanga.kvack.org (Postfix) with SMTP id 481B86B0070
+	for <linux-mm@kvack.org>; Thu,  5 Jul 2012 23:24:42 -0400 (EDT)
+Received: by ghrr18 with SMTP id r18so10042451ghr.14
+        for <linux-mm@kvack.org>; Thu, 05 Jul 2012 20:24:41 -0700 (PDT)
 From: Wanpeng Li <liwp.linux@gmail.com>
-Subject: [PATCH] mm/memcg: mem_cgroup_relize_xxx_limit can guarantee memcg->res.limit <= memcg->memsw.limit
-Date: Fri,  6 Jul 2012 11:21:00 +0800
-Message-Id: <1341544860-5634-1-git-send-email-liwp.linux@gmail.com>
+Subject: [PATCH v2] mm/memcg: mem_cgroup_resize_xxx_limit can guarantee memcg->res.limit <= memcg->memsw.limit
+Date: Fri,  6 Jul 2012 11:24:15 +0800
+Message-Id: <1341545055-5830-1-git-send-email-liwp.linux@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wanpeng Li <liwp.linux@gmail.com>
 
 From: Wanpeng Li <liwp@linux.vnet.ibm.com>
+
+Changlog:
+
+V2:
+* correct title 
 
 Signed-off-by: Wanpeng Li <liwp.linux@gmail.com>
 ---
