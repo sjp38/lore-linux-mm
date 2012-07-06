@@ -1,55 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
-	by kanga.kvack.org (Postfix) with SMTP id C91386B0070
-	for <linux-mm@kvack.org>; Thu,  5 Jul 2012 23:26:05 -0400 (EDT)
-Received: from /spool/local
-	by e38.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <shangw@linux.vnet.ibm.com>;
-	Thu, 5 Jul 2012 21:26:04 -0600
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by d03dlp02.boulder.ibm.com (Postfix) with ESMTP id 65EB03E40054
-	for <linux-mm@kvack.org>; Fri,  6 Jul 2012 03:25:51 +0000 (WET)
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q663PJZW201860
-	for <linux-mm@kvack.org>; Thu, 5 Jul 2012 21:25:35 -0600
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q663P2oQ019451
-	for <linux-mm@kvack.org>; Thu, 5 Jul 2012 21:25:03 -0600
-From: Gavin Shan <shangw@linux.vnet.ibm.com>
-Subject: [PATCH] mm/buddy: more comments for skip_free_areas_node()
-Date: Fri,  6 Jul 2012 11:24:57 +0800
-Message-Id: <1341545097-9933-1-git-send-email-shangw@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
+	by kanga.kvack.org (Postfix) with SMTP id 49C936B0070
+	for <linux-mm@kvack.org>; Thu,  5 Jul 2012 23:45:19 -0400 (EDT)
+Received: by pbbrp2 with SMTP id rp2so16754238pbb.14
+        for <linux-mm@kvack.org>; Thu, 05 Jul 2012 20:45:18 -0700 (PDT)
+From: Wanpeng Li <liwp.linux@gmail.com>
+Subject: [PATCH] mm/memcg: add BUG() to mem_cgroup_reset
+Date: Fri,  6 Jul 2012 11:44:57 +0800
+Message-Id: <1341546297-6223-1-git-send-email-liwp.linux@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: xiyou.wangcong@gmail.com, akpm@linux-foundation.org, Gavin Shan <shangw@linux.vnet.ibm.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wanpeng Li <liwp.linux@gmail.com>
 
-The initial idea comes from Cong Wang. We're running out of memory
-while calling function skip_free_areas_node(). So it would be unsafe
-to allocate more memory from either stack or heap. The patche adds
-more comments to address that.
+From: Wanpeng Li <liwp@linux.vnet.ibm.com>
 
-Signed-off-by: Gavin Shan <shangw@linux.vnet.ibm.com>
+Branch in mem_cgroup_reset only can be RES_MAX_USAGE, RES_FAILCNT.
+
+Signed-off-by: Wanpeng Li <liwp.linux@gmail.com>
 ---
- mm/page_alloc.c |    3 +++
- 1 file changed, 3 insertions(+)
+ mm/memcontrol.c |    2 ++
+ 1 files changed, 2 insertions(+), 0 deletions(-)
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 4403009..c74f5a9 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -2737,6 +2737,9 @@ void si_meminfo_node(struct sysinfo *val, int nid)
- /*
-  * Determine whether the node should be displayed or not, depending on whether
-  * SHOW_MEM_FILTER_NODES was passed to show_free_areas().
-+ *
-+ * We're running out of memory while calling the function. So don't allocate
-+ * more memory from either stack or heap.
-  */
- bool skip_free_areas_node(unsigned int flags, int nid)
- {
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index a501660..5e4d1ab 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -3976,6 +3976,8 @@ static int mem_cgroup_reset(struct cgroup *cont, unsigned int event)
+ 		else
+ 			res_counter_reset_failcnt(&memcg->memsw);
+ 		break;
++	default:
++		BUG();
+ 	}
+ 
+ 	return 0;
 -- 
-1.7.9.5
+1.7.5.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
