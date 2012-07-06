@@ -1,52 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
-	by kanga.kvack.org (Postfix) with SMTP id 9D5526B0074
-	for <linux-mm@kvack.org>; Fri,  6 Jul 2012 04:30:00 -0400 (EDT)
-Date: Fri, 6 Jul 2012 10:29:47 +0200
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH v2] mm/memcg: mem_cgroup_resize_xxx_limit can guarantee
- memcg->res.limit <= memcg->memsw.limit
-Message-ID: <20120706082947.GB1230@cmpxchg.org>
-References: <1341545055-5830-1-git-send-email-liwp.linux@gmail.com>
+Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
+	by kanga.kvack.org (Postfix) with SMTP id E6D586B0074
+	for <linux-mm@kvack.org>; Fri,  6 Jul 2012 04:43:30 -0400 (EDT)
+Message-ID: <4FF6A21C.9010509@huawei.com>
+Date: Fri, 6 Jul 2012 16:30:20 +0800
+From: Jiang Liu <jiang.liu@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1341545055-5830-1-git-send-email-liwp.linux@gmail.com>
+Subject: Re: [RFC PATCH 2/4] mm: make consistent use of PG_slab flag
+References: <1341287837-7904-1-git-send-email-jiang.liu@huawei.com> <1341287837-7904-2-git-send-email-jiang.liu@huawei.com> <alpine.DEB.2.00.1207050945310.4984@router.home> <4FF5BD9D.9040101@gmail.com> <alpine.DEB.2.00.1207051236310.8670@router.home>
+In-Reply-To: <alpine.DEB.2.00.1207051236310.8670@router.home>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wanpeng Li <liwp.linux@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Christoph Lameter <cl@linux.com>
+Cc: Jiang Liu <liuj97@gmail.com>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Mel Gorman <mgorman@suse.de>, Yinghai Lu <yinghai@kernel.org>, Tony Luck <tony.luck@intel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, Minchan Kim <minchan@kernel.org>, Keping Chen <chenkeping@huawei.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, Jul 06, 2012 at 11:24:15AM +0800, Wanpeng Li wrote:
-> From: Wanpeng Li <liwp@linux.vnet.ibm.com>
+On 2012-7-6 1:37, Christoph Lameter wrote:
+>> Hi Chris,
+>> 	I think there's a little difference with SLUB and SLOB for compound page.
+>> For SLOB, it relies on the page allocator to allocate compound page to fulfill
+>> request bigger than one page. For SLUB, it relies on the page allocator if the
+>> request is bigger than two pages. So SLUB may allocate a 2-pages compound page
+>> to host SLUB managed objects.
+>> 	My proposal may be summarized as below:
+>> 	1) PG_slab flag marks a memory object is allocated from slab allocator.
+>> 	2) PG_slabobject marks a (compound) page hosts SLUB/SLOB managed objects.
+>> 	3) Only set PG_slab/PG_slabobject on the head page of compound pages.
+>> 	4) For SLAB, PG_slabobject is redundant and so not used.
+>>
+>> 	A summary of proposed usage of PG_slab(S) and PG_slabobject(O) with
+>> SLAB/SLUB/SLOB allocators as below:
+>> pagesize	SLAB			SLUB			SLOB
+>> 1page		S			S,O			S,O
+>> 2page		S			S,O			S
+>>> =4page		S			S			S
 > 
-> Changlog:
-> 
-> V2:
-> * correct title
+> There is no point of recognizing such objects because those will be
+> kmalloc objects and they can only be freed in a subsystem specific way.
+> There is no standard way to even figure out which subsystem allocated
+> them. So for all practical purposes those are unrecoverable.
 
-Would it be possible to collect all these comment fixes you send out
-every other day into a single patch?
-
-> Signed-off-by: Wanpeng Li <liwp.linux@gmail.com>
-> ---
->  mm/memcontrol.c |    4 ++--
->  1 files changed, 2 insertions(+), 2 deletions(-)
-> 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 4b64fe0..a501660 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -3418,7 +3418,7 @@ static int mem_cgroup_resize_limit(struct mem_cgroup *memcg,
->  		/*
->  		 * Rather than hide all in some function, I do this in
->  		 * open coded manner. You see what this really does.
-> -		 * We have to guarantee memcg->res.limit < memcg->memsw.limit.
-> +		 * We have to guarantee memcg->res.limit <= memcg->memsw.limit.
->  		 */
-
-It would probably make sense to also remove the first two sentences,
-they add nothing of value.
+Hi Chris,
+	This patch is not for hotplug, but is to fix some issues in current
+kernel, such as:
+	1) make show_mem() on ARM and unicore32 report consistent information
+no matter which slab allocator is used.
+	2) make /proc/kpagecount and /proc/kpageflags return accurate information.
+	3) Get rid of risks in mm/memory_failure.c and arch/ia64/kernel/mca_drv.c
+	Thanks!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
