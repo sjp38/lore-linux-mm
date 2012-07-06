@@ -1,46 +1,28 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
-	by kanga.kvack.org (Postfix) with SMTP id C73586B0074
-	for <linux-mm@kvack.org>; Fri,  6 Jul 2012 04:44:54 -0400 (EDT)
-Received: by pbbrp2 with SMTP id rp2so17221141pbb.14
-        for <linux-mm@kvack.org>; Fri, 06 Jul 2012 01:44:54 -0700 (PDT)
-Date: Fri, 6 Jul 2012 16:44:15 +0800
-From: Wanpeng Li <liwp.linux@gmail.com>
-Subject: Re: [PATCH] mm/memcg: add BUG() to mem_cgroup_reset
-Message-ID: <20120706084415.GB9319@kernel>
-Reply-To: Wanpeng Li <liwp.linux@gmail.com>
-References: <1341546297-6223-1-git-send-email-liwp.linux@gmail.com>
- <20120706082242.GA1230@cmpxchg.org>
+Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
+	by kanga.kvack.org (Postfix) with SMTP id 2B3CA6B0074
+	for <linux-mm@kvack.org>; Fri,  6 Jul 2012 05:07:03 -0400 (EDT)
+Message-ID: <4FF6AA11.2010303@parallels.com>
+Date: Fri, 6 Jul 2012 13:04:17 +0400
+From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120706082242.GA1230@cmpxchg.org>
+Subject: Re: [PATCH SLAB 1/2 v3] duplicate the cache name in SLUB's saved_alias
+ list, SLAB, and SLOB
+References: <1341561286.24895.9.camel@ThinkPad-T420>
+In-Reply-To: <1341561286.24895.9.camel@ThinkPad-T420>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wanpeng Li <liwp.linux@gmail.com>
+To: Li Zhong <zhong@linux.vnet.ibm.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, linux-mm <linux-mm@kvack.org>, PowerPC email list <linuxppc-dev@lists.ozlabs.org>, Wanlong Gao <gaowanlong@cn.fujitsu.com>
 
-On Fri, Jul 06, 2012 at 10:22:42AM +0200, Johannes Weiner wrote:
->On Fri, Jul 06, 2012 at 11:44:57AM +0800, Wanpeng Li wrote:
->> From: Wanpeng Li <liwp@linux.vnet.ibm.com>
->> 
->> Branch in mem_cgroup_reset only can be RES_MAX_USAGE, RES_FAILCNT.
->
->And nobody is passing anything else.  Which is easy to prove as this
->is a private function.  And there wouldn't even be any harm passing
->something else.  Please don't add stuff like this.
-
-Ok, thank you for your comment.
-
-I also have another two patches, title:
-
-clarify type in memory cgroups
-return -EBUSY when oom-kill-disable modified and memcg use_hierarchy, has children
-
-Hopefully, you can review. Thank you Johannes! :-)
-
-Regards,
-Wanpeng Li 
+On 07/06/2012 11:54 AM, Li Zhong wrote:
+> +	if (!c && lname)
+> +		kfree(lname);
+> +
+kfree can still be validly called with a NULL argument. No need for the
+lname in the conditional.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
