@@ -1,66 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
-	by kanga.kvack.org (Postfix) with SMTP id 970A26B006C
-	for <linux-mm@kvack.org>; Fri,  6 Jul 2012 14:38:44 -0400 (EDT)
-Received: from /spool/local
-	by e28smtp02.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <svaidy@linux.vnet.ibm.com>;
-	Sat, 7 Jul 2012 00:08:41 +0530
-Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
-	by d28relay01.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q66Icb2Y12976560
-	for <linux-mm@kvack.org>; Sat, 7 Jul 2012 00:08:37 +0530
-Received: from d28av05.in.ibm.com (loopback [127.0.0.1])
-	by d28av05.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q67099cD023954
-	for <linux-mm@kvack.org>; Sat, 7 Jul 2012 10:09:11 +1000
-Date: Sat, 7 Jul 2012 00:08:28 +0530
-From: Vaidyanathan Srinivasan <svaidy@linux.vnet.ibm.com>
-Subject: Re: [PATCH 13/40] autonuma: CPU follow memory algorithm
-Message-ID: <20120706183828.GB7807@dirshya.in.ibm.com>
-Reply-To: svaidy@linux.vnet.ibm.com
-References: <20120629125517.GD32637@gmail.com>
- <4FEDDD0C.60609@redhat.com>
- <1340995260.28750.103.camel@twins>
- <4FEDF81C.1010401@redhat.com>
- <1340996224.28750.116.camel@twins>
- <1340996586.28750.122.camel@twins>
- <4FEDFFB5.3010401@redhat.com>
- <20120702165714.GA10952@dirshya.in.ibm.com>
- <20120705165606.GA11296@dirshya.in.ibm.com>
- <CAJd=RBDAtm_9TiFgsGC=DxFxtDRP7GLeA5xAs5e6_oYS1t46rg@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
+	by kanga.kvack.org (Postfix) with SMTP id CF56A6B006C
+	for <linux-mm@kvack.org>; Fri,  6 Jul 2012 14:41:12 -0400 (EDT)
+Message-ID: <4FF73106.3090802@redhat.com>
+Date: Fri, 06 Jul 2012 14:40:06 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <CAJd=RBDAtm_9TiFgsGC=DxFxtDRP7GLeA5xAs5e6_oYS1t46rg@mail.gmail.com>
+Subject: Re: [RFC][PATCH 04/26] mm, mpol: add MPOL_MF_NOOP
+References: <20120316144028.036474157@chello.nl> <20120316144240.368911012@chello.nl>
+In-Reply-To: <20120316144240.368911012@chello.nl>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hillf Danton <dhillf@gmail.com>
-Cc: Rik van Riel <riel@redhat.com>, Peter Zijlstra <peterz@infradead.org>, dlaor@redhat.com, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dan Smith <danms@us.ibm.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Johannes Weiner <hannes@cmpxchg.org>, Srivatsa Vaddagiri <vatsa@linux.vnet.ibm.com>, Christoph Lameter <cl@linux.com>, Alex Shi <alex.shi@intel.com>, Mauricio Faria de Oliveira <mauricfo@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Don Morris <don.morris@hp.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Dan Smith <danms@us.ibm.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-* Hillf Danton <dhillf@gmail.com> [2012-07-06 21:04:56]:
+On 03/16/2012 10:40 AM, Peter Zijlstra wrote:
 
-> Hi Vaidy,
-> 
-> On Fri, Jul 6, 2012 at 12:56 AM, Vaidyanathan Srinivasan
-> <svaidy@linux.vnet.ibm.com> wrote:
-> > --- a/mm/autonuma.c
-> > +++ b/mm/autonuma.c
-> > @@ -26,7 +26,7 @@ unsigned long autonuma_flags __read_mostly =
-> >  #ifdef CONFIG_AUTONUMA_DEFAULT_ENABLED
-> >         (1<<AUTONUMA_FLAG)|
-> >  #endif
-> > -       (1<<AUTONUMA_SCAN_PMD_FLAG);
-> > +       (0<<AUTONUMA_SCAN_PMD_FLAG);
-> >
-> 
-> Let X86 scan pmd by default, agree?
+Reasonable idea, but we need something else than a blind
+unmap and add to swap space, which requires people to run
+with gigantic amounts of swap space they will likely never
+use.
 
-Sure, yes.  This patch just lists the changes required to get the
-framework running on powerpc so that we know the location of code
-changes.
+I suspect that Andrea's _PAGE_NUMA stuff could be implemented
+using _PAGE_PROTNONE, and then we can simply call the NUMA
+faulting/migration handler whenever we run into a _PAGE_PROTNONE
+page in handle_mm_fault / handle_pte_fault.
 
-We will need an arch specific default flags and leave this ON for x86.
+This overloading of _PAGE_PROTNONE should work fine, because
+do_page_fault will never call handle_mm_fault if the fault is
+happening on a PROT_NONE VMA. Only if we have the correct VMA
+permission will handle_mm_fault be called, at which point we
+can fix the pte (and maybe migrate the page).
 
---Vaidy
+The same trick can be done at the pmd level for transparent
+hugepages, allowing the entire THP to be migrated in one shot,
+with just one fault.
+
+Is there any reason why _PAGE_PROTNONE could not work instead
+of _PAGE_NUMA or the swap cache thing?
+
+-- 
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
