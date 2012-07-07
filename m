@@ -1,64 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx110.postini.com [74.125.245.110])
-	by kanga.kvack.org (Postfix) with SMTP id 54E506B008C
-	for <linux-mm@kvack.org>; Fri,  6 Jul 2012 16:28:22 -0400 (EDT)
-Message-ID: <4FF74A3B.80701@redhat.com>
-Date: Fri, 06 Jul 2012 16:27:39 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
+	by kanga.kvack.org (Postfix) with SMTP id 00DEA6B0074
+	for <linux-mm@kvack.org>; Fri,  6 Jul 2012 20:38:27 -0400 (EDT)
+Received: by pbbrp2 with SMTP id rp2so18610324pbb.14
+        for <linux-mm@kvack.org>; Fri, 06 Jul 2012 17:38:27 -0700 (PDT)
+Date: Sat, 7 Jul 2012 09:38:19 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH] mm: don't invoke __alloc_pages_direct_compact when order
+ 0
+Message-ID: <20120707003819.GA2041@barrios>
+References: <1341588521-17744-1-git-send-email-js1304@gmail.com>
+ <20120706155920.GA7721@barrios>
+ <CAAmzW4N+-xS65-NDJF2V9nzGDBTFC=20sZ8LJx5wCZ8=t7SpTQ@mail.gmail.com>
 MIME-Version: 1.0
-Subject: Re: [RFC][PATCH 03/26] mm, mpol: add MPOL_MF_LAZY ...
-References: <20120316144028.036474157@chello.nl>  <20120316144240.307470041@chello.nl> <20120323115025.GE16573@suse.de>  <4FF7147B.1050001@redhat.com> <1341605099.14051.23.camel@zaphod.localdomain>
-In-Reply-To: <1341605099.14051.23.camel@zaphod.localdomain>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAAmzW4N+-xS65-NDJF2V9nzGDBTFC=20sZ8LJx5wCZ8=t7SpTQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: Mel Gorman <mgorman@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Dan Smith <danms@us.ibm.com>, Bharata B Rao <bharata.rao@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: JoonSoo Kim <js1304@gmail.com>
+Cc: Minchan Kim <minchan@kernel.org>, akpm@linux-foundation.org, Pekka Enberg <penberg@kernel.org>, Christoph Lameter <cl@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 07/06/2012 04:04 PM, Lee Schermerhorn wrote:
-> On Fri, 2012-07-06 at 12:38 -0400, Rik van Riel wrote:
+On Sat, Jul 07, 2012 at 01:58:24AM +0900, JoonSoo Kim wrote:
+> 2012/7/7 Minchan Kim <minchan@kernel.org>:
+> > Hi Joonsoo,
+> >
+> > On Sat, Jul 07, 2012 at 12:28:41AM +0900, Joonsoo Kim wrote:
+> >> __alloc_pages_direct_compact has many arguments so invoking it is very costly.
+> >
+> > It's already slow path so it's pointless for such optimization.
+> 
+> I know this is so minor optimization.
+> But why don't we do such a one?
+> Is there any weak point?
 
->> 4. Putting a lot of pages in the swap cache ends up allocating
->>      swap space. This means this NUMA migration scheme will only
->>      work on systems that have a substantial amount of memory
->>      represented by swap space. This is highly unlikely on systems
->>      with memory in the TB range. On smaller systems, it could drive
->>      the system out of memory (to the OOM killer), by "filling up"
->>      the overflow swap with migration pages instead.
->> 5. In the long run, we want the ability to migrate transparent
->>      huge pages as one unit.  The reason is simple, the performance
->>      penalty for running on the wrong NUMA node (10-20%) is on the
->>      same order of magnitude as the performance penalty for running
->>      with 4kB pages instead of 2MB pages (5-15%).
->>
->>      Breaking up large pages into small ones, and having khugepaged
->>      reconstitute them on a random NUMA node later on, will negate
->>      the performance benefits of both NUMA placement and THP.
+Let's think about it.
+You are adding *new rule* for minor optimization.
+If new users uses __alloc_pages_direct_compact in future, they always have to
+check whether order is zero not not. So it could increase code size as well as
+bad for readbility. Even, I'm not sure adding branch is always win than
+just passing the some arguement in all architecures.
 
-> When I originally posted the "migrate on fault" series, I posted a
-> separate series with a "migration cache" to avoid the use of swap space
-> for lazy migration: http://markmail.org/message/xgvvrnn2nk4nsn2e.
->
-> The migration cache was originally implemented by Marcello Tosatti for
-> the old memory hotplug project:
-> http://marc.info/?l=linux-mm&m=109779128211239&w=4.
->
-> The idea is that you don't need swap space for lazy migration, just an
-> "address_space" where you can park an anon VMA's pte's while they're
-> "unmapped" to cause migration faults.  Based on a suggestion from
-> Christoph Lameter, I had tried to hide the migration cache behind the
-> swap cache interface to minimize changes mainly in do_swap_page and
-> vmscan/reclaim.  It seemed to work, but the difference in reference
-> count semantics for the mig cache -- entry removed when last pte
-> migrated/mapped -- makes coordination with exit teardown, uh, tricky.
+> 
+> >> And in almost invoking case, order is 0, so return immediately.
+> >
+> > You can't make sure it.
+> 
+> Okay.
+> 
+> >>
+> >> Let's not invoke it when order 0
+> >
+> > Let's not ruin git blame.
+> 
+> Hmm...
+> When I do git blame, I can't find anything related to this.
 
-That fixes one of the two problems, but using _PTE_NUMA
-or _PAGE_PROTNONE looks like it would be both easier,
-and solve both.
+I mean if we merge the pointless patch, it could be showed firstly instead of
+meaningful patch when we do git blame. It makes us bothering when we find blame-patch.
 
--- 
-All rights reversed
+> 
+> Thanks for comments
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
