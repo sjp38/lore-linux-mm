@@ -1,32 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
-	by kanga.kvack.org (Postfix) with SMTP id 1EDFF6B0074
-	for <linux-mm@kvack.org>; Sat,  7 Jul 2012 04:40:27 -0400 (EDT)
-Received: by pbbrp2 with SMTP id rp2so19302035pbb.14
-        for <linux-mm@kvack.org>; Sat, 07 Jul 2012 01:40:26 -0700 (PDT)
-Date: Sat, 7 Jul 2012 01:40:23 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] mm: don't invoke __alloc_pages_direct_compact when order
- 0
-In-Reply-To: <1341588521-17744-1-git-send-email-js1304@gmail.com>
-Message-ID: <alpine.DEB.2.00.1207070139510.10445@chino.kir.corp.google.com>
-References: <1341588521-17744-1-git-send-email-js1304@gmail.com>
+Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
+	by kanga.kvack.org (Postfix) with SMTP id 1CFBD6B0074
+	for <linux-mm@kvack.org>; Sat,  7 Jul 2012 09:45:40 -0400 (EDT)
+Date: Sat, 7 Jul 2012 21:45:28 +0800
+From: Fengguang Wu <fengguang.wu@intel.com>
+Subject: Re: [PATCH 1/7] memcg: update cgroup memory document
+Message-ID: <20120707134528.GA23648@localhost>
+References: <1340880885-5427-1-git-send-email-handai.szj@taobao.com>
+ <1340881055-5511-1-git-send-email-handai.szj@taobao.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1340881055-5511-1-git-send-email-handai.szj@taobao.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <js1304@gmail.com>
-Cc: akpm@linux-foundation.org, Pekka Enberg <penberg@kernel.org>, Christoph Lameter <cl@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Sha Zhengju <handai.szj@gmail.com>
+Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, gthelen@google.com, yinghan@google.com, akpm@linux-foundation.org, mhocko@suse.cz, linux-kernel@vger.kernel.org, Sha Zhengju <handai.szj@taobao.com>
 
-On Sat, 7 Jul 2012, Joonsoo Kim wrote:
+> +dirty		- # of bytes that are waiting to get written back to the disk.
+> +writeback	- # of bytes that are actively being written back to the disk.
 
-> __alloc_pages_direct_compact has many arguments so invoking it is very costly.
-> And in almost invoking case, order is 0, so return immediately.
-> 
+This should be a bit more clear to the user:
 
-If "zero cost" is "very costly", then this might make sense.
+dirty - # of bytes of file cache that are not in sync with the disk copy
+writeback - # of bytes of file cache that are queued for syncing to disk
 
-__alloc_pages_direct_compact() is inlined by gcc.
+Thanks,
+Fengguang
+
+>  inactive_anon	- # of bytes of anonymous memory and swap cache memory on
+>  		LRU list.
+>  active_anon	- # of bytes of anonymous and swap cache memory on active
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
