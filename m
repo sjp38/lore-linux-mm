@@ -1,68 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
-	by kanga.kvack.org (Postfix) with SMTP id F26F66B0087
-	for <linux-mm@kvack.org>; Sun,  8 Jul 2012 14:12:37 -0400 (EDT)
-Date: Sun, 8 Jul 2012 20:12:11 +0200
-From: Sebastian Andrzej Siewior <sebastian@breakpoint.cc>
-Subject: Re: [PATCH 04/16] mm: allow PF_MEMALLOC from softirq context
-Message-ID: <20120708181211.GE2872@breakpoint.cc>
-References: <1340375443-22455-1-git-send-email-mgorman@suse.de>
- <1340375443-22455-5-git-send-email-mgorman@suse.de>
- <20120626165513.GD6509@breakpoint.cc>
- <20120627082614.GE8271@suse.de>
+Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
+	by kanga.kvack.org (Postfix) with SMTP id EF5C26B0089
+	for <linux-mm@kvack.org>; Sun,  8 Jul 2012 14:34:36 -0400 (EDT)
+Message-ID: <4FF9D29D.8030903@redhat.com>
+Date: Sun, 08 Jul 2012 14:34:05 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120627082614.GE8271@suse.de>
+Subject: Re: [RFC][PATCH 25/26] sched, numa: Only migrate long-running entities
+References: <20120316144028.036474157@chello.nl> <20120316144241.749359061@chello.nl>
+In-Reply-To: <20120316144241.749359061@chello.nl>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Linux-Netdev <netdev@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, David Miller <davem@davemloft.net>, Neil Brown <neilb@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mike Christie <michaelc@cs.wisc.edu>, Eric B Munson <emunson@mgebm.net>, Eric Dumazet <eric.dumazet@gmail.com>
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Dan Smith <danms@us.ibm.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, Jun 27, 2012 at 09:26:14AM +0100, Mel Gorman wrote:
-> > > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> > > index b6c0727..5c6d9c6 100644
-> > > --- a/mm/page_alloc.c
-> > > +++ b/mm/page_alloc.c
-> > > @@ -2265,7 +2265,11 @@ gfp_to_alloc_flags(gfp_t gfp_mask)
-> > >  	if (likely(!(gfp_mask & __GFP_NOMEMALLOC))) {
-> > >  		if (gfp_mask & __GFP_MEMALLOC)
-> > >  			alloc_flags |= ALLOC_NO_WATERMARKS;
-> > > -		else if (likely(!(gfp_mask & __GFP_NOMEMALLOC)) && !in_interrupt())
-> > > +		else if (in_serving_softirq() && (current->flags & PF_MEMALLOC))
-> > > +			alloc_flags |= ALLOC_NO_WATERMARKS;
-> > > +		else if (!in_interrupt() &&
-> > > +				((current->flags & PF_MEMALLOC) ||
-> > > +				 unlikely(test_thread_flag(TIF_MEMDIE))))
-> > >  			alloc_flags |= ALLOC_NO_WATERMARKS;
-> > >  	}
-> > 
-> > You allocate in RX path with __GFP_MEMALLOC and your sk->sk_allocation has
-> > also __GFP_MEMALLOC set. That means you should get ALLOC_NO_WATERMARKS in
-> > alloc_flags.
-> 
-> In the cases where they are annotated correctly, yes. It is recordeed if
-> the page gets allocated from the PFMEMALLOC reserves. If the received
-> packet is not SOCK_MEMALLOC and the page was allocated from PFMEMALLOC
-> reserves it is then discarded and the packet must be retransmitted.
+On 03/16/2012 10:40 AM, Peter Zijlstra wrote:
 
-Let me try again:
-- lets assume your allocation happens with alloc_page(), without
-  __GFP_MEMALLOC in GFP_FLAGS and with PF_MEMALLOC in current->flags. Now
-  you may get memory which you wouldn't receive otherwise (without
-  PF_MEMALLOC). Okay, understood. So you don't have to annotate each page
-  allocation in your receive path for instance as long as the process has the
-  flag set.
-- lets assume your allocation happens with kmalloc() without __GFP_MEMALLOC
-  and current->flags has PF_MEMALLOC ORed and your SLAB pool is empty. This
-  forces SLAB to allocate more pages from the buddy allocator with it will
-  receive more likely (due to ->current->flags + PF_MEMALLOC) but SLAB will
-  drop this extra memory because the page has ->pf_memory (or something like
-  that) set and the GFP_FLAGS do not have __GFP_MEMALLOC set.
+> +static u64 process_cpu_runtime(struct numa_entity *ne)
+> +{
+> +	struct task_struct *p, *t;
+> +	u64 runtime = 0;
+> +
+> +	rcu_read_lock();
+> +	t = p = ne_owner(ne);
+> +	if (p) do {
+> +		runtime += t->se.sum_exec_runtime; // @#$#@ 32bit
+> +	} while ((t = next_thread(t)) != p);
+> +	rcu_read_unlock();
+> +
+> +	return runtime;
+> +}
 
-Is there something I missed?
+> +	/*
+> +	 * Don't bother migrating memory if there's less than 1 second
+> +	 * of runtime on the tasks.
+> +	 */
+> +	if (ne->nops->cpu_runtime(ne) < NSEC_PER_SEC)
+> +		return false;
 
-Sebastian
+Do we really want to calculate the amount of CPU time used
+by a process, and start migrating after just one second?
+
+Or would it be ok to start migrating once a process has
+been scanned once or twice by the NUMA code?
+
+-- 
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
