@@ -1,47 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
-	by kanga.kvack.org (Postfix) with SMTP id 59F156B006E
-	for <linux-mm@kvack.org>; Sun,  8 Jul 2012 07:37:50 -0400 (EDT)
-From: Julia Lawall <Julia.Lawall@lip6.fr>
-Subject: [PATCH 3/7] mm/slub.c: remove invalid reference to list iterator variable
-Date: Sun,  8 Jul 2012 13:37:40 +0200
-Message-Id: <1341747464-1772-4-git-send-email-Julia.Lawall@lip6.fr>
-In-Reply-To: <1341747464-1772-1-git-send-email-Julia.Lawall@lip6.fr>
-References: <1341747464-1772-1-git-send-email-Julia.Lawall@lip6.fr>
+Received: from psmtp.com (na3sys010amx103.postini.com [74.125.245.103])
+	by kanga.kvack.org (Postfix) with SMTP id 63CCE6B0069
+	for <linux-mm@kvack.org>; Sun,  8 Jul 2012 10:45:12 -0400 (EDT)
+Date: Sun, 8 Jul 2012 22:44:59 +0800
+From: Fengguang Wu <fengguang.wu@intel.com>
+Subject: Re: [PATCH 6/7] memcg: add per cgroup writeback pages accounting
+Message-ID: <20120708144459.GA18272@localhost>
+References: <1340880885-5427-1-git-send-email-handai.szj@taobao.com>
+ <1340881525-5835-1-git-send-email-handai.szj@taobao.com>
+ <4FF291BE.7030509@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4FF291BE.7030509@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: kernel-janitors@vger.kernel.org, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Sha Zhengju <handai.szj@gmail.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, gthelen@google.com, yinghan@google.com, akpm@linux-foundation.org, mhocko@suse.cz, linux-kernel@vger.kernel.org, Sha Zhengju <handai.szj@taobao.com>
 
-From: Julia Lawall <Julia.Lawall@lip6.fr>
+On Tue, Jul 03, 2012 at 03:31:26PM +0900, KAMEZAWA Hiroyuki wrote:
+> (2012/06/28 20:05), Sha Zhengju wrote:
+> > From: Sha Zhengju <handai.szj@taobao.com>
+> > 
+> > Similar to dirty page, we add per cgroup writeback pages accounting. The lock
+> > rule still is:
+> > 	mem_cgroup_begin_update_page_stat()
+> > 	modify page WRITEBACK stat
+> > 	mem_cgroup_update_page_stat()
+> > 	mem_cgroup_end_update_page_stat()
+> > 
+> > There're two writeback interface to modify: test_clear/set_page_writeback.
+> > 
+> > Signed-off-by: Sha Zhengju <handai.szj@taobao.com>
+> 
+> Seems good to me. BTW, you named macros as MEM_CGROUP_STAT_FILE_XXX
+> but I wonder these counters will be used for accounting swap-out's dirty pages..
+> 
+> STAT_DIRTY, STAT_WRITEBACK ? do you have better name ?
 
-If list_for_each_entry, etc complete a traversal of the list, the iterator
-variable ends up pointing to an address at an offset from the list head,
-and not a meaningful structure.  Thus this value should not be used after
-the end of the iterator.  The patch replaces s->name by al->name, which is
-referenced nearby.
+Perhaps we can follow the established "enum zone_stat_item" names:
 
-This problem was found using Coccinelle (http://coccinelle.lip6.fr/).
+        NR_FILE_DIRTY,
+        NR_WRITEBACK,
 
-Signed-off-by: Julia Lawall <Julia.Lawall@lip6.fr>
+s/NR_/MEM_CGROUP_STAT_/
 
----
- mm/slub.c |    2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+The names indicate that dirty pages for anonymous pages are not
+accounted (by __set_page_dirty_no_writeback()). While the writeback
+pages accounting include both the file/anon pages.
 
-diff --git a/mm/slub.c b/mm/slub.c
-index cc4ed03..ef9bf01 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -5395,7 +5395,7 @@ static int __init slab_sysfs_init(void)
- 		err = sysfs_slab_alias(al->s, al->name);
- 		if (err)
- 			printk(KERN_ERR "SLUB: Unable to add boot slab alias"
--					" %s to sysfs\n", s->name);
-+					" %s to sysfs\n", al->name);
- 		kfree(al);
- 	}
- 
+Ah then we'll need to update the document in patch 0 accordingly. This
+may sound a bit tricky to the users..
+
+Thanks,
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
