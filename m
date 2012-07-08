@@ -1,49 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
-	by kanga.kvack.org (Postfix) with SMTP id 4770E6B0093
-	for <linux-mm@kvack.org>; Sun,  8 Jul 2012 18:53:38 -0400 (EDT)
-Received: by pbbrp2 with SMTP id rp2so22055293pbb.14
-        for <linux-mm@kvack.org>; Sun, 08 Jul 2012 15:53:37 -0700 (PDT)
-Date: Sun, 8 Jul 2012 15:53:35 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] mm: don't invoke __alloc_pages_direct_compact when order
- 0
-In-Reply-To: <CAAmzW4PXdpQ2zSnkx8sSScAt1OY0j4+HXVmf=COvP7eMLqrEvQ@mail.gmail.com>
-Message-ID: <alpine.DEB.2.00.1207081547140.18461@chino.kir.corp.google.com>
-References: <1341588521-17744-1-git-send-email-js1304@gmail.com> <alpine.DEB.2.00.1207070139510.10445@chino.kir.corp.google.com> <CAAmzW4PXdpQ2zSnkx8sSScAt1OY0j4+HXVmf=COvP7eMLqrEvQ@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
+	by kanga.kvack.org (Postfix) with SMTP id 7AE9D6B0096
+	for <linux-mm@kvack.org>; Sun,  8 Jul 2012 19:01:14 -0400 (EDT)
+Date: Mon, 9 Jul 2012 01:01:00 +0200
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH 6/7] memcg: add per cgroup writeback pages accounting
+Message-ID: <20120708230100.GA5340@cmpxchg.org>
+References: <1340880885-5427-1-git-send-email-handai.szj@taobao.com>
+ <1340881525-5835-1-git-send-email-handai.szj@taobao.com>
+ <4FF291BE.7030509@jp.fujitsu.com>
+ <20120708144459.GA18272@localhost>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120708144459.GA18272@localhost>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, JoonSoo Kim <js1304@gmail.com>
-Cc: Pekka Enberg <penberg@kernel.org>, Christoph Lameter <cl@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Fengguang Wu <fengguang.wu@intel.com>
+Cc: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Sha Zhengju <handai.szj@gmail.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, gthelen@google.com, yinghan@google.com, akpm@linux-foundation.org, mhocko@suse.cz, linux-kernel@vger.kernel.org, Sha Zhengju <handai.szj@taobao.com>
 
-On Sun, 8 Jul 2012, JoonSoo Kim wrote:
-
-> >> __alloc_pages_direct_compact has many arguments so invoking it is very costly.
-> >> And in almost invoking case, order is 0, so return immediately.
-> >>
-> >
-> > If "zero cost" is "very costly", then this might make sense.
-> >
-> > __alloc_pages_direct_compact() is inlined by gcc.
+On Sun, Jul 08, 2012 at 10:44:59PM +0800, Fengguang Wu wrote:
+> On Tue, Jul 03, 2012 at 03:31:26PM +0900, KAMEZAWA Hiroyuki wrote:
+> > (2012/06/28 20:05), Sha Zhengju wrote:
+> > > From: Sha Zhengju <handai.szj@taobao.com>
+> > > 
+> > > Similar to dirty page, we add per cgroup writeback pages accounting. The lock
+> > > rule still is:
+> > > 	mem_cgroup_begin_update_page_stat()
+> > > 	modify page WRITEBACK stat
+> > > 	mem_cgroup_update_page_stat()
+> > > 	mem_cgroup_end_update_page_stat()
+> > > 
+> > > There're two writeback interface to modify: test_clear/set_page_writeback.
+> > > 
+> > > Signed-off-by: Sha Zhengju <handai.szj@taobao.com>
+> > 
+> > Seems good to me. BTW, you named macros as MEM_CGROUP_STAT_FILE_XXX
+> > but I wonder these counters will be used for accounting swap-out's dirty pages..
+> > 
+> > STAT_DIRTY, STAT_WRITEBACK ? do you have better name ?
 > 
-> In my kernel image, __alloc_pages_direct_compact() is not inlined by gcc.
+> Perhaps we can follow the established "enum zone_stat_item" names:
+> 
+>         NR_FILE_DIRTY,
+>         NR_WRITEBACK,
+> 
+> s/NR_/MEM_CGROUP_STAT_/
+> 
+> The names indicate that dirty pages for anonymous pages are not
+> accounted (by __set_page_dirty_no_writeback()). While the writeback
+> pages accounting include both the file/anon pages.
+> 
+> Ah then we'll need to update the document in patch 0 accordingly. This
+> may sound a bit tricky to the users..
 
-Adding Andrew and Mel to the thread since this would require that we 
-revert 11e33f6a55ed ("page allocator: break up the allocator entry point 
-into fast and slow paths") which would obviously not be a clean revert 
-since there have been several changes to these functions over the past 
-three years.
+We already report the global one as "nr_dirty", though.  Please don't
+give the memcg one a different name.
 
-I'm stunned (and skeptical) that __alloc_pages_direct_compact() is not 
-inlined by your gcc, especially since the kernel must be compiled with 
-optimization (either -O1 or -O2 which causes these functions to be 
-inlined).  What version of gcc are you using and on what architecture?  
-Please do "make mm/page_alloc.s" and send it to me privately, I'll file 
-this and fix it up on gcc-bugs.
-
-I'll definitely be following up on this.
+The enum naming is not too critical, but it would be nice to have it
+match the public name.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
