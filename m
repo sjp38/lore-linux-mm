@@ -1,90 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
-	by kanga.kvack.org (Postfix) with SMTP id D0DA56B0074
-	for <linux-mm@kvack.org>; Sat,  7 Jul 2012 14:27:17 -0400 (EDT)
-Message-ID: <4FF87F5F.30106@redhat.com>
-Date: Sat, 07 Jul 2012 14:26:39 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
+	by kanga.kvack.org (Postfix) with SMTP id 2BCA26B0074
+	for <linux-mm@kvack.org>; Sat,  7 Jul 2012 22:29:14 -0400 (EDT)
+Received: by obhx4 with SMTP id x4so16278690obh.14
+        for <linux-mm@kvack.org>; Sat, 07 Jul 2012 19:29:13 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [RFC][PATCH 14/26] sched, numa: Numa balancer
-References: <20120316144028.036474157@chello.nl> <20120316144241.012558280@chello.nl>
-In-Reply-To: <20120316144241.012558280@chello.nl>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20120707003819.GA2041@barrios>
+References: <1341588521-17744-1-git-send-email-js1304@gmail.com>
+	<20120706155920.GA7721@barrios>
+	<CAAmzW4N+-xS65-NDJF2V9nzGDBTFC=20sZ8LJx5wCZ8=t7SpTQ@mail.gmail.com>
+	<20120707003819.GA2041@barrios>
+Date: Sun, 8 Jul 2012 11:29:13 +0900
+Message-ID: <CAAmzW4OzJta03PhhRgJZrbqnwrSjVoCdpx+HBQ9wzwfKi7PFDQ@mail.gmail.com>
+Subject: Re: [PATCH] mm: don't invoke __alloc_pages_direct_compact when order 0
+From: JoonSoo Kim <js1304@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Dan Smith <danms@us.ibm.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: akpm@linux-foundation.org, Pekka Enberg <penberg@kernel.org>, Christoph Lameter <cl@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 03/16/2012 10:40 AM, Peter Zijlstra wrote:
+>>
+>> >> And in almost invoking case, order is 0, so return immediately.
+>> >
+>> > You can't make sure it.
+>>
+>> Okay.
+>>
+>> >>
+>> >> Let's not invoke it when order 0
+>> >
+>> > Let's not ruin git blame.
+>>
+>> Hmm...
+>> When I do git blame, I can't find anything related to this.
+>
+> I mean if we merge the pointless patch, it could be showed firstly instead of
+> meaningful patch when we do git blame. It makes us bothering when we find blame-patch.
 
-> +/*
-> + * Assumes symmetric NUMA -- that is, each node is of equal size.
-> + */
-> +static void set_max_mem_load(unsigned long load)
-> +{
-> +	unsigned long old_load;
-> +
-> +	spin_lock(&max_mem_load.lock);
-> +	old_load = max_mem_load.load;
-> +	if (!old_load)
-> +		old_load = load;
-> +	max_mem_load.load = (old_load + load) >> 1;
-> +	spin_unlock(&max_mem_load.lock);
-> +}
+Oh... I see.
 
-The above in your patch kind of conflicts with this bit
-from patch 6/26:
-
-+	/*
-+	 * Migration allocates pages in the highest zone. If we cannot
-+	 * do so then migration (at least from node to node) is not
-+	 * possible.
-+	 */
-+	if (vma->vm_file &&
-+		gfp_zone(mapping_gfp_mask(vma->vm_file->f_mapping))
-+								< policy_zone)
-+			return 0;
-
-Looking at how the memory load code is used, I wonder
-if it would make sense to count "zone size - free - inactive
-file" pages instead?
-
-> +			/*
-> +			 * Avoid migrating ne's when we'll know we'll push our
-> +			 * node over the memory limit.
-> +			 */
-> +			if (max_mem_load &&
-> +			    imb->mem_load + mem_moved + ne_mem > max_mem_load)
-> +				goto next;
-
-> +static void numa_balance(struct node_queue *this_nq)
-> +{
-> +	struct numa_imbalance imb;
-> +	int busiest;
-> +
-> +	busiest = find_busiest_node(this_nq->node, &imb);
-> +	if (busiest == -1)
-> +		return;
-> +
-> +	if (imb.cpu <= 0 && imb.mem <= 0)
-> +		return;
-> +
-> +	move_processes(nq_of(busiest), this_nq, &imb);
-> +}
-
-You asked how and why Andrea's algorithm converges.
-After looking at both patch sets for a while, and asking
-for clarification, I think I can see how his code converges.
-
-It is not yet clear to me how and why your code converges.
-
-I see some dual bin packing (CPU & memory) heuristics, but
-it is not at all clear to me how they interact, especially
-when workloads are going active and idle on a regular basis.
-
--- 
-All rights reversed
+Thanks for comments.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
