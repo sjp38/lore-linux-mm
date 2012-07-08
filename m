@@ -1,37 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
-	by kanga.kvack.org (Postfix) with SMTP id CB0796B008C
-	for <linux-mm@kvack.org>; Sun,  8 Jul 2012 14:35:59 -0400 (EDT)
-Message-ID: <4FF9D2EF.7010901@redhat.com>
-Date: Sun, 08 Jul 2012 14:35:27 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
+	by kanga.kvack.org (Postfix) with SMTP id 4770E6B0093
+	for <linux-mm@kvack.org>; Sun,  8 Jul 2012 18:53:38 -0400 (EDT)
+Received: by pbbrp2 with SMTP id rp2so22055293pbb.14
+        for <linux-mm@kvack.org>; Sun, 08 Jul 2012 15:53:37 -0700 (PDT)
+Date: Sun, 8 Jul 2012 15:53:35 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH] mm: don't invoke __alloc_pages_direct_compact when order
+ 0
+In-Reply-To: <CAAmzW4PXdpQ2zSnkx8sSScAt1OY0j4+HXVmf=COvP7eMLqrEvQ@mail.gmail.com>
+Message-ID: <alpine.DEB.2.00.1207081547140.18461@chino.kir.corp.google.com>
+References: <1341588521-17744-1-git-send-email-js1304@gmail.com> <alpine.DEB.2.00.1207070139510.10445@chino.kir.corp.google.com> <CAAmzW4PXdpQ2zSnkx8sSScAt1OY0j4+HXVmf=COvP7eMLqrEvQ@mail.gmail.com>
 MIME-Version: 1.0
-Subject: Re: [RFC][PATCH 14/26] sched, numa: Numa balancer
-References: <20120316144028.036474157@chello.nl> <20120316144241.012558280@chello.nl>
-In-Reply-To: <20120316144241.012558280@chello.nl>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Dan Smith <danms@us.ibm.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, JoonSoo Kim <js1304@gmail.com>
+Cc: Pekka Enberg <penberg@kernel.org>, Christoph Lameter <cl@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 03/16/2012 10:40 AM, Peter Zijlstra wrote:
+On Sun, 8 Jul 2012, JoonSoo Kim wrote:
 
-+static bool can_move_ne(struct numa_entity *ne)
-+{
-+	/*
-+	 * XXX: consider mems_allowed, stinking cpusets has mems_allowed
-+	 * per task and it can actually differ over a whole process, la-la-la.
-+	 */
-+	return true;
-+}
+> >> __alloc_pages_direct_compact has many arguments so invoking it is very costly.
+> >> And in almost invoking case, order is 0, so return immediately.
+> >>
+> >
+> > If "zero cost" is "very costly", then this might make sense.
+> >
+> > __alloc_pages_direct_compact() is inlined by gcc.
+> 
+> In my kernel image, __alloc_pages_direct_compact() is not inlined by gcc.
 
-This looks like something that should be fixed before the
-code is submitted for merging upstream.
+Adding Andrew and Mel to the thread since this would require that we 
+revert 11e33f6a55ed ("page allocator: break up the allocator entry point 
+into fast and slow paths") which would obviously not be a clean revert 
+since there have been several changes to these functions over the past 
+three years.
 
--- 
-All rights reversed
+I'm stunned (and skeptical) that __alloc_pages_direct_compact() is not 
+inlined by your gcc, especially since the kernel must be compiled with 
+optimization (either -O1 or -O2 which causes these functions to be 
+inlined).  What version of gcc are you using and on what architecture?  
+Please do "make mm/page_alloc.s" and send it to me privately, I'll file 
+this and fix it up on gcc-bugs.
+
+I'll definitely be following up on this.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
