@@ -1,107 +1,140 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
-	by kanga.kvack.org (Postfix) with SMTP id BEE106B005C
-	for <linux-mm@kvack.org>; Sun,  8 Jul 2012 22:37:18 -0400 (EDT)
-From: Minchan Kim <minchan@kernel.org>
-Subject: [PATCH] mm: Warn about costly page allocation
-Date: Mon,  9 Jul 2012 11:38:20 +0900
-Message-Id: <1341801500-5798-1-git-send-email-minchan@kernel.org>
+Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
+	by kanga.kvack.org (Postfix) with SMTP id 4E4BF6B005C
+	for <linux-mm@kvack.org>; Sun,  8 Jul 2012 22:42:19 -0400 (EDT)
+Received: from /spool/local
+	by e28smtp02.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <zhong@linux.vnet.ibm.com>;
+	Mon, 9 Jul 2012 08:12:14 +0530
+Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
+	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q692g5BP4587918
+	for <linux-mm@kvack.org>; Mon, 9 Jul 2012 08:12:06 +0530
+Received: from d28av03.in.ibm.com (loopback [127.0.0.1])
+	by d28av03.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q698BOvO021290
+	for <linux-mm@kvack.org>; Mon, 9 Jul 2012 18:11:24 +1000
+Message-ID: <1341801721.2439.29.camel@ThinkPad-T420>
+Subject: Re: [PATCH SLAB 1/2 v3] duplicate the cache name in SLUB's
+ saved_alias list, SLAB, and SLOB
+From: Li Zhong <zhong@linux.vnet.ibm.com>
+Date: Mon, 09 Jul 2012 10:42:01 +0800
+In-Reply-To: <alpine.DEB.2.00.1207060855320.26441@router.home>
+References: <1341561286.24895.9.camel@ThinkPad-T420>
+	 <alpine.DEB.2.00.1207060855320.26441@router.home>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 7bit
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Minchan Kim <minchan@kernel.org>
+To: Christoph Lameter <cl@linux.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, linux-mm <linux-mm@kvack.org>, PowerPC email list <linuxppc-dev@lists.ozlabs.org>, Wanlong Gao <gaowanlong@cn.fujitsu.com>, Glauber Costa <glommer@parallels.com>
 
-Since lumpy reclaim was introduced at 2.6.23, it helped higher
-order allocation.
-Recently, we removed it at 3.4 and we didn't enable compaction
-forcingly[1]. The reason makes sense that compaction.o + migration.o
-isn't trivial for system doesn't use higher order allocation.
-But the problem is that we have to enable compaction explicitly
-while lumpy reclaim enabled unconditionally.
+On Fri, 2012-07-06 at 08:56 -0500, Christoph Lameter wrote:
+> I thought I posted this a couple of days ago. Would this not fix things
+> without having to change all the allocators?
 
-Normally, admin doesn't know his system have used higher order
-allocation and even lumpy reclaim have helped it.
-Admin in embdded system have a tendency to minimise code size so that
-they can disable compaction. In this case, we can see page allocation
-failure we can never see in the past. It's critical on embedded side
-because...
+I was pointed by Glauber to the slab common code patches. I need some
+more time to read the patches. Now I think the slab/slot changes in this
+v3 are not needed, and can be ignored.
 
-Let's think this scenario.
+But for the SLUB's saved_alias list issue, I don't think the following
+patch helps. Details below: (Maybe I am wrong, as I'm reading the patch
+based on the 3.5-rc6 code ...)
 
-There is QA team in embedded company and they have tested their product.
-In test scenario, they can allocate 100 high order allocation.
-(they don't matter how many high order allocations in kernel are needed
-during test. their concern is just only working well or fail of their
-middleware/application) High order allocation will be serviced well
-by natural buddy allocation without lumpy's help. So they released
-the product and sold out all over the world.
-Unfortunately, in real practice, sometime, 105 high order allocation was
-needed rarely and fortunately, lumpy reclaim could help it so the product
-doesn't have a problem until now.
+> 
+> 
+> Subject: slub: Dup name earlier in kmem_cache_create
+> 
+> Dup the name earlier in kmem_cache_create so that alias
+> processing is done using the copy of the string and not
+> the string itself.
+> 
+> Signed-off-by: Christoph Lameter <cl@linux.com>
+> 
+> ---
+>  mm/slub.c |   29 ++++++++++++++---------------
+>  1 file changed, 14 insertions(+), 15 deletions(-)
+> 
+> Index: linux-2.6/mm/slub.c
+> ===================================================================
+> --- linux-2.6.orig/mm/slub.c	2012-06-11 08:49:56.000000000 -0500
+> +++ linux-2.6/mm/slub.c	2012-07-03 15:17:37.000000000 -0500
+> @@ -3933,8 +3933,12 @@ struct kmem_cache *kmem_cache_create(con
+>  	if (WARN_ON(!name))
+>  		return NULL;
+> 
+> +	n = kstrdup(name, GFP_KERNEL);
+> +	if (!n)
+> +		goto out;
+> +
+>  	down_write(&slub_lock);
+> -	s = find_mergeable(size, align, flags, name, ctor);
+> +	s = find_mergeable(size, align, flags, n, ctor);
+>  	if (s) {
+>  		s->refcount++;
+>  		/*
 
-If they use latest kernel, they will see the new config CONFIG_COMPACTION
-which is very poor documentation, and they can't know it's replacement of
-lumpy reclaim(even, they don't know lumpy reclaim) so they simply disable
-that option for size optimization. Of course, QA team still test it but they
-can't find the problem if they don't do test stronger than old.
-It ends up release the product and sold out all over the world, again.
-But in this time, we don't have both lumpy and compaction so the problem
-would happen in real practice. A poor enginner from Korea have to flight
-to the USA for the fix a ton of products. Otherwise, should recall products
-from all over the world. Maybe he can lose a job. :(
+		......
+		up_write(&slub_lock);
+		return s; 
+	}
 
-This patch adds warning for notice. If the system try to allocate
-PAGE_ALLOC_COSTLY_ORDER above page and system enters reclaim path,
-it emits the warning. At least, it gives a chance to look into their
-system before the relase.
+Here, the function returns without name string n be kfreed. 
 
-This patch avoids false positive by alloc_large_system_hash which
-allocates with GFP_ATOMIC and a fallback mechanism so it can make
-this warning useless.
+But we couldn't kfree n here, because in sysfs_slab_alias(), if
+(slab_state < SYS_FS), the name need to be kept valid until
+slab_sysfs_init() is finished adding the entry into sysfs. 
+		
+> @@ -3944,7 +3948,7 @@ struct kmem_cache *kmem_cache_create(con
+>  		s->objsize = max(s->objsize, (int)size);
+>  		s->inuse = max_t(int, s->inuse, ALIGN(size, sizeof(void *)));
+> 
+> -		if (sysfs_slab_alias(s, name)) {
+> +		if (sysfs_slab_alias(s, n)) {
+>  			s->refcount--;
+>  			goto err;
+>  		}
+> @@ -3952,31 +3956,26 @@ struct kmem_cache *kmem_cache_create(con
+>  		return s;
+>  	}
+> 
+> -	n = kstrdup(name, GFP_KERNEL);
+> -	if (!n)
+> -		goto err;
+> -
+>  	s = kmalloc(kmem_size, GFP_KERNEL);
+>  	if (s) {
+>  		if (kmem_cache_open(s, n,
+>  				size, align, flags, ctor)) {
+>  			list_add(&s->list, &slab_caches);
+>  			up_write(&slub_lock);
+> -			if (sysfs_slab_add(s)) {
+> -				down_write(&slub_lock);
+> -				list_del(&s->list);
+> -				kfree(n);
+> -				kfree(s);
+> -				goto err;
+> -			}
+> -			return s;
+> +			if (!sysfs_slab_add(s))
+> +				return s;
+> +
+> +			down_write(&slub_lock);
+> +			list_del(&s->list);
+>  		}
+>  		kfree(s);
+>  	}
+> -	kfree(n);
+> +
+>  err:
+> +	kfree(n);
+>  	up_write(&slub_lock);
+> 
+> +out:
+>  	if (flags & SLAB_PANIC)
+>  		panic("Cannot create slabcache %s\n", name);
+>  	else
+> 
 
-[1] c53919ad(mm: vmscan: remove lumpy reclaim)
-
-Signed-off-by: Minchan Kim <minchan@kernel.org>
----
- mm/page_alloc.c |   16 ++++++++++++++++
- 1 file changed, 16 insertions(+)
-
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index a4d3a19..1155e00 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -2276,6 +2276,20 @@ gfp_to_alloc_flags(gfp_t gfp_mask)
- 	return alloc_flags;
- }
- 
-+#if defined(CONFIG_DEBUG_VM) && !defined(CONFIG_COMPACTION)
-+static inline void check_page_alloc_costly_order(unsigned int order)
-+{
-+	if (unlikely(order > PAGE_ALLOC_COSTLY_ORDER)) {
-+		printk_once("WARNING: You are tring to allocate %d-order page."
-+		" You might need to turn on CONFIG_COMPACTION\n", order);
-+	}
-+}
-+#else
-+static inline void check_page_alloc_costly_order(unsigned int order)
-+{
-+}
-+#endif
-+
- static inline struct page *
- __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
- 	struct zonelist *zonelist, enum zone_type high_zoneidx,
-@@ -2353,6 +2367,8 @@ rebalance:
- 	if (!wait)
- 		goto nopage;
- 
-+	check_page_alloc_costly_order(order);
-+
- 	/* Avoid recursion of direct reclaim */
- 	if (current->flags & PF_MEMALLOC)
- 		goto nopage;
--- 
-1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
