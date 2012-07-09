@@ -1,68 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx110.postini.com [74.125.245.110])
-	by kanga.kvack.org (Postfix) with SMTP id 2E4A16B006C
-	for <linux-mm@kvack.org>; Mon,  9 Jul 2012 17:00:42 -0400 (EDT)
-Received: by pbbrp2 with SMTP id rp2so23976331pbb.14
-        for <linux-mm@kvack.org>; Mon, 09 Jul 2012 14:00:41 -0700 (PDT)
-Date: Mon, 9 Jul 2012 14:00:38 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: [patch v2] mm, slub: ensure irqs are enabled for kmemcheck
-In-Reply-To: <1341841593.14828.9.camel@gandalf.stny.rr.com>
-Message-ID: <alpine.DEB.2.00.1207091400090.23926@chino.kir.corp.google.com>
-References: <20120708040009.GA8363@localhost> <CAAmzW4OD2_ODyeY7c1VMPajwzovOms5M8Vnw=XP=uGUyPogiJQ@mail.gmail.com> <alpine.DEB.2.00.1207081558540.18461@chino.kir.corp.google.com> <alpine.LFD.2.02.1207091209220.3050@tux.localdomain>
- <alpine.DEB.2.00.1207090333560.8224@chino.kir.corp.google.com> <1341841593.14828.9.camel@gandalf.stny.rr.com>
+Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
+	by kanga.kvack.org (Postfix) with SMTP id 15EB86B006C
+	for <linux-mm@kvack.org>; Mon,  9 Jul 2012 17:01:23 -0400 (EDT)
+Received: by ghbg15 with SMTP id g15so1239613ghb.2
+        for <linux-mm@kvack.org>; Mon, 09 Jul 2012 14:01:22 -0700 (PDT)
+From: Greg Thelen <gthelen@google.com>
+Subject: Re: [PATCH 2/7] memcg: remove MEMCG_NR_FILE_MAPPED
+References: <1340880885-5427-1-git-send-email-handai.szj@taobao.com>
+	<1340881111-5576-1-git-send-email-handai.szj@taobao.com>
+Date: Mon, 09 Jul 2012 14:01:21 -0700
+Message-ID: <xr93ehok1wf2.fsf@gthelen.mtv.corp.google.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pekka Enberg <penberg@kernel.org>
-Cc: Steven Rostedt <rostedt@goodmis.org>, JoonSoo Kim <js1304@gmail.com>, Fengguang Wu <fengguang.wu@intel.com>, Vegard Nossum <vegard.nossum@gmail.com>, Christoph Lameter <cl@linux.com>, Rus <rus@sfinxsoft.com>, Ben Hutchings <ben@decadent.org.uk>, stable@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Sha Zhengju <handai.szj@gmail.com>
+Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, yinghan@google.com, akpm@linux-foundation.org, mhocko@suse.cz, linux-kernel@vger.kernel.org, Sha Zhengju <handai.szj@taobao.com>
 
-kmemcheck_alloc_shadow() requires irqs to be enabled, so wait to disable
-them until after its called for __GFP_WAIT allocations.
+On Thu, Jun 28 2012, Sha Zhengju wrote:
 
-This fixes a warning for such allocations:
+> From: Sha Zhengju <handai.szj@taobao.com>
+>
+> While accounting memcg page stat, it's not worth to use MEMCG_NR_FILE_MAPPED
+> as an extra layer of indirection because of the complexity and presumed
+> performance overhead. We can use MEM_CGROUP_STAT_FILE_MAPPED directly.
+>
+> Signed-off-by: Sha Zhengju <handai.szj@taobao.com>
+> ---
+>  include/linux/memcontrol.h |   25 +++++++++++++++++--------
+>  mm/memcontrol.c            |   24 +-----------------------
+>  mm/rmap.c                  |    4 ++--
+>  3 files changed, 20 insertions(+), 33 deletions(-)
+>
+> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+> index 83e7ba9..20b0f2d 100644
+> --- a/include/linux/memcontrol.h
+> +++ b/include/linux/memcontrol.h
+> @@ -27,9 +27,18 @@ struct page_cgroup;
+>  struct page;
+>  struct mm_struct;
+>  
+> -/* Stats that can be updated by kernel. */
+> -enum mem_cgroup_page_stat_item {
+> -	MEMCG_NR_FILE_MAPPED, /* # of pages charged as file rss */
+> +/*
+> + * Statistics for memory cgroup.
+> + */
+> +enum mem_cgroup_stat_index {
+> +	/*
+> +	 * For MEM_CONTAINER_TYPE_ALL, usage = pagecache + rss.
+> +	 */
+> +	MEM_CGROUP_STAT_CACHE, 	   /* # of pages charged as cache */
+> +	MEM_CGROUP_STAT_RSS,	   /* # of pages charged as anon rss */
+> +	MEM_CGROUP_STAT_FILE_MAPPED,  /* # of pages charged as file rss */
+> +	MEM_CGROUP_STAT_SWAP, /* # of pages, swapped out */
+> +	MEM_CGROUP_STAT_NSTATS,
+>  };
 
-	WARNING: at kernel/lockdep.c:2739 lockdep_trace_alloc+0x14e/0x1c0()
+Nit.  Moving mem_cgroup_stat_index from memcontrol.c to memcontrol.h is
+fine with me.  But this does increase the distance between related
+defintions of definition mem_cgroup_stat_index and
+mem_cgroup_stat_names.  These two lists have to be kept in sync.  So it
+might help to add a comment to both indicating their relationship so we
+don't accidentally modify the enum without updating the dependent string
+table.
 
-Acked-by: Fengguang Wu <fengguang.wu@intel.com>
-Acked-by: Steven Rostedt <rostedt@goodmis.org>
-Tested-by: Fengguang Wu <fengguang.wu@intel.com>
-Signed-off-by: David Rientjes <rientjes@google.com>
----
- mm/slub.c |   13 ++++++-------
- 1 file changed, 6 insertions(+), 7 deletions(-)
+Otherwise, looks good.
 
-diff --git a/mm/slub.c b/mm/slub.c
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -1314,13 +1314,7 @@ static struct page *allocate_slab(struct kmem_cache *s, gfp_t flags, int node)
- 			stat(s, ORDER_FALLBACK);
- 	}
- 
--	if (flags & __GFP_WAIT)
--		local_irq_disable();
--
--	if (!page)
--		return NULL;
--
--	if (kmemcheck_enabled
-+	if (kmemcheck_enabled && page
- 		&& !(s->flags & (SLAB_NOTRACK | DEBUG_DEFAULT_FLAGS))) {
- 		int pages = 1 << oo_order(oo);
- 
-@@ -1336,6 +1330,11 @@ static struct page *allocate_slab(struct kmem_cache *s, gfp_t flags, int node)
- 			kmemcheck_mark_unallocated_pages(page, pages);
- 	}
- 
-+	if (flags & __GFP_WAIT)
-+		local_irq_disable();
-+	if (!page)
-+		return NULL;
-+
- 	page->objects = oo_objects(oo);
- 	mod_zone_page_state(page_zone(page),
- 		(s->flags & SLAB_RECLAIM_ACCOUNT) ?
+Reviewed-by: Greg Thelen <gthelen@google.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
