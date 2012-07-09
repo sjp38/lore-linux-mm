@@ -1,28 +1,27 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
-	by kanga.kvack.org (Postfix) with SMTP id E13316B0083
-	for <linux-mm@kvack.org>; Mon,  9 Jul 2012 06:32:33 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 7FD043EE0B6
-	for <linux-mm@kvack.org>; Mon,  9 Jul 2012 19:32:32 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 66DE145DEB3
-	for <linux-mm@kvack.org>; Mon,  9 Jul 2012 19:32:32 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 4E51245DEAD
-	for <linux-mm@kvack.org>; Mon,  9 Jul 2012 19:32:32 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 426CD1DB803E
-	for <linux-mm@kvack.org>; Mon,  9 Jul 2012 19:32:32 +0900 (JST)
-Received: from g01jpexchyt05.g01.fujitsu.local (g01jpexchyt05.g01.fujitsu.local [10.128.194.44])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id DC8E01DB803B
-	for <linux-mm@kvack.org>; Mon,  9 Jul 2012 19:32:31 +0900 (JST)
-Message-ID: <4FFAB32A.7060801@jp.fujitsu.com>
-Date: Mon, 9 Jul 2012 19:32:10 +0900
+Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
+	by kanga.kvack.org (Postfix) with SMTP id 0C33D6B0087
+	for <linux-mm@kvack.org>; Mon,  9 Jul 2012 06:33:56 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id A422B3EE0B6
+	for <linux-mm@kvack.org>; Mon,  9 Jul 2012 19:33:55 +0900 (JST)
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 8E13C45DE58
+	for <linux-mm@kvack.org>; Mon,  9 Jul 2012 19:33:55 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 73F9245DE56
+	for <linux-mm@kvack.org>; Mon,  9 Jul 2012 19:33:55 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 6846C1DB804D
+	for <linux-mm@kvack.org>; Mon,  9 Jul 2012 19:33:55 +0900 (JST)
+Received: from g01jpexchyt09.g01.fujitsu.local (g01jpexchyt09.g01.fujitsu.local [10.128.194.48])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 160ED1DB8043
+	for <linux-mm@kvack.org>; Mon,  9 Jul 2012 19:33:55 +0900 (JST)
+Message-ID: <4FFAB37F.1060105@jp.fujitsu.com>
+Date: Mon, 9 Jul 2012 19:33:35 +0900
 From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: [RFC PATCH v3 10/13] memory-hotplug : implement register_page_bootmem_info_section
- of sparse-vmemmap
+Subject: [RFC PATCH v3 11/13] memory-hotplug : free memmap of sparse-vmemmap
 References: <4FFAB0A2.8070304@jp.fujitsu.com>
 In-Reply-To: <4FFAB0A2.8070304@jp.fujitsu.com>
 Content-Type: text/plain; charset="ISO-2022-JP"
@@ -32,10 +31,9 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org
 Cc: rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, wency@cn.fujitsu.com
 
-For removing memmap region of sparse-vmemmap which is allocated bootmem,
-memmap region of sparse-vmemmap needs to be registered by get_page_bootmem().
-So the patch searches pages of virtual mapping and registers the pages by
-get_page_bootmem().
+I don't think that all pages of virtual mapping in removed memory can be
+freed, since page which type is MIX_SECTION_INFO is difficult to free.
+So, the patch only frees page which type is SECTION_INFO at first.
 
 CC: David Rientjes <rientjes@google.com>
 CC: Jiang Liu <liuj97@gmail.com>
@@ -50,145 +48,170 @@ CC: Wen Congyang <wency@cn.fujitsu.com>
 Signed-off-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 
 ---
- arch/x86/mm/init_64.c          |   53 +++++++++++++++++++++++++++++++++++++++++
- include/linux/memory_hotplug.h |    2 +
- include/linux/mm.h             |    3 +-
- mm/memory_hotplug.c            |   23 +++++++++++++++--
- 4 files changed, 77 insertions(+), 4 deletions(-)
-
-Index: linux-3.5-rc4/mm/memory_hotplug.c
-===================================================================
---- linux-3.5-rc4.orig/mm/memory_hotplug.c	2012-07-03 14:22:14.419062959 +0900
-+++ linux-3.5-rc4/mm/memory_hotplug.c	2012-07-03 14:22:18.522011667 +0900
-@@ -91,8 +91,8 @@ static void release_memory_resource(stru
- }
-
- #ifdef CONFIG_MEMORY_HOTPLUG_SPARSE
--static void get_page_bootmem(unsigned long info,  struct page *page,
--			     unsigned long type)
-+void get_page_bootmem(unsigned long info,  struct page *page,
-+		      unsigned long type)
- {
- 	unsigned long page_type;
-
-@@ -164,8 +164,25 @@ static void register_page_bootmem_info_s
-
- }
- #else
--static inline void register_page_bootmem_info_section(unsigned long start_pfn)
-+static void register_page_bootmem_info_section(unsigned long start_pfn)
- {
-+	unsigned long mapsize, section_nr;
-+	struct mem_section *ms;
-+	struct page *page, *memmap;
-+
-+	if (!pfn_valid(start_pfn))
-+		return;
-+
-+	section_nr = pfn_to_section_nr(start_pfn);
-+	ms = __nr_to_section(section_nr);
-+
-+	memmap = sparse_decode_mem_map(ms->section_mem_map, section_nr);
-+
-+	page = virt_to_page(memmap);
-+	mapsize = sizeof(struct page) * PAGES_PER_SECTION;
-+	mapsize = PAGE_ALIGN(mapsize) >> PAGE_SHIFT;
-+
-+	register_page_bootmem_memmap(section_nr, memmap, PAGES_PER_SECTION);
- }
- #endif
+ arch/x86/mm/init_64.c |   91 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ include/linux/mm.h    |    2 +
+ mm/memory_hotplug.c   |    5 ++
+ mm/sparse.c           |    5 +-
+ 4 files changed, 101 insertions(+), 2 deletions(-)
 
 Index: linux-3.5-rc4/include/linux/mm.h
 ===================================================================
---- linux-3.5-rc4.orig/include/linux/mm.h	2012-07-03 14:21:45.223427904 +0900
-+++ linux-3.5-rc4/include/linux/mm.h	2012-07-03 14:22:18.530011567 +0900
-@@ -1586,7 +1586,8 @@ int vmemmap_populate_basepages(struct pa
- 						unsigned long pages, int node);
- int vmemmap_populate(struct page *start_page, unsigned long pages, int node);
+--- linux-3.5-rc4.orig/include/linux/mm.h	2012-07-03 14:22:18.530011567 +0900
++++ linux-3.5-rc4/include/linux/mm.h	2012-07-03 14:22:20.999983872 +0900
+@@ -1588,6 +1588,8 @@ int vmemmap_populate(struct page *start_
  void vmemmap_populate_print_last(void);
--
-+void register_page_bootmem_memmap(unsigned long section_nr, struct page *map,
-+				  unsigned long size);
+ void register_page_bootmem_memmap(unsigned long section_nr, struct page *map,
+ 				  unsigned long size);
++void vmemmap_kfree(struct page *memmpa, unsigned long nr_pages);
++void vmemmap_free_bootmem(struct page *memmpa, unsigned long nr_pages);
 
  enum mf_flags {
  	MF_COUNT_INCREASED = 1 << 0,
+Index: linux-3.5-rc4/mm/sparse.c
+===================================================================
+--- linux-3.5-rc4.orig/mm/sparse.c	2012-07-03 14:21:45.071429805 +0900
++++ linux-3.5-rc4/mm/sparse.c	2012-07-03 14:22:21.000983767 +0900
+@@ -614,12 +614,13 @@ static inline struct page *kmalloc_secti
+ 	/* This will make the necessary allocations eventually. */
+ 	return sparse_mem_map_populate(pnum, nid);
+ }
+-static void __kfree_section_memmap(struct page *memmap, unsigned long nr_pages)
++static void __kfree_section_memmap(struct page *page, unsigned long nr_pages)
+ {
+-	return; /* XXX: Not implemented yet */
++	vmemmap_kfree(page, nr_pages);
+ }
+ static void free_map_bootmem(struct page *page, unsigned long nr_pages)
+ {
++	vmemmap_free_bootmem(page, nr_pages);
+ }
+ #else
+ static struct page *__kmalloc_section_memmap(unsigned long nr_pages)
 Index: linux-3.5-rc4/arch/x86/mm/init_64.c
 ===================================================================
---- linux-3.5-rc4.orig/arch/x86/mm/init_64.c	2012-07-03 14:21:45.228427843 +0900
-+++ linux-3.5-rc4/arch/x86/mm/init_64.c	2012-07-03 14:22:18.538011465 +0900
-@@ -978,6 +978,59 @@ vmemmap_populate(struct page *start_page
+--- linux-3.5-rc4.orig/arch/x86/mm/init_64.c	2012-07-03 14:22:18.538011465 +0900
++++ linux-3.5-rc4/arch/x86/mm/init_64.c	2012-07-03 14:22:21.007983103 +0900
+@@ -978,6 +978,97 @@ vmemmap_populate(struct page *start_page
  	return 0;
  }
 
-+void __meminit
-+register_page_bootmem_memmap(unsigned long section_nr, struct page *start_page,
-+			     unsigned long size)
++unsigned long find_and_clear_pte_page(unsigned long addr, unsigned long end,
++				      struct page **pp)
 +{
-+	unsigned long addr = (unsigned long)start_page;
-+	unsigned long end = (unsigned long)(start_page + size);
-+	unsigned long next;
 +	pgd_t *pgd;
 +	pud_t *pud;
 +	pmd_t *pmd;
++	pte_t *pte;
++	unsigned long next;
++
++	*pp = NULL;
++
++	pgd = pgd_offset_k(addr);
++	if (pgd_none(*pgd))
++		return (addr + PAGE_SIZE) & PAGE_MASK;
++
++	pud = pud_offset(pgd, addr);
++	if (pud_none(*pud))
++		return (addr + PAGE_SIZE) & PAGE_MASK;
++
++	if (!cpu_has_pse) {
++		next = (addr + PAGE_SIZE) & PAGE_MASK;
++		pmd = pmd_offset(pud, addr);
++		if (pmd_none(*pmd))
++			return next;
++
++		pte = pte_offset_kernel(pmd, addr);
++		if (pte_none(*pte))
++			return next;
++
++		*pp = pte_page(*pte);
++		pte_clear(&init_mm, addr, pte);
++	} else {
++		next = pmd_addr_end(addr, end);
++
++		pmd = pmd_offset(pud, addr);
++		if (pmd_none(*pmd))
++			return next;
++
++		*pp = pmd_page(*pmd);
++		pmd_clear(pmd);
++	}
++
++	return next;
++}
++
++void __meminit
++vmemmap_kfree(struct page *memmap, unsigned long nr_pages)
++{
++	unsigned long addr = (unsigned long)memmap;
++	unsigned long end = (unsigned long)(memmap + nr_pages);
++	unsigned long next;
++	unsigned int order;
++	struct page *page;
 +
 +	for (; addr < end; addr = next) {
-+		pte_t *pte = NULL;
-+
-+		pgd = pgd_offset_k(addr);
-+		if (pgd_none(*pgd)) {
-+			next = (addr + PAGE_SIZE) & PAGE_MASK;
++		page = NULL;
++		next = find_and_clear_pte_page(addr, end, &page);
++		if (!page)
 +			continue;
-+		}
-+		get_page_bootmem(section_nr, pgd_page(*pgd), MIX_SECTION_INFO);
 +
-+		pud = pud_offset(pgd, addr);
-+		if (pud_none(*pud)) {
-+			next = (addr + PAGE_SIZE) & PAGE_MASK;
-+			continue;
-+		}
-+		get_page_bootmem(section_nr, pud_page(*pud), MIX_SECTION_INFO);
-+
-+		if (!cpu_has_pse) {
-+			next = (addr + PAGE_SIZE) & PAGE_MASK;
-+			pmd = pmd_offset(pud, addr);
-+			if (pmd_none(*pmd))
-+				continue;
-+			get_page_bootmem(section_nr, pmd_page(*pmd),
-+					 MIX_SECTION_INFO);
-+
-+			pte = pte_offset_kernel(pmd, addr);
-+			if (pte_none(*pte))
-+				continue;
-+			get_page_bootmem(section_nr, pte_page(*pte),
-+					 SECTION_INFO);
-+		} else {
-+			next = pmd_addr_end(addr, end);
-+
-+			pmd = pmd_offset(pud, addr);
-+			if (pmd_none(*pmd))
-+				continue;
-+			get_page_bootmem(section_nr, pmd_page(*pmd),
-+					 SECTION_INFO);
++		if (is_vmalloc_addr(page_address(page)))
++			vfree(page_address(page));
++		else {
++			order = next - addr;
++			free_pages((unsigned long)page_address(page),
++				   get_order(order));
 +		}
 +	}
 +}
 +
- void __meminit vmemmap_populate_print_last(void)
- {
- 	if (p_start) {
-Index: linux-3.5-rc4/include/linux/memory_hotplug.h
++void __meminit
++vmemmap_free_bootmem(struct page *memmap, unsigned long nr_pages)
++{
++	unsigned long addr = (unsigned long)memmap;
++	unsigned long end = (unsigned long)(memmap + nr_pages);
++	unsigned long next;
++	struct page *page;
++	unsigned long magic;
++
++	for (; addr < end; addr = next) {
++		page = NULL;
++		next = find_and_clear_pte_page(addr, end, &page);
++		if (!page)
++			continue;
++
++		magic = (unsigned long) page->lru.next;
++		if (magic == SECTION_INFO)
++			put_page_bootmem(page);
++	}
++}
++
+ void __meminit
+ register_page_bootmem_memmap(unsigned long section_nr, struct page *start_page,
+ 			     unsigned long size)
+Index: linux-3.5-rc4/mm/memory_hotplug.c
 ===================================================================
---- linux-3.5-rc4.orig/include/linux/memory_hotplug.h	2012-07-03 14:22:14.409063086 +0900
-+++ linux-3.5-rc4/include/linux/memory_hotplug.h	2012-07-03 14:22:18.541011428 +0900
-@@ -162,6 +162,8 @@ static inline void arch_refresh_nodedata
+--- linux-3.5-rc4.orig/mm/memory_hotplug.c	2012-07-03 14:22:18.522011667 +0900
++++ linux-3.5-rc4/mm/memory_hotplug.c	2012-07-03 14:22:21.012982694 +0900
+@@ -303,6 +303,8 @@ static int __meminit __add_section(int n
+ #ifdef CONFIG_SPARSEMEM_VMEMMAP
+ static int __remove_section(struct zone *zone, struct mem_section *ms)
+ {
++	unsigned long flags;
++	struct pglist_data *pgdat = zone->zone_pgdat;
+ 	int ret;
 
- extern void register_page_bootmem_info_node(struct pglist_data *pgdat);
- extern void put_page_bootmem(struct page *page);
-+extern void get_page_bootmem(unsigned long ingo, struct page *page,
-+			     unsigned long type);
+ 	if (!valid_section(ms))
+@@ -310,6 +312,9 @@ static int __remove_section(struct zone
 
- /*
-  * Lock for memory hotplug guarantees 1) all callbacks for memory hotplug
+ 	ret = unregister_memory_section(ms);
+
++	pgdat_resize_lock(pgdat, &flags);
++	sparse_remove_one_section(zone, ms);
++	pgdat_resize_unlock(pgdat, &flags);
+ 	return ret;
+ }
+ #else
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
