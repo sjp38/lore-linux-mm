@@ -1,65 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
-	by kanga.kvack.org (Postfix) with SMTP id 6164B6B0080
-	for <linux-mm@kvack.org>; Sun,  8 Jul 2012 21:52:18 -0400 (EDT)
-Date: Mon, 9 Jul 2012 09:52:09 +0800
-From: Fengguang Wu <fengguang.wu@intel.com>
-Subject: Re: WARNING: __GFP_FS allocations with IRQs disabled
- (kmemcheck_alloc_shadow)
-Message-ID: <20120709015209.GB8880@localhost>
-References: <20120708040009.GA8363@localhost>
- <CAAmzW4OD2_ODyeY7c1VMPajwzovOms5M8Vnw=XP=uGUyPogiJQ@mail.gmail.com>
- <alpine.DEB.2.00.1207081558540.18461@chino.kir.corp.google.com>
+Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
+	by kanga.kvack.org (Postfix) with SMTP id 7D6A46B005C
+	for <linux-mm@kvack.org>; Sun,  8 Jul 2012 22:30:21 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 59BB53EE0C0
+	for <linux-mm@kvack.org>; Mon,  9 Jul 2012 11:30:19 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 3A69345DEA6
+	for <linux-mm@kvack.org>; Mon,  9 Jul 2012 11:30:19 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 2297145DE9E
+	for <linux-mm@kvack.org>; Mon,  9 Jul 2012 11:30:19 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 1465D1DB8040
+	for <linux-mm@kvack.org>; Mon,  9 Jul 2012 11:30:19 +0900 (JST)
+Received: from m1000.s.css.fujitsu.com (m1000.s.css.fujitsu.com [10.240.81.136])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id C00B81DB8038
+	for <linux-mm@kvack.org>; Mon,  9 Jul 2012 11:30:18 +0900 (JST)
+Message-ID: <4FFA41A9.2030806@jp.fujitsu.com>
+Date: Mon, 09 Jul 2012 11:27:53 +0900
+From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1207081558540.18461@chino.kir.corp.google.com>
+Subject: Re: [patch 01/11] mm: memcg: fix compaction/migration failing due
+ to memcg limits
+References: <1341449103-1986-1-git-send-email-hannes@cmpxchg.org> <1341449103-1986-2-git-send-email-hannes@cmpxchg.org>
+In-Reply-To: <1341449103-1986-2-git-send-email-hannes@cmpxchg.org>
+Content-Type: text/plain; charset=ISO-2022-JP
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: JoonSoo Kim <js1304@gmail.com>, Vegard Nossum <vegard.nossum@gmail.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, Rus <rus@sfinxsoft.com>, Ben Hutchings <ben@decadent.org.uk>, Steven Rostedt <rostedt@goodmis.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Hugh Dickins <hughd@google.com>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Sun, Jul 08, 2012 at 04:01:44PM -0700, David Rientjes wrote:
-> On Mon, 9 Jul 2012, JoonSoo Kim wrote:
+(2012/07/05 9:44), Johannes Weiner wrote:
+> Compaction (and page migration in general) can currently be hindered
+> through pages being owned by memory cgroups that are at their limits
+> and unreclaimable.
 > 
-> > diff --git a/mm/slub.c b/mm/slub.c
-> > index 8c691fa..5d41cad 100644
-> > --- a/mm/slub.c
-> > +++ b/mm/slub.c
-> > @@ -1324,8 +1324,14 @@ static struct page *allocate_slab(struct
-> > kmem_cache *s, gfp_t flags, int node)
-> >                 && !(s->flags & (SLAB_NOTRACK | DEBUG_DEFAULT_FLAGS))) {
-> >                 int pages = 1 << oo_order(oo);
-> > 
-> > +               if (flags & __GFP_WAIT)
-> > +                       local_irq_enable();
-> > +
-> >                 kmemcheck_alloc_shadow(page, oo_order(oo), flags, node);
-> > 
-> > +               if (flags & __GFP_WAIT)
-> > +                       local_irq_disable();
-> > +
-> >                 /*
-> >                  * Objects from caches that have a constructor don't get
-> >                  * cleared when they're allocated, so we need to do it here.
+> The reason is that the replacement page is being charged against the
+> limit while the page being replaced is also still charged.  But this
+> seems unnecessary, given that only one of the two pages will still be
+> in use after migration finishes.
 > 
-> This patch is suboptimal when the branch is taken since you just disabled 
-> irqs and now are immediately reenabling them and then disabling them 
-> again.  (And your patch is also whitespace damaged, has no changelog, and 
-> isn't signed off so it can't be applied.)
+> This patch changes the memcg migration sequence so that the
+> replacement page is not charged.  Whatever page is still in use after
+> successful or failed migration gets to keep the charge of the page
+> that was going to be replaced.
+> 
+> Reported-by: David Rientjes <rientjes@google.com>
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 
-Agreed.
-
-> The correct fix is what I proposed at 
-> http://marc.info/?l=linux-kernel&m=133754837703630 and was awaiting 
-> testing.  If Rus, Steven, or Fengguang could test this then we could add 
-> it as a stable backport as well.
-
-Acked-by: Fengguang Wu <fengguang.wu@intel.com>
-Tested-by: Fengguang Wu <fengguang.wu@intel.com>
-
-Thanks,
-Fengguang
+Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
