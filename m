@@ -1,124 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
-	by kanga.kvack.org (Postfix) with SMTP id 7179A6B006C
-	for <linux-mm@kvack.org>; Mon,  9 Jul 2012 18:47:27 -0400 (EDT)
-Received: by ghrr18 with SMTP id r18so13059095ghr.14
-        for <linux-mm@kvack.org>; Mon, 09 Jul 2012 15:47:26 -0700 (PDT)
-Date: Mon, 9 Jul 2012 15:46:53 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: [PATCH 3/3] shmem: cleanup shmem_add_to_page_cache
-In-Reply-To: <alpine.LSU.2.00.1207091533001.2051@eggly.anvils>
-Message-ID: <alpine.LSU.2.00.1207091544290.2051@eggly.anvils>
-References: <alpine.LSU.2.00.1207091533001.2051@eggly.anvils>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from psmtp.com (na3sys010amx178.postini.com [74.125.245.178])
+	by kanga.kvack.org (Postfix) with SMTP id 2D1E16B0069
+	for <linux-mm@kvack.org>; Mon,  9 Jul 2012 19:35:41 -0400 (EDT)
+Received: by pbbrp2 with SMTP id rp2so24193809pbb.14
+        for <linux-mm@kvack.org>; Mon, 09 Jul 2012 16:35:40 -0700 (PDT)
+From: Michel Lespinasse <walken@google.com>
+Subject: [PATCH 00/13] rbtree updates
+Date: Mon,  9 Jul 2012 16:35:10 -0700
+Message-Id: <1341876923-12469-1-git-send-email-walken@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: aarcange@redhat.com, dwmw2@infradead.org, riel@redhat.com, peterz@infradead.org, daniel.santos@pobox.com, axboe@kernel.dk, ebiederm@xmission.com
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, torvalds@linux-foundation.org
 
-shmem_add_to_page_cache() has three callsites, but only one of them
-wants the radix_tree_preload() (an exceptional entry guarantees that
-the radix tree node is present in the other cases), and only that site
-can achieve mem_cgroup_uncharge_cache_page() (PageSwapCache makes it a
-no-op in the other cases).  We did it this way originally to reflect
-add_to_page_cache_locked(); but it's confusing now, so move the
-radix_tree preloading and mem_cgroup uncharging to that one caller.
 
-Signed-off-by: Hugh Dickins <hughd@google.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Michal Hocko <mhocko@suse.cz>
----
-This is just a cleanup: I'd prefer it to go in along with the fix 2/3,
-but it can be delayed to v3.6 if you prefer.
+I recently started looking at the rbtree code (with an eye towards
+improving the augmented rbtree support, but I haven't gotten there
+yet). I noticed a lot of possible speed improvements, which I am now
+proposing in this patch set.
 
- mm/shmem.c |   58 ++++++++++++++++++++++++---------------------------
- 1 file changed, 28 insertions(+), 30 deletions(-)
+Patches 1-4 are preparatory: remove internal functions from rbtree.h
+so that users won't be tempted to use them instead of the documented
+APIs, clean up some incorrect usages I've noticed (in particular, with
+the recently added fs/proc/proc_sysctl.c rbtree usage), reference the
+documentation so that people have one less excuse to miss it, etc.
 
---- 3.5-rc6+/mm/shmem.c	2012-07-07 19:20:52.026952048 -0700
-+++ linux/mm/shmem.c	2012-07-07 19:21:44.342952082 -0700
-@@ -288,40 +288,31 @@ static int shmem_add_to_page_cache(struc
- 				   struct address_space *mapping,
- 				   pgoff_t index, gfp_t gfp, void *expected)
- {
--	int error = 0;
-+	int error;
- 
- 	VM_BUG_ON(!PageLocked(page));
- 	VM_BUG_ON(!PageSwapBacked(page));
- 
-+	page_cache_get(page);
-+	page->mapping = mapping;
-+	page->index = index;
-+
-+	spin_lock_irq(&mapping->tree_lock);
- 	if (!expected)
--		error = radix_tree_preload(gfp & GFP_RECLAIM_MASK);
-+		error = radix_tree_insert(&mapping->page_tree, index, page);
-+	else
-+		error = shmem_radix_tree_replace(mapping, index, expected,
-+								 page);
- 	if (!error) {
--		page_cache_get(page);
--		page->mapping = mapping;
--		page->index = index;
--
--		spin_lock_irq(&mapping->tree_lock);
--		if (!expected)
--			error = radix_tree_insert(&mapping->page_tree,
--							index, page);
--		else
--			error = shmem_radix_tree_replace(mapping, index,
--							expected, page);
--		if (!error) {
--			mapping->nrpages++;
--			__inc_zone_page_state(page, NR_FILE_PAGES);
--			__inc_zone_page_state(page, NR_SHMEM);
--			spin_unlock_irq(&mapping->tree_lock);
--		} else {
--			page->mapping = NULL;
--			spin_unlock_irq(&mapping->tree_lock);
--			page_cache_release(page);
--		}
--		if (!expected)
--			radix_tree_preload_end();
-+		mapping->nrpages++;
-+		__inc_zone_page_state(page, NR_FILE_PAGES);
-+		__inc_zone_page_state(page, NR_SHMEM);
-+		spin_unlock_irq(&mapping->tree_lock);
-+	} else {
-+		page->mapping = NULL;
-+		spin_unlock_irq(&mapping->tree_lock);
-+		page_cache_release(page);
- 	}
--	if (error)
--		mem_cgroup_uncharge_cache_page(page);
- 	return error;
- }
- 
-@@ -1202,11 +1193,18 @@ repeat:
- 		__set_page_locked(page);
- 		error = mem_cgroup_cache_charge(page, current->mm,
- 						gfp & GFP_RECLAIM_MASK);
--		if (!error)
--			error = shmem_add_to_page_cache(page, mapping, index,
--						gfp, NULL);
- 		if (error)
- 			goto decused;
-+		error = radix_tree_preload(gfp & GFP_RECLAIM_MASK);
-+		if (!error) {
-+			error = shmem_add_to_page_cache(page, mapping, index,
-+							gfp, NULL);
-+			radix_tree_preload_end();
-+		}
-+		if (error) {
-+			mem_cgroup_uncharge_cache_page(page);
-+			goto decused;
-+		}
- 		lru_cache_add_anon(page);
- 
- 		spin_lock(&info->lock);
+Patch 5 is a small module I wrote to check the rbtree performance.
+It creates 100 nodes with random keys and repeatedly inserts and erases
+them from an rbtree. Additionally, it has code to check for rbtree
+invariants after each insert or erase operation.
+
+Patches 6-13 is where the rbtree optimizations are done, and they touch
+only that one file, lib/rbtree.c . I am getting good results out of these -
+in my small benchmark doing rbtree insertion (including search) and erase,
+I'm seeing a 30% runtime reduction on Sandybridge E5, which is more than
+I initially thought would be possible. (the results aren't as impressive
+on my two other test hosts though, AMD barcelona and Intel Westmere, where
+I am seeing 14% runtime reduction only). The code size - both source
+(ommiting comments) and compiled - is also shorter after these changes.
+However, I do admit that the updated code is more arduous to read - one
+big reason for that is the removal of the tree rotation helpers, which
+added some overhead but also made it easier to reason about things locally.
+Overall, I believe this is an acceptable compromise, given that this code
+doesn't get modified very often, and that I have good tests for it.
+
+For those people who want to really understand the code, I can only
+recommend keeping around a copy of the cormen/leiserson/rivest book, as
+the original algorithm seems to be inspired by it and having the rbtrees
+drawn up really helps.
+
+This patchset is against v3.4 - I had actually done most of the development
+against v3.3 but the rbtree code doesn't change very often so I didn't have
+to update it much, save for dealing with the recent rbtree additions in
+fs/proc/proc_sysctl.c
+
+My proposal would be to use this as a base to add on the augmented rbtree
+support enhancements, which I'd like to do next. Then this could all go in
+-mm tree so that various augmented rbtree uses that have been discussed
+(such as finding gaps between vmas) can use this.
+
+Michel Lespinasse (13):
+  rbtree: reference Documentation/rbtree.txt for usage instructions
+  rbtree: empty nodes have no color
+  rbtree: fix incorrect rbtree node insertion in fs/proc/proc_sysctl.c
+  rbtree: move some implementation details from rbtree.h to rbtree.c
+  rbtree: performance and correctness test
+  rbtree: break out of rb_insert_color loop after tree rotation
+  rbtree: adjust root color in rb_insert_color() only when necessary
+  rbtree: optimize tree rotations in rb_insert_color()
+  rbtree: optimize color flips and parent fetching in rb_insert_color()
+  rbtree: adjust node color in __rb_erase_color() only when necessary
+  rbtree: optimize case selection logic in __rb_erase_color()
+  rbtree: optimize tree rotations in __rb_erase_color()
+  rbtree: optimize color flips in __rb_erase_color()
+
+ fs/proc/proc_sysctl.c      |    5 +-
+ include/linux/rbtree.h     |   98 +------------
+ include/linux/timerqueue.h |    2 +-
+ lib/rbtree.c               |  349 +++++++++++++++++++++++++-------------------
+ tests/rbtree_test.c        |  135 +++++++++++++++++
+ 5 files changed, 340 insertions(+), 249 deletions(-)
+ create mode 100644 tests/rbtree_test.c
+
+-- 
+1.7.7.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
