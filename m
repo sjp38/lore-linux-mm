@@ -1,27 +1,27 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
-	by kanga.kvack.org (Postfix) with SMTP id 5D0846B0089
-	for <linux-mm@kvack.org>; Mon,  9 Jul 2012 06:35:07 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 0073D3EE0B5
-	for <linux-mm@kvack.org>; Mon,  9 Jul 2012 19:35:06 +0900 (JST)
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id DAA9B45DE4E
-	for <linux-mm@kvack.org>; Mon,  9 Jul 2012 19:35:05 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id C267445DE4D
-	for <linux-mm@kvack.org>; Mon,  9 Jul 2012 19:35:05 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id B66F81DB802C
-	for <linux-mm@kvack.org>; Mon,  9 Jul 2012 19:35:05 +0900 (JST)
-Received: from g01jpexchyt01.g01.fujitsu.local (g01jpexchyt01.g01.fujitsu.local [10.128.194.40])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 6B47C1DB803C
-	for <linux-mm@kvack.org>; Mon,  9 Jul 2012 19:35:05 +0900 (JST)
-Message-ID: <4FFAB3C6.7020803@jp.fujitsu.com>
-Date: Mon, 9 Jul 2012 19:34:46 +0900
+Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
+	by kanga.kvack.org (Postfix) with SMTP id 951286B0092
+	for <linux-mm@kvack.org>; Mon,  9 Jul 2012 06:36:19 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 3AC553EE0BB
+	for <linux-mm@kvack.org>; Mon,  9 Jul 2012 19:36:18 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 1714D45DEB4
+	for <linux-mm@kvack.org>; Mon,  9 Jul 2012 19:36:18 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id F20CC45DE9E
+	for <linux-mm@kvack.org>; Mon,  9 Jul 2012 19:36:17 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id E408D1DB8041
+	for <linux-mm@kvack.org>; Mon,  9 Jul 2012 19:36:17 +0900 (JST)
+Received: from g01jpexchyt07.g01.fujitsu.local (g01jpexchyt07.g01.fujitsu.local [10.128.194.46])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 988EB1DB803F
+	for <linux-mm@kvack.org>; Mon,  9 Jul 2012 19:36:17 +0900 (JST)
+Message-ID: <4FFAB406.1020002@jp.fujitsu.com>
+Date: Mon, 9 Jul 2012 19:35:50 +0900
 From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: [RFC PATCH v3 12/13] memory-hotplug : add node_device_release
+Subject: [RFC PATCH v3 13/13] memory-hotplug : remove sysfs file of node
 References: <4FFAB0A2.8070304@jp.fujitsu.com>
 In-Reply-To: <4FFAB0A2.8070304@jp.fujitsu.com>
 Content-Type: text/plain; charset="ISO-2022-JP"
@@ -31,13 +31,8 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org
 Cc: rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, wency@cn.fujitsu.com
 
-When calling unregister_node(), the function shows following message at
-device_release().
-
-Device 'node2' does not have a release() function, it is broken and must be
-fixed.
-
-So the patch implements node_device_release()
+The patch adds node_set_offline() and unregister_one_node() to remove_memory()
+for removing sysfs file of node.
 
 CC: David Rientjes <rientjes@google.com>
 CC: Jiang Liu <liuj97@gmail.com>
@@ -52,34 +47,25 @@ CC: Wen Congyang <wency@cn.fujitsu.com>
 Signed-off-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 
 ---
- drivers/base/node.c |    7 +++++++
- 1 file changed, 7 insertions(+)
+ mm/memory_hotplug.c |    5 +++++
+ 1 file changed, 5 insertions(+)
 
-Index: linux-3.5-rc4/drivers/base/node.c
+Index: linux-3.5-rc4/mm/memory_hotplug.c
 ===================================================================
---- linux-3.5-rc4.orig/drivers/base/node.c	2012-07-03 14:21:44.882432167 +0900
-+++ linux-3.5-rc4/drivers/base/node.c	2012-07-03 14:22:23.296951921 +0900
-@@ -252,6 +252,12 @@ static inline void hugetlb_register_node
- static inline void hugetlb_unregister_node(struct node *node) {}
- #endif
+--- linux-3.5-rc4.orig/mm/memory_hotplug.c	2012-07-03 14:22:21.012982694 +0900
++++ linux-3.5-rc4/mm/memory_hotplug.c	2012-07-03 14:22:25.405925554 +0900
+@@ -702,6 +702,11 @@ int remove_memory(int nid, u64 start, u6
+ 	/* remove memmap entry */
+ 	firmware_map_remove(start, start + size - 1, "System RAM");
 
-+static void node_device_release(struct device *dev)
-+{
-+	struct node *node_dev = to_node(dev);
++	if (!node_present_pages(nid)) {
++		node_set_offline(nid);
++		unregister_one_node(nid);
++	}
 +
-+	memset(node_dev, 0, sizeof(struct node));
-+}
-
- /*
-  * register_node - Setup a sysfs device for a node.
-@@ -265,6 +271,7 @@ int register_node(struct node *node, int
-
- 	node->dev.id = num;
- 	node->dev.bus = &node_subsys;
-+	node->dev.release = node_device_release;
- 	error = device_register(&node->dev);
-
- 	if (!error){
+ 	__remove_pages(start >> PAGE_SHIFT, size >> PAGE_SHIFT);
+ 	unlock_memory_hotplug();
+ 	return 0;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
