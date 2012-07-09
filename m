@@ -1,45 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
-	by kanga.kvack.org (Postfix) with SMTP id 38B3C6B006E
-	for <linux-mm@kvack.org>; Mon,  9 Jul 2012 10:56:28 -0400 (EDT)
-Message-ID: <1341845758.3462.84.camel@twins>
-Subject: Re: [RFC][PATCH 25/26] sched, numa: Only migrate long-running
- entities
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Date: Mon, 09 Jul 2012 16:55:58 +0200
-In-Reply-To: <4FFAF067.3050905@redhat.com>
-References: <20120316144028.036474157@chello.nl>
-	  <20120316144241.749359061@chello.nl> <4FF9D29D.8030903@redhat.com>
-	 <1341836787.3462.64.camel@twins> <4FFAF067.3050905@redhat.com>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: quoted-printable
-Mime-Version: 1.0
+Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
+	by kanga.kvack.org (Postfix) with SMTP id 222376B0072
+	for <linux-mm@kvack.org>; Mon,  9 Jul 2012 11:02:40 -0400 (EDT)
+Date: Mon, 9 Jul 2012 17:02:36 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [patch 04/11] mm: memcg: push down PageSwapCache check into
+ uncharge entry functions
+Message-ID: <20120709150236.GG4627@tiehlicka.suse.cz>
+References: <1341449103-1986-1-git-send-email-hannes@cmpxchg.org>
+ <1341449103-1986-5-git-send-email-hannes@cmpxchg.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1341449103-1986-5-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E.
- McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Dan Smith <danms@us.ibm.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Mon, 2012-07-09 at 10:53 -0400, Rik van Riel wrote:
-> On 07/09/2012 08:26 AM, Peter Zijlstra wrote:
-> > On Sun, 2012-07-08 at 14:34 -0400, Rik van Riel wrote:
->=20
-> >> Do we really want to calculate the amount of CPU time used
-> >> by a process, and start migrating after just one second?
-> >>
-> >> Or would it be ok to start migrating once a process has
-> >> been scanned once or twice by the NUMA code?
-> >
-> > You mean, the 2-3rd time we try and migrate this task, not the memory
-> > scanning thing as per Andrea, right?
->=20
-> Indeed.  That way we can simply keep a flag somewhere,
-> instead of iterating over the threads in a process.
+On Thu 05-07-12 02:44:56, Johannes Weiner wrote:
+> Not all uncharge paths need to check if the page is swapcache, some of
+> them can know for sure.
+> 
+> Push down the check into all callsites of uncharge_common() so that
+> the patch that removes some of them is more obvious.
+> 
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 
-Note that the code in -tip needs to iterate over all tasks in order to
-test all cpus_allowed and mems_allowed masks. But we could keep a
-process wide intersection of those masks around as well I guess,
-updating them is a slow path anyway.
+with the fix later in the thread
+Acked-by: Michal Hocko <mhocko@suse.cz>
+
+> ---
+>  mm/memcontrol.c |   18 ++++++++++++------
+>  1 files changed, 12 insertions(+), 6 deletions(-)
+> 
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 4ea19c6..a3bf414 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -2920,8 +2920,7 @@ __mem_cgroup_uncharge_common(struct page *page, enum charge_type ctype,
+>  	if (mem_cgroup_disabled())
+>  		return NULL;
+>  
+> -	if (PageSwapCache(page))
+> -		return NULL;
+> +	VM_BUG_ON(PageSwapCache(page));
+>  
+>  	if (PageTransHuge(page)) {
+>  		nr_pages <<= compound_order(page);
+> @@ -3018,6 +3017,8 @@ void mem_cgroup_uncharge_page(struct page *page)
+>  	if (page_mapped(page))
+>  		return;
+>  	VM_BUG_ON(page->mapping && !PageAnon(page));
+> +	if (PageSwapCache(page))
+> +		return;
+>  	__mem_cgroup_uncharge_common(page, MEM_CGROUP_CHARGE_TYPE_ANON, false);
+>  }
+>  
+> @@ -3025,6 +3026,8 @@ void mem_cgroup_uncharge_cache_page(struct page *page)
+>  {
+>  	VM_BUG_ON(page_mapped(page));
+>  	VM_BUG_ON(page->mapping);
+> +	if (PageSwapCache(page))
+> +		return;
+>  	__mem_cgroup_uncharge_common(page, MEM_CGROUP_CHARGE_TYPE_CACHE, false);
+>  }
+>  
+> @@ -3089,6 +3092,8 @@ mem_cgroup_uncharge_swapcache(struct page *page, swp_entry_t ent, bool swapout)
+>  	if (!swapout) /* this was a swap cache but the swap is unused ! */
+>  		ctype = MEM_CGROUP_CHARGE_TYPE_DROP;
+>  
+> +	if (PageSwapCache(page))
+> +		return;
+>  	memcg = __mem_cgroup_uncharge_common(page, ctype, false);
+>  
+>  	/*
+> @@ -3278,10 +3283,11 @@ void mem_cgroup_end_migration(struct mem_cgroup *memcg,
+>  		unused = oldpage;
+>  	}
+>  	anon = PageAnon(used);
+> -	__mem_cgroup_uncharge_common(unused,
+> -		anon ? MEM_CGROUP_CHARGE_TYPE_ANON
+> -		     : MEM_CGROUP_CHARGE_TYPE_CACHE,
+> -		true);
+> +	if (!PageSwapCache(page))
+> +		__mem_cgroup_uncharge_common(unused,
+> +					     anon ? MEM_CGROUP_CHARGE_TYPE_ANON
+> +					     : MEM_CGROUP_CHARGE_TYPE_CACHE,
+> +					     true);
+>  	css_put(&memcg->css);
+>  	/*
+>  	 * We disallowed uncharge of pages under migration because mapcount
+> -- 
+> 1.7.7.6
+> 
+
+-- 
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
