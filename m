@@ -1,30 +1,30 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
-	by kanga.kvack.org (Postfix) with SMTP id 10DDD6B0062
-	for <linux-mm@kvack.org>; Sun,  8 Jul 2012 22:55:11 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
+	by kanga.kvack.org (Postfix) with SMTP id 9294A6B0062
+	for <linux-mm@kvack.org>; Sun,  8 Jul 2012 22:57:52 -0400 (EDT)
 Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 88FD03EE0BD
-	for <linux-mm@kvack.org>; Mon,  9 Jul 2012 11:55:09 +0900 (JST)
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 2A10E3EE0BB
+	for <linux-mm@kvack.org>; Mon,  9 Jul 2012 11:57:51 +0900 (JST)
 Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 7013745DE4E
-	for <linux-mm@kvack.org>; Mon,  9 Jul 2012 11:55:09 +0900 (JST)
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 0A7B445DE52
+	for <linux-mm@kvack.org>; Mon,  9 Jul 2012 11:57:51 +0900 (JST)
 Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 5729745DD74
-	for <linux-mm@kvack.org>; Mon,  9 Jul 2012 11:55:09 +0900 (JST)
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id E531B45DE4D
+	for <linux-mm@kvack.org>; Mon,  9 Jul 2012 11:57:50 +0900 (JST)
 Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 49A511DB803C
-	for <linux-mm@kvack.org>; Mon,  9 Jul 2012 11:55:09 +0900 (JST)
-Received: from m1000.s.css.fujitsu.com (m1000.s.css.fujitsu.com [10.240.81.136])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 020231DB803A
-	for <linux-mm@kvack.org>; Mon,  9 Jul 2012 11:55:09 +0900 (JST)
-Message-ID: <4FFA478D.4030007@jp.fujitsu.com>
-Date: Mon, 09 Jul 2012 11:53:01 +0900
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id C66961DB8040
+	for <linux-mm@kvack.org>; Mon,  9 Jul 2012 11:57:50 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 7F2581DB803A
+	for <linux-mm@kvack.org>; Mon,  9 Jul 2012 11:57:50 +0900 (JST)
+Message-ID: <4FFA481E.7010602@jp.fujitsu.com>
+Date: Mon, 09 Jul 2012 11:55:26 +0900
 From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [patch 08/11] mm: memcg: remove needless !mm fixup to init_mm
- when charging
-References: <1341449103-1986-1-git-send-email-hannes@cmpxchg.org> <1341449103-1986-9-git-send-email-hannes@cmpxchg.org>
-In-Reply-To: <1341449103-1986-9-git-send-email-hannes@cmpxchg.org>
+Subject: Re: [patch 09/11] mm: memcg: split swapin charge function into private
+ and public part
+References: <1341449103-1986-1-git-send-email-hannes@cmpxchg.org> <1341449103-1986-10-git-send-email-hannes@cmpxchg.org>
+In-Reply-To: <1341449103-1986-10-git-send-email-hannes@cmpxchg.org>
 Content-Type: text/plain; charset=ISO-2022-JP
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -33,8 +33,13 @@ To: Johannes Weiner <hannes@cmpxchg.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Hugh Dickins <hughd@google.com>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
 (2012/07/05 9:45), Johannes Weiner wrote:
-> It does not matter to __mem_cgroup_try_charge() if the passed mm is
-> NULL or init_mm, it will charge the root memcg in either case.
+> When shmem is charged upon swapin, it does not need to check twice
+> whether the memory controller is enabled.
+> 
+> Also, shmem pages do not have to be checked for everything that
+> regular anon pages have to be checked for, so let shmem use the
+> internal version directly and allow future patches to move around
+> checks that are only required when swapping in anon pages.
 > 
 > Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 
