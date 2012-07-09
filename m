@@ -1,49 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
-	by kanga.kvack.org (Postfix) with SMTP id B4BB26B005C
-	for <linux-mm@kvack.org>; Sun,  8 Jul 2012 22:35:18 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 30D5A3EE0BC
-	for <linux-mm@kvack.org>; Mon,  9 Jul 2012 11:35:17 +0900 (JST)
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 17DCD45DE54
-	for <linux-mm@kvack.org>; Mon,  9 Jul 2012 11:35:17 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 0018345DD74
-	for <linux-mm@kvack.org>; Mon,  9 Jul 2012 11:35:17 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id E33531DB802C
-	for <linux-mm@kvack.org>; Mon,  9 Jul 2012 11:35:16 +0900 (JST)
-Received: from m1001.s.css.fujitsu.com (m1001.s.css.fujitsu.com [10.240.81.139])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 9469A1DB8041
-	for <linux-mm@kvack.org>; Mon,  9 Jul 2012 11:35:16 +0900 (JST)
-Message-ID: <4FFA42E4.1000003@jp.fujitsu.com>
-Date: Mon, 09 Jul 2012 11:33:08 +0900
-From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-MIME-Version: 1.0
-Subject: Re: [patch 03/11] mm: shmem: do not try to uncharge known swapcache
- pages
-References: <1341449103-1986-1-git-send-email-hannes@cmpxchg.org> <1341449103-1986-4-git-send-email-hannes@cmpxchg.org>
-In-Reply-To: <1341449103-1986-4-git-send-email-hannes@cmpxchg.org>
-Content-Type: text/plain; charset=ISO-2022-JP
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
+	by kanga.kvack.org (Postfix) with SMTP id BEE106B005C
+	for <linux-mm@kvack.org>; Sun,  8 Jul 2012 22:37:18 -0400 (EDT)
+From: Minchan Kim <minchan@kernel.org>
+Subject: [PATCH] mm: Warn about costly page allocation
+Date: Mon,  9 Jul 2012 11:38:20 +0900
+Message-Id: <1341801500-5798-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Hugh Dickins <hughd@google.com>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Minchan Kim <minchan@kernel.org>
 
-(2012/07/05 9:44), Johannes Weiner wrote:
-> Once charged, swapcache pages can only be uncharged after they are
-> removed from swapcache again.
-> 
-> Do not try to uncharge pages that are known to be in the swapcache, to
-> allow future patches to remove checks for that in the uncharge code.
-> 
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-> ---
+Since lumpy reclaim was introduced at 2.6.23, it helped higher
+order allocation.
+Recently, we removed it at 3.4 and we didn't enable compaction
+forcingly[1]. The reason makes sense that compaction.o + migration.o
+isn't trivial for system doesn't use higher order allocation.
+But the problem is that we have to enable compaction explicitly
+while lumpy reclaim enabled unconditionally.
 
-Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Normally, admin doesn't know his system have used higher order
+allocation and even lumpy reclaim have helped it.
+Admin in embdded system have a tendency to minimise code size so that
+they can disable compaction. In this case, we can see page allocation
+failure we can never see in the past. It's critical on embedded side
+because...
 
+Let's think this scenario.
+
+There is QA team in embedded company and they have tested their product.
+In test scenario, they can allocate 100 high order allocation.
+(they don't matter how many high order allocations in kernel are needed
+during test. their concern is just only working well or fail of their
+middleware/application) High order allocation will be serviced well
+by natural buddy allocation without lumpy's help. So they released
+the product and sold out all over the world.
+Unfortunately, in real practice, sometime, 105 high order allocation was
+needed rarely and fortunately, lumpy reclaim could help it so the product
+doesn't have a problem until now.
+
+If they use latest kernel, they will see the new config CONFIG_COMPACTION
+which is very poor documentation, and they can't know it's replacement of
+lumpy reclaim(even, they don't know lumpy reclaim) so they simply disable
+that option for size optimization. Of course, QA team still test it but they
+can't find the problem if they don't do test stronger than old.
+It ends up release the product and sold out all over the world, again.
+But in this time, we don't have both lumpy and compaction so the problem
+would happen in real practice. A poor enginner from Korea have to flight
+to the USA for the fix a ton of products. Otherwise, should recall products
+from all over the world. Maybe he can lose a job. :(
+
+This patch adds warning for notice. If the system try to allocate
+PAGE_ALLOC_COSTLY_ORDER above page and system enters reclaim path,
+it emits the warning. At least, it gives a chance to look into their
+system before the relase.
+
+This patch avoids false positive by alloc_large_system_hash which
+allocates with GFP_ATOMIC and a fallback mechanism so it can make
+this warning useless.
+
+[1] c53919ad(mm: vmscan: remove lumpy reclaim)
+
+Signed-off-by: Minchan Kim <minchan@kernel.org>
+---
+ mm/page_alloc.c |   16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)
+
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index a4d3a19..1155e00 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -2276,6 +2276,20 @@ gfp_to_alloc_flags(gfp_t gfp_mask)
+ 	return alloc_flags;
+ }
+ 
++#if defined(CONFIG_DEBUG_VM) && !defined(CONFIG_COMPACTION)
++static inline void check_page_alloc_costly_order(unsigned int order)
++{
++	if (unlikely(order > PAGE_ALLOC_COSTLY_ORDER)) {
++		printk_once("WARNING: You are tring to allocate %d-order page."
++		" You might need to turn on CONFIG_COMPACTION\n", order);
++	}
++}
++#else
++static inline void check_page_alloc_costly_order(unsigned int order)
++{
++}
++#endif
++
+ static inline struct page *
+ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+ 	struct zonelist *zonelist, enum zone_type high_zoneidx,
+@@ -2353,6 +2367,8 @@ rebalance:
+ 	if (!wait)
+ 		goto nopage;
+ 
++	check_page_alloc_costly_order(order);
++
+ 	/* Avoid recursion of direct reclaim */
+ 	if (current->flags & PF_MEMALLOC)
+ 		goto nopage;
+-- 
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
