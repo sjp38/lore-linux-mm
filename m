@@ -1,55 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
-	by kanga.kvack.org (Postfix) with SMTP id 64A166B0096
-	for <linux-mm@kvack.org>; Mon,  9 Jul 2012 06:50:43 -0400 (EDT)
-Date: Mon, 9 Jul 2012 11:50:40 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH] mm/hugetlb: split out
- is_hugetlb_entry_migration_or_hwpoison
-Message-ID: <20120709105040.GT13141@csn.ul.ie>
-References: <1341828761-11195-1-git-send-email-liwp.linux@gmail.com>
+Received: from psmtp.com (na3sys010amx207.postini.com [74.125.245.207])
+	by kanga.kvack.org (Postfix) with SMTP id B238F6B0062
+	for <linux-mm@kvack.org>; Mon,  9 Jul 2012 07:13:11 -0400 (EDT)
+Date: Mon, 9 Jul 2012 13:13:04 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH 3/3] mm/sparse: remove index_init_lock
+Message-ID: <20120709111304.GA4627@tiehlicka.suse.cz>
+References: <1341544178-7245-1-git-send-email-shangw@linux.vnet.ibm.com>
+ <1341544178-7245-3-git-send-email-shangw@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1341828761-11195-1-git-send-email-liwp.linux@gmail.com>
+In-Reply-To: <1341544178-7245-3-git-send-email-shangw@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wanpeng Li <liwp.linux@gmail.com>
-Cc: linux-mm@kvack.org, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
+To: Gavin Shan <shangw@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, dave@linux.vnet.ibm.com, rientjes@google.com, akpm@linux-foundation.org
 
-On Mon, Jul 09, 2012 at 06:12:41PM +0800, Wanpeng Li wrote:
-> From: Wanpeng Li <liwp@linux.vnet.ibm.com>
+On Fri 06-07-12 11:09:38, Gavin Shan wrote:
+> Apart from call to sparse_index_init() during boot stage, the function
+> is mainly used for hotplug case as follows and protected by hotplug
+
+mainly? Who are the others?
+
+> mutex "mem_hotplug_mutex". So we needn't the spinlock in sparse_index_init().
+
+I think you are right but the changelog should be more convincing. It
+would be also good to mention the origin motivation for the lock (I
+couldn't find it in the history - Dave?).
+
 > 
-> Code was duplicated in two functions, clean it up.
+> 	sparse_index_init
+> 	sparse_add_one_section
+> 	__add_section
+> 	__add_pages
+> 	arch_add_memory
+> 	add_memory
 > 
-> Signed-off-by: Wanpeng Li <liwp.linux@gmail.com>
-
-is_hugetlb_entry_migration() now returns true for hwpoisoned pages. In
-this block
-
-                if (unlikely(is_hugetlb_entry_migration(entry))) {
-                        migration_entry_wait(mm, (pmd_t *)ptep, address);
-                        return 0;
-
-we now will call migration_entry_wait and return 0 to the fault handler
-instead of VM_FAULT_HWPOISON_LARGE | VM_FAULT_SET_HINDEX(h - hstates).
-By co-incidence this might work because migration of hugetlb happens for
-poisoned pages but it would be just a co-incidence. Some other change in
-the future such as better support for memory hotplug of regions backed
-by hugetlbfs may break it again.
-
-Superficially, this patch looks broken and the changelog contains
-no motivation as to why this patch should be merged such as being a
-pre-requisite for another fix or feature.  It just looks like churn for
-the sake of churn. It might be just me but it feels like I'm seeing a lot
-more of this style of patch recently on linux-mm and review bandwidth is
-not infinite :(
-
-Nak.
+> Signed-off-by: Gavin Shan <shangw@linux.vnet.ibm.com>
+> ---
+>  mm/sparse.c |   14 +-------------
+>  1 file changed, 1 insertion(+), 13 deletions(-)
+> 
+> diff --git a/mm/sparse.c b/mm/sparse.c
+> index 8b8edfb..4437c6c 100644
+> --- a/mm/sparse.c
+> +++ b/mm/sparse.c
+> @@ -77,7 +77,6 @@ static struct mem_section noinline __init_refok *sparse_index_alloc(int nid)
+>  
+>  static int __meminit sparse_index_init(unsigned long section_nr, int nid)
+>  {
+> -	static DEFINE_SPINLOCK(index_init_lock);
+>  	unsigned long root = SECTION_NR_TO_ROOT(section_nr);
+>  	struct mem_section *section;
+>  	int ret = 0;
+> @@ -88,20 +87,9 @@ static int __meminit sparse_index_init(unsigned long section_nr, int nid)
+>  	section = sparse_index_alloc(nid);
+>  	if (!section)
+>  		return -ENOMEM;
+> -	/*
+> -	 * This lock keeps two different sections from
+> -	 * reallocating for the same index
+> -	 */
+> -	spin_lock(&index_init_lock);
+> -
+> -	if (mem_section[root]) {
+> -		ret = -EEXIST;
+> -		goto out;
+> -	}
+>  
+>  	mem_section[root] = section;
+> -out:
+> -	spin_unlock(&index_init_lock);
+> +
+>  	return ret;
+>  }
+>  #else /* !SPARSEMEM_EXTREME */
+> -- 
+> 1.7.9.5
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 -- 
-Mel Gorman
+Michal Hocko
 SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
