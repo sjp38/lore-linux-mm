@@ -1,216 +1,140 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
-	by kanga.kvack.org (Postfix) with SMTP id A26B56B006C
-	for <linux-mm@kvack.org>; Mon,  9 Jul 2012 04:19:10 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 2A4363EE0C1
-	for <linux-mm@kvack.org>; Mon,  9 Jul 2012 17:19:08 +0900 (JST)
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 0847145DD78
-	for <linux-mm@kvack.org>; Mon,  9 Jul 2012 17:19:08 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id E056745DE69
-	for <linux-mm@kvack.org>; Mon,  9 Jul 2012 17:19:07 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id C4E881DB8049
-	for <linux-mm@kvack.org>; Mon,  9 Jul 2012 17:19:07 +0900 (JST)
-Received: from g01jpexchyt04.g01.fujitsu.local (g01jpexchyt04.g01.fujitsu.local [10.128.194.43])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 4E62BE18005
-	for <linux-mm@kvack.org>; Mon,  9 Jul 2012 17:19:07 +0900 (JST)
-Message-ID: <4FFA93DB.6010403@jp.fujitsu.com>
-Date: Mon, 9 Jul 2012 17:18:35 +0900
-From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx133.postini.com [74.125.245.133])
+	by kanga.kvack.org (Postfix) with SMTP id 84CD26B006C
+	for <linux-mm@kvack.org>; Mon,  9 Jul 2012 04:22:06 -0400 (EDT)
+Date: Mon, 9 Jul 2012 09:22:00 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH] mm: Warn about costly page allocation
+Message-ID: <20120709082200.GX14154@suse.de>
+References: <1341801500-5798-1-git-send-email-minchan@kernel.org>
 MIME-Version: 1.0
-Subject: Re: [RFC PATCH v2 4/13] memory-hotplug : remove /sys/firmware/memmap/X
- sysfs
-References: <4FF287C3.4030901@jp.fujitsu.com> <4FF28996.10702@jp.fujitsu.com> <4FF2929B.7030004@cn.fujitsu.com> <4FF3CA65.1020300@jp.fujitsu.com> <4FF3CFDC.50802@cn.fujitsu.com> <4FF3DA1E.9060505@jp.fujitsu.com> <4FF41484.3070806@cn.fujitsu.com> <4FF6A17C.6000808@jp.fujitsu.com> <4FF6ADD9.7040600@cn.fujitsu.com>
-In-Reply-To: <4FF6ADD9.7040600@cn.fujitsu.com>
-Content-Type: text/plain; charset="ISO-2022-JP"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <1341801500-5798-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wen Congyang <wency@cn.fujitsu.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-Hi Wen,
-
-2012/07/06 18:20, Wen Congyang wrote:
-> At 07/06/2012 04:27 PM, Yasuaki Ishimatsu Wrote:
->> Hi Wen,
->>
->> 2012/07/04 19:01, Wen Congyang wrote:
->>> At 07/04/2012 01:52 PM, Yasuaki Ishimatsu Wrote:
->>>> Hi Wen,
->>>>
->>>> 2012/07/04 14:08, Wen Congyang wrote:
->>>>> At 07/04/2012 12:45 PM, Yasuaki Ishimatsu Wrote:
->>>>>> Hi Wen,
->>>>>>
->>>>>> 2012/07/03 15:35, Wen Congyang wrote:
->>>>>>> At 07/03/2012 01:56 PM, Yasuaki Ishimatsu Wrote:
->>>>>>>> When (hot)adding memory into system, /sys/firmware/memmap/X/{end, start, type}
->>>>>>>> sysfs files are created. But there is no code to remove these files. The patch
->>>>>>>> implements the function to remove them.
->>>>>>>>
->>>>>>>> Note : The code does not free firmware_map_entry since there is no way to free
->>>>>>>>            memory which is allocated by bootmem.
->>>>>>>>
->>>>>>>> CC: David Rientjes <rientjes@google.com>
->>>>>>>> CC: Jiang Liu <liuj97@gmail.com>
->>>>>>>> CC: Len Brown <len.brown@intel.com>
->>>>>>>> CC: Benjamin Herrenschmidt <benh@kernel.crashing.org>
->>>>>>>> CC: Paul Mackerras <paulus@samba.org>
->>>>>>>> CC: Christoph Lameter <cl@linux.com>
->>>>>>>> Cc: Minchan Kim <minchan.kim@gmail.com>
->>>>>>>> CC: Andrew Morton <akpm@linux-foundation.org>
->>>>>>>> CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
->>>>>>>> Signed-off-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
->>>>>>>>
->>>>>>>> ---
->>>>>>>>      drivers/firmware/memmap.c    |   70 +++++++++++++++++++++++++++++++++++++++++++
->>>>>>>>      include/linux/firmware-map.h |    6 +++
->>>>>>>>      mm/memory_hotplug.c          |    6 +++
->>>>>>>>      3 files changed, 81 insertions(+), 1 deletion(-)
->>>>>>>>
->>>>>>>> Index: linux-3.5-rc4/mm/memory_hotplug.c
->>>>>>>> ===================================================================
->>>>>>>> --- linux-3.5-rc4.orig/mm/memory_hotplug.c	2012-07-03 14:22:00.190240794 +0900
->>>>>>>> +++ linux-3.5-rc4/mm/memory_hotplug.c	2012-07-03 14:22:03.549198802 +0900
->>>>>>>> @@ -661,7 +661,11 @@ EXPORT_SYMBOL_GPL(add_memory);
->>>>>>>>
->>>>>>>>      int remove_memory(int nid, u64 start, u64 size)
->>>>>>>>      {
->>>>>>>> -	return -EBUSY;
->>>>>>>> +	lock_memory_hotplug();
->>>>>>>> +	/* remove memmap entry */
->>>>>>>> +	firmware_map_remove(start, start + size - 1, "System RAM");
->>>>>>>> +	unlock_memory_hotplug();
->>>>>>>> +	return 0;
->>>>>>>>
->>>>>>>>      }
->>>>>>>>      EXPORT_SYMBOL_GPL(remove_memory);
->>>>>>>> Index: linux-3.5-rc4/include/linux/firmware-map.h
->>>>>>>> ===================================================================
->>>>>>>> --- linux-3.5-rc4.orig/include/linux/firmware-map.h	2012-07-03 14:21:45.766421116 +0900
->>>>>>>> +++ linux-3.5-rc4/include/linux/firmware-map.h	2012-07-03 14:22:03.550198789 +0900
->>>>>>>> @@ -25,6 +25,7 @@
->>>>>>>>
->>>>>>>>      int firmware_map_add_early(u64 start, u64 end, const char *type);
->>>>>>>>      int firmware_map_add_hotplug(u64 start, u64 end, const char *type);
->>>>>>>> +int firmware_map_remove(u64 start, u64 end, const char *type);
->>>>>>>>
->>>>>>>>      #else /* CONFIG_FIRMWARE_MEMMAP */
->>>>>>>>
->>>>>>>> @@ -38,6 +39,11 @@ static inline int firmware_map_add_hotpl
->>>>>>>>      	return 0;
->>>>>>>>      }
->>>>>>>>
->>>>>>>> +static inline int firmware_map_remove(u64 start, u64 end, const char *type)
->>>>>>>> +{
->>>>>>>> +	return 0;
->>>>>>>> +}
->>>>>>>> +
->>>>>>>>      #endif /* CONFIG_FIRMWARE_MEMMAP */
->>>>>>>>
->>>>>>>>      #endif /* _LINUX_FIRMWARE_MAP_H */
->>>>>>>> Index: linux-3.5-rc4/drivers/firmware/memmap.c
->>>>>>>> ===================================================================
->>>>>>>> --- linux-3.5-rc4.orig/drivers/firmware/memmap.c	2012-07-03 14:21:45.761421180 +0900
->>>>>>>> +++ linux-3.5-rc4/drivers/firmware/memmap.c	2012-07-03 14:22:03.569198549 +0900
->>>>>>>> @@ -79,7 +79,16 @@ static const struct sysfs_ops memmap_att
->>>>>>>>      	.show = memmap_attr_show,
->>>>>>>>      };
->>>>>>>>
->>>>>>>> +static void release_firmware_map_entry(struct kobject *kobj)
->>>>>>>> +{
->>>>>>>> +	/*
->>>>>>>> +	 * FIXME : There is no idea.
->>>>>>>> +	 *         How to free the entry which allocated bootmem?
->>>>>>>> +	 */
->>>>>>>
->>>>>>> I find a function free_bootmem(), but I am not sure whether it can work here.
->>>>>>
->>>>>> It cannot work here.
->>>>>>
->>>>>>> Another problem: how to check whether the entry uses bootmem?
->>>>>>
->>>>>> When firmware_map_entry is allocated by kzalloc(), the page has PG_slab.
->>>>>
->>>>> This is not true. In my test, I find the page does not have PG_slab sometimes.
->>>>
->>>> I think that it depends on the allocated size. firmware_map_entry size is
->>>> smaller than PAGE_SIZE. So the page has PG_Slab.
->>>
->>> In my test, I add printk in the function firmware_map_add_hotplug() to display
->>> page's flags. And sometimes the page is not allocated by slab(I use PageSlab()
->>> to verify it).
->>
->> How did you check it? Could you send your debug patch?
+On Mon, Jul 09, 2012 at 11:38:20AM +0900, Minchan Kim wrote:
+> Since lumpy reclaim was introduced at 2.6.23, it helped higher
+> order allocation.
+> Recently, we removed it at 3.4 and we didn't enable compaction
+> forcingly[1]. The reason makes sense that compaction.o + migration.o
+> isn't trivial for system doesn't use higher order allocation.
+> But the problem is that we have to enable compaction explicitly
+> while lumpy reclaim enabled unconditionally.
 > 
-> When the memory is not allocated from slab, the flags is 0x10000000008000.
-
-Thank you for sending the patch.
-I think the page to not have PageSlab is a compound page. So we can check
-whether the entry is allocate from bootmem or not as follow:
-
-static void release_firmware_map_entry(struct kobject *kobj)
-{
-	struct firmware_map_entry *entry = to_memmap_entry(kobj);
-	struct page *head_page;
-
-	head_page = virt_to_head_page(entry);
-	if (PageSlab(head_page))
-		kfree(etnry);
-	else
-		/* the entry is allocated from bootmem */
-}
-
-Thanks,
-Yasuaki Ishimatsu
-
+> Normally, admin doesn't know his system have used higher order
+> allocation and even lumpy reclaim have helped it.
+> Admin in embdded system have a tendency to minimise code size so that
+> they can disable compaction. In this case, we can see page allocation
+> failure we can never see in the past. It's critical on embedded side
+> because...
 > 
->  From 8dd51368d6c03edf7edc89cab17441e3741c39c7 Mon Sep 17 00:00:00 2001
-> From: Wen Congyang <wency@cn.fujitsu.com>
-> Date: Wed, 4 Jul 2012 16:05:26 +0800
-> Subject: [PATCH] debug
+> Let's think this scenario.
 > 
+> There is QA team in embedded company and they have tested their product.
+> In test scenario, they can allocate 100 high order allocation.
+> (they don't matter how many high order allocations in kernel are needed
+> during test. their concern is just only working well or fail of their
+> middleware/application) High order allocation will be serviced well
+> by natural buddy allocation without lumpy's help. So they released
+> the product and sold out all over the world.
+> Unfortunately, in real practice, sometime, 105 high order allocation was
+> needed rarely and fortunately, lumpy reclaim could help it so the product
+> doesn't have a problem until now.
+> 
+> If they use latest kernel, they will see the new config CONFIG_COMPACTION
+> which is very poor documentation, and they can't know it's replacement of
+> lumpy reclaim(even, they don't know lumpy reclaim) so they simply disable
+
+Depending on lumpy reclaim or compaction for high-order kernel allocations
+is dangerous. Both depend on being able to move MIGRATE_MOVABLE allocations
+to satisy the high-order allocation. If used regularly for high-order kernel
+allocations and they are long-lived, the system will eventually be unable
+to grant these allocations, with or without compaction or lumpy reclaim.
+
+Be also aware that lumpy reclaim was very aggressive when reclaiming pages
+to satisfy an allocation. Compaction is not and compaction can be temporarily
+disabled if an allocation attempt fails. If lumpy reclaim was being depended
+upon to satisfy high-order allocations, there is no guarantee, particularly
+with 3.4, that compaction will succeed as it does not reclaim aggressively.
+
+> that option for size optimization. Of course, QA team still test it but they
+> can't find the problem if they don't do test stronger than old.
+> It ends up release the product and sold out all over the world, again.
+> But in this time, we don't have both lumpy and compaction so the problem
+> would happen in real practice. A poor enginner from Korea have to flight
+> to the USA for the fix a ton of products. Otherwise, should recall products
+> from all over the world. Maybe he can lose a job. :(
+> 
+> This patch adds warning for notice. If the system try to allocate
+> PAGE_ALLOC_COSTLY_ORDER above page and system enters reclaim path,
+> it emits the warning. At least, it gives a chance to look into their
+> system before the relase.
+> 
+> This patch avoids false positive by alloc_large_system_hash which
+> allocates with GFP_ATOMIC and a fallback mechanism so it can make
+> this warning useless.
+> 
+> [1] c53919ad(mm: vmscan: remove lumpy reclaim)
+> 
+> Signed-off-by: Minchan Kim <minchan@kernel.org>
 > ---
->   drivers/firmware/memmap.c |    7 +++++++
->   1 files changed, 7 insertions(+), 0 deletions(-)
+>  mm/page_alloc.c |   16 ++++++++++++++++
+>  1 file changed, 16 insertions(+)
 > 
-> diff --git a/drivers/firmware/memmap.c b/drivers/firmware/memmap.c
-> index adc0710..993ba3f 100644
-> --- a/drivers/firmware/memmap.c
-> +++ b/drivers/firmware/memmap.c
-> @@ -21,6 +21,7 @@
->   #include <linux/types.h>
->   #include <linux/bootmem.h>
->   #include <linux/slab.h>
-> +#include <linux/mm.h>
->   
->   /*
->    * Data types ------------------------------------------------------------------
-> @@ -160,11 +161,17 @@ static int add_sysfs_fw_map_entry(struct firmware_map_entry *entry)
->   int __meminit firmware_map_add_hotplug(u64 start, u64 end, const char *type)
->   {
->   	struct firmware_map_entry *entry;
-> +	struct page *entry_page;
->   
->   	entry = kzalloc(sizeof(struct firmware_map_entry), GFP_ATOMIC);
->   	if (!entry)
->   		return -ENOMEM;
->   
-> +	entry_page = virt_to_page(entry);
-> +	printk(KERN_WARNING "flags: %lx\n", entry_page->flags);
-> +	if (PageSlab(entry_page)) {
-> +		printk(KERN_WARNING "page is allocated from slab\n");
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index a4d3a19..1155e00 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -2276,6 +2276,20 @@ gfp_to_alloc_flags(gfp_t gfp_mask)
+>  	return alloc_flags;
+>  }
+>  
+> +#if defined(CONFIG_DEBUG_VM) && !defined(CONFIG_COMPACTION)
+> +static inline void check_page_alloc_costly_order(unsigned int order)
+> +{
+> +	if (unlikely(order > PAGE_ALLOC_COSTLY_ORDER)) {
+> +		printk_once("WARNING: You are tring to allocate %d-order page."
+> +		" You might need to turn on CONFIG_COMPACTION\n", order);
 > +	}
->   	firmware_map_add_entry(start, end, type, entry);
->   	/* create the memmap entry */
->   	add_sysfs_fw_map_entry(entry);
+
+WARN_ON_ONCE would tell you what is trying to satisfy the allocation.
+
+It should further check if this is a GFP_MOVABLE allocation or not and if
+not, then it should either be documented that compaction may only delay
+allocation failures and that they may need to consider reserving the memory
+in advance or doing something like forcing MIGRATE_RESERVE to only be used
+for high-order allocations.
+
+> +}
+> +#else
+> +static inline void check_page_alloc_costly_order(unsigned int order)
+> +{
+> +}
+> +#endif
+> +
+>  static inline struct page *
+>  __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+>  	struct zonelist *zonelist, enum zone_type high_zoneidx,
+> @@ -2353,6 +2367,8 @@ rebalance:
+>  	if (!wait)
+>  		goto nopage;
+>  
+> +	check_page_alloc_costly_order(order);
+> +
+>  	/* Avoid recursion of direct reclaim */
+>  	if (current->flags & PF_MEMALLOC)
+>  		goto nopage;
+> -- 
+> 1.7.9.5
 > 
 
-
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
