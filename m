@@ -1,9 +1,9 @@
 From: Cong Wang <xiyou.wangcong@gmail.com>
-Subject: Re: [Patch] mm/policy: use int instead of unsigned for nid
-Date: Thu, 5 Jul 2012 13:37:31 +0000 (UTC)
-Message-ID: <jt45ar$lq0$3@dough.gmane.org>
-References: <1341370901-14187-1-git-send-email-amwang@redhat.com>
- <alpine.DEB.2.00.1207032342120.32556@chino.kir.corp.google.com>
+Subject: Re: [PATCH] mm: Warn about costly page allocation
+Date: Mon, 9 Jul 2012 12:53:22 +0000 (UTC)
+Message-ID: <jtek81$ja5$1@dough.gmane.org>
+References: <1341801500-5798-1-git-send-email-minchan@kernel.org>
+ <20120709082200.GX14154@suse.de> <20120709084657.GA7915@bbox>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
@@ -13,23 +13,25 @@ To: linux-kernel@vger.kernel.org
 Cc: linux-mm@kvack.org
 List-Id: linux-mm.kvack.org
 
-On Wed, 04 Jul 2012 at 06:43 GMT, David Rientjes <rientjes@google.com> wrote:
-> On Wed, 4 Jul 2012, Cong Wang wrote:
->
->> From: WANG Cong <xiyou.wangcong@gmail.com>
+On Mon, 09 Jul 2012 at 08:46 GMT, Minchan Kim <minchan@kernel.org> wrote:
 >> 
->> 'nid' should be 'int', not 'unsigned'.
->> 
+>> WARN_ON_ONCE would tell you what is trying to satisfy the allocation.
 >
-> unsigned is already of type int, so you're saying these occurrences should 
-> become signed, but that's not true since they never return NUMA_NO_NODE.  
-> They are all safe returning unsigned.
+> Do you mean that it would be better to use WARN_ON_ONCE rather than raw printk?
+> If so, I would like to insist raw printk because WARN_ON_ONCE could be disabled
+> by !CONFIG_BUG.
+> If I miss something, could you elaborate it more?
 >
 
-Yeah, I knew, just thought using 'int' is consistent, this is a
-trivial patch, not a bugfix.
+Raw printk could be disabled by !CONFIG_PRINTK too, and given that:
 
-> And alloc_page_interleave() doesn't exist anymore since the sched/numa 
-> bits were merged into sched/core, so nobody could apply this patch anyway.
+config PRINTK
+        default y
+        bool "Enable support for printk" if EXPERT
+		    
+config BUG
+        bool "BUG() support" if EXPERT
+        default y
 
-Ah, I made this patch against linus tree...
+they are both configurable only when ERPERT, so we don't need to
+worry much. :)
