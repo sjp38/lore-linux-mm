@@ -1,49 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
-	by kanga.kvack.org (Postfix) with SMTP id 28D8C6B0072
-	for <linux-mm@kvack.org>; Mon,  9 Jul 2012 17:10:37 -0400 (EDT)
-Received: by ghrr18 with SMTP id r18so12972727ghr.14
-        for <linux-mm@kvack.org>; Mon, 09 Jul 2012 14:10:35 -0700 (PDT)
-Date: Mon, 9 Jul 2012 14:10:32 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx133.postini.com [74.125.245.133])
+	by kanga.kvack.org (Postfix) with SMTP id 9574A6B006C
+	for <linux-mm@kvack.org>; Mon,  9 Jul 2012 17:21:10 -0400 (EDT)
+Received: by pbbrp2 with SMTP id rp2so24005137pbb.14
+        for <linux-mm@kvack.org>; Mon, 09 Jul 2012 14:21:09 -0700 (PDT)
+Date: Mon, 9 Jul 2012 14:21:07 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] mm: don't invoke __alloc_pages_direct_compact when order
- 0
-In-Reply-To: <CAAmzW4P=Qf1u6spPZCN7o3TRqvwF-rZkZA3eFtAcnCdFg2CDBg@mail.gmail.com>
-Message-ID: <alpine.DEB.2.00.1207091408550.23926@chino.kir.corp.google.com>
-References: <1341588521-17744-1-git-send-email-js1304@gmail.com> <alpine.DEB.2.00.1207070139510.10445@chino.kir.corp.google.com> <CAAmzW4PXdpQ2zSnkx8sSScAt1OY0j4+HXVmf=COvP7eMLqrEvQ@mail.gmail.com> <alpine.DEB.2.00.1207081547140.18461@chino.kir.corp.google.com>
- <CAAmzW4P=Qf1u6spPZCN7o3TRqvwF-rZkZA3eFtAcnCdFg2CDBg@mail.gmail.com>
+Subject: Re: [PATCH] mm/buddy: more comments for skip_free_areas_node()
+In-Reply-To: <20120706054639.GA32570@shangw>
+Message-ID: <alpine.DEB.2.00.1207091417430.23926@chino.kir.corp.google.com>
+References: <1341545097-9933-1-git-send-email-shangw@linux.vnet.ibm.com> <CAM_iQpUQN0EEFf5G3RMiR5_51-Pfm2n1kqtQhRuTjQz-wvsmjw@mail.gmail.com> <20120706054639.GA32570@shangw>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: JoonSoo Kim <js1304@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Pekka Enberg <penberg@kernel.org>, Christoph Lameter <cl@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Gavin Shan <shangw@linux.vnet.ibm.com>
+Cc: Cong Wang <xiyou.wangcong@gmail.com>, linux-mm@kvack.org, akpm@linux-foundation.org
 
-On Mon, 9 Jul 2012, JoonSoo Kim wrote:
+On Fri, 6 Jul 2012, Gavin Shan wrote:
 
-> I think __alloc_pages_direct_compact() can't be inlined by gcc,
-> because it is so big and is invoked two times in __alloc_pages_nodemask().
+> >> The initial idea comes from Cong Wang. We're running out of memory
+> >> while calling function skip_free_areas_node(). So it would be unsafe
+> >> to allocate more memory from either stack or heap. The patche adds
+> >> more comments to address that.
+> >
+> >I think these comments should add to show_free_areas(),
+> >not skip_free_areas_node().
+> >
+> 
+> aha, exactly. Thanks a lot, Cong.
 > 
 
-We could fix that by doing
+There are two issues you're trying to describe here that I told you about:
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -2057,7 +2057,7 @@ out:
- 
- #ifdef CONFIG_COMPACTION
- /* Try memory compaction for high-order allocations before reclaim */
--static struct page *
-+static __always_inline struct page *
- __alloc_pages_direct_compact(gfp_t gfp_mask, unsigned int order,
- 	struct zonelist *zonelist, enum zone_type high_zoneidx,
- 	nodemask_t *nodemask, int alloc_flags, struct zone *preferred_zone,
+ - allocating memory on the stack when called in a potentially very deep 
+   call chain, and
 
-but I'm not convinced that it's helpful for performance in the slowpath 
-and there's no guarantee that it's called more often for order-0 
-allocations since it is called as a fallback when should_alloc_retry() 
-fails.
+ - dynamically allocating memory in oom conditions.
+
+There are thousands of functions that could be called potentially very 
+deep in a call chain, there's nothing special about this one besides the 
+fact that you tried to optimize it by allocating a nodemask on the stack 
+in a previous patch.
+
+show_mem(), which calls show_free_areas(), is also not called only in oom 
+conditions so the comment wouldn't apply at all.
+
+In other words, there's nothing special about this particular function 
+with regard to these traits.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
