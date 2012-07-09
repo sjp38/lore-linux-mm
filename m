@@ -1,65 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
-	by kanga.kvack.org (Postfix) with SMTP id 777C76B006C
-	for <linux-mm@kvack.org>; Mon,  9 Jul 2012 10:13:51 -0400 (EDT)
-Received: by obhx4 with SMTP id x4so19239808obh.14
-        for <linux-mm@kvack.org>; Mon, 09 Jul 2012 07:13:50 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
+	by kanga.kvack.org (Postfix) with SMTP id 7F9476B006C
+	for <linux-mm@kvack.org>; Mon,  9 Jul 2012 10:15:58 -0400 (EDT)
+Date: Mon, 9 Jul 2012 16:15:54 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [patch 01/11] mm: memcg: fix compaction/migration failing due to
+ memcg limits
+Message-ID: <20120709141554.GD4627@tiehlicka.suse.cz>
+References: <1341449103-1986-1-git-send-email-hannes@cmpxchg.org>
+ <1341449103-1986-2-git-send-email-hannes@cmpxchg.org>
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.00.1207081547140.18461@chino.kir.corp.google.com>
-References: <1341588521-17744-1-git-send-email-js1304@gmail.com>
-	<alpine.DEB.2.00.1207070139510.10445@chino.kir.corp.google.com>
-	<CAAmzW4PXdpQ2zSnkx8sSScAt1OY0j4+HXVmf=COvP7eMLqrEvQ@mail.gmail.com>
-	<alpine.DEB.2.00.1207081547140.18461@chino.kir.corp.google.com>
-Date: Mon, 9 Jul 2012 23:13:50 +0900
-Message-ID: <CAAmzW4P=Qf1u6spPZCN7o3TRqvwF-rZkZA3eFtAcnCdFg2CDBg@mail.gmail.com>
-Subject: Re: [PATCH] mm: don't invoke __alloc_pages_direct_compact when order 0
-From: JoonSoo Kim <js1304@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1341449103-1986-2-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Pekka Enberg <penberg@kernel.org>, Christoph Lameter <cl@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, Ingo Molnar <mingo@kernel.org>
 
-2012/7/9 David Rientjes <rientjes@google.com>:
-> On Sun, 8 Jul 2012, JoonSoo Kim wrote:
->
->> >> __alloc_pages_direct_compact has many arguments so invoking it is very costly.
->> >> And in almost invoking case, order is 0, so return immediately.
->> >>
->> >
->> > If "zero cost" is "very costly", then this might make sense.
->> >
->> > __alloc_pages_direct_compact() is inlined by gcc.
->>
->> In my kernel image, __alloc_pages_direct_compact() is not inlined by gcc.
->
-> Adding Andrew and Mel to the thread since this would require that we
-> revert 11e33f6a55ed ("page allocator: break up the allocator entry point
-> into fast and slow paths") which would obviously not be a clean revert
-> since there have been several changes to these functions over the past
-> three years.
+[CCing Ingo for the memcg-devel vs tip/sched/numa inter tree dependency
+ - see bellow]
 
-Only "__alloc_pages_direct_compact()" is not inlined.
-All others (__alloc_pages_high_priority, __alloc_pages_direct_reclaim,
-...) are inlined correctly.
-So revert is not needed.
+On Thu 05-07-12 02:44:53, Johannes Weiner wrote:
+> Compaction (and page migration in general) can currently be hindered
+> through pages being owned by memory cgroups that are at their limits
+> and unreclaimable.
+> 
+> The reason is that the replacement page is being charged against the
+> limit while the page being replaced is also still charged.  But this
+> seems unnecessary, given that only one of the two pages will still be
+> in use after migration finishes.
+> 
+> This patch changes the memcg migration sequence so that the
+> replacement page is not charged.  Whatever page is still in use after
+> successful or failed migration gets to keep the charge of the page
+> that was going to be replaced.
 
-I think __alloc_pages_direct_compact() can't be inlined by gcc,
-because it is so big and is invoked two times in __alloc_pages_nodemask().
+Could you mention the side effect on the stat vs charges discrepancy,
+please?
 
-> I'm stunned (and skeptical) that __alloc_pages_direct_compact() is not
-> inlined by your gcc, especially since the kernel must be compiled with
-> optimization (either -O1 or -O2 which causes these functions to be
-> inlined).  What version of gcc are you using and on what architecture?
-> Please do "make mm/page_alloc.s" and send it to me privately, I'll file
-> this and fix it up on gcc-bugs.
+> Reported-by: David Rientjes <rientjes@google.com>
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 
-I will send result of "make mm/page_alloc.s" to you privately.
-My environments is "x86_64, GNU C version 4.6.3"
+Acked-by: Michal Hocko <mhocko@suse.cz>
 
-> I'll definitely be following up on this.
+[...]
+> diff --git a/mm/migrate.c b/mm/migrate.c
+> index 8137aea..aa06bf4 100644
+> --- a/mm/migrate.c
+> +++ b/mm/migrate.c
+[...]
+> @@ -1519,10 +1512,9 @@ migrate_misplaced_page(struct page *page, struct mm_struct *mm, int node)
+>  {
+>  	struct page *oldpage = page, *newpage;
+>  	struct address_space *mapping = page_mapping(page);
+> -	struct mem_cgroup *mcg;
+> +	struct mem_cgroup *memcg;
+>  	unsigned int gfp;
+>  	int rc = 0;
+> -	int charge = -ENOMEM;
+>  
+>  	VM_BUG_ON(!PageLocked(page));
+>  	VM_BUG_ON(page_mapcount(page));
+> @@ -1556,12 +1548,7 @@ migrate_misplaced_page(struct page *page, struct mm_struct *mm, int node)
+>  	if (!trylock_page(newpage))
+>  		BUG();		/* new page should be unlocked!!! */
+>  
+> -	// XXX hnaz, is this right?
+> -	charge = mem_cgroup_prepare_migration(page, newpage, &mcg, gfp);
+> -	if (charge == -ENOMEM) {
+> -		rc = charge;
+> -		goto out;
+> -	}
+> +	mem_cgroup_prepare_migration(page, newpage, &memcg);
+>  
+>  	newpage->index = page->index;
+>  	newpage->mapping = page->mapping;
+> @@ -1581,11 +1568,9 @@ migrate_misplaced_page(struct page *page, struct mm_struct *mm, int node)
+>  		page = newpage;
+>  	}
+>  
+> +	mem_cgroup_end_migration(memcg, oldpage, newpage, !rc);
+>  out:
+> -	if (!charge)
+> -		mem_cgroup_end_migration(mcg, oldpage, newpage, !rc);
+> -
+> -       if (oldpage != page)
+> +	if (oldpage != page)
+>                 put_page(oldpage);
+>  
+>  	if (rc) {
 
-Thanks for comments.
+Hmm, this depends on 4783af47 (mm: Migrate misplaced page) from
+tip/sched/numa which adds an inter tree dependency which is quite
+unfortunate from memcg-devel (aka mmotm git tree) tree POV. 
+I can cherry-pick this patch into memcg-devel but I am not sure what
+is the merging status of the patch (XXX sounds like it is going to be
+updated later). Ingo?
+
+-- 
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
