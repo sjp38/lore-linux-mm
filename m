@@ -1,55 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
-	by kanga.kvack.org (Postfix) with SMTP id 0ED886B0099
-	for <linux-mm@kvack.org>; Sun,  8 Jul 2012 19:01:47 -0400 (EDT)
-Received: by pbbrp2 with SMTP id rp2so22064885pbb.14
-        for <linux-mm@kvack.org>; Sun, 08 Jul 2012 16:01:46 -0700 (PDT)
-Date: Sun, 8 Jul 2012 16:01:44 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: WARNING: __GFP_FS allocations with IRQs disabled
- (kmemcheck_alloc_shadow)
-In-Reply-To: <CAAmzW4OD2_ODyeY7c1VMPajwzovOms5M8Vnw=XP=uGUyPogiJQ@mail.gmail.com>
-Message-ID: <alpine.DEB.2.00.1207081558540.18461@chino.kir.corp.google.com>
-References: <20120708040009.GA8363@localhost> <CAAmzW4OD2_ODyeY7c1VMPajwzovOms5M8Vnw=XP=uGUyPogiJQ@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx140.postini.com [74.125.245.140])
+	by kanga.kvack.org (Postfix) with SMTP id 9765A6B0075
+	for <linux-mm@kvack.org>; Sun,  8 Jul 2012 21:37:43 -0400 (EDT)
+Date: Mon, 9 Jul 2012 09:37:34 +0800
+From: Fengguang Wu <fengguang.wu@intel.com>
+Subject: Re: [PATCH 6/7] memcg: add per cgroup writeback pages accounting
+Message-ID: <20120709013734.GA8880@localhost>
+References: <1340880885-5427-1-git-send-email-handai.szj@taobao.com>
+ <1340881525-5835-1-git-send-email-handai.szj@taobao.com>
+ <4FF291BE.7030509@jp.fujitsu.com>
+ <20120708144459.GA18272@localhost>
+ <20120708230100.GA5340@cmpxchg.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120708230100.GA5340@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: JoonSoo Kim <js1304@gmail.com>
-Cc: Fengguang Wu <fengguang.wu@intel.com>, Vegard Nossum <vegard.nossum@gmail.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, Rus <rus@sfinxsoft.com>, Ben Hutchings <ben@decadent.org.uk>, Steven Rostedt <rostedt@goodmis.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Sha Zhengju <handai.szj@gmail.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, gthelen@google.com, yinghan@google.com, akpm@linux-foundation.org, mhocko@suse.cz, linux-kernel@vger.kernel.org, Sha Zhengju <handai.szj@taobao.com>
 
-On Mon, 9 Jul 2012, JoonSoo Kim wrote:
-
-> diff --git a/mm/slub.c b/mm/slub.c
-> index 8c691fa..5d41cad 100644
-> --- a/mm/slub.c
-> +++ b/mm/slub.c
-> @@ -1324,8 +1324,14 @@ static struct page *allocate_slab(struct
-> kmem_cache *s, gfp_t flags, int node)
->                 && !(s->flags & (SLAB_NOTRACK | DEBUG_DEFAULT_FLAGS))) {
->                 int pages = 1 << oo_order(oo);
+On Mon, Jul 09, 2012 at 01:01:00AM +0200, Johannes Weiner wrote:
+> On Sun, Jul 08, 2012 at 10:44:59PM +0800, Fengguang Wu wrote:
+> > On Tue, Jul 03, 2012 at 03:31:26PM +0900, KAMEZAWA Hiroyuki wrote:
+> > > (2012/06/28 20:05), Sha Zhengju wrote:
+> > > > From: Sha Zhengju <handai.szj@taobao.com>
+> > > > 
+> > > > Similar to dirty page, we add per cgroup writeback pages accounting. The lock
+> > > > rule still is:
+> > > > 	mem_cgroup_begin_update_page_stat()
+> > > > 	modify page WRITEBACK stat
+> > > > 	mem_cgroup_update_page_stat()
+> > > > 	mem_cgroup_end_update_page_stat()
+> > > > 
+> > > > There're two writeback interface to modify: test_clear/set_page_writeback.
+> > > > 
+> > > > Signed-off-by: Sha Zhengju <handai.szj@taobao.com>
+> > > 
+> > > Seems good to me. BTW, you named macros as MEM_CGROUP_STAT_FILE_XXX
+> > > but I wonder these counters will be used for accounting swap-out's dirty pages..
+> > > 
+> > > STAT_DIRTY, STAT_WRITEBACK ? do you have better name ?
+> > 
+> > Perhaps we can follow the established "enum zone_stat_item" names:
+> > 
+> >         NR_FILE_DIRTY,
+> >         NR_WRITEBACK,
+> > 
+> > s/NR_/MEM_CGROUP_STAT_/
+> > 
+> > The names indicate that dirty pages for anonymous pages are not
+> > accounted (by __set_page_dirty_no_writeback()). While the writeback
+> > pages accounting include both the file/anon pages.
+> > 
+> > Ah then we'll need to update the document in patch 0 accordingly. This
+> > may sound a bit tricky to the users..
 > 
-> +               if (flags & __GFP_WAIT)
-> +                       local_irq_enable();
-> +
->                 kmemcheck_alloc_shadow(page, oo_order(oo), flags, node);
+> We already report the global one as "nr_dirty", though.  Please don't
+> give the memcg one a different name.
 > 
-> +               if (flags & __GFP_WAIT)
-> +                       local_irq_disable();
-> +
->                 /*
->                  * Objects from caches that have a constructor don't get
->                  * cleared when they're allocated, so we need to do it here.
+> The enum naming is not too critical, but it would be nice to have it
+> match the public name.
 
-This patch is suboptimal when the branch is taken since you just disabled 
-irqs and now are immediately reenabling them and then disabling them 
-again.  (And your patch is also whitespace damaged, has no changelog, and 
-isn't signed off so it can't be applied.)
+Fair enough. The public name obviously has more weight :)
 
-The correct fix is what I proposed at 
-http://marc.info/?l=linux-kernel&m=133754837703630 and was awaiting 
-testing.  If Rus, Steven, or Fengguang could test this then we could add 
-it as a stable backport as well.
+Thanks,
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
