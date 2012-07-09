@@ -1,102 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
-	by kanga.kvack.org (Postfix) with SMTP id 7F9476B006C
-	for <linux-mm@kvack.org>; Mon,  9 Jul 2012 10:15:58 -0400 (EDT)
-Date: Mon, 9 Jul 2012 16:15:54 +0200
+Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
+	by kanga.kvack.org (Postfix) with SMTP id 414F96B006E
+	for <linux-mm@kvack.org>; Mon,  9 Jul 2012 10:22:30 -0400 (EDT)
+Date: Mon, 9 Jul 2012 16:22:27 +0200
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [patch 01/11] mm: memcg: fix compaction/migration failing due to
- memcg limits
-Message-ID: <20120709141554.GD4627@tiehlicka.suse.cz>
+Subject: Re: [patch 02/11] mm: swapfile: clean up unuse_pte race handling
+Message-ID: <20120709142227.GE4627@tiehlicka.suse.cz>
 References: <1341449103-1986-1-git-send-email-hannes@cmpxchg.org>
- <1341449103-1986-2-git-send-email-hannes@cmpxchg.org>
+ <1341449103-1986-3-git-send-email-hannes@cmpxchg.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1341449103-1986-2-git-send-email-hannes@cmpxchg.org>
+In-Reply-To: <1341449103-1986-3-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, Ingo Molnar <mingo@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-[CCing Ingo for the memcg-devel vs tip/sched/numa inter tree dependency
- - see bellow]
-
-On Thu 05-07-12 02:44:53, Johannes Weiner wrote:
-> Compaction (and page migration in general) can currently be hindered
-> through pages being owned by memory cgroups that are at their limits
-> and unreclaimable.
+On Thu 05-07-12 02:44:54, Johannes Weiner wrote:
+> The conditional mem_cgroup_cancel_charge_swapin() is a leftover from
+> when the function would continue to reestablish the page even after
+> mem_cgroup_try_charge_swapin() failed.  After 85d9fc8 "memcg: fix
+> refcnt handling at swapoff", the condition is always true when this
+> code is reached.
 > 
-> The reason is that the replacement page is being charged against the
-> limit while the page being replaced is also still charged.  But this
-> seems unnecessary, given that only one of the two pages will still be
-> in use after migration finishes.
-> 
-> This patch changes the memcg migration sequence so that the
-> replacement page is not charged.  Whatever page is still in use after
-> successful or failed migration gets to keep the charge of the page
-> that was going to be replaced.
-
-Could you mention the side effect on the stat vs charges discrepancy,
-please?
-
-> Reported-by: David Rientjes <rientjes@google.com>
 > Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 
 Acked-by: Michal Hocko <mhocko@suse.cz>
 
-[...]
-> diff --git a/mm/migrate.c b/mm/migrate.c
-> index 8137aea..aa06bf4 100644
-> --- a/mm/migrate.c
-> +++ b/mm/migrate.c
-[...]
-> @@ -1519,10 +1512,9 @@ migrate_misplaced_page(struct page *page, struct mm_struct *mm, int node)
->  {
->  	struct page *oldpage = page, *newpage;
->  	struct address_space *mapping = page_mapping(page);
-> -	struct mem_cgroup *mcg;
-> +	struct mem_cgroup *memcg;
->  	unsigned int gfp;
->  	int rc = 0;
-> -	int charge = -ENOMEM;
+> ---
+>  mm/swapfile.c |    3 +--
+>  1 files changed, 1 insertions(+), 2 deletions(-)
+> 
+> diff --git a/mm/swapfile.c b/mm/swapfile.c
+> index 64408be..75881ca 100644
+> --- a/mm/swapfile.c
+> +++ b/mm/swapfile.c
+> @@ -845,8 +845,7 @@ static int unuse_pte(struct vm_area_struct *vma, pmd_t *pmd,
 >  
->  	VM_BUG_ON(!PageLocked(page));
->  	VM_BUG_ON(page_mapcount(page));
-> @@ -1556,12 +1548,7 @@ migrate_misplaced_page(struct page *page, struct mm_struct *mm, int node)
->  	if (!trylock_page(newpage))
->  		BUG();		/* new page should be unlocked!!! */
->  
-> -	// XXX hnaz, is this right?
-> -	charge = mem_cgroup_prepare_migration(page, newpage, &mcg, gfp);
-> -	if (charge == -ENOMEM) {
-> -		rc = charge;
-> -		goto out;
-> -	}
-> +	mem_cgroup_prepare_migration(page, newpage, &memcg);
->  
->  	newpage->index = page->index;
->  	newpage->mapping = page->mapping;
-> @@ -1581,11 +1568,9 @@ migrate_misplaced_page(struct page *page, struct mm_struct *mm, int node)
->  		page = newpage;
+>  	pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
+>  	if (unlikely(!pte_same(*pte, swp_entry_to_pte(entry)))) {
+> -		if (ret > 0)
+> -			mem_cgroup_cancel_charge_swapin(memcg);
+> +		mem_cgroup_cancel_charge_swapin(memcg);
+>  		ret = 0;
+>  		goto out;
 >  	}
->  
-> +	mem_cgroup_end_migration(memcg, oldpage, newpage, !rc);
->  out:
-> -	if (!charge)
-> -		mem_cgroup_end_migration(mcg, oldpage, newpage, !rc);
-> -
-> -       if (oldpage != page)
-> +	if (oldpage != page)
->                 put_page(oldpage);
->  
->  	if (rc) {
-
-Hmm, this depends on 4783af47 (mm: Migrate misplaced page) from
-tip/sched/numa which adds an inter tree dependency which is quite
-unfortunate from memcg-devel (aka mmotm git tree) tree POV. 
-I can cherry-pick this patch into memcg-devel but I am not sure what
-is the merging status of the patch (XXX sounds like it is going to be
-updated later). Ingo?
+> -- 
+> 1.7.7.6
+> 
 
 -- 
 Michal Hocko
