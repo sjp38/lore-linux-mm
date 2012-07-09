@@ -1,34 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
-	by kanga.kvack.org (Postfix) with SMTP id E31AB6B006C
-	for <linux-mm@kvack.org>; Mon,  9 Jul 2012 18:36:06 -0400 (EDT)
-Received: by ggm4 with SMTP id 4so13051462ggm.14
-        for <linux-mm@kvack.org>; Mon, 09 Jul 2012 15:36:06 -0700 (PDT)
-Date: Mon, 9 Jul 2012 15:35:26 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: [PATCH 0/3] shmem/tmpfs: three late patches
-Message-ID: <alpine.LSU.2.00.1207091533001.2051@eggly.anvils>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
+	by kanga.kvack.org (Postfix) with SMTP id 28C8E6B006C
+	for <linux-mm@kvack.org>; Mon,  9 Jul 2012 18:41:02 -0400 (EDT)
+Date: Mon, 9 Jul 2012 15:41:00 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm: don't invoke __alloc_pages_direct_compact when
+ order 0
+Message-Id: <20120709154100.6a7377e6.akpm@linux-foundation.org>
+In-Reply-To: <CAAmzW4P=Qf1u6spPZCN7o3TRqvwF-rZkZA3eFtAcnCdFg2CDBg@mail.gmail.com>
+References: <1341588521-17744-1-git-send-email-js1304@gmail.com>
+	<alpine.DEB.2.00.1207070139510.10445@chino.kir.corp.google.com>
+	<CAAmzW4PXdpQ2zSnkx8sSScAt1OY0j4+HXVmf=COvP7eMLqrEvQ@mail.gmail.com>
+	<alpine.DEB.2.00.1207081547140.18461@chino.kir.corp.google.com>
+	<CAAmzW4P=Qf1u6spPZCN7o3TRqvwF-rZkZA3eFtAcnCdFg2CDBg@mail.gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: JoonSoo Kim <js1304@gmail.com>
+Cc: David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Pekka Enberg <penberg@kernel.org>, Christoph Lameter <cl@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Here's three little shmem/tmpfs patches against v3.5-rc6.
-Either the first should go in before v3.5 final, or it should not go
-in at all.  The second and third are independent of it: I'd like them
-in v3.5, but don't have a clinching argument: see what you think.
+On Mon, 9 Jul 2012 23:13:50 +0900
+JoonSoo Kim <js1304@gmail.com> wrote:
 
-[PATCH 1/3] tmpfs: revert SEEK_DATA and SEEK_HOLE
-[PATCH 2/3] shmem: fix negative rss in memcg memory.stat
-[PATCH 3/3] shmem: cleanup shmem_add_to_page_cache
+> >> In my kernel image, __alloc_pages_direct_compact() is not inlined by gcc.
 
- mm/shmem.c |  193 +++++++++++++++------------------------------------
- 1 file changed, 58 insertions(+), 135 deletions(-)
+My gcc-4.4.4 doesn't inline it either.
 
-Thanks,
-Hugh
+> I think __alloc_pages_direct_compact() can't be inlined by gcc,
+> because it is so big and is invoked two times in __alloc_pages_nodemask().
+
+This.  Large function, two callsites.
+
+Making __alloc_pages_direct_compact() __always_inline adds only 26
+bytes to my page_alloc.o's .text.  Such is the suckiness of passing
+eleven arguments!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
