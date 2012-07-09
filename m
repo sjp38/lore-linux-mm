@@ -1,97 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
-	by kanga.kvack.org (Postfix) with SMTP id 014946B0072
-	for <linux-mm@kvack.org>; Mon,  9 Jul 2012 01:28:23 -0400 (EDT)
-Date: Mon, 9 Jul 2012 13:28:13 +0800
-From: Fengguang Wu <fengguang.wu@intel.com>
-Subject: Re: [PATCH 6/7] memcg: add per cgroup writeback pages accounting
-Message-ID: <20120709052813.GB11126@localhost>
-References: <1340880885-5427-1-git-send-email-handai.szj@taobao.com>
- <1340881562-5900-1-git-send-email-handai.szj@taobao.com>
- <20120708145309.GC18272@localhost>
- <4FFA51AB.30203@gmail.com>
- <20120709041437.GA10180@localhost>
- <4FFA5B7F.8030403@jp.fujitsu.com>
- <4FFA6AAE.8030700@gmail.com>
+Received: from psmtp.com (na3sys010amx104.postini.com [74.125.245.104])
+	by kanga.kvack.org (Postfix) with SMTP id 179026B006C
+	for <linux-mm@kvack.org>; Mon,  9 Jul 2012 01:56:01 -0400 (EDT)
+Received: from /spool/local
+	by e28smtp07.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <xiaoguangrong@linux.vnet.ibm.com>;
+	Mon, 9 Jul 2012 11:25:57 +0530
+Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
+	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q695trAY60752118
+	for <linux-mm@kvack.org>; Mon, 9 Jul 2012 11:25:54 +0530
+Received: from d28av01.in.ibm.com (loopback [127.0.0.1])
+	by d28av01.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q69BPRDr015959
+	for <linux-mm@kvack.org>; Mon, 9 Jul 2012 16:55:27 +0530
+Message-ID: <4FFA7266.6090408@linux.vnet.ibm.com>
+Date: Mon, 09 Jul 2012 13:55:50 +0800
+From: Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4FFA6AAE.8030700@gmail.com>
+Subject: Re: [PATCH v2 1/9] zcache: fix refcount leak
+References: <4FE97792.9020807@linux.vnet.ibm.com> <4FE977AA.2090003@linux.vnet.ibm.com> <20120626223651.GB6561@localhost.localdomain> <4FEA905A.4070207@linux.vnet.ibm.com> <20120627054456.GA18869@kroah.com>
+In-Reply-To: <20120627054456.GA18869@kroah.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sha Zhengju <handai.szj@gmail.com>
-Cc: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, gthelen@google.com, yinghan@google.com, akpm@linux-foundation.org, mhocko@suse.cz, linux-kernel@vger.kernel.org, Sha Zhengju <handai.szj@taobao.com>
+To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Cc: Konrad Rzeszutek Wilk <konrad@darnok.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Konrad Wilk <konrad.wilk@oracle.com>, Nitin Gupta <ngupta@vflare.org>, linux-mm@kvack.org
 
-On Mon, Jul 09, 2012 at 01:22:54PM +0800, Sha Zhengju wrote:
-> On 07/09/2012 12:18 PM, Kamezawa Hiroyuki wrote:
-> >(2012/07/09 13:14), Fengguang Wu wrote:
-> >>On Mon, Jul 09, 2012 at 11:36:11AM +0800, Sha Zhengju wrote:
-> >>>On 07/08/2012 10:53 PM, Fengguang Wu wrote:
-> >>>>>@@ -2245,7 +2252,10 @@ int test_set_page_writeback(struct page *page)
-> >>>>>  {
-> >>>>>      struct address_space *mapping = page_mapping(page);
-> >>>>>      int ret;
-> >>>>>+    bool locked;
-> >>>>>+    unsigned long flags;
-> >>>>>
-> >>>>>+    mem_cgroup_begin_update_page_stat(page,&locked,&flags);
-> >>>>>      if (mapping) {
-> >>>>>          struct backing_dev_info *bdi = mapping->backing_dev_info;
-> >>>>>          unsigned long flags;
-> >>>>>@@ -2272,6 +2282,8 @@ int test_set_page_writeback(struct page *page)
-> >>>>>      }
-> >>>>>      if (!ret)
-> >>>>>          account_page_writeback(page);
-> >>>>>+
-> >>>>>+    mem_cgroup_end_update_page_stat(page,&locked,&flags);
-> >>>>>      return ret;
-> >>>>>
-> >>>>>  }
-> >>>>Where is the MEM_CGROUP_STAT_FILE_WRITEBACK increased?
-> >>>>
-> >>>
-> >>>It's in account_page_writeback().
-> >>>
-> >>>  void account_page_writeback(struct page *page)
-> >>>  {
-> >>>+    mem_cgroup_inc_page_stat(page, MEM_CGROUP_STAT_FILE_WRITEBACK);
-> >>>      inc_zone_page_state(page, NR_WRITEBACK);
-> >>>  }
-> >>
-> >>I didn't find that chunk, perhaps it's lost due to rebase..
-> >>
-> >>>There isn't a unified interface to dec/inc writeback accounting, so
-> >>>I just follow that.
-> >>>Maybe we can rework account_page_writeback() to also account
-> >>>dec in?
-> >>
-> >>The current seperate inc/dec paths are fine. It sounds like
-> >>over-engineering if going any further.
-> >>
-> >>I'm a bit worried about some 3rd party kernel module to call
-> >>account_page_writeback() without
-> >>mem_cgroup_begin/end_update_page_stat().
-> >>Will that lead to serious locking issues, or merely inaccurate
-> >>accounting?
-> >>
-> >
-> >Ah, Hm. Maybe it's better to add some debug check in
-> > mem_cgroup_update_page_stat(). rcu_read_lock_held() or some.
-> >
+On 06/27/2012 01:44 PM, Greg Kroah-Hartman wrote:
+> On Wed, Jun 27, 2012 at 12:47:22PM +0800, Xiao Guangrong wrote:
+>> On 06/27/2012 06:36 AM, Konrad Rzeszutek Wilk wrote:
+>>> On Tue, Jun 26, 2012 at 04:49:46PM +0800, Xiao Guangrong wrote:
+>>>> In zcache_get_pool_by_id, the refcount of zcache_host is not increased, but
+>>>> it is always decreased in zcache_put_pool
+>>>
+>>> All of the patches (1-9) look good to me, so please also
+>>> affix 'Reviewed-by: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>'.
+>>>
+>>
+>> Thank you, Konrad!
+>>
+>> Greg, need i repost this patchset with Konrad's Reviewed-by?
 > 
-> This also apply to account_page_dirtied()... But as an "range" lock,
-> I think it's common
-> in current kernel: just as set_page_dirty(), the caller should call
-> it under the page lock
-> (in most cases) and it's his responsibility to guarantee
-> correctness. I can add some
-> comments or debug check as reminding but I think i can only do so...
+> No, I can add it when I apply them.
+> 
 
-Yeah, it helps to add some brief comment on the locking rule in
-account_page_*().
 
-Thanks,
-Fengguang
+Greg, sorry to trouble you but this patches stayed in the list for
+nearly two weeks. If it is ok, could you please apply them? :)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
