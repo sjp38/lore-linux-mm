@@ -1,68 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
-	by kanga.kvack.org (Postfix) with SMTP id D1CE66B0062
-	for <linux-mm@kvack.org>; Mon,  9 Jul 2012 10:12:36 -0400 (EDT)
-Received: by pbbrp2 with SMTP id rp2so23401436pbb.14
-        for <linux-mm@kvack.org>; Mon, 09 Jul 2012 07:12:36 -0700 (PDT)
-Date: Mon, 9 Jul 2012 23:12:26 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH] mm: Warn about costly page allocation
-Message-ID: <20120709141225.GA17314@barrios>
-References: <1341801500-5798-1-git-send-email-minchan@kernel.org>
- <20120709082200.GX14154@suse.de>
- <20120709084657.GA7915@bbox>
- <jtek81$ja5$1@dough.gmane.org>
+Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
+	by kanga.kvack.org (Postfix) with SMTP id A76BC6B0062
+	for <linux-mm@kvack.org>; Mon,  9 Jul 2012 10:13:27 -0400 (EDT)
+Date: Mon, 9 Jul 2012 15:13:24 +0100
+From: Will Deacon <will.deacon@arm.com>
+Subject: Re: [PATCH] mm: hugetlb: flush dcache before returning zeroed huge
+ page to userspace
+Message-ID: <20120709141324.GK7315@mudshark.cambridge.arm.com>
+References: <1341412376-6272-1-git-send-email-will.deacon@arm.com>
+ <20120709122523.GC4627@tiehlicka.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <jtek81$ja5$1@dough.gmane.org>
+In-Reply-To: <20120709122523.GC4627@tiehlicka.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Cong Wang <xiyou.wangcong@gmail.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "dhillf@gmail.com" <dhillf@gmail.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-Hi Cong,
-
-On Mon, Jul 09, 2012 at 12:53:22PM +0000, Cong Wang wrote:
-> On Mon, 09 Jul 2012 at 08:46 GMT, Minchan Kim <minchan@kernel.org> wrote:
-> >> 
-> >> WARN_ON_ONCE would tell you what is trying to satisfy the allocation.
-> >
-> > Do you mean that it would be better to use WARN_ON_ONCE rather than raw printk?
-> > If so, I would like to insist raw printk because WARN_ON_ONCE could be disabled
-> > by !CONFIG_BUG.
-> > If I miss something, could you elaborate it more?
-> >
+On Mon, Jul 09, 2012 at 01:25:23PM +0100, Michal Hocko wrote:
+> On Wed 04-07-12 15:32:56, Will Deacon wrote:
+> > When allocating and returning clear huge pages to userspace as a
+> > response to a fault, we may zero and return a mapping to a previously
+> > dirtied physical region (for example, it may have been written by
+> > a private mapping which was freed as a result of an ftruncate on the
+> > backing file). On architectures with Harvard caches, this can lead to
+> > I/D inconsistency since the zeroed view may not be visible to the
+> > instruction stream.
+> > 
+> > This patch solves the problem by flushing the region after allocating
+> > and clearing a new huge page. Note that PowerPC avoids this issue by
+> > performing the flushing in their clear_user_page implementation to keep
+> > the loader happy, however this is closely tied to the semantics of the
+> > PG_arch_1 page flag which is architecture-specific.
+> > 
+> > Acked-by: Catalin Marinas <catalin.marinas@arm.com>
+> > Signed-off-by: Will Deacon <will.deacon@arm.com>
+> > ---
+> >  mm/hugetlb.c |    1 +
+> >  1 files changed, 1 insertions(+), 0 deletions(-)
+> > 
+> > diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+> > index e198831..b83d026 100644
+> > --- a/mm/hugetlb.c
+> > +++ b/mm/hugetlb.c
+> > @@ -2646,6 +2646,7 @@ retry:
+> >  			goto out;
+> >  		}
+> >  		clear_huge_page(page, address, pages_per_huge_page(h));
+> > +		flush_dcache_page(page);
+> >  		__SetPageUptodate(page);
 > 
-> Raw printk could be disabled by !CONFIG_PRINTK too, and given that:
+> Does this have to be explicit in the arch independent code?
+> It seems that ia64 uses flush_dcache_page already in the clear_user_page
 
-Yes.
-In such case, It is very hard to diagnose the system so at least
-we enables CONFIG_PRINTK.
+It would match what is done in similar situations by cow_user_page (mm/memory.c)
+and shmem_writepage (mm/shmem.c). Other subsystems also have explicit page
+flushing (DMA bounce, ksm) so I think this is the right place for it.
 
-> 
-> config PRINTK
->         default y
->         bool "Enable support for printk" if EXPERT
-> 		    
-> config BUG
->         bool "BUG() support" if EXPERT
->         default y
-> 
-> they are both configurable only when ERPERT, so we don't need to
-> worry much. :)
-
-Embedded can use CONFIG_PRINTK and !CONFIG_BUG for size optimization
-and printk(pr_xxx) + dump_stack is common technic used in all over kernel
-sources. Do you have any reason you don't like it?
-
-
-> 
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
+Will
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
