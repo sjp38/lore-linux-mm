@@ -1,132 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
-	by kanga.kvack.org (Postfix) with SMTP id 702B16B0095
-	for <linux-mm@kvack.org>; Mon,  9 Jul 2012 19:55:54 -0400 (EDT)
-From: Minchan Kim <minchan@kernel.org>
-Subject: [PATCH v2] mm: Warn about costly page allocation
-Date: Tue, 10 Jul 2012 08:55:53 +0900
-Message-Id: <1341878153-10757-1-git-send-email-minchan@kernel.org>
+Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
+	by kanga.kvack.org (Postfix) with SMTP id D032C6B0095
+	for <linux-mm@kvack.org>; Mon,  9 Jul 2012 19:57:53 -0400 (EDT)
+Received: by yhr47 with SMTP id 47so14254954yhr.14
+        for <linux-mm@kvack.org>; Mon, 09 Jul 2012 16:57:52 -0700 (PDT)
+Date: Mon, 9 Jul 2012 16:57:14 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH] mm: hugetlb: flush dcache before returning zeroed huge
+ page to userspace
+In-Reply-To: <20120709141324.GK7315@mudshark.cambridge.arm.com>
+Message-ID: <alpine.LSU.2.00.1207091622470.2261@eggly.anvils>
+References: <1341412376-6272-1-git-send-email-will.deacon@arm.com> <20120709122523.GC4627@tiehlicka.suse.cz> <20120709141324.GK7315@mudshark.cambridge.arm.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Minchan Kim <minchan@kernel.org>
+To: Will Deacon <will.deacon@arm.com>
+Cc: Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Hillf Danton <dhillf@gmail.com>, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Since lumpy reclaim was introduced at 2.6.23, it helped higher
-order allocation.
-Recently, we removed it at 3.4 and we didn't enable compaction
-forcingly[1]. The reason makes sense that compaction.o + migration.o
-isn't trivial for system doesn't use higher order allocation.
-But the problem is that we have to enable compaction explicitly
-while lumpy reclaim enabled unconditionally.
+On Mon, 9 Jul 2012, Will Deacon wrote:
+> On Mon, Jul 09, 2012 at 01:25:23PM +0100, Michal Hocko wrote:
+> > On Wed 04-07-12 15:32:56, Will Deacon wrote:
+> > > When allocating and returning clear huge pages to userspace as a
+> > > response to a fault, we may zero and return a mapping to a previously
+> > > dirtied physical region (for example, it may have been written by
+> > > a private mapping which was freed as a result of an ftruncate on the
+> > > backing file). On architectures with Harvard caches, this can lead to
+> > > I/D inconsistency since the zeroed view may not be visible to the
+> > > instruction stream.
+> > > 
+> > > This patch solves the problem by flushing the region after allocating
+> > > and clearing a new huge page. Note that PowerPC avoids this issue by
+> > > performing the flushing in their clear_user_page implementation to keep
+> > > the loader happy, however this is closely tied to the semantics of the
+> > > PG_arch_1 page flag which is architecture-specific.
+> > > 
+> > > Acked-by: Catalin Marinas <catalin.marinas@arm.com>
+> > > Signed-off-by: Will Deacon <will.deacon@arm.com>
+> > > ---
+> > >  mm/hugetlb.c |    1 +
+> > >  1 files changed, 1 insertions(+), 0 deletions(-)
+> > > 
+> > > diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+> > > index e198831..b83d026 100644
+> > > --- a/mm/hugetlb.c
+> > > +++ b/mm/hugetlb.c
+> > > @@ -2646,6 +2646,7 @@ retry:
+> > >  			goto out;
+> > >  		}
+> > >  		clear_huge_page(page, address, pages_per_huge_page(h));
+> > > +		flush_dcache_page(page);
+> > >  		__SetPageUptodate(page);
+> > 
+> > Does this have to be explicit in the arch independent code?
+> > It seems that ia64 uses flush_dcache_page already in the clear_user_page
+> 
+> It would match what is done in similar situations by cow_user_page (mm/memory.c)
+> and shmem_writepage (mm/shmem.c). Other subsystems also have explicit page
+> flushing (DMA bounce, ksm) so I think this is the right place for it.
 
-Normally, admin doesn't know his system have used higher order
-allocation and even lumpy reclaim have helped it.
-Admin in embdded system have a tendency to minimise code size so that
-they can disable compaction. In this case, we can see page allocation
-failure we can never see in the past. It's critical on embedded side
-because...
+I am not at all sure if you are right or not:
+please let's consult linux-arch about this - now Cc'ed.
 
-Let's think this scenario.
+If this hugetlb_no_page() were solely mapping the hugepage into that
+userspace, I would say you are wrong.  It's the job of clear_huge_page()
+to take the mapped address into account, and pass it down to the
+architecture-specific implementation, to do whatever flushing is
+needed - you should be providing that in your architecture.
 
-There is QA team in embedded company and they have tested their product.
-In test scenario, they can allocate 100 high order allocation.
-(they don't matter how many high order allocations in kernel are needed
-during test. their concern is just only working well or fail of their
-middleware/application) High order allocation will be serviced well
-by natural buddy allocation without lumpy's help. So they released
-the product and sold out all over the world.
-Unfortunately, in real practice, sometime, 105 high order allocation was
-needed rarely and fortunately, lumpy reclaim could help it so the product
-doesn't have a problem until now.
+In particular, notice how clear_huge_page() goes round a loop of
+clear_user_highpage()s: in your patch, you're expecting the implementation
+of flush_dcache_page() to notice whether or not this is a hugepage, and
+flush the appropriate size.
 
-If they use latest kernel, they will see the new config CONFIG_COMPACTION
-which is very poor documentation, and they can't know it's replacement of
-lumpy reclaim(even, they don't know lumpy reclaim) so they simply disable
-that option for size optimization. Of course, QA team still test it but they
-can't find the problem if they don't do test stronger than old.
-It ends up release the product and sold out all over the world, again.
-But in this time, we don't have both lumpy and compaction so the problem
-would happen in real practice. A poor enginner from Korea have to flight
-to the USA for the fix a ton of products. Otherwise, should recall products
-from all over the world. Maybe he can lose a job. :(
+Perhaps yours is the only architecture to need this on huge, and your
+flush_dcache_page() implements it correctly; but it does seem surprising.
 
-This patch adds warning for notice. If the system try to allocate
-PAGE_ALLOC_COSTLY_ORDER above page and system enters reclaim path,
-it emits the warning. At least, it gives a chance to look into their
-system before the relase.
+If I start to grep the architectures for non-empty flush_dcache_page(),
+I soon find things in arch/arm such as v4_mc_copy_user_highpage() doing
+if (!test_and_set_bit(PG_dcache_clean,)) __flush_dcache_page() - where
+the naming suggests that I'm right, it's the architecture's responsibility
+to arrange whatever flushing is needed in its copy and clear page functions.
 
-Please keep in mind. It's not a good idea to depend lumpy/compaction
-for regular high-order allocations. Both depends on being able to move
-MIGRATE_MOVABLE allocations to satisfy the high-order allocation. If used
-reregularly for high-order kernel allocations and tehy are long-lived,
-the system will eventually be unable to grant these allocations, with or
-without compaction or lumpy reclaim. Hatchet jobs that work around this problem
-include forcing MIGRATE_RESERVE to be only used for high-order allocations
-and tuning its size. It's a major hack though and is unlikely to be merged
-to mainline but might suit an embedded product.
+But... this hugetlb_no_page() has a VM_MAYSHARE case below, which puts
+the new page into page cache, making it accessible by other processes:
+that may indeed be reason for flush_dcache_page() there - or a loop of
+flush_dcache_page()s.  But I worry then that in the !VM_MAYSHARE case
+you would be duplicating expensive flushes: perhaps they should be
+restricted to the VM_MAYSHARE block.
 
-This patch avoids false positive by alloc_large_system_hash which
-allocates with GFP_ATOMIC and a fallback mechanism so it can make
-this warning useless.
-
-[1] c53919ad(mm: vmscan: remove lumpy reclaim)
-
-Signed-off-by: Minchan Kim <minchan@kernel.org>
----
-Changelog
-
-* from v1
- - add more description about warning failure of high-order allocation
- - use printk_ratelimited/pr_warn and dump stack - [Mel, Andrew]
-
- mm/page_alloc.c |   25 +++++++++++++++++++++++++
- 1 file changed, 25 insertions(+)
-
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index a4d3a19..710d0e90 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -2276,6 +2276,29 @@ gfp_to_alloc_flags(gfp_t gfp_mask)
- 	return alloc_flags;
- }
- 
-+#if defined(CONFIG_DEBUG_VM) && !defined(CONFIG_COMPACTION)
-+static inline void check_page_alloc_costly_order(unsigned int order, gfp_t flags)
-+{
-+	if (likely(order <= PAGE_ALLOC_COSTLY_ORDER))
-+		return;
-+
-+	if (!printk_ratelimited())
-+		return;
-+
-+	pr_warn("%s: page allocation high-order stupidity: "
-+		"order:%d, mode:0x%x\n", current->comm, order, flags);
-+	pr_warn("Enable compaction if high-order allocations are "
-+		"very few and rare.\n");
-+	pr_warn("If you need regular high-order allocation, "
-+		"compaction wouldn't help it.\n");
-+	dump_stack();
-+}
-+#else
-+static inline void check_page_alloc_costly_order(unsigned int order)
-+{
-+}
-+#endif
-+
- static inline struct page *
- __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
- 	struct zonelist *zonelist, enum zone_type high_zoneidx,
-@@ -2353,6 +2376,8 @@ rebalance:
- 	if (!wait)
- 		goto nopage;
- 
-+	check_page_alloc_costly_order(order);
-+
- 	/* Avoid recursion of direct reclaim */
- 	if (current->flags & PF_MEMALLOC)
- 		goto nopage;
--- 
-1.7.9.5
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
