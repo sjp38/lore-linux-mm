@@ -1,36 +1,34 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx133.postini.com [74.125.245.133])
-	by kanga.kvack.org (Postfix) with SMTP id 3147E6B0072
-	for <linux-mm@kvack.org>; Mon,  9 Jul 2012 17:21:38 -0400 (EDT)
-Received: by mail-pb0-f41.google.com with SMTP id rp2so24005137pbb.14
-        for <linux-mm@kvack.org>; Mon, 09 Jul 2012 14:21:37 -0700 (PDT)
-Date: Mon, 9 Jul 2012 14:21:35 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH v2] mm/buddy: more comments for show_free_areas()
-In-Reply-To: <CAM_iQpXxqQkn_SgSf-5krmm9tCHEk21h9S3z8RhwR4XAeh8dFQ@mail.gmail.com>
-Message-ID: <alpine.DEB.2.00.1207091421200.23926@chino.kir.corp.google.com>
-References: <1341553919-4442-1-git-send-email-shangw@linux.vnet.ibm.com> <CAM_iQpXxqQkn_SgSf-5krmm9tCHEk21h9S3z8RhwR4XAeh8dFQ@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
+	by kanga.kvack.org (Postfix) with SMTP id E31AB6B006C
+	for <linux-mm@kvack.org>; Mon,  9 Jul 2012 18:36:06 -0400 (EDT)
+Received: by ggm4 with SMTP id 4so13051462ggm.14
+        for <linux-mm@kvack.org>; Mon, 09 Jul 2012 15:36:06 -0700 (PDT)
+Date: Mon, 9 Jul 2012 15:35:26 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: [PATCH 0/3] shmem/tmpfs: three late patches
+Message-ID: <alpine.LSU.2.00.1207091533001.2051@eggly.anvils>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Cong Wang <xiyou.wangcong@gmail.com>
-Cc: Gavin Shan <shangw@linux.vnet.ibm.com>, linux-mm@kvack.org, akpm@linux-foundation.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, 6 Jul 2012, Cong Wang wrote:
+Here's three little shmem/tmpfs patches against v3.5-rc6.
+Either the first should go in before v3.5 final, or it should not go
+in at all.  The second and third are independent of it: I'd like them
+in v3.5, but don't have a clinching argument: see what you think.
 
-> > The initial idea comes from Cong Wang. We're running out of memory
-> > while calling function show_free_areas(). So it would be unsafe
-> > to allocate more memory from either stack or heap. The patche adds
-> > more comments to address that.
-> >
-> 
-> Looks good to me,
-> 
-> Reviewed-by: WANG Cong <xiyou.wangcong@gmail.com>
-> 
+[PATCH 1/3] tmpfs: revert SEEK_DATA and SEEK_HOLE
+[PATCH 2/3] shmem: fix negative rss in memcg memory.stat
+[PATCH 3/3] shmem: cleanup shmem_add_to_page_cache
 
-Nack, please see my response to the first version.
+ mm/shmem.c |  193 +++++++++++++++------------------------------------
+ 1 file changed, 58 insertions(+), 135 deletions(-)
+
+Thanks,
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
