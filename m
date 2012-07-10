@@ -1,86 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
-	by kanga.kvack.org (Postfix) with SMTP id 8331B6B0071
-	for <linux-mm@kvack.org>; Tue, 10 Jul 2012 19:24:33 -0400 (EDT)
-Received: by pbbrp2 with SMTP id rp2so1207686pbb.14
-        for <linux-mm@kvack.org>; Tue, 10 Jul 2012 16:24:32 -0700 (PDT)
-Date: Tue, 10 Jul 2012 16:24:29 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch 3/5] mm, memcg: introduce own oom handler to iterate only
- over its own threads
-In-Reply-To: <20120710141959.b6a3ecbe.akpm@linux-foundation.org>
-Message-ID: <alpine.DEB.2.00.1207101620230.25532@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.1206251846020.24838@chino.kir.corp.google.com> <alpine.DEB.2.00.1206291404530.6040@chino.kir.corp.google.com> <alpine.DEB.2.00.1206291405500.6040@chino.kir.corp.google.com> <20120710141959.b6a3ecbe.akpm@linux-foundation.org>
+Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
+	by kanga.kvack.org (Postfix) with SMTP id 7D4396B0071
+	for <linux-mm@kvack.org>; Tue, 10 Jul 2012 19:31:08 -0400 (EDT)
+Date: Tue, 10 Jul 2012 18:31:05 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: linux-next: Early crashed kernel on CONFIG_SLOB
+In-Reply-To: <CF1C132D-2873-408A-BCC9-B9F57BE6EDDB@linuxfoundation.org>
+Message-ID: <alpine.DEB.2.00.1207101830480.5988@router.home>
+References: <20120710111756.GA11351@localhost> <CF1C132D-2873-408A-BCC9-B9F57BE6EDDB@linuxfoundation.org>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan@kernel.org>, Oleg Nesterov <oleg@redhat.com>, linux-mm@kvack.org, cgroups@vger.kernel.org
+To: Christoph Lameter <christoph@linuxfoundation.org>
+Cc: "wfg@linux.intel.com" <wfg@linux.intel.com>, Pekka Enberg <penberg@kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Tue, 10 Jul 2012, Andrew Morton wrote:
+Here is the patch:
 
-> > The global oom killer is serialized by the zonelist being used in the
-> > page allocation.
-> 
-> Brain hurts.  Presumably this is referring to some lock within the
-> zonelist.  Clarify, please?
-> 
+Subject: slob: Undo slob hunk
 
-Yeah, it's done with try_set_zonelist_oom() before calling the oom killer; 
-it sets the ZONE_OOM_LOCKED bit for each zone in the zonelist to avoid 
-concurrent oom kills for the same zonelist, otherwise it's possible to 
-overkill.
+Commit fd3142a59af2012a7c5dc72ec97a4935ff1c5fc6 broke
+slob since a piece of a change for a later patch slipped into
+it.
 
-> >  Concurrent oom kills are thus a rare event and only
-> > occur in systems using mempolicies and with a large number of nodes.
-> > 
-> > Memory controller oom kills, however, can frequently be concurrent since
-> > there is no serialization once the oom killer is called for oom
-> > conditions in several different memcgs in parallel.
-> > 
-> > This creates a massive contention on tasklist_lock since the oom killer
-> > requires the readside for the tasklist iteration.  If several memcgs are
-> > calling the oom killer, this lock can be held for a substantial amount of
-> > time, especially if threads continue to enter it as other threads are
-> > exiting.
-> > 
-> > Since the exit path grabs the writeside of the lock with irqs disabled in
-> > a few different places, this can cause a soft lockup on cpus as a result
-> > of tasklist_lock starvation.
-> > 
-> > The kernel lacks unfair writelocks, and successful calls to the oom
-> > killer usually result in at least one thread entering the exit path, so
-> > an alternative solution is needed.
-> > 
-> > This patch introduces a seperate oom handler for memcgs so that they do
-> > not require tasklist_lock for as much time.  Instead, it iterates only
-> > over the threads attached to the oom memcg and grabs a reference to the
-> > selected thread before calling oom_kill_process() to ensure it doesn't
-> > prematurely exit.
-> > 
-> > This still requires tasklist_lock for the tasklist dump, iterating
-> > children of the selected process, and killing all other threads on the
-> > system sharing the same memory as the selected victim.  So while this
-> > isn't a complete solution to tasklist_lock starvation, it significantly
-> > reduces the amount of time that it is held.
-> > 
-> >
-> > ...
-> >
-> > @@ -1469,6 +1469,65 @@ u64 mem_cgroup_get_limit(struct mem_cgroup *memcg)
-> >  	return min(limit, memsw);
-> >  }
-> >  
-> > +void __mem_cgroup_out_of_memory(struct mem_cgroup *memcg, gfp_t gfp_mask,
-> > +				int order)
-> 
-> Perhaps have a comment over this function explaining why it exists?
-> 
+Signed-off-by: Christoph Lameter <cl@linux.com>
 
-It's removed in the last patch in the series, but I can add a comment to 
-explain why we need to kill a task when a memcg reaches its limit to the 
-new mem_cgroup_out_of_memory() if you'd like.
+---
+ mm/slob.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+Index: linux-2.6/mm/slob.c
+===================================================================
+--- linux-2.6.orig/mm/slob.c	2012-07-06 08:38:18.851205889 -0500
++++ linux-2.6/mm/slob.c	2012-07-06 08:38:47.259205237 -0500
+@@ -516,7 +516,7 @@ struct kmem_cache *kmem_cache_create(con
+
+ 	if (c) {
+ 		c->name = name;
+-		c->size = c->object_size;
++		c->size = size;
+ 		if (flags & SLAB_DESTROY_BY_RCU) {
+ 			/* leave room for rcu footer at the end of object */
+ 			c->size += sizeof(struct slob_rcu);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
