@@ -1,53 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
-	by kanga.kvack.org (Postfix) with SMTP id D901E6B006C
-	for <linux-mm@kvack.org>; Tue, 10 Jul 2012 06:42:39 -0400 (EDT)
-Date: Tue, 10 Jul 2012 11:42:34 +0100
-From: Will Deacon <will.deacon@arm.com>
-Subject: Re: [PATCH] mm: hugetlb: flush dcache before returning zeroed huge
- page to userspace
-Message-ID: <20120710104234.GI9108@mudshark.cambridge.arm.com>
-References: <1341412376-6272-1-git-send-email-will.deacon@arm.com>
- <20120709122523.GC4627@tiehlicka.suse.cz>
- <20120709141324.GK7315@mudshark.cambridge.arm.com>
- <alpine.LSU.2.00.1207091622470.2261@eggly.anvils>
- <20120710094513.GB9108@mudshark.cambridge.arm.com>
+Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
+	by kanga.kvack.org (Postfix) with SMTP id 6D5166B006C
+	for <linux-mm@kvack.org>; Tue, 10 Jul 2012 06:47:27 -0400 (EDT)
+Date: Tue, 10 Jul 2012 11:47:22 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH] mm: don't invoke __alloc_pages_direct_compact when order
+ 0
+Message-ID: <20120710104722.GB14154@suse.de>
+References: <1341588521-17744-1-git-send-email-js1304@gmail.com>
+ <alpine.DEB.2.00.1207070139510.10445@chino.kir.corp.google.com>
+ <CAAmzW4PXdpQ2zSnkx8sSScAt1OY0j4+HXVmf=COvP7eMLqrEvQ@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20120710094513.GB9108@mudshark.cambridge.arm.com>
+In-Reply-To: <CAAmzW4PXdpQ2zSnkx8sSScAt1OY0j4+HXVmf=COvP7eMLqrEvQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Hillf Danton <dhillf@gmail.com>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: JoonSoo Kim <js1304@gmail.com>
+Cc: David Rientjes <rientjes@google.com>, akpm@linux-foundation.org, Pekka Enberg <penberg@kernel.org>, Christoph Lameter <cl@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Tue, Jul 10, 2012 at 10:45:13AM +0100, Will Deacon wrote:
-> On Tue, Jul 10, 2012 at 12:57:14AM +0100, Hugh Dickins wrote:
-> > If I start to grep the architectures for non-empty flush_dcache_page(),
-> > I soon find things in arch/arm such as v4_mc_copy_user_highpage() doing
-> > if (!test_and_set_bit(PG_dcache_clean,)) __flush_dcache_page() - where
-> > the naming suggests that I'm right, it's the architecture's responsibility
-> > to arrange whatever flushing is needed in its copy and clear page functions.
+On Sun, Jul 08, 2012 at 11:33:14AM +0900, JoonSoo Kim wrote:
+> 2012/7/7 David Rientjes <rientjes@google.com>:
+> > On Sat, 7 Jul 2012, Joonsoo Kim wrote:
+> >
+> >> __alloc_pages_direct_compact has many arguments so invoking it is very costly.
+> >> And in almost invoking case, order is 0, so return immediately.
+> >>
+> >
+> > If "zero cost" is "very costly", then this might make sense.
+> >
+> > __alloc_pages_direct_compact() is inlined by gcc.
 > 
-> On ARM the flushing is there to deal with dcache aliasing and highmem, so the
-> clear/copy functions won't actually do explicit flushing on modern (ARMv7)
-> cores. Instead we flush the page when writing the pte and noticing that
-> PG_arch_1 (PG_dcache_clean) is clear...
-> 
-> ...so the real question is why this wasn't being triggered for huge pages.
-> I'll go and take another look since I would expect PG_arch_1 to be cleared
-> for pages coming back from alloc_huge_page.
+> In my kernel image, __alloc_pages_direct_compact() is not inlined by gcc.
 
-Ok, so this is exactly the problem. The hugetlb allocator uses its own
-pool of huge pages, so free_huge_page followed by a later alloc_huge_page
-will give you something where the page flags of the compound head do not
-guarantee that PG_arch_1 is clear.
+Indeed it is due to their being two callsites. In most cases, the page
+allocator takes care that functions have only one callsite so they get
+inlined.
 
-I tried hacking arch_release_hugepage to clear the bit, but that's only
-called when actually releasing the hugepages via __free_pages which is
-precisely the case that works correctly anyway!
+You say that invoking the function is very costly. I agree that a function
+call with that many parameters is hefty but it is also in the slow path of
+the allocator. For order-0 allocations we are about to enter direct reclaim
+where I would expect the cost far exceeds the cost of a function call.
 
-Will
+If the cost is indeed high and you have seen this in profiles then I
+suggest you create a forced inline function alloc_pages_direct_compact
+that does this;
+
+if (order != 0)
+	__alloc_pages_direct_compact(...)
+
+and then call alloc_pages_direct_compact instead of
+__alloc_pages_direct_compact. After that, recheck the profiles (although I
+expect the difference to be marginal) and the size of vmlinux (if it gets
+bigger, it's probably not worth it).
+
+That would be functionally similar to your patch but it will preserve git
+blame, churn less code and be harder to make mistakes with in the unlikely
+event a third call to alloc_pages_direct_compact is ever added.
+
+Thanks.
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
