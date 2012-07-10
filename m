@@ -1,74 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx162.postini.com [74.125.245.162])
-	by kanga.kvack.org (Postfix) with SMTP id F34036B0072
-	for <linux-mm@kvack.org>; Tue, 10 Jul 2012 06:59:14 -0400 (EDT)
-Message-ID: <4FFC0B0E.8070600@att.net>
-Date: Tue, 10 Jul 2012 05:59:26 -0500
-From: Daniel Santos <danielfsantos@att.net>
-Reply-To: Daniel Santos <daniel.santos@pobox.com>
+Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
+	by kanga.kvack.org (Postfix) with SMTP id DCE3A6B0072
+	for <linux-mm@kvack.org>; Tue, 10 Jul 2012 07:09:38 -0400 (EDT)
+Date: Tue, 10 Jul 2012 12:09:32 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 04/16] mm: allow PF_MEMALLOC from softirq context
+Message-ID: <20120710110932.GC14154@suse.de>
+References: <1340375443-22455-1-git-send-email-mgorman@suse.de>
+ <1340375443-22455-5-git-send-email-mgorman@suse.de>
+ <20120626165513.GD6509@breakpoint.cc>
+ <20120627082614.GE8271@suse.de>
+ <20120708181211.GE2872@breakpoint.cc>
+ <20120709100442.GZ14154@suse.de>
+ <20120709165710.GC3515@breakpoint.cc>
 MIME-Version: 1.0
-Subject: Re: [PATCH 02/13] rbtree: empty nodes have no color
-References: <1341876923-12469-1-git-send-email-walken@google.com> <1341876923-12469-3-git-send-email-walken@google.com>
-In-Reply-To: <1341876923-12469-3-git-send-email-walken@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20120709165710.GC3515@breakpoint.cc>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michel Lespinasse <walken@google.com>
-Cc: aarcange@redhat.com, dwmw2@infradead.org, riel@redhat.com, peterz@infradead.org, axboe@kernel.dk, ebiederm@xmission.com, linux-mm@kvack.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, torvalds@linux-foundation.org
+To: Sebastian Andrzej Siewior <sebastian@breakpoint.cc>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Linux-Netdev <netdev@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, David Miller <davem@davemloft.net>, Neil Brown <neilb@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mike Christie <michaelc@cs.wisc.edu>, Eric B Munson <emunson@mgebm.net>, Eric Dumazet <eric.dumazet@gmail.com>
 
-On 07/09/2012 06:35 PM, Michel Lespinasse wrote:
-> Empty nodes have no color.  We can make use of this property to
-> simplify the code emitted by the RB_EMPTY_NODE and RB_CLEAR_NODE
-> macros.  Also, we can get rid of the rb_init_node function which had
-> been introduced by commit 88d19cf37952a7e1e38b2bf87a00f0e857e63180
-> to avoid some issue with the empty node's color not being initialized.
-Oh sweet, very glad to see this.  I'm addressing a fairly large scope of
-things in my patches and I didn't want to address this yet, so I'm glad
-somebody has. :)  I *hoped* that gcc would figure out some of the
-excesses of rb_init_node and and just set rb_parent_color directly to
-the node address, but better to have actually fixed.  As far as
-RB_EMPTY_NODE, I am using that in my test code (which I haven't posted
-yet) since I'm testing the actual integrity of a tree and a set of
-objects after performing insertions & such on it.  I'm also using it in
-some new CONFIG_RBTREE_DEBUG-enabled code.
-> I'm not sure what the RB_EMPTY_NODE checks in rb_prev() / rb_next()
-> are doing there, though. axboe introduced them in commit 10fd48f2376d.
-> The way I see it, the 'empty node' abstraction is only used by rbtree
-> users to flag nodes that they haven't inserted in any rbtree, so asking
-> the predecessor or successor of such nodes doesn't make any sense.
->
-> One final rb_init_node() caller was recently added in sysctl code
-> to implement faster sysctl name lookups. This code doesn't make use
-> of RB_EMPTY_NODE at all, and from what I could see it only called
-> rb_init_node() under the mistaken assumption that such initialization
-> was required before node insertion.
-That was one of the problems with rb_init_node().  Not being documented,
-one would assume it's needed unless you study the code more closely.
+On Mon, Jul 09, 2012 at 06:57:10PM +0200, Sebastian Andrzej Siewior wrote:
+> On Mon, Jul 09, 2012 at 11:04:42AM +0100, Mel Gorman wrote:
+> > > - lets assume your allocation happens with kmalloc() without __GFP_MEMALLOC
+> > >   and current->flags has PF_MEMALLOC ORed and your SLAB pool is empty. This
+> > >   forces SLAB to allocate more pages from the buddy allocator with it will
+> > >   receive more likely (due to ->current->flags + PF_MEMALLOC) but SLAB will
+> > >   drop this extra memory because the page has ->pf_memory (or something like
+> > >   that) set and the GFP_FLAGS do not have __GFP_MEMALLOC set.
+> > > 
+> > 
+> > It's recorded if the slab page was allocated from PFMEMALLOC reserves (see
+> > patch 2 from the swap over NBD series). slab will use this page for objects
+> > but only allocate them to callers that pass a gfp_pfmemalloc_allowed() check.
+> > kmalloc() users with either __GFP_MEMALLOC or PF_MEMALLOC will get
+> > the pages they need but they will not "leak" to !_GFP_MEMALLOC users as
+> > that would potentially deadlock.
+> 
+> Argh, I missed that gfp_to_alloc_flags() is not only called from
+> within the buddy allocater but also from slab. So this is fine then :)
+> 
 
-BTW, the current revision of my patches adds some doc comments to struct
-rb_node since the actual function of rb_parent_color isn't very clear
-without a lot of study.
+Good to hear. I appreciate you taking the time to give it a solid review
+like this looking for holes.
 
-/**
- * struct rb_node
- * @rb_parent_color: Contains the color in the lower 2 bits (although
-only bit
- *              zero is currently used) and the address of the parent in
- *              the rest (lower 2 bits of address should always be zero on
- *              any arch supported).  If the node is initialized and not a
- *              member of any tree, the parent point to its self.  If the
- *              node belongs to a tree, but is the root element, the
- *              parent will be NULL.  Otherwise, parent will always
- *              point to the parent node in the tree.
- * @rb_right:        Pointer to the right element.
- * @rb_left:         Pointer to the left element.
- */
+> One thing:
+> You only get current->flags |= PF_MEMALLOC in softirq _if_ the skb, which is 
+> passed to netif_receive_skb(), was allocated with __GFP_MEMALLOC. That
+> means if the NIC's RX allocation did not require an allocation from the
+> emergency pool (without ->pfmemalloc set) then you never use this extra
+> pool, even if this skb would end up in your swap socket. Also, the other way
+> around, where you allocate it from the emergency pool but it is a user
+> socket and you could drop it.
+> 
 
-That said, there's an extra bit in the rb_parent_color that can be used
-for some future purpose.
+While there is a possibility that packets may get dropped later like this,
+they still get retransmitted and eventually it'll get through.  This is
+not optimal but optimised swap-over-network was not the primary goal of
+the series, deadlock avoidance was.
 
-Daniel
+> What about extending sk_set_memalloc() to record socket's ips + ports
+> in a separate list so that skb_pfmemalloc_protocol() might use that
+> information and decide on per-protocol basis if the skb is worth to
+> spend more ressource to deliver it. That means you would enable the
+> extra pool if the currently received skb is part of your swap socket and
+> not if the skb was allocated from the emergency pool.
+> 
+> That said, there is nothing wrong with the code as of now and this
+> optimization could be added later (if at all).
+> 
+
+I think it is a good idea but it could also be done later iff a user had
+a serious problem with the performance and that this made a measurable
+difference. The series is already quite complex and I'd rather not add to
+that complexity without strong motivation.
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
