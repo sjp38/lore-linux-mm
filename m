@@ -1,81 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
-	by kanga.kvack.org (Postfix) with SMTP id DCE3A6B0072
-	for <linux-mm@kvack.org>; Tue, 10 Jul 2012 07:09:38 -0400 (EDT)
-Date: Tue, 10 Jul 2012 12:09:32 +0100
+Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
+	by kanga.kvack.org (Postfix) with SMTP id 98DFB6B006C
+	for <linux-mm@kvack.org>; Tue, 10 Jul 2012 07:12:46 -0400 (EDT)
+Date: Tue, 10 Jul 2012 12:12:42 +0100
 From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 04/16] mm: allow PF_MEMALLOC from softirq context
-Message-ID: <20120710110932.GC14154@suse.de>
+Subject: Re: [PATCH 11/16] netvm: Propagate page->pfmemalloc from
+ skb_alloc_page to skb
+Message-ID: <20120710111242.GD14154@suse.de>
 References: <1340375443-22455-1-git-send-email-mgorman@suse.de>
- <1340375443-22455-5-git-send-email-mgorman@suse.de>
- <20120626165513.GD6509@breakpoint.cc>
- <20120627082614.GE8271@suse.de>
- <20120708181211.GE2872@breakpoint.cc>
- <20120709100442.GZ14154@suse.de>
- <20120709165710.GC3515@breakpoint.cc>
+ <1340375443-22455-12-git-send-email-mgorman@suse.de>
+ <20120626201328.GI6509@breakpoint.cc>
+ <20120627084348.GG8271@suse.de>
+ <20120709191856.GD3515@breakpoint.cc>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20120709165710.GC3515@breakpoint.cc>
+In-Reply-To: <20120709191856.GD3515@breakpoint.cc>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Sebastian Andrzej Siewior <sebastian@breakpoint.cc>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Linux-Netdev <netdev@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, David Miller <davem@davemloft.net>, Neil Brown <neilb@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mike Christie <michaelc@cs.wisc.edu>, Eric B Munson <emunson@mgebm.net>, Eric Dumazet <eric.dumazet@gmail.com>
 
-On Mon, Jul 09, 2012 at 06:57:10PM +0200, Sebastian Andrzej Siewior wrote:
-> On Mon, Jul 09, 2012 at 11:04:42AM +0100, Mel Gorman wrote:
-> > > - lets assume your allocation happens with kmalloc() without __GFP_MEMALLOC
-> > >   and current->flags has PF_MEMALLOC ORed and your SLAB pool is empty. This
-> > >   forces SLAB to allocate more pages from the buddy allocator with it will
-> > >   receive more likely (due to ->current->flags + PF_MEMALLOC) but SLAB will
-> > >   drop this extra memory because the page has ->pf_memory (or something like
-> > >   that) set and the GFP_FLAGS do not have __GFP_MEMALLOC set.
-> > > 
-> > 
-> > It's recorded if the slab page was allocated from PFMEMALLOC reserves (see
-> > patch 2 from the swap over NBD series). slab will use this page for objects
-> > but only allocate them to callers that pass a gfp_pfmemalloc_allowed() check.
-> > kmalloc() users with either __GFP_MEMALLOC or PF_MEMALLOC will get
-> > the pages they need but they will not "leak" to !_GFP_MEMALLOC users as
-> > that would potentially deadlock.
+On Mon, Jul 09, 2012 at 09:18:56PM +0200, Sebastian Andrzej Siewior wrote:
 > 
-> Argh, I missed that gfp_to_alloc_flags() is not only called from
-> within the buddy allocater but also from slab. So this is fine then :)
+> > I can update e1000 if you like but it's not critical
+> > to do so and in fact getting a bug reporting saying that network swap
+> > was slow on e1000 would be useful to me in its own way :)
+> No, leave as it, I was just curious.
+> One thing: Do you think it makes sense to you introduce
+> 	#define GFP_NET_RX     (GFP_ATOMIC | __GFP_MEMALLOC)
+> 
+> and use it within the receive path instead of GFP_ATOMIC?
 > 
 
-Good to hear. I appreciate you taking the time to give it a solid review
-like this looking for holes.
-
-> One thing:
-> You only get current->flags |= PF_MEMALLOC in softirq _if_ the skb, which is 
-> passed to netif_receive_skb(), was allocated with __GFP_MEMALLOC. That
-> means if the NIC's RX allocation did not require an allocation from the
-> emergency pool (without ->pfmemalloc set) then you never use this extra
-> pool, even if this skb would end up in your swap socket. Also, the other way
-> around, where you allocate it from the emergency pool but it is a user
-> socket and you could drop it.
-> 
-
-While there is a possibility that packets may get dropped later like this,
-they still get retransmitted and eventually it'll get through.  This is
-not optimal but optimised swap-over-network was not the primary goal of
-the series, deadlock avoidance was.
-
-> What about extending sk_set_memalloc() to record socket's ips + ports
-> in a separate list so that skb_pfmemalloc_protocol() might use that
-> information and decide on per-protocol basis if the skb is worth to
-> spend more ressource to deliver it. That means you would enable the
-> extra pool if the currently received skb is part of your swap socket and
-> not if the skb was allocated from the emergency pool.
-> 
-> That said, there is nothing wrong with the code as of now and this
-> optimization could be added later (if at all).
-> 
-
-I think it is a good idea but it could also be done later iff a user had
-a serious problem with the performance and that this made a measurable
-difference. The series is already quite complex and I'd rather not add to
-that complexity without strong motivation.
+For now, I'd prefer to keep the __GFP_MEMALLOC flag at the different
+callsites because it forces people to think about what it means.  I fear
+that GFP_NET_RX may be too easy to misuse without thinking about what the
+consequences are.
 
 -- 
 Mel Gorman
