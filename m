@@ -1,73 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
-	by kanga.kvack.org (Postfix) with SMTP id 517656B0071
-	for <linux-mm@kvack.org>; Tue, 10 Jul 2012 13:41:24 -0400 (EDT)
-Received: from /spool/local
-	by e28smtp05.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Tue, 10 Jul 2012 23:11:19 +0530
-Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
-	by d28relay03.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q6AHfFGm3670498
-	for <linux-mm@kvack.org>; Tue, 10 Jul 2012 23:11:15 +0530
-Received: from d28av04.in.ibm.com (loopback [127.0.0.1])
-	by d28av04.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q6ANB21C011345
-	for <linux-mm@kvack.org>; Wed, 11 Jul 2012 09:11:03 +1000
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: Re: [PATCH RFC] mm/hugetlb_cgroup: Add huge_page_order check to avoid incorrectly uncharge
-In-Reply-To: <1341914712-4588-1-git-send-email-liwp.linux@gmail.com>
-References: <1341914712-4588-1-git-send-email-liwp.linux@gmail.com>
-Date: Tue, 10 Jul 2012 23:11:07 +0530
-Message-ID: <87394z1pl8.fsf@skywalker.in.ibm.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
+	by kanga.kvack.org (Postfix) with SMTP id 0B5806B006C
+	for <linux-mm@kvack.org>; Tue, 10 Jul 2012 14:37:39 -0400 (EDT)
+Received: by yhr47 with SMTP id 47so382981yhr.14
+        for <linux-mm@kvack.org>; Tue, 10 Jul 2012 11:37:38 -0700 (PDT)
+References: <20120710111756.GA11351@localhost>
+In-Reply-To: <20120710111756.GA11351@localhost>
+Mime-Version: 1.0 (1.0)
+Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain;
+	charset=us-ascii
+Message-Id: <CF1C132D-2873-408A-BCC9-B9F57BE6EDDB@linuxfoundation.org>
+From: Christoph Lameter <christoph@linuxfoundation.org>
+Subject: Re: linux-next: Early crashed kernel on CONFIG_SLOB
+Date: Tue, 10 Jul 2012 13:37:35 -0500
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wanpeng Li <liwp.linux@gmail.com>, linux-mm@kvack.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, Li Zefan <lizefan@huawei.com>, Tejun Heo <tj@kernel.org>, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: "wfg@linux.intel.com" <wfg@linux.intel.com>
+Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-Wanpeng Li <liwp.linux@gmail.com> writes:
-
-> From: Wanpeng Li <liwp@linux.vnet.ibm.com>
->
-> Against linux-next:
->
-> Function alloc_huge_page will call hugetlb_cgroup_charge_cgroup
-> to charge pages, the compound page have less than 3 pages will not
-> charge to hugetlb cgroup. When alloc_huge_page fails it will call
-> hugetlb_cgroup_uncharge_cgroup to uncharge pages, however,
-> hugetlb_cgroup_uncharge_cgroup doesn't have huge_page_order check.
-> That means it will uncharge pages even if the compound page have less
-> than 3 pages. Add huge_page_order check to avoid this incorrectly
-> uncharge.
->
-> Signed-off-by: Wanpeng Li <liwp.linux@gmail.com>
-
- Reviewed-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+I sent a patch yesterday (or was it friday) to fix the issue. Sorry @airport=
+ right now.=20
 
 
 
-> ---
->  mm/hugetlb_cgroup.c |    3 +++
->  1 files changed, 3 insertions(+), 0 deletions(-)
->
-> diff --git a/mm/hugetlb_cgroup.c b/mm/hugetlb_cgroup.c
-> index b834e8d..2b9e214 100644
-> --- a/mm/hugetlb_cgroup.c
-> +++ b/mm/hugetlb_cgroup.c
-> @@ -252,6 +252,9 @@ void hugetlb_cgroup_uncharge_cgroup(int idx, unsigned long nr_pages,
->
->  	if (hugetlb_cgroup_disabled() || !h_cg)
->  		return;
-> +
-> +	if (huge_page_order(&hstates[idx]) < HUGETLB_CGROUP_MIN_ORDER)
-> +		return;
->
->  	res_counter_uncharge(&h_cg->hugepage[idx], csize);
->  	return;
-> -- 
-> 1.7.5.4
+On Jul 10, 2012, at 6:17, wfg@linux.intel.com wrote:
 
--aneesh
+> Hi Christoph,
+>=20
+> This commit crashes the kernel w/o any dmesg output (the attached one
+> is created by the script as a summary for that run). This is very
+> reproducible in kvm for the attached config.
+>=20
+>        commit 3b0efdfa1e719303536c04d9abca43abeb40f80a
+>        Author: Christoph Lameter <cl@linux.com>
+>        Date:   Wed Jun 13 10:24:57 2012 -0500
+>=20
+>            mm, sl[aou]b: Extract common fields from struct kmem_cache
+>=20
+> Thanks,
+> Fengguang
+> <dmesg-kvm-waimea-2191-2012-07-10-17-32-01>
+> <config-3.5.0-rc6+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
