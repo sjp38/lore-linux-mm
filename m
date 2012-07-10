@@ -1,68 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
-	by kanga.kvack.org (Postfix) with SMTP id 6D3F96B0071
-	for <linux-mm@kvack.org>; Tue, 10 Jul 2012 11:24:42 -0400 (EDT)
-Received: by obhx4 with SMTP id x4so114188obh.14
-        for <linux-mm@kvack.org>; Tue, 10 Jul 2012 08:24:41 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx103.postini.com [74.125.245.103])
+	by kanga.kvack.org (Postfix) with SMTP id DB1BB6B0073
+	for <linux-mm@kvack.org>; Tue, 10 Jul 2012 11:26:29 -0400 (EDT)
+Received: from /spool/local
+	by e37.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
+	Tue, 10 Jul 2012 09:26:28 -0600
+Received: from d01relay07.pok.ibm.com (d01relay07.pok.ibm.com [9.56.227.147])
+	by d01dlp03.pok.ibm.com (Postfix) with ESMTP id E61533C60008
+	for <linux-mm@kvack.org>; Tue, 10 Jul 2012 11:17:49 -0400 (EDT)
+Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
+	by d01relay07.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q6AFHf9X17891530
+	for <linux-mm@kvack.org>; Tue, 10 Jul 2012 11:17:42 -0400
+Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
+	by d01av01.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q6AKmXqE011771
+	for <linux-mm@kvack.org>; Tue, 10 Jul 2012 16:48:33 -0400
+Message-ID: <4FFC478C.4050505@linux.vnet.ibm.com>
+Date: Tue, 10 Jul 2012 10:17:32 -0500
+From: Seth Jennings <sjenning@linux.vnet.ibm.com>
 MIME-Version: 1.0
-In-Reply-To: <20120710104722.GB14154@suse.de>
-References: <1341588521-17744-1-git-send-email-js1304@gmail.com>
-	<alpine.DEB.2.00.1207070139510.10445@chino.kir.corp.google.com>
-	<CAAmzW4PXdpQ2zSnkx8sSScAt1OY0j4+HXVmf=COvP7eMLqrEvQ@mail.gmail.com>
-	<20120710104722.GB14154@suse.de>
-Date: Wed, 11 Jul 2012 00:24:41 +0900
-Message-ID: <CAAmzW4NhRipDDqyNc3zYTx3fpsOVE6Cc6kc9X-L_p0iKZu7+jA@mail.gmail.com>
-Subject: Re: [PATCH] mm: don't invoke __alloc_pages_direct_compact when order 0
-From: JoonSoo Kim <js1304@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [PATCH 3/4] zsmalloc: add details to zs_map_object boiler plate
+References: <1341263752-10210-1-git-send-email-sjenning@linux.vnet.ibm.com> <1341263752-10210-4-git-send-email-sjenning@linux.vnet.ibm.com> <4FFB94FF.8030401@kernel.org>
+In-Reply-To: <4FFB94FF.8030401@kernel.org>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: David Rientjes <rientjes@google.com>, akpm@linux-foundation.org, Pekka Enberg <penberg@kernel.org>, Christoph Lameter <cl@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Nitin Gupta <ngupta@vflare.org>, Robert Jennings <rcj@linux.vnet.ibm.com>, linux-mm@kvack.org, devel@driverdev.osuosl.org, linux-kernel@vger.kernel.org
 
-2012/7/10 Mel Gorman <mgorman@suse.de>:
-> You say that invoking the function is very costly. I agree that a function
-> call with that many parameters is hefty but it is also in the slow path of
-> the allocator. For order-0 allocations we are about to enter direct reclaim
-> where I would expect the cost far exceeds the cost of a function call.
+On 07/09/2012 09:35 PM, Minchan Kim wrote:
+> On 07/03/2012 06:15 AM, Seth Jennings wrote:
+>> Add information on the usage limits of zs_map_object()
+>>
+>> Signed-off-by: Seth Jennings <sjenning@linux.vnet.ibm.com>
+>> ---
+>>  drivers/staging/zsmalloc/zsmalloc-main.c |    7 ++++++-
+>>  1 file changed, 6 insertions(+), 1 deletion(-)
+>>
+>> diff --git a/drivers/staging/zsmalloc/zsmalloc-main.c b/drivers/staging/zsmalloc/zsmalloc-main.c
+>> index 4942d41..abf7c13 100644
+>> --- a/drivers/staging/zsmalloc/zsmalloc-main.c
+>> +++ b/drivers/staging/zsmalloc/zsmalloc-main.c
+>> @@ -747,7 +747,12 @@ EXPORT_SYMBOL_GPL(zs_free);
+>>   *
+>>   * Before using an object allocated from zs_malloc, it must be mapped using
+>>   * this function. When done with the object, it must be unmapped using
+>> - * zs_unmap_object
+>> + * zs_unmap_object.
+>> + *
+>> + * Only one object can be mapped per cpu at a time. There is no protection
+>> + * against nested mappings.
+>> + *
+>> + * This function returns with preemption and page faults disabled.
+>>  */
+>>  void *zs_map_object(struct zs_pool *pool, unsigned long handle)
+>>  {
+>>
+> 
+> The comment is good but I hope we can detect it automatically with DEBUG
+> option. It wouldn't be hard but it's a debug patch so not critical
+> until we receive some report about the bug.
 
-Yes, I agree.
+Yes, we could implement some detection scheme later.
 
-> If the cost is indeed high and you have seen this in profiles then I
-> suggest you create a forced inline function alloc_pages_direct_compact
-> that does this;
->
-> if (order != 0)
->         __alloc_pages_direct_compact(...)
->
-> and then call alloc_pages_direct_compact instead of
-> __alloc_pages_direct_compact. After that, recheck the profiles (although I
-> expect the difference to be marginal) and the size of vmlinux (if it gets
-> bigger, it's probably not worth it).
-> That would be functionally similar to your patch but it will preserve git
-> blame, churn less code and be harder to make mistakes with in the unlikely
-> event a third call to alloc_pages_direct_compact is ever added.
+> 
+> The possibility for nesting is that it is used by irq context.
+> 
+> A uses the mapping
+> .
+> .
+> .
+> IRQ happen
+> 	B uses the mapping in IRQ context
+> 	.
+> 	.
+> 	.
+> 
+> Maybe we need local_irq_save/restore in zs_[un]map_object path.
 
-Your suggestion looks good.
-But, the size of page_alloc.o is more than before.
+I'd rather not disable interrupts since that will create
+unnecessary interrupt latency for all users, even if they
+don't need interrupt protection.  If a particular user uses
+zs_map_object() in an interrupt path, it will be up to that
+user to disable interrupts to ensure safety.
 
-I test 3 approaches, vanilla, always_inline and
-wrapping(alloc_page_direct_compact which is your suggestion).
-In my environment (v3.5-rc5, gcc 4.6.3, x86_64), page_alloc.o shows
-below number.
+Thanks,
+Seth
 
-                                         total, .text section, .text.unlikely
-page_alloc_vanilla.o:     93432,   0x510a,        0x243
-page_alloc_inline.o:       93336,   0x52ca,          0xa4
-page_alloc_wrapping.o: 93528,   0x515a,        0x238
-
-Andrew said that inlining add only 26 bytes to .text of page_alloc.o,
-but in my system, need more bytes.
-Currently, I think this patch doesn't have obvious benefit, so I want
-to drop it.
-Any objections?
-
-Thanks for good comments.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
