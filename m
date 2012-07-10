@@ -1,58 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
-	by kanga.kvack.org (Postfix) with SMTP id 2BB4A6B0073
-	for <linux-mm@kvack.org>; Tue, 10 Jul 2012 12:22:53 -0400 (EDT)
-Date: Tue, 10 Jul 2012 18:22:50 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [patch 08/11] mm: memcg: remove needless !mm fixup to init_mm
- when charging
-Message-ID: <20120710162249.GA29114@tiehlicka.suse.cz>
-References: <1341449103-1986-1-git-send-email-hannes@cmpxchg.org>
- <1341449103-1986-9-git-send-email-hannes@cmpxchg.org>
- <20120709152058.GK4627@tiehlicka.suse.cz>
- <20120710061021.GA6096@kernel>
- <20120710062104.GA19223@tiehlicka.suse.cz>
- <20120710065448.GB6096@kernel>
+Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
+	by kanga.kvack.org (Postfix) with SMTP id D34746B006C
+	for <linux-mm@kvack.org>; Tue, 10 Jul 2012 12:50:27 -0400 (EDT)
+Received: by ggm4 with SMTP id 4so248621ggm.14
+        for <linux-mm@kvack.org>; Tue, 10 Jul 2012 09:50:27 -0700 (PDT)
+Message-ID: <4FFC5D43.7040206@gmail.com>
+Date: Wed, 11 Jul 2012 00:50:11 +0800
+From: Jiang Liu <liuj97@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120710065448.GB6096@kernel>
+Subject: Re: [RFC PATCH v3 0/13] memory-hotplug : hot-remove physical memory
+References: <4FFAB0A2.8070304@jp.fujitsu.com> <alpine.DEB.2.00.1207091015570.30060@router.home> <4FFBFCAC.4010007@jp.fujitsu.com>
+In-Reply-To: <4FFBFCAC.4010007@jp.fujitsu.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wanpeng Li <liwp.linux@gmail.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+Cc: Christoph Lameter <cl@linux.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, rientjes@google.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, minchan.kim@gmail.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, wency@cn.fujitsu.com
 
-On Tue 10-07-12 14:54:48, Wanpeng Li wrote:
-> On Tue, Jul 10, 2012 at 08:21:04AM +0200, Michal Hocko wrote:
-> >On Tue 10-07-12 14:10:21, Wanpeng Li wrote:
-> >> On Mon, Jul 09, 2012 at 05:20:58PM +0200, Michal Hocko wrote:
-> >> >On Thu 05-07-12 02:45:00, Johannes Weiner wrote:
-> >> >> It does not matter to __mem_cgroup_try_charge() if the passed mm is
-> >> >> NULL or init_mm, it will charge the root memcg in either case.
-> >> 
-> >> You can also change the comment in __mem_cgroup_try_charge :
-> >> 
-> >> "if so charge the init_mm" => "if so charge the root memcg"
-> >
-> >This is already in place:
-> >"
-> >If mm is NULL and the caller doesn't pass a valid memcg pointer, that is
-> >treated as a charge to root_mem_cgroup.
-> >"
+On 07/10/2012 05:58 PM, Yasuaki Ishimatsu wrote:
+> Hi Christoph,
 > 
-> IIUC, if still keep comment "if so charge the init_mm" is not correct,
-> since pages in pagecache aren't mapped into any processes' ptes, 
-> so mm is NULL, and these pages which in pagecache are not belong 
-> to init_mm, the comment should be changed. :-)
+> 2012/07/10 0:18, Christoph Lameter wrote:
+>>
+>> On Mon, 9 Jul 2012, Yasuaki Ishimatsu wrote:
+>>
+>>> Even if you apply these patches, you cannot remove the physical memory
+>>> completely since these patches are still under development. I want you to
+>>> cooperate to improve the physical memory hot-remove. So please review these
+>>> patches and give your comment/idea.
+>>
+>> Could you at least give a method on how you want to do physical memory
+>> removal?
+> 
+> We plan to release a dynamic hardware partitionable system. It will be
+> able to hot remove/add a system board which included memory and cpu.
+> But as you know, Linux does not support memory hot-remove on x86 box.
+> So I try to develop it.
+> 
+> Current plan to hot remove system board is to use container driver.
+> Thus I define the system board in ACPI DSDT table as a container device.
+> It have supported hot-add a container device. And if container device
+> has _EJ0 ACPI method, "eject" file to remove the container device is
+> prepared as follow:
+> 
+> # ls -l /sys/bus/acpi/devices/ACPI0004\:01/eject
+> --w-------. 1 root root 4096 Jul 10 18:19 /sys/bus/acpi/devices/ACPI0004:01/eject
+> 
+> When I hot-remove the container device, I echo 1 to the file as follow:
+> 
+> #echo 1 > /sys/bus/acpi/devices/ACPI0004\:02/eject
+> 
+> Then acpi_bus_trim() is called. And it calls acpi_memory_device_remove()
+> for removing memory device. But the code does not do nothing.
+> So I developed the continuation of the function.
+> 
+>> You would have to remove all objects from the range you want to
+>> physically remove. That is only possible under special circumstances and
+>> with a limited set of objects. Even if you exclusively use ZONE_MOVEABLE
+>> you still may get cases where pages are pinned for a long time.
+> 
+> I know it. So my memory hot-remove plan is as follows:
+> 
+> 1. hot-added a system board
+>    All memory which included the system board is offline.
+> 
+> 2. online the memory as removable page
+>    The function has not supported yet. It is being developed by Lai as follow:
+>    http://lkml.indiana.edu/hypermail/linux/kernel/1207.0/01478.html
+>    If it is supported, I will be able to create movable memory.
+> 
+> 3. hot-remove the memory by container device's eject file
+We have implemented a prototype to do physical node (mem + CPU + IOH) hotplug
+for Itanium and is now porting it to x86. But with currently solution, memory
+hotplug functionality may cause 10-20% performance decrease because we concentrate
+all DMA/Normal memory to the first NUMA node, and all other NUMA nodes only
+hosts ZONE_MOVABLE. We are working on solution to minimize the performance
+drop now.
 
-Fair enough. I guess Johannes will change that in the next post.
--- 
-Michal Hocko
-SUSE Labs
-SUSE LINUX s.r.o.
-Lihovarska 1060/12
-190 00 Praha 9    
-Czech Republic
+> 
+> Thanks,
+> Yasuaki Ishimatsu
+> 
+>>
+>> I am not sure that these patches are useful unless we know where you are
+>> going with this. If we end up with a situation where we still cannot
+>> remove physical memory then this patchset is not helpful.
+> 
+> 
+> 
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
