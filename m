@@ -1,107 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
-	by kanga.kvack.org (Postfix) with SMTP id 4C3D46B0069
-	for <linux-mm@kvack.org>; Tue, 10 Jul 2012 02:55:27 -0400 (EDT)
-Received: by yenr5 with SMTP id r5so13338162yen.14
-        for <linux-mm@kvack.org>; Mon, 09 Jul 2012 23:55:26 -0700 (PDT)
-Date: Tue, 10 Jul 2012 14:54:48 +0800
-From: Wanpeng Li <liwp.linux@gmail.com>
-Subject: Re: [patch 08/11] mm: memcg: remove needless !mm fixup to init_mm
- when charging
-Message-ID: <20120710065448.GB6096@kernel>
-Reply-To: Wanpeng Li <liwp.linux@gmail.com>
-References: <1341449103-1986-1-git-send-email-hannes@cmpxchg.org>
- <1341449103-1986-9-git-send-email-hannes@cmpxchg.org>
- <20120709152058.GK4627@tiehlicka.suse.cz>
- <20120710061021.GA6096@kernel>
- <20120710062104.GA19223@tiehlicka.suse.cz>
+Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
+	by kanga.kvack.org (Postfix) with SMTP id 6E31E6B0069
+	for <linux-mm@kvack.org>; Tue, 10 Jul 2012 05:45:22 -0400 (EDT)
+Date: Tue, 10 Jul 2012 10:45:13 +0100
+From: Will Deacon <will.deacon@arm.com>
+Subject: Re: [PATCH] mm: hugetlb: flush dcache before returning zeroed huge
+ page to userspace
+Message-ID: <20120710094513.GB9108@mudshark.cambridge.arm.com>
+References: <1341412376-6272-1-git-send-email-will.deacon@arm.com>
+ <20120709122523.GC4627@tiehlicka.suse.cz>
+ <20120709141324.GK7315@mudshark.cambridge.arm.com>
+ <alpine.LSU.2.00.1207091622470.2261@eggly.anvils>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20120710062104.GA19223@tiehlicka.suse.cz>
+In-Reply-To: <alpine.LSU.2.00.1207091622470.2261@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, Wanpeng Li <liwp.linux@gmail.com>
+To: Hugh Dickins <hughd@google.com>
+Cc: Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Hillf Danton <dhillf@gmail.com>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Tue, Jul 10, 2012 at 08:21:04AM +0200, Michal Hocko wrote:
->On Tue 10-07-12 14:10:21, Wanpeng Li wrote:
->> On Mon, Jul 09, 2012 at 05:20:58PM +0200, Michal Hocko wrote:
->> >On Thu 05-07-12 02:45:00, Johannes Weiner wrote:
->> >> It does not matter to __mem_cgroup_try_charge() if the passed mm is
->> >> NULL or init_mm, it will charge the root memcg in either case.
->> 
->> You can also change the comment in __mem_cgroup_try_charge :
->> 
->> "if so charge the init_mm" => "if so charge the root memcg"
->
->This is already in place:
->"
->If mm is NULL and the caller doesn't pass a valid memcg pointer, that is
->treated as a charge to root_mem_cgroup.
->"
+Hi Hugh,
 
-IIUC, if still keep comment "if so charge the init_mm" is not correct,
-since pages in pagecache aren't mapped into any processes' ptes, 
-so mm is NULL, and these pages which in pagecache are not belong 
-to init_mm, the comment should be changed. :-)
+Cheers for looking at this.
 
->> 
->> >> 
->> >> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
->> >
->> >Acked-by: Michal Hocko <mhocko@suse.cz>
->> >
->> >> ---
->> >>  mm/memcontrol.c |    5 -----
->> >>  1 files changed, 0 insertions(+), 5 deletions(-)
->> >> 
->> >> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
->> >> index 418b47d..6fe4101 100644
->> >> --- a/mm/memcontrol.c
->> >> +++ b/mm/memcontrol.c
->> >> @@ -2766,8 +2766,6 @@ int mem_cgroup_try_charge_swapin(struct mm_struct *mm,
->> >>  		ret = 0;
->> >>  	return ret;
->> >>  charge_cur_mm:
->> >> -	if (unlikely(!mm))
->> >> -		mm = &init_mm;
->> >>  	ret = __mem_cgroup_try_charge(mm, mask, 1, memcgp, true);
->> >>  	if (ret == -EINTR)
->> >>  		ret = 0;
->> >> @@ -2832,9 +2830,6 @@ int mem_cgroup_cache_charge(struct page *page, struct mm_struct *mm,
->> >>  	if (PageCompound(page))
->> >>  		return 0;
->> >>  
->> >> -	if (unlikely(!mm))
->> >> -		mm = &init_mm;
->> >> -
->> >>  	if (!PageSwapCache(page))
->> >>  		ret = mem_cgroup_charge_common(page, mm, gfp_mask, type);
->> >>  	else { /* page is swapcache/shmem */
->> >> -- 
->> >> 1.7.7.6
->> >> 
->> >
->> >-- 
->> >Michal Hocko
->> >SUSE Labs
->> >SUSE LINUX s.r.o.
->> >Lihovarska 1060/12
->> >190 00 Praha 9    
->> >Czech Republic
->> >--
->> >To unsubscribe from this list: send the line "unsubscribe cgroups" in
->> >the body of a message to majordomo@vger.kernel.org
->> >More majordomo info at  http://vger.kernel.org/majordomo-info.html
->
->-- 
->Michal Hocko
->SUSE Labs
->SUSE LINUX s.r.o.
->Lihovarska 1060/12
->190 00 Praha 9    
->Czech Republic
+On Tue, Jul 10, 2012 at 12:57:14AM +0100, Hugh Dickins wrote:
+> On Mon, 9 Jul 2012, Will Deacon wrote:
+> > On Mon, Jul 09, 2012 at 01:25:23PM +0100, Michal Hocko wrote:
+> > > On Wed 04-07-12 15:32:56, Will Deacon wrote:
+> > > > diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+> > > > index e198831..b83d026 100644
+> > > > --- a/mm/hugetlb.c
+> > > > +++ b/mm/hugetlb.c
+> > > > @@ -2646,6 +2646,7 @@ retry:
+> > > >  			goto out;
+> > > >  		}
+> > > >  		clear_huge_page(page, address, pages_per_huge_page(h));
+> > > > +		flush_dcache_page(page);
+> > > >  		__SetPageUptodate(page);
+> > > 
+> > > Does this have to be explicit in the arch independent code?
+> > > It seems that ia64 uses flush_dcache_page already in the clear_user_page
+> > 
+> > It would match what is done in similar situations by cow_user_page (mm/memory.c)
+> > and shmem_writepage (mm/shmem.c). Other subsystems also have explicit page
+> > flushing (DMA bounce, ksm) so I think this is the right place for it.
+> 
+> I am not at all sure if you are right or not:
+> please let's consult linux-arch about this - now Cc'ed.
+
+I assume that by `linux-arch' you mean BenH :)
+
+> If this hugetlb_no_page() were solely mapping the hugepage into that
+> userspace, I would say you are wrong.  It's the job of clear_huge_page()
+> to take the mapped address into account, and pass it down to the
+> architecture-specific implementation, to do whatever flushing is
+> needed - you should be providing that in your architecture.
+> 
+> In particular, notice how clear_huge_page() goes round a loop of
+> clear_user_highpage()s: in your patch, you're expecting the implementation
+> of flush_dcache_page() to notice whether or not this is a hugepage, and
+> flush the appropriate size.
+> 
+> Perhaps yours is the only architecture to need this on huge, and your
+> flush_dcache_page() implements it correctly; but it does seem surprising.
+
+ARM doesn't yet have hugetlb support in mainline so we can do whatever
+people prefer. I think it makes sense for flush_dcache_page to be hugepage
+aware so that we can sync the caches when installing huge ptes using the
+same code as normal ptes. Of course, that may not be the same across all
+architectures, so you certainly have a valid point.
+
+> If I start to grep the architectures for non-empty flush_dcache_page(),
+> I soon find things in arch/arm such as v4_mc_copy_user_highpage() doing
+> if (!test_and_set_bit(PG_dcache_clean,)) __flush_dcache_page() - where
+> the naming suggests that I'm right, it's the architecture's responsibility
+> to arrange whatever flushing is needed in its copy and clear page functions.
+
+On ARM the flushing is there to deal with dcache aliasing and highmem, so the
+clear/copy functions won't actually do explicit flushing on modern (ARMv7)
+cores. Instead we flush the page when writing the pte and noticing that
+PG_arch_1 (PG_dcache_clean) is clear...
+
+...so the real question is why this wasn't being triggered for huge pages.
+I'll go and take another look since I would expect PG_arch_1 to be cleared
+for pages coming back from alloc_huge_page.
+
+> But... this hugetlb_no_page() has a VM_MAYSHARE case below, which puts
+> the new page into page cache, making it accessible by other processes:
+> that may indeed be reason for flush_dcache_page() there - or a loop of
+> flush_dcache_page()s.  But I worry then that in the !VM_MAYSHARE case
+> you would be duplicating expensive flushes: perhaps they should be
+> restricted to the VM_MAYSHARE block.
+
+If the PG_arch_1 flag does its job, duplicate flushes shouldn't be a
+problem.
+
+Thanks,
+
+Will
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
