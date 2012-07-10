@@ -1,57 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
-	by kanga.kvack.org (Postfix) with SMTP id 246296B0062
-	for <linux-mm@kvack.org>; Tue, 10 Jul 2012 11:48:35 -0400 (EDT)
-Date: Tue, 10 Jul 2012 16:48:30 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH] mm: don't invoke __alloc_pages_direct_compact when order
- 0
-Message-ID: <20120710154829.GA9222@suse.de>
-References: <1341588521-17744-1-git-send-email-js1304@gmail.com>
- <alpine.DEB.2.00.1207070139510.10445@chino.kir.corp.google.com>
- <CAAmzW4PXdpQ2zSnkx8sSScAt1OY0j4+HXVmf=COvP7eMLqrEvQ@mail.gmail.com>
- <20120710104722.GB14154@suse.de>
- <CAAmzW4NhRipDDqyNc3zYTx3fpsOVE6Cc6kc9X-L_p0iKZu7+jA@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
+	by kanga.kvack.org (Postfix) with SMTP id 4E6346B0073
+	for <linux-mm@kvack.org>; Tue, 10 Jul 2012 11:54:35 -0400 (EDT)
+Received: from /spool/local
+	by e7.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
+	Tue, 10 Jul 2012 11:54:33 -0400
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id C0CD238C9506
+	for <linux-mm@kvack.org>; Tue, 10 Jul 2012 11:29:50 -0400 (EDT)
+Received: from d03av06.boulder.ibm.com (d03av06.boulder.ibm.com [9.17.195.245])
+	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q6AFTmPL056790
+	for <linux-mm@kvack.org>; Tue, 10 Jul 2012 11:29:48 -0400
+Received: from d03av06.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av06.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q6AFUng0029965
+	for <linux-mm@kvack.org>; Tue, 10 Jul 2012 09:30:49 -0600
+Message-ID: <4FFC4A61.3020601@linux.vnet.ibm.com>
+Date: Tue, 10 Jul 2012 10:29:37 -0500
+From: Seth Jennings <sjenning@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <CAAmzW4NhRipDDqyNc3zYTx3fpsOVE6Cc6kc9X-L_p0iKZu7+jA@mail.gmail.com>
+Subject: Re: [PATCH 1/4] zsmalloc: remove x86 dependency
+References: <1341263752-10210-1-git-send-email-sjenning@linux.vnet.ibm.com> <1341263752-10210-2-git-send-email-sjenning@linux.vnet.ibm.com> <4FFB91B8.5070009@kernel.org>
+In-Reply-To: <4FFB91B8.5070009@kernel.org>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: JoonSoo Kim <js1304@gmail.com>
-Cc: David Rientjes <rientjes@google.com>, akpm@linux-foundation.org, Pekka Enberg <penberg@kernel.org>, Christoph Lameter <cl@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Nitin Gupta <ngupta@vflare.org>, Robert Jennings <rcj@linux.vnet.ibm.com>, linux-mm@kvack.org, devel@driverdev.osuosl.org, linux-kernel@vger.kernel.org
 
-On Wed, Jul 11, 2012 at 12:24:41AM +0900, JoonSoo Kim wrote:
-> > That would be functionally similar to your patch but it will preserve git
-> > blame, churn less code and be harder to make mistakes with in the unlikely
-> > event a third call to alloc_pages_direct_compact is ever added.
+On 07/09/2012 09:21 PM, Minchan Kim wrote:
+> On 07/03/2012 06:15 AM, Seth Jennings wrote:
+<snip>
+>> +static void zs_copy_map_object(char *buf, struct page *firstpage,
+>> +				int off, int size)
 > 
-> Your suggestion looks good.
-> But, the size of page_alloc.o is more than before.
-> 
-> I test 3 approaches, vanilla, always_inline and
-> wrapping(alloc_page_direct_compact which is your suggestion).
-> In my environment (v3.5-rc5, gcc 4.6.3, x86_64), page_alloc.o shows
-> below number.
-> 
->                                          total, .text section, .text.unlikely
-> page_alloc_vanilla.o:     93432,   0x510a,        0x243
-> page_alloc_inline.o:       93336,   0x52ca,          0xa4
-> page_alloc_wrapping.o: 93528,   0x515a,        0x238
-> 
-> Andrew said that inlining add only 26 bytes to .text of page_alloc.o,
-> but in my system, need more bytes.
-> Currently, I think this patch doesn't have obvious benefit, so I want
-> to drop it.
-> Any objections?
-> 
+> firstpage is rather misleading.
+> As you know, we use firstpage term for real firstpage of zspage but
+> in case of zs_copy_map_object, it could be a middle page of zspage.
+> So I would like to use "page" instead of firstpage.
 
-No objections to dropping the patch. It was at worth looking at so thanks
-for that.
+Accepted.
 
--- 
-Mel Gorman
-SUSE Labs
+>> +{
+>> +	struct page *pages[2];
+>> +	int sizes[2];
+>> +	void *addr;
+>> +
+>> +	pages[0] = firstpage;
+>> +	pages[1] = get_next_page(firstpage);
+>> +	BUG_ON(!pages[1]);
+>> +
+>> +	sizes[0] = PAGE_SIZE - off;
+>> +	sizes[1] = size - sizes[0];
+>> +
+>> +	/* disable page faults to match kmap_atomic() return conditions */
+>> +	pagefault_disable();
+> 
+> If I understand your intention correctly, you want to prevent calling
+> this function on non-atomic context. Right?
+
+This is moved to zs_map_object() in a later patch, but the
+point is to provide uniform return conditions, regardless of
+whether the object to be mapped is contained in a single
+page or spans two pages.  kmap_atomic() disables page
+faults, so I did it here to create symmetry.  The result is
+that zs_map_object always returns with preemption and page
+faults disabled.
+
+Also, Greg already merged these patches so I'll have to
+incorporate these changes as a separate patch.
+
+Thanks,
+Seth
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
