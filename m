@@ -1,66 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
-	by kanga.kvack.org (Postfix) with SMTP id DB6196B0078
-	for <linux-mm@kvack.org>; Tue, 10 Jul 2012 11:59:45 -0400 (EDT)
-Date: Tue, 10 Jul 2012 17:59:41 +0200
+Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
+	by kanga.kvack.org (Postfix) with SMTP id 2BB4A6B0073
+	for <linux-mm@kvack.org>; Tue, 10 Jul 2012 12:22:53 -0400 (EDT)
+Date: Tue, 10 Jul 2012 18:22:50 +0200
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH 3/3] mm/sparse: remove index_init_lock
-Message-ID: <20120710155940.GG19223@tiehlicka.suse.cz>
-References: <1341544178-7245-1-git-send-email-shangw@linux.vnet.ibm.com>
- <1341544178-7245-3-git-send-email-shangw@linux.vnet.ibm.com>
- <20120709111304.GA4627@tiehlicka.suse.cz>
- <20120709115935.GA19355@shangw>
+Subject: Re: [patch 08/11] mm: memcg: remove needless !mm fixup to init_mm
+ when charging
+Message-ID: <20120710162249.GA29114@tiehlicka.suse.cz>
+References: <1341449103-1986-1-git-send-email-hannes@cmpxchg.org>
+ <1341449103-1986-9-git-send-email-hannes@cmpxchg.org>
+ <20120709152058.GK4627@tiehlicka.suse.cz>
+ <20120710061021.GA6096@kernel>
+ <20120710062104.GA19223@tiehlicka.suse.cz>
+ <20120710065448.GB6096@kernel>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20120709115935.GA19355@shangw>
+In-Reply-To: <20120710065448.GB6096@kernel>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Gavin Shan <shangw@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org, dave@linux.vnet.ibm.com, rientjes@google.com, akpm@linux-foundation.org
+To: Wanpeng Li <liwp.linux@gmail.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Mon 09-07-12 19:59:35, Gavin Shan wrote:
-[...]
-> Michal, How about the following changelog?
+On Tue 10-07-12 14:54:48, Wanpeng Li wrote:
+> On Tue, Jul 10, 2012 at 08:21:04AM +0200, Michal Hocko wrote:
+> >On Tue 10-07-12 14:10:21, Wanpeng Li wrote:
+> >> On Mon, Jul 09, 2012 at 05:20:58PM +0200, Michal Hocko wrote:
+> >> >On Thu 05-07-12 02:45:00, Johannes Weiner wrote:
+> >> >> It does not matter to __mem_cgroup_try_charge() if the passed mm is
+> >> >> NULL or init_mm, it will charge the root memcg in either case.
+> >> 
+> >> You can also change the comment in __mem_cgroup_try_charge :
+> >> 
+> >> "if so charge the init_mm" => "if so charge the root memcg"
+> >
+> >This is already in place:
+> >"
+> >If mm is NULL and the caller doesn't pass a valid memcg pointer, that is
+> >treated as a charge to root_mem_cgroup.
+> >"
 > 
-> ---
-> 
-> sparse_index_init() is designed to be safe if two copies of it race.  It
-> uses "index_init_lock" to ensure that, even in the case of a race, only
-> one CPU will manage to do:
-> 
-> mem_section[root] = section;
-> 
-> On the other hand, sparse_index_init() is possiblly called during system
-> boot stage and hotplug path as follows. We need't lock during system boot
-> stage to protect "mem_section[root]" and the function has been protected by
-> hotplug mutex "mem_hotplug_mutex" as well in hotplug case. So we needn't the
-> spinklock in the function.
+> IIUC, if still keep comment "if so charge the init_mm" is not correct,
+> since pages in pagecache aren't mapped into any processes' ptes, 
+> so mm is NULL, and these pages which in pagecache are not belong 
+> to init_mm, the comment should be changed. :-)
 
-The changelog is still hard to read but it's getting there slowly ;)
-What about the following?
----
-sparse_index_init uses index_init_lock spinlock to protect root
-mem_section assignment. The lock is not necessary anymore because the
-function is called only during the boot (during paging init which
-is executed only from a single CPU) and from the hotplug code (by
-add_memory via arch_add_memory) which uses mem_hotplug_mutex.
-
-The lock has been introduced by 28ae55c9 (sparsemem extreme: hotplug
-preparation) and sparse_index_init was used only during boot at that
-time. 
-Later when the hotplug code (and add_memory) was introduced there was
-no synchronization so it was possible to online more sections from
-the same root probably (though I am not 100% sure about that).
-The first synchronization has been added by 6ad696d2 (mm: allow memory
-hotplug and hibernation in the same kernel) which has been later
-replaced by the mem_hotplug_mutex - 20d6c96b (mem-hotplug: introduce
-{un}lock_memory_hotplug()).
-
-Let's remove the lock as it is not needed and it makes the code more
-confusing.
----
-
+Fair enough. I guess Johannes will change that in the next post.
 -- 
 Michal Hocko
 SUSE Labs
