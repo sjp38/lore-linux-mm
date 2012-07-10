@@ -1,63 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx162.postini.com [74.125.245.162])
-	by kanga.kvack.org (Postfix) with SMTP id 0585C6B0071
-	for <linux-mm@kvack.org>; Tue, 10 Jul 2012 16:55:43 -0400 (EDT)
-From: Arnd Bergmann <arnd@arndb.de>
-Subject: [PATCH] mm/slob: avoid type warning about alignment value
-Date: Tue, 10 Jul 2012 20:55:34 +0000
+Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
+	by kanga.kvack.org (Postfix) with SMTP id 776A36B0071
+	for <linux-mm@kvack.org>; Tue, 10 Jul 2012 17:04:39 -0400 (EDT)
+Received: by pbbrp2 with SMTP id rp2so1014857pbb.14
+        for <linux-mm@kvack.org>; Tue, 10 Jul 2012 14:04:38 -0700 (PDT)
+Date: Tue, 10 Jul 2012 14:04:36 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch 4/5] mm, oom: reduce dependency on tasklist_lock
+In-Reply-To: <20120703181708.GB14104@redhat.com>
+Message-ID: <alpine.DEB.2.00.1207101400500.12399@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.1206251846020.24838@chino.kir.corp.google.com> <alpine.DEB.2.00.1206291404530.6040@chino.kir.corp.google.com> <alpine.DEB.2.00.1206291406110.6040@chino.kir.corp.google.com> <20120703181708.GB14104@redhat.com>
 MIME-Version: 1.0
-Content-Type: Text/Plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
-Message-Id: <201207102055.35278.arnd@arndb.de>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pekka Enberg <penberg@kernel.org>
-Cc: Christoph Lameter <cl@linux.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org
+To: Oleg Nesterov <oleg@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, cgroups@vger.kernel.org
 
-The types for ARCH_KMALLOC_MINALIGN and ARCH_SLAB_MINALIGN are not always
-the same, as seen by building ARM collie_defconfig:
+On Tue, 3 Jul 2012, Oleg Nesterov wrote:
 
-mm/slob.c: In function 'kfree':
-mm/slob.c:482:153: warning: comparison of distinct pointer types lacks a cast
-mm/slob.c: In function 'ksize':
-mm/slob.c:501:153: warning: comparison of distinct pointer types lacks a cast
+> >  		      unsigned int points, unsigned long totalpages,
+> >  		      struct mem_cgroup *memcg, nodemask_t *nodemask,
+> > @@ -454,6 +462,7 @@ void oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
+> >  	 */
+> >  	if (p->flags & PF_EXITING) {
+> >  		set_tsk_thread_flag(p, TIF_MEMDIE);
+> > +		put_task_struct(p);
+> >  		return;
+> >  	}
+> >  
+> > @@ -471,6 +480,7 @@ void oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
+> >  	 * parent.  This attempts to lose the minimal amount of work done while
+> >  	 * still freeing memory.
+> >  	 */
+> > +	read_lock(&tasklist_lock);
+> >  	do {
+> >  		list_for_each_entry(child, &t->children, sibling) {
+> >  			unsigned int child_points;
+> > @@ -483,15 +493,26 @@ void oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
+> >  			child_points = oom_badness(child, memcg, nodemask,
+> >  								totalpages);
+> >  			if (child_points > victim_points) {
+> > +				put_task_struct(victim);
+> >  				victim = child;
+> >  				victim_points = child_points;
+> > +				get_task_struct(victim);
+> >  			}
+> >  		}
+> >  	} while_each_thread(p, t);
+> > +	read_unlock(&tasklist_lock);
+> >  
+> > -	victim = find_lock_task_mm(victim);
+> > -	if (!victim)
+> > +	rcu_read_lock();
+> > +	p = find_lock_task_mm(victim);
+> > +	if (!p) {
+> > +		rcu_read_unlock();
+> > +		put_task_struct(victim);
+> >  		return;
+> > +	} else if (victim != p) {
+> > +		get_task_struct(p);
+> > +		put_task_struct(victim);
+> > +		victim = p;
+> > +	}
+> >  
+> >  	/* mm cannot safely be dereferenced after task_unlock(victim) */
+> >  	mm = victim->mm;
+> > @@ -522,9 +543,11 @@ void oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
+> >  			task_unlock(p);
+> >  			do_send_sig_info(SIGKILL, SEND_SIG_FORCED, p, true);
+> >  		}
+> > +	rcu_read_unlock();
+> >  
+> >  	set_tsk_thread_flag(victim, TIF_MEMDIE);
+> >  	do_send_sig_info(SIGKILL, SEND_SIG_FORCED, victim, true);
+> > +	put_task_struct(victim);
+> 
+> It seems to me we can avoid this get/put dance in oom_kill_process(),
+> just you need to extend the rcu-protected area. In this case the caller
+> of select_bad_process() does a single put_, and
+> sysctl_oom_kill_allocating_task doesn't need get_task_struct(current).
+> Look more clean/simple to me.
+> 
 
-Using max_t to find the correct alignment avoids the warning.
+We could grab rcu_read_lock() before the first tasklist scan and hold it 
+until a process is killed, yes, but there's a higher liklihood that it 
+will never be dropped for concurrent oom kills in the same way that the 
+write-side of tasklist_lock is currently starved.  On a system with a 
+large number of cpus this isn't even a rare situation to run into: the 
+read lock will never be dropped on all cpus.  I've attempted to make it as 
+fine-grained as possible and only hold it when absolutely required and use 
+task references to keep the selected threads around until they are killed.
 
-Signed-off-by: Arnd Bergmann <arnd@arndb.de>
----
-diff --git a/mm/slob.c b/mm/slob.c
-index 95d1c7d..51d6a27 100644
---- a/mm/slob.c
-+++ b/mm/slob.c
-@@ -426,7 +426,7 @@ out:
- void *__kmalloc_node(size_t size, gfp_t gfp, int node)
- {
- 	unsigned int *m;
--	int align = max(ARCH_KMALLOC_MINALIGN, ARCH_SLAB_MINALIGN);
-+	int align = max_t(size_t, ARCH_KMALLOC_MINALIGN, ARCH_SLAB_MINALIGN);
- 	void *ret;
- 
- 	gfp &= gfp_allowed_mask;
-@@ -479,7 +479,7 @@ void kfree(const void *block)
- 
- 	sp = virt_to_page(block);
- 	if (PageSlab(sp)) {
--		int align = max(ARCH_KMALLOC_MINALIGN, ARCH_SLAB_MINALIGN);
-+		int align = max_t(size_t, ARCH_KMALLOC_MINALIGN, ARCH_SLAB_MINALIGN);
- 		unsigned int *m = (unsigned int *)(block - align);
- 		slob_free(m, *m + align);
- 	} else
-@@ -498,7 +498,7 @@ size_t ksize(const void *block)
- 
- 	sp = virt_to_page(block);
- 	if (PageSlab(sp)) {
--		int align = max(ARCH_KMALLOC_MINALIGN, ARCH_SLAB_MINALIGN);
-+		int align = max_t(size_t, ARCH_KMALLOC_MINALIGN, ARCH_SLAB_MINALIGN);
- 		unsigned int *m = (unsigned int *)(block - align);
- 		return SLOB_UNITS(*m) * SLOB_UNIT;
- 	} else
+Let me know if you have a better solution to rcu read lock starvation.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
