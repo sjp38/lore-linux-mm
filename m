@@ -1,74 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
-	by kanga.kvack.org (Postfix) with SMTP id DF0436B0072
-	for <linux-mm@kvack.org>; Mon,  9 Jul 2012 21:15:24 -0400 (EDT)
-Received: by pbbrp2 with SMTP id rp2so24329813pbb.14
-        for <linux-mm@kvack.org>; Mon, 09 Jul 2012 18:15:24 -0700 (PDT)
-Date: Tue, 10 Jul 2012 09:15:16 +0800
-From: Wanpeng Li <liwp.linux@gmail.com>
-Subject: Re: [PATCH] mm/hugetlb: fix error code in hugetlbfs_alloc_inode
-Message-ID: <20120710011516.GA2457@kernel>
-Reply-To: Wanpeng Li <liwp.linux@gmail.com>
-References: <1341882184-4549-1-git-send-email-liwp.linux@gmail.com>
- <20120710010910.GA7362@shangw>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120710010910.GA7362@shangw>
+Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
+	by kanga.kvack.org (Postfix) with SMTP id 080316B0073
+	for <linux-mm@kvack.org>; Mon,  9 Jul 2012 21:36:12 -0400 (EDT)
+Received: from /spool/local
+	by e23smtp09.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <zhong@linux.vnet.ibm.com>;
+	Tue, 10 Jul 2012 02:22:35 +1000
+Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q6A1Zm9S65536184
+	for <linux-mm@kvack.org>; Tue, 10 Jul 2012 11:35:51 +1000
+Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
+	by d23av03.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q6A1Zlqu015102
+	for <linux-mm@kvack.org>; Tue, 10 Jul 2012 11:35:48 +1000
+Message-ID: <1341884144.2562.18.camel@ThinkPad-T420>
+Subject: Re: [PATCH SLAB 1/2 v3] duplicate the cache name in SLUB's
+ saved_alias list, SLAB, and SLOB
+From: Li Zhong <zhong@linux.vnet.ibm.com>
+Date: Tue, 10 Jul 2012 09:35:44 +0800
+In-Reply-To: <alpine.DEB.2.00.1207090859420.27737@router.home>
+References: <1341561286.24895.9.camel@ThinkPad-T420>
+	 <alpine.DEB.2.00.1207060855320.26441@router.home>
+	 <1341801721.2439.29.camel@ThinkPad-T420>
+	 <alpine.DEB.2.00.1207090859420.27737@router.home>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 7bit
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Gavin Shan <shangw@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, William Irwin <wli@holomorphy.com>, linux-kernel@vger.kernel.org, Wanpeng Li <liwp.linux@gmail.com>
+To: Christoph Lameter <cl@linux.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, linux-mm <linux-mm@kvack.org>, PowerPC email list <linuxppc-dev@lists.ozlabs.org>, Wanlong Gao <gaowanlong@cn.fujitsu.com>, Glauber Costa <glommer@parallels.com>
 
-On Tue, Jul 10, 2012 at 09:09:10AM +0800, Gavin Shan wrote:
->On Tue, Jul 10, 2012 at 09:03:04AM +0800, Wanpeng Li wrote:
->>From: Wanpeng Li <liwp@linux.vnet.ibm.com>
->>
->>When kmem_cache_alloc fails alloc slab object from
->>hugetlbfs_inode_cachep, return -ENOMEM in usual. But
->>hugetlbfs_alloc_inode implementation has inconsitency
->>with it and returns NULL. Fix it to return -ENOMEM.
->>
->>Signed-off-by: Wanpeng Li <liwp.linux@gmail.com>
->>---
->> fs/hugetlbfs/inode.c |    2 +-
->> 1 files changed, 1 insertions(+), 1 deletions(-)
->>
->>diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
->>index c4b85d0..79a0f33 100644
->>--- a/fs/hugetlbfs/inode.c
->>+++ b/fs/hugetlbfs/inode.c
->>@@ -696,7 +696,7 @@ static struct inode *hugetlbfs_alloc_inode(struct super_block *sb)
->> 	p = kmem_cache_alloc(hugetlbfs_inode_cachep, GFP_KERNEL);
->> 	if (unlikely(!p)) {
->> 		hugetlbfs_inc_free_inodes(sbinfo);
->>-		return NULL;
->>+		return -ENOMEM;
->
->The function is expecting "struct inode *", man.
->
->static struct inode *hugetlbfs_alloc_inode(struct super_block *sb)
->
-Hmm, replace it by ERR_PTR(-ENOMEM). 
+On Mon, 2012-07-09 at 09:01 -0500, Christoph Lameter wrote:
+> > I was pointed by Glauber to the slab common code patches. I need some
+> > more time to read the patches. Now I think the slab/slot changes in this
+> > v3 are not needed, and can be ignored.
+> 
+> That may take some kernel cycles. You have a current issue here that needs
+> to be fixed.
 
-Regards,
-Wanpeng Li
+I'm a little confused ... and what need I do for the next step? 
 
->Thanks,
->Gavin
->
->> 	}
->> 	return &p->vfs_inode;
->> }
->>-- 
->>1.7.5.4
->>
->>--
->>To unsubscribe, send a message with 'unsubscribe linux-mm' in
->>the body to majordomo@kvack.org.  For more info on Linux MM,
->>see: http://www.linux-mm.org/ .
->>Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
->>
+> 
+> > >  	down_write(&slub_lock);
+> > > -	s = find_mergeable(size, align, flags, name, ctor);
+> > > +	s = find_mergeable(size, align, flags, n, ctor);
+> > >  	if (s) {
+> > >  		s->refcount++;
+> > >  		/*
+> >
+> > 		......
+> > 		up_write(&slub_lock);
+> > 		return s;
+> > 	}
+> >
+> > Here, the function returns without name string n be kfreed.
+> 
+> That is intentional since the string n is still referenced by the entry
+> that sysfs_slab_alias has created.
+
+I'm not sure whether the "referenced by ..." you mentioned is what I
+understood. From my understanding:
+
+if slab_state == SYS_FS, after 
+	return sysfs_create_link(&slab_kset->kobj, &s->kobj, name); 
+is called, the name string passed in sysfs_slab_alias is no longer
+referenced (sysfs_new_dirent duplicates the string for sysfs to use).
+
+else, the name sting is referenced by 
+	al->name = name;
+temporarily. After slab_sysfs_init is finished, the name is not
+referenced any more.
+
+So in my patch (slub part), the string is duplicated here, and kfreed in
+slab_sysfs_init.
+
+> > But we couldn't kfree n here, because in sysfs_slab_alias(), if
+> > (slab_state < SYS_FS), the name need to be kept valid until
+> > slab_sysfs_init() is finished adding the entry into sysfs.
+> 
+> Right that is why it is not freed and that is what fixes the issue you
+> see.
+> 
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
