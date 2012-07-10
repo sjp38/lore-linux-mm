@@ -1,39 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
-	by kanga.kvack.org (Postfix) with SMTP id 02F996B0071
-	for <linux-mm@kvack.org>; Tue, 10 Jul 2012 15:45:58 -0400 (EDT)
-Received: by ggm4 with SMTP id 4so490060ggm.14
-        for <linux-mm@kvack.org>; Tue, 10 Jul 2012 12:45:58 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx162.postini.com [74.125.245.162])
+	by kanga.kvack.org (Postfix) with SMTP id 0585C6B0071
+	for <linux-mm@kvack.org>; Tue, 10 Jul 2012 16:55:43 -0400 (EDT)
+From: Arnd Bergmann <arnd@arndb.de>
+Subject: [PATCH] mm/slob: avoid type warning about alignment value
+Date: Tue, 10 Jul 2012 20:55:34 +0000
 MIME-Version: 1.0
-In-Reply-To: <CF1C132D-2873-408A-BCC9-B9F57BE6EDDB@linuxfoundation.org>
-References: <20120710111756.GA11351@localhost>
-	<CF1C132D-2873-408A-BCC9-B9F57BE6EDDB@linuxfoundation.org>
-Date: Tue, 10 Jul 2012 22:45:57 +0300
-Message-ID: <CAOJsxLG7fWuHeh-KXzG1PHwZRWztQQYvmxgn_97aYBCtqrLWug@mail.gmail.com>
-Subject: Re: linux-next: Early crashed kernel on CONFIG_SLOB
-From: Pekka Enberg <penberg@kernel.org>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: Text/Plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
+Message-Id: <201207102055.35278.arnd@arndb.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <christoph@linuxfoundation.org>
-Cc: "wfg@linux.intel.com" <wfg@linux.intel.com>, Christoph Lameter <cl@linux.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Pekka Enberg <penberg@kernel.org>
+Cc: Christoph Lameter <cl@linux.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org
 
-On Jul 10, 2012, at 6:17, wfg@linux.intel.com wrote:
->> This commit crashes the kernel w/o any dmesg output (the attached one
->> is created by the script as a summary for that run). This is very
->> reproducible in kvm for the attached config.
->>
->>        commit 3b0efdfa1e719303536c04d9abca43abeb40f80a
->>        Author: Christoph Lameter <cl@linux.com>
->>        Date:   Wed Jun 13 10:24:57 2012 -0500
->>
->>            mm, sl[aou]b: Extract common fields from struct kmem_cache
+The types for ARCH_KMALLOC_MINALIGN and ARCH_SLAB_MINALIGN are not always
+the same, as seen by building ARM collie_defconfig:
 
-On Tue, Jul 10, 2012 at 9:37 PM, Christoph Lameter
-<christoph@linuxfoundation.org> wrote:
-> I sent a patch yesterday (or was it friday) to fix the issue. Sorry @airport right now.
+mm/slob.c: In function 'kfree':
+mm/slob.c:482:153: warning: comparison of distinct pointer types lacks a cast
+mm/slob.c: In function 'ksize':
+mm/slob.c:501:153: warning: comparison of distinct pointer types lacks a cast
 
-Which patch is that? I can't seem to find it.
+Using max_t to find the correct alignment avoids the warning.
+
+Signed-off-by: Arnd Bergmann <arnd@arndb.de>
+---
+diff --git a/mm/slob.c b/mm/slob.c
+index 95d1c7d..51d6a27 100644
+--- a/mm/slob.c
++++ b/mm/slob.c
+@@ -426,7 +426,7 @@ out:
+ void *__kmalloc_node(size_t size, gfp_t gfp, int node)
+ {
+ 	unsigned int *m;
+-	int align = max(ARCH_KMALLOC_MINALIGN, ARCH_SLAB_MINALIGN);
++	int align = max_t(size_t, ARCH_KMALLOC_MINALIGN, ARCH_SLAB_MINALIGN);
+ 	void *ret;
+ 
+ 	gfp &= gfp_allowed_mask;
+@@ -479,7 +479,7 @@ void kfree(const void *block)
+ 
+ 	sp = virt_to_page(block);
+ 	if (PageSlab(sp)) {
+-		int align = max(ARCH_KMALLOC_MINALIGN, ARCH_SLAB_MINALIGN);
++		int align = max_t(size_t, ARCH_KMALLOC_MINALIGN, ARCH_SLAB_MINALIGN);
+ 		unsigned int *m = (unsigned int *)(block - align);
+ 		slob_free(m, *m + align);
+ 	} else
+@@ -498,7 +498,7 @@ size_t ksize(const void *block)
+ 
+ 	sp = virt_to_page(block);
+ 	if (PageSlab(sp)) {
+-		int align = max(ARCH_KMALLOC_MINALIGN, ARCH_SLAB_MINALIGN);
++		int align = max_t(size_t, ARCH_KMALLOC_MINALIGN, ARCH_SLAB_MINALIGN);
+ 		unsigned int *m = (unsigned int *)(block - align);
+ 		return SLOB_UNITS(*m) * SLOB_UNIT;
+ 	} else
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
