@@ -1,33 +1,32 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
-	by kanga.kvack.org (Postfix) with SMTP id 2DA7A6B006C
-	for <linux-mm@kvack.org>; Tue, 10 Jul 2012 01:35:29 -0400 (EDT)
-Received: by lbjn8 with SMTP id n8so21856370lbj.14
-        for <linux-mm@kvack.org>; Mon, 09 Jul 2012 22:35:26 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
+	by kanga.kvack.org (Postfix) with SMTP id B3A4F6B006C
+	for <linux-mm@kvack.org>; Tue, 10 Jul 2012 01:45:26 -0400 (EDT)
+Received: by yenr5 with SMTP id r5so13289191yen.14
+        for <linux-mm@kvack.org>; Mon, 09 Jul 2012 22:45:25 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20120709142936.GB17314@barrios>
-References: <1340783514-8150-1-git-send-email-minchan@kernel.org>
-	<1340783514-8150-3-git-send-email-minchan@kernel.org>
-	<CAEtiSavGmp=V37jxmLm2eQyRP3F08KotF9Dma5JCn7uaJbPo+w@mail.gmail.com>
-	<20120709142936.GB17314@barrios>
-Date: Tue, 10 Jul 2012 11:05:26 +0530
-Message-ID: <CAEtiSau+=dUfqBTjuJbdjNsnh_-cay6HCSuZKpZ=mVR6-ouVTQ@mail.gmail.com>
-Subject: Re: [PATCH 2/2 v2] memory-hotplug: fix kswapd looping forever problem
-From: Aaditya Kumar <aaditya.kumar.30@gmail.com>
+In-Reply-To: <20120706202509.294809131@linux.com>
+References: <20120706202509.294809131@linux.com>
+Date: Tue, 10 Jul 2012 08:45:24 +0300
+Message-ID: <CAOJsxLEU685SkxaxMLDxYJUpjyLyXAV03X7ZLJh--jhk+n8gMw@mail.gmail.com>
+Subject: Re: Common [0/4] Sl[auo]b: Common code rework V6 (limited)
+From: Pekka Enberg <penberg@kernel.org>
 Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: akpm@linux-foundation.org, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Mel Gorman <mgorman@suse.de>, tim.bird@am.sony.com, frank.rowand@am.sony.com, takuzo.ohara@ap.sony.com, kan.iibuchi@jp.sony.com, aaditya.kumar@ap.sony.com
+To: Christoph Lameter <cl@linux.com>
+Cc: linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Matt Mackall <mpm@selenic.com>, Glauber Costa <glommer@parallels.com>, Joonsoo Kim <js1304@gmail.com>
 
-On Mon, Jul 9, 2012 at 7:59 PM, Minchan Kim <minchan@kernel.org> wrote:
+On Fri, Jul 6, 2012 at 11:25 PM, Christoph Lameter <cl@linux.com> wrote:
+> This is a series of patches that extracts common functionality from
+> slab allocators into a common code base. The intend is to standardize
+> as much as possible of the allocator behavior while keeping the
+> distinctive features of each allocator which are mostly due to their
+> storage format and serialization approaches.
 
-Hello Minchan,
+Works fine here. David, Glauber, does the series look OK to move forward with?
 
-> May I add your tested-by in next spin which will include automatic type conversion
-> problem ?
-
-Yeah sure.
+                        Pekka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
