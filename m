@@ -1,200 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx190.postini.com [74.125.245.190])
-	by kanga.kvack.org (Postfix) with SMTP id 2CEAB6B006C
-	for <linux-mm@kvack.org>; Tue, 10 Jul 2012 08:27:36 -0400 (EDT)
-Received: by eaan1 with SMTP id n1so5556702eaa.14
-        for <linux-mm@kvack.org>; Tue, 10 Jul 2012 05:27:34 -0700 (PDT)
-Content-Type: text/plain; charset=utf-8; format=flowed; delsp=yes
-Subject: Re: [PATCH 05/13] rbtree: performance and correctness test
-References: <1341876923-12469-1-git-send-email-walken@google.com>
- <1341876923-12469-6-git-send-email-walken@google.com>
-Date: Tue, 10 Jul 2012 14:27:32 +0200
+Received: from psmtp.com (na3sys010amx135.postini.com [74.125.245.135])
+	by kanga.kvack.org (Postfix) with SMTP id 233376B006C
+	for <linux-mm@kvack.org>; Tue, 10 Jul 2012 08:41:23 -0400 (EDT)
+Date: Tue, 10 Jul 2012 14:41:08 +0200
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH 2/3] shmem: fix negative rss in memcg memory.stat
+Message-ID: <20120710124107.GE1779@cmpxchg.org>
+References: <alpine.LSU.2.00.1207091533001.2051@eggly.anvils>
+ <alpine.LSU.2.00.1207091541310.2051@eggly.anvils>
 MIME-Version: 1.0
-Content-Transfer-Encoding: Quoted-Printable
-From: "Michal Nazarewicz" <mina86@mina86.com>
-Message-ID: <op.wg8cv6x53l0zgt@mpn-glaptop>
-In-Reply-To: <1341876923-12469-6-git-send-email-walken@google.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LSU.2.00.1207091541310.2051@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: aarcange@redhat.com, dwmw2@infradead.org, riel@redhat.com, peterz@infradead.org, daniel.santos@pobox.com, axboe@kernel.dk, ebiederm@xmission.com, Michel Lespinasse <walken@google.com>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, torvalds@linux-foundation.org
+To: Hugh Dickins <hughd@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, 10 Jul 2012 01:35:15 +0200, Michel Lespinasse <walken@google.com=
-> wrote:
+On Mon, Jul 09, 2012 at 03:44:24PM -0700, Hugh Dickins wrote:
+> When adding the page_private checks before calling shmem_replace_page(),
+> I did realize that there is a further race, but thought it too unlikely
+> to need a hurried fix.
+> 
+> But independently I've been chasing why a mem cgroup's memory.stat
+> sometimes shows negative rss after all tasks have gone: I expected it
+> to be a stats gathering bug, but actually it's shmem swapping's fault.
+> 
+> It's an old surprise, that when you lock_page(lookup_swap_cache(swap)),
+> the page may have been removed from swapcache before getting the lock; 
+> or it may have been freed and reused and be back in swapcache; and it
+> can even be using the same swap location as before (page_private same).
+> 
+> The swapoff case is already secure against this (swap cannot be reused
+> until the whole area has been swapped off, and a new swapped on); and
+> shmem_getpage_gfp() is protected by shmem_add_to_page_cache()'s check
+> for the expected radix_tree entry - but a little too late.
+> 
+> By that time, we might have already decided to shmem_replace_page():
+> I don't know of a problem from that, but I'd feel more at ease not to
+> do so spuriously.  And we have already done mem_cgroup_cache_charge(),
+> on perhaps the wrong mem cgroup: and this charge is not then undone on
+> the error path, because PageSwapCache ends up preventing that.
 
-> This small module helps measure the performance of rbtree insert and e=
-rase.
->
-> Additionally, we run a few correctness tests to check that the rbtrees=
- have
-> all desired properties:
-> - contains the right number of nodes in the order desired,
-> - never two consecutive red nodes on any path,
-> - all paths to leaf nodes have the same number of black nodes,
-> - root node is black
->
-> Signed-off-by: Michel Lespinasse <walken@google.com>
-> ---
->  tests/rbtree_test.c |  135 ++++++++++++++++++++++++++++++++++++++++++=
-+++++++++
->  1 files changed, 135 insertions(+), 0 deletions(-)
->  create mode 100644 tests/rbtree_test.c
->
-> diff --git a/tests/rbtree_test.c b/tests/rbtree_test.c
-> new file mode 100644
-> index 0000000..2e3944d
-> --- /dev/null
-> +++ b/tests/rbtree_test.c
-> @@ -0,0 +1,135 @@
-> +#include <linux/module.h>
-> +#include <linux/rbtree.h>
-> +#include <linux/random.h>
-> +#include <asm/timex.h>
-> +
-> +#define NODES       100
-> +#define PERF_LOOPS  100000
-> +#define CHECK_LOOPS 100
-> +
-> +struct test_node {
-> +	struct rb_node rb;
-> +	u32 key;
-> +};
-> +
-> +static struct rb_root root =3D RB_ROOT;
-> +static struct test_node nodes[NODES];
-> +
-> +static struct rnd_state rnd;
-> +
-> +static void insert(struct test_node *node, struct rb_root *root)
-> +{
-> +	struct rb_node **new =3D &root->rb_node, *parent =3D NULL;
-> +
-> +	while (*new) {
-> +		parent =3D *new;
-> +		if (node->key < rb_entry(parent, struct test_node, rb)->key)
-> +			new =3D &parent->rb_left;
-> +		else
-> +			new =3D &parent->rb_right;
-> +	}
-> +
-> +	rb_link_node(&node->rb, parent, new);
-> +	rb_insert_color(&node->rb, root);
-> +}
-> +
-> +static inline void erase(struct test_node *node, struct rb_root *root=
-)
-> +{
-> +	rb_erase(&node->rb, root);
-> +}
-> +
-> +static void init(void)
-> +{
-> +	int i;
-> +	for (i =3D 0; i < NODES; i++)
+I couldn't see anything wrong with shmem_replace_page(), either, but
+maybe the comment in its error path could be updated as the callsite
+does not rely on page_private alone anymore to confirm correct swap.
 
-s/NODES/ARRAY_SIZE(nodes)/ perhaps?  Same goes for the rest of the code.=
+> It's this last case which causes the occasional negative rss in
+> memory.stat: the page is charged here as cache, but (sometimes) found
+> to be anon when eventually it's uncharged - and in between, it's an
+> undeserved charge on the wrong memcg.
+> 
+> Fix this by adding an earlier check on the radix_tree entry: it's
+> inelegant to descend the tree twice, but swapping is not the fast path,
+> and a better solution would need a pair (try+commit) of memcg calls,
+> and a rework of shmem_replace_page() to keep out of the swapcache.
+> 
+> We can use the added shmem_confirm_swap() function to replace the
+> find_get_page+page_cache_release we were already doing on the error
+> path.  And add a comment on that -EEXIST: it seems a peculiar errno
+> to be using, but originates from its use in radix_tree_insert().
+> 
+> [It can be surprising to see positive rss left in a memcg's memory.stat
+> after all tasks have gone, since it is supposed to count anonymous but
+> not shmem.  Aside from sharing anon pages via fork with a task in some
+> other memcg, it often happens after swapping: because a swap page can't
+> be freed while under writeback, nor while locked.  So it's not an error,
+> and these residual pages are easily freed once pressure demands.]
+> 
+> Signed-off-by: Hugh Dickins <hughd@google.com>
+> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> Cc: Michal Hocko <mhocko@suse.cz>
 
-
-> +		nodes[i].key =3D prandom32(&rnd);
-> +}
-> +
-> +static bool is_red(struct rb_node *rb)
-> +{
-> +	return rb->rb_parent_color =3D=3D (unsigned long)rb_parent(rb);
-
-Why not !(rb->rb_parent_color & 1) which to me seems more intuitive.
-
-> +}
-> +
-> +static int black_path_count(struct rb_node *rb)
-> +{
-> +	int count;
-> +	for (count =3D 0; rb; rb =3D rb_parent(rb))
-> +		count +=3D !is_red(rb);
-> +	return count;
-> +}
-> +
-> +static void check(int nr_nodes)
-> +{
-> +	struct rb_node *rb;
-> +	int count =3D 0;
-> +	int blacks;
-> +	u32 prev_key =3D 0;
-> +
-> +	for (rb =3D rb_first(&root); rb; rb =3D rb_next(rb)) {
-> +		struct test_node *node =3D rb_entry(rb, struct test_node, rb);
-> +		WARN_ON_ONCE(node->key < prev_key);
-
-What if for some reason we generate node with key equal zero or two keys=
-
-with the same value?  It may not be the case for current code, but someo=
-ne
-might change it in the future.  I think <=3D is safer here.
-
-> +		WARN_ON_ONCE(is_red(rb) &&
-> +			     (!rb_parent(rb) || is_red(rb_parent(rb))));
-> +		if (!count)
-> +			blacks =3D black_path_count(rb);
-> +		else
-> +			WARN_ON_ONCE((!rb->rb_left || !rb->rb_right) &&
-> +				     blacks !=3D black_path_count(rb));
-> +		prev_key =3D node->key;
-> +		count++;
-> +	}
-> +	WARN_ON_ONCE(count !=3D nr_nodes);
-> +}
-> +
-> +static int rbtree_test_init(void)
-> +{
-> +	int i, j;
-> +	cycles_t time1, time2, time;
-> +
-> +	printk(KERN_ALERT "rbtree testing");
-> +
-> +	prandom32_seed(&rnd, 3141592653589793238);
-> +	init();
-> +
-> +	time1 =3D get_cycles();
-> +
-> +	for (i =3D 0; i < PERF_LOOPS; i++) {
-> +		for (j =3D 0; j < NODES; j++)
-> +			insert(nodes + j, &root);
-> +		for (j =3D 0; j < NODES; j++)
-> +			erase(nodes + j, &root);
-> +	}
-> +
-> +	time2 =3D get_cycles();
-> +	time =3D time2 - time1;
-> +
-> +	time =3D div_u64(time, PERF_LOOPS);
-> +	printk(" -> %llu cycles\n", time);
-> +
-> +	for (i =3D 0; i < CHECK_LOOPS; i++) {
-> +		init();
-
-Is this init() needed?
-
-> +		for (j =3D 0; j < NODES; j++) {
-> +			check(j);
-> +			insert(nodes + j, &root);
-> +		}
-> +		for (j =3D 0; j < NODES; j++) {
-> +			check(NODES - j);
-> +			erase(nodes + j, &root);
-> +		}
-> +		check(0);
-> +	}
-> +
-> +	return -EAGAIN; /* Fail will directly unload the module */
-> +}
-
--- =
-
-Best regards,                                         _     _
-.o. | Liege of Serenely Enlightened Majesty of      o' \,=3D./ `o
-..o | Computer Science,  Micha=C5=82 =E2=80=9Cmina86=E2=80=9D Nazarewicz=
-    (o o)
-ooo +----<email/xmpp: mpn@google.com>--------------ooO--(_)--Ooo--
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
