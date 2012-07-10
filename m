@@ -1,104 +1,123 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
-	by kanga.kvack.org (Postfix) with SMTP id D57276B0072
-	for <linux-mm@kvack.org>; Tue, 10 Jul 2012 07:30:40 -0400 (EDT)
-Date: Tue, 10 Jul 2012 12:30:36 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [MMTests] Interactivity during IO on ext3
-Message-ID: <20120710113036.GE14154@suse.de>
-References: <20120620113252.GE4011@suse.de>
- <20120629111932.GA14154@suse.de>
- <20120705145652.GN14154@suse.de>
- <20120710094940.GC13539@quack.suse.cz>
+Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
+	by kanga.kvack.org (Postfix) with SMTP id BA0FB6B006C
+	for <linux-mm@kvack.org>; Tue, 10 Jul 2012 08:19:25 -0400 (EDT)
+Received: by eaan1 with SMTP id n1so5553081eaa.14
+        for <linux-mm@kvack.org>; Tue, 10 Jul 2012 05:19:24 -0700 (PDT)
+Content-Type: text/plain; charset=utf-8; format=flowed; delsp=yes
+Subject: Re: [PATCH 04/13] rbtree: move some implementation details from
+ rbtree.h to rbtree.c
+References: <1341876923-12469-1-git-send-email-walken@google.com>
+ <1341876923-12469-5-git-send-email-walken@google.com>
+Date: Tue, 10 Jul 2012 14:19:20 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20120710094940.GC13539@quack.suse.cz>
+Content-Transfer-Encoding: Quoted-Printable
+From: "Michal Nazarewicz" <mina86@mina86.com>
+Message-ID: <op.wg8ciikk3l0zgt@mpn-glaptop>
+In-Reply-To: <1341876923-12469-5-git-send-email-walken@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org
+To: aarcange@redhat.com, dwmw2@infradead.org, riel@redhat.com, peterz@infradead.org, daniel.santos@pobox.com, axboe@kernel.dk, ebiederm@xmission.com, Michel Lespinasse <walken@google.com>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, torvalds@linux-foundation.org
 
-On Tue, Jul 10, 2012 at 11:49:40AM +0200, Jan Kara wrote:
-> > ===========================================================
-> > Machine:	arnold
-> > Result:		http://www.csn.ul.ie/~mel/postings/mmtests-20120424/global-dhp__io-interactive-performance-ext3/arnold/comparison.html
-> > Arch:		x86
-> > CPUs:		1 socket, 2 threads
-> > Model:		Pentium 4
-> > Disk:		Single Rotary Disk
-> > ===========================================================
-> > 
-> > fsmark-single
-> > -------------
-> >   Completion times since 3.2 have been badly affected which coincides with
-> >   the introduction of IO-less dirty page throttling. 3.3 was particularly
-> >   bad.
-> > 
-> >   2.6.32 was TERRIBLE in terms of read-latencies with the average latency
-> >   and max latencies looking awful. The 90th percentile was close to 4
-> >   seconds and as a result the graphs are even more of a complete mess than
-> >   they might have been otherwise.
-> > 
-> >   Otherwise it's worth looking closely at 3.0 and 3.2. In 3.0, 95% of the
-> >   reads were below 206ms but in 3.2 this had grown to 273ms. The latency
-> >   of the other 5% results increased from 481ms to 774ms.
-> > 
-> >   3.4 is looking better at least.
+On Tue, 10 Jul 2012 01:35:14 +0200, Michel Lespinasse <walken@google.com=
+> wrote:
+
+> rbtree users must use the documented APIs to manipulate the tree
+> structure.  Low-level helpers to manipulate node colors and parenthood=
+
+> are not part of that API, so move them to lib/rbtree.c
 >
->   Yeah, 3.4 looks OK and I'd be interested in 3.5 results since I've merged
-> one more fix which should help the read latency.
-
-When 3.5 comes out, I'll be queue up the same tests. Ideally I would be
-running against each rc but the machines are used for other tests as well
-and these ones take too long for continual testing to be practical.
-
-> But all in all it's hard
-> to tackle the latency problems with ext3 - we have a journal which
-> synchronizes all the writes so we write to it with a high priority
-> (we use WRITE_SYNC when there's some contention on the journal). But that
-> naturally competes with reads and creates higher read latency.
->  
-
-Thanks for the good explanation. I'll just know to look out for this in
-interactivity-related or IO-latency bugs.
-
-> > <SNIP>
-> > ==========================================================
-> > Machine:	hydra
-> > Result:		http://www.csn.ul.ie/~mel/postings/mmtests-20120424/global-dhp__io-interactive-performance-ext3/hydra/comparison.html
-> > Arch:		x86-64
-> > CPUs:		1 socket, 4 threads
-> > Model:		AMD Phenom II X4 940
-> > Disk:		Single Rotary Disk
-> > ==========================================================
-> > 
-> > fsmark-single
-> > -------------
-> >   Completion times are all over the place with a big increase in 3.2 that
-> >   improved a bit since but not as good as 3.1 kernels were.
-> > 
-> >   Unlike arnold, 2.6.32 is not a complete mess and makes a comparison more
-> >   meaningful. Our maximum latencies have jumped around a lot with 3.2
-> >   being particularly bad and 3.4 not being much better. 3.1 and 3.3 were
-> >   both good in terms of maximum latency.
-> > 
-> >   Average latency is shot to hell. In 2.6.32 it was 349ms and it's now 781ms.
-> >   3.2 was really bad but it's not like 3.0 or 3.1 were fantastic either.
+> Signed-off-by: Michel Lespinasse <walken@google.com>
+> ---
+>  include/linux/rbtree.h |   16 ----------------
+>  lib/rbtree.c           |   18 ++++++++++++++++++
+>  2 files changed, 18 insertions(+), 16 deletions(-)
 >
->   So I wonder what makes a difference between this machine and the previous
-> one. The results seem completely different. Is it the amount of memory? Is
-> it the difference in the disk? Or even the difference in the CPU?
-> 
+> diff --git a/include/linux/rbtree.h b/include/linux/rbtree.h
+> index 2049087..a06c044 100644
+> --- a/include/linux/rbtree.h
+> +++ b/include/linux/rbtree.h
+> @@ -35,8 +35,6 @@
+>  struct rb_node
+>  {
+>  	unsigned long  rb_parent_color;
+> -#define	RB_RED		0
+> -#define	RB_BLACK	1
+>  	struct rb_node *rb_right;
+>  	struct rb_node *rb_left;
+>  } __attribute__((aligned(sizeof(long))));
+> @@ -49,20 +47,6 @@ struct rb_root
+> #define rb_parent(r)   ((struct rb_node *)((r)->rb_parent_color & ~3))=
 
-Two big differences are 32-bit versus 64-bit and the 32-bit machine having
-4G of RAM and the 64-bit machine having 8G.  On the 32-bit machine, bounce
-buffering may have been an issue but as -S0 was specified (no sync) there
-would also be differences on when dirty page balancing took place.
+> -#define rb_color(r)   ((r)->rb_parent_color & 1)
+> -#define rb_is_red(r)   (!rb_color(r))
+> -#define rb_is_black(r) rb_color(r)
+> -#define rb_set_red(r)  do { (r)->rb_parent_color &=3D ~1; } while (0)=
 
--- 
-Mel Gorman
-SUSE Labs
+> -#define rb_set_black(r)  do { (r)->rb_parent_color |=3D 1; } while (0=
+)
+> -
+> -static inline void rb_set_parent(struct rb_node *rb, struct rb_node *=
+p)
+> -{
+> -	rb->rb_parent_color =3D (rb->rb_parent_color & 3) | (unsigned long)p=
+;
+> -}
+> -static inline void rb_set_color(struct rb_node *rb, int color)
+> -{
+> -	rb->rb_parent_color =3D (rb->rb_parent_color & ~1) | color;
+> -}
+> #define RB_ROOT	(struct rb_root) { NULL, }
+>  #define	rb_entry(ptr, type, member) container_of(ptr, type, member)
+> diff --git a/lib/rbtree.c b/lib/rbtree.c
+> index fe43c8c..d0ec339 100644
+> --- a/lib/rbtree.c
+> +++ b/lib/rbtree.c
+> @@ -23,6 +23,24 @@
+>  #include <linux/rbtree.h>
+>  #include <linux/export.h>
+>+#define	RB_RED		0
+> +#define	RB_BLACK	1
+
+Interestingly, those are almost never used. RB_BLACK is used only once.
+Should we get rid of those instead?  Or change the code (like rb_is_red(=
+))
+to use them?
+
+> +
+> +#define rb_color(r)   ((r)->rb_parent_color & 1)
+> +#define rb_is_red(r)   (!rb_color(r))
+> +#define rb_is_black(r) rb_color(r)
+> +#define rb_set_red(r)  do { (r)->rb_parent_color &=3D ~1; } while (0)=
+
+> +#define rb_set_black(r)  do { (r)->rb_parent_color |=3D 1; } while (0=
+)
+> +
+> +static inline void rb_set_parent(struct rb_node *rb, struct rb_node *=
+p)
+> +{
+> +	rb->rb_parent_color =3D (rb->rb_parent_color & 3) | (unsigned long)p=
+;
+> +}
+> +static inline void rb_set_color(struct rb_node *rb, int color)
+> +{
+> +	rb->rb_parent_color =3D (rb->rb_parent_color & ~1) | color;
+> +}
+> +
+>  static void __rb_rotate_left(struct rb_node *node, struct rb_root *ro=
+ot)
+>  {
+>  	struct rb_node *right =3D node->rb_right;
+
+
+-- =
+
+Best regards,                                         _     _
+.o. | Liege of Serenely Enlightened Majesty of      o' \,=3D./ `o
+..o | Computer Science,  Micha=C5=82 =E2=80=9Cmina86=E2=80=9D Nazarewicz=
+    (o o)
+ooo +----<email/xmpp: mpn@google.com>--------------ooO--(_)--Ooo--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
