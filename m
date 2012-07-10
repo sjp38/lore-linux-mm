@@ -1,95 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
-	by kanga.kvack.org (Postfix) with SMTP id D34746B006C
-	for <linux-mm@kvack.org>; Tue, 10 Jul 2012 12:50:27 -0400 (EDT)
-Received: by ggm4 with SMTP id 4so248621ggm.14
-        for <linux-mm@kvack.org>; Tue, 10 Jul 2012 09:50:27 -0700 (PDT)
-Message-ID: <4FFC5D43.7040206@gmail.com>
-Date: Wed, 11 Jul 2012 00:50:11 +0800
-From: Jiang Liu <liuj97@gmail.com>
+Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
+	by kanga.kvack.org (Postfix) with SMTP id 88DDF6B0071
+	for <linux-mm@kvack.org>; Tue, 10 Jul 2012 13:16:32 -0400 (EDT)
+Date: Tue, 10 Jul 2012 19:16:29 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [patch 03/11] mm: shmem: do not try to uncharge known swapcache
+ pages
+Message-ID: <20120710171628.GB29114@tiehlicka.suse.cz>
+References: <1341449103-1986-1-git-send-email-hannes@cmpxchg.org>
+ <1341449103-1986-4-git-send-email-hannes@cmpxchg.org>
+ <20120709144657.GF4627@tiehlicka.suse.cz>
+ <alpine.LSU.2.00.1207091311300.1842@eggly.anvils>
 MIME-Version: 1.0
-Subject: Re: [RFC PATCH v3 0/13] memory-hotplug : hot-remove physical memory
-References: <4FFAB0A2.8070304@jp.fujitsu.com> <alpine.DEB.2.00.1207091015570.30060@router.home> <4FFBFCAC.4010007@jp.fujitsu.com>
-In-Reply-To: <4FFBFCAC.4010007@jp.fujitsu.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LSU.2.00.1207091311300.1842@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-Cc: Christoph Lameter <cl@linux.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, rientjes@google.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, minchan.kim@gmail.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, wency@cn.fujitsu.com
+To: Hugh Dickins <hughd@google.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On 07/10/2012 05:58 PM, Yasuaki Ishimatsu wrote:
-> Hi Christoph,
+On Mon 09-07-12 13:37:39, Hugh Dickins wrote:
+> On Mon, 9 Jul 2012, Michal Hocko wrote:
+> > 
+> > Maybe I am missing something but who does the uncharge from:
+> > shmem_unuse
+> >   mem_cgroup_cache_charge
+> >   shmem_unuse_inode
+> >     shmem_add_to_page_cache
 > 
-> 2012/07/10 0:18, Christoph Lameter wrote:
->>
->> On Mon, 9 Jul 2012, Yasuaki Ishimatsu wrote:
->>
->>> Even if you apply these patches, you cannot remove the physical memory
->>> completely since these patches are still under development. I want you to
->>> cooperate to improve the physical memory hot-remove. So please review these
->>> patches and give your comment/idea.
->>
->> Could you at least give a method on how you want to do physical memory
->> removal?
+> There isn't any special uncharge for shmem_unuse(): once the swapcache
+> page is matched up with its memcg, it will get uncharged by one of the
+> usual routes to swapcache_free() when the page is freed: maybe in the
+> call from __remove_mapping(), maybe when free_page_and_swap_cache()
+> ends up calling it.
 > 
-> We plan to release a dynamic hardware partitionable system. It will be
-> able to hot remove/add a system board which included memory and cpu.
-> But as you know, Linux does not support memory hot-remove on x86 box.
-> So I try to develop it.
-> 
-> Current plan to hot remove system board is to use container driver.
-> Thus I define the system board in ACPI DSDT table as a container device.
-> It have supported hot-add a container device. And if container device
-> has _EJ0 ACPI method, "eject" file to remove the container device is
-> prepared as follow:
-> 
-> # ls -l /sys/bus/acpi/devices/ACPI0004\:01/eject
-> --w-------. 1 root root 4096 Jul 10 18:19 /sys/bus/acpi/devices/ACPI0004:01/eject
-> 
-> When I hot-remove the container device, I echo 1 to the file as follow:
-> 
-> #echo 1 > /sys/bus/acpi/devices/ACPI0004\:02/eject
-> 
-> Then acpi_bus_trim() is called. And it calls acpi_memory_device_remove()
-> for removing memory device. But the code does not do nothing.
-> So I developed the continuation of the function.
-> 
->> You would have to remove all objects from the range you want to
->> physically remove. That is only possible under special circumstances and
->> with a limited set of objects. Even if you exclusively use ZONE_MOVEABLE
->> you still may get cases where pages are pinned for a long time.
-> 
-> I know it. So my memory hot-remove plan is as follows:
-> 
-> 1. hot-added a system board
->    All memory which included the system board is offline.
-> 
-> 2. online the memory as removable page
->    The function has not supported yet. It is being developed by Lai as follow:
->    http://lkml.indiana.edu/hypermail/linux/kernel/1207.0/01478.html
->    If it is supported, I will be able to create movable memory.
-> 
-> 3. hot-remove the memory by container device's eject file
-We have implemented a prototype to do physical node (mem + CPU + IOH) hotplug
-for Itanium and is now porting it to x86. But with currently solution, memory
-hotplug functionality may cause 10-20% performance decrease because we concentrate
-all DMA/Normal memory to the first NUMA node, and all other NUMA nodes only
-hosts ZONE_MOVABLE. We are working on solution to minimize the performance
-drop now.
+> Perhaps you're worrying about error (or unfound) paths in shmem_unuse()?
 
-> 
-> Thanks,
-> Yasuaki Ishimatsu
-> 
->>
->> I am not sure that these patches are useful unless we know where you are
->> going with this. If we end up with a situation where we still cannot
->> remove physical memory then this patchset is not helpful.
-> 
-> 
-> 
+Yes that was exactly my concern.
 
+> By the time we make the charge, we know for sure that it's a shmem page,
+> and make the charge appropriately; in racy cases it might get uncharged
+> again in the delete_from_swap_cache().  Can the unfound case occur these
+> days?  
+
+I cannot find a change that would prevent from that.
+
+> I'd have to think more deeply to answer that, but the charge will
+> not go missing.
+> 
+> Hugh
+
+-- 
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
