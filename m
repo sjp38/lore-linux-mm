@@ -1,356 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
-	by kanga.kvack.org (Postfix) with SMTP id 255586B0062
-	for <linux-mm@kvack.org>; Wed, 11 Jul 2012 09:23:55 -0400 (EDT)
-Message-ID: <1342012996.3462.154.camel@twins>
-Subject: Re: [PATCH 00/13] rbtree updates
-From: Peter Zijlstra <peterz@infradead.org>
-Date: Wed, 11 Jul 2012 15:23:16 +0200
-In-Reply-To: <1341876923-12469-1-git-send-email-walken@google.com>
-References: <1341876923-12469-1-git-send-email-walken@google.com>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: quoted-printable
-Mime-Version: 1.0
+Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
+	by kanga.kvack.org (Postfix) with SMTP id 4EC276B0069
+	for <linux-mm@kvack.org>; Wed, 11 Jul 2012 09:25:10 -0400 (EDT)
+Received: by yenr5 with SMTP id r5so1405269yen.14
+        for <linux-mm@kvack.org>; Wed, 11 Jul 2012 06:25:09 -0700 (PDT)
+From: Wanpeng Li <liwp.linux@gmail.com>
+Subject: [PATCH RFC] mm/memcg: calculate max hierarchy limit number instead of min
+Date: Wed, 11 Jul 2012 21:24:41 +0800
+Message-Id: <1342013081-4096-1-git-send-email-liwp.linux@gmail.com>
+In-Reply-To: <a>
+References: <a>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michel Lespinasse <walken@google.com>
-Cc: aarcange@redhat.com, dwmw2@infradead.org, riel@redhat.com, daniel.santos@pobox.com, axboe@kernel.dk, ebiederm@xmission.com, linux-mm@kvack.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, torvalds@linux-foundation.org
+To: linux-mm@kvack.org
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, Wanpeng Li <liwp.linux@gmail.com>
 
+From: Wanpeng Li <liwp@linux.vnet.ibm.com>
 
-Looks nice.. How about something like the below on top.. I couldn't
-immediately find a sane reason for the grand-parent to always be red in
-the insertion case.
+Since hierachical_memory_limit shows "of bytes of memory limit with
+regard to hierarchy under which the memory cgroup is", the count should
+calculate max hierarchy limit when use_hierarchy in order to show hierarchy
+subtree limit. hierachical_memsw_limit is the same case.
 
+Signed-off-by: Wanpeng Li <liwp.linux@gmail.com>
 ---
---- a/lib/rbtree.c
-+++ b/lib/rbtree.c
-@@ -23,6 +23,25 @@
- #include <linux/rbtree.h>
- #include <linux/export.h>
-=20
-+/*
-+ * red-black trees properties:  http://en.wikipedia.org/wiki/Rbtree
-+ *
-+ *  1) A node is either red or black
-+ *  2) The root is black
-+ *  3) All leaves (NULL) are black
-+ *  4) Both children of every red node are black
-+ *  5) Every simple path from a given node to any of its descendant leaves
-+ *     contains the same number of black nodes.
-+ *
-+ *  4 and 5 give the O(log n) guarantee, since 4 implies you cannot have t=
-wo
-+ *  consecutive red nodes in a path and every red node is therefore follow=
-ed by
-+ *  a black. So if B is the number of black nodes on every simple path (as=
- per
-+ *  5), then the longest possible path due to 4 is 2B.
-+ *
-+ *  We shall indicate color with case, where black nodes are uppercase and=
- red
-+ *  nodes will be lowercase.
-+ */
-+
- #define	RB_RED		0
- #define	RB_BLACK	1
-=20
-@@ -85,12 +104,27 @@ void rb_insert_color(struct rb_node *nod
- 		} else if (rb_is_black(parent))
+ mm/memcontrol.c |   14 +++++++-------
+ 1 files changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 69a7d45..6392c0a 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -3929,10 +3929,10 @@ static void memcg_get_hierarchical_limit(struct mem_cgroup *memcg,
+ 		unsigned long long *mem_limit, unsigned long long *memsw_limit)
+ {
+ 	struct cgroup *cgroup;
+-	unsigned long long min_limit, min_memsw_limit, tmp;
++	unsigned long long max_limit, max_memsw_limit, tmp;
+ 
+-	min_limit = res_counter_read_u64(&memcg->res, RES_LIMIT);
+-	min_memsw_limit = res_counter_read_u64(&memcg->memsw, RES_LIMIT);
++	max_limit = res_counter_read_u64(&memcg->res, RES_LIMIT);
++	max_memsw_limit = res_counter_read_u64(&memcg->memsw, RES_LIMIT);
+ 	cgroup = memcg->css.cgroup;
+ 	if (!memcg->use_hierarchy)
+ 		goto out;
+@@ -3943,13 +3943,13 @@ static void memcg_get_hierarchical_limit(struct mem_cgroup *memcg,
+ 		if (!memcg->use_hierarchy)
  			break;
-=20
-+		/*
-+		 * XXX
-+		 */
- 		gparent =3D rb_red_parent(parent);
-=20
- 		if (parent =3D=3D gparent->rb_left) {
- 			tmp =3D gparent->rb_right;
- 			if (tmp && rb_is_red(tmp)) {
--				/* Case 1 - color flips */
-+				/*=20
-+				 * Case 1 - color flips
-+				 *
-+				 *       G            g
-+				 *      / \          / \
-+				 *     p   u  -->   P   U
-+				 *    /            /
-+				 *   n            N
-+				 *
-+				 * However, since g's parent might be red, and
-+				 * 4) does not allow this, we need to recurse
-+				 * at g.
-+				 */
- 				rb_set_parent_color(tmp, gparent, RB_BLACK);
- 				rb_set_parent_color(parent, gparent, RB_BLACK);
- 				node =3D gparent;
-@@ -100,17 +134,35 @@ void rb_insert_color(struct rb_node *nod
- 			}
-=20
- 			if (parent->rb_right =3D=3D node) {
--				/* Case 2 - left rotate at parent */
-+				/*=20
-+				 * Case 2 - left rotate at parent
-+				 *
-+				 *      G             G
-+				 *     / \           / \
-+				 *    p   U  -->    n   U
-+				 *     \           /
-+				 *      n         p
-+				 *
-+				 * This still leaves us in violation of 4), the
-+				 * continuation into Case 3 will fix that.
-+				 */
- 				parent->rb_right =3D tmp =3D node->rb_left;
- 				node->rb_left =3D parent;
- 				if (tmp)
--					rb_set_parent_color(tmp, parent,
--							    RB_BLACK);
-+					rb_set_parent_color(tmp, parent, RB_BLACK);
- 				rb_set_parent_color(parent, node, RB_RED);
- 				parent =3D node;
- 			}
-=20
--			/* Case 3 - right rotate at gparent */
-+			/*=20
-+			 * Case 3 - right rotate at gparent
-+			 *
-+			 *        G           P
-+			 *       / \         / \
-+			 *      p   U  -->  n   g
-+			 *     /                 \
-+			 *    n                   U
-+			 */
- 			gparent->rb_left =3D tmp =3D parent->rb_right;
- 			parent->rb_right =3D gparent;
- 			if (tmp)
-@@ -134,8 +186,7 @@ void rb_insert_color(struct rb_node *nod
- 				parent->rb_left =3D tmp =3D node->rb_right;
- 				node->rb_right =3D parent;
- 				if (tmp)
--					rb_set_parent_color(tmp, parent,
--							    RB_BLACK);
-+					rb_set_parent_color(tmp, parent, RB_BLACK);
- 				rb_set_parent_color(parent, node, RB_RED);
- 				parent =3D node;
- 			}
-@@ -175,43 +226,75 @@ static void __rb_erase_color(struct rb_n
- 		} else if (parent->rb_left =3D=3D node) {
- 			sibling =3D parent->rb_right;
- 			if (rb_is_red(sibling)) {
--				/* Case 1 - left rotate at parent */
-+				/*=20
-+				 * Case 1 - left rotate at parent
-+				 *
-+				 *     P               S
-+				 *    / \             / \
-+				 *   N   s    -->    p   Sr
-+				 *      / \         / \
-+				 *     Sl  Sr      N   Sl
-+				 */
- 				parent->rb_right =3D tmp1 =3D sibling->rb_left;
- 				sibling->rb_left =3D parent;
- 				rb_set_parent_color(tmp1, parent, RB_BLACK);
--				__rb_rotate_set_parents(parent, sibling, root,
--							RB_RED);
-+				__rb_rotate_set_parents(parent, sibling, root, RB_RED);
- 				sibling =3D tmp1;
- 			}
- 			tmp1 =3D sibling->rb_right;
- 			if (!tmp1 || rb_is_black(tmp1)) {
- 				tmp2 =3D sibling->rb_left;
- 				if (!tmp2 || rb_is_black(tmp2)) {
--					/* Case 2 - sibling color flip */
--					rb_set_parent_color(sibling, parent,
--							    RB_RED);
-+					/*=20
-+					 * Case 2 - sibling color flip
-+					 *
-+					 *     P             P
-+					 *    / \           / \
-+					 *   N   S    -->  N   s
-+					 *      / \           / \
-+					 *     Sl  Sr        Sl  Sr
-+					 *
-+					 * This leaves us violating 5), recurse at p.
-+					 */
-+					rb_set_parent_color(sibling, parent, RB_RED);
- 					node =3D parent;
- 					parent =3D rb_parent(node);
- 					continue;
- 				}
--				/* Case 3 - right rotate at sibling */
-+				/*=20
-+				 * Case 3 - right rotate at sibling=20
-+				 *
-+				 *    P             P
-+				 *   / \           / \
-+				 *  N   S    -->  N   sl
-+				 *     / \           / \
-+				 *    sl  Sr        1   S
-+				 *   / \               / \
-+				 *  1   2             2   Sr
-+				 */
- 				sibling->rb_left =3D tmp1 =3D tmp2->rb_right;
- 				tmp2->rb_right =3D sibling;
- 				parent->rb_right =3D tmp2;
- 				if (tmp1)
--					rb_set_parent_color(tmp1, sibling,
--							    RB_BLACK);
-+					rb_set_parent_color(tmp1, sibling, RB_BLACK);
- 				tmp1 =3D sibling;
- 				sibling =3D tmp2;
- 			}
--			/* Case 4 - left rotate at parent + color flips */
-+			/*=20
-+			 * Case 4 - left rotate at parent + color flips=20
-+			 *
-+			 *       P               S
-+			 *      / \             / \
-+			 *     N   S     -->   P   Sr
-+			 *        / \         / \
-+			 *       Sl  Sr      N   Sl
-+			 */
- 			parent->rb_right =3D tmp2 =3D sibling->rb_left;
- 			sibling->rb_left =3D parent;
- 			rb_set_parent_color(tmp1, sibling, RB_BLACK);
- 			if (tmp2)
- 				rb_set_parent(tmp2, parent);
--			__rb_rotate_set_parents(parent, sibling, root,
--						RB_BLACK);
-+			__rb_rotate_set_parents(parent, sibling, root, RB_BLACK);
- 			break;
- 		} else {
- 			sibling =3D parent->rb_left;
-@@ -220,8 +303,7 @@ static void __rb_erase_color(struct rb_n
- 				parent->rb_left =3D tmp1 =3D sibling->rb_right;
- 				sibling->rb_right =3D parent;
- 				rb_set_parent_color(tmp1, parent, RB_BLACK);
--				__rb_rotate_set_parents(parent, sibling, root,
--							RB_RED);
-+				__rb_rotate_set_parents(parent, sibling, root, RB_RED);
- 				sibling =3D tmp1;
- 			}
- 			tmp1 =3D sibling->rb_left;
-@@ -229,8 +311,7 @@ static void __rb_erase_color(struct rb_n
- 				tmp2 =3D sibling->rb_right;
- 				if (!tmp2 || rb_is_black(tmp2)) {
- 					/* Case 2 - sibling color flip */
--					rb_set_parent_color(sibling, parent,
--							    RB_RED);
-+					rb_set_parent_color(sibling, parent, RB_RED);
- 					node =3D parent;
- 					parent =3D rb_parent(node);
- 					continue;
-@@ -240,8 +321,7 @@ static void __rb_erase_color(struct rb_n
- 				tmp2->rb_left =3D sibling;
- 				parent->rb_left =3D tmp2;
- 				if (tmp1)
--					rb_set_parent_color(tmp1, sibling,
--							    RB_BLACK);
-+					rb_set_parent_color(tmp1, sibling, RB_BLACK);
- 				tmp1 =3D sibling;
- 				sibling =3D tmp2;
- 			}
-@@ -251,8 +331,7 @@ static void __rb_erase_color(struct rb_n
- 			rb_set_parent_color(tmp1, sibling, RB_BLACK);
- 			if (tmp2)
- 				rb_set_parent(tmp2, parent);
--			__rb_rotate_set_parents(parent, sibling, root,
--						RB_BLACK);
-+			__rb_rotate_set_parents(parent, sibling, root, RB_BLACK);
- 			break;
- 		}
+ 		tmp = res_counter_read_u64(&memcg->res, RES_LIMIT);
+-		min_limit = min(min_limit, tmp);
++		max_limit = max(max_limit, tmp);
+ 		tmp = res_counter_read_u64(&memcg->memsw, RES_LIMIT);
+-		min_memsw_limit = min(min_memsw_limit, tmp);
++		max_memsw_limit = max(max_memsw_limit, tmp);
  	}
-@@ -267,8 +346,7 @@ void rb_erase(struct rb_node *node, stru
- 		child =3D node->rb_right;
- 	else if (!node->rb_right)
- 		child =3D node->rb_left;
--	else
--	{
-+	else {
- 		struct rb_node *old =3D node, *left;
-=20
- 		node =3D node->rb_right;
-@@ -310,17 +388,15 @@ void rb_erase(struct rb_node *node, stru
-=20
- 	if (child)
- 		rb_set_parent(child, parent);
--	if (parent)
--	{
-+	if (parent) {
- 		if (parent->rb_left =3D=3D node)
- 			parent->rb_left =3D child;
- 		else
- 			parent->rb_right =3D child;
--	}
--	else
-+	} else
- 		root->rb_node =3D child;
-=20
-- color:
-+color:
- 	if (color =3D=3D RB_BLACK)
- 		__rb_erase_color(child, parent, root);
+ out:
+-	*mem_limit = min_limit;
+-	*memsw_limit = min_memsw_limit;
++	*mem_limit = max_limit;
++	*memsw_limit = max_memsw_limit;
  }
-@@ -433,8 +509,10 @@ struct rb_node *rb_next(const struct rb_
- 	if (RB_EMPTY_NODE(node))
- 		return NULL;
-=20
--	/* If we have a right-hand child, go down and then left as far
--	   as we can. */
-+	/*=20
-+	 * If we have a right-hand child, go down and then left as far as we
-+	 * can.=20
-+	 */
- 	if (node->rb_right) {
- 		node =3D node->rb_right;=20
- 		while (node->rb_left)
-@@ -442,12 +520,13 @@ struct rb_node *rb_next(const struct rb_
- 		return (struct rb_node *)node;
- 	}
-=20
--	/* No right-hand children.  Everything down and left is
--	   smaller than us, so any 'next' node must be in the general
--	   direction of our parent. Go up the tree; any time the
--	   ancestor is a right-hand child of its parent, keep going
--	   up. First time it's a left-hand child of its parent, said
--	   parent is our 'next' node. */
-+	/*=20
-+	 * No right-hand children. Everything down and left is smaller than
-+	 * us, so any 'next' node must be in the general direction of our
-+	 * parent. Go up the tree; any time the ancestor is a right-hand child
-+	 * of its parent, keep going up. First time it's a left-hand child of
-+	 * its parent, said parent is our 'next' node.=20
-+	 */=20
- 	while ((parent =3D rb_parent(node)) && node =3D=3D parent->rb_right)
- 		node =3D parent;
-=20
-@@ -462,8 +541,10 @@ struct rb_node *rb_prev(const struct rb_
- 	if (RB_EMPTY_NODE(node))
- 		return NULL;
-=20
--	/* If we have a left-hand child, go down and then right as far
--	   as we can. */
-+	/*=20
-+	 * If we have a left-hand child, go down and then right as far as we
-+	 * can.=20
-+	 */
- 	if (node->rb_left) {
- 		node =3D node->rb_left;=20
- 		while (node->rb_right)
-@@ -471,8 +552,10 @@ struct rb_node *rb_prev(const struct rb_
- 		return (struct rb_node *)node;
- 	}
-=20
--	/* No left-hand children. Go up till we find an ancestor which
--	   is a right-hand child of its parent */
-+	/*
-+	 * No left-hand children. Go up till we find an ancestor which is a
-+	 * right-hand child of its parent=20
-+	 */
- 	while ((parent =3D rb_parent(node)) && node =3D=3D parent->rb_left)
- 		node =3D parent;
-=20
+ 
+ static int mem_cgroup_reset(struct cgroup *cont, unsigned int event)
+-- 
+1.7.5.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
