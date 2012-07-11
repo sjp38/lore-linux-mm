@@ -1,148 +1,133 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
-	by kanga.kvack.org (Postfix) with SMTP id 1E7AB6B005D
-	for <linux-mm@kvack.org>; Wed, 11 Jul 2012 16:19:44 -0400 (EDT)
-Date: Wed, 11 Jul 2012 16:18:00 -0400
-From: Rik van Riel <riel@redhat.com>
-Subject: [PATCH -mm v3] mm: have order > 0 compaction start off where it
- left
-Message-ID: <20120711161800.763dbef0@cuia.bos.redhat.com>
-In-Reply-To: <4FF3F864.3000204@kernel.org>
-References: <20120628135520.0c48b066@annuminas.surriel.com>
-	<20120628135940.2c26ada9.akpm@linux-foundation.org>
-	<4FECCB89.2050400@redhat.com>
-	<20120628143546.d02d13f9.akpm@linux-foundation.org>
-	<1341250950.16969.6.camel@lappy>
-	<4FF2435F.2070302@redhat.com>
-	<20120703101024.GG13141@csn.ul.ie>
-	<20120703144808.4daa4244.akpm@linux-foundation.org>
-	<4FF3ABA1.3070808@kernel.org>
-	<20120704004219.47d0508d.akpm@linux-foundation.org>
-	<4FF3F864.3000204@kernel.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
+	by kanga.kvack.org (Postfix) with SMTP id 9524C6B005D
+	for <linux-mm@kvack.org>; Wed, 11 Jul 2012 16:32:45 -0400 (EDT)
+Received: from /spool/local
+	by e39.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
+	Wed, 11 Jul 2012 14:32:44 -0600
+Received: from d01relay01.pok.ibm.com (d01relay01.pok.ibm.com [9.56.227.233])
+	by d01dlp03.pok.ibm.com (Postfix) with ESMTP id 7B70EC90062
+	for <linux-mm@kvack.org>; Wed, 11 Jul 2012 16:32:40 -0400 (EDT)
+Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
+	by d01relay01.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q6BKWePL422812
+	for <linux-mm@kvack.org>; Wed, 11 Jul 2012 16:32:40 -0400
+Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
+	by d01av04.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q6BKWd7L027173
+	for <linux-mm@kvack.org>; Wed, 11 Jul 2012 16:32:40 -0400
+Message-ID: <4FFDE2E2.7050901@linux.vnet.ibm.com>
+Date: Wed, 11 Jul 2012 15:32:34 -0500
+From: Seth Jennings <sjenning@linux.vnet.ibm.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH 1/4] zsmalloc: remove x86 dependency
+References: <1341263752-10210-1-git-send-email-sjenning@linux.vnet.ibm.com> <1341263752-10210-2-git-send-email-sjenning@linux.vnet.ibm.com> <4FFDC54F.5030402@vflare.org>
+In-Reply-To: <4FFDC54F.5030402@vflare.org>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Sasha Levin <levinsasha928@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, jaschut@sandia.gov, kamezawa.hiroyu@jp.fujitsu.com, Dave Jones <davej@redhat.com>
+To: Nitin Gupta <ngupta@vflare.org>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Minchan Kim <minchan@kernel.org>, Robert Jennings <rcj@linux.vnet.ibm.com>, linux-mm@kvack.org, devel@driverdev.osuosl.org, linux-kernel@vger.kernel.org
 
-This patch makes the comment for cc->wrapped longer, explaining
-what is really going on. It also incorporates the comment fix
-pointed out by Minchan.
+On 07/11/2012 01:26 PM, Nitin Gupta wrote:
+> On 07/02/2012 02:15 PM, Seth Jennings wrote:
+>> This patch replaces the page table assisted object mapping
+>> method, which has x86 dependencies, with a arch-independent
+>> method that does a simple copy into a temporary per-cpu
+>> buffer.
+>>
+>> While a copy seems like it would be worse than mapping the pages,
+>> tests demonstrate the copying is always faster and, in the case of
+>> running inside a KVM guest, roughly 4x faster.
+>>
+>> Signed-off-by: Seth Jennings <sjenning@linux.vnet.ibm.com>
+>> ---
+>>  drivers/staging/zsmalloc/Kconfig         |    4 --
+>>  drivers/staging/zsmalloc/zsmalloc-main.c |   99 +++++++++++++++++++++---------
+>>  drivers/staging/zsmalloc/zsmalloc_int.h  |    5 +-
+>>  3 files changed, 72 insertions(+), 36 deletions(-)
+>>
+> 
+> 
+>>  struct mapping_area {
+>> -	struct vm_struct *vm;
+>> -	pte_t *vm_ptes[2];
+>> -	char *vm_addr;
+>> +	char *vm_buf; /* copy buffer for objects that span pages */
+>> +	char *vm_addr; /* address of kmap_atomic()'ed pages */
+>>  };
+>>  
+> 
+> I think we can reduce the copying overhead by not copying an entire
+> compressed object to another (per-cpu) buffer. The basic idea of the
+> method below is to:
+>  - Copy only the amount of data that spills over into the next page
+>  - No need for a separate buffer to copy into
+> 
+> Currently, we store objects that split across pages as:
+> 
+> +-Page1-+
+> |	|
+> |	|
+> |-------| <-- obj-1 off: 0
+> |<ob1'>	|
+> +-------+ <-- obj-1 off: s'
+> 
+> +-Page2-+ <-- obj-1 off: s'
+> |<ob1''>|
+> |-------| <-- obj-1 off: obj1_size, obj-2 off: 0
+> |<ob2>	|
+> |-------| <-- obj-2 off: obj2_size
+> +-------+
+> 
+> But now we would store it as:
+> 
+> +-Page1-+
+> |	|
+> |-------| <-- obj-1 off: s''
+> |	|
+> |<ob1'>	|
+> +-------+ <-- obj-1 off: obj1_size
+> 
+> +-Page2-+ <-- obj-1 off: 0
+> |<ob1''>|
+> |-------| <-- obj-1 off: s'', obj-2 off: 0
+> |<ob2>	|
+> |-------| <-- obj-2 off: obj2_size
+> +-------+
+> 
+> When object-1 (ob1) is to be mapped, part (size: s'-0) of object-2 will
+> be swapped with ob1'. This swapping can be done in-place using simple
+> xor swap algorithm. So, after swap, page-1 and page-2 will look like:
+> 
+> +-Page1-+
+> |	|
+> |-------| <-- obj-2 off: 0
+> |	|
+> |<ob2''>|
+> +-------+ <-- obj-2 off: (obj1_size - s'')
+> 
+> +-Page2-+ <-- obj-1 off: 0
+> |	|
+> |<ob1>	|
+> |-------| <-- obj-1 off: obj1_size, obj-2 off: (obj1_size - s'')
+> |<ob2'>	|
+> +-------+ <-- obj-2 off: obj2_size
+> 
+> Now obj-1 lies completely within page-2, so can be kmap'ed as usual. On
+> zs_unmap_object() we would just do the reverse and restore objects as in
+> figure-1.
 
-Additionally, Minchan found that, when no pages get isolated,
-high_pte could be a value that is much lower than desired,
-which might potentially cause compaction to skip a range of
-pages.
+Hey Nitin, thanks for the feedback.
 
-Only assign zone->compact_cache_free_pfn if we actually
-isolated free pages for compaction.
+Correct me if I'm wrong, but it seems like you wouldn't be able to map
+ob2 while ob1 was mapped with this design.  You'd need some sort of
+zspage level protection against concurrent object mappings.  The
+code for that protection might cancel any benefit you would gain by
+doing it this way.
 
-Split out the calculation to get the start of the last page
-block in a zone into its own, commented function.
-
-Signed-off-by: Rik van Riel <riel@redhat.com>
----
- include/linux/mmzone.h |    2 +-
- mm/compaction.c        |   30 ++++++++++++++++++++++--------
- mm/internal.h          |    6 +++++-
- 3 files changed, 28 insertions(+), 10 deletions(-)
-
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index e629594..e957fa1 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -370,7 +370,7 @@ struct zone {
- 	spinlock_t		lock;
- 	int                     all_unreclaimable; /* All pages pinned */
- #if defined CONFIG_COMPACTION || defined CONFIG_CMA
--	/* pfn where the last order > 0 compaction isolated free pages */
-+	/* pfn where the last incremental compaction isolated free pages */
- 	unsigned long		compact_cached_free_pfn;
- #endif
- #ifdef CONFIG_MEMORY_HOTPLUG
-diff --git a/mm/compaction.c b/mm/compaction.c
-index 2668b77..3812c3e 100644
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -472,10 +472,11 @@ static void isolate_freepages(struct zone *zone,
- 		 * looking for free pages, the search will restart here as
- 		 * page migration may have returned some pages to the allocator
- 		 */
--		if (isolated)
-+		if (isolated) {
- 			high_pfn = max(high_pfn, pfn);
--		if (cc->order > 0)
--			zone->compact_cached_free_pfn = high_pfn;
-+			if (cc->order > 0)
-+				zone->compact_cached_free_pfn = high_pfn;
-+		}
- 	}
- 
- 	/* split_free_page does not map the pages */
-@@ -569,6 +570,21 @@ static isolate_migrate_t isolate_migratepages(struct zone *zone,
- 	return ISOLATE_SUCCESS;
- }
- 
-+/*
-+ * Returns the start pfn of the laste page block in a zone.
-+ * This is the starting point for full compaction of a zone.
-+ * Compaction searches for free pages from the end of each zone,
-+ * while isolate_freepages_block scans forward inside each page
-+ * block.
-+ */
-+static unsigned long start_free_pfn(struct zone *zone)
-+{
-+	unsigned long free_pfn;
-+	free_pfn = zone->zone_start_pfn + zone->spanned_pages;
-+	free_pfn &= ~(pageblock_nr_pages-1);
-+	return free_pfn;
-+}
-+
- static int compact_finished(struct zone *zone,
- 			    struct compact_control *cc)
- {
-@@ -587,10 +603,9 @@ static int compact_finished(struct zone *zone,
- 	if (cc->free_pfn <= cc->migrate_pfn) {
- 		if (cc->order > 0 && !cc->wrapped) {
- 			/* We started partway through; restart at the end. */
--			unsigned long free_pfn;
--			free_pfn = zone->zone_start_pfn + zone->spanned_pages;
--			free_pfn &= ~(pageblock_nr_pages-1);
-+			unsigned long free_pfn = start_free_pfn(zone);
- 			zone->compact_cached_free_pfn = free_pfn;
-+			cc->free_pfn = free_pfn;
- 			cc->wrapped = 1;
- 			return COMPACT_CONTINUE;
- 		}
-@@ -703,8 +718,7 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
- 		cc->start_free_pfn = cc->free_pfn;
- 	} else {
- 		/* Order == -1 starts at the end of the zone. */
--		cc->free_pfn = cc->migrate_pfn + zone->spanned_pages;
--		cc->free_pfn &= ~(pageblock_nr_pages-1);
-+		cc->free_pfn = start_free_pfn(zone);
- 	}
- 
- 	migrate_prep_local();
-diff --git a/mm/internal.h b/mm/internal.h
-index 0b72461..da6b9b2 100644
---- a/mm/internal.h
-+++ b/mm/internal.h
-@@ -121,7 +121,11 @@ struct compact_control {
- 	unsigned long start_free_pfn;	/* where we started the search */
- 	unsigned long migrate_pfn;	/* isolate_migratepages search base */
- 	bool sync;			/* Synchronous migration */
--	bool wrapped;			/* Last round for order>0 compaction */
-+	bool wrapped;			/* Order > 0 compactions are
-+					   incremental, once free_pfn
-+					   and migrate_pfn meet, we restart
-+					   from the top of the zone;
-+					   remember we wrapped around. */
- 
- 	int order;			/* order a direct compactor needs */
- 	int migratetype;		/* MOVABLE, RECLAIMABLE etc */
+Thanks,
+Seth
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
