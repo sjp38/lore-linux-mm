@@ -1,67 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
-	by kanga.kvack.org (Postfix) with SMTP id 797266B005D
-	for <linux-mm@kvack.org>; Wed, 11 Jul 2012 13:48:06 -0400 (EDT)
-Date: Wed, 11 Jul 2012 18:48:02 +0100
-From: Will Deacon <will.deacon@arm.com>
-Subject: Re: [PATCH] mm: hugetlb: flush dcache before returning zeroed huge
- page to userspace
-Message-ID: <20120711174802.GG13498@mudshark.cambridge.arm.com>
-References: <1341412376-6272-1-git-send-email-will.deacon@arm.com>
- <20120709122523.GC4627@tiehlicka.suse.cz>
- <20120709141324.GK7315@mudshark.cambridge.arm.com>
- <alpine.LSU.2.00.1207091622470.2261@eggly.anvils>
- <20120710094513.GB9108@mudshark.cambridge.arm.com>
- <20120710104234.GI9108@mudshark.cambridge.arm.com>
+Received: from psmtp.com (na3sys010amx133.postini.com [74.125.245.133])
+	by kanga.kvack.org (Postfix) with SMTP id 9E8296B005D
+	for <linux-mm@kvack.org>; Wed, 11 Jul 2012 14:16:36 -0400 (EDT)
+Received: by ggm4 with SMTP id 4so1826312ggm.14
+        for <linux-mm@kvack.org>; Wed, 11 Jul 2012 11:16:35 -0700 (PDT)
+Date: Wed, 11 Jul 2012 11:15:54 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH 2/3] shmem: fix negative rss in memcg memory.stat
+In-Reply-To: <20120710124107.GE1779@cmpxchg.org>
+Message-ID: <alpine.LSU.2.00.1207111048410.1797@eggly.anvils>
+References: <alpine.LSU.2.00.1207091533001.2051@eggly.anvils> <alpine.LSU.2.00.1207091541310.2051@eggly.anvils> <20120710124107.GE1779@cmpxchg.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120710104234.GI9108@mudshark.cambridge.arm.com>
-Content-Language: en-US
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Hillf Danton <dhillf@gmail.com>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, Jul 10, 2012 at 11:42:34AM +0100, Will Deacon wrote:
-> On Tue, Jul 10, 2012 at 10:45:13AM +0100, Will Deacon wrote:
-> > On Tue, Jul 10, 2012 at 12:57:14AM +0100, Hugh Dickins wrote:
-> > > If I start to grep the architectures for non-empty flush_dcache_page(),
-> > > I soon find things in arch/arm such as v4_mc_copy_user_highpage() doing
-> > > if (!test_and_set_bit(PG_dcache_clean,)) __flush_dcache_page() - where
-> > > the naming suggests that I'm right, it's the architecture's responsibility
-> > > to arrange whatever flushing is needed in its copy and clear page functions.
+On Tue, 10 Jul 2012, Johannes Weiner wrote:
+> 
+> I couldn't see anything wrong with shmem_replace_page(), either, but
+> maybe the comment in its error path could be updated as the callsite
+> does not rely on page_private alone anymore to confirm correct swap.
 
-[...]
+I went in to make an incremental fix to update that comment as you
+suggest, but found that actually the comment should stay as is.
 
-> Ok, so this is exactly the problem. The hugetlb allocator uses its own
-> pool of huge pages, so free_huge_page followed by a later alloc_huge_page
-> will give you something where the page flags of the compound head do not
-> guarantee that PG_arch_1 is clear.
+We're dealing with two different radix trees here: shmem_confirm_swap()
+and shmem_add_to_page_cache() are operating on the tmpfs file radix tree,
+but shmem_replace_page() is using shmem_radix_tree_replace() to operate
+on the "swapper_space" radix tree, exchanging the page pointer there.
 
-Just to confirm, the following quick hack at least results in the correct
-flushing for me (on ARM):
+The preliminary page_private test (under page lock) should indeed be
+guaranteeing that the page pointer found in the swapper_space radix
+tree at that (swp_entry_t) offset is the one we expect there, as before.
 
+Whereas the new shmem_confirm_swap() test doesn't help to guarantee that
+part at all: it's for confirming that the swap entry is still being used
+for the offset in the file that we're interested in.
 
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index e198831..7a7c9d3 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -1141,6 +1141,7 @@ static struct page *alloc_huge_page(struct vm_area_struct *vma,
-        }
- 
-        set_page_private(page, (unsigned long)spool);
-+       clear_bit(PG_arch_1, &page->flags);
- 
-        vma_commit_reservation(h, vma, addr);
- 
+The comment I would like to change is the "nice clean interface" one!
+While it does make for a nice old-page-in/new-page-out interface to that
+function, I've come to feel that it would be much better not to mess with
+the swapcache at all there - leave the old page in the swapcache, and
+remove it at the same time as inserting the new page into filecache.
 
+But I'm also reluctant to mess with what's working: I'm in no rush
+to change that around, I'd be sure to screw it up at first.
 
-The question is whether we should tidy that up for the core code or get
-architectures to clear the bit in arch_make_huge_pte (which also seems to
-work).
+> Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 
-Will
+Thanks,
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
