@@ -1,309 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
-	by kanga.kvack.org (Postfix) with SMTP id 875416B005D
-	for <linux-mm@kvack.org>; Wed, 11 Jul 2012 02:48:58 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 1A4FD3EE0C1
-	for <linux-mm@kvack.org>; Wed, 11 Jul 2012 15:48:56 +0900 (JST)
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id F218445DE53
-	for <linux-mm@kvack.org>; Wed, 11 Jul 2012 15:48:55 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id C9BEC45DD78
-	for <linux-mm@kvack.org>; Wed, 11 Jul 2012 15:48:55 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id BE0EB1DB803F
-	for <linux-mm@kvack.org>; Wed, 11 Jul 2012 15:48:55 +0900 (JST)
-Received: from g01jpexchkw01.g01.fujitsu.local (g01jpexchkw01.g01.fujitsu.local [10.0.194.40])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 779611DB803A
-	for <linux-mm@kvack.org>; Wed, 11 Jul 2012 15:48:55 +0900 (JST)
-Message-ID: <4FFD21C2.6000201@jp.fujitsu.com>
-Date: Wed, 11 Jul 2012 15:48:34 +0900
-From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx178.postini.com [74.125.245.178])
+	by kanga.kvack.org (Postfix) with SMTP id 278AF6B005D
+	for <linux-mm@kvack.org>; Wed, 11 Jul 2012 03:03:12 -0400 (EDT)
+Message-ID: <4FFD2524.2050300@kernel.org>
+Date: Wed, 11 Jul 2012 16:03:00 +0900
+From: Minchan Kim <minchan@kernel.org>
 MIME-Version: 1.0
-Subject: Re: [RFC PATCH v3 11/13] memory-hotplug : free memmap of sparse-vmemmap
-References: <4FFAB0A2.8070304@jp.fujitsu.com> <4FFAB37F.1060105@jp.fujitsu.com> <4FFD09D5.8010605@cn.fujitsu.com> <4FFD14B0.9010606@jp.fujitsu.com> <4FFD1C71.2020404@cn.fujitsu.com>
-In-Reply-To: <4FFD1C71.2020404@cn.fujitsu.com>
-Content-Type: text/plain; charset="ISO-2022-JP"
+Subject: Re: [PATCH 0/4] zsmalloc improvements
+References: <1341263752-10210-1-git-send-email-sjenning@linux.vnet.ibm.com>
+In-Reply-To: <1341263752-10210-1-git-send-email-sjenning@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wen Congyang <wency@cn.fujitsu.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com
+To: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Nitin Gupta <ngupta@vflare.org>, Robert Jennings <rcj@linux.vnet.ibm.com>, linux-mm@kvack.org, devel@driverdev.osuosl.org, linux-kernel@vger.kernel.org
 
-Hi Wen,
+Hi everybody,
 
-2012/07/11 15:25, Wen Congyang wrote:
-> At 07/11/2012 01:52 PM, Yasuaki Ishimatsu Wrote:
->> 2012/07/11 14:06, Wen Congyang wrote:
->> Hi Wen,
->>
->>> At 07/09/2012 06:33 PM, Yasuaki Ishimatsu Wrote:
->>>> I don't think that all pages of virtual mapping in removed memory can be
->>>> freed, since page which type is MIX_SECTION_INFO is difficult to free.
->>>> So, the patch only frees page which type is SECTION_INFO at first.
->>>>
->>>> CC: David Rientjes <rientjes@google.com>
->>>> CC: Jiang Liu <liuj97@gmail.com>
->>>> CC: Len Brown <len.brown@intel.com>
->>>> CC: Benjamin Herrenschmidt <benh@kernel.crashing.org>
->>>> CC: Paul Mackerras <paulus@samba.org>
->>>> CC: Christoph Lameter <cl@linux.com>
->>>> Cc: Minchan Kim <minchan.kim@gmail.com>
->>>> CC: Andrew Morton <akpm@linux-foundation.org>
->>>> CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
->>>> CC: Wen Congyang <wency@cn.fujitsu.com>
->>>> Signed-off-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
->>>>
->>>> ---
->>>>    arch/x86/mm/init_64.c |   91 ++++++++++++++++++++++++++++++++++++++++++++++++++
->>>>    include/linux/mm.h    |    2 +
->>>>    mm/memory_hotplug.c   |    5 ++
->>>>    mm/sparse.c           |    5 +-
->>>>    4 files changed, 101 insertions(+), 2 deletions(-)
->>>>
->>>> Index: linux-3.5-rc4/include/linux/mm.h
->>>> ===================================================================
->>>> --- linux-3.5-rc4.orig/include/linux/mm.h	2012-07-03 14:22:18.530011567 +0900
->>>> +++ linux-3.5-rc4/include/linux/mm.h	2012-07-03 14:22:20.999983872 +0900
->>>> @@ -1588,6 +1588,8 @@ int vmemmap_populate(struct page *start_
->>>>    void vmemmap_populate_print_last(void);
->>>>    void register_page_bootmem_memmap(unsigned long section_nr, struct page *map,
->>>>    				  unsigned long size);
->>>> +void vmemmap_kfree(struct page *memmpa, unsigned long nr_pages);
->>>> +void vmemmap_free_bootmem(struct page *memmpa, unsigned long nr_pages);
->>>>
->>>>    enum mf_flags {
->>>>    	MF_COUNT_INCREASED = 1 << 0,
->>>> Index: linux-3.5-rc4/mm/sparse.c
->>>> ===================================================================
->>>> --- linux-3.5-rc4.orig/mm/sparse.c	2012-07-03 14:21:45.071429805 +0900
->>>> +++ linux-3.5-rc4/mm/sparse.c	2012-07-03 14:22:21.000983767 +0900
->>>> @@ -614,12 +614,13 @@ static inline struct page *kmalloc_secti
->>>>    	/* This will make the necessary allocations eventually. */
->>>>    	return sparse_mem_map_populate(pnum, nid);
->>>>    }
->>>> -static void __kfree_section_memmap(struct page *memmap, unsigned long nr_pages)
->>>> +static void __kfree_section_memmap(struct page *page, unsigned long nr_pages)
->>>>    {
->>>> -	return; /* XXX: Not implemented yet */
->>>> +	vmemmap_kfree(page, nr_pages);
->>>
->>> Hmm, I think you try to free the memory allocated in kmalloc_section_memmap().
->>
->> Yes.
->>
->>>
->>>>    }
->>>>    static void free_map_bootmem(struct page *page, unsigned long nr_pages)
->>>>    {
->>>> +	vmemmap_free_bootmem(page, nr_pages);
->>>>    }
->>>
->>> Hmm, which function is the memory you try to free allocated in?
->>
->> The function try to free memory allocated from bootmem. The memory has
->> been registered by get_page_bootmem(). So we can free the memory by
->> put_page_bootmem().
+I realized it by Seth's mention yesterday that Greg already merged this series 
+I should have hurried but last week I have no time. :(
+
+On 07/03/2012 06:15 AM, Seth Jennings wrote:
+> This patchset removes the current x86 dependency for zsmalloc
+> and introduces some performance improvements in the object
+> mapping paths.
 > 
-> OK, I will read these codes, and check it.
+> It was meant to be a follow-on to my previous patchest
 > 
->>
->>>
->>>>    #else
->>>>    static struct page *__kmalloc_section_memmap(unsigned long nr_pages)
->>>> Index: linux-3.5-rc4/arch/x86/mm/init_64.c
->>>> ===================================================================
->>>> --- linux-3.5-rc4.orig/arch/x86/mm/init_64.c	2012-07-03 14:22:18.538011465 +0900
->>>> +++ linux-3.5-rc4/arch/x86/mm/init_64.c	2012-07-03 14:22:21.007983103 +0900
->>>> @@ -978,6 +978,97 @@ vmemmap_populate(struct page *start_page
->>>>    	return 0;
->>>>    }
->>>>
->>>> +unsigned long find_and_clear_pte_page(unsigned long addr, unsigned long end,
->>>> +				      struct page **pp)
->>>> +{
->>>> +	pgd_t *pgd;
->>>> +	pud_t *pud;
->>>> +	pmd_t *pmd;
->>>> +	pte_t *pte;
->>>> +	unsigned long next;
->>>> +
->>>> +	*pp = NULL;
->>>> +
->>>> +	pgd = pgd_offset_k(addr);
->>>> +	if (pgd_none(*pgd))
->>>> +		return (addr + PAGE_SIZE) & PAGE_MASK;
->>>
->>> Hmm, why not goto next pgd?
->>
->> Does it mean "return (addr + PGDIR_SIZE) & PGDIR_MASK"?
->>
->>>
->>>> +
->>>> +	pud = pud_offset(pgd, addr);
->>>> +	if (pud_none(*pud))
->>>> +		return (addr + PAGE_SIZE) & PAGE_MASK;
->>>> +
->>>> +	if (!cpu_has_pse) {
->>>> +		next = (addr + PAGE_SIZE) & PAGE_MASK;
->>>> +		pmd = pmd_offset(pud, addr);
->>>> +		if (pmd_none(*pmd))
->>>> +			return next;
->>>> +
->>>> +		pte = pte_offset_kernel(pmd, addr);
->>>> +		if (pte_none(*pte))
->>>> +			return next;
->>>> +
->>>> +		*pp = pte_page(*pte);
->>>> +		pte_clear(&init_mm, addr, pte);
->>>
->>> I think you should flush tlb here.
->>
->> Thanks, I'll update it.
->>
->>>
->>>> +	} else {
->>>> +		next = pmd_addr_end(addr, end);
->>>> +
->>>> +		pmd = pmd_offset(pud, addr);
->>>> +		if (pmd_none(*pmd))
->>>> +			return next;
->>>> +
->>>> +		*pp = pmd_page(*pmd);
->>>> +		pmd_clear(pmd);
->>>> +	}
->>>> +
->>>> +	return next;
->>>> +}
->>>> +
->>>> +void __meminit
->>>> +vmemmap_kfree(struct page *memmap, unsigned long nr_pages)
->>>> +{
->>>> +	unsigned long addr = (unsigned long)memmap;
->>>> +	unsigned long end = (unsigned long)(memmap + nr_pages);
->>>> +	unsigned long next;
->>>> +	unsigned int order;
->>>> +	struct page *page;
->>>> +
->>>> +	for (; addr < end; addr = next) {
->>>> +		page = NULL;
->>>> +		next = find_and_clear_pte_page(addr, end, &page);
->>>> +		if (!page)
->>>> +			continue;
->>>> +
->>>> +		if (is_vmalloc_addr(page_address(page)))
->>>> +			vfree(page_address(page));
->>>
->>> Hmm, the memory is allocated in vmemmap_alloc_block(), and the address
->>> can not be vmalloc address.
->>
->> Does it mean the if sentence is unnecessary?
->>
->>>
->>>> +		else {
->>>> +			order = next - addr;
->>>> +			free_pages((unsigned long)page_address(page),
->>>> +				   get_order(order));
->>>
->>> OOPS. I think we cannot free pages here.
->>>
->>> sizeof(struct page) is less than PAGE_SIZE. We store more than one struct
->>> page in the same page. If you free it here while the other struct page
->>> is in use, it is very dangerous.
->>
->> The memory has page structures for hot-removed memory. So nobody is using
->> these pages, since the hot-removed memory has been offlined.
+> https://lkml.org/lkml/2012/6/26/540
 > 
-> The memory has page structures for hot-removed memory, but it may contain
-> page structures for the other hot-added memory.
+> However, this patchset differed so much in light of new performance
+> information that I mostly started over.
+> 
+> In the past, I attempted to compare different mapping methods
+> via the use of zcache and frontswap.  However, the nature of those
+> two features makes comparing mapping method efficiency difficult
+> since the mapping is a very small part of the overall code path.
+> 
+> In an effort to get more useful statistics on the mapping speed,
+> I wrote a microbenchmark module named zsmapbench, designed to
+> measure mapping speed by calling straight into the zsmalloc
+> paths.
+> 
+> https://github.com/spartacus06/zsmapbench
+> 
+> This exposed an interesting and unexpected result: in all
+> cases that I tried, copying the objects that span pages instead
+> of using the page table to map them, was _always_ faster.  I could
+> not find a case in which the page table mapping method was faster.
+> 
+> zsmapbench measures the copy-based mapping at ~560 cycles for a
+> map/unmap operation on spanned object for both KVM guest and bare-metal,
+> while the page table mapping was ~1500 cycles on a VM and ~760 cycles
+> bare-metal.  The cycles for the copy method will vary with
+> allocation size, however, it is still faster even for the largest
+> allocation that zsmalloc supports.
+> 
+> The result is convenient though, as mempcy is very portable :)
 
-Yes. There may be such corner case. But when does the corner case appear?
-When removed memory is not aligned to PMD_SIZE/PAGE_SIZE, does the corner
-case appear? Do you know it?
+Today, I tested zsmapbench in my embedded board(ARM).
+tlb-flush is 30% faster than copy-based so it's always not win.
+I think it depends on CPU speed/cache size.
 
-Thank,
-Yasuaki Ishimatsu
+zram is already very popular on embedded systems so I want to use
+it continuously without 30% big demage so I want to keep our old approach
+which supporting local tlb flush. 
+
+Of course, in case of KVM guest, copy-based would be always bin win.
+So shouldn't we support both approach? It could make code very ugly
+but I think it has enough value.
+
+Any thought?
+
 
 > 
-> IIUC, If we use sparse-vmemmap, all page structures is stored here.
+> This patchset replaces the x86-only page table mapping code with
+> copy-based mapping code. It also makes changes to optimize this
+> new method further.
 > 
-> Thanks
-> Wen Congyang
+> There are no changes in arch/x86 required.
 > 
->>
->>>> +		}
->>>> +	}
->>>> +}
->>>> +
->>>> +void __meminit
->>>> +vmemmap_free_bootmem(struct page *memmap, unsigned long nr_pages)
->>>> +{
->>>> +	unsigned long addr = (unsigned long)memmap;
->>>> +	unsigned long end = (unsigned long)(memmap + nr_pages);
->>>> +	unsigned long next;
->>>> +	struct page *page;
->>>> +	unsigned long magic;
->>>> +
->>>> +	for (; addr < end; addr = next) {
->>>> +		page = NULL;
->>>> +		next = find_and_clear_pte_page(addr, end, &page);
->>>> +		if (!page)
->>>> +			continue;
->>>> +
->>>> +		magic = (unsigned long) page->lru.next;
->>>> +		if (magic == SECTION_INFO)
->>>> +			put_page_bootmem(page);
->>>> +	}
->>>> +}
->>>> +
->>>>    void __meminit
->>>>    register_page_bootmem_memmap(unsigned long section_nr, struct page *start_page,
->>>>    			     unsigned long size)
->>>> Index: linux-3.5-rc4/mm/memory_hotplug.c
->>>> ===================================================================
->>>> --- linux-3.5-rc4.orig/mm/memory_hotplug.c	2012-07-03 14:22:18.522011667 +0900
->>>> +++ linux-3.5-rc4/mm/memory_hotplug.c	2012-07-03 14:22:21.012982694 +0900
->>>> @@ -303,6 +303,8 @@ static int __meminit __add_section(int n
->>>>    #ifdef CONFIG_SPARSEMEM_VMEMMAP
->>>
->>> I think this line can be removed now.
->>
->> I'll update it.
->>
->> Thanks,
->> Yasuaki Ishimatsu
->>
->>>
->>> Thanks
->>> Wen Congyang
->>>
->>>>    static int __remove_section(struct zone *zone, struct mem_section *ms)
->>>>    {
->>>> +	unsigned long flags;
->>>> +	struct pglist_data *pgdat = zone->zone_pgdat;
->>>>    	int ret;
->>>>
->>>>    	if (!valid_section(ms))
->>>> @@ -310,6 +312,9 @@ static int __remove_section(struct zone
->>>>
->>>>    	ret = unregister_memory_section(ms);
->>>>
->>>> +	pgdat_resize_lock(pgdat, &flags);
->>>> +	sparse_remove_one_section(zone, ms);
->>>> +	pgdat_resize_unlock(pgdat, &flags);
->>>>    	return ret;
->>>>    }
->>>>    #else
->>>>
->>>>
->>>
->>
->>
->>
->>
+> Patchset is based on greg's staging-next.
+> 
+> Seth Jennings (4):
+>   zsmalloc: remove x86 dependency
+>   zsmalloc: add single-page object fastpath in unmap
+>   zsmalloc: add details to zs_map_object boiler plate
+>   zsmalloc: add mapping modes
+> 
+>  drivers/staging/zcache/zcache-main.c     |    6 +-
+>  drivers/staging/zram/zram_drv.c          |    7 +-
+>  drivers/staging/zsmalloc/Kconfig         |    4 -
+>  drivers/staging/zsmalloc/zsmalloc-main.c |  124 ++++++++++++++++++++++--------
+>  drivers/staging/zsmalloc/zsmalloc.h      |   14 +++-
+>  drivers/staging/zsmalloc/zsmalloc_int.h  |    6 +-
+>  6 files changed, 114 insertions(+), 47 deletions(-)
 > 
 
+
+-- 
+Kind regards,
+Minchan Kim
 
 
 --
