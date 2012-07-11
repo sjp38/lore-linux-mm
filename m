@@ -1,76 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
-	by kanga.kvack.org (Postfix) with SMTP id 71DCD6B005D
-	for <linux-mm@kvack.org>; Wed, 11 Jul 2012 19:01:27 -0400 (EDT)
-Date: Thu, 12 Jul 2012 09:01:22 +1000
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH 1/3] tmpfs: revert SEEK_DATA and SEEK_HOLE
-Message-ID: <20120711230122.GZ19223@dastard>
-References: <alpine.LSU.2.00.1207091533001.2051@eggly.anvils>
- <alpine.LSU.2.00.1207091535480.2051@eggly.anvils>
- <jtj574$tb7$2@dough.gmane.org>
- <alpine.LSU.2.00.1207111149580.1797@eggly.anvils>
+Received: from psmtp.com (na3sys010amx104.postini.com [74.125.245.104])
+	by kanga.kvack.org (Postfix) with SMTP id DA8B36B0062
+	for <linux-mm@kvack.org>; Wed, 11 Jul 2012 19:02:02 -0400 (EDT)
+Received: by pbbrp2 with SMTP id rp2so3274254pbb.14
+        for <linux-mm@kvack.org>; Wed, 11 Jul 2012 16:02:02 -0700 (PDT)
+Date: Wed, 11 Jul 2012 16:02:00 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH v2] mm: Warn about costly page allocation
+In-Reply-To: <CAEwNFnB1Z92f22ms=EsBEOOY4Q_JRA8rMPUvQmoqik7rt-EgcQ@mail.gmail.com>
+Message-ID: <alpine.DEB.2.00.1207111556190.24516@chino.kir.corp.google.com>
+References: <1341878153-10757-1-git-send-email-minchan@kernel.org> <20120709170856.ca67655a.akpm@linux-foundation.org> <20120710002510.GB5935@bbox> <alpine.DEB.2.00.1207101756070.684@chino.kir.corp.google.com> <20120711022304.GA17425@bbox>
+ <alpine.DEB.2.00.1207102223000.26591@chino.kir.corp.google.com> <4FFD15B2.6020001@kernel.org> <alpine.DEB.2.00.1207111337430.3635@chino.kir.corp.google.com> <CAEwNFnB1Z92f22ms=EsBEOOY4Q_JRA8rMPUvQmoqik7rt-EgcQ@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.LSU.2.00.1207111149580.1797@eggly.anvils>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Cong Wang <xiyou.wangcong@gmail.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-On Wed, Jul 11, 2012 at 11:55:34AM -0700, Hugh Dickins wrote:
-> On Wed, 11 Jul 2012, Cong Wang wrote:
-> > On Mon, 09 Jul 2012 at 22:41 GMT, Hugh Dickins <hughd@google.com> wrote:
-> > > Revert 4fb5ef089b28 ("tmpfs: support SEEK_DATA and SEEK_HOLE").
-> > > I believe it's correct, and it's been nice to have from rc1 to rc6;
-> > > but as the original commit said:
-> > >
-> > > I don't know who actually uses SEEK_DATA or SEEK_HOLE, and whether it
-> > > would be of any use to them on tmpfs.  This code adds 92 lines and 752
-> > > bytes on x86_64 - is that bloat or worthwhile?
-> > 
-> > 
-> > I don't think 752 bytes matter much, especially for x86_64.
-> > 
-> > >
-> > > Nobody asked for it, so I conclude that it's bloat: let's revert tmpfs
-> > > to the dumb generic support for v3.5.  We can always reinstate it later
-> > > if useful, and anyone needing it in a hurry can just get it out of git.
-> > >
-> > 
-> > If you don't have burden to maintain it, I'd prefer to leave as it is,
-> > I don't think 752-bytes is the reason we revert it.
+On Thu, 12 Jul 2012, Minchan Kim wrote:
+
+> There is QA team in embedded company and they have tested their product.
+> In test scenario, they can allocate 100 high order allocation.
+> (they don't matter how many high order allocations in kernel are needed
+> during test. their concern is just only working well or fail of their
+> middleware/application) High order allocation will be serviced well
+> by natural buddy allocation without lumpy's help. So they released
+> the product and sold out all over the world.
+> Unfortunately, in real practice, sometime, 105 high order allocation was
+> needed rarely and fortunately, lumpy reclaim could help it so the product
+> doesn't have a problem until now.
 > 
-> Thank you, your vote has been counted ;)
-> and I'll be glad if yours stimulates some agreement or disagreement.
-> 
-> But your vote would count for a lot more if you know of some app which
-> would really benefit from this functionality in tmpfs: I've heard of none.
 
-So what? I've heard of no apps that use this functionality on XFS,
-either, but I have heard of a lot of people asking for it to be
-implemented over the past couple of years so they can use it.
-There's been patches written to make coreutils (cp) make use of it
-instead of parsing FIEMAP output to find holes, though I don't know
-if that's gone beyond more than "here's some patches"....
+If the QA team is going to consider upgrading to a kernel since lumpy 
+reclaim has been removed, before they qualify such a kernel they would 
+(hopefully) do some due diligence in running this workload and noticing 
+the page allocation failure that is emitted to the kernel log for the high 
+order page allocations.
 
-Besides, given that you can punch holes in tmpfs files, it seems
-strange to then say "we don't need a method of skipping holes to
-find data quickly"....
+> If they use latest kernel, they will see the new config CONFIG_COMPACTION
+> which is very poor documentation, and they can't know it's replacement of
+> lumpy reclaim(even, they don't know lumpy reclaim) so they simply disable
+> that option for size optimization.
 
-Besides, seek-hole/data is still shiny new and lots of developers
-aren't even aware of it's presence in recent kernels. Removing new
-functionality saying "no-one is using it" is like smashing the egg
-before the chicken hatches (or is it cutting of the chickes's head
-before it lays the egg?).
-
-Cheers,
-
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+Improving the description for CONFIG_COMPACTION or adding additional 
+documentation in Documentation/vm would be very appreciated by both me and 
+this hypothetical engineer :)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
