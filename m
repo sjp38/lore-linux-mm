@@ -1,80 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
-	by kanga.kvack.org (Postfix) with SMTP id 7935D6B005D
-	for <linux-mm@kvack.org>; Wed, 11 Jul 2012 04:00:46 -0400 (EDT)
-Received: by pbbrp2 with SMTP id rp2so1952170pbb.14
-        for <linux-mm@kvack.org>; Wed, 11 Jul 2012 01:00:45 -0700 (PDT)
-Message-ID: <4FFD32AB.8090704@gmail.com>
-Date: Wed, 11 Jul 2012 16:00:43 +0800
-From: Sha Zhengju <handai.szj@gmail.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 2/7] memcg: remove MEMCG_NR_FILE_MAPPED
-References: <1340880885-5427-1-git-send-email-handai.szj@taobao.com>	<1340881111-5576-1-git-send-email-handai.szj@taobao.com> <xr93ehok1wf2.fsf@gthelen.mtv.corp.google.com>
-In-Reply-To: <xr93ehok1wf2.fsf@gthelen.mtv.corp.google.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
+	by kanga.kvack.org (Postfix) with SMTP id 0CA7C6B005D
+	for <linux-mm@kvack.org>; Wed, 11 Jul 2012 04:04:10 -0400 (EDT)
+Message-ID: <1341994106.2963.138.camel@sauron>
+Subject: Re: mmotm 2012-07-10-16-59 uploaded
+From: Artem Bityutskiy <dedekind1@gmail.com>
+Reply-To: dedekind1@gmail.com
+Date: Wed, 11 Jul 2012 11:08:26 +0300
+In-Reply-To: <20120711005926.25acc6c6.akpm@linux-foundation.org>
+References: <20120711000148.BAD1E5C0050@hpza9.eem.corp.google.com>
+	 <1341988680.2963.128.camel@sauron>
+	 <20120711004430.0d14f0b6.akpm@linux-foundation.org>
+	 <1341993193.2963.132.camel@sauron>
+	 <20120711005926.25acc6c6.akpm@linux-foundation.org>
+Content-Type: multipart/signed; micalg="pgp-sha1"; protocol="application/pgp-signature";
+	boundary="=-X0U5uJVxq+VmyXc+Btqt"
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg Thelen <gthelen@google.com>
-Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, yinghan@google.com, akpm@linux-foundation.org, mhocko@suse.cz, linux-kernel@vger.kernel.org, Sha Zhengju <handai.szj@taobao.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org
 
-On 07/10/2012 05:01 AM, Greg Thelen wrote:
-> On Thu, Jun 28 2012, Sha Zhengju wrote:
->
->> From: Sha Zhengju<handai.szj@taobao.com>
->>
->> While accounting memcg page stat, it's not worth to use MEMCG_NR_FILE_MAPPED
->> as an extra layer of indirection because of the complexity and presumed
->> performance overhead. We can use MEM_CGROUP_STAT_FILE_MAPPED directly.
->>
->> Signed-off-by: Sha Zhengju<handai.szj@taobao.com>
->> ---
->>   include/linux/memcontrol.h |   25 +++++++++++++++++--------
->>   mm/memcontrol.c            |   24 +-----------------------
->>   mm/rmap.c                  |    4 ++--
->>   3 files changed, 20 insertions(+), 33 deletions(-)
->>
->> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
->> index 83e7ba9..20b0f2d 100644
->> --- a/include/linux/memcontrol.h
->> +++ b/include/linux/memcontrol.h
->> @@ -27,9 +27,18 @@ struct page_cgroup;
->>   struct page;
->>   struct mm_struct;
->>
->> -/* Stats that can be updated by kernel. */
->> -enum mem_cgroup_page_stat_item {
->> -	MEMCG_NR_FILE_MAPPED, /* # of pages charged as file rss */
->> +/*
->> + * Statistics for memory cgroup.
->> + */
->> +enum mem_cgroup_stat_index {
->> +	/*
->> +	 * For MEM_CONTAINER_TYPE_ALL, usage = pagecache + rss.
->> +	 */
->> +	MEM_CGROUP_STAT_CACHE, 	   /* # of pages charged as cache */
->> +	MEM_CGROUP_STAT_RSS,	   /* # of pages charged as anon rss */
->> +	MEM_CGROUP_STAT_FILE_MAPPED,  /* # of pages charged as file rss */
->> +	MEM_CGROUP_STAT_SWAP, /* # of pages, swapped out */
->> +	MEM_CGROUP_STAT_NSTATS,
->>   };
-> Nit.  Moving mem_cgroup_stat_index from memcontrol.c to memcontrol.h is
-> fine with me.  But this does increase the distance between related
-> defintions of definition mem_cgroup_stat_index and
-> mem_cgroup_stat_names.  These two lists have to be kept in sync.  So it
-> might help to add a comment to both indicating their relationship so we
-> don't accidentally modify the enum without updating the dependent string
-> table.
->
-> Otherwise, looks good.
->
-> Reviewed-by: Greg Thelen<gthelen@google.com>
 
-Sorry for the delay.
-OK, I'll add some comment here. Thanks for reminding!
+--=-X0U5uJVxq+VmyXc+Btqt
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 
-Thanks,
-Sha
+On Wed, 2012-07-11 at 00:59 -0700, Andrew Morton wrote:
+> > > I looked at them, but they're identical to what I now have, so nothin=
+g
+> > > needed doing.
+> >=20
+> > Strange, I thought they had the white-spaces issue solved.=20
+>=20
+> They did, but I'd already fixed everything.  That's what those emails
+> in your inbox were about.
+
+Sorry Andrew, you did not squash your changes in, and your fix-up patch
+did not have a nice commit message last time I looked, which made me
+think that it is temporary and you expect an updated version of my
+patches. It is fine with me if to have it separately, I was just
+confused.
+
+--=20
+Best Regards,
+Artem Bityutskiy
+
+--=-X0U5uJVxq+VmyXc+Btqt
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: This is a digitally signed message part
+Content-Transfer-Encoding: 7bit
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.12 (GNU/Linux)
+
+iQIcBAABAgAGBQJP/TR6AAoJECmIfjd9wqK0kV4QAJW6hUvwxaa0RPz/tO7UQBhk
+BMyBe5wkaoJ4nsbRmP8LRfhzHajRnhYhmvPEEagHl3XuBNl/Stij0y+zwBkbY4gt
+Qa89ikgoVlIOxEtE7LH2MaK+IeDP73C/7wNLQqdj8fI8Sm9edJaF+SlDTlHq+ugi
+k6Ji94L1bt2nnoGn702YwnpQJffzoar4pIs5tNPuDqc6hLkZqJoKwuK2eGGTyvG3
+wrVNs+EasBKSMTcyG/2TmokCmmIqcuLCungrSZbN+ucgk9+j3B0UI3UOOwSYxBGs
+0EFSIMElL/B/NMzfU5bjg+uvDbDqxIcbsKHPB0YVZ2CAZ/aghXzvHZgjHc028e8M
+RRu7xEYTvNsrJBri99w+avRY7ltqhEkxqyUMX5dCp/s0Us4XhDbqa7Al/nYAsDD8
+VycxSQWW/pSrsGd09FHBQZIF1swCe2Jv4fS964UcgC2IbjJQW5I/YUisLc+sxCJq
+TuX26UNhz9eozie1rnvUEGtZu/bzUoad2zAfFZX3wfE9CKtx9URmPmKdSyYc5am3
+TP7ea5QS14deC/hs4BD0QSKA+MzUT8eA4qn90IVjubl4cu4/qHbTCKCFhiQwOYGY
+FvPKFRTkZZmdUNvg0DpBLiF06bOEVJyJt2gIuoDKvLVFugihEsbpC4wBkyscpVxf
+FFZaJPa8ZdmLs2w5mbR3
+=wEXM
+-----END PGP SIGNATURE-----
+
+--=-X0U5uJVxq+VmyXc+Btqt--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
