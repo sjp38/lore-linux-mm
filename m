@@ -1,51 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
-	by kanga.kvack.org (Postfix) with SMTP id 0F6A86B0062
-	for <linux-mm@kvack.org>; Wed, 11 Jul 2012 14:56:10 -0400 (EDT)
-Received: by yenr5 with SMTP id r5so1866044yen.14
-        for <linux-mm@kvack.org>; Wed, 11 Jul 2012 11:56:09 -0700 (PDT)
-Date: Wed, 11 Jul 2012 11:55:34 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH 1/3] tmpfs: revert SEEK_DATA and SEEK_HOLE
-In-Reply-To: <jtj574$tb7$2@dough.gmane.org>
-Message-ID: <alpine.LSU.2.00.1207111149580.1797@eggly.anvils>
-References: <alpine.LSU.2.00.1207091533001.2051@eggly.anvils> <alpine.LSU.2.00.1207091535480.2051@eggly.anvils> <jtj574$tb7$2@dough.gmane.org>
+Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
+	by kanga.kvack.org (Postfix) with SMTP id A8C6B6B005D
+	for <linux-mm@kvack.org>; Wed, 11 Jul 2012 15:18:18 -0400 (EDT)
+Received: from /spool/local
+	by e36.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
+	Wed, 11 Jul 2012 13:18:14 -0600
+Received: from d03relay03.boulder.ibm.com (d03relay03.boulder.ibm.com [9.17.195.228])
+	by d03dlp01.boulder.ibm.com (Postfix) with ESMTP id 2FE381FF004C
+	for <linux-mm@kvack.org>; Wed, 11 Jul 2012 19:17:24 +0000 (WET)
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay03.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q6BJH6bN042120
+	for <linux-mm@kvack.org>; Wed, 11 Jul 2012 13:17:17 -0600
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q6BJH4FH030982
+	for <linux-mm@kvack.org>; Wed, 11 Jul 2012 13:17:04 -0600
+Message-ID: <4FFDD12B.1050909@linux.vnet.ibm.com>
+Date: Wed, 11 Jul 2012 14:16:59 -0500
+From: Seth Jennings <sjenning@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH 0/4] zsmalloc improvements
+References: <1341263752-10210-1-git-send-email-sjenning@linux.vnet.ibm.com> <4FFD2524.2050300@kernel.org>
+In-Reply-To: <4FFD2524.2050300@kernel.org>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Cong Wang <xiyou.wangcong@gmail.com>
-Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Nitin Gupta <ngupta@vflare.org>, Robert Jennings <rcj@linux.vnet.ibm.com>, linux-mm@kvack.org, devel@driverdev.osuosl.org, linux-kernel@vger.kernel.org
 
-On Wed, 11 Jul 2012, Cong Wang wrote:
-> On Mon, 09 Jul 2012 at 22:41 GMT, Hugh Dickins <hughd@google.com> wrote:
-> > Revert 4fb5ef089b28 ("tmpfs: support SEEK_DATA and SEEK_HOLE").
-> > I believe it's correct, and it's been nice to have from rc1 to rc6;
-> > but as the original commit said:
-> >
-> > I don't know who actually uses SEEK_DATA or SEEK_HOLE, and whether it
-> > would be of any use to them on tmpfs.  This code adds 92 lines and 752
-> > bytes on x86_64 - is that bloat or worthwhile?
-> 
-> 
-> I don't think 752 bytes matter much, especially for x86_64.
-> 
-> >
-> > Nobody asked for it, so I conclude that it's bloat: let's revert tmpfs
-> > to the dumb generic support for v3.5.  We can always reinstate it later
-> > if useful, and anyone needing it in a hurry can just get it out of git.
-> >
-> 
-> If you don't have burden to maintain it, I'd prefer to leave as it is,
-> I don't think 752-bytes is the reason we revert it.
+On 07/11/2012 02:03 AM, Minchan Kim wrote:
+> Today, I tested zsmapbench in my embedded board(ARM).
+> tlb-flush is 30% faster than copy-based so it's always not win.
+> I think it depends on CPU speed/cache size.
 
-Thank you, your vote has been counted ;)
-and I'll be glad if yours stimulates some agreement or disagreement.
+After you pointed this out, I decided to test this on my
+Raspberry Pi, the only ARM system I have that is open enough
+for me to work with.
 
-But your vote would count for a lot more if you know of some app which
-would really benefit from this functionality in tmpfs: I've heard of none.
+I pulled some of the cycle counting stuff out of
+arch/arm/kernel/perf_event_v6.c.  I've pushed that code to
+the github repo.
 
-Hugh
+git://github.com/spartacus06/zsmapbench.git
+
+My results were in agreement with your findings.  I got 2040
+cycles/map for the copy method and 947 cycles/map for the
+page-table method.  I think memory speed is playing a big
+roll in the difference.
+
+I agree that the page-table method should be restored since
+the performance difference is so significant on ARM, a
+platform that benefits a lot from memory compression IMHO.
+
+Still, the question remains how to implement the selection
+logic, since not all archs that support the page-table
+method will necessarily perform better with it.
+
+Thanks,
+Seth
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
