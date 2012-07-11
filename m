@@ -1,77 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
-	by kanga.kvack.org (Postfix) with SMTP id A2CD66B0083
-	for <linux-mm@kvack.org>; Wed, 11 Jul 2012 13:02:57 -0400 (EDT)
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [patch 10/10] mm: memcg: only check anon swapin page charges for swap cache
-Date: Wed, 11 Jul 2012 19:02:22 +0200
-Message-Id: <1342026142-7284-11-git-send-email-hannes@cmpxchg.org>
-In-Reply-To: <1342026142-7284-1-git-send-email-hannes@cmpxchg.org>
-References: <1342026142-7284-1-git-send-email-hannes@cmpxchg.org>
+Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
+	by kanga.kvack.org (Postfix) with SMTP id 797266B005D
+	for <linux-mm@kvack.org>; Wed, 11 Jul 2012 13:48:06 -0400 (EDT)
+Date: Wed, 11 Jul 2012 18:48:02 +0100
+From: Will Deacon <will.deacon@arm.com>
+Subject: Re: [PATCH] mm: hugetlb: flush dcache before returning zeroed huge
+ page to userspace
+Message-ID: <20120711174802.GG13498@mudshark.cambridge.arm.com>
+References: <1341412376-6272-1-git-send-email-will.deacon@arm.com>
+ <20120709122523.GC4627@tiehlicka.suse.cz>
+ <20120709141324.GK7315@mudshark.cambridge.arm.com>
+ <alpine.LSU.2.00.1207091622470.2261@eggly.anvils>
+ <20120710094513.GB9108@mudshark.cambridge.arm.com>
+ <20120710104234.GI9108@mudshark.cambridge.arm.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120710104234.GI9108@mudshark.cambridge.arm.com>
+Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Hugh Dickins <hughd@google.com>, David Rientjes <rientjes@google.com>, Wanpeng Li <liwp.linux@gmail.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Hugh Dickins <hughd@google.com>
+Cc: Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Hillf Danton <dhillf@gmail.com>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-shmem knows for sure that the page is in swap cache when attempting to
-charge a page, because the cache charge entry function has a check for
-it.  Only anon pages may be removed from swap cache already when
-trying to charge their swapin.
+On Tue, Jul 10, 2012 at 11:42:34AM +0100, Will Deacon wrote:
+> On Tue, Jul 10, 2012 at 10:45:13AM +0100, Will Deacon wrote:
+> > On Tue, Jul 10, 2012 at 12:57:14AM +0100, Hugh Dickins wrote:
+> > > If I start to grep the architectures for non-empty flush_dcache_page(),
+> > > I soon find things in arch/arm such as v4_mc_copy_user_highpage() doing
+> > > if (!test_and_set_bit(PG_dcache_clean,)) __flush_dcache_page() - where
+> > > the naming suggests that I'm right, it's the architecture's responsibility
+> > > to arrange whatever flushing is needed in its copy and clear page functions.
 
-Adjust the comment, though: '4969c11 mm: fix swapin race condition'
-added a stable PageSwapCache check under the page lock in the
-do_swap_page() before calling the memory controller, so it's
-unuse_pte()'s pte_same() that may fail.
+[...]
 
-Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Acked-by: Michal Hocko <mhocko@suse.cz>
----
- mm/memcontrol.c |   22 ++++++++++++++--------
- 1 files changed, 14 insertions(+), 8 deletions(-)
+> Ok, so this is exactly the problem. The hugetlb allocator uses its own
+> pool of huge pages, so free_huge_page followed by a later alloc_huge_page
+> will give you something where the page flags of the compound head do not
+> guarantee that PG_arch_1 is clear.
 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 9433bff..ffd9323 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -2819,14 +2819,6 @@ static int __mem_cgroup_try_charge_swapin(struct mm_struct *mm,
- 		return 0;
- 	if (!do_swap_account)
- 		goto charge_cur_mm;
--	/*
--	 * A racing thread's fault, or swapoff, may have already updated
--	 * the pte, and even removed page from swap cache: in those cases
--	 * do_swap_page()'s pte_same() test will fail; but there's also a
--	 * KSM case which does need to charge the page.
--	 */
--	if (!PageSwapCache(page))
--		goto charge_cur_mm;
- 	memcg = try_get_mem_cgroup_from_page(page);
- 	if (!memcg)
- 		goto charge_cur_mm;
-@@ -2849,6 +2841,20 @@ int mem_cgroup_try_charge_swapin(struct mm_struct *mm, struct page *page,
- 	*memcgp = NULL;
- 	if (mem_cgroup_disabled())
- 		return 0;
-+	/*
-+	 * A racing thread's fault, or swapoff, may have already
-+	 * updated the pte, and even removed page from swap cache: in
-+	 * those cases unuse_pte()'s pte_same() test will fail; but
-+	 * there's also a KSM case which does need to charge the page.
-+	 */
-+	if (!PageSwapCache(page)) {
-+		int ret;
-+
-+		ret = __mem_cgroup_try_charge(mm, gfp_mask, 1, memcgp, true);
-+		if (ret == -EINTR)
-+			ret = 0;
-+		return ret;
-+	}
- 	return __mem_cgroup_try_charge_swapin(mm, page, gfp_mask, memcgp);
- }
+Just to confirm, the following quick hack at least results in the correct
+flushing for me (on ARM):
+
+
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index e198831..7a7c9d3 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -1141,6 +1141,7 @@ static struct page *alloc_huge_page(struct vm_area_struct *vma,
+        }
  
--- 
-1.7.7.6
+        set_page_private(page, (unsigned long)spool);
++       clear_bit(PG_arch_1, &page->flags);
+ 
+        vma_commit_reservation(h, vma, addr);
+ 
+
+
+The question is whether we should tidy that up for the core code or get
+architectures to clear the bit in arch_make_huge_pte (which also seems to
+work).
+
+Will
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
