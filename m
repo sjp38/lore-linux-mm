@@ -1,145 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx101.postini.com [74.125.245.101])
-	by kanga.kvack.org (Postfix) with SMTP id C04796B0071
-	for <linux-mm@kvack.org>; Tue, 10 Jul 2012 22:56:19 -0400 (EDT)
-Message-ID: <4FFCE3E6.709@cn.fujitsu.com>
-Date: Wed, 11 Jul 2012 10:24:38 +0800
-From: Wen Congyang <wency@cn.fujitsu.com>
-MIME-Version: 1.0
-Subject: Re: [RFC PATCH v3 0/13] memory-hotplug : hot-remove physical memory
-References: <4FFAB0A2.8070304@jp.fujitsu.com> <4FFCDC6A.9070704@cn.fujitsu.com>
-In-Reply-To: <4FFCDC6A.9070704@cn.fujitsu.com>
-Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset=ISO-2022-JP
+Received: from psmtp.com (na3sys010amx103.postini.com [74.125.245.103])
+	by kanga.kvack.org (Postfix) with SMTP id 1CE386B0071
+	for <linux-mm@kvack.org>; Tue, 10 Jul 2012 23:04:04 -0400 (EDT)
+Received: by yhjj63 with SMTP id j63so809249yhj.9
+        for <linux-mm@kvack.org>; Tue, 10 Jul 2012 20:04:03 -0700 (PDT)
+From: Wanpeng Li <liwp.linux@gmail.com>
+Subject: [PATCH] mm/hugetlb_cgroup: Add huge_page_order check to avoid incorrectly uncharge
+Date: Wed, 11 Jul 2012 11:03:16 +0800
+Message-Id: <1341975796-5730-1-git-send-email-liwp.linux@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, Li Zefan <lizefan@huawei.com>, Tejun Heo <tj@kernel.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, Wanpeng Li <liwp.linux@gmail.com>
 
-At 07/11/2012 09:52 AM, Wen Congyang Wrote:
-> At 07/09/2012 06:21 PM, Yasuaki Ishimatsu Wrote:
->> This patch series aims to support physical memory hot-remove.
->>
->>   [RFC PATCH v3 1/13] memory-hotplug : rename remove_memory to offline_memory
->>   [RFC PATCH v3 2/13] memory-hotplug : add physical memory hotplug code to acpi_memory_device_remove
->>   [RFC PATCH v3 3/13] memory-hotplug : unify argument of firmware_map_add_early/hotplug
->>   [RFC PATCH v3 4/13] memory-hotplug : remove /sys/firmware/memmap/X sysfs
->>   [RFC PATCH v3 5/13] memory-hotplug : does not release memory region in PAGES_PER_SECTION chunks
->>   [RFC PATCH v3 6/13] memory-hotplug : add memory_block_release
->>   [RFC PATCH v3 7/13] memory-hotplug : remove_memory calls __remove_pages
->>   [RFC PATCH v3 8/13] memory-hotplug : check page type in get_page_bootmem
->>   [RFC PATCH v3 9/13] memory-hotplug : move register_page_bootmem_info_node and put_page_bootmem for
->> sparse-vmemmap
->>   [RFC PATCH v3 10/13] memory-hotplug : implement register_page_bootmem_info_section of sparse-vmemmap
->>   [RFC PATCH v3 11/13] memory-hotplug : free memmap of sparse-vmemmap
->>   [RFC PATCH v3 12/13] memory-hotplug : add node_device_release
->>   [RFC PATCH v3 13/13] memory-hotplug : remove sysfs file of node
->>
->> Even if you apply these patches, you cannot remove the physical memory
->> completely since these patches are still under development. I want you to
->> cooperate to improve the physical memory hot-remove. So please review these
->> patches and give your comment/idea.
->>
->> The patches can free/remove following things:
->>
->>   - acpi_memory_info                          : [RFC PATCH 2/13]
->>   - /sys/firmware/memmap/X/{end, start, type} : [RFC PATCH 4/13]
->>   - iomem_resource                            : [RFC PATCH 5/13]
->>   - mem_section and related sysfs files       : [RFC PATCH 6-11/13]
->>   - node and related sysfs files              : [RFC PATCH 12-13/13]
->>
->> The patches cannot do following things yet:
->>
->>   - page table of removed memory
->>
->> If you find lack of function for physical memory hot-remove, please let me
->> know.
->>
->> change log of v3:
->>  * rebase to 3.5.0-rc6
->>
->>  [RFC PATCH v2 2/13]
->>    * remove extra kobject_put()
->>
->>    * The patch was commented by Wen. Wen's comment is
->>      "acpi_memory_device_remove() should ignore a return value of
->>      remove_memory() since caller does not care the return value".
->>      But I did not change it since I think caller should care the
->>      return value. And I am trying to fix it as follow:
->>
->>      https://lkml.org/lkml/2012/7/5/624
-> 
-> acpi_memory_device_remove() will be called not only when we write
-> 1 to /sys/bus/acpi/devices/PNP0C80:XX/eject. When we unbind it
-> from the driver or remove the module acpi_memhotplug, this function
-> will be called too.
-> 
-> I will check whether your patch can work for these two cases.
+From: Wanpeng Li <liwp@linux.vnet.ibm.com>
 
-I have checked it, and I think your patch can not work for these 2 cases.
+Against linux-next:
 
-When we unbind the device from the driver(write device name to
-/sys/bus/acpi/drivers/acpi_memhotplug/unbind), driver_unbind()
-will be called. This function does not care the return value.
+Function alloc_huge_page will call hugetlb_cgroup_charge_cgroup
+to charge pages, the compound page have less than 3 pages will not
+charge to hugetlb cgroup. When alloc_huge_page fails it will call
+hugetlb_cgroup_uncharge_cgroup to uncharge pages, however,
+hugetlb_cgroup_uncharge_cgroup doesn't have huge_page_order check.
+That means it will uncharge pages even if the compound page have less
+than 3 pages. Add huge_page_order check to avoid this incorrectly
+uncharge.
 
-When we remove the module acpi_memhotplug, acpi_memory_device_exit()
-will be called. This function does not care the return value too.
+Reviewed-by: Michal Hocko <mhocko@suse.cz>
+Reviewed-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+Signed-off-by: Wanpeng Li <liwp.linux@gmail.com>
+---
+ mm/hugetlb_cgroup.c |    3 +++
+ 1 files changed, 3 insertions(+), 0 deletions(-)
 
-I don't know whether there are some other cases that acpi_memory_device_remove()
-will be called.
-
-Thanks
-Wen Congyang
-
-
-> 
-> Thanks
-> Wen Congyang
-> 
->>
->>  [RFC PATCH v2 4/13]
->>    * remove a firmware_memmap_entry allocated by kzmalloc()
->>
->> change log of v2:
->>  [RFC PATCH v2 2/13]
->>    * check whether memory block is offline or not before calling offline_memory()
->>    * check whether section is valid or not in is_memblk_offline()
->>    * call kobject_put() for each memory_block in is_memblk_offline()
->>
->>  [RFC PATCH v2 3/13]
->>    * unify the end argument of firmware_map_add_early/hotplug
->>
->>  [RFC PATCH v2 4/13]
->>    * add release_firmware_map_entry() for freeing firmware_map_entry
->>
->>  [RFC PATCH v2 6/13]
->>   * add release_memory_block() for freeing memory_block
->>
->>  [RFC PATCH v2 11/13]
->>   * fix wrong arguments of free_pages()
->>
->> ---
->>  arch/powerpc/platforms/pseries/hotplug-memory.c |   16 +-
->>  arch/x86/mm/init_64.c                           |  144 ++++++++++++++++++++++++
->>  drivers/acpi/acpi_memhotplug.c                  |   28 ++++
->>  drivers/base/memory.c                           |   54 ++++++++-
->>  drivers/base/node.c                             |    7 +
->>  drivers/firmware/memmap.c                       |   78 ++++++++++++-
->>  include/linux/firmware-map.h                    |    6 +
->>  include/linux/memory.h                          |    5
->>  include/linux/memory_hotplug.h                  |   17 --
->>  include/linux/mm.h                              |    5
->>  mm/memory_hotplug.c                             |   98 ++++++++++++----
->>  mm/sparse.c                                     |    5
->>  12 files changed, 414 insertions(+), 49 deletions(-)
->>
->>
-> 
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-acpi" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> 
+diff --git a/mm/hugetlb_cgroup.c b/mm/hugetlb_cgroup.c
+index b834e8d..2b9e214 100644
+--- a/mm/hugetlb_cgroup.c
++++ b/mm/hugetlb_cgroup.c
+@@ -252,6 +252,9 @@ void hugetlb_cgroup_uncharge_cgroup(int idx, unsigned long nr_pages,
+ 
+ 	if (hugetlb_cgroup_disabled() || !h_cg)
+ 		return;
++
++	if (huge_page_order(&hstates[idx]) < HUGETLB_CGROUP_MIN_ORDER)
++		return;
+ 
+ 	res_counter_uncharge(&h_cg->hugepage[idx], csize);
+ 	return;
+-- 
+1.7.5.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
