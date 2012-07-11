@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
-	by kanga.kvack.org (Postfix) with SMTP id 2DD946B0068
-	for <linux-mm@kvack.org>; Wed, 11 Jul 2012 13:02:53 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
+	by kanga.kvack.org (Postfix) with SMTP id 1C0FD6B0072
+	for <linux-mm@kvack.org>; Wed, 11 Jul 2012 13:02:55 -0400 (EDT)
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [patch 04/10] mm: memcg: only check for PageSwapCache when uncharging anon
-Date: Wed, 11 Jul 2012 19:02:16 +0200
-Message-Id: <1342026142-7284-5-git-send-email-hannes@cmpxchg.org>
+Subject: [patch 07/10] mm: memcg: remove needless !mm fixup to init_mm when charging
+Date: Wed, 11 Jul 2012 19:02:19 +0200
+Message-Id: <1342026142-7284-8-git-send-email-hannes@cmpxchg.org>
 In-Reply-To: <1342026142-7284-1-git-send-email-hannes@cmpxchg.org>
 References: <1342026142-7284-1-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
@@ -13,57 +13,53 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Hugh Dickins <hughd@google.com>, David Rientjes <rientjes@google.com>, Wanpeng Li <liwp.linux@gmail.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-Only anon pages that are uncharged at the time of the last page table
-mapping vanishing may be in swapcache.
+It does not matter to __mem_cgroup_try_charge() if the passed mm is
+NULL or init_mm, it will charge the root memcg in either case.
 
-When shmem pages, file pages, swap-freed anon pages, or just migrated
-pages are uncharged, they are known for sure to be not in swapcache.
+Also fix up the comment in __mem_cgroup_try_charge() that claimed the
+init_mm would be charged when no mm was passed.  It's not really
+incorrect, but confusing.  Clarify that the root memcg is charged in
+this case.
 
 Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Acked-by: Michal Hocko <mhocko@suse.cz>
 ---
- mm/memcontrol.c |   13 ++++---------
- 1 files changed, 4 insertions(+), 9 deletions(-)
+ mm/memcontrol.c |    7 +------
+ 1 files changed, 1 insertions(+), 6 deletions(-)
 
 diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index fb8d525..a5c0693 100644
+index 2c7d164c..c6bcaaa 100644
 --- a/mm/memcontrol.c
 +++ b/mm/memcontrol.c
-@@ -3094,8 +3094,6 @@ void mem_cgroup_uncharge_cache_page(struct page *page)
- {
- 	VM_BUG_ON(page_mapped(page));
- 	VM_BUG_ON(page->mapping);
--	if (PageSwapCache(page))
--		return;
- 	__mem_cgroup_uncharge_common(page, MEM_CGROUP_CHARGE_TYPE_CACHE, false);
- }
+@@ -2334,7 +2334,7 @@ static int __mem_cgroup_try_charge(struct mm_struct *mm,
+ 	 * We always charge the cgroup the mm_struct belongs to.
+ 	 * The mm_struct's mem_cgroup changes on task migration if the
+ 	 * thread group leader migrates. It's possible that mm is not
+-	 * set, if so charge the init_mm (happens for pagecache usage).
++	 * set, if so charge the root memcg (happens for pagecache usage).
+ 	 */
+ 	if (!*ptr && !mm)
+ 		*ptr = root_mem_cgroup;
+@@ -2834,8 +2834,6 @@ int mem_cgroup_try_charge_swapin(struct mm_struct *mm,
+ 		ret = 0;
+ 	return ret;
+ charge_cur_mm:
+-	if (unlikely(!mm))
+-		mm = &init_mm;
+ 	ret = __mem_cgroup_try_charge(mm, mask, 1, memcgp, true);
+ 	if (ret == -EINTR)
+ 		ret = 0;
+@@ -2900,9 +2898,6 @@ int mem_cgroup_cache_charge(struct page *page, struct mm_struct *mm,
+ 	if (PageCompound(page))
+ 		return 0;
  
-@@ -3160,8 +3158,6 @@ mem_cgroup_uncharge_swapcache(struct page *page, swp_entry_t ent, bool swapout)
- 	if (!swapout) /* this was a swap cache but the swap is unused ! */
- 		ctype = MEM_CGROUP_CHARGE_TYPE_DROP;
- 
--	if (PageSwapCache(page))
--		return;
- 	memcg = __mem_cgroup_uncharge_common(page, ctype, false);
- 
- 	/*
-@@ -3351,11 +3347,10 @@ void mem_cgroup_end_migration(struct mem_cgroup *memcg,
- 		unused = oldpage;
- 	}
- 	anon = PageAnon(used);
--	if (!PageSwapCache(unused))
--		__mem_cgroup_uncharge_common(unused,
--					     anon ? MEM_CGROUP_CHARGE_TYPE_ANON
--					     : MEM_CGROUP_CHARGE_TYPE_CACHE,
--					     true);
-+	__mem_cgroup_uncharge_common(unused,
-+				     anon ? MEM_CGROUP_CHARGE_TYPE_ANON
-+				     : MEM_CGROUP_CHARGE_TYPE_CACHE,
-+				     true);
- 	css_put(&memcg->css);
- 	/*
- 	 * We disallowed uncharge of pages under migration because mapcount
+-	if (unlikely(!mm))
+-		mm = &init_mm;
+-
+ 	if (!PageSwapCache(page))
+ 		ret = mem_cgroup_charge_common(page, mm, gfp_mask, type);
+ 	else { /* page is swapcache/shmem */
 -- 
 1.7.7.6
 
