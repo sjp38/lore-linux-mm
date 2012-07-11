@@ -1,61 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
-	by kanga.kvack.org (Postfix) with SMTP id 8A7036B005A
-	for <linux-mm@kvack.org>; Wed, 11 Jul 2012 11:37:05 -0400 (EDT)
-Received: from /spool/local
-	by e2.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <dave@linux.vnet.ibm.com>;
-	Wed, 11 Jul 2012 11:37:03 -0400
-Received: from d01relay01.pok.ibm.com (d01relay01.pok.ibm.com [9.56.227.233])
-	by d01dlp02.pok.ibm.com (Postfix) with ESMTP id BCA5C6E8112
-	for <linux-mm@kvack.org>; Wed, 11 Jul 2012 11:30:25 -0400 (EDT)
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay01.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q6BFUP9S417066
-	for <linux-mm@kvack.org>; Wed, 11 Jul 2012 11:30:25 -0400
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q6BFUOU9004412
-	for <linux-mm@kvack.org>; Wed, 11 Jul 2012 12:30:25 -0300
-Message-ID: <4FFD9C08.2070502@linux.vnet.ibm.com>
-Date: Wed, 11 Jul 2012 08:30:16 -0700
-From: Dave Hansen <dave@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
+	by kanga.kvack.org (Postfix) with SMTP id 9B16F6B0068
+	for <linux-mm@kvack.org>; Wed, 11 Jul 2012 11:48:47 -0400 (EDT)
+Received: by wgbds1 with SMTP id ds1so360873wgb.2
+        for <linux-mm@kvack.org>; Wed, 11 Jul 2012 08:48:46 -0700 (PDT)
+Content-Type: text/plain; charset=utf-8; format=flowed; delsp=yes
+Subject: Re: [PATCH 04/13] rbtree: move some implementation details from
+ rbtree.h to rbtree.c
+References: <1341876923-12469-1-git-send-email-walken@google.com>
+ <1341876923-12469-5-git-send-email-walken@google.com>
+ <op.wg8ciikk3l0zgt@mpn-glaptop>
+ <CANN689E8_5YPCu9WMfgSAbBFkQYhfQkoYejdGRd-NPSiFhVuTg@mail.gmail.com>
+Date: Wed, 11 Jul 2012 17:48:37 +0200
 MIME-Version: 1.0
-Subject: Re: [RFC PATCH v3 3/13] memory-hotplug : unify argument of firmware_map_add_early/hotplug
-References: <4FFAB0A2.8070304@jp.fujitsu.com> <4FFAB17F.2090209@jp.fujitsu.com>
-In-Reply-To: <4FFAB17F.2090209@jp.fujitsu.com>
-Content-Type: text/plain; charset=ISO-2022-JP
-Content-Transfer-Encoding: 7bit
+Content-Transfer-Encoding: Quoted-Printable
+From: "Michal Nazarewicz" <mina86@mina86.com>
+Message-ID: <op.whagvbgg3l0zgt@mpn-glaptop>
+In-Reply-To: <CANN689E8_5YPCu9WMfgSAbBFkQYhfQkoYejdGRd-NPSiFhVuTg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, wency@cn.fujitsu.com
+To: Michel Lespinasse <walken@google.com>
+Cc: aarcange@redhat.com, dwmw2@infradead.org, riel@redhat.com, peterz@infradead.org, daniel.santos@pobox.com, axboe@kernel.dk, ebiederm@xmission.com, linux-mm@kvack.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, torvalds@linux-foundation.org
 
-On 07/09/2012 03:25 AM, Yasuaki Ishimatsu wrote:
-> @@ -642,7 +642,7 @@ int __ref add_memory(int nid, u64 start,
->  	}
-> 
->  	/* create new memmap entry */
-> -	firmware_map_add_hotplug(start, start + size, "System RAM");
-> +	firmware_map_add_hotplug(start, start + size - 1, "System RAM");
+On Wed, 11 Jul 2012 01:12:54 +0200, Michel Lespinasse <walken@google.com=
+> wrote:
 
-I know the firmware_map_*() calls use inclusive end addresses
-internally, but do we really need to expose them?  Both of the callers
-you mentioned do:
+> On Tue, Jul 10, 2012 at 5:19 AM, Michal Nazarewicz <mina86@mina86.com>=
+ wrote:
+>> On Tue, 10 Jul 2012 01:35:14 +0200, Michel Lespinasse <walken@google.=
+com> wrote:
+>>> +#define        RB_RED          0
+>>> +#define        RB_BLACK        1
+>>
+>> Interestingly, those are almost never used. RB_BLACK is used only onc=
+e.
+>> Should we get rid of those instead?  Or change the code (like rb_is_r=
+ed())
+>> to use them?
+>
+> I'm actually making heavier use of RB_RED / RB_BLACK later on in the p=
+atch set.
 
-	firmware_map_add_hotplug(start, start + size - 1, "System RAM");
+Yeah, I've just noticed.  Disregard my comment.
 
-or
+> But agree, rb_is_red() / rb_is_black() could use these too.
 
-                firmware_map_add_early(entry->addr,
-                        entry->addr + entry->size - 1,
-                        e820_type_to_string(entry->type));
+-- =
 
-So it seems a _bit_ silly to keep all of the callers doing this size-1
-thing.  I also noted that the new caller that you added does the same
-thing.  Could we just change the external calling convention to be
-exclusive?
-
-BTW, this patch should probably be first in your series.  It's a real
-bugfix.
+Best regards,                                         _     _
+.o. | Liege of Serenely Enlightened Majesty of      o' \,=3D./ `o
+..o | Computer Science,  Micha=C5=82 =E2=80=9Cmina86=E2=80=9D Nazarewicz=
+    (o o)
+ooo +----<email/xmpp: mpn@google.com>--------------ooO--(_)--Ooo--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
