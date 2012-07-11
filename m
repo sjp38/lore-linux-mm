@@ -1,132 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
-	by kanga.kvack.org (Postfix) with SMTP id 27A996B005D
-	for <linux-mm@kvack.org>; Wed, 11 Jul 2012 18:42:42 -0400 (EDT)
-Received: by vbkv13 with SMTP id v13so1359107vbk.14
-        for <linux-mm@kvack.org>; Wed, 11 Jul 2012 15:42:40 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
+	by kanga.kvack.org (Postfix) with SMTP id 71DCD6B005D
+	for <linux-mm@kvack.org>; Wed, 11 Jul 2012 19:01:27 -0400 (EDT)
+Date: Thu, 12 Jul 2012 09:01:22 +1000
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH 1/3] tmpfs: revert SEEK_DATA and SEEK_HOLE
+Message-ID: <20120711230122.GZ19223@dastard>
+References: <alpine.LSU.2.00.1207091533001.2051@eggly.anvils>
+ <alpine.LSU.2.00.1207091535480.2051@eggly.anvils>
+ <jtj574$tb7$2@dough.gmane.org>
+ <alpine.LSU.2.00.1207111149580.1797@eggly.anvils>
 MIME-Version: 1.0
-In-Reply-To: <4FFDE2E2.7050901@linux.vnet.ibm.com>
-References: <1341263752-10210-1-git-send-email-sjenning@linux.vnet.ibm.com>
-	<1341263752-10210-2-git-send-email-sjenning@linux.vnet.ibm.com>
-	<4FFDC54F.5030402@vflare.org>
-	<4FFDE2E2.7050901@linux.vnet.ibm.com>
-Date: Wed, 11 Jul 2012 15:42:40 -0700
-Message-ID: <CAPkvG_fejGCrS9u3Mg-ic1B_ar5qdyCSKSQtweijwaZ5mou=dw@mail.gmail.com>
-Subject: Re: [PATCH 1/4] zsmalloc: remove x86 dependency
-From: Nitin Gupta <ngupta@vflare.org>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LSU.2.00.1207111149580.1797@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Seth Jennings <sjenning@linux.vnet.ibm.com>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Minchan Kim <minchan@kernel.org>, Robert Jennings <rcj@linux.vnet.ibm.com>, linux-mm@kvack.org, devel@driverdev.osuosl.org, linux-kernel@vger.kernel.org
+To: Hugh Dickins <hughd@google.com>
+Cc: Cong Wang <xiyou.wangcong@gmail.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Wed, Jul 11, 2012 at 1:32 PM, Seth Jennings
-<sjenning@linux.vnet.ibm.com> wrote:
-> On 07/11/2012 01:26 PM, Nitin Gupta wrote:
->> On 07/02/2012 02:15 PM, Seth Jennings wrote:
->>> This patch replaces the page table assisted object mapping
->>> method, which has x86 dependencies, with a arch-independent
->>> method that does a simple copy into a temporary per-cpu
->>> buffer.
->>>
->>> While a copy seems like it would be worse than mapping the pages,
->>> tests demonstrate the copying is always faster and, in the case of
->>> running inside a KVM guest, roughly 4x faster.
->>>
->>> Signed-off-by: Seth Jennings <sjenning@linux.vnet.ibm.com>
->>> ---
->>>  drivers/staging/zsmalloc/Kconfig         |    4 --
->>>  drivers/staging/zsmalloc/zsmalloc-main.c |   99 +++++++++++++++++++++---------
->>>  drivers/staging/zsmalloc/zsmalloc_int.h  |    5 +-
->>>  3 files changed, 72 insertions(+), 36 deletions(-)
->>>
->>
->>
->>>  struct mapping_area {
->>> -    struct vm_struct *vm;
->>> -    pte_t *vm_ptes[2];
->>> -    char *vm_addr;
->>> +    char *vm_buf; /* copy buffer for objects that span pages */
->>> +    char *vm_addr; /* address of kmap_atomic()'ed pages */
->>>  };
->>>
->>
->> I think we can reduce the copying overhead by not copying an entire
->> compressed object to another (per-cpu) buffer. The basic idea of the
->> method below is to:
->>  - Copy only the amount of data that spills over into the next page
->>  - No need for a separate buffer to copy into
->>
->> Currently, we store objects that split across pages as:
->>
->> +-Page1-+
->> |     |
->> |     |
->> |-------| <-- obj-1 off: 0
->> |<ob1'>       |
->> +-------+ <-- obj-1 off: s'
->>
->> +-Page2-+ <-- obj-1 off: s'
->> |<ob1''>|
->> |-------| <-- obj-1 off: obj1_size, obj-2 off: 0
->> |<ob2>        |
->> |-------| <-- obj-2 off: obj2_size
->> +-------+
->>
->> But now we would store it as:
->>
->> +-Page1-+
->> |     |
->> |-------| <-- obj-1 off: s''
->> |     |
->> |<ob1'>       |
->> +-------+ <-- obj-1 off: obj1_size
->>
->> +-Page2-+ <-- obj-1 off: 0
->> |<ob1''>|
->> |-------| <-- obj-1 off: s'', obj-2 off: 0
->> |<ob2>        |
->> |-------| <-- obj-2 off: obj2_size
->> +-------+
->>
->> When object-1 (ob1) is to be mapped, part (size: s'-0) of object-2 will
->> be swapped with ob1'. This swapping can be done in-place using simple
->> xor swap algorithm. So, after swap, page-1 and page-2 will look like:
->>
->> +-Page1-+
->> |     |
->> |-------| <-- obj-2 off: 0
->> |     |
->> |<ob2''>|
->> +-------+ <-- obj-2 off: (obj1_size - s'')
->>
->> +-Page2-+ <-- obj-1 off: 0
->> |     |
->> |<ob1>        |
->> |-------| <-- obj-1 off: obj1_size, obj-2 off: (obj1_size - s'')
->> |<ob2'>       |
->> +-------+ <-- obj-2 off: obj2_size
->>
->> Now obj-1 lies completely within page-2, so can be kmap'ed as usual. On
->> zs_unmap_object() we would just do the reverse and restore objects as in
->> figure-1.
->
-> Hey Nitin, thanks for the feedback.
->
-> Correct me if I'm wrong, but it seems like you wouldn't be able to map
-> ob2 while ob1 was mapped with this design.  You'd need some sort of
-> zspage level protection against concurrent object mappings.  The
-> code for that protection might cancel any benefit you would gain by
-> doing it this way.
->
+On Wed, Jul 11, 2012 at 11:55:34AM -0700, Hugh Dickins wrote:
+> On Wed, 11 Jul 2012, Cong Wang wrote:
+> > On Mon, 09 Jul 2012 at 22:41 GMT, Hugh Dickins <hughd@google.com> wrote:
+> > > Revert 4fb5ef089b28 ("tmpfs: support SEEK_DATA and SEEK_HOLE").
+> > > I believe it's correct, and it's been nice to have from rc1 to rc6;
+> > > but as the original commit said:
+> > >
+> > > I don't know who actually uses SEEK_DATA or SEEK_HOLE, and whether it
+> > > would be of any use to them on tmpfs.  This code adds 92 lines and 752
+> > > bytes on x86_64 - is that bloat or worthwhile?
+> > 
+> > 
+> > I don't think 752 bytes matter much, especially for x86_64.
+> > 
+> > >
+> > > Nobody asked for it, so I conclude that it's bloat: let's revert tmpfs
+> > > to the dumb generic support for v3.5.  We can always reinstate it later
+> > > if useful, and anyone needing it in a hurry can just get it out of git.
+> > >
+> > 
+> > If you don't have burden to maintain it, I'd prefer to leave as it is,
+> > I don't think 752-bytes is the reason we revert it.
+> 
+> Thank you, your vote has been counted ;)
+> and I'll be glad if yours stimulates some agreement or disagreement.
+> 
+> But your vote would count for a lot more if you know of some app which
+> would really benefit from this functionality in tmpfs: I've heard of none.
 
-Do you think blocking access of just one particular object (or
-blocking an entire zspage, for simplicity) for a short time would be
-an issue, apart from the complexity of implementing per zspage
-locking?
+So what? I've heard of no apps that use this functionality on XFS,
+either, but I have heard of a lot of people asking for it to be
+implemented over the past couple of years so they can use it.
+There's been patches written to make coreutils (cp) make use of it
+instead of parsing FIEMAP output to find holes, though I don't know
+if that's gone beyond more than "here's some patches"....
 
-Thanks,
-Nitin
+Besides, given that you can punch holes in tmpfs files, it seems
+strange to then say "we don't need a method of skipping holes to
+find data quickly"....
+
+Besides, seek-hole/data is still shiny new and lots of developers
+aren't even aware of it's presence in recent kernels. Removing new
+functionality saying "no-one is using it" is like smashing the egg
+before the chicken hatches (or is it cutting of the chickes's head
+before it lays the egg?).
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
