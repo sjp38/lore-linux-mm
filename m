@@ -1,49 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx177.postini.com [74.125.245.177])
-	by kanga.kvack.org (Postfix) with SMTP id 425AC6B007D
-	for <linux-mm@kvack.org>; Thu, 12 Jul 2012 03:18:28 -0400 (EDT)
-Received: by pbbrp2 with SMTP id rp2so3992886pbb.14
-        for <linux-mm@kvack.org>; Thu, 12 Jul 2012 00:18:27 -0700 (PDT)
-Message-ID: <4FFE7A3D.3010908@gmail.com>
-Date: Thu, 12 Jul 2012 15:18:21 +0800
-From: Sha Zhengju <handai.szj@gmail.com>
+Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
+	by kanga.kvack.org (Postfix) with SMTP id 82B0F6B0078
+	for <linux-mm@kvack.org>; Thu, 12 Jul 2012 04:19:28 -0400 (EDT)
+Date: Thu, 12 Jul 2012 10:19:23 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH 2/3 v3] mm: bug fix free page check in zone_watermark_ok
+Message-ID: <20120712081922.GA21018@tiehlicka.suse.cz>
+References: <1342061449-29590-1-git-send-email-minchan@kernel.org>
+ <1342061449-29590-2-git-send-email-minchan@kernel.org>
 MIME-Version: 1.0
-Subject: Re: [patch 2/5] mm, oom: introduce helper function to process threads
- during scan
-References: <alpine.DEB.2.00.1206251846020.24838@chino.kir.corp.google.com> <alpine.DEB.2.00.1206291404530.6040@chino.kir.corp.google.com> <alpine.DEB.2.00.1206291405360.6040@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.00.1206291405360.6040@chino.kir.corp.google.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1342061449-29590-2-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan@kernel.org>, Oleg Nesterov <oleg@redhat.com>, linux-mm@kvack.org, cgroups@vger.kernel.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Aaditya Kumar <aaditya.kumar@ap.sony.com>
 
-On 06/30/2012 05:06 AM, David Rientjes wrote:
-> This patch introduces a helper function to process each thread during the
-> iteration over the tasklist.  A new return type, enum oom_scan_t, is
-> defined to determine the future behavior of the iteration:
->
->   - OOM_SCAN_OK: continue scanning the thread and find its badness,
->
->   - OOM_SCAN_CONTINUE: do not consider this thread for oom kill, it's
->     ineligible,
->
->   - OOM_SCAN_ABORT: abort the iteration and return, or
->
->   - OOM_SCAN_SELECT: always select this thread with the highest badness
->     possible.
->
-> There is no functional change with this patch.  This new helper function
-> will be used in the next patch in the memory controller.
->
+On Thu 12-07-12 11:50:48, Minchan Kim wrote:
+> In __zone_watermark_ok, free and min are signed long type
+> while z->lowmem_reserve[classzone_idx] is unsigned long type.
+> So comparision of them could be wrong due to type conversion
+> to unsigned although free_pages is minus value.
 
-Looks good to me.
-You can add  Reviewed-by: Sha Zhengju <handai.szj@taobao.com> :-)
+Agreed on that
+but
+> 
+> It could return true instead of false in case of order-0 check
+> so that kswapd could sleep forever. 
 
+I am kind of lost here. How can we have negative free_pages with
+order-0? It would need to come with a negative value because 
+free_pages -= (1 << order) - 1;
+won't make it negative.
 
-Thanks,
-Sha
+> It means livelock because direct reclaimer loops forever until kswapd
+> set zone->all_unreclaimable.
+> 
+> Aaditya reported this problem when he test my hotplug patch.
+> 
+> Reported-off-by: Aaditya Kumar <aaditya.kumar@ap.sony.com>
+> Tested-by: Aaditya Kumar <aaditya.kumar@ap.sony.com>
+> Signed-off-by: Aaditya Kumar <aaditya.kumar@ap.sony.com>
+> Signed-off-by: Minchan Kim <minchan@kernel.org>
+
+So you can add my Reviewed-by: Michal Hocko <mhocko@suse.cz>
+but the changelog could be more clear.
+
+> ---
+> This patch isn't dependent with this series.
+> It seems to be candidate for -stable but I'm not sure because of this part.
+> So, pass the decision to akpm.
+> 
+> " - It must fix a real bug that bothers people (not a, "This could be a
+>    problem..." type thing)."
+
+I am wondering what Testted-by means if "This could be a problem..."
+type thing)."
+
+> 
+>  mm/page_alloc.c |    3 ++-
+>  1 file changed, 2 insertions(+), 1 deletion(-)
+> 
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index f17e6e4..627653c 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -1594,6 +1594,7 @@ static bool __zone_watermark_ok(struct zone *z, int order, unsigned long mark,
+>  {
+>  	/* free_pages my go negative - that's OK */
+>  	long min = mark;
+> +	long lowmem_reserve = z->lowmem_reserve[classzone_idx];
+>  	int o;
+>  
+>  	free_pages -= (1 << order) - 1;
+> @@ -1602,7 +1603,7 @@ static bool __zone_watermark_ok(struct zone *z, int order, unsigned long mark,
+>  	if (alloc_flags & ALLOC_HARDER)
+>  		min -= min / 4;
+>  
+> -	if (free_pages <= min + z->lowmem_reserve[classzone_idx])
+> +	if (free_pages <= min + lowmem_reserve)
+>  		return false;
+>  	for (o = 0; o < order; o++) {
+>  		/* At the next order, this order's pages become unavailable */
+> -- 
+> 1.7.9.5
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+
+-- 
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
