@@ -1,92 +1,127 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
-	by kanga.kvack.org (Postfix) with SMTP id 562426B005D
-	for <linux-mm@kvack.org>; Wed, 11 Jul 2012 23:22:08 -0400 (EDT)
-Message-ID: <4FFE42B6.5080705@oracle.com>
-Date: Thu, 12 Jul 2012 11:21:26 +0800
-From: Jeff Liu <jeff.liu@oracle.com>
-Reply-To: jeff.liu@oracle.com
+Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
+	by kanga.kvack.org (Postfix) with SMTP id E19396B005D
+	for <linux-mm@kvack.org>; Thu, 12 Jul 2012 00:53:09 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id A6B5A3EE0C0
+	for <linux-mm@kvack.org>; Thu, 12 Jul 2012 13:53:07 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 8736845DEB4
+	for <linux-mm@kvack.org>; Thu, 12 Jul 2012 13:53:07 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 5EF5845DEB2
+	for <linux-mm@kvack.org>; Thu, 12 Jul 2012 13:53:07 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 496EA1DB8043
+	for <linux-mm@kvack.org>; Thu, 12 Jul 2012 13:53:07 +0900 (JST)
+Received: from g01jpexchyt03.g01.fujitsu.local (g01jpexchyt03.g01.fujitsu.local [10.128.194.42])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id E85771DB803F
+	for <linux-mm@kvack.org>; Thu, 12 Jul 2012 13:53:06 +0900 (JST)
+Message-ID: <4FFE5816.6070102@jp.fujitsu.com>
+Date: Thu, 12 Jul 2012 13:52:38 +0900
+From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/3] tmpfs: revert SEEK_DATA and SEEK_HOLE
-References: <alpine.LSU.2.00.1207091533001.2051@eggly.anvils> <alpine.LSU.2.00.1207091535480.2051@eggly.anvils> <jtj574$tb7$2@dough.gmane.org> <alpine.LSU.2.00.1207111149580.1797@eggly.anvils> <20120711230122.GZ19223@dastard>
-In-Reply-To: <20120711230122.GZ19223@dastard>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [RFC PATCH v3 3/13] memory-hotplug : unify argument of firmware_map_add_early/hotplug
+References: <4FFAB0A2.8070304@jp.fujitsu.com> <4FFAB17F.2090209@jp.fujitsu.com> <4FFD9C08.2070502@linux.vnet.ibm.com>
+In-Reply-To: <4FFD9C08.2070502@linux.vnet.ibm.com>
+Content-Type: text/plain; charset="ISO-2022-JP"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: Hugh Dickins <hughd@google.com>, Cong Wang <xiyou.wangcong@gmail.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Dave Hansen <dave@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, wency@cn.fujitsu.com
 
-On 07/12/2012 07:01 AM, Dave Chinner wrote:
+Hi Dave,
 
-> On Wed, Jul 11, 2012 at 11:55:34AM -0700, Hugh Dickins wrote:
->> On Wed, 11 Jul 2012, Cong Wang wrote:
->>> On Mon, 09 Jul 2012 at 22:41 GMT, Hugh Dickins <hughd@google.com> wrote:
->>>> Revert 4fb5ef089b28 ("tmpfs: support SEEK_DATA and SEEK_HOLE").
->>>> I believe it's correct, and it's been nice to have from rc1 to rc6;
->>>> but as the original commit said:
->>>>
->>>> I don't know who actually uses SEEK_DATA or SEEK_HOLE, and whether it
->>>> would be of any use to them on tmpfs.  This code adds 92 lines and 752
->>>> bytes on x86_64 - is that bloat or worthwhile?
->>>
->>>
->>> I don't think 752 bytes matter much, especially for x86_64.
->>>
->>>>
->>>> Nobody asked for it, so I conclude that it's bloat: let's revert tmpfs
->>>> to the dumb generic support for v3.5.  We can always reinstate it later
->>>> if useful, and anyone needing it in a hurry can just get it out of git.
->>>>
->>>
->>> If you don't have burden to maintain it, I'd prefer to leave as it is,
->>> I don't think 752-bytes is the reason we revert it.
+2012/07/12 0:30, Dave Hansen wrote:
+> On 07/09/2012 03:25 AM, Yasuaki Ishimatsu wrote:
+>> @@ -642,7 +642,7 @@ int __ref add_memory(int nid, u64 start,
+>>   	}
 >>
->> Thank you, your vote has been counted ;)
->> and I'll be glad if yours stimulates some agreement or disagreement.
->>
->> But your vote would count for a lot more if you know of some app which
->> would really benefit from this functionality in tmpfs: I've heard of none.
+>>   	/* create new memmap entry */
+>> -	firmware_map_add_hotplug(start, start + size, "System RAM");
+>> +	firmware_map_add_hotplug(start, start + size - 1, "System RAM");
 > 
-> So what? I've heard of no apps that use this functionality on XFS,
-> either, but I have heard of a lot of people asking for it to be
-> implemented over the past couple of years so they can use it.
-> There's been patches written to make coreutils (cp) make use of it
-> instead of parsing FIEMAP output to find holes, though I don't know
-> if that's gone beyond more than "here's some patches"...
-
-Yes, for apps, cp(1) will make use of it to replace the old FIEMAP for efficient sparse file copy.
-I have implemented an extent-scan module to coreutils a few years ago,
-http://fossies.org/dox/coreutils-8.17/extent-scan_8c_source.html
-
-It does extent scan through FIEMAP, however, SEEK_DATA/SEEK_HOLE is more convenient and easy to use
-considering the call interface.  So FIEMAP will be replaced by SEEK_XXX once it got supported by EXT4.
-
-Moreover, I have discussed with Jim who is the coreutils maintainer previously, He would like to post
-extent-scan module to Gnulib so that other GNU utilities which are relied on Gnulib might be a potential
-user of it, at least, GNU tar will definitely need it for sparse file backup.
-
+> I know the firmware_map_*() calls use inclusive end addresses
+> internally, but do we really need to expose them?  Both of the callers
+> you mentioned do:
 > 
-> Besides, given that you can punch holes in tmpfs files, it seems
-> strange to then say "we don't need a method of skipping holes to
-> find data quickly"....
-
-So its deserve to keep this feature working on tmpfs considering hole punch. :)
-
-Thanks,
--Jeff
-
+> 	firmware_map_add_hotplug(start, start + size - 1, "System RAM");
 > 
-> Besides, seek-hole/data is still shiny new and lots of developers
-> aren't even aware of it's presence in recent kernels. Removing new
-> functionality saying "no-one is using it" is like smashing the egg
-> before the chicken hatches (or is it cutting of the chickes's head
-> before it lays the egg?).
+> or
 > 
-> Cheers,
+>                  firmware_map_add_early(entry->addr,
+>                          entry->addr + entry->size - 1,
+>                          e820_type_to_string(entry->type));
 > 
-> Dave.
+> So it seems a _bit_ silly to keep all of the callers doing this size-1
+> thing.  I also noted that the new caller that you added does the same
+> thing.  Could we just change the external calling convention to be
+> exclusive?
 
+Thank you for your comment.
+
+Does the following patch include your comment? If O.K., I will separate
+the patch from the series and send it for bug fix.
+
+---
+ arch/x86/kernel/e820.c    |    2 +-
+ drivers/firmware/memmap.c |    8 ++++----
+ 2 files changed, 5 insertions(+), 5 deletions(-)
+
+Index: linux-next/arch/x86/kernel/e820.c
+===================================================================
+--- linux-next.orig/arch/x86/kernel/e820.c	2012-07-02 09:50:23.000000000 +0900
++++ linux-next/arch/x86/kernel/e820.c	2012-07-12 13:30:45.942318179 +0900
+@@ -944,7 +944,7 @@
+ 	for (i = 0; i < e820_saved.nr_map; i++) {
+ 		struct e820entry *entry = &e820_saved.map[i];
+ 		firmware_map_add_early(entry->addr,
+-			entry->addr + entry->size - 1,
++			entry->addr + entry->size,
+ 			e820_type_to_string(entry->type));
+ 	}
+ }
+Index: linux-next/drivers/firmware/memmap.c
+===================================================================
+--- linux-next.orig/drivers/firmware/memmap.c	2012-07-02 09:50:26.000000000 +0900
++++ linux-next/drivers/firmware/memmap.c	2012-07-12 13:40:53.823318481 +0900
+@@ -98,7 +98,7 @@
+ /**
+  * firmware_map_add_entry() - Does the real work to add a firmware memmap entry.
+  * @start: Start of the memory range.
+- * @end:   End of the memory range (inclusive).
++ * @end:   End of the memory range.
+  * @type:  Type of the memory range.
+  * @entry: Pre-allocated (either kmalloc() or bootmem allocator), uninitialised
+  *         entry.
+@@ -113,7 +113,7 @@
+ 	BUG_ON(start > end);
+
+ 	entry->start = start;
+-	entry->end = end;
++	entry->end = end - 1;
+ 	entry->type = type;
+ 	INIT_LIST_HEAD(&entry->list);
+ 	kobject_init(&entry->kobj, &memmap_ktype);
+@@ -148,7 +148,7 @@
+  * firmware_map_add_hotplug() - Adds a firmware mapping entry when we do
+  * memory hotplug.
+  * @start: Start of the memory range.
+- * @end:   End of the memory range (inclusive).
++ * @end:   End of the memory range.
+  * @type:  Type of the memory range.
+  *
+  * Adds a firmware mapping entry. This function is for memory hotplug, it is
+@@ -175,7 +175,7 @@
+ /**
+  * firmware_map_add_early() - Adds a firmware mapping entry.
+  * @start: Start of the memory range.
+- * @end:   End of the memory range (inclusive).
++ * @end:   End of the memory range.
+  * @type:  Type of the memory range.
+  *
+  * Adds a firmware mapping entry. This function uses the bootmem allocator
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
