@@ -1,148 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
-	by kanga.kvack.org (Postfix) with SMTP id 1D8D46B005D
-	for <linux-mm@kvack.org>; Thu, 12 Jul 2012 06:16:34 -0400 (EDT)
-Date: Thu, 12 Jul 2012 12:16:28 +0200
+Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
+	by kanga.kvack.org (Postfix) with SMTP id 987D46B005C
+	for <linux-mm@kvack.org>; Thu, 12 Jul 2012 06:18:30 -0400 (EDT)
+Date: Thu, 12 Jul 2012 12:18:27 +0200
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH 2/3 v3] mm: bug fix free page check in zone_watermark_ok
-Message-ID: <20120712101628.GC21013@tiehlicka.suse.cz>
-References: <1342061449-29590-1-git-send-email-minchan@kernel.org>
- <1342061449-29590-2-git-send-email-minchan@kernel.org>
- <20120712081922.GA21018@tiehlicka.suse.cz>
- <20120712090519.GA30892@bbox>
+Subject: Re: [PATCH RFC] mm/memcg: calculate max hierarchy limit number
+ instead of min
+Message-ID: <20120712101827.GD21013@tiehlicka.suse.cz>
+References: <a>
+ <1342013081-4096-1-git-send-email-liwp.linux@gmail.com>
+ <20120711134757.GC4820@tiehlicka.suse.cz>
+ <20120712093211.GC3181@kernel>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20120712090519.GA30892@bbox>
+In-Reply-To: <20120712093211.GC3181@kernel>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Aaditya Kumar <aaditya.kumar@ap.sony.com>
+To: Wanpeng Li <liwp.linux@gmail.com>
+Cc: linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Thu 12-07-12 18:05:19, Minchan Kim wrote:
-> Hi Michal,
+On Thu 12-07-12 17:32:11, Wanpeng Li wrote:
+> On Wed, Jul 11, 2012 at 03:47:57PM +0200, Michal Hocko wrote:
+> >On Wed 11-07-12 21:24:41, Wanpeng Li wrote:
+> >> From: Wanpeng Li <liwp@linux.vnet.ibm.com>
+> >> 
+> >> Since hierachical_memory_limit shows "of bytes of memory limit with
+> >> regard to hierarchy under which the memory cgroup is", the count should
+> >> calculate max hierarchy limit when use_hierarchy in order to show hierarchy
+> >> subtree limit. hierachical_memsw_limit is the same case.
+> >
+> >No the patch is wrong. The hierarchical limit says when we start
+> >reclaiming in the hierarchy and that one is triggered on smallest limit
+> >up the way to the hierarchy root.
 > 
-> On Thu, Jul 12, 2012 at 10:19:23AM +0200, Michal Hocko wrote:
-> > On Thu 12-07-12 11:50:48, Minchan Kim wrote:
-> > > In __zone_watermark_ok, free and min are signed long type
-> > > while z->lowmem_reserve[classzone_idx] is unsigned long type.
-> > > So comparision of them could be wrong due to type conversion
-> > > to unsigned although free_pages is minus value.
-> > 
-> > Agreed on that
-> > but
-> > > 
-> > > It could return true instead of false in case of order-0 check
-> > > so that kswapd could sleep forever. 
-> > 
-> > I am kind of lost here. How can we have negative free_pages with
-> > order-0? It would need to come with a negative value because 
-> > free_pages -= (1 << order) - 1;
-> > won't make it negative.
-> 
-> Right you are. I missed that part.
-> 
-> The reason Aaditya reported this problem is caused by my patch[1] in
-> this series. zone_watermark_ok_safe didn't reset free_pages to zero
-> although free_pages becomes minus value(Please, look at [1])
-> 
-> [1] memory-hotplug: fix kswapd looping forever problem
-> 
-> I think we have no problem in current code because if order isn't zero 
-> and free_pages is minus value, it could exit in the middle of loop with
-> false.
+> I see function mem_cgroup_hierachy_reclaim is removal, and hierarchical
+> reclaim is still work? 
 
-Yes, but it would be still nice to not rely on the loop and make the
-first test effective. So I think the patch still makes sense.
+I am not aware of that.
+
+> Could you explain me how it works in details, thank you for your time
+> Michal.
+
+I am not sure I understand what you are interested in. 
 
 > 
-> So I think it was totally patch's problem. :(
-> But I agree auto type casting problem is subtle error-prone so it's valuable
-> to fix, too. As you mentiond, I should rewrite description and subject for it.
-> 
-> Thanks for the review!
-> 
-> > 
-> > > It means livelock because direct reclaimer loops forever until kswapd
-> > > set zone->all_unreclaimable.
-> > > 
-> > > Aaditya reported this problem when he test my hotplug patch.
-> > > 
-> > > Reported-off-by: Aaditya Kumar <aaditya.kumar@ap.sony.com>
-> > > Tested-by: Aaditya Kumar <aaditya.kumar@ap.sony.com>
-> > > Signed-off-by: Aaditya Kumar <aaditya.kumar@ap.sony.com>
-> > > Signed-off-by: Minchan Kim <minchan@kernel.org>
-> > 
-> > So you can add my Reviewed-by: Michal Hocko <mhocko@suse.cz>
-> > but the changelog could be more clear.
-> > 
-> > > ---
-> > > This patch isn't dependent with this series.
-> > > It seems to be candidate for -stable but I'm not sure because of this part.
-> > > So, pass the decision to akpm.
-> > > 
-> > > " - It must fix a real bug that bothers people (not a, "This could be a
-> > >    problem..." type thing)."
-> > 
-> > I am wondering what Testted-by means if "This could be a problem..."
-> > type thing)."
-> 
-> He reported it during testing this series so I don't think it will happen
-> in current code because zone_page_state and zone_page_state_snapshot
-> can't set free_pages to minus.
-> 
-> > 
-> > > 
-> > >  mm/page_alloc.c |    3 ++-
-> > >  1 file changed, 2 insertions(+), 1 deletion(-)
-> > > 
-> > > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> > > index f17e6e4..627653c 100644
-> > > --- a/mm/page_alloc.c
-> > > +++ b/mm/page_alloc.c
-> > > @@ -1594,6 +1594,7 @@ static bool __zone_watermark_ok(struct zone *z, int order, unsigned long mark,
-> > >  {
-> > >  	/* free_pages my go negative - that's OK */
-> > >  	long min = mark;
-> > > +	long lowmem_reserve = z->lowmem_reserve[classzone_idx];
-> > >  	int o;
-> > >  
-> > >  	free_pages -= (1 << order) - 1;
-> > > @@ -1602,7 +1603,7 @@ static bool __zone_watermark_ok(struct zone *z, int order, unsigned long mark,
-> > >  	if (alloc_flags & ALLOC_HARDER)
-> > >  		min -= min / 4;
-> > >  
-> > > -	if (free_pages <= min + z->lowmem_reserve[classzone_idx])
-> > > +	if (free_pages <= min + lowmem_reserve)
-> > >  		return false;
-> > >  	for (o = 0; o < order; o++) {
-> > >  		/* At the next order, this order's pages become unavailable */
-> > > -- 
-> > > 1.7.9.5
-> > > 
-> > > --
-> > > To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> > > the body to majordomo@kvack.org.  For more info on Linux MM,
-> > > see: http://www.linux-mm.org/ .
-> > > Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> > 
-> > -- 
-> > Michal Hocko
-> > SUSE Labs
-> > SUSE LINUX s.r.o.
-> > Lihovarska 1060/12
-> > 190 00 Praha 9    
-> > Czech Republic
-> > 
-> > --
-> > To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> > the body to majordomo@kvack.org.  For more info on Linux MM,
-> > see: http://www.linux-mm.org/ .
-> > Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
-> -- 
-> Kind regards,
-> Minchan Kim
+> Thanks & Best Regards,
+> Wanpeng Li
+> >
+> >What are you trying to accomplish here?
+> >
+> >> Signed-off-by: Wanpeng Li <liwp.linux@gmail.com>
+> >> ---
+> >>  mm/memcontrol.c |   14 +++++++-------
+> >>  1 files changed, 7 insertions(+), 7 deletions(-)
+> >> 
+> >> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> >> index 69a7d45..6392c0a 100644
+> >> --- a/mm/memcontrol.c
+> >> +++ b/mm/memcontrol.c
+> >> @@ -3929,10 +3929,10 @@ static void memcg_get_hierarchical_limit(struct mem_cgroup *memcg,
+> >>  		unsigned long long *mem_limit, unsigned long long *memsw_limit)
+> >>  {
+> >>  	struct cgroup *cgroup;
+> >> -	unsigned long long min_limit, min_memsw_limit, tmp;
+> >> +	unsigned long long max_limit, max_memsw_limit, tmp;
+> >>  
+> >> -	min_limit = res_counter_read_u64(&memcg->res, RES_LIMIT);
+> >> -	min_memsw_limit = res_counter_read_u64(&memcg->memsw, RES_LIMIT);
+> >> +	max_limit = res_counter_read_u64(&memcg->res, RES_LIMIT);
+> >> +	max_memsw_limit = res_counter_read_u64(&memcg->memsw, RES_LIMIT);
+> >>  	cgroup = memcg->css.cgroup;
+> >>  	if (!memcg->use_hierarchy)
+> >>  		goto out;
+> >> @@ -3943,13 +3943,13 @@ static void memcg_get_hierarchical_limit(struct mem_cgroup *memcg,
+> >>  		if (!memcg->use_hierarchy)
+> >>  			break;
+> >>  		tmp = res_counter_read_u64(&memcg->res, RES_LIMIT);
+> >> -		min_limit = min(min_limit, tmp);
+> >> +		max_limit = max(max_limit, tmp);
+> >>  		tmp = res_counter_read_u64(&memcg->memsw, RES_LIMIT);
+> >> -		min_memsw_limit = min(min_memsw_limit, tmp);
+> >> +		max_memsw_limit = max(max_memsw_limit, tmp);
+> >>  	}
+> >>  out:
+> >> -	*mem_limit = min_limit;
+> >> -	*memsw_limit = min_memsw_limit;
+> >> +	*mem_limit = max_limit;
+> >> +	*memsw_limit = max_memsw_limit;
+> >>  }
+> >>  
+> >>  static int mem_cgroup_reset(struct cgroup *cont, unsigned int event)
+> >> -- 
+> >> 1.7.5.4
+> >> 
+> >
+> >-- 
+> >Michal Hocko
+> >SUSE Labs
+> >SUSE LINUX s.r.o.
+> >Lihovarska 1060/12
+> >190 00 Praha 9    
+> >Czech Republic
 
 -- 
 Michal Hocko
