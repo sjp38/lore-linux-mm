@@ -1,95 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
-	by kanga.kvack.org (Postfix) with SMTP id CCD826B0068
-	for <linux-mm@kvack.org>; Thu, 12 Jul 2012 10:13:04 -0400 (EDT)
-Message-ID: <1342102376.28010.7.camel@twins>
-Subject: Re: [PATCH 00/13] rbtree updates
-From: Peter Zijlstra <peterz@infradead.org>
-Date: Thu, 12 Jul 2012 16:12:56 +0200
-In-Reply-To: <20120712011208.GA1152@google.com>
-References: <1341876923-12469-1-git-send-email-walken@google.com>
-	 <1342012996.3462.154.camel@twins> <20120712011208.GA1152@google.com>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: quoted-printable
-Mime-Version: 1.0
+Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
+	by kanga.kvack.org (Postfix) with SMTP id 9230C6B005C
+	for <linux-mm@kvack.org>; Thu, 12 Jul 2012 10:51:01 -0400 (EDT)
+Received: by yenr5 with SMTP id r5so2979060yen.14
+        for <linux-mm@kvack.org>; Thu, 12 Jul 2012 07:51:00 -0700 (PDT)
+Message-ID: <4FFEE452.40300@gmail.com>
+Date: Thu, 12 Jul 2012 22:50:58 +0800
+From: Sha Zhengju <handai.szj@gmail.com>
+MIME-Version: 1.0
+Subject: Re: [patch 3/5] mm, memcg: introduce own oom handler to iterate only
+ over its own threads
+References: <alpine.DEB.2.00.1206251846020.24838@chino.kir.corp.google.com> <alpine.DEB.2.00.1206291404530.6040@chino.kir.corp.google.com> <alpine.DEB.2.00.1206291405500.6040@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.00.1206291405500.6040@chino.kir.corp.google.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michel Lespinasse <walken@google.com>
-Cc: aarcange@redhat.com, dwmw2@infradead.org, riel@redhat.com, daniel.santos@pobox.com, axboe@kernel.dk, ebiederm@xmission.com, linux-mm@kvack.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, torvalds@linux-foundation.org
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan@kernel.org>, Oleg Nesterov <oleg@redhat.com>, linux-mm@kvack.org, cgroups@vger.kernel.org
 
-On Wed, 2012-07-11 at 18:12 -0700, Michel Lespinasse wrote:
->=20
-> In __rb_erase_color(), some of the cases are more complicated than you dr=
-ew however, because some node colors aren't known.
+On 06/30/2012 05:06 AM, David Rientjes wrote:
+> The global oom killer is serialized by the zonelist being used in the
+> page allocation.  Concurrent oom kills are thus a rare event and only
+> occur in systems using mempolicies and with a large number of nodes.
+>
+> Memory controller oom kills, however, can frequently be concurrent since
+> there is no serialization once the oom killer is called for oom
+> conditions in several different memcgs in parallel.
+>
+> This creates a massive contention on tasklist_lock since the oom killer
+> requires the readside for the tasklist iteration.  If several memcgs are
+> calling the oom killer, this lock can be held for a substantial amount of
+> time, especially if threads continue to enter it as other threads are
+> exiting.
+>
+> Since the exit path grabs the writeside of the lock with irqs disabled in
+> a few different places, this can cause a soft lockup on cpus as a result
+> of tasklist_lock starvation.
+>
+> The kernel lacks unfair writelocks, and successful calls to the oom
+> killer usually result in at least one thread entering the exit path, so
+> an alternative solution is needed.
+>
+> This patch introduces a seperate oom handler for memcgs so that they do
+> not require tasklist_lock for as much time.  Instead, it iterates only
+> over the threads attached to the oom memcg and grabs a reference to the
+> selected thread before calling oom_kill_process() to ensure it doesn't
+> prematurely exit.
+>
+> This still requires tasklist_lock for the tasklist dump, iterating
+> children of the selected process, and killing all other threads on the
+> system sharing the same memory as the selected victim.  So while this
+> isn't a complete solution to tasklist_lock starvation, it significantly
+> reduces the amount of time that it is held.
+>
 
-Right, the wikipedia article draws them blank, I couldn't come up with a
-3rd case, although maybe we can annotate them like (P) to mean blank..
+Looks good.
+You can add Reviewed-by: Sha Zhengju <handai.szj@taobao.com>
 
-
-> This is what I ended up with:
->=20
->   *  5), then the longest possible path due to 4 is 2B.
->   *
->   *  We shall indicate color with case, where black nodes are uppercase a=
-nd red
-> - *  nodes will be lowercase.
-> + *  nodes will be lowercase. Unknown color nodes shall be drawn as red w=
-ith
-> + *  some accompanying text comment.
->   */
->=20
-> +                                       /*
-> +                                        * Case 2 - sibling color flip
-> +                                        * (p could be either color here)
-> +                                        *
-> +                                        *     p             p
-> +                                        *    / \           / \
-> +                                        *   N   S    -->  N   s
-> +                                        *      / \           / \
-> +                                        *     Sl  Sr        Sl  Sr
-> +                                        *
-> +                                        * This leaves us violating 5), s=
-o
-> +                                        * recurse at p. If p is red, the
-> +                                        * recursion will just flip it to=
- black
-> +                                        * and exit. If coming from Case =
-1,
-> +                                        * p is known to be red.
-> +                                        */
->=20
-> +                               /*
-> +                                * Case 3 - right rotate at sibling
-> +                                * (p could be either color here)
-> +                                *
-> +                                *    p             p
-> +                                *   / \           / \
-> +                                *  N   S    -->  N   Sl
-> +                                *     / \             \
-> +                                *    sl  Sr            s
-> +                                *                       \
-> +                                *                        Sr
-> +                                */
->=20
-> +                       /*
-> +                        * Case 4 - left rotate at parent + color flips
-> +                        * (p and sl could be either color here.
-> +                        *  After rotation, p becomes black, s acquires
-> +                        *  p's color, and sl keeps its color)
-> +                        *
-> +                        *       p               s
-> +                        *      / \             / \
-> +                        *     N   S     -->   P   Sr
-> +                        *        / \         / \
-> +                        *       sl  sr      N   sl
-> +                        */=20
-
-
-Yes, very nice.. someday when I'm bored I might expand the comments with
-the reason why we're doing the given operation.
-
-Also, I was sorely tempted to rename your tmp1,tmp2 variables to sl and
-sr.
+Thanks,
+Sha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
