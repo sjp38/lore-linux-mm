@@ -1,65 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
-	by kanga.kvack.org (Postfix) with SMTP id 9230C6B005C
-	for <linux-mm@kvack.org>; Thu, 12 Jul 2012 10:51:01 -0400 (EDT)
-Received: by yenr5 with SMTP id r5so2979060yen.14
-        for <linux-mm@kvack.org>; Thu, 12 Jul 2012 07:51:00 -0700 (PDT)
-Message-ID: <4FFEE452.40300@gmail.com>
-Date: Thu, 12 Jul 2012 22:50:58 +0800
-From: Sha Zhengju <handai.szj@gmail.com>
+Received: from psmtp.com (na3sys010amx159.postini.com [74.125.245.159])
+	by kanga.kvack.org (Postfix) with SMTP id 7B70A6B0073
+	for <linux-mm@kvack.org>; Thu, 12 Jul 2012 11:40:20 -0400 (EDT)
+Received: by ggm4 with SMTP id 4so3059305ggm.14
+        for <linux-mm@kvack.org>; Thu, 12 Jul 2012 08:40:19 -0700 (PDT)
+Date: Thu, 12 Jul 2012 17:40:11 +0200
+From: Frederic Weisbecker <fweisbec@gmail.com>
+Subject: Re: Fork bomb limitation in memcg WAS: Re: [PATCH 00/11] kmem
+ controller for memcg: stripped down version
+Message-ID: <20120712154008.GB2185@somewhere.redhat.com>
+References: <1340633728-12785-1-git-send-email-glommer@parallels.com>
+ <20120625162745.eabe4f03.akpm@linux-foundation.org>
+ <4FE9621D.2050002@parallels.com>
+ <20120626145539.eeeab909.akpm@linux-foundation.org>
+ <4FEAD260.4000603@parallels.com>
+ <alpine.DEB.2.00.1206271233080.22162@chino.kir.corp.google.com>
+ <4FEC1D63.6000903@parallels.com>
+ <20120628152540.cc13a735.akpm@linux-foundation.org>
+ <4FF2D9BF.20800@parallels.com>
 MIME-Version: 1.0
-Subject: Re: [patch 3/5] mm, memcg: introduce own oom handler to iterate only
- over its own threads
-References: <alpine.DEB.2.00.1206251846020.24838@chino.kir.corp.google.com> <alpine.DEB.2.00.1206291404530.6040@chino.kir.corp.google.com> <alpine.DEB.2.00.1206291405500.6040@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.00.1206291405500.6040@chino.kir.corp.google.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4FF2D9BF.20800@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan@kernel.org>, Oleg Nesterov <oleg@redhat.com>, linux-mm@kvack.org, cgroups@vger.kernel.org
+To: Glauber Costa <glommer@parallels.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Pekka Enberg <penberg@kernel.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Lameter <cl@linux.com>, devel@openvz.org, kamezawa.hiroyu@jp.fujitsu.com, Tejun Heo <tj@kernel.org>, Rik van Riel <riel@redhat.com>, Daniel Lezcano <daniel.lezcano@linaro.org>, Kay Sievers <kay.sievers@vrfy.org>, Lennart Poettering <lennart@poettering.net>, "Kirill A. Shutemov" <kirill@shutemov.name>, Kir Kolyshkin <kir@parallels.com>
 
-On 06/30/2012 05:06 AM, David Rientjes wrote:
-> The global oom killer is serialized by the zonelist being used in the
-> page allocation.  Concurrent oom kills are thus a rare event and only
-> occur in systems using mempolicies and with a large number of nodes.
->
-> Memory controller oom kills, however, can frequently be concurrent since
-> there is no serialization once the oom killer is called for oom
-> conditions in several different memcgs in parallel.
->
-> This creates a massive contention on tasklist_lock since the oom killer
-> requires the readside for the tasklist iteration.  If several memcgs are
-> calling the oom killer, this lock can be held for a substantial amount of
-> time, especially if threads continue to enter it as other threads are
-> exiting.
->
-> Since the exit path grabs the writeside of the lock with irqs disabled in
-> a few different places, this can cause a soft lockup on cpus as a result
-> of tasklist_lock starvation.
->
-> The kernel lacks unfair writelocks, and successful calls to the oom
-> killer usually result in at least one thread entering the exit path, so
-> an alternative solution is needed.
->
-> This patch introduces a seperate oom handler for memcgs so that they do
-> not require tasklist_lock for as much time.  Instead, it iterates only
-> over the threads attached to the oom memcg and grabs a reference to the
-> selected thread before calling oom_kill_process() to ensure it doesn't
-> prematurely exit.
->
-> This still requires tasklist_lock for the tasklist dump, iterating
-> children of the selected process, and killing all other threads on the
-> system sharing the same memory as the selected victim.  So while this
-> isn't a complete solution to tasklist_lock starvation, it significantly
-> reduces the amount of time that it is held.
->
+On Tue, Jul 03, 2012 at 03:38:39PM +0400, Glauber Costa wrote:
+> On 06/29/2012 02:25 AM, Andrew Morton wrote:
+> > On Thu, 28 Jun 2012 13:01:23 +0400
+> > Glauber Costa <glommer@parallels.com> wrote:
+> > 
+> >>
+> >> ...
+> >>
+> > 
+> > OK, that all sounds convincing ;) Please summarise and capture this
+> > discussion in the [patch 0/n] changelog so we (or others) don't have to
+> > go through this all again.  And let's remember this in the next
+> > patchset!
+> 
+> Thanks, will surely do.
+> 
+> >> Last, but not least, note that it is totally within my interests to
+> >> merge the slab tracking as fast as we can. it'll be a matter of going
+> >> back to it, and agreeing in the final form.
+> > 
+> > Yes, I'd very much like to have the whole slab implementation in a
+> > reasonably mature state before proceeding too far with this base
+> > patchset.
+> 
+> Does that means that you want to merge them together? I am more than
+> happy to post the slab part again ontop of that to have people reviewing it.
+> 
+> But if possible, I believe that merging this part first would help us to
+> split up testing in a beneficial way, in the sense that if it breaks, we
+> know at least in which part it is. Not to mention, of course, that
+> reviewers will have an easier time reviewing it as two pieces.
 
-Looks good.
-You can add Reviewed-by: Sha Zhengju <handai.szj@taobao.com>
-
-Thanks,
-Sha
+Definetly yeah. This makes the review easier for this tricky chunk.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
