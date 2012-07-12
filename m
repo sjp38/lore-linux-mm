@@ -1,91 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
-	by kanga.kvack.org (Postfix) with SMTP id 0C5846B005D
-	for <linux-mm@kvack.org>; Wed, 11 Jul 2012 21:01:01 -0400 (EDT)
-Date: Thu, 12 Jul 2012 10:01:05 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH 0/4] zsmalloc improvements
-Message-ID: <20120712010105.GA5503@bbox>
-References: <1341263752-10210-1-git-send-email-sjenning@linux.vnet.ibm.com>
- <4FFD2524.2050300@kernel.org>
- <4FFD86FE.1090307@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
+	by kanga.kvack.org (Postfix) with SMTP id 349356B005D
+	for <linux-mm@kvack.org>; Wed, 11 Jul 2012 21:12:13 -0400 (EDT)
+Received: by pbbrp2 with SMTP id rp2so3457936pbb.14
+        for <linux-mm@kvack.org>; Wed, 11 Jul 2012 18:12:12 -0700 (PDT)
+Date: Wed, 11 Jul 2012 18:12:08 -0700
+From: Michel Lespinasse <walken@google.com>
+Subject: Re: [PATCH 00/13] rbtree updates
+Message-ID: <20120712011208.GA1152@google.com>
+References: <1341876923-12469-1-git-send-email-walken@google.com>
+ <1342012996.3462.154.camel@twins>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <4FFD86FE.1090307@linux.vnet.ibm.com>
+In-Reply-To: <1342012996.3462.154.camel@twins>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Seth Jennings <sjenning@linux.vnet.ibm.com>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Nitin Gupta <ngupta@vflare.org>, Robert Jennings <rcj@linux.vnet.ibm.com>, linux-mm@kvack.org, devel@driverdev.osuosl.org, linux-kernel@vger.kernel.org
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: aarcange@redhat.com, dwmw2@infradead.org, riel@redhat.com, daniel.santos@pobox.com, axboe@kernel.dk, ebiederm@xmission.com, linux-mm@kvack.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, torvalds@linux-foundation.org
 
-On Wed, Jul 11, 2012 at 09:00:30AM -0500, Seth Jennings wrote:
-> On 07/11/2012 02:03 AM, Minchan Kim wrote:
-> > On 07/03/2012 06:15 AM, Seth Jennings wrote:
-> >> zsmapbench measures the copy-based mapping at ~560 cycles for a
-> >> map/unmap operation on spanned object for both KVM guest and bare-metal,
-> >> while the page table mapping was ~1500 cycles on a VM and ~760 cycles
-> >> bare-metal.  The cycles for the copy method will vary with
-> >> allocation size, however, it is still faster even for the largest
-> >> allocation that zsmalloc supports.
-> >>
-> >> The result is convenient though, as mempcy is very portable :)
-> > 
-> > Today, I tested zsmapbench in my embedded board(ARM).
-> > tlb-flush is 30% faster than copy-based so it's always not win.
-> > I think it depends on CPU speed/cache size.
-> > 
-> > zram is already very popular on embedded systems so I want to use
-> > it continuously without 30% big demage so I want to keep our old approach
-> > which supporting local tlb flush. 
-> > 
-> > Of course, in case of KVM guest, copy-based would be always bin win.
-> > So shouldn't we support both approach? It could make code very ugly
-> > but I think it has enough value.
-> > 
-> > Any thought?
-> 
-> Thanks for testing on ARM.
-> 
-> I can add the pgtable assisted method back in, no problem.
-> The question is by which criteria are we going to choose
-> which method to use? By arch (i.e. ARM -> pgtable assist,
-> x86 -> copy, other archs -> ?)?
+On Wed, Jul 11, 2012 at 6:23 AM, Peter Zijlstra <peterz@infradead.org> wrote:
+> Looks nice.. How about something like the below on top.. I couldn't
+> immediately find a sane reason for the grand-parent to always be red in
+> the insertion case.
 
-I prefer your previous version __HAVE_LOCAL_FLUSH_TLB_KERNEL_RANGE.
-If you didn't implement that function for x86, it simply uses memcpy
-version while ARM can use tlb flush version if we add the definary.
+Do you mean the case you marked XXX ? it is actually parent that is
+red, which we know because we tested that a few lines earlier.
 
-Of course, it would be better to select best choice by testing
-benchmark for all of architecture but that architecture would be
-changed in future, too so we need further testing periodically.
-And we will have no time then, too.
-For reducing the burden, we can detect it automatically while module
-is loading or booting but it tackles with booting time. :(
-So, let's put it aside as further works.
-At the moment, let's think simply two arch(x86, ARM) until other arch
-user doesn't raise a hand for volunteering.
+> @@ -85,12 +104,27 @@ void rb_insert_color(struct rb_node *nod
+>                 } else if (rb_is_black(parent))
+>                         break;
+>
+> +               /*
+> +                * XXX
+> +                */
+>                 gparent = rb_red_parent(parent);
 
-Yes. it could be a problem in future if other arch which support
-local flush want to use memcpy but IMHO, it's very hard to kill
-two bird(portability and performance) with one stone. :(
+See :)
 
-> 
-> Also, what changes did you make to zsmapbench to measure
-> elapsed time/cycles on ARM?  Afaik, rdtscll() is not
-> supported on ARM.
+>                 if (parent == gparent->rb_left) {
+>                         tmp = gparent->rb_right;
+>                         if (tmp && rb_is_red(tmp)) {
+> -                               /* Case 1 - color flips */
+> +                               /*
+> +                                * Case 1 - color flips
+> +                                *
+> +                                *       G            g
+> +                                *      / \          / \
+> +                                *     p   u  -->   P   U
+> +                                *    /            /
+> +                                *   n            N
+> +                                *
+> +                                * However, since g's parent might be red, and
+> +                                * 4) does not allow this, we need to recurse
+> +                                * at g.
+> +                                */
 
-I used local_clock instead of arch dependent code and makes longer test time
-from 1 sec to 10 sec.
+I like these diagrams - I initially didn't think they'd work well, given the need for colors etc, but I now see that it's workable.
 
-> 
-> Thanks,
-> Seth
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+In __rb_erase_color(), some of the cases are more complicated than you drew however, because some node colors aren't known.
+This is what I ended up with:
+
+  *  5), then the longest possible path due to 4 is 2B.
+  *
+  *  We shall indicate color with case, where black nodes are uppercase and red
+- *  nodes will be lowercase.
++ *  nodes will be lowercase. Unknown color nodes shall be drawn as red with
++ *  some accompanying text comment.
+  */
+
++                                       /*
++                                        * Case 2 - sibling color flip
++                                        * (p could be either color here)
++                                        *
++                                        *     p             p
++                                        *    / \           / \
++                                        *   N   S    -->  N   s
++                                        *      / \           / \
++                                        *     Sl  Sr        Sl  Sr
++                                        *
++                                        * This leaves us violating 5), so
++                                        * recurse at p. If p is red, the
++                                        * recursion will just flip it to black
++                                        * and exit. If coming from Case 1,
++                                        * p is known to be red.
++                                        */
+
++                               /*
++                                * Case 3 - right rotate at sibling
++                                * (p could be either color here)
++                                *
++                                *    p             p
++                                *   / \           / \
++                                *  N   S    -->  N   Sl
++                                *     / \             \
++                                *    sl  Sr            s
++                                *                       \
++                                *                        Sr
++                                */
+
++                       /*
++                        * Case 4 - left rotate at parent + color flips
++                        * (p and sl could be either color here.
++                        *  After rotation, p becomes black, s acquires
++                        *  p's color, and sl keeps its color)
++                        *
++                        *       p               s
++                        *      / \             / \
++                        *     N   S     -->   P   Sr
++                        *        / \         / \
++                        *       sl  sr      N   sl
++                        */
+
+-- 
+Michel "Walken" Lespinasse
+A program is never fully debugged until the last user dies.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
