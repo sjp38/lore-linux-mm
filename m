@@ -1,104 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
-	by kanga.kvack.org (Postfix) with SMTP id 5C84A6B004D
-	for <linux-mm@kvack.org>; Wed, 11 Jul 2012 22:26:21 -0400 (EDT)
-Date: Thu, 12 Jul 2012 11:26:22 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH -mm v3] mm: have order > 0 compaction start off where it
- left
-Message-ID: <20120712022622.GA27120@bbox>
-References: <4FECCB89.2050400@redhat.com>
- <20120628143546.d02d13f9.akpm@linux-foundation.org>
- <1341250950.16969.6.camel@lappy>
- <4FF2435F.2070302@redhat.com>
- <20120703101024.GG13141@csn.ul.ie>
- <20120703144808.4daa4244.akpm@linux-foundation.org>
- <4FF3ABA1.3070808@kernel.org>
- <20120704004219.47d0508d.akpm@linux-foundation.org>
- <4FF3F864.3000204@kernel.org>
- <20120711161800.763dbef0@cuia.bos.redhat.com>
+Received: from psmtp.com (na3sys010amx144.postini.com [74.125.245.144])
+	by kanga.kvack.org (Postfix) with SMTP id 4B5A56B005C
+	for <linux-mm@kvack.org>; Wed, 11 Jul 2012 22:33:44 -0400 (EDT)
+Received: by pbbrp2 with SMTP id rp2so3577666pbb.14
+        for <linux-mm@kvack.org>; Wed, 11 Jul 2012 19:33:43 -0700 (PDT)
+Date: Wed, 11 Jul 2012 19:33:41 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH v2] mm: Warn about costly page allocation
+In-Reply-To: <20120711235504.GA5204@bbox>
+Message-ID: <alpine.DEB.2.00.1207111930020.9370@chino.kir.corp.google.com>
+References: <1341878153-10757-1-git-send-email-minchan@kernel.org> <20120709170856.ca67655a.akpm@linux-foundation.org> <20120710002510.GB5935@bbox> <alpine.DEB.2.00.1207101756070.684@chino.kir.corp.google.com> <20120711022304.GA17425@bbox>
+ <alpine.DEB.2.00.1207102223000.26591@chino.kir.corp.google.com> <4FFD15B2.6020001@kernel.org> <alpine.DEB.2.00.1207111337430.3635@chino.kir.corp.google.com> <CAEwNFnB1Z92f22ms=EsBEOOY4Q_JRA8rMPUvQmoqik7rt-EgcQ@mail.gmail.com>
+ <alpine.DEB.2.00.1207111556190.24516@chino.kir.corp.google.com> <20120711235504.GA5204@bbox>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120711161800.763dbef0@cuia.bos.redhat.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Sasha Levin <levinsasha928@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, jaschut@sandia.gov, kamezawa.hiroyu@jp.fujitsu.com, Dave Jones <davej@redhat.com>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-Hi Rik,
+On Thu, 12 Jul 2012, Minchan Kim wrote:
 
-On Wed, Jul 11, 2012 at 04:18:00PM -0400, Rik van Riel wrote:
-> This patch makes the comment for cc->wrapped longer, explaining
-> what is really going on. It also incorporates the comment fix
-> pointed out by Minchan.
+> Agreed and that's why I suggested following patch.
+> It's not elegant but at least, it could attract interest of configuration
+> people and they could find a regression during test phase.
+> This description could be improved later by writing new documenation which
+> includes more detailed story and method for capturing high order allocation
+> by ftrace once we see regression report.
 > 
-> Additionally, Minchan found that, when no pages get isolated,
-> high_pte could be a value that is much lower than desired,
-
-s/high_pte/high_pfn
-
-> which might potentially cause compaction to skip a range of
-> pages.
+> At the moment, I would like to post this patch, simply.
+> (Of course, I hope fluent native people will correct a sentence. :) )
 > 
-> Only assign zone->compact_cache_free_pfn if we actually
-> isolated free pages for compaction.
+> Any objections, Andrew, David?
 > 
-> Split out the calculation to get the start of the last page
-> block in a zone into its own, commented function.
-> 
-> Signed-off-by: Rik van Riel <riel@redhat.com>
 
-Acked-by: Minchan Kim <minchan@kernel.org>
+There are other config options like CONFIG_SLOB that are used for a very 
+small memory footprint on systems like this.  We used to have 
+CONFIG_EMBEDDED to suggest options like this but that has since been 
+renamed as CONFIG_EXPERT and has become obscured.
 
-> ---
->  include/linux/mmzone.h |    2 +-
->  mm/compaction.c        |   30 ++++++++++++++++++++++--------
->  mm/internal.h          |    6 +++++-
->  3 files changed, 28 insertions(+), 10 deletions(-)
-> 
-> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-> index e629594..e957fa1 100644
-> --- a/include/linux/mmzone.h
-> +++ b/include/linux/mmzone.h
-> @@ -370,7 +370,7 @@ struct zone {
->  	spinlock_t		lock;
->  	int                     all_unreclaimable; /* All pages pinned */
->  #if defined CONFIG_COMPACTION || defined CONFIG_CMA
-> -	/* pfn where the last order > 0 compaction isolated free pages */
-> +	/* pfn where the last incremental compaction isolated free pages */
->  	unsigned long		compact_cached_free_pfn;
->  #endif
->  #ifdef CONFIG_MEMORY_HOTPLUG
-> diff --git a/mm/compaction.c b/mm/compaction.c
-> index 2668b77..3812c3e 100644
-> --- a/mm/compaction.c
-> +++ b/mm/compaction.c
-> @@ -472,10 +472,11 @@ static void isolate_freepages(struct zone *zone,
->  		 * looking for free pages, the search will restart here as
->  		 * page migration may have returned some pages to the allocator
->  		 */
-> -		if (isolated)
-> +		if (isolated) {
->  			high_pfn = max(high_pfn, pfn);
-> -		if (cc->order > 0)
-> -			zone->compact_cached_free_pfn = high_pfn;
-> +			if (cc->order > 0)
-> +				zone->compact_cached_free_pfn = high_pfn;
-> +		}
->  	}
->  
->  	/* split_free_page does not map the pages */
-> @@ -569,6 +570,21 @@ static isolate_migrate_t isolate_migratepages(struct zone *zone,
->  	return ISOLATE_SUCCESS;
->  }
->  
-> +/*
-> + * Returns the start pfn of the laste page block in a zone.
+If size is really the only difference, I would think that people who want 
+the smallest kernel possible would be doing allnoconfig and then 
+selectively enabling what they need, so defconfig isn't really relevant 
+here.  And it's very difficult for an admin to know whether or not they 
+"care about high-order allocations."
 
-s/laste/last/
-
-
+I'd reconsider disabling compaction by default unless there are other 
+considerations that haven't been mentioned.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
