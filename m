@@ -1,102 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx103.postini.com [74.125.245.103])
-	by kanga.kvack.org (Postfix) with SMTP id CACBD6B005D
-	for <linux-mm@kvack.org>; Thu, 12 Jul 2012 15:55:06 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
+	by kanga.kvack.org (Postfix) with SMTP id 810086B005D
+	for <linux-mm@kvack.org>; Thu, 12 Jul 2012 15:58:39 -0400 (EDT)
+Date: Thu, 12 Jul 2012 21:58:15 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH 36/40] autonuma: page_autonuma
+Message-ID: <20120712195815.GQ20382@redhat.com>
+References: <1340888180-15355-1-git-send-email-aarcange@redhat.com>
+ <1340888180-15355-37-git-send-email-aarcange@redhat.com>
+ <4FF14196.6040106@redhat.com>
 MIME-Version: 1.0
-Message-ID: <367d9a88-7819-401a-8210-c32503cdd458@default>
-Date: Thu, 12 Jul 2012 12:54:54 -0700 (PDT)
-From: Dan Magenheimer <dan.magenheimer@oracle.com>
-Subject: RE: [PATCH 3/4] zsmalloc: add details to zs_map_object boiler plate
-References: <1341263752-10210-1-git-send-email-sjenning@linux.vnet.ibm.com>
- <1341263752-10210-4-git-send-email-sjenning@linux.vnet.ibm.com>
- <4FFB94FF.8030401@kernel.org> <4FFC478C.4050505@linux.vnet.ibm.com>
- <4FFD2E65.5080307@kernel.org> <4FFD8A8F.6030603@linux.vnet.ibm.com>
- <20120712011555.GB5503@bbox>
-In-Reply-To: <20120712011555.GB5503@bbox>
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: quoted-printable
+Content-Disposition: inline
+In-Reply-To: <4FF14196.6040106@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Konrad Wilk <konrad.wilk@oracle.com>, Nitin Gupta <ngupta@vflare.org>, Robert Jennings <rcj@linux.vnet.ibm.com>, linux-mm@kvack.org, devel@driverdev.osuosl.org, linux-kernel@vger.kernel.org
+To: Rik van Riel <riel@redhat.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hillf Danton <dhillf@gmail.com>, Dan Smith <danms@us.ibm.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Johannes Weiner <hannes@cmpxchg.org>, Srivatsa Vaddagiri <vatsa@linux.vnet.ibm.com>, Christoph Lameter <cl@linux.com>, Alex Shi <alex.shi@intel.com>, Mauricio Faria de Oliveira <mauricfo@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Don Morris <don.morris@hp.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
 
-> From: Minchan Kim [mailto:minchan@kernel.org]
-> Subject: Re: [PATCH 3/4] zsmalloc: add details to zs_map_object boiler pl=
-ate
->=20
-> On Wed, Jul 11, 2012 at 09:15:43AM -0500, Seth Jennings wrote:
-> > On 07/11/2012 02:42 AM, Minchan Kim wrote:
-> > > On 07/11/2012 12:17 AM, Seth Jennings wrote:
-> > >> On 07/09/2012 09:35 PM, Minchan Kim wrote:
-> > >>> Maybe we need local_irq_save/restore in zs_[un]map_object path.
-> > >>
-> > >> I'd rather not disable interrupts since that will create
-> > >> unnecessary interrupt latency for all users, even if they
-> > >
-> > > Agreed.
-> > > Although we guide k[un]map atomic is so fast, it isn't necessary
-> > > to force irq_[enable|disable]. Okay.
-> > >
-> > >> don't need interrupt protection.  If a particular user uses
-> > >> zs_map_object() in an interrupt path, it will be up to that
-> > >> user to disable interrupts to ensure safety.
-> > >
-> > > Nope. It shouldn't do that.
-> > > Any user in interrupt context can't assume that there isn't any other=
- user using per-cpu buffer
-> > > right before interrupt happens.
-> > >
-> > > The concern is that if such bug happens, it's very hard to find a bug=
-.
-> > > So, how about adding this?
-> > >
-> > > void zs_map_object(...)
-> > > {
-> > > =09BUG_ON(in_interrupt());
-> > > }
-> >
-> > I not completely following you, but I think I'm following
-> > enough.  Your point is that the per-cpu buffers are shared
-> > by all zsmalloc users and one user doesn't know if another
-> > user is doing a zs_map_object() in an interrupt path.
->=20
-> And vise versa is yes.
->=20
-> > However, I think what you are suggesting is to disallow
-> > mapping in interrupt context.  This is a problem for zcache
-> > as it already does mapping in interrupt context, namely for
-> > page decompression in the page fault handler.
->=20
-> I don't get it.
-> Page fault handler isn't interrupt context.
->=20
-> > What do you think about making the per-cpu buffers local to
-> > each zsmalloc pool? That way each user has their own per-cpu
-> > buffers and don't step on each other's toes.
->=20
-> Maybe, It could be a solution if you really need it in interrupt context.
-> But the concern is it could hurt zsmalloc's goal which is memory
-> space efficiency if your system has lots of CPUs.
+On Mon, Jul 02, 2012 at 02:37:10AM -0400, Rik van Riel wrote:
+>  > +fail:
+>  > +	printk(KERN_CRIT "allocation of page_autonuma failed.\n");
+>  > +	printk(KERN_CRIT "please try the 'noautonuma' boot option\n");
+>  > +	panic("Out of memory");
+>  > +}
+> 
+> The system can run just fine without autonuma.
+> 
+> Would it make sense to simply disable autonuma at this point,
+> but to try continue running?
 
-Sorry to be so far behind on this thread.
+BTW, the same would apply to mm/page_cgroup.c, but I think the idea
+here is that something serious went wrong. Workaround with noautonuma
+boot option is enough.
 
-For frontswap and zram, the "put" calls are not in interrupt
-context.  For cleancache, the put call IS in interrupt context.
-So if you want to use zsmalloc for zcache+cleancache, interrupt
-context is a concern.  As discussed previously in a separate
-thread though, zsmalloc will take a lot of work to support the full
-needs of zcache.  So, pick your poison.
+> 
+> > @@ -700,8 +780,14 @@ static void free_section_usemap(struct page *memmap, unsigned long *usemap)
+> >   	 */
+> >   	if (PageSlab(usemap_page)) {
+> >   		kfree(usemap);
+> > -		if (memmap)
+> > +		if (memmap) {
+> >   			__kfree_section_memmap(memmap, PAGES_PER_SECTION);
+> > +			if (!autonuma_impossible())
+> > +				__kfree_section_page_autonuma(page_autonuma,
+> > +							      PAGES_PER_SECTION);
+> > +			else
+> > +				BUG_ON(page_autonuma);
+> 
+> VM_BUG_ON ?
+> 
+> > +		if (!autonuma_impossible()) {
+> > +			struct page *page_autonuma_page;
+> > +			page_autonuma_page = virt_to_page(page_autonuma);
+> > +			free_map_bootmem(page_autonuma_page, nr_pages);
+> > +		} else
+> > +			BUG_ON(page_autonuma);
+> 
+> ditto
+> 
+> >   	pgdat_resize_unlock(pgdat,&flags);
+> >   	if (ret<= 0) {
+> > +		if (!autonuma_impossible())
+> > +			__kfree_section_page_autonuma(page_autonuma, nr_pages);
+> > +		else
+> > +			BUG_ON(page_autonuma);
+> 
+> VM_BUG_ON ?
 
-The x86 architecture is far ahead of ARM on many CPU optimizations
-including fast copying.  Most x86 systems are also now 64-bit,
-which means 64-bit+ data buses.  These differences probably account
-for the difference in copy-vs-TLBmapping performance between (64-bit)
-x86 and (32-bit ARM).  However, ARM may eventually catch up, especially
-when 64-bit ARM chips are more common, so
-it would be nice if zsmalloc could determine at runtime which
-is faster and use it.
+These only run at the very boot stage, so performance is irrelevant
+and it's safer to keep them on.
 
-Dan
+The rest was corrected.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
