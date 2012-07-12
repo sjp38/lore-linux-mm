@@ -1,63 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx101.postini.com [74.125.245.101])
-	by kanga.kvack.org (Postfix) with SMTP id 86E286B005D
-	for <linux-mm@kvack.org>; Thu, 12 Jul 2012 09:13:11 -0400 (EDT)
-Date: Thu, 12 Jul 2012 15:12:21 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 13/40] autonuma: CPU follow memory algorithm
-Message-ID: <20120712131221.GC20382@redhat.com>
-References: <4FEDDD0C.60609@redhat.com>
- <1340995260.28750.103.camel@twins>
- <4FEDF81C.1010401@redhat.com>
- <1340996224.28750.116.camel@twins>
- <1340996586.28750.122.camel@twins>
- <4FEDFFB5.3010401@redhat.com>
- <20120702165714.GA10952@dirshya.in.ibm.com>
- <20120705165606.GA11296@dirshya.in.ibm.com>
- <CAJd=RBDAtm_9TiFgsGC=DxFxtDRP7GLeA5xAs5e6_oYS1t46rg@mail.gmail.com>
- <20120706183828.GB7807@dirshya.in.ibm.com>
+Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
+	by kanga.kvack.org (Postfix) with SMTP id E96A46B004D
+	for <linux-mm@kvack.org>; Thu, 12 Jul 2012 09:38:35 -0400 (EDT)
+Received: by pbbrp2 with SMTP id rp2so4594020pbb.14
+        for <linux-mm@kvack.org>; Thu, 12 Jul 2012 06:38:35 -0700 (PDT)
+Date: Thu, 12 Jul 2012 21:38:22 +0800
+From: Wanpeng Li <liwp.linux@gmail.com>
+Subject: Re: [PATCH RFC] mm/memcg: recalculate chargeable space after waiting
+ migrating charges
+Message-ID: <20120712133822.GA2432@kernel>
+Reply-To: Wanpeng Li <liwp.linux@gmail.com>
+References: <1342089561-11211-1-git-send-email-liwp.linux@gmail.com>
+ <20120712110838.GE21013@tiehlicka.suse.cz>
+ <20120712115125.GA11103@kernel>
+ <20120712122912.GH21013@tiehlicka.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20120706183828.GB7807@dirshya.in.ibm.com>
+In-Reply-To: <20120712122912.GH21013@tiehlicka.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vaidyanathan Srinivasan <svaidy@linux.vnet.ibm.com>
-Cc: Hillf Danton <dhillf@gmail.com>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <peterz@infradead.org>, dlaor@redhat.com, Ingo Molnar <mingo@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dan Smith <danms@us.ibm.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Johannes Weiner <hannes@cmpxchg.org>, Srivatsa Vaddagiri <vatsa@linux.vnet.ibm.com>, Christoph Lameter <cl@linux.com>, Alex Shi <alex.shi@intel.com>, Mauricio Faria de Oliveira <mauricfo@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Don Morris <don.morris@hp.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, Wanpeng Li <liwp.linux@gmail.com>
 
-On Sat, Jul 07, 2012 at 12:08:28AM +0530, Vaidyanathan Srinivasan wrote:
-> * Hillf Danton <dhillf@gmail.com> [2012-07-06 21:04:56]:
-> 
-> > Hi Vaidy,
-> > 
-> > On Fri, Jul 6, 2012 at 12:56 AM, Vaidyanathan Srinivasan
-> > <svaidy@linux.vnet.ibm.com> wrote:
-> > > --- a/mm/autonuma.c
-> > > +++ b/mm/autonuma.c
-> > > @@ -26,7 +26,7 @@ unsigned long autonuma_flags __read_mostly =
-> > >  #ifdef CONFIG_AUTONUMA_DEFAULT_ENABLED
-> > >         (1<<AUTONUMA_FLAG)|
-> > >  #endif
-> > > -       (1<<AUTONUMA_SCAN_PMD_FLAG);
-> > > +       (0<<AUTONUMA_SCAN_PMD_FLAG);
-> > >
-> > 
-> > Let X86 scan pmd by default, agree?
-> 
-> Sure, yes.  This patch just lists the changes required to get the
-> framework running on powerpc so that we know the location of code
-> changes.
-> 
-> We will need an arch specific default flags and leave this ON for x86.
+On Thu, Jul 12, 2012 at 02:29:38PM +0200, Michal Hocko wrote:
+>On Thu 12-07-12 19:51:25, Wanpeng Li wrote:
+>> On Thu, Jul 12, 2012 at 01:08:38PM +0200, Michal Hocko wrote:
+>> >On Thu 12-07-12 18:39:21, Wanpeng Li wrote:
+>> >> From: Wanpeng Li <liwp@linux.vnet.ibm.com>
+>> >> 
+>> >> Function mem_cgroup_do_charge will call mem_cgroup_reclaim,
+>> >> there are two break points in mem_cgroup_reclaim:
+>> >> if (total && (flag & MEM_CGROUP_RECLAIM_SHIRINK))
+>> >> 	break;
+>> >> if (mem_cgroup_margin(memcg))
+>> >> 	break;
+>> >> so mem_cgroup_reclaim can't guarantee reclaim enough pages(nr_pages) 
+>> >> which is requested from mem_cgroup_do_charge, if mem_cgroup_margin
+>> >> (mem_over_limit) >= nr_pages is not true, the process will go to
+>> >> mem_cgroup_wait_acct_move to wait doubly charge counted caused by
+>> >> task move. 
+>> >
+>> >I am sorry but I have no idea what you are trying to say. The
+>> >mem_cgroup_wait_acct_move just makes sure that we are waiting until
+>> >charge is moved (which can potentially free some charges) rather than
+>> >OOM which should be the last resort so it makes sense to retry them
+>> >charge.
+>> >
+>> >> But this time still can't guarantee enough pages(nr_pages) is
+>> >> ready, directly return CHARGE_RETRY is incorret. 
+>> >
+>> >So you think it is better to oom? Why? What prevents you from a race
+>> >that your mem_cgroup_margin returns true but another CPU consumes those
+>> >charges right after that. See? The check is pointless. It doesn't
+>> 
+>> Hmm, if there are a race as you mentioned it can't guarantee enough pages 
+>> is ready. 
+>
+>And there is no point in guaranteeing anything which I tried to tell you
+>by the example... The only thing that matters is whether we get the charge
+>on the next attempt and if not whether we are able to reclaim something.
+>See?
+>
+>> But it also means that available memory is too low if this
+>> race happen. If available charges still less than nr_pages
+>> after mem_cgroup_wait_acct_move(which can potentially
+>> free some charges) return, the CHAGE_RETRY will trigged,
+>> and then mem_cgroup_do_charge=>meory_cgroup_reclaim
+>> =>mem_cgroup_wait_acct_move, if available charges still less than
+>> nr_pages in this round, CHAGE_RETRY.....
+>
+>> To avoid this infinite retry when available memory 
+>
+>I do not see a realistic scenario which would cause this to be infinite loop
+>withou OOM jumping in.
+>We would have to hit the wait for move after each reclaim and the move would
+>have to keep the the usage constant (move is really fast without moving
+>charges).
+>So what you are trying to address (if I understand it at all) is to fix
+>an almost impossible to trigger issue with a bogus change which doesn't
+>help at all because it is racy as well.
 
-I applied it and added the flag. Let me know if this is ok.
+OK. Thank you Michal! :-)
 
-http://git.kernel.org/?p=linux/kernel/git/andrea/aa.git;a=commitdiff;h=1cf85a3f23326bba89d197e845ab6f7883d0efd3
-http://git.kernel.org/?p=linux/kernel/git/andrea/aa.git;a=commitdiff;h=0276c4e2f7e9c3fc856f9dd5be319c2db1761cb4
+Thanks & Best Regards,
+Wanpeng Li
 
-I'm trying to fix all review points before releasing a new autonuma20
-but you can follow the current status on the devel origin/autonuma
-branch.
+>
+>> in this memcg is very low, go to OOM if mem_cgroup_margin(mem_over_limit) 
+>> < nr_pages is a better way I think. Because the codes have already try
+>> its best to reclaim some pages. :-)
+>
+>
+>> 
+>[...]
+>-- 
+>Michal Hocko
+>SUSE Labs
+>SUSE LINUX s.r.o.
+>Lihovarska 1060/12
+>190 00 Praha 9    
+>Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
