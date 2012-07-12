@@ -1,127 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
-	by kanga.kvack.org (Postfix) with SMTP id E19396B005D
-	for <linux-mm@kvack.org>; Thu, 12 Jul 2012 00:53:09 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id A6B5A3EE0C0
-	for <linux-mm@kvack.org>; Thu, 12 Jul 2012 13:53:07 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 8736845DEB4
-	for <linux-mm@kvack.org>; Thu, 12 Jul 2012 13:53:07 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 5EF5845DEB2
-	for <linux-mm@kvack.org>; Thu, 12 Jul 2012 13:53:07 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 496EA1DB8043
-	for <linux-mm@kvack.org>; Thu, 12 Jul 2012 13:53:07 +0900 (JST)
-Received: from g01jpexchyt03.g01.fujitsu.local (g01jpexchyt03.g01.fujitsu.local [10.128.194.42])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id E85771DB803F
-	for <linux-mm@kvack.org>; Thu, 12 Jul 2012 13:53:06 +0900 (JST)
-Message-ID: <4FFE5816.6070102@jp.fujitsu.com>
-Date: Thu, 12 Jul 2012 13:52:38 +0900
-From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx141.postini.com [74.125.245.141])
+	by kanga.kvack.org (Postfix) with SMTP id 137646B005D
+	for <linux-mm@kvack.org>; Thu, 12 Jul 2012 01:43:56 -0400 (EDT)
+Received: from /spool/local
+	by e7.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <shangw@shangw.pok.ibm.com>;
+	Thu, 12 Jul 2012 01:43:54 -0400
+Received: from d01relay01.pok.ibm.com (d01relay01.pok.ibm.com [9.56.227.233])
+	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id 311D038C8054
+	for <linux-mm@kvack.org>; Thu, 12 Jul 2012 01:43:14 -0400 (EDT)
+Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
+	by d01relay01.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q6C5hETS391846
+	for <linux-mm@kvack.org>; Thu, 12 Jul 2012 01:43:14 -0400
+Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
+	by d01av03.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q6C5hDAb015015
+	for <linux-mm@kvack.org>; Thu, 12 Jul 2012 02:43:13 -0300
+Date: Thu, 12 Jul 2012 13:48:00 +0800
+From: Gavin Shan <shangw@linux.vnet.ibm.com>
+Subject: Re: [PATCH 3/3] mm/sparse: remove index_init_lock
+Message-ID: <20120712054800.GA2526@shangw>
+Reply-To: Gavin Shan <shangw@linux.vnet.ibm.com>
+References: <1341544178-7245-1-git-send-email-shangw@linux.vnet.ibm.com>
+ <1341544178-7245-3-git-send-email-shangw@linux.vnet.ibm.com>
+ <20120709111304.GA4627@tiehlicka.suse.cz>
+ <20120709115935.GA19355@shangw>
+ <20120710155940.GG19223@tiehlicka.suse.cz>
 MIME-Version: 1.0
-Subject: Re: [RFC PATCH v3 3/13] memory-hotplug : unify argument of firmware_map_add_early/hotplug
-References: <4FFAB0A2.8070304@jp.fujitsu.com> <4FFAB17F.2090209@jp.fujitsu.com> <4FFD9C08.2070502@linux.vnet.ibm.com>
-In-Reply-To: <4FFD9C08.2070502@linux.vnet.ibm.com>
-Content-Type: text/plain; charset="ISO-2022-JP"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120710155940.GG19223@tiehlicka.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, wency@cn.fujitsu.com
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Gavin Shan <shangw@linux.vnet.ibm.com>, linux-mm@kvack.org, dave@linux.vnet.ibm.com, rientjes@google.com, akpm@linux-foundation.org
 
-Hi Dave,
+On Tue, Jul 10, 2012 at 05:59:41PM +0200, Michal Hocko wrote:
+>On Mon 09-07-12 19:59:35, Gavin Shan wrote:
+>[...]
+>> Michal, How about the following changelog?
+>> 
+>> ---
+>> 
+>> sparse_index_init() is designed to be safe if two copies of it race.  It
+>> uses "index_init_lock" to ensure that, even in the case of a race, only
+>> one CPU will manage to do:
+>> 
+>> mem_section[root] = section;
+>> 
+>> On the other hand, sparse_index_init() is possiblly called during system
+>> boot stage and hotplug path as follows. We need't lock during system boot
+>> stage to protect "mem_section[root]" and the function has been protected by
+>> hotplug mutex "mem_hotplug_mutex" as well in hotplug case. So we needn't the
+>> spinklock in the function.
+>
+>The changelog is still hard to read but it's getting there slowly ;)
+>What about the following?
 
-2012/07/12 0:30, Dave Hansen wrote:
-> On 07/09/2012 03:25 AM, Yasuaki Ishimatsu wrote:
->> @@ -642,7 +642,7 @@ int __ref add_memory(int nid, u64 start,
->>   	}
->>
->>   	/* create new memmap entry */
->> -	firmware_map_add_hotplug(start, start + size, "System RAM");
->> +	firmware_map_add_hotplug(start, start + size - 1, "System RAM");
-> 
-> I know the firmware_map_*() calls use inclusive end addresses
-> internally, but do we really need to expose them?  Both of the callers
-> you mentioned do:
-> 
-> 	firmware_map_add_hotplug(start, start + size - 1, "System RAM");
-> 
-> or
-> 
->                  firmware_map_add_early(entry->addr,
->                          entry->addr + entry->size - 1,
->                          e820_type_to_string(entry->type));
-> 
-> So it seems a _bit_ silly to keep all of the callers doing this size-1
-> thing.  I also noted that the new caller that you added does the same
-> thing.  Could we just change the external calling convention to be
-> exclusive?
+Thanks, Michal. I will resend the patch with your changelog :-)
 
-Thank you for your comment.
+Thanks for your time.
 
-Does the following patch include your comment? If O.K., I will separate
-the patch from the series and send it for bug fix.
+Gavin
 
----
- arch/x86/kernel/e820.c    |    2 +-
- drivers/firmware/memmap.c |    8 ++++----
- 2 files changed, 5 insertions(+), 5 deletions(-)
-
-Index: linux-next/arch/x86/kernel/e820.c
-===================================================================
---- linux-next.orig/arch/x86/kernel/e820.c	2012-07-02 09:50:23.000000000 +0900
-+++ linux-next/arch/x86/kernel/e820.c	2012-07-12 13:30:45.942318179 +0900
-@@ -944,7 +944,7 @@
- 	for (i = 0; i < e820_saved.nr_map; i++) {
- 		struct e820entry *entry = &e820_saved.map[i];
- 		firmware_map_add_early(entry->addr,
--			entry->addr + entry->size - 1,
-+			entry->addr + entry->size,
- 			e820_type_to_string(entry->type));
- 	}
- }
-Index: linux-next/drivers/firmware/memmap.c
-===================================================================
---- linux-next.orig/drivers/firmware/memmap.c	2012-07-02 09:50:26.000000000 +0900
-+++ linux-next/drivers/firmware/memmap.c	2012-07-12 13:40:53.823318481 +0900
-@@ -98,7 +98,7 @@
- /**
-  * firmware_map_add_entry() - Does the real work to add a firmware memmap entry.
-  * @start: Start of the memory range.
-- * @end:   End of the memory range (inclusive).
-+ * @end:   End of the memory range.
-  * @type:  Type of the memory range.
-  * @entry: Pre-allocated (either kmalloc() or bootmem allocator), uninitialised
-  *         entry.
-@@ -113,7 +113,7 @@
- 	BUG_ON(start > end);
-
- 	entry->start = start;
--	entry->end = end;
-+	entry->end = end - 1;
- 	entry->type = type;
- 	INIT_LIST_HEAD(&entry->list);
- 	kobject_init(&entry->kobj, &memmap_ktype);
-@@ -148,7 +148,7 @@
-  * firmware_map_add_hotplug() - Adds a firmware mapping entry when we do
-  * memory hotplug.
-  * @start: Start of the memory range.
-- * @end:   End of the memory range (inclusive).
-+ * @end:   End of the memory range.
-  * @type:  Type of the memory range.
-  *
-  * Adds a firmware mapping entry. This function is for memory hotplug, it is
-@@ -175,7 +175,7 @@
- /**
-  * firmware_map_add_early() - Adds a firmware mapping entry.
-  * @start: Start of the memory range.
-- * @end:   End of the memory range (inclusive).
-+ * @end:   End of the memory range.
-  * @type:  Type of the memory range.
-  *
-  * Adds a firmware mapping entry. This function uses the bootmem allocator
+>---
+>sparse_index_init uses index_init_lock spinlock to protect root
+>mem_section assignment. The lock is not necessary anymore because the
+>function is called only during the boot (during paging init which
+>is executed only from a single CPU) and from the hotplug code (by
+>add_memory via arch_add_memory) which uses mem_hotplug_mutex.
+>
+>The lock has been introduced by 28ae55c9 (sparsemem extreme: hotplug
+>preparation) and sparse_index_init was used only during boot at that
+>time. 
+>Later when the hotplug code (and add_memory) was introduced there was
+>no synchronization so it was possible to online more sections from
+>the same root probably (though I am not 100% sure about that).
+>The first synchronization has been added by 6ad696d2 (mm: allow memory
+>hotplug and hibernation in the same kernel) which has been later
+>replaced by the mem_hotplug_mutex - 20d6c96b (mem-hotplug: introduce
+>{un}lock_memory_hotplug()).
+>
+>Let's remove the lock as it is not needed and it makes the code more
+>confusing.
+>---
+>
+>-- 
+>Michal Hocko
+>SUSE Labs
+>SUSE LINUX s.r.o.
+>Lihovarska 1060/12
+>190 00 Praha 9    
+>Czech Republic
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
