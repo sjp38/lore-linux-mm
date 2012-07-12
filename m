@@ -1,79 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
-	by kanga.kvack.org (Postfix) with SMTP id 7FE9C6B004D
-	for <linux-mm@kvack.org>; Wed, 11 Jul 2012 21:58:26 -0400 (EDT)
-Received: by ghrr18 with SMTP id r18so2256028ghr.14
-        for <linux-mm@kvack.org>; Wed, 11 Jul 2012 18:58:25 -0700 (PDT)
-Date: Wed, 11 Jul 2012 18:57:43 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
+Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
+	by kanga.kvack.org (Postfix) with SMTP id 9A9E46B004D
+	for <linux-mm@kvack.org>; Wed, 11 Jul 2012 22:18:08 -0400 (EDT)
+Date: Wed, 11 Jul 2012 19:21:06 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
 Subject: Re: [PATCH v2 -mm] memcg: prevent from OOM with too many dirty
  pages
-In-Reply-To: <20120620101119.GC5541@tiehlicka.suse.cz>
-Message-ID: <alpine.LSU.2.00.1207111818380.1299@eggly.anvils>
-References: <1340117404-30348-1-git-send-email-mhocko@suse.cz> <20120619150014.1ebc108c.akpm@linux-foundation.org> <20120620101119.GC5541@tiehlicka.suse.cz>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Message-Id: <20120711192106.b6b8232f.akpm@linux-foundation.org>
+In-Reply-To: <alpine.LSU.2.00.1207111818380.1299@eggly.anvils>
+References: <1340117404-30348-1-git-send-email-mhocko@suse.cz>
+	<20120619150014.1ebc108c.akpm@linux-foundation.org>
+	<20120620101119.GC5541@tiehlicka.suse.cz>
+	<alpine.LSU.2.00.1207111818380.1299@eggly.anvils>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujtisu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Ying Han <yinghan@google.com>, Greg Thelen <gthelen@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Fengguang Wu <fengguang.wu@intel.com>
+To: Hugh Dickins <hughd@google.com>
+Cc: Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujtisu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Ying Han <yinghan@google.com>, Greg Thelen <gthelen@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Fengguang Wu <fengguang.wu@intel.com>
 
-Hi Michal,
+On Wed, 11 Jul 2012 18:57:43 -0700 (PDT) Hugh Dickins <hughd@google.com> wrote:
 
-On Wed, 20 Jun 2012, Michal Hocko wrote:
-> Hi Andrew,
-> here is an updated version if it is easier for you to drop the previous
-> one.
-> changes since v1
-> * added Mel's Reviewed-by
-> * updated changelog as per Andrew
-> * updated the condition to be optimized for no-memcg case
+> --- 3.5-rc6-mm1/mm/vmscan.c	2012-07-11 14:42:13.668335884 -0700
+> +++ linux/mm/vmscan.c	2012-07-11 16:01:20.712814127 -0700
+> @@ -726,7 +726,8 @@ static unsigned long shrink_page_list(st
+>  			 * writeback from reclaim and there is nothing else to
+>  			 * reclaim.
+>  			 */
+> -			if (!global_reclaim(sc) && PageReclaim(page))
+> +			if (!global_reclaim(sc) && PageReclaim(page) &&
+> +					may_enter_fs)
+>  				wait_on_page_writeback(page);
+>  			else {
+>  				nr_writeback++;
 
-I mentioned in Johannes's [03/11] thread a couple of days ago, that
-I was having a problem with your wait_on_page_writeback() in mmotm.
-
-It turns out that your original patch was fine, but you let dark angels
-whisper into your ear, to persuade you to remove the "&& may_enter_fs".
-
-Part of my load builds kernels on extN over loop over tmpfs: loop does
-mapping_set_gfp_mask(mapping, lo->old_gfp_mask & ~(__GFP_IO|__GFP_FS))
-because it knows it will deadlock, if the loop thread enters reclaim,
-and reclaim tries to write back a dirty page, one which needs the loop
-thread to perform the write.
-
-With the may_enter_fs check restored, all is well.  I don't entirely
-like your patch: I think it would be much better to wait in the same
-place as the wait_iff_congested(), when the pages gathered have been
-sent for writing and unlocked and putback and freed; and I also wonder
-if it should go beyond the !global_reclaim case for swap pages, because
-they don't participate in dirty limiting.
-
-But those are things I should investigate later - I did write a patch
-like that before, when I was having some unexpected OOM trouble with a
-private kernel; but my OOMs then were because of something silly that
-I'd left out, and I'm not at present sure if we have a problem in this
-regard or not.
-
-The important thing is to get the may_enter_fs back into your patch:
-I can't really Sign-off the below because it's yours, but
-Acked-by: Hugh Dickins <hughd@google.com>
----
-
- mm/vmscan.c |    3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
-
---- 3.5-rc6-mm1/mm/vmscan.c	2012-07-11 14:42:13.668335884 -0700
-+++ linux/mm/vmscan.c	2012-07-11 16:01:20.712814127 -0700
-@@ -726,7 +726,8 @@ static unsigned long shrink_page_list(st
- 			 * writeback from reclaim and there is nothing else to
- 			 * reclaim.
- 			 */
--			if (!global_reclaim(sc) && PageReclaim(page))
-+			if (!global_reclaim(sc) && PageReclaim(page) &&
-+					may_enter_fs)
- 				wait_on_page_writeback(page);
- 			else {
- 				nr_writeback++;
+um, that may_enter_fs test got removed because nobody knew why it was
+there.  Nobody knew why it was there because it was undocumented.  Do
+you see where I'm going with this?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
