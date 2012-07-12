@@ -1,89 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
-	by kanga.kvack.org (Postfix) with SMTP id 490466B005D
-	for <linux-mm@kvack.org>; Wed, 11 Jul 2012 21:15:53 -0400 (EDT)
-Date: Thu, 12 Jul 2012 10:15:55 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH 3/4] zsmalloc: add details to zs_map_object boiler plate
-Message-ID: <20120712011555.GB5503@bbox>
-References: <1341263752-10210-1-git-send-email-sjenning@linux.vnet.ibm.com>
- <1341263752-10210-4-git-send-email-sjenning@linux.vnet.ibm.com>
- <4FFB94FF.8030401@kernel.org>
- <4FFC478C.4050505@linux.vnet.ibm.com>
- <4FFD2E65.5080307@kernel.org>
- <4FFD8A8F.6030603@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
+	by kanga.kvack.org (Postfix) with SMTP id 7FE9C6B004D
+	for <linux-mm@kvack.org>; Wed, 11 Jul 2012 21:58:26 -0400 (EDT)
+Received: by ghrr18 with SMTP id r18so2256028ghr.14
+        for <linux-mm@kvack.org>; Wed, 11 Jul 2012 18:58:25 -0700 (PDT)
+Date: Wed, 11 Jul 2012 18:57:43 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH v2 -mm] memcg: prevent from OOM with too many dirty
+ pages
+In-Reply-To: <20120620101119.GC5541@tiehlicka.suse.cz>
+Message-ID: <alpine.LSU.2.00.1207111818380.1299@eggly.anvils>
+References: <1340117404-30348-1-git-send-email-mhocko@suse.cz> <20120619150014.1ebc108c.akpm@linux-foundation.org> <20120620101119.GC5541@tiehlicka.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4FFD8A8F.6030603@linux.vnet.ibm.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Seth Jennings <sjenning@linux.vnet.ibm.com>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Nitin Gupta <ngupta@vflare.org>, Robert Jennings <rcj@linux.vnet.ibm.com>, linux-mm@kvack.org, devel@driverdev.osuosl.org, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujtisu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Ying Han <yinghan@google.com>, Greg Thelen <gthelen@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Fengguang Wu <fengguang.wu@intel.com>
 
-On Wed, Jul 11, 2012 at 09:15:43AM -0500, Seth Jennings wrote:
-> On 07/11/2012 02:42 AM, Minchan Kim wrote:
-> > On 07/11/2012 12:17 AM, Seth Jennings wrote:
-> >> On 07/09/2012 09:35 PM, Minchan Kim wrote:
-> >>> Maybe we need local_irq_save/restore in zs_[un]map_object path.
-> >>
-> >> I'd rather not disable interrupts since that will create
-> >> unnecessary interrupt latency for all users, even if they
-> > 
-> > Agreed.
-> > Although we guide k[un]map atomic is so fast, it isn't necessary
-> > to force irq_[enable|disable]. Okay.
-> > 
-> >> don't need interrupt protection.  If a particular user uses
-> >> zs_map_object() in an interrupt path, it will be up to that
-> >> user to disable interrupts to ensure safety.
-> > 
-> > Nope. It shouldn't do that.
-> > Any user in interrupt context can't assume that there isn't any other user using per-cpu buffer
-> > right before interrupt happens.
-> > 
-> > The concern is that if such bug happens, it's very hard to find a bug.
-> > So, how about adding this?
-> > 
-> > void zs_map_object(...)
-> > {
-> > 	BUG_ON(in_interrupt());
-> > }
-> 
-> I not completely following you, but I think I'm following
-> enough.  Your point is that the per-cpu buffers are shared
-> by all zsmalloc users and one user doesn't know if another
-> user is doing a zs_map_object() in an interrupt path.
+Hi Michal,
 
-And vise versa is yes.
+On Wed, 20 Jun 2012, Michal Hocko wrote:
+> Hi Andrew,
+> here is an updated version if it is easier for you to drop the previous
+> one.
+> changes since v1
+> * added Mel's Reviewed-by
+> * updated changelog as per Andrew
+> * updated the condition to be optimized for no-memcg case
 
-> 
-> However, I think what you are suggesting is to disallow
-> mapping in interrupt context.  This is a problem for zcache
-> as it already does mapping in interrupt context, namely for
-> page decompression in the page fault handler.
+I mentioned in Johannes's [03/11] thread a couple of days ago, that
+I was having a problem with your wait_on_page_writeback() in mmotm.
 
-I don't get it.
-Page fault handler isn't interrupt context.
+It turns out that your original patch was fine, but you let dark angels
+whisper into your ear, to persuade you to remove the "&& may_enter_fs".
 
-> 
-> What do you think about making the per-cpu buffers local to
-> each zsmalloc pool? That way each user has their own per-cpu
-> buffers and don't step on each other's toes.
+Part of my load builds kernels on extN over loop over tmpfs: loop does
+mapping_set_gfp_mask(mapping, lo->old_gfp_mask & ~(__GFP_IO|__GFP_FS))
+because it knows it will deadlock, if the loop thread enters reclaim,
+and reclaim tries to write back a dirty page, one which needs the loop
+thread to perform the write.
 
-Maybe, It could be a solution if you really need it in interrupt context.
-But the concern is it could hurt zsmalloc's goal which is memory
-space efficiency if your system has lots of CPUs.
+With the may_enter_fs check restored, all is well.  I don't entirely
+like your patch: I think it would be much better to wait in the same
+place as the wait_iff_congested(), when the pages gathered have been
+sent for writing and unlocked and putback and freed; and I also wonder
+if it should go beyond the !global_reclaim case for swap pages, because
+they don't participate in dirty limiting.
 
-> 
-> Thanks,
-> Seth
-> 
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
+But those are things I should investigate later - I did write a patch
+like that before, when I was having some unexpected OOM trouble with a
+private kernel; but my OOMs then were because of something silly that
+I'd left out, and I'm not at present sure if we have a problem in this
+regard or not.
+
+The important thing is to get the may_enter_fs back into your patch:
+I can't really Sign-off the below because it's yours, but
+Acked-by: Hugh Dickins <hughd@google.com>
+---
+
+ mm/vmscan.c |    3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+--- 3.5-rc6-mm1/mm/vmscan.c	2012-07-11 14:42:13.668335884 -0700
++++ linux/mm/vmscan.c	2012-07-11 16:01:20.712814127 -0700
+@@ -726,7 +726,8 @@ static unsigned long shrink_page_list(st
+ 			 * writeback from reclaim and there is nothing else to
+ 			 * reclaim.
+ 			 */
+-			if (!global_reclaim(sc) && PageReclaim(page))
++			if (!global_reclaim(sc) && PageReclaim(page) &&
++					may_enter_fs)
+ 				wait_on_page_writeback(page);
+ 			else {
+ 				nr_writeback++;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
