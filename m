@@ -1,101 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
-	by kanga.kvack.org (Postfix) with SMTP id CEFBF6B005D
-	for <linux-mm@kvack.org>; Thu, 12 Jul 2012 05:32:20 -0400 (EDT)
-Received: by yhr47 with SMTP id 47so2821602yhr.14
-        for <linux-mm@kvack.org>; Thu, 12 Jul 2012 02:32:20 -0700 (PDT)
-Date: Thu, 12 Jul 2012 17:32:11 +0800
-From: Wanpeng Li <liwp.linux@gmail.com>
-Subject: Re: [PATCH RFC] mm/memcg: calculate max hierarchy limit number
- instead of min
-Message-ID: <20120712093211.GC3181@kernel>
-Reply-To: Wanpeng Li <liwp.linux@gmail.com>
-References: <a>
- <1342013081-4096-1-git-send-email-liwp.linux@gmail.com>
- <20120711134757.GC4820@tiehlicka.suse.cz>
+Received: from psmtp.com (na3sys010amx101.postini.com [74.125.245.101])
+	by kanga.kvack.org (Postfix) with SMTP id B1D666B005D
+	for <linux-mm@kvack.org>; Thu, 12 Jul 2012 05:42:12 -0400 (EDT)
+Date: Thu, 12 Jul 2012 11:42:03 +0200
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [patch 01/10] mm: memcg: fix compaction/migration failing due to
+ memcg limits
+Message-ID: <20120712094202.GB1239@cmpxchg.org>
+References: <1342026142-7284-1-git-send-email-hannes@cmpxchg.org>
+ <1342026142-7284-2-git-send-email-hannes@cmpxchg.org>
+ <20120712085354.GA3181@kernel>
+ <20120712091043.GB3181@kernel>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20120711134757.GC4820@tiehlicka.suse.cz>
+In-Reply-To: <20120712091043.GB3181@kernel>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, Wanpeng Li <liwp.linux@gmail.com>
+To: Wanpeng Li <liwp.linux@gmail.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Wed, Jul 11, 2012 at 03:47:57PM +0200, Michal Hocko wrote:
->On Wed 11-07-12 21:24:41, Wanpeng Li wrote:
->> From: Wanpeng Li <liwp@linux.vnet.ibm.com>
->> 
->> Since hierachical_memory_limit shows "of bytes of memory limit with
->> regard to hierarchy under which the memory cgroup is", the count should
->> calculate max hierarchy limit when use_hierarchy in order to show hierarchy
->> subtree limit. hierachical_memsw_limit is the same case.
->
->No the patch is wrong. The hierarchical limit says when we start
->reclaiming in the hierarchy and that one is triggered on smallest limit
->up the way to the hierarchy root.
+On Thu, Jul 12, 2012 at 05:10:43PM +0800, Wanpeng Li wrote:
+> On Thu, Jul 12, 2012 at 04:54:07PM +0800, Wanpeng Li wrote:
+> >On Wed, Jul 11, 2012 at 07:02:13PM +0200, Johannes Weiner wrote:
+> >>Compaction (and page migration in general) can currently be hindered
+> >>through pages being owned by memory cgroups that are at their limits
+> >>and unreclaimable.
+> >>
+> >>The reason is that the replacement page is being charged against the
+> >>limit while the page being replaced is also still charged.  But this
+> >>seems unnecessary, given that only one of the two pages will still be
+> >>in use after migration finishes.
+> >>
+> >>This patch changes the memcg migration sequence so that the
+> >>replacement page is not charged.  Whatever page is still in use after
+> >>successful or failed migration gets to keep the charge of the page
+> >>that was going to be replaced.
+> >>
+> >>The replacement page will still show up temporarily in the rss/cache
+> >>statistics, this can be fixed in a later patch as it's less urgent.
+> >>
+> >
+> >So I want to know after this patch be merged if mem_cgroup_wait_acct_move
+> >still make sense, if the answer is no, I will send a patch to remove it.
+> 
+> And if this still make sense, I want to change check in
+> mem_cgroup_do_charge:
+> 
+> if (mem_cgroup_wait_acct_move(mem_over_limit))
+> 	return CHARGE_RETRY;
+> 
+> =>
+> 
+> if (mem_cgroup_wait_acct_move(mem_over_limit) && 
+>                        mem_cgroup_margin(mem_over_limit) >= nr_pages)
+> 	return CHARGE_RETRY;
+> 
+> Since mem_cgroup_relcaim can reclaim some pages, but in
+> mem_cgroup_reclaim function there are some exit condition:
+> 
+> total += try_to_free_mem_cgroup_pages(memcg, gfp_mask, noswap);
+> if(total && (flag & MEM_CGROUP_RECLAIM_SHRINK))
+> 	break;
+> 
+> and 
+> 
+> if (mem_cgroup_margin(memcg))
+> 	break;
+> 
+> So maybe mem_cgroup_reclaim not reclaim enough pages >= nr_pages, this
+> time we should go to mem_cgroup_handle_oom instead of return
+> CHARGE_RETRY.
+> 
+> Hopefully, you can verify if my idea make sense.
 
-I see function mem_cgroup_hierachy_reclaim is removal, and hierarchical
-reclaim is still work? Could you explain me how it works in details, 
-thank you for your time Michal.
+Sorry, but this is a waste of your time, my time, and that of
+everybody else in this thread.
 
-Thanks & Best Regards,
-Wanpeng Li
->
->What are you trying to accomplish here?
->
->> Signed-off-by: Wanpeng Li <liwp.linux@gmail.com>
->> ---
->>  mm/memcontrol.c |   14 +++++++-------
->>  1 files changed, 7 insertions(+), 7 deletions(-)
->> 
->> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
->> index 69a7d45..6392c0a 100644
->> --- a/mm/memcontrol.c
->> +++ b/mm/memcontrol.c
->> @@ -3929,10 +3929,10 @@ static void memcg_get_hierarchical_limit(struct mem_cgroup *memcg,
->>  		unsigned long long *mem_limit, unsigned long long *memsw_limit)
->>  {
->>  	struct cgroup *cgroup;
->> -	unsigned long long min_limit, min_memsw_limit, tmp;
->> +	unsigned long long max_limit, max_memsw_limit, tmp;
->>  
->> -	min_limit = res_counter_read_u64(&memcg->res, RES_LIMIT);
->> -	min_memsw_limit = res_counter_read_u64(&memcg->memsw, RES_LIMIT);
->> +	max_limit = res_counter_read_u64(&memcg->res, RES_LIMIT);
->> +	max_memsw_limit = res_counter_read_u64(&memcg->memsw, RES_LIMIT);
->>  	cgroup = memcg->css.cgroup;
->>  	if (!memcg->use_hierarchy)
->>  		goto out;
->> @@ -3943,13 +3943,13 @@ static void memcg_get_hierarchical_limit(struct mem_cgroup *memcg,
->>  		if (!memcg->use_hierarchy)
->>  			break;
->>  		tmp = res_counter_read_u64(&memcg->res, RES_LIMIT);
->> -		min_limit = min(min_limit, tmp);
->> +		max_limit = max(max_limit, tmp);
->>  		tmp = res_counter_read_u64(&memcg->memsw, RES_LIMIT);
->> -		min_memsw_limit = min(min_memsw_limit, tmp);
->> +		max_memsw_limit = max(max_memsw_limit, tmp);
->>  	}
->>  out:
->> -	*mem_limit = min_limit;
->> -	*memsw_limit = min_memsw_limit;
->> +	*mem_limit = max_limit;
->> +	*memsw_limit = max_memsw_limit;
->>  }
->>  
->>  static int mem_cgroup_reset(struct cgroup *cont, unsigned int event)
->> -- 
->> 1.7.5.4
->> 
->
->-- 
->Michal Hocko
->SUSE Labs
->SUSE LINUX s.r.o.
->Lihovarska 1060/12
->190 00 Praha 9    
->Czech Republic
+I will ignore any subsequent proposals from you unless they start with
+a coherent description of an actual problem.  Something that has
+impact on userspace, or significant impact on kernel development.
+
+If there is a bug I don't see in your description above, than please
+explain how it affects userspace.  If the code or comments are cryptic
+and can be simplified or clarified, please explain.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
