@@ -1,77 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
-	by kanga.kvack.org (Postfix) with SMTP id 4B49C6B0068
-	for <linux-mm@kvack.org>; Wed, 11 Jul 2012 23:00:36 -0400 (EDT)
-Date: Thu, 12 Jul 2012 12:00:39 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH v2] mm: Warn about costly page allocation
-Message-ID: <20120712030039.GA29650@bbox>
-References: <20120710002510.GB5935@bbox>
- <alpine.DEB.2.00.1207101756070.684@chino.kir.corp.google.com>
- <20120711022304.GA17425@bbox>
- <alpine.DEB.2.00.1207102223000.26591@chino.kir.corp.google.com>
- <4FFD15B2.6020001@kernel.org>
- <alpine.DEB.2.00.1207111337430.3635@chino.kir.corp.google.com>
- <CAEwNFnB1Z92f22ms=EsBEOOY4Q_JRA8rMPUvQmoqik7rt-EgcQ@mail.gmail.com>
- <alpine.DEB.2.00.1207111556190.24516@chino.kir.corp.google.com>
- <20120711235504.GA5204@bbox>
- <alpine.DEB.2.00.1207111930020.9370@chino.kir.corp.google.com>
+Received: from psmtp.com (na3sys010amx162.postini.com [74.125.245.162])
+	by kanga.kvack.org (Postfix) with SMTP id 67D516B0071
+	for <linux-mm@kvack.org>; Wed, 11 Jul 2012 23:14:21 -0400 (EDT)
+Received: by yenr5 with SMTP id r5so2302783yen.14
+        for <linux-mm@kvack.org>; Wed, 11 Jul 2012 20:14:20 -0700 (PDT)
+Date: Wed, 11 Jul 2012 20:13:40 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH v2 -mm] memcg: prevent from OOM with too many dirty
+ pages
+In-Reply-To: <20120711192106.b6b8232f.akpm@linux-foundation.org>
+Message-ID: <alpine.LSU.2.00.1207112012020.3727@eggly.anvils>
+References: <1340117404-30348-1-git-send-email-mhocko@suse.cz> <20120619150014.1ebc108c.akpm@linux-foundation.org> <20120620101119.GC5541@tiehlicka.suse.cz> <alpine.LSU.2.00.1207111818380.1299@eggly.anvils>
+ <20120711192106.b6b8232f.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1207111930020.9370@chino.kir.corp.google.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujtisu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Ying Han <yinghan@google.com>, Greg Thelen <gthelen@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Fengguang Wu <fengguang.wu@intel.com>
 
-On Wed, Jul 11, 2012 at 07:33:41PM -0700, David Rientjes wrote:
-> On Thu, 12 Jul 2012, Minchan Kim wrote:
+On Wed, 11 Jul 2012, Andrew Morton wrote:
+> On Wed, 11 Jul 2012 18:57:43 -0700 (PDT) Hugh Dickins <hughd@google.com> wrote:
 > 
-> > Agreed and that's why I suggested following patch.
-> > It's not elegant but at least, it could attract interest of configuration
-> > people and they could find a regression during test phase.
-> > This description could be improved later by writing new documenation which
-> > includes more detailed story and method for capturing high order allocation
-> > by ftrace once we see regression report.
-> > 
-> > At the moment, I would like to post this patch, simply.
-> > (Of course, I hope fluent native people will correct a sentence. :) )
-> > 
-> > Any objections, Andrew, David?
-> > 
+> > --- 3.5-rc6-mm1/mm/vmscan.c	2012-07-11 14:42:13.668335884 -0700
+> > +++ linux/mm/vmscan.c	2012-07-11 16:01:20.712814127 -0700
+> > @@ -726,7 +726,8 @@ static unsigned long shrink_page_list(st
+> >  			 * writeback from reclaim and there is nothing else to
+> >  			 * reclaim.
+> >  			 */
+> > -			if (!global_reclaim(sc) && PageReclaim(page))
+> > +			if (!global_reclaim(sc) && PageReclaim(page) &&
+> > +					may_enter_fs)
+> >  				wait_on_page_writeback(page);
+> >  			else {
+> >  				nr_writeback++;
 > 
-> There are other config options like CONFIG_SLOB that are used for a very 
-> small memory footprint on systems like this.  We used to have 
-> CONFIG_EMBEDDED to suggest options like this but that has since been 
-> renamed as CONFIG_EXPERT and has become obscured.
-> 
-> If size is really the only difference, I would think that people who want 
-> the smallest kernel possible would be doing allnoconfig and then 
-> selectively enabling what they need, so defconfig isn't really relevant 
-> here.  And it's very difficult for an admin to know whether or not they 
-> "care about high-order allocations."
-> 
-> I'd reconsider disabling compaction by default unless there are other 
-> considerations that haven't been mentioned.
+> um, that may_enter_fs test got removed because nobody knew why it was
+> there.  Nobody knew why it was there because it was undocumented.  Do
+> you see where I'm going with this?
 
-I agree but it doesn't matter with current problem.
-The point of current problem is to let admin know dangerous of regression
-about high order allocation before releasing the product.
+I was hoping you might do that bit ;)  Here's my display of ignorance:
 
-Although we enable it by defaut, he can change it with "N" unless he
-knows removing of lumpy reclaim.
-
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-
--- 
-Kind regards,
-Minchan Kim
+--- 3.5-rc6-mm1/mm/vmscan.c	2012-07-11 14:42:13.668335884 -0700
++++ linux/mm/vmscan.c	2012-07-11 20:09:33.182829986 -0700
+@@ -725,8 +725,15 @@ static unsigned long shrink_page_list(st
+ 			 * could easily OOM just because too many pages are in
+ 			 * writeback from reclaim and there is nothing else to
+ 			 * reclaim.
++			 *
++			 * Check may_enter_fs, certainly because a loop driver
++			 * thread might enter reclaim, and deadlock if it waits
++			 * on a page for which it is needed to do the write
++			 * (loop masks off __GFP_IO|__GFP_FS for this reason);
++			 * but more thought would probably show more reasons.
+ 			 */
+-			if (!global_reclaim(sc) && PageReclaim(page))
++			if (!global_reclaim(sc) && PageReclaim(page) &&
++					may_enter_fs)
+ 				wait_on_page_writeback(page);
+ 			else {
+ 				nr_writeback++;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
