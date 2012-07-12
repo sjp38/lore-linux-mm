@@ -1,53 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
-	by kanga.kvack.org (Postfix) with SMTP id 6FD9A6B00BB
-	for <linux-mm@kvack.org>; Thu, 12 Jul 2012 03:13:49 -0400 (EDT)
-Received: by lbjn8 with SMTP id n8so3523145lbj.14
-        for <linux-mm@kvack.org>; Thu, 12 Jul 2012 00:13:47 -0700 (PDT)
-Date: Thu, 12 Jul 2012 10:13:39 +0300 (EEST)
-From: Pekka Enberg <penberg@kernel.org>
-Subject: Re: linux-next: Early crashed kernel on CONFIG_SLOB
-In-Reply-To: <alpine.DEB.2.00.1207101830480.5988@router.home>
-Message-ID: <alpine.LFD.2.02.1207121013320.2515@tux.localdomain>
-References: <20120710111756.GA11351@localhost> <CF1C132D-2873-408A-BCC9-B9F57BE6EDDB@linuxfoundation.org> <alpine.DEB.2.00.1207101830480.5988@router.home>
+Received: from psmtp.com (na3sys010amx177.postini.com [74.125.245.177])
+	by kanga.kvack.org (Postfix) with SMTP id 425AC6B007D
+	for <linux-mm@kvack.org>; Thu, 12 Jul 2012 03:18:28 -0400 (EDT)
+Received: by pbbrp2 with SMTP id rp2so3992886pbb.14
+        for <linux-mm@kvack.org>; Thu, 12 Jul 2012 00:18:27 -0700 (PDT)
+Message-ID: <4FFE7A3D.3010908@gmail.com>
+Date: Thu, 12 Jul 2012 15:18:21 +0800
+From: Sha Zhengju <handai.szj@gmail.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [patch 2/5] mm, oom: introduce helper function to process threads
+ during scan
+References: <alpine.DEB.2.00.1206251846020.24838@chino.kir.corp.google.com> <alpine.DEB.2.00.1206291404530.6040@chino.kir.corp.google.com> <alpine.DEB.2.00.1206291405360.6040@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.00.1206291405360.6040@chino.kir.corp.google.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Christoph Lameter <christoph@linuxfoundation.org>, "wfg@linux.intel.com" <wfg@linux.intel.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan@kernel.org>, Oleg Nesterov <oleg@redhat.com>, linux-mm@kvack.org, cgroups@vger.kernel.org
 
-On Tue, 10 Jul 2012, Christoph Lameter wrote:
-> Here is the patch:
-> 
-> Subject: slob: Undo slob hunk
-> 
-> Commit fd3142a59af2012a7c5dc72ec97a4935ff1c5fc6 broke
-> slob since a piece of a change for a later patch slipped into
-> it.
-> 
-> Signed-off-by: Christoph Lameter <cl@linux.com>
-> 
-> ---
->  mm/slob.c |    2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
-> 
-> Index: linux-2.6/mm/slob.c
-> ===================================================================
-> --- linux-2.6.orig/mm/slob.c	2012-07-06 08:38:18.851205889 -0500
-> +++ linux-2.6/mm/slob.c	2012-07-06 08:38:47.259205237 -0500
-> @@ -516,7 +516,7 @@ struct kmem_cache *kmem_cache_create(con
-> 
->  	if (c) {
->  		c->name = name;
-> -		c->size = c->object_size;
-> +		c->size = size;
->  		if (flags & SLAB_DESTROY_BY_RCU) {
->  			/* leave room for rcu footer at the end of object */
->  			c->size += sizeof(struct slob_rcu);
-> 
+On 06/30/2012 05:06 AM, David Rientjes wrote:
+> This patch introduces a helper function to process each thread during the
+> iteration over the tasklist.  A new return type, enum oom_scan_t, is
+> defined to determine the future behavior of the iteration:
+>
+>   - OOM_SCAN_OK: continue scanning the thread and find its badness,
+>
+>   - OOM_SCAN_CONTINUE: do not consider this thread for oom kill, it's
+>     ineligible,
+>
+>   - OOM_SCAN_ABORT: abort the iteration and return, or
+>
+>   - OOM_SCAN_SELECT: always select this thread with the highest badness
+>     possible.
+>
+> There is no functional change with this patch.  This new helper function
+> will be used in the next patch in the memory controller.
+>
 
-Applied, thanks!
+Looks good to me.
+You can add  Reviewed-by: Sha Zhengju <handai.szj@taobao.com> :-)
+
+
+Thanks,
+Sha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
