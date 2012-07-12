@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
-	by kanga.kvack.org (Postfix) with SMTP id BEF4B6B0072
-	for <linux-mm@kvack.org>; Thu, 12 Jul 2012 02:40:42 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
+	by kanga.kvack.org (Postfix) with SMTP id 3147C6B0072
+	for <linux-mm@kvack.org>; Thu, 12 Jul 2012 02:40:44 -0400 (EDT)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 04/16] mm: allow PF_MEMALLOC from softirq context
-Date: Thu, 12 Jul 2012 07:40:20 +0100
-Message-Id: <1342075232-29267-5-git-send-email-mgorman@suse.de>
+Subject: [PATCH 05/16] mm: Only set page->pfmemalloc when ALLOC_NO_WATERMARKS was used
+Date: Thu, 12 Jul 2012 07:40:21 +0100
+Message-Id: <1342075232-29267-6-git-send-email-mgorman@suse.de>
 In-Reply-To: <1342075232-29267-1-git-send-email-mgorman@suse.de>
 References: <1342075232-29267-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -13,112 +13,80 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Linux-MM <linux-mm@kvack.org>, Linux-Netdev <netdev@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, David Miller <davem@davemloft.net>, Neil Brown <neilb@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mike Christie <michaelc@cs.wisc.edu>, Eric B Munson <emunson@mgebm.net>, Eric Dumazet <eric.dumazet@gmail.com>, Sebastian Andrzej Siewior <sebastian@breakpoint.cc>, Mel Gorman <mgorman@suse.de>
 
-This is needed to allow network softirq packet processing to make
-use of PF_MEMALLOC.
+__alloc_pages_slowpath() is called when the number of free pages is below
+the low watermark. If the caller is entitled to use ALLOC_NO_WATERMARKS
+then the page will be marked page->pfmemalloc.  This protects more pages
+than are strictly necessary as we only need to protect pages allocated
+below the min watermark (the pfmemalloc reserves).
 
-Currently softirq context cannot use PF_MEMALLOC due to it not being
-associated with a task, and therefore not having task flags to fiddle
-with - thus the gfp to alloc flag mapping ignores the task flags when
-in interrupts (hard or soft) context.
+This patch only sets page->pfmemalloc when ALLOC_NO_WATERMARKS was
+required to allocate the page.
 
-Allowing softirqs to make use of PF_MEMALLOC therefore requires some
-trickery. This patch borrows the task flags from whatever process happens
-to be preempted by the softirq. It then modifies the gfp to alloc flags
-mapping to not exclude task flags in softirq context, and modify the
-softirq code to save, clear and restore the PF_MEMALLOC flag.
-
-The save and clear, ensures the preempted task's PF_MEMALLOC flag
-doesn't leak into the softirq. The restore ensures a softirq's
-PF_MEMALLOC flag cannot leak back into the preempted process. This
-should be safe due to the following reasons
-
-Softirqs can run on multiple CPUs sure but the same task should not be
-	executing the same softirq code. Neither should the softirq
-	handler be preempted by any other softirq handler so the flags
-	should not leak to an unrelated softirq.
-
-Softirqs re-enable hardware interrupts in __do_softirq() so can be
-	preempted by hardware interrupts so PF_MEMALLOC is inherited
-	by the hard IRQ. However, this is similar to a process in
-	reclaim being preempted by a hardirq. While PF_MEMALLOC is
-	set, gfp_to_alloc_flags() distinguishes between hard and
-	soft irqs and avoids giving a hardirq the ALLOC_NO_WATERMARKS
-	flag.
-
-If the softirq is deferred to ksoftirq then its flags may be used
-        instead of a normal tasks but as the softirq cannot be preempted,
-        the PF_MEMALLOC flag does not leak to other code by accident.
-
-[davem@davemloft.net: Document why PF_MEMALLOC is safe]
-Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+[rientjes@google.com: David noticed the problem during review]
 Signed-off-by: Mel Gorman <mgorman@suse.de>
 ---
- include/linux/sched.h |    7 +++++++
- kernel/softirq.c      |    9 +++++++++
- mm/page_alloc.c       |    6 +++++-
- 3 files changed, 21 insertions(+), 1 deletion(-)
+ mm/page_alloc.c |   27 ++++++++++++++-------------
+ 1 file changed, 14 insertions(+), 13 deletions(-)
 
-diff --git a/include/linux/sched.h b/include/linux/sched.h
-index 901bc98..f6d4324 100644
---- a/include/linux/sched.h
-+++ b/include/linux/sched.h
-@@ -1910,6 +1910,13 @@ static inline void rcu_copy_process(struct task_struct *p)
- 
- #endif
- 
-+static inline void tsk_restore_flags(struct task_struct *task,
-+				unsigned long orig_flags, unsigned long flags)
-+{
-+	task->flags &= ~flags;
-+	task->flags |= orig_flags & flags;
-+}
-+
- #ifdef CONFIG_SMP
- extern void do_set_cpus_allowed(struct task_struct *p,
- 			       const struct cpumask *new_mask);
-diff --git a/kernel/softirq.c b/kernel/softirq.c
-index 671f959..b73e681 100644
---- a/kernel/softirq.c
-+++ b/kernel/softirq.c
-@@ -210,6 +210,14 @@ asmlinkage void __do_softirq(void)
- 	__u32 pending;
- 	int max_restart = MAX_SOFTIRQ_RESTART;
- 	int cpu;
-+	unsigned long old_flags = current->flags;
-+
-+	/*
-+	 * Mask out PF_MEMALLOC s current task context is borrowed for the
-+	 * softirq. A softirq handled such as network RX might set PF_MEMALLOC
-+	 * again if the socket is related to swap
-+	 */
-+	current->flags &= ~PF_MEMALLOC;
- 
- 	pending = local_softirq_pending();
- 	account_system_vtime(current);
-@@ -265,6 +273,7 @@ restart:
- 
- 	account_system_vtime(current);
- 	__local_bh_enable(SOFTIRQ_OFFSET);
-+	tsk_restore_flags(current, old_flags, PF_MEMALLOC);
- }
- 
- #ifndef __ARCH_HAS_DO_SOFTIRQ
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index ace51cc..f19c724 100644
+index f19c724..f88519b 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -2268,7 +2268,11 @@ gfp_to_alloc_flags(gfp_t gfp_mask)
- 	if (likely(!(gfp_mask & __GFP_NOMEMALLOC))) {
- 		if (gfp_mask & __GFP_MEMALLOC)
- 			alloc_flags |= ALLOC_NO_WATERMARKS;
--		else if (likely(!(gfp_mask & __GFP_NOMEMALLOC)) && !in_interrupt())
-+		else if (in_serving_softirq() && (current->flags & PF_MEMALLOC))
-+			alloc_flags |= ALLOC_NO_WATERMARKS;
-+		else if (!in_interrupt() &&
-+				((current->flags & PF_MEMALLOC) ||
-+				 unlikely(test_thread_flag(TIF_MEMDIE))))
- 			alloc_flags |= ALLOC_NO_WATERMARKS;
+@@ -2088,8 +2088,8 @@ __alloc_pages_direct_compact(gfp_t gfp_mask, unsigned int order,
+ 
+ 		page = get_page_from_freelist(gfp_mask, nodemask,
+ 				order, zonelist, high_zoneidx,
+-				alloc_flags, preferred_zone,
+-				migratetype);
++				alloc_flags & ~ALLOC_NO_WATERMARKS,
++				preferred_zone, migratetype);
+ 		if (page) {
+ 			preferred_zone->compact_considered = 0;
+ 			preferred_zone->compact_defer_shift = 0;
+@@ -2181,8 +2181,8 @@ __alloc_pages_direct_reclaim(gfp_t gfp_mask, unsigned int order,
+ retry:
+ 	page = get_page_from_freelist(gfp_mask, nodemask, order,
+ 					zonelist, high_zoneidx,
+-					alloc_flags, preferred_zone,
+-					migratetype);
++					alloc_flags & ~ALLOC_NO_WATERMARKS,
++					preferred_zone, migratetype);
+ 
+ 	/*
+ 	 * If an allocation failed after direct reclaim, it could be because
+@@ -2353,8 +2353,17 @@ rebalance:
+ 		page = __alloc_pages_high_priority(gfp_mask, order,
+ 				zonelist, high_zoneidx, nodemask,
+ 				preferred_zone, migratetype);
+-		if (page)
++		if (page) {
++			/*
++			 * page->pfmemalloc is set when ALLOC_NO_WATERMARKS was
++			 * necessary to allocate the page. The expectation is
++			 * that the caller is taking steps that will free more
++			 * memory. The caller should avoid the page being used
++			 * for !PFMEMALLOC purposes.
++			 */
++			page->pfmemalloc = true;
+ 			goto got_pg;
++		}
  	}
+ 
+ 	/* Atomic allocations - we can't balance anything */
+@@ -2471,14 +2480,6 @@ nopage:
+ 	warn_alloc_failed(gfp_mask, order, NULL);
+ 	return page;
+ got_pg:
+-	/*
+-	 * page->pfmemalloc is set when the caller had PFMEMALLOC set, is
+-	 * been OOM killed or specified __GFP_MEMALLOC. The expectation is
+-	 * that the caller is taking steps that will free more memory. The
+-	 * caller should avoid the page being used for !PFMEMALLOC purposes.
+-	 */
+-	page->pfmemalloc = !!(alloc_flags & ALLOC_NO_WATERMARKS);
+-
+ 	if (kmemcheck_enabled)
+ 		kmemcheck_pagealloc_alloc(page, order, gfp_mask);
  
 -- 
 1.7.9.2
