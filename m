@@ -1,120 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
-	by kanga.kvack.org (Postfix) with SMTP id 349356B005D
-	for <linux-mm@kvack.org>; Wed, 11 Jul 2012 21:12:13 -0400 (EDT)
-Received: by pbbrp2 with SMTP id rp2so3457936pbb.14
-        for <linux-mm@kvack.org>; Wed, 11 Jul 2012 18:12:12 -0700 (PDT)
-Date: Wed, 11 Jul 2012 18:12:08 -0700
-From: Michel Lespinasse <walken@google.com>
-Subject: Re: [PATCH 00/13] rbtree updates
-Message-ID: <20120712011208.GA1152@google.com>
-References: <1341876923-12469-1-git-send-email-walken@google.com>
- <1342012996.3462.154.camel@twins>
+Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
+	by kanga.kvack.org (Postfix) with SMTP id 490466B005D
+	for <linux-mm@kvack.org>; Wed, 11 Jul 2012 21:15:53 -0400 (EDT)
+Date: Thu, 12 Jul 2012 10:15:55 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH 3/4] zsmalloc: add details to zs_map_object boiler plate
+Message-ID: <20120712011555.GB5503@bbox>
+References: <1341263752-10210-1-git-send-email-sjenning@linux.vnet.ibm.com>
+ <1341263752-10210-4-git-send-email-sjenning@linux.vnet.ibm.com>
+ <4FFB94FF.8030401@kernel.org>
+ <4FFC478C.4050505@linux.vnet.ibm.com>
+ <4FFD2E65.5080307@kernel.org>
+ <4FFD8A8F.6030603@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1342012996.3462.154.camel@twins>
+In-Reply-To: <4FFD8A8F.6030603@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: aarcange@redhat.com, dwmw2@infradead.org, riel@redhat.com, daniel.santos@pobox.com, axboe@kernel.dk, ebiederm@xmission.com, linux-mm@kvack.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, torvalds@linux-foundation.org
+To: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Nitin Gupta <ngupta@vflare.org>, Robert Jennings <rcj@linux.vnet.ibm.com>, linux-mm@kvack.org, devel@driverdev.osuosl.org, linux-kernel@vger.kernel.org
 
-On Wed, Jul 11, 2012 at 6:23 AM, Peter Zijlstra <peterz@infradead.org> wrote:
-> Looks nice.. How about something like the below on top.. I couldn't
-> immediately find a sane reason for the grand-parent to always be red in
-> the insertion case.
+On Wed, Jul 11, 2012 at 09:15:43AM -0500, Seth Jennings wrote:
+> On 07/11/2012 02:42 AM, Minchan Kim wrote:
+> > On 07/11/2012 12:17 AM, Seth Jennings wrote:
+> >> On 07/09/2012 09:35 PM, Minchan Kim wrote:
+> >>> Maybe we need local_irq_save/restore in zs_[un]map_object path.
+> >>
+> >> I'd rather not disable interrupts since that will create
+> >> unnecessary interrupt latency for all users, even if they
+> > 
+> > Agreed.
+> > Although we guide k[un]map atomic is so fast, it isn't necessary
+> > to force irq_[enable|disable]. Okay.
+> > 
+> >> don't need interrupt protection.  If a particular user uses
+> >> zs_map_object() in an interrupt path, it will be up to that
+> >> user to disable interrupts to ensure safety.
+> > 
+> > Nope. It shouldn't do that.
+> > Any user in interrupt context can't assume that there isn't any other user using per-cpu buffer
+> > right before interrupt happens.
+> > 
+> > The concern is that if such bug happens, it's very hard to find a bug.
+> > So, how about adding this?
+> > 
+> > void zs_map_object(...)
+> > {
+> > 	BUG_ON(in_interrupt());
+> > }
+> 
+> I not completely following you, but I think I'm following
+> enough.  Your point is that the per-cpu buffers are shared
+> by all zsmalloc users and one user doesn't know if another
+> user is doing a zs_map_object() in an interrupt path.
 
-Do you mean the case you marked XXX ? it is actually parent that is
-red, which we know because we tested that a few lines earlier.
+And vise versa is yes.
 
-> @@ -85,12 +104,27 @@ void rb_insert_color(struct rb_node *nod
->                 } else if (rb_is_black(parent))
->                         break;
->
-> +               /*
-> +                * XXX
-> +                */
->                 gparent = rb_red_parent(parent);
+> 
+> However, I think what you are suggesting is to disallow
+> mapping in interrupt context.  This is a problem for zcache
+> as it already does mapping in interrupt context, namely for
+> page decompression in the page fault handler.
 
-See :)
+I don't get it.
+Page fault handler isn't interrupt context.
 
->                 if (parent == gparent->rb_left) {
->                         tmp = gparent->rb_right;
->                         if (tmp && rb_is_red(tmp)) {
-> -                               /* Case 1 - color flips */
-> +                               /*
-> +                                * Case 1 - color flips
-> +                                *
-> +                                *       G            g
-> +                                *      / \          / \
-> +                                *     p   u  -->   P   U
-> +                                *    /            /
-> +                                *   n            N
-> +                                *
-> +                                * However, since g's parent might be red, and
-> +                                * 4) does not allow this, we need to recurse
-> +                                * at g.
-> +                                */
+> 
+> What do you think about making the per-cpu buffers local to
+> each zsmalloc pool? That way each user has their own per-cpu
+> buffers and don't step on each other's toes.
 
-I like these diagrams - I initially didn't think they'd work well, given the need for colors etc, but I now see that it's workable.
+Maybe, It could be a solution if you really need it in interrupt context.
+But the concern is it could hurt zsmalloc's goal which is memory
+space efficiency if your system has lots of CPUs.
 
-In __rb_erase_color(), some of the cases are more complicated than you drew however, because some node colors aren't known.
-This is what I ended up with:
-
-  *  5), then the longest possible path due to 4 is 2B.
-  *
-  *  We shall indicate color with case, where black nodes are uppercase and red
-- *  nodes will be lowercase.
-+ *  nodes will be lowercase. Unknown color nodes shall be drawn as red with
-+ *  some accompanying text comment.
-  */
-
-+                                       /*
-+                                        * Case 2 - sibling color flip
-+                                        * (p could be either color here)
-+                                        *
-+                                        *     p             p
-+                                        *    / \           / \
-+                                        *   N   S    -->  N   s
-+                                        *      / \           / \
-+                                        *     Sl  Sr        Sl  Sr
-+                                        *
-+                                        * This leaves us violating 5), so
-+                                        * recurse at p. If p is red, the
-+                                        * recursion will just flip it to black
-+                                        * and exit. If coming from Case 1,
-+                                        * p is known to be red.
-+                                        */
-
-+                               /*
-+                                * Case 3 - right rotate at sibling
-+                                * (p could be either color here)
-+                                *
-+                                *    p             p
-+                                *   / \           / \
-+                                *  N   S    -->  N   Sl
-+                                *     / \             \
-+                                *    sl  Sr            s
-+                                *                       \
-+                                *                        Sr
-+                                */
-
-+                       /*
-+                        * Case 4 - left rotate at parent + color flips
-+                        * (p and sl could be either color here.
-+                        *  After rotation, p becomes black, s acquires
-+                        *  p's color, and sl keeps its color)
-+                        *
-+                        *       p               s
-+                        *      / \             / \
-+                        *     N   S     -->   P   Sr
-+                        *        / \         / \
-+                        *       sl  sr      N   sl
-+                        */
-
--- 
-Michel "Walken" Lespinasse
-A program is never fully debugged until the last user dies.
+> 
+> Thanks,
+> Seth
+> 
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
