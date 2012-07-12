@@ -1,70 +1,143 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
-	by kanga.kvack.org (Postfix) with SMTP id 799366B0087
-	for <linux-mm@kvack.org>; Thu, 12 Jul 2012 02:40:57 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
+	by kanga.kvack.org (Postfix) with SMTP id E51426B0087
+	for <linux-mm@kvack.org>; Thu, 12 Jul 2012 02:41:10 -0400 (EDT)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 16/16] mm: Account for the number of times direct reclaimers get throttled
-Date: Thu, 12 Jul 2012 07:40:32 +0100
-Message-Id: <1342075232-29267-17-git-send-email-mgorman@suse.de>
-In-Reply-To: <1342075232-29267-1-git-send-email-mgorman@suse.de>
-References: <1342075232-29267-1-git-send-email-mgorman@suse.de>
+Subject: [PATCH 00/12] Swap-over-NFS without deadlocking V9
+Date: Thu, 12 Jul 2012 07:40:54 +0100
+Message-Id: <1342075266-29593-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Linux-MM <linux-mm@kvack.org>, Linux-Netdev <netdev@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, David Miller <davem@davemloft.net>, Neil Brown <neilb@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mike Christie <michaelc@cs.wisc.edu>, Eric B Munson <emunson@mgebm.net>, Eric Dumazet <eric.dumazet@gmail.com>, Sebastian Andrzej Siewior <sebastian@breakpoint.cc>, Mel Gorman <mgorman@suse.de>
+Cc: Linux-MM <linux-mm@kvack.org>, Linux-Netdev <netdev@vger.kernel.org>, Linux-NFS <linux-nfs@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, David Miller <davem@davemloft.net>, Trond Myklebust <Trond.Myklebust@netapp.com>, Neil Brown <neilb@suse.de>, Christoph Hellwig <hch@infradead.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mike Christie <michaelc@cs.wisc.edu>, Eric B Munson <emunson@mgebm.net>, Sebastian Andrzej Siewior <sebastian@breakpoint.cc>, Mel Gorman <mgorman@suse.de>
 
-Under significant pressure when writing back to network-backed storage,
-direct reclaimers may get throttled. This is expected to be a
-short-lived event and the processes get woken up again but processes do
-get stalled. This patch counts how many times such stalling occurs. It's
-up to the administrator whether to reduce these stalls by increasing
-min_free_kbytes.
+Changelog since V8
+  o Rebase to linux-next 20120710
 
-Signed-off-by: Mel Gorman <mgorman@suse.de>
----
- include/linux/vm_event_item.h |    1 +
- mm/vmscan.c                   |    3 +++
- mm/vmstat.c                   |    1 +
- 3 files changed, 5 insertions(+)
+Changelog since V7
+  o Rebase to linux-next 20120629
+  o bi->page_dma instead of bi->page in intel driver
+  o Build fix for !CONFIG_NET					(sebastian)
+  o Restore PF_MEMALLOC flags correctly in all cases		(jlayton)
 
-diff --git a/include/linux/vm_event_item.h b/include/linux/vm_event_item.h
-index 06f8e38..57f7b10 100644
---- a/include/linux/vm_event_item.h
-+++ b/include/linux/vm_event_item.h
-@@ -30,6 +30,7 @@ enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
- 		FOR_ALL_ZONES(PGSTEAL_DIRECT),
- 		FOR_ALL_ZONES(PGSCAN_KSWAPD),
- 		FOR_ALL_ZONES(PGSCAN_DIRECT),
-+		PGSCAN_DIRECT_THROTTLE,
- #ifdef CONFIG_NUMA
- 		PGSCAN_ZONE_RECLAIM_FAILED,
- #endif
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index ffe58d3..a75b083 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -2177,6 +2177,9 @@ static void throttle_direct_reclaim(gfp_t gfp_mask, struct zonelist *zonelist,
- 	if (pfmemalloc_watermark_ok(pgdat))
- 		return;
- 
-+	/* Account for the throttling */
-+	count_vm_event(PGSCAN_DIRECT_THROTTLE);
-+
- 	/*
- 	 * If the caller cannot enter the filesystem, it's possible that it
- 	 * is due to the caller holding an FS lock or performing a journal
-diff --git a/mm/vmstat.c b/mm/vmstat.c
-index e4db312..dcc3858 100644
---- a/mm/vmstat.c
-+++ b/mm/vmstat.c
-@@ -744,6 +744,7 @@ const char * const vmstat_text[] = {
- 	TEXTS_FOR_ZONES("pgsteal_direct")
- 	TEXTS_FOR_ZONES("pgscan_kswapd")
- 	TEXTS_FOR_ZONES("pgscan_direct")
-+	"pgscan_direct_throttle",
- 
- #ifdef CONFIG_NUMA
- 	"zone_reclaim_failed",
+Changelog since V6
+  o Rebase to linux-next 20120622
+
+Changelog since V5
+  o Rebase to v3.5-rc3
+
+Changelog since V4
+  o Catch if SOCK_MEMALLOC flag is cleared with rmem tokens	(davem)
+
+Changelog since V3
+  o Rebase to 3.4-rc5
+  o kmap pages for writing to swap				(akpm)
+  o Move forward declaration to reduce chance of duplication	(akpm)
+
+Changelog since V2
+  o Nothing significant, just rebases. A radix tree lookup is replaced with
+    a linear search would be the biggest rebase artifact
+
+This patch series is based on top of "Swap-over-NBD without deadlocking v15"
+as it depends on the same reservation of PF_MEMALLOC reserves logic.
+
+When a user or administrator requires swap for their application, they
+create a swap partition and file, format it with mkswap and activate it with
+swapon. In diskless systems this is not an option so if swap if required
+then swapping over the network is considered.  The two likely scenarios
+are when blade servers are used as part of a cluster where the form factor
+or maintenance costs do not allow the use of disks and thin clients.
+
+The Linux Terminal Server Project recommends the use of the Network
+Block Device (NBD) for swap but this is not always an option.  There is
+no guarantee that the network attached storage (NAS) device is running
+Linux or supports NBD. However, it is likely that it supports NFS so there
+are users that want support for swapping over NFS despite any performance
+concern. Some distributions currently carry patches that support swapping
+over NFS but it would be preferable to support it in the mainline kernel.
+
+Patch 1 avoids a stream-specific deadlock that potentially affects TCP.
+
+Patch 2 is a small modification to SELinux to avoid using PFMEMALLOC
+	reserves.
+
+Patch 3 adds three helpers for filesystems to handle swap cache pages.
+	For example, page_file_mapping() returns page->mapping for
+	file-backed pages and the address_space of the underlying
+	swap file for swap cache pages.
+
+Patch 4 adds two address_space_operations to allow a filesystem
+	to pin all metadata relevant to a swapfile in memory. Upon
+	successful activation, the swapfile is marked SWP_FILE and
+	the address space operation ->direct_IO is used for writing
+	and ->readpage for reading in swap pages.
+
+Patch 5 notes that patch 3 is bolting
+	filesystem-specific-swapfile-support onto the side and that
+	the default handlers have different information to what
+	is available to the filesystem. This patch refactors the
+	code so that there are generic handlers for each of the new
+	address_space operations.
+
+Patch 6 adds an API to allow a vector of kernel addresses to be
+	translated to struct pages and pinned for IO.
+
+Patch 7 adds support for using highmem pages for swap by kmapping
+	the pages before calling the direct_IO handler.
+
+Patch 8 updates NFS to use the helpers from patch 3 where necessary.
+
+Patch 9 avoids setting PF_private on PG_swapcache pages within NFS.
+
+Patch 10 implements the new swapfile-related address_space operations
+	for NFS and teaches the direct IO handler how to manage
+	kernel addresses.
+
+Patch 11 prevents page allocator recursions in NFS by using GFP_NOIO
+	where appropriate.
+
+Patch 12 fixes a NULL pointer dereference that occurs when using
+	swap-over-NFS.
+
+With the patches applied, it is possible to mount a swapfile that is on an
+NFS filesystem. Swap performance is not great with a swap stress test taking
+roughly twice as long to complete than if the swap device was backed by NBD.
+
+ Documentation/filesystems/Locking |   13 ++++
+ Documentation/filesystems/vfs.txt |   12 +++
+ fs/nfs/Kconfig                    |    8 ++
+ fs/nfs/direct.c                   |   82 ++++++++++++++-------
+ fs/nfs/file.c                     |   28 +++++--
+ fs/nfs/inode.c                    |    4 +
+ fs/nfs/internal.h                 |    7 +-
+ fs/nfs/pagelist.c                 |    4 +-
+ fs/nfs/read.c                     |    6 +-
+ fs/nfs/write.c                    |   89 ++++++++++++++---------
+ include/linux/blk_types.h         |    2 +
+ include/linux/fs.h                |    8 ++
+ include/linux/highmem.h           |    7 ++
+ include/linux/mm.h                |   29 ++++++++
+ include/linux/nfs_fs.h            |    4 +-
+ include/linux/pagemap.h           |    5 ++
+ include/linux/sunrpc/xprt.h       |    3 +
+ include/linux/swap.h              |    8 ++
+ include/net/sock.h                |    8 +-
+ mm/highmem.c                      |   12 +++
+ mm/memory.c                       |   52 +++++++++++++
+ mm/page_io.c                      |  145 +++++++++++++++++++++++++++++++++++++
+ mm/swap_state.c                   |    2 +-
+ mm/swapfile.c                     |  141 ++++++++++++++----------------------
+ net/caif/caif_socket.c            |    2 +-
+ net/core/sock.c                   |   14 +++-
+ net/ipv4/tcp_input.c              |   21 +++---
+ net/sctp/ulpevent.c               |    3 +-
+ net/sunrpc/Kconfig                |    5 ++
+ net/sunrpc/clnt.c                 |    2 +
+ net/sunrpc/sched.c                |    7 +-
+ net/sunrpc/xprtsock.c             |   54 ++++++++++++++
+ security/selinux/avc.c            |    2 +-
+ 33 files changed, 604 insertions(+), 185 deletions(-)
+
 -- 
 1.7.9.2
 
