@@ -1,41 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx159.postini.com [74.125.245.159])
-	by kanga.kvack.org (Postfix) with SMTP id 2E2CE6B004D
-	for <linux-mm@kvack.org>; Thu, 12 Jul 2012 09:49:46 -0400 (EDT)
-Received: from /spool/local
-	by e3.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <dave@linux.vnet.ibm.com>;
-	Thu, 12 Jul 2012 09:49:44 -0400
-Received: from d01relay07.pok.ibm.com (d01relay07.pok.ibm.com [9.56.227.147])
-	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id 61D8638C8143
-	for <linux-mm@kvack.org>; Thu, 12 Jul 2012 09:40:54 -0400 (EDT)
-Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
-	by d01relay07.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q6CDedY950856086
-	for <linux-mm@kvack.org>; Thu, 12 Jul 2012 09:40:40 -0400
-Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av03.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q6CDeZti030671
-	for <linux-mm@kvack.org>; Thu, 12 Jul 2012 07:40:38 -0600
-Message-ID: <4FFED3CE.7030108@linux.vnet.ibm.com>
-Date: Thu, 12 Jul 2012 06:40:30 -0700
-From: Dave Hansen <dave@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
+	by kanga.kvack.org (Postfix) with SMTP id 266196B005D
+	for <linux-mm@kvack.org>; Thu, 12 Jul 2012 09:51:06 -0400 (EDT)
+Date: Thu, 12 Jul 2012 15:51:02 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [patch 03/11] mm: shmem: do not try to uncharge known swapcache
+ pages
+Message-ID: <20120712135102.GI21013@tiehlicka.suse.cz>
+References: <1341449103-1986-1-git-send-email-hannes@cmpxchg.org>
+ <1341449103-1986-4-git-send-email-hannes@cmpxchg.org>
+ <20120709144657.GF4627@tiehlicka.suse.cz>
+ <alpine.LSU.2.00.1207091311300.1842@eggly.anvils>
+ <20120710171628.GB29114@tiehlicka.suse.cz>
+ <alpine.LSU.2.00.1207111118310.1797@eggly.anvils>
 MIME-Version: 1.0
-Subject: Re: [RFC PATCH v3 3/13] memory-hotplug : unify argument of firmware_map_add_early/hotplug
-References: <4FFAB0A2.8070304@jp.fujitsu.com> <4FFAB17F.2090209@jp.fujitsu.com> <4FFD9C08.2070502@linux.vnet.ibm.com> <4FFE5816.6070102@jp.fujitsu.com>
-In-Reply-To: <4FFE5816.6070102@jp.fujitsu.com>
-Content-Type: text/plain; charset=ISO-2022-JP
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LSU.2.00.1207111118310.1797@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, wency@cn.fujitsu.com
+To: Hugh Dickins <hughd@google.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On 07/11/2012 09:52 PM, Yasuaki Ishimatsu wrote:
-> Does the following patch include your comment? If O.K., I will separate
-> the patch from the series and send it for bug fix.
+On Wed 11-07-12 11:48:54, Hugh Dickins wrote:
+> On Tue, 10 Jul 2012, Michal Hocko wrote:
+> > On Mon 09-07-12 13:37:39, Hugh Dickins wrote:
+> > > On Mon, 9 Jul 2012, Michal Hocko wrote:
+> > > > 
+> > > > Maybe I am missing something but who does the uncharge from:
+> > > > shmem_unuse
+> > > >   mem_cgroup_cache_charge
+> > > >   shmem_unuse_inode
+> > > >     shmem_add_to_page_cache
+> > > 
+> > > There isn't any special uncharge for shmem_unuse(): once the swapcache
+> > > page is matched up with its memcg, it will get uncharged by one of the
+> > > usual routes to swapcache_free() when the page is freed: maybe in the
+> > > call from __remove_mapping(), maybe when free_page_and_swap_cache()
+> > > ends up calling it.
+> > > 
+> > > Perhaps you're worrying about error (or unfound) paths in shmem_unuse()?
+> > 
+> > Yes that was exactly my concern.
+> > 
+> > > By the time we make the charge, we know for sure that it's a shmem page,
+> > > and make the charge appropriately; in racy cases it might get uncharged
+> > > again in the delete_from_swap_cache().  Can the unfound case occur these
+> > > days?  
+> > 
+> > I cannot find a change that would prevent from that.
+> 
+> Yes.
+> 
+> > 
+> > > I'd have to think more deeply to answer that, but the charge will
+> > > not go missing.
+> 
+> Yes, the unfound case certainly can still occur these days.  It's very
+> similar to the race with truncation/eviction which shmem_unuse_inode()
+> already allows for (-ENOENT from shmem_add_to_page_cache()).  In that
+> "error" case, the swap entry got removed after we found it in the
+> file's radix tree, before we get to replace it there.  Whereas in the
+> "unfound" case, the swap entry got removed from the file's radix tree
+> before we even found it there, so we haven't a clue which file it ever
+> belonged to.
+> 
+> But it doesn't matter.  We have charged the memcg (the original memcg if
+> memsw is enabled, or swapoff's own if memsw is disabled), and the charge
+> is redundant now that the page has been truncated; but it's a common
+> occurrence with swapcache (most common while PageWriteback or PageLocked)
+> that the swap and charge cannot be released immediately, and it sorts
+> itself out under pressure once the page reaches the bottom of the
+> inactive anon and __remove_mapping()'s swapcache_free().
+> 
+> The worst of it is misleading stats meanwhile; but SwapCache has
+> always been tiresome that way (duplicated in memory and on swap).
 
-Looks sane to me.  It does now mean that the calling conventions for
-some of the other firmware_map*() functions are different, but I think
-that's OK since they're only used internally to memmap.c.
+Indeed
+
+> 
+> The crucial change with regard to unfound entries was back in 2.6.33,
+> when we added SWAP_MAP_SHMEM: prior to that, we didn't know in advance
+> if the swap belonged to shmem or to task, and had to be more careful
+> about when we charge.
+
+Thanks a lot for the clarification Hugh! The code is really tricky and
+easy to get wrong.
+
+> 
+> Hugh
+
+-- 
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
