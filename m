@@ -1,78 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
-	by kanga.kvack.org (Postfix) with SMTP id AF1356B005C
-	for <linux-mm@kvack.org>; Wed, 11 Jul 2012 22:51:34 -0400 (EDT)
-Received: by ggm4 with SMTP id 4so2302077ggm.14
-        for <linux-mm@kvack.org>; Wed, 11 Jul 2012 19:51:33 -0700 (PDT)
-Date: Wed, 11 Jul 2012 19:50:53 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH 1/3] tmpfs: revert SEEK_DATA and SEEK_HOLE
-In-Reply-To: <20120711230122.GZ19223@dastard>
-Message-ID: <alpine.LSU.2.00.1207111920210.1455@eggly.anvils>
-References: <alpine.LSU.2.00.1207091533001.2051@eggly.anvils> <alpine.LSU.2.00.1207091535480.2051@eggly.anvils> <jtj574$tb7$2@dough.gmane.org> <alpine.LSU.2.00.1207111149580.1797@eggly.anvils> <20120711230122.GZ19223@dastard>
+Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
+	by kanga.kvack.org (Postfix) with SMTP id 4B49C6B0068
+	for <linux-mm@kvack.org>; Wed, 11 Jul 2012 23:00:36 -0400 (EDT)
+Date: Thu, 12 Jul 2012 12:00:39 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH v2] mm: Warn about costly page allocation
+Message-ID: <20120712030039.GA29650@bbox>
+References: <20120710002510.GB5935@bbox>
+ <alpine.DEB.2.00.1207101756070.684@chino.kir.corp.google.com>
+ <20120711022304.GA17425@bbox>
+ <alpine.DEB.2.00.1207102223000.26591@chino.kir.corp.google.com>
+ <4FFD15B2.6020001@kernel.org>
+ <alpine.DEB.2.00.1207111337430.3635@chino.kir.corp.google.com>
+ <CAEwNFnB1Z92f22ms=EsBEOOY4Q_JRA8rMPUvQmoqik7rt-EgcQ@mail.gmail.com>
+ <alpine.DEB.2.00.1207111556190.24516@chino.kir.corp.google.com>
+ <20120711235504.GA5204@bbox>
+ <alpine.DEB.2.00.1207111930020.9370@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.00.1207111930020.9370@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: Cong Wang <xiyou.wangcong@gmail.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-On Thu, 12 Jul 2012, Dave Chinner wrote:
-> On Wed, Jul 11, 2012 at 11:55:34AM -0700, Hugh Dickins wrote:
-> > On Wed, 11 Jul 2012, Cong Wang wrote:
-> > > 
-> > > If you don't have burden to maintain it, I'd prefer to leave as it is,
-> > > I don't think 752-bytes is the reason we revert it.
+On Wed, Jul 11, 2012 at 07:33:41PM -0700, David Rientjes wrote:
+> On Thu, 12 Jul 2012, Minchan Kim wrote:
+> 
+> > Agreed and that's why I suggested following patch.
+> > It's not elegant but at least, it could attract interest of configuration
+> > people and they could find a regression during test phase.
+> > This description could be improved later by writing new documenation which
+> > includes more detailed story and method for capturing high order allocation
+> > by ftrace once we see regression report.
 > > 
-> > Thank you, your vote has been counted ;)
-> > and I'll be glad if yours stimulates some agreement or disagreement.
+> > At the moment, I would like to post this patch, simply.
+> > (Of course, I hope fluent native people will correct a sentence. :) )
 > > 
-> > But your vote would count for a lot more if you know of some app which
-> > would really benefit from this functionality in tmpfs: I've heard of none.
+> > Any objections, Andrew, David?
+> > 
 > 
-> So what? I've heard of no apps that use this functionality on XFS,
-> either, but I have heard of a lot of people asking for it to be
-> implemented over the past couple of years so they can use it.
-
-I'd certainly not ask you to remove your support for it from XFS:
-nobody would call XFS a minimal filesystem.
-
-But tmpfs has a tradition and a duty to keep fairly small:
-it needs to be useful, but it shouldn't be carrying unused baggage.
-
-> There's been patches written to make coreutils (cp) make use of it
-> instead of parsing FIEMAP output to find holes, though I don't know
-> if that's gone beyond more than "here's some patches"....
+> There are other config options like CONFIG_SLOB that are used for a very 
+> small memory footprint on systems like this.  We used to have 
+> CONFIG_EMBEDDED to suggest options like this but that has since been 
+> renamed as CONFIG_EXPERT and has become obscured.
 > 
-> Besides, given that you can punch holes in tmpfs files, it seems
-> strange to then say "we don't need a method of skipping holes to
-> find data quickly"....
+> If size is really the only difference, I would think that people who want 
+> the smallest kernel possible would be doing allnoconfig and then 
+> selectively enabling what they need, so defconfig isn't really relevant 
+> here.  And it's very difficult for an admin to know whether or not they 
+> "care about high-order allocations."
+> 
+> I'd reconsider disabling compaction by default unless there are other 
+> considerations that haven't been mentioned.
 
-tmpfs has been punching holes (via MADV_REMOVE) since 2.6.16 (and
-that wasn't added on my whim, IBM wanted and did it).  But I haven't
-heard of anybody asking for a method of skipping them in six years.
+I agree but it doesn't matter with current problem.
+The point of current problem is to let admin know dangerous of regression
+about high order allocation before releasing the product.
+
+Although we enable it by defaut, he can change it with "N" unless he
+knows removing of lumpy reclaim.
 
 > 
-> Besides, seek-hole/data is still shiny new and lots of developers
-> aren't even aware of it's presence in recent kernels. Removing new
-> functionality saying "no-one is using it" is like smashing the egg
-> before the chicken hatches (or is it cutting of the chickes's head
-> before it lays the egg?).
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
-(You remind me of my chicken-and-egg sandwiches - you can't get them,
-you see, it's chicken and egg.)
-
-I'm not trying to remove SEEK_HOLE/SEEK_DATA support from the kernel:
-I'm just saying that nobody has yet made the case for their usefulness
-in tmpfs, so they're better removed from it before v3.5 is released.
-
-Once we see how useful they have become in the grown-up filesystems,
-or someone shows how useful they can be on tmpfs, then we reinstate.
-
-Of course, I'm on both sides of this argument: I wrote that code,
-I like it, I'll be glad to put it back when it's useful to someone.
-
-Hugh
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
