@@ -1,74 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
-	by kanga.kvack.org (Postfix) with SMTP id 8B18F6B005D
-	for <linux-mm@kvack.org>; Thu, 12 Jul 2012 18:04:26 -0400 (EDT)
-Message-ID: <4FFF4987.4050205@redhat.com>
-Date: Thu, 12 Jul 2012 18:02:47 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
+	by kanga.kvack.org (Postfix) with SMTP id 4A53D6B005D
+	for <linux-mm@kvack.org>; Thu, 12 Jul 2012 18:43:36 -0400 (EDT)
+Received: by ggm4 with SMTP id 4so3586485ggm.14
+        for <linux-mm@kvack.org>; Thu, 12 Jul 2012 15:43:35 -0700 (PDT)
+Date: Thu, 12 Jul 2012 15:42:53 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH v2 -mm] memcg: prevent from OOM with too many dirty
+ pages
+In-Reply-To: <20120712141343.e1cb7776.akpm@linux-foundation.org>
+Message-ID: <alpine.LSU.2.00.1207121539150.27721@eggly.anvils>
+References: <1340117404-30348-1-git-send-email-mhocko@suse.cz> <20120619150014.1ebc108c.akpm@linux-foundation.org> <20120620101119.GC5541@tiehlicka.suse.cz> <alpine.LSU.2.00.1207111818380.1299@eggly.anvils> <20120712070501.GB21013@tiehlicka.suse.cz>
+ <20120712141343.e1cb7776.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Subject: Re: [RFC][PATCH 14/26] sched, numa: Numa balancer
-References: <20120316144028.036474157@chello.nl> <20120316144241.012558280@chello.nl>
-In-Reply-To: <20120316144241.012558280@chello.nl>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Dan Smith <danms@us.ibm.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujtisu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Ying Han <yinghan@google.com>, Greg Thelen <gthelen@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Fengguang Wu <fengguang.wu@intel.com>
 
-On 03/16/2012 10:40 AM, Peter Zijlstra wrote:
+On Thu, 12 Jul 2012, Andrew Morton wrote:
+> On Thu, 12 Jul 2012 09:05:01 +0200
+> Michal Hocko <mhocko@suse.cz> wrote:
+> 
+> > When we are back to the patch. Is it going into 3.5? I hope so and I
+> > think it is really worth stable as well. Andrew?
+> 
+> What patch.   "memcg: prevent OOM with too many dirty pages"?
 
-At LSF/MM, there was a presentation comparing Peter's
-NUMA code with Andrea's NUMA code. I believe this is
-the main reason why Andrea's code performed better in
-that particular test...
+Yes.
 
-> +		if (sched_feat(NUMA_BALANCE_FILTER)) {
-> +			/*
-> +			 * Avoid moving ne's when we create a larger imbalance
-> +			 * on the other end.
-> +			 */
-> +			if ((imb->type & NUMA_BALANCE_CPU) &&
-> +			    imb->cpu - cpu_moved < ne_cpu / 2)
-> +				goto next;
-> +
-> +			/*
-> +			 * Avoid migrating ne's when we'll know we'll push our
-> +			 * node over the memory limit.
-> +			 */
-> +			if (max_mem_load &&
-> +			    imb->mem_load + mem_moved + ne_mem > max_mem_load)
-> +				goto next;
-> +		}
+> 
+> I wasn't planning on 3.5, given the way it's been churning around.
 
-IIRC the test consisted of a 16GB NUMA system with two 8GB nodes.
-It was running 3 KVM guests, two guests of 3GB memory each, and
-one guest of 6GB each.
+I don't know if you had been intending to send it in for 3.5 earlier;
+but I'm sorry if my late intervention on may_enter_fs has delayed it.
 
-With autonuma, the 6GB guest ended up on one node, and the
-3GB guests on the other.
+> How
+> about we put it into 3.6 and tag it for a -stable backport, so it gets
+> a bit of a run in mainline before we inflict it upon -stable users?
 
-With sched numa, each node had a 3GB guest, and part of the 6GB guest.
+That sounds good enough to me, but does fall short of Michal's hope.
 
-There is a fundamental difference in the balancing between autonuma
-and sched numa.
-
-In sched numa, a process is moved over to the current node only if
-the current node has space for it.
-
-Autonuma, on the other hand, operates more of a a "hostage exchange"
-policy, where a thread on one node is exchanged with a thread on
-another node, if it looks like that will reduce the overall number
-of cross-node NUMA faults in the system.
-
-I am not sure how to do a "hostage exchange" algorithm with
-sched numa, but it would seem like it could be necessary in order
-for some workloads to converge on a sane configuration.
-
-After all, with only about 2GB free on each node, you will never
-get to move either a 3GB guest, or parts of a 6GB guest...
-
-Any ideas?
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
