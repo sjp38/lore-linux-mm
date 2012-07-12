@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx140.postini.com [74.125.245.140])
-	by kanga.kvack.org (Postfix) with SMTP id 038336B005D
-	for <linux-mm@kvack.org>; Thu, 12 Jul 2012 01:54:46 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
+	by kanga.kvack.org (Postfix) with SMTP id DEC766B005D
+	for <linux-mm@kvack.org>; Thu, 12 Jul 2012 01:57:10 -0400 (EDT)
 From: Yinghai Lu <yinghai@kernel.org>
 Subject: [PATCH] bootmem: Make ___alloc_bootmem_node_nopanic() to be real nopanic
-Date: Wed, 11 Jul 2012 22:54:09 -0700
-Message-Id: <1342072449-13263-1-git-send-email-yinghai@kernel.org>
+Date: Wed, 11 Jul 2012 22:56:59 -0700
+Message-Id: <1342072619-13357-1-git-send-email-yinghai@kernel.org>
 In-Reply-To: <20120711210254.AFF6D20004E@hpza10.eem.corp.google.com>
 References: <20120711210254.AFF6D20004E@hpza10.eem.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, Gavin Shan <shangw@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Yinghai Lu <yinghai@kernel.org>, stable@vger.kernel.org, "[3.3.x,         3.4.x]"@acsmt357.oracle.com
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Yinghai Lu <yinghai@kernel.org>, stable@vger.kernel.org
 
 after
 | From 99ab7b19440a72ebdf225f99b20f8ef40decee86 Mon Sep 17 00:00:00 2001
@@ -37,7 +37,7 @@ Hope will kill bootmem sooner.
 Signed-off-by: Yinghai Lu <yinghai@kernel.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>
 Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: <stable@vger.kernel.org>    [3.3.x, 3.4.x]
+Cc: stable@vger.kernel.org
 
 ---
  mm/bootmem.c |    4 ++++
