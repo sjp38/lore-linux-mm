@@ -1,37 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
-	by kanga.kvack.org (Postfix) with SMTP id 17B546B005D
-	for <linux-mm@kvack.org>; Thu, 12 Jul 2012 17:13:45 -0400 (EDT)
-Date: Thu, 12 Jul 2012 14:13:43 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v2 -mm] memcg: prevent from OOM with too many dirty
- pages
-Message-Id: <20120712141343.e1cb7776.akpm@linux-foundation.org>
-In-Reply-To: <20120712070501.GB21013@tiehlicka.suse.cz>
-References: <1340117404-30348-1-git-send-email-mhocko@suse.cz>
-	<20120619150014.1ebc108c.akpm@linux-foundation.org>
-	<20120620101119.GC5541@tiehlicka.suse.cz>
-	<alpine.LSU.2.00.1207111818380.1299@eggly.anvils>
-	<20120712070501.GB21013@tiehlicka.suse.cz>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
+	by kanga.kvack.org (Postfix) with SMTP id CE72E6B005D
+	for <linux-mm@kvack.org>; Thu, 12 Jul 2012 17:27:35 -0400 (EDT)
+Message-ID: <4FFF40D8.10000@redhat.com>
+Date: Thu, 12 Jul 2012 17:25:44 -0400
+From: Rik van Riel <riel@redhat.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH 28/40] autonuma: make khugepaged pte_numa aware
+References: <1340888180-15355-1-git-send-email-aarcange@redhat.com> <1340888180-15355-29-git-send-email-aarcange@redhat.com> <4FF12284.4040109@redhat.com> <20120712185031.GN20382@redhat.com>
+In-Reply-To: <20120712185031.GN20382@redhat.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujtisu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Ying Han <yinghan@google.com>, Greg Thelen <gthelen@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Fengguang Wu <fengguang.wu@intel.com>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hillf Danton <dhillf@gmail.com>, Dan Smith <danms@us.ibm.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Johannes Weiner <hannes@cmpxchg.org>, Srivatsa Vaddagiri <vatsa@linux.vnet.ibm.com>, Christoph Lameter <cl@linux.com>, Alex Shi <alex.shi@intel.com>, Mauricio Faria de Oliveira <mauricfo@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Don Morris <don.morris@hp.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
 
-On Thu, 12 Jul 2012 09:05:01 +0200
-Michal Hocko <mhocko@suse.cz> wrote:
+On 07/12/2012 02:50 PM, Andrea Arcangeli wrote:
+> On Mon, Jul 02, 2012 at 12:24:36AM -0400, Rik van Riel wrote:
+>> On 06/28/2012 08:56 AM, Andrea Arcangeli wrote:
+>>> If any of the ptes that khugepaged is collapsing was a pte_numa, the
+>>> resulting trans huge pmd will be a pmd_numa too.
+>>
+>> Why?
+>>
+>> If some of the ptes already got faulted in and made really
+>> resident again, why do you want to incur a new NUMA fault
+>> on the newly collapsed hugepage?
+>
+> If we don't set pmd_numa on the collapsed hugepage, the result is that
+> we'll understimate the thread NUMA affinity to the node where the
+> hugepage is located (mm affinity is recorded independently by the NUMA
+> hinting page faults).
+>
+> If it's better or worse I guess depends on luck, we just lose
+> information.
 
-> When we are back to the patch. Is it going into 3.5? I hope so and I
-> think it is really worth stable as well. Andrew?
+Fair enough.
 
-What patch.   "memcg: prevent OOM with too many dirty pages"?
 
-I wasn't planning on 3.5, given the way it's been churning around.  How
-about we put it into 3.6 and tag it for a -stable backport, so it gets
-a bit of a run in mainline before we inflict it upon -stable users?
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
