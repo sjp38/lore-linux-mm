@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx207.postini.com [74.125.245.207])
-	by kanga.kvack.org (Postfix) with SMTP id 6F9276B005D
-	for <linux-mm@kvack.org>; Thu, 12 Jul 2012 23:30:45 -0400 (EDT)
-Message-ID: <4FFF9771.5080307@cn.fujitsu.com>
-Date: Fri, 13 Jul 2012 11:35:13 +0800
+Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
+	by kanga.kvack.org (Postfix) with SMTP id CCB0C6B005C
+	for <linux-mm@kvack.org>; Thu, 12 Jul 2012 23:38:02 -0400 (EDT)
+Message-ID: <4FFF9929.4000100@cn.fujitsu.com>
+Date: Fri, 13 Jul 2012 11:42:33 +0800
 From: Wen Congyang <wency@cn.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [RFC PATCH v3 2/13] memory-hotplug : add physical memory hotplug
- code to acpi_memory_device_remove
-References: <4FFAB0A2.8070304@jp.fujitsu.com> <4FFAB148.9000803@jp.fujitsu.com>
-In-Reply-To: <4FFAB148.9000803@jp.fujitsu.com>
+Subject: Re: [RFC PATCH v3 5/13] memory-hotplug : does not release memory
+ region in PAGES_PER_SECTION chunks
+References: <4FFAB0A2.8070304@jp.fujitsu.com> <4FFAB1F3.1020304@jp.fujitsu.com>
+In-Reply-To: <4FFAB1F3.1020304@jp.fujitsu.com>
 Content-Transfer-Encoding: 7bit
 Content-Type: text/plain; charset=ISO-2022-JP
 Sender: owner-linux-mm@kvack.org
@@ -17,14 +17,15 @@ List-ID: <linux-mm.kvack.org>
 To: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com
 
-At 07/09/2012 06:24 PM, Yasuaki Ishimatsu Wrote:
-> acpi_memory_device_remove() has been prepared to remove physical memory.
-> But, the function only frees acpi_memory_device currentlry.
-> 
-> The patch adds following functions into acpi_memory_device_remove():
->   - offline memory
->   - remove physical memory (only return -EBUSY)
->   - free acpi_memory_device
+At 07/09/2012 06:26 PM, Yasuaki Ishimatsu Wrote:
+> Since applying a patch(de7f0cba96786c), release_mem_region() has been changed
+> as called in PAGES_PER_SECTION chunks because register_memory_resource() is
+> called in PAGES_PER_SECTION chunks by add_memory(). But it seems firmware
+> dependency. If CRS are written in the PAGES_PER_SECTION chunks in ACPI DSDT
+> Table, register_memory_resource() is called in PAGES_PER_SECTION chunks.
+> But if CRS are written in the DIMM unit in ACPI DSDT Table,
+> register_memory_resource() is called in DIMM unit. So release_mem_region()
+> should not be called in PAGES_PER_SECTION chunks. The patch fixes it.
 > 
 > CC: David Rientjes <rientjes@google.com>
 > CC: Jiang Liu <liuj97@gmail.com>
@@ -39,175 +40,72 @@ At 07/09/2012 06:24 PM, Yasuaki Ishimatsu Wrote:
 > Signed-off-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 > 
 > ---
->  drivers/acpi/acpi_memhotplug.c |   26 +++++++++++++++++++++++++-
->  drivers/base/memory.c          |   39 +++++++++++++++++++++++++++++++++++++++
->  include/linux/memory.h         |    5 +++++
->  include/linux/memory_hotplug.h |    1 +
->  mm/memory_hotplug.c            |    8 ++++++++
->  5 files changed, 78 insertions(+), 1 deletion(-)
+>  arch/powerpc/platforms/pseries/hotplug-memory.c |   13 +++++++++----
+>  mm/memory_hotplug.c                             |    4 ++--
+>  2 files changed, 11 insertions(+), 6 deletions(-)
 > 
-> Index: linux-3.5-rc6/drivers/acpi/acpi_memhotplug.c
+> Index: linux-3.5-rc4/mm/memory_hotplug.c
 > ===================================================================
-> --- linux-3.5-rc6.orig/drivers/acpi/acpi_memhotplug.c	2012-07-09 18:08:29.946888653 +0900
-> +++ linux-3.5-rc6/drivers/acpi/acpi_memhotplug.c	2012-07-09 18:08:43.470719531 +0900
-> @@ -29,6 +29,7 @@
->  #include <linux/module.h>
->  #include <linux/init.h>
->  #include <linux/types.h>
-> +#include <linux/memory.h>
->  #include <linux/memory_hotplug.h>
->  #include <linux/slab.h>
->  #include <acpi/acpi_drivers.h>
-> @@ -452,12 +453,35 @@ static int acpi_memory_device_add(struct
->  static int acpi_memory_device_remove(struct acpi_device *device, int type)
->  {
->  	struct acpi_memory_device *mem_device = NULL;
-> -
-> +	struct acpi_memory_info *info, *tmp;
-> +	int result;
-> +	int node;
+> --- linux-3.5-rc4.orig/mm/memory_hotplug.c	2012-07-03 14:22:03.549198802 +0900
+> +++ linux-3.5-rc4/mm/memory_hotplug.c	2012-07-03 14:22:05.919169458 +0900
+> @@ -358,11 +358,11 @@ int __remove_pages(struct zone *zone, un
+>  	BUG_ON(phys_start_pfn & ~PAGE_SECTION_MASK);
+>  	BUG_ON(nr_pages % PAGES_PER_SECTION);
 > 
->  	if (!device || !acpi_driver_data(device))
->  		return -EINVAL;
-> 
->  	mem_device = acpi_driver_data(device);
+> +	release_mem_region(phys_start_pfn << PAGE_SHIFT,  nr_pages * PAGE_SIZE);
 > +
-> +	node = acpi_get_node(mem_device->device->handle);
-> +
-> +	list_for_each_entry_safe(info, tmp, &mem_device->res_list, list) {
-> +		if (!info->enabled)
-> +			continue;
-> +
-> +		if (!is_memblk_offline(info->start_addr, info->length)) {
-> +			result = offline_memory(info->start_addr, info->length);
-> +			if (result)
-> +				return result;
-> +		}
-> +
-> +		result = remove_memory(node, info->start_addr, info->length);
+>  	sections_to_remove = nr_pages / PAGES_PER_SECTION;
+>  	for (i = 0; i < sections_to_remove; i++) {
+>  		unsigned long pfn = phys_start_pfn + i*PAGES_PER_SECTION;
+> -		release_mem_region(pfn << PAGE_SHIFT,
+> -				   PAGES_PER_SECTION << PAGE_SHIFT);
+>  		ret = __remove_section(zone, __pfn_to_section(pfn));
+>  		if (ret)
+>  			break;
+> Index: linux-3.5-rc4/arch/powerpc/platforms/pseries/hotplug-memory.c
+> ===================================================================
+> --- linux-3.5-rc4.orig/arch/powerpc/platforms/pseries/hotplug-memory.c	2012-07-03 14:21:45.641422678
+> +0900
 
-The user may online the memory between offline_memory() and remove_memory().
-So I think we should lock memory hotplug before check the memory's status
-and release it after remove_memory().
+Hmm, I think you should change your mail client's config.
 
 Thanks
 Wen Congyang
 
-> +		if (result)
-> +			return result;
-> +
-> +		list_del(&info->list);
-> +		kfree(info);
-> +	}
-> +
->  	kfree(mem_device);
-> 
->  	return 0;
-> Index: linux-3.5-rc6/include/linux/memory_hotplug.h
-> ===================================================================
-> --- linux-3.5-rc6.orig/include/linux/memory_hotplug.h	2012-07-09 18:08:29.955888542 +0900
-> +++ linux-3.5-rc6/include/linux/memory_hotplug.h	2012-07-09 18:08:43.471719518 +0900
-> @@ -233,6 +233,7 @@ static inline int is_mem_section_removab
->  extern int mem_online_node(int nid);
->  extern int add_memory(int nid, u64 start, u64 size);
->  extern int arch_add_memory(int nid, u64 start, u64 size);
-> +extern int remove_memory(int nid, u64 start, u64 size);
->  extern int offline_memory(u64 start, u64 size);
->  extern int sparse_add_one_section(struct zone *zone, unsigned long start_pfn,
->  								int nr_pages);
-> Index: linux-3.5-rc6/mm/memory_hotplug.c
-> ===================================================================
-> --- linux-3.5-rc6.orig/mm/memory_hotplug.c	2012-07-09 18:08:29.953888567 +0900
-> +++ linux-3.5-rc6/mm/memory_hotplug.c	2012-07-09 18:08:43.476719455 +0900
-> @@ -659,6 +659,14 @@ out:
->  }
->  EXPORT_SYMBOL_GPL(add_memory);
-> 
-> +int remove_memory(int nid, u64 start, u64 size)
-> +{
-> +	return -EBUSY;
-> +
-> +}
-> +EXPORT_SYMBOL_GPL(remove_memory);
-> +
-> +
->  #ifdef CONFIG_MEMORY_HOTREMOVE
->  /*
->   * A free page on the buddy free lists (not the per-cpu lists) has PageBuddy
-> Index: linux-3.5-rc6/drivers/base/memory.c
-> ===================================================================
-> --- linux-3.5-rc6.orig/drivers/base/memory.c	2012-07-09 18:08:29.947888640 +0900
-> +++ linux-3.5-rc6/drivers/base/memory.c	2012-07-09 18:10:54.880076739 +0900
-> @@ -70,6 +70,45 @@ void unregister_memory_isolate_notifier(
->  }
->  EXPORT_SYMBOL(unregister_memory_isolate_notifier);
-> 
-> +bool is_memblk_offline(unsigned long start, unsigned long size)
-> +{
-> +	struct memory_block *mem = NULL;
-> +	struct mem_section *section;
-> +	unsigned long start_pfn, end_pfn;
-> +	unsigned long pfn, section_nr;
-> +
-> +	start_pfn = PFN_DOWN(start);
-> +	end_pfn = start_pfn + PFN_DOWN(start);
-> +
-> +	for (pfn = start_pfn; pfn < end_pfn; pfn += PAGES_PER_SECTION) {
-> +		section_nr = pfn_to_section_nr(pfn);
-> +		if (!present_section_nr(section_nr));
-> +			continue;
-> +
-> +		section = __nr_to_section(section_nr);
-> +		/* same memblock? */
-> +		if (mem)
-> +			if((section_nr >= mem->start_section_nr) &&
-> +			   (section_nr <= mem->end_section_nr))
-> +				continue;
-> +
-> +		mem = find_memory_block_hinted(section, mem);
-> +		if (!mem)
-> +			continue;
-> +		if (mem->state == MEM_OFFLINE)
-> +			continue;
-> +
-> +		kobject_put(&mem->dev.kobj);
-> +		return false;
-> +	}
-> +
-> +	if (mem)
-> +		kobject_put(&mem->dev.kobj);
-> +
-> +	return true;
-> +}
-> +EXPORT_SYMBOL(is_memblk_offline);
-> +
->  /*
->   * register_memory - Setup a sysfs device for a memory block
->   */
-> Index: linux-3.5-rc6/include/linux/memory.h
-> ===================================================================
-> --- linux-3.5-rc6.orig/include/linux/memory.h	2012-07-08 09:23:56.000000000 +0900
-> +++ linux-3.5-rc6/include/linux/memory.h	2012-07-09 18:08:43.484719355 +0900
-> @@ -106,6 +106,10 @@ static inline int memory_isolate_notify(
+> +++ linux-3.5-rc4/arch/powerpc/platforms/pseries/hotplug-memory.c	2012-07-03 14:22:05.920169437 +0900
+> @@ -77,7 +77,8 @@ static int pseries_remove_memblock(unsig
 >  {
->  	return 0;
->  }
-> +static inline bool is_memblk_offline(unsigned long start, unsigned long size)
-> +{
-> +	return false;
-> +}
->  #else
->  extern int register_memory_notifier(struct notifier_block *nb);
->  extern void unregister_memory_notifier(struct notifier_block *nb);
-> @@ -120,6 +124,7 @@ extern int memory_isolate_notify(unsigne
->  extern struct memory_block *find_memory_block_hinted(struct mem_section *,
->  							struct memory_block *);
->  extern struct memory_block *find_memory_block(struct mem_section *);
-> +extern bool is_memblk_offline(unsigned long start, unsigned long size);
->  #define CONFIG_MEM_BLOCK_SIZE	(PAGES_PER_SECTION<<PAGE_SHIFT)
->  enum mem_add_context { BOOT, HOTPLUG };
->  #endif /* CONFIG_MEMORY_HOTPLUG_SPARSE */
+>  	unsigned long start, start_pfn;
+>  	struct zone *zone;
+> -	int ret;
+> +	int i, ret;
+> +	int sections_to_remove;
 > 
+>  	start_pfn = base >> PAGE_SHIFT;
+> 
+> @@ -97,9 +98,13 @@ static int pseries_remove_memblock(unsig
+>  	 * to sysfs "state" file and we can't remove sysfs entries
+>  	 * while writing to it. So we have to defer it to here.
+>  	 */
+> -	ret = __remove_pages(zone, start_pfn, memblock_size >> PAGE_SHIFT);
+> -	if (ret)
+> -		return ret;
+> +	sections_to_remove = (memblock_size >> PAGE_SHIFT) / PAGES_PER_SECTION;
+> +	for (i = 0; i < sections_to_remove; i++) {
+> +		unsigned long pfn = start_pfn + i * PAGES_PER_SECTION;
+> +		ret = __remove_pages(zone, start_pfn,  PAGES_PER_SECTION);
+> +		if (ret)
+> +			return ret;
+> +	}
+> 
+>  	/*
+>  	 * Update memory regions for memory remove
+> 
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
 > 
 
 --
