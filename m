@@ -1,60 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
-	by kanga.kvack.org (Postfix) with SMTP id 7033A6B005C
-	for <linux-mm@kvack.org>; Fri, 13 Jul 2012 01:12:22 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 60DE13EE0BD
-	for <linux-mm@kvack.org>; Fri, 13 Jul 2012 14:12:20 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 4992345DEAD
-	for <linux-mm@kvack.org>; Fri, 13 Jul 2012 14:12:20 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 346ED45DE7E
-	for <linux-mm@kvack.org>; Fri, 13 Jul 2012 14:12:20 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 277111DB803E
-	for <linux-mm@kvack.org>; Fri, 13 Jul 2012 14:12:20 +0900 (JST)
-Received: from g01jpexchkw10.g01.fujitsu.local (g01jpexchkw10.g01.fujitsu.local [10.0.194.49])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id D88BF1DB8038
-	for <linux-mm@kvack.org>; Fri, 13 Jul 2012 14:12:19 +0900 (JST)
-Message-ID: <4FFFAE17.7070400@jp.fujitsu.com>
-Date: Fri, 13 Jul 2012 14:11:51 +0900
-From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
+	by kanga.kvack.org (Postfix) with SMTP id AFDEF6B005C
+	for <linux-mm@kvack.org>; Fri, 13 Jul 2012 04:21:55 -0400 (EDT)
+Date: Fri, 13 Jul 2012 10:21:50 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH v2 -mm] memcg: prevent from OOM with too many dirty pages
+Message-ID: <20120713082150.GA1448@tiehlicka.suse.cz>
+References: <1340117404-30348-1-git-send-email-mhocko@suse.cz>
+ <20120619150014.1ebc108c.akpm@linux-foundation.org>
+ <20120620101119.GC5541@tiehlicka.suse.cz>
+ <alpine.LSU.2.00.1207111818380.1299@eggly.anvils>
+ <20120712070501.GB21013@tiehlicka.suse.cz>
+ <20120712141343.e1cb7776.akpm@linux-foundation.org>
+ <alpine.LSU.2.00.1207121539150.27721@eggly.anvils>
 MIME-Version: 1.0
-Subject: Re: [RFC PATCH v3 3/13] memory-hotplug : unify argument of firmware_map_add_early/hotplug
-References: <4FFAB0A2.8070304@jp.fujitsu.com> <4FFAB17F.2090209@jp.fujitsu.com> <4FFD9C08.2070502@linux.vnet.ibm.com> <4FFE5816.6070102@jp.fujitsu.com> <4FFED3CE.7030108@linux.vnet.ibm.com>
-In-Reply-To: <4FFED3CE.7030108@linux.vnet.ibm.com>
-Content-Type: text/plain; charset="ISO-2022-JP"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LSU.2.00.1207121539150.27721@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, wency@cn.fujitsu.com
+To: Hugh Dickins <hughd@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujtisu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Ying Han <yinghan@google.com>, Greg Thelen <gthelen@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Fengguang Wu <fengguang.wu@intel.com>
 
-Hi Dave,
-
-2012/07/12 22:40, Dave Hansen wrote:
-> On 07/11/2012 09:52 PM, Yasuaki Ishimatsu wrote:
->> Does the following patch include your comment? If O.K., I will separate
->> the patch from the series and send it for bug fix.
+On Thu 12-07-12 15:42:53, Hugh Dickins wrote:
+> On Thu, 12 Jul 2012, Andrew Morton wrote:
+> > On Thu, 12 Jul 2012 09:05:01 +0200
+> > Michal Hocko <mhocko@suse.cz> wrote:
+> > 
+> > > When we are back to the patch. Is it going into 3.5? I hope so and I
+> > > think it is really worth stable as well. Andrew?
+> > 
+> > What patch.   "memcg: prevent OOM with too many dirty pages"?
 > 
-> Looks sane to me.  It does now mean that the calling conventions for
-> some of the other firmware_map*() functions are different, but I think
-> that's OK since they're only used internally to memmap.c.
-
-Can I add "Reviewed-by: Dave Hansen" to the patch?
-
-Thanks,
-Yasuaki Ishimatsu
-
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
+> Yes.
 > 
+> > 
+> > I wasn't planning on 3.5, given the way it's been churning around.
+> 
+> I don't know if you had been intending to send it in for 3.5 earlier;
+> but I'm sorry if my late intervention on may_enter_fs has delayed it.
 
+Well I should investigate more when the question came up...
+ 
+> > How about we put it into 3.6 and tag it for a -stable backport, so
+> > it gets a bit of a run in mainline before we inflict it upon -stable
+> > users?
+> 
+> That sounds good enough to me, but does fall short of Michal's hope.
 
+I would be happier if it went into 3.5 already because the problem (OOM
+on too many dirty pages) is real and long term (basically since ever).
+We have the patch in SLES11-SP2 for quite some time (the original one
+with the may_enter_fs check) and it helped a lot.
+The patch was designed as a band aid primarily because it is very simple
+that way and with a hope that the real fix will come later.
+The decision is up to you Andrew, but I vote for pushing it as soon as
+possible and try to come up with something more clever for 3.6.
+
+> 
+> Hugh
+
+-- 
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
