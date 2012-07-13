@@ -1,9 +1,9 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
-	by kanga.kvack.org (Postfix) with SMTP id 541B76B005D
-	for <linux-mm@kvack.org>; Thu, 12 Jul 2012 23:22:20 -0400 (EDT)
-Message-ID: <4FFF957F.2080504@cn.fujitsu.com>
-Date: Fri, 13 Jul 2012 11:26:55 +0800
+Received: from psmtp.com (na3sys010amx207.postini.com [74.125.245.207])
+	by kanga.kvack.org (Postfix) with SMTP id 6F9276B005D
+	for <linux-mm@kvack.org>; Thu, 12 Jul 2012 23:30:45 -0400 (EDT)
+Message-ID: <4FFF9771.5080307@cn.fujitsu.com>
+Date: Fri, 13 Jul 2012 11:35:13 +0800
 From: Wen Congyang <wency@cn.fujitsu.com>
 MIME-Version: 1.0
 Subject: Re: [RFC PATCH v3 2/13] memory-hotplug : add physical memory hotplug
@@ -85,6 +85,14 @@ At 07/09/2012 06:24 PM, Yasuaki Ishimatsu Wrote:
 > +		}
 > +
 > +		result = remove_memory(node, info->start_addr, info->length);
+
+The user may online the memory between offline_memory() and remove_memory().
+So I think we should lock memory hotplug before check the memory's status
+and release it after remove_memory().
+
+Thanks
+Wen Congyang
+
 > +		if (result)
 > +			return result;
 > +
@@ -104,18 +112,6 @@ At 07/09/2012 06:24 PM, Yasuaki Ishimatsu Wrote:
 >  extern int add_memory(int nid, u64 start, u64 size);
 >  extern int arch_add_memory(int nid, u64 start, u64 size);
 > +extern int remove_memory(int nid, u64 start, u64 size);
-
-
-Here should be:
-#ifdef CONFIG_MEMORY_HOTREMOVE
-extern int remove_memory(int nid, u64 start, u64 size);
-#else
-static int inline remove_memory(int nid, u64 start, u64 size)
-{
-	return -EBUSY;
-}
-#endif
-
 >  extern int offline_memory(u64 start, u64 size);
 >  extern int sparse_add_one_section(struct zone *zone, unsigned long start_pfn,
 >  								int nr_pages);
@@ -133,13 +129,6 @@ static int inline remove_memory(int nid, u64 start, u64 size)
 > +
 > +}
 > +EXPORT_SYMBOL_GPL(remove_memory);
-
-We only need to implement this function when CONFIG_MEMORY_HOTREMOVE
-is defined here.
-
-Thanks
-Wen Congyang
-
 > +
 > +
 >  #ifdef CONFIG_MEMORY_HOTREMOVE
