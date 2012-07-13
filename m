@@ -1,102 +1,223 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
-	by kanga.kvack.org (Postfix) with SMTP id C36996B005C
-	for <linux-mm@kvack.org>; Fri, 13 Jul 2012 04:41:30 -0400 (EDT)
-Date: Fri, 13 Jul 2012 10:41:27 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH v2 3/3] mm/sparse: remove index_init_lock
-Message-ID: <20120713084127.GD1448@tiehlicka.suse.cz>
-References: <1342144882-16856-1-git-send-email-shangw@linux.vnet.ibm.com>
- <1342144882-16856-3-git-send-email-shangw@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
+	by kanga.kvack.org (Postfix) with SMTP id 423206B005C
+	for <linux-mm@kvack.org>; Fri, 13 Jul 2012 05:06:27 -0400 (EDT)
+Message-ID: <4FFFE621.8030302@cn.fujitsu.com>
+Date: Fri, 13 Jul 2012 17:10:57 +0800
+From: Wen Congyang <wency@cn.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1342144882-16856-3-git-send-email-shangw@linux.vnet.ibm.com>
+Subject: Re: [RFC PATCH v3 4/13] memory-hotplug : remove /sys/firmware/memmap/X
+ sysfs
+References: <4FFAB0A2.8070304@jp.fujitsu.com> <4FFAB1BA.9040801@jp.fujitsu.com>
+In-Reply-To: <4FFAB1BA.9040801@jp.fujitsu.com>
+Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=ISO-2022-JP
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Gavin Shan <shangw@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org, rientjes@google.com, akpm@linux-foundation.org
+To: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com
 
-On Fri 13-07-12 10:01:22, Gavin Shan wrote:
-> sparse_index_init uses index_init_lock spinlock to protect root
-> mem_section assignment. The lock is not necessary anymore because the
-> function is called only during the boot (during paging init which
-> is executed only from a single CPU) and from the hotplug code (by
-> add_memory via arch_add_memory) which uses mem_hotplug_mutex.
+At 07/09/2012 06:26 PM, Yasuaki Ishimatsu Wrote:
+> When (hot)adding memory into system, /sys/firmware/memmap/X/{end, start, type}
+> sysfs files are created. But there is no code to remove these files. The patch
+> implements the function to remove them.
 > 
-> The lock has been introduced by 28ae55c9 (sparsemem extreme: hotplug
-> preparation) and sparse_index_init was used only during boot at that
-> time.
+> Note : The code does not free firmware_map_entry since there is no way to free
+>        memory which is allocated by bootmem.
 > 
-> Later when the hotplug code (and add_memory) was introduced there was
-> no synchronization so it was possible to online more sections from
-> the same root probably (though I am not 100% sure about that).
-> The first synchronization has been added by 6ad696d2 (mm: allow memory
-> hotplug and hibernation in the same kernel) which has been later
-> replaced by the mem_hotplug_mutex - 20d6c96b (mem-hotplug: introduce
-> {un}lock_memory_hotplug()).
+> CC: David Rientjes <rientjes@google.com>
+> CC: Jiang Liu <liuj97@gmail.com>
+> CC: Len Brown <len.brown@intel.com>
+> CC: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+> CC: Paul Mackerras <paulus@samba.org>
+> CC: Christoph Lameter <cl@linux.com>
+> Cc: Minchan Kim <minchan.kim@gmail.com>
+> CC: Andrew Morton <akpm@linux-foundation.org>
+> CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> CC: Wen Congyang <wency@cn.fujitsu.com>
+> Signed-off-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 > 
-> Let's remove the lock as it is not needed and it makes the code more
-> confusing.
-> 
-> Signed-off-by: Gavin Shan <shangw@linux.vnet.ibm.com>
-
-Reviewed-by: Michal Hocko <mhocko@suse.cz>
-
 > ---
->  mm/sparse.c |   14 +-------------
->  1 files changed, 1 insertions(+), 13 deletions(-)
+>  drivers/firmware/memmap.c    |   78 ++++++++++++++++++++++++++++++++++++++++++-
+>  include/linux/firmware-map.h |    6 +++
+>  mm/memory_hotplug.c          |    6 ++-
+>  3 files changed, 88 insertions(+), 2 deletions(-)
 > 
-> diff --git a/mm/sparse.c b/mm/sparse.c
-> index 51950de..40b1100 100644
-> --- a/mm/sparse.c
-> +++ b/mm/sparse.c
-> @@ -77,7 +77,6 @@ static struct mem_section noinline __init_refok *sparse_index_alloc(int nid)
->  
->  static int __meminit sparse_index_init(unsigned long section_nr, int nid)
+> Index: linux-3.5-rc6/mm/memory_hotplug.c
+> ===================================================================
+> --- linux-3.5-rc6.orig/mm/memory_hotplug.c	2012-07-09 18:23:13.323844923 +0900
+> +++ linux-3.5-rc6/mm/memory_hotplug.c	2012-07-09 18:23:19.522767424 +0900
+> @@ -661,7 +661,11 @@ EXPORT_SYMBOL_GPL(add_memory);
+> 
+>  int remove_memory(int nid, u64 start, u64 size)
 >  {
-> -	static DEFINE_SPINLOCK(index_init_lock);
->  	unsigned long root = SECTION_NR_TO_ROOT(section_nr);
->  	struct mem_section *section;
->  	int ret = 0;
-> @@ -88,20 +87,9 @@ static int __meminit sparse_index_init(unsigned long section_nr, int nid)
->  	section = sparse_index_alloc(nid);
->  	if (!section)
->  		return -ENOMEM;
-> -	/*
-> -	 * This lock keeps two different sections from
-> -	 * reallocating for the same index
-> -	 */
-> -	spin_lock(&index_init_lock);
-> -
-> -	if (mem_section[root]) {
-> -		ret = -EEXIST;
-> -		goto out;
-> -	}
->  
->  	mem_section[root] = section;
-> -out:
-> -	spin_unlock(&index_init_lock);
-> +
->  	return ret;
->  }
->  #else /* !SPARSEMEM_EXTREME */
-> -- 
-> 1.7.5.4
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> -	return -EBUSY;
+> +	lock_memory_hotplug();
+> +	/* remove memmap entry */
+> +	firmware_map_remove(start, start + size - 1, "System RAM");
 
--- 
-Michal Hocko
-SUSE Labs
-SUSE LINUX s.r.o.
-Lihovarska 1060/12
-190 00 Praha 9    
-Czech Republic
+firmware_map_remove() is in meminit section, so remove_memory() should be in
+ref section.
+
+Thanks
+Wen Congyang
+
+> +	unlock_memory_hotplug();
+> +	return 0;
+> 
+>  }
+>  EXPORT_SYMBOL_GPL(remove_memory);
+> Index: linux-3.5-rc6/include/linux/firmware-map.h
+> ===================================================================
+> --- linux-3.5-rc6.orig/include/linux/firmware-map.h	2012-07-09 18:23:09.532892314 +0900
+> +++ linux-3.5-rc6/include/linux/firmware-map.h	2012-07-09 18:23:19.523767412 +0900
+> @@ -25,6 +25,7 @@
+> 
+>  int firmware_map_add_early(u64 start, u64 end, const char *type);
+>  int firmware_map_add_hotplug(u64 start, u64 end, const char *type);
+> +int firmware_map_remove(u64 start, u64 end, const char *type);
+> 
+>  #else /* CONFIG_FIRMWARE_MEMMAP */
+> 
+> @@ -38,6 +39,11 @@ static inline int firmware_map_add_hotpl
+>  	return 0;
+>  }
+> 
+> +static inline int firmware_map_remove(u64 start, u64 end, const char *type)
+> +{
+> +	return 0;
+> +}
+> +
+>  #endif /* CONFIG_FIRMWARE_MEMMAP */
+> 
+>  #endif /* _LINUX_FIRMWARE_MAP_H */
+> Index: linux-3.5-rc6/drivers/firmware/memmap.c
+> ===================================================================
+> --- linux-3.5-rc6.orig/drivers/firmware/memmap.c	2012-07-09 18:23:09.532892314 +0900
+> +++ linux-3.5-rc6/drivers/firmware/memmap.c	2012-07-09 18:25:46.371931554 +0900
+> @@ -21,6 +21,7 @@
+>  #include <linux/types.h>
+>  #include <linux/bootmem.h>
+>  #include <linux/slab.h>
+> +#include <linux/mm.h>
+> 
+>  /*
+>   * Data types ------------------------------------------------------------------
+> @@ -79,7 +80,22 @@ static const struct sysfs_ops memmap_att
+>  	.show = memmap_attr_show,
+>  };
+> 
+> +#define to_memmap_entry(obj) container_of(obj, struct firmware_map_entry, kobj)
+> +
+> +static void release_firmware_map_entry(struct kobject *kobj)
+> +{
+> +	struct firmware_map_entry *entry = to_memmap_entry(kobj);
+> +	struct page *head_page;
+> +
+> +	head_page = virt_to_head_page(entry);
+> +	if (PageSlab(head_page))
+> +		kfree(entry);
+> +
+> +	/* There is no way to free memory allocated from bootmem*/
+> +}
+> +
+>  static struct kobj_type memmap_ktype = {
+> +	.release	= release_firmware_map_entry,
+>  	.sysfs_ops	= &memmap_attr_ops,
+>  	.default_attrs	= def_attrs,
+>  };
+> @@ -123,6 +139,16 @@ static int firmware_map_add_entry(u64 st
+>  	return 0;
+>  }
+> 
+> +/**
+> + * firmware_map_remove_entry() - Does the real work to remove a firmware
+> + * memmap entry.
+> + * @entry: removed entry.
+> + **/
+> +static inline void firmware_map_remove_entry(struct firmware_map_entry *entry)
+> +{
+> +	list_del(&entry->list);
+> +}
+> +
+>  /*
+>   * Add memmap entry on sysfs
+>   */
+> @@ -144,6 +170,31 @@ static int add_sysfs_fw_map_entry(struct
+>  	return 0;
+>  }
+> 
+> +/*
+> + * Remove memmap entry on sysfs
+> + */
+> +static inline void remove_sysfs_fw_map_entry(struct firmware_map_entry *entry)
+> +{
+> +	kobject_put(&entry->kobj);
+> +}
+> +
+> +/*
+> + * Search memmap entry
+> + */
+> +
+> +struct firmware_map_entry * __meminit
+> +find_firmware_map_entry(u64 start, u64 end, const char *type)
+> +{
+> +	struct firmware_map_entry *entry;
+> +
+> +	list_for_each_entry(entry, &map_entries, list)
+> +		if ((entry->start == start) && (entry->end == end) &&
+> +		    (!strcmp(entry->type, type)))
+> +			return entry;
+> +
+> +	return NULL;
+> +}
+> +
+>  /**
+>   * firmware_map_add_hotplug() - Adds a firmware mapping entry when we do
+>   * memory hotplug.
+> @@ -196,6 +247,32 @@ int __init firmware_map_add_early(u64 st
+>  	return firmware_map_add_entry(start, end, type, entry);
+>  }
+> 
+> +/**
+> + * firmware_map_remove() - remove a firmware mapping entry
+> + * @start: Start of the memory range.
+> + * @end:   End of the memory range (inclusive).
+> + * @type:  Type of the memory range.
+> + *
+> + * removes a firmware mapping entry.
+> + *
+> + * Returns 0 on success, or -EINVAL if no entry.
+> + **/
+> +int __meminit firmware_map_remove(u64 start, u64 end, const char *type)
+> +{
+> +	struct firmware_map_entry *entry;
+> +
+> +	entry = find_firmware_map_entry(start, end, type);
+> +	if (!entry)
+> +		return -EINVAL;
+> +
+> +	/* remove the memmap entry */
+> +	remove_sysfs_fw_map_entry(entry);
+> +
+> +	firmware_map_remove_entry(entry);
+> +
+> +	return 0;
+> +}
+> +
+>  /*
+>   * Sysfs functions -------------------------------------------------------------
+>   */
+> @@ -218,7 +295,6 @@ static ssize_t type_show(struct firmware
+>  }
+> 
+>  #define to_memmap_attr(_attr) container_of(_attr, struct memmap_attribute, attr)
+> -#define to_memmap_entry(obj) container_of(obj, struct firmware_map_entry, kobj)
+> 
+>  static ssize_t memmap_attr_show(struct kobject *kobj,
+>  				struct attribute *attr, char *buf)
+> 
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
