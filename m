@@ -1,24 +1,24 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
-	by kanga.kvack.org (Postfix) with SMTP id ABDA56B005C
-	for <linux-mm@kvack.org>; Fri, 13 Jul 2012 00:34:47 -0400 (EDT)
-Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 9DFBF3EE0BC
-	for <linux-mm@kvack.org>; Fri, 13 Jul 2012 13:34:45 +0900 (JST)
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 83A3D45DE55
-	for <linux-mm@kvack.org>; Fri, 13 Jul 2012 13:34:45 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 6996A45DE4F
-	for <linux-mm@kvack.org>; Fri, 13 Jul 2012 13:34:45 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 588E41DB8037
-	for <linux-mm@kvack.org>; Fri, 13 Jul 2012 13:34:45 +0900 (JST)
-Received: from g01jpexchyt08.g01.fujitsu.local (g01jpexchyt08.g01.fujitsu.local [10.128.194.47])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 0591D1DB8040
-	for <linux-mm@kvack.org>; Fri, 13 Jul 2012 13:34:45 +0900 (JST)
-Message-ID: <4FFFA53C.8090707@jp.fujitsu.com>
-Date: Fri, 13 Jul 2012 13:34:04 +0900
+Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
+	by kanga.kvack.org (Postfix) with SMTP id 7033A6B005C
+	for <linux-mm@kvack.org>; Fri, 13 Jul 2012 01:12:22 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 60DE13EE0BD
+	for <linux-mm@kvack.org>; Fri, 13 Jul 2012 14:12:20 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 4992345DEAD
+	for <linux-mm@kvack.org>; Fri, 13 Jul 2012 14:12:20 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 346ED45DE7E
+	for <linux-mm@kvack.org>; Fri, 13 Jul 2012 14:12:20 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 277111DB803E
+	for <linux-mm@kvack.org>; Fri, 13 Jul 2012 14:12:20 +0900 (JST)
+Received: from g01jpexchkw10.g01.fujitsu.local (g01jpexchkw10.g01.fujitsu.local [10.0.194.49])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id D88BF1DB8038
+	for <linux-mm@kvack.org>; Fri, 13 Jul 2012 14:12:19 +0900 (JST)
+Message-ID: <4FFFAE17.7070400@jp.fujitsu.com>
+Date: Fri, 13 Jul 2012 14:11:51 +0900
 From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 MIME-Version: 1.0
 Subject: Re: [RFC PATCH v3 3/13] memory-hotplug : unify argument of firmware_map_add_early/hotplug
@@ -42,8 +42,7 @@ Hi Dave,
 > some of the other firmware_map*() functions are different, but I think
 > that's OK since they're only used internally to memmap.c.
 
-Thank you for reviewing my patch.
-I'll send the patch.
+Can I add "Reviewed-by: Dave Hansen" to the patch?
 
 Thanks,
 Yasuaki Ishimatsu
