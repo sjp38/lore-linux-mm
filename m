@@ -1,56 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
-	by kanga.kvack.org (Postfix) with SMTP id 61C5A6B005A
-	for <linux-mm@kvack.org>; Sat, 14 Jul 2012 08:01:41 -0400 (EDT)
-Received: by obhx4 with SMTP id x4so7890875obh.14
-        for <linux-mm@kvack.org>; Sat, 14 Jul 2012 05:01:40 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
+	by kanga.kvack.org (Postfix) with SMTP id A368B6B005A
+	for <linux-mm@kvack.org>; Sat, 14 Jul 2012 12:21:46 -0400 (EDT)
+Message-ID: <50019C5E.8020508@redhat.com>
+Date: Sat, 14 Jul 2012 12:20:46 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.00.1207140216040.20297@chino.kir.corp.google.com>
-References: <1342221125.17464.8.camel@lorien2>
-	<alpine.DEB.2.00.1207140216040.20297@chino.kir.corp.google.com>
-Date: Sat, 14 Jul 2012 15:01:40 +0300
-Message-ID: <CAOJsxLE3dDd01WaAp5UAHRb0AiXn_s43M=Gg4TgXzRji_HffEQ@mail.gmail.com>
-Subject: Re: [PATCH TRIVIAL] mm: Fix build warning in kmem_cache_create()
-From: Pekka Enberg <penberg@kernel.org>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [RFC][PATCH 14/26] sched, numa: Numa balancer
+References: <20120316144028.036474157@chello.nl> <20120316144241.012558280@chello.nl> <4FFF4987.4050205@redhat.com> <5000347E.1050301@hp.com>
+In-Reply-To: <5000347E.1050301@hp.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Shuah Khan <shuah.khan@hp.com>, cl@linux.com, glommer@parallels.com, js1304@gmail.com, shuahkhan@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Don Morris <don.morris@hp.com>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Dan Smith <danms@us.ibm.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Sat, Jul 14, 2012 at 12:18 PM, David Rientjes <rientjes@google.com> wrote:
-> On Fri, 13 Jul 2012, Shuah Khan wrote:
->
->> diff --git a/mm/slab_common.c b/mm/slab_common.c
->> index 12637ce..aa3ca5b 100644
->> --- a/mm/slab_common.c
->> +++ b/mm/slab_common.c
->> @@ -98,7 +98,9 @@ struct kmem_cache *kmem_cache_create(const char *name, size_t size, size_t align
->>
->>       s = __kmem_cache_create(name, size, align, flags, ctor);
->>
->> +#ifdef CONFIG_DEBUG_VM
->>  oops:
->> +#endif
->>       mutex_unlock(&slab_mutex);
->>       put_online_cpus();
->>
->
-> Tip: gcc allows label attributes so you could actually do
->
-> oops: __maybe_unused
->
-> to silence the warning and do the same for the "out" label later in the
-> function.
+On 07/13/2012 10:45 AM, Don Morris wrote:
 
-I'm not exactly loving that either.
+>> IIRC the test consisted of a 16GB NUMA system with two 8GB nodes.
+>> It was running 3 KVM guests, two guests of 3GB memory each, and
+>> one guest of 6GB each.
+>
+> How many cpus per guest (host threads) and how many physical/logical
+> cpus per node on the host? Any comparisons with a situation where
+> the memory would fit within nodes but the scheduling load would
+> be too high?
 
-It'd probably be better to reshuffle the code so that the debug checks
-end up in separate functions that are no-op for !CONFIG_DEBUG_VM. That
-way the _labels_ are used unconditionally although there's no actual
-code generated.
+IIRC this particular test was constructed to have guests
+A and B fit in one NUMA node, with guest C in the other
+NUMA node.
 
-                        Pekka
+With schednuma, guest A ended up on one NUMA node, guest
+B on the other, and guest C was spread between both nodes.
+
+Only migrating when there is plenty of free space available
+means you can end up not doing the right thing when running
+a few large workloads on the system.
+
+-- 
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
