@@ -1,63 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
-	by kanga.kvack.org (Postfix) with SMTP id 3ABB96B004D
-	for <linux-mm@kvack.org>; Sun, 15 Jul 2012 23:04:04 -0400 (EDT)
-Message-ID: <1342407840.3190.5.camel@lorien2>
-Subject: Re: [PATCH TRIVIAL] mm: Fix build warning in kmem_cache_create()
-From: Shuah Khan <shuah.khan@hp.com>
-Reply-To: shuah.khan@hp.com
-Date: Sun, 15 Jul 2012 21:04:00 -0600
-In-Reply-To: <CAOJsxLE3dDd01WaAp5UAHRb0AiXn_s43M=Gg4TgXzRji_HffEQ@mail.gmail.com>
-References: <1342221125.17464.8.camel@lorien2>
-	 <alpine.DEB.2.00.1207140216040.20297@chino.kir.corp.google.com>
-	 <CAOJsxLE3dDd01WaAp5UAHRb0AiXn_s43M=Gg4TgXzRji_HffEQ@mail.gmail.com>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 7bit
-Mime-Version: 1.0
+Received: from psmtp.com (na3sys010amx127.postini.com [74.125.245.127])
+	by kanga.kvack.org (Postfix) with SMTP id 530CA6B004D
+	for <linux-mm@kvack.org>; Sun, 15 Jul 2012 23:42:15 -0400 (EDT)
+Received: from /spool/local
+	by e38.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <shangw@shangw.boulder.ibm.com>;
+	Sun, 15 Jul 2012 21:42:13 -0600
+Received: from d03relay03.boulder.ibm.com (d03relay03.boulder.ibm.com [9.17.195.228])
+	by d03dlp03.boulder.ibm.com (Postfix) with ESMTP id 80CE919D805C
+	for <linux-mm@kvack.org>; Mon, 16 Jul 2012 03:41:46 +0000 (WET)
+Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
+	by d03relay03.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q6G3fmU1264280
+	for <linux-mm@kvack.org>; Sun, 15 Jul 2012 21:41:48 -0600
+Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av04.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q6G3flbV011701
+	for <linux-mm@kvack.org>; Sun, 15 Jul 2012 21:41:47 -0600
+Date: Mon, 16 Jul 2012 11:46:35 +0800
+From: Gavin Shan <shangw@linux.vnet.ibm.com>
+Subject: Re: [PATCH v2 3/3] mm/sparse: remove index_init_lock
+Message-ID: <20120716034635.GB24203@shangw>
+Reply-To: Gavin Shan <shangw@linux.vnet.ibm.com>
+References: <1342144882-16856-1-git-send-email-shangw@linux.vnet.ibm.com>
+ <1342144882-16856-3-git-send-email-shangw@linux.vnet.ibm.com>
+ <20120713084127.GD1448@tiehlicka.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120713084127.GD1448@tiehlicka.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pekka Enberg <penberg@kernel.org>
-Cc: David Rientjes <rientjes@google.com>, cl@linux.com, glommer@parallels.com, js1304@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, shuahkhan@gmail.com
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Gavin Shan <shangw@linux.vnet.ibm.com>, linux-mm@kvack.org, rientjes@google.com, akpm@linux-foundation.org
 
-On Sat, 2012-07-14 at 15:01 +0300, Pekka Enberg wrote:
+On Fri, Jul 13, 2012 at 10:41:27AM +0200, Michal Hocko wrote:
+>On Fri 13-07-12 10:01:22, Gavin Shan wrote:
+>> sparse_index_init uses index_init_lock spinlock to protect root
+>> mem_section assignment. The lock is not necessary anymore because the
+>> function is called only during the boot (during paging init which
+>> is executed only from a single CPU) and from the hotplug code (by
+>> add_memory via arch_add_memory) which uses mem_hotplug_mutex.
+>> 
+>> The lock has been introduced by 28ae55c9 (sparsemem extreme: hotplug
+>> preparation) and sparse_index_init was used only during boot at that
+>> time.
+>> 
+>> Later when the hotplug code (and add_memory) was introduced there was
+>> no synchronization so it was possible to online more sections from
+>> the same root probably (though I am not 100% sure about that).
+>> The first synchronization has been added by 6ad696d2 (mm: allow memory
+>> hotplug and hibernation in the same kernel) which has been later
+>> replaced by the mem_hotplug_mutex - 20d6c96b (mem-hotplug: introduce
+>> {un}lock_memory_hotplug()).
+>> 
+>> Let's remove the lock as it is not needed and it makes the code more
+>> confusing.
+>> 
+>> Signed-off-by: Gavin Shan <shangw@linux.vnet.ibm.com>
+>
+>Reviewed-by: Michal Hocko <mhocko@suse.cz>
+>
 
-> I'm not exactly loving that either.
-> 
-> It'd probably be better to reshuffle the code so that the debug checks
-> end up in separate functions that are no-op for !CONFIG_DEBUG_VM. That
-> way the _labels_ are used unconditionally although there's no actual
-> code generated.
+Thanks, Michal :-)
 
-I can work on reshuffling the code. Do have a question though. This
-following sanity check is currently done only when CONFIG_DEBUG_VM is
-defined. However, it does appear to be something that is that should be
-checked even in regular path.
-
-struct kmem_cache *kmem_cache_create(const char *name, size_t size,
-size_t align,
-                unsigned long flags, void (*ctor)(void *))
-{
-        struct kmem_cache *s = NULL;
-
-#ifdef CONFIG_DEBUG_VM
-        if (!name || in_interrupt() || size < sizeof(void *) ||
-                size > KMALLOC_MAX_SIZE) {
-                printk(KERN_ERR "kmem_cache_create(%s) integrity check"
-                        " failed\n", name);
-                goto out;
-        }
-#endif
-
-
-
----
-
-}
-
-Am I reading this right?
-
-Thanks,
--- Shuah
+>> ---
+>>  mm/sparse.c |   14 +-------------
+>>  1 files changed, 1 insertions(+), 13 deletions(-)
+>> 
+>> diff --git a/mm/sparse.c b/mm/sparse.c
+>> index 51950de..40b1100 100644
+>> --- a/mm/sparse.c
+>> +++ b/mm/sparse.c
+>> @@ -77,7 +77,6 @@ static struct mem_section noinline __init_refok *sparse_index_alloc(int nid)
+>>  
+>>  static int __meminit sparse_index_init(unsigned long section_nr, int nid)
+>>  {
+>> -	static DEFINE_SPINLOCK(index_init_lock);
+>>  	unsigned long root = SECTION_NR_TO_ROOT(section_nr);
+>>  	struct mem_section *section;
+>>  	int ret = 0;
+>> @@ -88,20 +87,9 @@ static int __meminit sparse_index_init(unsigned long section_nr, int nid)
+>>  	section = sparse_index_alloc(nid);
+>>  	if (!section)
+>>  		return -ENOMEM;
+>> -	/*
+>> -	 * This lock keeps two different sections from
+>> -	 * reallocating for the same index
+>> -	 */
+>> -	spin_lock(&index_init_lock);
+>> -
+>> -	if (mem_section[root]) {
+>> -		ret = -EEXIST;
+>> -		goto out;
+>> -	}
+>>  
+>>  	mem_section[root] = section;
+>> -out:
+>> -	spin_unlock(&index_init_lock);
+>> +
+>>  	return ret;
+>>  }
+>>  #else /* !SPARSEMEM_EXTREME */
+>> -- 
+>> 1.7.5.4
+>> 
+>> --
+>> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>> the body to majordomo@kvack.org.  For more info on Linux MM,
+>> see: http://www.linux-mm.org/ .
+>> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>
+>-- 
+>Michal Hocko
+>SUSE Labs
+>SUSE LINUX s.r.o.
+>Lihovarska 1060/12
+>190 00 Praha 9    
+>Czech Republic
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
