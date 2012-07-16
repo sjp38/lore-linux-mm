@@ -1,41 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx144.postini.com [74.125.245.144])
-	by kanga.kvack.org (Postfix) with SMTP id 440566B004D
-	for <linux-mm@kvack.org>; Mon, 16 Jul 2012 12:16:14 -0400 (EDT)
-Received: by yenr5 with SMTP id r5so6211117yen.14
-        for <linux-mm@kvack.org>; Mon, 16 Jul 2012 09:16:13 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
+	by kanga.kvack.org (Postfix) with SMTP id 0BC9F6B005A
+	for <linux-mm@kvack.org>; Mon, 16 Jul 2012 12:16:16 -0400 (EDT)
+Received: by pbbrp2 with SMTP id rp2so12405653pbb.14
+        for <linux-mm@kvack.org>; Mon, 16 Jul 2012 09:16:16 -0700 (PDT)
 From: Joonsoo Kim <js1304@gmail.com>
-Subject: [PATCH 1/3] mm: correct return value of migrate_pages()
-Date: Tue, 17 Jul 2012 01:14:30 +0900
-Message-Id: <1342455272-32703-1-git-send-email-js1304@gmail.com>
-In-Reply-To: <Yes>
+Subject: [PATCH 2/3] mm: fix possible incorrect return value of migrate_pages() syscall
+Date: Tue, 17 Jul 2012 01:14:31 +0900
+Message-Id: <1342455272-32703-2-git-send-email-js1304@gmail.com>
+In-Reply-To: <1342455272-32703-1-git-send-email-js1304@gmail.com>
 References: <Yes>
+ <1342455272-32703-1-git-send-email-js1304@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Joonsoo Kim <js1304@gmail.com>, Christoph Lameter <cl@linux.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Joonsoo Kim <js1304@gmail.com>, Sasha Levin <levinsasha928@gmail.com>, Christoph Lameter <cl@linux.com>
 
-migrate_pages() should return number of pages not migrated or error code.
-When unmap_and_move return -EAGAIN, outer loop is re-execution without
-initialising nr_failed. This makes nr_failed over-counted.
+do_migrate_pages() can return the number of pages not migrated.
+Because migrate_pages() syscall return this value directly,
+migrate_pages() syscall may return the number of pages not migrated.
+In fail case in migrate_pages() syscall, we should return error value.
+So change err to -EIO
 
-So this patch correct it by initialising nr_failed in outer loop.
+Additionally, Correct comment above do_migrate_pages()
 
 Signed-off-by: Joonsoo Kim <js1304@gmail.com>
+Cc: Sasha Levin <levinsasha928@gmail.com>
 Cc: Christoph Lameter <cl@linux.com>
 
-diff --git a/mm/migrate.c b/mm/migrate.c
-index be26d5c..294d52a 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -982,6 +982,7 @@ int migrate_pages(struct list_head *from,
+diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+index 1d771e4..f7df271 100644
+--- a/mm/mempolicy.c
++++ b/mm/mempolicy.c
+@@ -948,7 +948,7 @@ static int migrate_to_node(struct mm_struct *mm, int source, int dest,
+  * Move pages between the two nodesets so as to preserve the physical
+  * layout as much as possible.
+  *
+- * Returns the number of page that could not be moved.
++ * Returns error or the number of pages not migrated.
+  */
+ int do_migrate_pages(struct mm_struct *mm, const nodemask_t *from,
+ 		     const nodemask_t *to, int flags)
+@@ -1382,6 +1382,8 @@ SYSCALL_DEFINE4(migrate_pages, pid_t, pid, unsigned long, maxnode,
  
- 	for(pass = 0; pass < 10 && retry; pass++) {
- 		retry = 0;
-+		nr_failed = 0;
+ 	err = do_migrate_pages(mm, old, new,
+ 		capable(CAP_SYS_NICE) ? MPOL_MF_MOVE_ALL : MPOL_MF_MOVE);
++	if (err > 0)
++		err = -EIO;
  
- 		list_for_each_entry_safe(page, page2, from, lru) {
- 			cond_resched();
+ 	mmput(mm);
+ out:
 -- 
 1.7.9.5
 
