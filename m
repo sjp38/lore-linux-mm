@@ -1,46 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx190.postini.com [74.125.245.190])
-	by kanga.kvack.org (Postfix) with SMTP id 9A5E46B0070
-	for <linux-mm@kvack.org>; Mon, 16 Jul 2012 13:30:12 -0400 (EDT)
-Date: Mon, 16 Jul 2012 12:30:09 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH 4] mm: fix possible incorrect return value of move_pages()
- syscall
-In-Reply-To: <1342458889-19090-1-git-send-email-js1304@gmail.com>
-Message-ID: <alpine.DEB.2.00.1207161230010.32319@router.home>
-References: <1342455272-32703-1-git-send-email-js1304@gmail.com> <1342458889-19090-1-git-send-email-js1304@gmail.com>
+Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
+	by kanga.kvack.org (Postfix) with SMTP id 4069F6B0072
+	for <linux-mm@kvack.org>; Mon, 16 Jul 2012 13:32:08 -0400 (EDT)
+Received: by yhr47 with SMTP id 47so6554339yhr.14
+        for <linux-mm@kvack.org>; Mon, 16 Jul 2012 10:32:07 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <alpine.DEB.2.00.1207161220440.32319@router.home>
+References: <1342455272-32703-1-git-send-email-js1304@gmail.com>
+	<alpine.DEB.2.00.1207161220440.32319@router.home>
+Date: Tue, 17 Jul 2012 02:32:07 +0900
+Message-ID: <CAAmzW4P0Pa5-gM7mDnqBXCC=g3zk-z_7pXbR7XPM6Tv6CcVJiw@mail.gmail.com>
+Subject: Re: [PATCH 1/3] mm: correct return value of migrate_pages()
+From: JoonSoo Kim <js1304@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <js1304@gmail.com>
-Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Brice Goglin <brice@myri.com>, Minchan Kim <minchan@kernel.org>
+To: Christoph Lameter <cl@linux.com>
+Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Tue, 17 Jul 2012, Joonsoo Kim wrote:
+2012/7/17 Christoph Lameter <cl@linux.com>:
+> On Tue, 17 Jul 2012, Joonsoo Kim wrote:
+>
+>> migrate_pages() should return number of pages not migrated or error code.
+>> When unmap_and_move return -EAGAIN, outer loop is re-execution without
+>> initialising nr_failed. This makes nr_failed over-counted.
+>
+> The itention of the nr_failed was only to give an indication as to how
+> many attempts where made. The failed pages where on a separate queue that
+> seems to have vanished.
+>
+>> So this patch correct it by initialising nr_failed in outer loop.
+>
+> Well yea it makes sense since retry is initialized there as well.
+>
+> Acked-by: Christoph Lameter <cl@linux.com>
 
-> move_pages() syscall may return success in case that
-> do_move_page_to_node_array return positive value which means migration failed.
-> This patch changes return value of do_move_page_to_node_array
-> for not returning positive value. It can fix the problem.
->
-> Signed-off-by: Joonsoo Kim <js1304@gmail.com>
-> Cc: Brice Goglin <brice@myri.com>
-> Cc: Christoph Lameter <cl@linux.com>
-> Cc: Minchan Kim <minchan@kernel.org>
->
-> diff --git a/mm/migrate.c b/mm/migrate.c
-> index 294d52a..adabaf4 100644
-> --- a/mm/migrate.c
-> +++ b/mm/migrate.c
-> @@ -1171,7 +1171,7 @@ set_status:
->  	}
->
->  	up_read(&mm->mmap_sem);
-> -	return err;
-> +	return err > 0 ? -EIO : err;
->  }
+Thanks for comment.
 
-Please use EBUSY.
+Additinally, I find that migrate_huge_pages() is needed identical fix
+as migrate_pages().
+
+@@ -1029,6 +1030,7 @@ int migrate_huge_pages(struct list_head *from,
+
+        for (pass = 0; pass < 10 && retry; pass++) {
+                retry = 0;
++               nr_failed = 0;
+
+                list_for_each_entry_safe(page, page2, from, lru) {
+                        cond_resched();
+
+When I resend with this, could I include "Acked-by: Christoph Lameter
+<cl@linux.com>"?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
