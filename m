@@ -1,16 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
-	by kanga.kvack.org (Postfix) with SMTP id F3AB06B004D
-	for <linux-mm@kvack.org>; Mon, 16 Jul 2012 04:11:25 -0400 (EDT)
-Received: by pbbrp2 with SMTP id rp2so11649392pbb.14
-        for <linux-mm@kvack.org>; Mon, 16 Jul 2012 01:11:25 -0700 (PDT)
-Date: Mon, 16 Jul 2012 01:10:47 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
+	by kanga.kvack.org (Postfix) with SMTP id 9E1896B004D
+	for <linux-mm@kvack.org>; Mon, 16 Jul 2012 04:31:26 -0400 (EDT)
+Received: by ghrr18 with SMTP id r18so5681198ghr.14
+        for <linux-mm@kvack.org>; Mon, 16 Jul 2012 01:31:25 -0700 (PDT)
+Date: Mon, 16 Jul 2012 01:30:48 -0700 (PDT)
 From: Hugh Dickins <hughd@google.com>
 Subject: Re: [PATCH v2 -mm] memcg: prevent from OOM with too many dirty
  pages
-In-Reply-To: <20120712070501.GB21013@tiehlicka.suse.cz>
-Message-ID: <alpine.LSU.2.00.1207160044070.3936@eggly.anvils>
+In-Reply-To: <20120713082150.GA1448@tiehlicka.suse.cz>
+Message-ID: <alpine.LSU.2.00.1207160111280.3936@eggly.anvils>
 References: <1340117404-30348-1-git-send-email-mhocko@suse.cz> <20120619150014.1ebc108c.akpm@linux-foundation.org> <20120620101119.GC5541@tiehlicka.suse.cz> <alpine.LSU.2.00.1207111818380.1299@eggly.anvils> <20120712070501.GB21013@tiehlicka.suse.cz>
+ <20120712141343.e1cb7776.akpm@linux-foundation.org> <alpine.LSU.2.00.1207121539150.27721@eggly.anvils> <20120713082150.GA1448@tiehlicka.suse.cz>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -18,148 +19,60 @@ List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@suse.cz>
 Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Ying Han <yinghan@google.com>, Greg Thelen <gthelen@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Fengguang Wu <fengguang.wu@intel.com>
 
-On Thu, 12 Jul 2012, Michal Hocko wrote:
-> On Wed 11-07-12 18:57:43, Hugh Dickins wrote:
+On Fri, 13 Jul 2012, Michal Hocko wrote:
+> On Thu 12-07-12 15:42:53, Hugh Dickins wrote:
+> > On Thu, 12 Jul 2012, Andrew Morton wrote:
+> > > 
+> > > I wasn't planning on 3.5, given the way it's been churning around.
 > > 
-> > I mentioned in Johannes's [03/11] thread a couple of days ago, that
-> > I was having a problem with your wait_on_page_writeback() in mmotm.
-> > 
-> > It turns out that your original patch was fine, but you let dark angels
-> > whisper into your ear, to persuade you to remove the "&& may_enter_fs".
-> > 
-> > Part of my load builds kernels on extN over loop over tmpfs: loop does
-> > mapping_set_gfp_mask(mapping, lo->old_gfp_mask & ~(__GFP_IO|__GFP_FS))
-> > because it knows it will deadlock, if the loop thread enters reclaim,
-> > and reclaim tries to write back a dirty page, one which needs the loop
-> > thread to perform the write.
+> > I don't know if you had been intending to send it in for 3.5 earlier;
+> > but I'm sorry if my late intervention on may_enter_fs has delayed it.
 > 
-> Good catch! I have totally missed the loop driver.
-> 
-> > With the may_enter_fs check restored, all is well.
-
-Not as well as I thought when I wrote that: but those issues I'll deal
-with in separate mail (and my alternative patch was no better).
-
-> > I don't entirely
-> > like your patch: I think it would be much better to wait in the same
-> > place as the wait_iff_congested(), when the pages gathered have been
-> > sent for writing and unlocked and putback and freed; 
-> 
-> I guess you mean
-> 	if (nr_writeback && nr_writeback >=
->                         (nr_taken >> (DEF_PRIORITY - sc->priority)))
->                 wait_iff_congested(zone, BLK_RW_ASYNC, HZ/10);
-
-Yes, I've appended the patch I was meaning below; but although it's
-the way I had approached the issue, I don't in practice see any better
-behaviour from mine than from yours.  So unless a good reason appears
-later, to do it my way instead of yours, let's just forget about mine.
-
-> 
-> I have tried to hook here but it has some issues. First of all we do not
-> know how long we should wait. Waiting for specific pages sounded more
-> event based and more precise.
-> 
-> We can surely do better but I wanted to stop the OOM first without any
-> other possible side effects on the global reclaim. I have tried to make
-> the band aid as simple as possible. Memcg dirty pages accounting is
-> forming already so we are one (tiny) step closer to the throttling.
+> Well I should investigate more when the question came up...
 >  
-> > and I also wonder if it should go beyond the !global_reclaim case for
-> > swap pages, because they don't participate in dirty limiting.
+> > > How about we put it into 3.6 and tag it for a -stable backport, so
+> > > it gets a bit of a run in mainline before we inflict it upon -stable
+> > > users?
+> > 
+> > That sounds good enough to me, but does fall short of Michal's hope.
 > 
-> Worth a separate patch?
+> I would be happier if it went into 3.5 already because the problem (OOM
+> on too many dirty pages) is real and long term (basically since ever).
+> We have the patch in SLES11-SP2 for quite some time (the original one
+> with the may_enter_fs check) and it helped a lot.
+> The patch was designed as a band aid primarily because it is very simple
+> that way and with a hope that the real fix will come later.
+> The decision is up to you Andrew, but I vote for pushing it as soon as
+> possible and try to come up with something more clever for 3.6.
 
-If I could ever generate a suitable testcase, yes.  But in practice,
-the only way I've managed to generate such a preponderance of swapping
-over file reclaim, is by using memcgs, which your patch already catches.
-And if there actually is the swapping issue I suggest, then it's been
-around for a very long time, apparently without complaint.
+Once I got to trying dd in memcg to FS on USB stick, yes, I very much
+agree that the problem is real and well worth fixing, and that your
+patch takes us most of the way there.
 
-Here is the patch I had in mind: I'm posting it as illustration, so we
-can look back to it in the archives if necessary; but it's definitely
-not signed-off, I've seen no practical advantage over yours, probably
-we just forget about this one below now.
+But Andrew's caution has proved to be well founded: in the last
+few days I've found several problems with it.
 
-But more mail to follow, returning to yours...
+I guess it makes more sense to go into detail in the patch I'm about
+to send, fixing up what is (I think) currently in mmotm.
+
+But in brief: my insistence on may_enter_fs actually took us backwards
+on ext4, because that does __GFP_NOFS page allocations when writing.
+I still don't understand how this showed up in none of my testing at
+the end of the week, and only hit me today (er, yesterday).  But not
+as big a problem as I thought at first, because loop also turns off
+__GFP_IO, so we can go by that instead.
+
+And though I found your patch works most of the time, one in five
+or ten attempts would OOM just as before: we actually have a problem
+also with PageWriteback pages which are not PageReclaim, but the
+answer is to mark those PageReclaim.
+
+Patch follows separately in a moment.  I'm pretty happy with it now,
+but I've not yet tried xfs, btrfs, vfat, tmpfs.  I notice now that
+you specifically describe testing on ext3, but don't mention ext4:
+I wonder if you got bogged down in the problems I've fixed on that.
 
 Hugh
-
-p.s. KAMEZAWA-san, if you wonder why you're suddenly brought into this
-conversation, it's because there was a typo in your email address before.
-
---- 3.5-rc6/vmscan.c	2012-06-03 06:42:11.000000000 -0700
-+++ linux/vmscan.c	2012-07-13 11:53:20.372087273 -0700
-@@ -675,7 +675,8 @@ static unsigned long shrink_page_list(st
- 				      struct zone *zone,
- 				      struct scan_control *sc,
- 				      unsigned long *ret_nr_dirty,
--				      unsigned long *ret_nr_writeback)
-+				      unsigned long *ret_nr_writeback,
-+				      struct page **slow_page)
- {
- 	LIST_HEAD(ret_pages);
- 	LIST_HEAD(free_pages);
-@@ -720,6 +721,27 @@ static unsigned long shrink_page_list(st
- 			(PageSwapCache(page) && (sc->gfp_mask & __GFP_IO));
- 
- 		if (PageWriteback(page)) {
-+			/*
-+			 * memcg doesn't have any dirty pages throttling so we
-+			 * could easily OOM just because too many pages are in
-+			 * writeback from reclaim and there is nothing else to
-+			 * reclaim.  Nor is swap subject to dirty throttling.
-+			 *
-+			 * Check may_enter_fs, certainly because a loop driver
-+			 * thread might enter reclaim, and deadlock if it waits
-+			 * on a page for which it is needed to do the write
-+			 * (loop masks off __GFP_IO|__GFP_FS for this reason);
-+			 * but more thought would probably show more reasons.
-+			 *
-+			 * Just use one page per shrink for this: wait on its
-+			 * writeback once we have done the rest.  If device is
-+			 * slow, in due course we shall choose one of its pages.
-+			 */
-+			if (!*slow_page && may_enter_fs && PageReclaim(page) &&
-+			    (PageSwapCache(page) || !global_reclaim(sc))) {
-+				*slow_page = page;
-+				get_page(page);
-+			}
- 			nr_writeback++;
- 			unlock_page(page);
- 			goto keep;
-@@ -1208,6 +1230,7 @@ shrink_inactive_list(unsigned long nr_to
- 	int file = is_file_lru(lru);
- 	struct zone *zone = lruvec_zone(lruvec);
- 	struct zone_reclaim_stat *reclaim_stat = &lruvec->reclaim_stat;
-+	struct page *slow_page = NULL;
- 
- 	while (unlikely(too_many_isolated(zone, file, sc))) {
- 		congestion_wait(BLK_RW_ASYNC, HZ/10);
-@@ -1245,7 +1268,7 @@ shrink_inactive_list(unsigned long nr_to
- 		return 0;
- 
- 	nr_reclaimed = shrink_page_list(&page_list, zone, sc,
--						&nr_dirty, &nr_writeback);
-+					&nr_dirty, &nr_writeback, &slow_page);
- 
- 	spin_lock_irq(&zone->lru_lock);
- 
-@@ -1292,8 +1315,13 @@ shrink_inactive_list(unsigned long nr_to
- 	 *                     isolated page is PageWriteback
- 	 */
- 	if (nr_writeback && nr_writeback >=
--			(nr_taken >> (DEF_PRIORITY - sc->priority)))
-+			(nr_taken >> (DEF_PRIORITY - sc->priority))) {
- 		wait_iff_congested(zone, BLK_RW_ASYNC, HZ/10);
-+		if (slow_page && PageReclaim(slow_page))
-+			wait_on_page_writeback(slow_page);
-+	}
-+	if (slow_page)
-+		put_page(slow_page);
- 
- 	trace_mm_vmscan_lru_shrink_inactive(zone->zone_pgdat->node_id,
- 		zone_idx(zone),
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
