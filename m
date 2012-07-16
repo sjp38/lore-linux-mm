@@ -1,45 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx162.postini.com [74.125.245.162])
-	by kanga.kvack.org (Postfix) with SMTP id 58A796B004D
-	for <linux-mm@kvack.org>; Mon, 16 Jul 2012 13:16:08 -0400 (EDT)
-Received: by yenr5 with SMTP id r5so6293951yen.14
-        for <linux-mm@kvack.org>; Mon, 16 Jul 2012 10:16:07 -0700 (PDT)
-From: Joonsoo Kim <js1304@gmail.com>
-Subject: [PATCH 4] mm: fix possible incorrect return value of move_pages() syscall
-Date: Tue, 17 Jul 2012 02:14:49 +0900
-Message-Id: <1342458889-19090-1-git-send-email-js1304@gmail.com>
+Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
+	by kanga.kvack.org (Postfix) with SMTP id EF9D16B005C
+	for <linux-mm@kvack.org>; Mon, 16 Jul 2012 13:23:18 -0400 (EDT)
+Date: Mon, 16 Jul 2012 12:23:16 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH 1/3] mm: correct return value of migrate_pages()
 In-Reply-To: <1342455272-32703-1-git-send-email-js1304@gmail.com>
-References: <1342455272-32703-1-git-send-email-js1304@gmail.com>
+Message-ID: <alpine.DEB.2.00.1207161220440.32319@router.home>
+References: <Yes> <1342455272-32703-1-git-send-email-js1304@gmail.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Joonsoo Kim <js1304@gmail.com>, Brice Goglin <brice@myri.com>, Christoph Lameter <cl@linux.com>, Minchan Kim <minchan@kernel.org>
+To: Joonsoo Kim <js1304@gmail.com>
+Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-move_pages() syscall may return success in case that
-do_move_page_to_node_array return positive value which means migration failed.
-This patch changes return value of do_move_page_to_node_array
-for not returning positive value. It can fix the problem.
+On Tue, 17 Jul 2012, Joonsoo Kim wrote:
 
-Signed-off-by: Joonsoo Kim <js1304@gmail.com>
-Cc: Brice Goglin <brice@myri.com>
-Cc: Christoph Lameter <cl@linux.com>
-Cc: Minchan Kim <minchan@kernel.org>
+> migrate_pages() should return number of pages not migrated or error code.
+> When unmap_and_move return -EAGAIN, outer loop is re-execution without
+> initialising nr_failed. This makes nr_failed over-counted.
 
-diff --git a/mm/migrate.c b/mm/migrate.c
-index 294d52a..adabaf4 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -1171,7 +1171,7 @@ set_status:
- 	}
- 
- 	up_read(&mm->mmap_sem);
--	return err;
-+	return err > 0 ? -EIO : err;
- }
- 
- /*
--- 
-1.7.9.5
+The itention of the nr_failed was only to give an indication as to how
+many attempts where made. The failed pages where on a separate queue that
+seems to have vanished.
+
+> So this patch correct it by initialising nr_failed in outer loop.
+
+Well yea it makes sense since retry is initialized there as well.
+
+Acked-by: Christoph Lameter <cl@linux.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
