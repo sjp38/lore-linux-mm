@@ -1,57 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
-	by kanga.kvack.org (Postfix) with SMTP id 7B75D6B005C
-	for <linux-mm@kvack.org>; Mon, 16 Jul 2012 14:40:57 -0400 (EDT)
-Received: by obhx4 with SMTP id x4so12343261obh.14
-        for <linux-mm@kvack.org>; Mon, 16 Jul 2012 11:40:56 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
+	by kanga.kvack.org (Postfix) with SMTP id 2CA7F6B004D
+	for <linux-mm@kvack.org>; Mon, 16 Jul 2012 15:58:12 -0400 (EDT)
+Received: by pbbrp2 with SMTP id rp2so12722472pbb.14
+        for <linux-mm@kvack.org>; Mon, 16 Jul 2012 12:58:11 -0700 (PDT)
+Date: Mon, 16 Jul 2012 12:58:08 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH TRIVIAL] mm: Fix build warning in kmem_cache_create()
+In-Reply-To: <alpine.DEB.2.00.1207160915470.28952@router.home>
+Message-ID: <alpine.DEB.2.00.1207161253240.29012@chino.kir.corp.google.com>
+References: <1342221125.17464.8.camel@lorien2> <alpine.DEB.2.00.1207140216040.20297@chino.kir.corp.google.com> <CAOJsxLE3dDd01WaAp5UAHRb0AiXn_s43M=Gg4TgXzRji_HffEQ@mail.gmail.com> <1342407840.3190.5.camel@lorien2> <alpine.DEB.2.00.1207160257420.11472@chino.kir.corp.google.com>
+ <alpine.DEB.2.00.1207160915470.28952@router.home>
 MIME-Version: 1.0
-In-Reply-To: <871ukbr4d3.fsf@erwin.mina86.com>
-References: <1342455272-32703-1-git-send-email-js1304@gmail.com>
-	<1342455272-32703-3-git-send-email-js1304@gmail.com>
-	<871ukbr4d3.fsf@erwin.mina86.com>
-Date: Tue, 17 Jul 2012 03:40:56 +0900
-Message-ID: <CAAmzW4MpWsxd2nG-xsdw_D89-Prx7PPuWSEbuS7Nw0rTmcChig@mail.gmail.com>
-Subject: Re: [PATCH 3/3] mm: fix return value in __alloc_contig_migrate_range()
-From: JoonSoo Kim <js1304@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Nazarewicz <mina86@mina86.com>
-Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Marek Szyprowski <m.szyprowski@samsung.com>, Minchan Kim <minchan@kernel.org>, Christoph Lameter <cl@linux.com>
+To: Christoph Lameter <cl@linux.com>
+Cc: Shuah Khan <shuah.khan@hp.com>, Pekka Enberg <penberg@kernel.org>, glommer@parallels.com, js1304@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, shuahkhan@gmail.com
 
-2012/7/17 Michal Nazarewicz <mina86@mina86.com>:
-> Joonsoo Kim <js1304@gmail.com> writes:
->
->> migrate_pages() would return positive value in some failure case,
->> so 'ret > 0 ? 0 : ret' may be wrong.
->> This fix it and remove one dead statement.
->>
->> Signed-off-by: Joonsoo Kim <js1304@gmail.com>
->> Cc: Michal Nazarewicz <mina86@mina86.com>
->> Cc: Marek Szyprowski <m.szyprowski@samsung.com>
->> Cc: Minchan Kim <minchan@kernel.org>
->> Cc: Christoph Lameter <cl@linux.com>
->
-> Have you actually encountered this problem?  If migrate_pages() fails
-> with a positive value, the code that you are removing kicks in and
-> -EBUSY is assigned to ret (now that I look at it, I think that in the
-> current code the "return ret > 0 ? 0 : ret;" statement could be reduced
-> to "return ret;").  Your code seems to be cleaner, but the commit
-> message does not look accurate to me.
->
+On Mon, 16 Jul 2012, Christoph Lameter wrote:
 
-I don't encounter this problem yet.
+> > > struct kmem_cache *kmem_cache_create(const char *name, size_t size,
+> > > size_t align,
+> > >                 unsigned long flags, void (*ctor)(void *))
+> > > {
+> > >         struct kmem_cache *s = NULL;
+> > >
+> > > #ifdef CONFIG_DEBUG_VM
+> > >         if (!name || in_interrupt() || size < sizeof(void *) ||
+> > >                 size > KMALLOC_MAX_SIZE) {
+> > >                 printk(KERN_ERR "kmem_cache_create(%s) integrity check"
+> > >                         " failed\n", name);
+> > >                 goto out;
+> > >         }
+> > > #endif
+> > >
+> >
+> > Agreed, this shouldn't depend on CONFIG_DEBUG_VM.
+> 
+> These checks are useless for regular kernel operations. They are
+> only useful when developing code and should only be enabled during
+> development. There is no point in testing the size and the name which are
+> typically constant when a slab is created with a stable kernel.
+> 
 
-If migrate_pages() with offlining false meets KSM page, then migration failed.
-In this case, failed page is removed from cc.migratepage list and
-return failed count.
-So it can be possible exiting loop without testing ++tries == 5 and
-ret is over the zero.
-Is there any point which I missing?
-Is there any possible scenario "migrate_pages return  > 0 and
-cc.migratepages is empty"?
+Sounds like a response from someone who is very familiar with slab 
+allocators.  The reality, though, is that very few people are going to be 
+doing development with CONFIG_DEBUG_VM enabled unless they notice problems 
+beforehand.
 
-I'm not expert for MM, so please comment my humble opinion.
+Are you seriously trying to optimize kmem_cache_create()?  These checks 
+certainly aren't going to hurt your perfromance and it seems appropriate 
+to do some sanity checking before blowing up in unexpected ways.  It's 
+also the way it's been done for years before extracting common allocator 
+functions to their own file.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
