@@ -1,30 +1,30 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx104.postini.com [74.125.245.104])
-	by kanga.kvack.org (Postfix) with SMTP id 8E4E76B005A
-	for <linux-mm@kvack.org>; Mon, 16 Jul 2012 20:47:07 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 1D2923EE0C3
-	for <linux-mm@kvack.org>; Tue, 17 Jul 2012 09:47:06 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 04BB245DEAD
-	for <linux-mm@kvack.org>; Tue, 17 Jul 2012 09:47:06 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id DA52745DEA6
-	for <linux-mm@kvack.org>; Tue, 17 Jul 2012 09:47:05 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id C96AA1DB803E
-	for <linux-mm@kvack.org>; Tue, 17 Jul 2012 09:47:05 +0900 (JST)
-Received: from g01jpexchyt12.g01.fujitsu.local (g01jpexchyt12.g01.fujitsu.local [10.128.194.51])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 6A35D1DB803C
-	for <linux-mm@kvack.org>; Tue, 17 Jul 2012 09:47:05 +0900 (JST)
-Message-ID: <5004B5E8.6060602@jp.fujitsu.com>
-Date: Tue, 17 Jul 2012 09:46:32 +0900
+Received: from psmtp.com (na3sys010amx174.postini.com [74.125.245.174])
+	by kanga.kvack.org (Postfix) with SMTP id 16A406B005C
+	for <linux-mm@kvack.org>; Mon, 16 Jul 2012 21:11:11 -0400 (EDT)
+Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 64A1A3EE0BB
+	for <linux-mm@kvack.org>; Tue, 17 Jul 2012 10:11:09 +0900 (JST)
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 3EB5145DE53
+	for <linux-mm@kvack.org>; Tue, 17 Jul 2012 10:11:09 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 28DDF45DE4E
+	for <linux-mm@kvack.org>; Tue, 17 Jul 2012 10:11:09 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 19273E08007
+	for <linux-mm@kvack.org>; Tue, 17 Jul 2012 10:11:09 +0900 (JST)
+Received: from g01jpexchyt04.g01.fujitsu.local (g01jpexchyt04.g01.fujitsu.local [10.128.194.43])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id B7A74E08003
+	for <linux-mm@kvack.org>; Tue, 17 Jul 2012 10:11:08 +0900 (JST)
+Message-ID: <5004BB91.6040803@jp.fujitsu.com>
+Date: Tue, 17 Jul 2012 10:10:41 +0900
 From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 MIME-Version: 1.0
 Subject: Re: [RFC PATCH v3 2/13] memory-hotplug : add physical memory hotplug
  code to acpi_memory_device_remove
-References: <4FFAB0A2.8070304@jp.fujitsu.com> <4FFAB148.9000803@jp.fujitsu.com> <4FFF957F.2080504@cn.fujitsu.com>
-In-Reply-To: <4FFF957F.2080504@cn.fujitsu.com>
+References: <4FFAB0A2.8070304@jp.fujitsu.com> <4FFAB148.9000803@jp.fujitsu.com> <4FFFFB38.7060806@cn.fujitsu.com>
+In-Reply-To: <4FFFFB38.7060806@cn.fujitsu.com>
 Content-Type: text/plain; charset="ISO-2022-JP"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -34,7 +34,7 @@ Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.
 
 Hi Wen,
 
-2012/07/13 12:26, Wen Congyang wrote:
+2012/07/13 19:40, Wen Congyang wrote:
 > At 07/09/2012 06:24 PM, Yasuaki Ishimatsu Wrote:
 >> acpi_memory_device_remove() has been prepared to remove physical memory.
 >> But, the function only frees acpi_memory_device currentlry.
@@ -91,6 +91,19 @@ Hi Wen,
 >>   	mem_device = acpi_driver_data(device);
 >> +
 >> +	node = acpi_get_node(mem_device->device->handle);
+> 
+> acpi_get_node() may return -1, and you should call memory_add_physaddr_to_nid()
+> to get the node id.
+
+O.K. I'll update it.
+
+Thanks,
+Yasuaki Ishimatsu
+
+> 
+> Thanks
+> Wen Congyang
+> 
 >> +
 >> +	list_for_each_entry_safe(info, tmp, &mem_device->res_list, list) {
 >> +		if (!info->enabled)
@@ -122,25 +135,6 @@ Hi Wen,
 >>   extern int add_memory(int nid, u64 start, u64 size);
 >>   extern int arch_add_memory(int nid, u64 start, u64 size);
 >> +extern int remove_memory(int nid, u64 start, u64 size);
-> 
-> 
-> Here should be:
-> #ifdef CONFIG_MEMORY_HOTREMOVE
-> extern int remove_memory(int nid, u64 start, u64 size);
-> #else
-> static int inline remove_memory(int nid, u64 start, u64 size)
-> {
-> 	return -EBUSY;
-> }
-> #endif
-
-O.K. I'll update it.
-
-Thanks,
-Yasuaki Ishimatsu
-
-
-> 
 >>   extern int offline_memory(u64 start, u64 size);
 >>   extern int sparse_add_one_section(struct zone *zone, unsigned long start_pfn,
 >>   								int nr_pages);
@@ -158,13 +152,6 @@ Yasuaki Ishimatsu
 >> +
 >> +}
 >> +EXPORT_SYMBOL_GPL(remove_memory);
-> 
-> We only need to implement this function when CONFIG_MEMORY_HOTREMOVE
-> is defined here.
-> 
-> Thanks
-> Wen Congyang
-> 
 >> +
 >> +
 >>   #ifdef CONFIG_MEMORY_HOTREMOVE
@@ -252,7 +239,7 @@ Yasuaki Ishimatsu
 > see: http://www.linux-mm.org/ .
 > Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 > 
-e
+
 
 
 --
