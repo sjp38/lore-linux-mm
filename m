@@ -1,83 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
-	by kanga.kvack.org (Postfix) with SMTP id A28BE6B005A
-	for <linux-mm@kvack.org>; Tue, 17 Jul 2012 02:33:08 -0400 (EDT)
-Date: Tue, 17 Jul 2012 08:33:01 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH mmotm] memcg: further prevent OOM with too many dirty
- pages
-Message-ID: <20120717063301.GA25435@tiehlicka.suse.cz>
-References: <20120620101119.GC5541@tiehlicka.suse.cz>
- <alpine.LSU.2.00.1207111818380.1299@eggly.anvils>
- <20120712070501.GB21013@tiehlicka.suse.cz>
- <20120712141343.e1cb7776.akpm@linux-foundation.org>
- <alpine.LSU.2.00.1207121539150.27721@eggly.anvils>
- <20120713082150.GA1448@tiehlicka.suse.cz>
- <alpine.LSU.2.00.1207160111280.3936@eggly.anvils>
- <alpine.LSU.2.00.1207160131120.3936@eggly.anvils>
- <20120716092631.GC14664@tiehlicka.suse.cz>
- <alpine.LSU.2.00.1207162135590.19938@eggly.anvils>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.LSU.2.00.1207162135590.19938@eggly.anvils>
+Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
+	by kanga.kvack.org (Postfix) with SMTP id 260356B005A
+	for <linux-mm@kvack.org>; Tue, 17 Jul 2012 03:01:21 -0400 (EDT)
+From: Minchan Kim <minchan@kernel.org>
+Subject: [RFC 1/3] mm: use get_page_migratetype instead of page_private
+Date: Tue, 17 Jul 2012 16:01:43 +0900
+Message-Id: <1342508505-23492-2-git-send-email-minchan@kernel.org>
+In-Reply-To: <1342508505-23492-1-git-send-email-minchan@kernel.org>
+References: <1342508505-23492-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Ying Han <yinghan@google.com>, Greg Thelen <gthelen@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Fengguang Wu <fengguang.wu@intel.com>
+To: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>
 
-On Mon 16-07-12 21:52:51, Hugh Dickins wrote:
-> On Mon, 16 Jul 2012, Michal Hocko wrote:
-> > On Mon 16-07-12 01:35:34, Hugh Dickins wrote:
-> > > But even so, the test still OOMs sometimes: when originally testing
-> > > on 3.5-rc6, it OOMed about one time in five or ten; when testing
-> > > just now on 3.5-rc6-mm1, it OOMed on the first iteration.
-> > > 
-> > > This residual problem comes from an accumulation of pages under
-> > > ordinary writeback, not marked PageReclaim, so rightly not causing
-> > > the memcg check to wait on their writeback: these too can prevent
-> > > shrink_page_list() from freeing any pages, so many times that memcg
-> > > reclaim fails and OOMs.
-> > 
-> > I guess you managed to trigger this with 20M limit, right?
-> 
-> That's right.
-> 
-> > I have tested
-> > with different group sizes but the writeback didn't trigger for most of
-> > them and all the dirty data were flushed from the reclaim.
-> 
-> I didn't examine writeback stats to confirm, but I guess that just
-> occasionally it managed to come in and do enough work to confound us.
-> 
-> > Have you used any special setting the dirty ratio?
-> 
-> No, I wasn't imaginative enough to try that.
-> 
-> > Or was it with xfs (IIUC that one
-> > does ignore writeback from the direct reclaim completely).
-> 
-> No, just ext4 at that point.
-> 
-> I have since tested the final patch with ext4, ext3 (by ext3 driver
-> and by ext4 driver), ext2 (by ext2 driver and by ext4 driver), xfs,
-> btrfs, vfat, tmpfs (with swap on the USB stick) and block device:
-> about an hour on each, no surprises, all okay.
-> 
-> But I didn't experiment beyond the 20M memcg.
+page allocator uses set_page_private and page_private for handling
+migratetype when it frees page. Let's replace them with [set|get]
+_page_migratetype to make it more clear.
 
-Great coverage anyway. Thanks a lot Hugh!
+Signed-off-by: Minchan Kim <minchan@kernel.org>
+---
+ include/linux/mm.h  |   10 ++++++++++
+ mm/page_alloc.c     |   11 +++++++----
+ mm/page_isolation.c |    2 +-
+ 3 files changed, 18 insertions(+), 5 deletions(-)
 
-> 
-> Hugh
-
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 5c76634..86d61d6 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -249,6 +249,16 @@ struct inode;
+ #define page_private(page)		((page)->private)
+ #define set_page_private(page, v)	((page)->private = (v))
+ 
++static inline void set_page_migratetype(struct page *page, int migratetype)
++{
++	set_page_private(page, migratetype);
++}
++
++static inline int get_page_migratetype(struct page *page)
++{
++	return page_private(page);
++}
++
+ /*
+  * FIXME: take this include out, include page-flags.h in
+  * files which need it (119 of them)
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 710d91c..103ba66 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -671,8 +671,10 @@ static void free_pcppages_bulk(struct zone *zone, int count,
+ 			/* must delete as __free_one_page list manipulates */
+ 			list_del(&page->lru);
+ 			/* MIGRATE_MOVABLE list may include MIGRATE_RESERVEs */
+-			__free_one_page(page, zone, 0, page_private(page));
+-			trace_mm_page_pcpu_drain(page, 0, page_private(page));
++			__free_one_page(page, zone, 0,
++				get_page_migratetype(page));
++			trace_mm_page_pcpu_drain(page, 0,
++				get_page_migratetype(page));
+ 		} while (--to_free && --batch_free && !list_empty(list));
+ 	}
+ 	__mod_zone_page_state(zone, NR_FREE_PAGES, count);
+@@ -731,6 +733,7 @@ static void __free_pages_ok(struct page *page, unsigned int order)
+ 	__count_vm_events(PGFREE, 1 << order);
+ 	free_one_page(page_zone(page), page, order,
+ 					get_pageblock_migratetype(page));
++
+ 	local_irq_restore(flags);
+ }
+ 
+@@ -1134,7 +1137,7 @@ static int rmqueue_bulk(struct zone *zone, unsigned int order,
+ 			if (!is_migrate_cma(mt) && mt != MIGRATE_ISOLATE)
+ 				mt = migratetype;
+ 		}
+-		set_page_private(page, mt);
++		set_page_migratetype(page, mt);
+ 		list = &page->lru;
+ 	}
+ 	__mod_zone_page_state(zone, NR_FREE_PAGES, -(i << order));
+@@ -1301,7 +1304,7 @@ void free_hot_cold_page(struct page *page, int cold)
+ 		return;
+ 
+ 	migratetype = get_pageblock_migratetype(page);
+-	set_page_private(page, migratetype);
++	set_page_migratetype(page, migratetype);
+ 	local_irq_save(flags);
+ 	if (unlikely(wasMlocked))
+ 		free_page_mlock(page);
+diff --git a/mm/page_isolation.c b/mm/page_isolation.c
+index 64abb33..acf65a7 100644
+--- a/mm/page_isolation.c
++++ b/mm/page_isolation.c
+@@ -199,7 +199,7 @@ __test_page_isolated_in_pageblock(unsigned long pfn, unsigned long end_pfn)
+ 		if (PageBuddy(page))
+ 			pfn += 1 << page_order(page);
+ 		else if (page_count(page) == 0 &&
+-				page_private(page) == MIGRATE_ISOLATE)
++				get_page_migratetype(page) == MIGRATE_ISOLATE)
+ 			pfn += 1;
+ 		else
+ 			break;
 -- 
-Michal Hocko
-SUSE Labs
-SUSE LINUX s.r.o.
-Lihovarska 1060/12
-190 00 Praha 9    
-Czech Republic
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
