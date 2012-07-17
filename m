@@ -1,111 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
-	by kanga.kvack.org (Postfix) with SMTP id 867076B005A
-	for <linux-mm@kvack.org>; Tue, 17 Jul 2012 02:16:28 -0400 (EDT)
-Message-ID: <5005030E.8050509@oracle.com>
-Date: Tue, 17 Jul 2012 14:15:42 +0800
-From: Jeff Liu <jeff.liu@oracle.com>
-Reply-To: jeff.liu@oracle.com
+Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
+	by kanga.kvack.org (Postfix) with SMTP id A28BE6B005A
+	for <linux-mm@kvack.org>; Tue, 17 Jul 2012 02:33:08 -0400 (EDT)
+Date: Tue, 17 Jul 2012 08:33:01 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH mmotm] memcg: further prevent OOM with too many dirty
+ pages
+Message-ID: <20120717063301.GA25435@tiehlicka.suse.cz>
+References: <20120620101119.GC5541@tiehlicka.suse.cz>
+ <alpine.LSU.2.00.1207111818380.1299@eggly.anvils>
+ <20120712070501.GB21013@tiehlicka.suse.cz>
+ <20120712141343.e1cb7776.akpm@linux-foundation.org>
+ <alpine.LSU.2.00.1207121539150.27721@eggly.anvils>
+ <20120713082150.GA1448@tiehlicka.suse.cz>
+ <alpine.LSU.2.00.1207160111280.3936@eggly.anvils>
+ <alpine.LSU.2.00.1207160131120.3936@eggly.anvils>
+ <20120716092631.GC14664@tiehlicka.suse.cz>
+ <alpine.LSU.2.00.1207162135590.19938@eggly.anvils>
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/3] tmpfs: revert SEEK_DATA and SEEK_HOLE
-References: <alpine.LSU.2.00.1207091533001.2051@eggly.anvils> <alpine.LSU.2.00.1207091535480.2051@eggly.anvils> <jtj574$tb7$2@dough.gmane.org> <alpine.LSU.2.00.1207111149580.1797@eggly.anvils> <20120711230122.GZ19223@dastard> <4FFE42B6.5080705@oracle.com> <alpine.LSU.2.00.1207160206460.4082@eggly.anvils>
-In-Reply-To: <alpine.LSU.2.00.1207160206460.4082@eggly.anvils>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LSU.2.00.1207162135590.19938@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Hugh Dickins <hughd@google.com>
-Cc: Dave Chinner <david@fromorbit.com>, Cong Wang <xiyou.wangcong@gmail.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Ying Han <yinghan@google.com>, Greg Thelen <gthelen@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Fengguang Wu <fengguang.wu@intel.com>
 
-On 07/16/2012 05:28 PM, Hugh Dickins wrote:
+On Mon 16-07-12 21:52:51, Hugh Dickins wrote:
+> On Mon, 16 Jul 2012, Michal Hocko wrote:
+> > On Mon 16-07-12 01:35:34, Hugh Dickins wrote:
+> > > But even so, the test still OOMs sometimes: when originally testing
+> > > on 3.5-rc6, it OOMed about one time in five or ten; when testing
+> > > just now on 3.5-rc6-mm1, it OOMed on the first iteration.
+> > > 
+> > > This residual problem comes from an accumulation of pages under
+> > > ordinary writeback, not marked PageReclaim, so rightly not causing
+> > > the memcg check to wait on their writeback: these too can prevent
+> > > shrink_page_list() from freeing any pages, so many times that memcg
+> > > reclaim fails and OOMs.
+> > 
+> > I guess you managed to trigger this with 20M limit, right?
+> 
+> That's right.
+> 
+> > I have tested
+> > with different group sizes but the writeback didn't trigger for most of
+> > them and all the dirty data were flushed from the reclaim.
+> 
+> I didn't examine writeback stats to confirm, but I guess that just
+> occasionally it managed to come in and do enough work to confound us.
+> 
+> > Have you used any special setting the dirty ratio?
+> 
+> No, I wasn't imaginative enough to try that.
+> 
+> > Or was it with xfs (IIUC that one
+> > does ignore writeback from the direct reclaim completely).
+> 
+> No, just ext4 at that point.
+> 
+> I have since tested the final patch with ext4, ext3 (by ext3 driver
+> and by ext4 driver), ext2 (by ext2 driver and by ext4 driver), xfs,
+> btrfs, vfat, tmpfs (with swap on the USB stick) and block device:
+> about an hour on each, no surprises, all okay.
+> 
+> But I didn't experiment beyond the 20M memcg.
 
-> On Thu, 12 Jul 2012, Jeff Liu wrote:
->> On 07/12/2012 07:01 AM, Dave Chinner wrote:
->>> On Wed, Jul 11, 2012 at 11:55:34AM -0700, Hugh Dickins wrote:
->>>>
->>>> But your vote would count for a lot more if you know of some app which
->>>> would really benefit from this functionality in tmpfs: I've heard of none.
->>>
->>> So what? I've heard of no apps that use this functionality on XFS,
->>> either, but I have heard of a lot of people asking for it to be
->>> implemented over the past couple of years so they can use it.
->>> There's been patches written to make coreutils (cp) make use of it
->>> instead of parsing FIEMAP output to find holes, though I don't know
->>> if that's gone beyond more than "here's some patches"...
->>
->> Yes, for apps, cp(1) will make use of it to replace the old FIEMAP for efficient sparse file copy.
->> I have implemented an extent-scan module to coreutils a few years ago,
->> http://fossies.org/dox/coreutils-8.17/extent-scan_8c_source.html
-> 
-> Thanks for confirming Dave's pointer to cp.
-> 
-> Of course, tmpfs has never supported FIBMAP or FIEMAP;
-> but SEEK_DATA and SEEK_HOLE do fit it much more naturally.
-> 
->>
->> It does extent scan through FIEMAP, however, SEEK_DATA/SEEK_HOLE is more convenient and easy to use
->> considering the call interface.  So FIEMAP will be replaced by SEEK_XXX once it got supported by EXT4.
->>
->> Moreover, I have discussed with Jim who is the coreutils maintainer previously, He would like to post
->> extent-scan module to Gnulib so that other GNU utilities which are relied on Gnulib might be a potential
->> user of it, at least, GNU tar will definitely need it for sparse file backup.
-> 
-> Thanks for the info.  I confess I'm not hugely swayed by cp and sparse
-> file archive arguments - I doubt many people care, and I doubt those who
-> do care are using tmpfs for them.
-> 
-> But my doubts are just ignorance.  I was hoping to hear, not that we have
-> tools to copy sparse files efficiently (umm, over the network?), but
-> what apps are actually working live with those sparse files on tmpfs,
-> and now need to seek around them.  Some math or physics applications?
-> 
->>>
->>> Besides, given that you can punch holes in tmpfs files, it seems
->>> strange to then say "we don't need a method of skipping holes to
->>> find data quickly"....
->>
->> So its deserve to keep this feature working on tmpfs considering hole punch. :)
-> 
-> Well, thank you, as I said earlier I am on both sides of the argument.
-> (And feel uncomfortably like a prima donna waiting in the wings until
-> the audience has shouted long enough for the encore.)
-
-Oh, sorry, I missed you response to Dave before.
-
-> 
-> It's now taken out of 3.5, but we can bring it back when there's more
-> demand.
-
-Yep. :)
-
-Thanks,
--Jeff
-
-> Your extent-scan is itself waiting for ext4 to support it:
-> maybe get noisy at me when that's imminent.
+Great coverage anyway. Thanks a lot Hugh!
 
 > 
 > Hugh
-> 
->>
->> Thanks,
->> -Jeff
->>
->>>
->>> Besides, seek-hole/data is still shiny new and lots of developers
->>> aren't even aware of it's presence in recent kernels. Removing new
->>> functionality saying "no-one is using it" is like smashing the egg
->>> before the chicken hatches (or is it cutting of the chickes's head
->>> before it lays the egg?).
->>>
->>> Cheers,
->>>
->>> Dave.
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-fsdevel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
 
+-- 
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
