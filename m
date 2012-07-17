@@ -1,40 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
-	by kanga.kvack.org (Postfix) with SMTP id 1938F6B005A
-	for <linux-mm@kvack.org>; Tue, 17 Jul 2012 16:42:27 -0400 (EDT)
-Received: by ggm4 with SMTP id 4so1093157ggm.14
-        for <linux-mm@kvack.org>; Tue, 17 Jul 2012 13:42:26 -0700 (PDT)
-Date: Tue, 17 Jul 2012 13:42:23 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
+Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
+	by kanga.kvack.org (Postfix) with SMTP id 374D86B005D
+	for <linux-mm@kvack.org>; Tue, 17 Jul 2012 16:49:17 -0400 (EDT)
+Date: Tue, 17 Jul 2012 13:49:15 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
 Subject: Re: [PATCH] mm: fix wrong argument of migrate_huge_pages() in
  soft_offline_huge_page()
-In-Reply-To: <1342544460-20095-1-git-send-email-js1304@gmail.com>
-Message-ID: <alpine.DEB.2.00.1207171340420.9675@chino.kir.corp.google.com>
+Message-Id: <20120717134915.76adf9bd.akpm@linux-foundation.org>
+In-Reply-To: <alpine.DEB.2.00.1207171340420.9675@chino.kir.corp.google.com>
 References: <1342544460-20095-1-git-send-email-js1304@gmail.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+	<alpine.DEB.2.00.1207171340420.9675@chino.kir.corp.google.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <js1304@gmail.com>
-Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Christoph Lameter <cl@linux.com>, Mel Gorman <mgorman@suse.de>
+To: David Rientjes <rientjes@google.com>
+Cc: Joonsoo Kim <js1304@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Christoph Lameter <cl@linux.com>, Mel Gorman <mgorman@suse.de>
 
-On Wed, 18 Jul 2012, Joonsoo Kim wrote:
+On Tue, 17 Jul 2012 13:42:23 -0700 (PDT)
+David Rientjes <rientjes@google.com> wrote:
 
-> Commit a6bc32b899223a877f595ef9ddc1e89ead5072b8 ('mm: compaction: introduce
-> sync-light migration for use by compaction') change declaration of
-> migrate_pages() and migrate_huge_pages().
-> But, it miss changing argument of migrate_huge_pages()
-> in soft_offline_huge_page(). In this case, we should call with MIGRATE_SYNC.
-> So change it.
+> On Wed, 18 Jul 2012, Joonsoo Kim wrote:
 > 
-> Additionally, there is mismatch between type of argument and function
-> declaration for migrate_pages(). So fix this simple case, too.
+> > Commit a6bc32b899223a877f595ef9ddc1e89ead5072b8 ('mm: compaction: introduce
+> > sync-light migration for use by compaction') change declaration of
+> > migrate_pages() and migrate_huge_pages().
+> > But, it miss changing argument of migrate_huge_pages()
+> > in soft_offline_huge_page(). In this case, we should call with MIGRATE_SYNC.
+> > So change it.
+> > 
+> > Additionally, there is mismatch between type of argument and function
+> > declaration for migrate_pages(). So fix this simple case, too.
+> > 
+> > Signed-off-by: Joonsoo Kim <js1304@gmail.com>
 > 
-> Signed-off-by: Joonsoo Kim <js1304@gmail.com>
+> Acked-by: David Rientjes <rientjes@google.com>
+> 
+> Should be cc'd to stable for 3.3+.
 
-Acked-by: David Rientjes <rientjes@google.com>
+Well, why?  I'm suspecting a switch from MIGRATE_SYNC_LIGHT to
+MIGRATE_SYNC will have no discernable effect.  Unless it triggers hitherto
+unknkown about deadlocks...
 
-Should be cc'd to stable for 3.3+.
+For a -stable backport we should have a description of the end-user
+visible effects of the bug.  This changelog lacked such a description.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
