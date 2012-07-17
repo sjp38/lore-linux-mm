@@ -1,105 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
-	by kanga.kvack.org (Postfix) with SMTP id 13CD56B005D
-	for <linux-mm@kvack.org>; Tue, 17 Jul 2012 06:13:19 -0400 (EDT)
-Received: by wgbdt14 with SMTP id dt14so218504wgb.26
-        for <linux-mm@kvack.org>; Tue, 17 Jul 2012 03:13:17 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx135.postini.com [74.125.245.135])
+	by kanga.kvack.org (Postfix) with SMTP id 5B95F6B005A
+	for <linux-mm@kvack.org>; Tue, 17 Jul 2012 06:56:45 -0400 (EDT)
+Date: Tue, 17 Jul 2012 12:56:40 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH] mm/memcg: remove redundant checking on root memcg
+Message-ID: <20120717105640.GB25435@tiehlicka.suse.cz>
+References: <1342518147-10406-1-git-send-email-liwanp@linux.vnet.ibm.com>
 MIME-Version: 1.0
-In-Reply-To: <1342508505-23492-4-git-send-email-minchan@kernel.org>
-References: <1342508505-23492-1-git-send-email-minchan@kernel.org>
-	<1342508505-23492-4-git-send-email-minchan@kernel.org>
-Date: Tue, 17 Jul 2012 18:13:17 +0800
-Message-ID: <CAA_GA1dh0RYT5wfOB=t8-XoeHOzRJCmQJifnUTGLZfjNwx2a5w@mail.gmail.com>
-Subject: Re: [RFC 3/3] memory-hotplug: bug fix race between isolation and allocation
-From: Bob Liu <lliubbo@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1342518147-10406-1-git-send-email-liwanp@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>
+To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, Gavin Shan <shangw@linux.vnet.ibm.com>
 
-Hi Minchan,
+On Tue 17-07-12 17:42:27, Wanpeng Li wrote:
+> Function __mem_cgroup_cancel_local_charge is only called by
+> mem_cgroup_move_parent. For this case, root memcg has been
+> checked by mem_cgroup_move_parent. So we needn't check that
+> again in function __mem_cgroup_cancel_local_charge and just
+> remove the check in function __mem_cgroup_cancel_local_charge.
 
-On Tue, Jul 17, 2012 at 3:01 PM, Minchan Kim <minchan@kernel.org> wrote:
-> Like below, memory-hotplug makes race between page-isolation
-> and page-allocation so it can hit BUG_ON in __offline_isolated_pages.
->
->         CPU A                                   CPU B
->
-> start_isolate_page_range
-> set_migratetype_isolate
-> spin_lock_irqsave(zone->lock)
->
->                                 free_hot_cold_page(Page A)
->                                 /* without zone->lock */
->                                 migratetype = get_pageblock_migratetype(Page A);
->                                 /*
->                                  * Page could be moved into MIGRATE_MOVABLE
->                                  * of per_cpu_pages
->                                  */
->                                 list_add_tail(&page->lru, &pcp->lists[migratetype]);
->
-> set_pageblock_isolate
-> move_freepages_block
-> drain_all_pages
->
->                                 /* Page A could be in MIGRATE_MOVABLE of free_list. */
->
-> check_pages_isolated
-> __test_page_isolated_in_pageblock
-> /*
->  * We can't catch freed page which
->  * is free_list[MIGRATE_MOVABLE]
->  */
-> if (PageBuddy(page A))
->         pfn += 1 << page_order(page A);
->
->                                 /* So, Page A could be allocated */
->
-> __offline_isolated_pages
-> /*
->  * BUG_ON hit or offline page
->  * which is used by someone
->  */
-> BUG_ON(!PageBuddy(page A));
->
-> Signed-off-by: Minchan Kim <minchan@kernel.org>
+It's true that the check is not necessary but on the other hand
+__mem_cgroup_cancel_charge does check it and it would be unfortunate to
+have two very similar functions with different expectations (one can be
+called for the root cgroup while other one cannot).
+
+> Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 > ---
-> I found this problem during code review so please confirm it.
-> Kame?
->
->  mm/page_isolation.c |    5 ++++-
->  1 file changed, 4 insertions(+), 1 deletion(-)
->
-> diff --git a/mm/page_isolation.c b/mm/page_isolation.c
-> index acf65a7..4699d1f 100644
-> --- a/mm/page_isolation.c
-> +++ b/mm/page_isolation.c
-> @@ -196,8 +196,11 @@ __test_page_isolated_in_pageblock(unsigned long pfn, unsigned long end_pfn)
->                         continue;
->                 }
->                 page = pfn_to_page(pfn);
-> -               if (PageBuddy(page))
-> +               if (PageBuddy(page)) {
->                         pfn += 1 << page_order(page);
-> +                       if (get_page_migratetype(page) != MIGRATE_ISOLATE)
-> +                               break;
-> +               }
-
-test_page_isolated() already have check
-get_pageblock_migratetype(page) != MIGRATE_ISOLATE.
-
->                 else if (page_count(page) == 0 &&
->                                 get_page_migratetype(page) == MIGRATE_ISOLATE)
->                         pfn += 1;
+>  mm/memcontrol.c |    3 ---
+>  1 files changed, 0 insertions(+), 3 deletions(-)
+> 
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 6392c0a..d346347 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -2404,9 +2404,6 @@ static void __mem_cgroup_cancel_local_charge(struct mem_cgroup *memcg,
+>  {
+>  	unsigned long bytes = nr_pages * PAGE_SIZE;
+>  
+> -	if (mem_cgroup_is_root(memcg))
+> -		return;
+> -
+>  	res_counter_uncharge_until(&memcg->res, memcg->res.parent, bytes);
+>  	if (do_swap_account)
+>  		res_counter_uncharge_until(&memcg->memsw,
+> -- 
+> 1.7.5.4
+> 
 > --
-> 1.7.9.5
->
-
+> To unsubscribe from this list: send the line "unsubscribe cgroups" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
 
 -- 
-Regards,
---Bob
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
