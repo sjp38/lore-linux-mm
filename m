@@ -1,30 +1,30 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
-	by kanga.kvack.org (Postfix) with SMTP id EB1B46B005A
-	for <linux-mm@kvack.org>; Mon, 16 Jul 2012 20:29:13 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id F15743EE0C5
-	for <linux-mm@kvack.org>; Tue, 17 Jul 2012 09:29:11 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 522A545DEBC
-	for <linux-mm@kvack.org>; Tue, 17 Jul 2012 09:29:11 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 2CB9345DEB6
-	for <linux-mm@kvack.org>; Tue, 17 Jul 2012 09:29:11 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 0E08BE0800F
-	for <linux-mm@kvack.org>; Tue, 17 Jul 2012 09:29:11 +0900 (JST)
-Received: from g01jpexchyt03.g01.fujitsu.local (g01jpexchyt03.g01.fujitsu.local [10.128.194.42])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id A4297E08009
-	for <linux-mm@kvack.org>; Tue, 17 Jul 2012 09:29:10 +0900 (JST)
-Message-ID: <5004B1AC.9090409@jp.fujitsu.com>
-Date: Tue, 17 Jul 2012 09:28:28 +0900
+Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
+	by kanga.kvack.org (Postfix) with SMTP id A22FC6B005A
+	for <linux-mm@kvack.org>; Mon, 16 Jul 2012 20:30:35 -0400 (EDT)
+Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 799AB3EE0C1
+	for <linux-mm@kvack.org>; Tue, 17 Jul 2012 09:30:33 +0900 (JST)
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 59C1445DE55
+	for <linux-mm@kvack.org>; Tue, 17 Jul 2012 09:30:33 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 2E1F445DE53
+	for <linux-mm@kvack.org>; Tue, 17 Jul 2012 09:30:33 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 1E4B7E08005
+	for <linux-mm@kvack.org>; Tue, 17 Jul 2012 09:30:33 +0900 (JST)
+Received: from g01jpexchyt10.g01.fujitsu.local (g01jpexchyt10.g01.fujitsu.local [10.128.194.49])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id BA2AE1DB803B
+	for <linux-mm@kvack.org>; Tue, 17 Jul 2012 09:30:32 +0900 (JST)
+Message-ID: <5004B213.8010304@jp.fujitsu.com>
+Date: Tue, 17 Jul 2012 09:30:11 +0900
 From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 MIME-Version: 1.0
 Subject: Re: [RFC PATCH v3 4/13] memory-hotplug : remove /sys/firmware/memmap/X
  sysfs
-References: <4FFAB0A2.8070304@jp.fujitsu.com> <4FFAB1BA.9040801@jp.fujitsu.com> <4FFFE621.8030302@cn.fujitsu.com>
-In-Reply-To: <4FFFE621.8030302@cn.fujitsu.com>
+References: <4FFAB0A2.8070304@jp.fujitsu.com> <4FFAB1BA.9040801@jp.fujitsu.com> <50037D3A.4090309@cn.fujitsu.com>
+In-Reply-To: <50037D3A.4090309@cn.fujitsu.com>
 Content-Type: text/plain; charset="ISO-2022-JP"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -34,7 +34,7 @@ Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.
 
 Hi Wen,
 
-2012/07/13 18:10, Wen Congyang wrote:
+2012/07/16 11:32, Wen Congyang wrote:
 > At 07/09/2012 06:26 PM, Yasuaki Ishimatsu Wrote:
 >> When (hot)adding memory into system, /sys/firmware/memmap/X/{end, start, type}
 >> sysfs files are created. But there is no code to remove these files. The patch
@@ -73,19 +73,6 @@ Hi Wen,
 >> +	lock_memory_hotplug();
 >> +	/* remove memmap entry */
 >> +	firmware_map_remove(start, start + size - 1, "System RAM");
-> 
-> firmware_map_remove() is in meminit section, so remove_memory() should be in
-> ref section.
-
-I'll add it.
-
-Thanks,
-Yasuaki Ishimatsu
-
-> 
-> Thanks
-> Wen Congyang
-> 
 >> +	unlock_memory_hotplug();
 >> +	return 0;
 >>
@@ -225,6 +212,19 @@ Yasuaki Ishimatsu
 >> +	remove_sysfs_fw_map_entry(entry);
 >> +
 >> +	firmware_map_remove_entry(entry);
+> 
+> You should call firmware_map_remove_entry() before remove_sysfs_fw_map_entry(),
+> otherwise it will cause kernel panicked(entry may be freed in remove_sysfs_fw_map_entry()).
+
+You are right. I'll update it.
+
+Thanks,
+Yasuaki Ishimatsu
+
+> 
+> Thanks
+> Wen Congyang
+> 
 >> +
 >> +	return 0;
 >> +}
