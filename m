@@ -1,30 +1,30 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx174.postini.com [74.125.245.174])
-	by kanga.kvack.org (Postfix) with SMTP id 16A406B005C
-	for <linux-mm@kvack.org>; Mon, 16 Jul 2012 21:11:11 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 64A1A3EE0BB
-	for <linux-mm@kvack.org>; Tue, 17 Jul 2012 10:11:09 +0900 (JST)
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 3EB5145DE53
-	for <linux-mm@kvack.org>; Tue, 17 Jul 2012 10:11:09 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 28DDF45DE4E
-	for <linux-mm@kvack.org>; Tue, 17 Jul 2012 10:11:09 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 19273E08007
-	for <linux-mm@kvack.org>; Tue, 17 Jul 2012 10:11:09 +0900 (JST)
-Received: from g01jpexchyt04.g01.fujitsu.local (g01jpexchyt04.g01.fujitsu.local [10.128.194.43])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id B7A74E08003
-	for <linux-mm@kvack.org>; Tue, 17 Jul 2012 10:11:08 +0900 (JST)
-Message-ID: <5004BB91.6040803@jp.fujitsu.com>
-Date: Tue, 17 Jul 2012 10:10:41 +0900
+Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
+	by kanga.kvack.org (Postfix) with SMTP id 1BCAE6B005A
+	for <linux-mm@kvack.org>; Mon, 16 Jul 2012 21:45:20 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 194D73EE0B6
+	for <linux-mm@kvack.org>; Tue, 17 Jul 2012 10:45:18 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 0256845DE7E
+	for <linux-mm@kvack.org>; Tue, 17 Jul 2012 10:45:18 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id DDD5345DE9E
+	for <linux-mm@kvack.org>; Tue, 17 Jul 2012 10:45:17 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id D26D61DB803B
+	for <linux-mm@kvack.org>; Tue, 17 Jul 2012 10:45:17 +0900 (JST)
+Received: from g01jpexchyt01.g01.fujitsu.local (g01jpexchyt01.g01.fujitsu.local [10.128.194.40])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 7A8A51DB803C
+	for <linux-mm@kvack.org>; Tue, 17 Jul 2012 10:45:17 +0900 (JST)
+Message-ID: <5004C39B.1060204@jp.fujitsu.com>
+Date: Tue, 17 Jul 2012 10:44:59 +0900
 From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 MIME-Version: 1.0
 Subject: Re: [RFC PATCH v3 2/13] memory-hotplug : add physical memory hotplug
  code to acpi_memory_device_remove
-References: <4FFAB0A2.8070304@jp.fujitsu.com> <4FFAB148.9000803@jp.fujitsu.com> <4FFFFB38.7060806@cn.fujitsu.com>
-In-Reply-To: <4FFFFB38.7060806@cn.fujitsu.com>
+References: <4FFAB0A2.8070304@jp.fujitsu.com> <4FFAB148.9000803@jp.fujitsu.com> <4FFF9771.5080307@cn.fujitsu.com>
+In-Reply-To: <4FFF9771.5080307@cn.fujitsu.com>
 Content-Type: text/plain; charset="ISO-2022-JP"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -34,7 +34,7 @@ Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.
 
 Hi Wen,
 
-2012/07/13 19:40, Wen Congyang wrote:
+2012/07/13 12:35, Wen Congyang wrote:
 > At 07/09/2012 06:24 PM, Yasuaki Ishimatsu Wrote:
 >> acpi_memory_device_remove() has been prepared to remove physical memory.
 >> But, the function only frees acpi_memory_device currentlry.
@@ -91,19 +91,6 @@ Hi Wen,
 >>   	mem_device = acpi_driver_data(device);
 >> +
 >> +	node = acpi_get_node(mem_device->device->handle);
-> 
-> acpi_get_node() may return -1, and you should call memory_add_physaddr_to_nid()
-> to get the node id.
-
-O.K. I'll update it.
-
-Thanks,
-Yasuaki Ishimatsu
-
-> 
-> Thanks
-> Wen Congyang
-> 
 >> +
 >> +	list_for_each_entry_safe(info, tmp, &mem_device->res_list, list) {
 >> +		if (!info->enabled)
@@ -116,6 +103,23 @@ Yasuaki Ishimatsu
 >> +		}
 >> +
 >> +		result = remove_memory(node, info->start_addr, info->length);
+> 
+> The user may online the memory between offline_memory() and remove_memory().
+> So I think we should lock memory hotplug before check the memory's status
+> and release it after remove_memory().
+
+How about get "mem_block->state_mutex" of removed memory? When offlining
+memory, we need to change "memory_block->state" into "MEM_OFFLINE".
+In this case, we get mem_block->state_mutex. So I think the mutex lock
+is beneficial.
+
+Thanks,
+Yasuaki Ishimatsu
+
+> 
+> Thanks
+> Wen Congyang
+> 
 >> +		if (result)
 >> +			return result;
 >> +
