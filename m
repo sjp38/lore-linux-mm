@@ -1,48 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx140.postini.com [74.125.245.140])
-	by kanga.kvack.org (Postfix) with SMTP id 9B1716B0068
-	for <linux-mm@kvack.org>; Tue, 17 Jul 2012 05:35:31 -0400 (EDT)
-Message-ID: <500530E3.3020404@huawei.com>
-Date: Tue, 17 Jul 2012 17:31:15 +0800
-From: Jiang Liu <jiang.liu@huawei.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH] mm: setup pageblock_order before it's used by sparse
-References: <1341047274-5616-1-git-send-email-jiang.liu@huawei.com>  <20120703140705.af23d4d3.akpm@linux-foundation.org>  <4FF39F0E.4070300@huawei.com> <20120704092006.GH14154@suse.de>  <CAE9FiQXAuqj5V_ZrZPs3qr93XQS1tCO=qOBP7mCsDCqXQQ5PoQ@mail.gmail.com> <1341537867.6330.46.camel@pasglop>
-In-Reply-To: <1341537867.6330.46.camel@pasglop>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
+	by kanga.kvack.org (Postfix) with SMTP id 539D56B0068
+	for <linux-mm@kvack.org>; Tue, 17 Jul 2012 05:43:06 -0400 (EDT)
+Received: from /spool/local
+	by e28smtp06.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
+	Tue, 17 Jul 2012 15:13:02 +0530
+Received: from d28av02.in.ibm.com (d28av02.in.ibm.com [9.184.220.64])
+	by d28relay01.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q6H9h0168651192
+	for <linux-mm@kvack.org>; Tue, 17 Jul 2012 15:13:00 +0530
+Received: from d28av02.in.ibm.com (loopback [127.0.0.1])
+	by d28av02.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q6HFDe9j029616
+	for <linux-mm@kvack.org>; Wed, 18 Jul 2012 01:13:41 +1000
+From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Subject: [PATCH] mm/memcg: remove redundant checking on root memcg
+Date: Tue, 17 Jul 2012 17:42:27 +0800
+Message-Id: <1342518147-10406-1-git-send-email-liwanp@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Cc: Yinghai Lu <yinghai@kernel.org>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Tony Luck <tony.luck@intel.com>, Xishi Qiu <qiuxishi@huawei.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, Minchan Kim <minchan@kernel.org>, Keping Chen <chenkeping@huawei.com>, linux-mm@kvack.org, stable@vger.kernel.org, linux-kernel@vger.kernel.org, Jiang Liu <liuj97@gmail.com>
+To: linux-mm@kvack.org
+Cc: Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, Gavin Shan <shangw@linux.vnet.ibm.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>
 
-Hi Ben,
-	Any update about this topic?
-	Thanks!
-	Gerry
+Function __mem_cgroup_cancel_local_charge is only called by
+mem_cgroup_move_parent. For this case, root memcg has been
+checked by mem_cgroup_move_parent. So we needn't check that
+again in function __mem_cgroup_cancel_local_charge and just
+remove the check in function __mem_cgroup_cancel_local_charge.
 
-On 2012-7-6 9:24, Benjamin Herrenschmidt wrote:
-> On Thu, 2012-07-05 at 18:00 -0700, Yinghai Lu wrote:
->> cma, dma_continugous_reserve is referring pageblock_order very early
->> too.
->> just after init_memory_mapping() for x86's setup_arch.
->>
->> so set pageblock_order early looks like my -v2 patch is right way.
->>
->> current question: need to powerpc guys to check who to set that early.
-> 
-> I missed the beginning of that discussion, I'll try to dig a bit,
-> might take me til next week though as I'm about to be off for
-> the week-end.
-> 
-> Cheers,
-> Ben.
-> 
-> 
-> 
-> .
-> 
+Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+---
+ mm/memcontrol.c |    3 ---
+ 1 files changed, 0 insertions(+), 3 deletions(-)
 
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 6392c0a..d346347 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -2404,9 +2404,6 @@ static void __mem_cgroup_cancel_local_charge(struct mem_cgroup *memcg,
+ {
+ 	unsigned long bytes = nr_pages * PAGE_SIZE;
+ 
+-	if (mem_cgroup_is_root(memcg))
+-		return;
+-
+ 	res_counter_uncharge_until(&memcg->res, memcg->res.parent, bytes);
+ 	if (do_swap_account)
+ 		res_counter_uncharge_until(&memcg->memsw,
+-- 
+1.7.5.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
