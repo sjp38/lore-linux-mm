@@ -1,46 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
-	by kanga.kvack.org (Postfix) with SMTP id A5EFC6B0062
-	for <linux-mm@kvack.org>; Tue, 17 Jul 2012 08:35:03 -0400 (EDT)
-Received: by mail-pb0-f41.google.com with SMTP id rp2so957962pbb.14
-        for <linux-mm@kvack.org>; Tue, 17 Jul 2012 05:35:03 -0700 (PDT)
-From: Joonsoo Kim <js1304@gmail.com>
-Subject: [PATCH 4/4 v2] mm: fix possible incorrect return value of move_pages() syscall
-Date: Tue, 17 Jul 2012 21:33:35 +0900
-Message-Id: <1342528415-2291-4-git-send-email-js1304@gmail.com>
-In-Reply-To: <1342528415-2291-1-git-send-email-js1304@gmail.com>
-References: <Yes>
- <1342528415-2291-1-git-send-email-js1304@gmail.com>
+Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
+	by kanga.kvack.org (Postfix) with SMTP id D2F256B005C
+	for <linux-mm@kvack.org>; Tue, 17 Jul 2012 09:02:35 -0400 (EDT)
+Received: by eekc50 with SMTP id c50so173446eek.14
+        for <linux-mm@kvack.org>; Tue, 17 Jul 2012 06:02:34 -0700 (PDT)
+Content-Type: text/plain; charset=utf-8; format=flowed; delsp=yes
+Subject: Re: [PATCH 2/3] mm: fix possible incorrect return value of
+ migrate_pages() syscall
+References: <1342455272-32703-1-git-send-email-js1304@gmail.com>
+ <1342455272-32703-2-git-send-email-js1304@gmail.com>
+ <87394rr4dl.fsf@erwin.mina86.com>
+ <CAAmzW4OZZgPKrffdvMmEgpzF=7C9mJTkEhBfjJ5G7Q15xLzv2g@mail.gmail.com>
+Date: Tue, 17 Jul 2012 15:02:31 +0200
+MIME-Version: 1.0
+Content-Transfer-Encoding: Quoted-Printable
+From: "Michal Nazarewicz" <mina86@mina86.com>
+Message-ID: <op.whlc6hjn3l0zgt@mpn-glaptop>
+In-Reply-To: <CAAmzW4OZZgPKrffdvMmEgpzF=7C9mJTkEhBfjJ5G7Q15xLzv2g@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Joonsoo Kim <js1304@gmail.com>, Brice Goglin <brice@myri.com>, Christoph Lameter <cl@linux.com>, Minchan Kim <minchan@kernel.org>
+To: Michal Nazarewicz <mina86@tlen.pl>, JoonSoo Kim <js1304@gmail.com>
+Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Sasha Levin <levinsasha928@gmail.com>, Christoph
+ Lameter <cl@linux.com>
 
-move_pages() syscall may return success in case that
-do_move_page_to_node_array return positive value which means migration failed.
-This patch changes return value of do_move_page_to_node_array
-for not returning positive value. It can fix the problem.
+On Mon, 16 Jul 2012 19:59:18 +0200, JoonSoo Kim <js1304@gmail.com> wrote=
+:
 
-Signed-off-by: Joonsoo Kim <js1304@gmail.com>
-Cc: Brice Goglin <brice@myri.com>
-Cc: Christoph Lameter <cl@linux.com>
-Cc: Minchan Kim <minchan@kernel.org>
+> 2012/7/17 Michal Nazarewicz <mina86@tlen.pl>:
+>> Joonsoo Kim <js1304@gmail.com> writes:
+>>> do_migrate_pages() can return the number of pages not migrated.
+>>> Because migrate_pages() syscall return this value directly,
+>>> migrate_pages() syscall may return the number of pages not migrated.=
 
-diff --git a/mm/migrate.c b/mm/migrate.c
-index f495c58..eeaf409 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -1172,7 +1172,7 @@ set_status:
- 	}
- 
- 	up_read(&mm->mmap_sem);
--	return err;
-+	return err > 0 ? -EBUSY : err;
- }
- 
- /*
--- 
-1.7.9.5
+>>> In fail case in migrate_pages() syscall, we should return error valu=
+e.
+>>> So change err to -EIO
+>>>
+>>> Additionally, Correct comment above do_migrate_pages()
+>>>
+>>> Signed-off-by: Joonsoo Kim <js1304@gmail.com>
+>>> Cc: Sasha Levin <levinsasha928@gmail.com>
+>>> Cc: Christoph Lameter <cl@linux.com>
+>>
+>> Acked-by: Michal Nazarewicz <mina86@mina86.com>
+>
+> Thanks.
+>
+> When I resend with changing -EIO to -EBUSY,
+> could I include "Acked-by: Michal Nazarewicz <mina86@mina86.com>"?
+
+Sure thing.
+
+-- =
+
+Best regards,                                         _     _
+.o. | Liege of Serenely Enlightened Majesty of      o' \,=3D./ `o
+..o | Computer Science,  Micha=C5=82 =E2=80=9Cmina86=E2=80=9D Nazarewicz=
+    (o o)
+ooo +----<email/xmpp: mpn@google.com>--------------ooO--(_)--Ooo--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
