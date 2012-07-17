@@ -1,58 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx141.postini.com [74.125.245.141])
-	by kanga.kvack.org (Postfix) with SMTP id 88C2A6B005D
-	for <linux-mm@kvack.org>; Tue, 17 Jul 2012 13:02:22 -0400 (EDT)
-Received: by yhr47 with SMTP id 47so795291yhr.14
-        for <linux-mm@kvack.org>; Tue, 17 Jul 2012 10:02:21 -0700 (PDT)
-From: Joonsoo Kim <js1304@gmail.com>
-Subject: [PATCH] mm: fix wrong argument of migrate_huge_pages() in soft_offline_huge_page()
-Date: Wed, 18 Jul 2012 02:01:00 +0900
-Message-Id: <1342544460-20095-1-git-send-email-js1304@gmail.com>
+Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
+	by kanga.kvack.org (Postfix) with SMTP id 18E456B005A
+	for <linux-mm@kvack.org>; Tue, 17 Jul 2012 13:39:05 -0400 (EDT)
+Date: Tue, 17 Jul 2012 12:39:00 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH] mm/slub: fix a BUG_ON() when offlining a memory node
+ and CONFIG_SLUB_DEBUG is on
+In-Reply-To: <1342543816-10853-1-git-send-email-jiang.liu@huawei.com>
+Message-ID: <alpine.DEB.2.00.1207171237320.15177@router.home>
+References: <1342543816-10853-1-git-send-email-jiang.liu@huawei.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Joonsoo Kim <js1304@gmail.com>, Christoph Lameter <cl@linux.com>, Mel Gorman <mgorman@suse.de>
+To: Jiang Liu <liuj97@gmail.com>
+Cc: Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Mel Gorman <mgorman@suse.de>, Jianguo Wu <wujianguo@huawei.com>, Jiang Liu <jiang.liu@huawei.com>, Tony Luck <tony.luck@intel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, Minchan Kim <minchan@kernel.org>, Keping Chen <chenkeping@huawei.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Commit a6bc32b899223a877f595ef9ddc1e89ead5072b8 ('mm: compaction: introduce
-sync-light migration for use by compaction') change declaration of
-migrate_pages() and migrate_huge_pages().
-But, it miss changing argument of migrate_huge_pages()
-in soft_offline_huge_page(). In this case, we should call with MIGRATE_SYNC.
-So change it.
+On Wed, 18 Jul 2012, Jiang Liu wrote:
 
-Additionally, there is mismatch between type of argument and function
-declaration for migrate_pages(). So fix this simple case, too.
+> From: Jianguo Wu <wujianguo@huawei.com>
+>
+> From: Jianguo Wu <wujianguo@huawei.com>
+>
+> SLUB allocator may cause a BUG_ON() when offlining a memory node if
+> CONFIG_SLUB_DEBUG is on. The scenario is:
+>
+> 1) when creating kmem_cache_node slab, it cause inc_slabs_node() twice.
+> early_kmem_cache_node_alloc
+> 	->new_slab
+> 		->inc_slabs_node
+> 	->inc_slabs_node
 
-Signed-off-by: Joonsoo Kim <js1304@gmail.com>
-Cc: Christoph Lameter <cl@linux.com>
-Cc: Mel Gorman <mgorman@suse.de>
+New slab will not be able to increment the slab counter. It will
+check that there is no per node structure yet and then skip the inc slabs
+node.
 
-diff --git a/mm/memory-failure.c b/mm/memory-failure.c
-index ab1e714..afde561 100644
---- a/mm/memory-failure.c
-+++ b/mm/memory-failure.c
-@@ -1431,8 +1431,8 @@ static int soft_offline_huge_page(struct page *page, int flags)
- 	/* Keep page count to indicate a given hugepage is isolated. */
- 
- 	list_add(&hpage->lru, &pagelist);
--	ret = migrate_huge_pages(&pagelist, new_page, MPOL_MF_MOVE_ALL, 0,
--				true);
-+	ret = migrate_huge_pages(&pagelist, new_page, MPOL_MF_MOVE_ALL, false,
-+				MIGRATE_SYNC);
- 	if (ret) {
- 		struct page *page1, *page2;
- 		list_for_each_entry_safe(page1, page2, &pagelist, lru)
-@@ -1561,7 +1561,7 @@ int soft_offline_page(struct page *page, int flags)
- 					    page_is_file_cache(page));
- 		list_add(&page->lru, &pagelist);
- 		ret = migrate_pages(&pagelist, new_page, MPOL_MF_MOVE_ALL,
--							0, MIGRATE_SYNC);
-+							false, MIGRATE_SYNC);
- 		if (ret) {
- 			putback_lru_pages(&pagelist);
- 			pr_info("soft offline: %#lx: migration failed %d, type %lx\n",
--- 
-1.7.9.5
+This suggests that a call to early_kmem_cache_node_alloc was not needed
+because the per node structure already existed. Lets fix that instead.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
