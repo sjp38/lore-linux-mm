@@ -1,56 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
-	by kanga.kvack.org (Postfix) with SMTP id 62CF06B005A
-	for <linux-mm@kvack.org>; Tue, 17 Jul 2012 18:29:46 -0400 (EDT)
-Received: by ghrr18 with SMTP id r18so1206000ghr.14
-        for <linux-mm@kvack.org>; Tue, 17 Jul 2012 15:29:45 -0700 (PDT)
-Date: Tue, 17 Jul 2012 15:29:43 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] mm: fix wrong argument of migrate_huge_pages() in
- soft_offline_huge_page()
-In-Reply-To: <20120717134915.76adf9bd.akpm@linux-foundation.org>
-Message-ID: <alpine.DEB.2.00.1207171526440.23015@chino.kir.corp.google.com>
-References: <1342544460-20095-1-git-send-email-js1304@gmail.com> <alpine.DEB.2.00.1207171340420.9675@chino.kir.corp.google.com> <20120717134915.76adf9bd.akpm@linux-foundation.org>
+Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
+	by kanga.kvack.org (Postfix) with SMTP id 40D806B005A
+	for <linux-mm@kvack.org>; Tue, 17 Jul 2012 19:39:32 -0400 (EDT)
+Date: Wed, 18 Jul 2012 08:40:03 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [RFC 3/3] memory-hotplug: bug fix race between isolation and
+ allocation
+Message-ID: <20120717234003.GA26937@bbox>
+References: <1342508505-23492-1-git-send-email-minchan@kernel.org>
+ <1342508505-23492-4-git-send-email-minchan@kernel.org>
+ <CAA_GA1dh0RYT5wfOB=t8-XoeHOzRJCmQJifnUTGLZfjNwx2a5w@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAA_GA1dh0RYT5wfOB=t8-XoeHOzRJCmQJifnUTGLZfjNwx2a5w@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Joonsoo Kim <js1304@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Christoph Lameter <cl@linux.com>, Mel Gorman <mgorman@suse.de>
+To: Bob Liu <lliubbo@gmail.com>
+Cc: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>
 
-On Tue, 17 Jul 2012, Andrew Morton wrote:
+Hi Bob,
 
-> > > Commit a6bc32b899223a877f595ef9ddc1e89ead5072b8 ('mm: compaction: introduce
-> > > sync-light migration for use by compaction') change declaration of
-> > > migrate_pages() and migrate_huge_pages().
-> > > But, it miss changing argument of migrate_huge_pages()
-> > > in soft_offline_huge_page(). In this case, we should call with MIGRATE_SYNC.
-> > > So change it.
-> > > 
-> > > Additionally, there is mismatch between type of argument and function
-> > > declaration for migrate_pages(). So fix this simple case, too.
-> > > 
-> > > Signed-off-by: Joonsoo Kim <js1304@gmail.com>
-> > 
-> > Acked-by: David Rientjes <rientjes@google.com>
-> > 
-> > Should be cc'd to stable for 3.3+.
+On Tue, Jul 17, 2012 at 06:13:17PM +0800, Bob Liu wrote:
+> Hi Minchan,
 > 
-> Well, why?  I'm suspecting a switch from MIGRATE_SYNC_LIGHT to
-> MIGRATE_SYNC will have no discernable effect.  Unless it triggers hitherto
-> unknkown about deadlocks...
+> On Tue, Jul 17, 2012 at 3:01 PM, Minchan Kim <minchan@kernel.org> wrote:
+> > Like below, memory-hotplug makes race between page-isolation
+> > and page-allocation so it can hit BUG_ON in __offline_isolated_pages.
+> >
+> >         CPU A                                   CPU B
+> >
+> > start_isolate_page_range
+> > set_migratetype_isolate
+> > spin_lock_irqsave(zone->lock)
+> >
+> >                                 free_hot_cold_page(Page A)
+> >                                 /* without zone->lock */
+> >                                 migratetype = get_pageblock_migratetype(Page A);
+> >                                 /*
+> >                                  * Page could be moved into MIGRATE_MOVABLE
+> >                                  * of per_cpu_pages
+> >                                  */
+> >                                 list_add_tail(&page->lru, &pcp->lists[migratetype]);
+> >
+> > set_pageblock_isolate
+> > move_freepages_block
+> > drain_all_pages
+> >
+> >                                 /* Page A could be in MIGRATE_MOVABLE of free_list. */
+> >
+> > check_pages_isolated
+> > __test_page_isolated_in_pageblock
+> > /*
+> >  * We can't catch freed page which
+> >  * is free_list[MIGRATE_MOVABLE]
+> >  */
+> > if (PageBuddy(page A))
+> >         pfn += 1 << page_order(page A);
+> >
+> >                                 /* So, Page A could be allocated */
+> >
+> > __offline_isolated_pages
+> > /*
+> >  * BUG_ON hit or offline page
+> >  * which is used by someone
+> >  */
+> > BUG_ON(!PageBuddy(page A));
+> >
+> > Signed-off-by: Minchan Kim <minchan@kernel.org>
+> > ---
+> > I found this problem during code review so please confirm it.
+> > Kame?
+> >
+> >  mm/page_isolation.c |    5 ++++-
+> >  1 file changed, 4 insertions(+), 1 deletion(-)
+> >
+> > diff --git a/mm/page_isolation.c b/mm/page_isolation.c
+> > index acf65a7..4699d1f 100644
+> > --- a/mm/page_isolation.c
+> > +++ b/mm/page_isolation.c
+> > @@ -196,8 +196,11 @@ __test_page_isolated_in_pageblock(unsigned long pfn, unsigned long end_pfn)
+> >                         continue;
+> >                 }
+> >                 page = pfn_to_page(pfn);
+> > -               if (PageBuddy(page))
+> > +               if (PageBuddy(page)) {
+> >                         pfn += 1 << page_order(page);
+> > +                       if (get_page_migratetype(page) != MIGRATE_ISOLATE)
+> > +                               break;
+> > +               }
 > 
-> For a -stable backport we should have a description of the end-user
-> visible effects of the bug.  This changelog lacked such a description.
+> test_page_isolated() already have check
+> get_pageblock_migratetype(page) != MIGRATE_ISOLATE.
 > 
 
-I would put this:
+That's why I send a patch.
+As I describe in description, pageblock migration type of get_page_migratetype(page)
+is inconsistent with free_list[migrationtype].
+I mean get_pageblock_migratetype(page) will return MIGRATE_ISOLATE but the page would be
+in free_list[MIGRATE_MOVABLE] so it could be allocated for someone if that race happens.
 
-MIGRATE_SYNC_LIGHT will not aggressively attempt to defragment memory when 
-allocating hugepages for migration with MIGRATE_SYNC_LIGHT, such as not 
-defragmenting dirty pages, so MADV_SOFT_OFFLINE and 
-/sys/devices/system/memory/soft_offline_page would be significantly 
-less successful without this patch.
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
