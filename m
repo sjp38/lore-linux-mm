@@ -1,177 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
-	by kanga.kvack.org (Postfix) with SMTP id 8AC586B006C
-	for <linux-mm@kvack.org>; Wed, 18 Jul 2012 01:57:27 -0400 (EDT)
-Date: Wed, 18 Jul 2012 14:58:00 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [RFC 3/3] memory-hotplug: bug fix race between isolation and
- allocation
-Message-ID: <20120718055800.GA395@bbox>
-References: <1342508505-23492-1-git-send-email-minchan@kernel.org>
- <1342508505-23492-4-git-send-email-minchan@kernel.org>
- <CAA_GA1dh0RYT5wfOB=t8-XoeHOzRJCmQJifnUTGLZfjNwx2a5w@mail.gmail.com>
- <20120717234003.GA26937@bbox>
- <CAA_GA1dWBZ+cj5LW6Q=XsP_GGvAh8Za2scaGS8nQcgfc9JTGQw@mail.gmail.com>
- <20120718024157.GA31180@bbox>
- <CAA_GA1dF9Zw1rDt9j5wJ6EpwQQMGptEndQaXWnTmQL=u8DAq7Q@mail.gmail.com>
- <20120718035606.GA31662@bbox>
- <CAA_GA1cxkuyPiiwcSnZE=U4G54DViWxSSV=44KYVTt8+nG_Chg@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAA_GA1cxkuyPiiwcSnZE=U4G54DViWxSSV=44KYVTt8+nG_Chg@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
+	by kanga.kvack.org (Postfix) with SMTP id 669436B005A
+	for <linux-mm@kvack.org>; Wed, 18 Jul 2012 03:01:58 -0400 (EDT)
+Message-ID: <1342594888.3669.65.camel@pasglop>
+Subject: Re: [PATCH] mm: setup pageblock_order before it's used by sparse
+From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Date: Wed, 18 Jul 2012 17:01:28 +1000
+In-Reply-To: <500530E3.3020404@huawei.com>
+References: <1341047274-5616-1-git-send-email-jiang.liu@huawei.com>
+	 <20120703140705.af23d4d3.akpm@linux-foundation.org>
+	 <4FF39F0E.4070300@huawei.com> <20120704092006.GH14154@suse.de>
+	 <CAE9FiQXAuqj5V_ZrZPs3qr93XQS1tCO=qOBP7mCsDCqXQQ5PoQ@mail.gmail.com>
+	 <1341537867.6330.46.camel@pasglop> <500530E3.3020404@huawei.com>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 7bit
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Bob Liu <lliubbo@gmail.com>
-Cc: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>
+To: Jiang Liu <jiang.liu@huawei.com>
+Cc: Yinghai Lu <yinghai@kernel.org>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Tony Luck <tony.luck@intel.com>, Xishi Qiu <qiuxishi@huawei.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, Minchan Kim <minchan@kernel.org>, Keping Chen <chenkeping@huawei.com>, linux-mm@kvack.org, stable@vger.kernel.org, linux-kernel@vger.kernel.org, Jiang Liu <liuj97@gmail.com>
 
-On Wed, Jul 18, 2012 at 01:29:47PM +0800, Bob Liu wrote:
-> On Wed, Jul 18, 2012 at 11:56 AM, Minchan Kim <minchan@kernel.org> wrote:
-> > On Wed, Jul 18, 2012 at 11:12:27AM +0800, Bob Liu wrote:
-> >> On Wed, Jul 18, 2012 at 10:41 AM, Minchan Kim <minchan@kernel.org> wrote:
-> >> > On Wed, Jul 18, 2012 at 10:12:57AM +0800, Bob Liu wrote:
-> >> >> On Wed, Jul 18, 2012 at 7:40 AM, Minchan Kim <minchan@kernel.org> wrote:
-> >> >> > Hi Bob,
-> >> >> >
-> >> >> > On Tue, Jul 17, 2012 at 06:13:17PM +0800, Bob Liu wrote:
-> >> >> >> Hi Minchan,
-> >> >> >>
-> >> >> >> On Tue, Jul 17, 2012 at 3:01 PM, Minchan Kim <minchan@kernel.org> wrote:
-> >> >> >> > Like below, memory-hotplug makes race between page-isolation
-> >> >> >> > and page-allocation so it can hit BUG_ON in __offline_isolated_pages.
-> >> >> >> >
-> >> >> >> >         CPU A                                   CPU B
-> >> >> >> >
-> >> >> >> > start_isolate_page_range
-> >> >> >> > set_migratetype_isolate
-> >> >> >> > spin_lock_irqsave(zone->lock)
-> >> >> >> >
-> >> >> >> >                                 free_hot_cold_page(Page A)
-> >> >> >> >                                 /* without zone->lock */
-> >> >> >> >                                 migratetype = get_pageblock_migratetype(Page A);
-> >> >> >> >                                 /*
-> >> >> >> >                                  * Page could be moved into MIGRATE_MOVABLE
-> >> >> >> >                                  * of per_cpu_pages
-> >> >> >> >                                  */
-> >> >> >> >                                 list_add_tail(&page->lru, &pcp->lists[migratetype]);
-> >> >> >> >
-> >> >> >> > set_pageblock_isolate
-> >> >> >> > move_freepages_block
-> >> >> >> > drain_all_pages
-> >> >> >> >
-> >> >> >> >                                 /* Page A could be in MIGRATE_MOVABLE of free_list. */
-> >> >> >> >
-> >> >> >> > check_pages_isolated
-> >> >> >> > __test_page_isolated_in_pageblock
-> >> >> >> > /*
-> >> >> >> >  * We can't catch freed page which
-> >> >> >> >  * is free_list[MIGRATE_MOVABLE]
-> >> >> >> >  */
-> >> >> >> > if (PageBuddy(page A))
-> >> >> >> >         pfn += 1 << page_order(page A);
-> >> >> >> >
-> >> >> >> >                                 /* So, Page A could be allocated */
-> >> >> >> >
-> >> >> >> > __offline_isolated_pages
-> >> >> >> > /*
-> >> >> >> >  * BUG_ON hit or offline page
-> >> >> >> >  * which is used by someone
-> >> >> >> >  */
-> >> >> >> > BUG_ON(!PageBuddy(page A));
-> >> >> >> >
-> >> >> >> > Signed-off-by: Minchan Kim <minchan@kernel.org>
-> >> >> >> > ---
-> >> >> >> > I found this problem during code review so please confirm it.
-> >> >> >> > Kame?
-> >> >> >> >
-> >> >> >> >  mm/page_isolation.c |    5 ++++-
-> >> >> >> >  1 file changed, 4 insertions(+), 1 deletion(-)
-> >> >> >> >
-> >> >> >> > diff --git a/mm/page_isolation.c b/mm/page_isolation.c
-> >> >> >> > index acf65a7..4699d1f 100644
-> >> >> >> > --- a/mm/page_isolation.c
-> >> >> >> > +++ b/mm/page_isolation.c
-> >> >> >> > @@ -196,8 +196,11 @@ __test_page_isolated_in_pageblock(unsigned long pfn, unsigned long end_pfn)
-> >> >> >> >                         continue;
-> >> >> >> >                 }
-> >> >> >> >                 page = pfn_to_page(pfn);
-> >> >> >> > -               if (PageBuddy(page))
-> >> >> >> > +               if (PageBuddy(page)) {
-> >> >> >> >                         pfn += 1 << page_order(page);
-> >> >> >> > +                       if (get_page_migratetype(page) != MIGRATE_ISOLATE)
-> >> >> >> > +                               break;
-> >> >> >> > +               }
-> >> >> >>
-> >> >> >> test_page_isolated() already have check
-> >> >> >> get_pageblock_migratetype(page) != MIGRATE_ISOLATE.
-> >> >> >>
-> >> >> >
-> >> >> > That's why I send a patch.
-> >> >> > As I describe in description, pageblock migration type of get_page_migratetype(page)
-> >> >> > is inconsistent with free_list[migrationtype].
-> >> >> > I mean get_pageblock_migratetype(page) will return MIGRATE_ISOLATE but the page would be
-> >> >> > in free_list[MIGRATE_MOVABLE] so it could be allocated for someone if that race happens.
-> >> >> >
-> >> >>
-> >> >> Sorry, I'm still not get the situation how this race happens.
-> >> >>
-> >> >> set_pageblock_isolate
-> >> >> move_freepages_block
-> >> >> drain_all_pages
-> >> >>
-> >> >>                                 /* Page A could be in MIGRATE_MOVABLE
-> >> >> of free_list. */
-> >> >>
-> >> >> I think move_freepages_block() will call list_move() to move Page A to
-> >> >> free_list[MIGRATE_ISOLATE], so this case can't happen?
-> >> >
-> >> > move_freepages_block handles only pages in free_list but Page A is on pcp, not free_list.
-> >> >
+On Tue, 2012-07-17 at 17:31 +0800, Jiang Liu wrote:
+> Hi Ben,
+> 	Any update about this topic?
+> 	Thanks!
+> 	Gerry
+
+I should have said "long week-end" :-) I'm just back, will look into it
+now.
+
+Cheers,
+Ben.
+
+> 
+> On 2012-7-6 9:24, Benjamin Herrenschmidt wrote:
+> > On Thu, 2012-07-05 at 18:00 -0700, Yinghai Lu wrote:
+> >> cma, dma_continugous_reserve is referring pageblock_order very early
+> >> too.
+> >> just after init_memory_mapping() for x86's setup_arch.
 > >>
-> >> Got it, then why not just drain pcp pages before move_freepages_block() ?
-> >
-> >         CPU A                   CPU B
-> >
-> > drain_all_pages
-> > lock(zone->lock);
-> >                                 free_hot_cold_page
-> >                                 MIGRATE_MOVABLE = get_pageblock_migratetype(page);
-> >                                 list_add(&page->lru, &pcp->lists[migratetype])
-> > set_pageblock_isolate
-> > move_free_pages_block
-> > unlock(zone->lock);
-> >
-> > We can't make it atomic.
-> >
+> >> so set pageblock_order early looks like my -v2 patch is right way.
 > >>
-> >> And I didn't see the effect by adding the check if
-> >> (get_page_migratetype(page) != MIGRATE_ISOLATE) for this race.
-> >> Since set_pageblock_isolate() have been called by CPU A, this check
-> >> will always false which cause CPU A still consider Page A isolated,
-> >> then PAGE A still can be allocated by CPU B from pcp.
-> >
-> > Please don't confuse get_page_migratetype and get_pageblock_migratetype.
-> > get_page_migratetype returns migratetype inforamtion of *page* which is
-> > in free_list while get_pageblock_migratetype returns *pageblock*'s migratetype.
-> >
-> 
-> Oh, yes i mixed them up.
-> 
-> Last question, it's better to break only before add pfn.
-> like:
-> 
-> -               if (PageBuddy(page))
-> +               if (PageBuddy(page)) {
-> +                       if (get_page_migratetype(page) != MIGRATE_ISOLATE)
-> +                               break;
->                           pfn += 1 << page_order(page);
-> +               }
-
-Sure thing!
-
--- 
-Kind regards,
-Minchan Kim
+> >> current question: need to powerpc guys to check who to set that early.
+> > 
+> > I missed the beginning of that discussion, I'll try to dig a bit,
+> > might take me til next week though as I'm about to be off for
+> > the week-end.
+> > 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
