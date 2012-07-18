@@ -1,107 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
-	by kanga.kvack.org (Postfix) with SMTP id 366786B005C
-	for <linux-mm@kvack.org>; Wed, 18 Jul 2012 06:51:58 -0400 (EDT)
-Message-ID: <5006966C.3000807@cn.fujitsu.com>
-Date: Wed, 18 Jul 2012 18:56:44 +0800
-From: Wen Congyang <wency@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx190.postini.com [74.125.245.190])
+	by kanga.kvack.org (Postfix) with SMTP id 5D5036B005A
+	for <linux-mm@kvack.org>; Wed, 18 Jul 2012 07:03:28 -0400 (EDT)
+Received: by pbbrp2 with SMTP id rp2so3008602pbb.14
+        for <linux-mm@kvack.org>; Wed, 18 Jul 2012 04:03:27 -0700 (PDT)
+Date: Wed, 18 Jul 2012 04:03:20 -0700
+From: Michel Lespinasse <walken@google.com>
+Subject: [PATCH] ipc/mqueue: remove unnecessary rb_init_node calls
+Message-ID: <20120718110320.GA32698@google.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v4 3/13] memory-hotplug : check whether memory is present
- or not
-References: <50068974.1070409@jp.fujitsu.com> <50068AE9.3050804@jp.fujitsu.com>
-In-Reply-To: <50068AE9.3050804@jp.fujitsu.com>
-Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset=ISO-2022-JP
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com
+To: aarcange@redhat.com, dwmw2@infradead.org, riel@redhat.com, peterz@infradead.org, daniel.santos@pobox.com, axboe@kernel.dk, ebiederm@xmission.com, akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, torvalds@linux-foundation.org
 
-At 07/18/2012 06:07 PM, Yasuaki Ishimatsu Wrote:
-> If system supports memory hot-remove, online_pages() may online removed pages.
-> So online_pages() need to check whether onlining pages are present or not.
-> 
-> CC: David Rientjes <rientjes@google.com>
-> CC: Jiang Liu <liuj97@gmail.com>
-> CC: Len Brown <len.brown@intel.com>
-> CC: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-> CC: Paul Mackerras <paulus@samba.org> 
-> CC: Christoph Lameter <cl@linux.com>
-> Cc: Minchan Kim <minchan.kim@gmail.com>
-> CC: Andrew Morton <akpm@linux-foundation.org>
-> CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> 
-> CC: Wen Congyang <wency@cn.fujitsu.com>
-> Signed-off-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-> 
-> ---
->  include/linux/mmzone.h |   21 +++++++++++++++++++++
->  mm/memory_hotplug.c    |   13 +++++++++++++
->  2 files changed, 34 insertions(+)
-> 
-> Index: linux-3.5-rc6/include/linux/mmzone.h
-> ===================================================================
-> --- linux-3.5-rc6.orig/include/linux/mmzone.h	2012-07-08 09:23:56.000000000 +0900
-> +++ linux-3.5-rc6/include/linux/mmzone.h	2012-07-17 16:10:21.588186145 +0900
-> @@ -1168,6 +1168,27 @@ void sparse_init(void);
->  #define sparse_index_init(_sec, _nid)  do {} while (0)
->  #endif /* CONFIG_SPARSEMEM */
->  
-> +#ifdef CONFIG_SPARSEMEM
-> +static inline int pfns_present(unsigned long pfn, unsigned long nr_pages)
-> +{
-> +	int i;
-> +	for (i = 0; i < nr_pages; i++) {
-> +		if (pfn_present(pfn + 1))
-> +			continue;
-> +		else {
-> +			unlock_memory_hotplug();
-> +			return -EINVAL;
-> +		}
-> +	}
-> +	return 0;
-> +}
-> +#else
-> +static inline int pfns_present(unsigned long pfn, unsigned long nr_pages)
-> +{
-> +	return 0;
-> +}
-> +#endif /* CONFIG_SPARSEMEM*/
-> +
->  #ifdef CONFIG_NODES_SPAN_OTHER_NODES
->  bool early_pfn_in_nid(unsigned long pfn, int nid);
->  #else
-> Index: linux-3.5-rc6/mm/memory_hotplug.c
-> ===================================================================
-> --- linux-3.5-rc6.orig/mm/memory_hotplug.c	2012-07-17 14:26:40.000000000 +0900
-> +++ linux-3.5-rc6/mm/memory_hotplug.c	2012-07-17 16:09:50.070580170 +0900
-> @@ -467,6 +467,19 @@ int __ref online_pages(unsigned long pfn
->  	struct memory_notify arg;
->  
->  	lock_memory_hotplug();
-> +	/*
-> + 	 * If system supports memory hot-remove, the memory may have been
-> + 	 * removed. So we check whether the memory has been removed or not.
-> + 	 *
-> + 	 * Note: When CONFIG_SPARSEMEM is defined, pfns_present() become
-> + 	 *       effective. If CONFIG_SPARSEMEM is not defined, pfns_present()
-> + 	 *       always returns 0.
-> + 	 */
+I previously sent out my rbtree patches against v3.4, however in private
+email Andrew notified me that they broke some builds due to some new
+rb_init_node calls that have been introduced after v3.4. No big deal
+and it's an easy fix, but I forgot to CC the usual lists and now some
+people need the fix in order to try out the patches. So here it is :)
 
-There is one space before tab in the comment.
+----- Forwarded message from Michel Lespinasse <walken@google.com> -----
 
-Thanks
-Wen Congyang
+Date: Tue, 17 Jul 2012 17:30:35 -0700
+From: Michel Lespinasse <walken@google.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Doug Ledford <dledford@redhat.com>
+Subject: [PATCH] ipc/mqueue: remove unnecessary rb_init_node calls
 
-> +	ret = pfns_present(pfn, nr_pages);
-> +	if (ret) {
-> +		unlock_memory_hotplug();
-> +		return ret;
-> +	}
->  	arg.start_pfn = pfn;
->  	arg.nr_pages = nr_pages;
->  	arg.status_change_nid = -1;
-> 
-> 
+Commits d6629859 and ce2d52cc introduced an rbtree of message
+priorities, and usage of rb_init_node() to initialize the corresponding
+nodes. As it turns out, rb_init_node() is unnecessary here, as the
+nodes are fully initialized on insertion by rb_link_node() and the
+code doesn't access nodes that aren't inserted on the rbtree.
+
+Removing the rb_init_node() calls as I removed that function during
+rbtree API cleanups (the only other use of it was in a place that similarly
+didn't require it).
+
+Signed-off-by: Michel Lespinasse <walken@google.com>
+Acked-by: Doug Ledford <dledford@redhat.com>
+---
+ ipc/mqueue.c |    3 ---
+ 1 files changed, 0 insertions(+), 3 deletions(-)
+
+diff --git a/ipc/mqueue.c b/ipc/mqueue.c
+index 8ce5769..4439c69 100644
+--- a/ipc/mqueue.c
++++ b/ipc/mqueue.c
+@@ -142,7 +142,6 @@ static int msg_insert(struct msg_msg *msg, struct mqueue_inode_info *info)
+ 		leaf = kmalloc(sizeof(*leaf), GFP_ATOMIC);
+ 		if (!leaf)
+ 			return -ENOMEM;
+-		rb_init_node(&leaf->rb_node);
+ 		INIT_LIST_HEAD(&leaf->msg_list);
+ 		info->qsize += sizeof(*leaf);
+ 	}
+@@ -1041,7 +1040,6 @@ SYSCALL_DEFINE5(mq_timedsend, mqd_t, mqdes, const char __user *, u_msg_ptr,
+ 
+ 	if (!info->node_cache && new_leaf) {
+ 		/* Save our speculative allocation into the cache */
+-		rb_init_node(&new_leaf->rb_node);
+ 		INIT_LIST_HEAD(&new_leaf->msg_list);
+ 		info->node_cache = new_leaf;
+ 		info->qsize += sizeof(*new_leaf);
+@@ -1149,7 +1147,6 @@ SYSCALL_DEFINE5(mq_timedreceive, mqd_t, mqdes, char __user *, u_msg_ptr,
+ 
+ 	if (!info->node_cache && new_leaf) {
+ 		/* Save our speculative allocation into the cache */
+-		rb_init_node(&new_leaf->rb_node);
+ 		INIT_LIST_HEAD(&new_leaf->msg_list);
+ 		info->node_cache = new_leaf;
+ 		info->qsize += sizeof(*new_leaf);
+-- 
+1.7.7.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
