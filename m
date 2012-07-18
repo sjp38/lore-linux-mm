@@ -1,138 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx159.postini.com [74.125.245.159])
-	by kanga.kvack.org (Postfix) with SMTP id 837F26B005A
-	for <linux-mm@kvack.org>; Tue, 17 Jul 2012 22:41:26 -0400 (EDT)
-Date: Wed, 18 Jul 2012 11:41:57 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [RFC 3/3] memory-hotplug: bug fix race between isolation and
- allocation
-Message-ID: <20120718024157.GA31180@bbox>
-References: <1342508505-23492-1-git-send-email-minchan@kernel.org>
- <1342508505-23492-4-git-send-email-minchan@kernel.org>
- <CAA_GA1dh0RYT5wfOB=t8-XoeHOzRJCmQJifnUTGLZfjNwx2a5w@mail.gmail.com>
- <20120717234003.GA26937@bbox>
- <CAA_GA1dWBZ+cj5LW6Q=XsP_GGvAh8Za2scaGS8nQcgfc9JTGQw@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAA_GA1dWBZ+cj5LW6Q=XsP_GGvAh8Za2scaGS8nQcgfc9JTGQw@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
+	by kanga.kvack.org (Postfix) with SMTP id 97F7F6B005A
+	for <linux-mm@kvack.org>; Tue, 17 Jul 2012 23:05:54 -0400 (EDT)
+Received: from /spool/local
+	by e28smtp03.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
+	Wed, 18 Jul 2012 08:35:51 +0530
+Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
+	by d28relay05.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q6I35ldn2294168
+	for <linux-mm@kvack.org>; Wed, 18 Jul 2012 08:35:48 +0530
+Received: from d28av04.in.ibm.com (loopback [127.0.0.1])
+	by d28av04.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q6I8ZZhW016661
+	for <linux-mm@kvack.org>; Wed, 18 Jul 2012 18:35:35 +1000
+From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Subject: [PATCH] mm/memcg: wrap mem_cgroup_from_css function
+Date: Wed, 18 Jul 2012 11:05:30 +0800
+Message-Id: <1342580730-25703-1-git-send-email-liwanp@linux.vnet.ibm.com>
+In-Reply-To: <a>
+References: <a>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Bob Liu <lliubbo@gmail.com>
-Cc: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>
+To: linux-mm@kvack.org
+Cc: Wanpeng Li <liwanp@linux.vnet.ibm.com>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Gavin Shan <shangw@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org
 
-On Wed, Jul 18, 2012 at 10:12:57AM +0800, Bob Liu wrote:
-> On Wed, Jul 18, 2012 at 7:40 AM, Minchan Kim <minchan@kernel.org> wrote:
-> > Hi Bob,
-> >
-> > On Tue, Jul 17, 2012 at 06:13:17PM +0800, Bob Liu wrote:
-> >> Hi Minchan,
-> >>
-> >> On Tue, Jul 17, 2012 at 3:01 PM, Minchan Kim <minchan@kernel.org> wrote:
-> >> > Like below, memory-hotplug makes race between page-isolation
-> >> > and page-allocation so it can hit BUG_ON in __offline_isolated_pages.
-> >> >
-> >> >         CPU A                                   CPU B
-> >> >
-> >> > start_isolate_page_range
-> >> > set_migratetype_isolate
-> >> > spin_lock_irqsave(zone->lock)
-> >> >
-> >> >                                 free_hot_cold_page(Page A)
-> >> >                                 /* without zone->lock */
-> >> >                                 migratetype = get_pageblock_migratetype(Page A);
-> >> >                                 /*
-> >> >                                  * Page could be moved into MIGRATE_MOVABLE
-> >> >                                  * of per_cpu_pages
-> >> >                                  */
-> >> >                                 list_add_tail(&page->lru, &pcp->lists[migratetype]);
-> >> >
-> >> > set_pageblock_isolate
-> >> > move_freepages_block
-> >> > drain_all_pages
-> >> >
-> >> >                                 /* Page A could be in MIGRATE_MOVABLE of free_list. */
-> >> >
-> >> > check_pages_isolated
-> >> > __test_page_isolated_in_pageblock
-> >> > /*
-> >> >  * We can't catch freed page which
-> >> >  * is free_list[MIGRATE_MOVABLE]
-> >> >  */
-> >> > if (PageBuddy(page A))
-> >> >         pfn += 1 << page_order(page A);
-> >> >
-> >> >                                 /* So, Page A could be allocated */
-> >> >
-> >> > __offline_isolated_pages
-> >> > /*
-> >> >  * BUG_ON hit or offline page
-> >> >  * which is used by someone
-> >> >  */
-> >> > BUG_ON(!PageBuddy(page A));
-> >> >
-> >> > Signed-off-by: Minchan Kim <minchan@kernel.org>
-> >> > ---
-> >> > I found this problem during code review so please confirm it.
-> >> > Kame?
-> >> >
-> >> >  mm/page_isolation.c |    5 ++++-
-> >> >  1 file changed, 4 insertions(+), 1 deletion(-)
-> >> >
-> >> > diff --git a/mm/page_isolation.c b/mm/page_isolation.c
-> >> > index acf65a7..4699d1f 100644
-> >> > --- a/mm/page_isolation.c
-> >> > +++ b/mm/page_isolation.c
-> >> > @@ -196,8 +196,11 @@ __test_page_isolated_in_pageblock(unsigned long pfn, unsigned long end_pfn)
-> >> >                         continue;
-> >> >                 }
-> >> >                 page = pfn_to_page(pfn);
-> >> > -               if (PageBuddy(page))
-> >> > +               if (PageBuddy(page)) {
-> >> >                         pfn += 1 << page_order(page);
-> >> > +                       if (get_page_migratetype(page) != MIGRATE_ISOLATE)
-> >> > +                               break;
-> >> > +               }
-> >>
-> >> test_page_isolated() already have check
-> >> get_pageblock_migratetype(page) != MIGRATE_ISOLATE.
-> >>
-> >
-> > That's why I send a patch.
-> > As I describe in description, pageblock migration type of get_page_migratetype(page)
-> > is inconsistent with free_list[migrationtype].
-> > I mean get_pageblock_migratetype(page) will return MIGRATE_ISOLATE but the page would be
-> > in free_list[MIGRATE_MOVABLE] so it could be allocated for someone if that race happens.
-> >
-> 
-> Sorry, I'm still not get the situation how this race happens.
-> 
-> set_pageblock_isolate
-> move_freepages_block
-> drain_all_pages
-> 
->                                 /* Page A could be in MIGRATE_MOVABLE
-> of free_list. */
-> 
-> I think move_freepages_block() will call list_move() to move Page A to
-> free_list[MIGRATE_ISOLATE], so this case can't happen?
+wrap mem_cgroup_from_css function to clarify get mem cgroup
+from cgroup_subsys_state.
 
-move_freepages_block handles only pages in free_list but Page A is on pcp, not free_list.
+Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Cc: Michal Hocko <mhocko@suse.cz>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Gavin Shan <shangw@linux.vnet.ibm.com>
+Cc: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Cc: linux-kernel@vger.kernel.org
+---
+ mm/memcontrol.c |   14 ++++++++++----
+ 1 files changed, 10 insertions(+), 4 deletions(-)
 
-> 
-> -- 
-> Thanks,
-> --Bob
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 58a08fc..20f6a15 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -396,6 +396,12 @@ static void mem_cgroup_put(struct mem_cgroup *memcg);
+ #include <net/sock.h>
+ #include <net/ip.h>
+ 
++static inline
++struct mem_cgroup *mem_cgroup_from_css(struct cgroup_subsys_state *s)
++{
++	return container_of(s, struct mem_cgroup, css);
++}
++
+ static bool mem_cgroup_is_root(struct mem_cgroup *memcg);
+ void sock_update_memcg(struct sock *sk)
+ {
+@@ -820,7 +826,7 @@ static void memcg_check_events(struct mem_cgroup *memcg, struct page *page)
+ 
+ struct mem_cgroup *mem_cgroup_from_cont(struct cgroup *cont)
+ {
+-	return container_of(cgroup_subsys_state(cont,
++	return mem_cgroup_from_css(cgroup_subsys_state(cont,
+ 				mem_cgroup_subsys_id), struct mem_cgroup,
+ 				css);
+ }
+@@ -835,7 +841,7 @@ struct mem_cgroup *mem_cgroup_from_task(struct task_struct *p)
+ 	if (unlikely(!p))
+ 		return NULL;
+ 
+-	return container_of(task_subsys_state(p, mem_cgroup_subsys_id),
++	return mem_cgroup_from_css(task_subsys_state(p, mem_cgroup_subsys_id),
+ 				struct mem_cgroup, css);
+ }
+ 
+@@ -922,7 +928,7 @@ struct mem_cgroup *mem_cgroup_iter(struct mem_cgroup *root,
+ 		css = css_get_next(&mem_cgroup_subsys, id + 1, &root->css, &id);
+ 		if (css) {
+ 			if (css == &root->css || css_tryget(css))
+-				memcg = container_of(css,
++				memcg = mem_cgroup_from_css(css,
+ 						     struct mem_cgroup, css);
+ 		} else
+ 			id = 0;
+@@ -2406,7 +2412,7 @@ static struct mem_cgroup *mem_cgroup_lookup(unsigned short id)
+ 	css = css_lookup(&mem_cgroup_subsys, id);
+ 	if (!css)
+ 		return NULL;
+-	return container_of(css, struct mem_cgroup, css);
++	return mem_cgroup_from_css(css, struct mem_cgroup, css);
+ }
+ 
+ struct mem_cgroup *try_get_mem_cgroup_from_page(struct page *page)
 -- 
-Kind regards,
-Minchan Kim
+1.7.5.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
