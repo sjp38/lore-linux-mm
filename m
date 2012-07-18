@@ -1,30 +1,28 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx159.postini.com [74.125.245.159])
-	by kanga.kvack.org (Postfix) with SMTP id 9CDB16B007D
-	for <linux-mm@kvack.org>; Wed, 18 Jul 2012 06:14:25 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
+	by kanga.kvack.org (Postfix) with SMTP id 318FD6B0081
+	for <linux-mm@kvack.org>; Wed, 18 Jul 2012 06:16:13 -0400 (EDT)
 Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 2EACD3EE0B5
-	for <linux-mm@kvack.org>; Wed, 18 Jul 2012 19:14:24 +0900 (JST)
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 5FAC03EE0C3
+	for <linux-mm@kvack.org>; Wed, 18 Jul 2012 19:16:11 +0900 (JST)
 Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 1861045DE7E
-	for <linux-mm@kvack.org>; Wed, 18 Jul 2012 19:14:24 +0900 (JST)
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 40D5F45DEB9
+	for <linux-mm@kvack.org>; Wed, 18 Jul 2012 19:16:11 +0900 (JST)
 Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id E999445DE9E
-	for <linux-mm@kvack.org>; Wed, 18 Jul 2012 19:14:23 +0900 (JST)
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 1BE0E45DEB5
+	for <linux-mm@kvack.org>; Wed, 18 Jul 2012 19:16:11 +0900 (JST)
 Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id DC8971DB8038
-	for <linux-mm@kvack.org>; Wed, 18 Jul 2012 19:14:23 +0900 (JST)
-Received: from g01jpexchyt06.g01.fujitsu.local (g01jpexchyt06.g01.fujitsu.local [10.128.194.45])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 8AB6E1DB803F
-	for <linux-mm@kvack.org>; Wed, 18 Jul 2012 19:14:23 +0900 (JST)
-Message-ID: <50068C6B.3040707@jp.fujitsu.com>
-Date: Wed, 18 Jul 2012 19:14:03 +0900
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 09F431DB8040
+	for <linux-mm@kvack.org>; Wed, 18 Jul 2012 19:16:11 +0900 (JST)
+Received: from g01jpexchyt10.g01.fujitsu.local (g01jpexchyt10.g01.fujitsu.local [10.128.194.49])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id A03511DB803F
+	for <linux-mm@kvack.org>; Wed, 18 Jul 2012 19:16:10 +0900 (JST)
+Message-ID: <50068CD7.9070804@jp.fujitsu.com>
+Date: Wed, 18 Jul 2012 19:15:51 +0900
 From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: [RFC PATCH v4 9/13] memory-hotplug : move register_page_bootmem_info_node
- and put_page_bootmem for sparse-vmemmap
-References: <50068974.1070409@jp.fujitsu.com>
-In-Reply-To: <50068974.1070409@jp.fujitsu.com>
+Subject: [RFC PATCH v4 10/13] memory-hotplug : implement register_page_bootmem_info_section
+ of sparse-vmemmap
 Content-Type: text/plain; charset="ISO-2022-JP"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -32,9 +30,10 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org
 Cc: rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, wency@cn.fujitsu.com
 
-For implementing register_page_bootmem_info_node of sparse-vmemmap, 
-register_page_bootmem_info_node and put_page_bootmem are moved to
-memory_hotplug.c
+For removing memmap region of sparse-vmemmap which is allocated bootmem,
+memmap region of sparse-vmemmap needs to be registered by get_page_bootmem().
+So the patch searches pages of virtual mapping and registers the pages by
+get_page_bootmem().
 
 CC: David Rientjes <rientjes@google.com>
 CC: Jiang Liu <liuj97@gmail.com>
@@ -49,72 +48,144 @@ CC: Wen Congyang <wency@cn.fujitsu.com>
 Signed-off-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 
 ---
- include/linux/memory_hotplug.h |    9 ---------
- mm/memory_hotplug.c            |    8 ++++++--
- 2 files changed, 6 insertions(+), 11 deletions(-)
+ arch/x86/mm/init_64.c          |   52 +++++++++++++++++++++++++++++++++++++++++
+ include/linux/memory_hotplug.h |    2 +
+ include/linux/mm.h             |    3 +-
+ mm/memory_hotplug.c            |   23 +++++++++++++++---
+ 4 files changed, 76 insertions(+), 4 deletions(-)
 
-Index: linux-3.5-rc6/include/linux/memory_hotplug.h
-===================================================================
---- linux-3.5-rc6.orig/include/linux/memory_hotplug.h	2012-07-18 18:00:40.461982690 +0900
-+++ linux-3.5-rc6/include/linux/memory_hotplug.h	2012-07-18 18:01:24.217435670 +0900
-@@ -160,17 +160,8 @@ static inline void arch_refresh_nodedata
- #endif /* CONFIG_NUMA */
- #endif /* CONFIG_HAVE_ARCH_NODEDATA_EXTENSION */
- 
--#ifdef CONFIG_SPARSEMEM_VMEMMAP
--static inline void register_page_bootmem_info_node(struct pglist_data *pgdat)
--{
--}
--static inline void put_page_bootmem(struct page *page)
--{
--}
--#else
- extern void register_page_bootmem_info_node(struct pglist_data *pgdat);
- extern void put_page_bootmem(struct page *page);
--#endif
- 
- /*
-  * Lock for memory hotplug guarantees 1) all callbacks for memory hotplug
 Index: linux-3.5-rc6/mm/memory_hotplug.c
 ===================================================================
---- linux-3.5-rc6.orig/mm/memory_hotplug.c	2012-07-18 18:01:12.586581077 +0900
-+++ linux-3.5-rc6/mm/memory_hotplug.c	2012-07-18 18:01:24.221435622 +0900
-@@ -91,7 +91,6 @@ static void release_memory_resource(stru
+--- linux-3.5-rc6.orig/mm/memory_hotplug.c	2012-07-18 18:01:24.221435622 +0900
++++ linux-3.5-rc6/mm/memory_hotplug.c	2012-07-18 18:01:28.156386427 +0900
+@@ -91,8 +91,8 @@ static void release_memory_resource(stru
  }
  
  #ifdef CONFIG_MEMORY_HOTPLUG_SPARSE
--#ifndef CONFIG_SPARSEMEM_VMEMMAP
- static void get_page_bootmem(unsigned long info,  struct page *page,
- 			     unsigned long type)
+-static void get_page_bootmem(unsigned long info,  struct page *page,
+-			     unsigned long type)
++void get_page_bootmem(unsigned long info,  struct page *page,
++		      unsigned long type)
  {
-@@ -127,6 +126,7 @@ void __ref put_page_bootmem(struct page 
+ 	unsigned long page_type;
+ 
+@@ -164,8 +164,25 @@ static void register_page_bootmem_info_s
  
  }
- 
-+#ifndef CONFIG_SPARSEMEM_VMEMMAP
- static void register_page_bootmem_info_section(unsigned long start_pfn)
+ #else
+-static inline void register_page_bootmem_info_section(unsigned long start_pfn)
++static void register_page_bootmem_info_section(unsigned long start_pfn)
  {
- 	unsigned long *usemap, mapsize, section_nr, i;
-@@ -163,6 +163,11 @@ static void register_page_bootmem_info_s
- 		get_page_bootmem(section_nr, page, MIX_SECTION_INFO);
- 
++	unsigned long mapsize, section_nr;
++	struct mem_section *ms;
++	struct page *page, *memmap;
++
++	if (!pfn_valid(start_pfn))
++		return;
++
++	section_nr = pfn_to_section_nr(start_pfn);
++	ms = __nr_to_section(section_nr);
++
++	memmap = sparse_decode_mem_map(ms->section_mem_map, section_nr);
++
++	page = virt_to_page(memmap);
++	mapsize = sizeof(struct page) * PAGES_PER_SECTION;
++	mapsize = PAGE_ALIGN(mapsize) >> PAGE_SHIFT;
++
++	register_page_bootmem_memmap(section_nr, memmap, PAGES_PER_SECTION);
  }
-+#else
-+static inline void register_page_bootmem_info_section(unsigned long start_pfn)
+ #endif
+ 
+Index: linux-3.5-rc6/include/linux/mm.h
+===================================================================
+--- linux-3.5-rc6.orig/include/linux/mm.h	2012-07-18 17:59:51.225598230 +0900
++++ linux-3.5-rc6/include/linux/mm.h	2012-07-18 18:01:28.161386365 +0900
+@@ -1586,7 +1586,8 @@ int vmemmap_populate_basepages(struct pa
+ 						unsigned long pages, int node);
+ int vmemmap_populate(struct page *start_page, unsigned long pages, int node);
+ void vmemmap_populate_print_last(void);
+-
++void register_page_bootmem_memmap(unsigned long section_nr, struct page *map,
++				  unsigned long size);
+ 
+ enum mf_flags {
+ 	MF_COUNT_INCREASED = 1 << 0,
+Index: linux-3.5-rc6/arch/x86/mm/init_64.c
+===================================================================
+--- linux-3.5-rc6.orig/arch/x86/mm/init_64.c	2012-07-18 17:59:51.221598278 +0900
++++ linux-3.5-rc6/arch/x86/mm/init_64.c	2012-07-18 18:01:28.169386264 +0900
+@@ -978,6 +978,58 @@ vmemmap_populate(struct page *start_page
+ 	return 0;
+ }
+ 
++void register_page_bootmem_memmap(unsigned long section_nr,
++				  struct page *start_page, unsigned long size)
 +{
++	unsigned long addr = (unsigned long)start_page;
++	unsigned long end = (unsigned long)(start_page + size);
++	unsigned long next;
++	pgd_t *pgd;
++	pud_t *pud;
++	pmd_t *pmd;
++
++	for (; addr < end; addr = next) {
++		pte_t *pte = NULL;
++
++		pgd = pgd_offset_k(addr);
++		if (pgd_none(*pgd)) {
++			next = (addr + PAGE_SIZE) & PAGE_MASK;
++			continue;
++		}
++		get_page_bootmem(section_nr, pgd_page(*pgd), MIX_SECTION_INFO);
++
++		pud = pud_offset(pgd, addr);
++		if (pud_none(*pud)) {
++			next = (addr + PAGE_SIZE) & PAGE_MASK;
++			continue;
++		}
++		get_page_bootmem(section_nr, pud_page(*pud), MIX_SECTION_INFO);
++
++		if (!cpu_has_pse) {
++			next = (addr + PAGE_SIZE) & PAGE_MASK;
++			pmd = pmd_offset(pud, addr);
++			if (pmd_none(*pmd))
++				continue;
++			get_page_bootmem(section_nr, pmd_page(*pmd),
++					 MIX_SECTION_INFO);
++
++			pte = pte_offset_kernel(pmd, addr);
++			if (pte_none(*pte))
++				continue;
++			get_page_bootmem(section_nr, pte_page(*pte),
++					 SECTION_INFO);
++		} else {
++			next = pmd_addr_end(addr, end);
++
++			pmd = pmd_offset(pud, addr);
++			if (pmd_none(*pmd))
++				continue;
++			get_page_bootmem(section_nr, pmd_page(*pmd),
++					 SECTION_INFO);
++		}
++	}
 +}
-+#endif
- 
- void register_page_bootmem_info_node(struct pglist_data *pgdat)
++
+ void __meminit vmemmap_populate_print_last(void)
  {
-@@ -198,7 +203,6 @@ void register_page_bootmem_info_node(str
- 		register_page_bootmem_info_section(pfn);
+ 	if (p_start) {
+Index: linux-3.5-rc6/include/linux/memory_hotplug.h
+===================================================================
+--- linux-3.5-rc6.orig/include/linux/memory_hotplug.h	2012-07-18 18:01:24.217435670 +0900
++++ linux-3.5-rc6/include/linux/memory_hotplug.h	2012-07-18 18:01:28.173386216 +0900
+@@ -162,6 +162,8 @@ static inline void arch_refresh_nodedata
  
- }
--#endif /* !CONFIG_SPARSEMEM_VMEMMAP */
+ extern void register_page_bootmem_info_node(struct pglist_data *pgdat);
+ extern void put_page_bootmem(struct page *page);
++extern void get_page_bootmem(unsigned long ingo, struct page *page,
++			     unsigned long type);
  
- static void grow_zone_span(struct zone *zone, unsigned long start_pfn,
- 			   unsigned long end_pfn)
+ /*
+  * Lock for memory hotplug guarantees 1) all callbacks for memory hotplug
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
