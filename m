@@ -1,66 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
-	by kanga.kvack.org (Postfix) with SMTP id 4B2526B005A
-	for <linux-mm@kvack.org>; Wed, 18 Jul 2012 12:53:07 -0400 (EDT)
-Received: by ggm4 with SMTP id 4so2237083ggm.14
-        for <linux-mm@kvack.org>; Wed, 18 Jul 2012 09:53:06 -0700 (PDT)
-Message-ID: <5006E9E6.2030004@gmail.com>
-Date: Thu, 19 Jul 2012 00:52:54 +0800
-From: Jiang Liu <liuj97@gmail.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH] mm/slub: fix a BUG_ON() when offlining a memory node
- and CONFIG_SLUB_DEBUG is on
-References: <1342543816-10853-1-git-send-email-jiang.liu@huawei.com> <alpine.DEB.2.00.1207171237320.15177@router.home>
-In-Reply-To: <alpine.DEB.2.00.1207171237320.15177@router.home>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
+	by kanga.kvack.org (Postfix) with SMTP id 699746B005A
+	for <linux-mm@kvack.org>; Wed, 18 Jul 2012 12:59:44 -0400 (EDT)
+Received: from /spool/local
+	by e7.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
+	Wed, 18 Jul 2012 12:59:42 -0400
+Received: from d01relay03.pok.ibm.com (d01relay03.pok.ibm.com [9.56.227.235])
+	by d01dlp02.pok.ibm.com (Postfix) with ESMTP id 398F66E8CFA
+	for <linux-mm@kvack.org>; Wed, 18 Jul 2012 12:56:02 -0400 (EDT)
+Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
+	by d01relay03.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q6IGu1HS283260
+	for <linux-mm@kvack.org>; Wed, 18 Jul 2012 12:56:01 -0400
+Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
+	by d01av03.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q6IGu1WQ026480
+	for <linux-mm@kvack.org>; Wed, 18 Jul 2012 13:56:01 -0300
+From: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Subject: [PATCH 2/3] zsmalloc: prevent mappping in interrupt context
+Date: Wed, 18 Jul 2012 11:55:55 -0500
+Message-Id: <1342630556-28686-2-git-send-email-sjenning@linux.vnet.ibm.com>
+In-Reply-To: <1342630556-28686-1-git-send-email-sjenning@linux.vnet.ibm.com>
+References: <1342630556-28686-1-git-send-email-sjenning@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Mel Gorman <mgorman@suse.de>, Jianguo Wu <wujianguo@huawei.com>, Jiang Liu <jiang.liu@huawei.com>, Tony Luck <tony.luck@intel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, Minchan Kim <minchan@kernel.org>, Keping Chen <chenkeping@huawei.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Nitin Gupta <ngupta@vflare.org>, Minchan Kim <minchan@kernel.org>, Robert Jennings <rcj@linux.vnet.ibm.com>, linux-mm@kvack.org, devel@driverdev.osuosl.org, linux-kernel@vger.kernel.org
 
-Hi Chris,
-	I found the previous analysis of the BUG_ON() issue is incorrect after
-another round of code review. 
-	The really issue is that function early_kmem_cache_node_alloc() calls
-inc_slabs_node(kmem_cache_node, node, page->objects) to increase the object 
-count on local node no matter whether page is allocated from local or remote
-node. With current implementation it's OK because every memory node has normal
-memory so page is allocated from local node. Now we are working on a patch set
-to improve memory hotplug. The basic idea is to to let some memory nodes only
-host ZONE_MOVABLE zone, so we could easily remove the whole memory node when 
-needed. That means some memory nodes have no ZONE_NORMAL/ZONE_DMA, and the page
-will be allocated from remote node in function early_kmem_cache_node_alloc().
-But early_kmem_cache_node_alloc() still increases object count on local node,
-which triggers the BUG_ON eventually when removing the affected memory node.
-	I will try to work out another version for it.
-	Thanks!
-	Gerry
+Because we use per-cpu mapping areas shared among the
+pools/users, we can't allow mapping in interrupt context
+because it can corrupt another users mappings.
 
-On 07/18/2012 01:39 AM, Christoph Lameter wrote:
-> On Wed, 18 Jul 2012, Jiang Liu wrote:
-> 
->> From: Jianguo Wu <wujianguo@huawei.com>
->>
->> From: Jianguo Wu <wujianguo@huawei.com>
->>
->> SLUB allocator may cause a BUG_ON() when offlining a memory node if
->> CONFIG_SLUB_DEBUG is on. The scenario is:
->>
->> 1) when creating kmem_cache_node slab, it cause inc_slabs_node() twice.
->> early_kmem_cache_node_alloc
->> 	->new_slab
->> 		->inc_slabs_node
->> 	->inc_slabs_node
-> 
-> New slab will not be able to increment the slab counter. It will
-> check that there is no per node structure yet and then skip the inc slabs
-> node.
-> 
-> This suggests that a call to early_kmem_cache_node_alloc was not needed
-> because the per node structure already existed. Lets fix that instead.
-> 
+Signed-off-by: Seth Jennings <sjenning@linux.vnet.ibm.com>
+---
+ drivers/staging/zsmalloc/zsmalloc-main.c |    8 ++++++++
+ 1 file changed, 8 insertions(+)
 
+diff --git a/drivers/staging/zsmalloc/zsmalloc-main.c b/drivers/staging/zsmalloc/zsmalloc-main.c
+index 3c83c65..b86133f 100644
+--- a/drivers/staging/zsmalloc/zsmalloc-main.c
++++ b/drivers/staging/zsmalloc/zsmalloc-main.c
+@@ -75,6 +75,7 @@
+ #include <linux/cpumask.h>
+ #include <linux/cpu.h>
+ #include <linux/vmalloc.h>
++#include <linux/hardirq.h>
+ 
+ #include "zsmalloc.h"
+ #include "zsmalloc_int.h"
+@@ -761,6 +762,13 @@ void *zs_map_object(struct zs_pool *pool, unsigned long handle,
+ 
+ 	BUG_ON(!handle);
+ 
++	/*
++	 * Because we use per-cpu mapping areas shared among the
++	 * pools/users, we can't allow mapping in interrupt context
++	 * because it can corrupt another users mappings.
++	 */
++	BUG_ON(in_interrupt());
++
+ 	obj_handle_to_location(handle, &page, &obj_idx);
+ 	get_zspage_mapping(get_first_page(page), &class_idx, &fg);
+ 	class = &pool->size_class[class_idx];
+-- 
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
