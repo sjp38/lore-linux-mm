@@ -1,53 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
-	by kanga.kvack.org (Postfix) with SMTP id 8569E6B0069
-	for <linux-mm@kvack.org>; Thu, 19 Jul 2012 12:57:56 -0400 (EDT)
-Received: by ghrr18 with SMTP id r18so3774079ghr.14
-        for <linux-mm@kvack.org>; Thu, 19 Jul 2012 09:57:55 -0700 (PDT)
-Date: Thu, 19 Jul 2012 09:57:50 -0700
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: +
- memory-hotplug-fix-kswapd-looping-forever-problem-fix-fix.patch added to
- -mm tree
-Message-ID: <20120719165750.GP24336@google.com>
-References: <20120717233115.A8E411E005C@wpzn4.hot.corp.google.com>
- <20120718012200.GA27770@bbox>
- <20120718143810.b15564b3.akpm@linux-foundation.org>
- <20120719001002.GA6579@bbox>
- <20120719002102.GN24336@google.com>
- <20120719004845.GA7346@bbox>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120719004845.GA7346@bbox>
+Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
+	by kanga.kvack.org (Postfix) with SMTP id 938476B004D
+	for <linux-mm@kvack.org>; Thu, 19 Jul 2012 19:34:26 -0400 (EDT)
+Subject: [PATCH] Cgroup: Fix memory accounting scalability in
+ shrink_page_list
+From: Tim Chen <tim.c.chen@linux.intel.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Thu, 19 Jul 2012 16:34:26 -0700
+Message-ID: <1342740866.13492.50.camel@schen9-DESK>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Ralf Baechle <ralf@linux-mips.org>, aaditya.kumar.30@gmail.com, kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Yinghai Lu <yinghai@kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Minchan Kim <minchan@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, "andi.kleen" <andi.kleen@intel.com>, linux-mm <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
 
-Hello,
+Hi,
 
-On Thu, Jul 19, 2012 at 09:48:45AM +0900, Minchan Kim wrote:
-> > Maybe trigger warning if some fields which have to be zero aren't?
-> 
-> It's not good because this causes adding new WARNING in that part
-> whenever we add new field in pgdat. It nullify this patch's goal.
+I noticed in a multi-process parallel files reading benchmark I ran on a
+8 socket machine,  throughput slowed down by a factor of 8 when I ran
+the benchmark within a cgroup container.  I traced the problem to the
+following code path (see below) when we are trying to reclaim memory
+from file cache.  The res_counter_uncharge function is called on every
+page that's reclaimed and created heavy lock contention.  The patch
+below allows the reclaimed pages to be uncharged from the resource
+counter in batch and recovered the regression. 
 
-Maybe just do that on some fields?  The goal is catching unlikely case
-where archs leave the struct with garbage data.  I don't think full
-coverage is an absolute requirement.  Or reorganize the fields such
-that fields unused by boot code is collected at the top so that it can
-be memset after certain offset?
+Tim
 
-But, really, given how the structure is used, I think we're better off
-just making sure all archs clear them and maybe have a sanity check or
-two just in case.  It's not like breakage on that front is gonna be
-subtle.
+     40.67%           usemem  [kernel.kallsyms]                   [k] _raw_spin_lock
+                      |
+                      --- _raw_spin_lock
+                         |
+                         |--92.61%-- res_counter_uncharge
+                         |          |
+                         |          |--100.00%-- __mem_cgroup_uncharge_common
+                         |          |          |
+                         |          |          |--100.00%-- mem_cgroup_uncharge_cache_page
+                         |          |          |          __remove_mapping
+                         |          |          |          shrink_page_list
+                         |          |          |          shrink_inactive_list
+                         |          |          |          shrink_mem_cgroup_zone
+                         |          |          |          shrink_zone
+                         |          |          |          do_try_to_free_pages
+                         |          |          |          try_to_free_pages
+                         |          |          |          __alloc_pages_nodemask
+                         |          |          |          alloc_pages_current
 
-Thanks.
 
--- 
-tejun
+---
+Signed-off-by: Tim Chen <tim.c.chen@linux.intel.com>
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 33dc256..aac5672 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -779,6 +779,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+ 
+ 	cond_resched();
+ 
++	mem_cgroup_uncharge_start();
+ 	while (!list_empty(page_list)) {
+ 		enum page_references references;
+ 		struct address_space *mapping;
+@@ -1026,6 +1027,7 @@ keep_lumpy:
+ 
+ 	list_splice(&ret_pages, page_list);
+ 	count_vm_events(PGACTIVATE, pgactivate);
++	mem_cgroup_uncharge_end();
+ 	*ret_nr_dirty += nr_dirty;
+ 	*ret_nr_writeback += nr_writeback;
+ 	return nr_reclaimed;
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
