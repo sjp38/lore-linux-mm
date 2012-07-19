@@ -1,60 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
-	by kanga.kvack.org (Postfix) with SMTP id AA7EB6B00A1
-	for <linux-mm@kvack.org>; Thu, 19 Jul 2012 10:37:08 -0400 (EDT)
-From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 34/34] mm/hugetlb: fix warning in alloc_huge_page/dequeue_huge_page_vma
-Date: Thu, 19 Jul 2012 15:36:44 +0100
-Message-Id: <1342708604-26540-35-git-send-email-mgorman@suse.de>
-In-Reply-To: <1342708604-26540-1-git-send-email-mgorman@suse.de>
-References: <1342708604-26540-1-git-send-email-mgorman@suse.de>
+Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
+	by kanga.kvack.org (Postfix) with SMTP id 2FF476B00B9
+	for <linux-mm@kvack.org>; Thu, 19 Jul 2012 10:42:16 -0400 (EDT)
+Date: Thu, 19 Jul 2012 16:42:13 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [RFC PATCH] mm: hugetlbfs: Close race during teardown of
+ hugetlbfs shared page tables
+Message-ID: <20120719144213.GJ2864@tiehlicka.suse.cz>
+References: <20120718104220.GR9222@suse.de>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120718104220.GR9222@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Stable <stable@vger.kernel.org>
-Cc: "Linux-MM <linux-mm"@kvack.org, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Linux-MM <linux-mm@kvack.org>, Hugh Dickins <hughd@google.com>, David Gibson <david@gibson.dropbear.id.au>, Kenneth W Chen <kenneth.w.chen@intel.com>, LKML <linux-kernel@vger.kernel.org>
 
-From: Konstantin Khlebnikov <khlebnikov@openvz.org>
+[/me puts the patch destroyer glasses on]
 
-Stable note: Not tracked in Bugzilla. [get|put]_mems_allowed() is extremely
-	expensive and severely impacted page allocator performance. This
-	is part of a series of patches that reduce page allocator overhead.
+On Wed 18-07-12 11:43:09, Mel Gorman wrote:
+[...]
+> diff --git a/arch/x86/mm/hugetlbpage.c b/arch/x86/mm/hugetlbpage.c
+> index f6679a7..0524556 100644
+> --- a/arch/x86/mm/hugetlbpage.c
+> +++ b/arch/x86/mm/hugetlbpage.c
+> @@ -68,14 +68,37 @@ static void huge_pmd_share(struct mm_struct *mm, unsigned long addr, pud_t *pud)
+>  	struct vm_area_struct *svma;
+>  	unsigned long saddr;
+>  	pte_t *spte = NULL;
+> +	spinlock_t *spage_table_lock = NULL;
+> +	struct rw_semaphore *smmap_sem = NULL;
+>  
+>  	if (!vma_shareable(vma, addr))
+>  		return;
+>  
+> +retry:
+>  	mutex_lock(&mapping->i_mmap_mutex);
+>  	vma_prio_tree_foreach(svma, &iter, &mapping->i_mmap, idx, idx) {
+>  		if (svma == vma)
+>  			continue;
+> +		if (svma->vm_mm == vma->vm_mm)
+> +			continue;
+> +
+> +		/*
+> +		 * The target mm could be in the process of tearing down
+> +		 * its page tables and the i_mmap_mutex on its own is
+> +		 * not sufficient. To prevent races against teardown and
+> +		 * pagetable updates, we acquire the mmap_sem and pagetable
+> +		 * lock of the remote address space. down_read_trylock()
+> +		 * is necessary as the other process could also be trying
+> +		 * to share pagetables with the current mm.
+> +		 */
+> +		if (!down_read_trylock(&svma->vm_mm->mmap_sem)) {
+> +			mutex_unlock(&mapping->i_mmap_mutex);
+> +			goto retry;
+> +		}
+> +
 
-Fix a gcc warning (and bug?) introduced in cc9a6c877 ("cpuset: mm: reduce
-large amounts of memory barrier related damage v3")
+I am afraid this can easily cause a dead lock. Consider
+fork
+  dup_mmap
+    down_write(&oldmm->mmap_sem)
+    copy_page_range
+      copy_hugetlb_page_range
+        huge_pte_alloc
 
-Local variable "page" can be uninitialized if the nodemask from vma policy
-does not intersects with nodemask from cpuset.  Even if it doesn't happens
-it is better to initialize this variable explicitly than to introduce
-a kernel oops in a weird corner case.
+svma could belong to oldmm and then we would loop for ever. 
+svma->vm_mm == vma->vm_mm doesn't help because vma is child's one and mm
+differ in that case. I am wondering you didn't hit this while testing.
+It would suggest that the ptes are not populated yet because we didn't
+let parent play and then other children could place its vma in the list
+before parent?
 
-mm/hugetlb.c: In function `alloc_huge_page':
-mm/hugetlb.c:1135:5: warning: `page' may be used uninitialized in this function
-
-Signed-off-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
-Acked-by: Mel Gorman <mgorman@suse.de>
-Acked-by: David Rientjes <rientjes@google.com>
-Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
-Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
-Signed-off-by: Mel Gorman <mgorman@suse.de>
----
- mm/hugetlb.c |    2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index 64f2b7a..ae60a53 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -454,7 +454,7 @@ static struct page *dequeue_huge_page_vma(struct hstate *h,
- 				struct vm_area_struct *vma,
- 				unsigned long address, int avoid_reserve)
- {
--	struct page *page;
-+	struct page *page = NULL;
- 	struct mempolicy *mpol;
- 	nodemask_t *nodemask;
- 	struct zonelist *zonelist;
 -- 
-1.7.9.2
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
