@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
-	by kanga.kvack.org (Postfix) with SMTP id 435716B0070
-	for <linux-mm@kvack.org>; Thu, 19 Jul 2012 10:37:06 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
+	by kanga.kvack.org (Postfix) with SMTP id 9E2F96B009C
+	for <linux-mm@kvack.org>; Thu, 19 Jul 2012 10:37:05 -0400 (EDT)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 30/34] mm: vmscan: Do not force kswapd to scan small targets
-Date: Thu, 19 Jul 2012 15:36:40 +0100
-Message-Id: <1342708604-26540-31-git-send-email-mgorman@suse.de>
+Subject: [PATCH 29/34] mm: test PageSwapBacked in lumpy reclaim
+Date: Thu, 19 Jul 2012 15:36:39 +0100
+Message-Id: <1342708604-26540-30-git-send-email-mgorman@suse.de>
 In-Reply-To: <1342708604-26540-1-git-send-email-mgorman@suse.de>
 References: <1342708604-26540-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -13,53 +13,41 @@ List-ID: <linux-mm.kvack.org>
 To: Stable <stable@vger.kernel.org>
 Cc: "Linux-MM <linux-mm"@kvack.org, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
 
-commit ad2b8e601099a23dffffb53f91c18d874fe98854 upstream - WARNING: partial backport only
+From: Hugh Dickins <hughd@google.com>
 
-Stable note: Not tracked in Bugzilla. This patch is very controversial for
-	-stable. The upstream patch is addressing a completely different
-	issue but accidentally contained an important fix. The workload
-	in question was running memcached and then started IO in the
-	background. memcached should stay resident but without this patch
-	it gets swapped. Sometimes this manifests as a drop in throughput
-	but mostly it was observed through /proc/vmstat.
+commit 043bcbe5ec51e0478ef2b44acef17193e01d7f70 upstream.
 
-Commit [246e87a9: memcg: fix get_scan_count() for small targets] was
-meant to fix a problem whereby small scan targets on memcg were ignored
-causing priority to raise too sharply. It forced scanning to take place
-if the target was small, memcg or kswapd.
+Stable note: Not tracked in Bugzilla. There were reports of shared
+	mapped pages being unfairly reclaimed in comparison to older kernels.
+	This is being addressed over time. Even though the subject
+	refers to lumpy reclaim, it impacts compaction as well.
 
->From the time it was introduced it cause excessive reclaim by kswapd
-with workloads being pushed to swap that previously would have stayed
-resident. This was accidentally fixed by commit [ad2b8e60: mm: memcg:
-remove optimization of keeping the root_mem_cgroup LRU lists empty] but
-that patchset is not suitable for backporting.
+Lumpy reclaim does well to stop at a PageAnon when there's no swap, but
+better is to stop at any PageSwapBacked, which includes shmem/tmpfs too.
 
-The original patch came with no information on what workloads it benefits
-but the cost of it is obvious in that it forces scanning to take place
-on lists that would otherwise have been ignored such as small anonymous
-inactive lists. This patch partially reverts 246e87a9 so that small lists
-are not force scanned which means that IO-intensive workloads with small
-amounts of anonymous memory will not be swapped.
-
+Signed-off-by: Hugh Dickins <hughd@google.com>
+Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Reviewed-by: Minchan Kim <minchan@kernel.org>
+Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
 Signed-off-by: Mel Gorman <mgorman@suse.de>
 ---
- mm/vmscan.c |    3 ---
- 1 file changed, 3 deletions(-)
+ mm/vmscan.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/mm/vmscan.c b/mm/vmscan.c
-index e5382ad..49d8547 100644
+index da195c2..e5382ad 100644
 --- a/mm/vmscan.c
 +++ b/mm/vmscan.c
-@@ -1849,9 +1849,6 @@ static void get_scan_count(struct zone *zone, struct scan_control *sc,
- 	bool force_scan = false;
- 	unsigned long nr_force_scan[2];
+@@ -1199,7 +1199,7 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
+ 			 * anon page which don't already have a swap slot is
+ 			 * pointless.
+ 			 */
+-			if (nr_swap_pages <= 0 && PageAnon(cursor_page) &&
++			if (nr_swap_pages <= 0 && PageSwapBacked(cursor_page) &&
+ 			    !PageSwapCache(cursor_page))
+ 				break;
  
--	/* kswapd does zone balancing and needs to scan this zone */
--	if (scanning_global_lru(sc) && current_is_kswapd())
--		force_scan = true;
- 	/* memcg may have small limit and need to avoid priority drop */
- 	if (!scanning_global_lru(sc))
- 		force_scan = true;
 -- 
 1.7.9.2
 
