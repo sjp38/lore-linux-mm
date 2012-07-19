@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
-	by kanga.kvack.org (Postfix) with SMTP id B93316B0082
-	for <linux-mm@kvack.org>; Thu, 19 Jul 2012 10:36:55 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
+	by kanga.kvack.org (Postfix) with SMTP id 5E7756B0085
+	for <linux-mm@kvack.org>; Thu, 19 Jul 2012 10:36:57 -0400 (EDT)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 13/34] mm: compaction: make isolate_lru_page() filter-aware
-Date: Thu, 19 Jul 2012 15:36:23 +0100
-Message-Id: <1342708604-26540-14-git-send-email-mgorman@suse.de>
+Subject: [PATCH 15/34] mm: migration: clean up unmap_and_move()
+Date: Thu, 19 Jul 2012 15:36:25 +0100
+Message-Id: <1342708604-26540-16-git-send-email-mgorman@suse.de>
 In-Reply-To: <1342708604-26540-1-git-send-email-mgorman@suse.de>
 References: <1342708604-26540-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -13,93 +13,120 @@ List-ID: <linux-mm.kvack.org>
 To: Stable <stable@vger.kernel.org>
 Cc: "Linux-MM <linux-mm"@kvack.org, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
 
-From: Minchan Kim <minchan.kim@gmail.com>
+commit 0dabec93de633a87adfbbe1d800a4c56cd19d73b upstream.
 
-commit 39deaf8585152f1a35c1676d3d7dc6ae0fb65967 upstream.
+Stable note: Not tracked in Bugzilla. This patch makes later patches
+	easier to apply but has no other impact.
 
-Stable note: Not tracked in Bugzilla. THP and compaction disrupt the LRU
-	list leading to poor reclaim decisions which has a variable
-	performance impact.
-
-In async mode, compaction doesn't migrate dirty or writeback pages.  So,
-it's meaningless to pick the page and re-add it to lru list.
-
-Of course, when we isolate the page in compaction, the page might be dirty
-or writeback but when we try to migrate the page, the page would be not
-dirty, writeback.  So it could be migrated.  But it's very unlikely as
-isolate and migration cycle is much faster than writeout.
-
-So, this patch helps cpu overhead and prevent unnecessary LRU churning.
+unmap_and_move() is one a big messy function.  Clean it up.
 
 Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
-Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Acked-by: Mel Gorman <mgorman@suse.de>
-Acked-by: Rik van Riel <riel@redhat.com>
-Reviewed-by: Michal Hocko <mhocko@suse.cz>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Mel Gorman <mgorman@suse.de>
+Cc: Rik van Riel <riel@redhat.com>
+Cc: Michal Hocko <mhocko@suse.cz>
 Cc: Andrea Arcangeli <aarcange@redhat.com>
 Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
-Signed-off-by: Mel Gorman <mgorman@suse.de>
+Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
 ---
- include/linux/mmzone.h |    2 ++
- mm/compaction.c        |    7 +++++--
- mm/vmscan.c            |    3 +++
- 3 files changed, 10 insertions(+), 2 deletions(-)
+ mm/migrate.c |   59 ++++++++++++++++++++++++++++++++--------------------------
+ 1 file changed, 33 insertions(+), 26 deletions(-)
 
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index 5a5286d..632107e 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -162,6 +162,8 @@ static inline int is_unevictable_lru(enum lru_list l)
- #define ISOLATE_INACTIVE	((__force isolate_mode_t)0x1)
- /* Isolate active pages */
- #define ISOLATE_ACTIVE		((__force isolate_mode_t)0x2)
-+/* Isolate clean file */
-+#define ISOLATE_CLEAN		((__force isolate_mode_t)0x4)
+diff --git a/mm/migrate.c b/mm/migrate.c
+index 14d0a6a..e58ab66 100644
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -621,38 +621,18 @@ static int move_to_new_page(struct page *newpage, struct page *page,
+ 	return rc;
+ }
  
- /* LRU Isolation modes. */
- typedef unsigned __bitwise__ isolate_mode_t;
-diff --git a/mm/compaction.c b/mm/compaction.c
-index 4fbbbd0..61e68a5 100644
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -261,6 +261,7 @@ static isolate_migrate_t isolate_migratepages(struct zone *zone,
- 	unsigned long last_pageblock_nr = 0, pageblock_nr;
- 	unsigned long nr_scanned = 0, nr_isolated = 0;
- 	struct list_head *migratelist = &cc->migratepages;
-+	isolate_mode_t mode = ISOLATE_ACTIVE|ISOLATE_INACTIVE;
+-/*
+- * Obtain the lock on page, remove all ptes and migrate the page
+- * to the newly allocated page in newpage.
+- */
+-static int unmap_and_move(new_page_t get_new_page, unsigned long private,
+-			struct page *page, int force, bool offlining, bool sync)
++static int __unmap_and_move(struct page *page, struct page *newpage,
++				int force, bool offlining, bool sync)
+ {
+-	int rc = 0;
+-	int *result = NULL;
+-	struct page *newpage = get_new_page(page, private, &result);
++	int rc = -EAGAIN;
+ 	int remap_swapcache = 1;
+ 	int charge = 0;
+ 	struct mem_cgroup *mem;
+ 	struct anon_vma *anon_vma = NULL;
  
- 	/* Do not scan outside zone boundaries */
- 	low_pfn = max(cc->migrate_pfn, zone->zone_start_pfn);
-@@ -370,9 +371,11 @@ static isolate_migrate_t isolate_migratepages(struct zone *zone,
- 			continue;
- 		}
+-	if (!newpage)
+-		return -ENOMEM;
+-
+-	if (page_count(page) == 1) {
+-		/* page was freed from under us. So we are done. */
+-		goto move_newpage;
+-	}
+-	if (unlikely(PageTransHuge(page)))
+-		if (unlikely(split_huge_page(page)))
+-			goto move_newpage;
+-
+-	/* prepare cgroup just returns 0 or -ENOMEM */
+-	rc = -EAGAIN;
+-
+ 	if (!trylock_page(page)) {
+ 		if (!force || !sync)
+-			goto move_newpage;
++			goto out;
  
-+		if (!cc->sync)
-+			mode |= ISOLATE_CLEAN;
-+
- 		/* Try isolate the page */
--		if (__isolate_lru_page(page,
--				ISOLATE_ACTIVE|ISOLATE_INACTIVE, 0) != 0)
-+		if (__isolate_lru_page(page, mode, 0) != 0)
- 			continue;
- 
- 		VM_BUG_ON(PageTransCompound(page));
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 4bb2010..032f35e 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -1045,6 +1045,9 @@ int __isolate_lru_page(struct page *page, isolate_mode_t mode, int file)
- 
- 	ret = -EBUSY;
- 
-+	if ((mode & ISOLATE_CLEAN) && (PageDirty(page) || PageWriteback(page)))
-+		return ret;
-+
- 	if (likely(get_page_unless_zero(page))) {
  		/*
- 		 * Be careful not to clear PageLRU until after we're
+ 		 * It's not safe for direct compaction to call lock_page.
+@@ -668,7 +648,7 @@ static int unmap_and_move(new_page_t get_new_page, unsigned long private,
+ 		 * altogether.
+ 		 */
+ 		if (current->flags & PF_MEMALLOC)
+-			goto move_newpage;
++			goto out;
+ 
+ 		lock_page(page);
+ 	}
+@@ -785,8 +765,35 @@ uncharge:
+ 		mem_cgroup_end_migration(mem, page, newpage, rc == 0);
+ unlock:
+ 	unlock_page(page);
++out:
++	return rc;
++}
+ 
+-move_newpage:
++/*
++ * Obtain the lock on page, remove all ptes and migrate the page
++ * to the newly allocated page in newpage.
++ */
++static int unmap_and_move(new_page_t get_new_page, unsigned long private,
++			struct page *page, int force, bool offlining, bool sync)
++{
++	int rc = 0;
++	int *result = NULL;
++	struct page *newpage = get_new_page(page, private, &result);
++
++	if (!newpage)
++		return -ENOMEM;
++
++	if (page_count(page) == 1) {
++		/* page was freed from under us. So we are done. */
++		goto out;
++	}
++
++	if (unlikely(PageTransHuge(page)))
++		if (unlikely(split_huge_page(page)))
++			goto out;
++
++	rc = __unmap_and_move(page, newpage, force, offlining, sync);
++out:
+ 	if (rc != -EAGAIN) {
+  		/*
+  		 * A page that has been migrated has all references
 -- 
 1.7.9.2
 
