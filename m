@@ -1,410 +1,191 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx159.postini.com [74.125.245.159])
-	by kanga.kvack.org (Postfix) with SMTP id A4A7D6B005C
-	for <linux-mm@kvack.org>; Thu, 19 Jul 2012 05:29:31 -0400 (EDT)
-Date: Thu, 19 Jul 2012 11:29:28 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH v2] mm/memcg: use exist interface to get css from memcg
-Message-ID: <20120719092928.GA2864@tiehlicka.suse.cz>
-References: <1342609734-22437-1-git-send-email-liwanp@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
+	by kanga.kvack.org (Postfix) with SMTP id 95DC36B005D
+	for <linux-mm@kvack.org>; Thu, 19 Jul 2012 05:30:43 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 267E13EE0C5
+	for <linux-mm@kvack.org>; Thu, 19 Jul 2012 18:30:42 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id D63B045DEB2
+	for <linux-mm@kvack.org>; Thu, 19 Jul 2012 18:30:41 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id BF83445DEA6
+	for <linux-mm@kvack.org>; Thu, 19 Jul 2012 18:30:41 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id AD3231DB8040
+	for <linux-mm@kvack.org>; Thu, 19 Jul 2012 18:30:41 +0900 (JST)
+Received: from g01jpexchkw06.g01.fujitsu.local (g01jpexchkw06.g01.fujitsu.local [10.0.194.45])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 64EF51DB8038
+	for <linux-mm@kvack.org>; Thu, 19 Jul 2012 18:30:41 +0900 (JST)
+Message-ID: <5007D3AB.4080401@jp.fujitsu.com>
+Date: Thu, 19 Jul 2012 18:30:19 +0900
+From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1342609734-22437-1-git-send-email-liwanp@linux.vnet.ibm.com>
+Subject: Re: [RFC PATCH v4 7/13] memory-hotplug : remove_memory calls __remove_pages
+References: <50068974.1070409@jp.fujitsu.com> <50068BF4.1080603@jp.fujitsu.com> <CAA_GA1dPdjO7jwMaQsx+ywWpZe4fyGm+aTeJcjUgJPKuVZd9xA@mail.gmail.com>
+In-Reply-To: <CAA_GA1dPdjO7jwMaQsx+ywWpZe4fyGm+aTeJcjUgJPKuVZd9xA@mail.gmail.com>
+Content-Type: text/plain; charset="UTF-8"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, Gavin Shan <shangw@linux.vnet.ibm.com>, Bob Liu <lliubbo@gmail.com>
+To: Bob Liu <lliubbo@gmail.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, wency@cn.fujitsu.com
 
-On Wed 18-07-12 19:08:54, Wanpeng Li wrote:
-> use exist interface mem_cgroup_css instead of &mem->css.
+Hi Bob,
 
-This interface has been added to enable mem->css outside of
-mm/memcontrol.c (where we define struct mem_cgroup). There is one user
-left (hwpoison_filter_task) after recent clean ups.
+2012/07/19 17:32, Bob Liu wrote:
+> On Wed, Jul 18, 2012 at 6:12 PM, Yasuaki Ishimatsu
+> <isimatu.yasuaki@jp.fujitsu.com> wrote:
+>> The patch adds __remove_pages() to remove_memory(). Then the range of
+>> phys_start_pfn argument and nr_pages argument in __remove_pagse() may
+>> have different zone. So zone argument is removed from __remove_pages()
+>> and __remove_pages() caluculates zone in each section.
+>>
+>> When CONFIG_SPARSEMEM_VMEMMAP is defined, there is no way to remove a memmap.
+>> So __remove_section only calls unregister_memory_section().
+>>
+>> CC: David Rientjes <rientjes@google.com>
+>> CC: Jiang Liu <liuj97@gmail.com>
+>> CC: Len Brown <len.brown@intel.com>
+>> CC: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+>> CC: Paul Mackerras <paulus@samba.org>
+>> CC: Christoph Lameter <cl@linux.com>
+>> Cc: Minchan Kim <minchan.kim@gmail.com>
+>> CC: Andrew Morton <akpm@linux-foundation.org>
+>> CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+>> CC: Wen Congyang <wency@cn.fujitsu.com>
+>> Signed-off-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+>>
+>> ---
+>>   arch/powerpc/platforms/pseries/hotplug-memory.c |    5 +----
+>>   include/linux/memory_hotplug.h                  |    3 +--
+>>   mm/memory_hotplug.c                             |   19 ++++++++++++-------
+>>   3 files changed, 14 insertions(+), 13 deletions(-)
+>>
+>> Index: linux-3.5-rc6/mm/memory_hotplug.c
+>> ===================================================================
+>> --- linux-3.5-rc6.orig/mm/memory_hotplug.c      2012-07-18 18:00:27.440145432 +0900
+>> +++ linux-3.5-rc6/mm/memory_hotplug.c   2012-07-18 18:01:02.070712487 +0900
+>> @@ -275,11 +275,14 @@ static int __meminit __add_section(int n
+>>   #ifdef CONFIG_SPARSEMEM_VMEMMAP
+>>   static int __remove_section(struct zone *zone, struct mem_section *ms)
+>>   {
+>> -       /*
+>> -        * XXX: Freeing memmap with vmemmap is not implement yet.
+>> -        *      This should be removed later.
+>> -        */
+>> -       return -EBUSY;
+>> +       int ret = -EINVAL;
+>> +
+>> +       if (!valid_section(ms))
+>> +               return ret;
+>> +
+>> +       ret = unregister_memory_section(ms);
+>> +
+>
+> I saw a patch from Jiang Liu "mm/hotplug: free zone->pageset when a
+> zone becomes empty" to
+> free the zone->pageset and i think there may more cleanup needed when
+> a zone becomes empty.
+>
+> We already have __add_zone() in __add_section(), what about add a
+> function like __remove_zone()
+> to do the cleanup here?
 
-I think we shouldn't spread the usage inside the mm/memcontrol.c. The
-compiler inlines the function for all callers added by this patch but I
-wouldn't rely on it. It is also unfortunate that we cannot convert all
-dereferences (e.g. const mem_cgroup).
-Moreover it doesn't add any additional type safety. So I would vote for
-not taking the patch but if others like it I will not block it.
+Thank you for your cooment. As you say, I think cleanup function of zone
+is necessary. So I'll update it.
 
-> V2->V1:
-> * restore the mistake modify in mem_cgroup_css
-> 
-> Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-> ---
->  mm/memcontrol.c |   89 ++++++++++++++++++++++++++++--------------------------
->  1 files changed, 46 insertions(+), 43 deletions(-)
-> 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index f72b5e5..f27084c 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -645,7 +645,7 @@ retry:
->  	 */
->  	__mem_cgroup_remove_exceeded(mz->memcg, mz, mctz);
->  	if (!res_counter_soft_limit_excess(&mz->memcg->res) ||
-> -		!css_tryget(&mz->memcg->css))
-> +		!css_tryget(mem_cgroup_css(mz->memcg)))
->  		goto retry;
->  done:
->  	return mz;
-> @@ -899,7 +899,7 @@ struct mem_cgroup *try_get_mem_cgroup_from_mm(struct mm_struct *mm)
->  		memcg = mem_cgroup_from_task(rcu_dereference(mm->owner));
->  		if (unlikely(!memcg))
->  			break;
-> -	} while (!css_tryget(&memcg->css));
-> +	} while (!css_tryget(mem_cgroup_css(memcg)));
->  	rcu_read_unlock();
->  	return memcg;
->  }
-> @@ -935,10 +935,10 @@ struct mem_cgroup *mem_cgroup_iter(struct mem_cgroup *root,
->  		root = root_mem_cgroup;
->  
->  	if (prev && !reclaim)
-> -		id = css_id(&prev->css);
-> +		id = css_id(mem_cgroup_css(prev));
->  
->  	if (prev && prev != root)
-> -		css_put(&prev->css);
-> +		css_put(mem_cgroup_css(prev));
->  
->  	if (!root->use_hierarchy && root != root_mem_cgroup) {
->  		if (prev)
-> @@ -963,9 +963,10 @@ struct mem_cgroup *mem_cgroup_iter(struct mem_cgroup *root,
->  		}
->  
->  		rcu_read_lock();
-> -		css = css_get_next(&mem_cgroup_subsys, id + 1, &root->css, &id);
-> +		css = css_get_next(&mem_cgroup_subsys, id + 1,
-> +					mem_cgroup_css(root), &id);
->  		if (css) {
-> -			if (css == &root->css || css_tryget(css))
-> +			if (css == mem_cgroup_css(root) || css_tryget(css))
->  				memcg = container_of(css,
->  						     struct mem_cgroup, css);
->  		} else
-> @@ -997,7 +998,7 @@ void mem_cgroup_iter_break(struct mem_cgroup *root,
->  	if (!root)
->  		root = root_mem_cgroup;
->  	if (prev && prev != root)
-> -		css_put(&prev->css);
-> +		css_put(mem_cgroup_css(prev));
->  }
->  
->  /*
-> @@ -1150,7 +1151,8 @@ bool __mem_cgroup_same_or_subtree(const struct mem_cgroup *root_memcg,
->  		return true;
->  	if (!root_memcg->use_hierarchy || !memcg)
->  		return false;
-> -	return css_is_ancestor(&memcg->css, &root_memcg->css);
-> +	return css_is_ancestor(mem_cgroup_css(memcg),
-> +				&root_memcg->css);
->  }
->  
->  static bool mem_cgroup_same_or_subtree(const struct mem_cgroup *root_memcg,
-> @@ -1183,7 +1185,7 @@ int task_in_mem_cgroup(struct task_struct *task, const struct mem_cgroup *memcg)
->  		task_lock(task);
->  		curr = mem_cgroup_from_task(task);
->  		if (curr)
-> -			css_get(&curr->css);
-> +			css_get(mem_cgroup_css(curr));
->  		task_unlock(task);
->  	}
->  	if (!curr)
-> @@ -1195,7 +1197,7 @@ int task_in_mem_cgroup(struct task_struct *task, const struct mem_cgroup *memcg)
->  	 * hierarchy(even if use_hierarchy is disabled in "memcg").
->  	 */
->  	ret = mem_cgroup_same_or_subtree(memcg, curr);
-> -	css_put(&curr->css);
-> +	css_put(mem_cgroup_css(curr));
->  	return ret;
->  }
->  
-> @@ -1251,7 +1253,7 @@ static unsigned long mem_cgroup_margin(struct mem_cgroup *memcg)
->  
->  int mem_cgroup_swappiness(struct mem_cgroup *memcg)
->  {
-> -	struct cgroup *cgrp = memcg->css.cgroup;
-> +	struct cgroup *cgrp = mem_cgroup_css(memcg)->cgroup;
->  
->  	/* root ? */
->  	if (cgrp->parent == NULL)
-> @@ -1396,7 +1398,7 @@ void mem_cgroup_print_oom_info(struct mem_cgroup *memcg, struct task_struct *p)
->  
->  	rcu_read_lock();
->  
-> -	mem_cgrp = memcg->css.cgroup;
-> +	mem_cgrp = mem_cgroup_css(memcg)->cgroup;
->  	task_cgrp = task_cgroup(p, mem_cgroup_subsys_id);
->  
->  	ret = cgroup_path(task_cgrp, memcg_name, PATH_MAX);
-> @@ -2275,12 +2277,12 @@ static int __mem_cgroup_try_charge(struct mm_struct *mm,
->  again:
->  	if (*ptr) { /* css should be a valid one */
->  		memcg = *ptr;
-> -		VM_BUG_ON(css_is_removed(&memcg->css));
-> +		VM_BUG_ON(css_is_removed(mem_cgroup_css(memcg)));
->  		if (mem_cgroup_is_root(memcg))
->  			goto done;
->  		if (nr_pages == 1 && consume_stock(memcg))
->  			goto done;
-> -		css_get(&memcg->css);
-> +		css_get(mem_cgroup_css(memcg));
->  	} else {
->  		struct task_struct *p;
->  
-> @@ -2316,7 +2318,7 @@ again:
->  			goto done;
->  		}
->  		/* after here, we may be blocked. we need to get refcnt */
-> -		if (!css_tryget(&memcg->css)) {
-> +		if (!css_tryget(mem_cgroup_css(memcg))) {
->  			rcu_read_unlock();
->  			goto again;
->  		}
-> @@ -2328,7 +2330,7 @@ again:
->  
->  		/* If killed, bypass charge */
->  		if (fatal_signal_pending(current)) {
-> -			css_put(&memcg->css);
-> +			css_put(mem_cgroup_css(memcg));
->  			goto bypass;
->  		}
->  
-> @@ -2344,29 +2346,29 @@ again:
->  			break;
->  		case CHARGE_RETRY: /* not in OOM situation but retry */
->  			batch = nr_pages;
-> -			css_put(&memcg->css);
-> +			css_put(mem_cgroup_css(memcg));
->  			memcg = NULL;
->  			goto again;
->  		case CHARGE_WOULDBLOCK: /* !__GFP_WAIT */
-> -			css_put(&memcg->css);
-> +			css_put(mem_cgroup_css(memcg));
->  			goto nomem;
->  		case CHARGE_NOMEM: /* OOM routine works */
->  			if (!oom) {
-> -				css_put(&memcg->css);
-> +				css_put(mem_cgroup_css(memcg));
->  				goto nomem;
->  			}
->  			/* If oom, we never return -ENOMEM */
->  			nr_oom_retries--;
->  			break;
->  		case CHARGE_OOM_DIE: /* Killed by OOM Killer */
-> -			css_put(&memcg->css);
-> +			css_put(mem_cgroup_css(memcg));
->  			goto bypass;
->  		}
->  	} while (ret != CHARGE_OK);
->  
->  	if (batch > nr_pages)
->  		refill_stock(memcg, batch - nr_pages);
-> -	css_put(&memcg->css);
-> +	css_put(mem_cgroup_css(memcg));
->  done:
->  	*ptr = memcg;
->  	return 0;
-> @@ -2445,14 +2447,14 @@ struct mem_cgroup *try_get_mem_cgroup_from_page(struct page *page)
->  	lock_page_cgroup(pc);
->  	if (PageCgroupUsed(pc)) {
->  		memcg = pc->mem_cgroup;
-> -		if (memcg && !css_tryget(&memcg->css))
-> +		if (memcg && !css_tryget(mem_cgroup_css(memcg)))
->  			memcg = NULL;
->  	} else if (PageSwapCache(page)) {
->  		ent.val = page_private(page);
->  		id = lookup_swap_cgroup_id(ent);
->  		rcu_read_lock();
->  		memcg = mem_cgroup_lookup(id);
-> -		if (memcg && !css_tryget(&memcg->css))
-> +		if (memcg && !css_tryget(mem_cgroup_css(memcg)))
->  			memcg = NULL;
->  		rcu_read_unlock();
->  	}
-> @@ -2795,7 +2797,7 @@ int mem_cgroup_try_charge_swapin(struct mm_struct *mm,
->  		goto charge_cur_mm;
->  	*memcgp = memcg;
->  	ret = __mem_cgroup_try_charge(NULL, mask, 1, memcgp, true);
-> -	css_put(&memcg->css);
-> +	css_put(mem_cgroup_css(memcg));
->  	if (ret == -EINTR)
->  		ret = 0;
->  	return ret;
-> @@ -2816,7 +2818,7 @@ __mem_cgroup_commit_charge_swapin(struct page *page, struct mem_cgroup *memcg,
->  		return;
->  	if (!memcg)
->  		return;
-> -	cgroup_exclude_rmdir(&memcg->css);
-> +	cgroup_exclude_rmdir(mem_cgroup_css(memcg));
->  
->  	__mem_cgroup_commit_charge(memcg, page, 1, ctype, true);
->  	/*
-> @@ -2835,7 +2837,7 @@ __mem_cgroup_commit_charge_swapin(struct page *page, struct mem_cgroup *memcg,
->  	 * So, rmdir()->pre_destroy() can be called while we do this charge.
->  	 * In that case, we need to call pre_destroy() again. check it here.
->  	 */
-> -	cgroup_release_and_wakeup_rmdir(&memcg->css);
-> +	cgroup_release_and_wakeup_rmdir(mem_cgroup_css(memcg));
->  }
->  
->  void mem_cgroup_commit_charge_swapin(struct page *page,
-> @@ -3083,7 +3085,7 @@ mem_cgroup_uncharge_swapcache(struct page *page, swp_entry_t ent, bool swapout)
->  	 * mem_cgroup_get() was called in uncharge().
->  	 */
->  	if (do_swap_account && swapout && memcg)
-> -		swap_cgroup_record(ent, css_id(&memcg->css));
-> +		swap_cgroup_record(ent, css_id(mem_cgroup_css(memcg)));
->  }
->  #endif
->  
-> @@ -3135,8 +3137,8 @@ static int mem_cgroup_move_swap_account(swp_entry_t entry,
->  {
->  	unsigned short old_id, new_id;
->  
-> -	old_id = css_id(&from->css);
-> -	new_id = css_id(&to->css);
-> +	old_id = css_id(mem_cgroup_css(from));
-> +	new_id = css_id(mem_cgroup_css(to));
->  
->  	if (swap_cgroup_cmpxchg(entry, old_id, new_id) == old_id) {
->  		mem_cgroup_swap_statistics(from, false);
-> @@ -3184,7 +3186,7 @@ int mem_cgroup_prepare_migration(struct page *page,
->  	lock_page_cgroup(pc);
->  	if (PageCgroupUsed(pc)) {
->  		memcg = pc->mem_cgroup;
-> -		css_get(&memcg->css);
-> +		css_get(mem_cgroup_css(memcg));
->  		/*
->  		 * At migrating an anonymous page, its mapcount goes down
->  		 * to 0 and uncharge() will be called. But, even if it's fully
-> @@ -3227,7 +3229,7 @@ int mem_cgroup_prepare_migration(struct page *page,
->  
->  	*memcgp = memcg;
->  	ret = __mem_cgroup_try_charge(NULL, gfp_mask, 1, memcgp, false);
-> -	css_put(&memcg->css);/* drop extra refcnt */
-> +	css_put(mem_cgroup_css(memcg));/* drop extra refcnt */
->  	if (ret) {
->  		if (PageAnon(page)) {
->  			lock_page_cgroup(pc);
-> @@ -3268,7 +3270,7 @@ void mem_cgroup_end_migration(struct mem_cgroup *memcg,
->  	if (!memcg)
->  		return;
->  	/* blocks rmdir() */
-> -	cgroup_exclude_rmdir(&memcg->css);
-> +	cgroup_exclude_rmdir(mem_cgroup_css(memcg));
->  	if (!migration_ok) {
->  		used = oldpage;
->  		unused = newpage;
-> @@ -3306,7 +3308,7 @@ void mem_cgroup_end_migration(struct mem_cgroup *memcg,
->  	 * So, rmdir()->pre_destroy() can be called while we do this charge.
->  	 * In that case, we need to call pre_destroy() again. check it here.
->  	 */
-> -	cgroup_release_and_wakeup_rmdir(&memcg->css);
-> +	cgroup_release_and_wakeup_rmdir(mem_cgroup_css(memcg));
->  }
->  
->  /*
-> @@ -3575,7 +3577,7 @@ unsigned long mem_cgroup_soft_limit_reclaim(struct zone *zone, int order,
->  				next_mz =
->  				__mem_cgroup_largest_soft_limit_node(mctz);
->  				if (next_mz == mz)
-> -					css_put(&next_mz->memcg->css);
-> +					css_put(mem_cgroup_css(next_mz->memcg));
->  				else /* next_mz == NULL or other memcg */
->  					break;
->  			} while (1);
-> @@ -3593,7 +3595,7 @@ unsigned long mem_cgroup_soft_limit_reclaim(struct zone *zone, int order,
->  		/* If excess == 0, no tree ops */
->  		__mem_cgroup_insert_exceeded(mz->memcg, mz, mctz, excess);
->  		spin_unlock(&mctz->lock);
-> -		css_put(&mz->memcg->css);
-> +		css_put(mem_cgroup_css(mz->memcg));
->  		loop++;
->  		/*
->  		 * Could not reclaim anything and there are no more
-> @@ -3606,7 +3608,7 @@ unsigned long mem_cgroup_soft_limit_reclaim(struct zone *zone, int order,
->  			break;
->  	} while (!nr_reclaimed);
->  	if (next_mz)
-> -		css_put(&next_mz->memcg->css);
-> +		css_put(mem_cgroup_css(next_mz->memcg));
->  	return nr_reclaimed;
->  }
->  
-> @@ -3679,9 +3681,9 @@ static int mem_cgroup_force_empty(struct mem_cgroup *memcg, bool free_all)
->  	int ret;
->  	int node, zid, shrink;
->  	int nr_retries = MEM_CGROUP_RECLAIM_RETRIES;
-> -	struct cgroup *cgrp = memcg->css.cgroup;
-> +	struct cgroup *cgrp = mem_cgroup_css(memcg)->cgroup;
->  
-> -	css_get(&memcg->css);
-> +	css_get(mem_cgroup_css(memcg));
->  
->  	shrink = 0;
->  	/* should free all ? */
-> @@ -3722,7 +3724,7 @@ move_account:
->  	/* "ret" should also be checked to ensure all lists are empty. */
->  	} while (res_counter_read_u64(&memcg->res, RES_USAGE) > 0 || ret);
->  out:
-> -	css_put(&memcg->css);
-> +	css_put(mem_cgroup_css(memcg));
->  	return ret;
->  
->  try_to_free:
-> @@ -3933,7 +3935,7 @@ static void memcg_get_hierarchical_limit(struct mem_cgroup *memcg,
->  
->  	min_limit = res_counter_read_u64(&memcg->res, RES_LIMIT);
->  	min_memsw_limit = res_counter_read_u64(&memcg->memsw, RES_LIMIT);
-> -	cgroup = memcg->css.cgroup;
-> +	cgroup = mem_cgroup_css(memcg)->cgroup;
->  	if (!memcg->use_hierarchy)
->  		goto out;
->  
-> @@ -4770,7 +4772,7 @@ static void __mem_cgroup_free(struct mem_cgroup *memcg)
->  	int node;
->  
->  	mem_cgroup_remove_from_trees(memcg);
-> -	free_css_id(&mem_cgroup_subsys, &memcg->css);
-> +	free_css_id(&mem_cgroup_subsys, mem_cgroup_css(memcg));
->  
->  	for_each_node(node)
->  		free_mem_cgroup_per_zone_info(memcg, node);
-> @@ -4926,7 +4928,7 @@ mem_cgroup_create(struct cgroup *cont)
->  		mem_cgroup_put(memcg);
->  		return ERR_PTR(error);
->  	}
-> -	return &memcg->css;
-> +	return mem_cgroup_css(memcg);
->  free_out:
->  	__mem_cgroup_free(memcg);
->  	return ERR_PTR(error);
-> @@ -5145,7 +5147,8 @@ static enum mc_target_type get_mctgt_type(struct vm_area_struct *vma,
->  	}
->  	/* There is a swap entry and a page doesn't exist or isn't charged */
->  	if (ent.val && !ret &&
-> -			css_id(&mc.from->css) == lookup_swap_cgroup_id(ent)) {
-> +			css_id(mem_cgroup_css(mc.from)) ==
-> +					lookup_swap_cgroup_id(ent)) {
->  		ret = MC_TARGET_SWAP;
->  		if (target)
->  			target->ent = ent;
-> -- 
-> 1.7.7.6
-> 
+Thanks,
+Yasuaki Ishimatsu.
 
--- 
-Michal Hocko
-SUSE Labs
-SUSE LINUX s.r.o.
-Lihovarska 1060/12
-190 00 Praha 9    
-Czech Republic
+>
+>> +       return ret;
+>>   }
+>>   #else
+>>   static int __remove_section(struct zone *zone, struct mem_section *ms)
+>> @@ -346,11 +349,11 @@ EXPORT_SYMBOL_GPL(__add_pages);
+>>    * sure that pages are marked reserved and zones are adjust properly by
+>>    * calling offline_pages().
+>>    */
+>> -int __remove_pages(struct zone *zone, unsigned long phys_start_pfn,
+>> -                unsigned long nr_pages)
+>> +int __remove_pages(unsigned long phys_start_pfn, unsigned long nr_pages)
+>>   {
+>>          unsigned long i, ret = 0;
+>>          int sections_to_remove;
+>> +       struct zone *zone;
+>>
+>>          /*
+>>           * We can only remove entire sections
+>> @@ -363,6 +366,7 @@ int __remove_pages(struct zone *zone, un
+>>          sections_to_remove = nr_pages / PAGES_PER_SECTION;
+>>          for (i = 0; i < sections_to_remove; i++) {
+>>                  unsigned long pfn = phys_start_pfn + i*PAGES_PER_SECTION;
+>> +               zone = page_zone(pfn_to_page(pfn));
+>>                  ret = __remove_section(zone, __pfn_to_section(pfn));
+>>                  if (ret)
+>>                          break;
+>> @@ -1031,6 +1035,7 @@ int __ref remove_memory(int nid, u64 sta
+>>          /* remove memmap entry */
+>>          firmware_map_remove(start, start + size, "System RAM");
+>>
+>> +       __remove_pages(start >> PAGE_SHIFT, size >> PAGE_SHIFT);
+>>   out:
+>>          unlock_memory_hotplug();
+>>          return ret;
+>> Index: linux-3.5-rc6/include/linux/memory_hotplug.h
+>> ===================================================================
+>> --- linux-3.5-rc6.orig/include/linux/memory_hotplug.h   2012-07-18 18:00:27.445145371 +0900
+>> +++ linux-3.5-rc6/include/linux/memory_hotplug.h        2012-07-18 18:00:40.461982690 +0900
+>> @@ -89,8 +89,7 @@ extern bool is_pageblock_removable_noloc
+>>   /* reasonably generic interface to expand the physical pages in a zone  */
+>>   extern int __add_pages(int nid, struct zone *zone, unsigned long start_pfn,
+>>          unsigned long nr_pages);
+>> -extern int __remove_pages(struct zone *zone, unsigned long start_pfn,
+>> -       unsigned long nr_pages);
+>> +extern int __remove_pages(unsigned long start_pfn, unsigned long nr_pages);
+>>
+>>   #ifdef CONFIG_NUMA
+>>   extern int memory_add_physaddr_to_nid(u64 start);
+>> Index: linux-3.5-rc6/arch/powerpc/platforms/pseries/hotplug-memory.c
+>> ===================================================================
+>> --- linux-3.5-rc6.orig/arch/powerpc/platforms/pseries/hotplug-memory.c  2012-07-18 18:00:27.442145407 +0900
+>> +++ linux-3.5-rc6/arch/powerpc/platforms/pseries/hotplug-memory.c       2012-07-18 18:00:40.470982578 +0900
+>> @@ -76,7 +76,6 @@ unsigned long memory_block_size_bytes(vo
+>>   static int pseries_remove_memblock(unsigned long base, unsigned int memblock_size)
+>>   {
+>>          unsigned long start, start_pfn;
+>> -       struct zone *zone;
+>>          int i, ret;
+>>          int sections_to_remove;
+>>
+>> @@ -87,8 +86,6 @@ static int pseries_remove_memblock(unsig
+>>                  return 0;
+>>          }
+>>
+>> -       zone = page_zone(pfn_to_page(start_pfn));
+>> -
+>>          /*
+>>           * Remove section mappings and sysfs entries for the
+>>           * section of the memory we are removing.
+>> @@ -101,7 +98,7 @@ static int pseries_remove_memblock(unsig
+>>          sections_to_remove = (memblock_size >> PAGE_SHIFT) / PAGES_PER_SECTION;
+>>          for (i = 0; i < sections_to_remove; i++) {
+>>                  unsigned long pfn = start_pfn + i * PAGES_PER_SECTION;
+>> -               ret = __remove_pages(zone, start_pfn,  PAGES_PER_SECTION);
+>> +               ret = __remove_pages(start_pfn,  PAGES_PER_SECTION);
+>>                  if (ret)
+>>                          return ret;
+>>          }
+>>
+>> --
+>> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>> the body to majordomo@kvack.org.  For more info on Linux MM,
+>> see: http://www.linux-mm.org/ .
+>> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>
+>
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
