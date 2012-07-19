@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
-	by kanga.kvack.org (Postfix) with SMTP id 9D90B6B0071
-	for <linux-mm@kvack.org>; Thu, 19 Jul 2012 12:24:50 -0400 (EDT)
-Received: by mail-qc0-f169.google.com with SMTP id d16so2137205qcs.14
-        for <linux-mm@kvack.org>; Thu, 19 Jul 2012 09:24:50 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
+	by kanga.kvack.org (Postfix) with SMTP id 2BCCE6B0081
+	for <linux-mm@kvack.org>; Thu, 19 Jul 2012 12:24:59 -0400 (EDT)
+Received: by obhx4 with SMTP id x4so5179850obh.14
+        for <linux-mm@kvack.org>; Thu, 19 Jul 2012 09:24:58 -0700 (PDT)
 From: Rob Clark <rob.clark@linaro.org>
-Subject: [PATCH 1/2] device: add dma_params->max_segment_count
-Date: Thu, 19 Jul 2012 11:23:33 -0500
-Message-Id: <1342715014-5316-2-git-send-email-rob.clark@linaro.org>
+Subject: [PATCH 2/2] dma-buf: add helpers for attacher dma-parms
+Date: Thu, 19 Jul 2012 11:23:34 -0500
+Message-Id: <1342715014-5316-3-git-send-email-rob.clark@linaro.org>
 In-Reply-To: <1342715014-5316-1-git-send-email-rob.clark@linaro.org>
 References: <1342715014-5316-1-git-send-email-rob.clark@linaro.org>
 Sender: owner-linux-mm@kvack.org
@@ -17,62 +17,126 @@ Cc: patches@linaro.org, linux@arm.linux.org.uk, arnd@arndb.de, jesse.barker@lina
 
 From: Rob Clark <rob@ti.com>
 
-For devices which have constraints about maximum number of segments
-in an sglist.  For example, a device which could only deal with
-contiguous buffers would set max_segment_count to 1.
-
-The initial motivation is for devices sharing buffers via dma-buf,
-to allow the buffer exporter to know the constraints of other
-devices which have attached to the buffer.  The dma_mask and fields
-in 'struct device_dma_parameters' tell the exporter everything else
-that is needed, except whether the importer has constraints about
-maximum number of segments.
+Add some helpers to iterate through all attachers and get the most
+restrictive segment size/count/boundary.
 
 Signed-off-by: Rob Clark <rob@ti.com>
 ---
- include/linux/device.h      |    1 +
- include/linux/dma-mapping.h |   16 ++++++++++++++++
- 2 files changed, 17 insertions(+)
+ drivers/base/dma-buf.c  |   63 +++++++++++++++++++++++++++++++++++++++++++++++
+ include/linux/dma-buf.h |   19 ++++++++++++++
+ 2 files changed, 82 insertions(+)
 
-diff --git a/include/linux/device.h b/include/linux/device.h
-index 161d962..3813735 100644
---- a/include/linux/device.h
-+++ b/include/linux/device.h
-@@ -568,6 +568,7 @@ struct device_dma_parameters {
- 	 * sg limitations.
- 	 */
- 	unsigned int max_segment_size;
-+	unsigned int max_segment_count;    /* zero for unlimited */
- 	unsigned long segment_boundary_mask;
- };
+diff --git a/drivers/base/dma-buf.c b/drivers/base/dma-buf.c
+index 24e88fe..757ee20 100644
+--- a/drivers/base/dma-buf.c
++++ b/drivers/base/dma-buf.c
+@@ -192,6 +192,69 @@ void dma_buf_put(struct dma_buf *dmabuf)
+ EXPORT_SYMBOL_GPL(dma_buf_put);
  
-diff --git a/include/linux/dma-mapping.h b/include/linux/dma-mapping.h
-index dfc099e..f380f79 100644
---- a/include/linux/dma-mapping.h
-+++ b/include/linux/dma-mapping.h
-@@ -111,6 +111,22 @@ static inline unsigned int dma_set_max_seg_size(struct device *dev,
- 		return -EIO;
+ /**
++ * dma_buf_max_seg_size - helper for exporters to get the minimum of
++ * all attached device's max segment size
++ */
++unsigned int dma_buf_max_seg_size(struct dma_buf *dmabuf)
++{
++	struct dma_buf_attachment *attach;
++	unsigned int max = (unsigned int)-1;
++
++	if (WARN_ON(!dmabuf))
++		return 0;
++
++	mutex_lock(&dmabuf->lock);
++	list_for_each_entry(attach, &dmabuf->attachments, node)
++		max = min(max, dma_get_max_seg_size(attach->dev));
++	mutex_unlock(&dmabuf->lock);
++
++	return max;
++}
++EXPORT_SYMBOL_GPL(dma_buf_max_seg_size);
++
++/**
++ * dma_buf_max_seg_count - helper for exporters to get the minimum of
++ * all attached device's max segment count
++ */
++unsigned int dma_buf_max_seg_count(struct dma_buf *dmabuf)
++{
++	struct dma_buf_attachment *attach;
++	unsigned int max = (unsigned int)-1;
++
++	if (WARN_ON(!dmabuf))
++		return 0;
++
++	mutex_lock(&dmabuf->lock);
++	list_for_each_entry(attach, &dmabuf->attachments, node)
++		max = min(max, dma_get_max_seg_count(attach->dev));
++	mutex_unlock(&dmabuf->lock);
++
++	return max;
++}
++EXPORT_SYMBOL_GPL(dma_buf_max_seg_count);
++
++/**
++ * dma_buf_get_seg_boundary - helper for exporters to get the most
++ * restrictive segment alignment of all the attached devices
++ */
++unsigned int dma_buf_get_seg_boundary(struct dma_buf *dmabuf)
++{
++	struct dma_buf_attachment *attach;
++	unsigned int mask = (unsigned int)-1;
++
++	if (WARN_ON(!dmabuf))
++		return 0;
++
++	mutex_lock(&dmabuf->lock);
++	list_for_each_entry(attach, &dmabuf->attachments, node)
++		mask &= dma_get_seg_boundary(attach->dev);
++	mutex_unlock(&dmabuf->lock);
++
++	return mask;
++}
++EXPORT_SYMBOL_GPL(dma_buf_get_seg_boundary);
++
++/**
+  * dma_buf_attach - Add the device to dma_buf's attachments list; optionally,
+  * calls attach() of dma_buf_ops to allow device-specific attach functionality
+  * @dmabuf:	[in]	buffer to attach device to.
+diff --git a/include/linux/dma-buf.h b/include/linux/dma-buf.h
+index eb48f38..9533b9b 100644
+--- a/include/linux/dma-buf.h
++++ b/include/linux/dma-buf.h
+@@ -167,6 +167,10 @@ int dma_buf_fd(struct dma_buf *dmabuf, int flags);
+ struct dma_buf *dma_buf_get(int fd);
+ void dma_buf_put(struct dma_buf *dmabuf);
+ 
++unsigned int dma_buf_max_seg_size(struct dma_buf *dmabuf);
++unsigned int dma_buf_max_seg_count(struct dma_buf *dmabuf);
++unsigned int dma_buf_get_seg_boundary(struct dma_buf *dmabuf);
++
+ struct sg_table *dma_buf_map_attachment(struct dma_buf_attachment *,
+ 					enum dma_data_direction);
+ void dma_buf_unmap_attachment(struct dma_buf_attachment *, struct sg_table *,
+@@ -220,6 +224,21 @@ static inline void dma_buf_put(struct dma_buf *dmabuf)
+ 	return;
  }
  
-+static inline unsigned int dma_get_max_seg_count(struct device *dev)
++static inline unsigned int dma_buf_max_seg_size(struct dma_buf *dmabuf)
 +{
-+	return dev->dma_parms ? dev->dma_parms->max_segment_count : 0;
++	return 0;
 +}
 +
-+static inline int dma_set_max_seg_count(struct device *dev,
-+						unsigned int count)
++static inline unsigned int dma_buf_max_seg_count(struct dma_buf *dmabuf)
 +{
-+	if (dev->dma_parms) {
-+		dev->dma_parms->max_segment_count = count;
-+		return 0;
-+	} else
-+		return -EIO;
++	return 0;
 +}
 +
++static inline unsigned int dma_buf_get_seg_boundary(struct dma_buf *dmabuf)
++{
++	return 0;
++}
 +
- static inline unsigned long dma_get_seg_boundary(struct device *dev)
+ static inline struct sg_table *dma_buf_map_attachment(
+ 	struct dma_buf_attachment *attach, enum dma_data_direction write)
  {
- 	return dev->dma_parms ?
 -- 
 1.7.9.5
 
