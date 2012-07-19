@@ -1,49 +1,32 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
-	by kanga.kvack.org (Postfix) with SMTP id 2B1316B005C
-	for <linux-mm@kvack.org>; Thu, 19 Jul 2012 05:55:08 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id BE2CC3EE0BD
-	for <linux-mm@kvack.org>; Thu, 19 Jul 2012 18:55:06 +0900 (JST)
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 9C55145DE5D
-	for <linux-mm@kvack.org>; Thu, 19 Jul 2012 18:55:06 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 7E26445DE54
-	for <linux-mm@kvack.org>; Thu, 19 Jul 2012 18:55:06 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 6F50A1DB8052
-	for <linux-mm@kvack.org>; Thu, 19 Jul 2012 18:55:06 +0900 (JST)
-Received: from g01jpexchkw04.g01.fujitsu.local (g01jpexchkw04.g01.fujitsu.local [10.0.194.43])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 1D1461DB804E
-	for <linux-mm@kvack.org>; Thu, 19 Jul 2012 18:55:06 +0900 (JST)
-Message-ID: <5007D963.6010902@jp.fujitsu.com>
-Date: Thu, 19 Jul 2012 18:54:43 +0900
-From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
+	by kanga.kvack.org (Postfix) with SMTP id 4FE466B0068
+	for <linux-mm@kvack.org>; Thu, 19 Jul 2012 06:00:08 -0400 (EDT)
+Message-ID: <5007DB0C.6080106@cn.fujitsu.com>
+Date: Thu, 19 Jul 2012 18:01:48 +0800
+From: Wen Congyang <wency@cn.fujitsu.com>
 MIME-Version: 1.0
 Subject: Re: [RFC PATCH v4 11/13] memory-hotplug : free memmap of sparse-vmemmap
 References: <50068974.1070409@jp.fujitsu.com> <50068D09.1050704@jp.fujitsu.com> <5007D722.1030807@cn.fujitsu.com>
 In-Reply-To: <5007D722.1030807@cn.fujitsu.com>
-Content-Type: text/plain; charset="ISO-2022-JP"
 Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=ISO-2022-JP
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wen Congyang <wency@cn.fujitsu.com>
+To: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com
 
-Hi Wen,
-
-2012/07/19 18:45, Wen Congyang wrote:
+At 07/19/2012 05:45 PM, Wen Congyang Wrote:
 > At 07/18/2012 06:16 PM, Yasuaki Ishimatsu Wrote:
 >> All pages of virtual mapping in removed memory cannot be freed, since some pages
 >> used as PGD/PUD includes not only removed memory but also other memory. So the
 >> patch checks whether page can be freed or not.
 >>
 >> How to check whether page can be freed or not?
->>   1. When removing memory, the page structs of the revmoved memory are filled
->>      with 0FD.
->>   2. All page structs are filled with 0xFD on PT/PMD, PT/PMD can be cleared.
->>      In this case, the page used as PT/PMD can be freed.
+>>  1. When removing memory, the page structs of the revmoved memory are filled
+>>     with 0FD.
+>>  2. All page structs are filled with 0xFD on PT/PMD, PT/PMD can be cleared.
+>>     In this case, the page used as PT/PMD can be freed.
 >>
 >> Applying patch, __remove_section() of CONFIG_SPARSEMEM_VMEMMAP is integrated
 >> into one. So __remove_section() of CONFIG_SPARSEMEM_VMEMMAP is deleted.
@@ -52,62 +35,62 @@ Hi Wen,
 >> CC: Jiang Liu <liuj97@gmail.com>
 >> CC: Len Brown <len.brown@intel.com>
 >> CC: Benjamin Herrenschmidt <benh@kernel.crashing.org>
->> CC: Paul Mackerras <paulus@samba.org>
+>> CC: Paul Mackerras <paulus@samba.org> 
 >> CC: Christoph Lameter <cl@linux.com>
 >> Cc: Minchan Kim <minchan.kim@gmail.com>
 >> CC: Andrew Morton <akpm@linux-foundation.org>
->> CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+>> CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> 
 >> CC: Wen Congyang <wency@cn.fujitsu.com>
 >> Signed-off-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 >>
 >> ---
->>   arch/x86/mm/init_64.c |  121 ++++++++++++++++++++++++++++++++++++++++++++++++++
->>   include/linux/mm.h    |    2
->>   mm/memory_hotplug.c   |   19 -------
->>   mm/sparse.c           |    5 +-
->>   4 files changed, 128 insertions(+), 19 deletions(-)
+>>  arch/x86/mm/init_64.c |  121 ++++++++++++++++++++++++++++++++++++++++++++++++++
+>>  include/linux/mm.h    |    2 
+>>  mm/memory_hotplug.c   |   19 -------
+>>  mm/sparse.c           |    5 +-
+>>  4 files changed, 128 insertions(+), 19 deletions(-)
 >>
 >> Index: linux-3.5-rc6/include/linux/mm.h
 >> ===================================================================
 >> --- linux-3.5-rc6.orig/include/linux/mm.h	2012-07-18 18:01:28.000000000 +0900
 >> +++ linux-3.5-rc6/include/linux/mm.h	2012-07-18 18:03:05.551168773 +0900
 >> @@ -1588,6 +1588,8 @@ int vmemmap_populate(struct page *start_
->>   void vmemmap_populate_print_last(void);
->>   void register_page_bootmem_memmap(unsigned long section_nr, struct page *map,
->>   				  unsigned long size);
+>>  void vmemmap_populate_print_last(void);
+>>  void register_page_bootmem_memmap(unsigned long section_nr, struct page *map,
+>>  				  unsigned long size);
 >> +void vmemmap_kfree(struct page *memmpa, unsigned long nr_pages);
 >> +void vmemmap_free_bootmem(struct page *memmpa, unsigned long nr_pages);
->>   
->>   enum mf_flags {
->>   	MF_COUNT_INCREASED = 1 << 0,
+>>  
+>>  enum mf_flags {
+>>  	MF_COUNT_INCREASED = 1 << 0,
 >> Index: linux-3.5-rc6/mm/sparse.c
 >> ===================================================================
 >> --- linux-3.5-rc6.orig/mm/sparse.c	2012-07-18 17:59:25.000000000 +0900
 >> +++ linux-3.5-rc6/mm/sparse.c	2012-07-18 18:03:05.553168749 +0900
 >> @@ -614,12 +614,13 @@ static inline struct page *kmalloc_secti
->>   	/* This will make the necessary allocations eventually. */
->>   	return sparse_mem_map_populate(pnum, nid);
->>   }
+>>  	/* This will make the necessary allocations eventually. */
+>>  	return sparse_mem_map_populate(pnum, nid);
+>>  }
 >> -static void __kfree_section_memmap(struct page *memmap, unsigned long nr_pages)
 >> +static void __kfree_section_memmap(struct page *page, unsigned long nr_pages)
->>   {
+>>  {
 >> -	return; /* XXX: Not implemented yet */
 >> +	vmemmap_kfree(page, nr_pages);
->>   }
->>   static void free_map_bootmem(struct page *page, unsigned long nr_pages)
->>   {
+>>  }
+>>  static void free_map_bootmem(struct page *page, unsigned long nr_pages)
+>>  {
 >> +	vmemmap_free_bootmem(page, nr_pages);
->>   }
->>   #else
->>   static struct page *__kmalloc_section_memmap(unsigned long nr_pages)
+>>  }
+>>  #else
+>>  static struct page *__kmalloc_section_memmap(unsigned long nr_pages)
 >> Index: linux-3.5-rc6/arch/x86/mm/init_64.c
 >> ===================================================================
 >> --- linux-3.5-rc6.orig/arch/x86/mm/init_64.c	2012-07-18 18:01:28.000000000 +0900
 >> +++ linux-3.5-rc6/arch/x86/mm/init_64.c	2012-07-18 18:03:05.564168611 +0900
 >> @@ -978,6 +978,127 @@ vmemmap_populate(struct page *start_page
->>   	return 0;
->>   }
->>   
+>>  	return 0;
+>>  }
+>>  
 >> +#define PAGE_INUSE 0xFD
 >> +
 >> +unsigned long find_and_clear_pte_page(unsigned long addr, unsigned long end,
@@ -205,12 +188,17 @@ Hi Wen,
 > I think you want to free the memory to store struct page.
 > So why you free page_address(page)?
 
-Ths page is PT/PMD page and it has stored struct pages.
-So I free the page.
+I understand it now. page is for the memory to store struct page.
 
-Thanks,
-Yasuaki Ishimatsu
+You clear page table's entry for the addr, not page_address(page).
+And the entry for page_address(page) is still valid now.
+So I think you want this:
+__flush_tlb_one(addr);
 
+Thanks
+Wen Congyang
+
+> 
 > Thanks
 > Wen Congyang
 > 
@@ -242,25 +230,25 @@ Yasuaki Ishimatsu
 >> +
 >> +}
 >> +
->>   void register_page_bootmem_memmap(unsigned long section_nr,
->>   				  struct page *start_page, unsigned long size)
->>   {
+>>  void register_page_bootmem_memmap(unsigned long section_nr,
+>>  				  struct page *start_page, unsigned long size)
+>>  {
 >> Index: linux-3.5-rc6/mm/memory_hotplug.c
 >> ===================================================================
 >> --- linux-3.5-rc6.orig/mm/memory_hotplug.c	2012-07-18 18:01:28.000000000 +0900
 >> +++ linux-3.5-rc6/mm/memory_hotplug.c	2012-07-18 18:25:11.036597977 +0900
 >> @@ -300,7 +300,6 @@ static int __meminit __add_section(int n
->>   	return register_new_memory(nid, __pfn_to_section(phys_start_pfn));
->>   }
->>   
+>>  	return register_new_memory(nid, __pfn_to_section(phys_start_pfn));
+>>  }
+>>  
 >> -#ifdef CONFIG_SPARSEMEM_VMEMMAP
->>   static int __remove_section(struct zone *zone, struct mem_section *ms)
->>   {
->>   	int ret = -EINVAL;
->> @@ -309,29 +308,15 @@ static int __remove_section(struct zone
->>   		return ret;
->>   
->>   	ret = unregister_memory_section(ms);
+>>  static int __remove_section(struct zone *zone, struct mem_section *ms)
+>>  {
+>>  	int ret = -EINVAL;
+>> @@ -309,29 +308,15 @@ static int __remove_section(struct zone 
+>>  		return ret;
+>>  
+>>  	ret = unregister_memory_section(ms);
 >> -
 >> -	return ret;
 >> -}
@@ -275,20 +263,20 @@ Yasuaki Ishimatsu
 >> -		return ret;
 >> -
 >> -	ret = unregister_memory_section(ms);
->>   	if (ret)
->>   		return ret;
->>   
->>   	pgdat_resize_lock(pgdat, &flags);
->>   	sparse_remove_one_section(zone, ms);
->>   	pgdat_resize_unlock(pgdat, &flags);
+>>  	if (ret)
+>>  		return ret;
+>>  
+>>  	pgdat_resize_lock(pgdat, &flags);
+>>  	sparse_remove_one_section(zone, ms);
+>>  	pgdat_resize_unlock(pgdat, &flags);
 >> -	return 0;
 >> +
 >> +	return ret;
->>   }
+>>  }
 >> -#endif
->>   
->>   /*
->>    * Reasonably generic function for adding memory.  It is
+>>  
+>>  /*
+>>   * Reasonably generic function for adding memory.  It is
 >>
 >> --
 >> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
@@ -297,7 +285,11 @@ Yasuaki Ishimatsu
 >> Please read the FAQ at  http://www.tux.org/lkml/
 >>
 > 
-
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-acpi" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
