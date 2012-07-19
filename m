@@ -1,100 +1,127 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
-	by kanga.kvack.org (Postfix) with SMTP id B99D66B005C
-	for <linux-mm@kvack.org>; Thu, 19 Jul 2012 03:58:31 -0400 (EDT)
-Received: by weys10 with SMTP id s10so1990671wey.14
-        for <linux-mm@kvack.org>; Thu, 19 Jul 2012 00:58:29 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
+	by kanga.kvack.org (Postfix) with SMTP id AD31E6B005C
+	for <linux-mm@kvack.org>; Thu, 19 Jul 2012 04:19:48 -0400 (EDT)
+Received: by wgbds1 with SMTP id ds1so4927475wgb.2
+        for <linux-mm@kvack.org>; Thu, 19 Jul 2012 01:19:47 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <1341481532-1700-3-git-send-email-jiang.liu@huawei.com>
-References: <1341481532-1700-1-git-send-email-jiang.liu@huawei.com>
-	<1341481532-1700-3-git-send-email-jiang.liu@huawei.com>
-Date: Thu, 19 Jul 2012 15:58:29 +0800
-Message-ID: <CAA_GA1eePmUsYWrSg2k6TTER+ejciWg2bvGc+1zaAKS8kLNRKw@mail.gmail.com>
-Subject: Re: [PATCH 3/4] mm/hotplug: free zone->pageset when a zone becomes empty
+In-Reply-To: <50068A6E.5050904@jp.fujitsu.com>
+References: <50068974.1070409@jp.fujitsu.com>
+	<50068A6E.5050904@jp.fujitsu.com>
+Date: Thu, 19 Jul 2012 16:19:38 +0800
+Message-ID: <CAA_GA1fayhA1A3vT5BcDCoL_JVd6pZJn2_=NXK0bjJNRXo=7LA@mail.gmail.com>
+Subject: Re: [RFC PATCH v4 1/13] memory-hotplug : rename remove_memory to offline_memory
 From: Bob Liu <lliubbo@gmail.com>
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jiang Liu <jiang.liu@huawei.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, Minchan Kim <minchan@kernel.org>, Rusty Russell <rusty@rustcorp.com.au>, Yinghai Lu <yinghai@kernel.org>, Tony Luck <tony.luck@intel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, Bjorn Helgaas <bhelgaas@google.com>, Keping Chen <chenkeping@huawei.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Jiang Liu <liuj97@gmail.com>, Wei Wang <Bessel.Wang@huawei.com>
+To: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, wency@cn.fujitsu.com
 
-On Thu, Jul 5, 2012 at 5:45 PM, Jiang Liu <jiang.liu@huawei.com> wrote:
-> When a zone becomes empty after memory offlining, free zone->pageset.
-> Otherwise it will cause memory leak when adding memory to the empty
-> zone again because build_all_zonelists() will allocate zone->pageset
-> for an empty zone.
+Hi Yasuaki,
+
+On Wed, Jul 18, 2012 at 6:05 PM, Yasuaki Ishimatsu
+<isimatu.yasuaki@jp.fujitsu.com> wrote:
+> remove_memory() does not remove memory but just offlines memory. The patch
+> changes name of it to offline_memory().
+
+Since offline_memory() just align the start/end pfn and there is no
+matched online_memory() function,
+i think it's better to remove this function and add the alignment into
+offline_pages().
+
 >
-
-What about other area allocated to the zone?  eg. wait_table?
-
-> Signed-off-by: Jiang Liu <liuj97@gmail.com>
-> Signed-off-by: Wei Wang <Bessel.Wang@huawei.com>
+> CC: David Rientjes <rientjes@google.com>
+> CC: Jiang Liu <liuj97@gmail.com>
+> CC: Len Brown <len.brown@intel.com>
+> CC: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+> CC: Paul Mackerras <paulus@samba.org>
+> CC: Christoph Lameter <cl@linux.com>
+> Cc: Minchan Kim <minchan.kim@gmail.com>
+> CC: Andrew Morton <akpm@linux-foundation.org>
+> CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> CC: Wen Congyang <wency@cn.fujitsu.com>
+> Signed-off-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+>
 > ---
->  include/linux/mm.h  |    1 +
->  mm/memory_hotplug.c |    3 +++
->  mm/page_alloc.c     |   13 +++++++++++++
->  3 files changed, 17 insertions(+), 0 deletions(-)
+>  drivers/acpi/acpi_memhotplug.c |    2 +-
+>  drivers/base/memory.c          |    4 ++--
+>  include/linux/memory_hotplug.h |    2 +-
+>  mm/memory_hotplug.c            |    6 +++---
+>  4 files changed, 7 insertions(+), 7 deletions(-)
 >
-> diff --git a/include/linux/mm.h b/include/linux/mm.h
-> index b36d08c..f8b62f2 100644
-> --- a/include/linux/mm.h
-> +++ b/include/linux/mm.h
-> @@ -1331,6 +1331,7 @@ void warn_alloc_failed(gfp_t gfp_mask, int order, const char *fmt, ...);
->  extern void setup_per_cpu_pageset(void);
+> Index: linux-3.5-rc4/drivers/acpi/acpi_memhotplug.c
+> ===================================================================
+> --- linux-3.5-rc4.orig/drivers/acpi/acpi_memhotplug.c   2012-07-03 14:21:46.102416917 +0900
+> +++ linux-3.5-rc4/drivers/acpi/acpi_memhotplug.c        2012-07-03 14:21:49.458374960 +0900
+> @@ -318,7 +318,7 @@ static int acpi_memory_disable_device(st
+>          */
+>         list_for_each_entry_safe(info, n, &mem_device->res_list, list) {
+>                 if (info->enabled) {
+> -                       result = remove_memory(info->start_addr, info->length);
+> +                       result = offline_memory(info->start_addr, info->length);
+>                         if (result)
+>                                 return result;
+>                 }
+> Index: linux-3.5-rc4/drivers/base/memory.c
+> ===================================================================
+> --- linux-3.5-rc4.orig/drivers/base/memory.c    2012-07-03 14:21:46.095417003 +0900
+> +++ linux-3.5-rc4/drivers/base/memory.c 2012-07-03 14:21:49.459374948 +0900
+> @@ -266,8 +266,8 @@ memory_block_action(unsigned long phys_i
+>                         break;
+>                 case MEM_OFFLINE:
+>                         start_paddr = page_to_pfn(first_page) << PAGE_SHIFT;
+> -                       ret = remove_memory(start_paddr,
+> -                                           nr_pages << PAGE_SHIFT);
+> +                       ret = offline_memory(start_paddr,
+> +                                            nr_pages << PAGE_SHIFT);
+>                         break;
+>                 default:
+>                         WARN(1, KERN_WARNING "%s(%ld, %ld) unknown action: "
+> Index: linux-3.5-rc4/mm/memory_hotplug.c
+> ===================================================================
+> --- linux-3.5-rc4.orig/mm/memory_hotplug.c      2012-07-03 14:21:46.102416917 +0900
+> +++ linux-3.5-rc4/mm/memory_hotplug.c   2012-07-03 14:21:49.466374860 +0900
+> @@ -990,7 +990,7 @@ out:
+>         return ret;
+>  }
 >
->  extern void zone_pcp_update(struct zone *zone);
-> +extern void zone_pcp_reset(struct zone *zone);
+> -int remove_memory(u64 start, u64 size)
+> +int offline_memory(u64 start, u64 size)
+>  {
+>         unsigned long start_pfn, end_pfn;
 >
->  /* nommu.c */
->  extern atomic_long_t mmap_pages_allocated;
-> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-> index bce80c7..998b792 100644
-> --- a/mm/memory_hotplug.c
-> +++ b/mm/memory_hotplug.c
-> @@ -966,6 +966,9 @@ repeat:
->
->         init_per_zone_wmark_min();
->
-> +       if (!populated_zone(zone))
-> +               zone_pcp_reset(zone);
-> +
->         if (!node_present_pages(node)) {
->                 node_clear_state(node, N_HIGH_MEMORY);
->                 kswapd_stop(node);
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index ebf319d..5964b7a 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -5872,6 +5872,19 @@ void free_contig_range(unsigned long pfn, unsigned nr_pages)
->  #endif
->
->  #ifdef CONFIG_MEMORY_HOTREMOVE
-> +void zone_pcp_reset(struct zone *zone)
-> +{
-> +       unsigned long flags;
-> +
-> +       /* avoid races with drain_pages()  */
-> +       local_irq_save(flags);
-> +       if (zone->pageset != &boot_pageset) {
-> +               free_percpu(zone->pageset);
-> +               zone->pageset = &boot_pageset;
-> +       }
-> +       local_irq_restore(flags);
-> +}
-> +
->  /*
->   * All pages in the range must be isolated before calling this.
->   */
-> --
-> 1.7.1
->
+> @@ -999,9 +999,9 @@ int remove_memory(u64 start, u64 size)
+>         return offline_pages(start_pfn, end_pfn, 120 * HZ);
+>  }
+>  #else
+> -int remove_memory(u64 start, u64 size)
+> +int offline_memory(u64 start, u64 size)
+>  {
+>         return -EINVAL;
+>  }
+>  #endif /* CONFIG_MEMORY_HOTREMOVE */
+> -EXPORT_SYMBOL_GPL(remove_memory);
+> +EXPORT_SYMBOL_GPL(offline_memory);
+> Index: linux-3.5-rc4/include/linux/memory_hotplug.h
+> ===================================================================
+> --- linux-3.5-rc4.orig/include/linux/memory_hotplug.h   2012-07-03 14:21:46.102416917 +0900
+> +++ linux-3.5-rc4/include/linux/memory_hotplug.h        2012-07-03 14:21:49.471374796 +0900
+> @@ -233,7 +233,7 @@ static inline int is_mem_section_removab
+>  extern int mem_online_node(int nid);
+>  extern int add_memory(int nid, u64 start, u64 size);
+>  extern int arch_add_memory(int nid, u64 start, u64 size);
+> -extern int remove_memory(u64 start, u64 size);
+> +extern int offline_memory(u64 start, u64 size);
+>  extern int sparse_add_one_section(struct zone *zone, unsigned long start_pfn,
+>                                                                 int nr_pages);
+>  extern void sparse_remove_one_section(struct zone *zone, struct mem_section *ms);
 >
 > --
 > To unsubscribe, send a message with 'unsubscribe linux-mm' in
 > the body to majordomo@kvack.org.  For more info on Linux MM,
 > see: http://www.linux-mm.org/ .
 > Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-
 
 
 -- 
