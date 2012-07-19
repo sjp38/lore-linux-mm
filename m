@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
-	by kanga.kvack.org (Postfix) with SMTP id A151B6B0071
-	for <linux-mm@kvack.org>; Thu, 19 Jul 2012 10:36:51 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
+	by kanga.kvack.org (Postfix) with SMTP id B08FA6B0044
+	for <linux-mm@kvack.org>; Thu, 19 Jul 2012 10:36:52 -0400 (EDT)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 06/34] vmscan: add shrink_slab tracepoints
-Date: Thu, 19 Jul 2012 15:36:16 +0100
-Message-Id: <1342708604-26540-7-git-send-email-mgorman@suse.de>
+Subject: [PATCH 08/34] vmscan: reduce wind up shrinker->nr when shrinker can't do work
+Date: Thu, 19 Jul 2012 15:36:18 +0100
+Message-Id: <1342708604-26540-9-git-send-email-mgorman@suse.de>
 In-Reply-To: <1342708604-26540-1-git-send-email-mgorman@suse.de>
 References: <1342708604-26540-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -15,148 +15,89 @@ Cc: "Linux-MM <linux-mm"@kvack.org, LKML <linux-kernel@vger.kernel.org>, Mel Gor
 
 From: Dave Chinner <dchinner@redhat.com>
 
-commit 095760730c1047c69159ce88021a7fa3833502c8 upstream.
+commit 3567b59aa80ac4417002bf58e35dce5c777d4164 upstream.
 
-Stable note: Not tracked in Bugzilla. This is a diagnostic patch that
-	was part of a series addressing excessive slab shrinking after
-	GFP_NOFS failures. There is detailed information on the series'
-	motivation at https://lkml.org/lkml/2011/6/2/42 .
+Stable note: Not tracked in Bugzilla. This patch reduces excessive
+	reclaim of slab objects reducing the amount of information that
+	has to be brought back in from disk. The third and fourth paragram
+	in the series describes the impact.
 
-It is impossible to understand what the shrinkers are actually doing
-without instrumenting the code, so add a some tracepoints to allow
-insight to be gained.
+When a shrinker returns -1 to shrink_slab() to indicate it cannot do
+any work given the current memory reclaim requirements, it adds the
+entire total_scan count to shrinker->nr. The idea behind this is that
+when the shrinker is next called and can do work, it will do the work
+of the previously aborted shrinker call as well.
+
+However, if a filesystem is doing lots of allocation with GFP_NOFS
+set, then we get many, many more aborts from the shrinkers than we
+do successful calls. The result is that shrinker->nr winds up to
+it's maximum permissible value (twice the current cache size) and
+then when the next shrinker call that can do work is issued, it
+has enough scan count built up to free the entire cache twice over.
+
+This manifests itself in the cache going from full to empty in a
+matter of seconds, even when only a small part of the cache is
+needed to be emptied to free sufficient memory.
+
+Under metadata intensive workloads on ext4 and XFS, I'm seeing the
+VFS caches increase memory consumption up to 75% of memory (no page
+cache pressure) over a period of 30-60s, and then the shrinker
+empties them down to zero in the space of 2-3s. This cycle repeats
+over and over again, with the shrinker completely trashing the inode
+and dentry caches every minute or so the workload continues.
+
+This behaviour was made obvious by the shrink_slab tracepoints added
+earlier in the series, and made worse by the patch that corrected
+the concurrent accounting of shrinker->nr.
+
+To avoid this problem, stop repeated small increments of the total
+scan value from winding shrinker->nr up to a value that can cause
+the entire cache to be freed. We still need to allow it to wind up,
+so use the delta as the "large scan" threshold check - if the delta
+is more than a quarter of the entire cache size, then it is a large
+scan and allowed to cause lots of windup because we are clearly
+needing to free lots of memory.
+
+If it isn't a large scan then limit the total scan to half the size
+of the cache so that windup never increases to consume the whole
+cache. Reducing the total scan limit further does not allow enough
+wind-up to maintain the current levels of performance, whilst a
+higher threshold does not prevent the windup from freeing the entire
+cache under sustained workloads.
 
 Signed-off-by: Dave Chinner <dchinner@redhat.com>
 Signed-off-by: Al Viro <viro@zeniv.linux.org.uk>
 Signed-off-by: Mel Gorman <mgorman@suse.de>
 ---
- include/trace/events/vmscan.h |   77 +++++++++++++++++++++++++++++++++++++++++
- mm/vmscan.c                   |    8 ++++-
- 2 files changed, 84 insertions(+), 1 deletion(-)
+ mm/vmscan.c |   15 +++++++++++++++
+ 1 file changed, 15 insertions(+)
 
-diff --git a/include/trace/events/vmscan.h b/include/trace/events/vmscan.h
-index b2c33bd..36851f7 100644
---- a/include/trace/events/vmscan.h
-+++ b/include/trace/events/vmscan.h
-@@ -179,6 +179,83 @@ DEFINE_EVENT(mm_vmscan_direct_reclaim_end_template, mm_vmscan_memcg_softlimit_re
- 	TP_ARGS(nr_reclaimed)
- );
- 
-+TRACE_EVENT(mm_shrink_slab_start,
-+	TP_PROTO(struct shrinker *shr, struct shrink_control *sc,
-+		long nr_objects_to_shrink, unsigned long pgs_scanned,
-+		unsigned long lru_pgs, unsigned long cache_items,
-+		unsigned long long delta, unsigned long total_scan),
-+
-+	TP_ARGS(shr, sc, nr_objects_to_shrink, pgs_scanned, lru_pgs,
-+		cache_items, delta, total_scan),
-+
-+	TP_STRUCT__entry(
-+		__field(struct shrinker *, shr)
-+		__field(void *, shrink)
-+		__field(long, nr_objects_to_shrink)
-+		__field(gfp_t, gfp_flags)
-+		__field(unsigned long, pgs_scanned)
-+		__field(unsigned long, lru_pgs)
-+		__field(unsigned long, cache_items)
-+		__field(unsigned long long, delta)
-+		__field(unsigned long, total_scan)
-+	),
-+
-+	TP_fast_assign(
-+		__entry->shr = shr;
-+		__entry->shrink = shr->shrink;
-+		__entry->nr_objects_to_shrink = nr_objects_to_shrink;
-+		__entry->gfp_flags = sc->gfp_mask;
-+		__entry->pgs_scanned = pgs_scanned;
-+		__entry->lru_pgs = lru_pgs;
-+		__entry->cache_items = cache_items;
-+		__entry->delta = delta;
-+		__entry->total_scan = total_scan;
-+	),
-+
-+	TP_printk("%pF %p: objects to shrink %ld gfp_flags %s pgs_scanned %ld lru_pgs %ld cache items %ld delta %lld total_scan %ld",
-+		__entry->shrink,
-+		__entry->shr,
-+		__entry->nr_objects_to_shrink,
-+		show_gfp_flags(__entry->gfp_flags),
-+		__entry->pgs_scanned,
-+		__entry->lru_pgs,
-+		__entry->cache_items,
-+		__entry->delta,
-+		__entry->total_scan)
-+);
-+
-+TRACE_EVENT(mm_shrink_slab_end,
-+	TP_PROTO(struct shrinker *shr, int shrinker_retval,
-+		long unused_scan_cnt, long new_scan_cnt),
-+
-+	TP_ARGS(shr, shrinker_retval, unused_scan_cnt, new_scan_cnt),
-+
-+	TP_STRUCT__entry(
-+		__field(struct shrinker *, shr)
-+		__field(void *, shrink)
-+		__field(long, unused_scan)
-+		__field(long, new_scan)
-+		__field(int, retval)
-+		__field(long, total_scan)
-+	),
-+
-+	TP_fast_assign(
-+		__entry->shr = shr;
-+		__entry->shrink = shr->shrink;
-+		__entry->unused_scan = unused_scan_cnt;
-+		__entry->new_scan = new_scan_cnt;
-+		__entry->retval = shrinker_retval;
-+		__entry->total_scan = new_scan_cnt - unused_scan_cnt;
-+	),
-+
-+	TP_printk("%pF %p: unused scan count %ld new scan count %ld total_scan %ld last shrinker return val %d",
-+		__entry->shrink,
-+		__entry->shr,
-+		__entry->unused_scan,
-+		__entry->new_scan,
-+		__entry->total_scan,
-+		__entry->retval)
-+);
- 
- DECLARE_EVENT_CLASS(mm_vmscan_lru_isolate_template,
- 
 diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 72340b84..d875058 100644
+index 31b551e..8ca1cd5 100644
 --- a/mm/vmscan.c
 +++ b/mm/vmscan.c
-@@ -250,6 +250,7 @@ unsigned long shrink_slab(struct shrink_control *shrink,
- 		unsigned long long delta;
- 		unsigned long total_scan;
- 		unsigned long max_pass;
-+		int shrink_ret = 0;
- 
- 		max_pass = do_shrinker_shrink(shrinker, shrink, 0);
- 		delta = (4 * nr_pages_scanned) / shrinker->seeks;
-@@ -274,9 +275,12 @@ unsigned long shrink_slab(struct shrink_control *shrink,
- 		total_scan = shrinker->nr;
- 		shrinker->nr = 0;
- 
-+		trace_mm_shrink_slab_start(shrinker, shrink, total_scan,
-+					nr_pages_scanned, lru_pages,
-+					max_pass, delta, total_scan);
-+
- 		while (total_scan >= SHRINK_BATCH) {
- 			long this_scan = SHRINK_BATCH;
--			int shrink_ret;
- 			int nr_before;
- 
- 			nr_before = do_shrinker_shrink(shrinker, shrink, 0);
-@@ -293,6 +297,8 @@ unsigned long shrink_slab(struct shrink_control *shrink,
+@@ -277,6 +277,21 @@ unsigned long shrink_slab(struct shrink_control *shrink,
  		}
  
- 		shrinker->nr += total_scan;
-+		trace_mm_shrink_slab_end(shrinker, shrink_ret, total_scan,
-+					 shrinker->nr);
- 	}
- 	up_read(&shrinker_rwsem);
- out:
+ 		/*
++		 * We need to avoid excessive windup on filesystem shrinkers
++		 * due to large numbers of GFP_NOFS allocations causing the
++		 * shrinkers to return -1 all the time. This results in a large
++		 * nr being built up so when a shrink that can do some work
++		 * comes along it empties the entire cache due to nr >>>
++		 * max_pass.  This is bad for sustaining a working set in
++		 * memory.
++		 *
++		 * Hence only allow the shrinker to scan the entire cache when
++		 * a large delta change is calculated directly.
++		 */
++		if (delta < max_pass / 4)
++			total_scan = min(total_scan, max_pass / 2);
++
++		/*
+ 		 * Avoid risking looping forever due to too large nr value:
+ 		 * never try to free more than twice the estimate number of
+ 		 * freeable entries.
 -- 
 1.7.9.2
 
