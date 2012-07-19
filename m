@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
-	by kanga.kvack.org (Postfix) with SMTP id 2408D6B0070
-	for <linux-mm@kvack.org>; Thu, 19 Jul 2012 10:36:52 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
+	by kanga.kvack.org (Postfix) with SMTP id A151B6B0071
+	for <linux-mm@kvack.org>; Thu, 19 Jul 2012 10:36:51 -0400 (EDT)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 07/34] vmscan: shrinker->nr updates race and go wrong
-Date: Thu, 19 Jul 2012 15:36:17 +0100
-Message-Id: <1342708604-26540-8-git-send-email-mgorman@suse.de>
+Subject: [PATCH 06/34] vmscan: add shrink_slab tracepoints
+Date: Thu, 19 Jul 2012 15:36:16 +0100
+Message-Id: <1342708604-26540-7-git-send-email-mgorman@suse.de>
 In-Reply-To: <1342708604-26540-1-git-send-email-mgorman@suse.de>
 References: <1342708604-26540-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -15,110 +15,145 @@ Cc: "Linux-MM <linux-mm"@kvack.org, LKML <linux-kernel@vger.kernel.org>, Mel Gor
 
 From: Dave Chinner <dchinner@redhat.com>
 
-commit acf92b485cccf028177f46918e045c0c4e80ee10 upstream.
+commit 095760730c1047c69159ce88021a7fa3833502c8 upstream.
 
-Stable note: Not tracked in Bugzilla. This patch reduces excessive
-	reclaim of slab objects reducing the amount of information
-	that has to be brought back in from disk.
+Stable note: Not tracked in Bugzilla. This is a diagnostic patch that
+	was part of a series addressing excessive slab shrinking after
+	GFP_NOFS failures. There is detailed information on the series'
+	motivation at https://lkml.org/lkml/2011/6/2/42 .
 
-shrink_slab() allows shrinkers to be called in parallel so the
-struct shrinker can be updated concurrently. It does not provide any
-exclusion for such updates, so we can get the shrinker->nr value
-increasing or decreasing incorrectly.
-
-As a result, when a shrinker repeatedly returns a value of -1 (e.g.
-a VFS shrinker called w/ GFP_NOFS), the shrinker->nr goes haywire,
-sometimes updating with the scan count that wasn't used, sometimes
-losing it altogether. Worse is when a shrinker does work and that
-update is lost due to racy updates, which means the shrinker will do
-the work again!
-
-Fix this by making the total_scan calculations independent of
-shrinker->nr, and making the shrinker->nr updates atomic w.r.t. to
-other updates via cmpxchg loops.
+It is impossible to understand what the shrinkers are actually doing
+without instrumenting the code, so add a some tracepoints to allow
+insight to be gained.
 
 Signed-off-by: Dave Chinner <dchinner@redhat.com>
 Signed-off-by: Al Viro <viro@zeniv.linux.org.uk>
 Signed-off-by: Mel Gorman <mgorman@suse.de>
 ---
- mm/vmscan.c |   45 ++++++++++++++++++++++++++++++++-------------
- 1 file changed, 32 insertions(+), 13 deletions(-)
+ include/trace/events/vmscan.h |   77 +++++++++++++++++++++++++++++++++++++++++
+ mm/vmscan.c                   |    8 ++++-
+ 2 files changed, 84 insertions(+), 1 deletion(-)
 
+diff --git a/include/trace/events/vmscan.h b/include/trace/events/vmscan.h
+index b2c33bd..36851f7 100644
+--- a/include/trace/events/vmscan.h
++++ b/include/trace/events/vmscan.h
+@@ -179,6 +179,83 @@ DEFINE_EVENT(mm_vmscan_direct_reclaim_end_template, mm_vmscan_memcg_softlimit_re
+ 	TP_ARGS(nr_reclaimed)
+ );
+ 
++TRACE_EVENT(mm_shrink_slab_start,
++	TP_PROTO(struct shrinker *shr, struct shrink_control *sc,
++		long nr_objects_to_shrink, unsigned long pgs_scanned,
++		unsigned long lru_pgs, unsigned long cache_items,
++		unsigned long long delta, unsigned long total_scan),
++
++	TP_ARGS(shr, sc, nr_objects_to_shrink, pgs_scanned, lru_pgs,
++		cache_items, delta, total_scan),
++
++	TP_STRUCT__entry(
++		__field(struct shrinker *, shr)
++		__field(void *, shrink)
++		__field(long, nr_objects_to_shrink)
++		__field(gfp_t, gfp_flags)
++		__field(unsigned long, pgs_scanned)
++		__field(unsigned long, lru_pgs)
++		__field(unsigned long, cache_items)
++		__field(unsigned long long, delta)
++		__field(unsigned long, total_scan)
++	),
++
++	TP_fast_assign(
++		__entry->shr = shr;
++		__entry->shrink = shr->shrink;
++		__entry->nr_objects_to_shrink = nr_objects_to_shrink;
++		__entry->gfp_flags = sc->gfp_mask;
++		__entry->pgs_scanned = pgs_scanned;
++		__entry->lru_pgs = lru_pgs;
++		__entry->cache_items = cache_items;
++		__entry->delta = delta;
++		__entry->total_scan = total_scan;
++	),
++
++	TP_printk("%pF %p: objects to shrink %ld gfp_flags %s pgs_scanned %ld lru_pgs %ld cache items %ld delta %lld total_scan %ld",
++		__entry->shrink,
++		__entry->shr,
++		__entry->nr_objects_to_shrink,
++		show_gfp_flags(__entry->gfp_flags),
++		__entry->pgs_scanned,
++		__entry->lru_pgs,
++		__entry->cache_items,
++		__entry->delta,
++		__entry->total_scan)
++);
++
++TRACE_EVENT(mm_shrink_slab_end,
++	TP_PROTO(struct shrinker *shr, int shrinker_retval,
++		long unused_scan_cnt, long new_scan_cnt),
++
++	TP_ARGS(shr, shrinker_retval, unused_scan_cnt, new_scan_cnt),
++
++	TP_STRUCT__entry(
++		__field(struct shrinker *, shr)
++		__field(void *, shrink)
++		__field(long, unused_scan)
++		__field(long, new_scan)
++		__field(int, retval)
++		__field(long, total_scan)
++	),
++
++	TP_fast_assign(
++		__entry->shr = shr;
++		__entry->shrink = shr->shrink;
++		__entry->unused_scan = unused_scan_cnt;
++		__entry->new_scan = new_scan_cnt;
++		__entry->retval = shrinker_retval;
++		__entry->total_scan = new_scan_cnt - unused_scan_cnt;
++	),
++
++	TP_printk("%pF %p: unused scan count %ld new scan count %ld total_scan %ld last shrinker return val %d",
++		__entry->shrink,
++		__entry->shr,
++		__entry->unused_scan,
++		__entry->new_scan,
++		__entry->total_scan,
++		__entry->retval)
++);
+ 
+ DECLARE_EVENT_CLASS(mm_vmscan_lru_isolate_template,
+ 
 diff --git a/mm/vmscan.c b/mm/vmscan.c
-index d875058..31b551e 100644
+index 72340b84..d875058 100644
 --- a/mm/vmscan.c
 +++ b/mm/vmscan.c
-@@ -251,17 +251,29 @@ unsigned long shrink_slab(struct shrink_control *shrink,
+@@ -250,6 +250,7 @@ unsigned long shrink_slab(struct shrink_control *shrink,
+ 		unsigned long long delta;
  		unsigned long total_scan;
  		unsigned long max_pass;
- 		int shrink_ret = 0;
-+		long nr;
-+		long new_nr;
++		int shrink_ret = 0;
  
-+		/*
-+		 * copy the current shrinker scan count into a local variable
-+		 * and zero it so that other concurrent shrinker invocations
-+		 * don't also do this scanning work.
-+		 */
-+		do {
-+			nr = shrinker->nr;
-+		} while (cmpxchg(&shrinker->nr, nr, 0) != nr);
-+
-+		total_scan = nr;
  		max_pass = do_shrinker_shrink(shrinker, shrink, 0);
  		delta = (4 * nr_pages_scanned) / shrinker->seeks;
- 		delta *= max_pass;
- 		do_div(delta, lru_pages + 1);
--		shrinker->nr += delta;
--		if (shrinker->nr < 0) {
-+		total_scan += delta;
-+		if (total_scan < 0) {
- 			printk(KERN_ERR "shrink_slab: %pF negative objects to "
- 			       "delete nr=%ld\n",
--			       shrinker->shrink, shrinker->nr);
--			shrinker->nr = max_pass;
-+			       shrinker->shrink, total_scan);
-+			total_scan = max_pass;
- 		}
+@@ -274,9 +275,12 @@ unsigned long shrink_slab(struct shrink_control *shrink,
+ 		total_scan = shrinker->nr;
+ 		shrinker->nr = 0;
  
- 		/*
-@@ -269,13 +281,10 @@ unsigned long shrink_slab(struct shrink_control *shrink,
- 		 * never try to free more than twice the estimate number of
- 		 * freeable entries.
- 		 */
--		if (shrinker->nr > max_pass * 2)
--			shrinker->nr = max_pass * 2;
--
--		total_scan = shrinker->nr;
--		shrinker->nr = 0;
-+		if (total_scan > max_pass * 2)
-+			total_scan = max_pass * 2;
- 
--		trace_mm_shrink_slab_start(shrinker, shrink, total_scan,
-+		trace_mm_shrink_slab_start(shrinker, shrink, nr,
- 					nr_pages_scanned, lru_pages,
- 					max_pass, delta, total_scan);
- 
-@@ -296,9 +305,19 @@ unsigned long shrink_slab(struct shrink_control *shrink,
- 			cond_resched();
- 		}
- 
--		shrinker->nr += total_scan;
--		trace_mm_shrink_slab_end(shrinker, shrink_ret, total_scan,
--					 shrinker->nr);
-+		/*
-+		 * move the unused scan count back into the shrinker in a
-+		 * manner that handles concurrent updates. If we exhausted the
-+		 * scan, there is no need to do an update.
-+		 */
-+		do {
-+			nr = shrinker->nr;
-+			new_nr = total_scan + nr;
-+			if (total_scan <= 0)
-+				break;
-+		} while (cmpxchg(&shrinker->nr, nr, new_nr) != nr);
++		trace_mm_shrink_slab_start(shrinker, shrink, total_scan,
++					nr_pages_scanned, lru_pages,
++					max_pass, delta, total_scan);
 +
-+		trace_mm_shrink_slab_end(shrinker, shrink_ret, nr, new_nr);
+ 		while (total_scan >= SHRINK_BATCH) {
+ 			long this_scan = SHRINK_BATCH;
+-			int shrink_ret;
+ 			int nr_before;
+ 
+ 			nr_before = do_shrinker_shrink(shrinker, shrink, 0);
+@@ -293,6 +297,8 @@ unsigned long shrink_slab(struct shrink_control *shrink,
+ 		}
+ 
+ 		shrinker->nr += total_scan;
++		trace_mm_shrink_slab_end(shrinker, shrink_ret, total_scan,
++					 shrinker->nr);
  	}
  	up_read(&shrinker_rwsem);
  out:
