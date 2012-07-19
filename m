@@ -1,46 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
-	by kanga.kvack.org (Postfix) with SMTP id D2BE56B0069
-	for <linux-mm@kvack.org>; Thu, 19 Jul 2012 06:01:10 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 9FBD83EE0AE
-	for <linux-mm@kvack.org>; Thu, 19 Jul 2012 19:01:08 +0900 (JST)
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 86FE045DE5B
-	for <linux-mm@kvack.org>; Thu, 19 Jul 2012 19:01:08 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 6C05545DE59
-	for <linux-mm@kvack.org>; Thu, 19 Jul 2012 19:01:08 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 5E5101DB803A
-	for <linux-mm@kvack.org>; Thu, 19 Jul 2012 19:01:08 +0900 (JST)
-Received: from m1000.s.css.fujitsu.com (m1000.s.css.fujitsu.com [10.240.81.136])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 151F01DB802C
-	for <linux-mm@kvack.org>; Thu, 19 Jul 2012 19:01:08 +0900 (JST)
-Message-ID: <5007DA01.5060903@jp.fujitsu.com>
-Date: Thu, 19 Jul 2012 18:57:21 +0900
+Received: from psmtp.com (na3sys010amx133.postini.com [74.125.245.133])
+	by kanga.kvack.org (Postfix) with SMTP id DF8E56B0070
+	for <linux-mm@kvack.org>; Thu, 19 Jul 2012 06:11:35 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 81CBA3EE0C1
+	for <linux-mm@kvack.org>; Thu, 19 Jul 2012 19:11:34 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 68B3845DEB8
+	for <linux-mm@kvack.org>; Thu, 19 Jul 2012 19:11:34 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 4E67345DEB2
+	for <linux-mm@kvack.org>; Thu, 19 Jul 2012 19:11:34 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 347291DB8038
+	for <linux-mm@kvack.org>; Thu, 19 Jul 2012 19:11:34 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id BB35E1DB803F
+	for <linux-mm@kvack.org>; Thu, 19 Jul 2012 19:11:33 +0900 (JST)
+Message-ID: <5007DCBF.7070804@jp.fujitsu.com>
+Date: Thu, 19 Jul 2012 19:09:03 +0900
 From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [patch 03/10] mm: memcg: push down PageSwapCache check into uncharge
- entry functions
-References: <1342026142-7284-1-git-send-email-hannes@cmpxchg.org> <1342026142-7284-4-git-send-email-hannes@cmpxchg.org>
-In-Reply-To: <1342026142-7284-4-git-send-email-hannes@cmpxchg.org>
-Content-Type: text/plain; charset=ISO-2022-JP
+Subject: Re: [PATCH 3/3 v3] memory-hotplug: fix kswapd looping forever problem
+References: <1342061449-29590-1-git-send-email-minchan@kernel.org> <1342061449-29590-3-git-send-email-minchan@kernel.org> <20120712140154.72766586.akpm@linux-foundation.org>
+In-Reply-To: <20120712140154.72766586.akpm@linux-foundation.org>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Hugh Dickins <hughd@google.com>, David Rientjes <rientjes@google.com>, Wanpeng Li <liwp.linux@gmail.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Minchan Kim <minchan@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Aaditya Kumar <aaditya.kumar@ap.sony.com>
 
-(2012/07/12 2:02), Johannes Weiner wrote:
-> Not all uncharge paths need to check if the page is swapcache, some of
-> them can know for sure.
-> 
-> Push down the check into all callsites of uncharge_common() so that
-> the patch that removes some of them is more obvious.
-> 
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-> Acked-by: Michal Hocko <mhocko@suse.cz>
+
+> From: Andrew Morton <akpm@linux-foundation.org>
+> Subject: memory-hotplug-fix-kswapd-looping-forever-problem-fix
+>
+> simplify nr_zone_isolate_freepages(), rework zone_watermark_ok_safe() comment, simplify set_pageblock_isolate() and restore_pageblock_isolate().
+>
+> Cc: Aaditya Kumar <aaditya.kumar.30@gmail.com>
+> Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> Cc: Mel Gorman <mgorman@suse.de>
+> Cc: Michal Hocko <mhocko@suse.cz>
+> Cc: Minchan Kim <minchan@kernel.org>
+> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+
 Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
 --
