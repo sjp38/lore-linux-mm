@@ -1,126 +1,161 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
-	by kanga.kvack.org (Postfix) with SMTP id 2729D6B005C
-	for <linux-mm@kvack.org>; Thu, 19 Jul 2012 05:23:21 -0400 (EDT)
-Received: from /spool/local
-	by e23smtp06.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Thu, 19 Jul 2012 09:16:22 +1000
-Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
-	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q6J9FAZY34013358
-	for <linux-mm@kvack.org>; Thu, 19 Jul 2012 19:15:11 +1000
-Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
-	by d23av04.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q6J9NBst000387
-	for <linux-mm@kvack.org>; Thu, 19 Jul 2012 19:23:11 +1000
-Date: Thu, 19 Jul 2012 17:23:09 +0800
-From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: Re: [PATCH] mm/memcg: wrap mem_cgroup_from_css function
-Message-ID: <20120719092309.GA12409@kernel>
-Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-References: <a>
- <1342580730-25703-1-git-send-email-liwanp@linux.vnet.ibm.com>
- <20120719091420.GA2549@shutemov.name>
+Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
+	by kanga.kvack.org (Postfix) with SMTP id D83B56B005C
+	for <linux-mm@kvack.org>; Thu, 19 Jul 2012 05:27:04 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id DC9723EE0C5
+	for <linux-mm@kvack.org>; Thu, 19 Jul 2012 18:27:02 +0900 (JST)
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id B8B8C45DE5D
+	for <linux-mm@kvack.org>; Thu, 19 Jul 2012 18:27:02 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 9E4A345DE59
+	for <linux-mm@kvack.org>; Thu, 19 Jul 2012 18:27:02 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 857AD1DB8055
+	for <linux-mm@kvack.org>; Thu, 19 Jul 2012 18:27:02 +0900 (JST)
+Received: from g01jpexchkw11.g01.fujitsu.local (g01jpexchkw11.g01.fujitsu.local [10.0.194.50])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 319C11DB8052
+	for <linux-mm@kvack.org>; Thu, 19 Jul 2012 18:27:02 +0900 (JST)
+Message-ID: <5007D2C1.90406@jp.fujitsu.com>
+Date: Thu, 19 Jul 2012 18:26:25 +0900
+From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120719091420.GA2549@shutemov.name>
+Subject: Re: [RFC PATCH v4 1/13] memory-hotplug : rename remove_memory to
+ offline_memory
+References: <50068974.1070409@jp.fujitsu.com> <50068A6E.5050904@jp.fujitsu.com> <CAA_GA1fayhA1A3vT5BcDCoL_JVd6pZJn2_=NXK0bjJNRXo=7LA@mail.gmail.com>
+In-Reply-To: <CAA_GA1fayhA1A3vT5BcDCoL_JVd6pZJn2_=NXK0bjJNRXo=7LA@mail.gmail.com>
+Content-Type: text/plain; charset="UTF-8"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: linux-mm@kvack.org, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWAHiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Gavin Shan <shangw@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org
+To: Bob Liu <lliubbo@gmail.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, wency@cn.fujitsu.com
 
-On Thu, Jul 19, 2012 at 12:14:20PM +0300, Kirill A. Shutemov wrote:
->On Wed, Jul 18, 2012 at 11:05:30AM +0800, Wanpeng Li wrote:
->> wrap mem_cgroup_from_css function to clarify get mem cgroup
->> from cgroup_subsys_state.
->> 
->> Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
->> Cc: Michal Hocko <mhocko@suse.cz>
->> Cc: Johannes Weiner <hannes@cmpxchg.org>
->> Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
->> Cc: Andrew Morton <akpm@linux-foundation.org>
->> Cc: Gavin Shan <shangw@linux.vnet.ibm.com>
->> Cc: Wanpeng Li <liwanp@linux.vnet.ibm.com>
->> Cc: linux-kernel@vger.kernel.org
+Hi Bob,
+
+2012/07/19 17:19, Bob Liu wrote:
+> Hi Yasuaki,
+>
+> On Wed, Jul 18, 2012 at 6:05 PM, Yasuaki Ishimatsu
+> <isimatu.yasuaki@jp.fujitsu.com> wrote:
+>> remove_memory() does not remove memory but just offlines memory. The patch
+>> changes name of it to offline_memory().
+>
+> Since offline_memory() just align the start/end pfn and there is no
+> matched online_memory() function,
+> i think it's better to remove this function and add the alignment into
+> offline_pages().
+
+If we change it, these argument becomes different as follows:
+
+   online_pages  : page frame number and number of page frame number
+   offline_pages : memory address and memory length
+
+I think it is ugly. So I don't want to change it. As you say, there is no
+function that matches to offline_memory(). If we create export symbol
+function for onlining page, in this case, the function should be named
+online_memory().
+
+Thanks,
+Yasuaki Ishimatsu
+
+>
+>>
+>> CC: David Rientjes <rientjes@google.com>
+>> CC: Jiang Liu <liuj97@gmail.com>
+>> CC: Len Brown <len.brown@intel.com>
+>> CC: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+>> CC: Paul Mackerras <paulus@samba.org>
+>> CC: Christoph Lameter <cl@linux.com>
+>> Cc: Minchan Kim <minchan.kim@gmail.com>
+>> CC: Andrew Morton <akpm@linux-foundation.org>
+>> CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+>> CC: Wen Congyang <wency@cn.fujitsu.com>
+>> Signed-off-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+>>
 >> ---
->>  mm/memcontrol.c |   14 ++++++++++----
->>  1 files changed, 10 insertions(+), 4 deletions(-)
->> 
->> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
->> index 58a08fc..20f6a15 100644
->> --- a/mm/memcontrol.c
->> +++ b/mm/memcontrol.c
->> @@ -396,6 +396,12 @@ static void mem_cgroup_put(struct mem_cgroup *memcg);
->>  #include <net/sock.h>
->>  #include <net/ip.h>
->>  
->> +static inline
->> +struct mem_cgroup *mem_cgroup_from_css(struct cgroup_subsys_state *s)
->> +{
->> +	return container_of(s, struct mem_cgroup, css);
->> +}
->> +
->>  static bool mem_cgroup_is_root(struct mem_cgroup *memcg);
->>  void sock_update_memcg(struct sock *sk)
->>  {
->> @@ -820,7 +826,7 @@ static void memcg_check_events(struct mem_cgroup *memcg, struct page *page)
->>  
->>  struct mem_cgroup *mem_cgroup_from_cont(struct cgroup *cont)
->>  {
->> -	return container_of(cgroup_subsys_state(cont,
->> +	return mem_cgroup_from_css(cgroup_subsys_state(cont,
->>  				mem_cgroup_subsys_id), struct mem_cgroup,
->>  				css);
->
->Hm?.. Here and below too many args to mem_cgroup_from_css().
->Have you tested the code?
-
-Hi, what's the meaning of "two many"?
-
-cgroup_subsys_state(cont, mem_cgroup_subsys_id) and 
-task_subsys_state(p, mem_cgroup_subsys_id) both are 
-just one arg in mem_cgroup_from_css. :-)
-
->
->>  }
->> @@ -835,7 +841,7 @@ struct mem_cgroup *mem_cgroup_from_task(struct task_struct *p)
->>  	if (unlikely(!p))
->>  		return NULL;
->>  
->> -	return container_of(task_subsys_state(p, mem_cgroup_subsys_id),
->> +	return mem_cgroup_from_css(task_subsys_state(p, mem_cgroup_subsys_id),
->>  				struct mem_cgroup, css);
->>  }
->>  
->> @@ -922,7 +928,7 @@ struct mem_cgroup *mem_cgroup_iter(struct mem_cgroup *root,
->>  		css = css_get_next(&mem_cgroup_subsys, id + 1, &root->css, &id);
->>  		if (css) {
->>  			if (css == &root->css || css_tryget(css))
->> -				memcg = container_of(css,
->> +				memcg = mem_cgroup_from_css(css,
->>  						     struct mem_cgroup, css);
->>  		} else
->>  			id = 0;
->> @@ -2406,7 +2412,7 @@ static struct mem_cgroup *mem_cgroup_lookup(unsigned short id)
->>  	css = css_lookup(&mem_cgroup_subsys, id);
->>  	if (!css)
->>  		return NULL;
->> -	return container_of(css, struct mem_cgroup, css);
->> +	return mem_cgroup_from_css(css, struct mem_cgroup, css);
->>  }
->>  
->>  struct mem_cgroup *try_get_mem_cgroup_from_page(struct page *page)
->> -- 
->> 1.7.5.4
->> 
+>>   drivers/acpi/acpi_memhotplug.c |    2 +-
+>>   drivers/base/memory.c          |    4 ++--
+>>   include/linux/memory_hotplug.h |    2 +-
+>>   mm/memory_hotplug.c            |    6 +++---
+>>   4 files changed, 7 insertions(+), 7 deletions(-)
+>>
+>> Index: linux-3.5-rc4/drivers/acpi/acpi_memhotplug.c
+>> ===================================================================
+>> --- linux-3.5-rc4.orig/drivers/acpi/acpi_memhotplug.c   2012-07-03 14:21:46.102416917 +0900
+>> +++ linux-3.5-rc4/drivers/acpi/acpi_memhotplug.c        2012-07-03 14:21:49.458374960 +0900
+>> @@ -318,7 +318,7 @@ static int acpi_memory_disable_device(st
+>>           */
+>>          list_for_each_entry_safe(info, n, &mem_device->res_list, list) {
+>>                  if (info->enabled) {
+>> -                       result = remove_memory(info->start_addr, info->length);
+>> +                       result = offline_memory(info->start_addr, info->length);
+>>                          if (result)
+>>                                  return result;
+>>                  }
+>> Index: linux-3.5-rc4/drivers/base/memory.c
+>> ===================================================================
+>> --- linux-3.5-rc4.orig/drivers/base/memory.c    2012-07-03 14:21:46.095417003 +0900
+>> +++ linux-3.5-rc4/drivers/base/memory.c 2012-07-03 14:21:49.459374948 +0900
+>> @@ -266,8 +266,8 @@ memory_block_action(unsigned long phys_i
+>>                          break;
+>>                  case MEM_OFFLINE:
+>>                          start_paddr = page_to_pfn(first_page) << PAGE_SHIFT;
+>> -                       ret = remove_memory(start_paddr,
+>> -                                           nr_pages << PAGE_SHIFT);
+>> +                       ret = offline_memory(start_paddr,
+>> +                                            nr_pages << PAGE_SHIFT);
+>>                          break;
+>>                  default:
+>>                          WARN(1, KERN_WARNING "%s(%ld, %ld) unknown action: "
+>> Index: linux-3.5-rc4/mm/memory_hotplug.c
+>> ===================================================================
+>> --- linux-3.5-rc4.orig/mm/memory_hotplug.c      2012-07-03 14:21:46.102416917 +0900
+>> +++ linux-3.5-rc4/mm/memory_hotplug.c   2012-07-03 14:21:49.466374860 +0900
+>> @@ -990,7 +990,7 @@ out:
+>>          return ret;
+>>   }
+>>
+>> -int remove_memory(u64 start, u64 size)
+>> +int offline_memory(u64 start, u64 size)
+>>   {
+>>          unsigned long start_pfn, end_pfn;
+>>
+>> @@ -999,9 +999,9 @@ int remove_memory(u64 start, u64 size)
+>>          return offline_pages(start_pfn, end_pfn, 120 * HZ);
+>>   }
+>>   #else
+>> -int remove_memory(u64 start, u64 size)
+>> +int offline_memory(u64 start, u64 size)
+>>   {
+>>          return -EINVAL;
+>>   }
+>>   #endif /* CONFIG_MEMORY_HOTREMOVE */
+>> -EXPORT_SYMBOL_GPL(remove_memory);
+>> +EXPORT_SYMBOL_GPL(offline_memory);
+>> Index: linux-3.5-rc4/include/linux/memory_hotplug.h
+>> ===================================================================
+>> --- linux-3.5-rc4.orig/include/linux/memory_hotplug.h   2012-07-03 14:21:46.102416917 +0900
+>> +++ linux-3.5-rc4/include/linux/memory_hotplug.h        2012-07-03 14:21:49.471374796 +0900
+>> @@ -233,7 +233,7 @@ static inline int is_mem_section_removab
+>>   extern int mem_online_node(int nid);
+>>   extern int add_memory(int nid, u64 start, u64 size);
+>>   extern int arch_add_memory(int nid, u64 start, u64 size);
+>> -extern int remove_memory(u64 start, u64 size);
+>> +extern int offline_memory(u64 start, u64 size);
+>>   extern int sparse_add_one_section(struct zone *zone, unsigned long start_pfn,
+>>                                                                  int nr_pages);
+>>   extern void sparse_remove_one_section(struct zone *zone, struct mem_section *ms);
+>>
 >> --
 >> To unsubscribe, send a message with 'unsubscribe linux-mm' in
 >> the body to majordomo@kvack.org.  For more info on Linux MM,
 >> see: http://www.linux-mm.org/ .
 >> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 >
->-- 
-> Kirill A. Shutemov
+>
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
