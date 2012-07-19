@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
-	by kanga.kvack.org (Postfix) with SMTP id B08FA6B0044
-	for <linux-mm@kvack.org>; Thu, 19 Jul 2012 10:36:52 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
+	by kanga.kvack.org (Postfix) with SMTP id 729546B007B
+	for <linux-mm@kvack.org>; Thu, 19 Jul 2012 10:36:53 -0400 (EDT)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 08/34] vmscan: reduce wind up shrinker->nr when shrinker can't do work
-Date: Thu, 19 Jul 2012 15:36:18 +0100
-Message-Id: <1342708604-26540-9-git-send-email-mgorman@suse.de>
+Subject: [PATCH 09/34] mm: limit direct reclaim for higher order allocations
+Date: Thu, 19 Jul 2012 15:36:19 +0100
+Message-Id: <1342708604-26540-10-git-send-email-mgorman@suse.de>
 In-Reply-To: <1342708604-26540-1-git-send-email-mgorman@suse.de>
 References: <1342708604-26540-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -13,91 +13,73 @@ List-ID: <linux-mm.kvack.org>
 To: Stable <stable@vger.kernel.org>
 Cc: "Linux-MM <linux-mm"@kvack.org, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
 
-From: Dave Chinner <dchinner@redhat.com>
+From: Rik van Riel <riel@redhat.com>
 
-commit 3567b59aa80ac4417002bf58e35dce5c777d4164 upstream.
+commit e0887c19b2daa140f20ca8104bdc5740f39dbb86 upstream.
 
-Stable note: Not tracked in Bugzilla. This patch reduces excessive
-	reclaim of slab objects reducing the amount of information that
-	has to be brought back in from disk. The third and fourth paragram
-	in the series describes the impact.
+Stable note: Not tracked on Bugzilla. THP and compaction was found to
+	aggressively reclaim pages and stall systems under different
+	situations that was addressed piecemeal over time. Paragraph
+	3 of this changelog is the motivation for this patch.
 
-When a shrinker returns -1 to shrink_slab() to indicate it cannot do
-any work given the current memory reclaim requirements, it adds the
-entire total_scan count to shrinker->nr. The idea behind this is that
-when the shrinker is next called and can do work, it will do the work
-of the previously aborted shrinker call as well.
+When suffering from memory fragmentation due to unfreeable pages, THP page
+faults will repeatedly try to compact memory.  Due to the unfreeable
+pages, compaction fails.
 
-However, if a filesystem is doing lots of allocation with GFP_NOFS
-set, then we get many, many more aborts from the shrinkers than we
-do successful calls. The result is that shrinker->nr winds up to
-it's maximum permissible value (twice the current cache size) and
-then when the next shrinker call that can do work is issued, it
-has enough scan count built up to free the entire cache twice over.
+Needless to say, at that point page reclaim also fails to create free
+contiguous 2MB areas.  However, that doesn't stop the current code from
+trying, over and over again, and freeing a minimum of 4MB (2UL <<
+sc->order pages) at every single invocation.
 
-This manifests itself in the cache going from full to empty in a
-matter of seconds, even when only a small part of the cache is
-needed to be emptied to free sufficient memory.
+This resulted in my 12GB system having 2-3GB free memory, a corresponding
+amount of used swap and very sluggish response times.
 
-Under metadata intensive workloads on ext4 and XFS, I'm seeing the
-VFS caches increase memory consumption up to 75% of memory (no page
-cache pressure) over a period of 30-60s, and then the shrinker
-empties them down to zero in the space of 2-3s. This cycle repeats
-over and over again, with the shrinker completely trashing the inode
-and dentry caches every minute or so the workload continues.
+This can be avoided by having the direct reclaim code not reclaim from
+zones that already have plenty of free memory available for compaction.
 
-This behaviour was made obvious by the shrink_slab tracepoints added
-earlier in the series, and made worse by the patch that corrected
-the concurrent accounting of shrinker->nr.
+If compaction still fails due to unmovable memory, doing additional
+reclaim will only hurt the system, not help.
 
-To avoid this problem, stop repeated small increments of the total
-scan value from winding shrinker->nr up to a value that can cause
-the entire cache to be freed. We still need to allow it to wind up,
-so use the delta as the "large scan" threshold check - if the delta
-is more than a quarter of the entire cache size, then it is a large
-scan and allowed to cause lots of windup because we are clearly
-needing to free lots of memory.
-
-If it isn't a large scan then limit the total scan to half the size
-of the cache so that windup never increases to consume the whole
-cache. Reducing the total scan limit further does not allow enough
-wind-up to maintain the current levels of performance, whilst a
-higher threshold does not prevent the windup from freeing the entire
-cache under sustained workloads.
-
-Signed-off-by: Dave Chinner <dchinner@redhat.com>
-Signed-off-by: Al Viro <viro@zeniv.linux.org.uk>
+[jweiner@redhat.com: change comment to explain the order check]
+Signed-off-by: Rik van Riel <riel@redhat.com>
+Acked-by: Johannes Weiner <jweiner@redhat.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>
+Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
+Signed-off-by: Johannes Weiner <jweiner@redhat.com>
+Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
 Signed-off-by: Mel Gorman <mgorman@suse.de>
 ---
- mm/vmscan.c |   15 +++++++++++++++
- 1 file changed, 15 insertions(+)
+ mm/vmscan.c |   16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)
 
 diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 31b551e..8ca1cd5 100644
+index 8ca1cd5..d11b6c4 100644
 --- a/mm/vmscan.c
 +++ b/mm/vmscan.c
-@@ -277,6 +277,21 @@ unsigned long shrink_slab(struct shrink_control *shrink,
- 		}
- 
- 		/*
-+		 * We need to avoid excessive windup on filesystem shrinkers
-+		 * due to large numbers of GFP_NOFS allocations causing the
-+		 * shrinkers to return -1 all the time. This results in a large
-+		 * nr being built up so when a shrink that can do some work
-+		 * comes along it empties the entire cache due to nr >>>
-+		 * max_pass.  This is bad for sustaining a working set in
-+		 * memory.
-+		 *
-+		 * Hence only allow the shrinker to scan the entire cache when
-+		 * a large delta change is calculated directly.
-+		 */
-+		if (delta < max_pass / 4)
-+			total_scan = min(total_scan, max_pass / 2);
-+
-+		/*
- 		 * Avoid risking looping forever due to too large nr value:
- 		 * never try to free more than twice the estimate number of
- 		 * freeable entries.
+@@ -2059,6 +2059,22 @@ static void shrink_zones(int priority, struct zonelist *zonelist,
+ 				continue;
+ 			if (zone->all_unreclaimable && priority != DEF_PRIORITY)
+ 				continue;	/* Let kswapd poll it */
++			if (COMPACTION_BUILD) {
++				/*
++				 * If we already have plenty of memory
++				 * free for compaction, don't free any
++				 * more.  Even though compaction is
++				 * invoked for any non-zero order,
++				 * only frequent costly order
++				 * reclamation is disruptive enough to
++				 * become a noticable problem, like
++				 * transparent huge page allocations.
++				 */
++				if (sc->order > PAGE_ALLOC_COSTLY_ORDER &&
++					(compaction_suitable(zone, sc->order) ||
++					 compaction_deferred(zone)))
++					continue;
++			}
+ 			/*
+ 			 * This steals pages from memory cgroups over softlimit
+ 			 * and returns the number of reclaimed pages and
 -- 
 1.7.9.2
 
