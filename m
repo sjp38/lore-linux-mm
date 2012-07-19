@@ -1,146 +1,277 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
-	by kanga.kvack.org (Postfix) with SMTP id DF2C46B005C
-	for <linux-mm@kvack.org>; Thu, 19 Jul 2012 05:38:45 -0400 (EDT)
-Received: from /spool/local
-	by e31.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <shangw@linux.vnet.ibm.com>;
-	Thu, 19 Jul 2012 03:38:44 -0600
-Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
-	by d03dlp01.boulder.ibm.com (Postfix) with ESMTP id A62111FF001A
-	for <linux-mm@kvack.org>; Thu, 19 Jul 2012 09:38:40 +0000 (WET)
-Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
-	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q6J9cgYh169936
-	for <linux-mm@kvack.org>; Thu, 19 Jul 2012 03:38:42 -0600
-Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av01.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q6J9cebD029151
-	for <linux-mm@kvack.org>; Thu, 19 Jul 2012 03:38:41 -0600
-Date: Thu, 19 Jul 2012 17:38:35 +0800
-From: Gavin Shan <shangw@linux.vnet.ibm.com>
-Subject: Re: [PATCH] mm/memcg: wrap mem_cgroup_from_css function
-Message-ID: <20120719093835.GA3776@shangw.(null)>
-Reply-To: Gavin Shan <shangw@linux.vnet.ibm.com>
-References: <a>
- <1342580730-25703-1-git-send-email-liwanp@linux.vnet.ibm.com>
- <20120719091420.GA2549@shutemov.name>
- <20120719092309.GA12409@kernel>
+Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
+	by kanga.kvack.org (Postfix) with SMTP id 93C396B005C
+	for <linux-mm@kvack.org>; Thu, 19 Jul 2012 05:40:25 -0400 (EDT)
+Message-ID: <5007D722.1030807@cn.fujitsu.com>
+Date: Thu, 19 Jul 2012 17:45:06 +0800
+From: Wen Congyang <wency@cn.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120719092309.GA12409@kernel>
+Subject: Re: [RFC PATCH v4 11/13] memory-hotplug : free memmap of sparse-vmemmap
+References: <50068974.1070409@jp.fujitsu.com> <50068D09.1050704@jp.fujitsu.com>
+In-Reply-To: <50068D09.1050704@jp.fujitsu.com>
+Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=ISO-2022-JP
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, linux-mm@kvack.org, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWAHiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Gavin Shan <shangw@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org
+To: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com
 
-On Thu, Jul 19, 2012 at 05:23:09PM +0800, Wanpeng Li wrote:
->On Thu, Jul 19, 2012 at 12:14:20PM +0300, Kirill A. Shutemov wrote:
->>On Wed, Jul 18, 2012 at 11:05:30AM +0800, Wanpeng Li wrote:
->>> wrap mem_cgroup_from_css function to clarify get mem cgroup
->>> from cgroup_subsys_state.
->>> 
->>> Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
->>> Cc: Michal Hocko <mhocko@suse.cz>
->>> Cc: Johannes Weiner <hannes@cmpxchg.org>
->>> Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
->>> Cc: Andrew Morton <akpm@linux-foundation.org>
->>> Cc: Gavin Shan <shangw@linux.vnet.ibm.com>
->>> Cc: Wanpeng Li <liwanp@linux.vnet.ibm.com>
->>> Cc: linux-kernel@vger.kernel.org
->>> ---
->>>  mm/memcontrol.c |   14 ++++++++++----
->>>  1 files changed, 10 insertions(+), 4 deletions(-)
->>> 
->>> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
->>> index 58a08fc..20f6a15 100644
->>> --- a/mm/memcontrol.c
->>> +++ b/mm/memcontrol.c
->>> @@ -396,6 +396,12 @@ static void mem_cgroup_put(struct mem_cgroup *memcg);
->>>  #include <net/sock.h>
->>>  #include <net/ip.h>
->>>  
->>> +static inline
->>> +struct mem_cgroup *mem_cgroup_from_css(struct cgroup_subsys_state *s)
->>> +{
->>> +	return container_of(s, struct mem_cgroup, css);
->>> +}
->>> +
->>>  static bool mem_cgroup_is_root(struct mem_cgroup *memcg);
->>>  void sock_update_memcg(struct sock *sk)
->>>  {
->>> @@ -820,7 +826,7 @@ static void memcg_check_events(struct mem_cgroup *memcg, struct page *page)
->>>  
->>>  struct mem_cgroup *mem_cgroup_from_cont(struct cgroup *cont)
->>>  {
->>> -	return container_of(cgroup_subsys_state(cont,
->>> +	return mem_cgroup_from_css(cgroup_subsys_state(cont,
->>>  				mem_cgroup_subsys_id), struct mem_cgroup,
->>>  				css);
->>
->>Hm?.. Here and below too many args to mem_cgroup_from_css().
->>Have you tested the code?
->
->Hi, what's the meaning of "two many"?
->
+At 07/18/2012 06:16 PM, Yasuaki Ishimatsu Wrote:
+> All pages of virtual mapping in removed memory cannot be freed, since some pages
+> used as PGD/PUD includes not only removed memory but also other memory. So the
+> patch checks whether page can be freed or not.
+> 
+> How to check whether page can be freed or not?
+>  1. When removing memory, the page structs of the revmoved memory are filled
+>     with 0FD.
+>  2. All page structs are filled with 0xFD on PT/PMD, PT/PMD can be cleared.
+>     In this case, the page used as PT/PMD can be freed.
+> 
+> Applying patch, __remove_section() of CONFIG_SPARSEMEM_VMEMMAP is integrated
+> into one. So __remove_section() of CONFIG_SPARSEMEM_VMEMMAP is deleted.
+> 
+> CC: David Rientjes <rientjes@google.com>
+> CC: Jiang Liu <liuj97@gmail.com>
+> CC: Len Brown <len.brown@intel.com>
+> CC: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+> CC: Paul Mackerras <paulus@samba.org> 
+> CC: Christoph Lameter <cl@linux.com>
+> Cc: Minchan Kim <minchan.kim@gmail.com>
+> CC: Andrew Morton <akpm@linux-foundation.org>
+> CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> 
+> CC: Wen Congyang <wency@cn.fujitsu.com>
+> Signed-off-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+> 
+> ---
+>  arch/x86/mm/init_64.c |  121 ++++++++++++++++++++++++++++++++++++++++++++++++++
+>  include/linux/mm.h    |    2 
+>  mm/memory_hotplug.c   |   19 -------
+>  mm/sparse.c           |    5 +-
+>  4 files changed, 128 insertions(+), 19 deletions(-)
+> 
+> Index: linux-3.5-rc6/include/linux/mm.h
+> ===================================================================
+> --- linux-3.5-rc6.orig/include/linux/mm.h	2012-07-18 18:01:28.000000000 +0900
+> +++ linux-3.5-rc6/include/linux/mm.h	2012-07-18 18:03:05.551168773 +0900
+> @@ -1588,6 +1588,8 @@ int vmemmap_populate(struct page *start_
+>  void vmemmap_populate_print_last(void);
+>  void register_page_bootmem_memmap(unsigned long section_nr, struct page *map,
+>  				  unsigned long size);
+> +void vmemmap_kfree(struct page *memmpa, unsigned long nr_pages);
+> +void vmemmap_free_bootmem(struct page *memmpa, unsigned long nr_pages);
+>  
+>  enum mf_flags {
+>  	MF_COUNT_INCREASED = 1 << 0,
+> Index: linux-3.5-rc6/mm/sparse.c
+> ===================================================================
+> --- linux-3.5-rc6.orig/mm/sparse.c	2012-07-18 17:59:25.000000000 +0900
+> +++ linux-3.5-rc6/mm/sparse.c	2012-07-18 18:03:05.553168749 +0900
+> @@ -614,12 +614,13 @@ static inline struct page *kmalloc_secti
+>  	/* This will make the necessary allocations eventually. */
+>  	return sparse_mem_map_populate(pnum, nid);
+>  }
+> -static void __kfree_section_memmap(struct page *memmap, unsigned long nr_pages)
+> +static void __kfree_section_memmap(struct page *page, unsigned long nr_pages)
+>  {
+> -	return; /* XXX: Not implemented yet */
+> +	vmemmap_kfree(page, nr_pages);
+>  }
+>  static void free_map_bootmem(struct page *page, unsigned long nr_pages)
+>  {
+> +	vmemmap_free_bootmem(page, nr_pages);
+>  }
+>  #else
+>  static struct page *__kmalloc_section_memmap(unsigned long nr_pages)
+> Index: linux-3.5-rc6/arch/x86/mm/init_64.c
+> ===================================================================
+> --- linux-3.5-rc6.orig/arch/x86/mm/init_64.c	2012-07-18 18:01:28.000000000 +0900
+> +++ linux-3.5-rc6/arch/x86/mm/init_64.c	2012-07-18 18:03:05.564168611 +0900
+> @@ -978,6 +978,127 @@ vmemmap_populate(struct page *start_page
+>  	return 0;
+>  }
+>  
+> +#define PAGE_INUSE 0xFD
+> +
+> +unsigned long find_and_clear_pte_page(unsigned long addr, unsigned long end,
+> +			    struct page **pp, int *page_size)
+> +{
+> +	pgd_t *pgd;
+> +	pud_t *pud;
+> +	pmd_t *pmd;
+> +	pte_t *pte;
+> +	void *page_addr;
+> +	unsigned long next;
+> +
+> +	*pp = NULL;
+> +
+> +	pgd = pgd_offset_k(addr);
+> +	if (pgd_none(*pgd))
+> +		return pgd_addr_end(addr, end);
+> +
+> +	pud = pud_offset(pgd, addr);
+> +	if (pud_none(*pud))
+> +		return pud_addr_end(addr,end);
+> +
+> +	if (!cpu_has_pse) {
+> +		next = (addr + PAGE_SIZE) & PAGE_MASK;
+> +		pmd = pmd_offset(pud, addr);
+> +		if (pmd_none(*pmd))
+> +			return next;
+> +
+> +		pte = pte_offset_kernel(pmd, addr);
+> +		if (pte_none(*pte))
+> +			return next;
+> +
+> +		*page_size = PAGE_SIZE;
+> +		*pp = pte_page(*pte);
+> +	} else {
+> +		next = pmd_addr_end(addr, end);
+> +
+> +		pmd = pmd_offset(pud, addr);
+> +		if (pmd_none(*pmd))
+> +			return next;
+> +
+> +		*page_size = PMD_SIZE;
+> +		*pp = pmd_page(*pmd);
+> +	}
+> +
+> +	/*
+> +	 * Removed page structs are filled with 0xFD.
+> +	 */
+> +	memset((void *)addr, PAGE_INUSE, next - addr);
+> +
+> +	page_addr = page_address(*pp);
+> +
+> +	/*
+> +	 * Check the page is filled with 0xFD or not.
+> +	 * memchr_inv() returns the address. In this case, we cannot
+> +	 * clear PTE/PUD entry, since the page is used by other.
+> +	 * So we cannot also free the page.
+> +	 *
+> +	 * memchr_inv() returns NULL. In this case, we can clear
+> +	 * PTE/PUD entry, since the page is not used by other.
+> +	 * So we can also free the page.
+> +	 */
+> +	if (memchr_inv(page_addr, PAGE_INUSE, *page_size)) {
+> +		*pp = NULL;
+> +		return next;
+> +	}
+> +
+> +	if (!cpu_has_pse)
+> +		pte_clear(&init_mm, addr, pte);
+> +	else
+> +		pmd_clear(pmd);
+> +
+> +	return next;
+> +}
+> +
+> +void vmemmap_kfree(struct page *memmap, unsigned long nr_pages)
+> +{
+> +	unsigned long addr = (unsigned long)memmap;
+> +	unsigned long end = (unsigned long)(memmap + nr_pages);
+> +	unsigned long next;
+> +	struct page *page;
+> +	int page_size;
+> +
+> +	for (; addr < end; addr = next) {
+> +		page = NULL;
+> +		page_size = 0;
+> +		next = find_and_clear_pte_page(addr, end, &page, &page_size);
+> +		if (!page)
+> +			continue;
+> +
+> +		free_pages((unsigned long)page_address(page),
+> +			    get_order(page_size));
+> +		__flush_tlb_one((unsigned long)page_address(page));
 
-It might be the typo for "two" here. I think it would be
-"too". However, it seems that you had pass "two" more arguments
-here to mem_cgroup_from_css() since the function only takes "one"
-parameter as you implemented before.
+I think you want to free the memory to store struct page.
+So why you free page_address(page)?
 
-+struct mem_cgroup *mem_cgroup_from_css(struct cgroup_subsys_state *s)
+Thanks
+Wen Congyang
 
-+   return mem_cgroup_from_css(cgroup_subsys_state(cont,
-+		mem_cgroup_subsys_id), struct mem_cgroup,
-+		css);
-
-Thanks,
-Gavin
-
->cgroup_subsys_state(cont, mem_cgroup_subsys_id) and 
->task_subsys_state(p, mem_cgroup_subsys_id) both are 
->just one arg in mem_cgroup_from_css. :-)
->
->>
->>>  }
->>> @@ -835,7 +841,7 @@ struct mem_cgroup *mem_cgroup_from_task(struct task_struct *p)
->>>  	if (unlikely(!p))
->>>  		return NULL;
->>>  
->>> -	return container_of(task_subsys_state(p, mem_cgroup_subsys_id),
->>> +	return mem_cgroup_from_css(task_subsys_state(p, mem_cgroup_subsys_id),
->>>  				struct mem_cgroup, css);
->>>  }
->>>  
->>> @@ -922,7 +928,7 @@ struct mem_cgroup *mem_cgroup_iter(struct mem_cgroup *root,
->>>  		css = css_get_next(&mem_cgroup_subsys, id + 1, &root->css, &id);
->>>  		if (css) {
->>>  			if (css == &root->css || css_tryget(css))
->>> -				memcg = container_of(css,
->>> +				memcg = mem_cgroup_from_css(css,
->>>  						     struct mem_cgroup, css);
->>>  		} else
->>>  			id = 0;
->>> @@ -2406,7 +2412,7 @@ static struct mem_cgroup *mem_cgroup_lookup(unsigned short id)
->>>  	css = css_lookup(&mem_cgroup_subsys, id);
->>>  	if (!css)
->>>  		return NULL;
->>> -	return container_of(css, struct mem_cgroup, css);
->>> +	return mem_cgroup_from_css(css, struct mem_cgroup, css);
->>>  }
->>>  
->>>  struct mem_cgroup *try_get_mem_cgroup_from_page(struct page *page)
->>> -- 
->>> 1.7.5.4
->>> 
->>> --
->>> To unsubscribe, send a message with 'unsubscribe linux-mm' in
->>> the body to majordomo@kvack.org.  For more info on Linux MM,
->>> see: http://www.linux-mm.org/ .
->>> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
->>
->>-- 
->> Kirill A. Shutemov
+> +	}
+> +
+> +}
+> +
+> +void vmemmap_free_bootmem(struct page *memmap, unsigned long nr_pages)
+> +{
+> +	unsigned long addr = (unsigned long)memmap;
+> +	unsigned long end = (unsigned long)(memmap + nr_pages);
+> +	unsigned long next;
+> +	struct page *page;
+> +	int page_size;
+> +	unsigned long magic;
+> +
+> +	for (; addr < end; addr = next) {
+> +		page = NULL;
+> +		page_size = 0;
+> +		next = find_and_clear_pte_page(addr, end, &page, &page_size);
+> +		if (!page)
+> +			continue;
+> +
+> +		magic = (unsigned long) page->lru.next;
+> +		if (magic == SECTION_INFO)
+> +			put_page_bootmem(page);
+> +		flush_tlb_kernel_range(addr, end);
+> +	}
+> +
+> +}
+> +
+>  void register_page_bootmem_memmap(unsigned long section_nr,
+>  				  struct page *start_page, unsigned long size)
+>  {
+> Index: linux-3.5-rc6/mm/memory_hotplug.c
+> ===================================================================
+> --- linux-3.5-rc6.orig/mm/memory_hotplug.c	2012-07-18 18:01:28.000000000 +0900
+> +++ linux-3.5-rc6/mm/memory_hotplug.c	2012-07-18 18:25:11.036597977 +0900
+> @@ -300,7 +300,6 @@ static int __meminit __add_section(int n
+>  	return register_new_memory(nid, __pfn_to_section(phys_start_pfn));
+>  }
+>  
+> -#ifdef CONFIG_SPARSEMEM_VMEMMAP
+>  static int __remove_section(struct zone *zone, struct mem_section *ms)
+>  {
+>  	int ret = -EINVAL;
+> @@ -309,29 +308,15 @@ static int __remove_section(struct zone 
+>  		return ret;
+>  
+>  	ret = unregister_memory_section(ms);
+> -
+> -	return ret;
+> -}
+> -#else
+> -static int __remove_section(struct zone *zone, struct mem_section *ms)
+> -{
+> -	unsigned long flags;
+> -	struct pglist_data *pgdat = zone->zone_pgdat;
+> -	int ret = -EINVAL;
+> -
+> -	if (!valid_section(ms))
+> -		return ret;
+> -
+> -	ret = unregister_memory_section(ms);
+>  	if (ret)
+>  		return ret;
+>  
+>  	pgdat_resize_lock(pgdat, &flags);
+>  	sparse_remove_one_section(zone, ms);
+>  	pgdat_resize_unlock(pgdat, &flags);
+> -	return 0;
+> +
+> +	return ret;
+>  }
+> -#endif
+>  
+>  /*
+>   * Reasonably generic function for adding memory.  It is
+> 
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
