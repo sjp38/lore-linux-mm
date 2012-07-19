@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
-	by kanga.kvack.org (Postfix) with SMTP id 5E7756B0085
+Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
+	by kanga.kvack.org (Postfix) with SMTP id DFA286B006E
 	for <linux-mm@kvack.org>; Thu, 19 Jul 2012 10:36:57 -0400 (EDT)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 15/34] mm: migration: clean up unmap_and_move()
-Date: Thu, 19 Jul 2012 15:36:25 +0100
-Message-Id: <1342708604-26540-16-git-send-email-mgorman@suse.de>
+Subject: [PATCH 16/34] mm: compaction: Allow compaction to isolate dirty pages
+Date: Thu, 19 Jul 2012 15:36:26 +0100
+Message-Id: <1342708604-26540-17-git-send-email-mgorman@suse.de>
 In-Reply-To: <1342708604-26540-1-git-send-email-mgorman@suse.de>
 References: <1342708604-26540-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -13,120 +13,49 @@ List-ID: <linux-mm.kvack.org>
 To: Stable <stable@vger.kernel.org>
 Cc: "Linux-MM <linux-mm"@kvack.org, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
 
-commit 0dabec93de633a87adfbbe1d800a4c56cd19d73b upstream.
+commit a77ebd333cd810d7b680d544be88c875131c2bd3 upstream.
 
-Stable note: Not tracked in Bugzilla. This patch makes later patches
-	easier to apply but has no other impact.
+Stable note: Not tracked in Bugzilla. A fix aimed at preserving page aging
+	information by reducing LRU list churning had the side-effect of
+	reducing THP allocation success rates. This was part of a series
+	to restore the success rates while preserving the reclaim fix.
 
-unmap_and_move() is one a big messy function.  Clean it up.
+Commit [39deaf85: mm: compaction: make isolate_lru_page() filter-aware]
+noted that compaction does not migrate dirty or writeback pages and
+that is was meaningless to pick the page and re-add it to the LRU list.
 
-Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
-Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Mel Gorman <mgorman@suse.de>
-Cc: Rik van Riel <riel@redhat.com>
-Cc: Michal Hocko <mhocko@suse.cz>
-Cc: Andrea Arcangeli <aarcange@redhat.com>
-Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
-Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
+What was missed during review is that asynchronous migration moves
+dirty pages if their ->migratepage callback is migrate_page() because
+these can be moved without blocking. This potentially impacted
+hugepage allocation success rates by a factor depending on how many
+dirty pages are in the system.
+
+This patch partially reverts 39deaf85 to allow migration to isolate
+dirty pages again. This increases how much compaction disrupts the
+LRU but that is addressed later in the series.
+
+Signed-off-by: Mel Gorman <mgorman@suse.de>
+Reviewed-by: Andrea Arcangeli <aarcange@redhat.com>
+Reviewed-by: Rik van Riel <riel@redhat.com>
+Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
 ---
- mm/migrate.c |   59 ++++++++++++++++++++++++++++++++--------------------------
- 1 file changed, 33 insertions(+), 26 deletions(-)
+ mm/compaction.c |    3 ---
+ 1 file changed, 3 deletions(-)
 
-diff --git a/mm/migrate.c b/mm/migrate.c
-index 14d0a6a..e58ab66 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -621,38 +621,18 @@ static int move_to_new_page(struct page *newpage, struct page *page,
- 	return rc;
- }
+diff --git a/mm/compaction.c b/mm/compaction.c
+index 61e68a5..afdc416 100644
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -371,9 +371,6 @@ static isolate_migrate_t isolate_migratepages(struct zone *zone,
+ 			continue;
+ 		}
  
--/*
-- * Obtain the lock on page, remove all ptes and migrate the page
-- * to the newly allocated page in newpage.
-- */
--static int unmap_and_move(new_page_t get_new_page, unsigned long private,
--			struct page *page, int force, bool offlining, bool sync)
-+static int __unmap_and_move(struct page *page, struct page *newpage,
-+				int force, bool offlining, bool sync)
- {
--	int rc = 0;
--	int *result = NULL;
--	struct page *newpage = get_new_page(page, private, &result);
-+	int rc = -EAGAIN;
- 	int remap_swapcache = 1;
- 	int charge = 0;
- 	struct mem_cgroup *mem;
- 	struct anon_vma *anon_vma = NULL;
- 
--	if (!newpage)
--		return -ENOMEM;
+-		if (!cc->sync)
+-			mode |= ISOLATE_CLEAN;
 -
--	if (page_count(page) == 1) {
--		/* page was freed from under us. So we are done. */
--		goto move_newpage;
--	}
--	if (unlikely(PageTransHuge(page)))
--		if (unlikely(split_huge_page(page)))
--			goto move_newpage;
--
--	/* prepare cgroup just returns 0 or -ENOMEM */
--	rc = -EAGAIN;
--
- 	if (!trylock_page(page)) {
- 		if (!force || !sync)
--			goto move_newpage;
-+			goto out;
- 
- 		/*
- 		 * It's not safe for direct compaction to call lock_page.
-@@ -668,7 +648,7 @@ static int unmap_and_move(new_page_t get_new_page, unsigned long private,
- 		 * altogether.
- 		 */
- 		if (current->flags & PF_MEMALLOC)
--			goto move_newpage;
-+			goto out;
- 
- 		lock_page(page);
- 	}
-@@ -785,8 +765,35 @@ uncharge:
- 		mem_cgroup_end_migration(mem, page, newpage, rc == 0);
- unlock:
- 	unlock_page(page);
-+out:
-+	return rc;
-+}
- 
--move_newpage:
-+/*
-+ * Obtain the lock on page, remove all ptes and migrate the page
-+ * to the newly allocated page in newpage.
-+ */
-+static int unmap_and_move(new_page_t get_new_page, unsigned long private,
-+			struct page *page, int force, bool offlining, bool sync)
-+{
-+	int rc = 0;
-+	int *result = NULL;
-+	struct page *newpage = get_new_page(page, private, &result);
-+
-+	if (!newpage)
-+		return -ENOMEM;
-+
-+	if (page_count(page) == 1) {
-+		/* page was freed from under us. So we are done. */
-+		goto out;
-+	}
-+
-+	if (unlikely(PageTransHuge(page)))
-+		if (unlikely(split_huge_page(page)))
-+			goto out;
-+
-+	rc = __unmap_and_move(page, newpage, force, offlining, sync);
-+out:
- 	if (rc != -EAGAIN) {
-  		/*
-  		 * A page that has been migrated has all references
+ 		/* Try isolate the page */
+ 		if (__isolate_lru_page(page, mode, 0) != 0)
+ 			continue;
 -- 
 1.7.9.2
 
