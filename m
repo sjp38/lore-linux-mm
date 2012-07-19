@@ -1,68 +1,132 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx176.postini.com [74.125.245.176])
-	by kanga.kvack.org (Postfix) with SMTP id 0270B6B0075
-	for <linux-mm@kvack.org>; Thu, 19 Jul 2012 07:26:28 -0400 (EDT)
-Received: from /spool/local
-	by e28smtp03.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Thu, 19 Jul 2012 16:56:23 +0530
-Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
-	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q6JBQKJI50528344
-	for <linux-mm@kvack.org>; Thu, 19 Jul 2012 16:56:20 +0530
-Received: from d28av03.in.ibm.com (loopback [127.0.0.1])
-	by d28av03.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q6JGtdbH024062
-	for <linux-mm@kvack.org>; Fri, 20 Jul 2012 02:55:39 +1000
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: Re: [PATCH] hugetlb/cgroup: Simplify pre_destroy callback
-In-Reply-To: <5007E0A2.70906@jp.fujitsu.com>
-References: <1342589649-15066-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <20120718142628.76bf78b3.akpm@linux-foundation.org> <87hat4794l.fsf@skywalker.in.ibm.com> <5007B034.4030909@huawei.com> <87wr20f5pj.fsf@skywalker.in.ibm.com> <5007E0A2.70906@jp.fujitsu.com>
-Date: Thu, 19 Jul 2012 16:56:18 +0530
-Message-ID: <87r4s8f0v9.fsf@skywalker.in.ibm.com>
+Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
+	by kanga.kvack.org (Postfix) with SMTP id 2029D6B007D
+	for <linux-mm@kvack.org>; Thu, 19 Jul 2012 07:39:19 -0400 (EDT)
+Date: Thu, 19 Jul 2012 13:39:15 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: + hugetlb-cgroup-simplify-pre_destroy-callback.patch added to
+ -mm tree
+Message-ID: <20120719113915.GC2864@tiehlicka.suse.cz>
+References: <20120718212637.133475C0050@hpza9.eem.corp.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120718212637.133475C0050@hpza9.eem.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Li Zefan <lizefan@huawei.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, mhocko@suse.cz, linux-kernel@vger.kernel.org
+To: akpm@linux-foundation.org
+Cc: mm-commits@vger.kernel.org, aneesh.kumar@linux.vnet.ibm.com, kamezawa.hiroyu@jp.fujitsu.com, liwanp@linux.vnet.ibm.com, Tejun Heo <htejun@gmail.com>, Li Zefan <lizefan@huawei.com>, cgroups mailinglist <cgroups@vger.kernel.org>, linux-mm@kvack.org
 
-Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> writes:
+On Wed 18-07-12 14:26:36, Andrew Morton wrote:
+> 
+> The patch titled
+>      Subject: hugetlb/cgroup: simplify pre_destroy callback
+> has been added to the -mm tree.  Its filename is
+>      hugetlb-cgroup-simplify-pre_destroy-callback.patch
+> 
+> Before you just go and hit "reply", please:
+>    a) Consider who else should be cc'ed
+>    b) Prefer to cc a suitable mailing list as well
+>    c) Ideally: find the original patch on the mailing list and do a
+>       reply-to-all to that, adding suitable additional cc's
+> 
+> *** Remember to use Documentation/SubmitChecklist when testing your code ***
+> 
+> The -mm tree is included into linux-next and is updated
+> there every 3-4 working days
+> 
+> ------------------------------------------------------
+> From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+> Subject: hugetlb/cgroup: simplify pre_destroy callback
+> 
+> Since we cannot fail in hugetlb_cgroup_move_parent(), we don't really need
+> to check whether cgroup have any change left after that.  Also skip those
+> hstates for which we don't have any charge in this cgroup.
 
->>>>>
->>>>> We test RES_USAGE before taking hugetlb_lock.  What prevents some other
->>>>> thread from increasing RES_USAGE after that test?
->>>>>
->>>>> After walking the list we test RES_USAGE after dropping hugetlb_lock.
->>>>> What prevents another thread from incrementing RES_USAGE before that
->>>>> test, triggering the BUG?
->>>>
->>>> IIUC core cgroup will prevent a new task getting added to the cgroup
->>>> when we are in pre_destroy. Since we already check that the cgroup doesn't
->>>> have any task, the RES_USAGE cannot increase in pre_destroy.
->>>>
->>>
->>>
->>> You're wrong here. We release cgroup_lock before calling pre_destroy and retrieve
->>> the lock after that, so a task can be attached to the cgroup in this interval.
->>>
->>
->> But that means rmdir can be racy right ? What happens if the task got
->> added, allocated few pages and then moved out ? We still would have task
->> count 0 but few pages, which we missed to to move to parent cgroup.
->>
->
-> That's a problem even if it's verrrry unlikely.
-> I'd like to look into it and fix the race in cgroup layer.
-> But I'm sorry I'm a bit busy in these days...
->
+IIUC this depends on a non-existent (cgroup) patch. I guess something
+like the patch at the end should address it. I haven't tested it though
+so it is not signed-off-by yet.
 
-How about moving that mutex_unlock(&cgroup_mutex) to memcg callback ? That
-can be a patch for 3.5 ? 
+> Based on an earlier patch from Wanpeng Li.
+> 
+> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+> Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+> Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> Cc: Michal Hocko <mhocko@suse.cz>
+> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+> ---
+> 
+>  mm/hugetlb_cgroup.c |   49 ++++++++++++++++++------------------------
+>  1 file changed, 21 insertions(+), 28 deletions(-)
+> 
+> diff -puN mm/hugetlb_cgroup.c~hugetlb-cgroup-simplify-pre_destroy-callback mm/hugetlb_cgroup.c
+> --- a/mm/hugetlb_cgroup.c~hugetlb-cgroup-simplify-pre_destroy-callback
+> +++ a/mm/hugetlb_cgroup.c
+> @@ -65,18 +65,6 @@ static inline struct hugetlb_cgroup *par
+>  	return hugetlb_cgroup_from_cgroup(cg->parent);
+>  }
+>  
+> -static inline bool hugetlb_cgroup_have_usage(struct cgroup *cg)
+> -{
+> -	int idx;
+> -	struct hugetlb_cgroup *h_cg = hugetlb_cgroup_from_cgroup(cg);
+> -
+> -	for (idx = 0; idx < hugetlb_max_hstate; idx++) {
+> -		if ((res_counter_read_u64(&h_cg->hugepage[idx], RES_USAGE)) > 0)
+> -			return true;
+> -	}
+> -	return false;
+> -}
+> -
+>  static struct cgroup_subsys_state *hugetlb_cgroup_create(struct cgroup *cgroup)
+>  {
+>  	int idx;
+> @@ -159,24 +147,29 @@ static int hugetlb_cgroup_pre_destroy(st
+>  {
+>  	struct hstate *h;
+>  	struct page *page;
+> -	int ret = 0, idx = 0;
+> +	int ret = 0, idx;
+> +	struct hugetlb_cgroup *h_cg = hugetlb_cgroup_from_cgroup(cgroup);
+>  
+> -	do {
+> -		if (cgroup_task_count(cgroup) ||
+> -		    !list_empty(&cgroup->children)) {
+> -			ret = -EBUSY;
+> -			goto out;
+> -		}
+> -		for_each_hstate(h) {
+> -			spin_lock(&hugetlb_lock);
+> -			list_for_each_entry(page, &h->hugepage_activelist, lru)
+> -				hugetlb_cgroup_move_parent(idx, cgroup, page);
+>  
+> -			spin_unlock(&hugetlb_lock);
+> -			idx++;
+> -		}
+> -		cond_resched();
+> -	} while (hugetlb_cgroup_have_usage(cgroup));
+> +	if (cgroup_task_count(cgroup) ||
+> +	    !list_empty(&cgroup->children)) {
+> +		ret = -EBUSY;
+> +		goto out;
+> +	}
+> +
+> +	for_each_hstate(h) {
+> +		/*
+> +		 * if we don't have any charge, skip this hstate
+> +		 */
+> +		idx = hstate_index(h);
+> +		if (res_counter_read_u64(&h_cg->hugepage[idx], RES_USAGE) == 0)
+> +			continue;
+> +		spin_lock(&hugetlb_lock);
+> +		list_for_each_entry(page, &h->hugepage_activelist, lru)
+> +			hugetlb_cgroup_move_parent(idx, cgroup, page);
+> +		spin_unlock(&hugetlb_lock);
+> +		VM_BUG_ON(res_counter_read_u64(&h_cg->hugepage[idx], RES_USAGE));
+> +	}
+>  out:
+>  	return ret;
+>  }
+> _
 
--aneesh
- 
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+---
