@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
-	by kanga.kvack.org (Postfix) with SMTP id EF9DA6B0073
-	for <linux-mm@kvack.org>; Thu, 19 Jul 2012 10:36:50 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
+	by kanga.kvack.org (Postfix) with SMTP id 2408D6B0070
+	for <linux-mm@kvack.org>; Thu, 19 Jul 2012 10:36:52 -0400 (EDT)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 05/34] vmscan: clear ZONE_CONGESTED for zone with good watermark
-Date: Thu, 19 Jul 2012 15:36:15 +0100
-Message-Id: <1342708604-26540-6-git-send-email-mgorman@suse.de>
+Subject: [PATCH 07/34] vmscan: shrinker->nr updates race and go wrong
+Date: Thu, 19 Jul 2012 15:36:17 +0100
+Message-Id: <1342708604-26540-8-git-send-email-mgorman@suse.de>
 In-Reply-To: <1342708604-26540-1-git-send-email-mgorman@suse.de>
 References: <1342708604-26540-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -13,73 +13,115 @@ List-ID: <linux-mm.kvack.org>
 To: Stable <stable@vger.kernel.org>
 Cc: "Linux-MM <linux-mm"@kvack.org, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
 
-From: Shaohua Li <shaohua.li@intel.com>
+From: Dave Chinner <dchinner@redhat.com>
 
-commit 439423f6894aa0dec22187526827456f5004baed upstream.
+commit acf92b485cccf028177f46918e045c0c4e80ee10 upstream.
 
-Stable note: Not tracked in Bugzilla. kswapd is responsible for clearing
-	ZONE_CONGESTED after it balances a zone and this patch fixes a bug
-	where that was failing to happen. Without this patch, processes
-	can stall in wait_iff_congested unnecessarily. For users, this can
-	look like an interactivity stall but some workloads would see it
-	as sudden drop in throughput.
+Stable note: Not tracked in Bugzilla. This patch reduces excessive
+	reclaim of slab objects reducing the amount of information
+	that has to be brought back in from disk.
 
-ZONE_CONGESTED is only cleared in kswapd, but pages can be freed in any
-task.  It's possible ZONE_CONGESTED isn't cleared in some cases:
+shrink_slab() allows shrinkers to be called in parallel so the
+struct shrinker can be updated concurrently. It does not provide any
+exclusion for such updates, so we can get the shrinker->nr value
+increasing or decreasing incorrectly.
 
- 1. the zone is already balanced just entering balance_pgdat() for
-    order-0 because concurrent tasks free memory.  In this case, later
-    check will skip the zone as it's balanced so the flag isn't cleared.
+As a result, when a shrinker repeatedly returns a value of -1 (e.g.
+a VFS shrinker called w/ GFP_NOFS), the shrinker->nr goes haywire,
+sometimes updating with the scan count that wasn't used, sometimes
+losing it altogether. Worse is when a shrinker does work and that
+update is lost due to racy updates, which means the shrinker will do
+the work again!
 
- 2. high order balance fallbacks to order-0.  quote from Mel: At the
-    end of balance_pgdat(), kswapd uses the following logic;
+Fix this by making the total_scan calculations independent of
+shrinker->nr, and making the shrinker->nr updates atomic w.r.t. to
+other updates via cmpxchg loops.
 
-	If reclaiming at high order {
-		for each zone {
-			if all_unreclaimable
-				skip
-			if watermark is not met
-				order = 0
-				loop again
-
-			/* watermark is met */
-			clear congested
-		}
-	}
-
-    i.e. it clears ZONE_CONGESTED if it the zone is balanced.  if not,
-    it restarts balancing at order-0.  However, if the higher zones are
-    balanced for order-0, kswapd will miss clearing ZONE_CONGESTED as
-    that only happens after a zone is shrunk.  This can mean that
-    wait_iff_congested() stalls unnecessarily.
-
-This patch makes kswapd clear ZONE_CONGESTED during its initial
-highmem->dma scan for zones that are already balanced.
-
-Signed-off-by: Shaohua Li <shaohua.li@intel.com>
-Acked-by: Mel Gorman <mgorman@suse.de>
-Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
-Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
-Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
+Signed-off-by: Dave Chinner <dchinner@redhat.com>
+Signed-off-by: Al Viro <viro@zeniv.linux.org.uk>
 Signed-off-by: Mel Gorman <mgorman@suse.de>
 ---
- mm/vmscan.c |    3 +++
- 1 file changed, 3 insertions(+)
+ mm/vmscan.c |   45 ++++++++++++++++++++++++++++++++-------------
+ 1 file changed, 32 insertions(+), 13 deletions(-)
 
 diff --git a/mm/vmscan.c b/mm/vmscan.c
-index bdfdec3..72340b84 100644
+index d875058..31b551e 100644
 --- a/mm/vmscan.c
 +++ b/mm/vmscan.c
-@@ -2456,6 +2456,9 @@ loop_again:
- 					high_wmark_pages(zone), 0, 0)) {
- 				end_zone = i;
- 				break;
-+			} else {
-+				/* If balanced, clear the congested flag */
-+				zone_clear_flag(zone, ZONE_CONGESTED);
- 			}
+@@ -251,17 +251,29 @@ unsigned long shrink_slab(struct shrink_control *shrink,
+ 		unsigned long total_scan;
+ 		unsigned long max_pass;
+ 		int shrink_ret = 0;
++		long nr;
++		long new_nr;
+ 
++		/*
++		 * copy the current shrinker scan count into a local variable
++		 * and zero it so that other concurrent shrinker invocations
++		 * don't also do this scanning work.
++		 */
++		do {
++			nr = shrinker->nr;
++		} while (cmpxchg(&shrinker->nr, nr, 0) != nr);
++
++		total_scan = nr;
+ 		max_pass = do_shrinker_shrink(shrinker, shrink, 0);
+ 		delta = (4 * nr_pages_scanned) / shrinker->seeks;
+ 		delta *= max_pass;
+ 		do_div(delta, lru_pages + 1);
+-		shrinker->nr += delta;
+-		if (shrinker->nr < 0) {
++		total_scan += delta;
++		if (total_scan < 0) {
+ 			printk(KERN_ERR "shrink_slab: %pF negative objects to "
+ 			       "delete nr=%ld\n",
+-			       shrinker->shrink, shrinker->nr);
+-			shrinker->nr = max_pass;
++			       shrinker->shrink, total_scan);
++			total_scan = max_pass;
  		}
- 		if (i < 0)
+ 
+ 		/*
+@@ -269,13 +281,10 @@ unsigned long shrink_slab(struct shrink_control *shrink,
+ 		 * never try to free more than twice the estimate number of
+ 		 * freeable entries.
+ 		 */
+-		if (shrinker->nr > max_pass * 2)
+-			shrinker->nr = max_pass * 2;
+-
+-		total_scan = shrinker->nr;
+-		shrinker->nr = 0;
++		if (total_scan > max_pass * 2)
++			total_scan = max_pass * 2;
+ 
+-		trace_mm_shrink_slab_start(shrinker, shrink, total_scan,
++		trace_mm_shrink_slab_start(shrinker, shrink, nr,
+ 					nr_pages_scanned, lru_pages,
+ 					max_pass, delta, total_scan);
+ 
+@@ -296,9 +305,19 @@ unsigned long shrink_slab(struct shrink_control *shrink,
+ 			cond_resched();
+ 		}
+ 
+-		shrinker->nr += total_scan;
+-		trace_mm_shrink_slab_end(shrinker, shrink_ret, total_scan,
+-					 shrinker->nr);
++		/*
++		 * move the unused scan count back into the shrinker in a
++		 * manner that handles concurrent updates. If we exhausted the
++		 * scan, there is no need to do an update.
++		 */
++		do {
++			nr = shrinker->nr;
++			new_nr = total_scan + nr;
++			if (total_scan <= 0)
++				break;
++		} while (cmpxchg(&shrinker->nr, nr, new_nr) != nr);
++
++		trace_mm_shrink_slab_end(shrinker, shrink_ret, nr, new_nr);
+ 	}
+ 	up_read(&shrinker_rwsem);
+ out:
 -- 
 1.7.9.2
 
