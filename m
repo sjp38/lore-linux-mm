@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx151.postini.com [74.125.245.151])
-	by kanga.kvack.org (Postfix) with SMTP id 217326B0074
-	for <linux-mm@kvack.org>; Fri, 20 Jul 2012 08:48:57 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
+	by kanga.kvack.org (Postfix) with SMTP id BC8FC6B0073
+	for <linux-mm@kvack.org>; Fri, 20 Jul 2012 08:49:19 -0400 (EDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH, RFC 3/6] THP: Pass real, not rounded, address to clear_huge_page
-Date: Fri, 20 Jul 2012 15:50:19 +0300
-Message-Id: <1342788622-10290-4-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCH, RFC 5/6] mm: make clear_huge_page cache clear only around the fault address
+Date: Fri, 20 Jul 2012 15:50:21 +0300
+Message-Id: <1342788622-10290-6-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1342788622-10290-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1342788622-10290-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -15,46 +15,86 @@ Cc: Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Pe
 
 From: Andi Kleen <ak@linux.intel.com>
 
+Clearing a 2MB huge page will typically blow away several levels
+of CPU caches. To avoid this only cache clear the 4K area
+around the fault address and use a cache avoiding clears
+for the rest of the 2MB area.
+
+TBD add numbers
+
 Signed-off-by: Andi Kleen <ak@linux.intel.com>
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- mm/huge_memory.c |    9 +++++----
- 1 files changed, 5 insertions(+), 4 deletions(-)
+ mm/memory.c |   30 +++++++++++++++++++++++++++---
+ 1 files changed, 27 insertions(+), 3 deletions(-)
 
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 70737ec..ecd93f8 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -633,7 +633,8 @@ static inline pmd_t maybe_pmd_mkwrite(pmd_t pmd, struct vm_area_struct *vma)
+diff --git a/mm/memory.c b/mm/memory.c
+index c356ead..b4740cf 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -3957,18 +3957,35 @@ EXPORT_SYMBOL(might_fault);
+ #endif
  
- static int __do_huge_pmd_anonymous_page(struct mm_struct *mm,
- 					struct vm_area_struct *vma,
--					unsigned long haddr, pmd_t *pmd,
-+					unsigned long haddr,
-+					unsigned long address, pmd_t *pmd,
- 					struct page *page)
+ #if defined(CONFIG_TRANSPARENT_HUGEPAGE) || defined(CONFIG_HUGETLBFS)
++
++#ifndef ARCH_HAS_USER_NOCACHE
++#define ARCH_HAS_USER_NOCACHE 0
++#endif
++
++#if ARCH_HAS_USER_NOCACHE == 0
++#define clear_user_highpage_nocache clear_user_highpage
++#endif
++
+ static void clear_gigantic_page(struct page *page,
+ 				unsigned long addr,
+ 				unsigned int pages_per_huge_page)
  {
- 	pgtable_t pgtable;
-@@ -643,7 +644,7 @@ static int __do_huge_pmd_anonymous_page(struct mm_struct *mm,
- 	if (unlikely(!pgtable))
- 		return VM_FAULT_OOM;
+ 	int i;
+ 	struct page *p = page;
++	unsigned long vaddr;
++	unsigned long haddr = addr & HPAGE_PMD_MASK;
++	int target = (addr - haddr) >> PAGE_SHIFT;
  
--	clear_huge_page(page, haddr, HPAGE_PMD_NR);
-+	clear_huge_page(page, address, HPAGE_PMD_NR);
- 	__SetPageUptodate(page);
+ 	might_sleep();
++	vaddr = haddr;
+ 	for (i = 0; i < pages_per_huge_page;
+ 	     i++, p = mem_map_next(p, page, i)) {
+ 		cond_resched();
+-		clear_user_highpage(p, addr + i * PAGE_SIZE);
++		vaddr = haddr + i*PAGE_SIZE;
++		if (!ARCH_HAS_USER_NOCACHE  || i == target)
++			clear_user_highpage(p, vaddr);
++		else
++			clear_user_highpage_nocache(p, vaddr);
+ 	}
+ }
+ void clear_huge_page(struct page *page,
+@@ -3976,16 +3993,23 @@ void clear_huge_page(struct page *page,
+ {
+ 	int i;
+ 	unsigned long haddr = addr & HPAGE_PMD_MASK;
++	unsigned long vaddr;
++	int target = (addr - haddr) >> PAGE_SHIFT;
  
- 	spin_lock(&mm->page_table_lock);
-@@ -720,8 +721,8 @@ int do_huge_pmd_anonymous_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 			put_page(page);
- 			goto out;
- 		}
--		if (unlikely(__do_huge_pmd_anonymous_page(mm, vma, haddr, pmd,
--							  page))) {
-+		if (unlikely(__do_huge_pmd_anonymous_page(mm, vma, haddr,
-+						address, pmd, page))) {
- 			mem_cgroup_uncharge_page(page);
- 			put_page(page);
- 			goto out;
+ 	if (unlikely(pages_per_huge_page > MAX_ORDER_NR_PAGES)) {
+-		clear_gigantic_page(page, haddr, pages_per_huge_page);
++		clear_gigantic_page(page, addr, pages_per_huge_page);
+ 		return;
+ 	}
+ 
+ 	might_sleep();
++	vaddr = haddr;
+ 	for (i = 0; i < pages_per_huge_page; i++) {
+ 		cond_resched();
+-		clear_user_highpage(page + i, haddr + i * PAGE_SIZE);
++		vaddr = haddr + i*PAGE_SIZE;
++		if (!ARCH_HAS_USER_NOCACHE || i == target)
++			clear_user_highpage(page + i, vaddr);
++		else
++			clear_user_highpage_nocache(page + i, vaddr);
+ 	}
+ }
+ 
 -- 
 1.7.7.6
 
