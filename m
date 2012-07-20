@@ -1,213 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx135.postini.com [74.125.245.135])
-	by kanga.kvack.org (Postfix) with SMTP id 946576B0072
-	for <linux-mm@kvack.org>; Fri, 20 Jul 2012 03:09:19 -0400 (EDT)
-Message-ID: <50090539.7020607@cn.fujitsu.com>
-Date: Fri, 20 Jul 2012 15:14:01 +0800
-From: Wen Congyang <wency@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
+	by kanga.kvack.org (Postfix) with SMTP id D10866B004D
+	for <linux-mm@kvack.org>; Fri, 20 Jul 2012 03:31:46 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id AD8023EE0B6
+	for <linux-mm@kvack.org>; Fri, 20 Jul 2012 16:31:44 +0900 (JST)
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 96E8D45DE56
+	for <linux-mm@kvack.org>; Fri, 20 Jul 2012 16:31:44 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 788A445DE54
+	for <linux-mm@kvack.org>; Fri, 20 Jul 2012 16:31:44 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 688691DB8047
+	for <linux-mm@kvack.org>; Fri, 20 Jul 2012 16:31:44 +0900 (JST)
+Received: from g01jpexchyt03.g01.fujitsu.local (g01jpexchyt03.g01.fujitsu.local [10.128.194.42])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 19CE31DB8043
+	for <linux-mm@kvack.org>; Fri, 20 Jul 2012 16:31:44 +0900 (JST)
+Message-ID: <5009094B.3090506@jp.fujitsu.com>
+Date: Fri, 20 Jul 2012 16:31:23 +0900
+From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: [RFC PATCH 8/8] memory-hotplug: implement arch_remove_memory()
+Subject: Re: [RFC PATCH 0/8] memory-hotplug : hot-remove physical memory(clear
+ page table)
 References: <5009038A.4090001@cn.fujitsu.com>
 In-Reply-To: <5009038A.4090001@cn.fujitsu.com>
+Content-Type: text/plain; charset="UTF-8"; format=flowed
 Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org
-Cc: rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, Yasuaki ISIMATU <isimatu.yasuaki@jp.fujitsu.com>
+To: Wen Congyang <wency@cn.fujitsu.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com
 
-Set the entry for the removed memory to 0. If the entry related meory
-is not whole removed, split it to smaller page, and clear it.
+[Hi Wen,
 
-CC: David Rientjes <rientjes@google.com>
-CC: Jiang Liu <liuj97@gmail.com>
-CC: Len Brown <len.brown@intel.com>
-CC: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-CC: Paul Mackerras <paulus@samba.org>
-CC: Christoph Lameter <cl@linux.com>
-Cc: Minchan Kim <minchan.kim@gmail.com>
-CC: Andrew Morton <akpm@linux-foundation.org>
-CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-CC: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-Signed-off-by: Wen Congyang <wency@cn.fujitsu.com>
----
- arch/x86/mm/init_64.c |  159 ++++++++++++++++++++++++++++++++++++++++++++++++-
- 1 files changed, 156 insertions(+), 3 deletions(-)
+Good news!! I was waiting for this patch to come.
+Applying the patches, can we hot-remove physical memory completely?
 
-diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
-index 78b94bc..d78f352 100644
---- a/arch/x86/mm/init_64.c
-+++ b/arch/x86/mm/init_64.c
-@@ -675,11 +675,164 @@ int arch_add_memory(int nid, u64 start, u64 size)
- }
- EXPORT_SYMBOL_GPL(arch_add_memory);
- 
-+static void __meminit
-+phys_pte_remove(pte_t *pte_page, unsigned long addr, unsigned long end)
-+{
-+	unsigned pages = 0;
-+	int i = pte_index(addr);
-+
-+	pte_t *pte = pte_page + pte_index(addr);
-+
-+	for (; i < PTRS_PER_PTE; i++, addr += PAGE_SIZE, pte++) {
-+
-+		if (addr >= end)
-+			break;
-+
-+		if (!pte_present(*pte))
-+			continue;
-+
-+		pages++;
-+		set_pte(pte, __pte(0));
-+	}
-+
-+	update_page_count(PG_LEVEL_4K, -pages);
-+}
-+
-+static void __meminit
-+phys_pmd_remove(pmd_t *pmd_page, unsigned long addr, unsigned long end)
-+{
-+	unsigned long pages = 0, next;
-+	int i = pmd_index(addr);
-+
-+	for (; i < PTRS_PER_PMD; i++, addr = next) {
-+		unsigned long pte_phys;
-+		pmd_t *pmd = pmd_page + pmd_index(addr);
-+		pte_t *pte;
-+
-+		if (addr >= end)
-+			break;
-+
-+		next = (addr & PMD_MASK) + PMD_SIZE;
-+
-+		if (!pmd_present(*pmd))
-+			continue;
-+
-+		if (pmd_large(*pmd)) {
-+			if ((addr & ~PMD_MASK) == 0 && next <= end) {
-+				set_pmd(pmd, __pmd(0));
-+				pages++;
-+				continue;
-+			}
-+
-+			/*
-+			 * We use 2M page, but we need to remove part of them,
-+			 * so split 2M page to 4K page.
-+			 */
-+			pte = alloc_low_page(&pte_phys);
-+			__split_large_page((pte_t *)pmd, addr, pte);
-+
-+			spin_lock(&init_mm.page_table_lock);
-+			pmd_populate_kernel(&init_mm, pmd, __va(pte_phys));
-+			spin_unlock(&init_mm.page_table_lock);
-+		}
-+
-+		spin_lock(&init_mm.page_table_lock);
-+		pte = map_low_page((pte_t *)pmd_page_vaddr(*pmd));
-+		phys_pte_remove(pte, addr, end);
-+		unmap_low_page(pte);
-+		spin_unlock(&init_mm.page_table_lock);
-+	}
-+	update_page_count(PG_LEVEL_2M, -pages);
-+}
-+
-+static void __meminit
-+phys_pud_remove(pud_t *pud_page, unsigned long addr, unsigned long end)
-+{
-+	unsigned long pages = 0, next;
-+	int i = pud_index(addr);
-+
-+	for (; i < PTRS_PER_PUD; i++, addr = next) {
-+		unsigned long pmd_phys;
-+		pud_t *pud = pud_page + pud_index(addr);
-+		pmd_t *pmd;
-+
-+		if (addr >= end)
-+			break;
-+
-+		next = (addr & PUD_MASK) + PUD_SIZE;
-+
-+		if (!pud_present(*pud))
-+			continue;
-+
-+		if (pud_large(*pud)) {
-+			if ((addr & ~PUD_MASK) == 0 && next <= end) {
-+				set_pud(pud, __pud(0));
-+				pages++;
-+				continue;
-+			}
-+
-+			/*
-+			 * We use 1G page, but we need to remove part of them,
-+			 * so split 1G page to 2M page.
-+			 */
-+			pmd = alloc_low_page(&pmd_phys);
-+			__split_large_page((pte_t *)pud, addr, (pte_t *)pmd);
-+
-+			spin_lock(&init_mm.page_table_lock);
-+			pud_populate(&init_mm, pud, __va(pmd_phys));
-+			spin_unlock(&init_mm.page_table_lock);
-+		}
-+
-+		pmd = map_low_page(pmd_offset(pud, 0));
-+		phys_pmd_remove(pmd, addr, end);
-+		unmap_low_page(pmd);
-+		__flush_tlb_all();
-+	}
-+	__flush_tlb_all();
-+
-+	update_page_count(PG_LEVEL_1G, -pages);
-+}
-+
-+void __meminit
-+kernel_physical_mapping_remove(unsigned long start, unsigned long end)
-+{
-+	unsigned long next;
-+
-+	start = (unsigned long)__va(start);
-+	end = (unsigned long)__va(end);
-+
-+	for (; start < end; start = next) {
-+		pgd_t *pgd = pgd_offset_k(start);
-+		pud_t *pud;
-+
-+		next = (start + PGDIR_SIZE) & PGDIR_MASK;
-+		if (next > end)
-+			next = end;
-+
-+		if (!pgd_present(*pgd))
-+			continue;
-+
-+		pud = map_low_page((pud_t *)pgd_page_vaddr(*pgd));
-+		phys_pud_remove(pud, __pa(start), __pa(end));
-+		unmap_low_page(pud);
-+	}
-+
-+	__flush_tlb_all();
-+}
-+
- #ifdef CONFIG_MEMORY_HOTREMOVE
--int arch_remove_memory(unsigned long start, unsigned long size)
-+int __ref arch_remove_memory(unsigned long start, unsigned long size)
- {
--	/* TODO */
--	return -EBUSY;
-+	unsigned long start_pfn = start >> PAGE_SHIFT;
-+	unsigned long nr_pages = size >> PAGE_SHIFT;
-+	int ret;
-+
-+	ret = __remove_pages(start_pfn, nr_pages);
-+	WARN_ON_ONCE(ret);
-+
-+	kernel_physical_mapping_remove(start, start + size);
-+
-+	return ret;
- }
- #endif
- #endif /* CONFIG_MEMORY_HOTPLUG */
--- 
-1.7.1
+Thanks,
+Yasuaki Ishimatsu
+
+2012/07/20 16:06, Wen Congyang wrote:
+> This patch series aims to support physical memory hot-remove(clear page table).
+>
+> This patch series base on ishimatsu's patch series. You can get it here:
+> http://www.spinics.net/lists/linux-acpi/msg36804.html
+>
+> The patches can remove following things:
+>    - page table of removed memory
+>
+> If you find lack of function for physical memory hot-remove, please let me
+> know.
+>
+> Note:
+> * The patch "remove memory info from list before freeing it" is being disccussed
+>    in other thread. But for testing the patch series, the patch is needed.
+>    So I added the patch as [PATCH 0/8].
+> * You need to apply ishimatsu's patch series first before applying this patch
+>    series.
+>
+> Wen Congyang (8):
+>    memory-hotplug: store the node id in acpi_memory_device
+>    memory-hotplug: offline memory only when it is onlined
+>    memory-hotplug: call remove_memory() to cleanup when removing memory
+>      device
+>    memory-hotplug: export the function acpi_bus_remove()
+>    memory-hotplug: call acpi_bus_remove() to remove memory device
+>    memory-hotplug: introduce new function arch_remove_memory()
+>    x86: make __split_large_page() generally avialable
+>    memory-hotplug: implement arch_remove_memory()
+>
+>   arch/ia64/mm/init.c                  |   16 ++++
+>   arch/powerpc/mm/mem.c                |   14 +++
+>   arch/s390/mm/init.c                  |    8 ++
+>   arch/sh/mm/init.c                    |   15 +++
+>   arch/tile/mm/init.c                  |    8 ++
+>   arch/x86/include/asm/pgtable_types.h |    1 +
+>   arch/x86/mm/init_32.c                |   10 ++
+>   arch/x86/mm/init_64.c                |  160 ++++++++++++++++++++++++++++++++++
+>   arch/x86/mm/pageattr.c               |   47 +++++-----
+>   drivers/acpi/acpi_memhotplug.c       |   24 ++++--
+>   drivers/acpi/scan.c                  |    3 +-
+>   include/acpi/acpi_bus.h              |    1 +
+>   include/linux/memory_hotplug.h       |    1 +
+>   mm/memory_hotplug.c                  |    2 +-
+>   14 files changed, 280 insertions(+), 30 deletions(-)
+>
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
