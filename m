@@ -1,13 +1,12 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
-	by kanga.kvack.org (Postfix) with SMTP id 0F96E6B006E
-	for <linux-mm@kvack.org>; Fri, 20 Jul 2012 03:06:53 -0400 (EDT)
-Message-ID: <500904AC.7000305@cn.fujitsu.com>
-Date: Fri, 20 Jul 2012 15:11:40 +0800
+Received: from psmtp.com (na3sys010amx165.postini.com [74.125.245.165])
+	by kanga.kvack.org (Postfix) with SMTP id 8BAA06B006C
+	for <linux-mm@kvack.org>; Fri, 20 Jul 2012 03:07:37 -0400 (EDT)
+Message-ID: <500904D6.3030109@cn.fujitsu.com>
+Date: Fri, 20 Jul 2012 15:12:22 +0800
 From: Wen Congyang <wency@cn.fujitsu.com>
 MIME-Version: 1.0
-Subject: [RFC PATCH 5/8] memory-hotplug: call acpi_bus_remove() to remove
- memory device
+Subject: [RFC PATCH 6/8] memory-hotplug: introduce new function arch_remove_memory()
 References: <5009038A.4090001@cn.fujitsu.com>
 In-Reply-To: <5009038A.4090001@cn.fujitsu.com>
 Content-Transfer-Encoding: 7bit
@@ -17,8 +16,15 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org
 Cc: rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, Yasuaki ISIMATU <isimatu.yasuaki@jp.fujitsu.com>
 
-The memory device has been ejected and powoffed, so we can call
-acpi_bus_remove() to remove the memory device from acpi bus.
+We don't call __add_pages() directly in the function add_memory()
+because some other architecture related thins needs to be done
+before or after calling __add_pages(). So we should not call
+__remove_pages() directly in the function remove_memory.
+Introduce new function arch_remove_memory() to revert the things done
+in arch_add_memory().
+
+Note: the function for x86_64 will be implemented later. And I don't
+know how to implement it for s390.
 
 CC: David Rientjes <rientjes@google.com>
 CC: Jiang Liu <liuj97@gmail.com>
@@ -32,24 +38,193 @@ CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 CC: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 Signed-off-by: Wen Congyang <wency@cn.fujitsu.com>
 ---
- drivers/acpi/acpi_memhotplug.c |    3 ++-
- 1 files changed, 2 insertions(+), 1 deletions(-)
+ arch/ia64/mm/init.c            |   16 ++++++++++++++++
+ arch/powerpc/mm/mem.c          |   14 ++++++++++++++
+ arch/s390/mm/init.c            |    8 ++++++++
+ arch/sh/mm/init.c              |   15 +++++++++++++++
+ arch/tile/mm/init.c            |    8 ++++++++
+ arch/x86/mm/init_32.c          |   10 ++++++++++
+ arch/x86/mm/init_64.c          |    7 +++++++
+ include/linux/memory_hotplug.h |    1 +
+ mm/memory_hotplug.c            |    2 +-
+ 9 files changed, 80 insertions(+), 1 deletions(-)
 
-diff --git a/drivers/acpi/acpi_memhotplug.c b/drivers/acpi/acpi_memhotplug.c
-index 58e4e63..431a17c 100644
---- a/drivers/acpi/acpi_memhotplug.c
-+++ b/drivers/acpi/acpi_memhotplug.c
-@@ -402,8 +402,9 @@ static void acpi_memory_device_notify(acpi_handle handle, u32 event, void *data)
- 			printk(KERN_ERR PREFIX
- 				    "Disable memory device\n");
- 		/*
--		 * TBD: Invoke acpi_bus_remove to cleanup data structures
-+		 * Invoke acpi_bus_remove() to remove memory device
- 		 */
-+		acpi_bus_remove(device, 1);
- 		break;
- 	default:
- 		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+diff --git a/arch/ia64/mm/init.c b/arch/ia64/mm/init.c
+index 0eab454..1e345ed 100644
+--- a/arch/ia64/mm/init.c
++++ b/arch/ia64/mm/init.c
+@@ -688,6 +688,22 @@ int arch_add_memory(int nid, u64 start, u64 size)
+ 
+ 	return ret;
+ }
++
++#ifdef CONFIG_MEMORY_HOTREMOVE
++int arch_remove_memory(u64 start, u64 size)
++{
++	unsigned long start_pfn = start >> PAGE_SHIFT;
++	unsigned long nr_pages = size >> PAGE_SHIFT;
++	int ret;
++
++	ret = __remove_pages(start_pfn, nr_pages);
++	if (ret)
++		pr_warn("%s: Problem encountered in __remove_pages() as"
++			" ret=%d\n", __func__,  ret);
++
++	return ret;
++}
++#endif
+ #endif
+ 
+ /*
+diff --git a/arch/powerpc/mm/mem.c b/arch/powerpc/mm/mem.c
+index baaafde..249cef4 100644
+--- a/arch/powerpc/mm/mem.c
++++ b/arch/powerpc/mm/mem.c
+@@ -133,6 +133,20 @@ int arch_add_memory(int nid, u64 start, u64 size)
+ 
+ 	return __add_pages(nid, zone, start_pfn, nr_pages);
+ }
++
++#ifdef CONFIG_MEMORY_HOTREMOVE
++int arch_remove_memory(u64 start, u64 size)
++{
++	unsigned long start_pfn = start >> PAGE_SHIFT;
++	unsigned long nr_pages = size >> PAGE_SHIFT;
++
++	start = (unsigned long)__va(start);
++	if (remove_section_mapping(start, start + size))
++		return -EINVAL;
++
++	return __remove_pages(start_pfn, nr_pages);
++}
++#endif
+ #endif /* CONFIG_MEMORY_HOTPLUG */
+ 
+ /*
+diff --git a/arch/s390/mm/init.c b/arch/s390/mm/init.c
+index 2bea060..3de0d5b 100644
+--- a/arch/s390/mm/init.c
++++ b/arch/s390/mm/init.c
+@@ -259,4 +259,12 @@ int arch_add_memory(int nid, u64 start, u64 size)
+ 		vmem_remove_mapping(start, size);
+ 	return rc;
+ }
++
++#ifdef CONFIG_MEMORY_HOTREMOVE
++int arch_remove_memory(u64 start, u64 size)
++{
++	/* TODO */
++	return -EBUSY;
++}
++#endif
+ #endif /* CONFIG_MEMORY_HOTPLUG */
+diff --git a/arch/sh/mm/init.c b/arch/sh/mm/init.c
+index 82cc576..fc84491 100644
+--- a/arch/sh/mm/init.c
++++ b/arch/sh/mm/init.c
+@@ -558,4 +558,19 @@ int memory_add_physaddr_to_nid(u64 addr)
+ EXPORT_SYMBOL_GPL(memory_add_physaddr_to_nid);
+ #endif
+ 
++#ifdef CONFIG_MEMORY_HOTREMOVE
++int arch_remove_memory(u64 start, u64 size)
++{
++	unsigned long start_pfn = start >> PAGE_SHIFT;
++	unsigned long nr_pages = size >> PAGE_SHIFT;
++	int ret;
++
++	ret = __remove_pages(start_pfn, nr_pages);
++	if (unlikely(ret))
++		pr_warn("%s: Failed, __remove_pages() == %d\n", __func__,
++			ret);
++
++	return ret;
++}
++#endif
+ #endif /* CONFIG_MEMORY_HOTPLUG */
+diff --git a/arch/tile/mm/init.c b/arch/tile/mm/init.c
+index 630dd2c..bdd8a99 100644
+--- a/arch/tile/mm/init.c
++++ b/arch/tile/mm/init.c
+@@ -947,6 +947,14 @@ int remove_memory(u64 start, u64 size)
+ {
+ 	return -EINVAL;
+ }
++
++#ifdef CONFIG_MEMORY_HOTREMOVE
++int arch_remove_memory(u64 start, u64 size)
++{
++	/* TODO */
++	return -EBUSY;
++}
++#endif
+ #endif
+ 
+ struct kmem_cache *pgd_cache;
+diff --git a/arch/x86/mm/init_32.c b/arch/x86/mm/init_32.c
+index 575d86f..a690153 100644
+--- a/arch/x86/mm/init_32.c
++++ b/arch/x86/mm/init_32.c
+@@ -842,6 +842,16 @@ int arch_add_memory(int nid, u64 start, u64 size)
+ 
+ 	return __add_pages(nid, zone, start_pfn, nr_pages);
+ }
++
++#ifdef CONFIG_MEMORY_HOTREMOVE
++int arch_remove_memory(unsigned long start, unsigned long size)
++{
++	unsigned long start_pfn = start >> PAGE_SHIFT;
++	unsigned long nr_pages = size >> PAGE_SHIFT;
++
++	return __remove_pages(start_pfn, nr_pages);
++}
++#endif
+ #endif
+ 
+ /*
+diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
+index 9e635b3..78b94bc 100644
+--- a/arch/x86/mm/init_64.c
++++ b/arch/x86/mm/init_64.c
+@@ -675,6 +675,13 @@ int arch_add_memory(int nid, u64 start, u64 size)
+ }
+ EXPORT_SYMBOL_GPL(arch_add_memory);
+ 
++#ifdef CONFIG_MEMORY_HOTREMOVE
++int arch_remove_memory(unsigned long start, unsigned long size)
++{
++	/* TODO */
++	return -EBUSY;
++}
++#endif
+ #endif /* CONFIG_MEMORY_HOTPLUG */
+ 
+ static struct kcore_list kcore_vsyscall;
+diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
+index 2ba0a1a..8639799 100644
+--- a/include/linux/memory_hotplug.h
++++ b/include/linux/memory_hotplug.h
+@@ -84,6 +84,7 @@ extern void __online_page_free(struct page *page);
+ 
+ #ifdef CONFIG_MEMORY_HOTREMOVE
+ extern bool is_pageblock_removable_nolock(struct page *page);
++extern int arch_remove_memory(unsigned long start, unsigned long size);
+ #endif /* CONFIG_MEMORY_HOTREMOVE */
+ 
+ /* reasonably generic interface to expand the physical pages in a zone  */
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index dccdf71..cc2c8b9 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -1055,7 +1055,7 @@ int __ref remove_memory(int nid, u64 start, u64 size)
+ 		unregister_one_node(nid);
+ 	}
+ 
+-	__remove_pages(start >> PAGE_SHIFT, size >> PAGE_SHIFT);
++	arch_remove_memory(start, size);
+ out:
+ 	unlock_memory_hotplug();
+ 	return ret;
 -- 
 1.7.1
 
