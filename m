@@ -1,99 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
-	by kanga.kvack.org (Postfix) with SMTP id 53D346B004D
-	for <linux-mm@kvack.org>; Fri, 20 Jul 2012 03:50:14 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id E18D83EE0C1
-	for <linux-mm@kvack.org>; Fri, 20 Jul 2012 16:50:12 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id C769245DEAD
-	for <linux-mm@kvack.org>; Fri, 20 Jul 2012 16:50:12 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id AAEBA45DE7E
-	for <linux-mm@kvack.org>; Fri, 20 Jul 2012 16:50:12 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 9A0CD1DB803E
-	for <linux-mm@kvack.org>; Fri, 20 Jul 2012 16:50:12 +0900 (JST)
-Received: from g01jpexchyt07.g01.fujitsu.local (g01jpexchyt07.g01.fujitsu.local [10.128.194.46])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 459481DB803B
-	for <linux-mm@kvack.org>; Fri, 20 Jul 2012 16:50:12 +0900 (JST)
-Message-ID: <50090DA4.8040908@jp.fujitsu.com>
-Date: Fri, 20 Jul 2012 16:49:56 +0900
-From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
+	by kanga.kvack.org (Postfix) with SMTP id 232F96B004D
+	for <linux-mm@kvack.org>; Fri, 20 Jul 2012 03:51:19 -0400 (EDT)
+Date: Fri, 20 Jul 2012 09:51:12 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH] cgroup: Don't drop the cgroup_mutex in cgroup_rmdir
+Message-ID: <20120720075112.GA12434@tiehlicka.suse.cz>
+References: <87ipdjc15j.fsf@skywalker.in.ibm.com>
+ <1342706972-10912-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Subject: Re: [RFC PATCH 3/8] memory-hotplug: call remove_memory() to cleanup
- when removing memory device
-References: <5009038A.4090001@cn.fujitsu.com> <5009046C.106@cn.fujitsu.com>
-In-Reply-To: <5009046C.106@cn.fujitsu.com>
-Content-Type: text/plain; charset="UTF-8"; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1342706972-10912-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wen Congyang <wency@cn.fujitsu.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Cc: akpm@linux-foundation.org, kamezawa.hiroyu@jp.fujitsu.com, liwanp@linux.vnet.ibm.com, htejun@gmail.com, lizefan@huawei.com, cgroups@vger.kernel.org, linux-mm@kvack.org
 
-Hi Wen,
+On Thu 19-07-12 19:39:32, Aneesh Kumar K.V wrote:
+> From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+> 
+> We dropped cgroup mutex, because of a deadlock between memcg and cpuset.
+> cpuset took hotplug lock followed by cgroup_mutex, where as memcg pre_destroy
+> did lru_add_drain_all() which took hotplug lock while already holding
+> cgroup_mutex. The deadlock is explained in 3fa59dfbc3b223f02c26593be69ce6fc9a940405
+> But dropping cgroup_mutex in cgroup_rmdir also means tasks could get
+> added to cgroup while we are in pre_destroy. This makes error handling in
+> pre_destroy complex. So move the unlock/lock to memcg pre_destroy callback.
+> Core cgroup will now call pre_destroy with cgroup_mutex held.
 
-2012/07/20 16:10, Wen Congyang wrote:
-> We should remove the following things when removing the memory device:
-> 1. memmap and related sysfs files
-> 2. iomem_resource
-> 3. mem_section and related sysfs files
-> 4. node and related sysfs files
->
-> The function remove_memory() can do this. So call it after the memory device
-> is offlined.
->
-> CC: David Rientjes <rientjes@google.com>
-> CC: Jiang Liu <liuj97@gmail.com>
-> CC: Len Brown <len.brown@intel.com>
-> CC: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-> CC: Paul Mackerras <paulus@samba.org>
-> CC: Christoph Lameter <cl@linux.com>
-> Cc: Minchan Kim <minchan.kim@gmail.com>
-> CC: Andrew Morton <akpm@linux-foundation.org>
-> CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> CC: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-> Signed-off-by: Wen Congyang <wency@cn.fujitsu.com>
+OK, this should be good for now but we should definitely work towards
+not messing with cgroup_mutex like that and remove the hack from memcg
+callback in the long term.
+
+> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+
+Acked-by: Michal Hocko <mhocko@suse.cz>
+
 > ---
+>  kernel/cgroup.c |    3 +--
+>  mm/memcontrol.c |   11 ++++++++++-
+>  2 files changed, 11 insertions(+), 3 deletions(-)
+> 
+> diff --git a/kernel/cgroup.c b/kernel/cgroup.c
+> index 7981850..01c67f4 100644
+> --- a/kernel/cgroup.c
+> +++ b/kernel/cgroup.c
+> @@ -4151,7 +4151,6 @@ again:
+>  		mutex_unlock(&cgroup_mutex);
+>  		return -EBUSY;
+>  	}
+> -	mutex_unlock(&cgroup_mutex);
+>  
+>  	/*
+>  	 * In general, subsystem has no css->refcnt after pre_destroy(). But
+> @@ -4171,10 +4170,10 @@ again:
+>  	ret = cgroup_call_pre_destroy(cgrp);
+>  	if (ret) {
+>  		clear_bit(CGRP_WAIT_ON_RMDIR, &cgrp->flags);
+> +		mutex_unlock(&cgroup_mutex);
+>  		return ret;
+>  	}
+>  
+> -	mutex_lock(&cgroup_mutex);
+>  	parent = cgrp->parent;
+>  	if (atomic_read(&cgrp->count) || !list_empty(&cgrp->children)) {
+>  		clear_bit(CGRP_WAIT_ON_RMDIR, &cgrp->flags);
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index e8ddc00..9bd56ee 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -4993,9 +4993,18 @@ free_out:
+>  
+>  static int mem_cgroup_pre_destroy(struct cgroup *cont)
+>  {
+> +	int ret;
+>  	struct mem_cgroup *memcg = mem_cgroup_from_cont(cont);
+>  
+> -	return mem_cgroup_force_empty(memcg, false);
+> +	cgroup_unlock();
+> +	/*
+> +	 * we call lru_add_drain_all, which end up taking
+> +	 * mutex_lock(&cpu_hotplug.lock), But cpuset have
+> +	 * the reverse order. So drop the cgroup lock
+> +	 */
+> +	ret = mem_cgroup_force_empty(memcg, false);
+> +	cgroup_lock();
+> +	return ret;
+>  }
+>  
+>  static void mem_cgroup_destroy(struct cgroup *cont)
+> -- 
+> 1.7.10
+> 
 
-I have no comment.
-Reviewed-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-
-Thanks,
-Yasuaki Ishimatsu
-
-
->   drivers/acpi/acpi_memhotplug.c |    7 ++++++-
->   1 files changed, 6 insertions(+), 1 deletions(-)
->
-> diff --git a/drivers/acpi/acpi_memhotplug.c b/drivers/acpi/acpi_memhotplug.c
-> index 712e767..58e4e63 100644
-> --- a/drivers/acpi/acpi_memhotplug.c
-> +++ b/drivers/acpi/acpi_memhotplug.c
-> @@ -315,7 +315,7 @@ static int acpi_memory_disable_device(struct acpi_memory_device *mem_device)
->   {
->   	int result;
->   	struct acpi_memory_info *info, *n;
-> -
-> +	int node = mem_device->nid;
->
->   	/*
->   	 * Ask the VM to offline this memory range.
-> @@ -330,6 +330,11 @@ static int acpi_memory_disable_device(struct acpi_memory_device *mem_device)
->   				if (result)
->   					return result;
->   			}
-> +
-> +			result = remove_memory(node, info->start_addr,
-> +					       info->length);
-> +			if (result)
-> +				return result;
->   		}
->   		list_del(&info->list);
->   		kfree(info);
->
-
+-- 
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
