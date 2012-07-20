@@ -1,12 +1,12 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx165.postini.com [74.125.245.165])
-	by kanga.kvack.org (Postfix) with SMTP id 8BAA06B006C
-	for <linux-mm@kvack.org>; Fri, 20 Jul 2012 03:07:37 -0400 (EDT)
-Message-ID: <500904D6.3030109@cn.fujitsu.com>
-Date: Fri, 20 Jul 2012 15:12:22 +0800
+Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
+	by kanga.kvack.org (Postfix) with SMTP id C0B976B0070
+	for <linux-mm@kvack.org>; Fri, 20 Jul 2012 03:08:25 -0400 (EDT)
+Message-ID: <50090509.8000007@cn.fujitsu.com>
+Date: Fri, 20 Jul 2012 15:13:13 +0800
 From: Wen Congyang <wency@cn.fujitsu.com>
 MIME-Version: 1.0
-Subject: [RFC PATCH 6/8] memory-hotplug: introduce new function arch_remove_memory()
+Subject: [RFC PATCH 7/8] x86: make __split_large_page() generally avialable
 References: <5009038A.4090001@cn.fujitsu.com>
 In-Reply-To: <5009038A.4090001@cn.fujitsu.com>
 Content-Transfer-Encoding: 7bit
@@ -16,15 +16,10 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org
 Cc: rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, Yasuaki ISIMATU <isimatu.yasuaki@jp.fujitsu.com>
 
-We don't call __add_pages() directly in the function add_memory()
-because some other architecture related thins needs to be done
-before or after calling __add_pages(). So we should not call
-__remove_pages() directly in the function remove_memory.
-Introduce new function arch_remove_memory() to revert the things done
-in arch_add_memory().
-
-Note: the function for x86_64 will be implemented later. And I don't
-know how to implement it for s390.
+We need to clear page table after calling __remove_pages(). We may
+need to clear part of pmd or pud's entry when clearing the page table.
+So we need to split it to small page. Make __split_large_page()
+generally avialable, and we call call this function to split large page.
 
 CC: David Rientjes <rientjes@google.com>
 CC: Jiang Liu <liuj97@gmail.com>
@@ -38,193 +33,102 @@ CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 CC: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 Signed-off-by: Wen Congyang <wency@cn.fujitsu.com>
 ---
- arch/ia64/mm/init.c            |   16 ++++++++++++++++
- arch/powerpc/mm/mem.c          |   14 ++++++++++++++
- arch/s390/mm/init.c            |    8 ++++++++
- arch/sh/mm/init.c              |   15 +++++++++++++++
- arch/tile/mm/init.c            |    8 ++++++++
- arch/x86/mm/init_32.c          |   10 ++++++++++
- arch/x86/mm/init_64.c          |    7 +++++++
- include/linux/memory_hotplug.h |    1 +
- mm/memory_hotplug.c            |    2 +-
- 9 files changed, 80 insertions(+), 1 deletions(-)
+ arch/x86/include/asm/pgtable_types.h |    1 +
+ arch/x86/mm/pageattr.c               |   47 ++++++++++++++++++----------------
+ 2 files changed, 26 insertions(+), 22 deletions(-)
 
-diff --git a/arch/ia64/mm/init.c b/arch/ia64/mm/init.c
-index 0eab454..1e345ed 100644
---- a/arch/ia64/mm/init.c
-+++ b/arch/ia64/mm/init.c
-@@ -688,6 +688,22 @@ int arch_add_memory(int nid, u64 start, u64 size)
+diff --git a/arch/x86/include/asm/pgtable_types.h b/arch/x86/include/asm/pgtable_types.h
+index 013286a..b725af2 100644
+--- a/arch/x86/include/asm/pgtable_types.h
++++ b/arch/x86/include/asm/pgtable_types.h
+@@ -334,6 +334,7 @@ static inline void update_page_count(int level, unsigned long pages) { }
+  * as a pte too.
+  */
+ extern pte_t *lookup_address(unsigned long address, unsigned int *level);
++extern int __split_large_page(pte_t *kpte, unsigned long address, pte_t *pbase);
  
- 	return ret;
+ #endif	/* !__ASSEMBLY__ */
+ 
+diff --git a/arch/x86/mm/pageattr.c b/arch/x86/mm/pageattr.c
+index a718e0d..7dcb6f9 100644
+--- a/arch/x86/mm/pageattr.c
++++ b/arch/x86/mm/pageattr.c
+@@ -501,21 +501,13 @@ out_unlock:
+ 	return do_split;
  }
-+
-+#ifdef CONFIG_MEMORY_HOTREMOVE
-+int arch_remove_memory(u64 start, u64 size)
-+{
-+	unsigned long start_pfn = start >> PAGE_SHIFT;
-+	unsigned long nr_pages = size >> PAGE_SHIFT;
-+	int ret;
-+
-+	ret = __remove_pages(start_pfn, nr_pages);
-+	if (ret)
-+		pr_warn("%s: Problem encountered in __remove_pages() as"
-+			" ret=%d\n", __func__,  ret);
-+
-+	return ret;
-+}
-+#endif
- #endif
  
- /*
-diff --git a/arch/powerpc/mm/mem.c b/arch/powerpc/mm/mem.c
-index baaafde..249cef4 100644
---- a/arch/powerpc/mm/mem.c
-+++ b/arch/powerpc/mm/mem.c
-@@ -133,6 +133,20 @@ int arch_add_memory(int nid, u64 start, u64 size)
- 
- 	return __add_pages(nid, zone, start_pfn, nr_pages);
- }
-+
-+#ifdef CONFIG_MEMORY_HOTREMOVE
-+int arch_remove_memory(u64 start, u64 size)
-+{
-+	unsigned long start_pfn = start >> PAGE_SHIFT;
-+	unsigned long nr_pages = size >> PAGE_SHIFT;
-+
-+	start = (unsigned long)__va(start);
-+	if (remove_section_mapping(start, start + size))
-+		return -EINVAL;
-+
-+	return __remove_pages(start_pfn, nr_pages);
-+}
-+#endif
- #endif /* CONFIG_MEMORY_HOTPLUG */
- 
- /*
-diff --git a/arch/s390/mm/init.c b/arch/s390/mm/init.c
-index 2bea060..3de0d5b 100644
---- a/arch/s390/mm/init.c
-+++ b/arch/s390/mm/init.c
-@@ -259,4 +259,12 @@ int arch_add_memory(int nid, u64 start, u64 size)
- 		vmem_remove_mapping(start, size);
- 	return rc;
- }
-+
-+#ifdef CONFIG_MEMORY_HOTREMOVE
-+int arch_remove_memory(u64 start, u64 size)
-+{
-+	/* TODO */
-+	return -EBUSY;
-+}
-+#endif
- #endif /* CONFIG_MEMORY_HOTPLUG */
-diff --git a/arch/sh/mm/init.c b/arch/sh/mm/init.c
-index 82cc576..fc84491 100644
---- a/arch/sh/mm/init.c
-+++ b/arch/sh/mm/init.c
-@@ -558,4 +558,19 @@ int memory_add_physaddr_to_nid(u64 addr)
- EXPORT_SYMBOL_GPL(memory_add_physaddr_to_nid);
- #endif
- 
-+#ifdef CONFIG_MEMORY_HOTREMOVE
-+int arch_remove_memory(u64 start, u64 size)
-+{
-+	unsigned long start_pfn = start >> PAGE_SHIFT;
-+	unsigned long nr_pages = size >> PAGE_SHIFT;
-+	int ret;
-+
-+	ret = __remove_pages(start_pfn, nr_pages);
-+	if (unlikely(ret))
-+		pr_warn("%s: Failed, __remove_pages() == %d\n", __func__,
-+			ret);
-+
-+	return ret;
-+}
-+#endif
- #endif /* CONFIG_MEMORY_HOTPLUG */
-diff --git a/arch/tile/mm/init.c b/arch/tile/mm/init.c
-index 630dd2c..bdd8a99 100644
---- a/arch/tile/mm/init.c
-+++ b/arch/tile/mm/init.c
-@@ -947,6 +947,14 @@ int remove_memory(u64 start, u64 size)
+-static int split_large_page(pte_t *kpte, unsigned long address)
++int __split_large_page(pte_t *kpte, unsigned long address, pte_t *pbase)
  {
- 	return -EINVAL;
- }
-+
-+#ifdef CONFIG_MEMORY_HOTREMOVE
-+int arch_remove_memory(u64 start, u64 size)
-+{
-+	/* TODO */
-+	return -EBUSY;
+ 	unsigned long pfn, pfninc = 1;
+ 	unsigned int i, level;
+-	pte_t *pbase, *tmp;
++	pte_t *tmp;
+ 	pgprot_t ref_prot;
+-	struct page *base;
+-
+-	if (!debug_pagealloc)
+-		spin_unlock(&cpa_lock);
+-	base = alloc_pages(GFP_KERNEL | __GFP_NOTRACK, 0);
+-	if (!debug_pagealloc)
+-		spin_lock(&cpa_lock);
+-	if (!base)
+-		return -ENOMEM;
++	struct page *base = virt_to_page(pbase);
+ 
+ 	spin_lock(&pgd_lock);
+ 	/*
+@@ -523,10 +515,11 @@ static int split_large_page(pte_t *kpte, unsigned long address)
+ 	 * up for us already:
+ 	 */
+ 	tmp = lookup_address(address, &level);
+-	if (tmp != kpte)
+-		goto out_unlock;
++	if (tmp != kpte) {
++		spin_unlock(&pgd_lock);
++		return 1;
++	}
+ 
+-	pbase = (pte_t *)page_address(base);
+ 	paravirt_alloc_pte(&init_mm, page_to_pfn(base));
+ 	ref_prot = pte_pgprot(pte_clrhuge(*kpte));
+ 	/*
+@@ -579,17 +572,27 @@ static int split_large_page(pte_t *kpte, unsigned long address)
+ 	 * going on.
+ 	 */
+ 	__flush_tlb_all();
++	spin_unlock(&pgd_lock);
+ 
+-	base = NULL;
++	return 0;
 +}
-+#endif
- #endif
  
- struct kmem_cache *pgd_cache;
-diff --git a/arch/x86/mm/init_32.c b/arch/x86/mm/init_32.c
-index 575d86f..a690153 100644
---- a/arch/x86/mm/init_32.c
-+++ b/arch/x86/mm/init_32.c
-@@ -842,6 +842,16 @@ int arch_add_memory(int nid, u64 start, u64 size)
- 
- 	return __add_pages(nid, zone, start_pfn, nr_pages);
- }
-+
-+#ifdef CONFIG_MEMORY_HOTREMOVE
-+int arch_remove_memory(unsigned long start, unsigned long size)
+-out_unlock:
+-	/*
+-	 * If we dropped out via the lookup_address check under
+-	 * pgd_lock then stick the page back into the pool:
+-	 */
+-	if (base)
++static int split_large_page(pte_t *kpte, unsigned long address)
 +{
-+	unsigned long start_pfn = start >> PAGE_SHIFT;
-+	unsigned long nr_pages = size >> PAGE_SHIFT;
++	pte_t *pbase;
++	struct page *base;
 +
-+	return __remove_pages(start_pfn, nr_pages);
-+}
-+#endif
- #endif
++	if (!debug_pagealloc)
++		spin_unlock(&cpa_lock);
++	base = alloc_pages(GFP_KERNEL | __GFP_NOTRACK, 0);
++	if (!debug_pagealloc)
++		spin_lock(&cpa_lock);
++	if (!base)
++		return -ENOMEM;
++
++	pbase = (pte_t *)page_address(base);
++	if (__split_large_page(kpte, address, pbase))
+ 		__free_page(base);
+-	spin_unlock(&pgd_lock);
  
- /*
-diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
-index 9e635b3..78b94bc 100644
---- a/arch/x86/mm/init_64.c
-+++ b/arch/x86/mm/init_64.c
-@@ -675,6 +675,13 @@ int arch_add_memory(int nid, u64 start, u64 size)
+ 	return 0;
  }
- EXPORT_SYMBOL_GPL(arch_add_memory);
- 
-+#ifdef CONFIG_MEMORY_HOTREMOVE
-+int arch_remove_memory(unsigned long start, unsigned long size)
-+{
-+	/* TODO */
-+	return -EBUSY;
-+}
-+#endif
- #endif /* CONFIG_MEMORY_HOTPLUG */
- 
- static struct kcore_list kcore_vsyscall;
-diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
-index 2ba0a1a..8639799 100644
---- a/include/linux/memory_hotplug.h
-+++ b/include/linux/memory_hotplug.h
-@@ -84,6 +84,7 @@ extern void __online_page_free(struct page *page);
- 
- #ifdef CONFIG_MEMORY_HOTREMOVE
- extern bool is_pageblock_removable_nolock(struct page *page);
-+extern int arch_remove_memory(unsigned long start, unsigned long size);
- #endif /* CONFIG_MEMORY_HOTREMOVE */
- 
- /* reasonably generic interface to expand the physical pages in a zone  */
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index dccdf71..cc2c8b9 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -1055,7 +1055,7 @@ int __ref remove_memory(int nid, u64 start, u64 size)
- 		unregister_one_node(nid);
- 	}
- 
--	__remove_pages(start >> PAGE_SHIFT, size >> PAGE_SHIFT);
-+	arch_remove_memory(start, size);
- out:
- 	unlock_memory_hotplug();
- 	return ret;
 -- 
 1.7.1
 
