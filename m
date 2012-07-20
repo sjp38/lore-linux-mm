@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
-	by kanga.kvack.org (Postfix) with SMTP id 1ACA26B006C
-	for <linux-mm@kvack.org>; Fri, 20 Jul 2012 08:31:43 -0400 (EDT)
+	by kanga.kvack.org (Postfix) with SMTP id A3E726B006E
+	for <linux-mm@kvack.org>; Fri, 20 Jul 2012 08:31:45 -0400 (EDT)
 Received: by mail-pb0-f41.google.com with SMTP id rp2so7647111pbb.14
-        for <linux-mm@kvack.org>; Fri, 20 Jul 2012 05:31:42 -0700 (PDT)
+        for <linux-mm@kvack.org>; Fri, 20 Jul 2012 05:31:45 -0700 (PDT)
 From: Michel Lespinasse <walken@google.com>
-Subject: [PATCH 4/6] rbtree: faster augmented insert
-Date: Fri, 20 Jul 2012 05:31:05 -0700
-Message-Id: <1342787467-5493-5-git-send-email-walken@google.com>
+Subject: [PATCH 5/6] rbtree: faster augmented erase
+Date: Fri, 20 Jul 2012 05:31:06 -0700
+Message-Id: <1342787467-5493-6-git-send-email-walken@google.com>
 In-Reply-To: <1342787467-5493-1-git-send-email-walken@google.com>
 References: <1342787467-5493-1-git-send-email-walken@google.com>
 Sender: owner-linux-mm@kvack.org
@@ -15,149 +15,447 @@ List-ID: <linux-mm.kvack.org>
 To: riel@redhat.com, peterz@infradead.org, daniel.santos@pobox.com, aarcange@redhat.com, dwmw2@infradead.org, akpm@linux-foundation.org
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Introduce rb_insert_augmented(), which is a version of rb_insert_color()
-with an added callback on tree rotations. This can be used for insertion
-into an augmented tree: the handcoded search phase must be updated to
-maintain the augmented information on insertion, and then the rbtree
-coloring/rebalancing algorithms keep it up to date.
+Add an augmented tree rotation callback to __rb_erase_color(), so that
+augmented tree information can be maintained while rebalancing.
 
-rb_insert_color() is now a special case of rb_insert_augmented() with
-a do-nothing callback. I used inlining to optimize out the callback,
-with the intent that this would generate the same code as previously
-for rb_insert_augmented(). This didn't fully work, as my compiler output
-is now *smaller* than before for that function. Speed wise, they seem
-comparable though.
+Also introduce rb_erase_augmented(), which is a version of rb_erase()
+with augmented tree callbacks. We need two callbacks here: one to propagate
+the augmented values up after removing a node, and one to pass up to
+__rb_erase_color() to handle rebalancing.
+
+Things are set up so that rb_erase() uses dummy do-nothing callbacks,
+which get inlined and eliminated by the compiler, and also inlines the
+__rb_erase_color() call so as to generate similar code than before
+(once again, the compiler somehow generates smaller code than before
+with all that inlining, but the speed seems to be on par). For the
+augmented version rb_erase_augmented(), however, we use partial
+inlining: we want rb_erase_augmented() and its augmented propagation
+callback to get inlined together, but we still call into a generic
+__rb_erase_color() (passing a non-inlined callback function) for the
+rebalancing work. This is intended to strike a reasonable compromise
+between speed and compiled code size.
 
 Signed-off-by: Michel Lespinasse <walken@google.com>
 ---
- include/linux/rbtree.h |    5 +++++
- lib/rbtree.c           |   14 +++++++++++++-
- lib/rbtree_test.c      |   31 +++++++++++++++++++++++--------
- 3 files changed, 41 insertions(+), 9 deletions(-)
+ include/linux/rbtree.h          |    5 --
+ include/linux/rbtree_internal.h |  131 ++++++++++++++++++++++++++++++++++++
+ lib/rbtree.c                    |  139 +++++---------------------------------
+ lib/rbtree_test.c               |   20 +++---
+ 4 files changed, 161 insertions(+), 134 deletions(-)
+ create mode 100644 include/linux/rbtree_internal.h
 
 diff --git a/include/linux/rbtree.h b/include/linux/rbtree.h
-index bf836a2..1364b81 100644
+index 1364b81..bf836a2 100644
 --- a/include/linux/rbtree.h
 +++ b/include/linux/rbtree.h
-@@ -61,6 +61,11 @@ struct rb_root {
+@@ -61,11 +61,6 @@ struct rb_root {
  extern void rb_insert_color(struct rb_node *, struct rb_root *);
  extern void rb_erase(struct rb_node *, struct rb_root *);
  
-+typedef void rb_augment_rotate(struct rb_node *old, struct rb_node *new);
-+
-+extern void rb_insert_augmented(struct rb_node *node, struct rb_root *root,
-+				rb_augment_rotate *augment);
-+
+-typedef void rb_augment_rotate(struct rb_node *old, struct rb_node *new);
+-
+-extern void rb_insert_augmented(struct rb_node *node, struct rb_root *root,
+-				rb_augment_rotate *augment);
+-
  typedef void (*rb_augment_f)(struct rb_node *node, void *data);
  
  extern void rb_augment_insert(struct rb_node *node,
+diff --git a/include/linux/rbtree_internal.h b/include/linux/rbtree_internal.h
+new file mode 100644
+index 0000000..46aada0
+--- /dev/null
++++ b/include/linux/rbtree_internal.h
+@@ -0,0 +1,131 @@
++#ifndef _LINUX_RBTREE_INTERNAL_H
++#define _LINUX_RBTREE_INTERNAL_H
++
++#define	RB_RED		0
++#define	RB_BLACK	1
++
++#define rb_color(r)   ((r)->__rb_parent_color & 1)
++#define rb_is_red(r)   (!rb_color(r))
++#define rb_is_black(r) rb_color(r)
++
++static inline void rb_set_parent(struct rb_node *rb, struct rb_node *p)
++{
++	rb->__rb_parent_color = rb_color(rb) | (unsigned long)p;
++}
++
++static inline void rb_set_parent_color(struct rb_node *rb,
++				       struct rb_node *p, int color)
++{
++	rb->__rb_parent_color = (unsigned long)p | color;
++}
++
++static inline struct rb_node *rb_red_parent(struct rb_node *red)
++{
++	return (struct rb_node *)red->__rb_parent_color;
++}
++
++typedef void rb_augment_rotate(struct rb_node *old, struct rb_node *new);
++typedef void rb_augment_propagate(struct rb_node *node);
++
++extern void rb_insert_augmented(struct rb_node *node, struct rb_root *root,
++				rb_augment_rotate *augment);
++extern void __rb_erase_color(struct rb_node *node, struct rb_node *parent,
++			     struct rb_root *root, rb_augment_rotate *augment);
++
++static inline void
++rb_erase_augmented(struct rb_node *node, struct rb_root *root,
++		   rb_augment_propagate *augment_propagate,
++		   rb_augment_rotate *augment_rotate)
++{
++	struct rb_node *parent = rb_parent(node);
++	struct rb_node *child = node->rb_right;
++	struct rb_node *tmp = node->rb_left;
++	bool black;
++
++	if (!tmp) {
++		/* Case 1: node to erase has no more than 1 child (easy!) */
++		if (child)
++one_child:
++			rb_set_parent(child, parent);
++		if (parent) {
++			if (parent->rb_left == node)
++				parent->rb_left = child;
++			else
++				parent->rb_right = child;
++		} else
++			root->rb_node = child;
++
++		black = rb_is_black(node);
++	} else if (!child) {
++		/* Still case 1, but this time the child is node->rb_left */
++		child = tmp;
++		goto one_child;
++	} else {
++		struct rb_node *old = node;
++
++		/*
++		 * Old is the node we want to erase. It's got left and right
++		 * children, which makes things difficult. Let's find the
++		 * next node in the tree to have it fill old's position.
++		 */
++		node = node->rb_right;
++		while ((tmp = node->rb_left) != NULL)
++			node = tmp;
++
++		/* Graft node (old's successor) under old's parent. */
++		if (parent) {
++			if (parent->rb_left == old)
++				parent->rb_left = node;
++			else
++				parent->rb_right = node;
++		} else
++			root->rb_node = node;
++
++		parent = rb_parent(node);
++		black = rb_is_black(node);
++		node->__rb_parent_color = old->__rb_parent_color;
++
++		/*
++		 * Node doesn't have a left child, since it is old's successor,
++		 * so we can take old's left child and graft it under node.
++		 */
++		node->rb_left = tmp = old->rb_left;
++		rb_set_parent(tmp, node);
++
++		child = node->rb_right;
++		if (parent == old) {
++			/*
++			 * Case 2: old is node's parent (we are done!)
++			 *
++			 *    (o)          (n)
++			 *    / \          / \
++			 *  (x) (n)  ->  (x) (c)
++			 *        \
++			 *        (c)
++			 */
++			parent = node;
++		} else {
++			/*
++			 * Case 3: old is node's ancestor but not its parent
++			 *
++			 *    (o)          (n)
++			 *    / \          / \
++			 *  (x) (y)  ->  (x) (y)
++			 *      /            /
++			 *    (n)          (c)
++			 *      \
++			 *      (c)
++			 */
++			node->rb_right = tmp = old->rb_right;
++			parent->rb_left = child;
++			rb_set_parent(tmp, node);
++			if (child)
++				rb_set_parent(child, parent);
++		}
++	}
++	augment_propagate(parent);
++	if (black)
++		__rb_erase_color(child, parent, root, augment_rotate);
++}
++
++#endif	/* _LINUX_RBTREE_INTERNAL_H */
 diff --git a/lib/rbtree.c b/lib/rbtree.c
-index 8b111cc..a6ae4c5 100644
+index a6ae4c5..7ea3e4c 100644
 --- a/lib/rbtree.c
 +++ b/lib/rbtree.c
-@@ -88,7 +88,8 @@ __rb_rotate_set_parents(struct rb_node *old, struct rb_node *new,
- 		root->rb_node = new;
+@@ -22,6 +22,7 @@
+ */
+ 
+ #include <linux/rbtree.h>
++#include <linux/rbtree_internal.h>
+ #include <linux/export.h>
+ 
+ /*
+@@ -44,29 +45,6 @@
+  *  parentheses and have some accompanying text comment.
+  */
+ 
+-#define	RB_RED		0
+-#define	RB_BLACK	1
+-
+-#define rb_color(r)   ((r)->__rb_parent_color & 1)
+-#define rb_is_red(r)   (!rb_color(r))
+-#define rb_is_black(r) rb_color(r)
+-
+-static inline void rb_set_parent(struct rb_node *rb, struct rb_node *p)
+-{
+-	rb->__rb_parent_color = rb_color(rb) | (unsigned long)p;
+-}
+-
+-static inline void rb_set_parent_color(struct rb_node *rb,
+-				       struct rb_node *p, int color)
+-{
+-	rb->__rb_parent_color = (unsigned long)p | color;
+-}
+-
+-static inline struct rb_node *rb_red_parent(struct rb_node *red)
+-{
+-	return (struct rb_node *)red->__rb_parent_color;
+-}
+-
+ /*
+  * Helper function for rotations:
+  * - old's parent and color get assigned to new
+@@ -213,15 +191,8 @@ inline void rb_insert_augmented(struct rb_node *node, struct rb_root *root,
  }
+ EXPORT_SYMBOL(rb_insert_augmented);
  
--void rb_insert_color(struct rb_node *node, struct rb_root *root)
-+inline void rb_insert_augmented(struct rb_node *node, struct rb_root *root,
-+				rb_augment_rotate *augment)
+-static inline void dummy(struct rb_node *old, struct rb_node *new) {}
+-
+-void rb_insert_color(struct rb_node *node, struct rb_root *root) {
+-	rb_insert_augmented(node, root, dummy);
+-}
+-EXPORT_SYMBOL(rb_insert_color);
+-
+-static void __rb_erase_color(struct rb_node *node, struct rb_node *parent,
+-			     struct rb_root *root)
++inline void __rb_erase_color(struct rb_node *node, struct rb_node *parent,
++			     struct rb_root *root, rb_augment_rotate *augment)
  {
- 	struct rb_node *parent = rb_red_parent(node), *gparent, *tmp;
+ 	struct rb_node *sibling, *tmp1, *tmp2;
  
-@@ -152,6 +153,7 @@ void rb_insert_color(struct rb_node *node, struct rb_root *root)
- 					rb_set_parent_color(tmp, parent,
- 							    RB_BLACK);
- 				rb_set_parent_color(parent, node, RB_RED);
-+				augment(parent, node);
- 				parent = node;
- 				tmp = node->rb_right;
+@@ -258,6 +229,7 @@ static void __rb_erase_color(struct rb_node *node, struct rb_node *parent,
+ 				rb_set_parent_color(tmp1, parent, RB_BLACK);
+ 				__rb_rotate_set_parents(parent, sibling, root,
+ 							RB_RED);
++				augment(parent, sibling);
+ 				sibling = tmp1;
  			}
-@@ -170,6 +172,7 @@ void rb_insert_color(struct rb_node *node, struct rb_root *root)
- 			if (tmp)
- 				rb_set_parent_color(tmp, gparent, RB_BLACK);
- 			__rb_rotate_set_parents(gparent, parent, root, RB_RED);
-+			augment(gparent, parent);
+ 			tmp1 = sibling->rb_right;
+@@ -304,6 +276,7 @@ static void __rb_erase_color(struct rb_node *node, struct rb_node *parent,
+ 				if (tmp1)
+ 					rb_set_parent_color(tmp1, sibling,
+ 							    RB_BLACK);
++				augment(sibling, tmp2);
+ 				tmp1 = sibling;
+ 				sibling = tmp2;
+ 			}
+@@ -326,6 +299,7 @@ static void __rb_erase_color(struct rb_node *node, struct rb_node *parent,
+ 				rb_set_parent(tmp2, parent);
+ 			__rb_rotate_set_parents(parent, sibling, root,
+ 						RB_BLACK);
++			augment(parent, sibling);
  			break;
  		} else {
- 			tmp = gparent->rb_left;
-@@ -192,6 +195,7 @@ void rb_insert_color(struct rb_node *node, struct rb_root *root)
- 					rb_set_parent_color(tmp, parent,
- 							    RB_BLACK);
- 				rb_set_parent_color(parent, node, RB_RED);
-+				augment(parent, node);
- 				parent = node;
- 				tmp = node->rb_left;
+ 			sibling = parent->rb_left;
+@@ -336,6 +310,7 @@ static void __rb_erase_color(struct rb_node *node, struct rb_node *parent,
+ 				rb_set_parent_color(tmp1, parent, RB_BLACK);
+ 				__rb_rotate_set_parents(parent, sibling, root,
+ 							RB_RED);
++				augment(parent, sibling);
+ 				sibling = tmp1;
  			}
-@@ -202,10 +206,18 @@ void rb_insert_color(struct rb_node *node, struct rb_root *root)
- 			if (tmp)
- 				rb_set_parent_color(tmp, gparent, RB_BLACK);
- 			__rb_rotate_set_parents(gparent, parent, root, RB_RED);
-+			augment(gparent, parent);
+ 			tmp1 = sibling->rb_left;
+@@ -356,6 +331,7 @@ static void __rb_erase_color(struct rb_node *node, struct rb_node *parent,
+ 				if (tmp1)
+ 					rb_set_parent_color(tmp1, sibling,
+ 							    RB_BLACK);
++				augment(sibling, tmp2);
+ 				tmp1 = sibling;
+ 				sibling = tmp2;
+ 			}
+@@ -367,101 +343,24 @@ static void __rb_erase_color(struct rb_node *node, struct rb_node *parent,
+ 				rb_set_parent(tmp2, parent);
+ 			__rb_rotate_set_parents(parent, sibling, root,
+ 						RB_BLACK);
++			augment(parent, sibling);
  			break;
  		}
  	}
  }
-+EXPORT_SYMBOL(rb_insert_augmented);
-+
-+static inline void dummy(struct rb_node *old, struct rb_node *new) {}
-+
-+void rb_insert_color(struct rb_node *node, struct rb_root *root) {
-+	rb_insert_augmented(node, root, dummy);
-+}
- EXPORT_SYMBOL(rb_insert_color);
++EXPORT_SYMBOL(__rb_erase_color);
  
- static void __rb_erase_color(struct rb_node *node, struct rb_node *parent,
+-void rb_erase(struct rb_node *node, struct rb_root *root)
+-{
+-	struct rb_node *parent = rb_parent(node);
+-	struct rb_node *child = node->rb_right;
+-	struct rb_node *tmp = node->rb_left;
+-	bool black;
+-
+-	if (!tmp) {
+-		/* Case 1: node to erase has no more than 1 child (easy!) */
+-		if (child)
+-one_child:
+-			rb_set_parent(child, parent);
+-		if (parent) {
+-			if (parent->rb_left == node)
+-				parent->rb_left = child;
+-			else
+-				parent->rb_right = child;
+-		} else
+-			root->rb_node = child;
+-
+-		black = rb_is_black(node);
+-	} else if (!child) {
+-		/* Still case 1, but this time the child is node->rb_left */
+-		child = tmp;
+-		goto one_child;
+-	} else {
+-		struct rb_node *old = node;
++static inline void dummy_rotate(struct rb_node *old, struct rb_node *new) {}
++static inline void dummy_propagate(struct rb_node *node) {}
+ 
+-		/*
+-		 * Old is the node we want to erase. It's got left and right
+-		 * children, which makes things difficult. Let's find the
+-		 * next node in the tree to have it fill old's position.
+-		 */
+-		node = node->rb_right;
+-		while ((tmp = node->rb_left) != NULL)
+-			node = tmp;
+-
+-		/* Graft node (old's successor) under old's parent. */
+-		if (parent) {
+-			if (parent->rb_left == old)
+-				parent->rb_left = node;
+-			else
+-				parent->rb_right = node;
+-		} else
+-			root->rb_node = node;
+-
+-		parent = rb_parent(node);
+-		black = rb_is_black(node);
+-		node->__rb_parent_color = old->__rb_parent_color;
+-
+-		/*
+-		 * Node doesn't have a left child, since it is old's successor,
+-		 * so we can take old's left child and graft it under node.
+-		 */
+-		node->rb_left = tmp = old->rb_left;
+-		rb_set_parent(tmp, node);
++void rb_insert_color(struct rb_node *node, struct rb_root *root) {
++	rb_insert_augmented(node, root, dummy_rotate);
++}
++EXPORT_SYMBOL(rb_insert_color);
+ 
+-		child = node->rb_right;
+-		if (parent == old) {
+-			/*
+-			 * Case 2: old is node's parent (we are done!)
+-			 *
+-			 *    (o)          (n)
+-			 *    / \          / \
+-			 *  (x) (n)  ->  (x) (c)
+-			 *        \
+-			 *        (c)
+-			 */
+-			parent = node;
+-		} else {
+-			/*
+-			 * Case 3: old is node's ancestor but not its parent
+-			 *
+-			 *    (o)          (n)
+-			 *    / \          / \
+-			 *  (x) (y)  ->  (x) (y)
+-			 *      /            /
+-			 *    (n)          (c)
+-			 *      \
+-			 *      (c)
+-			 */
+-			node->rb_right = tmp = old->rb_right;
+-			parent->rb_left = child;
+-			rb_set_parent(tmp, node);
+-			if (child)
+-				rb_set_parent(child, parent);
+-		}
+-	}
+-	if (black)
+-		__rb_erase_color(child, parent, root);
++void rb_erase(struct rb_node *node, struct rb_root *root)
++{
++	rb_erase_augmented(node, root, dummy_propagate, dummy_rotate);
+ }
+ EXPORT_SYMBOL(rb_erase);
+ 
 diff --git a/lib/rbtree_test.c b/lib/rbtree_test.c
-index 2dfafe4..5ace332 100644
+index 5ace332..fcea907 100644
 --- a/lib/rbtree_test.c
 +++ b/lib/rbtree_test.c
-@@ -67,22 +67,37 @@ static void augment_callback(struct rb_node *rb, void *unused)
- 	node->augmented = augment_recompute(node);
+@@ -1,5 +1,6 @@
+ #include <linux/module.h>
+ #include <linux/rbtree.h>
++#include <linux/rbtree_internal.h>
+ #include <linux/random.h>
+ #include <asm/timex.h>
+ 
+@@ -61,12 +62,6 @@ static inline u32 augment_recompute(struct test_node *node)
+ 	return max;
  }
  
-+static void augment_rotate(struct rb_node *rb_old, struct rb_node *rb_new)
+-static void augment_callback(struct rb_node *rb, void *unused)
+-{
+-	struct test_node *node = rb_entry(rb, struct test_node, rb);
+-	node->augmented = augment_recompute(node);
+-}
+-
+ static void augment_rotate(struct rb_node *rb_old, struct rb_node *rb_new)
+ {
+ 	struct test_node *old = rb_entry(rb_old, struct test_node, rb);
+@@ -100,11 +95,18 @@ static void insert_augmented(struct test_node *node, struct rb_root *root)
+ 	rb_insert_augmented(&node->rb, root, augment_rotate);
+ }
+ 
++static inline void augment_propagate(struct rb_node *rb)
 +{
-+	struct test_node *old = rb_entry(rb_old, struct test_node, rb);
-+	struct test_node *new = rb_entry(rb_new, struct test_node, rb);
-+
-+	/* Rotation doesn't change subtree's augmented value */
-+	new->augmented = old->augmented;
-+	old->augmented = augment_recompute(old);
++	while (rb) {
++		struct test_node *node = rb_entry(rb, struct test_node, rb);
++		node->augmented = augment_recompute(node);
++		rb = rb_parent(&node->rb);
++	}
 +}
 +
- static void insert_augmented(struct test_node *node, struct rb_root *root)
+ static void erase_augmented(struct test_node *node, struct rb_root *root)
  {
--	struct rb_node **new = &root->rb_node, *parent = NULL;
-+	struct rb_node **new = &root->rb_node, *rb_parent = NULL;
- 	u32 key = node->key;
-+	u32 val = node->val;
-+	struct test_node *parent;
- 
- 	while (*new) {
--		parent = *new;
--		if (key < rb_entry(parent, struct test_node, rb)->key)
--			new = &parent->rb_left;
-+		rb_parent = *new;
-+		parent = rb_entry(rb_parent, struct test_node, rb);
-+		if (parent->augmented < val)
-+			parent->augmented = val;
-+		if (key < parent->key)
-+			new = &parent->rb.rb_left;
- 		else
--			new = &parent->rb_right;
-+			new = &parent->rb.rb_right;
- 	}
- 
--	rb_link_node(&node->rb, parent, new);
--	rb_insert_color(&node->rb, root);
--	rb_augment_insert(&node->rb, augment_callback, NULL);
-+	node->augmented = val;
-+	rb_link_node(&node->rb, rb_parent, new);
-+	rb_insert_augmented(&node->rb, root, augment_rotate);
+-	struct rb_node *deepest = rb_augment_erase_begin(&node->rb);
+-	rb_erase(&node->rb, root);
+-	rb_augment_erase_end(deepest, augment_callback, NULL);
++	rb_erase_augmented(&node->rb, root, augment_propagate, augment_rotate);
  }
  
- static void erase_augmented(struct test_node *node, struct rb_root *root)
+ static void init(void)
 -- 
 1.7.7.3
 
