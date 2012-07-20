@@ -1,14 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
-	by kanga.kvack.org (Postfix) with SMTP id 7721B6B0068
-	for <linux-mm@kvack.org>; Fri, 20 Jul 2012 13:29:22 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
+	by kanga.kvack.org (Postfix) with SMTP id 7ACCF6B0068
+	for <linux-mm@kvack.org>; Fri, 20 Jul 2012 13:33:13 -0400 (EDT)
 MIME-Version: 1.0
-Message-ID: <1i1me6t.f52778102851d901b479f070b638f10c@ojooo.com>
+Message-ID: <1i1me6t.c4d98c572e3564b623e1408f98eb0a99@ojooo.com>
 From: "Alexandr Ivanov" <alexandr.ivanov@ojooo.com>
 Subject: Full information about your company
-Date: Fri, 20 Jul 2012 18:37:12 +0200 (CEST)
+Date: Fri, 20 Jul 2012 18:45:26 +0200 (CEST)
 Content-Type: multipart/alternative;
- boundary="--=_NextPart_cfda8e6551b42007bd5bbc8b4f09982f"
+ boundary="--=_NextPart_957b45204aaef242175c173e26e2bb95"
 List-Unsubscribe: <http://cbc.subscribe.net.ua/mailman/options/tradeportal>,
  <mailto:tradeportal-request@cbc.subscribe.net.ua?subject=unsubscribe>
 List-Archive: <http://cbc.subscribe.net.ua/pipermail/tradeportal>
@@ -20,11 +20,12 @@ Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: tradeportal@cbc.subscribe.net.ua
 
-----=_NextPart_cfda8e6551b42007bd5bbc8b4f09982f
+----=_NextPart_957b45204aaef242175c173e26e2bb95
 Content-Type: text/plain;
 	charset="utf-8"
 Content-Transfer-Encoding: Quoted-Printable
 
+ 
 
 =09For successful business dealing use powerful informational business p=
 ortal
@@ -52,12 +53,12 @@ om
 (mailto:alexandr.ivanov@ojooo.com) 
  (https://ojooo.com)
 
-----=_NextPart_cfda8e6551b42007bd5bbc8b4f09982f
+----=_NextPart_957b45204aaef242175c173e26e2bb95
 Content-Type: text/html;
 	charset="utf-8"
 Content-Transfer-Encoding: Quoted-Printable
 
-<html><body><br><br><br><br><!--[if gte mso 9]><xml>
+<html><body><!--[if gte mso 9]><xml>
  <w:WordDocument>
   <w:View>Normal</w:View>
   <w:Zoom>0</w:Zoom>
@@ -141,10 +142,10 @@ ef=3D"mailto:alexandr.ivanov@ojooo.com">alexandr.ivanov@ojooo.com</a></b=
 t;
 color:green;mso-ansi-language:EN-US" lang=3D"EN-US"></span></b></p>
 
-<br><a href=3D"https://ojooo.com"><img src=3D"https://ojooo.com/img/logo=
-_ojooo.gif" border=3D"0"></a></body></html>
+<br><br><br><br><br><a href=3D"https://ojooo.com"><img src=3D"https://oj=
+ooo.com/img/logo_ojooo.gif" border=3D"0"></a></body></html>
 
-----=_NextPart_cfda8e6551b42007bd5bbc8b4f09982f--
+----=_NextPart_957b45204aaef242175c173e26e2bb95--
 
 
 --
