@@ -1,57 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
-	by kanga.kvack.org (Postfix) with SMTP id 6296D6B0044
-	for <linux-mm@kvack.org>; Fri, 20 Jul 2012 17:36:46 -0400 (EDT)
-Received: by pbbrp2 with SMTP id rp2so8424043pbb.14
-        for <linux-mm@kvack.org>; Fri, 20 Jul 2012 14:36:45 -0700 (PDT)
-Date: Fri, 20 Jul 2012 14:36:41 -0700
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: +
- memory-hotplug-fix-kswapd-looping-forever-problem-fix-fix.patch added to
- -mm tree
-Message-ID: <20120720213641.GA6823@google.com>
-References: <20120717233115.A8E411E005C@wpzn4.hot.corp.google.com>
- <20120718012200.GA27770@bbox>
- <20120718143810.b15564b3.akpm@linux-foundation.org>
- <20120719001002.GA6579@bbox>
- <20120719002102.GN24336@google.com>
- <20120719004845.GA7346@bbox>
- <20120719165750.GP24336@google.com>
- <20120719235057.GA21012@bbox>
- <20120720142213.f4a4a68e.akpm@linux-foundation.org>
+Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
+	by kanga.kvack.org (Postfix) with SMTP id 34C8D6B0044
+	for <linux-mm@kvack.org>; Fri, 20 Jul 2012 18:09:59 -0400 (EDT)
+Message-ID: <5009D68C.4020104@parallels.com>
+Date: Fri, 20 Jul 2012 19:07:08 -0300
+From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120720142213.f4a4a68e.akpm@linux-foundation.org>
+Subject: Re: [PATCH] cgroup: Don't drop the cgroup_mutex in cgroup_rmdir
+References: <87ipdjc15j.fsf@skywalker.in.ibm.com> <1342706972-10912-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <20120719165046.GO24336@google.com> <1342799140.2583.6.camel@twins> <20120720200542.GD21218@google.com>
+In-Reply-To: <20120720200542.GD21218@google.com>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Minchan Kim <minchan@kernel.org>, Ralf Baechle <ralf@linux-mips.org>, aaditya.kumar.30@gmail.com, kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Yinghai Lu <yinghai@kernel.org>
+To: Tejun Heo <htejun@gmail.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, akpm@linux-foundation.org, mhocko@suse.cz, kamezawa.hiroyu@jp.fujitsu.com, liwanp@linux.vnet.ibm.com, lizefan@huawei.com, cgroups@vger.kernel.org, linux-mm@kvack.org
 
-Hello, Andrew.
-
-On Fri, Jul 20, 2012 at 02:22:13PM -0700, Andrew Morton wrote:
-> My point is that having to ensure that each arch zeroes out this
-> structure is difficult/costly/unreliable/fragile.  It would be better
-> if we can reliably clear it at some well-known place in core MM.
+On 07/20/2012 05:05 PM, Tejun Heo wrote:
+> Hey, Peter.
 > 
-> That might mean that the memory gets cleared twice on some
-> architectures, but I doubt if that matters - it's a once-off thing.
+> On Fri, Jul 20, 2012 at 05:45:40PM +0200, Peter Zijlstra wrote:
+>>> So, Peter, why does cpuset mangle with cgroup_mutex?  What guarantees
+>>> does it need?  Why can't it work on "changed" notification while
+>>> caching the current css like blkcg does?
+>>
+>> I've no clue sorry.. /me goes stare at this stuff.. Looks like something
+>> Paul Menage did when he created cgroups. I'll have to have a hard look
+>> at all that to untangle this. Not something obvious to me.
+> 
+> Yeah, it would be great if this can be untangled.  I really don't see
+> any other reasonable way out of this circular locking mess.  If cpuset
+> needs stable css association across certain period, the RTTD is
+> caching the css by holding its ref and synchronize modifications to
+> that cache, rather than synchronizing cgroup operations themselves.
+> 
+> Thanks.
+> 
+IIRC, cpuset can insert a task into an existing cgroup itself. Besides
+that, it needs go have a stable vision of the cpumask used by all tasks
+in the cgroup.
 
-Clearing twice isn't the problem here.  The problem is the risk of
-zapping fields which are already in use.  That would be way more
-unexpected and difficult to track down than garbage value in whatever
-field.
-
-It might not be ideal but I think nudging all archs to clear all
-static global structures they allocate is the better way here.  It's
-at least better than having to worry about this type of partial
-re-initialization.
-
-Thanks.
-
--- 
-tejun
+But this is what I remember from the top of my head, and I am still
+officially on vacations....
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
