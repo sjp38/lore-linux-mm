@@ -1,162 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
-	by kanga.kvack.org (Postfix) with SMTP id 1E30D6B0069
-	for <linux-mm@kvack.org>; Fri, 20 Jul 2012 12:39:28 -0400 (EDT)
-Received: by vcbfl10 with SMTP id fl10so3937415vcb.14
-        for <linux-mm@kvack.org>; Fri, 20 Jul 2012 09:39:27 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
+	by kanga.kvack.org (Postfix) with SMTP id C18A56B004D
+	for <linux-mm@kvack.org>; Fri, 20 Jul 2012 13:15:51 -0400 (EDT)
+Received: by pbbrp2 with SMTP id rp2so8058368pbb.14
+        for <linux-mm@kvack.org>; Fri, 20 Jul 2012 10:15:51 -0700 (PDT)
+Date: Fri, 20 Jul 2012 10:15:46 -0700
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: +
+ memory-hotplug-fix-kswapd-looping-forever-problem-fix-fix.patch added to
+ -mm tree
+Message-ID: <20120720171546.GG32763@google.com>
+References: <20120717233115.A8E411E005C@wpzn4.hot.corp.google.com>
+ <20120718012200.GA27770@bbox>
+ <20120718143810.b15564b3.akpm@linux-foundation.org>
+ <20120719001002.GA6579@bbox>
+ <20120719002102.GN24336@google.com>
+ <20120719004845.GA7346@bbox>
+ <20120719165750.GP24336@google.com>
+ <20120719235057.GA21012@bbox>
 MIME-Version: 1.0
-In-Reply-To: <1342715014-5316-3-git-send-email-rob.clark@linaro.org>
-References: <1342715014-5316-1-git-send-email-rob.clark@linaro.org>
-	<1342715014-5316-3-git-send-email-rob.clark@linaro.org>
-Date: Fri, 20 Jul 2012 11:39:26 -0500
-Message-ID: <CAF6AEGs2evpga=h1+0L0sz+vG1czHff83z13WxdBv+xvcxQKxw@mail.gmail.com>
-Subject: Re: [PATCH 2/2] dma-buf: add helpers for attacher dma-parms
-From: Rob Clark <rob.clark@linaro.org>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120719235057.GA21012@bbox>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, dri-devel@lists.freedesktop.org, linux-media@vger.kernel.org
-Cc: patches@linaro.org, linux@arm.linux.org.uk, arnd@arndb.de, jesse.barker@linaro.org, m.szyprowski@samsung.com, daniel@ffwll.ch, t.stanislaws@samsung.com, sumit.semwal@ti.com, maarten.lankhorst@canonical.com, Rob Clark <rob@ti.com>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Ralf Baechle <ralf@linux-mips.org>, aaditya.kumar.30@gmail.com, kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Yinghai Lu <yinghai@kernel.org>
 
-Fyi, Daniel Vetter had suggested on IRC that it would be cleaner to
-have a single helper fxn that most-restrictive union of all attached
-device's dma_parms.  Really this should include dma_mask and
-coherent_dma_mask, I think.  But that touches a lot of other places in
-the code.  If no one objects to the cleanup of moving
-dma_mask/coherent_dma_mask into dma_parms, I'll do this first.
+Hello,
 
-So anyways, don't consider this patch yet for inclusion, I'll make an
-updated one based on dma_parms..
+On Fri, Jul 20, 2012 at 08:50:57AM +0900, Minchan Kim wrote:
+> > But, really, given how the structure is used, I think we're better off
+> > just making sure all archs clear them and maybe have a sanity check or
+> > two just in case.  It's not like breakage on that front is gonna be
+> > subtle.
+> 
+> Of course, it seems all archs seems to zero-out already as I mentioned
+> (Not sure, MIPS) but Andrew doesn't want it. Andrew?
 
-BR,
--R
+So, to be more direct.  Either 1. remove the spurious initializations
+(and hunt down archs which don't zero them if there's any) or 2. leave
+it alone.  It's one of the data structures which are allocated and
+used way before any generic code kicks in.  I mean, even how it's
+deferenced is arch-dependent - it's wrapped in NODE_DATA macro for a
+reason.
 
-On Thu, Jul 19, 2012 at 11:23 AM, Rob Clark <rob.clark@linaro.org> wrote:
-> From: Rob Clark <rob@ti.com>
->
-> Add some helpers to iterate through all attachers and get the most
-> restrictive segment size/count/boundary.
->
-> Signed-off-by: Rob Clark <rob@ti.com>
-> ---
->  drivers/base/dma-buf.c  |   63 +++++++++++++++++++++++++++++++++++++++++++++++
->  include/linux/dma-buf.h |   19 ++++++++++++++
->  2 files changed, 82 insertions(+)
->
-> diff --git a/drivers/base/dma-buf.c b/drivers/base/dma-buf.c
-> index 24e88fe..757ee20 100644
-> --- a/drivers/base/dma-buf.c
-> +++ b/drivers/base/dma-buf.c
-> @@ -192,6 +192,69 @@ void dma_buf_put(struct dma_buf *dmabuf)
->  EXPORT_SYMBOL_GPL(dma_buf_put);
->
->  /**
-> + * dma_buf_max_seg_size - helper for exporters to get the minimum of
-> + * all attached device's max segment size
-> + */
-> +unsigned int dma_buf_max_seg_size(struct dma_buf *dmabuf)
-> +{
-> +       struct dma_buf_attachment *attach;
-> +       unsigned int max = (unsigned int)-1;
-> +
-> +       if (WARN_ON(!dmabuf))
-> +               return 0;
-> +
-> +       mutex_lock(&dmabuf->lock);
-> +       list_for_each_entry(attach, &dmabuf->attachments, node)
-> +               max = min(max, dma_get_max_seg_size(attach->dev));
-> +       mutex_unlock(&dmabuf->lock);
-> +
-> +       return max;
-> +}
-> +EXPORT_SYMBOL_GPL(dma_buf_max_seg_size);
-> +
-> +/**
-> + * dma_buf_max_seg_count - helper for exporters to get the minimum of
-> + * all attached device's max segment count
-> + */
-> +unsigned int dma_buf_max_seg_count(struct dma_buf *dmabuf)
-> +{
-> +       struct dma_buf_attachment *attach;
-> +       unsigned int max = (unsigned int)-1;
-> +
-> +       if (WARN_ON(!dmabuf))
-> +               return 0;
-> +
-> +       mutex_lock(&dmabuf->lock);
-> +       list_for_each_entry(attach, &dmabuf->attachments, node)
-> +               max = min(max, dma_get_max_seg_count(attach->dev));
-> +       mutex_unlock(&dmabuf->lock);
-> +
-> +       return max;
-> +}
-> +EXPORT_SYMBOL_GPL(dma_buf_max_seg_count);
-> +
-> +/**
-> + * dma_buf_get_seg_boundary - helper for exporters to get the most
-> + * restrictive segment alignment of all the attached devices
-> + */
-> +unsigned int dma_buf_get_seg_boundary(struct dma_buf *dmabuf)
-> +{
-> +       struct dma_buf_attachment *attach;
-> +       unsigned int mask = (unsigned int)-1;
-> +
-> +       if (WARN_ON(!dmabuf))
-> +               return 0;
-> +
-> +       mutex_lock(&dmabuf->lock);
-> +       list_for_each_entry(attach, &dmabuf->attachments, node)
-> +               mask &= dma_get_seg_boundary(attach->dev);
-> +       mutex_unlock(&dmabuf->lock);
-> +
-> +       return mask;
-> +}
-> +EXPORT_SYMBOL_GPL(dma_buf_get_seg_boundary);
-> +
-> +/**
->   * dma_buf_attach - Add the device to dma_buf's attachments list; optionally,
->   * calls attach() of dma_buf_ops to allow device-specific attach functionality
->   * @dmabuf:    [in]    buffer to attach device to.
-> diff --git a/include/linux/dma-buf.h b/include/linux/dma-buf.h
-> index eb48f38..9533b9b 100644
-> --- a/include/linux/dma-buf.h
-> +++ b/include/linux/dma-buf.h
-> @@ -167,6 +167,10 @@ int dma_buf_fd(struct dma_buf *dmabuf, int flags);
->  struct dma_buf *dma_buf_get(int fd);
->  void dma_buf_put(struct dma_buf *dmabuf);
->
-> +unsigned int dma_buf_max_seg_size(struct dma_buf *dmabuf);
-> +unsigned int dma_buf_max_seg_count(struct dma_buf *dmabuf);
-> +unsigned int dma_buf_get_seg_boundary(struct dma_buf *dmabuf);
-> +
->  struct sg_table *dma_buf_map_attachment(struct dma_buf_attachment *,
->                                         enum dma_data_direction);
->  void dma_buf_unmap_attachment(struct dma_buf_attachment *, struct sg_table *,
-> @@ -220,6 +224,21 @@ static inline void dma_buf_put(struct dma_buf *dmabuf)
->         return;
->  }
->
-> +static inline unsigned int dma_buf_max_seg_size(struct dma_buf *dmabuf)
-> +{
-> +       return 0;
-> +}
-> +
-> +static inline unsigned int dma_buf_max_seg_count(struct dma_buf *dmabuf)
-> +{
-> +       return 0;
-> +}
-> +
-> +static inline unsigned int dma_buf_get_seg_boundary(struct dma_buf *dmabuf)
-> +{
-> +       return 0;
-> +}
-> +
->  static inline struct sg_table *dma_buf_map_attachment(
->         struct dma_buf_attachment *attach, enum dma_data_direction write)
->  {
-> --
-> 1.7.9.5
->
+I would vote for #1 as it's simply brain-damaged to not zero any
+global data structure and partial initialization of a data structure
+already in use is silly and dangerous.
+
+Thanks.
+
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
