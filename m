@@ -1,64 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
-	by kanga.kvack.org (Postfix) with SMTP id E59146B004D
-	for <linux-mm@kvack.org>; Fri, 20 Jul 2012 10:40:45 -0400 (EDT)
-Date: Fri, 20 Jul 2012 16:40:42 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH] mm: hugetlbfs: Close race during teardown of hugetlbfs
- shared page tables V2 (resend)
-Message-ID: <20120720144041.GG12434@tiehlicka.suse.cz>
+Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
+	by kanga.kvack.org (Postfix) with SMTP id 873336B004D
+	for <linux-mm@kvack.org>; Fri, 20 Jul 2012 10:51:28 -0400 (EDT)
+Date: Fri, 20 Jul 2012 15:51:21 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH -alternative] mm: hugetlbfs: Close race during teardown
+ of hugetlbfs shared page tables V2 (resend)
+Message-ID: <20120720145121.GJ9222@suse.de>
 References: <20120720134937.GG9222@suse.de>
  <20120720141108.GH9222@suse.de>
- <20120720142920.GD12434@tiehlicka.suse.cz>
- <20120720143753.GI9222@suse.de>
+ <20120720143635.GE12434@tiehlicka.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20120720143753.GI9222@suse.de>
+In-Reply-To: <20120720143635.GE12434@tiehlicka.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
+To: Michal Hocko <mhocko@suse.cz>
 Cc: Linux-MM <linux-mm@kvack.org>, Hugh Dickins <hughd@google.com>, David Gibson <david@gibson.dropbear.id.au>, Ken Chen <kenchen@google.com>, Cong Wang <xiyou.wangcong@gmail.com>, LKML <linux-kernel@vger.kernel.org>
 
-On Fri 20-07-12 15:37:53, Mel Gorman wrote:
-> On Fri, Jul 20, 2012 at 04:29:20PM +0200, Michal Hocko wrote:
-> > > <SNIP>
-> > > 
-> > > Signed-off-by: Mel Gorman <mgorman@suse.de>
-> > 
-> > Yes this looks correct. mmap_sem will make sure that unmap_vmas and
-> > free_pgtables are executed atomicaly wrt. huge_pmd_share so it doesn't
-> > see non-NULL spte on the way out.
-> 
-> Yes.
-> 
-> > I am just wondering whether we need
-> > the page_table_lock as well. It is not harmful but I guess we can drop
-> > it because both exit_mmap and shmdt are not taking it and mmap_sem is
-> > sufficient for them.
-> 
-> While it is true that we don't *really* need page_table_lock here, we are
-> still updating page tables and it's in line with the the ordinary locking
-> rules.  There are other cases in hugetlb.c where we do pte_same() checks even
-> though we are protected from the related races by the instantiation_mutex.
-> 
-> page_table_lock is actually a bit useless for shared page tables. If shared
-> page tables were every to be a general thing then I think we'd have to
-> revisit how PTE update locking is done but I doubt anyone wants to dive
-> down that rat-hole.
-> 
-> For now, I'm going to keep taking it even if strictly speaking it's not
-> necessary.
+On Fri, Jul 20, 2012 at 04:36:35PM +0200, Michal Hocko wrote:
+> And here is my attempt for the fix (Hugh mentioned something similar
+> earlier but he suggested using special flags in ptes or VMAs). I still
+> owe doc. update and it hasn't been tested with too many configs and I
+> could missed some definition updates.
+> I also think that changelog could be much better, I will add (steal) the
+> full bug description if people think that this way is worth going rather
+> than the one suggested by Mel.
+> To be honest I am not quite happy how I had to pollute generic mm code with
+> something that is specific to a single architecture.
+> Mel hammered it with the test case and it survived.
 
-Fair enough
+Tested-by: Mel Gorman <mgorman@suse.de>
+
+This approach looks more or less like what I was expecting. I like that
+the trick was applied to the page table page instead of using PTE tricks
+or by bodging it with a VMA flag like I was thinking so kudos for that. I
+also prefer this approach to trying to free the page tables on or near
+huge_pmd_unshare()
+
+In general I think this patch would execute better than mine because it is
+far less heavy-handed but I share your concern that it changes the core MM
+quite a bit for a corner case that only one architecture cares about. I am
+completely biased of course, but I still prefer my patch because other than
+an API change it keeps the bulk of the madness in arch/x86/mm/hugetlbpage.c
+. I am also not concerned with the scalability of how quickly we can setup
+page table sharing.
+
+Hugh, I'm afraid you get to choose :)
 
 -- 
-Michal Hocko
+Mel Gorman
 SUSE Labs
-SUSE LINUX s.r.o.
-Lihovarska 1060/12
-190 00 Praha 9    
-Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
