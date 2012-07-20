@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
-	by kanga.kvack.org (Postfix) with SMTP id CA5E16B0068
-	for <linux-mm@kvack.org>; Fri, 20 Jul 2012 08:31:33 -0400 (EDT)
+	by kanga.kvack.org (Postfix) with SMTP id 5C2A46B0069
+	for <linux-mm@kvack.org>; Fri, 20 Jul 2012 08:31:38 -0400 (EDT)
 Received: by mail-pb0-f41.google.com with SMTP id rp2so7647111pbb.14
-        for <linux-mm@kvack.org>; Fri, 20 Jul 2012 05:31:33 -0700 (PDT)
+        for <linux-mm@kvack.org>; Fri, 20 Jul 2012 05:31:38 -0700 (PDT)
 From: Michel Lespinasse <walken@google.com>
-Subject: [PATCH 2/6] rbtree: optimize fetching of sibling node
-Date: Fri, 20 Jul 2012 05:31:03 -0700
-Message-Id: <1342787467-5493-3-git-send-email-walken@google.com>
+Subject: [PATCH 3/6] augmented rbtree test
+Date: Fri, 20 Jul 2012 05:31:04 -0700
+Message-Id: <1342787467-5493-4-git-send-email-walken@google.com>
 In-Reply-To: <1342787467-5493-1-git-send-email-walken@google.com>
 References: <1342787467-5493-1-git-send-email-walken@google.com>
 Sender: owner-linux-mm@kvack.org
@@ -15,100 +15,160 @@ List-ID: <linux-mm.kvack.org>
 To: riel@redhat.com, peterz@infradead.org, daniel.santos@pobox.com, aarcange@redhat.com, dwmw2@infradead.org, akpm@linux-foundation.org
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-When looking to fetch a node's sibling, we went through a sequence of:
-- check if node is the parent's left child
-- if it is, then fetch the parent's right child
-
-This can be replaced with:
-- fetch the parent's right child as an assumed sibling
-- check that node is NOT the fetched child
-
-This avoids fetching the parent's left child when node is actually
-that child. Saves a bit on code size, though it doesn't seem to make
-a large difference in speed.
-
 Signed-off-by: Michel Lespinasse <walken@google.com>
 ---
- lib/rbtree.c |   21 +++++++++++++--------
- 1 files changed, 13 insertions(+), 8 deletions(-)
+ lib/rbtree_test.c |  103 +++++++++++++++++++++++++++++++++++++++++++++++++++-
+ 1 files changed, 101 insertions(+), 2 deletions(-)
 
-diff --git a/lib/rbtree.c b/lib/rbtree.c
-index 3b6ec98..8b111cc 100644
---- a/lib/rbtree.c
-+++ b/lib/rbtree.c
-@@ -108,8 +108,8 @@ void rb_insert_color(struct rb_node *node, struct rb_root *root)
+diff --git a/lib/rbtree_test.c b/lib/rbtree_test.c
+index 4c6d250..2dfafe4 100644
+--- a/lib/rbtree_test.c
++++ b/lib/rbtree_test.c
+@@ -10,6 +10,10 @@
+ struct test_node {
+ 	struct rb_node rb;
+ 	u32 key;
++
++	/* following fields used for testing augmented rbtree functionality */
++	u32 val;
++	u32 augmented;
+ };
  
- 		gparent = rb_red_parent(parent);
+ static struct rb_root root = RB_ROOT;
+@@ -20,10 +24,11 @@ static struct rnd_state rnd;
+ static void insert(struct test_node *node, struct rb_root *root)
+ {
+ 	struct rb_node **new = &root->rb_node, *parent = NULL;
++	u32 key = node->key;
  
--		if (parent == gparent->rb_left) {
--			tmp = gparent->rb_right;
-+		tmp = gparent->rb_right;
-+		if (parent != tmp) {	/* parent == gparent->rb_left */
- 			if (tmp && rb_is_red(tmp)) {
- 				/*
- 				 * Case 1 - color flips
-@@ -132,7 +132,8 @@ void rb_insert_color(struct rb_node *node, struct rb_root *root)
- 				continue;
- 			}
+ 	while (*new) {
+ 		parent = *new;
+-		if (node->key < rb_entry(parent, struct test_node, rb)->key)
++		if (key < rb_entry(parent, struct test_node, rb)->key)
+ 			new = &parent->rb_left;
+ 		else
+ 			new = &parent->rb_right;
+@@ -38,11 +43,62 @@ static inline void erase(struct test_node *node, struct rb_root *root)
+ 	rb_erase(&node->rb, root);
+ }
  
--			if (parent->rb_right == node) {
-+			tmp = parent->rb_right;
-+			if (node == tmp) {
- 				/*
- 				 * Case 2 - left rotate at parent
- 				 *
-@@ -152,6 +153,7 @@ void rb_insert_color(struct rb_node *node, struct rb_root *root)
- 							    RB_BLACK);
- 				rb_set_parent_color(parent, node, RB_RED);
- 				parent = node;
-+				tmp = node->rb_right;
- 			}
++static inline u32 augment_recompute(struct test_node *node)
++{
++	u32 max = node->val, child_augmented;
++	if (node->rb.rb_left) {
++		child_augmented = rb_entry(node->rb.rb_left, struct test_node,
++					   rb)->augmented;
++		if (max < child_augmented)
++			max = child_augmented;
++	}
++	if (node->rb.rb_right) {
++		child_augmented = rb_entry(node->rb.rb_right, struct test_node,
++					   rb)->augmented;
++		if (max < child_augmented)
++			max = child_augmented;
++	}
++	return max;
++}
++
++static void augment_callback(struct rb_node *rb, void *unused)
++{
++	struct test_node *node = rb_entry(rb, struct test_node, rb);
++	node->augmented = augment_recompute(node);
++}
++
++static void insert_augmented(struct test_node *node, struct rb_root *root)
++{
++	struct rb_node **new = &root->rb_node, *parent = NULL;
++	u32 key = node->key;
++
++	while (*new) {
++		parent = *new;
++		if (key < rb_entry(parent, struct test_node, rb)->key)
++			new = &parent->rb_left;
++		else
++			new = &parent->rb_right;
++	}
++
++	rb_link_node(&node->rb, parent, new);
++	rb_insert_color(&node->rb, root);
++	rb_augment_insert(&node->rb, augment_callback, NULL);
++}
++
++static void erase_augmented(struct test_node *node, struct rb_root *root)
++{
++	struct rb_node *deepest = rb_augment_erase_begin(&node->rb);
++	rb_erase(&node->rb, root);
++	rb_augment_erase_end(deepest, augment_callback, NULL);
++}
++
+ static void init(void)
+ {
+ 	int i;
+-	for (i = 0; i < NODES; i++)
++	for (i = 0; i < NODES; i++) {
+ 		nodes[i].key = prandom32(&rnd);
++		nodes[i].val = prandom32(&rnd);
++	}
+ }
  
- 			/*
-@@ -163,7 +165,7 @@ void rb_insert_color(struct rb_node *node, struct rb_root *root)
- 			 *     /                 \
- 			 *    n                   U
- 			 */
--			gparent->rb_left = tmp = parent->rb_right;
-+			gparent->rb_left = tmp;  /* == parent->rb_right */
- 			parent->rb_right = gparent;
- 			if (tmp)
- 				rb_set_parent_color(tmp, gparent, RB_BLACK);
-@@ -181,7 +183,8 @@ void rb_insert_color(struct rb_node *node, struct rb_root *root)
- 				continue;
- 			}
+ static bool is_red(struct rb_node *rb)
+@@ -81,6 +137,17 @@ static void check(int nr_nodes)
+ 	WARN_ON_ONCE(count != nr_nodes);
+ }
  
--			if (parent->rb_left == node) {
-+			tmp = parent->rb_left;
-+			if (node == tmp) {
- 				/* Case 2 - right rotate at parent */
- 				parent->rb_left = tmp = node->rb_right;
- 				node->rb_right = parent;
-@@ -190,10 +193,11 @@ void rb_insert_color(struct rb_node *node, struct rb_root *root)
- 							    RB_BLACK);
- 				rb_set_parent_color(parent, node, RB_RED);
- 				parent = node;
-+				tmp = node->rb_left;
- 			}
++static void check_augmented(int nr_nodes)
++{
++	struct rb_node *rb;
++
++	check(nr_nodes);
++	for (rb = rb_first(&root); rb; rb = rb_next(rb)) {
++		struct test_node *node = rb_entry(rb, struct test_node, rb);
++		WARN_ON_ONCE(node->augmented != augment_recompute(node));
++	}
++}
++
+ static int rbtree_test_init(void)
+ {
+ 	int i, j;
+@@ -119,6 +186,38 @@ static int rbtree_test_init(void)
+ 		check(0);
+ 	}
  
- 			/* Case 3 - left rotate at gparent */
--			gparent->rb_right = tmp = parent->rb_left;
-+			gparent->rb_right = tmp;  /* == parent->rb_left */
- 			parent->rb_left = gparent;
- 			if (tmp)
- 				rb_set_parent_color(tmp, gparent, RB_BLACK);
-@@ -224,8 +228,9 @@ static void __rb_erase_color(struct rb_node *node, struct rb_node *parent,
- 			break;
- 		} else if (!parent) {
- 			break;
--		} else if (parent->rb_left == node) {
--			sibling = parent->rb_right;
++	printk(KERN_ALERT "augmented rbtree testing");
++
++	init();
++
++	time1 = get_cycles();
++
++	for (i = 0; i < PERF_LOOPS; i++) {
++		for (j = 0; j < NODES; j++)
++			insert_augmented(nodes + j, &root);
++		for (j = 0; j < NODES; j++)
++			erase_augmented(nodes + j, &root);
++	}
++
++	time2 = get_cycles();
++	time = time2 - time1;
++
++	time = div_u64(time, PERF_LOOPS);
++	printk(" -> %llu cycles\n", time);
++
++	for (i = 0; i < CHECK_LOOPS; i++) {
++		init();
++		for (j = 0; j < NODES; j++) {
++			check_augmented(j);
++			insert_augmented(nodes + j, &root);
 +		}
-+		sibling = parent->rb_right;
-+		if (node != sibling) {	/* node == parent->rb_left */
- 			if (rb_is_red(sibling)) {
- 				/*
- 				 * Case 1 - left rotate at parent
++		for (j = 0; j < NODES; j++) {
++			check_augmented(NODES - j);
++			erase_augmented(nodes + j, &root);
++		}
++		check_augmented(0);
++	}
++
+ 	return -EAGAIN; /* Fail will directly unload the module */
+ }
+ 
 -- 
 1.7.7.3
 
