@@ -1,135 +1,182 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
-	by kanga.kvack.org (Postfix) with SMTP id E6C1F6B004D
-	for <linux-mm@kvack.org>; Fri, 20 Jul 2012 08:31:27 -0400 (EDT)
-Received: by yenr5 with SMTP id r5so4810835yen.14
-        for <linux-mm@kvack.org>; Fri, 20 Jul 2012 05:31:27 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
+	by kanga.kvack.org (Postfix) with SMTP id E94E76B005D
+	for <linux-mm@kvack.org>; Fri, 20 Jul 2012 08:31:30 -0400 (EDT)
+Received: by pbbrp2 with SMTP id rp2so7647111pbb.14
+        for <linux-mm@kvack.org>; Fri, 20 Jul 2012 05:31:30 -0700 (PDT)
 From: Michel Lespinasse <walken@google.com>
-Subject: [RFC PATCH 0/6] augmented rbtree changes
-Date: Fri, 20 Jul 2012 05:31:01 -0700
-Message-Id: <1342787467-5493-1-git-send-email-walken@google.com>
+Subject: [PATCH 1/6] rbtree: rb_erase updates and comments
+Date: Fri, 20 Jul 2012 05:31:02 -0700
+Message-Id: <1342787467-5493-2-git-send-email-walken@google.com>
+In-Reply-To: <1342787467-5493-1-git-send-email-walken@google.com>
+References: <1342787467-5493-1-git-send-email-walken@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: riel@redhat.com, peterz@infradead.org, daniel.santos@pobox.com, aarcange@redhat.com, dwmw2@infradead.org, akpm@linux-foundation.org
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-I've been looking at rbtrees with an eye towards improving the augmented
-rbtree support, and even though I don't consider this work done, I am
-getting to the stage where I would like to get feedback.
+Minor updates to the rb_erase() function:
+- Reorder code to put simplest / common case (no more than 1 child) first.
+- Fetch the parent first, since it ends up being required in all 3 cases.
+- Add a few comments to illustrate case 2 (node to remove has 2 childs,
+  but one of them is the successor) and case 3 (node to remove has 2 childs,
+  successor is a left-descendant of the right child).
 
-Patches 1-2 are generic rbtree improvements I came up with after sending
-the previous patch series. Patch 1 makes rb_erase easier to read (IMO),
-while patch 2 is another minor optimization in the rbtree rebalancing code.
+Signed-off-by: Michel Lespinasse <walken@google.com>
+---
+ lib/rbtree.c |  115 ++++++++++++++++++++++++++++++++++++----------------------
+ 1 files changed, 72 insertions(+), 43 deletions(-)
 
-Patch 3 adds an augmented rbtree test, where nodes get a new 'value' field
-in addition to the existing sort key, and we want to maintain an 'augmented'
-field for each node, which should be equal to the max of all 'value' fields
-for nodes within that node's subtree.
-
-Patch 4 speeds up augmented rbtree insertion. We make the handcoded search
-function responsible for updating the augmented values on the path to the
-insertion point, then we use a new version of rb_insert_color() which has
-an added callback for updating augmented values on a tree rotation.
-
-Patch 5 speeds up the augmented rbtree erase. Here again we use a tree
-rotation callback during rebalancing; however we also have to propagate
-the augmented node information above nodes being erased and/or stitched,
-and I haven't found a nice enough way to do that. So for now I am proposing
-the simple-stupid way of propagating all the way to the root. More on
-this later.
-
-Patch 6 removes the prior augmented API interface, and migrates its single
-current user to the proposed new interface.
-
-
-IMO patches 1-2 are ready for inclusion in -mm tree along with the
-previous rbtree series.
-
-
-I would like feedback on the rest - but first, I think I should mention
-what use cases I envision for this augmented rbtree support. The way
-I see it, augmented rbtree could be used in:
-
-- Some kind of generic interval tree support, where nodes have explicit
-(start, end) values. The rbtree is sorted by start order, and nodes
-are augmented with a max(node->end for node in subtree) property.
-arch/x86/mm/pat_rbtree.c and mm/kmemleak.c could make use of that
-(instead of an ad-hoc interval tree implementations based on augmented
-rbtree and prio tree respectively);
-
-- The rbtree for all VMAs in a MM could be augmented, as suggested by Rik,
-to maintain a max(empty gap before node's VMA for node in subtree) property
-and support fast virtual address space allocation;
-
-- The prio tree of all VMAs mapping a given file (struct address_space)
-could be switched to an augmented rbtree based interval tree (thus removing
-the prio tree library in favor of augmented rbtrees)
-
-- I would like to introduce yet another interval tree to hold all VMAs
-sharing the same anon_vma (so the linked list of all AVCs with a given
-anon_vma would be replaced with an interval tree).
-
-With these plans, each VMA could be on up to 3 separate augmented rbtrees,
-so that's why I want them to be fast :)
-
-
-As they stand, patches 3-6 don't seem to make a difference for basic rbtree
-support, and they improve my augmented rbtree insertion/erase benchmark
-by a factor of ~2.1 to ~2.3 depending on test machines.
-
-
-In addition to the usual feedback about code sanity or lack thereof, I would
-like to ask if I stroke the right balance on pure speed vs code size.
-I think having generic functions for augmented rbtree rebalancing, with
-a callback for tree rotations, is probably a decent choice given that we
-might have to update several augmented rbtrees in sequence when adding or
-removing VMAs.
-
-
-Another point I am not fully happy with is the way I am propagating augmented
-subtree information in rb_erase_augmented(). I initially tried to stop
-propagating updates up as soon as a node was reached that already had the
-proper augmented value. However, there are a few complications with that.
-
-In case 2 of rb_erase_augmented(), if 'old' had the highest augmented value
-in the subtree and 'node' had the next highest value, node's augmented
-value is still correct after stitching it as the new root of that subtree,
-but its parent's augmented value must still be adjusted as 'old', which
-had the highest value in that subtree, has been removed from the subtree.
-
-In case 3 of rb_erase_augmented(), 'node' gets stitched out of its place
-and relocated to the subtree root, in place of 'old'. As a result, we
-might have to propagate augmented values a few levels above node's old
-location, before reaching a node that already has the right augmented
-value, but is still below the point where 'old' was replaced with 'new'
-which might have a lower augmented value (if 'old' had the highest
-value for that subtree).
-
-So while it would be possible to handle all these cases without propagating
-all the way to the root (and it should be more efficient too - most of the
-nodes in a balanced tree are on the last few levels, so having to go all
-the way back to the root really is wasteful), I have not found a nice
-elegant way to do that yet, let alone in a generic way. If someone wants
-to try their hand at that problem, I would be very interested to see what
-they can come up with.
-
-
-Michel Lespinasse (6):
-  rbtree: rb_erase updates and comments
-  rbtree: optimize fetching of sibling node
-  augmented rbtree test
-  rbtree: faster augmented insert
-  rbtree: faster augmented erase
-  rbtree: remove prior augmented rbtree implementation
-
- arch/x86/mm/pat_rbtree.c        |   52 ++++++----
- include/linux/rbtree.h          |    8 --
- include/linux/rbtree_internal.h |  131 +++++++++++++++++++++++++
- lib/rbtree.c                    |  206 ++++++++-------------------------------
- lib/rbtree_test.c               |  120 ++++++++++++++++++++++-
- 5 files changed, 322 insertions(+), 195 deletions(-)
- create mode 100644 include/linux/rbtree_internal.h
-
+diff --git a/lib/rbtree.c b/lib/rbtree.c
+index 0892670..3b6ec98 100644
+--- a/lib/rbtree.c
++++ b/lib/rbtree.c
+@@ -2,7 +2,8 @@
+   Red Black Trees
+   (C) 1999  Andrea Arcangeli <andrea@suse.de>
+   (C) 2002  David Woodhouse <dwmw2@infradead.org>
+-  
++  (C) 2012  Michel Lespinasse <walken@google.com>
++
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+@@ -356,65 +357,93 @@ static void __rb_erase_color(struct rb_node *node, struct rb_node *parent,
+ 
+ void rb_erase(struct rb_node *node, struct rb_root *root)
+ {
+-	struct rb_node *child, *parent;
+-	int color;
++	struct rb_node *parent = rb_parent(node);
++	struct rb_node *child = node->rb_right;
++	struct rb_node *tmp = node->rb_left;
++	bool black;
++
++	if (!tmp) {
++		/* Case 1: node to erase has no more than 1 child (easy!) */
++		if (child)
++one_child:
++			rb_set_parent(child, parent);
++		if (parent) {
++			if (parent->rb_left == node)
++				parent->rb_left = child;
++			else
++				parent->rb_right = child;
++		} else
++			root->rb_node = child;
+ 
+-	if (!node->rb_left)
+-		child = node->rb_right;
+-	else if (!node->rb_right)
+-		child = node->rb_left;
+-	else {
+-		struct rb_node *old = node, *left;
++		black = rb_is_black(node);
++	} else if (!child) {
++		/* Still case 1, but this time the child is node->rb_left */
++		child = tmp;
++		goto one_child;
++	} else {
++		struct rb_node *old = node;
+ 
++		/*
++		 * Old is the node we want to erase. It's got left and right
++		 * children, which makes things difficult. Let's find the
++		 * next node in the tree to have it fill old's position.
++		 */
+ 		node = node->rb_right;
+-		while ((left = node->rb_left) != NULL)
+-			node = left;
++		while ((tmp = node->rb_left) != NULL)
++			node = tmp;
+ 
+-		if (rb_parent(old)) {
+-			if (rb_parent(old)->rb_left == old)
+-				rb_parent(old)->rb_left = node;
++		/* Graft node (old's successor) under old's parent. */
++		if (parent) {
++			if (parent->rb_left == old)
++				parent->rb_left = node;
+ 			else
+-				rb_parent(old)->rb_right = node;
++				parent->rb_right = node;
+ 		} else
+ 			root->rb_node = node;
+ 
+-		child = node->rb_right;
+ 		parent = rb_parent(node);
+-		color = rb_color(node);
++		black = rb_is_black(node);
++		node->__rb_parent_color = old->__rb_parent_color;
++
++		/*
++		 * Node doesn't have a left child, since it is old's successor,
++		 * so we can take old's left child and graft it under node.
++		 */
++		node->rb_left = tmp = old->rb_left;
++		rb_set_parent(tmp, node);
+ 
++		child = node->rb_right;
+ 		if (parent == old) {
++			/*
++			 * Case 2: old is node's parent (we are done!)
++			 *
++			 *    (o)          (n)
++			 *    / \          / \
++			 *  (x) (n)  ->  (x) (c)
++			 *        \
++			 *        (c)
++			 */
+ 			parent = node;
+ 		} else {
++			/*
++			 * Case 3: old is node's ancestor but not its parent
++			 *
++			 *    (o)          (n)
++			 *    / \          / \
++			 *  (x) (y)  ->  (x) (y)
++			 *      /            /
++			 *    (n)          (c)
++			 *      \
++			 *      (c)
++			 */
++			node->rb_right = tmp = old->rb_right;
++			parent->rb_left = child;
++			rb_set_parent(tmp, node);
+ 			if (child)
+ 				rb_set_parent(child, parent);
+-			parent->rb_left = child;
+-
+-			node->rb_right = old->rb_right;
+-			rb_set_parent(old->rb_right, node);
+ 		}
+-
+-		node->__rb_parent_color = old->__rb_parent_color;
+-		node->rb_left = old->rb_left;
+-		rb_set_parent(old->rb_left, node);
+-
+-		goto color;
+ 	}
+-
+-	parent = rb_parent(node);
+-	color = rb_color(node);
+-
+-	if (child)
+-		rb_set_parent(child, parent);
+-	if (parent) {
+-		if (parent->rb_left == node)
+-			parent->rb_left = child;
+-		else
+-			parent->rb_right = child;
+-	} else
+-		root->rb_node = child;
+-
+-color:
+-	if (color == RB_BLACK)
++	if (black)
+ 		__rb_erase_color(child, parent, root);
+ }
+ EXPORT_SYMBOL(rb_erase);
 -- 
 1.7.7.3
 
