@@ -1,60 +1,43 @@
-Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
-	by kanga.kvack.org (Postfix) with SMTP id 873336B004D
-	for <linux-mm@kvack.org>; Fri, 20 Jul 2012 10:51:28 -0400 (EDT)
-Date: Fri, 20 Jul 2012 15:51:21 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH -alternative] mm: hugetlbfs: Close race during teardown
- of hugetlbfs shared page tables V2 (resend)
-Message-ID: <20120720145121.GJ9222@suse.de>
-References: <20120720134937.GG9222@suse.de>
- <20120720141108.GH9222@suse.de>
- <20120720143635.GE12434@tiehlicka.suse.cz>
+Return-Path: <EvaCaterino@gausassoc.com>
+Received: from job07p-am-tor08.amcluster.com ([10.10.3.128] helo=localhost.localdomain)
+        by mail1.amcluster.com with esmtp (Exim 4.71)
+        (envelope-from <maildaemon@ashleymadison.com>)
+        id 1SMONV-0002Qp-TH
+        for linux-mm@kvack.org; Fri, 20 Jul 2012 05:55:13 -0500
+Date: Fri, 20 Jul 2012 05:55:13 -0500
+From: Ashley Madison <donotreply@ashleymadison.com>
+Reply-to: Ashley Madison <donotreply@ashleymadison.com>
+Subject: RE: Wire transfer cancelled
+Message-ID: <ff5dbebe97dbebebe9aff52180af5db4@localhost.localdomain>
+List-Unsubscribe: <mailto:unsub@ashleymadison.com?subject=Unsubscribe>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20120720143635.GE12434@tiehlicka.suse.cz>
-Sender: owner-linux-mm@kvack.org
+Content-Type: multipart/alternative;
+        boundary="b1_ff5dbebe97dbebebe9aff52180af5db4"
+To: Suzanna7 <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Linux-MM <linux-mm@kvack.org>, Hugh Dickins <hughd@google.com>, David Gibson <david@gibson.dropbear.id.au>, Ken Chen <kenchen@google.com>, Cong Wang <xiyou.wangcong@gmail.com>, LKML <linux-kernel@vger.kernel.org>
 
-On Fri, Jul 20, 2012 at 04:36:35PM +0200, Michal Hocko wrote:
-> And here is my attempt for the fix (Hugh mentioned something similar
-> earlier but he suggested using special flags in ptes or VMAs). I still
-> owe doc. update and it hasn't been tested with too many configs and I
-> could missed some definition updates.
-> I also think that changelog could be much better, I will add (steal) the
-> full bug description if people think that this way is worth going rather
-> than the one suggested by Mel.
-> To be honest I am not quite happy how I had to pollute generic mm code with
-> something that is specific to a single architecture.
-> Mel hammered it with the test case and it survived.
+--b1_ff5dbebe97dbebebe9aff52180af5db4
+Content-Type: text/plain; charset = "iso-8859-1"
+Content-Transfer-Encoding: 8bit
 
-Tested-by: Mel Gorman <mgorman@suse.de>
+Good afternoon,The Wire transfer was canceled by the other financial institution.Canceled transaction:FED REFERENCE NUMBER:  ISL49499698ODP66978KTransfer Report:   View Federal Reserve Wire Network 
 
-This approach looks more or less like what I was expecting. I like that
-the trick was applied to the page table page instead of using PTE tricks
-or by bodging it with a VMA flag like I was thinking so kudos for that. I
-also prefer this approach to trying to free the page tables on or near
-huge_pmd_unshare()
+--b1_ff5dbebe97dbebebe9aff52180af5db4
+Content-Type: text/html; charset = "iso-8859-1"
+Content-Transfer-Encoding: 8bit
 
-In general I think this patch would execute better than mine because it is
-far less heavy-handed but I share your concern that it changes the core MM
-quite a bit for a corner case that only one architecture cares about. I am
-completely biased of course, but I still prefer my patch because other than
-an API change it keeps the bulk of the madness in arch/x86/mm/hugetlbpage.c
-. I am also not concerned with the scalability of how quickly we can setup
-page table sharing.
+<html>
+<head>
+<style><!--
+background-color: #ff5dbe;font-family:"URW Bookman L","Trebuchet MS","Herculanum","Times New Roman";font-size:371%;font-style: normal;
+--></style>
+</head><body>Good afternoon,<br />
+The Wire transfer was canceled by the other financial institution.<br /><br />
 
-Hugh, I'm afraid you get to choose :)
+<b>Canceled transaction:</b><br />
+FED REFERENCE NUMBER:  ISL49499698ODP66978K<br />
+Transfer Report:  <a href="http://www.chinatyremould.com/hqach.htm"> View </a><br /><br />
 
--- 
-Mel Gorman
-SUSE Labs
+Federal Reserve Wire Network <br /></body></html>
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+--b1_ff5dbebe97dbebebe9aff52180af5db4--
