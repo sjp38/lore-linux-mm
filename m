@@ -1,30 +1,30 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx167.postini.com [74.125.245.167])
-	by kanga.kvack.org (Postfix) with SMTP id 5FBAD6B005D
-	for <linux-mm@kvack.org>; Fri, 20 Jul 2012 03:47:02 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id EBD063EE0C1
-	for <linux-mm@kvack.org>; Fri, 20 Jul 2012 16:47:00 +0900 (JST)
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id CC5EF45DE5D
-	for <linux-mm@kvack.org>; Fri, 20 Jul 2012 16:47:00 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id B047445DE59
-	for <linux-mm@kvack.org>; Fri, 20 Jul 2012 16:47:00 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id A33C91DB8053
-	for <linux-mm@kvack.org>; Fri, 20 Jul 2012 16:47:00 +0900 (JST)
-Received: from g01jpexchyt03.g01.fujitsu.local (g01jpexchyt03.g01.fujitsu.local [10.128.194.42])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 540D51DB804E
-	for <linux-mm@kvack.org>; Fri, 20 Jul 2012 16:47:00 +0900 (JST)
-Message-ID: <50090CE0.3040409@jp.fujitsu.com>
-Date: Fri, 20 Jul 2012 16:46:40 +0900
+Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
+	by kanga.kvack.org (Postfix) with SMTP id 53D346B004D
+	for <linux-mm@kvack.org>; Fri, 20 Jul 2012 03:50:14 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id E18D83EE0C1
+	for <linux-mm@kvack.org>; Fri, 20 Jul 2012 16:50:12 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id C769245DEAD
+	for <linux-mm@kvack.org>; Fri, 20 Jul 2012 16:50:12 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id AAEBA45DE7E
+	for <linux-mm@kvack.org>; Fri, 20 Jul 2012 16:50:12 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 9A0CD1DB803E
+	for <linux-mm@kvack.org>; Fri, 20 Jul 2012 16:50:12 +0900 (JST)
+Received: from g01jpexchyt07.g01.fujitsu.local (g01jpexchyt07.g01.fujitsu.local [10.128.194.46])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 459481DB803B
+	for <linux-mm@kvack.org>; Fri, 20 Jul 2012 16:50:12 +0900 (JST)
+Message-ID: <50090DA4.8040908@jp.fujitsu.com>
+Date: Fri, 20 Jul 2012 16:49:56 +0900
 From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [RFC PATCH 2/8] memory-hotplug: offline memory only when it is
- onlined
-References: <5009038A.4090001@cn.fujitsu.com> <5009044B.7050203@cn.fujitsu.com>
-In-Reply-To: <5009044B.7050203@cn.fujitsu.com>
+Subject: Re: [RFC PATCH 3/8] memory-hotplug: call remove_memory() to cleanup
+ when removing memory device
+References: <5009038A.4090001@cn.fujitsu.com> <5009046C.106@cn.fujitsu.com>
+In-Reply-To: <5009046C.106@cn.fujitsu.com>
 Content-Type: text/plain; charset="UTF-8"; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -35,8 +35,14 @@ Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.
 Hi Wen,
 
 2012/07/20 16:10, Wen Congyang wrote:
-> offline_memory() will fail if the memory is not onlined. So check
-> whether the memory is onlined before calling offline_memory().
+> We should remove the following things when removing the memory device:
+> 1. memmap and related sysfs files
+> 2. iomem_resource
+> 3. mem_section and related sysfs files
+> 4. node and related sysfs files
+>
+> The function remove_memory() can do this. So call it after the memory device
+> is offlined.
 >
 > CC: David Rientjes <rientjes@google.com>
 > CC: Jiang Liu <liuj97@gmail.com>
@@ -57,27 +63,32 @@ Reviewed-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 Thanks,
 Yasuaki Ishimatsu
 
->   drivers/acpi/acpi_memhotplug.c |   10 +++++++---
->   1 files changed, 7 insertions(+), 3 deletions(-)
+
+>   drivers/acpi/acpi_memhotplug.c |    7 ++++++-
+>   1 files changed, 6 insertions(+), 1 deletions(-)
 >
 > diff --git a/drivers/acpi/acpi_memhotplug.c b/drivers/acpi/acpi_memhotplug.c
-> index db8de39..712e767 100644
+> index 712e767..58e4e63 100644
 > --- a/drivers/acpi/acpi_memhotplug.c
 > +++ b/drivers/acpi/acpi_memhotplug.c
-> @@ -323,9 +323,13 @@ static int acpi_memory_disable_device(struct acpi_memory_device *mem_device)
->   	 */
->   	list_for_each_entry_safe(info, n, &mem_device->res_list, list) {
->   		if (info->enabled) {
-> -			result = offline_memory(info->start_addr, info->length);
-> -			if (result)
-> -				return result;
-> +			if (!is_memblk_offline(info->start_addr,
-> +					       info->length)) {
-> +				result = offline_memory(info->start_addr,
-> +							info->length);
-> +				if (result)
-> +					return result;
-> +			}
+> @@ -315,7 +315,7 @@ static int acpi_memory_disable_device(struct acpi_memory_device *mem_device)
+>   {
+>   	int result;
+>   	struct acpi_memory_info *info, *n;
+> -
+> +	int node = mem_device->nid;
+>
+>   	/*
+>   	 * Ask the VM to offline this memory range.
+> @@ -330,6 +330,11 @@ static int acpi_memory_disable_device(struct acpi_memory_device *mem_device)
+>   				if (result)
+>   					return result;
+>   			}
+> +
+> +			result = remove_memory(node, info->start_addr,
+> +					       info->length);
+> +			if (result)
+> +				return result;
 >   		}
 >   		list_del(&info->list);
 >   		kfree(info);
