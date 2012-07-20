@@ -1,47 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
-	by kanga.kvack.org (Postfix) with SMTP id 76FF36B004D
-	for <linux-mm@kvack.org>; Fri, 20 Jul 2012 16:05:47 -0400 (EDT)
-Received: by pbbrp2 with SMTP id rp2so8290621pbb.14
-        for <linux-mm@kvack.org>; Fri, 20 Jul 2012 13:05:46 -0700 (PDT)
-Date: Fri, 20 Jul 2012 13:05:42 -0700
-From: Tejun Heo <htejun@gmail.com>
-Subject: Re: [PATCH] cgroup: Don't drop the cgroup_mutex in cgroup_rmdir
-Message-ID: <20120720200542.GD21218@google.com>
-References: <87ipdjc15j.fsf@skywalker.in.ibm.com>
- <1342706972-10912-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
- <20120719165046.GO24336@google.com>
- <1342799140.2583.6.camel@twins>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1342799140.2583.6.camel@twins>
+Received: from psmtp.com (na3sys010amx141.postini.com [74.125.245.141])
+	by kanga.kvack.org (Postfix) with SMTP id 5BB156B0044
+	for <linux-mm@kvack.org>; Fri, 20 Jul 2012 17:22:15 -0400 (EDT)
+Date: Fri, 20 Jul 2012 14:22:13 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: +
+ memory-hotplug-fix-kswapd-looping-forever-problem-fix-fix.patch added to
+ -mm tree
+Message-Id: <20120720142213.f4a4a68e.akpm@linux-foundation.org>
+In-Reply-To: <20120719235057.GA21012@bbox>
+References: <20120717233115.A8E411E005C@wpzn4.hot.corp.google.com>
+	<20120718012200.GA27770@bbox>
+	<20120718143810.b15564b3.akpm@linux-foundation.org>
+	<20120719001002.GA6579@bbox>
+	<20120719002102.GN24336@google.com>
+	<20120719004845.GA7346@bbox>
+	<20120719165750.GP24336@google.com>
+	<20120719235057.GA21012@bbox>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, akpm@linux-foundation.org, mhocko@suse.cz, kamezawa.hiroyu@jp.fujitsu.com, liwanp@linux.vnet.ibm.com, lizefan@huawei.com, cgroups@vger.kernel.org, linux-mm@kvack.org, glommer@parallels.com
+To: Minchan Kim <minchan@kernel.org>
+Cc: Tejun Heo <tj@kernel.org>, Ralf Baechle <ralf@linux-mips.org>, aaditya.kumar.30@gmail.com, kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Yinghai Lu <yinghai@kernel.org>
 
-Hey, Peter.
+On Fri, 20 Jul 2012 08:50:57 +0900
+Minchan Kim <minchan@kernel.org> wrote:
 
-On Fri, Jul 20, 2012 at 05:45:40PM +0200, Peter Zijlstra wrote:
-> > So, Peter, why does cpuset mangle with cgroup_mutex?  What guarantees
-> > does it need?  Why can't it work on "changed" notification while
-> > caching the current css like blkcg does?
+> > 
+> > But, really, given how the structure is used, I think we're better off
+> > just making sure all archs clear them and maybe have a sanity check or
+> > two just in case.  It's not like breakage on that front is gonna be
+> > subtle.
 > 
-> I've no clue sorry.. /me goes stare at this stuff.. Looks like something
-> Paul Menage did when he created cgroups. I'll have to have a hard look
-> at all that to untangle this. Not something obvious to me.
+> Of course, it seems all archs seems to zero-out already as I mentioned
+> (Not sure, MIPS) but Andrew doesn't want it. Andrew?
 
-Yeah, it would be great if this can be untangled.  I really don't see
-any other reasonable way out of this circular locking mess.  If cpuset
-needs stable css association across certain period, the RTTD is
-caching the css by holding its ref and synchronize modifications to
-that cache, rather than synchronizing cgroup operations themselves.
+My point is that having to ensure that each arch zeroes out this
+structure is difficult/costly/unreliable/fragile.  It would be better
+if we can reliably clear it at some well-known place in core MM.
 
-Thanks.
-
--- 
-tejun
+That might mean that the memory gets cleared twice on some
+architectures, but I doubt if that matters - it's a once-off thing.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
