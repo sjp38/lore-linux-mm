@@ -1,77 +1,162 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
-	by kanga.kvack.org (Postfix) with SMTP id B78ED6B004D
-	for <linux-mm@kvack.org>; Thu, 19 Jul 2012 19:50:56 -0400 (EDT)
-Date: Fri, 20 Jul 2012 08:50:57 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: +
- memory-hotplug-fix-kswapd-looping-forever-problem-fix-fix.patch added to -mm
- tree
-Message-ID: <20120719235057.GA21012@bbox>
-References: <20120717233115.A8E411E005C@wpzn4.hot.corp.google.com>
- <20120718012200.GA27770@bbox>
- <20120718143810.b15564b3.akpm@linux-foundation.org>
- <20120719001002.GA6579@bbox>
- <20120719002102.GN24336@google.com>
- <20120719004845.GA7346@bbox>
- <20120719165750.GP24336@google.com>
+	by kanga.kvack.org (Postfix) with SMTP id 353266B004D
+	for <linux-mm@kvack.org>; Thu, 19 Jul 2012 21:07:58 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 1F4CF3EE0BC
+	for <linux-mm@kvack.org>; Fri, 20 Jul 2012 10:07:56 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 042D645DEB3
+	for <linux-mm@kvack.org>; Fri, 20 Jul 2012 10:07:56 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id D7AA845DEB5
+	for <linux-mm@kvack.org>; Fri, 20 Jul 2012 10:07:55 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id C21011DB803F
+	for <linux-mm@kvack.org>; Fri, 20 Jul 2012 10:07:55 +0900 (JST)
+Received: from m1001.s.css.fujitsu.com (m1001.s.css.fujitsu.com [10.240.81.139])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 621911DB8043
+	for <linux-mm@kvack.org>; Fri, 20 Jul 2012 10:07:55 +0900 (JST)
+Message-ID: <5008AEC2.9090707@jp.fujitsu.com>
+Date: Fri, 20 Jul 2012 10:05:06 +0900
+From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120719165750.GP24336@google.com>
+Subject: Re: + hugetlb-cgroup-simplify-pre_destroy-callback.patch added to
+ -mm tree
+References: <20120718212637.133475C0050@hpza9.eem.corp.google.com> <20120719113915.GC2864@tiehlicka.suse.cz> <87r4s8gcwe.fsf@skywalker.in.ibm.com> <20120719123820.GG2864@tiehlicka.suse.cz> <87ipdjc15j.fsf@skywalker.in.ibm.com>
+In-Reply-To: <87ipdjc15j.fsf@skywalker.in.ibm.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Ralf Baechle <ralf@linux-mips.org>, aaditya.kumar.30@gmail.com, kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Yinghai Lu <yinghai@kernel.org>
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Cc: Michal Hocko <mhocko@suse.cz>, akpm@linux-foundation.org, mm-commits@vger.kernel.org, liwanp@linux.vnet.ibm.com, Tejun Heo <htejun@gmail.com>, Li Zefan <lizefan@huawei.com>, cgroups mailinglist <cgroups@vger.kernel.org>, linux-mm@kvack.org
 
-On Thu, Jul 19, 2012 at 09:57:50AM -0700, Tejun Heo wrote:
-> Hello,
-> 
-> On Thu, Jul 19, 2012 at 09:48:45AM +0900, Minchan Kim wrote:
-> > > Maybe trigger warning if some fields which have to be zero aren't?
-> > 
-> > It's not good because this causes adding new WARNING in that part
-> > whenever we add new field in pgdat. It nullify this patch's goal.
-> 
-> Maybe just do that on some fields?  The goal is catching unlikely case
-> where archs leave the struct with garbage data.  I don't think full
-> coverage is an absolute requirement.  Or reorganize the fields such
+(2012/07/19 22:48), Aneesh Kumar K.V wrote:
+> Michal Hocko <mhocko@suse.cz> writes:
+>
+>> On Thu 19-07-12 17:51:05, Aneesh Kumar K.V wrote:
+>>> Michal Hocko <mhocko@suse.cz> writes:
+>>>
+>>>>  From 621ed1c9dab63bd82205bd5266eb9974f86a0a3f Mon Sep 17 00:00:00 2001
+>>>> From: Michal Hocko <mhocko@suse.cz>
+>>>> Date: Thu, 19 Jul 2012 13:23:23 +0200
+>>>> Subject: [PATCH] cgroup: keep cgroup_mutex locked for pre_destroy
+>>>>
+>>>> 3fa59dfb (cgroup: fix potential deadlock in pre_destroy) dropped the
+>>>> cgroup_mutex lock while calling pre_destroy callbacks because memory
+>>>> controller could deadlock because force_empty triggered reclaim.
+>>>> Since "memcg: move charges to root cgroup if use_hierarchy=0" there is
+>>>> no reclaim going on from mem_cgroup_force_empty though so we can safely
+>>>> keep the cgroup_mutex locked. This has an advantage that no tasks might
+>>>> be added during pre_destroy callback and so the handlers don't have to
+>>>> consider races when new tasks add new charges. This simplifies the
+>>>> implementation.
+>>>> ---
+>>>>   kernel/cgroup.c |    2 --
+>>>>   1 file changed, 2 deletions(-)
+>>>>
+>>>> diff --git a/kernel/cgroup.c b/kernel/cgroup.c
+>>>> index 0f3527d..9dba05d 100644
+>>>> --- a/kernel/cgroup.c
+>>>> +++ b/kernel/cgroup.c
+>>>> @@ -4181,7 +4181,6 @@ again:
+>>>>   		mutex_unlock(&cgroup_mutex);
+>>>>   		return -EBUSY;
+>>>>   	}
+>>>> -	mutex_unlock(&cgroup_mutex);
+>>>>
+>>>>   	/*
+>>>>   	 * In general, subsystem has no css->refcnt after pre_destroy(). But
+>>>> @@ -4204,7 +4203,6 @@ again:
+>>>>   		return ret;
+>>>>   	}
+>>>>
+>>>> -	mutex_lock(&cgroup_mutex);
+>>>>   	parent = cgrp->parent;
+>>>>   	if (atomic_read(&cgrp->count) || !list_empty(&cgrp->children)) {
+>>>>   		clear_bit(CGRP_WAIT_ON_RMDIR, &cgrp->flags);
+>>>
+>>> mem_cgroup_force_empty still calls
+>>>
+>>> lru_add_drain_all
+>>>     ->schedule_on_each_cpu
+>>>          -> get_online_cpus
+>>>             ->mutex_lock(&cpu_hotplug.lock);
+>>>
+>>> So wont we deadlock ?
+>>
+>> Yes you are right. I got it wrong. I thought that the reclaim is the
+>> main problem. It won't be that easy then and the origin mm patch
+>> (hugetlb-cgroup-simplify-pre_destroy-callback.patch) still needs a fix
+>> or to be dropped.
+>
 
-IIUC your previous reply, archs can use any fields during boot.
-If so, we need full coverage for catching it.
+Aha, then the problematic schedule_on_each_cpu(), Andrew pointed out in this month,
+is in front of us :( ...and drain_all_stock_sync() should be fixed too.
+Hmm...
 
-> that fields unused by boot code is collected at the top so that it can
-> be memset after certain offset?
+> We just need to remove the VM_BUG_ON() right ? The rest of the patch is
+> good right ? Otherwise how about the below
+>
 
-If the fields touched by boot are limited, it's good idea.
-Let me ask a question.
-What fields are used by boot code before calling free_area_init_node
-(excpet struct bootmem_data *bdata)?
+I'm personally okay but....ugly ?
 
-> 
-> But, really, given how the structure is used, I think we're better off
-> just making sure all archs clear them and maybe have a sanity check or
-> two just in case.  It's not like breakage on that front is gonna be
-> subtle.
+Thanks,
+-Kame
+> NOTE: Do we want to do s/mutex_[un]lock(&cgroup_mutex)/cgroup_[un]lock()/  ?
+>
+> diff --git a/kernel/cgroup.c b/kernel/cgroup.c
+> index 7981850..01c67f4 100644
+> --- a/kernel/cgroup.c
+> +++ b/kernel/cgroup.c
+> @@ -4151,7 +4151,6 @@ again:
+>   		mutex_unlock(&cgroup_mutex);
+>   		return -EBUSY;
+>   	}
+> -	mutex_unlock(&cgroup_mutex);
+>
+>   	/*
+>   	 * In general, subsystem has no css->refcnt after pre_destroy(). But
+> @@ -4171,10 +4170,10 @@ again:
+>   	ret = cgroup_call_pre_destroy(cgrp);
+>   	if (ret) {
+>   		clear_bit(CGRP_WAIT_ON_RMDIR, &cgrp->flags);
+> +		mutex_unlock(&cgroup_mutex);
+>   		return ret;
+>   	}
+>
+> -	mutex_lock(&cgroup_mutex);
+>   	parent = cgrp->parent;
+>   	if (atomic_read(&cgrp->count) || !list_empty(&cgrp->children)) {
+>   		clear_bit(CGRP_WAIT_ON_RMDIR, &cgrp->flags);
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index e8ddc00..91c96df 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -4993,9 +4993,18 @@ free_out:
+>
+>   static int mem_cgroup_pre_destroy(struct cgroup *cont)
+>   {
+> +	int ret;
+>   	struct mem_cgroup *memcg = mem_cgroup_from_cont(cont);
+>
+> -	return mem_cgroup_force_empty(memcg, false);
+> +	cgroup_unlock();
+> +	/*
+> +	 * we call lru_add_drain_all, which end up taking
+> +	 * mutex_lock(&cpu_hotplug.lock), But cpuset have
+> +	 * the reverse order. So drop the cgroup lock
+> +	 */
+> +	ret = mem_cgroup_force_empty(memcg, false);
+> +	cgroup_unlock();
+> +	return ret;
+>   }
+>
+>   static void mem_cgroup_destroy(struct cgroup *cont)
+>
 
-Of course, it seems all archs seems to zero-out already as I mentioned
-(Not sure, MIPS) but Andrew doesn't want it. Andrew?
 
-> 
-> Thanks.
-> 
-> -- 
-> tejun
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-
--- 
-Kind regards,
-Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
