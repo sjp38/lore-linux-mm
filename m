@@ -1,43 +1,57 @@
-Return-Path: <EvaCaterino@gausassoc.com>
-Received: from job07p-am-tor08.amcluster.com ([10.10.3.128] helo=localhost.localdomain)
-        by mail1.amcluster.com with esmtp (Exim 4.71)
-        (envelope-from <maildaemon@ashleymadison.com>)
-        id 1SMONV-0002Qp-TH
-        for linux-mm@kvack.org; Fri, 20 Jul 2012 05:55:13 -0500
-Date: Fri, 20 Jul 2012 05:55:13 -0500
-From: Ashley Madison <donotreply@ashleymadison.com>
-Reply-to: Ashley Madison <donotreply@ashleymadison.com>
-Subject: RE: Wire transfer cancelled
-Message-ID: <ff5dbebe97dbebebe9aff52180af5db4@localhost.localdomain>
-List-Unsubscribe: <mailto:unsub@ashleymadison.com?subject=Unsubscribe>
+Return-Path: <owner-linux-mm@kvack.org>
+Received: from psmtp.com (na3sys010amx135.postini.com [74.125.245.135])
+	by kanga.kvack.org (Postfix) with SMTP id A093C6B004D
+	for <linux-mm@kvack.org>; Fri, 20 Jul 2012 11:12:38 -0400 (EDT)
+Date: Fri, 20 Jul 2012 17:12:16 +0200
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH] Cgroup: Fix memory accounting scalability in
+ shrink_page_list
+Message-ID: <20120720151216.GB1426@cmpxchg.org>
+References: <1342740866.13492.50.camel@schen9-DESK>
+ <20120720135329.GA12440@tiehlicka.suse.cz>
+ <20120720141625.GA1426@cmpxchg.org>
+ <20120720143848.GF12434@tiehlicka.suse.cz>
 MIME-Version: 1.0
-Content-Type: multipart/alternative;
-        boundary="b1_ff5dbebe97dbebebe9aff52180af5db4"
-To: Suzanna7 <linux-mm@kvack.org>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120720143848.GF12434@tiehlicka.suse.cz>
+Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Tim Chen <tim.c.chen@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Minchan Kim <minchan@kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, "andi.kleen" <andi.kleen@intel.com>, linux-mm <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
 
---b1_ff5dbebe97dbebebe9aff52180af5db4
-Content-Type: text/plain; charset = "iso-8859-1"
-Content-Transfer-Encoding: 8bit
+On Fri, Jul 20, 2012 at 04:38:48PM +0200, Michal Hocko wrote:
+> On Fri 20-07-12 16:16:25, Johannes Weiner wrote:
+> > On Fri, Jul 20, 2012 at 03:53:29PM +0200, Michal Hocko wrote:
+> > > On Thu 19-07-12 16:34:26, Tim Chen wrote:
+> > > [...]
+> > > > diff --git a/mm/vmscan.c b/mm/vmscan.c
+> > > > index 33dc256..aac5672 100644
+> > > > --- a/mm/vmscan.c
+> > > > +++ b/mm/vmscan.c
+> > > > @@ -779,6 +779,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+> > > >  
+> > > >  	cond_resched();
+> > > >  
+> > > > +	mem_cgroup_uncharge_start();
+> > > >  	while (!list_empty(page_list)) {
+> > > >  		enum page_references references;
+> > > >  		struct address_space *mapping;
+> > > 
+> > > Is this safe? We have a scheduling point few lines below. What prevents
+> > > from task move while we are in the middle of the batch?
+> > 
+> > The batch is accounted in task_struct, so moving a batching task to
+> > another CPU shouldn't be a problem.
+> 
+> But it could also move to a different group, right?
 
-Good afternoon,The Wire transfer was canceled by the other financial institution.Canceled transaction:FED REFERENCE NUMBER:  ISL49499698ODP66978KTransfer Report:   View Federal Reserve Wire Network 
+The batch-uncharging task will remember the memcg of the first page it
+processes, then pile every subsequent page belonging to the same memcg
+on top.  It doesn't matter which group the task is in.
 
---b1_ff5dbebe97dbebebe9aff52180af5db4
-Content-Type: text/html; charset = "iso-8859-1"
-Content-Transfer-Encoding: 8bit
-
-<html>
-<head>
-<style><!--
-background-color: #ff5dbe;font-family:"URW Bookman L","Trebuchet MS","Herculanum","Times New Roman";font-size:371%;font-style: normal;
---></style>
-</head><body>Good afternoon,<br />
-The Wire transfer was canceled by the other financial institution.<br /><br />
-
-<b>Canceled transaction:</b><br />
-FED REFERENCE NUMBER:  ISL49499698ODP66978K<br />
-Transfer Report:  <a href="http://www.chinatyremould.com/hqach.htm"> View </a><br /><br />
-
-Federal Reserve Wire Network <br /></body></html>
-
---b1_ff5dbebe97dbebebe9aff52180af5db4--
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
