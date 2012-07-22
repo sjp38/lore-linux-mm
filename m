@@ -1,106 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
-	by kanga.kvack.org (Postfix) with SMTP id CCD666B004D
-	for <linux-mm@kvack.org>; Sun, 22 Jul 2012 15:25:58 -0400 (EDT)
-Received: by pbbrp2 with SMTP id rp2so11797228pbb.14
-        for <linux-mm@kvack.org>; Sun, 22 Jul 2012 12:25:58 -0700 (PDT)
-Date: Sun, 22 Jul 2012 12:25:14 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH 21/34] kswapd: assign new_order and new_classzone_idx
- after wakeup in sleeping
-In-Reply-To: <1342708604-26540-22-git-send-email-mgorman@suse.de>
-Message-ID: <alpine.LSU.2.00.1207221213100.1896@eggly.anvils>
-References: <1342708604-26540-1-git-send-email-mgorman@suse.de> <1342708604-26540-22-git-send-email-mgorman@suse.de>
-MIME-Version: 1.0
-Content-Type: MULTIPART/MIXED; BOUNDARY="8323584-2068519065-1342985120=:1896"
+Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
+	by kanga.kvack.org (Postfix) with SMTP id 915736B005A
+	for <linux-mm@kvack.org>; Sun, 22 Jul 2012 18:58:42 -0400 (EDT)
+Message-ID: <1342997912.5132.63.camel@deadeye.wl.decadent.org.uk>
+Subject: Re: [PATCH 00/34] Memory management performance backports for
+ -stable
+From: Ben Hutchings <ben@decadent.org.uk>
+Date: Sun, 22 Jul 2012 23:58:32 +0100
+In-Reply-To: <1342708604-26540-1-git-send-email-mgorman@suse.de>
+References: <1342708604-26540-1-git-send-email-mgorman@suse.de>
+Content-Type: multipart/signed; micalg="pgp-sha512";
+	protocol="application/pgp-signature"; boundary="=-DSFjeOF8GR8EHAGz6UiB"
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Mel Gorman <mgorman@suse.de>
-Cc: Stable <stable@vger.kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Stable <stable@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-  This message is in MIME format.  The first part should be readable text,
-  while the remaining parts are likely unreadable without MIME-aware tools.
 
---8323584-2068519065-1342985120=:1896
-Content-Type: TEXT/PLAIN; charset=UTF-8
-Content-Transfer-Encoding: QUOTED-PRINTABLE
+--=-DSFjeOF8GR8EHAGz6UiB
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 
-On Thu, 19 Jul 2012, Mel Gorman wrote:
-> From: "Alex,Shi" <alex.shi@intel.com>
->=20
-> commit d2ebd0f6b89567eb93ead4e2ca0cbe03021f344b upstream.
+I'm about to put 3.2.24 out for review, and it's pretty big already so
+I'm going to defer these to 3.2.25.  I haven't forgotten or rejected
+them.
 
-Thanks for assembling these, Mel: I was checking through to see if
-I was missing any, and noticed that this one has the wrong upstream
-SHA1: the one you give here is the same as in 20/34, but it should be
+Ben.
 
-commit f0dfcde099453aa4c0dc42473828d15a6d492936 upstream.
+--=20
+Ben Hutchings
+73.46% of all statistics are made up.
 
-I got quite confused by 30/34 too: interesting definition of "partial
-backport" :) I've no objection, but "substitute" might be clearer there.
+--=-DSFjeOF8GR8EHAGz6UiB
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: This is a digitally signed message part
 
-Hugh
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.12 (GNU/Linux)
 
->=20
-> Stable note: Fixes https://bugzilla.redhat.com/show_bug.cgi?id=3D712019. =
-This
-> =09patch reduces kswapd CPU usage.
->=20
-> There 2 places to read pgdat in kswapd.  One is return from a successful
-> balance, another is waked up from kswapd sleeping.  The new_order and
-> new_classzone_idx represent the balance input order and classzone_idx.
->=20
-> But current new_order and new_classzone_idx are not assigned after
-> kswapd_try_to_sleep(), that will cause a bug in the following scenario.
->=20
-> 1: after a successful balance, kswapd goes to sleep, and new_order =3D 0;
->    new_classzone_idx =3D __MAX_NR_ZONES - 1;
->=20
-> 2: kswapd waked up with order =3D 3 and classzone_idx =3D ZONE_NORMAL
->=20
-> 3: in the balance_pgdat() running, a new balance wakeup happened with
->    order =3D 5, and classzone_idx =3D ZONE_NORMAL
->=20
-> 4: the first wakeup(order =3D 3) finished successufly, return order =3D 3
->    but, the new_order is still 0, so, this balancing will be treated as a
->    failed balance.  And then the second tighter balancing will be missed.
->=20
-> So, to avoid the above problem, the new_order and new_classzone_idx need
-> to be assigned for later successful comparison.
->=20
-> Signed-off-by: Alex Shi <alex.shi@intel.com>
-> Acked-by: Mel Gorman <mgorman@suse.de>
-> Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
-> Tested-by: P=C3=A1draig Brady <P@draigBrady.com>
-> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
-> Signed-off-by: Mel Gorman <mgorman@suse.de>
-> ---
->  mm/vmscan.c |    2 ++
->  1 file changed, 2 insertions(+)
->=20
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index bf85e4d..b8c1fc0 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -2905,6 +2905,8 @@ static int kswapd(void *p)
->  =09=09=09=09=09=09balanced_classzone_idx);
->  =09=09=09order =3D pgdat->kswapd_max_order;
->  =09=09=09classzone_idx =3D pgdat->classzone_idx;
-> +=09=09=09new_order =3D order;
-> +=09=09=09new_classzone_idx =3D classzone_idx;
->  =09=09=09pgdat->kswapd_max_order =3D 0;
->  =09=09=09pgdat->classzone_idx =3D pgdat->nr_zones - 1;
->  =09=09}
-> --=20
-> 1.7.9.2
->=20
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>
->=20
---8323584-2068519065-1342985120=:1896--
+iQIVAwUAUAyFmOe/yOyVhhEJAQr+4A/+LaPs/vt/Mj0bM9EEUJcKrCWgkjIhMHTe
+yfATasRFvDi4RjlhbxpbEBm6TqiksXH5Kk4thwQaXW+gycpRcx/eevO1IlMZ6kFv
+EGPk0d92Jo3p+C9Z/La0v5LgUHHLZw48ycHOthwMrhF91QKwNHrOl852U443LxJd
+nKKbJ8w6fu0WhTtEWe90qe9REGGcuxWzVEN1QFXvJe+9K8SXzAgBz1r6a9m7nLWF
+eV8Pjb6kR3h1oWnoWAKawRM+rykxrSvLF7KCefWhaTvAxpt9xqH01dhh5eLCj+2x
+Adr2qEq2vQHVVPt70xgYU94xXpq4KTfHoh+M9U6SV/FEPAHE5swhXVHtQu9Vy8pf
+fNbPmaLPK0fQ0a3kMG3eSSw000HaYYI3INV7DO6Puk2od3hWHjS8x/w5imHtHDR6
+Ps+4wu+p2CkKHZSrz8rhIuQXNrXbCBHL6qydoRA88AF2Q2pPMKJebIA+FqU1Gk4d
+VFMCdCSTsrkEA2h3TQUThrG1t76CBvg5j934LWaMNq6mv73Uq9jdiYx3g3iPyyLE
+zt+b2NTpmFVGyf+dUUlTpSYvX+doZ0qj002wX8EZUnELx/j9JUIMCbjYQ9h27tRT
+xftkF+EMFF/4PU0x7Wv+amWIGDHMZ0Z9PehZE2CyrmcsGWUWYVFniYXuUyuSeLPU
+3ixrLRhiUUI=
+=eYBU
+-----END PGP SIGNATURE-----
+
+--=-DSFjeOF8GR8EHAGz6UiB--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
