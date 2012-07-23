@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
-	by kanga.kvack.org (Postfix) with SMTP id 1C8B96B005A
-	for <linux-mm@kvack.org>; Mon, 23 Jul 2012 17:14:49 -0400 (EDT)
-Date: Mon, 23 Jul 2012 22:14:44 +0100
+Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
+	by kanga.kvack.org (Postfix) with SMTP id 10E366B005D
+	for <linux-mm@kvack.org>; Mon, 23 Jul 2012 17:15:45 -0400 (EDT)
+Date: Mon, 23 Jul 2012 22:15:39 +0100
 From: Mel Gorman <mgorman@suse.de>
-Subject: [MMTests] Sysbench read-only on ext4
-Message-ID: <20120723211444.GB9222@suse.de>
+Subject: [MMTests] Sysbench read-only on xfs
+Message-ID: <20120723211539.GC9222@suse.de>
 References: <20120620113252.GE4011@suse.de>
  <20120629111932.GA14154@suse.de>
 MIME-Version: 1.0
@@ -17,8 +17,8 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: linux-kernel@vger.kernel.org
 
-Configuration:	global-dhp__io-sysbench-large-ro-ext4
-Result: 	http://www.csn.ul.ie/~mel/postings/mmtests-20120424/global-dhp__io-sysbench-large-ro-ext4
+Configuration:	global-dhp__io-sysbench-large-ro-xfs
+Result: 	http://www.csn.ul.ie/~mel/postings/mmtests-20120424/global-dhp__io-sysbench-large-ro-xfs
 Benchmarks:	sysbench
 
 Summary
@@ -29,8 +29,11 @@ Looking better in places than ext3 but still of concern.
 Benchmark notes
 ===============
 
-mkfs was run on system startup. No attempt was made to age it. No
-special mkfs or mount options were used.
+mkfs was run on system startup.
+mkfs parameters -f -d agcount=8
+mount options inode64,delaylog,logbsize=262144,nobarrier for the most part.
+        On kernels to old to support delaylog was removed. On kernels
+        where it was the default, it was specified and the warning ignored.
 
 sysbench is an OLTP-like benchmark. The test type was "complex" and
 read-only. The table size was 50,000,000 rows regardless of memory size
@@ -42,7 +45,7 @@ The backing database was postgres.
 
 ===========================================================
 Machine:	arnold
-Result:		http://www.csn.ul.ie/~mel/postings/mmtests-20120424/global-dhp__io-sysbench-large-ro-ext4/arnold/comparison.html
+Result:		http://www.csn.ul.ie/~mel/postings/mmtests-20120424/global-dhp__io-sysbench-large-ro-xfs/arnold/comparison.html
 Arch:		x86
 CPUs:		1 socket, 2 threads
 Model:		Pentium 4
@@ -51,13 +54,13 @@ Disk:		Single Rotary Disk
 
 sysbench
 --------
-  Generally regresssed.
+  Everything regressed.
 
-  Swapping for kernels 3.1 and 3.2 is very high.
+  Swapping for kernels 3.1 and 3.2 was nuts.
 
 ==========================================================
 Machine:	hydra
-Result:		http://www.csn.ul.ie/~mel/postings/mmtests-20120424/global-dhp__io-sysbench-large-ro-ext4/hydra/comparison.html
+Result:		http://www.csn.ul.ie/~mel/postings/mmtests-20120424/global-dhp__io-sysbench-large-ro-xfs/hydra/comparison.html
 Arch:		x86-64
 CPUs:		1 socket, 4 threads
 Model:		AMD Phenom II X4 940
@@ -67,13 +70,14 @@ Status:		Ok
 
 sysbench
 --------
-  For low number of clients, this has generally improved.
+  For low number of clients, this has generally improved but regressed
+  for larger number of clients.
 
   Swapping in kernel 3.1 was high.
 
 ==========================================================
 Machine:	sandy
-Result:		http://www.csn.ul.ie/~mel/postings/mmtests-20120424/global-dhp__io-sysbench-large-ro-ext4/sandy/comparison.html
+Result:		http://www.csn.ul.ie/~mel/postings/mmtests-20120424/global-dhp__io-sysbench-large-ro-xfs/sandy/comparison.html
 Arch:		x86-64
 CPUs:		1 socket, 8 threads
 Model:		Intel Core i7-2600
