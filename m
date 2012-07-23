@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
-	by kanga.kvack.org (Postfix) with SMTP id DE7196B0068
-	for <linux-mm@kvack.org>; Sun, 22 Jul 2012 20:47:49 -0400 (EDT)
+	by kanga.kvack.org (Postfix) with SMTP id 954386B0069
+	for <linux-mm@kvack.org>; Sun, 22 Jul 2012 20:47:51 -0400 (EDT)
 From: Minchan Kim <minchan@kernel.org>
-Subject: [RESEND RFC 1/3] mm: use get_page_migratetype instead of page_private
-Date: Mon, 23 Jul 2012 09:48:00 +0900
-Message-Id: <1343004482-6916-2-git-send-email-minchan@kernel.org>
+Subject: [RESEND RFC 2/3] mm: remain migratetype in freed page
+Date: Mon, 23 Jul 2012 09:48:01 +0900
+Message-Id: <1343004482-6916-3-git-send-email-minchan@kernel.org>
 In-Reply-To: <1343004482-6916-1-git-send-email-minchan@kernel.org>
 References: <1343004482-6916-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
@@ -13,94 +13,67 @@ List-ID: <linux-mm.kvack.org>
 To: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, lliubbo@gmail.com, Minchan Kim <minchan@kernel.org>
 
-page allocator uses set_page_private and page_private for handling
-migratetype when it frees page. Let's replace them with [set|get]
-_page_migratetype to make it more clear.
+Page allocator doesn't keep migratetype information to page
+when the page is freed. This patch remains the information
+to freed page's index field which isn't used by free/alloc
+preparing so it shouldn't change any behavir except below one.
+
+This patch adds a new call site in __free_pages_ok so it might be
+overhead a bit but it's for high order allocation.
+So I believe damage isn't hurt.
 
 Signed-off-by: Minchan Kim <minchan@kernel.org>
 ---
- include/linux/mm.h  |   10 ++++++++++
- mm/page_alloc.c     |   11 +++++++----
- mm/page_isolation.c |    2 +-
- 3 files changed, 18 insertions(+), 5 deletions(-)
+ include/linux/mm.h |    6 ++++--
+ mm/page_alloc.c    |    7 ++++---
+ 2 files changed, 8 insertions(+), 5 deletions(-)
 
 diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 5c76634..86d61d6 100644
+index 86d61d6..8fd32da 100644
 --- a/include/linux/mm.h
 +++ b/include/linux/mm.h
-@@ -249,6 +249,16 @@ struct inode;
- #define page_private(page)		((page)->private)
- #define set_page_private(page, v)	((page)->private = (v))
+@@ -251,12 +251,14 @@ struct inode;
  
-+static inline void set_page_migratetype(struct page *page, int migratetype)
-+{
-+	set_page_private(page, migratetype);
-+}
-+
-+static inline int get_page_migratetype(struct page *page)
-+{
-+	return page_private(page);
-+}
-+
+ static inline void set_page_migratetype(struct page *page, int migratetype)
+ {
+-	set_page_private(page, migratetype);
++	VM_BUG_ON((unsigned int)migratetype >= MIGRATE_TYPES);
++	page->index = migratetype;
+ }
+ 
+ static inline int get_page_migratetype(struct page *page)
+ {
+-	return page_private(page);
++	VM_BUG_ON((unsigned int)page->index >= MIGRATE_TYPES);
++	return page->index;
+ }
+ 
  /*
-  * FIXME: take this include out, include page-flags.h in
-  * files which need it (119 of them)
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 710d91c..103ba66 100644
+index 103ba66..32985dd 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -671,8 +671,10 @@ static void free_pcppages_bulk(struct zone *zone, int count,
- 			/* must delete as __free_one_page list manipulates */
- 			list_del(&page->lru);
- 			/* MIGRATE_MOVABLE list may include MIGRATE_RESERVEs */
--			__free_one_page(page, zone, 0, page_private(page));
--			trace_mm_page_pcpu_drain(page, 0, page_private(page));
-+			__free_one_page(page, zone, 0,
-+				get_page_migratetype(page));
-+			trace_mm_page_pcpu_drain(page, 0,
-+				get_page_migratetype(page));
- 		} while (--to_free && --batch_free && !list_empty(list));
- 	}
- 	__mod_zone_page_state(zone, NR_FREE_PAGES, count);
-@@ -731,6 +733,7 @@ static void __free_pages_ok(struct page *page, unsigned int order)
+@@ -723,6 +723,7 @@ static void __free_pages_ok(struct page *page, unsigned int order)
+ {
+ 	unsigned long flags;
+ 	int wasMlocked = __TestClearPageMlocked(page);
++	int migratetype;
+ 
+ 	if (!free_pages_prepare(page, order))
+ 		return;
+@@ -731,9 +732,9 @@ static void __free_pages_ok(struct page *page, unsigned int order)
+ 	if (unlikely(wasMlocked))
+ 		free_page_mlock(page);
  	__count_vm_events(PGFREE, 1 << order);
- 	free_one_page(page_zone(page), page, order,
- 					get_pageblock_migratetype(page));
-+
+-	free_one_page(page_zone(page), page, order,
+-					get_pageblock_migratetype(page));
+-
++	migratetype = get_pageblock_migratetype(page);
++	set_page_migratetype(page, migratetype);
++	free_one_page(page_zone(page), page, order, migratetype);
  	local_irq_restore(flags);
  }
  
-@@ -1134,7 +1137,7 @@ static int rmqueue_bulk(struct zone *zone, unsigned int order,
- 			if (!is_migrate_cma(mt) && mt != MIGRATE_ISOLATE)
- 				mt = migratetype;
- 		}
--		set_page_private(page, mt);
-+		set_page_migratetype(page, mt);
- 		list = &page->lru;
- 	}
- 	__mod_zone_page_state(zone, NR_FREE_PAGES, -(i << order));
-@@ -1301,7 +1304,7 @@ void free_hot_cold_page(struct page *page, int cold)
- 		return;
- 
- 	migratetype = get_pageblock_migratetype(page);
--	set_page_private(page, migratetype);
-+	set_page_migratetype(page, migratetype);
- 	local_irq_save(flags);
- 	if (unlikely(wasMlocked))
- 		free_page_mlock(page);
-diff --git a/mm/page_isolation.c b/mm/page_isolation.c
-index 64abb33..acf65a7 100644
---- a/mm/page_isolation.c
-+++ b/mm/page_isolation.c
-@@ -199,7 +199,7 @@ __test_page_isolated_in_pageblock(unsigned long pfn, unsigned long end_pfn)
- 		if (PageBuddy(page))
- 			pfn += 1 << page_order(page);
- 		else if (page_count(page) == 0 &&
--				page_private(page) == MIGRATE_ISOLATE)
-+				get_page_migratetype(page) == MIGRATE_ISOLATE)
- 			pfn += 1;
- 		else
- 			break;
 -- 
 1.7.9.5
 
