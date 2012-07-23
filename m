@@ -1,62 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
-	by kanga.kvack.org (Postfix) with SMTP id D1C5F6B0072
-	for <linux-mm@kvack.org>; Mon, 23 Jul 2012 11:42:52 -0400 (EDT)
-Received: by pbbrp2 with SMTP id rp2so13510163pbb.14
-        for <linux-mm@kvack.org>; Mon, 23 Jul 2012 08:42:52 -0700 (PDT)
-Date: Mon, 23 Jul 2012 08:42:47 -0700
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: +
- memory-hotplug-fix-kswapd-looping-forever-problem-fix-fix.patch added to
- -mm tree
-Message-ID: <20120723154247.GE6823@google.com>
-References: <20120718012200.GA27770@bbox>
- <20120718143810.b15564b3.akpm@linux-foundation.org>
- <20120719001002.GA6579@bbox>
- <20120719002102.GN24336@google.com>
- <20120719004845.GA7346@bbox>
- <20120719165750.GP24336@google.com>
- <20120719235057.GA21012@bbox>
- <20120720142213.f4a4a68e.akpm@linux-foundation.org>
- <20120720213641.GA6823@google.com>
- <20120723045855.GC6832@bbox>
+Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
+	by kanga.kvack.org (Postfix) with SMTP id 573B76B0044
+	for <linux-mm@kvack.org>; Mon, 23 Jul 2012 13:22:05 -0400 (EDT)
+Received: by lahi5 with SMTP id i5so147762lah.14
+        for <linux-mm@kvack.org>; Mon, 23 Jul 2012 10:22:03 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120723045855.GC6832@bbox>
+In-Reply-To: <20120626075653.GD6713@tiehlicka.suse.cz>
+References: <1340616061-1955-1-git-send-email-glommer@parallels.com>
+	<20120625204908.GL3869@google.com>
+	<20120626075653.GD6713@tiehlicka.suse.cz>
+Date: Mon, 23 Jul 2012 10:22:03 -0700
+Message-ID: <CALWz4ixg5YYt6Np4zqO0Yn+U6vEGRRoGQoDmt8A1Vc5zwD91dQ@mail.gmail.com>
+Subject: Re: [PATCH] fix bad behavior in use_hierarchy file
+From: Ying Han <yinghan@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Ralf Baechle <ralf@linux-mips.org>, aaditya.kumar.30@gmail.com, kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Yinghai Lu <yinghai@kernel.org>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Tejun Heo <tj@kernel.org>, Glauber Costa <glommer@parallels.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, devel@openvz.org, Dhaval Giani <dhaval.giani@gmail.com>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>
 
-Hello, Minchan.
+On Tue, Jun 26, 2012 at 12:56 AM, Michal Hocko <mhocko@suse.cz> wrote:
+> [Adding Ying to CC - they are using hierarchies AFAIU in their workloads]
 
-On Mon, Jul 23, 2012 at 01:58:55PM +0900, Minchan Kim wrote:
-> I would like to know what fields you are concerning because most of field
+Sorry for late ( a month late ) to the thread.
 
-The above question itself is a problem.  It's subtle to hell.  Some
-fields of this data structure is used during early boot but at some
-point all are reset to zero, so we have to be careful about how those
-fields are used before and after.
+Our current production today doesn't support multi-hierarchy setup for
+memcg, and all the cgroups are flat under root at least on the memory
+resource perspective. However, we do have use_hierarchy set to 1 to
+root cgroup upfront.
 
-This might seem clear now but things like this are likely to make
-people later working on the code go WTF.  Let's say for whatever
-reason ->bdata needs to be accessed after free_area_init - e.g.
-arch_add_memory() needs some info from bdata, what then?
+On the other hand, we started exploring nested cgroup since the flat
+configuration doesn't fullfill all our usecases. In that case, we will
+have configurations like: root-> A -> B -> C ( not sure about C but at
+least level to B). Of course, we will have use_hierarchy set to 1 on
+each level, and the mixed setting won't happen AFAIK.
 
-What if we end up having to add a new property field which is
-determined by platform code but used by generic code.  I would add a
-field to pgdat, init it from numa.c and then later use it in generic
-code.  If the field gets zeroed inbetween, I would get pretty annoyed.
-
-I really don't think this subject is worth the amount of discussion we
-had in this thread.  Just make the archs clear the data structure on
-creation.  Anything else is silly.
-
-Thanks.
-
--- 
-tejun
+--Ying
+>
+> On Mon 25-06-12 13:49:08, Tejun Heo wrote:
+> [...]
+>> A bit of delta but is there any chance we can either deprecate
+>> .use_hierarhcy or at least make it global toggle instead of subtree
+>> thing?
+>
+> So what you are proposing is to have all subtrees of the root either
+> hierarchical or not, right?
+>
+>> This seems needlessly complicated. :(
+>
+> Toggle wouldn't help much I am afraid. We would still have to
+> distinguish (non)hierarchical cases. And I am not sure we can make
+> everything hierarchical easily.
+> Most users (from my experience) ignored use_hierarchy for some reasons
+> and the end results might be really unexpected for them if they used
+> deeper subtrees (which might be needed due to combination with other
+> controller(s)).
+> --
+> Michal Hocko
+> SUSE Labs
+> SUSE LINUX s.r.o.
+> Lihovarska 1060/12
+> 190 00 Praha 9
+> Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
