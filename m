@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
-	by kanga.kvack.org (Postfix) with SMTP id 98A2A6B0068
+Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
+	by kanga.kvack.org (Postfix) with SMTP id E18676B0089
 	for <linux-mm@kvack.org>; Mon, 23 Jul 2012 09:39:02 -0400 (EDT)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 20/34] kswapd: avoid unnecessary rebalance after an unsuccessful balancing
-Date: Mon, 23 Jul 2012 14:38:33 +0100
-Message-Id: <1343050727-3045-21-git-send-email-mgorman@suse.de>
+Subject: [PATCH 21/34] kswapd: assign new_order and new_classzone_idx after wakeup in sleeping
+Date: Mon, 23 Jul 2012 14:38:34 +0100
+Message-Id: <1343050727-3045-22-git-send-email-mgorman@suse.de>
 In-Reply-To: <1343050727-3045-1-git-send-email-mgorman@suse.de>
 References: <1343050727-3045-1-git-send-email-mgorman@suse.de>
 MIME-Version: 1.0
@@ -18,91 +18,56 @@ Cc: Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorm
 
 From: "Alex,Shi" <alex.shi@intel.com>
 
-commit d2ebd0f6b89567eb93ead4e2ca0cbe03021f344b upstream.
+commit f0dfcde099453aa4c0dc42473828d15a6d492936 upstream.
 
 Stable note: Fixes https://bugzilla.redhat.com/show_bug.cgi?id=712019. This
 	patch reduces kswapd CPU usage.
 
-In commit 215ddd66 ("mm: vmscan: only read new_classzone_idx from pgdat
-when reclaiming successfully") , Mel Gorman said kswapd is better to sleep
-after a unsuccessful balancing if there is tighter reclaim request pending
-in the balancing.  But in the following scenario, kswapd do something that
-is not matched our expectation.  The patch fixes this issue.
+There 2 places to read pgdat in kswapd.  One is return from a successful
+balance, another is waked up from kswapd sleeping.  The new_order and
+new_classzone_idx represent the balance input order and classzone_idx.
 
-1, Read pgdat request A (classzone_idx, order = 3)
-2, balance_pgdat()
-3, During pgdat, a new pgdat request B (classzone_idx, order = 5) is placed
-4, balance_pgdat() returns but failed since returned order = 0
-5, pgdat of request A assigned to balance_pgdat(), and do balancing again.
-   While the expectation behavior of kswapd should try to sleep.
+But current new_order and new_classzone_idx are not assigned after
+kswapd_try_to_sleep(), that will cause a bug in the following scenario.
+
+1: after a successful balance, kswapd goes to sleep, and new_order = 0;
+   new_classzone_idx = __MAX_NR_ZONES - 1;
+
+2: kswapd waked up with order = 3 and classzone_idx = ZONE_NORMAL
+
+3: in the balance_pgdat() running, a new balance wakeup happened with
+   order = 5, and classzone_idx = ZONE_NORMAL
+
+4: the first wakeup(order = 3) finished successufly, return order = 3
+   but, the new_order is still 0, so, this balancing will be treated as a
+   failed balance.  And then the second tighter balancing will be missed.
+
+So, to avoid the above problem, the new_order and new_classzone_idx need
+to be assigned for later successful comparison.
 
 Signed-off-by: Alex Shi <alex.shi@intel.com>
-Reviewed-by: Tim Chen <tim.c.chen@linux.intel.com>
 Acked-by: Mel Gorman <mgorman@suse.de>
+Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
 Tested-by: PA!draig Brady <P@draigBrady.com>
-Cc: Rik van Riel <riel@redhat.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
 Signed-off-by: Mel Gorman <mgorman@suse.de>
 ---
- mm/vmscan.c |   14 +++++++++++---
- 1 file changed, 11 insertions(+), 3 deletions(-)
+ mm/vmscan.c |    2 ++
+ 1 file changed, 2 insertions(+)
 
 diff --git a/mm/vmscan.c b/mm/vmscan.c
-index aa75861..bf85e4d 100644
+index bf85e4d..b8c1fc0 100644
 --- a/mm/vmscan.c
 +++ b/mm/vmscan.c
-@@ -2841,7 +2841,9 @@ static void kswapd_try_to_sleep(pg_data_t *pgdat, int order, int classzone_idx)
- static int kswapd(void *p)
- {
- 	unsigned long order, new_order;
-+	unsigned balanced_order;
- 	int classzone_idx, new_classzone_idx;
-+	int balanced_classzone_idx;
- 	pg_data_t *pgdat = (pg_data_t*)p;
- 	struct task_struct *tsk = current;
- 
-@@ -2872,7 +2874,9 @@ static int kswapd(void *p)
- 	set_freezable();
- 
- 	order = new_order = 0;
-+	balanced_order = 0;
- 	classzone_idx = new_classzone_idx = pgdat->nr_zones - 1;
-+	balanced_classzone_idx = classzone_idx;
- 	for ( ; ; ) {
- 		int ret;
- 
-@@ -2881,7 +2885,8 @@ static int kswapd(void *p)
- 		 * new request of a similar or harder type will succeed soon
- 		 * so consider going to sleep on the basis we reclaimed at
- 		 */
--		if (classzone_idx >= new_classzone_idx && order == new_order) {
-+		if (balanced_classzone_idx >= new_classzone_idx &&
-+					balanced_order == new_order) {
- 			new_order = pgdat->kswapd_max_order;
- 			new_classzone_idx = pgdat->classzone_idx;
- 			pgdat->kswapd_max_order =  0;
-@@ -2896,7 +2901,8 @@ static int kswapd(void *p)
- 			order = new_order;
- 			classzone_idx = new_classzone_idx;
- 		} else {
--			kswapd_try_to_sleep(pgdat, order, classzone_idx);
-+			kswapd_try_to_sleep(pgdat, balanced_order,
-+						balanced_classzone_idx);
+@@ -2905,6 +2905,8 @@ static int kswapd(void *p)
+ 						balanced_classzone_idx);
  			order = pgdat->kswapd_max_order;
  			classzone_idx = pgdat->classzone_idx;
++			new_order = order;
++			new_classzone_idx = classzone_idx;
  			pgdat->kswapd_max_order = 0;
-@@ -2913,7 +2919,9 @@ static int kswapd(void *p)
- 		 */
- 		if (!ret) {
- 			trace_mm_vmscan_kswapd_wake(pgdat->node_id, order);
--			order = balance_pgdat(pgdat, order, &classzone_idx);
-+			balanced_classzone_idx = classzone_idx;
-+			balanced_order = balance_pgdat(pgdat, order,
-+						&balanced_classzone_idx);
+ 			pgdat->classzone_idx = pgdat->nr_zones - 1;
  		}
- 	}
- 	return 0;
 -- 
 1.7.9.2
 
