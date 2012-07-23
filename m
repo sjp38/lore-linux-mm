@@ -1,53 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx207.postini.com [74.125.245.207])
-	by kanga.kvack.org (Postfix) with SMTP id D913A6B005A
-	for <linux-mm@kvack.org>; Mon, 23 Jul 2012 06:58:39 -0400 (EDT)
-Date: Mon, 23 Jul 2012 13:58:19 +0300
-From: Dan Carpenter <dan.carpenter@oracle.com>
-Subject: Re: [PATCH 2/2 v5][resend] tmpfs: interleave the starting node of
- /dev/shmem
-Message-ID: <20120723105819.GA4455@mwanda>
-References: <1341845199-25677-1-git-send-email-nzimmer@sgi.com>
- <1341845199-25677-2-git-send-email-nzimmer@sgi.com>
- <1341845199-25677-3-git-send-email-nzimmer@sgi.com>
+Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
+	by kanga.kvack.org (Postfix) with SMTP id D69D16B005A
+	for <linux-mm@kvack.org>; Mon, 23 Jul 2012 07:06:15 -0400 (EDT)
+Received: by bkcjc3 with SMTP id jc3so5492860bkc.14
+        for <linux-mm@kvack.org>; Mon, 23 Jul 2012 04:06:13 -0700 (PDT)
+Date: Mon, 23 Jul 2012 13:06:10 +0200
+From: Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>
+Subject: Re: [RFC PATCH] memory-hotplug: Add memblock_state notifier
+Message-ID: <20120723110610.GB18801@dhcp-192-168-178-175.profitbricks.localdomain>
+References: <1342783088-29970-1-git-send-email-vasilis.liaskovitis@profitbricks.com>
+ <500D1474.9070708@cn.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <1341845199-25677-3-git-send-email-nzimmer@sgi.com>
+In-Reply-To: <500D1474.9070708@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nathan Zimmer <nzimmer@sgi.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Christoph Lameter <cl@linux.com>, Nick Piggin <npiggin@gmail.com>, Hugh Dickins <hughd@google.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>
+To: Wen Congyang <wency@cn.fujitsu.com>
+Cc: isimatu.yasuaki@jp.fujitsu.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-acpi@vger.kernel.org
 
-On Mon, Jul 09, 2012 at 09:46:39AM -0500, Nathan Zimmer wrote:
-> +static unsigned long shmem_interleave(struct vm_area_struct *vma,
-> +					unsigned long addr)
-> +{
-> +	unsigned long offset;
-> +
-> +	/* Use the vm_files prefered node as the initial offset. */
-> +	offset = (unsigned long *) vma->vm_private_data;
+Hi,
 
-Should this be?:
-	offset = (unsigned long)vma->vm_private_data;
+On Mon, Jul 23, 2012 at 05:08:04PM +0800, Wen Congyang wrote:
+> > +static int memblock_state_notifier_nb(struct notifier_block *nb, unsigned long
+> > +		val, void *v)
+> > +{
+> > +	struct memory_notify *arg = (struct memory_notify *)v;
+> > +	struct memory_block *mem = NULL;
+> > +	struct mem_section *ms;
+> > +	unsigned long section_nr;
+> > +
+> > +	section_nr = pfn_to_section_nr(arg->start_pfn);
+> > +	ms = __nr_to_section(section_nr);
+> > +	mem = find_memory_block(ms);
+> > +	if (!mem)
+> > +		goto out;
+> 
+> we may offline more than one memory block.
+>
+thanks, you are right.
 
-offset is an unsigned long, not a pointer.  ->vm_private_data is a
-void pointer.
+> > +
+> > +	switch (val) {
+> > +	case MEM_GOING_OFFLINE:
+> > +	case MEM_OFFLINE:
+> > +	case MEM_GOING_ONLINE:
+> > +	case MEM_ONLINE:
+> > +	case MEM_CANCEL_ONLINE:
+> > +	case MEM_CANCEL_OFFLINE:
+> > +		mem->state = val;
+> 
+> mem->state is protected by the lock mem->state_mutex, so if you want to
+> update the state, you must lock mem->state_mutex. But you cannot lock it
+> here, because it may cause deadlock:
+> 
+> acpi_memhotplug                           sysfs interface
+> ===============================================================================
+>                                           memory_block_change_state()
+>                                               lock mem->state_mutex
+>                                               memory_block_action()
+> offline_pages()
+>     lock_memory_hotplug()
+>                                                   offline_memory()
+>                                                       lock_memory_hotplug() // block
+>     memory_notify()
+>         memblock_state_notifier_nb()
+> ===============================================================================
 
-It causes a GCC warning:
-mm/shmem.c: In function a??shmem_interleavea??:
-mm/shmem.c:1341:9: warning: assignment makes integer from pointer without a cast [enabled by default]
+good point. Maybe if memory_hotplug_lock and state_mutex locks are acquired in
+the same order in the 2 code paths, this could be avoided.
 
-> +
-> +	offset += ((addr - vma->vm_start) >> PAGE_SHIFT) + vma->vm_pgoff;
-> +
-> +	return offset;
-> +}
->  #endif
+> I'm writing another patch to fix it.
 
-regards,
-dan carpenter
+ok, I 'll test.
+thanks,
+
+- Vasilis
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
