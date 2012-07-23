@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx104.postini.com [74.125.245.104])
-	by kanga.kvack.org (Postfix) with SMTP id 3A9436B005A
-	for <linux-mm@kvack.org>; Mon, 23 Jul 2012 09:38:56 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
+	by kanga.kvack.org (Postfix) with SMTP id 264FD6B0070
+	for <linux-mm@kvack.org>; Mon, 23 Jul 2012 09:38:58 -0400 (EDT)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 10/34] mm: Abort reclaim/compaction if compaction can proceed
-Date: Mon, 23 Jul 2012 14:38:23 +0100
-Message-Id: <1343050727-3045-11-git-send-email-mgorman@suse.de>
+Subject: [PATCH 13/34] mm: compaction: make isolate_lru_page() filter-aware
+Date: Mon, 23 Jul 2012 14:38:26 +0100
+Message-Id: <1343050727-3045-14-git-send-email-mgorman@suse.de>
 In-Reply-To: <1343050727-3045-1-git-send-email-mgorman@suse.de>
 References: <1343050727-3045-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -13,104 +13,93 @@ List-ID: <linux-mm.kvack.org>
 To: Stable <stable@vger.kernel.org>
 Cc: Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
 
-commit e0c23279c9f800c403f37511484d9014ac83adec upstream.
+From: Minchan Kim <minchan.kim@gmail.com>
 
-Stable note: Not tracked on Bugzilla. THP and compaction was found to
-	aggressively reclaim pages and stall systems under different
-	situations that was addressed piecemeal over time.
+commit 39deaf8585152f1a35c1676d3d7dc6ae0fb65967 upstream.
 
-If compaction can proceed, shrink_zones() stops doing any work but its
-callers still call shrink_slab() which raises the priority and potentially
-sleeps.  This is unnecessary and wasteful so this patch aborts direct
-reclaim/compaction entirely if compaction can proceed.
+Stable note: Not tracked in Bugzilla. THP and compaction disrupt the LRU
+	list leading to poor reclaim decisions which has a variable
+	performance impact.
 
-Signed-off-by: Mel Gorman <mgorman@suse.de>
+In async mode, compaction doesn't migrate dirty or writeback pages.  So,
+it's meaningless to pick the page and re-add it to lru list.
+
+Of course, when we isolate the page in compaction, the page might be dirty
+or writeback but when we try to migrate the page, the page would be not
+dirty, writeback.  So it could be migrated.  But it's very unlikely as
+isolate and migration cycle is much faster than writeout.
+
+So, this patch helps cpu overhead and prevent unnecessary LRU churning.
+
+Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Acked-by: Mel Gorman <mgorman@suse.de>
 Acked-by: Rik van Riel <riel@redhat.com>
-Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
-Acked-by: Johannes Weiner <jweiner@redhat.com>
-Cc: Josh Boyer <jwboyer@redhat.com>
+Reviewed-by: Michal Hocko <mhocko@suse.cz>
 Cc: Andrea Arcangeli <aarcange@redhat.com>
 Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
-Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
+Signed-off-by: Mel Gorman <mgorman@suse.de>
 ---
- mm/vmscan.c |   32 +++++++++++++++++++++-----------
- 1 file changed, 21 insertions(+), 11 deletions(-)
+ include/linux/mmzone.h |    2 ++
+ mm/compaction.c        |    7 +++++--
+ mm/vmscan.c            |    3 +++
+ 3 files changed, 10 insertions(+), 2 deletions(-)
 
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+index 5a5286d..632107e 100644
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -162,6 +162,8 @@ static inline int is_unevictable_lru(enum lru_list l)
+ #define ISOLATE_INACTIVE	((__force isolate_mode_t)0x1)
+ /* Isolate active pages */
+ #define ISOLATE_ACTIVE		((__force isolate_mode_t)0x2)
++/* Isolate clean file */
++#define ISOLATE_CLEAN		((__force isolate_mode_t)0x4)
+ 
+ /* LRU Isolation modes. */
+ typedef unsigned __bitwise__ isolate_mode_t;
+diff --git a/mm/compaction.c b/mm/compaction.c
+index 4fbbbd0..61e68a5 100644
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -261,6 +261,7 @@ static isolate_migrate_t isolate_migratepages(struct zone *zone,
+ 	unsigned long last_pageblock_nr = 0, pageblock_nr;
+ 	unsigned long nr_scanned = 0, nr_isolated = 0;
+ 	struct list_head *migratelist = &cc->migratepages;
++	isolate_mode_t mode = ISOLATE_ACTIVE|ISOLATE_INACTIVE;
+ 
+ 	/* Do not scan outside zone boundaries */
+ 	low_pfn = max(cc->migrate_pfn, zone->zone_start_pfn);
+@@ -370,9 +371,11 @@ static isolate_migrate_t isolate_migratepages(struct zone *zone,
+ 			continue;
+ 		}
+ 
++		if (!cc->sync)
++			mode |= ISOLATE_CLEAN;
++
+ 		/* Try isolate the page */
+-		if (__isolate_lru_page(page,
+-				ISOLATE_ACTIVE|ISOLATE_INACTIVE, 0) != 0)
++		if (__isolate_lru_page(page, mode, 0) != 0)
+ 			continue;
+ 
+ 		VM_BUG_ON(PageTransCompound(page));
 diff --git a/mm/vmscan.c b/mm/vmscan.c
-index d11b6c4..65388ac 100644
+index 4bb2010..032f35e 100644
 --- a/mm/vmscan.c
 +++ b/mm/vmscan.c
-@@ -2037,14 +2037,19 @@ restart:
-  *
-  * If a zone is deemed to be full of pinned pages then just give it a light
-  * scan then give up on it.
-+ *
-+ * This function returns true if a zone is being reclaimed for a costly
-+ * high-order allocation and compaction is either ready to begin or deferred.
-+ * This indicates to the caller that it should retry the allocation or fail.
-  */
--static void shrink_zones(int priority, struct zonelist *zonelist,
-+static bool shrink_zones(int priority, struct zonelist *zonelist,
- 					struct scan_control *sc)
- {
- 	struct zoneref *z;
- 	struct zone *zone;
- 	unsigned long nr_soft_reclaimed;
- 	unsigned long nr_soft_scanned;
-+	bool should_abort_reclaim = false;
+@@ -1045,6 +1045,9 @@ int __isolate_lru_page(struct page *page, isolate_mode_t mode, int file)
  
- 	for_each_zone_zonelist_nodemask(zone, z, zonelist,
- 					gfp_zone(sc->gfp_mask), sc->nodemask) {
-@@ -2061,19 +2066,20 @@ static void shrink_zones(int priority, struct zonelist *zonelist,
- 				continue;	/* Let kswapd poll it */
- 			if (COMPACTION_BUILD) {
- 				/*
--				 * If we already have plenty of memory
--				 * free for compaction, don't free any
--				 * more.  Even though compaction is
--				 * invoked for any non-zero order,
--				 * only frequent costly order
--				 * reclamation is disruptive enough to
--				 * become a noticable problem, like
--				 * transparent huge page allocations.
-+				 * If we already have plenty of memory free for
-+				 * compaction in this zone, don't free any more.
-+				 * Even though compaction is invoked for any
-+				 * non-zero order, only frequent costly order
-+				 * reclamation is disruptive enough to become a
-+				 * noticable problem, like transparent huge page
-+				 * allocations.
- 				 */
- 				if (sc->order > PAGE_ALLOC_COSTLY_ORDER &&
- 					(compaction_suitable(zone, sc->order) ||
--					 compaction_deferred(zone)))
-+					 compaction_deferred(zone))) {
-+					should_abort_reclaim = true;
- 					continue;
-+				}
- 			}
- 			/*
- 			 * This steals pages from memory cgroups over softlimit
-@@ -2092,6 +2098,8 @@ static void shrink_zones(int priority, struct zonelist *zonelist,
+ 	ret = -EBUSY;
  
- 		shrink_zone(priority, zone, sc);
- 	}
++	if ((mode & ISOLATE_CLEAN) && (PageDirty(page) || PageWriteback(page)))
++		return ret;
 +
-+	return should_abort_reclaim;
- }
- 
- static bool zone_reclaimable(struct zone *zone)
-@@ -2156,7 +2164,9 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
- 		sc->nr_scanned = 0;
- 		if (!priority)
- 			disable_swap_token(sc->mem_cgroup);
--		shrink_zones(priority, zonelist, sc);
-+		if (shrink_zones(priority, zonelist, sc))
-+			break;
-+
+ 	if (likely(get_page_unless_zero(page))) {
  		/*
- 		 * Don't shrink slabs when reclaiming memory from
- 		 * over limit cgroups
+ 		 * Be careful not to clear PageLRU until after we're
 -- 
 1.7.9.2
 
