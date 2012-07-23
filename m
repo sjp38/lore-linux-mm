@@ -1,92 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
-	by kanga.kvack.org (Postfix) with SMTP id 032ED6B005A
-	for <linux-mm@kvack.org>; Mon, 23 Jul 2012 05:06:13 -0400 (EDT)
-Message-ID: <500D1527.7070405@cn.fujitsu.com>
-Date: Mon, 23 Jul 2012 17:11:03 +0800
-From: Wen Congyang <wency@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
+	by kanga.kvack.org (Postfix) with SMTP id 4523B6B005A
+	for <linux-mm@kvack.org>; Mon, 23 Jul 2012 05:16:34 -0400 (EDT)
+Date: Mon, 23 Jul 2012 10:16:30 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 00/34] Memory management performance backports for -stable
+Message-ID: <20120723091630.GN9222@suse.de>
+References: <1342708604-26540-1-git-send-email-mgorman@suse.de>
+ <1342997912.5132.63.camel@deadeye.wl.decadent.org.uk>
 MIME-Version: 1.0
-Subject: Re: [RFC PATCH 0/8] memory-hotplug : hot-remove physical memory(clear
- page table)
-References: <5009038A.4090001@cn.fujitsu.com> <5009094B.3090506@jp.fujitsu.com>
-In-Reply-To: <5009094B.3090506@jp.fujitsu.com>
-Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <1342997912.5132.63.camel@deadeye.wl.decadent.org.uk>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com
+To: Ben Hutchings <ben@decadent.org.uk>
+Cc: Stable <stable@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-At 07/20/2012 03:31 PM, Yasuaki Ishimatsu Wrote:
-> [Hi Wen,
+On Sun, Jul 22, 2012 at 11:58:32PM +0100, Ben Hutchings wrote:
+> I'm about to put 3.2.24 out for review, and it's pretty big already so
+> I'm going to defer these to 3.2.25.  I haven't forgotten or rejected
+> them.
 > 
-> Good news!! I was waiting for this patch to come.
-> Applying the patches, can we hot-remove physical memory completely?
 
-If all functions success, I guess so.
+No worries, thanks for considering them. I still have to resend the series
+with some minor changes anyway but I expect that to happen today or tomorrow
+at the very latest.
 
-Thanks
-Wen Congyang
-
-> 
-> Thanks,
-> Yasuaki Ishimatsu
-> 
-> 2012/07/20 16:06, Wen Congyang wrote:
->> This patch series aims to support physical memory hot-remove(clear
->> page table).
->>
->> This patch series base on ishimatsu's patch series. You can get it here:
->> http://www.spinics.net/lists/linux-acpi/msg36804.html
->>
->> The patches can remove following things:
->>    - page table of removed memory
->>
->> If you find lack of function for physical memory hot-remove, please
->> let me
->> know.
->>
->> Note:
->> * The patch "remove memory info from list before freeing it" is being
->> disccussed
->>    in other thread. But for testing the patch series, the patch is
->> needed.
->>    So I added the patch as [PATCH 0/8].
->> * You need to apply ishimatsu's patch series first before applying
->> this patch
->>    series.
->>
->> Wen Congyang (8):
->>    memory-hotplug: store the node id in acpi_memory_device
->>    memory-hotplug: offline memory only when it is onlined
->>    memory-hotplug: call remove_memory() to cleanup when removing memory
->>      device
->>    memory-hotplug: export the function acpi_bus_remove()
->>    memory-hotplug: call acpi_bus_remove() to remove memory device
->>    memory-hotplug: introduce new function arch_remove_memory()
->>    x86: make __split_large_page() generally avialable
->>    memory-hotplug: implement arch_remove_memory()
->>
->>   arch/ia64/mm/init.c                  |   16 ++++
->>   arch/powerpc/mm/mem.c                |   14 +++
->>   arch/s390/mm/init.c                  |    8 ++
->>   arch/sh/mm/init.c                    |   15 +++
->>   arch/tile/mm/init.c                  |    8 ++
->>   arch/x86/include/asm/pgtable_types.h |    1 +
->>   arch/x86/mm/init_32.c                |   10 ++
->>   arch/x86/mm/init_64.c                |  160
->> ++++++++++++++++++++++++++++++++++
->>   arch/x86/mm/pageattr.c               |   47 +++++-----
->>   drivers/acpi/acpi_memhotplug.c       |   24 ++++--
->>   drivers/acpi/scan.c                  |    3 +-
->>   include/acpi/acpi_bus.h              |    1 +
->>   include/linux/memory_hotplug.h       |    1 +
->>   mm/memory_hotplug.c                  |    2 +-
->>   14 files changed, 280 insertions(+), 30 deletions(-)
->>
-> 
-> 
-> 
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
