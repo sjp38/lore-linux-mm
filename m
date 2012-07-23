@@ -1,43 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
-	by kanga.kvack.org (Postfix) with SMTP id CBF576B005A
-	for <linux-mm@kvack.org>; Mon, 23 Jul 2012 03:07:21 -0400 (EDT)
-Message-ID: <500CF782.4060407@parallels.com>
-Date: Mon, 23 Jul 2012 11:04:34 +0400
-From: Glauber Costa <glommer@parallels.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH TRIVIAL] mm: Fix build warning in kmem_cache_create()
-References: <1342221125.17464.8.camel@lorien2> <alpine.DEB.2.00.1207140216040.20297@chino.kir.corp.google.com> <CAOJsxLE3dDd01WaAp5UAHRb0AiXn_s43M=Gg4TgXzRji_HffEQ@mail.gmail.com> <1342407840.3190.5.camel@lorien2> <alpine.DEB.2.00.1207160257420.11472@chino.kir.corp.google.com> <alpine.DEB.2.00.1207160915470.28952@router.home> <alpine.DEB.2.00.1207161253240.29012@chino.kir.corp.google.com> <alpine.DEB.2.00.1207161506390.32319@router.home> <alpine.DEB.2.00.1207161642420.18232@chino.kir.corp.google.com> <alpine.DEB.2.00.1207170929290.13599@router.home> <CAOJsxLECr7yj9cMs4oUJQjkjZe9x-6mvk76ArGsQzRWBi8_wVw@mail.gmail.com> <alpine.DEB.2.00.1207171005550.15061@router.home>
-In-Reply-To: <alpine.DEB.2.00.1207171005550.15061@router.home>
-Content-Type: text/plain; charset="ISO-8859-1"
+Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
+	by kanga.kvack.org (Postfix) with SMTP id EE5126B005A
+	for <linux-mm@kvack.org>; Mon, 23 Jul 2012 04:18:19 -0400 (EDT)
+Received: from list by plane.gmane.org with local (Exim 4.69)
+	(envelope-from <glkm-linux-mm-2@m.gmane.org>)
+	id 1StDqL-0008MM-4j
+	for linux-mm@kvack.org; Mon, 23 Jul 2012 10:18:17 +0200
+Received: from 112.132.186.225 ([112.132.186.225])
+        by main.gmane.org with esmtp (Gmexim 0.1 (Debian))
+        id 1AlnuQ-0007hv-00
+        for <linux-mm@kvack.org>; Mon, 23 Jul 2012 10:18:17 +0200
+Received: from xiyou.wangcong by 112.132.186.225 with local (Gmexim 0.1 (Debian))
+        id 1AlnuQ-0007hv-00
+        for <linux-mm@kvack.org>; Mon, 23 Jul 2012 10:18:17 +0200
+From: Cong Wang <xiyou.wangcong@gmail.com>
+Subject: Re: [PATCH RESEND v4 1/3] mm/sparse: optimize sparse_index_alloc
+Date: Mon, 23 Jul 2012 08:18:04 +0000 (UTC)
+Message-ID: <juj1bs$qh3$1@dough.gmane.org>
+References: <1343010702-28720-1-git-send-email-shangw@linux.vnet.ibm.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Shuah Khan <shuah.khan@hp.com>, js1304@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, shuahkhan@gmail.com
+To: linux-mm@kvack.org
 
-On 07/17/2012 07:11 PM, Christoph Lameter wrote:
-> On Tue, 17 Jul 2012, Pekka Enberg wrote:
-> 
->> Well, even SLUB checks for !name in mainline so that's definitely
->> worth including unconditionally. Furthermore, the size related checks
->> certainly make sense and I don't see any harm in having them as well.
-> 
-> There is a WARN_ON() there and then it returns NULL!!! Crazy. Causes a
-> NULL pointer dereference later in the caller?
-> 
+On Mon, 23 Jul 2012 at 02:31 GMT, Gavin Shan <shangw@linux.vnet.ibm.com> wrote:
+> With CONFIG_SPARSEMEM_EXTREME, the two level of memory section
+> descriptors are allocated from slab or bootmem. When allocating
+> from slab, let slab/bootmem allocator to clear the memory chunk.
+> We needn't clear that explicitly.
+>
+> Signed-off-by: Gavin Shan <shangw@linux.vnet.ibm.com>
+> Reviewed-by: Michal Hocko <mhocko@suse.cz>
+> Acked-by: David Rientjes <rientjes@google.com>
 
-It obviously depends on the caller.
-Although most of the calls to kmem_cache_create are made from static
-data, we can't assume that. Of course whoever is using static data
-should do those very same tests from the outside to be safe, but in case
-they do not, this seems to fall in the category of things that make
-debugging easier - even if we later on get to a NULL pointer dereference.
+Reviewed-by: Cong Wang <xiyou.wangcong@gmail.com>
 
-Your mentioned bias towards minimum code size, however, is totally
-valid, IMHO. But I doubt those checks would introduce a huge footprint.
-I would imagine you being much more concerned about being able to wipe
-out entire subsystems like memcg, which will give you a lot more.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
