@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
-	by kanga.kvack.org (Postfix) with SMTP id 7D5D76B0062
-	for <linux-mm@kvack.org>; Mon, 23 Jul 2012 17:19:07 -0400 (EDT)
-Date: Mon, 23 Jul 2012 22:19:01 +0100
+Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
+	by kanga.kvack.org (Postfix) with SMTP id 1371E6B005D
+	for <linux-mm@kvack.org>; Mon, 23 Jul 2012 17:20:08 -0400 (EDT)
+Date: Mon, 23 Jul 2012 22:20:03 +0100
 From: Mel Gorman <mgorman@suse.de>
-Subject: [MMTests] memcachetest and parallel IO on xfs
-Message-ID: <20120723211901.GE9222@suse.de>
+Subject: [MMTests] Stress high-order allocations on ext3
+Message-ID: <20120723212003.GF9222@suse.de>
 References: <20120620113252.GE4011@suse.de>
  <20120629111932.GA14154@suse.de>
 MIME-Version: 1.0
@@ -17,92 +17,83 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: linux-kernel@vger.kernel.org
 
-Configuration:	global-dhp__parallelio-memcachetest-xfs
-Result: 	http://www.csn.ul.ie/~mel/postings/mmtests-20120424/global-dhp__parallelio-memcachetest-xfs
-Benchmarks:	parallelio
+Configuration:	global-dhp__stress-highalloc-performance-ext3
+Result: 	http://www.csn.ul.ie/~mel/postings/mmtests-20120424/global-dhp__stress-highalloc-performance-ext3
+Benchmarks:	kernbench vmr-stream sysbench stress-highalloc
 
 Summary
 =======
 
-Indications are that there was a large regression in page reclaim decisions
-between 2.6.39 and 3.0 as swapping increased a lot.
+Allocation success rates of huge pages were looking great until 3.4 when
+they dropped through the floor.
 
 Benchmark notes
 ===============
 
-This is an experimental benchmark designed to measure the impact of
-background IO on a target workload.
+All machines were booted with mem=4096M due to limitations of the test
 
-mkfs was run on system startup.
-mkfs parameters -f -d agcount=8
-mount options inode64,delaylog,logbsize=262144,nobarrier for the most part.
-        On kernels to old to support delaylog was removed. On kernels
-        where it was the default, it was specified and the warning ignored.
+This is an old series of benchmarks that stressed anti-fragmentation
+and the allocation of huge pages. It is being replaced with other series
+of tests which will be more representative but it still produces some
+interesting results. I tend to use these results as an early warning
+system before doing a more detailed series of tests.
 
-The target workload in this case is memcached and memcachetest. This is a
-benchmark of memcached and the workload is mostly anonymous.  The benchmark
-was chosen as it was a random client that is considered a valid benchmark
-for memcache and does not consume much memory in the client.  The server
-was configured to use 80% of memory.
-
-In the background, dd is used to generate IO of varying sizes. As the sizes
-increase, memory pressure may push the target workload out of memory. The
-benchmark is meant to measure how much the target workload is affected
-and may be used as a proxy measure for page reclaim decisions.
-
-Unlike other benchmarks, only the run with the worst throughput is displayed.
-This benchmark varies quite a bit depending on the reference pattern from
-the client. This hides the interesting result in the noise so we only
-consider the worst case.
+Only the results from the stress-highalloc benchmark are actually of
+interest and the other benchmarks are just there to age the machine
+in terms of fragmentation.
 
 ===========================================================
 Machine:	arnold
-Result:		http://www.csn.ul.ie/~mel/postings/mmtests-20120424/global-dhp__parallelio-memcachetest-xfs/arnold/comparison.html
+Result:		http://www.csn.ul.ie/~mel/postings/mmtests-20120424/global-dhp__stress-highalloc-performance-ext3/arnold/comparison.html
 Arch:		x86
 CPUs:		1 socket, 2 threads
 Model:		Pentium 4
 Disk:		Single Rotary Disk
 ===========================================================
 
-parallelio-memcachetest
------------------------
+stress-highalloc
+----------------
 
-  Even for small amounts of background IO the memcached process is being
-  pushed into swap for 3.3 and 3.4 although earlier kernels fared better.
-  There are indications that there was a serious regression between 2.6.39
-  and 3.0 as throughput dropped for larger amounts of IO and swapping was
-  high.
+Generally this is going in the right direction. High-order allocations
+are reasonably successful and where they drop, they have been matched
+by a large reduction in the length of time it takes to complete the test.
+Success rates in 3.4 did drop sharply though.
 
-  The "page reclaim immediate" figures started increasing from 3.2 implying
-  that a lot of dirty LRU pages are reaching the end of the LRU lists.
 
 ==========================================================
 Machine:	hydra
-Result:		http://www.csn.ul.ie/~mel/postings/mmtests-20120424/global-dhp__parallelio-memcachetest-xfs/hydra/comparison.html
+Result:		http://www.csn.ul.ie/~mel/postings/mmtests-20120424/global-dhp__stress-highalloc-performance-ext3/hydra/comparison.html
 Arch:		x86-64
 CPUs:		1 socket, 4 threads
 Model:		AMD Phenom II X4 940
 Disk:		Single Rotary Disk
 ==========================================================
 
-parallelio-memcachetest
------------------------
+stress-highalloc
+----------------
 
-  Performance again dropped sharply betwen 2.6.39 and 3.0 with huge jumps
-  in the amount of swap IO.
+Until 3.4, this was looking good. Unfortunately in 3.4 there was a massive
+drop in success rates. This correlates with the removal of lumpy reclaim
+which compaction indirectly depended upon. This strongly indicates that
+enough memory is not being reclaimed for compaction to make forward
+progress or compaction is being disabled routinely due to failed attempts
+at compaction.
 
-  As with arnold, dirty pages are reaching the end of the LRU list.
+The success rates at the end of the test when the machine is idle are 
+still high implying that anti-fragmentation itself is still working
+as expected.
 
 ==========================================================
 Machine:	sandy
-Result:		http://www.csn.ul.ie/~mel/postings/mmtests-20120424/global-dhp__parallelio-memcachetest-xfs/sandy/comparison.html
+Result:		http://www.csn.ul.ie/~mel/postings/mmtests-20120424/global-dhp__stress-highalloc-performance-ext3/sandy/comparison.html
 Arch:		x86-64
 CPUs:		1 socket, 8 threads
 Model:		Intel Core i7-2600
 Disk:		Single Rotary Disk
 ==========================================================
 
-  No results available.
+Same as hydra, this was looking good until 3.4 and then success rates dropped
+through the floor.
 
 -- 
 Mel Gorman
