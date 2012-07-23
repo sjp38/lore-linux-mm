@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx144.postini.com [74.125.245.144])
-	by kanga.kvack.org (Postfix) with SMTP id A4A4A6B004D
-	for <linux-mm@kvack.org>; Mon, 23 Jul 2012 17:13:43 -0400 (EDT)
-Date: Mon, 23 Jul 2012 22:13:34 +0100
+Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
+	by kanga.kvack.org (Postfix) with SMTP id 1C8B96B005A
+	for <linux-mm@kvack.org>; Mon, 23 Jul 2012 17:14:49 -0400 (EDT)
+Date: Mon, 23 Jul 2012 22:14:44 +0100
 From: Mel Gorman <mgorman@suse.de>
-Subject: [MMTests] Sysbench read-only on ext3
-Message-ID: <20120723211334.GA9222@suse.de>
+Subject: [MMTests] Sysbench read-only on ext4
+Message-ID: <20120723211444.GB9222@suse.de>
 References: <20120620113252.GE4011@suse.de>
  <20120629111932.GA14154@suse.de>
 MIME-Version: 1.0
@@ -17,14 +17,14 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: linux-kernel@vger.kernel.org
 
-Configuration:	global-dhp__io-sysbench-large-ro-ext3
-Result: 	http://www.csn.ul.ie/~mel/postings/mmtests-20120424/global-dhp__io-sysbench-large-ro-ext3
+Configuration:	global-dhp__io-sysbench-large-ro-ext4
+Result: 	http://www.csn.ul.ie/~mel/postings/mmtests-20120424/global-dhp__io-sysbench-large-ro-ext4
 Benchmarks:	sysbench
 
 Summary
 =======
 
-Very large number of regressions.
+Looking better in places than ext3 but still of concern.
 
 Benchmark notes
 ===============
@@ -42,7 +42,7 @@ The backing database was postgres.
 
 ===========================================================
 Machine:	arnold
-Result:		http://www.csn.ul.ie/~mel/postings/mmtests-20120424/global-dhp__io-sysbench-large-ro-ext3/arnold/comparison.html
+Result:		http://www.csn.ul.ie/~mel/postings/mmtests-20120424/global-dhp__io-sysbench-large-ro-ext4/arnold/comparison.html
 Arch:		x86
 CPUs:		1 socket, 2 threads
 Model:		Pentium 4
@@ -51,15 +51,13 @@ Disk:		Single Rotary Disk
 
 sysbench
 --------
-  Oddly two clients is better but 1 or 4 is worse. 
+  Generally regresssed.
 
-  Swapping for kernels 3.1 and 3.2 is crazy. Direct reclaim started since
-  2.6.39 and has not eased off but in the context of the overall test is
-  very low.
+  Swapping for kernels 3.1 and 3.2 is very high.
 
 ==========================================================
 Machine:	hydra
-Result:		http://www.csn.ul.ie/~mel/postings/mmtests-20120424/global-dhp__io-sysbench-large-ro-ext3/hydra/comparison.html
+Result:		http://www.csn.ul.ie/~mel/postings/mmtests-20120424/global-dhp__io-sysbench-large-ro-ext4/hydra/comparison.html
 Arch:		x86-64
 CPUs:		1 socket, 4 threads
 Model:		AMD Phenom II X4 940
@@ -69,14 +67,13 @@ Status:		Ok
 
 sysbench
 --------
-  There are a lot of regressions here that were mostly introduced between
-  2.6.39 and 3.0. In general, this is looking bad.
+  For low number of clients, this has generally improved.
 
-  Swapping in kernel 3.1 was higher.
+  Swapping in kernel 3.1 was high.
 
 ==========================================================
 Machine:	sandy
-Result:		http://www.csn.ul.ie/~mel/postings/mmtests-20120424/global-dhp__io-sysbench-large-ro-ext3/sandy/comparison.html
+Result:		http://www.csn.ul.ie/~mel/postings/mmtests-20120424/global-dhp__io-sysbench-large-ro-ext4/sandy/comparison.html
 Arch:		x86-64
 CPUs:		1 socket, 8 threads
 Model:		Intel Core i7-2600
