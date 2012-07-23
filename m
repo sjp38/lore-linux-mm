@@ -1,130 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx144.postini.com [74.125.245.144])
-	by kanga.kvack.org (Postfix) with SMTP id 3C6706B005A
-	for <linux-mm@kvack.org>; Mon, 23 Jul 2012 05:03:15 -0400 (EDT)
-Message-ID: <500D1474.9070708@cn.fujitsu.com>
-Date: Mon, 23 Jul 2012 17:08:04 +0800
+Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
+	by kanga.kvack.org (Postfix) with SMTP id 032ED6B005A
+	for <linux-mm@kvack.org>; Mon, 23 Jul 2012 05:06:13 -0400 (EDT)
+Message-ID: <500D1527.7070405@cn.fujitsu.com>
+Date: Mon, 23 Jul 2012 17:11:03 +0800
 From: Wen Congyang <wency@cn.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [RFC PATCH] memory-hotplug: Add memblock_state notifier
-References: <1342783088-29970-1-git-send-email-vasilis.liaskovitis@profitbricks.com>
-In-Reply-To: <1342783088-29970-1-git-send-email-vasilis.liaskovitis@profitbricks.com>
+Subject: Re: [RFC PATCH 0/8] memory-hotplug : hot-remove physical memory(clear
+ page table)
+References: <5009038A.4090001@cn.fujitsu.com> <5009094B.3090506@jp.fujitsu.com>
+In-Reply-To: <5009094B.3090506@jp.fujitsu.com>
 Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>, isimatu.yasuaki@jp.fujitsu.com
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-acpi@vger.kernel.org
+To: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com
 
-At 07/20/2012 07:18 PM, Vasilis Liaskovitis Wrote:
-> hot-remove initiated by acpi_memhotplug driver tries to offline pages and then
-> remove section/sysfs files in remove_memory(). remove_memory() will only proceed
-> if is_memblk_offline() returns true, i.e. only if the corresponding memblock
-> is in MEM_OFFLINE state. However, the memblock state is currently only updated
-> if the offlining has been initiated from the sysfs interface (echo offline >
-> /sys/devices/system/memory/memoryXX/state). The acpi hot-remove codepath does
-> not use the sysfs interface but directly calls offline_pages. So remove_memory()
-> will always fail, even if offline_pages has succeeded.
-
-Thank you for pointing this problem.
-
+At 07/20/2012 03:31 PM, Yasuaki Ishimatsu Wrote:
+> [Hi Wen,
 > 
-> This patch solves this by registering a memblock_state notifier function in the
-> memory_notify chain. This will change state of memblocks independently of sysfs
-> usage.
+> Good news!! I was waiting for this patch to come.
+> Applying the patches, can we hot-remove physical memory completely?
 
-I think this patch does not solve this problem.
-
-> 
-> The patch is based on work-in-progress patches for memory hot-remove, see:
-> http://lwn.net/Articles/507244/
-> 
-> Signed-off-by: Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>
-> ---
->  drivers/base/memory.c |   37 +++++++++++++++++++++++++++++++++++++
->  1 files changed, 37 insertions(+), 0 deletions(-)
-> 
-> diff --git a/drivers/base/memory.c b/drivers/base/memory.c
-> index 8981568..4095f3f 100644
-> --- a/drivers/base/memory.c
-> +++ b/drivers/base/memory.c
-> @@ -706,6 +706,42 @@ int unregister_memory_section(struct mem_section *section)
->  	return remove_memory_block(0, section, 0);
->  }
->  
-> +static int memblock_state_notifier_nb(struct notifier_block *nb, unsigned long
-> +		val, void *v)
-> +{
-> +	struct memory_notify *arg = (struct memory_notify *)v;
-> +	struct memory_block *mem = NULL;
-> +	struct mem_section *ms;
-> +	unsigned long section_nr;
-> +
-> +	section_nr = pfn_to_section_nr(arg->start_pfn);
-> +	ms = __nr_to_section(section_nr);
-> +	mem = find_memory_block(ms);
-> +	if (!mem)
-> +		goto out;
-
-we may offline more than one memory block.
-
-> +
-> +	switch (val) {
-> +	case MEM_GOING_OFFLINE:
-> +	case MEM_OFFLINE:
-> +	case MEM_GOING_ONLINE:
-> +	case MEM_ONLINE:
-> +	case MEM_CANCEL_ONLINE:
-> +	case MEM_CANCEL_OFFLINE:
-> +		mem->state = val;
-
-mem->state is protected by the lock mem->state_mutex, so if you want to
-update the state, you must lock mem->state_mutex. But you cannot lock it
-here, because it may cause deadlock:
-
-acpi_memhotplug                           sysfs interface
-===============================================================================
-                                          memory_block_change_state()
-                                              lock mem->state_mutex
-                                              memory_block_action()
-offline_pages()
-    lock_memory_hotplug()
-                                                  offline_memory()
-                                                      lock_memory_hotplug() // block
-    memory_notify()
-        memblock_state_notifier_nb()
-===============================================================================
-
-I'm writing another patch to fix it.
+If all functions success, I guess so.
 
 Thanks
 Wen Congyang
 
-> +		break;
-> +	default:
-> +		printk(KERN_WARNING "invalid memblock state\n");
-> +		break;
-> +	}
-> +out:
-> +	return NOTIFY_OK;
-> +}
-> +
-> +static struct notifier_block memblock_state_nb = {
-> +	.notifier_call = memblock_state_notifier_nb,
-> +	.priority = 0
-> +};
-> +
->  /*
->   * Initialize the sysfs support for memory devices...
->   */
-> @@ -724,6 +760,7 @@ int __init memory_dev_init(void)
->  	block_sz = get_memory_block_size();
->  	sections_per_block = block_sz / MIN_MEMORY_BLOCK_SIZE;
->  
-> +	register_memory_notifier(&memblock_state_nb);
->  	/*
->  	 * Create entries for memory sections that were found
->  	 * during boot and have been initialized
+> 
+> Thanks,
+> Yasuaki Ishimatsu
+> 
+> 2012/07/20 16:06, Wen Congyang wrote:
+>> This patch series aims to support physical memory hot-remove(clear
+>> page table).
+>>
+>> This patch series base on ishimatsu's patch series. You can get it here:
+>> http://www.spinics.net/lists/linux-acpi/msg36804.html
+>>
+>> The patches can remove following things:
+>>    - page table of removed memory
+>>
+>> If you find lack of function for physical memory hot-remove, please
+>> let me
+>> know.
+>>
+>> Note:
+>> * The patch "remove memory info from list before freeing it" is being
+>> disccussed
+>>    in other thread. But for testing the patch series, the patch is
+>> needed.
+>>    So I added the patch as [PATCH 0/8].
+>> * You need to apply ishimatsu's patch series first before applying
+>> this patch
+>>    series.
+>>
+>> Wen Congyang (8):
+>>    memory-hotplug: store the node id in acpi_memory_device
+>>    memory-hotplug: offline memory only when it is onlined
+>>    memory-hotplug: call remove_memory() to cleanup when removing memory
+>>      device
+>>    memory-hotplug: export the function acpi_bus_remove()
+>>    memory-hotplug: call acpi_bus_remove() to remove memory device
+>>    memory-hotplug: introduce new function arch_remove_memory()
+>>    x86: make __split_large_page() generally avialable
+>>    memory-hotplug: implement arch_remove_memory()
+>>
+>>   arch/ia64/mm/init.c                  |   16 ++++
+>>   arch/powerpc/mm/mem.c                |   14 +++
+>>   arch/s390/mm/init.c                  |    8 ++
+>>   arch/sh/mm/init.c                    |   15 +++
+>>   arch/tile/mm/init.c                  |    8 ++
+>>   arch/x86/include/asm/pgtable_types.h |    1 +
+>>   arch/x86/mm/init_32.c                |   10 ++
+>>   arch/x86/mm/init_64.c                |  160
+>> ++++++++++++++++++++++++++++++++++
+>>   arch/x86/mm/pageattr.c               |   47 +++++-----
+>>   drivers/acpi/acpi_memhotplug.c       |   24 ++++--
+>>   drivers/acpi/scan.c                  |    3 +-
+>>   include/acpi/acpi_bus.h              |    1 +
+>>   include/linux/memory_hotplug.h       |    1 +
+>>   mm/memory_hotplug.c                  |    2 +-
+>>   14 files changed, 280 insertions(+), 30 deletions(-)
+>>
+> 
+> 
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
