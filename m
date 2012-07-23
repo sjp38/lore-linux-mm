@@ -1,87 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
-	by kanga.kvack.org (Postfix) with SMTP id 498296B006C
-	for <linux-mm@kvack.org>; Sun, 22 Jul 2012 20:47:53 -0400 (EDT)
-From: Minchan Kim <minchan@kernel.org>
-Subject: [RESEND RFC 3/3] memory-hotplug: bug fix race between isolation and allocation
-Date: Mon, 23 Jul 2012 09:48:02 +0900
-Message-Id: <1343004482-6916-4-git-send-email-minchan@kernel.org>
-In-Reply-To: <1343004482-6916-1-git-send-email-minchan@kernel.org>
-References: <1343004482-6916-1-git-send-email-minchan@kernel.org>
+Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
+	by kanga.kvack.org (Postfix) with SMTP id 86CC26B005A
+	for <linux-mm@kvack.org>; Sun, 22 Jul 2012 21:45:38 -0400 (EDT)
+Received: from /spool/local
+	by e28smtp02.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
+	Mon, 23 Jul 2012 07:15:33 +0530
+Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
+	by d28relay01.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q6N1jTpP28901598
+	for <linux-mm@kvack.org>; Mon, 23 Jul 2012 07:15:29 +0530
+Received: from d28av05.in.ibm.com (loopback [127.0.0.1])
+	by d28av05.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q6N1jSLn030529
+	for <linux-mm@kvack.org>; Mon, 23 Jul 2012 11:45:28 +1000
+From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Subject: [PATCH v2] memcg: add mem_cgroup_from_css() helper
+Date: Mon, 23 Jul 2012 09:44:23 +0800
+Message-Id: <1343007863-18144-1-git-send-email-liwanp@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, lliubbo@gmail.com, Minchan Kim <minchan@kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Fengguang Wu <fengguang.wu@intel.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, linux-mm@kvack.org, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWAHiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Gavin Shan <shangw@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>
 
-Like below, memory-hotplug makes race between page-isolation
-and page-allocation so it can hit BUG_ON in __offline_isolated_pages.
+Changelog v2:
+* fix too many args to mem_cgroup_from_css() (spotted by Kirill A. Shutemov)
+* fix kernel build failed (spotted by Fengguang)
 
-	CPU A					CPU B
+Add a mem_cgroup_from_css() helper to replace open-coded invokations of
+container_of().  To clarify the code and to add a little more type safety.
 
-start_isolate_page_range
-set_migratetype_isolate
-spin_lock_irqsave(zone->lock)
+Acked-by: Michal Hocko <mhocko@suse.cz>
+Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 
-				free_hot_cold_page(Page A)
-				/* without zone->lock */
-				migratetype = get_pageblock_migratetype(Page A);
-				/*
-				 * Page could be moved into MIGRATE_MOVABLE
-				 * of per_cpu_pages
-				 */
-				list_add_tail(&page->lru, &pcp->lists[migratetype]);
-
-set_pageblock_isolate
-move_freepages_block
-drain_all_pages
-
-				/* Page A could be in MIGRATE_MOVABLE of free_list. */
-
-check_pages_isolated
-__test_page_isolated_in_pageblock
-/*
- * We can't catch freed page which
- * is free_list[MIGRATE_MOVABLE]
- */
-if (PageBuddy(page A))
-	pfn += 1 << page_order(page A);
-
-				/* So, Page A could be allocated */
-
-__offline_isolated_pages
-/*
- * BUG_ON hit or offline page
- * which is used by someone
- */
-BUG_ON(!PageBuddy(page A));
-
-Signed-off-by: Minchan Kim <minchan@kernel.org>
 ---
-I found this problem during code review so please confirm it.
-Kame?
+ mm/memcontrol.c |   19 +++++++++++--------
+ 1 files changed, 11 insertions(+), 8 deletions(-)
 
- mm/page_isolation.c |    5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
-
-diff --git a/mm/page_isolation.c b/mm/page_isolation.c
-index acf65a7..4699d1f 100644
---- a/mm/page_isolation.c
-+++ b/mm/page_isolation.c
-@@ -196,8 +196,11 @@ __test_page_isolated_in_pageblock(unsigned long pfn, unsigned long end_pfn)
- 			continue;
- 		}
- 		page = pfn_to_page(pfn);
--		if (PageBuddy(page))
-+		if (PageBuddy(page)) {
-+			if (get_page_migratetype(page) != MIGRATE_ISOLATE)
-+				break;
- 			pfn += 1 << page_order(page);
-+		}
- 		else if (page_count(page) == 0 &&
- 				get_page_migratetype(page) == MIGRATE_ISOLATE)
- 			pfn += 1;
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 883283d..f0c7639 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -407,6 +407,12 @@ enum charge_type {
+ static void mem_cgroup_get(struct mem_cgroup *memcg);
+ static void mem_cgroup_put(struct mem_cgroup *memcg);
+ 
++static inline 
++struct mem_cgroup *mem_cgroup_from_css(struct cgroup_subsys_state *s)
++{
++	return container_of(s, struct mem_cgroup, css);
++}
++
+ /* Writing them here to avoid exposing memcg's inner layout */
+ #ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM
+ #include <net/sock.h>
+@@ -864,9 +870,8 @@ static void memcg_check_events(struct mem_cgroup *memcg, struct page *page)
+ 
+ struct mem_cgroup *mem_cgroup_from_cont(struct cgroup *cont)
+ {
+-	return container_of(cgroup_subsys_state(cont,
+-				mem_cgroup_subsys_id), struct mem_cgroup,
+-				css);
++	return mem_cgroup_from_css(cgroup_subsys_state(cont,
++				mem_cgroup_subsys_id));
+ }
+ 
+ struct mem_cgroup *mem_cgroup_from_task(struct task_struct *p)
+@@ -879,8 +884,7 @@ struct mem_cgroup *mem_cgroup_from_task(struct task_struct *p)
+ 	if (unlikely(!p))
+ 		return NULL;
+ 
+-	return container_of(task_subsys_state(p, mem_cgroup_subsys_id),
+-				struct mem_cgroup, css);
++	return mem_cgroup_from_css(task_subsys_state(p, mem_cgroup_subsys_id));
+ }
+ 
+ struct mem_cgroup *try_get_mem_cgroup_from_mm(struct mm_struct *mm)
+@@ -966,8 +970,7 @@ struct mem_cgroup *mem_cgroup_iter(struct mem_cgroup *root,
+ 		css = css_get_next(&mem_cgroup_subsys, id + 1, &root->css, &id);
+ 		if (css) {
+ 			if (css == &root->css || css_tryget(css))
+-				memcg = container_of(css,
+-						     struct mem_cgroup, css);
++				memcg = mem_cgroup_from_css(css);
+ 		} else
+ 			id = 0;
+ 		rcu_read_unlock();
+@@ -2429,7 +2432,7 @@ static struct mem_cgroup *mem_cgroup_lookup(unsigned short id)
+ 	css = css_lookup(&mem_cgroup_subsys, id);
+ 	if (!css)
+ 		return NULL;
+-	return container_of(css, struct mem_cgroup, css);
++	return mem_cgroup_from_css(css);
+ }
+ 
+ struct mem_cgroup *try_get_mem_cgroup_from_page(struct page *page)
 -- 
-1.7.9.5
+1.7.7.6
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
