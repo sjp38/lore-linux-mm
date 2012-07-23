@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx101.postini.com [74.125.245.101])
-	by kanga.kvack.org (Postfix) with SMTP id 6E5A66B0062
-	for <linux-mm@kvack.org>; Mon, 23 Jul 2012 09:38:51 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
+	by kanga.kvack.org (Postfix) with SMTP id A2C176B0044
+	for <linux-mm@kvack.org>; Mon, 23 Jul 2012 09:38:52 -0400 (EDT)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 02/34] mm: memory hotplug: Check if pages are correctly reserved on a per-section basis
-Date: Mon, 23 Jul 2012 14:38:15 +0100
-Message-Id: <1343050727-3045-3-git-send-email-mgorman@suse.de>
+Subject: [PATCH 04/34] mm: vmscan: fix force-scanning small targets without swap
+Date: Mon, 23 Jul 2012 14:38:17 +0100
+Message-Id: <1343050727-3045-5-git-send-email-mgorman@suse.de>
 In-Reply-To: <1343050727-3045-1-git-send-email-mgorman@suse.de>
 References: <1343050727-3045-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -13,117 +13,87 @@ List-ID: <linux-mm.kvack.org>
 To: Stable <stable@vger.kernel.org>
 Cc: Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
 
-commit 2bbcb8788311a40714b585fc11b51da6ffa2ab92 upstream.
+From: Johannes Weiner <jweiner@redhat.com>
 
-Stable note: Fixes https://bugzilla.novell.com/show_bug.cgi?id=721039 .
-	Without the patch, memory hot-add can fail for kernel configurations
-	that do not set CONFIG_SPARSEMEM_VMEMMAP.
+commit a4d3e9e76337059406fcf3ead288c0df22a790e9 upstream.
 
-It is expected that memory being brought online is PageReserved
-similar to what happens when the page allocator is being brought up.
-Memory is onlined in "memory blocks" which consist of one or more
-sections. Unfortunately, the code that verifies PageReserved is
-currently assuming that the memmap backing all these pages is virtually
-contiguous which is only the case when CONFIG_SPARSEMEM_VMEMMAP is set.
+Stable note: Not tracked in Bugzilla. This patch augments an earlier commit
+	that avoids scanning priority being artificially raised. The older
+	fix was particularly important for small memcgs to avoid calling
+	wait_iff_congested() unnecessarily.
 
-This patch updates the PageReserved check to lookup struct page once per
-section to guarantee the correct struct page is being checked.
+Without swap, anonymous pages are not scanned.  As such, they should not
+count when considering force-scanning a small target if there is no swap.
 
-[Check pages within sections properly: rientjes@google.com]
-[original patch by: nfont@linux.vnet.ibm.com]
-Signed-off-by: Mel Gorman <mgorman@suse.de>
+Otherwise, targets are not force-scanned even when their effective scan
+number is zero and the other conditions--kswapd/memcg--apply.
+
+This fixes 246e87a93934 ("memcg: fix get_scan_count() for small
+targets").
+
+[akpm@linux-foundation.org: fix comment]
+Signed-off-by: Johannes Weiner <jweiner@redhat.com>
 Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Tested-by: Nathan Fontenot <nfont@linux.vnet.ibm.com>
-Signed-off-by: Greg Kroah-Hartman <gregkh@suse.de>
+Reviewed-by: Michal Hocko <mhocko@suse.cz>
+Cc: Ying Han <yinghan@google.com>
+Cc: Balbir Singh <bsingharora@gmail.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Acked-by: Mel Gorman <mel@csn.ul.ie>
+Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
+Signed-off-by: Mel Gorman <mgorman@suse.de>
 ---
- drivers/base/memory.c |   58 ++++++++++++++++++++++++++++++++++---------------
- 1 file changed, 40 insertions(+), 18 deletions(-)
+ mm/vmscan.c |   27 ++++++++++++---------------
+ 1 file changed, 12 insertions(+), 15 deletions(-)
 
-diff --git a/drivers/base/memory.c b/drivers/base/memory.c
-index 45d7c8f..5fb6aae 100644
---- a/drivers/base/memory.c
-+++ b/drivers/base/memory.c
-@@ -224,13 +224,48 @@ int memory_isolate_notify(unsigned long val, void *v)
- }
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 769935d..bdfdec3 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -1747,23 +1747,15 @@ static void get_scan_count(struct zone *zone, struct scan_control *sc,
+ 	u64 fraction[2], denominator;
+ 	enum lru_list l;
+ 	int noswap = 0;
+-	int force_scan = 0;
++	bool force_scan = false;
+ 	unsigned long nr_force_scan[2];
  
- /*
-+ * The probe routines leave the pages reserved, just as the bootmem code does.
-+ * Make sure they're still that way.
-+ */
-+static bool pages_correctly_reserved(unsigned long start_pfn,
-+					unsigned long nr_pages)
-+{
-+	int i, j;
-+	struct page *page;
-+	unsigned long pfn = start_pfn;
-+
-+	/*
-+	 * memmap between sections is not contiguous except with
-+	 * SPARSEMEM_VMEMMAP. We lookup the page once per section
-+	 * and assume memmap is contiguous within each section
-+	 */
-+	for (i = 0; i < sections_per_block; i++, pfn += PAGES_PER_SECTION) {
-+		if (WARN_ON_ONCE(!pfn_valid(pfn)))
-+			return false;
-+		page = pfn_to_page(pfn);
-+
-+		for (j = 0; j < PAGES_PER_SECTION; j++) {
-+			if (PageReserved(page + j))
-+				continue;
-+
-+			printk(KERN_WARNING "section number %ld page number %d "
-+				"not reserved, was it already online?\n",
-+				pfn_to_section_nr(pfn), j);
-+
-+			return false;
-+		}
-+	}
-+
-+	return true;
-+}
-+
-+/*
-  * MEMORY_HOTPLUG depends on SPARSEMEM in mm/Kconfig, so it is
-  * OK to have direct references to sparsemem variables in here.
-  */
- static int
- memory_block_action(unsigned long phys_index, unsigned long action)
- {
--	int i;
- 	unsigned long start_pfn, start_paddr;
- 	unsigned long nr_pages = PAGES_PER_SECTION * sections_per_block;
- 	struct page *first_page;
-@@ -238,26 +273,13 @@ memory_block_action(unsigned long phys_index, unsigned long action)
- 
- 	first_page = pfn_to_page(phys_index << PFN_SECTION_SHIFT);
- 
--	/*
--	 * The probe routines leave the pages reserved, just
--	 * as the bootmem code does.  Make sure they're still
--	 * that way.
--	 */
--	if (action == MEM_ONLINE) {
--		for (i = 0; i < nr_pages; i++) {
--			if (PageReserved(first_page+i))
--				continue;
 -
--			printk(KERN_WARNING "section number %ld page number %d "
--				"not reserved, was it already online?\n",
--				phys_index, i);
--			return -EBUSY;
--		}
+-	anon  = zone_nr_lru_pages(zone, sc, LRU_ACTIVE_ANON) +
+-		zone_nr_lru_pages(zone, sc, LRU_INACTIVE_ANON);
+-	file  = zone_nr_lru_pages(zone, sc, LRU_ACTIVE_FILE) +
+-		zone_nr_lru_pages(zone, sc, LRU_INACTIVE_FILE);
+-
+-	if (((anon + file) >> priority) < SWAP_CLUSTER_MAX) {
+-		/* kswapd does zone balancing and need to scan this zone */
+-		if (scanning_global_lru(sc) && current_is_kswapd())
+-			force_scan = 1;
+-		/* memcg may have small limit and need to avoid priority drop */
+-		if (!scanning_global_lru(sc))
+-			force_scan = 1;
 -	}
--
- 	switch (action) {
- 		case MEM_ONLINE:
- 			start_pfn = page_to_pfn(first_page);
++	/* kswapd does zone balancing and needs to scan this zone */
++	if (scanning_global_lru(sc) && current_is_kswapd())
++		force_scan = true;
++	/* memcg may have small limit and need to avoid priority drop */
++	if (!scanning_global_lru(sc))
++		force_scan = true;
+ 
+ 	/* If we have no swap space, do not bother scanning anon pages. */
+ 	if (!sc->may_swap || (nr_swap_pages <= 0)) {
+@@ -1776,6 +1768,11 @@ static void get_scan_count(struct zone *zone, struct scan_control *sc,
+ 		goto out;
+ 	}
+ 
++	anon  = zone_nr_lru_pages(zone, sc, LRU_ACTIVE_ANON) +
++		zone_nr_lru_pages(zone, sc, LRU_INACTIVE_ANON);
++	file  = zone_nr_lru_pages(zone, sc, LRU_ACTIVE_FILE) +
++		zone_nr_lru_pages(zone, sc, LRU_INACTIVE_FILE);
 +
-+			if (!pages_correctly_reserved(start_pfn, nr_pages))
-+				return -EBUSY;
-+
- 			ret = online_pages(start_pfn, nr_pages);
- 			break;
- 		case MEM_OFFLINE:
+ 	if (scanning_global_lru(sc)) {
+ 		free  = zone_page_state(zone, NR_FREE_PAGES);
+ 		/* If we have very few page cache pages,
 -- 
 1.7.9.2
 
