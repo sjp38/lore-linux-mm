@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
-	by kanga.kvack.org (Postfix) with SMTP id A2C176B0044
+Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
+	by kanga.kvack.org (Postfix) with SMTP id 3C6A86B005A
 	for <linux-mm@kvack.org>; Mon, 23 Jul 2012 09:38:52 -0400 (EDT)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 04/34] mm: vmscan: fix force-scanning small targets without swap
-Date: Mon, 23 Jul 2012 14:38:17 +0100
-Message-Id: <1343050727-3045-5-git-send-email-mgorman@suse.de>
+Subject: [PATCH 03/34] mm: Reduce the amount of work done when updating min_free_kbytes
+Date: Mon, 23 Jul 2012 14:38:16 +0100
+Message-Id: <1343050727-3045-4-git-send-email-mgorman@suse.de>
 In-Reply-To: <1343050727-3045-1-git-send-email-mgorman@suse.de>
 References: <1343050727-3045-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -13,87 +13,81 @@ List-ID: <linux-mm.kvack.org>
 To: Stable <stable@vger.kernel.org>
 Cc: Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
 
-From: Johannes Weiner <jweiner@redhat.com>
+commit 938929f14cb595f43cd1a4e63e22d36cab1e4a1f upstream.
 
-commit a4d3e9e76337059406fcf3ead288c0df22a790e9 upstream.
+Stable note: Fixes https://bugzilla.novell.com/show_bug.cgi?id=726210 .
+	Large machines with 1TB or more of RAM take a long time to boot
+	without this patch and may spew out soft lockup warnings.
 
-Stable note: Not tracked in Bugzilla. This patch augments an earlier commit
-	that avoids scanning priority being artificially raised. The older
-	fix was particularly important for small memcgs to avoid calling
-	wait_iff_congested() unnecessarily.
+When min_free_kbytes is updated blocks marked MIGRATE_RESERVE are
+updated. Ordinarily, this work is unnoticable as it happens early
+in boot. However, on large machines with 1TB of memory, this can take
+a considerable time when NUMA distances are taken into account. The bulk
+of the work is done by pageblock_is_reserved() which examines the
+metadata for almost every page in the system. Currently, we are doing
+this far more than necessary as it is only required while there are
+still blocks to be marked MIGRATE_RESERVE. This patch significantly
+reduces the amount of work done by setup_zone_migrate_reserve()
+improving boot times on 1TB machines.
 
-Without swap, anonymous pages are not scanned.  As such, they should not
-count when considering force-scanning a small target if there is no swap.
-
-Otherwise, targets are not force-scanned even when their effective scan
-number is zero and the other conditions--kswapd/memcg--apply.
-
-This fixes 246e87a93934 ("memcg: fix get_scan_count() for small
-targets").
-
-[akpm@linux-foundation.org: fix comment]
-Signed-off-by: Johannes Weiner <jweiner@redhat.com>
-Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Reviewed-by: Michal Hocko <mhocko@suse.cz>
-Cc: Ying Han <yinghan@google.com>
-Cc: Balbir Singh <bsingharora@gmail.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Acked-by: Mel Gorman <mel@csn.ul.ie>
+[akpm@linux-foundation.org: coding-style fixes]
+Signed-off-by: Mel Gorman <mgorman@suse.de>
 Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
 Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
 Signed-off-by: Mel Gorman <mgorman@suse.de>
 ---
- mm/vmscan.c |   27 ++++++++++++---------------
- 1 file changed, 12 insertions(+), 15 deletions(-)
+ mm/page_alloc.c |   35 +++++++++++++++++++----------------
+ 1 file changed, 19 insertions(+), 16 deletions(-)
 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 769935d..bdfdec3 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -1747,23 +1747,15 @@ static void get_scan_count(struct zone *zone, struct scan_control *sc,
- 	u64 fraction[2], denominator;
- 	enum lru_list l;
- 	int noswap = 0;
--	int force_scan = 0;
-+	bool force_scan = false;
- 	unsigned long nr_force_scan[2];
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 947a7e9..e568b80 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -3418,25 +3418,28 @@ static void setup_zone_migrate_reserve(struct zone *zone)
+ 		if (page_to_nid(page) != zone_to_nid(zone))
+ 			continue;
  
+-		/* Blocks with reserved pages will never free, skip them. */
+-		block_end_pfn = min(pfn + pageblock_nr_pages, end_pfn);
+-		if (pageblock_is_reserved(pfn, block_end_pfn))
+-			continue;
 -
--	anon  = zone_nr_lru_pages(zone, sc, LRU_ACTIVE_ANON) +
--		zone_nr_lru_pages(zone, sc, LRU_INACTIVE_ANON);
--	file  = zone_nr_lru_pages(zone, sc, LRU_ACTIVE_FILE) +
--		zone_nr_lru_pages(zone, sc, LRU_INACTIVE_FILE);
--
--	if (((anon + file) >> priority) < SWAP_CLUSTER_MAX) {
--		/* kswapd does zone balancing and need to scan this zone */
--		if (scanning_global_lru(sc) && current_is_kswapd())
--			force_scan = 1;
--		/* memcg may have small limit and need to avoid priority drop */
--		if (!scanning_global_lru(sc))
--			force_scan = 1;
--	}
-+	/* kswapd does zone balancing and needs to scan this zone */
-+	if (scanning_global_lru(sc) && current_is_kswapd())
-+		force_scan = true;
-+	/* memcg may have small limit and need to avoid priority drop */
-+	if (!scanning_global_lru(sc))
-+		force_scan = true;
+ 		block_migratetype = get_pageblock_migratetype(page);
  
- 	/* If we have no swap space, do not bother scanning anon pages. */
- 	if (!sc->may_swap || (nr_swap_pages <= 0)) {
-@@ -1776,6 +1768,11 @@ static void get_scan_count(struct zone *zone, struct scan_control *sc,
- 		goto out;
- 	}
+-		/* If this block is reserved, account for it */
+-		if (reserve > 0 && block_migratetype == MIGRATE_RESERVE) {
+-			reserve--;
+-			continue;
+-		}
++		/* Only test what is necessary when the reserves are not met */
++		if (reserve > 0) {
++			/* Blocks with reserved pages will never free, skip them. */
++			block_end_pfn = min(pfn + pageblock_nr_pages, end_pfn);
++			if (pageblock_is_reserved(pfn, block_end_pfn))
++				continue;
  
-+	anon  = zone_nr_lru_pages(zone, sc, LRU_ACTIVE_ANON) +
-+		zone_nr_lru_pages(zone, sc, LRU_INACTIVE_ANON);
-+	file  = zone_nr_lru_pages(zone, sc, LRU_ACTIVE_FILE) +
-+		zone_nr_lru_pages(zone, sc, LRU_INACTIVE_FILE);
+-		/* Suitable for reserving if this block is movable */
+-		if (reserve > 0 && block_migratetype == MIGRATE_MOVABLE) {
+-			set_pageblock_migratetype(page, MIGRATE_RESERVE);
+-			move_freepages_block(zone, page, MIGRATE_RESERVE);
+-			reserve--;
+-			continue;
++			/* If this block is reserved, account for it */
++			if (block_migratetype == MIGRATE_RESERVE) {
++				reserve--;
++				continue;
++			}
 +
- 	if (scanning_global_lru(sc)) {
- 		free  = zone_page_state(zone, NR_FREE_PAGES);
- 		/* If we have very few page cache pages,
++			/* Suitable for reserving if this block is movable */
++			if (block_migratetype == MIGRATE_MOVABLE) {
++				set_pageblock_migratetype(page, MIGRATE_RESERVE);
++				move_freepages_block(zone, page, MIGRATE_RESERVE);
++				reserve--;
++				continue;
++			}
+ 		}
+ 
+ 		/*
 -- 
 1.7.9.2
 
