@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
-	by kanga.kvack.org (Postfix) with SMTP id A84E76B0070
-	for <linux-mm@kvack.org>; Mon, 23 Jul 2012 09:38:55 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
+	by kanga.kvack.org (Postfix) with SMTP id 7C1AD6B0068
+	for <linux-mm@kvack.org>; Mon, 23 Jul 2012 09:38:54 -0400 (EDT)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 09/34] mm: limit direct reclaim for higher order allocations
-Date: Mon, 23 Jul 2012 14:38:22 +0100
-Message-Id: <1343050727-3045-10-git-send-email-mgorman@suse.de>
+Subject: [PATCH 07/34] vmscan: shrinker->nr updates race and go wrong
+Date: Mon, 23 Jul 2012 14:38:20 +0100
+Message-Id: <1343050727-3045-8-git-send-email-mgorman@suse.de>
 In-Reply-To: <1343050727-3045-1-git-send-email-mgorman@suse.de>
 References: <1343050727-3045-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -13,73 +13,115 @@ List-ID: <linux-mm.kvack.org>
 To: Stable <stable@vger.kernel.org>
 Cc: Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
 
-From: Rik van Riel <riel@redhat.com>
+From: Dave Chinner <dchinner@redhat.com>
 
-commit e0887c19b2daa140f20ca8104bdc5740f39dbb86 upstream.
+commit acf92b485cccf028177f46918e045c0c4e80ee10 upstream.
 
-Stable note: Not tracked on Bugzilla. THP and compaction was found to
-	aggressively reclaim pages and stall systems under different
-	situations that was addressed piecemeal over time. Paragraph
-	3 of this changelog is the motivation for this patch.
+Stable note: Not tracked in Bugzilla. This patch reduces excessive
+	reclaim of slab objects reducing the amount of information
+	that has to be brought back in from disk.
 
-When suffering from memory fragmentation due to unfreeable pages, THP page
-faults will repeatedly try to compact memory.  Due to the unfreeable
-pages, compaction fails.
+shrink_slab() allows shrinkers to be called in parallel so the
+struct shrinker can be updated concurrently. It does not provide any
+exclusion for such updates, so we can get the shrinker->nr value
+increasing or decreasing incorrectly.
 
-Needless to say, at that point page reclaim also fails to create free
-contiguous 2MB areas.  However, that doesn't stop the current code from
-trying, over and over again, and freeing a minimum of 4MB (2UL <<
-sc->order pages) at every single invocation.
+As a result, when a shrinker repeatedly returns a value of -1 (e.g.
+a VFS shrinker called w/ GFP_NOFS), the shrinker->nr goes haywire,
+sometimes updating with the scan count that wasn't used, sometimes
+losing it altogether. Worse is when a shrinker does work and that
+update is lost due to racy updates, which means the shrinker will do
+the work again!
 
-This resulted in my 12GB system having 2-3GB free memory, a corresponding
-amount of used swap and very sluggish response times.
+Fix this by making the total_scan calculations independent of
+shrinker->nr, and making the shrinker->nr updates atomic w.r.t. to
+other updates via cmpxchg loops.
 
-This can be avoided by having the direct reclaim code not reclaim from
-zones that already have plenty of free memory available for compaction.
-
-If compaction still fails due to unmovable memory, doing additional
-reclaim will only hurt the system, not help.
-
-[jweiner@redhat.com: change comment to explain the order check]
-Signed-off-by: Rik van Riel <riel@redhat.com>
-Acked-by: Johannes Weiner <jweiner@redhat.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>
-Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
-Signed-off-by: Johannes Weiner <jweiner@redhat.com>
-Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
-Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
+Signed-off-by: Dave Chinner <dchinner@redhat.com>
+Signed-off-by: Al Viro <viro@zeniv.linux.org.uk>
 Signed-off-by: Mel Gorman <mgorman@suse.de>
 ---
- mm/vmscan.c |   16 ++++++++++++++++
- 1 file changed, 16 insertions(+)
+ mm/vmscan.c |   45 ++++++++++++++++++++++++++++++++-------------
+ 1 file changed, 32 insertions(+), 13 deletions(-)
 
 diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 8ca1cd5..d11b6c4 100644
+index d875058..31b551e 100644
 --- a/mm/vmscan.c
 +++ b/mm/vmscan.c
-@@ -2059,6 +2059,22 @@ static void shrink_zones(int priority, struct zonelist *zonelist,
- 				continue;
- 			if (zone->all_unreclaimable && priority != DEF_PRIORITY)
- 				continue;	/* Let kswapd poll it */
-+			if (COMPACTION_BUILD) {
-+				/*
-+				 * If we already have plenty of memory
-+				 * free for compaction, don't free any
-+				 * more.  Even though compaction is
-+				 * invoked for any non-zero order,
-+				 * only frequent costly order
-+				 * reclamation is disruptive enough to
-+				 * become a noticable problem, like
-+				 * transparent huge page allocations.
-+				 */
-+				if (sc->order > PAGE_ALLOC_COSTLY_ORDER &&
-+					(compaction_suitable(zone, sc->order) ||
-+					 compaction_deferred(zone)))
-+					continue;
-+			}
- 			/*
- 			 * This steals pages from memory cgroups over softlimit
- 			 * and returns the number of reclaimed pages and
+@@ -251,17 +251,29 @@ unsigned long shrink_slab(struct shrink_control *shrink,
+ 		unsigned long total_scan;
+ 		unsigned long max_pass;
+ 		int shrink_ret = 0;
++		long nr;
++		long new_nr;
+ 
++		/*
++		 * copy the current shrinker scan count into a local variable
++		 * and zero it so that other concurrent shrinker invocations
++		 * don't also do this scanning work.
++		 */
++		do {
++			nr = shrinker->nr;
++		} while (cmpxchg(&shrinker->nr, nr, 0) != nr);
++
++		total_scan = nr;
+ 		max_pass = do_shrinker_shrink(shrinker, shrink, 0);
+ 		delta = (4 * nr_pages_scanned) / shrinker->seeks;
+ 		delta *= max_pass;
+ 		do_div(delta, lru_pages + 1);
+-		shrinker->nr += delta;
+-		if (shrinker->nr < 0) {
++		total_scan += delta;
++		if (total_scan < 0) {
+ 			printk(KERN_ERR "shrink_slab: %pF negative objects to "
+ 			       "delete nr=%ld\n",
+-			       shrinker->shrink, shrinker->nr);
+-			shrinker->nr = max_pass;
++			       shrinker->shrink, total_scan);
++			total_scan = max_pass;
+ 		}
+ 
+ 		/*
+@@ -269,13 +281,10 @@ unsigned long shrink_slab(struct shrink_control *shrink,
+ 		 * never try to free more than twice the estimate number of
+ 		 * freeable entries.
+ 		 */
+-		if (shrinker->nr > max_pass * 2)
+-			shrinker->nr = max_pass * 2;
+-
+-		total_scan = shrinker->nr;
+-		shrinker->nr = 0;
++		if (total_scan > max_pass * 2)
++			total_scan = max_pass * 2;
+ 
+-		trace_mm_shrink_slab_start(shrinker, shrink, total_scan,
++		trace_mm_shrink_slab_start(shrinker, shrink, nr,
+ 					nr_pages_scanned, lru_pages,
+ 					max_pass, delta, total_scan);
+ 
+@@ -296,9 +305,19 @@ unsigned long shrink_slab(struct shrink_control *shrink,
+ 			cond_resched();
+ 		}
+ 
+-		shrinker->nr += total_scan;
+-		trace_mm_shrink_slab_end(shrinker, shrink_ret, total_scan,
+-					 shrinker->nr);
++		/*
++		 * move the unused scan count back into the shrinker in a
++		 * manner that handles concurrent updates. If we exhausted the
++		 * scan, there is no need to do an update.
++		 */
++		do {
++			nr = shrinker->nr;
++			new_nr = total_scan + nr;
++			if (total_scan <= 0)
++				break;
++		} while (cmpxchg(&shrinker->nr, nr, new_nr) != nr);
++
++		trace_mm_shrink_slab_end(shrinker, shrink_ret, nr, new_nr);
+ 	}
+ 	up_read(&shrinker_rwsem);
+ out:
 -- 
 1.7.9.2
 
