@@ -1,125 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
-	by kanga.kvack.org (Postfix) with SMTP id 159F06B0068
-	for <linux-mm@kvack.org>; Mon, 23 Jul 2012 17:25:37 -0400 (EDT)
-Date: Mon, 23 Jul 2012 22:25:33 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: [MMTests] Threaded IO Performance on xfs
-Message-ID: <20120723212533.GJ9222@suse.de>
-References: <20120620113252.GE4011@suse.de>
- <20120629111932.GA14154@suse.de>
+Received: from psmtp.com (na3sys010amx144.postini.com [74.125.245.144])
+	by kanga.kvack.org (Postfix) with SMTP id 54F296B004D
+	for <linux-mm@kvack.org>; Mon, 23 Jul 2012 18:11:05 -0400 (EDT)
+Received: from /spool/local
+	by e35.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
+	Mon, 23 Jul 2012 16:11:04 -0600
+Received: from d03relay05.boulder.ibm.com (d03relay05.boulder.ibm.com [9.17.195.107])
+	by d03dlp03.boulder.ibm.com (Postfix) with ESMTP id 5504219D8036
+	for <linux-mm@kvack.org>; Mon, 23 Jul 2012 22:10:57 +0000 (WET)
+Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
+	by d03relay05.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q6NMAggO090436
+	for <linux-mm@kvack.org>; Mon, 23 Jul 2012 16:10:42 -0600
+Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av01.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q6NMAfs7022121
+	for <linux-mm@kvack.org>; Mon, 23 Jul 2012 16:10:42 -0600
+Message-ID: <500DCBDF.5090800@linux.vnet.ibm.com>
+Date: Mon, 23 Jul 2012 17:10:39 -0500
+From: Seth Jennings <sjenning@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20120629111932.GA14154@suse.de>
+Subject: Re: [PATCH 1/3] zsmalloc: s/firstpage/page in new copy map funcs
+References: <1342630556-28686-1-git-send-email-sjenning@linux.vnet.ibm.com>
+In-Reply-To: <1342630556-28686-1-git-send-email-sjenning@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, xfs@oss.sgi.com
+To: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Nitin Gupta <ngupta@vflare.org>, Minchan Kim <minchan@kernel.org>, Robert Jennings <rcj@linux.vnet.ibm.com>, linux-mm@kvack.org, devel@driverdev.osuosl.org, linux-kernel@vger.kernel.org
 
-Configuration:	global-dhp__io-threaded-xfs
-Result: 	http://www.csn.ul.ie/~mel/postings/mmtests-20120424/global-dhp__io-threaded-xfs
-Benchmarks:	tiobench
+Greg,
 
-Summary
-=======
+I know it's the first Monday after a kernel release and
+things are crazy for you.  I was hoping to get this zsmalloc
+stuff in before the merge window hit so I wouldn't have to
+bother you :-/  But, alas, it didn't happen that way.
 
-There have been many improvements in the sequential read/write case but
-3.4 is noticably worse than 3.3 in a number of cases.
+Minchan acked these yesterday.  When you get a chance, could
+you pull these 3 patches?  I'm wanting to send out a
+promotion patch for zsmalloc and zcache based on these.
 
-Benchmark notes
-===============
+Thanks Greg!
 
-mkfs was run on system startup.
-mkfs parameters -f -d agcount=8
-mount options inode64,delaylog,logbsize=262144,nobarrier for the most part.
-        On kernels to old to support delaylog was removed. On kernels
-        where it was the default, it was specified and the warning ignored.
-
-The size parameter for tiobench was 2*RAM. This is barely sufficient for
-	this particular test where the size parameter should be multiple
-	times the size of memory. The running time of the benchmark is
-	already excessive and this is not likely to be changed.
-
-===========================================================
-Machine:	arnold
-Result:		http://www.csn.ul.ie/~mel/postings/mmtests-20120424/global-dhp__io-threaded-xfs/arnold/comparison.html
-Arch:		x86
-CPUs:		1 socket, 2 threads
-Model:		Pentium 4
-Disk:		Single Rotary Disk
-==========================================================
-
-tiobench
---------
-  This is a mixed bag. For low numbers of clients, throughput on
-  sequential reads has improved.  For larger number of clients, there
-  are many regressions but this is not consistent.  This could be due to
-  weakness in the methodology due to both a small filesize and a small
-  number of iterations.
-
-  Random read is generally bad.
-
-  For many kernels sequential write is good with the notable exception
-  of 2.6.39 and 3.0 kernels.
-
-  There was unexpected swapping on 3.1 and 3.2 kernels.
-
-==========================================================
-Machine:	hydra
-Result:		http://www.csn.ul.ie/~mel/postings/mmtests-20120424/global-dhp__io-threaded-xfs/hydra/comparison.html
-Arch:		x86-64
-CPUs:		1 socket, 4 threads
-Model:		AMD Phenom II X4 940
-Disk:		Single Rotary Disk
-==========================================================
-
-tiobench
---------
-
-  Like arnold, performance for sequential read is good for low number
-  of clients.
-
-  Random read looks good.
-
-  With the exception of 3.0 in general and single threaded writes for all
-  kernels, sequential writes have generally improved.
-
-  Random write has a number of regressions.
-
-  Kernels 3.1 and 3.2 had unexpected swapping.
-
-==========================================================
-Machine:	sandy
-Result:		http://www.csn.ul.ie/~mel/postings/mmtests-20120424/global-dhp__io-threaded-xfs/sandy/comparison.html
-Arch:		x86-64
-CPUs:		1 socket, 8 threads
-Model:		Intel Core i7-2600
-Disk:		Single Rotary Disk
-==========================================================
-
-tiobench
---------
-
-  Like hydra, sequential reads were generally better for low numbers of
-  clients. 3.4 is notable in that it regressed and 3.1 was also bad which
-  is roughly similar to what was seen on ext3. There are differences in
-  the memory sizes and therefore the filesize and it implies that there
-  is not a single cause of the regression.
-
-  Random read has generally improved except with the obvious exception of
-  the single-threaded case.
-
-  Sequential writes have generally improved but it is interesting to note
-  that 3.4 is worse than 3.3 and this was also seen for ext3.
-
-  Random write is a mixed bad but again 3.4 is worse than 3.3.
-
-  Like the other machines, 3.1 and 3.2 saw unexpected swapping.
-
--- 
-Mel Gorman
-SUSE Labs
+--
+Seth
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
