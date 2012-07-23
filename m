@@ -1,137 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
-	by kanga.kvack.org (Postfix) with SMTP id 69E596B005A
-	for <linux-mm@kvack.org>; Mon, 23 Jul 2012 07:40:17 -0400 (EDT)
-Date: Mon, 23 Jul 2012 12:40:07 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH -alternative] mm: hugetlbfs: Close race during teardown
- of hugetlbfs shared page tables V2 (resend)
-Message-ID: <20120723114007.GU9222@suse.de>
-References: <20120720134937.GG9222@suse.de>
- <20120720141108.GH9222@suse.de>
- <20120720143635.GE12434@tiehlicka.suse.cz>
- <20120720145121.GJ9222@suse.de>
- <alpine.LSU.2.00.1207222033030.6810@eggly.anvils>
+Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
+	by kanga.kvack.org (Postfix) with SMTP id BD13D6B0044
+	for <linux-mm@kvack.org>; Mon, 23 Jul 2012 08:13:35 -0400 (EDT)
+Received: by pbbrp2 with SMTP id rp2so13213358pbb.14
+        for <linux-mm@kvack.org>; Mon, 23 Jul 2012 05:13:35 -0700 (PDT)
+Message-ID: <500D3FEE.2050109@gmail.com>
+Date: Mon, 23 Jul 2012 20:13:34 +0800
+From: Wen Congyang <wencongyang@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <alpine.LSU.2.00.1207222033030.6810@eggly.anvils>
+Subject: Re: [RFC PATCH] memory-hotplug: Add memblock_state notifier
+References: <1342783088-29970-1-git-send-email-vasilis.liaskovitis@profitbricks.com> <500D1474.9070708@cn.fujitsu.com> <20120723110610.GB18801@dhcp-192-168-178-175.profitbricks.localdomain>
+In-Reply-To: <20120723110610.GB18801@dhcp-192-168-178-175.profitbricks.localdomain>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Michal Hocko <mhocko@suse.cz>, Linux-MM <linux-mm@kvack.org>, David Gibson <david@gibson.dropbear.id.au>, Ken Chen <kenchen@google.com>, Cong Wang <xiyou.wangcong@gmail.com>, LKML <linux-kernel@vger.kernel.org>
+To: Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>
+Cc: Wen Congyang <wency@cn.fujitsu.com>, isimatu.yasuaki@jp.fujitsu.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-acpi@vger.kernel.org
 
-On Sun, Jul 22, 2012 at 09:04:33PM -0700, Hugh Dickins wrote:
-> On Fri, 20 Jul 2012, Mel Gorman wrote:
-> > On Fri, Jul 20, 2012 at 04:36:35PM +0200, Michal Hocko wrote:
-> > > And here is my attempt for the fix (Hugh mentioned something similar
-> > > earlier but he suggested using special flags in ptes or VMAs). I still
-> > > owe doc. update and it hasn't been tested with too many configs and I
-> > > could missed some definition updates.
-> > > I also think that changelog could be much better, I will add (steal) the
-> > > full bug description if people think that this way is worth going rather
-> > > than the one suggested by Mel.
-> > > To be honest I am not quite happy how I had to pollute generic mm code with
-> > > something that is specific to a single architecture.
-> > > Mel hammered it with the test case and it survived.
-> > 
-> > Tested-by: Mel Gorman <mgorman@suse.de>
-> > 
-> > This approach looks more or less like what I was expecting. I like that
-> > the trick was applied to the page table page instead of using PTE tricks
-> > or by bodging it with a VMA flag like I was thinking so kudos for that. I
-> > also prefer this approach to trying to free the page tables on or near
-> > huge_pmd_unshare()
-> > 
-> > In general I think this patch would execute better than mine because it is
-> > far less heavy-handed but I share your concern that it changes the core MM
-> > quite a bit for a corner case that only one architecture cares about. I am
-> > completely biased of course, but I still prefer my patch because other than
-> > an API change it keeps the bulk of the madness in arch/x86/mm/hugetlbpage.c
-> > . I am also not concerned with the scalability of how quickly we can setup
-> > page table sharing.
-> > 
-> > Hugh, I'm afraid you get to choose :)
-> 
-> Thank you bestowing that honour upon me :) 
+At 2012/7/23 19:06, Vasilis Liaskovitis Wrote:
+> Hi,
+>
+> On Mon, Jul 23, 2012 at 05:08:04PM +0800, Wen Congyang wrote:
+>>> +static int memblock_state_notifier_nb(struct notifier_block *nb, unsigned long
+>>> +		val, void *v)
+>>> +{
+>>> +	struct memory_notify *arg = (struct memory_notify *)v;
+>>> +	struct memory_block *mem = NULL;
+>>> +	struct mem_section *ms;
+>>> +	unsigned long section_nr;
+>>> +
+>>> +	section_nr = pfn_to_section_nr(arg->start_pfn);
+>>> +	ms = __nr_to_section(section_nr);
+>>> +	mem = find_memory_block(ms);
+>>> +	if (!mem)
+>>> +		goto out;
+>>
+>> we may offline more than one memory block.
+>>
+> thanks, you are right.
+>
+>>> +
+>>> +	switch (val) {
+>>> +	case MEM_GOING_OFFLINE:
+>>> +	case MEM_OFFLINE:
+>>> +	case MEM_GOING_ONLINE:
+>>> +	case MEM_ONLINE:
+>>> +	case MEM_CANCEL_ONLINE:
+>>> +	case MEM_CANCEL_OFFLINE:
+>>> +		mem->state = val;
+>>
+>> mem->state is protected by the lock mem->state_mutex, so if you want to
+>> update the state, you must lock mem->state_mutex. But you cannot lock it
+>> here, because it may cause deadlock:
+>>
+>> acpi_memhotplug                           sysfs interface
+>> ===============================================================================
+>>                                            memory_block_change_state()
+>>                                                lock mem->state_mutex
+>>                                                memory_block_action()
+>> offline_pages()
+>>      lock_memory_hotplug()
+>>                                                    offline_memory()
+>>                                                        lock_memory_hotplug() // block
+>>      memory_notify()
+>>          memblock_state_notifier_nb()
+>> ===============================================================================
+>
+> good point. Maybe if memory_hotplug_lock and state_mutex locks are acquired in
+> the same order in the 2 code paths, this could be avoided.
 
-Just so you know, there was a ceremonial gong when it happened.
+Yes, I am trying to fix another 2 problems(also based on ishimatsu's 
+patchset):
+1. offline_memory() will fail if part of the memory is onlined and part 
+of the memory
+    is offlined.
+2. notify the userspace if the memory block's status is changed
 
-> Seriously, though, you
-> were quite right to Cc me on this, it is one of those areas I ought
-> to know something about (unlike hugetlb reservations, for example).
-> 
-> Please don't be upset if I say that I don't like either of your patches.
+I guess this problem can be fixed together.
 
-I can live with that :) It would not be the first time we found the right
-patch out of dislike for the first proposed and getting the fix is what's
-important.
+Thanks
+Wen Congyang
 
-> Mainly for obvious reasons - I don't like Mel's because anything with
-> trylock retries and nested spinlocks worries me before I can even start
-> to think about it;
-
-That's a reasonable objection. The trylock could be avoided by always
-falling through at the cost of reducing the amount of sharing
-opportunities but the nested locking is unavoidable. I agree with you
-that nested locking like this should always be a cause for concern.
-
-> and I don't like Michal's for the same reason as Mel,
-> that it spreads more change around in common paths than we would like.
-> 
-> But I didn't spend much time thinking through either of them, they just
-> seemed more complicated than should be needed.  I cannot confirm or deny
-> whether they're correct - though I still do not understand how mmap_sem
-> can help you, Mel.  I can see that it will help in your shmdt()ing test,
-> but if you leave the area mapped on exit, then mmap_sem is not taken in
-> the exit_mmap() path, so how does it help?
-> 
-
-It certainly helps in the shmdt case which is what the test case focused
-on because that is what the application that triggered this bug was
-doing. However, you're right in that the exit_mmap() path is still vunerable
-because it does not take mmap_sem. I'll think about that a bit more.
-
-> I spent hours trying to dream up a better patch, trying various
-> approaches.  I think I have a nice one now, what do you think?  And
-> more importantly, does it work?  I have not tried to test it at all,
-> that I'm hoping to leave to you, I'm sure you'll attack it with gusto!
-> 
-> If you like it, please take it over and add your comments and signoff
-> and send it in. 
-> 
-
-I like it in that it's simple and I can confirm it works for the test case
-of interest.
-
-However, is your patch not vunerable to truncate issues?
-madvise()/truncate() issues was the main reason why I was wary of VMA tricks
-as a solution. As it turns out, madvise(DONTNEED) is not a problem as it is
-ignored for hugetlbfs but I think truncate is still problematic. Lets say
-we mmap(MAP_SHARED) a hugetlbfs file and then truncate for whatever reason.
-
-invalidate_inode_pages2
-  invalidate_inode_pages2_range
-    unmap_mapping_range_vma
-      zap_page_range_single
-        unmap_single_vma
-	  __unmap_hugepage_range (removes VM_MAYSHARE)
-
-The VMA still exists so the consequences for this would be varied but
-minimally fault is going to be "interesting".
-
-I think that potentially we could work around this but it may end up stomping
-on the core MM and not necessarily be any better than Michal's patch.
-
-> The second part won't come up in your testing, and could
-> be made a separate patch if you prefer: it's a related point that struck
-> me while I was playing with a different approach.
-
-I'm fine with the second part.
-
--- 
-Mel Gorman
-SUSE Labs
+>
+>> I'm writing another patch to fix it.
+>
+> ok, I 'll test.
+> thanks,
+>
+> - Vasilis
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-acpi" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
