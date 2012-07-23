@@ -1,49 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
-	by kanga.kvack.org (Postfix) with SMTP id 975B86B005D
-	for <linux-mm@kvack.org>; Mon, 23 Jul 2012 05:37:59 -0400 (EDT)
-Date: Mon, 23 Jul 2012 10:37:54 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 21/34] kswapd: assign new_order and new_classzone_idx
- after wakeup in sleeping
-Message-ID: <20120723093754.GP9222@suse.de>
-References: <1342708604-26540-1-git-send-email-mgorman@suse.de>
- <1342708604-26540-22-git-send-email-mgorman@suse.de>
- <alpine.LSU.2.00.1207221213100.1896@eggly.anvils>
+Received: from psmtp.com (na3sys010amx207.postini.com [74.125.245.207])
+	by kanga.kvack.org (Postfix) with SMTP id D913A6B005A
+	for <linux-mm@kvack.org>; Mon, 23 Jul 2012 06:58:39 -0400 (EDT)
+Date: Mon, 23 Jul 2012 13:58:19 +0300
+From: Dan Carpenter <dan.carpenter@oracle.com>
+Subject: Re: [PATCH 2/2 v5][resend] tmpfs: interleave the starting node of
+ /dev/shmem
+Message-ID: <20120723105819.GA4455@mwanda>
+References: <1341845199-25677-1-git-send-email-nzimmer@sgi.com>
+ <1341845199-25677-2-git-send-email-nzimmer@sgi.com>
+ <1341845199-25677-3-git-send-email-nzimmer@sgi.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <alpine.LSU.2.00.1207221213100.1896@eggly.anvils>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <1341845199-25677-3-git-send-email-nzimmer@sgi.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Stable <stable@vger.kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Nathan Zimmer <nzimmer@sgi.com>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Christoph Lameter <cl@linux.com>, Nick Piggin <npiggin@gmail.com>, Hugh Dickins <hughd@google.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>
 
-On Sun, Jul 22, 2012 at 12:25:14PM -0700, Hugh Dickins wrote:
-> On Thu, 19 Jul 2012, Mel Gorman wrote:
-> > From: "Alex,Shi" <alex.shi@intel.com>
-> > 
-> > commit d2ebd0f6b89567eb93ead4e2ca0cbe03021f344b upstream.
-> 
-> Thanks for assembling these, Mel: I was checking through to see if
-> I was missing any, and noticed that this one has the wrong upstream
-> SHA1: the one you give here is the same as in 20/34, but it should be
-> 
-> commit f0dfcde099453aa4c0dc42473828d15a6d492936 upstream.
-> 
+On Mon, Jul 09, 2012 at 09:46:39AM -0500, Nathan Zimmer wrote:
+> +static unsigned long shmem_interleave(struct vm_area_struct *vma,
+> +					unsigned long addr)
+> +{
+> +	unsigned long offset;
+> +
+> +	/* Use the vm_files prefered node as the initial offset. */
+> +	offset = (unsigned long *) vma->vm_private_data;
 
-You're correct, thanks for catching that.
+Should this be?:
+	offset = (unsigned long)vma->vm_private_data;
 
-> I got quite confused by 30/34 too: interesting definition of "partial
-> backport" :) I've no objection, but "substitute" might be clearer there.
-> 
+offset is an unsigned long, not a pointer.  ->vm_private_data is a
+void pointer.
 
-It's a liberal definition of the phrase "partial backport" all right.
-I'll substitute "substitute" :)
+It causes a GCC warning:
+mm/shmem.c: In function a??shmem_interleavea??:
+mm/shmem.c:1341:9: warning: assignment makes integer from pointer without a cast [enabled by default]
 
--- 
-Mel Gorman
-SUSE Labs
+> +
+> +	offset += ((addr - vma->vm_start) >> PAGE_SHIFT) + vma->vm_pgoff;
+> +
+> +	return offset;
+> +}
+>  #endif
+
+regards,
+dan carpenter
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
