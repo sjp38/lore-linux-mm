@@ -1,67 +1,135 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
-	by kanga.kvack.org (Postfix) with SMTP id 573B76B0044
-	for <linux-mm@kvack.org>; Mon, 23 Jul 2012 13:22:05 -0400 (EDT)
-Received: by lahi5 with SMTP id i5so147762lah.14
-        for <linux-mm@kvack.org>; Mon, 23 Jul 2012 10:22:03 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20120626075653.GD6713@tiehlicka.suse.cz>
-References: <1340616061-1955-1-git-send-email-glommer@parallels.com>
-	<20120625204908.GL3869@google.com>
-	<20120626075653.GD6713@tiehlicka.suse.cz>
-Date: Mon, 23 Jul 2012 10:22:03 -0700
-Message-ID: <CALWz4ixg5YYt6Np4zqO0Yn+U6vEGRRoGQoDmt8A1Vc5zwD91dQ@mail.gmail.com>
-Subject: Re: [PATCH] fix bad behavior in use_hierarchy file
-From: Ying Han <yinghan@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from psmtp.com (na3sys010amx177.postini.com [74.125.245.177])
+	by kanga.kvack.org (Postfix) with SMTP id 5F2406B0044
+	for <linux-mm@kvack.org>; Mon, 23 Jul 2012 13:34:41 -0400 (EDT)
+Message-ID: <1343064870.26034.23.camel@twins>
+Subject: [RFC] page-table walkers vs memory order
+From: Peter Zijlstra <peterz@infradead.org>
+Date: Mon, 23 Jul 2012 19:34:30 +0200
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: quoted-printable
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Tejun Heo <tj@kernel.org>, Glauber Costa <glommer@parallels.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, devel@openvz.org, Dhaval Giani <dhaval.giani@gmail.com>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>
+To: Linus Torvalds <torvalds@linux-foundation.org>, paulmck <paulmck@linux.vnet.ibm.com>, Hugh Dickins <hughd@google.com>
+Cc: Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Nick Piggin <npiggin@kernel.dk>, linux-kernel <linux-kernel@vger.kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, linux-arch <linux-arch@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Tue, Jun 26, 2012 at 12:56 AM, Michal Hocko <mhocko@suse.cz> wrote:
-> [Adding Ying to CC - they are using hierarchies AFAIU in their workloads]
 
-Sorry for late ( a month late ) to the thread.
+While staring at mm/huge_memory.c I found a very under-commented
+smp_wmb() in __split_huge_page_map(). It turns out that its copied from
+__{pte,pmd,pud}_alloc() but forgot the useful comment (or a reference
+thereto).
 
-Our current production today doesn't support multi-hierarchy setup for
-memcg, and all the cgroups are flat under root at least on the memory
-resource perspective. However, we do have use_hierarchy set to 1 to
-root cgroup upfront.
+Now, afaict we're not good, as per that comment. Paul has since
+convinced some of us that compiler writers are pure evil and out to get
+us.
 
-On the other hand, we started exploring nested cgroup since the flat
-configuration doesn't fullfill all our usecases. In that case, we will
-have configurations like: root-> A -> B -> C ( not sure about C but at
-least level to B). Of course, we will have use_hierarchy set to 1 on
-each level, and the mixed setting won't happen AFAIK.
+Therefore we should do what rcu_dereference() does and use
+ACCESS_ONCE()/barrier() followed smp_read_barrier_depends() every time
+we dereference a page-table pointer.
 
---Ying
->
-> On Mon 25-06-12 13:49:08, Tejun Heo wrote:
-> [...]
->> A bit of delta but is there any chance we can either deprecate
->> .use_hierarhcy or at least make it global toggle instead of subtree
->> thing?
->
-> So what you are proposing is to have all subtrees of the root either
-> hierarchical or not, right?
->
->> This seems needlessly complicated. :(
->
-> Toggle wouldn't help much I am afraid. We would still have to
-> distinguish (non)hierarchical cases. And I am not sure we can make
-> everything hierarchical easily.
-> Most users (from my experience) ignored use_hierarchy for some reasons
-> and the end results might be really unexpected for them if they used
-> deeper subtrees (which might be needed due to combination with other
-> controller(s)).
-> --
-> Michal Hocko
-> SUSE Labs
-> SUSE LINUX s.r.o.
-> Lihovarska 1060/12
-> 190 00 Praha 9
-> Czech Republic
+
+In particular it looks like things like
+mm/memcontrol.c:mem_cgroup_count_precharge(), which use
+walk_page_range() under down_read(&mm->mmap_sem) and can thus be
+concurrent with __{pte,pmd,pud}_alloc() from faults (and possibly
+itself) are quite broken on Alpha and subtly broken for those of us with
+'creative' compilers.
+
+Should I go do a more extensive audit of page-table walkers or are we
+happy with the status quo?
+
+---
+ arch/x86/mm/gup.c |    6 +++---
+ mm/pagewalk.c     |   24 ++++++++++++++++++++++++
+ 2 files changed, 27 insertions(+), 3 deletions(-)
+
+diff --git a/arch/x86/mm/gup.c b/arch/x86/mm/gup.c
+index dd74e46..4958fb1 100644
+--- a/arch/x86/mm/gup.c
++++ b/arch/x86/mm/gup.c
+@@ -150,7 +150,7 @@ static int gup_pmd_range(pud_t pud, unsigned long addr,=
+ unsigned long end,
+=20
+ 	pmdp =3D pmd_offset(&pud, addr);
+ 	do {
+-		pmd_t pmd =3D *pmdp;
++		pmd_t pmd =3D ACCESS_ONCE(*pmdp);
+=20
+ 		next =3D pmd_addr_end(addr, end);
+ 		/*
+@@ -220,7 +220,7 @@ static int gup_pud_range(pgd_t pgd, unsigned long addr,=
+ unsigned long end,
+=20
+ 	pudp =3D pud_offset(&pgd, addr);
+ 	do {
+-		pud_t pud =3D *pudp;
++		pud_t pud =3D ACCESS_ONCE(*pudp);
+=20
+ 		next =3D pud_addr_end(addr, end);
+ 		if (pud_none(pud))
+@@ -280,7 +280,7 @@ int __get_user_pages_fast(unsigned long start, int nr_p=
+ages, int write,
+ 	local_irq_save(flags);
+ 	pgdp =3D pgd_offset(mm, addr);
+ 	do {
+-		pgd_t pgd =3D *pgdp;
++		pgd_t pgd =3D ACCESS_ONCE(*pgdp);
+=20
+ 		next =3D pgd_addr_end(addr, end);
+ 		if (pgd_none(pgd))
+diff --git a/mm/pagewalk.c b/mm/pagewalk.c
+index 6c118d0..2ba2a74 100644
+--- a/mm/pagewalk.c
++++ b/mm/pagewalk.c
+@@ -10,6 +10,14 @@ static int walk_pte_range(pmd_t *pmd, unsigned long addr=
+, unsigned long end,
+ 	int err =3D 0;
+=20
+ 	pte =3D pte_offset_map(pmd, addr);
++	/*
++	 * Pairs with the smp_wmb() in __{pte,pmd,pud}_alloc() and
++	 * __split_huge_page_map(). Ideally we'd use ACCESS_ONCE() on the
++	 * actual dereference of p[gum]d, but that's hidden deep within the
++	 * bowels of {pte,pmd,pud}_offset.
++	 */
++	barrier();
++	smp_read_barrier_depends();
+ 	for (;;) {
+ 		err =3D walk->pte_entry(pte, addr, addr + PAGE_SIZE, walk);
+ 		if (err)
+@@ -32,6 +40,14 @@ static int walk_pmd_range(pud_t *pud, unsigned long addr=
+, unsigned long end,
+ 	int err =3D 0;
+=20
+ 	pmd =3D pmd_offset(pud, addr);
++	/*
++	 * Pairs with the smp_wmb() in __{pte,pmd,pud}_alloc() and
++	 * __split_huge_page_map(). Ideally we'd use ACCESS_ONCE() on the
++	 * actual dereference of p[gum]d, but that's hidden deep within the
++	 * bowels of {pte,pmd,pud}_offset.
++	 */
++	barrier();
++	smp_read_barrier_depends();
+ 	do {
+ again:
+ 		next =3D pmd_addr_end(addr, end);
+@@ -77,6 +93,14 @@ static int walk_pud_range(pgd_t *pgd, unsigned long addr=
+, unsigned long end,
+ 	int err =3D 0;
+=20
+ 	pud =3D pud_offset(pgd, addr);
++	/*
++	 * Pairs with the smp_wmb() in __{pte,pmd,pud}_alloc() and
++	 * __split_huge_page_map(). Ideally we'd use ACCESS_ONCE() on the
++	 * actual dereference of p[gum]d, but that's hidden deep within the
++	 * bowels of {pte,pmd,pud}_offset.
++	 */
++	barrier();
++	smp_read_barrier_depends();
+ 	do {
+ 		next =3D pud_addr_end(addr, end);
+ 		if (pud_none_or_clear_bad(pud)) {
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
