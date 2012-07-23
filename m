@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
-	by kanga.kvack.org (Postfix) with SMTP id 2CE416B009D
+Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
+	by kanga.kvack.org (Postfix) with SMTP id C355C6B0082
 	for <linux-mm@kvack.org>; Mon, 23 Jul 2012 09:39:08 -0400 (EDT)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 30/34] mm: vmscan: Do not force kswapd to scan small targets
-Date: Mon, 23 Jul 2012 14:38:43 +0100
-Message-Id: <1343050727-3045-31-git-send-email-mgorman@suse.de>
+Subject: [PATCH 31/34] cpusets: avoid looping when storing to mems_allowed if one node remains set
+Date: Mon, 23 Jul 2012 14:38:44 +0100
+Message-Id: <1343050727-3045-32-git-send-email-mgorman@suse.de>
 In-Reply-To: <1343050727-3045-1-git-send-email-mgorman@suse.de>
 References: <1343050727-3045-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -13,53 +13,88 @@ List-ID: <linux-mm.kvack.org>
 To: Stable <stable@vger.kernel.org>
 Cc: Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
 
-commit ad2b8e601099a23dffffb53f91c18d874fe98854 upstream - WARNING: this is a substitute patch.
+From: David Rientjes <rientjes@google.com>
 
-Stable note: Not tracked in Bugzilla. This is a substitute for an
-	upstream commit addressing a completely different issue that
-	accidentally contained an important fix. The workload this patch
-	helps was memcached when IO is started in the background. memcached
-	should stay resident but without this patch it gets swapped more
-	than it should. Sometimes this manifests as a drop in throughput
-	but mostly it was observed through /proc/vmstat.
+commit 89e8a244b97e48f1f30e898b6f32acca477f2a13 upstream.
 
-Commit [246e87a9: memcg: fix get_scan_count() for small targets] was
-meant to fix a problem whereby small scan targets on memcg were ignored
-causing priority to raise too sharply. It forced scanning to take place
-if the target was small, memcg or kswapd.
+Stable note: Not tracked in Bugzilla. [get|put]_mems_allowed() is
+	extremely expensive and severely impacted page allocator performance.
+	This is part of a series of patches that reduce page allocator
+	overhead.
 
->From the time it was introduced it cause excessive reclaim by kswapd
-with workloads being pushed to swap that previously would have stayed
-resident. This was accidentally fixed by commit [ad2b8e60: mm: memcg:
-remove optimization of keeping the root_mem_cgroup LRU lists empty] but
-that patchset is not suitable for backporting.
+{get,put}_mems_allowed() exist so that general kernel code may locklessly
+access a task's set of allowable nodes without having the chance that a
+concurrent write will cause the nodemask to be empty on configurations
+where MAX_NUMNODES > BITS_PER_LONG.
 
-The original patch came with no information on what workloads it benefits
-but the cost of it is obvious in that it forces scanning to take place
-on lists that would otherwise have been ignored such as small anonymous
-inactive lists. This patch partially reverts 246e87a9 so that small lists
-are not force scanned which means that IO-intensive workloads with small
-amounts of anonymous memory will not be swapped.
+This could incur a significant delay, however, especially in low memory
+conditions because the page allocator is blocking and reclaim requires
+get_mems_allowed() itself.  It is not atypical to see writes to
+cpuset.mems take over 2 seconds to complete, for example.  In low memory
+conditions, this is problematic because it's one of the most imporant
+times to change cpuset.mems in the first place!
 
+The only way a task's set of allowable nodes may change is through cpusets
+by writing to cpuset.mems and when attaching a task to a generic code is
+not reading the nodemask with get_mems_allowed() at the same time, and
+then clearing all the old nodes.  This prevents the possibility that a
+reader will see an empty nodemask at the same time the writer is storing a
+new nodemask.
+
+If at least one node remains unchanged, though, it's possible to simply
+set all new nodes and then clear all the old nodes.  Changing a task's
+nodemask is protected by cgroup_mutex so it's guaranteed that two threads
+are not changing the same task's nodemask at the same time, so the
+nodemask is guaranteed to be stored before another thread changes it and
+determines whether a node remains set or not.
+
+Signed-off-by: David Rientjes <rientjes@google.com>
+Cc: Miao Xie <miaox@cn.fujitsu.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Nick Piggin <npiggin@kernel.dk>
+Cc: Paul Menage <paul@paulmenage.org>
+Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
 Signed-off-by: Mel Gorman <mgorman@suse.de>
 ---
- mm/vmscan.c |    3 ---
- 1 file changed, 3 deletions(-)
+ kernel/cpuset.c |    9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)
 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index e5382ad..49d8547 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -1849,9 +1849,6 @@ static void get_scan_count(struct zone *zone, struct scan_control *sc,
- 	bool force_scan = false;
- 	unsigned long nr_force_scan[2];
+diff --git a/kernel/cpuset.c b/kernel/cpuset.c
+index 9c9b754..a995893 100644
+--- a/kernel/cpuset.c
++++ b/kernel/cpuset.c
+@@ -949,6 +949,8 @@ static void cpuset_migrate_mm(struct mm_struct *mm, const nodemask_t *from,
+ static void cpuset_change_task_nodemask(struct task_struct *tsk,
+ 					nodemask_t *newmems)
+ {
++	bool masks_disjoint = !nodes_intersects(*newmems, tsk->mems_allowed);
++
+ repeat:
+ 	/*
+ 	 * Allow tasks that have access to memory reserves because they have
+@@ -963,7 +965,6 @@ repeat:
+ 	nodes_or(tsk->mems_allowed, tsk->mems_allowed, *newmems);
+ 	mpol_rebind_task(tsk, newmems, MPOL_REBIND_STEP1);
  
--	/* kswapd does zone balancing and needs to scan this zone */
--	if (scanning_global_lru(sc) && current_is_kswapd())
--		force_scan = true;
- 	/* memcg may have small limit and need to avoid priority drop */
- 	if (!scanning_global_lru(sc))
- 		force_scan = true;
+-
+ 	/*
+ 	 * ensure checking ->mems_allowed_change_disable after setting all new
+ 	 * allowed nodes.
+@@ -980,9 +981,11 @@ repeat:
+ 
+ 	/*
+ 	 * Allocation of memory is very fast, we needn't sleep when waiting
+-	 * for the read-side.
++	 * for the read-side.  No wait is necessary, however, if at least one
++	 * node remains unchanged.
+ 	 */
+-	while (ACCESS_ONCE(tsk->mems_allowed_change_disable)) {
++	while (masks_disjoint &&
++			ACCESS_ONCE(tsk->mems_allowed_change_disable)) {
+ 		task_unlock(tsk);
+ 		if (!task_curr(tsk))
+ 			yield();
 -- 
 1.7.9.2
 
