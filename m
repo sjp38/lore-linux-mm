@@ -1,133 +1,130 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
-	by kanga.kvack.org (Postfix) with SMTP id 119A46B005A
-	for <linux-mm@kvack.org>; Mon, 23 Jul 2012 04:37:22 -0400 (EDT)
-From: Glauber Costa <glommer@parallels.com>
-Subject: [PATCH] provide a common place for initcall processing in kmem_cache
-Date: Mon, 23 Jul 2012 12:33:28 +0400
-Message-Id: <1343032408-20605-1-git-send-email-glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx144.postini.com [74.125.245.144])
+	by kanga.kvack.org (Postfix) with SMTP id 3C6706B005A
+	for <linux-mm@kvack.org>; Mon, 23 Jul 2012 05:03:15 -0400 (EDT)
+Message-ID: <500D1474.9070708@cn.fujitsu.com>
+Date: Mon, 23 Jul 2012 17:08:04 +0800
+From: Wen Congyang <wency@cn.fujitsu.com>
+MIME-Version: 1.0
+Subject: Re: [RFC PATCH] memory-hotplug: Add memblock_state notifier
+References: <1342783088-29970-1-git-send-email-vasilis.liaskovitis@profitbricks.com>
+In-Reply-To: <1342783088-29970-1-git-send-email-vasilis.liaskovitis@profitbricks.com>
+Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pekka Enberg <penberg@kernel.org>
-Cc: Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, devel@openvz.org, linux-kernel@vger.kernel.org, Glauber Costa <glommer@parallels.com>, Pekka Enberg <penberg@cs.helsinki.fi>
+To: Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>, isimatu.yasuaki@jp.fujitsu.com
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-acpi@vger.kernel.org
 
-Both SLAB and SLUB depend on some initialization to happen when the
-system is already booted, with all subsystems working. This is done
-by issuing an initcall that does the final initialization.
+At 07/20/2012 07:18 PM, Vasilis Liaskovitis Wrote:
+> hot-remove initiated by acpi_memhotplug driver tries to offline pages and then
+> remove section/sysfs files in remove_memory(). remove_memory() will only proceed
+> if is_memblk_offline() returns true, i.e. only if the corresponding memblock
+> is in MEM_OFFLINE state. However, the memblock state is currently only updated
+> if the offlining has been initiated from the sysfs interface (echo offline >
+> /sys/devices/system/memory/memoryXX/state). The acpi hot-remove codepath does
+> not use the sysfs interface but directly calls offline_pages. So remove_memory()
+> will always fail, even if offline_pages has succeeded.
 
-This patch moves that to slab_common.c, while creating an empty
-placeholder for the SLOB.
+Thank you for pointing this problem.
 
-Signed-off-by: Glauber Costa <glommer@parallels.com>
-CC: Christoph Lameter <cl@linux.com>
-CC: Pekka Enberg <penberg@cs.helsinki.fi>
-CC: David Rientjes <rientjes@google.com>
----
+> 
+> This patch solves this by registering a memblock_state notifier function in the
+> memory_notify chain. This will change state of memblocks independently of sysfs
+> usage.
 
-Pekka: This is the last slab change I need that is independent of memcg. All
-further changes are either not in the slab files, or done to accomodate the
-memcg changes. The reason I need this bit, is to register the memcg indexes,
-that can only be done after the caches are up (memcg_register_cache() ).
+I think this patch does not solve this problem.
 
- mm/slab.c        |    5 ++---
- mm/slab.h        |    2 ++
- mm/slab_common.c |    6 ++++++
- mm/slob.c        |    5 +++++
- mm/slub.c        |    4 +---
- 5 files changed, 16 insertions(+), 6 deletions(-)
+> 
+> The patch is based on work-in-progress patches for memory hot-remove, see:
+> http://lwn.net/Articles/507244/
+> 
+> Signed-off-by: Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>
+> ---
+>  drivers/base/memory.c |   37 +++++++++++++++++++++++++++++++++++++
+>  1 files changed, 37 insertions(+), 0 deletions(-)
+> 
+> diff --git a/drivers/base/memory.c b/drivers/base/memory.c
+> index 8981568..4095f3f 100644
+> --- a/drivers/base/memory.c
+> +++ b/drivers/base/memory.c
+> @@ -706,6 +706,42 @@ int unregister_memory_section(struct mem_section *section)
+>  	return remove_memory_block(0, section, 0);
+>  }
+>  
+> +static int memblock_state_notifier_nb(struct notifier_block *nb, unsigned long
+> +		val, void *v)
+> +{
+> +	struct memory_notify *arg = (struct memory_notify *)v;
+> +	struct memory_block *mem = NULL;
+> +	struct mem_section *ms;
+> +	unsigned long section_nr;
+> +
+> +	section_nr = pfn_to_section_nr(arg->start_pfn);
+> +	ms = __nr_to_section(section_nr);
+> +	mem = find_memory_block(ms);
+> +	if (!mem)
+> +		goto out;
 
-diff --git a/mm/slab.c b/mm/slab.c
-index 1fcf3ac..2cf636a 100644
---- a/mm/slab.c
-+++ b/mm/slab.c
-@@ -863,7 +863,7 @@ static void __cpuinit start_cpu_timer(int cpu)
- 	struct delayed_work *reap_work = &per_cpu(slab_reap_work, cpu);
- 
- 	/*
--	 * When this gets called from do_initcalls via cpucache_init(),
-+	 * When this gets called from do_initcalls via __kmem_cache_initcall(),
- 	 * init_workqueues() has already run, so keventd will be setup
- 	 * at that time.
- 	 */
-@@ -1665,7 +1665,7 @@ void __init kmem_cache_init_late(void)
- 	 */
- }
- 
--static int __init cpucache_init(void)
-+int __init __kmem_cache_initcall(void)
- {
- 	int cpu;
- 
-@@ -1679,7 +1679,6 @@ static int __init cpucache_init(void)
- 	slab_state = FULL;
- 	return 0;
- }
--__initcall(cpucache_init);
- 
- static noinline void
- slab_out_of_memory(struct kmem_cache *cachep, gfp_t gfpflags, int nodeid)
-diff --git a/mm/slab.h b/mm/slab.h
-index db7848c..1d17049 100644
---- a/mm/slab.h
-+++ b/mm/slab.h
-@@ -30,4 +30,6 @@ extern struct list_head slab_caches;
- struct kmem_cache *__kmem_cache_create(const char *name, size_t size,
- 	size_t align, unsigned long flags, void (*ctor)(void *));
- 
-+int __kmem_cache_initcall(void);
-+
- #endif
-diff --git a/mm/slab_common.c b/mm/slab_common.c
-index 12637ce..af50ba0 100644
---- a/mm/slab_common.c
-+++ b/mm/slab_common.c
-@@ -116,3 +116,9 @@ int slab_is_available(void)
- {
- 	return slab_state >= UP;
- }
-+
-+static int __init kmem_cache_initcall(void)
-+{
-+	return __kmem_cache_initcall();
-+}
-+__initcall(kmem_cache_initcall);
-diff --git a/mm/slob.c b/mm/slob.c
-index 45d4ca7..6c2b5d1 100644
---- a/mm/slob.c
-+++ b/mm/slob.c
-@@ -628,3 +628,8 @@ void __init kmem_cache_init_late(void)
- {
- 	slab_state = FULL;
- }
-+
-+int __init __kmem_cache_initcall(void)
-+{
-+	return 0;
-+}
-diff --git a/mm/slub.c b/mm/slub.c
-index e517d43..07b1c3e 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -5348,7 +5348,7 @@ static int sysfs_slab_alias(struct kmem_cache *s, const char *name)
- 	return 0;
- }
- 
--static int __init slab_sysfs_init(void)
-+int __init __kmem_cache_initcall(void)
- {
- 	struct kmem_cache *s;
- 	int err;
-@@ -5386,8 +5386,6 @@ static int __init slab_sysfs_init(void)
- 	resiliency_test();
- 	return 0;
- }
--
--__initcall(slab_sysfs_init);
- #endif /* CONFIG_SYSFS */
- 
- /*
--- 
-1.7.10.4
+we may offline more than one memory block.
+
+> +
+> +	switch (val) {
+> +	case MEM_GOING_OFFLINE:
+> +	case MEM_OFFLINE:
+> +	case MEM_GOING_ONLINE:
+> +	case MEM_ONLINE:
+> +	case MEM_CANCEL_ONLINE:
+> +	case MEM_CANCEL_OFFLINE:
+> +		mem->state = val;
+
+mem->state is protected by the lock mem->state_mutex, so if you want to
+update the state, you must lock mem->state_mutex. But you cannot lock it
+here, because it may cause deadlock:
+
+acpi_memhotplug                           sysfs interface
+===============================================================================
+                                          memory_block_change_state()
+                                              lock mem->state_mutex
+                                              memory_block_action()
+offline_pages()
+    lock_memory_hotplug()
+                                                  offline_memory()
+                                                      lock_memory_hotplug() // block
+    memory_notify()
+        memblock_state_notifier_nb()
+===============================================================================
+
+I'm writing another patch to fix it.
+
+Thanks
+Wen Congyang
+
+> +		break;
+> +	default:
+> +		printk(KERN_WARNING "invalid memblock state\n");
+> +		break;
+> +	}
+> +out:
+> +	return NOTIFY_OK;
+> +}
+> +
+> +static struct notifier_block memblock_state_nb = {
+> +	.notifier_call = memblock_state_notifier_nb,
+> +	.priority = 0
+> +};
+> +
+>  /*
+>   * Initialize the sysfs support for memory devices...
+>   */
+> @@ -724,6 +760,7 @@ int __init memory_dev_init(void)
+>  	block_sz = get_memory_block_size();
+>  	sections_per_block = block_sz / MIN_MEMORY_BLOCK_SIZE;
+>  
+> +	register_memory_notifier(&memblock_state_nb);
+>  	/*
+>  	 * Create entries for memory sections that were found
+>  	 * during boot and have been initialized
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
