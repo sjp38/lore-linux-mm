@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
-	by kanga.kvack.org (Postfix) with SMTP id 1371E6B005D
-	for <linux-mm@kvack.org>; Mon, 23 Jul 2012 17:20:08 -0400 (EDT)
-Date: Mon, 23 Jul 2012 22:20:03 +0100
+Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
+	by kanga.kvack.org (Postfix) with SMTP id CCFE66B005D
+	for <linux-mm@kvack.org>; Mon, 23 Jul 2012 17:22:32 -0400 (EDT)
+Date: Mon, 23 Jul 2012 22:21:46 +0100
 From: Mel Gorman <mgorman@suse.de>
-Subject: [MMTests] Stress high-order allocations on ext3
-Message-ID: <20120723212003.GF9222@suse.de>
+Subject: [MMTests] dbench4 async on ext3
+Message-ID: <20120723212146.GG9222@suse.de>
 References: <20120620113252.GE4011@suse.de>
  <20120629111932.GA14154@suse.de>
 MIME-Version: 1.0
@@ -15,85 +15,77 @@ In-Reply-To: <20120629111932.GA14154@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org
+Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org
 
-Configuration:	global-dhp__stress-highalloc-performance-ext3
-Result: 	http://www.csn.ul.ie/~mel/postings/mmtests-20120424/global-dhp__stress-highalloc-performance-ext3
-Benchmarks:	kernbench vmr-stream sysbench stress-highalloc
+Configuration:	global-dhp__io-dbench4-async-ext3
+Result: 	http://www.csn.ul.ie/~mel/postings/mmtests-20120424/global-dhp__io-dbench4-async-ext3
+Benchmarks:	dbench4
 
 Summary
 =======
 
-Allocation success rates of huge pages were looking great until 3.4 when
-they dropped through the floor.
+In general there was a massive drop in throughput after 3.0. Very broadly
+speaking it looks like the Read operation got faster but at the cost of
+a big regression in the Flush operation.
 
 Benchmark notes
 ===============
 
-All machines were booted with mem=4096M due to limitations of the test
+mkfs was run on system startup. No attempt was made to age it. No
+special mkfs or mount options were used.
 
-This is an old series of benchmarks that stressed anti-fragmentation
-and the allocation of huge pages. It is being replaced with other series
-of tests which will be more representative but it still produces some
-interesting results. I tend to use these results as an early warning
-system before doing a more detailed series of tests.
-
-Only the results from the stress-highalloc benchmark are actually of
-interest and the other benchmarks are just there to age the machine
-in terms of fragmentation.
+dbench 4 was used. Tests ran for 180 seconds once warmed up. A varying
+number of clients were used up to 64*NR_CPU. osync, sync-directory and
+fsync were all off.
 
 ===========================================================
 Machine:	arnold
-Result:		http://www.csn.ul.ie/~mel/postings/mmtests-20120424/global-dhp__stress-highalloc-performance-ext3/arnold/comparison.html
+Result:		http://www.csn.ul.ie/~mel/postings/mmtests-20120424/global-dhp__io-dbench4-async-ext3/arnold/comparison.html
 Arch:		x86
 CPUs:		1 socket, 2 threads
 Model:		Pentium 4
 Disk:		Single Rotary Disk
 ===========================================================
 
-stress-highalloc
-----------------
+dbench4
+-------
 
-Generally this is going in the right direction. High-order allocations
-are reasonably successful and where they drop, they have been matched
-by a large reduction in the length of time it takes to complete the test.
-Success rates in 3.4 did drop sharply though.
-
+  Generally worse with a big drop in throughput after 3.0 for small number
+  of clients. In some cases there is an improvement in latency for 3.0
+  and later kernels but not always.
 
 ==========================================================
 Machine:	hydra
-Result:		http://www.csn.ul.ie/~mel/postings/mmtests-20120424/global-dhp__stress-highalloc-performance-ext3/hydra/comparison.html
+Result:		http://www.csn.ul.ie/~mel/postings/mmtests-20120424/global-dhp__io-dbench4-async-ext3/hydra/comparison.html
 Arch:		x86-64
 CPUs:		1 socket, 4 threads
 Model:		AMD Phenom II X4 940
 Disk:		Single Rotary Disk
+Status:		Ok
 ==========================================================
 
-stress-highalloc
-----------------
-
-Until 3.4, this was looking good. Unfortunately in 3.4 there was a massive
-drop in success rates. This correlates with the removal of lumpy reclaim
-which compaction indirectly depended upon. This strongly indicates that
-enough memory is not being reclaimed for compaction to make forward
-progress or compaction is being disabled routinely due to failed attempts
-at compaction.
-
-The success rates at the end of the test when the machine is idle are 
-still high implying that anti-fragmentation itself is still working
-as expected.
+dbench4
+-------
+  Similar to arnold, big drop in throughput after 3.0 for small numbers
+  of clients. Unlike arnold, this is matched by an improvement in latency
+  so it may be the case that IO is more fair even if dbench complains
+  about the latency. Very very broadly speaking, it looks like the read
+  operation got a lot faster but flush got a lot slower.
 
 ==========================================================
 Machine:	sandy
-Result:		http://www.csn.ul.ie/~mel/postings/mmtests-20120424/global-dhp__stress-highalloc-performance-ext3/sandy/comparison.html
+Result:		http://www.csn.ul.ie/~mel/postings/mmtests-20120424/global-dhp__io-dbench4-async-ext3/sandy/comparison.html
 Arch:		x86-64
 CPUs:		1 socket, 8 threads
 Model:		Intel Core i7-2600
 Disk:		Single Rotary Disk
+Status:		
 ==========================================================
 
-Same as hydra, this was looking good until 3.4 and then success rates dropped
-through the floor.
+dbench4
+-------
+  Same story, big drop in throughput after 3.0 with flush again looking very
+  expensive for 3.1 and later kernels. Latency figures are a mixed bag.
 
 -- 
 Mel Gorman
