@@ -1,135 +1,409 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx177.postini.com [74.125.245.177])
-	by kanga.kvack.org (Postfix) with SMTP id 5F2406B0044
-	for <linux-mm@kvack.org>; Mon, 23 Jul 2012 13:34:41 -0400 (EDT)
-Message-ID: <1343064870.26034.23.camel@twins>
-Subject: [RFC] page-table walkers vs memory order
-From: Peter Zijlstra <peterz@infradead.org>
-Date: Mon, 23 Jul 2012 19:34:30 +0200
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: quoted-printable
-Mime-Version: 1.0
+Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
+	by kanga.kvack.org (Postfix) with SMTP id 8E1176B005A
+	for <linux-mm@kvack.org>; Mon, 23 Jul 2012 14:20:31 -0400 (EDT)
+Date: Mon, 23 Jul 2012 15:19:53 -0300
+From: Rafael Aquini <aquini@redhat.com>
+Subject: Re: [PATCH v4 1/3] mm: introduce compaction and migration for virtio
+ ballooned pages
+Message-ID: <20120723181952.GA27373@t510.redhat.com>
+References: <cover.1342485774.git.aquini@redhat.com>
+ <49f828a9331c9b729fcf77226006921ec5bc52fa.1342485774.git.aquini@redhat.com>
+ <20120718054824.GA32341@bbox>
+ <20120720194858.GA16249@t510.redhat.com>
+ <20120723023332.GA6832@bbox>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120723023332.GA6832@bbox>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>, paulmck <paulmck@linux.vnet.ibm.com>, Hugh Dickins <hughd@google.com>
-Cc: Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Nick Piggin <npiggin@kernel.dk>, linux-kernel <linux-kernel@vger.kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, linux-arch <linux-arch@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Minchan Kim <minchan@kernel.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, Rusty Russell <rusty@rustcorp.com.au>, "Michael S. Tsirkin" <mst@redhat.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Rafael Aquini <aquini@linux.com>
+
+On Mon, Jul 23, 2012 at 11:33:32AM +0900, Minchan Kim wrote:
+> Hi Rafael,
+> 
+> On Fri, Jul 20, 2012 at 04:48:59PM -0300, Rafael Aquini wrote:
+> > Howdy Minchan,
+> > 
+> > Once again, thanks for raising such valuable feedback over here.
+> > 
+> > On Wed, Jul 18, 2012 at 02:48:24PM +0900, Minchan Kim wrote:
+> > > > +/* __isolate_lru_page() counterpart for a ballooned page */
+> > > > +static bool isolate_balloon_page(struct page *page)
+> > > > +{
+> > > > +	if (WARN_ON(!is_balloon_page(page)))
+> > > > +		return false;
+> > > 
+> > > I am not sure we need this because you alreay check it before calling
+> > > isolate_balloon_page. If you really need it, it would be better to
+> > > add likely in isolate_balloon_page, too.
+> > > 
+> > 
+> > This check point was set in place because isolate_balloon_page() was a publicly
+> > visible function and while our current usage looks correct it would not hurt to
+> > have something like that done -- think of it as an insurance policy, in case
+> > someone else, in the future, attempts to use it on any other place outside this
+> > specifc context. 
+> > Despite not seeing it as a dealbreaker for the patch as is, I do agree, however,
+> > this snippet can _potentially_ be removed from isolate_balloon_page(), since
+> > this function has become static to compaction.c.
+> 
+> Yes. It's not static.
+> 
+> > 
+> > 
+> > > > +
+> > > > +	if (likely(get_page_unless_zero(page))) {
+> > > > +		/*
+> > > > +		 * We can race against move_to_new_page() & __unmap_and_move().
+> > > > +		 * If we stumble across a locked balloon page and succeed on
+> > > > +		 * isolating it, the result tends to be disastrous.
+> > > > +		 */
+> > > > +		if (likely(trylock_page(page))) {
+> > > 
+> > > Hmm, I can't understand your comment.
+> > > What does this lock protect? Could you elaborate it with code sequence?
+> > > 
+> > 
+> > As we are coping with a corner case -- balloon pages are not on LRU lists --
+> > compaction concurrency can lead to a disastrous race which results in
+> > isolate_balloon_page() re-isolating already isolated balloon pages, or isolating
+> > a 'newpage' recently promoted to 'balloon page', while these pages are still
+> > under migration. The only way we have to prevent that from happening is
+> > attempting to grab the page lock, as pages under migration are already locked.
+> > I had that comment rephrased to what follows (please, tell me how it sounds to
+> > you now)
+> >   	if (likely(get_page_unless_zero(page))) {
+> >  		/*
+> > -		 * We can race against move_to_new_page() & __unmap_and_move().
+> > -		 * If we stumble across a locked balloon page and succeed on
+> > -		 * isolating it, the result tends to be disastrous.
+> > +		 * As balloon pages are not isolated from LRU lists, several
+> > +		 * concurrent compaction threads will potentially race against
+> > +		 * page migration at move_to_new_page() & __unmap_and_move().
+> > +		 * In order to avoid having an already isolated balloon page
+> > +		 * being (wrongly) re-isolated while it is under migration,
+> > +		 * lets be sure we have the page lock before proceeding with
+> > +		 * the balloon page isolation steps.
+> 
+> Looks good to me.
+> 
+> >  		 */
+> >  		if (likely(trylock_page(page))) {
+> >  			/*
+> > 
+> > 
+> > > > +/* putback_lru_page() counterpart for a ballooned page */
+> > > > +bool putback_balloon_page(struct page *page)
+> > > > +{
+> > > > +	if (WARN_ON(!is_balloon_page(page)))
+> > > > +		return false;
+> > > 
+> > > You already check WARN_ON in putback_lru_pages so we don't need it in here.
+> > > And you can add likely in here, too.
+> > >
+> > 
+> > This check point is in place by the same reason why it is for
+> > isolate_balloon_page(). However, I don't think we should drop it here because
+> > putback_balloon_page() is still a publicly visible symbol. Besides, the check
+> > that is performed at putback_lru_pages() level has a different meaning, which is
+> > to warn us when we fail on re-inserting an isolated (but not migrated) page back
+> > to the balloon page list, thus it does not superceeds nor it's superceeded by
+> > this checkpoint here.
+> 
+> I'm not against you strongly but IMHO, putback_balloon_page is never generic
+> function which is likely to be used by many others so I hope not overdesign.
+> 
+> > 
+> >  
+> > > > +		} else if (is_balloon_page(page)) {
+> > > 
+> > > unlikely?
+> > 
+> > This can be done, for sure. Also, it reminds me that I had a
+> > 'likely(PageLRU(page))' set in place for this vary same patch, on v2 submission.
+> > Do you recollect you've asked me to get rid of it?. Wouldn't it be better having
+> > that suggestion of yours reverted, since PageLRU(page) is the likelihood case
+> > here anyway? What about this?
+> > 
+> >    " if (likely(PageLRU(page))) { 
+> >        ... 
+> >      } else if (unlikely(is_balloon_page(page))) {
+> >        ...
+> >      } else
+> > 	continue;
+> >    "
+> 
+> I don't like that.
+> PageLRU isn't likelihood case in this.
+> 
+> > 
+> > > 
+> > > > @@ -78,7 +78,10 @@ void putback_lru_pages(struct list_head *l)
+> > > >  		list_del(&page->lru);
+> > > >  		dec_zone_page_state(page, NR_ISOLATED_ANON +
+> > > >  				page_is_file_cache(page));
+> > > > -		putback_lru_page(page);
+> > > > +		if (unlikely(is_balloon_page(page)))
+> > > > +			WARN_ON(!putback_balloon_page(page));
+> > > > +		else
+> > > > +			putback_lru_page(page);
+> > > 
+> > > Hmm, I don't like this.
+> > > The function name says we putback *lru* pages, but balloon page isn't.
+> > > How about this?
+> > > 
+> > > diff --git a/mm/compaction.c b/mm/compaction.c
+> > > index aad0a16..b07cd67 100644
+> > > --- a/mm/compaction.c
+> > > +++ b/mm/compaction.c
+> > > @@ -298,6 +298,8 @@ static bool too_many_isolated(struct zone *zone)
+> > >   * Apart from cc->migratepages and cc->nr_migratetypes this function
+> > >   * does not modify any cc's fields, in particular it does not modify
+> > >   * (or read for that matter) cc->migrate_pfn.
+> > > + * 
+> > > + * For returning page, you should use putback_pages instead of putback_lru_pages
+> > >   */
+> > >  unsigned long
+> > >  isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
+> > > @@ -827,7 +829,7 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
+> > >  
+> > >                 /* Release LRU pages not migrated */
+> > >                 if (err) {
+> > > -                       putback_lru_pages(&cc->migratepages);
+> > > +                       putback_pages(&cc->migratepages);
+> > >                         cc->nr_migratepages = 0;
+> > >                         if (err == -ENOMEM) {
+> > >                                 ret = COMPACT_PARTIAL;
+> > > diff --git a/mm/migrate.c b/mm/migrate.c
+> > > index 9705e70..a96b840 100644
+> > > --- a/mm/migrate.c
+> > > +++ b/mm/migrate.c
+> > > @@ -86,6 +86,22 @@ void putback_lru_pages(struct list_head *l)
+> > >         }
+> > >  }
+> > > 
+> > > + /* blah blah .... */ 
+> > > +void putback_pages(struct list_head *l)
+> > > +{
+> > > +       struct page *page;
+> > > +       struct page *page2;
+> > > +
+> > > +       list_for_each_entry_safe(page, page2, l, lru) {
+> > > +               list_del(&page->lru);
+> > > +               dec_zone_page_state(page, NR_ISOLATED_ANON +
+> > > +                               page_is_file_cache(page));
+> > > +               if (unlikely(is_balloon_page(page)))
+> > > +                       WARN_ON(!putback_balloon_page(page));
+> > > +               else
+> > > +                       putback_lru_page(page);
+> > > +       }
+> > > +}
+> > > +
+> > >  /*
+> > >   * Restore a potential migration pte to a working pte entry
+> > >   */
+> > > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> > > index 32985dd..decb82a 100644
+> > > --- a/mm/page_alloc.c
+> > > +++ b/mm/page_alloc.c
+> > > @@ -5655,7 +5655,7 @@ static int __alloc_contig_migrate_range(unsigned long start, unsigned long end)
+> > >                                     0, false, MIGRATE_SYNC);
+> > >         }
+> > >  
+> > > -       putback_lru_pages(&cc.migratepages);
+> > > +       putback_pages(&cc.migratepages);
+> > >         return ret > 0 ? 0 : ret;
+> > >  }
+> > > 
+> > 
+> > Despite being a very nice cleanup, this code refactoring has nothing to do with
+> > this particular patch purpose. For the sake of this implementation, think about
+> > the balloon page list acting as a particular LRU, so although ballooned pages
+> > are not enlisted on real LRUs, per se, this doesn't mean we cannot have them
+> > dealt as a corner case amongst putback_lru_pages() code for the sake of
+> > simplicity and maintainability ease. OTOH, I do agree with your nice suggestion,
+> > thus I can submit it as a separate clean-up patch attached to this series (if
+> > you don't mind).
+> 
+> No problem. But the concern is that I can't agree this patch implementation.
+> Please see below.
+> 
+> > 
+> > 
+> > > >  
+> > > > +	if (is_balloon_page(page)) {
+> > > 
+> > > unlikely?
+> > >
+> > 
+> > Yeah, why not? Will do it.
+> >  
+> > > > +	if (is_balloon_page(newpage)) {
+> > > 
+> > > unlikely?
+> > > 
+> > 
+> > ditto.
+> > 
+> > > > +		/*
+> > > > +		 * A ballooned page has been migrated already. Now, it is the
+> > > > +		 * time to wrap-up counters, handle the old page back to Buddy
+> > > > +		 * and return.
+> > > > +		 */
+> > > > +		list_del(&page->lru);
+> > > > +		dec_zone_page_state(page, NR_ISOLATED_ANON +
+> > > > +				    page_is_file_cache(page));
+> > > > +		put_page(page);
+> > > > +		__free_page(page);
+> > > 
+> > > Why do you use __free_page instead of put_page?
+> > > 
+> > 
+> > Do you mean perform an extra put_page() and let putback_lru_page() do the rest?
+> > Besides looking odd at code level, what other improvement we can potentially gain here?
+> 
+> I mean just do
+> put_page(page); /* blah blah */
+> put_page(page); /* It will free the page to buddy */
+> 
+> Yeb it's more fat than __free_page for your case. If so, please comment write out
+> why you use __free_page instead of put_page.
+>
+> /*
+>  * balloon page should be never compund page and not on the LRU so we
+>  * call __free_page directly instead of put_page.
+>  */
+> 
+
+No, it's ugly and potentially buggy (for this case). Besides, it shows no gain
+at all, as ballooned pages are a corner case here and they're not on LRUs. So,
+being quite reasonable, how this suggestion of yours could possibly be
+acceptable here?
+The comment is also not necessary, as there already is a comment on this, properly
+placed, which was (apparently) ignored by your eyes.
 
 
-While staring at mm/huge_memory.c I found a very under-commented
-smp_wmb() in __split_huge_page_map(). It turns out that its copied from
-__{pte,pmd,pud}_alloc() but forgot the useful comment (or a reference
-thereto).
+> > 
+> > 
+> > > The feeling I look at your code in detail is that it makes compaction/migration
+> > > code rather complicated because compaction/migration assumes source/target would
+> > > be LRU pages. 
+> > > 
+> > > How often memory ballooning happens? Does it make sense to hook it in generic
+> > > functions if it's very rare?
+> > > 
+> > > Couldn't you implement it like huge page?
+> > > It doesn't make current code complicated and doesn't affect performance
+> > > 
+> > > In compaction,
+> > > #ifdef CONFIG_VIRTIO_BALLOON
+> > > static int compact_zone(struct zone *zone, struct compact_control *cc, bool balloon)
+> > > {
+> > >         if (balloon) {
+> > >                 isolate_balloonpages
+> > > 
+> > >                 migrate_balloon_pages
+> > >                         unmap_and_move_balloon_page
+> > > 
+> > >                 putback_balloonpages
+> > >         }
+> > > }
+> > > #endif
+> > > 
+> > > I'm not sure memory ballooning so it might be dumb question.
+> > > Can we trigger it once only when ballooning happens?
+> > 
+> > I strongly believe, this is the simplest and easiest way to get this task
+> > accomplished, mostly becasue:
+> >   i. It does not require any code duplication at all;
+> >  ii. It requires very few code insertion/surgery to be fully operative;
+> > iii. It is embeded on already well established and maintained code;
+> >  iv. The approach makes easier to other balloon drivers leverage compaction
+> > code;
+> >   v. It shows no significative impact to the entangled code paths;
+> 
+> But it is adding a few hooks to generic functions which all assume they
+> are LRU pages. Although it's trivial for performance, we don't need get
+> such loss due to very infrequent event.
+> 
 
-Now, afaict we're not good, as per that comment. Paul has since
-convinced some of us that compiler writers are pure evil and out to get
-us.
+No, it is simply teaching compaction and migration about another possible and
+plausible page type case. There is also no loss, the numbers I provided you
+support that. The apparent overhead observed on the patched case is, actually,
+due to the bigger throughput observed. 
+In fact, the changes introduced here seem to have (accidentally) made that code
+more effective. Checking the numbers, again:
 
-Therefore we should do what rcu_dereference() does and use
-ACCESS_ONCE()/barrier() followed smp_read_barrier_depends() every time
-we dereference a page-table pointer.
+- "compact_pages_moved" average throughput increase:
+$ echo "scale=3; (1-(42219/51794))*100" | bc
+18.500
+
+- Avg time elapsed (sec) / page moved:
+* 3.5.0-rc7 (clean)
+ $ echo "scale=10; 0.344474338/42219" | bc
+ .0000081592
+
+* 3.5.0-rc7 (patch) 
+ $ echo "scale=10; 0.404462151/51794" | bc
+ .0000078090
 
 
-In particular it looks like things like
-mm/memcontrol.c:mem_cgroup_count_precharge(), which use
-walk_page_range() under down_read(&mm->mmap_sem) and can thus be
-concurrent with __{pte,pmd,pud}_alloc() from faults (and possibly
-itself) are quite broken on Alpha and subtly broken for those of us with
-'creative' compilers.
 
-Should I go do a more extensive audit of page-table walkers or are we
-happy with the status quo?
+> More concern to me that it makes code complicated because we assume
+> functions related migration/compaction depend on LRU pages.
+> Let me say a example.
+> suitable_migration_target in isolate_freepages returns true pageblock
+> type is MIGRATE_MOVABLE or MIGRATE_CMA which expect pages in that block
+> is migratable so they should be moved into another location or reclaimed
+> if we have no space for getting big contiguos space.
+> All of such code should consider balloon page but balloon page can't be
+> reclaimed unlike normal LRU page so it makes design more complex.
+>
 
----
- arch/x86/mm/gup.c |    6 +++---
- mm/pagewalk.c     |   24 ++++++++++++++++++++++++
- 2 files changed, 27 insertions(+), 3 deletions(-)
+You're simply ignoring that this series makes ballooned pages movable, so
+there's no need for this special treatment you're quoting at
+isolate_freepages_*() level. Ballooned pages don't need to be reclaimed, they
+just need to be moved away to not cause too much fragmentation.
 
-diff --git a/arch/x86/mm/gup.c b/arch/x86/mm/gup.c
-index dd74e46..4958fb1 100644
---- a/arch/x86/mm/gup.c
-+++ b/arch/x86/mm/gup.c
-@@ -150,7 +150,7 @@ static int gup_pmd_range(pud_t pud, unsigned long addr,=
- unsigned long end,
-=20
- 	pmdp =3D pmd_offset(&pud, addr);
- 	do {
--		pmd_t pmd =3D *pmdp;
-+		pmd_t pmd =3D ACCESS_ONCE(*pmdp);
-=20
- 		next =3D pmd_addr_end(addr, end);
- 		/*
-@@ -220,7 +220,7 @@ static int gup_pud_range(pgd_t pgd, unsigned long addr,=
- unsigned long end,
-=20
- 	pudp =3D pud_offset(&pgd, addr);
- 	do {
--		pud_t pud =3D *pudp;
-+		pud_t pud =3D ACCESS_ONCE(*pudp);
-=20
- 		next =3D pud_addr_end(addr, end);
- 		if (pud_none(pud))
-@@ -280,7 +280,7 @@ int __get_user_pages_fast(unsigned long start, int nr_p=
-ages, int write,
- 	local_irq_save(flags);
- 	pgdp =3D pgd_offset(mm, addr);
- 	do {
--		pgd_t pgd =3D *pgdp;
-+		pgd_t pgd =3D ACCESS_ONCE(*pgdp);
-=20
- 		next =3D pgd_addr_end(addr, end);
- 		if (pgd_none(pgd))
-diff --git a/mm/pagewalk.c b/mm/pagewalk.c
-index 6c118d0..2ba2a74 100644
---- a/mm/pagewalk.c
-+++ b/mm/pagewalk.c
-@@ -10,6 +10,14 @@ static int walk_pte_range(pmd_t *pmd, unsigned long addr=
-, unsigned long end,
- 	int err =3D 0;
-=20
- 	pte =3D pte_offset_map(pmd, addr);
-+	/*
-+	 * Pairs with the smp_wmb() in __{pte,pmd,pud}_alloc() and
-+	 * __split_huge_page_map(). Ideally we'd use ACCESS_ONCE() on the
-+	 * actual dereference of p[gum]d, but that's hidden deep within the
-+	 * bowels of {pte,pmd,pud}_offset.
-+	 */
-+	barrier();
-+	smp_read_barrier_depends();
- 	for (;;) {
- 		err =3D walk->pte_entry(pte, addr, addr + PAGE_SIZE, walk);
- 		if (err)
-@@ -32,6 +40,14 @@ static int walk_pmd_range(pud_t *pud, unsigned long addr=
-, unsigned long end,
- 	int err =3D 0;
-=20
- 	pmd =3D pmd_offset(pud, addr);
-+	/*
-+	 * Pairs with the smp_wmb() in __{pte,pmd,pud}_alloc() and
-+	 * __split_huge_page_map(). Ideally we'd use ACCESS_ONCE() on the
-+	 * actual dereference of p[gum]d, but that's hidden deep within the
-+	 * bowels of {pte,pmd,pud}_offset.
-+	 */
-+	barrier();
-+	smp_read_barrier_depends();
- 	do {
- again:
- 		next =3D pmd_addr_end(addr, end);
-@@ -77,6 +93,14 @@ static int walk_pud_range(pgd_t *pgd, unsigned long addr=
-, unsigned long end,
- 	int err =3D 0;
-=20
- 	pud =3D pud_offset(pgd, addr);
-+	/*
-+	 * Pairs with the smp_wmb() in __{pte,pmd,pud}_alloc() and
-+	 * __split_huge_page_map(). Ideally we'd use ACCESS_ONCE() on the
-+	 * actual dereference of p[gum]d, but that's hidden deep within the
-+	 * bowels of {pte,pmd,pud}_offset.
-+	 */
-+	barrier();
-+	smp_read_barrier_depends();
- 	do {
- 		next =3D pud_addr_end(addr, end);
- 		if (pud_none_or_clear_bad(pud)) {
+ 
+> Look at memory-hotplug, offline_page calls has_unmovable_pages, scan_lru_pages
+> and do_migrate_range which calls isolate_lru_page. They consider only LRU pages
+> to migratable ones.
+>
+
+A-ha! Now you gave me the real reason why you're struggling against this
+proposed implementation. I'll take a look at those bits, to come up with
+something suitable, for sure.
+
+ 
+> IMHO, better approach is that after we can get complete free pageblocks
+> by compaction or reclaim, move balloon pages into that pageblocks and make
+> that blocks to unmovable. It can prevent fragmentation and it makes
+> current or future code don't need to consider balloon page.
+> 
+> Of course, it needs more code but I think it's valuable.
+> What do you think about it?
+> 
+
+In a glance, I believe this whole dance you're suggesting might just be too much
+of an overcomplication, and the best approach would be simply teaching the
+hotplug bits about the ballooned corner case just like it's being done to
+compaction/migration. However, I'll look at it carefully before making any other
+adjustments/propositions over here.
+
+Thanks for your (always) valuable feedback.
+
+Best regards,
+
+Rafael
+
+
+> -- 
+> Kind regards,
+> Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
