@@ -1,73 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
-	by kanga.kvack.org (Postfix) with SMTP id E18676B0089
-	for <linux-mm@kvack.org>; Mon, 23 Jul 2012 09:39:02 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx162.postini.com [74.125.245.162])
+	by kanga.kvack.org (Postfix) with SMTP id 5A4B66B0071
+	for <linux-mm@kvack.org>; Mon, 23 Jul 2012 09:38:53 -0400 (EDT)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 21/34] kswapd: assign new_order and new_classzone_idx after wakeup in sleeping
-Date: Mon, 23 Jul 2012 14:38:34 +0100
-Message-Id: <1343050727-3045-22-git-send-email-mgorman@suse.de>
+Subject: [PATCH 05/34] vmscan: clear ZONE_CONGESTED for zone with good watermark
+Date: Mon, 23 Jul 2012 14:38:18 +0100
+Message-Id: <1343050727-3045-6-git-send-email-mgorman@suse.de>
 In-Reply-To: <1343050727-3045-1-git-send-email-mgorman@suse.de>
 References: <1343050727-3045-1-git-send-email-mgorman@suse.de>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Stable <stable@vger.kernel.org>
 Cc: Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
 
-From: "Alex,Shi" <alex.shi@intel.com>
+From: Shaohua Li <shaohua.li@intel.com>
 
-commit f0dfcde099453aa4c0dc42473828d15a6d492936 upstream.
+commit 439423f6894aa0dec22187526827456f5004baed upstream.
 
-Stable note: Fixes https://bugzilla.redhat.com/show_bug.cgi?id=712019. This
-	patch reduces kswapd CPU usage.
+Stable note: Not tracked in Bugzilla. kswapd is responsible for clearing
+	ZONE_CONGESTED after it balances a zone and this patch fixes a bug
+	where that was failing to happen. Without this patch, processes
+	can stall in wait_iff_congested unnecessarily. For users, this can
+	look like an interactivity stall but some workloads would see it
+	as sudden drop in throughput.
 
-There 2 places to read pgdat in kswapd.  One is return from a successful
-balance, another is waked up from kswapd sleeping.  The new_order and
-new_classzone_idx represent the balance input order and classzone_idx.
+ZONE_CONGESTED is only cleared in kswapd, but pages can be freed in any
+task.  It's possible ZONE_CONGESTED isn't cleared in some cases:
 
-But current new_order and new_classzone_idx are not assigned after
-kswapd_try_to_sleep(), that will cause a bug in the following scenario.
+ 1. the zone is already balanced just entering balance_pgdat() for
+    order-0 because concurrent tasks free memory.  In this case, later
+    check will skip the zone as it's balanced so the flag isn't cleared.
 
-1: after a successful balance, kswapd goes to sleep, and new_order = 0;
-   new_classzone_idx = __MAX_NR_ZONES - 1;
+ 2. high order balance fallbacks to order-0.  quote from Mel: At the
+    end of balance_pgdat(), kswapd uses the following logic;
 
-2: kswapd waked up with order = 3 and classzone_idx = ZONE_NORMAL
+	If reclaiming at high order {
+		for each zone {
+			if all_unreclaimable
+				skip
+			if watermark is not met
+				order = 0
+				loop again
 
-3: in the balance_pgdat() running, a new balance wakeup happened with
-   order = 5, and classzone_idx = ZONE_NORMAL
+			/* watermark is met */
+			clear congested
+		}
+	}
 
-4: the first wakeup(order = 3) finished successufly, return order = 3
-   but, the new_order is still 0, so, this balancing will be treated as a
-   failed balance.  And then the second tighter balancing will be missed.
+    i.e. it clears ZONE_CONGESTED if it the zone is balanced.  if not,
+    it restarts balancing at order-0.  However, if the higher zones are
+    balanced for order-0, kswapd will miss clearing ZONE_CONGESTED as
+    that only happens after a zone is shrunk.  This can mean that
+    wait_iff_congested() stalls unnecessarily.
 
-So, to avoid the above problem, the new_order and new_classzone_idx need
-to be assigned for later successful comparison.
+This patch makes kswapd clear ZONE_CONGESTED during its initial
+highmem->dma scan for zones that are already balanced.
 
-Signed-off-by: Alex Shi <alex.shi@intel.com>
+Signed-off-by: Shaohua Li <shaohua.li@intel.com>
 Acked-by: Mel Gorman <mgorman@suse.de>
 Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
-Tested-by: PA!draig Brady <P@draigBrady.com>
 Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
 Signed-off-by: Mel Gorman <mgorman@suse.de>
 ---
- mm/vmscan.c |    2 ++
- 1 file changed, 2 insertions(+)
+ mm/vmscan.c |    3 +++
+ 1 file changed, 3 insertions(+)
 
 diff --git a/mm/vmscan.c b/mm/vmscan.c
-index bf85e4d..b8c1fc0 100644
+index bdfdec3..72340b84 100644
 --- a/mm/vmscan.c
 +++ b/mm/vmscan.c
-@@ -2905,6 +2905,8 @@ static int kswapd(void *p)
- 						balanced_classzone_idx);
- 			order = pgdat->kswapd_max_order;
- 			classzone_idx = pgdat->classzone_idx;
-+			new_order = order;
-+			new_classzone_idx = classzone_idx;
- 			pgdat->kswapd_max_order = 0;
- 			pgdat->classzone_idx = pgdat->nr_zones - 1;
+@@ -2456,6 +2456,9 @@ loop_again:
+ 					high_wmark_pages(zone), 0, 0)) {
+ 				end_zone = i;
+ 				break;
++			} else {
++				/* If balanced, clear the congested flag */
++				zone_clear_flag(zone, ZONE_CONGESTED);
+ 			}
  		}
+ 		if (i < 0)
 -- 
 1.7.9.2
 
