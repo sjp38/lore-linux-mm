@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
-	by kanga.kvack.org (Postfix) with SMTP id CCFE66B005D
-	for <linux-mm@kvack.org>; Mon, 23 Jul 2012 17:22:32 -0400 (EDT)
-Date: Mon, 23 Jul 2012 22:21:46 +0100
+Received: from psmtp.com (na3sys010amx159.postini.com [74.125.245.159])
+	by kanga.kvack.org (Postfix) with SMTP id AFBD36B005D
+	for <linux-mm@kvack.org>; Mon, 23 Jul 2012 17:23:31 -0400 (EDT)
+Date: Mon, 23 Jul 2012 22:23:27 +0100
 From: Mel Gorman <mgorman@suse.de>
-Subject: [MMTests] dbench4 async on ext3
-Message-ID: <20120723212146.GG9222@suse.de>
+Subject: [MMTests] dbench4 async on ext4
+Message-ID: <20120723212327.GH9222@suse.de>
 References: <20120620113252.GE4011@suse.de>
  <20120629111932.GA14154@suse.de>
 MIME-Version: 1.0
@@ -17,16 +17,17 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org
 
-Configuration:	global-dhp__io-dbench4-async-ext3
-Result: 	http://www.csn.ul.ie/~mel/postings/mmtests-20120424/global-dhp__io-dbench4-async-ext3
+Configuration:	global-dhp__io-dbench4-async-ext4
+Result: 	http://www.csn.ul.ie/~mel/postings/mmtests-20120424/global-dhp__io-dbench4-async-ext4
 Benchmarks:	dbench4
 
 Summary
 =======
 
-In general there was a massive drop in throughput after 3.0. Very broadly
-speaking it looks like the Read operation got faster but at the cost of
-a big regression in the Flush operation.
+Nothing majorly exciting although throughput has been declining
+slightly in a number of cases. However, this is not consistent
+between machines and latency has also been variable. Broadly
+speaking, there is not need to take any action here.
 
 Benchmark notes
 ===============
@@ -40,7 +41,7 @@ fsync were all off.
 
 ===========================================================
 Machine:	arnold
-Result:		http://www.csn.ul.ie/~mel/postings/mmtests-20120424/global-dhp__io-dbench4-async-ext3/arnold/comparison.html
+Result:		http://www.csn.ul.ie/~mel/postings/mmtests-20120424/global-dhp__io-dbench4-async-ext4/arnold/comparison.html
 Arch:		x86
 CPUs:		1 socket, 2 threads
 Model:		Pentium 4
@@ -50,13 +51,12 @@ Disk:		Single Rotary Disk
 dbench4
 -------
 
-  Generally worse with a big drop in throughput after 3.0 for small number
-  of clients. In some cases there is an improvement in latency for 3.0
-  and later kernels but not always.
+  In very vague terms, throughput has been getting worse over time but
+  it's very gradual. Latency has also been getting worse.
 
 ==========================================================
 Machine:	hydra
-Result:		http://www.csn.ul.ie/~mel/postings/mmtests-20120424/global-dhp__io-dbench4-async-ext3/hydra/comparison.html
+Result:		http://www.csn.ul.ie/~mel/postings/mmtests-20120424/global-dhp__io-dbench4-async-ext4/hydra/comparison.html
 Arch:		x86-64
 CPUs:		1 socket, 4 threads
 Model:		AMD Phenom II X4 940
@@ -66,15 +66,13 @@ Status:		Ok
 
 dbench4
 -------
-  Similar to arnold, big drop in throughput after 3.0 for small numbers
-  of clients. Unlike arnold, this is matched by an improvement in latency
-  so it may be the case that IO is more fair even if dbench complains
-  about the latency. Very very broadly speaking, it looks like the read
-  operation got a lot faster but flush got a lot slower.
+
+  This is a mixed bag, there are gains and losses and it's hard to draw
+  any meaningful conclusion.
 
 ==========================================================
 Machine:	sandy
-Result:		http://www.csn.ul.ie/~mel/postings/mmtests-20120424/global-dhp__io-dbench4-async-ext3/sandy/comparison.html
+Result:		http://www.csn.ul.ie/~mel/postings/mmtests-20120424/global-dhp__io-dbench4-async-ext4/sandy/comparison.html
 Arch:		x86-64
 CPUs:		1 socket, 8 threads
 Model:		Intel Core i7-2600
@@ -84,8 +82,9 @@ Status:
 
 dbench4
 -------
-  Same story, big drop in throughput after 3.0 with flush again looking very
-  expensive for 3.1 and later kernels. Latency figures are a mixed bag.
+
+  For the most part, there are few changes of note. Latency has
+  been getting better particularly in 3.2 and later kernels.
 
 -- 
 Mel Gorman
