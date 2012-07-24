@@ -1,149 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
-	by kanga.kvack.org (Postfix) with SMTP id DA9716B0044
-	for <linux-mm@kvack.org>; Tue, 24 Jul 2012 18:54:19 -0400 (EDT)
-Message-ID: <1343170456.3165.14.camel@lorien2>
-Subject: [PATCH] mm: Restructure kmem_cache_create() to move debug cache
- integrity checks into a new function
-From: Shuah Khan <shuah.khan@hp.com>
-Reply-To: shuah.khan@hp.com
-Date: Tue, 24 Jul 2012 16:54:16 -0600
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 7bit
-Mime-Version: 1.0
+Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
+	by kanga.kvack.org (Postfix) with SMTP id DFB036B0044
+	for <linux-mm@kvack.org>; Tue, 24 Jul 2012 19:33:59 -0400 (EDT)
+Date: Wed, 25 Jul 2012 08:34:22 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH -mm] remove __GFP_NO_KSWAPD
+Message-ID: <20120724233422.GB14411@bbox>
+References: <20120724111222.2c5e6b30@annuminas.surriel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120724111222.2c5e6b30@annuminas.surriel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: cl@linux.com, penberg@kernel.org, glommer@parallels.com, js1304@gmail.com, David Rientjes <rientjes@google.com>
-Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, shuahkhan@gmail.com
+To: Rik van Riel <riel@redhat.com>
+Cc: linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>, lkml <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>
 
-kmem_cache_create() does cache integrity checks when CONFIG_DEBUG_VM
-is defined. These checks interspersed with the regular code path has
-lead to compile time warnings when compiled without CONFIG_DEBUG_VM
-defined. Restructuring the code to move the integrity checks in to a new
-function would eliminate the current compile warning problem and also
-will allow for future changes to the debug only code to evolve without
-introducing new warnings in the regular path. This restructuring work
-is based on the discussion in the following thread:
+Hi Rik,
 
-https://lkml.org/lkml/2012/7/13/424
+On Tue, Jul 24, 2012 at 11:12:22AM -0400, Rik van Riel wrote:
+> When transparent huge pages were introduced, memory compaction and
+> swap storms were an issue, and the kernel had to be careful to not
+> make THP allocations cause pageout or compaction.
+> 
+> Now that we have working compaction deferral, kswapd is smart enough
+> to invoke compaction and the quadratic behaviour around isolate_free_pages
+> has been fixed, it should be safe to remove __GFP_NO_KSWAPD.
 
-Signed-off-by: Shuah Khan <shuah.khan@hp.com>
----
- mm/slab_common.c |   74 ++++++++++++++++++++++++++++--------------------------
- 1 file changed, 38 insertions(+), 36 deletions(-)
+Could you point out specific patches you mentiond which makes kswapd/compaction
+smart? It will make description very clear.
 
-diff --git a/mm/slab_common.c b/mm/slab_common.c
-index 12637ce..08bc2a4 100644
---- a/mm/slab_common.c
-+++ b/mm/slab_common.c
-@@ -23,6 +23,41 @@ enum slab_state slab_state;
- LIST_HEAD(slab_caches);
- DEFINE_MUTEX(slab_mutex);
- 
-+static int kmem_cache_sanity_check(const char *name, size_t size)
-+{
-+#ifdef CONFIG_DEBUG_VM
-+	struct kmem_cache *s = NULL;
-+
-+	list_for_each_entry(s, &slab_caches, list) {
-+		char tmp;
-+		int res;
-+
-+		/*
-+		 * This happens when the module gets unloaded and doesn't
-+		 * destroy its slab cache and no-one else reuses the vmalloc
-+		 * area of the module.  Print a warning.
-+		 */
-+		res = probe_kernel_address(s->name, tmp);
-+		if (res) {
-+			pr_err("Slab cache with size %d has lost its name\n",
-+			       s->object_size);
-+			continue;
-+		}
-+
-+		if (!strcmp(s->name, name)) {
-+			pr_err("%s (%s): Cache name already exists.\n",
-+			       __func__, name);
-+			dump_stack();
-+			s = NULL;
-+			return -EINVAL;
-+		}
-+	}
-+
-+	WARN_ON(strchr(name, ' '));	/* It confuses parsers */
-+#endif
-+	return 0;
-+}
-+
- /*
-  * kmem_cache_create - Create a cache.
-  * @name: A string which is used in /proc/slabinfo to identify this cache.
-@@ -53,48 +88,17 @@ struct kmem_cache *kmem_cache_create(const char *name, size_t size, size_t align
- {
- 	struct kmem_cache *s = NULL;
- 
--#ifdef CONFIG_DEBUG_VM
- 	if (!name || in_interrupt() || size < sizeof(void *) ||
- 		size > KMALLOC_MAX_SIZE) {
--		printk(KERN_ERR "kmem_cache_create(%s) integrity check"
--			" failed\n", name);
-+		pr_err("kmem_cache_create(%s) integrity check failed\n", name);
- 		goto out;
- 	}
--#endif
- 
- 	get_online_cpus();
- 	mutex_lock(&slab_mutex);
- 
--#ifdef CONFIG_DEBUG_VM
--	list_for_each_entry(s, &slab_caches, list) {
--		char tmp;
--		int res;
--
--		/*
--		 * This happens when the module gets unloaded and doesn't
--		 * destroy its slab cache and no-one else reuses the vmalloc
--		 * area of the module.  Print a warning.
--		 */
--		res = probe_kernel_address(s->name, tmp);
--		if (res) {
--			printk(KERN_ERR
--			       "Slab cache with size %d has lost its name\n",
--			       s->object_size);
--			continue;
--		}
--
--		if (!strcmp(s->name, name)) {
--			printk(KERN_ERR "kmem_cache_create(%s): Cache name"
--				" already exists.\n",
--				name);
--			dump_stack();
--			s = NULL;
--			goto oops;
--		}
--	}
--
--	WARN_ON(strchr(name, ' '));	/* It confuses parsers */
--#endif
-+	if (kmem_cache_sanity_check(name, size))
-+		goto oops;
- 
- 	s = __kmem_cache_create(name, size, align, flags, ctor);
- 
-@@ -102,9 +106,7 @@ oops:
- 	mutex_unlock(&slab_mutex);
- 	put_online_cpus();
- 
--#ifdef CONFIG_DEBUG_VM
- out:
--#endif
- 	if (!s && (flags & SLAB_PANIC))
- 		panic("kmem_cache_create: Failed to create slab '%s'\n", name);
- 
+> 
+> Signed-off-by: Rik van Riel <riel@redhat.com>
+
+I support it because I had a concern about that flags which is likely to be
+used by other subsystems without careful thinking when the flag was introduced.
+It's proved by mtd_kmalloc_up_to which was merged with sneaking without catching
+from mm guys's eyes. When I read comment of that function, it seems to be proper
+usage but I don't like it because it requries users of mm to know mm internal
+like kswapd. So it should be avoided if possible.
+
+Plus, it means you need to fix it with show_gfp_flags. :)
+
+
+> ---
+> This has been running fine on my system for a while, but my system
+> only has 12GB and moderate memory pressure. I propose we keep this
+> in -mm and -next for a while, and merge it for 3.7 if nobody complains.
+
+Yes. it should be very careful.
+I guess Mel and Andrea would have opinions and benchmark.
+
 -- 
-1.7.9.5
-
-
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
