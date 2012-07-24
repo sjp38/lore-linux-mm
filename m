@@ -1,228 +1,184 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
-	by kanga.kvack.org (Postfix) with SMTP id 832BC6B005A
-	for <linux-mm@kvack.org>; Tue, 24 Jul 2012 17:14:05 -0400 (EDT)
-From: Torsten Polle <Torsten.Polle@gmx.de>
-Subject: [PATCH 08/24] uprobes/core: Make macro names consistent
-Date: Tue, 24 Jul 2012 23:12:52 +0200
-Message-Id: <112fa6d7522b68e37ce072bdf338dbd0f1f9feb1.1343163919.git.Torsten.Polle@gmx.de>
-In-Reply-To: <cover.1343163918.git.Torsten.Polle@gmx.de>
-References: <cover.1343163918.git.Torsten.Polle@gmx.de>
+Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
+	by kanga.kvack.org (Postfix) with SMTP id A87686B0044
+	for <linux-mm@kvack.org>; Tue, 24 Jul 2012 17:51:56 -0400 (EDT)
+Received: by ghrr18 with SMTP id r18so73948ghr.14
+        for <linux-mm@kvack.org>; Tue, 24 Jul 2012 14:51:55 -0700 (PDT)
+Date: Tue, 24 Jul 2012 14:51:05 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [RFC] page-table walkers vs memory order
+In-Reply-To: <1343064870.26034.23.camel@twins>
+Message-ID: <alpine.LSU.2.00.1207241356350.2094@eggly.anvils>
+References: <1343064870.26034.23.camel@twins>
 MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="------------1.7.4.1"
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: tpolle@de.adit-jv.com
-Cc: Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Linus Torvalds <torvalds@linux-foundation.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Linux-mm <linux-mm@kvack.org>, Oleg Nesterov <oleg@redhat.com>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Torsten Polle <Torsten.Polle@gmx.de>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Nick Piggin <npiggin@kernel.dk>, Andrea Arcangeli <aarcange@redhat.com>, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org
 
-From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+On Mon, 23 Jul 2012, Peter Zijlstra wrote:
+> 
+> While staring at mm/huge_memory.c I found a very under-commented
+> smp_wmb() in __split_huge_page_map(). It turns out that its copied from
+> __{pte,pmd,pud}_alloc() but forgot the useful comment (or a reference
+> thereto).
+> 
+> Now, afaict we're not good, as per that comment. Paul has since
+> convinced some of us that compiler writers are pure evil and out to get
+> us.
+> 
+> Therefore we should do what rcu_dereference() does and use
+> ACCESS_ONCE()/barrier() followed smp_read_barrier_depends() every time
+> we dereference a page-table pointer.
+> 
+> 
+> In particular it looks like things like
+> mm/memcontrol.c:mem_cgroup_count_precharge(), which use
+> walk_page_range() under down_read(&mm->mmap_sem) and can thus be
+> concurrent with __{pte,pmd,pud}_alloc() from faults (and possibly
+> itself) are quite broken on Alpha
 
-This is a multi-part message in MIME format.
---------------1.7.4.1
-Content-Type: text/plain; charset=UTF-8; format=fixed
-Content-Transfer-Encoding: 8bit
+The Alpha pmd_offset() and pte_offset_map() already contain an
+smp_read_barrier_depends() (362a61ad from Nick); with comment that
+it's not needed on the pgd, and I presume the pud level is folded.
+Does Alpha really need more of them, as you have put below?
 
+> and subtly broken for those of us with 'creative' compilers.
 
-Rename macros that refer to individual uprobe to start with
-UPROBE_ instead of UPROBES_.
+I don't want to fight against ACCESS_ONCE() (or barrier(): that's
+interesting, thank you, I hadn't seen it used as an ACCESS_ONCE()
+substitute before); but I do want to question it a little.
 
-This is pure cleanup, no functional change intended.
+I'm totally unclear whether the kernel ever gets built with these
+'creative' compilers that you refer to.  Is ACCESS_ONCE() a warning
+of where some future compiler would be permitted to mess with our
+assumptions?  Or is it actually saving us already today?  Would we
+know?  Could there be a boottime test that would tell us?  Is it
+likely that a future compiler would have an "--access_once"
+option that the kernel build would want to turn on?
 
-Signed-off-by: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Ananth N Mavinakayanahalli <ananth@in.ibm.com>
-Cc: Jim Keniston <jkenisto@linux.vnet.ibm.com>
-Cc: Linux-mm <linux-mm@kvack.org>
-Cc: Oleg Nesterov <oleg@redhat.com>
-Cc: Andi Kleen <andi@firstfloor.org>
-Cc: Christoph Hellwig <hch@infradead.org>
-Cc: Steven Rostedt <rostedt@goodmis.org>
-Cc: Arnaldo Carvalho de Melo <acme@infradead.org>
-Cc: Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>
-Cc: Peter Zijlstra <peterz@infradead.org>
-Link: http://lkml.kernel.org/r/20120312092514.5379.36595.sendpatchset@srdronam.in.ibm.com
-Signed-off-by: Ingo Molnar <mingo@elte.hu>
-Signed-off-by: Torsten Polle <Torsten.Polle@gmx.de>
----
- arch/x86/include/asm/uprobes.h |    6 +++---
- arch/x86/kernel/uprobes.c      |   18 +++++++++---------
- include/linux/uprobes.h        |    4 ++--
- kernel/events/uprobes.c        |   18 +++++++++---------
- 4 files changed, 23 insertions(+), 23 deletions(-)
+Those may all be questions for Paul!
 
+> 
+> Should I go do a more extensive audit of page-table walkers or are we
+> happy with the status quo?
 
---------------1.7.4.1
-Content-Type: text/x-patch; name="0008-uprobes-core-Make-macro-names-consistent.patch"
-Content-Transfer-Encoding: 8bit
-Content-Disposition: attachment; filename="0008-uprobes-core-Make-macro-names-consistent.patch"
+I do love the status quo, but an audit would be welcome.  When
+it comes to patches, personally I tend to prefer ACCESS_ONCE() and
+smp_read_barrier_depends() and accompanying comments to be hidden away
+in the underlying macros or inlines where reasonable, rather than
+repeated all over; but I may have my priorities wrong on that.
 
-diff --git a/arch/x86/include/asm/uprobes.h b/arch/x86/include/asm/uprobes.h
-index f7ce310..5c399e4 100644
---- a/arch/x86/include/asm/uprobes.h
-+++ b/arch/x86/include/asm/uprobes.h
-@@ -26,10 +26,10 @@
- typedef u8 uprobe_opcode_t;
- 
- #define MAX_UINSN_BYTES			  16
--#define UPROBES_XOL_SLOT_BYTES		 128	/* to keep it cache aligned */
-+#define UPROBE_XOL_SLOT_BYTES		 128	/* to keep it cache aligned */
- 
--#define UPROBES_BKPT_INSN		0xcc
--#define UPROBES_BKPT_INSN_SIZE		   1
-+#define UPROBE_BKPT_INSN		0xcc
-+#define UPROBE_BKPT_INSN_SIZE		   1
- 
- struct arch_uprobe {
- 	u16				fixups;
-diff --git a/arch/x86/kernel/uprobes.c b/arch/x86/kernel/uprobes.c
-index 04dfcef..6dfa89e 100644
---- a/arch/x86/kernel/uprobes.c
-+++ b/arch/x86/kernel/uprobes.c
-@@ -31,14 +31,14 @@
- /* Post-execution fixups. */
- 
- /* No fixup needed */
--#define UPROBES_FIX_NONE	0x0
-+#define UPROBE_FIX_NONE	0x0
- /* Adjust IP back to vicinity of actual insn */
--#define UPROBES_FIX_IP		0x1
-+#define UPROBE_FIX_IP		0x1
- /* Adjust the return address of a call insn */
--#define UPROBES_FIX_CALL	0x2
-+#define UPROBE_FIX_CALL	0x2
- 
--#define UPROBES_FIX_RIP_AX	0x8000
--#define UPROBES_FIX_RIP_CX	0x4000
-+#define UPROBE_FIX_RIP_AX	0x8000
-+#define UPROBE_FIX_RIP_CX	0x4000
- 
- /* Adaptations for mhiramat x86 decoder v14. */
- #define OPCODE1(insn)		((insn)->opcode.bytes[0])
-@@ -269,9 +269,9 @@ static void prepare_fixups(struct arch_uprobe *auprobe, struct insn *insn)
- 		break;
- 	}
- 	if (fix_ip)
--		auprobe->fixups |= UPROBES_FIX_IP;
-+		auprobe->fixups |= UPROBE_FIX_IP;
- 	if (fix_call)
--		auprobe->fixups |= UPROBES_FIX_CALL;
-+		auprobe->fixups |= UPROBE_FIX_CALL;
- }
- 
- #ifdef CONFIG_X86_64
-@@ -341,12 +341,12 @@ static void handle_riprel_insn(struct mm_struct *mm, struct arch_uprobe *auprobe
- 		 * is NOT the register operand, so we use %rcx (register
- 		 * #1) for the scratch register.
- 		 */
--		auprobe->fixups = UPROBES_FIX_RIP_CX;
-+		auprobe->fixups = UPROBE_FIX_RIP_CX;
- 		/* Change modrm from 00 000 101 to 00 000 001. */
- 		*cursor = 0x1;
- 	} else {
- 		/* Use %rax (register #0) for the scratch register. */
--		auprobe->fixups = UPROBES_FIX_RIP_AX;
-+		auprobe->fixups = UPROBE_FIX_RIP_AX;
- 		/* Change modrm from 00 xxx 101 to 00 xxx 000 */
- 		*cursor = (reg << 3);
- 	}
-diff --git a/include/linux/uprobes.h b/include/linux/uprobes.h
-index f85797e..838fb31 100644
---- a/include/linux/uprobes.h
-+++ b/include/linux/uprobes.h
-@@ -35,10 +35,10 @@ struct vm_area_struct;
- /* flags that denote/change uprobes behaviour */
- 
- /* Have a copy of original instruction */
--#define UPROBES_COPY_INSN	0x1
-+#define UPROBE_COPY_INSN	0x1
- 
- /* Dont run handlers when first register/ last unregister in progress*/
--#define UPROBES_RUN_HANDLER	0x2
-+#define UPROBE_RUN_HANDLER	0x2
- 
- struct uprobe_consumer {
- 	int (*handler)(struct uprobe_consumer *self, struct pt_regs *regs);
-diff --git a/kernel/events/uprobes.c b/kernel/events/uprobes.c
-index 5ce32e3..0d36bf3 100644
---- a/kernel/events/uprobes.c
-+++ b/kernel/events/uprobes.c
-@@ -177,7 +177,7 @@ out:
-  */
- bool __weak is_bkpt_insn(uprobe_opcode_t *insn)
- {
--	return *insn == UPROBES_BKPT_INSN;
-+	return *insn == UPROBE_BKPT_INSN;
- }
- 
- /*
-@@ -259,8 +259,8 @@ static int write_opcode(struct mm_struct *mm, struct arch_uprobe *auprobe,
- 
- 	/* poke the new insn in, ASSUMES we don't cross page boundary */
- 	vaddr &= ~PAGE_MASK;
--	BUG_ON(vaddr + UPROBES_BKPT_INSN_SIZE > PAGE_SIZE);
--	memcpy(vaddr_new + vaddr, &opcode, UPROBES_BKPT_INSN_SIZE);
-+	BUG_ON(vaddr + UPROBE_BKPT_INSN_SIZE > PAGE_SIZE);
-+	memcpy(vaddr_new + vaddr, &opcode, UPROBE_BKPT_INSN_SIZE);
- 
- 	kunmap_atomic(vaddr_new);
- 	kunmap_atomic(vaddr_old);
-@@ -308,7 +308,7 @@ static int read_opcode(struct mm_struct *mm, unsigned long vaddr, uprobe_opcode_
- 	lock_page(page);
- 	vaddr_new = kmap_atomic(page);
- 	vaddr &= ~PAGE_MASK;
--	memcpy(opcode, vaddr_new + vaddr, UPROBES_BKPT_INSN_SIZE);
-+	memcpy(opcode, vaddr_new + vaddr, UPROBE_BKPT_INSN_SIZE);
- 	kunmap_atomic(vaddr_new);
- 	unlock_page(page);
- 
-@@ -352,7 +352,7 @@ int __weak set_bkpt(struct mm_struct *mm, struct arch_uprobe *auprobe, unsigned
- 	if (result)
- 		return result;
- 
--	return write_opcode(mm, auprobe, vaddr, UPROBES_BKPT_INSN);
-+	return write_opcode(mm, auprobe, vaddr, UPROBE_BKPT_INSN);
- }
- 
- /**
-@@ -635,7 +635,7 @@ static int install_breakpoint(struct mm_struct *mm, struct uprobe *uprobe,
- 
- 	addr = (unsigned long)vaddr;
- 
--	if (!(uprobe->flags & UPROBES_COPY_INSN)) {
-+	if (!(uprobe->flags & UPROBE_COPY_INSN)) {
- 		ret = copy_insn(uprobe, vma, addr);
- 		if (ret)
- 			return ret;
-@@ -647,7 +647,7 @@ static int install_breakpoint(struct mm_struct *mm, struct uprobe *uprobe,
- 		if (ret)
- 			return ret;
- 
--		uprobe->flags |= UPROBES_COPY_INSN;
-+		uprobe->flags |= UPROBE_COPY_INSN;
- 	}
- 	ret = set_bkpt(mm, &uprobe->arch, addr);
- 
-@@ -857,7 +857,7 @@ int uprobe_register(struct inode *inode, loff_t offset, struct uprobe_consumer *
- 			uprobe->consumers = NULL;
- 			__uprobe_unregister(uprobe);
- 		} else {
--			uprobe->flags |= UPROBES_RUN_HANDLER;
-+			uprobe->flags |= UPROBE_RUN_HANDLER;
- 		}
- 	}
- 
-@@ -889,7 +889,7 @@ void uprobe_unregister(struct inode *inode, loff_t offset, struct uprobe_consume
- 	if (consumer_del(uprobe, consumer)) {
- 		if (!uprobe->consumers) {
- 			__uprobe_unregister(uprobe);
--			uprobe->flags &= ~UPROBES_RUN_HANDLER;
-+			uprobe->flags &= ~UPROBE_RUN_HANDLER;
- 		}
- 	}
- 
+The last time we rewrote the main pgd-pud-pmd-pte walkers,
+we believed that no ACCESS_ONCE() was necessary, because although a
+pgd-pud-pmd entry might be racily instantiated at any instant, it
+could never change beneath us - the freeing of page tables happens
+only when we cannot reach them by other routes.
 
---------------1.7.4.1--
+(Never quite true: those _clear_bad() things can zero entries at any
+instant, but we're already in a bad place when those come into play,
+so we never worried about racing against them.)
 
+Since then, I think THP has made the rules more complicated; but I
+believe Andrea paid a great deal of attention to that kind of issue.
+
+I suspect your arch/x86/mm/gup.c ACCESS_ONCE()s are necessary:
+gup_fast() breaks as many rules as it can, and in particular may
+be racing with the freeing of page tables; but I'm not so sure
+about the pagewalk mods - we could say "cannot do any harm",
+but I don't like adding lines on that basis.
+
+Hugh
+
+> 
+> ---
+>  arch/x86/mm/gup.c |    6 +++---
+>  mm/pagewalk.c     |   24 ++++++++++++++++++++++++
+>  2 files changed, 27 insertions(+), 3 deletions(-)
+> 
+> diff --git a/arch/x86/mm/gup.c b/arch/x86/mm/gup.c
+> index dd74e46..4958fb1 100644
+> --- a/arch/x86/mm/gup.c
+> +++ b/arch/x86/mm/gup.c
+> @@ -150,7 +150,7 @@ static int gup_pmd_range(pud_t pud, unsigned long addr, unsigned long end,
+>  
+>  	pmdp = pmd_offset(&pud, addr);
+>  	do {
+> -		pmd_t pmd = *pmdp;
+> +		pmd_t pmd = ACCESS_ONCE(*pmdp);
+>  
+>  		next = pmd_addr_end(addr, end);
+>  		/*
+> @@ -220,7 +220,7 @@ static int gup_pud_range(pgd_t pgd, unsigned long addr, unsigned long end,
+>  
+>  	pudp = pud_offset(&pgd, addr);
+>  	do {
+> -		pud_t pud = *pudp;
+> +		pud_t pud = ACCESS_ONCE(*pudp);
+>  
+>  		next = pud_addr_end(addr, end);
+>  		if (pud_none(pud))
+> @@ -280,7 +280,7 @@ int __get_user_pages_fast(unsigned long start, int nr_pages, int write,
+>  	local_irq_save(flags);
+>  	pgdp = pgd_offset(mm, addr);
+>  	do {
+> -		pgd_t pgd = *pgdp;
+> +		pgd_t pgd = ACCESS_ONCE(*pgdp);
+>  
+>  		next = pgd_addr_end(addr, end);
+>  		if (pgd_none(pgd))
+> diff --git a/mm/pagewalk.c b/mm/pagewalk.c
+> index 6c118d0..2ba2a74 100644
+> --- a/mm/pagewalk.c
+> +++ b/mm/pagewalk.c
+> @@ -10,6 +10,14 @@ static int walk_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
+>  	int err = 0;
+>  
+>  	pte = pte_offset_map(pmd, addr);
+> +	/*
+> +	 * Pairs with the smp_wmb() in __{pte,pmd,pud}_alloc() and
+> +	 * __split_huge_page_map(). Ideally we'd use ACCESS_ONCE() on the
+> +	 * actual dereference of p[gum]d, but that's hidden deep within the
+> +	 * bowels of {pte,pmd,pud}_offset.
+> +	 */
+> +	barrier();
+> +	smp_read_barrier_depends();
+>  	for (;;) {
+>  		err = walk->pte_entry(pte, addr, addr + PAGE_SIZE, walk);
+>  		if (err)
+> @@ -32,6 +40,14 @@ static int walk_pmd_range(pud_t *pud, unsigned long addr, unsigned long end,
+>  	int err = 0;
+>  
+>  	pmd = pmd_offset(pud, addr);
+> +	/*
+> +	 * Pairs with the smp_wmb() in __{pte,pmd,pud}_alloc() and
+> +	 * __split_huge_page_map(). Ideally we'd use ACCESS_ONCE() on the
+> +	 * actual dereference of p[gum]d, but that's hidden deep within the
+> +	 * bowels of {pte,pmd,pud}_offset.
+> +	 */
+> +	barrier();
+> +	smp_read_barrier_depends();
+>  	do {
+>  again:
+>  		next = pmd_addr_end(addr, end);
+> @@ -77,6 +93,14 @@ static int walk_pud_range(pgd_t *pgd, unsigned long addr, unsigned long end,
+>  	int err = 0;
+>  
+>  	pud = pud_offset(pgd, addr);
+> +	/*
+> +	 * Pairs with the smp_wmb() in __{pte,pmd,pud}_alloc() and
+> +	 * __split_huge_page_map(). Ideally we'd use ACCESS_ONCE() on the
+> +	 * actual dereference of p[gum]d, but that's hidden deep within the
+> +	 * bowels of {pte,pmd,pud}_offset.
+> +	 */
+> +	barrier();
+> +	smp_read_barrier_depends();
+>  	do {
+>  		next = pud_addr_end(addr, end);
+>  		if (pud_none_or_clear_bad(pud)) {
+> 
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
