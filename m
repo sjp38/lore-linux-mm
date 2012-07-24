@@ -1,31 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
-	by kanga.kvack.org (Postfix) with SMTP id 4EDCD6B004D
-	for <linux-mm@kvack.org>; Tue, 24 Jul 2012 10:18:09 -0400 (EDT)
-Received: by vbkv13 with SMTP id v13so7068224vbk.14
-        for <linux-mm@kvack.org>; Tue, 24 Jul 2012 07:18:08 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <1343137938.7412.95.camel@marge.simpson.net>
+Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
+	by kanga.kvack.org (Postfix) with SMTP id 650606B004D
+	for <linux-mm@kvack.org>; Tue, 24 Jul 2012 10:41:43 -0400 (EDT)
+Message-ID: <1343140899.7412.123.camel@marge.simpson.net>
+Subject: Re: [PATCH 00/34] Memory management performance backports for
+ -stable V2
+From: Mike Galbraith <efault@gmx.de>
+Date: Tue, 24 Jul 2012 16:41:39 +0200
+In-Reply-To: <CAJd=RBCKFw5tQcQch-txrvbp9ht9ahY6JH7At1LQuXfttgfAtA@mail.gmail.com>
 References: <1343050727-3045-1-git-send-email-mgorman@suse.de>
-	<1343109531.7412.47.camel@marge.simpson.net>
-	<CAJd=RBC835W52nsXCqhM_4KR3CuLF9zijh3416LiJLybTuR_YA@mail.gmail.com>
-	<1343137938.7412.95.camel@marge.simpson.net>
-Date: Tue, 24 Jul 2012 22:18:08 +0800
-Message-ID: <CAJd=RBCKFw5tQcQch-txrvbp9ht9ahY6JH7At1LQuXfttgfAtA@mail.gmail.com>
-Subject: Re: [PATCH 00/34] Memory management performance backports for -stable V2
-From: Hillf Danton <dhillf@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+	 <1343109531.7412.47.camel@marge.simpson.net>
+	 <CAJd=RBC835W52nsXCqhM_4KR3CuLF9zijh3416LiJLybTuR_YA@mail.gmail.com>
+	 <1343137938.7412.95.camel@marge.simpson.net>
+	 <CAJd=RBCKFw5tQcQch-txrvbp9ht9ahY6JH7At1LQuXfttgfAtA@mail.gmail.com>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 7bit
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Galbraith <efault@gmx.de>
+To: Hillf Danton <dhillf@gmail.com>
 Cc: Mel Gorman <mgorman@suse.de>, Stable <stable@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Tue, Jul 24, 2012 at 9:52 PM, Mike Galbraith <efault@gmx.de> wrote:
-> Last time I looked, handling SUSE support issues on LKML was not in my
-> job description.  I don't recall seeing anything about taking direction
-> from random LKML subscribers either.
->
-End users pay for SUSE products/service, right?
+On Tue, 2012-07-24 at 22:18 +0800, Hillf Danton wrote: 
+> On Tue, Jul 24, 2012 at 9:52 PM, Mike Galbraith <efault@gmx.de> wrote:
+> > Last time I looked, handling SUSE support issues on LKML was not in my
+> > job description.  I don't recall seeing anything about taking direction
+> > from random LKML subscribers either.
+> >
+> End users pay for SUSE products/service, right?
+
+Hohum.  Have a nice life, and goodbye.
+
+-Mike
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
