@@ -1,38 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
-	by kanga.kvack.org (Postfix) with SMTP id 650606B004D
-	for <linux-mm@kvack.org>; Tue, 24 Jul 2012 10:41:43 -0400 (EDT)
-Message-ID: <1343140899.7412.123.camel@marge.simpson.net>
-Subject: Re: [PATCH 00/34] Memory management performance backports for
- -stable V2
-From: Mike Galbraith <efault@gmx.de>
-Date: Tue, 24 Jul 2012 16:41:39 +0200
-In-Reply-To: <CAJd=RBCKFw5tQcQch-txrvbp9ht9ahY6JH7At1LQuXfttgfAtA@mail.gmail.com>
-References: <1343050727-3045-1-git-send-email-mgorman@suse.de>
-	 <1343109531.7412.47.camel@marge.simpson.net>
-	 <CAJd=RBC835W52nsXCqhM_4KR3CuLF9zijh3416LiJLybTuR_YA@mail.gmail.com>
-	 <1343137938.7412.95.camel@marge.simpson.net>
-	 <CAJd=RBCKFw5tQcQch-txrvbp9ht9ahY6JH7At1LQuXfttgfAtA@mail.gmail.com>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 7bit
-Mime-Version: 1.0
+Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
+	by kanga.kvack.org (Postfix) with SMTP id 8ECB96B004D
+	for <linux-mm@kvack.org>; Tue, 24 Jul 2012 10:46:02 -0400 (EDT)
+Date: Tue, 24 Jul 2012 09:45:57 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [RFC PATCH v2] SLUB: enhance slub to handle memory nodes without
+ normal memory
+In-Reply-To: <1343123710-4972-1-git-send-email-jiang.liu@huawei.com>
+Message-ID: <alpine.DEB.2.00.1207240931560.29808@router.home>
+References: <alpine.DEB.2.00.1207181349370.22907@router.home> <1343123710-4972-1-git-send-email-jiang.liu@huawei.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hillf Danton <dhillf@gmail.com>
-Cc: Mel Gorman <mgorman@suse.de>, Stable <stable@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Jiang Liu <jiang.liu@huawei.com>
+Cc: WuJianguo <wujianguo@huawei.com>, Tony Luck <tony.luck@intel.com>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Mel Gorman <mgorman@suse.de>, Yinghai Lu <yinghai@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, Minchan Kim <minchan@kernel.org>, Keping Chen <chenkeping@huawei.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Jiang Liu <liuj97@gmail.com>
 
-On Tue, 2012-07-24 at 22:18 +0800, Hillf Danton wrote: 
-> On Tue, Jul 24, 2012 at 9:52 PM, Mike Galbraith <efault@gmx.de> wrote:
-> > Last time I looked, handling SUSE support issues on LKML was not in my
-> > job description.  I don't recall seeing anything about taking direction
-> > from random LKML subscribers either.
-> >
-> End users pay for SUSE products/service, right?
+On Tue, 24 Jul 2012, Jiang Liu wrote:
 
-Hohum.  Have a nice life, and goodbye.
+>
+> diff --git a/mm/slub.c b/mm/slub.c
+> index 8c691fa..3976745 100644
+> --- a/mm/slub.c
+> +++ b/mm/slub.c
+> @@ -2803,6 +2803,17 @@ static inline int alloc_kmem_cache_cpus(struct kmem_cache *s)
+>
+>  static struct kmem_cache *kmem_cache_node;
+>
+> +static bool node_has_normal_memory(int node)
+> +{
+> +	int i;
+> +
+> +	for (i = ZONE_NORMAL; i >= 0; i--)
+> +		if (populated_zone(&NODE_DATA(node)->node_zones[i]))
+> +			return true;
+> +
+> +	return false;
+> +}
 
--Mike
-
+There is already a N_NORMAL_MEMORY node map that contains a list of node
+that have *normal* memory usable by slab allocators etc. I think the
+cleanest solution would be to clear the corresponding node bits for your
+special movable only zones. Then you wont be needing to modify other
+subsystems anymore.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
