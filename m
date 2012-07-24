@@ -1,81 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
-	by kanga.kvack.org (Postfix) with SMTP id 80BA36B0044
-	for <linux-mm@kvack.org>; Tue, 24 Jul 2012 18:42:58 -0400 (EDT)
-Date: Wed, 25 Jul 2012 08:42:42 +1000
-From: Stephen Rothwell <sfr@canb.auug.org.au>
-Subject: Re: [PATCH 01/24] uprobes, mm, x86: Add the ability to install and
- remove uprobes breakpoints
-Message-Id: <20120725084242.887ffaaf5a343ba8893b02c1@canb.auug.org.au>
-In-Reply-To: <7c692867a3b75d6c2954b09339dd1b851998c997.1343163918.git.Torsten.Polle@gmx.de>
-References: <cover.1343163918.git.Torsten.Polle@gmx.de>
-	<7c692867a3b75d6c2954b09339dd1b851998c997.1343163918.git.Torsten.Polle@gmx.de>
-Mime-Version: 1.0
-Content-Type: multipart/signed; protocol="application/pgp-signature";
- micalg="PGP-SHA256";
- boundary="Signature=_Wed__25_Jul_2012_08_42_42_+1000_oOvzmPTfYfh7ObKk"
+Received: from psmtp.com (na3sys010amx140.postini.com [74.125.245.140])
+	by kanga.kvack.org (Postfix) with SMTP id B142E6B0044
+	for <linux-mm@kvack.org>; Tue, 24 Jul 2012 18:47:16 -0400 (EDT)
+Received: by pbbrp2 with SMTP id rp2so348560pbb.14
+        for <linux-mm@kvack.org>; Tue, 24 Jul 2012 15:47:16 -0700 (PDT)
+Date: Tue, 24 Jul 2012 15:47:12 -0700
+From: Greg KH <gregkh@linuxfoundation.org>
+Subject: Re: [PATCH 03/34] mm: Reduce the amount of work done when updating
+ min_free_kbytes
+Message-ID: <20120724224712.GB4245@kroah.com>
+References: <1343050727-3045-1-git-send-email-mgorman@suse.de>
+ <1343050727-3045-4-git-send-email-mgorman@suse.de>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1343050727-3045-4-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Torsten Polle <Torsten.Polle@gmx.de>
-Cc: tpolle@de.adit-jv.com, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Oleg Nesterov <oleg@redhat.com>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, Roland McGrath <roland@hack.frob.com>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Arnaldo Carvalho de Melo <acme@infradead.org>, Anton Arapov <anton@redhat.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Denys Vlasenko <vda.linux@googlemail.com>, Peter Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Linux-mm <linux-mm@kvack.org>, Ingo Molnar <mingo@elte.hu>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Stable <stable@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
---Signature=_Wed__25_Jul_2012_08_42_42_+1000_oOvzmPTfYfh7ObKk
-Content-Type: text/plain; charset=US-ASCII
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+On Mon, Jul 23, 2012 at 02:38:16PM +0100, Mel Gorman wrote:
+> commit 938929f14cb595f43cd1a4e63e22d36cab1e4a1f upstream.
+> 
+> Stable note: Fixes https://bugzilla.novell.com/show_bug.cgi?id=726210 .
+> 	Large machines with 1TB or more of RAM take a long time to boot
+> 	without this patch and may spew out soft lockup warnings.
 
-Hi Torsten,
+In comparing this with the upstream version, you have a few different
+coding style differences, but no real content difference.  Why?
 
-Just a couple of quick suggestions:
+> 
+> When min_free_kbytes is updated blocks marked MIGRATE_RESERVE are
+> updated. Ordinarily, this work is unnoticable as it happens early
+> in boot. However, on large machines with 1TB of memory, this can take
+> a considerable time when NUMA distances are taken into account. The bulk
+> of the work is done by pageblock_is_reserved() which examines the
+> metadata for almost every page in the system. Currently, we are doing
+> this far more than necessary as it is only required while there are
+> still blocks to be marked MIGRATE_RESERVE. This patch significantly
+> reduces the amount of work done by setup_zone_migrate_reserve()
+> improving boot times on 1TB machines.
+> 
+> [akpm@linux-foundation.org: coding-style fixes]
 
-On Tue, 24 Jul 2012 23:12:45 +0200 Torsten Polle <Torsten.Polle@gmx.de> wro=
-te:
->
+I'm guessing you didn't pick these up?
 
-Firstly, don't attach patches, put them inline in you email - it makes
-it easier for reviewers to comment on them.
+Anyway, I've taken it now as the original one from Linus's tree,
+hopefully this doesn't burn me later in the series...
 
-> diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
-> index c9866b0..1f5c307 100644
-> --- a/arch/x86/Kconfig
-> +++ b/arch/x86/Kconfig
-> @@ -243,6 +243,9 @@ config ARCH_CPU_PROBE_RELEASE
->  	def_bool y
->  	depends on HOTPLUG_CPU
-> =20
-> +config ARCH_SUPPORTS_UPROBES
-> +	def_bool y
-> +
+thanks,
 
-You should put this in arch/Kconfig (as just a bool- no default) and
-then select it in the x86 Kconfig.
-
---=20
-Cheers,
-Stephen Rothwell                    sfr@canb.auug.org.au
-
---Signature=_Wed__25_Jul_2012_08_42_42_+1000_oOvzmPTfYfh7ObKk
-Content-Type: application/pgp-signature
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.12 (GNU/Linux)
-
-iQIcBAEBCAAGBQJQDyTiAAoJEECxmPOUX5FEigIP/0WwfM4m6l0qU3le+e1F1Vxv
-k0UBKLvMwotL62PCXVQ9ihvbvXpsS9LkcmfzO4/1WsZRAKpE01+F7wATOWqeL8zA
-ygUuZayPVsY2DKZn4eOr/aiq6M+12M8MUvek70k9vNK7LNnb0EXDcMPz8hmkeOJ5
-d7jNiL1xhO1ONHzVZIX45ioOHt9b2nG8E3M8naeIBnArMZ+u5Ny3HCqCQ+aaTYpr
-nsqczHENb/56zYKp1zD/GKaq7GO03IsmjdVV4ITOv1BDtdk5nPMwcURRJAmVAH1s
-JN+vAAbrtJA/CEEZPIU3NrjrQVE4BeHfCxU0cVINB7hp+dw/SyAIk9PVG29VBC0K
-giCrqvcdf/JmgLBvHj3vEznwP9QOMSOXasOvyRTFb98kLiwNaMHkgttbWKRNvKtD
-m3rQsLtiJtAIE7BeSXnJvVNRHGFCRhYRZT1Ju9efaO4DKp0o3YtcoSXCEv31rE1k
-Y7SOMd+FUjQTDS7t0GI2fw5ZwCzhMOw4hNJn7POaYNNDk99ZgLQ0004X2wqHArhv
-ACjA6LS5nlwUlv2tm3ZhtO7DfG0CMu/U1vIA8Q0oJNaa5A7GkBnDFnSFO3OWhWsx
-CRzS69b0d/8ddcjCwwbjJCH0VWphSJ4d/VRxGw8Ur3LtNxiCxMMog2GFM2xSNAFn
-1tf0LNiS9jmz9+MQX9u6
-=1xSn
------END PGP SIGNATURE-----
-
---Signature=_Wed__25_Jul_2012_08_42_42_+1000_oOvzmPTfYfh7ObKk--
+greg k-h
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
