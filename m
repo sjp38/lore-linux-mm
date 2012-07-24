@@ -1,385 +1,1909 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
-	by kanga.kvack.org (Postfix) with SMTP id 16D086B004D
-	for <linux-mm@kvack.org>; Tue, 24 Jul 2012 15:24:44 -0400 (EDT)
-Received: by ghrr18 with SMTP id r18so8634809ghr.14
-        for <linux-mm@kvack.org>; Tue, 24 Jul 2012 12:24:43 -0700 (PDT)
-Date: Tue, 24 Jul 2012 12:23:58 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH -alternative] mm: hugetlbfs: Close race during teardown
- of hugetlbfs shared page tables V2 (resend)
-In-Reply-To: <20120724093406.GO9222@suse.de>
-Message-ID: <alpine.LSU.2.00.1207241108010.1749@eggly.anvils>
-References: <20120720134937.GG9222@suse.de> <20120720141108.GH9222@suse.de> <20120720143635.GE12434@tiehlicka.suse.cz> <20120720145121.GJ9222@suse.de> <alpine.LSU.2.00.1207222033030.6810@eggly.anvils> <20120723114007.GU9222@suse.de>
- <alpine.LSU.2.00.1207231702440.1683@eggly.anvils> <20120724093406.GO9222@suse.de>
+Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
+	by kanga.kvack.org (Postfix) with SMTP id 88AA76B0044
+	for <linux-mm@kvack.org>; Tue, 24 Jul 2012 17:13:44 -0400 (EDT)
+From: Torsten Polle <Torsten.Polle@gmx.de>
+Subject: [PATCH 01/24] uprobes, mm, x86: Add the ability to install and remove uprobes breakpoints
+Date: Tue, 24 Jul 2012 23:12:45 +0200
+Message-Id: <7c692867a3b75d6c2954b09339dd1b851998c997.1343163918.git.Torsten.Polle@gmx.de>
+In-Reply-To: <cover.1343163918.git.Torsten.Polle@gmx.de>
+References: <cover.1343163918.git.Torsten.Polle@gmx.de>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: multipart/mixed; boundary="------------1.7.4.1"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Michal Hocko <mhocko@suse.cz>, Linux-MM <linux-mm@kvack.org>, David Gibson <david@gibson.dropbear.id.au>, Ken Chen <kenchen@google.com>, Cong Wang <xiyou.wangcong@gmail.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, LKML <linux-kernel@vger.kernel.org>
+To: tpolle@de.adit-jv.com
+Cc: Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Oleg Nesterov <oleg@redhat.com>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, Roland McGrath <roland@hack.frob.com>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Arnaldo Carvalho de Melo <acme@infradead.org>, Anton Arapov <anton@redhat.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Stephen Rothwell <sfr@canb.auug.org.au>, Denys Vlasenko <vda.linux@googlemail.com>, Peter Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Linux-mm <linux-mm@kvack.org>, Ingo Molnar <mingo@elte.hu>, Torsten Polle <Torsten.Polle@gmx.de>
 
-On Tue, 24 Jul 2012, Mel Gorman wrote:
-> On Mon, Jul 23, 2012 at 06:08:05PM -0700, Hugh Dickins wrote:
-> > 
-> > So, after a bout of anxiety, I think my &= ~VM_MAYSHARE remains good.
-> > 
-> 
-> I agree with you. When I was thinking about the potential problems, I was
-> thinking of them in the general context of the core VM and what we normally
-> take into account.
-> 
-> I confess that I really find this working-by-coincidence very icky and am
-> uncomfortable with it but your patch is the only patch that contains the
-> mess to hugetlbfs. I fixed exit_mmap() for my version but only by changing
-> the core to introduce exit_vmas() to take mmap_sem for write if a hugetlb
-> VMA is found so I also affected the core.
+From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
 
-"icky" is not quite the word I'd use, but yes, it feels like you only
-have to dislodge a stone somewhere at the other end of the kernel,
-and the whole lot would come tumbling down.
+This is a multi-part message in MIME format.
+--------------1.7.4.1
+Content-Type: text/plain; charset=UTF-8; format=fixed
+Content-Transfer-Encoding: 8bit
 
-If I could think of a suitable VM_BUG_ON to insert next to the ~VM_MAYSHARE,
-I would: to warn us when assumptions change.  If we were prepared to waste
-another vm_flag on it (and just because there's now a type which lets them
-expand does not mean we can be profligate with them), then you can imagine
-a VM_GOINGAWAY flag set in unmap_region() and exit_mmap(), and we key off
-that instead; or something of that kind.
 
-But I'm afraid I see that as TODO-list material: the one-liner is pretty
-good for stable backporting, and I felt smiled-upon when it turned out to
-be workable (and not even needing a change in arch/x86/mm, that really
-surprised me).  It seems ungrateful not to seize the simple fix it offers,
-which I found much easier to understand than the alternatives.
+Add uprobes support to the core kernel, with x86 support.
 
-> 
-> So, lets go with your patch but with all this documented! I stuck a
-> changelog and an additional comment onto your patch and this is the end
-> result.
+This commit adds the kernel facilities, the actual uprobes
+user-space ABI and perf probe support comes in later commits.
 
-Okay, thanks.  (I think you've copied rather more of my previous mail
-into the commit description than it deserves, but it looks like you
-like more words where I like less!)
+General design:
 
-> 
-> Do you want to pick this up and send it to Andrew or will I?
+Uprobes are maintained in an rb-tree indexed by inode and offset
+(the offset here is from the start of the mapping). For a unique
+(inode, offset) tuple, there can be at most one uprobe in the
+rb-tree.
 
-Oh, please change your Reviewed-by to Signed-off-by: almost all of the
-work and description comes from you and Michal; then please, you send it
-in to Andrew - sorry, I really need to turn my attention to other things.
+Since the (inode, offset) tuple identifies a unique uprobe, more
+than one user may be interested in the same uprobe. This provides
+the ability to connect multiple 'consumers' to the same uprobe.
 
-But I hadn't realized how messy it's going to be: I was concentrating on
-3.5, not the mmotm tree, which as Michal points out is fairly different.
-Yes, it definitely needs to revert to holding i_mmap_mutex when unsharing,
-it was a mistake to have removed that (what stabilizes the page_count 1
-check in huge_pmd_unshare? only i_mmap_mutex).
+Each consumer defines a handler and a filter (optional). The
+'handler' is run every time the uprobe is hit, if it matches the
+'filter' criteria.
 
-I guess this fix needs to go in to 3.6 early, and "someone" rejig the
-hugetlb area of mmotm before that goes on to Linus.  Urggh.  AArgh64.
-Sorry, I'm not volunteering.
+The first consumer of a uprobe causes the breakpoint to be
+inserted at the specified address and subsequent consumers are
+appended to this list.  On subsequent probes, the consumer gets
+appended to the existing list of consumers. The breakpoint is
+removed when the last consumer unregisters. For all other
+unregisterations, the consumer is removed from the list of
+consumers.
 
-But an interesting aspect of the hugetlb changes there, is that
-mmu_gather is now being used by __unmap_hugepage_range: I did want that
-for one of the solutions to this bug that I was toying with.  Although
-earlier I had been afraid of "doing free_pgtables work" down in unshare,
-it occurred to me later that already we do that (pud_clear) with no harm
-observed, and free_pgtables does not depend on having entries still
-present at the lower levels.  It may be that there's a less tricky
-fix available once the dust has settled here.
+Given a inode, we get a list of the mms that have mapped the
+inode. Do the actual registration if mm maps the page where a
+probe needs to be inserted/removed.
 
-> 
-> Thanks Hugh!
-> 
-> ---8<---
-> mm: hugetlbfs: Close race during teardown of hugetlbfs shared page tables
-> 
-> If a process creates a large hugetlbfs mapping that is eligible for page
-> table sharing and forks heavily with children some of whom fault and
-> others which destroy the mapping then it is possible for page tables to
-> get corrupted. Some teardowns of the mapping encounter a "bad pmd" and
-> output a message to the kernel log. The final teardown will trigger a
-> BUG_ON in mm/filemap.c.
-> 
-> This was reproduced in 3.4 but is known to have existed for a long time
-> and goes back at least as far as 2.6.37. It was probably was introduced in
-> 2.6.20 by [39dde65c: shared page table for hugetlb page]. The messages
-> look like this;
-> 
-> [  ..........] Lots of bad pmd messages followed by this
-> [  127.164256] mm/memory.c:391: bad pmd ffff880412e04fe8(80000003de4000e7).
-> [  127.164257] mm/memory.c:391: bad pmd ffff880412e04ff0(80000003de6000e7).
-> [  127.164258] mm/memory.c:391: bad pmd ffff880412e04ff8(80000003de0000e7).
-> [  127.186778] ------------[ cut here ]------------
-> [  127.186781] kernel BUG at mm/filemap.c:134!
-> [  127.186782] invalid opcode: 0000 [#1] SMP
-> [  127.186783] CPU 7
-> [  127.186784] Modules linked in: af_packet cpufreq_conservative cpufreq_userspace cpufreq_powersave acpi_cpufreq mperf ext3 jbd dm_mod coretemp crc32c_intel usb_storage ghash_clmulni_intel aesni_intel i2c_i801 r8169 mii uas sr_mod cdrom sg iTCO_wdt iTCO_vendor_support shpchp serio_raw cryptd aes_x86_64 e1000e pci_hotplug dcdbas aes_generic container microcode ext4 mbcache jbd2 crc16 sd_mod crc_t10dif i915 drm_kms_helper drm i2c_algo_bit ehci_hcd ahci libahci usbcore rtc_cmos usb_common button i2c_core intel_agp video intel_gtt fan processor thermal thermal_sys hwmon ata_generic pata_atiixp libata scsi_mod
-> [  127.186801]
-> [  127.186802] Pid: 9017, comm: hugetlbfs-test Not tainted 3.4.0-autobuild #53 Dell Inc. OptiPlex 990/06D7TR
-> [  127.186804] RIP: 0010:[<ffffffff810ed6ce>]  [<ffffffff810ed6ce>] __delete_from_page_cache+0x15e/0x160
-> [  127.186809] RSP: 0000:ffff8804144b5c08  EFLAGS: 00010002
-> [  127.186810] RAX: 0000000000000001 RBX: ffffea000a5c9000 RCX: 00000000ffffffc0
-> [  127.186811] RDX: 0000000000000000 RSI: 0000000000000009 RDI: ffff88042dfdad00
-> [  127.186812] RBP: ffff8804144b5c18 R08: 0000000000000009 R09: 0000000000000003
-> [  127.186813] R10: 0000000000000000 R11: 000000000000002d R12: ffff880412ff83d8
-> [  127.186814] R13: ffff880412ff83d8 R14: 0000000000000000 R15: ffff880412ff83d8
-> [  127.186815] FS:  00007fe18ed2c700(0000) GS:ffff88042dce0000(0000) knlGS:0000000000000000
-> [  127.186816] CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
-> [  127.186817] CR2: 00007fe340000503 CR3: 0000000417a14000 CR4: 00000000000407e0
-> [  127.186818] DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
-> [  127.186819] DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
-> [  127.186820] Process hugetlbfs-test (pid: 9017, threadinfo ffff8804144b4000, task ffff880417f803c0)
-> [  127.186821] Stack:
-> [  127.186822]  ffffea000a5c9000 0000000000000000 ffff8804144b5c48 ffffffff810ed83b
-> [  127.186824]  ffff8804144b5c48 000000000000138a 0000000000001387 ffff8804144b5c98
-> [  127.186825]  ffff8804144b5d48 ffffffff811bc925 ffff8804144b5cb8 0000000000000000
-> [  127.186827] Call Trace:
-> [  127.186829]  [<ffffffff810ed83b>] delete_from_page_cache+0x3b/0x80
-> [  127.186832]  [<ffffffff811bc925>] truncate_hugepages+0x115/0x220
-> [  127.186834]  [<ffffffff811bca43>] hugetlbfs_evict_inode+0x13/0x30
-> [  127.186837]  [<ffffffff811655c7>] evict+0xa7/0x1b0
-> [  127.186839]  [<ffffffff811657a3>] iput_final+0xd3/0x1f0
-> [  127.186840]  [<ffffffff811658f9>] iput+0x39/0x50
-> [  127.186842]  [<ffffffff81162708>] d_kill+0xf8/0x130
-> [  127.186843]  [<ffffffff81162812>] dput+0xd2/0x1a0
-> [  127.186845]  [<ffffffff8114e2d0>] __fput+0x170/0x230
-> [  127.186848]  [<ffffffff81236e0e>] ? rb_erase+0xce/0x150
-> [  127.186849]  [<ffffffff8114e3ad>] fput+0x1d/0x30
-> [  127.186851]  [<ffffffff81117db7>] remove_vma+0x37/0x80
-> [  127.186853]  [<ffffffff81119182>] do_munmap+0x2d2/0x360
-> [  127.186855]  [<ffffffff811cc639>] sys_shmdt+0xc9/0x170
-> [  127.186857]  [<ffffffff81410a39>] system_call_fastpath+0x16/0x1b
-> [  127.186858] Code: 0f 1f 44 00 00 48 8b 43 08 48 8b 00 48 8b 40 28 8b b0 40 03 00 00 85 f6 0f 88 df fe ff ff 48 89 df e8 e7 cb 05 00 e9 d2 fe ff ff <0f> 0b 55 83 e2 fd 48 89 e5 48 83 ec 30 48 89 5d d8 4c 89 65 e0
-> [  127.186868] RIP  [<ffffffff810ed6ce>] __delete_from_page_cache+0x15e/0x160
-> [  127.186870]  RSP <ffff8804144b5c08>
-> [  127.186871] ---[ end trace 7cbac5d1db69f426 ]---
-> 
-> The bug is a race and not always easy to reproduce. To reproduce it I was
-> doing the following on a single socket I7-based machine with 16G of RAM.
-> 
-> $ hugeadm --pool-pages-max DEFAULT:13G
-> $ echo $((18*1048576*1024)) > /proc/sys/kernel/shmmax
-> $ echo $((18*1048576*1024)) > /proc/sys/kernel/shmall
-> $ for i in `seq 1 9000`; do ./hugetlbfs-test; done
-> 
-> On my particular machine, it usually triggers within 10 minutes but enabling
-> debug options can change the timing such that it never hits. Once the bug is
-> triggered, the machine is in trouble and needs to be rebooted. The machine
-> will respond but processes accessing proc like "ps aux" will hang due to
-> the BUG_ON. shutdown will also hang and needs a hard reset or a sysrq-b.
-> 
-> The basic problem is a race between page table sharing and teardown. For
-> the most part page table sharing depends on i_mmap_mutex. In some cases,
-> it is also taking the mm->page_table_lock for the PTE updates but with
-> shared page tables, it is the i_mmap_mutex that is more important.
-> 
-> Unfortunately it appears to be also insufficient. Consider the following
-> situation
-> 
-> Process A					Process B
-> ---------					---------
-> hugetlb_fault					shmdt
->   						LockWrite(mmap_sem)
->     						  do_munmap
-> 						    unmap_region
-> 						      unmap_vmas
-> 						        unmap_single_vma
-> 						          unmap_hugepage_range
->       						            Lock(i_mmap_mutex)
-> 							    Lock(mm->page_table_lock)
-> 							    huge_pmd_unshare/unmap tables <--- (1)
-> 							    Unlock(mm->page_table_lock)
->       						            Unlock(i_mmap_mutex)
->   huge_pte_alloc				      ...
->     Lock(i_mmap_mutex)				      ...
->     vma_prio_walk, find svma, spte		      ...
->     Lock(mm->page_table_lock)			      ...
->     share spte					      ...
->     Unlock(mm->page_table_lock)			      ...
->     Unlock(i_mmap_mutex)			      ...
->   hugetlb_no_page									  <--- (2)
-> 						      free_pgtables
-> 						        unlink_file_vma
-> 							hugetlb_free_pgd_range
-> 						    remove_vma_list
-> 
-> In this scenario, it is possible for Process A to share page tables with
-> Process B that is trying to tear them down.  The i_mmap_mutex on its own
-> does not prevent Process A walking Process B's page tables. At (1) above,
-> the page tables are not shared yet so it unmaps the PMDs. Process A sets
-> up page table sharing and at (2) faults a new entry. Process B then trips
-> up on it in free_pgtables.
-> 
-> This patch fixes the problem by clearing VM_MAYSHARE during
-> unmap_hugepage_range() under the i_mmap_mutex. This makes the VMA
-> ineligible for sharing and avoids the race. Superficially this looks
-> like it would then be vunerable to truncate and madvise problems but
-> this is avoided by the limitations of hugetlbfs.
-> 
-> madvise and trunctate would be problems if removing VM_MAYSHARE in
-> __unmap_hugepage_range() but it is removed in unmap_hugepage_range().
-> This is only called by unmap_single_vma(): which is called via unmap_vmas()
-> by unmap_region() or exit_mmap() just before free_pgtables() (the problem
-> cases); or by madvise_dontneed() via zap_page_range(), which is disallowed
-> on VM_HUGETLB; or by zap_page_range_single().
-> 
-> zap_page_range_single() is called by zap_vma_ptes(), which is only allowed
-> on VM_PFNMAP; or by unmap_mapping_range_vma(), which looked like it was
-> going to deadlock on i_mmap_mutex (with or without my patch) but does
-> not as hugetlbfs has its own hugetlbfs_setattr() and hugetlb_vmtruncate()
-> which don't use unmap_mapping_range() at all.
-> 
-> invalidate_inode_pages2() (and _range()) do use unmap_mapping_range(),
-> but hugetlbfs doesn't support direct_IO, and otherwise they're called by a
-> filesystem directly on its own inodes, which hugetlbfs does not.  If there's
-> a deadlock on i_mmap_mutex somewhere in there, it's not introduced by the
-> proposed patch.
-> 
-> This should be treated as a -stable candidate if it is merged.
-> 
-> Test program is as follows. The test case was mostly written by Michal
-> Hocko with a few minor changes to reproduce this bug.
-> 
-> ==== CUT HERE ====
-> 
-> static size_t huge_page_size = (2UL << 20);
-> static size_t nr_huge_page_A = 512;
-> static size_t nr_huge_page_B = 5632;
-> 
-> unsigned int get_random(unsigned int max)
-> {
-> 	struct timeval tv;
-> 
-> 	gettimeofday(&tv, NULL);
-> 	srandom(tv.tv_usec);
-> 	return random() % max;
-> }
-> 
-> static void play(void *addr, size_t size)
-> {
-> 	unsigned char *start = addr,
-> 		      *end = start + size,
-> 		      *a;
-> 	start += get_random(size/2);
-> 
-> 	/* we could itterate on huge pages but let's give it more time. */
-> 	for (a = start; a < end; a += 4096)
-> 		*a = 0;
-> }
-> 
-> int main(int argc, char **argv)
-> {
-> 	key_t key = IPC_PRIVATE;
-> 	size_t sizeA = nr_huge_page_A * huge_page_size;
-> 	size_t sizeB = nr_huge_page_B * huge_page_size;
-> 	int shmidA, shmidB;
-> 	void *addrA = NULL, *addrB = NULL;
-> 	int nr_children = 300, n = 0;
-> 
-> 	if ((shmidA = shmget(key, sizeA, IPC_CREAT|SHM_HUGETLB|0660)) == -1) {
-> 		perror("shmget:");
-> 		return 1;
-> 	}
-> 
-> 	if ((addrA = shmat(shmidA, addrA, SHM_R|SHM_W)) == (void *)-1UL) {
-> 		perror("shmat");
-> 		return 1;
-> 	}
-> 	if ((shmidB = shmget(key, sizeB, IPC_CREAT|SHM_HUGETLB|0660)) == -1) {
-> 		perror("shmget:");
-> 		return 1;
-> 	}
-> 
-> 	if ((addrB = shmat(shmidB, addrB, SHM_R|SHM_W)) == (void *)-1UL) {
-> 		perror("shmat");
-> 		return 1;
-> 	}
-> 
-> fork_child:
-> 	switch(fork()) {
-> 		case 0:
-> 			switch (n%3) {
-> 			case 0:
-> 				play(addrA, sizeA);
-> 				break;
-> 			case 1:
-> 				play(addrB, sizeB);
-> 				break;
-> 			case 2:
-> 				break;
-> 			}
-> 			break;
-> 		case -1:
-> 			perror("fork:");
-> 			break;
-> 		default:
-> 			if (++n < nr_children)
-> 				goto fork_child;
-> 			play(addrA, sizeA);
-> 			break;
-> 	}
-> 	shmdt(addrA);
-> 	shmdt(addrB);
-> 	do {
-> 		wait(NULL);
-> 	} while (--n > 0);
-> 	shmctl(shmidA, IPC_RMID, NULL);
-> 	shmctl(shmidB, IPC_RMID, NULL);
-> 	return 0;
-> }
-> 
-> Signed-off-by: Hugh Dickins <hughd@google.com>
-> Reviewed-by: Michal Hocko <mhocko@suse.cz>
-> Reviewed-by: Mel Gorman <mgorman@suse.de>
-> ---
->  mm/hugetlb.c |   25 +++++++++++++++++++++++--
->  1 file changed, 23 insertions(+), 2 deletions(-)
-> 
-> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> index ae8f708..d488476 100644
-> --- a/mm/hugetlb.c
-> +++ b/mm/hugetlb.c
-> @@ -2383,6 +2383,22 @@ void unmap_hugepage_range(struct vm_area_struct *vma, unsigned long start,
->  {
->  	mutex_lock(&vma->vm_file->f_mapping->i_mmap_mutex);
->  	__unmap_hugepage_range(vma, start, end, ref_page);
-> +	/*
-> +	 * Clear this flag so that x86's huge_pmd_share page_table_shareable
-> +	 * test will fail on a vma being torn down, and not grab a page table
-> +	 * on its way out.  We're lucky that the flag has such an appropriate
-> +	 * name, and can in fact be safely cleared here. We could clear it
-> +	 * before the __unmap_hugepage_range above, but all that's necessary
-> +	 * is to clear it before releasing the i_mmap_mutex below.
-> +	 *
-> +	 * This works because in the contexts this is called, the VMA is
-> +	 * going to be destroyed. It is not vunerable to madvise(DONTNEED)
-> +	 * because madvise is not supported on hugetlbfs. The same applies
-> +	 * for direct IO. unmap_hugepage_range() is only being called just
-> +	 * before free_pgtables() so clearing VM_MAYSHARE will not cause
-> +	 * surprises later.
-> +	 */
-> +	vma->vm_flags &= ~VM_MAYSHARE;
->  	mutex_unlock(&vma->vm_file->f_mapping->i_mmap_mutex);
->  }
->  
-> @@ -2949,9 +2965,14 @@ void hugetlb_change_protection(struct vm_area_struct *vma,
->  		}
->  	}
->  	spin_unlock(&mm->page_table_lock);
-> -	mutex_unlock(&vma->vm_file->f_mapping->i_mmap_mutex);
-> -
-> +	/*
-> +	 * Must flush TLB before releasing i_mmap_mutex: x86's huge_pmd_unshare
-> +	 * may have cleared our pud entry and done put_page on the page table:
-> +	 * once we release i_mmap_mutex, another task can do the final put_page
-> +	 * and that page table be reused and filled with junk.
-> +	 */
->  	flush_tlb_range(vma, start, end);
-> +	mutex_unlock(&vma->vm_file->f_mapping->i_mmap_mutex);
->  }
->  
->  int hugetlb_reserve_pages(struct inode *inode,
-> 
+We use a temporary list to walk through the vmas that map the
+inode.
+
+- The number of maps that map the inode, is not known before we
+  walk the rmap and keeps changing.
+- extending vm_area_struct wasn't recommended, it's a
+  size-critical data structure.
+- There can be more than one maps of the inode in the same mm.
+
+We add callbacks to the mmap methods to keep an eye on text vmas
+that are of interest to uprobes.  When a vma of interest is mapped,
+we insert the breakpoint at the right address.
+
+Uprobe works by replacing the instruction at the address defined
+by (inode, offset) with the arch specific breakpoint
+instruction. We save a copy of the original instruction at the
+uprobed address.
+
+This is needed for:
+
+ a. executing the instruction out-of-line (xol).
+ b. instruction analysis for any subsequent fixups.
+ c. restoring the instruction back when the uprobe is unregistered.
+
+We insert or delete a breakpoint instruction, and this
+breakpoint instruction is assumed to be the smallest instruction
+available on the platform. For fixed size instruction platforms
+this is trivially true, for variable size instruction platforms
+the breakpoint instruction is typically the smallest (often a
+single byte).
+
+Writing the instruction is done by COWing the page and changing
+the instruction during the copy, this even though most platforms
+allow atomic writes of the breakpoint instruction. This also
+mirrors the behaviour of a ptrace() memory write to a PRIVATE
+file map.
+
+The core worker is derived from KSM's replace_page() logic.
+
+In essence, similar to KSM:
+
+ a. allocate a new page and copy over contents of the page that
+    has the uprobed vaddr
+ b. modify the copy and insert the breakpoint at the required
+    address
+ c. switch the original page with the copy containing the
+    breakpoint
+ d. flush page tables.
+
+replace_page() is being replicated here because of some minor
+changes in the type of pages and also because Hugh Dickins had
+plans to improve replace_page() for KSM specific work.
+
+Instruction analysis on x86 is based on instruction decoder and
+determines if an instruction can be probed and determines the
+necessary fixups after singlestep.  Instruction analysis is done
+at probe insertion time so that we avoid having to repeat the
+same analysis every time a probe is hit.
+
+A lot of code here is due to the improvement/suggestions/inputs
+from Peter Zijlstra.
+
+Changelog:
+
+(v10):
+ - Add code to clear REX.B prefix as suggested by Denys Vlasenko
+   and Masami Hiramatsu.
+
+(v9):
+ - Use insn_offset_modrm as suggested by Masami Hiramatsu.
+
+(v7):
+
+ Handle comments from Peter Zijlstra:
+
+ - Dont take reference to inode. (expect inode to uprobe_register to be sane).
+ - Use PTR_ERR to set the return value.
+ - No need to take reference to inode.
+ - use PTR_ERR to return error value.
+ - register and uprobe_unregister share code.
+
+(v5):
+
+ - Modified del_consumer as per comments from Peter.
+ - Drop reference to inode before dropping reference to uprobe.
+ - Use i_size_read(inode) instead of inode->i_size.
+ - Ensure uprobe->consumers is NULL, before __uprobe_unregister() is called.
+ - Includes errno.h as recommended by Stephen Rothwell to fix a build issue
+   on sparc defconfig
+ - Remove restrictions while unregistering.
+ - Earlier code leaked inode references under some conditions while
+   registering/unregistering.
+ - Continue the vma-rmap walk even if the intermediate vma doesnt
+   meet the requirements.
+ - Validate the vma found by find_vma before inserting/removing the
+   breakpoint
+ - Call del_consumer under mutex_lock.
+ - Use hash locks.
+ - Handle mremap.
+ - Introduce find_least_offset_node() instead of close match logic in
+   find_uprobe
+ - Uprobes no more depends on MM_OWNER; No reference to task_structs
+   while inserting/removing a probe.
+ - Uses read_mapping_page instead of grab_cache_page so that the pages
+   have valid content.
+ - pass NULL to get_user_pages for the task parameter.
+ - call SetPageUptodate on the new page allocated in write_opcode.
+ - fix leaking a reference to the new page under certain conditions.
+ - Include Instruction Decoder if Uprobes gets defined.
+ - Remove const attributes for instruction prefix arrays.
+ - Uses mm_context to know if the application is 32 bit.
+
+Signed-off-by: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Also-written-by: Jim Keniston <jkenisto@us.ibm.com>
+Reviewed-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Oleg Nesterov <oleg@redhat.com>
+Cc: Andi Kleen <andi@firstfloor.org>
+Cc: Christoph Hellwig <hch@infradead.org>
+Cc: Steven Rostedt <rostedt@goodmis.org>
+Cc: Roland McGrath <roland@hack.frob.com>
+Cc: Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>
+Cc: Arnaldo Carvalho de Melo <acme@infradead.org>
+Cc: Anton Arapov <anton@redhat.com>
+Cc: Ananth N Mavinakayanahalli <ananth@in.ibm.com>
+Cc: Stephen Rothwell <sfr@canb.auug.org.au>
+Cc: Denys Vlasenko <vda.linux@googlemail.com>
+Cc: Peter Zijlstra <peterz@infradead.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Linux-mm <linux-mm@kvack.org>
+Link: http://lkml.kernel.org/r/20120209092642.GE16600@linux.vnet.ibm.com
+[ Made various small edits to the commit log ]
+Signed-off-by: Ingo Molnar <mingo@elte.hu>
+Signed-off-by: Torsten Polle <Torsten.Polle@gmx.de>
+---
+ arch/Kconfig                   |   11 +
+ arch/x86/Kconfig               |    5 +-
+ arch/x86/include/asm/uprobes.h |   42 ++
+ arch/x86/kernel/Makefile       |    1 +
+ arch/x86/kernel/uprobes.c      |  412 +++++++++++++++++
+ include/linux/uprobes.h        |   98 ++++
+ kernel/Makefile                |    1 +
+ kernel/uprobes.c               |  976 ++++++++++++++++++++++++++++++++++++++++
+ mm/mmap.c                      |   23 +
+ 9 files changed, 1568 insertions(+), 1 deletions(-)
+ create mode 100644 arch/x86/include/asm/uprobes.h
+ create mode 100644 arch/x86/kernel/uprobes.c
+ create mode 100644 include/linux/uprobes.h
+ create mode 100644 kernel/uprobes.c
+
+
+--------------1.7.4.1
+Content-Type: text/x-patch; name="0001-uprobes-mm-x86-Add-the-ability-to-install-and-remove.patch"
+Content-Transfer-Encoding: 8bit
+Content-Disposition: attachment; filename="0001-uprobes-mm-x86-Add-the-ability-to-install-and-remove.patch"
+
+diff --git a/arch/Kconfig b/arch/Kconfig
+index 684eb5a..a32cafd 100644
+--- a/arch/Kconfig
++++ b/arch/Kconfig
+@@ -76,6 +76,17 @@ config OPTPROBES
+ 	depends on KPROBES && HAVE_OPTPROBES
+ 	depends on !PREEMPT
+ 
++config UPROBES
++	bool "User-space probes (EXPERIMENTAL)"
++	depends on ARCH_SUPPORTS_UPROBES
++	default n
++	help
++	  Uprobes enables kernel subsystems to establish probepoints
++	  in user applications and execute handler functions when
++	  the probepoints are hit.
++
++	  If in doubt, say "N".
++
+ config HAVE_EFFICIENT_UNALIGNED_ACCESS
+ 	bool
+ 	help
+diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
+index c9866b0..1f5c307 100644
+--- a/arch/x86/Kconfig
++++ b/arch/x86/Kconfig
+@@ -84,7 +84,7 @@ config X86
+ 	select DCACHE_WORD_ACCESS
+ 
+ config INSTRUCTION_DECODER
+-	def_bool (KPROBES || PERF_EVENTS)
++	def_bool (KPROBES || PERF_EVENTS || UPROBES)
+ 
+ config OUTPUT_FORMAT
+ 	string
+@@ -243,6 +243,9 @@ config ARCH_CPU_PROBE_RELEASE
+ 	def_bool y
+ 	depends on HOTPLUG_CPU
+ 
++config ARCH_SUPPORTS_UPROBES
++	def_bool y
++
+ source "init/Kconfig"
+ source "kernel/Kconfig.freezer"
+ 
+diff --git a/arch/x86/include/asm/uprobes.h b/arch/x86/include/asm/uprobes.h
+new file mode 100644
+index 0000000..8208234
+--- /dev/null
++++ b/arch/x86/include/asm/uprobes.h
+@@ -0,0 +1,42 @@
++#ifndef _ASM_UPROBES_H
++#define _ASM_UPROBES_H
++/*
++ * Userspace Probes (UProbes) for x86
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation; either version 2 of the License, or
++ * (at your option) any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program; if not, write to the Free Software
++ * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
++ *
++ * Copyright (C) IBM Corporation, 2008-2011
++ * Authors:
++ *	Srikar Dronamraju
++ *	Jim Keniston
++ */
++
++typedef u8 uprobe_opcode_t;
++#define MAX_UINSN_BYTES 16
++#define UPROBES_XOL_SLOT_BYTES	128	/* to keep it cache aligned */
++
++#define UPROBES_BKPT_INSN 0xcc
++#define UPROBES_BKPT_INSN_SIZE 1
++
++struct uprobe_arch_info {
++	u16			fixups;
++#ifdef CONFIG_X86_64
++	unsigned long rip_rela_target_address;
++#endif
++};
++
++struct uprobe;
++extern int analyze_insn(struct mm_struct *mm, struct uprobe *uprobe);
++#endif	/* _ASM_UPROBES_H */
+diff --git a/arch/x86/kernel/Makefile b/arch/x86/kernel/Makefile
+index 532d2e0..d23d835 100644
+--- a/arch/x86/kernel/Makefile
++++ b/arch/x86/kernel/Makefile
+@@ -101,6 +101,7 @@ obj-$(CONFIG_X86_CHECK_BIOS_CORRUPTION) += check.o
+ 
+ obj-$(CONFIG_SWIOTLB)			+= pci-swiotlb.o
+ obj-$(CONFIG_OF)			+= devicetree.o
++obj-$(CONFIG_UPROBES)			+= uprobes.o
+ 
+ ###
+ # 64 bit specific files
+diff --git a/arch/x86/kernel/uprobes.c b/arch/x86/kernel/uprobes.c
+new file mode 100644
+index 0000000..2a301bb
+--- /dev/null
++++ b/arch/x86/kernel/uprobes.c
+@@ -0,0 +1,412 @@
++/*
++ * Userspace Probes (UProbes) for x86
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation; either version 2 of the License, or
++ * (at your option) any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program; if not, write to the Free Software
++ * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
++ *
++ * Copyright (C) IBM Corporation, 2008-2011
++ * Authors:
++ *	Srikar Dronamraju
++ *	Jim Keniston
++ */
++
++#include <linux/kernel.h>
++#include <linux/sched.h>
++#include <linux/ptrace.h>
++#include <linux/uprobes.h>
++
++#include <linux/kdebug.h>
++#include <asm/insn.h>
++
++/* Post-execution fixups. */
++
++/* No fixup needed */
++#define UPROBES_FIX_NONE	0x0
++/* Adjust IP back to vicinity of actual insn */
++#define UPROBES_FIX_IP		0x1
++/* Adjust the return address of a call insn */
++#define UPROBES_FIX_CALL	0x2
++
++#define UPROBES_FIX_RIP_AX	0x8000
++#define UPROBES_FIX_RIP_CX	0x4000
++
++/* Adaptations for mhiramat x86 decoder v14. */
++#define OPCODE1(insn) ((insn)->opcode.bytes[0])
++#define OPCODE2(insn) ((insn)->opcode.bytes[1])
++#define OPCODE3(insn) ((insn)->opcode.bytes[2])
++#define MODRM_REG(insn) X86_MODRM_REG(insn->modrm.value)
++
++#define W(row, b0, b1, b2, b3, b4, b5, b6, b7, b8, b9, ba, bb, bc, bd, be, bf)\
++	(((b0##UL << 0x0)|(b1##UL << 0x1)|(b2##UL << 0x2)|(b3##UL << 0x3) |   \
++	  (b4##UL << 0x4)|(b5##UL << 0x5)|(b6##UL << 0x6)|(b7##UL << 0x7) |   \
++	  (b8##UL << 0x8)|(b9##UL << 0x9)|(ba##UL << 0xa)|(bb##UL << 0xb) |   \
++	  (bc##UL << 0xc)|(bd##UL << 0xd)|(be##UL << 0xe)|(bf##UL << 0xf))    \
++	 << (row % 32))
++
++#ifdef CONFIG_X86_64
++static volatile u32 good_insns_64[256 / 32] = {
++	/*      0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f         */
++	/*      ----------------------------------------------         */
++	W(0x00, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0) | /* 00 */
++	W(0x10, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0) , /* 10 */
++	W(0x20, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0) | /* 20 */
++	W(0x30, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0) , /* 30 */
++	W(0x40, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0) | /* 40 */
++	W(0x50, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1) , /* 50 */
++	W(0x60, 0, 0, 0, 1, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0) | /* 60 */
++	W(0x70, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1) , /* 70 */
++	W(0x80, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1) | /* 80 */
++	W(0x90, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1) , /* 90 */
++	W(0xa0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1) | /* a0 */
++	W(0xb0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1) , /* b0 */
++	W(0xc0, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0) | /* c0 */
++	W(0xd0, 1, 1, 1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1) , /* d0 */
++	W(0xe0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0) | /* e0 */
++	W(0xf0, 0, 0, 1, 1, 0, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1)   /* f0 */
++	/*      ----------------------------------------------         */
++	/*      0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f         */
++};
++#endif
++
++/* Good-instruction tables for 32-bit apps */
++
++static volatile u32 good_insns_32[256 / 32] = {
++	/*      0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f         */
++	/*      ----------------------------------------------         */
++	W(0x00, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0) | /* 00 */
++	W(0x10, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0) , /* 10 */
++	W(0x20, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1) | /* 20 */
++	W(0x30, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1) , /* 30 */
++	W(0x40, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1) | /* 40 */
++	W(0x50, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1) , /* 50 */
++	W(0x60, 1, 1, 1, 0, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0) | /* 60 */
++	W(0x70, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1) , /* 70 */
++	W(0x80, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1) | /* 80 */
++	W(0x90, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1) , /* 90 */
++	W(0xa0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1) | /* a0 */
++	W(0xb0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1) , /* b0 */
++	W(0xc0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0) | /* c0 */
++	W(0xd0, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1) , /* d0 */
++	W(0xe0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0) | /* e0 */
++	W(0xf0, 0, 0, 1, 1, 0, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1)   /* f0 */
++	/*      ----------------------------------------------         */
++	/*      0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f         */
++};
++
++/* Using this for both 64-bit and 32-bit apps */
++static volatile u32 good_2byte_insns[256 / 32] = {
++	/*      0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f         */
++	/*      ----------------------------------------------         */
++	W(0x00, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1) | /* 00 */
++	W(0x10, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1) , /* 10 */
++	W(0x20, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1) | /* 20 */
++	W(0x30, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0) , /* 30 */
++	W(0x40, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1) | /* 40 */
++	W(0x50, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1) , /* 50 */
++	W(0x60, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1) | /* 60 */
++	W(0x70, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1) , /* 70 */
++	W(0x80, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1) | /* 80 */
++	W(0x90, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1) , /* 90 */
++	W(0xa0, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 0, 1) | /* a0 */
++	W(0xb0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1) , /* b0 */
++	W(0xc0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1) | /* c0 */
++	W(0xd0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1) , /* d0 */
++	W(0xe0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1) | /* e0 */
++	W(0xf0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0)   /* f0 */
++	/*      ----------------------------------------------         */
++	/*      0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f         */
++};
++
++#undef W
++
++/*
++ * opcodes we'll probably never support:
++ * 6c-6d, e4-e5, ec-ed - in
++ * 6e-6f, e6-e7, ee-ef - out
++ * cc, cd - int3, int
++ * cf - iret
++ * d6 - illegal instruction
++ * f1 - int1/icebp
++ * f4 - hlt
++ * fa, fb - cli, sti
++ * 0f - lar, lsl, syscall, clts, sysret, sysenter, sysexit, invd, wbinvd, ud2
++ *
++ * invalid opcodes in 64-bit mode:
++ * 06, 0e, 16, 1e, 27, 2f, 37, 3f, 60-62, 82, c4-c5, d4-d5
++ *
++ * 63 - we support this opcode in x86_64 but not in i386.
++ *
++ * opcodes we may need to refine support for:
++ * 0f - 2-byte instructions: For many of these instructions, the validity
++ * depends on the prefix and/or the reg field.  On such instructions, we
++ * just consider the opcode combination valid if it corresponds to any
++ * valid instruction.
++ * 8f - Group 1 - only reg = 0 is OK
++ * c6-c7 - Group 11 - only reg = 0 is OK
++ * d9-df - fpu insns with some illegal encodings
++ * f2, f3 - repnz, repz prefixes.  These are also the first byte for
++ * certain floating-point instructions, such as addsd.
++ * fe - Group 4 - only reg = 0 or 1 is OK
++ * ff - Group 5 - only reg = 0-6 is OK
++ *
++ * others -- Do we need to support these?
++ * 0f - (floating-point?) prefetch instructions
++ * 07, 17, 1f - pop es, pop ss, pop ds
++ * 26, 2e, 36, 3e - es:, cs:, ss:, ds: segment prefixes --
++ *	but 64 and 65 (fs: and gs:) seem to be used, so we support them
++ * 67 - addr16 prefix
++ * ce - into
++ * f0 - lock prefix
++ */
++
++/*
++ * TODO:
++ * - Where necessary, examine the modrm byte and allow only valid instructions
++ * in the different Groups and fpu instructions.
++ */
++
++static bool is_prefix_bad(struct insn *insn)
++{
++	int i;
++
++	for (i = 0; i < insn->prefixes.nbytes; i++) {
++		switch (insn->prefixes.bytes[i]) {
++		case 0x26:	/*INAT_PFX_ES   */
++		case 0x2E:	/*INAT_PFX_CS   */
++		case 0x36:	/*INAT_PFX_DS   */
++		case 0x3E:	/*INAT_PFX_SS   */
++		case 0xF0:	/*INAT_PFX_LOCK */
++			return true;
++		}
++	}
++	return false;
++}
++
++static int validate_insn_32bits(struct uprobe *uprobe, struct insn *insn)
++{
++	insn_init(insn, uprobe->insn, false);
++
++	/* Skip good instruction prefixes; reject "bad" ones. */
++	insn_get_opcode(insn);
++	if (is_prefix_bad(insn))
++		return -ENOTSUPP;
++	if (test_bit(OPCODE1(insn), (unsigned long *)good_insns_32))
++		return 0;
++	if (insn->opcode.nbytes == 2) {
++		if (test_bit(OPCODE2(insn), (unsigned long *)good_2byte_insns))
++			return 0;
++	}
++	return -ENOTSUPP;
++}
++
++/*
++ * Figure out which fixups post_xol() will need to perform, and annotate
++ * uprobe->arch_info.fixups accordingly.  To start with,
++ * uprobe->arch_info.fixups is either zero or it reflects rip-related
++ * fixups.
++ */
++static void prepare_fixups(struct uprobe *uprobe, struct insn *insn)
++{
++	bool fix_ip = true, fix_call = false;	/* defaults */
++	int reg;
++
++	insn_get_opcode(insn);	/* should be a nop */
++
++	switch (OPCODE1(insn)) {
++	case 0xc3:		/* ret/lret */
++	case 0xcb:
++	case 0xc2:
++	case 0xca:
++		/* ip is correct */
++		fix_ip = false;
++		break;
++	case 0xe8:		/* call relative - Fix return addr */
++		fix_call = true;
++		break;
++	case 0x9a:		/* call absolute - Fix return addr, not ip */
++		fix_call = true;
++		fix_ip = false;
++		break;
++	case 0xff:
++		insn_get_modrm(insn);
++		reg = MODRM_REG(insn);
++		if (reg == 2 || reg == 3) {
++			/* call or lcall, indirect */
++			/* Fix return addr; ip is correct. */
++			fix_call = true;
++			fix_ip = false;
++		} else if (reg == 4 || reg == 5) {
++			/* jmp or ljmp, indirect */
++			/* ip is correct. */
++			fix_ip = false;
++		}
++		break;
++	case 0xea:		/* jmp absolute -- ip is correct */
++		fix_ip = false;
++		break;
++	default:
++		break;
++	}
++	if (fix_ip)
++		uprobe->arch_info.fixups |= UPROBES_FIX_IP;
++	if (fix_call)
++		uprobe->arch_info.fixups |= UPROBES_FIX_CALL;
++}
++
++#ifdef CONFIG_X86_64
++/*
++ * If uprobe->insn doesn't use rip-relative addressing, return
++ * immediately.  Otherwise, rewrite the instruction so that it accesses
++ * its memory operand indirectly through a scratch register.  Set
++ * uprobe->arch_info.fixups and uprobe->arch_info.rip_rela_target_address
++ * accordingly.  (The contents of the scratch register will be saved
++ * before we single-step the modified instruction, and restored
++ * afterward.)
++ *
++ * We do this because a rip-relative instruction can access only a
++ * relatively small area (+/- 2 GB from the instruction), and the XOL
++ * area typically lies beyond that area.  At least for instructions
++ * that store to memory, we can't execute the original instruction
++ * and "fix things up" later, because the misdirected store could be
++ * disastrous.
++ *
++ * Some useful facts about rip-relative instructions:
++ * - There's always a modrm byte.
++ * - There's never a SIB byte.
++ * - The displacement is always 4 bytes.
++ */
++static void handle_riprel_insn(struct mm_struct *mm, struct uprobe *uprobe,
++							struct insn *insn)
++{
++	u8 *cursor;
++	u8 reg;
++
++	if (mm->context.ia32_compat)
++		return;
++
++	uprobe->arch_info.rip_rela_target_address = 0x0;
++	if (!insn_rip_relative(insn))
++		return;
++
++	/*
++	 * insn_rip_relative() would have decoded rex_prefix, modrm.
++	 * Clear REX.b bit (extension of MODRM.rm field):
++	 * we want to encode rax/rcx, not r8/r9.
++	 */
++	if (insn->rex_prefix.nbytes) {
++		cursor = uprobe->insn + insn_offset_rex_prefix(insn);
++		*cursor &= 0xfe;	/* Clearing REX.B bit */
++	}
++
++	/*
++	 * Point cursor at the modrm byte.  The next 4 bytes are the
++	 * displacement.  Beyond the displacement, for some instructions,
++	 * is the immediate operand.
++	 */
++	cursor = uprobe->insn + insn_offset_modrm(insn);
++	insn_get_length(insn);
++
++	/*
++	 * Convert from rip-relative addressing to indirect addressing
++	 * via a scratch register.  Change the r/m field from 0x5 (%rip)
++	 * to 0x0 (%rax) or 0x1 (%rcx), and squeeze out the offset field.
++	 */
++	reg = MODRM_REG(insn);
++	if (reg == 0) {
++		/*
++		 * The register operand (if any) is either the A register
++		 * (%rax, %eax, etc.) or (if the 0x4 bit is set in the
++		 * REX prefix) %r8.  In any case, we know the C register
++		 * is NOT the register operand, so we use %rcx (register
++		 * #1) for the scratch register.
++		 */
++		uprobe->arch_info.fixups = UPROBES_FIX_RIP_CX;
++		/* Change modrm from 00 000 101 to 00 000 001. */
++		*cursor = 0x1;
++	} else {
++		/* Use %rax (register #0) for the scratch register. */
++		uprobe->arch_info.fixups = UPROBES_FIX_RIP_AX;
++		/* Change modrm from 00 xxx 101 to 00 xxx 000 */
++		*cursor = (reg << 3);
++	}
++
++	/* Target address = address of next instruction + (signed) offset */
++	uprobe->arch_info.rip_rela_target_address = (long)insn->length
++					+ insn->displacement.value;
++	/* Displacement field is gone; slide immediate field (if any) over. */
++	if (insn->immediate.nbytes) {
++		cursor++;
++		memmove(cursor, cursor + insn->displacement.nbytes,
++						insn->immediate.nbytes);
++	}
++	return;
++}
++
++static int validate_insn_64bits(struct uprobe *uprobe, struct insn *insn)
++{
++	insn_init(insn, uprobe->insn, true);
++
++	/* Skip good instruction prefixes; reject "bad" ones. */
++	insn_get_opcode(insn);
++	if (is_prefix_bad(insn))
++		return -ENOTSUPP;
++	if (test_bit(OPCODE1(insn), (unsigned long *)good_insns_64))
++		return 0;
++	if (insn->opcode.nbytes == 2) {
++		if (test_bit(OPCODE2(insn), (unsigned long *)good_2byte_insns))
++			return 0;
++	}
++	return -ENOTSUPP;
++}
++
++static int validate_insn_bits(struct mm_struct *mm, struct uprobe *uprobe,
++				struct insn *insn)
++{
++	if (mm->context.ia32_compat)
++		return validate_insn_32bits(uprobe, insn);
++	return validate_insn_64bits(uprobe, insn);
++}
++#else
++static void handle_riprel_insn(struct mm_struct *mm, struct uprobe *uprobe,
++							struct insn *insn)
++{
++	return;
++}
++
++static int validate_insn_bits(struct mm_struct *mm, struct uprobe *uprobe,
++				struct insn *insn)
++{
++	return validate_insn_32bits(uprobe, insn);
++}
++#endif /* CONFIG_X86_64 */
++
++/**
++ * analyze_insn - instruction analysis including validity and fixups.
++ * @mm: the probed address space.
++ * @uprobe: the probepoint information.
++ * Return 0 on success or a -ve number on error.
++ */
++int analyze_insn(struct mm_struct *mm, struct uprobe *uprobe)
++{
++	int ret;
++	struct insn insn;
++
++	uprobe->arch_info.fixups = 0;
++	ret = validate_insn_bits(mm, uprobe, &insn);
++	if (ret != 0)
++		return ret;
++	handle_riprel_insn(mm, uprobe, &insn);
++	prepare_fixups(uprobe, &insn);
++	return 0;
++}
+diff --git a/include/linux/uprobes.h b/include/linux/uprobes.h
+new file mode 100644
+index 0000000..f1d13fd
+--- /dev/null
++++ b/include/linux/uprobes.h
+@@ -0,0 +1,98 @@
++#ifndef _LINUX_UPROBES_H
++#define _LINUX_UPROBES_H
++/*
++ * Userspace Probes (UProbes)
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation; either version 2 of the License, or
++ * (at your option) any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program; if not, write to the Free Software
++ * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
++ *
++ * Copyright (C) IBM Corporation, 2008-2011
++ * Authors:
++ *	Srikar Dronamraju
++ *	Jim Keniston
++ */
++
++#include <linux/errno.h>
++#include <linux/rbtree.h>
++
++struct vm_area_struct;
++#ifdef CONFIG_ARCH_SUPPORTS_UPROBES
++#include <asm/uprobes.h>
++#else
++
++typedef u8 uprobe_opcode_t;
++struct uprobe_arch_info {};
++
++#define MAX_UINSN_BYTES 4
++#endif
++
++#define uprobe_opcode_sz sizeof(uprobe_opcode_t)
++
++/* flags that denote/change uprobes behaviour */
++/* Have a copy of original instruction */
++#define UPROBES_COPY_INSN	0x1
++/* Dont run handlers when first register/ last unregister in progress*/
++#define UPROBES_RUN_HANDLER	0x2
++
++struct uprobe_consumer {
++	int (*handler)(struct uprobe_consumer *self, struct pt_regs *regs);
++	/*
++	 * filter is optional; If a filter exists, handler is run
++	 * if and only if filter returns true.
++	 */
++	bool (*filter)(struct uprobe_consumer *self, struct task_struct *task);
++
++	struct uprobe_consumer *next;
++};
++
++struct uprobe {
++	struct rb_node		rb_node;	/* node in the rb tree */
++	atomic_t		ref;
++	struct rw_semaphore	consumer_rwsem;
++	struct list_head	pending_list;
++	struct uprobe_arch_info arch_info;
++	struct uprobe_consumer	*consumers;
++	struct inode		*inode;		/* Also hold a ref to inode */
++	loff_t			offset;
++	int			flags;
++	u8			insn[MAX_UINSN_BYTES];
++};
++
++#ifdef CONFIG_UPROBES
++extern int __weak set_bkpt(struct mm_struct *mm, struct uprobe *uprobe,
++							unsigned long vaddr);
++extern int __weak set_orig_insn(struct mm_struct *mm, struct uprobe *uprobe,
++					unsigned long vaddr, bool verify);
++extern bool __weak is_bkpt_insn(uprobe_opcode_t *insn);
++extern int register_uprobe(struct inode *inode, loff_t offset,
++				struct uprobe_consumer *consumer);
++extern void unregister_uprobe(struct inode *inode, loff_t offset,
++				struct uprobe_consumer *consumer);
++extern int mmap_uprobe(struct vm_area_struct *vma);
++#else /* CONFIG_UPROBES is not defined */
++static inline int register_uprobe(struct inode *inode, loff_t offset,
++				struct uprobe_consumer *consumer)
++{
++	return -ENOSYS;
++}
++static inline void unregister_uprobe(struct inode *inode, loff_t offset,
++				struct uprobe_consumer *consumer)
++{
++}
++static inline int mmap_uprobe(struct vm_area_struct *vma)
++{
++	return 0;
++}
++#endif /* CONFIG_UPROBES */
++#endif	/* _LINUX_UPROBES_H */
+diff --git a/kernel/Makefile b/kernel/Makefile
+index cb41b95..c61ae6f 100644
+--- a/kernel/Makefile
++++ b/kernel/Makefile
+@@ -106,6 +106,7 @@ obj-$(CONFIG_USER_RETURN_NOTIFIER) += user-return-notifier.o
+ obj-$(CONFIG_PADATA) += padata.o
+ obj-$(CONFIG_CRASH_DUMP) += crash_dump.o
+ obj-$(CONFIG_JUMP_LABEL) += jump_label.o
++obj-$(CONFIG_UPROBES) += uprobes.o
+ 
+ $(obj)/configs.o: $(obj)/config_data.h
+ 
+diff --git a/kernel/uprobes.c b/kernel/uprobes.c
+new file mode 100644
+index 0000000..72e8bb3
+--- /dev/null
++++ b/kernel/uprobes.c
+@@ -0,0 +1,976 @@
++/*
++ * Userspace Probes (UProbes)
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation; either version 2 of the License, or
++ * (at your option) any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program; if not, write to the Free Software
++ * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
++ *
++ * Copyright (C) IBM Corporation, 2008-2011
++ * Authors:
++ *	Srikar Dronamraju
++ *	Jim Keniston
++ */
++
++#include <linux/kernel.h>
++#include <linux/highmem.h>
++#include <linux/pagemap.h>	/* read_mapping_page */
++#include <linux/slab.h>
++#include <linux/sched.h>
++#include <linux/rmap.h>		/* anon_vma_prepare */
++#include <linux/mmu_notifier.h>	/* set_pte_at_notify */
++#include <linux/swap.h>		/* try_to_free_swap */
++#include <linux/uprobes.h>
++
++static struct rb_root uprobes_tree = RB_ROOT;
++static DEFINE_SPINLOCK(uprobes_treelock);	/* serialize rbtree access */
++
++#define UPROBES_HASH_SZ	13
++/* serialize (un)register */
++static struct mutex uprobes_mutex[UPROBES_HASH_SZ];
++#define uprobes_hash(v)	(&uprobes_mutex[((unsigned long)(v)) %\
++						UPROBES_HASH_SZ])
++
++/* serialize uprobe->pending_list */
++static struct mutex uprobes_mmap_mutex[UPROBES_HASH_SZ];
++#define uprobes_mmap_hash(v)	(&uprobes_mmap_mutex[((unsigned long)(v)) %\
++						UPROBES_HASH_SZ])
++
++/*
++ * uprobe_events allows us to skip the mmap_uprobe if there are no uprobe
++ * events active at this time.  Probably a fine grained per inode count is
++ * better?
++ */
++static atomic_t uprobe_events = ATOMIC_INIT(0);
++
++/*
++ * Maintain a temporary per vma info that can be used to search if a vma
++ * has already been handled. This structure is introduced since extending
++ * vm_area_struct wasnt recommended.
++ */
++struct vma_info {
++	struct list_head probe_list;
++	struct mm_struct *mm;
++	loff_t vaddr;
++};
++
++/*
++ * valid_vma: Verify if the specified vma is an executable vma
++ * Relax restrictions while unregistering: vm_flags might have
++ * changed after breakpoint was inserted.
++ *	- is_register: indicates if we are in register context.
++ *	- Return 1 if the specified virtual address is in an
++ *	  executable vma.
++ */
++static bool valid_vma(struct vm_area_struct *vma, bool is_register)
++{
++	if (!vma->vm_file)
++		return false;
++
++	if (!is_register)
++		return true;
++
++	if ((vma->vm_flags & (VM_READ|VM_WRITE|VM_EXEC|VM_SHARED)) ==
++						(VM_READ|VM_EXEC))
++		return true;
++
++	return false;
++}
++
++static loff_t vma_address(struct vm_area_struct *vma, loff_t offset)
++{
++	loff_t vaddr;
++
++	vaddr = vma->vm_start + offset;
++	vaddr -= vma->vm_pgoff << PAGE_SHIFT;
++	return vaddr;
++}
++
++/**
++ * __replace_page - replace page in vma by new page.
++ * based on replace_page in mm/ksm.c
++ *
++ * @vma:      vma that holds the pte pointing to page
++ * @page:     the cowed page we are replacing by kpage
++ * @kpage:    the modified page we replace page by
++ *
++ * Returns 0 on success, -EFAULT on failure.
++ */
++static int __replace_page(struct vm_area_struct *vma, struct page *page,
++					struct page *kpage)
++{
++	struct mm_struct *mm = vma->vm_mm;
++	pgd_t *pgd;
++	pud_t *pud;
++	pmd_t *pmd;
++	pte_t *ptep;
++	spinlock_t *ptl;
++	unsigned long addr;
++	int err = -EFAULT;
++
++	addr = page_address_in_vma(page, vma);
++	if (addr == -EFAULT)
++		goto out;
++
++	pgd = pgd_offset(mm, addr);
++	if (!pgd_present(*pgd))
++		goto out;
++
++	pud = pud_offset(pgd, addr);
++	if (!pud_present(*pud))
++		goto out;
++
++	pmd = pmd_offset(pud, addr);
++	if (!pmd_present(*pmd))
++		goto out;
++
++	ptep = pte_offset_map_lock(mm, pmd, addr, &ptl);
++	if (!ptep)
++		goto out;
++
++	get_page(kpage);
++	page_add_new_anon_rmap(kpage, vma, addr);
++
++	flush_cache_page(vma, addr, pte_pfn(*ptep));
++	ptep_clear_flush(vma, addr, ptep);
++	set_pte_at_notify(mm, addr, ptep, mk_pte(kpage, vma->vm_page_prot));
++
++	page_remove_rmap(page);
++	if (!page_mapped(page))
++		try_to_free_swap(page);
++	put_page(page);
++	pte_unmap_unlock(ptep, ptl);
++	err = 0;
++
++out:
++	return err;
++}
++
++/**
++ * is_bkpt_insn - check if instruction is breakpoint instruction.
++ * @insn: instruction to be checked.
++ * Default implementation of is_bkpt_insn
++ * Returns true if @insn is a breakpoint instruction.
++ */
++bool __weak is_bkpt_insn(uprobe_opcode_t *insn)
++{
++	return (*insn == UPROBES_BKPT_INSN);
++}
++
++/*
++ * NOTE:
++ * Expect the breakpoint instruction to be the smallest size instruction for
++ * the architecture. If an arch has variable length instruction and the
++ * breakpoint instruction is not of the smallest length instruction
++ * supported by that architecture then we need to modify read_opcode /
++ * write_opcode accordingly. This would never be a problem for archs that
++ * have fixed length instructions.
++ */
++
++/*
++ * write_opcode - write the opcode at a given virtual address.
++ * @mm: the probed process address space.
++ * @uprobe: the breakpointing information.
++ * @vaddr: the virtual address to store the opcode.
++ * @opcode: opcode to be written at @vaddr.
++ *
++ * Called with mm->mmap_sem held (for read and with a reference to
++ * mm).
++ *
++ * For mm @mm, write the opcode at @vaddr.
++ * Return 0 (success) or a negative errno.
++ */
++static int write_opcode(struct mm_struct *mm, struct uprobe *uprobe,
++			unsigned long vaddr, uprobe_opcode_t opcode)
++{
++	struct page *old_page, *new_page;
++	struct address_space *mapping;
++	void *vaddr_old, *vaddr_new;
++	struct vm_area_struct *vma;
++	loff_t addr;
++	int ret;
++
++	/* Read the page with vaddr into memory */
++	ret = get_user_pages(NULL, mm, vaddr, 1, 0, 0, &old_page, &vma);
++	if (ret <= 0)
++		return ret;
++	ret = -EINVAL;
++
++	/*
++	 * We are interested in text pages only. Our pages of interest
++	 * should be mapped for read and execute only. We desist from
++	 * adding probes in write mapped pages since the breakpoints
++	 * might end up in the file copy.
++	 */
++	if (!valid_vma(vma, is_bkpt_insn(&opcode)))
++		goto put_out;
++
++	mapping = uprobe->inode->i_mapping;
++	if (mapping != vma->vm_file->f_mapping)
++		goto put_out;
++
++	addr = vma_address(vma, uprobe->offset);
++	if (vaddr != (unsigned long)addr)
++		goto put_out;
++
++	ret = -ENOMEM;
++	new_page = alloc_page_vma(GFP_HIGHUSER_MOVABLE, vma, vaddr);
++	if (!new_page)
++		goto put_out;
++
++	__SetPageUptodate(new_page);
++
++	/*
++	 * lock page will serialize against do_wp_page()'s
++	 * PageAnon() handling
++	 */
++	lock_page(old_page);
++	/* copy the page now that we've got it stable */
++	vaddr_old = kmap_atomic(old_page);
++	vaddr_new = kmap_atomic(new_page);
++
++	memcpy(vaddr_new, vaddr_old, PAGE_SIZE);
++	/* poke the new insn in, ASSUMES we don't cross page boundary */
++	vaddr &= ~PAGE_MASK;
++	BUG_ON(vaddr + uprobe_opcode_sz > PAGE_SIZE);
++	memcpy(vaddr_new + vaddr, &opcode, uprobe_opcode_sz);
++
++	kunmap_atomic(vaddr_new);
++	kunmap_atomic(vaddr_old);
++
++	ret = anon_vma_prepare(vma);
++	if (ret)
++		goto unlock_out;
++
++	lock_page(new_page);
++	ret = __replace_page(vma, old_page, new_page);
++	unlock_page(new_page);
++
++unlock_out:
++	unlock_page(old_page);
++	page_cache_release(new_page);
++
++put_out:
++	put_page(old_page);	/* we did a get_page in the beginning */
++	return ret;
++}
++
++/**
++ * read_opcode - read the opcode at a given virtual address.
++ * @mm: the probed process address space.
++ * @vaddr: the virtual address to read the opcode.
++ * @opcode: location to store the read opcode.
++ *
++ * Called with mm->mmap_sem held (for read and with a reference to
++ * mm.
++ *
++ * For mm @mm, read the opcode at @vaddr and store it in @opcode.
++ * Return 0 (success) or a negative errno.
++ */
++static int read_opcode(struct mm_struct *mm, unsigned long vaddr,
++						uprobe_opcode_t *opcode)
++{
++	struct page *page;
++	void *vaddr_new;
++	int ret;
++
++	ret = get_user_pages(NULL, mm, vaddr, 1, 0, 0, &page, NULL);
++	if (ret <= 0)
++		return ret;
++
++	lock_page(page);
++	vaddr_new = kmap_atomic(page);
++	vaddr &= ~PAGE_MASK;
++	memcpy(opcode, vaddr_new + vaddr, uprobe_opcode_sz);
++	kunmap_atomic(vaddr_new);
++	unlock_page(page);
++	put_page(page);		/* we did a get_user_pages in the beginning */
++	return 0;
++}
++
++static int is_bkpt_at_addr(struct mm_struct *mm, unsigned long vaddr)
++{
++	uprobe_opcode_t opcode;
++	int result = read_opcode(mm, vaddr, &opcode);
++
++	if (result)
++		return result;
++
++	if (is_bkpt_insn(&opcode))
++		return 1;
++
++	return 0;
++}
++
++/**
++ * set_bkpt - store breakpoint at a given address.
++ * @mm: the probed process address space.
++ * @uprobe: the probepoint information.
++ * @vaddr: the virtual address to insert the opcode.
++ *
++ * For mm @mm, store the breakpoint instruction at @vaddr.
++ * Return 0 (success) or a negative errno.
++ */
++int __weak set_bkpt(struct mm_struct *mm, struct uprobe *uprobe,
++						unsigned long vaddr)
++{
++	int result = is_bkpt_at_addr(mm, vaddr);
++
++	if (result == 1)
++		return -EEXIST;
++
++	if (result)
++		return result;
++
++	return write_opcode(mm, uprobe, vaddr, UPROBES_BKPT_INSN);
++}
++
++/**
++ * set_orig_insn - Restore the original instruction.
++ * @mm: the probed process address space.
++ * @uprobe: the probepoint information.
++ * @vaddr: the virtual address to insert the opcode.
++ * @verify: if true, verify existance of breakpoint instruction.
++ *
++ * For mm @mm, restore the original opcode (opcode) at @vaddr.
++ * Return 0 (success) or a negative errno.
++ */
++int __weak set_orig_insn(struct mm_struct *mm, struct uprobe *uprobe,
++					unsigned long vaddr, bool verify)
++{
++	if (verify) {
++		int result = is_bkpt_at_addr(mm, vaddr);
++
++		if (!result)
++			return -EINVAL;
++
++		if (result != 1)
++			return result;
++	}
++	return write_opcode(mm, uprobe, vaddr,
++				*(uprobe_opcode_t *)uprobe->insn);
++}
++
++static int match_uprobe(struct uprobe *l, struct uprobe *r)
++{
++	if (l->inode < r->inode)
++		return -1;
++	if (l->inode > r->inode)
++		return 1;
++	else {
++		if (l->offset < r->offset)
++			return -1;
++
++		if (l->offset > r->offset)
++			return 1;
++	}
++
++	return 0;
++}
++
++static struct uprobe *__find_uprobe(struct inode *inode, loff_t offset)
++{
++	struct uprobe u = { .inode = inode, .offset = offset };
++	struct rb_node *n = uprobes_tree.rb_node;
++	struct uprobe *uprobe;
++	int match;
++
++	while (n) {
++		uprobe = rb_entry(n, struct uprobe, rb_node);
++		match = match_uprobe(&u, uprobe);
++		if (!match) {
++			atomic_inc(&uprobe->ref);
++			return uprobe;
++		}
++		if (match < 0)
++			n = n->rb_left;
++		else
++			n = n->rb_right;
++	}
++	return NULL;
++}
++
++/*
++ * Find a uprobe corresponding to a given inode:offset
++ * Acquires uprobes_treelock
++ */
++static struct uprobe *find_uprobe(struct inode *inode, loff_t offset)
++{
++	struct uprobe *uprobe;
++	unsigned long flags;
++
++	spin_lock_irqsave(&uprobes_treelock, flags);
++	uprobe = __find_uprobe(inode, offset);
++	spin_unlock_irqrestore(&uprobes_treelock, flags);
++	return uprobe;
++}
++
++static struct uprobe *__insert_uprobe(struct uprobe *uprobe)
++{
++	struct rb_node **p = &uprobes_tree.rb_node;
++	struct rb_node *parent = NULL;
++	struct uprobe *u;
++	int match;
++
++	while (*p) {
++		parent = *p;
++		u = rb_entry(parent, struct uprobe, rb_node);
++		match = match_uprobe(uprobe, u);
++		if (!match) {
++			atomic_inc(&u->ref);
++			return u;
++		}
++
++		if (match < 0)
++			p = &parent->rb_left;
++		else
++			p = &parent->rb_right;
++
++	}
++	u = NULL;
++	rb_link_node(&uprobe->rb_node, parent, p);
++	rb_insert_color(&uprobe->rb_node, &uprobes_tree);
++	/* get access + creation ref */
++	atomic_set(&uprobe->ref, 2);
++	return u;
++}
++
++/*
++ * Acquires uprobes_treelock.
++ * Matching uprobe already exists in rbtree;
++ *	increment (access refcount) and return the matching uprobe.
++ *
++ * No matching uprobe; insert the uprobe in rb_tree;
++ *	get a double refcount (access + creation) and return NULL.
++ */
++static struct uprobe *insert_uprobe(struct uprobe *uprobe)
++{
++	unsigned long flags;
++	struct uprobe *u;
++
++	spin_lock_irqsave(&uprobes_treelock, flags);
++	u = __insert_uprobe(uprobe);
++	spin_unlock_irqrestore(&uprobes_treelock, flags);
++	return u;
++}
++
++static void put_uprobe(struct uprobe *uprobe)
++{
++	if (atomic_dec_and_test(&uprobe->ref))
++		kfree(uprobe);
++}
++
++static struct uprobe *alloc_uprobe(struct inode *inode, loff_t offset)
++{
++	struct uprobe *uprobe, *cur_uprobe;
++
++	uprobe = kzalloc(sizeof(struct uprobe), GFP_KERNEL);
++	if (!uprobe)
++		return NULL;
++
++	uprobe->inode = igrab(inode);
++	uprobe->offset = offset;
++	init_rwsem(&uprobe->consumer_rwsem);
++	INIT_LIST_HEAD(&uprobe->pending_list);
++
++	/* add to uprobes_tree, sorted on inode:offset */
++	cur_uprobe = insert_uprobe(uprobe);
++
++	/* a uprobe exists for this inode:offset combination */
++	if (cur_uprobe) {
++		kfree(uprobe);
++		uprobe = cur_uprobe;
++		iput(inode);
++	} else
++		atomic_inc(&uprobe_events);
++	return uprobe;
++}
++
++/* Returns the previous consumer */
++static struct uprobe_consumer *add_consumer(struct uprobe *uprobe,
++				struct uprobe_consumer *consumer)
++{
++	down_write(&uprobe->consumer_rwsem);
++	consumer->next = uprobe->consumers;
++	uprobe->consumers = consumer;
++	up_write(&uprobe->consumer_rwsem);
++	return consumer->next;
++}
++
++/*
++ * For uprobe @uprobe, delete the consumer @consumer.
++ * Return true if the @consumer is deleted successfully
++ * or return false.
++ */
++static bool del_consumer(struct uprobe *uprobe,
++				struct uprobe_consumer *consumer)
++{
++	struct uprobe_consumer **con;
++	bool ret = false;
++
++	down_write(&uprobe->consumer_rwsem);
++	for (con = &uprobe->consumers; *con; con = &(*con)->next) {
++		if (*con == consumer) {
++			*con = consumer->next;
++			ret = true;
++			break;
++		}
++	}
++	up_write(&uprobe->consumer_rwsem);
++	return ret;
++}
++
++static int __copy_insn(struct address_space *mapping,
++			struct vm_area_struct *vma, char *insn,
++			unsigned long nbytes, unsigned long offset)
++{
++	struct file *filp = vma->vm_file;
++	struct page *page;
++	void *vaddr;
++	unsigned long off1;
++	unsigned long idx;
++
++	if (!filp)
++		return -EINVAL;
++
++	idx = (unsigned long)(offset >> PAGE_CACHE_SHIFT);
++	off1 = offset &= ~PAGE_MASK;
++
++	/*
++	 * Ensure that the page that has the original instruction is
++	 * populated and in page-cache.
++	 */
++	page = read_mapping_page(mapping, idx, filp);
++	if (IS_ERR(page))
++		return PTR_ERR(page);
++
++	vaddr = kmap_atomic(page);
++	memcpy(insn, vaddr + off1, nbytes);
++	kunmap_atomic(vaddr);
++	page_cache_release(page);
++	return 0;
++}
++
++static int copy_insn(struct uprobe *uprobe, struct vm_area_struct *vma,
++					unsigned long addr)
++{
++	struct address_space *mapping;
++	int bytes;
++	unsigned long nbytes;
++
++	addr &= ~PAGE_MASK;
++	nbytes = PAGE_SIZE - addr;
++	mapping = uprobe->inode->i_mapping;
++
++	/* Instruction at end of binary; copy only available bytes */
++	if (uprobe->offset + MAX_UINSN_BYTES > uprobe->inode->i_size)
++		bytes = uprobe->inode->i_size - uprobe->offset;
++	else
++		bytes = MAX_UINSN_BYTES;
++
++	/* Instruction at the page-boundary; copy bytes in second page */
++	if (nbytes < bytes) {
++		if (__copy_insn(mapping, vma, uprobe->insn + nbytes,
++				bytes - nbytes, uprobe->offset + nbytes))
++			return -ENOMEM;
++
++		bytes = nbytes;
++	}
++	return __copy_insn(mapping, vma, uprobe->insn, bytes, uprobe->offset);
++}
++
++static int install_breakpoint(struct mm_struct *mm, struct uprobe *uprobe,
++				struct vm_area_struct *vma, loff_t vaddr)
++{
++	unsigned long addr;
++	int ret;
++
++	/*
++	 * If probe is being deleted, unregister thread could be done with
++	 * the vma-rmap-walk through. Adding a probe now can be fatal since
++	 * nobody will be able to cleanup. Also we could be from fork or
++	 * mremap path, where the probe might have already been inserted.
++	 * Hence behave as if probe already existed.
++	 */
++	if (!uprobe->consumers)
++		return -EEXIST;
++
++	addr = (unsigned long)vaddr;
++	if (!(uprobe->flags & UPROBES_COPY_INSN)) {
++		ret = copy_insn(uprobe, vma, addr);
++		if (ret)
++			return ret;
++
++		if (is_bkpt_insn((uprobe_opcode_t *)uprobe->insn))
++			return -EEXIST;
++
++		ret = analyze_insn(mm, uprobe);
++		if (ret)
++			return ret;
++
++		uprobe->flags |= UPROBES_COPY_INSN;
++	}
++	ret = set_bkpt(mm, uprobe, addr);
++
++	return ret;
++}
++
++static void remove_breakpoint(struct mm_struct *mm, struct uprobe *uprobe,
++							loff_t vaddr)
++{
++	set_orig_insn(mm, uprobe, (unsigned long)vaddr, true);
++}
++
++static void delete_uprobe(struct uprobe *uprobe)
++{
++	unsigned long flags;
++
++	spin_lock_irqsave(&uprobes_treelock, flags);
++	rb_erase(&uprobe->rb_node, &uprobes_tree);
++	spin_unlock_irqrestore(&uprobes_treelock, flags);
++	iput(uprobe->inode);
++	put_uprobe(uprobe);
++	atomic_dec(&uprobe_events);
++}
++
++static struct vma_info *__find_next_vma_info(struct list_head *head,
++			loff_t offset, struct address_space *mapping,
++			struct vma_info *vi, bool is_register)
++{
++	struct prio_tree_iter iter;
++	struct vm_area_struct *vma;
++	struct vma_info *tmpvi;
++	loff_t vaddr;
++	unsigned long pgoff = offset >> PAGE_SHIFT;
++	int existing_vma;
++
++	vma_prio_tree_foreach(vma, &iter, &mapping->i_mmap, pgoff, pgoff) {
++		if (!valid_vma(vma, is_register))
++			continue;
++
++		existing_vma = 0;
++		vaddr = vma_address(vma, offset);
++		list_for_each_entry(tmpvi, head, probe_list) {
++			if (tmpvi->mm == vma->vm_mm && tmpvi->vaddr == vaddr) {
++				existing_vma = 1;
++				break;
++			}
++		}
++
++		/*
++		 * Another vma needs a probe to be installed. However skip
++		 * installing the probe if the vma is about to be unlinked.
++		 */
++		if (!existing_vma &&
++				atomic_inc_not_zero(&vma->vm_mm->mm_users)) {
++			vi->mm = vma->vm_mm;
++			vi->vaddr = vaddr;
++			list_add(&vi->probe_list, head);
++			return vi;
++		}
++	}
++	return NULL;
++}
++
++/*
++ * Iterate in the rmap prio tree  and find a vma where a probe has not
++ * yet been inserted.
++ */
++static struct vma_info *find_next_vma_info(struct list_head *head,
++			loff_t offset, struct address_space *mapping,
++			bool is_register)
++{
++	struct vma_info *vi, *retvi;
++	vi = kzalloc(sizeof(struct vma_info), GFP_KERNEL);
++	if (!vi)
++		return ERR_PTR(-ENOMEM);
++
++	mutex_lock(&mapping->i_mmap_mutex);
++	retvi = __find_next_vma_info(head, offset, mapping, vi, is_register);
++	mutex_unlock(&mapping->i_mmap_mutex);
++
++	if (!retvi)
++		kfree(vi);
++	return retvi;
++}
++
++static int register_for_each_vma(struct uprobe *uprobe, bool is_register)
++{
++	struct list_head try_list;
++	struct vm_area_struct *vma;
++	struct address_space *mapping;
++	struct vma_info *vi, *tmpvi;
++	struct mm_struct *mm;
++	loff_t vaddr;
++	int ret = 0;
++
++	mapping = uprobe->inode->i_mapping;
++	INIT_LIST_HEAD(&try_list);
++	while ((vi = find_next_vma_info(&try_list, uprobe->offset,
++					mapping, is_register)) != NULL) {
++		if (IS_ERR(vi)) {
++			ret = PTR_ERR(vi);
++			break;
++		}
++		mm = vi->mm;
++		down_read(&mm->mmap_sem);
++		vma = find_vma(mm, (unsigned long)vi->vaddr);
++		if (!vma || !valid_vma(vma, is_register)) {
++			list_del(&vi->probe_list);
++			kfree(vi);
++			up_read(&mm->mmap_sem);
++			mmput(mm);
++			continue;
++		}
++		vaddr = vma_address(vma, uprobe->offset);
++		if (vma->vm_file->f_mapping->host != uprobe->inode ||
++						vaddr != vi->vaddr) {
++			list_del(&vi->probe_list);
++			kfree(vi);
++			up_read(&mm->mmap_sem);
++			mmput(mm);
++			continue;
++		}
++
++		if (is_register)
++			ret = install_breakpoint(mm, uprobe, vma, vi->vaddr);
++		else
++			remove_breakpoint(mm, uprobe, vi->vaddr);
++
++		up_read(&mm->mmap_sem);
++		mmput(mm);
++		if (is_register) {
++			if (ret && ret == -EEXIST)
++				ret = 0;
++			if (ret)
++				break;
++		}
++	}
++	list_for_each_entry_safe(vi, tmpvi, &try_list, probe_list) {
++		list_del(&vi->probe_list);
++		kfree(vi);
++	}
++	return ret;
++}
++
++static int __register_uprobe(struct uprobe *uprobe)
++{
++	return register_for_each_vma(uprobe, true);
++}
++
++static void __unregister_uprobe(struct uprobe *uprobe)
++{
++	if (!register_for_each_vma(uprobe, false))
++		delete_uprobe(uprobe);
++
++	/* TODO : cant unregister? schedule a worker thread */
++}
++
++/*
++ * register_uprobe - register a probe
++ * @inode: the file in which the probe has to be placed.
++ * @offset: offset from the start of the file.
++ * @consumer: information on howto handle the probe..
++ *
++ * Apart from the access refcount, register_uprobe() takes a creation
++ * refcount (thro alloc_uprobe) if and only if this @uprobe is getting
++ * inserted into the rbtree (i.e first consumer for a @inode:@offset
++ * tuple).  Creation refcount stops unregister_uprobe from freeing the
++ * @uprobe even before the register operation is complete. Creation
++ * refcount is released when the last @consumer for the @uprobe
++ * unregisters.
++ *
++ * Return errno if it cannot successully install probes
++ * else return 0 (success)
++ */
++int register_uprobe(struct inode *inode, loff_t offset,
++				struct uprobe_consumer *consumer)
++{
++	struct uprobe *uprobe;
++	int ret = -EINVAL;
++
++	if (!inode || !consumer || consumer->next)
++		return ret;
++
++	if (offset > i_size_read(inode))
++		return ret;
++
++	ret = 0;
++	mutex_lock(uprobes_hash(inode));
++	uprobe = alloc_uprobe(inode, offset);
++	if (uprobe && !add_consumer(uprobe, consumer)) {
++		ret = __register_uprobe(uprobe);
++		if (ret) {
++			uprobe->consumers = NULL;
++			__unregister_uprobe(uprobe);
++		} else
++			uprobe->flags |= UPROBES_RUN_HANDLER;
++	}
++
++	mutex_unlock(uprobes_hash(inode));
++	put_uprobe(uprobe);
++
++	return ret;
++}
++
++/*
++ * unregister_uprobe - unregister a already registered probe.
++ * @inode: the file in which the probe has to be removed.
++ * @offset: offset from the start of the file.
++ * @consumer: identify which probe if multiple probes are colocated.
++ */
++void unregister_uprobe(struct inode *inode, loff_t offset,
++				struct uprobe_consumer *consumer)
++{
++	struct uprobe *uprobe = NULL;
++
++	if (!inode || !consumer)
++		return;
++
++	uprobe = find_uprobe(inode, offset);
++	if (!uprobe)
++		return;
++
++	mutex_lock(uprobes_hash(inode));
++	if (!del_consumer(uprobe, consumer))
++		goto unreg_out;
++
++	if (!uprobe->consumers) {
++		__unregister_uprobe(uprobe);
++		uprobe->flags &= ~UPROBES_RUN_HANDLER;
++	}
++
++unreg_out:
++	mutex_unlock(uprobes_hash(inode));
++	if (uprobe)
++		put_uprobe(uprobe);
++}
++
++/*
++ * Of all the nodes that correspond to the given inode, return the node
++ * with the least offset.
++ */
++static struct rb_node *find_least_offset_node(struct inode *inode)
++{
++	struct uprobe u = { .inode = inode, .offset = 0};
++	struct rb_node *n = uprobes_tree.rb_node;
++	struct rb_node *close_node = NULL;
++	struct uprobe *uprobe;
++	int match;
++
++	while (n) {
++		uprobe = rb_entry(n, struct uprobe, rb_node);
++		match = match_uprobe(&u, uprobe);
++		if (uprobe->inode == inode)
++			close_node = n;
++
++		if (!match)
++			return close_node;
++
++		if (match < 0)
++			n = n->rb_left;
++		else
++			n = n->rb_right;
++	}
++	return close_node;
++}
++
++/*
++ * For a given inode, build a list of probes that need to be inserted.
++ */
++static void build_probe_list(struct inode *inode, struct list_head *head)
++{
++	struct uprobe *uprobe;
++	struct rb_node *n;
++	unsigned long flags;
++
++	spin_lock_irqsave(&uprobes_treelock, flags);
++	n = find_least_offset_node(inode);
++	for (; n; n = rb_next(n)) {
++		uprobe = rb_entry(n, struct uprobe, rb_node);
++		if (uprobe->inode != inode)
++			break;
++
++		list_add(&uprobe->pending_list, head);
++		atomic_inc(&uprobe->ref);
++	}
++	spin_unlock_irqrestore(&uprobes_treelock, flags);
++}
++
++/*
++ * Called from mmap_region.
++ * called with mm->mmap_sem acquired.
++ *
++ * Return -ve no if we fail to insert probes and we cannot
++ * bail-out.
++ * Return 0 otherwise. i.e :
++ *	- successful insertion of probes
++ *	- (or) no possible probes to be inserted.
++ *	- (or) insertion of probes failed but we can bail-out.
++ */
++int mmap_uprobe(struct vm_area_struct *vma)
++{
++	struct list_head tmp_list;
++	struct uprobe *uprobe, *u;
++	struct inode *inode;
++	int ret = 0;
++
++	if (!atomic_read(&uprobe_events) || !valid_vma(vma, true))
++		return ret;	/* Bail-out */
++
++	inode = vma->vm_file->f_mapping->host;
++	if (!inode)
++		return ret;
++
++	INIT_LIST_HEAD(&tmp_list);
++	mutex_lock(uprobes_mmap_hash(inode));
++	build_probe_list(inode, &tmp_list);
++	list_for_each_entry_safe(uprobe, u, &tmp_list, pending_list) {
++		loff_t vaddr;
++
++		list_del(&uprobe->pending_list);
++		if (!ret) {
++			vaddr = vma_address(vma, uprobe->offset);
++			if (vaddr < vma->vm_start || vaddr >= vma->vm_end) {
++				put_uprobe(uprobe);
++				continue;
++			}
++			ret = install_breakpoint(vma->vm_mm, uprobe, vma,
++								vaddr);
++			if (ret == -EEXIST)
++				ret = 0;
++		}
++		put_uprobe(uprobe);
++	}
++
++	mutex_unlock(uprobes_mmap_hash(inode));
++
++	return ret;
++}
++
++static int __init init_uprobes(void)
++{
++	int i;
++
++	for (i = 0; i < UPROBES_HASH_SZ; i++) {
++		mutex_init(&uprobes_mutex[i]);
++		mutex_init(&uprobes_mmap_mutex[i]);
++	}
++	return 0;
++}
++
++static void __exit exit_uprobes(void)
++{
++}
++
++module_init(init_uprobes);
++module_exit(exit_uprobes);
+diff --git a/mm/mmap.c b/mm/mmap.c
+index 848ef52..f6ea842 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -30,6 +30,7 @@
+ #include <linux/perf_event.h>
+ #include <linux/audit.h>
+ #include <linux/khugepaged.h>
++#include <linux/uprobes.h>
+ 
+ #include <asm/uaccess.h>
+ #include <asm/cacheflush.h>
+@@ -617,6 +618,13 @@ again:			remove_next = 1 + (end > next->vm_end);
+ 	if (mapping)
+ 		mutex_unlock(&mapping->i_mmap_mutex);
+ 
++	if (root) {
++		mmap_uprobe(vma);
++
++		if (adjust_next)
++			mmap_uprobe(next);
++	}
++
+ 	if (remove_next) {
+ 		if (file) {
+ 			fput(file);
+@@ -638,6 +646,8 @@ again:			remove_next = 1 + (end > next->vm_end);
+ 			goto again;
+ 		}
+ 	}
++	if (insert && file)
++		mmap_uprobe(insert);
+ 
+ 	validate_mm(mm);
+ 
+@@ -1371,6 +1381,11 @@ out:
+ 			mm->locked_vm += (len >> PAGE_SHIFT);
+ 	} else if ((flags & MAP_POPULATE) && !(flags & MAP_NONBLOCK))
+ 		make_pages_present(addr, addr + len);
++
++	if (file && mmap_uprobe(vma))
++		/* matching probes but cannot insert */
++		goto unmap_and_free_vma;
++
+ 	return addr;
+ 
+ unmap_and_free_vma:
+@@ -2352,6 +2367,10 @@ int insert_vm_struct(struct mm_struct * mm, struct vm_area_struct * vma)
+ 	if ((vma->vm_flags & VM_ACCOUNT) &&
+ 	     security_vm_enough_memory_mm(mm, vma_pages(vma)))
+ 		return -ENOMEM;
++
++	if (vma->vm_file && mmap_uprobe(vma))
++		return -EINVAL;
++
+ 	vma_link(mm, vma, prev, rb_link, rb_parent);
+ 	return 0;
+ }
+@@ -2421,6 +2440,10 @@ struct vm_area_struct *copy_vma(struct vm_area_struct **vmap,
+ 			new_vma->vm_pgoff = pgoff;
+ 			if (new_vma->vm_file) {
+ 				get_file(new_vma->vm_file);
++
++				if (mmap_uprobe(new_vma))
++					goto out_free_mempol;
++
+ 				if (vma->vm_flags & VM_EXECUTABLE)
+ 					added_exe_file_vma(mm);
+ 			}
+
+--------------1.7.4.1--
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
