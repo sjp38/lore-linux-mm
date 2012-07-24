@@ -1,57 +1,149 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx140.postini.com [74.125.245.140])
-	by kanga.kvack.org (Postfix) with SMTP id B142E6B0044
-	for <linux-mm@kvack.org>; Tue, 24 Jul 2012 18:47:16 -0400 (EDT)
-Received: by pbbrp2 with SMTP id rp2so348560pbb.14
-        for <linux-mm@kvack.org>; Tue, 24 Jul 2012 15:47:16 -0700 (PDT)
-Date: Tue, 24 Jul 2012 15:47:12 -0700
-From: Greg KH <gregkh@linuxfoundation.org>
-Subject: Re: [PATCH 03/34] mm: Reduce the amount of work done when updating
- min_free_kbytes
-Message-ID: <20120724224712.GB4245@kroah.com>
-References: <1343050727-3045-1-git-send-email-mgorman@suse.de>
- <1343050727-3045-4-git-send-email-mgorman@suse.de>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1343050727-3045-4-git-send-email-mgorman@suse.de>
+Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
+	by kanga.kvack.org (Postfix) with SMTP id DA9716B0044
+	for <linux-mm@kvack.org>; Tue, 24 Jul 2012 18:54:19 -0400 (EDT)
+Message-ID: <1343170456.3165.14.camel@lorien2>
+Subject: [PATCH] mm: Restructure kmem_cache_create() to move debug cache
+ integrity checks into a new function
+From: Shuah Khan <shuah.khan@hp.com>
+Reply-To: shuah.khan@hp.com
+Date: Tue, 24 Jul 2012 16:54:16 -0600
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 7bit
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Stable <stable@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: cl@linux.com, penberg@kernel.org, glommer@parallels.com, js1304@gmail.com, David Rientjes <rientjes@google.com>
+Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, shuahkhan@gmail.com
 
-On Mon, Jul 23, 2012 at 02:38:16PM +0100, Mel Gorman wrote:
-> commit 938929f14cb595f43cd1a4e63e22d36cab1e4a1f upstream.
-> 
-> Stable note: Fixes https://bugzilla.novell.com/show_bug.cgi?id=726210 .
-> 	Large machines with 1TB or more of RAM take a long time to boot
-> 	without this patch and may spew out soft lockup warnings.
+kmem_cache_create() does cache integrity checks when CONFIG_DEBUG_VM
+is defined. These checks interspersed with the regular code path has
+lead to compile time warnings when compiled without CONFIG_DEBUG_VM
+defined. Restructuring the code to move the integrity checks in to a new
+function would eliminate the current compile warning problem and also
+will allow for future changes to the debug only code to evolve without
+introducing new warnings in the regular path. This restructuring work
+is based on the discussion in the following thread:
 
-In comparing this with the upstream version, you have a few different
-coding style differences, but no real content difference.  Why?
+https://lkml.org/lkml/2012/7/13/424
 
-> 
-> When min_free_kbytes is updated blocks marked MIGRATE_RESERVE are
-> updated. Ordinarily, this work is unnoticable as it happens early
-> in boot. However, on large machines with 1TB of memory, this can take
-> a considerable time when NUMA distances are taken into account. The bulk
-> of the work is done by pageblock_is_reserved() which examines the
-> metadata for almost every page in the system. Currently, we are doing
-> this far more than necessary as it is only required while there are
-> still blocks to be marked MIGRATE_RESERVE. This patch significantly
-> reduces the amount of work done by setup_zone_migrate_reserve()
-> improving boot times on 1TB machines.
-> 
-> [akpm@linux-foundation.org: coding-style fixes]
+Signed-off-by: Shuah Khan <shuah.khan@hp.com>
+---
+ mm/slab_common.c |   74 ++++++++++++++++++++++++++++--------------------------
+ 1 file changed, 38 insertions(+), 36 deletions(-)
 
-I'm guessing you didn't pick these up?
+diff --git a/mm/slab_common.c b/mm/slab_common.c
+index 12637ce..08bc2a4 100644
+--- a/mm/slab_common.c
++++ b/mm/slab_common.c
+@@ -23,6 +23,41 @@ enum slab_state slab_state;
+ LIST_HEAD(slab_caches);
+ DEFINE_MUTEX(slab_mutex);
+ 
++static int kmem_cache_sanity_check(const char *name, size_t size)
++{
++#ifdef CONFIG_DEBUG_VM
++	struct kmem_cache *s = NULL;
++
++	list_for_each_entry(s, &slab_caches, list) {
++		char tmp;
++		int res;
++
++		/*
++		 * This happens when the module gets unloaded and doesn't
++		 * destroy its slab cache and no-one else reuses the vmalloc
++		 * area of the module.  Print a warning.
++		 */
++		res = probe_kernel_address(s->name, tmp);
++		if (res) {
++			pr_err("Slab cache with size %d has lost its name\n",
++			       s->object_size);
++			continue;
++		}
++
++		if (!strcmp(s->name, name)) {
++			pr_err("%s (%s): Cache name already exists.\n",
++			       __func__, name);
++			dump_stack();
++			s = NULL;
++			return -EINVAL;
++		}
++	}
++
++	WARN_ON(strchr(name, ' '));	/* It confuses parsers */
++#endif
++	return 0;
++}
++
+ /*
+  * kmem_cache_create - Create a cache.
+  * @name: A string which is used in /proc/slabinfo to identify this cache.
+@@ -53,48 +88,17 @@ struct kmem_cache *kmem_cache_create(const char *name, size_t size, size_t align
+ {
+ 	struct kmem_cache *s = NULL;
+ 
+-#ifdef CONFIG_DEBUG_VM
+ 	if (!name || in_interrupt() || size < sizeof(void *) ||
+ 		size > KMALLOC_MAX_SIZE) {
+-		printk(KERN_ERR "kmem_cache_create(%s) integrity check"
+-			" failed\n", name);
++		pr_err("kmem_cache_create(%s) integrity check failed\n", name);
+ 		goto out;
+ 	}
+-#endif
+ 
+ 	get_online_cpus();
+ 	mutex_lock(&slab_mutex);
+ 
+-#ifdef CONFIG_DEBUG_VM
+-	list_for_each_entry(s, &slab_caches, list) {
+-		char tmp;
+-		int res;
+-
+-		/*
+-		 * This happens when the module gets unloaded and doesn't
+-		 * destroy its slab cache and no-one else reuses the vmalloc
+-		 * area of the module.  Print a warning.
+-		 */
+-		res = probe_kernel_address(s->name, tmp);
+-		if (res) {
+-			printk(KERN_ERR
+-			       "Slab cache with size %d has lost its name\n",
+-			       s->object_size);
+-			continue;
+-		}
+-
+-		if (!strcmp(s->name, name)) {
+-			printk(KERN_ERR "kmem_cache_create(%s): Cache name"
+-				" already exists.\n",
+-				name);
+-			dump_stack();
+-			s = NULL;
+-			goto oops;
+-		}
+-	}
+-
+-	WARN_ON(strchr(name, ' '));	/* It confuses parsers */
+-#endif
++	if (kmem_cache_sanity_check(name, size))
++		goto oops;
+ 
+ 	s = __kmem_cache_create(name, size, align, flags, ctor);
+ 
+@@ -102,9 +106,7 @@ oops:
+ 	mutex_unlock(&slab_mutex);
+ 	put_online_cpus();
+ 
+-#ifdef CONFIG_DEBUG_VM
+ out:
+-#endif
+ 	if (!s && (flags & SLAB_PANIC))
+ 		panic("kmem_cache_create: Failed to create slab '%s'\n", name);
+ 
+-- 
+1.7.9.5
 
-Anyway, I've taken it now as the original one from Linus's tree,
-hopefully this doesn't burn me later in the series...
 
-thanks,
-
-greg k-h
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
