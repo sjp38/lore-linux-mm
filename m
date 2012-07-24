@@ -1,63 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
-	by kanga.kvack.org (Postfix) with SMTP id D128E6B004D
-	for <linux-mm@kvack.org>; Mon, 23 Jul 2012 21:11:23 -0400 (EDT)
-Date: Tue, 24 Jul 2012 10:11:43 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: +
- memory-hotplug-fix-kswapd-looping-forever-problem-fix-fix.patch added to -mm
- tree
-Message-ID: <20120724011143.GA13155@bbox>
-References: <20120718143810.b15564b3.akpm@linux-foundation.org>
- <20120719001002.GA6579@bbox>
- <20120719002102.GN24336@google.com>
- <20120719004845.GA7346@bbox>
- <20120719165750.GP24336@google.com>
- <20120719235057.GA21012@bbox>
- <20120720142213.f4a4a68e.akpm@linux-foundation.org>
- <20120720213641.GA6823@google.com>
- <20120723045855.GC6832@bbox>
- <20120723154247.GE6823@google.com>
+Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
+	by kanga.kvack.org (Postfix) with SMTP id E5AF16B004D
+	for <linux-mm@kvack.org>; Mon, 23 Jul 2012 21:46:16 -0400 (EDT)
+Received: by pbbrp2 with SMTP id rp2so14325215pbb.14
+        for <linux-mm@kvack.org>; Mon, 23 Jul 2012 18:46:16 -0700 (PDT)
+Date: Mon, 23 Jul 2012 18:46:11 -0700
+From: Michel Lespinasse <walken@google.com>
+Subject: Re: [RFC PATCH 0/6] augmented rbtree changes
+Message-ID: <20120724014611.GA6974@google.com>
+References: <1342787467-5493-1-git-send-email-walken@google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20120723154247.GE6823@google.com>
+In-Reply-To: <1342787467-5493-1-git-send-email-walken@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Ralf Baechle <ralf@linux-mips.org>, aaditya.kumar.30@gmail.com, kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Yinghai Lu <yinghai@kernel.org>
+To: riel@redhat.com, peterz@infradead.org, daniel.santos@pobox.com, aarcange@redhat.com, dwmw2@infradead.org, akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, Jul 23, 2012 at 08:42:47AM -0700, Tejun Heo wrote:
-> Hello, Minchan.
-> 
-> On Mon, Jul 23, 2012 at 01:58:55PM +0900, Minchan Kim wrote:
-> > I would like to know what fields you are concerning because most of field
-> 
-> The above question itself is a problem.  It's subtle to hell.  Some
-> fields of this data structure is used during early boot but at some
-> point all are reset to zero, so we have to be careful about how those
-> fields are used before and after.
-> 
-> This might seem clear now but things like this are likely to make
-> people later working on the code go WTF.  Let's say for whatever
-> reason ->bdata needs to be accessed after free_area_init - e.g.
-> arch_add_memory() needs some info from bdata, what then?
-> 
-> What if we end up having to add a new property field which is
-> determined by platform code but used by generic code.  I would add a
-> field to pgdat, init it from numa.c and then later use it in generic
-> code.  If the field gets zeroed inbetween, I would get pretty annoyed.
-> 
-> I really don't think this subject is worth the amount of discussion we
-> had in this thread.  Just make the archs clear the data structure on
-> creation.  Anything else is silly.
+On Fri, Jul 20, 2012 at 05:31:01AM -0700, Michel Lespinasse wrote:
+> Patch 5 speeds up the augmented rbtree erase. Here again we use a tree
+> rotation callback during rebalancing; however we also have to propagate
+> the augmented node information above nodes being erased and/or stitched,
+> and I haven't found a nice enough way to do that. So for now I am proposing
+> the simple-stupid way of propagating all the way to the root. More on
+> this later.
 
-I sent patchset and will wait of akpm's opinion.
-Thanks for the comment, Tejun.
+So, I looked at it again and finally figured out a decent way to avoid
+unnecessary propagation here. Going to resend patches 5/6 as replies to
+their original postings.
+
+> - The prio tree of all VMAs mapping a given file (struct address_space)
+> could be switched to an augmented rbtree based interval tree (thus removing
+> the prio tree library in favor of augmented rbtrees)
+
+I actually have a prototype for that already. The augmented rbtree based
+implementation is slightly faster than prio tree on insert/erase, and
+considerably faster on lookups. However, this is with a synthetic test
+exercising prio and rbtrees directly, not with a realistic workload going
+through the MM layers. Do we know of situations where prio tree performance
+is currently a concern ?
+
+> As they stand, patches 3-6 don't seem to make a difference for basic rbtree
+> support, and they improve my augmented rbtree insertion/erase benchmark
+> by a factor of ~2.1 to ~2.3 depending on test machines.
+
+After rewriting patches 5-6 as discussed above, augmented rbtrees are now
+~2.5 - ~2.7 times faster than before this patch series.
 
 -- 
-Kind regards,
-Minchan Kim
+Michel "Walken" Lespinasse
+A program is never fully debugged until the last user dies.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
