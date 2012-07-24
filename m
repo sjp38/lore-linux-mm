@@ -1,118 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
-	by kanga.kvack.org (Postfix) with SMTP id 8C2016B004D
-	for <linux-mm@kvack.org>; Tue, 24 Jul 2012 04:32:05 -0400 (EDT)
-Date: Tue, 24 Jul 2012 10:32:01 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH -alternative] mm: hugetlbfs: Close race during teardown
- of hugetlbfs shared page tables V2 (resend)
-Message-ID: <20120724083201.GA7291@tiehlicka.suse.cz>
-References: <20120720134937.GG9222@suse.de>
- <20120720141108.GH9222@suse.de>
- <20120720143635.GE12434@tiehlicka.suse.cz>
- <20120720145121.GJ9222@suse.de>
- <alpine.LSU.2.00.1207222033030.6810@eggly.anvils>
- <20120723114007.GU9222@suse.de>
- <alpine.LSU.2.00.1207231702440.1683@eggly.anvils>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.LSU.2.00.1207231702440.1683@eggly.anvils>
+Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
+	by kanga.kvack.org (Postfix) with SMTP id 6D7DB6B005A
+	for <linux-mm@kvack.org>; Tue, 24 Jul 2012 04:32:14 -0400 (EDT)
+Message-ID: <1343118731.7412.72.camel@marge.simpson.net>
+Subject: Re: [MMTests] Sysbench read-only on ext3
+From: Mike Galbraith <efault@gmx.de>
+Date: Tue, 24 Jul 2012 10:32:11 +0200
+In-Reply-To: <20120724081903.GL9222@suse.de>
+References: <20120620113252.GE4011@suse.de> <20120629111932.GA14154@suse.de>
+	 <20120723211334.GA9222@suse.de>
+	 <1343096969.7412.21.camel@marge.simpson.net>
+	 <20120724081903.GL9222@suse.de>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 7bit
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Mel Gorman <mgorman@suse.de>, Linux-MM <linux-mm@kvack.org>, David Gibson <david@gibson.dropbear.id.au>, Ken Chen <kenchen@google.com>, Cong Wang <xiyou.wangcong@gmail.com>, LKML <linux-kernel@vger.kernel.org>
+To: Mel Gorman <mgorman@suse.de>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon 23-07-12 18:08:05, Hugh Dickins wrote:
-> On Mon, 23 Jul 2012, Mel Gorman wrote:
-> > On Sun, Jul 22, 2012 at 09:04:33PM -0700, Hugh Dickins wrote:
-> > > On Fri, 20 Jul 2012, Mel Gorman wrote:
-> > > > On Fri, Jul 20, 2012 at 04:36:35PM +0200, Michal Hocko wrote:
+On Tue, 2012-07-24 at 09:19 +0100, Mel Gorman wrote: 
+> On Tue, Jul 24, 2012 at 04:29:29AM +0200, Mike Galbraith wrote:
+> > On Mon, 2012-07-23 at 22:13 +0100, Mel Gorman wrote:
 > > 
-> > I like it in that it's simple and I can confirm it works for the test case
-> > of interest.
-> 
-> Phew, I'm glad to hear that, thanks.
-> 
+> > > The backing database was postgres.
 > > 
-> > However, is your patch not vunerable to truncate issues?
-> > madvise()/truncate() issues was the main reason why I was wary of VMA tricks
-> > as a solution. As it turns out, madvise(DONTNEED) is not a problem as it is
-> > ignored for hugetlbfs but I think truncate is still problematic. Lets say
-> > we mmap(MAP_SHARED) a hugetlbfs file and then truncate for whatever reason.
+> > FWIW, that wouldn't have been my choice.  I don't know if it still does,
+> > but it used to use userland spinlocks to achieve scalability. 
+> 
+> The tests used to support mysql but the code bit-rotted and eventually
+> got deleted. I'm not going to get into a mysql vs postgres discussion on
+> which is better :O
+> 
+> Were you thinking of mysql or something else as an alternative?
+> Completely different test?
+
+Which db is under the hood doesn't matter much, but those spinlocks got
+me thinking.
+
+> > Turning
+> > your CPUs into space heaters to combat concurrency issues makes a pretty
+> > flat graph, but probably doesn't test kernels as well as something that
+> > did not do that.
 > > 
-> > invalidate_inode_pages2
-> >   invalidate_inode_pages2_range
-> >     unmap_mapping_range_vma
-> >       zap_page_range_single
-> >         unmap_single_vma
-> > 	  __unmap_hugepage_range (removes VM_MAYSHARE)
-> > 
-> > The VMA still exists so the consequences for this would be varied but
-> > minimally fault is going to be "interesting".
 > 
-> You had me worried there, I hadn't considered truncation or invalidation2
-> at all.
-> 
-> But actually, I don't think they do pose any problem for my patch.  They
-> would indeed if I were removing VM_MAYSHARE in __unmap_hugepage_range()
-> as you show above; but no, I'm removing it in unmap_hugepage_range().
-> 
-> That's only called by unmap_single_vma(): which is called via
-> unmap_vmas() by unmap_region() or exit_mmap() just before free_pgtables()
-> (the problem cases); or by madvise_dontneed() via zap_page_range(), which
-> as you note is disallowed on VM_HUGETLB; or by zap_page_range_single().
-> 
-> zap_page_range_single() is called by zap_vma_ptes(), which is only
-> allowed on VM_PFNMAP; or by unmap_mapping_range_vma(), which looked
-> like it was going to deadlock on i_mmap_mutex (with or without my
-> patch) until I realized that hugetlbfs has its own hugetlbfs_setattr()
-> and hugetlb_vmtruncate() which don't use unmap_mapping_range() at all.
-> 
-> invalidate_inode_pages2() (and _range()) do use unmap_mapping_range(),
-> but hugetlbfs doesn't support direct_IO, and otherwise I think they're
-> called by a filesystem directly on its own inodes, which hugetlbfs
-> does not.  
+> I did not check the source, but even if it is true then your comments only
+> applies to testing scalability of locking. If someone really cares to check,
+> the postgres version was 9.0.4. However, even if they are using user-space
+> locking, the test is still useful for looking at the IO performance,
+> page reclaim decisions and so on.
 
-Good point, I didn't get this while looking into the code so I introduce
-the `last' parameter which told me that I am in the correct path.
-Thanks for clarification.
+I was thinking while you're spinning in userspace, you're not giving the
+kernel decisions to make.  But you're right.  If they didn't have
+spinning locks, they'd have sleeping locks.  With spinning locks they
+can be less smart I suppose.
 
-> Anyway, if there's a deadlock on i_mmap_mutex somewhere in there, it's
-> not introduced by the proposed patch.
+-Mike
 
-> So, unmap_hugepage_range() is only being called in the problem cases,
-> just before free_pgtables(), when unmapping a vma (with mmap_sem held),
-> or when exiting (when we have the last reference to mm): in each case,
-> the vma is on its way out, and VM_MAYSHARE no longer of interest to others.
-> 
-> I spent a while concerned that I'd overlooked the truncation case, before
-> realizing that it's not a problem: the issue comes when we free_pgtables(),
-> which truncation makes no attempt to do.
-> 
-> So, after a bout of anxiety, I think my &= ~VM_MAYSHARE remains good.
-
-Yes, this is convincing (and subtle ;)) and much less polluting.
-You can add my Reviewed-by (with the above reasoning in the patch
-description)
-
-Anyway, the patch for mmotm needs an update because there was a
-reorganization in the area. First, we need to revert "hugetlb: avoid
-taking i_mmap_mutex in unmap_single_vma() for hugetlb)" (80f408f5 in
-memcg-devel) and then push your code into unmap_single_vma. All the
-above is still valid AFAICS.
-
-> 
-> Hugh
-
-Thanks a lot Hugh!
--- 
-Michal Hocko
-SUSE Labs
-SUSE LINUX s.r.o.
-Lihovarska 1060/12
-190 00 Praha 9    
-Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
