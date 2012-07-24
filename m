@@ -1,81 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
-	by kanga.kvack.org (Postfix) with SMTP id 2E3186B005A
-	for <linux-mm@kvack.org>; Tue, 24 Jul 2012 12:12:25 -0400 (EDT)
-Received: by yenr5 with SMTP id r5so8330540yen.14
-        for <linux-mm@kvack.org>; Tue, 24 Jul 2012 09:12:24 -0700 (PDT)
-From: Sha Zhengju <handai.szj@gmail.com>
-Subject: [PATCH 2/2] memcg, oom: Clarify some oom dump messages
-Date: Wed, 25 Jul 2012 00:12:14 +0800
-Message-Id: <1343146334-15161-1-git-send-email-handai.szj@taobao.com>
-In-Reply-To: <1343146160-15012-1-git-send-email-handai.szj@taobao.com>
-References: <1343146160-15012-1-git-send-email-handai.szj@taobao.com>
+Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
+	by kanga.kvack.org (Postfix) with SMTP id 4E5CF6B005D
+	for <linux-mm@kvack.org>; Tue, 24 Jul 2012 13:00:58 -0400 (EDT)
+Received: by yhr47 with SMTP id 47so8470616yhr.14
+        for <linux-mm@kvack.org>; Tue, 24 Jul 2012 10:00:57 -0700 (PDT)
+Message-ID: <500ED4B5.4010104@gmail.com>
+Date: Wed, 25 Jul 2012 01:00:37 +0800
+From: Jiang Liu <liuj97@gmail.com>
+MIME-Version: 1.0
+Subject: Re: [RFC PATCH v2] SLUB: enhance slub to handle memory nodes without
+ normal memory
+References: <alpine.DEB.2.00.1207181349370.22907@router.home> <1343123710-4972-1-git-send-email-jiang.liu@huawei.com> <alpine.DEB.2.00.1207240931560.29808@router.home>
+In-Reply-To: <alpine.DEB.2.00.1207240931560.29808@router.home>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, cgroups@vger.kernel.org
-Cc: Sha Zhengju <handai.szj@taobao.com>, kamezawa.hiroyu@jp.fujitsu.com, akpm@linux-foundation.org, mhocko@suse.cz, gthelen@google.com, hannes@cmpxchg.org, rientjes@google.com
+To: Christoph Lameter <cl@linux.com>
+Cc: Jiang Liu <jiang.liu@huawei.com>, WuJianguo <wujianguo@huawei.com>, Tony Luck <tony.luck@intel.com>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Mel Gorman <mgorman@suse.de>, Yinghai Lu <yinghai@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, Minchan Kim <minchan@kernel.org>, Keping Chen <chenkeping@huawei.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-From: Sha Zhengju <handai.szj@taobao.com>
-
-Revise some oom dump messages to avoid misleading admin.
-
-Signed-off-by: Sha Zhengju <handai.szj@taobao.com>
-Cc: kamezawa.hiroyu@jp.fujitsu.com
-Cc: akpm@linux-foundation.org
-Cc: mhocko@suse.cz
-Cc: gthelen@google.com
-Cc: hannes@cmpxchg.org
-Cc: rientjes@google.com
----
- mm/memcontrol.c |    2 +-
- mm/oom_kill.c   |    5 +++--
- 2 files changed, 4 insertions(+), 3 deletions(-)
-
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index a3037af..7ce605c 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -1472,7 +1472,7 @@ void mem_cgroup_print_oom_info(struct mem_cgroup *memcg, struct task_struct *p)
- 	}
- 	rcu_read_unlock();
- 
--	printk(KERN_INFO "Task in %s killed", memcg_name);
-+	printk(KERN_INFO "Task in %s will be killed", memcg_name);
- 
- 	rcu_read_lock();
- 	ret = cgroup_path(mem_cgrp, memcg_name, PATH_MAX);
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index b47ed97..3fc9f99 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -471,7 +471,7 @@ void oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
- 		dump_header(p, gfp_mask, order, memcg, nodemask);
- 
- 	task_lock(p);
--	pr_err("%s: Kill process %d (%s) score %d or sacrifice child\n",
-+	pr_err("%s: Will kill process %d (%s) score %d or sacrifice child\n",
- 		message, task_pid_nr(p), p->comm, points);
- 	task_unlock(p);
- 
-@@ -508,6 +508,7 @@ void oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
- 	if (!p) {
- 		rcu_read_unlock();
- 		put_task_struct(victim);
-+		pr_err("No process has been killed!\n");
- 		return;
- 	} else if (victim != p) {
- 		get_task_struct(p);
-@@ -539,7 +540,7 @@ void oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
- 				continue;
- 
- 			task_lock(p);	/* Protect ->comm from prctl() */
--			pr_err("Kill process %d (%s) sharing same memory\n",
-+			pr_err("Killed process %d (%s) sharing same memory\n",
- 				task_pid_nr(p), p->comm);
- 			task_unlock(p);
- 			do_send_sig_info(SIGKILL, SEND_SIG_FORCED, p, true);
--- 
-1.7.1
+On 07/24/2012 10:45 PM, Christoph Lameter wrote:
+> On Tue, 24 Jul 2012, Jiang Liu wrote:
+> 
+>>
+>> diff --git a/mm/slub.c b/mm/slub.c
+>> index 8c691fa..3976745 100644
+>> --- a/mm/slub.c
+>> +++ b/mm/slub.c
+>> @@ -2803,6 +2803,17 @@ static inline int alloc_kmem_cache_cpus(struct kmem_cache *s)
+>>
+>>  static struct kmem_cache *kmem_cache_node;
+>>
+>> +static bool node_has_normal_memory(int node)
+>> +{
+>> +	int i;
+>> +
+>> +	for (i = ZONE_NORMAL; i >= 0; i--)
+>> +		if (populated_zone(&NODE_DATA(node)->node_zones[i]))
+>> +			return true;
+>> +
+>> +	return false;
+>> +}
+> 
+> There is already a N_NORMAL_MEMORY node map that contains a list of node
+> that have *normal* memory usable by slab allocators etc. I think the
+> cleanest solution would be to clear the corresponding node bits for your
+> special movable only zones. Then you wont be needing to modify other
+> subsystems anymore.
+> 
+Hi Chris,
+	Thanks for your comments! I have thought about the solution mentioned,
+but seems it doesn't work. We have node masks for both N_NORMAL_MEMORY and
+N_HIGH_MEMORY to distinguish between normal and highmem on platforms such as x86.
+But we still don't have such a mechanism to distinguish between "normal" and "movable"
+memory. So for memory nodes with only movable zones, we still set N_NORMAL_MEMORY for
+them. One possible solution is to add a node mask for "N_NORMAL_OR_MOVABLE_MEMORY",
+but haven't tried that yet. Will have a try for that.
+	Thanks!
+	Gerry
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
