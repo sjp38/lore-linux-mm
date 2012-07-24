@@ -1,43 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
-	by kanga.kvack.org (Postfix) with SMTP id 46EA46B004D
-	for <linux-mm@kvack.org>; Tue, 24 Jul 2012 09:52:22 -0400 (EDT)
-Message-ID: <1343137938.7412.95.camel@marge.simpson.net>
+Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
+	by kanga.kvack.org (Postfix) with SMTP id 0E9AD6B004D
+	for <linux-mm@kvack.org>; Tue, 24 Jul 2012 09:53:44 -0400 (EDT)
+Date: Tue, 24 Jul 2012 14:53:40 +0100
+From: Mel Gorman <mgorman@suse.de>
 Subject: Re: [PATCH 00/34] Memory management performance backports for
  -stable V2
-From: Mike Galbraith <efault@gmx.de>
-Date: Tue, 24 Jul 2012 15:52:18 +0200
-In-Reply-To: <CAJd=RBC835W52nsXCqhM_4KR3CuLF9zijh3416LiJLybTuR_YA@mail.gmail.com>
+Message-ID: <20120724135340.GT9222@suse.de>
 References: <1343050727-3045-1-git-send-email-mgorman@suse.de>
-	 <1343109531.7412.47.camel@marge.simpson.net>
-	 <CAJd=RBC835W52nsXCqhM_4KR3CuLF9zijh3416LiJLybTuR_YA@mail.gmail.com>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 7bit
-Mime-Version: 1.0
+ <1343109531.7412.47.camel@marge.simpson.net>
+ <CAJd=RBC835W52nsXCqhM_4KR3CuLF9zijh3416LiJLybTuR_YA@mail.gmail.com>
+ <20120724132741.GS9222@suse.de>
+ <CAJd=RBBvg-irMTOjAV60LUU9=bNm+9Z6YzpLe7LyWs=jjZdtFg@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <CAJd=RBBvg-irMTOjAV60LUU9=bNm+9Z6YzpLe7LyWs=jjZdtFg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Hillf Danton <dhillf@gmail.com>
-Cc: Mel Gorman <mgorman@suse.de>, Stable <stable@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+Cc: Mike Galbraith <efault@gmx.de>, Stable <stable@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Tue, 2012-07-24 at 21:18 +0800, Hillf Danton wrote: 
-> On Tue, Jul 24, 2012 at 1:58 PM, Mike Galbraith <efault@gmx.de> wrote:
-> > FWIW, I'm all for performance backports.  They do have a downside though
-> > (other than the risk of bugs slipping in, or triggering latent bugs).
+On Tue, Jul 24, 2012 at 09:34:56PM +0800, Hillf Danton wrote:
+> On Tue, Jul 24, 2012 at 9:27 PM, Mel Gorman <mgorman@suse.de> wrote:
+> > I would suggest the user in question use the normal support channels for
+> > resolving a potentially SLES-specific bug.
 > >
-> > When the next enterprise kernel is built, marketeers ask for numbers to
-> > make potential customers drool over, and you _can't produce any_ because
-> > you wedged all the spiffy performance stuff into the crusty old kernel.
-> >
-> Well do your job please.
+> Thanks, Mel.
 > 
-> 	Suse 11 SP1 kernel panic on HP hardware
-> 	https://lkml.org/lkml/2012/7/24/136
+> Is Mike busy in other fairs?
 
-Last time I looked, handling SUSE support issues on LKML was not in my
-job description.  I don't recall seeing anything about taking direction
-from random LKML subscribers either.
+It's not for me whether to say whether he is or not. SUSE already provide
+excellent support channel for handling bugs like the one. If the user uses
+them, they are very likely to find that this particular bug was resolved
+in February 2011 by Mike without you stamping your foot on LKML.
 
--Mike
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
