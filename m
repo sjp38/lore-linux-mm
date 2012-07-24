@@ -1,38 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx110.postini.com [74.125.245.110])
-	by kanga.kvack.org (Postfix) with SMTP id 0DB206B004D
-	for <linux-mm@kvack.org>; Tue, 24 Jul 2012 09:48:45 -0400 (EDT)
-Date: Tue, 24 Jul 2012 09:48:38 -0400
-From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: [RFC] block_dev:Fix bug when read/write block-device which is
- larger than 16TB in 32bit-OS.
-Message-ID: <20120724134838.GA26102@infradead.org>
-References: <201205291656322966937@gmail.com>
- <201207242044249532601@gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <201207242044249532601@gmail.com>
+Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
+	by kanga.kvack.org (Postfix) with SMTP id 46EA46B004D
+	for <linux-mm@kvack.org>; Tue, 24 Jul 2012 09:52:22 -0400 (EDT)
+Message-ID: <1343137938.7412.95.camel@marge.simpson.net>
+Subject: Re: [PATCH 00/34] Memory management performance backports for
+ -stable V2
+From: Mike Galbraith <efault@gmx.de>
+Date: Tue, 24 Jul 2012 15:52:18 +0200
+In-Reply-To: <CAJd=RBC835W52nsXCqhM_4KR3CuLF9zijh3416LiJLybTuR_YA@mail.gmail.com>
+References: <1343050727-3045-1-git-send-email-mgorman@suse.de>
+	 <1343109531.7412.47.camel@marge.simpson.net>
+	 <CAJd=RBC835W52nsXCqhM_4KR3CuLF9zijh3416LiJLybTuR_YA@mail.gmail.com>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 7bit
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: majianpeng <majianpeng@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "viro@ZenIV.linux.org.uk" <viro@ZenIV.linux.org.uk>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: Hillf Danton <dhillf@gmail.com>
+Cc: Mel Gorman <mgorman@suse.de>, Stable <stable@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Tue, Jul 24, 2012 at 08:44:27PM +0800, majianpeng wrote:
-> On 2012-05-29 16:56 majianpeng <majianpeng@gmail.com> Wrote:
-> >The size of block-device is larger than 16TB, and the os is 32bit.
-> >If the offset of read/write is larger then 16TB. The index of address_space will
-> >overflow and supply data from low offset instead.
+On Tue, 2012-07-24 at 21:18 +0800, Hillf Danton wrote: 
+> On Tue, Jul 24, 2012 at 1:58 PM, Mike Galbraith <efault@gmx.de> wrote:
+> > FWIW, I'm all for performance backports.  They do have a downside though
+> > (other than the risk of bugs slipping in, or triggering latent bugs).
+> >
+> > When the next enterprise kernel is built, marketeers ask for numbers to
+> > make potential customers drool over, and you _can't produce any_ because
+> > you wedged all the spiffy performance stuff into the crusty old kernel.
+> >
+> Well do your job please.
+> 
+> 	Suse 11 SP1 kernel panic on HP hardware
+> 	https://lkml.org/lkml/2012/7/24/136
 
-We can't support > 16TB block device on 32-bit systems with 4k page
-size, just like we can't support files that large.
+Last time I looked, handling SUSE support issues on LKML was not in my
+job description.  I don't recall seeing anything about taking direction
+from random LKML subscribers either.
 
-For filesystems the s_maxbytes limit of MAX_LFS_FILESIZE takes care of
-that, but it seems like we miss that check for block devices.
-
-The proper fix is to add that check (either via s_maxbytes or by
-checking MAX_LFS_FILESIZE) to generic_write_checks and
-generic_file_aio_read (or a block device specific wrapper)
+-Mike
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
