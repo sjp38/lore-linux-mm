@@ -1,89 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
-	by kanga.kvack.org (Postfix) with SMTP id 8A1206B004D
-	for <linux-mm@kvack.org>; Tue, 24 Jul 2012 08:43:20 -0400 (EDT)
-Received: by pbbrp2 with SMTP id rp2so15321660pbb.14
-        for <linux-mm@kvack.org>; Tue, 24 Jul 2012 05:43:19 -0700 (PDT)
-Date: Tue, 24 Jul 2012 20:44:27 +0800
-From: majianpeng <majianpeng@gmail.com>
-Subject: Re: [RFC] block_dev:Fix bug when read/write block-device which is larger than 16TB in 32bit-OS.
-References: <201205291656322966937@gmail.com>
-Mime-Version: 1.0
-Message-ID: <201207242044249532601@gmail.com>
-Content-Type: text/plain;
-	charset="gb2312"
-Content-Transfer-Encoding: base64
+Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
+	by kanga.kvack.org (Postfix) with SMTP id 928AD6B005A
+	for <linux-mm@kvack.org>; Tue, 24 Jul 2012 09:18:17 -0400 (EDT)
+Received: by vcbfl10 with SMTP id fl10so7070541vcb.14
+        for <linux-mm@kvack.org>; Tue, 24 Jul 2012 06:18:16 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <1343109531.7412.47.camel@marge.simpson.net>
+References: <1343050727-3045-1-git-send-email-mgorman@suse.de>
+	<1343109531.7412.47.camel@marge.simpson.net>
+Date: Tue, 24 Jul 2012 21:18:16 +0800
+Message-ID: <CAJd=RBC835W52nsXCqhM_4KR3CuLF9zijh3416LiJLybTuR_YA@mail.gmail.com>
+Subject: Re: [PATCH 00/34] Memory management performance backports for -stable V2
+From: Hillf Danton <dhillf@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, "viro@ZenIV.linux.org.uk" <viro@ZenIV.linux.org.uk>
-Cc: linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: Mike Galbraith <efault@gmx.de>
+Cc: Mel Gorman <mgorman@suse.de>, Stable <stable@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-T24gMjAxMi0wNS0yOSAxNjo1NiBtYWppYW5wZW5nIDxtYWppYW5wZW5nQGdtYWlsLmNvbT4gV3Jv
-dGU6DQo+VGhlIHNpemUgb2YgYmxvY2stZGV2aWNlIGlzIGxhcmdlciB0aGFuIDE2VEIsIGFuZCB0
-aGUgb3MgaXMgMzJiaXQuDQo+SWYgdGhlIG9mZnNldCBvZiByZWFkL3dyaXRlIGlzIGxhcmdlciB0
-aGVuIDE2VEIuIFRoZSBpbmRleCBvZiBhZGRyZXNzX3NwYWNlIHdpbGwNCj5vdmVyZmxvdyBhbmQg
-c3VwcGx5IGRhdGEgZnJvbSBsb3cgb2Zmc2V0IGluc3RlYWQuDQo+DQo+d2hlbiByZWFkLW9wZXJh
-dGlvbiwgaW4gZnVuY3Rpb24gZG9fZ2VuZXJpY19maWxlX3JlYWQoKToNCj4+aW5kZXggPSAqcHBv
-cyA+PiBQQUdFX0NBQ0hFX1NISUZUOw0KPkJlY2F1c2UgdGhlICpwcG9zIGlzIGxhcmdlciB0aGFu
-IDE2VEIgYW5kIHRoZSBpbmRleCAgaXMgdGhlIHR5cGUgcGdvZmZfdCB3aGljaCAzMmJpdA0KPmlu
-IDMyYml0LU9TLiBTbyBpbmRleCB3aWxsIG92ZXJmbG93Lg0KPg0KPldoZW4gd3JpdGUtb3BlcmF0
-aW9uLCBpbiBmdW5jdGlvbiBnZW5lcmljX3dyaXRlX2NoZWNrcygpOg0KPj5pZiAobGlrZWx5KCFp
-c2JsaykpIHsNCj4+CQkuLi4uLg0KPj4JfSBlbHNlIHsNCj4+I2lmZGVmIENPTkZJR19CTE9DSw0K
-Pj4JCWxvZmZfdCBpc2l6ZTsNCj4+CQlpZiAoYmRldl9yZWFkX29ubHkoSV9CREVWKGlub2RlKSkp
-DQo+CQkJcmV0dXJuIC1FUEVSTTsNCj4+CQlpc2l6ZSA9IGlfc2l6ZV9yZWFkKGlub2RlKTsNCj4+
-CQlpZiAoKnBvcyA+PSBpc2l6ZSkgew0KPj4JCQlpZiAoKmNvdW50IHx8ICpwb3MgPiBpc2l6ZSkN
-Cj4+CQkJCXJldHVybiAtRU5PU1BDOw0KPj4JCX0NCj4+DQo+PgkJaWYgKCpwb3MgKyAqY291bnQg
-PiBpc2l6ZSkNCj4+CQkJKmNvdW50ID0gaXNpemUgLSAqcG9zOw0KPlRoZSBjb2RlIG9ubHkgY2hl
-Y2sgc2l6ZS5CdXQgY29udGludWUgY29kZToNCj5nZW5lcmljX2ZpbGVfYnVmZmVyZWRfd3JpdGUt
-LT5nZW5lcmljX3BlcmZvcm1fd3JpdGUtLT5ibGtkZXZfd3JpdGVfYmVnaW4gDQo+LS0tPmJsb2Nr
-X3dyaXRlX2JlZ2luKCkNCj4+IHBnb2ZmX3QgaW5kZXggPSBwb3MgPj4gUEFHRV9DQUNIRV9TSElG
-VDsNCj5UaGUgaW5kZXggd2lsbCBvdmVyZmxvdyBhZ2Fpbi4NCj4NCj5BbHRob3VnaCBmaWxlc3lz
-dGVtIGhhcyBhIGF0dHJpYnV0ZSBzX21heGJ5dGVzLCB0aGUgYmxvY2stZGV2aWNlIHdhcyBub3Qg
-Y3JlYXRlIHNvIG5vIGFmZmVjdC4NCj4NCj4NCj5TaWduZWQtb2ZmLWJ5OiBtYWppYW5wZW5nIDxt
-YWppYW5wZW5nQGdtYWlsLmNvbT4NCj4tLS0NCj4gZnMvYmxvY2tfZGV2LmMgfCAgICA0ICsrKy0N
-Cj4gbW0vZmlsZW1hcC5jICAgfCAgIDI4ICsrKysrKysrKysrKysrKysrKysrKysrKysrKysNCj4g
-MiBmaWxlcyBjaGFuZ2VkLCAzMSBpbnNlcnRpb25zKCspLCAxIGRlbGV0aW9uKC0pDQo+DQo+ZGlm
-ZiAtLWdpdCBhL2ZzL2Jsb2NrX2Rldi5jIGIvZnMvYmxvY2tfZGV2LmMNCj5pbmRleCBjMmJiZTFm
-Li4xNzUyYzBlIDEwMDY0NA0KPi0tLSBhL2ZzL2Jsb2NrX2Rldi5jDQo+KysrIGIvZnMvYmxvY2tf
-ZGV2LmMNCj5AQCAtMzgyLDcgKzM4Miw5IEBAIHN0YXRpYyBsb2ZmX3QgYmxvY2tfbGxzZWVrKHN0
-cnVjdCBmaWxlICpmaWxlLCBsb2ZmX3Qgb2Zmc2V0LCBpbnQgb3JpZ2luKQ0KPiANCj4gCW11dGV4
-X2xvY2soJmJkX2lub2RlLT5pX211dGV4KTsNCj4gCXNpemUgPSBpX3NpemVfcmVhZChiZF9pbm9k
-ZSk7DQo+LQ0KPisjaWYgQklUU19QRVJfTE9ORyA9PSAzMg0KPisJc2l6ZSA9IG1pbl90KGxvZmZf
-dCwgc2l6ZSwgKGxvZmZfdCkweEZGRkZGRkZGICogUEFHRV9DQUNIRV9TSVpFIC0gMSk7DQo+KyNl
-bmRpZg0KPiAJcmV0dmFsID0gLUVJTlZBTDsNCj4gCXN3aXRjaCAob3JpZ2luKSB7DQo+IAkJY2Fz
-ZSBTRUVLX0VORDoNCj5kaWZmIC0tZ2l0IGEvbW0vZmlsZW1hcC5jIGIvbW0vZmlsZW1hcC5jDQo+
-aW5kZXggNzljNGIyYi4uMzRhMTViZiAxMDA2NDQNCj4tLS0gYS9tbS9maWxlbWFwLmMNCj4rKysg
-Yi9tbS9maWxlbWFwLmMNCj5AQCAtMTM3Myw2ICsxMzczLDI1IEBAIGludCBnZW5lcmljX3NlZ21l
-bnRfY2hlY2tzKGNvbnN0IHN0cnVjdCBpb3ZlYyAqaW92LA0KPiB9DQo+IEVYUE9SVF9TWU1CT0wo
-Z2VuZXJpY19zZWdtZW50X2NoZWNrcyk7DQo+IA0KPitzdGF0aWMgaW5saW5lDQo+K2ludCBnZW5l
-cmljX3JlYWRfYmxvY2tfY2hlY2tzKHN0cnVjdCBmaWxlICpmaWxlLCBsb2ZmX3QgKnBvcywgc2l6
-ZV90ICpjb3VudCkNCj4rew0KPisJc3RydWN0IGlub2RlICppbm9kZSA9IGZpbGUtPmZfbWFwcGlu
-Zy0+aG9zdDsNCj4rCWxvZmZfdCBpc2l6ZSA9IDA7DQo+KyNpZiBCSVRTX1BFUl9MT05HID09IDMy
-ICYmIGRlZmluZWQoQ09ORklHX0JMT0NLKQ0KPisJaXNpemUgPSBtaW5fdChsb2ZmX3QsIGlfc2l6
-ZV9yZWFkKGlub2RlKSwNCj4rCQkJKGxvZmZfdCkweEZGRkZGRkZGICogUEFHRV9DQUNIRV9TSVpF
-IC0gMSk7DQo+KwlpZiAoKnBvcyA+PSBpc2l6ZSkgew0KPisJCWlmICgqY291bnQgfHwgKnBvcyA+
-IGlzaXplKQ0KPisJCQlyZXR1cm4gLUVOT1NQQzsNCj4rCX0NCj4rDQo+KwlpZiAoKnBvcyArICpj
-b3VudCA+IGlzaXplKQ0KPisJCSpjb3VudCA9IGlzaXplIC0gKnBvczsNCj4rI2VuZGlmDQo+Kwly
-ZXR1cm4gMDsNCj4rfQ0KPisNCj4gLyoqDQo+ICAqIGdlbmVyaWNfZmlsZV9haW9fcmVhZCAtIGdl
-bmVyaWMgZmlsZXN5c3RlbSByZWFkIHJvdXRpbmUNCj4gICogQGlvY2I6CWtlcm5lbCBJL08gY29u
-dHJvbCBibG9jaw0KPkBAIC0xMzk4LDYgKzE0MTcsMTEgQEAgZ2VuZXJpY19maWxlX2Fpb19yZWFk
-KHN0cnVjdCBraW9jYiAqaW9jYiwgY29uc3Qgc3RydWN0IGlvdmVjICppb3YsDQo+IAlpZiAocmV0
-dmFsKQ0KPiAJCXJldHVybiByZXR2YWw7DQo+IA0KPisJaWYgKFNfSVNCTEsoZmlscC0+Zl9tYXBw
-aW5nLT5ob3N0LT5pX21vZGUpKSB7DQo+KwkJcmV0dmFsID0gZ2VuZXJpY19yZWFkX2Jsb2NrX2No
-ZWNrcyhmaWxwLCAmcG9zLCAmY291bnQpOw0KPisJCWlmIChyZXR2YWwpDQo+KwkJCXJldHVybiBy
-ZXR2YWw7DQo+Kwl9DQo+IAkvKiBjb2FsZXNjZSB0aGUgaW92ZWNzIGFuZCBnbyBkaXJlY3QtdG8t
-QklPIGZvciBPX0RJUkVDVCAqLw0KPiAJaWYgKGZpbHAtPmZfZmxhZ3MgJiBPX0RJUkVDVCkgew0K
-PiAJCWxvZmZfdCBzaXplOw0KPkBAIC0yMjE0LDYgKzIyMzgsMTAgQEAgaW5saW5lIGludCBnZW5l
-cmljX3dyaXRlX2NoZWNrcyhzdHJ1Y3QgZmlsZSAqZmlsZSwgbG9mZl90ICpwb3MsIHNpemVfdCAq
-Y291bnQsIGkNCj4gCQlpZiAoYmRldl9yZWFkX29ubHkoSV9CREVWKGlub2RlKSkpDQo+IAkJCXJl
-dHVybiAtRVBFUk07DQo+IAkJaXNpemUgPSBpX3NpemVfcmVhZChpbm9kZSk7DQo+KyNpZiBCSVRT
-X1BFUl9MT05HID09IDMyDQo+KwkJaXNpemUgPSBtaW5fdChsb2ZmX3QsIGlzaXplLA0KPisJCQkJ
-KGxvZmZfdCkweEZGRkZGRkZGICogUEFHRV9DQUNIRV9TSVpFIC0gMSk7DQo+KyNlbmRpZg0KPiAJ
-CWlmICgqcG9zID49IGlzaXplKSB7DQo+IAkJCWlmICgqY291bnQgfHwgKnBvcyA+IGlzaXplKQ0K
-PiAJCQkJcmV0dXJuIC1FTk9TUEM7DQo+LS0gDQo+MS43LjkuNQ0KDQpIb3cgYWJvdXQgdGhpcyBw
-YXRjaD8gb2sgb3IgZXJyb3IgPw0KTm8gb25lIHRvIHJlcGx5PyBNYXliZSB0aGUgcGF0Y2ggZGlk
-IG5vIHNlbnNlLg0KDQpUaGFuc2shDQo+DQo+IAkJCQkNCj4tLS0tLS0tLS0tLS0tLQ0KPm1hamlh
-bnBlbmcNCj4yMDEyLTA1LTI5
+On Tue, Jul 24, 2012 at 1:58 PM, Mike Galbraith <efault@gmx.de> wrote:
+> FWIW, I'm all for performance backports.  They do have a downside though
+> (other than the risk of bugs slipping in, or triggering latent bugs).
+>
+> When the next enterprise kernel is built, marketeers ask for numbers to
+> make potential customers drool over, and you _can't produce any_ because
+> you wedged all the spiffy performance stuff into the crusty old kernel.
+>
+Well do your job please.
+
+	Suse 11 SP1 kernel panic on HP hardware
+	https://lkml.org/lkml/2012/7/24/136
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
