@@ -1,81 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
-	by kanga.kvack.org (Postfix) with SMTP id 0A6066B0062
-	for <linux-mm@kvack.org>; Mon, 23 Jul 2012 21:10:23 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
+	by kanga.kvack.org (Postfix) with SMTP id D128E6B004D
+	for <linux-mm@kvack.org>; Mon, 23 Jul 2012 21:11:23 -0400 (EDT)
+Date: Tue, 24 Jul 2012 10:11:43 +0900
 From: Minchan Kim <minchan@kernel.org>
-Subject: [PATCH 3/3] mm: remove redundant initialization
-Date: Tue, 24 Jul 2012 10:10:35 +0900
-Message-Id: <1343092235-13399-3-git-send-email-minchan@kernel.org>
-In-Reply-To: <1343092235-13399-1-git-send-email-minchan@kernel.org>
-References: <1343092235-13399-1-git-send-email-minchan@kernel.org>
+Subject: Re: +
+ memory-hotplug-fix-kswapd-looping-forever-problem-fix-fix.patch added to -mm
+ tree
+Message-ID: <20120724011143.GA13155@bbox>
+References: <20120718143810.b15564b3.akpm@linux-foundation.org>
+ <20120719001002.GA6579@bbox>
+ <20120719002102.GN24336@google.com>
+ <20120719004845.GA7346@bbox>
+ <20120719165750.GP24336@google.com>
+ <20120719235057.GA21012@bbox>
+ <20120720142213.f4a4a68e.akpm@linux-foundation.org>
+ <20120720213641.GA6823@google.com>
+ <20120723045855.GC6832@bbox>
+ <20120723154247.GE6823@google.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120723154247.GE6823@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Tejun Heo <tj@kernel.org>, Yinghai Lu <yinghai@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Minchan Kim <minchan@kernel.org>
+To: Tejun Heo <tj@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Ralf Baechle <ralf@linux-mips.org>, aaditya.kumar.30@gmail.com, kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Yinghai Lu <yinghai@kernel.org>
 
-pg_data_t should be zero out before reaching free_area_init_core
-so remove unnecessary initialization.
+On Mon, Jul 23, 2012 at 08:42:47AM -0700, Tejun Heo wrote:
+> Hello, Minchan.
+> 
+> On Mon, Jul 23, 2012 at 01:58:55PM +0900, Minchan Kim wrote:
+> > I would like to know what fields you are concerning because most of field
+> 
+> The above question itself is a problem.  It's subtle to hell.  Some
+> fields of this data structure is used during early boot but at some
+> point all are reset to zero, so we have to be careful about how those
+> fields are used before and after.
+> 
+> This might seem clear now but things like this are likely to make
+> people later working on the code go WTF.  Let's say for whatever
+> reason ->bdata needs to be accessed after free_area_init - e.g.
+> arch_add_memory() needs some info from bdata, what then?
+> 
+> What if we end up having to add a new property field which is
+> determined by platform code but used by generic code.  I would add a
+> field to pgdat, init it from numa.c and then later use it in generic
+> code.  If the field gets zeroed inbetween, I would get pretty annoyed.
+> 
+> I really don't think this subject is worth the amount of discussion we
+> had in this thread.  Just make the archs clear the data structure on
+> creation.  Anything else is silly.
 
-Signed-off-by: Minchan Kim <minchan@kernel.org>
----
- include/linux/vmstat.h |    5 -----
- mm/page_alloc.c        |    9 ++-------
- 2 files changed, 2 insertions(+), 12 deletions(-)
+I sent patchset and will wait of akpm's opinion.
+Thanks for the comment, Tejun.
 
-diff --git a/include/linux/vmstat.h b/include/linux/vmstat.h
-index 65efb92..ad2cfd5 100644
---- a/include/linux/vmstat.h
-+++ b/include/linux/vmstat.h
-@@ -179,11 +179,6 @@ extern void zone_statistics(struct zone *, struct zone *, gfp_t gfp);
- #define add_zone_page_state(__z, __i, __d) mod_zone_page_state(__z, __i, __d)
- #define sub_zone_page_state(__z, __i, __d) mod_zone_page_state(__z, __i, -(__d))
- 
--static inline void zap_zone_vm_stats(struct zone *zone)
--{
--	memset(zone->vm_stat, 0, sizeof(zone->vm_stat));
--}
--
- extern void inc_zone_state(struct zone *, enum zone_stat_item);
- 
- #ifdef CONFIG_SMP
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 2037eeb..7b09ecc 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -4376,6 +4376,8 @@ void __init set_pageblock_order(void)
-  *   - mark all pages reserved
-  *   - mark all memory queues empty
-  *   - clear the memory bitmaps
-+ *
-+ * NOTE: pgdat should get zeroed by caller.
-  */
- static void __paginginit free_area_init_core(struct pglist_data *pgdat,
- 		unsigned long *zones_size, unsigned long *zholes_size)
-@@ -4386,10 +4388,8 @@ static void __paginginit free_area_init_core(struct pglist_data *pgdat,
- 	int ret;
- 
- 	pgdat_resize_init(pgdat);
--	pgdat->nr_zones = 0;
- 	init_waitqueue_head(&pgdat->kswapd_wait);
- 	init_waitqueue_head(&pgdat->pfmemalloc_wait);
--	pgdat->kswapd_max_order = 0;
- 	pgdat_page_cgroup_init(pgdat);
- 
- 	for (j = 0; j < MAX_NR_ZONES; j++) {
-@@ -4450,11 +4450,6 @@ static void __paginginit free_area_init_core(struct pglist_data *pgdat,
- 
- 		zone_pcp_init(zone);
- 		lruvec_init(&zone->lruvec, zone);
--		zap_zone_vm_stats(zone);
--		zone->flags = 0;
--#ifdef CONFIG_MEMORY_ISOLATION
--		zone->nr_pageblock_isolate = 0;
--#endif
- 		if (!size)
- 			continue;
- 
 -- 
-1.7.9.5
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
