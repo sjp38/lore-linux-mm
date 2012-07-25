@@ -1,86 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
-	by kanga.kvack.org (Postfix) with SMTP id E59416B004D
-	for <linux-mm@kvack.org>; Wed, 25 Jul 2012 15:51:52 -0400 (EDT)
-Received: by yenr5 with SMTP id r5so1404426yen.14
-        for <linux-mm@kvack.org>; Wed, 25 Jul 2012 12:51:52 -0700 (PDT)
-Date: Wed, 25 Jul 2012 12:51:47 -0700
+Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
+	by kanga.kvack.org (Postfix) with SMTP id 075036B005D
+	for <linux-mm@kvack.org>; Wed, 25 Jul 2012 15:59:52 -0400 (EDT)
+Received: by pbbrp2 with SMTP id rp2so2174810pbb.14
+        for <linux-mm@kvack.org>; Wed, 25 Jul 2012 12:59:52 -0700 (PDT)
+Date: Wed, 25 Jul 2012 12:59:48 -0700
 From: Greg KH <gregkh@linuxfoundation.org>
-Subject: Re: [PATCH 25/34] mm: vmscan: Check if reclaim should really abort
- even if compaction_ready() is true for one zone
-Message-ID: <20120725195147.GA5444@kroah.com>
+Subject: Re: [PATCH 30/34] mm: vmscan: Do not force kswapd to scan small
+ targets
+Message-ID: <20120725195948.GB5444@kroah.com>
 References: <1343050727-3045-1-git-send-email-mgorman@suse.de>
- <1343050727-3045-26-git-send-email-mgorman@suse.de>
+ <1343050727-3045-31-git-send-email-mgorman@suse.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1343050727-3045-26-git-send-email-mgorman@suse.de>
+In-Reply-To: <1343050727-3045-31-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Mel Gorman <mgorman@suse.de>
 Cc: Stable <stable@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Mon, Jul 23, 2012 at 02:38:38PM +0100, Mel Gorman wrote:
-> commit 0cee34fd72c582b4f8ad8ce00645b75fb4168199 upstream.
+On Mon, Jul 23, 2012 at 02:38:43PM +0100, Mel Gorman wrote:
+> commit ad2b8e601099a23dffffb53f91c18d874fe98854 upstream - WARNING: this is a substitute patch.
 > 
-> Stable note: Not tracked on Bugzilla. THP and compaction was found to
-> 	aggressively reclaim pages and stall systems under different
-> 	situations that was addressed piecemeal over time.
+> Stable note: Not tracked in Bugzilla. This is a substitute for an
+> 	upstream commit addressing a completely different issue that
+> 	accidentally contained an important fix. The workload this patch
+> 	helps was memcached when IO is started in the background. memcached
+> 	should stay resident but without this patch it gets swapped more
+> 	than it should. Sometimes this manifests as a drop in throughput
+> 	but mostly it was observed through /proc/vmstat.
 > 
-> If compaction can proceed for a given zone, shrink_zones() does not
-> reclaim any more pages from it. After commit [e0c2327: vmscan: abort
-> reclaim/compaction if compaction can proceed], do_try_to_free_pages()
-> tries to finish as soon as possible once one zone can compact.
+> Commit [246e87a9: memcg: fix get_scan_count() for small targets] was
+> meant to fix a problem whereby small scan targets on memcg were ignored
+> causing priority to raise too sharply. It forced scanning to take place
+> if the target was small, memcg or kswapd.
 > 
-> This was intended to prevent slabs being shrunk unnecessarily but
-> there are side-effects. One is that a small zone that is ready for
-> compaction will abort reclaim even if the chances of successfully
-> allocating a THP from that zone is small. It also means that reclaim
-> can return too early even though sc->nr_to_reclaim pages were not
-> reclaimed.
+> >From the time it was introduced it cause excessive reclaim by kswapd
+> with workloads being pushed to swap that previously would have stayed
+> resident. This was accidentally fixed by commit [ad2b8e60: mm: memcg:
+> remove optimization of keeping the root_mem_cgroup LRU lists empty] but
+> that patchset is not suitable for backporting.
 > 
-> This partially reverts the commit until it is proven that slabs are
-> really being shrunk unnecessarily but preserves the check to return
-> 1 to avoid OOM if reclaim was aborted prematurely.
+> The original patch came with no information on what workloads it benefits
+> but the cost of it is obvious in that it forces scanning to take place
+> on lists that would otherwise have been ignored such as small anonymous
+> inactive lists. This patch partially reverts 246e87a9 so that small lists
+> are not force scanned which means that IO-intensive workloads with small
+> amounts of anonymous memory will not be swapped.
 > 
-> [aarcange@redhat.com: This patch replaces a revert from Andrea]
-> Signed-off-by: Mel Gorman <mgorman@suse.de>
-> Reviewed-by: Rik van Riel <riel@redhat.com>
-> Cc: Andrea Arcangeli <aarcange@redhat.com>
-> Cc: Minchan Kim <minchan.kim@gmail.com>
-> Cc: Dave Jones <davej@redhat.com>
-> Cc: Jan Kara <jack@suse.cz>
-> Cc: Andy Isaacson <adi@hexapodia.org>
-> Cc: Nai Xia <nai.xia@gmail.com>
-> Cc: Johannes Weiner <jweiner@redhat.com>
-> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
-> Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
 > Signed-off-by: Mel Gorman <mgorman@suse.de>
 > ---
->  mm/vmscan.c |   19 +++++++++----------
->  1 file changed, 9 insertions(+), 10 deletions(-)
-> 
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index f109f2d..bc31f32 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -2129,7 +2129,8 @@ static inline bool compaction_ready(struct zone *zone, struct scan_control *sc)
->   *
->   * This function returns true if a zone is being reclaimed for a costly
->   * allocation and compaction is ready to begin. This indicates to the caller
-> - * that it should retry the allocation or fail.
-> + * that it should consider retrying the allocation instead of
-> + * further reclaim.
->   */
->  static bool shrink_zones(int priority, struct zonelist *zonelist,
->  					struct scan_control *sc)
+>  mm/vmscan.c |    3 ---
+>  1 file changed, 3 deletions(-)
 
-This hunk didn't apply (the original commit from Linus's tree also
-didn't apply due to some context changes in the rest of the patch.)  So
-I took the original comment changes from Linus's tree, and the context
-changes from this one and applied that.
+I don't understand this patch.  The original
+ad2b8e601099a23dffffb53f91c18d874fe98854 commit touched the file
+mm/memcontrol.c and seemed to do something quite different from what you
+have done below.
 
-Franken-patches, the story of my life...
+I'm all for fixing things in a different way than what was done in
+Linus's tree, IF there is a reason to, but the comparison between these
+two patches (yours and upstream) are not making any sense at all.
+
+confused,
 
 greg k-h
 
