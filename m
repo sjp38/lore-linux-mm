@@ -1,74 +1,172 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
-	by kanga.kvack.org (Postfix) with SMTP id CB40B6B004D
-	for <linux-mm@kvack.org>; Wed, 25 Jul 2012 18:30:59 -0400 (EDT)
-Date: Wed, 25 Jul 2012 15:30:57 -0700
-From: Greg KH <greg@kroah.com>
-Subject: Re: [PATCH 00/34] Memory management performance backports for
- -stable V2
-Message-ID: <20120725223057.GA4253@kroah.com>
-References: <1343050727-3045-1-git-send-email-mgorman@suse.de>
+Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
+	by kanga.kvack.org (Postfix) with SMTP id 2FB646B004D
+	for <linux-mm@kvack.org>; Wed, 25 Jul 2012 18:37:19 -0400 (EDT)
+Received: from /spool/local
+	by e37.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
+	Wed, 25 Jul 2012 16:37:18 -0600
+Received: from d03relay03.boulder.ibm.com (d03relay03.boulder.ibm.com [9.17.195.228])
+	by d03dlp01.boulder.ibm.com (Postfix) with ESMTP id 9AF391FF001A
+	for <linux-mm@kvack.org>; Wed, 25 Jul 2012 22:37:12 +0000 (WET)
+Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
+	by d03relay03.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q6PMbE5U274294
+	for <linux-mm@kvack.org>; Wed, 25 Jul 2012 16:37:14 -0600
+Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av01.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q6PMbEtE007545
+	for <linux-mm@kvack.org>; Wed, 25 Jul 2012 16:37:14 -0600
+Date: Wed, 25 Jul 2012 15:37:13 -0700
+From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Subject: Re: [RFC] page-table walkers vs memory order
+Message-ID: <20120725223713.GV2378@linux.vnet.ibm.com>
+Reply-To: paulmck@linux.vnet.ibm.com
+References: <1343064870.26034.23.camel@twins>
+ <alpine.LSU.2.00.1207241356350.2094@eggly.anvils>
+ <20120725175628.GH2378@linux.vnet.ibm.com>
+ <alpine.LSU.2.00.1207251313180.1942@eggly.anvils>
+ <20120725211217.GR2378@linux.vnet.ibm.com>
+ <alpine.LSU.2.00.1207251452160.2084@eggly.anvils>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1343050727-3045-1-git-send-email-mgorman@suse.de>
+In-Reply-To: <alpine.LSU.2.00.1207251452160.2084@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Stable <stable@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Hugh Dickins <hughd@google.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Nick Piggin <npiggin@kernel.dk>, Andrea Arcangeli <aarcange@redhat.com>, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org
 
-On Mon, Jul 23, 2012 at 02:38:13PM +0100, Mel Gorman wrote:
-> Changelog since V1
->   o Expand some of the notes					(jrnieder)
->   o Correct upstream commit SHA1				(hugh)
+On Wed, Jul 25, 2012 at 03:09:48PM -0700, Hugh Dickins wrote:
+> On Wed, 25 Jul 2012, Paul E. McKenney wrote:
+> > On Wed, Jul 25, 2012 at 01:26:43PM -0700, Hugh Dickins wrote:
+> > > On Wed, 25 Jul 2012, Paul E. McKenney wrote:
+> > > > On Tue, Jul 24, 2012 at 02:51:05PM -0700, Hugh Dickins wrote:
+> > > > > 
+> > > > > I'm totally unclear whether the kernel ever gets built with these
+> > > > > 'creative' compilers that you refer to.  Is ACCESS_ONCE() a warning
+> > > > > of where some future compiler would be permitted to mess with our
+> > > > > assumptions?  Or is it actually saving us already today?  Would we
+> > > > > know?  Could there be a boottime test that would tell us?  Is it
+> > > > > likely that a future compiler would have an "--access_once"
+> > > > > option that the kernel build would want to turn on?
+> > > > 
+> > > > The problem is that, unless you tell it otherwise, the compiler is
+> > > > permitted to assume that the code that it is generating is the only thing
+> > > > active in that address space at that time.  So the compiler might know
+> > > > that it already has a perfectly good copy of that value somewhere in
+> > > > its registers, or it might decide to fetch the value twice rather than
+> > > > once due to register pressure, either of which can be fatal in SMP code.
+> > > > And then there are more aggressive optimizations as well.
+> > > > 
+> > > > ACCESS_ONCE() is a way of telling the compiler to access the value
+> > > > once, regardless of what cute single-threaded optimizations that it
+> > > > otherwise might want to apply.
+> > > 
+> > > Right, but you say "might": I have never heard it asserted, that we do
+> > > build the kernel with a compiler which actually makes such optimizations.
+> > 
+> > The compiler we use today can and has hurt us with double-fetching
+> > and old-value-reuse optimizations.  There have been several that have
+> > "optimized" things like "while (foo)" into "tmp = foo; while (tmp)"
+> > in the Linux kernel, which have been dealt with by recoding.
 > 
-> This series is related to the new addition to stable_kernel_rules.txt
-> 
->  - Serious issues as reported by a user of a distribution kernel may also
->    be considered if they fix a notable performance or interactivity issue.
->    As these fixes are not as obvious and have a higher risk of a subtle
->    regression they should only be submitted by a distribution kernel
->    maintainer and include an addendum linking to a bugzilla entry if it
->    exists and additional information on the user-visible impact.
-> 
-> All of these patches have been backported to a distribution kernel and
-> address some sort of performance issue in the VM. As they are not all
-> obvious, I've added a "Stable note" to the top of each patch giving
-> additional information on why the patch was backported. Lets see where
-> the boundaries lie on how this new rule is interpreted in practice :).
-> 
-> Patch 1	Performance fix for tmpfs
-> Patch 2 Memory hotadd fix
-> Patch 3 Reduce boot time on large machines
-> Patches 4-5 Reduce stalls for wait_iff_congested
-> Patches 6-8 Reduce excessive reclaim of slab objects which for some workloads
-> 	will reduce the amount of IO required
-> Patches 9-10 limits the amount of page reclaim when THP/Compaction is active.
-> 	Excessive reclaim in low memory situations can lead to stalls some
-> 	of which are user visible.
-> Patches 11-19 reduce the amount of churn of the LRU lists. Poor reclaim
-> 	decisions can impair workloads in different ways and there have
-> 	been complaints recently the reclaim decisions of modern kernels
-> 	are worse than older ones.
-> Patches 20-21 reduce the amount of CPU kswapd uses in some cases. This
-> 	is harder to trigger but were developed due to bug reports about
-> 	100% CPU usage from kswapd.
-> Patches 22-25 are mostly related to interactivity when THP is enabled.
-> Patches 26-30 are also related to page reclaim decisions, particularly
-> 	the residency of mapped pages.
-> Patches 31-34 fix a major page allocator performance regression
-> 
-> All of the patches will apply to 3.0-stable but the ordering of the
-> patches is such that applying them to 3.2-stable and 3.4-stable should
-> be straight-forward.
+> Ah yes, those: I think we need ACCESS_EVERY_TIME() for those ones ;)
 
-I can't find any of these that should have gone to 3.4-stable, given
-that they all were included in 3.4 already, right?
+;-) ;-) ;-)
 
-I've queued up the whole lot for the 3.0-stable tree, thanks so much for
-providing them.
+> I consider the double-fetching ones more insidious,
+> less obviously in need of the volatile cast.
 
-greg k-h
+Agreed!
+
+> > You might argue that the compiler cannot reasonably apply such an
+> > optimization in some given case, but the compiler does much more detailed
+> > analysis of the code than most people are willing to do (certainly more
+> > than I am usually willing to do!), so I believe that a little paranoia is
+> > quite worthwhile.
+> > 
+> > > There's a lot of other surprising things which a compiler is permitted
+> > > to do, but we would simply not use such a compiler to build the kernel.
+> > 
+> > Unless we get the gcc folks to build and boot the Linux kernel as part
+> > of their test suite (maybe they already do, but not that I know of),
+> > how would either they or we know that they had deployed a destructive
+> > optimization?
+> 
+> We find out after it hits us, and someone studies the disassembly -
+> if we're lucky enough to crash near the origin of the problem.
+
+Color me unreassured.  ;-)
+
+> > > Does some version of gcc, under the options which we insist upon,
+> > > make such optimizations on any of the architectures which we support?
+> > 
+> > Pretty much any production-quality compiler will do double-fetch
+> > and old-value-reuse optimizations, the former especially on 32-bit
+> > x86.
+> 
+> That makes good sense, yes: so, under register pressure, they may
+> refetch from global memory, instead of using a temporary on local stack.
+> 
+> > I don't know of any production-quality compilers that do value
+> > speculation, which would make the compiler act like DEC Alpha hardware,
+> > and I would hope that if this does appear, (1) we would have warning
+> > and (2) it could be turned off.  But there has been a lot of work on
+> > this topic, so we would be foolish to rule it out.
+> 
+> I think you're justified in expecting both (1) and (2) there.
+
+Here is hoping!
+
+> > But the currently deployed optimizations can already cause enough trouble.
+> > 
+> > > Or is there some other compiler in use on the kernel, which makes
+> > > such optimizations?  It seems a long time since I heard of building
+> > > the kernel with icc.  clang?
+> > > 
+> > > I don't mind the answer "Yes, you idiot" - preferably with an example
+> > > or two of which compiler and which piece of code it has bitten us on.
+> > > I don't mind the answer "We just don't know" if that's the case.
+> > > 
+> > > But I'd like a better idea of how much to worry: is ACCESS_ONCE
+> > > demonstrably needed today, or rather future-proofing and documentation?
+> > 
+> > Both.  If you are coding "while (foo)" where "foo" can be changed by an
+> > interrupt handler, you had better instead write "while (ACCESS_ONCE(foo))"
+> > or something similar, because most compilers are happy to optimize your
+> > loop into an infinite loop in that case.  There are places in the Linux
+> > kernel that would have problems if the compiler decided to refetch a
+> > value -- if a pointer was changed in the meantime, part of your code
+> > might be working on the old structure, and part on the new structure.
+> > This really can happen today, and this is why rcu_dereference() contains
+> > an ACCESS_ONCE().
+> > 
+> > If you are making lockless non-atomic access to a variable, I strongly
+> > suggest ACCESS_ONCE() or something similar even if you cannot see how
+> > the compiler can mess you up, especially in cases involving a lot of
+> > inline functions.  In this case, the compiler can be looking at quite
+> > a bit of code and optimizing across the entire mess.
+> 
+> Thank you for your fuller reply, Paul: I should be able to hold that
+> i386 register pressure example in mind in future (not, of course,
+> that it would be limited to i386 at all).
+
+Good point -- given a large enough pile of inline functions, the
+compiler might want to use a surprisingly large number of registers.
+
+> > /me wonders what he stepped into with this email thread.  ;-)
+> > 
+> > 							Thanx, Paul
+> 
+> Come on, it wasn't that painful, was it?
+> Just a quick extraction of info ;-)
+
+It didn't hurt a bit, and it was over before I knew it.  ;-)
+
+							Thanx, Paul
+
+> Thanks,
+> Hugh
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
