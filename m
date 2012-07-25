@@ -1,105 +1,218 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
-	by kanga.kvack.org (Postfix) with SMTP id E30706B004D
-	for <linux-mm@kvack.org>; Wed, 25 Jul 2012 17:44:32 -0400 (EDT)
-Received: by pbbrp2 with SMTP id rp2so2317067pbb.14
-        for <linux-mm@kvack.org>; Wed, 25 Jul 2012 14:44:32 -0700 (PDT)
-Date: Wed, 25 Jul 2012 14:44:28 -0700
-From: Greg KH <gregkh@linuxfoundation.org>
-Subject: Re: [PATCH 30/34] mm: vmscan: Do not force kswapd to scan small
- targets
-Message-ID: <20120725214428.GA6502@kroah.com>
-References: <1343050727-3045-1-git-send-email-mgorman@suse.de>
- <1343050727-3045-31-git-send-email-mgorman@suse.de>
- <20120725195948.GB5444@kroah.com>
- <20120725213508.GE9222@suse.de>
+Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
+	by kanga.kvack.org (Postfix) with SMTP id E20856B004D
+	for <linux-mm@kvack.org>; Wed, 25 Jul 2012 17:52:36 -0400 (EDT)
+Date: Thu, 26 Jul 2012 00:53:32 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH 03/10] memcg: infrastructure to  match an allocation to
+ the right cache
+Message-ID: <20120725215332.GA5756@shutemov.name>
+References: <1343227101-14217-1-git-send-email-glommer@parallels.com>
+ <1343227101-14217-4-git-send-email-glommer@parallels.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20120725213508.GE9222@suse.de>
+In-Reply-To: <1343227101-14217-4-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Stable <stable@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Glauber Costa <glommer@parallels.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, Greg Thelen <gthelen@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Frederic Weisbecker <fweisbec@gmail.com>, devel@openvz.org, cgroups@vger.kernel.org, Pekka Enberg <penberg@cs.helsinki.fi>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Suleiman Souhlal <suleiman@google.com>
 
-On Wed, Jul 25, 2012 at 10:35:08PM +0100, Mel Gorman wrote:
-> On Wed, Jul 25, 2012 at 12:59:48PM -0700, Greg KH wrote:
-> > On Mon, Jul 23, 2012 at 02:38:43PM +0100, Mel Gorman wrote:
-> > > commit ad2b8e601099a23dffffb53f91c18d874fe98854 upstream - WARNING: this is a substitute patch.
-> > > 
-> > > Stable note: Not tracked in Bugzilla. This is a substitute for an
-> > > 	upstream commit addressing a completely different issue that
-> > > 	accidentally contained an important fix. The workload this patch
-> > > 	helps was memcached when IO is started in the background. memcached
-> > > 	should stay resident but without this patch it gets swapped more
-> > > 	than it should. Sometimes this manifests as a drop in throughput
-> > > 	but mostly it was observed through /proc/vmstat.
-> > > 
-> > > Commit [246e87a9: memcg: fix get_scan_count() for small targets] was
-> > > meant to fix a problem whereby small scan targets on memcg were ignored
-> > > causing priority to raise too sharply. It forced scanning to take place
-> > > if the target was small, memcg or kswapd.
-> > > 
-> > > >From the time it was introduced it cause excessive reclaim by kswapd
-> > > with workloads being pushed to swap that previously would have stayed
-> > > resident. This was accidentally fixed by commit [ad2b8e60: mm: memcg:
-> > > remove optimization of keeping the root_mem_cgroup LRU lists empty] but
-> > > that patchset is not suitable for backporting.
-> > > 
-> > > The original patch came with no information on what workloads it benefits
-> > > but the cost of it is obvious in that it forces scanning to take place
-> > > on lists that would otherwise have been ignored such as small anonymous
-> > > inactive lists. This patch partially reverts 246e87a9 so that small lists
-> > > are not force scanned which means that IO-intensive workloads with small
-> > > amounts of anonymous memory will not be swapped.
-> > > 
-> > > Signed-off-by: Mel Gorman <mgorman@suse.de>
-> > > ---
-> > >  mm/vmscan.c |    3 ---
-> > >  1 file changed, 3 deletions(-)
-> > 
-> > I don't understand this patch.  The original
-> > ad2b8e601099a23dffffb53f91c18d874fe98854 commit touched the file
-> > mm/memcontrol.c and seemed to do something quite different from what you
-> > have done below.
-> > 
+On Wed, Jul 25, 2012 at 06:38:14PM +0400, Glauber Costa wrote:
+> The page allocator is able to bind a page to a memcg when it is
+> allocated. But for the caches, we'd like to have as many objects as
+> possible in a page belonging to the same cache.
 > 
-> The main problem is I'm an idiot and "missed" when copying&paste and followed
-> through with the mistake. The actual commit of interest was the one after it
-> [b95a2f2d: mm: vmscan: convert global reclaim to per-memcg LRU lists]
+> This is done in this patch by calling memcg_kmem_get_cache in the
+> beginning of every allocation function. This routing is patched out by
+> static branches when kernel memory controller is not being used.
 > 
-> That patch has this hunk in it
+> It assumes that the task allocating, which determines the memcg in the
+> page allocator, belongs to the same cgroup throughout the whole process.
+> Misacounting can happen if the task calls memcg_kmem_get_cache() while
+> belonging to a cgroup, and later on changes. This is considered
+> acceptable, and should only happen upon task migration.
 > 
-> @@ -1886,7 +1886,7 @@ static void get_scan_count(struct mem_cgroup_zone *mz, struct scan_control *sc,
->          * latencies, so it's better to scan a minimum amount there as
->          * well.
->          */
-> -       if (current_is_kswapd())
-> +       if (current_is_kswapd() && mz->zone->all_unreclaimable)
->                 force_scan = true;
->         if (!global_reclaim(sc))
->                 force_scan = true;
+> Before the cache is created by the memcg core, there is also a possible
+> imbalance: the task belongs to a memcg, but the cache being allocated
+> from is the global cache, since the child cache is not yet guaranteed to
+> be ready. This case is also fine, since in this case the GFP_KMEMCG will
+> not be passed and the page allocator will not attempt any cgroup
+> accounting.
 > 
-> This change makes it very difficult for kswapd to force scan which was
-> the fix I was interested in but the series is not suitable for backport.
-> This has changed again since in 3.5-rc1 due to commit [90126375: mm/vmscan:
-> push lruvec pointer into get_scan_count()] where this check became
+> Signed-off-by: Glauber Costa <glommer@parallels.com>
+> CC: Christoph Lameter <cl@linux.com>
+> CC: Pekka Enberg <penberg@cs.helsinki.fi>
+> CC: Michal Hocko <mhocko@suse.cz>
+> CC: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> CC: Johannes Weiner <hannes@cmpxchg.org>
+> CC: Suleiman Souhlal <suleiman@google.com>
+> ---
+>  include/linux/memcontrol.h |   38 ++++++++
+>  init/Kconfig               |    2 +-
+>  mm/memcontrol.c            |  221 +++++++++++++++++++++++++++++++++++++++++++-
+>  3 files changed, 259 insertions(+), 2 deletions(-)
 > 
-> 	if (current_is_kswapd() && zone->all_unreclaimable)
-> 
-> Superficially that looks ok to backport, but it's not due to a subtle
-> difference in how zone is looked up in the new context.
-> 
-> Can you use this patch as a replacement? It is functionally much closer
-> to what happens upstream while still backporting the actual fix of
-> interest.
+> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+> index d9229a3..bd1f34b 100644
+> --- a/include/linux/memcontrol.h
+> +++ b/include/linux/memcontrol.h
+> @@ -423,6 +423,8 @@ int memcg_css_id(struct mem_cgroup *memcg);
+>  void memcg_register_cache(struct mem_cgroup *memcg,
+>  				      struct kmem_cache *s);
+>  void memcg_release_cache(struct kmem_cache *cachep);
+> +struct kmem_cache *
+> +__memcg_kmem_get_cache(struct kmem_cache *cachep, gfp_t gfp);
+>  #else
+>  static inline void memcg_register_cache(struct mem_cgroup *memcg,
+>  					     struct kmem_cache *s)
+> @@ -456,6 +458,12 @@ __memcg_kmem_commit_page(struct page *page, struct mem_cgroup *handle,
+>  			      int order)
+>  {
+>  }
+> +
+> +static inline struct kmem_cache *
+> +__memcg_kmem_get_cache(struct kmem_cache *cachep, gfp_t gfp)
+> +{
+> +	return cachep;
+> +}
+>  #endif /* CONFIG_MEMCG_KMEM */
+>  
+>  /**
+> @@ -515,5 +523,35 @@ void memcg_kmem_commit_page(struct page *page, struct mem_cgroup *handle,
+>  	if (memcg_kmem_on)
+>  		__memcg_kmem_commit_page(page, handle, order);
+>  }
+> +
+> +/**
+> + * memcg_kmem_get_kmem_cache: selects the correct per-memcg cache for allocation
+> + * @cachep: the original global kmem cache
+> + * @gfp: allocation flags.
+> + *
+> + * This function assumes that the task allocating, which determines the memcg
+> + * in the page allocator, belongs to the same cgroup throughout the whole
+> + * process.  Misacounting can happen if the task calls memcg_kmem_get_cache()
+> + * while belonging to a cgroup, and later on changes. This is considered
+> + * acceptable, and should only happen upon task migration.
+> + *
+> + * Before the cache is created by the memcg core, there is also a possible
+> + * imbalance: the task belongs to a memcg, but the cache being allocated from
+> + * is the global cache, since the child cache is not yet guaranteed to be
+> + * ready. This case is also fine, since in this case the GFP_KMEMCG will not be
+> + * passed and the page allocator will not attempt any cgroup accounting.
+> + */
+> +static __always_inline struct kmem_cache *
+> +memcg_kmem_get_cache(struct kmem_cache *cachep, gfp_t gfp)
+> +{
+> +	if (!memcg_kmem_on)
+> +		return cachep;
+> +	if (gfp & __GFP_NOFAIL)
+> +		return cachep;
+> +	if (in_interrupt() || (!current->mm) || (current->flags & PF_KTHREAD))
+> +		return cachep;
+> +
+> +	return __memcg_kmem_get_cache(cachep, gfp);
+> +}
+>  #endif /* _LINUX_MEMCONTROL_H */
+>  
+> diff --git a/init/Kconfig b/init/Kconfig
+> index 547bd10..610cfd3 100644
+> --- a/init/Kconfig
+> +++ b/init/Kconfig
+> @@ -741,7 +741,7 @@ config MEMCG_SWAP_ENABLED
+>  	  then swapaccount=0 does the trick).
+>  config MEMCG_KMEM
+>  	bool "Memory Resource Controller Kernel Memory accounting (EXPERIMENTAL)"
+> -	depends on MEMCG && EXPERIMENTAL
+> +	depends on MEMCG && EXPERIMENTAL && !SLOB
+>  	default n
+>  	help
+>  	  The Kernel Memory extension for Memory Resource Controller can limit
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 88bb826..8d012c7 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -14,6 +14,10 @@
+>   * Copyright (C) 2012 Parallels Inc. and Google Inc.
+>   * Authors: Glauber Costa and Suleiman Souhlal
+>   *
+> + * Kernel Memory Controller
+> + * Copyright (C) 2012 Parallels Inc. and Google Inc.
+> + * Authors: Glauber Costa and Suleiman Souhlal
+> + *
+>   * This program is free software; you can redistribute it and/or modify
+>   * it under the terms of the GNU General Public License as published by
+>   * the Free Software Foundation; either version 2 of the License, or
+> @@ -339,6 +343,11 @@ struct mem_cgroup {
+>  #ifdef CONFIG_INET
+>  	struct tcp_memcontrol tcp_mem;
+>  #endif
+> +
+> +#ifdef CONFIG_MEMCG_KMEM
+> +	/* Slab accounting */
+> +	struct kmem_cache *slabs[MAX_KMEM_CACHE_TYPES];
+> +#endif
+>  };
+>  
+>  enum {
+> @@ -532,6 +541,40 @@ static inline bool memcg_kmem_enabled(struct mem_cgroup *memcg)
+>  		memcg->kmem_accounted;
+>  }
+>  
+> +static char *memcg_cache_name(struct mem_cgroup *memcg, struct kmem_cache *cachep)
+> +{
+> +	char *name;
+> +	struct dentry *dentry;
+> +
+> +	rcu_read_lock();
+> +	dentry = rcu_dereference(memcg->css.cgroup->dentry);
+> +	rcu_read_unlock();
+> +
+> +	BUG_ON(dentry == NULL);
+> +
+> +	name = kasprintf(GFP_KERNEL, "%s(%d:%s)",
+> +	    cachep->name, css_id(&memcg->css), dentry->d_name.name);
+> +
+> +	return name;
+> +}
+> +
+> +static struct kmem_cache *kmem_cache_dup(struct mem_cgroup *memcg,
+> +					 struct kmem_cache *s)
+> +{
+> +	char *name;
+> +	struct kmem_cache *new;
+> +
+> +	name = memcg_cache_name(memcg, s);
+> +	if (!name)
+> +		return NULL;
+> +
+> +	new = kmem_cache_create_memcg(memcg, name, s->object_size, s->align,
+> +				      (s->flags & ~SLAB_PANIC), s->ctor);
+> +
+> +	kfree(name);
+> +	return new;
+> +}
+> +
+>  struct ida cache_types;
+>  
+>  void memcg_register_cache(struct mem_cgroup *memcg, struct kmem_cache *cachep)
+> @@ -656,6 +699,14 @@ void __memcg_kmem_free_page(struct page *page, int order)
+>  }
+>  EXPORT_SYMBOL(__memcg_kmem_free_page);
+>  
+> +static void memcg_slab_init(struct mem_cgroup *memcg)
+> +{
+> +	int i;
+> +
+> +	for (i = 0; i < MAX_KMEM_CACHE_TYPES; i++)
+> +		memcg->slabs[i] = NULL;
+> +}
 
-Yes, that makes more sense as that is what the patch you included does
-:)
+It seems redundant. mem_cgroup_alloc() uses kzalloc()/vzalloc() to
+allocate struct mem_cgroup.
 
-I'll go queue it up now, thanks for the backport.
-
-greg k-h
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
