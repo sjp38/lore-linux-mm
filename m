@@ -1,34 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx140.postini.com [74.125.245.140])
-	by kanga.kvack.org (Postfix) with SMTP id 400036B0068
-	for <linux-mm@kvack.org>; Wed, 25 Jul 2012 14:00:53 -0400 (EDT)
-Message-ID: <501033F7.9090002@redhat.com>
-Date: Wed, 25 Jul 2012 13:59:19 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
+	by kanga.kvack.org (Postfix) with SMTP id 00E276B006C
+	for <linux-mm@kvack.org>; Wed, 25 Jul 2012 14:03:47 -0400 (EDT)
+Received: by ghrr18 with SMTP id r18so1264800ghr.14
+        for <linux-mm@kvack.org>; Wed, 25 Jul 2012 11:03:47 -0700 (PDT)
+Date: Wed, 25 Jul 2012 11:03:42 -0700
+From: Greg KH <gregkh@linuxfoundation.org>
+Subject: Re: [PATCH 15/34] mm: migration: clean up unmap_and_move()
+Message-ID: <20120725180342.GB12723@kroah.com>
+References: <1343050727-3045-1-git-send-email-mgorman@suse.de>
+ <1343050727-3045-16-git-send-email-mgorman@suse.de>
+ <20120725154526.GA18901@kroah.com>
+ <20120725160434.GC9222@suse.de>
 MIME-Version: 1.0
-Subject: Re: [PATCH 6/6] rbtree: remove prior augmented rbtree implementation
-References: <1342787467-5493-1-git-send-email-walken@google.com> <1342787467-5493-7-git-send-email-walken@google.com> <20120724015505.GB9690@google.com>
-In-Reply-To: <20120724015505.GB9690@google.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120725160434.GC9222@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michel Lespinasse <walken@google.com>
-Cc: peterz@infradead.org, daniel.santos@pobox.com, aarcange@redhat.com, dwmw2@infradead.org, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: Stable <stable@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On 07/23/2012 09:55 PM, Michel Lespinasse wrote:
-> convert arch/x86/mm/pat_rbtree.c to the proposed augmented rbtree api
-> and remove the old augmented rbtree implementation.
->
-> Signed-off-by: Michel Lespinasse <walken@google.com>
+On Wed, Jul 25, 2012 at 05:04:34PM +0100, Mel Gorman wrote:
+> On Wed, Jul 25, 2012 at 08:45:26AM -0700, Greg KH wrote:
+> > On Mon, Jul 23, 2012 at 02:38:28PM +0100, Mel Gorman wrote:
+> > > commit 0dabec93de633a87adfbbe1d800a4c56cd19d73b upstream.
+> > > 
+> > > Stable note: Not tracked in Bugzilla. This patch makes later patches
+> > > 	easier to apply but has no other impact.
+> > > 
+> > > unmap_and_move() is one a big messy function.  Clean it up.
+> > > 
+> > > Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
+> > > Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> > > Cc: Johannes Weiner <hannes@cmpxchg.org>
+> > > Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> > > Cc: Mel Gorman <mgorman@suse.de>
+> > > Cc: Rik van Riel <riel@redhat.com>
+> > > Cc: Michal Hocko <mhocko@suse.cz>
+> > > Cc: Andrea Arcangeli <aarcange@redhat.com>
+> > > Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+> > > Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
+> > > ---
+> > >  mm/migrate.c |   59 ++++++++++++++++++++++++++++++++--------------------------
+> > >  1 file changed, 33 insertions(+), 26 deletions(-)
+> > 
+> > Mel, you didn't sign-off-on this patch.  Any reason why?
+> > 
+> 
+> Another patch that was merged to the distribution kernel before picked
+> up by mainline. In this case, I copied across the signed-off-bys and
+> missed my own
+> 
+> Signed-off-by: Mel Gorman <mgorman@suse.de>
 
-Acked-by: Rik van Riel <riel@redhat.com>
+Thanks, I've now added it.
 
-
-I'm looking forward to using your new augmented rbtree
-code for the rbtree based arch_get_unmapped_area code.
-It should provide a nice speedup on munmap.
-
+greg k-h
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
