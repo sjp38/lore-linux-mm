@@ -1,51 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
-	by kanga.kvack.org (Postfix) with SMTP id E3E3E6B004D
-	for <linux-mm@kvack.org>; Wed, 25 Jul 2012 18:48:56 -0400 (EDT)
-Date: Wed, 25 Jul 2012 23:48:52 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 00/34] Memory management performance backports for
- -stable V2
-Message-ID: <20120725224852.GF9222@suse.de>
-References: <1343050727-3045-1-git-send-email-mgorman@suse.de>
- <20120725223057.GA4253@kroah.com>
+Received: from psmtp.com (na3sys010amx144.postini.com [74.125.245.144])
+	by kanga.kvack.org (Postfix) with SMTP id 3D3BF6B004D
+	for <linux-mm@kvack.org>; Wed, 25 Jul 2012 19:36:02 -0400 (EDT)
+Date: Thu, 26 Jul 2012 08:36:31 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH -mm] remove __GFP_NO_KSWAPD fixes
+Message-ID: <20120725233631.GC14411@bbox>
+References: <20120724111222.2c5e6b30@annuminas.surriel.com>
+ <20120725145119.75be021d@cuia.bos.redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20120725223057.GA4253@kroah.com>
+In-Reply-To: <20120725145119.75be021d@cuia.bos.redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg KH <greg@kroah.com>
-Cc: Stable <stable@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Rik van Riel <riel@redhat.com>
+Cc: linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>, lkml <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Artem Bityutskiy <artem.bityutskiy@linux.intel.com>, David Woodhouse <David.Woodhouse@intel.com>
 
-On Wed, Jul 25, 2012 at 03:30:57PM -0700, Greg KH wrote:
-> > <SNIP>
-> > All of the patches will apply to 3.0-stable but the ordering of the
-> > patches is such that applying them to 3.2-stable and 3.4-stable should
-> > be straight-forward.
+On Wed, Jul 25, 2012 at 02:51:19PM -0400, Rik van Riel wrote:
+> Turns out I missed two spots where __GFP_NO_KSWAPD is used.
 > 
-> I can't find any of these that should have gone to 3.4-stable, given
-> that they all were included in 3.4 already, right?
+> The removal from the trace code is obvious, since the flag
+> got removed there is no need to print it.
 > 
-
-Yes, you're right.
-
-At the time I wrote the changelog I had patches belonging to 3.5 included. I
-later decided to drop them until after 3.5 was out. It was potentially
-weird to have a 3.0-stable kernel with patches that were not in a released
-3.x.0 kernel. Besides, they were very low priority. I forgot to update
-the changelog to match.
-
-> I've queued up the whole lot for the 3.0-stable tree, thanks so much for
-> providing them.
+> For mtdcore.c, now that memory compaction has been fixed,
+> we should no longer see large swap storms from an attempt
+> to allocate a large buffer, removing the need to specify
+> __GFP_NO_KSWAPD.
 > 
+> Signed-off-by: Rik van Riel <riel@redhat.com>
+Reviewed-by: Minchan Kim <minchan@kernel.org>
 
-Thanks for reviewing them in detail and getting the flaws corrected.
-I expect it'll be a bit more smooth if/when I do something like this again.
+You should have tidied up comment of the function.
+I hope Andrew can do it if he see this review.
+
+diff --git a/drivers/mtd/mtdcore.c b/drivers/mtd/mtdcore.c
+index fcfce24..6ff1308 100644
+--- a/drivers/mtd/mtdcore.c
++++ b/drivers/mtd/mtdcore.c
+@@ -1065,8 +1065,7 @@ EXPORT_SYMBOL_GPL(mtd_writev);
+  * until the request succeeds or until the allocation size falls below
+  * the system page size. This attempts to make sure it does not adversely
+  * impact system performance, so when allocating more than one page, we
+- * ask the memory allocator to avoid re-trying, swapping, writing back
+- * or performing I/O.
++ * ask the memory allocator to avoid re-trying.
+  *
+  * Note, this function also makes sure that the allocated buffer is aligned to
+  * the MTD device's min. I/O unit, i.e. the "mtd->writesize" value.
+
+Thanks.
 
 -- 
-Mel Gorman
-SUSE Labs
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
