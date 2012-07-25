@@ -1,71 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
-	by kanga.kvack.org (Postfix) with SMTP id 9B2386B0044
-	for <linux-mm@kvack.org>; Wed, 25 Jul 2012 03:57:42 -0400 (EDT)
-Date: Wed, 25 Jul 2012 08:57:37 +0100
+Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
+	by kanga.kvack.org (Postfix) with SMTP id 27FAF6B0044
+	for <linux-mm@kvack.org>; Wed, 25 Jul 2012 04:36:44 -0400 (EDT)
+Date: Wed, 25 Jul 2012 09:36:37 +0100
 From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 03/34] mm: Reduce the amount of work done when updating
- min_free_kbytes
-Message-ID: <20120725075737.GW9222@suse.de>
-References: <1343050727-3045-1-git-send-email-mgorman@suse.de>
- <1343050727-3045-4-git-send-email-mgorman@suse.de>
- <20120724224712.GB4245@kroah.com>
+Subject: Re: [PATCH -alternative] mm: hugetlbfs: Close race during teardown
+ of hugetlbfs shared page tables V2 (resend)
+Message-ID: <20120725083637.GA9222@suse.de>
+References: <20120720134937.GG9222@suse.de>
+ <20120720141108.GH9222@suse.de>
+ <20120720143635.GE12434@tiehlicka.suse.cz>
+ <20120720145121.GJ9222@suse.de>
+ <alpine.LSU.2.00.1207222033030.6810@eggly.anvils>
+ <20120723114007.GU9222@suse.de>
+ <alpine.LSU.2.00.1207231702440.1683@eggly.anvils>
+ <20120724093406.GO9222@suse.de>
+ <alpine.LSU.2.00.1207241108010.1749@eggly.anvils>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20120724224712.GB4245@kroah.com>
+In-Reply-To: <alpine.LSU.2.00.1207241108010.1749@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg KH <gregkh@linuxfoundation.org>
-Cc: Stable <stable@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Hugh Dickins <hughd@google.com>
+Cc: Michal Hocko <mhocko@suse.cz>, Linux-MM <linux-mm@kvack.org>, David Gibson <david@gibson.dropbear.id.au>, Ken Chen <kenchen@google.com>, Cong Wang <xiyou.wangcong@gmail.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, LKML <linux-kernel@vger.kernel.org>
 
-On Tue, Jul 24, 2012 at 03:47:12PM -0700, Greg KH wrote:
-> On Mon, Jul 23, 2012 at 02:38:16PM +0100, Mel Gorman wrote:
-> > commit 938929f14cb595f43cd1a4e63e22d36cab1e4a1f upstream.
+On Tue, Jul 24, 2012 at 12:23:58PM -0700, Hugh Dickins wrote:
+> On Tue, 24 Jul 2012, Mel Gorman wrote:
+> > On Mon, Jul 23, 2012 at 06:08:05PM -0700, Hugh Dickins wrote:
+> > > 
+> > > So, after a bout of anxiety, I think my &= ~VM_MAYSHARE remains good.
+> > > 
 > > 
-> > Stable note: Fixes https://bugzilla.novell.com/show_bug.cgi?id=726210 .
-> > 	Large machines with 1TB or more of RAM take a long time to boot
-> > 	without this patch and may spew out soft lockup warnings.
+> > I agree with you. When I was thinking about the potential problems, I was
+> > thinking of them in the general context of the core VM and what we normally
+> > take into account.
+> > 
+> > I confess that I really find this working-by-coincidence very icky and am
+> > uncomfortable with it but your patch is the only patch that contains the
+> > mess to hugetlbfs. I fixed exit_mmap() for my version but only by changing
+> > the core to introduce exit_vmas() to take mmap_sem for write if a hugetlb
+> > VMA is found so I also affected the core.
 > 
-> In comparing this with the upstream version, you have a few different
-> coding style differences, but no real content difference.  Why?
+> "icky" is not quite the word I'd use, but yes, it feels like you only
+> have to dislodge a stone somewhere at the other end of the kernel,
+> and the whole lot would come tumbling down.
+> 
+> If I could think of a suitable VM_BUG_ON to insert next to the ~VM_MAYSHARE,
+> I would: to warn us when assumptions change.  If we were prepared to waste
+> another vm_flag on it (and just because there's now a type which lets them
+> expand does not mean we can be profligate with them), then you can imagine
+> a VM_GOINGAWAY flag set in unmap_region() and exit_mmap(), and we key off
+> that instead; or something of that kind.
 > 
 
-This was a mistake in my workflow that needs a bit of ironing out.
+A new VM flag would be overkill for this right now.
 
-The mistake is that I took the patch from the distribution kernel which was
-merged at a time before the coding style fixes were applied. The upstream
-commit and signed-off lines were "fixed" but I failed to refresh the
-patch and missed that it differed from upstream. Thanks for catching this.
-I'll adjust my workflow and assistant scripts to watch for this sort of
-problem in the future.
+> But I'm afraid I see that as TODO-list material: the one-liner is pretty
+> good for stable backporting, and I felt smiled-upon when it turned out to
+> be workable (and not even needing a change in arch/x86/mm, that really
+> surprised me).  It seems ungrateful not to seize the simple fix it offers,
+> which I found much easier to understand than the alternatives.
+> 
+
+That's fair enough.
 
 > > 
-> > When min_free_kbytes is updated blocks marked MIGRATE_RESERVE are
-> > updated. Ordinarily, this work is unnoticable as it happens early
-> > in boot. However, on large machines with 1TB of memory, this can take
-> > a considerable time when NUMA distances are taken into account. The bulk
-> > of the work is done by pageblock_is_reserved() which examines the
-> > metadata for almost every page in the system. Currently, we are doing
-> > this far more than necessary as it is only required while there are
-> > still blocks to be marked MIGRATE_RESERVE. This patch significantly
-> > reduces the amount of work done by setup_zone_migrate_reserve()
-> > improving boot times on 1TB machines.
+> > So, lets go with your patch but with all this documented! I stuck a
+> > changelog and an additional comment onto your patch and this is the end
+> > result.
+> 
+> Okay, thanks.  (I think you've copied rather more of my previous mail
+> into the commit description than it deserves, but it looks like you
+> like more words where I like less!)
+> 
+
+I did copy more than was necessary, I'll fix it.
+
 > > 
-> > [akpm@linux-foundation.org: coding-style fixes]
+> > Do you want to pick this up and send it to Andrew or will I?
 > 
-> I'm guessing you didn't pick these up?
-> 
-
-Correct but due to a mistake, not for any good reason.
-
-> Anyway, I've taken it now as the original one from Linus's tree,
-> hopefully this doesn't burn me later in the series...
+> Oh, please change your Reviewed-by to Signed-off-by: almost all of the
+> work and description comes from you and Michal; then please, you send it
+> in to Andrew - sorry, I really need to turn my attention to other things.
 > 
 
-I hope it didn't.
-
-Thanks Greg.
+That's fine, I'll pick it. Thanks for working on this.
 
 -- 
 Mel Gorman
