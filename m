@@ -1,41 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx162.postini.com [74.125.245.162])
-	by kanga.kvack.org (Postfix) with SMTP id 017746B005A
-	for <linux-mm@kvack.org>; Wed, 25 Jul 2012 14:18:13 -0400 (EDT)
-Message-ID: <501037B0.7060602@parallels.com>
-Date: Wed, 25 Jul 2012 22:15:12 +0400
+Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
+	by kanga.kvack.org (Postfix) with SMTP id 925646B0073
+	for <linux-mm@kvack.org>; Wed, 25 Jul 2012 14:19:30 -0400 (EDT)
+Message-ID: <50103802.1070700@parallels.com>
+Date: Wed, 25 Jul 2012 22:16:34 +0400
 From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v4 24/25] memcg/slub: shrink dead caches
-References: <1340015298-14133-1-git-send-email-glommer@parallels.com> <1340015298-14133-25-git-send-email-glommer@parallels.com> <alpine.DEB.2.00.1207061015030.28648@router.home> <5009D8D8.6040509@parallels.com> <alpine.DEB.2.00.1207251022570.32678@router.home>
-In-Reply-To: <alpine.DEB.2.00.1207251022570.32678@router.home>
+Subject: Re: [PATCH 10/10] memcg/sl[au]b: shrink dead caches
+References: <1343227101-14217-1-git-send-email-glommer@parallels.com> <1343227101-14217-11-git-send-email-glommer@parallels.com> <alpine.DEB.2.00.1207251207180.3543@router.home>
+In-Reply-To: <alpine.DEB.2.00.1207251207180.3543@router.home>
 Content-Type: text/plain; charset="ISO-8859-1"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Christoph Lameter <cl@linux.com>
-Cc: linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, cgroups@vger.kernel.org, devel@openvz.org, kamezawa.hiroyu@jp.fujitsu.com, linux-kernel@vger.kernel.org, Frederic
- Weisbecker <fweisbec@gmail.com>, Suleiman Souhlal <suleiman@google.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, Greg Thelen <gthelen@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Frederic Weisbecker <fweisbec@gmail.com>, devel@openvz.org, cgroups@vger.kernel.org, Pekka Enberg <penberg@cs.helsinki.fi>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Suleiman Souhlal <suleiman@google.com>
 
-On 07/25/2012 07:23 PM, Christoph Lameter wrote:
-> On Fri, 20 Jul 2012, Glauber Costa wrote:
+On 07/25/2012 09:13 PM, Christoph Lameter wrote:
+> On Wed, 25 Jul 2012, Glauber Costa wrote:
 > 
->>> This is the same btw in SLAB which keeps objects in per cpu caches and
->>> keeps empty slab pages on special queues.
->>>
->>>> This patch marks all memcg caches as dead. kmem_cache_shrink is called
->>>> for the ones who are not yet dead - this will force internal cache
->>>> reorganization, and then all references to empty pages will be removed.
->>>
->>> You need to call this also for slab to drain the caches and free the pages
->>> on the empty list.
->>>
->> Doesn't the SLAB have a time-based reaper for that?
+>> In the slub allocator, when the last object of a page goes away, we
+>> don't necessarily free it - there is not necessarily a test for empty
+>> page in any slab_free path.
 > 
-> Yes but it will take a couple of minutes to drain the caches.
+> That is true for the slab allocator as well. In either case calling
+> kmem_cache_shrink() will make the objects go away by draining the cached
+> objects and freeing the pages used for the objects back to the page
+> allocator. You do not need this patch. Just call the proper functions to
+> drop the objecgts in the caches in either allocator.
 > 
-You might have seen in my last submission that included this in the slab
-as well.
+>> The slab allocator has a time based reaper that would eventually get rid
+>> of the objects, but we can also call it explicitly, since dead caches
+>> are not a likely event.
+> 
+> So this is already for both allocators?
+> 
+Yes, I just didn't updated the whole changelog. my bad.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
