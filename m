@@ -1,33 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
-	by kanga.kvack.org (Postfix) with SMTP id 8032F6B002B
-	for <linux-mm@kvack.org>; Wed, 25 Jul 2012 10:58:17 -0400 (EDT)
-Received: by qchj9 with SMTP id j9so536096qch.9
-        for <linux-mm@kvack.org>; Wed, 25 Jul 2012 07:58:16 -0700 (PDT)
-Message-ID: <501009AB.4070408@gmail.com>
-Date: Wed, 25 Jul 2012 10:58:51 -0400
-From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Received: from psmtp.com (na3sys010amx174.postini.com [74.125.245.174])
+	by kanga.kvack.org (Postfix) with SMTP id 283E46B004D
+	for <linux-mm@kvack.org>; Wed, 25 Jul 2012 11:23:45 -0400 (EDT)
+Date: Wed, 25 Jul 2012 10:23:40 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH v4 24/25] memcg/slub: shrink dead caches
+In-Reply-To: <5009D8D8.6040509@parallels.com>
+Message-ID: <alpine.DEB.2.00.1207251022570.32678@router.home>
+References: <1340015298-14133-1-git-send-email-glommer@parallels.com> <1340015298-14133-25-git-send-email-glommer@parallels.com> <alpine.DEB.2.00.1207061015030.28648@router.home> <5009D8D8.6040509@parallels.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 2/2 v5][resend] tmpfs: interleave the starting node of
- /dev/shmem
-References: <1341845199-25677-1-git-send-email-nzimmer@sgi.com> <1341845199-25677-2-git-send-email-nzimmer@sgi.com> <1341845199-25677-3-git-send-email-nzimmer@sgi.com> <20120723105819.GA4455@mwanda> <500DA581.1020602@sgi.com> <alpine.LSU.2.00.1207242048580.9334@eggly.anvils>
-In-Reply-To: <alpine.LSU.2.00.1207242048580.9334@eggly.anvils>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Nathan Zimmer <nzimmer@sgi.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Dan Carpenter <dan.carpenter@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Nick Piggin <npiggin@gmail.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>, Rik van Riel <riel@redhat.com>, Andi Kleen <andi@firstfloor.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kosaki.motohiro@gmail.com
+To: Glauber Costa <glommer@parallels.com>
+Cc: linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, cgroups@vger.kernel.org, devel@openvz.org, kamezawa.hiroyu@jp.fujitsu.com, linux-kernel@vger.kernel.org, Frederic Weisbecker <fweisbec@gmail.com>, Suleiman Souhlal <suleiman@google.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>
 
-> Please, what's wrong with the patch below, to replace the current
-> two or three?  I don't have real NUMA myself: does it work?
-> If it doesn't work, can you see why not?
+On Fri, 20 Jul 2012, Glauber Costa wrote:
 
-It works. It doesn't match my preference. but I don't want block your way.
-this area is maintained you. please go ahead.
+> > This is the same btw in SLAB which keeps objects in per cpu caches and
+> > keeps empty slab pages on special queues.
+> >
+> >> This patch marks all memcg caches as dead. kmem_cache_shrink is called
+> >> for the ones who are not yet dead - this will force internal cache
+> >> reorganization, and then all references to empty pages will be removed.
+> >
+> > You need to call this also for slab to drain the caches and free the pages
+> > on the empty list.
+> >
+> Doesn't the SLAB have a time-based reaper for that?
 
-at least, inode bias is better than random.
-
+Yes but it will take a couple of minutes to drain the caches.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
