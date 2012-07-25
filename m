@@ -1,79 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
-	by kanga.kvack.org (Postfix) with SMTP id 177866B004D
-	for <linux-mm@kvack.org>; Wed, 25 Jul 2012 12:12:06 -0400 (EDT)
-Message-ID: <50101A77.3070407@redhat.com>
-Date: Wed, 25 Jul 2012 12:10:31 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from psmtp.com (na3sys010amx151.postini.com [74.125.245.151])
+	by kanga.kvack.org (Postfix) with SMTP id 16E2F6B004D
+	for <linux-mm@kvack.org>; Wed, 25 Jul 2012 12:15:50 -0400 (EDT)
+Date: Wed, 25 Jul 2012 11:15:47 -0500
+From: Nathan Zimmer <nzimmer@sgi.com>
+Subject: Re: [PATCH 2/2 v5][resend] tmpfs: interleave the starting node of
+	/dev/shmem
+Message-ID: <20120725161547.GA27993@gulag1.americas.sgi.com>
+References: <1341845199-25677-1-git-send-email-nzimmer@sgi.com> <1341845199-25677-2-git-send-email-nzimmer@sgi.com> <1341845199-25677-3-git-send-email-nzimmer@sgi.com> <20120723105819.GA4455@mwanda> <500DA581.1020602@sgi.com> <alpine.LSU.2.00.1207242048580.9334@eggly.anvils>
 MIME-Version: 1.0
-Subject: Re: [PATCH 4/6] rbtree: faster augmented insert
-References: <1342787467-5493-1-git-send-email-walken@google.com> <1342787467-5493-5-git-send-email-walken@google.com>
-In-Reply-To: <1342787467-5493-5-git-send-email-walken@google.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LSU.2.00.1207242048580.9334@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michel Lespinasse <walken@google.com>
-Cc: peterz@infradead.org, daniel.santos@pobox.com, aarcange@redhat.com, dwmw2@infradead.org, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Hugh Dickins <hughd@google.com>
+Cc: Nathan Zimmer <nzimmer@sgi.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Dan Carpenter <dan.carpenter@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Nick Piggin <npiggin@gmail.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>, Rik van Riel <riel@redhat.com>, Andi Kleen <andi@firstfloor.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 07/20/2012 08:31 AM, Michel Lespinasse wrote:
+On Tue, Jul 24, 2012 at 09:38:21PM -0700, Hugh Dickins wrote:
+> 
+> I'm glad Andrew took out the stable Cc: 
+Actually I did that.  I have a habit of thinking about performance issues as
+bugs and that is not always the case.
 
-> +++ b/lib/rbtree.c
-> @@ -88,7 +88,8 @@ __rb_rotate_set_parents(struct rb_node *old, struct rb_node *new,
->   		root->rb_node = new;
->   }
->
-> -void rb_insert_color(struct rb_node *node, struct rb_root *root)
-> +inline void rb_insert_augmented(struct rb_node *node, struct rb_root *root,
-> +				rb_augment_rotate *augment)
->   {
->   	struct rb_node *parent = rb_red_parent(node), *gparent, *tmp;
->
-> @@ -152,6 +153,7 @@ void rb_insert_color(struct rb_node *node, struct rb_root *root)
->   					rb_set_parent_color(tmp, parent,
->   							    RB_BLACK);
->   				rb_set_parent_color(parent, node, RB_RED);
-> +				augment(parent, node);
+> Please, what's wrong with the patch below, to replace the current
+> two or three?  I don't have real NUMA myself: does it work?
+Yes it works and spreads quite nicely. 
 
-> +static inline void dummy(struct rb_node *old, struct rb_node *new) {}
-> +
-> +void rb_insert_color(struct rb_node *node, struct rb_root *root) {
-> +	rb_insert_augmented(node, root, dummy);
-> +}
->   EXPORT_SYMBOL(rb_insert_color);
+> Nathan, I've presumptuously put in your signoff, because
+> you generally seemed happy to incorporate suggestions made.
+I am always grateful for suggestions, advise, and help.
 
-While the above is what I would have done, the
-question remains "what if the compiler decides
-to not inline the function after all, and does
-not remove the call to the dummy function in
-rb_insert_color as a result?
-
-Do we have some way to force inlining, so the
-compiler is more likely to optimize out the
-dummy call?
-
->   static void __rb_erase_color(struct rb_node *node, struct rb_node *parent,
-> diff --git a/lib/rbtree_test.c b/lib/rbtree_test.c
-> index 2dfafe4..5ace332 100644
-> --- a/lib/rbtree_test.c
-> +++ b/lib/rbtree_test.c
-> @@ -67,22 +67,37 @@ static void augment_callback(struct rb_node *rb, void *unused)
->   	node->augmented = augment_recompute(node);
->   }
->
-> +static void augment_rotate(struct rb_node *rb_old, struct rb_node *rb_new)
-> +{
-> +	struct test_node *old = rb_entry(rb_old, struct test_node, rb);
-> +	struct test_node *new = rb_entry(rb_new, struct test_node, rb);
-> +
-> +	/* Rotation doesn't change subtree's augmented value */
-> +	new->augmented = old->augmented;
-> +	old->augmented = augment_recompute(old);
-> +}
-
-Is it worth documenting that rb_old is always the
-parent of rb_new (at least, it seems to be in this
-patch) ?
+Nate
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
