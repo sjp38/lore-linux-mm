@@ -1,154 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
-	by kanga.kvack.org (Postfix) with SMTP id 2D0356B0071
-	for <linux-mm@kvack.org>; Wed, 25 Jul 2012 10:42:54 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
+	by kanga.kvack.org (Postfix) with SMTP id 3A0C96B0071
+	for <linux-mm@kvack.org>; Wed, 25 Jul 2012 10:42:58 -0400 (EDT)
 From: Glauber Costa <glommer@parallels.com>
-Subject: [PATCH 08/10] memcg/sl[au]b Track all the memcg children of a kmem_cache.
-Date: Wed, 25 Jul 2012 18:38:19 +0400
-Message-Id: <1343227101-14217-9-git-send-email-glommer@parallels.com>
+Subject: [PATCH 09/10] slab: slab-specific propagation changes.
+Date: Wed, 25 Jul 2012 18:38:20 +0400
+Message-Id: <1343227101-14217-10-git-send-email-glommer@parallels.com>
 In-Reply-To: <1343227101-14217-1-git-send-email-glommer@parallels.com>
 References: <1343227101-14217-1-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, Greg Thelen <gthelen@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Frederic Weisbecker <fweisbec@gmail.com>, devel@openvz.org, cgroups@vger.kernel.org, Suleiman Souhlal <suleiman@google.com>, Glauber Costa <glommer@parallels.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, Greg Thelen <gthelen@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Frederic Weisbecker <fweisbec@gmail.com>, devel@openvz.org, cgroups@vger.kernel.org, Glauber Costa <glommer@parallels.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Suleiman Souhlal <suleiman@google.com>
 
-This enables us to remove all the children of a kmem_cache being
-destroyed, if for example the kernel module it's being used in
-gets unloaded. Otherwise, the children will still point to the
-destroyed parent.
+When a parent cache does tune_cpucache, we need to propagate that to the
+children as well. For that, we unfortunately need to tap into the slab core.
 
-Signed-off-by: Suleiman Souhlal <suleiman@google.com>
 Signed-off-by: Glauber Costa <glommer@parallels.com>
 CC: Christoph Lameter <cl@linux.com>
 CC: Pekka Enberg <penberg@cs.helsinki.fi>
 CC: Michal Hocko <mhocko@suse.cz>
 CC: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 CC: Johannes Weiner <hannes@cmpxchg.org>
+CC: Suleiman Souhlal <suleiman@google.com>
 ---
- include/linux/memcontrol.h |    1 +
- include/linux/slab.h       |    1 +
- mm/memcontrol.c            |   16 +++++++++++++++-
- mm/slab_common.c           |   31 +++++++++++++++++++++++++++++++
- 4 files changed, 48 insertions(+), 1 deletion(-)
+ mm/slab.c        |   28 +++++++++++++++++++++++++++-
+ mm/slab_common.c |    1 +
+ 2 files changed, 28 insertions(+), 1 deletion(-)
 
-diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index 247019f..f8d63f2 100644
---- a/include/linux/memcontrol.h
-+++ b/include/linux/memcontrol.h
-@@ -426,6 +426,7 @@ void memcg_release_cache(struct kmem_cache *cachep);
- struct kmem_cache *
- __memcg_kmem_get_cache(struct kmem_cache *cachep, gfp_t gfp);
- void mem_cgroup_destroy_cache(struct kmem_cache *cachep);
-+void mem_cgroup_remove_child_kmem_cache(struct kmem_cache *cachep, int id);
- #else
- static inline void memcg_register_cache(struct mem_cgroup *memcg,
- 					     struct kmem_cache *s)
-diff --git a/include/linux/slab.h b/include/linux/slab.h
-index b9310a4..3cfd784 100644
---- a/include/linux/slab.h
-+++ b/include/linux/slab.h
-@@ -189,6 +189,7 @@ struct mem_cgroup_cache_params {
- 	bool dead;
- 	atomic_t nr_pages;
- 	struct list_head destroyed_list; /* Used when deleting memcg cache */
-+	struct list_head sibling_list;
- };
- #endif
+diff --git a/mm/slab.c b/mm/slab.c
+index 21d7cf7..6d8d449 100644
+--- a/mm/slab.c
++++ b/mm/slab.c
+@@ -3877,7 +3877,7 @@ static void do_ccupdate_local(void *info)
+ }
  
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 1231d86..d92d963 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -586,8 +586,11 @@ static struct kmem_cache *kmem_cache_dup(struct mem_cgroup *memcg,
- 
- 	new = kmem_cache_create_memcg(memcg, name, s->object_size, s->align,
- 				      (s->flags & ~SLAB_PANIC), s->ctor, s);
--	if (new)
-+	if (new) {
- 		new->allocflags |= __GFP_KMEMCG;
-+		list_add(&new->memcg_params.sibling_list,
-+			 &s->memcg_params.sibling_list);
-+	}
- 
- 	kfree(name);
- 	return new;
-@@ -600,6 +603,7 @@ void memcg_register_cache(struct mem_cgroup *memcg, struct kmem_cache *cachep)
- 	int id = -1;
- 
- 	INIT_LIST_HEAD(&cachep->memcg_params.destroyed_list);
-+	INIT_LIST_HEAD(&cachep->memcg_params.sibling_list);
- 
- 	if (!memcg)
- 		id = ida_simple_get(&cache_types, 0, MAX_KMEM_CACHE_TYPES,
-@@ -611,6 +615,9 @@ void memcg_release_cache(struct kmem_cache *cachep)
+ /* Always called with the slab_mutex held */
+-static int do_tune_cpucache(struct kmem_cache *cachep, int limit,
++static int __do_tune_cpucache(struct kmem_cache *cachep, int limit,
+ 				int batchcount, int shared, gfp_t gfp)
  {
- 	if (cachep->memcg_params.id != -1)
- 		ida_simple_remove(&cache_types, cachep->memcg_params.id);
-+	else
-+		list_del(&cachep->memcg_params.sibling_list);
-+
+ 	struct ccupdate_struct *new;
+@@ -3920,6 +3920,32 @@ static int do_tune_cpucache(struct kmem_cache *cachep, int limit,
+ 	return alloc_kmemlist(cachep, gfp);
  }
  
- /*
-@@ -944,6 +951,13 @@ static void memcg_create_cache_enqueue(struct mem_cgroup *memcg,
- 	schedule_work(&memcg_create_cache_work);
- }
- 
-+void mem_cgroup_remove_child_kmem_cache(struct kmem_cache *cachep, int id)
++static int do_tune_cpucache(struct kmem_cache *cachep, int limit,
++				int batchcount, int shared, gfp_t gfp)
 +{
-+	mutex_lock(&memcg_cache_mutex);
-+	cachep->memcg_params.memcg->slabs[id] = NULL;
-+	mutex_unlock(&memcg_cache_mutex);
-+}
-+
- /*
-  * Return the kmem_cache we're supposed to use for a slab allocation.
-  * We try to use the current memcg's version of the cache.
-diff --git a/mm/slab_common.c b/mm/slab_common.c
-index 562146b..6504557 100644
---- a/mm/slab_common.c
-+++ b/mm/slab_common.c
-@@ -189,8 +189,39 @@ struct kmem_cache *kmem_cache_create(const char *name, size_t size, size_t align
- }
- EXPORT_SYMBOL(kmem_cache_create);
- 
-+static void kmem_cache_destroy_memcg_children(struct kmem_cache *s)
-+{
++	int ret;
 +#ifdef CONFIG_MEMCG_KMEM
 +	struct kmem_cache *c;
-+	struct mem_cgroup_cache_params *p, *tmp;
-+	int id = s->memcg_params.id;
++	struct mem_cgroup_cache_params *p;
++#endif
 +
-+	if (id == -1)
-+		return;
++	ret = __do_tune_cpucache(cachep, limit, batchcount, shared, gfp);
++#ifdef CONFIG_MEMCG_KMEM
++	if (slab_state < FULL)
++		return ret;
 +
-+	mutex_lock(&slab_mutex);
-+	list_for_each_entry_safe(p, tmp,
-+	    &s->memcg_params.sibling_list, sibling_list) {
++	if ((ret < 0) || (cachep->memcg_params.id == -1))
++		return ret;
++
++	list_for_each_entry(p, &cachep->memcg_params.sibling_list, sibling_list) {
 +		c = container_of(p, struct kmem_cache, memcg_params);
-+		if (WARN_ON(c == s))
-+			continue;
-+
-+		mutex_unlock(&slab_mutex);
-+		BUG_ON(c->memcg_params.id != -1);
-+		mem_cgroup_remove_child_kmem_cache(c, id);
-+		kmem_cache_destroy(c);
-+		mutex_lock(&slab_mutex);
++		/* return value determined by the parent cache only */
++		__do_tune_cpucache(c, limit, batchcount, shared, gfp);
 +	}
-+	mutex_unlock(&slab_mutex);
-+#endif /* CONFIG_MEMCG_KMEM */
++#endif
++	return ret;
 +}
 +
- void kmem_cache_destroy(struct kmem_cache *s)
+ /* Called with slab_mutex held always */
+ static int enable_cpucache(struct kmem_cache *cachep, gfp_t gfp)
  {
-+
-+	/* Destroy all the children caches if we aren't a memcg cache */
-+	kmem_cache_destroy_memcg_children(s);
-+
- 	get_online_cpus();
- 	mutex_lock(&slab_mutex);
- 	list_del(&s->list);
+diff --git a/mm/slab_common.c b/mm/slab_common.c
+index 6504557..e340a7d 100644
+--- a/mm/slab_common.c
++++ b/mm/slab_common.c
+@@ -151,6 +151,7 @@ kmem_cache_create_memcg(struct mem_cgroup *memcg, const char *name, size_t size,
+ 	s->flags = flags;
+ 	s->align = calculate_alignment(flags, align, size);
+ #ifdef CONFIG_MEMCG_KMEM
++	s->memcg_params.id = -1; /* not registered yet */
+ 	s->memcg_params.memcg = memcg;
+ 	s->memcg_params.parent = parent_cache;
+ #endif
 -- 
 1.7.10.4
 
