@@ -1,35 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx174.postini.com [74.125.245.174])
-	by kanga.kvack.org (Postfix) with SMTP id 283E46B004D
-	for <linux-mm@kvack.org>; Wed, 25 Jul 2012 11:23:45 -0400 (EDT)
-Date: Wed, 25 Jul 2012 10:23:40 -0500 (CDT)
+Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
+	by kanga.kvack.org (Postfix) with SMTP id 5DE686B004D
+	for <linux-mm@kvack.org>; Wed, 25 Jul 2012 11:28:35 -0400 (EDT)
+Date: Wed, 25 Jul 2012 10:28:31 -0500 (CDT)
 From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH v4 24/25] memcg/slub: shrink dead caches
-In-Reply-To: <5009D8D8.6040509@parallels.com>
-Message-ID: <alpine.DEB.2.00.1207251022570.32678@router.home>
-References: <1340015298-14133-1-git-send-email-glommer@parallels.com> <1340015298-14133-25-git-send-email-glommer@parallels.com> <alpine.DEB.2.00.1207061015030.28648@router.home> <5009D8D8.6040509@parallels.com>
+Subject: Re: [PATCH TRIVIAL] mm: Fix build warning in kmem_cache_create()
+In-Reply-To: <500CF782.4060407@parallels.com>
+Message-ID: <alpine.DEB.2.00.1207251024260.32678@router.home>
+References: <1342221125.17464.8.camel@lorien2> <alpine.DEB.2.00.1207140216040.20297@chino.kir.corp.google.com> <CAOJsxLE3dDd01WaAp5UAHRb0AiXn_s43M=Gg4TgXzRji_HffEQ@mail.gmail.com> <1342407840.3190.5.camel@lorien2> <alpine.DEB.2.00.1207160257420.11472@chino.kir.corp.google.com>
+ <alpine.DEB.2.00.1207160915470.28952@router.home> <alpine.DEB.2.00.1207161253240.29012@chino.kir.corp.google.com> <alpine.DEB.2.00.1207161506390.32319@router.home> <alpine.DEB.2.00.1207161642420.18232@chino.kir.corp.google.com> <alpine.DEB.2.00.1207170929290.13599@router.home>
+ <CAOJsxLECr7yj9cMs4oUJQjkjZe9x-6mvk76ArGsQzRWBi8_wVw@mail.gmail.com> <alpine.DEB.2.00.1207171005550.15061@router.home> <500CF782.4060407@parallels.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Glauber Costa <glommer@parallels.com>
-Cc: linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, cgroups@vger.kernel.org, devel@openvz.org, kamezawa.hiroyu@jp.fujitsu.com, linux-kernel@vger.kernel.org, Frederic Weisbecker <fweisbec@gmail.com>, Suleiman Souhlal <suleiman@google.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>
+Cc: Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Shuah Khan <shuah.khan@hp.com>, js1304@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, shuahkhan@gmail.com
 
-On Fri, 20 Jul 2012, Glauber Costa wrote:
+On Mon, 23 Jul 2012, Glauber Costa wrote:
 
-> > This is the same btw in SLAB which keeps objects in per cpu caches and
-> > keeps empty slab pages on special queues.
+> >> worth including unconditionally. Furthermore, the size related checks
+> >> certainly make sense and I don't see any harm in having them as well.
 > >
-> >> This patch marks all memcg caches as dead. kmem_cache_shrink is called
-> >> for the ones who are not yet dead - this will force internal cache
-> >> reorganization, and then all references to empty pages will be removed.
+> > There is a WARN_ON() there and then it returns NULL!!! Crazy. Causes a
+> > NULL pointer dereference later in the caller?
 > >
-> > You need to call this also for slab to drain the caches and free the pages
-> > on the empty list.
-> >
-> Doesn't the SLAB have a time-based reaper for that?
+>
+> It obviously depends on the caller.
 
-Yes but it will take a couple of minutes to drain the caches.
+This is a violation of the calling convention to say the least. This means
+if you have SLAB_PANIC set and accidentally set the name to NULL the
+function will return despite the error and not panic!
+
+> Although most of the calls to kmem_cache_create are made from static
+> data, we can't assume that. Of course whoever is using static data
+> should do those very same tests from the outside to be safe, but in case
+> they do not, this seems to fall in the category of things that make
+> debugging easier - even if we later on get to a NULL pointer dereference.
+>
+> Your mentioned bias towards minimum code size, however, is totally
+> valid, IMHO. But I doubt those checks would introduce a huge footprint.
+> I would imagine you being much more concerned about being able to wipe
+> out entire subsystems like memcg, which will give you a lot more.
+
+They are useless checks since any use of the name will also cause a NULL
+pointer dereference. Same is true for interrupt checks. Checks like that
+indicate a deterioration of the code base. People are afraid that
+something goes wrong because they no longer understand the code so they
+build a embroidery around it instead of relying on the already existing
+checks at vital places. The embroidery can be useful for debugging thats
+why I left it in for the CONFIG_DEBUG_VM but certainly should not be
+included in production kernels.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
