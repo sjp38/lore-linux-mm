@@ -1,71 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
-	by kanga.kvack.org (Postfix) with SMTP id 075036B005D
-	for <linux-mm@kvack.org>; Wed, 25 Jul 2012 15:59:52 -0400 (EDT)
-Received: by pbbrp2 with SMTP id rp2so2174810pbb.14
-        for <linux-mm@kvack.org>; Wed, 25 Jul 2012 12:59:52 -0700 (PDT)
-Date: Wed, 25 Jul 2012 12:59:48 -0700
-From: Greg KH <gregkh@linuxfoundation.org>
-Subject: Re: [PATCH 30/34] mm: vmscan: Do not force kswapd to scan small
- targets
-Message-ID: <20120725195948.GB5444@kroah.com>
-References: <1343050727-3045-1-git-send-email-mgorman@suse.de>
- <1343050727-3045-31-git-send-email-mgorman@suse.de>
+Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
+	by kanga.kvack.org (Postfix) with SMTP id D64C16B0062
+	for <linux-mm@kvack.org>; Wed, 25 Jul 2012 16:27:37 -0400 (EDT)
+Received: by ggm4 with SMTP id 4so1448010ggm.14
+        for <linux-mm@kvack.org>; Wed, 25 Jul 2012 13:27:37 -0700 (PDT)
+Date: Wed, 25 Jul 2012 13:26:43 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [RFC] page-table walkers vs memory order
+In-Reply-To: <20120725175628.GH2378@linux.vnet.ibm.com>
+Message-ID: <alpine.LSU.2.00.1207251313180.1942@eggly.anvils>
+References: <1343064870.26034.23.camel@twins> <alpine.LSU.2.00.1207241356350.2094@eggly.anvils> <20120725175628.GH2378@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1343050727-3045-31-git-send-email-mgorman@suse.de>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Stable <stable@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Nick Piggin <npiggin@kernel.dk>, Andrea Arcangeli <aarcange@redhat.com>, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org
 
-On Mon, Jul 23, 2012 at 02:38:43PM +0100, Mel Gorman wrote:
-> commit ad2b8e601099a23dffffb53f91c18d874fe98854 upstream - WARNING: this is a substitute patch.
+On Wed, 25 Jul 2012, Paul E. McKenney wrote:
+> On Tue, Jul 24, 2012 at 02:51:05PM -0700, Hugh Dickins wrote:
+> > 
+> > I'm totally unclear whether the kernel ever gets built with these
+> > 'creative' compilers that you refer to.  Is ACCESS_ONCE() a warning
+> > of where some future compiler would be permitted to mess with our
+> > assumptions?  Or is it actually saving us already today?  Would we
+> > know?  Could there be a boottime test that would tell us?  Is it
+> > likely that a future compiler would have an "--access_once"
+> > option that the kernel build would want to turn on?
 > 
-> Stable note: Not tracked in Bugzilla. This is a substitute for an
-> 	upstream commit addressing a completely different issue that
-> 	accidentally contained an important fix. The workload this patch
-> 	helps was memcached when IO is started in the background. memcached
-> 	should stay resident but without this patch it gets swapped more
-> 	than it should. Sometimes this manifests as a drop in throughput
-> 	but mostly it was observed through /proc/vmstat.
+> The problem is that, unless you tell it otherwise, the compiler is
+> permitted to assume that the code that it is generating is the only thing
+> active in that address space at that time.  So the compiler might know
+> that it already has a perfectly good copy of that value somewhere in
+> its registers, or it might decide to fetch the value twice rather than
+> once due to register pressure, either of which can be fatal in SMP code.
+> And then there are more aggressive optimizations as well.
 > 
-> Commit [246e87a9: memcg: fix get_scan_count() for small targets] was
-> meant to fix a problem whereby small scan targets on memcg were ignored
-> causing priority to raise too sharply. It forced scanning to take place
-> if the target was small, memcg or kswapd.
-> 
-> >From the time it was introduced it cause excessive reclaim by kswapd
-> with workloads being pushed to swap that previously would have stayed
-> resident. This was accidentally fixed by commit [ad2b8e60: mm: memcg:
-> remove optimization of keeping the root_mem_cgroup LRU lists empty] but
-> that patchset is not suitable for backporting.
-> 
-> The original patch came with no information on what workloads it benefits
-> but the cost of it is obvious in that it forces scanning to take place
-> on lists that would otherwise have been ignored such as small anonymous
-> inactive lists. This patch partially reverts 246e87a9 so that small lists
-> are not force scanned which means that IO-intensive workloads with small
-> amounts of anonymous memory will not be swapped.
-> 
-> Signed-off-by: Mel Gorman <mgorman@suse.de>
-> ---
->  mm/vmscan.c |    3 ---
->  1 file changed, 3 deletions(-)
+> ACCESS_ONCE() is a way of telling the compiler to access the value
+> once, regardless of what cute single-threaded optimizations that it
+> otherwise might want to apply.
 
-I don't understand this patch.  The original
-ad2b8e601099a23dffffb53f91c18d874fe98854 commit touched the file
-mm/memcontrol.c and seemed to do something quite different from what you
-have done below.
+Right, but you say "might": I have never heard it asserted, that we do
+build the kernel with a compiler which actually makes such optimizations.
 
-I'm all for fixing things in a different way than what was done in
-Linus's tree, IF there is a reason to, but the comparison between these
-two patches (yours and upstream) are not making any sense at all.
+There's a lot of other surprising things which a compiler is permitted
+to do, but we would simply not use such a compiler to build the kernel.
 
-confused,
+Does some version of gcc, under the options which we insist upon,
+make such optimizations on any of the architectures which we support?
 
-greg k-h
+Or is there some other compiler in use on the kernel, which makes
+such optimizations?  It seems a long time since I heard of building
+the kernel with icc.  clang?
+
+I don't mind the answer "Yes, you idiot" - preferably with an example
+or two of which compiler and which piece of code it has bitten us on.
+I don't mind the answer "We just don't know" if that's the case.
+
+But I'd like a better idea of how much to worry: is ACCESS_ONCE
+demonstrably needed today, or rather future-proofing and documentation?
+
+Thanks,
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
