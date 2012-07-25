@@ -1,63 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
-	by kanga.kvack.org (Postfix) with SMTP id 1DC836B004D
-	for <linux-mm@kvack.org>; Wed, 25 Jul 2012 14:53:16 -0400 (EDT)
-Date: Wed, 25 Jul 2012 14:51:19 -0400
-From: Rik van Riel <riel@redhat.com>
-Subject: [PATCH -mm] remove __GFP_NO_KSWAPD fixes
-Message-ID: <20120725145119.75be021d@cuia.bos.redhat.com>
-In-Reply-To: <20120724111222.2c5e6b30@annuminas.surriel.com>
-References: <20120724111222.2c5e6b30@annuminas.surriel.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
+	by kanga.kvack.org (Postfix) with SMTP id 8EA9D6B004D
+	for <linux-mm@kvack.org>; Wed, 25 Jul 2012 15:25:55 -0400 (EDT)
+Date: Wed, 25 Jul 2012 22:26:50 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH 01/10] slab/slub: struct memcg_params
+Message-ID: <20120725192650.GA5163@shutemov.name>
+References: <1343227101-14217-1-git-send-email-glommer@parallels.com>
+ <1343227101-14217-2-git-send-email-glommer@parallels.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1343227101-14217-2-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Andrea Arcangeli <aarcange@redhat.com>, lkml <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Artem Bityutskiy <artem.bityutskiy@linux.intel.com>, David Woodhouse <David.Woodhouse@intel.com>, Minchan Kim <minchan.kim@gmail.com>
+To: Glauber Costa <glommer@parallels.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, Greg Thelen <gthelen@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Frederic Weisbecker <fweisbec@gmail.com>, devel@openvz.org, cgroups@vger.kernel.org, Suleiman Souhlal <suleiman@google.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-Turns out I missed two spots where __GFP_NO_KSWAPD is used.
+On Wed, Jul 25, 2012 at 06:38:12PM +0400, Glauber Costa wrote:
+> For the kmem slab controller, we need to record some extra
+> information in the kmem_cache structure.
+> 
+> Signed-off-by: Glauber Costa <glommer@parallels.com>
+> Signed-off-by: Suleiman Souhlal <suleiman@google.com>
+> CC: Christoph Lameter <cl@linux.com>
+> CC: Pekka Enberg <penberg@cs.helsinki.fi>
+> CC: Michal Hocko <mhocko@suse.cz>
+> CC: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> CC: Johannes Weiner <hannes@cmpxchg.org>
+> ---
+>  include/linux/slab.h     |    7 +++++++
+>  include/linux/slab_def.h |    4 ++++
+>  include/linux/slub_def.h |    3 +++
+>  3 files changed, 14 insertions(+)
+> 
+> diff --git a/include/linux/slab.h b/include/linux/slab.h
+> index 0dd2dfa..3152bcd 100644
+> --- a/include/linux/slab.h
+> +++ b/include/linux/slab.h
+> @@ -177,6 +177,13 @@ unsigned int kmem_cache_size(struct kmem_cache *);
+>  #define ARCH_SLAB_MINALIGN __alignof__(unsigned long long)
+>  #endif
+>  
+> +#ifdef CONFIG_MEMCG_KMEM
+> +struct mem_cgroup_cache_params {
+> +	struct mem_cgroup *memcg;
+> +	int id;
+> +};
 
-The removal from the trace code is obvious, since the flag
-got removed there is no need to print it.
+IIUC, we only need the id to make slab name unique.  Why can't we embed
+the id to struct mem_cgroup? Is it possible to have multiple slabs with
+the same combination of type, size, and memcg?
 
-For mtdcore.c, now that memory compaction has been fixed,
-we should no longer see large swap storms from an attempt
-to allocate a large buffer, removing the need to specify
-__GFP_NO_KSWAPD.
-
-Signed-off-by: Rik van Riel <riel@redhat.com>
----
- drivers/mtd/mtdcore.c           |    3 +--
- include/trace/events/gfpflags.h |    1 -
- 2 files changed, 1 insertions(+), 3 deletions(-)
-
-diff --git a/drivers/mtd/mtdcore.c b/drivers/mtd/mtdcore.c
-index 9a9ce71..af1e932 100644
---- a/drivers/mtd/mtdcore.c
-+++ b/drivers/mtd/mtdcore.c
-@@ -761,8 +761,7 @@ EXPORT_SYMBOL_GPL(mtd_writev);
-  */
- void *mtd_kmalloc_up_to(const struct mtd_info *mtd, size_t *size)
- {
--	gfp_t flags = __GFP_NOWARN | __GFP_WAIT |
--		       __GFP_NORETRY | __GFP_NO_KSWAPD;
-+	gfp_t flags = __GFP_NOWARN | __GFP_WAIT | __GFP_NORETRY;
- 	size_t min_alloc = max_t(size_t, mtd->writesize, PAGE_SIZE);
- 	void *kbuf;
- 
-diff --git a/include/trace/events/gfpflags.h b/include/trace/events/gfpflags.h
-index 9fe3a36..8ffc050 100644
---- a/include/trace/events/gfpflags.h
-+++ b/include/trace/events/gfpflags.h
-@@ -35,7 +35,6 @@
- 	{(unsigned long)__GFP_RECLAIMABLE,	"GFP_RECLAIMABLE"},	\
- 	{(unsigned long)__GFP_MOVABLE,		"GFP_MOVABLE"},		\
- 	{(unsigned long)__GFP_NOTRACK,		"GFP_NOTRACK"},		\
--	{(unsigned long)__GFP_NO_KSWAPD,	"GFP_NO_KSWAPD"},	\
- 	{(unsigned long)__GFP_OTHER_NODE,	"GFP_OTHER_NODE"}	\
- 	) : "GFP_NOWAIT"
- 
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
