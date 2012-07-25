@@ -1,218 +1,141 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
-	by kanga.kvack.org (Postfix) with SMTP id E20856B004D
-	for <linux-mm@kvack.org>; Wed, 25 Jul 2012 17:52:36 -0400 (EDT)
-Date: Thu, 26 Jul 2012 00:53:32 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH 03/10] memcg: infrastructure to  match an allocation to
- the right cache
-Message-ID: <20120725215332.GA5756@shutemov.name>
-References: <1343227101-14217-1-git-send-email-glommer@parallels.com>
- <1343227101-14217-4-git-send-email-glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx162.postini.com [74.125.245.162])
+	by kanga.kvack.org (Postfix) with SMTP id 76CC96B004D
+	for <linux-mm@kvack.org>; Wed, 25 Jul 2012 18:10:41 -0400 (EDT)
+Received: by yenr5 with SMTP id r5so1564608yen.14
+        for <linux-mm@kvack.org>; Wed, 25 Jul 2012 15:10:40 -0700 (PDT)
+Date: Wed, 25 Jul 2012 15:09:48 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [RFC] page-table walkers vs memory order
+In-Reply-To: <20120725211217.GR2378@linux.vnet.ibm.com>
+Message-ID: <alpine.LSU.2.00.1207251452160.2084@eggly.anvils>
+References: <1343064870.26034.23.camel@twins> <alpine.LSU.2.00.1207241356350.2094@eggly.anvils> <20120725175628.GH2378@linux.vnet.ibm.com> <alpine.LSU.2.00.1207251313180.1942@eggly.anvils> <20120725211217.GR2378@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1343227101-14217-4-git-send-email-glommer@parallels.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, Greg Thelen <gthelen@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Frederic Weisbecker <fweisbec@gmail.com>, devel@openvz.org, cgroups@vger.kernel.org, Pekka Enberg <penberg@cs.helsinki.fi>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Suleiman Souhlal <suleiman@google.com>
+To: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Nick Piggin <npiggin@kernel.dk>, Andrea Arcangeli <aarcange@redhat.com>, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, Jul 25, 2012 at 06:38:14PM +0400, Glauber Costa wrote:
-> The page allocator is able to bind a page to a memcg when it is
-> allocated. But for the caches, we'd like to have as many objects as
-> possible in a page belonging to the same cache.
+On Wed, 25 Jul 2012, Paul E. McKenney wrote:
+> On Wed, Jul 25, 2012 at 01:26:43PM -0700, Hugh Dickins wrote:
+> > On Wed, 25 Jul 2012, Paul E. McKenney wrote:
+> > > On Tue, Jul 24, 2012 at 02:51:05PM -0700, Hugh Dickins wrote:
+> > > > 
+> > > > I'm totally unclear whether the kernel ever gets built with these
+> > > > 'creative' compilers that you refer to.  Is ACCESS_ONCE() a warning
+> > > > of where some future compiler would be permitted to mess with our
+> > > > assumptions?  Or is it actually saving us already today?  Would we
+> > > > know?  Could there be a boottime test that would tell us?  Is it
+> > > > likely that a future compiler would have an "--access_once"
+> > > > option that the kernel build would want to turn on?
+> > > 
+> > > The problem is that, unless you tell it otherwise, the compiler is
+> > > permitted to assume that the code that it is generating is the only thing
+> > > active in that address space at that time.  So the compiler might know
+> > > that it already has a perfectly good copy of that value somewhere in
+> > > its registers, or it might decide to fetch the value twice rather than
+> > > once due to register pressure, either of which can be fatal in SMP code.
+> > > And then there are more aggressive optimizations as well.
+> > > 
+> > > ACCESS_ONCE() is a way of telling the compiler to access the value
+> > > once, regardless of what cute single-threaded optimizations that it
+> > > otherwise might want to apply.
+> > 
+> > Right, but you say "might": I have never heard it asserted, that we do
+> > build the kernel with a compiler which actually makes such optimizations.
 > 
-> This is done in this patch by calling memcg_kmem_get_cache in the
-> beginning of every allocation function. This routing is patched out by
-> static branches when kernel memory controller is not being used.
-> 
-> It assumes that the task allocating, which determines the memcg in the
-> page allocator, belongs to the same cgroup throughout the whole process.
-> Misacounting can happen if the task calls memcg_kmem_get_cache() while
-> belonging to a cgroup, and later on changes. This is considered
-> acceptable, and should only happen upon task migration.
-> 
-> Before the cache is created by the memcg core, there is also a possible
-> imbalance: the task belongs to a memcg, but the cache being allocated
-> from is the global cache, since the child cache is not yet guaranteed to
-> be ready. This case is also fine, since in this case the GFP_KMEMCG will
-> not be passed and the page allocator will not attempt any cgroup
-> accounting.
-> 
-> Signed-off-by: Glauber Costa <glommer@parallels.com>
-> CC: Christoph Lameter <cl@linux.com>
-> CC: Pekka Enberg <penberg@cs.helsinki.fi>
-> CC: Michal Hocko <mhocko@suse.cz>
-> CC: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> CC: Johannes Weiner <hannes@cmpxchg.org>
-> CC: Suleiman Souhlal <suleiman@google.com>
-> ---
->  include/linux/memcontrol.h |   38 ++++++++
->  init/Kconfig               |    2 +-
->  mm/memcontrol.c            |  221 +++++++++++++++++++++++++++++++++++++++++++-
->  3 files changed, 259 insertions(+), 2 deletions(-)
-> 
-> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-> index d9229a3..bd1f34b 100644
-> --- a/include/linux/memcontrol.h
-> +++ b/include/linux/memcontrol.h
-> @@ -423,6 +423,8 @@ int memcg_css_id(struct mem_cgroup *memcg);
->  void memcg_register_cache(struct mem_cgroup *memcg,
->  				      struct kmem_cache *s);
->  void memcg_release_cache(struct kmem_cache *cachep);
-> +struct kmem_cache *
-> +__memcg_kmem_get_cache(struct kmem_cache *cachep, gfp_t gfp);
->  #else
->  static inline void memcg_register_cache(struct mem_cgroup *memcg,
->  					     struct kmem_cache *s)
-> @@ -456,6 +458,12 @@ __memcg_kmem_commit_page(struct page *page, struct mem_cgroup *handle,
->  			      int order)
->  {
->  }
-> +
-> +static inline struct kmem_cache *
-> +__memcg_kmem_get_cache(struct kmem_cache *cachep, gfp_t gfp)
-> +{
-> +	return cachep;
-> +}
->  #endif /* CONFIG_MEMCG_KMEM */
->  
->  /**
-> @@ -515,5 +523,35 @@ void memcg_kmem_commit_page(struct page *page, struct mem_cgroup *handle,
->  	if (memcg_kmem_on)
->  		__memcg_kmem_commit_page(page, handle, order);
->  }
-> +
-> +/**
-> + * memcg_kmem_get_kmem_cache: selects the correct per-memcg cache for allocation
-> + * @cachep: the original global kmem cache
-> + * @gfp: allocation flags.
-> + *
-> + * This function assumes that the task allocating, which determines the memcg
-> + * in the page allocator, belongs to the same cgroup throughout the whole
-> + * process.  Misacounting can happen if the task calls memcg_kmem_get_cache()
-> + * while belonging to a cgroup, and later on changes. This is considered
-> + * acceptable, and should only happen upon task migration.
-> + *
-> + * Before the cache is created by the memcg core, there is also a possible
-> + * imbalance: the task belongs to a memcg, but the cache being allocated from
-> + * is the global cache, since the child cache is not yet guaranteed to be
-> + * ready. This case is also fine, since in this case the GFP_KMEMCG will not be
-> + * passed and the page allocator will not attempt any cgroup accounting.
-> + */
-> +static __always_inline struct kmem_cache *
-> +memcg_kmem_get_cache(struct kmem_cache *cachep, gfp_t gfp)
-> +{
-> +	if (!memcg_kmem_on)
-> +		return cachep;
-> +	if (gfp & __GFP_NOFAIL)
-> +		return cachep;
-> +	if (in_interrupt() || (!current->mm) || (current->flags & PF_KTHREAD))
-> +		return cachep;
-> +
-> +	return __memcg_kmem_get_cache(cachep, gfp);
-> +}
->  #endif /* _LINUX_MEMCONTROL_H */
->  
-> diff --git a/init/Kconfig b/init/Kconfig
-> index 547bd10..610cfd3 100644
-> --- a/init/Kconfig
-> +++ b/init/Kconfig
-> @@ -741,7 +741,7 @@ config MEMCG_SWAP_ENABLED
->  	  then swapaccount=0 does the trick).
->  config MEMCG_KMEM
->  	bool "Memory Resource Controller Kernel Memory accounting (EXPERIMENTAL)"
-> -	depends on MEMCG && EXPERIMENTAL
-> +	depends on MEMCG && EXPERIMENTAL && !SLOB
->  	default n
->  	help
->  	  The Kernel Memory extension for Memory Resource Controller can limit
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 88bb826..8d012c7 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -14,6 +14,10 @@
->   * Copyright (C) 2012 Parallels Inc. and Google Inc.
->   * Authors: Glauber Costa and Suleiman Souhlal
->   *
-> + * Kernel Memory Controller
-> + * Copyright (C) 2012 Parallels Inc. and Google Inc.
-> + * Authors: Glauber Costa and Suleiman Souhlal
-> + *
->   * This program is free software; you can redistribute it and/or modify
->   * it under the terms of the GNU General Public License as published by
->   * the Free Software Foundation; either version 2 of the License, or
-> @@ -339,6 +343,11 @@ struct mem_cgroup {
->  #ifdef CONFIG_INET
->  	struct tcp_memcontrol tcp_mem;
->  #endif
-> +
-> +#ifdef CONFIG_MEMCG_KMEM
-> +	/* Slab accounting */
-> +	struct kmem_cache *slabs[MAX_KMEM_CACHE_TYPES];
-> +#endif
->  };
->  
->  enum {
-> @@ -532,6 +541,40 @@ static inline bool memcg_kmem_enabled(struct mem_cgroup *memcg)
->  		memcg->kmem_accounted;
->  }
->  
-> +static char *memcg_cache_name(struct mem_cgroup *memcg, struct kmem_cache *cachep)
-> +{
-> +	char *name;
-> +	struct dentry *dentry;
-> +
-> +	rcu_read_lock();
-> +	dentry = rcu_dereference(memcg->css.cgroup->dentry);
-> +	rcu_read_unlock();
-> +
-> +	BUG_ON(dentry == NULL);
-> +
-> +	name = kasprintf(GFP_KERNEL, "%s(%d:%s)",
-> +	    cachep->name, css_id(&memcg->css), dentry->d_name.name);
-> +
-> +	return name;
-> +}
-> +
-> +static struct kmem_cache *kmem_cache_dup(struct mem_cgroup *memcg,
-> +					 struct kmem_cache *s)
-> +{
-> +	char *name;
-> +	struct kmem_cache *new;
-> +
-> +	name = memcg_cache_name(memcg, s);
-> +	if (!name)
-> +		return NULL;
-> +
-> +	new = kmem_cache_create_memcg(memcg, name, s->object_size, s->align,
-> +				      (s->flags & ~SLAB_PANIC), s->ctor);
-> +
-> +	kfree(name);
-> +	return new;
-> +}
-> +
->  struct ida cache_types;
->  
->  void memcg_register_cache(struct mem_cgroup *memcg, struct kmem_cache *cachep)
-> @@ -656,6 +699,14 @@ void __memcg_kmem_free_page(struct page *page, int order)
->  }
->  EXPORT_SYMBOL(__memcg_kmem_free_page);
->  
-> +static void memcg_slab_init(struct mem_cgroup *memcg)
-> +{
-> +	int i;
-> +
-> +	for (i = 0; i < MAX_KMEM_CACHE_TYPES; i++)
-> +		memcg->slabs[i] = NULL;
-> +}
+> The compiler we use today can and has hurt us with double-fetching
+> and old-value-reuse optimizations.  There have been several that have
+> "optimized" things like "while (foo)" into "tmp = foo; while (tmp)"
+> in the Linux kernel, which have been dealt with by recoding.
 
-It seems redundant. mem_cgroup_alloc() uses kzalloc()/vzalloc() to
-allocate struct mem_cgroup.
+Ah yes, those: I think we need ACCESS_EVERY_TIME() for those ones ;)
 
--- 
- Kirill A. Shutemov
+I consider the double-fetching ones more insidious,
+less obviously in need of the volatile cast.
+
+> 
+> You might argue that the compiler cannot reasonably apply such an
+> optimization in some given case, but the compiler does much more detailed
+> analysis of the code than most people are willing to do (certainly more
+> than I am usually willing to do!), so I believe that a little paranoia is
+> quite worthwhile.
+> 
+> > There's a lot of other surprising things which a compiler is permitted
+> > to do, but we would simply not use such a compiler to build the kernel.
+> 
+> Unless we get the gcc folks to build and boot the Linux kernel as part
+> of their test suite (maybe they already do, but not that I know of),
+> how would either they or we know that they had deployed a destructive
+> optimization?
+
+We find out after it hits us, and someone studies the disassembly -
+if we're lucky enough to crash near the origin of the problem.
+
+> 
+> > Does some version of gcc, under the options which we insist upon,
+> > make such optimizations on any of the architectures which we support?
+> 
+> Pretty much any production-quality compiler will do double-fetch
+> and old-value-reuse optimizations, the former especially on 32-bit
+> x86.
+
+That makes good sense, yes: so, under register pressure, they may
+refetch from global memory, instead of using a temporary on local stack.
+
+> I don't know of any production-quality compilers that do value
+> speculation, which would make the compiler act like DEC Alpha hardware,
+> and I would hope that if this does appear, (1) we would have warning
+> and (2) it could be turned off.  But there has been a lot of work on
+> this topic, so we would be foolish to rule it out.
+
+I think you're justified in expecting both (1) and (2) there.
+
+> 
+> But the currently deployed optimizations can already cause enough trouble.
+> 
+> > Or is there some other compiler in use on the kernel, which makes
+> > such optimizations?  It seems a long time since I heard of building
+> > the kernel with icc.  clang?
+> > 
+> > I don't mind the answer "Yes, you idiot" - preferably with an example
+> > or two of which compiler and which piece of code it has bitten us on.
+> > I don't mind the answer "We just don't know" if that's the case.
+> > 
+> > But I'd like a better idea of how much to worry: is ACCESS_ONCE
+> > demonstrably needed today, or rather future-proofing and documentation?
+> 
+> Both.  If you are coding "while (foo)" where "foo" can be changed by an
+> interrupt handler, you had better instead write "while (ACCESS_ONCE(foo))"
+> or something similar, because most compilers are happy to optimize your
+> loop into an infinite loop in that case.  There are places in the Linux
+> kernel that would have problems if the compiler decided to refetch a
+> value -- if a pointer was changed in the meantime, part of your code
+> might be working on the old structure, and part on the new structure.
+> This really can happen today, and this is why rcu_dereference() contains
+> an ACCESS_ONCE().
+> 
+> If you are making lockless non-atomic access to a variable, I strongly
+> suggest ACCESS_ONCE() or something similar even if you cannot see how
+> the compiler can mess you up, especially in cases involving a lot of
+> inline functions.  In this case, the compiler can be looking at quite
+> a bit of code and optimizing across the entire mess.
+
+Thank you for your fuller reply, Paul: I should be able to hold that
+i386 register pressure example in mind in future (not, of course,
+that it would be limited to i386 at all).
+
+> 
+> /me wonders what he stepped into with this email thread.  ;-)
+> 
+> 							Thanx, Paul
+
+Come on, it wasn't that painful, was it?
+Just a quick extraction of info ;-)
+
+Thanks,
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
