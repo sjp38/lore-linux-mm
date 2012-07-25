@@ -1,32 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
-	by kanga.kvack.org (Postfix) with SMTP id 03A2C6B0081
-	for <linux-mm@kvack.org>; Wed, 25 Jul 2012 14:33:21 -0400 (EDT)
-Date: Wed, 25 Jul 2012 13:33:16 -0500 (CDT)
+Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
+	by kanga.kvack.org (Postfix) with SMTP id 043AC6B0068
+	for <linux-mm@kvack.org>; Wed, 25 Jul 2012 14:51:06 -0400 (EDT)
+Date: Wed, 25 Jul 2012 13:51:01 -0500 (CDT)
 From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH 05/10] slab: allow enable_cpu_cache to use preset values
- for its tunables
-In-Reply-To: <501039F9.7040309@parallels.com>
-Message-ID: <alpine.DEB.2.00.1207251331480.4995@router.home>
-References: <1343227101-14217-1-git-send-email-glommer@parallels.com> <1343227101-14217-6-git-send-email-glommer@parallels.com> <alpine.DEB.2.00.1207251204450.3543@router.home> <501039F9.7040309@parallels.com>
+Subject: Re: [PATCH, RFC 0/6] Avoid cache trashing on clearing huge/gigantic
+ page
+In-Reply-To: <1342788622-10290-1-git-send-email-kirill.shutemov@linux.intel.com>
+Message-ID: <alpine.DEB.2.00.1207251346250.4995@router.home>
+References: <1342788622-10290-1-git-send-email-kirill.shutemov@linux.intel.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, Greg Thelen <gthelen@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Frederic Weisbecker <fweisbec@gmail.com>, devel@openvz.org, cgroups@vger.kernel.org, Pekka Enberg <penberg@cs.helsinki.fi>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Suleiman Souhlal <suleiman@google.com>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, Andi Kleen <ak@linux.intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, Alex Shi <alex.shu@intel.com>, Jan Beulich <jbeulich@novell.com>, Robert Richter <robert.richter@amd.com>, Andy Lutomirski <luto@amacapital.net>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, linux-kernel@vger.kernel.org
 
-On Wed, 25 Jul 2012, Glauber Costa wrote:
+On Fri, 20 Jul 2012, Kirill A. Shutemov wrote:
 
-> It is certainly not through does the same method as SLAB, right ?
-> Writing to /proc/slabinfo gives me an I/O error
-> I assume it is something through sysfs, but schiming through the code
-> now, I can't find any per-cache tunables. Would you mind pointing me to
-> them?
+> From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+>
+> Clearing a 2MB huge page will typically blow away several levels of CPU
+> caches.  To avoid this only cache clear the 4K area around the fault
+> address and use a cache avoiding clears for the rest of the 2MB area.
 
-The slab attributes in /sys/kernel/slab/<slabname>/<attr> can be modified
-for some values. I think that could be the default method for the future
-since it allows easy addition of new tunables as needed.
+why exempt the 4K around the fault address? Is there a regression if that
+is not exempted?
+
+I guess for anonymous huge pages one may assume that there will be at
+least one write to one cache line in the 4k page. Is it useful to get all
+the cachelines in the page in the cache.
+
+Also note that if we get later into hugepage use for the page cache we
+would want the cache to be cold because the contents have to come in from
+a storage medium.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
