@@ -1,57 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
-	by kanga.kvack.org (Postfix) with SMTP id 5DE686B004D
-	for <linux-mm@kvack.org>; Wed, 25 Jul 2012 11:28:35 -0400 (EDT)
-Date: Wed, 25 Jul 2012 10:28:31 -0500 (CDT)
+Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
+	by kanga.kvack.org (Postfix) with SMTP id 745946B004D
+	for <linux-mm@kvack.org>; Wed, 25 Jul 2012 11:31:56 -0400 (EDT)
+Date: Wed, 25 Jul 2012 10:31:51 -0500 (CDT)
 From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH TRIVIAL] mm: Fix build warning in kmem_cache_create()
-In-Reply-To: <500CF782.4060407@parallels.com>
-Message-ID: <alpine.DEB.2.00.1207251024260.32678@router.home>
-References: <1342221125.17464.8.camel@lorien2> <alpine.DEB.2.00.1207140216040.20297@chino.kir.corp.google.com> <CAOJsxLE3dDd01WaAp5UAHRb0AiXn_s43M=Gg4TgXzRji_HffEQ@mail.gmail.com> <1342407840.3190.5.camel@lorien2> <alpine.DEB.2.00.1207160257420.11472@chino.kir.corp.google.com>
- <alpine.DEB.2.00.1207160915470.28952@router.home> <alpine.DEB.2.00.1207161253240.29012@chino.kir.corp.google.com> <alpine.DEB.2.00.1207161506390.32319@router.home> <alpine.DEB.2.00.1207161642420.18232@chino.kir.corp.google.com> <alpine.DEB.2.00.1207170929290.13599@router.home>
- <CAOJsxLECr7yj9cMs4oUJQjkjZe9x-6mvk76ArGsQzRWBi8_wVw@mail.gmail.com> <alpine.DEB.2.00.1207171005550.15061@router.home> <500CF782.4060407@parallels.com>
+Subject: Re: [RFC PATCH v2] SLUB: enhance slub to handle memory nodes without
+ normal memory
+In-Reply-To: <500ED4B5.4010104@gmail.com>
+Message-ID: <alpine.DEB.2.00.1207251029190.32678@router.home>
+References: <alpine.DEB.2.00.1207181349370.22907@router.home> <1343123710-4972-1-git-send-email-jiang.liu@huawei.com> <alpine.DEB.2.00.1207240931560.29808@router.home> <500ED4B5.4010104@gmail.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Shuah Khan <shuah.khan@hp.com>, js1304@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, shuahkhan@gmail.com
+To: Jiang Liu <liuj97@gmail.com>
+Cc: Jiang Liu <jiang.liu@huawei.com>, WuJianguo <wujianguo@huawei.com>, Tony Luck <tony.luck@intel.com>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Mel Gorman <mgorman@suse.de>, Yinghai Lu <yinghai@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, Minchan Kim <minchan@kernel.org>, Keping Chen <chenkeping@huawei.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, 23 Jul 2012, Glauber Costa wrote:
+On Wed, 25 Jul 2012, Jiang Liu wrote:
 
-> >> worth including unconditionally. Furthermore, the size related checks
-> >> certainly make sense and I don't see any harm in having them as well.
+> > There is already a N_NORMAL_MEMORY node map that contains a list of node
+> > that have *normal* memory usable by slab allocators etc. I think the
+> > cleanest solution would be to clear the corresponding node bits for your
+> > special movable only zones. Then you wont be needing to modify other
+> > subsystems anymore.
 > >
-> > There is a WARN_ON() there and then it returns NULL!!! Crazy. Causes a
-> > NULL pointer dereference later in the caller?
-> >
->
-> It obviously depends on the caller.
+> Hi Chris,
+> 	Thanks for your comments! I have thought about the solution mentioned,
+> but seems it doesn't work. We have node masks for both N_NORMAL_MEMORY and
+> N_HIGH_MEMORY to distinguish between normal and highmem on platforms such as x86.
+> But we still don't have such a mechanism to distinguish between "normal" and "movable"
+> memory. So for memory nodes with only movable zones, we still set N_NORMAL_MEMORY for
+> them. One possible solution is to add a node mask for "N_NORMAL_OR_MOVABLE_MEMORY",
+> but haven't tried that yet. Will have a try for that.
 
-This is a violation of the calling convention to say the least. This means
-if you have SLAB_PANIC set and accidentally set the name to NULL the
-function will return despite the error and not panic!
-
-> Although most of the calls to kmem_cache_create are made from static
-> data, we can't assume that. Of course whoever is using static data
-> should do those very same tests from the outside to be safe, but in case
-> they do not, this seems to fall in the category of things that make
-> debugging easier - even if we later on get to a NULL pointer dereference.
->
-> Your mentioned bias towards minimum code size, however, is totally
-> valid, IMHO. But I doubt those checks would introduce a huge footprint.
-> I would imagine you being much more concerned about being able to wipe
-> out entire subsystems like memcg, which will give you a lot more.
-
-They are useless checks since any use of the name will also cause a NULL
-pointer dereference. Same is true for interrupt checks. Checks like that
-indicate a deterioration of the code base. People are afraid that
-something goes wrong because they no longer understand the code so they
-build a embroidery around it instead of relying on the already existing
-checks at vital places. The embroidery can be useful for debugging thats
-why I left it in for the CONFIG_DEBUG_VM but certainly should not be
-included in production kernels.
-
+Hmmm... Maybe add another N_LRU_MEMORY bitmask and replace those
+N_NORMAL_MEMORY uses with N_LRU_MEMORY as needed? Use N_NORMAL_MEMORY for
+subsystems that need to do regular (non LRU) allocations that are not
+movable?
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
