@@ -1,40 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
-	by kanga.kvack.org (Postfix) with SMTP id 043AC6B0068
-	for <linux-mm@kvack.org>; Wed, 25 Jul 2012 14:51:06 -0400 (EDT)
-Date: Wed, 25 Jul 2012 13:51:01 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH, RFC 0/6] Avoid cache trashing on clearing huge/gigantic
- page
-In-Reply-To: <1342788622-10290-1-git-send-email-kirill.shutemov@linux.intel.com>
-Message-ID: <alpine.DEB.2.00.1207251346250.4995@router.home>
-References: <1342788622-10290-1-git-send-email-kirill.shutemov@linux.intel.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
+	by kanga.kvack.org (Postfix) with SMTP id 1DC836B004D
+	for <linux-mm@kvack.org>; Wed, 25 Jul 2012 14:53:16 -0400 (EDT)
+Date: Wed, 25 Jul 2012 14:51:19 -0400
+From: Rik van Riel <riel@redhat.com>
+Subject: [PATCH -mm] remove __GFP_NO_KSWAPD fixes
+Message-ID: <20120725145119.75be021d@cuia.bos.redhat.com>
+In-Reply-To: <20120724111222.2c5e6b30@annuminas.surriel.com>
+References: <20120724111222.2c5e6b30@annuminas.surriel.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, Andi Kleen <ak@linux.intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, Alex Shi <alex.shu@intel.com>, Jan Beulich <jbeulich@novell.com>, Robert Richter <robert.richter@amd.com>, Andy Lutomirski <luto@amacapital.net>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org
+Cc: Andrea Arcangeli <aarcange@redhat.com>, lkml <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Artem Bityutskiy <artem.bityutskiy@linux.intel.com>, David Woodhouse <David.Woodhouse@intel.com>, Minchan Kim <minchan.kim@gmail.com>
 
-On Fri, 20 Jul 2012, Kirill A. Shutemov wrote:
+Turns out I missed two spots where __GFP_NO_KSWAPD is used.
 
-> From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
->
-> Clearing a 2MB huge page will typically blow away several levels of CPU
-> caches.  To avoid this only cache clear the 4K area around the fault
-> address and use a cache avoiding clears for the rest of the 2MB area.
+The removal from the trace code is obvious, since the flag
+got removed there is no need to print it.
 
-why exempt the 4K around the fault address? Is there a regression if that
-is not exempted?
+For mtdcore.c, now that memory compaction has been fixed,
+we should no longer see large swap storms from an attempt
+to allocate a large buffer, removing the need to specify
+__GFP_NO_KSWAPD.
 
-I guess for anonymous huge pages one may assume that there will be at
-least one write to one cache line in the 4k page. Is it useful to get all
-the cachelines in the page in the cache.
+Signed-off-by: Rik van Riel <riel@redhat.com>
+---
+ drivers/mtd/mtdcore.c           |    3 +--
+ include/trace/events/gfpflags.h |    1 -
+ 2 files changed, 1 insertions(+), 3 deletions(-)
 
-Also note that if we get later into hugepage use for the page cache we
-would want the cache to be cold because the contents have to come in from
-a storage medium.
-
+diff --git a/drivers/mtd/mtdcore.c b/drivers/mtd/mtdcore.c
+index 9a9ce71..af1e932 100644
+--- a/drivers/mtd/mtdcore.c
++++ b/drivers/mtd/mtdcore.c
+@@ -761,8 +761,7 @@ EXPORT_SYMBOL_GPL(mtd_writev);
+  */
+ void *mtd_kmalloc_up_to(const struct mtd_info *mtd, size_t *size)
+ {
+-	gfp_t flags = __GFP_NOWARN | __GFP_WAIT |
+-		       __GFP_NORETRY | __GFP_NO_KSWAPD;
++	gfp_t flags = __GFP_NOWARN | __GFP_WAIT | __GFP_NORETRY;
+ 	size_t min_alloc = max_t(size_t, mtd->writesize, PAGE_SIZE);
+ 	void *kbuf;
+ 
+diff --git a/include/trace/events/gfpflags.h b/include/trace/events/gfpflags.h
+index 9fe3a36..8ffc050 100644
+--- a/include/trace/events/gfpflags.h
++++ b/include/trace/events/gfpflags.h
+@@ -35,7 +35,6 @@
+ 	{(unsigned long)__GFP_RECLAIMABLE,	"GFP_RECLAIMABLE"},	\
+ 	{(unsigned long)__GFP_MOVABLE,		"GFP_MOVABLE"},		\
+ 	{(unsigned long)__GFP_NOTRACK,		"GFP_NOTRACK"},		\
+-	{(unsigned long)__GFP_NO_KSWAPD,	"GFP_NO_KSWAPD"},	\
+ 	{(unsigned long)__GFP_OTHER_NODE,	"GFP_OTHER_NODE"}	\
+ 	) : "GFP_NOWAIT"
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
