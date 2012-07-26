@@ -1,109 +1,163 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
-	by kanga.kvack.org (Postfix) with SMTP id E516F6B0044
-	for <linux-mm@kvack.org>; Thu, 26 Jul 2012 17:03:52 -0400 (EDT)
-Message-ID: <5011B0B3.7040501@redhat.com>
-Date: Thu, 26 Jul 2012 17:03:47 -0400
-From: Larry Woodman <lwoodman@redhat.com>
-Reply-To: lwoodman@redhat.com
-MIME-Version: 1.0
-Subject: Re: [PATCH -alternative] mm: hugetlbfs: Close race during teardown
- of hugetlbfs shared page tables V2 (resend)
-References: <20120720134937.GG9222@suse.de> <20120720141108.GH9222@suse.de> <20120720143635.GE12434@tiehlicka.suse.cz> <20120720145121.GJ9222@suse.de> <alpine.LSU.2.00.1207222033030.6810@eggly.anvils> <50118E7F.8000609@redhat.com>
-In-Reply-To: <50118E7F.8000609@redhat.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
+	by kanga.kvack.org (Postfix) with SMTP id C71A96B0044
+	for <linux-mm@kvack.org>; Thu, 26 Jul 2012 17:42:03 -0400 (EDT)
+Subject: [PATCH] list corruption by gather_surplus
+Message-Id: <E1SuVpz-00028P-QG@eag09.americas.sgi.com>
+From: Cliff Wickman <cpw@sgi.com>
+Date: Thu, 26 Jul 2012 16:43:15 -0500
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, Linux-MM <linux-mm@kvack.org>, David Gibson <david@gibson.dropbear.id.au>, Ken Chen <kenchen@google.com>, Cong Wang <xiyou.wangcong@gmail.com>, LKML <linux-kernel@vger.kernel.org>
+To: cmetcalf@tilera.com, dave@linux.vnet.ibm.com, dhillf@gmail.com, dwg@au1.ibm.com, kamezawa.hiroyuki@gmail.com, khlebnikov@openvz.org, lee.schermerhorn@hp.com, mgorman@suse.de, mhocko@suse.cz, shhuiw@gmail.com, viro@zeniv.linux.org.uk
+Cc: linux-mm@kvack.org
 
-On 07/26/2012 02:37 PM, Rik van Riel wrote:
-> On 07/23/2012 12:04 AM, Hugh Dickins wrote:
->
->> I spent hours trying to dream up a better patch, trying various
->> approaches.  I think I have a nice one now, what do you think?  And
->> more importantly, does it work?  I have not tried to test it at all,
->> that I'm hoping to leave to you, I'm sure you'll attack it with gusto!
->>
->> If you like it, please take it over and add your comments and signoff
->> and send it in.  The second part won't come up in your testing, and 
->> could
->> be made a separate patch if you prefer: it's a related point that struck
->> me while I was playing with a different approach.
->>
->> I'm sorely tempted to leave a dangerous pair of eyes off the Cc,
->> but that too would be unfair.
->>
->> Subject-to-your-testing-
->> Signed-off-by: Hugh Dickins <hughd@google.com>
->
-> This patch looks good to me.
->
-> Larry, does Hugh's patch survive your testing?
->
->
-It doesnt.  However its got a slightly different footprint because this 
-is RHEL6 and
-there have been changes to the hugetlbfs_inode code.  Also, we are 
-seeing the
-problem via group_exit() rather than shmdt().  Also, I print out the 
-actual _mapcount
-at the BUG and most of the time its 1 but have seen it as high as 6.
+From: Cliff Wickman <cpw@sgi.com>
+
+Gentlemen,
+I see that you all have done maintenance on mm/hugetlb.c, so I'm hoping one
+or two of you could comment on a problem and proposed fix.
 
 
+I am seeing list corruption occurring from within gather_surplus_pages()
+(mm/hugetlb.c).  The problem occurs under a heavy load, and seems to be
+because this function drops the hugetlb_lock.
 
-dell-per620-01.lab.bos.redhat.com login: MAPCOUNT = 2
-------------[ cut here ]------------
-kernel BUG at mm/filemap.c:131!
-invalid opcode: 0000 [#1] SMP
-last sysfs file: /sys/devices/system/cpu/cpu23/cache/index2/shared_cpu_map
-CPU 8
-Modules linked in: autofs4 sunrpc ipv6 acpi_pad power_meter dcdbas 
-microcode sb_edac edac_core iTCO_wdt i]
+I have CONFIG_DEBUG_LIST=y, and am running an MPI application with 64 threads
+and a library that creates a large heap of hugetlbfs pages for it.
 
-Pid: 3106, comm: mpitest Not tainted 2.6.32-289.el6.sharedpte.x86_64 #17 
-Dell Inc. PowerEdge R620/07NDJ2
-RIP: 0010:[<ffffffff81114a42>]  [<ffffffff81114a42>] 
-__remove_from_page_cache+0xe2/0x100
-RSP: 0018:ffff880434897b78  EFLAGS: 00010002
-RAX: 0000000000000001 RBX: ffffea00074ec000 RCX: 00000000000010f6
-RDX: 0000000000000000 RSI: 0000000000000046 RDI: 0000000000000046
-RBP: ffff880434897b88 R08: ffffffff81c01a00 R09: 0000000000000000
-R10: 0000000000000000 R11: 0000000000000004 R12: ffff880432683d98
-R13: ffff880432683db0 R14: 0000000000000000 R15: ffffea00074ec000
-FS:  0000000000000000(0000) GS:ffff880028280000(0000) knlGS:0000000000000000
-CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-CR2: 0000003a1d38c4a8 CR3: 0000000001a85000 CR4: 00000000000406e0
-DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
-DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
-Process mpitest (pid: 3106, threadinfo ffff880434896000, task 
-ffff880431abb500)
-Stack:
-  ffffea00074ec000 0000000000000000 ffff880434897bb8 ffffffff81114ab4
-<d> ffff880434897bb8 00000000000002ab 00000000000002a0 ffff880434897c08
-<d> ffff880434897cb8 ffffffff811f758d ffff880000022dd8 0000000000000000
-Call Trace:
-  [<ffffffff81114ab4>] remove_from_page_cache+0x54/0x90
-  [<ffffffff811f758d>] truncate_hugepages+0x11d/0x200
-  [<ffffffff811f7670>] ? hugetlbfs_delete_inode+0x0/0x30
-  [<ffffffff811f7688>] hugetlbfs_delete_inode+0x18/0x30
-  [<ffffffff8119618e>] generic_delete_inode+0xde/0x1d0
-  [<ffffffff811f76fd>] hugetlbfs_drop_inode+0x5d/0x70
-  [<ffffffff81195132>] iput+0x62/0x70
-  [<ffffffff81191c90>] dentry_iput+0x90/0x100
-  [<ffffffff81191df1>] d_kill+0x31/0x60
-  [<ffffffff8119381c>] dput+0x7c/0x150
-  [<ffffffff8117c979>] __fput+0x189/0x210
-  [<ffffffff8117ca25>] fput+0x25/0x30
-  [<ffffffff8117844d>] filp_close+0x5d/0x90
-  [<ffffffff8106e45f>] put_files_struct+0x7f/0xf0
-  [<ffffffff8106e523>] exit_files+0x53/0x70
-  [<ffffffff8107059d>] do_exit+0x18d/0x870
-  [<ffffffff810d6cc2>] ? audit_syscall_entry+0x272/0x2a0
-  [<ffffffff81070cd8>] do_group_exit+0x58/0xd0
-  [<ffffffff81070d67>] sys_exit_group+0x17/0x20
-  [<ffffffff8100b0f2>] system_call_fastpath+0x16/0x1b
+The below patch fixes the problem.
+The gist of this patch is that gather_surplus_pages() does not have to drop
+the lock if alloc_buddy_huge_page() is told whether the lock is already held.
+
+But I may be missing some reason why gather_surplus_pages() is unlocking and
+locking the hugetlb_lock several times (besides around the allocator).
+
+Could you take a look and advise?
+
+Signed-off-by: Cliff Wickman <cpw@sgi.com>
+---
+ mm/hugetlb.c |   28 +++++++++++++++++-----------
+ 1 file changed, 17 insertions(+), 11 deletions(-)
+
+Index: linux/mm/hugetlb.c
+===================================================================
+--- linux.orig/mm/hugetlb.c
++++ linux/mm/hugetlb.c
+@@ -747,7 +747,9 @@ static int free_pool_huge_page(struct hs
+ 	return ret;
+ }
+ 
+-static struct page *alloc_buddy_huge_page(struct hstate *h, int nid)
++/* already_locked means the caller has already locked hugetlb_lock */
++static struct page *alloc_buddy_huge_page(struct hstate *h, int nid,
++						int already_locked)
+ {
+ 	struct page *page;
+ 	unsigned int r_nid;
+@@ -778,7 +780,8 @@ static struct page *alloc_buddy_huge_pag
+ 	 * the node values until we've gotten the hugepage and only the
+ 	 * per-node value is checked there.
+ 	 */
+-	spin_lock(&hugetlb_lock);
++	if (!already_locked)
++		spin_lock(&hugetlb_lock);
+ 	if (h->surplus_huge_pages >= h->nr_overcommit_huge_pages) {
+ 		spin_unlock(&hugetlb_lock);
+ 		return NULL;
+@@ -787,6 +790,7 @@ static struct page *alloc_buddy_huge_pag
+ 		h->surplus_huge_pages++;
+ 	}
+ 	spin_unlock(&hugetlb_lock);
++	/* page allocation may sleep, so the lock must be unlocked */
+ 
+ 	if (nid == NUMA_NO_NODE)
+ 		page = alloc_pages(htlb_alloc_mask|__GFP_COMP|
+@@ -799,6 +803,9 @@ static struct page *alloc_buddy_huge_pag
+ 
+ 	if (page && arch_prepare_hugepage(page)) {
+ 		__free_pages(page, huge_page_order(h));
++		if (already_locked)
++			/* leave it like it was */
++			spin_lock(&hugetlb_lock);
+ 		return NULL;
+ 	}
+ 
+@@ -817,7 +824,9 @@ static struct page *alloc_buddy_huge_pag
+ 		h->surplus_huge_pages--;
+ 		__count_vm_event(HTLB_BUDDY_PGALLOC_FAIL);
+ 	}
+-	spin_unlock(&hugetlb_lock);
++	if (!already_locked)
++		/* leave it like it was */
++		spin_unlock(&hugetlb_lock);
+ 
+ 	return page;
+ }
+@@ -836,7 +845,7 @@ struct page *alloc_huge_page_node(struct
+ 	spin_unlock(&hugetlb_lock);
+ 
+ 	if (!page)
+-		page = alloc_buddy_huge_page(h, nid);
++		page = alloc_buddy_huge_page(h, nid, 0);
+ 
+ 	return page;
+ }
+@@ -844,6 +853,7 @@ struct page *alloc_huge_page_node(struct
+ /*
+  * Increase the hugetlb pool such that it can accomodate a reservation
+  * of size 'delta'.
++ * This is entered and exited with hugetlb_lock locked.
+  */
+ static int gather_surplus_pages(struct hstate *h, int delta)
+ {
+@@ -863,9 +873,8 @@ static int gather_surplus_pages(struct h
+ 
+ 	ret = -ENOMEM;
+ retry:
+-	spin_unlock(&hugetlb_lock);
+ 	for (i = 0; i < needed; i++) {
+-		page = alloc_buddy_huge_page(h, NUMA_NO_NODE);
++		page = alloc_buddy_huge_page(h, NUMA_NO_NODE, 1);
+ 		if (!page)
+ 			/*
+ 			 * We were not able to allocate enough pages to
+@@ -879,10 +888,9 @@ retry:
+ 	allocated += needed;
+ 
+ 	/*
+-	 * After retaking hugetlb_lock, we need to recalculate 'needed'
++	 * With hugetlb_lock still locked, we need to recalculate 'needed'
+ 	 * because either resv_huge_pages or free_huge_pages may have changed.
+ 	 */
+-	spin_lock(&hugetlb_lock);
+ 	needed = (h->resv_huge_pages + delta) -
+ 			(h->free_huge_pages + allocated);
+ 	if (needed > 0)
+@@ -900,7 +908,6 @@ retry:
+ 	h->resv_huge_pages += delta;
+ 	ret = 0;
+ 
+-	spin_unlock(&hugetlb_lock);
+ 	/* Free the needed pages to the hugetlb pool */
+ 	list_for_each_entry_safe(page, tmp, &surplus_list, lru) {
+ 		if ((--needed) < 0)
+@@ -923,7 +930,6 @@ free:
+ 			put_page(page);
+ 		}
+ 	}
+-	spin_lock(&hugetlb_lock);
+ 
+ 	return ret;
+ }
+@@ -1043,7 +1049,7 @@ static struct page *alloc_huge_page(stru
+ 	spin_unlock(&hugetlb_lock);
+ 
+ 	if (!page) {
+-		page = alloc_buddy_huge_page(h, NUMA_NO_NODE);
++		page = alloc_buddy_huge_page(h, NUMA_NO_NODE, 0);
+ 		if (!page) {
+ 			hugetlb_put_quota(inode->i_mapping, chg);
+ 			return ERR_PTR(-VM_FAULT_SIGBUS);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
