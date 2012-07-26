@@ -1,41 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
-	by kanga.kvack.org (Postfix) with SMTP id 995F36B004D
-	for <linux-mm@kvack.org>; Thu, 26 Jul 2012 01:21:32 -0400 (EDT)
-Received: by pbbrp2 with SMTP id rp2so2954670pbb.14
-        for <linux-mm@kvack.org>; Wed, 25 Jul 2012 22:21:31 -0700 (PDT)
-Date: Thu, 26 Jul 2012 13:22:40 +0800
-From: majianpeng <majianpeng@gmail.com>
-Subject: Re: Re: [RFC] block_dev:Fix bug when read/write block-device which is larger than 16TB in 32bit-OS.
-References: <201205291656322966937@gmail.com> <201207242044249532601@gmail.com>,
-	<20120724134838.GA26102@infradead.org>
+Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
+	by kanga.kvack.org (Postfix) with SMTP id BA9EE6B004D
+	for <linux-mm@kvack.org>; Thu, 26 Jul 2012 04:11:45 -0400 (EDT)
+Message-ID: <1343290299.26034.84.camel@twins>
+Subject: Re: [RFC] page-table walkers vs memory order
+From: Peter Zijlstra <peterz@infradead.org>
+Date: Thu, 26 Jul 2012 10:11:39 +0200
+In-Reply-To: <alpine.LSU.2.00.1207251452160.2084@eggly.anvils>
+References: <1343064870.26034.23.camel@twins>
+	 <alpine.LSU.2.00.1207241356350.2094@eggly.anvils>
+	 <20120725175628.GH2378@linux.vnet.ibm.com>
+	 <alpine.LSU.2.00.1207251313180.1942@eggly.anvils>
+	 <20120725211217.GR2378@linux.vnet.ibm.com>
+	 <alpine.LSU.2.00.1207251452160.2084@eggly.anvils>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: quoted-printable
 Mime-Version: 1.0
-Message-ID: <201207261322369377080@gmail.com>
-Content-Type: text/plain;
-	charset="gb2312"
-Content-Transfer-Encoding: base64
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@infradead.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, viro <viro@ZenIV.linux.org.uk>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: Hugh Dickins <hughd@google.com>
+Cc: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Linus Torvalds <torvalds@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Nick Piggin <npiggin@kernel.dk>, Andrea Arcangeli <aarcange@redhat.com>, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org
 
-T24gMjAxMi0wNy0yNCAyMTo0OCBDaHJpc3RvcGggSGVsbHdpZyA8aGNoQGluZnJhZGVhZC5vcmc+
-IFdyb3RlOg0KPk9uIFR1ZSwgSnVsIDI0LCAyMDEyIGF0IDA4OjQ0OjI3UE0gKzA4MDAsIG1hamlh
-bnBlbmcgd3JvdGU6DQo+PiBPbiAyMDEyLTA1LTI5IDE2OjU2IG1hamlhbnBlbmcgPG1hamlhbnBl
-bmdAZ21haWwuY29tPiBXcm90ZToNCj4+ID5UaGUgc2l6ZSBvZiBibG9jay1kZXZpY2UgaXMgbGFy
-Z2VyIHRoYW4gMTZUQiwgYW5kIHRoZSBvcyBpcyAzMmJpdC4NCj4+ID5JZiB0aGUgb2Zmc2V0IG9m
-IHJlYWQvd3JpdGUgaXMgbGFyZ2VyIHRoZW4gMTZUQi4gVGhlIGluZGV4IG9mIGFkZHJlc3Nfc3Bh
-Y2Ugd2lsbA0KPj4gPm92ZXJmbG93IGFuZCBzdXBwbHkgZGF0YSBmcm9tIGxvdyBvZmZzZXQgaW5z
-dGVhZC4NCj4NCj5XZSBjYW4ndCBzdXBwb3J0ID4gMTZUQiBibG9jayBkZXZpY2Ugb24gMzItYml0
-IHN5c3RlbXMgd2l0aCA0ayBwYWdlDQo+c2l6ZSwganVzdCBsaWtlIHdlIGNhbid0IHN1cHBvcnQg
-ZmlsZXMgdGhhdCBsYXJnZS4NCj4NCj5Gb3IgZmlsZXN5c3RlbXMgdGhlIHNfbWF4Ynl0ZXMgbGlt
-aXQgb2YgTUFYX0xGU19GSUxFU0laRSB0YWtlcyBjYXJlIG9mDQo+dGhhdCwgYnV0IGl0IHNlZW1z
-IGxpa2Ugd2UgbWlzcyB0aGF0IGNoZWNrIGZvciBibG9jayBkZXZpY2VzLg0KPg0KPlRoZSBwcm9w
-ZXIgZml4IGlzIHRvIGFkZCB0aGF0IGNoZWNrIChlaXRoZXIgdmlhIHNfbWF4Ynl0ZXMgb3IgYnkN
-Cj5jaGVja2luZyBNQVhfTEZTX0ZJTEVTSVpFKSB0byBnZW5lcmljX3dyaXRlX2NoZWNrcyBhbmQN
-Cj5nZW5lcmljX2ZpbGVfYWlvX3JlYWQgKG9yIGEgYmxvY2sgZGV2aWNlIHNwZWNpZmljIHdyYXBw
-ZXIpDQo+DQpJIGhhZCBhIHByb2JsZW06d2h5IGRvIHJlYWQtb3BlcmF0aW9uICBub3QgdG8gY2hl
-Y2sgbGlrZSBnZW5lcmljX3dyaXRlX2NoZWtjcz8=
+On Wed, 2012-07-25 at 15:09 -0700, Hugh Dickins wrote:
+> We find out after it hits us, and someone studies the disassembly -
+> if we're lucky enough to crash near the origin of the problem.=20
+
+This is a rather painful way.. see
+
+  https://lkml.org/lkml/2009/1/5/555
+
+we were lucky there in that the lack of ACCESS_ONCE() caused an infinite
+loop so we knew exactly where we got stuck.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
