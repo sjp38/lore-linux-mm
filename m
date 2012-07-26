@@ -1,46 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
-	by kanga.kvack.org (Postfix) with SMTP id 9C2016B0044
-	for <linux-mm@kvack.org>; Thu, 26 Jul 2012 16:39:34 -0400 (EDT)
-Message-ID: <1343335169.32120.18.camel@twins>
-Subject: Re: [RFC] page-table walkers vs memory order
-From: Peter Zijlstra <peterz@infradead.org>
-Date: Thu, 26 Jul 2012 22:39:29 +0200
-In-Reply-To: <alpine.LSU.2.00.1207241356350.2094@eggly.anvils>
-References: <1343064870.26034.23.camel@twins>
-	 <alpine.LSU.2.00.1207241356350.2094@eggly.anvils>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: quoted-printable
-Mime-Version: 1.0
+Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
+	by kanga.kvack.org (Postfix) with SMTP id DE75F6B0044
+	for <linux-mm@kvack.org>; Thu, 26 Jul 2012 17:02:05 -0400 (EDT)
+Message-ID: <5011AFEC.2040609@redhat.com>
+Date: Thu, 26 Jul 2012 17:00:28 -0400
+From: Rik van Riel <riel@redhat.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH] mm: hugetlbfs: Close race during teardown of hugetlbfs
+ shared page tables v2
+References: <20120720134937.GG9222@suse.de>
+In-Reply-To: <20120720134937.GG9222@suse.de>
+Content-Type: text/plain; charset=ISO-8859-15; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Nick Piggin <npiggin@kernel.dk>, Andrea Arcangeli <aarcange@redhat.com>, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: Linux-MM <linux-mm@kvack.org>, Michal Hocko <mhocko@suse.cz>, Hugh Dickins <hughd@google.com>, David Gibson <david@gibson.dropbear.id.au>, Ken Chen <kenchen@google.com>, Cong Wang <xiyou.wangcong@gmail.com>, LKML <linux-kernel@vger.kernel.org>, Larry Woodman <lwoodman@redhat.com>
 
-On Tue, 2012-07-24 at 14:51 -0700, Hugh Dickins wrote:
-> I do love the status quo, but an audit would be welcome.  When
-> it comes to patches, personally I tend to prefer ACCESS_ONCE() and
-> smp_read_barrier_depends() and accompanying comments to be hidden away
-> in the underlying macros or inlines where reasonable, rather than
-> repeated all over; but I may have my priorities wrong on that.
->=20
->=20
-Yeah, I was being lazy, and I totally forgot to actually look at the
-alpha code.
+On 07/20/2012 09:49 AM, Mel Gorman wrote:
+> This V2 is still the mmap_sem approach that fixes a potential deadlock
+> problem pointed out by Michal.
 
-How about we do a generic (cribbed from rcu_dereference):
+Larry and I were looking around the hugetlb code some
+more, and found what looks like yet another race.
 
-#define page_table_deref(p)					\
-({								\
-	typeof(*p) *______p =3D (typeof(*p) __force *)ACCESS_ONCE(p);\
-	smp_read_barrier_depends();				\
-	((typeof(*p) __force __kernel *)(______p));		\
-})
+In hugetlb_no_page, we have the following code:
 
-and use that all over to dereference page-tables. That way all this
-lives in one place. Granted, I'll have to go edit all arch code, but I
-seem to be doing that on a frequent basis anyway :/
 
+         spin_lock(&mm->page_table_lock);
+         size = i_size_read(mapping->host) >> huge_page_shift(h);
+         if (idx >= size)
+                 goto backout;
+
+         ret = 0;
+         if (!huge_pte_none(huge_ptep_get(ptep)))
+                 goto backout;
+
+         if (anon_rmap)
+                 hugepage_add_new_anon_rmap(page, vma, address);
+         else
+                 page_dup_rmap(page);
+         new_pte = make_huge_pte(vma, page, ((vma->vm_flags & VM_WRITE)
+                                 && (vma->vm_flags & VM_SHARED)));
+         set_huge_pte_at(mm, address, ptep, new_pte);
+	...
+	spin_unlock(&mm->page_table_lock);
+
+Notice how we check !huge_pte_none with our own
+mm->page_table_lock held.
+
+This offers no protection at all against other
+processes, that also hold their own page_table_lock.
+
+In short, it looks like it is possible for multiple
+processes to go through the above code simultaneously,
+potentially resulting in:
+
+1) one process overwriting the pte just created by
+    another process
+
+2) data corruption, as one partially written page
+    gets superceded by an newly zeroed page, but no
+    TLB invalidates get sent to other CPUs
+
+3) a memory leak of a huge page
+
+Is there anything that would make this race impossible,
+or is this a real bug?
+
+If so, are there more like it in the hugetlbfs code?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
