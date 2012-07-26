@@ -1,59 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx144.postini.com [74.125.245.144])
-	by kanga.kvack.org (Postfix) with SMTP id 3D3BF6B004D
-	for <linux-mm@kvack.org>; Wed, 25 Jul 2012 19:36:02 -0400 (EDT)
-Date: Thu, 26 Jul 2012 08:36:31 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH -mm] remove __GFP_NO_KSWAPD fixes
-Message-ID: <20120725233631.GC14411@bbox>
-References: <20120724111222.2c5e6b30@annuminas.surriel.com>
- <20120725145119.75be021d@cuia.bos.redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120725145119.75be021d@cuia.bos.redhat.com>
+Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
+	by kanga.kvack.org (Postfix) with SMTP id 995F36B004D
+	for <linux-mm@kvack.org>; Thu, 26 Jul 2012 01:21:32 -0400 (EDT)
+Received: by pbbrp2 with SMTP id rp2so2954670pbb.14
+        for <linux-mm@kvack.org>; Wed, 25 Jul 2012 22:21:31 -0700 (PDT)
+Date: Thu, 26 Jul 2012 13:22:40 +0800
+From: majianpeng <majianpeng@gmail.com>
+Subject: Re: Re: [RFC] block_dev:Fix bug when read/write block-device which is larger than 16TB in 32bit-OS.
+References: <201205291656322966937@gmail.com> <201207242044249532601@gmail.com>,
+	<20120724134838.GA26102@infradead.org>
+Mime-Version: 1.0
+Message-ID: <201207261322369377080@gmail.com>
+Content-Type: text/plain;
+	charset="gb2312"
+Content-Transfer-Encoding: base64
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>, lkml <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Artem Bityutskiy <artem.bityutskiy@linux.intel.com>, David Woodhouse <David.Woodhouse@intel.com>
+To: Christoph Hellwig <hch@infradead.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, viro <viro@ZenIV.linux.org.uk>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 
-On Wed, Jul 25, 2012 at 02:51:19PM -0400, Rik van Riel wrote:
-> Turns out I missed two spots where __GFP_NO_KSWAPD is used.
-> 
-> The removal from the trace code is obvious, since the flag
-> got removed there is no need to print it.
-> 
-> For mtdcore.c, now that memory compaction has been fixed,
-> we should no longer see large swap storms from an attempt
-> to allocate a large buffer, removing the need to specify
-> __GFP_NO_KSWAPD.
-> 
-> Signed-off-by: Rik van Riel <riel@redhat.com>
-Reviewed-by: Minchan Kim <minchan@kernel.org>
-
-You should have tidied up comment of the function.
-I hope Andrew can do it if he see this review.
-
-diff --git a/drivers/mtd/mtdcore.c b/drivers/mtd/mtdcore.c
-index fcfce24..6ff1308 100644
---- a/drivers/mtd/mtdcore.c
-+++ b/drivers/mtd/mtdcore.c
-@@ -1065,8 +1065,7 @@ EXPORT_SYMBOL_GPL(mtd_writev);
-  * until the request succeeds or until the allocation size falls below
-  * the system page size. This attempts to make sure it does not adversely
-  * impact system performance, so when allocating more than one page, we
-- * ask the memory allocator to avoid re-trying, swapping, writing back
-- * or performing I/O.
-+ * ask the memory allocator to avoid re-trying.
-  *
-  * Note, this function also makes sure that the allocated buffer is aligned to
-  * the MTD device's min. I/O unit, i.e. the "mtd->writesize" value.
-
-Thanks.
-
--- 
-Kind regards,
-Minchan Kim
+T24gMjAxMi0wNy0yNCAyMTo0OCBDaHJpc3RvcGggSGVsbHdpZyA8aGNoQGluZnJhZGVhZC5vcmc+
+IFdyb3RlOg0KPk9uIFR1ZSwgSnVsIDI0LCAyMDEyIGF0IDA4OjQ0OjI3UE0gKzA4MDAsIG1hamlh
+bnBlbmcgd3JvdGU6DQo+PiBPbiAyMDEyLTA1LTI5IDE2OjU2IG1hamlhbnBlbmcgPG1hamlhbnBl
+bmdAZ21haWwuY29tPiBXcm90ZToNCj4+ID5UaGUgc2l6ZSBvZiBibG9jay1kZXZpY2UgaXMgbGFy
+Z2VyIHRoYW4gMTZUQiwgYW5kIHRoZSBvcyBpcyAzMmJpdC4NCj4+ID5JZiB0aGUgb2Zmc2V0IG9m
+IHJlYWQvd3JpdGUgaXMgbGFyZ2VyIHRoZW4gMTZUQi4gVGhlIGluZGV4IG9mIGFkZHJlc3Nfc3Bh
+Y2Ugd2lsbA0KPj4gPm92ZXJmbG93IGFuZCBzdXBwbHkgZGF0YSBmcm9tIGxvdyBvZmZzZXQgaW5z
+dGVhZC4NCj4NCj5XZSBjYW4ndCBzdXBwb3J0ID4gMTZUQiBibG9jayBkZXZpY2Ugb24gMzItYml0
+IHN5c3RlbXMgd2l0aCA0ayBwYWdlDQo+c2l6ZSwganVzdCBsaWtlIHdlIGNhbid0IHN1cHBvcnQg
+ZmlsZXMgdGhhdCBsYXJnZS4NCj4NCj5Gb3IgZmlsZXN5c3RlbXMgdGhlIHNfbWF4Ynl0ZXMgbGlt
+aXQgb2YgTUFYX0xGU19GSUxFU0laRSB0YWtlcyBjYXJlIG9mDQo+dGhhdCwgYnV0IGl0IHNlZW1z
+IGxpa2Ugd2UgbWlzcyB0aGF0IGNoZWNrIGZvciBibG9jayBkZXZpY2VzLg0KPg0KPlRoZSBwcm9w
+ZXIgZml4IGlzIHRvIGFkZCB0aGF0IGNoZWNrIChlaXRoZXIgdmlhIHNfbWF4Ynl0ZXMgb3IgYnkN
+Cj5jaGVja2luZyBNQVhfTEZTX0ZJTEVTSVpFKSB0byBnZW5lcmljX3dyaXRlX2NoZWNrcyBhbmQN
+Cj5nZW5lcmljX2ZpbGVfYWlvX3JlYWQgKG9yIGEgYmxvY2sgZGV2aWNlIHNwZWNpZmljIHdyYXBw
+ZXIpDQo+DQpJIGhhZCBhIHByb2JsZW06d2h5IGRvIHJlYWQtb3BlcmF0aW9uICBub3QgdG8gY2hl
+Y2sgbGlrZSBnZW5lcmljX3dyaXRlX2NoZWtjcz8=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
