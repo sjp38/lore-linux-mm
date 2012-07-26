@@ -1,37 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
-	by kanga.kvack.org (Postfix) with SMTP id BA9EE6B004D
-	for <linux-mm@kvack.org>; Thu, 26 Jul 2012 04:11:45 -0400 (EDT)
-Message-ID: <1343290299.26034.84.camel@twins>
-Subject: Re: [RFC] page-table walkers vs memory order
-From: Peter Zijlstra <peterz@infradead.org>
-Date: Thu, 26 Jul 2012 10:11:39 +0200
-In-Reply-To: <alpine.LSU.2.00.1207251452160.2084@eggly.anvils>
-References: <1343064870.26034.23.camel@twins>
-	 <alpine.LSU.2.00.1207241356350.2094@eggly.anvils>
-	 <20120725175628.GH2378@linux.vnet.ibm.com>
-	 <alpine.LSU.2.00.1207251313180.1942@eggly.anvils>
-	 <20120725211217.GR2378@linux.vnet.ibm.com>
-	 <alpine.LSU.2.00.1207251452160.2084@eggly.anvils>
+Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
+	by kanga.kvack.org (Postfix) with SMTP id 200926B004D
+	for <linux-mm@kvack.org>; Thu, 26 Jul 2012 05:45:03 -0400 (EDT)
+Message-ID: <501110ED.9030400@parallels.com>
+Date: Thu, 26 Jul 2012 13:42:05 +0400
+From: Glauber Costa <glommer@parallels.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH 02/10] consider a memcg parameter in kmem_create_cache
+References: <1343227101-14217-1-git-send-email-glommer@parallels.com> <1343227101-14217-3-git-send-email-glommer@parallels.com> <20120725181018.GA4921@shutemov.name>
+In-Reply-To: <20120725181018.GA4921@shutemov.name>
 Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: quoted-printable
-Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Linus Torvalds <torvalds@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Nick Piggin <npiggin@kernel.dk>, Andrea Arcangeli <aarcange@redhat.com>, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, Greg Thelen <gthelen@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Frederic Weisbecker <fweisbec@gmail.com>, devel@openvz.org, cgroups@vger.kernel.org, Pekka Enberg <penberg@cs.helsinki.fi>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Suleiman Souhlal <suleiman@google.com>
 
-On Wed, 2012-07-25 at 15:09 -0700, Hugh Dickins wrote:
-> We find out after it hits us, and someone studies the disassembly -
-> if we're lucky enough to crash near the origin of the problem.=20
-
-This is a rather painful way.. see
-
-  https://lkml.org/lkml/2009/1/5/555
-
-we were lucky there in that the lack of ACCESS_ONCE() caused an infinite
-loop so we knew exactly where we got stuck.
-
+On 07/25/2012 10:10 PM, Kirill A. Shutemov wrote:
+> On Wed, Jul 25, 2012 at 06:38:13PM +0400, Glauber Costa wrote:
+> 
+> ...
+> 
+>> @@ -337,6 +341,12 @@ extern void *__kmalloc_track_caller(size_t, gfp_t, unsigned long);
+>>  	__kmalloc(size, flags)
+>>  #endif /* DEBUG_SLAB */
+>>  
+>> +#ifdef CONFIG_MEMCG_KMEM
+>> +#define MAX_KMEM_CACHE_TYPES 400
+>> +#else
+>> +#define MAX_KMEM_CACHE_TYPES 0
+>> +#endif /* CONFIG_MEMCG_KMEM */
+>> +
+>>  #ifdef CONFIG_NUMA
+>>  /*
+>>   * kmalloc_node_track_caller is a special version of kmalloc_node that
+> 
+> ...
+> 
+>> @@ -527,6 +532,24 @@ static inline bool memcg_kmem_enabled(struct mem_cgroup *memcg)
+>>  		memcg->kmem_accounted;
+>>  }
+>>  
+>> +struct ida cache_types;
+>> +
+>> +void memcg_register_cache(struct mem_cgroup *memcg, struct kmem_cache *cachep)
+>> +{
+>> +	int id = -1;
+>> +
+>> +	if (!memcg)
+>> +		id = ida_simple_get(&cache_types, 0, MAX_KMEM_CACHE_TYPES,
+>> +				    GFP_KERNEL);
+> 
+> MAX_KMEM_CACHE_TYPES is 0 if CONFIG_MEMCG_KMEM undefined.
+> If 'end' parameter of ida_simple_get() is 0 it will use default max value
+> which is 0x80000000.
+> I guess you want MAX_KMEM_CACHE_TYPES to be 1 for !CONFIG_MEMCG_KMEM.
+> 
+ida_simple_get will not, and should never be called for !CONFIG_MEMCG_KMEM.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
