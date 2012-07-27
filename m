@@ -1,139 +1,179 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx178.postini.com [74.125.245.178])
-	by kanga.kvack.org (Postfix) with SMTP id E0E8D6B0093
-	for <linux-mm@kvack.org>; Fri, 27 Jul 2012 06:28:53 -0400 (EDT)
-Received: by pbbrp2 with SMTP id rp2so5514859pbb.14
-        for <linux-mm@kvack.org>; Fri, 27 Jul 2012 03:28:53 -0700 (PDT)
-From: Sha Zhengju <handai.szj@gmail.com>
-Subject: [PATCH V2 5/6] memcg: add per cgroup writeback pages accounting
-Date: Fri, 27 Jul 2012 18:28:51 +0800
-Message-Id: <1343384931-20202-1-git-send-email-handai.szj@taobao.com>
-In-Reply-To: <1343384432-19903-1-git-send-email-handai.szj@taobao.com>
-References: <1343384432-19903-1-git-send-email-handai.szj@taobao.com>
+Received: from psmtp.com (na3sys010amx207.postini.com [74.125.245.207])
+	by kanga.kvack.org (Postfix) with SMTP id 1E4146B0095
+	for <linux-mm@kvack.org>; Fri, 27 Jul 2012 06:29:08 -0400 (EDT)
+Message-ID: <50126EA0.3000408@cn.fujitsu.com>
+Date: Fri, 27 Jul 2012 18:34:08 +0800
+From: Wen Congyang <wency@cn.fujitsu.com>
+MIME-Version: 1.0
+Subject: [RFC PATCH v5 15/19] memory-hotplug: implement register_page_bootmem_info_section
+ of sparse-vmemmap
+References: <50126B83.3050201@cn.fujitsu.com>
+In-Reply-To: <50126B83.3050201@cn.fujitsu.com>
+Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, cgroups@vger.kernel.org
-Cc: fengguang.wu@intel.com, gthelen@google.com, akpm@linux-foundation.org, yinghan@google.com, mhocko@suse.cz, linux-kernel@vger.kernel.org, hannes@cmpxchg.org, Sha Zhengju <handai.szj@taobao.com>
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-ia64@vger.kernel.org, cmetcalf@tilera.com
+Cc: rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, Yasuaki ISIMATU <isimatu.yasuaki@jp.fujitsu.com>
 
-From: Sha Zhengju <handai.szj@taobao.com>
+From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 
-Similar to dirty page, we add per cgroup writeback pages accounting. The lock
-rule still is:
-        mem_cgroup_begin_update_page_stat()
-        modify page WRITEBACK stat
-        mem_cgroup_update_page_stat()
-        mem_cgroup_end_update_page_stat()
+For removing memmap region of sparse-vmemmap which is allocated bootmem,
+memmap region of sparse-vmemmap needs to be registered by get_page_bootmem().
+So the patch searches pages of virtual mapping and registers the pages by
+get_page_bootmem().
 
-There're two writeback interface to modify: test_clear/set_page_writeback.
-
-Signed-off-by: Sha Zhengju <handai.szj@taobao.com>
+CC: David Rientjes <rientjes@google.com>
+CC: Jiang Liu <liuj97@gmail.com>
+CC: Len Brown <len.brown@intel.com>
+CC: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+CC: Paul Mackerras <paulus@samba.org>
+CC: Christoph Lameter <cl@linux.com>
+Cc: Minchan Kim <minchan.kim@gmail.com>
+CC: Andrew Morton <akpm@linux-foundation.org>
+CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+CC: Wen Congyang <wency@cn.fujitsu.com>
+Signed-off-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 ---
- include/linux/memcontrol.h |    1 +
- mm/memcontrol.c            |    5 +++++
- mm/page-writeback.c        |   17 +++++++++++++++++
- 3 files changed, 23 insertions(+), 0 deletions(-)
+ arch/x86/mm/init_64.c          |   52 ++++++++++++++++++++++++++++++++++++++++
+ include/linux/memory_hotplug.h |    2 +
+ include/linux/mm.h             |    3 +-
+ mm/memory_hotplug.c            |   23 +++++++++++++++--
+ 4 files changed, 76 insertions(+), 4 deletions(-)
 
-diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index 8c6b8ca..0c8a699 100644
---- a/include/linux/memcontrol.h
-+++ b/include/linux/memcontrol.h
-@@ -42,6 +42,7 @@ enum mem_cgroup_stat_index {
- 	MEM_CGROUP_STAT_FILE_MAPPED,  /* # of pages charged as file rss */
- 	MEM_CGROUP_STAT_SWAP, /* # of pages, swapped out */
- 	MEM_CGROUP_STAT_FILE_DIRTY,  /* # of dirty pages in page cache */
-+	MEM_CGROUP_STAT_WRITEBACK,  /* # of pages under writeback */
- 	MEM_CGROUP_STAT_NSTATS,
- };
+diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
+index f1554a9..a151145 100644
+--- a/arch/x86/mm/init_64.c
++++ b/arch/x86/mm/init_64.c
+@@ -1138,6 +1138,58 @@ vmemmap_populate(struct page *start_page, unsigned long size, int node)
+ 	return 0;
+ }
  
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index cdcd547..de91d3d 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -86,6 +86,7 @@ static const char * const mem_cgroup_stat_names[] = {
- 	"mapped_file",
- 	"swap",
- 	"dirty",
-+	"writeback",
- };
- 
- enum mem_cgroup_events_index {
-@@ -2607,6 +2608,10 @@ static int mem_cgroup_move_account(struct page *page,
- 		mem_cgroup_move_account_page_stat(from, to,
- 				MEM_CGROUP_STAT_FILE_DIRTY);
- 
-+	if (PageWriteback(page))
-+		mem_cgroup_move_account_page_stat(from, to,
-+				MEM_CGROUP_STAT_WRITEBACK);
++void register_page_bootmem_memmap(unsigned long section_nr,
++				  struct page *start_page, unsigned long size)
++{
++	unsigned long addr = (unsigned long)start_page;
++	unsigned long end = (unsigned long)(start_page + size);
++	unsigned long next;
++	pgd_t *pgd;
++	pud_t *pud;
++	pmd_t *pmd;
 +
- 	mem_cgroup_charge_statistics(from, anon, -nr_pages);
++	for (; addr < end; addr = next) {
++		pte_t *pte = NULL;
++
++		pgd = pgd_offset_k(addr);
++		if (pgd_none(*pgd)) {
++			next = (addr + PAGE_SIZE) & PAGE_MASK;
++			continue;
++		}
++		get_page_bootmem(section_nr, pgd_page(*pgd), MIX_SECTION_INFO);
++
++		pud = pud_offset(pgd, addr);
++		if (pud_none(*pud)) {
++			next = (addr + PAGE_SIZE) & PAGE_MASK;
++			continue;
++		}
++		get_page_bootmem(section_nr, pud_page(*pud), MIX_SECTION_INFO);
++
++		if (!cpu_has_pse) {
++			next = (addr + PAGE_SIZE) & PAGE_MASK;
++			pmd = pmd_offset(pud, addr);
++			if (pmd_none(*pmd))
++				continue;
++			get_page_bootmem(section_nr, pmd_page(*pmd),
++					 MIX_SECTION_INFO);
++
++			pte = pte_offset_kernel(pmd, addr);
++			if (pte_none(*pte))
++				continue;
++			get_page_bootmem(section_nr, pte_page(*pte),
++					 SECTION_INFO);
++		} else {
++			next = pmd_addr_end(addr, end);
++
++			pmd = pmd_offset(pud, addr);
++			if (pmd_none(*pmd))
++				continue;
++			get_page_bootmem(section_nr, pmd_page(*pmd),
++					 SECTION_INFO);
++		}
++	}
++}
++
+ void __meminit vmemmap_populate_print_last(void)
+ {
+ 	if (p_start) {
+diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
+index fe50a9b..e79d744 100644
+--- a/include/linux/memory_hotplug.h
++++ b/include/linux/memory_hotplug.h
+@@ -164,6 +164,8 @@ static inline void arch_refresh_nodedata(int nid, pg_data_t *pgdat)
  
- 	/* caller should have done css_get */
-diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-index 233e7ac..6b06d5e 100644
---- a/mm/page-writeback.c
-+++ b/mm/page-writeback.c
-@@ -1956,11 +1956,17 @@ EXPORT_SYMBOL(account_page_dirtied);
+ extern void register_page_bootmem_info_node(struct pglist_data *pgdat);
+ extern void put_page_bootmem(struct page *page);
++extern void get_page_bootmem(unsigned long ingo, struct page *page,
++			     unsigned long type);
  
  /*
-  * Helper function for set_page_writeback family.
-+ *
-+ * The caller must hold mem_cgroup_begin/end_update_page_stat() lock
-+ * while modifying struct page state and accounting writeback pages.
-+ * See test_set_page_writeback for example.
-+ *
-  * NOTE: Unlike account_page_dirtied this does not rely on being atomic
-  * wrt interrupts.
-  */
- void account_page_writeback(struct page *page)
- {
-+	mem_cgroup_inc_page_stat(page, MEM_CGROUP_STAT_WRITEBACK);
- 	inc_zone_page_state(page, NR_WRITEBACK);
- }
- EXPORT_SYMBOL(account_page_writeback);
-@@ -2192,7 +2198,10 @@ int test_clear_page_writeback(struct page *page)
- {
- 	struct address_space *mapping = page_mapping(page);
- 	int ret;
-+	bool locked;
-+	unsigned long flags;
+  * Lock for memory hotplug guarantees 1) all callbacks for memory hotplug
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index f9f279c..716f38b 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -1586,7 +1586,8 @@ int vmemmap_populate_basepages(struct page *start_page,
+ 						unsigned long pages, int node);
+ int vmemmap_populate(struct page *start_page, unsigned long pages, int node);
+ void vmemmap_populate_print_last(void);
+-
++void register_page_bootmem_memmap(unsigned long section_nr, struct page *map,
++				  unsigned long size);
  
-+	mem_cgroup_begin_update_page_stat(page, &locked, &flags);
- 	if (mapping) {
- 		struct backing_dev_info *bdi = mapping->backing_dev_info;
- 		unsigned long flags;
-@@ -2213,9 +2222,12 @@ int test_clear_page_writeback(struct page *page)
- 		ret = TestClearPageWriteback(page);
- 	}
- 	if (ret) {
-+		mem_cgroup_dec_page_stat(page, MEM_CGROUP_STAT_WRITEBACK);
- 		dec_zone_page_state(page, NR_WRITEBACK);
- 		inc_zone_page_state(page, NR_WRITTEN);
- 	}
+ enum mf_flags {
+ 	MF_COUNT_INCREASED = 1 << 0,
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index 180d555..adcc93d 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -91,8 +91,8 @@ static void release_memory_resource(struct resource *res)
+ }
+ 
+ #ifdef CONFIG_MEMORY_HOTPLUG_SPARSE
+-static void get_page_bootmem(unsigned long info,  struct page *page,
+-			     unsigned long type)
++void get_page_bootmem(unsigned long info,  struct page *page,
++		      unsigned long type)
+ {
+ 	unsigned long page_type;
+ 
+@@ -164,8 +164,25 @@ static void register_page_bootmem_info_section(unsigned long start_pfn)
+ 
+ }
+ #else
+-static inline void register_page_bootmem_info_section(unsigned long start_pfn)
++static void register_page_bootmem_info_section(unsigned long start_pfn)
+ {
++	unsigned long mapsize, section_nr;
++	struct mem_section *ms;
++	struct page *page, *memmap;
 +
-+	mem_cgroup_end_update_page_stat(page, &locked, &flags);
- 	return ret;
- }
- 
-@@ -2223,7 +2235,10 @@ int test_set_page_writeback(struct page *page)
- {
- 	struct address_space *mapping = page_mapping(page);
- 	int ret;
-+	bool locked;
-+	unsigned long flags;
- 
-+	mem_cgroup_begin_update_page_stat(page, &locked, &flags);
- 	if (mapping) {
- 		struct backing_dev_info *bdi = mapping->backing_dev_info;
- 		unsigned long flags;
-@@ -2250,6 +2265,8 @@ int test_set_page_writeback(struct page *page)
- 	}
- 	if (!ret)
- 		account_page_writeback(page);
++	if (!pfn_valid(start_pfn))
++		return;
 +
-+	mem_cgroup_end_update_page_stat(page, &locked, &flags);
- 	return ret;
- 
++	section_nr = pfn_to_section_nr(start_pfn);
++	ms = __nr_to_section(section_nr);
++
++	memmap = sparse_decode_mem_map(ms->section_mem_map, section_nr);
++
++	page = virt_to_page(memmap);
++	mapsize = sizeof(struct page) * PAGES_PER_SECTION;
++	mapsize = PAGE_ALIGN(mapsize) >> PAGE_SHIFT;
++
++	register_page_bootmem_memmap(section_nr, memmap, PAGES_PER_SECTION);
  }
+ #endif
+ 
 -- 
 1.7.1
 
