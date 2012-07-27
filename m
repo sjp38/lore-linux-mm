@@ -1,86 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
-	by kanga.kvack.org (Postfix) with SMTP id A3EC56B00A8
-	for <linux-mm@kvack.org>; Fri, 27 Jul 2012 06:45:33 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 3ED633EE0BD
-	for <linux-mm@kvack.org>; Fri, 27 Jul 2012 19:45:32 +0900 (JST)
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 2162E45DE53
-	for <linux-mm@kvack.org>; Fri, 27 Jul 2012 19:45:32 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 009DA45DD78
-	for <linux-mm@kvack.org>; Fri, 27 Jul 2012 19:45:32 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id E58301DB803F
-	for <linux-mm@kvack.org>; Fri, 27 Jul 2012 19:45:31 +0900 (JST)
-Received: from g01jpexchkw05.g01.fujitsu.local (g01jpexchkw05.g01.fujitsu.local [10.0.194.44])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id A1C141DB803A
-	for <linux-mm@kvack.org>; Fri, 27 Jul 2012 19:45:31 +0900 (JST)
-Message-ID: <5012712E.9000005@jp.fujitsu.com>
-Date: Fri, 27 Jul 2012 19:45:02 +0900
-From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-MIME-Version: 1.0
-Subject: Re: [RFC PATCH v5 19/19] memory-hotplug: remove sysfs file of node
-References: <50126B83.3050201@cn.fujitsu.com> <50126F21.803@cn.fujitsu.com>
-In-Reply-To: <50126F21.803@cn.fujitsu.com>
-Content-Type: text/plain; charset="UTF-8"; format=flowed
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
+	by kanga.kvack.org (Postfix) with SMTP id 454ED6B00AB
+	for <linux-mm@kvack.org>; Fri, 27 Jul 2012 06:46:12 -0400 (EDT)
+From: Mel Gorman <mgorman@suse.de>
+Subject: [PATCH 1/2] Revert "hugetlb: avoid taking i_mmap_mutex in unmap_single_vma() for hugetlb"
+Date: Fri, 27 Jul 2012 11:46:04 +0100
+Message-Id: <1343385965-7738-2-git-send-email-mgorman@suse.de>
+In-Reply-To: <1343385965-7738-1-git-send-email-mgorman@suse.de>
+References: <1343385965-7738-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wen Congyang <wency@cn.fujitsu.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-ia64@vger.kernel.org, cmetcalf@tilera.com, rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Michal Hocko <mhocko@suse.cz>, Ken Chen <kenchen@google.com>, Cong Wang <xiyou.wangcong@gmail.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
 
-Hi Wen,
+This reverts the patch "hugetlb: avoid taking i_mmap_mutex in
+unmap_single_vma() for hugetlb" from mmotm.
 
-2012/07/27 19:36, Wen Congyang wrote:
-> From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
->
-> The patch adds node_set_offline() and unregister_one_node() to remove_memory()
-> for removing sysfs file of node.
->
-> CC: David Rientjes <rientjes@google.com>
-> CC: Jiang Liu <liuj97@gmail.com>
-> CC: Len Brown <len.brown@intel.com>
-> CC: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-> CC: Paul Mackerras <paulus@samba.org>
-> CC: Christoph Lameter <cl@linux.com>
-> Cc: Minchan Kim <minchan.kim@gmail.com>
-> CC: Andrew Morton <akpm@linux-foundation.org>
-> CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> CC: Wen Congyang <wency@cn.fujitsu.com>
-> Signed-off-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-> ---
->   mm/memory_hotplug.c |    5 +++++
->   1 files changed, 5 insertions(+), 0 deletions(-)
->
-> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-> index 5ac035f..5681968 100644
-> --- a/mm/memory_hotplug.c
-> +++ b/mm/memory_hotplug.c
-> @@ -1267,6 +1267,11 @@ int __ref remove_memory(int nid, u64 start, u64 size)
->   	/* remove memmap entry */
->   	firmware_map_remove(start, start + size, "System RAM");
->
-> +	if (!node_present_pages(nid)) {
+This patch is possibly a mistake and blocks the merging of a hugetlb fix
+where page tables can get corrupted (https://lkml.org/lkml/2012/7/24/93).
+The motivation of the patch appears to be two-fold.
 
-Applying [PATCH v5 17/19], pgdat->node_spanned_pages can become 0 when
-all memory of the pgdat is removed. When pgdat->node_spanned_pages is 0,
-it means the pgdat has no memory. So I think node_spanned_pages() is
-better.
+First, it believes that the i_mmap_mutex is to protect against list
+corruption of the page->lru lock but that is not quite accurate. The
+i_mmap_mutex for shared page tables is meant to protect against races
+when sharing and unsharing the page tables. For example, an important
+use of i_mmap_mutex is to stabilise the page_count of the PMD page
+during huge_pmd_unshare.
 
-Thanks,
-Yasuaki Ishimatsu
+Second, it is protecting against a potential deadlock when
+unmap_unsingle_page is called from unmap_mapping_range(). However, hugetlbfs
+should never be in this path. It has its own setattr and truncate handlers
+where are the paths that use unmap_mapping_range().
 
-> +		node_set_offline(nid);
-> +		unregister_one_node(nid);
-> +	}
-> +
->   	arch_remove_memory(start, size);
->   out:
->   	unlock_memory_hotplug();
->
+Unless Aneesh has another reason for the patch, it should be reverted
+to preserve hugetlb page sharing locking.
 
+Signed-off-by: Mel Gorman <mgorman@suse.de>
+---
+ mm/memory.c |    5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/mm/memory.c b/mm/memory.c
+index 8a989f1..22bc695 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -1344,8 +1344,11 @@ static void unmap_single_vma(struct mmu_gather *tlb,
+ 			 * Since no pte has actually been setup, it is
+ 			 * safe to do nothing in this case.
+ 			 */
+-			if (vma->vm_file)
++			if (vma->vm_file) {
++				mutex_lock(&vma->vm_file->f_mapping->i_mmap_mutex);
+ 				__unmap_hugepage_range(tlb, vma, start, end, NULL);
++				mutex_unlock(&vma->vm_file->f_mapping->i_mmap_mutex);
++			}
+ 		} else
+ 			unmap_page_range(tlb, vma, start, end, details);
+ 	}
+-- 
+1.7.9.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
