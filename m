@@ -1,41 +1,128 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
-	by kanga.kvack.org (Postfix) with SMTP id 5D6816B004D
-	for <linux-mm@kvack.org>; Fri, 27 Jul 2012 16:17:22 -0400 (EDT)
-Received: by wgbds1 with SMTP id ds1so953779wgb.2
-        for <linux-mm@kvack.org>; Fri, 27 Jul 2012 13:17:20 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <50126D44.7070608@cn.fujitsu.com>
-References: <50126B83.3050201@cn.fujitsu.com>
-	<50126D44.7070608@cn.fujitsu.com>
-Date: Fri, 27 Jul 2012 13:17:20 -0700
-Message-ID: <CA+8MBbL+G=xqkWU4xGF3_Ra7KoeoHuzL6QYcRiKqtVZoOBfLdQ@mail.gmail.com>
-Subject: Re: [RFC PATCH v5 05/19] memory-hotplug: check whether memory is
- present or not
-From: Tony Luck <tony.luck@intel.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
+	by kanga.kvack.org (Postfix) with SMTP id F33916B004D
+	for <linux-mm@kvack.org>; Fri, 27 Jul 2012 16:19:03 -0400 (EDT)
+Received: by pbbrp2 with SMTP id rp2so6335261pbb.14
+        for <linux-mm@kvack.org>; Fri, 27 Jul 2012 13:19:03 -0700 (PDT)
+From: Joonsoo Kim <js1304@gmail.com>
+Subject: [PATCH] slub: remove one code path and reduce lock contention in __slab_free()
+Date: Sat, 28 Jul 2012 05:17:51 +0900
+Message-Id: <1343420271-3825-1-git-send-email-js1304@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wen Congyang <wency@cn.fujitsu.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-ia64@vger.kernel.org, cmetcalf@tilera.com, rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, Yasuaki ISIMATU <isimatu.yasuaki@jp.fujitsu.com>
+To: Pekka Enberg <penberg@kernel.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Joonsoo Kim <js1304@gmail.com>, Christoph Lameter <cl@linux.com>
 
-On Fri, Jul 27, 2012 at 3:28 AM, Wen Congyang <wency@cn.fujitsu.com> wrote:
-> +static inline int pfns_present(unsigned long pfn, unsigned long nr_pages)
-> +{
-> +       int i;
-> +       for (i = 0; i < nr_pages; i++) {
-> +               if (pfn_present(pfn + 1))
+When we try to free object, there is some of case that we need
+to take a node lock. This is the necessary step for preventing a race.
+After taking a lock, then we try to cmpxchg_double_slab().
+But, there is a possible scenario that cmpxchg_double_slab() is failed.
+Following example explains this.
 
-Typo? I think you meant "pfn + i"
+CPU A               CPU B
+need lock
+...                 need lock
+...                 lock!!
+lock..but spin      free success
+spin...             unlock
+lock!!
+free fail
 
-> +                       continue;
-> +               else
-> +                       return -EINVAL;
-> +       }
-> +       return 0;
-> +}
+In this case, retry with taking a lock is occured in CPU A.
 
--Tony
+I think that in this case,
+"release a lock first, and re-take a lock if necessary" is preferable way.
+There are two reasons for this.
+First, this makes __slab_free()'s logic somehow simple.
+Second, it may reduce lock contention.
+When we do retrying, status of slab is already changed,
+so we don't need a lock anymore in almost every case.
+"release a lock first, and re-take a lock if necessary" policy is
+helpful to this.
+
+Signed-off-by: Joonsoo Kim <js1304@gmail.com>
+Cc: Christoph Lameter <cl@linux.com>
+---
+This is v2 of "slub: release a lock if freeing object with a lock is failed in __slab_free()"
+Subject and commit log are changed from v1.
+Code is same as v1.
+
+diff --git a/mm/slub.c b/mm/slub.c
+index ca778e5..efce427 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -2421,7 +2421,6 @@ static void __slab_free(struct kmem_cache *s, struct page *page,
+ 	void *prior;
+ 	void **object = (void *)x;
+ 	int was_frozen;
+-	int inuse;
+ 	struct page new;
+ 	unsigned long counters;
+ 	struct kmem_cache_node *n = NULL;
+@@ -2433,13 +2432,17 @@ static void __slab_free(struct kmem_cache *s, struct page *page,
+ 		return;
+ 
+ 	do {
++		if (unlikely(n)) {
++			spin_unlock_irqrestore(&n->list_lock, flags);
++			n = NULL;
++		}
+ 		prior = page->freelist;
+ 		counters = page->counters;
+ 		set_freepointer(s, object, prior);
+ 		new.counters = counters;
+ 		was_frozen = new.frozen;
+ 		new.inuse--;
+-		if ((!new.inuse || !prior) && !was_frozen && !n) {
++		if ((!new.inuse || !prior) && !was_frozen) {
+ 
+ 			if (!kmem_cache_debug(s) && !prior)
+ 
+@@ -2464,7 +2467,6 @@ static void __slab_free(struct kmem_cache *s, struct page *page,
+ 
+ 			}
+ 		}
+-		inuse = new.inuse;
+ 
+ 	} while (!cmpxchg_double_slab(s, page,
+ 		prior, counters,
+@@ -2490,25 +2492,17 @@ static void __slab_free(struct kmem_cache *s, struct page *page,
+                 return;
+         }
+ 
++	if (unlikely(!new.inuse && n->nr_partial > s->min_partial))
++		goto slab_empty;
++
+ 	/*
+-	 * was_frozen may have been set after we acquired the list_lock in
+-	 * an earlier loop. So we need to check it here again.
++	 * Objects left in the slab. If it was not on the partial list before
++	 * then add it.
+ 	 */
+-	if (was_frozen)
+-		stat(s, FREE_FROZEN);
+-	else {
+-		if (unlikely(!inuse && n->nr_partial > s->min_partial))
+-                        goto slab_empty;
+-
+-		/*
+-		 * Objects left in the slab. If it was not on the partial list before
+-		 * then add it.
+-		 */
+-		if (unlikely(!prior)) {
+-			remove_full(s, page);
+-			add_partial(n, page, DEACTIVATE_TO_TAIL);
+-			stat(s, FREE_ADD_PARTIAL);
+-		}
++	if (kmem_cache_debug(s) && unlikely(!prior)) {
++		remove_full(s, page);
++		add_partial(n, page, DEACTIVATE_TO_TAIL);
++		stat(s, FREE_ADD_PARTIAL);
+ 	}
+ 	spin_unlock_irqrestore(&n->list_lock, flags);
+ 	return;
+-- 
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
