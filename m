@@ -1,52 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
-	by kanga.kvack.org (Postfix) with SMTP id 6AC966B0044
-	for <linux-mm@kvack.org>; Fri, 27 Jul 2012 01:37:43 -0400 (EDT)
-Received: by yenr5 with SMTP id r5so3349673yen.14
-        for <linux-mm@kvack.org>; Thu, 26 Jul 2012 22:37:42 -0700 (PDT)
-Date: Fri, 27 Jul 2012 13:38:51 +0800
-From: majianpeng <majianpeng@gmail.com>
-Subject: Re: Re: [RFC] block_dev:Fix bug when read/write block-device which is larger than 16TB in 32bit-OS.
-References: <201205291656322966937@gmail.com> <201207242044249532601@gmail.com>,
-	<20120724134838.GA26102@infradead.org>
-Mime-Version: 1.0
-Message-ID: <201207271338486719122@gmail.com>
-Content-Type: text/plain;
-	charset="gb2312"
-Content-Transfer-Encoding: base64
+Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
+	by kanga.kvack.org (Postfix) with SMTP id 47E946B0044
+	for <linux-mm@kvack.org>; Fri, 27 Jul 2012 02:12:24 -0400 (EDT)
+Message-ID: <5012326F.80702@cn.fujitsu.com>
+Date: Fri, 27 Jul 2012 14:17:19 +0800
+From: Wen Congyang <wency@cn.fujitsu.com>
+MIME-Version: 1.0
+Subject: Re: [RFC PATCH v4 12/13] memory-hotplug : add node_device_release
+References: <50068974.1070409@jp.fujitsu.com> <50068D41.9090109@jp.fujitsu.com>
+In-Reply-To: <50068D41.9090109@jp.fujitsu.com>
+Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=ISO-2022-JP
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@infradead.org>, "fengguang.wu" <fengguang.wu@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, viro <viro@ZenIV.linux.org.uk>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com
 
-T24gMjAxMi0wNy0yNCAyMTo0OCBDaHJpc3RvcGggSGVsbHdpZyA8aGNoQGluZnJhZGVhZC5vcmc+
-IFdyb3RlOg0KPk9uIFR1ZSwgSnVsIDI0LCAyMDEyIGF0IDA4OjQ0OjI3UE0gKzA4MDAsIG1hamlh
-bnBlbmcgd3JvdGU6DQo+PiBPbiAyMDEyLTA1LTI5IDE2OjU2IG1hamlhbnBlbmcgPG1hamlhbnBl
-bmdAZ21haWwuY29tPiBXcm90ZToNCj4+ID5UaGUgc2l6ZSBvZiBibG9jay1kZXZpY2UgaXMgbGFy
-Z2VyIHRoYW4gMTZUQiwgYW5kIHRoZSBvcyBpcyAzMmJpdC4NCj4+ID5JZiB0aGUgb2Zmc2V0IG9m
-IHJlYWQvd3JpdGUgaXMgbGFyZ2VyIHRoZW4gMTZUQi4gVGhlIGluZGV4IG9mIGFkZHJlc3Nfc3Bh
-Y2Ugd2lsbA0KPj4gPm92ZXJmbG93IGFuZCBzdXBwbHkgZGF0YSBmcm9tIGxvdyBvZmZzZXQgaW5z
-dGVhZC4NCj4NCj5XZSBjYW4ndCBzdXBwb3J0ID4gMTZUQiBibG9jayBkZXZpY2Ugb24gMzItYml0
-IHN5c3RlbXMgd2l0aCA0ayBwYWdlDQo+c2l6ZSwganVzdCBsaWtlIHdlIGNhbid0IHN1cHBvcnQg
-ZmlsZXMgdGhhdCBsYXJnZS4NCj4NCj5Gb3IgZmlsZXN5c3RlbXMgdGhlIHNfbWF4Ynl0ZXMgbGlt
-aXQgb2YgTUFYX0xGU19GSUxFU0laRSB0YWtlcyBjYXJlIG9mDQo+dGhhdCwgYnV0IGl0IHNlZW1z
-IGxpa2Ugd2UgbWlzcyB0aGF0IGNoZWNrIGZvciBibG9jayBkZXZpY2VzLg0KPg0KPlRoZSBwcm9w
-ZXIgZml4IGlzIHRvIGFkZCB0aGF0IGNoZWNrIChlaXRoZXIgdmlhIHNfbWF4Ynl0ZXMgb3IgYnkN
-Cj5jaGVja2luZyBNQVhfTEZTX0ZJTEVTSVpFKSB0byBnZW5lcmljX3dyaXRlX2NoZWNrcyBhbmQN
-Cj5nZW5lcmljX2ZpbGVfYWlvX3JlYWQgKG9yIGEgYmxvY2sgZGV2aWNlIHNwZWNpZmljIHdyYXBw
-ZXIpDQo+DQovKiBQYWdlIGNhY2hlIGxpbWl0LiBUaGUgZmlsZXN5c3RlbXMgc2hvdWxkIHB1dCB0
-aGF0IGludG8gdGhlaXIgc19tYXhieXRlcyANCiAgIGxpbWl0cywgb3RoZXJ3aXNlIGJhZCB0aGlu
-Z3MgY2FuIGhhcHBlbiBpbiBWTS4gKi8gDQojaWYgQklUU19QRVJfTE9ORz09MzINCiNkZWZpbmUg
-TUFYX0xGU19GSUxFU0laRQkoKCh1NjQpUEFHRV9DQUNIRV9TSVpFIDw8IChCSVRTX1BFUl9MT05H
-LTEpKS0xKSANCiNlbGlmIEJJVFNfUEVSX0xPTkc9PTY0DQojZGVmaW5lIE1BWF9MRlNfRklMRVNJ
-WkUgCTB4N2ZmZmZmZmZmZmZmZmZmZlVMDQojZW5kaWYNCg0KSWYgd2UgdXNlZCBNQVhfTEZTX0ZJ
-TEVTSVpFIHRvIGxpbWl0IHRoZSBibG9jay1kZXZpY2UsIHNvIGluIDMyYml0LW9zLCB0aGUgc2l6
-ZSBvZiBibG9jayBpcw0Kb25seSA4VCAtMS4NCkJ1dCBpbiBmdW5jdGlvbiBkb19nZW5lcmljX2Zp
-bGVfcmVhZCgpOg0KPj5pbmRleCA9ICpwcG9zID4+IFBBR0VfQ0FDSEVfU0hJRlQ7DQppbmRleCBp
-cyB1bnNpZ25lZCBsb25nIHR5cGUuIFNvIHRoZSBwcG9zIGNhbiAxNlQgLTEuDQoNCkJ1dCB0aGUg
-Y29tbWVudCBzYWlkOg0KPj4vKiBQYWdlIGNhY2hlIGxpbWl0LiBUaGUgZmlsZXN5c3RlbXMgc2hv
-dWxkIHB1dCB0aGF0IGludG8gdGhlaXIgc19tYXhieXRlcyANCj4+ICAgbGltaXRzLCBvdGhlcndp
-c2UgYmFkIHRoaW5ncyBjYW4gaGFwcGVuIGluIFZNLiAqLyANCldoeSA/DQoNClRoYW5rcyAhDQo=
+At 07/18/2012 06:17 PM, Yasuaki Ishimatsu Wrote:
+> When calling unregister_node(), the function shows following message at
+> device_release().
+> 
+> Device 'node2' does not have a release() function, it is broken and must be
+> fixed.
+> 
+> So the patch implements node_device_release()
+> 
+> CC: David Rientjes <rientjes@google.com>
+> CC: Jiang Liu <liuj97@gmail.com>
+> CC: Len Brown <len.brown@intel.com>
+> CC: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+> CC: Paul Mackerras <paulus@samba.org> 
+> CC: Christoph Lameter <cl@linux.com>
+> Cc: Minchan Kim <minchan.kim@gmail.com>
+> CC: Andrew Morton <akpm@linux-foundation.org>
+> CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> 
+> CC: Wen Congyang <wency@cn.fujitsu.com>
+> Signed-off-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+> 
+> ---
+>  drivers/base/node.c |    7 +++++++
+>  1 file changed, 7 insertions(+)
+> 
+> Index: linux-3.5-rc6/drivers/base/node.c
+> ===================================================================
+> --- linux-3.5-rc6.orig/drivers/base/node.c	2012-07-18 18:24:29.191121066 +0900
+> +++ linux-3.5-rc6/drivers/base/node.c	2012-07-18 18:25:47.111146983 +0900
+> @@ -252,6 +252,12 @@ static inline void hugetlb_register_node
+>  static inline void hugetlb_unregister_node(struct node *node) {}
+>  #endif
+>  
+> +static void node_device_release(struct device *dev)
+> +{
+> +	struct node *node_dev = to_node(dev);
+> +
+> +	memset(node_dev, 0, sizeof(struct node));
+
+This line is wrong. node_dev->work_struct may be queued in workqueue.
+So, it is very dangerous to clear node_dev->work_struct here.
+In my test, it will cause kernel panicked.
+
+Thanks
+Wen Congyang
+> +}
+>  
+>  /*
+>   * register_node - Setup a sysfs device for a node.
+> @@ -265,6 +271,7 @@ int register_node(struct node *node, int
+>  
+>  	node->dev.id = num;
+>  	node->dev.bus = &node_subsys;
+> +	node->dev.release = node_device_release;
+>  	error = device_register(&node->dev);
+>  
+>  	if (!error){
+> 
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
