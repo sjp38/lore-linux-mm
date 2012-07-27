@@ -1,74 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
-	by kanga.kvack.org (Postfix) with SMTP id EE7236B009B
-	for <linux-mm@kvack.org>; Fri, 27 Jul 2012 07:17:58 -0400 (EDT)
-Date: Fri, 27 Jul 2012 13:17:54 +0200
+Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
+	by kanga.kvack.org (Postfix) with SMTP id 129216B006E
+	for <linux-mm@kvack.org>; Fri, 27 Jul 2012 07:24:49 -0400 (EDT)
+Date: Fri, 27 Jul 2012 13:24:45 +0200
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH 1/2] Revert "hugetlb: avoid taking i_mmap_mutex in
- unmap_single_vma() for hugetlb"
-Message-ID: <20120727111754.GE26351@tiehlicka.suse.cz>
+Subject: Re: [PATCH 2/2] mm: hugetlbfs: Close race during teardown of
+ hugetlbfs shared page tables
+Message-ID: <20120727112445.GF26351@tiehlicka.suse.cz>
 References: <1343385965-7738-1-git-send-email-mgorman@suse.de>
- <1343385965-7738-2-git-send-email-mgorman@suse.de>
+ <1343385965-7738-3-git-send-email-mgorman@suse.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1343385965-7738-2-git-send-email-mgorman@suse.de>
+In-Reply-To: <1343385965-7738-3-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Mel Gorman <mgorman@suse.de>
 Cc: Andrew Morton <akpm@linux-foundation.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Ken Chen <kenchen@google.com>, Cong Wang <xiyou.wangcong@gmail.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Fri 27-07-12 11:46:04, Mel Gorman wrote:
-> This reverts the patch "hugetlb: avoid taking i_mmap_mutex in
-> unmap_single_vma() for hugetlb" from mmotm.
-> 
-> This patch is possibly a mistake and blocks the merging of a hugetlb fix
-> where page tables can get corrupted (https://lkml.org/lkml/2012/7/24/93).
-> The motivation of the patch appears to be two-fold.
-> 
-> First, it believes that the i_mmap_mutex is to protect against list
-> corruption of the page->lru lock but that is not quite accurate. The
-> i_mmap_mutex for shared page tables is meant to protect against races
-> when sharing and unsharing the page tables. For example, an important
-> use of i_mmap_mutex is to stabilise the page_count of the PMD page
-> during huge_pmd_unshare.
-> 
-> Second, it is protecting against a potential deadlock when
-> unmap_unsingle_page is called from unmap_mapping_range(). However, hugetlbfs
-> should never be in this path. It has its own setattr and truncate handlers
-> where are the paths that use unmap_mapping_range().
-> 
-> Unless Aneesh has another reason for the patch, it should be reverted
-> to preserve hugetlb page sharing locking.
-> 
-> Signed-off-by: Mel Gorman <mgorman@suse.de>
+Just a nit
 
-Acked-by: Michal Hocko <mhocko@suse.cz>
+On Fri 27-07-12 11:46:05, Mel Gorman wrote:
+> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+> index fd1d530..8c6e5a5 100644
+> --- a/mm/hugetlb.c
+> +++ b/mm/hugetlb.c
+> @@ -2429,6 +2429,25 @@ again:
+>  	tlb_end_vma(tlb, vma);
+>  }
+>
 
-> ---
->  mm/memory.c |    5 ++++-
->  1 file changed, 4 insertions(+), 1 deletion(-)
-> 
-> diff --git a/mm/memory.c b/mm/memory.c
-> index 8a989f1..22bc695 100644
-> --- a/mm/memory.c
-> +++ b/mm/memory.c
-> @@ -1344,8 +1344,11 @@ static void unmap_single_vma(struct mmu_gather *tlb,
->  			 * Since no pte has actually been setup, it is
->  			 * safe to do nothing in this case.
->  			 */
-> -			if (vma->vm_file)
-> +			if (vma->vm_file) {
-> +				mutex_lock(&vma->vm_file->f_mapping->i_mmap_mutex);
->  				__unmap_hugepage_range(tlb, vma, start, end, NULL);
-> +				mutex_unlock(&vma->vm_file->f_mapping->i_mmap_mutex);
-> +			}
->  		} else
->  			unmap_page_range(tlb, vma, start, end, details);
->  	}
-> -- 
-> 1.7.9.2
-> 
+I would welcome a comment here. Something like:
+/*
+ * Called when the VMA is on the way out and page tables will be freed
+ * by free_pagetables.
+ * i_mmap_mutex has to be held when calling this function
+ */
+
+> +void __unmap_hugepage_range_final(struct mmu_gather *tlb,
+> +			  struct vm_area_struct *vma, unsigned long start,
+> +			  unsigned long end, struct page *ref_page)
+> +{
+> +	__unmap_hugepage_range(tlb, vma, start, end, ref_page);
+> +
+> +	/*
+> +	 * Clear this flag so that x86's huge_pmd_share page_table_shareable
+> +	 * test will fail on a vma being torn down, and not grab a page table
+> +	 * on its way out.  We're lucky that the flag has such an appropriate
+> +	 * name, and can in fact be safely cleared here. We could clear it
+> +	 * before the __unmap_hugepage_range above, but all that's necessary
+> +	 * is to clear it before releasing the i_mmap_mutex. This works
+> +	 * because in the context this is called, the VMA is about to be
+> +	 * destroyed and the i_mmap_mutex is held.
+> +	 */
+> +	vma->vm_flags &= ~VM_MAYSHARE;
+> +}
+> +
 
 -- 
 Michal Hocko
