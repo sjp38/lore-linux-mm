@@ -1,24 +1,24 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
-	by kanga.kvack.org (Postfix) with SMTP id E628A6B005A
-	for <linux-mm@kvack.org>; Fri, 27 Jul 2012 14:19:00 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
+	by kanga.kvack.org (Postfix) with SMTP id 6492C6B005A
+	for <linux-mm@kvack.org>; Fri, 27 Jul 2012 14:19:08 -0400 (EDT)
 Received: from /spool/local
-	by e9.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e37.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
-	Fri, 27 Jul 2012 14:18:59 -0400
-Received: from d01relay03.pok.ibm.com (d01relay03.pok.ibm.com [9.56.227.235])
-	by d01dlp03.pok.ibm.com (Postfix) with ESMTP id 6B9C4C90022
-	for <linux-mm@kvack.org>; Fri, 27 Jul 2012 14:18:58 -0400 (EDT)
+	Fri, 27 Jul 2012 12:19:07 -0600
+Received: from d03relay01.boulder.ibm.com (d03relay01.boulder.ibm.com [9.17.195.226])
+	by d03dlp02.boulder.ibm.com (Postfix) with ESMTP id 50B2E3E40026
+	for <linux-mm@kvack.org>; Fri, 27 Jul 2012 18:19:03 +0000 (WET)
 Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
-	by d01relay03.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q6RIIvK6380268
-	for <linux-mm@kvack.org>; Fri, 27 Jul 2012 14:18:58 -0400
+	by d03relay01.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q6RIIpXJ101724
+	for <linux-mm@kvack.org>; Fri, 27 Jul 2012 12:18:53 -0600
 Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av03.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q6RIIknc009847
-	for <linux-mm@kvack.org>; Fri, 27 Jul 2012 12:18:47 -0600
+	by d03av03.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q6RIIooU010302
+	for <linux-mm@kvack.org>; Fri, 27 Jul 2012 12:18:50 -0600
 From: Seth Jennings <sjenning@linux.vnet.ibm.com>
-Subject: [PATCH 1/4] zsmalloc: collapse internal .h into .c
-Date: Fri, 27 Jul 2012 13:18:34 -0500
-Message-Id: <1343413117-1989-2-git-send-email-sjenning@linux.vnet.ibm.com>
+Subject: [PATCH 4/4] zcache: promote to drivers/mm/
+Date: Fri, 27 Jul 2012 13:18:37 -0500
+Message-Id: <1343413117-1989-5-git-send-email-sjenning@linux.vnet.ibm.com>
 In-Reply-To: <1343413117-1989-1-git-send-email-sjenning@linux.vnet.ibm.com>
 References: <1343413117-1989-1-git-send-email-sjenning@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
@@ -26,319 +26,115 @@ List-ID: <linux-mm.kvack.org>
 To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Nitin Gupta <ngupta@vflare.org>, Minchan Kim <minchan@kernel.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org
 
-The patch collapses in the internal zsmalloc_int.h into
-the zsmalloc-main.c file.
+This patchset promtes the zcache driver from staging to drivers/mm/.
 
-This is done in preparation for the promotion to mm/ where
-separate internal headers are discouraged.
+zcache captures swap pages via frontswap and pages that fall
+out of the page cache via cleancache and compress them in RAM,
+providing a compressed RAM swap and a compressed second-chance
+page cache.
 
 Signed-off-by: Seth Jennings <sjenning@linux.vnet.ibm.com>
 ---
- drivers/staging/zsmalloc/zsmalloc-main.c |  132 +++++++++++++++++++++++++-
- drivers/staging/zsmalloc/zsmalloc_int.h  |  149 ------------------------------
- 2 files changed, 131 insertions(+), 150 deletions(-)
- delete mode 100644 drivers/staging/zsmalloc/zsmalloc_int.h
+ drivers/mm/Kconfig                           |   10 ++++++++++
+ drivers/mm/Makefile                          |    1 +
+ drivers/{staging => mm}/zcache/Makefile      |    0
+ drivers/{staging => mm}/zcache/tmem.c        |    0
+ drivers/{staging => mm}/zcache/tmem.h        |    0
+ drivers/{staging => mm}/zcache/zcache-main.c |    0
+ drivers/staging/Kconfig                      |    2 --
+ drivers/staging/Makefile                     |    1 -
+ drivers/staging/zcache/Kconfig               |   11 -----------
+ 9 files changed, 11 insertions(+), 14 deletions(-)
+ create mode 100644 drivers/mm/Makefile
+ rename drivers/{staging => mm}/zcache/Makefile (100%)
+ rename drivers/{staging => mm}/zcache/tmem.c (100%)
+ rename drivers/{staging => mm}/zcache/tmem.h (100%)
+ rename drivers/{staging => mm}/zcache/zcache-main.c (100%)
+ delete mode 100644 drivers/staging/zcache/Kconfig
 
-diff --git a/drivers/staging/zsmalloc/zsmalloc-main.c b/drivers/staging/zsmalloc/zsmalloc-main.c
-index defe350..09a9d35 100644
---- a/drivers/staging/zsmalloc/zsmalloc-main.c
-+++ b/drivers/staging/zsmalloc/zsmalloc-main.c
-@@ -76,9 +76,139 @@
- #include <linux/cpu.h>
- #include <linux/vmalloc.h>
- #include <linux/hardirq.h>
-+#include <linux/spinlock.h>
-+#include <linux/types.h>
+diff --git a/drivers/mm/Kconfig b/drivers/mm/Kconfig
+index e5b3743..22289c6 100644
+--- a/drivers/mm/Kconfig
++++ b/drivers/mm/Kconfig
+@@ -1,3 +1,13 @@
+ menu "Memory management drivers"
  
- #include "zsmalloc.h"
--#include "zsmalloc_int.h"
++config ZCACHE
++	bool "Dynamic compression of swap pages and clean pagecache pages"
++	depends on (CLEANCACHE || FRONTSWAP) && CRYPTO=y && ZSMALLOC=y
++	select CRYPTO_LZO
++	default n
++	help
++	  Zcache uses compression and an in-kernel implementation of
++	  transcendent memory to store clean page cache pages and swap
++	  in RAM, providing a noticeable reduction in disk I/O.
 +
-+/*
-+ * This must be power of 2 and greater than of equal to sizeof(link_free).
-+ * These two conditions ensure that any 'struct link_free' itself doesn't
-+ * span more than 1 page which avoids complex case of mapping 2 pages simply
-+ * to restore link_free pointer values.
-+ */
-+#define ZS_ALIGN		8
-+
-+/*
-+ * A single 'zspage' is composed of up to 2^N discontiguous 0-order (single)
-+ * pages. ZS_MAX_ZSPAGE_ORDER defines upper limit on N.
-+ */
-+#define ZS_MAX_ZSPAGE_ORDER 2
-+#define ZS_MAX_PAGES_PER_ZSPAGE (_AC(1, UL) << ZS_MAX_ZSPAGE_ORDER)
-+
-+/*
-+ * Object location (<PFN>, <obj_idx>) is encoded as
-+ * as single (void *) handle value.
-+ *
-+ * Note that object index <obj_idx> is relative to system
-+ * page <PFN> it is stored in, so for each sub-page belonging
-+ * to a zspage, obj_idx starts with 0.
-+ *
-+ * This is made more complicated by various memory models and PAE.
-+ */
-+
-+#ifndef MAX_PHYSMEM_BITS
-+#ifdef CONFIG_HIGHMEM64G
-+#define MAX_PHYSMEM_BITS 36
-+#else /* !CONFIG_HIGHMEM64G */
-+/*
-+ * If this definition of MAX_PHYSMEM_BITS is used, OBJ_INDEX_BITS will just
-+ * be PAGE_SHIFT
-+ */
-+#define MAX_PHYSMEM_BITS BITS_PER_LONG
-+#endif
-+#endif
-+#define _PFN_BITS		(MAX_PHYSMEM_BITS - PAGE_SHIFT)
-+#define OBJ_INDEX_BITS	(BITS_PER_LONG - _PFN_BITS)
-+#define OBJ_INDEX_MASK	((_AC(1, UL) << OBJ_INDEX_BITS) - 1)
-+
-+#define MAX(a, b) ((a) >= (b) ? (a) : (b))
-+/* ZS_MIN_ALLOC_SIZE must be multiple of ZS_ALIGN */
-+#define ZS_MIN_ALLOC_SIZE \
-+	MAX(32, (ZS_MAX_PAGES_PER_ZSPAGE << PAGE_SHIFT >> OBJ_INDEX_BITS))
-+#define ZS_MAX_ALLOC_SIZE	PAGE_SIZE
-+
-+/*
-+ * On systems with 4K page size, this gives 254 size classes! There is a
-+ * trader-off here:
-+ *  - Large number of size classes is potentially wasteful as free page are
-+ *    spread across these classes
-+ *  - Small number of size classes causes large internal fragmentation
-+ *  - Probably its better to use specific size classes (empirically
-+ *    determined). NOTE: all those class sizes must be set as multiple of
-+ *    ZS_ALIGN to make sure link_free itself never has to span 2 pages.
-+ *
-+ *  ZS_MIN_ALLOC_SIZE and ZS_SIZE_CLASS_DELTA must be multiple of ZS_ALIGN
-+ *  (reason above)
-+ */
-+#define ZS_SIZE_CLASS_DELTA	16
-+#define ZS_SIZE_CLASSES		((ZS_MAX_ALLOC_SIZE - ZS_MIN_ALLOC_SIZE) / \
-+					ZS_SIZE_CLASS_DELTA + 1)
-+
-+/*
-+ * We do not maintain any list for completely empty or full pages
-+ */
-+enum fullness_group {
-+	ZS_ALMOST_FULL,
-+	ZS_ALMOST_EMPTY,
-+	_ZS_NR_FULLNESS_GROUPS,
-+
-+	ZS_EMPTY,
-+	ZS_FULL
-+};
-+
-+/*
-+ * We assign a page to ZS_ALMOST_EMPTY fullness group when:
-+ *	n <= N / f, where
-+ * n = number of allocated objects
-+ * N = total number of objects zspage can store
-+ * f = 1/fullness_threshold_frac
-+ *
-+ * Similarly, we assign zspage to:
-+ *	ZS_ALMOST_FULL	when n > N / f
-+ *	ZS_EMPTY	when n == 0
-+ *	ZS_FULL		when n == N
-+ *
-+ * (see: fix_fullness_group())
-+ */
-+static const int fullness_threshold_frac = 4;
-+
-+struct size_class {
-+	/*
-+	 * Size of objects stored in this class. Must be multiple
-+	 * of ZS_ALIGN.
-+	 */
-+	int size;
-+	unsigned int index;
-+
-+	/* Number of PAGE_SIZE sized pages to combine to form a 'zspage' */
-+	int pages_per_zspage;
-+
-+	spinlock_t lock;
-+
-+	/* stats */
-+	u64 pages_allocated;
-+
-+	struct page *fullness_list[_ZS_NR_FULLNESS_GROUPS];
-+};
-+
-+/*
-+ * Placed within free objects to form a singly linked list.
-+ * For every zspage, first_page->freelist gives head of this list.
-+ *
-+ * This must be power of 2 and less than or equal to ZS_ALIGN
-+ */
-+struct link_free {
-+	/* Handle of next free chunk (encodes <PFN, obj_idx>) */
-+	void *next;
-+};
-+
-+struct zs_pool {
-+	struct size_class size_class[ZS_SIZE_CLASSES];
-+
-+	gfp_t flags;	/* allocation flags used when growing pool */
-+	const char *name;
-+};
+ endmenu
+diff --git a/drivers/mm/Makefile b/drivers/mm/Makefile
+new file mode 100644
+index 0000000..f36f509
+--- /dev/null
++++ b/drivers/mm/Makefile
+@@ -0,0 +1 @@
++obj-$(CONFIG_ZCACHE)	+= zcache/
+diff --git a/drivers/staging/zcache/Makefile b/drivers/mm/zcache/Makefile
+similarity index 100%
+rename from drivers/staging/zcache/Makefile
+rename to drivers/mm/zcache/Makefile
+diff --git a/drivers/staging/zcache/tmem.c b/drivers/mm/zcache/tmem.c
+similarity index 100%
+rename from drivers/staging/zcache/tmem.c
+rename to drivers/mm/zcache/tmem.c
+diff --git a/drivers/staging/zcache/tmem.h b/drivers/mm/zcache/tmem.h
+similarity index 100%
+rename from drivers/staging/zcache/tmem.h
+rename to drivers/mm/zcache/tmem.h
+diff --git a/drivers/staging/zcache/zcache-main.c b/drivers/mm/zcache/zcache-main.c
+similarity index 100%
+rename from drivers/staging/zcache/zcache-main.c
+rename to drivers/mm/zcache/zcache-main.c
+diff --git a/drivers/staging/Kconfig b/drivers/staging/Kconfig
+index b7f7bc7..0940d2e 100644
+--- a/drivers/staging/Kconfig
++++ b/drivers/staging/Kconfig
+@@ -76,8 +76,6 @@ source "drivers/staging/iio/Kconfig"
  
- /*
-  * A zspage's class index and fullness group
-diff --git a/drivers/staging/zsmalloc/zsmalloc_int.h b/drivers/staging/zsmalloc/zsmalloc_int.h
+ source "drivers/staging/zram/Kconfig"
+ 
+-source "drivers/staging/zcache/Kconfig"
+-
+ source "drivers/staging/wlags49_h2/Kconfig"
+ 
+ source "drivers/staging/wlags49_h25/Kconfig"
+diff --git a/drivers/staging/Makefile b/drivers/staging/Makefile
+index ad74bee..6e1c491 100644
+--- a/drivers/staging/Makefile
++++ b/drivers/staging/Makefile
+@@ -33,7 +33,6 @@ obj-$(CONFIG_IPACK_BUS)		+= ipack/
+ obj-$(CONFIG_DX_SEP)            += sep/
+ obj-$(CONFIG_IIO)		+= iio/
+ obj-$(CONFIG_ZRAM)		+= zram/
+-obj-$(CONFIG_ZCACHE)		+= zcache/
+ obj-$(CONFIG_WLAGS49_H2)	+= wlags49_h2/
+ obj-$(CONFIG_WLAGS49_H25)	+= wlags49_h25/
+ obj-$(CONFIG_FB_SM7XX)		+= sm7xxfb/
+diff --git a/drivers/staging/zcache/Kconfig b/drivers/staging/zcache/Kconfig
 deleted file mode 100644
-index 8c0b344..0000000
---- a/drivers/staging/zsmalloc/zsmalloc_int.h
+index 4881839..0000000
+--- a/drivers/staging/zcache/Kconfig
 +++ /dev/null
-@@ -1,149 +0,0 @@
--/*
-- * zsmalloc memory allocator
-- *
-- * Copyright (C) 2011  Nitin Gupta
-- *
-- * This code is released using a dual license strategy: BSD/GPL
-- * You can choose the license that better fits your requirements.
-- *
-- * Released under the terms of 3-clause BSD License
-- * Released under the terms of GNU General Public License Version 2.0
-- */
--
--#ifndef _ZS_MALLOC_INT_H_
--#define _ZS_MALLOC_INT_H_
--
--#include <linux/kernel.h>
--#include <linux/spinlock.h>
--#include <linux/types.h>
--
--/*
-- * This must be power of 2 and greater than of equal to sizeof(link_free).
-- * These two conditions ensure that any 'struct link_free' itself doesn't
-- * span more than 1 page which avoids complex case of mapping 2 pages simply
-- * to restore link_free pointer values.
-- */
--#define ZS_ALIGN		8
--
--/*
-- * A single 'zspage' is composed of up to 2^N discontiguous 0-order (single)
-- * pages. ZS_MAX_ZSPAGE_ORDER defines upper limit on N.
-- */
--#define ZS_MAX_ZSPAGE_ORDER 2
--#define ZS_MAX_PAGES_PER_ZSPAGE (_AC(1, UL) << ZS_MAX_ZSPAGE_ORDER)
--
--/*
-- * Object location (<PFN>, <obj_idx>) is encoded as
-- * as single (void *) handle value.
-- *
-- * Note that object index <obj_idx> is relative to system
-- * page <PFN> it is stored in, so for each sub-page belonging
-- * to a zspage, obj_idx starts with 0.
-- *
-- * This is made more complicated by various memory models and PAE.
-- */
--
--#ifndef MAX_PHYSMEM_BITS
--#ifdef CONFIG_HIGHMEM64G
--#define MAX_PHYSMEM_BITS 36
--#else /* !CONFIG_HIGHMEM64G */
--/*
-- * If this definition of MAX_PHYSMEM_BITS is used, OBJ_INDEX_BITS will just
-- * be PAGE_SHIFT
-- */
--#define MAX_PHYSMEM_BITS BITS_PER_LONG
--#endif
--#endif
--#define _PFN_BITS		(MAX_PHYSMEM_BITS - PAGE_SHIFT)
--#define OBJ_INDEX_BITS	(BITS_PER_LONG - _PFN_BITS)
--#define OBJ_INDEX_MASK	((_AC(1, UL) << OBJ_INDEX_BITS) - 1)
--
--#define MAX(a, b) ((a) >= (b) ? (a) : (b))
--/* ZS_MIN_ALLOC_SIZE must be multiple of ZS_ALIGN */
--#define ZS_MIN_ALLOC_SIZE \
--	MAX(32, (ZS_MAX_PAGES_PER_ZSPAGE << PAGE_SHIFT >> OBJ_INDEX_BITS))
--#define ZS_MAX_ALLOC_SIZE	PAGE_SIZE
--
--/*
-- * On systems with 4K page size, this gives 254 size classes! There is a
-- * trader-off here:
-- *  - Large number of size classes is potentially wasteful as free page are
-- *    spread across these classes
-- *  - Small number of size classes causes large internal fragmentation
-- *  - Probably its better to use specific size classes (empirically
-- *    determined). NOTE: all those class sizes must be set as multiple of
-- *    ZS_ALIGN to make sure link_free itself never has to span 2 pages.
-- *
-- *  ZS_MIN_ALLOC_SIZE and ZS_SIZE_CLASS_DELTA must be multiple of ZS_ALIGN
-- *  (reason above)
-- */
--#define ZS_SIZE_CLASS_DELTA	16
--#define ZS_SIZE_CLASSES		((ZS_MAX_ALLOC_SIZE - ZS_MIN_ALLOC_SIZE) / \
--					ZS_SIZE_CLASS_DELTA + 1)
--
--/*
-- * We do not maintain any list for completely empty or full pages
-- */
--enum fullness_group {
--	ZS_ALMOST_FULL,
--	ZS_ALMOST_EMPTY,
--	_ZS_NR_FULLNESS_GROUPS,
--
--	ZS_EMPTY,
--	ZS_FULL
--};
--
--/*
-- * We assign a page to ZS_ALMOST_EMPTY fullness group when:
-- *	n <= N / f, where
-- * n = number of allocated objects
-- * N = total number of objects zspage can store
-- * f = 1/fullness_threshold_frac
-- *
-- * Similarly, we assign zspage to:
-- *	ZS_ALMOST_FULL	when n > N / f
-- *	ZS_EMPTY	when n == 0
-- *	ZS_FULL		when n == N
-- *
-- * (see: fix_fullness_group())
-- */
--static const int fullness_threshold_frac = 4;
--
--struct size_class {
--	/*
--	 * Size of objects stored in this class. Must be multiple
--	 * of ZS_ALIGN.
--	 */
--	int size;
--	unsigned int index;
--
--	/* Number of PAGE_SIZE sized pages to combine to form a 'zspage' */
--	int pages_per_zspage;
--
--	spinlock_t lock;
--
--	/* stats */
--	u64 pages_allocated;
--
--	struct page *fullness_list[_ZS_NR_FULLNESS_GROUPS];
--};
--
--/*
-- * Placed within free objects to form a singly linked list.
-- * For every zspage, first_page->freelist gives head of this list.
-- *
-- * This must be power of 2 and less than or equal to ZS_ALIGN
-- */
--struct link_free {
--	/* Handle of next free chunk (encodes <PFN, obj_idx>) */
--	void *next;
--};
--
--struct zs_pool {
--	struct size_class size_class[ZS_SIZE_CLASSES];
--
--	gfp_t flags;	/* allocation flags used when growing pool */
--	const char *name;
--};
--
--#endif
+@@ -1,11 +0,0 @@
+-config ZCACHE
+-	bool "Dynamic compression of swap pages and clean pagecache pages"
+-	depends on (CLEANCACHE || FRONTSWAP) && CRYPTO=y && ZSMALLOC=y
+-	select CRYPTO_LZO
+-	default n
+-	help
+-	  Zcache doubles RAM efficiency while providing a significant
+-	  performance boosts on many workloads.  Zcache uses
+-	  compression and an in-kernel implementation of transcendent
+-	  memory to store clean page cache pages and swap in RAM,
+-	  providing a noticeable reduction in disk I/O.
 -- 
 1.7.9.5
 
