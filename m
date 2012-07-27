@@ -1,58 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
-	by kanga.kvack.org (Postfix) with SMTP id F0A9E6B0044
-	for <linux-mm@kvack.org>; Fri, 27 Jul 2012 02:18:09 -0400 (EDT)
-Message-ID: <501231F0.8050505@huawei.com>
-Date: Fri, 27 Jul 2012 14:15:12 +0800
-From: Li Zefan <lizefan@huawei.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH] cgroup: Don't drop the cgroup_mutex in cgroup_rmdir
-References: <87ipdjc15j.fsf@skywalker.in.ibm.com> <1342706972-10912-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <20120719165046.GO24336@google.com> <1342799140.2583.6.camel@twins> <20120720200542.GD21218@google.com>
-In-Reply-To: <20120720200542.GD21218@google.com>
-Content-Type: text/plain; charset="ISO-8859-1"
+Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
+	by kanga.kvack.org (Postfix) with SMTP id 2B2806B0044
+	for <linux-mm@kvack.org>; Fri, 27 Jul 2012 02:57:50 -0400 (EDT)
+Received: from /spool/local
+	by e06smtp18.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <schwidefsky@de.ibm.com>;
+	Fri, 27 Jul 2012 07:57:48 +0100
+Received: from d06av12.portsmouth.uk.ibm.com (d06av12.portsmouth.uk.ibm.com [9.149.37.247])
+	by d06nrmr1507.portsmouth.uk.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q6R6vKIE2633826
+	for <linux-mm@kvack.org>; Fri, 27 Jul 2012 07:57:20 +0100
+Received: from d06av12.portsmouth.uk.ibm.com (loopback [127.0.0.1])
+	by d06av12.portsmouth.uk.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q6R6vJC7027099
+	for <linux-mm@kvack.org>; Fri, 27 Jul 2012 00:57:20 -0600
+Date: Fri, 27 Jul 2012 08:57:18 +0200
+From: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Subject: Re: [RFC][PATCH 0/2] fun with tlb flushing on s390
+Message-ID: <20120727085718.19c33cce@de.ibm.com>
+In-Reply-To: <1343331770.32120.6.camel@twins>
+References: <1343317634-13197-1-git-send-email-schwidefsky@de.ibm.com>
+	<1343331770.32120.6.camel@twins>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <htejun@gmail.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, akpm@linux-foundation.org, mhocko@suse.cz, kamezawa.hiroyu@jp.fujitsu.com, liwanp@linux.vnet.ibm.com, cgroups@vger.kernel.org, linux-mm@kvack.org, glommer@parallels.com
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: linux-arch@vger.kernel.org, linux-mm@kvack.org, Zachary Amsden <zach@vmware.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Chris Metcalf <cmetcalf@tilera.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>
 
-On 2012/7/21 4:05, Tejun Heo wrote:
+On Thu, 26 Jul 2012 21:42:50 +0200
+Peter Zijlstra <peterz@infradead.org> wrote:
 
-> Hey, Peter.
+> On Thu, 2012-07-26 at 17:47 +0200, Martin Schwidefsky wrote:
+> > A code review revealed another potential race in regard to TLB flushing
+> > on s390. See patch #2 for the ugly details. To fix this I would like
+> > to use the arch_enter_lazy_mmu_mode/arch_leave_lazy_mmu_mode but to do
+> > that the pointer to the mm in question needs to be added to the functions.
+> > To keep things symmetrical arch_flush_lazy_mmu_mode should grow an mm
+> > argument as well.
+> > 
+> > powerpc 
 > 
-> On Fri, Jul 20, 2012 at 05:45:40PM +0200, Peter Zijlstra wrote:
->>> So, Peter, why does cpuset mangle with cgroup_mutex?  What guarantees
->>> does it need?  Why can't it work on "changed" notification while
->>> caching the current css like blkcg does?
->>
->> I've no clue sorry.. /me goes stare at this stuff.. Looks like something
->> Paul Menage did when he created cgroups. I'll have to have a hard look
->> at all that to untangle this. Not something obvious to me.
+> I have a patch that makes sparc64 do the same thing.
+
+That is good, I guess we are in agreement then to add the mm argument.
+ 
+> > and x86 have a non-empty implementation for the lazy mmu flush
+> > primitives and tile calls the generic definition in the architecture
+> > files (which is a bit strange because the generic definition is empty).
+> > Comments?
 > 
-> Yeah, it would be great if this can be untangled.  I really don't see
-> any other reasonable way out of this circular locking mess.  If cpuset
-> needs stable css association across certain period, the RTTD is
-> caching the css by holding its ref and synchronize modifications to
-> that cache, rather than synchronizing cgroup operations themselves.
-> 
+> argh.. you're making my head hurt.
 
+Fun, isn't it ?
 
-The cgroup core was extracted from cpuset, so they are deeply tangled.
+> I guess my first question is where is lazy_mmu_mode active crossing an
+> mm? I thought it was only ever held across operations on a single mm.
 
-There are several issues to resolve with regard to removing cgroup lock from cpuset.
+My take is never, it is only ever used in a single mm.
 
-- there are places that the cgroup hierarchy is travelled. This should be
-easy, as cpuset can be made to maintain its hierarchy.
+> The second question would be if you could use that detach_mm thing I
+> proposed a while back ( http://marc.info/?l=linux-mm&m=134090072917840 )
+> or can we rework the active_mm magic in general to make all this easier?
 
-- cpuset disallows clearing cpuset.mems/cpuset.cpus if the cgroup is not empty,
-which can be guaranteed only by cgroup lock.
+No, that is not good enough. The issue I'm trying to fix is for a multi-
+threaded application where the same mm is attached to multiple cpus. To
+detach it on the local cpu won't help, it would have to be detached
+everywhere.
 
-- cpuset disallows a task be attached to a cgroup with empty cpuset.mems/cpuset.cpus,
-which again can be guarantted only by cgroup lock.
+> Your 2/2 patch makes me shiver..
+ 
+Ask me about it :-/
 
-- cpuset may move tasks from a cgroup to another cgroup (Glauber mentioned this).
+-- 
+blue skies,
+   Martin.
 
-- maybe other cases I overlooked..
+"Reality continues to ruin my life." - Calvin.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
