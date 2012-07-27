@@ -1,112 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
-	by kanga.kvack.org (Postfix) with SMTP id 875296B0072
-	for <linux-mm@kvack.org>; Fri, 27 Jul 2012 06:25:19 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 9DF783EE0C0
-	for <linux-mm@kvack.org>; Fri, 27 Jul 2012 19:25:17 +0900 (JST)
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 830F645DE5D
-	for <linux-mm@kvack.org>; Fri, 27 Jul 2012 19:25:17 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 690F445DE55
-	for <linux-mm@kvack.org>; Fri, 27 Jul 2012 19:25:17 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 5737B1DB8056
-	for <linux-mm@kvack.org>; Fri, 27 Jul 2012 19:25:17 +0900 (JST)
-Received: from m1001.s.css.fujitsu.com (m1001.s.css.fujitsu.com [10.240.81.139])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 0E12A1DB8044
-	for <linux-mm@kvack.org>; Fri, 27 Jul 2012 19:25:17 +0900 (JST)
-Message-ID: <50126BF8.3070901@jp.fujitsu.com>
-Date: Fri, 27 Jul 2012 19:22:48 +0900
-From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-MIME-Version: 1.0
-Subject: Re: [RESEND RFC 3/3] memory-hotplug: bug fix race between isolation
- and allocation
-References: <1343004482-6916-1-git-send-email-minchan@kernel.org> <1343004482-6916-4-git-send-email-minchan@kernel.org>
-In-Reply-To: <1343004482-6916-4-git-send-email-minchan@kernel.org>
-Content-Type: text/plain; charset=ISO-2022-JP
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
+	by kanga.kvack.org (Postfix) with SMTP id 8E0C56B0073
+	for <linux-mm@kvack.org>; Fri, 27 Jul 2012 06:25:29 -0400 (EDT)
+Received: by ghrr18 with SMTP id r18so3631063ghr.14
+        for <linux-mm@kvack.org>; Fri, 27 Jul 2012 03:25:28 -0700 (PDT)
+From: Sha Zhengju <handai.szj@gmail.com>
+Subject: [PATCH V2 2/6] Make TestSetPageDirty and dirty page accounting in one func
+Date: Fri, 27 Jul 2012 18:25:20 +0800
+Message-Id: <1343384720-20084-1-git-send-email-handai.szj@taobao.com>
+In-Reply-To: <1343384432-19903-1-git-send-email-handai.szj@taobao.com>
+References: <1343384432-19903-1-git-send-email-handai.szj@taobao.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, lliubbo@gmail.com
+To: linux-mm@kvack.org, cgroups@vger.kernel.org
+Cc: fengguang.wu@intel.com, gthelen@google.com, akpm@linux-foundation.org, yinghan@google.com, mhocko@suse.cz, linux-kernel@vger.kernel.org, hannes@cmpxchg.org, torvalds@linux-foundation.org, viro@zeniv.linux.org.uk, linux-fsdevel@vger.kernel.org, npiggin@kernel.dk, Sha Zhengju <handai.szj@taobao.com>
 
-(2012/07/23 9:48), Minchan Kim wrote:
-> Like below, memory-hotplug makes race between page-isolation
-> and page-allocation so it can hit BUG_ON in __offline_isolated_pages.
-> 
-> 	CPU A					CPU B
-> 
-> start_isolate_page_range
-> set_migratetype_isolate
-> spin_lock_irqsave(zone->lock)
-> 
-> 				free_hot_cold_page(Page A)
-> 				/* without zone->lock */
-> 				migratetype = get_pageblock_migratetype(Page A);
-> 				/*
-> 				 * Page could be moved into MIGRATE_MOVABLE
-> 				 * of per_cpu_pages
-> 				 */
-> 				list_add_tail(&page->lru, &pcp->lists[migratetype]);
-> 
-> set_pageblock_isolate
-> move_freepages_block
-> drain_all_pages
-> 
-> 				/* Page A could be in MIGRATE_MOVABLE of free_list. */
-> 
-> check_pages_isolated
-> __test_page_isolated_in_pageblock
-> /*
->   * We can't catch freed page which
->   * is free_list[MIGRATE_MOVABLE]
->   */
-> if (PageBuddy(page A))
-> 	pfn += 1 << page_order(page A);
-> 
-> 				/* So, Page A could be allocated */
-> 
-> __offline_isolated_pages
-> /*
->   * BUG_ON hit or offline page
->   * which is used by someone
->   */
-> BUG_ON(!PageBuddy(page A));
-> 
-> Signed-off-by: Minchan Kim <minchan@kernel.org>
+From: Sha Zhengju <handai.szj@taobao.com>
 
-Ah, hm. Then, you say the page in MIGRATE_MOVABLE will not be isolated
-and may be used again.
+Commit a8e7d49a(Fix race in create_empty_buffers() vs __set_page_dirty_buffers())
+extracts TestSetPageDirty from __set_page_dirty and is far away from
+account_page_dirtied.But it's better to make the two operations in one single
+function to keep modular.So in order to avoid the potential race mentioned in
+commit a8e7d49a, we can hold private_lock until __set_page_dirty completes.
+I guess there's no deadlock between ->private_lock and ->tree_lock by quick look.
+It's a prepare patch for following memcg dirty page accounting patches.
 
 
-> ---
-> I found this problem during code review so please confirm it.
-> Kame?
-> 
->   mm/page_isolation.c |    5 ++++-
->   1 file changed, 4 insertions(+), 1 deletion(-)
-> 
-> diff --git a/mm/page_isolation.c b/mm/page_isolation.c
-> index acf65a7..4699d1f 100644
-> --- a/mm/page_isolation.c
-> +++ b/mm/page_isolation.c
-> @@ -196,8 +196,11 @@ __test_page_isolated_in_pageblock(unsigned long pfn, unsigned long end_pfn)
->   			continue;
->   		}
->   		page = pfn_to_page(pfn);
-> -		if (PageBuddy(page))
-> +		if (PageBuddy(page)) {
-> +			if (get_page_migratetype(page) != MIGRATE_ISOLATE)
-> +				break;
+Here is some test numbers that before/after this patch:
 
-Doesn't this work enough ? The problem is MIGRATE_TYPE and list_head mis-match.
+Test steps(Mem-24g, ext4):
+drop_cache; sync
+fio (buffered/randwrite/bs=4k/size=128m/filesize=1g/numjobs=8/sync)
 
-Thanks,
--Kame
+We test it for 10 times and get the average numbers:
+Before:
+write: io=1024.0MB, bw=334678 KB/s, iops=83669.2 , runt=  3136 msec
+lat (usec): min=1 , max=26203.1 , avg=81.473, stdev=275.754
+After:
+write: io=1024.0MB, bw=331583 KB/s, iops=82895.3 , runt=  3164.4 msec
+lat (usec): min=1.1 , max=19001.6 , avg=83.544, stdev=272.704
+
+Note that the impact is little(~1%).
+
+Signed-off-by: Sha Zhengju <handai.szj@taobao.com>
+Reviewed-by: Michal Hocko <mhocko@suse.cz>
+---
+ fs/buffer.c |   25 +++++++++++++------------
+ 1 files changed, 13 insertions(+), 12 deletions(-)
+
+diff --git a/fs/buffer.c b/fs/buffer.c
+index c7062c8..5e0b0d2 100644
+--- a/fs/buffer.c
++++ b/fs/buffer.c
+@@ -610,9 +610,15 @@ EXPORT_SYMBOL(mark_buffer_dirty_inode);
+  * If warn is true, then emit a warning if the page is not uptodate and has
+  * not been truncated.
+  */
+-static void __set_page_dirty(struct page *page,
++static int __set_page_dirty(struct page *page,
+ 		struct address_space *mapping, int warn)
+ {
++	if (unlikely(!mapping))
++		return !TestSetPageDirty(page);
++
++	if (TestSetPageDirty(page))
++		return 0;
++
+ 	spin_lock_irq(&mapping->tree_lock);
+ 	if (page->mapping) {	/* Race with truncate? */
+ 		WARN_ON_ONCE(warn && !PageUptodate(page));
+@@ -622,6 +628,8 @@ static void __set_page_dirty(struct page *page,
+ 	}
+ 	spin_unlock_irq(&mapping->tree_lock);
+ 	__mark_inode_dirty(mapping->host, I_DIRTY_PAGES);
++
++	return 1;
+ }
  
-
+ /*
+@@ -667,11 +675,9 @@ int __set_page_dirty_buffers(struct page *page)
+ 			bh = bh->b_this_page;
+ 		} while (bh != head);
+ 	}
+-	newly_dirty = !TestSetPageDirty(page);
++	newly_dirty = __set_page_dirty(page, mapping, 1);
+ 	spin_unlock(&mapping->private_lock);
+ 
+-	if (newly_dirty)
+-		__set_page_dirty(page, mapping, 1);
+ 	return newly_dirty;
+ }
+ EXPORT_SYMBOL(__set_page_dirty_buffers);
+@@ -1119,14 +1125,9 @@ void mark_buffer_dirty(struct buffer_head *bh)
+ 			return;
+ 	}
+ 
+-	if (!test_set_buffer_dirty(bh)) {
+-		struct page *page = bh->b_page;
+-		if (!TestSetPageDirty(page)) {
+-			struct address_space *mapping = page_mapping(page);
+-			if (mapping)
+-				__set_page_dirty(page, mapping, 0);
+-		}
+-	}
++	if (!test_set_buffer_dirty(bh))
++		__set_page_dirty(bh->b_page, page_mapping(bh->b_page), 0);
++
+ }
+ EXPORT_SYMBOL(mark_buffer_dirty);
+ 
+-- 
+1.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
