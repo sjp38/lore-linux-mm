@@ -1,48 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
-	by kanga.kvack.org (Postfix) with SMTP id B2F306B005A
-	for <linux-mm@kvack.org>; Fri, 27 Jul 2012 16:04:30 -0400 (EDT)
-Message-ID: <1343419466.32120.50.camel@twins>
-Subject: Re: [PATCH 4/6] rbtree: faster augmented insert
-From: Peter Zijlstra <peterz@infradead.org>
-Date: Fri, 27 Jul 2012 22:04:26 +0200
-In-Reply-To: <1342787467-5493-5-git-send-email-walken@google.com>
-References: <1342787467-5493-1-git-send-email-walken@google.com>
-	 <1342787467-5493-5-git-send-email-walken@google.com>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: quoted-printable
-Mime-Version: 1.0
+Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
+	by kanga.kvack.org (Postfix) with SMTP id 5D6816B004D
+	for <linux-mm@kvack.org>; Fri, 27 Jul 2012 16:17:22 -0400 (EDT)
+Received: by wgbds1 with SMTP id ds1so953779wgb.2
+        for <linux-mm@kvack.org>; Fri, 27 Jul 2012 13:17:20 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <50126D44.7070608@cn.fujitsu.com>
+References: <50126B83.3050201@cn.fujitsu.com>
+	<50126D44.7070608@cn.fujitsu.com>
+Date: Fri, 27 Jul 2012 13:17:20 -0700
+Message-ID: <CA+8MBbL+G=xqkWU4xGF3_Ra7KoeoHuzL6QYcRiKqtVZoOBfLdQ@mail.gmail.com>
+Subject: Re: [RFC PATCH v5 05/19] memory-hotplug: check whether memory is
+ present or not
+From: Tony Luck <tony.luck@intel.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michel Lespinasse <walken@google.com>
-Cc: riel@redhat.com, daniel.santos@pobox.com, aarcange@redhat.com, dwmw2@infradead.org, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Wen Congyang <wency@cn.fujitsu.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-ia64@vger.kernel.org, cmetcalf@tilera.com, rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, Yasuaki ISIMATU <isimatu.yasuaki@jp.fujitsu.com>
 
-On Fri, 2012-07-20 at 05:31 -0700, Michel Lespinasse wrote:
-> +static void augment_rotate(struct rb_node *rb_old, struct rb_node *rb_ne=
-w)
+On Fri, Jul 27, 2012 at 3:28 AM, Wen Congyang <wency@cn.fujitsu.com> wrote:
+> +static inline int pfns_present(unsigned long pfn, unsigned long nr_pages)
 > +{
-> +       struct test_node *old =3D rb_entry(rb_old, struct test_node, rb);
-> +       struct test_node *new =3D rb_entry(rb_new, struct test_node, rb);
-> +
-> +       /* Rotation doesn't change subtree's augmented value */
-> +       new->augmented =3D old->augmented;
-> +       old->augmented =3D augment_recompute(old);
-> +}=20
+> +       int i;
+> +       for (i = 0; i < nr_pages; i++) {
+> +               if (pfn_present(pfn + 1))
 
-> +static inline void augment_propagate(struct rb_node *rb)
-> +{
-> +       while (rb) {
-> +               struct test_node *node =3D rb_entry(rb, struct test_node,=
- rb);
-> +               node->augmented =3D augment_recompute(node);
-> +               rb =3D rb_parent(&node->rb);
+Typo? I think you meant "pfn + i"
+
+> +                       continue;
+> +               else
+> +                       return -EINVAL;
 > +       }
+> +       return 0;
 > +}
 
-So why do we have to introduce these two new function pointers to pass
-along when they can both be trivially expressed in the old single
-augment function?
-
+-Tony
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
