@@ -1,95 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
-	by kanga.kvack.org (Postfix) with SMTP id E2C446B0044
-	for <linux-mm@kvack.org>; Fri, 27 Jul 2012 13:15:24 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
+	by kanga.kvack.org (Postfix) with SMTP id 8CC916B005A
+	for <linux-mm@kvack.org>; Fri, 27 Jul 2012 13:52:13 -0400 (EDT)
 Received: from /spool/local
-	by e23smtp08.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e23smtp09.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Sat, 28 Jul 2012 03:15:13 +1000
-Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
-	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q6RH73MA11862190
-	for <linux-mm@kvack.org>; Sat, 28 Jul 2012 03:07:04 +1000
-Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
-	by d23av02.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q6RHFEZ2020294
-	for <linux-mm@kvack.org>; Sat, 28 Jul 2012 03:15:15 +1000
+	Sat, 28 Jul 2012 03:51:52 +1000
+Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
+	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q6RHhs6510420428
+	for <linux-mm@kvack.org>; Sat, 28 Jul 2012 03:43:54 +1000
+Received: from d23av01.au.ibm.com (loopback [127.0.0.1])
+	by d23av01.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q6RHq5XH001632
+	for <linux-mm@kvack.org>; Sat, 28 Jul 2012 03:52:05 +1000
 From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: Re: [PATCH 1/2] Revert "hugetlb: avoid taking i_mmap_mutex in unmap_single_vma() for hugetlb"
-In-Reply-To: <1343385965-7738-2-git-send-email-mgorman@suse.de>
-References: <1343385965-7738-1-git-send-email-mgorman@suse.de> <1343385965-7738-2-git-send-email-mgorman@suse.de>
-Date: Fri, 27 Jul 2012 22:45:04 +0530
-Message-ID: <877gtp5dnr.fsf@skywalker.in.ibm.com>
+Subject: Re: [PATCH] list corruption by gather_surplus
+In-Reply-To: <E1SuVpz-00028P-QG@eag09.americas.sgi.com>
+References: <E1SuVpz-00028P-QG@eag09.americas.sgi.com>
+Date: Fri, 27 Jul 2012 23:21:53 +0530
+Message-ID: <87394d5bye.fsf@skywalker.in.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Michal Hocko <mhocko@suse.cz>, Ken Chen <kenchen@google.com>, Cong Wang <xiyou.wangcong@gmail.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Cliff Wickman <cpw@sgi.com>, cmetcalf@tilera.com, dave@linux.vnet.ibm.com, dhillf@gmail.com, dwg@au1.ibm.com, kamezawa.hiroyuki@gmail.com, khlebnikov@openvz.org, lee.schermerhorn@hp.com, mgorman@suse.de, mhocko@suse.cz, shhuiw@gmail.com, viro@zeniv.linux.org.uk
+Cc: linux-mm@kvack.org
 
-Mel Gorman <mgorman@suse.de> writes:
+Cliff Wickman <cpw@sgi.com> writes:
 
-> This reverts the patch "hugetlb: avoid taking i_mmap_mutex in
-> unmap_single_vma() for hugetlb" from mmotm.
+> From: Cliff Wickman <cpw@sgi.com>
 >
-> This patch is possibly a mistake and blocks the merging of a hugetlb fix
-> where page tables can get corrupted (https://lkml.org/lkml/2012/7/24/93).
-> The motivation of the patch appears to be two-fold.
+> Gentlemen,
+> I see that you all have done maintenance on mm/hugetlb.c, so I'm hoping one
+> or two of you could comment on a problem and proposed fix.
 >
-> First, it believes that the i_mmap_mutex is to protect against list
-> corruption of the page->lru lock but that is not quite accurate. The
-> i_mmap_mutex for shared page tables is meant to protect against races
-> when sharing and unsharing the page tables. For example, an important
-> use of i_mmap_mutex is to stabilise the page_count of the PMD page
-> during huge_pmd_unshare.
-
-I missed that. 
-
 >
-> Second, it is protecting against a potential deadlock when
-> unmap_unsingle_page is called from unmap_mapping_range(). However, hugetlbfs
-> should never be in this path. It has its own setattr and truncate handlers
-> where are the paths that use unmap_mapping_range().
+> I am seeing list corruption occurring from within gather_surplus_pages()
+> (mm/hugetlb.c).  The problem occurs under a heavy load, and seems to be
+> because this function drops the hugetlb_lock.
+>
+> I have CONFIG_DEBUG_LIST=y, and am running an MPI application with 64 threads
+> and a library that creates a large heap of hugetlbfs pages for it.
+>
+> The below patch fixes the problem.
+> The gist of this patch is that gather_surplus_pages() does not have to drop
+> the lock if alloc_buddy_huge_page() is told whether the lock is
+> already held.
 
-I noted this in 
 
-http://article.gmane.org/gmane.linux.kernel.mm/80065
-
+But you didn't explain the corruption details right ? What cause the
+corruption ? It would be nice to document that in the commit.
 
 >
-> Unless Aneesh has another reason for the patch, it should be reverted
-> to preserve hugetlb page sharing locking.
+> But I may be missing some reason why gather_surplus_pages() is unlocking and
+> locking the hugetlb_lock several times (besides around the allocator).
 >
-
-I guess we want to take this patch as a revert patch rather than
-dropping the one in -mm. That would help in documenting the i_mmap_mutex
-locking details in commit message. Or may be we should add necessary
-comments around the locking ?
-
-Acked-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
-
-> Signed-off-by: Mel Gorman <mgorman@suse.de>
+> Could you take a look and advise?
+>
+> Signed-off-by: Cliff Wickman <cpw@sgi.com>
 > ---
->  mm/memory.c |    5 ++++-
->  1 file changed, 4 insertions(+), 1 deletion(-)
+>  mm/hugetlb.c |   28 +++++++++++++++++-----------
+>  1 file changed, 17 insertions(+), 11 deletions(-)
 >
-> diff --git a/mm/memory.c b/mm/memory.c
-> index 8a989f1..22bc695 100644
-> --- a/mm/memory.c
-> +++ b/mm/memory.c
-> @@ -1344,8 +1344,11 @@ static void unmap_single_vma(struct mmu_gather *tlb,
->  			 * Since no pte has actually been setup, it is
->  			 * safe to do nothing in this case.
->  			 */
-> -			if (vma->vm_file)
-> +			if (vma->vm_file) {
-> +				mutex_lock(&vma->vm_file->f_mapping->i_mmap_mutex);
->  				__unmap_hugepage_range(tlb, vma, start, end, NULL);
-> +				mutex_unlock(&vma->vm_file->f_mapping->i_mmap_mutex);
-> +			}
->  		} else
->  			unmap_page_range(tlb, vma, start, end, details);
->  	}
-> -- 
-> 1.7.9.2
+> Index: linux/mm/hugetlb.c
+> ===================================================================
+> --- linux.orig/mm/hugetlb.c
+> +++ linux/mm/hugetlb.c
+> @@ -747,7 +747,9 @@ static int free_pool_huge_page(struct hs
+>  	return ret;
+>  }
+>
+> -static struct page *alloc_buddy_huge_page(struct hstate *h, int nid)
+> +/* already_locked means the caller has already locked hugetlb_lock */
+> +static struct page *alloc_buddy_huge_page(struct hstate *h, int nid,
+> +						int already_locked)
+>  {
+
+Why ? Why can't we always call this with lock held ?
+
+>  	struct page *page;
+>  	unsigned int r_nid;
+> @@ -778,7 +780,8 @@ static struct page *alloc_buddy_huge_pag
+>  	 * the node values until we've gotten the hugepage and only the
+
+-aneesh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
