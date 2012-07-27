@@ -1,168 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
-	by kanga.kvack.org (Postfix) with SMTP id 2284E6B0044
-	for <linux-mm@kvack.org>; Fri, 27 Jul 2012 12:57:55 -0400 (EDT)
-Received: by vbkv13 with SMTP id v13so3587585vbk.14
-        for <linux-mm@kvack.org>; Fri, 27 Jul 2012 09:57:54 -0700 (PDT)
-Date: Fri, 27 Jul 2012 12:57:50 -0400
-From: Konrad Rzeszutek Wilk <konrad@darnok.org>
-Subject: Re: [PATCH 1/2] add mm argument to lazy mmu mode hooks
-Message-ID: <20120727165749.GB7190@localhost.localdomain>
-References: <1343317634-13197-1-git-send-email-schwidefsky@de.ibm.com>
- <1343317634-13197-2-git-send-email-schwidefsky@de.ibm.com>
+Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
+	by kanga.kvack.org (Postfix) with SMTP id E2C446B0044
+	for <linux-mm@kvack.org>; Fri, 27 Jul 2012 13:15:24 -0400 (EDT)
+Received: from /spool/local
+	by e23smtp08.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Sat, 28 Jul 2012 03:15:13 +1000
+Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
+	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q6RH73MA11862190
+	for <linux-mm@kvack.org>; Sat, 28 Jul 2012 03:07:04 +1000
+Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
+	by d23av02.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q6RHFEZ2020294
+	for <linux-mm@kvack.org>; Sat, 28 Jul 2012 03:15:15 +1000
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: Re: [PATCH 1/2] Revert "hugetlb: avoid taking i_mmap_mutex in unmap_single_vma() for hugetlb"
+In-Reply-To: <1343385965-7738-2-git-send-email-mgorman@suse.de>
+References: <1343385965-7738-1-git-send-email-mgorman@suse.de> <1343385965-7738-2-git-send-email-mgorman@suse.de>
+Date: Fri, 27 Jul 2012 22:45:04 +0530
+Message-ID: <877gtp5dnr.fsf@skywalker.in.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1343317634-13197-2-git-send-email-schwidefsky@de.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Martin Schwidefsky <schwidefsky@de.ibm.com>
-Cc: linux-arch@vger.kernel.org, linux-mm@kvack.org, Zachary Amsden <zach@vmware.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Chris Metcalf <cmetcalf@tilera.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>
+To: Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Michal Hocko <mhocko@suse.cz>, Ken Chen <kenchen@google.com>, Cong Wang <xiyou.wangcong@gmail.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Thu, Jul 26, 2012 at 05:47:13PM +0200, Martin Schwidefsky wrote:
-> To enable lazy TLB flush schemes with a scope limited to a single
-> mm_struct add the mm pointer as argument to the three lazy mmu mode
-> hooks.
-> 
-> Signed-off-by: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Mel Gorman <mgorman@suse.de> writes:
+
+> This reverts the patch "hugetlb: avoid taking i_mmap_mutex in
+> unmap_single_vma() for hugetlb" from mmotm.
+>
+> This patch is possibly a mistake and blocks the merging of a hugetlb fix
+> where page tables can get corrupted (https://lkml.org/lkml/2012/7/24/93).
+> The motivation of the patch appears to be two-fold.
+>
+> First, it believes that the i_mmap_mutex is to protect against list
+> corruption of the page->lru lock but that is not quite accurate. The
+> i_mmap_mutex for shared page tables is meant to protect against races
+> when sharing and unsharing the page tables. For example, an important
+> use of i_mmap_mutex is to stabilise the page_count of the PMD page
+> during huge_pmd_unshare.
+
+I missed that. 
+
+>
+> Second, it is protecting against a potential deadlock when
+> unmap_unsingle_page is called from unmap_mapping_range(). However, hugetlbfs
+> should never be in this path. It has its own setattr and truncate handlers
+> where are the paths that use unmap_mapping_range().
+
+I noted this in 
+
+http://article.gmane.org/gmane.linux.kernel.mm/80065
+
+
+>
+> Unless Aneesh has another reason for the patch, it should be reverted
+> to preserve hugetlb page sharing locking.
+>
+
+I guess we want to take this patch as a revert patch rather than
+dropping the one in -mm. That would help in documenting the i_mmap_mutex
+locking details in commit message. Or may be we should add necessary
+comments around the locking ?
+
+Acked-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+
+> Signed-off-by: Mel Gorman <mgorman@suse.de>
 > ---
->  arch/powerpc/include/asm/tlbflush.h |    6 +++---
->  arch/powerpc/mm/subpage-prot.c      |    4 ++--
->  arch/powerpc/mm/tlb_hash64.c        |    4 ++--
->  arch/tile/mm/fault.c                |    2 +-
->  arch/tile/mm/highmem.c              |    4 ++--
->  arch/x86/include/asm/paravirt.h     |    6 +++---
->  arch/x86/kernel/paravirt.c          |   10 +++++-----
->  arch/x86/mm/highmem_32.c            |    4 ++--
->  arch/x86/mm/iomap_32.c              |    2 +-
->  include/asm-generic/pgtable.h       |    6 +++---
->  mm/memory.c                         |   16 ++++++++--------
->  mm/mprotect.c                       |    4 ++--
->  mm/mremap.c                         |    4 ++--
->  13 files changed, 36 insertions(+), 36 deletions(-)
-> 
-> diff --git a/arch/powerpc/include/asm/tlbflush.h b/arch/powerpc/include/asm/tlbflush.h
-> index 81143fc..7851e0c1 100644
-> --- a/arch/powerpc/include/asm/tlbflush.h
-> +++ b/arch/powerpc/include/asm/tlbflush.h
-> @@ -108,14 +108,14 @@ extern void hpte_need_flush(struct mm_struct *mm, unsigned long addr,
->  
->  #define __HAVE_ARCH_ENTER_LAZY_MMU_MODE
->  
-> -static inline void arch_enter_lazy_mmu_mode(void)
-> +static inline void arch_enter_lazy_mmu_mode(struct mm_struct *mm)
->  {
->  	struct ppc64_tlb_batch *batch = &__get_cpu_var(ppc64_tlb_batch);
->  
->  	batch->active = 1;
->  }
->  
-> -static inline void arch_leave_lazy_mmu_mode(void)
-> +static inline void arch_leave_lazy_mmu_mode(struct mm_struct *mm)
->  {
->  	struct ppc64_tlb_batch *batch = &__get_cpu_var(ppc64_tlb_batch);
->  
-> @@ -124,7 +124,7 @@ static inline void arch_leave_lazy_mmu_mode(void)
->  	batch->active = 0;
->  }
->  
-> -#define arch_flush_lazy_mmu_mode()      do {} while (0)
-> +#define arch_flush_lazy_mmu_mode(mm)	  do {} while (0)
->  
->  
->  extern void flush_hash_page(unsigned long va, real_pte_t pte, int psize,
-> diff --git a/arch/powerpc/mm/subpage-prot.c b/arch/powerpc/mm/subpage-prot.c
-> index e4f8f1f..bf95185 100644
-> --- a/arch/powerpc/mm/subpage-prot.c
-> +++ b/arch/powerpc/mm/subpage-prot.c
-> @@ -76,13 +76,13 @@ static void hpte_flush_range(struct mm_struct *mm, unsigned long addr,
->  	if (pmd_none(*pmd))
->  		return;
->  	pte = pte_offset_map_lock(mm, pmd, addr, &ptl);
-> -	arch_enter_lazy_mmu_mode();
-> +	arch_enter_lazy_mmu_mode(mm);
->  	for (; npages > 0; --npages) {
->  		pte_update(mm, addr, pte, 0, 0);
->  		addr += PAGE_SIZE;
->  		++pte;
+>  mm/memory.c |    5 ++++-
+>  1 file changed, 4 insertions(+), 1 deletion(-)
+>
+> diff --git a/mm/memory.c b/mm/memory.c
+> index 8a989f1..22bc695 100644
+> --- a/mm/memory.c
+> +++ b/mm/memory.c
+> @@ -1344,8 +1344,11 @@ static void unmap_single_vma(struct mmu_gather *tlb,
+>  			 * Since no pte has actually been setup, it is
+>  			 * safe to do nothing in this case.
+>  			 */
+> -			if (vma->vm_file)
+> +			if (vma->vm_file) {
+> +				mutex_lock(&vma->vm_file->f_mapping->i_mmap_mutex);
+>  				__unmap_hugepage_range(tlb, vma, start, end, NULL);
+> +				mutex_unlock(&vma->vm_file->f_mapping->i_mmap_mutex);
+> +			}
+>  		} else
+>  			unmap_page_range(tlb, vma, start, end, details);
 >  	}
-> -	arch_leave_lazy_mmu_mode();
-> +	arch_leave_lazy_mmu_mode(mm);
->  	pte_unmap_unlock(pte - 1, ptl);
->  }
->  
-> diff --git a/arch/powerpc/mm/tlb_hash64.c b/arch/powerpc/mm/tlb_hash64.c
-> index 31f1820..73fd065 100644
-> --- a/arch/powerpc/mm/tlb_hash64.c
-> +++ b/arch/powerpc/mm/tlb_hash64.c
-> @@ -205,7 +205,7 @@ void __flush_hash_table_range(struct mm_struct *mm, unsigned long start,
->  	 * way to do things but is fine for our needs here.
->  	 */
->  	local_irq_save(flags);
-> -	arch_enter_lazy_mmu_mode();
-> +	arch_enter_lazy_mmu_mode(mm);
->  	for (; start < end; start += PAGE_SIZE) {
->  		pte_t *ptep = find_linux_pte(mm->pgd, start);
->  		unsigned long pte;
-> @@ -217,7 +217,7 @@ void __flush_hash_table_range(struct mm_struct *mm, unsigned long start,
->  			continue;
->  		hpte_need_flush(mm, start, ptep, pte, 0);
->  	}
-> -	arch_leave_lazy_mmu_mode();
-> +	arch_leave_lazy_mmu_mode(mm);
->  	local_irq_restore(flags);
->  }
->  
-> diff --git a/arch/tile/mm/fault.c b/arch/tile/mm/fault.c
-> index 84ce7ab..0d78f93 100644
-> --- a/arch/tile/mm/fault.c
-> +++ b/arch/tile/mm/fault.c
-> @@ -123,7 +123,7 @@ static inline pmd_t *vmalloc_sync_one(pgd_t *pgd, unsigned long address)
->  		return NULL;
->  	if (!pmd_present(*pmd)) {
->  		set_pmd(pmd, *pmd_k);
-> -		arch_flush_lazy_mmu_mode();
-> +		arch_flush_lazy_mmu_mode(&init_mm);
->  	} else
->  		BUG_ON(pmd_ptfn(*pmd) != pmd_ptfn(*pmd_k));
->  	return pmd_k;
-> diff --git a/arch/tile/mm/highmem.c b/arch/tile/mm/highmem.c
-> index ef8e5a6..85b061e 100644
-> --- a/arch/tile/mm/highmem.c
-> +++ b/arch/tile/mm/highmem.c
-> @@ -114,7 +114,7 @@ static void kmap_atomic_register(struct page *page, enum km_type type,
->  
->  	list_add(&amp->list, &amp_list);
->  	set_pte(ptep, pteval);
-> -	arch_flush_lazy_mmu_mode();
-> +	arch_flush_lazy_mmu_mode(&init_mm);
->  
->  	spin_unlock(&amp_lock);
->  	homecache_kpte_unlock(flags);
-> @@ -259,7 +259,7 @@ void __kunmap_atomic(void *kvaddr)
->  		BUG_ON(vaddr >= (unsigned long)high_memory);
->  	}
->  
-> -	arch_flush_lazy_mmu_mode();
-> +	arch_flush_lazy_mmu_mode(&init_mm);
->  	pagefault_enable();
->  }
->  EXPORT_SYMBOL(__kunmap_atomic);
-> diff --git a/arch/x86/include/asm/paravirt.h b/arch/x86/include/asm/paravirt.h
-> index 0b47ddb..b097945 100644
-> --- a/arch/x86/include/asm/paravirt.h
-> +++ b/arch/x86/include/asm/paravirt.h
-> @@ -694,17 +694,17 @@ static inline void arch_end_context_switch(struct task_struct *next)
->  }
->  
->  #define  __HAVE_ARCH_ENTER_LAZY_MMU_MODE
-> -static inline void arch_enter_lazy_mmu_mode(void)
-> +static inline void arch_enter_lazy_mmu_mode(struct mm_struct *mm)
->  {
->  	PVOP_VCALL0(pv_mmu_ops.lazy_mode.enter);
-
-If you are doing that, you should probably also update the pvops call to
-pass in the 'struct mm_struct'?
+> -- 
+> 1.7.9.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
