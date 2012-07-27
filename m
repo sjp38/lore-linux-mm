@@ -1,59 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx174.postini.com [74.125.245.174])
-	by kanga.kvack.org (Postfix) with SMTP id 0AE796B005A
-	for <linux-mm@kvack.org>; Fri, 27 Jul 2012 15:22:08 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx176.postini.com [74.125.245.176])
+	by kanga.kvack.org (Postfix) with SMTP id 01C216B004D
+	for <linux-mm@kvack.org>; Fri, 27 Jul 2012 15:23:37 -0400 (EDT)
+Received: by yenr5 with SMTP id r5so4292017yen.14
+        for <linux-mm@kvack.org>; Fri, 27 Jul 2012 12:23:37 -0700 (PDT)
+Date: Fri, 27 Jul 2012 12:22:46 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [RFC] page-table walkers vs memory order
+In-Reply-To: <1343335169.32120.18.camel@twins>
+Message-ID: <alpine.LSU.2.00.1207271155440.1328@eggly.anvils>
+References: <1343064870.26034.23.camel@twins> <alpine.LSU.2.00.1207241356350.2094@eggly.anvils> <1343335169.32120.18.camel@twins>
 MIME-Version: 1.0
-Message-ID: <b95aec06-5a10-4f83-bdfd-e7f6adabd9df@default>
-Date: Fri, 27 Jul 2012 12:21:50 -0700 (PDT)
-From: Dan Magenheimer <dan.magenheimer@oracle.com>
-Subject: RE: [PATCH 0/4] promote zcache from staging
-References: <<1343413117-1989-1-git-send-email-sjenning@linux.vnet.ibm.com>>
-In-Reply-To: <<1343413117-1989-1-git-send-email-sjenning@linux.vnet.ibm.com>>
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: quoted-printable
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Seth Jennings <sjenning@linux.vnet.ibm.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Nitin Gupta <ngupta@vflare.org>, Minchan Kim <minchan@kernel.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Nick Piggin <npiggin@kernel.dk>, Andrea Arcangeli <aarcange@redhat.com>, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org
 
-> From: Seth Jennings [mailto:sjenning@linux.vnet.ibm.com]
-> Subject: [PATCH 0/4] promote zcache from staging
->=20
-> zcache is the remaining piece of code required to support in-kernel
-> memory compression.  The other two features, cleancache and frontswap,
-> have been promoted to mainline in 3.0 and 3.5.  This patchset
-> promotes zcache from the staging tree to mainline.
->=20
-> Based on the level of activity and contributions we're seeing from a
-> diverse set of people and interests, I think zcache has matured to the
-> point where it makes sense to promote this out of staging.
+On Thu, 26 Jul 2012, Peter Zijlstra wrote:
+> On Tue, 2012-07-24 at 14:51 -0700, Hugh Dickins wrote:
+> > I do love the status quo, but an audit would be welcome.  When
+> > it comes to patches, personally I tend to prefer ACCESS_ONCE() and
+> > smp_read_barrier_depends() and accompanying comments to be hidden away
+> > in the underlying macros or inlines where reasonable, rather than
+> > repeated all over; but I may have my priorities wrong on that.
 
-Hi Seth --
+I notice from that old radix_tree thread you pointed to in the previous
+mail (for which many thanks: lots of meat to digest in there) that this
+is also Linus's preference.
 
-Per offline communication, I'd like to see this delayed for three
-reasons:
+> > 
+> > 
+> Yeah, I was being lazy, and I totally forgot to actually look at the
+> alpha code.
+> 
+> How about we do a generic (cribbed from rcu_dereference):
+> 
+> #define page_table_deref(p)					\
+> ({								\
+> 	typeof(*p) *______p = (typeof(*p) __force *)ACCESS_ONCE(p);\
+> 	smp_read_barrier_depends();				\
+> 	((typeof(*p) __force __kernel *)(______p));		\
+> })
+> 
+> and use that all over to dereference page-tables. That way all this
+> lives in one place. Granted, I'll have to go edit all arch code, but I
+> seem to be doing that on a frequent basis anyway :/
 
-1) I've completely rewritten zcache and will post the rewrite soon.
-   The redesigned code fixes many of the weaknesses in zcache that
-   makes it (IMHO) unsuitable for an enterprise distro.  (Some of
-   these previously discussed in linux-mm [1].)
-2) zcache is truly mm (memory management) code and the fact that
-   it is in drivers at all was purely for logistical reasons
-   (e.g. the only in-tree "staging" is in the drivers directory).
-   My rewrite promotes it to (a subdirectory of) mm where IMHO it
-   belongs.
-3) Ramster heavily duplicates code from zcache.  My rewrite resolves
-   this.  My soon-to-be-post also places the re-factored ramster
-   in mm, though with some minor work zcache could go in mm and
-   ramster could stay in staging.
+If you're convinced that we now have (or are in danger of growing)
+a number of places which need this safety, yes, I suppose so.
 
-Let's have this discussion, but unless the community decides
-otherwise, please consider this a NACK.
+Personally, I'd have gone for just adding the relatively-understandable
+ACCESS_ONCEs in all the arch/*/include/asm macros (which you're going to
+visit to make the above change), and leave the smp_read_barrier_depends()
+entirely in Alpha - one level of indirection less for the reader.
+But that's just me, you're the one proposing to do the work, and
+you may have very good reason for the above.
 
-Thanks,
-Dan
+I'm unfamiliar with what value the __force __kernel annotations add.
+But I am interested to notice that you are only 6/9ths as insane as
+Paul: any chance of helping global underscore availability by not
+hoarding quite so many in there? 
 
-[1] http://marc.info/?t=3D133886706700002&r=3D1&w=3D2
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
