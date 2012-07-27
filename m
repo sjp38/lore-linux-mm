@@ -1,65 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
-	by kanga.kvack.org (Postfix) with SMTP id 129216B006E
-	for <linux-mm@kvack.org>; Fri, 27 Jul 2012 07:24:49 -0400 (EDT)
-Date: Fri, 27 Jul 2012 13:24:45 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH 2/2] mm: hugetlbfs: Close race during teardown of
- hugetlbfs shared page tables
-Message-ID: <20120727112445.GF26351@tiehlicka.suse.cz>
-References: <1343385965-7738-1-git-send-email-mgorman@suse.de>
- <1343385965-7738-3-git-send-email-mgorman@suse.de>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1343385965-7738-3-git-send-email-mgorman@suse.de>
+Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
+	by kanga.kvack.org (Postfix) with SMTP id 0E1D86B005D
+	for <linux-mm@kvack.org>; Fri, 27 Jul 2012 08:04:19 -0400 (EDT)
+Received: from epcpsbgm2.samsung.com (mailout4.samsung.com [203.254.224.34])
+ by mailout4.samsung.com
+ (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
+ 17 2011)) with ESMTP id <0M7T00L1AIUVH860@mailout4.samsung.com> for
+ linux-mm@kvack.org; Fri, 27 Jul 2012 21:04:08 +0900 (KST)
+Received: from mcdsrvbld02.digital.local ([106.116.37.23])
+ by mmp2.samsung.com (Oracle Communications Messaging Server 7u4-24.01
+ (7.0.4.24.0) 64bit (built Nov 17 2011))
+ with ESMTPA id <0M7T00HELIUD2SA0@mmp2.samsung.com> for linux-mm@kvack.org;
+ Fri, 27 Jul 2012 21:04:07 +0900 (KST)
+From: Marek Szyprowski <m.szyprowski@samsung.com>
+Subject: [PATCHv5 0/2] ARM: replace custom consistent dma region with vmalloc
+Date: Fri, 27 Jul 2012 14:03:37 +0200
+Message-id: <1343390619-20456-1-git-send-email-m.szyprowski@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Ken Chen <kenchen@google.com>, Cong Wang <xiyou.wangcong@gmail.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: linux-arm-kernel@lists.infradead.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Marek Szyprowski <m.szyprowski@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>, Arnd Bergmann <arnd@arndb.de>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Chunsang Jeong <chunsang.jeong@linaro.org>, Krishna Reddy <vdumpa@nvidia.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Hiroshi Doyu <hdoyu@nvidia.com>, Subash Patel <subashrp@gmail.com>, Minchan Kim <minchan@kernel.org>
 
-Just a nit
+Hello!
 
-On Fri 27-07-12 11:46:05, Mel Gorman wrote:
-> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> index fd1d530..8c6e5a5 100644
-> --- a/mm/hugetlb.c
-> +++ b/mm/hugetlb.c
-> @@ -2429,6 +2429,25 @@ again:
->  	tlb_end_vma(tlb, vma);
->  }
->
+This is yet another quick update on the patchset which replaces custom 
+consistent dma regions usage in dma-mapping framework in favour of
+generic vmalloc areas created on demand for each allocation. The main
+purpose for this patchset is to remove 2MiB limit of dma
+coherent/writecombine allocations.
 
-I would welcome a comment here. Something like:
-/*
- * Called when the VMA is on the way out and page tables will be freed
- * by free_pagetables.
- * i_mmap_mutex has to be held when calling this function
- */
+This version addresses a few minor issues pointed by Minchan Kim.
 
-> +void __unmap_hugepage_range_final(struct mmu_gather *tlb,
-> +			  struct vm_area_struct *vma, unsigned long start,
-> +			  unsigned long end, struct page *ref_page)
-> +{
-> +	__unmap_hugepage_range(tlb, vma, start, end, ref_page);
-> +
-> +	/*
-> +	 * Clear this flag so that x86's huge_pmd_share page_table_shareable
-> +	 * test will fail on a vma being torn down, and not grab a page table
-> +	 * on its way out.  We're lucky that the flag has such an appropriate
-> +	 * name, and can in fact be safely cleared here. We could clear it
-> +	 * before the __unmap_hugepage_range above, but all that's necessary
-> +	 * is to clear it before releasing the i_mmap_mutex. This works
-> +	 * because in the context this is called, the VMA is about to be
-> +	 * destroyed and the i_mmap_mutex is held.
-> +	 */
-> +	vma->vm_flags &= ~VM_MAYSHARE;
-> +}
-> +
+This patch is based on vanilla v3.5 release.
+
+Best regards
+Marek Szyprowski
+Samsung Poland R&D Center
+
+Changelog:
+
+v5:
+- fixed another minor issues pointed by Minchan Kim: added more comments
+  here and there, changed pr_err() + stack_dump() to WARN(), added a fix
+  for no-MMU systems
+
+v4: http://thread.gmane.org/gmane.linux.kernel.mm/80906
+- replaced arch-independent VM_DMA flag with ARM-specific
+  VM_ARM_DMA_CONSISTENT flag
+
+v3: http://thread.gmane.org/gmane.linux.kernel.mm/80028
+- rebased onto v3.4-rc2: added support for IOMMU-aware implementation 
+  of dma-mapping calls, unified with CMA coherent dma pool
+- implemented changes requested by Minchan Kim: added more checks for
+  vmarea->flags & VM_DMA, renamed some variables, removed obsole locks,
+  squashed find_vm_area() exporting patch into the main redesign patch 
+
+v2: http://thread.gmane.org/gmane.linux.kernel.mm/78563
+- added support for atomic allocations (served from preallocated pool)
+- minor cleanup here and there
+- rebased onto v3.4-rc7
+
+v1: http://thread.gmane.org/gmane.linux.kernel.mm/76703
+- initial version
+
+Patch summary:
+
+
+Marek Szyprowski (2):
+  mm: vmalloc: use const void * for caller argument
+  ARM: dma-mapping: remove custom consistent dma region
+
+ Documentation/kernel-parameters.txt |    2 +-
+ arch/arm/include/asm/dma-mapping.h  |    2 +-
+ arch/arm/mm/dma-mapping.c           |  511 +++++++++++++----------------------
+ arch/arm/mm/mm.h                    |    3 +
+ include/linux/vmalloc.h             |    9 +-
+ mm/vmalloc.c                        |   28 ++-
+ 6 files changed, 210 insertions(+), 345 deletions(-)
 
 -- 
-Michal Hocko
-SUSE Labs
+1.7.1.569.g6f426
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
