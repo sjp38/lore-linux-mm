@@ -1,85 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
-	by kanga.kvack.org (Postfix) with SMTP id 47E946B0044
-	for <linux-mm@kvack.org>; Fri, 27 Jul 2012 02:12:24 -0400 (EDT)
-Message-ID: <5012326F.80702@cn.fujitsu.com>
-Date: Fri, 27 Jul 2012 14:17:19 +0800
-From: Wen Congyang <wency@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
+	by kanga.kvack.org (Postfix) with SMTP id F0A9E6B0044
+	for <linux-mm@kvack.org>; Fri, 27 Jul 2012 02:18:09 -0400 (EDT)
+Message-ID: <501231F0.8050505@huawei.com>
+Date: Fri, 27 Jul 2012 14:15:12 +0800
+From: Li Zefan <lizefan@huawei.com>
 MIME-Version: 1.0
-Subject: Re: [RFC PATCH v4 12/13] memory-hotplug : add node_device_release
-References: <50068974.1070409@jp.fujitsu.com> <50068D41.9090109@jp.fujitsu.com>
-In-Reply-To: <50068D41.9090109@jp.fujitsu.com>
+Subject: Re: [PATCH] cgroup: Don't drop the cgroup_mutex in cgroup_rmdir
+References: <87ipdjc15j.fsf@skywalker.in.ibm.com> <1342706972-10912-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <20120719165046.GO24336@google.com> <1342799140.2583.6.camel@twins> <20120720200542.GD21218@google.com>
+In-Reply-To: <20120720200542.GD21218@google.com>
+Content-Type: text/plain; charset="ISO-8859-1"
 Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset=ISO-2022-JP
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com
+To: Tejun Heo <htejun@gmail.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, akpm@linux-foundation.org, mhocko@suse.cz, kamezawa.hiroyu@jp.fujitsu.com, liwanp@linux.vnet.ibm.com, cgroups@vger.kernel.org, linux-mm@kvack.org, glommer@parallels.com
 
-At 07/18/2012 06:17 PM, Yasuaki Ishimatsu Wrote:
-> When calling unregister_node(), the function shows following message at
-> device_release().
-> 
-> Device 'node2' does not have a release() function, it is broken and must be
-> fixed.
-> 
-> So the patch implements node_device_release()
-> 
-> CC: David Rientjes <rientjes@google.com>
-> CC: Jiang Liu <liuj97@gmail.com>
-> CC: Len Brown <len.brown@intel.com>
-> CC: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-> CC: Paul Mackerras <paulus@samba.org> 
-> CC: Christoph Lameter <cl@linux.com>
-> Cc: Minchan Kim <minchan.kim@gmail.com>
-> CC: Andrew Morton <akpm@linux-foundation.org>
-> CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> 
-> CC: Wen Congyang <wency@cn.fujitsu.com>
-> Signed-off-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-> 
-> ---
->  drivers/base/node.c |    7 +++++++
->  1 file changed, 7 insertions(+)
-> 
-> Index: linux-3.5-rc6/drivers/base/node.c
-> ===================================================================
-> --- linux-3.5-rc6.orig/drivers/base/node.c	2012-07-18 18:24:29.191121066 +0900
-> +++ linux-3.5-rc6/drivers/base/node.c	2012-07-18 18:25:47.111146983 +0900
-> @@ -252,6 +252,12 @@ static inline void hugetlb_register_node
->  static inline void hugetlb_unregister_node(struct node *node) {}
->  #endif
->  
-> +static void node_device_release(struct device *dev)
-> +{
-> +	struct node *node_dev = to_node(dev);
-> +
-> +	memset(node_dev, 0, sizeof(struct node));
+On 2012/7/21 4:05, Tejun Heo wrote:
 
-This line is wrong. node_dev->work_struct may be queued in workqueue.
-So, it is very dangerous to clear node_dev->work_struct here.
-In my test, it will cause kernel panicked.
+> Hey, Peter.
+> 
+> On Fri, Jul 20, 2012 at 05:45:40PM +0200, Peter Zijlstra wrote:
+>>> So, Peter, why does cpuset mangle with cgroup_mutex?  What guarantees
+>>> does it need?  Why can't it work on "changed" notification while
+>>> caching the current css like blkcg does?
+>>
+>> I've no clue sorry.. /me goes stare at this stuff.. Looks like something
+>> Paul Menage did when he created cgroups. I'll have to have a hard look
+>> at all that to untangle this. Not something obvious to me.
+> 
+> Yeah, it would be great if this can be untangled.  I really don't see
+> any other reasonable way out of this circular locking mess.  If cpuset
+> needs stable css association across certain period, the RTTD is
+> caching the css by holding its ref and synchronize modifications to
+> that cache, rather than synchronizing cgroup operations themselves.
+> 
 
-Thanks
-Wen Congyang
-> +}
->  
->  /*
->   * register_node - Setup a sysfs device for a node.
-> @@ -265,6 +271,7 @@ int register_node(struct node *node, int
->  
->  	node->dev.id = num;
->  	node->dev.bus = &node_subsys;
-> +	node->dev.release = node_device_release;
->  	error = device_register(&node->dev);
->  
->  	if (!error){
-> 
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
-> 
+
+The cgroup core was extracted from cpuset, so they are deeply tangled.
+
+There are several issues to resolve with regard to removing cgroup lock from cpuset.
+
+- there are places that the cgroup hierarchy is travelled. This should be
+easy, as cpuset can be made to maintain its hierarchy.
+
+- cpuset disallows clearing cpuset.mems/cpuset.cpus if the cgroup is not empty,
+which can be guaranteed only by cgroup lock.
+
+- cpuset disallows a task be attached to a cgroup with empty cpuset.mems/cpuset.cpus,
+which again can be guarantted only by cgroup lock.
+
+- cpuset may move tasks from a cgroup to another cgroup (Glauber mentioned this).
+
+- maybe other cases I overlooked..
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
