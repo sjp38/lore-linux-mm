@@ -1,33 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
-	by kanga.kvack.org (Postfix) with SMTP id E12326B0044
-	for <linux-mm@kvack.org>; Fri, 27 Jul 2012 04:03:39 -0400 (EDT)
-Message-ID: <1343376091.32120.23.camel@twins>
-Subject: Re: [RFC][PATCH 0/2] fun with tlb flushing on s390
-From: Peter Zijlstra <peterz@infradead.org>
-Date: Fri, 27 Jul 2012 10:01:31 +0200
-In-Reply-To: <20120727085718.19c33cce@de.ibm.com>
-References: <1343317634-13197-1-git-send-email-schwidefsky@de.ibm.com>
-	 <1343331770.32120.6.camel@twins> <20120727085718.19c33cce@de.ibm.com>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: quoted-printable
-Mime-Version: 1.0
+Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
+	by kanga.kvack.org (Postfix) with SMTP id 592B96B0044
+	for <linux-mm@kvack.org>; Fri, 27 Jul 2012 04:43:01 -0400 (EDT)
+Date: Fri, 27 Jul 2012 09:42:54 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH -alternative] mm: hugetlbfs: Close race during teardown
+ of hugetlbfs shared page tables V2 (resend)
+Message-ID: <20120727084254.GA612@suse.de>
+References: <20120720134937.GG9222@suse.de>
+ <20120720141108.GH9222@suse.de>
+ <20120720143635.GE12434@tiehlicka.suse.cz>
+ <20120720145121.GJ9222@suse.de>
+ <alpine.LSU.2.00.1207222033030.6810@eggly.anvils>
+ <50118182.8030308@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <50118182.8030308@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Martin Schwidefsky <schwidefsky@de.ibm.com>
-Cc: linux-arch@vger.kernel.org, linux-mm@kvack.org, Zachary Amsden <zach@vmware.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Chris Metcalf <cmetcalf@tilera.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>
+To: Rik van Riel <riel@redhat.com>
+Cc: Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, Linux-MM <linux-mm@kvack.org>, David Gibson <david@gibson.dropbear.id.au>, Ken Chen <kenchen@google.com>, Cong Wang <xiyou.wangcong@gmail.com>, LKML <linux-kernel@vger.kernel.org>, Larry Woodman <lwoodman@redhat.com>
 
-On Fri, 2012-07-27 at 08:57 +0200, Martin Schwidefsky wrote:
-> > > powerpc=20
-> >=20
-> > I have a patch that makes sparc64 do the same thing.
->=20
-> That is good, I guess we are in agreement then to add the mm
-> argument.=20
+On Thu, Jul 26, 2012 at 01:42:26PM -0400, Rik van Riel wrote:
+> On 07/23/2012 12:04 AM, Hugh Dickins wrote:
+> 
+> >Please don't be upset if I say that I don't like either of your patches.
+> >Mainly for obvious reasons - I don't like Mel's because anything with
+> >trylock retries and nested spinlocks worries me before I can even start
+> >to think about it; and I don't like Michal's for the same reason as Mel,
+> >that it spreads more change around in common paths than we would like.
+> 
+> I have a naive question.
+> 
+> In huge_pmd_share, we protect ourselves by taking
+> the mapping->i_mmap_mutex.
+> 
+> Is there any reason we could not take the i_mmap_mutex
+> in the huge_pmd_unshare path?
+> 
 
-Ah, what I meant was make sparc64 use the lazy_mmu stuff just like ppc64
-does. I haven't so far had a need for extra arguments.
+We do, in 3.4 at least - callers of __unmap_hugepage_range hold the
+i_mmap_mutex. Locking changes in mmotm and there is a patch there that
+needs to be reverted. What tree are you looking at?
 
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
