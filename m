@@ -1,46 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
-	by kanga.kvack.org (Postfix) with SMTP id BFACD6B0044
-	for <linux-mm@kvack.org>; Thu, 26 Jul 2012 19:53:00 -0400 (EDT)
-Received: from /spool/local
-	by e38.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <john.stultz@linaro.org>;
-	Thu, 26 Jul 2012 17:52:59 -0600
-Received: from d03relay03.boulder.ibm.com (d03relay03.boulder.ibm.com [9.17.195.228])
-	by d03dlp02.boulder.ibm.com (Postfix) with ESMTP id CC7743E4003D
-	for <linux-mm@kvack.org>; Thu, 26 Jul 2012 23:52:43 +0000 (WET)
-Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
-	by d03relay03.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q6QNqio4264358
-	for <linux-mm@kvack.org>; Thu, 26 Jul 2012 17:52:44 -0600
-Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av01.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q6QNqgm8014183
-	for <linux-mm@kvack.org>; Thu, 26 Jul 2012 17:52:44 -0600
-Message-ID: <5011D845.4090202@linaro.org>
-Date: Thu, 26 Jul 2012 16:52:37 -0700
-From: John Stultz <john.stultz@linaro.org>
+Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
+	by kanga.kvack.org (Postfix) with SMTP id CB1BC6B0044
+	for <linux-mm@kvack.org>; Thu, 26 Jul 2012 23:49:04 -0400 (EDT)
+Message-ID: <50120FA8.20409@redhat.com>
+Date: Thu, 26 Jul 2012 23:48:56 -0400
+From: Larry Woodman <lwoodman@redhat.com>
+Reply-To: lwoodman@redhat.com
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/5] [RFC] Add volatile range management code
-References: <1343346546-53230-1-git-send-email-john.stultz@linaro.org> <1343346546-53230-2-git-send-email-john.stultz@linaro.org>
-In-Reply-To: <1343346546-53230-2-git-send-email-john.stultz@linaro.org>
+Subject: Re: [PATCH -alternative] mm: hugetlbfs: Close race during teardown
+ of hugetlbfs shared page tables V2 (resend)
+References: <20120720134937.GG9222@suse.de> <20120720141108.GH9222@suse.de> <20120720143635.GE12434@tiehlicka.suse.cz> <20120720145121.GJ9222@suse.de> <alpine.LSU.2.00.1207222033030.6810@eggly.anvils> <50118E7F.8000609@redhat.com>
+In-Reply-To: <50118E7F.8000609@redhat.com>
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: John Stultz <john.stultz@linaro.org>
-Cc: Dave Hansen <dave@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Android Kernel Team <kernel-team@android.com>, Robert Love <rlove@google.com>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Dmitry Adamushko <dmitry.adamushko@gmail.com>, Dave Chinner <david@fromorbit.com>, Neil Brown <neilb@suse.de>, Andrea Righi <andrea@betterlinux.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Mike Hommey <mh@glandium.org>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Michel Lespinasse <walken@google.com>, Minchan Kim <minchan@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Rik van Riel <riel@redhat.com>
+Cc: Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, Linux-MM <linux-mm@kvack.org>, David Gibson <david@gibson.dropbear.id.au>, Ken Chen <kenchen@google.com>, Cong Wang <xiyou.wangcong@gmail.com>, LKML <linux-kernel@vger.kernel.org>
 
-On 07/26/2012 04:49 PM, John Stultz wrote:
-> This patch provides the volatile range management code
-> that filesystems can utilize when implementing
-> FALLOC_FL_MARK_VOLATILE.
+On 07/26/2012 02:37 PM, Rik van Riel wrote:
+> On 07/23/2012 12:04 AM, Hugh Dickins wrote:
+>
+>> I spent hours trying to dream up a better patch, trying various
+>> approaches.  I think I have a nice one now, what do you think?  And
+>> more importantly, does it work?  I have not tried to test it at all,
+>> that I'm hoping to leave to you, I'm sure you'll attack it with gusto!
+>>
+>> If you like it, please take it over and add your comments and signoff
+>> and send it in.  The second part won't come up in your testing, and 
+>> could
+>> be made a separate patch if you prefer: it's a related point that struck
+>> me while I was playing with a different approach.
+>>
+>> I'm sorely tempted to leave a dangerous pair of eyes off the Cc,
+>> but that too would be unfair.
+>>
+>> Subject-to-your-testing-
+>> Signed-off-by: Hugh Dickins <hughd@google.com>
+>
+> This patch looks good to me.
+>
+> Larry, does Hugh's patch survive your testing?
+>
+>
+Like I said earlier, no.  However, I finally set up a reproducer that 
+only takes a few seconds
+on a large system and this totally fixes the problem:
 
-Bah. Sorry for the noise here.  Wanted Dave's thoughts on an unfinished 
-patchset and forgot I had Cc's in some of the patches.
+-------------------------------------------------------------------------------------------------------------------------
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index c36febb..cc023b8 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -2151,7 +2151,7 @@ int copy_hugetlb_page_range(struct mm_struct *dst, 
+struct mm_struct *src,
+                         goto nomem;
 
-Ignore for now, hopefully I'll have something real I can send out soon.
+                 /* If the pagetables are shared don't copy or take 
+references */
+-               if (dst_pte == src_pte)
++               if (*(unsigned long *)dst_pte == *(unsigned long *)src_pte)
+                         continue;
 
-thanks
--john
+                 spin_lock(&dst->page_table_lock);
+---------------------------------------------------------------------------------------------------------------------------
+
+When we compare what the src_pte & dst_pte point to instead of their 
+addresses everything works,
+I suspect there is a missing memory barrier somewhere ???
+
+Larry
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
