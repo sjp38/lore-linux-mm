@@ -1,72 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
-	by kanga.kvack.org (Postfix) with SMTP id 880E46B005A
-	for <linux-mm@kvack.org>; Fri, 27 Jul 2012 04:48:01 -0400 (EDT)
-Date: Fri, 27 Jul 2012 09:47:56 +0100
+Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
+	by kanga.kvack.org (Postfix) with SMTP id A60ED6B0044
+	for <linux-mm@kvack.org>; Fri, 27 Jul 2012 04:52:54 -0400 (EDT)
+Date: Fri, 27 Jul 2012 09:52:50 +0100
 From: Mel Gorman <mgorman@suse.de>
 Subject: Re: [PATCH] mm: hugetlbfs: Close race during teardown of hugetlbfs
  shared page tables v2
-Message-ID: <20120727084756.GB612@suse.de>
+Message-ID: <20120727085250.GC612@suse.de>
 References: <20120720134937.GG9222@suse.de>
- <501169C0.3070805@redhat.com>
+ <5011AFEC.2040609@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <501169C0.3070805@redhat.com>
+In-Reply-To: <5011AFEC.2040609@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Larry Woodman <lwoodman@redhat.com>
-Cc: Linux-MM <linux-mm@kvack.org>, Michal Hocko <mhocko@suse.cz>, Hugh Dickins <hughd@google.com>, David Gibson <david@gibson.dropbear.id.au>, Ken Chen <kenchen@google.com>, Cong Wang <xiyou.wangcong@gmail.com>, LKML <linux-kernel@vger.kernel.org>
+To: Rik van Riel <riel@redhat.com>
+Cc: Linux-MM <linux-mm@kvack.org>, Michal Hocko <mhocko@suse.cz>, Hugh Dickins <hughd@google.com>, David Gibson <david@gibson.dropbear.id.au>, Ken Chen <kenchen@google.com>, Cong Wang <xiyou.wangcong@gmail.com>, LKML <linux-kernel@vger.kernel.org>, Larry Woodman <lwoodman@redhat.com>
 
-On Thu, Jul 26, 2012 at 12:01:04PM -0400, Larry Woodman wrote:
+On Thu, Jul 26, 2012 at 05:00:28PM -0400, Rik van Riel wrote:
 > On 07/20/2012 09:49 AM, Mel Gorman wrote:
-> >+retry:
-> >  	mutex_lock(&mapping->i_mmap_mutex);
-> >  	vma_prio_tree_foreach(svma,&iter,&mapping->i_mmap, idx, idx) {
-> >  		if (svma == vma)
-> >  			continue;
-> >+		if (svma->vm_mm == vma->vm_mm)
-> >+			continue;
-> >+
-> >+		/*
-> >+		 * The target mm could be in the process of tearing down
-> >+		 * its page tables and the i_mmap_mutex on its own is
-> >+		 * not sufficient. To prevent races against teardown and
-> >+		 * pagetable updates, we acquire the mmap_sem and pagetable
-> >+		 * lock of the remote address space. down_read_trylock()
-> >+		 * is necessary as the other process could also be trying
-> >+		 * to share pagetables with the current mm. In the fork
-> >+		 * case, we are already both mm's so check for that
-> >+		 */
-> >+		if (locked_mm != svma->vm_mm) {
-> >+			if (!down_read_trylock(&svma->vm_mm->mmap_sem)) {
-> >+				mutex_unlock(&mapping->i_mmap_mutex);
-> >+				goto retry;
-> >+			}
-> >+			smmap_sem =&svma->vm_mm->mmap_sem;
-> >+		}
-> >+
-> >+		spage_table_lock =&svma->vm_mm->page_table_lock;
-> >+		spin_lock_nested(spage_table_lock, SINGLE_DEPTH_NESTING);
-> >
-> >  		saddr = page_table_shareable(svma, vma, addr, idx);
-> >  		if (saddr) {
+> >This V2 is still the mmap_sem approach that fixes a potential deadlock
+> >problem pointed out by Michal.
 > 
-> Hi Mel, FYI I tried this and ran into a problem.  When there are
-> multiple processes
-> in huge_pmd_share() just faulting in the same i_map they all have
-> their mmap_sem
-> down for write so the down_read_trylock(&svma->vm_mm->mmap_sem) never
-> succeeds.  What am I missing?
+> Larry and I were looking around the hugetlb code some
+> more, and found what looks like yet another race.
+> 
+> In hugetlb_no_page, we have the following code:
+> 
+> 
+>         spin_lock(&mm->page_table_lock);
+>         size = i_size_read(mapping->host) >> huge_page_shift(h);
+>         if (idx >= size)
+>                 goto backout;
+> 
+>         ret = 0;
+>         if (!huge_pte_none(huge_ptep_get(ptep)))
+>                 goto backout;
+> 
+>         if (anon_rmap)
+>                 hugepage_add_new_anon_rmap(page, vma, address);
+>         else
+>                 page_dup_rmap(page);
+>         new_pte = make_huge_pte(vma, page, ((vma->vm_flags & VM_WRITE)
+>                                 && (vma->vm_flags & VM_SHARED)));
+>         set_huge_pte_at(mm, address, ptep, new_pte);
+> 	...
+> 	spin_unlock(&mm->page_table_lock);
+> 
+> Notice how we check !huge_pte_none with our own
+> mm->page_table_lock held.
+> 
+> This offers no protection at all against other
+> processes, that also hold their own page_table_lock.
 > 
 
-Probably nothing, this version of the patch is flawed. In the final
-(unreleased) version of this approach it had to check if it tried this
-trylock for too long and bail out if that happened and fail to share
-the page tables. I've dropped this approach to the problem as better
-alternatives exist.
+Yes, the page_table_lock is close to useless once shared page tables are
+involved. It's why if we ever wanted to make shared page tables a core MM
+thing we'd have to revisit how PTE locking at any level that can share
+page tables works.
 
-Thanks Larry!
+> In short, it looks like it is possible for multiple
+> processes to go through the above code simultaneously,
+> potentially resulting in:
+> 
+> 1) one process overwriting the pte just created by
+>    another process
+> 
+> 2) data corruption, as one partially written page
+>    gets superceded by an newly zeroed page, but no
+>    TLB invalidates get sent to other CPUs
+> 
+> 3) a memory leak of a huge page
+> 
+> Is there anything that would make this race impossible,
+> or is this a real bug?
+> 
+
+In this case it all happens under the hugetlb instantiation mutex in
+hugetlb_fault(). It's yet another reason why removing that mutex would
+be a serious undertaking and the gain for doing so is marginal.
 
 -- 
 Mel Gorman
