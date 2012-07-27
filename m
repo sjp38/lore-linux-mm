@@ -1,71 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
-	by kanga.kvack.org (Postfix) with SMTP id 5C1C96B004D
-	for <linux-mm@kvack.org>; Fri, 27 Jul 2012 17:01:08 -0400 (EDT)
-Received: by vbkv13 with SMTP id v13so3827049vbk.14
-        for <linux-mm@kvack.org>; Fri, 27 Jul 2012 14:01:07 -0700 (PDT)
-Date: Fri, 27 Jul 2012 16:59:36 -0400
-From: Konrad Rzeszutek Wilk <konrad@darnok.org>
-Subject: Re: [PATCH 0/4] promote zcache from staging
-Message-ID: <20120727205932.GA12650@localhost.localdomain>
-References: <1343413117-1989-1-git-send-email-sjenning@linux.vnet.ibm.com>
- <b95aec06-5a10-4f83-bdfd-e7f6adabd9df@default>
+Received: from psmtp.com (na3sys010amx190.postini.com [74.125.245.190])
+	by kanga.kvack.org (Postfix) with SMTP id 30B546B004D
+	for <linux-mm@kvack.org>; Fri, 27 Jul 2012 17:43:17 -0400 (EDT)
+Received: by ghrr18 with SMTP id r18so4426913ghr.14
+        for <linux-mm@kvack.org>; Fri, 27 Jul 2012 14:43:16 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <b95aec06-5a10-4f83-bdfd-e7f6adabd9df@default>
+In-Reply-To: <1343417168.32120.38.camel@twins>
+References: <1342787467-5493-1-git-send-email-walken@google.com>
+	<1342787467-5493-5-git-send-email-walken@google.com>
+	<1343417168.32120.38.camel@twins>
+Date: Fri, 27 Jul 2012 14:43:15 -0700
+Message-ID: <CANN689HjQthCn=nOiSea1yzKbzsea8b_dOERhKMNrthkxANdBw@mail.gmail.com>
+Subject: Re: [PATCH 4/6] rbtree: faster augmented insert
+From: Michel Lespinasse <walken@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Magenheimer <dan.magenheimer@oracle.com>
-Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Nitin Gupta <ngupta@vflare.org>, Minchan Kim <minchan@kernel.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: riel@redhat.com, daniel.santos@pobox.com, aarcange@redhat.com, dwmw2@infradead.org, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, Jul 27, 2012 at 12:21:50PM -0700, Dan Magenheimer wrote:
-> > From: Seth Jennings [mailto:sjenning@linux.vnet.ibm.com]
-> > Subject: [PATCH 0/4] promote zcache from staging
-> > 
-> > zcache is the remaining piece of code required to support in-kernel
-> > memory compression.  The other two features, cleancache and frontswap,
-> > have been promoted to mainline in 3.0 and 3.5.  This patchset
-> > promotes zcache from the staging tree to mainline.
-> > 
-> > Based on the level of activity and contributions we're seeing from a
-> > diverse set of people and interests, I think zcache has matured to the
-> > point where it makes sense to promote this out of staging.
-> 
-> Hi Seth --
-> 
-> Per offline communication, I'd like to see this delayed for three
-> reasons:
-> 
-> 1) I've completely rewritten zcache and will post the rewrite soon.
->    The redesigned code fixes many of the weaknesses in zcache that
->    makes it (IMHO) unsuitable for an enterprise distro.  (Some of
->    these previously discussed in linux-mm [1].)
-> 2) zcache is truly mm (memory management) code and the fact that
->    it is in drivers at all was purely for logistical reasons
->    (e.g. the only in-tree "staging" is in the drivers directory).
->    My rewrite promotes it to (a subdirectory of) mm where IMHO it
->    belongs.
-> 3) Ramster heavily duplicates code from zcache.  My rewrite resolves
->    this.  My soon-to-be-post also places the re-factored ramster
->    in mm, though with some minor work zcache could go in mm and
->    ramster could stay in staging.
-> 
-> Let's have this discussion, but unless the community decides
-> otherwise, please consider this a NACK.
+On Fri, Jul 27, 2012 at 12:26 PM, Peter Zijlstra <peterz@infradead.org> wrote:
+> On Fri, 2012-07-20 at 05:31 -0700, Michel Lespinasse wrote:
+>> --- a/lib/rbtree.c
+>> +++ b/lib/rbtree.c
+>> @@ -88,7 +88,8 @@ __rb_rotate_set_parents(struct rb_node *old, struct rb_node *new,
+>>                 root->rb_node = new;
+>>  }
+>>
+>> -void rb_insert_color(struct rb_node *node, struct rb_root *root)
+>> +inline void rb_insert_augmented(struct rb_node *node, struct rb_root *root,
+>> +                               rb_augment_rotate *augment)
+>
+> Daniel probably knows best, but I would have expected something like:
+>
+> __always_inline void
+> __rb_insert(struct rb_node *node, struct rb_root *root,
+>             const rb_augment_rotate *augment)
+>
+> Where you force inline and use a const function pointer since GCC is
+> better with inlining them -- iirc, Daniel?
 
-Hold on, that is rather unfair. The zcache has been in staging
-for quite some time - your code has not been posted. Part of
-"unstaging" a driver is for folks to review the code - and you
-just said "No, mine is better" without showing your goods.
+This hasn't been necessary with my compiler, but I can see how this
+might help with older gcc versions. I really haven't investigated that
+much and would be open to daniel's suggestions there.
 
-There is a third option - which is to continue the promotion
-of zcache from staging, get reviews, work on them ,etc, and
-alongside of that you can work on fixing up (or ripping out)
-zcache1 with zcache2 components as they make sense. Or even
-having two of them - an enterprise and an embedded version
-that will eventually get merged together. There is nothing
-wrong with modifying a driver once it has left staging.
+To answer your question in the next email, we're using a gcc 4.6
+variant with some local patches. TBH I don't know precisely what's in
+there, however I think our compiler team makes a good job of working
+with upstream so whatever changes they have are probably coming to a
+future gcc version :)
+
+>>  {
+>>         struct rb_node *parent = rb_red_parent(node), *gparent, *tmp;
+>>
+>> @@ -152,6 +153,7 @@ void rb_insert_color(struct rb_node *node, struct rb_root *root)
+>>                                         rb_set_parent_color(tmp, parent,
+>>                                                             RB_BLACK);
+>>                                 rb_set_parent_color(parent, node, RB_RED);
+>> +                               augment(parent, node);
+>
+> And possibly:
+>                 if (augment)
+>                         augment(parent, node);
+>
+> That would obviate the need for the dummy..
+
+__rb_insert() gets instanciated two times, one as rb_insert_color()
+with dummy callbacks, and one as rb_insert_augmented() itself with
+user-passed callbacks. Using NULL instead of dummy callbacks would
+generate the same code in the rb_insert_color() instance, but not in
+the version that takes user-passed callbacks (i.e. there would be an
+extra check for NULL there, which we don't want).
+
+>> +void rb_insert_color(struct rb_node *node, struct rb_root *root) {
+>
+> placed your { wrong..
+
+Oops (caught myself a few times doing that, missed this one
+apparently... thanks for noticing)
+
+>> +       rb_insert_augmented(node, root, dummy);
+>> +}
+>>  EXPORT_SYMBOL(rb_insert_color);
+>
+> And use Daniel's __flatten here, like:
+>
+> void rb_insert_color(struct rb_node *node, struct rb_root *root)
+> __flatten
+> {
+>         __rb_insert(node, root, NULL);
+> }
+> EXPORT_SYMBOL(rb_insert_color);
+>
+> void rb_insert_augmented(struct rb_node *node, struct rb_root *root,
+>                          const rb_augment_rotate *augment) __flatten
+> {
+>         __rb_insert(node, root, augment);
+> }
+> EXPORT_SYMBOL(rb_insert_augmented);
+
+Looks good, I'll try that and resubmit.
+
+-- 
+Michel "Walken" Lespinasse
+A program is never fully debugged until the last user dies.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
