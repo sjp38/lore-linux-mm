@@ -1,58 +1,151 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
-	by kanga.kvack.org (Postfix) with SMTP id A16CB6B004D
-	for <linux-mm@kvack.org>; Fri, 27 Jul 2012 17:55:48 -0400 (EDT)
-Received: by ggm4 with SMTP id 4so4432560ggm.14
-        for <linux-mm@kvack.org>; Fri, 27 Jul 2012 14:55:47 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <1343419466.32120.50.camel@twins>
-References: <1342787467-5493-1-git-send-email-walken@google.com>
-	<1342787467-5493-5-git-send-email-walken@google.com>
-	<1343419466.32120.50.camel@twins>
-Date: Fri, 27 Jul 2012 14:55:46 -0700
-Message-ID: <CANN689HSP-yKt6z6Szv-=_MT8sEWJ8dmJ5sr+HzkYgTD2P3xug@mail.gmail.com>
-Subject: Re: [PATCH 4/6] rbtree: faster augmented insert
-From: Michel Lespinasse <walken@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
+	by kanga.kvack.org (Postfix) with SMTP id D0C236B004D
+	for <linux-mm@kvack.org>; Fri, 27 Jul 2012 18:30:59 -0400 (EDT)
+Subject: [PATCH v2] list corruption by gather_surp
+Message-Id: <E1Sut4x-0001K1-7N@eag09.americas.sgi.com>
+From: Cliff Wickman <cpw@sgi.com>
+Date: Fri, 27 Jul 2012 17:32:15 -0500
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: riel@redhat.com, daniel.santos@pobox.com, aarcange@redhat.com, dwmw2@infradead.org, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: cmetcalf@tilera.com, dave@linux.vnet.ibm.com, dhillf@gmail.com, dwg@au1.ibm.com, kamezawa.hiroyuki@gmail.com, khlebnikov@openvz.org, lee.schermerhorn@hp.com, mgorman@suse.de, mhocko@suse.cz, shhuiw@gmail.com, viro@zeniv.linux.org.uk
+Cc: linux-mm@kvack.org
 
-On Fri, Jul 27, 2012 at 1:04 PM, Peter Zijlstra <peterz@infradead.org> wrote:
-> On Fri, 2012-07-20 at 05:31 -0700, Michel Lespinasse wrote:
->> +static void augment_rotate(struct rb_node *rb_old, struct rb_node *rb_new)
->> +{
->> +       struct test_node *old = rb_entry(rb_old, struct test_node, rb);
->> +       struct test_node *new = rb_entry(rb_new, struct test_node, rb);
->> +
->> +       /* Rotation doesn't change subtree's augmented value */
->> +       new->augmented = old->augmented;
->> +       old->augmented = augment_recompute(old);
->> +}
->
->> +static inline void augment_propagate(struct rb_node *rb)
->> +{
->> +       while (rb) {
->> +               struct test_node *node = rb_entry(rb, struct test_node, rb);
->> +               node->augmented = augment_recompute(node);
->> +               rb = rb_parent(&node->rb);
->> +       }
->> +}
->
-> So why do we have to introduce these two new function pointers to pass
-> along when they can both be trivially expressed in the old single
-> augment function?
+From: Cliff Wickman <cpw@sgi.com>
 
-Its because augment_rotate() needs to be a static function that we can
-take the address of and pass along as a callback to the tree
-rebalancing functions, while augment_propagate() needs to be an inline
-function that gets compiled within an __rb_erase() variant for a given
-type of augmented rbtree.
+v2: diff'd against linux-next
 
--- 
-Michel "Walken" Lespinasse
-A program is never fully debugged until the last user dies.
+I am seeing list corruption occurring from within gather_surplus_pages()
+(mm/hugetlb.c).  The problem occurs in a RHEL6 kernel under a heavy load,
+and seems to be because this function drops the hugetlb_lock.
+The list_add() in gather_surplus_pages() seems to need to be protected by
+the lock.
+(I don't have a similar test for a linux-next kernel)
+
+I have CONFIG_DEBUG_LIST=y, and am running an MPI application with 64 threads
+and a library that creates a large heap of hugetlbfs pages for it.
+
+The below patch fixes the problem.
+The gist of this patch is that gather_surplus_pages() does not have to drop
+the lock if alloc_buddy_huge_page() is told whether the lock is already held.
+
+Signed-off-by: Cliff Wickman <cpw@sgi.com>
+---
+ mm/hugetlb.c |   29 ++++++++++++++++-------------
+ 1 file changed, 16 insertions(+), 13 deletions(-)
+
+Index: linux/mm/hugetlb.c
+===================================================================
+--- linux.orig/mm/hugetlb.c
++++ linux/mm/hugetlb.c
+@@ -838,7 +838,9 @@ static int free_pool_huge_page(struct hs
+ 	return ret;
+ }
+ 
+-static struct page *alloc_buddy_huge_page(struct hstate *h, int nid)
++/* already_locked means the caller has already locked hugetlb_lock */
++static struct page *alloc_buddy_huge_page(struct hstate *h, int nid,
++						int already_locked)
+ {
+ 	struct page *page;
+ 	unsigned int r_nid;
+@@ -869,15 +871,19 @@ static struct page *alloc_buddy_huge_pag
+ 	 * the node values until we've gotten the hugepage and only the
+ 	 * per-node value is checked there.
+ 	 */
+-	spin_lock(&hugetlb_lock);
++	if (!already_locked)
++		spin_lock(&hugetlb_lock);
++
+ 	if (h->surplus_huge_pages >= h->nr_overcommit_huge_pages) {
+-		spin_unlock(&hugetlb_lock);
++		if (!already_locked)
++			spin_unlock(&hugetlb_lock);
+ 		return NULL;
+ 	} else {
+ 		h->nr_huge_pages++;
+ 		h->surplus_huge_pages++;
+ 	}
+ 	spin_unlock(&hugetlb_lock);
++	/* page allocation may sleep, so the lock must be unlocked */
+ 
+ 	if (nid == NUMA_NO_NODE)
+ 		page = alloc_pages(htlb_alloc_mask|__GFP_COMP|
+@@ -910,7 +916,8 @@ static struct page *alloc_buddy_huge_pag
+ 		h->surplus_huge_pages--;
+ 		__count_vm_event(HTLB_BUDDY_PGALLOC_FAIL);
+ 	}
+-	spin_unlock(&hugetlb_lock);
++	if (!already_locked)
++		spin_unlock(&hugetlb_lock);
+ 
+ 	return page;
+ }
+@@ -929,7 +936,7 @@ struct page *alloc_huge_page_node(struct
+ 	spin_unlock(&hugetlb_lock);
+ 
+ 	if (!page)
+-		page = alloc_buddy_huge_page(h, nid);
++		page = alloc_buddy_huge_page(h, nid, 0);
+ 
+ 	return page;
+ }
+@@ -937,6 +944,7 @@ struct page *alloc_huge_page_node(struct
+ /*
+  * Increase the hugetlb pool such that it can accommodate a reservation
+  * of size 'delta'.
++ * This is entered and exited with hugetlb_lock locked.
+  */
+ static int gather_surplus_pages(struct hstate *h, int delta)
+ {
+@@ -957,9 +965,8 @@ static int gather_surplus_pages(struct h
+ 
+ 	ret = -ENOMEM;
+ retry:
+-	spin_unlock(&hugetlb_lock);
+ 	for (i = 0; i < needed; i++) {
+-		page = alloc_buddy_huge_page(h, NUMA_NO_NODE);
++		page = alloc_buddy_huge_page(h, NUMA_NO_NODE, 1);
+ 		if (!page) {
+ 			alloc_ok = false;
+ 			break;
+@@ -969,10 +976,9 @@ retry:
+ 	allocated += i;
+ 
+ 	/*
+-	 * After retaking hugetlb_lock, we need to recalculate 'needed'
++	 * With hugetlb_lock still locked, we need to recalculate 'needed'
+ 	 * because either resv_huge_pages or free_huge_pages may have changed.
+ 	 */
+-	spin_lock(&hugetlb_lock);
+ 	needed = (h->resv_huge_pages + delta) -
+ 			(h->free_huge_pages + allocated);
+ 	if (needed > 0) {
+@@ -1010,15 +1016,12 @@ retry:
+ 		enqueue_huge_page(h, page);
+ 	}
+ free:
+-	spin_unlock(&hugetlb_lock);
+-
+ 	/* Free unnecessary surplus pages to the buddy allocator */
+ 	if (!list_empty(&surplus_list)) {
+ 		list_for_each_entry_safe(page, tmp, &surplus_list, lru) {
+ 			put_page(page);
+ 		}
+ 	}
+-	spin_lock(&hugetlb_lock);
+ 
+ 	return ret;
+ }
+@@ -1151,7 +1154,7 @@ static struct page *alloc_huge_page(stru
+ 		spin_unlock(&hugetlb_lock);
+ 	} else {
+ 		spin_unlock(&hugetlb_lock);
+-		page = alloc_buddy_huge_page(h, NUMA_NO_NODE);
++		page = alloc_buddy_huge_page(h, NUMA_NO_NODE, 0);
+ 		if (!page) {
+ 			hugetlb_cgroup_uncharge_cgroup(idx,
+ 						       pages_per_huge_page(h),
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
