@@ -1,273 +1,176 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
-	by kanga.kvack.org (Postfix) with SMTP id 713886B005D
-	for <linux-mm@kvack.org>; Fri, 27 Jul 2012 06:22:46 -0400 (EDT)
-Message-ID: <50126D22.4020003@cn.fujitsu.com>
-Date: Fri, 27 Jul 2012 18:27:46 +0800
-From: Wen Congyang <wency@cn.fujitsu.com>
-MIME-Version: 1.0
-Subject: [RFC PATCH v5 04/19] memory-hotplug: offline and remove memory when
- removing the memory device
-References: <50126B83.3050201@cn.fujitsu.com>
-In-Reply-To: <50126B83.3050201@cn.fujitsu.com>
-Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset=UTF-8
+Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
+	by kanga.kvack.org (Postfix) with SMTP id 7A6166B005A
+	for <linux-mm@kvack.org>; Fri, 27 Jul 2012 06:23:14 -0400 (EDT)
+Received: by yhr47 with SMTP id 47so3628540yhr.14
+        for <linux-mm@kvack.org>; Fri, 27 Jul 2012 03:23:13 -0700 (PDT)
+From: Sha Zhengju <handai.szj@gmail.com>
+Subject: [PATCH V2 1/6] memcg: remove MEMCG_NR_FILE_MAPPED
+Date: Fri, 27 Jul 2012 18:23:05 +0800
+Message-Id: <1343384585-20046-1-git-send-email-handai.szj@taobao.com>
+In-Reply-To: <1343384432-19903-1-git-send-email-handai.szj@taobao.com>
+References: <1343384432-19903-1-git-send-email-handai.szj@taobao.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-ia64@vger.kernel.org, cmetcalf@tilera.com
-Cc: rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, Yasuaki ISIMATU <isimatu.yasuaki@jp.fujitsu.com>
+To: linux-mm@kvack.org, cgroups@vger.kernel.org
+Cc: fengguang.wu@intel.com, gthelen@google.com, akpm@linux-foundation.org, yinghan@google.com, mhocko@suse.cz, linux-kernel@vger.kernel.org, hannes@cmpxchg.org, Sha Zhengju <handai.szj@taobao.com>
 
-From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+From: Sha Zhengju <handai.szj@taobao.com>
 
-We should offline and remove memory when removing the memory device.
-The memory device can be removed by 2 ways:
-1. send eject request by SCI
-2. echo 1 >/sys/bus/pci/devices/PNP0C80:XX/eject
+While accounting memcg page stat, it's not worth to use MEMCG_NR_FILE_MAPPED
+as an extra layer of indirection because of the complexity and presumed
+performance overhead. We can use MEM_CGROUP_STAT_FILE_MAPPED directly.
 
-In the 1st case, acpi_memory_disable_device() will be called. In the 2nd
-case, acpi_memory_device_remove() will be called. acpi_memory_device_remove()
-will also be called when we unbind the memory device from the driver
-acpi_memhotplug. If the type is ACPI_BUS_REMOVAL_EJECT, it means
-that the user wants to eject the memory device, and we should offline
-and remove memory in acpi_memory_device_remove().
-
-The function remove_memory() is not implemeted now. It only check whether
-all memory has been offllined now.
-
-CC: David Rientjes <rientjes@google.com>
-CC: Jiang Liu <liuj97@gmail.com>
-CC: Len Brown <len.brown@intel.com>
-CC: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-CC: Paul Mackerras <paulus@samba.org>
-CC: Christoph Lameter <cl@linux.com>
-Cc: Minchan Kim <minchan.kim@gmail.com>
-CC: Andrew Morton <akpm@linux-foundation.org>
-CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Signed-off-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-Signed-off-by: Wen Congyang <wency@cn.fujitsu.com>
+Signed-off-by: Sha Zhengju <handai.szj@taobao.com>
+Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Acked-by: Michal Hocko <mhocko@suse.cz>
+Acked-by: Fengguang Wu <fengguang.wu@intel.com>
+Reviewed-by: Greg Thelen <gthelen@google.com>
 ---
- drivers/acpi/acpi_memhotplug.c |   42 +++++++++++++++++++++++++++++++++------
- drivers/base/memory.c          |   39 +++++++++++++++++++++++++++++++++++++
- include/linux/memory.h         |    5 ++++
- include/linux/memory_hotplug.h |    5 ++++
- mm/memory_hotplug.c            |   22 ++++++++++++++++++++
- 5 files changed, 106 insertions(+), 7 deletions(-)
+ include/linux/memcontrol.h |   28 ++++++++++++++++++++--------
+ mm/memcontrol.c            |   25 +++----------------------
+ mm/rmap.c                  |    4 ++--
+ 3 files changed, 25 insertions(+), 32 deletions(-)
 
-diff --git a/drivers/acpi/acpi_memhotplug.c b/drivers/acpi/acpi_memhotplug.c
-index 293d718..ed37fc2 100644
---- a/drivers/acpi/acpi_memhotplug.c
-+++ b/drivers/acpi/acpi_memhotplug.c
-@@ -29,6 +29,7 @@
- #include <linux/module.h>
- #include <linux/init.h>
- #include <linux/types.h>
-+#include <linux/memory.h>
- #include <linux/memory_hotplug.h>
- #include <linux/slab.h>
- #include <acpi/acpi_drivers.h>
-@@ -310,26 +311,42 @@ static int acpi_memory_powerdown_device(struct acpi_memory_device *mem_device)
- 	return 0;
- }
+diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+index 83e7ba9..c1e2617 100644
+--- a/include/linux/memcontrol.h
++++ b/include/linux/memcontrol.h
+@@ -27,9 +27,21 @@ struct page_cgroup;
+ struct page;
+ struct mm_struct;
  
--static int acpi_memory_disable_device(struct acpi_memory_device *mem_device)
-+static int
-+acpi_memory_device_remove_memory(struct acpi_memory_device *mem_device)
- {
- 	int result;
- 	struct acpi_memory_info *info, *n;
-+	int node = mem_device->nid;
- 
--
--	/*
--	 * Ask the VM to offline this memory range.
--	 * Note: Assume that this function returns zero on success
--	 */
- 	list_for_each_entry_safe(info, n, &mem_device->res_list, list) {
- 		if (info->enabled) {
- 			result = offline_memory(info->start_addr, info->length);
- 			if (result)
- 				return result;
-+
-+			result = remove_memory(node, info->start_addr,
-+					       info->length);
-+			if (result)
-+				return result;
- 		}
-+
- 		list_del(&info->list);
- 		kfree(info);
- 	}
- 
-+	return 0;
-+}
-+
-+static int acpi_memory_disable_device(struct acpi_memory_device *mem_device)
-+{
-+	int result;
-+
+-/* Stats that can be updated by kernel. */
+-enum mem_cgroup_page_stat_item {
+-	MEMCG_NR_FILE_MAPPED, /* # of pages charged as file rss */
++/*
++ * Statistics for memory cgroup.
++ *
++ * The corresponding mem_cgroup_stat_names is defined in mm/memcontrol.c,
++ * These two lists should keep in accord with each other.
++ */
++enum mem_cgroup_stat_index {
 +	/*
-+	 * Ask the VM to offline this memory range.
-+	 * Note: Assume that this function returns zero on success
++	 * For MEM_CONTAINER_TYPE_ALL, usage = pagecache + rss.
 +	 */
-+	result = acpi_memory_device_remove_memory(mem_device);
-+
- 	/* Power-off and eject the device */
- 	result = acpi_memory_powerdown_device(mem_device);
- 	if (result) {
-@@ -478,12 +495,23 @@ static int acpi_memory_device_add(struct acpi_device *device)
- static int acpi_memory_device_remove(struct acpi_device *device, int type)
- {
- 	struct acpi_memory_device *mem_device = NULL;
--
-+	int result;
++	MEM_CGROUP_STAT_CACHE, 	   /* # of pages charged as cache */
++	MEM_CGROUP_STAT_RSS,	   /* # of pages charged as anon rss */
++	MEM_CGROUP_STAT_FILE_MAPPED,  /* # of pages charged as file rss */
++	MEM_CGROUP_STAT_SWAP, /* # of pages, swapped out */
++	MEM_CGROUP_STAT_NSTATS,
+ };
  
- 	if (!device || !acpi_driver_data(device))
- 		return -EINVAL;
- 
- 	mem_device = acpi_driver_data(device);
-+
-+	if (type == ACPI_BUS_REMOVAL_EJECT) {
-+		/*
-+		 * offline and remove memory only when the memory device is
-+		 * ejected.
-+		 */
-+		result = acpi_memory_device_remove_memory(mem_device);
-+		if (result)
-+			return result;
-+	}
-+
- 	kfree(mem_device);
- 
- 	return 0;
-diff --git a/drivers/base/memory.c b/drivers/base/memory.c
-index 86c8821..038be73 100644
---- a/drivers/base/memory.c
-+++ b/drivers/base/memory.c
-@@ -70,6 +70,45 @@ void unregister_memory_isolate_notifier(struct notifier_block *nb)
+ struct mem_cgroup_reclaim_cookie {
+@@ -164,17 +176,17 @@ static inline void mem_cgroup_end_update_page_stat(struct page *page,
  }
- EXPORT_SYMBOL(unregister_memory_isolate_notifier);
  
-+bool is_memblk_offline(unsigned long start, unsigned long size)
-+{
-+	struct memory_block *mem = NULL;
-+	struct mem_section *section;
-+	unsigned long start_pfn, end_pfn;
-+	unsigned long pfn, section_nr;
-+
-+	start_pfn = PFN_DOWN(start);
-+	end_pfn = PFN_UP(start + size);
-+
-+	for (pfn = start_pfn; pfn < end_pfn; pfn += PAGES_PER_SECTION) {
-+		section_nr = pfn_to_section_nr(pfn);
-+		if (!present_section_nr(section_nr))
-+			continue;
-+
-+		section = __nr_to_section(section_nr);
-+		/* same memblock? */
-+		if (mem)
-+			if ((section_nr >= mem->start_section_nr) &&
-+			    (section_nr <= mem->end_section_nr))
-+				continue;
-+
-+		mem = find_memory_block_hinted(section, mem);
-+		if (!mem)
-+			continue;
-+		if (mem->state == MEM_OFFLINE)
-+			continue;
-+
-+		kobject_put(&mem->dev.kobj);
-+		return false;
-+	}
-+
-+	if (mem)
-+		kobject_put(&mem->dev.kobj);
-+
-+	return true;
-+}
-+EXPORT_SYMBOL(is_memblk_offline);
-+
+ void mem_cgroup_update_page_stat(struct page *page,
+-				 enum mem_cgroup_page_stat_item idx,
++				 enum mem_cgroup_stat_index idx,
+ 				 int val);
+ 
+ static inline void mem_cgroup_inc_page_stat(struct page *page,
+-					    enum mem_cgroup_page_stat_item idx)
++					    enum mem_cgroup_stat_index idx)
+ {
+ 	mem_cgroup_update_page_stat(page, idx, 1);
+ }
+ 
+ static inline void mem_cgroup_dec_page_stat(struct page *page,
+-					    enum mem_cgroup_page_stat_item idx)
++					    enum mem_cgroup_stat_index idx)
+ {
+ 	mem_cgroup_update_page_stat(page, idx, -1);
+ }
+@@ -349,12 +361,12 @@ static inline void mem_cgroup_end_update_page_stat(struct page *page,
+ }
+ 
+ static inline void mem_cgroup_inc_page_stat(struct page *page,
+-					    enum mem_cgroup_page_stat_item idx)
++					    enum mem_cgroup_stat_index idx)
+ {
+ }
+ 
+ static inline void mem_cgroup_dec_page_stat(struct page *page,
+-					    enum mem_cgroup_page_stat_item idx)
++					    enum mem_cgroup_stat_index idx)
+ {
+ }
+ 
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 1940ba8..aef9fb0 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -76,21 +76,10 @@ static int really_do_swap_account __initdata = 0;
+ #define do_swap_account		0
+ #endif
+ 
+-
  /*
-  * register_memory - Setup a sysfs device for a memory block
+- * Statistics for memory cgroup.
++ * The corresponding mem_cgroup_stat_index is defined in include/linux/memcontrol.h,
++ * These two lists should keep in accord with each other.
   */
-diff --git a/include/linux/memory.h b/include/linux/memory.h
-index 1ac7f6e..7c66126 100644
---- a/include/linux/memory.h
-+++ b/include/linux/memory.h
-@@ -106,6 +106,10 @@ static inline int memory_isolate_notify(unsigned long val, void *v)
- {
- 	return 0;
+-enum mem_cgroup_stat_index {
+-	/*
+-	 * For MEM_CONTAINER_TYPE_ALL, usage = pagecache + rss.
+-	 */
+-	MEM_CGROUP_STAT_CACHE, 	   /* # of pages charged as cache */
+-	MEM_CGROUP_STAT_RSS,	   /* # of pages charged as anon rss */
+-	MEM_CGROUP_STAT_FILE_MAPPED,  /* # of pages charged as file rss */
+-	MEM_CGROUP_STAT_SWAP, /* # of pages, swapped out */
+-	MEM_CGROUP_STAT_NSTATS,
+-};
+-
+ static const char * const mem_cgroup_stat_names[] = {
+ 	"cache",
+ 	"rss",
+@@ -1926,7 +1915,7 @@ void __mem_cgroup_end_update_page_stat(struct page *page, unsigned long *flags)
  }
-+static inline bool is_memblk_offline(unsigned long start, unsigned long size)
-+{
-+	return false;
-+}
- #else
- extern int register_memory_notifier(struct notifier_block *nb);
- extern void unregister_memory_notifier(struct notifier_block *nb);
-@@ -120,6 +124,7 @@ extern int memory_isolate_notify(unsigned long val, void *v);
- extern struct memory_block *find_memory_block_hinted(struct mem_section *,
- 							struct memory_block *);
- extern struct memory_block *find_memory_block(struct mem_section *);
-+extern bool is_memblk_offline(unsigned long start, unsigned long size);
- #define CONFIG_MEM_BLOCK_SIZE	(PAGES_PER_SECTION<<PAGE_SHIFT)
- enum mem_add_context { BOOT, HOTPLUG };
- #endif /* CONFIG_MEMORY_HOTPLUG_SPARSE */
-diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
-index 0b040bb..fd84ea9 100644
---- a/include/linux/memory_hotplug.h
-+++ b/include/linux/memory_hotplug.h
-@@ -222,6 +222,7 @@ static inline void unlock_memory_hotplug(void) {}
- #ifdef CONFIG_MEMORY_HOTREMOVE
  
- extern int is_mem_section_removable(unsigned long pfn, unsigned long nr_pages);
-+extern int remove_memory(int nid, u64 start, u64 size);
- 
- #else
- static inline int is_mem_section_removable(unsigned long pfn,
-@@ -229,6 +230,10 @@ static inline int is_mem_section_removable(unsigned long pfn,
+ void mem_cgroup_update_page_stat(struct page *page,
+-				 enum mem_cgroup_page_stat_item idx, int val)
++				 enum mem_cgroup_stat_index idx, int val)
  {
- 	return 0;
- }
-+static inline int remove_memory(int nid, u64 start, u64 size)
-+{
-+	return -EBUSY;
-+}
- #endif /* CONFIG_MEMORY_HOTREMOVE */
+ 	struct mem_cgroup *memcg;
+ 	struct page_cgroup *pc = lookup_page_cgroup(page);
+@@ -1939,14 +1928,6 @@ void mem_cgroup_update_page_stat(struct page *page,
+ 	if (unlikely(!memcg || !PageCgroupUsed(pc)))
+ 		return;
  
- extern int mem_online_node(int nid);
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index 992454a..5af0a9f 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -1034,6 +1034,28 @@ int offline_memory(u64 start, u64 size)
- 
- 	return 0;
+-	switch (idx) {
+-	case MEMCG_NR_FILE_MAPPED:
+-		idx = MEM_CGROUP_STAT_FILE_MAPPED;
+-		break;
+-	default:
+-		BUG();
+-	}
+-
+ 	this_cpu_add(memcg->stat->count[idx], val);
  }
-+
-+int remove_memory(int nid, u64 start, u64 size)
-+{
-+	int ret = -EBUSY;
-+	lock_memory_hotplug();
-+	/*
-+	 * The memory might become online by other task, even if you offine it.
-+	 * So we check whether the cpu has been onlined or not.
-+	 */
-+	if (!is_memblk_offline(start, size)) {
-+		pr_warn("memory removing [mem %#010llx-%#010llx] failed, "
-+			"because the memmory range is online\n",
-+			start, start + size);
-+		ret = -EAGAIN;
-+	}
-+
-+	unlock_memory_hotplug();
-+	return ret;
-+
-+}
-+EXPORT_SYMBOL_GPL(remove_memory);
-+
- #else
- int offline_pages(u64 start, u64 size)
- {
+ 
+diff --git a/mm/rmap.c b/mm/rmap.c
+index 0f3b7cd..cd7e54e 100644
+--- a/mm/rmap.c
++++ b/mm/rmap.c
+@@ -1148,7 +1148,7 @@ void page_add_file_rmap(struct page *page)
+ 	mem_cgroup_begin_update_page_stat(page, &locked, &flags);
+ 	if (atomic_inc_and_test(&page->_mapcount)) {
+ 		__inc_zone_page_state(page, NR_FILE_MAPPED);
+-		mem_cgroup_inc_page_stat(page, MEMCG_NR_FILE_MAPPED);
++		mem_cgroup_inc_page_stat(page, MEM_CGROUP_STAT_FILE_MAPPED);
+ 	}
+ 	mem_cgroup_end_update_page_stat(page, &locked, &flags);
+ }
+@@ -1202,7 +1202,7 @@ void page_remove_rmap(struct page *page)
+ 					      NR_ANON_TRANSPARENT_HUGEPAGES);
+ 	} else {
+ 		__dec_zone_page_state(page, NR_FILE_MAPPED);
+-		mem_cgroup_dec_page_stat(page, MEMCG_NR_FILE_MAPPED);
++		mem_cgroup_dec_page_stat(page, MEM_CGROUP_STAT_FILE_MAPPED);
+ 	}
+ 	/*
+ 	 * It would be tidy to reset the PageAnon mapping here,
 -- 
 1.7.1
 
