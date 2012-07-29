@@ -1,139 +1,148 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
-	by kanga.kvack.org (Postfix) with SMTP id 1D0E66B004D
-	for <linux-mm@kvack.org>; Sat, 28 Jul 2012 21:53:45 -0400 (EDT)
-Date: Sun, 29 Jul 2012 10:54:28 +0900
+Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
+	by kanga.kvack.org (Postfix) with SMTP id 1CDF86B004D
+	for <linux-mm@kvack.org>; Sat, 28 Jul 2012 22:19:25 -0400 (EDT)
+Date: Sun, 29 Jul 2012 11:20:09 +0900
 From: Minchan Kim <minchan@kernel.org>
 Subject: Re: [PATCH 0/4] promote zcache from staging
-Message-ID: <20120729015428.GA16643@bbox>
+Message-ID: <20120729022009.GB16731@bbox>
 References: <1343413117-1989-1-git-send-email-sjenning@linux.vnet.ibm.com>
- <b95aec06-5a10-4f83-bdfd-e7f6adabd9df@default>
- <20120727205932.GA12650@localhost.localdomain>
- <d4656ba5-d6d1-4c36-a6c8-f6ecd193b31d@default>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <d4656ba5-d6d1-4c36-a6c8-f6ecd193b31d@default>
+In-Reply-To: <1343413117-1989-1-git-send-email-sjenning@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Magenheimer <dan.magenheimer@oracle.com>
-Cc: Konrad Rzeszutek Wilk <konrad@darnok.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Nitin Gupta <ngupta@vflare.org>, Konrad Wilk <konrad.wilk@oracle.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org
+To: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Nitin Gupta <ngupta@vflare.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org
 
-On Fri, Jul 27, 2012 at 02:42:14PM -0700, Dan Magenheimer wrote:
-> > From: Konrad Rzeszutek Wilk [mailto:konrad@darnok.org]
-> > Sent: Friday, July 27, 2012 3:00 PM
-> > Subject: Re: [PATCH 0/4] promote zcache from staging
-> > 
-> > On Fri, Jul 27, 2012 at 12:21:50PM -0700, Dan Magenheimer wrote:
-> > > > From: Seth Jennings [mailto:sjenning@linux.vnet.ibm.com]
-> > > > Subject: [PATCH 0/4] promote zcache from staging
-> > > >
-> > > > zcache is the remaining piece of code required to support in-kernel
-> > > > memory compression.  The other two features, cleancache and frontswap,
-> > > > have been promoted to mainline in 3.0 and 3.5.  This patchset
-> > > > promotes zcache from the staging tree to mainline.
-> > > >
-> > > > Based on the level of activity and contributions we're seeing from a
-> > > > diverse set of people and interests, I think zcache has matured to the
-> > > > point where it makes sense to promote this out of staging.
-> > >
-> > > Hi Seth --
-> > >
-> > > Per offline communication, I'd like to see this delayed for three
-> > > reasons:
-> > >
-> > > 1) I've completely rewritten zcache and will post the rewrite soon.
-> > >    The redesigned code fixes many of the weaknesses in zcache that
-> > >    makes it (IMHO) unsuitable for an enterprise distro.  (Some of
-> > >    these previously discussed in linux-mm [1].)
-> > > 2) zcache is truly mm (memory management) code and the fact that
-> > >    it is in drivers at all was purely for logistical reasons
-> > >    (e.g. the only in-tree "staging" is in the drivers directory).
-> > >    My rewrite promotes it to (a subdirectory of) mm where IMHO it
-> > >    belongs.
-> > > 3) Ramster heavily duplicates code from zcache.  My rewrite resolves
-> > >    this.  My soon-to-be-post also places the re-factored ramster
-> > >    in mm, though with some minor work zcache could go in mm and
-> > >    ramster could stay in staging.
-> > >
-> > > Let's have this discussion, but unless the community decides
-> > > otherwise, please consider this a NACK.
-> 
-> Hi Konrad --
->  
-> > Hold on, that is rather unfair. The zcache has been in staging
-> > for quite some time - your code has not been posted. Part of
-> > "unstaging" a driver is for folks to review the code - and you
-> > just said "No, mine is better" without showing your goods.
-> 
-> Sorry, I'm not trying to be unfair.  However, I don't see the point
-> of promoting zcache out of staging unless it is intended to be used
-> by real users in a real distro.  There's been a lot of discussion,
-> onlist and offlist, about what needs to be fixed in zcache and not
-> much visible progress on fixing it.  But fixing it is where I've spent
-> most of my time over the last couple of months.
-> 
-> If IBM or some other company or distro is eager to ship and support
-> zcache in its current form, I agree that "promote now, improve later"
-> is a fine approach.  But promoting zcache out of staging simply because
-> there is urgency to promote zsmalloc+zram out of staging doesn't
-> seem wise.  At a minimum, it distracts reviewers/effort from what IMHO
-> is required to turn zcache into an enterprise-ready kernel feature.
-> 
-> I can post my "goods" anytime.  In its current form it is better
-> than the zcache in staging (and, please remember, I wrote both so
-> I think I am in a good position to compare the two).
-> I have been waiting until I think the new zcache is feature complete
-> before asking for review, especially since the newest features
-> should demonstrate clearly why the rewrite is necessary and
-> beneficial.  But I can post* my current bits if people don't
-> believe they exist and/or don't mind reviewing non-final code.
-> (* Or I can put them in a publicly available git tree.)
-> 
-> > There is a third option - which is to continue the promotion
-> > of zcache from staging, get reviews, work on them ,etc, and
-> > alongside of that you can work on fixing up (or ripping out)
-> > zcache1 with zcache2 components as they make sense. Or even
-> > having two of them - an enterprise and an embedded version
-> > that will eventually get merged together. There is nothing
-> > wrong with modifying a driver once it has left staging.
-> 
-> Minchan and Seth can correct me if I am wrong, but I believe
-> zram+zsmalloc, not zcache, is the target solution for embedded.
+Hi Seth,
 
-NOT ture. Some embedded devices use zcache but it's not original
-zcache but modificated one.
-Anyway, although embedded people use modified zcache, I am biased to Dan.
-I admit I don't spend lots of time to look zcache but as looking the
-code, it wasn't good shape and even had a bug found during code review
-and I felt strongly we should clean up it for promoting it to mm/.
-So I would like to wait Dan's posting if you guys are not urgent.
-(And I am not sure akpm allow it with current shape of zcache code.)
-But the concern is about adding new feature. I guess there might be some
-debate for long time and it can prevent promoting again.
-I think It's not what Seth want.
-I hope Dan doesn't mix clean up series and new feature series and
-post clean up series as soon as possible so let's clean up first and
-try to promote it and later, adding new feature or changing algorithm
-is desirable.
+zcache out of staging is rather controversial as you see this thread.
+But I believe zram is very mature and code/comment is clean. In addition,
+it has lots of real customers in embedded side so IMHO, it would be easy to
+promote it firstly. Of course, it will promote zsmalloc which is half on
+what you want. What do you think about? If you agree, could you do that firstly?
+If you don't want and promoting zcache continue to be controversial,
+I will do that after my vacation.
 
+Thanks.
 
-> The limitations of zsmalloc aren't an issue for zram but they are
-> for zcache, and this deficiency was one of the catalysts for the
-> rewrite.  The issues are explained in more detail in [1],
-> but if any point isn't clear, I'd be happy to explain further.
+On Fri, Jul 27, 2012 at 01:18:33PM -0500, Seth Jennings wrote:
+> zcache is the remaining piece of code required to support in-kernel
+> memory compression.  The other two features, cleancache and frontswap,
+> have been promoted to mainline in 3.0 and 3.5.  This patchset
+> promotes zcache from the staging tree to mainline.
 > 
-> However, I have limited time for this right now and I'd prefer
-> to spend it finishing the code. :-}
+> Based on the level of activity and contributions we're seeing from a
+> diverse set of people and interests, I think zcache has matured to the
+> point where it makes sense to promote this out of staging.
 > 
-> So, as I said, I am still a NACK, but if there are good reasons
-> to duplicate effort and pursue the "third option", let's discuss
-> them.
+> Overview
+> ========
+> zcache is a backend to frontswap and cleancache that accepts pages from
+> those mechanisms and compresses them, leading to reduced I/O caused by
+> swap and file re-reads.  This is very valuable in shared storage situations
+> to reduce load on things like SANs.  Also, in the case of slow backing/swap
+> devices, zcache can also yield a performance gain.
 > 
-> Thanks,
-> Dan
+> In-Kernel Memory Compression Overview:
 > 
-> [1] http://marc.info/?t=133886706700002&r=1&w=2
+>  swap subsystem            page cache
+>         +                      +
+>     frontswap              cleancache
+>         +                      +
+> zcache frontswap glue  zcache cleancache glue
+>         +                      +
+>         +---------+------------+
+>                   +
+>             zcache/tmem core
+>                   +
+>         +---------+------------+
+>         +                      +
+>      zsmalloc                 zbud
+> 
+> Everything below the frontswap/cleancache layer is current inside the
+> zcache driver expect for zsmalloc which is a shared between zcache and
+> another memory compression driver, zram.
+> 
+> Since zcache is dependent on zsmalloc, it is also being promoted by this
+> patchset.
+> 
+> For information on zsmalloc and the rationale behind it's design and use
+> cases verses already existing allocators in the kernel:
+> 
+> https://lkml.org/lkml/2012/1/9/386
+> 
+> zsmalloc is the allocator used by zcache to store persistent pages that
+> comes from frontswap, as opposed to zbud which is the (internal) allocator
+> used for ephemeral pages from cleancache.
+> 
+> zsmalloc uses many fields of the page struct to create it's conceptual
+> high-order page called a zspage.  Exactly which fields are used and for
+> what purpose is documented at the top of the zsmalloc .c file.  Because
+> zsmalloc uses struct page extensively, Andrew advised that the
+> promotion location be mm/:
+> 
+> https://lkml.org/lkml/2012/1/20/308
+> 
+> Some benchmarking numbers demonstrating the I/O saving that can be had
+> with zcache:
+> 
+> https://lkml.org/lkml/2012/3/22/383
+> 
+> Dan's presentation at LSF/MM this year on zcache:
+> 
+> http://oss.oracle.com/projects/tmem/dist/documentation/presentations/LSFMM12-zcache-final.pdf
+> 
+> This patchset is based on next-20120727 + 3-part zsmalloc patchset below
+> 
+> https://lkml.org/lkml/2012/7/18/353
+> 
+> The zsmalloc patchset is already acked and will be integrated by Greg after
+> 3.6-rc1 is out.
+> 
+> Seth Jennings (4):
+>   zsmalloc: collapse internal .h into .c
+>   zsmalloc: promote to mm/
+>   drivers: add memory management driver class
+>   zcache: promote to drivers/mm/
+> 
+>  drivers/Kconfig                                    |    2 +
+>  drivers/Makefile                                   |    1 +
+>  drivers/mm/Kconfig                                 |   13 ++
+>  drivers/mm/Makefile                                |    1 +
+>  drivers/{staging => mm}/zcache/Makefile            |    0
+>  drivers/{staging => mm}/zcache/tmem.c              |    0
+>  drivers/{staging => mm}/zcache/tmem.h              |    0
+>  drivers/{staging => mm}/zcache/zcache-main.c       |    4 +-
+>  drivers/staging/Kconfig                            |    4 -
+>  drivers/staging/Makefile                           |    2 -
+>  drivers/staging/zcache/Kconfig                     |   11 --
+>  drivers/staging/zram/zram_drv.h                    |    3 +-
+>  drivers/staging/zsmalloc/Kconfig                   |   10 --
+>  drivers/staging/zsmalloc/Makefile                  |    3 -
+>  drivers/staging/zsmalloc/zsmalloc_int.h            |  149 --------------------
+>  .../staging/zsmalloc => include/linux}/zsmalloc.h  |    0
+>  mm/Kconfig                                         |   18 +++
+>  mm/Makefile                                        |    1 +
+>  .../zsmalloc/zsmalloc-main.c => mm/zsmalloc.c      |  133 ++++++++++++++++-
+>  19 files changed, 170 insertions(+), 185 deletions(-)
+>  create mode 100644 drivers/mm/Kconfig
+>  create mode 100644 drivers/mm/Makefile
+>  rename drivers/{staging => mm}/zcache/Makefile (100%)
+>  rename drivers/{staging => mm}/zcache/tmem.c (100%)
+>  rename drivers/{staging => mm}/zcache/tmem.h (100%)
+>  rename drivers/{staging => mm}/zcache/zcache-main.c (99%)
+>  delete mode 100644 drivers/staging/zcache/Kconfig
+>  delete mode 100644 drivers/staging/zsmalloc/Kconfig
+>  delete mode 100644 drivers/staging/zsmalloc/Makefile
+>  delete mode 100644 drivers/staging/zsmalloc/zsmalloc_int.h
+>  rename {drivers/staging/zsmalloc => include/linux}/zsmalloc.h (100%)
+>  rename drivers/staging/zsmalloc/zsmalloc-main.c => mm/zsmalloc.c (86%)
+> 
+> -- 
+> 1.7.9.5
 > 
 > --
 > To unsubscribe, send a message with 'unsubscribe linux-mm' in
