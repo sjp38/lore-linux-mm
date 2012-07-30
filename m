@@ -1,100 +1,337 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
-	by kanga.kvack.org (Postfix) with SMTP id 89E6D6B004D
-	for <linux-mm@kvack.org>; Mon, 30 Jul 2012 10:13:32 -0400 (EDT)
-Date: Mon, 30 Jul 2012 16:13:29 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: page allocation failure
-Message-ID: <20120730141329.GC9981@tiehlicka.suse.cz>
-References: <5F2C6DA655B36C43B21C7FB179CEC9F4E3F157B900@HKMAIL02.nvidia.com>
+Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
+	by kanga.kvack.org (Postfix) with SMTP id B86F16B004D
+	for <linux-mm@kvack.org>; Mon, 30 Jul 2012 10:56:56 -0400 (EDT)
+Received: by obbun3 with SMTP id un3so3670434obb.2
+        for <linux-mm@kvack.org>; Mon, 30 Jul 2012 07:56:56 -0700 (PDT)
+From: Greg Thelen <gthelen@google.com>
+Subject: Re: [PATCH V2 4/6] memcg: add per cgroup dirty pages accounting
+References: <1343384432-19903-1-git-send-email-handai.szj@taobao.com>
+	<1343384908-20166-1-git-send-email-handai.szj@taobao.com>
+Date: Mon, 30 Jul 2012 07:56:53 -0700
+In-Reply-To: <1343384908-20166-1-git-send-email-handai.szj@taobao.com> (Sha
+	Zhengju's message of "Fri, 27 Jul 2012 18:28:28 +0800")
+Message-ID: <xr93pq7d9u16.fsf@gthelen.mtv.corp.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <5F2C6DA655B36C43B21C7FB179CEC9F4E3F157B900@HKMAIL02.nvidia.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shawn Joo <sjoo@nvidia.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "andi@firstfloor.org" <andi@firstfloor.org>
+To: Sha Zhengju <handai.szj@gmail.com>
+Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, fengguang.wu@intel.com, akpm@linux-foundation.org, yinghan@google.com, mhocko@suse.cz, linux-kernel@vger.kernel.org, hannes@cmpxchg.org, Sha Zhengju <handai.szj@taobao.com>
 
-On Mon 30-07-12 21:25:40, Shawn Joo wrote:
-> Dear experts,
-> 
-> I have question about memory allocation failure on kernel 3.1. (simply
-> it seems there is available free memory, however "page allocation
-> failure" happened)
->
-> While big data transfer, there is page allocation failure (please
-> check attached log) It happens on __alloc_skb().  Inside function, it
-> allocates memory from "skbuff_head_cache" and "size-xxxxxxx" caches.
->
-> Here is my understanding, please correct me and advise.  From the
-> kernel log, it failed when it tried to get 2^3*4K(=32KB) memory. (e.g.
-> swapper: page allocation failure: order:3, mode:0x20)
+On Fri, Jul 27 2012, Sha Zhengju wrote:
 
-You are actually short on free memory (7M out of 700M). Although you
-have some order-3 pages the Normal zone is not balanced for that order
-most probably (see __zone_watermark_ok). Your allocation is GFP_ATOMIC
-and that's why the process cannot sleep and wait for reclaim to free
-enough pages to satisfy this allocation.
-
-> From slabinfo, upper size-32768 does not have available slab, however
-> buddy still has available memory. so when 32KB(order:3) was required,
-> slab(size-32768) should request memory from buddy. e.g. "2" will be
-> decreased to "1" on buddyinfo and "size-32768" cache will get 32K
-> memory from buddy.  So I can not understand why page alloc failure
-> happened even if there are many available memory on buddy.  Please
-> advise on it.
+> From: Sha Zhengju <handai.szj@taobao.com>
 >
-> Here is dump info(page_allocation_failure_last_dump.txt), right after
-> issue happens.
-> (FYI at alloc failure, order:3)
-> cat /proc/buddyinfo
-> Node 0, zone   Normal    949      0      0      2      3      3      0      0      1      1      0
-> 
-> root@android:/sdcard/modem_CoreDump # cat /proc/meminfo
-> cat /proc/meminfo
-> MemTotal:         747864 kB
-> MemFree:            7000 kB
-> Buffers:            5596 kB
-> Cached:           361884 kB
-> SwapCached:            0 kB
-> Active:           147068 kB
-> Inactive:         333448 kB
-> Active(anon):     113212 kB
-> Inactive(anon):      296 kB
-> Active(file):      33856 kB
-> Inactive(file):   333152 kB
-> Unevictable:          96 kB
-> Mlocked:               0 kB
-> HighTotal:             0 kB
-> HighFree:              0 kB
-> LowTotal:         747864 kB
-> LowFree:            7000 kB
-> SwapTotal:             0 kB
-> SwapFree:              0 kB
-> Dirty:                 0 kB
-> Writeback:             0 kB
-> AnonPages:        113172 kB
-> Mapped:            44288 kB
-> Shmem:               376 kB
-> Slab:              15280 kB
-> SReclaimable:       7976 kB
-> SUnreclaim:         7304 kB
-> KernelStack:        3712 kB
-> PageTables:         5628 kB
-> NFS_Unstable:          0 kB
-> Bounce:                0 kB
-> WritebackTmp:          0 kB
-> CommitLimit:      373932 kB
-> Committed_AS:    2894244 kB
-> VmallocTotal:     131072 kB
-> VmallocUsed:       39136 kB
-> VmallocChunk:      76676 kB
-> DirectMap4k:      399364 kB
-> DirectMap2M:      370688 kB
--- 
-Michal Hocko
-SUSE Labs
+> This patch adds memcg routines to count dirty pages, which allows memory controller
+> to maintain an accurate view of the amount of its dirty memory and can provide some
+> info for users while group's direct reclaim is working.
+>
+> After Kame's commit 89c06bd5(memcg: use new logic for page stat accounting), we can
+> use 'struct page' flag to test page state instead of per page_cgroup flag. But memcg
+> has a feature to move a page from a cgroup to another one and may have race between
+> "move" and "page stat accounting". So in order to avoid the race we have designed a
+> bigger lock:
+>
+>          mem_cgroup_begin_update_page_stat()
+>          modify page information        -->(a)
+>          mem_cgroup_update_page_stat()  -->(b)
+>          mem_cgroup_end_update_page_stat()
+>
+> It requires (a) and (b)(dirty pages accounting) can stay close enough.
+>
+> In the previous two prepare patches, we have reworked the vfs set page dirty routines
+> and now the interfaces are more explicit:
+>         incrementing (2):
+>                 __set_page_dirty
+>                 __set_page_dirty_nobuffers
+>         decrementing (2):
+>                 clear_page_dirty_for_io
+>                 cancel_dirty_page
+>
+>
+> Signed-off-by: Sha Zhengju <handai.szj@taobao.com>
+> Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujtisu.com>
+> Acked-by: Fengguang Wu <fengguang.wu@intel.com>
+> ---
+>  fs/buffer.c                |   16 +++++++++++++---
+>  include/linux/memcontrol.h |    1 +
+>  mm/filemap.c               |    9 +++++++++
+>  mm/memcontrol.c            |   28 +++++++++++++++++++++-------
+>  mm/page-writeback.c        |   31 ++++++++++++++++++++++++++-----
+>  mm/truncate.c              |    6 ++++++
+>  6 files changed, 76 insertions(+), 15 deletions(-)
+>
+> diff --git a/fs/buffer.c b/fs/buffer.c
+> index ffcfb87..e7b5766 100644
+> --- a/fs/buffer.c
+> +++ b/fs/buffer.c
+> @@ -613,11 +613,19 @@ EXPORT_SYMBOL(mark_buffer_dirty_inode);
+>  int __set_page_dirty(struct page *page,
+>  		struct address_space *mapping, int warn)
+>  {
+> +	bool locked;
+> +	unsigned long flags;
+> +	int ret = 1;
+> +
+>  	if (unlikely(!mapping))
+>  		return !TestSetPageDirty(page);
+>  
+> -	if (TestSetPageDirty(page))
+> -		return 0;
+> +	mem_cgroup_begin_update_page_stat(page, &locked, &flags);
+> +
+> +	if (TestSetPageDirty(page)) {
+> +		ret = 0;
+> +		goto out;
+> +	}
+>  
+>  	spin_lock_irq(&mapping->tree_lock);
+
+There are two problems here:
+1. Here we grab mem_cgroup_begin_update_page_stat() lock(s) and then
+   tree_lock (this can cause AB/BA deadlock - more below)
+2. Here we grab the tree_lock with spin_lock_irq(), which assumes that
+   interrupts are not already disabled by spin_lock_irq[save]()..  But
+   mem_cgroup_begin_update_page_stat() may disable interrupts.  One
+   solution would be to convert this spin_lock_irq to spin_lock_irqsave
+   with a second flags local variable.
+
+>  	if (page->mapping) {	/* Race with truncate? */
+> @@ -629,7 +637,9 @@ int __set_page_dirty(struct page *page,
+>  	spin_unlock_irq(&mapping->tree_lock);
+>  	__mark_inode_dirty(mapping->host, I_DIRTY_PAGES);
+>  
+> -	return 1;
+> +out:
+> +	mem_cgroup_end_update_page_stat(page, &locked, &flags);
+> +	return ret;
+>  }
+>  EXPORT_SYMBOL(__set_page_dirty);
+>  
+> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+> index c1e2617..8c6b8ca 100644
+> --- a/include/linux/memcontrol.h
+> +++ b/include/linux/memcontrol.h
+> @@ -41,6 +41,7 @@ enum mem_cgroup_stat_index {
+>  	MEM_CGROUP_STAT_RSS,	   /* # of pages charged as anon rss */
+>  	MEM_CGROUP_STAT_FILE_MAPPED,  /* # of pages charged as file rss */
+>  	MEM_CGROUP_STAT_SWAP, /* # of pages, swapped out */
+> +	MEM_CGROUP_STAT_FILE_DIRTY,  /* # of dirty pages in page cache */
+>  	MEM_CGROUP_STAT_NSTATS,
+>  };
+>  
+> diff --git a/mm/filemap.c b/mm/filemap.c
+> index a4a5260..7f53fb0 100644
+> --- a/mm/filemap.c
+> +++ b/mm/filemap.c
+> @@ -62,6 +62,10 @@
+>   *      ->swap_lock		(exclusive_swap_page, others)
+>   *        ->mapping->tree_lock
+>   *
+> + *    ->private_lock		(__set_page_dirty_buffers)
+> + *      ->memcg->move_lock	(mem_cgroup_begin_update_page_stat->move_lock_mem_cgroup)
+> + *        ->mapping->tree_lock
+> + *
+>   *  ->i_mutex
+>   *    ->i_mmap_mutex		(truncate->unmap_mapping_range)
+>   *
+> @@ -112,6 +116,8 @@
+>  void __delete_from_page_cache(struct page *page)
+>  {
+>  	struct address_space *mapping = page->mapping;
+> +	bool locked;
+> +	unsigned long flags;
+>  
+>  	/*
+>  	 * if we're uptodate, flush out into the cleancache, otherwise
+> @@ -139,10 +145,13 @@ void __delete_from_page_cache(struct page *page)
+>  	 * Fix it up by doing a final dirty accounting check after
+>  	 * having removed the page entirely.
+>  	 */
+> +	mem_cgroup_begin_update_page_stat(page, &locked, &flags);
+
+Here caller of __delete_from_page_cache() already holds tree_lock and we
+grab mem_cgroup_begin_update_page_stat() lock(s).
+
+This can cause an AB/BA deadlock.  We need to be consistent with lock
+ordering.  The filemap.c lock ordering comment indicates that tree_lock
+should be grabbed after the mem_cgroup_begin_update_page_stat() lock(s).
+
+>  	if (PageDirty(page) && mapping_cap_account_dirty(mapping)) {
+> +		mem_cgroup_dec_page_stat(page, MEM_CGROUP_STAT_FILE_DIRTY);
+>  		dec_zone_page_state(page, NR_FILE_DIRTY);
+>  		dec_bdi_stat(mapping->backing_dev_info, BDI_RECLAIMABLE);
+>  	}
+> +	mem_cgroup_end_update_page_stat(page, &locked, &flags);
+>  }
+>  
+>  /**
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index aef9fb0..cdcd547 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -85,6 +85,7 @@ static const char * const mem_cgroup_stat_names[] = {
+>  	"rss",
+>  	"mapped_file",
+>  	"swap",
+> +	"dirty",
+>  };
+>  
+>  enum mem_cgroup_events_index {
+> @@ -2541,6 +2542,18 @@ void mem_cgroup_split_huge_fixup(struct page *head)
+>  }
+>  #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
+>  
+> +static inline
+> +void mem_cgroup_move_account_page_stat(struct mem_cgroup *from,
+> +					struct mem_cgroup *to,
+> +					enum mem_cgroup_stat_index idx)
+> +{
+> +	/* Update stat data for mem_cgroup */
+> +	preempt_disable();
+> +	__this_cpu_dec(from->stat->count[idx]);
+> +	__this_cpu_inc(to->stat->count[idx]);
+> +	preempt_enable();
+> +}
+> +
+>  /**
+>   * mem_cgroup_move_account - move account of the page
+>   * @page: the page
+> @@ -2586,13 +2599,14 @@ static int mem_cgroup_move_account(struct page *page,
+>  
+>  	move_lock_mem_cgroup(from, &flags);
+>  
+> -	if (!anon && page_mapped(page)) {
+> -		/* Update mapped_file data for mem_cgroup */
+> -		preempt_disable();
+> -		__this_cpu_dec(from->stat->count[MEM_CGROUP_STAT_FILE_MAPPED]);
+> -		__this_cpu_inc(to->stat->count[MEM_CGROUP_STAT_FILE_MAPPED]);
+> -		preempt_enable();
+> -	}
+> +	if (!anon && page_mapped(page))
+> +		mem_cgroup_move_account_page_stat(from, to,
+> +				MEM_CGROUP_STAT_FILE_MAPPED);
+> +
+> +	if (PageDirty(page))
+> +		mem_cgroup_move_account_page_stat(from, to,
+> +				MEM_CGROUP_STAT_FILE_DIRTY);
+> +
+>  	mem_cgroup_charge_statistics(from, anon, -nr_pages);
+>  
+>  	/* caller should have done css_get */
+> diff --git a/mm/page-writeback.c b/mm/page-writeback.c
+> index 93d8d2f..233e7ac 100644
+> --- a/mm/page-writeback.c
+> +++ b/mm/page-writeback.c
+> @@ -1932,11 +1932,17 @@ int __set_page_dirty_no_writeback(struct page *page)
+>  
+>  /*
+>   * Helper function for set_page_dirty family.
+> + *
+> + * The caller must hold mem_cgroup_begin/end_update_page_stat() lock
+> + * while modifying struct page state and accounting dirty pages.
+> + * See __set_page_dirty for example.
+> + *
+>   * NOTE: This relies on being atomic wrt interrupts.
+>   */
+>  void account_page_dirtied(struct page *page, struct address_space *mapping)
+>  {
+>  	if (mapping_cap_account_dirty(mapping)) {
+> +		mem_cgroup_inc_page_stat(page, MEM_CGROUP_STAT_FILE_DIRTY);
+>  		__inc_zone_page_state(page, NR_FILE_DIRTY);
+>  		__inc_zone_page_state(page, NR_DIRTIED);
+>  		__inc_bdi_stat(mapping->backing_dev_info, BDI_RECLAIMABLE);
+> @@ -1976,12 +1982,19 @@ EXPORT_SYMBOL(account_page_writeback);
+>   */
+>  int __set_page_dirty_nobuffers(struct page *page)
+>  {
+> +	bool locked;
+> +	unsigned long flags;
+> +	int ret = 0;
+> +
+> +	mem_cgroup_begin_update_page_stat(page, &locked, &flags);
+> +
+>  	if (!TestSetPageDirty(page)) {
+>  		struct address_space *mapping = page_mapping(page);
+>  		struct address_space *mapping2;
+>  
+> +		ret = 1;
+>  		if (!mapping)
+> -			return 1;
+> +			goto out;
+>  
+>  		spin_lock_irq(&mapping->tree_lock);
+>  		mapping2 = page_mapping(page);
+> @@ -1997,9 +2010,11 @@ int __set_page_dirty_nobuffers(struct page *page)
+>  			/* !PageAnon && !swapper_space */
+>  			__mark_inode_dirty(mapping->host, I_DIRTY_PAGES);
+>  		}
+> -		return 1;
+>  	}
+> -	return 0;
+> +
+> +out:
+> +	mem_cgroup_end_update_page_stat(page, &locked, &flags);
+> +	return ret;
+>  }
+>  EXPORT_SYMBOL(__set_page_dirty_nobuffers);
+>  
+> @@ -2114,6 +2129,9 @@ EXPORT_SYMBOL(set_page_dirty_lock);
+>  int clear_page_dirty_for_io(struct page *page)
+>  {
+>  	struct address_space *mapping = page_mapping(page);
+> +	bool locked;
+> +	unsigned long flags;
+> +	int ret = 0;
+>  
+>  	BUG_ON(!PageLocked(page));
+>  
+> @@ -2155,13 +2173,16 @@ int clear_page_dirty_for_io(struct page *page)
+>  		 * the desired exclusion. See mm/memory.c:do_wp_page()
+>  		 * for more comments.
+>  		 */
+> +		mem_cgroup_begin_update_page_stat(page, &locked, &flags);
+>  		if (TestClearPageDirty(page)) {
+> +			mem_cgroup_dec_page_stat(page, MEM_CGROUP_STAT_FILE_DIRTY);
+>  			dec_zone_page_state(page, NR_FILE_DIRTY);
+>  			dec_bdi_stat(mapping->backing_dev_info,
+>  					BDI_RECLAIMABLE);
+> -			return 1;
+> +			ret = 1;
+>  		}
+> -		return 0;
+> +		mem_cgroup_end_update_page_stat(page, &locked, &flags);
+> +		return ret;
+>  	}
+>  	return TestClearPageDirty(page);
+>  }
+> diff --git a/mm/truncate.c b/mm/truncate.c
+> index 75801ac..052016a 100644
+> --- a/mm/truncate.c
+> +++ b/mm/truncate.c
+> @@ -73,9 +73,14 @@ static inline void truncate_partial_page(struct page *page, unsigned partial)
+>   */
+>  void cancel_dirty_page(struct page *page, unsigned int account_size)
+>  {
+> +	bool locked;
+> +	unsigned long flags;
+> +
+> +	mem_cgroup_begin_update_page_stat(page, &locked, &flags);
+>  	if (TestClearPageDirty(page)) {
+>  		struct address_space *mapping = page->mapping;
+>  		if (mapping && mapping_cap_account_dirty(mapping)) {
+> +			mem_cgroup_dec_page_stat(page, MEM_CGROUP_STAT_FILE_DIRTY);
+>  			dec_zone_page_state(page, NR_FILE_DIRTY);
+>  			dec_bdi_stat(mapping->backing_dev_info,
+>  					BDI_RECLAIMABLE);
+> @@ -83,6 +88,7 @@ void cancel_dirty_page(struct page *page, unsigned int account_size)
+>  				task_io_account_cancelled_write(account_size);
+>  		}
+>  	}
+> +	mem_cgroup_end_update_page_stat(page, &locked, &flags);
+>  }
+>  EXPORT_SYMBOL(cancel_dirty_page);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
