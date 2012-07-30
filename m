@@ -1,67 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
-	by kanga.kvack.org (Postfix) with SMTP id 869316B004D
-	for <linux-mm@kvack.org>; Mon, 30 Jul 2012 06:18:38 -0400 (EDT)
-Received: by weys10 with SMTP id s10so4386130wey.14
-        for <linux-mm@kvack.org>; Mon, 30 Jul 2012 03:18:36 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
+	by kanga.kvack.org (Postfix) with SMTP id 568A46B004D
+	for <linux-mm@kvack.org>; Mon, 30 Jul 2012 06:23:15 -0400 (EDT)
+Received: from /spool/local
+	by e06smtp12.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <heiko.carstens@de.ibm.com>;
+	Mon, 30 Jul 2012 11:23:13 +0100
+Received: from d06av02.portsmouth.uk.ibm.com (d06av02.portsmouth.uk.ibm.com [9.149.37.228])
+	by d06nrmr1507.portsmouth.uk.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q6UAN9vV872544
+	for <linux-mm@kvack.org>; Mon, 30 Jul 2012 11:23:10 +0100
+Received: from d06av02.portsmouth.uk.ibm.com (loopback [127.0.0.1])
+	by d06av02.portsmouth.uk.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q6UAN5V5012494
+	for <linux-mm@kvack.org>; Mon, 30 Jul 2012 04:23:09 -0600
+Date: Mon, 30 Jul 2012 12:23:05 +0200
+From: Heiko Carstens <heiko.carstens@de.ibm.com>
+Subject: Re: [RFC PATCH v5 12/19] memory-hotplug: introduce new function
+ arch_remove_memory()
+Message-ID: <20120730102305.GB3631@osiris.boeblingen.de.ibm.com>
+References: <50126B83.3050201@cn.fujitsu.com>
+ <50126E2F.8010301@cn.fujitsu.com>
 MIME-Version: 1.0
-In-Reply-To: <1342221125.17464.8.camel@lorien2>
-References: <1342221125.17464.8.camel@lorien2>
-Date: Mon, 30 Jul 2012 13:18:36 +0300
-Message-ID: <CAOJsxLGjnMxs9qERG5nCfGfcS3jy6Rr54Ac36WgVnOtP_pDYgQ@mail.gmail.com>
-Subject: Re: [PATCH TRIVIAL] mm: Fix build warning in kmem_cache_create()
-From: Pekka Enberg <penberg@kernel.org>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <50126E2F.8010301@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: shuah.khan@hp.com
-Cc: cl@linux.com, glommer@parallels.com, js1304@gmail.com, shuahkhan@gmail.com, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, David Rientjes <rientjes@google.com>
+To: Wen Congyang <wency@cn.fujitsu.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-ia64@vger.kernel.org, cmetcalf@tilera.com, rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, Yasuaki ISIMATU <isimatu.yasuaki@jp.fujitsu.com>
 
-On Sat, Jul 14, 2012 at 2:12 AM, Shuah Khan <shuah.khan@hp.com> wrote:
-> The label oops is used in CONFIG_DEBUG_VM ifdef block and is defined
-> outside ifdef CONFIG_DEBUG_VM block. This results in the following
-> build warning when built with CONFIG_DEBUG_VM disabled. Fix to move
-> label oops definition to inside a CONFIG_DEBUG_VM block.
->
-> mm/slab_common.c: In function =91kmem_cache_create=92:
-> mm/slab_common.c:101:1: warning: label =91oops=92 defined but not used
-> [-Wunused-label]
->
-> Signed-off-by: Shuah Khan <shuah.khan@hp.com>
+On Fri, Jul 27, 2012 at 06:32:15PM +0800, Wen Congyang wrote:
+> We don't call __add_pages() directly in the function add_memory()
+> because some other architecture related things need to be done
+> before or after calling __add_pages(). So we should introduce
+> a new function arch_remove_memory() to revert the things
+> done in arch_add_memory().
+> 
+> Note: the function for s390 is not implemented(I don't know how to
+> implement it for s390).
 
-I merged this as an obvious and safe fix for current merge window. We
-need to clean this up properly for v3.7.
-
-> ---
->  mm/slab_common.c |    2 ++
->  1 file changed, 2 insertions(+)
->
-> diff --git a/mm/slab_common.c b/mm/slab_common.c
-> index 12637ce..aa3ca5b 100644
-> --- a/mm/slab_common.c
-> +++ b/mm/slab_common.c
-> @@ -98,7 +98,9 @@ struct kmem_cache *kmem_cache_create(const char *name, =
-size_t size, size_t align
->
->         s =3D __kmem_cache_create(name, size, align, flags, ctor);
->
-> +#ifdef CONFIG_DEBUG_VM
->  oops:
-> +#endif
->         mutex_unlock(&slab_mutex);
->         put_online_cpus();
->
-> --
-> 1.7.9.5
->
->
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>
+There is no hardware or firmware interface which could trigger a
+hot memory remove on s390. So there is nothing that needs to be
+implemented.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
