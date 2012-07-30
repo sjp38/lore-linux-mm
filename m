@@ -1,193 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
-	by kanga.kvack.org (Postfix) with SMTP id C08066B004D
-	for <linux-mm@kvack.org>; Sun, 29 Jul 2012 16:27:43 -0400 (EDT)
-Date: 29 Jul 2012 16:27:42 -0400
-Message-ID: <20120729202742.26416.qmail@science.horizon.com>
-From: "George Spelvin" <linux@horizon.com>
-Subject: Re: [PATCH 1/6] rbtree: rb_erase updates and comments
-In-Reply-To: <CANN689EPE823oV_SFZXHG+18CiD3oknF34=X26sUiKUiMPTeVQ@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
+	by kanga.kvack.org (Postfix) with SMTP id 8C89E6B004D
+	for <linux-mm@kvack.org>; Sun, 29 Jul 2012 21:13:20 -0400 (EDT)
+Message-ID: <1343610786.4642.43.camel@deadeye.wl.decadent.org.uk>
+Subject: Re: [PATCH 00/34] Memory management performance backports for
+ -stable V2
+From: Ben Hutchings <ben@decadent.org.uk>
+Date: Mon, 30 Jul 2012 02:13:06 +0100
+In-Reply-To: <1343050727-3045-1-git-send-email-mgorman@suse.de>
+References: <1343050727-3045-1-git-send-email-mgorman@suse.de>
+Content-Type: multipart/signed; micalg="pgp-sha512";
+	protocol="application/pgp-signature"; boundary="=-ODL14XBlU3e+F2ONUL8N"
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux@horizon.com, walken@google.com
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: Stable <stable@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
->> Then the end of case 3 of rb_erase becomes:
->>         if (child)
->>                 rb_set_parent_color(child, parent, RB_RED);
 
-> Yes. it's actually even nicer, because we know since the child is red,
-> the node being erased is black, and we can thus handle recoloring 'for
-> free' by setting child to black here instead of going through
-> __rb_erase_color() later. And if we could do that for all 1-child
-> cases, it might even be possible to invoke __rb_erase_color() for the
-> no-childs case only, at which point we can drop one of that function's
-> arguments. Worth investigating, I think.
+--=-ODL14XBlU3e+F2ONUL8N
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 
-I haven't wrapped my head around the recoloring functions yet.  I stopped
-when I realized that if the child is red, the parent must be black,
-but the child might be NULL, in which case the parent could be any color.
+On Mon, 2012-07-23 at 14:38 +0100, Mel Gorman wrote:
+> Changelog since V1
+>   o Expand some of the notes					(jrnieder)
+>   o Correct upstream commit SHA1				(hugh)
+>=20
+> This series is related to the new addition to stable_kernel_rules.txt
+>=20
+>  - Serious issues as reported by a user of a distribution kernel may also
+>    be considered if they fix a notable performance or interactivity issue=
+.
+>    As these fixes are not as obvious and have a higher risk of a subtle
+>    regression they should only be submitted by a distribution kernel
+>    maintainer and include an addendum linking to a bugzilla entry if it
+>    exists and additional information on the user-visible impact.
+>=20
+> All of these patches have been backported to a distribution kernel and
+> address some sort of performance issue in the VM. As they are not all
+> obvious, I've added a "Stable note" to the top of each patch giving
+> additional information on why the patch was backported. Lets see where
+> the boundaries lie on how this new rule is interpreted in practice :).
+>
+> Patch 1	Performance fix for tmpfs
+> Patch 2 Memory hotadd fix
+> Patch 3 Reduce boot time on large machines
+> Patches 4-5 Reduce stalls for wait_iff_congested
+> Patches 6-8 Reduce excessive reclaim of slab objects which for some workl=
+oads
+> 	will reduce the amount of IO required
+> Patches 9-10 limits the amount of page reclaim when THP/Compaction is act=
+ive.
+> 	Excessive reclaim in low memory situations can lead to stalls some
+> 	of which are user visible.
+> Patches 11-19 reduce the amount of churn of the LRU lists. Poor reclaim
+> 	decisions can impair workloads in different ways and there have
+> 	been complaints recently the reclaim decisions of modern kernels
+> 	are worse than older ones.
+> Patches 20-21 reduce the amount of CPU kswapd uses in some cases. This
+> 	is harder to trigger but were developed due to bug reports about
+> 	100% CPU usage from kswapd.
+> Patches 22-25 are mostly related to interactivity when THP is enabled.
+> Patches 26-30 are also related to page reclaim decisions, particularly
+> 	the residency of mapped pages.
+> Patches 31-34 fix a major page allocator performance regression
+[...]
+> The patches are based on 3.0.36 but there should not be problems applying
+> the series to later stable releases.
+[...]
 
-But... oh!  I see!  It's not the node being erased, but the node being
-grafted.  If it has a red child, then it's part of a virtual 3-node, and
-that can be downgraded to a 2-node without requiring any tree rebalancing!
+Patches 1-2, 4-15, 20-21, 31-32 correspond to commits included in Linux
+3.2.  I've added the rest to the queue for 3.2.y, generally using the
+versions Greg has queued for 3.0.39.
 
-Here's an (untested!) attempt at writing the code.  Be aware that although
-I use the same variable names, there are significnt differences in what
-they're used for!  In particular, "node" is never chnaged, so there's
-no need for "old", and the successor is "child".
+Patch 30 'mm: vmscan: convert global reclaim to per-memcg LRU lists'
+needed a further context change.
 
-The main simplifcation I did was rename "black" to "rebalance", initially
-set false, and only set "rebalance = rb_is_black(node)" when necessary.
+For patch 33 'cpuset: mm: reduce large amounts of memory barrier related
+damage v3' I folded in the two fixes Herton pointed out and you
+acknowledged, and took the upstream version of the changes to
+get_any_partial() in slub.c.
 
-Given the new variable uses, you could merge the "rebalance" and "parent"
-variables, so rebalance = false is implied by parent = NULL.  I'm not
-sure the variable saving is worth the code complexity, though.
+Ben.
 
-void rb_erase(struct rb_node * const node, struct rb_root * const root)
-{
-	struct rb_node *parent;
-	struct rb_node *child = node->rb_right;
-	struct rb_node *tmp = node->rb_left;
-	bool rebalance = false;
+--=20
+Ben Hutchings
+It is impossible to make anything foolproof because fools are so ingenious.
 
-	if (!tmp) {
-		/* Case 1: node to erase has no more than 1 child (easy!) */
-		if (!child) {
-			/* Node might be black */
-			rebalance = rb_is_black(node);
-		} else {
-one_child:		/*
-			 * Node has a child: it must be black, and the child
-			 * must be red.  So promote the child to black, and
-			 * no rebalancing needed.
-			 */
-			child->__rb_parent_color = node->__rb_parent_color;
-		}
-		parent = tmp = rb_parent(node);	// Hope compiler can CSE
-	} else if (!child) {
-		/* Still case 1, but this time the child is node->rb_left */
-		child = tmp;
-		goto one_child;
-	} else {
-		/*
-		 * The node we want to erase has both left and right
-		 * children, which makes things difficult.  Let's find the
-		 * next node in the tree to have it fill old's position.
-		 */
-		tmp = child->rb_left;
-		if (!tmp) {
-			/*
-			 * Case 2: Successor is node's right child.
-			 *
-			 *    (n)          (c)
-			 *    / \          / \
-			 *  (x) (c)  ->  (x) (z)
-			 *        \
-			 *        (z)
-			 *
-			 * Node z may or may not exist.  If it exists, it must
-			 * be red, and can be promoted to black with no other
-			 * tree rebalancing.
-			 */
-			tmp = child->rb_right;
-			parent = child;
-		} else {
-			/*
-			 * Case 3: Successor is not direct child; it
-			 * is the left child of a chain (y) of other
-			 * nodes.
-			 *
-			 *    (n)          (c)
-			 *    / \          / \
-			 *  (x) (y)  ->  (x) (y)
-			 *      /            /
-			 *    (c)          (z)
-			 *      \
-			 *      (z)
-			 *
-			 * As above, z may or may not exist.
-			 */
-			do {
-				parent = child;
-				child = tmp;
-				tmp = child->rb_left;
-			} while (tmp);
+--=-ODL14XBlU3e+F2ONUL8N
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: This is a digitally signed message part
 
-			child->rb_right = tmp = node->rb_right;
-			rb_set_parent(tmp, child);
-			parent->rb_left = tmp = child->rb_right;
-		}
-		// Variable usage:
-		// "parent" is the bottom of "(y)", which is the same as
-		//	"child" in case 2.
-		// "tmp" is "(z)"
-		// child->rb_right has been set correctly, as has
-		// the pointer to (z).
-		/*
-		 * Here there are two cases, just like in case 1.
-		 * If child had a right child, then child was black
-		 * and its child was red, and can be promoted with no
-		 * rebalancing.  If it did not, child might be either
-		 * color, and its parent rebalancing if it was black.
-		 */
-		if (tmp)
-			// tmp->__rb_parent_color = child->__rb_parent_color;
-			rb_set_parent_color(tmp, parent, RB_BLACK);
-		else
-			rebalance = rb_is_black(child);
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.12 (GNU/Linux)
 
-		child->rb_left = node->rb_left;
-		child->__rb_parent_color = node->__rb_parent_color;
-		tmp = rb_parent(node);	// Hope compiler can CSE
-	}
-	if (!tmp)
-		root->rb_node = child;
-	else if (tmp->rb_left == node)
-		tmp->rb_left = child;
-	else
-		tmp->rb_right = child;
-	if (rebalance)
-		__rb_erase_color(NULL, parent, root);
-}
+iQIVAwUAUBXfoue/yOyVhhEJAQq36w//UIdM/5QLkClI1TQNB1yL8Ont6djXbqi9
+g5OKxPGNRJZhhmlL9xpoVhoKyC81zQSx8wRRpQEa5ewN8OEaP0ROHxWTXVpxU8wJ
+QFbrPR7cPKZhgueF4irZeumv0Qgow0BQbYTBec9rwthaVrf7TI7xTF3Xku0AFUTX
+ydA2HEwiTT0+FKTc48zTHrGnZbzKoSPs1kwG/MTavXQj64hEIRSyZfOVI/3PoRw4
+9MGfcmvs7K940fqBR5FL9rkhtMroq7JLLbiBigIG9gHVARTWXGFR9fUoF1ij2PuN
+impxbyqiHzC5F2WWs6WyTMj9icOmAdeojTUmVS9PcTQO3CGdmw05+Fg6gl1KNeqY
+QjOm+vmldwvg5G0nGXl1OpcdK+o3AJ7aYxeCX7a4Ut+XUxChlouGsXi1WeQgUJu3
+o0DkEAEBPliWttIQ1aoz7CIzp8jWQSOniPUKXmWXs5YuQUCBSeLHcDV51xDHdRBr
+ZorI3ulUZ2XQYhwUeXgT3ge+ispHAcerxVQDXHtX6SsbjMqbwZ+FufpHNx4pydZr
+WO8OLsofJiNx43V2bpZx2qdDMz8hUkDrGikWRGVHjpBUFVegaXpPE9UxXMBqC4/A
+ygsqz2Z3wZgmuC/rYbyTZ5z2KSPDzl+MG9pvj2lHXxVuKziORQaucRZwY1qZcXQF
+zzKlDDJ34Ok=
+=YyYI
+-----END PGP SIGNATURE-----
 
-> Using a helper doesn't hurt, I think. I'm not sure about the unlikely
-> thing because near-empty trees could be common for some workloads,
-> which is why I've let it the way it currently is.
-
-I wasn't positive, either, but I figured it was easy enough to delete if
-you disagreed.
-
-I did think of one possible simplification: return a pointer to the parent's
-child pointer and update that:
-
-	*rb_pptr(old, parent, root) = new;
-
-where
-
-static inline struct rb_node **rb_pptr(struct rb_node *rb, struct rb_node *p,
-		struct rb_root *root)
-{
-	if (!p)
-		return &root->rb_node;
-	else if (parent->rb_left == node)
-		return &parent->rb_left;
-	else
-		return &parent->rb_right;
-}
-
-> Yeah, I've had a quick look at left-leaning RBtrees, but they didn't
-> seem like an obvious win to me. Plus, I feel like I've been thinking
-> about rbtrees too much already, so I kinda want to take a vacation
-> from them at this point :)
-
-Ah.  Then I'll stop muttering about ideas that imply major rewrites.
-
-> Thanks for your remarks, especially the one about one-child coloring
-> in rb_erase().
-
-You're the one who spotted the major simplification, but I'm glad
-to have been of some minor help.
+--=-ODL14XBlU3e+F2ONUL8N--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
