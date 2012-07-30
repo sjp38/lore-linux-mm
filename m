@@ -1,9 +1,9 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
-	by kanga.kvack.org (Postfix) with SMTP id 3D4CD6B004D
-	for <linux-mm@kvack.org>; Sun, 29 Jul 2012 21:58:37 -0400 (EDT)
-Message-ID: <5015EB6F.40901@cn.fujitsu.com>
-Date: Mon, 30 Jul 2012 10:03:27 +0800
+Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
+	by kanga.kvack.org (Postfix) with SMTP id 5AF636B004D
+	for <linux-mm@kvack.org>; Sun, 29 Jul 2012 23:43:20 -0400 (EDT)
+Message-ID: <501603E7.1060200@cn.fujitsu.com>
+Date: Mon, 30 Jul 2012 11:47:51 +0800
 From: Wen Congyang <wency@cn.fujitsu.com>
 MIME-Version: 1.0
 Subject: Re: [RFC PATCH v5 19/19] memory-hotplug: remove sysfs file of node
@@ -57,10 +57,8 @@ At 07/27/2012 06:45 PM, Yasuaki Ishimatsu Wrote:
 > it means the pgdat has no memory. So I think node_spanned_pages() is
 > better.
 
-node_spanned_pages = present_pages + hole_pages
-
-So present_pages is always less or equal than spanned_pages, and I think
-checking present pages is better.
+Hmm, if the node contains cpu, and the cpu is onlined, can we offline
+this node?
 
 Thanks
 Wen Congyang
