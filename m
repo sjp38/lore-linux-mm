@@ -1,97 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
-	by kanga.kvack.org (Postfix) with SMTP id 1DA726B004D
-	for <linux-mm@kvack.org>; Mon, 30 Jul 2012 10:00:13 -0400 (EDT)
-Date: Mon, 30 Jul 2012 16:00:09 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: + memcg-oom-clarify-some-oom-dump-messages.patch added to -mm
- tree
-Message-ID: <20120730140009.GF12680@tiehlicka.suse.cz>
-References: <20120724203309.B04155C0050@hpza9.eem.corp.google.com>
+Received: from psmtp.com (na3sys010amx110.postini.com [74.125.245.110])
+	by kanga.kvack.org (Postfix) with SMTP id 633B36B004D
+	for <linux-mm@kvack.org>; Mon, 30 Jul 2012 10:09:38 -0400 (EDT)
+Message-ID: <50169593.5020506@parallels.com>
+Date: Mon, 30 Jul 2012 18:09:23 +0400
+From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120724203309.B04155C0050@hpza9.eem.corp.google.com>
+Subject: Re: [PATCH 04/10] memcg: skip memcg kmem allocations in specified
+ code regions
+References: <1343227101-14217-1-git-send-email-glommer@parallels.com> <1343227101-14217-5-git-send-email-glommer@parallels.com> <20120730125004.GA27293@shutemov.name>
+In-Reply-To: <20120730125004.GA27293@shutemov.name>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: mm-commits@vger.kernel.org, handai.szj@taobao.com, gthelen@google.com, hannes@cmpxchg.org, kamezawa.hiroyu@jp.fujitsu.com, rientjes@google.com, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, Greg Thelen <gthelen@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Frederic Weisbecker <fweisbec@gmail.com>, devel@openvz.org, cgroups@vger.kernel.org, Pekka Enberg <penberg@cs.helsinki.fi>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Suleiman Souhlal <suleiman@google.com>
 
-On Tue 24-07-12 13:33:08, Andrew Morton wrote:
+On 07/30/2012 04:50 PM, Kirill A. Shutemov wrote:
+> On Wed, Jul 25, 2012 at 06:38:15PM +0400, Glauber Costa wrote:
+>> This patch creates a mechanism that skip memcg allocations during
+>> certain pieces of our core code. It basically works in the same way
+>> as preempt_disable()/preempt_enable(): By marking a region under
+>> which all allocations will be accounted to the root memcg.
+>>
+>> We need this to prevent races in early cache creation, when we
+>> allocate data using caches that are not necessarily created already.
 > 
-> The patch titled
->      Subject: memcg, oom: clarify some oom dump messages
-> has been added to the -mm tree.  Its filename is
->      memcg-oom-clarify-some-oom-dump-messages.patch
-> 
-> Before you just go and hit "reply", please:
->    a) Consider who else should be cc'ed
->    b) Prefer to cc a suitable mailing list as well
->    c) Ideally: find the original patch on the mailing list and do a
->       reply-to-all to that, adding suitable additional cc's
-> 
-> *** Remember to use Documentation/SubmitChecklist when testing your code ***
-> 
-> The -mm tree is included into linux-next and is updated
-> there every 3-4 working days
-> 
-> ------------------------------------------------------
-> From: Sha Zhengju <handai.szj@taobao.com>
-> Subject: memcg, oom: clarify some oom dump messages
-> 
-> Revise some oom dump messages to avoid misleading admin.
-
-Not that I would care much, but does this make the messages really more
-clear?
-OOM killer just sends the signal and the task dies asynchronously so
-saying that something has been killed is a bit misleading but I am
-wondering it it really confuses anybody to make a wrong conclusion from
-the message.
-
-[...]
-> diff -puN mm/oom_kill.c~memcg-oom-clarify-some-oom-dump-messages mm/oom_kill.c
-> --- a/mm/oom_kill.c~memcg-oom-clarify-some-oom-dump-messages
-> +++ a/mm/oom_kill.c
-[...]
-> @@ -509,6 +509,7 @@ void oom_kill_process(struct task_struct
->  	if (!p) {
->  		rcu_read_unlock();
->  		put_task_struct(victim);
-> +		pr_err("No process has been killed!\n");
-
-Is this even true? p existed few moments ago so it could have been
-killed and exited in the mean time
-
->  		return;
->  	} else if (victim != p) {
->  		get_task_struct(p);
-> @@ -540,7 +541,7 @@ void oom_kill_process(struct task_struct
->  				continue;
->  
->  			task_lock(p);	/* Protect ->comm from prctl() */
-> -			pr_err("Kill process %d (%s) sharing same memory\n",
-> +			pr_err("Killed process %d (%s) sharing same memory\n",
->  				task_pid_nr(p), p->comm);
-
-technically it hasn't been killed yet because you are sending the signal
-bellow.
-
->  			task_unlock(p);
->  			do_send_sig_info(SIGKILL, SEND_SIG_FORCED, p, true);
-> _
-> Subject: Subject: memcg, oom: clarify some oom dump messages
-> 
-> Patches currently in -mm which might be from handai.szj@taobao.com are
-> 
-> mm-oom-introduce-helper-function-to-process-threads-during-scan.patch
-> mm-memcg-introduce-own-oom-handler-to-iterate-only-over-its-own-threads.patch
-> memcg-oom-provide-more-info-while-memcg-oom-happening.patch
-> memcg-oom-clarify-some-oom-dump-messages.patch
+> Why not a GFP_* flag?
 > 
 
--- 
-Michal Hocko
-SUSE Labs
+The main reason for this is to prevent nested calls of
+kmem_cache_create(), since they could create (and in my tests, do
+create) funny circular dependencies with each other. So the cache
+creation itself would proceed without involving memcg.
+
+At first, it is a bit weird to have cache creation itself depending on a
+allocation flag test.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
