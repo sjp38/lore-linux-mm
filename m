@@ -1,80 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
-	by kanga.kvack.org (Postfix) with SMTP id 86B526B005A
-	for <linux-mm@kvack.org>; Mon, 30 Jul 2012 15:12:41 -0400 (EDT)
-Date: Mon, 30 Jul 2012 14:12:39 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH] slub: remove one code path and reduce lock contention
- in __slab_free()
-In-Reply-To: <CAAmzW4N5HxN+Ha_kwwKSf9na-g6bnro1UumQ+ZiQEmgS4kacrA@mail.gmail.com>
-Message-ID: <alpine.DEB.2.00.1207301411140.27584@router.home>
-References: <1343420271-3825-1-git-send-email-js1304@gmail.com> <alpine.DEB.2.00.1207271538250.25434@router.home> <CAAmzW4N5HxN+Ha_kwwKSf9na-g6bnro1UumQ+ZiQEmgS4kacrA@mail.gmail.com>
+	by kanga.kvack.org (Postfix) with SMTP id 51A5E6B004D
+	for <linux-mm@kvack.org>; Mon, 30 Jul 2012 15:20:48 -0400 (EDT)
+Received: from /spool/local
+	by e39.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
+	Mon, 30 Jul 2012 13:20:47 -0600
+Received: from d03relay03.boulder.ibm.com (d03relay03.boulder.ibm.com [9.17.195.228])
+	by d03dlp01.boulder.ibm.com (Postfix) with ESMTP id C893D1FF001A
+	for <linux-mm@kvack.org>; Mon, 30 Jul 2012 19:19:54 +0000 (WET)
+Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
+	by d03relay03.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q6UJJsAB055488
+	for <linux-mm@kvack.org>; Mon, 30 Jul 2012 13:19:55 -0600
+Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av01.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q6UJJhgl022657
+	for <linux-mm@kvack.org>; Mon, 30 Jul 2012 13:19:44 -0600
+Message-ID: <5016DE4E.5050300@linux.vnet.ibm.com>
+Date: Mon, 30 Jul 2012 14:19:42 -0500
+From: Seth Jennings <sjenning@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH 0/4] promote zcache from staging
+References: <1343413117-1989-1-git-send-email-sjenning@linux.vnet.ibm.com> <b95aec06-5a10-4f83-bdfd-e7f6adabd9df@default> <20120727205932.GA12650@localhost.localdomain> <d4656ba5-d6d1-4c36-a6c8-f6ecd193b31d@default>
+In-Reply-To: <d4656ba5-d6d1-4c36-a6c8-f6ecd193b31d@default>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: JoonSoo Kim <js1304@gmail.com>
-Cc: Pekka Enberg <penberg@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Dan Magenheimer <dan.magenheimer@oracle.com>
+Cc: Konrad Rzeszutek Wilk <konrad@darnok.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Nitin Gupta <ngupta@vflare.org>, Minchan Kim <minchan@kernel.org>, Konrad Wilk <konrad.wilk@oracle.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org
 
-On Sat, 28 Jul 2012, JoonSoo Kim wrote:
+Dan,
 
-> 2012/7/28 Christoph Lameter <cl@linux.com>:
-> > On Sat, 28 Jul 2012, Joonsoo Kim wrote:
-> >
-> >> Subject and commit log are changed from v1.
-> >
-> > That looks a bit better. But the changelog could use more cleanup and
-> > clearer expression.
-> >
-> >> @@ -2490,25 +2492,17 @@ static void __slab_free(struct kmem_cache *s, struct page *page,
-> >>                  return;
-> >>          }
-> >>
-> >> +     if (unlikely(!new.inuse && n->nr_partial > s->min_partial))
-> >> +             goto slab_empty;
-> >> +
-> >
-> > So we can never encounter a empty slab that was frozen before? Really?
->
-> In my suggestion,  'was_frozen = 1' is "always" handled without taking a lock.
+I started writing inline responses to each concern but that
+was adding more confusion than clarity.  I would like to
+focus the discussion.
 
-Yepo that is true with this patch.
+The purpose of this patchset is to discuss the inclusion of
+zcache into mainline during the 3.7 merge window.  zcache
+has been a staging since v2.6.39 and has been maturing with
+contributions from 15 developers (5 with multiple commits)
+working on improvements and bug fixes.
 
-> Then, never hit following code.
-> +     if (unlikely(!new.inuse && n->nr_partial > s->min_partial))
-> +             goto slab_empty;
-> +
+I want good code in the kernel, so if there are particular
+areas that need attention before it's of acceptable quality
+for mainline we need that discussion.  I am eager to have
+customers using memory compression with zcache but before
+that I want to see zcache in mainline.
 
+We agree with Konrad that zcache should be promoted before
+additional features are included.  Greg has also expressed
+that he would like promotion before attempting to add
+additional features [1].  Including new features now, while
+in the staging tree, adds to the complexity and difficultly
+of reverifying zcache and getting it accepted into mainline.
 
-Correct.
+[1] https://lkml.org/lkml/2012/3/16/472
 
-> Instead, hit following code.
->         if (likely(!n)) {
->
->                 /*
->                  * If we just froze the page then put it onto the
->                  * per cpu partial list.
->                  */
->                 if (new.frozen && !was_frozen) {
->                         put_cpu_partial(s, page, 1);
->                         stat(s, CPU_PARTIAL_FREE);
->                 }
->                 /*
->                  * The list lock was not taken therefore no list
->                  * activity can be necessary.
->                  */
->                 if (was_frozen)
->                         stat(s, FREE_FROZEN);
->                 return;
->         }
->
-> So, even if we encounter a empty slab that was frozen before, we just
-> do "stat(s, FREE_FROZEN)".
-> Please let me know my answer is sufficient.
+Let's have this discussion.  If there are specific issues
+that need to be addressed to get this ready for mainline
+let's take them one-by-one and line-by-line with patches.
 
-Yes.
-
-Acked-by: Christoph Lameter <cl@linux.com>
+Seth
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
