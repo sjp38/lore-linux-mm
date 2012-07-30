@@ -1,48 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
-	by kanga.kvack.org (Postfix) with SMTP id A3C9C6B005A
-	for <linux-mm@kvack.org>; Mon, 30 Jul 2012 15:29:08 -0400 (EDT)
-Date: Mon, 30 Jul 2012 14:29:05 -0500 (CDT)
+Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
+	by kanga.kvack.org (Postfix) with SMTP id 4A97E6B004D
+	for <linux-mm@kvack.org>; Mon, 30 Jul 2012 15:30:38 -0400 (EDT)
+Date: Mon, 30 Jul 2012 14:30:35 -0500 (CDT)
 From: Christoph Lameter <cl@linux.com>
-Subject: Re: [RESEND PATCH 4/4 v3] mm: fix possible incorrect return value
- of move_pages() syscall
-In-Reply-To: <CAAmzW4MdiJOaZW_b+fz1uYyj0asTCveN=24st4xKymKEvkzdgQ@mail.gmail.com>
-Message-ID: <alpine.DEB.2.00.1207301425410.28838@router.home>
-References: <1343411703-2720-1-git-send-email-js1304@gmail.com> <1343411703-2720-4-git-send-email-js1304@gmail.com> <alpine.DEB.2.00.1207271550190.25434@router.home> <CAAmzW4MdiJOaZW_b+fz1uYyj0asTCveN=24st4xKymKEvkzdgQ@mail.gmail.com>
+Subject: Re: [RESEND PATCH 2/4 v3] mm: fix possible incorrect return value
+ of migrate_pages() syscall
+In-Reply-To: <CAAmzW4O04LZim-DZQ5JYEEpBL89Tts_OjRqbRKB2AAdE17O7HQ@mail.gmail.com>
+Message-ID: <alpine.DEB.2.00.1207301429500.28838@router.home>
+References: <1343411703-2720-1-git-send-email-js1304@gmail.com> <1343411703-2720-2-git-send-email-js1304@gmail.com> <alpine.DEB.2.00.1207271554480.25434@router.home> <CAAmzW4O04LZim-DZQ5JYEEpBL89Tts_OjRqbRKB2AAdE17O7HQ@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: JoonSoo Kim <js1304@gmail.com>
-Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Brice Goglin <brice@myri.com>, Minchan Kim <minchan@kernel.org>, Michael Kerrisk <mtk.manpages@gmail.com>
+Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Sasha Levin <levinsasha928@gmail.com>, Michael Kerrisk <mtk.manpages@gmail.com>
 
 On Sat, 28 Jul 2012, JoonSoo Kim wrote:
 
 > 2012/7/28 Christoph Lameter <cl@linux.com>:
 > > On Sat, 28 Jul 2012, Joonsoo Kim wrote:
 > >
-> >> move_pages() syscall may return success in case that
-> >> do_move_page_to_node_array return positive value which means migration failed.
+> >> do_migrate_pages() can return the number of pages not migrated.
+> >> Because migrate_pages() syscall return this value directly,
+> >> migrate_pages() syscall may return the number of pages not migrated.
+> >> In fail case in migrate_pages() syscall, we should return error value.
+> >> So change err to -EBUSY
 > >
-> > Nope. It only means that the migration for some pages has failed. This may
-> > still be considered successful for the app if it moves 10000 pages and one
-> > failed.
+> > Lets leave this alone. This would change the migrate_pages semantics
+> > because a successful move of N out of M pages would be marked as a
+> > total failure although pages were in fact moved.
 > >
-> > This patch would break the move_pages() syscall because an error code
-> > return from do_move_pages_to_node_array() will cause the status byte for
-> > each page move to not be updated anymore. Application will not be able to
-> > tell anymore which pages were successfully moved and which are not.
 >
-> In case of returning non-zero, valid status is not required according
-> to man page.
+> Okay.
+> Then, do we need to fix man-page of migrate_pages() syscall?
+> According to man-page, only returning 0 or -1 is valid.
+> Without this patch, it can return positive value.
 
-Cannot find a statement like that in the man page. The return code
-description is incorrect. It should that that is returns the number of
-pages not moved otherwise an error code (Michael please fix the manpage).
-
-> So, this patch would not break the move_pages() syscall.
-
-It changes the way the system call is behaving right now.
+Yes the manpage needs updating to say that it can return the number of
+pages not migrated.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
