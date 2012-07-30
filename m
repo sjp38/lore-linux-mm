@@ -1,48 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx133.postini.com [74.125.245.133])
-	by kanga.kvack.org (Postfix) with SMTP id 1A5B16B004D
-	for <linux-mm@kvack.org>; Mon, 30 Jul 2012 15:21:51 -0400 (EDT)
-Date: Mon, 30 Jul 2012 20:21:40 +0100
-From: Jamie Lokier <jamie@shareable.org>
-Subject: Re: [RFC] page-table walkers vs memory order
-Message-ID: <20120730192140.GU25459@jl-vm1.vm.bytemark.co.uk>
-References: <1343064870.26034.23.camel@twins>
- <alpine.LSU.2.00.1207241356350.2094@eggly.anvils>
- <20120725175628.GH2378@linux.vnet.ibm.com>
- <alpine.LSU.2.00.1207251313180.1942@eggly.anvils>
- <20120725211217.GR2378@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx151.postini.com [74.125.245.151])
+	by kanga.kvack.org (Postfix) with SMTP id 9F5106B004D
+	for <linux-mm@kvack.org>; Mon, 30 Jul 2012 15:23:55 -0400 (EDT)
+Date: Mon, 30 Jul 2012 14:23:52 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: Any reason to use put_page in slub.c?
+In-Reply-To: <50163D94.5050607@parallels.com>
+Message-ID: <alpine.DEB.2.00.1207301421150.27584@router.home>
+References: <1343391586-18837-1-git-send-email-glommer@parallels.com> <alpine.DEB.2.00.1207271054230.18371@router.home> <50163D94.5050607@parallels.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120725211217.GR2378@linux.vnet.ibm.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Cc: Hugh Dickins <hughd@google.com>, Peter Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Nick Piggin <npiggin@kernel.dk>, Andrea Arcangeli <aarcange@redhat.com>, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org
+To: Glauber Costa <glommer@parallels.com>
+Cc: linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>
 
-Paul E. McKenney wrote:
-> > Does some version of gcc, under the options which we insist upon,
-> > make such optimizations on any of the architectures which we support?
-> 
-> Pretty much any production-quality compiler will do double-fetch
-> and old-value-reuse optimizations, the former especially on 32-bit
-> x86.  I don't know of any production-quality compilers that do value
-> speculation, which would make the compiler act like DEC Alpha hardware,
-> and I would hope that if this does appear, (1) we would have warning
-> and (2) it could be turned off.  But there has been a lot of work on
-> this topic, so we would be foolish to rule it out.
+On Mon, 30 Jul 2012, Glauber Costa wrote:
 
-GCC documentation for IA-64:
+> On 07/27/2012 07:55 PM, Christoph Lameter wrote:
+> > On Fri, 27 Jul 2012, Glauber Costa wrote:
+> >
+> >> But I am still wondering if there is anything I am overlooking.
+> >
+> > put_page() is necessary because other subsystems may still be holding a
+> > refcount on the page (if f.e. there is DMA still pending to that page).
+> >
+>
+> Humm, this seems to be extremely unsafe in my read.
 
-   -msched-ar-data-spec
-   -mno-sched-ar-data-spec
-     (En/Dis)able data speculative scheduling after reload. This results
-     in generation of ld.a instructions and the corresponding check
-     instructions (ld.c / chk.a). The default is 'enable'.
+I do not like it either. Hopefully these usecases have been removed in the
+meantime but that used to be an issue.
 
-I don't know if that results in value speculation of the relevant kind.
+> If you do kmalloc, the API - AFAIK - does not provide us with any
+> guarantee that the object (it's not even a page, in the strict sense!)
+> allocated is reference counted internally. So relying on kfree to do it
+> doesn't bode well. For one thing, slab doesn't go to the page allocator
+> for high order allocations, and this code would crash miserably if
+> running with the slab.
+>
+> Or am I missing something ?
 
--- Jamie
+Yes the refcounting is done at the page level by the page allocator. It is
+safe. The slab allocator can free a page removing all references from its
+internal structure while the subsystem page reference will hold off the
+page allocator from actually freeing the page until the subsystem itself
+drops the page count.
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
