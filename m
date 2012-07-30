@@ -1,88 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
-	by kanga.kvack.org (Postfix) with SMTP id 3B73A6B005D
-	for <linux-mm@kvack.org>; Mon, 30 Jul 2012 04:29:07 -0400 (EDT)
-Received: from epcpsbgm1.samsung.com (mailout1.samsung.com [203.254.224.24])
- by mailout1.samsung.com
- (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
- 17 2011)) with ESMTP id <0M7Y004NMSVENN20@mailout1.samsung.com> for
- linux-mm@kvack.org; Mon, 30 Jul 2012 17:28:31 +0900 (KST)
-Received: from mcdsrvbld02.digital.local ([106.116.37.23])
- by mmp2.samsung.com (Oracle Communications Messaging Server 7u4-24.01
- (7.0.4.24.0) 64bit (built Nov 17 2011))
- with ESMTPA id <0M7Y006KBSV9QA60@mmp2.samsung.com> for linux-mm@kvack.org;
- Mon, 30 Jul 2012 17:28:31 +0900 (KST)
-From: Marek Szyprowski <m.szyprowski@samsung.com>
-Subject: [PATCHv6 0/2] ARM: replace custom consistent dma region with vmalloc
-Date: Mon, 30 Jul 2012 10:28:17 +0200
-Message-id: <1343636899-19508-1-git-send-email-m.szyprowski@samsung.com>
+Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
+	by kanga.kvack.org (Postfix) with SMTP id 869316B004D
+	for <linux-mm@kvack.org>; Mon, 30 Jul 2012 06:18:38 -0400 (EDT)
+Received: by weys10 with SMTP id s10so4386130wey.14
+        for <linux-mm@kvack.org>; Mon, 30 Jul 2012 03:18:36 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <1342221125.17464.8.camel@lorien2>
+References: <1342221125.17464.8.camel@lorien2>
+Date: Mon, 30 Jul 2012 13:18:36 +0300
+Message-ID: <CAOJsxLGjnMxs9qERG5nCfGfcS3jy6Rr54Ac36WgVnOtP_pDYgQ@mail.gmail.com>
+Subject: Re: [PATCH TRIVIAL] mm: Fix build warning in kmem_cache_create()
+From: Pekka Enberg <penberg@kernel.org>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-arm-kernel@lists.infradead.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: Marek Szyprowski <m.szyprowski@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>, Arnd Bergmann <arnd@arndb.de>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Chunsang Jeong <chunsang.jeong@linaro.org>, Krishna Reddy <vdumpa@nvidia.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Hiroshi Doyu <hdoyu@nvidia.com>, Subash Patel <subashrp@gmail.com>, Minchan Kim <minchan@kernel.org>
+To: shuah.khan@hp.com
+Cc: cl@linux.com, glommer@parallels.com, js1304@gmail.com, shuahkhan@gmail.com, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, David Rientjes <rientjes@google.com>
 
-Hello!
+On Sat, Jul 14, 2012 at 2:12 AM, Shuah Khan <shuah.khan@hp.com> wrote:
+> The label oops is used in CONFIG_DEBUG_VM ifdef block and is defined
+> outside ifdef CONFIG_DEBUG_VM block. This results in the following
+> build warning when built with CONFIG_DEBUG_VM disabled. Fix to move
+> label oops definition to inside a CONFIG_DEBUG_VM block.
+>
+> mm/slab_common.c: In function =91kmem_cache_create=92:
+> mm/slab_common.c:101:1: warning: label =91oops=92 defined but not used
+> [-Wunused-label]
+>
+> Signed-off-by: Shuah Khan <shuah.khan@hp.com>
 
-This is yet another quick update on the patchset which replaces custom 
-consistent dma regions usage in dma-mapping framework in favour of
-generic vmalloc areas created on demand for each allocation. The main
-purpose for this patchset is to remove 2MiB limit of dma
-coherent/writecombine allocations.
+I merged this as an obvious and safe fix for current merge window. We
+need to clean this up properly for v3.7.
 
-This version addresses a few more cleanups pointed by Minchan Kim.
-
-This patch is based on vanilla v3.5 release.
-
-Best regards
-Marek Szyprowski
-Samsung Poland R&D Center
-
-Changelog:
-
-v6:
-- more cleanups of minor issues pointed by Minchan Kim, moved
-  arm_dma_mmap() changes into separate patch
-
-v5: http://thread.gmane.org/gmane.linux.kernel.mm/83096
-- fixed another minor issues pointed by Minchan Kim: added more comments
-  here and there, changed pr_err() + stack_dump() to WARN(), added a fix
-  for no-MMU systems
-
-v4: http://thread.gmane.org/gmane.linux.kernel.mm/80906
-- replaced arch-independent VM_DMA flag with ARM-specific
-  VM_ARM_DMA_CONSISTENT flag
-
-v3: http://thread.gmane.org/gmane.linux.kernel.mm/80028
-- rebased onto v3.4-rc2: added support for IOMMU-aware implementation 
-  of dma-mapping calls, unified with CMA coherent dma pool
-- implemented changes requested by Minchan Kim: added more checks for
-  vmarea->flags & VM_DMA, renamed some variables, removed obsole locks,
-  squashed find_vm_area() exporting patch into the main redesign patch 
-
-v2: http://thread.gmane.org/gmane.linux.kernel.mm/78563
-- added support for atomic allocations (served from preallocated pool)
-- minor cleanup here and there
-- rebased onto v3.4-rc7
-
-v1: http://thread.gmane.org/gmane.linux.kernel.mm/76703
-- initial version
-
-Patch summary:
-
-Marek Szyprowski (2):
-  mm: vmalloc: use const void * for caller argument
-  ARM: dma-mapping: remove custom consistent dma region
-
- Documentation/kernel-parameters.txt |    2 +-
- arch/arm/include/asm/dma-mapping.h  |    2 +-
- arch/arm/mm/dma-mapping.c           |  486 ++++++++++++-----------------------
- arch/arm/mm/mm.h                    |    3 +
- include/linux/vmalloc.h             |    9 +-
- mm/vmalloc.c                        |   28 ++-
- 6 files changed, 194 insertions(+), 336 deletions(-)
-
--- 
-1.7.1.569.g6f426
+> ---
+>  mm/slab_common.c |    2 ++
+>  1 file changed, 2 insertions(+)
+>
+> diff --git a/mm/slab_common.c b/mm/slab_common.c
+> index 12637ce..aa3ca5b 100644
+> --- a/mm/slab_common.c
+> +++ b/mm/slab_common.c
+> @@ -98,7 +98,9 @@ struct kmem_cache *kmem_cache_create(const char *name, =
+size_t size, size_t align
+>
+>         s =3D __kmem_cache_create(name, size, align, flags, ctor);
+>
+> +#ifdef CONFIG_DEBUG_VM
+>  oops:
+> +#endif
+>         mutex_unlock(&slab_mutex);
+>         put_online_cpus();
+>
+> --
+> 1.7.9.5
+>
+>
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
