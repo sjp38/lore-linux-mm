@@ -1,70 +1,173 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx177.postini.com [74.125.245.177])
-	by kanga.kvack.org (Postfix) with SMTP id 21E426B004D
-	for <linux-mm@kvack.org>; Mon, 30 Jul 2012 07:00:44 -0400 (EDT)
-Received: by yhr47 with SMTP id 47so5527273yhr.14
-        for <linux-mm@kvack.org>; Mon, 30 Jul 2012 04:00:43 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
+	by kanga.kvack.org (Postfix) with SMTP id 33CA56B004D
+	for <linux-mm@kvack.org>; Mon, 30 Jul 2012 08:22:31 -0400 (EDT)
+Date: Mon, 30 Jul 2012 14:22:24 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH v2] list corruption by gather_surp
+Message-ID: <20120730122224.GA12680@tiehlicka.suse.cz>
+References: <E1Sut4x-0001K1-7N@eag09.americas.sgi.com>
 MIME-Version: 1.0
-In-Reply-To: <1340959739.2936.28.camel@lappy>
-References: <1340959739.2936.28.camel@lappy>
-From: Sasha Levin <levinsasha928@gmail.com>
-Date: Mon, 30 Jul 2012 13:00:22 +0200
-Message-ID: <CA+1xoqcCtVCqe2yPRXHwndY3dyB0thdRW_9_tdnX142Sdw6Qug@mail.gmail.com>
-Subject: Re: mtd: kernel BUG at arch/x86/mm/pat.c:279!
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <E1Sut4x-0001K1-7N@eag09.americas.sgi.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, dwmw2@infradead.org
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mtd@lists.infradead.org, linux-mm <linux-mm@kvack.org>, Dave Jones <davej@redhat.com>
+To: Cliff Wickman <cpw@sgi.com>
+Cc: cmetcalf@tilera.com, dave@linux.vnet.ibm.com, dhillf@gmail.com, dwg@au1.ibm.com, kamezawa.hiroyuki@gmail.com, khlebnikov@openvz.org, lee.schermerhorn@hp.com, mgorman@suse.de, shhuiw@gmail.com, viro@zeniv.linux.org.uk, linux-mm@kvack.org
 
-Ping?
+On Fri 27-07-12 17:32:15, Cliff Wickman wrote:
+> From: Cliff Wickman <cpw@sgi.com>
+> 
+> v2: diff'd against linux-next
+> 
+> I am seeing list corruption occurring from within gather_surplus_pages()
+> (mm/hugetlb.c).  The problem occurs in a RHEL6 kernel under a heavy load,
+> and seems to be because this function drops the hugetlb_lock.
+> The list_add() in gather_surplus_pages() seems to need to be protected by
+> the lock.
+> (I don't have a similar test for a linux-next kernel)
 
-On Fri, Jun 29, 2012 at 10:48 AM, Sasha Levin <levinsasha928@gmail.com> wrote:
-> Hi all,
->
-> I've stumbled on the following while fuzzing with trinity in a KVM tools guest using latest linux-next:
->
-> [ 3299.675163] ------------[ cut here ]------------
-> [ 3299.676027] kernel BUG at arch/x86/mm/pat.c:279!
-> [ 3299.676027] invalid opcode: 0000 [#1] PREEMPT SMP DEBUG_PAGEALLOC
-> [ 3299.678596] CPU 2
-> [ 3299.678596] Pid: 21541, comm: trinity-child6 Tainted: G        W    3.5.0-rc4-next-20120628-sasha-00005-g9f23eb7 #479
-> [ 3299.678596] RIP: 0010:[<ffffffff810a8b62>]  [<ffffffff810a8b62>] reserve_memtype+0x22/0x3d0
-> [ 3299.678596] RSP: 0018:ffff88000ad61bc8  EFLAGS: 00010286
-> [ 3299.678596] RAX: 0000000000000000 RBX: fffffffffffff000 RCX: ffff88000ad61c50
-> [ 3299.678596] RDX: 0000000000000010 RSI: 0000000000000000 RDI: fffffffffffff000
-> [ 3299.696632] RBP: ffff88000ad61c08 R08: 0000000000000010 R09: ffff88002617d5a8
-> [ 3299.696632] R10: ffff88003111edc8 R11: 0000000000000001 R12: ffff88000ad61c50
-> [ 3299.696632] R13: fffffffffffff000 R14: 0000000000000000 R15: ffff88000ad61d18
-> [ 3299.696632] FS:  00007f3ffc3aa700(0000) GS:ffff880029800000(0000) knlGS:0000000000000000
-> [ 3299.696632] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-> [ 3299.696632] CR2: 0000000000f73ffc CR3: 000000000ad6e000 CR4: 00000000000406e0
-> [ 3299.696632] DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
-> [ 3299.696632] DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
-> [ 3299.696632] Process trinity-child6 (pid: 21541, threadinfo ffff88000ad60000, task ffff88000a390000)
-> [ 3299.696632] Stack:
-> [ 3299.696632]  ffff88000ad61c18 ffffffff81161bc6 ffff88000ad61c18 fffffffffffff000
-> [ 3299.696632]  0000000000000010 0000000000000000 0000000000001000 ffff88000ad61d18
-> [ 3299.696632]  ffff88000ad61c88 ffffffff810a8fe2 ffff88000ad61c38 0000000000000086
-> [ 3299.696632] Call Trace:
-> [ 3299.696632]  [<ffffffff81161bc6>] ? mark_held_locks+0xf6/0x120
-> [ 3299.696632]  [<ffffffff810a8fe2>] reserve_pfn_range+0xd2/0x1e0
-> [ 3299.696632]  [<ffffffff810a912d>] track_pfn_vma_new+0x3d/0x80
-> [ 3299.696632]  [<ffffffff8120c4bc>] remap_pfn_range+0xac/0x380
-> [ 3299.696632]  [<ffffffff8220e016>] mtdchar_mmap+0xe6/0x100
-> [ 3299.696632]  [<ffffffff812145ae>] mmap_region+0x35e/0x5f0
-> [ 3299.696632]  [<ffffffff81214af9>] do_mmap_pgoff+0x2b9/0x350
-> [ 3299.696632]  [<ffffffff811ff46c>] ? vm_mmap_pgoff+0x6c/0xb0
-> [ 3299.696632]  [<ffffffff811ff484>] vm_mmap_pgoff+0x84/0xb0
-> [ 3299.696632]  [<ffffffff8124fd80>] ? fget_raw+0x260/0x260
-> [ 3299.696632]  [<ffffffff81211fde>] sys_mmap_pgoff+0x15e/0x190
-> [ 3299.696632]  [<ffffffff81985ede>] ? trace_hardirqs_on_thunk+0x3a/0x3f
-> [ 3299.696632]  [<ffffffff8106d4dd>] sys_mmap+0x1d/0x20
-> [ 3299.696632]  [<ffffffff8372a539>] system_call_fastpath+0x16/0x1b
-> [ 3299.696632] Code: 28 5b c9 c3 0f 1f 44 00 00 55 49 89 d0 48 89 e5 41 57 41 56 49 89 f6 41 55 49 89 fd 41 54 49 89 cc 53 48 83 ec 18 48 39 f7 72 0e <0f> 0b 0f 1f 40 00 eb fe 66 0f 1f 44 00 00 8b 3d 1a 5b e3 03 85
-> [ 3299.696632] RIP  [<ffffffff810a8b62>] reserve_memtype+0x22/0x3d0
-> [ 3299.696632]  RSP <ffff88000ad61bc8>
->
+Because you cannot reproduce or you just didn't test it with linux-next?
+
+> I have CONFIG_DEBUG_LIST=y, and am running an MPI application with 64 threads
+> and a library that creates a large heap of hugetlbfs pages for it.
+> 
+> The below patch fixes the problem.
+> The gist of this patch is that gather_surplus_pages() does not have to drop
+
+But you cannot hold spinlock while allocating memory because the
+allocation is not atomic and you could deadlock easily.
+
+> the lock if alloc_buddy_huge_page() is told whether the lock is already held.
+
+The changelog doesn't actually explain how does the list gets corrupted.
+alloc_buddy_huge_page doesn't provide the freshly allocated page to use
+so nobody could get and free it. enqueue_huge_page happens under hugetlb_lock.
+I am sorry but I do not see how we could race here.
+
+
+> Signed-off-by: Cliff Wickman <cpw@sgi.com>
+> ---
+>  mm/hugetlb.c |   29 ++++++++++++++++-------------
+>  1 file changed, 16 insertions(+), 13 deletions(-)
+> 
+> Index: linux/mm/hugetlb.c
+> ===================================================================
+> --- linux.orig/mm/hugetlb.c
+> +++ linux/mm/hugetlb.c
+> @@ -838,7 +838,9 @@ static int free_pool_huge_page(struct hs
+>  	return ret;
+>  }
+>  
+> -static struct page *alloc_buddy_huge_page(struct hstate *h, int nid)
+> +/* already_locked means the caller has already locked hugetlb_lock */
+> +static struct page *alloc_buddy_huge_page(struct hstate *h, int nid,
+> +						int already_locked)
+>  {
+>  	struct page *page;
+>  	unsigned int r_nid;
+> @@ -869,15 +871,19 @@ static struct page *alloc_buddy_huge_pag
+>  	 * the node values until we've gotten the hugepage and only the
+>  	 * per-node value is checked there.
+>  	 */
+> -	spin_lock(&hugetlb_lock);
+> +	if (!already_locked)
+> +		spin_lock(&hugetlb_lock);
+> +
+>  	if (h->surplus_huge_pages >= h->nr_overcommit_huge_pages) {
+> -		spin_unlock(&hugetlb_lock);
+> +		if (!already_locked)
+> +			spin_unlock(&hugetlb_lock);
+>  		return NULL;
+>  	} else {
+>  		h->nr_huge_pages++;
+>  		h->surplus_huge_pages++;
+>  	}
+>  	spin_unlock(&hugetlb_lock);
+> +	/* page allocation may sleep, so the lock must be unlocked */
+>  
+>  	if (nid == NUMA_NO_NODE)
+>  		page = alloc_pages(htlb_alloc_mask|__GFP_COMP|
+> @@ -910,7 +916,8 @@ static struct page *alloc_buddy_huge_pag
+>  		h->surplus_huge_pages--;
+>  		__count_vm_event(HTLB_BUDDY_PGALLOC_FAIL);
+>  	}
+> -	spin_unlock(&hugetlb_lock);
+> +	if (!already_locked)
+> +		spin_unlock(&hugetlb_lock);
+>  
+>  	return page;
+>  }
+> @@ -929,7 +936,7 @@ struct page *alloc_huge_page_node(struct
+>  	spin_unlock(&hugetlb_lock);
+>  
+>  	if (!page)
+> -		page = alloc_buddy_huge_page(h, nid);
+> +		page = alloc_buddy_huge_page(h, nid, 0);
+>  
+>  	return page;
+>  }
+> @@ -937,6 +944,7 @@ struct page *alloc_huge_page_node(struct
+>  /*
+>   * Increase the hugetlb pool such that it can accommodate a reservation
+>   * of size 'delta'.
+> + * This is entered and exited with hugetlb_lock locked.
+>   */
+>  static int gather_surplus_pages(struct hstate *h, int delta)
+>  {
+> @@ -957,9 +965,8 @@ static int gather_surplus_pages(struct h
+>  
+>  	ret = -ENOMEM;
+>  retry:
+> -	spin_unlock(&hugetlb_lock);
+>  	for (i = 0; i < needed; i++) {
+> -		page = alloc_buddy_huge_page(h, NUMA_NO_NODE);
+> +		page = alloc_buddy_huge_page(h, NUMA_NO_NODE, 1);
+>  		if (!page) {
+>  			alloc_ok = false;
+>  			break;
+> @@ -969,10 +976,9 @@ retry:
+>  	allocated += i;
+>  
+>  	/*
+> -	 * After retaking hugetlb_lock, we need to recalculate 'needed'
+> +	 * With hugetlb_lock still locked, we need to recalculate 'needed'
+>  	 * because either resv_huge_pages or free_huge_pages may have changed.
+>  	 */
+> -	spin_lock(&hugetlb_lock);
+>  	needed = (h->resv_huge_pages + delta) -
+>  			(h->free_huge_pages + allocated);
+>  	if (needed > 0) {
+> @@ -1010,15 +1016,12 @@ retry:
+>  		enqueue_huge_page(h, page);
+>  	}
+>  free:
+> -	spin_unlock(&hugetlb_lock);
+> -
+>  	/* Free unnecessary surplus pages to the buddy allocator */
+>  	if (!list_empty(&surplus_list)) {
+>  		list_for_each_entry_safe(page, tmp, &surplus_list, lru) {
+>  			put_page(page);
+>  		}
+>  	}
+> -	spin_lock(&hugetlb_lock);
+>  
+>  	return ret;
+>  }
+> @@ -1151,7 +1154,7 @@ static struct page *alloc_huge_page(stru
+>  		spin_unlock(&hugetlb_lock);
+>  	} else {
+>  		spin_unlock(&hugetlb_lock);
+> -		page = alloc_buddy_huge_page(h, NUMA_NO_NODE);
+> +		page = alloc_buddy_huge_page(h, NUMA_NO_NODE, 0);
+>  		if (!page) {
+>  			hugetlb_cgroup_uncharge_cgroup(idx,
+>  						       pages_per_huge_page(h),
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
