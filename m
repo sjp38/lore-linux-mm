@@ -1,66 +1,158 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
-	by kanga.kvack.org (Postfix) with SMTP id 4EC9B6B004D
-	for <linux-mm@kvack.org>; Mon, 30 Jul 2012 04:15:53 -0400 (EDT)
-Received: from /spool/local
-	by e06smtp12.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <schwidefsky@de.ibm.com>;
-	Mon, 30 Jul 2012 09:15:51 +0100
-Received: from d06av01.portsmouth.uk.ibm.com (d06av01.portsmouth.uk.ibm.com [9.149.37.212])
-	by d06nrmr1507.portsmouth.uk.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q6U8FK7m2281566
-	for <linux-mm@kvack.org>; Mon, 30 Jul 2012 09:15:20 +0100
-Received: from d06av01.portsmouth.uk.ibm.com (loopback [127.0.0.1])
-	by d06av01.portsmouth.uk.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q6U8FKBP008368
-	for <linux-mm@kvack.org>; Mon, 30 Jul 2012 02:15:20 -0600
-Date: Mon, 30 Jul 2012 10:15:18 +0200
-From: Martin Schwidefsky <schwidefsky@de.ibm.com>
-Subject: Re: [PATCH 1/2] add mm argument to lazy mmu mode hooks
-Message-ID: <20120730101518.71130b33@de.ibm.com>
-In-Reply-To: <20120727165749.GB7190@localhost.localdomain>
-References: <1343317634-13197-1-git-send-email-schwidefsky@de.ibm.com>
-	<1343317634-13197-2-git-send-email-schwidefsky@de.ibm.com>
-	<20120727165749.GB7190@localhost.localdomain>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
+	by kanga.kvack.org (Postfix) with SMTP id 3DFA56B004D
+	for <linux-mm@kvack.org>; Mon, 30 Jul 2012 04:28:38 -0400 (EDT)
+Received: from epcpsbgm1.samsung.com (mailout4.samsung.com [203.254.224.34])
+ by mailout4.samsung.com
+ (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
+ 17 2011)) with ESMTP id <0M7Y00JIPSVIDOT0@mailout4.samsung.com> for
+ linux-mm@kvack.org; Mon, 30 Jul 2012 17:28:36 +0900 (KST)
+Received: from mcdsrvbld02.digital.local ([106.116.37.23])
+ by mmp2.samsung.com (Oracle Communications Messaging Server 7u4-24.01
+ (7.0.4.24.0) 64bit (built Nov 17 2011))
+ with ESMTPA id <0M7Y006KBSV9QA60@mmp2.samsung.com> for linux-mm@kvack.org;
+ Mon, 30 Jul 2012 17:28:36 +0900 (KST)
+From: Marek Szyprowski <m.szyprowski@samsung.com>
+Subject: [PATCHv6 1/2] mm: vmalloc: use const void * for caller argument
+Date: Mon, 30 Jul 2012 10:28:18 +0200
+Message-id: <1343636899-19508-2-git-send-email-m.szyprowski@samsung.com>
+In-reply-to: <1343636899-19508-1-git-send-email-m.szyprowski@samsung.com>
+References: <1343636899-19508-1-git-send-email-m.szyprowski@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konrad Rzeszutek Wilk <konrad@darnok.org>
-Cc: linux-arch@vger.kernel.org, linux-mm@kvack.org, Zachary Amsden <zach@vmware.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Chris Metcalf <cmetcalf@tilera.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>
+To: linux-arm-kernel@lists.infradead.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Marek Szyprowski <m.szyprowski@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>, Arnd Bergmann <arnd@arndb.de>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Chunsang Jeong <chunsang.jeong@linaro.org>, Krishna Reddy <vdumpa@nvidia.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Hiroshi Doyu <hdoyu@nvidia.com>, Subash Patel <subashrp@gmail.com>, Minchan Kim <minchan@kernel.org>
 
-On Fri, 27 Jul 2012 12:57:50 -0400
-Konrad Rzeszutek Wilk <konrad@darnok.org> wrote:
+'const void *' is a safer type for caller function type. This patch
+updates all references to caller function type.
 
-> On Thu, Jul 26, 2012 at 05:47:13PM +0200, Martin Schwidefsky wrote:
-> > To enable lazy TLB flush schemes with a scope limited to a single
-> > mm_struct add the mm pointer as argument to the three lazy mmu mode
-> > hooks.
-> > 
-> > diff --git a/arch/x86/include/asm/paravirt.h b/arch/x86/include/asm/paravirt.h
-> > index 0b47ddb..b097945 100644
-> > --- a/arch/x86/include/asm/paravirt.h
-> > +++ b/arch/x86/include/asm/paravirt.h
-> > @@ -694,17 +694,17 @@ static inline void arch_end_context_switch(struct task_struct *next)
-> >  }
-> >  
-> >  #define  __HAVE_ARCH_ENTER_LAZY_MMU_MODE
-> > -static inline void arch_enter_lazy_mmu_mode(void)
-> > +static inline void arch_enter_lazy_mmu_mode(struct mm_struct *mm)
-> >  {
-> >  	PVOP_VCALL0(pv_mmu_ops.lazy_mode.enter);
-> 
-> If you are doing that, you should probably also update the pvops call to
-> pass in the 'struct mm_struct'?
-> 
+Signed-off-by: Marek Szyprowski <m.szyprowski@samsung.com>
+Reviewed-by: Kyungmin Park <kyungmin.park@samsung.com>
+Reviewed-by: Minchan Kim <minchan@kernel.org>
+---
+ include/linux/vmalloc.h |    8 ++++----
+ mm/vmalloc.c            |   18 +++++++++---------
+ 2 files changed, 13 insertions(+), 13 deletions(-)
 
-Seems reasonable, if we limit the lazy mmu flushing to a single mm then
-that fact should be represented on the pvops calls as well.
-
+diff --git a/include/linux/vmalloc.h b/include/linux/vmalloc.h
+index dcdfc2b..2e28f4d 100644
+--- a/include/linux/vmalloc.h
++++ b/include/linux/vmalloc.h
+@@ -32,7 +32,7 @@ struct vm_struct {
+ 	struct page		**pages;
+ 	unsigned int		nr_pages;
+ 	phys_addr_t		phys_addr;
+-	void			*caller;
++	const void		*caller;
+ };
+ 
+ /*
+@@ -62,7 +62,7 @@ extern void *vmalloc_32_user(unsigned long size);
+ extern void *__vmalloc(unsigned long size, gfp_t gfp_mask, pgprot_t prot);
+ extern void *__vmalloc_node_range(unsigned long size, unsigned long align,
+ 			unsigned long start, unsigned long end, gfp_t gfp_mask,
+-			pgprot_t prot, int node, void *caller);
++			pgprot_t prot, int node, const void *caller);
+ extern void vfree(const void *addr);
+ 
+ extern void *vmap(struct page **pages, unsigned int count,
+@@ -85,13 +85,13 @@ static inline size_t get_vm_area_size(const struct vm_struct *area)
+ 
+ extern struct vm_struct *get_vm_area(unsigned long size, unsigned long flags);
+ extern struct vm_struct *get_vm_area_caller(unsigned long size,
+-					unsigned long flags, void *caller);
++					unsigned long flags, const void *caller);
+ extern struct vm_struct *__get_vm_area(unsigned long size, unsigned long flags,
+ 					unsigned long start, unsigned long end);
+ extern struct vm_struct *__get_vm_area_caller(unsigned long size,
+ 					unsigned long flags,
+ 					unsigned long start, unsigned long end,
+-					void *caller);
++					const void *caller);
+ extern struct vm_struct *remove_vm_area(const void *addr);
+ 
+ extern int map_vm_area(struct vm_struct *area, pgprot_t prot,
+diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+index 2aad499..11308f0 100644
+--- a/mm/vmalloc.c
++++ b/mm/vmalloc.c
+@@ -1280,7 +1280,7 @@ DEFINE_RWLOCK(vmlist_lock);
+ struct vm_struct *vmlist;
+ 
+ static void setup_vmalloc_vm(struct vm_struct *vm, struct vmap_area *va,
+-			      unsigned long flags, void *caller)
++			      unsigned long flags, const void *caller)
+ {
+ 	vm->flags = flags;
+ 	vm->addr = (void *)va->va_start;
+@@ -1306,7 +1306,7 @@ static void insert_vmalloc_vmlist(struct vm_struct *vm)
+ }
+ 
+ static void insert_vmalloc_vm(struct vm_struct *vm, struct vmap_area *va,
+-			      unsigned long flags, void *caller)
++			      unsigned long flags, const void *caller)
+ {
+ 	setup_vmalloc_vm(vm, va, flags, caller);
+ 	insert_vmalloc_vmlist(vm);
+@@ -1314,7 +1314,7 @@ static void insert_vmalloc_vm(struct vm_struct *vm, struct vmap_area *va,
+ 
+ static struct vm_struct *__get_vm_area_node(unsigned long size,
+ 		unsigned long align, unsigned long flags, unsigned long start,
+-		unsigned long end, int node, gfp_t gfp_mask, void *caller)
++		unsigned long end, int node, gfp_t gfp_mask, const void *caller)
+ {
+ 	struct vmap_area *va;
+ 	struct vm_struct *area;
+@@ -1375,7 +1375,7 @@ EXPORT_SYMBOL_GPL(__get_vm_area);
+ 
+ struct vm_struct *__get_vm_area_caller(unsigned long size, unsigned long flags,
+ 				       unsigned long start, unsigned long end,
+-				       void *caller)
++				       const void *caller)
+ {
+ 	return __get_vm_area_node(size, 1, flags, start, end, -1, GFP_KERNEL,
+ 				  caller);
+@@ -1397,7 +1397,7 @@ struct vm_struct *get_vm_area(unsigned long size, unsigned long flags)
+ }
+ 
+ struct vm_struct *get_vm_area_caller(unsigned long size, unsigned long flags,
+-				void *caller)
++				const void *caller)
+ {
+ 	return __get_vm_area_node(size, 1, flags, VMALLOC_START, VMALLOC_END,
+ 						-1, GFP_KERNEL, caller);
+@@ -1568,9 +1568,9 @@ EXPORT_SYMBOL(vmap);
+ 
+ static void *__vmalloc_node(unsigned long size, unsigned long align,
+ 			    gfp_t gfp_mask, pgprot_t prot,
+-			    int node, void *caller);
++			    int node, const void *caller);
+ static void *__vmalloc_area_node(struct vm_struct *area, gfp_t gfp_mask,
+-				 pgprot_t prot, int node, void *caller)
++				 pgprot_t prot, int node, const void *caller)
+ {
+ 	const int order = 0;
+ 	struct page **pages;
+@@ -1643,7 +1643,7 @@ fail:
+  */
+ void *__vmalloc_node_range(unsigned long size, unsigned long align,
+ 			unsigned long start, unsigned long end, gfp_t gfp_mask,
+-			pgprot_t prot, int node, void *caller)
++			pgprot_t prot, int node, const void *caller)
+ {
+ 	struct vm_struct *area;
+ 	void *addr;
+@@ -1699,7 +1699,7 @@ fail:
+  */
+ static void *__vmalloc_node(unsigned long size, unsigned long align,
+ 			    gfp_t gfp_mask, pgprot_t prot,
+-			    int node, void *caller)
++			    int node, const void *caller)
+ {
+ 	return __vmalloc_node_range(size, align, VMALLOC_START, VMALLOC_END,
+ 				gfp_mask, prot, node, caller);
 -- 
-blue skies,
-   Martin.
-
-"Reality continues to ruin my life." - Calvin.
+1.7.1.569.g6f426
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
