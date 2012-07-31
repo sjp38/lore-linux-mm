@@ -1,91 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
-	by kanga.kvack.org (Postfix) with SMTP id C22A16B004D
-	for <linux-mm@kvack.org>; Tue, 31 Jul 2012 16:30:34 -0400 (EDT)
-Received: by yhr47 with SMTP id 47so7770652yhr.14
-        for <linux-mm@kvack.org>; Tue, 31 Jul 2012 13:30:33 -0700 (PDT)
-Message-ID: <50184085.5000806@gmail.com>
-Date: Tue, 31 Jul 2012 22:31:01 +0200
-From: Sasha Levin <levinsasha928@gmail.com>
+Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
+	by kanga.kvack.org (Postfix) with SMTP id 39BC96B004D
+	for <linux-mm@kvack.org>; Tue, 31 Jul 2012 16:53:59 -0400 (EDT)
+Received: by weys10 with SMTP id s10so5884202wey.14
+        for <linux-mm@kvack.org>; Tue, 31 Jul 2012 13:53:57 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [RFC 1/4] hashtable: introduce a small and naive hashtable
-References: <1343757920-19713-1-git-send-email-levinsasha928@gmail.com> <1343757920-19713-2-git-send-email-levinsasha928@gmail.com> <20120731182330.GD21292@google.com>
-In-Reply-To: <20120731182330.GD21292@google.com>
+In-Reply-To: <c31aaed4-9d50-4cdf-b794-367fc5850483@default>
+References: <c31aaed4-9d50-4cdf-b794-367fc5850483@default>
+Date: Tue, 31 Jul 2012 23:53:57 +0300
+Message-ID: <CAOJsxLEhW=b3En737d5751xufW2BLehPc2ZGGG1NEtRVSo3=jg@mail.gmail.com>
+Subject: Re: [RFC/PATCH] zcache/ramster rewrite and promotion
+From: Pekka Enberg <penberg@kernel.org>
 Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: torvalds@linux-foundation.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, paul.gortmaker@windriver.com
+To: Dan Magenheimer <dan.magenheimer@oracle.com>
+Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>, Konrad Wilk <konrad.wilk@oracle.com>, Minchan Kim <minchan@kernel.org>, Nitin Gupta <ngupta@vflare.org>, Andrew Morton <akpm@linux-foundation.org>, Robert Jennings <rcj@linux.vnet.ibm.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, devel@driverdev.osuosl.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 07/31/2012 08:23 PM, Tejun Heo wrote:
-> Hello, Sasha.
-> 
-> On Tue, Jul 31, 2012 at 08:05:17PM +0200, Sasha Levin wrote:
->> +#define HASH_INIT(name)							\
->> +({									\
->> +	int __i;							\
->> +	for (__i = 0 ; __i < HASH_SIZE(name) ; __i++)			\
->> +		INIT_HLIST_HEAD(&name[__i]);				\
->> +})
-> 
-> Why use macro?
-> 
->> +#define HASH_ADD(name, obj, key)					\
->> +	hlist_add_head(obj, &name[					\
->> +		hash_long((unsigned long)key, HASH_BITS(name))]);
-> 
-> Ditto.
+On Tue, Jul 31, 2012 at 11:18 PM, Dan Magenheimer
+<dan.magenheimer@oracle.com> wrote:
+> diffstat vs 3.5:
+>  drivers/staging/ramster/Kconfig       |    2
+>  drivers/staging/ramster/Makefile      |    2
+>  drivers/staging/zcache/Kconfig        |    2
+>  drivers/staging/zcache/Makefile       |    2
+>  mm/Kconfig                            |    2
+>  mm/Makefile                           |    4
+>  mm/tmem/Kconfig                       |   33
+>  mm/tmem/Makefile                      |    5
+>  mm/tmem/tmem.c                        |  894 +++++++++++++
+>  mm/tmem/tmem.h                        |  259 +++
+>  mm/tmem/zbud.c                        | 1060 +++++++++++++++
+>  mm/tmem/zbud.h                        |   33
+>  mm/tmem/zcache-main.c                 | 1686 +++++++++++++++++++++++++
+>  mm/tmem/zcache.h                      |   53
+>  mm/tmem/ramster.h                     |   59
+>  mm/tmem/ramster/heartbeat.c           |  462 ++++++
+>  mm/tmem/ramster/heartbeat.h           |   87 +
+>  mm/tmem/ramster/masklog.c             |  155 ++
+>  mm/tmem/ramster/masklog.h             |  220 +++
+>  mm/tmem/ramster/nodemanager.c         |  995 +++++++++++++++
+>  mm/tmem/ramster/nodemanager.h         |   88 +
+>  mm/tmem/ramster/r2net.c               |  414 ++++++
+>  mm/tmem/ramster/ramster.c             |  985 ++++++++++++++
+>  mm/tmem/ramster/ramster.h             |  161 ++
+>  mm/tmem/ramster/ramster_nodemanager.h |   39
+>  mm/tmem/ramster/tcp.c                 | 2253 ++++++++++++++++++++++++++++++++++
+>  mm/tmem/ramster/tcp.h                 |  159 ++
+>  mm/tmem/ramster/tcp_internal.h        |  248 +++
+> 28 files changed, 10358 insertions(+), 4 deletions(-)
 
-No special reason, I'll modify both to be functions.
+So it's basically this commit, right?
 
->> +#define HASH_GET(name, key, type, member, cmp_fn)			\
->> +({									\
->> +	struct hlist_node *__node;					\
->> +	typeof(key) __key = key;					\
->> +	type *__obj = NULL;						\
->> +	hlist_for_each_entry(__obj, __node, &name[			\
->> +			hash_long((unsigned long) __key,		\
->> +			HASH_BITS(name))], member)			\
->> +		if (cmp_fn(__obj, __key))				\
->> +			break;						\
->> +	__obj;								\
->> +})
-> 
-> Wouldn't it be simpler to have something like the following
-> 
-> 	hash_for_each_possible_match(pos, hash, key)
-> 
-> and let the caller handle the actual comparison?  Callbacks often are
-> painful to use and I don't think the above dancing buys much.
+https://oss.oracle.com/git/djm/tmem.git/?p=djm/tmem.git;a=commitdiff;h=22844fe3f52d912247212408294be330a867937c
 
-I thought about that, but if you look at the 3 modules I've converted to use this hashtable, I think that the option to provide a callback worked pretty well for all of them, and in my opinion in those cases it looks better than iterating over entries in the code.
+Why on earth would you want to move that under the mm directory?
 
-Would it make sense to have both methods?
-
->> +#define HASH_DEL(obj, member)						\
->> +	hlist_del(&obj->member)
-> 
-> @obj is struct hlist_node in HASH_ADD and the containing type here?
-> Most in-kernel generic data containers implement just the container
-> itself and let the caller handle the conversions between container
-> node and the containing object.  I think it would better not to
-> deviate from that.
-
-Agreed, will fix.
-
->> +#define HASH_FOR_EACH(bkt, node, name, obj, member)			\
->> +	for (bkt = 0; bkt < HASH_SIZE(name); bkt++)			\
->> +		hlist_for_each_entry(obj, node, &name[i], member)
-> 
-> Why in caps?  Most for_each macros are in lower case.
-
-No special reason, will fix that as well.
-
-Thanks for the review Tejun!
-
-> Thanks.
-> 
+                        Pekka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
