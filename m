@@ -1,126 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
-	by kanga.kvack.org (Postfix) with SMTP id 30E7F6B0078
-	for <linux-mm@kvack.org>; Tue, 31 Jul 2012 13:36:37 -0400 (EDT)
-Message-Id: <20120731173635.305083019@linux.com>
-Date: Tue, 31 Jul 2012 12:36:23 -0500
+Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
+	by kanga.kvack.org (Postfix) with SMTP id CE5B16B0088
+	for <linux-mm@kvack.org>; Tue, 31 Jul 2012 13:36:38 -0400 (EDT)
+Message-Id: <20120731173636.957620874@linux.com>
+Date: Tue, 31 Jul 2012 12:36:26 -0500
 From: Christoph Lameter <cl@linux.com>
-Subject: Common [3/9] Move list_add() to slab_common.c
+Subject: Common [6/9] Move freeing of kmem_cache structure to common code
 References: <20120731173620.432853182@linux.com>
-Content-Disposition: inline; filename=move_list_add
+Content-Disposition: inline; filename=common_kmem_cache_destroy
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Pekka Enberg <penberg@kernel.org>
 Cc: linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Matt Mackall <mpm@selenic.com>, Glauber Costa <glommer@parallels.com>, Joonsoo Kim <js1304@gmail.com>
 
-Move the code to append the new kmem_cache to the list of slab caches to
-the kmem_cache_create code in the shared code.
+The freeing action is basically the same in all slab allocators.
+Move to the common kmem_cache_destroy() function.
 
-This is possible now since the acquisition of the mutex was moved into
-kmem_cache_create().
-
-Reviewed-by: Glauber Costa <glommer@parallels.com>
 Reviewed-by: Joonsoo Kim <js1304@gmail.com>
 Signed-off-by: Christoph Lameter <cl@linux.com>
 
-
 ---
- mm/slab.c        |    7 +++++--
- mm/slab_common.c |    7 +++++++
- mm/slub.c        |    2 --
- 3 files changed, 12 insertions(+), 4 deletions(-)
+ mm/slab.c        |    1 -
+ mm/slab_common.c |    1 +
+ mm/slob.c        |    2 --
+ mm/slub.c        |    1 -
+ 4 files changed, 1 insertion(+), 4 deletions(-)
 
 Index: linux-2.6/mm/slab_common.c
 ===================================================================
---- linux-2.6.orig/mm/slab_common.c	2012-07-31 11:57:06.959870010 -0500
-+++ linux-2.6/mm/slab_common.c	2012-07-31 11:59:47.226589653 -0500
-@@ -98,6 +98,13 @@
+--- linux-2.6.orig/mm/slab_common.c	2012-07-31 12:20:08.035649028 -0500
++++ linux-2.6/mm/slab_common.c	2012-07-31 12:20:10.139685656 -0500
+@@ -135,6 +135,7 @@
+ 				rcu_barrier();
  
- 	s = __kmem_cache_create(name, size, align, flags, ctor);
+ 			__kmem_cache_destroy(s);
++			kmem_cache_free(kmem_cache, s);
+ 		} else {
+ 			list_add(&s->list, &slab_caches);
+ 			printk(KERN_ERR "kmem_cache_destroy %s: Slab cache still has objects\n",
+Index: linux-2.6/mm/slob.c
+===================================================================
+--- linux-2.6.orig/mm/slob.c	2012-07-31 12:20:08.027648887 -0500
++++ linux-2.6/mm/slob.c	2012-07-31 12:20:10.139685656 -0500
+@@ -540,8 +540,6 @@
  
-+	/*
-+	 * Check if the slab has actually been created and if it was a
-+	 * real instatiation. Aliases do not belong on the list
-+	 */
-+	if (s && s->refcount == 1)
-+		list_add(&s->list, &slab_caches);
-+
- #ifdef CONFIG_DEBUG_VM
- oops:
- #endif
+ void __kmem_cache_destroy(struct kmem_cache *c)
+ {
+-	kmemleak_free(c);
+-	slob_free(c, sizeof(struct kmem_cache));
+ }
+ 
+ void *kmem_cache_alloc_node(struct kmem_cache *c, gfp_t flags, int node)
 Index: linux-2.6/mm/slab.c
 ===================================================================
---- linux-2.6.orig/mm/slab.c	2012-07-31 11:46:01.524493044 -0500
-+++ linux-2.6/mm/slab.c	2012-07-31 11:59:47.226589653 -0500
-@@ -1538,6 +1538,7 @@
- 					ARCH_KMALLOC_FLAGS|SLAB_PANIC,
- 					NULL);
- 
-+	list_add(&sizes[INDEX_AC].cs_cachep->list, &slab_caches);
- 	if (INDEX_AC != INDEX_L3) {
- 		sizes[INDEX_L3].cs_cachep =
- 			__kmem_cache_create(names[INDEX_L3].name,
-@@ -1545,6 +1546,7 @@
- 				ARCH_KMALLOC_MINALIGN,
- 				ARCH_KMALLOC_FLAGS|SLAB_PANIC,
- 				NULL);
-+		list_add(&sizes[INDEX_L3].cs_cachep->list, &slab_caches);
- 	}
- 
- 	slab_early_init = 0;
-@@ -1563,6 +1565,7 @@
- 					ARCH_KMALLOC_MINALIGN,
- 					ARCH_KMALLOC_FLAGS|SLAB_PANIC,
- 					NULL);
-+			list_add(&sizes->cs_cachep->list, &slab_caches);
+--- linux-2.6.orig/mm/slab.c	2012-07-31 12:20:08.019648748 -0500
++++ linux-2.6/mm/slab.c	2012-07-31 12:20:10.143685717 -0500
+@@ -2064,7 +2064,6 @@
+ 			kfree(l3);
  		}
- #ifdef CONFIG_ZONE_DMA
- 		sizes->cs_dmacachep = __kmem_cache_create(
-@@ -1572,6 +1575,7 @@
- 					ARCH_KMALLOC_FLAGS|SLAB_CACHE_DMA|
- 						SLAB_PANIC,
- 					NULL);
-+		list_add(&sizes->cs_dmacachep->list, &slab_caches);
- #endif
- 		sizes++;
- 		names++;
-@@ -2432,6 +2436,7 @@
  	}
- 	cachep->ctor = ctor;
- 	cachep->name = name;
-+	cachep->refcount = 1;
- 
- 	if (setup_cpu_cache(cachep, gfp)) {
- 		__kmem_cache_destroy(cachep);
-@@ -2448,8 +2453,6 @@
- 		slab_set_debugobj_lock_classes(cachep);
- 	}
- 
--	/* cache setup completed, link it into the list */
--	list_add(&cachep->list, &slab_caches);
- 	return cachep;
+-	kmem_cache_free(kmem_cache, cachep);
  }
+ 
  
 Index: linux-2.6/mm/slub.c
 ===================================================================
---- linux-2.6.orig/mm/slub.c	2012-07-31 11:58:47.529574942 -0500
-+++ linux-2.6/mm/slub.c	2012-07-31 11:59:47.226589653 -0500
-@@ -3944,7 +3944,6 @@
- 				size, align, flags, ctor)) {
- 			int r;
+--- linux-2.6.orig/mm/slub.c	2012-07-31 12:20:08.047649236 -0500
++++ linux-2.6/mm/slub.c	2012-07-31 12:20:37.228157295 -0500
+@@ -211,7 +211,6 @@
+ static inline void sysfs_slab_remove(struct kmem_cache *s)
+ {
+ 	kfree(s->name);
+-	kfree(s);
+ }
  
--			list_add(&s->list, &slab_caches);
- 			mutex_unlock(&slab_mutex);
- 			r = sysfs_slab_add(s);
- 			mutex_lock(&slab_mutex);
-@@ -3952,7 +3951,6 @@
- 			if (!r)
- 				return s;
+ #endif
+@@ -5301,7 +5300,6 @@
+ 	kobject_del(&s->kobj);
+ 	kobject_put(&s->kobj);
+ 	kfree(s->name);
+-	kmem_cache_free(kmem_cache, s);
+ }
  
--			list_del(&s->list);
- 			kmem_cache_close(s);
- 		}
- 		kfree(s);
+ /*
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
