@@ -1,50 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
-	by kanga.kvack.org (Postfix) with SMTP id 93AE56B0073
-	for <linux-mm@kvack.org>; Tue, 31 Jul 2012 13:36:36 -0400 (EDT)
-Message-Id: <20120731173634.744568366@linux.com>
-Date: Tue, 31 Jul 2012 12:36:22 -0500
+Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
+	by kanga.kvack.org (Postfix) with SMTP id 092DE6B005D
+	for <linux-mm@kvack.org>; Tue, 31 Jul 2012 13:36:35 -0400 (EDT)
+Message-Id: <20120731173634.162543139@linux.com>
+Date: Tue, 31 Jul 2012 12:36:21 -0500
 From: Christoph Lameter <cl@linux.com>
-Subject: Common [2/9] slub: Use kmem_cache for the kmem_cache structure
+Subject: Common [1/9] slub: Add debugging to verify correct cache use on kmem_cache_free()
 References: <20120731173620.432853182@linux.com>
-Content-Disposition: inline; filename=slub_use_kmem_cache
+Content-Disposition: inline; filename=slub_new_debug
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Pekka Enberg <penberg@kernel.org>
 Cc: linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Matt Mackall <mpm@selenic.com>, Glauber Costa <glommer@parallels.com>, Joonsoo Kim <js1304@gmail.com>
 
-Do not use kmalloc() but kmem_cache_alloc() for the allocation
-of the kmem_cache structures in slub.
-
-This is the way its supposed to be. Recent merges lost
-the freeing of the kmem_cache structure and so this is also
-fixing memory leak on kmem_cache_destroy() by adding
-the missing free action to sysfs_slab_remove().
+Add additional debugging to check that the objects is actually from the cache
+the caller claims. Doing so currently trips up some other debugging code. It
+takes a lot to infer from that what was happening.
 
 Signed-off-by: Christoph Lameter <cl@linux.com>
 
 Index: linux-2.6/mm/slub.c
 ===================================================================
---- linux-2.6.orig/mm/slub.c	2012-07-31 11:58:40.617457553 -0500
-+++ linux-2.6/mm/slub.c	2012-07-31 11:58:47.529574942 -0500
-@@ -3938,7 +3938,7 @@
- 	if (!n)
- 		return NULL;
+--- linux-2.6.orig/mm/slub.c	2012-07-31 11:46:01.544493395 -0500
++++ linux-2.6/mm/slub.c	2012-07-31 11:53:21.832078581 -0500
+@@ -2583,6 +2583,13 @@
  
--	s = kmalloc(kmem_size, GFP_KERNEL);
-+	s = kmem_cache_alloc(kmem_cache, GFP_KERNEL);
- 	if (s) {
- 		if (kmem_cache_open(s, n,
- 				size, align, flags, ctor)) {
-@@ -5318,6 +5318,8 @@
- 	kobject_uevent(&s->kobj, KOBJ_REMOVE);
- 	kobject_del(&s->kobj);
- 	kobject_put(&s->kobj);
-+	kfree(s->name);
-+	kmem_cache_free(kmem_cache, s);
- }
+ 	page = virt_to_head_page(x);
  
- /*
++	if (kmem_cache_debug(s) && page->slab != s) {
++		printk("kmem_cache_free: Wrong slab cache. %s but object"
++			" is from  %s\n", page->slab->name, s->name);
++		WARN_ON(1);
++		return;
++	}
++
+ 	slab_free(s, page, x, _RET_IP_);
+ 
+ 	trace_kmem_cache_free(_RET_IP_, x);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
