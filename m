@@ -1,95 +1,196 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx159.postini.com [74.125.245.159])
-	by kanga.kvack.org (Postfix) with SMTP id 511266B0070
-	for <linux-mm@kvack.org>; Tue, 31 Jul 2012 17:14:00 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
+	by kanga.kvack.org (Postfix) with SMTP id 5C39D6B004D
+	for <linux-mm@kvack.org>; Tue, 31 Jul 2012 19:11:42 -0400 (EDT)
+Date: Tue, 31 Jul 2012 18:13:06 -0500
+From: Cliff Wickman <cpw@sgi.com>
+Subject: Re: [PATCH v2] list corruption by gather_surp
+Message-ID: <20120731231306.GA25248@sgi.com>
+References: <E1Sut4x-0001K1-7N@eag09.americas.sgi.com> <20120730122224.GA12680@tiehlicka.suse.cz>
 MIME-Version: 1.0
-Message-ID: <b9bee363-321e-409a-bc8e-65ffed8a1dc5@default>
-Date: Tue, 31 Jul 2012 14:13:40 -0700 (PDT)
-From: Dan Magenheimer <dan.magenheimer@oracle.com>
-Subject: RE: [RFC/PATCH] zcache/ramster rewrite and promotion
-References: <c31aaed4-9d50-4cdf-b794-367fc5850483@default>
- <CAOJsxLEhW=b3En737d5751xufW2BLehPc2ZGGG1NEtRVSo3=jg@mail.gmail.com>
-In-Reply-To: <CAOJsxLEhW=b3En737d5751xufW2BLehPc2ZGGG1NEtRVSo3=jg@mail.gmail.com>
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: quoted-printable
+Content-Disposition: inline
+In-Reply-To: <20120730122224.GA12680@tiehlicka.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pekka Enberg <penberg@kernel.org>
-Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>, Konrad Wilk <konrad.wilk@oracle.com>, Minchan Kim <minchan@kernel.org>, Nitin Gupta <ngupta@vflare.org>, Andrew Morton <akpm@linux-foundation.org>, Robert Jennings <rcj@linux.vnet.ibm.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, devel@driverdev.osuosl.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: cmetcalf@tilera.com, dave@linux.vnet.ibm.com, dhillf@gmail.com, dwg@au1.ibm.com, kamezawa.hiroyuki@gmail.com, khlebnikov@openvz.org, lee.schermerhorn@hp.com, mgorman@suse.de, shhuiw@gmail.com, viro@zeniv.linux.org.uk, linux-mm@kvack.org
 
-> From: Pekka Enberg [mailto:penberg@kernel.org]
-> Sent: Tuesday, July 31, 2012 2:54 PM
->=20
-> On Tue, Jul 31, 2012 at 11:18 PM, Dan Magenheimer
-> <dan.magenheimer@oracle.com> wrote:
-> > diffstat vs 3.5:
-> >  drivers/staging/ramster/Kconfig       |    2
-> >  drivers/staging/ramster/Makefile      |    2
-> >  drivers/staging/zcache/Kconfig        |    2
-> >  drivers/staging/zcache/Makefile       |    2
-> >  mm/Kconfig                            |    2
-> >  mm/Makefile                           |    4
-> >  mm/tmem/Kconfig                       |   33
-> >  mm/tmem/Makefile                      |    5
-> >  mm/tmem/tmem.c                        |  894 +++++++++++++
-> >  mm/tmem/tmem.h                        |  259 +++
-> >  mm/tmem/zbud.c                        | 1060 +++++++++++++++
-> >  mm/tmem/zbud.h                        |   33
-> >  mm/tmem/zcache-main.c                 | 1686 +++++++++++++++++++++++++
-> >  mm/tmem/zcache.h                      |   53
-> >  mm/tmem/ramster.h                     |   59
-> >  mm/tmem/ramster/heartbeat.c           |  462 ++++++
-> >  mm/tmem/ramster/heartbeat.h           |   87 +
-> >  mm/tmem/ramster/masklog.c             |  155 ++
-> >  mm/tmem/ramster/masklog.h             |  220 +++
-> >  mm/tmem/ramster/nodemanager.c         |  995 +++++++++++++++
-> >  mm/tmem/ramster/nodemanager.h         |   88 +
-> >  mm/tmem/ramster/r2net.c               |  414 ++++++
-> >  mm/tmem/ramster/ramster.c             |  985 ++++++++++++++
-> >  mm/tmem/ramster/ramster.h             |  161 ++
-> >  mm/tmem/ramster/ramster_nodemanager.h |   39
-> >  mm/tmem/ramster/tcp.c                 | 2253 +++++++++++++++++++++++++=
-+++++++++
-> >  mm/tmem/ramster/tcp.h                 |  159 ++
-> >  mm/tmem/ramster/tcp_internal.h        |  248 +++
-> > 28 files changed, 10358 insertions(+), 4 deletions(-)
->=20
-> So it's basically this commit, right?
->=20
-> https://oss.oracle.com/git/djm/tmem.git/?p=3Ddjm/tmem.git;a=3Dcommitdiff;=
-h=3D22844fe3f52d912247212408294be33
-> 0a867937c
->=20
-> Why on earth would you want to move that under the mm directory?
 
-Hi Pekka --
+On Mon, Jul 30, 2012 at 02:22:24PM +0200, Michal Hocko wrote:
+> On Fri 27-07-12 17:32:15, Cliff Wickman wrote:
+> > From: Cliff Wickman <cpw@sgi.com>
+> > 
+> > v2: diff'd against linux-next
+> > 
+> > I am seeing list corruption occurring from within gather_surplus_pages()
+> > (mm/hugetlb.c).  The problem occurs in a RHEL6 kernel under a heavy load,
+> > and seems to be because this function drops the hugetlb_lock.
+> > The list_add() in gather_surplus_pages() seems to need to be protected by
+> > the lock.
+> > (I don't have a similar test for a linux-next kernel)
+> 
+> Because you cannot reproduce or you just didn't test it with linux-next?
+> 
+> > I have CONFIG_DEBUG_LIST=y, and am running an MPI application with 64 threads
+> > and a library that creates a large heap of hugetlbfs pages for it.
+> > 
+> > The below patch fixes the problem.
+> > The gist of this patch is that gather_surplus_pages() does not have to drop
+> 
+> But you cannot hold spinlock while allocating memory because the
+> allocation is not atomic and you could deadlock easily.
+> 
+> > the lock if alloc_buddy_huge_page() is told whether the lock is already held.
+> 
+> The changelog doesn't actually explain how does the list gets corrupted.
+> alloc_buddy_huge_page doesn't provide the freshly allocated page to use
+> so nobody could get and free it. enqueue_huge_page happens under hugetlb_lock.
+> I am sorry but I do not see how we could race here.
 
-Thanks for your reply and question.
+I finally got my test running on a linux-next kernel and could not
+reproduce the problem.  
+So I agree that no race seems possible now.   Disregard this patch.
 
-MM means "memory management" and zcache manages physical memory
-to allow more pages of data to be stored in RAM.  So it seems a
-logical place.  It's not a block driver, or a network driver,
-or a device driver, or a filesystem... do you have a different
-location in the kernel in mind?
+I'll offer the fix to the distro of the old kernel on which I saw the
+problem.
 
-Zcache does it a bit differently than all the other parts of mm
-because it needs to; because all the other parts of mm try to
-maximize the amount of physical memory that is directly addressable
-by threads but one can't directly address pages that have been compressed.
-So zcache uses the transcendent memory approach (via cleancache
-and frontswap) to compress/decompress clean pagecache pages and
-swap pages "on demand".  The tmem design also nicely handles
-both the fact that the degree of compression is unpredictable and
-the fact that the fraction of fixed total RAM used for compressed
-pages vs "normal uncompressed mm" pages needs to be very dynamic.
 
-Ramster does the same thing but manages it peer-to-peer across
-multiple systems using kernel sockets.  One could argue that
-the dependency on sockets makes it more of a driver than "mm"
-but ramster is "memory management" too, just a bit more exotic.
+> 
+> 
+> > Signed-off-by: Cliff Wickman <cpw@sgi.com>
+> > ---
+> >  mm/hugetlb.c |   29 ++++++++++++++++-------------
+> >  1 file changed, 16 insertions(+), 13 deletions(-)
+> > 
+> > Index: linux/mm/hugetlb.c
+> > ===================================================================
+> > --- linux.orig/mm/hugetlb.c
+> > +++ linux/mm/hugetlb.c
+> > @@ -838,7 +838,9 @@ static int free_pool_huge_page(struct hs
+> >  	return ret;
+> >  }
+> >  
+> > -static struct page *alloc_buddy_huge_page(struct hstate *h, int nid)
+> > +/* already_locked means the caller has already locked hugetlb_lock */
+> > +static struct page *alloc_buddy_huge_page(struct hstate *h, int nid,
+> > +						int already_locked)
+> >  {
+> >  	struct page *page;
+> >  	unsigned int r_nid;
+> > @@ -869,15 +871,19 @@ static struct page *alloc_buddy_huge_pag
+> >  	 * the node values until we've gotten the hugepage and only the
+> >  	 * per-node value is checked there.
+> >  	 */
+> > -	spin_lock(&hugetlb_lock);
+> > +	if (!already_locked)
+> > +		spin_lock(&hugetlb_lock);
+> > +
+> >  	if (h->surplus_huge_pages >= h->nr_overcommit_huge_pages) {
+> > -		spin_unlock(&hugetlb_lock);
+> > +		if (!already_locked)
+> > +			spin_unlock(&hugetlb_lock);
+> >  		return NULL;
+> >  	} else {
+> >  		h->nr_huge_pages++;
+> >  		h->surplus_huge_pages++;
+> >  	}
+> >  	spin_unlock(&hugetlb_lock);
+> > +	/* page allocation may sleep, so the lock must be unlocked */
+> >  
+> >  	if (nid == NUMA_NO_NODE)
+> >  		page = alloc_pages(htlb_alloc_mask|__GFP_COMP|
+> > @@ -910,7 +916,8 @@ static struct page *alloc_buddy_huge_pag
+> >  		h->surplus_huge_pages--;
+> >  		__count_vm_event(HTLB_BUDDY_PGALLOC_FAIL);
+> >  	}
+> > -	spin_unlock(&hugetlb_lock);
+> > +	if (!already_locked)
+> > +		spin_unlock(&hugetlb_lock);
+> >  
+> >  	return page;
+> >  }
+> > @@ -929,7 +936,7 @@ struct page *alloc_huge_page_node(struct
+> >  	spin_unlock(&hugetlb_lock);
+> >  
+> >  	if (!page)
+> > -		page = alloc_buddy_huge_page(h, nid);
+> > +		page = alloc_buddy_huge_page(h, nid, 0);
+> >  
+> >  	return page;
+> >  }
+> > @@ -937,6 +944,7 @@ struct page *alloc_huge_page_node(struct
+> >  /*
+> >   * Increase the hugetlb pool such that it can accommodate a reservation
+> >   * of size 'delta'.
+> > + * This is entered and exited with hugetlb_lock locked.
+> >   */
+> >  static int gather_surplus_pages(struct hstate *h, int delta)
+> >  {
+> > @@ -957,9 +965,8 @@ static int gather_surplus_pages(struct h
+> >  
+> >  	ret = -ENOMEM;
+> >  retry:
+> > -	spin_unlock(&hugetlb_lock);
+> >  	for (i = 0; i < needed; i++) {
+> > -		page = alloc_buddy_huge_page(h, NUMA_NO_NODE);
+> > +		page = alloc_buddy_huge_page(h, NUMA_NO_NODE, 1);
+> >  		if (!page) {
+> >  			alloc_ok = false;
+> >  			break;
+> > @@ -969,10 +976,9 @@ retry:
+> >  	allocated += i;
+> >  
+> >  	/*
+> > -	 * After retaking hugetlb_lock, we need to recalculate 'needed'
+> > +	 * With hugetlb_lock still locked, we need to recalculate 'needed'
+> >  	 * because either resv_huge_pages or free_huge_pages may have changed.
+> >  	 */
+> > -	spin_lock(&hugetlb_lock);
+> >  	needed = (h->resv_huge_pages + delta) -
+> >  			(h->free_huge_pages + allocated);
+> >  	if (needed > 0) {
+> > @@ -1010,15 +1016,12 @@ retry:
+> >  		enqueue_huge_page(h, page);
+> >  	}
+> >  free:
+> > -	spin_unlock(&hugetlb_lock);
+> > -
+> >  	/* Free unnecessary surplus pages to the buddy allocator */
+> >  	if (!list_empty(&surplus_list)) {
+> >  		list_for_each_entry_safe(page, tmp, &surplus_list, lru) {
+> >  			put_page(page);
+> >  		}
+> >  	}
+> > -	spin_lock(&hugetlb_lock);
+> >  
+> >  	return ret;
+> >  }
+> > @@ -1151,7 +1154,7 @@ static struct page *alloc_huge_page(stru
+> >  		spin_unlock(&hugetlb_lock);
+> >  	} else {
+> >  		spin_unlock(&hugetlb_lock);
+> > -		page = alloc_buddy_huge_page(h, NUMA_NO_NODE);
+> > +		page = alloc_buddy_huge_page(h, NUMA_NO_NODE, 0);
+> >  		if (!page) {
+> >  			hugetlb_cgroup_uncharge_cgroup(idx,
+> >  						       pages_per_huge_page(h),
+> 
+> -- 
+> Michal Hocko
+> SUSE Labs
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
-Thanks,
-Dan
+-- 
+Cliff Wickman
+SGI
+cpw@sgi.com
+(651) 683-3824
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
