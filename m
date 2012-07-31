@@ -1,39 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
-	by kanga.kvack.org (Postfix) with SMTP id 6221E6B00B4
-	for <linux-mm@kvack.org>; Tue, 31 Jul 2012 14:23:30 -0400 (EDT)
-Message-ID: <50181E0D.4090706@redhat.com>
-Date: Tue, 31 Jul 2012 14:03:57 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from psmtp.com (na3sys010amx202.postini.com [74.125.245.202])
+	by kanga.kvack.org (Postfix) with SMTP id 716F36B00B5
+	for <linux-mm@kvack.org>; Tue, 31 Jul 2012 14:23:35 -0400 (EDT)
+Received: by pbbrp2 with SMTP id rp2so13720209pbb.14
+        for <linux-mm@kvack.org>; Tue, 31 Jul 2012 11:23:34 -0700 (PDT)
+Date: Tue, 31 Jul 2012 11:23:30 -0700
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [RFC 1/4] hashtable: introduce a small and naive hashtable
+Message-ID: <20120731182330.GD21292@google.com>
+References: <1343757920-19713-1-git-send-email-levinsasha928@gmail.com>
+ <1343757920-19713-2-git-send-email-levinsasha928@gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH -alternative] mm: hugetlbfs: Close race during teardown
- of hugetlbfs shared page tables V2 (resend)
-References: <20120720134937.GG9222@suse.de> <20120720141108.GH9222@suse.de> <20120720143635.GE12434@tiehlicka.suse.cz> <20120720145121.GJ9222@suse.de> <alpine.LSU.2.00.1207222033030.6810@eggly.anvils> <50118E7F.8000609@redhat.com> <50120FA8.20409@redhat.com> <20120727102356.GD612@suse.de> <5016DC5F.7030604@redhat.com> <20120731124650.GO612@suse.de>
-In-Reply-To: <20120731124650.GO612@suse.de>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1343757920-19713-2-git-send-email-levinsasha928@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Larry Woodman <lwoodman@redhat.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, Linux-MM <linux-mm@kvack.org>, David Gibson <david@gibson.dropbear.id.au>, Ken Chen <kenchen@google.com>, Cong Wang <xiyou.wangcong@gmail.com>, LKML <linux-kernel@vger.kernel.org>
+To: Sasha Levin <levinsasha928@gmail.com>
+Cc: torvalds@linux-foundation.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, paul.gortmaker@windriver.com
 
-On 07/31/2012 08:46 AM, Mel Gorman wrote:
+Hello, Sasha.
 
-> mm: hugetlbfs: Correctly detect if page tables have just been shared
->
-> Each page mapped in a processes address space must be correctly
-> accounted for in _mapcount. Normally the rules for this are
-> straight-forward but hugetlbfs page table sharing is different.
-> The page table pages at the PMD level are reference counted while
-> the mapcount remains the same. If this accounting is wrong, it causes
-> bugs like this one reported by Larry Woodman
+On Tue, Jul 31, 2012 at 08:05:17PM +0200, Sasha Levin wrote:
+> +#define HASH_INIT(name)							\
+> +({									\
+> +	int __i;							\
+> +	for (__i = 0 ; __i < HASH_SIZE(name) ; __i++)			\
+> +		INIT_HLIST_HEAD(&name[__i]);				\
+> +})
 
-> Signed-off-by: Mel Gorman<mgorman@suse.de>
+Why use macro?
 
-Reviewed-by: Rik van Riel <riel@redhat.com>
+> +#define HASH_ADD(name, obj, key)					\
+> +	hlist_add_head(obj, &name[					\
+> +		hash_long((unsigned long)key, HASH_BITS(name))]);
+
+Ditto.
+
+> +#define HASH_GET(name, key, type, member, cmp_fn)			\
+> +({									\
+> +	struct hlist_node *__node;					\
+> +	typeof(key) __key = key;					\
+> +	type *__obj = NULL;						\
+> +	hlist_for_each_entry(__obj, __node, &name[			\
+> +			hash_long((unsigned long) __key,		\
+> +			HASH_BITS(name))], member)			\
+> +		if (cmp_fn(__obj, __key))				\
+> +			break;						\
+> +	__obj;								\
+> +})
+
+Wouldn't it be simpler to have something like the following
+
+	hash_for_each_possible_match(pos, hash, key)
+
+and let the caller handle the actual comparison?  Callbacks often are
+painful to use and I don't think the above dancing buys much.
+
+> +#define HASH_DEL(obj, member)						\
+> +	hlist_del(&obj->member)
+
+@obj is struct hlist_node in HASH_ADD and the containing type here?
+Most in-kernel generic data containers implement just the container
+itself and let the caller handle the conversions between container
+node and the containing object.  I think it would better not to
+deviate from that.
+
+> +#define HASH_FOR_EACH(bkt, node, name, obj, member)			\
+> +	for (bkt = 0; bkt < HASH_SIZE(name); bkt++)			\
+> +		hlist_for_each_entry(obj, node, &name[i], member)
+
+Why in caps?  Most for_each macros are in lower case.
+
+Thanks.
 
 -- 
-All rights reversed
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
