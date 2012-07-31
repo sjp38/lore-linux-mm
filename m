@@ -1,93 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
-	by kanga.kvack.org (Postfix) with SMTP id 0C0516B004D
-	for <linux-mm@kvack.org>; Tue, 31 Jul 2012 03:45:10 -0400 (EDT)
-Message-ID: <50178C9B.8090408@cn.fujitsu.com>
-Date: Tue, 31 Jul 2012 15:43:23 +0800
-From: Wen Congyang <wency@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
+	by kanga.kvack.org (Postfix) with SMTP id 7CC396B004D
+	for <linux-mm@kvack.org>; Tue, 31 Jul 2012 04:28:42 -0400 (EDT)
+Message-ID: <5017968C.6050301@parallels.com>
+Date: Tue, 31 Jul 2012 12:25:48 +0400
+From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 3/4] mm/hotplug: free zone->pageset when a zone becomes
- empty
-References: <1341481532-1700-1-git-send-email-jiang.liu@huawei.com> <1341481532-1700-3-git-send-email-jiang.liu@huawei.com>
-In-Reply-To: <1341481532-1700-3-git-send-email-jiang.liu@huawei.com>
+Subject: Re: Any reason to use put_page in slub.c?
+References: <1343391586-18837-1-git-send-email-glommer@parallels.com> <alpine.DEB.2.00.1207271054230.18371@router.home> <50163D94.5050607@parallels.com> <alpine.DEB.2.00.1207301421150.27584@router.home>
+In-Reply-To: <alpine.DEB.2.00.1207301421150.27584@router.home>
+Content-Type: text/plain; charset="ISO-8859-1"
 Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jiang Liu <jiang.liu@huawei.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, Minchan Kim <minchan@kernel.org>, Rusty Russell <rusty@rustcorp.com.au>, Yinghai Lu <yinghai@kernel.org>, Tony Luck <tony.luck@intel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, Bjorn Helgaas <bhelgaas@google.com>, Keping Chen <chenkeping@huawei.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Jiang Liu <liuj97@gmail.com>, Wei Wang <Bessel.Wang@huawei.com>
+To: Christoph Lameter <cl@linux.com>
+Cc: linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>
 
-At 07/05/2012 05:45 PM, Jiang Liu Wrote:
-> When a zone becomes empty after memory offlining, free zone->pageset.
-> Otherwise it will cause memory leak when adding memory to the empty
-> zone again because build_all_zonelists() will allocate zone->pageset
-> for an empty zone.
+On 07/30/2012 11:23 PM, Christoph Lameter wrote:
+> On Mon, 30 Jul 2012, Glauber Costa wrote:
 > 
-> Signed-off-by: Jiang Liu <liuj97@gmail.com>
-> Signed-off-by: Wei Wang <Bessel.Wang@huawei.com>
-> ---
->  include/linux/mm.h  |    1 +
->  mm/memory_hotplug.c |    3 +++
->  mm/page_alloc.c     |   13 +++++++++++++
->  3 files changed, 17 insertions(+), 0 deletions(-)
+>> On 07/27/2012 07:55 PM, Christoph Lameter wrote:
+>>> On Fri, 27 Jul 2012, Glauber Costa wrote:
+>>>
+>>>> But I am still wondering if there is anything I am overlooking.
+>>>
+>>> put_page() is necessary because other subsystems may still be holding a
+>>> refcount on the page (if f.e. there is DMA still pending to that page).
+>>>
+>>
+>> Humm, this seems to be extremely unsafe in my read.
 > 
-> diff --git a/include/linux/mm.h b/include/linux/mm.h
-> index b36d08c..f8b62f2 100644
-> --- a/include/linux/mm.h
-> +++ b/include/linux/mm.h
-> @@ -1331,6 +1331,7 @@ void warn_alloc_failed(gfp_t gfp_mask, int order, const char *fmt, ...);
->  extern void setup_per_cpu_pageset(void);
->  
->  extern void zone_pcp_update(struct zone *zone);
-> +extern void zone_pcp_reset(struct zone *zone);
->  
->  /* nommu.c */
->  extern atomic_long_t mmap_pages_allocated;
-> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-> index bce80c7..998b792 100644
-> --- a/mm/memory_hotplug.c
-> +++ b/mm/memory_hotplug.c
-> @@ -966,6 +966,9 @@ repeat:
->  
->  	init_per_zone_wmark_min();
->  
-> +	if (!populated_zone(zone))
-> +		zone_pcp_reset(zone);
-> +
->  	if (!node_present_pages(node)) {
->  		node_clear_state(node, N_HIGH_MEMORY);
->  		kswapd_stop(node);
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index ebf319d..5964b7a 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -5872,6 +5872,19 @@ void free_contig_range(unsigned long pfn, unsigned nr_pages)
->  #endif
->  
->  #ifdef CONFIG_MEMORY_HOTREMOVE
-> +void zone_pcp_reset(struct zone *zone)
-> +{
-> +	unsigned long flags;
-> +
-> +	/* avoid races with drain_pages()  */
-> +	local_irq_save(flags);
+> I do not like it either. Hopefully these usecases have been removed in the
+> meantime but that used to be an issue.
+> 
+>> If you do kmalloc, the API - AFAIK - does not provide us with any
+>> guarantee that the object (it's not even a page, in the strict sense!)
+>> allocated is reference counted internally. So relying on kfree to do it
+>> doesn't bode well. For one thing, slab doesn't go to the page allocator
+>> for high order allocations, and this code would crash miserably if
+>> running with the slab.
+>>
+>> Or am I missing something ?
+> 
+> Yes the refcounting is done at the page level by the page allocator. It is
+> safe. The slab allocator can free a page removing all references from its
+> internal structure while the subsystem page reference will hold off the
+> page allocator from actually freeing the page until the subsystem itself
+> drops the page count.
+> 
 
-drain_pages() may run on another cpu, so it cann't avoid
-races with drain_pages().
+pages, yes. But when you do kfree, you don't free a page. You free an
+object. The allocator is totally free to keep the page around and pass
+it on to someone else.
 
-Thanks
-Wen Congyang
+The use case that put_page protect against, would be totally and
+absolutely broken with every other allocator. They could give an object
+in the same address to another user in the very next moment.
 
-> +	if (zone->pageset != &boot_pageset) {
-> +		free_percpu(zone->pageset);
-> +		zone->pageset = &boot_pageset;
-> +	}
-> +	local_irq_restore(flags);
-> +}
-> +
->  /*
->   * All pages in the range must be isolated before calling this.
->   */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
