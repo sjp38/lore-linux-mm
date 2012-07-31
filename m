@@ -1,147 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
-	by kanga.kvack.org (Postfix) with SMTP id 4E55C6B00A4
-	for <linux-mm@kvack.org>; Tue, 31 Jul 2012 14:02:57 -0400 (EDT)
-Date: Tue, 31 Jul 2012 13:02:54 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: Common [8/9] Move duping of slab name to slab_common.c
-In-Reply-To: <20120731173638.084563156@linux.com>
-Message-ID: <alpine.DEB.2.00.1207311302270.5278@router.home>
-References: <20120731173620.432853182@linux.com> <20120731173638.084563156@linux.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
+	by kanga.kvack.org (Postfix) with SMTP id 8D06C6B00A6
+	for <linux-mm@kvack.org>; Tue, 31 Jul 2012 14:04:59 -0400 (EDT)
+Received: by bkcjc3 with SMTP id jc3so4023084bkc.14
+        for <linux-mm@kvack.org>; Tue, 31 Jul 2012 11:04:57 -0700 (PDT)
+From: Sasha Levin <levinsasha928@gmail.com>
+Subject: [RFC 0/4] generic hashtable implementation
+Date: Tue, 31 Jul 2012 20:05:16 +0200
+Message-Id: <1343757920-19713-1-git-send-email-levinsasha928@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pekka Enberg <penberg@kernel.org>
-Cc: linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Matt Mackall <mpm@selenic.com>, Glauber Costa <glommer@parallels.com>, Joonsoo Kim <js1304@gmail.com>
+To: torvalds@linux-foundation.org
+Cc: tj@kernel.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, paul.gortmaker@windriver.com, Sasha Levin <levinsasha928@gmail.com>
 
-Patch not refreshed.... Sigh... use this one:
+There are quite a few places in the kernel which implement a hashtable
+in a very similar way. Instead of having implementations of a hashtable
+all over the kernel, we can re-use the code.
 
-Subject: Move duping of slab name to slab_common.c
+This patch series introduces a very simple hashtable implementation, and
+modifies three (random) modules to use it. I've limited it to 3 only
+so that it would be easy to review and modify, and to show that even
+at this number we already eliminate a big amount of duplicated code.
 
-Duping of the slabname has to be done by each slab. Moving this code
-to slab_common avoids duplicate implementations.
+If this basic hashtable looks ok, future code will include:
 
-With this patch we have common string handling for all slab allocators.
-Strings passed to kmem_cache_create() are copied internally. Subsystems
-can create temporary strings to create slab caches.
+ - RCU support
+ - Self locking (list_bl?)
+ - Converting more code to use the hashtable
 
-Slabs allocated in early states of bootstrap will never be freed (and those
-can never be freed since they are essential to slab allocator operations).
-During bootstrap we therefore do not have to worry about duping names.
 
-Signed-off-by: Christoph Lameter <cl@linux.com>
+Sasha Levin (4):
+  hashtable: introduce a small and naive hashtable
+  user_ns: use new hashtable implementation
+  mm,ksm: use new hashtable implementation
+  workqueue: use new hashtable implementation
 
----
- mm/slab_common.c |   24 +++++++++++++++++-------
- mm/slub.c        |    5 -----
- 2 files changed, 17 insertions(+), 12 deletions(-)
+ include/linux/hashtable.h      |   46 ++++++++++++++++++++
+ include/linux/user_namespace.h |   11 +++--
+ kernel/user.c                  |   54 ++++-------------------
+ kernel/user_namespace.c        |    4 +-
+ kernel/workqueue.c             |   91 ++++++---------------------------------
+ mm/ksm.c                       |   29 ++++---------
+ 6 files changed, 87 insertions(+), 148 deletions(-)
+ create mode 100644 include/linux/hashtable.h
 
-Index: linux-2.6/mm/slab_common.c
-===================================================================
---- linux-2.6.orig/mm/slab_common.c	2012-07-31 12:20:56.976501176 -0500
-+++ linux-2.6/mm/slab_common.c	2012-07-31 13:01:46.763397315 -0500
-@@ -53,6 +53,7 @@
- 		unsigned long flags, void (*ctor)(void *))
- {
- 	struct kmem_cache *s = NULL;
-+	char *n;
-
- #ifdef CONFIG_DEBUG_VM
- 	if (!name || in_interrupt() || size < sizeof(void *) ||
-@@ -97,14 +98,22 @@
- 	WARN_ON(strchr(name, ' '));	/* It confuses parsers */
- #endif
-
--	s = __kmem_cache_create(name, size, align, flags, ctor);
-+	n = kstrdup(name, GFP_KERNEL);
-+	if (!n)
-+		goto oops;
-
--	/*
--	 * Check if the slab has actually been created and if it was a
--	 * real instatiation. Aliases do not belong on the list
--	 */
--	if (s && s->refcount == 1)
--		list_add(&s->list, &slab_caches);
-+	s = __kmem_cache_create(n, size, align, flags, ctor);
-+
-+	if (s) {
-+		/*
-+		 * Check if the slab has actually been created and if it was a
-+		 * real instatiation. Aliases do not belong on the list
-+		 */
-+		if (s->refcount == 1)
-+			list_add(&s->list, &slab_caches);
-+
-+	} else
-+		kfree(n);
-
- #ifdef CONFIG_DEBUG_VM
- oops:
-@@ -134,6 +143,7 @@
- 			if (s->flags & SLAB_DESTROY_BY_RCU)
- 				rcu_barrier();
-
-+			kfree(s->name);
- 			kmem_cache_free(kmem_cache, s);
- 		} else {
- 			list_add(&s->list, &slab_caches);
-Index: linux-2.6/mm/slub.c
-===================================================================
---- linux-2.6.orig/mm/slub.c	2012-07-31 12:20:56.976501176 -0500
-+++ linux-2.6/mm/slub.c	2012-07-31 13:01:46.775397529 -0500
-@@ -208,10 +208,7 @@
- static inline int sysfs_slab_add(struct kmem_cache *s) { return 0; }
- static inline int sysfs_slab_alias(struct kmem_cache *s, const char *p)
- 							{ return 0; }
--static inline void sysfs_slab_remove(struct kmem_cache *s)
--{
--	kfree(s->name);
--}
-+static inline void sysfs_slab_remove(struct kmem_cache *s) { }
-
- #endif
-
-@@ -3898,7 +3895,6 @@
- 		size_t align, unsigned long flags, void (*ctor)(void *))
- {
- 	struct kmem_cache *s;
--	char *n;
-
- 	s = find_mergeable(size, align, flags, name, ctor);
- 	if (s) {
-@@ -3917,13 +3913,9 @@
- 		return s;
- 	}
-
--	n = kstrdup(name, GFP_KERNEL);
--	if (!n)
--		return NULL;
--
- 	s = kmem_cache_alloc(kmem_cache, GFP_KERNEL);
- 	if (s) {
--		if (kmem_cache_open(s, n,
-+		if (kmem_cache_open(s, name,
- 				size, align, flags, ctor)) {
- 			int r;
-
-@@ -3938,7 +3930,6 @@
- 		}
- 		kfree(s);
- 	}
--	kfree(n);
- 	return NULL;
- }
-
-@@ -5299,7 +5290,6 @@
- 	kobject_uevent(&s->kobj, KOBJ_REMOVE);
- 	kobject_del(&s->kobj);
- 	kobject_put(&s->kobj);
--	kfree(s->name);
- }
-
- /*
+-- 
+1.7.8.6
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
