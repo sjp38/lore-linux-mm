@@ -1,36 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
-	by kanga.kvack.org (Postfix) with SMTP id 071896B004D
-	for <linux-mm@kvack.org>; Tue, 31 Jul 2012 10:04:47 -0400 (EDT)
-Date: Tue, 31 Jul 2012 09:04:44 -0500 (CDT)
+Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
+	by kanga.kvack.org (Postfix) with SMTP id D68596B004D
+	for <linux-mm@kvack.org>; Tue, 31 Jul 2012 10:09:57 -0400 (EDT)
+Date: Tue, 31 Jul 2012 09:09:55 -0500 (CDT)
 From: Christoph Lameter <cl@linux.com>
-Subject: Re: [RESEND PATCH 4/4 v3] mm: fix possible incorrect return value
- of move_pages() syscall
-In-Reply-To: <CAAmzW4P6rqywK89q71DXzumREsJNGq0O4RrfdiHP2thrRSy9Gg@mail.gmail.com>
-Message-ID: <alpine.DEB.2.00.1207310903290.32295@router.home>
-References: <1343411703-2720-1-git-send-email-js1304@gmail.com> <1343411703-2720-4-git-send-email-js1304@gmail.com> <alpine.DEB.2.00.1207271550190.25434@router.home> <CAAmzW4MdiJOaZW_b+fz1uYyj0asTCveN=24st4xKymKEvkzdgQ@mail.gmail.com>
- <alpine.DEB.2.00.1207301425410.28838@router.home> <CAAmzW4P6rqywK89q71DXzumREsJNGq0O4RrfdiHP2thrRSy9Gg@mail.gmail.com>
+Subject: Re: Any reason to use put_page in slub.c?
+In-Reply-To: <5017968C.6050301@parallels.com>
+Message-ID: <alpine.DEB.2.00.1207310906350.32295@router.home>
+References: <1343391586-18837-1-git-send-email-glommer@parallels.com> <alpine.DEB.2.00.1207271054230.18371@router.home> <50163D94.5050607@parallels.com> <alpine.DEB.2.00.1207301421150.27584@router.home> <5017968C.6050301@parallels.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: JoonSoo Kim <js1304@gmail.com>
-Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Brice Goglin <brice@myri.com>, Minchan Kim <minchan@kernel.org>, Michael Kerrisk <mtk.manpages@gmail.com>
+To: Glauber Costa <glommer@parallels.com>
+Cc: linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>
 
-On Tue, 31 Jul 2012, JoonSoo Kim wrote:
+On Tue, 31 Jul 2012, Glauber Costa wrote:
 
-> In man page, there is following statement.
-> "status is an array of integers that return the status of each page.  The array
-> only contains valid values if move_pages() did not return an error."
+> >> Or am I missing something ?
+> >
+> > Yes the refcounting is done at the page level by the page allocator. It is
+> > safe. The slab allocator can free a page removing all references from its
+> > internal structure while the subsystem page reference will hold off the
+> > page allocator from actually freeing the page until the subsystem itself
+> > drops the page count.
+> >
+>
+> pages, yes. But when you do kfree, you don't free a page. You free an
+> object. The allocator is totally free to keep the page around and pass
+> it on to someone else.
 
-> And current implementation of move_pages() syscall doesn't return the number
-> of pages not moved, just return 0 when it encounter some failed pages.
-> So, if u want to fix the man page, u should fix do_pages_move() first.
+That is understood. Typically these object where page sized though and
+various assumptions (pretty dangerous ones as you are finding out) are
+made regarding object reuse. The fallback of SLUB for higher order allocs
+to the page allocator avoids these problems for higher order pages.
 
-Hmm... Yeah actually that is sufficient since the status is readily
-obtainable from the status array. It would be better though if the
-function would return the number of pages not moved in the same way as
-migrate_pages().
+It would be better and cleaner if all callers would not use slab
+allocators but the page allocators directly for any page that requires an
+increased refcount for DMA operations.
 
 
 
