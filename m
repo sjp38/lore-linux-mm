@@ -1,141 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
-	by kanga.kvack.org (Postfix) with SMTP id 65ECB6B007B
-	for <linux-mm@kvack.org>; Tue, 31 Jul 2012 13:36:40 -0400 (EDT)
-Message-Id: <20120731173638.649541860@linux.com>
-Date: Tue, 31 Jul 2012 12:36:29 -0500
-From: Christoph Lameter <cl@linux.com>
-Subject: Common [9/9] Do slab aliasing call from common code
-References: <20120731173620.432853182@linux.com>
-Content-Disposition: inline; filename=slab_alias_common
+Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
+	by kanga.kvack.org (Postfix) with SMTP id 4F8286B0088
+	for <linux-mm@kvack.org>; Tue, 31 Jul 2012 13:52:55 -0400 (EDT)
+Received: by lbjn8 with SMTP id n8so5182378lbj.14
+        for <linux-mm@kvack.org>; Tue, 31 Jul 2012 10:52:53 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <501802DB.5030600@redhat.com>
+References: <1343687538-24284-1-git-send-email-yinghan@google.com>
+	<20120731155932.GB16924@tiehlicka.suse.cz>
+	<501802DB.5030600@redhat.com>
+Date: Tue, 31 Jul 2012 10:52:52 -0700
+Message-ID: <CALWz4iy-KbrikrGBW+9MC=c63dxf-zvgG-+kW-Uq6Pna5b8ZjQ@mail.gmail.com>
+Subject: Re: [PATCH V7 2/2] mm: memcg detect no memcgs above softlimit under
+ zone reclaim
+From: Ying Han <yinghan@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pekka Enberg <penberg@kernel.org>
-Cc: linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Matt Mackall <mpm@selenic.com>, Glauber Costa <glommer@parallels.com>, Joonsoo Kim <js1304@gmail.com>
+To: Rik van Riel <riel@redhat.com>
+Cc: Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hillf Danton <dhillf@gmail.com>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 
-The slab aliasing logic causes some strange contortions in
-slub. So add a call to deal with aliases to slab_common.c
-but disable it for other slab allocators by providng stubs
-that fail to create aliases.
+On Tue, Jul 31, 2012 at 9:07 AM, Rik van Riel <riel@redhat.com> wrote:
+> On 07/31/2012 11:59 AM, Michal Hocko wrote:
+>
+>>> @@ -1899,6 +1907,11 @@ static void shrink_zone(struct zone *zone, struct
+>>> scan_control *sc)
+>>>                 }
+>>>                 memcg = mem_cgroup_iter(root, memcg,&reclaim);
+>>>         } while (memcg);
+>>> +
+>>> +       if (!over_softlimit) {
+>>
+>>
+>> Is this ever false? At least root cgroup is always above the limit.
+>> Shouldn't we rather compare reclaimed pages?
+>
+>
+> Uh oh.
+>
+> That could also result in us always reclaiming from the root cgroup
+> first...
 
-Full general support for aliases will require additional
-cleanup passes and more standardization of fields in
-kmem_cache.
+That is not true as far as I read. The mem_cgroup_reclaim_cookie
+remembers the last scanned memcg under the priority in iter->position,
+and the next round will just start at iter->position + 1. And that
+cookie is shared between different reclaim threads, so depending on
+how many threads entered reclaim and that starting point varies. By
+saying that, it is true though if there is one reclaiming thread where
+we always start from root and break when reading the end of the list.
 
-Signed-off-by: Christoph Lameter <cl@linux.com>
+>
+> Is that really what we want?
 
+Don't see my patch change that part. The only difference is that I
+might end up scanning the same memcg list w/ the same priority twice.
 
----
- mm/slab.h        |   10 ++++++++++
- mm/slab_common.c |   16 +++++++---------
- mm/slub.c        |   18 ++++++++++++------
- 3 files changed, 29 insertions(+), 15 deletions(-)
+>
+> Having said that, in April I discussed an algorithm of LRU list
+> weighting with Ying and others that should work.  Ying's patches
+> look like a good basis to implement that on top of...
 
-Index: linux-2.6/mm/slab.h
-===================================================================
---- linux-2.6.orig/mm/slab.h	2012-07-31 12:00:10.000000000 -0500
-+++ linux-2.6/mm/slab.h	2012-07-31 12:01:17.832133769 -0500
-@@ -36,6 +36,16 @@
- struct kmem_cache *__kmem_cache_create(const char *name, size_t size,
- 	size_t align, unsigned long flags, void (*ctor)(void *));
- 
-+#ifdef CONFIG_SLUB
-+struct kmem_cache *__kmem_cache_alias(const char *name, size_t size,
-+	size_t align, unsigned long flags, void (*ctor)(void *));
-+#else
-+static inline struct kmem_cache *__kmem_cache_alias(const char *name, size_t size,
-+	size_t align, unsigned long flags, void (*ctor)(void *))
-+{ return NULL; }
-+#endif
-+
-+
- int __kmem_cache_shutdown(struct kmem_cache *);
- 
- #endif
-Index: linux-2.6/mm/slab_common.c
-===================================================================
---- linux-2.6.orig/mm/slab_common.c	2012-07-31 12:00:18.000000000 -0500
-+++ linux-2.6/mm/slab_common.c	2012-07-31 12:01:17.836133832 -0500
-@@ -98,21 +98,19 @@
- 	WARN_ON(strchr(name, ' '));	/* It confuses parsers */
- #endif
- 
-+	s = __kmem_cache_alias(name, size, align, flags, ctor);
-+	if (s)
-+		goto oops;
-+
- 	n = kstrdup(name, GFP_KERNEL);
- 	if (!n)
- 		goto oops;
- 
- 	s = __kmem_cache_create(n, size, align, flags, ctor);
- 
--	if (s) {
--		/*
--		 * Check if the slab has actually been created and if it was a
--		 * real instatiation. Aliases do not belong on the list
--		 */
--		if (s->refcount == 1)
--			list_add(&s->list, &slab_caches);
--
--	} else
-+	if (s)
-+		list_add(&s->list, &slab_caches);
-+	else
- 		kfree(n);
- 
- #ifdef CONFIG_DEBUG_VM
-Index: linux-2.6/mm/slub.c
-===================================================================
---- linux-2.6.orig/mm/slub.c	2012-07-31 12:01:05.000000000 -0500
-+++ linux-2.6/mm/slub.c	2012-07-31 12:01:54.836765585 -0500
-@@ -3681,7 +3681,7 @@
- 		slub_max_order = 0;
- 
- 	kmem_size = offsetof(struct kmem_cache, node) +
--				nr_node_ids * sizeof(struct kmem_cache_node *);
-+			nr_node_ids * sizeof(struct kmem_cache_node *);
- 
- 	/* Allocate two kmem_caches from the page allocator */
- 	kmalloc_size = ALIGN(kmem_size, cache_line_size());
-@@ -3895,11 +3895,10 @@
- 	return NULL;
- }
- 
--struct kmem_cache *__kmem_cache_create(const char *name, size_t size,
-+struct kmem_cache *__kmem_cache_alias(const char *name, size_t size,
- 		size_t align, unsigned long flags, void (*ctor)(void *))
- {
- 	struct kmem_cache *s;
--	char *n;
- 
- 	s = find_mergeable(size, align, flags, name, ctor);
- 	if (s) {
-@@ -3913,14 +3912,21 @@
- 
- 		if (sysfs_slab_alias(s, name)) {
- 			s->refcount--;
--			return NULL;
-+			s = NULL;
- 		}
--		return s;
- 	}
- 
-+	return s;
-+}
-+
-+struct kmem_cache *__kmem_cache_create(const char *name, size_t size,
-+		size_t align, unsigned long flags, void (*ctor)(void *))
-+{
-+	struct kmem_cache *s;
-+
- 	s = kmem_cache_alloc(kmem_cache, GFP_KERNEL);
- 	if (s) {
--		if (kmem_cache_open(s, n,
-+		if (kmem_cache_open(s, name,
- 				size, align, flags, ctor)) {
- 			int r;
- 
+Yes.
+
+--Ying
+>
+> --
+> All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
