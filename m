@@ -1,90 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx177.postini.com [74.125.245.177])
-	by kanga.kvack.org (Postfix) with SMTP id 93A366B004D
-	for <linux-mm@kvack.org>; Tue, 31 Jul 2012 13:36:35 -0400 (EDT)
-Message-Id: <20120731173620.432853182@linux.com>
-Date: Tue, 31 Jul 2012 12:36:20 -0500
+Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
+	by kanga.kvack.org (Postfix) with SMTP id 93AE56B0073
+	for <linux-mm@kvack.org>; Tue, 31 Jul 2012 13:36:36 -0400 (EDT)
+Message-Id: <20120731173634.744568366@linux.com>
+Date: Tue, 31 Jul 2012 12:36:22 -0500
 From: Christoph Lameter <cl@linux.com>
-Subject: Common [0/9] Sl[auo]b: Common code rework V7
+Subject: Common [2/9] slub: Use kmem_cache for the kmem_cache structure
+References: <20120731173620.432853182@linux.com>
+Content-Disposition: inline; filename=slub_use_kmem_cache
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Pekka Enberg <penberg@kernel.org>
 Cc: linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Matt Mackall <mpm@selenic.com>, Glauber Costa <glommer@parallels.com>, Joonsoo Kim <js1304@gmail.com>
 
+Do not use kmalloc() but kmem_cache_alloc() for the allocation
+of the kmem_cache structures in slub.
 
-V6->V7:
-- Omit pieces that were merged for 3.6
-- Fix issues pointed out by Glauber.
-- Include the patches up to the point at which
-  the slab name handling is unified
+This is the way its supposed to be. Recent merges lost
+the freeing of the kmem_cache structure and so this is also
+fixing memory leak on kmem_cache_destroy() by adding
+the missing free action to sysfs_slab_remove().
 
-V5->V6:
-- Patches against Pekka's for-next tree.
-- Go slow and cut down to just patches that are safe
-  (there will likely be some churn already due to the
-  mutex unification between slabs)
-- More to come next week when I have more time (
-  took me almost the whole week to catch up after
-  being gone for awhile).
+Signed-off-by: Christoph Lameter <cl@linux.com>
 
-V4->V5
-- Rediff against current upstream + Pekka's cleanup branch.
-
-V3->V4:
-- Do not use the COMMON macro anymore.
-- Fixup various issues
-- No general sysfs support yet due to lockdep issues with
-  keys in kmalloc'ed memory.
-
-V2->V3:
-- Incorporate more feedback from Joonsoo Kim and Glauber Costa
-- And a couple more patches to deal with slab duping and move
-  more code to slab_common.c
-
-V1->V2:
-- Incorporate glommers feedback.
-- Add 2 more patches dealing with common code in kmem_cache_destroy
-
-This is a series of patches that extracts common functionality from
-slab allocators into a common code base. The intend is to standardize
-as much as possible of the allocator behavior while keeping the
-distinctive features of each allocator which are mostly due to their
-storage format and serialization approaches.
-
-This patchset makes a beginning by extracting common functionality in
-kmem_cache_create() and kmem_cache_destroy(). However, there are
-numerous other areas where such work could be beneficial:
-
-1. Extract the sysfs support from SLUB and make it common. That way
-   all allocators have a common sysfs API and are handleable in the same
-   way regardless of the allocator chose.
-
-2. Extract the error reporting and checking from SLUB and make
-   it available for all allocators. This means that all allocators
-   will gain the resiliency and error handling capabilties.
-
-3. Extract the memory hotplug and cpu hotplug handling. It seems that
-   SLAB may be more sophisticated here. Having common code here will
-   make it easier to maintain the special code.
-
-4. Extract the aliasing capability of SLUB. This will enable fast
-   slab creation without creating too many additional slab caches.
-   The arrays of caches of varying sizes in numerous subsystems
-   do not cause the creation of numerous slab caches. Storage
-   density is increased and the cache footprint is reduced.
-
-Ultimately it is to be hoped that the special code for each allocator
-shrinks to a mininum. This will also make it easier to make modification
-to allocators.
-
-In the far future one could envision that the current allocators will
-just become storage algorithms that can be chosen based on the need of
-the subsystem. F.e.
-
-Cpu cache dependend performance		= Bonwick allocator (SLAB)
-Minimal cycle count and cache footprint	= SLUB
-Maximum storage density			= K&R allocator (SLOB)
-
+Index: linux-2.6/mm/slub.c
+===================================================================
+--- linux-2.6.orig/mm/slub.c	2012-07-31 11:58:40.617457553 -0500
++++ linux-2.6/mm/slub.c	2012-07-31 11:58:47.529574942 -0500
+@@ -3938,7 +3938,7 @@
+ 	if (!n)
+ 		return NULL;
+ 
+-	s = kmalloc(kmem_size, GFP_KERNEL);
++	s = kmem_cache_alloc(kmem_cache, GFP_KERNEL);
+ 	if (s) {
+ 		if (kmem_cache_open(s, n,
+ 				size, align, flags, ctor)) {
+@@ -5318,6 +5318,8 @@
+ 	kobject_uevent(&s->kobj, KOBJ_REMOVE);
+ 	kobject_del(&s->kobj);
+ 	kobject_put(&s->kobj);
++	kfree(s->name);
++	kmem_cache_free(kmem_cache, s);
+ }
+ 
+ /*
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
