@@ -1,45 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
-	by kanga.kvack.org (Postfix) with SMTP id D68596B004D
-	for <linux-mm@kvack.org>; Tue, 31 Jul 2012 10:09:57 -0400 (EDT)
-Date: Tue, 31 Jul 2012 09:09:55 -0500 (CDT)
+Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
+	by kanga.kvack.org (Postfix) with SMTP id 2D5B66B004D
+	for <linux-mm@kvack.org>; Tue, 31 Jul 2012 10:12:32 -0400 (EDT)
+Date: Tue, 31 Jul 2012 09:12:29 -0500 (CDT)
 From: Christoph Lameter <cl@linux.com>
-Subject: Re: Any reason to use put_page in slub.c?
-In-Reply-To: <5017968C.6050301@parallels.com>
-Message-ID: <alpine.DEB.2.00.1207310906350.32295@router.home>
-References: <1343391586-18837-1-git-send-email-glommer@parallels.com> <alpine.DEB.2.00.1207271054230.18371@router.home> <50163D94.5050607@parallels.com> <alpine.DEB.2.00.1207301421150.27584@router.home> <5017968C.6050301@parallels.com>
+Subject: Re: Common [13/20] Extract a common function for
+ kmem_cache_destroy
+In-Reply-To: <5017C90E.7060706@parallels.com>
+Message-ID: <alpine.DEB.2.00.1207310910580.32295@router.home>
+References: <20120601195245.084749371@linux.com> <20120601195307.063633659@linux.com> <5017C90E.7060706@parallels.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Glauber Costa <glommer@parallels.com>
-Cc: linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Matt Mackall <mpm@selenic.com>, Joonsoo Kim <js1304@gmail.com>
 
 On Tue, 31 Jul 2012, Glauber Costa wrote:
 
-> >> Or am I missing something ?
-> >
-> > Yes the refcounting is done at the page level by the page allocator. It is
-> > safe. The slab allocator can free a page removing all references from its
-> > internal structure while the subsystem page reference will hold off the
-> > page allocator from actually freeing the page until the subsystem itself
-> > drops the page count.
-> >
->
-> pages, yes. But when you do kfree, you don't free a page. You free an
-> object. The allocator is totally free to keep the page around and pass
-> it on to someone else.
+> Problem is that you are now allocating objects from kmem_cache with
+> kmem_cache_alloc, but freeing it with kfree - and in multiple locations.
 
-That is understood. Typically these object where page sized though and
-various assumptions (pretty dangerous ones as you are finding out) are
-made regarding object reuse. The fallback of SLUB for higher order allocs
-to the page allocator avoids these problems for higher order pages.
+Why would this be an issue"?
 
-It would be better and cleaner if all callers would not use slab
-allocators but the page allocators directly for any page that requires an
-increased refcount for DMA operations.
+> In particular, after the whole series is applied, you will have a call
+> to "kfree(s)" in sysfs_slab_remove() that is called from
+> kmem_cache_shutdown(), and later on kmem_cache_free(kmem_cache, s) from
+> the destruction common code -> a double free.
 
-
+I will look at that but I have already reworked the patches a couple of
+times since then. I hope to be able to post an updated series against
+upstream at the end of the week (before the next conference).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
