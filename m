@@ -1,62 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
-	by kanga.kvack.org (Postfix) with SMTP id 39BC96B004D
-	for <linux-mm@kvack.org>; Tue, 31 Jul 2012 16:53:59 -0400 (EDT)
-Received: by weys10 with SMTP id s10so5884202wey.14
-        for <linux-mm@kvack.org>; Tue, 31 Jul 2012 13:53:57 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
+	by kanga.kvack.org (Postfix) with SMTP id 61FAF6B004D
+	for <linux-mm@kvack.org>; Tue, 31 Jul 2012 16:57:39 -0400 (EDT)
+Message-ID: <501846BE.6000004@redhat.com>
+Date: Tue, 31 Jul 2012 16:57:34 -0400
+From: Larry Woodman <lwoodman@redhat.com>
+Reply-To: lwoodman@redhat.com
 MIME-Version: 1.0
-In-Reply-To: <c31aaed4-9d50-4cdf-b794-367fc5850483@default>
-References: <c31aaed4-9d50-4cdf-b794-367fc5850483@default>
-Date: Tue, 31 Jul 2012 23:53:57 +0300
-Message-ID: <CAOJsxLEhW=b3En737d5751xufW2BLehPc2ZGGG1NEtRVSo3=jg@mail.gmail.com>
-Subject: Re: [RFC/PATCH] zcache/ramster rewrite and promotion
-From: Pekka Enberg <penberg@kernel.org>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [PATCH -alternative] mm: hugetlbfs: Close race during teardown
+ of hugetlbfs shared page tables V2 (resend)
+References: <20120720141108.GH9222@suse.de> <20120720143635.GE12434@tiehlicka.suse.cz> <20120720145121.GJ9222@suse.de> <alpine.LSU.2.00.1207222033030.6810@eggly.anvils> <50118E7F.8000609@redhat.com> <50120FA8.20409@redhat.com> <20120727102356.GD612@suse.de> <5016DC5F.7030604@redhat.com> <20120731124650.GO612@suse.de> <50181AA1.0@redhat.com> <20120731200650.GB19524@tiehlicka.suse.cz>
+In-Reply-To: <20120731200650.GB19524@tiehlicka.suse.cz>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Magenheimer <dan.magenheimer@oracle.com>
-Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>, Konrad Wilk <konrad.wilk@oracle.com>, Minchan Kim <minchan@kernel.org>, Nitin Gupta <ngupta@vflare.org>, Andrew Morton <akpm@linux-foundation.org>, Robert Jennings <rcj@linux.vnet.ibm.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, devel@driverdev.osuosl.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Linux-MM <linux-mm@kvack.org>, David Gibson <david@gibson.dropbear.id.au>, Ken Chen <kenchen@google.com>, Cong Wang <xiyou.wangcong@gmail.com>, LKML <linux-kernel@vger.kernel.org>
 
-On Tue, Jul 31, 2012 at 11:18 PM, Dan Magenheimer
-<dan.magenheimer@oracle.com> wrote:
-> diffstat vs 3.5:
->  drivers/staging/ramster/Kconfig       |    2
->  drivers/staging/ramster/Makefile      |    2
->  drivers/staging/zcache/Kconfig        |    2
->  drivers/staging/zcache/Makefile       |    2
->  mm/Kconfig                            |    2
->  mm/Makefile                           |    4
->  mm/tmem/Kconfig                       |   33
->  mm/tmem/Makefile                      |    5
->  mm/tmem/tmem.c                        |  894 +++++++++++++
->  mm/tmem/tmem.h                        |  259 +++
->  mm/tmem/zbud.c                        | 1060 +++++++++++++++
->  mm/tmem/zbud.h                        |   33
->  mm/tmem/zcache-main.c                 | 1686 +++++++++++++++++++++++++
->  mm/tmem/zcache.h                      |   53
->  mm/tmem/ramster.h                     |   59
->  mm/tmem/ramster/heartbeat.c           |  462 ++++++
->  mm/tmem/ramster/heartbeat.h           |   87 +
->  mm/tmem/ramster/masklog.c             |  155 ++
->  mm/tmem/ramster/masklog.h             |  220 +++
->  mm/tmem/ramster/nodemanager.c         |  995 +++++++++++++++
->  mm/tmem/ramster/nodemanager.h         |   88 +
->  mm/tmem/ramster/r2net.c               |  414 ++++++
->  mm/tmem/ramster/ramster.c             |  985 ++++++++++++++
->  mm/tmem/ramster/ramster.h             |  161 ++
->  mm/tmem/ramster/ramster_nodemanager.h |   39
->  mm/tmem/ramster/tcp.c                 | 2253 ++++++++++++++++++++++++++++++++++
->  mm/tmem/ramster/tcp.h                 |  159 ++
->  mm/tmem/ramster/tcp_internal.h        |  248 +++
-> 28 files changed, 10358 insertions(+), 4 deletions(-)
+On 07/31/2012 04:06 PM, Michal Hocko wrote:
+> On Tue 31-07-12 13:49:21, Larry Woodman wrote:
+>> On 07/31/2012 08:46 AM, Mel Gorman wrote:
+>>> Fundamentally I think the problem is that we are not correctly detecting
+>>> that page table sharing took place during huge_pte_alloc(). This patch is
+>>> longer and makes an API change but if I'm right, it addresses the underlying
+>>> problem. The first VM_MAYSHARE patch is still necessary but would you mind
+>>> testing this on top please?
+>> Hi Mel, yes this does work just fine.  It ran for hours without a panic so
+>> I'll Ack this one if you send it to the list.
+> Hi Larry, thanks for testing! I have a different patch which tries to
+> address this very same issue. I am not saying it is better or that it
+> should be merged instead of Mel's one but I would be really happy if you
+> could give it a try. We can discuss (dis)advantages of both approaches
+> later.
+>
+> Thanks!
+Sure, it will take me a day since I keep loosing the hardware to 
+proproduce the
+problem with.  I'll report back tomorrow.
 
-So it's basically this commit, right?
-
-https://oss.oracle.com/git/djm/tmem.git/?p=djm/tmem.git;a=commitdiff;h=22844fe3f52d912247212408294be330a867937c
-
-Why on earth would you want to move that under the mm directory?
-
-                        Pekka
+Larry
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
