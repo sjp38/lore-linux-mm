@@ -1,158 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
-	by kanga.kvack.org (Postfix) with SMTP id 4F87A6B0068
-	for <linux-mm@kvack.org>; Tue, 31 Jul 2012 11:46:00 -0400 (EDT)
-Date: Tue, 31 Jul 2012 11:36:04 -0400
-From: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-Subject: Re: [PATCH 0/4] promote zcache from staging
-Message-ID: <20120731153604.GO4789@phenom.dumpdata.com>
-References: <1343413117-1989-1-git-send-email-sjenning@linux.vnet.ibm.com>
- <b95aec06-5a10-4f83-bdfd-e7f6adabd9df@default>
- <20120727205932.GA12650@localhost.localdomain>
- <d4656ba5-d6d1-4c36-a6c8-f6ecd193b31d@default>
- <20120729015428.GA16643@bbox>
+Received: from psmtp.com (na3sys010asp103.postini.com [74.125.245.223])
+	by kanga.kvack.org (Postfix) with SMTP id 3F59A6B004D
+	for <linux-mm@kvack.org>; Tue, 31 Jul 2012 13:25:45 -0400 (EDT)
+Date: Tue, 31 Jul 2012 17:59:32 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH V7 2/2] mm: memcg detect no memcgs above softlimit under
+ zone reclaim
+Message-ID: <20120731155932.GB16924@tiehlicka.suse.cz>
+References: <1343687538-24284-1-git-send-email-yinghan@google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20120729015428.GA16643@bbox>
+In-Reply-To: <1343687538-24284-1-git-send-email-yinghan@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Dan Magenheimer <dan.magenheimer@oracle.com>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Nitin Gupta <ngupta@vflare.org>, Robert Jennings <rcj@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org
+To: Ying Han <yinghan@google.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Hillf Danton <dhillf@gmail.com>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 
-On Sun, Jul 29, 2012 at 10:54:28AM +0900, Minchan Kim wrote:
-> On Fri, Jul 27, 2012 at 02:42:14PM -0700, Dan Magenheimer wrote:
-> > > From: Konrad Rzeszutek Wilk [mailto:konrad@darnok.org]
-> > > Sent: Friday, July 27, 2012 3:00 PM
-> > > Subject: Re: [PATCH 0/4] promote zcache from staging
-> > > 
-> > > On Fri, Jul 27, 2012 at 12:21:50PM -0700, Dan Magenheimer wrote:
-> > > > > From: Seth Jennings [mailto:sjenning@linux.vnet.ibm.com]
-> > > > > Subject: [PATCH 0/4] promote zcache from staging
-> > > > >
-> > > > > zcache is the remaining piece of code required to support in-kernel
-> > > > > memory compression.  The other two features, cleancache and frontswap,
-> > > > > have been promoted to mainline in 3.0 and 3.5.  This patchset
-> > > > > promotes zcache from the staging tree to mainline.
-> > > > >
-> > > > > Based on the level of activity and contributions we're seeing from a
-> > > > > diverse set of people and interests, I think zcache has matured to the
-> > > > > point where it makes sense to promote this out of staging.
-> > > >
-> > > > Hi Seth --
-> > > >
-> > > > Per offline communication, I'd like to see this delayed for three
-> > > > reasons:
-> > > >
-> > > > 1) I've completely rewritten zcache and will post the rewrite soon.
-> > > >    The redesigned code fixes many of the weaknesses in zcache that
-> > > >    makes it (IMHO) unsuitable for an enterprise distro.  (Some of
-> > > >    these previously discussed in linux-mm [1].)
-> > > > 2) zcache is truly mm (memory management) code and the fact that
-> > > >    it is in drivers at all was purely for logistical reasons
-> > > >    (e.g. the only in-tree "staging" is in the drivers directory).
-> > > >    My rewrite promotes it to (a subdirectory of) mm where IMHO it
-> > > >    belongs.
-> > > > 3) Ramster heavily duplicates code from zcache.  My rewrite resolves
-> > > >    this.  My soon-to-be-post also places the re-factored ramster
-> > > >    in mm, though with some minor work zcache could go in mm and
-> > > >    ramster could stay in staging.
-> > > >
-> > > > Let's have this discussion, but unless the community decides
-> > > > otherwise, please consider this a NACK.
-> > 
-> > Hi Konrad --
-> >  
-> > > Hold on, that is rather unfair. The zcache has been in staging
-> > > for quite some time - your code has not been posted. Part of
-> > > "unstaging" a driver is for folks to review the code - and you
-> > > just said "No, mine is better" without showing your goods.
-> > 
-> > Sorry, I'm not trying to be unfair.  However, I don't see the point
-> > of promoting zcache out of staging unless it is intended to be used
-> > by real users in a real distro.  There's been a lot of discussion,
-> > onlist and offlist, about what needs to be fixed in zcache and not
-> > much visible progress on fixing it.  But fixing it is where I've spent
-> > most of my time over the last couple of months.
-> > 
-> > If IBM or some other company or distro is eager to ship and support
-> > zcache in its current form, I agree that "promote now, improve later"
-> > is a fine approach.  But promoting zcache out of staging simply because
-> > there is urgency to promote zsmalloc+zram out of staging doesn't
-> > seem wise.  At a minimum, it distracts reviewers/effort from what IMHO
-> > is required to turn zcache into an enterprise-ready kernel feature.
-> > 
-> > I can post my "goods" anytime.  In its current form it is better
-> > than the zcache in staging (and, please remember, I wrote both so
-> > I think I am in a good position to compare the two).
-> > I have been waiting until I think the new zcache is feature complete
-> > before asking for review, especially since the newest features
-> > should demonstrate clearly why the rewrite is necessary and
-> > beneficial.  But I can post* my current bits if people don't
-> > believe they exist and/or don't mind reviewing non-final code.
-> > (* Or I can put them in a publicly available git tree.)
-> > 
-> > > There is a third option - which is to continue the promotion
-> > > of zcache from staging, get reviews, work on them ,etc, and
-> > > alongside of that you can work on fixing up (or ripping out)
-> > > zcache1 with zcache2 components as they make sense. Or even
-> > > having two of them - an enterprise and an embedded version
-> > > that will eventually get merged together. There is nothing
-> > > wrong with modifying a driver once it has left staging.
-> > 
-> > Minchan and Seth can correct me if I am wrong, but I believe
-> > zram+zsmalloc, not zcache, is the target solution for embedded.
+On Mon 30-07-12 15:32:18, Ying Han wrote:
+> In memcg kernel, cgroup under its softlimit is not targeted under global
+> reclaim. It could be possible that all memcgs are under their softlimit for
+> a particular zone. 
+
+This is a bit misleading because there is no softlimit per zone...
+
+> If that is the case, the current implementation will burn extra cpu
+> cycles without making forward progress.
+
+This scales with the number of groups which is bareable I guess. We do
+not drop priority so the wasted round will not make a bigger pressure on
+the reclaim.
+
+> The idea is from LSF discussion where we detect it after the first round of
+> scanning and restart the reclaim by not looking at softlimit at all. This
+> allows us to make forward progress on shrink_zone().
 > 
-> NOT ture. Some embedded devices use zcache but it's not original
-> zcache but modificated one.
-
-What kind of modifications? Would it make sense to post the patches
-for those modifications?
-
-> Anyway, although embedded people use modified zcache, I am biased to Dan.
-> I admit I don't spend lots of time to look zcache but as looking the
-> code, it wasn't good shape and even had a bug found during code review
-> and I felt strongly we should clean up it for promoting it to mm/.
-
-Do you recall what the bugs where?
-
-> So I would like to wait Dan's posting if you guys are not urgent.
-> (And I am not sure akpm allow it with current shape of zcache code.)
-> But the concern is about adding new feature. I guess there might be some
-> debate for long time and it can prevent promoting again.
-> I think It's not what Seth want.
-> I hope Dan doesn't mix clean up series and new feature series and
-> post clean up series as soon as possible so let's clean up first and
-> try to promote it and later, adding new feature or changing algorithm
-> is desirable.
+> Signed-off-by: Ying Han <yinghan@google.com>
+> ---
+>  mm/vmscan.c |   17 +++++++++++++++--
+>  1 files changed, 15 insertions(+), 2 deletions(-)
 > 
-> 
-> > The limitations of zsmalloc aren't an issue for zram but they are
-> > for zcache, and this deficiency was one of the catalysts for the
-> > rewrite.  The issues are explained in more detail in [1],
-> > but if any point isn't clear, I'd be happy to explain further.
-> > 
-> > However, I have limited time for this right now and I'd prefer
-> > to spend it finishing the code. :-}
-> > 
-> > So, as I said, I am still a NACK, but if there are good reasons
-> > to duplicate effort and pursue the "third option", let's discuss
-> > them.
-> > 
-> > Thanks,
-> > Dan
-> > 
-> > [1] http://marc.info/?t=133886706700002&r=1&w=2
-> > 
-> > --
-> > To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> > the body to majordomo@kvack.org.  For more info on Linux MM,
-> > see: http://www.linux-mm.org/ .
-> > Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 59e633c..747d903 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -1861,6 +1861,10 @@ static void shrink_zone(struct zone *zone, struct scan_control *sc)
+>  		.priority = sc->priority,
+>  	};
+>  	struct mem_cgroup *memcg;
+> +	bool over_softlimit, ignore_softlimit = false;
+> +
+> +restart:
+> +	over_softlimit = false;
+>  
+>  	memcg = mem_cgroup_iter(root, NULL, &reclaim);
+>  	do {
+> @@ -1879,10 +1883,14 @@ static void shrink_zone(struct zone *zone, struct scan_control *sc)
+>  		 * we have to reclaim under softlimit instead of burning more
+>  		 * cpu cycles.
+>  		 */
+> -		if (!global_reclaim(sc) || sc->priority < DEF_PRIORITY - 2 ||
+> -				mem_cgroup_over_soft_limit(memcg))
+> +		if (ignore_softlimit || !global_reclaim(sc) ||
+> +				sc->priority < DEF_PRIORITY - 2 ||
+> +				mem_cgroup_over_soft_limit(memcg)) {
+>  			shrink_lruvec(lruvec, sc);
+>  
+> +			over_softlimit = true;
+> +		}
+> +
+>  		/*
+>  		 * Limit reclaim has historically picked one memcg and
+>  		 * scanned it with decreasing priority levels until
+> @@ -1899,6 +1907,11 @@ static void shrink_zone(struct zone *zone, struct scan_control *sc)
+>  		}
+>  		memcg = mem_cgroup_iter(root, memcg, &reclaim);
+>  	} while (memcg);
+> +
+> +	if (!over_softlimit) {
+
+Is this ever false? At least root cgroup is always above the limit.
+Shouldn't we rather compare reclaimed pages?
+
+> +		ignore_softlimit = true;
+> +		goto restart;
+> +	}
+>  }
+>  
+>  /* Returns true if compaction should go ahead for a high-order request */
 > -- 
-> Kind regards,
-> Minchan Kim
+> 1.7.7.3
+> 
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
