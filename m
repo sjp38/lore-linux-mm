@@ -1,144 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
-	by kanga.kvack.org (Postfix) with SMTP id BC1336B0062
-	for <linux-mm@kvack.org>; Tue, 31 Jul 2012 16:59:37 -0400 (EDT)
-Received: by lahi5 with SMTP id i5so5201655lah.14
-        for <linux-mm@kvack.org>; Tue, 31 Jul 2012 13:59:35 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
+	by kanga.kvack.org (Postfix) with SMTP id CAB456B0062
+	for <linux-mm@kvack.org>; Tue, 31 Jul 2012 17:13:48 -0400 (EDT)
+Date: Tue, 31 Jul 2012 17:04:38 -0400
+From: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+Subject: Re: [RFC/PATCH] zcache/ramster rewrite and promotion
+Message-ID: <20120731210438.GA31713@phenom.dumpdata.com>
+References: <c31aaed4-9d50-4cdf-b794-367fc5850483@default>
+ <CAOJsxLEhW=b3En737d5751xufW2BLehPc2ZGGG1NEtRVSo3=jg@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20120731200205.GA19524@tiehlicka.suse.cz>
-References: <1343687538-24284-1-git-send-email-yinghan@google.com>
-	<20120731155932.GB16924@tiehlicka.suse.cz>
-	<CALWz4iwnrXFSoqmPUsXfUMzgxz5bmBrRNU5Nisd=g2mjmu-u3Q@mail.gmail.com>
-	<20120731200205.GA19524@tiehlicka.suse.cz>
-Date: Tue, 31 Jul 2012 13:59:35 -0700
-Message-ID: <CALWz4ixF8PzhDs2fuOMTrrRiBHkg+aMzaVOBhuUN78UenzmYbw@mail.gmail.com>
-Subject: Re: [PATCH V7 2/2] mm: memcg detect no memcgs above softlimit under
- zone reclaim
-From: Ying Han <yinghan@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAOJsxLEhW=b3En737d5751xufW2BLehPc2ZGGG1NEtRVSo3=jg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Hillf Danton <dhillf@gmail.com>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+To: Pekka Enberg <penberg@kernel.org>
+Cc: Dan Magenheimer <dan.magenheimer@oracle.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Minchan Kim <minchan@kernel.org>, Nitin Gupta <ngupta@vflare.org>, Andrew Morton <akpm@linux-foundation.org>, Robert Jennings <rcj@linux.vnet.ibm.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, devel@driverdev.osuosl.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, Jul 31, 2012 at 1:02 PM, Michal Hocko <mhocko@suse.cz> wrote:
-> On Tue 31-07-12 10:54:38, Ying Han wrote:
->> On Tue, Jul 31, 2012 at 8:59 AM, Michal Hocko <mhocko@suse.cz> wrote:
->> > On Mon 30-07-12 15:32:18, Ying Han wrote:
->> >> In memcg kernel, cgroup under its softlimit is not targeted under global
->> >> reclaim. It could be possible that all memcgs are under their softlimit for
->> >> a particular zone.
->> >
->> > This is a bit misleading because there is no softlimit per zone...
->> >
->> >> If that is the case, the current implementation will burn extra cpu
->> >> cycles without making forward progress.
->> >
->> > This scales with the number of groups which is bareable I guess. We do
->> > not drop priority so the wasted round will not make a bigger pressure on
->> > the reclaim.
->> >
->> >> The idea is from LSF discussion where we detect it after the first round of
->> >> scanning and restart the reclaim by not looking at softlimit at all. This
->> >> allows us to make forward progress on shrink_zone().
->> >>
->> >> Signed-off-by: Ying Han <yinghan@google.com>
->> >> ---
->> >>  mm/vmscan.c |   17 +++++++++++++++--
->> >>  1 files changed, 15 insertions(+), 2 deletions(-)
->> >>
->> >> diff --git a/mm/vmscan.c b/mm/vmscan.c
->> >> index 59e633c..747d903 100644
->> >> --- a/mm/vmscan.c
->> >> +++ b/mm/vmscan.c
->> >> @@ -1861,6 +1861,10 @@ static void shrink_zone(struct zone *zone, struct scan_control *sc)
->> >>               .priority = sc->priority,
->> >>       };
->> >>       struct mem_cgroup *memcg;
->> >> +     bool over_softlimit, ignore_softlimit = false;
->> >> +
->> >> +restart:
->> >> +     over_softlimit = false;
->> >>
->> >>       memcg = mem_cgroup_iter(root, NULL, &reclaim);
->> >>       do {
->> >> @@ -1879,10 +1883,14 @@ static void shrink_zone(struct zone *zone, struct scan_control *sc)
->> >>                * we have to reclaim under softlimit instead of burning more
->> >>                * cpu cycles.
->> >>                */
->> >> -             if (!global_reclaim(sc) || sc->priority < DEF_PRIORITY - 2 ||
->> >> -                             mem_cgroup_over_soft_limit(memcg))
->> >> +             if (ignore_softlimit || !global_reclaim(sc) ||
->> >> +                             sc->priority < DEF_PRIORITY - 2 ||
->> >> +                             mem_cgroup_over_soft_limit(memcg)) {
->> >>                       shrink_lruvec(lruvec, sc);
->> >>
->> >> +                     over_softlimit = true;
->> >> +             }
->> >> +
->> >>               /*
->> >>                * Limit reclaim has historically picked one memcg and
->> >>                * scanned it with decreasing priority levels until
->> >> @@ -1899,6 +1907,11 @@ static void shrink_zone(struct zone *zone, struct scan_control *sc)
->> >>               }
->> >>               memcg = mem_cgroup_iter(root, memcg, &reclaim);
->> >>       } while (memcg);
->> >> +
->> >> +     if (!over_softlimit) {
->> >
->> > Is this ever false? At least root cgroup is always above the limit.
->> > Shouldn't we rather compare reclaimed pages?
->>
->> Do we always start from root? My understanding of reclaim_cookie is
->> that remembers the last scanned memcg under root and then start from
->> the one after it.
->
-> Yes it visits all nodes of the hierarchy.
->
->> The loop breaks everytime we reach the end of it, and it could be
->> possible we didn't reach root at all.
->
-> Global reclaim means the root is involved and the we do not break out
-> the loop so the root will be visited as well. And if nobody is over the
-> soft limit then at least root is (according to mem_cgroup_over_soft_limit).
+On Tue, Jul 31, 2012 at 11:53:57PM +0300, Pekka Enberg wrote:
+> On Tue, Jul 31, 2012 at 11:18 PM, Dan Magenheimer
+> <dan.magenheimer@oracle.com> wrote:
+> > diffstat vs 3.5:
+> >  drivers/staging/ramster/Kconfig       |    2
+> >  drivers/staging/ramster/Makefile      |    2
+> >  drivers/staging/zcache/Kconfig        |    2
+> >  drivers/staging/zcache/Makefile       |    2
+> >  mm/Kconfig                            |    2
+> >  mm/Makefile                           |    4
+> >  mm/tmem/Kconfig                       |   33
+> >  mm/tmem/Makefile                      |    5
+> >  mm/tmem/tmem.c                        |  894 +++++++++++++
+> >  mm/tmem/tmem.h                        |  259 +++
+> >  mm/tmem/zbud.c                        | 1060 +++++++++++++++
+> >  mm/tmem/zbud.h                        |   33
+> >  mm/tmem/zcache-main.c                 | 1686 +++++++++++++++++++++++++
+> >  mm/tmem/zcache.h                      |   53
+> >  mm/tmem/ramster.h                     |   59
+> >  mm/tmem/ramster/heartbeat.c           |  462 ++++++
+> >  mm/tmem/ramster/heartbeat.h           |   87 +
+> >  mm/tmem/ramster/masklog.c             |  155 ++
+> >  mm/tmem/ramster/masklog.h             |  220 +++
+> >  mm/tmem/ramster/nodemanager.c         |  995 +++++++++++++++
+> >  mm/tmem/ramster/nodemanager.h         |   88 +
+> >  mm/tmem/ramster/r2net.c               |  414 ++++++
+> >  mm/tmem/ramster/ramster.c             |  985 ++++++++++++++
+> >  mm/tmem/ramster/ramster.h             |  161 ++
+> >  mm/tmem/ramster/ramster_nodemanager.h |   39
+> >  mm/tmem/ramster/tcp.c                 | 2253 ++++++++++++++++++++++++++++++++++
+> >  mm/tmem/ramster/tcp.h                 |  159 ++
+> >  mm/tmem/ramster/tcp_internal.h        |  248 +++
+> > 28 files changed, 10358 insertions(+), 4 deletions(-)
+> 
+> So it's basically this commit, right?
 
-That is slightly different from my understanding. Forgive me if I
-totally misunderstood how the mem_cgroup_iter() works.
+Yeah, one big RFC patch.
+> 
+> https://oss.oracle.com/git/djm/tmem.git/?p=djm/tmem.git;a=commitdiff;h=22844fe3f52d912247212408294be330a867937c
+> 
+> Why on earth would you want to move that under the mm directory?
 
-In mem_cgroup_over_soft_limit(), we always return true for root cgroup
-which says that always reclaim from root if we get to root cgroup.
-However, there is no guarantee the reclaim thread will get to root for
-invoking shrink_zone() each time.
+If you take aside that problem that it is one big patch instead
+of being split up in more reasonable pieces - would you recommend
+that it reside in a different directory?
 
-Let's say the following example where the cgroup is sorted by css_id,
-and none of the cgroup's usage is above softlimit (except root)
+Or is that it does not make sense b/c it has other components in it - such
+as tcp/nodemaneger/hearbeat/etc so it should go under the refactor knife?
 
-                                        root  a  b  c  d  e f ...max
-thread_1 (priority = 12)         ^
-                                         iter->position = 1        (
-over_softlimit = true )
+And if you rip out the ramster from this and just concentrate on zcache -
+should that go in drivers/mm or mm/tmem/zcache?
 
-                                                ^
-                                                 iter->position = 2
-
-thread_2 (priority = 12)                     ^
-                                                     iter->position = 3
-
-                                                      ....
-                                                                          ^
-
-   iter->position = 0  ( over_softlimit = false )
-
-In this case, thread 1 gets root but not thread 2 since they share the
-walk under same zone (same node) and same reclaim priority.
-
---Ying
-
->
->
-> --
-> Michal Hocko
-> SUSE Labs
+> 
+>                         Pekka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
