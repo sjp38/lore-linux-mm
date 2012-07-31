@@ -1,56 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
-	by kanga.kvack.org (Postfix) with SMTP id D20E66B0068
-	for <linux-mm@kvack.org>; Tue, 31 Jul 2012 08:33:53 -0400 (EDT)
-Received: by qcsd16 with SMTP id d16so4375542qcs.14
-        for <linux-mm@kvack.org>; Tue, 31 Jul 2012 05:33:52 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <1339406250-10169-1-git-send-email-kosaki.motohiro@gmail.com>
-References: <1339406250-10169-1-git-send-email-kosaki.motohiro@gmail.com>
-Date: Tue, 31 Jul 2012 08:33:52 -0400
-Message-ID: <CA+5PVA4CE0kwD1FmV=081wfCObVYe5GFYBQFO9_kVL4JWJBqpA@mail.gmail.com>
-Subject: Re: [PATCH 0/6][resend] mempolicy memory corruption fixlet
-From: Josh Boyer <jwboyer@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
+	by kanga.kvack.org (Postfix) with SMTP id B3A0A6B004D
+	for <linux-mm@kvack.org>; Tue, 31 Jul 2012 08:40:07 -0400 (EDT)
+Received: from /spool/local
+	by e06smtp13.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <gerald.schaefer@de.ibm.com>;
+	Tue, 31 Jul 2012 13:40:06 +0100
+Received: from d06av05.portsmouth.uk.ibm.com (d06av05.portsmouth.uk.ibm.com [9.149.37.229])
+	by d06nrmr1806.portsmouth.uk.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q6VCe4sm2969604
+	for <linux-mm@kvack.org>; Tue, 31 Jul 2012 13:40:04 +0100
+Received: from d06av05.portsmouth.uk.ibm.com (loopback [127.0.0.1])
+	by d06av05.portsmouth.uk.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q6VCe3cP001509
+	for <linux-mm@kvack.org>; Tue, 31 Jul 2012 06:40:04 -0600
+Date: Tue, 31 Jul 2012 14:40:00 +0200
+From: Gerald Schaefer <gerald.schaefer@de.ibm.com>
+Subject: Re: [RFC PATCH v5 12/19] memory-hotplug: introduce new function
+ arch_remove_memory()
+Message-ID: <20120731144000.33fd4a0a@thinkpad>
+In-Reply-To: <50166379.4090305@cn.fujitsu.com>
+References: <50126B83.3050201@cn.fujitsu.com>
+	<50126E2F.8010301@cn.fujitsu.com>
+	<20120730102305.GB3631@osiris.boeblingen.de.ibm.com>
+	<50166379.4090305@cn.fujitsu.com>
+Reply-To: gerald.schaefer@de.ibm.com
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kosaki.motohiro@gmail.com
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@google.com>, Dave Jones <davej@redhat.com>, Mel Gorman <mgorman@suse.de>, Christoph Lameter <cl@linux.com>, stable@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+To: Wen Congyang <wency@cn.fujitsu.com>
+Cc: Heiko Carstens <heiko.carstens@de.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-ia64@vger.kernel.org, cmetcalf@tilera.com, rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, Yasuaki ISIMATU <isimatu.yasuaki@jp.fujitsu.com>
 
-On Mon, Jun 11, 2012 at 5:17 AM,  <kosaki.motohiro@gmail.com> wrote:
-> From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
->
-> Hi
->
-> This is trivial fixes of mempolicy meory corruption issues. There
-> are independent patches each ather. and, they don't change userland
-> ABIs.
->
-> Thanks.
->
-> changes from v1: fix some typo of changelogs.
->
-> -----------------------------------------------
-> KOSAKI Motohiro (6):
->   Revert "mm: mempolicy: Let vma_merge and vma_split handle
->     vma->vm_policy linkages"
->   mempolicy: Kill all mempolicy sharing
->   mempolicy: fix a race in shared_policy_replace()
->   mempolicy: fix refcount leak in mpol_set_shared_policy()
->   mempolicy: fix a memory corruption by refcount imbalance in
->     alloc_pages_vma()
->   MAINTAINERS: Added MEMPOLICY entry
->
->  MAINTAINERS    |    7 +++
->  mm/mempolicy.c |  151 ++++++++++++++++++++++++++++++++++++++++----------------
->  mm/shmem.c     |    9 ++--
->  3 files changed, 120 insertions(+), 47 deletions(-)
+On Mon, 30 Jul 2012 18:35:37 +0800
+Wen Congyang <wency@cn.fujitsu.com> wrote:
 
-I don't see these patches queued anywhere.  They aren't in linux-next,
-mmotm, or Linus' tree.  Did these get dropped?  Is the revert still
-needed?
+> At 07/30/2012 06:23 PM, Heiko Carstens Wrote:
+> > On Fri, Jul 27, 2012 at 06:32:15PM +0800, Wen Congyang wrote:
+> >> We don't call __add_pages() directly in the function add_memory()
+> >> because some other architecture related things need to be done
+> >> before or after calling __add_pages(). So we should introduce
+> >> a new function arch_remove_memory() to revert the things
+> >> done in arch_add_memory().
+> >>
+> >> Note: the function for s390 is not implemented(I don't know how to
+> >> implement it for s390).
+> >=20
+> > There is no hardware or firmware interface which could trigger a
+> > hot memory remove on s390. So there is nothing that needs to be
+> > implemented.
+>=20
+> Thanks for providing this information.
+>=20
+> According to this, arch_remove_memory() for s390 can just return
+> -EBUSY.
 
-josh
+Yes, but there is a prototype mismatch for arch_remove_memory() on s390
+and also other architectures (u64 vs. unsigned long).
+
+arch/s390/mm/init.c:262: error: conflicting types for
+=E2=80=98arch_remove_memory=E2=80=99 include/linux/memory_hotplug.h:88: err=
+or: previous
+declaration of =E2=80=98arch_remove_memory=E2=80=99 was here
+
+In memory_hotplug.h you have:
+extern int arch_remove_memory(unsigned long start, unsigned long size);
+
+On all archs other than x86 you have:
+int arch_remove_memory(u64 start, u64 size)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
