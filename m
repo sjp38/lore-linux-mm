@@ -1,57 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
-	by kanga.kvack.org (Postfix) with SMTP id 819866B004D
-	for <linux-mm@kvack.org>; Wed,  1 Aug 2012 15:06:21 -0400 (EDT)
-Received: by bkcjc3 with SMTP id jc3so4706626bkc.14
-        for <linux-mm@kvack.org>; Wed, 01 Aug 2012 12:06:19 -0700 (PDT)
-Message-ID: <50197E4A.7020408@gmail.com>
-Date: Wed, 01 Aug 2012 21:06:50 +0200
-From: Sasha Levin <levinsasha928@gmail.com>
+Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
+	by kanga.kvack.org (Postfix) with SMTP id D8E696B005A
+	for <linux-mm@kvack.org>; Wed,  1 Aug 2012 16:12:41 -0400 (EDT)
+Message-ID: <50198D38.1000905@redhat.com>
+Date: Wed, 01 Aug 2012 16:10:32 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [RFC 1/4] hashtable: introduce a small and naive hashtable
-References: <1343757920-19713-1-git-send-email-levinsasha928@gmail.com> <1343757920-19713-2-git-send-email-levinsasha928@gmail.com> <20120731182330.GD21292@google.com> <50197348.9010101@gmail.com> <20120801182112.GC15477@google.com> <50197460.8010906@gmail.com> <20120801182749.GD15477@google.com>
-In-Reply-To: <20120801182749.GD15477@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [PATCH V7 2/2] mm: memcg detect no memcgs above softlimit under
+ zone reclaim
+References: <1343687538-24284-1-git-send-email-yinghan@google.com> <20120731155932.GB16924@tiehlicka.suse.cz> <CALWz4iwnrXFSoqmPUsXfUMzgxz5bmBrRNU5Nisd=g2mjmu-u3Q@mail.gmail.com> <20120731200205.GA19524@tiehlicka.suse.cz> <CALWz4ixF8PzhDs2fuOMTrrRiBHkg+aMzaVOBhuUN78UenzmYbw@mail.gmail.com> <20120801084553.GD4436@tiehlicka.suse.cz> <CALWz4iwzJp8EwSeP6ap7_adW6sF8YR940sky6vJS3SD8FO6HkA@mail.gmail.com>
+In-Reply-To: <CALWz4iwzJp8EwSeP6ap7_adW6sF8YR940sky6vJS3SD8FO6HkA@mail.gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: torvalds@linux-foundation.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, paul.gortmaker@windriver.com
+To: Ying Han <yinghan@google.com>
+Cc: Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hillf Danton <dhillf@gmail.com>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 
-On 08/01/2012 08:27 PM, Tejun Heo wrote:
-> On Wed, Aug 01, 2012 at 08:24:32PM +0200, Sasha Levin wrote:
->> On 08/01/2012 08:21 PM, Tejun Heo wrote:
->>> On Wed, Aug 01, 2012 at 08:19:52PM +0200, Sasha Levin wrote:
->>>> If we switch to using functions, we could no longer hide it anywhere
->>>> (we'd need to either turn the buckets into a struct, or have the
->>>> user pass it around to all functions).
->>>
->>> Create an outer struct hash_table which remembers the size?
->>
->> Possible. I just wanted to avoid creating new structs where they're not really required.
->>
->> Do you think it's worth it for eliminating those two macros?
-> 
-> What if someone wants to allocate hashtable dynamically which isn't
-> too unlikely?  I think it's best to stay away from macro tricks as
-> much as possible although I gotta admit I fall into the macro trap
-> more often than I would like.
+On 08/01/2012 03:04 PM, Ying Han wrote:
 
-Using a struct makes the dynamic case much easier, but it complicates the static case.
+> That is true. Hmm, then two things i can do:
+>
+> 1. for kswapd case, make sure not counting the root cgroup
+> 2. or check nr_scanned. I like the nr_scanned which is telling us
+> whether or not the reclaim ever make any attempt ?
 
-Previously we could create the buckets statically.
+I am looking at a more advanced case of (3) right
+now.  Once I have the basics working, I will send
+you a prototype (that applies on top of your patches)
+to play with.
 
-Consider this struct:
+Basically, for every LRU in the system, we can keep
+track of 4 things:
+- reclaim_stat->recent_scanned
+- reclaim_stat->recent_rotated
+- reclaim_stat->recent_pressure
+- LRU size
 
-struct hash_table {
-	u32 bits;
-	struct hlist_head buckets[];
-};
+The first two represent the fraction of pages on the
+list that are actively used.  The larger the fraction
+of recently used pages, the more valuable the cache
+is. The inverse of that can be used to show us how
+hard to reclaim this cache, compared to other caches
+(everything else being equal).
 
-We can't make any code that wraps this to make it work properly statically allocated nice enough to be acceptable.
+The recent pressure can be used to keep track of how
+many pages we have scanned on each LRU list recently.
+Pressure is scaled with LRU size.
+
+This would be the basic formula to decide which LRU
+to reclaim from:
+
+           recent_scanned   LRU size
+score =   -------------- * ----------------
+           recent_rotated   recent_pressure
 
 
-What if when creating the buckets, we actually allocate bits+1 buckets, and use the last bucket not as a bucket but as the bitcount? It looks like a hack but I think it's much nicer than the previous.
+In other words, the less the objects on an LRU are
+used, the more we should reclaim from that LRU. The
+larger an LRU is, the more we should reclaim from
+that LRU.
+
+The more we have already scanned an LRU, the lower
+its score becomes. At some point, another LRU will
+have the top score, and that will be the target to
+scan.
+
+We can adjust the score for different LRUs in different
+ways, eg.:
+- swappiness adjustment for file vs anon LRUs, within
+   an LRU set
+- if an LRU set contains a file LRU with more inactive
+   than active pages, reclaim from this LRU set first
+- if an LRU set is over it's soft limit, reclaim from
+   this LRU set first
+
+This also gives us a nice way to balance memory pressure
+between zones, etc...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
