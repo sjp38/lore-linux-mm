@@ -1,82 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
-	by kanga.kvack.org (Postfix) with SMTP id D8E696B005A
-	for <linux-mm@kvack.org>; Wed,  1 Aug 2012 16:12:41 -0400 (EDT)
-Message-ID: <50198D38.1000905@redhat.com>
-Date: Wed, 01 Aug 2012 16:10:32 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
+	by kanga.kvack.org (Postfix) with SMTP id F23586B004D
+	for <linux-mm@kvack.org>; Wed,  1 Aug 2012 16:24:37 -0400 (EDT)
+Received: by yhr47 with SMTP id 47so9259325yhr.14
+        for <linux-mm@kvack.org>; Wed, 01 Aug 2012 13:24:37 -0700 (PDT)
+Date: Wed, 1 Aug 2012 13:24:32 -0700
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [RFC 1/4] hashtable: introduce a small and naive hashtable
+Message-ID: <20120801202432.GE15477@google.com>
+References: <1343757920-19713-1-git-send-email-levinsasha928@gmail.com>
+ <1343757920-19713-2-git-send-email-levinsasha928@gmail.com>
+ <20120731182330.GD21292@google.com>
+ <50197348.9010101@gmail.com>
+ <20120801182112.GC15477@google.com>
+ <50197460.8010906@gmail.com>
+ <20120801182749.GD15477@google.com>
+ <50197E4A.7020408@gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH V7 2/2] mm: memcg detect no memcgs above softlimit under
- zone reclaim
-References: <1343687538-24284-1-git-send-email-yinghan@google.com> <20120731155932.GB16924@tiehlicka.suse.cz> <CALWz4iwnrXFSoqmPUsXfUMzgxz5bmBrRNU5Nisd=g2mjmu-u3Q@mail.gmail.com> <20120731200205.GA19524@tiehlicka.suse.cz> <CALWz4ixF8PzhDs2fuOMTrrRiBHkg+aMzaVOBhuUN78UenzmYbw@mail.gmail.com> <20120801084553.GD4436@tiehlicka.suse.cz> <CALWz4iwzJp8EwSeP6ap7_adW6sF8YR940sky6vJS3SD8FO6HkA@mail.gmail.com>
-In-Reply-To: <CALWz4iwzJp8EwSeP6ap7_adW6sF8YR940sky6vJS3SD8FO6HkA@mail.gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <50197E4A.7020408@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ying Han <yinghan@google.com>
-Cc: Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hillf Danton <dhillf@gmail.com>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+To: Sasha Levin <levinsasha928@gmail.com>
+Cc: torvalds@linux-foundation.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, paul.gortmaker@windriver.com
 
-On 08/01/2012 03:04 PM, Ying Han wrote:
+On Wed, Aug 01, 2012 at 09:06:50PM +0200, Sasha Levin wrote:
+> Using a struct makes the dynamic case much easier, but it complicates the static case.
+> 
+> Previously we could create the buckets statically.
+> 
+> Consider this struct:
+> 
+> struct hash_table {
+> 	u32 bits;
+> 	struct hlist_head buckets[];
+> };
+> 
+> We can't make any code that wraps this to make it work properly
+> statically allocated nice enough to be acceptable.
 
-> That is true. Hmm, then two things i can do:
->
-> 1. for kswapd case, make sure not counting the root cgroup
-> 2. or check nr_scanned. I like the nr_scanned which is telling us
-> whether or not the reclaim ever make any attempt ?
+I don't know.  Maybe you can create an anonymous outer struct / union
+and play symbol trick to alias hash_table to its member.  If it is
+gimped either way, I'm not sure whether it's really worthwhile to
+create the abstraction.  It's not like we're saving a lot of
+complexity.
 
-I am looking at a more advanced case of (3) right
-now.  Once I have the basics working, I will send
-you a prototype (that applies on top of your patches)
-to play with.
+Thanks.
 
-Basically, for every LRU in the system, we can keep
-track of 4 things:
-- reclaim_stat->recent_scanned
-- reclaim_stat->recent_rotated
-- reclaim_stat->recent_pressure
-- LRU size
-
-The first two represent the fraction of pages on the
-list that are actively used.  The larger the fraction
-of recently used pages, the more valuable the cache
-is. The inverse of that can be used to show us how
-hard to reclaim this cache, compared to other caches
-(everything else being equal).
-
-The recent pressure can be used to keep track of how
-many pages we have scanned on each LRU list recently.
-Pressure is scaled with LRU size.
-
-This would be the basic formula to decide which LRU
-to reclaim from:
-
-           recent_scanned   LRU size
-score =   -------------- * ----------------
-           recent_rotated   recent_pressure
-
-
-In other words, the less the objects on an LRU are
-used, the more we should reclaim from that LRU. The
-larger an LRU is, the more we should reclaim from
-that LRU.
-
-The more we have already scanned an LRU, the lower
-its score becomes. At some point, another LRU will
-have the top score, and that will be the target to
-scan.
-
-We can adjust the score for different LRUs in different
-ways, eg.:
-- swappiness adjustment for file vs anon LRUs, within
-   an LRU set
-- if an LRU set contains a file LRU with more inactive
-   than active pages, reclaim from this LRU set first
-- if an LRU set is over it's soft limit, reclaim from
-   this LRU set first
-
-This also gives us a nice way to balance memory pressure
-between zones, etc...
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
