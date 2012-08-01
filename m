@@ -1,72 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
-	by kanga.kvack.org (Postfix) with SMTP id A98EA6B004D
-	for <linux-mm@kvack.org>; Wed,  1 Aug 2012 15:05:00 -0400 (EDT)
-Received: by lbjn8 with SMTP id n8so677792lbj.14
-        for <linux-mm@kvack.org>; Wed, 01 Aug 2012 12:04:58 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
+	by kanga.kvack.org (Postfix) with SMTP id 819866B004D
+	for <linux-mm@kvack.org>; Wed,  1 Aug 2012 15:06:21 -0400 (EDT)
+Received: by bkcjc3 with SMTP id jc3so4706626bkc.14
+        for <linux-mm@kvack.org>; Wed, 01 Aug 2012 12:06:19 -0700 (PDT)
+Message-ID: <50197E4A.7020408@gmail.com>
+Date: Wed, 01 Aug 2012 21:06:50 +0200
+From: Sasha Levin <levinsasha928@gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20120801084553.GD4436@tiehlicka.suse.cz>
-References: <1343687538-24284-1-git-send-email-yinghan@google.com>
-	<20120731155932.GB16924@tiehlicka.suse.cz>
-	<CALWz4iwnrXFSoqmPUsXfUMzgxz5bmBrRNU5Nisd=g2mjmu-u3Q@mail.gmail.com>
-	<20120731200205.GA19524@tiehlicka.suse.cz>
-	<CALWz4ixF8PzhDs2fuOMTrrRiBHkg+aMzaVOBhuUN78UenzmYbw@mail.gmail.com>
-	<20120801084553.GD4436@tiehlicka.suse.cz>
-Date: Wed, 1 Aug 2012 12:04:58 -0700
-Message-ID: <CALWz4iwzJp8EwSeP6ap7_adW6sF8YR940sky6vJS3SD8FO6HkA@mail.gmail.com>
-Subject: Re: [PATCH V7 2/2] mm: memcg detect no memcgs above softlimit under
- zone reclaim
-From: Ying Han <yinghan@google.com>
+Subject: Re: [RFC 1/4] hashtable: introduce a small and naive hashtable
+References: <1343757920-19713-1-git-send-email-levinsasha928@gmail.com> <1343757920-19713-2-git-send-email-levinsasha928@gmail.com> <20120731182330.GD21292@google.com> <50197348.9010101@gmail.com> <20120801182112.GC15477@google.com> <50197460.8010906@gmail.com> <20120801182749.GD15477@google.com>
+In-Reply-To: <20120801182749.GD15477@google.com>
 Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Hillf Danton <dhillf@gmail.com>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+To: Tejun Heo <tj@kernel.org>
+Cc: torvalds@linux-foundation.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, paul.gortmaker@windriver.com
 
-On Wed, Aug 1, 2012 at 1:45 AM, Michal Hocko <mhocko@suse.cz> wrote:
-> On Tue 31-07-12 13:59:35, Ying Han wrote:
-> [...]
->> Let's say the following example where the cgroup is sorted by css_id,
->> and none of the cgroup's usage is above softlimit (except root)
+On 08/01/2012 08:27 PM, Tejun Heo wrote:
+> On Wed, Aug 01, 2012 at 08:24:32PM +0200, Sasha Levin wrote:
+>> On 08/01/2012 08:21 PM, Tejun Heo wrote:
+>>> On Wed, Aug 01, 2012 at 08:19:52PM +0200, Sasha Levin wrote:
+>>>> If we switch to using functions, we could no longer hide it anywhere
+>>>> (we'd need to either turn the buckets into a struct, or have the
+>>>> user pass it around to all functions).
+>>>
+>>> Create an outer struct hash_table which remembers the size?
 >>
->>                                         root  a  b  c  d  e f ...max
->> thread_1 (priority = 12)         ^
->>                                          iter->position = 1        (
->> over_softlimit = true )
+>> Possible. I just wanted to avoid creating new structs where they're not really required.
 >>
->>                                                 ^
->>                                                  iter->position = 2
->>
->> thread_2 (priority = 12)                     ^
->>                                                      iter->position = 3
->>
->>                                                       ....
->>                                                                           ^
->>
->>    iter->position = 0  ( over_softlimit = false )
->>
->> In this case, thread 1 gets root but not thread 2 since they share the
->> walk under same zone (same node) and same reclaim priority.
->
-> That is true iterator is per zone per priority if the cookie is used but
-> that wasn't my point.
-> Take a much simpler case. Just the background reclaim without any direct
-> reclaim. Then there is nobody to race with and so we would always visit
-> the whole tree including the root and so if no group is above the soft
-> limit we would hammer the root cgroup until priority gets down when we
-> ignore the limit and reclaim from all. Makes sense?
+>> Do you think it's worth it for eliminating those two macros?
+> 
+> What if someone wants to allocate hashtable dynamically which isn't
+> too unlikely?  I think it's best to stay away from macro tricks as
+> much as possible although I gotta admit I fall into the macro trap
+> more often than I would like.
 
-That is true. Hmm, then two things i can do:
+Using a struct makes the dynamic case much easier, but it complicates the static case.
 
-1. for kswapd case, make sure not counting the root cgroup
-2. or check nr_scanned. I like the nr_scanned which is telling us
-whether or not the reclaim ever make any attempt ?
+Previously we could create the buckets statically.
 
---Ying
+Consider this struct:
 
-> --
-> Michal Hocko
-> SUSE Labs
+struct hash_table {
+	u32 bits;
+	struct hlist_head buckets[];
+};
+
+We can't make any code that wraps this to make it work properly statically allocated nice enough to be acceptable.
+
+
+What if when creating the buckets, we actually allocate bits+1 buckets, and use the last bucket not as a bucket but as the bitcount? It looks like a hack but I think it's much nicer than the previous.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
