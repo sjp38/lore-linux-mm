@@ -1,494 +1,203 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
-	by kanga.kvack.org (Postfix) with SMTP id AD98C6B005A
-	for <linux-mm@kvack.org>; Tue, 31 Jul 2012 22:44:20 -0400 (EDT)
-Received: by ggm4 with SMTP id 4so8072871ggm.14
-        for <linux-mm@kvack.org>; Tue, 31 Jul 2012 19:44:19 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
+	by kanga.kvack.org (Postfix) with SMTP id 75EAD6B005A
+	for <linux-mm@kvack.org>; Tue, 31 Jul 2012 22:45:52 -0400 (EDT)
+Message-ID: <50189857.4000501@redhat.com>
+Date: Tue, 31 Jul 2012 22:45:43 -0400
+From: Larry Woodman <lwoodman@redhat.com>
+Reply-To: lwoodman@redhat.com
 MIME-Version: 1.0
-In-Reply-To: <50126E2F.8010301@cn.fujitsu.com>
-References: <50126B83.3050201@cn.fujitsu.com>
-	<50126E2F.8010301@cn.fujitsu.com>
-Date: Wed, 1 Aug 2012 10:44:19 +0800
-Message-ID: <CAN6t85SiG62QXdSpSmGQFeG4f3JnOicDx9H3jSvwg0t2Ly-q+w@mail.gmail.com>
-Subject: Re: [RFC PATCH v5 12/19] memory-hotplug: introduce new function arch_remove_memory()
-From: jencce zhou <jencce2002@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [PATCH -alternative] mm: hugetlbfs: Close race during teardown
+ of hugetlbfs shared page tables V2 (resend)
+References: <20120720141108.GH9222@suse.de> <20120720143635.GE12434@tiehlicka.suse.cz> <20120720145121.GJ9222@suse.de> <alpine.LSU.2.00.1207222033030.6810@eggly.anvils> <50118E7F.8000609@redhat.com> <50120FA8.20409@redhat.com> <20120727102356.GD612@suse.de> <5016DC5F.7030604@redhat.com> <20120731124650.GO612@suse.de> <50181AA1.0@redhat.com> <20120731200650.GB19524@tiehlicka.suse.cz>
+In-Reply-To: <20120731200650.GB19524@tiehlicka.suse.cz>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wen Congyang <wency@cn.fujitsu.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-ia64@vger.kernel.org, cmetcalf@tilera.com, rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, Yasuaki ISIMATU <isimatu.yasuaki@jp.fujitsu.com>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Linux-MM <linux-mm@kvack.org>, David Gibson <david@gibson.dropbear.id.au>, Ken Chen <kenchen@google.com>, Cong Wang <xiyou.wangcong@gmail.com>, LKML <linux-kernel@vger.kernel.org>
 
-2012/7/27 Wen Congyang <wency@cn.fujitsu.com>:
-> We don't call __add_pages() directly in the function add_memory()
-> because some other architecture related things need to be done
-> before or after calling __add_pages(). So we should introduce
-> a new function arch_remove_memory() to revert the things
-> done in arch_add_memory().
+On 07/31/2012 04:06 PM, Michal Hocko wrote:
+> On Tue 31-07-12 13:49:21, Larry Woodman wrote:
+>> On 07/31/2012 08:46 AM, Mel Gorman wrote:
+>>> Fundamentally I think the problem is that we are not correctly detecting
+>>> that page table sharing took place during huge_pte_alloc(). This patch is
+>>> longer and makes an API change but if I'm right, it addresses the underlying
+>>> problem. The first VM_MAYSHARE patch is still necessary but would you mind
+>>> testing this on top please?
+>> Hi Mel, yes this does work just fine.  It ran for hours without a panic so
+>> I'll Ack this one if you send it to the list.
+> Hi Larry, thanks for testing! I have a different patch which tries to
+> address this very same issue. I am not saying it is better or that it
+> should be merged instead of Mel's one but I would be really happy if you
+> could give it a try. We can discuss (dis)advantages of both approaches
+> later.
 >
-> Note: the function for s390 is not implemented(I don't know how to
-> implement it for s390).
->
-> CC: David Rientjes <rientjes@google.com>
-> CC: Jiang Liu <liuj97@gmail.com>
-> CC: Len Brown <len.brown@intel.com>
-> CC: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-> CC: Paul Mackerras <paulus@samba.org>
-> CC: Christoph Lameter <cl@linux.com>
-> Cc: Minchan Kim <minchan.kim@gmail.com>
-> CC: Andrew Morton <akpm@linux-foundation.org>
-> CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> CC: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-> Signed-off-by: Wen Congyang <wency@cn.fujitsu.com>
+> Thanks!
+
+Hi Michal, the system hung when I tested this patch on top of the
+latest 3.5 kernel.  I wont have AltSysrq access to the system until
+tomorrow AM.  I'll retry this kernel and get AltSysrq output and let
+you know whats happening in the morning.
+
+Larry
+
 > ---
->  arch/ia64/mm/init.c                  |   16 ++++
->  arch/powerpc/mm/mem.c                |   14 +++
->  arch/s390/mm/init.c                  |    8 ++
->  arch/sh/mm/init.c                    |   15 +++
->  arch/tile/mm/init.c                  |    8 ++
->  arch/x86/include/asm/pgtable_types.h |    1 +
->  arch/x86/mm/init_32.c                |   10 ++
->  arch/x86/mm/init_64.c                |  160 ++++++++++++++++++++++++++++++++++
->  arch/x86/mm/pageattr.c               |   47 +++++-----
->  include/linux/memory_hotplug.h       |    1 +
->  mm/memory_hotplug.c                  |    1 +
->  11 files changed, 259 insertions(+), 22 deletions(-)
+>  From 8cbf3bd27125fc0a2a46cd5b1085d9e63f9c01fd Mon Sep 17 00:00:00 2001
+> From: Michal Hocko<mhocko@suse.cz>
+> Date: Tue, 31 Jul 2012 15:00:26 +0200
+> Subject: [PATCH] mm: hugetlbfs: Correctly populate shared pmd
 >
-> diff --git a/arch/ia64/mm/init.c b/arch/ia64/mm/init.c
-> index 0eab454..1e345ed 100644
-> --- a/arch/ia64/mm/init.c
-> +++ b/arch/ia64/mm/init.c
-> @@ -688,6 +688,22 @@ int arch_add_memory(int nid, u64 start, u64 size)
+> Each page mapped in a processes address space must be correctly
+> accounted for in _mapcount. Normally the rules for this are
+> straight-forward but hugetlbfs page table sharing is different.
+> The page table pages at the PMD level are reference counted while
+> the mapcount remains the same. If this accounting is wrong, it causes
+> bugs like this one reported by Larry Woodman
 >
->         return ret;
->  }
-> +
-> +#ifdef CONFIG_MEMORY_HOTREMOVE
-> +int arch_remove_memory(u64 start, u64 size)
-> +{
-> +       unsigned long start_pfn = start >> PAGE_SHIFT;
-> +       unsigned long nr_pages = size >> PAGE_SHIFT;
-> +       int ret;
-> +
-> +       ret = __remove_pages(start_pfn, nr_pages);
-> +       if (ret)
-> +               pr_warn("%s: Problem encountered in __remove_pages() as"
-> +                       " ret=%d\n", __func__,  ret);
-> +
-> +       return ret;
-> +}
-> +#endif
->  #endif
+> [ 1106.156569] ------------[ cut here ]------------
+> [ 1106.161731] kernel BUG at mm/filemap.c:135!
+> [ 1106.166395] invalid opcode: 0000 [#1] SMP
+> [ 1106.170975] CPU 22
+> [ 1106.173115] Modules linked in: bridge stp llc sunrpc binfmt_misc dcdbas microcode pcspkr acpi_pad acpi]
+> [ 1106.201770]
+> [ 1106.203426] Pid: 18001, comm: mpitest Tainted: G        W    3.3.0+ #4 Dell Inc. PowerEdge R620/07NDJ2
+> [ 1106.213822] RIP: 0010:[<ffffffff8112cfed>]  [<ffffffff8112cfed>] __delete_from_page_cache+0x15d/0x170
+> [ 1106.224117] RSP: 0018:ffff880428973b88  EFLAGS: 00010002
+> [ 1106.230032] RAX: 0000000000000001 RBX: ffffea0006b80000 RCX: 00000000ffffffb0
+> [ 1106.237979] RDX: 0000000000016df1 RSI: 0000000000000009 RDI: ffff88043ffd9e00
+> [ 1106.245927] RBP: ffff880428973b98 R08: 0000000000000050 R09: 0000000000000003
+> [ 1106.253876] R10: 000000000000000d R11: 0000000000000000 R12: ffff880428708150
+> [ 1106.261826] R13: ffff880428708150 R14: 0000000000000000 R15: ffffea0006b80000
+> [ 1106.269780] FS:  0000000000000000(0000) GS:ffff88042fd60000(0000) knlGS:0000000000000000
+> [ 1106.278794] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+> [ 1106.285193] CR2: 0000003a1d38c4a8 CR3: 000000000187d000 CR4: 00000000000406e0
+> [ 1106.293149] DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
+> [ 1106.301097] DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
+> [ 1106.309046] Process mpitest (pid: 18001, threadinfo ffff880428972000, task ffff880428b5cc20)
+> [ 1106.318447] Stack:
+> [ 1106.320690]  ffffea0006b80000 0000000000000000 ffff880428973bc8 ffffffff8112d040
+> [ 1106.328958]  ffff880428973bc8 00000000000002ab 00000000000002a0 ffff880428973c18
+> [ 1106.337234]  ffff880428973cc8 ffffffff8125b405 ffff880400000001 0000000000000000
+> [ 1106.345513] Call Trace:
+> [ 1106.348235]  [<ffffffff8112d040>] delete_from_page_cache+0x40/0x80
+> [ 1106.355128]  [<ffffffff8125b405>] truncate_hugepages+0x115/0x1f0
+> [ 1106.361826]  [<ffffffff8125b4f8>] hugetlbfs_evict_inode+0x18/0x30
+> [ 1106.368615]  [<ffffffff811ab1af>] evict+0x9f/0x1b0
+> [ 1106.373951]  [<ffffffff811ab3a3>] iput_final+0xe3/0x1e0
+> [ 1106.379773]  [<ffffffff811ab4de>] iput+0x3e/0x50
+> [ 1106.384922]  [<ffffffff811a8e18>] d_kill+0xf8/0x110
+> [ 1106.390356]  [<ffffffff811a8f12>] dput+0xe2/0x1b0
+> [ 1106.395595]  [<ffffffff81193612>] __fput+0x162/0x240
 >
-
-in 3.5 ia64 implementation did not call __remove_pages at all. so why?
-
-
->  /*
-> diff --git a/arch/powerpc/mm/mem.c b/arch/powerpc/mm/mem.c
-> index baaafde..249cef4 100644
-> --- a/arch/powerpc/mm/mem.c
-> +++ b/arch/powerpc/mm/mem.c
-> @@ -133,6 +133,20 @@ int arch_add_memory(int nid, u64 start, u64 size)
+> During fork(), copy_hugetlb_page_range() detects if huge_pte_alloc()
+> shared page tables with the check dst_pte == src_pte. The logic is if
+> the PMD page is the same, they must be shared. This assumes that the
+> sharing is between the parent and child. However, if the sharing is with
+> a different process entirely then this check fails as in this diagram.
 >
->         return __add_pages(nid, zone, start_pfn, nr_pages);
->  }
-> +
-> +#ifdef CONFIG_MEMORY_HOTREMOVE
-> +int arch_remove_memory(u64 start, u64 size)
-> +{
-> +       unsigned long start_pfn = start >> PAGE_SHIFT;
-> +       unsigned long nr_pages = size >> PAGE_SHIFT;
-> +
-> +       start = (unsigned long)__va(start);
-> +       if (remove_section_mapping(start, start + size))
-> +               return -EINVAL;
-> +
-> +       return __remove_pages(start_pfn, nr_pages);
-> +}
-> +#endif
->  #endif /* CONFIG_MEMORY_HOTPLUG */
+> parent
+>    |
+>    ------------>pmd
+>                 src_pte---------->  data page
+>                                        ^
+> other--------->pmd--------------------|
+>                  ^
+> child-----------|
+>                 dst_pte
 >
->  /*
-> diff --git a/arch/s390/mm/init.c b/arch/s390/mm/init.c
-> index 6adbc08..ca4bc46 100644
-> --- a/arch/s390/mm/init.c
-> +++ b/arch/s390/mm/init.c
-> @@ -257,4 +257,12 @@ int arch_add_memory(int nid, u64 start, u64 size)
->                 vmem_remove_mapping(start, size);
->         return rc;
->  }
-> +
-> +#ifdef CONFIG_MEMORY_HOTREMOVE
-> +int arch_remove_memory(u64 start, u64 size)
-> +{
-> +       /* TODO */
-> +       return -EBUSY;
-> +}
-> +#endif
->  #endif /* CONFIG_MEMORY_HOTPLUG */
-> diff --git a/arch/sh/mm/init.c b/arch/sh/mm/init.c
-> index 82cc576..fc84491 100644
-> --- a/arch/sh/mm/init.c
-> +++ b/arch/sh/mm/init.c
-> @@ -558,4 +558,19 @@ int memory_add_physaddr_to_nid(u64 addr)
->  EXPORT_SYMBOL_GPL(memory_add_physaddr_to_nid);
->  #endif
+> For this situation to occur, it must be possible for Parent and Other
+> to have faulted and failed to share page tables with each other. This is
+> possible due to the following style of race.
 >
-> +#ifdef CONFIG_MEMORY_HOTREMOVE
-> +int arch_remove_memory(u64 start, u64 size)
-> +{
-> +       unsigned long start_pfn = start >> PAGE_SHIFT;
-> +       unsigned long nr_pages = size >> PAGE_SHIFT;
-> +       int ret;
-> +
-> +       ret = __remove_pages(start_pfn, nr_pages);
-> +       if (unlikely(ret))
-> +               pr_warn("%s: Failed, __remove_pages() == %d\n", __func__,
-> +                       ret);
-> +
-> +       return ret;
-> +}
-> +#endif
->  #endif /* CONFIG_MEMORY_HOTPLUG */
-> diff --git a/arch/tile/mm/init.c b/arch/tile/mm/init.c
-> index ef29d6c..2749515 100644
-> --- a/arch/tile/mm/init.c
-> +++ b/arch/tile/mm/init.c
-> @@ -935,6 +935,14 @@ int remove_memory(u64 start, u64 size)
->  {
->         return -EINVAL;
->  }
-> +
-> +#ifdef CONFIG_MEMORY_HOTREMOVE
-> +int arch_remove_memory(u64 start, u64 size)
-> +{
-> +       /* TODO */
-> +       return -EBUSY;
-> +}
-> +#endif
->  #endif
+> PROC A                                          PROC B
+> copy_hugetlb_page_range                         copy_hugetlb_page_range
+>    src_pte == huge_pte_offset                      src_pte == huge_pte_offset
+>    !src_pte so no sharing                          !src_pte so no sharing
 >
->  struct kmem_cache *pgd_cache;
-> diff --git a/arch/x86/include/asm/pgtable_types.h b/arch/x86/include/asm/pgtable_types.h
-> index 013286a..b725af2 100644
-> --- a/arch/x86/include/asm/pgtable_types.h
-> +++ b/arch/x86/include/asm/pgtable_types.h
-> @@ -334,6 +334,7 @@ static inline void update_page_count(int level, unsigned long pages) { }
->   * as a pte too.
->   */
->  extern pte_t *lookup_address(unsigned long address, unsigned int *level);
-> +extern int __split_large_page(pte_t *kpte, unsigned long address, pte_t *pbase);
+> (time passes)
 >
->  #endif /* !__ASSEMBLY__ */
+> hugetlb_fault                                   hugetlb_fault
+>    huge_pte_alloc                                  huge_pte_alloc
+>      huge_pmd_share                                 huge_pmd_share
+>        LOCK(i_mmap_mutex)
+>        find nothing, no sharing
+>        UNLOCK(i_mmap_mutex)
+>                                                      LOCK(i_mmap_mutex)
+>                                                      find nothing, no sharing
+>                                                      UNLOCK(i_mmap_mutex)
+>      pmd_alloc                                       pmd_alloc
+>      LOCK(instantiation_mutex)
+>      fault
+>      UNLOCK(instantiation_mutex)
+>                                                  LOCK(instantiation_mutex)
+>                                                  fault
+>                                                  UNLOCK(instantiation_mutex)
 >
-> diff --git a/arch/x86/mm/init_32.c b/arch/x86/mm/init_32.c
-> index 575d86f..a690153 100644
-> --- a/arch/x86/mm/init_32.c
-> +++ b/arch/x86/mm/init_32.c
-> @@ -842,6 +842,16 @@ int arch_add_memory(int nid, u64 start, u64 size)
+> These two processes are not poing to the same data page but are not sharing
+> page tables because the opportunity was missed. When either process later
+> forks, the src_pte == dst pte is potentially insufficient.  As the check
+> falls through, the wrong PTE information is copied in (harmless but wrong)
+> and the mapcount is bumped for a page mapped by a shared page table leading
+> to the BUG_ON.
 >
->         return __add_pages(nid, zone, start_pfn, nr_pages);
->  }
-> +
-> +#ifdef CONFIG_MEMORY_HOTREMOVE
-> +int arch_remove_memory(unsigned long start, unsigned long size)
-> +{
-> +       unsigned long start_pfn = start >> PAGE_SHIFT;
-> +       unsigned long nr_pages = size >> PAGE_SHIFT;
-> +
-> +       return __remove_pages(start_pfn, nr_pages);
-> +}
-> +#endif
->  #endif
+> This patch addresses the issue by moving pmd_alloc into huge_pmd_share
+> which guarantees that the shared pud is populated in the same
+> critical section as pmd. This also means that huge_pte_offset test in
+> huge_pmd_share is serialized correctly now.
 >
->  /*
-> diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
-> index 2b6b4a3..f1554a9 100644
-> --- a/arch/x86/mm/init_64.c
-> +++ b/arch/x86/mm/init_64.c
-> @@ -675,6 +675,166 @@ int arch_add_memory(int nid, u64 start, u64 size)
->  }
->  EXPORT_SYMBOL_GPL(arch_add_memory);
+> Changelog and race identified by Mel Gorman
+> Signed-off-by: Michal Hocko<mhocko@suse.cz>
+> Reported-by: Larry Woodman<lwoodman@redhat.com>
+> ---
+>   arch/x86/mm/hugetlbpage.c |   10 +++++++---
+>   1 file changed, 7 insertions(+), 3 deletions(-)
 >
-> +static void __meminit
-> +phys_pte_remove(pte_t *pte_page, unsigned long addr, unsigned long end)
-> +{
-> +       unsigned pages = 0;
-> +       int i = pte_index(addr);
-> +
-> +       pte_t *pte = pte_page + pte_index(addr);
-> +
-> +       for (; i < PTRS_PER_PTE; i++, addr += PAGE_SIZE, pte++) {
-> +
-> +               if (addr >= end)
-> +                       break;
-> +
-> +               if (!pte_present(*pte))
-> +                       continue;
-> +
-> +               pages++;
-> +               set_pte(pte, __pte(0));
-> +       }
-> +
-> +       update_page_count(PG_LEVEL_4K, -pages);
-> +}
-> +
-> +static void __meminit
-> +phys_pmd_remove(pmd_t *pmd_page, unsigned long addr, unsigned long end)
-> +{
-> +       unsigned long pages = 0, next;
-> +       int i = pmd_index(addr);
-> +
-> +       for (; i < PTRS_PER_PMD; i++, addr = next) {
-> +               unsigned long pte_phys;
-> +               pmd_t *pmd = pmd_page + pmd_index(addr);
-> +               pte_t *pte;
-> +
-> +               if (addr >= end)
-> +                       break;
-> +
-> +               next = (addr & PMD_MASK) + PMD_SIZE;
-> +
-> +               if (!pmd_present(*pmd))
-> +                       continue;
-> +
-> +               if (pmd_large(*pmd)) {
-> +                       if ((addr & ~PMD_MASK) == 0 && next <= end) {
-> +                               set_pmd(pmd, __pmd(0));
-> +                               pages++;
-> +                               continue;
-> +                       }
-> +
-> +                       /*
-> +                        * We use 2M page, but we need to remove part of them,
-> +                        * so split 2M page to 4K page.
-> +                        */
-> +                       pte = alloc_low_page(&pte_phys);
-> +                       __split_large_page((pte_t *)pmd, addr, pte);
-> +
-> +                       spin_lock(&init_mm.page_table_lock);
-> +                       pmd_populate_kernel(&init_mm, pmd, __va(pte_phys));
-> +                       spin_unlock(&init_mm.page_table_lock);
-> +               }
-> +
-> +               spin_lock(&init_mm.page_table_lock);
-> +               pte = map_low_page((pte_t *)pmd_page_vaddr(*pmd));
-> +               phys_pte_remove(pte, addr, end);
-> +               unmap_low_page(pte);
-> +               spin_unlock(&init_mm.page_table_lock);
-> +       }
-> +       update_page_count(PG_LEVEL_2M, -pages);
-> +}
-> +
-> +static void __meminit
-> +phys_pud_remove(pud_t *pud_page, unsigned long addr, unsigned long end)
-> +{
-> +       unsigned long pages = 0, next;
-> +       int i = pud_index(addr);
-> +
-> +       for (; i < PTRS_PER_PUD; i++, addr = next) {
-> +               unsigned long pmd_phys;
-> +               pud_t *pud = pud_page + pud_index(addr);
-> +               pmd_t *pmd;
-> +
-> +               if (addr >= end)
-> +                       break;
-> +
-> +               next = (addr & PUD_MASK) + PUD_SIZE;
-> +
-> +               if (!pud_present(*pud))
-> +                       continue;
-> +
-> +               if (pud_large(*pud)) {
-> +                       if ((addr & ~PUD_MASK) == 0 && next <= end) {
-> +                               set_pud(pud, __pud(0));
-> +                               pages++;
-> +                               continue;
-> +                       }
-> +
-> +                       /*
-> +                        * We use 1G page, but we need to remove part of them,
-> +                        * so split 1G page to 2M page.
-> +                        */
-> +                       pmd = alloc_low_page(&pmd_phys);
-> +                       __split_large_page((pte_t *)pud, addr, (pte_t *)pmd);
-> +
-> +                       spin_lock(&init_mm.page_table_lock);
-> +                       pud_populate(&init_mm, pud, __va(pmd_phys));
-> +                       spin_unlock(&init_mm.page_table_lock);
-> +               }
-> +
-> +               pmd = map_low_page(pmd_offset(pud, 0));
-> +               phys_pmd_remove(pmd, addr, end);
-> +               unmap_low_page(pmd);
-> +               __flush_tlb_all();
-> +       }
-> +       __flush_tlb_all();
-> +
-> +       update_page_count(PG_LEVEL_1G, -pages);
-> +}
-> +
-> +void __meminit
-> +kernel_physical_mapping_remove(unsigned long start, unsigned long end)
-> +{
-> +       unsigned long next;
-> +
-> +       start = (unsigned long)__va(start);
-> +       end = (unsigned long)__va(end);
-> +
-> +       for (; start < end; start = next) {
-> +               pgd_t *pgd = pgd_offset_k(start);
-> +               pud_t *pud;
-> +
-> +               next = (start + PGDIR_SIZE) & PGDIR_MASK;
-> +               if (next > end)
-> +                       next = end;
-> +
-> +               if (!pgd_present(*pgd))
-> +                       continue;
-> +
-> +               pud = map_low_page((pud_t *)pgd_page_vaddr(*pgd));
-> +               phys_pud_remove(pud, __pa(start), __pa(end));
-> +               unmap_low_page(pud);
-> +       }
-> +
-> +       __flush_tlb_all();
-> +}
-> +
-> +#ifdef CONFIG_MEMORY_HOTREMOVE
-> +int __ref arch_remove_memory(unsigned long start, unsigned long size)
-> +{
-> +       unsigned long start_pfn = start >> PAGE_SHIFT;
-> +       unsigned long nr_pages = size >> PAGE_SHIFT;
-> +       int ret;
-> +
-> +       ret = __remove_pages(start_pfn, nr_pages);
-> +       WARN_ON_ONCE(ret);
-> +
-> +       kernel_physical_mapping_remove(start, start + size);
-> +
-> +       return ret;
-> +}
-> +#endif
->  #endif /* CONFIG_MEMORY_HOTPLUG */
+> diff --git a/arch/x86/mm/hugetlbpage.c b/arch/x86/mm/hugetlbpage.c
+> index f6679a7..bb05f79 100644
+> --- a/arch/x86/mm/hugetlbpage.c
+> +++ b/arch/x86/mm/hugetlbpage.c
+> @@ -58,7 +58,7 @@ static int vma_shareable(struct vm_area_struct *vma, unsigned long addr)
+>   /*
+>    * search for a shareable pmd page for hugetlb.
+>    */
+> -static void huge_pmd_share(struct mm_struct *mm, unsigned long addr, pud_t *pud)
+> +static pte_t* huge_pmd_share(struct mm_struct *mm, unsigned long addr, pud_t *pud)
+>   {
+>   	struct vm_area_struct *vma = find_vma(mm, addr);
+>   	struct address_space *mapping = vma->vm_file->f_mapping;
+> @@ -68,6 +68,7 @@ static void huge_pmd_share(struct mm_struct *mm, unsigned long addr, pud_t *pud)
+>   	struct vm_area_struct *svma;
+>   	unsigned long saddr;
+>   	pte_t *spte = NULL;
+> +	pte_t *pte;
 >
->  static struct kcore_list kcore_vsyscall;
-> diff --git a/arch/x86/mm/pageattr.c b/arch/x86/mm/pageattr.c
-> index 931930a..c22963d 100644
-> --- a/arch/x86/mm/pageattr.c
-> +++ b/arch/x86/mm/pageattr.c
-> @@ -501,21 +501,13 @@ out_unlock:
->         return do_split;
->  }
+>   	if (!vma_shareable(vma, addr))
+>   		return;
+> @@ -96,8 +97,10 @@ static void huge_pmd_share(struct mm_struct *mm, unsigned long addr, pud_t *pud)
+>   	else
+>   		put_page(virt_to_page(spte));
+>   	spin_unlock(&mm->page_table_lock);
+> +	pte = pmd_alloc(mm, pud, addr);
+>   out:
+>   	mutex_unlock(&mapping->i_mmap_mutex);
+> +	return pte;
+>   }
 >
-> -static int split_large_page(pte_t *kpte, unsigned long address)
-> +int __split_large_page(pte_t *kpte, unsigned long address, pte_t *pbase)
->  {
->         unsigned long pfn, pfninc = 1;
->         unsigned int i, level;
-> -       pte_t *pbase, *tmp;
-> +       pte_t *tmp;
->         pgprot_t ref_prot;
-> -       struct page *base;
-> -
-> -       if (!debug_pagealloc)
-> -               spin_unlock(&cpa_lock);
-> -       base = alloc_pages(GFP_KERNEL | __GFP_NOTRACK, 0);
-> -       if (!debug_pagealloc)
-> -               spin_lock(&cpa_lock);
-> -       if (!base)
-> -               return -ENOMEM;
-> +       struct page *base = virt_to_page(pbase);
->
->         spin_lock(&pgd_lock);
->         /*
-> @@ -523,10 +515,11 @@ static int split_large_page(pte_t *kpte, unsigned long address)
->          * up for us already:
->          */
->         tmp = lookup_address(address, &level);
-> -       if (tmp != kpte)
-> -               goto out_unlock;
-> +       if (tmp != kpte) {
-> +               spin_unlock(&pgd_lock);
-> +               return 1;
-> +       }
->
-> -       pbase = (pte_t *)page_address(base);
->         paravirt_alloc_pte(&init_mm, page_to_pfn(base));
->         ref_prot = pte_pgprot(pte_clrhuge(*kpte));
->         /*
-> @@ -579,17 +572,27 @@ static int split_large_page(pte_t *kpte, unsigned long address)
->          * going on.
->          */
->         __flush_tlb_all();
-> +       spin_unlock(&pgd_lock);
->
-> -       base = NULL;
-> +       return 0;
-> +}
->
-> -out_unlock:
-> -       /*
-> -        * If we dropped out via the lookup_address check under
-> -        * pgd_lock then stick the page back into the pool:
-> -        */
-> -       if (base)
-> +static int split_large_page(pte_t *kpte, unsigned long address)
-> +{
-> +       pte_t *pbase;
-> +       struct page *base;
-> +
-> +       if (!debug_pagealloc)
-> +               spin_unlock(&cpa_lock);
-> +       base = alloc_pages(GFP_KERNEL | __GFP_NOTRACK, 0);
-> +       if (!debug_pagealloc)
-> +               spin_lock(&cpa_lock);
-> +       if (!base)
-> +               return -ENOMEM;
-> +
-> +       pbase = (pte_t *)page_address(base);
-> +       if (__split_large_page(kpte, address, pbase))
->                 __free_page(base);
-> -       spin_unlock(&pgd_lock);
->
->         return 0;
->  }
-> diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
-> index 8bf820d..0d500be 100644
-> --- a/include/linux/memory_hotplug.h
-> +++ b/include/linux/memory_hotplug.h
-> @@ -85,6 +85,7 @@ extern void __online_page_free(struct page *page);
->
->  #ifdef CONFIG_MEMORY_HOTREMOVE
->  extern bool is_pageblock_removable_nolock(struct page *page);
-> +extern int arch_remove_memory(unsigned long start, unsigned long size);
->  #endif /* CONFIG_MEMORY_HOTREMOVE */
->
->  /* reasonably generic interface to expand the physical pages in a zone  */
-> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-> index a9e1579..0c932e1 100644
-> --- a/mm/memory_hotplug.c
-> +++ b/mm/memory_hotplug.c
-> @@ -1071,6 +1071,7 @@ int __ref remove_memory(int nid, u64 start, u64 size)
-
-line 1071?  which version does this patch base on?  thanks a lot.
-
-
->         /* remove memmap entry */
->         firmware_map_remove(start, start + size, "System RAM");
->
-> +       arch_remove_memory(start, size);
->  out:
->         unlock_memory_hotplug();
->         return ret;
-> --
-> 1.7.1
->
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
+>   /*
+> @@ -142,8 +145,9 @@ pte_t *huge_pte_alloc(struct mm_struct *mm,
+>   		} else {
+>   			BUG_ON(sz != PMD_SIZE);
+>   			if (pud_none(*pud))
+> -				huge_pmd_share(mm, addr, pud);
+> -			pte = (pte_t *) pmd_alloc(mm, pud, addr);
+> +				pte = huge_pmd_share(mm, addr, pud);
+> +			else
+> +				pte = (pte_t *) pmd_alloc(mm, pud, addr);
+>   		}
+>   	}
+>   	BUG_ON(pte&&  !pte_none(*pte)&&  !pte_huge(*pte));
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
