@@ -1,55 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
-	by kanga.kvack.org (Postfix) with SMTP id F23586B004D
-	for <linux-mm@kvack.org>; Wed,  1 Aug 2012 16:24:37 -0400 (EDT)
-Received: by yhr47 with SMTP id 47so9259325yhr.14
-        for <linux-mm@kvack.org>; Wed, 01 Aug 2012 13:24:37 -0700 (PDT)
-Date: Wed, 1 Aug 2012 13:24:32 -0700
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [RFC 1/4] hashtable: introduce a small and naive hashtable
-Message-ID: <20120801202432.GE15477@google.com>
-References: <1343757920-19713-1-git-send-email-levinsasha928@gmail.com>
- <1343757920-19713-2-git-send-email-levinsasha928@gmail.com>
- <20120731182330.GD21292@google.com>
- <50197348.9010101@gmail.com>
- <20120801182112.GC15477@google.com>
- <50197460.8010906@gmail.com>
- <20120801182749.GD15477@google.com>
- <50197E4A.7020408@gmail.com>
+Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
+	by kanga.kvack.org (Postfix) with SMTP id 797656B004D
+	for <linux-mm@kvack.org>; Wed,  1 Aug 2012 16:53:32 -0400 (EDT)
+Message-ID: <501996CD.70007@redhat.com>
+Date: Wed, 01 Aug 2012 16:51:25 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <50197E4A.7020408@gmail.com>
+Subject: Re: [PATCH v4 1/3] mm: introduce compaction and migration for virtio
+ ballooned pages
+References: <cover.1342485774.git.aquini@redhat.com> <49f828a9331c9b729fcf77226006921ec5bc52fa.1342485774.git.aquini@redhat.com> <20120718054824.GA32341@bbox> <20120720194858.GA16249@t510.redhat.com> <20120723023332.GA6832@bbox>
+In-Reply-To: <20120723023332.GA6832@bbox>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <levinsasha928@gmail.com>
-Cc: torvalds@linux-foundation.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, paul.gortmaker@windriver.com
+To: Minchan Kim <minchan@kernel.org>
+Cc: Rafael Aquini <aquini@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, Rusty Russell <rusty@rustcorp.com.au>, "Michael S. Tsirkin" <mst@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Rafael Aquini <aquini@linux.com>
 
-On Wed, Aug 01, 2012 at 09:06:50PM +0200, Sasha Levin wrote:
-> Using a struct makes the dynamic case much easier, but it complicates the static case.
-> 
-> Previously we could create the buckets statically.
-> 
-> Consider this struct:
-> 
-> struct hash_table {
-> 	u32 bits;
-> 	struct hlist_head buckets[];
-> };
-> 
-> We can't make any code that wraps this to make it work properly
-> statically allocated nice enough to be acceptable.
+On 07/22/2012 10:33 PM, Minchan Kim wrote:
 
-I don't know.  Maybe you can create an anonymous outer struct / union
-and play symbol trick to alias hash_table to its member.  If it is
-gimped either way, I'm not sure whether it's really worthwhile to
-create the abstraction.  It's not like we're saving a lot of
-complexity.
+> IMHO, better approach is that after we can get complete free pageblocks
+> by compaction or reclaim, move balloon pages into that pageblocks and make
+> that blocks to unmovable. It can prevent fragmentation and it makes
+> current or future code don't need to consider balloon page.
 
-Thanks.
+I believe this is the wrong thing to do.
 
--- 
-tejun
+In a KVM guest, getting applications in transparent
+huge pages can be a 10-25% performance benefit.
+
+Therefore, we need to make all the 2MB pageblocks
+we can available for use by userland.
+
+Using 2MB blocks for the balloon (which is never
+touched) is extremely wasteful and could result in
+a large performance penalty, if we cannot defragment
+the remaining memory enough to give 2MB pages to
+applications.
+
+The 2MB blocks are prime real estate. They should
+remain available for applications.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
