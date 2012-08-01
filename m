@@ -1,37 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
-	by kanga.kvack.org (Postfix) with SMTP id 0817D6B004D
-	for <linux-mm@kvack.org>; Wed,  1 Aug 2012 16:55:32 -0400 (EDT)
-Message-ID: <5019975B.6010708@redhat.com>
-Date: Wed, 01 Aug 2012 16:53:47 -0400
-From: Rik van Riel <riel@redhat.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH v4 1/3] mm: introduce compaction and migration for virtio
- ballooned pages
-References: <cover.1342485774.git.aquini@redhat.com> <49f828a9331c9b729fcf77226006921ec5bc52fa.1342485774.git.aquini@redhat.com> <20120718054824.GA32341@bbox> <20120720194858.GA16249@t510.redhat.com> <20120723023332.GA6832@bbox> <20120723181952.GA27373@t510.redhat.com>
-In-Reply-To: <20120723181952.GA27373@t510.redhat.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx151.postini.com [74.125.245.151])
+	by kanga.kvack.org (Postfix) with SMTP id 711996B004D
+	for <linux-mm@kvack.org>; Wed,  1 Aug 2012 17:11:57 -0400 (EDT)
+Message-Id: <20120801211130.025389154@linux.com>
+Date: Wed, 01 Aug 2012 16:11:30 -0500
+From: Christoph Lameter <cl@linux.com>
+Subject: Common [00/16] Sl[auo]b: Common code rework V8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rafael Aquini <aquini@redhat.com>
-Cc: Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, Rusty Russell <rusty@rustcorp.com.au>, "Michael S. Tsirkin" <mst@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Rafael Aquini <aquini@linux.com>
+To: Pekka Enberg <penberg@kernel.org>
+Cc: linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Glauber Costa <glommer@parallels.com>, Joonsoo Kim <js1304@gmail.com>
 
-On 07/23/2012 02:19 PM, Rafael Aquini wrote:
 
-> In a glance, I believe this whole dance you're suggesting might just be too much
-> of an overcomplication, and the best approach would be simply teaching the
-> hotplug bits about the ballooned corner case just like it's being done to
-> compaction/migration. However, I'll look at it carefully before making any other
-> adjustments/propositions over here.
+V7->V8:
+- Do not use kfree for kmem_cache in slub.
+- Add more patches up to a common
+  scheme for object alignment.
 
-Compaction and hotplug do essentially the same thing
-here: "collect all the movable pages from a page block,
-and move them elsewhere".
+V6->V7:
+- Omit pieces that were merged for 3.6
+- Fix issues pointed out by Glauber.
+- Include the patches up to the point at which
+  the slab name handling is unified
 
-Whether or not it is easier for them to share code, or
-to duplicate a few lines of code, is something that can
-be looked into later.
+V5->V6:
+- Patches against Pekka's for-next tree.
+- Go slow and cut down to just patches that are safe
+  (there will likely be some churn already due to the
+  mutex unification between slabs)
+- More to come next week when I have more time (
+  took me almost the whole week to catch up after
+  being gone for awhile).
+
+V4->V5
+- Rediff against current upstream + Pekka's cleanup branch.
+
+V3->V4:
+- Do not use the COMMON macro anymore.
+- Fixup various issues
+- No general sysfs support yet due to lockdep issues with
+  keys in kmalloc'ed memory.
+
+V2->V3:
+- Incorporate more feedback from Joonsoo Kim and Glauber Costa
+- And a couple more patches to deal with slab duping and move
+  more code to slab_common.c
+
+V1->V2:
+- Incorporate glommers feedback.
+- Add 2 more patches dealing with common code in kmem_cache_destroy
+
+This is a series of patches that extracts common functionality from
+slab allocators into a common code base. The intend is to standardize
+as much as possible of the allocator behavior while keeping the
+distinctive features of each allocator which are mostly due to their
+storage format and serialization approaches.
+
+This patchset makes a beginning by extracting common functionality in
+kmem_cache_create() and kmem_cache_destroy(). However, there are
+numerous other areas where such work could be beneficial:
+
+1. Extract the sysfs support from SLUB and make it common. That way
+   all allocators have a common sysfs API and are handleable in the same
+   way regardless of the allocator chose.
+
+2. Extract the error reporting and checking from SLUB and make
+   it available for all allocators. This means that all allocators
+   will gain the resiliency and error handling capabilties.
+
+3. Extract the memory hotplug and cpu hotplug handling. It seems that
+   SLAB may be more sophisticated here. Having common code here will
+   make it easier to maintain the special code.
+
+4. Extract the aliasing capability of SLUB. This will enable fast
+   slab creation without creating too many additional slab caches.
+   The arrays of caches of varying sizes in numerous subsystems
+   do not cause the creation of numerous slab caches. Storage
+   density is increased and the cache footprint is reduced.
+
+Ultimately it is to be hoped that the special code for each allocator
+shrinks to a mininum. This will also make it easier to make modification
+to allocators.
+
+In the far future one could envision that the current allocators will
+just become storage algorithms that can be chosen based on the need of
+the subsystem. F.e.
+
+Cpu cache dependend performance		= Bonwick allocator (SLAB)
+Minimal cycle count and cache footprint	= SLUB
+Maximum storage density			= K&R allocator (SLOB)
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
