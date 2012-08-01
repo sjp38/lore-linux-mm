@@ -1,168 +1,504 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
-	by kanga.kvack.org (Postfix) with SMTP id 66EF86B004D
-	for <linux-mm@kvack.org>; Wed,  1 Aug 2012 01:15:34 -0400 (EDT)
-Received: by obhx4 with SMTP id x4so14534394obh.14
-        for <linux-mm@kvack.org>; Tue, 31 Jul 2012 22:15:33 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
+	by kanga.kvack.org (Postfix) with SMTP id BBE416B004D
+	for <linux-mm@kvack.org>; Wed,  1 Aug 2012 02:01:34 -0400 (EDT)
+Message-ID: <5018C76D.8000205@cn.fujitsu.com>
+Date: Wed, 01 Aug 2012 14:06:37 +0800
+From: Wen Congyang <wency@cn.fujitsu.com>
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.00.1207301425410.28838@router.home>
-References: <1343411703-2720-1-git-send-email-js1304@gmail.com>
- <1343411703-2720-4-git-send-email-js1304@gmail.com> <alpine.DEB.2.00.1207271550190.25434@router.home>
- <CAAmzW4MdiJOaZW_b+fz1uYyj0asTCveN=24st4xKymKEvkzdgQ@mail.gmail.com> <alpine.DEB.2.00.1207301425410.28838@router.home>
-From: Michael Kerrisk <mtk.manpages@gmail.com>
-Date: Wed, 1 Aug 2012 07:15:13 +0200
-Message-ID: <CAHO5Pa0wwSi3VH1ytLZsEJs99i_=5qN5ax=8y=uz1jbG+P03sw@mail.gmail.com>
-Subject: Re: [RESEND PATCH 4/4 v3] mm: fix possible incorrect return value of
- move_pages() syscall
-Content-Type: multipart/mixed; boundary=e89a8f503194656fdb04c62d6269
+Subject: Re: [RFC PATCH v5 12/19] memory-hotplug: introduce new function arch_remove_memory()
+References: <50126B83.3050201@cn.fujitsu.com>	<50126E2F.8010301@cn.fujitsu.com> <CAN6t85SiG62QXdSpSmGQFeG4f3JnOicDx9H3jSvwg0t2Ly-q+w@mail.gmail.com>
+In-Reply-To: <CAN6t85SiG62QXdSpSmGQFeG4f3JnOicDx9H3jSvwg0t2Ly-q+w@mail.gmail.com>
+Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: JoonSoo Kim <js1304@gmail.com>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Brice Goglin <brice@myri.com>, Minchan Kim <minchan@kernel.org>
+To: jencce zhou <jencce2002@gmail.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-ia64@vger.kernel.org, cmetcalf@tilera.com, rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, Yasuaki ISIMATU <isimatu.yasuaki@jp.fujitsu.com>
 
---e89a8f503194656fdb04c62d6269
-Content-Type: text/plain; charset=ISO-8859-1
-
-On Mon, Jul 30, 2012 at 9:29 PM, Christoph Lameter <cl@linux.com> wrote:
-> On Sat, 28 Jul 2012, JoonSoo Kim wrote:
->
->> 2012/7/28 Christoph Lameter <cl@linux.com>:
->> > On Sat, 28 Jul 2012, Joonsoo Kim wrote:
->> >
->> >> move_pages() syscall may return success in case that
->> >> do_move_page_to_node_array return positive value which means migration failed.
->> >
->> > Nope. It only means that the migration for some pages has failed. This may
->> > still be considered successful for the app if it moves 10000 pages and one
->> > failed.
->> >
->> > This patch would break the move_pages() syscall because an error code
->> > return from do_move_pages_to_node_array() will cause the status byte for
->> > each page move to not be updated anymore. Application will not be able to
->> > tell anymore which pages were successfully moved and which are not.
+At 08/01/2012 10:44 AM, jencce zhou Wrote:
+> 2012/7/27 Wen Congyang <wency@cn.fujitsu.com>:
+>> We don't call __add_pages() directly in the function add_memory()
+>> because some other architecture related things need to be done
+>> before or after calling __add_pages(). So we should introduce
+>> a new function arch_remove_memory() to revert the things
+>> done in arch_add_memory().
 >>
->> In case of returning non-zero, valid status is not required according
->> to man page.
->
-> Cannot find a statement like that in the man page. The return code
-> description is incorrect. It should that that is returns the number of
-> pages not moved otherwise an error code (Michael please fix the manpage).
+>> Note: the function for s390 is not implemented(I don't know how to
+>> implement it for s390).
+>>
+>> CC: David Rientjes <rientjes@google.com>
+>> CC: Jiang Liu <liuj97@gmail.com>
+>> CC: Len Brown <len.brown@intel.com>
+>> CC: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+>> CC: Paul Mackerras <paulus@samba.org>
+>> CC: Christoph Lameter <cl@linux.com>
+>> Cc: Minchan Kim <minchan.kim@gmail.com>
+>> CC: Andrew Morton <akpm@linux-foundation.org>
+>> CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+>> CC: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+>> Signed-off-by: Wen Congyang <wency@cn.fujitsu.com>
+>> ---
+>>  arch/ia64/mm/init.c                  |   16 ++++
+>>  arch/powerpc/mm/mem.c                |   14 +++
+>>  arch/s390/mm/init.c                  |    8 ++
+>>  arch/sh/mm/init.c                    |   15 +++
+>>  arch/tile/mm/init.c                  |    8 ++
+>>  arch/x86/include/asm/pgtable_types.h |    1 +
+>>  arch/x86/mm/init_32.c                |   10 ++
+>>  arch/x86/mm/init_64.c                |  160 ++++++++++++++++++++++++++++++++++
+>>  arch/x86/mm/pageattr.c               |   47 +++++-----
+>>  include/linux/memory_hotplug.h       |    1 +
+>>  mm/memory_hotplug.c                  |    1 +
+>>  11 files changed, 259 insertions(+), 22 deletions(-)
+>>
+>> diff --git a/arch/ia64/mm/init.c b/arch/ia64/mm/init.c
+>> index 0eab454..1e345ed 100644
+>> --- a/arch/ia64/mm/init.c
+>> +++ b/arch/ia64/mm/init.c
+>> @@ -688,6 +688,22 @@ int arch_add_memory(int nid, u64 start, u64 size)
+>>
+>>         return ret;
+>>  }
+>> +
+>> +#ifdef CONFIG_MEMORY_HOTREMOVE
+>> +int arch_remove_memory(u64 start, u64 size)
+>> +{
+>> +       unsigned long start_pfn = start >> PAGE_SHIFT;
+>> +       unsigned long nr_pages = size >> PAGE_SHIFT;
+>> +       int ret;
+>> +
+>> +       ret = __remove_pages(start_pfn, nr_pages);
+>> +       if (ret)
+>> +               pr_warn("%s: Problem encountered in __remove_pages() as"
+>> +                       " ret=%d\n", __func__,  ret);
+>> +
+>> +       return ret;
+>> +}
+>> +#endif
+>>  #endif
+>>
+> 
+> in 3.5 ia64 implementation did not call __remove_pages at all. so why?
 
-Hi Christoph,
+This function only reverts the things done in arch_add_memory(), and it will
+be called when a memory device is removed.
 
-Is the patch below acceptable? (I've attached the complete page as well.)
+When adding a memory device, __add_pages() is called in arch_add_memory(),
+so call __remove_pages() in arch_remove_memory().
 
-See you in San Diego (?),
+Thanks
+Wen Congyang
 
-Michael
-
---- a/man2/migrate_pages.2
-+++ b/man2/migrate_pages.2
-@@ -29,7 +29,7 @@ migrate_pages \- move all pages in a process to
-another set of nodes
- Link with \fI\-lnuma\fP.
- .SH DESCRIPTION
- .BR migrate_pages ()
--moves all pages of the process
-+attempts to move all pages of the process
- .I pid
- that are in memory nodes
- .I old_nodes
-@@ -87,7 +87,8 @@ privilege.
- .SH "RETURN VALUE"
- On success
- .BR migrate_pages ()
--returns zero.
-+returns the number of pages that cold not be moved
-+(i.e., a return of zero means that all pages were successfully moved).
- On error, it returns \-1, and sets
- .I errno
- to indicate the error.
-
--- 
-Michael Kerrisk Linux man-pages maintainer;
-http://www.kernel.org/doc/man-pages/
-Author of "The Linux Programming Interface", http://blog.man7.org/
-
---e89a8f503194656fdb04c62d6269
-Content-Type: application/octet-stream; name="migrate_pages.2"
-Content-Disposition: attachment; filename="migrate_pages.2"
-Content-Transfer-Encoding: base64
-X-Attachment-Id: f_h5byno0n0
-
-LlwiIEhleSBFbWFjcyEgVGhpcyBmaWxlIGlzIC0qLSBucm9mZiAtKi0gc291cmNlLgouXCIKLlwi
-IENvcHlyaWdodCAyMDA5IEludGVsIENvcnBvcmF0aW9uCi5cIiAgICAgICAgICAgICAgICBBdXRo
-b3I6IEFuZGkgS2xlZW4KLlwiIEJhc2VkIG9uIHRoZSBtb3ZlX3BhZ2VzIG1hbnBhZ2Ugd2hpY2gg
-d2FzCi5cIiBUaGlzIG1hbnBhZ2UgaXMgQ29weXJpZ2h0IChDKSAyMDA2IFNpbGljb24gR3JhcGhp
-Y3MsIEluYy4KLlwiICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIENocmlzdG9waCBMYW1l
-dGVyCi5cIgouXCIgUGVybWlzc2lvbiBpcyBncmFudGVkIHRvIG1ha2UgYW5kIGRpc3RyaWJ1dGUg
-dmVyYmF0aW0gY29waWVzIG9mIHRoaXMKLlwiIG1hbnVhbCBwcm92aWRlZCB0aGUgY29weXJpZ2h0
-IG5vdGljZSBhbmQgdGhpcyBwZXJtaXNzaW9uIG5vdGljZSBhcmUKLlwiIHByZXNlcnZlZCBvbiBh
-bGwgY29waWVzLgouXCIKLlwiIFBlcm1pc3Npb24gaXMgZ3JhbnRlZCB0byBjb3B5IGFuZCBkaXN0
-cmlidXRlIG1vZGlmaWVkIHZlcnNpb25zIG9mIHRoaXMKLlwiIG1hbnVhbCB1bmRlciB0aGUgY29u
-ZGl0aW9ucyBmb3IgdmVyYmF0aW0gY29weWluZywgcHJvdmlkZWQgdGhhdCB0aGUKLlwiIGVudGly
-ZSByZXN1bHRpbmcgZGVyaXZlZCB3b3JrIGlzIGRpc3RyaWJ1dGVkIHVuZGVyIHRoZSB0ZXJtcyBv
-ZiBhCi5cIiBwZXJtaXNzaW9uIG5vdGljZSBpZGVudGljYWwgdG8gdGhpcyBvbmUuCi5USCBNSUdS
-QVRFX1BBR0VTIDIgMjAxMi0wOC0wMSAiTGludXgiICJMaW51eCBQcm9ncmFtbWVyJ3MgTWFudWFs
-IgouU0ggTkFNRQptaWdyYXRlX3BhZ2VzIFwtIG1vdmUgYWxsIHBhZ2VzIGluIGEgcHJvY2VzcyB0
-byBhbm90aGVyIHNldCBvZiBub2RlcwouU0ggU1lOT1BTSVMKLm5mCi5CICNpbmNsdWRlIDxudW1h
-aWYuaD4KLnNwCi5CSSAibG9uZyBtaWdyYXRlX3BhZ2VzKGludCAiIHBpZCAiLCB1bnNpZ25lZCBs
-b25nICIgbWF4bm9kZSwKLkJJICIgICAgICAgICAgICAgICAgICAgY29uc3QgdW5zaWduZWQgbG9u
-ZyAqIiBvbGRfbm9kZXMsCi5CSSAiICAgICAgICAgICAgICAgICAgIGNvbnN0IHVuc2lnbmVkIGxv
-bmcgKiIgbmV3X25vZGVzKTsKLmZpCi5zcApMaW5rIHdpdGggXGZJXC1sbnVtYVxmUC4KLlNIIERF
-U0NSSVBUSU9OCi5CUiBtaWdyYXRlX3BhZ2VzICgpCmF0dGVtcHRzIHRvIG1vdmUgYWxsIHBhZ2Vz
-IG9mIHRoZSBwcm9jZXNzCi5JIHBpZAp0aGF0IGFyZSBpbiBtZW1vcnkgbm9kZXMKLkkgb2xkX25v
-ZGVzCnRvIHRoZSBtZW1vcnkgbm9kZXMgaW4KLklSIG5ld19ub2RlcyAuClBhZ2VzIG5vdCBsb2Nh
-dGVkIGluIGFueSBub2RlIGluCi5JIG9sZF9ub2Rlcwp3aWxsIG5vdCBiZSBtaWdyYXRlZC4KQXMg
-ZmFyIGFzIHBvc3NpYmxlLAp0aGUga2VybmVsIG1haW50YWlucyB0aGUgcmVsYXRpdmUgdG9wb2xv
-Z3kgcmVsYXRpb25zaGlwIGluc2lkZQouSSBvbGRfbm9kZXMKZHVyaW5nIHRoZSBtaWdyYXRpb24g
-dG8KLklSIG5ld19ub2RlcyAuCgpUaGUKLkkgb2xkX25vZGVzCmFuZAouSSBuZXdfbm9kZXMKYXJn
-dW1lbnRzIGFyZSBwb2ludGVycyB0byBiaXQgbWFza3Mgb2Ygbm9kZSBudW1iZXJzLCB3aXRoIHVw
-IHRvCi5JIG1heG5vZGUKYml0cyBpbiBlYWNoIG1hc2suClRoZXNlIG1hc2tzIGFyZSBtYWludGFp
-bmVkIGFzIGFycmF5cyBvZiB1bnNpZ25lZAouSSBsb25nCmludGVnZXJzIChpbiB0aGUgbGFzdAou
-SSBsb25nCmludGVnZXIsIHRoZSBiaXRzIGJleW9uZCB0aG9zZSBzcGVjaWZpZWQgYnkKLkkgbWF4
-bm9kZQphcmUgaWdub3JlZCkuClRoZQouSSBtYXhub2RlCmFyZ3VtZW50IGlzIHRoZSBtYXhpbXVt
-IG5vZGUgbnVtYmVyIGluIHRoZSBiaXQgbWFzayBwbHVzIG9uZSAodGhpcyBpcyB0aGUgc2FtZQph
-cyBpbgouQlIgbWJpbmQgKDIpLApidXQgZGlmZmVyZW50IGZyb20KLkJSIHNlbGVjdCAoMikpLgoK
-VGhlCi5JIHBpZAphcmd1bWVudCBpcyB0aGUgSUQgb2YgdGhlIHByb2Nlc3Mgd2hvc2UgcGFnZXMg
-YXJlIHRvIGJlIG1vdmVkLgpUbyBtb3ZlIHBhZ2VzIGluIGFub3RoZXIgcHJvY2VzcywKdGhlIGNh
-bGxlciBtdXN0IGJlIHByaXZpbGVnZWQKLlJCICggQ0FQX1NZU19OSUNFICkKb3IgdGhlIHJlYWwg
-b3IgZWZmZWN0aXZlIHVzZXIgSUQgb2YgdGhlIGNhbGxpbmcgcHJvY2VzcyBtdXN0IG1hdGNoIHRo
-ZQpyZWFsIG9yIHNhdmVkLXNldCB1c2VyIElEIG9mIHRoZSB0YXJnZXQgcHJvY2Vzcy4KSWYKLkkg
-cGlkCmlzIDAsIHRoZW4KLkJSIG1pZ3JhdGVfcGFnZXMgKCkKbW92ZXMgcGFnZXMgb2YgdGhlIGNh
-bGxpbmcgcHJvY2Vzcy4KClBhZ2VzIHNoYXJlZCB3aXRoIGFub3RoZXIgcHJvY2VzcyB3aWxsIG9u
-bHkgYmUgbW92ZWQgaWYgdGhlIGluaXRpYXRpbmcKcHJvY2VzcyBoYXMgdGhlCi5CIENBUF9TWVNf
-TklDRQpwcml2aWxlZ2UuCi5TSCAiUkVUVVJOIFZBTFVFIgpPbiBzdWNjZXNzCi5CUiBtaWdyYXRl
-X3BhZ2VzICgpCnJldHVybnMgdGhlIG51bWJlciBvZiBwYWdlcyB0aGF0IGNvbGQgbm90IGJlIG1v
-dmVkCihpLmUuLCBhIHJldHVybiBvZiB6ZXJvIG1lYW5zIHRoYXQgYWxsIHBhZ2VzIHdlcmUgc3Vj
-Y2Vzc2Z1bGx5IG1vdmVkKS4KT24gZXJyb3IsIGl0IHJldHVybnMgXC0xLCBhbmQgc2V0cwouSSBl
-cnJubwp0byBpbmRpY2F0ZSB0aGUgZXJyb3IuCi5TSCBFUlJPUlMKLlRQCi5CIEVQRVJNCkluc3Vm
-ZmljaWVudCBwcml2aWxlZ2UKLlJCICggQ0FQX1NZU19OSUNFICkKdG8gbW92ZSBwYWdlcyBvZiB0
-aGUgcHJvY2VzcyBzcGVjaWZpZWQgYnkKLklSIHBpZCAsCm9yIGluc3VmZmljaWVudCBwcml2aWxl
-Z2UKLlJCICggQ0FQX1NZU19OSUNFICkKdG8gYWNjZXNzIHRoZSBzcGVjaWZpZWQgdGFyZ2V0IG5v
-ZGVzLgouVFAKLkIgRVNSQ0gKTm8gcHJvY2VzcyBtYXRjaGluZwouSSBwaWQKY291bGQgYmUgZm91
-bmQuCi5cIiBGSVhNRSBUaGVyZSBhcmUgb3RoZXIgZXJyb3JzCi5TSCBWRVJTSU9OUwpUaGUKLkJS
-IG1pZ3JhdGVfcGFnZXMgKCkKc3lzdGVtIGNhbGwgZmlyc3QgYXBwZWFyZWQgb24gTGludXggaW4g
-dmVyc2lvbiAyLjYuMTYuCi5TSCBDT05GT1JNSU5HIFRPClRoaXMgc3lzdGVtIGNhbGwgaXMgTGlu
-dXgtc3BlY2lmaWMuCi5TSCAiTk9URVMiCkZvciBpbmZvcm1hdGlvbiBvbiBsaWJyYXJ5IHN1cHBv
-cnQsIHNlZQouQlIgbnVtYSAoNykuCgpVc2UKLkJSIGdldF9tZW1wb2xpY3kgKDIpCndpdGggdGhl
-Ci5CIE1QT0xfRl9NRU1TX0FMTE9XRUQKZmxhZyB0byBvYnRhaW4gdGhlIHNldCBvZiBub2RlcyB0
-aGF0IGFyZSBhbGxvd2VkIGJ5CnRoZSBjYWxsaW5nIHByb2Nlc3MncyBjcHVzZXQuCk5vdGUgdGhh
-dCB0aGlzIGluZm9ybWF0aW9uIGlzIHN1YmplY3QgdG8gY2hhbmdlIGF0IGFueQp0aW1lIGJ5IG1h
-bnVhbCBvciBhdXRvbWF0aWMgcmVjb25maWd1cmF0aW9uIG9mIHRoZSBjcHVzZXQuCgpVc2Ugb2YK
-LkJSIG1pZ3JhdGVfcGFnZXMgKCkKbWF5IHJlc3VsdCBpbiBwYWdlcyB3aG9zZSBsb2NhdGlvbgoo
-bm9kZSkgdmlvbGF0ZXMgdGhlIG1lbW9yeSBwb2xpY3kgZXN0YWJsaXNoZWQgZm9yIHRoZQpzcGVj
-aWZpZWQgYWRkcmVzc2VzIChzZWUKLkJSIG1iaW5kICgyKSkKYW5kL29yIHRoZSBzcGVjaWZpZWQg
-cHJvY2VzcyAoc2VlCi5CUiBzZXRfbWVtcG9saWN5ICgyKSkuClRoYXQgaXMsIG1lbW9yeSBwb2xp
-Y3kgZG9lcyBub3QgY29uc3RyYWluIHRoZSBkZXN0aW5hdGlvbgpub2RlcyB1c2VkIGJ5Ci5CUiBt
-aWdyYXRlX3BhZ2VzICgpLgoKVGhlCi5JIDxudW1haWYuaD4KaGVhZGVyIGlzIG5vdCBpbmNsdWRl
-ZCB3aXRoIGdsaWJjLCBidXQgcmVxdWlyZXMgaW5zdGFsbGluZwouSSBsaWJudW1hLWRldmVsCm9y
-IGEgc2ltaWxhciBwYWNrYWdlLgouU0ggIlNFRSBBTFNPIgouQlIgZ2V0X21lbXBvbGljeSAoMiks
-Ci5CUiBtYmluZCAoMiksCi5CUiBzZXRfbWVtcG9saWN5ICgyKSwKLkJSIG51bWEgKDMpLAouQlIg
-bnVtYV9tYXBzICg1KSwKLkJSIGNwdXNldCAoNyksCi5CUiBudW1hICg3KSwKLkJSIG1pZ3JhdGVw
-YWdlcyAoOCksCi5CUiBudW1hX3N0YXQgKDgpOwouYnIKdGhlIGtlcm5lbCBzb3VyY2UgZmlsZQou
-SVIgRG9jdW1lbnRhdGlvbi92bS9wYWdlX21pZ3JhdGlvbiAuCg==
---e89a8f503194656fdb04c62d6269--
+> 
+> 
+>>  /*
+>> diff --git a/arch/powerpc/mm/mem.c b/arch/powerpc/mm/mem.c
+>> index baaafde..249cef4 100644
+>> --- a/arch/powerpc/mm/mem.c
+>> +++ b/arch/powerpc/mm/mem.c
+>> @@ -133,6 +133,20 @@ int arch_add_memory(int nid, u64 start, u64 size)
+>>
+>>         return __add_pages(nid, zone, start_pfn, nr_pages);
+>>  }
+>> +
+>> +#ifdef CONFIG_MEMORY_HOTREMOVE
+>> +int arch_remove_memory(u64 start, u64 size)
+>> +{
+>> +       unsigned long start_pfn = start >> PAGE_SHIFT;
+>> +       unsigned long nr_pages = size >> PAGE_SHIFT;
+>> +
+>> +       start = (unsigned long)__va(start);
+>> +       if (remove_section_mapping(start, start + size))
+>> +               return -EINVAL;
+>> +
+>> +       return __remove_pages(start_pfn, nr_pages);
+>> +}
+>> +#endif
+>>  #endif /* CONFIG_MEMORY_HOTPLUG */
+>>
+>>  /*
+>> diff --git a/arch/s390/mm/init.c b/arch/s390/mm/init.c
+>> index 6adbc08..ca4bc46 100644
+>> --- a/arch/s390/mm/init.c
+>> +++ b/arch/s390/mm/init.c
+>> @@ -257,4 +257,12 @@ int arch_add_memory(int nid, u64 start, u64 size)
+>>                 vmem_remove_mapping(start, size);
+>>         return rc;
+>>  }
+>> +
+>> +#ifdef CONFIG_MEMORY_HOTREMOVE
+>> +int arch_remove_memory(u64 start, u64 size)
+>> +{
+>> +       /* TODO */
+>> +       return -EBUSY;
+>> +}
+>> +#endif
+>>  #endif /* CONFIG_MEMORY_HOTPLUG */
+>> diff --git a/arch/sh/mm/init.c b/arch/sh/mm/init.c
+>> index 82cc576..fc84491 100644
+>> --- a/arch/sh/mm/init.c
+>> +++ b/arch/sh/mm/init.c
+>> @@ -558,4 +558,19 @@ int memory_add_physaddr_to_nid(u64 addr)
+>>  EXPORT_SYMBOL_GPL(memory_add_physaddr_to_nid);
+>>  #endif
+>>
+>> +#ifdef CONFIG_MEMORY_HOTREMOVE
+>> +int arch_remove_memory(u64 start, u64 size)
+>> +{
+>> +       unsigned long start_pfn = start >> PAGE_SHIFT;
+>> +       unsigned long nr_pages = size >> PAGE_SHIFT;
+>> +       int ret;
+>> +
+>> +       ret = __remove_pages(start_pfn, nr_pages);
+>> +       if (unlikely(ret))
+>> +               pr_warn("%s: Failed, __remove_pages() == %d\n", __func__,
+>> +                       ret);
+>> +
+>> +       return ret;
+>> +}
+>> +#endif
+>>  #endif /* CONFIG_MEMORY_HOTPLUG */
+>> diff --git a/arch/tile/mm/init.c b/arch/tile/mm/init.c
+>> index ef29d6c..2749515 100644
+>> --- a/arch/tile/mm/init.c
+>> +++ b/arch/tile/mm/init.c
+>> @@ -935,6 +935,14 @@ int remove_memory(u64 start, u64 size)
+>>  {
+>>         return -EINVAL;
+>>  }
+>> +
+>> +#ifdef CONFIG_MEMORY_HOTREMOVE
+>> +int arch_remove_memory(u64 start, u64 size)
+>> +{
+>> +       /* TODO */
+>> +       return -EBUSY;
+>> +}
+>> +#endif
+>>  #endif
+>>
+>>  struct kmem_cache *pgd_cache;
+>> diff --git a/arch/x86/include/asm/pgtable_types.h b/arch/x86/include/asm/pgtable_types.h
+>> index 013286a..b725af2 100644
+>> --- a/arch/x86/include/asm/pgtable_types.h
+>> +++ b/arch/x86/include/asm/pgtable_types.h
+>> @@ -334,6 +334,7 @@ static inline void update_page_count(int level, unsigned long pages) { }
+>>   * as a pte too.
+>>   */
+>>  extern pte_t *lookup_address(unsigned long address, unsigned int *level);
+>> +extern int __split_large_page(pte_t *kpte, unsigned long address, pte_t *pbase);
+>>
+>>  #endif /* !__ASSEMBLY__ */
+>>
+>> diff --git a/arch/x86/mm/init_32.c b/arch/x86/mm/init_32.c
+>> index 575d86f..a690153 100644
+>> --- a/arch/x86/mm/init_32.c
+>> +++ b/arch/x86/mm/init_32.c
+>> @@ -842,6 +842,16 @@ int arch_add_memory(int nid, u64 start, u64 size)
+>>
+>>         return __add_pages(nid, zone, start_pfn, nr_pages);
+>>  }
+>> +
+>> +#ifdef CONFIG_MEMORY_HOTREMOVE
+>> +int arch_remove_memory(unsigned long start, unsigned long size)
+>> +{
+>> +       unsigned long start_pfn = start >> PAGE_SHIFT;
+>> +       unsigned long nr_pages = size >> PAGE_SHIFT;
+>> +
+>> +       return __remove_pages(start_pfn, nr_pages);
+>> +}
+>> +#endif
+>>  #endif
+>>
+>>  /*
+>> diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
+>> index 2b6b4a3..f1554a9 100644
+>> --- a/arch/x86/mm/init_64.c
+>> +++ b/arch/x86/mm/init_64.c
+>> @@ -675,6 +675,166 @@ int arch_add_memory(int nid, u64 start, u64 size)
+>>  }
+>>  EXPORT_SYMBOL_GPL(arch_add_memory);
+>>
+>> +static void __meminit
+>> +phys_pte_remove(pte_t *pte_page, unsigned long addr, unsigned long end)
+>> +{
+>> +       unsigned pages = 0;
+>> +       int i = pte_index(addr);
+>> +
+>> +       pte_t *pte = pte_page + pte_index(addr);
+>> +
+>> +       for (; i < PTRS_PER_PTE; i++, addr += PAGE_SIZE, pte++) {
+>> +
+>> +               if (addr >= end)
+>> +                       break;
+>> +
+>> +               if (!pte_present(*pte))
+>> +                       continue;
+>> +
+>> +               pages++;
+>> +               set_pte(pte, __pte(0));
+>> +       }
+>> +
+>> +       update_page_count(PG_LEVEL_4K, -pages);
+>> +}
+>> +
+>> +static void __meminit
+>> +phys_pmd_remove(pmd_t *pmd_page, unsigned long addr, unsigned long end)
+>> +{
+>> +       unsigned long pages = 0, next;
+>> +       int i = pmd_index(addr);
+>> +
+>> +       for (; i < PTRS_PER_PMD; i++, addr = next) {
+>> +               unsigned long pte_phys;
+>> +               pmd_t *pmd = pmd_page + pmd_index(addr);
+>> +               pte_t *pte;
+>> +
+>> +               if (addr >= end)
+>> +                       break;
+>> +
+>> +               next = (addr & PMD_MASK) + PMD_SIZE;
+>> +
+>> +               if (!pmd_present(*pmd))
+>> +                       continue;
+>> +
+>> +               if (pmd_large(*pmd)) {
+>> +                       if ((addr & ~PMD_MASK) == 0 && next <= end) {
+>> +                               set_pmd(pmd, __pmd(0));
+>> +                               pages++;
+>> +                               continue;
+>> +                       }
+>> +
+>> +                       /*
+>> +                        * We use 2M page, but we need to remove part of them,
+>> +                        * so split 2M page to 4K page.
+>> +                        */
+>> +                       pte = alloc_low_page(&pte_phys);
+>> +                       __split_large_page((pte_t *)pmd, addr, pte);
+>> +
+>> +                       spin_lock(&init_mm.page_table_lock);
+>> +                       pmd_populate_kernel(&init_mm, pmd, __va(pte_phys));
+>> +                       spin_unlock(&init_mm.page_table_lock);
+>> +               }
+>> +
+>> +               spin_lock(&init_mm.page_table_lock);
+>> +               pte = map_low_page((pte_t *)pmd_page_vaddr(*pmd));
+>> +               phys_pte_remove(pte, addr, end);
+>> +               unmap_low_page(pte);
+>> +               spin_unlock(&init_mm.page_table_lock);
+>> +       }
+>> +       update_page_count(PG_LEVEL_2M, -pages);
+>> +}
+>> +
+>> +static void __meminit
+>> +phys_pud_remove(pud_t *pud_page, unsigned long addr, unsigned long end)
+>> +{
+>> +       unsigned long pages = 0, next;
+>> +       int i = pud_index(addr);
+>> +
+>> +       for (; i < PTRS_PER_PUD; i++, addr = next) {
+>> +               unsigned long pmd_phys;
+>> +               pud_t *pud = pud_page + pud_index(addr);
+>> +               pmd_t *pmd;
+>> +
+>> +               if (addr >= end)
+>> +                       break;
+>> +
+>> +               next = (addr & PUD_MASK) + PUD_SIZE;
+>> +
+>> +               if (!pud_present(*pud))
+>> +                       continue;
+>> +
+>> +               if (pud_large(*pud)) {
+>> +                       if ((addr & ~PUD_MASK) == 0 && next <= end) {
+>> +                               set_pud(pud, __pud(0));
+>> +                               pages++;
+>> +                               continue;
+>> +                       }
+>> +
+>> +                       /*
+>> +                        * We use 1G page, but we need to remove part of them,
+>> +                        * so split 1G page to 2M page.
+>> +                        */
+>> +                       pmd = alloc_low_page(&pmd_phys);
+>> +                       __split_large_page((pte_t *)pud, addr, (pte_t *)pmd);
+>> +
+>> +                       spin_lock(&init_mm.page_table_lock);
+>> +                       pud_populate(&init_mm, pud, __va(pmd_phys));
+>> +                       spin_unlock(&init_mm.page_table_lock);
+>> +               }
+>> +
+>> +               pmd = map_low_page(pmd_offset(pud, 0));
+>> +               phys_pmd_remove(pmd, addr, end);
+>> +               unmap_low_page(pmd);
+>> +               __flush_tlb_all();
+>> +       }
+>> +       __flush_tlb_all();
+>> +
+>> +       update_page_count(PG_LEVEL_1G, -pages);
+>> +}
+>> +
+>> +void __meminit
+>> +kernel_physical_mapping_remove(unsigned long start, unsigned long end)
+>> +{
+>> +       unsigned long next;
+>> +
+>> +       start = (unsigned long)__va(start);
+>> +       end = (unsigned long)__va(end);
+>> +
+>> +       for (; start < end; start = next) {
+>> +               pgd_t *pgd = pgd_offset_k(start);
+>> +               pud_t *pud;
+>> +
+>> +               next = (start + PGDIR_SIZE) & PGDIR_MASK;
+>> +               if (next > end)
+>> +                       next = end;
+>> +
+>> +               if (!pgd_present(*pgd))
+>> +                       continue;
+>> +
+>> +               pud = map_low_page((pud_t *)pgd_page_vaddr(*pgd));
+>> +               phys_pud_remove(pud, __pa(start), __pa(end));
+>> +               unmap_low_page(pud);
+>> +       }
+>> +
+>> +       __flush_tlb_all();
+>> +}
+>> +
+>> +#ifdef CONFIG_MEMORY_HOTREMOVE
+>> +int __ref arch_remove_memory(unsigned long start, unsigned long size)
+>> +{
+>> +       unsigned long start_pfn = start >> PAGE_SHIFT;
+>> +       unsigned long nr_pages = size >> PAGE_SHIFT;
+>> +       int ret;
+>> +
+>> +       ret = __remove_pages(start_pfn, nr_pages);
+>> +       WARN_ON_ONCE(ret);
+>> +
+>> +       kernel_physical_mapping_remove(start, start + size);
+>> +
+>> +       return ret;
+>> +}
+>> +#endif
+>>  #endif /* CONFIG_MEMORY_HOTPLUG */
+>>
+>>  static struct kcore_list kcore_vsyscall;
+>> diff --git a/arch/x86/mm/pageattr.c b/arch/x86/mm/pageattr.c
+>> index 931930a..c22963d 100644
+>> --- a/arch/x86/mm/pageattr.c
+>> +++ b/arch/x86/mm/pageattr.c
+>> @@ -501,21 +501,13 @@ out_unlock:
+>>         return do_split;
+>>  }
+>>
+>> -static int split_large_page(pte_t *kpte, unsigned long address)
+>> +int __split_large_page(pte_t *kpte, unsigned long address, pte_t *pbase)
+>>  {
+>>         unsigned long pfn, pfninc = 1;
+>>         unsigned int i, level;
+>> -       pte_t *pbase, *tmp;
+>> +       pte_t *tmp;
+>>         pgprot_t ref_prot;
+>> -       struct page *base;
+>> -
+>> -       if (!debug_pagealloc)
+>> -               spin_unlock(&cpa_lock);
+>> -       base = alloc_pages(GFP_KERNEL | __GFP_NOTRACK, 0);
+>> -       if (!debug_pagealloc)
+>> -               spin_lock(&cpa_lock);
+>> -       if (!base)
+>> -               return -ENOMEM;
+>> +       struct page *base = virt_to_page(pbase);
+>>
+>>         spin_lock(&pgd_lock);
+>>         /*
+>> @@ -523,10 +515,11 @@ static int split_large_page(pte_t *kpte, unsigned long address)
+>>          * up for us already:
+>>          */
+>>         tmp = lookup_address(address, &level);
+>> -       if (tmp != kpte)
+>> -               goto out_unlock;
+>> +       if (tmp != kpte) {
+>> +               spin_unlock(&pgd_lock);
+>> +               return 1;
+>> +       }
+>>
+>> -       pbase = (pte_t *)page_address(base);
+>>         paravirt_alloc_pte(&init_mm, page_to_pfn(base));
+>>         ref_prot = pte_pgprot(pte_clrhuge(*kpte));
+>>         /*
+>> @@ -579,17 +572,27 @@ static int split_large_page(pte_t *kpte, unsigned long address)
+>>          * going on.
+>>          */
+>>         __flush_tlb_all();
+>> +       spin_unlock(&pgd_lock);
+>>
+>> -       base = NULL;
+>> +       return 0;
+>> +}
+>>
+>> -out_unlock:
+>> -       /*
+>> -        * If we dropped out via the lookup_address check under
+>> -        * pgd_lock then stick the page back into the pool:
+>> -        */
+>> -       if (base)
+>> +static int split_large_page(pte_t *kpte, unsigned long address)
+>> +{
+>> +       pte_t *pbase;
+>> +       struct page *base;
+>> +
+>> +       if (!debug_pagealloc)
+>> +               spin_unlock(&cpa_lock);
+>> +       base = alloc_pages(GFP_KERNEL | __GFP_NOTRACK, 0);
+>> +       if (!debug_pagealloc)
+>> +               spin_lock(&cpa_lock);
+>> +       if (!base)
+>> +               return -ENOMEM;
+>> +
+>> +       pbase = (pte_t *)page_address(base);
+>> +       if (__split_large_page(kpte, address, pbase))
+>>                 __free_page(base);
+>> -       spin_unlock(&pgd_lock);
+>>
+>>         return 0;
+>>  }
+>> diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
+>> index 8bf820d..0d500be 100644
+>> --- a/include/linux/memory_hotplug.h
+>> +++ b/include/linux/memory_hotplug.h
+>> @@ -85,6 +85,7 @@ extern void __online_page_free(struct page *page);
+>>
+>>  #ifdef CONFIG_MEMORY_HOTREMOVE
+>>  extern bool is_pageblock_removable_nolock(struct page *page);
+>> +extern int arch_remove_memory(unsigned long start, unsigned long size);
+>>  #endif /* CONFIG_MEMORY_HOTREMOVE */
+>>
+>>  /* reasonably generic interface to expand the physical pages in a zone  */
+>> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+>> index a9e1579..0c932e1 100644
+>> --- a/mm/memory_hotplug.c
+>> +++ b/mm/memory_hotplug.c
+>> @@ -1071,6 +1071,7 @@ int __ref remove_memory(int nid, u64 start, u64 size)
+> 
+> line 1071?  which version does this patch base on?  thanks a lot.
+> 
+> 
+>>         /* remove memmap entry */
+>>         firmware_map_remove(start, start + size, "System RAM");
+>>
+>> +       arch_remove_memory(start, size);
+>>  out:
+>>         unlock_memory_hotplug();
+>>         return ret;
+>> --
+>> 1.7.1
+>>
+>> --
+>> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+>> the body of a message to majordomo@vger.kernel.org
+>> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+>> Please read the FAQ at  http://www.tux.org/lkml/
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
