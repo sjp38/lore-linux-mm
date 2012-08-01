@@ -1,120 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
-	by kanga.kvack.org (Postfix) with SMTP id 37A556B0072
+Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
+	by kanga.kvack.org (Postfix) with SMTP id A04886B0074
 	for <linux-mm@kvack.org>; Wed,  1 Aug 2012 17:12:03 -0400 (EDT)
-Message-Id: <20120801211201.299570354@linux.com>
-Date: Wed, 01 Aug 2012 16:11:40 -0500
+Message-Id: <20120801211201.868580928@linux.com>
+Date: Wed, 01 Aug 2012 16:11:41 -0500
 From: Christoph Lameter <cl@linux.com>
-Subject: Common [10/16] Move sysfs_slab_add to common
+Subject: Common [11/16] slub: Use a statically allocated kmem_cache boot structure for bootstrap
 References: <20120801211130.025389154@linux.com>
-Content-Disposition: inline; filename=move_sysfs_slab_add
+Content-Disposition: inline; filename=slub_static_init
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Pekka Enberg <penberg@kernel.org>
 Cc: linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Glauber Costa <glommer@parallels.com>, Joonsoo Kim <js1304@gmail.com>
 
-Simplifies the locking by moveing the slab_add_sysfs after all locks
-have been dropped and eases the upcoming move to provide sysfs
-support for all allocators.
+Simplify bootstrap by statically allocated two kmem_cache structures. These are
+freed after bootup is complete. Allows us to no longer worry about calculations
+of sizes of kmem_cache structures during bootstrap.
 
 Signed-off-by: Christoph Lameter <cl@linux.com>
 
-Index: linux-2.6/mm/slab.h
-===================================================================
---- linux-2.6.orig/mm/slab.h	2012-08-01 14:50:14.000000000 -0500
-+++ linux-2.6/mm/slab.h	2012-08-01 14:50:27.310260888 -0500
-@@ -39,10 +39,13 @@
- #ifdef CONFIG_SLUB
- struct kmem_cache *__kmem_cache_alias(const char *name, size_t size,
- 	size_t align, unsigned long flags, void (*ctor)(void *));
-+extern int sysfs_slab_add(struct kmem_cache *s);
- #else
- static inline struct kmem_cache *__kmem_cache_alias(const char *name, size_t size,
- 	size_t align, unsigned long flags, void (*ctor)(void *))
- { return NULL; }
-+static inline int sysfs_slab_add(struct kmem_cache *s) { return 0; }
-+
- #endif
- 
- 
-Index: linux-2.6/mm/slab_common.c
-===================================================================
---- linux-2.6.orig/mm/slab_common.c	2012-08-01 14:50:14.000000000 -0500
-+++ linux-2.6/mm/slab_common.c	2012-08-01 14:53:49.693908703 -0500
-@@ -54,6 +54,7 @@
- {
- 	struct kmem_cache *s = NULL;
- 	char *n;
-+	int alias = 0;
- 
- #ifdef CONFIG_DEBUG_VM
- 	if (!name || in_interrupt() || size < sizeof(void *) ||
-@@ -99,8 +100,10 @@
- #endif
- 
- 	s = __kmem_cache_alias(name, size, align, flags, ctor);
--	if (s)
-+	if (s) {
-+		alias = 1;
- 		goto oops;
-+	}
- 
- 	n = kstrdup(name, GFP_KERNEL);
- 	if (!n)
-@@ -125,6 +128,9 @@
- 	if (!s && (flags & SLAB_PANIC))
- 		panic("kmem_cache_create: Failed to create slab '%s'\n", name);
- 
-+	if (!alias)
-+		sysfs_slab_add(s);
-+
- 	return s;
- }
- EXPORT_SYMBOL(kmem_cache_create);
+---
+ mm/slub.c |   32 +++++++++-----------------------
+ 1 file changed, 9 insertions(+), 23 deletions(-)
+
 Index: linux-2.6/mm/slub.c
 ===================================================================
---- linux-2.6.orig/mm/slub.c	2012-08-01 14:50:16.000000000 -0500
-+++ linux-2.6/mm/slub.c	2012-08-01 14:52:12.944165176 -0500
-@@ -202,12 +202,10 @@
- enum track_item { TRACK_ALLOC, TRACK_FREE };
- 
- #ifdef CONFIG_SYSFS
--static int sysfs_slab_add(struct kmem_cache *);
- static int sysfs_slab_alias(struct kmem_cache *, const char *);
- static void sysfs_slab_remove(struct kmem_cache *);
- 
- #else
--static inline int sysfs_slab_add(struct kmem_cache *s) { return 0; }
- static inline int sysfs_slab_alias(struct kmem_cache *s, const char *p)
- 							{ return 0; }
- static inline void sysfs_slab_remove(struct kmem_cache *s) { }
-@@ -3948,16 +3946,7 @@
- 	if (s) {
- 		if (kmem_cache_open(s, name,
- 				size, align, flags, ctor)) {
--			int r;
--
--			mutex_unlock(&slab_mutex);
--			r = sysfs_slab_add(s);
--			mutex_lock(&slab_mutex);
--
--			if (!r)
--				return s;
--
--			kmem_cache_close(s);
-+			return s;
- 		}
- 		kmem_cache_free(kmem_cache, s);
+--- linux-2.6.orig/mm/slub.c	2012-08-01 14:52:12.944165176 -0500
++++ linux-2.6/mm/slub.c	2012-08-01 14:57:05.201430270 -0500
+@@ -3686,13 +3686,13 @@
  	}
-@@ -5260,7 +5249,7 @@
- 	return name;
  }
  
--static int sysfs_slab_add(struct kmem_cache *s)
-+int sysfs_slab_add(struct kmem_cache *s)
++static __initdata struct kmem_cache boot_kmem_cache,
++			boot_kmem_cache_node;
++
+ void __init kmem_cache_init(void)
  {
- 	int err;
- 	const char *name;
+ 	int i;
+-	int caches = 0;
+-	struct kmem_cache *temp_kmem_cache;
+-	int order;
+-	struct kmem_cache *temp_kmem_cache_node;
++	int caches = 2;
+ 	unsigned long kmalloc_size;
+ 
+ 	if (debug_guardpage_minorder())
+@@ -3701,19 +3701,10 @@
+ 	kmem_size = offsetof(struct kmem_cache, node) +
+ 			nr_node_ids * sizeof(struct kmem_cache_node *);
+ 
+-	/* Allocate two kmem_caches from the page allocator */
+ 	kmalloc_size = ALIGN(kmem_size, cache_line_size());
+-	order = get_order(2 * kmalloc_size);
+-	kmem_cache = (void *)__get_free_pages(GFP_NOWAIT, order);
+-
+-	/*
+-	 * Must first have the slab cache available for the allocations of the
+-	 * struct kmem_cache_node's. There is special bootstrap code in
+-	 * kmem_cache_open for slab_state == DOWN.
+-	 */
+-	kmem_cache_node = (void *)kmem_cache + kmalloc_size;
++	kmem_cache_node = &boot_kmem_cache_node;
+ 
+-	kmem_cache_open(kmem_cache_node, "kmem_cache_node",
++	kmem_cache_open(&boot_kmem_cache_node, "kmem_cache_node",
+ 		sizeof(struct kmem_cache_node),
+ 		0, SLAB_HWCACHE_ALIGN | SLAB_PANIC, NULL);
+ 
+@@ -3722,29 +3713,21 @@
+ 	/* Able to allocate the per node structures */
+ 	slab_state = PARTIAL;
+ 
+-	temp_kmem_cache = kmem_cache;
+-	kmem_cache_open(kmem_cache, "kmem_cache", kmem_size,
++	kmem_cache_open(&boot_kmem_cache, "kmem_cache", kmem_size,
+ 		0, SLAB_HWCACHE_ALIGN | SLAB_PANIC, NULL);
+-	kmem_cache = kmem_cache_alloc(kmem_cache, GFP_NOWAIT);
+-	memcpy(kmem_cache, temp_kmem_cache, kmem_size);
++	kmem_cache = kmem_cache_alloc(&boot_kmem_cache, GFP_NOWAIT);
++	memcpy(kmem_cache, &boot_kmem_cache, kmem_size);
+ 
+ 	/*
+ 	 * Allocate kmem_cache_node properly from the kmem_cache slab.
+ 	 * kmem_cache_node is separately allocated so no need to
+ 	 * update any list pointers.
+ 	 */
+-	temp_kmem_cache_node = kmem_cache_node;
+-
+ 	kmem_cache_node = kmem_cache_alloc(kmem_cache, GFP_NOWAIT);
+-	memcpy(kmem_cache_node, temp_kmem_cache_node, kmem_size);
++	memcpy(kmem_cache_node, &boot_kmem_cache_node, kmem_size);
+ 
+ 	kmem_cache_bootstrap_fixup(kmem_cache_node);
+-
+-	caches++;
+ 	kmem_cache_bootstrap_fixup(kmem_cache);
+-	caches++;
+-	/* Free temporary boot structure */
+-	free_pages((unsigned long)temp_kmem_cache, order);
+ 
+ 	/* Now we can use the kmem_cache to allocate kmalloc slabs */
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
