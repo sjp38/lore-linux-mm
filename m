@@ -1,63 +1,148 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
-	by kanga.kvack.org (Postfix) with SMTP id 0C8D96B004D
-	for <linux-mm@kvack.org>; Wed,  1 Aug 2012 08:32:14 -0400 (EDT)
-Date: Wed, 1 Aug 2012 14:32:09 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH -alternative] mm: hugetlbfs: Close race during teardown
- of hugetlbfs shared page tables V2 (resend)
-Message-ID: <20120801123209.GK4436@tiehlicka.suse.cz>
-References: <alpine.LSU.2.00.1207222033030.6810@eggly.anvils>
- <50118E7F.8000609@redhat.com>
- <50120FA8.20409@redhat.com>
- <20120727102356.GD612@suse.de>
- <5016DC5F.7030604@redhat.com>
- <20120731124650.GO612@suse.de>
- <50181AA1.0@redhat.com>
- <20120731200650.GB19524@tiehlicka.suse.cz>
- <50189857.4000501@redhat.com>
- <20120801082036.GC4436@tiehlicka.suse.cz>
+Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
+	by kanga.kvack.org (Postfix) with SMTP id D7A6B6B004D
+	for <linux-mm@kvack.org>; Wed,  1 Aug 2012 08:45:58 -0400 (EDT)
+Message-ID: <50192453.9080706@parallels.com>
+Date: Wed, 1 Aug 2012 16:42:59 +0400
+From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120801082036.GC4436@tiehlicka.suse.cz>
+Subject: Re: Any reason to use put_page in slub.c?
+References: <1343391586-18837-1-git-send-email-glommer@parallels.com>  <alpine.DEB.2.00.1207271054230.18371@router.home>  <50163D94.5050607@parallels.com>  <alpine.DEB.2.00.1207301421150.27584@router.home>  <5017968C.6050301@parallels.com>  <alpine.DEB.2.00.1207310906350.32295@router.home>  <5017E72D.2060303@parallels.com>  <alpine.DEB.2.00.1207310915150.32295@router.home>  <5017E929.70602@parallels.com>  <alpine.DEB.2.00.1207310927420.32295@router.home> <1343746344.8473.4.camel@dabdike.int.hansenpartnership.com>
+In-Reply-To: <1343746344.8473.4.camel@dabdike.int.hansenpartnership.com>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Larry Woodman <lwoodman@redhat.com>
-Cc: Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Linux-MM <linux-mm@kvack.org>, David Gibson <david@gibson.dropbear.id.au>, Ken Chen <kenchen@google.com>, Cong Wang <xiyou.wangcong@gmail.com>, LKML <linux-kernel@vger.kernel.org>
+To: James Bottomley <James.Bottomley@HansenPartnership.com>
+Cc: Christoph Lameter <cl@linux.com>, linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>
 
-On Wed 01-08-12 10:20:36, Michal Hocko wrote:
-> On Tue 31-07-12 22:45:43, Larry Woodman wrote:
-> > On 07/31/2012 04:06 PM, Michal Hocko wrote:
-> > >On Tue 31-07-12 13:49:21, Larry Woodman wrote:
-> > >>On 07/31/2012 08:46 AM, Mel Gorman wrote:
-> > >>>Fundamentally I think the problem is that we are not correctly detecting
-> > >>>that page table sharing took place during huge_pte_alloc(). This patch is
-> > >>>longer and makes an API change but if I'm right, it addresses the underlying
-> > >>>problem. The first VM_MAYSHARE patch is still necessary but would you mind
-> > >>>testing this on top please?
-> > >>Hi Mel, yes this does work just fine.  It ran for hours without a panic so
-> > >>I'll Ack this one if you send it to the list.
-> > >Hi Larry, thanks for testing! I have a different patch which tries to
-> > >address this very same issue. I am not saying it is better or that it
-> > >should be merged instead of Mel's one but I would be really happy if you
-> > >could give it a try. We can discuss (dis)advantages of both approaches
-> > >later.
-> > >
-> > >Thanks!
-> > 
-> > Hi Michal, the system hung when I tested this patch on top of the
-> > latest 3.5 kernel.  I wont have AltSysrq access to the system until
-> > tomorrow AM.  
+On 07/31/2012 06:52 PM, James Bottomley wrote:
+> On Tue, 2012-07-31 at 09:31 -0500, Christoph Lameter wrote:
+>> On Tue, 31 Jul 2012, Glauber Costa wrote:
+>>
+>>> On 07/31/2012 06:17 PM, Christoph Lameter wrote:
+>>>> On Tue, 31 Jul 2012, Glauber Costa wrote:
+>>>>
+>>>>> On 07/31/2012 06:09 PM, Christoph Lameter wrote:
+>>>>>> That is understood. Typically these object where page sized though and
+>>>>>> various assumptions (pretty dangerous ones as you are finding out) are
+>>>>>> made regarding object reuse. The fallback of SLUB for higher order allocs
+>>>>>> to the page allocator avoids these problems for higher order pages.
+>>>>> omg...
+>>>>
+>>>> I would be very thankful if you would go through the tree and check for
+>>>> any remaining use cases like that. Would take care of your problem.
+>>>
+>>> I would be happy to do it. Do you have any example of any user that
+>>> behaved like this in the past, so I can search for something similar?
+>>>
+>>> This can potentially take many forms, and auditing every kfree out there
+>>> is not humanly possible. The best I can do is to search for known
+>>> patterns here...
+>>
+>> The basic problem is that someone will take the address of an object that
+>> is allocated via slab and then access the page struct to increase the page
+>> count.
+>>
+>> So you would see
+>>
+>> page = virt_to_page(<slab_object>);
+>>
+>> get_page(page);
+>>
+>>
+>> The main cuprit in the past has been the DMA code in the SCSI layer. I
+>> think it was the first 512 byte control block for the device that was the
+>> main issue. There was a discussion betwen Hugh Dickins and me when SLUB
+>> was first released about this issue and it resulted in some changes so
+>> that certain fields in the page struct were not touched by SLUB since they
+>> were needed for I/O.
 > 
-> Please hold on. The patch is crap. I forgot about 
-> if (!vma_shareable(vma, addr))
-> 	return;
+> Hey, don't try to pin this on me.  We don't use get_page() at all on the
+> ordinary DMA route.  There are four get_page() calls in the whole of
+> drivers/scsi.  One is in the sg.c fault path, which looks genuine.  The
+> other three are in fcoe and iSCSI ... what they're trying to do is to
+> ensure that the page hangs around until the device sees the data in a
+> network tx path.
 > 
-> case so somebody got an uninitialized pmd. The patch bellow handles
-> that.
+> I can't see why any of these pages would come from kmalloc() or any
+> other slab object since they should all be user pages.
+> 
+> James
+> 
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 > 
 
-I am really lame :/. The previous patch is wrong as well for goto out
-branch. The updated patch as follows:
----
+On 07/31/2012 06:52 PM, James Bottomley wrote:
+> On Tue, 2012-07-31 at 09:31 -0500, Christoph Lameter wrote:
+>> On Tue, 31 Jul 2012, Glauber Costa wrote:
+>>
+>>> On 07/31/2012 06:17 PM, Christoph Lameter wrote:
+>>>> On Tue, 31 Jul 2012, Glauber Costa wrote:
+>>>>
+>>>>> On 07/31/2012 06:09 PM, Christoph Lameter wrote:
+>>>>>> That is understood. Typically these object where page sized though and
+>>>>>> various assumptions (pretty dangerous ones as you are finding out) are
+>>>>>> made regarding object reuse. The fallback of SLUB for higher order allocs
+>>>>>> to the page allocator avoids these problems for higher order pages.
+>>>>> omg...
+>>>>
+>>>> I would be very thankful if you would go through the tree and check for
+>>>> any remaining use cases like that. Would take care of your problem.
+>>>
+>>> I would be happy to do it. Do you have any example of any user that
+>>> behaved like this in the past, so I can search for something similar?
+>>>
+>>> This can potentially take many forms, and auditing every kfree out there
+>>> is not humanly possible. The best I can do is to search for known
+>>> patterns here...
+>>
+>> The basic problem is that someone will take the address of an object that
+>> is allocated via slab and then access the page struct to increase the page
+>> count.
+>>
+>> So you would see
+>>
+>> page = virt_to_page(<slab_object>);
+>>
+>> get_page(page);
+>>
+>>
+>> The main cuprit in the past has been the DMA code in the SCSI layer. I
+>> think it was the first 512 byte control block for the device that was the
+>> main issue. There was a discussion betwen Hugh Dickins and me when SLUB
+>> was first released about this issue and it resulted in some changes so
+>> that certain fields in the page struct were not touched by SLUB since they
+>> were needed for I/O.
+> 
+> Hey, don't try to pin this on me.  We don't use get_page() at all on the
+> ordinary DMA route.  There are four get_page() calls in the whole of
+> drivers/scsi.  One is in the sg.c fault path, which looks genuine.  The
+> other three are in fcoe and iSCSI ... what they're trying to do is to
+> ensure that the page hangs around until the device sees the data in a
+> network tx path.
+> 
+> I can't see why any of these pages would come from kmalloc() or any
+> other slab object since they should all be user pages.
+> 
+
+I've audited all users of get_page() in the drivers/ directory for
+patterns like this. In general, they kmalloc something like a table of
+entries, and then get_page() the entries. The entries are either user
+pages, pages allocated by the page allocator, or physical addresses
+through their pfn (in 2 cases from the vga ones...)
+
+I took a look about some other instances where virt_to_page occurs
+together with kmalloc as well, and they all seem to fall in the same
+category.
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
