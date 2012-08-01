@@ -1,196 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
-	by kanga.kvack.org (Postfix) with SMTP id 5C39D6B004D
-	for <linux-mm@kvack.org>; Tue, 31 Jul 2012 19:11:42 -0400 (EDT)
-Date: Tue, 31 Jul 2012 18:13:06 -0500
-From: Cliff Wickman <cpw@sgi.com>
-Subject: Re: [PATCH v2] list corruption by gather_surp
-Message-ID: <20120731231306.GA25248@sgi.com>
-References: <E1Sut4x-0001K1-7N@eag09.americas.sgi.com> <20120730122224.GA12680@tiehlicka.suse.cz>
+Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
+	by kanga.kvack.org (Postfix) with SMTP id 4F74F6B004D
+	for <linux-mm@kvack.org>; Tue, 31 Jul 2012 21:34:38 -0400 (EDT)
+Date: Wed, 1 Aug 2012 11:34:28 +1000 (EST)
+From: James Morris <jmorris@namei.org>
+Subject: Re: [PATCH v3 07/10] mm: use mm->exe_file instead of first VM_EXECUTABLE
+ vma->vm_file
+In-Reply-To: <20120731104226.20515.76884.stgit@zurg>
+Message-ID: <alpine.LRH.2.02.1208011133390.5762@tundra.namei.org>
+References: <20120731103724.20515.60334.stgit@zurg> <20120731104226.20515.76884.stgit@zurg>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120730122224.GA12680@tiehlicka.suse.cz>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: cmetcalf@tilera.com, dave@linux.vnet.ibm.com, dhillf@gmail.com, dwg@au1.ibm.com, kamezawa.hiroyuki@gmail.com, khlebnikov@openvz.org, lee.schermerhorn@hp.com, mgorman@suse.de, shhuiw@gmail.com, viro@zeniv.linux.org.uk, linux-mm@kvack.org
+To: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Eric Paris <eparis@redhat.com>, Robert Richter <robert.richter@amd.com>, linux-security-module@vger.kernel.org, oprofile-list@lists.sf.net, Al Viro <viro@zeniv.linux.org.uk>, James Morris <james.l.morris@oracle.com>, Linus Torvalds <torvalds@linux-foundation.org>, Chris Metcalf <cmetcalf@tilera.com>, Kentaro Takeda <takedakn@nttdata.co.jp>
+
+On Tue, 31 Jul 2012, Konstantin Khlebnikov wrote:
+
+> Some security modules and oprofile still uses VM_EXECUTABLE for retrieving
+> task's executable file, after this patch they will use mm->exe_file directly.
+> mm->exe_file protected with mm->mmap_sem, so locking stays the same.
+> 
+
+Acked-by: James Morris <james.l.morris@oracle.com>
 
 
-On Mon, Jul 30, 2012 at 02:22:24PM +0200, Michal Hocko wrote:
-> On Fri 27-07-12 17:32:15, Cliff Wickman wrote:
-> > From: Cliff Wickman <cpw@sgi.com>
-> > 
-> > v2: diff'd against linux-next
-> > 
-> > I am seeing list corruption occurring from within gather_surplus_pages()
-> > (mm/hugetlb.c).  The problem occurs in a RHEL6 kernel under a heavy load,
-> > and seems to be because this function drops the hugetlb_lock.
-> > The list_add() in gather_surplus_pages() seems to need to be protected by
-> > the lock.
-> > (I don't have a similar test for a linux-next kernel)
-> 
-> Because you cannot reproduce or you just didn't test it with linux-next?
-> 
-> > I have CONFIG_DEBUG_LIST=y, and am running an MPI application with 64 threads
-> > and a library that creates a large heap of hugetlbfs pages for it.
-> > 
-> > The below patch fixes the problem.
-> > The gist of this patch is that gather_surplus_pages() does not have to drop
-> 
-> But you cannot hold spinlock while allocating memory because the
-> allocation is not atomic and you could deadlock easily.
-> 
-> > the lock if alloc_buddy_huge_page() is told whether the lock is already held.
-> 
-> The changelog doesn't actually explain how does the list gets corrupted.
-> alloc_buddy_huge_page doesn't provide the freshly allocated page to use
-> so nobody could get and free it. enqueue_huge_page happens under hugetlb_lock.
-> I am sorry but I do not see how we could race here.
 
-I finally got my test running on a linux-next kernel and could not
-reproduce the problem.  
-So I agree that no race seems possible now.   Disregard this patch.
-
-I'll offer the fix to the distro of the old kernel on which I saw the
-problem.
-
-
-> 
-> 
-> > Signed-off-by: Cliff Wickman <cpw@sgi.com>
-> > ---
-> >  mm/hugetlb.c |   29 ++++++++++++++++-------------
-> >  1 file changed, 16 insertions(+), 13 deletions(-)
-> > 
-> > Index: linux/mm/hugetlb.c
-> > ===================================================================
-> > --- linux.orig/mm/hugetlb.c
-> > +++ linux/mm/hugetlb.c
-> > @@ -838,7 +838,9 @@ static int free_pool_huge_page(struct hs
-> >  	return ret;
-> >  }
-> >  
-> > -static struct page *alloc_buddy_huge_page(struct hstate *h, int nid)
-> > +/* already_locked means the caller has already locked hugetlb_lock */
-> > +static struct page *alloc_buddy_huge_page(struct hstate *h, int nid,
-> > +						int already_locked)
-> >  {
-> >  	struct page *page;
-> >  	unsigned int r_nid;
-> > @@ -869,15 +871,19 @@ static struct page *alloc_buddy_huge_pag
-> >  	 * the node values until we've gotten the hugepage and only the
-> >  	 * per-node value is checked there.
-> >  	 */
-> > -	spin_lock(&hugetlb_lock);
-> > +	if (!already_locked)
-> > +		spin_lock(&hugetlb_lock);
-> > +
-> >  	if (h->surplus_huge_pages >= h->nr_overcommit_huge_pages) {
-> > -		spin_unlock(&hugetlb_lock);
-> > +		if (!already_locked)
-> > +			spin_unlock(&hugetlb_lock);
-> >  		return NULL;
-> >  	} else {
-> >  		h->nr_huge_pages++;
-> >  		h->surplus_huge_pages++;
-> >  	}
-> >  	spin_unlock(&hugetlb_lock);
-> > +	/* page allocation may sleep, so the lock must be unlocked */
-> >  
-> >  	if (nid == NUMA_NO_NODE)
-> >  		page = alloc_pages(htlb_alloc_mask|__GFP_COMP|
-> > @@ -910,7 +916,8 @@ static struct page *alloc_buddy_huge_pag
-> >  		h->surplus_huge_pages--;
-> >  		__count_vm_event(HTLB_BUDDY_PGALLOC_FAIL);
-> >  	}
-> > -	spin_unlock(&hugetlb_lock);
-> > +	if (!already_locked)
-> > +		spin_unlock(&hugetlb_lock);
-> >  
-> >  	return page;
-> >  }
-> > @@ -929,7 +936,7 @@ struct page *alloc_huge_page_node(struct
-> >  	spin_unlock(&hugetlb_lock);
-> >  
-> >  	if (!page)
-> > -		page = alloc_buddy_huge_page(h, nid);
-> > +		page = alloc_buddy_huge_page(h, nid, 0);
-> >  
-> >  	return page;
-> >  }
-> > @@ -937,6 +944,7 @@ struct page *alloc_huge_page_node(struct
-> >  /*
-> >   * Increase the hugetlb pool such that it can accommodate a reservation
-> >   * of size 'delta'.
-> > + * This is entered and exited with hugetlb_lock locked.
-> >   */
-> >  static int gather_surplus_pages(struct hstate *h, int delta)
-> >  {
-> > @@ -957,9 +965,8 @@ static int gather_surplus_pages(struct h
-> >  
-> >  	ret = -ENOMEM;
-> >  retry:
-> > -	spin_unlock(&hugetlb_lock);
-> >  	for (i = 0; i < needed; i++) {
-> > -		page = alloc_buddy_huge_page(h, NUMA_NO_NODE);
-> > +		page = alloc_buddy_huge_page(h, NUMA_NO_NODE, 1);
-> >  		if (!page) {
-> >  			alloc_ok = false;
-> >  			break;
-> > @@ -969,10 +976,9 @@ retry:
-> >  	allocated += i;
-> >  
-> >  	/*
-> > -	 * After retaking hugetlb_lock, we need to recalculate 'needed'
-> > +	 * With hugetlb_lock still locked, we need to recalculate 'needed'
-> >  	 * because either resv_huge_pages or free_huge_pages may have changed.
-> >  	 */
-> > -	spin_lock(&hugetlb_lock);
-> >  	needed = (h->resv_huge_pages + delta) -
-> >  			(h->free_huge_pages + allocated);
-> >  	if (needed > 0) {
-> > @@ -1010,15 +1016,12 @@ retry:
-> >  		enqueue_huge_page(h, page);
-> >  	}
-> >  free:
-> > -	spin_unlock(&hugetlb_lock);
-> > -
-> >  	/* Free unnecessary surplus pages to the buddy allocator */
-> >  	if (!list_empty(&surplus_list)) {
-> >  		list_for_each_entry_safe(page, tmp, &surplus_list, lru) {
-> >  			put_page(page);
-> >  		}
-> >  	}
-> > -	spin_lock(&hugetlb_lock);
-> >  
-> >  	return ret;
-> >  }
-> > @@ -1151,7 +1154,7 @@ static struct page *alloc_huge_page(stru
-> >  		spin_unlock(&hugetlb_lock);
-> >  	} else {
-> >  		spin_unlock(&hugetlb_lock);
-> > -		page = alloc_buddy_huge_page(h, NUMA_NO_NODE);
-> > +		page = alloc_buddy_huge_page(h, NUMA_NO_NODE, 0);
-> >  		if (!page) {
-> >  			hugetlb_cgroup_uncharge_cgroup(idx,
-> >  						       pages_per_huge_page(h),
-> 
-> -- 
-> Michal Hocko
-> SUSE Labs
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 -- 
-Cliff Wickman
-SGI
-cpw@sgi.com
-(651) 683-3824
+James Morris
+<jmorris@namei.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
