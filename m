@@ -1,41 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
-	by kanga.kvack.org (Postfix) with SMTP id 1B8D46B006E
-	for <linux-mm@kvack.org>; Wed,  1 Aug 2012 14:10:45 -0400 (EDT)
-Date: Wed, 1 Aug 2012 13:10:42 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: Any reason to use put_page in slub.c?
-In-Reply-To: <50192453.9080706@parallels.com>
-Message-ID: <alpine.DEB.2.00.1208011307450.4606@router.home>
-References: <1343391586-18837-1-git-send-email-glommer@parallels.com>  <alpine.DEB.2.00.1207271054230.18371@router.home>  <50163D94.5050607@parallels.com>  <alpine.DEB.2.00.1207301421150.27584@router.home>  <5017968C.6050301@parallels.com>
- <alpine.DEB.2.00.1207310906350.32295@router.home>  <5017E72D.2060303@parallels.com>  <alpine.DEB.2.00.1207310915150.32295@router.home>  <5017E929.70602@parallels.com>  <alpine.DEB.2.00.1207310927420.32295@router.home> <1343746344.8473.4.camel@dabdike.int.hansenpartnership.com>
- <50192453.9080706@parallels.com>
+Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
+	by kanga.kvack.org (Postfix) with SMTP id 24CD36B0071
+	for <linux-mm@kvack.org>; Wed,  1 Aug 2012 14:19:23 -0400 (EDT)
+Received: by bkcjc3 with SMTP id jc3so4686863bkc.14
+        for <linux-mm@kvack.org>; Wed, 01 Aug 2012 11:19:21 -0700 (PDT)
+Message-ID: <50197348.9010101@gmail.com>
+Date: Wed, 01 Aug 2012 20:19:52 +0200
+From: Sasha Levin <levinsasha928@gmail.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [RFC 1/4] hashtable: introduce a small and naive hashtable
+References: <1343757920-19713-1-git-send-email-levinsasha928@gmail.com> <1343757920-19713-2-git-send-email-levinsasha928@gmail.com> <20120731182330.GD21292@google.com>
+In-Reply-To: <20120731182330.GD21292@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: James Bottomley <James.Bottomley@HansenPartnership.com>, linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Tejun Heo <tj@kernel.org>
+Cc: torvalds@linux-foundation.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, paul.gortmaker@windriver.com
 
-On Wed, 1 Aug 2012, Glauber Costa wrote:
+On 07/31/2012 08:23 PM, Tejun Heo wrote:
+> Hello, Sasha.
+> 
+> On Tue, Jul 31, 2012 at 08:05:17PM +0200, Sasha Levin wrote:
+>> +#define HASH_INIT(name)							\
+>> +({									\
+>> +	int __i;							\
+>> +	for (__i = 0 ; __i < HASH_SIZE(name) ; __i++)			\
+>> +		INIT_HLIST_HEAD(&name[__i]);				\
+>> +})
+> 
+> Why use macro?
+> 
+>> +#define HASH_ADD(name, obj, key)					\
+>> +	hlist_add_head(obj, &name[					\
+>> +		hash_long((unsigned long)key, HASH_BITS(name))]);
+> 
+> Ditto.
 
-> I've audited all users of get_page() in the drivers/ directory for
-> patterns like this. In general, they kmalloc something like a table of
-> entries, and then get_page() the entries. The entries are either user
-> pages, pages allocated by the page allocator, or physical addresses
-> through their pfn (in 2 cases from the vga ones...)
->
-> I took a look about some other instances where virt_to_page occurs
-> together with kmalloc as well, and they all seem to fall in the same
-> category.
+Oh, yes, I've started working on this and remembered why it's macro in the first place.
 
-The case that was notorious in the past was a scsi control structure
-allocated from slab that was then written to the device via DMA. And it
-was not on x86 but some esoteric platform (powerpc?),
+Notice that we don't store hashtable size anywhere, this is because we can get it directly from the size of the hashtable array itself.
 
-A reference to the discussion of this issue in 2007:
-
-http://lkml.indiana.edu/hypermail/linux/kernel/0706.3/0424.html
+If we switch to using functions, we could no longer hide it anywhere (we'd need to either turn the buckets into a struct, or have the user pass it around to all functions).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
