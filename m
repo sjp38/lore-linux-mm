@@ -1,504 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
-	by kanga.kvack.org (Postfix) with SMTP id BBE416B004D
-	for <linux-mm@kvack.org>; Wed,  1 Aug 2012 02:01:34 -0400 (EDT)
-Message-ID: <5018C76D.8000205@cn.fujitsu.com>
-Date: Wed, 01 Aug 2012 14:06:37 +0800
+Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
+	by kanga.kvack.org (Postfix) with SMTP id 1BB546B004D
+	for <linux-mm@kvack.org>; Wed,  1 Aug 2012 02:04:26 -0400 (EDT)
+Message-ID: <5018C817.80509@cn.fujitsu.com>
+Date: Wed, 01 Aug 2012 14:09:27 +0800
 From: Wen Congyang <wency@cn.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [RFC PATCH v5 12/19] memory-hotplug: introduce new function arch_remove_memory()
-References: <50126B83.3050201@cn.fujitsu.com>	<50126E2F.8010301@cn.fujitsu.com> <CAN6t85SiG62QXdSpSmGQFeG4f3JnOicDx9H3jSvwg0t2Ly-q+w@mail.gmail.com>
-In-Reply-To: <CAN6t85SiG62QXdSpSmGQFeG4f3JnOicDx9H3jSvwg0t2Ly-q+w@mail.gmail.com>
+Subject: Re: [RFC PATCH v5 16/19] memory-hotplug: free memmap of sparse-vmemmap
+References: <50126B83.3050201@cn.fujitsu.com>	<50126EBE.1020006@cn.fujitsu.com> <20120731142251.5b2cae37@thinkpad>
+In-Reply-To: <20120731142251.5b2cae37@thinkpad>
 Content-Transfer-Encoding: 7bit
 Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: jencce zhou <jencce2002@gmail.com>
+To: gerald.schaefer@de.ibm.com
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-ia64@vger.kernel.org, cmetcalf@tilera.com, rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, Yasuaki ISIMATU <isimatu.yasuaki@jp.fujitsu.com>
 
-At 08/01/2012 10:44 AM, jencce zhou Wrote:
-> 2012/7/27 Wen Congyang <wency@cn.fujitsu.com>:
->> We don't call __add_pages() directly in the function add_memory()
->> because some other architecture related things need to be done
->> before or after calling __add_pages(). So we should introduce
->> a new function arch_remove_memory() to revert the things
->> done in arch_add_memory().
->>
->> Note: the function for s390 is not implemented(I don't know how to
->> implement it for s390).
->>
->> CC: David Rientjes <rientjes@google.com>
->> CC: Jiang Liu <liuj97@gmail.com>
->> CC: Len Brown <len.brown@intel.com>
->> CC: Benjamin Herrenschmidt <benh@kernel.crashing.org>
->> CC: Paul Mackerras <paulus@samba.org>
->> CC: Christoph Lameter <cl@linux.com>
->> Cc: Minchan Kim <minchan.kim@gmail.com>
->> CC: Andrew Morton <akpm@linux-foundation.org>
->> CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
->> CC: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
->> Signed-off-by: Wen Congyang <wency@cn.fujitsu.com>
->> ---
->>  arch/ia64/mm/init.c                  |   16 ++++
->>  arch/powerpc/mm/mem.c                |   14 +++
->>  arch/s390/mm/init.c                  |    8 ++
->>  arch/sh/mm/init.c                    |   15 +++
->>  arch/tile/mm/init.c                  |    8 ++
->>  arch/x86/include/asm/pgtable_types.h |    1 +
->>  arch/x86/mm/init_32.c                |   10 ++
->>  arch/x86/mm/init_64.c                |  160 ++++++++++++++++++++++++++++++++++
->>  arch/x86/mm/pageattr.c               |   47 +++++-----
->>  include/linux/memory_hotplug.h       |    1 +
->>  mm/memory_hotplug.c                  |    1 +
->>  11 files changed, 259 insertions(+), 22 deletions(-)
->>
->> diff --git a/arch/ia64/mm/init.c b/arch/ia64/mm/init.c
->> index 0eab454..1e345ed 100644
->> --- a/arch/ia64/mm/init.c
->> +++ b/arch/ia64/mm/init.c
->> @@ -688,6 +688,22 @@ int arch_add_memory(int nid, u64 start, u64 size)
->>
->>         return ret;
->>  }
->> +
->> +#ifdef CONFIG_MEMORY_HOTREMOVE
->> +int arch_remove_memory(u64 start, u64 size)
->> +{
->> +       unsigned long start_pfn = start >> PAGE_SHIFT;
->> +       unsigned long nr_pages = size >> PAGE_SHIFT;
->> +       int ret;
->> +
->> +       ret = __remove_pages(start_pfn, nr_pages);
->> +       if (ret)
->> +               pr_warn("%s: Problem encountered in __remove_pages() as"
->> +                       " ret=%d\n", __func__,  ret);
->> +
->> +       return ret;
->> +}
->> +#endif
->>  #endif
->>
+At 07/31/2012 08:22 PM, Gerald Schaefer Wrote:
+> On Fri, 27 Jul 2012 18:34:38 +0800
+> Wen Congyang <wency@cn.fujitsu.com> wrote:
 > 
-> in 3.5 ia64 implementation did not call __remove_pages at all. so why?
+>> From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+>>
+>> All pages of virtual mapping in removed memory cannot be freed, since
+>> some pages used as PGD/PUD includes not only removed memory but also
+>> other memory. So the patch checks whether page can be freed or not.
+>>
+>> How to check whether page can be freed or not?
+>>  1. When removing memory, the page structs of the revmoved memory are
+>> filled with 0FD.
+>>  2. All page structs are filled with 0xFD on PT/PMD, PT/PMD can be
+>> cleared. In this case, the page used as PT/PMD can be freed.
+>>
+>> Applying patch, __remove_section() of CONFIG_SPARSEMEM_VMEMMAP is
+>> integrated into one. So __remove_section() of
+>> CONFIG_SPARSEMEM_VMEMMAP is deleted.
+> 
+> There should also be generic or dummy versions of the functions
+> vmemmap_free_bootmem(), vmemmap_kfree() and
+> register_page_bootmem_memmap(). It doesn't compile on other
+> archtitectures than x86 as it is now:
+> 
+> mm/built-in.o: In function `sparse_remove_one_section':
+> (.text+0x49fa6): undefined reference to `vmemmap_free_bootmem'
+> mm/built-in.o: In function `sparse_remove_one_section':
+> (.text+0x49fcc): undefined reference to `vmemmap_kfree'
+> mm/built-in.o: In function `register_page_bootmem_info_node':
+> (.text+0x57c06): undefined reference to `register_page_bootmem_memmap'
+> mm/built-in.o: In function `sparse_add_one_section':
+> (.meminit.text+0x2506): undefined reference to `vmemmap_kfree'
+> mm/built-in.o: In function `sparse_add_one_section':
+> (.meminit.text+0x2528): undefined reference to `vmemmap_kfree'
+> make: *** [vmlinux] Error 1
+> 
+> 
 
-This function only reverts the things done in arch_add_memory(), and it will
-be called when a memory device is removed.
+Thanks for testing. I will fix it.
 
-When adding a memory device, __add_pages() is called in arch_add_memory(),
-so call __remove_pages() in arch_remove_memory().
-
-Thanks
 Wen Congyang
-
-> 
-> 
->>  /*
->> diff --git a/arch/powerpc/mm/mem.c b/arch/powerpc/mm/mem.c
->> index baaafde..249cef4 100644
->> --- a/arch/powerpc/mm/mem.c
->> +++ b/arch/powerpc/mm/mem.c
->> @@ -133,6 +133,20 @@ int arch_add_memory(int nid, u64 start, u64 size)
->>
->>         return __add_pages(nid, zone, start_pfn, nr_pages);
->>  }
->> +
->> +#ifdef CONFIG_MEMORY_HOTREMOVE
->> +int arch_remove_memory(u64 start, u64 size)
->> +{
->> +       unsigned long start_pfn = start >> PAGE_SHIFT;
->> +       unsigned long nr_pages = size >> PAGE_SHIFT;
->> +
->> +       start = (unsigned long)__va(start);
->> +       if (remove_section_mapping(start, start + size))
->> +               return -EINVAL;
->> +
->> +       return __remove_pages(start_pfn, nr_pages);
->> +}
->> +#endif
->>  #endif /* CONFIG_MEMORY_HOTPLUG */
->>
->>  /*
->> diff --git a/arch/s390/mm/init.c b/arch/s390/mm/init.c
->> index 6adbc08..ca4bc46 100644
->> --- a/arch/s390/mm/init.c
->> +++ b/arch/s390/mm/init.c
->> @@ -257,4 +257,12 @@ int arch_add_memory(int nid, u64 start, u64 size)
->>                 vmem_remove_mapping(start, size);
->>         return rc;
->>  }
->> +
->> +#ifdef CONFIG_MEMORY_HOTREMOVE
->> +int arch_remove_memory(u64 start, u64 size)
->> +{
->> +       /* TODO */
->> +       return -EBUSY;
->> +}
->> +#endif
->>  #endif /* CONFIG_MEMORY_HOTPLUG */
->> diff --git a/arch/sh/mm/init.c b/arch/sh/mm/init.c
->> index 82cc576..fc84491 100644
->> --- a/arch/sh/mm/init.c
->> +++ b/arch/sh/mm/init.c
->> @@ -558,4 +558,19 @@ int memory_add_physaddr_to_nid(u64 addr)
->>  EXPORT_SYMBOL_GPL(memory_add_physaddr_to_nid);
->>  #endif
->>
->> +#ifdef CONFIG_MEMORY_HOTREMOVE
->> +int arch_remove_memory(u64 start, u64 size)
->> +{
->> +       unsigned long start_pfn = start >> PAGE_SHIFT;
->> +       unsigned long nr_pages = size >> PAGE_SHIFT;
->> +       int ret;
->> +
->> +       ret = __remove_pages(start_pfn, nr_pages);
->> +       if (unlikely(ret))
->> +               pr_warn("%s: Failed, __remove_pages() == %d\n", __func__,
->> +                       ret);
->> +
->> +       return ret;
->> +}
->> +#endif
->>  #endif /* CONFIG_MEMORY_HOTPLUG */
->> diff --git a/arch/tile/mm/init.c b/arch/tile/mm/init.c
->> index ef29d6c..2749515 100644
->> --- a/arch/tile/mm/init.c
->> +++ b/arch/tile/mm/init.c
->> @@ -935,6 +935,14 @@ int remove_memory(u64 start, u64 size)
->>  {
->>         return -EINVAL;
->>  }
->> +
->> +#ifdef CONFIG_MEMORY_HOTREMOVE
->> +int arch_remove_memory(u64 start, u64 size)
->> +{
->> +       /* TODO */
->> +       return -EBUSY;
->> +}
->> +#endif
->>  #endif
->>
->>  struct kmem_cache *pgd_cache;
->> diff --git a/arch/x86/include/asm/pgtable_types.h b/arch/x86/include/asm/pgtable_types.h
->> index 013286a..b725af2 100644
->> --- a/arch/x86/include/asm/pgtable_types.h
->> +++ b/arch/x86/include/asm/pgtable_types.h
->> @@ -334,6 +334,7 @@ static inline void update_page_count(int level, unsigned long pages) { }
->>   * as a pte too.
->>   */
->>  extern pte_t *lookup_address(unsigned long address, unsigned int *level);
->> +extern int __split_large_page(pte_t *kpte, unsigned long address, pte_t *pbase);
->>
->>  #endif /* !__ASSEMBLY__ */
->>
->> diff --git a/arch/x86/mm/init_32.c b/arch/x86/mm/init_32.c
->> index 575d86f..a690153 100644
->> --- a/arch/x86/mm/init_32.c
->> +++ b/arch/x86/mm/init_32.c
->> @@ -842,6 +842,16 @@ int arch_add_memory(int nid, u64 start, u64 size)
->>
->>         return __add_pages(nid, zone, start_pfn, nr_pages);
->>  }
->> +
->> +#ifdef CONFIG_MEMORY_HOTREMOVE
->> +int arch_remove_memory(unsigned long start, unsigned long size)
->> +{
->> +       unsigned long start_pfn = start >> PAGE_SHIFT;
->> +       unsigned long nr_pages = size >> PAGE_SHIFT;
->> +
->> +       return __remove_pages(start_pfn, nr_pages);
->> +}
->> +#endif
->>  #endif
->>
->>  /*
->> diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
->> index 2b6b4a3..f1554a9 100644
->> --- a/arch/x86/mm/init_64.c
->> +++ b/arch/x86/mm/init_64.c
->> @@ -675,6 +675,166 @@ int arch_add_memory(int nid, u64 start, u64 size)
->>  }
->>  EXPORT_SYMBOL_GPL(arch_add_memory);
->>
->> +static void __meminit
->> +phys_pte_remove(pte_t *pte_page, unsigned long addr, unsigned long end)
->> +{
->> +       unsigned pages = 0;
->> +       int i = pte_index(addr);
->> +
->> +       pte_t *pte = pte_page + pte_index(addr);
->> +
->> +       for (; i < PTRS_PER_PTE; i++, addr += PAGE_SIZE, pte++) {
->> +
->> +               if (addr >= end)
->> +                       break;
->> +
->> +               if (!pte_present(*pte))
->> +                       continue;
->> +
->> +               pages++;
->> +               set_pte(pte, __pte(0));
->> +       }
->> +
->> +       update_page_count(PG_LEVEL_4K, -pages);
->> +}
->> +
->> +static void __meminit
->> +phys_pmd_remove(pmd_t *pmd_page, unsigned long addr, unsigned long end)
->> +{
->> +       unsigned long pages = 0, next;
->> +       int i = pmd_index(addr);
->> +
->> +       for (; i < PTRS_PER_PMD; i++, addr = next) {
->> +               unsigned long pte_phys;
->> +               pmd_t *pmd = pmd_page + pmd_index(addr);
->> +               pte_t *pte;
->> +
->> +               if (addr >= end)
->> +                       break;
->> +
->> +               next = (addr & PMD_MASK) + PMD_SIZE;
->> +
->> +               if (!pmd_present(*pmd))
->> +                       continue;
->> +
->> +               if (pmd_large(*pmd)) {
->> +                       if ((addr & ~PMD_MASK) == 0 && next <= end) {
->> +                               set_pmd(pmd, __pmd(0));
->> +                               pages++;
->> +                               continue;
->> +                       }
->> +
->> +                       /*
->> +                        * We use 2M page, but we need to remove part of them,
->> +                        * so split 2M page to 4K page.
->> +                        */
->> +                       pte = alloc_low_page(&pte_phys);
->> +                       __split_large_page((pte_t *)pmd, addr, pte);
->> +
->> +                       spin_lock(&init_mm.page_table_lock);
->> +                       pmd_populate_kernel(&init_mm, pmd, __va(pte_phys));
->> +                       spin_unlock(&init_mm.page_table_lock);
->> +               }
->> +
->> +               spin_lock(&init_mm.page_table_lock);
->> +               pte = map_low_page((pte_t *)pmd_page_vaddr(*pmd));
->> +               phys_pte_remove(pte, addr, end);
->> +               unmap_low_page(pte);
->> +               spin_unlock(&init_mm.page_table_lock);
->> +       }
->> +       update_page_count(PG_LEVEL_2M, -pages);
->> +}
->> +
->> +static void __meminit
->> +phys_pud_remove(pud_t *pud_page, unsigned long addr, unsigned long end)
->> +{
->> +       unsigned long pages = 0, next;
->> +       int i = pud_index(addr);
->> +
->> +       for (; i < PTRS_PER_PUD; i++, addr = next) {
->> +               unsigned long pmd_phys;
->> +               pud_t *pud = pud_page + pud_index(addr);
->> +               pmd_t *pmd;
->> +
->> +               if (addr >= end)
->> +                       break;
->> +
->> +               next = (addr & PUD_MASK) + PUD_SIZE;
->> +
->> +               if (!pud_present(*pud))
->> +                       continue;
->> +
->> +               if (pud_large(*pud)) {
->> +                       if ((addr & ~PUD_MASK) == 0 && next <= end) {
->> +                               set_pud(pud, __pud(0));
->> +                               pages++;
->> +                               continue;
->> +                       }
->> +
->> +                       /*
->> +                        * We use 1G page, but we need to remove part of them,
->> +                        * so split 1G page to 2M page.
->> +                        */
->> +                       pmd = alloc_low_page(&pmd_phys);
->> +                       __split_large_page((pte_t *)pud, addr, (pte_t *)pmd);
->> +
->> +                       spin_lock(&init_mm.page_table_lock);
->> +                       pud_populate(&init_mm, pud, __va(pmd_phys));
->> +                       spin_unlock(&init_mm.page_table_lock);
->> +               }
->> +
->> +               pmd = map_low_page(pmd_offset(pud, 0));
->> +               phys_pmd_remove(pmd, addr, end);
->> +               unmap_low_page(pmd);
->> +               __flush_tlb_all();
->> +       }
->> +       __flush_tlb_all();
->> +
->> +       update_page_count(PG_LEVEL_1G, -pages);
->> +}
->> +
->> +void __meminit
->> +kernel_physical_mapping_remove(unsigned long start, unsigned long end)
->> +{
->> +       unsigned long next;
->> +
->> +       start = (unsigned long)__va(start);
->> +       end = (unsigned long)__va(end);
->> +
->> +       for (; start < end; start = next) {
->> +               pgd_t *pgd = pgd_offset_k(start);
->> +               pud_t *pud;
->> +
->> +               next = (start + PGDIR_SIZE) & PGDIR_MASK;
->> +               if (next > end)
->> +                       next = end;
->> +
->> +               if (!pgd_present(*pgd))
->> +                       continue;
->> +
->> +               pud = map_low_page((pud_t *)pgd_page_vaddr(*pgd));
->> +               phys_pud_remove(pud, __pa(start), __pa(end));
->> +               unmap_low_page(pud);
->> +       }
->> +
->> +       __flush_tlb_all();
->> +}
->> +
->> +#ifdef CONFIG_MEMORY_HOTREMOVE
->> +int __ref arch_remove_memory(unsigned long start, unsigned long size)
->> +{
->> +       unsigned long start_pfn = start >> PAGE_SHIFT;
->> +       unsigned long nr_pages = size >> PAGE_SHIFT;
->> +       int ret;
->> +
->> +       ret = __remove_pages(start_pfn, nr_pages);
->> +       WARN_ON_ONCE(ret);
->> +
->> +       kernel_physical_mapping_remove(start, start + size);
->> +
->> +       return ret;
->> +}
->> +#endif
->>  #endif /* CONFIG_MEMORY_HOTPLUG */
->>
->>  static struct kcore_list kcore_vsyscall;
->> diff --git a/arch/x86/mm/pageattr.c b/arch/x86/mm/pageattr.c
->> index 931930a..c22963d 100644
->> --- a/arch/x86/mm/pageattr.c
->> +++ b/arch/x86/mm/pageattr.c
->> @@ -501,21 +501,13 @@ out_unlock:
->>         return do_split;
->>  }
->>
->> -static int split_large_page(pte_t *kpte, unsigned long address)
->> +int __split_large_page(pte_t *kpte, unsigned long address, pte_t *pbase)
->>  {
->>         unsigned long pfn, pfninc = 1;
->>         unsigned int i, level;
->> -       pte_t *pbase, *tmp;
->> +       pte_t *tmp;
->>         pgprot_t ref_prot;
->> -       struct page *base;
->> -
->> -       if (!debug_pagealloc)
->> -               spin_unlock(&cpa_lock);
->> -       base = alloc_pages(GFP_KERNEL | __GFP_NOTRACK, 0);
->> -       if (!debug_pagealloc)
->> -               spin_lock(&cpa_lock);
->> -       if (!base)
->> -               return -ENOMEM;
->> +       struct page *base = virt_to_page(pbase);
->>
->>         spin_lock(&pgd_lock);
->>         /*
->> @@ -523,10 +515,11 @@ static int split_large_page(pte_t *kpte, unsigned long address)
->>          * up for us already:
->>          */
->>         tmp = lookup_address(address, &level);
->> -       if (tmp != kpte)
->> -               goto out_unlock;
->> +       if (tmp != kpte) {
->> +               spin_unlock(&pgd_lock);
->> +               return 1;
->> +       }
->>
->> -       pbase = (pte_t *)page_address(base);
->>         paravirt_alloc_pte(&init_mm, page_to_pfn(base));
->>         ref_prot = pte_pgprot(pte_clrhuge(*kpte));
->>         /*
->> @@ -579,17 +572,27 @@ static int split_large_page(pte_t *kpte, unsigned long address)
->>          * going on.
->>          */
->>         __flush_tlb_all();
->> +       spin_unlock(&pgd_lock);
->>
->> -       base = NULL;
->> +       return 0;
->> +}
->>
->> -out_unlock:
->> -       /*
->> -        * If we dropped out via the lookup_address check under
->> -        * pgd_lock then stick the page back into the pool:
->> -        */
->> -       if (base)
->> +static int split_large_page(pte_t *kpte, unsigned long address)
->> +{
->> +       pte_t *pbase;
->> +       struct page *base;
->> +
->> +       if (!debug_pagealloc)
->> +               spin_unlock(&cpa_lock);
->> +       base = alloc_pages(GFP_KERNEL | __GFP_NOTRACK, 0);
->> +       if (!debug_pagealloc)
->> +               spin_lock(&cpa_lock);
->> +       if (!base)
->> +               return -ENOMEM;
->> +
->> +       pbase = (pte_t *)page_address(base);
->> +       if (__split_large_page(kpte, address, pbase))
->>                 __free_page(base);
->> -       spin_unlock(&pgd_lock);
->>
->>         return 0;
->>  }
->> diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
->> index 8bf820d..0d500be 100644
->> --- a/include/linux/memory_hotplug.h
->> +++ b/include/linux/memory_hotplug.h
->> @@ -85,6 +85,7 @@ extern void __online_page_free(struct page *page);
->>
->>  #ifdef CONFIG_MEMORY_HOTREMOVE
->>  extern bool is_pageblock_removable_nolock(struct page *page);
->> +extern int arch_remove_memory(unsigned long start, unsigned long size);
->>  #endif /* CONFIG_MEMORY_HOTREMOVE */
->>
->>  /* reasonably generic interface to expand the physical pages in a zone  */
->> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
->> index a9e1579..0c932e1 100644
->> --- a/mm/memory_hotplug.c
->> +++ b/mm/memory_hotplug.c
->> @@ -1071,6 +1071,7 @@ int __ref remove_memory(int nid, u64 start, u64 size)
-> 
-> line 1071?  which version does this patch base on?  thanks a lot.
-> 
-> 
->>         /* remove memmap entry */
->>         firmware_map_remove(start, start + size, "System RAM");
->>
->> +       arch_remove_memory(start, size);
->>  out:
->>         unlock_memory_hotplug();
->>         return ret;
->> --
->> 1.7.1
->>
->> --
->> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
->> the body of a message to majordomo@vger.kernel.org
->> More majordomo info at  http://vger.kernel.org/majordomo-info.html
->> Please read the FAQ at  http://www.tux.org/lkml/
-> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
