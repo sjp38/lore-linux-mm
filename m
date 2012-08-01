@@ -1,33 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
-	by kanga.kvack.org (Postfix) with SMTP id C91856B005D
-	for <linux-mm@kvack.org>; Wed,  1 Aug 2012 14:00:40 -0400 (EDT)
-Date: Wed, 1 Aug 2012 13:00:37 -0500 (CDT)
+Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
+	by kanga.kvack.org (Postfix) with SMTP id 98C166B0068
+	for <linux-mm@kvack.org>; Wed,  1 Aug 2012 14:05:21 -0400 (EDT)
+Date: Wed, 1 Aug 2012 13:05:18 -0500 (CDT)
 From: Christoph Lameter <cl@linux.com>
-Subject: Re: [RESEND PATCH 4/4 v3] mm: fix possible incorrect return value
- of move_pages() syscall
-In-Reply-To: <CAHO5Pa0wwSi3VH1ytLZsEJs99i_=5qN5ax=8y=uz1jbG+P03sw@mail.gmail.com>
-Message-ID: <alpine.DEB.2.00.1208011259550.4606@router.home>
-References: <1343411703-2720-1-git-send-email-js1304@gmail.com> <1343411703-2720-4-git-send-email-js1304@gmail.com> <alpine.DEB.2.00.1207271550190.25434@router.home> <CAAmzW4MdiJOaZW_b+fz1uYyj0asTCveN=24st4xKymKEvkzdgQ@mail.gmail.com>
- <alpine.DEB.2.00.1207301425410.28838@router.home> <CAHO5Pa0wwSi3VH1ytLZsEJs99i_=5qN5ax=8y=uz1jbG+P03sw@mail.gmail.com>
+Subject: Re: Common [2/9] slub: Use kmem_cache for the kmem_cache structure
+In-Reply-To: <5018EBDA.4090902@parallels.com>
+Message-ID: <alpine.DEB.2.00.1208011301220.4606@router.home>
+References: <20120731173620.432853182@linux.com> <20120731173634.744568366@linux.com> <5018EBDA.4090902@parallels.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; CHARSET=US-ASCII
-Content-ID: <alpine.DEB.2.00.1208011259552.4606@router.home>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michael Kerrisk <mtk.manpages@gmail.com>
-Cc: JoonSoo Kim <js1304@gmail.com>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Brice Goglin <brice@myri.com>, Minchan Kim <minchan@kernel.org>
+To: Glauber Costa <glommer@parallels.com>
+Cc: Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Matt Mackall <mpm@selenic.com>, Joonsoo Kim <js1304@gmail.com>
 
-On Wed, 1 Aug 2012, Michael Kerrisk wrote:
+On Wed, 1 Aug 2012, Glauber Costa wrote:
 
-> Is the patch below acceptable? (I've attached the complete page as well.)
+> On 07/31/2012 09:36 PM, Christoph Lameter wrote:
+> > Do not use kmalloc() but kmem_cache_alloc() for the allocation
+> > of the kmem_cache structures in slub.
+> >
+> > This is the way its supposed to be. Recent merges lost
+> > the freeing of the kmem_cache structure and so this is also
+> > fixing memory leak on kmem_cache_destroy() by adding
+> > the missing free action to sysfs_slab_remove().
+>
+> This patch seems incomplete to say the least.
 
-Yes looks good.
+Well ok we could have also converted those but these statements will be
+removed later anyways. And you can release a kmem_cache allocation
+legitimately with kfree so this works just fine. The problem was that the
+release in slab_common did a kmem_cache_free() which must have an object
+from the correct cache.
 
-> See you in San Diego (?),
-
-Yup. I will be there too.
-
+Will update those and the Next patchset will include the conversion of
+those as well.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
