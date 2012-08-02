@@ -1,49 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
-	by kanga.kvack.org (Postfix) with SMTP id 7BA226B005D
-	for <linux-mm@kvack.org>; Thu,  2 Aug 2012 17:46:35 -0400 (EDT)
-Received: by bkcjc3 with SMTP id jc3so5028bkc.14
-        for <linux-mm@kvack.org>; Thu, 02 Aug 2012 14:46:33 -0700 (PDT)
-Message-ID: <501AF555.3050004@gmail.com>
-Date: Thu, 02 Aug 2012 23:47:01 +0200
-From: Sasha Levin <levinsasha928@gmail.com>
+Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
+	by kanga.kvack.org (Postfix) with SMTP id BF7F96B005D
+	for <linux-mm@kvack.org>; Thu,  2 Aug 2012 17:50:40 -0400 (EDT)
+Received: by weys10 with SMTP id s10so12748wey.14
+        for <linux-mm@kvack.org>; Thu, 02 Aug 2012 14:50:39 -0700 (PDT)
 MIME-Version: 1.0
+In-Reply-To: <20120802212140.GC7916@jtriplet-mobl1>
+References: <20120802103244.GA23318@leaf> <501A633B.3010509@gmail.com>
+ <87txwl1dsq.fsf@xmission.com> <501AAC26.6030703@gmail.com>
+ <87fw851c3d.fsf@xmission.com> <CA+55aFw_dwO5ZOuaz9eDxgnTZFDGVZKSLUTm5Fn99faALxxJRQ@mail.gmail.com>
+ <20120802175904.GB6251@jtriplet-mobl1> <CA+55aFwqC9hF++S-VPHJBFRrqfyNvsvqwzP=Vtzkv8qSYVqLxA@mail.gmail.com>
+ <20120802202516.GA7916@jtriplet-mobl1> <CA+55aFybtRdg=AzcHv3CPm-_wx8LT2_CXaKr4K+i94QSPauZOw@mail.gmail.com>
+ <20120802212140.GC7916@jtriplet-mobl1>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Thu, 2 Aug 2012 14:50:18 -0700
+Message-ID: <CA+55aFwjWBFq75uQzVekv_ZygG9Sejrf2ok-EhvfvSPxhTFzfg@mail.gmail.com>
 Subject: Re: [RFC 1/4] hashtable: introduce a small and naive hashtable
-References: <5019B0B4.1090102@gmail.com> <20120801224556.GF15477@google.com> <501A4FC1.8040907@gmail.com> <20120802103244.GA23318@leaf> <501A633B.3010509@gmail.com> <501A7AD3.7000008@gmail.com> <20120802161556.GA25572@leaf> <501AAF47.3090708@gmail.com> <20120802174457.GA6251@jtriplet-mobl1> <501ABEE2.10007@gmail.com> <20120802204157.GB7916@jtriplet-mobl1>
-In-Reply-To: <20120802204157.GB7916@jtriplet-mobl1>
 Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Josh Triplett <josh@joshtriplett.org>
-Cc: Tejun Heo <tj@kernel.org>, torvalds@linux-foundation.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, paul.gortmaker@windriver.com
+Cc: "Eric W. Biederman" <ebiederm@xmission.com>, Sasha Levin <levinsasha928@gmail.com>, Tejun Heo <tj@kernel.org>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, paul.gortmaker@windriver.com
 
-On 08/02/2012 10:41 PM, Josh Triplett wrote:
-> On Thu, Aug 02, 2012 at 07:54:42PM +0200, Sasha Levin wrote:
->> /* I've "preprocessed" the DEFINE macro below */
->> union {
->> 	struct hash_table table;
->> 	struct {
->> 		size_t bits;
->> 		struct hlist_head buckets[32];
->> 	}
->> } my_hashtable;
-> 
-> That expansion doesn't match the macros.  Using the most recent
-> definitions of DEFINE_HASHTABLE and DEFINE_STATIC_HASHTABLE from above,
-> the definition would look something like this:
-> 
-> static union {
-> 	struct hash_table my_hashtable;
-> 	struct {
-> 		size_t bits;
-> 		struct hlist_head buckets[1 << 5];
-> 	} __my_hashtable;
-> } = { .my_hashtable.bits = 5 };
+On Thu, Aug 2, 2012 at 2:21 PM, Josh Triplett <josh@joshtriplett.org> wrote:
+>
+>  Did GCC's generated code have worse differences than an immediate
+>  versus a fetched value?
 
-It's different because I don't think you can do what you did above with global variables.
+Oh, *way* worse.
 
-You won't be defining any instances of that anonymous struct, so my_hashtable won't exist anywhere.
+Nobody just masks the low bits. You have more bits than the low bits,
+and unless you have some cryptographic hash (seldom) you want to use
+them.
+
+So no, it's not just as mask. For the dcache, it's
+
+        hash = hash + (hash >> D_HASHBITS);
+        return dentry_hashtable + (hash & D_HASHMASK);
+
+so it's "shift + mask", and the constants mean less register pressure
+and fewer latencies. One of the advantages of the L1 dcache code is
+that the code gets *so* much simpler that it doesn't need a stack save
+area at all, for example.
+
+But as mentioned, the dcache L1 patch had other simplifications than
+just the hash calculations, though. It doesn't do any loop over next
+fields at all (it falls back to the slow case if it isn't a direct
+hit), and it doesn't care about the d_compare() case (they will never
+be added to the L1, since looking those things up is so slow that
+there's no point). So there are other issues at play than just
+avoiding the indirection to fetch base/mask/bitcount things and the
+simplified hash calculation.
+
+Not having a loop makes the register lifetimes simpler and again
+causes less register pressure.
+
+               Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
