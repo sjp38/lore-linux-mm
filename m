@@ -1,8 +1,7 @@
 From: Lai Jiangshan <laijs-BthXqXjhjHXQFUHtdCDX3A@public.gmane.org>
-Subject: [RFC PATCH 20/23 V2] x86: use memblock_set_current_limit() to set
-	memblock.current_limit
-Date: Thu, 2 Aug 2012 10:53:08 +0800
-Message-ID: <1343875991-7533-21-git-send-email-laijs@cn.fujitsu.com>
+Subject: [RFC PATCH 19/23 V2] x86: get pg_data_t's memory from other node
+Date: Thu, 2 Aug 2012 10:53:07 +0800
+Message-ID: <1343875991-7533-20-git-send-email-laijs@cn.fujitsu.com>
 References: <1343875991-7533-1-git-send-email-laijs@cn.fujitsu.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset="us-ascii"
@@ -24,36 +23,37 @@ List-Id: linux-mm.kvack.org
 
 From: Yasuaki Ishimatsu <isimatu.yasuaki-+CUm20s59erQFUHtdCDX3A@public.gmane.org>
 
-memblock.current_limit is set directly though memblock_set_current_limit()
-is prepared. So fix it.
+If system can create movable node which all memory of the
+node is allocated as ZONE_MOVABLE, setup_node_data() cannot
+allocate memory for the node's pg_data_t.
+So when memblock_alloc_nid() fails, setup_node_data() retries
+memblock_alloc().
 
 Signed-off-by: Yasuaki Ishimatsu <isimatu.yasuaki-+CUm20s59erQFUHtdCDX3A@public.gmane.org>
 Signed-off-by: Lai Jiangshan <laijs-BthXqXjhjHXQFUHtdCDX3A@public.gmane.org>
 ---
- arch/x86/kernel/setup.c |    4 ++--
- 1 files changed, 2 insertions(+), 2 deletions(-)
+ arch/x86/mm/numa.c |    8 ++++++--
+ 1 files changed, 6 insertions(+), 2 deletions(-)
 
-diff --git a/arch/x86/kernel/setup.c b/arch/x86/kernel/setup.c
-index f4b9b80..bb9d9f8 100644
---- a/arch/x86/kernel/setup.c
-+++ b/arch/x86/kernel/setup.c
-@@ -889,7 +889,7 @@ void __init setup_arch(char **cmdline_p)
- 
- 	cleanup_highmap();
- 
--	memblock.current_limit = get_max_mapped();
-+	memblock_set_current_limit(get_max_mapped());
- 	memblock_x86_fill();
- 
- 	/*
-@@ -925,7 +925,7 @@ void __init setup_arch(char **cmdline_p)
- 		max_low_pfn = max_pfn;
- 	}
- #endif
--	memblock.current_limit = get_max_mapped();
-+	memblock_set_current_limit(get_max_mapped());
- 	dma_contiguous_reserve(0);
- 
- 	/*
+diff --git a/arch/x86/mm/numa.c b/arch/x86/mm/numa.c
+index 2d125be..a86e315 100644
+--- a/arch/x86/mm/numa.c
++++ b/arch/x86/mm/numa.c
+@@ -223,9 +223,13 @@ static void __init setup_node_data(int nid, u64 start, u64 end)
+ 		remapped = true;
+ 	} else {
+ 		nd_pa = memblock_alloc_nid(nd_size, SMP_CACHE_BYTES, nid);
+-		if (!nd_pa) {
+-			pr_err("Cannot find %zu bytes in node %d\n",
++		if (!nd_pa)
++			printk(KERN_WARNING "Cannot find %zu bytes in node %d\n",
+ 			       nd_size, nid);
++		nd_pa = memblock_alloc(nd_size, SMP_CACHE_BYTES);
++		if (!nd_pa) {
++			pr_err("Cannot find %zu bytes in other node\n",
++			       nd_size);
+ 			return;
+ 		}
+ 		nd = __va(nd_pa);
 -- 
 1.7.1
