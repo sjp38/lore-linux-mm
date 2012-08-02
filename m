@@ -1,135 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
-	by kanga.kvack.org (Postfix) with SMTP id 93A576B0083
-	for <linux-mm@kvack.org>; Thu,  2 Aug 2012 16:15:40 -0400 (EDT)
-Message-Id: <20120802201538.881772415@linux.com>
-Date: Thu, 02 Aug 2012 15:15:21 -0500
+Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
+	by kanga.kvack.org (Postfix) with SMTP id 7E8B46B005D
+	for <linux-mm@kvack.org>; Thu,  2 Aug 2012 16:15:39 -0400 (EDT)
+Message-Id: <20120802201537.792112551@linux.com>
+Date: Thu, 02 Aug 2012 15:15:19 -0500
 From: Christoph Lameter <cl@linux.com>
-Subject: Common [15/19] create common create_kmalloc_cache()
+Subject: Common [13/19] slub: Use a statically allocated kmem_cache boot structure for bootstrap
 References: <20120802201506.266817615@linux.com>
-Content-Disposition: inline; filename=extract_create_kmalloc_cache
+Content-Disposition: inline; filename=slub_static_init
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Glauber Costa <glommer@parallels.com>
 Cc: Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Joonsoo Kim <js1304@gmail.com>
 
-Use a special function to create kmalloc caches and use that function in
-SLAB and SLUB.
+Simplify bootstrap by statically allocated two kmem_cache structures. These are
+freed after bootup is complete. Allows us to no longer worry about calculations
+of sizes of kmem_cache structures during bootstrap.
 
 Reviewed-by: Glauber Costa <glommer@parallels.com>
 Signed-off-by: Christoph Lameter <cl@linux.com>
 
 ---
- mm/slab.c |   53 +++++++++++++++++++++++------------------------------
- 1 file changed, 23 insertions(+), 30 deletions(-)
+ mm/slub.c |   32 +++++++++-----------------------
+ 1 file changed, 9 insertions(+), 23 deletions(-)
 
-Index: linux-2.6/mm/slab.c
+Index: linux-2.6/mm/slub.c
 ===================================================================
---- linux-2.6.orig/mm/slab.c	2012-08-02 14:58:11.553429908 -0500
-+++ linux-2.6/mm/slab.c	2012-08-02 14:58:17.657539215 -0500
-@@ -1673,22 +1673,13 @@ void __init kmem_cache_init(void)
- 	 * bug.
- 	 */
- 
--	sizes[INDEX_AC].cs_cachep = __kmem_cache_create(names[INDEX_AC].name,
--					sizes[INDEX_AC].cs_size,
--					ARCH_KMALLOC_MINALIGN,
--					ARCH_KMALLOC_FLAGS|SLAB_PANIC,
--					NULL);
-+	sizes[INDEX_AC].cs_cachep = create_kmalloc_cache(names[INDEX_AC].name,
-+					sizes[INDEX_AC].cs_size, ARCH_KMALLOC_FLAGS);
- 
--	list_add(&sizes[INDEX_AC].cs_cachep->list, &slab_caches);
--	if (INDEX_AC != INDEX_L3) {
-+	if (INDEX_AC != INDEX_L3)
- 		sizes[INDEX_L3].cs_cachep =
--			__kmem_cache_create(names[INDEX_L3].name,
--				sizes[INDEX_L3].cs_size,
--				ARCH_KMALLOC_MINALIGN,
--				ARCH_KMALLOC_FLAGS|SLAB_PANIC,
--				NULL);
--		list_add(&sizes[INDEX_L3].cs_cachep->list, &slab_caches);
--	}
-+			create_kmalloc_cache(names[INDEX_L3].name,
-+				sizes[INDEX_L3].cs_size, ARCH_KMALLOC_FLAGS);
- 
- 	slab_early_init = 0;
- 
-@@ -1700,23 +1691,14 @@ void __init kmem_cache_init(void)
- 		 * Note for systems short on memory removing the alignment will
- 		 * allow tighter packing of the smaller caches.
- 		 */
--		if (!sizes->cs_cachep) {
--			sizes->cs_cachep = __kmem_cache_create(names->name,
--					sizes->cs_size,
--					ARCH_KMALLOC_MINALIGN,
--					ARCH_KMALLOC_FLAGS|SLAB_PANIC,
--					NULL);
--			list_add(&sizes->cs_cachep->list, &slab_caches);
--		}
-+		if (!sizes->cs_cachep)
-+			sizes->cs_cachep = create_kmalloc_cache(names->name,
-+					sizes->cs_size, ARCH_KMALLOC_FLAGS);
-+
- #ifdef CONFIG_ZONE_DMA
--		sizes->cs_dmacachep = __kmem_cache_create(
--					names->name_dma,
--					sizes->cs_size,
--					ARCH_KMALLOC_MINALIGN,
--					ARCH_KMALLOC_FLAGS|SLAB_CACHE_DMA|
--						SLAB_PANIC,
--					NULL);
--		list_add(&sizes->cs_dmacachep->list, &slab_caches);
-+		sizes->cs_dmacachep = create_kmalloc_cache(
-+			names->name_dma, sizes->cs_size,
-+			SLAB_CACHE_DMA|ARCH_KMALLOC_FLAGS);
- #endif
- 		sizes++;
- 		names++;
-Index: linux-2.6/mm/slab.h
-===================================================================
---- linux-2.6.orig/mm/slab.h	2012-08-02 14:58:11.541429693 -0500
-+++ linux-2.6/mm/slab.h	2012-08-02 14:58:17.657539215 -0500
-@@ -33,9 +33,12 @@ extern struct list_head slab_caches;
- extern struct kmem_cache *kmem_cache;
- 
- /* Functions provided by the slab allocators */
--struct kmem_cache *__kmem_cache_create(const char *name, size_t size,
-+extern struct kmem_cache *__kmem_cache_create(const char *name, size_t size,
- 	size_t align, unsigned long flags, void (*ctor)(void *));
- 
-+extern struct kmem_cache *create_kmalloc_cache(const char *name, size_t size,
-+			unsigned long flags);
-+
- #ifdef CONFIG_SLUB
- struct kmem_cache *__kmem_cache_alias(const char *name, size_t size,
- 	size_t align, unsigned long flags, void (*ctor)(void *));
-Index: linux-2.6/mm/slab_common.c
-===================================================================
---- linux-2.6.orig/mm/slab_common.c	2012-08-02 14:58:11.561430050 -0500
-+++ linux-2.6/mm/slab_common.c	2012-08-02 14:58:17.657539215 -0500
-@@ -177,3 +177,21 @@ int slab_is_available(void)
- {
- 	return slab_state >= UP;
+--- linux-2.6.orig/mm/slub.c	2012-08-01 14:52:12.944165176 -0500
++++ linux-2.6/mm/slub.c	2012-08-01 14:57:05.201430270 -0500
+@@ -3686,13 +3686,13 @@
+ 	}
  }
+ 
++static __initdata struct kmem_cache boot_kmem_cache,
++			boot_kmem_cache_node;
 +
-+struct kmem_cache *__init create_kmalloc_cache(const char *name, size_t size,
-+				unsigned long flags)
-+{
-+	struct kmem_cache *s;
-+
-+	s = __kmem_cache_create(name, size, ARCH_KMALLOC_MINALIGN,
-+		       	flags, NULL);
-+
-+	if (s) {
-+		list_add(&s->list, &slab_caches);
-+		return s;
-+	}
-+
-+	panic("Creation of kmalloc slab %s size=%ld failed.\n", name, size);
-+	return NULL;
-+}
-+
+ void __init kmem_cache_init(void)
+ {
+ 	int i;
+-	int caches = 0;
+-	struct kmem_cache *temp_kmem_cache;
+-	int order;
+-	struct kmem_cache *temp_kmem_cache_node;
++	int caches = 2;
+ 	unsigned long kmalloc_size;
+ 
+ 	if (debug_guardpage_minorder())
+@@ -3701,19 +3701,10 @@
+ 	kmem_size = offsetof(struct kmem_cache, node) +
+ 			nr_node_ids * sizeof(struct kmem_cache_node *);
+ 
+-	/* Allocate two kmem_caches from the page allocator */
+ 	kmalloc_size = ALIGN(kmem_size, cache_line_size());
+-	order = get_order(2 * kmalloc_size);
+-	kmem_cache = (void *)__get_free_pages(GFP_NOWAIT, order);
+-
+-	/*
+-	 * Must first have the slab cache available for the allocations of the
+-	 * struct kmem_cache_node's. There is special bootstrap code in
+-	 * kmem_cache_open for slab_state == DOWN.
+-	 */
+-	kmem_cache_node = (void *)kmem_cache + kmalloc_size;
++	kmem_cache_node = &boot_kmem_cache_node;
+ 
+-	kmem_cache_open(kmem_cache_node, "kmem_cache_node",
++	kmem_cache_open(&boot_kmem_cache_node, "kmem_cache_node",
+ 		sizeof(struct kmem_cache_node),
+ 		0, SLAB_HWCACHE_ALIGN | SLAB_PANIC, NULL);
+ 
+@@ -3722,29 +3713,21 @@
+ 	/* Able to allocate the per node structures */
+ 	slab_state = PARTIAL;
+ 
+-	temp_kmem_cache = kmem_cache;
+-	kmem_cache_open(kmem_cache, "kmem_cache", kmem_size,
++	kmem_cache_open(&boot_kmem_cache, "kmem_cache", kmem_size,
+ 		0, SLAB_HWCACHE_ALIGN | SLAB_PANIC, NULL);
+-	kmem_cache = kmem_cache_alloc(kmem_cache, GFP_NOWAIT);
+-	memcpy(kmem_cache, temp_kmem_cache, kmem_size);
++	kmem_cache = kmem_cache_alloc(&boot_kmem_cache, GFP_NOWAIT);
++	memcpy(kmem_cache, &boot_kmem_cache, kmem_size);
+ 
+ 	/*
+ 	 * Allocate kmem_cache_node properly from the kmem_cache slab.
+ 	 * kmem_cache_node is separately allocated so no need to
+ 	 * update any list pointers.
+ 	 */
+-	temp_kmem_cache_node = kmem_cache_node;
+-
+ 	kmem_cache_node = kmem_cache_alloc(kmem_cache, GFP_NOWAIT);
+-	memcpy(kmem_cache_node, temp_kmem_cache_node, kmem_size);
++	memcpy(kmem_cache_node, &boot_kmem_cache_node, kmem_size);
+ 
+ 	kmem_cache_bootstrap_fixup(kmem_cache_node);
+-
+-	caches++;
+ 	kmem_cache_bootstrap_fixup(kmem_cache);
+-	caches++;
+-	/* Free temporary boot structure */
+-	free_pages((unsigned long)temp_kmem_cache, order);
+ 
+ 	/* Now we can use the kmem_cache to allocate kmalloc slabs */
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
