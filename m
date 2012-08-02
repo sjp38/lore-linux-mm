@@ -1,86 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
-	by kanga.kvack.org (Postfix) with SMTP id 527F36B005D
-	for <linux-mm@kvack.org>; Thu,  2 Aug 2012 03:38:02 -0400 (EDT)
-Date: Thu, 2 Aug 2012 08:37:57 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH -alternative] mm: hugetlbfs: Close race during teardown
- of hugetlbfs shared page tables V2 (resend)
-Message-ID: <20120802073757.GC29814@suse.de>
-References: <20120727102356.GD612@suse.de>
- <5016DC5F.7030604@redhat.com>
- <20120731124650.GO612@suse.de>
- <50181AA1.0@redhat.com>
- <20120731200650.GB19524@tiehlicka.suse.cz>
- <50189857.4000501@redhat.com>
- <20120801082036.GC4436@tiehlicka.suse.cz>
- <20120801123209.GK4436@tiehlicka.suse.cz>
- <501945F9.2030402@redhat.com>
- <20120802071934.GA7557@dhcp22.suse.cz>
+Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
+	by kanga.kvack.org (Postfix) with SMTP id BD8F06B004D
+	for <linux-mm@kvack.org>; Thu,  2 Aug 2012 03:58:14 -0400 (EDT)
+Message-ID: <501A3262.6090407@parallels.com>
+Date: Thu, 2 Aug 2012 11:55:14 +0400
+From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20120802071934.GA7557@dhcp22.suse.cz>
+Subject: Re: Any reason to use put_page in slub.c?
+References: <1343391586-18837-1-git-send-email-glommer@parallels.com>  <alpine.DEB.2.00.1207271054230.18371@router.home>  <50163D94.5050607@parallels.com>  <alpine.DEB.2.00.1207301421150.27584@router.home>  <5017968C.6050301@parallels.com>  <alpine.DEB.2.00.1207310906350.32295@router.home>  <5017E72D.2060303@parallels.com>  <alpine.DEB.2.00.1207310915150.32295@router.home>  <5017E929.70602@parallels.com>  <alpine.DEB.2.00.1207310927420.32295@router.home> <1343746344.8473.4.camel@dabdike.int.hansenpartnership.com> <50192453.9080706@parallels.com> <alpine.DEB.2.00.1208011307450.4606@router.home>
+In-Reply-To: <alpine.DEB.2.00.1208011307450.4606@router.home>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Larry Woodman <lwoodman@redhat.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Linux-MM <linux-mm@kvack.org>, David Gibson <david@gibson.dropbear.id.au>, Ken Chen <kenchen@google.com>, Cong Wang <xiyou.wangcong@gmail.com>, LKML <linux-kernel@vger.kernel.org>
+To: Christoph Lameter <cl@linux.com>
+Cc: James Bottomley <James.Bottomley@HansenPartnership.com>, linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>
 
-On Thu, Aug 02, 2012 at 09:19:34AM +0200, Michal Hocko wrote:
-> Hi Larry,
+On 08/01/2012 10:10 PM, Christoph Lameter wrote:
+> On Wed, 1 Aug 2012, Glauber Costa wrote:
 > 
-> On Wed 01-08-12 11:06:33, Larry Woodman wrote:
-> > On 08/01/2012 08:32 AM, Michal Hocko wrote:
-> > >
-> > >I am really lame :/. The previous patch is wrong as well for goto out
-> > >branch. The updated patch as follows:
-> > This patch worked fine Michal!  
+>> I've audited all users of get_page() in the drivers/ directory for
+>> patterns like this. In general, they kmalloc something like a table of
+>> entries, and then get_page() the entries. The entries are either user
+>> pages, pages allocated by the page allocator, or physical addresses
+>> through their pfn (in 2 cases from the vga ones...)
+>>
+>> I took a look about some other instances where virt_to_page occurs
+>> together with kmalloc as well, and they all seem to fall in the same
+>> category.
 > 
-> Thanks for the good news!
+> The case that was notorious in the past was a scsi control structure
+> allocated from slab that was then written to the device via DMA. And it
+> was not on x86 but some esoteric platform (powerpc?),
 > 
-> > You and Mel can duke it out over who's is best. :)
+> A reference to the discussion of this issue in 2007:
 > 
-> The answer is clear here ;) Mel did the hard work of identifying the
-> culprit so kudos go to him.
-
-I'm happy once it's fixed!
-
-> I just tried to solve the issue more inside x86 arch code. The pmd
-> allocation outside of sharing code seemed strange to me for quite some
-> time I just underestimated its consequences completely.
+> http://lkml.indiana.edu/hypermail/linux/kernel/0706.3/0424.html
 > 
-> Both approaches have some pros. Mel's patch is more resistant to other
-> not-yet-discovered races and it also makes the arch independent code
-> more robust because relying on the pmd trick is not ideal.
+Thanks.
 
-If there is another race then it is best to hear about it, understand
-it and fix the underlying problem. More importantly, your patch ensures
-that two processes faulting at the same time will share page tables with
-each other. My patch only noted that this missed opportunity could cause
-problems with fork.
+So again, I've scanned across that thread, and found some very useful
+excerpts from it, that can only argue in favor of my patch =)
 
-> On the other hand, mine is more coupled with the sharing code so it
-> makes the code easier to follow and also makes the sharing more
-> effective because racing processes see pmd populated when checking for
-> shareable mappings.
-> 
+"There are no kmalloced pages. There is only kmalloced memory. You
+allocate pages from the page allocator. Its a layering violation to
+expect a page struct operation on a slab object to work."
 
-It could do with a small comment above huge_pmd_share() explaining that
-calling pmd_alloc() under the i_mmap_mutex is necessary to prevent two
-parallel faults missing a sharing opportunity with each other but it's
-not mandatory.
+"So someone played loose ball with the slab, was successful and that
+makes it right now?"
 
-> So I am more inclined to mine but I don't want to push it because both
-> are good and make sense. What other people think?
-> 
+Looking at the code again, I see that page_mapping(), that ends up being
+called to do the translation in those pathological cases now features a
+VM_BUG_ON(), put in place by yourself. This dates back from 2007, giving
+me enough reason to believe that whatever issue still existed back then
+is already sorted out - or nobody really cares.
 
-I vote yours
-
-Reviewed-by: Mel Gorman <mgorman@suse.de>
-
--- 
-Mel Gorman
-SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
