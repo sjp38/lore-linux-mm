@@ -1,249 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
-	by kanga.kvack.org (Postfix) with SMTP id E78AE6B0072
-	for <linux-mm@kvack.org>; Thu,  2 Aug 2012 16:15:42 -0400 (EDT)
-Message-Id: <20120802201541.157039318@linux.com>
-Date: Thu, 02 Aug 2012 15:15:25 -0500
-From: Christoph Lameter <cl@linux.com>
-Subject: Common [19/19] Common alignment code
-References: <20120802201506.266817615@linux.com>
-Content-Disposition: inline; filename=common_alignment
+Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
+	by kanga.kvack.org (Postfix) with SMTP id AED1A6B0073
+	for <linux-mm@kvack.org>; Thu,  2 Aug 2012 16:25:24 -0400 (EDT)
+Date: Thu, 2 Aug 2012 13:25:16 -0700
+From: Josh Triplett <josh@joshtriplett.org>
+Subject: Re: [RFC 1/4] hashtable: introduce a small and naive hashtable
+Message-ID: <20120802202516.GA7916@jtriplet-mobl1>
+References: <20120801224556.GF15477@google.com>
+ <501A4FC1.8040907@gmail.com>
+ <20120802103244.GA23318@leaf>
+ <501A633B.3010509@gmail.com>
+ <87txwl1dsq.fsf@xmission.com>
+ <501AAC26.6030703@gmail.com>
+ <87fw851c3d.fsf@xmission.com>
+ <CA+55aFw_dwO5ZOuaz9eDxgnTZFDGVZKSLUTm5Fn99faALxxJRQ@mail.gmail.com>
+ <20120802175904.GB6251@jtriplet-mobl1>
+ <CA+55aFwqC9hF++S-VPHJBFRrqfyNvsvqwzP=Vtzkv8qSYVqLxA@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CA+55aFwqC9hF++S-VPHJBFRrqfyNvsvqwzP=Vtzkv8qSYVqLxA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Joonsoo Kim <js1304@gmail.com>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: "Eric W. Biederman" <ebiederm@xmission.com>, Sasha Levin <levinsasha928@gmail.com>, Tejun Heo <tj@kernel.org>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, paul.gortmaker@windriver.com
 
-Extract the code to do object alignment from the allocators.
-Do the alignment calculations in slab_common so that the
-__kmem_cache_create functions of the allocators do not have
-to deal with alignment.
+On Thu, Aug 02, 2012 at 11:08:06AM -0700, Linus Torvalds wrote:
+> On Thu, Aug 2, 2012 at 10:59 AM, Josh Triplett <josh@joshtriplett.org> wrote:
+> >
+> > You shouldn't have any extra indirection for the base, if it lives
+> > immediately after the size.
+> 
+> Umm. You *always* have the extra indirection. Because you have that allocation.
+> 
+> So you have to follow the pointer to get the base/size, because they
+> aren't compile/link-time constants.
 
-Signed-off-by: Christoph Lameter <cl@linux.com>
+Sorry, I should clarify what I meant: you'll have a total of one extra
+indirection, not two.  You have to follow the pointer to get to both the
+size and the buckets.  However, I would *hope* that you'd keep that line
+in cache during any repeated activity using that hash table, which ought
+to eliminate the cost of the indirection.  Does that line really get
+evicted from cache entirely by the time you touch the dcache again?
 
----
- mm/slab.c        |   22 +---------------------
- mm/slab.h        |    3 +++
- mm/slab_common.c |   30 +++++++++++++++++++++++++++++-
- mm/slob.c        |   11 -----------
- mm/slub.c        |   45 ++++++++-------------------------------------
- 5 files changed, 41 insertions(+), 70 deletions(-)
+> The cache misses were noticeable in macro-benchmarks, and in
+> micro-benchmarks the smaller L1 hash table means that things fit much
+> better in the L2.
+>
+> It really improved performance. Seriously. Even things like "find /"
+> that had a lot of L1 misses ended up faster, because "find" is
+> apparently pretty moronic and does some things over and over. For
+> stuff that fit in the L1, it qas quite noticeable.
+> 
+> Of course, one reason for the speedup for the dcache was that I also
+> made the L1 only contain the simple cases (ie no "d_compare" thing
+> etc), so it speeded up dcache lookups in other ways too. But according
+> to the profiles, it really looked like better cache behavior was one
+> of the bigger things.
 
-Index: linux-2.6/mm/slab.c
-===================================================================
---- linux-2.6.orig/mm/slab.c	2012-08-02 15:00:51.432259050 -0500
-+++ linux-2.6/mm/slab.c	2012-08-02 15:00:58.896389642 -0500
-@@ -2378,22 +2378,6 @@ __kmem_cache_create (struct kmem_cache *
- 		cachep->size &= ~(BYTES_PER_WORD - 1);
- 	}
- 
--	/* calculate the final buffer alignment: */
--
--	/* 1) arch recommendation: can be overridden for debug */
--	if (flags & SLAB_HWCACHE_ALIGN) {
--		/*
--		 * Default alignment: as specified by the arch code.  Except if
--		 * an object is really small, then squeeze multiple objects into
--		 * one cacheline.
--		 */
--		ralign = cache_line_size();
--		while (cachep->size <= ralign / 2)
--			ralign /= 2;
--	} else {
--		ralign = BYTES_PER_WORD;
--	}
--
- 	/*
- 	 * Redzoning and user store require word alignment or possibly larger.
- 	 * Note this will be overridden by architecture or caller mandated
-@@ -2410,10 +2394,6 @@ __kmem_cache_create (struct kmem_cache *
- 		cachep->size &= ~(REDZONE_ALIGN - 1);
- 	}
- 
--	/* 2) arch mandated alignment */
--	if (ralign < ARCH_SLAB_MINALIGN) {
--		ralign = ARCH_SLAB_MINALIGN;
--	}
- 	/* 3) caller mandated alignment */
- 	if (ralign < cachep->align) {
- 		ralign = cachep->align;
-Index: linux-2.6/mm/slab_common.c
-===================================================================
---- linux-2.6.orig/mm/slab_common.c	2012-08-02 15:00:51.432259050 -0500
-+++ linux-2.6/mm/slab_common.c	2012-08-02 15:00:58.896389642 -0500
-@@ -25,6 +25,34 @@ DEFINE_MUTEX(slab_mutex);
- struct kmem_cache *kmem_cache;
- 
- /*
-+ * Figure out what the alignment of the objects will be given a set of
-+ * flags, a user specified alignment and the size of the objects.
-+ */
-+unsigned long calculate_alignment(unsigned long flags,
-+		unsigned long align, unsigned long size)
-+{
-+	/*
-+	 * If the user wants hardware cache aligned objects then follow that
-+	 * suggestion if the object is sufficiently large.
-+	 *
-+	 * The hardware cache alignment cannot override the specified
-+	 * alignment though. If that is greater then use it.
-+	 */
-+	if (flags & SLAB_HWCACHE_ALIGN) {
-+		unsigned long ralign = cache_line_size();
-+		while (size <= ralign / 2)
-+			ralign /= 2;
-+		align = max(align, ralign);
-+	}
-+
-+	if (align < ARCH_SLAB_MINALIGN)
-+		align = ARCH_SLAB_MINALIGN;
-+
-+	return ALIGN(align, sizeof(void *));
-+}
-+
-+
-+/*
-  * kmem_cache_create - Create a cache.
-  * @name: A string which is used in /proc/slabinfo to identify this cache.
-  * @size: The size of objects to be created in this cache.
-@@ -101,7 +129,7 @@ struct kmem_cache *kmem_cache_create(con
- 
- 	if (s) {
- 		s->object_size = s->size = size;
--		s->align = align;
-+		s->align = calculate_alignment(flags, align, size);
- 		s->ctor = ctor;
- 		s->name = kstrdup(name, GFP_KERNEL);
- 		if (!s->name) {
-@@ -191,7 +219,7 @@ struct kmem_cache *__init create_kmalloc
- 	if (s) {
- 		s->name = name;
- 		s->size = s->object_size = size;
--		s->align = ARCH_KMALLOC_MINALIGN;
-+		s->align = calculate_alignment(flags, ARCH_KMALLOC_MINALIGN, size);
- 		r = __kmem_cache_create(s, flags);
- 
- 		if (!r) {
-Index: linux-2.6/mm/slob.c
-===================================================================
---- linux-2.6.orig/mm/slob.c	2012-08-02 15:00:51.432259050 -0500
-+++ linux-2.6/mm/slob.c	2012-08-02 15:00:58.896389642 -0500
-@@ -124,7 +124,6 @@ static inline void clear_slob_page_free(
- 
- #define SLOB_UNIT sizeof(slob_t)
- #define SLOB_UNITS(size) (((size) + SLOB_UNIT - 1)/SLOB_UNIT)
--#define SLOB_ALIGN L1_CACHE_BYTES
- 
- /*
-  * struct slob_rcu is inserted at the tail of allocated slob blocks, which
-@@ -510,20 +509,11 @@ EXPORT_SYMBOL(ksize);
- 
- int __kmem_cache_create(struct kmem_cache *c, unsigned long flags)
- {
--	size_t align = c->size;
--
- 	if (flags & SLAB_DESTROY_BY_RCU) {
- 		/* leave room for rcu footer at the end of object */
- 		c->size += sizeof(struct slob_rcu);
- 	}
- 	c->flags = flags;
--	/* ignore alignment unless it's forced */
--	c->align = (flags & SLAB_HWCACHE_ALIGN) ? SLOB_ALIGN : 0;
--	if (c->align < ARCH_SLAB_MINALIGN)
--		c->align = ARCH_SLAB_MINALIGN;
--	if (c->align < align)
--		c->align = align;
--
- 	return 0;
- }
- 
-Index: linux-2.6/mm/slub.c
-===================================================================
---- linux-2.6.orig/mm/slub.c	2012-08-02 15:00:51.432259050 -0500
-+++ linux-2.6/mm/slub.c	2012-08-02 15:00:58.896389642 -0500
-@@ -2747,32 +2747,6 @@ static inline int calculate_order(int si
- 	return -ENOSYS;
- }
- 
--/*
-- * Figure out what the alignment of the objects will be.
-- */
--static unsigned long calculate_alignment(unsigned long flags,
--		unsigned long align, unsigned long size)
--{
--	/*
--	 * If the user wants hardware cache aligned objects then follow that
--	 * suggestion if the object is sufficiently large.
--	 *
--	 * The hardware cache alignment cannot override the specified
--	 * alignment though. If that is greater then use it.
--	 */
--	if (flags & SLAB_HWCACHE_ALIGN) {
--		unsigned long ralign = cache_line_size();
--		while (size <= ralign / 2)
--			ralign /= 2;
--		align = max(align, ralign);
--	}
--
--	if (align < ARCH_SLAB_MINALIGN)
--		align = ARCH_SLAB_MINALIGN;
--
--	return ALIGN(align, sizeof(void *));
--}
--
- static void
- init_kmem_cache_node(struct kmem_cache_node *n)
- {
-@@ -2906,7 +2880,6 @@ static int calculate_sizes(struct kmem_c
- {
- 	unsigned long flags = s->flags;
- 	unsigned long size = s->object_size;
--	unsigned long align = s->align;
- 	int order;
- 
- 	/*
-@@ -2978,19 +2951,11 @@ static int calculate_sizes(struct kmem_c
- #endif
- 
- 	/*
--	 * Determine the alignment based on various parameters that the
--	 * user specified and the dynamic determination of cache line size
--	 * on bootup.
--	 */
--	align = calculate_alignment(flags, align, s->object_size);
--	s->align = align;
--
--	/*
- 	 * SLUB stores one object immediately after another beginning from
- 	 * offset 0. In order to align the objects we have to simply size
- 	 * each object to conform to the alignment.
- 	 */
--	size = ALIGN(size, align);
-+	size = ALIGN(size, s->align);
- 	s->size = size;
- 	if (forced_order >= 0)
- 		order = forced_order;
-@@ -3019,7 +2984,6 @@ static int calculate_sizes(struct kmem_c
- 		s->max = s->oo;
- 
- 	return !!oo_objects(s->oo);
--
- }
- 
- static int kmem_cache_open(struct kmem_cache *s, unsigned long flags)
-Index: linux-2.6/mm/slab.h
-===================================================================
---- linux-2.6.orig/mm/slab.h	2012-08-02 15:00:11.179555425 -0500
-+++ linux-2.6/mm/slab.h	2012-08-02 15:00:58.896389642 -0500
-@@ -32,6 +32,9 @@ extern struct list_head slab_caches;
- /* The slab cache that manages slab cache information */
- extern struct kmem_cache *kmem_cache;
- 
-+unsigned long calculate_alignment(unsigned long flags,
-+		unsigned long align, unsigned long size);
-+
- /* Functions provided by the slab allocators */
- extern int __kmem_cache_create(struct kmem_cache *, unsigned long flags);
- 
+Seems like avoiding some of the longer paths through the dcache code
+would also improve your cache behavior.  But in any case, I can easily
+believe that the small L1 cache provides a win.
+
+> Trust me: every problem in computer science may be solved by an
+> indirection, but those indirections are *expensive*. Pointer chasing
+> is just about the most expensive thing you can do on modern CPU's.
+
+By that argument, it might make sense to make the L1 cache a closed hash
+table and drop the chaining, to get rid of one more indirection, or
+several.
+
+Does your two-level dcache handle eviction?
+
+Mind posting the WIP patches?
+
+- Josh Triplett
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
