@@ -1,35 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
-	by kanga.kvack.org (Postfix) with SMTP id 2D4246B004D
-	for <linux-mm@kvack.org>; Thu,  2 Aug 2012 10:34:29 -0400 (EDT)
-Date: Thu, 2 Aug 2012 09:34:26 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: Common [15/16] Shrink __kmem_cache_create() parameter lists
-In-Reply-To: <alpine.DEB.2.00.1208020930190.23049@router.home>
-Message-ID: <alpine.DEB.2.00.1208020933420.23049@router.home>
-References: <20120801211130.025389154@linux.com> <20120801211204.342096542@linux.com> <501A57C2.2060702@parallels.com> <alpine.DEB.2.00.1208020930190.23049@router.home>
+Received: from psmtp.com (na3sys010amx127.postini.com [74.125.245.127])
+	by kanga.kvack.org (Postfix) with SMTP id D50A46B004D
+	for <linux-mm@kvack.org>; Thu,  2 Aug 2012 10:42:21 -0400 (EDT)
+Message-ID: <501A9164.5040304@redhat.com>
+Date: Thu, 02 Aug 2012 10:40:36 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH -mm] mm: hugetlbfs: Correctly populate shared pmd
+References: <20120802141656.GB18084@dhcp22.suse.cz>
+In-Reply-To: <20120802141656.GB18084@dhcp22.suse.cz>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Joonsoo Kim <js1304@gmail.com>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Linux-MM <linux-mm@kvack.org>, David Gibson <david@gibson.dropbear.id.au>, Ken Chen <kenchen@google.com>, Cong Wang <xiyou.wangcong@gmail.com>, LKML <linux-kernel@vger.kernel.org>, Larry Woodman <lwoodman@redhat.com>
 
-On Thu, 2 Aug 2012, Christoph Lameter wrote:
+On 08/02/2012 10:16 AM, Michal Hocko wrote:
+> Hi Andrew,
+> the following patch fixes yet-another race in the hugetlb pte sharing
+> code reported by Larry. It is based on top of the current -mm tree but
+> it cleanly applies to linus tree as well. It should go to stable as
+> well. The bug is there for ages but this fix is possible only since 3.0
+> because i_mmap_lock used to be a spinlock until 3d48ae45 which turned it
+> into mutex and so we can call pmd_alloc.
 
-> On Thu, 2 Aug 2012, Glauber Costa wrote:
+> This patch addresses the issue by moving pmd_alloc into huge_pmd_share
+> which guarantees that the shared pud is populated in the same
+> critical section as pmd. This also means that huge_pte_offset test in
+> huge_pmd_share is serialized correctly now which in turn means that
+> the success of the sharing will be higher as the racing tasks see the
+> pud and pmd populated together.
 >
-> > > -		kfree(n);
-> > > +		kfree(s->name);
-> >
-> > This last statement is a NULL pointer dereference.
->
-> Yes. The statement should have been removed at the earlier patch where we
-> move the allocation of the kmem_cache struct. sigh.
+> Race identified and changelog written mostly by Mel Gorman
+> Reported-and-tested-by: Larry Woodman <lwoodman@redhat.com>
+> Reviewed-by: Mel Gorman <mgorman@suse.de>
+> Signed-off-by: Michal Hocko <mhocko@suse.cz>
 
-Arg. No the rearrangement is in this patch after all. So we can just drop
-the statement.
-xy
+Reviewed-by: Rik van Riel <riel@redhat.com>
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
