@@ -1,41 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
-	by kanga.kvack.org (Postfix) with SMTP id 7E3BE6B004D
-	for <linux-mm@kvack.org>; Thu,  2 Aug 2012 12:40:49 -0400 (EDT)
-From: ebiederm@xmission.com (Eric W. Biederman)
-References: <20120731182330.GD21292@google.com> <50197348.9010101@gmail.com>
-	<20120801182112.GC15477@google.com> <50197460.8010906@gmail.com>
-	<20120801182749.GD15477@google.com> <50197E4A.7020408@gmail.com>
-	<20120801202432.GE15477@google.com> <5019B0B4.1090102@gmail.com>
-	<20120801224556.GF15477@google.com> <501A4FC1.8040907@gmail.com>
-	<20120802103244.GA23318@leaf> <501A633B.3010509@gmail.com>
-	<87txwl1dsq.fsf@xmission.com> <501AAC26.6030703@gmail.com>
-Date: Thu, 02 Aug 2012 09:40:38 -0700
-In-Reply-To: <501AAC26.6030703@gmail.com> (Sasha Levin's message of "Thu, 02
-	Aug 2012 18:34:46 +0200")
-Message-ID: <87fw851c3d.fsf@xmission.com>
+Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
+	by kanga.kvack.org (Postfix) with SMTP id 9DECA6B005A
+	for <linux-mm@kvack.org>; Thu,  2 Aug 2012 12:42:14 -0400 (EDT)
+Date: Thu, 2 Aug 2012 18:42:03 +0200
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH] slub: use free_page instead of put_page for freeing
+ kmalloc allocation
+Message-ID: <20120802164203.GA30111@cmpxchg.org>
+References: <1343913065-14631-1-git-send-email-glommer@parallels.com>
+ <alpine.DEB.2.00.1208020902390.23049@router.home>
 MIME-Version: 1.0
-Content-Type: text/plain
-Subject: Re: [RFC 1/4] hashtable: introduce a small and naive hashtable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.00.1208020902390.23049@router.home>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <levinsasha928@gmail.com>
-Cc: Josh Triplett <josh@joshtriplett.org>, Tejun Heo <tj@kernel.org>, torvalds@linux-foundation.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, paul.gortmaker@windriver.com
+To: Christoph Lameter <cl@linux.com>
+Cc: Glauber Costa <glommer@parallels.com>, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>
 
-Sasha Levin <levinsasha928@gmail.com> writes:
+On Thu, Aug 02, 2012 at 09:06:41AM -0500, Christoph Lameter wrote:
+> On Thu, 2 Aug 2012, Glauber Costa wrote:
+> 
+> > diff --git a/mm/slub.c b/mm/slub.c
+> > index e517d43..9ca4e20 100644
+> > --- a/mm/slub.c
+> > +++ b/mm/slub.c
+> > @@ -3453,7 +3453,7 @@ void kfree(const void *x)
+> >  	if (unlikely(!PageSlab(page))) {
+> >  		BUG_ON(!PageCompound(page));
+> >  		kmemleak_free(x);
+> > -		put_page(page);
+> > +		__free_pages(page, compound_order(page));
+> 
+> Hmmm... put_page would have called put_compound_page(). which would have
+> called the dtor function. dtor is set to __free_pages() ok which does
+> mlock checks and verifies that the page is in a proper condition for
+> freeing. Then it calls free_one_page().
+> 
+> __free_pages() decrements the refcount and then calls __free_pages_ok().
+> 
+> So we loose the checking and the dtor stuff with this patch. Guess that is
+> ok?
 
-> Heh, I've started working on it in April, and just returned to this. Didn't think about rebasing to something new.
->
-> will fix - Thanks!
+The changelog is not correct, however.  People DO get pages underlying
+slab objects and even free the slab objects before returning the page.
+See recent fix:
 
-You might want to look at some of the work that Eric Dumazet has done in
-the networking stack with rcu hashtables that can be resized.
+commit 5bf5f03c271907978489868a4c72aeb42b5127d2
+Author: Pravin B Shelar <pshelar@nicira.com>
+Date:   Tue May 29 15:06:49 2012 -0700
 
-For a trivial hash table I don't know if the abstraction is worth it.
-For a hash table that starts off small and grows as big as you need it
-the incent to use a hash table abstraction seems a lot stronger.
-
-Eric
+    mm: fix slab->page flags corruption
+    
+    Transparent huge pages can change page->flags (PG_compound_lock) without
+    taking Slab lock.  Since THP can not break slab pages we can safely access
+    compound page without taking compound lock.
+    
+    Specifically this patch fixes a race between compound_unlock() and slab
+    functions which perform page-flags updates.  This can occur when
+    get_page()/put_page() is called on a page from slab.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
