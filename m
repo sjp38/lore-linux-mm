@@ -1,129 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
-	by kanga.kvack.org (Postfix) with SMTP id 111BD6B0069
-	for <linux-mm@kvack.org>; Thu,  2 Aug 2012 17:24:27 -0400 (EDT)
-Received: by obbun3 with SMTP id un3so6396751obb.2
-        for <linux-mm@kvack.org>; Thu, 02 Aug 2012 14:24:26 -0700 (PDT)
-From: Ying Han <yinghan@google.com>
-Subject: [PATCH V8 2/2] mm: memcg detect no memcgs above softlimit under zone reclaim
-Date: Thu,  2 Aug 2012 14:24:24 -0700
-Message-Id: <1343942664-13365-1-git-send-email-yinghan@google.com>
+Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
+	by kanga.kvack.org (Postfix) with SMTP id 7BA226B005D
+	for <linux-mm@kvack.org>; Thu,  2 Aug 2012 17:46:35 -0400 (EDT)
+Received: by bkcjc3 with SMTP id jc3so5028bkc.14
+        for <linux-mm@kvack.org>; Thu, 02 Aug 2012 14:46:33 -0700 (PDT)
+Message-ID: <501AF555.3050004@gmail.com>
+Date: Thu, 02 Aug 2012 23:47:01 +0200
+From: Sasha Levin <levinsasha928@gmail.com>
+MIME-Version: 1.0
+Subject: Re: [RFC 1/4] hashtable: introduce a small and naive hashtable
+References: <5019B0B4.1090102@gmail.com> <20120801224556.GF15477@google.com> <501A4FC1.8040907@gmail.com> <20120802103244.GA23318@leaf> <501A633B.3010509@gmail.com> <501A7AD3.7000008@gmail.com> <20120802161556.GA25572@leaf> <501AAF47.3090708@gmail.com> <20120802174457.GA6251@jtriplet-mobl1> <501ABEE2.10007@gmail.com> <20120802204157.GB7916@jtriplet-mobl1>
+In-Reply-To: <20120802204157.GB7916@jtriplet-mobl1>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Hillf Danton <dhillf@gmail.com>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org
+To: Josh Triplett <josh@joshtriplett.org>
+Cc: Tejun Heo <tj@kernel.org>, torvalds@linux-foundation.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, paul.gortmaker@windriver.com
 
-In memcg kernel, cgroup under its softlimit is not targeted under global
-reclaim. It could be possible that all memcgs are under their softlimit for
-a particular zone. If that is the case, the current implementation will
-burn extra cpu cycles without making forward progress.
+On 08/02/2012 10:41 PM, Josh Triplett wrote:
+> On Thu, Aug 02, 2012 at 07:54:42PM +0200, Sasha Levin wrote:
+>> /* I've "preprocessed" the DEFINE macro below */
+>> union {
+>> 	struct hash_table table;
+>> 	struct {
+>> 		size_t bits;
+>> 		struct hlist_head buckets[32];
+>> 	}
+>> } my_hashtable;
+> 
+> That expansion doesn't match the macros.  Using the most recent
+> definitions of DEFINE_HASHTABLE and DEFINE_STATIC_HASHTABLE from above,
+> the definition would look something like this:
+> 
+> static union {
+> 	struct hash_table my_hashtable;
+> 	struct {
+> 		size_t bits;
+> 		struct hlist_head buckets[1 << 5];
+> 	} __my_hashtable;
+> } = { .my_hashtable.bits = 5 };
 
-The idea is from LSF discussion where we detect it after the first round of
-scanning and restart the reclaim by not looking at softlimit at all. This
-allows us to make forward progress on shrink_zone().
+It's different because I don't think you can do what you did above with global variables.
 
-Signed-off-by: Ying Han <yinghan@google.com>
----
- include/linux/memcontrol.h |    9 +++++++++
- mm/memcontrol.c            |    3 +--
- mm/vmscan.c                |   18 ++++++++++++++++--
- 3 files changed, 26 insertions(+), 4 deletions(-)
-
-diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index 65538f9..cbad102 100644
---- a/include/linux/memcontrol.h
-+++ b/include/linux/memcontrol.h
-@@ -180,6 +180,8 @@ static inline void mem_cgroup_dec_page_stat(struct page *page,
- }
- 
- void mem_cgroup_count_vm_event(struct mm_struct *mm, enum vm_event_item idx);
-+
-+bool mem_cgroup_is_root(struct mem_cgroup *memcg);
- #ifdef CONFIG_TRANSPARENT_HUGEPAGE
- void mem_cgroup_split_huge_fixup(struct page *head);
- #endif
-@@ -360,6 +362,13 @@ static inline
- void mem_cgroup_count_vm_event(struct mm_struct *mm, enum vm_event_item idx)
- {
- }
-+
-+static inline bool
-+mem_cgroup_is_root(struct mem_cgroup *memcg)
-+{
-+	return true;
-+}
-+
- static inline void mem_cgroup_replace_page_cache(struct page *oldpage,
- 				struct page *newpage)
- {
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index d8b91bb..368eecc 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -378,7 +378,6 @@ enum charge_type {
- 
- static void mem_cgroup_get(struct mem_cgroup *memcg);
- static void mem_cgroup_put(struct mem_cgroup *memcg);
--static bool mem_cgroup_is_root(struct mem_cgroup *memcg);
- 
- static inline
- struct mem_cgroup *mem_cgroup_from_css(struct cgroup_subsys_state *s)
-@@ -850,7 +849,7 @@ void mem_cgroup_iter_break(struct mem_cgroup *root,
- 	     iter != NULL;				\
- 	     iter = mem_cgroup_iter(NULL, iter, NULL))
- 
--static inline bool mem_cgroup_is_root(struct mem_cgroup *memcg)
-+bool mem_cgroup_is_root(struct mem_cgroup *memcg)
- {
- 	return (memcg == root_mem_cgroup);
- }
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 88487b3..8622022 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -1861,6 +1861,10 @@ static void shrink_zone(struct zone *zone, struct scan_control *sc)
- 		.priority = sc->priority,
- 	};
- 	struct mem_cgroup *memcg;
-+	bool over_softlimit, ignore_softlimit = false;
-+
-+restart:
-+	over_softlimit = false;
- 
- 	memcg = mem_cgroup_iter(root, NULL, &reclaim);
- 	do {
-@@ -1879,10 +1883,15 @@ static void shrink_zone(struct zone *zone, struct scan_control *sc)
- 		 * we have to reclaim under softlimit instead of burning more
- 		 * cpu cycles.
- 		 */
--		if (!global_reclaim(sc) || sc->priority < DEF_PRIORITY ||
--				mem_cgroup_over_soft_limit(memcg))
-+		if (ignore_softlimit || !global_reclaim(sc) ||
-+				sc->priority < DEF_PRIORITY ||
-+				mem_cgroup_over_soft_limit(memcg)) {
- 			shrink_lruvec(lruvec, sc);
- 
-+			if (!mem_cgroup_is_root(memcg))
-+				over_softlimit = true;
-+		}
-+
- 		/*
- 		 * Limit reclaim has historically picked one memcg and
- 		 * scanned it with decreasing priority levels until
-@@ -1899,6 +1908,11 @@ static void shrink_zone(struct zone *zone, struct scan_control *sc)
- 		}
- 		memcg = mem_cgroup_iter(root, memcg, &reclaim);
- 	} while (memcg);
-+
-+	if (!over_softlimit) {
-+		ignore_softlimit = true;
-+		goto restart;
-+	}
- }
- 
- /* Returns true if compaction should go ahead for a high-order request */
--- 
-1.7.7.3
+You won't be defining any instances of that anonymous struct, so my_hashtable won't exist anywhere.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
