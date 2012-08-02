@@ -1,38 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
-	by kanga.kvack.org (Postfix) with SMTP id 35B716B004D
-	for <linux-mm@kvack.org>; Thu,  2 Aug 2012 09:02:07 -0400 (EDT)
-Message-ID: <501A7A49.6070506@parallels.com>
-Date: Thu, 2 Aug 2012 17:02:01 +0400
-From: Glauber Costa <glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
+	by kanga.kvack.org (Postfix) with SMTP id C5CCB6B004D
+	for <linux-mm@kvack.org>; Thu,  2 Aug 2012 09:03:52 -0400 (EDT)
+Received: by bkcjc3 with SMTP id jc3so5149404bkc.14
+        for <linux-mm@kvack.org>; Thu, 02 Aug 2012 06:03:51 -0700 (PDT)
+Message-ID: <501A7AD3.7000008@gmail.com>
+Date: Thu, 02 Aug 2012 15:04:19 +0200
+From: Sasha Levin <levinsasha928@gmail.com>
 MIME-Version: 1.0
-Subject: Re: [question] how to increase the number of object on cache?
-References: <5F2C6DA655B36C43B21C7FB179CEC9F4E3F157BDEE@HKMAIL02.nvidia.com> <501A77A4.1050005@parallels.com> <5F2C6DA655B36C43B21C7FB179CEC9F4E3F157BDF1@HKMAIL02.nvidia.com>
-In-Reply-To: <5F2C6DA655B36C43B21C7FB179CEC9F4E3F157BDF1@HKMAIL02.nvidia.com>
-Content-Type: text/plain; charset="ISO-8859-1"
+Subject: Re: [RFC 1/4] hashtable: introduce a small and naive hashtable
+References: <20120731182330.GD21292@google.com> <50197348.9010101@gmail.com> <20120801182112.GC15477@google.com> <50197460.8010906@gmail.com> <20120801182749.GD15477@google.com> <50197E4A.7020408@gmail.com> <20120801202432.GE15477@google.com> <5019B0B4.1090102@gmail.com> <20120801224556.GF15477@google.com> <501A4FC1.8040907@gmail.com> <20120802103244.GA23318@leaf> <501A633B.3010509@gmail.com>
+In-Reply-To: <501A633B.3010509@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shawn Joo <sjoo@nvidia.com>
-Cc: "cl@linux-foundation.org" <cl@linux-foundation.org>, "penberg@kernel.org" <penberg@kernel.org>, "mpm@selenic.com" <mpm@selenic.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Josh Triplett <josh@joshtriplett.org>
+Cc: Tejun Heo <tj@kernel.org>, torvalds@linux-foundation.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, paul.gortmaker@windriver.com
 
-On 08/02/2012 04:55 PM, Shawn Joo wrote:
->>> then yes, they will allocate the necessary number of pages from the standard page allocator.
-> Who is "the standard page allocator" for cache in /proc/slabinfo, e.g. "size-65536" ?
-> I believe one of allocator is buddy. who else?
+On 08/02/2012 01:23 PM, Sasha Levin wrote:
+>> #define DEFINE_HASH_TABLE(name, length) struct hash_table name = { .count = length, .buckets = { [0 ... (length - 1)] = HLIST_HEAD_INIT } }
+> The limitation of this approach is that the struct hash_table variable must be 'static', which is a bit limiting - see for example the use of hashtable in 'struct user_namespace'.
 > 
-The generic and algorithm-neutral answer to this is "whoever would
-handle alloc_pages()".
-In the specific case, yes, this is the buddy allocator.
 
-Take a look at mm/slab.c, for instance:
+What if we just use two possible decelerations? One of static structs and one for regular ones.
 
-When a cache can't service an allocation, it does:
+struct hash_table {
+        size_t bits;
+        struct hlist_head buckets[];
+};
 
-  cache_grow()
-  -> kmem_getpages()
-    -> alloc_pages_exact_node()
+#define DEFINE_HASHTABLE(name, bits)                                    \
+        union {                                                         \
+                struct hash_table name;                                 \
+                struct {                                                \
+                        size_t bits;                                    \
+                        struct hlist_head buckets[1 << bits];           \
+                } __name;                                               \
+        }
 
+#define DEFINE_STATIC_HASHTABLE(name, bit)                              \
+        static struct hash_table name = { .bits = bit,                  \
+                .buckets = { [0 ... (bit - 1)] = HLIST_HEAD_INIT } }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
