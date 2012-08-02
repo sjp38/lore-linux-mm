@@ -1,7 +1,7 @@
 From: Lai Jiangshan <laijs-BthXqXjhjHXQFUHtdCDX3A@public.gmane.org>
-Subject: [RFC PATCH 19/23 V2] x86: get pg_data_t's memory from other node
-Date: Thu, 2 Aug 2012 10:53:07 +0800
-Message-ID: <1343875991-7533-20-git-send-email-laijs@cn.fujitsu.com>
+Subject: [RFC PATCH 21/23 V2] memblock: limit memory address from memblock
+Date: Thu, 2 Aug 2012 10:53:09 +0800
+Message-ID: <1343875991-7533-22-git-send-email-laijs@cn.fujitsu.com>
 References: <1343875991-7533-1-git-send-email-laijs@cn.fujitsu.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset="us-ascii"
@@ -23,37 +23,71 @@ List-Id: linux-mm.kvack.org
 
 From: Yasuaki Ishimatsu <isimatu.yasuaki-+CUm20s59erQFUHtdCDX3A@public.gmane.org>
 
-If system can create movable node which all memory of the
-node is allocated as ZONE_MOVABLE, setup_node_data() cannot
-allocate memory for the node's pg_data_t.
-So when memblock_alloc_nid() fails, setup_node_data() retries
-memblock_alloc().
+Setting kernelcore_max_pfn means all memory which is bigger than
+the boot parameter is allocated as ZONE_MOVABLE. So memory which
+is allocated by memblock also should be limited by the parameter.
+
+The patch limits memory from memblock.
 
 Signed-off-by: Yasuaki Ishimatsu <isimatu.yasuaki-+CUm20s59erQFUHtdCDX3A@public.gmane.org>
 Signed-off-by: Lai Jiangshan <laijs-BthXqXjhjHXQFUHtdCDX3A@public.gmane.org>
 ---
- arch/x86/mm/numa.c |    8 ++++++--
- 1 files changed, 6 insertions(+), 2 deletions(-)
+ include/linux/memblock.h |    1 +
+ mm/memblock.c            |    5 ++++-
+ mm/page_alloc.c          |    6 +++++-
+ 3 files changed, 10 insertions(+), 2 deletions(-)
 
-diff --git a/arch/x86/mm/numa.c b/arch/x86/mm/numa.c
-index 2d125be..a86e315 100644
---- a/arch/x86/mm/numa.c
-+++ b/arch/x86/mm/numa.c
-@@ -223,9 +223,13 @@ static void __init setup_node_data(int nid, u64 start, u64 end)
- 		remapped = true;
- 	} else {
- 		nd_pa = memblock_alloc_nid(nd_size, SMP_CACHE_BYTES, nid);
--		if (!nd_pa) {
--			pr_err("Cannot find %zu bytes in node %d\n",
-+		if (!nd_pa)
-+			printk(KERN_WARNING "Cannot find %zu bytes in node %d\n",
- 			       nd_size, nid);
-+		nd_pa = memblock_alloc(nd_size, SMP_CACHE_BYTES);
-+		if (!nd_pa) {
-+			pr_err("Cannot find %zu bytes in other node\n",
-+			       nd_size);
- 			return;
- 		}
- 		nd = __va(nd_pa);
+diff --git a/include/linux/memblock.h b/include/linux/memblock.h
+index 19dc455..f2977ae 100644
+--- a/include/linux/memblock.h
++++ b/include/linux/memblock.h
+@@ -42,6 +42,7 @@ struct memblock {
+ 
+ extern struct memblock memblock;
+ extern int memblock_debug;
++extern phys_addr_t memblock_limit;
+ 
+ #define memblock_dbg(fmt, ...) \
+ 	if (memblock_debug) printk(KERN_INFO pr_fmt(fmt), ##__VA_ARGS__)
+diff --git a/mm/memblock.c b/mm/memblock.c
+index 5cc6731..663b805 100644
+--- a/mm/memblock.c
++++ b/mm/memblock.c
+@@ -931,7 +931,10 @@ int __init_memblock memblock_is_region_reserved(phys_addr_t base, phys_addr_t si
+ 
+ void __init_memblock memblock_set_current_limit(phys_addr_t limit)
+ {
+-	memblock.current_limit = limit;
++	if (!memblock_limit || (memblock_limit > limit))
++		memblock.current_limit = limit;
++	else
++		memblock.current_limit = memblock_limit;
+ }
+ 
+ static void __init_memblock memblock_dump(struct memblock_type *type, char *name)
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 65ac5c9..c4d3aa0 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -209,6 +209,8 @@ static unsigned long __initdata required_kernelcore;
+ static unsigned long __initdata required_movablecore;
+ static unsigned long __meminitdata zone_movable_pfn[MAX_NUMNODES];
+ 
++phys_addr_t memblock_limit;
++
+ /* movable_zone is the "real" zone pages in ZONE_MOVABLE are taken from */
+ int movable_zone;
+ EXPORT_SYMBOL(movable_zone);
+@@ -4876,7 +4878,9 @@ static int __init cmdline_parse_core(char *p, unsigned long *core)
+  */
+ static int __init cmdline_parse_kernelcore_max_addr(char *p)
+ {
+-	return cmdline_parse_core(p, &required_kernelcore_max_pfn);
++	cmdline_parse_core(p, &required_kernelcore_max_pfn);
++	memblock_limit = required_kernelcore_max_pfn << PAGE_SHIFT;
++	return 0;
+ }
+ early_param("kernelcore_max_addr", cmdline_parse_kernelcore_max_addr);
+ #endif
 -- 
 1.7.1
