@@ -1,49 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
-	by kanga.kvack.org (Postfix) with SMTP id 6E24D6B004D
-	for <linux-mm@kvack.org>; Wed,  1 Aug 2012 20:43:54 -0400 (EDT)
-Message-ID: <5019CD23.90709@redhat.com>
-Date: Wed, 01 Aug 2012 20:43:15 -0400
-From: Rik van Riel <riel@redhat.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH V7 2/2] mm: memcg detect no memcgs above softlimit under
- zone reclaim
-References: <1343687538-24284-1-git-send-email-yinghan@google.com> <20120731155932.GB16924@tiehlicka.suse.cz> <CALWz4iwnrXFSoqmPUsXfUMzgxz5bmBrRNU5Nisd=g2mjmu-u3Q@mail.gmail.com> <20120731200205.GA19524@tiehlicka.suse.cz> <CALWz4ixF8PzhDs2fuOMTrrRiBHkg+aMzaVOBhuUN78UenzmYbw@mail.gmail.com> <20120801084553.GD4436@tiehlicka.suse.cz> <CALWz4iwzJp8EwSeP6ap7_adW6sF8YR940sky6vJS3SD8FO6HkA@mail.gmail.com> <50198D38.1000905@redhat.com> <CALWz4iz3Fo90PLNVgzza2Bdt04VS6asxXWUuU==LW8-Hx-fSjA@mail.gmail.com>
-In-Reply-To: <CALWz4iz3Fo90PLNVgzza2Bdt04VS6asxXWUuU==LW8-Hx-fSjA@mail.gmail.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Date: Wed, 1 Aug 2012 23:03:15 -0400
+From: Benjamin LaHaise <bcrl@kvack.org>
+Subject: Re: BOUNCE linux-mm@kvack.org: Header field too long (>2048) Was: [RFC PATCH 05/23 V2] mm,migrate: use N_MEMORY instead N_HIGH_MEMORY
+Message-ID: <20120802030315.GD31604@kvack.org>
+References: <20120802025250.AEF8E6B005A@kanga.kvack.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120802025250.AEF8E6B005A@kanga.kvack.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ying Han <yinghan@google.com>
-Cc: Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hillf Danton <dhillf@gmail.com>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+To: Lai Jiangshan <laijs@cn.fujitsu.com>
+Cc: linux-mm@kvack.org
 
-On 08/01/2012 08:09 PM, Ying Han wrote:
-> On Wed, Aug 1, 2012 at 1:10 PM, Rik van Riel<riel@redhat.com>  wrote:
->> On 08/01/2012 03:04 PM, Ying Han wrote:
->>
->>> That is true. Hmm, then two things i can do:
->>>
->>> 1. for kswapd case, make sure not counting the root cgroup
->>> 2. or check nr_scanned. I like the nr_scanned which is telling us
->>> whether or not the reclaim ever make any attempt ?
->>
->>
->> I am looking at a more advanced case of (3) right
->> now.  Once I have the basics working, I will send
->> you a prototype (that applies on top of your patches)
->> to play with.
->
-> Rik,
->
-> Thank you for looking into that. Before I dig into the algorithm you
-> described here, do you think we need to hold this patchset for that?
-> It would be easier to build on top of the things after the ground work
-> is sorted out.
+Hello Lai,
 
-I'm fine either way.
+On Wed, Aug 01, 2012 at 10:52:50PM -0400, owner-linux-mm@kvack.org wrote:
+> Cc: Paul Menage <paul@paulmenage.org>, Rob Landley <rob@landley.net>,
+>         Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>,
+>         "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org,
+>         Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+>         Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>,
+>         Balbir Singh <bsingharora@gmail.com>,
+>         KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>,
+>         Tejun Heo <tj@kernel.org>, Li Zefan <lizefan@huawei.com>,
+>         Christoph Lameter <cl@linux-foundation.org>,
+>         Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>,
+>         Jarkko Sakkinen <jarkko.sakkinen@intel.com>,
+>         Matt Fleming <matt.fleming@intel.com>,
+>         Andrew Morton <akpm@linux-foundation.org>,
+>         Yinghai Lu <yinghai@kernel.org>, David Rientjes <rientjes@google.com>,
+>         Bjorn Helgaas <bhelgaas@google.com>,
+>         Wanlong Gao <gaowanlong@cn.fujitsu.com>,
+>         Petr Holasek <pholasek@redhat.com>, Djalal Harouni <tixxdz@opendz.org>,
+>         Jiri Kosina <jkosina@suse.cz>, Laura Vasilescu <laura@rosedu.org>,
+>         WANG Cong <xiyou.wangcong@gmail.com>, Hugh Dickins <hughd@google.com>,
+>         Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>,
+>         Konstantin Khlebnikov <khlebnikov@openvz.org>,
+>         Sam Ravnborg <sam@ravnborg.org>,
+>         Paul Gortmaker <paul.gortmaker@windriver.com>,
+>         Rusty Russell <rusty@rustcorp.com.au>,
+>         Peter Zijlstra <a.p.zijlstra@chello.nl>,
+>         Jim Cromie <jim.cromie@gmail.com>, Pawel Moll <pawel.moll@arm.com>,
+>         Henrique de Moraes Holschuh <ibm-acpi@hmh.eng.br>,
+>         Oleg Nesterov <oleg@redhat.com>,
+>         Dan Magenheimer <dan.magenheimer@oracle.com>,
+>         Michal Nazarewicz <mina86@mina86.com>, Mel Gorman <mgorman@suse.de>,
+>         Hillf Danton <dhillf@gmail.com>,
+>         Gavin Shan <shangw@linux.vnet.ibm.com>,
+>         Wen Congyang <wency@cn.fujitsu.com>, Rik van Riel <riel@redhat.com>,
+>         KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>,
+>         Wang Sheng-Hui <shhuiw@gmail.com>, Minchan Kim <minchan@kernel.org>,
+>         linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org,
+>         linux-mm@kvack.org, cgroups@vger.kernel.org,
+>         containers@lists.linux-foundation.org,
+>         Lai Jiangshan <laijs@cn.fujitsu.com>
+> Subject: [RFC PATCH 05/23 V2] mm,migrate: use N_MEMORY instead N_HIGH_MEMORY
 
--- 
-All rights reversed
+A Cc list that is more than 2048 bytes in length is completely unreasonable, 
+so I'm not planning on raising the length of the headers for this kind of 
+stupidity.  If your Cc list is this long, you're doing something wrong.  Let 
+the mailing lists deliver your email to 90% of the people on the Cc list, 
+as that's what they're here for.
+
+		-ben
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
