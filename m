@@ -1,34 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
-	by kanga.kvack.org (Postfix) with SMTP id 851F96B004D
-	for <linux-mm@kvack.org>; Thu,  2 Aug 2012 09:58:36 -0400 (EDT)
-Message-ID: <501A8784.1050708@parallels.com>
-Date: Thu, 2 Aug 2012 17:58:28 +0400
-From: Glauber Costa <glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx140.postini.com [74.125.245.140])
+	by kanga.kvack.org (Postfix) with SMTP id 47F096B004D
+	for <linux-mm@kvack.org>; Thu,  2 Aug 2012 10:06:44 -0400 (EDT)
+Date: Thu, 2 Aug 2012 09:06:41 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH] slub: use free_page instead of put_page for freeing
+ kmalloc allocation
+In-Reply-To: <1343913065-14631-1-git-send-email-glommer@parallels.com>
+Message-ID: <alpine.DEB.2.00.1208020902390.23049@router.home>
+References: <1343913065-14631-1-git-send-email-glommer@parallels.com>
 MIME-Version: 1.0
-Subject: Re: Common [9/9] Do slab aliasing call from common code
-References: <20120731173620.432853182@linux.com> <20120731173638.649541860@linux.com> <501A2B34.9070804@parallels.com> <alpine.DEB.2.00.1208020857011.23049@router.home>
-In-Reply-To: <alpine.DEB.2.00.1208020857011.23049@router.home>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Matt Mackall <mpm@selenic.com>, Joonsoo Kim <js1304@gmail.com>
+To: Glauber Costa <glommer@parallels.com>
+Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>
 
-On 08/02/2012 05:57 PM, Christoph Lameter wrote:
-> On Thu, 2 Aug 2012, Glauber Costa wrote:
-> 
->> This one didn't apply for me. I used pekka's tree + your other 8 patches
->> (being careful about the 8th one). Maybe you need to refresh this as
->> well as your 8th patch ?
->>
->> I could go see where it conflicts, but I'd like to make sure I am
->> reviewing/testing the code exactly as you intended it to be.
-> 
-> Yea well it may be better to use yesterdays patchset instead.
-> 
-I've already saw it, and commented on it. Thanks Christoph!
+On Thu, 2 Aug 2012, Glauber Costa wrote:
+
+> diff --git a/mm/slub.c b/mm/slub.c
+> index e517d43..9ca4e20 100644
+> --- a/mm/slub.c
+> +++ b/mm/slub.c
+> @@ -3453,7 +3453,7 @@ void kfree(const void *x)
+>  	if (unlikely(!PageSlab(page))) {
+>  		BUG_ON(!PageCompound(page));
+>  		kmemleak_free(x);
+> -		put_page(page);
+> +		__free_pages(page, compound_order(page));
+
+Hmmm... put_page would have called put_compound_page(). which would have
+called the dtor function. dtor is set to __free_pages() ok which does
+mlock checks and verifies that the page is in a proper condition for
+freeing. Then it calls free_one_page().
+
+__free_pages() decrements the refcount and then calls __free_pages_ok().
+
+So we loose the checking and the dtor stuff with this patch. Guess that is
+ok?
+
+Acked-by: Christoph Lameter <cl@linux.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
