@@ -1,14 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
-	by kanga.kvack.org (Postfix) with SMTP id 3F3E76B005D
-	for <linux-mm@kvack.org>; Thu,  2 Aug 2012 12:05:01 -0400 (EDT)
-Date: Thu, 2 Aug 2012 11:04:46 -0500 (CDT)
+Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
+	by kanga.kvack.org (Postfix) with SMTP id AED686B005D
+	for <linux-mm@kvack.org>; Thu,  2 Aug 2012 12:06:46 -0400 (EDT)
+Date: Thu, 2 Aug 2012 11:06:32 -0500 (CDT)
 From: Christoph Lameter <cl@linux.com>
-Subject: Re: [RFC PATCH 14/23 V2] slub, hotplug: ignore unrelated node's
- hot-adding and hot-removing
-In-Reply-To: <1343875991-7533-15-git-send-email-laijs@cn.fujitsu.com>
-Message-ID: <alpine.DEB.2.00.1208021102560.23049@router.home>
-References: <1343875991-7533-1-git-send-email-laijs@cn.fujitsu.com> <1343875991-7533-15-git-send-email-laijs@cn.fujitsu.com>
+Subject: Re: [RFC PATCH 16/23 V2] numa: add CONFIG_MOVABLE_NODE for
+ movable-dedicated node
+In-Reply-To: <1343875991-7533-17-git-send-email-laijs@cn.fujitsu.com>
+Message-ID: <alpine.DEB.2.00.1208021105540.23049@router.home>
+References: <1343875991-7533-1-git-send-email-laijs@cn.fujitsu.com> <1343875991-7533-17-git-send-email-laijs@cn.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -18,14 +18,16 @@ Cc: Mel Gorman <mel@csn.ul.ie>, Paul Menage <paul@paulmenage.org>, Rob Landley <
 
 On Thu, 2 Aug 2012, Lai Jiangshan wrote:
 
-> SLUB only fucus on the nodes which has normal memory, so ignore the other
-> node's hot-adding and hot-removing.
+> +++ b/include/linux/nodemask.h
+> @@ -380,7 +380,11 @@ enum node_states {
+>  #else
+>  	N_HIGH_MEMORY = N_NORMAL_MEMORY,
+>  #endif
+> +#ifdef CONFIG_MOVABLE_NODE
+> +	N_MEMORY,		/* The node has memory(regular, high, movable) */
 
-You would need to do the same for SLAB. SLAB has an easier time with
-falling back to other nodes (and therefore does not show up in your
-tests) but as a result SLAB will be quite ineffective
-because it created bogus structures that are never used yet constantly
-traversed.
+I like these comments. Could you add some to each of the different node
+states and defined their purpose?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
