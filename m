@@ -1,29 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
-	by kanga.kvack.org (Postfix) with SMTP id B92316B004D
-	for <linux-mm@kvack.org>; Thu,  2 Aug 2012 05:32:49 -0400 (EDT)
-Message-ID: <501A4892.5090809@parallels.com>
-Date: Thu, 2 Aug 2012 13:29:54 +0400
-From: Glauber Costa <glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
+	by kanga.kvack.org (Postfix) with SMTP id AC74F6B005D
+	for <linux-mm@kvack.org>; Thu,  2 Aug 2012 05:35:47 -0400 (EDT)
+Date: Thu, 2 Aug 2012 02:35:36 -0700
+From: Josh Triplett <josh@joshtriplett.org>
+Subject: Re: [RFC 1/4] hashtable: introduce a small and naive hashtable
+Message-ID: <20120802093536.GA23089@leaf>
+References: <1343757920-19713-1-git-send-email-levinsasha928@gmail.com>
+ <1343757920-19713-2-git-send-email-levinsasha928@gmail.com>
+ <20120731182330.GD21292@google.com>
+ <50197348.9010101@gmail.com>
+ <20120801182112.GC15477@google.com>
+ <50197460.8010906@gmail.com>
+ <20120801182749.GD15477@google.com>
 MIME-Version: 1.0
-Subject: Re: Common [09/16] Do slab aliasing call from common code
-References: <20120801211130.025389154@linux.com> <20120801211200.655711830@linux.com>
-In-Reply-To: <20120801211200.655711830@linux.com>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120801182749.GD15477@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Joonsoo Kim <js1304@gmail.com>
+To: Tejun Heo <tj@kernel.org>
+Cc: Sasha Levin <levinsasha928@gmail.com>, torvalds@linux-foundation.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, paul.gortmaker@windriver.com
 
-On 08/02/2012 01:11 AM, Christoph Lameter wrote:
-> +	s = __kmem_cache_alias(name, size, align, flags, ctor);
-> +	if (s)
-> +		goto oops;
-> +
+On Wed, Aug 01, 2012 at 11:27:49AM -0700, Tejun Heo wrote:
+> On Wed, Aug 01, 2012 at 08:24:32PM +0200, Sasha Levin wrote:
+> > On 08/01/2012 08:21 PM, Tejun Heo wrote:
+> > > On Wed, Aug 01, 2012 at 08:19:52PM +0200, Sasha Levin wrote:
+> > >> If we switch to using functions, we could no longer hide it anywhere
+> > >> (we'd need to either turn the buckets into a struct, or have the
+> > >> user pass it around to all functions).
+> > > 
+> > > Create an outer struct hash_table which remembers the size?
+> > 
+> > Possible. I just wanted to avoid creating new structs where they're not really required.
+> > 
+> > Do you think it's worth it for eliminating those two macros?
+> 
+> What if someone wants to allocate hashtable dynamically which isn't
+> too unlikely?
 
-"goto oops" is a really bad way of naming a branch conditional to a
-perfectly valid state.
+In particular, once this goes in, I'd like to add RCU-based hash
+resizing to it, which will require wrapping the hash table in a struct
+that also contains the size.  So, please do consider having such a
+struct rather than relying on static array sizes.
+
+- Josh Triplett
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
