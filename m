@@ -1,86 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx135.postini.com [74.125.245.135])
-	by kanga.kvack.org (Postfix) with SMTP id 0CEC96B0044
-	for <linux-mm@kvack.org>; Thu,  2 Aug 2012 13:24:28 -0400 (EDT)
-Message-ID: <501AB7C5.9010206@parallels.com>
-Date: Thu, 2 Aug 2012 21:24:21 +0400
-From: Glauber Costa <glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
+	by kanga.kvack.org (Postfix) with SMTP id DC42E6B0044
+	for <linux-mm@kvack.org>; Thu,  2 Aug 2012 13:32:35 -0400 (EDT)
+Received: by weys10 with SMTP id s10so7754992wey.14
+        for <linux-mm@kvack.org>; Thu, 02 Aug 2012 10:32:34 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [PATCH] slub: use free_page instead of put_page for freeing kmalloc
- allocation
-References: <1343913065-14631-1-git-send-email-glommer@parallels.com> <alpine.DEB.2.00.1208020902390.23049@router.home> <20120802164203.GA30111@cmpxchg.org> <501AB013.1090607@parallels.com> <20120802171019.GA1239@cmpxchg.org>
-In-Reply-To: <20120802171019.GA1239@cmpxchg.org>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <87fw851c3d.fsf@xmission.com>
+References: <20120731182330.GD21292@google.com> <50197348.9010101@gmail.com>
+ <20120801182112.GC15477@google.com> <50197460.8010906@gmail.com>
+ <20120801182749.GD15477@google.com> <50197E4A.7020408@gmail.com>
+ <20120801202432.GE15477@google.com> <5019B0B4.1090102@gmail.com>
+ <20120801224556.GF15477@google.com> <501A4FC1.8040907@gmail.com>
+ <20120802103244.GA23318@leaf> <501A633B.3010509@gmail.com>
+ <87txwl1dsq.fsf@xmission.com> <501AAC26.6030703@gmail.com> <87fw851c3d.fsf@xmission.com>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Thu, 2 Aug 2012 10:32:13 -0700
+Message-ID: <CA+55aFw_dwO5ZOuaz9eDxgnTZFDGVZKSLUTm5Fn99faALxxJRQ@mail.gmail.com>
+Subject: Re: [RFC 1/4] hashtable: introduce a small and naive hashtable
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Christoph Lameter <cl@linux.com>, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>
+To: "Eric W. Biederman" <ebiederm@xmission.com>
+Cc: Sasha Levin <levinsasha928@gmail.com>, Josh Triplett <josh@joshtriplett.org>, Tejun Heo <tj@kernel.org>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, paul.gortmaker@windriver.com
 
-On 08/02/2012 09:10 PM, Johannes Weiner wrote:
-> On Thu, Aug 02, 2012 at 08:51:31PM +0400, Glauber Costa wrote:
->> On 08/02/2012 08:42 PM, Johannes Weiner wrote:
->>> On Thu, Aug 02, 2012 at 09:06:41AM -0500, Christoph Lameter wrote:
->>>> On Thu, 2 Aug 2012, Glauber Costa wrote:
->>>>
->>>>> diff --git a/mm/slub.c b/mm/slub.c
->>>>> index e517d43..9ca4e20 100644
->>>>> --- a/mm/slub.c
->>>>> +++ b/mm/slub.c
->>>>> @@ -3453,7 +3453,7 @@ void kfree(const void *x)
->>>>>  	if (unlikely(!PageSlab(page))) {
->>>>>  		BUG_ON(!PageCompound(page));
->>>>>  		kmemleak_free(x);
->>>>> -		put_page(page);
->>>>> +		__free_pages(page, compound_order(page));
->>>>
->>>> Hmmm... put_page would have called put_compound_page(). which would have
->>>> called the dtor function. dtor is set to __free_pages() ok which does
->>>> mlock checks and verifies that the page is in a proper condition for
->>>> freeing. Then it calls free_one_page().
->>>>
->>>> __free_pages() decrements the refcount and then calls __free_pages_ok().
->>>>
->>>> So we loose the checking and the dtor stuff with this patch. Guess that is
->>>> ok?
->>>
->>> The changelog is not correct, however.  People DO get pages underlying
->>> slab objects and even free the slab objects before returning the page.
->>> See recent fix:
->>
->> Well, yes, in the sense that slab objects are page-backed.
->>
->> The point is that a user of kmalloc/kfree should not treat a memory area
->> as if it were a page, even if it is page-sized.
-> 
-> I whole-heartedly agree.  But it's hard to verify there aren't any
-> doing that.  And even though it's ugly to do, it's technically
-> working, no?  No longer supporting it would be a regression.
+On Thu, Aug 2, 2012 at 9:40 AM, Eric W. Biederman <ebiederm@xmission.com> wrote:
+>
+> For a trivial hash table I don't know if the abstraction is worth it.
+> For a hash table that starts off small and grows as big as you need it
+> the incent to use a hash table abstraction seems a lot stronger.
 
-I've done an extensive audit per Christoph's request, and although of
-course this is not enough to guarantee it 100 %, it should at least be
-enough to sustain a belief that it should be reasonably safe.
+I'm not sure growing hash tables are worth it.
 
-About regressions, yes, it is working. But as you know, this area is
-under undergoing change by myself. For kmemcg to work, we need to
-explicitly mark instances of __free_pages that are accounted. With this
-patch, this is trivial. Without this patch, I need to come up with a
-quite ugly hack to mark put_pages as well, that would exist for no
-reason aside from "avoid touching this".
+In the dcache layer, we have an allocated-at-boot-time sizing thing,
+and I have been playing around with a patch that makes the hash table
+statically sized (and pretty small). And it actually speeds things up!
 
-I could of course just bundle this is my series, but since this is an
-independent change, it is better to send it separate so it get better
-review, testing and validation.
+A statically allocated hash-table with a fixed size is quite
+noticeably faster, because you don't have those extra indirect reads
+of the base/size that are in the critical path to the actual lookup.
+So for the dentry code I tried a small(ish) direct-mapped fixed-size
+"L1 hash" table that then falls back to the old dynamically sized one
+when it misses ("main memory"), and it really does seem to work really
+well.
 
->> If it is just the Changelog you are unhappy about, I can do another
->> submission rewording it.
-> 
-> __free_pages still respects the refcount, so I think the Changelog is
-> not actually appropriate for the change you're making.  You're just
-> changing what Christoph outlined above, the compound page handling.
+The reason it's not committed in my tree is that the filling of the
+small L1 hash is racy for me right now (I don't want to take any locks
+for filling the small one, and I haven't figured out how to fill it
+racelessly without having to add the sequence number to the hash table
+itself, which would make it annoyingly bigger).
 
-I can update the Changelog, no problem.
+Anyway, what I really wanted to bring up was the fact that static hash
+tables of a fixed size are really quite noticeably faster. So I would
+say that Sasha's patch to make *that* case easy actually sounds nice,
+rather than making some more complicated case that is fundamentally
+slower and more complicated.
 
+                      Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
