@@ -1,55 +1,126 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
-	by kanga.kvack.org (Postfix) with SMTP id 728566B004D
-	for <linux-mm@kvack.org>; Thu,  2 Aug 2012 06:37:37 -0400 (EDT)
-Message-ID: <501A57C2.2060702@parallels.com>
-Date: Thu, 2 Aug 2012 14:34:42 +0400
-From: Glauber Costa <glommer@parallels.com>
+	by kanga.kvack.org (Postfix) with SMTP id 238B56B004D
+	for <linux-mm@kvack.org>; Thu,  2 Aug 2012 07:06:51 -0400 (EDT)
+Date: Thu, 2 Aug 2012 13:06:41 +0200
+From: Borislav Petkov <bp@amd64.org>
+Subject: Re: WARNING: at mm/page_alloc.c:4514 free_area_init_node+0x4f/0x37b()
+Message-ID: <20120802110641.GA16328@aftab.osrc.amd.com>
+References: <20120801173837.GI8082@aftab.osrc.amd.com>
+ <20120801233335.GA4673@barrios>
 MIME-Version: 1.0
-Subject: Re: Common [15/16] Shrink __kmem_cache_create() parameter lists
-References: <20120801211130.025389154@linux.com> <20120801211204.342096542@linux.com>
-In-Reply-To: <20120801211204.342096542@linux.com>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120801233335.GA4673@barrios>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Joonsoo Kim <js1304@gmail.com>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Tejun Heo <tj@kernel.org>, Ralf Baechle <ralf@linux-mips.org>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-On 08/02/2012 01:11 AM, Christoph Lameter wrote:
->  
->  	if (s) {
-> -		int r = __kmem_cache_create(s, n, size, align, flags, ctor);
-> +		int r;
->  
-> -		if (!r)
-> +		s->object_size = s->size = size;
-> +		s->align = align;
-> +		s->ctor = ctor;
-> +		s->name = kstrdup(name, GFP_KERNEL);
-> +		if (!s->name) {
-> +			kmem_cache_free(kmem_cache, s);
-> +			s = NULL;
-> +			goto oops;
-> +		}
-> +
-> +		r = __kmem_cache_create(s, flags);
-> +
-> +		if (!r) {
-> +			s->refcount = 1;
->  			list_add(&s->list, &slab_caches);
-> -		else {
-> -			kfree(n);
-> +		} else {
-> +			kfree(s->name);
->  			kmem_cache_free(kmem_cache, s);
->  			s = NULL;
->  		}
->  	} else
-> -		kfree(n);
-> +		kfree(s->name);
+On Thu, Aug 02, 2012 at 08:33:35AM +0900, Minchan Kim wrote:
+> Hello Borislav,
+> 
+> On Wed, Aug 01, 2012 at 07:38:37PM +0200, Borislav Petkov wrote:
+> > Hi,
+> > 
+> > I'm hitting the WARN_ON in $Subject with latest linus:
+> > v3.5-8833-g2d534926205d on a 4-node AMD system. As it looks from
+> > dmesg, it is happening on node 0, 1 and 2 but not on 3. Probably the
+> > pgdat->nr_zones thing but I'll have to add more dbg code to be sure.
+> 
+> As I look the code quickly, free_area_init_node initializes node_id and
+> node_start_pfn doublely. They were initialized by setup_node_data.
+> 
+> Could you test below patch? It's not a totally right way to fix it but
+> I want to confirm why it happens.
+> 
+> (I'm on vacation now so please understand that it hard to reach me)
 
-This last statement is a NULL pointer dereference.
+I sincerely hope you're not going to interrupt your vacation because of
+this.
+
+:-).
+
+> 
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 889532b..009ac28 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -4511,7 +4511,7 @@ void __paginginit free_area_init_node(int nid, unsigned long *zones_size,
+>         pg_data_t *pgdat = NODE_DATA(nid);
+>  
+>         /* pg_data_t should be reset to zero when it's allocated */
+> -       WARN_ON(pgdat->nr_zones || pgdat->node_start_pfn || pgdat->classzone_idx);
+> +       WARN_ON(pgdat->nr_zones || pgdat->classzone_idx);
+>  
+>         pgdat->node_id = nid;
+>         pgdat->node_start_pfn = node_start_pfn;
+
+Yep, you were right: ->node_start_pfn is set. I added additional debug
+output for more info:
+
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 889532b8e6c1..c249abe4fee2 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -4511,7 +4511,17 @@ void __paginginit free_area_init_node(int nid, unsigned long *zones_size,
+        pg_data_t *pgdat = NODE_DATA(nid);
+ 
+        /* pg_data_t should be reset to zero when it's allocated */
+-       WARN_ON(pgdat->nr_zones || pgdat->node_start_pfn || pgdat->classzone_idx);
++       WARN_ON(pgdat->nr_zones || pgdat->classzone_idx);
++
++       if (pgdat->node_start_pfn)
++               pr_warn("%s: pgdat->node_start_pfn: %lu\n", __func__, pgdat->node_start_pfn);
++
++       if (pgdat->nr_zones)
++               pr_warn("%s: pgdat->nr_zones: %d\n", __func__, pgdat->nr_zones);
++
++       if (pgdat->classzone_idx)
++               pr_warn("%s: pgdat->classzone_idx: %d\n", __func__, pgdat->classzone_idx);
++
+ 
+        pgdat->node_id = nid;
+        pgdat->node_start_pfn = node_start_pfn;
+
+
+
+Here's what it says:
+
+[    0.000000] On node 0 totalpages: 4193848
+[    0.000000]   DMA zone: 64 pages used for memmap
+[    0.000000]   DMA zone: 6 pages reserved
+[    0.000000]   DMA zone: 3890 pages, LIFO batch:0
+[    0.000000]   DMA32 zone: 16320 pages used for memmap
+[    0.000000]   DMA32 zone: 798464 pages, LIFO batch:31
+[    0.000000]   Normal zone: 52736 pages used for memmap
+[    0.000000]   Normal zone: 3322368 pages, LIFO batch:31
+[    0.000000] free_area_init_node: pgdat->node_start_pfn: 4423680	<----
+[    0.000000] On node 1 totalpages: 4194304
+[    0.000000]   Normal zone: 65536 pages used for memmap
+[    0.000000]   Normal zone: 4128768 pages, LIFO batch:31
+[    0.000000] free_area_init_node: pgdat->node_start_pfn: 8617984	<----
+[    0.000000] On node 2 totalpages: 4194304
+[    0.000000]   Normal zone: 65536 pages used for memmap
+[    0.000000]   Normal zone: 4128768 pages, LIFO batch:31
+[    0.000000] free_area_init_node: pgdat->node_start_pfn: 12812288	<----
+[    0.000000] On node 3 totalpages: 4194304
+[    0.000000]   Normal zone: 65536 pages used for memmap
+[    0.000000]   Normal zone: 4128768 pages, LIFO batch:31
+[    0.000000] ACPI: PM-Timer IO Port: 0x2008
+[    0.000000] ACPI: Local APIC address 0xfee00000
+
+Thanks.
+
+-- 
+Regards/Gruss,
+Boris.
+
+Advanced Micro Devices GmbH
+Einsteinring 24, 85609 Dornach
+GM: Alberto Bozzo
+Reg: Dornach, Landkreis Muenchen
+HRB Nr. 43632 WEEE Registernr: 129 19551
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
