@@ -1,7 +1,7 @@
 From: Lai Jiangshan <laijs-BthXqXjhjHXQFUHtdCDX3A@public.gmane.org>
-Subject: [RFC PATCH 10/23 V2] kthread: use N_MEMORY instead N_HIGH_MEMORY
-Date: Thu, 2 Aug 2012 10:52:58 +0800
-Message-ID: <1343875991-7533-11-git-send-email-laijs@cn.fujitsu.com>
+Subject: [RFC PATCH 09/23 V2] vmstat: use N_MEMORY instead N_HIGH_MEMORY
+Date: Thu, 2 Aug 2012 10:52:57 +0800
+Message-ID: <1343875991-7533-10-git-send-email-laijs@cn.fujitsu.com>
 References: <1343875991-7533-1-git-send-email-laijs@cn.fujitsu.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset="us-ascii"
@@ -29,21 +29,30 @@ use N_MEMORY instead.
 
 Signed-off-by: Lai Jiangshan <laijs-BthXqXjhjHXQFUHtdCDX3A@public.gmane.org>
 ---
- kernel/kthread.c |    2 +-
- 1 files changed, 1 insertions(+), 1 deletions(-)
+ mm/vmstat.c |    4 ++--
+ 1 files changed, 2 insertions(+), 2 deletions(-)
 
-diff --git a/kernel/kthread.c b/kernel/kthread.c
-index 3d3de63..4139962 100644
---- a/kernel/kthread.c
-+++ b/kernel/kthread.c
-@@ -280,7 +280,7 @@ int kthreadd(void *unused)
- 	set_task_comm(tsk, "kthreadd");
- 	ignore_signals(tsk);
- 	set_cpus_allowed_ptr(tsk, cpu_all_mask);
--	set_mems_allowed(node_states[N_HIGH_MEMORY]);
-+	set_mems_allowed(node_states[N_MEMORY]);
+diff --git a/mm/vmstat.c b/mm/vmstat.c
+index 1bbbbd9..aa3da12 100644
+--- a/mm/vmstat.c
++++ b/mm/vmstat.c
+@@ -917,7 +917,7 @@ static int pagetypeinfo_show(struct seq_file *m, void *arg)
+ 	pg_data_t *pgdat = (pg_data_t *)arg;
  
- 	current->flags |= PF_NOFREEZE;
+ 	/* check memoryless node */
+-	if (!node_state(pgdat->node_id, N_HIGH_MEMORY))
++	if (!node_state(pgdat->node_id, N_MEMORY))
+ 		return 0;
  
+ 	seq_printf(m, "Page block order: %d\n", pageblock_order);
+@@ -1279,7 +1279,7 @@ static int unusable_show(struct seq_file *m, void *arg)
+ 	pg_data_t *pgdat = (pg_data_t *)arg;
+ 
+ 	/* check memoryless node */
+-	if (!node_state(pgdat->node_id, N_HIGH_MEMORY))
++	if (!node_state(pgdat->node_id, N_MEMORY))
+ 		return 0;
+ 
+ 	walk_zones_in_node(m, pgdat, unusable_show_print);
 -- 
 1.7.1
