@@ -1,8 +1,7 @@
 From: Lai Jiangshan <laijs-BthXqXjhjHXQFUHtdCDX3A@public.gmane.org>
-Subject: [RFC PATCH 16/23 V2] numa: add CONFIG_MOVABLE_NODE for
-	movable-dedicated node
-Date: Thu, 2 Aug 2012 10:53:04 +0800
-Message-ID: <1343875991-7533-17-git-send-email-laijs@cn.fujitsu.com>
+Subject: [RFC PATCH 08/23 V2] hugetlb: use N_MEMORY instead N_HIGH_MEMORY
+Date: Thu, 2 Aug 2012 10:52:56 +0800
+Message-ID: <1343875991-7533-9-git-send-email-laijs@cn.fujitsu.com>
 References: <1343875991-7533-1-git-send-email-laijs@cn.fujitsu.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset="us-ascii"
@@ -22,89 +21,126 @@ To: Mel Gorman <mel-wPRd99KPJ+uzQB+pC5nmwQ@public.gmane.org>
 Cc: Christoph Lameter <cl-de/tnXTf+JLsfHDXvbKv3WD2FQJk+8+b@public.gmane.org>, Jiri Kosina <jkosina-AlSwsSmVLrQ@public.gmane.org>, Dan Magenheimer <dan.magenheimer-QHcLZuEGTsvQT0dZR+AlfA@public.gmane.org>, linux-kernel-u79uwXL29TY76Z2rM5mHXA@public.gmane.org, Michal Hocko <mhocko-AlSwsSmVLrQ@public.gmane.org>, Paul Gortmaker <paul.gortmaker-CWA4WttNNZF54TAoqtyWWQ@public.gmane.org>, Konstantin Khlebnikov <khlebnikov-GEFAQzZX7r8dnm+yROfE0A@public.gmane.org>, "H. Peter Anvin" <hpa-YMNOUZJC4hwAvxtiuMwx3w@public.gmane.org>, Sam Ravnborg <sam-uyr5N9Q2VtJg9hUCZPvPmw@public.gmane.org>, Gavin Shan <shangw-23VcF4HTsmIX0ybBhKVfKdBPR1lH4CV8@public.gmane.org>, Rik van Riel <riel-H+wXaHxf7aLQT0dZR+AlfA@public.gmane.org>, cgroups-u79uwXL29TY76Z2rM5mHXA@public.gmane.org, x86-DgEjT+Ai2ygdnm+yROfE0A@public.gmane.org, Hugh Dickins <hughd-hpIqsD4AKlfQT0dZR+AlfA@public.gmane.org>, Ingo Molnar <mingo-H+wXaHxf7aLQT0dZR+AlfA@public.gmane.org>, Mel Gorman <mgorman-l3A5Bk7waGM@public.gmane.org>, KOSAKI Motohiro <kosaki.motohiro-+CUm20s59erQFUHtdCDX3A@public.gmane.org>, David Rientjes <rientjes-hpIqsD4AKlfQT0dZR+AlfA@public.gmane.org>, Petr Holasek <pholasek-H+wXaHxf7aLQT0dZR+AlfA@public.gmane.org>, linux-mm-Bw31MaZKKs3YtjvyW6yDsg@public.gmane.org, Wanlong Gao <gaowanlong-BthXqXjhjHXQFUHtdCDX3A@public.gmane.org>, Djalal Harouni <tixxdz-Umm1ozX2/EEdnm+yROfE0A@public.gmane.org>, Rusty Russell <rusty-8n+1lVoiYb80n/F98K4Iww@public.gmane.org>, Wen Congyang <wency-BthXqXjhjHXQFUHtdCDX3A@public.gmane.org>, Peter Zijlstra <a.p.zijlstra@ch>
 List-Id: linux-mm.kvack.org
 
-All are prepared, we can actually introduce N_MEMORY.
-add CONFIG_MOVABLE_NODE make we can use it for movable-dedicated node
+N_HIGH_MEMORY stands for the nodes that has normal or high memory.
+N_MEMORY stands for the nodes that has any memory.
+
+The code here need to handle with the nodes which have memory, we should
+use N_MEMORY instead.
 
 Signed-off-by: Lai Jiangshan <laijs-BthXqXjhjHXQFUHtdCDX3A@public.gmane.org>
 ---
- drivers/base/node.c      |    6 ++++++
- include/linux/nodemask.h |    4 ++++
- mm/Kconfig               |    8 ++++++++
- mm/page_alloc.c          |    3 +++
- 4 files changed, 21 insertions(+), 0 deletions(-)
+ drivers/base/node.c |    2 +-
+ mm/hugetlb.c        |   24 ++++++++++++------------
+ 2 files changed, 13 insertions(+), 13 deletions(-)
 
 diff --git a/drivers/base/node.c b/drivers/base/node.c
-index 31f4805..4bf5629 100644
+index af1a177..31f4805 100644
 --- a/drivers/base/node.c
 +++ b/drivers/base/node.c
-@@ -621,6 +621,9 @@ static struct node_attr node_state_attr[] = {
- #ifdef CONFIG_HIGHMEM
- 	_NODE_ATTR(has_high_memory, N_HIGH_MEMORY),
- #endif
-+#ifdef CONFIG_MOVABLE_NODE
-+	_NODE_ATTR(has_memory, N_MEMORY),
-+#endif
- };
+@@ -227,7 +227,7 @@ static node_registration_func_t __hugetlb_unregister_node;
+ static inline bool hugetlb_register_node(struct node *node)
+ {
+ 	if (__hugetlb_register_node &&
+-			node_state(node->dev.id, N_HIGH_MEMORY)) {
++			node_state(node->dev.id, N_MEMORY)) {
+ 		__hugetlb_register_node(node);
+ 		return true;
+ 	}
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index e198831..661db47 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -1046,7 +1046,7 @@ static void return_unused_surplus_pages(struct hstate *h,
+ 	 * on-line nodes with memory and will handle the hstate accounting.
+ 	 */
+ 	while (nr_pages--) {
+-		if (!free_pool_huge_page(h, &node_states[N_HIGH_MEMORY], 1))
++		if (!free_pool_huge_page(h, &node_states[N_MEMORY], 1))
+ 			break;
+ 	}
+ }
+@@ -1150,14 +1150,14 @@ static struct page *alloc_huge_page(struct vm_area_struct *vma,
+ int __weak alloc_bootmem_huge_page(struct hstate *h)
+ {
+ 	struct huge_bootmem_page *m;
+-	int nr_nodes = nodes_weight(node_states[N_HIGH_MEMORY]);
++	int nr_nodes = nodes_weight(node_states[N_MEMORY]);
  
- static struct attribute *node_state_attrs[] = {
-@@ -631,6 +634,9 @@ static struct attribute *node_state_attrs[] = {
- #ifdef CONFIG_HIGHMEM
- 	&node_state_attr[4].attr.attr,
- #endif
-+#ifdef CONFIG_MOVABLE_NODE
-+	&node_state_attr[4].attr.attr,
-+#endif
- 	NULL
- };
+ 	while (nr_nodes) {
+ 		void *addr;
  
-diff --git a/include/linux/nodemask.h b/include/linux/nodemask.h
-index c6ebdc9..4e2cbfa 100644
---- a/include/linux/nodemask.h
-+++ b/include/linux/nodemask.h
-@@ -380,7 +380,11 @@ enum node_states {
- #else
- 	N_HIGH_MEMORY = N_NORMAL_MEMORY,
- #endif
-+#ifdef CONFIG_MOVABLE_NODE
-+	N_MEMORY,		/* The node has memory(regular, high, movable) */
-+#else
- 	N_MEMORY = N_HIGH_MEMORY,
-+#endif
- 	N_CPU,		/* The node has one or more cpus */
- 	NR_NODE_STATES
- };
-diff --git a/mm/Kconfig b/mm/Kconfig
-index 82fed4e..4371c65 100644
---- a/mm/Kconfig
-+++ b/mm/Kconfig
-@@ -140,6 +140,14 @@ config ARCH_DISCARD_MEMBLOCK
- config NO_BOOTMEM
- 	boolean
+ 		addr = __alloc_bootmem_node_nopanic(
+ 				NODE_DATA(hstate_next_node_to_alloc(h,
+-						&node_states[N_HIGH_MEMORY])),
++						&node_states[N_MEMORY])),
+ 				huge_page_size(h), huge_page_size(h), 0);
  
-+config MOVABLE_NODE
-+	boolean "Enable to assign a node has only movable memory"
-+	depends on HAVE_MEMBLOCK
-+	depends on NO_BOOTMEM
-+	depends on X86_64
-+	depends on NUMA
-+	default y
-+
- # eventually, we can have this option just 'select SPARSEMEM'
- config MEMORY_HOTPLUG
- 	bool "Allow for memory hot-add"
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 0571f2a..737faf7 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -91,6 +91,9 @@ nodemask_t node_states[NR_NODE_STATES] __read_mostly = {
- #ifdef CONFIG_HIGHMEM
- 	[N_HIGH_MEMORY] = { { [0] = 1UL } },
- #endif
-+#ifdef CONFIG_MOVABLE_NODE
-+	[N_MEMORY] = { { [0] = 1UL } },
-+#endif
- 	[N_CPU] = { { [0] = 1UL } },
- #endif	/* NUMA */
- };
+ 		if (addr) {
+@@ -1229,7 +1229,7 @@ static void __init hugetlb_hstate_alloc_pages(struct hstate *h)
+ 			if (!alloc_bootmem_huge_page(h))
+ 				break;
+ 		} else if (!alloc_fresh_huge_page(h,
+-					 &node_states[N_HIGH_MEMORY]))
++					 &node_states[N_MEMORY]))
+ 			break;
+ 	}
+ 	h->max_huge_pages = i;
+@@ -1497,7 +1497,7 @@ static ssize_t nr_hugepages_store_common(bool obey_mempolicy,
+ 		if (!(obey_mempolicy &&
+ 				init_nodemask_of_mempolicy(nodes_allowed))) {
+ 			NODEMASK_FREE(nodes_allowed);
+-			nodes_allowed = &node_states[N_HIGH_MEMORY];
++			nodes_allowed = &node_states[N_MEMORY];
+ 		}
+ 	} else if (nodes_allowed) {
+ 		/*
+@@ -1507,11 +1507,11 @@ static ssize_t nr_hugepages_store_common(bool obey_mempolicy,
+ 		count += h->nr_huge_pages - h->nr_huge_pages_node[nid];
+ 		init_nodemask_of_node(nodes_allowed, nid);
+ 	} else
+-		nodes_allowed = &node_states[N_HIGH_MEMORY];
++		nodes_allowed = &node_states[N_MEMORY];
+ 
+ 	h->max_huge_pages = set_max_huge_pages(h, count, nodes_allowed);
+ 
+-	if (nodes_allowed != &node_states[N_HIGH_MEMORY])
++	if (nodes_allowed != &node_states[N_MEMORY])
+ 		NODEMASK_FREE(nodes_allowed);
+ 
+ 	return len;
+@@ -1812,7 +1812,7 @@ static void hugetlb_register_all_nodes(void)
+ {
+ 	int nid;
+ 
+-	for_each_node_state(nid, N_HIGH_MEMORY) {
++	for_each_node_state(nid, N_MEMORY) {
+ 		struct node *node = &node_devices[nid];
+ 		if (node->dev.id == nid)
+ 			hugetlb_register_node(node);
+@@ -1906,8 +1906,8 @@ void __init hugetlb_add_hstate(unsigned order)
+ 	h->free_huge_pages = 0;
+ 	for (i = 0; i < MAX_NUMNODES; ++i)
+ 		INIT_LIST_HEAD(&h->hugepage_freelists[i]);
+-	h->next_nid_to_alloc = first_node(node_states[N_HIGH_MEMORY]);
+-	h->next_nid_to_free = first_node(node_states[N_HIGH_MEMORY]);
++	h->next_nid_to_alloc = first_node(node_states[N_MEMORY]);
++	h->next_nid_to_free = first_node(node_states[N_MEMORY]);
+ 	snprintf(h->name, HSTATE_NAME_LEN, "hugepages-%lukB",
+ 					huge_page_size(h)/1024);
+ 
+@@ -1995,11 +1995,11 @@ static int hugetlb_sysctl_handler_common(bool obey_mempolicy,
+ 		if (!(obey_mempolicy &&
+ 			       init_nodemask_of_mempolicy(nodes_allowed))) {
+ 			NODEMASK_FREE(nodes_allowed);
+-			nodes_allowed = &node_states[N_HIGH_MEMORY];
++			nodes_allowed = &node_states[N_MEMORY];
+ 		}
+ 		h->max_huge_pages = set_max_huge_pages(h, tmp, nodes_allowed);
+ 
+-		if (nodes_allowed != &node_states[N_HIGH_MEMORY])
++		if (nodes_allowed != &node_states[N_MEMORY])
+ 			NODEMASK_FREE(nodes_allowed);
+ 	}
+ out:
 -- 
 1.7.1
