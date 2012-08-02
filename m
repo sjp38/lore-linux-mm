@@ -1,16 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
-	by kanga.kvack.org (Postfix) with SMTP id B47506B0087
-	for <linux-mm@kvack.org>; Thu,  2 Aug 2012 16:52:23 -0400 (EDT)
-Received: by yhr47 with SMTP id 47so11004286yhr.14
-        for <linux-mm@kvack.org>; Thu, 02 Aug 2012 13:52:22 -0700 (PDT)
-Date: Thu, 2 Aug 2012 13:52:19 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx176.postini.com [74.125.245.176])
+	by kanga.kvack.org (Postfix) with SMTP id 3130C6B008A
+	for <linux-mm@kvack.org>; Thu,  2 Aug 2012 16:58:09 -0400 (EDT)
+Received: by yenr5 with SMTP id r5so10968277yen.14
+        for <linux-mm@kvack.org>; Thu, 02 Aug 2012 13:58:08 -0700 (PDT)
+Date: Thu, 2 Aug 2012 13:58:05 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: Common [02/19] slub: Use kmem_cache for the kmem_cache
- structure
-In-Reply-To: <20120802201531.490489455@linux.com>
-Message-ID: <alpine.DEB.2.00.1208021352000.5454@chino.kir.corp.google.com>
-References: <20120802201506.266817615@linux.com> <20120802201531.490489455@linux.com>
+Subject: Re: Common [04/19] Improve error handling in kmem_cache_create
+In-Reply-To: <20120802201532.623330251@linux.com>
+Message-ID: <alpine.DEB.2.00.1208021357110.5454@chino.kir.corp.google.com>
+References: <20120802201506.266817615@linux.com> <20120802201532.623330251@linux.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -20,16 +19,19 @@ Cc: Glauber Costa <glommer@parallels.com>, Pekka Enberg <penberg@kernel.org>, li
 
 On Thu, 2 Aug 2012, Christoph Lameter wrote:
 
-> Do not use kmalloc() but kmem_cache_alloc() for the allocation
-> of the kmem_cache structures in slub.
+> Instead of using s == NULL use an errorcode. This allows much more
+> detailed diagnostics as to what went wrong. As we add more functionality
+> from the slab allocators to the common kmem_cache_create() function we will
+> also add more error conditions.
 > 
-> This is the way its supposed to be. Recent merges lost
-> the freeing of the kmem_cache structure and so this is also
-> fixing memory leak on kmem_cache_destroy() by adding
-> the missing free action to sysfs_slab_remove().
+> Print the error code during the panic as well as in a warning if the module
+> can handle failure. The API for kmem_cache_create() currently does not allow
+> the returning of an error code. Return NULL but log the cause of the problem
+> in the syslog.
 > 
 
-Nice catch of the memory leak!
+I like how this also dumps the stack for any kmem_cache_create() that 
+fails.
 
 > Signed-off-by: Christoph Lameter <cl@linux.com>
 > 
