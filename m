@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
-	by kanga.kvack.org (Postfix) with SMTP id 3F84E6B0068
-	for <linux-mm@kvack.org>; Thu,  2 Aug 2012 02:01:02 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
+	by kanga.kvack.org (Postfix) with SMTP id 696E96B0062
+	for <linux-mm@kvack.org>; Thu,  2 Aug 2012 02:01:03 -0400 (EDT)
 From: Lai Jiangshan <laijs@cn.fujitsu.com>
-Subject: [RFC PATCH 07/23 V2] memcontrol: use N_MEMORY instead N_HIGH_MEMORY
-Date: Thu, 2 Aug 2012 14:01:12 +0800
-Message-Id: <1343887288-8866-8-git-send-email-laijs@cn.fujitsu.com>
+Subject: [RFC PATCH 08/23 V2] hugetlb: use N_MEMORY instead N_HIGH_MEMORY
+Date: Thu, 2 Aug 2012 14:01:13 +0800
+Message-Id: <1343887288-8866-9-git-send-email-laijs@cn.fujitsu.com>
 In-Reply-To: <1343887288-8866-1-git-send-email-laijs@cn.fujitsu.com>
 References: <1343887288-8866-1-git-send-email-laijs@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Mel Gorman <mel@csn.ul.ie>, linux-kernel@vger.kernel.org
-Cc: Lai Jiangshan <laijs@cn.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Balbir Singh <bsingharora@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Tejun Heo <tj@kernel.org>, Li Zefan <lizefan@huawei.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, containers@lists.linux-foundation.org
+Cc: Lai Jiangshan <laijs@cn.fujitsu.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Hillf Danton <dhillf@gmail.com>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
 
 N_HIGH_MEMORY stands for the nodes that has normal or high memory.
 N_MEMORY stands for the nodes that has any memory.
@@ -21,102 +21,119 @@ use N_MEMORY instead.
 
 Signed-off-by: Lai Jiangshan <laijs@cn.fujitsu.com>
 ---
- mm/memcontrol.c  |   18 +++++++++---------
- mm/page_cgroup.c |    2 +-
- 2 files changed, 10 insertions(+), 10 deletions(-)
+ drivers/base/node.c |    2 +-
+ mm/hugetlb.c        |   24 ++++++++++++------------
+ 2 files changed, 13 insertions(+), 13 deletions(-)
 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index f72b5e5..4402c2e 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -797,7 +797,7 @@ static unsigned long mem_cgroup_nr_lru_pages(struct mem_cgroup *memcg,
- 	int nid;
- 	u64 total = 0;
- 
--	for_each_node_state(nid, N_HIGH_MEMORY)
-+	for_each_node_state(nid, N_MEMORY)
- 		total += mem_cgroup_node_nr_lru_pages(memcg, nid, lru_mask);
- 	return total;
- }
-@@ -1549,9 +1549,9 @@ static void mem_cgroup_may_update_nodemask(struct mem_cgroup *memcg)
- 		return;
- 
- 	/* make a nodemask where this memcg uses memory from */
--	memcg->scan_nodes = node_states[N_HIGH_MEMORY];
-+	memcg->scan_nodes = node_states[N_MEMORY];
- 
--	for_each_node_mask(nid, node_states[N_HIGH_MEMORY]) {
-+	for_each_node_mask(nid, node_states[N_MEMORY]) {
- 
- 		if (!test_mem_cgroup_node_reclaimable(memcg, nid, false))
- 			node_clear(nid, memcg->scan_nodes);
-@@ -1622,7 +1622,7 @@ static bool mem_cgroup_reclaimable(struct mem_cgroup *memcg, bool noswap)
- 	/*
- 	 * Check rest of nodes.
- 	 */
--	for_each_node_state(nid, N_HIGH_MEMORY) {
-+	for_each_node_state(nid, N_MEMORY) {
- 		if (node_isset(nid, memcg->scan_nodes))
- 			continue;
- 		if (test_mem_cgroup_node_reclaimable(memcg, nid, noswap))
-@@ -3700,7 +3700,7 @@ move_account:
- 		drain_all_stock_sync(memcg);
- 		ret = 0;
- 		mem_cgroup_start_move(memcg);
--		for_each_node_state(node, N_HIGH_MEMORY) {
-+		for_each_node_state(node, N_MEMORY) {
- 			for (zid = 0; !ret && zid < MAX_NR_ZONES; zid++) {
- 				enum lru_list lru;
- 				for_each_lru(lru) {
-@@ -4025,7 +4025,7 @@ static int mem_control_numa_stat_show(struct cgroup *cont, struct cftype *cft,
- 
- 	total_nr = mem_cgroup_nr_lru_pages(memcg, LRU_ALL);
- 	seq_printf(m, "total=%lu", total_nr);
--	for_each_node_state(nid, N_HIGH_MEMORY) {
-+	for_each_node_state(nid, N_MEMORY) {
- 		node_nr = mem_cgroup_node_nr_lru_pages(memcg, nid, LRU_ALL);
- 		seq_printf(m, " N%d=%lu", nid, node_nr);
+diff --git a/drivers/base/node.c b/drivers/base/node.c
+index af1a177..31f4805 100644
+--- a/drivers/base/node.c
++++ b/drivers/base/node.c
+@@ -227,7 +227,7 @@ static node_registration_func_t __hugetlb_unregister_node;
+ static inline bool hugetlb_register_node(struct node *node)
+ {
+ 	if (__hugetlb_register_node &&
+-			node_state(node->dev.id, N_HIGH_MEMORY)) {
++			node_state(node->dev.id, N_MEMORY)) {
+ 		__hugetlb_register_node(node);
+ 		return true;
  	}
-@@ -4033,7 +4033,7 @@ static int mem_control_numa_stat_show(struct cgroup *cont, struct cftype *cft,
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index e198831..661db47 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -1046,7 +1046,7 @@ static void return_unused_surplus_pages(struct hstate *h,
+ 	 * on-line nodes with memory and will handle the hstate accounting.
+ 	 */
+ 	while (nr_pages--) {
+-		if (!free_pool_huge_page(h, &node_states[N_HIGH_MEMORY], 1))
++		if (!free_pool_huge_page(h, &node_states[N_MEMORY], 1))
+ 			break;
+ 	}
+ }
+@@ -1150,14 +1150,14 @@ static struct page *alloc_huge_page(struct vm_area_struct *vma,
+ int __weak alloc_bootmem_huge_page(struct hstate *h)
+ {
+ 	struct huge_bootmem_page *m;
+-	int nr_nodes = nodes_weight(node_states[N_HIGH_MEMORY]);
++	int nr_nodes = nodes_weight(node_states[N_MEMORY]);
  
- 	file_nr = mem_cgroup_nr_lru_pages(memcg, LRU_ALL_FILE);
- 	seq_printf(m, "file=%lu", file_nr);
+ 	while (nr_nodes) {
+ 		void *addr;
+ 
+ 		addr = __alloc_bootmem_node_nopanic(
+ 				NODE_DATA(hstate_next_node_to_alloc(h,
+-						&node_states[N_HIGH_MEMORY])),
++						&node_states[N_MEMORY])),
+ 				huge_page_size(h), huge_page_size(h), 0);
+ 
+ 		if (addr) {
+@@ -1229,7 +1229,7 @@ static void __init hugetlb_hstate_alloc_pages(struct hstate *h)
+ 			if (!alloc_bootmem_huge_page(h))
+ 				break;
+ 		} else if (!alloc_fresh_huge_page(h,
+-					 &node_states[N_HIGH_MEMORY]))
++					 &node_states[N_MEMORY]))
+ 			break;
+ 	}
+ 	h->max_huge_pages = i;
+@@ -1497,7 +1497,7 @@ static ssize_t nr_hugepages_store_common(bool obey_mempolicy,
+ 		if (!(obey_mempolicy &&
+ 				init_nodemask_of_mempolicy(nodes_allowed))) {
+ 			NODEMASK_FREE(nodes_allowed);
+-			nodes_allowed = &node_states[N_HIGH_MEMORY];
++			nodes_allowed = &node_states[N_MEMORY];
+ 		}
+ 	} else if (nodes_allowed) {
+ 		/*
+@@ -1507,11 +1507,11 @@ static ssize_t nr_hugepages_store_common(bool obey_mempolicy,
+ 		count += h->nr_huge_pages - h->nr_huge_pages_node[nid];
+ 		init_nodemask_of_node(nodes_allowed, nid);
+ 	} else
+-		nodes_allowed = &node_states[N_HIGH_MEMORY];
++		nodes_allowed = &node_states[N_MEMORY];
+ 
+ 	h->max_huge_pages = set_max_huge_pages(h, count, nodes_allowed);
+ 
+-	if (nodes_allowed != &node_states[N_HIGH_MEMORY])
++	if (nodes_allowed != &node_states[N_MEMORY])
+ 		NODEMASK_FREE(nodes_allowed);
+ 
+ 	return len;
+@@ -1812,7 +1812,7 @@ static void hugetlb_register_all_nodes(void)
+ {
+ 	int nid;
+ 
 -	for_each_node_state(nid, N_HIGH_MEMORY) {
 +	for_each_node_state(nid, N_MEMORY) {
- 		node_nr = mem_cgroup_node_nr_lru_pages(memcg, nid,
- 				LRU_ALL_FILE);
- 		seq_printf(m, " N%d=%lu", nid, node_nr);
-@@ -4042,7 +4042,7 @@ static int mem_control_numa_stat_show(struct cgroup *cont, struct cftype *cft,
+ 		struct node *node = &node_devices[nid];
+ 		if (node->dev.id == nid)
+ 			hugetlb_register_node(node);
+@@ -1906,8 +1906,8 @@ void __init hugetlb_add_hstate(unsigned order)
+ 	h->free_huge_pages = 0;
+ 	for (i = 0; i < MAX_NUMNODES; ++i)
+ 		INIT_LIST_HEAD(&h->hugepage_freelists[i]);
+-	h->next_nid_to_alloc = first_node(node_states[N_HIGH_MEMORY]);
+-	h->next_nid_to_free = first_node(node_states[N_HIGH_MEMORY]);
++	h->next_nid_to_alloc = first_node(node_states[N_MEMORY]);
++	h->next_nid_to_free = first_node(node_states[N_MEMORY]);
+ 	snprintf(h->name, HSTATE_NAME_LEN, "hugepages-%lukB",
+ 					huge_page_size(h)/1024);
  
- 	anon_nr = mem_cgroup_nr_lru_pages(memcg, LRU_ALL_ANON);
- 	seq_printf(m, "anon=%lu", anon_nr);
--	for_each_node_state(nid, N_HIGH_MEMORY) {
-+	for_each_node_state(nid, N_MEMORY) {
- 		node_nr = mem_cgroup_node_nr_lru_pages(memcg, nid,
- 				LRU_ALL_ANON);
- 		seq_printf(m, " N%d=%lu", nid, node_nr);
-@@ -4051,7 +4051,7 @@ static int mem_control_numa_stat_show(struct cgroup *cont, struct cftype *cft,
+@@ -1995,11 +1995,11 @@ static int hugetlb_sysctl_handler_common(bool obey_mempolicy,
+ 		if (!(obey_mempolicy &&
+ 			       init_nodemask_of_mempolicy(nodes_allowed))) {
+ 			NODEMASK_FREE(nodes_allowed);
+-			nodes_allowed = &node_states[N_HIGH_MEMORY];
++			nodes_allowed = &node_states[N_MEMORY];
+ 		}
+ 		h->max_huge_pages = set_max_huge_pages(h, tmp, nodes_allowed);
  
- 	unevictable_nr = mem_cgroup_nr_lru_pages(memcg, BIT(LRU_UNEVICTABLE));
- 	seq_printf(m, "unevictable=%lu", unevictable_nr);
--	for_each_node_state(nid, N_HIGH_MEMORY) {
-+	for_each_node_state(nid, N_MEMORY) {
- 		node_nr = mem_cgroup_node_nr_lru_pages(memcg, nid,
- 				BIT(LRU_UNEVICTABLE));
- 		seq_printf(m, " N%d=%lu", nid, node_nr);
-diff --git a/mm/page_cgroup.c b/mm/page_cgroup.c
-index eb750f8..e775239 100644
---- a/mm/page_cgroup.c
-+++ b/mm/page_cgroup.c
-@@ -271,7 +271,7 @@ void __init page_cgroup_init(void)
- 	if (mem_cgroup_disabled())
- 		return;
- 
--	for_each_node_state(nid, N_HIGH_MEMORY) {
-+	for_each_node_state(nid, N_MEMORY) {
- 		unsigned long start_pfn, end_pfn;
- 
- 		start_pfn = node_start_pfn(nid);
+-		if (nodes_allowed != &node_states[N_HIGH_MEMORY])
++		if (nodes_allowed != &node_states[N_MEMORY])
+ 			NODEMASK_FREE(nodes_allowed);
+ 	}
+ out:
 -- 
 1.7.1
 
