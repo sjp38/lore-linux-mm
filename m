@@ -1,40 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
-	by kanga.kvack.org (Postfix) with SMTP id 00D266B004D
-	for <linux-mm@kvack.org>; Thu,  2 Aug 2012 11:19:24 -0400 (EDT)
-Date: Thu, 2 Aug 2012 10:19:22 -0500 (CDT)
+Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
+	by kanga.kvack.org (Postfix) with SMTP id 043CA6B004D
+	for <linux-mm@kvack.org>; Thu,  2 Aug 2012 11:41:25 -0400 (EDT)
+Date: Thu, 2 Aug 2012 10:41:23 -0500 (CDT)
 From: Christoph Lameter <cl@linux.com>
-Subject: Re: Common [00/16] Sl[auo]b: Common code rework V8
-In-Reply-To: <alpine.DEB.2.00.1208021012320.23049@router.home>
-Message-ID: <alpine.DEB.2.00.1208021018050.23049@router.home>
-References: <20120801211130.025389154@linux.com> <501A3F1E.4060307@parallels.com> <alpine.DEB.2.00.1208020912340.23049@router.home> <501A8BE4.4060206@parallels.com> <alpine.DEB.2.00.1208020941150.23049@router.home> <501A92FB.8020906@parallels.com>
- <alpine.DEB.2.00.1208021012320.23049@router.home>
+Subject: Re: Common [08/16] Move duping of slab name to slab_common.c
+In-Reply-To: <20120801211200.096404657@linux.com>
+Message-ID: <alpine.DEB.2.00.1208021040330.23049@router.home>
+References: <20120801211130.025389154@linux.com> <20120801211200.096404657@linux.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Joonsoo Kim <js1304@gmail.com>
+To: Pekka Enberg <penberg@kernel.org>
+Cc: linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Glauber Costa <glommer@parallels.com>, Joonsoo Kim <js1304@gmail.com>
 
-On Thu, 2 Aug 2012, Christoph Lameter wrote:
+There is a superfluous freeing of the slab name still in slub. Slab name
+freeing is handled by slab_common after this patch therefore this has to
+be dropped.
 
-> On Thu, 2 Aug 2012, Glauber Costa wrote:
->
-> > Mine is similar, except:
-> > 1) I don't create a kmalloc cache (shouldn't matter)
-> > 2) I do it after SLAB_FULL.
->
-> I do not really need to create the second cache.
-> The destruction of the first fails.
->
-> Its definitely the patch that moves the duping of the string to
-> slab_common.c.
 
-The problem is that I passed a string constant to
-create_kmalloc_cache. Freeing the cache leads to an attempt to free the
-string constant which causes kfree to fail.
+Index: linux-2.6/mm/slub.c
+===================================================================
+--- linux-2.6.orig/mm/slub.c	2012-08-02 10:20:38.987659870 -0500
++++ linux-2.6/mm/slub.c	2012-08-02 10:20:47.943820713 -0500
+@@ -5188,7 +5188,6 @@
+ {
+ 	struct kmem_cache *s = to_slab(kobj);
 
-Got to take that into account and restart the problem analysis.
+-	kfree(s->name);
+ 	kmem_cache_free(kmem_cache, s);
+ }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
