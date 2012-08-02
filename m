@@ -1,13 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx178.postini.com [74.125.245.178])
-	by kanga.kvack.org (Postfix) with SMTP id 656F26B004D
-	for <linux-mm@kvack.org>; Thu,  2 Aug 2012 12:01:14 -0400 (EDT)
-Date: Thu, 2 Aug 2012 11:01:00 -0500 (CDT)
+Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
+	by kanga.kvack.org (Postfix) with SMTP id 3F3E76B005D
+	for <linux-mm@kvack.org>; Thu,  2 Aug 2012 12:05:01 -0400 (EDT)
+Date: Thu, 2 Aug 2012 11:04:46 -0500 (CDT)
 From: Christoph Lameter <cl@linux.com>
-Subject: Re: [RFC PATCH 01/23 V2] node_states: introduce N_MEMORY
-In-Reply-To: <1343875991-7533-2-git-send-email-laijs@cn.fujitsu.com>
-Message-ID: <alpine.DEB.2.00.1208021100230.23049@router.home>
-References: <1343875991-7533-1-git-send-email-laijs@cn.fujitsu.com> <1343875991-7533-2-git-send-email-laijs@cn.fujitsu.com>
+Subject: Re: [RFC PATCH 14/23 V2] slub, hotplug: ignore unrelated node's
+ hot-adding and hot-removing
+In-Reply-To: <1343875991-7533-15-git-send-email-laijs@cn.fujitsu.com>
+Message-ID: <alpine.DEB.2.00.1208021102560.23049@router.home>
+References: <1343875991-7533-1-git-send-email-laijs@cn.fujitsu.com> <1343875991-7533-15-git-send-email-laijs@cn.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -17,12 +18,14 @@ Cc: Mel Gorman <mel@csn.ul.ie>, Paul Menage <paul@paulmenage.org>, Rob Landley <
 
 On Thu, 2 Aug 2012, Lai Jiangshan wrote:
 
-> In one word, we need a N_MEMORY. We just intrude it as an alias to
-> N_HIGH_MEMORY and fix all im-proper usages of N_HIGH_MEMORY in late patches.
+> SLUB only fucus on the nodes which has normal memory, so ignore the other
+> node's hot-adding and hot-removing.
 
-Good idea to clean this up.
-
-Acked-by: Christoph Lameter <cl@linux.com>
+You would need to do the same for SLAB. SLAB has an easier time with
+falling back to other nodes (and therefore does not show up in your
+tests) but as a result SLAB will be quite ineffective
+because it created bogus structures that are never used yet constantly
+traversed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
