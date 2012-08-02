@@ -1,7 +1,7 @@
 From: Lai Jiangshan <laijs-BthXqXjhjHXQFUHtdCDX3A@public.gmane.org>
-Subject: [RFC PATCH 03/23 V2] procfs: use N_MEMORY instead N_HIGH_MEMORY
-Date: Thu, 2 Aug 2012 10:52:51 +0800
-Message-ID: <1343875991-7533-4-git-send-email-laijs@cn.fujitsu.com>
+Subject: [RFC PATCH 04/23 V2] oom: use N_MEMORY instead N_HIGH_MEMORY
+Date: Thu, 2 Aug 2012 10:52:52 +0800
+Message-ID: <1343875991-7533-5-git-send-email-laijs@cn.fujitsu.com>
 References: <1343875991-7533-1-git-send-email-laijs@cn.fujitsu.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset="us-ascii"
@@ -29,44 +29,21 @@ use N_MEMORY instead.
 
 Signed-off-by: Lai Jiangshan <laijs-BthXqXjhjHXQFUHtdCDX3A@public.gmane.org>
 ---
- fs/proc/kcore.c    |    2 +-
- fs/proc/task_mmu.c |    4 ++--
- 2 files changed, 3 insertions(+), 3 deletions(-)
+ mm/oom_kill.c |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
 
-diff --git a/fs/proc/kcore.c b/fs/proc/kcore.c
-index 86c67ee..e96d4f1 100644
---- a/fs/proc/kcore.c
-+++ b/fs/proc/kcore.c
-@@ -249,7 +249,7 @@ static int kcore_update_ram(void)
- 	/* Not inialized....update now */
- 	/* find out "max pfn" */
- 	end_pfn = 0;
--	for_each_node_state(nid, N_HIGH_MEMORY) {
-+	for_each_node_state(nid, N_MEMORY) {
- 		unsigned long node_end;
- 		node_end  = NODE_DATA(nid)->node_start_pfn +
- 			NODE_DATA(nid)->node_spanned_pages;
-diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-index 4540b8f..ed3d381 100644
---- a/fs/proc/task_mmu.c
-+++ b/fs/proc/task_mmu.c
-@@ -1080,7 +1080,7 @@ static struct page *can_gather_numa_stats(pte_t pte, struct vm_area_struct *vma,
- 		return NULL;
- 
- 	nid = page_to_nid(page);
--	if (!node_isset(nid, node_states[N_HIGH_MEMORY]))
-+	if (!node_isset(nid, node_states[N_MEMORY]))
- 		return NULL;
- 
- 	return page;
-@@ -1232,7 +1232,7 @@ static int show_numa_map(struct seq_file *m, void *v, int is_pid)
- 	if (md->writeback)
- 		seq_printf(m, " writeback=%lu", md->writeback);
- 
--	for_each_node_state(n, N_HIGH_MEMORY)
-+	for_each_node_state(n, N_MEMORY)
- 		if (md->node[n])
- 			seq_printf(m, " N%d=%lu", n, md->node[n]);
- out:
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+index ac300c9..1e58f12 100644
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -257,7 +257,7 @@ static enum oom_constraint constrained_alloc(struct zonelist *zonelist,
+ 	 * the page allocator means a mempolicy is in effect.  Cpuset policy
+ 	 * is enforced in get_page_from_freelist().
+ 	 */
+-	if (nodemask && !nodes_subset(node_states[N_HIGH_MEMORY], *nodemask)) {
++	if (nodemask && !nodes_subset(node_states[N_MEMORY], *nodemask)) {
+ 		*totalpages = total_swap_pages;
+ 		for_each_node_mask(nid, *nodemask)
+ 			*totalpages += node_spanned_pages(nid);
 -- 
 1.7.1
