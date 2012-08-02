@@ -1,65 +1,341 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
-	by kanga.kvack.org (Postfix) with SMTP id 00A7C6B0081
-	for <linux-mm@kvack.org>; Thu,  2 Aug 2012 16:15:39 -0400 (EDT)
-Message-Id: <20120802201538.332758066@linux.com>
-Date: Thu, 02 Aug 2012 15:15:20 -0500
+Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
+	by kanga.kvack.org (Postfix) with SMTP id E76926B007B
+	for <linux-mm@kvack.org>; Thu,  2 Aug 2012 16:15:41 -0400 (EDT)
+Message-Id: <20120802201539.998976802@linux.com>
+Date: Thu, 02 Aug 2012 15:15:23 -0500
 From: Christoph Lameter <cl@linux.com>
-Subject: Common [14/19] slub: Introduce function for opening boot caches
+Subject: Common [17/19] Shrink __kmem_cache_create() parameter lists
 References: <20120802201506.266817615@linux.com>
-Content-Disposition: inline; filename=slub_create_open_boot
+Content-Disposition: inline; filename=reduce_parameters
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Glauber Costa <glommer@parallels.com>
 Cc: Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Joonsoo Kim <js1304@gmail.com>
 
-Basically the same thing happens for various boot caches.
-Provide a function.
+Do the initial settings of the fields in common code. This will allow
+us to push more processing into common code later and improve readability.
+
+V1->V2:
+ - slab_common.c Remove #ifdef and use proper targeting for the goto.
+ - Remove superfluouis free of s->name.
+ - Remove the refcount move to slab_common (seems to be buggy)
+
 
 Signed-off-by: Christoph Lameter <cl@linux.com>
 
----
- mm/slub.c |   18 ++++++++++--------
- 1 file changed, 10 insertions(+), 8 deletions(-)
-
+Index: linux-2.6/mm/slab.h
+===================================================================
+--- linux-2.6.orig/mm/slab.h	2012-08-02 15:00:08.631510888 -0500
++++ linux-2.6/mm/slab.h	2012-08-02 15:00:11.179555425 -0500
+@@ -33,8 +33,7 @@ extern struct list_head slab_caches;
+ extern struct kmem_cache *kmem_cache;
+ 
+ /* Functions provided by the slab allocators */
+-extern int __kmem_cache_create(struct kmem_cache *, const char *name,
+-	size_t size, size_t align, unsigned long flags, void (*ctor)(void *));
++extern int __kmem_cache_create(struct kmem_cache *, unsigned long flags);
+ 
+ extern struct kmem_cache *create_kmalloc_cache(const char *name, size_t size,
+ 			unsigned long flags);
+Index: linux-2.6/mm/slab_common.c
+===================================================================
+--- linux-2.6.orig/mm/slab_common.c	2012-08-02 15:00:08.631510888 -0500
++++ linux-2.6/mm/slab_common.c	2012-08-02 15:00:11.179555425 -0500
+@@ -54,7 +54,6 @@ struct kmem_cache *kmem_cache_create(con
+ {
+ 	struct kmem_cache *s;
+ 	int err = 0;
+-	char *n;
+ 
+ #ifdef CONFIG_DEBUG_VM
+ 	if (!name || in_interrupt() || size < sizeof(void *) ||
+@@ -98,30 +97,30 @@ struct kmem_cache *kmem_cache_create(con
+ 	if (s)
+ 		goto out_locked;
+ 
+-	n = kstrdup(name, GFP_KERNEL);
+-	if (!n) {
+-		err = -ENOMEM;
+-		goto out_locked;
+-	}
+-
+ 	s = kmem_cache_zalloc(kmem_cache, GFP_NOWAIT);
+ 
+ 	if (s) {
+-		err = __kmem_cache_create(s, n, size, align, flags, ctor);
++		s->object_size = s->size = size;
++		s->align = align;
++		s->ctor = ctor;
++		s->name = kstrdup(name, GFP_KERNEL);
++		if (!s->name) {
++			kmem_cache_free(kmem_cache, s);
++			err = -ENOMEM;
++			goto out_locked;
++		}
+ 
++		err = __kmem_cache_create(s, flags);
+ 		if (!err)
+ 
+ 			list_add(&s->list, &slab_caches);
+ 
+ 		else {
+-			kfree(n);
++			kfree(s->name);
+ 			kmem_cache_free(kmem_cache, s);
+ 		}
+-
+-	} else {
+-		kfree(n);
++	} else
+ 		err = -ENOMEM;
+-	}
+ 
+ out_locked:
+ 	mutex_unlock(&slab_mutex);
+@@ -189,8 +188,10 @@ struct kmem_cache *__init create_kmalloc
+ 	int r = -ENOMEM;
+ 
+ 	if (s) {
+-		r = __kmem_cache_create(s, name, size, ARCH_KMALLOC_MINALIGN,
+-		       	flags, NULL);
++		s->name = name;
++		s->size = s->object_size = size;
++		s->align = ARCH_KMALLOC_MINALIGN;
++		r = __kmem_cache_create(s, flags);
+ 
+ 		if (!r) {
+ 			list_add(&s->list, &slab_caches);
 Index: linux-2.6/mm/slub.c
 ===================================================================
---- linux-2.6.orig/mm/slub.c	2012-08-02 14:56:03.915144783 -0500
-+++ linux-2.6/mm/slub.c	2012-08-02 14:56:28.451584021 -0500
-@@ -3271,6 +3271,12 @@ panic:
- 	return NULL;
+--- linux-2.6.orig/mm/slub.c	2012-08-02 15:00:08.631510888 -0500
++++ linux-2.6/mm/slub.c	2012-08-02 15:00:11.183555503 -0500
+@@ -3022,16 +3022,9 @@ static int calculate_sizes(struct kmem_c
+ 
  }
  
-+static int kmem_cache_open_boot(struct kmem_cache *s, const char *name, int size)
-+{
-+	return kmem_cache_open(s, name, size, ARCH_KMALLOC_MINALIGN,
-+		SLAB_HWCACHE_ALIGN | SLAB_PANIC, NULL);
-+}
-+
+-static int kmem_cache_open(struct kmem_cache *s,
+-		const char *name, size_t size,
+-		size_t align, unsigned long flags,
+-		void (*ctor)(void *))
++static int kmem_cache_open(struct kmem_cache *s, unsigned long flags)
+ {
+-	s->name = name;
+-	s->ctor = ctor;
+-	s->object_size = size;
+-	s->align = align;
+-	s->flags = kmem_cache_flags(size, flags, name, ctor);
++	s->flags = kmem_cache_flags(s->size, flags, s->name, s->ctor);
+ 	s->reserved = 0;
+ 
+ 	if (need_reserve_slab_rcu && (s->flags & SLAB_DESTROY_BY_RCU))
+@@ -3108,7 +3101,7 @@ error:
+ 	if (flags & SLAB_PANIC)
+ 		panic("Cannot create slab %s size=%lu realsize=%u "
+ 			"order=%u offset=%u flags=%lx\n",
+-			s->name, (unsigned long)size, s->size, oo_order(s->oo),
++			s->name, (unsigned long)s->size, s->size, oo_order(s->oo),
+ 			s->offset, flags);
+ 	return -EINVAL;
+ }
+@@ -3249,8 +3242,11 @@ __setup("slub_nomerge", setup_slub_nomer
+ 
+ static int kmem_cache_open_boot(struct kmem_cache *s, const char *name, int size)
+ {
+-	return kmem_cache_open(s, name, size, ARCH_KMALLOC_MINALIGN,
+-		SLAB_HWCACHE_ALIGN | SLAB_PANIC, NULL);
++	s->size = s->object_size = size;
++	s->name = name;
++	s->align = ARCH_KMALLOC_MINALIGN;
++	s->ctor = NULL;
++	return kmem_cache_open(s, SLAB_HWCACHE_ALIGN | SLAB_PANIC);
+ }
+ 
  /*
-  * Conversion table for small slabs sizes / 8 to the index in the
-  * kmalloc array. This is necessary for slabs < 192 since we have non power
-@@ -3704,17 +3710,15 @@ void __init kmem_cache_init(void)
- 	kmalloc_size = ALIGN(kmem_size, cache_line_size());
- 	kmem_cache_node = &boot_kmem_cache_node;
+@@ -3900,11 +3896,9 @@ struct kmem_cache *__kmem_cache_alias(co
+ 	return s;
+ }
  
--	kmem_cache_open(&boot_kmem_cache_node, "kmem_cache_node",
--		sizeof(struct kmem_cache_node),
--		0, SLAB_HWCACHE_ALIGN | SLAB_PANIC, NULL);
-+	kmem_cache_open_boot(kmem_cache_node, "kmem_cache_node",
-+		sizeof(struct kmem_cache_node));
+-int __kmem_cache_create(struct kmem_cache *s,
+-		const char *name, size_t size,
+-		size_t align, unsigned long flags, void (*ctor)(void *))
++int __kmem_cache_create(struct kmem_cache *s, unsigned long flags)
+ {
+-	return kmem_cache_open(s, name, size, align, flags, ctor);
++	return kmem_cache_open(s, flags);
+ }
  
- 	hotplug_memory_notifier(slab_memory_callback, SLAB_CALLBACK_PRI);
+ #ifdef CONFIG_SMP
+Index: linux-2.6/mm/slab.c
+===================================================================
+--- linux-2.6.orig/mm/slab.c	2012-08-02 15:00:08.631510888 -0500
++++ linux-2.6/mm/slab.c	2012-08-02 15:00:11.183555503 -0500
+@@ -2339,8 +2339,7 @@ static int __init_refok setup_cpu_cache(
+  * as davem.
+  */
+ int
+-__kmem_cache_create (struct kmem_cache *cachep, const char *name, size_t size, size_t align,
+-	unsigned long flags, void (*ctor)(void *))
++__kmem_cache_create (struct kmem_cache *cachep, unsigned long flags)
+ {
+ 	size_t left_over, slab_size, ralign;
+ 	gfp_t gfp;
+@@ -2374,9 +2373,9 @@ __kmem_cache_create (struct kmem_cache *
+ 	 * unaligned accesses for some archs when redzoning is used, and makes
+ 	 * sure any on-slab bufctl's are also correctly aligned.
+ 	 */
+-	if (size & (BYTES_PER_WORD - 1)) {
+-		size += (BYTES_PER_WORD - 1);
+-		size &= ~(BYTES_PER_WORD - 1);
++	if (cachep->size & (BYTES_PER_WORD - 1)) {
++		cachep->size += (BYTES_PER_WORD - 1);
++		cachep->size &= ~(BYTES_PER_WORD - 1);
+ 	}
  
- 	/* Able to allocate the per node structures */
- 	slab_state = PARTIAL;
+ 	/* calculate the final buffer alignment: */
+@@ -2389,7 +2388,7 @@ __kmem_cache_create (struct kmem_cache *
+ 		 * one cacheline.
+ 		 */
+ 		ralign = cache_line_size();
+-		while (size <= ralign / 2)
++		while (cachep->size <= ralign / 2)
+ 			ralign /= 2;
+ 	} else {
+ 		ralign = BYTES_PER_WORD;
+@@ -2407,8 +2406,8 @@ __kmem_cache_create (struct kmem_cache *
+ 		ralign = REDZONE_ALIGN;
+ 		/* If redzoning, ensure that the second redzone is suitably
+ 		 * aligned, by adjusting the object size accordingly. */
+-		size += REDZONE_ALIGN - 1;
+-		size &= ~(REDZONE_ALIGN - 1);
++		cachep->size += REDZONE_ALIGN - 1;
++		cachep->size &= ~(REDZONE_ALIGN - 1);
+ 	}
  
--	kmem_cache_open(&boot_kmem_cache, "kmem_cache", kmem_size,
--		0, SLAB_HWCACHE_ALIGN | SLAB_PANIC, NULL);
-+	kmem_cache_open_boot(&boot_kmem_cache, "kmem_cache", kmem_size);
- 	kmem_cache = kmem_cache_alloc(&boot_kmem_cache, GFP_NOWAIT);
- 	memcpy(kmem_cache, &boot_kmem_cache, kmem_size);
+ 	/* 2) arch mandated alignment */
+@@ -2416,8 +2415,8 @@ __kmem_cache_create (struct kmem_cache *
+ 		ralign = ARCH_SLAB_MINALIGN;
+ 	}
+ 	/* 3) caller mandated alignment */
+-	if (ralign < align) {
+-		ralign = align;
++	if (ralign < cachep->align) {
++		ralign = cachep->align;
+ 	}
+ 	/* disable debug if necessary */
+ 	if (ralign > __alignof__(unsigned long long))
+@@ -2425,7 +2424,7 @@ __kmem_cache_create (struct kmem_cache *
+ 	/*
+ 	 * 4) Store it.
+ 	 */
+-	align = ralign;
++	cachep->align = ralign;
  
+ 	if (slab_is_available())
+ 		gfp = GFP_KERNEL;
+@@ -2433,8 +2432,6 @@ __kmem_cache_create (struct kmem_cache *
+ 		gfp = GFP_NOWAIT;
+ 
+ 	cachep->nodelists = (struct kmem_list3 **)&cachep->array[nr_cpu_ids];
+-	cachep->object_size = size;
+-	cachep->align = align;
+ #if DEBUG
+ 
+ 	/*
+@@ -2471,7 +2468,7 @@ __kmem_cache_create (struct kmem_cache *
+ 	 * it too early on. Always use on-slab management when
+ 	 * SLAB_NOLEAKTRACE to avoid recursive calls into kmemleak)
+ 	 */
+-	if ((size >= (PAGE_SIZE >> 3)) && !slab_early_init &&
++	if ((cachep->size >= (PAGE_SIZE >> 3)) && !slab_early_init &&
+ 	    !(flags & SLAB_NOLEAKTRACE))
+ 		/*
+ 		 * Size is large, assume best to place the slab management obj
+@@ -2479,17 +2476,15 @@ __kmem_cache_create (struct kmem_cache *
+ 		 */
+ 		flags |= CFLGS_OFF_SLAB;
+ 
+-	size = ALIGN(size, align);
++	cachep->size = ALIGN(cachep->size, cachep->align);
+ 
+-	left_over = calculate_slab_order(cachep, size, align, flags);
++	left_over = calculate_slab_order(cachep, cachep->size, cachep->align, flags);
+ 
+-	if (!cachep->num) {
+-		printk(KERN_ERR
+-		       "kmem_cache_create: couldn't create cache %s.\n", name);
++	if (!cachep->num)
+ 		return -E2BIG;
+-	}
++
+ 	slab_size = ALIGN(cachep->num * sizeof(kmem_bufctl_t)
+-			  + sizeof(struct slab), align);
++			  + sizeof(struct slab), cachep->align);
+ 
+ 	/*
+ 	 * If the slab has been placed off-slab, and we have enough space then
+@@ -2510,23 +2505,22 @@ __kmem_cache_create (struct kmem_cache *
+ 		 * poisoning, then it's going to smash the contents of
+ 		 * the redzone and userword anyhow, so switch them off.
+ 		 */
+-		if (size % PAGE_SIZE == 0 && flags & SLAB_POISON)
++		if (cachep->size % PAGE_SIZE == 0 && flags & SLAB_POISON)
+ 			flags &= ~(SLAB_RED_ZONE | SLAB_STORE_USER);
+ #endif
+ 	}
+ 
+ 	cachep->colour_off = cache_line_size();
+ 	/* Offset must be a multiple of the alignment. */
+-	if (cachep->colour_off < align)
+-		cachep->colour_off = align;
++	if (cachep->colour_off < cachep->align)
++		cachep->colour_off = cachep->align;
+ 	cachep->colour = left_over / cachep->colour_off;
+ 	cachep->slab_size = slab_size;
+ 	cachep->flags = flags;
+ 	cachep->allocflags = 0;
+ 	if (CONFIG_ZONE_DMA_FLAG && (flags & SLAB_CACHE_DMA))
+ 		cachep->allocflags |= GFP_DMA;
+-	cachep->size = size;
+-	cachep->reciprocal_buffer_size = reciprocal_value(size);
++	cachep->reciprocal_buffer_size = reciprocal_value(cachep->size);
+ 
+ 	if (flags & CFLGS_OFF_SLAB) {
+ 		cachep->slabp_cache = kmem_find_general_cachep(slab_size, 0u);
+@@ -2539,8 +2533,6 @@ __kmem_cache_create (struct kmem_cache *
+ 		 */
+ 		BUG_ON(ZERO_OR_NULL_PTR(cachep->slabp_cache));
+ 	}
+-	cachep->ctor = ctor;
+-	cachep->name = name;
+ 	cachep->refcount = 1;
+ 
+ 	err = setup_cpu_cache(cachep, gfp);
+Index: linux-2.6/mm/slob.c
+===================================================================
+--- linux-2.6.orig/mm/slob.c	2012-08-02 15:00:08.631510888 -0500
++++ linux-2.6/mm/slob.c	2012-08-02 15:00:11.183555503 -0500
+@@ -508,17 +508,15 @@ size_t ksize(const void *block)
+ }
+ EXPORT_SYMBOL(ksize);
+ 
+-int __kmem_cache_create(struct kmem_cache *c, const char *name, size_t size,
+-	size_t align, unsigned long flags, void (*ctor)(void *))
++int __kmem_cache_create(struct kmem_cache *c, unsigned long flags)
+ {
+-	c->name = name;
+-	c->size = size;
++	size_t align = c->size;
++
+ 	if (flags & SLAB_DESTROY_BY_RCU) {
+ 		/* leave room for rcu footer at the end of object */
+ 		c->size += sizeof(struct slob_rcu);
+ 	}
+ 	c->flags = flags;
+-	c->ctor = ctor;
+ 	/* ignore alignment unless it's forced */
+ 	c->align = (flags & SLAB_HWCACHE_ALIGN) ? SLOB_ALIGN : 0;
+ 	if (c->align < ARCH_SLAB_MINALIGN)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
