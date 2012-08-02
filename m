@@ -1,149 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx162.postini.com [74.125.245.162])
-	by kanga.kvack.org (Postfix) with SMTP id 767EC6B004D
-	for <linux-mm@kvack.org>; Wed,  1 Aug 2012 19:33:45 -0400 (EDT)
-Received: by yhr47 with SMTP id 47so9460688yhr.14
-        for <linux-mm@kvack.org>; Wed, 01 Aug 2012 16:33:44 -0700 (PDT)
-Date: Thu, 2 Aug 2012 08:33:35 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: WARNING: at mm/page_alloc.c:4514 free_area_init_node+0x4f/0x37b()
-Message-ID: <20120801233335.GA4673@barrios>
-References: <20120801173837.GI8082@aftab.osrc.amd.com>
+Received: from psmtp.com (na3sys010amx144.postini.com [74.125.245.144])
+	by kanga.kvack.org (Postfix) with SMTP id 0C0506B004D
+	for <linux-mm@kvack.org>; Wed,  1 Aug 2012 20:09:43 -0400 (EDT)
+Received: by lahi5 with SMTP id i5so6060347lah.14
+        for <linux-mm@kvack.org>; Wed, 01 Aug 2012 17:09:42 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120801173837.GI8082@aftab.osrc.amd.com>
+In-Reply-To: <50198D38.1000905@redhat.com>
+References: <1343687538-24284-1-git-send-email-yinghan@google.com>
+	<20120731155932.GB16924@tiehlicka.suse.cz>
+	<CALWz4iwnrXFSoqmPUsXfUMzgxz5bmBrRNU5Nisd=g2mjmu-u3Q@mail.gmail.com>
+	<20120731200205.GA19524@tiehlicka.suse.cz>
+	<CALWz4ixF8PzhDs2fuOMTrrRiBHkg+aMzaVOBhuUN78UenzmYbw@mail.gmail.com>
+	<20120801084553.GD4436@tiehlicka.suse.cz>
+	<CALWz4iwzJp8EwSeP6ap7_adW6sF8YR940sky6vJS3SD8FO6HkA@mail.gmail.com>
+	<50198D38.1000905@redhat.com>
+Date: Wed, 1 Aug 2012 17:09:41 -0700
+Message-ID: <CALWz4iz3Fo90PLNVgzza2Bdt04VS6asxXWUuU==LW8-Hx-fSjA@mail.gmail.com>
+Subject: Re: [PATCH V7 2/2] mm: memcg detect no memcgs above softlimit under
+ zone reclaim
+From: Ying Han <yinghan@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Borislav Petkov <bp@amd64.org>
-Cc: Minchan Kim <minchan@kernel.org>, Tejun Heo <tj@kernel.org>, Ralf Baechle <ralf@linux-mips.org>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Rik van Riel <riel@redhat.com>
+Cc: Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hillf Danton <dhillf@gmail.com>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 
-Hello Borislav,
+On Wed, Aug 1, 2012 at 1:10 PM, Rik van Riel <riel@redhat.com> wrote:
+> On 08/01/2012 03:04 PM, Ying Han wrote:
+>
+>> That is true. Hmm, then two things i can do:
+>>
+>> 1. for kswapd case, make sure not counting the root cgroup
+>> 2. or check nr_scanned. I like the nr_scanned which is telling us
+>> whether or not the reclaim ever make any attempt ?
+>
+>
+> I am looking at a more advanced case of (3) right
+> now.  Once I have the basics working, I will send
+> you a prototype (that applies on top of your patches)
+> to play with.
 
-On Wed, Aug 01, 2012 at 07:38:37PM +0200, Borislav Petkov wrote:
-> Hi,
-> 
-> I'm hitting the WARN_ON in $Subject with latest linus:
-> v3.5-8833-g2d534926205d on a 4-node AMD system. As it looks from
-> dmesg, it is happening on node 0, 1 and 2 but not on 3. Probably the
-> pgdat->nr_zones thing but I'll have to add more dbg code to be sure.
+Rik,
 
-As I look the code quickly, free_area_init_node initializes node_id and
-node_start_pfn doublely. They were initialized by setup_node_data.
+Thank you for looking into that. Before I dig into the algorithm you
+described here, do you think we need to hold this patchset for that?
+It would be easier to build on top of the things after the ground work
+is sorted out.
 
-Could you test below patch? It's not a totally right way to fix it but
-I want to confirm why it happens.
+--Ying
 
-(I'm on vacation now so please understand that it hard to reach me)
-
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 889532b..009ac28 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -4511,7 +4511,7 @@ void __paginginit free_area_init_node(int nid, unsigned long *zones_size,
-        pg_data_t *pgdat = NODE_DATA(nid);
- 
-        /* pg_data_t should be reset to zero when it's allocated */
--       WARN_ON(pgdat->nr_zones || pgdat->node_start_pfn || pgdat->classzone_idx);
-+       WARN_ON(pgdat->nr_zones || pgdat->classzone_idx);
- 
-        pgdat->node_id = nid;
-        pgdat->node_start_pfn = node_start_pfn;
-
-> 
-> Config is attached.
-> 
-> dmesg:
-> 
-> [    0.000000] Early memory node ranges
-> [    0.000000]   node   0: [mem 0x00010000-0x00087fff]
-> [    0.000000]   node   0: [mem 0x00100000-0xc7ebffff]
-> [    0.000000]   node   0: [mem 0x100000000-0x437ffffff]
-> [    0.000000]   node   1: [mem 0x438000000-0x837ffffff]
-> [    0.000000]   node   2: [mem 0x838000000-0xc37ffffff]
-> [    0.000000]   node   3: [mem 0xc38000000-0x1037ffffff]
-> [    0.000000] On node 0 totalpages: 4193848
-> [    0.000000]   DMA zone: 64 pages used for memmap
-> [    0.000000]   DMA zone: 6 pages reserved
-> [    0.000000]   DMA zone: 3890 pages, LIFO batch:0
-> [    0.000000]   DMA32 zone: 16320 pages used for memmap
-> [    0.000000]   DMA32 zone: 798464 pages, LIFO batch:31
-> [    0.000000]   Normal zone: 52736 pages used for memmap
-> [    0.000000]   Normal zone: 3322368 pages, LIFO batch:31
-> [    0.000000] ------------[ cut here ]------------
-> [    0.000000] WARNING: at mm/page_alloc.c:4514 free_area_init_node+0x4f/0x37b()
-> [    0.000000] Hardware name: Dinar
-> [    0.000000] Modules linked in:
-> [    0.000000] Pid: 0, comm: swapper Not tainted 3.5.0+ #9
-> [    0.000000] Call Trace:
-> [    0.000000]  [<ffffffff810320bd>] warn_slowpath_common+0x85/0x9d
-> [    0.000000]  [<ffffffff810320ef>] warn_slowpath_null+0x1a/0x1c
-> [    0.000000]  [<ffffffff81470bc0>] free_area_init_node+0x4f/0x37b
-> [    0.000000]  [<ffffffff81af5962>] ? find_min_pfn_for_node+0x57/0x84
-> [    0.000000]  [<ffffffff81af61a2>] free_area_init_nodes+0x55d/0x5ac
-> [    0.000000]  [<ffffffff81aed7ca>] zone_sizes_init+0x3b/0x3d
-> [    0.000000]  [<ffffffff81aedadc>] paging_init+0x20/0x22
-> [    0.000000]  [<ffffffff81ae030d>] setup_arch+0x6f3/0x7c2
-> [    0.000000]  [<ffffffff81add806>] start_kernel+0x8f/0x2eb
-> [    0.000000]  [<ffffffff81add280>] x86_64_start_reservations+0x84/0x89
-> [    0.000000]  [<ffffffff81add377>] x86_64_start_kernel+0xf2/0xf9
-> [    0.000000] ---[ end trace d76bed13a5793ee3 ]---
-> [    0.000000] On node 1 totalpages: 4194304
-> [    0.000000]   Normal zone: 65536 pages used for memmap
-> [    0.000000]   Normal zone: 4128768 pages, LIFO batch:31
-> [    0.000000] ------------[ cut here ]------------
-> [    0.000000] WARNING: at mm/page_alloc.c:4514 free_area_init_node+0x4f/0x37b()
-> [    0.000000] Hardware name: Dinar
-> [    0.000000] Modules linked in:
-> [    0.000000] Pid: 0, comm: swapper Tainted: G        W    3.5.0+ #9
-> [    0.000000] Call Trace:
-> [    0.000000]  [<ffffffff810320bd>] warn_slowpath_common+0x85/0x9d
-> [    0.000000]  [<ffffffff810320ef>] warn_slowpath_null+0x1a/0x1c
-> [    0.000000]  [<ffffffff81470bc0>] free_area_init_node+0x4f/0x37b
-> [    0.000000]  [<ffffffff81af5962>] ? find_min_pfn_for_node+0x57/0x84
-> [    0.000000]  [<ffffffff81af61a2>] free_area_init_nodes+0x55d/0x5ac
-> [    0.000000]  [<ffffffff81aed7ca>] zone_sizes_init+0x3b/0x3d
-> [    0.000000]  [<ffffffff81aedadc>] paging_init+0x20/0x22
-> [    0.000000]  [<ffffffff81ae030d>] setup_arch+0x6f3/0x7c2
-> [    0.000000]  [<ffffffff81add806>] start_kernel+0x8f/0x2eb
-> [    0.000000]  [<ffffffff81add280>] x86_64_start_reservations+0x84/0x89
-> [    0.000000]  [<ffffffff81add377>] x86_64_start_kernel+0xf2/0xf9
-> [    0.000000] ---[ end trace d76bed13a5793ee4 ]---
-> [    0.000000] On node 2 totalpages: 4194304
-> [    0.000000]   Normal zone: 65536 pages used for memmap
-> [    0.000000]   Normal zone: 4128768 pages, LIFO batch:31
-> [    0.000000] ------------[ cut here ]------------
-> [    0.000000] WARNING: at mm/page_alloc.c:4514 free_area_init_node+0x4f/0x37b()
-> [    0.000000] Hardware name: Dinar
-> [    0.000000] Modules linked in:
-> [    0.000000] Pid: 0, comm: swapper Tainted: G        W    3.5.0+ #9
-> [    0.000000] Call Trace:
-> [    0.000000]  [<ffffffff810320bd>] warn_slowpath_common+0x85/0x9d
-> [    0.000000]  [<ffffffff810320ef>] warn_slowpath_null+0x1a/0x1c
-> [    0.000000]  [<ffffffff81470bc0>] free_area_init_node+0x4f/0x37b
-> [    0.000000]  [<ffffffff81af5962>] ? find_min_pfn_for_node+0x57/0x84
-> [    0.000000]  [<ffffffff81af61a2>] free_area_init_nodes+0x55d/0x5ac
-> [    0.000000]  [<ffffffff81aed7ca>] zone_sizes_init+0x3b/0x3d
-> [    0.000000]  [<ffffffff81aedadc>] paging_init+0x20/0x22
-> [    0.000000]  [<ffffffff81ae030d>] setup_arch+0x6f3/0x7c2
-> [    0.000000]  [<ffffffff81add806>] start_kernel+0x8f/0x2eb
-> [    0.000000]  [<ffffffff81add280>] x86_64_start_reservations+0x84/0x89
-> [    0.000000]  [<ffffffff81add377>] x86_64_start_kernel+0xf2/0xf9
-> [    0.000000] ---[ end trace d76bed13a5793ee5 ]---
-> [    0.000000] On node 3 totalpages: 4194304
-> [    0.000000]   Normal zone: 65536 pages used for memmap
-> [    0.000000]   Normal zone: 4128768 pages, LIFO batch:31
-> 
-> -- 
-> Regards/Gruss,
-> Boris.
-> 
-> Advanced Micro Devices GmbH
-> Einsteinring 24, 85609 Dornach
-> GM: Alberto Bozzo
-> Reg: Dornach, Landkreis Muenchen
-> HRB Nr. 43632 WEEE Registernr: 129 19551
-
+> Basically, for every LRU in the system, we can keep
+> track of 4 things:
+> - reclaim_stat->recent_scanned
+> - reclaim_stat->recent_rotated
+> - reclaim_stat->recent_pressure
+> - LRU size
+>
+> The first two represent the fraction of pages on the
+> list that are actively used.  The larger the fraction
+> of recently used pages, the more valuable the cache
+> is. The inverse of that can be used to show us how
+> hard to reclaim this cache, compared to other caches
+> (everything else being equal).
+>
+> The recent pressure can be used to keep track of how
+> many pages we have scanned on each LRU list recently.
+> Pressure is scaled with LRU size.
+>
+> This would be the basic formula to decide which LRU
+> to reclaim from:
+>
+>           recent_scanned   LRU size
+> score =   -------------- * ----------------
+>           recent_rotated   recent_pressure
+>
+>
+> In other words, the less the objects on an LRU are
+> used, the more we should reclaim from that LRU. The
+> larger an LRU is, the more we should reclaim from
+> that LRU.
+>
+> The more we have already scanned an LRU, the lower
+> its score becomes. At some point, another LRU will
+> have the top score, and that will be the target to
+> scan.
+>
+> We can adjust the score for different LRUs in different
+> ways, eg.:
+> - swappiness adjustment for file vs anon LRUs, within
+>   an LRU set
+> - if an LRU set contains a file LRU with more inactive
+>   than active pages, reclaim from this LRU set first
+> - if an LRU set is over it's soft limit, reclaim from
+>   this LRU set first
+>
+> This also gives us a nice way to balance memory pressure
+> between zones, etc...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
