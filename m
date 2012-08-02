@@ -1,36 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx177.postini.com [74.125.245.177])
-	by kanga.kvack.org (Postfix) with SMTP id 71D406B0044
-	for <linux-mm@kvack.org>; Thu,  2 Aug 2012 14:13:31 -0400 (EDT)
-Date: Thu, 2 Aug 2012 13:13:28 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: Common [00/16] Sl[auo]b: Common code rework V8
-In-Reply-To: <501AC247.8020306@parallels.com>
-Message-ID: <alpine.DEB.2.00.1208021313040.27953@router.home>
-References: <20120801211130.025389154@linux.com> <501A3F1E.4060307@parallels.com> <alpine.DEB.2.00.1208020912340.23049@router.home> <501A8BE4.4060206@parallels.com> <alpine.DEB.2.00.1208020941150.23049@router.home> <501A92FB.8020906@parallels.com>
- <alpine.DEB.2.00.1208021305200.27953@router.home> <501AC247.8020306@parallels.com>
+Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
+	by kanga.kvack.org (Postfix) with SMTP id B8AD86B0044
+	for <linux-mm@kvack.org>; Thu,  2 Aug 2012 14:24:06 -0400 (EDT)
+Received: from labbmf01-linux.qualcomm.com (pdmz-ns-snip_218_1.qualcomm.com [192.168.218.1])
+	by mostmsg01.qualcomm.com (Postfix) with ESMTPA id DA1B410004BE
+	for <linux-mm@kvack.org>; Thu,  2 Aug 2012 11:24:05 -0700 (PDT)
+Date: Thu, 2 Aug 2012 11:24:04 -0700
+From: Larry Bassel <lbassel@codeaurora.org>
+Subject: How to steer allocations to or away from subsets of physical
+ memory?
+Message-ID: <20120802182404.GA4018@labbmf01-linux.qualcomm.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Joonsoo Kim <js1304@gmail.com>
+To: linux-mm@kvack.org
 
-On Thu, 2 Aug 2012, Glauber Costa wrote:
+I am looking for a way to steer allocations (these may be
+by either userspace or the kernel) to or away from particular
+ranges of memory. The reason for this is that some parts of
+memory are different from others (i.e. some memory may be
+faster/slower, some may potentially be powered off when
+not in use, etc.).
 
-> On 08/02/2012 10:07 PM, Christoph Lameter wrote:
-> > I got my tree working cleanly now by removing the one kfree for s->name
-> > that I missed in kmem_cache_release and by removing the refcount
-> > modifications from the last patch. I put them in a separate patch.
-> > Applying that patch causes the problem.
-> >
-> > Can you skip the last patch for now or do you want another set posted?
-> >
->
-> What is "the last patch" Patc 16/16 doesn't seem to have anything to do
-> with it.
+One approach I have considered is to use NUMA and have
+each block of memory with differing attributes be its own
+node. This doesn't quite fit because:
 
-The patch that reduces the parameters to __kmem_cache_create.
+1. Unlike the standard NUMA model, there will not be
+any difference in memory access speed from
+different CPUs to memory, rather an absolute difference
+in access speed (or other attribute) from any CPU.
+Thus the notion of a "local node" of memory bound to
+each processor doesn't seem to fit.
+
+These allocations must be steered independently of which
+processor happens to be running.
+
+2. For our use case it is not reasonable to make changes
+to userspace code so that they become node-aware (i.e. have each
+process use cpusets/cgroups/memory policies directly).
+Even if this were possible, the user processes will need to run 
+on different platforms which will have different node
+layouts (i.e. there could be a varying number of nodes
+of different sizes and attributes on different HW configurations
+which userspace AFAIK wouldn't be able to deal with itself).
+
+So my questions are:
+
+1. Is NUMA the best fit here, or is there something that fits
+better that I should consider?
+
+2. If NUMA is a reasonable approach, is there already a way
+to deal with nodes in a "processor independent" way (see issue
+#1 above) to make the model fit our use case better?
+
+3. We have done a "proof-of-concept" port of NUMA to ARM (at this
+point artificially associating processors to nodes) and have
+noticed some degradation in memory allocation time from userspace
+(malloc'ing and touching various amounts of memory). This
+appears to get somewhat worse as the number of nodes increases
+(up to 8 which is the most we've tried), but even the case
+where we enable NUMA but only have a single node is worse.
+Is this to be expected, or is it simply a problem with our
+initial port that should be fixable?
+
+Thanks.
+
+Larry Bassel
+
+-- 
+Sent by an employee of the Qualcomm Innovation Center, Inc.
+The Qualcomm Innovation Center, Inc. is a member of the Code Aurora Forum.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
