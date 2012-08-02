@@ -1,82 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
-	by kanga.kvack.org (Postfix) with SMTP id B7C396B0070
-	for <linux-mm@kvack.org>; Thu,  2 Aug 2012 02:01:16 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
+	by kanga.kvack.org (Postfix) with SMTP id CB24A6B0073
+	for <linux-mm@kvack.org>; Thu,  2 Aug 2012 02:01:20 -0400 (EDT)
 From: Lai Jiangshan <laijs@cn.fujitsu.com>
-Subject: [RFC PATCH 15/23 V2] memory_hotplug: fix missing nodemask management
-Date: Thu, 2 Aug 2012 14:01:20 +0800
-Message-Id: <1343887288-8866-16-git-send-email-laijs@cn.fujitsu.com>
+Subject: [RFC PATCH 16/23 V2] numa: add CONFIG_MOVABLE_NODE for movable-dedicated node
+Date: Thu, 2 Aug 2012 14:01:21 +0800
+Message-Id: <1343887288-8866-17-git-send-email-laijs@cn.fujitsu.com>
 In-Reply-To: <1343887288-8866-1-git-send-email-laijs@cn.fujitsu.com>
 References: <1343887288-8866-1-git-send-email-laijs@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Mel Gorman <mel@csn.ul.ie>, linux-kernel@vger.kernel.org
-Cc: Lai Jiangshan <laijs@cn.fujitsu.com>, Rob Landley <rob@landley.net>, Andrew Morton <akpm@linux-foundation.org>, Paul Gortmaker <paul.gortmaker@windriver.com>, Bjorn Helgaas <bhelgaas@google.com>, David Rientjes <rientjes@google.com>, Wen Congyang <wency@cn.fujitsu.com>, linux-doc@vger.kernel.org, linux-mm@kvack.org
+Cc: Lai Jiangshan <laijs@cn.fujitsu.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Jan Beulich <JBeulich@novell.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org
 
-Currently memory_hotplug only manages the node_states[N_HIGH_MEMORY],
-it forgot to manage node_states[N_NORMAL_MEMORY]. fix it.
+All are prepared, we can actually introduce N_MEMORY.
+add CONFIG_MOVABLE_NODE make we can use it for movable-dedicated node
 
 Signed-off-by: Lai Jiangshan <laijs@cn.fujitsu.com>
 ---
- Documentation/memory-hotplug.txt |    2 +-
- mm/memory_hotplug.c              |   23 +++++++++++++++++++++--
- 2 files changed, 22 insertions(+), 3 deletions(-)
+ drivers/base/node.c      |    6 ++++++
+ include/linux/nodemask.h |    4 ++++
+ mm/Kconfig               |    8 ++++++++
+ mm/page_alloc.c          |    3 +++
+ 4 files changed, 21 insertions(+), 0 deletions(-)
 
-diff --git a/Documentation/memory-hotplug.txt b/Documentation/memory-hotplug.txt
-index 6d0c251..89f21b2 100644
---- a/Documentation/memory-hotplug.txt
-+++ b/Documentation/memory-hotplug.txt
-@@ -382,7 +382,7 @@ struct memory_notify {
- 
- start_pfn is start_pfn of online/offline memory.
- nr_pages is # of pages of online/offline memory.
--status_change_nid is set node id when N_HIGH_MEMORY of nodemask is (will be)
-+status_change_nid is set node id when N_MEMORY of nodemask is (will be)
- set/clear. It means a new(memoryless) node gets new memory by online and a
- node loses all memory. If this is -1, then nodemask status is not changed.
- If status_changed_nid >= 0, callback should create/discard structures for the
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index 427bb29..c44b39e 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -522,8 +522,18 @@ int __ref online_pages(unsigned long pfn, unsigned long nr_pages)
- 	init_per_zone_wmark_min();
- 
- 	if (onlined_pages) {
-+		enum zone_type zoneid = zone_idx(zone);
-+
- 		kswapd_run(zone_to_nid(zone));
--		node_set_state(zone_to_nid(zone), N_HIGH_MEMORY);
-+
-+		node_set_state(nid, N_MEMORY);
-+		if (zoneid <= ZONE_NORMAL && N_NORMAL_MEMORY != N_MEMORY)
-+			node_set_state(nid, N_NORMAL_MEMORY);
-+#ifdef CONFIG_HIGMEM
-+		if (zoneid <= ZONE_HIGHMEM && N_HIGH_MEMORY != N_MEMORY)
-+			node_set_state(nid, N_HIGH_MEMORY);
+diff --git a/drivers/base/node.c b/drivers/base/node.c
+index 31f4805..4bf5629 100644
+--- a/drivers/base/node.c
++++ b/drivers/base/node.c
+@@ -621,6 +621,9 @@ static struct node_attr node_state_attr[] = {
+ #ifdef CONFIG_HIGHMEM
+ 	_NODE_ATTR(has_high_memory, N_HIGH_MEMORY),
+ #endif
++#ifdef CONFIG_MOVABLE_NODE
++	_NODE_ATTR(has_memory, N_MEMORY),
 +#endif
-+
- 	}
+ };
  
- 	vm_total_pages = nr_free_pagecache_pages();
-@@ -966,7 +976,16 @@ repeat:
- 	init_per_zone_wmark_min();
- 
- 	if (!node_present_pages(node)) {
--		node_clear_state(node, N_HIGH_MEMORY);
-+		enum zone_type zoneid = zone_idx(zone);
-+
-+		node_clear_state(node, N_MEMORY);
-+		if (zoneid <= ZONE_NORMAL && N_NORMAL_MEMORY != N_MEMORY)
-+			node_clear_state(node, N_NORMAL_MEMORY);
-+#ifdef CONFIG_HIGMEM
-+		if (zoneid <= ZONE_HIGHMEM && N_HIGH_MEMORY != N_MEMORY)
-+			node_clear_state(node, N_HIGH_MEMORY);
+ static struct attribute *node_state_attrs[] = {
+@@ -631,6 +634,9 @@ static struct attribute *node_state_attrs[] = {
+ #ifdef CONFIG_HIGHMEM
+ 	&node_state_attr[4].attr.attr,
+ #endif
++#ifdef CONFIG_MOVABLE_NODE
++	&node_state_attr[4].attr.attr,
 +#endif
-+
- 		kswapd_stop(node);
- 	}
+ 	NULL
+ };
  
+diff --git a/include/linux/nodemask.h b/include/linux/nodemask.h
+index c6ebdc9..4e2cbfa 100644
+--- a/include/linux/nodemask.h
++++ b/include/linux/nodemask.h
+@@ -380,7 +380,11 @@ enum node_states {
+ #else
+ 	N_HIGH_MEMORY = N_NORMAL_MEMORY,
+ #endif
++#ifdef CONFIG_MOVABLE_NODE
++	N_MEMORY,		/* The node has memory(regular, high, movable) */
++#else
+ 	N_MEMORY = N_HIGH_MEMORY,
++#endif
+ 	N_CPU,		/* The node has one or more cpus */
+ 	NR_NODE_STATES
+ };
+diff --git a/mm/Kconfig b/mm/Kconfig
+index 82fed4e..4371c65 100644
+--- a/mm/Kconfig
++++ b/mm/Kconfig
+@@ -140,6 +140,14 @@ config ARCH_DISCARD_MEMBLOCK
+ config NO_BOOTMEM
+ 	boolean
+ 
++config MOVABLE_NODE
++	boolean "Enable to assign a node has only movable memory"
++	depends on HAVE_MEMBLOCK
++	depends on NO_BOOTMEM
++	depends on X86_64
++	depends on NUMA
++	default y
++
+ # eventually, we can have this option just 'select SPARSEMEM'
+ config MEMORY_HOTPLUG
+ 	bool "Allow for memory hot-add"
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 0571f2a..737faf7 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -91,6 +91,9 @@ nodemask_t node_states[NR_NODE_STATES] __read_mostly = {
+ #ifdef CONFIG_HIGHMEM
+ 	[N_HIGH_MEMORY] = { { [0] = 1UL } },
+ #endif
++#ifdef CONFIG_MOVABLE_NODE
++	[N_MEMORY] = { { [0] = 1UL } },
++#endif
+ 	[N_CPU] = { { [0] = 1UL } },
+ #endif	/* NUMA */
+ };
 -- 
 1.7.1
 
