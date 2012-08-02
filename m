@@ -1,47 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
-	by kanga.kvack.org (Postfix) with SMTP id C5CCB6B004D
-	for <linux-mm@kvack.org>; Thu,  2 Aug 2012 09:03:52 -0400 (EDT)
-Received: by bkcjc3 with SMTP id jc3so5149404bkc.14
-        for <linux-mm@kvack.org>; Thu, 02 Aug 2012 06:03:51 -0700 (PDT)
-Message-ID: <501A7AD3.7000008@gmail.com>
-Date: Thu, 02 Aug 2012 15:04:19 +0200
-From: Sasha Levin <levinsasha928@gmail.com>
-MIME-Version: 1.0
-Subject: Re: [RFC 1/4] hashtable: introduce a small and naive hashtable
-References: <20120731182330.GD21292@google.com> <50197348.9010101@gmail.com> <20120801182112.GC15477@google.com> <50197460.8010906@gmail.com> <20120801182749.GD15477@google.com> <50197E4A.7020408@gmail.com> <20120801202432.GE15477@google.com> <5019B0B4.1090102@gmail.com> <20120801224556.GF15477@google.com> <501A4FC1.8040907@gmail.com> <20120802103244.GA23318@leaf> <501A633B.3010509@gmail.com>
-In-Reply-To: <501A633B.3010509@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
+	by kanga.kvack.org (Postfix) with SMTP id A62356B004D
+	for <linux-mm@kvack.org>; Thu,  2 Aug 2012 09:11:09 -0400 (EDT)
+From: Glauber Costa <glommer@parallels.com>
+Subject: [PATCH] slub: use free_page instead of put_page for freeing kmalloc allocation
+Date: Thu,  2 Aug 2012 17:11:05 +0400
+Message-Id: <1343913065-14631-1-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Josh Triplett <josh@joshtriplett.org>
-Cc: Tejun Heo <tj@kernel.org>, torvalds@linux-foundation.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, paul.gortmaker@windriver.com
+To: linux-kernel@vger.kernel.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Glauber Costa <glommer@parallels.com>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, Christoph Lameter <cl@linux.com>
 
-On 08/02/2012 01:23 PM, Sasha Levin wrote:
->> #define DEFINE_HASH_TABLE(name, length) struct hash_table name = { .count = length, .buckets = { [0 ... (length - 1)] = HLIST_HEAD_INIT } }
-> The limitation of this approach is that the struct hash_table variable must be 'static', which is a bit limiting - see for example the use of hashtable in 'struct user_namespace'.
-> 
+The slab allocators provide its users with memory regions, with very few
+placement guarantees. No user should assume an actual page is given by
+kmalloc calls that are multiple of a page in size. This means that we
+can be sure that every sane user of the interface would not mess with
+the page reference counting of the underlying page.
 
-What if we just use two possible decelerations? One of static structs and one for regular ones.
+When freeing objects, the slub allocator will most of the time free
+empty pages by calling __free_pages(). But high-order kmalloc will be
+diposed by means of put_page() instead.
 
-struct hash_table {
-        size_t bits;
-        struct hlist_head buckets[];
-};
+It makes no sense to call put_page() in kernel pages that are not
+reference counted, which is the case here.
 
-#define DEFINE_HASHTABLE(name, bits)                                    \
-        union {                                                         \
-                struct hash_table name;                                 \
-                struct {                                                \
-                        size_t bits;                                    \
-                        struct hlist_head buckets[1 << bits];           \
-                } __name;                                               \
-        }
+Signed-off-by: Glauber Costa <glommer@parallels.com>
+CC: David Rientjes <rientjes@google.com>
+CC: Pekka Enberg <penberg@kernel.org>
+CC: Christoph Lameter <cl@linux.com>
+---
+ mm/slub.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-#define DEFINE_STATIC_HASHTABLE(name, bit)                              \
-        static struct hash_table name = { .bits = bit,                  \
-                .buckets = { [0 ... (bit - 1)] = HLIST_HEAD_INIT } }
+diff --git a/mm/slub.c b/mm/slub.c
+index e517d43..9ca4e20 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -3453,7 +3453,7 @@ void kfree(const void *x)
+ 	if (unlikely(!PageSlab(page))) {
+ 		BUG_ON(!PageCompound(page));
+ 		kmemleak_free(x);
+-		put_page(page);
++		__free_pages(page, compound_order(page));
+ 		return;
+ 	}
+ 	slab_free(page->slab, page, object, _RET_IP_);
+-- 
+1.7.11.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
