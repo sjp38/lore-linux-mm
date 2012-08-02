@@ -1,7 +1,7 @@
 From: Lai Jiangshan <laijs-BthXqXjhjHXQFUHtdCDX3A@public.gmane.org>
-Subject: [RFC PATCH 05/23 V2] mm,migrate: use N_MEMORY instead N_HIGH_MEMORY
-Date: Thu, 2 Aug 2012 10:52:53 +0800
-Message-ID: <1343875991-7533-6-git-send-email-laijs@cn.fujitsu.com>
+Subject: [RFC PATCH 10/23 V2] kthread: use N_MEMORY instead N_HIGH_MEMORY
+Date: Thu, 2 Aug 2012 10:52:58 +0800
+Message-ID: <1343875991-7533-11-git-send-email-laijs@cn.fujitsu.com>
 References: <1343875991-7533-1-git-send-email-laijs@cn.fujitsu.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset="us-ascii"
@@ -29,21 +29,21 @@ use N_MEMORY instead.
 
 Signed-off-by: Lai Jiangshan <laijs-BthXqXjhjHXQFUHtdCDX3A@public.gmane.org>
 ---
- mm/migrate.c |    2 +-
+ kernel/kthread.c |    2 +-
  1 files changed, 1 insertions(+), 1 deletions(-)
 
-diff --git a/mm/migrate.c b/mm/migrate.c
-index be26d5c..dbe4f86 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -1226,7 +1226,7 @@ static int do_pages_move(struct mm_struct *mm, nodemask_t task_nodes,
- 			if (node < 0 || node >= MAX_NUMNODES)
- 				goto out_pm;
+diff --git a/kernel/kthread.c b/kernel/kthread.c
+index 3d3de63..4139962 100644
+--- a/kernel/kthread.c
++++ b/kernel/kthread.c
+@@ -280,7 +280,7 @@ int kthreadd(void *unused)
+ 	set_task_comm(tsk, "kthreadd");
+ 	ignore_signals(tsk);
+ 	set_cpus_allowed_ptr(tsk, cpu_all_mask);
+-	set_mems_allowed(node_states[N_HIGH_MEMORY]);
++	set_mems_allowed(node_states[N_MEMORY]);
  
--			if (!node_state(node, N_HIGH_MEMORY))
-+			if (!node_state(node, N_MEMORY))
- 				goto out_pm;
+ 	current->flags |= PF_NOFREEZE;
  
- 			err = -EACCES;
 -- 
 1.7.1
