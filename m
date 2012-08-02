@@ -1,126 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
-	by kanga.kvack.org (Postfix) with SMTP id 238B56B004D
-	for <linux-mm@kvack.org>; Thu,  2 Aug 2012 07:06:51 -0400 (EDT)
-Date: Thu, 2 Aug 2012 13:06:41 +0200
-From: Borislav Petkov <bp@amd64.org>
-Subject: Re: WARNING: at mm/page_alloc.c:4514 free_area_init_node+0x4f/0x37b()
-Message-ID: <20120802110641.GA16328@aftab.osrc.amd.com>
-References: <20120801173837.GI8082@aftab.osrc.amd.com>
- <20120801233335.GA4673@barrios>
+Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
+	by kanga.kvack.org (Postfix) with SMTP id 992406B004D
+	for <linux-mm@kvack.org>; Thu,  2 Aug 2012 07:23:12 -0400 (EDT)
+Received: by bkcjc3 with SMTP id jc3so5074798bkc.14
+        for <linux-mm@kvack.org>; Thu, 02 Aug 2012 04:23:10 -0700 (PDT)
+Message-ID: <501A633B.3010509@gmail.com>
+Date: Thu, 02 Aug 2012 13:23:39 +0200
+From: Sasha Levin <levinsasha928@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120801233335.GA4673@barrios>
+Subject: Re: [RFC 1/4] hashtable: introduce a small and naive hashtable
+References: <20120731182330.GD21292@google.com> <50197348.9010101@gmail.com> <20120801182112.GC15477@google.com> <50197460.8010906@gmail.com> <20120801182749.GD15477@google.com> <50197E4A.7020408@gmail.com> <20120801202432.GE15477@google.com> <5019B0B4.1090102@gmail.com> <20120801224556.GF15477@google.com> <501A4FC1.8040907@gmail.com> <20120802103244.GA23318@leaf>
+In-Reply-To: <20120802103244.GA23318@leaf>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Tejun Heo <tj@kernel.org>, Ralf Baechle <ralf@linux-mips.org>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Josh Triplett <josh@joshtriplett.org>
+Cc: Tejun Heo <tj@kernel.org>, torvalds@linux-foundation.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, paul.gortmaker@windriver.com
 
-On Thu, Aug 02, 2012 at 08:33:35AM +0900, Minchan Kim wrote:
-> Hello Borislav,
+On 08/02/2012 12:32 PM, Josh Triplett wrote:
+> On Thu, Aug 02, 2012 at 12:00:33PM +0200, Sasha Levin wrote:
+>> On 08/02/2012 12:45 AM, Tejun Heo wrote:
+>>> On Thu, Aug 02, 2012 at 12:41:56AM +0200, Sasha Levin wrote:
+>>>> How would your DEFINE_HASHTABLE look like if we got for the simple
+>>>> 'struct hash_table' approach?
+>>>
+>>> I think defining a different enclosing anonymous struct which the
+>>> requested number of array entries and then aliasing the actual
+>>> hash_table to that symbol should work.  It's rather horrible and I'm
+>>> not sure it's worth the trouble.
+>>
+>> I agree that this is probably not worth the trouble.
+>>
+>> At the moment I see two alternatives:
+>>
+>> 1. Dynamically allocate the hash buckets.
+>>
+>> 2. Use the first bucket to store size. Something like the follows:
+>>
+>> 	#define HASH_TABLE(name, bits)	\
+>>         	struct hlist_head name[1 << bits + 1];
+>>
+>> 	#define HASH_TABLE_INIT (bits) ({name[0].next = bits});
+>>
+>> And then have hash_{add,get} just skip the first bucket.
+>>
+>>
+>> While it's not a pretty hack, I don't see a nice way to avoid having to dynamically allocate buckets for all cases.
 > 
-> On Wed, Aug 01, 2012 at 07:38:37PM +0200, Borislav Petkov wrote:
-> > Hi,
-> > 
-> > I'm hitting the WARN_ON in $Subject with latest linus:
-> > v3.5-8833-g2d534926205d on a 4-node AMD system. As it looks from
-> > dmesg, it is happening on node 0, 1 and 2 but not on 3. Probably the
-> > pgdat->nr_zones thing but I'll have to add more dbg code to be sure.
+> What about using a C99 flexible array member?  Kernel style prohibits
+> variable-length arrays, but I don't think the same rationale applies to
+> flexible array members.
 > 
-> As I look the code quickly, free_area_init_node initializes node_id and
-> node_start_pfn doublely. They were initialized by setup_node_data.
+> struct hash_table {
+>     size_t count;
+>     struct hlist_head buckets[];
+> };
 > 
-> Could you test below patch? It's not a totally right way to fix it but
-> I want to confirm why it happens.
-> 
-> (I'm on vacation now so please understand that it hard to reach me)
+> #define DEFINE_HASH_TABLE(name, length) struct hash_table name = { .count = length, .buckets = { [0 ... (length - 1)] = HLIST_HEAD_INIT } }
 
-I sincerely hope you're not going to interrupt your vacation because of
-this.
-
-:-).
+The limitation of this approach is that the struct hash_table variable must be 'static', which is a bit limiting - see for example the use of hashtable in 'struct user_namespace'.
 
 > 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 889532b..009ac28 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -4511,7 +4511,7 @@ void __paginginit free_area_init_node(int nid, unsigned long *zones_size,
->         pg_data_t *pgdat = NODE_DATA(nid);
->  
->         /* pg_data_t should be reset to zero when it's allocated */
-> -       WARN_ON(pgdat->nr_zones || pgdat->node_start_pfn || pgdat->classzone_idx);
-> +       WARN_ON(pgdat->nr_zones || pgdat->classzone_idx);
->  
->         pgdat->node_id = nid;
->         pgdat->node_start_pfn = node_start_pfn;
-
-Yep, you were right: ->node_start_pfn is set. I added additional debug
-output for more info:
-
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 889532b8e6c1..c249abe4fee2 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -4511,7 +4511,17 @@ void __paginginit free_area_init_node(int nid, unsigned long *zones_size,
-        pg_data_t *pgdat = NODE_DATA(nid);
- 
-        /* pg_data_t should be reset to zero when it's allocated */
--       WARN_ON(pgdat->nr_zones || pgdat->node_start_pfn || pgdat->classzone_idx);
-+       WARN_ON(pgdat->nr_zones || pgdat->classzone_idx);
-+
-+       if (pgdat->node_start_pfn)
-+               pr_warn("%s: pgdat->node_start_pfn: %lu\n", __func__, pgdat->node_start_pfn);
-+
-+       if (pgdat->nr_zones)
-+               pr_warn("%s: pgdat->nr_zones: %d\n", __func__, pgdat->nr_zones);
-+
-+       if (pgdat->classzone_idx)
-+               pr_warn("%s: pgdat->classzone_idx: %d\n", __func__, pgdat->classzone_idx);
-+
- 
-        pgdat->node_id = nid;
-        pgdat->node_start_pfn = node_start_pfn;
-
-
-
-Here's what it says:
-
-[    0.000000] On node 0 totalpages: 4193848
-[    0.000000]   DMA zone: 64 pages used for memmap
-[    0.000000]   DMA zone: 6 pages reserved
-[    0.000000]   DMA zone: 3890 pages, LIFO batch:0
-[    0.000000]   DMA32 zone: 16320 pages used for memmap
-[    0.000000]   DMA32 zone: 798464 pages, LIFO batch:31
-[    0.000000]   Normal zone: 52736 pages used for memmap
-[    0.000000]   Normal zone: 3322368 pages, LIFO batch:31
-[    0.000000] free_area_init_node: pgdat->node_start_pfn: 4423680	<----
-[    0.000000] On node 1 totalpages: 4194304
-[    0.000000]   Normal zone: 65536 pages used for memmap
-[    0.000000]   Normal zone: 4128768 pages, LIFO batch:31
-[    0.000000] free_area_init_node: pgdat->node_start_pfn: 8617984	<----
-[    0.000000] On node 2 totalpages: 4194304
-[    0.000000]   Normal zone: 65536 pages used for memmap
-[    0.000000]   Normal zone: 4128768 pages, LIFO batch:31
-[    0.000000] free_area_init_node: pgdat->node_start_pfn: 12812288	<----
-[    0.000000] On node 3 totalpages: 4194304
-[    0.000000]   Normal zone: 65536 pages used for memmap
-[    0.000000]   Normal zone: 4128768 pages, LIFO batch:31
-[    0.000000] ACPI: PM-Timer IO Port: 0x2008
-[    0.000000] ACPI: Local APIC address 0xfee00000
-
-Thanks.
-
--- 
-Regards/Gruss,
-Boris.
-
-Advanced Micro Devices GmbH
-Einsteinring 24, 85609 Dornach
-GM: Alberto Bozzo
-Reg: Dornach, Landkreis Muenchen
-HRB Nr. 43632 WEEE Registernr: 129 19551
+> - Josh Triplett
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
