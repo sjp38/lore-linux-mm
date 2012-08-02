@@ -1,61 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
-	by kanga.kvack.org (Postfix) with SMTP id BF7F96B005D
-	for <linux-mm@kvack.org>; Thu,  2 Aug 2012 17:50:40 -0400 (EDT)
-Received: by weys10 with SMTP id s10so12748wey.14
-        for <linux-mm@kvack.org>; Thu, 02 Aug 2012 14:50:39 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20120802212140.GC7916@jtriplet-mobl1>
-References: <20120802103244.GA23318@leaf> <501A633B.3010509@gmail.com>
- <87txwl1dsq.fsf@xmission.com> <501AAC26.6030703@gmail.com>
- <87fw851c3d.fsf@xmission.com> <CA+55aFw_dwO5ZOuaz9eDxgnTZFDGVZKSLUTm5Fn99faALxxJRQ@mail.gmail.com>
- <20120802175904.GB6251@jtriplet-mobl1> <CA+55aFwqC9hF++S-VPHJBFRrqfyNvsvqwzP=Vtzkv8qSYVqLxA@mail.gmail.com>
- <20120802202516.GA7916@jtriplet-mobl1> <CA+55aFybtRdg=AzcHv3CPm-_wx8LT2_CXaKr4K+i94QSPauZOw@mail.gmail.com>
- <20120802212140.GC7916@jtriplet-mobl1>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Thu, 2 Aug 2012 14:50:18 -0700
-Message-ID: <CA+55aFwjWBFq75uQzVekv_ZygG9Sejrf2ok-EhvfvSPxhTFzfg@mail.gmail.com>
-Subject: Re: [RFC 1/4] hashtable: introduce a small and naive hashtable
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
+	by kanga.kvack.org (Postfix) with SMTP id DF62E6B0044
+	for <linux-mm@kvack.org>; Thu,  2 Aug 2012 18:34:31 -0400 (EDT)
+Received: by yenr5 with SMTP id r5so78993yen.14
+        for <linux-mm@kvack.org>; Thu, 02 Aug 2012 15:34:31 -0700 (PDT)
+From: Michel Lespinasse <walken@google.com>
+Subject: [PATCH v2 0/9] faster augmented rbtree interface
+Date: Thu,  2 Aug 2012 15:34:09 -0700
+Message-Id: <1343946858-8170-1-git-send-email-walken@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Josh Triplett <josh@joshtriplett.org>
-Cc: "Eric W. Biederman" <ebiederm@xmission.com>, Sasha Levin <levinsasha928@gmail.com>, Tejun Heo <tj@kernel.org>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, paul.gortmaker@windriver.com
+To: riel@redhat.com, peterz@infradead.org, daniel.santos@pobox.com, aarcange@redhat.com, dwmw2@infradead.org, akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, torvalds@linux-foundation.org
 
-On Thu, Aug 2, 2012 at 2:21 PM, Josh Triplett <josh@joshtriplett.org> wrote:
->
->  Did GCC's generated code have worse differences than an immediate
->  versus a fetched value?
+These are my proposed changes for a faster augmented rbtree interface.
+They are implemented on top of a previous patch series that is already
+in Andrew's -mm tree, and I feel they are ready to join it.
 
-Oh, *way* worse.
+Patch 1 is a trivial fix for a sparse warning.
 
-Nobody just masks the low bits. You have more bits than the low bits,
-and unless you have some cryptographic hash (seldom) you want to use
-them.
+Patch 2 is a small optimization I already sent as part of my previous RFC.
+Rik had ACKed it.
 
-So no, it's not just as mask. For the dcache, it's
+Patches 3-4 are small cleanups, mainly intended to make the code more readable.
 
-        hash = hash + (hash >> D_HASHBITS);
-        return dentry_hashtable + (hash & D_HASHMASK);
+Patches 5-6 are new, based on something George Spelvin observed in my
+previous RFC. It turns out that in rb_erase(), recoloring is trivial for
+nodes that have exactly 1 child. We can shave a few cycles by handling it
+locally, and changing rb_erase_color() to only deal with the no-childs case.
 
-so it's "shift + mask", and the constants mean less register pressure
-and fewer latencies. One of the advantages of the L1 dcache code is
-that the code gets *so* much simpler that it doesn't need a stack save
-area at all, for example.
+Patch 7 adds a performance test for the augmented rbtree support.
 
-But as mentioned, the dcache L1 patch had other simplifications than
-just the hash calculations, though. It doesn't do any loop over next
-fields at all (it falls back to the slow case if it isn't a direct
-hit), and it doesn't care about the d_compare() case (they will never
-be added to the L1, since looking those things up is so slow that
-there's no point). So there are other issues at play than just
-avoiding the indirection to fetch base/mask/bitcount things and the
-simplified hash calculation.
+Patch 8 introduces my proposed API for augmented rbtree support.
+rb_insert_augmented() and rb_erase_augmented() are augmented versions of
+rb_insert_color() and rb_erase(). They take an additional argument
+(struct rb_augment_callbacks) to specify callbacks to be used to maintain
+the augmented rbtree information. users have to specify 3 callbacks
+through that structure. Non-augmented rbtree support is provided by
+inlining dummy callbacks, so that the non-augmented case is not affected
+(either in speed or in compiled size) by the new augmented rbtree API.
+For augmented rbtree users, no inlining takes place at this point (I may
+propose this later, but feel this shouldn't go with the initial proposal). 
 
-Not having a loop makes the register lifetimes simpler and again
-causes less register pressure.
+Patch 9 removes the old augmented rbtree interface and converts its
+only user to the new interface.
 
-               Linus
+
+Overall, this series improves non-augmented rbtree speed by ~5%. For
+augmented rbtree users, the new interface is ~2.5 times faster than the old.
+
+Michel Lespinasse (9):
+  rbtree test: fix sparse warning about 64-bit constant
+  rbtree: optimize fetching of sibling node
+  rbtree: add __rb_change_child() helper function
+  rbtree: place easiest case first in rb_erase()
+  rbtree: handle 1-child recoloring in rb_erase() instead of
+    rb_erase_color()
+  rbtree: low level optimizations in rb_erase()
+  rbtree: augmented rbtree test
+  rbtree: faster augmented rbtree manipulation
+  rbtree: remove prior augmented rbtree implementation
+
+ Documentation/rbtree.txt |  190 ++++++++++++++++++++----
+ arch/x86/mm/pat_rbtree.c |   65 ++++++---
+ include/linux/rbtree.h   |   23 ++-
+ lib/rbtree.c             |  370 +++++++++++++++++++++++++---------------------
+ lib/rbtree_test.c        |  135 ++++++++++++++++-
+ 5 files changed, 557 insertions(+), 226 deletions(-)
+
+-- 
+1.7.7.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
