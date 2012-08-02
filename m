@@ -1,84 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
-	by kanga.kvack.org (Postfix) with SMTP id E10CD6B005D
-	for <linux-mm@kvack.org>; Thu,  2 Aug 2012 12:16:03 -0400 (EDT)
-Date: Thu, 2 Aug 2012 09:15:56 -0700
-From: Josh Triplett <josh@joshtriplett.org>
-Subject: Re: [RFC 1/4] hashtable: introduce a small and naive hashtable
-Message-ID: <20120802161556.GA25572@leaf>
-References: <50197460.8010906@gmail.com>
- <20120801182749.GD15477@google.com>
- <50197E4A.7020408@gmail.com>
- <20120801202432.GE15477@google.com>
- <5019B0B4.1090102@gmail.com>
- <20120801224556.GF15477@google.com>
- <501A4FC1.8040907@gmail.com>
- <20120802103244.GA23318@leaf>
- <501A633B.3010509@gmail.com>
- <501A7AD3.7000008@gmail.com>
+Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
+	by kanga.kvack.org (Postfix) with SMTP id 9A4E36B004D
+	for <linux-mm@kvack.org>; Thu,  2 Aug 2012 12:34:19 -0400 (EDT)
+Received: by bkcjc3 with SMTP id jc3so5277442bkc.14
+        for <linux-mm@kvack.org>; Thu, 02 Aug 2012 09:34:17 -0700 (PDT)
+Message-ID: <501AAC26.6030703@gmail.com>
+Date: Thu, 02 Aug 2012 18:34:46 +0200
+From: Sasha Levin <levinsasha928@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <501A7AD3.7000008@gmail.com>
+Subject: Re: [RFC 1/4] hashtable: introduce a small and naive hashtable
+References: <20120731182330.GD21292@google.com> <50197348.9010101@gmail.com> <20120801182112.GC15477@google.com> <50197460.8010906@gmail.com> <20120801182749.GD15477@google.com> <50197E4A.7020408@gmail.com> <20120801202432.GE15477@google.com> <5019B0B4.1090102@gmail.com> <20120801224556.GF15477@google.com> <501A4FC1.8040907@gmail.com> <20120802103244.GA23318@leaf> <501A633B.3010509@gmail.com> <87txwl1dsq.fsf@xmission.com>
+In-Reply-To: <87txwl1dsq.fsf@xmission.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <levinsasha928@gmail.com>
-Cc: Tejun Heo <tj@kernel.org>, torvalds@linux-foundation.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, paul.gortmaker@windriver.com
+To: "Eric W. Biederman" <ebiederm@xmission.com>
+Cc: Josh Triplett <josh@joshtriplett.org>, Tejun Heo <tj@kernel.org>, torvalds@linux-foundation.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, paul.gortmaker@windriver.com
 
-On Thu, Aug 02, 2012 at 03:04:19PM +0200, Sasha Levin wrote:
-> On 08/02/2012 01:23 PM, Sasha Levin wrote:
-> >> #define DEFINE_HASH_TABLE(name, length) struct hash_table name = { .count = length, .buckets = { [0 ... (length - 1)] = HLIST_HEAD_INIT } }
-> > The limitation of this approach is that the struct hash_table variable must be 'static', which is a bit limiting - see for example the use of hashtable in 'struct user_namespace'.
-> > 
+On 08/02/2012 06:03 PM, Eric W. Biederman wrote:
+> Sasha Levin <levinsasha928@gmail.com> writes:
+>> On 08/02/2012 12:32 PM, Josh Triplett wrote:
+>>> What about using a C99 flexible array member?  Kernel style prohibits
+>>> variable-length arrays, but I don't think the same rationale applies to
+>>> flexible array members.
+>>>
+>>> struct hash_table {
+>>>     size_t count;
+>>>     struct hlist_head buckets[];
+>>> };
+>>>
+>>> #define DEFINE_HASH_TABLE(name, length) struct hash_table name = { .count = length, .buckets = { [0 ... (length - 1)] = HLIST_HEAD_INIT } }
+>>
+>> The limitation of this approach is that the struct hash_table variable
+>> must be 'static', which is a bit limiting - see for example the use of
+>> hashtable in 'struct user_namespace'.
 > 
-> What if we just use two possible decelerations? One of static structs and one for regular ones.
+> You mean the hash table that was made static in 3.5?
 > 
-> struct hash_table {
->         size_t bits;
->         struct hlist_head buckets[];
-> };
+> You might want to try basing your patches on something a little more current.
 > 
-> #define DEFINE_HASHTABLE(name, bits)                                    \
->         union {                                                         \
->                 struct hash_table name;                                 \
->                 struct {                                                \
->                         size_t bits;                                    \
-
-This shouldn't use "bits", since it'll get expanded to the macro
-argument.
-
->                         struct hlist_head buckets[1 << bits];           \
->                 } __name;                                               \
-
-__##name
-
->         }
+> Eric
 > 
-> #define DEFINE_STATIC_HASHTABLE(name, bit)                              \
->         static struct hash_table name = { .bits = bit,                  \
->                 .buckets = { [0 ... (bit - 1)] = HLIST_HEAD_INIT } }
 
-You probably wanted to change that to [0 ... ((1 << bit) - 1)] , to
-match DEFINE_HASHTABLE.
+Heh, I've started working on it in April, and just returned to this. Didn't think about rebasing to something new.
 
-Since your definition of DEFINE_HASHTABLE would also work fine when used
-statically, why not just always use that?
-
-#define DEFINE_STATIC_HASHTABLE(name, bits) static DEFINE_HASHTABLE(name, bits) = { .name.bits = bits }
-
-One downside: you can't use this to define a global non-static hash
-table, because you can't have a global non-static anonymous union.
-Using the non-union form would actually allow a global non-static hash
-table:
-
-#define DEFINE_HASHTABLE_INIT(name, bits) struct hash_table name = { .bits = bits, .buckets = { [0 ... ((1 << bits) - 1)] = HLIST_HEAD_INIT } }
-
-/* elsewhere */
-extern struct hash_table name;
-
-I don't know if that seems like a good idea or not.
-
-- Josh Triplett
+will fix - Thanks!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
