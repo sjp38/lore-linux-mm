@@ -1,106 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
-	by kanga.kvack.org (Postfix) with SMTP id 4579C6B0044
+Received: from psmtp.com (na3sys010amx103.postini.com [74.125.245.103])
+	by kanga.kvack.org (Postfix) with SMTP id B7F926B005A
 	for <linux-mm@kvack.org>; Thu,  2 Aug 2012 16:15:32 -0400 (EDT)
-Message-Id: <20120802201506.266817615@linux.com>
-Date: Thu, 02 Aug 2012 15:15:06 -0500
+Message-Id: <20120802201530.921218259@linux.com>
+Date: Thu, 02 Aug 2012 15:15:07 -0500
 From: Christoph Lameter <cl@linux.com>
-Subject: Common [00/19] Sl[auo]b: Common code rework V9
+Subject: Common [01/19] slub: Add debugging to verify correct cache use on kmem_cache_free()
+References: <20120802201506.266817615@linux.com>
+Content-Disposition: inline; filename=slub_new_debug
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Glauber Costa <glommer@parallels.com>
 Cc: Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Joonsoo Kim <js1304@gmail.com>
 
-Note that the first three patches are candidates
-for 3.5 since they fix certain things.
-The rest could go into -next once we are
-through with initial review.
+Add additional debugging to check that the objects is actually from the cache
+the caller claims. Doing so currently trips up some other debugging code. It
+takes a lot to infer from that what was happening.
 
-V8->V9:
-- Fix numerous things pointed out by Glauber.
-- Cleanup the way error handling works in the
-  common kmem_cache_create() function.
-- General cleanup by breaking things up
-  into multiple patches were necessary.
+Signed-off-by: Christoph Lameter <cl@linux.com>
 
-V7->V8:
-- Do not use kfree for kmem_cache in slub.
-- Add more patches up to a common
-  scheme for object alignment.
-
-V6->V7:
-- Omit pieces that were merged for 3.6
-- Fix issues pointed out by Glauber.
-- Include the patches up to the point at which
-  the slab name handling is unified
-
-V5->V6:
-- Patches against Pekka's for-next tree.
-- Go slow and cut down to just patches that are safe
-  (there will likely be some churn already due to the
-  mutex unification between slabs)
-- More to come next week when I have more time (
-  took me almost the whole week to catch up after
-  being gone for awhile).
-
-V4->V5
-- Rediff against current upstream + Pekka's cleanup branch.
-
-V3->V4:
-- Do not use the COMMON macro anymore.
-- Fixup various issues
-- No general sysfs support yet due to lockdep issues with
-  keys in kmalloc'ed memory.
-
-V2->V3:
-- Incorporate more feedback from Joonsoo Kim and Glauber Costa
-- And a couple more patches to deal with slab duping and move
-  more code to slab_common.c
-
-V1->V2:
-- Incorporate glommers feedback.
-- Add 2 more patches dealing with common code in kmem_cache_destroy
-
-This is a series of patches that extracts common functionality from
-slab allocators into a common code base. The intend is to standardize
-as much as possible of the allocator behavior while keeping the
-distinctive features of each allocator which are mostly due to their
-storage format and serialization approaches.
-
-This patchset makes a beginning by extracting common functionality in
-kmem_cache_create() and kmem_cache_destroy(). However, there are
-numerous other areas where such work could be beneficial:
-
-1. Extract the sysfs support from SLUB and make it common. That way
-   all allocators have a common sysfs API and are handleable in the same
-   way regardless of the allocator chose.
-
-2. Extract the error reporting and checking from SLUB and make
-   it available for all allocators. This means that all allocators
-   will gain the resiliency and error handling capabilties.
-
-3. Extract the memory hotplug and cpu hotplug handling. It seems that
-   SLAB may be more sophisticated here. Having common code here will
-   make it easier to maintain the special code.
-
-4. Extract the aliasing capability of SLUB. This will enable fast
-   slab creation without creating too many additional slab caches.
-   The arrays of caches of varying sizes in numerous subsystems
-   do not cause the creation of numerous slab caches. Storage
-   density is increased and the cache footprint is reduced.
-
-Ultimately it is to be hoped that the special code for each allocator
-shrinks to a mininum. This will also make it easier to make modification
-to allocators.
-
-In the far future one could envision that the current allocators will
-just become storage algorithms that can be chosen based on the need of
-the subsystem. F.e.
-
-Cpu cache dependend performance		= Bonwick allocator (SLAB)
-Minimal cycle count and cache footprint	= SLUB
-Maximum storage density			= K&R allocator (SLOB)
-
+Index: linux-2.6/mm/slub.c
+===================================================================
+--- linux-2.6.orig/mm/slub.c	2012-08-02 13:52:35.314898373 -0500
++++ linux-2.6/mm/slub.c	2012-08-02 13:52:38.662958767 -0500
+@@ -2607,6 +2607,13 @@
+ 
+ 	page = virt_to_head_page(x);
+ 
++	if (kmem_cache_debug(s) && page->slab != s) {
++		printk("kmem_cache_free: Wrong slab cache. %s but object"
++			" is from  %s\n", page->slab->name, s->name);
++		WARN_ON(1);
++		return;
++	}
++
+ 	slab_free(s, page, x, _RET_IP_);
+ 
+ 	trace_kmem_cache_free(_RET_IP_, x);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
