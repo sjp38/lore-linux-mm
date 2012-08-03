@@ -1,66 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
-	by kanga.kvack.org (Postfix) with SMTP id 9CD296B0044
-	for <linux-mm@kvack.org>; Fri,  3 Aug 2012 09:32:38 -0400 (EDT)
-Date: Fri, 3 Aug 2012 15:32:35 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [patch] hugetlb: correct page offset index for sharing pmd
-Message-ID: <20120803133235.GA8434@dhcp22.suse.cz>
-References: <CAJd=RBB=jKD+9JcuBmBGC8R8pAQ-QoWHexMNMsXpb9zV548h5g@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
+	by kanga.kvack.org (Postfix) with SMTP id 404D16B005A
+	for <linux-mm@kvack.org>; Fri,  3 Aug 2012 09:45:52 -0400 (EDT)
+Date: Fri, 3 Aug 2012 08:45:49 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: Common [01/19] slub: Add debugging to verify correct cache use
+ on kmem_cache_free()
+In-Reply-To: <alpine.DEB.2.00.1208021346130.5454@chino.kir.corp.google.com>
+Message-ID: <alpine.DEB.2.00.1208030845060.2332@router.home>
+References: <20120802201506.266817615@linux.com> <20120802201530.921218259@linux.com> <alpine.DEB.2.00.1208021334350.5454@chino.kir.corp.google.com> <alpine.DEB.2.00.1208021540590.32229@router.home>
+ <alpine.DEB.2.00.1208021346130.5454@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAJd=RBB=jKD+9JcuBmBGC8R8pAQ-QoWHexMNMsXpb9zV548h5g@mail.gmail.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hillf Danton <dhillf@gmail.com>
-Cc: Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: David Rientjes <rientjes@google.com>
+Cc: Glauber Costa <glommer@parallels.com>, Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, Joonsoo Kim <js1304@gmail.com>
 
-On Fri 03-08-12 20:56:45, Hillf Danton wrote:
-> The computation of page offset index is open coded, and incorrect, to
-> be used in scanning prio tree, as huge page offset is required, and is
-> fixed with the well defined routine.
+On Thu, 2 Aug 2012, David Rientjes wrote:
 
-I guess that nobody reported this because if someone really wants to
-share he will use aligned address for mmap/shmat and so the index is 0.
-Anyway it is worth fixing. Thanks for pointing out!
+> On Thu, 2 Aug 2012, Christoph Lameter wrote:
+>
+> > This condition is pretty serious. The free action will be skipped
+> > and we will be continually leaking memory. I think its best to keep on
+> > logging this until someohne does something about the problem.
+> >
+>
+> Dozens of lines will be emitted to the kernel log because a stack trace is
+> printed every time a bogus kmem_cache_free() is called, perhaps change the
+> WARN_ON(1) to at least a WARN_ON_ONCE(1)?
 
-> 
-> Signed-off-by: Hillf Danton <dhillf@gmail.com>
-> ---
-> 
-> --- a/arch/x86/mm/hugetlbpage.c	Fri Aug  3 20:34:58 2012
-> +++ b/arch/x86/mm/hugetlbpage.c	Fri Aug  3 20:40:16 2012
-> @@ -72,12 +72,15 @@ static void huge_pmd_share(struct mm_str
->  	if (!vma_shareable(vma, addr))
->  		return;
-> 
-> +	idx = linear_page_index(vma, addr);
-> +
+Ok,
 
-You can use linear_hugepage_index directly and remove the idx
-initialization as well.
+Subject: Only warn once
 
->  	mutex_lock(&mapping->i_mmap_mutex);
->  	vma_prio_tree_foreach(svma, &iter, &mapping->i_mmap, idx, idx) {
->  		if (svma == vma)
->  			continue;
-> 
-> -		saddr = page_table_shareable(svma, vma, addr, idx);
-> +		saddr = page_table_shareable(svma, vma, addr,
-> +						idx * (PMD_SIZE/PAGE_SIZE));
+Signed-off-by: Christoph Lameter <cl@linux.com>
 
-Why not just fixing page_table_shareable as well rather than playing
-tricks like this?
-
->  		if (saddr) {
->  			spte = huge_pte_offset(svma->vm_mm, saddr);
->  			if (spte) {
-> --
-
--- 
-Michal Hocko
-SUSE Labs
+Index: linux-2.6/mm/slub.c
+===================================================================
+--- linux-2.6.orig/mm/slub.c	2012-08-03 08:43:34.772602802 -0500
++++ linux-2.6/mm/slub.c	2012-08-03 08:44:36.021655892 -0500
+@@ -2610,7 +2610,7 @@ void kmem_cache_free(struct kmem_cache *
+ 	if (kmem_cache_debug(s) && page->slab != s) {
+ 		printk("kmem_cache_free: Wrong slab cache. %s but object"
+ 			" is from  %s\n", page->slab->name, s->name);
+-		WARN_ON(1);
++		WARN_ON_ONCE(1);
+ 		return;
+ 	}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
