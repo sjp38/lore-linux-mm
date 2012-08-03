@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
-	by kanga.kvack.org (Postfix) with SMTP id 178976B0068
-	for <linux-mm@kvack.org>; Fri,  3 Aug 2012 03:45:05 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
+	by kanga.kvack.org (Postfix) with SMTP id 4D2506B007D
+	for <linux-mm@kvack.org>; Fri,  3 Aug 2012 03:45:06 -0400 (EDT)
 From: wency@cn.fujitsu.com
-Subject: [RFC PATCH V6 18/19] memory-hotplug: add node_device_release
-Date: Fri, 3 Aug 2012 15:49:20 +0800
-Message-Id: <1343980161-14254-19-git-send-email-wency@cn.fujitsu.com>
+Subject: [RFC PATCH V6 19/19] memory-hotplug: remove sysfs file of node
+Date: Fri, 3 Aug 2012 15:49:21 +0800
+Message-Id: <1343980161-14254-20-git-send-email-wency@cn.fujitsu.com>
 In-Reply-To: <1343980161-14254-1-git-send-email-wency@cn.fujitsu.com>
 References: <1343980161-14254-1-git-send-email-wency@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
@@ -15,13 +15,8 @@ Cc: rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.cras
 
 From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 
-When calling unregister_node(), the function shows following message at
-device_release().
-
-Device 'node2' does not have a release() function, it is broken and must be
-fixed.
-
-So the patch implements node_device_release()
+The patch adds node_set_offline() and unregister_one_node() to remove_memory()
+for removing sysfs file of node.
 
 CC: David Rientjes <rientjes@google.com>
 CC: Jiang Liu <liuj97@gmail.com>
@@ -32,38 +27,28 @@ CC: Christoph Lameter <cl@linux.com>
 Cc: Minchan Kim <minchan.kim@gmail.com>
 CC: Andrew Morton <akpm@linux-foundation.org>
 CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+CC: Wen Congyang <wency@cn.fujitsu.com>
 Signed-off-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-Signed-off-by: Wen Congyang <wency@cn.fujitsu.com>
 ---
- drivers/base/node.c |    8 ++++++++
- 1 files changed, 8 insertions(+), 0 deletions(-)
+ mm/memory_hotplug.c |    5 +++++
+ 1 files changed, 5 insertions(+), 0 deletions(-)
 
-diff --git a/drivers/base/node.c b/drivers/base/node.c
-index af1a177..9bc2f57 100644
---- a/drivers/base/node.c
-+++ b/drivers/base/node.c
-@@ -252,6 +252,13 @@ static inline void hugetlb_register_node(struct node *node) {}
- static inline void hugetlb_unregister_node(struct node *node) {}
- #endif
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index 68d7123..7d68e0a 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -1271,6 +1271,11 @@ int __ref remove_memory(int nid, u64 start, u64 size)
+ 	/* remove memmap entry */
+ 	firmware_map_remove(start, start + size, "System RAM");
  
-+static void node_device_release(struct device *dev)
-+{
-+	struct node *node_dev = to_node(dev);
++	if (!node_present_pages(nid)) {
++		node_set_offline(nid);
++		unregister_one_node(nid);
++	}
 +
-+	flush_work(&node_dev->node_work);
-+	memset(node_dev, 0, sizeof(struct node));
-+}
- 
- /*
-  * register_node - Setup a sysfs device for a node.
-@@ -265,6 +272,7 @@ int register_node(struct node *node, int num, struct node *parent)
- 
- 	node->dev.id = num;
- 	node->dev.bus = &node_subsys;
-+	node->dev.release = node_device_release;
- 	error = device_register(&node->dev);
- 
- 	if (!error){
+ 	arch_remove_memory(start, size);
+ out:
+ 	unlock_memory_hotplug();
 -- 
 1.7.1
 
