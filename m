@@ -1,45 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
-	by kanga.kvack.org (Postfix) with SMTP id 2FFE16B005A
+Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
+	by kanga.kvack.org (Postfix) with SMTP id AD9AA6B006E
 	for <linux-mm@kvack.org>; Fri,  3 Aug 2012 15:21:51 -0400 (EDT)
-Message-Id: <20120803192149.418388119@linux.com>
-Date: Fri, 03 Aug 2012 14:20:55 -0500
+Message-Id: <20120803192149.980561289@linux.com>
+Date: Fri, 03 Aug 2012 14:20:56 -0500
 From: Christoph Lameter <cl@linux.com>
-Subject: Common10 [03/20] Rename oops label
+Subject: Common10 [04/20] Improve error handling in kmem_cache_create
 References: <20120803192052.448575403@linux.com>
-Content-Disposition: inline; filename=remove_oops
+Content-Disposition: inline; filename=error_handling_in_kmem_cache_create
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Glauber Costa <glommer@parallels.com>
-Cc: Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Joonsoo Kim <js1304@gmail.com>
+Cc: Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, Joonsoo Kim <js1304@gmail.com>
 
-The label is actually used for successful exits so change the name.
-Easy to do now before more users of this label surface.
+Instead of using s == NULL use an errorcode. This allows much more
+detailed diagnostics as to what went wrong. As we add more functionality
+from the slab allocators to the common kmem_cache_create() function we will
+also add more error conditions.
 
+Print the error code during the panic as well as in a warning if the module
+can handle failure. The API for kmem_cache_create() currently does not allow
+the returning of an error code. Return NULL but log the cause of the problem
+in the syslog.
+
+Acked-by: David Rientjes <rientjes@google.com>
 Signed-off-by: Christoph Lameter <cl@linux.com>
 
 Index: linux-2.6/mm/slab_common.c
 ===================================================================
---- linux-2.6.orig/mm/slab_common.c	2012-08-02 09:18:07.570384286 -0500
-+++ linux-2.6/mm/slab_common.c	2012-08-02 09:18:53.311194644 -0500
-@@ -89,7 +89,7 @@
- 				name);
- 			dump_stack();
- 			s = NULL;
--			goto oops;
-+			goto out_locked;
- 		}
- 	}
- 
-@@ -99,7 +99,7 @@
- 	s = __kmem_cache_create(name, size, align, flags, ctor);
+--- linux-2.6.orig/mm/slab_common.c	2012-08-02 14:00:41.547674458 -0500
++++ linux-2.6/mm/slab_common.c	2012-08-02 14:21:07.061676525 -0500
+@@ -51,13 +51,13 @@
+ struct kmem_cache *kmem_cache_create(const char *name, size_t size, size_t align,
+ 		unsigned long flags, void (*ctor)(void *))
+ {
+-	struct kmem_cache *s = NULL;
++	struct kmem_cache *s;
++	int err = 0;
  
  #ifdef CONFIG_DEBUG_VM
--oops:
-+out_locked:
+ 	if (!name || in_interrupt() || size < sizeof(void *) ||
+ 		size > KMALLOC_MAX_SIZE) {
+-		printk(KERN_ERR "kmem_cache_create(%s) integrity check"
+-			" failed\n", name);
++		err = -EINVAL;
+ 		goto out;
+ 	}
  #endif
- 	mutex_unlock(&slab_mutex);
- 	put_online_cpus();
+@@ -84,11 +84,7 @@
+ 		}
+ 
+ 		if (!strcmp(s->name, name)) {
+-			printk(KERN_ERR "kmem_cache_create(%s): Cache name"
+-				" already exists.\n",
+-				name);
+-			dump_stack();
+-			s = NULL;
++			err = -EEXIST;
+ 			goto out_locked;
+ 		}
+ 	}
+@@ -97,6 +93,8 @@
+ #endif
+ 
+ 	s = __kmem_cache_create(name, size, align, flags, ctor);
++	if (!s)
++		err = -ENOSYS; /* Until __kmem_cache_create returns code */
+ 
+ #ifdef CONFIG_DEBUG_VM
+ out_locked:
+@@ -107,8 +105,19 @@
+ #ifdef CONFIG_DEBUG_VM
+ out:
+ #endif
+-	if (!s && (flags & SLAB_PANIC))
+-		panic("kmem_cache_create: Failed to create slab '%s'\n", name);
++	if (err) {
++
++		if (flags & SLAB_PANIC)
++			panic("kmem_cache_create: Failed to create slab '%s'. Error %d\n",
++				name, err);
++		else {
++			printk(KERN_WARNING "kmem_cache_create(%s) failed with error %d",
++				name, err);
++			dump_stack();
++		}
++
++		return NULL;
++	}
+ 
+ 	return s;
+ }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
