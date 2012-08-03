@@ -1,64 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
-	by kanga.kvack.org (Postfix) with SMTP id 954196B0062
-	for <linux-mm@kvack.org>; Fri,  3 Aug 2012 15:21:50 -0400 (EDT)
-Message-Id: <20120803192148.850966534@linux.com>
-Date: Fri, 03 Aug 2012 14:20:54 -0500
+Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
+	by kanga.kvack.org (Postfix) with SMTP id 2FFE16B005A
+	for <linux-mm@kvack.org>; Fri,  3 Aug 2012 15:21:51 -0400 (EDT)
+Message-Id: <20120803192149.418388119@linux.com>
+Date: Fri, 03 Aug 2012 14:20:55 -0500
 From: Christoph Lameter <cl@linux.com>
-Subject: Common10 [02/20] slub: Use kmem_cache for the kmem_cache structure
+Subject: Common10 [03/20] Rename oops label
 References: <20120803192052.448575403@linux.com>
-Content-Disposition: inline; filename=slub_use_kmem_cache
+Content-Disposition: inline; filename=remove_oops
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Glauber Costa <glommer@parallels.com>
-Cc: Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, Joonsoo Kim <js1304@gmail.com>
+Cc: Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Joonsoo Kim <js1304@gmail.com>
 
-Do not use kmalloc() but kmem_cache_alloc() for the allocation
-of the kmem_cache structures in slub.
+The label is actually used for successful exits so change the name.
+Easy to do now before more users of this label surface.
 
-Acked-by: David Rientjes <rientjes@google.com>
 Signed-off-by: Christoph Lameter <cl@linux.com>
 
-Index: linux-2.6/mm/slub.c
+Index: linux-2.6/mm/slab_common.c
 ===================================================================
---- linux-2.6.orig/mm/slub.c	2012-08-03 09:01:06.650720492 -0500
-+++ linux-2.6/mm/slub.c	2012-08-03 09:01:23.583012476 -0500
-@@ -213,7 +213,7 @@ static inline int sysfs_slab_alias(struc
- static inline void sysfs_slab_remove(struct kmem_cache *s)
- {
- 	kfree(s->name);
--	kfree(s);
-+	kmem_cache_free(kmem_cache, s);
- }
- 
- #endif
-@@ -3962,7 +3962,7 @@ struct kmem_cache *__kmem_cache_create(c
- 	if (!n)
- 		return NULL;
- 
--	s = kmalloc(kmem_size, GFP_KERNEL);
-+	s = kmem_cache_alloc(kmem_cache, GFP_KERNEL);
- 	if (s) {
- 		if (kmem_cache_open(s, n,
- 				size, align, flags, ctor)) {
-@@ -3979,7 +3979,7 @@ struct kmem_cache *__kmem_cache_create(c
- 			list_del(&s->list);
- 			kmem_cache_close(s);
+--- linux-2.6.orig/mm/slab_common.c	2012-08-02 09:18:07.570384286 -0500
++++ linux-2.6/mm/slab_common.c	2012-08-02 09:18:53.311194644 -0500
+@@ -89,7 +89,7 @@
+ 				name);
+ 			dump_stack();
+ 			s = NULL;
+-			goto oops;
++			goto out_locked;
  		}
--		kfree(s);
-+		kmem_cache_free(kmem_cache, s);
  	}
- 	kfree(n);
- 	return NULL;
-@@ -5217,7 +5217,7 @@ static void kmem_cache_release(struct ko
- 	struct kmem_cache *s = to_slab(kobj);
  
- 	kfree(s->name);
--	kfree(s);
-+	kmem_cache_free(kmem_cache, s);
- }
+@@ -99,7 +99,7 @@
+ 	s = __kmem_cache_create(name, size, align, flags, ctor);
  
- static const struct sysfs_ops slab_sysfs_ops = {
+ #ifdef CONFIG_DEBUG_VM
+-oops:
++out_locked:
+ #endif
+ 	mutex_unlock(&slab_mutex);
+ 	put_online_cpus();
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
