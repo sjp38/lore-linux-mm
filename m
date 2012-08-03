@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
-	by kanga.kvack.org (Postfix) with SMTP id 4D2506B007D
-	for <linux-mm@kvack.org>; Fri,  3 Aug 2012 03:45:06 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
+	by kanga.kvack.org (Postfix) with SMTP id 2F2DB6B0085
+	for <linux-mm@kvack.org>; Fri,  3 Aug 2012 04:00:17 -0400 (EDT)
 From: wency@cn.fujitsu.com
-Subject: [RFC PATCH V6 19/19] memory-hotplug: remove sysfs file of node
-Date: Fri, 3 Aug 2012 15:49:21 +0800
-Message-Id: <1343980161-14254-20-git-send-email-wency@cn.fujitsu.com>
+Subject: [RFC PATCH V6 13/19] memory-hotplug: check page type in get_page_bootmem
+Date: Fri, 3 Aug 2012 15:49:15 +0800
+Message-Id: <1343980161-14254-14-git-send-email-wency@cn.fujitsu.com>
 In-Reply-To: <1343980161-14254-1-git-send-email-wency@cn.fujitsu.com>
 References: <1343980161-14254-1-git-send-email-wency@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
@@ -15,8 +15,9 @@ Cc: rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.cras
 
 From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 
-The patch adds node_set_offline() and unregister_one_node() to remove_memory()
-for removing sysfs file of node.
+There is a possibility that get_page_bootmem() is called to the same page many
+times. So when get_page_bootmem is called to the same page, the function only
+increments page->_count.
 
 CC: David Rientjes <rientjes@google.com>
 CC: Jiang Liu <liuj97@gmail.com>
@@ -30,25 +31,35 @@ CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 CC: Wen Congyang <wency@cn.fujitsu.com>
 Signed-off-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 ---
- mm/memory_hotplug.c |    5 +++++
- 1 files changed, 5 insertions(+), 0 deletions(-)
+ mm/memory_hotplug.c |   15 +++++++++++----
+ 1 files changed, 11 insertions(+), 4 deletions(-)
 
 diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index 68d7123..7d68e0a 100644
+index 5f9f8c7..710e593 100644
 --- a/mm/memory_hotplug.c
 +++ b/mm/memory_hotplug.c
-@@ -1271,6 +1271,11 @@ int __ref remove_memory(int nid, u64 start, u64 size)
- 	/* remove memmap entry */
- 	firmware_map_remove(start, start + size, "System RAM");
- 
-+	if (!node_present_pages(nid)) {
-+		node_set_offline(nid);
-+		unregister_one_node(nid);
-+	}
+@@ -95,10 +95,17 @@ static void release_memory_resource(struct resource *res)
+ static void get_page_bootmem(unsigned long info,  struct page *page,
+ 			     unsigned long type)
+ {
+-	page->lru.next = (struct list_head *) type;
+-	SetPagePrivate(page);
+-	set_page_private(page, info);
+-	atomic_inc(&page->_count);
++	unsigned long page_type;
 +
- 	arch_remove_memory(start, size);
- out:
- 	unlock_memory_hotplug();
++	page_type = (unsigned long) page->lru.next;
++	if (type < MEMORY_HOTPLUG_MIN_BOOTMEM_TYPE ||
++	    type > MEMORY_HOTPLUG_MAX_BOOTMEM_TYPE){
++		page->lru.next = (struct list_head *) type;
++		SetPagePrivate(page);
++		set_page_private(page, info);
++		atomic_inc(&page->_count);
++	} else
++		atomic_inc(&page->_count);
+ }
+ 
+ /* reference to __meminit __free_pages_bootmem is valid
 -- 
 1.7.1
 
