@@ -1,96 +1,127 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
-	by kanga.kvack.org (Postfix) with SMTP id AD9AA6B006E
-	for <linux-mm@kvack.org>; Fri,  3 Aug 2012 15:21:51 -0400 (EDT)
-Message-Id: <20120803192149.980561289@linux.com>
-Date: Fri, 03 Aug 2012 14:20:56 -0500
+Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
+	by kanga.kvack.org (Postfix) with SMTP id 48D7E6B0069
+	for <linux-mm@kvack.org>; Fri,  3 Aug 2012 15:21:52 -0400 (EDT)
+Message-Id: <20120803192150.539500555@linux.com>
+Date: Fri, 03 Aug 2012 14:20:57 -0500
 From: Christoph Lameter <cl@linux.com>
-Subject: Common10 [04/20] Improve error handling in kmem_cache_create
+Subject: Common10 [05/20] Move list_add() to slab_common.c
 References: <20120803192052.448575403@linux.com>
-Content-Disposition: inline; filename=error_handling_in_kmem_cache_create
+Content-Disposition: inline; filename=move_list_add
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Glauber Costa <glommer@parallels.com>
 Cc: Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, Joonsoo Kim <js1304@gmail.com>
 
-Instead of using s == NULL use an errorcode. This allows much more
-detailed diagnostics as to what went wrong. As we add more functionality
-from the slab allocators to the common kmem_cache_create() function we will
-also add more error conditions.
+Move the code to append the new kmem_cache to the list of slab caches to
+the kmem_cache_create code in the shared code.
 
-Print the error code during the panic as well as in a warning if the module
-can handle failure. The API for kmem_cache_create() currently does not allow
-the returning of an error code. Return NULL but log the cause of the problem
-in the syslog.
+This is possible now since the acquisition of the mutex was moved into
+kmem_cache_create().
 
 Acked-by: David Rientjes <rientjes@google.com>
+Reviewed-by: Glauber Costa <glommer@parallels.com>
+Reviewed-by: Joonsoo Kim <js1304@gmail.com>
 Signed-off-by: Christoph Lameter <cl@linux.com>
+
+
+---
+ mm/slab.c        |    7 +++++--
+ mm/slab_common.c |    7 +++++++
+ mm/slub.c        |    2 --
+ 3 files changed, 12 insertions(+), 4 deletions(-)
 
 Index: linux-2.6/mm/slab_common.c
 ===================================================================
---- linux-2.6.orig/mm/slab_common.c	2012-08-02 14:00:41.547674458 -0500
-+++ linux-2.6/mm/slab_common.c	2012-08-02 14:21:07.061676525 -0500
-@@ -51,13 +51,13 @@
- struct kmem_cache *kmem_cache_create(const char *name, size_t size, size_t align,
- 		unsigned long flags, void (*ctor)(void *))
- {
--	struct kmem_cache *s = NULL;
-+	struct kmem_cache *s;
-+	int err = 0;
+--- linux-2.6.orig/mm/slab_common.c	2012-08-02 14:21:07.061676525 -0500
++++ linux-2.6/mm/slab_common.c	2012-08-02 14:21:12.797779926 -0500
+@@ -96,6 +96,13 @@
+ 	if (!s)
+ 		err = -ENOSYS; /* Until __kmem_cache_create returns code */
  
- #ifdef CONFIG_DEBUG_VM
- 	if (!name || in_interrupt() || size < sizeof(void *) ||
- 		size > KMALLOC_MAX_SIZE) {
--		printk(KERN_ERR "kmem_cache_create(%s) integrity check"
--			" failed\n", name);
-+		err = -EINVAL;
- 		goto out;
- 	}
- #endif
-@@ -84,11 +84,7 @@
- 		}
- 
- 		if (!strcmp(s->name, name)) {
--			printk(KERN_ERR "kmem_cache_create(%s): Cache name"
--				" already exists.\n",
--				name);
--			dump_stack();
--			s = NULL;
-+			err = -EEXIST;
- 			goto out_locked;
- 		}
- 	}
-@@ -97,6 +93,8 @@
- #endif
- 
- 	s = __kmem_cache_create(name, size, align, flags, ctor);
-+	if (!s)
-+		err = -ENOSYS; /* Until __kmem_cache_create returns code */
- 
++	/*
++	 * Check if the slab has actually been created and if it was a
++	 * real instatiation. Aliases do not belong on the list
++	 */
++	if (s && s->refcount == 1)
++		list_add(&s->list, &slab_caches);
++
  #ifdef CONFIG_DEBUG_VM
  out_locked:
-@@ -107,8 +105,19 @@
- #ifdef CONFIG_DEBUG_VM
- out:
  #endif
--	if (!s && (flags & SLAB_PANIC))
--		panic("kmem_cache_create: Failed to create slab '%s'\n", name);
-+	if (err) {
-+
-+		if (flags & SLAB_PANIC)
-+			panic("kmem_cache_create: Failed to create slab '%s'. Error %d\n",
-+				name, err);
-+		else {
-+			printk(KERN_WARNING "kmem_cache_create(%s) failed with error %d",
-+				name, err);
-+			dump_stack();
-+		}
-+
-+		return NULL;
-+	}
+Index: linux-2.6/mm/slab.c
+===================================================================
+--- linux-2.6.orig/mm/slab.c	2012-08-02 14:20:20.276838502 -0500
++++ linux-2.6/mm/slab.c	2012-08-02 14:21:12.797779926 -0500
+@@ -1687,6 +1687,7 @@
+ 					ARCH_KMALLOC_FLAGS|SLAB_PANIC,
+ 					NULL);
  
- 	return s;
++	list_add(&sizes[INDEX_AC].cs_cachep->list, &slab_caches);
+ 	if (INDEX_AC != INDEX_L3) {
+ 		sizes[INDEX_L3].cs_cachep =
+ 			__kmem_cache_create(names[INDEX_L3].name,
+@@ -1694,6 +1695,7 @@
+ 				ARCH_KMALLOC_MINALIGN,
+ 				ARCH_KMALLOC_FLAGS|SLAB_PANIC,
+ 				NULL);
++		list_add(&sizes[INDEX_L3].cs_cachep->list, &slab_caches);
+ 	}
+ 
+ 	slab_early_init = 0;
+@@ -1712,6 +1714,7 @@
+ 					ARCH_KMALLOC_MINALIGN,
+ 					ARCH_KMALLOC_FLAGS|SLAB_PANIC,
+ 					NULL);
++			list_add(&sizes->cs_cachep->list, &slab_caches);
+ 		}
+ #ifdef CONFIG_ZONE_DMA
+ 		sizes->cs_dmacachep = __kmem_cache_create(
+@@ -1721,6 +1724,7 @@
+ 					ARCH_KMALLOC_FLAGS|SLAB_CACHE_DMA|
+ 						SLAB_PANIC,
+ 					NULL);
++		list_add(&sizes->cs_dmacachep->list, &slab_caches);
+ #endif
+ 		sizes++;
+ 		names++;
+@@ -2590,6 +2594,7 @@
+ 	}
+ 	cachep->ctor = ctor;
+ 	cachep->name = name;
++	cachep->refcount = 1;
+ 
+ 	if (setup_cpu_cache(cachep, gfp)) {
+ 		__kmem_cache_destroy(cachep);
+@@ -2606,8 +2611,6 @@
+ 		slab_set_debugobj_lock_classes(cachep);
+ 	}
+ 
+-	/* cache setup completed, link it into the list */
+-	list_add(&cachep->list, &slab_caches);
+ 	return cachep;
  }
+ 
+Index: linux-2.6/mm/slub.c
+===================================================================
+--- linux-2.6.orig/mm/slub.c	2012-08-02 14:20:20.296838861 -0500
++++ linux-2.6/mm/slub.c	2012-08-02 14:21:12.801780016 -0500
+@@ -3968,7 +3968,6 @@
+ 				size, align, flags, ctor)) {
+ 			int r;
+ 
+-			list_add(&s->list, &slab_caches);
+ 			mutex_unlock(&slab_mutex);
+ 			r = sysfs_slab_add(s);
+ 			mutex_lock(&slab_mutex);
+@@ -3976,7 +3975,6 @@
+ 			if (!r)
+ 				return s;
+ 
+-			list_del(&s->list);
+ 			kmem_cache_close(s);
+ 		}
+ 		kmem_cache_free(kmem_cache, s);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
