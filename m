@@ -1,164 +1,161 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
-	by kanga.kvack.org (Postfix) with SMTP id D58B46B0068
-	for <linux-mm@kvack.org>; Fri,  3 Aug 2012 15:21:54 -0400 (EDT)
-Message-Id: <20120803192152.983896137@linux.com>
-Date: Fri, 03 Aug 2012 14:21:01 -0500
+Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
+	by kanga.kvack.org (Postfix) with SMTP id 583236B0070
+	for <linux-mm@kvack.org>; Fri,  3 Aug 2012 15:21:55 -0400 (EDT)
+Message-Id: <20120803192153.623879087@linux.com>
+Date: Fri, 03 Aug 2012 14:21:02 -0500
 From: Christoph Lameter <cl@linux.com>
-Subject: Common10 [09/20] Get rid of __kmem_cache_destroy
+Subject: Common10 [10/20] Move duping of slab name to slab_common.c
 References: <20120803192052.448575403@linux.com>
-Content-Disposition: inline; filename=no_slab_specific_kmem_cache_destroy
+Content-Disposition: inline; filename=dup_name_in_common
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Glauber Costa <glommer@parallels.com>
 Cc: Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Joonsoo Kim <js1304@gmail.com>
 
-What is done there can be done in __kmem_cache_shutdown.
+Duping of the slabname has to be done by each slab. Moving this code
+to slab_common avoids duplicate implementations.
 
-This affects RCU handling somewhat. On rcu free all slab allocators
-do not refer to other management structures than the kmem_cache structure.
-Therefore these other structures can be freed before the rcu deferred
-free to the page allocator occurs.
+With this patch we have common string handling for all slab allocators.
+Strings passed to kmem_cache_create() are copied internally. Subsystems
+can create temporary strings to create slab caches.
 
-Reviewed-by: Joonsoo Kim <js1304@gmail.com>
+Slabs allocated in early states of bootstrap will never be freed (and those
+can never be freed since they are essential to slab allocator operations).
+During bootstrap we therefore do not have to worry about duping names.
+
 Signed-off-by: Christoph Lameter <cl@linux.com>
 
 ---
- mm/slab.c        |   43 +++++++++++++++++++++----------------------
- mm/slab.h        |    1 -
- mm/slab_common.c |    1 -
- mm/slob.c        |    4 ----
- mm/slub.c        |   10 +++++-----
- 5 files changed, 26 insertions(+), 33 deletions(-)
+ mm/slab_common.c |   24 +++++++++++++++++-------
+ mm/slub.c        |    5 -----
+ 2 files changed, 17 insertions(+), 12 deletions(-)
 
-Index: linux-2.6/mm/slob.c
-===================================================================
---- linux-2.6.orig/mm/slob.c	2012-08-02 14:20:06.968599959 -0500
-+++ linux-2.6/mm/slob.c	2012-08-02 14:20:14.452734107 -0500
-@@ -538,10 +538,6 @@
- 	return c;
- }
- 
--void __kmem_cache_destroy(struct kmem_cache *c)
--{
--}
--
- void *kmem_cache_alloc_node(struct kmem_cache *c, gfp_t flags, int node)
- {
- 	void *b;
-Index: linux-2.6/mm/slub.c
-===================================================================
---- linux-2.6.orig/mm/slub.c	2012-08-02 14:20:06.968599959 -0500
-+++ linux-2.6/mm/slub.c	2012-08-02 14:20:14.456734180 -0500
-@@ -3198,12 +3198,12 @@
- 
- int __kmem_cache_shutdown(struct kmem_cache *s)
- {
--	return kmem_cache_close(s);
--}
-+	int rc = kmem_cache_close(s);
- 
--void __kmem_cache_destroy(struct kmem_cache *s)
--{
--	sysfs_slab_remove(s);
-+	if (!rc)
-+		sysfs_slab_remove(s);
-+
-+	return rc;
- }
- 
- /********************************************************************
-Index: linux-2.6/mm/slab.c
-===================================================================
---- linux-2.6.orig/mm/slab.c	2012-08-02 14:20:06.968599959 -0500
-+++ linux-2.6/mm/slab.c	2012-08-02 14:20:14.456734180 -0500
-@@ -2205,26 +2205,6 @@
- 	}
- }
- 
--void __kmem_cache_destroy(struct kmem_cache *cachep)
--{
--	int i;
--	struct kmem_list3 *l3;
--
--	for_each_online_cpu(i)
--	    kfree(cachep->array[i]);
--
--	/* NUMA: free the list3 structures */
--	for_each_online_node(i) {
--		l3 = cachep->nodelists[i];
--		if (l3) {
--			kfree(l3->shared);
--			free_alien_cache(l3->alien);
--			kfree(l3);
--		}
--	}
--}
--
--
- /**
-  * calculate_slab_order - calculate size (page order) of slabs
-  * @cachep: pointer to the cache that is being created
-@@ -2588,7 +2568,7 @@
- 	cachep->refcount = 1;
- 
- 	if (setup_cpu_cache(cachep, gfp)) {
--		__kmem_cache_destroy(cachep);
-+		__kmem_cache_shutdown(cachep);
- 		return NULL;
- 	}
- 
-@@ -2763,7 +2743,26 @@
- 
- int __kmem_cache_shutdown(struct kmem_cache *cachep)
- {
--	return __cache_shrink(cachep);
-+	int i;
-+	struct kmem_list3 *l3;
-+	int rc = __cache_shrink(cachep);
-+
-+	if (rc)
-+		return rc;
-+
-+	for_each_online_cpu(i)
-+	    kfree(cachep->array[i]);
-+
-+	/* NUMA: free the list3 structures */
-+	for_each_online_node(i) {
-+		l3 = cachep->nodelists[i];
-+		if (l3) {
-+			kfree(l3->shared);
-+			free_alien_cache(l3->alien);
-+			kfree(l3);
-+		}
-+	}
-+	return 0;
- }
- 
- /*
-Index: linux-2.6/mm/slab.h
-===================================================================
---- linux-2.6.orig/mm/slab.h	2012-08-02 14:20:05.688577022 -0500
-+++ linux-2.6/mm/slab.h	2012-08-02 14:20:14.456734180 -0500
-@@ -37,6 +37,5 @@
- 	size_t align, unsigned long flags, void (*ctor)(void *));
- 
- int __kmem_cache_shutdown(struct kmem_cache *);
--void __kmem_cache_destroy(struct kmem_cache *);
- 
- #endif
 Index: linux-2.6/mm/slab_common.c
 ===================================================================
---- linux-2.6.orig/mm/slab_common.c	2012-08-02 14:20:06.964599888 -0500
-+++ linux-2.6/mm/slab_common.c	2012-08-02 14:20:14.456734180 -0500
-@@ -143,7 +143,6 @@
+--- linux-2.6.orig/mm/slab_common.c	2012-08-03 09:02:50.000000000 -0500
++++ linux-2.6/mm/slab_common.c	2012-08-03 09:02:54.900587462 -0500
+@@ -54,6 +54,7 @@ struct kmem_cache *kmem_cache_create(con
+ {
+ 	struct kmem_cache *s;
+ 	int err = 0;
++	char *n;
+ 
+ #ifdef CONFIG_DEBUG_VM
+ 	if (!name || in_interrupt() || size < sizeof(void *) ||
+@@ -93,16 +94,26 @@ struct kmem_cache *kmem_cache_create(con
+ 	WARN_ON(strchr(name, ' '));	/* It confuses parsers */
+ #endif
+ 
+-	s = __kmem_cache_create(name, size, align, flags, ctor);
+-	if (!s)
+-		err = -ENOSYS; /* Until __kmem_cache_create returns code */
++	n = kstrdup(name, GFP_KERNEL);
++	if (!n) {
++		err = -ENOMEM;
++		goto out_locked;
++	}
++
++	s = __kmem_cache_create(n, size, align, flags, ctor);
+ 
+-	/*
+-	 * Check if the slab has actually been created and if it was a
+-	 * real instatiation. Aliases do not belong on the list
+-	 */
+-	if (s && s->refcount == 1)
+-		list_add(&s->list, &slab_caches);
++	if (s) {
++		/*
++		 * Check if the slab has actually been created and if it was a
++		 * real instatiation. Aliases do not belong on the list
++		 */
++		if (s->refcount == 1)
++			list_add(&s->list, &slab_caches);
++
++	} else {
++		kfree(n);
++		err = -ENOSYS; /* Until __kmem_cache_create returns code */
++	}
+ 
+ #ifdef CONFIG_DEBUG_VM
+ out_locked:
+@@ -143,6 +154,7 @@ void kmem_cache_destroy(struct kmem_cach
  			if (s->flags & SLAB_DESTROY_BY_RCU)
  				rcu_barrier();
  
--			__kmem_cache_destroy(s);
++			kfree(s->name);
  			kmem_cache_free(kmem_cache, s);
  		} else {
  			list_add(&s->list, &slab_caches);
+Index: linux-2.6/mm/slub.c
+===================================================================
+--- linux-2.6.orig/mm/slub.c	2012-08-03 09:02:50.464510913 -0500
++++ linux-2.6/mm/slub.c	2012-08-03 09:03:48.169505677 -0500
+@@ -210,10 +210,7 @@ static void sysfs_slab_remove(struct kme
+ static inline int sysfs_slab_add(struct kmem_cache *s) { return 0; }
+ static inline int sysfs_slab_alias(struct kmem_cache *s, const char *p)
+ 							{ return 0; }
+-static inline void sysfs_slab_remove(struct kmem_cache *s)
+-{
+-	kfree(s->name);
+-}
++static inline void sysfs_slab_remove(struct kmem_cache *s) { }
+ 
+ #endif
+ 
+@@ -3922,7 +3919,6 @@ struct kmem_cache *__kmem_cache_create(c
+ 		size_t align, unsigned long flags, void (*ctor)(void *))
+ {
+ 	struct kmem_cache *s;
+-	char *n;
+ 
+ 	s = find_mergeable(size, align, flags, name, ctor);
+ 	if (s) {
+@@ -3941,13 +3937,9 @@ struct kmem_cache *__kmem_cache_create(c
+ 		return s;
+ 	}
+ 
+-	n = kstrdup(name, GFP_KERNEL);
+-	if (!n)
+-		return NULL;
+-
+ 	s = kmem_cache_alloc(kmem_cache, GFP_KERNEL);
+ 	if (s) {
+-		if (kmem_cache_open(s, n,
++		if (kmem_cache_open(s, name,
+ 				size, align, flags, ctor)) {
+ 			int r;
+ 
+@@ -3962,7 +3954,6 @@ struct kmem_cache *__kmem_cache_create(c
+ 		}
+ 		kmem_cache_free(kmem_cache, s);
+ 	}
+-	kfree(n);
+ 	return NULL;
+ }
+ 
+@@ -5193,13 +5184,6 @@ static ssize_t slab_attr_store(struct ko
+ 	return err;
+ }
+ 
+-static void kmem_cache_release(struct kobject *kobj)
+-{
+-	struct kmem_cache *s = to_slab(kobj);
+-
+-	kfree(s->name);
+-}
+-
+ static const struct sysfs_ops slab_sysfs_ops = {
+ 	.show = slab_attr_show,
+ 	.store = slab_attr_store,
+@@ -5207,7 +5191,6 @@ static const struct sysfs_ops slab_sysfs
+ 
+ static struct kobj_type slab_ktype = {
+ 	.sysfs_ops = &slab_sysfs_ops,
+-	.release = kmem_cache_release
+ };
+ 
+ static int uevent_filter(struct kset *kset, struct kobject *kobj)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
