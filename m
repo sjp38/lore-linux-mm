@@ -1,113 +1,151 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
-	by kanga.kvack.org (Postfix) with SMTP id 6E0C56B0087
-	for <linux-mm@kvack.org>; Fri,  3 Aug 2012 15:21:59 -0400 (EDT)
-Message-Id: <20120803192157.697774094@linux.com>
-Date: Fri, 03 Aug 2012 14:21:09 -0500
+Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
+	by kanga.kvack.org (Postfix) with SMTP id EF55F6B005A
+	for <linux-mm@kvack.org>; Fri,  3 Aug 2012 15:21:58 -0400 (EDT)
+Message-Id: <20120803192157.135785328@linux.com>
+Date: Fri, 03 Aug 2012 14:21:08 -0500
 From: Christoph Lameter <cl@linux.com>
-Subject: Common10 [17/20] slab: Simplify bootstrap
+Subject: Common10 [16/20] slub: Use a statically allocated kmem_cache boot structure for bootstrap
 References: <20120803192052.448575403@linux.com>
-Content-Disposition: inline; filename=setup_nodelists
+Content-Disposition: inline; filename=slub_static_init
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Glauber Costa <glommer@parallels.com>
 Cc: Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Joonsoo Kim <js1304@gmail.com>
 
-The nodelists field in kmem_cache is pointing to the first unused
-object in the array field when bootstrap is complete.
+Simplify bootstrap by statically allocated two kmem_cache structures. These are
+freed after bootup is complete. Allows us to no longer worry about calculations
+of sizes of kmem_cache structures during bootstrap.
 
-On boot we use a statically allocated array for that purpose.
-
-A problem with the current approach is that the statically sized
-kmem_cache structure can only contain NR_CPUS entries. If the number
-of nodes plus the number of cpus is greater then we would overwrite
-memory following the kmem_cache_boot definition.
-
-Increase the size of the array field to ensure that also the node
-pointers fit into the array field.
-
-Once we do that we no longer need the kmem_cache_nodelists
-array and we can then also simplify bootstrap.
-
+Reviewed-by: Glauber Costa <glommer@parallels.com>
 Signed-off-by: Christoph Lameter <cl@linux.com>
 
-Index: linux-2.6/include/linux/slab_def.h
+---
+ mm/slub.c |   32 +++++++++-----------------------
+ 1 file changed, 9 insertions(+), 23 deletions(-)
+
+Index: linux-2.6/mm/slub.c
 ===================================================================
---- linux-2.6.orig/include/linux/slab_def.h	2012-08-03 13:17:27.000000000 -0500
-+++ linux-2.6/include/linux/slab_def.h	2012-08-03 13:48:01.257871286 -0500
-@@ -92,7 +92,7 @@ struct kmem_cache {
- 	 * is statically defined, so we reserve the max number of cpus.
- 	 */
- 	struct kmem_list3 **nodelists;
--	struct array_cache *array[NR_CPUS];
-+	struct array_cache *array[NR_CPUS + MAX_NUMNODES];
- 	/*
- 	 * Do not add fields after array[]
- 	 */
-Index: linux-2.6/mm/slab.c
-===================================================================
---- linux-2.6.orig/mm/slab.c	2012-08-03 13:46:46.000000000 -0500
-+++ linux-2.6/mm/slab.c	2012-08-03 13:48:25.122303959 -0500
-@@ -585,9 +585,7 @@ static struct arraycache_init initarray_
-     { {0, BOOT_CPUCACHE_ENTRIES, 1, 0} };
+--- linux-2.6.orig/mm/slub.c	2012-08-03 13:46:46.776520899 -0500
++++ linux-2.6/mm/slub.c	2012-08-03 13:47:50.005667279 -0500
+@@ -3239,29 +3239,6 @@ static int __init setup_slub_nomerge(cha
  
- /* internal cache of cache description objs */
--static struct kmem_list3 *kmem_cache_nodelists[MAX_NUMNODES];
- static struct kmem_cache kmem_cache_boot = {
--	.nodelists = kmem_cache_nodelists,
- 	.batchcount = 1,
- 	.limit = BOOT_CPUCACHE_ENTRIES,
- 	.shared = 1,
-@@ -1579,6 +1577,15 @@ static void __init set_up_list3s(struct
- }
+ __setup("slub_nomerge", setup_slub_nomerge);
  
+-static struct kmem_cache *__init create_kmalloc_cache(const char *name,
+-						int size, unsigned int flags)
+-{
+-	struct kmem_cache *s;
+-
+-	s = kmem_cache_alloc(kmem_cache, GFP_NOWAIT);
+-
+-	/*
+-	 * This function is called with IRQs disabled during early-boot on
+-	 * single CPU so there's no need to take slab_mutex here.
+-	 */
+-	if (!kmem_cache_open(s, name, size, ARCH_KMALLOC_MINALIGN,
+-								flags, NULL))
+-		goto panic;
+-
+-	list_add(&s->list, &slab_caches);
+-	return s;
+-
+-panic:
+-	panic("Creation of kmalloc slab %s size=%d failed.\n", name, size);
+-	return NULL;
+-}
+-
  /*
-+ * The memory after the last cpu cache pointer is used for the
-+ * the nodelists pointer.
-+ */
-+static void setup_nodelists_pointer(struct kmem_cache *s)
-+{
-+	s->nodelists = (struct kmem_list3 **)&s->array[nr_cpu_ids];
-+}
-+
-+/*
-  * Initialisation.  Called after the page allocator have been initialised and
-  * before smp_init().
-  */
-@@ -1592,13 +1599,15 @@ void __init kmem_cache_init(void)
+  * Conversion table for small slabs sizes / 8 to the index in the
+  * kmalloc array. This is necessary for slabs < 192 since we have non power
+@@ -3658,9 +3635,6 @@ static void __init kmem_cache_bootstrap_
+ {
  	int node;
  
- 	kmem_cache = &kmem_cache_boot;
-+	setup_nodelists_pointer(kmem_cache);
- 
- 	if (num_possible_nodes() == 1)
- 		use_alien_caches = 0;
- 
-+
- 	for (i = 0; i < NUM_INIT_LISTS; i++) {
- 		kmem_list3_init(&initkmem_list3[i]);
--		if (i < MAX_NUMNODES)
-+		if (i < nr_node_ids)
- 			kmem_cache->nodelists[i] = NULL;
+-	list_add(&s->list, &slab_caches);
+-	s->refcount = -1;
+-
+ 	for_each_node_state(node, N_NORMAL_MEMORY) {
+ 		struct kmem_cache_node *n = get_node(s, node);
+ 		struct page *p;
+@@ -3677,13 +3651,13 @@ static void __init kmem_cache_bootstrap_
  	}
- 	set_up_list3s(kmem_cache, CACHE_CACHE);
-@@ -1638,7 +1647,6 @@ void __init kmem_cache_init(void)
- 	list_add(&kmem_cache->list, &slab_caches);
- 	kmem_cache->colour_off = cache_line_size();
- 	kmem_cache->array[smp_processor_id()] = &initarray_cache.cache;
--	kmem_cache->nodelists[node] = &initkmem_list3[CACHE_CACHE + node];
+ }
+ 
++static __initdata struct kmem_cache boot_kmem_cache,
++			boot_kmem_cache_node;
++
+ void __init kmem_cache_init(void)
+ {
+ 	int i;
+-	int caches = 0;
+-	struct kmem_cache *temp_kmem_cache;
+-	int order;
+-	struct kmem_cache *temp_kmem_cache_node;
++	int caches = 2;
+ 	unsigned long kmalloc_size;
+ 
+ 	if (debug_guardpage_minorder())
+@@ -3692,50 +3666,33 @@ void __init kmem_cache_init(void)
+ 	kmem_size = offsetof(struct kmem_cache, node) +
+ 			nr_node_ids * sizeof(struct kmem_cache_node *);
+ 
+-	/* Allocate two kmem_caches from the page allocator */
+ 	kmalloc_size = ALIGN(kmem_size, cache_line_size());
+-	order = get_order(2 * kmalloc_size);
+-	kmem_cache = (void *)__get_free_pages(GFP_NOWAIT, order);
+-
+-	/*
+-	 * Must first have the slab cache available for the allocations of the
+-	 * struct kmem_cache_node's. There is special bootstrap code in
+-	 * kmem_cache_open for slab_state == DOWN.
+-	 */
+-	kmem_cache_node = (void *)kmem_cache + kmalloc_size;
++	kmem_cache_node = &boot_kmem_cache_node;
+ 
+-	kmem_cache_open(kmem_cache_node, "kmem_cache_node",
+-		sizeof(struct kmem_cache_node),
+-		0, SLAB_HWCACHE_ALIGN | SLAB_PANIC, NULL);
++	create_boot_cache(kmem_cache_node, "kmem_cache_node",
++		sizeof(struct kmem_cache_node), SLAB_HWCACHE_ALIGN);
+ 
+ 	hotplug_memory_notifier(slab_memory_callback, SLAB_CALLBACK_PRI);
+ 
+ 	/* Able to allocate the per node structures */
+ 	slab_state = PARTIAL;
+ 
+-	temp_kmem_cache = kmem_cache;
+-	kmem_cache_open(kmem_cache, "kmem_cache", kmem_size,
+-		0, SLAB_HWCACHE_ALIGN | SLAB_PANIC, NULL);
+-	kmem_cache = kmem_cache_alloc(kmem_cache, GFP_NOWAIT);
+-	memcpy(kmem_cache, temp_kmem_cache, kmem_size);
++	create_boot_cache(&boot_kmem_cache, "kmem_cache",
++			kmem_size, SLAB_HWCACHE_ALIGN);
++
++	kmem_cache = kmem_cache_alloc(&boot_kmem_cache, GFP_NOWAIT);
++	memcpy(kmem_cache, &boot_kmem_cache, kmem_size);
  
  	/*
- 	 * struct kmem_cache size depends on nr_node_ids & nr_cpu_ids
-@@ -2451,7 +2459,7 @@ __kmem_cache_create (struct kmem_cache *
- 	else
- 		gfp = GFP_NOWAIT;
+ 	 * Allocate kmem_cache_node properly from the kmem_cache slab.
+ 	 * kmem_cache_node is separately allocated so no need to
+ 	 * update any list pointers.
+ 	 */
+-	temp_kmem_cache_node = kmem_cache_node;
+-
+ 	kmem_cache_node = kmem_cache_alloc(kmem_cache, GFP_NOWAIT);
+-	memcpy(kmem_cache_node, temp_kmem_cache_node, kmem_size);
++	memcpy(kmem_cache_node, &boot_kmem_cache_node, kmem_size);
  
--	cachep->nodelists = (struct kmem_list3 **)&cachep->array[nr_cpu_ids];
-+	setup_nodelists_pointer(cachep);
- #if DEBUG
+ 	kmem_cache_bootstrap_fixup(kmem_cache_node);
+-
+-	caches++;
+ 	kmem_cache_bootstrap_fixup(kmem_cache);
+-	caches++;
+-	/* Free temporary boot structure */
+-	free_pages((unsigned long)temp_kmem_cache, order);
  
- 	/*
+ 	/* Now we can use the kmem_cache to allocate kmalloc slabs */
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
