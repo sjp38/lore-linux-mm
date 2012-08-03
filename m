@@ -1,43 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
-	by kanga.kvack.org (Postfix) with SMTP id 044D46B0062
-	for <linux-mm@kvack.org>; Fri,  3 Aug 2012 10:37:53 -0400 (EDT)
-Date: Fri, 3 Aug 2012 09:02:09 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: Common [02/19] slub: Use kmem_cache for the kmem_cache
- structure
-In-Reply-To: <501BD7CE.1080300@parallels.com>
-Message-ID: <alpine.DEB.2.00.1208030858230.2332@router.home>
-References: <20120802201506.266817615@linux.com> <20120802201531.490489455@linux.com> <501BD019.70803@parallels.com> <alpine.DEB.2.00.1208030851160.2332@router.home> <501BD7CE.1080300@parallels.com>
+Received: from psmtp.com (na3sys010amx177.postini.com [74.125.245.177])
+	by kanga.kvack.org (Postfix) with SMTP id 0F2396B0070
+	for <linux-mm@kvack.org>; Fri,  3 Aug 2012 10:37:54 -0400 (EDT)
+Date: Fri, 3 Aug 2012 16:37:48 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH -mm] mm: hugetlbfs: Correctly populate shared pmd
+Message-ID: <20120803143748.GD8434@dhcp22.suse.cz>
+References: <20120802141656.GB18084@dhcp22.suse.cz>
+ <CAJd=RBDnzbLpqsVkishsZmB518mCu0Go0o2ZOGdHj62qRfLnAg@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAJd=RBDnzbLpqsVkishsZmB518mCu0Go0o2ZOGdHj62qRfLnAg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Joonsoo Kim <js1304@gmail.com>
+To: Hillf Danton <dhillf@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Linux-MM <linux-mm@kvack.org>, David Gibson <david@gibson.dropbear.id.au>, Ken Chen <kenchen@google.com>, Cong Wang <xiyou.wangcong@gmail.com>
 
-On Fri, 3 Aug 2012, Glauber Costa wrote:
+On Fri 03-08-12 22:16:52, Hillf Danton wrote:
+> On Thu, Aug 2, 2012 at 10:16 PM, Michal Hocko <mhocko@suse.cz> wrote:
+> > This patch addresses the issue by moving pmd_alloc into huge_pmd_share
+> > which guarantees that the shared pud is populated in the same
+> > critical section as pmd.
+> 
+> Is i_mmap_mutex for guarding new pmd allocation?
 
-> On 08/03/2012 05:52 PM, Christoph Lameter wrote:
-> >> When a non-alias cache is freed, both sysfs_slab_remove and
-> >> > kmem_cache_release are called.
-> >> >
-> >> > You are freeing structures on both, so you have two double frees.
-> >> >
-> >> > slab_sysfs_remove() is the correct place for it, so you need to remove
-> >> > them from kmem_cache_release(), which becomes an empty function.
-> > So this is another bug in Linus's tree.
-> >
->
-> Indeed, but only when !SYSFS.
->
-> When we have sysfs on, sysfs_slab_remove actually did no freeing - as
-> you figured out yourself, so it was actually "correct".
+It doesn't guard the pmd allocation itself it just makes sure that pud
+population and pmd_allocation are done atomicaly wrt. other processes to
+share the same pmd because sharing is synchronized by i_mmap_mutex.
 
-Right so the correct solution is to leave it in kmem_cache_release() and
-remove from sysfs_slab_remove. Basically dropping the last hunk of my
-patch.
+> Is regression introduced if sharing is unavailable?
 
+No. The bug is about the sharing as the changelog describes.
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
