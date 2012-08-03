@@ -1,37 +1,123 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
-	by kanga.kvack.org (Postfix) with SMTP id 58AD76B0044
-	for <linux-mm@kvack.org>; Fri,  3 Aug 2012 09:56:15 -0400 (EDT)
-Message-ID: <501BD7CE.1080300@parallels.com>
-Date: Fri, 3 Aug 2012 17:53:18 +0400
-From: Glauber Costa <glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
+	by kanga.kvack.org (Postfix) with SMTP id 3F9F96B005A
+	for <linux-mm@kvack.org>; Fri,  3 Aug 2012 10:02:29 -0400 (EDT)
+Date: Fri, 3 Aug 2012 16:02:24 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH V8 2/2] mm: memcg detect no memcgs above softlimit under
+ zone reclaim
+Message-ID: <20120803140224.GC8434@dhcp22.suse.cz>
+References: <1343942664-13365-1-git-send-email-yinghan@google.com>
 MIME-Version: 1.0
-Subject: Re: Common [02/19] slub: Use kmem_cache for the kmem_cache structure
-References: <20120802201506.266817615@linux.com> <20120802201531.490489455@linux.com> <501BD019.70803@parallels.com> <alpine.DEB.2.00.1208030851160.2332@router.home>
-In-Reply-To: <alpine.DEB.2.00.1208030851160.2332@router.home>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1343942664-13365-1-git-send-email-yinghan@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Joonsoo Kim <js1304@gmail.com>
+To: Ying Han <yinghan@google.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Hillf Danton <dhillf@gmail.com>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 
-On 08/03/2012 05:52 PM, Christoph Lameter wrote:
->> When a non-alias cache is freed, both sysfs_slab_remove and
->> > kmem_cache_release are called.
->> >
->> > You are freeing structures on both, so you have two double frees.
->> >
->> > slab_sysfs_remove() is the correct place for it, so you need to remove
->> > them from kmem_cache_release(), which becomes an empty function.
-> So this is another bug in Linus's tree.
+On Thu 02-08-12 14:24:24, Ying Han wrote:
+> In memcg kernel, cgroup under its softlimit is not targeted under global
+> reclaim. It could be possible that all memcgs are under their softlimit for
+> a particular zone. If that is the case, the current implementation will
+> burn extra cpu cycles without making forward progress.
 > 
+> The idea is from LSF discussion where we detect it after the first round of
+> scanning and restart the reclaim by not looking at softlimit at all. This
+> allows us to make forward progress on shrink_zone().
+> 
+> Signed-off-by: Ying Han <yinghan@google.com>
+> ---
+>  include/linux/memcontrol.h |    9 +++++++++
+>  mm/memcontrol.c            |    3 +--
+>  mm/vmscan.c                |   18 ++++++++++++++++--
+>  3 files changed, 26 insertions(+), 4 deletions(-)
+> 
+> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+> index 65538f9..cbad102 100644
+> --- a/include/linux/memcontrol.h
+> +++ b/include/linux/memcontrol.h
+> @@ -180,6 +180,8 @@ static inline void mem_cgroup_dec_page_stat(struct page *page,
+>  }
+>  
+>  void mem_cgroup_count_vm_event(struct mm_struct *mm, enum vm_event_item idx);
+> +
+> +bool mem_cgroup_is_root(struct mem_cgroup *memcg);
+>  #ifdef CONFIG_TRANSPARENT_HUGEPAGE
+>  void mem_cgroup_split_huge_fixup(struct page *head);
+>  #endif
+> @@ -360,6 +362,13 @@ static inline
+>  void mem_cgroup_count_vm_event(struct mm_struct *mm, enum vm_event_item idx)
+>  {
+>  }
+> +
+> +static inline bool
+> +mem_cgroup_is_root(struct mem_cgroup *memcg)
+> +{
+> +	return true;
+> +}
+> +
+>  static inline void mem_cgroup_replace_page_cache(struct page *oldpage,
+>  				struct page *newpage)
+>  {
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index d8b91bb..368eecc 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -378,7 +378,6 @@ enum charge_type {
+>  
+>  static void mem_cgroup_get(struct mem_cgroup *memcg);
+>  static void mem_cgroup_put(struct mem_cgroup *memcg);
+> -static bool mem_cgroup_is_root(struct mem_cgroup *memcg);
+>  
+>  static inline
+>  struct mem_cgroup *mem_cgroup_from_css(struct cgroup_subsys_state *s)
+> @@ -850,7 +849,7 @@ void mem_cgroup_iter_break(struct mem_cgroup *root,
+>  	     iter != NULL;				\
+>  	     iter = mem_cgroup_iter(NULL, iter, NULL))
+>  
+> -static inline bool mem_cgroup_is_root(struct mem_cgroup *memcg)
+> +bool mem_cgroup_is_root(struct mem_cgroup *memcg)
+>  {
+>  	return (memcg == root_mem_cgroup);
+>  }
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 88487b3..8622022 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -1861,6 +1861,10 @@ static void shrink_zone(struct zone *zone, struct scan_control *sc)
+>  		.priority = sc->priority,
+>  	};
+>  	struct mem_cgroup *memcg;
+> +	bool over_softlimit, ignore_softlimit = false;
+> +
+> +restart:
+> +	over_softlimit = false;
+>  
+>  	memcg = mem_cgroup_iter(root, NULL, &reclaim);
+>  	do {
+> @@ -1879,10 +1883,15 @@ static void shrink_zone(struct zone *zone, struct scan_control *sc)
+>  		 * we have to reclaim under softlimit instead of burning more
+>  		 * cpu cycles.
+>  		 */
+> -		if (!global_reclaim(sc) || sc->priority < DEF_PRIORITY ||
+> -				mem_cgroup_over_soft_limit(memcg))
+> +		if (ignore_softlimit || !global_reclaim(sc) ||
+> +				sc->priority < DEF_PRIORITY ||
+> +				mem_cgroup_over_soft_limit(memcg)) {
+>  			shrink_lruvec(lruvec, sc);
+>  
+> +			if (!mem_cgroup_is_root(memcg))
+> +				over_softlimit = true;
+> +		}
+> +
 
-Indeed, but only when !SYSFS.
-
-When we have sysfs on, sysfs_slab_remove actually did no freeing - as
-you figured out yourself, so it was actually "correct".
-
+I think this is still not sufficient because you do not want to hammer
+root in the ignore_softlimit case. 
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
