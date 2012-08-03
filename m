@@ -1,18 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
-	by kanga.kvack.org (Postfix) with SMTP id E04206B0044
-	for <linux-mm@kvack.org>; Fri,  3 Aug 2012 12:30:21 -0400 (EDT)
-Received: by lbon3 with SMTP id n3so1162755lbo.14
-        for <linux-mm@kvack.org>; Fri, 03 Aug 2012 09:30:20 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx190.postini.com [74.125.245.190])
+	by kanga.kvack.org (Postfix) with SMTP id CD1026B0044
+	for <linux-mm@kvack.org>; Fri,  3 Aug 2012 12:34:13 -0400 (EDT)
+Received: by lbon3 with SMTP id n3so1165075lbo.14
+        for <linux-mm@kvack.org>; Fri, 03 Aug 2012 09:34:11 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <501BF98B.9030103@redhat.com>
-References: <1343942664-13365-1-git-send-email-yinghan@google.com>
-	<20120803140224.GC8434@dhcp22.suse.cz>
-	<501BF98B.9030103@redhat.com>
-Date: Fri, 3 Aug 2012 09:30:19 -0700
-Message-ID: <CALWz4izRJqER=4feu0NJn4JeTX6r-utbNVbxHfTYG26XYVWOGg@mail.gmail.com>
-Subject: Re: [PATCH V8 2/2] mm: memcg detect no memcgs above softlimit under
- zone reclaim
+In-Reply-To: <501BF952.7070202@redhat.com>
+References: <1343942658-13307-1-git-send-email-yinghan@google.com>
+	<20120803152234.GE8434@dhcp22.suse.cz>
+	<501BF952.7070202@redhat.com>
+Date: Fri, 3 Aug 2012 09:34:11 -0700
+Message-ID: <CALWz4iw6Q500k5qGWaubwLi-3V3qziPuQ98Et9Ay=LS0-PB0dQ@mail.gmail.com>
+Subject: Re: [PATCH V8 1/2] mm: memcg softlimit reclaim rework
 From: Ying Han <yinghan@google.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
@@ -20,32 +19,66 @@ List-ID: <linux-mm.kvack.org>
 To: Rik van Riel <riel@redhat.com>
 Cc: Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hillf Danton <dhillf@gmail.com>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 
-On Fri, Aug 3, 2012 at 9:17 AM, Rik van Riel <riel@redhat.com> wrote:
-> On 08/03/2012 10:02 AM, Michal Hocko wrote:
+On Fri, Aug 3, 2012 at 9:16 AM, Rik van Riel <riel@redhat.com> wrote:
+> On 08/03/2012 11:22 AM, Michal Hocko wrote:
 >>
->> On Thu 02-08-12 14:24:24, Ying Han wrote:
->
->                 shrink_lruvec(lruvec, sc);
+>> On Thu 02-08-12 14:24:18, Ying Han wrote:
+>> [...]
 >>>
+>>> diff --git a/mm/vmscan.c b/mm/vmscan.c
+>>> index 3e0d0cd..88487b3 100644
+>>> --- a/mm/vmscan.c
+>>> +++ b/mm/vmscan.c
+>>> @@ -1866,7 +1866,22 @@ static void shrink_zone(struct zone *zone, struct
+>>> scan_control *sc)
+>>>         do {
+>>>                 struct lruvec *lruvec = mem_cgroup_zone_lruvec(zone,
+>>> memcg);
 >>>
->>> +                       if (!mem_cgroup_is_root(memcg))
->>> +                               over_softlimit = true;
->>> +               }
->>> +
+>>> -               shrink_lruvec(lruvec, sc);
+>>> +               /*
+>>> +                * Reclaim from mem_cgroup if any of these conditions are
+>>> met:
+>>> +                * - this is a targetted reclaim ( not global reclaim)
+>>> +                * - reclaim priority is less than DEF_PRIORITY
+>>> +                * - mem_cgroup or its ancestor ( not including root
+>>> cgroup)
+>>> +                * exceeds its soft limit
+>>> +                *
+>>> +                * Note: The priority check is a balance of how hard to
+>>> +                * preserve the pages under softlimit. If the memcgs of
+>>> the
+>>> +                * zone having trouble to reclaim pages above their
+>>> softlimit,
+>>> +                * we have to reclaim under softlimit instead of burning
+>>> more
+>>> +                * cpu cycles.
+>>> +                */
+>>> +               if (!global_reclaim(sc) || sc->priority<  DEF_PRIORITY ||
+>>> +                               mem_cgroup_over_soft_limit(memcg))
+>>> +                       shrink_lruvec(lruvec, sc);
+>>>
+>>>                 /*
+>>>                  * Limit reclaim has historically picked one memcg and
 >>
 >>
->> I think this is still not sufficient because you do not want to hammer
->> root in the ignore_softlimit case.
+>> I am thinking that we could add a constant for the priority
+>> limit. Something like
+>> #define MEMCG_LOW_SOFTLIMIT_PRIORITY    DEF_PRIORITY
+>>
+>> Although it doesn't seem necessary at the moment, because there is just
+>> one location where it matters but it could help in the future.
+>> What do you think?
 >
 >
-> Michal, please see my mail from a few days ago, describing how I
-> plan to balance pressure between the various LRU lists.
->
-> I hope to throw a prototype patch over the wall soon...
+> I am working on changing the code to find the "highest priority"
+> LRU and reclaim from that list first.  That will obviate the need
+> for such a change. However, the other cleanups and simplifications
+> made by Ying's patch are good to have...
 
-I assume this patch is still needed for your later ones, where your
-patch will help to balance the
-pressure better after start reclaiming.
+So what you guys think to take from here. I can make the change as
+Michal suggested if that would be something helpful future changes.
+However, I wonder whether or not it is necessary.
 
 --Ying
 
