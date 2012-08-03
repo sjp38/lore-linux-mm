@@ -1,24 +1,29 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx207.postini.com [74.125.245.207])
-	by kanga.kvack.org (Postfix) with SMTP id 58EE16B0044
-	for <linux-mm@kvack.org>; Fri,  3 Aug 2012 10:04:39 -0400 (EDT)
-Received: from MOMO-0B5C8BB89C (unknown [197.205.147.222])
-	(using TLSv1 with cipher RC4-MD5 (128/128 bits))
-	(No client certificate requested)
-	(Authenticated sender: amministrazione@rsaoasi.eu)
-	by mail.cyberiainformatica.eu (Postfix) with ESMTPSA id 510D2941036
-	for <linux-mm@kvack.org>; Fri,  3 Aug 2012 16:03:30 +0200 (CEST)
-From: Neal Worthington <amministrazione@rsaoasi.eu>
-Subject: Your Photos
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: base64
-Message-Id: <20120803140330.510D2941036@mail.cyberiainformatica.eu>
-Date: Fri,  3 Aug 2012 16:03:30 +0200 (CEST)
+Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
+	by kanga.kvack.org (Postfix) with SMTP id 09A316B0044
+	for <linux-mm@kvack.org>; Fri,  3 Aug 2012 10:16:53 -0400 (EDT)
+Received: by vcbfl10 with SMTP id fl10so847051vcb.14
+        for <linux-mm@kvack.org>; Fri, 03 Aug 2012 07:16:53 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20120802141656.GB18084@dhcp22.suse.cz>
+References: <20120802141656.GB18084@dhcp22.suse.cz>
+Date: Fri, 3 Aug 2012 22:16:52 +0800
+Message-ID: <CAJd=RBDnzbLpqsVkishsZmB518mCu0Go0o2ZOGdHj62qRfLnAg@mail.gmail.com>
+Subject: Re: [PATCH -mm] mm: hugetlbfs: Correctly populate shared pmd
+From: Hillf Danton <dhillf@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.orglinux-mm@kvack.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Linux-MM <linux-mm@kvack.org>, David Gibson <david@gibson.dropbear.id.au>, Ken Chen <kenchen@google.com>, Cong Wang <xiyou.wangcong@gmail.com>
 
-SGksIA0KeW91ciBwaG90b3MgLSBodHRwOi8vd3d3LmxjcWNzLmNvbS91cGxvYWQuaHRt
+On Thu, Aug 2, 2012 at 10:16 PM, Michal Hocko <mhocko@suse.cz> wrote:
+> This patch addresses the issue by moving pmd_alloc into huge_pmd_share
+> which guarantees that the shared pud is populated in the same
+> critical section as pmd.
+
+Is i_mmap_mutex for guarding new pmd allocation?
+Is regression introduced if sharing is unavailable?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
