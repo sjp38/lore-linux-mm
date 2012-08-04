@@ -1,55 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
-	by kanga.kvack.org (Postfix) with SMTP id DA5B06B0044
-	for <linux-mm@kvack.org>; Sat,  4 Aug 2012 02:08:32 -0400 (EDT)
-Received: by vbkv13 with SMTP id v13so1631081vbk.14
-        for <linux-mm@kvack.org>; Fri, 03 Aug 2012 23:08:31 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
+	by kanga.kvack.org (Postfix) with SMTP id A87EC6B005D
+	for <linux-mm@kvack.org>; Sat,  4 Aug 2012 04:57:29 -0400 (EDT)
+Received: by weys10 with SMTP id s10so1173437wey.14
+        for <linux-mm@kvack.org>; Sat, 04 Aug 2012 01:57:27 -0700 (PDT)
 MIME-Version: 1.0
-Date: Sat, 4 Aug 2012 14:08:31 +0800
-Message-ID: <CAJd=RBC9HhKh5Q0-yXi3W0x3guXJPFz4BNsniyOFmp0TjBdFqg@mail.gmail.com>
-Subject: [patch v2] hugetlb: correct page offset index for sharing pmd
-From: Hillf Danton <dhillf@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+In-Reply-To: <20120731210438.GA31713@phenom.dumpdata.com>
+References: <c31aaed4-9d50-4cdf-b794-367fc5850483@default>
+	<CAOJsxLEhW=b3En737d5751xufW2BLehPc2ZGGG1NEtRVSo3=jg@mail.gmail.com>
+	<20120731210438.GA31713@phenom.dumpdata.com>
+Date: Sat, 4 Aug 2012 11:57:27 +0300
+Message-ID: <CAOJsxLEsDTp+ZkhVNDSreD3DhsS+D88MpMJFEzYmu+Eg8GcBYA@mail.gmail.com>
+Subject: Re: [RFC/PATCH] zcache/ramster rewrite and promotion
+From: Pekka Enberg <penberg@kernel.org>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Hillf Danton <dhillf@gmail.com>
+To: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+Cc: Dan Magenheimer <dan.magenheimer@oracle.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Minchan Kim <minchan@kernel.org>, Nitin Gupta <ngupta@vflare.org>, Andrew Morton <akpm@linux-foundation.org>, Robert Jennings <rcj@linux.vnet.ibm.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, devel@driverdev.osuosl.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-The computation of page offset index is incorrect to be used in scanning
-prio tree, as huge page offset is required, and is fixed with well
-defined routine.
+Hi Konrad,
 
-Changes from v1
-	o s/linear_page_index/linear_hugepage_index/ for clearer code
-	o hp_idx variable added for less change
+> On Tue, Jul 31, 2012 at 11:53:57PM +0300, Pekka Enberg wrote:
+>> Why on earth would you want to move that under the mm directory?
 
+On Wed, Aug 1, 2012 at 12:04 AM, Konrad Rzeszutek Wilk
+<konrad.wilk@oracle.com> wrote:
+> If you take aside that problem that it is one big patch instead
+> of being split up in more reasonable pieces - would you recommend
+> that it reside in a different directory?
+>
+> Or is that it does not make sense b/c it has other components in it - such
+> as tcp/nodemaneger/hearbeat/etc so it should go under the refactor knife?
+>
+> And if you rip out the ramster from this and just concentrate on zcache -
+> should that go in drivers/mm or mm/tmem/zcache?
 
-Signed-off-by: Hillf Danton <dhillf@gmail.com>
----
+I definitely think mm/zcache.c makes sense. I hate the fact that it's
+now riddled with references to "tmem" and "ramster" but that's probably
+fixable. I also hate the fact that you've now gone and rewritten
+everything so we lose all the change history zcache has had under
+staging.
 
---- a/arch/x86/mm/hugetlbpage.c	Fri Aug  3 20:34:58 2012
-+++ b/arch/x86/mm/hugetlbpage.c	Fri Aug  3 20:40:16 2012
-@@ -62,6 +62,7 @@ static void huge_pmd_share(struct mm_str
- {
- 	struct vm_area_struct *vma = find_vma(mm, addr);
- 	struct address_space *mapping = vma->vm_file->f_mapping;
-+	pgoff_t hp_idx;
- 	pgoff_t idx = ((addr - vma->vm_start) >> PAGE_SHIFT) +
- 			vma->vm_pgoff;
- 	struct prio_tree_iter iter;
-@@ -72,8 +73,10 @@ static void huge_pmd_share(struct mm_str
- 	if (!vma_shareable(vma, addr))
- 		return;
+As for ramster, it might make sense to have its core in mm/ramster.c and
+move the TCP weirdness somewhere else. The exact location depends on
+what kind of userspace ABIs you expose, I suppose. I mean, surely you
+need to configure the thing somehow?
 
-+	hp_idx = linear_hugepage_index(vma, addr);
-+
- 	mutex_lock(&mapping->i_mmap_mutex);
--	vma_prio_tree_foreach(svma, &iter, &mapping->i_mmap, idx, idx) {
-+	vma_prio_tree_foreach(svma, &iter, &mapping->i_mmap, hp_idx, hp_idx) {
- 		if (svma == vma)
- 			continue;
-
---
+                        Pekka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
