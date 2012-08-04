@@ -1,16 +1,16 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
-	by kanga.kvack.org (Postfix) with SMTP id 03A3C6B0044
-	for <linux-mm@kvack.org>; Sat,  4 Aug 2012 13:21:46 -0400 (EDT)
-Received: by pbbrp2 with SMTP id rp2so3590041pbb.14
-        for <linux-mm@kvack.org>; Sat, 04 Aug 2012 10:21:46 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx167.postini.com [74.125.245.167])
+	by kanga.kvack.org (Postfix) with SMTP id CFC956B0044
+	for <linux-mm@kvack.org>; Sat,  4 Aug 2012 13:34:22 -0400 (EDT)
+Received: by pbbrp2 with SMTP id rp2so3603574pbb.14
+        for <linux-mm@kvack.org>; Sat, 04 Aug 2012 10:34:22 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20120803192151.110627928@linux.com>
+In-Reply-To: <20120803192153.623879087@linux.com>
 References: <20120803192052.448575403@linux.com>
-	<20120803192151.110627928@linux.com>
-Date: Sun, 5 Aug 2012 02:21:46 +0900
-Message-ID: <CAAmzW4NVxsV2pOWYkrq0e7CSafafEq7QBsvD6Zh3ztuYzaLJSQ@mail.gmail.com>
-Subject: Re: Common10 [06/20] Extract a common function for kmem_cache_destroy
+	<20120803192153.623879087@linux.com>
+Date: Sun, 5 Aug 2012 02:34:21 +0900
+Message-ID: <CAAmzW4MoHp9YXg1Y48edh2TEdR8wUYYdxE7nq5WkgCRb9fRUXw@mail.gmail.com>
+Subject: Re: Common10 [10/20] Move duping of slab name to slab_common.c
 From: JoonSoo Kim <js1304@gmail.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
@@ -18,70 +18,76 @@ List-ID: <linux-mm.kvack.org>
 To: Christoph Lameter <cl@linux.com>
 Cc: Glauber Costa <glommer@parallels.com>, Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>
 
+2012/8/4 Christoph Lameter <cl@linux.com>:
+> Duping of the slabname has to be done by each slab. Moving this code
+> to slab_common avoids duplicate implementations.
+>
+> With this patch we have common string handling for all slab allocators.
+> Strings passed to kmem_cache_create() are copied internally. Subsystems
+> can create temporary strings to create slab caches.
+>
+> Slabs allocated in early states of bootstrap will never be freed (and those
+> can never be freed since they are essential to slab allocator operations).
+> During bootstrap we therefore do not have to worry about duping names.
+>
+> Signed-off-by: Christoph Lameter <cl@linux.com>
+
+We can remove some comment for name param of  __kmem_cache_create() in slab.c.
+
+
+
 > Index: linux-2.6/mm/slab_common.c
 > ===================================================================
-> --- linux-2.6.orig/mm/slab_common.c     2012-08-02 14:21:12.797779926 -0500
-> +++ linux-2.6/mm/slab_common.c  2012-08-02 14:21:17.301860675 -0500
-> @@ -130,6 +130,31 @@
->  }
->  EXPORT_SYMBOL(kmem_cache_create);
+> --- linux-2.6.orig/mm/slab_common.c     2012-08-03 09:02:50.000000000 -0500
+> +++ linux-2.6/mm/slab_common.c  2012-08-03 09:02:54.900587462 -0500
+> @@ -54,6 +54,7 @@ struct kmem_cache *kmem_cache_create(con
+>  {
+>         struct kmem_cache *s;
+>         int err = 0;
+> +       char *n;
 >
-> +void kmem_cache_destroy(struct kmem_cache *s)
-> +{
-> +       get_online_cpus();
-> +       mutex_lock(&slab_mutex);
-> +       s->refcount--;
-> +       if (!s->refcount) {
-> +               list_del(&s->list);
-> +
-> +               if (!__kmem_cache_shutdown(s)) {
-> +                       if (s->flags & SLAB_DESTROY_BY_RCU)
-> +                               rcu_barrier();
-> +
-> +                       __kmem_cache_destroy(s);
-> +               } else {
-> +                       list_add(&s->list, &slab_caches);
-> +                       printk(KERN_ERR "kmem_cache_destroy %s: Slab cache still has objects\n",
-> +                               s->name);
-> +                       dump_stack();
-> +               }
+>  #ifdef CONFIG_DEBUG_VM
+>         if (!name || in_interrupt() || size < sizeof(void *) ||
+> @@ -93,16 +94,26 @@ struct kmem_cache *kmem_cache_create(con
+>         WARN_ON(strchr(name, ' '));     /* It confuses parsers */
+>  #endif
+>
+> -       s = __kmem_cache_create(name, size, align, flags, ctor);
+> -       if (!s)
+> -               err = -ENOSYS; /* Until __kmem_cache_create returns code */
+> +       n = kstrdup(name, GFP_KERNEL);
+> +       if (!n) {
+> +               err = -ENOMEM;
+> +               goto out_locked;
 > +       }
-> +       mutex_unlock(&slab_mutex);
-> +       put_online_cpus();
-> +}
-> +EXPORT_SYMBOL(kmem_cache_destroy);
+> +
+> +       s = __kmem_cache_create(n, size, align, flags, ctor);
 
-This common code diverts behavior of slub when objects is remained.
-Before patch, regardless of number of remaining objects, kmem_cache is
-always destroyed.
-After patch, when objects is remained, kmem_cache is also remained.
-This is problematic behavior as kmem_cache_close() already free
-per-cpu structure.
-If we reuse this kmem_cache, we may encounter NULL pointer dereference.
+We need to remove CONFIG_DEBUG_VM for out_locked now,
+although later patch handles it.
 
-I suggest following modification.
-I thinks it is sufficient to prevent above mentioned case.
+> -       /*
+> -        * Check if the slab has actually been created and if it was a
+> -        * real instatiation. Aliases do not belong on the list
+> -        */
+> -       if (s && s->refcount == 1)
+> -               list_add(&s->list, &slab_caches);
+> +       if (s) {
+> +               /*
+> +                * Check if the slab has actually been created and if it was a
+> +                * real instatiation. Aliases do not belong on the list
+> +                */
+> +               if (s->refcount == 1)
+> +                       list_add(&s->list, &slab_caches);
+> +
+> +       } else {
+> +               kfree(n);
+> +               err = -ENOSYS; /* Until __kmem_cache_create returns code */
+> +       }
 
-diff --git a/mm/slub.c b/mm/slub.c
-index cfe4abb..7f26b39 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -3184,7 +3184,6 @@ static inline int kmem_cache_close(struct kmem_cache *s)
-        int node;
-
-        flush_all(s);
--       free_percpu(s->cpu_slab);
-        /* Attempt to free all objects */
-        for_each_node_state(node, N_NORMAL_MEMORY) {
-                struct kmem_cache_node *n = get_node(s, node);
-@@ -3193,6 +3192,7 @@ static inline int kmem_cache_close(struct kmem_cache *s)
-                if (n->nr_partial || slabs_node(s, node))
-                        return 1;
-        }
-+       free_percpu(s->cpu_slab);
-        free_kmem_cache_nodes(s);
-        return 0;
- }
+In mergeable case, leak for name is possible.
+__kmem_cache_create() doesn't set name to s->name in mergeable case.
+So, this memory can't be freed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
