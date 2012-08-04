@@ -1,153 +1,129 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
-	by kanga.kvack.org (Postfix) with SMTP id CDAD26B0044
-	for <linux-mm@kvack.org>; Sat,  4 Aug 2012 10:02:46 -0400 (EDT)
-Received: by vcbfl10 with SMTP id fl10so1849034vcb.14
-        for <linux-mm@kvack.org>; Sat, 04 Aug 2012 07:02:45 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
+	by kanga.kvack.org (Postfix) with SMTP id 73D1C6B0044
+	for <linux-mm@kvack.org>; Sat,  4 Aug 2012 10:38:36 -0400 (EDT)
+Date: Sat, 4 Aug 2012 16:37:19 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [RFC] page-table walkers vs memory order
+Message-ID: <20120804143719.GB10459@redhat.com>
+References: <1343064870.26034.23.camel@twins>
+ <alpine.LSU.2.00.1207241356350.2094@eggly.anvils>
 MIME-Version: 1.0
-In-Reply-To: <1343887288-8866-9-git-send-email-laijs@cn.fujitsu.com>
-References: <1343887288-8866-1-git-send-email-laijs@cn.fujitsu.com>
-	<1343887288-8866-9-git-send-email-laijs@cn.fujitsu.com>
-Date: Sat, 4 Aug 2012 22:02:45 +0800
-Message-ID: <CAJd=RBBVVXj99zxSpCA_wz6Md371TTrJbDjCzJMntYHrrVOaYw@mail.gmail.com>
-Subject: Re: [RFC PATCH 08/23 V2] hugetlb: use N_MEMORY instead N_HIGH_MEMORY
-From: Hillf Danton <dhillf@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LSU.2.00.1207241356350.2094@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Lai Jiangshan <laijs@cn.fujitsu.com>
-Cc: Mel Gorman <mel@csn.ul.ie>, linux-kernel@vger.kernel.org, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
+To: Hugh Dickins <hughd@google.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Nick Piggin <npiggin@kernel.dk>, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org
 
-On Thu, Aug 2, 2012 at 2:01 PM, Lai Jiangshan <laijs@cn.fujitsu.com> wrote:
-> N_HIGH_MEMORY stands for the nodes that has normal or high memory.
-> N_MEMORY stands for the nodes that has any memory.
->
-> The code here need to handle with the nodes which have memory, we should
-> use N_MEMORY instead.
->
-> Signed-off-by: Lai Jiangshan <laijs@cn.fujitsu.com>
-> ---
->  drivers/base/node.c |    2 +-
->  mm/hugetlb.c        |   24 ++++++++++++------------
->  2 files changed, 13 insertions(+), 13 deletions(-)
->
+On Tue, Jul 24, 2012 at 02:51:05PM -0700, Hugh Dickins wrote:
+> Since then, I think THP has made the rules more complicated; but I
+> believe Andrea paid a great deal of attention to that kind of issue.
 
-Better if the patch is split for hugetlb and node respectively.
+There were many issues, one unexpected was
+1a5a9906d4e8d1976b701f889d8f35d54b928f25.
 
-Acked-by: Hillf Danton <dhillf@gmail.com>
+Keep in mind when holding only mmap_sem read mode (walk page range
+speculative mode) or gup_fast, the result is always undefined and
+racey if on the other CPU you have a munmap or mremap or any other pmd
+manging concurrently messing with the mapping you're walking, all we
+have to do is not to crash, it doesn't matter what happens.
 
-> diff --git a/drivers/base/node.c b/drivers/base/node.c
-> index af1a177..31f4805 100644
-> --- a/drivers/base/node.c
-> +++ b/drivers/base/node.c
-> @@ -227,7 +227,7 @@ static node_registration_func_t __hugetlb_unregister_node;
->  static inline bool hugetlb_register_node(struct node *node)
->  {
->         if (__hugetlb_register_node &&
-> -                       node_state(node->dev.id, N_HIGH_MEMORY)) {
-> +                       node_state(node->dev.id, N_MEMORY)) {
->                 __hugetlb_register_node(node);
->                 return true;
->         }
-> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> index e198831..661db47 100644
-> --- a/mm/hugetlb.c
-> +++ b/mm/hugetlb.c
-> @@ -1046,7 +1046,7 @@ static void return_unused_surplus_pages(struct hstate *h,
->          * on-line nodes with memory and will handle the hstate accounting.
->          */
->         while (nr_pages--) {
-> -               if (!free_pool_huge_page(h, &node_states[N_HIGH_MEMORY], 1))
-> +               if (!free_pool_huge_page(h, &node_states[N_MEMORY], 1))
->                         break;
->         }
->  }
-> @@ -1150,14 +1150,14 @@ static struct page *alloc_huge_page(struct vm_area_struct *vma,
->  int __weak alloc_bootmem_huge_page(struct hstate *h)
->  {
->         struct huge_bootmem_page *m;
-> -       int nr_nodes = nodes_weight(node_states[N_HIGH_MEMORY]);
-> +       int nr_nodes = nodes_weight(node_states[N_MEMORY]);
->
->         while (nr_nodes) {
->                 void *addr;
->
->                 addr = __alloc_bootmem_node_nopanic(
->                                 NODE_DATA(hstate_next_node_to_alloc(h,
-> -                                               &node_states[N_HIGH_MEMORY])),
-> +                                               &node_states[N_MEMORY])),
->                                 huge_page_size(h), huge_page_size(h), 0);
->
->                 if (addr) {
-> @@ -1229,7 +1229,7 @@ static void __init hugetlb_hstate_alloc_pages(struct hstate *h)
->                         if (!alloc_bootmem_huge_page(h))
->                                 break;
->                 } else if (!alloc_fresh_huge_page(h,
-> -                                        &node_states[N_HIGH_MEMORY]))
-> +                                        &node_states[N_MEMORY]))
->                         break;
->         }
->         h->max_huge_pages = i;
-> @@ -1497,7 +1497,7 @@ static ssize_t nr_hugepages_store_common(bool obey_mempolicy,
->                 if (!(obey_mempolicy &&
->                                 init_nodemask_of_mempolicy(nodes_allowed))) {
->                         NODEMASK_FREE(nodes_allowed);
-> -                       nodes_allowed = &node_states[N_HIGH_MEMORY];
-> +                       nodes_allowed = &node_states[N_MEMORY];
->                 }
->         } else if (nodes_allowed) {
->                 /*
-> @@ -1507,11 +1507,11 @@ static ssize_t nr_hugepages_store_common(bool obey_mempolicy,
->                 count += h->nr_huge_pages - h->nr_huge_pages_node[nid];
->                 init_nodemask_of_node(nodes_allowed, nid);
->         } else
-> -               nodes_allowed = &node_states[N_HIGH_MEMORY];
-> +               nodes_allowed = &node_states[N_MEMORY];
->
->         h->max_huge_pages = set_max_huge_pages(h, count, nodes_allowed);
->
-> -       if (nodes_allowed != &node_states[N_HIGH_MEMORY])
-> +       if (nodes_allowed != &node_states[N_MEMORY])
->                 NODEMASK_FREE(nodes_allowed);
->
->         return len;
-> @@ -1812,7 +1812,7 @@ static void hugetlb_register_all_nodes(void)
->  {
->         int nid;
->
-> -       for_each_node_state(nid, N_HIGH_MEMORY) {
-> +       for_each_node_state(nid, N_MEMORY) {
->                 struct node *node = &node_devices[nid];
->                 if (node->dev.id == nid)
->                         hugetlb_register_node(node);
-> @@ -1906,8 +1906,8 @@ void __init hugetlb_add_hstate(unsigned order)
->         h->free_huge_pages = 0;
->         for (i = 0; i < MAX_NUMNODES; ++i)
->                 INIT_LIST_HEAD(&h->hugepage_freelists[i]);
-> -       h->next_nid_to_alloc = first_node(node_states[N_HIGH_MEMORY]);
-> -       h->next_nid_to_free = first_node(node_states[N_HIGH_MEMORY]);
-> +       h->next_nid_to_alloc = first_node(node_states[N_MEMORY]);
-> +       h->next_nid_to_free = first_node(node_states[N_MEMORY]);
->         snprintf(h->name, HSTATE_NAME_LEN, "hugepages-%lukB",
->                                         huge_page_size(h)/1024);
->
-> @@ -1995,11 +1995,11 @@ static int hugetlb_sysctl_handler_common(bool obey_mempolicy,
->                 if (!(obey_mempolicy &&
->                                init_nodemask_of_mempolicy(nodes_allowed))) {
->                         NODEMASK_FREE(nodes_allowed);
-> -                       nodes_allowed = &node_states[N_HIGH_MEMORY];
-> +                       nodes_allowed = &node_states[N_MEMORY];
->                 }
->                 h->max_huge_pages = set_max_huge_pages(h, tmp, nodes_allowed);
->
-> -               if (nodes_allowed != &node_states[N_HIGH_MEMORY])
-> +               if (nodes_allowed != &node_states[N_MEMORY])
->                         NODEMASK_FREE(nodes_allowed);
->         }
->  out:
-> --
-> 1.7.1
->
+The fact you need a barrier() or ACCESS_ONCE to avoid a lockup in a
+while (rcu_dereference()), is no good reason to worry about all
+possible purely theoretical gcc issues.
+
+One important thing that wasn't mentioned so far in this thread is
+also that we entirely relay on gcc for all pagetable and device driver
+writes (to do 1 movq instead of 8 movb), see native_set_pmd and writel.
+
+We must separate all different cases to avoid huge confusion:
+
+1) tmp=*ptr, while(tmp) -> possible, needs barrier or better
+   ACCESS_ONCE if possible
+
+2) orig_pmd = *pmdp before do_wp_huge_page in memory.c -> possible, needs
+   barrier() and it should be possible to convert to ACCESS_ONCE
+
+3) native_set_pmd and friends -> possible but not worth fixing, tried
+   to fix a decade ago for a peace of mind and I was suggested to
+   desist and it didn't bite us yet
+
+4) writel -> possible but same as 3
+
+5) compiler behaving like alpha -> impossible (I may be wrong but I
+   believe so after thinking more on it)
+
+6) I was told a decade ago by Honza to never touch any ram that can
+   change under the compiler unless it's declared volatile (could
+   crash over switch/case statement implemented with a table if the
+   switch/case value is re-read by the compiler).  -> depends, we
+   don't always obey to this rule, clearly gup_fast currently disobeys
+   and even the generic pmd_read_atomic still disobeys (MADV_DONTNEED
+   can zero the pmd). If there's no "switch/case" I'm not aware of
+   other troubles.
+
+7) barrier in pmd_none_or_trans_huge_or_clear_bad -> possible, same
+   issue as 2, full explanation in git show 1a5a9906d4e8d1976b701f
+
+Note: here I'm ignoring CPU reordering, this is only about the compiler.
+
+5 is impossible because:
+
+a) the compiler can't read a guessed address or it can crash the
+   kernel
+
+b) the compiler has no memory to store a "guessed" valid address when
+   the function return and the stack is unwind
+
+For the compiler to behave like alpha, the compiler should read the
+pteval before the pmdp, that it can't do, because it has no address to
+guess from and it would Oops if it really tries to guess it!
+
+So far it was said "compiler can guess the address" but there was no
+valid explanation of how it could do it, and I don't see it, so please
+explain if I'm wrong about the a, b above.
+
+Furthermore the ACCESS_ONCE that Peter's patch added to gup_fast
+pud/pgd can't prevent the compiler to read a guessed pmdp address as a
+volatile variable, before reading the pmdp pointer and compare it with
+the guessed address! So if it's 5 you worry about, when adding
+ACCESS_ONCE in pudp/pgdp/pmdp is useless and won't fix it. You should
+have added a barrier() instead.
+
+> I suspect your arch/x86/mm/gup.c ACCESS_ONCE()s are necessary:
+> gup_fast() breaks as many rules as it can, and in particular may
+> be racing with the freeing of page tables; but I'm not so sure
+> about the pagewalk mods - we could say "cannot do any harm",
+> but I don't like adding lines on that basis.
+
+I agree to add ACCESS_ONCE but because it's case 2, 7 above and it
+could race with free_pgtables of pgd/pud/pmd or MADV_DONTNEED with
+pmd.
+
+The other part of the patch in pagewalk.c is superflous and should be
+dropped: pud/pgd can't change in walk_page_table, it's required to
+hold the mmap_sem at least in read mode (it's not disabling irqs).
+
+The pmd side instead can change but only with THP enabled, and only
+because MADV_DONTNEED (never because of free_pgtables) but it's
+already fully handled through pmd_none_or_trans_huge_or_clear_bad. The
+->pmd_entry callers are required to call pmd_trans_unstable() before
+proceeding as the pmd may have been zeroed out by the time we get
+there. The solution is zero barrier()/ACCESS_ONCE impact for THP=n. If
+there are smp_read_barrier_depends already in alpha pte methods we're
+fine.
+
+Sorry for the long email but without a list that separates all
+possible cases above, I don't think we can understand what we're
+fixing in that patch and why the gup.c part is good.
+
+Peter, I suggest to resend the fix with a more detailed explanataion
+of the 2, 7 kind of race for gup.c only and drop the pagewalk.c.
+
+Thanks,
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
