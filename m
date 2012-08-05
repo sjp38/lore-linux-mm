@@ -1,119 +1,180 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
-	by kanga.kvack.org (Postfix) with SMTP id 3C2E36B0075
-	for <linux-mm@kvack.org>; Sat,  4 Aug 2012 20:36:38 -0400 (EDT)
-Message-ID: <1344126994.27983.116.camel@gandalf.stny.rr.com>
-Subject: Re: [RFC v2 6/7] tracepoint: use new hashtable implementation
-From: Steven Rostedt <rostedt@goodmis.org>
-Date: Sat, 04 Aug 2012 20:36:34 -0400
-In-Reply-To: <1344003788-1417-7-git-send-email-levinsasha928@gmail.com>
+Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
+	by kanga.kvack.org (Postfix) with SMTP id CFBF66B005D
+	for <linux-mm@kvack.org>; Sat,  4 Aug 2012 20:58:52 -0400 (EDT)
+From: ebiederm@xmission.com (Eric W. Biederman)
 References: <1344003788-1417-1-git-send-email-levinsasha928@gmail.com>
-	 <1344003788-1417-7-git-send-email-levinsasha928@gmail.com>
-Content-Type: text/plain; charset="ISO-8859-15"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+	<1344003788-1417-3-git-send-email-levinsasha928@gmail.com>
+Date: Sat, 04 Aug 2012 17:58:32 -0700
+In-Reply-To: <1344003788-1417-3-git-send-email-levinsasha928@gmail.com> (Sasha
+	Levin's message of "Fri, 3 Aug 2012 16:23:03 +0200")
+Message-ID: <87pq76tarr.fsf@xmission.com>
+MIME-Version: 1.0
+Content-Type: text/plain
+Subject: Re: [RFC v2 2/7] user_ns: use new hashtable implementation
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Sasha Levin <levinsasha928@gmail.com>
-Cc: torvalds@linux-foundation.org, tj@kernel.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, paul.gortmaker@windriver.com, davem@davemloft.net, mingo@elte.hu, ebiederm@xmission.com, aarcange@redhat.com, ericvh@gmail.com, netdev@vger.kernel.org, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
+Cc: torvalds@linux-foundation.org, tj@kernel.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, paul.gortmaker@windriver.com, davem@davemloft.net, rostedt@goodmis.org, mingo@elte.hu, aarcange@redhat.com, ericvh@gmail.com, netdev@vger.kernel.org
 
-FYI, Mathieu is the author of this file.
+Sasha Levin <levinsasha928@gmail.com> writes:
 
--- Steve
+> Switch user_ns to use the new hashtable implementation. This reduces the amount of
+> generic unrelated code in user_ns.
 
 
-On Fri, 2012-08-03 at 16:23 +0200, Sasha Levin wrote:
-> Switch tracepoints to use the new hashtable implementation. This reduces the amount of
-> generic unrelated code in the tracepoints.
-> 
+Just looking at this ick.
+
+- Your comparison function is broken.
+- The naming is awkward.
+    hash_get without a reference count being  incremented?
+- The magic is deep.
+   hash_get is named like a function but takes a piece of code to call
+   like only a macro can.
+- uid_hash_find always bumped the reference count
+  but your uidhash_entry doesn't nor do all of the callers of
+  uidhash_entry bump the reference count.
+
+Nacked-by: "Eric W. Biederman" <ebiederm@xmission.com>
+
+I don't have the time for a new improved better hash table that makes
+the code buggier.
+
+Eric
+
+
 > Signed-off-by: Sasha Levin <levinsasha928@gmail.com>
 > ---
->  kernel/tracepoint.c |   26 +++++++++-----------------
->  1 files changed, 9 insertions(+), 17 deletions(-)
-> 
-> diff --git a/kernel/tracepoint.c b/kernel/tracepoint.c
-> index d96ba22..b5a2650 100644
-> --- a/kernel/tracepoint.c
-> +++ b/kernel/tracepoint.c
-> @@ -26,6 +26,7 @@
->  #include <linux/slab.h>
->  #include <linux/sched.h>
->  #include <linux/static_key.h>
+>  kernel/user.c |   53 ++++++++++++++++++-----------------------------------
+>  1 files changed, 18 insertions(+), 35 deletions(-)
+>
+> diff --git a/kernel/user.c b/kernel/user.c
+> index b815fef..555c71a 100644
+> --- a/kernel/user.c
+> +++ b/kernel/user.c
+> @@ -16,6 +16,7 @@
+>  #include <linux/interrupt.h>
+>  #include <linux/export.h>
+>  #include <linux/user_namespace.h>
 > +#include <linux/hashtable.h>
 >  
->  extern struct tracepoint * const __start___tracepoints_ptrs[];
->  extern struct tracepoint * const __stop___tracepoints_ptrs[];
-> @@ -49,8 +50,7 @@ static LIST_HEAD(tracepoint_module_list);
->   * Protected by tracepoints_mutex.
+>  /*
+>   * userns count is 1 for root user, 1 for init_uts_ns,
+> @@ -50,15 +51,14 @@ EXPORT_SYMBOL_GPL(init_user_ns);
+>   * UID task count cache, to get fast user lookup in "alloc_uid"
+>   * when changing user ID's (ie setuid() and friends).
 >   */
->  #define TRACEPOINT_HASH_BITS 6
-> -#define TRACEPOINT_TABLE_SIZE (1 << TRACEPOINT_HASH_BITS)
-> -static struct hlist_head tracepoint_table[TRACEPOINT_TABLE_SIZE];
-> +DEFINE_STATIC_HASHTABLE(tracepoint_table, TRACEPOINT_HASH_BITS);
+> -
+> -#define UIDHASH_BITS	(CONFIG_BASE_SMALL ? 3 : 7)
+> -#define UIDHASH_SZ	(1 << UIDHASH_BITS)
+> -#define UIDHASH_MASK		(UIDHASH_SZ - 1)
+> -#define __uidhashfn(uid)	(((uid >> UIDHASH_BITS) + uid) & UIDHASH_MASK)
+> -#define uidhashentry(uid)	(uidhash_table + __uidhashfn((__kuid_val(uid))))
+> +#define UIDHASH_BITS		(CONFIG_BASE_SMALL ? 3 : 7)
+> +#define UIDHASH_CMP(obj, key) 	((obj)->uid == (key))
+> +#define uidhash_entry(key)	(hash_get(&uidhash_table, key,		\
+> +				struct user_struct, uidhash_node,	\
+> +				UIDHASH_CMP))
+>  
+>  static struct kmem_cache *uid_cachep;
+> -struct hlist_head uidhash_table[UIDHASH_SZ];
+> +DEFINE_STATIC_HASHTABLE(uidhash_table, UIDHASH_BITS);
 >  
 >  /*
->   * Note about RCU :
-> @@ -191,16 +191,14 @@ tracepoint_entry_remove_probe(struct tracepoint_entry *entry,
+>   * The uidhash_lock is mostly taken from process context, but it is
+> @@ -84,29 +84,14 @@ struct user_struct root_user = {
+>  /*
+>   * These routines must be called with the uidhash spinlock held!
 >   */
->  static struct tracepoint_entry *get_tracepoint(const char *name)
+> -static void uid_hash_insert(struct user_struct *up, struct hlist_head *hashent)
+> +static void uid_hash_insert(struct user_struct *up)
 >  {
-> -	struct hlist_head *head;
->  	struct hlist_node *node;
->  	struct tracepoint_entry *e;
->  	u32 hash = jhash(name, strlen(name), 0);
->  
-> -	head = &tracepoint_table[hash & (TRACEPOINT_TABLE_SIZE - 1)];
-> -	hlist_for_each_entry(e, node, head, hlist) {
-> +	hash_for_each_possible(&tracepoint_table, node, e, hlist, hash)
->  		if (!strcmp(name, e->name))
->  			return e;
-> -	}
-> +
->  	return NULL;
+> -	hlist_add_head(&up->uidhash_node, hashent);
+> +	hash_add(&uidhash_table, &up->uidhash_node, up->uid);
 >  }
 >  
-> @@ -210,19 +208,13 @@ static struct tracepoint_entry *get_tracepoint(const char *name)
->   */
->  static struct tracepoint_entry *add_tracepoint(const char *name)
+>  static void uid_hash_remove(struct user_struct *up)
 >  {
-> -	struct hlist_head *head;
-> -	struct hlist_node *node;
->  	struct tracepoint_entry *e;
->  	size_t name_len = strlen(name) + 1;
->  	u32 hash = jhash(name, name_len-1, 0);
->  
-> -	head = &tracepoint_table[hash & (TRACEPOINT_TABLE_SIZE - 1)];
-> -	hlist_for_each_entry(e, node, head, hlist) {
-> -		if (!strcmp(name, e->name)) {
-> -			printk(KERN_NOTICE
-> -				"tracepoint %s busy\n", name);
-> -			return ERR_PTR(-EEXIST);	/* Already there */
+> -	hlist_del_init(&up->uidhash_node);
+> -}
+> -
+> -static struct user_struct *uid_hash_find(kuid_t uid, struct hlist_head *hashent)
+> -{
+> -	struct user_struct *user;
+> -	struct hlist_node *h;
+> -
+> -	hlist_for_each_entry(user, h, hashent, uidhash_node) {
+> -		if (uid_eq(user->uid, uid)) {
+> -			atomic_inc(&user->__count);
+> -			return user;
 > -		}
-> +	if (get_tracepoint(name)) {
-> +		printk(KERN_NOTICE "tracepoint %s busy\n", name);
-> +		return ERR_PTR(-EEXIST);	/* Already there */
->  	}
->  	/*
->  	 * Using kmalloc here to allocate a variable length element. Could
-> @@ -234,7 +226,7 @@ static struct tracepoint_entry *add_tracepoint(const char *name)
->  	memcpy(&e->name[0], name, name_len);
->  	e->funcs = NULL;
->  	e->refcount = 0;
-> -	hlist_add_head(&e->hlist, head);
-> +	hash_add(&tracepoint_table, &e->hlist, hash);
->  	return e;
+> -	}
+> -
+> -	return NULL;
+> +	hash_del(&up->uidhash_node);
 >  }
 >  
-> @@ -244,7 +236,7 @@ static struct tracepoint_entry *add_tracepoint(const char *name)
->   */
->  static inline void remove_tracepoint(struct tracepoint_entry *e)
+>  /* IRQs are disabled and uidhash_lock is held upon function entry.
+> @@ -135,7 +120,9 @@ struct user_struct *find_user(kuid_t uid)
+>  	unsigned long flags;
+>  
+>  	spin_lock_irqsave(&uidhash_lock, flags);
+> -	ret = uid_hash_find(uid, uidhashentry(uid));
+> +	ret = uidhash_entry(uid);
+> +	if (ret)
+> +		atomic_inc(&ret->__count);
+>  	spin_unlock_irqrestore(&uidhash_lock, flags);
+>  	return ret;
+>  }
+> @@ -156,11 +143,10 @@ void free_uid(struct user_struct *up)
+>  
+>  struct user_struct *alloc_uid(kuid_t uid)
 >  {
-> -	hlist_del(&e->hlist);
-> +	hash_del(&e->hlist);
->  	kfree(e);
->  }
+> -	struct hlist_head *hashent = uidhashentry(uid);
+>  	struct user_struct *up, *new;
 >  
-
+>  	spin_lock_irq(&uidhash_lock);
+> -	up = uid_hash_find(uid, hashent);
+> +	up = uidhash_entry(uid);
+>  	spin_unlock_irq(&uidhash_lock);
+>  
+>  	if (!up) {
+> @@ -176,13 +162,13 @@ struct user_struct *alloc_uid(kuid_t uid)
+>  		 * on adding the same user already..
+>  		 */
+>  		spin_lock_irq(&uidhash_lock);
+> -		up = uid_hash_find(uid, hashent);
+> +		up = uidhash_entry(uid);
+>  		if (up) {
+>  			key_put(new->uid_keyring);
+>  			key_put(new->session_keyring);
+>  			kmem_cache_free(uid_cachep, new);
+>  		} else {
+> -			uid_hash_insert(new, hashent);
+> +			uid_hash_insert(new);
+>  			up = new;
+>  		}
+>  		spin_unlock_irq(&uidhash_lock);
+> @@ -196,17 +182,14 @@ out_unlock:
+>  
+>  static int __init uid_cache_init(void)
+>  {
+> -	int n;
+> -
+>  	uid_cachep = kmem_cache_create("uid_cache", sizeof(struct user_struct),
+>  			0, SLAB_HWCACHE_ALIGN|SLAB_PANIC, NULL);
+>  
+> -	for(n = 0; n < UIDHASH_SZ; ++n)
+> -		INIT_HLIST_HEAD(uidhash_table + n);
+> +	hash_init(&uidhash_table, UIDHASH_BITS);
+>  
+>  	/* Insert the root user immediately (init already runs as root) */
+>  	spin_lock_irq(&uidhash_lock);
+> -	uid_hash_insert(&root_user, uidhashentry(GLOBAL_ROOT_UID));
+> +	uid_hash_insert(&root_user);
+>  	spin_unlock_irq(&uidhash_lock);
+>  
+>  	return 0;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
