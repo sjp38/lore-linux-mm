@@ -1,180 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
-	by kanga.kvack.org (Postfix) with SMTP id CFBF66B005D
-	for <linux-mm@kvack.org>; Sat,  4 Aug 2012 20:58:52 -0400 (EDT)
-From: ebiederm@xmission.com (Eric W. Biederman)
-References: <1344003788-1417-1-git-send-email-levinsasha928@gmail.com>
-	<1344003788-1417-3-git-send-email-levinsasha928@gmail.com>
-Date: Sat, 04 Aug 2012 17:58:32 -0700
-In-Reply-To: <1344003788-1417-3-git-send-email-levinsasha928@gmail.com> (Sasha
-	Levin's message of "Fri, 3 Aug 2012 16:23:03 +0200")
-Message-ID: <87pq76tarr.fsf@xmission.com>
-MIME-Version: 1.0
-Content-Type: text/plain
-Subject: Re: [RFC v2 2/7] user_ns: use new hashtable implementation
+Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
+	by kanga.kvack.org (Postfix) with SMTP id B32856B0044
+	for <linux-mm@kvack.org>; Sun,  5 Aug 2012 08:50:37 -0400 (EDT)
+From: Aaro Koskinen <aaro.koskinen@iki.fi>
+Subject: [PATCH] ARM: dma-mapping: fix incorrect freeing of atomic allocations
+Date: Sun,  5 Aug 2012 15:50:29 +0300
+Message-Id: <1344171029-24804-1-git-send-email-aaro.koskinen@iki.fi>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <levinsasha928@gmail.com>
-Cc: torvalds@linux-foundation.org, tj@kernel.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, paul.gortmaker@windriver.com, davem@davemloft.net, rostedt@goodmis.org, mingo@elte.hu, aarcange@redhat.com, ericvh@gmail.com, netdev@vger.kernel.org
+To: m.szyprowski@samsung.com, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Sasha Levin <levinsasha928@gmail.com> writes:
+Commit e9da6e9905e639b0f842a244bc770b48ad0523e9 (ARM: dma-mapping:
+remove custom consistent dma region) changed the way atomic allocations
+are handled. However, arm_dma_free() was not modified accordingly, and
+as a result freeing of atomic allocations does not work correctly when
+CMA is disabled. Memory is leaked and following WARNINGs are seen:
 
-> Switch user_ns to use the new hashtable implementation. This reduces the amount of
-> generic unrelated code in user_ns.
+[   57.698911] ------------[ cut here ]------------
+[   57.753518] WARNING: at arch/arm/mm/dma-mapping.c:263 arm_dma_free+0x88/0xe4()
+[   57.811473] trying to free invalid coherent area: e0848000
+[   57.867398] Modules linked in: sata_mv(-)
+[   57.921373] [<c000d270>] (unwind_backtrace+0x0/0xf0) from [<c0015430>] (warn_slowpath_common+0x50/0x68)
+[   58.033924] [<c0015430>] (warn_slowpath_common+0x50/0x68) from [<c00154dc>] (warn_slowpath_fmt+0x30/0x40)
+[   58.152024] [<c00154dc>] (warn_slowpath_fmt+0x30/0x40) from [<c000dc18>] (arm_dma_free+0x88/0xe4)
+[   58.219592] [<c000dc18>] (arm_dma_free+0x88/0xe4) from [<c008fa30>] (dma_pool_destroy+0x100/0x148)
+[   58.345526] [<c008fa30>] (dma_pool_destroy+0x100/0x148) from [<c019a64c>] (release_nodes+0x144/0x218)
+[   58.475782] [<c019a64c>] (release_nodes+0x144/0x218) from [<c0197e10>] (__device_release_driver+0x60/0xb8)
+[   58.614260] [<c0197e10>] (__device_release_driver+0x60/0xb8) from [<c0198608>] (driver_detach+0xd8/0xec)
+[   58.756527] [<c0198608>] (driver_detach+0xd8/0xec) from [<c0197c54>] (bus_remove_driver+0x7c/0xc4)
+[   58.901648] [<c0197c54>] (bus_remove_driver+0x7c/0xc4) from [<c004bfac>] (sys_delete_module+0x19c/0x220)
+[   59.051447] [<c004bfac>] (sys_delete_module+0x19c/0x220) from [<c0009140>] (ret_fast_syscall+0x0/0x2c)
+[   59.207996] ---[ end trace 0745420412c0325a ]---
+[   59.287110] ------------[ cut here ]------------
+[   59.366324] WARNING: at arch/arm/mm/dma-mapping.c:263 arm_dma_free+0x88/0xe4()
+[   59.450511] trying to free invalid coherent area: e0847000
+[   59.534357] Modules linked in: sata_mv(-)
+[   59.616785] [<c000d270>] (unwind_backtrace+0x0/0xf0) from [<c0015430>] (warn_slowpath_common+0x50/0x68)
+[   59.790030] [<c0015430>] (warn_slowpath_common+0x50/0x68) from [<c00154dc>] (warn_slowpath_fmt+0x30/0x40)
+[   59.972322] [<c00154dc>] (warn_slowpath_fmt+0x30/0x40) from [<c000dc18>] (arm_dma_free+0x88/0xe4)
+[   60.070701] [<c000dc18>] (arm_dma_free+0x88/0xe4) from [<c008fa30>] (dma_pool_destroy+0x100/0x148)
+[   60.256817] [<c008fa30>] (dma_pool_destroy+0x100/0x148) from [<c019a64c>] (release_nodes+0x144/0x218)
+[   60.445201] [<c019a64c>] (release_nodes+0x144/0x218) from [<c0197e10>] (__device_release_driver+0x60/0xb8)
+[   60.634148] [<c0197e10>] (__device_release_driver+0x60/0xb8) from [<c0198608>] (driver_detach+0xd8/0xec)
+[   60.823623] [<c0198608>] (driver_detach+0xd8/0xec) from [<c0197c54>] (bus_remove_driver+0x7c/0xc4)
+[   61.013268] [<c0197c54>] (bus_remove_driver+0x7c/0xc4) from [<c004bfac>] (sys_delete_module+0x19c/0x220)
+[   61.203472] [<c004bfac>] (sys_delete_module+0x19c/0x220) from [<c0009140>] (ret_fast_syscall+0x0/0x2c)
+[   61.393390] ---[ end trace 0745420412c0325b ]---
 
+The patch fixes this.
 
-Just looking at this ick.
+Signed-off-by: Aaro Koskinen <aaro.koskinen@iki.fi>
+---
+ arch/arm/mm/dma-mapping.c |    4 ++--
+ 1 files changed, 2 insertions(+), 2 deletions(-)
 
-- Your comparison function is broken.
-- The naming is awkward.
-    hash_get without a reference count being  incremented?
-- The magic is deep.
-   hash_get is named like a function but takes a piece of code to call
-   like only a macro can.
-- uid_hash_find always bumped the reference count
-  but your uidhash_entry doesn't nor do all of the callers of
-  uidhash_entry bump the reference count.
-
-Nacked-by: "Eric W. Biederman" <ebiederm@xmission.com>
-
-I don't have the time for a new improved better hash table that makes
-the code buggier.
-
-Eric
-
-
-> Signed-off-by: Sasha Levin <levinsasha928@gmail.com>
-> ---
->  kernel/user.c |   53 ++++++++++++++++++-----------------------------------
->  1 files changed, 18 insertions(+), 35 deletions(-)
->
-> diff --git a/kernel/user.c b/kernel/user.c
-> index b815fef..555c71a 100644
-> --- a/kernel/user.c
-> +++ b/kernel/user.c
-> @@ -16,6 +16,7 @@
->  #include <linux/interrupt.h>
->  #include <linux/export.h>
->  #include <linux/user_namespace.h>
-> +#include <linux/hashtable.h>
->  
->  /*
->   * userns count is 1 for root user, 1 for init_uts_ns,
-> @@ -50,15 +51,14 @@ EXPORT_SYMBOL_GPL(init_user_ns);
->   * UID task count cache, to get fast user lookup in "alloc_uid"
->   * when changing user ID's (ie setuid() and friends).
->   */
-> -
-> -#define UIDHASH_BITS	(CONFIG_BASE_SMALL ? 3 : 7)
-> -#define UIDHASH_SZ	(1 << UIDHASH_BITS)
-> -#define UIDHASH_MASK		(UIDHASH_SZ - 1)
-> -#define __uidhashfn(uid)	(((uid >> UIDHASH_BITS) + uid) & UIDHASH_MASK)
-> -#define uidhashentry(uid)	(uidhash_table + __uidhashfn((__kuid_val(uid))))
-> +#define UIDHASH_BITS		(CONFIG_BASE_SMALL ? 3 : 7)
-> +#define UIDHASH_CMP(obj, key) 	((obj)->uid == (key))
-> +#define uidhash_entry(key)	(hash_get(&uidhash_table, key,		\
-> +				struct user_struct, uidhash_node,	\
-> +				UIDHASH_CMP))
->  
->  static struct kmem_cache *uid_cachep;
-> -struct hlist_head uidhash_table[UIDHASH_SZ];
-> +DEFINE_STATIC_HASHTABLE(uidhash_table, UIDHASH_BITS);
->  
->  /*
->   * The uidhash_lock is mostly taken from process context, but it is
-> @@ -84,29 +84,14 @@ struct user_struct root_user = {
->  /*
->   * These routines must be called with the uidhash spinlock held!
->   */
-> -static void uid_hash_insert(struct user_struct *up, struct hlist_head *hashent)
-> +static void uid_hash_insert(struct user_struct *up)
->  {
-> -	hlist_add_head(&up->uidhash_node, hashent);
-> +	hash_add(&uidhash_table, &up->uidhash_node, up->uid);
->  }
->  
->  static void uid_hash_remove(struct user_struct *up)
->  {
-> -	hlist_del_init(&up->uidhash_node);
-> -}
-> -
-> -static struct user_struct *uid_hash_find(kuid_t uid, struct hlist_head *hashent)
-> -{
-> -	struct user_struct *user;
-> -	struct hlist_node *h;
-> -
-> -	hlist_for_each_entry(user, h, hashent, uidhash_node) {
-> -		if (uid_eq(user->uid, uid)) {
-> -			atomic_inc(&user->__count);
-> -			return user;
-> -		}
-> -	}
-> -
-> -	return NULL;
-> +	hash_del(&up->uidhash_node);
->  }
->  
->  /* IRQs are disabled and uidhash_lock is held upon function entry.
-> @@ -135,7 +120,9 @@ struct user_struct *find_user(kuid_t uid)
->  	unsigned long flags;
->  
->  	spin_lock_irqsave(&uidhash_lock, flags);
-> -	ret = uid_hash_find(uid, uidhashentry(uid));
-> +	ret = uidhash_entry(uid);
-> +	if (ret)
-> +		atomic_inc(&ret->__count);
->  	spin_unlock_irqrestore(&uidhash_lock, flags);
->  	return ret;
->  }
-> @@ -156,11 +143,10 @@ void free_uid(struct user_struct *up)
->  
->  struct user_struct *alloc_uid(kuid_t uid)
->  {
-> -	struct hlist_head *hashent = uidhashentry(uid);
->  	struct user_struct *up, *new;
->  
->  	spin_lock_irq(&uidhash_lock);
-> -	up = uid_hash_find(uid, hashent);
-> +	up = uidhash_entry(uid);
->  	spin_unlock_irq(&uidhash_lock);
->  
->  	if (!up) {
-> @@ -176,13 +162,13 @@ struct user_struct *alloc_uid(kuid_t uid)
->  		 * on adding the same user already..
->  		 */
->  		spin_lock_irq(&uidhash_lock);
-> -		up = uid_hash_find(uid, hashent);
-> +		up = uidhash_entry(uid);
->  		if (up) {
->  			key_put(new->uid_keyring);
->  			key_put(new->session_keyring);
->  			kmem_cache_free(uid_cachep, new);
->  		} else {
-> -			uid_hash_insert(new, hashent);
-> +			uid_hash_insert(new);
->  			up = new;
->  		}
->  		spin_unlock_irq(&uidhash_lock);
-> @@ -196,17 +182,14 @@ out_unlock:
->  
->  static int __init uid_cache_init(void)
->  {
-> -	int n;
-> -
->  	uid_cachep = kmem_cache_create("uid_cache", sizeof(struct user_struct),
->  			0, SLAB_HWCACHE_ALIGN|SLAB_PANIC, NULL);
->  
-> -	for(n = 0; n < UIDHASH_SZ; ++n)
-> -		INIT_HLIST_HEAD(uidhash_table + n);
-> +	hash_init(&uidhash_table, UIDHASH_BITS);
->  
->  	/* Insert the root user immediately (init already runs as root) */
->  	spin_lock_irq(&uidhash_lock);
-> -	uid_hash_insert(&root_user, uidhashentry(GLOBAL_ROOT_UID));
-> +	uid_hash_insert(&root_user);
->  	spin_unlock_irq(&uidhash_lock);
->  
->  	return 0;
+diff --git a/arch/arm/mm/dma-mapping.c b/arch/arm/mm/dma-mapping.c
+index c2cdf65..2cc77b7 100644
+--- a/arch/arm/mm/dma-mapping.c
++++ b/arch/arm/mm/dma-mapping.c
+@@ -648,12 +648,12 @@ void arm_dma_free(struct device *dev, size_t size, void *cpu_addr,
+ 
+ 	if (arch_is_coherent() || nommu()) {
+ 		__dma_free_buffer(page, size);
++	} else if (__free_from_pool(cpu_addr, size)) {
++		return;
+ 	} else if (!IS_ENABLED(CONFIG_CMA)) {
+ 		__dma_free_remap(cpu_addr, size);
+ 		__dma_free_buffer(page, size);
+ 	} else {
+-		if (__free_from_pool(cpu_addr, size))
+-			return;
+ 		/*
+ 		 * Non-atomic allocations cannot be freed with IRQs disabled
+ 		 */
+-- 
+1.7.2.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
