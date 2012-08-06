@@ -1,73 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
-	by kanga.kvack.org (Postfix) with SMTP id 0D39D6B0044
-	for <linux-mm@kvack.org>; Mon,  6 Aug 2012 11:39:04 -0400 (EDT)
-Message-ID: <1344267537.27828.93.camel@twins>
-Subject: Re: [PATCH v2 8/9] rbtree: faster augmented rbtree manipulation
-From: Peter Zijlstra <peterz@infradead.org>
-Date: Mon, 06 Aug 2012 17:38:57 +0200
-In-Reply-To: <1344262669.27828.55.camel@twins>
-References: <1343946858-8170-1-git-send-email-walken@google.com>
-	 <1343946858-8170-9-git-send-email-walken@google.com>
-	 <1344262669.27828.55.camel@twins>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: quoted-printable
-Mime-Version: 1.0
+Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
+	by kanga.kvack.org (Postfix) with SMTP id 0730A6B005A
+	for <linux-mm@kvack.org>; Mon,  6 Aug 2012 11:44:40 -0400 (EDT)
+Received: by wgbdq12 with SMTP id dq12so2754379wgb.26
+        for <linux-mm@kvack.org>; Mon, 06 Aug 2012 08:44:39 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <f54214e7-cee4-4cbf-aad1-6c1f91867879@default>
+References: <c31aaed4-9d50-4cdf-b794-367fc5850483@default>
+	<CAOJsxLEhW=b3En737d5751xufW2BLehPc2ZGGG1NEtRVSo3=jg@mail.gmail.com>
+	<b9bee363-321e-409a-bc8e-65ffed8a1dc5@default>
+	<CAOJsxLHe6egmMWdEAGj7DGHHX-hqYMhVWDggny9CsT0H-DOL-g@mail.gmail.com>
+	<f54214e7-cee4-4cbf-aad1-6c1f91867879@default>
+Date: Mon, 6 Aug 2012 18:44:38 +0300
+Message-ID: <CAOJsxLHyPj6KrVkB5nj-9vFBXKmn5BN4ArN_7MDmTeVEG3N3Gw@mail.gmail.com>
+Subject: Re: [RFC/PATCH] zcache/ramster rewrite and promotion
+From: Pekka Enberg <penberg@kernel.org>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michel Lespinasse <walken@google.com>
-Cc: riel@redhat.com, daniel.santos@pobox.com, aarcange@redhat.com, dwmw2@infradead.org, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, torvalds@linux-foundation.org
+To: Dan Magenheimer <dan.magenheimer@oracle.com>
+Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>, Konrad Wilk <konrad.wilk@oracle.com>, Minchan Kim <minchan@kernel.org>, Nitin Gupta <ngupta@vflare.org>, Andrew Morton <akpm@linux-foundation.org>, Robert Jennings <rcj@linux.vnet.ibm.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, devel@driverdev.osuosl.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, 2012-08-06 at 16:17 +0200, Peter Zijlstra wrote:
+On Mon, Aug 6, 2012 at 5:07 PM, Dan Magenheimer
+<dan.magenheimer@oracle.com> wrote:
+> I'm OK with placing it wherever kernel developers want to put
+> it, as long as the reason is not NIMBY-ness. [1]  My preference
+> is to keep all the parts together, at least for the review phase,
+> but if there is a consensus that it belongs someplace else,
+> I will be happy to move it.
 
-> Why would every user need to replicate the propagate and rotate
-> boilerplate?
-
-So I don't have a tree near that any of this applies to (hence no actual
-patch), but why can't we have something like:
-
-struct rb_augment_callback {
-	const bool (*update)(struct rb_node *node);
-	const int offset;
-	const int size;
-};
-
-#define RB_AUGMENT_CALLBACK(_update, _type, _rb_member, _aug_member)	\
-(struct rb_augment_callback){						\
-	.update =3D _update,						\
-	.offset =3D offsetof(_type, _aug_member) - 			\
-		  offsetof(_type, _rb_member),				\
-	.size   =3D sizeof(((_type *)NULL)->_aug_member),			\
-}
-
-static __always_inline void=20
-augment_copy(struct rb_node *dst, struct rb_node *src,
-	     const rb_augment_callback *ac)
-{
-	memcpy((void *)dst + ac->offset,
-	       (void *)src + ac->offset,
-	       ac->size);
-}=20
-
-static __always_inline void=20
-augment_propagate(struct rb_node *rb, struct rb_node *stop,
-		  const struct rb_augment_callback *ac)
-{
-	while (rb !=3D stop) {
-		if (!ac->update(rb))
-			break;
-		rb =3D rb_parent(rb);
-	}
-}
-
-static __always_inline void
-augment_rotate(struct rb_node *old, struct rb_node *new.
-	       const struct rb_augment_callback *ac)
-{
-	augment_copy(new, old, ac);
-	(void)ac->update(old);
-}
-
+I'd go for core code in mm/zcache.c and mm/ramster.c, and move the
+clustering code under net/ramster or drivers/ramster.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
