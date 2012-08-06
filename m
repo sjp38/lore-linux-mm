@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
-	by kanga.kvack.org (Postfix) with SMTP id 386396B0044
+Received: from psmtp.com (na3sys010amx127.postini.com [74.125.245.127])
+	by kanga.kvack.org (Postfix) with SMTP id 91E2F6B005A
 	for <linux-mm@kvack.org>; Mon,  6 Aug 2012 09:57:35 -0400 (EDT)
 From: Rafael Aquini <aquini@redhat.com>
-Subject: [PATCH v5 1/3] mm: introduce compaction and migration for virtio ballooned pages
-Date: Mon,  6 Aug 2012 10:56:50 -0300
-Message-Id: <212b5297df32cb4e3f60d5b76a8cb0629d328a4e.1344259054.git.aquini@redhat.com>
+Subject: [PATCH v5 2/3] virtio_balloon: introduce migration primitives to balloon pages
+Date: Mon,  6 Aug 2012 10:56:51 -0300
+Message-Id: <bb62409e6464de5ad1a8521fa32181b211422c96.1344259054.git.aquini@redhat.com>
 In-Reply-To: <cover.1344259054.git.aquini@redhat.com>
 References: <cover.1344259054.git.aquini@redhat.com>
 In-Reply-To: <cover.1344259054.git.aquini@redhat.com>
@@ -20,273 +20,307 @@ the number of 2MB contiguous memory blocks that can be used within a guest,
 thus imposing performance penalties associated with the reduced number of
 transparent huge pages that could be used by the guest workload.
 
-This patch introduces the helper functions as well as the necessary changes
-to teach compaction and migration bits how to cope with pages which are
-part of a guest memory balloon, in order to make them movable by memory
-compaction procedures.
+Besides making balloon pages movable at allocation time and introducing
+the necessary primitives to perform balloon page migration/compaction,
+this patch also introduces the following locking scheme to provide the
+proper synchronization and protection for struct virtio_balloon elements
+against concurrent accesses due to parallel operations introduced by
+memory compaction / page migration.
+ - balloon_lock (mutex) : synchronizes the access demand to elements of
+			  struct virtio_balloon and its queue operations;
+ - pages_lock (spinlock): special protection to balloon pages list against
+			  concurrent list handling operations;
 
 Signed-off-by: Rafael Aquini <aquini@redhat.com>
 ---
- include/linux/mm.h |  26 +++++++++++
- mm/compaction.c    | 130 +++++++++++++++++++++++++++++++++++++++++++++--------
- mm/migrate.c       |  32 ++++++++++++-
- 3 files changed, 168 insertions(+), 20 deletions(-)
+ drivers/virtio/virtio_balloon.c | 138 +++++++++++++++++++++++++++++++++++++---
+ include/linux/virtio_balloon.h  |   4 ++
+ 2 files changed, 134 insertions(+), 8 deletions(-)
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 311be90..01a2dc9 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -1662,5 +1662,31 @@ static inline unsigned int debug_guardpage_minorder(void) { return 0; }
- static inline bool page_is_guard(struct page *page) { return false; }
- #endif /* CONFIG_DEBUG_PAGEALLOC */
+diff --git a/drivers/virtio/virtio_balloon.c b/drivers/virtio/virtio_balloon.c
+index 0908e60..7c937a0 100644
+--- a/drivers/virtio/virtio_balloon.c
++++ b/drivers/virtio/virtio_balloon.c
+@@ -27,6 +27,7 @@
+ #include <linux/delay.h>
+ #include <linux/slab.h>
+ #include <linux/module.h>
++#include <linux/fs.h>
  
-+#if (defined(CONFIG_VIRTIO_BALLOON) || defined(CONFIG_VIRTIO_BALLOON_MODULE))
-+extern bool isolate_balloon_page(struct page *);
-+extern bool putback_balloon_page(struct page *);
-+extern struct address_space *balloon_mapping;
-+
-+static inline bool is_balloon_page(struct page *page)
-+{
-+	return (page->mapping && page->mapping == balloon_mapping);
-+}
-+
-+static inline bool balloon_compaction_enabled(void)
-+{
-+#if defined(CONFIG_COMPACTION)
-+	return true;
-+#else
-+	return false;
-+#endif /* CONFIG_COMPACTION */
-+}
-+
-+#else
-+static inline bool isolate_balloon_page(struct page *page) { return false; }
-+static inline bool putback_balloon_page(struct page *page) { return false; }
-+static inline bool is_balloon_page(struct page *page)      { return false; }
-+static inline bool balloon_compaction_enabled(void)        { return false; }
-+#endif /* (CONFIG_VIRTIO_BALLOON || CONFIG_VIRTIO_BALLOON_MODULE) */
-+
- #endif /* __KERNEL__ */
- #endif /* _LINUX_MM_H */
-diff --git a/mm/compaction.c b/mm/compaction.c
-index e78cb96..9499d85 100644
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -14,6 +14,7 @@
- #include <linux/backing-dev.h>
- #include <linux/sysctl.h>
- #include <linux/sysfs.h>
-+#include <linux/export.h>
- #include "internal.h"
+ /*
+  * Balloon device works in 4K page units.  So each page is pointed to by
+@@ -35,6 +36,12 @@
+  */
+ #define VIRTIO_BALLOON_PAGES_PER_PAGE (PAGE_SIZE >> VIRTIO_BALLOON_PFN_SHIFT)
  
- #if defined CONFIG_COMPACTION || defined CONFIG_CMA
-@@ -21,6 +22,89 @@
- #define CREATE_TRACE_POINTS
- #include <trace/events/compaction.h>
- 
-+#if defined(CONFIG_VIRTIO_BALLOON) || defined(CONFIG_VIRTIO_BALLOON_MODULE)
-+/*
-+ * Balloon pages special page->mapping.
-+ * Users must properly allocate and initialize an instance of balloon_mapping,
-+ * and set it as the page->mapping for balloon enlisted page instances.
-+ * There is no need on utilizing struct address_space locking schemes for
-+ * balloon_mapping as, once it gets initialized at balloon driver, it will
-+ * remain just like a static reference that helps us on identifying a guest
-+ * ballooned page by its mapping, as well as it will keep the 'a_ops' callback
-+ * pointers to the functions that will execute the balloon page mobility tasks.
-+ *
-+ * address_space_operations necessary methods for ballooned pages:
-+ *   .migratepage    - used to perform balloon's page migration (as is)
-+ *   .invalidatepage - used to isolate a page from balloon's page list
-+ *   .freepage       - used to reinsert an isolated page to balloon's page list
-+ */
-+struct address_space *balloon_mapping;
-+EXPORT_SYMBOL_GPL(balloon_mapping);
++/* Synchronizes accesses/updates to the struct virtio_balloon elements */
++DEFINE_MUTEX(balloon_lock);
 +
-+static inline void __isolate_balloon_page(struct page *page)
-+{
-+	page->mapping->a_ops->invalidatepage(page, 0);
-+}
++/* Protects 'virtio_balloon->pages' list against concurrent handling */
++DEFINE_SPINLOCK(pages_lock);
 +
-+static inline void __putback_balloon_page(struct page *page)
-+{
-+	page->mapping->a_ops->freepage(page);
-+}
-+
-+/* __isolate_lru_page() counterpart for a ballooned page */
-+bool isolate_balloon_page(struct page *page)
-+{
-+	if (WARN_ON(!is_balloon_page(page)))
-+		return false;
-+
-+	if (likely(get_page_unless_zero(page))) {
-+		/*
-+		 * As balloon pages are not isolated from LRU lists, concurrent
-+		 * compaction threads can race against page migration functions
-+		 * move_to_new_page() & __unmap_and_move().
-+		 * In order to avoid having an already isolated balloon page
-+		 * being (wrongly) re-isolated while it is under migration,
-+		 * lets be sure we have the page lock before proceeding with
-+		 * the balloon page isolation steps.
-+		 */
-+		if (likely(trylock_page(page))) {
-+			/*
-+			 * A ballooned page, by default, has just one refcount.
-+			 * Prevent concurrent compaction threads from isolating
-+			 * an already isolated balloon page.
-+			 */
-+			if (is_balloon_page(page) && (page_count(page) == 2)) {
-+				__isolate_balloon_page(page);
-+				unlock_page(page);
-+				return true;
-+			}
-+			unlock_page(page);
-+		}
-+		/* Drop refcount taken for this already isolated page */
-+		put_page(page);
-+	}
-+	return false;
-+}
-+
-+/* putback_lru_page() counterpart for a ballooned page */
-+bool putback_balloon_page(struct page *page)
-+{
-+	if (WARN_ON(!is_balloon_page(page)))
-+		return false;
-+
-+	if (likely(trylock_page(page))) {
-+		if (is_balloon_page(page)) {
-+			__putback_balloon_page(page);
-+			put_page(page);
-+			unlock_page(page);
-+			return true;
-+		}
-+		unlock_page(page);
-+	}
-+	return false;
-+}
-+#endif /* CONFIG_VIRTIO_BALLOON || CONFIG_VIRTIO_BALLOON_MODULE */
-+
- static unsigned long release_freepages(struct list_head *freelist)
+ struct virtio_balloon
  {
- 	struct page *page, *next;
-@@ -312,32 +396,40 @@ isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
- 			continue;
- 		}
+ 	struct virtio_device *vdev;
+@@ -51,6 +58,7 @@ struct virtio_balloon
  
--		if (!PageLRU(page))
--			continue;
--
- 		/*
--		 * PageLRU is set, and lru_lock excludes isolation,
--		 * splitting and collapsing (collapsing has already
--		 * happened if PageLRU is set).
-+		 * It is possible to migrate LRU pages and balloon pages.
-+		 * Skip any other type of page.
- 		 */
--		if (PageTransHuge(page)) {
--			low_pfn += (1 << compound_order(page)) - 1;
--			continue;
--		}
-+		if (PageLRU(page)) {
-+			/*
-+			 * PageLRU is set, and lru_lock excludes isolation,
-+			 * splitting and collapsing (collapsing has already
-+			 * happened if PageLRU is set).
-+			 */
-+			if (PageTransHuge(page)) {
-+				low_pfn += (1 << compound_order(page)) - 1;
-+				continue;
-+			}
- 
--		if (!cc->sync)
--			mode |= ISOLATE_ASYNC_MIGRATE;
-+			if (!cc->sync)
-+				mode |= ISOLATE_ASYNC_MIGRATE;
- 
--		lruvec = mem_cgroup_page_lruvec(page, zone);
-+			lruvec = mem_cgroup_page_lruvec(page, zone);
- 
--		/* Try isolate the page */
--		if (__isolate_lru_page(page, mode) != 0)
--			continue;
-+			/* Try isolate the page */
-+			if (__isolate_lru_page(page, mode) != 0)
-+				continue;
-+
-+			VM_BUG_ON(PageTransCompound(page));
- 
--		VM_BUG_ON(PageTransCompound(page));
-+			/* Successfully isolated */
-+			del_page_from_lru_list(page, lruvec, page_lru(page));
-+		} else if (unlikely(is_balloon_page(page))) {
-+			if (!isolate_balloon_page(page))
-+				continue;
-+		} else
-+			continue;
- 
--		/* Successfully isolated */
--		del_page_from_lru_list(page, lruvec, page_lru(page));
- 		list_add(&page->lru, migratelist);
- 		cc->nr_migratepages++;
- 		nr_isolated++;
-diff --git a/mm/migrate.c b/mm/migrate.c
-index 77ed2d7..fc56968 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -79,7 +79,11 @@ void putback_lru_pages(struct list_head *l)
- 		list_del(&page->lru);
- 		dec_zone_page_state(page, NR_ISOLATED_ANON +
- 				page_is_file_cache(page));
--		putback_lru_page(page);
-+		if (unlikely(is_balloon_page(page) &&
-+		    balloon_compaction_enabled()))
-+			WARN_ON(!putback_balloon_page(page));
-+		else
-+			putback_lru_page(page);
- 	}
- }
- 
-@@ -778,6 +782,17 @@ static int __unmap_and_move(struct page *page, struct page *newpage,
- 		}
- 	}
- 
-+	if (unlikely(is_balloon_page(page) && balloon_compaction_enabled())) {
-+		/*
-+		 * A ballooned page does not need any special attention from
-+		 * physical to virtual reverse mapping procedures.
-+		 * Skip any attempt to unmap PTEs or to remap swap cache,
-+		 * in order to avoid burning cycles at rmap level.
-+		 */
-+		remap_swapcache = 0;
-+		goto skip_unmap;
-+	}
+ 	/* Number of balloon pages we've told the Host we're not using. */
+ 	unsigned int num_pages;
 +
  	/*
- 	 * Corner case handling:
- 	 * 1. When a new swap-cache page is read into, it is added to the LRU
-@@ -846,6 +861,21 @@ static int unmap_and_move(new_page_t get_new_page, unsigned long private,
- 			goto out;
+ 	 * The pages we've told the Host we're not using.
+ 	 * Each page on this list adds VIRTIO_BALLOON_PAGES_PER_PAGE
+@@ -125,10 +133,12 @@ static void fill_balloon(struct virtio_balloon *vb, size_t num)
+ 	/* We can only do one array worth at a time. */
+ 	num = min(num, ARRAY_SIZE(vb->pfns));
  
- 	rc = __unmap_and_move(page, newpage, force, offlining, mode);
-+
-+	if (unlikely(is_balloon_page(newpage) &&
-+		     balloon_compaction_enabled())) {
++	mutex_lock(&balloon_lock);
+ 	for (vb->num_pfns = 0; vb->num_pfns < num;
+ 	     vb->num_pfns += VIRTIO_BALLOON_PAGES_PER_PAGE) {
+-		struct page *page = alloc_page(GFP_HIGHUSER | __GFP_NORETRY |
+-					__GFP_NOMEMALLOC | __GFP_NOWARN);
++		struct page *page = alloc_page(GFP_HIGHUSER_MOVABLE |
++						__GFP_NORETRY | __GFP_NOWARN |
++						__GFP_NOMEMALLOC);
+ 		if (!page) {
+ 			if (printk_ratelimit())
+ 				dev_printk(KERN_INFO, &vb->vdev->dev,
+@@ -141,7 +151,10 @@ static void fill_balloon(struct virtio_balloon *vb, size_t num)
+ 		set_page_pfns(vb->pfns + vb->num_pfns, page);
+ 		vb->num_pages += VIRTIO_BALLOON_PAGES_PER_PAGE;
+ 		totalram_pages--;
++		spin_lock(&pages_lock);
+ 		list_add(&page->lru, &vb->pages);
++		page->mapping = balloon_mapping;
++		spin_unlock(&pages_lock);
+ 	}
+ 
+ 	/* Didn't get any?  Oh well. */
+@@ -149,6 +162,7 @@ static void fill_balloon(struct virtio_balloon *vb, size_t num)
+ 		return;
+ 
+ 	tell_host(vb, vb->inflate_vq);
++	mutex_unlock(&balloon_lock);
+ }
+ 
+ static void release_pages_by_pfn(const u32 pfns[], unsigned int num)
+@@ -169,10 +183,22 @@ static void leak_balloon(struct virtio_balloon *vb, size_t num)
+ 	/* We can only do one array worth at a time. */
+ 	num = min(num, ARRAY_SIZE(vb->pfns));
+ 
++	mutex_lock(&balloon_lock);
+ 	for (vb->num_pfns = 0; vb->num_pfns < num;
+ 	     vb->num_pfns += VIRTIO_BALLOON_PAGES_PER_PAGE) {
 +		/*
-+		 * A ballooned page has been migrated already. Now, it is the
-+		 * time to wrap-up counters, handle the old page back to Buddy
-+		 * and return.
++		 * We can race against virtballoon_isolatepage() and end up
++		 * stumbling across a _temporarily_ empty 'pages' list.
 +		 */
-+		list_del(&page->lru);
-+		dec_zone_page_state(page, NR_ISOLATED_ANON +
-+				    page_is_file_cache(page));
-+		put_page(page);
-+		__free_page(page);
-+		return rc;
++		spin_lock(&pages_lock);
++		if (unlikely(list_empty(&vb->pages))) {
++			spin_unlock(&pages_lock);
++			break;
++		}
+ 		page = list_first_entry(&vb->pages, struct page, lru);
++		page->mapping = NULL;
+ 		list_del(&page->lru);
++		spin_unlock(&pages_lock);
+ 		set_page_pfns(vb->pfns + vb->num_pfns, page);
+ 		vb->num_pages -= VIRTIO_BALLOON_PAGES_PER_PAGE;
+ 	}
+@@ -182,8 +208,11 @@ static void leak_balloon(struct virtio_balloon *vb, size_t num)
+ 	 * virtio_has_feature(vdev, VIRTIO_BALLOON_F_MUST_TELL_HOST);
+ 	 * is true, we *have* to do it in this order
+ 	 */
+-	tell_host(vb, vb->deflate_vq);
+-	release_pages_by_pfn(vb->pfns, vb->num_pfns);
++	if (vb->num_pfns > 0) {
++		tell_host(vb, vb->deflate_vq);
++		release_pages_by_pfn(vb->pfns, vb->num_pfns);
 +	}
++	mutex_unlock(&balloon_lock);
+ }
+ 
+ static inline void update_stat(struct virtio_balloon *vb, int idx,
+@@ -239,6 +268,7 @@ static void stats_handle_request(struct virtio_balloon *vb)
+ 	struct scatterlist sg;
+ 	unsigned int len;
+ 
++	mutex_lock(&balloon_lock);
+ 	vb->need_stats_update = 0;
+ 	update_balloon_stats(vb);
+ 
+@@ -249,6 +279,7 @@ static void stats_handle_request(struct virtio_balloon *vb)
+ 	if (virtqueue_add_buf(vq, &sg, 1, 0, vb, GFP_KERNEL) < 0)
+ 		BUG();
+ 	virtqueue_kick(vq);
++	mutex_unlock(&balloon_lock);
+ }
+ 
+ static void virtballoon_changed(struct virtio_device *vdev)
+@@ -261,22 +292,27 @@ static void virtballoon_changed(struct virtio_device *vdev)
+ static inline s64 towards_target(struct virtio_balloon *vb)
+ {
+ 	__le32 v;
+-	s64 target;
++	s64 target, actual;
+ 
++	mutex_lock(&balloon_lock);
++	actual = vb->num_pages;
+ 	vb->vdev->config->get(vb->vdev,
+ 			      offsetof(struct virtio_balloon_config, num_pages),
+ 			      &v, sizeof(v));
+ 	target = le32_to_cpu(v);
+-	return target - vb->num_pages;
++	mutex_unlock(&balloon_lock);
++	return target - actual;
+ }
+ 
+ static void update_balloon_size(struct virtio_balloon *vb)
+ {
+-	__le32 actual = cpu_to_le32(vb->num_pages);
+-
++	__le32 actual;
++	mutex_lock(&balloon_lock);
++	actual = cpu_to_le32(vb->num_pages);
+ 	vb->vdev->config->set(vb->vdev,
+ 			      offsetof(struct virtio_balloon_config, actual),
+ 			      &actual, sizeof(actual));
++	mutex_unlock(&balloon_lock);
+ }
+ 
+ static int balloon(void *_vballoon)
+@@ -339,6 +375,76 @@ static int init_vqs(struct virtio_balloon *vb)
+ 	return 0;
+ }
+ 
++/*
++ * '*vb_ptr' allows virtballoon_migratepage() & virtballoon_putbackpage() to
++ * access pertinent elements from struct virtio_balloon
++ */
++struct virtio_balloon *vb_ptr;
++
++/*
++ * Populate balloon_mapping->a_ops->migratepage method to perform the balloon
++ * page migration task.
++ *
++ * After a ballooned page gets isolated by compaction procedures, this is the
++ * function that performs the page migration on behalf of move_to_new_page(),
++ * when the last calls (page)->mapping->a_ops->migratepage.
++ *
++ * Page migration for virtio balloon is done in a simple swap fashion which
++ * follows these two steps:
++ *  1) insert newpage into vb->pages list and update the host about it;
++ *  2) update the host about the removed old page from vb->pages list;
++ */
++int virtballoon_migratepage(struct address_space *mapping,
++		struct page *newpage, struct page *page, enum migrate_mode mode)
++{
++	mutex_lock(&balloon_lock);
++
++	/* balloon's page migration 1st step */
++	vb_ptr->num_pfns = VIRTIO_BALLOON_PAGES_PER_PAGE;
++	spin_lock(&pages_lock);
++	list_add(&newpage->lru, &vb_ptr->pages);
++	spin_unlock(&pages_lock);
++	set_page_pfns(vb_ptr->pfns, newpage);
++	tell_host(vb_ptr, vb_ptr->inflate_vq);
++
++	/* balloon's page migration 2nd step */
++	vb_ptr->num_pfns = VIRTIO_BALLOON_PAGES_PER_PAGE;
++	set_page_pfns(vb_ptr->pfns, page);
++	tell_host(vb_ptr, vb_ptr->deflate_vq);
++
++	mutex_unlock(&balloon_lock);
++
++	return 0;
++}
++
++/*
++ * Populate balloon_mapping->a_ops->invalidatepage method to help compaction on
++ * isolating a page from the balloon page list.
++ */
++void virtballoon_isolatepage(struct page *page, unsigned long mode)
++{
++	spin_lock(&pages_lock);
++	list_del(&page->lru);
++	spin_unlock(&pages_lock);
++}
++
++/*
++ * Populate balloon_mapping->a_ops->freepage method to help compaction on
++ * re-inserting an isolated page into the balloon page list.
++ */
++void virtballoon_putbackpage(struct page *page)
++{
++	spin_lock(&pages_lock);
++	list_add(&page->lru, &vb_ptr->pages);
++	spin_unlock(&pages_lock);
++}
++
++static const struct address_space_operations virtio_balloon_aops = {
++	.migratepage = virtballoon_migratepage,
++	.invalidatepage = virtballoon_isolatepage,
++	.freepage = virtballoon_putbackpage,
++};
++
+ static int virtballoon_probe(struct virtio_device *vdev)
+ {
+ 	struct virtio_balloon *vb;
+@@ -351,11 +457,25 @@ static int virtballoon_probe(struct virtio_device *vdev)
+ 	}
+ 
+ 	INIT_LIST_HEAD(&vb->pages);
++
+ 	vb->num_pages = 0;
+ 	init_waitqueue_head(&vb->config_change);
+ 	init_waitqueue_head(&vb->acked);
+ 	vb->vdev = vdev;
+ 	vb->need_stats_update = 0;
++	vb_ptr = vb;
++
++	/* Init the ballooned page->mapping special balloon_mapping */
++	balloon_mapping = kmalloc(sizeof(*balloon_mapping), GFP_KERNEL);
++	if (!balloon_mapping) {
++		err = -ENOMEM;
++		goto out_free_vb;
++	}
++
++	INIT_RADIX_TREE(&balloon_mapping->page_tree, GFP_ATOMIC | __GFP_NOWARN);
++	INIT_LIST_HEAD(&balloon_mapping->i_mmap_nonlinear);
++	spin_lock_init(&balloon_mapping->tree_lock);
++	balloon_mapping->a_ops = &virtio_balloon_aops;
+ 
+ 	err = init_vqs(vb);
+ 	if (err)
+@@ -373,6 +493,7 @@ out_del_vqs:
+ 	vdev->config->del_vqs(vdev);
+ out_free_vb:
+ 	kfree(vb);
++	kfree(balloon_mapping);
  out:
- 	if (rc != -EAGAIN) {
- 		/*
+ 	return err;
+ }
+@@ -397,6 +518,7 @@ static void __devexit virtballoon_remove(struct virtio_device *vdev)
+ 	kthread_stop(vb->thread);
+ 	remove_common(vb);
+ 	kfree(vb);
++	kfree(balloon_mapping);
+ }
+ 
+ #ifdef CONFIG_PM
+diff --git a/include/linux/virtio_balloon.h b/include/linux/virtio_balloon.h
+index 652dc8b..930f1b7 100644
+--- a/include/linux/virtio_balloon.h
++++ b/include/linux/virtio_balloon.h
+@@ -56,4 +56,8 @@ struct virtio_balloon_stat {
+ 	u64 val;
+ } __attribute__((packed));
+ 
++#if !defined(CONFIG_COMPACTION)
++struct address_space *balloon_mapping;
++#endif
++
+ #endif /* _LINUX_VIRTIO_BALLOON_H */
 -- 
 1.7.11.2
 
