@@ -1,101 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
-	by kanga.kvack.org (Postfix) with SMTP id 4DF6E6B0044
-	for <linux-mm@kvack.org>; Mon,  6 Aug 2012 09:33:27 -0400 (EDT)
-Date: Mon, 6 Aug 2012 15:33:24 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH V8 1/2] mm: memcg softlimit reclaim rework
-Message-ID: <20120806133324.GD6150@dhcp22.suse.cz>
-References: <1343942658-13307-1-git-send-email-yinghan@google.com>
- <20120803152234.GE8434@dhcp22.suse.cz>
- <501BF952.7070202@redhat.com>
- <CALWz4iw6Q500k5qGWaubwLi-3V3qziPuQ98Et9Ay=LS0-PB0dQ@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
+	by kanga.kvack.org (Postfix) with SMTP id 48ACA6B0044
+	for <linux-mm@kvack.org>; Mon,  6 Aug 2012 09:37:46 -0400 (EDT)
+Received: by vbkv13 with SMTP id v13so3223060vbk.14
+        for <linux-mm@kvack.org>; Mon, 06 Aug 2012 06:37:45 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CALWz4iw6Q500k5qGWaubwLi-3V3qziPuQ98Et9Ay=LS0-PB0dQ@mail.gmail.com>
+In-Reply-To: <20120806132410.GA6150@dhcp22.suse.cz>
+References: <CAJd=RBC9HhKh5Q0-yXi3W0x3guXJPFz4BNsniyOFmp0TjBdFqg@mail.gmail.com>
+	<20120806132410.GA6150@dhcp22.suse.cz>
+Date: Mon, 6 Aug 2012 21:37:45 +0800
+Message-ID: <CAJd=RBCuvpG49JcTUY+qw-tTdH_vFLgOfJDE3sW97+M04TR+hg@mail.gmail.com>
+Subject: Re: [patch v2] hugetlb: correct page offset index for sharing pmd
+From: Hillf Danton <dhillf@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ying Han <yinghan@google.com>
-Cc: Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hillf Danton <dhillf@gmail.com>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Fri 03-08-12 09:34:11, Ying Han wrote:
-> On Fri, Aug 3, 2012 at 9:16 AM, Rik van Riel <riel@redhat.com> wrote:
-> > On 08/03/2012 11:22 AM, Michal Hocko wrote:
-> >>
-> >> On Thu 02-08-12 14:24:18, Ying Han wrote:
-> >> [...]
-> >>>
-> >>> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> >>> index 3e0d0cd..88487b3 100644
-> >>> --- a/mm/vmscan.c
-> >>> +++ b/mm/vmscan.c
-> >>> @@ -1866,7 +1866,22 @@ static void shrink_zone(struct zone *zone, struct
-> >>> scan_control *sc)
-> >>>         do {
-> >>>                 struct lruvec *lruvec = mem_cgroup_zone_lruvec(zone,
-> >>> memcg);
-> >>>
-> >>> -               shrink_lruvec(lruvec, sc);
-> >>> +               /*
-> >>> +                * Reclaim from mem_cgroup if any of these conditions are
-> >>> met:
-> >>> +                * - this is a targetted reclaim ( not global reclaim)
-> >>> +                * - reclaim priority is less than DEF_PRIORITY
-> >>> +                * - mem_cgroup or its ancestor ( not including root
-> >>> cgroup)
-> >>> +                * exceeds its soft limit
-> >>> +                *
-> >>> +                * Note: The priority check is a balance of how hard to
-> >>> +                * preserve the pages under softlimit. If the memcgs of
-> >>> the
-> >>> +                * zone having trouble to reclaim pages above their
-> >>> softlimit,
-> >>> +                * we have to reclaim under softlimit instead of burning
-> >>> more
-> >>> +                * cpu cycles.
-> >>> +                */
-> >>> +               if (!global_reclaim(sc) || sc->priority<  DEF_PRIORITY ||
-> >>> +                               mem_cgroup_over_soft_limit(memcg))
-> >>> +                       shrink_lruvec(lruvec, sc);
-> >>>
-> >>>                 /*
-> >>>                  * Limit reclaim has historically picked one memcg and
-> >>
-> >>
-> >> I am thinking that we could add a constant for the priority
-> >> limit. Something like
-> >> #define MEMCG_LOW_SOFTLIMIT_PRIORITY    DEF_PRIORITY
-> >>
-> >> Although it doesn't seem necessary at the moment, because there is just
-> >> one location where it matters but it could help in the future.
-> >> What do you think?
-> >
-> >
-> > I am working on changing the code to find the "highest priority"
-> > LRU and reclaim from that list first.  That will obviate the need
-> > for such a change. However, the other cleanups and simplifications
-> > made by Ying's patch are good to have...
-> 
-> So what you guys think to take from here. I can make the change as
-> Michal suggested if that would be something helpful future changes.
-> However, I wonder whether or not it is necessary.
+On Mon, Aug 6, 2012 at 9:24 PM, Michal Hocko <mhocko@suse.cz> wrote:
+> On Sat 04-08-12 14:08:31, Hillf Danton wrote:
+>> The computation of page offset index is incorrect to be used in scanning
+>> prio tree, as huge page offset is required, and is fixed with well
+>> defined routine.
+>>
+>> Changes from v1
+>>       o s/linear_page_index/linear_hugepage_index/ for clearer code
+>>       o hp_idx variable added for less change
+>>
+>>
+>> Signed-off-by: Hillf Danton <dhillf@gmail.com>
+>> ---
+>>
+>> --- a/arch/x86/mm/hugetlbpage.c       Fri Aug  3 20:34:58 2012
+>> +++ b/arch/x86/mm/hugetlbpage.c       Fri Aug  3 20:40:16 2012
+>> @@ -62,6 +62,7 @@ static void huge_pmd_share(struct mm_str
+>>  {
+>>       struct vm_area_struct *vma = find_vma(mm, addr);
+>>       struct address_space *mapping = vma->vm_file->f_mapping;
+>> +     pgoff_t hp_idx;
+>>       pgoff_t idx = ((addr - vma->vm_start) >> PAGE_SHIFT) +
+>>                       vma->vm_pgoff;
+>
+> So we have two indexes now. That is just plain ugly!
+>
 
-I am afraid we will not move forward without a proper implementation of
-the "nobody under soft limit" case. Maybe Rik's idea would just work out
-but this patch on it's own could regress so taking it separately is no
-go IMO. I like how it reduces the code size but we are not "there" yet...
+Two indexes result in less code change here and no change
+in page_table_shareable. Plus linear_hugepage_index tells
+clearly readers that hp_idx and idx are different.
 
-> 
-> --Ying
-> 
-> >
-> > --
-> > All rights reversed
+Anyway I have no strong opinion to keep
+page_table_shareable unchanged, but prefer less changes.
 
--- 
-Michal Hocko
-SUSE Labs
+Thanks,
+              Hillf
+
+>>       struct prio_tree_iter iter;
+>> @@ -72,8 +73,10 @@ static void huge_pmd_share(struct mm_str
+>>       if (!vma_shareable(vma, addr))
+>>               return;
+>>
+>> +     hp_idx = linear_hugepage_index(vma, addr);
+>> +
+>>       mutex_lock(&mapping->i_mmap_mutex);
+>> -     vma_prio_tree_foreach(svma, &iter, &mapping->i_mmap, idx, idx) {
+>> +     vma_prio_tree_foreach(svma, &iter, &mapping->i_mmap, hp_idx, hp_idx) {
+>>               if (svma == vma)
+>>                       continue;
+>>
+>> --
+>
+> --
+> Michal Hocko
+> SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
