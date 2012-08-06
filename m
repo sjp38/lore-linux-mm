@@ -1,60 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
-	by kanga.kvack.org (Postfix) with SMTP id 4C3A46B0044
-	for <linux-mm@kvack.org>; Mon,  6 Aug 2012 12:10:53 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
+	by kanga.kvack.org (Postfix) with SMTP id 8F7386B0044
+	for <linux-mm@kvack.org>; Mon,  6 Aug 2012 12:22:46 -0400 (EDT)
 MIME-Version: 1.0
-Message-ID: <ad942d93-489f-4bf4-96bc-8f65b1a23ea1@default>
-Date: Mon, 6 Aug 2012 09:10:26 -0700 (PDT)
+Message-ID: <be1daa96-d246-46de-a178-b14b3a862eca@default>
+Date: Mon, 6 Aug 2012 09:21:22 -0700 (PDT)
 From: Dan Magenheimer <dan.magenheimer@oracle.com>
-Subject: RE: [RFC/PATCH] zcache/ramster rewrite and promotion
-References: <c31aaed4-9d50-4cdf-b794-367fc5850483@default>
- <CAOJsxLEhW=b3En737d5751xufW2BLehPc2ZGGG1NEtRVSo3=jg@mail.gmail.com>
- <b9bee363-321e-409a-bc8e-65ffed8a1dc5@default>
- <CAOJsxLHe6egmMWdEAGj7DGHHX-hqYMhVWDggny9CsT0H-DOL-g@mail.gmail.com>
- <f54214e7-cee4-4cbf-aad1-6c1f91867879@default>
- <CAOJsxLHyPj6KrVkB5nj-9vFBXKmn5BN4ArN_7MDmTeVEG3N3Gw@mail.gmail.com>
-In-Reply-To: <CAOJsxLHyPj6KrVkB5nj-9vFBXKmn5BN4ArN_7MDmTeVEG3N3Gw@mail.gmail.com>
+Subject: RE: [PATCH 0/4] promote zcache from staging
+References: <1343413117-1989-1-git-send-email-sjenning@linux.vnet.ibm.com>
+ <b95aec06-5a10-4f83-bdfd-e7f6adabd9df@default>
+ <20120727205932.GA12650@localhost.localdomain>
+ <d4656ba5-d6d1-4c36-a6c8-f6ecd193b31d@default>
+ <5016DE4E.5050300@linux.vnet.ibm.com>
+ <f47a6d86-785f-498c-8ee5-0d2df1b2616c@default>
+ <20120731155843.GP4789@phenom.dumpdata.com> <20120731161916.GA4941@kroah.com>
+ <20120731175142.GE29533@phenom.dumpdata.com> <20120806003816.GA11375@bbox>
+ <041cb4ce-48ae-4600-9f11-d722bc03b9cc@default>
+ <CAOJsxLHDcgxxu146QWXw0ZhMHMhFOquEFXhF55HK2mCjHzk7hw@mail.gmail.com>
+In-Reply-To: <CAOJsxLHDcgxxu146QWXw0ZhMHMhFOquEFXhF55HK2mCjHzk7hw@mail.gmail.com>
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Pekka Enberg <penberg@kernel.org>
-Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>, Konrad Wilk <konrad.wilk@oracle.com>, Minchan Kim <minchan@kernel.org>, Nitin Gupta <ngupta@vflare.org>, Andrew Morton <akpm@linux-foundation.org>, Robert Jennings <rcj@linux.vnet.ibm.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, devel@driverdev.osuosl.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Minchan Kim <minchan@kernel.org>, Konrad Wilk <konrad.wilk@oracle.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, devel@driverdev.osuosl.org, Seth Jennings <sjenning@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Konrad Rzeszutek Wilk <konrad@darnok.org>, Andrew Morton <akpm@linux-foundation.org>, Robert Jennings <rcj@linux.vnet.ibm.com>, Nitin Gupta <ngupta@vflare.org>
 
 > From: Pekka Enberg [mailto:penberg@kernel.org]
-> Subject: Re: [RFC/PATCH] zcache/ramster rewrite and promotion
+> Subject: Re: [PATCH 0/4] promote zcache from staging
 >=20
-> On Mon, Aug 6, 2012 at 5:07 PM, Dan Magenheimer
+> On Mon, Aug 6, 2012 at 6:24 PM, Dan Magenheimer
 > <dan.magenheimer@oracle.com> wrote:
-> > I'm OK with placing it wherever kernel developers want to put
-> > it, as long as the reason is not NIMBY-ness. [1]  My preference
-> > is to keep all the parts together, at least for the review phase,
-> > but if there is a consensus that it belongs someplace else,
-> > I will be happy to move it.
+> > IMHO, the fastest way to get the best zcache into the kernel and
+> > to distros and users is to throw away the "demo" version, move forward
+> > to a new solid well-designed zcache code base, and work together to
+> > build on it.  There's still a lot to do so I hope we can work together.
 >=20
-> I'd go for core code in mm/zcache.c and mm/ramster.c, and move the
-> clustering code under net/ramster or drivers/ramster.
+> I'm not convinced it's the _fastest way_.
 
-Hi Pekka --
+<grin> I guess I meant "optimal", combining "fast" and "best".
 
-Thanks for the quick feedback!
+> You're effectively
+> invalidating all the work done under drivers/staging so you might end up
+> in review limbo with your shiny new code...
 
-Hmmm.. there's also zbud.c and tmem.c which are critical components
-of both zcache and ramster.  And there are header files as well which
-will need to either be in mm/ or somewhere in include/linux/
+Fixing the fundamental design flaws will sooner or later invalidate
+most (or all) of the previous testing/work anyway, won't it?  Since
+any kernel built with staging is "tainted" already, I feel like now
+is a better time to make a major design transition.
 
-Is there a reason or rule that mm/ can't have subdirectories?
+I suppose:
 
-Since zcache has at least three .c files plus ramster.c, and
-since mm/frontswap.c and mm/cleancache.c are the foundation on
-which all of these are built, I was thinking grouping all six
-(plus headers) in the same mm/tmem/ subdirectory was a good
-way to keep mm/ from continuing to get more cluttered... not counting
-new zcache and ramster files, there are now 74 .c files in mm/!
-(Personally, I think a directory has too many files in it if
-"ls" doesn't fit in a 25x80 window.)
+ (E) replace "demo" zcache with new code base and keep it
+     in staging for another cycle
 
-Thoughts?
+is another alternative, but I think gregkh has said no to that.
+
 Dan
 
 --
