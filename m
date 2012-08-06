@@ -1,167 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
-	by kanga.kvack.org (Postfix) with SMTP id 5B79A6B0044
-	for <linux-mm@kvack.org>; Mon,  6 Aug 2012 02:38:12 -0400 (EDT)
-Received: by ggnp1 with SMTP id p1so2109450ggn.4
-        for <linux-mm@kvack.org>; Sun, 05 Aug 2012 23:38:11 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <CAF6AEGs2evpga=h1+0L0sz+vG1czHff83z13WxdBv+xvcxQKxw@mail.gmail.com>
-References: <1342715014-5316-1-git-send-email-rob.clark@linaro.org>
- <1342715014-5316-3-git-send-email-rob.clark@linaro.org> <CAF6AEGs2evpga=h1+0L0sz+vG1czHff83z13WxdBv+xvcxQKxw@mail.gmail.com>
-From: "Semwal, Sumit" <sumit.semwal@ti.com>
-Date: Mon, 6 Aug 2012 12:07:50 +0530
-Message-ID: <CAB2ybb-jWWgxNMwRBCOA5W4=y4Q9U-xQHeu+CtNp-eRteA4jxQ@mail.gmail.com>
-Subject: Re: [PATCH 2/2] dma-buf: add helpers for attacher dma-parms
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from psmtp.com (na3sys010amx127.postini.com [74.125.245.127])
+	by kanga.kvack.org (Postfix) with SMTP id 02F106B0044
+	for <linux-mm@kvack.org>; Mon,  6 Aug 2012 05:23:24 -0400 (EDT)
+From: Lai Jiangshan <laijs@cn.fujitsu.com>
+Subject: [RFC V3 PATCH 01/25] page_alloc.c: don't subtract unrelated memmap from zone's present pages
+Date: Mon, 6 Aug 2012 17:22:55 +0800
+Message-Id: <1344244999-5081-2-git-send-email-laijs@cn.fujitsu.com>
+In-Reply-To: <1344244999-5081-1-git-send-email-laijs@cn.fujitsu.com>
+References: <1343887288-8866-1-git-send-email-laijs@cn.fujitsu.com>
+ <1344244999-5081-1-git-send-email-laijs@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rob Clark <rob.clark@linaro.org>
-Cc: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, dri-devel@lists.freedesktop.org, linux-media@vger.kernel.org, patches@linaro.org, linux@arm.linux.org.uk, arnd@arndb.de, jesse.barker@linaro.org, m.szyprowski@samsung.com, daniel@ffwll.ch, t.stanislaws@samsung.com, maarten.lankhorst@canonical.com, Rob Clark <rob@ti.com>
+To: Mel Gorman <mel@csn.ul.ie>, linux-kernel@vger.kernel.org
+Cc: Lai Jiangshan <laijs@cn.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org
 
-On Fri, Jul 20, 2012 at 10:09 PM, Rob Clark <rob.clark@linaro.org> wrote:
-> Fyi, Daniel Vetter had suggested on IRC that it would be cleaner to
-> have a single helper fxn that most-restrictive union of all attached
-> device's dma_parms.  Really this should include dma_mask and
-> coherent_dma_mask, I think.  But that touches a lot of other places in
-> the code.  If no one objects to the cleanup of moving
-> dma_mask/coherent_dma_mask into dma_parms, I'll do this first.
->
-> So anyways, don't consider this patch yet for inclusion, I'll make an
-> updated one based on dma_parms..
-Hi Rob,
-Any news on this patch-set?
->
-> BR,
-> -R
-BR,
-~Sumit.
->
-> On Thu, Jul 19, 2012 at 11:23 AM, Rob Clark <rob.clark@linaro.org> wrote:
->> From: Rob Clark <rob@ti.com>
->>
->> Add some helpers to iterate through all attachers and get the most
->> restrictive segment size/count/boundary.
->>
->> Signed-off-by: Rob Clark <rob@ti.com>
->> ---
->>  drivers/base/dma-buf.c  |   63 +++++++++++++++++++++++++++++++++++++++++++++++
->>  include/linux/dma-buf.h |   19 ++++++++++++++
->>  2 files changed, 82 insertions(+)
->>
->> diff --git a/drivers/base/dma-buf.c b/drivers/base/dma-buf.c
->> index 24e88fe..757ee20 100644
->> --- a/drivers/base/dma-buf.c
->> +++ b/drivers/base/dma-buf.c
->> @@ -192,6 +192,69 @@ void dma_buf_put(struct dma_buf *dmabuf)
->>  EXPORT_SYMBOL_GPL(dma_buf_put);
->>
->>  /**
->> + * dma_buf_max_seg_size - helper for exporters to get the minimum of
->> + * all attached device's max segment size
->> + */
->> +unsigned int dma_buf_max_seg_size(struct dma_buf *dmabuf)
->> +{
->> +       struct dma_buf_attachment *attach;
->> +       unsigned int max = (unsigned int)-1;
->> +
->> +       if (WARN_ON(!dmabuf))
->> +               return 0;
->> +
->> +       mutex_lock(&dmabuf->lock);
->> +       list_for_each_entry(attach, &dmabuf->attachments, node)
->> +               max = min(max, dma_get_max_seg_size(attach->dev));
->> +       mutex_unlock(&dmabuf->lock);
->> +
->> +       return max;
->> +}
->> +EXPORT_SYMBOL_GPL(dma_buf_max_seg_size);
->> +
->> +/**
->> + * dma_buf_max_seg_count - helper for exporters to get the minimum of
->> + * all attached device's max segment count
->> + */
->> +unsigned int dma_buf_max_seg_count(struct dma_buf *dmabuf)
->> +{
->> +       struct dma_buf_attachment *attach;
->> +       unsigned int max = (unsigned int)-1;
->> +
->> +       if (WARN_ON(!dmabuf))
->> +               return 0;
->> +
->> +       mutex_lock(&dmabuf->lock);
->> +       list_for_each_entry(attach, &dmabuf->attachments, node)
->> +               max = min(max, dma_get_max_seg_count(attach->dev));
->> +       mutex_unlock(&dmabuf->lock);
->> +
->> +       return max;
->> +}
->> +EXPORT_SYMBOL_GPL(dma_buf_max_seg_count);
->> +
->> +/**
->> + * dma_buf_get_seg_boundary - helper for exporters to get the most
->> + * restrictive segment alignment of all the attached devices
->> + */
->> +unsigned int dma_buf_get_seg_boundary(struct dma_buf *dmabuf)
->> +{
->> +       struct dma_buf_attachment *attach;
->> +       unsigned int mask = (unsigned int)-1;
->> +
->> +       if (WARN_ON(!dmabuf))
->> +               return 0;
->> +
->> +       mutex_lock(&dmabuf->lock);
->> +       list_for_each_entry(attach, &dmabuf->attachments, node)
->> +               mask &= dma_get_seg_boundary(attach->dev);
->> +       mutex_unlock(&dmabuf->lock);
->> +
->> +       return mask;
->> +}
->> +EXPORT_SYMBOL_GPL(dma_buf_get_seg_boundary);
->> +
->> +/**
->>   * dma_buf_attach - Add the device to dma_buf's attachments list; optionally,
->>   * calls attach() of dma_buf_ops to allow device-specific attach functionality
->>   * @dmabuf:    [in]    buffer to attach device to.
->> diff --git a/include/linux/dma-buf.h b/include/linux/dma-buf.h
->> index eb48f38..9533b9b 100644
->> --- a/include/linux/dma-buf.h
->> +++ b/include/linux/dma-buf.h
->> @@ -167,6 +167,10 @@ int dma_buf_fd(struct dma_buf *dmabuf, int flags);
->>  struct dma_buf *dma_buf_get(int fd);
->>  void dma_buf_put(struct dma_buf *dmabuf);
->>
->> +unsigned int dma_buf_max_seg_size(struct dma_buf *dmabuf);
->> +unsigned int dma_buf_max_seg_count(struct dma_buf *dmabuf);
->> +unsigned int dma_buf_get_seg_boundary(struct dma_buf *dmabuf);
->> +
->>  struct sg_table *dma_buf_map_attachment(struct dma_buf_attachment *,
->>                                         enum dma_data_direction);
->>  void dma_buf_unmap_attachment(struct dma_buf_attachment *, struct sg_table *,
->> @@ -220,6 +224,21 @@ static inline void dma_buf_put(struct dma_buf *dmabuf)
->>         return;
->>  }
->>
->> +static inline unsigned int dma_buf_max_seg_size(struct dma_buf *dmabuf)
->> +{
->> +       return 0;
->> +}
->> +
->> +static inline unsigned int dma_buf_max_seg_count(struct dma_buf *dmabuf)
->> +{
->> +       return 0;
->> +}
->> +
->> +static inline unsigned int dma_buf_get_seg_boundary(struct dma_buf *dmabuf)
->> +{
->> +       return 0;
->> +}
->> +
->>  static inline struct sg_table *dma_buf_map_attachment(
->>         struct dma_buf_attachment *attach, enum dma_data_direction write)
->>  {
->> --
->> 1.7.9.5
->>
+A)======
+Currently, memory-page-map(struct page array) is not defined in struct zone.
+It is defined in several ways:
+
+FLATMEM: global memmap, can be allocated from any zone <= ZONE_NORMAL
+CONFIG_DISCONTIGMEM: node-specific memmap, can be allocated from any
+		     zone <= ZONE_NORMAL within that node.
+CONFIG_SPARSEMEM: memorysection-specific memmap, can be allocated from any zone,
+		  when CONFIG_SPARSEMEM_VMEMMAP, it is even not physical continuous.
+
+So, the memmap has nothing directly related with the zone. And it's memory can be
+allocated outside, so it is wrong to subtract memmap's size from zone's
+present pages.
+
+B)======
+When system has large holes, the subtracted-present-pages-size will become
+very small or negative, make the memory management works bad at the zone or
+make the zone unusable even the real-present-pages-size is actually large.
+
+C)======
+And subtracted-present-pages-size has problem when memory-hot-removing,
+the zone->zone->present_pages may overflow and become huge(unsigned long).
+
+D)======
+memory-page-map is large and long living unreclaimable memory, it is good to
+subtract them for proper watermark.
+So a new proper approach is needed to do it similarly
+and new approach should also handle other long living unreclaimable memory.
+
+Current blindly subtracted-present-pages-size approach does wrong, remove it.
+
+Signed-off-by: Lai Jiangshan <laijs@cn.fujitsu.com>
+---
+ mm/page_alloc.c |   20 +-------------------
+ 1 files changed, 1 insertions(+), 19 deletions(-)
+
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 4a4f921..9312702 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -4357,30 +4357,12 @@ static void __paginginit free_area_init_core(struct pglist_data *pgdat,
+ 
+ 	for (j = 0; j < MAX_NR_ZONES; j++) {
+ 		struct zone *zone = pgdat->node_zones + j;
+-		unsigned long size, realsize, memmap_pages;
++		unsigned long size, realsize;
+ 
+ 		size = zone_spanned_pages_in_node(nid, j, zones_size);
+ 		realsize = size - zone_absent_pages_in_node(nid, j,
+ 								zholes_size);
+ 
+-		/*
+-		 * Adjust realsize so that it accounts for how much memory
+-		 * is used by this zone for memmap. This affects the watermark
+-		 * and per-cpu initialisations
+-		 */
+-		memmap_pages =
+-			PAGE_ALIGN(size * sizeof(struct page)) >> PAGE_SHIFT;
+-		if (realsize >= memmap_pages) {
+-			realsize -= memmap_pages;
+-			if (memmap_pages)
+-				printk(KERN_DEBUG
+-				       "  %s zone: %lu pages used for memmap\n",
+-				       zone_names[j], memmap_pages);
+-		} else
+-			printk(KERN_WARNING
+-				"  %s zone: %lu pages exceeds realsize %lu\n",
+-				zone_names[j], memmap_pages, realsize);
+-
+ 		/* Account for reserved pages */
+ 		if (j == 0 && realsize > dma_reserve) {
+ 			realsize -= dma_reserve;
+-- 
+1.7.4.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
