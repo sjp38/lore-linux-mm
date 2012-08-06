@@ -1,122 +1,153 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
-	by kanga.kvack.org (Postfix) with SMTP id 521D46B0044
-	for <linux-mm@kvack.org>; Mon,  6 Aug 2012 11:11:19 -0400 (EDT)
-Date: Mon, 6 Aug 2012 17:11:16 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH V7 2/2] mm: memcg detect no memcgs above softlimit under
- zone reclaim
-Message-ID: <20120806151115.GA4850@dhcp22.suse.cz>
-References: <1343687538-24284-1-git-send-email-yinghan@google.com>
- <20120731155932.GB16924@tiehlicka.suse.cz>
- <CALWz4iwnrXFSoqmPUsXfUMzgxz5bmBrRNU5Nisd=g2mjmu-u3Q@mail.gmail.com>
- <20120731200205.GA19524@tiehlicka.suse.cz>
- <CALWz4ixF8PzhDs2fuOMTrrRiBHkg+aMzaVOBhuUN78UenzmYbw@mail.gmail.com>
- <20120801084553.GD4436@tiehlicka.suse.cz>
- <CALWz4iwzJp8EwSeP6ap7_adW6sF8YR940sky6vJS3SD8FO6HkA@mail.gmail.com>
- <50198D38.1000905@redhat.com>
- <20120806140354.GE6150@dhcp22.suse.cz>
- <501FD44D.40205@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <501FD44D.40205@redhat.com>
+Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
+	by kanga.kvack.org (Postfix) with SMTP id 004F26B0044
+	for <linux-mm@kvack.org>; Mon,  6 Aug 2012 11:14:58 -0400 (EDT)
+Message-ID: <1344266096.2486.17.camel@lorien2>
+Subject: [PATCH RESEND] mm: Restructure kmem_cache_create() to move debug
+ cache integrity checks into a new function
+From: Shuah Khan <shuah.khan@hp.com>
+Reply-To: shuah.khan@hp.com
+Date: Mon, 06 Aug 2012 09:14:56 -0600
+In-Reply-To: <1344224494.3053.5.camel@lorien2>
+References: <1342221125.17464.8.camel@lorien2>
+	 <CAOJsxLGjnMxs9qERG5nCfGfcS3jy6Rr54Ac36WgVnOtP_pDYgQ@mail.gmail.com>
+	 <1344224494.3053.5.camel@lorien2>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 7bit
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Ying Han <yinghan@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hillf Danton <dhillf@gmail.com>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+To: Pekka Enberg <penberg@kernel.org>
+Cc: cl@linux.com, glommer@parallels.com, js1304@gmail.com, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, David Rientjes <rientjes@google.com>, shuahkhan@gmail.com
 
-On Mon 06-08-12 10:27:25, Rik van Riel wrote:
-> On 08/06/2012 10:03 AM, Michal Hocko wrote:
-> >On Wed 01-08-12 16:10:32, Rik van Riel wrote:
-> >>On 08/01/2012 03:04 PM, Ying Han wrote:
-> >>
-> >>>That is true. Hmm, then two things i can do:
-> >>>
-> >>>1. for kswapd case, make sure not counting the root cgroup
-> >>>2. or check nr_scanned. I like the nr_scanned which is telling us
-> >>>whether or not the reclaim ever make any attempt ?
-> >>
-> >>I am looking at a more advanced case of (3) right
-> >>now.  Once I have the basics working, I will send
-> >>you a prototype (that applies on top of your patches)
-> >>to play with.
-> >>
-> >>Basically, for every LRU in the system, we can keep
-> >>track of 4 things:
-> >>- reclaim_stat->recent_scanned
-> >>- reclaim_stat->recent_rotated
-> >>- reclaim_stat->recent_pressure
-> >>- LRU size
-> >>
-> >>The first two represent the fraction of pages on the
-> >>list that are actively used.  The larger the fraction
-> >>of recently used pages, the more valuable the cache
-> >>is. The inverse of that can be used to show us how
-> >>hard to reclaim this cache, compared to other caches
-> >>(everything else being equal).
-> >>
-> >>The recent pressure can be used to keep track of how
-> >>many pages we have scanned on each LRU list recently.
-> >>Pressure is scaled with LRU size.
-> >>
-> >>This would be the basic formula to decide which LRU
-> >>to reclaim from:
-> >>
-> >>           recent_scanned   LRU size
-> >>score =   -------------- * ----------------
-> >>           recent_rotated   recent_pressure
-> >>
-> >>
-> >>In other words, the less the objects on an LRU are
-> >>used, the more we should reclaim from that LRU. The
-> >>larger an LRU is, the more we should reclaim from
-> >>that LRU.
-> >
-> >The formula makes sense but I am afraid that it will be hard to tune it
-> >into something that wouldn't regress. For example I have seen workloads
-> >which had many small groups which are used to wrap up backup jobs and
-> >those are scanned a lot, you would see also many rotations because of
-> >the writeback but those are definitely good to scan rather than a large
-> >group which needs to keep its data resident.
-> 
-> Writeback rotations are not counted in
-> lruvec->reclaim_stat->recent_rotated - only the rotations
-> that were done because we really want to keep the page are
-> counted.
+kmem_cache_create() does cache integrity checks when CONFIG_DEBUG_VM
+is defined. These checks interspersed with the regular code path has
+lead to compile time warnings when compiled without CONFIG_DEBUG_VM
+defined. Restructuring the code to move the integrity checks in to a new
+function would eliminate the current compile warning problem and also
+will allow for future changes to the debug only code to evolve without
+introducing new warnings in the regular path. This restructuring work
+is based on the discussion in the following thread:
 
-OK. I missed that.
+https://lkml.org/lkml/2012/7/13/424
 
-> >Anyway, I am not saying the score approach is a bad idea but I am afraid
-> >it will be hard to validate and make it right.
-> 
-> One thing about the recent_scanned / recent_rotated metric is
-> that we have been using it since 2.6.28, to balance between
-> scanning the file and anonymous LRUs.
-> 
-> I believe it would help us balance between multiple sets of
-> LRUs, too.
-> 
-> >>The more we have already scanned an LRU, the lower
-> >>its score becomes. At some point, another LRU will
-> >>have the top score, and that will be the target to
-> >>scan.
-> >
-> >So you think we shouldn't do the full round over memcgs in shrink_zone a
-> >and rather do it oom way to pick up a victim and hammer it?
-> 
-> Not hammer it too far.  Only until its score ends up well
-> below (25% lower?) than that of the second highest scoring
-> list.
-> 
-> That way all the lists get hammered a little bit, in turn.
+Signed-off-by: Shuah Khan <shuah.khan@hp.com>
+---
+ mm/slab_common.c |   74 ++++++++++++++++++++++++++++--------------------------
+ 1 file changed, 38 insertions(+), 36 deletions(-)
 
-How do we provide the soft limit guarantee then?
-
-[...]
+diff --git a/mm/slab_common.c b/mm/slab_common.c
+index 12637ce..08bc2a4 100644
+--- a/mm/slab_common.c
++++ b/mm/slab_common.c
+@@ -23,6 +23,41 @@ enum slab_state slab_state;
+ LIST_HEAD(slab_caches);
+ DEFINE_MUTEX(slab_mutex);
+ 
++static int kmem_cache_sanity_check(const char *name, size_t size)
++{
++#ifdef CONFIG_DEBUG_VM
++	struct kmem_cache *s = NULL;
++
++	list_for_each_entry(s, &slab_caches, list) {
++		char tmp;
++		int res;
++
++		/*
++		 * This happens when the module gets unloaded and doesn't
++		 * destroy its slab cache and no-one else reuses the vmalloc
++		 * area of the module.  Print a warning.
++		 */
++		res = probe_kernel_address(s->name, tmp);
++		if (res) {
++			pr_err("Slab cache with size %d has lost its name\n",
++			       s->object_size);
++			continue;
++		}
++
++		if (!strcmp(s->name, name)) {
++			pr_err("%s (%s): Cache name already exists.\n",
++			       __func__, name);
++			dump_stack();
++			s = NULL;
++			return -EINVAL;
++		}
++	}
++
++	WARN_ON(strchr(name, ' '));	/* It confuses parsers */
++#endif
++	return 0;
++}
++
+ /*
+  * kmem_cache_create - Create a cache.
+  * @name: A string which is used in /proc/slabinfo to identify this cache.
+@@ -53,48 +88,17 @@ struct kmem_cache *kmem_cache_create(const char *name, size_t size, size_t align
+ {
+ 	struct kmem_cache *s = NULL;
+ 
+-#ifdef CONFIG_DEBUG_VM
+ 	if (!name || in_interrupt() || size < sizeof(void *) ||
+ 		size > KMALLOC_MAX_SIZE) {
+-		printk(KERN_ERR "kmem_cache_create(%s) integrity check"
+-			" failed\n", name);
++		pr_err("kmem_cache_create(%s) integrity check failed\n", name);
+ 		goto out;
+ 	}
+-#endif
+ 
+ 	get_online_cpus();
+ 	mutex_lock(&slab_mutex);
+ 
+-#ifdef CONFIG_DEBUG_VM
+-	list_for_each_entry(s, &slab_caches, list) {
+-		char tmp;
+-		int res;
+-
+-		/*
+-		 * This happens when the module gets unloaded and doesn't
+-		 * destroy its slab cache and no-one else reuses the vmalloc
+-		 * area of the module.  Print a warning.
+-		 */
+-		res = probe_kernel_address(s->name, tmp);
+-		if (res) {
+-			printk(KERN_ERR
+-			       "Slab cache with size %d has lost its name\n",
+-			       s->object_size);
+-			continue;
+-		}
+-
+-		if (!strcmp(s->name, name)) {
+-			printk(KERN_ERR "kmem_cache_create(%s): Cache name"
+-				" already exists.\n",
+-				name);
+-			dump_stack();
+-			s = NULL;
+-			goto oops;
+-		}
+-	}
+-
+-	WARN_ON(strchr(name, ' '));	/* It confuses parsers */
+-#endif
++	if (kmem_cache_sanity_check(name, size))
++		goto oops;
+ 
+ 	s = __kmem_cache_create(name, size, align, flags, ctor);
+ 
+@@ -102,9 +106,7 @@ oops:
+ 	mutex_unlock(&slab_mutex);
+ 	put_online_cpus();
+ 
+-#ifdef CONFIG_DEBUG_VM
+ out:
+-#endif
+ 	if (!s && (flags & SLAB_PANIC))
+ 		panic("kmem_cache_create: Failed to create slab '%s'\n", name);
+ 
 -- 
-Michal Hocko
-SUSE Labs
+1.7.9.5
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
