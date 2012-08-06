@@ -1,64 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx110.postini.com [74.125.245.110])
-	by kanga.kvack.org (Postfix) with SMTP id 917C56B0044
-	for <linux-mm@kvack.org>; Mon,  6 Aug 2012 10:07:50 -0400 (EDT)
-MIME-Version: 1.0
-Message-ID: <f54214e7-cee4-4cbf-aad1-6c1f91867879@default>
-Date: Mon, 6 Aug 2012 07:07:23 -0700 (PDT)
-From: Dan Magenheimer <dan.magenheimer@oracle.com>
-Subject: RE: [RFC/PATCH] zcache/ramster rewrite and promotion
-References: <c31aaed4-9d50-4cdf-b794-367fc5850483@default>
- <CAOJsxLEhW=b3En737d5751xufW2BLehPc2ZGGG1NEtRVSo3=jg@mail.gmail.com>
- <b9bee363-321e-409a-bc8e-65ffed8a1dc5@default>
- <CAOJsxLHe6egmMWdEAGj7DGHHX-hqYMhVWDggny9CsT0H-DOL-g@mail.gmail.com>
-In-Reply-To: <CAOJsxLHe6egmMWdEAGj7DGHHX-hqYMhVWDggny9CsT0H-DOL-g@mail.gmail.com>
-Content-Type: text/plain; charset=us-ascii
+Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
+	by kanga.kvack.org (Postfix) with SMTP id 588926B0044
+	for <linux-mm@kvack.org>; Mon,  6 Aug 2012 10:18:00 -0400 (EDT)
+Message-ID: <1344262669.27828.55.camel@twins>
+Subject: Re: [PATCH v2 8/9] rbtree: faster augmented rbtree manipulation
+From: Peter Zijlstra <peterz@infradead.org>
+Date: Mon, 06 Aug 2012 16:17:49 +0200
+In-Reply-To: <1343946858-8170-9-git-send-email-walken@google.com>
+References: <1343946858-8170-1-git-send-email-walken@google.com>
+	 <1343946858-8170-9-git-send-email-walken@google.com>
+Content-Type: text/plain; charset="ISO-8859-1"
 Content-Transfer-Encoding: quoted-printable
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pekka Enberg <penberg@kernel.org>
-Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>, Konrad Wilk <konrad.wilk@oracle.com>, Minchan Kim <minchan@kernel.org>, Nitin Gupta <ngupta@vflare.org>, Andrew Morton <akpm@linux-foundation.org>, Robert Jennings <rcj@linux.vnet.ibm.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, devel@driverdev.osuosl.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Michel Lespinasse <walken@google.com>
+Cc: riel@redhat.com, daniel.santos@pobox.com, aarcange@redhat.com, dwmw2@infradead.org, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, torvalds@linux-foundation.org
 
-> From: Pekka Enberg [mailto:penberg@kernel.org]
-> Subject: Re: [RFC/PATCH] zcache/ramster rewrite and promotion
->=20
-> Hi Dan,
->=20
-> On Wed, Aug 1, 2012 at 12:13 AM, Dan Magenheimer
-> <dan.magenheimer@oracle.com> wrote:
-> > Ramster does the same thing but manages it peer-to-peer across
-> > multiple systems using kernel sockets.  One could argue that
-> > the dependency on sockets makes it more of a driver than "mm"
-> > but ramster is "memory management" too, just a bit more exotic.
->=20
-> How do you configure it?
+On Thu, 2012-08-02 at 15:34 -0700, Michel Lespinasse wrote:
+> +static void augment_propagate(struct rb_node *rb, struct rb_node *stop)
+> +{
+> +       while (rb !=3D stop) {
+> +               struct interval_tree_node *node =3D
+> +                       rb_entry(rb, struct interval_tree_node, rb);
+> +               unsigned long subtree_last =3D compute_subtree_last(node)=
+;
+> +               if (node->__subtree_last =3D=3D subtree_last)
+> +                       break;
+> +               node->__subtree_last =3D subtree_last;
+> +               rb =3D rb_parent(&node->rb);
+> +       }
+> +}
+> +
+> +static void augment_copy(struct rb_node *rb_old, struct rb_node *rb_new)
+> +{
+> +       struct interval_tree_node *old =3D
+> +               rb_entry(rb_old, struct interval_tree_node, rb);
+> +       struct interval_tree_node *new =3D
+> +               rb_entry(rb_new, struct interval_tree_node, rb);
+> +
+> +       new->__subtree_last =3D old->__subtree_last;
+> +}
+> +
+> +static void augment_rotate(struct rb_node *rb_old, struct rb_node *rb_ne=
+w)
+> +{
+> +       struct interval_tree_node *old =3D
+> +               rb_entry(rb_old, struct interval_tree_node, rb);
+> +       struct interval_tree_node *new =3D
+> +               rb_entry(rb_new, struct interval_tree_node, rb);
+> +
+> +       new->__subtree_last =3D old->__subtree_last;
+> +       old->__subtree_last =3D compute_subtree_last(old);
+> +}=20
 
-Hi Pekka --
+I still don't get why we need the 3 callbacks when both propagate and
+rotate are simple variants of the original callback
+(compute_subtree_last, in this instance).
 
-It looks like the build/configuration how-to at
-https://oss.oracle.com/projects/tmem/dist/files/RAMster/HOWTO-v5-120214=20
-is out-of-date and I need to fix some things in it.  I'll post
-a link to it after I update it.
-
-> Can we move parts of the network protocol under
-> net/ramster or something?
-
-Ramster is built on top of kernel sockets.  Both that networking
-part and the configuration part of the ramster code are heavily
-leveraged from ocfs2 and I suspect there is a lot of similarity
-to gfs code as well.  In the code for both of those filesystems
-I think the network and configuration code lives in the same
-directory with the file system, so that was the model I was following.
-
-I'm OK with placing it wherever kernel developers want to put
-it, as long as the reason is not NIMBY-ness. [1]  My preference
-is to keep all the parts together, at least for the review phase,
-but if there is a consensus that it belongs someplace else,
-I will be happy to move it.
-
-Dan
-
-[1] http://en.wikipedia.org/wiki/NIMBY
+Why would every user need to replicate the propagate and rotate
+boilerplate?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
