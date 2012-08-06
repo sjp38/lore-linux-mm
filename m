@@ -1,189 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
-	by kanga.kvack.org (Postfix) with SMTP id 8DD7B6B0074
-	for <linux-mm@kvack.org>; Mon,  6 Aug 2012 17:21:55 -0400 (EDT)
-Received: by pbbjt11 with SMTP id jt11so3116623pbb.14
-        for <linux-mm@kvack.org>; Mon, 06 Aug 2012 14:21:54 -0700 (PDT)
-Date: Mon, 6 Aug 2012 14:21:51 -0700
-From: Michel Lespinasse <walken@google.com>
-Subject: Re: [PATCH v2 6/9] rbtree: low level optimizations in rb_erase()
-Message-ID: <20120806212151.GA26876@google.com>
-References: <1343946858-8170-1-git-send-email-walken@google.com>
- <1343946858-8170-7-git-send-email-walken@google.com>
- <1344262863.27828.56.camel@twins>
- <CANN689Gcca_Xr8GQSjJads8psz3PZpya+s8aWTt_goVt0+O4YA@mail.gmail.com>
- <1344286699.27828.115.camel@twins>
- <CANN689GZDxCkz-01qnZYENWDJhezFf1f-Xgx0NoaxPf64Cz_GQ@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
+	by kanga.kvack.org (Postfix) with SMTP id 5FD836B0069
+	for <linux-mm@kvack.org>; Mon,  6 Aug 2012 17:34:28 -0400 (EDT)
+Received: by ggnf4 with SMTP id f4so925028ggn.14
+        for <linux-mm@kvack.org>; Mon, 06 Aug 2012 14:34:27 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CANN689GZDxCkz-01qnZYENWDJhezFf1f-Xgx0NoaxPf64Cz_GQ@mail.gmail.com>
+In-Reply-To: <1344263140.27828.59.camel@twins>
+References: <1343946858-8170-1-git-send-email-walken@google.com>
+	<1343946858-8170-9-git-send-email-walken@google.com>
+	<1344263140.27828.59.camel@twins>
+Date: Mon, 6 Aug 2012 14:34:26 -0700
+Message-ID: <CANN689GbB5Rj3FmgP_RWj5EJVxJKBZS1WavZCKg0tuYR4vMZpg@mail.gmail.com>
+Subject: Re: [PATCH v2 8/9] rbtree: faster augmented rbtree manipulation
+From: Michel Lespinasse <walken@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Peter Zijlstra <peterz@infradead.org>
 Cc: riel@redhat.com, daniel.santos@pobox.com, aarcange@redhat.com, dwmw2@infradead.org, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, torvalds@linux-foundation.org
 
-Various minor optimizations in rb_erase():
-- Avoid multiple loading of node->__rb_parent_color when computing parent
-  and color information (possibly not in close sequence, as there might
-  be further branches in the algorithm)
-- In the 1-child subcase of case 1, copy the __rb_parent_color field from
-  the erased node to the child instead of recomputing it from the desired
-  parent and color
-- When searching for the erased node's successor, differentiate between
-  cases 2 and 3 based on whether any left links were followed. This avoids
-  a condition later down.
-- In case 3, keep a pointer to the erased node's right child so we don't
-  have to refetch it later to adjust its parent.
-- In the no-childs subcase of cases 2 and 3, place the rebalance assigment
-  last so that the compiler can remove the following if(rebalance) test.
+On Mon, Aug 6, 2012 at 7:25 AM, Peter Zijlstra <peterz@infradead.org> wrote:
+> On Thu, 2012-08-02 at 15:34 -0700, Michel Lespinasse wrote:
+>> +struct rb_augment_callbacks {
+>> +       void (*propagate)(struct rb_node *node, struct rb_node *stop);
+>> +       void (*copy)(struct rb_node *old, struct rb_node *new);
+>> +       void (*rotate)(struct rb_node *old, struct rb_node *new);
+>> +};
+>
+> Should we make that const pointers? Daniel?
 
-Also, added some comments to illustrate cases 2 and 3.
+I don't think it would hurt, but note that each function taking this
+as an argument takes it as a const struct rb_augment_callbacks *, so I
+doubt the extra consts would help either.
 
-Signed-off-by: Michel Lespinasse <walken@google.com>
----
- lib/rbtree.c |   98 ++++++++++++++++++++++++++++++++++++++--------------------
- 1 files changed, 64 insertions(+), 34 deletions(-)
-
-diff --git a/lib/rbtree.c b/lib/rbtree.c
-index 80b0925..938061e 100644
---- a/lib/rbtree.c
-+++ b/lib/rbtree.c
-@@ -47,9 +47,14 @@
- #define	RB_RED		0
- #define	RB_BLACK	1
- 
--#define rb_color(r)   ((r)->__rb_parent_color & 1)
--#define rb_is_red(r)   (!rb_color(r))
--#define rb_is_black(r) rb_color(r)
-+#define __rb_parent(pc)    ((struct rb_node *)(pc & ~3))
-+
-+#define __rb_color(pc)     ((pc) & 1)
-+#define __rb_is_black(pc)  __rb_color(pc)
-+#define __rb_is_red(pc)    (!__rb_color(pc))
-+#define rb_color(rb)       __rb_color((rb)->__rb_parent_color)
-+#define rb_is_red(rb)      __rb_is_red((rb)->__rb_parent_color)
-+#define rb_is_black(rb)    __rb_is_black((rb)->__rb_parent_color)
- 
- static inline void rb_set_black(struct rb_node *rb)
- {
-@@ -378,6 +383,7 @@ void rb_erase(struct rb_node *node, struct rb_root *root)
- {
- 	struct rb_node *child = node->rb_right, *tmp = node->rb_left;
- 	struct rb_node *parent, *rebalance;
-+	unsigned long pc;
- 
- 	if (!tmp) {
- 		/*
-@@ -387,51 +393,75 @@ void rb_erase(struct rb_node *node, struct rb_root *root)
- 		 * and node must be black due to 4). We adjust colors locally
- 		 * so as to bypass __rb_erase_color() later on.
- 		 */
--
--		parent = rb_parent(node);
-+		pc = node->__rb_parent_color;
-+		parent = __rb_parent(pc);
- 		__rb_change_child(node, child, parent, root);
- 		if (child) {
--			rb_set_parent_color(child, parent, RB_BLACK);
-+			child->__rb_parent_color = pc;
- 			rebalance = NULL;
--		} else {
--			rebalance = rb_is_black(node) ? parent : NULL;
--		}
-+		} else
-+			rebalance = __rb_is_black(pc) ? parent : NULL;
- 	} else if (!child) {
- 		/* Still case 1, but this time the child is node->rb_left */
--		parent = rb_parent(node);
-+		tmp->__rb_parent_color = pc = node->__rb_parent_color;
-+		parent = __rb_parent(pc);
- 		__rb_change_child(node, tmp, parent, root);
--		rb_set_parent_color(tmp, parent, RB_BLACK);
- 		rebalance = NULL;
- 	} else {
--		struct rb_node *old = node, *left;
--
--		node = child;
--		while ((left = node->rb_left) != NULL)
--			node = left;
--
--		__rb_change_child(old, node, rb_parent(old), root);
--
--		child = node->rb_right;
--		parent = rb_parent(node);
--
--		if (parent == old) {
--			parent = node;
-+		struct rb_node *successor = child, *child2;
-+		tmp = child->rb_left;
-+		if (!tmp) {
-+			/*
-+			 * Case 2: node's successor is its right child
-+			 *
-+			 *    (n)          (s)
-+			 *    / \          / \
-+			 *  (x) (s)  ->  (x) (c)
-+			 *        \
-+			 *        (c)
-+			 */
-+			parent = child;
-+			child2 = child->rb_right;
- 		} else {
--			parent->rb_left = child;
--
--			node->rb_right = old->rb_right;
--			rb_set_parent(old->rb_right, node);
-+			/*
-+			 * Case 3: node's successor is leftmost under
-+			 * node's right child subtree
-+			 *
-+			 *    (n)          (s)
-+			 *    / \          / \
-+			 *  (x) (y)  ->  (x) (y)
-+			 *      /            /
-+			 *    (p)          (p)
-+			 *    /            /
-+			 *  (s)          (c)
-+			 *    \
-+			 *    (c)
-+			 */
-+			do {
-+				parent = successor;
-+				successor = tmp;
-+				tmp = tmp->rb_left;
-+			} while (tmp);
-+			parent->rb_left = child2 = successor->rb_right;
-+			successor->rb_right = child;
-+			rb_set_parent(child, successor);
- 		}
- 
--		if (child) {
--			rb_set_parent_color(child, parent, RB_BLACK);
-+		successor->rb_left = tmp = node->rb_left;
-+		rb_set_parent(tmp, successor);
-+
-+		pc = node->__rb_parent_color;
-+		tmp = __rb_parent(pc);
-+		__rb_change_child(node, successor, tmp, root);
-+		if (child2) {
-+			successor->__rb_parent_color = pc;
-+			rb_set_parent_color(child2, parent, RB_BLACK);
- 			rebalance = NULL;
- 		} else {
--			rebalance = rb_is_black(node) ? parent : NULL;
-+			unsigned long pc2 = successor->__rb_parent_color;
-+			successor->__rb_parent_color = pc;
-+			rebalance = __rb_is_black(pc2) ? parent : NULL;
- 		}
--		node->__rb_parent_color = old->__rb_parent_color;
--		node->rb_left = old->rb_left;
--		rb_set_parent(old->rb_left, node);
- 	}
- 
- 	if (rebalance)
 -- 
-1.7.7.3
+Michel "Walken" Lespinasse
+A program is never fully debugged until the last user dies.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
