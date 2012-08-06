@@ -1,160 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
-	by kanga.kvack.org (Postfix) with SMTP id 55A666B0070
-	for <linux-mm@kvack.org>; Mon,  6 Aug 2012 17:13:55 -0400 (EDT)
-Message-ID: <1344287631.2486.57.camel@lorien2>
-Subject: [PATCH v2] mm: Restructure kmem_cache_create() to move debug cache
- integrity checks into a new function
-From: Shuah Khan <shuah.khan@hp.com>
-Reply-To: shuah.khan@hp.com
-Date: Mon, 06 Aug 2012 15:13:51 -0600
-In-Reply-To: <1344272614.2486.40.camel@lorien2>
-References: <1342221125.17464.8.camel@lorien2>
-	 <CAOJsxLGjnMxs9qERG5nCfGfcS3jy6Rr54Ac36WgVnOtP_pDYgQ@mail.gmail.com>
-	 <1344224494.3053.5.camel@lorien2> <1344266096.2486.17.camel@lorien2>
-	 <CAAmzW4Ne5pD90r+6zrrD-BXsjtf5OqaKdWY+2NSGOh1M_sWq4g@mail.gmail.com>
-	 <1344272614.2486.40.camel@lorien2>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 7bit
-Mime-Version: 1.0
+	by kanga.kvack.org (Postfix) with SMTP id DD12B6B0070
+	for <linux-mm@kvack.org>; Mon,  6 Aug 2012 17:18:07 -0400 (EDT)
+Received: by lbon3 with SMTP id n3so2791238lbo.14
+        for <linux-mm@kvack.org>; Mon, 06 Aug 2012 14:18:05 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <5020122A.5070704@redhat.com>
+References: <1343687538-24284-1-git-send-email-yinghan@google.com>
+	<20120731155932.GB16924@tiehlicka.suse.cz>
+	<CALWz4iwnrXFSoqmPUsXfUMzgxz5bmBrRNU5Nisd=g2mjmu-u3Q@mail.gmail.com>
+	<20120731200205.GA19524@tiehlicka.suse.cz>
+	<CALWz4ixF8PzhDs2fuOMTrrRiBHkg+aMzaVOBhuUN78UenzmYbw@mail.gmail.com>
+	<20120801084553.GD4436@tiehlicka.suse.cz>
+	<CALWz4iwzJp8EwSeP6ap7_adW6sF8YR940sky6vJS3SD8FO6HkA@mail.gmail.com>
+	<50198D38.1000905@redhat.com>
+	<20120806140354.GE6150@dhcp22.suse.cz>
+	<501FD44D.40205@redhat.com>
+	<20120806151115.GA4850@dhcp22.suse.cz>
+	<5020122A.5070704@redhat.com>
+Date: Mon, 6 Aug 2012 14:18:05 -0700
+Message-ID: <CALWz4ix82v39ivF6yV6iPmwnqJb8i3BOfDU0-EKAxofoTX4SjQ@mail.gmail.com>
+Subject: Re: [PATCH V7 2/2] mm: memcg detect no memcgs above softlimit under
+ zone reclaim
+From: Ying Han <yinghan@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: cl@linux.com, penberg@kernel.org, glommer@parallels.com, js1304@gmail.com, David Rientjes <rientjes@google.com>
-Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, shuahkhan@gmail.com
+To: Rik van Riel <riel@redhat.com>
+Cc: Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hillf Danton <dhillf@gmail.com>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 
-kmem_cache_create() does cache integrity checks when CONFIG_DEBUG_VM
-is defined. These checks interspersed with the regular code path has
-lead to compile time warnings when compiled without CONFIG_DEBUG_VM
-defined. Restructuring the code to move the integrity checks in to a new
-function would eliminate the current compile warning problem and also
-will allow for future changes to the debug only code to evolve without
-introducing new warnings in the regular path. This restructuring work
-is based on the discussion in the following thread:
+On Mon, Aug 6, 2012 at 11:51 AM, Rik van Riel <riel@redhat.com> wrote:
+> On 08/06/2012 11:11 AM, Michal Hocko wrote:
+>>
+>> On Mon 06-08-12 10:27:25, Rik van Riel wrote:
+>
+>
+>>>> So you think we shouldn't do the full round over memcgs in shrink_zone a
+>>>> and rather do it oom way to pick up a victim and hammer it?
+>>>
+>>>
+>>> Not hammer it too far.  Only until its score ends up well
+>>> below (25% lower?) than that of the second highest scoring
+>>> list.
+>>>
+>>> That way all the lists get hammered a little bit, in turn.
+>>
+>>
+>> How do we provide the soft limit guarantee then?
+>>
+>> [...]
+>
+>
+> The easiest way would be to find the top 2 or 3 scoring memcgs
+> when we reclaim memory. After reclaiming some pages, recalculate
+> the scores of just these top lists, and see if the list we started
+> out with now has a lower score than the second one.
+>
+> Once we have reclaimed some from each of the 2 or 3 lists, we can
+> go back and find the highest priority lists again.
 
-https://lkml.org/lkml/2012/7/13/424
+Sounds like quite a lot of calculation to pick which memcg to reclaim
+from, and I wonder if that is necessary at all.
+For most of the use cases, we don't need to pick the lowest score
+memcg to reclaim from first. My understanding is that if we can
+respect the (lru_size - softlimit) to calculate the nr_to_scan, that
+is good move from what we have today.
 
-Signed-off-by: Shuah Khan <shuah.khan@hp.com>
----
- mm/slab_common.c |   79 +++++++++++++++++++++++++++++-------------------------
- 1 file changed, 43 insertions(+), 36 deletions(-)
+If so, can we just still do the round-robin fashion in shrink_zone()
+and for each memcg, we calculate the nr_to_scan similar to
+get_scan_count() what have today but w/ the new formula. For memcg
+under its softlimit, we avoid reclaim pages unless no more pages can
+be reclaimed, and then we start reclaiming under the softlimit. That
+part can use the same logic depending on (softlimit - lru_size)
 
-diff --git a/mm/slab_common.c b/mm/slab_common.c
-index 12637ce..67409f7 100644
---- a/mm/slab_common.c
-+++ b/mm/slab_common.c
-@@ -23,6 +23,46 @@ enum slab_state slab_state;
- LIST_HEAD(slab_caches);
- DEFINE_MUTEX(slab_mutex);
- 
-+#ifdef CONFIG_DEBUG_VM
-+static int kmem_cache_sanity_check(const char *name, size_t size)
-+{
-+	struct kmem_cache *s = NULL;
-+
-+	list_for_each_entry(s, &slab_caches, list) {
-+		char tmp;
-+		int res;
-+
-+		/*
-+		 * This happens when the module gets unloaded and doesn't
-+		 * destroy its slab cache and no-one else reuses the vmalloc
-+		 * area of the module.  Print a warning.
-+		 */
-+		res = probe_kernel_address(s->name, tmp);
-+		if (res) {
-+			pr_err("Slab cache with size %d has lost its name\n",
-+			       s->object_size);
-+			continue;
-+		}
-+
-+		if (!strcmp(s->name, name)) {
-+			pr_err("%s (%s): Cache name already exists.\n",
-+			       __func__, name);
-+			dump_stack();
-+			s = NULL;
-+			return -EINVAL;
-+		}
-+	}
-+
-+	WARN_ON(strchr(name, ' '));	/* It confuses parsers */
-+	return 0;
-+}
-+#else
-+static inline int kmem_cache_sanity_check(const char *name, size_t size)
-+{
-+	return 0;
-+}
-+#endif
-+
- /*
-  * kmem_cache_create - Create a cache.
-  * @name: A string which is used in /proc/slabinfo to identify this cache.
-@@ -53,48 +93,17 @@ struct kmem_cache *kmem_cache_create(const char *name, size_t size, size_t align
- {
- 	struct kmem_cache *s = NULL;
- 
--#ifdef CONFIG_DEBUG_VM
- 	if (!name || in_interrupt() || size < sizeof(void *) ||
- 		size > KMALLOC_MAX_SIZE) {
--		printk(KERN_ERR "kmem_cache_create(%s) integrity check"
--			" failed\n", name);
-+		pr_err("kmem_cache_create(%s) integrity check failed\n", name);
- 		goto out;
- 	}
--#endif
- 
- 	get_online_cpus();
- 	mutex_lock(&slab_mutex);
- 
--#ifdef CONFIG_DEBUG_VM
--	list_for_each_entry(s, &slab_caches, list) {
--		char tmp;
--		int res;
--
--		/*
--		 * This happens when the module gets unloaded and doesn't
--		 * destroy its slab cache and no-one else reuses the vmalloc
--		 * area of the module.  Print a warning.
--		 */
--		res = probe_kernel_address(s->name, tmp);
--		if (res) {
--			printk(KERN_ERR
--			       "Slab cache with size %d has lost its name\n",
--			       s->object_size);
--			continue;
--		}
--
--		if (!strcmp(s->name, name)) {
--			printk(KERN_ERR "kmem_cache_create(%s): Cache name"
--				" already exists.\n",
--				name);
--			dump_stack();
--			s = NULL;
--			goto oops;
--		}
--	}
--
--	WARN_ON(strchr(name, ' '));	/* It confuses parsers */
--#endif
-+	if (kmem_cache_sanity_check(name, size))
-+		goto oops;
- 
- 	s = __kmem_cache_create(name, size, align, flags, ctor);
- 
-@@ -102,9 +111,7 @@ oops:
- 	mutex_unlock(&slab_mutex);
- 	put_online_cpus();
- 
--#ifdef CONFIG_DEBUG_VM
- out:
--#endif
- 	if (!s && (flags & SLAB_PANIC))
- 		panic("kmem_cache_create: Failed to create slab '%s'\n", name);
- 
--- 
-1.7.9.5
+--Ying
 
-
+Can we do something similar to the
+>
+> Direct reclaim only reclaims a little bit at a time, anyway.
+>
+> For kswapd, we could also remember the number of pages the group
+> has in excess of its soft limit, and recalculate after that...
+>
+> --
+> All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
