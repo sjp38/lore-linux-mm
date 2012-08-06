@@ -1,49 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx103.postini.com [74.125.245.103])
-	by kanga.kvack.org (Postfix) with SMTP id 9BC876B005A
-	for <linux-mm@kvack.org>; Mon,  6 Aug 2012 11:47:56 -0400 (EDT)
-Received: by wgbdq12 with SMTP id dq12so2758500wgb.26
-        for <linux-mm@kvack.org>; Mon, 06 Aug 2012 08:47:55 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
+	by kanga.kvack.org (Postfix) with SMTP id 32BA36B005A
+	for <linux-mm@kvack.org>; Mon,  6 Aug 2012 11:54:36 -0400 (EDT)
+Date: Mon, 6 Aug 2012 17:54:33 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [patch v2] hugetlb: correct page offset index for sharing pmd
+Message-ID: <20120806155433.GB4850@dhcp22.suse.cz>
+References: <CAJd=RBC9HhKh5Q0-yXi3W0x3guXJPFz4BNsniyOFmp0TjBdFqg@mail.gmail.com>
+ <20120806132410.GA6150@dhcp22.suse.cz>
+ <CAJd=RBCuvpG49JcTUY+qw-tTdH_vFLgOfJDE3sW97+M04TR+hg@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <041cb4ce-48ae-4600-9f11-d722bc03b9cc@default>
-References: <1343413117-1989-1-git-send-email-sjenning@linux.vnet.ibm.com>
-	<b95aec06-5a10-4f83-bdfd-e7f6adabd9df@default>
-	<20120727205932.GA12650@localhost.localdomain>
-	<d4656ba5-d6d1-4c36-a6c8-f6ecd193b31d@default>
-	<5016DE4E.5050300@linux.vnet.ibm.com>
-	<f47a6d86-785f-498c-8ee5-0d2df1b2616c@default>
-	<20120731155843.GP4789@phenom.dumpdata.com>
-	<20120731161916.GA4941@kroah.com>
-	<20120731175142.GE29533@phenom.dumpdata.com>
-	<20120806003816.GA11375@bbox>
-	<041cb4ce-48ae-4600-9f11-d722bc03b9cc@default>
-Date: Mon, 6 Aug 2012 18:47:54 +0300
-Message-ID: <CAOJsxLHDcgxxu146QWXw0ZhMHMhFOquEFXhF55HK2mCjHzk7hw@mail.gmail.com>
-Subject: Re: [PATCH 0/4] promote zcache from staging
-From: Pekka Enberg <penberg@kernel.org>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAJd=RBCuvpG49JcTUY+qw-tTdH_vFLgOfJDE3sW97+M04TR+hg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Magenheimer <dan.magenheimer@oracle.com>
-Cc: Minchan Kim <minchan@kernel.org>, Konrad Wilk <konrad.wilk@oracle.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, devel@driverdev.osuosl.org, Seth Jennings <sjenning@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Konrad Rzeszutek Wilk <konrad@darnok.org>, Andrew Morton <akpm@linux-foundation.org>, Robert Jennings <rcj@linux.vnet.ibm.com>, Nitin Gupta <ngupta@vflare.org>
+To: Hillf Danton <dhillf@gmail.com>
+Cc: Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Mon, Aug 6, 2012 at 6:24 PM, Dan Magenheimer
-<dan.magenheimer@oracle.com> wrote:
-> IMHO, the fastest way to get the best zcache into the kernel and
-> to distros and users is to throw away the "demo" version, move forward
-> to a new solid well-designed zcache code base, and work together to
-> build on it.  There's still a lot to do so I hope we can work together.
+On Mon 06-08-12 21:37:45, Hillf Danton wrote:
+> On Mon, Aug 6, 2012 at 9:24 PM, Michal Hocko <mhocko@suse.cz> wrote:
+> > On Sat 04-08-12 14:08:31, Hillf Danton wrote:
+> >> The computation of page offset index is incorrect to be used in scanning
+> >> prio tree, as huge page offset is required, and is fixed with well
+> >> defined routine.
+> >>
+> >> Changes from v1
+> >>       o s/linear_page_index/linear_hugepage_index/ for clearer code
+> >>       o hp_idx variable added for less change
+> >>
+> >>
+> >> Signed-off-by: Hillf Danton <dhillf@gmail.com>
+> >> ---
+> >>
+> >> --- a/arch/x86/mm/hugetlbpage.c       Fri Aug  3 20:34:58 2012
+> >> +++ b/arch/x86/mm/hugetlbpage.c       Fri Aug  3 20:40:16 2012
+> >> @@ -62,6 +62,7 @@ static void huge_pmd_share(struct mm_str
+> >>  {
+> >>       struct vm_area_struct *vma = find_vma(mm, addr);
+> >>       struct address_space *mapping = vma->vm_file->f_mapping;
+> >> +     pgoff_t hp_idx;
+> >>       pgoff_t idx = ((addr - vma->vm_start) >> PAGE_SHIFT) +
+> >>                       vma->vm_pgoff;
+> >
+> > So we have two indexes now. That is just plain ugly!
+> >
+> 
+> Two indexes result in less code change here and no change
+> in page_table_shareable. Plus linear_hugepage_index tells
+> clearly readers that hp_idx and idx are different.
 
-I'm not convinced it's the _fastest way_. You're effectively
-invalidating all the work done under drivers/staging so you might end up
-in review limbo with your shiny new code...
-
-AFAICT, your best bet is to first clean up zcache under driver/staging
-and get that promoted under mm/zcache.c. You can then move on to the
-more controversial ramster and figure out where to put the clustering
-code, etc.
-
-                        Pekka
+Why do you think they are different? It's the very same thing AFAICS.
+It's just that page_table_shareable fix the index silently by saddr &
+PUD_MASK.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
