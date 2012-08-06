@@ -1,60 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
-	by kanga.kvack.org (Postfix) with SMTP id B2F8B6B0044
-	for <linux-mm@kvack.org>; Mon,  6 Aug 2012 09:24:13 -0400 (EDT)
-Date: Mon, 6 Aug 2012 15:24:10 +0200
+Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
+	by kanga.kvack.org (Postfix) with SMTP id 6BEFD6B0044
+	for <linux-mm@kvack.org>; Mon,  6 Aug 2012 09:26:58 -0400 (EDT)
+Date: Mon, 6 Aug 2012 15:26:55 +0200
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [patch v2] hugetlb: correct page offset index for sharing pmd
-Message-ID: <20120806132410.GA6150@dhcp22.suse.cz>
-References: <CAJd=RBC9HhKh5Q0-yXi3W0x3guXJPFz4BNsniyOFmp0TjBdFqg@mail.gmail.com>
+Subject: Re: [PATCH V8 2/2] mm: memcg detect no memcgs above softlimit under
+ zone reclaim
+Message-ID: <20120806132655.GB6150@dhcp22.suse.cz>
+References: <1343942664-13365-1-git-send-email-yinghan@google.com>
+ <20120803140224.GC8434@dhcp22.suse.cz>
+ <501BF98B.9030103@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAJd=RBC9HhKh5Q0-yXi3W0x3guXJPFz4BNsniyOFmp0TjBdFqg@mail.gmail.com>
+In-Reply-To: <501BF98B.9030103@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hillf Danton <dhillf@gmail.com>
-Cc: Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Rik van Riel <riel@redhat.com>
+Cc: Ying Han <yinghan@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hillf Danton <dhillf@gmail.com>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 
-On Sat 04-08-12 14:08:31, Hillf Danton wrote:
-> The computation of page offset index is incorrect to be used in scanning
-> prio tree, as huge page offset is required, and is fixed with well
-> defined routine.
+On Fri 03-08-12 12:17:15, Rik van Riel wrote:
+> On 08/03/2012 10:02 AM, Michal Hocko wrote:
+> >On Thu 02-08-12 14:24:24, Ying Han wrote:
+> 		shrink_lruvec(lruvec, sc);
+> >>
+> >>+			if (!mem_cgroup_is_root(memcg))
+> >>+				over_softlimit = true;
+> >>+		}
+> >>+
+> >
+> >I think this is still not sufficient because you do not want to hammer
+> >root in the ignore_softlimit case.
 > 
-> Changes from v1
-> 	o s/linear_page_index/linear_hugepage_index/ for clearer code
-> 	o hp_idx variable added for less change
-> 
-> 
-> Signed-off-by: Hillf Danton <dhillf@gmail.com>
-> ---
-> 
-> --- a/arch/x86/mm/hugetlbpage.c	Fri Aug  3 20:34:58 2012
-> +++ b/arch/x86/mm/hugetlbpage.c	Fri Aug  3 20:40:16 2012
-> @@ -62,6 +62,7 @@ static void huge_pmd_share(struct mm_str
->  {
->  	struct vm_area_struct *vma = find_vma(mm, addr);
->  	struct address_space *mapping = vma->vm_file->f_mapping;
-> +	pgoff_t hp_idx;
->  	pgoff_t idx = ((addr - vma->vm_start) >> PAGE_SHIFT) +
->  			vma->vm_pgoff;
+> Michal, please see my mail from a few days ago, describing how I
+> plan to balance pressure between the various LRU lists.
 
-So we have two indexes now. That is just plain ugly!
+I have noticed your email but didn't get to the details yet.
 
->  	struct prio_tree_iter iter;
-> @@ -72,8 +73,10 @@ static void huge_pmd_share(struct mm_str
->  	if (!vma_shareable(vma, addr))
->  		return;
-> 
-> +	hp_idx = linear_hugepage_index(vma, addr);
-> +
->  	mutex_lock(&mapping->i_mmap_mutex);
-> -	vma_prio_tree_foreach(svma, &iter, &mapping->i_mmap, idx, idx) {
-> +	vma_prio_tree_foreach(svma, &iter, &mapping->i_mmap, hp_idx, hp_idx) {
->  		if (svma == vma)
->  			continue;
-> 
-> --
+> I hope to throw a prototype patch over the wall soon...
 
 -- 
 Michal Hocko
