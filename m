@@ -1,53 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
-	by kanga.kvack.org (Postfix) with SMTP id 00E326B0044
-	for <linux-mm@kvack.org>; Mon,  6 Aug 2012 14:51:58 -0400 (EDT)
-Message-ID: <5020122A.5070704@redhat.com>
-Date: Mon, 06 Aug 2012 14:51:22 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
+	by kanga.kvack.org (Postfix) with SMTP id 13AF56B0044
+	for <linux-mm@kvack.org>; Mon,  6 Aug 2012 15:01:29 -0400 (EDT)
+Date: Mon, 6 Aug 2012 16:00:54 -0300
+From: Rafael Aquini <aquini@redhat.com>
+Subject: Re: [PATCH v5 1/3] mm: introduce compaction and migration for virtio
+ ballooned pages
+Message-ID: <20120806190053.GA3968@t510.redhat.com>
+References: <cover.1344259054.git.aquini@redhat.com>
+ <212b5297df32cb4e3f60d5b76a8cb0629d328a4e.1344259054.git.aquini@redhat.com>
+ <50200F1F.7060605@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH V7 2/2] mm: memcg detect no memcgs above softlimit under
- zone reclaim
-References: <1343687538-24284-1-git-send-email-yinghan@google.com> <20120731155932.GB16924@tiehlicka.suse.cz> <CALWz4iwnrXFSoqmPUsXfUMzgxz5bmBrRNU5Nisd=g2mjmu-u3Q@mail.gmail.com> <20120731200205.GA19524@tiehlicka.suse.cz> <CALWz4ixF8PzhDs2fuOMTrrRiBHkg+aMzaVOBhuUN78UenzmYbw@mail.gmail.com> <20120801084553.GD4436@tiehlicka.suse.cz> <CALWz4iwzJp8EwSeP6ap7_adW6sF8YR940sky6vJS3SD8FO6HkA@mail.gmail.com> <50198D38.1000905@redhat.com> <20120806140354.GE6150@dhcp22.suse.cz> <501FD44D.40205@redhat.com> <20120806151115.GA4850@dhcp22.suse.cz>
-In-Reply-To: <20120806151115.GA4850@dhcp22.suse.cz>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <50200F1F.7060605@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Ying Han <yinghan@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hillf Danton <dhillf@gmail.com>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+To: Rik van Riel <riel@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, Rusty Russell <rusty@rustcorp.com.au>, "Michael S. Tsirkin" <mst@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Minchan Kim <minchan@kernel.org>
 
-On 08/06/2012 11:11 AM, Michal Hocko wrote:
-> On Mon 06-08-12 10:27:25, Rik van Riel wrote:
+On Mon, Aug 06, 2012 at 02:38:23PM -0400, Rik van Riel wrote:
+> On 08/06/2012 09:56 AM, Rafael Aquini wrote:
+> 
+> >@@ -846,6 +861,21 @@ static int unmap_and_move(new_page_t get_new_page, unsigned long private,
+> >  			goto out;
+> >
+> >  	rc = __unmap_and_move(page, newpage, force, offlining, mode);
+> >+
+> >+	if (unlikely(is_balloon_page(newpage)&&
+> >+		     balloon_compaction_enabled())) {
+> 
+> Could that be collapsed into one movable_balloon_page(newpage) function
+> call?
+> 
+Keeping is_balloon_page() as is, and itroducing this new movable_balloon_page()
+function call, or just doing a plain rename, as Andrew has first suggested?
 
->>> So you think we shouldn't do the full round over memcgs in shrink_zone a
->>> and rather do it oom way to pick up a victim and hammer it?
->>
->> Not hammer it too far.  Only until its score ends up well
->> below (25% lower?) than that of the second highest scoring
->> list.
->>
->> That way all the lists get hammered a little bit, in turn.
->
-> How do we provide the soft limit guarantee then?
->
-> [...]
-
-The easiest way would be to find the top 2 or 3 scoring memcgs
-when we reclaim memory. After reclaiming some pages, recalculate
-the scores of just these top lists, and see if the list we started
-out with now has a lower score than the second one.
-
-Once we have reclaimed some from each of the 2 or 3 lists, we can
-go back and find the highest priority lists again.
-
-Direct reclaim only reclaims a little bit at a time, anyway.
-
-For kswapd, we could also remember the number of pages the group
-has in excess of its soft limit, and recalculate after that...
-
--- 
-All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
