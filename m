@@ -1,135 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
-	by kanga.kvack.org (Postfix) with SMTP id EAD756B0044
-	for <linux-mm@kvack.org>; Mon,  6 Aug 2012 05:24:06 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
+	by kanga.kvack.org (Postfix) with SMTP id 65F426B0075
+	for <linux-mm@kvack.org>; Mon,  6 Aug 2012 05:24:20 -0400 (EDT)
 From: Lai Jiangshan <laijs@cn.fujitsu.com>
-Subject: [RFC V3 PATCH 20/25] page_alloc: add kernelcore_max_addr
-Date: Mon, 6 Aug 2012 17:23:14 +0800
-Message-Id: <1344244999-5081-21-git-send-email-laijs@cn.fujitsu.com>
+Subject: [RFC V3 PATCH 24/25] memblock: compare current_limit with end variable at memblock_find_in_range_node()
+Date: Mon, 6 Aug 2012 17:23:18 +0800
+Message-Id: <1344244999-5081-25-git-send-email-laijs@cn.fujitsu.com>
 In-Reply-To: <1344244999-5081-1-git-send-email-laijs@cn.fujitsu.com>
 References: <1343887288-8866-1-git-send-email-laijs@cn.fujitsu.com>
  <1344244999-5081-1-git-send-email-laijs@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Mel Gorman <mel@csn.ul.ie>, linux-kernel@vger.kernel.org
-Cc: Lai Jiangshan <laijs@cn.fujitsu.com>, Rob Landley <rob@landley.net>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Minchan Kim <minchan@kernel.org>, linux-doc@vger.kernel.org, linux-mm@kvack.org
+Cc: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, Gavin Shan <shangw@linux.vnet.ibm.com>, linux-mm@kvack.org
 
-Current ZONE_MOVABLE (kernelcore=) setting policy with boot option doesn't meet
-our requirement. We need something like kernelcore_max_addr=XX boot option
-to limit the kernelcore upper address.
+From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 
-The memory with higher address will be migratable(movable) and they
-are easier to be offline(always ready to be offline when the system don't require
-so much memory).
+memblock_find_in_range_node() does not compare memblock.current_limit
+with end variable. Thus even if memblock.current_limit is smaller than
+end variable, the function allocates memory address that is bigger than
+memblock.current_limit.
 
-It makes things easy when we dynamic hot-add/remove memory, make better
-utilities of memories, and helps for THP.
+The patch adds the check to "memblock_find_in_range_node()"
 
-All kernelcore_max_addr=, kernelcore= and movablecore= can be safely specified
-at the same time(or any 2 of them).
-
+Signed-off-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 Signed-off-by: Lai Jiangshan <laijs@cn.fujitsu.com>
 ---
- Documentation/kernel-parameters.txt |    9 +++++++++
- mm/page_alloc.c                     |   29 ++++++++++++++++++++++++++++-
- 2 files changed, 37 insertions(+), 1 deletions(-)
+ mm/memblock.c |    5 +++--
+ 1 files changed, 3 insertions(+), 2 deletions(-)
 
-diff --git a/Documentation/kernel-parameters.txt b/Documentation/kernel-parameters.txt
-index 12783fa..48dff61 100644
---- a/Documentation/kernel-parameters.txt
-+++ b/Documentation/kernel-parameters.txt
-@@ -1216,6 +1216,15 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
- 			use the HighMem zone if it exists, and the Normal
- 			zone if it does not.
- 
-+	kernelcore_max_addr=nn[KMG]	[KNL,X86,IA-64,PPC] This parameter
-+			is the same effect as kernelcore parameter, except it
-+			specifies the up physical address of memory range
-+			usable by the kernel for non-movable allocations.
-+			If both kernelcore and kernelcore_max_addr are
-+			specified, this requested's priority is higher than
-+			kernelcore's.
-+			See the kernelcore parameter.
-+
- 	kgdbdbgp=	[KGDB,HW] kgdb over EHCI usb debug port.
- 			Format: <Controller#>[,poll interval]
- 			The controller # is the number of the ehci usb debug
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 03ad63d..65ac5c9 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -204,6 +204,7 @@ static unsigned long __meminitdata dma_reserve;
- #ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
- static unsigned long __meminitdata arch_zone_lowest_possible_pfn[MAX_NR_ZONES];
- static unsigned long __meminitdata arch_zone_highest_possible_pfn[MAX_NR_ZONES];
-+static unsigned long __initdata required_kernelcore_max_pfn;
- static unsigned long __initdata required_kernelcore;
- static unsigned long __initdata required_movablecore;
- static unsigned long __meminitdata zone_movable_pfn[MAX_NUMNODES];
-@@ -4600,6 +4601,7 @@ static void __init find_zone_movable_pfns_for_nodes(void)
+diff --git a/mm/memblock.c b/mm/memblock.c
+index 663b805..ce7fcb6 100644
+--- a/mm/memblock.c
++++ b/mm/memblock.c
+@@ -99,11 +99,12 @@ phys_addr_t __init_memblock memblock_find_in_range_node(phys_addr_t start,
+ 					phys_addr_t align, int nid)
  {
- 	int i, nid;
- 	unsigned long usable_startpfn;
-+	unsigned long kernelcore_max_pfn;
- 	unsigned long kernelcore_node, kernelcore_remaining;
- 	/* save the state before borrow the nodemask */
- 	nodemask_t saved_node_state = node_states[N_MEMORY];
-@@ -4628,6 +4630,9 @@ static void __init find_zone_movable_pfns_for_nodes(void)
- 		required_kernelcore = max(required_kernelcore, corepages);
- 	}
+ 	phys_addr_t this_start, this_end, cand;
++	phys_addr_t current_limit = memblock.current_limit;
+ 	u64 i;
  
-+	if (required_kernelcore_max_pfn && !required_kernelcore)
-+		required_kernelcore = totalpages;
-+
- 	/* If kernelcore was not specified, there is no ZONE_MOVABLE */
- 	if (!required_kernelcore)
- 		goto out;
-@@ -4636,6 +4641,12 @@ static void __init find_zone_movable_pfns_for_nodes(void)
- 	find_usable_zone_for_movable();
- 	usable_startpfn = arch_zone_lowest_possible_pfn[movable_zone];
+ 	/* pump up @end */
+-	if (end == MEMBLOCK_ALLOC_ACCESSIBLE)
+-		end = memblock.current_limit;
++	if ((end == MEMBLOCK_ALLOC_ACCESSIBLE) || (end > current_limit))
++		end = current_limit;
  
-+	if (required_kernelcore_max_pfn)
-+		kernelcore_max_pfn = required_kernelcore_max_pfn;
-+	else
-+		kernelcore_max_pfn = ULONG_MAX >> PAGE_SHIFT;
-+	kernelcore_max_pfn = max(kernelcore_max_pfn, usable_startpfn);
-+
- restart:
- 	/* Spread kernelcore memory as evenly as possible throughout nodes */
- 	kernelcore_node = required_kernelcore / usable_nodes;
-@@ -4662,8 +4673,12 @@ restart:
- 			unsigned long size_pages;
- 
- 			start_pfn = max(start_pfn, zone_movable_pfn[nid]);
--			if (start_pfn >= end_pfn)
-+			end_pfn = min(kernelcore_max_pfn, end_pfn);
-+			if (start_pfn >= end_pfn) {
-+				if (!zone_movable_pfn[nid])
-+					zone_movable_pfn[nid] = start_pfn;
- 				continue;
-+			}
- 
- 			/* Account for what is only usable for kernelcore */
- 			if (start_pfn < usable_startpfn) {
-@@ -4854,6 +4869,18 @@ static int __init cmdline_parse_core(char *p, unsigned long *core)
- 	return 0;
- }
- 
-+#ifdef CONFIG_MOVABLE_NODE
-+/*
-+ * kernelcore_max_addr=addr sets the up physical address of memory range
-+ * for use for allocations that cannot be reclaimed or migrated.
-+ */
-+static int __init cmdline_parse_kernelcore_max_addr(char *p)
-+{
-+	return cmdline_parse_core(p, &required_kernelcore_max_pfn);
-+}
-+early_param("kernelcore_max_addr", cmdline_parse_kernelcore_max_addr);
-+#endif
-+
- /*
-  * kernelcore=size sets the amount of memory for use for allocations that
-  * cannot be reclaimed or migrated.
+ 	/* avoid allocating the first page */
+ 	start = max_t(phys_addr_t, start, PAGE_SIZE);
 -- 
 1.7.4.4
 
