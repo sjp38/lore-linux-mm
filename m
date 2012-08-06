@@ -1,297 +1,197 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
-	by kanga.kvack.org (Postfix) with SMTP id C462E6B0080
-	for <linux-mm@kvack.org>; Mon,  6 Aug 2012 05:24:27 -0400 (EDT)
-From: Lai Jiangshan <laijs@cn.fujitsu.com>
-Subject: [RFC V3 PATCH 25/25] mm, memory-hotplug: add online_movable and online_kernel
-Date: Mon, 6 Aug 2012 17:23:19 +0800
-Message-Id: <1344244999-5081-26-git-send-email-laijs@cn.fujitsu.com>
-In-Reply-To: <1344244999-5081-1-git-send-email-laijs@cn.fujitsu.com>
-References: <1343887288-8866-1-git-send-email-laijs@cn.fujitsu.com>
- <1344244999-5081-1-git-send-email-laijs@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
+	by kanga.kvack.org (Postfix) with SMTP id 3E84F6B0044
+	for <linux-mm@kvack.org>; Mon,  6 Aug 2012 06:29:39 -0400 (EDT)
+Received: from eusync3.samsung.com (mailout2.w1.samsung.com [210.118.77.12])
+ by mailout2.w1.samsung.com
+ (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
+ 17 2011)) with ESMTP id <0M8B00CEZX63QO30@mailout2.w1.samsung.com> for
+ linux-mm@kvack.org; Mon, 06 Aug 2012 11:30:03 +0100 (BST)
+Received: from [106.116.147.108] by eusync3.samsung.com
+ (Oracle Communications Messaging Server 7u4-23.01(7.0.4.23.0) 64bit (built Aug
+ 10 2011)) with ESMTPA id <0M8B009X1X5C3E80@eusync3.samsung.com> for
+ linux-mm@kvack.org; Mon, 06 Aug 2012 11:29:37 +0100 (BST)
+Message-id: <501F9C8E.4080002@samsung.com>
+Date: Mon, 06 Aug 2012 12:29:34 +0200
+From: Tomasz Stanislawski <t.stanislaws@samsung.com>
+MIME-version: 1.0
+Subject: Re: [PATCH 2/2] dma-buf: add helpers for attacher dma-parms
+References: <1342715014-5316-1-git-send-email-rob.clark@linaro.org>
+ <1342715014-5316-3-git-send-email-rob.clark@linaro.org>
+In-reply-to: <1342715014-5316-3-git-send-email-rob.clark@linaro.org>
+Content-type: text/plain; charset=ISO-8859-1
+Content-transfer-encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>, linux-kernel@vger.kernel.org
-Cc: Lai Jiangshan <laijs@cn.fujitsu.com>, Rob Landley <rob@landley.net>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Paul Gortmaker <paul.gortmaker@windriver.com>, Andrew Morton <akpm@linux-foundation.org>, Bjorn Helgaas <bhelgaas@google.com>, David Rientjes <rientjes@google.com>, linux-doc@vger.kernel.org, linux-mm@kvack.org
+To: Rob Clark <rob.clark@linaro.org>
+Cc: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, dri-devel@lists.freedesktop.org, linux-media@vger.kernel.org, patches@linaro.org, linux@arm.linux.org.uk, arnd@arndb.de, jesse.barker@linaro.org, m.szyprowski@samsung.com, daniel@ffwll.ch, sumit.semwal@ti.com, maarten.lankhorst@canonical.com, Rob Clark <rob@ti.com>
 
-When a memoryblock/memorysection is onlined by "online_movable", the kernel
-will not have directly reference to the page of the memoryblock,
-thus we can remove that memory any time when needed.
+Hi Rob,
 
-It makes things easy when we dynamic hot-add/remove memory, make better
-utilities of memories, and helps for THP.
+On 07/19/2012 06:23 PM, Rob Clark wrote:
+> From: Rob Clark <rob@ti.com>
+> 
+> Add some helpers to iterate through all attachers and get the most
+> restrictive segment size/count/boundary.
+> 
+> Signed-off-by: Rob Clark <rob@ti.com>
+> ---
+>  drivers/base/dma-buf.c  |   63 +++++++++++++++++++++++++++++++++++++++++++++++
+>  include/linux/dma-buf.h |   19 ++++++++++++++
+>  2 files changed, 82 insertions(+)
+> 
+> diff --git a/drivers/base/dma-buf.c b/drivers/base/dma-buf.c
+> index 24e88fe..757ee20 100644
+> --- a/drivers/base/dma-buf.c
+> +++ b/drivers/base/dma-buf.c
+> @@ -192,6 +192,69 @@ void dma_buf_put(struct dma_buf *dmabuf)
+>  EXPORT_SYMBOL_GPL(dma_buf_put);
+>  
+>  /**
+> + * dma_buf_max_seg_size - helper for exporters to get the minimum of
+> + * all attached device's max segment size
+> + */
+> +unsigned int dma_buf_max_seg_size(struct dma_buf *dmabuf)
+> +{
+> +	struct dma_buf_attachment *attach;
+> +	unsigned int max = (unsigned int)-1;
+> +
+> +	if (WARN_ON(!dmabuf))
+> +		return 0;
 
-Current constraints: Only the memoryblock which is adjacent to the ZONE_MOVABLE
-can be onlined from ZONE_NORMAL to ZONE_MOVABLE.
+Maybe you should change return type to 'int' and return -EINVAL here?
 
-For opposite onlining behavior, we also introduce "online_kernel" to change
-a memoryblock of ZONE_MOVABLE to ZONE_KERNEL when online.
+> +
+> +	mutex_lock(&dmabuf->lock);
+> +	list_for_each_entry(attach, &dmabuf->attachments, node)
+> +		max = min(max, dma_get_max_seg_size(attach->dev));
+> +	mutex_unlock(&dmabuf->lock);
+> +
+> +	return max;
+> +}
+> +EXPORT_SYMBOL_GPL(dma_buf_max_seg_size);
+> +
+> +/**
+> + * dma_buf_max_seg_count - helper for exporters to get the minimum of
+> + * all attached device's max segment count
+> + */
+> +unsigned int dma_buf_max_seg_count(struct dma_buf *dmabuf)
+> +{
+> +	struct dma_buf_attachment *attach;
+> +	unsigned int max = (unsigned int)-1;
+> +
+> +	if (WARN_ON(!dmabuf))
+> +		return 0;
 
-Signed-off-by: Lai Jiangshan <laijs@cn.fujitsu.com>
----
- Documentation/memory-hotplug.txt |   14 +++++-
- drivers/base/memory.c            |   19 +++++---
- include/linux/memory_hotplug.h   |   13 +++++-
- mm/memory_hotplug.c              |  101 +++++++++++++++++++++++++++++++++++++-
- 4 files changed, 137 insertions(+), 10 deletions(-)
+maybe return -EINVAL here?
 
-diff --git a/Documentation/memory-hotplug.txt b/Documentation/memory-hotplug.txt
-index 70bc1c7..8e5eacb 100644
---- a/Documentation/memory-hotplug.txt
-+++ b/Documentation/memory-hotplug.txt
-@@ -161,7 +161,8 @@ a recent addition and not present on older kernels.
- 		    in the memory block.
- 'state'           : read-write
-                     at read:  contains online/offline state of memory.
--                    at write: user can specify "online", "offline" command
-+                    at write: user can specify "online_kernel",
-+                    "online_movable", "online", "offline" command
-                     which will be performed on al sections in the block.
- 'phys_device'     : read-only: designed to show the name of physical memory
-                     device.  This is not well implemented now.
-@@ -255,6 +256,17 @@ For onlining, you have to write "online" to the section's state file as:
- 
- % echo online > /sys/devices/system/memory/memoryXXX/state
- 
-+This onlining will not change the ZONE type of the target memory section,
-+If the memory section is in ZONE_NORMAL, you can change it to ZONE_MOVABLE:
-+
-+% echo online_movable > /sys/devices/system/memory/memoryXXX/state
-+(NOTE: current limit: this memory section must be adjacent to ZONE_MOVABLE)
-+
-+And if the memory section is in ZONE_MOVABLE, you can change it to ZONE_NORMAL:
-+
-+% echo online_kernel > /sys/devices/system/memory/memoryXXX/state
-+(NOTE: current limit: this memory section must be adjacent to ZONE_NORMAL)
-+
- After this, section memoryXXX's state will be 'online' and the amount of
- available memory will be increased.
- 
-diff --git a/drivers/base/memory.c b/drivers/base/memory.c
-index 7dda4f7..1ad2f48 100644
---- a/drivers/base/memory.c
-+++ b/drivers/base/memory.c
-@@ -246,7 +246,7 @@ static bool pages_correctly_reserved(unsigned long start_pfn,
-  * OK to have direct references to sparsemem variables in here.
-  */
- static int
--memory_block_action(unsigned long phys_index, unsigned long action)
-+memory_block_action(unsigned long phys_index, unsigned long action, int online_type)
- {
- 	unsigned long start_pfn, start_paddr;
- 	unsigned long nr_pages = PAGES_PER_SECTION * sections_per_block;
-@@ -262,7 +262,7 @@ memory_block_action(unsigned long phys_index, unsigned long action)
- 			if (!pages_correctly_reserved(start_pfn, nr_pages))
- 				return -EBUSY;
- 
--			ret = online_pages(start_pfn, nr_pages);
-+			ret = online_pages(start_pfn, nr_pages, online_type);
- 			break;
- 		case MEM_OFFLINE:
- 			start_paddr = page_to_pfn(first_page) << PAGE_SHIFT;
-@@ -279,7 +279,8 @@ memory_block_action(unsigned long phys_index, unsigned long action)
- }
- 
- static int memory_block_change_state(struct memory_block *mem,
--		unsigned long to_state, unsigned long from_state_req)
-+		unsigned long to_state, unsigned long from_state_req,
-+		int online_type)
- {
- 	int ret = 0;
- 
-@@ -293,7 +294,7 @@ static int memory_block_change_state(struct memory_block *mem,
- 	if (to_state == MEM_OFFLINE)
- 		mem->state = MEM_GOING_OFFLINE;
- 
--	ret = memory_block_action(mem->start_section_nr, to_state);
-+	ret = memory_block_action(mem->start_section_nr, to_state, online_type);
- 
- 	if (ret) {
- 		mem->state = from_state_req;
-@@ -325,10 +326,14 @@ store_mem_state(struct device *dev,
- 
- 	mem = container_of(dev, struct memory_block, dev);
- 
--	if (!strncmp(buf, "online", min((int)count, 6)))
--		ret = memory_block_change_state(mem, MEM_ONLINE, MEM_OFFLINE);
-+	if (!strncmp(buf, "online_kernel", min((int)count, 13)))
-+		ret = memory_block_change_state(mem, MEM_ONLINE, MEM_OFFLINE, ONLINE_KERNEL);
-+	else if (!strncmp(buf, "online_movable", min((int)count, 14)))
-+		ret = memory_block_change_state(mem, MEM_ONLINE, MEM_OFFLINE, ONLINE_MOVABLE);
-+	else if (!strncmp(buf, "online", min((int)count, 6)))
-+		ret = memory_block_change_state(mem, MEM_ONLINE, MEM_OFFLINE, ONLINE_KEEP);
- 	else if(!strncmp(buf, "offline", min((int)count, 7)))
--		ret = memory_block_change_state(mem, MEM_OFFLINE, MEM_ONLINE);
-+		ret = memory_block_change_state(mem, MEM_OFFLINE, MEM_ONLINE, -1);
- 
- 	if (ret)
- 		return ret;
-diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
-index 910550f..047cd1d 100644
---- a/include/linux/memory_hotplug.h
-+++ b/include/linux/memory_hotplug.h
-@@ -25,6 +25,13 @@ enum {
- 	MEMORY_HOTPLUG_MAX_BOOTMEM_TYPE = NODE_INFO,
- };
- 
-+/* Types for control the zone type of onlined memory */
-+enum {
-+	ONLINE_KEEP,
-+	ONLINE_KERNEL,
-+	ONLINE_MOVABLE,
-+};
-+
- /*
-  * pgdat resizing functions
-  */
-@@ -45,6 +52,10 @@ void pgdat_resize_init(struct pglist_data *pgdat)
- }
- /*
-  * Zone resizing functions
-+ *
-+ * Note: any attempt to resize a zone should has pgdat_resize_lock()
-+ * zone_span_writelock() both held. This ensure the size of a zone
-+ * can't be changed while pgdat_resize_lock() held.
-  */
- static inline unsigned zone_span_seqbegin(struct zone *zone)
- {
-@@ -70,7 +81,7 @@ extern int zone_grow_free_lists(struct zone *zone, unsigned long new_nr_pages);
- extern int zone_grow_waitqueues(struct zone *zone, unsigned long nr_pages);
- extern int add_one_highpage(struct page *page, int pfn, int bad_ppro);
- /* VM interface that may be used by firmware interface */
--extern int online_pages(unsigned long, unsigned long);
-+extern int online_pages(unsigned long, unsigned long, int);
- extern void __offline_isolated_pages(unsigned long, unsigned long);
- 
- typedef void (*online_page_callback_t)(struct page *page);
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index c2c96a4..4e1db0a 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -210,6 +210,89 @@ static void grow_zone_span(struct zone *zone, unsigned long start_pfn,
- 	zone_span_writeunlock(zone);
- }
- 
-+static void resize_zone(struct zone *zone, unsigned long start_pfn,
-+		unsigned long end_pfn)
-+{
-+
-+	zone_span_writelock(zone);
-+
-+	zone->zone_start_pfn = start_pfn;
-+	zone->spanned_pages = end_pfn - start_pfn;
-+
-+	zone_span_writeunlock(zone);
-+}
-+
-+static void fix_zone_id(struct zone *zone, unsigned long start_pfn,
-+		unsigned long end_pfn)
-+{
-+	enum zone_type zid = zone_idx(zone);
-+	int nid = zone->zone_pgdat->node_id;
-+	unsigned long pfn;
-+
-+	for (pfn = start_pfn; pfn < end_pfn; pfn++)
-+		set_page_links(pfn_to_page(pfn), zid, nid, pfn);
-+}
-+
-+static int move_pfn_range_left(struct zone *z1, struct zone *z2,
-+		unsigned long start_pfn, unsigned long end_pfn)
-+{
-+	unsigned long flags;
-+
-+	pgdat_resize_lock(z1->zone_pgdat, &flags);
-+
-+	/* can't move pfns which are higher than @z2 */
-+	if (end_pfn > z2->zone_start_pfn + z2->spanned_pages)
-+		goto out_fail;
-+	/* the move out part mast at the left most of @z2 */
-+	if (start_pfn > z2->zone_start_pfn)
-+		goto out_fail;
-+	/* must included/overlap */
-+	if (end_pfn <= z2->zone_start_pfn)
-+		goto out_fail;
-+
-+	resize_zone(z1, z1->zone_start_pfn, end_pfn);
-+	resize_zone(z2, end_pfn, z2->zone_start_pfn + z2->spanned_pages);
-+
-+	pgdat_resize_unlock(z1->zone_pgdat, &flags);
-+
-+	fix_zone_id(z1, start_pfn, end_pfn);
-+
-+	return 0;
-+out_fail:
-+	pgdat_resize_unlock(z1->zone_pgdat, &flags);
-+	return -1;
-+}
-+
-+static int move_pfn_range_right(struct zone *z1, struct zone *z2,
-+		unsigned long start_pfn, unsigned long end_pfn)
-+{
-+	unsigned long flags;
-+
-+	pgdat_resize_lock(z1->zone_pgdat, &flags);
-+
-+	/* can't move pfns which are lower than @z1 */
-+	if (z1->zone_start_pfn > start_pfn)
-+		goto out_fail;
-+	/* the move out part mast at the right most of @z1 */
-+	if (z1->zone_start_pfn + z1->spanned_pages >  end_pfn)
-+		goto out_fail;
-+	/* must included/overlap */
-+	if (start_pfn >= z1->zone_start_pfn + z1->spanned_pages)
-+		goto out_fail;
-+
-+	resize_zone(z1, z1->zone_start_pfn, start_pfn);
-+	resize_zone(z2, start_pfn, z2->zone_start_pfn + z2->spanned_pages);
-+
-+	pgdat_resize_unlock(z1->zone_pgdat, &flags);
-+
-+	fix_zone_id(z2, start_pfn, end_pfn);
-+
-+	return 0;
-+out_fail:
-+	pgdat_resize_unlock(z1->zone_pgdat, &flags);
-+	return -1;
-+}
-+
- static void grow_pgdat_span(struct pglist_data *pgdat, unsigned long start_pfn,
- 			    unsigned long end_pfn)
- {
-@@ -501,7 +584,7 @@ static void set_nodemasks(int node, struct memory_notify *arg)
- }
- 
- 
--int __ref online_pages(unsigned long pfn, unsigned long nr_pages)
-+int __ref online_pages(unsigned long pfn, unsigned long nr_pages, int online_type)
- {
- 	unsigned long onlined_pages = 0;
- 	struct zone *zone;
-@@ -518,6 +601,22 @@ int __ref online_pages(unsigned long pfn, unsigned long nr_pages)
- 	 */
- 	zone = page_zone(pfn_to_page(pfn));
- 
-+	if (online_type == ONLINE_KERNEL && zone_idx(zone) == ZONE_MOVABLE) {
-+		if (move_pfn_range_left(zone - 1, zone, pfn, pfn + nr_pages)) {
-+			unlock_memory_hotplug();
-+			return -1;
-+		}
-+	}
-+	if (online_type == ONLINE_MOVABLE && zone_idx(zone) == ZONE_MOVABLE - 1) {
-+		if (move_pfn_range_right(zone, zone + 1, pfn, pfn + nr_pages)) {
-+			unlock_memory_hotplug();
-+			return -1;
-+		}
-+	}
-+
-+	/* Previous code may changed the zone of the pfn range */
-+	zone = page_zone(pfn_to_page(pfn));
-+
- 	arg.start_pfn = pfn;
- 	arg.nr_pages = nr_pages;
- 	check_nodemasks_changes_online(nr_pages, zone, &arg);
--- 
-1.7.4.4
+> +
+> +	mutex_lock(&dmabuf->lock);
+> +	list_for_each_entry(attach, &dmabuf->attachments, node)
+> +		max = min(max, dma_get_max_seg_count(attach->dev));
+
+I think that there is a bug here.
+Assume that there are two deices on the list, one using unlimited number of
+segments (value 0), the second one needs a contiguous buffer (value 1).
+The result of the function is 0 = min(0, 2).
+
+The return value 0 indicates that the unlimited number of sg segments is
+accepted what is *wrong* because the correct value should be 1.
+
+I recommend to change the semantics for unlimited number of segments
+from 'value 0' to:
+
+#define DMA_SEGMENTS_COUNT_UNLIMITED ((unsigned long)INT_MAX)
+
+Using INT_MAX will allow using safe conversions between signed and
+unsigned integers.
+
+> +	mutex_unlock(&dmabuf->lock);
+> +
+> +	return max;
+> +}
+> +EXPORT_SYMBOL_GPL(dma_buf_max_seg_count);
+> +
+> +/**
+> + * dma_buf_get_seg_boundary - helper for exporters to get the most
+> + * restrictive segment alignment of all the attached devices
+> + */
+> +unsigned int dma_buf_get_seg_boundary(struct dma_buf *dmabuf)
+> +{
+> +	struct dma_buf_attachment *attach;
+> +	unsigned int mask = (unsigned int)-1;
+> +
+> +	if (WARN_ON(!dmabuf))
+> +		return 0;
+> +
+> +	mutex_lock(&dmabuf->lock);
+> +	list_for_each_entry(attach, &dmabuf->attachments, node)
+> +		mask &= dma_get_seg_boundary(attach->dev);
+> +	mutex_unlock(&dmabuf->lock);
+> +
+> +	return mask;
+> +}
+> +EXPORT_SYMBOL_GPL(dma_buf_get_seg_boundary);
+> +
+> +/**
+>   * dma_buf_attach - Add the device to dma_buf's attachments list; optionally,
+>   * calls attach() of dma_buf_ops to allow device-specific attach functionality
+>   * @dmabuf:	[in]	buffer to attach device to.
+> diff --git a/include/linux/dma-buf.h b/include/linux/dma-buf.h
+> index eb48f38..9533b9b 100644
+> --- a/include/linux/dma-buf.h
+> +++ b/include/linux/dma-buf.h
+> @@ -167,6 +167,10 @@ int dma_buf_fd(struct dma_buf *dmabuf, int flags);
+>  struct dma_buf *dma_buf_get(int fd);
+>  void dma_buf_put(struct dma_buf *dmabuf);
+>  
+> +unsigned int dma_buf_max_seg_size(struct dma_buf *dmabuf);
+> +unsigned int dma_buf_max_seg_count(struct dma_buf *dmabuf);
+> +unsigned int dma_buf_get_seg_boundary(struct dma_buf *dmabuf);
+
+Instead of adding an army of new handlers you could provide a single helper:
+
+int dma_buf_get_parameters(struct dma_buf *dmabuf,
+	struct device_dma_parameters *params);
+
+This function will fill *params with lowest common DMA requirements for
+all devices on attachment list. Return value can be used to diagnose
+errors like incorrectly initialized dma_buf pointer
+(like no attachments on an attachment list).
+
+Moreover, there will be no need to add a new handler every time
+device_dma_parameters is extended.
+
+Regards,
+Tomasz Stanislawski
+
+> +
+>  struct sg_table *dma_buf_map_attachment(struct dma_buf_attachment *,
+>  					enum dma_data_direction);
+>  void dma_buf_unmap_attachment(struct dma_buf_attachment *, struct sg_table *,
+> @@ -220,6 +224,21 @@ static inline void dma_buf_put(struct dma_buf *dmabuf)
+>  	return;
+>  }
+>  
+> +static inline unsigned int dma_buf_max_seg_size(struct dma_buf *dmabuf)
+> +{
+> +	return 0;
+> +}
+> +
+> +static inline unsigned int dma_buf_max_seg_count(struct dma_buf *dmabuf)
+> +{
+> +	return 0;
+> +}
+> +
+> +static inline unsigned int dma_buf_get_seg_boundary(struct dma_buf *dmabuf)
+> +{
+> +	return 0;
+> +}
+> +
+>  static inline struct sg_table *dma_buf_map_attachment(
+>  	struct dma_buf_attachment *attach, enum dma_data_direction write)
+>  {
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
