@@ -1,135 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
-	by kanga.kvack.org (Postfix) with SMTP id 43AAC6B0044
-	for <linux-mm@kvack.org>; Sun,  5 Aug 2012 20:00:37 -0400 (EDT)
-Date: Mon, 6 Aug 2012 09:01:57 +0900
+Received: from psmtp.com (na3sys010amx207.postini.com [74.125.245.207])
+	by kanga.kvack.org (Postfix) with SMTP id 8CB676B0044
+	for <linux-mm@kvack.org>; Sun,  5 Aug 2012 20:36:57 -0400 (EDT)
+Date: Mon, 6 Aug 2012 09:38:16 +0900
 From: Minchan Kim <minchan@kernel.org>
-Subject: Re: WARNING: at mm/page_alloc.c:4514 free_area_init_node+0x4f/0x37b()
-Message-ID: <20120806000157.GA10971@bbox>
-References: <20120801173837.GI8082@aftab.osrc.amd.com>
- <20120801233335.GA4673@barrios>
- <20120802110641.GA16328@aftab.osrc.amd.com>
+Subject: Re: [PATCH 0/4] promote zcache from staging
+Message-ID: <20120806003816.GA11375@bbox>
+References: <1343413117-1989-1-git-send-email-sjenning@linux.vnet.ibm.com>
+ <b95aec06-5a10-4f83-bdfd-e7f6adabd9df@default>
+ <20120727205932.GA12650@localhost.localdomain>
+ <d4656ba5-d6d1-4c36-a6c8-f6ecd193b31d@default>
+ <5016DE4E.5050300@linux.vnet.ibm.com>
+ <f47a6d86-785f-498c-8ee5-0d2df1b2616c@default>
+ <20120731155843.GP4789@phenom.dumpdata.com>
+ <20120731161916.GA4941@kroah.com>
+ <20120731175142.GE29533@phenom.dumpdata.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20120802110641.GA16328@aftab.osrc.amd.com>
+In-Reply-To: <20120731175142.GE29533@phenom.dumpdata.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Borislav Petkov <bp@amd64.org>
-Cc: Tejun Heo <tj@kernel.org>, Ralf Baechle <ralf@linux-mips.org>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, devel@driverdev.osuosl.org, Seth Jennings <sjenning@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Konrad Rzeszutek Wilk <konrad@darnok.org>, Andrew Morton <akpm@linux-foundation.org>, Robert Jennings <rcj@linux.vnet.ibm.com>, Nitin Gupta <ngupta@vflare.org>
 
-Hi Borislav,
+Hi Konrad,
 
-On Thu, Aug 02, 2012 at 01:06:41PM +0200, Borislav Petkov wrote:
-> On Thu, Aug 02, 2012 at 08:33:35AM +0900, Minchan Kim wrote:
-> > Hello Borislav,
-> > 
-> > On Wed, Aug 01, 2012 at 07:38:37PM +0200, Borislav Petkov wrote:
-> > > Hi,
+On Tue, Jul 31, 2012 at 01:51:42PM -0400, Konrad Rzeszutek Wilk wrote:
+> On Tue, Jul 31, 2012 at 09:19:16AM -0700, Greg Kroah-Hartman wrote:
+> > On Tue, Jul 31, 2012 at 11:58:43AM -0400, Konrad Rzeszutek Wilk wrote:
+> > > So in my head I feel that it is Ok to:
+> > > 1) address the concerns that zcache has before it is unstaged
+> > > 2) rip out the two-engine system with a one-engine system
+> > >    (and see how well it behaves)
+> > > 3) sysfs->debugfs as needed
+> > > 4) other things as needed
 > > > 
-> > > I'm hitting the WARN_ON in $Subject with latest linus:
-> > > v3.5-8833-g2d534926205d on a 4-node AMD system. As it looks from
-> > > dmesg, it is happening on node 0, 1 and 2 but not on 3. Probably the
-> > > pgdat->nr_zones thing but I'll have to add more dbg code to be sure.
+> > > I think we are getting hung-up what Greg said about adding features
+> > > and the two-engine->one engine could be understood as that.
+> > > While I think that is part of a staging effort to clean up the
+> > > existing issues. Lets see what Greg thinks.
 > > 
-> > As I look the code quickly, free_area_init_node initializes node_id and
-> > node_start_pfn doublely. They were initialized by setup_node_data.
+> > Greg has no idea, except I want to see the needed fixups happen before
+> > new features get added.  Add the new features _after_ it is out of
+> > staging.
+> 
+> I think we (that is me, Seth, Minchan, Dan) need to talk to have a good
+> understanding of what each of us thinks are fixups.
+> 
+> Would Monday Aug 6th at 1pm EST on irc.freenode.net channel #zcache work
+> for people?
+
+1pm EST is 2am KST(Korea Standard Time) so it's not good for me. :)
+I know it's hard to adjust my time for yours so let you talk without
+me. Instead, I will write it down my requirement. It's very simple and
+trivial.
+
+1) Please don't add any new feature like replace zsmalloc with zbud.
+   It's totally untested so it needs more time for stable POV bug,
+   or performance/fragementation.
+
+2) Factor out common code between zcache and ramster. It should be just
+   clean up code and should not change current behavior.
+
+3) Add lots of comment to public functions
+
+4) make function/varabiel names more clearly.
+
+They are necessary for promotion and after promotion,
+let's talk about new great features.
+
+
+> 
 > > 
-> > Could you test below patch? It's not a totally right way to fix it but
-> > I want to confirm why it happens.
-> > 
-> > (I'm on vacation now so please understand that it hard to reach me)
+> > greg k-h
 > 
-> I sincerely hope you're not going to interrupt your vacation because of
-> this.
-> 
-> :-).
-> 
-> > 
-> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> > index 889532b..009ac28 100644
-> > --- a/mm/page_alloc.c
-> > +++ b/mm/page_alloc.c
-> > @@ -4511,7 +4511,7 @@ void __paginginit free_area_init_node(int nid, unsigned long *zones_size,
-> >         pg_data_t *pgdat = NODE_DATA(nid);
-> >  
-> >         /* pg_data_t should be reset to zero when it's allocated */
-> > -       WARN_ON(pgdat->nr_zones || pgdat->node_start_pfn || pgdat->classzone_idx);
-> > +       WARN_ON(pgdat->nr_zones || pgdat->classzone_idx);
-> >  
-> >         pgdat->node_id = nid;
-> >         pgdat->node_start_pfn = node_start_pfn;
-> 
-> Yep, you were right: ->node_start_pfn is set. I added additional debug
-> output for more info:
-> 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 889532b8e6c1..c249abe4fee2 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -4511,7 +4511,17 @@ void __paginginit free_area_init_node(int nid, unsigned long *zones_size,
->         pg_data_t *pgdat = NODE_DATA(nid);
->  
->         /* pg_data_t should be reset to zero when it's allocated */
-> -       WARN_ON(pgdat->nr_zones || pgdat->node_start_pfn || pgdat->classzone_idx);
-> +       WARN_ON(pgdat->nr_zones || pgdat->classzone_idx);
-> +
-> +       if (pgdat->node_start_pfn)
-> +               pr_warn("%s: pgdat->node_start_pfn: %lu\n", __func__, pgdat->node_start_pfn);
-> +
-> +       if (pgdat->nr_zones)
-> +               pr_warn("%s: pgdat->nr_zones: %d\n", __func__, pgdat->nr_zones);
-> +
-> +       if (pgdat->classzone_idx)
-> +               pr_warn("%s: pgdat->classzone_idx: %d\n", __func__, pgdat->classzone_idx);
-> +
->  
->         pgdat->node_id = nid;
->         pgdat->node_start_pfn = node_start_pfn;
-> 
-> 
-> 
-> Here's what it says:
-> 
-> [    0.000000] On node 0 totalpages: 4193848
-> [    0.000000]   DMA zone: 64 pages used for memmap
-> [    0.000000]   DMA zone: 6 pages reserved
-> [    0.000000]   DMA zone: 3890 pages, LIFO batch:0
-> [    0.000000]   DMA32 zone: 16320 pages used for memmap
-> [    0.000000]   DMA32 zone: 798464 pages, LIFO batch:31
-> [    0.000000]   Normal zone: 52736 pages used for memmap
-> [    0.000000]   Normal zone: 3322368 pages, LIFO batch:31
-> [    0.000000] free_area_init_node: pgdat->node_start_pfn: 4423680	<----
-> [    0.000000] On node 1 totalpages: 4194304
-> [    0.000000]   Normal zone: 65536 pages used for memmap
-> [    0.000000]   Normal zone: 4128768 pages, LIFO batch:31
-> [    0.000000] free_area_init_node: pgdat->node_start_pfn: 8617984	<----
-> [    0.000000] On node 2 totalpages: 4194304
-> [    0.000000]   Normal zone: 65536 pages used for memmap
-> [    0.000000]   Normal zone: 4128768 pages, LIFO batch:31
-> [    0.000000] free_area_init_node: pgdat->node_start_pfn: 12812288	<----
-> [    0.000000] On node 3 totalpages: 4194304
-> [    0.000000]   Normal zone: 65536 pages used for memmap
-> [    0.000000]   Normal zone: 4128768 pages, LIFO batch:31
-> [    0.000000] ACPI: PM-Timer IO Port: 0x2008
-> [    0.000000] ACPI: Local APIC address 0xfee00000
-> 
-> Thanks.
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
-Thanks for looking at this!
+-- 
+Kind regards,
+Minchan Kim
 
-As soon as I come back from vacation, I see this BUG carefully and think patch I sent
-is good. The patch's goal is to detect for uninitialized pgdat structure
-when it was allocated. So it checks some variables randomly but unfortunately,
-pgdat's members like node_start_pfn are closely related to boot arch code
-so some members could be used by arch code before reaching generic mm code.
-It was a Tejun's concern and he was correct.
-
-I think nr_zones and classzone_idx should be initialized by only generic MM code
-during boot sequence, not memory hotplug so that patch would be okay.
-
-Linus already applied the patch in rc-1 but he might need better changelog.
-I am not sure I send this patch to whom, Linus or Andrew?
-Anyway, Please use below if really need it.
-
-Thanks!
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
