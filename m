@@ -1,126 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
-	by kanga.kvack.org (Postfix) with SMTP id 5DCB76B005D
-	for <linux-mm@kvack.org>; Mon,  6 Aug 2012 09:57:36 -0400 (EDT)
-From: Rafael Aquini <aquini@redhat.com>
-Subject: [PATCH v5 0/3] make balloon pages movable by compaction
-Date: Mon,  6 Aug 2012 10:56:49 -0300
-Message-Id: <cover.1344259054.git.aquini@redhat.com>
+Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
+	by kanga.kvack.org (Postfix) with SMTP id 065C06B0044
+	for <linux-mm@kvack.org>; Mon,  6 Aug 2012 10:03:56 -0400 (EDT)
+Date: Mon, 6 Aug 2012 16:03:54 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH V7 2/2] mm: memcg detect no memcgs above softlimit under
+ zone reclaim
+Message-ID: <20120806140354.GE6150@dhcp22.suse.cz>
+References: <1343687538-24284-1-git-send-email-yinghan@google.com>
+ <20120731155932.GB16924@tiehlicka.suse.cz>
+ <CALWz4iwnrXFSoqmPUsXfUMzgxz5bmBrRNU5Nisd=g2mjmu-u3Q@mail.gmail.com>
+ <20120731200205.GA19524@tiehlicka.suse.cz>
+ <CALWz4ixF8PzhDs2fuOMTrrRiBHkg+aMzaVOBhuUN78UenzmYbw@mail.gmail.com>
+ <20120801084553.GD4436@tiehlicka.suse.cz>
+ <CALWz4iwzJp8EwSeP6ap7_adW6sF8YR940sky6vJS3SD8FO6HkA@mail.gmail.com>
+ <50198D38.1000905@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <50198D38.1000905@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, Rusty Russell <rusty@rustcorp.com.au>, "Michael S. Tsirkin" <mst@redhat.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Minchan Kim <minchan@kernel.org>, Rafael Aquini <aquini@redhat.com>
+To: Rik van Riel <riel@redhat.com>
+Cc: Ying Han <yinghan@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hillf Danton <dhillf@gmail.com>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 
-Memory fragmentation introduced by ballooning might reduce significantly
-the number of 2MB contiguous memory blocks that can be used within a guest,
-thus imposing performance penalties associated with the reduced number of
-transparent huge pages that could be used by the guest workload.
+On Wed 01-08-12 16:10:32, Rik van Riel wrote:
+> On 08/01/2012 03:04 PM, Ying Han wrote:
+> 
+> >That is true. Hmm, then two things i can do:
+> >
+> >1. for kswapd case, make sure not counting the root cgroup
+> >2. or check nr_scanned. I like the nr_scanned which is telling us
+> >whether or not the reclaim ever make any attempt ?
+> 
+> I am looking at a more advanced case of (3) right
+> now.  Once I have the basics working, I will send
+> you a prototype (that applies on top of your patches)
+> to play with.
+> 
+> Basically, for every LRU in the system, we can keep
+> track of 4 things:
+> - reclaim_stat->recent_scanned
+> - reclaim_stat->recent_rotated
+> - reclaim_stat->recent_pressure
+> - LRU size
+> 
+> The first two represent the fraction of pages on the
+> list that are actively used.  The larger the fraction
+> of recently used pages, the more valuable the cache
+> is. The inverse of that can be used to show us how
+> hard to reclaim this cache, compared to other caches
+> (everything else being equal).
+> 
+> The recent pressure can be used to keep track of how
+> many pages we have scanned on each LRU list recently.
+> Pressure is scaled with LRU size.
+> 
+> This would be the basic formula to decide which LRU
+> to reclaim from:
+> 
+>           recent_scanned   LRU size
+> score =   -------------- * ----------------
+>           recent_rotated   recent_pressure
+> 
+> 
+> In other words, the less the objects on an LRU are
+> used, the more we should reclaim from that LRU. The
+> larger an LRU is, the more we should reclaim from
+> that LRU.
 
-This patch-set follows the main idea discussed at 2012 LSFMMS session:
-"Ballooning for transparent huge pages" -- http://lwn.net/Articles/490114/
-to introduce the required changes to the virtio_balloon driver, as well as
-the changes to the core compaction & migration bits, in order to make those
-subsystems aware of ballooned pages and allow memory balloon pages become
-movable within a guest, thus avoiding the aforementioned fragmentation issue
+The formula makes sense but I am afraid that it will be hard to tune it
+into something that wouldn't regress. For example I have seen workloads
+which had many small groups which are used to wrap up backup jobs and
+those are scanned a lot, you would see also many rotations because of
+the writeback but those are definitely good to scan rather than a large
+group which needs to keep its data resident.
+Anyway, I am not saying the score approach is a bad idea but I am afraid
+it will be hard to validate and make it right.
 
-Rafael Aquini (3):
-  mm: introduce compaction and migration for virtio ballooned pages
-  virtio_balloon: introduce migration primitives to balloon pages
-  mm: add vm event counters for balloon pages compaction
+> The more we have already scanned an LRU, the lower
+> its score becomes. At some point, another LRU will
+> have the top score, and that will be the target to
+> scan.
 
- drivers/virtio/virtio_balloon.c | 139 +++++++++++++++++++++++++++++++++++++---
- include/linux/mm.h              |  26 ++++++++
- include/linux/virtio_balloon.h  |   4 ++
- include/linux/vm_event_item.h   |   2 +
- mm/compaction.c                 | 131 +++++++++++++++++++++++++++++++------
- mm/migrate.c                    |  34 +++++++++-
- mm/vmstat.c                     |   4 ++
- 7 files changed, 312 insertions(+), 28 deletions(-)
+So you think we shouldn't do the full round over memcgs in shrink_zone a
+and rather do it oom way to pick up a victim and hammer it?
 
-Change log:
-v5:
- * address Andrew Morton's review comments on the patch series;
- * address a couple extra nitpick suggestions on PATCH 01 (Minchan);
-v4: 
- * address Rusty Russel's review comments on PATCH 02;
- * re-base virtio_balloon patch on 9c378abc5c0c6fc8e3acf5968924d274503819b3;
-V3: 
- * address reviewers nitpick suggestions on PATCH 01 (Mel, Minchan);
-V2: 
- * address Mel Gorman's review comments on PATCH 01;
+> We can adjust the score for different LRUs in different
+> ways, eg.:
+> - swappiness adjustment for file vs anon LRUs, within
+>   an LRU set
+> - if an LRU set contains a file LRU with more inactive
+>   than active pages, reclaim from this LRU set first
+> - if an LRU set is over it's soft limit, reclaim from
+>   this LRU set first
 
+maybe we could replace LRU size by (LRU size - soft_limit) in the above
+formula?
 
-Preliminary test results:
-(2 VCPU 1024mB RAM KVM guest running 3.6.0_rc1+ -- after a reboot)
-
-* 64mB balloon:
-[root@localhost ~]# awk '/compact/ {print}' /proc/vmstat
-compact_blocks_moved 0
-compact_pages_moved 0
-compact_pagemigrate_failed 0
-compact_stall 0
-compact_fail 0
-compact_success 0
-compact_balloon_migrated 0
-compact_balloon_failed 0
-compact_balloon_isolated 0
-compact_balloon_freed 0
-[root@localhost ~]#
-[root@localhost ~]# for i in $(seq 1 6); do echo 1 > /proc/sys/vm/compact_memory & done &>/dev/null 
-[1]   Done                    echo 1 > /proc/sys/vm/compact_memory
-[2]   Done                    echo 1 > /proc/sys/vm/compact_memory
-[3]   Done                    echo 1 > /proc/sys/vm/compact_memory
-[4]   Done                    echo 1 > /proc/sys/vm/compact_memory
-[5]-  Done                    echo 1 > /proc/sys/vm/compact_memory
-[6]+  Done                    echo 1 > /proc/sys/vm/compact_memory
-[root@localhost ~]# 
-[root@localhost ~]# awk '/compact/ {print}' /proc/vmstat
-compact_blocks_moved 3520
-compact_pages_moved 47548
-compact_pagemigrate_failed 120
-compact_stall 0
-compact_fail 0
-compact_success 0
-compact_balloon_migrated 16378
-compact_balloon_failed 0
-compact_balloon_isolated 16378
-compact_balloon_freed 16378
-
-* 128mB balloon:
-[root@localhost ~]# awk '/compact/ {print}' /proc/vmstat
-compact_blocks_moved 0
-compact_pages_moved 0
-compact_pagemigrate_failed 0
-compact_stall 0
-compact_fail 0
-compact_success 0
-compact_balloon_migrated 0
-compact_balloon_failed 0
-compact_balloon_isolated 0
-compact_balloon_freed 0
-[root@localhost ~]#
-[root@localhost ~]# for i in $(seq 1 6); do echo 1 > /proc/sys/vm/compact_memory & done &>/dev/null 
-[1]   Done                    echo 1 > /proc/sys/vm/compact_memory
-[2]   Done                    echo 1 > /proc/sys/vm/compact_memory
-[3]   Done                    echo 1 > /proc/sys/vm/compact_memory
-[4]   Done                    echo 1 > /proc/sys/vm/compact_memory
-[5]-  Done                    echo 1 > /proc/sys/vm/compact_memory
-[6]+  Done                    echo 1 > /proc/sys/vm/compact_memory
-[root@localhost ~]# 
-[root@localhost ~]# awk '/compact/ {print}' /proc/vmstat
-compact_blocks_moved 3356
-compact_pages_moved 47099
-compact_pagemigrate_failed 158
-compact_stall 0
-compact_fail 0
-compact_success 0
-compact_balloon_migrated 26275
-compact_balloon_failed 42
-compact_balloon_isolated 26317
-compact_balloon_freed 26275
+> 
+> This also gives us a nice way to balance memory pressure
+> between zones, etc...
 
 -- 
-1.7.11.2
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
