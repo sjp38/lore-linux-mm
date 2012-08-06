@@ -1,173 +1,161 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
-	by kanga.kvack.org (Postfix) with SMTP id 402426B0073
-	for <linux-mm@kvack.org>; Mon,  6 Aug 2012 05:23:54 -0400 (EDT)
+	by kanga.kvack.org (Postfix) with SMTP id 2E96C6B0075
+	for <linux-mm@kvack.org>; Mon,  6 Aug 2012 05:23:58 -0400 (EDT)
 From: Lai Jiangshan <laijs@cn.fujitsu.com>
-Subject: [RFC V3 PATCH 17/25] page_alloc: use N_MEMORY instead N_HIGH_MEMORY change the node_states initialization
-Date: Mon, 6 Aug 2012 17:23:11 +0800
-Message-Id: <1344244999-5081-18-git-send-email-laijs@cn.fujitsu.com>
+Subject: [RFC V3 PATCH 18/25] hotplug: update nodemasks management
+Date: Mon, 6 Aug 2012 17:23:12 +0800
+Message-Id: <1344244999-5081-19-git-send-email-laijs@cn.fujitsu.com>
 In-Reply-To: <1344244999-5081-1-git-send-email-laijs@cn.fujitsu.com>
 References: <1343887288-8866-1-git-send-email-laijs@cn.fujitsu.com>
  <1344244999-5081-1-git-send-email-laijs@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Mel Gorman <mel@csn.ul.ie>, linux-kernel@vger.kernel.org
-Cc: Lai Jiangshan <laijs@cn.fujitsu.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, Tejun Heo <tj@kernel.org>, Pekka Enberg <penberg@kernel.org>, Yinghai Lu <yinghai@kernel.org>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org
+Cc: Lai Jiangshan <laijs@cn.fujitsu.com>, Rob Landley <rob@landley.net>, Kay Sievers <kay.sievers@vrfy.org>, Greg Kroah-Hartman <gregkh@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Paul Gortmaker <paul.gortmaker@windriver.com>, Bjorn Helgaas <bhelgaas@google.com>, David Rientjes <rientjes@google.com>, linux-doc@vger.kernel.org, linux-mm@kvack.org
 
-N_HIGH_MEMORY stands for the nodes that has normal or high memory.
-N_MEMORY stands for the nodes that has any memory.
-
-The code here need to handle with the nodes which have memory, we should
-use N_MEMORY instead.
-
-Since we introduced N_MEMORY, we update the initialization of node_states.
+update nodemasks management for N_MEMORY
 
 Signed-off-by: Lai Jiangshan <laijs@cn.fujitsu.com>
 ---
- arch/x86/mm/init_64.c |    4 +++-
- mm/page_alloc.c       |   40 ++++++++++++++++++++++------------------
- 2 files changed, 25 insertions(+), 19 deletions(-)
+ Documentation/memory-hotplug.txt |    5 +++-
+ include/linux/memory.h           |    1 +
+ mm/memory_hotplug.c              |   49 +++++++++++++++++++++++++++++++++----
+ 3 files changed, 48 insertions(+), 7 deletions(-)
 
-diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
-index 2b6b4a3..005f00c 100644
---- a/arch/x86/mm/init_64.c
-+++ b/arch/x86/mm/init_64.c
-@@ -625,7 +625,9 @@ void __init paging_init(void)
- 	 *	 numa support is not compiled in, and later node_set_state
- 	 *	 will not set it back.
- 	 */
--	node_clear_state(0, N_NORMAL_MEMORY);
-+	node_clear_state(0, N_MEMORY);
-+	if (N_MEMORY != N_NORMAL_MEMORY)
-+		node_clear_state(0, N_NORMAL_MEMORY);
- 
- 	zone_sizes_init();
- }
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 9312702..edffc35 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -1646,7 +1646,7 @@ bool zone_watermark_ok_safe(struct zone *z, int order, unsigned long mark,
-  *
-  * If the zonelist cache is present in the passed in zonelist, then
-  * returns a pointer to the allowed node mask (either the current
-- * tasks mems_allowed, or node_states[N_HIGH_MEMORY].)
-+ * tasks mems_allowed, or node_states[N_MEMORY].)
-  *
-  * If the zonelist cache is not available for this zonelist, does
-  * nothing and returns NULL.
-@@ -1675,7 +1675,7 @@ static nodemask_t *zlc_setup(struct zonelist *zonelist, int alloc_flags)
- 
- 	allowednodes = !in_interrupt() && (alloc_flags & ALLOC_CPUSET) ?
- 					&cpuset_current_mems_allowed :
--					&node_states[N_HIGH_MEMORY];
-+					&node_states[N_MEMORY];
- 	return allowednodes;
+diff --git a/Documentation/memory-hotplug.txt b/Documentation/memory-hotplug.txt
+index 6e6cbc7..70bc1c7 100644
+--- a/Documentation/memory-hotplug.txt
++++ b/Documentation/memory-hotplug.txt
+@@ -378,6 +378,7 @@ struct memory_notify {
+        unsigned long start_pfn;
+        unsigned long nr_pages;
+        int status_change_nid_normal;
++       int status_change_nid_high;
+        int status_change_nid;
  }
  
-@@ -3070,7 +3070,7 @@ static int find_next_best_node(int node, nodemask_t *used_node_mask)
- 		return node;
- 	}
+@@ -385,7 +386,9 @@ start_pfn is start_pfn of online/offline memory.
+ nr_pages is # of pages of online/offline memory.
+ status_change_nid_normal is set node id when N_NORMAL_MEMORY of nodemask
+ is (will be) set/clear, if this is -1, then nodemask status is not changed.
+-status_change_nid is set node id when N_HIGH_MEMORY of nodemask is (will be)
++status_change_nid_high is set node id when N_HIGH_MEMORY of nodemask
++is (will be) set/clear, if this is -1, then nodemask status is not changed.
++status_change_nid is set node id when N_MEMORY of nodemask is (will be)
+ set/clear. It means a new(memoryless) node gets new memory by online and a
+ node loses all memory. If this is -1, then nodemask status is not changed.
+ If status_changed_nid* >= 0, callback should create/discard structures for the
+diff --git a/include/linux/memory.h b/include/linux/memory.h
+index 6b9202b..8089e49 100644
+--- a/include/linux/memory.h
++++ b/include/linux/memory.h
+@@ -54,6 +54,7 @@ struct memory_notify {
+ 	unsigned long start_pfn;
+ 	unsigned long nr_pages;
+ 	int status_change_nid_normal;
++	int status_change_nid_high;
+ 	int status_change_nid;
+ };
  
--	for_each_node_state(n, N_HIGH_MEMORY) {
-+	for_each_node_state(n, N_MEMORY) {
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index 3438c4a..c2c96a4 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -462,7 +462,7 @@ static void check_nodemasks_changes_online(unsigned long nr_pages,
+ 	int nid = zone_to_nid(zone);
+ 	enum zone_type zone_last = ZONE_NORMAL;
  
- 		/* Don't want a node to appear more than once */
- 		if (node_isset(n, *used_node_mask))
-@@ -3212,7 +3212,7 @@ static int default_zonelist_order(void)
-  	 * local memory, NODE_ORDER may be suitable.
-          */
- 	average_size = total_size /
--				(nodes_weight(node_states[N_HIGH_MEMORY]) + 1);
-+				(nodes_weight(node_states[N_MEMORY]) + 1);
- 	for_each_online_node(nid) {
- 		low_kmem_size = 0;
- 		total_size = 0;
-@@ -4569,7 +4569,7 @@ unsigned long __init find_min_pfn_with_active_regions(void)
- /*
-  * early_calculate_totalpages()
-  * Sum pages in active regions for movable zone.
-- * Populate N_HIGH_MEMORY for calculating usable_nodes.
-+ * Populate N_MEMORY for calculating usable_nodes.
-  */
- static unsigned long __init early_calculate_totalpages(void)
- {
-@@ -4582,7 +4582,7 @@ static unsigned long __init early_calculate_totalpages(void)
- 
- 		totalpages += pages;
- 		if (pages)
--			node_set_state(nid, N_HIGH_MEMORY);
-+			node_set_state(nid, N_MEMORY);
- 	}
-   	return totalpages;
- }
-@@ -4599,9 +4599,9 @@ static void __init find_zone_movable_pfns_for_nodes(void)
- 	unsigned long usable_startpfn;
- 	unsigned long kernelcore_node, kernelcore_remaining;
- 	/* save the state before borrow the nodemask */
--	nodemask_t saved_node_state = node_states[N_HIGH_MEMORY];
-+	nodemask_t saved_node_state = node_states[N_MEMORY];
- 	unsigned long totalpages = early_calculate_totalpages();
--	int usable_nodes = nodes_weight(node_states[N_HIGH_MEMORY]);
-+	int usable_nodes = nodes_weight(node_states[N_MEMORY]);
- 
- 	/*
- 	 * If movablecore was specified, calculate what size of
-@@ -4636,7 +4636,7 @@ static void __init find_zone_movable_pfns_for_nodes(void)
- restart:
- 	/* Spread kernelcore memory as evenly as possible throughout nodes */
- 	kernelcore_node = required_kernelcore / usable_nodes;
--	for_each_node_state(nid, N_HIGH_MEMORY) {
-+	for_each_node_state(nid, N_MEMORY) {
- 		unsigned long start_pfn, end_pfn;
- 
- 		/*
-@@ -4728,23 +4728,27 @@ restart:
- 
- out:
- 	/* restore the node_state */
--	node_states[N_HIGH_MEMORY] = saved_node_state;
-+	node_states[N_MEMORY] = saved_node_state;
- }
- 
--/* Any regular memory on that node ? */
--static void check_for_regular_memory(pg_data_t *pgdat)
-+/* Any regular or high memory on that node ? */
-+static void check_for_memory(pg_data_t *pgdat, int nid)
- {
--#ifdef CONFIG_HIGHMEM
- 	enum zone_type zone_type;
- 
--	for (zone_type = 0; zone_type <= ZONE_NORMAL; zone_type++) {
+-	if (N_HIGH_MEMORY == N_NORMAL_MEMORY)
 +	if (N_MEMORY == N_NORMAL_MEMORY)
+ 		zone_last = ZONE_MOVABLE;
+ 
+ 	if (zone_idx(zone) <= zone_last && !node_state(nid, N_NORMAL_MEMORY))
+@@ -470,7 +470,20 @@ static void check_nodemasks_changes_online(unsigned long nr_pages,
+ 	else
+ 		arg->status_change_nid_normal = -1;
+ 
+-	if (!node_state(nid, N_HIGH_MEMORY))
++#ifdef CONFIG_HIGHMEM
++	zone_last = ZONE_HIGH;
++	if (N_MEMORY == N_HIGH_MEMORY)
++		zone_last = ZONE_MOVABLE;
++
++	if (zone_idx(zone) <= zone_last && !node_state(nid, N_HIGH_MEMORY))
++		arg->status_change_nid_high = nid;
++	else
++		arg->status_change_nid_high = -1;
++#else
++	arg->status_change_nid_high = arg->status_change_nid_normal;
++#endif
++
++	if (!node_state(nid, N_MEMORY))
+ 		arg->status_change_nid = nid;
+ 	else
+ 		arg->status_change_nid = -1;
+@@ -481,7 +494,10 @@ static void set_nodemasks(int node, struct memory_notify *arg)
+ 	if (arg->status_change_nid_normal >= 0)
+ 		node_set_state(node, N_NORMAL_MEMORY);
+ 
+-	node_set_state(node, N_HIGH_MEMORY);
++	if (arg->status_change_nid_high >= 0)
++		node_set_state(node, N_HIGH_MEMORY);
++
++	node_set_state(node, N_MEMORY);
+ }
+ 
+ 
+@@ -899,7 +915,7 @@ static void check_nodemasks_changes_offline(unsigned long nr_pages,
+ 	unsigned long present_pages = 0;
+ 	enum zone_type zt, zone_last = ZONE_NORMAL;
+ 
+-	if (N_HIGH_MEMORY == N_NORMAL_MEMORY)
++	if (N_MEMORY == N_NORMAL_MEMORY)
+ 		zone_last = ZONE_MOVABLE;
+ 
+ 	for (zt = 0; zt <= zone_last; zt++)
+@@ -909,6 +925,21 @@ static void check_nodemasks_changes_offline(unsigned long nr_pages,
+ 	else
+ 		arg->status_change_nid_normal = -1;
+ 
++#ifdef CONIG_HIGHMEM
++	zone_last = ZONE_HIGH;
++	if (N_MEMORY == N_HIGH_MEMORY)
++		zone_last = ZONE_MOVABLE;
++
++	for (; zt <= zone_last; zt++)
++		present_pages += pgdat->node_zones[zt].present_pages;
++	if (zone_idx(zone) <= zone_last && nr_pages >= present_pages)
++		arg->status_change_nid_high = zone_to_nid(zone);
++	else
++		arg->status_change_nid_high = -1;
++#else
++	arg->status_change_nid_high = arg->status_change_nid_normal;
++#endif
++
+ 	zone_last = ZONE_MOVABLE;
+ 	for (; zt <= zone_last; zt++)
+ 		present_pages += pgdat->node_zones[zt].present_pages;
+@@ -923,11 +954,17 @@ static void clear_nodemasks(int node, struct memory_notify *arg)
+ 	if (arg->status_change_nid_normal >= 0)
+ 		node_clear_state(node, N_NORMAL_MEMORY);
+ 
+-	if (N_HIGH_MEMORY == N_NORMAL_MEMORY)
++	if (N_MEMORY == N_NORMAL_MEMORY)
+ 		return;
+ 
+-	if (arg->status_change_nid >= 0)
++	if (arg->status_change_nid_high >= 0)
+ 		node_clear_state(node, N_HIGH_MEMORY);
++
++	if (N_MEMORY == N_HIGH_MEMORY)
 +		return;
 +
-+	for (zone_type = 0; zone_type <= ZONE_MOVABLE - 1; zone_type++) {
- 		struct zone *zone = &pgdat->node_zones[zone_type];
- 		if (zone->present_pages) {
--			node_set_state(zone_to_nid(zone), N_NORMAL_MEMORY);
-+			node_set_state(nid, N_HIGH_MEMORY);
-+			if (N_NORMAL_MEMORY != N_HIGH_MEMORY &&
-+			    zone_type <= ZONE_NORMAL)
-+				node_set_state(nid, N_NORMAL_MEMORY);
- 			break;
- 		}
- 	}
--#endif
++	if (arg->status_change_nid >= 0)
++		node_clear_state(node, N_MEMORY);
  }
  
- /**
-@@ -4827,8 +4831,8 @@ void __init free_area_init_nodes(unsigned long *max_zone_pfn)
- 
- 		/* Any memory on that node */
- 		if (pgdat->node_present_pages)
--			node_set_state(nid, N_HIGH_MEMORY);
--		check_for_regular_memory(pgdat);
-+			node_set_state(nid, N_MEMORY);
-+		check_for_memory(pgdat, nid);
- 	}
- }
- 
+ static int __ref offline_pages(unsigned long start_pfn,
 -- 
 1.7.4.4
 
