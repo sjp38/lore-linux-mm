@@ -1,89 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
-	by kanga.kvack.org (Postfix) with SMTP id BD8206B006E
-	for <linux-mm@kvack.org>; Mon,  6 Aug 2012 13:03:37 -0400 (EDT)
-Message-ID: <1344272614.2486.40.camel@lorien2>
-Subject: Re: [PATCH RESEND] mm: Restructure kmem_cache_create() to move
- debug cache integrity checks into a new function
-From: Shuah Khan <shuah.khan@hp.com>
-Reply-To: shuah.khan@hp.com
-Date: Mon, 06 Aug 2012 11:03:34 -0600
-In-Reply-To: <CAAmzW4Ne5pD90r+6zrrD-BXsjtf5OqaKdWY+2NSGOh1M_sWq4g@mail.gmail.com>
-References: <1342221125.17464.8.camel@lorien2>
-	 <CAOJsxLGjnMxs9qERG5nCfGfcS3jy6Rr54Ac36WgVnOtP_pDYgQ@mail.gmail.com>
-	 <1344224494.3053.5.camel@lorien2> <1344266096.2486.17.camel@lorien2>
-	 <CAAmzW4Ne5pD90r+6zrrD-BXsjtf5OqaKdWY+2NSGOh1M_sWq4g@mail.gmail.com>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 7bit
-Mime-Version: 1.0
+Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
+	by kanga.kvack.org (Postfix) with SMTP id A984D6B0062
+	for <linux-mm@kvack.org>; Mon,  6 Aug 2012 13:13:57 -0400 (EDT)
+Received: by wibhq4 with SMTP id hq4so1636707wib.8
+        for <linux-mm@kvack.org>; Mon, 06 Aug 2012 10:13:56 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <ad942d93-489f-4bf4-96bc-8f65b1a23ea1@default>
+References: <c31aaed4-9d50-4cdf-b794-367fc5850483@default>
+	<CAOJsxLEhW=b3En737d5751xufW2BLehPc2ZGGG1NEtRVSo3=jg@mail.gmail.com>
+	<b9bee363-321e-409a-bc8e-65ffed8a1dc5@default>
+	<CAOJsxLHe6egmMWdEAGj7DGHHX-hqYMhVWDggny9CsT0H-DOL-g@mail.gmail.com>
+	<f54214e7-cee4-4cbf-aad1-6c1f91867879@default>
+	<CAOJsxLHyPj6KrVkB5nj-9vFBXKmn5BN4ArN_7MDmTeVEG3N3Gw@mail.gmail.com>
+	<ad942d93-489f-4bf4-96bc-8f65b1a23ea1@default>
+Date: Mon, 6 Aug 2012 20:13:55 +0300
+Message-ID: <CAOJsxLHwFqjFC8BqfCHA_6OPFbvNfaFkQEjfPTw=_6QsPKweNw@mail.gmail.com>
+Subject: Re: [RFC/PATCH] zcache/ramster rewrite and promotion
+From: Pekka Enberg <penberg@kernel.org>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: JoonSoo Kim <js1304@gmail.com>
-Cc: Pekka Enberg <penberg@kernel.org>, cl@linux.com, glommer@parallels.com, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, David Rientjes <rientjes@google.com>, shuahkhan@gmail.com
+To: Dan Magenheimer <dan.magenheimer@oracle.com>
+Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>, Konrad Wilk <konrad.wilk@oracle.com>, Minchan Kim <minchan@kernel.org>, Nitin Gupta <ngupta@vflare.org>, Andrew Morton <akpm@linux-foundation.org>, Robert Jennings <rcj@linux.vnet.ibm.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, devel@driverdev.osuosl.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, 2012-08-07 at 01:49 +0900, JoonSoo Kim wrote:
-> > diff --git a/mm/slab_common.c b/mm/slab_common.c
-> > index 12637ce..08bc2a4 100644
-> > --- a/mm/slab_common.c
-> > +++ b/mm/slab_common.c
-> > @@ -23,6 +23,41 @@ enum slab_state slab_state;
-> >  LIST_HEAD(slab_caches);
-> >  DEFINE_MUTEX(slab_mutex);
-> >
-> > +static int kmem_cache_sanity_check(const char *name, size_t size)
-> > +{
-> > +#ifdef CONFIG_DEBUG_VM
-> > +       struct kmem_cache *s = NULL;
-> > +
-> > +       list_for_each_entry(s, &slab_caches, list) {
-> > +               char tmp;
-> > +               int res;
-> > +
-> > +               /*
-> > +                * This happens when the module gets unloaded and doesn't
-> > +                * destroy its slab cache and no-one else reuses the vmalloc
-> > +                * area of the module.  Print a warning.
-> > +                */
-> > +               res = probe_kernel_address(s->name, tmp);
-> > +               if (res) {
-> > +                       pr_err("Slab cache with size %d has lost its name\n",
-> > +                              s->object_size);
-> > +                       continue;
-> > +               }
-> > +
-> > +               if (!strcmp(s->name, name)) {
-> > +                       pr_err("%s (%s): Cache name already exists.\n",
-> > +                              __func__, name);
-> > +                       dump_stack();
-> > +                       s = NULL;
-> > +                       return -EINVAL;
-> > +               }
-> > +       }
-> > +
-> > +       WARN_ON(strchr(name, ' '));     /* It confuses parsers */
-> > +#endif
-> > +       return 0;
-> > +}
-> 
-> As I know, following is more preferable than above.
-> 
-> #ifdef CONFIG_DEBUG_VM
-> static int kmem_cache_sanity_check(const char *name, size_t size);
-> #else
-> static inline int kmem_cache_sanity_check(const char *name, size_t size)
-> {
-> return 0;
-> }
-> #endif
-> 
-> Is there any reason to do like that?
-> Thanks.
+On Mon, Aug 6, 2012 at 7:10 PM, Dan Magenheimer
+<dan.magenheimer@oracle.com> wrote:
+> Hmmm.. there's also zbud.c and tmem.c which are critical components
+> of both zcache and ramster.  And there are header files as well which
+> will need to either be in mm/ or somewhere in include/linux/
+>
+> Is there a reason or rule that mm/ can't have subdirectories?
+>
+> Since zcache has at least three .c files plus ramster.c, and
+> since mm/frontswap.c and mm/cleancache.c are the foundation on
+> which all of these are built, I was thinking grouping all six
+> (plus headers) in the same mm/tmem/ subdirectory was a good
+> way to keep mm/ from continuing to get more cluttered... not counting
+> new zcache and ramster files, there are now 74 .c files in mm/!
+> (Personally, I think a directory has too many files in it if
+> "ls" doesn't fit in a 25x80 window.)
+>
+> Thoughts?
 
-No reason, just something I am used to doing :) inline is a good idea. I
-can fix that easily and send v2 patch.
+There's no reason we can't have subdirectories. That said, I really
+don't see the point of having a separate directory called 'tmem'. It
+might make sense to have mm/zcache and/or mm/ramster but I suspect
+you can just fold the core code in mm/zcache.c and mm/ramster.c by
+slimming down the weird Solaris-like 'tmem' abstractions.
 
--- Shuah
-
+                        Pekka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
