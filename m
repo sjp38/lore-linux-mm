@@ -1,76 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
-	by kanga.kvack.org (Postfix) with SMTP id D16C16B0044
-	for <linux-mm@kvack.org>; Mon,  6 Aug 2012 09:30:18 -0400 (EDT)
-Date: Mon, 6 Aug 2012 15:30:15 +0200
+Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
+	by kanga.kvack.org (Postfix) with SMTP id 4DF6E6B0044
+	for <linux-mm@kvack.org>; Mon,  6 Aug 2012 09:33:27 -0400 (EDT)
+Date: Mon, 6 Aug 2012 15:33:24 +0200
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH V8 2/2] mm: memcg detect no memcgs above softlimit under
- zone reclaim
-Message-ID: <20120806133015.GC6150@dhcp22.suse.cz>
-References: <1343942664-13365-1-git-send-email-yinghan@google.com>
- <20120803140224.GC8434@dhcp22.suse.cz>
- <CALWz4iwJaUB9QuSgAoj_cbwY88SZ5er-W7ss7TJ1DFbf7wyevg@mail.gmail.com>
+Subject: Re: [PATCH V8 1/2] mm: memcg softlimit reclaim rework
+Message-ID: <20120806133324.GD6150@dhcp22.suse.cz>
+References: <1343942658-13307-1-git-send-email-yinghan@google.com>
+ <20120803152234.GE8434@dhcp22.suse.cz>
+ <501BF952.7070202@redhat.com>
+ <CALWz4iw6Q500k5qGWaubwLi-3V3qziPuQ98Et9Ay=LS0-PB0dQ@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CALWz4iwJaUB9QuSgAoj_cbwY88SZ5er-W7ss7TJ1DFbf7wyevg@mail.gmail.com>
+In-Reply-To: <CALWz4iw6Q500k5qGWaubwLi-3V3qziPuQ98Et9Ay=LS0-PB0dQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Ying Han <yinghan@google.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Hillf Danton <dhillf@gmail.com>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+Cc: Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hillf Danton <dhillf@gmail.com>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 
-On Fri 03-08-12 09:28:22, Ying Han wrote:
-> On Fri, Aug 3, 2012 at 7:02 AM, Michal Hocko <mhocko@suse.cz> wrote:
-> > On Thu 02-08-12 14:24:24, Ying Han wrote:
-[...]
-> >> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> >> index 88487b3..8622022 100644
-> >> --- a/mm/vmscan.c
-> >> +++ b/mm/vmscan.c
-[...]
-> >> @@ -1879,10 +1883,15 @@ static void shrink_zone(struct zone *zone, struct scan_control *sc)
-> >>                * we have to reclaim under softlimit instead of burning more
-> >>                * cpu cycles.
-> >>                */
-> >> -             if (!global_reclaim(sc) || sc->priority < DEF_PRIORITY ||
-> >> -                             mem_cgroup_over_soft_limit(memcg))
-> >> +             if (ignore_softlimit || !global_reclaim(sc) ||
-> >> +                             sc->priority < DEF_PRIORITY ||
-> >> +                             mem_cgroup_over_soft_limit(memcg)) {
-> >>                       shrink_lruvec(lruvec, sc);
+On Fri 03-08-12 09:34:11, Ying Han wrote:
+> On Fri, Aug 3, 2012 at 9:16 AM, Rik van Riel <riel@redhat.com> wrote:
+> > On 08/03/2012 11:22 AM, Michal Hocko wrote:
 > >>
-> >> +                     if (!mem_cgroup_is_root(memcg))
-> >> +                             over_softlimit = true;
-> >> +             }
-> >> +
+> >> On Thu 02-08-12 14:24:18, Ying Han wrote:
+> >> [...]
+> >>>
+> >>> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> >>> index 3e0d0cd..88487b3 100644
+> >>> --- a/mm/vmscan.c
+> >>> +++ b/mm/vmscan.c
+> >>> @@ -1866,7 +1866,22 @@ static void shrink_zone(struct zone *zone, struct
+> >>> scan_control *sc)
+> >>>         do {
+> >>>                 struct lruvec *lruvec = mem_cgroup_zone_lruvec(zone,
+> >>> memcg);
+> >>>
+> >>> -               shrink_lruvec(lruvec, sc);
+> >>> +               /*
+> >>> +                * Reclaim from mem_cgroup if any of these conditions are
+> >>> met:
+> >>> +                * - this is a targetted reclaim ( not global reclaim)
+> >>> +                * - reclaim priority is less than DEF_PRIORITY
+> >>> +                * - mem_cgroup or its ancestor ( not including root
+> >>> cgroup)
+> >>> +                * exceeds its soft limit
+> >>> +                *
+> >>> +                * Note: The priority check is a balance of how hard to
+> >>> +                * preserve the pages under softlimit. If the memcgs of
+> >>> the
+> >>> +                * zone having trouble to reclaim pages above their
+> >>> softlimit,
+> >>> +                * we have to reclaim under softlimit instead of burning
+> >>> more
+> >>> +                * cpu cycles.
+> >>> +                */
+> >>> +               if (!global_reclaim(sc) || sc->priority<  DEF_PRIORITY ||
+> >>> +                               mem_cgroup_over_soft_limit(memcg))
+> >>> +                       shrink_lruvec(lruvec, sc);
+> >>>
+> >>>                 /*
+> >>>                  * Limit reclaim has historically picked one memcg and
+> >>
+> >>
+> >> I am thinking that we could add a constant for the priority
+> >> limit. Something like
+> >> #define MEMCG_LOW_SOFTLIMIT_PRIORITY    DEF_PRIORITY
+> >>
+> >> Although it doesn't seem necessary at the moment, because there is just
+> >> one location where it matters but it could help in the future.
+> >> What do you think?
 > >
-> > I think this is still not sufficient because you do not want to hammer
-> > root in the ignore_softlimit case.
+> >
+> > I am working on changing the code to find the "highest priority"
+> > LRU and reclaim from that list first.  That will obviate the need
+> > for such a change. However, the other cleanups and simplifications
+> > made by Ying's patch are good to have...
 > 
-> Are you worried about over-reclaiming from root cgroup while the rest
-> of the cgroup are under softimit? 
+> So what you guys think to take from here. I can make the change as
+> Michal suggested if that would be something helpful future changes.
+> However, I wonder whether or not it is necessary.
 
-yes
-
-> Hmm.. That only affect the DEF_PRIORITY level, and not sure how bad it
-> is.
-
-Even if it was for DEF_PRIORITY it would mean that the root group is
-second class citizen which is definitely not good.
-
-> On the other hand, I wonder if it is necessary bad since the pages
-> under root cgroup are mainly re-parented pages which only get chance
-> to be reclaimed under global pressure.
-
-Hmm, I do not think this is true in general and you shouldn't rely on
-it.
+I am afraid we will not move forward without a proper implementation of
+the "nobody under soft limit" case. Maybe Rik's idea would just work out
+but this patch on it's own could regress so taking it separately is no
+go IMO. I like how it reduces the code size but we are not "there" yet...
 
 > 
 > --Ying
 > 
+> >
 > > --
-> > Michal Hocko
-> > SUSE Labs
+> > All rights reversed
 
 -- 
 Michal Hocko
