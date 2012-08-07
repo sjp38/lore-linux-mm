@@ -1,44 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
-	by kanga.kvack.org (Postfix) with SMTP id 47D0F6B0044
-	for <linux-mm@kvack.org>; Mon,  6 Aug 2012 20:04:20 -0400 (EDT)
-Received: by ghrr18 with SMTP id r18so1385305ghr.14
-        for <linux-mm@kvack.org>; Mon, 06 Aug 2012 17:04:19 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
+	by kanga.kvack.org (Postfix) with SMTP id F0F056B0044
+	for <linux-mm@kvack.org>; Mon,  6 Aug 2012 20:42:39 -0400 (EDT)
+Date: Tue, 7 Aug 2012 09:44:05 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH 0/4] promote zcache from staging
+Message-ID: <20120807004405.GA19515@bbox>
+References: <d4656ba5-d6d1-4c36-a6c8-f6ecd193b31d@default>
+ <5016DE4E.5050300@linux.vnet.ibm.com>
+ <f47a6d86-785f-498c-8ee5-0d2df1b2616c@default>
+ <20120731155843.GP4789@phenom.dumpdata.com>
+ <20120731161916.GA4941@kroah.com>
+ <20120731175142.GE29533@phenom.dumpdata.com>
+ <20120806003816.GA11375@bbox>
+ <041cb4ce-48ae-4600-9f11-d722bc03b9cc@default>
+ <CAOJsxLHDcgxxu146QWXw0ZhMHMhFOquEFXhF55HK2mCjHzk7hw@mail.gmail.com>
+ <be1daa96-d246-46de-a178-b14b3a862eca@default>
 MIME-Version: 1.0
-In-Reply-To: <1344262930.27828.57.camel@twins>
-References: <1343946858-8170-1-git-send-email-walken@google.com>
-	<1343946858-8170-4-git-send-email-walken@google.com>
-	<1344262930.27828.57.camel@twins>
-Date: Mon, 6 Aug 2012 17:04:18 -0700
-Message-ID: <CANN689GZQ4pYuqzB9ZQ0QBatvsDgj60_ciG5MBHqsKdb5CYtyQ@mail.gmail.com>
-Subject: Re: [PATCH v2 3/9] rbtree: add __rb_change_child() helper function
-From: Michel Lespinasse <walken@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <be1daa96-d246-46de-a178-b14b3a862eca@default>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: riel@redhat.com, daniel.santos@pobox.com, aarcange@redhat.com, dwmw2@infradead.org, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, torvalds@linux-foundation.org
+To: Dan Magenheimer <dan.magenheimer@oracle.com>
+Cc: Pekka Enberg <penberg@kernel.org>, Konrad Wilk <konrad.wilk@oracle.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, devel@driverdev.osuosl.org, Seth Jennings <sjenning@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Konrad Rzeszutek Wilk <konrad@darnok.org>, Andrew Morton <akpm@linux-foundation.org>, Robert Jennings <rcj@linux.vnet.ibm.com>, Nitin Gupta <ngupta@vflare.org>
 
-On Mon, Aug 6, 2012 at 7:22 AM, Peter Zijlstra <peterz@infradead.org> wrote:
-> On Thu, 2012-08-02 at 15:34 -0700, Michel Lespinasse wrote:
->> +static inline void
->
-> I would make that __always_inline, just to make sure GCC doesn't go
-> creative on us.
+Hi Dan,
 
-How strongly do you care ? I'm not sure it makes sense to change it
-unless we also change every other inline function in that file. I'd
-rather not do that until we hear of gcc actually breaking things.
+On Mon, Aug 06, 2012 at 09:21:22AM -0700, Dan Magenheimer wrote:
+> > From: Pekka Enberg [mailto:penberg@kernel.org]
+> > Subject: Re: [PATCH 0/4] promote zcache from staging
+> > 
+> > On Mon, Aug 6, 2012 at 6:24 PM, Dan Magenheimer
+> > <dan.magenheimer@oracle.com> wrote:
+> > > IMHO, the fastest way to get the best zcache into the kernel and
+> > > to distros and users is to throw away the "demo" version, move forward
+> > > to a new solid well-designed zcache code base, and work together to
+> > > build on it.  There's still a lot to do so I hope we can work together.
+> > 
+> > I'm not convinced it's the _fastest way_.
+> 
+> <grin> I guess I meant "optimal", combining "fast" and "best".
+> 
+> > You're effectively
+> > invalidating all the work done under drivers/staging so you might end up
+> > in review limbo with your shiny new code...
+> 
+> Fixing the fundamental design flaws will sooner or later invalidate
+> most (or all) of the previous testing/work anyway, won't it?  Since
+> any kernel built with staging is "tainted" already, I feel like now
+> is a better time to make a major design transition.
+> 
+> I suppose:
+> 
+>  (E) replace "demo" zcache with new code base and keep it
+>      in staging for another cycle
 
-(BTW, did you know that sometimes gcc generates different code when
-you change from inline to always_inline, even though things were
-already inlined before ? I really hate dealing with gcc crap like
-that, makes me want to forget about inline functions and just do it
-all with preprocessor abuse...)
+I go for (E). Please send your refactoring code as formal patch.
+Thanks.
 
 -- 
-Michel "Walken" Lespinasse
-A program is never fully debugged until the last user dies.
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
