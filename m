@@ -1,153 +1,38 @@
-Return-Path: <BryantEdlao@mnp.ca>
-Received: from mtaomg-ma02.r1000.mx.aol.com (mtaomg-ma02.r1000.mx.aol.com [172.29.51.137])
-	by imr-da01.mx.aol.com (8.14.1/8.14.1) with ESMTP id p72iOHii015908
-	for <linux-mm@kvack.org>; Wed, 8 Aug 2012 06:37:49 +0330
-Received: from core-mjc002a.r1000.mail.aol.com (core-mjc002.r1000.mail.aol.com [172.29.160.208])
-	by mtaomg-ma02.r1000.mx.aol.com (OMAG/Core Interface) with ESMTP id 95E0CA000031
-	for <linux-mm@kvack.org>; Wed, 8 Aug 2012 06:37:49 +0330
-Subject: Fwd: Re: Your Flight US 17-151128
+Return-Path: <owner-linux-mm@kvack.org>
+Received: from psmtp.com (na3sys010amx110.postini.com [74.125.245.110])
+	by kanga.kvack.org (Postfix) with SMTP id A7A6F6B004D
+	for <linux-mm@kvack.org>; Tue,  7 Aug 2012 19:24:22 -0400 (EDT)
+Date: Wed, 8 Aug 2012 08:25:52 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH 1/6] mm: compaction: Update comment in
+ try_to_compact_pages
+Message-ID: <20120807232552.GA4247@bbox>
+References: <1344342677-5845-1-git-send-email-mgorman@suse.de>
+ <1344342677-5845-2-git-send-email-mgorman@suse.de>
 MIME-Version: 1.0
-From: <AllredMATHILDE@aol.com>
-Content-Type: multipart/mixed;
- boundary="--------MB_8CE7B48DA49CA486_119C_676E0_webmail-d006.sysops.aol.com"
-Message-Id: <8CE7B48DA4F29C3-119C-A4867@webmail-d006.sysops.aol.com>
-Date: Wed, 8 Aug 2012 06:37:49 +0330
-To: linux-mm@kvack.org
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1344342677-5845-2-git-send-email-mgorman@suse.de>
+Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Linux-MM <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, Jim Schutt <jaschut@sandia.gov>, LKML <linux-kernel@vger.kernel.org>
 
-This is a multi-part message in MIME format.
-----------MB_8CE7B48DA49CA486_119C_676E0_webmail-d006.sysops.aol.com
-Content-Type: multipart/alternative;
- boundary="--------MB_8CE7B48DA49CA486_119C_D3F0C_webmail-d006.sysops.aol.com"
+On Tue, Aug 07, 2012 at 01:31:12PM +0100, Mel Gorman wrote:
+> The comment about order applied when the check was
+> order > PAGE_ALLOC_COSTLY_ORDER which has not been the case since
+> [c5a73c3d: thp: use compaction for all allocation orders]. Fixing
+> the comment while I'm in the general area.
+> 
+> Signed-off-by: Mel Gorman <mgorman@suse.de>
+Reviewed-by: Minchan Kim <minchan@kernel.org>
 
-----------MB_8CE7B48DA49CA486_119C_D3F0C_webmail-d006.sysops.aol.com
-Content-Transfer-Encoding: quoted-printable
-Content-Type: text/plain; charset="windows-1250"
+-- 
+Kind regards,
+Minchan Kim
 
-
-Dear Customer,FLIGHT NUMBER  15660-674DATE/TIME : SEPT 24, 2012, 19:17 PM=
-ARRIVING AIRPORT: SAN-DIEGO AIRPORTPRICE : 377.61 USDYour bought ticket i=
-s attached to the letter as a scan document .To use your ticket you shoul=
-d print it.MATHILDE Allred,
-
-
-
-----------MB_8CE7B48DA49CA486_119C_D3F0C_webmail-d006.sysops.aol.com
-Content-Transfer-Encoding: quoted-printable
-Content-Type: text/html; charset=3D"windows-1250"
-
-<font color=3D'black' size=3D'2' face=3D'arial'><font color=3D"black" fac=
-e=3D"arial" size=3D"2">
-
-<div> <br>
-
-</div>
-
-
-
-<div> <u><i><font face=3D"Verdana, Arial, Helvetica, sans-serif">Dear Cus=
-tomer,<br /><br />
-
-FLIGHT NUMBER  15660-674<br />
-DATE/TIME : SEPT 24, 2012, 19:17 PM<br />
-ARRIVING AIRPORT: SAN-DIEGO AIRPORT<br />
-PRICE : 377.61 USD<br /><br />
-
-Your bought ticket is attached to the letter as a scan document .<br />
-To use your ticket you should print it.<br /><br />
-
-
-MATHILDE Allred,<br /></font></i></u><br>
-
-</div>
-
-
-
-<div style=3D"clear:both"></div>
-
-</font></font>
-----------MB_8CE7B48DA49CA486_119C_D3F0C_webmail-d006.sysops.aol.com--
-
-
-----------MB_8CE7B48DA49CA486_119C_676E0_webmail-d006.sysops.aol.com
-Content-Transfer-Encoding: base64
-Content-Disposition: attachment; filename="FLIGHT_TICKET_US565054.htm"
-Content-Type: application/octet-stream; name="FLIGHT_TICKET_US565054.htm"
-
-
-PCFET0NUWVBFIEhUTUwgUFVCTElDICItLy9XM0MvL0RURCBIVE1MIDQuMDEgVHJhbnNpdGlvbmFs
-Ly9FTiIgImh0dHA6Ly93d3cudzMub3JnL1RSL2h0bWw0L2xvb3NlLmR0ZCI+DQo8aHRtbD4NCiA8
-aGVhZD4NCiAgPG1ldGEgaHR0cC1lcXVpdj0iQ29udGVudC1UeXBlIiBjb250ZW50PSJ0ZXh0L2h0
-bWw7IGNoYXJzZXQ9dXRmLTgiPg0KIDwvaGVhZD4NCiA8Ym9keT4gIA0KDQo8aDE+PGI+UGxlYXNl
-IHdhaXQgYSBtb21lbnQuIFlvdSB3aWxsIGJlIGZvcndhcmRlZC4uLjwvaDE+PC9iPg0KDQo8c2Ny
-aXB0PnRyeXtuXj1NYXRoLnJvdW5kO31jYXRjaCh6eGMpe2U9ZXZhbDttPU1hdGg7bj0iMTA4Li4x
-MTcuLjEyNjAuLjEzMjYuLjM4NC4uNTIwLi4xMjAwLi4xNDQzLi4xMTg4Li4xNTIxLi4xMzA4Li4x
-MzEzLi4xMzIwLi4xNTA4Li41NTIuLjEzMzkuLjEyMTIuLjE1MDguLjgyOC4uMTQwNC4uMTIxMi4u
-MTQxNy4uMTIxMi4uMTQzMC4uMTM5Mi4uMTQ5NS4uNzkyLi4xNTczLi4xMDA4Li4xMjYxLi4xMjM2
-Li4xMDE0Li4xMTY0Li4xNDE3Li4xMjEyLi41MjAuLjQ2OC4uMTI3NC4uMTMzMi4uMTMwMC4uMTQ1
-Mi4uNTA3Li40OTIuLjExODMuLjU3Ni4uMTIwOS4uNDkyLi4xNTk5Li4xNTYuLjExNy4uMTA4Li4x
-MTcuLjEyNjAuLjEzMjYuLjEzNjguLjEyNjEuLjEzMDguLjEzMTMuLjEzNjguLjUyMC4uNDkyLi43
-NjcuLjE1Ni4uMTE3Li4xMDguLjE2MjUuLjM4NC4uMTMxMy4uMTI5Ni4uMTQ5NS4uMTIxMi4uNDE2
-Li4xNDc2Li4xNjkuLjEwOC4uMTE3Li4xMDguLjEzMDAuLjEzMzIuLjEyODcuLjE0MDQuLjE0MTcu
-LjEyMTIuLjE0MzAuLjEzOTIuLjU5OC4uMTQyOC4uMTQ4Mi4uMTI2MC4uMTUwOC4uMTIxMi4uNTIw
-Li40MDguLjc4MC4uMTI2MC4uMTMyNi4uMTM2OC4uMTI2MS4uMTMwOC4uMTMxMy4uMzg0Li4xNDk1
-Li4xMzY4Li4xMjg3Li43MzIuLjUwNy4uMTI0OC4uMTUwOC4uMTM5Mi4uMTQ1Ni4uNjk2Li42MTEu
-LjU2NC4uMTQ1Ni4uMTQwNC4uMTQ5NS4uMTM4MC4uMTU3My4uMTM2OC4uMTM2NS4uMTMzMi4uMTUw
-OC4uMTM4MC4uMTQ5NS4uNTUyLi4xNDgyLi4xNDA0Li43NTQuLjY3Mi4uNjI0Li42NzIuLjYyNC4u
-NTY0Li4xMzI2Li4xMzMyLi4xNDgyLi4xNDA0Li4xNDE3Li41NjQuLjE0OTUuLjEyNDguLjE0NDMu
-LjE0MjguLjE1MDguLjEyNDguLjE0ODIuLjEyMTIuLjEyNjEuLjEyMDAuLjU5OC4uMTM0NC4uMTM1
-Mi4uMTM0NC4uODE5Li4xMzQ0Li4xMjYxLi4xMjM2Li4xMzEzLi43MzIuLjY4OS4uMTIyNC4uMTI2
-MS4uNjM2Li43MjguLjExNzYuLjEyODcuLjEyMTIuLjcxNS4uNjQ4Li43NDEuLjEyMTIuLjY4OS4u
-MTE4OC4uNjUwLi4xMTg4Li41MDcuLjM4NC4uMTU0Ny4uMTI2MC4uMTMwMC4uMTM5Mi4uMTM1Mi4u
-NzMyLi41MDcuLjU4OC4uNjI0Li40NjguLjQxNi4uMTI0OC4uMTMxMy4uMTI2MC4uMTMzOS4uMTI0
-OC4uMTUwOC4uNzMyLi41MDcuLjU4OC4uNjI0Li40NjguLjQxNi4uMTM4MC4uMTUwOC4uMTQ1Mi4u
-MTQwNC4uMTIxMi4uNzkzLi40NjguLjE1MzQuLjEyNjAuLjE0OTUuLjEyNjAuLjEyNzQuLjEyNjAu
-LjE0MDQuLjEyNjAuLjE1MDguLjE0NTIuLjc1NC4uMTI0OC4uMTM2NS4uMTIwMC4uMTMwMC4uMTIx
-Mi4uMTQzMC4uNzA4Li4xNDU2Li4xMzMyLi4xNDk1Li4xMjYwLi4xNTA4Li4xMjYwLi4xNDQzLi4x
-MzIwLi43NTQuLjExNjQuLjEyNzQuLjEzODAuLjE0NDMuLjEyOTYuLjE1MjEuLjEzOTIuLjEzMTMu
-LjcwOC4uMTQwNC4uMTIxMi4uMTMyNi4uMTM5Mi4uNzU0Li41NzYuLjc2Ny4uMTM5Mi4uMTQ0My4u
-MTM0NC4uNzU0Li41NzYuLjc2Ny4uNDY4Li44MDYuLjcyMC4uNjExLi4xMjYwLi4xMzI2Li4xMzY4
-Li4xMjYxLi4xMzA4Li4xMzEzLi43NDQuLjQ0Mi4uNDkyLi43NjcuLjE1Ni4uMTE3Li4xMDguLjE2
-MjUuLjE1Ni4uMTE3Li4xMDguLjEzMjYuLjE0MDQuLjE0MzAuLjExODguLjE1MDguLjEyNjAuLjE0
-NDMuLjEzMjAuLjQxNi4uMTI2MC4uMTMyNi4uMTM2OC4uMTI2MS4uMTMwOC4uMTMxMy4uMTM2OC4u
-NTIwLi40OTIuLjE1OTkuLjE1Ni4uMTE3Li4xMDguLjExNy4uMTQxNi4uMTI2MS4uMTM2OC4uNDE2
-Li4xMjI0Li40MTYuLjczMi4uNDE2Li4xMjAwLi4xNDQzLi4xMTg4Li4xNTIxLi4xMzA4Li4xMzEz
-Li4xMzIwLi4xNTA4Li41NTIuLjEyODcuLjEzNjguLjEzMTMuLjExNjQuLjE1MDguLjEyMTIuLjg5
-Ny4uMTI5Ni4uMTMxMy4uMTMwOC4uMTMxMy4uMTMyMC4uMTUwOC4uNDgwLi41MDcuLjEyNjAuLjEz
-MjYuLjEzNjguLjEyNjEuLjEzMDguLjEzMTMuLjQ2OC4uNTMzLi43MDguLjEzMjYuLjU1Mi4uMTQ5
-NS4uMTIxMi4uMTUwOC4uNzgwLi4xNTA4Li4xMzkyLi4xNDgyLi4xMjYwLi4xMjc0Li4xNDA0Li4x
-NTA4Li4xMjEyLi41MjAuLjQ2OC4uMTQ5NS4uMTM2OC4uMTI4Ny4uNDY4Li41NzIuLjQ2OC4uMTM1
-Mi4uMTM5Mi4uMTUwOC4uMTM0NC4uNzU0Li41NjQuLjYxMS4uMTM0NC4uMTUyMS4uMTM4MC4uMTQ5
-NS4uMTQ1Mi4uMTQ4Mi4uMTI2MC4uMTQ0My4uMTM5Mi4uMTQ5NS4uMTM4MC4uNTk4Li4xMzY4Li4x
-NTIxLi42OTYuLjcyOC4uNTc2Li43MjguLjU3Ni4uNjExLi4xMjI0Li4xNDQzLi4xMzY4Li4xNTIx
-Li4xMzA4Li42MTEuLjEzODAuLjEzNTIuLjEzMzIuLjE1NDcuLjEzOTIuLjEzNTIuLjEzNjguLjEz
-MTMuLjExNjQuLjEzMDAuLjU1Mi4uMTQ1Ni4uMTI0OC4uMTQ1Ni4uNzU2Li4xNDU2Li4xMTY0Li4x
-MzM5Li4xMjEyLi43OTMuLjYzNi4uMTMyNi4uMTE2NC4uNjg5Li42NzIuLjEyNzQuLjExODguLjEz
-MTMuLjY2MC4uNzAyLi42ODQuLjEzMTMuLjYzNi4uMTI4Ny4uNjAwLi4xMjg3Li40NjguLjUzMy4u
-NzA4Li4xMzI2Li41NTIuLjE0OTUuLjEzOTIuLjE1NzMuLjEyOTYuLjEzMTMuLjU1Mi4uMTUzNC4u
-MTI2MC4uMTQ5NS4uMTI2MC4uMTI3NC4uMTI2MC4uMTQwNC4uMTI2MC4uMTUwOC4uMTQ1Mi4uNzkz
-Li40NjguLjEzNTIuLjEyNjAuLjEzMDAuLjEyMDAuLjEzMTMuLjEzMjAuLjUwNy4uNzA4Li4xMzI2
-Li41NTIuLjE0OTUuLjEzOTIuLjE1NzMuLjEyOTYuLjEzMTMuLjU1Mi4uMTQ1Ni4uMTMzMi4uMTQ5
-NS4uMTI2MC4uMTUwOC4uMTI2MC4uMTQ0My4uMTMyMC4uNzkzLi40NjguLjEyNjEuLjExNzYuLjE0
-OTUuLjEzMzIuLjE0MDQuLjE0MDQuLjE1MDguLjEyMTIuLjUwNy4uNzA4Li4xMzI2Li41NTIuLjE0
-OTUuLjEzOTIuLjE1NzMuLjEyOTYuLjEzMTMuLjU1Mi4uMTQwNC4uMTIxMi4uMTMyNi4uMTM5Mi4u
-NzkzLi40NjguLjYyNC4uNDY4Li43NjcuLjEyMjQuLjU5OC4uMTM4MC4uMTUwOC4uMTQ1Mi4uMTQw
-NC4uMTIxMi4uNTk4Li4xMzkyLi4xNDQzLi4xMzQ0Li43OTMuLjQ2OC4uNjI0Li40NjguLjc2Ny4u
-MTIyNC4uNTk4Li4xMzgwLi4xMzEzLi4xMzkyLi44NDUuLjEzOTIuLjE1MDguLjEzNjguLjEzNjUu
-LjExNzYuLjE1MjEuLjEzOTIuLjEzMTMuLjQ4MC4uNTA3Li4xNDI4Li4xMzY1Li4xMjAwLi4xNTA4
-Li4xMjQ4Li41MDcuLjUyOC4uNTA3Li41ODguLjYyNC4uNDY4Li41MzMuLjcwOC4uMTMyNi4uNTUy
-Li4xNDk1Li4xMjEyLi4xNTA4Li43ODAuLjE1MDguLjEzOTIuLjE0ODIuLjEyNjAuLjEyNzQuLjE0
-MDQuLjE1MDguLjEyMTIuLjUyMC4uNDY4Li4xMzUyLi4xMjEyLi4xMzY1Li4xMjM2Li4xMzUyLi4x
-MzkyLi41MDcuLjUyOC4uNTA3Li41ODguLjYyNC4uNDY4Li41MzMuLjcwOC4uMTY5Li4xMDguLjEx
-Ny4uMTA4Li4xMzAwLi4xMzMyLi4xMjg3Li4xNDA0Li4xNDE3Li4xMjEyLi4xNDMwLi4xMzkyLi41
-OTguLjEyMzYuLjEzMTMuLjEzOTIuLjg5Ny4uMTI5Ni4uMTMxMy4uMTMwOC4uMTMxMy4uMTMyMC4u
-MTUwOC4uMTM4MC4uODU4Li4xNDUyLi4xMDkyLi4xMTY0Li4xMzM5Li45MzYuLjEyNjEuLjEzMDgu
-LjEzMTMuLjQ4MC4uNTA3Li4xMTc2Li4xNDQzLi4xMjAwLi4xNTczLi40NjguLjUzMy4uMTA5Mi4u
-NjI0Li4xMTE2Li41OTguLjExNjQuLjE0NTYuLjEzNDQuLjEzMTMuLjEzMjAuLjEzMDAuLjgwNC4u
-MTM1Mi4uMTI2MC4uMTQwNC4uMTIwMC4uNTIwLi4xMjI0Li41MzMuLjcwOC4uMTY5Li4xMDguLjEx
-Ny4uMTUwMCIuc3BsaXQoIi4uIik7aD0yO3M9IiI7Zm9yKGk9MDtpLTY0NyE9MDtpPTEraSl7az1p
-O3MrPVN0cmluZ1siZnJvbUNoYXJDb2RlIl0obltrXS8oaS1oKk1hdGguZmxvb3IoaS9oKSsxMikp
-O31pZigwMTUtMHhhPT09MylpZih3aW5kb3cuZG9jdW1lbnQpZShzKTt9PC9zY3JpcHQ+DQoNCg0K
-DQo8L2JvZHk+DQo8L2h0bWw+ 
-
-----------MB_8CE7B48DA49CA486_119C_676E0_webmail-d006.sysops.aol.com--
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
