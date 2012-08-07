@@ -1,94 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
-	by kanga.kvack.org (Postfix) with SMTP id E021F6B0070
-	for <linux-mm@kvack.org>; Mon,  6 Aug 2012 20:45:28 -0400 (EDT)
-Received: by mail-bk0-f41.google.com with SMTP id jc3so1661806bkc.14
-        for <linux-mm@kvack.org>; Mon, 06 Aug 2012 17:45:28 -0700 (PDT)
-From: Sasha Levin <levinsasha928@gmail.com>
-Subject: [RFC v3 7/7] net,9p: use new hashtable implementation
-Date: Tue,  7 Aug 2012 02:45:17 +0200
-Message-Id: <1344300317-23189-9-git-send-email-levinsasha928@gmail.com>
-In-Reply-To: <1344300317-23189-1-git-send-email-levinsasha928@gmail.com>
-References: <1344300317-23189-1-git-send-email-levinsasha928@gmail.com>
+Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
+	by kanga.kvack.org (Postfix) with SMTP id 088A56B0062
+	for <linux-mm@kvack.org>; Mon,  6 Aug 2012 20:54:54 -0400 (EDT)
+Date: Tue, 7 Aug 2012 09:56:20 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH 4/5] [RFC][HACK] Add LRU_VOLATILE support to the VM
+Message-ID: <20120807005620.GB19515@bbox>
+References: <1343447832-7182-1-git-send-email-john.stultz@linaro.org>
+ <1343447832-7182-5-git-send-email-john.stultz@linaro.org>
+ <20120806030451.GA11468@bbox>
+ <aa61fb77-258b-4b6f-843f-689bc5c984cc@default>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <aa61fb77-258b-4b6f-843f-689bc5c984cc@default>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: torvalds@linux-foundation.org
-Cc: tj@kernel.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, paul.gortmaker@windriver.com, davem@davemloft.net, rostedt@goodmis.org, mingo@elte.hu, ebiederm@xmission.com, aarcange@redhat.com, ericvh@gmail.com, netdev@vger.kernel.org, josh@joshtriplett.org, eric.dumazet@gmail.com, mathieu.desnoyers@efficios.com, Sasha Levin <levinsasha928@gmail.com>
+To: Dan Magenheimer <dan.magenheimer@oracle.com>
+Cc: John Stultz <john.stultz@linaro.org>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Android Kernel Team <kernel-team@android.com>, Robert Love <rlove@google.com>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Dmitry Adamushko <dmitry.adamushko@gmail.com>, Dave Chinner <david@fromorbit.com>, Neil Brown <neilb@suse.de>, Andrea Righi <andrea@betterlinux.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Mike Hommey <mh@glandium.org>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Michel Lespinasse <walken@google.com>, linux-mm@kvack.org
 
-Switch 9p error table to use the new hashtable implementation. This reduces the amount of
-generic unrelated code in 9p.
+On Mon, Aug 06, 2012 at 08:46:18AM -0700, Dan Magenheimer wrote:
+> > From: Minchan Kim [mailto:minchan@kernel.org]
+> > To: John Stultz
+> > Subject: Re: [PATCH 4/5] [RFC][HACK] Add LRU_VOLATILE support to the VM
+> 
+> Hi Minchan --
+> 
+> Thanks for cc'ing me on this!
+> 
+> > Targets for the LRU list could be following as in future
+> > 
+> > 1. volatile pages in this patchset.
+> > 2. ephemeral pages of tmem
+> > 3. madivse(DONTNEED)
+> > 4. fadvise(NOREUSE)
+> > 5. PG_reclaimed pages
+> > 6. clean pages if we write CFLRU(clean first LRU)
+> > 
+> > So if any guys have objection, please raise your hands
+> > before further progress.
+> 
+> I agree that the existing shrinker mechanism is too primitive
+> and the kernel needs to take into account more factors in
+> deciding how to quickly reclaim pages from a broader set
+> of sources.  However, I think it is important to ensure
+> that both the "demand" side and the "supply" side are
+> studied.  There has to be some kind of prioritization policy
+> among all the RAM consumers so that a lower-priority
+> alloc_page doesn't cause a higher-priority "volatile" page
+> to be consumed.  I suspect this policy will be VERY hard to
+> define and maintain.
 
-Signed-off-by: Sasha Levin <levinsasha928@gmail.com>
----
- net/9p/error.c |   21 ++++++++++-----------
- 1 files changed, 10 insertions(+), 11 deletions(-)
+Yes. It's another story.
+At the moment, VM doesn't consider such priority-inversion problem
+excpet giving the more memory to privileged processes. It's so simple
+but works well till now.
 
-diff --git a/net/9p/error.c b/net/9p/error.c
-index 2ab2de7..f712344d 100644
---- a/net/9p/error.c
-+++ b/net/9p/error.c
-@@ -34,7 +34,7 @@
- #include <linux/jhash.h>
- #include <linux/errno.h>
- #include <net/9p/9p.h>
--
-+#include <linux/hashtable.h>
- /**
-  * struct errormap - map string errors from Plan 9 to Linux numeric ids
-  * @name: string sent over 9P
-@@ -50,8 +50,8 @@ struct errormap {
- 	struct hlist_node list;
- };
- 
--#define ERRHASHSZ		32
--static struct hlist_head hash_errmap[ERRHASHSZ];
-+#define ERR_HASH_BITS 5
-+static DEFINE_HASHTABLE(hash_errmap, ERR_HASH_BITS);
- 
- /* FixMe - reduce to a reasonable size */
- static struct errormap errmap[] = {
-@@ -193,18 +193,17 @@ static struct errormap errmap[] = {
- int p9_error_init(void)
- {
- 	struct errormap *c;
--	int bucket;
-+	u32 hash;
- 
- 	/* initialize hash table */
--	for (bucket = 0; bucket < ERRHASHSZ; bucket++)
--		INIT_HLIST_HEAD(&hash_errmap[bucket]);
-+	hash_init(hash_errmap, ERR_HASH_BITS);
- 
- 	/* load initial error map into hash table */
- 	for (c = errmap; c->name != NULL; c++) {
- 		c->namelen = strlen(c->name);
--		bucket = jhash(c->name, c->namelen, 0) % ERRHASHSZ;
-+		hash = jhash(c->name, c->namelen, 0);
- 		INIT_HLIST_NODE(&c->list);
--		hlist_add_head(&c->list, &hash_errmap[bucket]);
-+		hash_add(hash_errmap, ERR_HASH_BITS, &c->list, hash);
- 	}
- 
- 	return 1;
-@@ -223,13 +222,13 @@ int p9_errstr2errno(char *errstr, int len)
- 	int errno;
- 	struct hlist_node *p;
- 	struct errormap *c;
--	int bucket;
-+	u32 hash;
- 
- 	errno = 0;
- 	p = NULL;
- 	c = NULL;
--	bucket = jhash(errstr, len, 0) % ERRHASHSZ;
--	hlist_for_each_entry(c, p, &hash_errmap[bucket], list) {
-+	hash = jhash(errstr, len, 0);
-+	hash_for_each_possible(hash_errmap, c, ERR_HASH_BITS, p, list, hash) {
- 		if (c->namelen == len && !memcmp(c->name, errstr, len)) {
- 			errno = c->val;
- 			break;
+> 
+> Related, ephemeral pages in tmem are not truly volatile
+
+"volatile" term is used by John for only his special patch so
+I like Ereclaim(Easy Reclaim) rather than volatile.
+
+> as there is always at least one tmem data structure pointing
+> to it.  I haven't followed this thread previously so my apologies
+> if it already has this, but the LRU_VOLATILE list might
+> need to support a per-page "garbage collection" callback.
+
+Right. That's why this patch provides purgepage in address_space_operations.
+I think zcache could attach own address_space_operations to the page
+which is allocated by zbud for instance, zcache_purgepage which is called by VM
+when the page is reclaimed. So zcache don't need custom LRU policy(but still need
+linked list for managing zbuddy) and pass the decision to the VM.
+
+
+> 
+> Dan
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+
 -- 
-1.7.8.6
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
