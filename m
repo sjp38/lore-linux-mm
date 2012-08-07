@@ -1,67 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
-	by kanga.kvack.org (Postfix) with SMTP id DB9596B005A
-	for <linux-mm@kvack.org>; Tue,  7 Aug 2012 09:34:54 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
+	by kanga.kvack.org (Postfix) with SMTP id EED2A6B004D
+	for <linux-mm@kvack.org>; Tue,  7 Aug 2012 09:59:43 -0400 (EDT)
+Message-ID: <50211F3D.2000008@parallels.com>
+Date: Tue, 7 Aug 2012 17:59:25 +0400
+From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Message-ID: <b16eb976-6b02-4ba5-b0b8-219f25c99c0d@default>
-Date: Tue, 7 Aug 2012 06:34:30 -0700 (PDT)
-From: Dan Magenheimer <dan.magenheimer@oracle.com>
-Subject: RE: [RFC/PATCH] zcache/ramster rewrite and promotion
-References: <c31aaed4-9d50-4cdf-b794-367fc5850483@default>
- <CAOJsxLEhW=b3En737d5751xufW2BLehPc2ZGGG1NEtRVSo3=jg@mail.gmail.com>
- <b9bee363-321e-409a-bc8e-65ffed8a1dc5@default>
- <CAOJsxLHe6egmMWdEAGj7DGHHX-hqYMhVWDggny9CsT0H-DOL-g@mail.gmail.com>
- <f54214e7-cee4-4cbf-aad1-6c1f91867879@default>
- <CAOJsxLHyPj6KrVkB5nj-9vFBXKmn5BN4ArN_7MDmTeVEG3N3Gw@mail.gmail.com>
- <ad942d93-489f-4bf4-96bc-8f65b1a23ea1@default>
- <CAOJsxLHwFqjFC8BqfCHA_6OPFbvNfaFkQEjfPTw=_6QsPKweNw@mail.gmail.com>
-In-Reply-To: <CAOJsxLHwFqjFC8BqfCHA_6OPFbvNfaFkQEjfPTw=_6QsPKweNw@mail.gmail.com>
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: quoted-printable
+Subject: Re: Fork bomb limitation in memcg WAS: Re: [PATCH 00/11] kmem controller
+ for memcg: stripped down version
+References: <1340633728-12785-1-git-send-email-glommer@parallels.com> <20120625162745.eabe4f03.akpm@linux-foundation.org> <4FE9621D.2050002@parallels.com> <20120626145539.eeeab909.akpm@linux-foundation.org> <4FEAD260.4000603@parallels.com> <alpine.DEB.2.00.1206271233080.22162@chino.kir.corp.google.com> <4FEC1D63.6000903@parallels.com> <20120628152540.cc13a735.akpm@linux-foundation.org>
+In-Reply-To: <20120628152540.cc13a735.akpm@linux-foundation.org>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pekka Enberg <penberg@kernel.org>
-Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>, Konrad Wilk <konrad.wilk@oracle.com>, Minchan Kim <minchan@kernel.org>, Nitin Gupta <ngupta@vflare.org>, Andrew Morton <akpm@linux-foundation.org>, Robert Jennings <rcj@linux.vnet.ibm.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, devel@driverdev.osuosl.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: David Rientjes <rientjes@google.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Frederic Weisbecker <fweisbec@gmail.com>, Pekka Enberg <penberg@kernel.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Lameter <cl@linux.com>, devel@openvz.org, kamezawa.hiroyu@jp.fujitsu.com, Tejun Heo <tj@kernel.org>, Rik van Riel <riel@redhat.com>, Daniel Lezcano <daniel.lezcano@linaro.org>, Kay Sievers <kay.sievers@vrfy.org>, Lennart Poettering <lennart@poettering.net>, "Kirill A. Shutemov" <kirill@shutemov.name>, Kir Kolyshkin <kir@parallels.com>
 
-> From: Pekka Enberg [mailto:penberg@kernel.org]
-> Subject: Re: [RFC/PATCH] zcache/ramster rewrite and promotion
->=20
-> On Mon, Aug 6, 2012 at 7:10 PM, Dan Magenheimer
-> <dan.magenheimer@oracle.com> wrote:
-> > Hmmm.. there's also zbud.c and tmem.c which are critical components
-> > of both zcache and ramster.  And there are header files as well which
-> > will need to either be in mm/ or somewhere in include/linux/
-> >
-> > Is there a reason or rule that mm/ can't have subdirectories?
-> >
-> > Since zcache has at least three .c files plus ramster.c, and
-> > since mm/frontswap.c and mm/cleancache.c are the foundation on
-> > which all of these are built, I was thinking grouping all six
-> > (plus headers) in the same mm/tmem/ subdirectory was a good
-> > way to keep mm/ from continuing to get more cluttered... not counting
-> > new zcache and ramster files, there are now 74 .c files in mm/!
-> > (Personally, I think a directory has too many files in it if
-> > "ls" doesn't fit in a 25x80 window.)
-> >
-> > Thoughts?
->=20
-> There's no reason we can't have subdirectories. That said, I really
-> don't see the point of having a separate directory called 'tmem'. It
-> might make sense to have mm/zcache and/or mm/ramster but I suspect
-> you can just fold the core code in mm/zcache.c and mm/ramster.c by
-> slimming down the weird Solaris-like 'tmem' abstractions.
+On 06/29/2012 02:25 AM, Andrew Morton wrote:
+> On Thu, 28 Jun 2012 13:01:23 +0400
+> Glauber Costa <glommer@parallels.com> wrote:
+> 
+>>
+>> ...
+>>
+> 
+> OK, that all sounds convincing ;) Please summarise and capture this
+> discussion in the [patch 0/n] changelog so we (or others) don't have to
+> go through this all again.  And let's remember this in the next
+> patchset!
+> 
+>> Last, but not least, note that it is totally within my interests to
+>> merge the slab tracking as fast as we can. it'll be a matter of going
+>> back to it, and agreeing in the final form.
+> 
+> Yes, I'd very much like to have the whole slab implementation in a
+> reasonably mature state before proceeding too far with this base
+> patchset.
+> 
+So, that was posted separately as well.
 
-I'm not sure I understand... what is Solaris-like about tmem?
-And what would you slim down?
+Although there is a thing to fix here and there - all of them I am
+working on already - I believe that to be mature enough.
 
-While I agree one can often glom three separate 1000-line .c files
-into a single 3000-line .c file, I recently spent some time moving
-the other direction to, I thought, improve readability.  Do kernel
-developers have a preference for huge .c files rather than smaller
-logically-separated moderate-sized files in a subdirectory?
+Do you have any comments on that? Would you be willing to take this
+first part (modified with the comments on this thread itself) and let it
+start sitting in the tree?
 
-Thanks,
-Dan
+Thanks!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
