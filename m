@@ -1,69 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
-	by kanga.kvack.org (Postfix) with SMTP id 6D1286B004D
-	for <linux-mm@kvack.org>; Mon,  6 Aug 2012 21:19:12 -0400 (EDT)
-Message-ID: <1344302351.2026.24.camel@joe2Laptop>
-Subject: Re: [RFC v3 4/7] workqueue: use new hashtable implementation
-From: Joe Perches <joe@perches.com>
-Date: Mon, 06 Aug 2012 18:19:11 -0700
-In-Reply-To: <1344300317-23189-6-git-send-email-levinsasha928@gmail.com>
-References: <1344300317-23189-1-git-send-email-levinsasha928@gmail.com>
-	 <1344300317-23189-6-git-send-email-levinsasha928@gmail.com>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 7bit
-Mime-Version: 1.0
+Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
+	by kanga.kvack.org (Postfix) with SMTP id AF9C96B0044
+	for <linux-mm@kvack.org>; Mon,  6 Aug 2012 21:27:29 -0400 (EDT)
+MIME-Version: 1.0
+Message-ID: <bc6b78b2-ab2d-4b95-add3-493d7748ef1f@default>
+Date: Mon, 6 Aug 2012 18:26:03 -0700 (PDT)
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Subject: RE: [PATCH 4/5] [RFC][HACK] Add LRU_VOLATILE support to the VM
+References: <1343447832-7182-1-git-send-email-john.stultz@linaro.org>
+ <1343447832-7182-5-git-send-email-john.stultz@linaro.org>
+ <20120806030451.GA11468@bbox> <aa61fb77-258b-4b6f-843f-689bc5c984cc@default>
+ <20120807005620.GB19515@bbox>
+In-Reply-To: <20120807005620.GB19515@bbox>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <levinsasha928@gmail.com>
-Cc: torvalds@linux-foundation.org, tj@kernel.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, paul.gortmaker@windriver.com, davem@davemloft.net, rostedt@goodmis.org, mingo@elte.hu, ebiederm@xmission.com, aarcange@redhat.com, ericvh@gmail.com, netdev@vger.kernel.org, josh@joshtriplett.org, eric.dumazet@gmail.com, mathieu.desnoyers@efficios.com, Sasha Levin <sasha.levin@oracle.com>
+To: Minchan Kim <minchan@kernel.org>
+Cc: John Stultz <john.stultz@linaro.org>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Android Kernel Team <kernel-team@android.com>, Robert Love <rlove@google.com>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Dmitry Adamushko <dmitry.adamushko@gmail.com>, Dave Chinner <david@fromorbit.com>, Neil Brown <neilb@suse.de>, Andrea Righi <andrea@betterlinux.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Mike Hommey <mh@glandium.org>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Michel Lespinasse <walken@google.com>, linux-mm@kvack.org
 
-On Tue, 2012-08-07 at 02:45 +0200, Sasha Levin wrote:
-> From: Sasha Levin <sasha.levin@oracle.com>
-> 
-> Switch workqueues to use the new hashtable implementation. This reduces the amount of
-> generic unrelated code in the workqueues.
+> From: Minchan Kim [mailto:minchan@kernel.org]
+> Subject: Re: [PATCH 4/5] [RFC][HACK] Add LRU_VOLATILE support to the VM
+>=20
+> On Mon, Aug 06, 2012 at 08:46:18AM -0700, Dan Magenheimer wrote:
+> > > From: Minchan Kim [mailto:minchan@kernel.org]
+> > > To: John Stultz
+> > > Subject: Re: [PATCH 4/5] [RFC][HACK] Add LRU_VOLATILE support to the =
+VM
+> >
+> > Hi Minchan --
+> >
+> > Thanks for cc'ing me on this!
+> >
+> > > Targets for the LRU list could be following as in future
+> > >
+> > > 1. volatile pages in this patchset.
+> > > 2. ephemeral pages of tmem
+> > > 3. madivse(DONTNEED)
+> > > 4. fadvise(NOREUSE)
+> > > 5. PG_reclaimed pages
+> > > 6. clean pages if we write CFLRU(clean first LRU)
+> > >
+> > > So if any guys have objection, please raise your hands
+> > > before further progress.
+> >
+> > I agree that the existing shrinker mechanism is too primitive
+> > and the kernel needs to take into account more factors in
+> > deciding how to quickly reclaim pages from a broader set
+> > of sources.  However, I think it is important to ensure
+> > that both the "demand" side and the "supply" side are
+> > studied.  There has to be some kind of prioritization policy
+> > among all the RAM consumers so that a lower-priority
+> > alloc_page doesn't cause a higher-priority "volatile" page
+> > to be consumed.  I suspect this policy will be VERY hard to
+> > define and maintain.
+>=20
+> Yes. It's another story.
+> At the moment, VM doesn't consider such priority-inversion problem
+> excpet giving the more memory to privileged processes. It's so simple
+> but works well till now.
 
-Just style trivia:
+I think it is very important that both stories must be
+solved together.  See below...
 
-> diff --git a/kernel/workqueue.c b/kernel/workqueue.c
-[]
-> @@ -897,8 +839,15 @@ static struct worker *__find_worker_executing_work(struct global_cwq *gcwq,
->  static struct worker *find_worker_executing_work(struct global_cwq *gcwq,
->  						 struct work_struct *work)
->  {
-> -	return __find_worker_executing_work(gcwq, busy_worker_head(gcwq, work),
-> -					    work);
-> +	struct worker *worker;
-> +	struct hlist_node *tmp;
-> +
-> +	hash_for_each_possible(gcwq->busy_hash, worker, BUSY_WORKER_HASH_ORDER,
-> +								tmp, hentry, work)
-> +		if (worker->current_work == work)
-> +			return worker;
+> > Related, ephemeral pages in tmem are not truly volatile
+>=20
+> "volatile" term is used by John for only his special patch so
+> I like Ereclaim(Easy Reclaim) rather than volatile.
 
-braces please:
+If others agree, that's fine.  However, the "E" prefix is
+currently used differently in common English (for example,
+for e-books).  Maybe "ezreclaim"?
 
-	hash_for_each_possible(gcwq->busy_hash, worker, BUSY_WORKER_HASH_ORDER,
-			       tmp, hentry, work) {
-		if (worker->current_work == work)
-			return worker;
-	}
+> > as there is always at least one tmem data structure pointing
+> > to it.  I haven't followed this thread previously so my apologies
+> > if it already has this, but the LRU_VOLATILE list might
+> > need to support a per-page "garbage collection" callback.
+>=20
+> Right. That's why this patch provides purgepage in address_space_operatio=
+ns.
+> I think zcache could attach own address_space_operations to the page
+> which is allocated by zbud for instance, zcache_purgepage which is called=
+ by VM
+> when the page is reclaimed. So zcache don't need custom LRU policy(but st=
+ill need
+> linked list for managing zbuddy) and pass the decision to the VM.
 
-[]
+The simple VM decisions are going to need a lot more intelligence
+(and data?) to drive which page to reclaim.  For example, is it better
+to reclaim a pageframe that contains two compressed pages of ephemeral data
+or a pageframe that has one active (or inactive) file page?  Such
+a policy is not "Easy". ;-)
 
-@@ -1916,7 +1865,7 @@ static void cwq_dec_nr_in_flight(struct cpu_workqueue_struct *cwq, int color,
->   * @worker: self
->   * @work: work to process
->   *
-> - * Process @work.  This function contains all the logics necessary to
-> + * Process @work.  This? function contains all the logics necessary to
-
-Odd ? and the grammar also seems odd.
-
->   * process a single work including synchronization against and
->   * interaction with other workers on the same cpu, queueing and
->   * flushing.  As long as context requirement is met, any worker can
-
+(Also, BTW, zcache pages aren't in any address space so don't have
+an address_space_operations... because it is not possible to directly
+address the data in a compressed page.)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
