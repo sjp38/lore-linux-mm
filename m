@@ -1,675 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx176.postini.com [74.125.245.176])
-	by kanga.kvack.org (Postfix) with SMTP id ADB596B0071
-	for <linux-mm@kvack.org>; Tue,  7 Aug 2012 03:26:07 -0400 (EDT)
-Received: by yenr5 with SMTP id r5so4035176yen.14
-        for <linux-mm@kvack.org>; Tue, 07 Aug 2012 00:26:06 -0700 (PDT)
-From: Michel Lespinasse <walken@google.com>
-Subject: [PATCH 5/5] rbtree: move augmented rbtree functionality to rbtree_augmented.h
-Date: Tue,  7 Aug 2012 00:25:43 -0700
-Message-Id: <1344324343-3817-6-git-send-email-walken@google.com>
-In-Reply-To: <1344324343-3817-1-git-send-email-walken@google.com>
-References: <1344324343-3817-1-git-send-email-walken@google.com>
+Received: from psmtp.com (na3sys010amx178.postini.com [74.125.245.178])
+	by kanga.kvack.org (Postfix) with SMTP id A7B656B0044
+	for <linux-mm@kvack.org>; Tue,  7 Aug 2012 04:56:05 -0400 (EDT)
+Date: Tue, 7 Aug 2012 09:55:55 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: [PATCH] netvm: check for page == NULL when propogating the
+ skb->pfmemalloc flag
+Message-ID: <20120807085554.GF29814@suse.de>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: riel@redhat.com, peterz@infradead.org, vrajesh@umich.edu, daniel.santos@pobox.com, aarcange@redhat.com, dwmw2@infradead.org, akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, torvalds@linux-foundation.org
+To: David Miller <davem@davemloft.net>
+Cc: Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Linux-Netdev <netdev@vger.kernel.org>, Xen-devel <xen-devel@lists.xensource.com>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Ian Campbell <Ian.Campbell@eu.citrix.com>, Andrew Morton <akpm@linux-foundation.org>
 
-Provide rb_insert_augmented() and rb_erase_augmented through
-a new rbtree_augmented.h include file. rb_erase_augmented() is defined
-there as an __always_inline function, in order to allow inlining of
-augmented rbtree callbacks into it. Since this generates a relatively
-large function, each augmented rbtree users should make sure to
-have a single call site.
+Commit [c48a11c7: netvm: propagate page->pfmemalloc to skb] is responsible
+for the following bug triggered by a xen network driver
 
-Signed-off-by: Michel Lespinasse <walken@google.com>
+[    1.908592] BUG: unable to handle kernel NULL pointer dereference at 0000000000000010
+[    1.908643] IP: [<ffffffffa0037750>] xennet_poll+0x980/0xec0 [xen_netfront]
+[    1.908703] PGD ea1df067 PUD e8ada067 PMD 0
+[    1.908774] Oops: 0000 [#1] SMP
+[    1.908797] Modules linked in: fbcon tileblit font radeon bitblit softcursor ttm drm_kms_helper crc32c_intel xen_blkfront xen_netfront xen_fbfront fb_sys_fops sysimgblt sysfillrect syscopyarea +xen_kbdfront xenfs xen_privcmd
+[    1.908938] CPU 0
+[    1.908950] Pid: 2165, comm: ip Not tainted 3.5.0upstream-08854-g444fa66 #1
+[    1.908983] RIP: e030:[<ffffffffa0037750>]  [<ffffffffa0037750>] xennet_poll+0x980/0xec0 [xen_netfront]
+[    1.909029] RSP: e02b:ffff8800ffc03db8  EFLAGS: 00010282
+[    1.909055] RAX: ffff8800ea010140 RBX: ffff8800f00e86c0 RCX: 000000000000009a
+[    1.909055] RDX: 0000000000000040 RSI: 000000000000005a RDI: ffff8800fa7dee80
+[    1.909055] RBP: ffff8800ffc03ee8 R08: ffff8800f00e86d8 R09: ffff8800ea010000
+[    1.909055] R10: dead000000200200 R11: dead000000100100 R12: ffff8800fa7dee80
+[    1.909055] R13: 000000000000005a R14: ffff8800fa7dee80 R15: 0000000000000200
+[    1.909055] FS:  00007fbafc188700(0000) GS:ffff8800ffc00000(0000) knlGS:0000000000000000
+[    1.909055] CS:  e033 DS: 0000 ES: 0000 CR0: 000000008005003b
+[    1.909055] CR2: 0000000000000010 CR3: 00000000ea108000 CR4: 0000000000002660
+[    1.909055] DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
+[    1.909055] DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
+[    1.909055] Process ip (pid: 2165, threadinfo ffff8800ea0f2000, task ffff8800fa783040)
+[    1.909055] Stack:
+[    1.909055]  ffff8800e27e5040 ffff8800ffc03e88 ffff8800ffc03e68 ffff8800ffc03e48
+[    1.909055]  7fffffffffffffff ffff8800ffc03e00 ffff8800e27e5040 ffff8800f00e86d8
+[    1.909055]  ffff8800ffc03eb0 00000040ffffffff ffff8800f00e8000 00000000ffc03e30
+[    1.909055] Call Trace:
+[    1.909055]  <IRQ>
+[    1.909055]  [<ffffffff81066028>] ?  pvclock_clocksource_read+0x58/0xd0
+[    1.909055]  [<ffffffff81486352>] net_rx_action+0x112/0x240
+[    1.909055]  [<ffffffff8107f319>] __do_softirq+0xb9/0x190
+[    1.909055]  [<ffffffff815d8d7c>] call_softirq+0x1c/0x30
+
+The problem is that the xenfront driver is passing a NULL page to
+__skb_fill_page_desc() which was unexpected. This patch checks that
+there is a page before dereferencing.
+
+Reported-and-Tested-by: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+Signed-off-by: Mel Gorman <mgorman@suse.de>
 ---
- Documentation/rbtree.txt           |   13 ++
- arch/x86/mm/pat_rbtree.c           |    2 +-
- include/linux/interval_tree_tmpl.h |    8 +-
- include/linux/rbtree.h             |   48 --------
- include/linux/rbtree_augmented.h   |  223 ++++++++++++++++++++++++++++++++++++
- lib/rbtree.c                       |  162 ++------------------------
- lib/rbtree_test.c                  |    2 +-
- 7 files changed, 255 insertions(+), 203 deletions(-)
- create mode 100644 include/linux/rbtree_augmented.h
+ include/linux/skbuff.h |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/Documentation/rbtree.txt b/Documentation/rbtree.txt
-index 0a0b6dc..61b6c48 100644
---- a/Documentation/rbtree.txt
-+++ b/Documentation/rbtree.txt
-@@ -202,6 +202,14 @@ An rbtree user who wants this feature will have to call the augmentation
- functions with the user provided augmentation callback when inserting
- and erasing nodes.
- 
-+C files implementing augmented rbtree manipulation must include
-+<linux/rbtree_augmented.h> instead of <linus/rbtree.h>. Note that
-+linux/rbtree_augmented.h exposes some rbtree implementations details
-+you are not expected to rely on; please stick to the documented APIs
-+there and do not include <linux/rbtree_augmented.h> from header files
-+either so as to minimize chances of your users accidentally relying on
-+such implementation details.
-+
- On insertion, the user must update the augmented information on the path
- leading to the inserted node, then call rb_link_node() as usual and
- rb_augment_inserted() instead of the usual rb_insert_color() call.
-@@ -227,6 +235,11 @@ In both cases, the callbacks are provided through struct rb_augment_callbacks.
-   subtree to a newly assigned subtree root AND recomputes the augmented
-   information for the former subtree root.
- 
-+The compiled code for rb_erase_augmented() may inline the propagation and
-+copy callbacks, which results in a large function, so each augmented rbtree
-+user should have a single rb_erase_augmented() call site in order to limit
-+compiled code size.
-+
- 
- Sample usage:
- 
-diff --git a/arch/x86/mm/pat_rbtree.c b/arch/x86/mm/pat_rbtree.c
-index 4d11695..415f6c4 100644
---- a/arch/x86/mm/pat_rbtree.c
-+++ b/arch/x86/mm/pat_rbtree.c
-@@ -12,7 +12,7 @@
- #include <linux/debugfs.h>
- #include <linux/kernel.h>
- #include <linux/module.h>
--#include <linux/rbtree.h>
-+#include <linux/rbtree_augmented.h>
- #include <linux/sched.h>
- #include <linux/gfp.h>
- 
-diff --git a/include/linux/interval_tree_tmpl.h b/include/linux/interval_tree_tmpl.h
-index c65deda..c1aeb92 100644
---- a/include/linux/interval_tree_tmpl.h
-+++ b/include/linux/interval_tree_tmpl.h
-@@ -19,6 +19,8 @@
-   include/linux/interval_tree_tmpl.h
- */
- 
-+#include <linux/rbtree_augmented.h>
-+
- /*
-  * Template for implementing interval trees
-  *
-@@ -57,7 +59,8 @@ static inline ITTYPE IT(compute_subtree_last)(ITSTRUCT *node)
- 	return max;
- }
- 
--static void IT(augment_propagate)(struct rb_node *rb, struct rb_node *stop)
-+static inline void
-+IT(augment_propagate)(struct rb_node *rb, struct rb_node *stop)
- {
- 	while (rb != stop) {
- 		ITSTRUCT *node = rb_entry(rb, ITSTRUCT, ITRB);
-@@ -69,7 +72,8 @@ static void IT(augment_propagate)(struct rb_node *rb, struct rb_node *stop)
- 	}
- }
- 
--static void IT(augment_copy)(struct rb_node *rb_old, struct rb_node *rb_new)
-+static inline void
-+IT(augment_copy)(struct rb_node *rb_old, struct rb_node *rb_new)
- {
- 	ITSTRUCT *old = rb_entry(rb_old, ITSTRUCT, ITRB);
- 	ITSTRUCT *new = rb_entry(rb_new, ITSTRUCT, ITRB);
-diff --git a/include/linux/rbtree.h b/include/linux/rbtree.h
-index 8d1e83b..0022c1b 100644
---- a/include/linux/rbtree.h
-+++ b/include/linux/rbtree.h
-@@ -62,54 +62,6 @@ extern void rb_insert_color(struct rb_node *, struct rb_root *);
- extern void rb_erase(struct rb_node *, struct rb_root *);
- 
- 
--struct rb_augment_callbacks {
--	void (*propagate)(struct rb_node *node, struct rb_node *stop);
--	void (*copy)(struct rb_node *old, struct rb_node *new);
--	void (*rotate)(struct rb_node *old, struct rb_node *new);
--};
--
--extern void __rb_insert_augmented(struct rb_node *node, struct rb_root *root,
--	void (*augment_rotate)(struct rb_node *old, struct rb_node *new));
--extern void rb_erase_augmented(struct rb_node *node, struct rb_root *root,
--			       const struct rb_augment_callbacks *augment);
--static inline void
--rb_insert_augmented(struct rb_node *node, struct rb_root *root,
--		    const struct rb_augment_callbacks *augment)
--{
--	__rb_insert_augmented(node, root, augment->rotate);
--}
--
--#define RB_DECLARE_CALLBACKS(rbstatic, rbname, rbstruct, rbfield,	      \
--			     rbtype, rbaugmented, rbcompute)		      \
--static void rbname ## _propagate(struct rb_node *rb, struct rb_node *stop)    \
--{									      \
--	while (rb != stop) {						      \
--		rbstruct *node = rb_entry(rb, rbstruct, rbfield);	      \
--		rbtype augmented = rbcompute(node);			      \
--		if (node->rbaugmented == augmented)			      \
--			break;						      \
--		node->rbaugmented = augmented;				      \
--		rb = rb_parent(&node->rbfield);				      \
--	}								      \
--}									      \
--static void rbname ## _copy(struct rb_node *rb_old, struct rb_node *rb_new)   \
--{									      \
--	rbstruct *old = rb_entry(rb_old, rbstruct, rbfield);		      \
--	rbstruct *new = rb_entry(rb_new, rbstruct, rbfield);		      \
--	new->rbaugmented = old->rbaugmented;				      \
--}									      \
--static void rbname ## _rotate(struct rb_node *rb_old, struct rb_node *rb_new) \
--{									      \
--	rbstruct *old = rb_entry(rb_old, rbstruct, rbfield);		      \
--	rbstruct *new = rb_entry(rb_new, rbstruct, rbfield);		      \
--	new->rbaugmented = old->rbaugmented;				      \
--	old->rbaugmented = rbcompute(old);				      \
--}									      \
--rbstatic const struct rb_augment_callbacks rbname = {			      \
--	rbname ## _propagate, rbname ## _copy, rbname ## _rotate	      \
--};
--
--
- /* Find logical next and previous nodes in a tree */
- extern struct rb_node *rb_next(const struct rb_node *);
- extern struct rb_node *rb_prev(const struct rb_node *);
-diff --git a/include/linux/rbtree_augmented.h b/include/linux/rbtree_augmented.h
-new file mode 100644
-index 0000000..214caa3
---- /dev/null
-+++ b/include/linux/rbtree_augmented.h
-@@ -0,0 +1,223 @@
-+/*
-+  Red Black Trees
-+  (C) 1999  Andrea Arcangeli <andrea@suse.de>
-+  (C) 2002  David Woodhouse <dwmw2@infradead.org>
-+  (C) 2012  Michel Lespinasse <walken@google.com>
-+
-+  This program is free software; you can redistribute it and/or modify
-+  it under the terms of the GNU General Public License as published by
-+  the Free Software Foundation; either version 2 of the License, or
-+  (at your option) any later version.
-+
-+  This program is distributed in the hope that it will be useful,
-+  but WITHOUT ANY WARRANTY; without even the implied warranty of
-+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-+  GNU General Public License for more details.
-+
-+  You should have received a copy of the GNU General Public License
-+  along with this program; if not, write to the Free Software
-+  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
-+
-+  linux/include/linux/rbtree_augmented.h
-+*/
-+
-+#ifndef _LINUX_RBTREE_AUGMENTED_H
-+#define _LINUX_RBTREE_AUGMENTED_H
-+
-+#include <linux/rbtree.h>
-+
-+/*
-+ * Please note - only struct rb_augment_callbacks and the prototypes for
-+ * rb_insert_augmented() and rb_erase_augmented() are intended to be public.
-+ * The rest are implementation details you are not expected to depend on.
-+ *
-+ * See Documentation/rbtree.txt for documentation and samples.
-+ */
-+
-+struct rb_augment_callbacks {
-+	void (*propagate)(struct rb_node *node, struct rb_node *stop);
-+	void (*copy)(struct rb_node *old, struct rb_node *new);
-+	void (*rotate)(struct rb_node *old, struct rb_node *new);
-+};
-+
-+extern void __rb_insert_augmented(struct rb_node *node, struct rb_root *root,
-+	void (*augment_rotate)(struct rb_node *old, struct rb_node *new));
-+static inline void
-+rb_insert_augmented(struct rb_node *node, struct rb_root *root,
-+		    const struct rb_augment_callbacks *augment)
-+{
-+	__rb_insert_augmented(node, root, augment->rotate);
-+}
-+
-+#define RB_DECLARE_CALLBACKS(rbstatic, rbname, rbstruct, rbfield,	\
-+			     rbtype, rbaugmented, rbcompute)		\
-+static inline void							\
-+rbname ## _propagate(struct rb_node *rb, struct rb_node *stop)		\
-+{									\
-+	while (rb != stop) {						\
-+		rbstruct *node = rb_entry(rb, rbstruct, rbfield);	\
-+		rbtype augmented = rbcompute(node);			\
-+		if (node->rbaugmented == augmented)			\
-+			break;						\
-+		node->rbaugmented = augmented;				\
-+		rb = rb_parent(&node->rbfield);				\
-+	}								\
-+}									\
-+static inline void							\
-+rbname ## _copy(struct rb_node *rb_old, struct rb_node *rb_new)		\
-+{									\
-+	rbstruct *old = rb_entry(rb_old, rbstruct, rbfield);		\
-+	rbstruct *new = rb_entry(rb_new, rbstruct, rbfield);		\
-+	new->rbaugmented = old->rbaugmented;				\
-+}									\
-+static void								\
-+rbname ## _rotate(struct rb_node *rb_old, struct rb_node *rb_new)	\
-+{									\
-+	rbstruct *old = rb_entry(rb_old, rbstruct, rbfield);		\
-+	rbstruct *new = rb_entry(rb_new, rbstruct, rbfield);		\
-+	new->rbaugmented = old->rbaugmented;				\
-+	old->rbaugmented = rbcompute(old);				\
-+}									\
-+rbstatic const struct rb_augment_callbacks rbname = {			\
-+	rbname ## _propagate, rbname ## _copy, rbname ## _rotate	\
-+};
-+
-+
-+#define	RB_RED		0
-+#define	RB_BLACK	1
-+
-+#define __rb_parent(pc)    ((struct rb_node *)(pc & ~3))
-+
-+#define __rb_color(pc)     ((pc) & 1)
-+#define __rb_is_black(pc)  __rb_color(pc)
-+#define __rb_is_red(pc)    (!__rb_color(pc))
-+#define rb_color(rb)       __rb_color((rb)->__rb_parent_color)
-+#define rb_is_red(rb)      __rb_is_red((rb)->__rb_parent_color)
-+#define rb_is_black(rb)    __rb_is_black((rb)->__rb_parent_color)
-+
-+static inline void rb_set_parent(struct rb_node *rb, struct rb_node *p)
-+{
-+	rb->__rb_parent_color = rb_color(rb) | (unsigned long)p;
-+}
-+
-+static inline void rb_set_parent_color(struct rb_node *rb,
-+				       struct rb_node *p, int color)
-+{
-+	rb->__rb_parent_color = (unsigned long)p | color;
-+}
-+
-+static inline void
-+__rb_change_child(struct rb_node *old, struct rb_node *new,
-+		  struct rb_node *parent, struct rb_root *root)
-+{
-+	if (parent) {
-+		if (parent->rb_left == old)
-+			parent->rb_left = new;
-+		else
-+			parent->rb_right = new;
-+	} else
-+		root->rb_node = new;
-+}
-+
-+extern void __rb_erase_color(struct rb_node *parent, struct rb_root *root,
-+	void (*augment_rotate)(struct rb_node *old, struct rb_node *new));
-+
-+static __always_inline void
-+rb_erase_augmented(struct rb_node *node, struct rb_root *root,
-+		   const struct rb_augment_callbacks *augment)
-+{
-+	struct rb_node *child = node->rb_right, *tmp = node->rb_left;
-+	struct rb_node *parent, *rebalance;
-+	unsigned long pc;
-+
-+	if (!tmp) {
-+		/*
-+		 * Case 1: node to erase has no more than 1 child (easy!)
-+		 *
-+		 * Note that if there is one child it must be red due to 5)
-+		 * and node must be black due to 4). We adjust colors locally
-+		 * so as to bypass __rb_erase_color() later on.
-+		 */
-+		pc = node->__rb_parent_color;
-+		parent = __rb_parent(pc);
-+		__rb_change_child(node, child, parent, root);
-+		if (child) {
-+			child->__rb_parent_color = pc;
-+			rebalance = NULL;
-+		} else
-+			rebalance = __rb_is_black(pc) ? parent : NULL;
-+		tmp = parent;
-+	} else if (!child) {
-+		/* Still case 1, but this time the child is node->rb_left */
-+		tmp->__rb_parent_color = pc = node->__rb_parent_color;
-+		parent = __rb_parent(pc);
-+		__rb_change_child(node, tmp, parent, root);
-+		rebalance = NULL;
-+		tmp = parent;
-+	} else {
-+		struct rb_node *successor = child, *child2;
-+		tmp = child->rb_left;
-+		if (!tmp) {
-+			/*
-+			 * Case 2: node's successor is its right child
-+			 *
-+			 *    (n)          (s)
-+			 *    / \          / \
-+			 *  (x) (s)  ->  (x) (c)
-+			 *        \
-+			 *        (c)
-+			 */
-+			parent = successor;
-+			child2 = successor->rb_right;
-+			augment->copy(node, successor);
-+		} else {
-+			/*
-+			 * Case 3: node's successor is leftmost under
-+			 * node's right child subtree
-+			 *
-+			 *    (n)          (s)
-+			 *    / \          / \
-+			 *  (x) (y)  ->  (x) (y)
-+			 *      /            /
-+			 *    (p)          (p)
-+			 *    /            /
-+			 *  (s)          (c)
-+			 *    \
-+			 *    (c)
-+			 */
-+			do {
-+				parent = successor;
-+				successor = tmp;
-+				tmp = tmp->rb_left;
-+			} while (tmp);
-+			parent->rb_left = child2 = successor->rb_right;
-+			successor->rb_right = child;
-+			rb_set_parent(child, successor);
-+			augment->copy(node, successor);
-+			augment->propagate(parent, successor);
-+		}
-+
-+		successor->rb_left = tmp = node->rb_left;
-+		rb_set_parent(tmp, successor);
-+
-+		pc = node->__rb_parent_color;
-+		tmp = __rb_parent(pc);
-+		__rb_change_child(node, successor, tmp, root);
-+		if (child2) {
-+			successor->__rb_parent_color = pc;
-+			rb_set_parent_color(child2, parent, RB_BLACK);
-+			rebalance = NULL;
-+		} else {
-+			unsigned long pc2 = successor->__rb_parent_color;
-+			successor->__rb_parent_color = pc;
-+			rebalance = __rb_is_black(pc2) ? parent : NULL;
-+		}
-+		tmp = successor;
-+	}
-+
-+	augment->propagate(tmp, NULL);
-+	if (rebalance)
-+		__rb_erase_color(rebalance, root, augment->rotate);
-+}
-+
-+#endif	/* _LINUX_RBTREE_AUGMENTED_H */
-diff --git a/lib/rbtree.c b/lib/rbtree.c
-index c0088ca..4f56a11 100644
---- a/lib/rbtree.c
-+++ b/lib/rbtree.c
-@@ -21,7 +21,7 @@
-   linux/lib/rbtree.c
- */
- 
--#include <linux/rbtree.h>
-+#include <linux/rbtree_augmented.h>
- #include <linux/export.h>
- 
- /*
-@@ -44,52 +44,16 @@
-  *  parentheses and have some accompanying text comment.
-  */
- 
--#define	RB_RED		0
--#define	RB_BLACK	1
--
--#define __rb_parent(pc)    ((struct rb_node *)(pc & ~3))
--
--#define __rb_color(pc)     ((pc) & 1)
--#define __rb_is_black(pc)  __rb_color(pc)
--#define __rb_is_red(pc)    (!__rb_color(pc))
--#define rb_color(rb)       __rb_color((rb)->__rb_parent_color)
--#define rb_is_red(rb)      __rb_is_red((rb)->__rb_parent_color)
--#define rb_is_black(rb)    __rb_is_black((rb)->__rb_parent_color)
--
- static inline void rb_set_black(struct rb_node *rb)
- {
- 	rb->__rb_parent_color |= RB_BLACK;
- }
- 
--static inline void rb_set_parent(struct rb_node *rb, struct rb_node *p)
--{
--	rb->__rb_parent_color = rb_color(rb) | (unsigned long)p;
--}
--
--static inline void rb_set_parent_color(struct rb_node *rb,
--				       struct rb_node *p, int color)
--{
--	rb->__rb_parent_color = (unsigned long)p | color;
--}
--
- static inline struct rb_node *rb_red_parent(struct rb_node *red)
- {
- 	return (struct rb_node *)red->__rb_parent_color;
- }
- 
--static inline void
--__rb_change_child(struct rb_node *old, struct rb_node *new,
--		  struct rb_node *parent, struct rb_root *root)
--{
--	if (parent) {
--		if (parent->rb_left == old)
--			parent->rb_left = new;
--		else
--			parent->rb_right = new;
--	} else
--		root->rb_node = new;
--}
--
- /*
-  * Helper function for rotations:
-  * - old's parent and color get assigned to new
-@@ -230,9 +194,9 @@ __rb_insert(struct rb_node *node, struct rb_root *root,
- 	}
- }
- 
--static __always_inline void
-+__always_inline void
- __rb_erase_color(struct rb_node *parent, struct rb_root *root,
--		 const struct rb_augment_callbacks *augment)
-+	void (*augment_rotate)(struct rb_node *old, struct rb_node *new))
- {
- 	struct rb_node *node = NULL, *sibling, *tmp1, *tmp2;
- 
-@@ -261,7 +225,7 @@ __rb_erase_color(struct rb_node *parent, struct rb_root *root,
- 				rb_set_parent_color(tmp1, parent, RB_BLACK);
- 				__rb_rotate_set_parents(parent, sibling, root,
- 							RB_RED);
--				augment->rotate(parent, sibling);
-+				augment_rotate(parent, sibling);
- 				sibling = tmp1;
- 			}
- 			tmp1 = sibling->rb_right;
-@@ -313,7 +277,7 @@ __rb_erase_color(struct rb_node *parent, struct rb_root *root,
- 				if (tmp1)
- 					rb_set_parent_color(tmp1, sibling,
- 							    RB_BLACK);
--				augment->rotate(sibling, tmp2);
-+				augment_rotate(sibling, tmp2);
- 				tmp1 = sibling;
- 				sibling = tmp2;
- 			}
-@@ -336,7 +300,7 @@ __rb_erase_color(struct rb_node *parent, struct rb_root *root,
- 				rb_set_parent(tmp2, parent);
- 			__rb_rotate_set_parents(parent, sibling, root,
- 						RB_BLACK);
--			augment->rotate(parent, sibling);
-+			augment_rotate(parent, sibling);
- 			break;
- 		} else {
- 			sibling = parent->rb_left;
-@@ -347,7 +311,7 @@ __rb_erase_color(struct rb_node *parent, struct rb_root *root,
- 				rb_set_parent_color(tmp1, parent, RB_BLACK);
- 				__rb_rotate_set_parents(parent, sibling, root,
- 							RB_RED);
--				augment->rotate(parent, sibling);
-+				augment_rotate(parent, sibling);
- 				sibling = tmp1;
- 			}
- 			tmp1 = sibling->rb_left;
-@@ -374,7 +338,7 @@ __rb_erase_color(struct rb_node *parent, struct rb_root *root,
- 				if (tmp1)
- 					rb_set_parent_color(tmp1, sibling,
- 							    RB_BLACK);
--				augment->rotate(sibling, tmp2);
-+				augment_rotate(sibling, tmp2);
- 				tmp1 = sibling;
- 				sibling = tmp2;
- 			}
-@@ -386,109 +350,12 @@ __rb_erase_color(struct rb_node *parent, struct rb_root *root,
- 				rb_set_parent(tmp2, parent);
- 			__rb_rotate_set_parents(parent, sibling, root,
- 						RB_BLACK);
--			augment->rotate(parent, sibling);
-+			augment_rotate(parent, sibling);
- 			break;
- 		}
- 	}
- }
--
--static __always_inline void
--__rb_erase(struct rb_node *node, struct rb_root *root,
--	   const struct rb_augment_callbacks *augment)
--{
--	struct rb_node *child = node->rb_right, *tmp = node->rb_left;
--	struct rb_node *parent, *rebalance;
--	unsigned long pc;
--
--	if (!tmp) {
--		/*
--		 * Case 1: node to erase has no more than 1 child (easy!)
--		 *
--		 * Note that if there is one child it must be red due to 5)
--		 * and node must be black due to 4). We adjust colors locally
--		 * so as to bypass __rb_erase_color() later on.
--		 */
--		pc = node->__rb_parent_color;
--		parent = __rb_parent(pc);
--		__rb_change_child(node, child, parent, root);
--		if (child) {
--			child->__rb_parent_color = pc;
--			rebalance = NULL;
--		} else
--			rebalance = __rb_is_black(pc) ? parent : NULL;
--		tmp = parent;
--	} else if (!child) {
--		/* Still case 1, but this time the child is node->rb_left */
--		tmp->__rb_parent_color = pc = node->__rb_parent_color;
--		parent = __rb_parent(pc);
--		__rb_change_child(node, tmp, parent, root);
--		rebalance = NULL;
--		tmp = parent;
--	} else {
--		struct rb_node *successor = child, *child2;
--		tmp = child->rb_left;
--		if (!tmp) {
--			/*
--			 * Case 2: node's successor is its right child
--			 *
--			 *    (n)          (s)
--			 *    / \          / \
--			 *  (x) (s)  ->  (x) (c)
--			 *        \
--			 *        (c)
--			 */
--			parent = successor;
--			child2 = successor->rb_right;
--			augment->copy(node, successor);
--		} else {
--			/*
--			 * Case 3: node's successor is leftmost under
--			 * node's right child subtree
--			 *
--			 *    (n)          (s)
--			 *    / \          / \
--			 *  (x) (y)  ->  (x) (y)
--			 *      /            /
--			 *    (p)          (p)
--			 *    /            /
--			 *  (s)          (c)
--			 *    \
--			 *    (c)
--			 */
--			do {
--				parent = successor;
--				successor = tmp;
--				tmp = tmp->rb_left;
--			} while (tmp);
--			parent->rb_left = child2 = successor->rb_right;
--			successor->rb_right = child;
--			rb_set_parent(child, successor);
--			augment->copy(node, successor);
--			augment->propagate(parent, successor);
--		}
--
--		successor->rb_left = tmp = node->rb_left;
--		rb_set_parent(tmp, successor);
--
--		pc = node->__rb_parent_color;
--		tmp = __rb_parent(pc);
--		__rb_change_child(node, successor, tmp, root);
--		if (child2) {
--			successor->__rb_parent_color = pc;
--			rb_set_parent_color(child2, parent, RB_BLACK);
--			rebalance = NULL;
--		} else {
--			unsigned long pc2 = successor->__rb_parent_color;
--			successor->__rb_parent_color = pc;
--			rebalance = __rb_is_black(pc2) ? parent : NULL;
--		}
--		tmp = successor;
--	}
--
--	augment->propagate(tmp, NULL);
--	if (rebalance)
--		__rb_erase_color(rebalance, root, augment);
--}
-+EXPORT_SYMBOL(__rb_erase_color);
- 
- /*
-  * Non-augmented rbtree manipulation functions.
-@@ -513,7 +380,7 @@ EXPORT_SYMBOL(rb_insert_color);
- 
- void rb_erase(struct rb_node *node, struct rb_root *root)
- {
--	__rb_erase(node, root, &dummy_callbacks);
-+	rb_erase_augmented(node, root, &dummy_callbacks);
- }
- EXPORT_SYMBOL(rb_erase);
- 
-@@ -531,13 +398,6 @@ void __rb_insert_augmented(struct rb_node *node, struct rb_root *root,
- }
- EXPORT_SYMBOL(__rb_insert_augmented);
- 
--void rb_erase_augmented(struct rb_node *node, struct rb_root *root,
--			const struct rb_augment_callbacks *augment)
--{
--	__rb_erase(node, root, augment);
--}
--EXPORT_SYMBOL(rb_erase_augmented);
--
- /*
-  * This function returns the first node (in sort order) of the tree.
-  */
-diff --git a/lib/rbtree_test.c b/lib/rbtree_test.c
-index b20e999..268b239 100644
---- a/lib/rbtree_test.c
-+++ b/lib/rbtree_test.c
-@@ -1,5 +1,5 @@
- #include <linux/module.h>
--#include <linux/rbtree.h>
-+#include <linux/rbtree_augmented.h>
- #include <linux/random.h>
- #include <asm/timex.h>
- 
--- 
-1.7.7.3
+diff --git a/include/linux/skbuff.h b/include/linux/skbuff.h
+index 7632c87..8857669 100644
+--- a/include/linux/skbuff.h
++++ b/include/linux/skbuff.h
+@@ -1256,7 +1256,7 @@ static inline void __skb_fill_page_desc(struct sk_buff *skb, int i,
+ 	 * do not lose pfmemalloc information as the pages would not be
+ 	 * allocated using __GFP_MEMALLOC.
+ 	 */
+-	if (page->pfmemalloc && !page->mapping)
++	if (page && page->pfmemalloc && !page->mapping)
+ 		skb->pfmemalloc	= true;
+ 	frag->page.p		  = page;
+ 	frag->page_offset	  = off;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
