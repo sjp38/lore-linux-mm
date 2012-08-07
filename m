@@ -1,49 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
-	by kanga.kvack.org (Postfix) with SMTP id 6FD2A6B004D
-	for <linux-mm@kvack.org>; Tue,  7 Aug 2012 09:22:57 -0400 (EDT)
-Received: from epcpsbgm2.samsung.com (mailout1.samsung.com [203.254.224.24])
- by mailout1.samsung.com
- (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
- 17 2011)) with ESMTP id <0M8D005GUZTW4ID0@mailout1.samsung.com> for
- linux-mm@kvack.org; Tue, 07 Aug 2012 22:22:56 +0900 (KST)
-Received: from AMDC159 ([106.116.147.30])
- by mmp1.samsung.com (Oracle Communications Messaging Server 7u4-24.01
- (7.0.4.24.0) 64bit (built Nov 17 2011))
- with ESMTPA id <0M8D00FP3ZTZI590@mmp1.samsung.com> for linux-mm@kvack.org;
- Tue, 07 Aug 2012 22:22:56 +0900 (KST)
-From: Marek Szyprowski <m.szyprowski@samsung.com>
-References: <1344187926-22404-1-git-send-email-aaro.koskinen@iki.fi>
-In-reply-to: <1344187926-22404-1-git-send-email-aaro.koskinen@iki.fi>
-Subject: RE: [PATCH] ARM: dma-mapping: fix atomic allocation alignment
-Date: Tue, 07 Aug 2012 15:22:47 +0200
-Message-id: <011d01cd749f$be649fa0$3b2ddee0$%szyprowski@samsung.com>
-MIME-version: 1.0
-Content-type: text/plain; charset=us-ascii
-Content-transfer-encoding: 7bit
-Content-language: pl
+Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
+	by kanga.kvack.org (Postfix) with SMTP id E899A6B004D
+	for <linux-mm@kvack.org>; Tue,  7 Aug 2012 09:23:42 -0400 (EDT)
+Message-ID: <502116DA.4040409@redhat.com>
+Date: Tue, 07 Aug 2012 09:23:38 -0400
+From: Rik van Riel <riel@redhat.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH 2/6] mm: vmscan: Scale number of pages reclaimed by reclaim/compaction
+ based on failures
+References: <1344342677-5845-1-git-send-email-mgorman@suse.de> <1344342677-5845-3-git-send-email-mgorman@suse.de>
+In-Reply-To: <1344342677-5845-3-git-send-email-mgorman@suse.de>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Aaro Koskinen' <aaro.koskinen@iki.fi>, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: Linux-MM <linux-mm@kvack.org>, Minchan Kim <minchan@kernel.org>, Jim Schutt <jaschut@sandia.gov>, LKML <linux-kernel@vger.kernel.org>
 
-Hi Aaro,
+On 08/07/2012 08:31 AM, Mel Gorman wrote:
+> If allocation fails after compaction then compaction may be deferred for
+> a number of allocation attempts. If there are subsequent failures,
+> compact_defer_shift is increased to defer for longer periods. This patch
+> uses that information to scale the number of pages reclaimed with
+> compact_defer_shift until allocations succeed again.
+>
+> Signed-off-by: Mel Gorman<mgorman@suse.de>
 
-On Sunday, August 05, 2012 7:32 PM Aaro Koskinen wrote:
+Acked-by: Rik van Riel <riel@redhat.com>
 
-> The alignment mask is calculated incorrectly. Fixing the calculation
-> makes strange hangs/lockups disappear during the boot with Amstrad E3
-> and 3.6-rc1 kernel.
-> 
-> Signed-off-by: Aaro Koskinen <aaro.koskinen@iki.fi>
 
-Again, thanks for spotting and fixing the issue. I've applied it to my fixes branch. 
-I'm really sorry for introducing such stupid bugs together with my changes.
-
-Best regards
 -- 
-Marek Szyprowski
-Samsung Poland R&D Center
-
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
