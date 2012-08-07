@@ -1,32 +1,33 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
-	by kanga.kvack.org (Postfix) with SMTP id 36CF56B004D
-	for <linux-mm@kvack.org>; Tue,  7 Aug 2012 08:41:17 -0400 (EDT)
-Received: by vcbfl10 with SMTP id fl10so4810449vcb.14
-        for <linux-mm@kvack.org>; Tue, 07 Aug 2012 05:41:16 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx135.postini.com [74.125.245.135])
+	by kanga.kvack.org (Postfix) with SMTP id DB3966B004D
+	for <linux-mm@kvack.org>; Tue,  7 Aug 2012 09:19:32 -0400 (EDT)
+Message-ID: <502115DB.105@redhat.com>
+Date: Tue, 07 Aug 2012 09:19:23 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <20120806155433.GB4850@dhcp22.suse.cz>
-References: <CAJd=RBC9HhKh5Q0-yXi3W0x3guXJPFz4BNsniyOFmp0TjBdFqg@mail.gmail.com>
-	<20120806132410.GA6150@dhcp22.suse.cz>
-	<CAJd=RBCuvpG49JcTUY+qw-tTdH_vFLgOfJDE3sW97+M04TR+hg@mail.gmail.com>
-	<20120806155433.GB4850@dhcp22.suse.cz>
-Date: Tue, 7 Aug 2012 20:41:15 +0800
-Message-ID: <CAJd=RBDoGwnMHKDpTKZF7Nq3VegttmCMXa2PjOrnPcCxwFKdiQ@mail.gmail.com>
-Subject: Re: [patch v2] hugetlb: correct page offset index for sharing pmd
-From: Hillf Danton <dhillf@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Subject: Re: [PATCH 1/6] mm: compaction: Update comment in try_to_compact_pages
+References: <1344342677-5845-1-git-send-email-mgorman@suse.de> <1344342677-5845-2-git-send-email-mgorman@suse.de>
+In-Reply-To: <1344342677-5845-2-git-send-email-mgorman@suse.de>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Linux-MM <linux-mm@kvack.org>, Minchan Kim <minchan@kernel.org>, Jim Schutt <jaschut@sandia.gov>, LKML <linux-kernel@vger.kernel.org>
 
-On Mon, Aug 6, 2012 at 11:54 PM, Michal Hocko <mhocko@suse.cz> wrote:
-> It's just that page_table_shareable fix the index silently by saddr &
-> PUD_MASK.
+On 08/07/2012 08:31 AM, Mel Gorman wrote:
+> The comment about order applied when the check was
+> order>  PAGE_ALLOC_COSTLY_ORDER which has not been the case since
+> [c5a73c3d: thp: use compaction for all allocation orders]. Fixing
+> the comment while I'm in the general area.
+>
+> Signed-off-by: Mel Gorman<mgorman@suse.de>
 
-Follow no up, and see no wrong in page_table_shareable frankly.
+Reviewed-by: Rik van Riel <riel@redhat.com>
 
-Hillf
+-- 
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
