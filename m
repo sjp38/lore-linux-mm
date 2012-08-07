@@ -1,30 +1,32 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
-	by kanga.kvack.org (Postfix) with SMTP id 3CE496B0068
-	for <linux-mm@kvack.org>; Mon,  6 Aug 2012 20:45:12 -0400 (EDT)
+	by kanga.kvack.org (Postfix) with SMTP id 2F5B16B0068
+	for <linux-mm@kvack.org>; Mon,  6 Aug 2012 20:45:15 -0400 (EDT)
 Received: by mail-bk0-f41.google.com with SMTP id jc3so1661806bkc.14
-        for <linux-mm@kvack.org>; Mon, 06 Aug 2012 17:45:11 -0700 (PDT)
+        for <linux-mm@kvack.org>; Mon, 06 Aug 2012 17:45:14 -0700 (PDT)
 From: Sasha Levin <levinsasha928@gmail.com>
 Subject: [RFC v3 4/7] workqueue: use new hashtable implementation
-Date: Tue,  7 Aug 2012 02:45:13 +0200
-Message-Id: <1344300317-23189-5-git-send-email-levinsasha928@gmail.com>
+Date: Tue,  7 Aug 2012 02:45:14 +0200
+Message-Id: <1344300317-23189-6-git-send-email-levinsasha928@gmail.com>
 In-Reply-To: <1344300317-23189-1-git-send-email-levinsasha928@gmail.com>
 References: <1344300317-23189-1-git-send-email-levinsasha928@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: torvalds@linux-foundation.org
-Cc: tj@kernel.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, paul.gortmaker@windriver.com, davem@davemloft.net, rostedt@goodmis.org, mingo@elte.hu, ebiederm@xmission.com, aarcange@redhat.com, ericvh@gmail.com, netdev@vger.kernel.org, josh@joshtriplett.org, eric.dumazet@gmail.com, mathieu.desnoyers@efficios.com, Sasha Levin <levinsasha928@gmail.com>
+Cc: tj@kernel.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, paul.gortmaker@windriver.com, davem@davemloft.net, rostedt@goodmis.org, mingo@elte.hu, ebiederm@xmission.com, aarcange@redhat.com, ericvh@gmail.com, netdev@vger.kernel.org, josh@joshtriplett.org, eric.dumazet@gmail.com, mathieu.desnoyers@efficios.com, Sasha Levin <sasha.levin@oracle.com>
+
+From: Sasha Levin <sasha.levin@oracle.com>
 
 Switch workqueues to use the new hashtable implementation. This reduces the amount of
 generic unrelated code in the workqueues.
 
-Signed-off-by: Sasha Levin <levinsasha928@gmail.com>
+Signed-off-by: Sasha Levin <sasha.levin@oracle.com>
 ---
- kernel/workqueue.c |   89 ++++++++++-----------------------------------------
- 1 files changed, 18 insertions(+), 71 deletions(-)
+ kernel/workqueue.c |   91 +++++++++++-----------------------------------------
+ 1 files changed, 19 insertions(+), 72 deletions(-)
 
 diff --git a/kernel/workqueue.c b/kernel/workqueue.c
-index 692d976..548fa87 100644
+index 692d976..edc7fd0 100644
 --- a/kernel/workqueue.c
 +++ b/kernel/workqueue.c
 @@ -41,6 +41,7 @@
@@ -138,7 +140,7 @@ index 692d976..548fa87 100644
 +	struct hlist_node *tmp;
 +
 +	hash_for_each_possible(gcwq->busy_hash, worker, BUSY_WORKER_HASH_ORDER,
-+						tmp, hentry, (unsigned long)work)
++								tmp, hentry, work)
 +		if (worker->current_work == work)
 +			return worker;
 +
@@ -146,6 +148,15 @@ index 692d976..548fa87 100644
  }
  
  /**
+@@ -1916,7 +1865,7 @@ static void cwq_dec_nr_in_flight(struct cpu_workqueue_struct *cwq, int color,
+  * @worker: self
+  * @work: work to process
+  *
+- * Process @work.  This function contains all the logics necessary to
++ * Process @work.  This? function contains all the logics necessary to
+  * process a single work including synchronization against and
+  * interaction with other workers on the same cpu, queueing and
+  * flushing.  As long as context requirement is met, any worker can
 @@ -1932,7 +1881,6 @@ __acquires(&gcwq->lock)
  	struct cpu_workqueue_struct *cwq = get_work_cwq(work);
  	struct worker_pool *pool = worker->pool;
