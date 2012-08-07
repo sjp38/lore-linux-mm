@@ -1,173 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
-	by kanga.kvack.org (Postfix) with SMTP id 11E526B0044
-	for <linux-mm@kvack.org>; Tue,  7 Aug 2012 03:12:16 -0400 (EDT)
-Received: by pbbjt11 with SMTP id jt11so3931195pbb.14
-        for <linux-mm@kvack.org>; Tue, 07 Aug 2012 00:12:15 -0700 (PDT)
-Date: Tue, 7 Aug 2012 00:12:11 -0700
+Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
+	by kanga.kvack.org (Postfix) with SMTP id 607986B005A
+	for <linux-mm@kvack.org>; Tue,  7 Aug 2012 03:26:00 -0400 (EDT)
+Received: by ggnf4 with SMTP id f4so1324142ggn.14
+        for <linux-mm@kvack.org>; Tue, 07 Aug 2012 00:25:59 -0700 (PDT)
 From: Michel Lespinasse <walken@google.com>
-Subject: [PATCH] rbtree: add RB_DECLARE_CALLBACKS() macro
-Message-ID: <20120807071211.GA1278@google.com>
-References: <1343946858-8170-1-git-send-email-walken@google.com>
- <1343946858-8170-9-git-send-email-walken@google.com>
- <1344262669.27828.55.camel@twins>
- <1344267537.27828.93.camel@twins>
- <CANN689HKPKeZ-sqqwXGPhv=Jno4c=v=ffeOxLPkOFmMzEVXexw@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CANN689HKPKeZ-sqqwXGPhv=Jno4c=v=ffeOxLPkOFmMzEVXexw@mail.gmail.com>
+Subject: [PATCH 0/5] rbtree based interval tree as a prio_tree replacement
+Date: Tue,  7 Aug 2012 00:25:38 -0700
+Message-Id: <1344324343-3817-1-git-send-email-walken@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: riel@redhat.com, daniel.santos@pobox.com, aarcange@redhat.com, dwmw2@infradead.org, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, torvalds@linux-foundation.org
+To: riel@redhat.com, peterz@infradead.org, vrajesh@umich.edu, daniel.santos@pobox.com, aarcange@redhat.com, dwmw2@infradead.org, akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, torvalds@linux-foundation.org
 
-This proposed patch goes after 9/9 of my previous submission and makes it
-easier to define the augmented rbtree callbacks.
+This patchset goes over the rbtree changes that have been already integrated
+into Andrew's -mm tree, as well as the augmented rbtree proposal which is
+currently pending.
 
-Peter, does this fix the concern you raised over patch 8/9 ?
+Patch 1 implements support for interval trees, on top of the augmented
+rbtree API. It also adds synthetic tests to compare the performance of
+interval trees vs prio trees. Short answers is that interval trees are
+slightly faster (~25%) on insert/erase, and much faster (~2.4 - 3x)
+on search. It is debatable how realistic the synthetic test is, and I have
+not made such measurements yet, but my impression is that interval trees
+would still come out faster.
 
-Signed-off-by: Michel Lespinasse <walken@google.com>
----
- arch/x86/mm/pat_rbtree.c |   37 ++-----------------------------------
- include/linux/rbtree.h   |   30 ++++++++++++++++++++++++++++++
- lib/rbtree_test.c        |   34 ++--------------------------------
- 3 files changed, 34 insertions(+), 67 deletions(-)
+Patch 2 uses a preprocessor template to make the interval tree generic,
+and uses it as a replacement for the vma prio_tree.
 
-diff --git a/arch/x86/mm/pat_rbtree.c b/arch/x86/mm/pat_rbtree.c
-index 7e1515b..4d11695 100644
---- a/arch/x86/mm/pat_rbtree.c
-+++ b/arch/x86/mm/pat_rbtree.c
-@@ -69,41 +69,8 @@ static u64 compute_subtree_max_end(struct memtype *data)
- 	return max_end;
- }
- 
--/* Update 'subtree_max_end' for node and its parents */
--static void memtype_rb_propagate_cb(struct rb_node *node, struct rb_node *stop)
--{
--	while (node != stop) {
--		struct memtype *data = container_of(node, struct memtype, rb);
--		u64 subtree_max_end = compute_subtree_max_end(data);
--		if (data->subtree_max_end == subtree_max_end)
--			break;
--		data->subtree_max_end = subtree_max_end;
--		node = rb_parent(&data->rb);
--	}
--}
--
--static void memtype_rb_copy_cb(struct rb_node *old, struct rb_node *new)
--{
--	struct memtype *old_data = container_of(old, struct memtype, rb);
--	struct memtype *new_data = container_of(new, struct memtype, rb);
--
--	new_data->subtree_max_end = old_data->subtree_max_end;
--}
--
--/* Update 'subtree_max_end' after tree rotation. old and new are the
-- * former and current subtree roots */
--static void memtype_rb_rotate_cb(struct rb_node *old, struct rb_node *new)
--{
--	struct memtype *old_data = container_of(old, struct memtype, rb);
--	struct memtype *new_data = container_of(new, struct memtype, rb);
--
--	new_data->subtree_max_end = old_data->subtree_max_end;
--	old_data->subtree_max_end = compute_subtree_max_end(old_data);
--}
--
--static const struct rb_augment_callbacks memtype_rb_augment_cb = {
--	memtype_rb_propagate_cb, memtype_rb_copy_cb, memtype_rb_rotate_cb
--};
-+RB_DECLARE_CALLBACKS(static, memtype_rb_augment_cb, struct memtype, rb,
-+		     u64, subtree_max_end, compute_subtree_max_end)
- 
- /* Find the first (lowest start addr) overlapping range from rb tree */
- static struct memtype *memtype_rb_lowest_match(struct rb_root *root,
-diff --git a/include/linux/rbtree.h b/include/linux/rbtree.h
-index 4ace31b..8d1e83b 100644
---- a/include/linux/rbtree.h
-+++ b/include/linux/rbtree.h
-@@ -79,6 +79,36 @@ rb_insert_augmented(struct rb_node *node, struct rb_root *root,
- 	__rb_insert_augmented(node, root, augment->rotate);
- }
- 
-+#define RB_DECLARE_CALLBACKS(rbstatic, rbname, rbstruct, rbfield,	      \
-+			     rbtype, rbaugmented, rbcompute)		      \
-+static void rbname ## _propagate(struct rb_node *rb, struct rb_node *stop)    \
-+{									      \
-+	while (rb != stop) {						      \
-+		rbstruct *node = rb_entry(rb, rbstruct, rbfield);	      \
-+		rbtype augmented = rbcompute(node);			      \
-+		if (node->rbaugmented == augmented)			      \
-+			break;						      \
-+		node->rbaugmented = augmented;				      \
-+		rb = rb_parent(&node->rbfield);				      \
-+	}								      \
-+}									      \
-+static void rbname ## _copy(struct rb_node *rb_old, struct rb_node *rb_new)   \
-+{									      \
-+	rbstruct *old = rb_entry(rb_old, rbstruct, rbfield);		      \
-+	rbstruct *new = rb_entry(rb_new, rbstruct, rbfield);		      \
-+	new->rbaugmented = old->rbaugmented;				      \
-+}									      \
-+static void rbname ## _rotate(struct rb_node *rb_old, struct rb_node *rb_new) \
-+{									      \
-+	rbstruct *old = rb_entry(rb_old, rbstruct, rbfield);		      \
-+	rbstruct *new = rb_entry(rb_new, rbstruct, rbfield);		      \
-+	new->rbaugmented = old->rbaugmented;				      \
-+	old->rbaugmented = rbcompute(old);				      \
-+}									      \
-+rbstatic const struct rb_augment_callbacks rbname = {			      \
-+	rbname ## _propagate, rbname ## _copy, rbname ## _rotate	      \
-+};
-+
- 
- /* Find logical next and previous nodes in a tree */
- extern struct rb_node *rb_next(const struct rb_node *);
-diff --git a/lib/rbtree_test.c b/lib/rbtree_test.c
-index e28345d..b20e999 100644
---- a/lib/rbtree_test.c
-+++ b/lib/rbtree_test.c
-@@ -61,38 +61,8 @@ static inline u32 augment_recompute(struct test_node *node)
- 	return max;
- }
- 
--static void augment_propagate(struct rb_node *rb, struct rb_node *stop)
--{
--	while (rb != stop) {
--		struct test_node *node = rb_entry(rb, struct test_node, rb);
--		u32 augmented = augment_recompute(node);
--		if (node->augmented == augmented)
--			break;
--		node->augmented = augmented;
--		rb = rb_parent(&node->rb);
--	}
--}
--
--static void augment_copy(struct rb_node *rb_old, struct rb_node *rb_new)
--{
--	struct test_node *old = rb_entry(rb_old, struct test_node, rb);
--	struct test_node *new = rb_entry(rb_new, struct test_node, rb);
--	new->augmented = old->augmented;
--}
--
--static void augment_rotate(struct rb_node *rb_old, struct rb_node *rb_new)
--{
--	struct test_node *old = rb_entry(rb_old, struct test_node, rb);
--	struct test_node *new = rb_entry(rb_new, struct test_node, rb);
--
--	/* Rotation doesn't change subtree's augmented value */
--	new->augmented = old->augmented;
--	old->augmented = augment_recompute(old);
--}
--
--static const struct rb_augment_callbacks augment_callbacks = {
--	augment_propagate, augment_copy, augment_rotate
--};
-+RB_DECLARE_CALLBACKS(static, augment_callbacks, struct test_node, rb,
-+		     u32, augmented, augment_recompute)
- 
- static void insert_augmented(struct test_node *node, struct rb_root *root)
- {
+Patch 3 takes the other prio_tree user, kmemleak, and converts it to use
+a basic rbtree. We don't actually need the augmented rbtree support here
+because the intervals are always non-overlapping.
+
+Patch 4 removes the now-unused prio tree library.
+
+Patch 5 proposes an additional optimization to rb_erase_augmented, now
+providing it as an inline function so that the augmented callbacks can be
+inlined in. This provides an additional 5-10% performance improvement
+for the interval tree insert/erase benchmark. There is a maintainance cost
+as it exposes augmented rbtree users to some of the rbtree library internals;
+however I think this cost shouldn't be too high as I expect the augmented
+rbtree will always have much less users than the base rbtree.
+
+I should probably add a quick summary of why I think it makes sense to
+replace prio trees with augmented rbtree based interval trees now.
+One of the drivers is that we need augmented rbtrees for Rik's vma
+gap finding code, and once you have them, it just makes sense to use them
+for interval trees as well, as this is the simpler and more well known
+algorithm. prio trees, in comparison, seem *too* clever: they impose an
+additional 'heap' constraint on the tree, which they use to guarantee
+a faster worst-case complexity of O(k+log N) for stabbing queries in a
+well-balanced prio tree, vs O(k*log N) for interval trees (where k=number
+of matches, N=number of intervals). Now this sounds great, but in practice
+prio trees don't realize this theorical benefit. First, the additional
+constraint makes them harder to update, so that the kernel implementation
+has to simplify things by balancing them like a radix tree, which is not
+always ideal. Second, the fact that there are both index and heap
+properties makes both tree manipulation and search more complex,
+which results in a higher multiplicative time constant. As it turns out,
+the simple interval tree algorithm ends up running faster than the more
+clever prio tree.
+
+Michel Lespinasse (5):
+  rbtree: add prio tree and interval tree tests
+  mm: replace vma prio_tree with an interval tree
+  kmemleak: use rbtree instead of prio tree
+  prio_tree: remove
+  rbtree: move augmented rbtree functionality to rbtree_augmented.h
+
+ Documentation/00-INDEX             |    2 -
+ Documentation/prio_tree.txt        |  107 --------
+ Documentation/rbtree.txt           |   13 +
+ arch/arm/mm/fault-armv.c           |    3 +-
+ arch/arm/mm/flush.c                |    3 +-
+ arch/parisc/kernel/cache.c         |    3 +-
+ arch/x86/mm/hugetlbpage.c          |    3 +-
+ arch/x86/mm/pat_rbtree.c           |    2 +-
+ fs/hugetlbfs/inode.c               |    9 +-
+ fs/inode.c                         |    2 +-
+ include/linux/fs.h                 |    6 +-
+ include/linux/interval_tree.h      |   27 ++
+ include/linux/interval_tree_tmpl.h |  219 +++++++++++++++++
+ include/linux/mm.h                 |   30 ++-
+ include/linux/mm_types.h           |   14 +-
+ include/linux/prio_tree.h          |  120 ---------
+ include/linux/rbtree.h             |   48 ----
+ include/linux/rbtree_augmented.h   |  223 +++++++++++++++++
+ init/main.c                        |    2 -
+ kernel/events/uprobes.c            |    3 +-
+ kernel/fork.c                      |    2 +-
+ lib/Kconfig.debug                  |    6 +
+ lib/Makefile                       |    5 +-
+ lib/interval_tree.c                |   13 +
+ lib/interval_tree_test_main.c      |  105 ++++++++
+ lib/prio_tree.c                    |  466 ------------------------------------
+ lib/rbtree.c                       |  162 +------------
+ lib/rbtree_test.c                  |    2 +-
+ mm/Makefile                        |    4 +-
+ mm/filemap_xip.c                   |    3 +-
+ mm/fremap.c                        |    2 +-
+ mm/hugetlb.c                       |    3 +-
+ mm/interval_tree.c                 |   61 +++++
+ mm/kmemleak.c                      |   98 ++++----
+ mm/memory-failure.c                |    3 +-
+ mm/memory.c                        |    9 +-
+ mm/mmap.c                          |   22 +-
+ mm/nommu.c                         |   12 +-
+ mm/prio_tree.c                     |  208 ----------------
+ mm/rmap.c                          |   18 +-
+ 40 files changed, 803 insertions(+), 1240 deletions(-)
+ delete mode 100644 Documentation/prio_tree.txt
+ create mode 100644 include/linux/interval_tree.h
+ create mode 100644 include/linux/interval_tree_tmpl.h
+ delete mode 100644 include/linux/prio_tree.h
+ create mode 100644 include/linux/rbtree_augmented.h
+ create mode 100644 lib/interval_tree.c
+ create mode 100644 lib/interval_tree_test_main.c
+ delete mode 100644 lib/prio_tree.c
+ create mode 100644 mm/interval_tree.c
+ delete mode 100644 mm/prio_tree.c
+
 -- 
 1.7.7.3
 
