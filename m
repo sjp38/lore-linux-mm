@@ -1,177 +1,32 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx127.postini.com [74.125.245.127])
-	by kanga.kvack.org (Postfix) with SMTP id 475D06B0044
-	for <linux-mm@kvack.org>; Tue,  7 Aug 2012 08:31:26 -0400 (EDT)
-From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 6/6] mm: have order > 0 compaction start near a pageblock with free pages
-Date: Tue,  7 Aug 2012 13:31:17 +0100
-Message-Id: <1344342677-5845-7-git-send-email-mgorman@suse.de>
-In-Reply-To: <1344342677-5845-1-git-send-email-mgorman@suse.de>
-References: <1344342677-5845-1-git-send-email-mgorman@suse.de>
+Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
+	by kanga.kvack.org (Postfix) with SMTP id 36CF56B004D
+	for <linux-mm@kvack.org>; Tue,  7 Aug 2012 08:41:17 -0400 (EDT)
+Received: by vcbfl10 with SMTP id fl10so4810449vcb.14
+        for <linux-mm@kvack.org>; Tue, 07 Aug 2012 05:41:16 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20120806155433.GB4850@dhcp22.suse.cz>
+References: <CAJd=RBC9HhKh5Q0-yXi3W0x3guXJPFz4BNsniyOFmp0TjBdFqg@mail.gmail.com>
+	<20120806132410.GA6150@dhcp22.suse.cz>
+	<CAJd=RBCuvpG49JcTUY+qw-tTdH_vFLgOfJDE3sW97+M04TR+hg@mail.gmail.com>
+	<20120806155433.GB4850@dhcp22.suse.cz>
+Date: Tue, 7 Aug 2012 20:41:15 +0800
+Message-ID: <CAJd=RBDoGwnMHKDpTKZF7Nq3VegttmCMXa2PjOrnPcCxwFKdiQ@mail.gmail.com>
+Subject: Re: [patch v2] hugetlb: correct page offset index for sharing pmd
+From: Hillf Danton <dhillf@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linux-MM <linux-mm@kvack.org>
-Cc: Rik van Riel <riel@redhat.com>, Minchan Kim <minchan@kernel.org>, Jim Schutt <jaschut@sandia.gov>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-commit [7db8889a: mm: have order > 0 compaction start off where it left]
-introduced a caching mechanism to reduce the amount work the free page
-scanner does in compaction. However, it has a problem. Consider two process
-simultaneously scanning free pages
+On Mon, Aug 6, 2012 at 11:54 PM, Michal Hocko <mhocko@suse.cz> wrote:
+> It's just that page_table_shareable fix the index silently by saddr &
+> PUD_MASK.
 
-				    			C
-Process A		M     S     			F
-		|---------------------------------------|
-Process B		M 	FS
+Follow no up, and see no wrong in page_table_shareable frankly.
 
-C is zone->compact_cached_free_pfn
-S is cc->start_pfree_pfn
-M is cc->migrate_pfn
-F is cc->free_pfn
-
-In this diagram, Process A has just reached its migrate scanner, wrapped
-around and updated compact_cached_free_pfn accordingly.
-
-Simultaneously, Process B finishes isolating in a block and updates
-compact_cached_free_pfn again to the location of its free scanner.
-
-Process A moves to "end_of_zone - one_pageblock" and runs this check
-
-                if (cc->order > 0 && (!cc->wrapped ||
-                                      zone->compact_cached_free_pfn >
-                                      cc->start_free_pfn))
-                        pfn = min(pfn, zone->compact_cached_free_pfn);
-
-compact_cached_free_pfn is above where it started so the free scanner skips
-almost the entire space it should have scanned. When there are multiple
-processes compacting it can end in a situation where the entire zone is
-not being scanned at all.  Further, it is possible for two processes to
-ping-pong update to compact_cached_free_pfn which is just random.
-
-Overall, the end result wrecks allocation success rates.
-
-There is not an obvious way around this problem without introducing new
-locking and state so this patch takes a different approach.
-
-First, it gets rid of the skip logic because it's not clear that it matters
-if two free scanners happen to be in the same block but with racing updates
-it's too easy for it to skip over blocks it should not.
-
-Second, it updates compact_cached_free_pfn in a more limited set of
-circumstances.
-
-If a scanner has wrapped, it updates compact_cached_free_pfn to the end
-	of the zone. Each time a wrapped scanner isoaltes a page, it
-	updates compact_cached_free_pfn. The intention is that after
-	wrapping, the compact_cached_free_pfn will be at the highest
-	pageblock with free pages when compaction completes.
-
-If a scanner has not wrapped when compaction completes and
-	compact_cached_free_pfn is set the end of the the zone, initialise
-	it once.
-
-This is not optimal and it can still race but the compact_cached_free_pfn
-will be pointing to or very near a pageblock with free pages.
-
-Signed-off-by: Mel Gorman <mgorman@suse.de>
----
- mm/compaction.c |   54 ++++++++++++++++++++++++++++--------------------------
- 1 file changed, 28 insertions(+), 26 deletions(-)
-
-diff --git a/mm/compaction.c b/mm/compaction.c
-index be310f1..df50f73 100644
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -419,6 +419,20 @@ static bool suitable_migration_target(struct page *page)
- }
- 
- /*
-+ * Returns the start pfn of the last page block in a zone.  This is the starting
-+ * point for full compaction of a zone.  Compaction searches for free pages from
-+ * the end of each zone, while isolate_freepages_block scans forward inside each
-+ * page block.
-+ */
-+static unsigned long start_free_pfn(struct zone *zone)
-+{
-+	unsigned long free_pfn;
-+	free_pfn = zone->zone_start_pfn + zone->spanned_pages;
-+	free_pfn &= ~(pageblock_nr_pages-1);
-+	return free_pfn;
-+}
-+
-+/*
-  * Based on information in the current compact_control, find blocks
-  * suitable for isolating free pages from and then isolate them.
-  */
-@@ -457,17 +471,6 @@ static void isolate_freepages(struct zone *zone,
- 					pfn -= pageblock_nr_pages) {
- 		unsigned long isolated;
- 
--		/*
--		 * Skip ahead if another thread is compacting in the area
--		 * simultaneously. If we wrapped around, we can only skip
--		 * ahead if zone->compact_cached_free_pfn also wrapped to
--		 * above our starting point.
--		 */
--		if (cc->order > 0 && (!cc->wrapped ||
--				      zone->compact_cached_free_pfn >
--				      cc->start_free_pfn))
--			pfn = min(pfn, zone->compact_cached_free_pfn);
--
- 		if (!pfn_valid(pfn))
- 			continue;
- 
-@@ -510,7 +513,15 @@ static void isolate_freepages(struct zone *zone,
- 		 */
- 		if (isolated) {
- 			high_pfn = max(high_pfn, pfn);
--			if (cc->order > 0)
-+
-+			/*
-+			 * If the free scanner has wrapped, update
-+			 * compact_cached_free_pfn to point to the highest
-+			 * pageblock with free pages. This reduces excessive
-+			 * scanning of full pageblocks near the end of the
-+			 * zone
-+			 */
-+			if (cc->order > 0 && cc->wrapped)
- 				zone->compact_cached_free_pfn = high_pfn;
- 		}
- 	}
-@@ -520,6 +531,11 @@ static void isolate_freepages(struct zone *zone,
- 
- 	cc->free_pfn = high_pfn;
- 	cc->nr_freepages = nr_freepages;
-+
-+	/* If compact_cached_free_pfn is reset then set it now */
-+	if (cc->order > 0 && !cc->wrapped &&
-+			zone->compact_cached_free_pfn == start_free_pfn(zone))
-+		zone->compact_cached_free_pfn = high_pfn;
- }
- 
- /*
-@@ -607,20 +623,6 @@ static isolate_migrate_t isolate_migratepages(struct zone *zone,
- 	return ISOLATE_SUCCESS;
- }
- 
--/*
-- * Returns the start pfn of the last page block in a zone.  This is the starting
-- * point for full compaction of a zone.  Compaction searches for free pages from
-- * the end of each zone, while isolate_freepages_block scans forward inside each
-- * page block.
-- */
--static unsigned long start_free_pfn(struct zone *zone)
--{
--	unsigned long free_pfn;
--	free_pfn = zone->zone_start_pfn + zone->spanned_pages;
--	free_pfn &= ~(pageblock_nr_pages-1);
--	return free_pfn;
--}
--
- static int compact_finished(struct zone *zone,
- 			    struct compact_control *cc)
- {
--- 
-1.7.9.2
+Hillf
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
