@@ -1,67 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
-	by kanga.kvack.org (Postfix) with SMTP id F0F056B0044
-	for <linux-mm@kvack.org>; Mon,  6 Aug 2012 20:42:39 -0400 (EDT)
-Date: Tue, 7 Aug 2012 09:44:05 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH 0/4] promote zcache from staging
-Message-ID: <20120807004405.GA19515@bbox>
-References: <d4656ba5-d6d1-4c36-a6c8-f6ecd193b31d@default>
- <5016DE4E.5050300@linux.vnet.ibm.com>
- <f47a6d86-785f-498c-8ee5-0d2df1b2616c@default>
- <20120731155843.GP4789@phenom.dumpdata.com>
- <20120731161916.GA4941@kroah.com>
- <20120731175142.GE29533@phenom.dumpdata.com>
- <20120806003816.GA11375@bbox>
- <041cb4ce-48ae-4600-9f11-d722bc03b9cc@default>
- <CAOJsxLHDcgxxu146QWXw0ZhMHMhFOquEFXhF55HK2mCjHzk7hw@mail.gmail.com>
- <be1daa96-d246-46de-a178-b14b3a862eca@default>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <be1daa96-d246-46de-a178-b14b3a862eca@default>
+Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
+	by kanga.kvack.org (Postfix) with SMTP id C286D6B0044
+	for <linux-mm@kvack.org>; Mon,  6 Aug 2012 20:44:50 -0400 (EDT)
+Received: by bkcjc3 with SMTP id jc3so1661806bkc.14
+        for <linux-mm@kvack.org>; Mon, 06 Aug 2012 17:44:49 -0700 (PDT)
+From: Sasha Levin <levinsasha928@gmail.com>
+Subject: [RFC v3 0/7] generic hashtable implementation
+Date: Tue,  7 Aug 2012 02:45:09 +0200
+Message-Id: <1344300317-23189-1-git-send-email-levinsasha928@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Magenheimer <dan.magenheimer@oracle.com>
-Cc: Pekka Enberg <penberg@kernel.org>, Konrad Wilk <konrad.wilk@oracle.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, devel@driverdev.osuosl.org, Seth Jennings <sjenning@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Konrad Rzeszutek Wilk <konrad@darnok.org>, Andrew Morton <akpm@linux-foundation.org>, Robert Jennings <rcj@linux.vnet.ibm.com>, Nitin Gupta <ngupta@vflare.org>
+To: torvalds@linux-foundation.org
+Cc: tj@kernel.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, paul.gortmaker@windriver.com, davem@davemloft.net, rostedt@goodmis.org, mingo@elte.hu, ebiederm@xmission.com, aarcange@redhat.com, ericvh@gmail.com, netdev@vger.kernel.org, josh@joshtriplett.org, eric.dumazet@gmail.com, mathieu.desnoyers@efficios.com, Sasha Levin <levinsasha928@gmail.com>
 
-Hi Dan,
+There are quite a few places in the kernel which implement a hashtable
+in a very similar way. Instead of having implementations of a hashtable
+all over the kernel, we can re-use the code.
 
-On Mon, Aug 06, 2012 at 09:21:22AM -0700, Dan Magenheimer wrote:
-> > From: Pekka Enberg [mailto:penberg@kernel.org]
-> > Subject: Re: [PATCH 0/4] promote zcache from staging
-> > 
-> > On Mon, Aug 6, 2012 at 6:24 PM, Dan Magenheimer
-> > <dan.magenheimer@oracle.com> wrote:
-> > > IMHO, the fastest way to get the best zcache into the kernel and
-> > > to distros and users is to throw away the "demo" version, move forward
-> > > to a new solid well-designed zcache code base, and work together to
-> > > build on it.  There's still a lot to do so I hope we can work together.
-> > 
-> > I'm not convinced it's the _fastest way_.
-> 
-> <grin> I guess I meant "optimal", combining "fast" and "best".
-> 
-> > You're effectively
-> > invalidating all the work done under drivers/staging so you might end up
-> > in review limbo with your shiny new code...
-> 
-> Fixing the fundamental design flaws will sooner or later invalidate
-> most (or all) of the previous testing/work anyway, won't it?  Since
-> any kernel built with staging is "tainted" already, I feel like now
-> is a better time to make a major design transition.
-> 
-> I suppose:
-> 
->  (E) replace "demo" zcache with new code base and keep it
->      in staging for another cycle
+This patch series introduces a very simple hashtable implementation, and
+modifies three (random) modules to use it. I've limited it to 3 only
+so that it would be easy to review and modify, and to show that even
+at this number we already eliminate a big amount of duplicated code.
 
-I go for (E). Please send your refactoring code as formal patch.
-Thanks.
+If this basic hashtable looks ok, future code will include:
+
+ - RCU support
+ - Self locking (list_bl?)
+ - Converting more code to use the hashtable
+
+
+Changes in V3:
+
+ - Address review comments by Tejun Heo, Josh Triplett, Eric Beiderman,
+   Mathieu Desnoyers, Eric Dumazet and Linus Torvalds.
+ - Removed hash_get due to being too Gandalf.
+ - Rewrote the user namespaces hash implementation.
+ - Hashtable went back to being a simple array of buckets, but without any
+   of the macro tricks to get the size automatically.
+ - Optimize hasing if key is 32 bits long.
+
+Changes in V2:
+
+ - Address review comments by Tejun Heo, Josh Triplett and Eric Beiderman (Thanks all!).
+ - Rebase on top of latest master.
+ - Convert more places to use the hashtable. Hopefully it will trigger more reviews by
+ touching more subsystems.
+
+
+Sasha Levin (7):
+  hashtable: introduce a small and naive hashtable
+  user_ns: use new hashtable implementation
+  mm,ksm: use new hashtable implementation
+  workqueue: use new hashtable implementation
+  mm/huge_memory: use new hashtable implementation
+  tracepoint: use new hashtable implementation
+  net,9p: use new hashtable implementation
+
+ include/linux/hashtable.h |   82 +++++++++++++++++++++++++++++++++++++++++
+ kernel/tracepoint.c       |   26 +++++--------
+ kernel/user.c             |   35 ++++++++----------
+ kernel/workqueue.c        |   89 +++++++++------------------------------------
+ mm/huge_memory.c          |   56 +++++++---------------------
+ mm/ksm.c                  |   31 +++++++---------
+ net/9p/error.c            |   21 +++++------
+ 7 files changed, 162 insertions(+), 178 deletions(-)
+ create mode 100644 include/linux/hashtable.h
 
 -- 
-Kind regards,
-Minchan Kim
+1.7.8.6
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
