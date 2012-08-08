@@ -1,29 +1,27 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
-	by kanga.kvack.org (Postfix) with SMTP id 5306D6B004D
-	for <linux-mm@kvack.org>; Wed,  8 Aug 2012 10:50:21 -0400 (EDT)
-Date: Wed, 8 Aug 2012 09:14:01 -0500 (CDT)
+Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
+	by kanga.kvack.org (Postfix) with SMTP id 32EB16B004D
+	for <linux-mm@kvack.org>; Wed,  8 Aug 2012 10:52:48 -0400 (EDT)
+Date: Wed, 8 Aug 2012 09:51:33 -0500 (CDT)
 From: "Christoph Lameter (Open Source)" <cl@linux.com>
-Subject: Re: [PATCH RESEND] mm: Restructure kmem_cache_create() to move debug
- cache integrity checks into a new function
-In-Reply-To: <1344272614.2486.40.camel@lorien2>
-Message-ID: <alpine.DEB.2.02.1208080913290.7048@greybox.home>
-References: <1342221125.17464.8.camel@lorien2> <CAOJsxLGjnMxs9qERG5nCfGfcS3jy6Rr54Ac36WgVnOtP_pDYgQ@mail.gmail.com> <1344224494.3053.5.camel@lorien2> <1344266096.2486.17.camel@lorien2> <CAAmzW4Ne5pD90r+6zrrD-BXsjtf5OqaKdWY+2NSGOh1M_sWq4g@mail.gmail.com>
- <1344272614.2486.40.camel@lorien2>
+Subject: Re: Common10 [06/20] Extract a common function for
+ kmem_cache_destroy
+In-Reply-To: <CAAmzW4NVxsV2pOWYkrq0e7CSafafEq7QBsvD6Zh3ztuYzaLJSQ@mail.gmail.com>
+Message-ID: <alpine.DEB.2.02.1208080951230.7756@greybox.home>
+References: <20120803192052.448575403@linux.com> <20120803192151.110627928@linux.com> <CAAmzW4NVxsV2pOWYkrq0e7CSafafEq7QBsvD6Zh3ztuYzaLJSQ@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shuah Khan <shuah.khan@hp.com>
-Cc: JoonSoo Kim <js1304@gmail.com>, Pekka Enberg <penberg@kernel.org>, glommer@parallels.com, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, David Rientjes <rientjes@google.com>, shuahkhan@gmail.com
+To: JoonSoo Kim <js1304@gmail.com>
+Cc: Glauber Costa <glommer@parallels.com>, Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>
 
-On Mon, 6 Aug 2012, Shuah Khan wrote:
+On Sun, 5 Aug 2012, JoonSoo Kim wrote:
 
-> No reason, just something I am used to doing :) inline is a good idea. I
-> can fix that easily and send v2 patch.
+> I suggest following modification.
+> I thinks it is sufficient to prevent above mentioned case.
 
-Leave that to the compiler. There is no performance reason that would
-give a benefit from forcing inline.
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
