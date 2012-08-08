@@ -1,204 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
-	by kanga.kvack.org (Postfix) with SMTP id A08C66B004D
-	for <linux-mm@kvack.org>; Wed,  8 Aug 2012 00:34:29 -0400 (EDT)
-Date: Wed, 8 Aug 2012 13:36:00 +0900
+Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
+	by kanga.kvack.org (Postfix) with SMTP id 42E4B6B004D
+	for <linux-mm@kvack.org>; Wed,  8 Aug 2012 00:55:41 -0400 (EDT)
+Date: Wed, 8 Aug 2012 13:57:12 +0900
 From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH 6/6] mm: have order > 0 compaction start near a pageblock
- with free pages
-Message-ID: <20120808043600.GD4247@bbox>
-References: <1344342677-5845-1-git-send-email-mgorman@suse.de>
- <1344342677-5845-7-git-send-email-mgorman@suse.de>
+Subject: Re: [PATCH 1/3] zsmalloc: s/firstpage/page in new copy map funcs
+Message-ID: <20120808045712.GE4247@bbox>
+References: <1342630556-28686-1-git-send-email-sjenning@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1344342677-5845-7-git-send-email-mgorman@suse.de>
+In-Reply-To: <1342630556-28686-1-git-send-email-sjenning@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Linux-MM <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, Jim Schutt <jaschut@sandia.gov>, LKML <linux-kernel@vger.kernel.org>
+To: Seth Jennings <sjenning@linux.vnet.ibm.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Nitin Gupta <ngupta@vflare.org>, Robert Jennings <rcj@linux.vnet.ibm.com>, linux-mm@kvack.org, devel@driverdev.osuosl.org, linux-kernel@vger.kernel.org
 
-On Tue, Aug 07, 2012 at 01:31:17PM +0100, Mel Gorman wrote:
-> commit [7db8889a: mm: have order > 0 compaction start off where it left]
-> introduced a caching mechanism to reduce the amount work the free page
-> scanner does in compaction. However, it has a problem. Consider two process
-> simultaneously scanning free pages
-> 
-> 				    			C
-> Process A		M     S     			F
-> 		|---------------------------------------|
-> Process B		M 	FS
-> 
-> C is zone->compact_cached_free_pfn
-> S is cc->start_pfree_pfn
-> M is cc->migrate_pfn
-> F is cc->free_pfn
-> 
-> In this diagram, Process A has just reached its migrate scanner, wrapped
-> around and updated compact_cached_free_pfn accordingly.
-> 
-> Simultaneously, Process B finishes isolating in a block and updates
-> compact_cached_free_pfn again to the location of its free scanner.
-> 
-> Process A moves to "end_of_zone - one_pageblock" and runs this check
-> 
->                 if (cc->order > 0 && (!cc->wrapped ||
->                                       zone->compact_cached_free_pfn >
->                                       cc->start_free_pfn))
->                         pfn = min(pfn, zone->compact_cached_free_pfn);
-> 
-> compact_cached_free_pfn is above where it started so the free scanner skips
-> almost the entire space it should have scanned. When there are multiple
-> processes compacting it can end in a situation where the entire zone is
-> not being scanned at all.  Further, it is possible for two processes to
-> ping-pong update to compact_cached_free_pfn which is just random.
-> 
-> Overall, the end result wrecks allocation success rates.
-> 
-> There is not an obvious way around this problem without introducing new
-> locking and state so this patch takes a different approach.
-> 
-> First, it gets rid of the skip logic because it's not clear that it matters
-> if two free scanners happen to be in the same block but with racing updates
-> it's too easy for it to skip over blocks it should not.
+Hi Greg,
 
-Okay.
+When do you merge this series?
+Thanks.
 
+On Wed, Jul 18, 2012 at 11:55:54AM -0500, Seth Jennings wrote:
+> firstpage already has precedent and meaning the first page
+> of a zspage.  In the case of the copy mapping functions,
+> it is the first of a pair of pages needing to be mapped.
 > 
-> Second, it updates compact_cached_free_pfn in a more limited set of
-> circumstances.
+> This patch just renames the firstpage argument to "page" to
+> avoid confusion.
 > 
-> If a scanner has wrapped, it updates compact_cached_free_pfn to the end
-> 	of the zone. Each time a wrapped scanner isoaltes a page, it
-> 	updates compact_cached_free_pfn. The intention is that after
-> 	wrapping, the compact_cached_free_pfn will be at the highest
-> 	pageblock with free pages when compaction completes.
-
-Okay.
-
-> 
-> If a scanner has not wrapped when compaction completes and
-
-Compaction complete?
-Your code seem to do it in isolate_freepages.
-Isn't it compaction complete?
-
-> 	compact_cached_free_pfn is set the end of the the zone, initialise
-> 	it once.
-
-I can't understad this part.
-Could you elaborate a bit more?
-
-> 
-> This is not optimal and it can still race but the compact_cached_free_pfn
-> will be pointing to or very near a pageblock with free pages.
-> 
-> Signed-off-by: Mel Gorman <mgorman@suse.de>
+> Signed-off-by: Seth Jennings <sjenning@linux.vnet.ibm.com>
 > ---
->  mm/compaction.c |   54 ++++++++++++++++++++++++++++--------------------------
->  1 file changed, 28 insertions(+), 26 deletions(-)
+>  drivers/staging/zsmalloc/zsmalloc-main.c |   12 ++++++------
+>  1 file changed, 6 insertions(+), 6 deletions(-)
 > 
-> diff --git a/mm/compaction.c b/mm/compaction.c
-> index be310f1..df50f73 100644
-> --- a/mm/compaction.c
-> +++ b/mm/compaction.c
-> @@ -419,6 +419,20 @@ static bool suitable_migration_target(struct page *page)
+> diff --git a/drivers/staging/zsmalloc/zsmalloc-main.c b/drivers/staging/zsmalloc/zsmalloc-main.c
+> index 8b0bcb6..3c83c65 100644
+> --- a/drivers/staging/zsmalloc/zsmalloc-main.c
+> +++ b/drivers/staging/zsmalloc/zsmalloc-main.c
+> @@ -470,15 +470,15 @@ static struct page *find_get_zspage(struct size_class *class)
+>  	return page;
 >  }
 >  
->  /*
-> + * Returns the start pfn of the last page block in a zone.  This is the starting
-> + * point for full compaction of a zone.  Compaction searches for free pages from
-> + * the end of each zone, while isolate_freepages_block scans forward inside each
-> + * page block.
-> + */
-> +static unsigned long start_free_pfn(struct zone *zone)
-> +{
-> +	unsigned long free_pfn;
-> +	free_pfn = zone->zone_start_pfn + zone->spanned_pages;
-> +	free_pfn &= ~(pageblock_nr_pages-1);
-> +	return free_pfn;
-> +}
-> +
-> +/*
->   * Based on information in the current compact_control, find blocks
->   * suitable for isolating free pages from and then isolate them.
->   */
-> @@ -457,17 +471,6 @@ static void isolate_freepages(struct zone *zone,
->  					pfn -= pageblock_nr_pages) {
->  		unsigned long isolated;
->  
-> -		/*
-> -		 * Skip ahead if another thread is compacting in the area
-> -		 * simultaneously. If we wrapped around, we can only skip
-> -		 * ahead if zone->compact_cached_free_pfn also wrapped to
-> -		 * above our starting point.
-> -		 */
-> -		if (cc->order > 0 && (!cc->wrapped ||
-> -				      zone->compact_cached_free_pfn >
-> -				      cc->start_free_pfn))
-> -			pfn = min(pfn, zone->compact_cached_free_pfn);
-> -
->  		if (!pfn_valid(pfn))
->  			continue;
->  
-> @@ -510,7 +513,15 @@ static void isolate_freepages(struct zone *zone,
->  		 */
->  		if (isolated) {
->  			high_pfn = max(high_pfn, pfn);
-> -			if (cc->order > 0)
-> +
-> +			/*
-> +			 * If the free scanner has wrapped, update
-> +			 * compact_cached_free_pfn to point to the highest
-> +			 * pageblock with free pages. This reduces excessive
-> +			 * scanning of full pageblocks near the end of the
-> +			 * zone
-> +			 */
-> +			if (cc->order > 0 && cc->wrapped)
->  				zone->compact_cached_free_pfn = high_pfn;
->  		}
->  	}
-> @@ -520,6 +531,11 @@ static void isolate_freepages(struct zone *zone,
->  
->  	cc->free_pfn = high_pfn;
->  	cc->nr_freepages = nr_freepages;
-> +
-> +	/* If compact_cached_free_pfn is reset then set it now */
-> +	if (cc->order > 0 && !cc->wrapped &&
-> +			zone->compact_cached_free_pfn == start_free_pfn(zone))
-> +		zone->compact_cached_free_pfn = high_pfn;
->  }
->  
->  /*
-> @@ -607,20 +623,6 @@ static isolate_migrate_t isolate_migratepages(struct zone *zone,
->  	return ISOLATE_SUCCESS;
->  }
->  
-> -/*
-> - * Returns the start pfn of the last page block in a zone.  This is the starting
-> - * point for full compaction of a zone.  Compaction searches for free pages from
-> - * the end of each zone, while isolate_freepages_block scans forward inside each
-> - * page block.
-> - */
-> -static unsigned long start_free_pfn(struct zone *zone)
-> -{
-> -	unsigned long free_pfn;
-> -	free_pfn = zone->zone_start_pfn + zone->spanned_pages;
-> -	free_pfn &= ~(pageblock_nr_pages-1);
-> -	return free_pfn;
-> -}
-> -
->  static int compact_finished(struct zone *zone,
->  			    struct compact_control *cc)
+> -static void zs_copy_map_object(char *buf, struct page *firstpage,
+> +static void zs_copy_map_object(char *buf, struct page *page,
+>  				int off, int size)
 >  {
+>  	struct page *pages[2];
+>  	int sizes[2];
+>  	void *addr;
+>  
+> -	pages[0] = firstpage;
+> -	pages[1] = get_next_page(firstpage);
+> +	pages[0] = page;
+> +	pages[1] = get_next_page(page);
+>  	BUG_ON(!pages[1]);
+>  
+>  	sizes[0] = PAGE_SIZE - off;
+> @@ -493,15 +493,15 @@ static void zs_copy_map_object(char *buf, struct page *firstpage,
+>  	kunmap_atomic(addr);
+>  }
+>  
+> -static void zs_copy_unmap_object(char *buf, struct page *firstpage,
+> +static void zs_copy_unmap_object(char *buf, struct page *page,
+>  				int off, int size)
+>  {
+>  	struct page *pages[2];
+>  	int sizes[2];
+>  	void *addr;
+>  
+> -	pages[0] = firstpage;
+> -	pages[1] = get_next_page(firstpage);
+> +	pages[0] = page;
+> +	pages[1] = get_next_page(page);
+>  	BUG_ON(!pages[1]);
+>  
+>  	sizes[0] = PAGE_SIZE - off;
 > -- 
-> 1.7.9.2
+> 1.7.9.5
 > 
 > --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
 
 -- 
 Kind regards,
