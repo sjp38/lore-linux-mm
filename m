@@ -1,64 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
-	by kanga.kvack.org (Postfix) with SMTP id D35976B004D
-	for <linux-mm@kvack.org>; Wed,  8 Aug 2012 09:15:12 -0400 (EDT)
-Message-ID: <50226659.8080608@parallels.com>
-Date: Wed, 8 Aug 2012 17:15:05 +0400
-From: Glauber Costa <glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
+	by kanga.kvack.org (Postfix) with SMTP id 43D246B004D
+	for <linux-mm@kvack.org>; Wed,  8 Aug 2012 09:50:31 -0400 (EDT)
+Date: Wed, 8 Aug 2012 15:50:27 +0200
+From: Borislav Petkov <bp@amd64.org>
+Subject: Re: WARNING: at mm/page_alloc.c:4514 free_area_init_node+0x4f/0x37b()
+Message-ID: <20120808135027.GD16636@aftab.osrc.amd.com>
+References: <20120801173837.GI8082@aftab.osrc.amd.com>
+ <20120801233335.GA4673@barrios>
+ <20120802110641.GA16328@aftab.osrc.amd.com>
+ <20120806000157.GA10971@bbox>
 MIME-Version: 1.0
-Subject: Re: Common10 [14/20] Shrink __kmem_cache_create() parameter lists
-References: <20120803192052.448575403@linux.com> <20120803192156.005879886@linux.com>
-In-Reply-To: <20120803192156.005879886@linux.com>
-Content-Type: multipart/mixed;
-	boundary="------------090802000608080401030002"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120806000157.GA10971@bbox>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Joonsoo Kim <js1304@gmail.com>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Tejun Heo <tj@kernel.org>, Ralf Baechle <ralf@linux-mips.org>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
---------------090802000608080401030002
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+On Mon, Aug 06, 2012 at 09:01:57AM +0900, Minchan Kim wrote:
+> Linus already applied the patch in rc-1 but he might need better changelog.
+> I am not sure I send this patch to whom, Linus or Andrew?
+> Anyway, Please use below if really need it.
 
-On 08/03/2012 11:21 PM, Christoph Lameter wrote:
-> Do the initial settings of the fields in common code. This will allow
-> us to push more processing into common code later and improve readability.
-> 
-> Signed-off-by: Christoph Lameter <cl@linux.com>
+Btw, I see Linus has already shut up the warning upstream:
 
-Doesn't compile.
+commit 8783b6e2b2cb726f2734cf208d101f73ac1ba616
+Author: Linus Torvalds <torvalds@linux-foundation.org>
+Date:   Thu Aug 2 10:37:03 2012 -0700
 
-Log attached
+    mm: remove node_start_pfn checking in new WARN_ON for now
+...
 
---------------090802000608080401030002
-Content-Type: text/plain; charset="UTF-8"; name="log"
-Content-Transfer-Encoding: 8bit
-Content-Disposition: attachment; filename="log"
+So I guess all is well.
 
-make[1]: Nothing to be done for `all'.
-make[1]: Nothing to be done for `relocs'.
-  CHK     include/linux/version.h
-  CHK     include/generated/utsrelease.h
-  CALL    scripts/checksyscalls.sh
-  CC      mm/slub.o
-mm/slub.c: In function a??create_kmalloc_cachea??:
-mm/slub.c:3231:9: warning: passing argument 2 of a??kmem_cache_opena?? makes integer from pointer without a cast [enabled by default]
-mm/slub.c:3001:12: note: expected a??long unsigned inta?? but argument is of type a??const char *a??
-mm/slub.c:3231:9: error: too many arguments to function a??kmem_cache_opena??
-mm/slub.c:3001:12: note: declared here
-mm/slub.c: In function a??kmem_cache_inita??:
-mm/slub.c:3686:3: warning: passing argument 2 of a??kmem_cache_opena?? makes integer from pointer without a cast [enabled by default]
-mm/slub.c:3001:12: note: expected a??long unsigned inta?? but argument is of type a??char *a??
-mm/slub.c:3686:3: error: too many arguments to function a??kmem_cache_opena??
-mm/slub.c:3001:12: note: declared here
-mm/slub.c:3695:3: warning: passing argument 2 of a??kmem_cache_opena?? makes integer from pointer without a cast [enabled by default]
-mm/slub.c:3001:12: note: expected a??long unsigned inta?? but argument is of type a??char *a??
-mm/slub.c:3695:3: error: too many arguments to function a??kmem_cache_opena??
-mm/slub.c:3001:12: note: declared here
-make[1]: *** [mm/slub.o] Error 1
-make: *** [mm] Error 2
+Thanks.
 
---------------090802000608080401030002--
+-- 
+Regards/Gruss,
+Boris.
+
+Advanced Micro Devices GmbH
+Einsteinring 24, 85609 Dornach
+GM: Alberto Bozzo
+Reg: Dornach, Landkreis Muenchen
+HRB Nr. 43632 WEEE Registernr: 129 19551
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
