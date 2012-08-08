@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
-	by kanga.kvack.org (Postfix) with SMTP id DCCB96B0062
-	for <linux-mm@kvack.org>; Wed,  8 Aug 2012 02:10:52 -0400 (EDT)
+	by kanga.kvack.org (Postfix) with SMTP id B938D6B0071
+	for <linux-mm@kvack.org>; Wed,  8 Aug 2012 02:10:54 -0400 (EDT)
 From: Minchan Kim <minchan@kernel.org>
-Subject: [PATCH 3/7] zsmalloc: add page table mapping method
-Date: Wed,  8 Aug 2012 15:12:16 +0900
-Message-Id: <1344406340-14128-4-git-send-email-minchan@kernel.org>
+Subject: [PATCH 5/7] zsmalloc: promote to mm/
+Date: Wed,  8 Aug 2012 15:12:18 +0900
+Message-Id: <1344406340-14128-6-git-send-email-minchan@kernel.org>
 In-Reply-To: <1344406340-14128-1-git-send-email-minchan@kernel.org>
 References: <1344406340-14128-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
@@ -15,313 +15,174 @@ Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@
 
 From: Seth Jennings <sjenning@linux.vnet.ibm.com>
 
-This patchset provides page mapping via the page table.
-On some archs, most notably ARM, this method has been
-demonstrated to be faster than copying.
+This patch promotes the slab-based zsmalloc memory allocator
+from the staging tree to mm/
 
-The logic controlling the method selection (copy vs page table)
-is controlled by the definition of USE_PGTABLE_MAPPING which
-is/can be defined for any arch that performs better with page
-table mapping.
+zcache/zram depends on this allocator for storing compressed RAM pages
+in an efficient way under system wide memory pressure where
+high-order (greater than 0) page allocation are very likely to
+fail.
+
+For more information on zsmalloc and its internals, read the
+documentation at the top of the zsmalloc c file.
+
+[minchan: change description slighly for including zram]
 
 Signed-off-by: Seth Jennings <sjenning@linux.vnet.ibm.com>
 Signed-off-by: Minchan Kim <minchan@kernel.org>
 ---
- drivers/staging/zsmalloc/zsmalloc-main.c |  182 ++++++++++++++++++++++--------
- drivers/staging/zsmalloc/zsmalloc_int.h  |    6 -
- 2 files changed, 134 insertions(+), 54 deletions(-)
+ drivers/staging/Kconfig                            |    2 --
+ drivers/staging/Makefile                           |    1 -
+ drivers/staging/zcache/zcache-main.c               |    4 ++--
+ drivers/staging/zram/zram_drv.h                    |    3 +--
+ drivers/staging/zsmalloc/Kconfig                   |   10 ----------
+ drivers/staging/zsmalloc/Makefile                  |    3 ---
+ .../staging/zsmalloc => include/linux}/zsmalloc.h  |    0
+ mm/Kconfig                                         |   18 ++++++++++++++++++
+ mm/Makefile                                        |    1 +
+ .../zsmalloc/zsmalloc-main.c => mm/zsmalloc.c      |    3 +--
+ 10 files changed, 23 insertions(+), 22 deletions(-)
+ delete mode 100644 drivers/staging/zsmalloc/Kconfig
+ delete mode 100644 drivers/staging/zsmalloc/Makefile
+ rename {drivers/staging/zsmalloc => include/linux}/zsmalloc.h (100%)
+ rename drivers/staging/zsmalloc/zsmalloc-main.c => mm/zsmalloc.c (99%)
 
-diff --git a/drivers/staging/zsmalloc/zsmalloc-main.c b/drivers/staging/zsmalloc/zsmalloc-main.c
-index b86133f..defe350 100644
+diff --git a/drivers/staging/Kconfig b/drivers/staging/Kconfig
+index e3402d5..b7f7bc7 100644
+--- a/drivers/staging/Kconfig
++++ b/drivers/staging/Kconfig
+@@ -78,8 +78,6 @@ source "drivers/staging/zram/Kconfig"
+ 
+ source "drivers/staging/zcache/Kconfig"
+ 
+-source "drivers/staging/zsmalloc/Kconfig"
+-
+ source "drivers/staging/wlags49_h2/Kconfig"
+ 
+ source "drivers/staging/wlags49_h25/Kconfig"
+diff --git a/drivers/staging/Makefile b/drivers/staging/Makefile
+index 3be59d0..ad74bee 100644
+--- a/drivers/staging/Makefile
++++ b/drivers/staging/Makefile
+@@ -34,7 +34,6 @@ obj-$(CONFIG_DX_SEP)            += sep/
+ obj-$(CONFIG_IIO)		+= iio/
+ obj-$(CONFIG_ZRAM)		+= zram/
+ obj-$(CONFIG_ZCACHE)		+= zcache/
+-obj-$(CONFIG_ZSMALLOC)		+= zsmalloc/
+ obj-$(CONFIG_WLAGS49_H2)	+= wlags49_h2/
+ obj-$(CONFIG_WLAGS49_H25)	+= wlags49_h25/
+ obj-$(CONFIG_FB_SM7XX)		+= sm7xxfb/
+diff --git a/drivers/staging/zcache/zcache-main.c b/drivers/staging/zcache/zcache-main.c
+index c214977..06ce28f 100644
+--- a/drivers/staging/zcache/zcache-main.c
++++ b/drivers/staging/zcache/zcache-main.c
+@@ -32,9 +32,9 @@
+ #include <linux/crypto.h>
+ #include <linux/string.h>
+ #include <linux/idr.h>
+-#include "tmem.h"
++#include <linux/zsmalloc.h>
+ 
+-#include "../zsmalloc/zsmalloc.h"
++#include "tmem.h"
+ 
+ #ifdef CONFIG_CLEANCACHE
+ #include <linux/cleancache.h>
+diff --git a/drivers/staging/zram/zram_drv.h b/drivers/staging/zram/zram_drv.h
+index 572c0b1..f6d0925 100644
+--- a/drivers/staging/zram/zram_drv.h
++++ b/drivers/staging/zram/zram_drv.h
+@@ -17,8 +17,7 @@
+ 
+ #include <linux/spinlock.h>
+ #include <linux/mutex.h>
+-
+-#include "../zsmalloc/zsmalloc.h"
++#include <linux/zsmalloc.h>
+ 
+ /*
+  * Some arbitrary value. This is just to catch
+diff --git a/drivers/staging/zsmalloc/Kconfig b/drivers/staging/zsmalloc/Kconfig
+deleted file mode 100644
+index 9084565..0000000
+--- a/drivers/staging/zsmalloc/Kconfig
++++ /dev/null
+@@ -1,10 +0,0 @@
+-config ZSMALLOC
+-	tristate "Memory allocator for compressed pages"
+-	default n
+-	help
+-	  zsmalloc is a slab-based memory allocator designed to store
+-	  compressed RAM pages.  zsmalloc uses virtual memory mapping
+-	  in order to reduce fragmentation.  However, this results in a
+-	  non-standard allocator interface where a handle, not a pointer, is
+-	  returned by an alloc().  This handle must be mapped in order to
+-	  access the allocated space.
+diff --git a/drivers/staging/zsmalloc/Makefile b/drivers/staging/zsmalloc/Makefile
+deleted file mode 100644
+index b134848..0000000
+--- a/drivers/staging/zsmalloc/Makefile
++++ /dev/null
+@@ -1,3 +0,0 @@
+-zsmalloc-y 		:= zsmalloc-main.o
+-
+-obj-$(CONFIG_ZSMALLOC)	+= zsmalloc.o
+diff --git a/drivers/staging/zsmalloc/zsmalloc.h b/include/linux/zsmalloc.h
+similarity index 100%
+rename from drivers/staging/zsmalloc/zsmalloc.h
+rename to include/linux/zsmalloc.h
+diff --git a/mm/Kconfig b/mm/Kconfig
+index d5c8019..2586b66 100644
+--- a/mm/Kconfig
++++ b/mm/Kconfig
+@@ -411,3 +411,21 @@ config FRONTSWAP
+ 	  and swap data is stored as normal on the matching swap device.
+ 
+ 	  If unsure, say Y to enable frontswap.
++
++config ZSMALLOC
++	tristate "Memory allocator for compressed pages"
++	default n
++	help
++	  zsmalloc is a slab-based memory allocator designed to store
++	  compressed RAM pages.  zsmalloc uses a memory pool that combines
++	  single pages into higher order pages by linking them together
++	  using the fields of the struct page. Allocations are then
++	  mapped through copy buffers or VM mapping, in order to reduce
++	  memory pool fragmentation and increase allocation success rate under
++	  memory pressure.
++
++	  This results in a non-standard allocator interface where
++	  a handle, not a pointer, is returned by the allocation function.
++	  This handle must be mapped in order to access the allocated space.
++
++	  If unsure, say N.
+diff --git a/mm/Makefile b/mm/Makefile
+index 92753e2..8a3d7bea 100644
+--- a/mm/Makefile
++++ b/mm/Makefile
+@@ -57,3 +57,4 @@ obj-$(CONFIG_DEBUG_KMEMLEAK) += kmemleak.o
+ obj-$(CONFIG_DEBUG_KMEMLEAK_TEST) += kmemleak-test.o
+ obj-$(CONFIG_CLEANCACHE) += cleancache.o
+ obj-$(CONFIG_MEMORY_ISOLATION) += page_isolation.o
++obj-$(CONFIG_ZSMALLOC) += zsmalloc.o
+diff --git a/drivers/staging/zsmalloc/zsmalloc-main.c b/mm/zsmalloc.c
+similarity index 99%
+rename from drivers/staging/zsmalloc/zsmalloc-main.c
+rename to mm/zsmalloc.c
+index 09a9d35..6b20429 100644
 --- a/drivers/staging/zsmalloc/zsmalloc-main.c
-+++ b/drivers/staging/zsmalloc/zsmalloc-main.c
-@@ -89,6 +89,30 @@
- #define CLASS_IDX_MASK	((1 << CLASS_IDX_BITS) - 1)
- #define FULLNESS_MASK	((1 << FULLNESS_BITS) - 1)
- 
-+/*
-+ * By default, zsmalloc uses a copy-based object mapping method to access
-+ * allocations that span two pages. However, if a particular architecture
-+ * 1) Implements local_flush_tlb_kernel_range() and 2) Performs VM mapping
-+ * faster than copying, then it should be added here so that
-+ * USE_PGTABLE_MAPPING is defined. This causes zsmalloc to use page table
-+ * mapping rather than copying
-+ * for object mapping.
-+*/
-+#if defined(CONFIG_ARM)
-+#define USE_PGTABLE_MAPPING
-+#endif
-+
-+struct mapping_area {
-+#ifdef USE_PGTABLE_MAPPING
-+	struct vm_struct *vm; /* vm area for mapping object that span pages */
-+#else
-+	char *vm_buf; /* copy buffer for objects that span pages */
-+#endif
-+	char *vm_addr; /* address of kmap_atomic()'ed pages */
-+	enum zs_mapmode vm_mm; /* mapping mode */
-+};
-+
-+
- /* per-cpu VM mapping areas for zspage accesses that cross page boundaries */
- static DEFINE_PER_CPU(struct mapping_area, zs_map_area);
- 
-@@ -471,16 +495,83 @@ static struct page *find_get_zspage(struct size_class *class)
- 	return page;
- }
- 
--static void zs_copy_map_object(char *buf, struct page *page,
--				int off, int size)
-+#ifdef USE_PGTABLE_MAPPING
-+static inline int __zs_cpu_up(struct mapping_area *area)
-+{
-+	/*
-+	 * Make sure we don't leak memory if a cpu UP notification
-+	 * and zs_init() race and both call zs_cpu_up() on the same cpu
-+	 */
-+	if (area->vm)
-+		return 0;
-+	area->vm = alloc_vm_area(PAGE_SIZE * 2, NULL);
-+	if (!area->vm)
-+		return -ENOMEM;
-+	return 0;
-+}
-+
-+static inline void __zs_cpu_down(struct mapping_area *area)
-+{
-+	if (area->vm)
-+		free_vm_area(area->vm);
-+	area->vm = NULL;
-+}
-+
-+static inline void *__zs_map_object(struct mapping_area *area,
-+				struct page *pages[2], int off, int size)
-+{
-+	BUG_ON(map_vm_area(area->vm, PAGE_KERNEL, &pages));
-+	area->vm_addr = area->vm->addr;
-+	return area->vm_addr + off;
-+}
-+
-+static inline void __zs_unmap_object(struct mapping_area *area,
-+				struct page *pages[2], int off, int size)
-+{
-+	unsigned long addr = (unsigned long)area->vm_addr;
-+	unsigned long end = addr + (PAGE_SIZE * 2);
-+
-+	flush_cache_vunmap(addr, end);
-+	unmap_kernel_range_noflush(addr, PAGE_SIZE * 2);
-+	local_flush_tlb_kernel_range(addr, end);
-+}
-+
-+#else /* USE_PGTABLE_MAPPING */
-+
-+static inline int __zs_cpu_up(struct mapping_area *area)
-+{
-+	/*
-+	 * Make sure we don't leak memory if a cpu UP notification
-+	 * and zs_init() race and both call zs_cpu_up() on the same cpu
-+	 */
-+	if (area->vm_buf)
-+		return 0;
-+	area->vm_buf = (char *)__get_free_page(GFP_KERNEL);
-+	if (!area->vm_buf)
-+		return -ENOMEM;
-+	return 0;
-+}
-+
-+static inline void __zs_cpu_down(struct mapping_area *area)
-+{
-+	if (area->vm_buf)
-+		free_page((unsigned long)area->vm_buf);
-+	area->vm_buf = NULL;
-+}
-+
-+static void *__zs_map_object(struct mapping_area *area,
-+			struct page *pages[2], int off, int size)
- {
--	struct page *pages[2];
- 	int sizes[2];
- 	void *addr;
-+	char *buf = area->vm_buf;
- 
--	pages[0] = page;
--	pages[1] = get_next_page(page);
--	BUG_ON(!pages[1]);
-+	/* disable page faults to match kmap_atomic() return conditions */
-+	pagefault_disable();
-+
-+	/* no read fastpath */
-+	if (area->vm_mm == ZS_MM_WO)
-+		goto out;
- 
- 	sizes[0] = PAGE_SIZE - off;
- 	sizes[1] = size - sizes[0];
-@@ -492,18 +583,20 @@ static void zs_copy_map_object(char *buf, struct page *page,
- 	addr = kmap_atomic(pages[1]);
- 	memcpy(buf + sizes[0], addr, sizes[1]);
- 	kunmap_atomic(addr);
-+out:
-+	return area->vm_buf;
- }
- 
--static void zs_copy_unmap_object(char *buf, struct page *page,
--				int off, int size)
-+static void __zs_unmap_object(struct mapping_area *area,
-+			struct page *pages[2], int off, int size)
- {
--	struct page *pages[2];
- 	int sizes[2];
- 	void *addr;
-+	char *buf = area->vm_buf;
- 
--	pages[0] = page;
--	pages[1] = get_next_page(page);
--	BUG_ON(!pages[1]);
-+	/* no write fastpath */
-+	if (area->vm_mm == ZS_MM_RO)
-+		goto out;
- 
- 	sizes[0] = PAGE_SIZE - off;
- 	sizes[1] = size - sizes[0];
-@@ -515,34 +608,31 @@ static void zs_copy_unmap_object(char *buf, struct page *page,
- 	addr = kmap_atomic(pages[1]);
- 	memcpy(addr, buf + sizes[0], sizes[1]);
- 	kunmap_atomic(addr);
-+
-+out:
-+	/* enable page faults to match kunmap_atomic() return conditions */
-+	pagefault_enable();
- }
- 
-+#endif /* USE_PGTABLE_MAPPING */
-+
- static int zs_cpu_notifier(struct notifier_block *nb, unsigned long action,
- 				void *pcpu)
- {
--	int cpu = (long)pcpu;
-+	int ret, cpu = (long)pcpu;
- 	struct mapping_area *area;
- 
- 	switch (action) {
- 	case CPU_UP_PREPARE:
- 		area = &per_cpu(zs_map_area, cpu);
--		/*
--		 * Make sure we don't leak memory if a cpu UP notification
--		 * and zs_init() race and both call zs_cpu_up() on the same cpu
--		 */
--		if (area->vm_buf)
--			return 0;
--		area->vm_buf = (char *)__get_free_page(GFP_KERNEL);
--		if (!area->vm_buf)
--			return -ENOMEM;
--		return 0;
-+		ret = __zs_cpu_up(area);
-+		if (ret)
-+			return notifier_from_errno(ret);
- 		break;
- 	case CPU_DEAD:
- 	case CPU_UP_CANCELED:
- 		area = &per_cpu(zs_map_area, cpu);
--		if (area->vm_buf)
--			free_page((unsigned long)area->vm_buf);
--		area->vm_buf = NULL;
-+		__zs_cpu_down(area);
- 		break;
- 	}
- 
-@@ -759,6 +849,7 @@ void *zs_map_object(struct zs_pool *pool, unsigned long handle,
- 	enum fullness_group fg;
- 	struct size_class *class;
- 	struct mapping_area *area;
-+	struct page *pages[2];
- 
- 	BUG_ON(!handle);
- 
-@@ -775,19 +866,19 @@ void *zs_map_object(struct zs_pool *pool, unsigned long handle,
- 	off = obj_idx_to_offset(page, obj_idx, class->size);
- 
- 	area = &get_cpu_var(zs_map_area);
-+	area->vm_mm = mm;
- 	if (off + class->size <= PAGE_SIZE) {
- 		/* this object is contained entirely within a page */
- 		area->vm_addr = kmap_atomic(page);
- 		return area->vm_addr + off;
- 	}
- 
--	/* disable page faults to match kmap_atomic() return conditions */
--	pagefault_disable();
-+	/* this object spans two pages */
-+	pages[0] = page;
-+	pages[1] = get_next_page(page);
-+	BUG_ON(!pages[1]);
- 
--	if (mm != ZS_MM_WO)
--		zs_copy_map_object(area->vm_buf, page, off, class->size);
--	area->vm_addr = NULL;
--	return area->vm_buf;
-+	return __zs_map_object(area, pages, off, class->size);
- }
- EXPORT_SYMBOL_GPL(zs_map_object);
- 
-@@ -801,17 +892,6 @@ void zs_unmap_object(struct zs_pool *pool, unsigned long handle)
- 	struct size_class *class;
- 	struct mapping_area *area;
- 
--	area = &__get_cpu_var(zs_map_area);
--	/* single-page object fastpath */
--	if (area->vm_addr) {
--		kunmap_atomic(area->vm_addr);
--		goto out;
--	}
++++ b/mm/zsmalloc.c
+@@ -78,8 +78,7 @@
+ #include <linux/hardirq.h>
+ #include <linux/spinlock.h>
+ #include <linux/types.h>
 -
--	/* no write fastpath */
--	if (area->vm_mm == ZS_MM_RO)
--		goto pfenable;
--
- 	BUG_ON(!handle);
+-#include "zsmalloc.h"
++#include <linux/zsmalloc.h>
  
- 	obj_handle_to_location(handle, &page, &obj_idx);
-@@ -819,12 +899,18 @@ void zs_unmap_object(struct zs_pool *pool, unsigned long handle)
- 	class = &pool->size_class[class_idx];
- 	off = obj_idx_to_offset(page, obj_idx, class->size);
- 
--	zs_copy_unmap_object(area->vm_buf, page, off, class->size);
-+	area = &__get_cpu_var(zs_map_area);
-+	if (off + class->size <= PAGE_SIZE)
-+		kunmap_atomic(area->vm_addr);
-+	else {
-+		struct page *pages[2];
-+
-+		pages[0] = page;
-+		pages[1] = get_next_page(page);
-+		BUG_ON(!pages[1]);
- 
--pfenable:
--	/* enable page faults to match kunmap_atomic() return conditions */
--	pagefault_enable();
--out:
-+		__zs_unmap_object(area, pages, off, class->size);
-+	}
- 	put_cpu_var(zs_map_area);
- }
- EXPORT_SYMBOL_GPL(zs_unmap_object);
-diff --git a/drivers/staging/zsmalloc/zsmalloc_int.h b/drivers/staging/zsmalloc/zsmalloc_int.h
-index 52805176..8c0b344 100644
---- a/drivers/staging/zsmalloc/zsmalloc_int.h
-+++ b/drivers/staging/zsmalloc/zsmalloc_int.h
-@@ -109,12 +109,6 @@ enum fullness_group {
-  */
- static const int fullness_threshold_frac = 4;
- 
--struct mapping_area {
--	char *vm_buf; /* copy buffer for objects that span pages */
--	char *vm_addr; /* address of kmap_atomic()'ed pages */
--	enum zs_mapmode vm_mm; /* mapping mode */
--};
--
- struct size_class {
- 	/*
- 	 * Size of objects stored in this class. Must be multiple
+ /*
+  * This must be power of 2 and greater than of equal to sizeof(link_free).
 -- 
 1.7.9.5
 
