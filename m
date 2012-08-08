@@ -1,27 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
-	by kanga.kvack.org (Postfix) with SMTP id 32EB16B004D
-	for <linux-mm@kvack.org>; Wed,  8 Aug 2012 10:52:48 -0400 (EDT)
-Date: Wed, 8 Aug 2012 09:51:33 -0500 (CDT)
-From: "Christoph Lameter (Open Source)" <cl@linux.com>
-Subject: Re: Common10 [06/20] Extract a common function for
- kmem_cache_destroy
-In-Reply-To: <CAAmzW4NVxsV2pOWYkrq0e7CSafafEq7QBsvD6Zh3ztuYzaLJSQ@mail.gmail.com>
-Message-ID: <alpine.DEB.2.02.1208080951230.7756@greybox.home>
-References: <20120803192052.448575403@linux.com> <20120803192151.110627928@linux.com> <CAAmzW4NVxsV2pOWYkrq0e7CSafafEq7QBsvD6Zh3ztuYzaLJSQ@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
+	by kanga.kvack.org (Postfix) with SMTP id E6C7E6B004D
+	for <linux-mm@kvack.org>; Wed,  8 Aug 2012 10:59:43 -0400 (EDT)
+Message-ID: <50227E5C.6070903@redhat.com>
+Date: Wed, 08 Aug 2012 10:57:32 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH] compaction: fix deferring compaction mistake
+References: <1344387464-10037-1-git-send-email-minchan@kernel.org>
+In-Reply-To: <1344387464-10037-1-git-send-email-minchan@kernel.org>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: JoonSoo Kim <js1304@gmail.com>
-Cc: Glauber Costa <glommer@parallels.com>, Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mel@csn.ul.ie>
 
-On Sun, 5 Aug 2012, JoonSoo Kim wrote:
+On 08/07/2012 08:57 PM, Minchan Kim wrote:
+> [1] fixed bad deferring policy but made mistake about checking
+> compact_order_failed in __compact_pgdat so it can't update
+> compact_order_failed with new order. It ends up preventing working
+> of deffering policy rightly. This patch fixes it.
 
-> I suggest following modification.
-> I thinks it is sufficient to prevent above mentioned case.
+Good catch.
 
-Thanks.
+> [1] aff62249, vmscan: only defer compaction for failed order and higher
+>
+> Cc: Rik van Riel <riel@redhat.com>
+> Cc: Mel Gorman <mel@csn.ul.ie>
+> Signed-off-by: Minchan Kim <minchan@kernel.org>
+
+Reviewed-by: Rik van Riel <riel@redhat.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
