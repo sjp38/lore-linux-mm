@@ -1,89 +1,196 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
-	by kanga.kvack.org (Postfix) with SMTP id 9F6366B004D
-	for <linux-mm@kvack.org>; Tue,  7 Aug 2012 22:06:18 -0400 (EDT)
-Date: Wed, 8 Aug 2012 11:07:49 +0900
+Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
+	by kanga.kvack.org (Postfix) with SMTP id A08C66B004D
+	for <linux-mm@kvack.org>; Wed,  8 Aug 2012 00:34:29 -0400 (EDT)
+Date: Wed, 8 Aug 2012 13:36:00 +0900
 From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH 3/6] mm: kswapd: Continue reclaiming for
- reclaim/compaction if the minimum number of pages have not been reclaimed
-Message-ID: <20120808020749.GC4247@bbox>
+Subject: Re: [PATCH 6/6] mm: have order > 0 compaction start near a pageblock
+ with free pages
+Message-ID: <20120808043600.GD4247@bbox>
 References: <1344342677-5845-1-git-send-email-mgorman@suse.de>
- <1344342677-5845-4-git-send-email-mgorman@suse.de>
+ <1344342677-5845-7-git-send-email-mgorman@suse.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1344342677-5845-4-git-send-email-mgorman@suse.de>
+In-Reply-To: <1344342677-5845-7-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Mel Gorman <mgorman@suse.de>
 Cc: Linux-MM <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, Jim Schutt <jaschut@sandia.gov>, LKML <linux-kernel@vger.kernel.org>
 
-On Tue, Aug 07, 2012 at 01:31:14PM +0100, Mel Gorman wrote:
-> When direct reclaim is running reclaim/compaction, there is a minimum
-> number of pages it reclaims. As it must be under the low watermark to be
-> in direct reclaim it has also woken kswapd to do some work. This patch
-> has kswapd use the same logic as direct reclaim to reclaim a minimum
-> number of pages so compaction can run later.
+On Tue, Aug 07, 2012 at 01:31:17PM +0100, Mel Gorman wrote:
+> commit [7db8889a: mm: have order > 0 compaction start off where it left]
+> introduced a caching mechanism to reduce the amount work the free page
+> scanner does in compaction. However, it has a problem. Consider two process
+> simultaneously scanning free pages
+> 
+> 				    			C
+> Process A		M     S     			F
+> 		|---------------------------------------|
+> Process B		M 	FS
+> 
+> C is zone->compact_cached_free_pfn
+> S is cc->start_pfree_pfn
+> M is cc->migrate_pfn
+> F is cc->free_pfn
+> 
+> In this diagram, Process A has just reached its migrate scanner, wrapped
+> around and updated compact_cached_free_pfn accordingly.
+> 
+> Simultaneously, Process B finishes isolating in a block and updates
+> compact_cached_free_pfn again to the location of its free scanner.
+> 
+> Process A moves to "end_of_zone - one_pageblock" and runs this check
+> 
+>                 if (cc->order > 0 && (!cc->wrapped ||
+>                                       zone->compact_cached_free_pfn >
+>                                       cc->start_free_pfn))
+>                         pfn = min(pfn, zone->compact_cached_free_pfn);
+> 
+> compact_cached_free_pfn is above where it started so the free scanner skips
+> almost the entire space it should have scanned. When there are multiple
+> processes compacting it can end in a situation where the entire zone is
+> not being scanned at all.  Further, it is possible for two processes to
+> ping-pong update to compact_cached_free_pfn which is just random.
+> 
+> Overall, the end result wrecks allocation success rates.
+> 
+> There is not an obvious way around this problem without introducing new
+> locking and state so this patch takes a different approach.
+> 
+> First, it gets rid of the skip logic because it's not clear that it matters
+> if two free scanners happen to be in the same block but with racing updates
+> it's too easy for it to skip over blocks it should not.
 
--ENOPARSE by my stupid brain.
+Okay.
+
+> 
+> Second, it updates compact_cached_free_pfn in a more limited set of
+> circumstances.
+> 
+> If a scanner has wrapped, it updates compact_cached_free_pfn to the end
+> 	of the zone. Each time a wrapped scanner isoaltes a page, it
+> 	updates compact_cached_free_pfn. The intention is that after
+> 	wrapping, the compact_cached_free_pfn will be at the highest
+> 	pageblock with free pages when compaction completes.
+
+Okay.
+
+> 
+> If a scanner has not wrapped when compaction completes and
+
+Compaction complete?
+Your code seem to do it in isolate_freepages.
+Isn't it compaction complete?
+
+> 	compact_cached_free_pfn is set the end of the the zone, initialise
+> 	it once.
+
+I can't understad this part.
 Could you elaborate a bit more?
 
 > 
+> This is not optimal and it can still race but the compact_cached_free_pfn
+> will be pointing to or very near a pageblock with free pages.
+> 
 > Signed-off-by: Mel Gorman <mgorman@suse.de>
 > ---
->  mm/vmscan.c |   19 ++++++++++++++++---
->  1 file changed, 16 insertions(+), 3 deletions(-)
+>  mm/compaction.c |   54 ++++++++++++++++++++++++++++--------------------------
+>  1 file changed, 28 insertions(+), 26 deletions(-)
 > 
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index 0cb2593..afdec93 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -1701,7 +1701,7 @@ static bool in_reclaim_compaction(struct scan_control *sc)
->   * calls try_to_compact_zone() that it will have enough free pages to succeed.
->   * It will give up earlier than that if there is difficulty reclaiming pages.
->   */
-> -static inline bool should_continue_reclaim(struct lruvec *lruvec,
-> +static bool should_continue_reclaim(struct lruvec *lruvec,
->  					unsigned long nr_reclaimed,
->  					unsigned long nr_scanned,
->  					struct scan_control *sc)
-> @@ -1768,6 +1768,17 @@ static inline bool should_continue_reclaim(struct lruvec *lruvec,
->  	}
+> diff --git a/mm/compaction.c b/mm/compaction.c
+> index be310f1..df50f73 100644
+> --- a/mm/compaction.c
+> +++ b/mm/compaction.c
+> @@ -419,6 +419,20 @@ static bool suitable_migration_target(struct page *page)
 >  }
 >  
-> +static inline bool should_continue_reclaim_zone(struct zone *zone,
-> +					unsigned long nr_reclaimed,
-> +					unsigned long nr_scanned,
-> +					struct scan_control *sc)
+>  /*
+> + * Returns the start pfn of the last page block in a zone.  This is the starting
+> + * point for full compaction of a zone.  Compaction searches for free pages from
+> + * the end of each zone, while isolate_freepages_block scans forward inside each
+> + * page block.
+> + */
+> +static unsigned long start_free_pfn(struct zone *zone)
 > +{
-> +	struct mem_cgroup *memcg = mem_cgroup_iter(NULL, NULL, NULL);
-> +	struct lruvec *lruvec = mem_cgroup_zone_lruvec(zone, memcg);
-> +
-> +	return should_continue_reclaim(lruvec, nr_reclaimed, nr_scanned, sc);
+> +	unsigned long free_pfn;
+> +	free_pfn = zone->zone_start_pfn + zone->spanned_pages;
+> +	free_pfn &= ~(pageblock_nr_pages-1);
+> +	return free_pfn;
 > +}
 > +
->  /*
->   * This is a basic per-zone page freer.  Used by both kswapd and direct reclaim.
+> +/*
+>   * Based on information in the current compact_control, find blocks
+>   * suitable for isolating free pages from and then isolate them.
 >   */
-> @@ -2496,8 +2507,10 @@ loop_again:
->  			 */
->  			testorder = order;
->  			if (COMPACTION_BUILD && order &&
-> -					compaction_suitable(zone, order) !=
-> -						COMPACT_SKIPPED)
-> +					!should_continue_reclaim_zone(zone,
-> +						nr_soft_reclaimed,
-
-nr_soft_reclaimed is always zero with !CONFIG_MEMCG.
-So should_continue_reclaim_zone would return normally true in case of
-non-__GFP_REPEAT allocation. Is it intentional?
-
-
-> +						sc.nr_scanned - nr_soft_scanned,
-> +						&sc))
->  				testorder = 0;
+> @@ -457,17 +471,6 @@ static void isolate_freepages(struct zone *zone,
+>  					pfn -= pageblock_nr_pages) {
+>  		unsigned long isolated;
 >  
->  			if ((buffer_heads_over_limit && is_highmem_idx(i)) ||
+> -		/*
+> -		 * Skip ahead if another thread is compacting in the area
+> -		 * simultaneously. If we wrapped around, we can only skip
+> -		 * ahead if zone->compact_cached_free_pfn also wrapped to
+> -		 * above our starting point.
+> -		 */
+> -		if (cc->order > 0 && (!cc->wrapped ||
+> -				      zone->compact_cached_free_pfn >
+> -				      cc->start_free_pfn))
+> -			pfn = min(pfn, zone->compact_cached_free_pfn);
+> -
+>  		if (!pfn_valid(pfn))
+>  			continue;
+>  
+> @@ -510,7 +513,15 @@ static void isolate_freepages(struct zone *zone,
+>  		 */
+>  		if (isolated) {
+>  			high_pfn = max(high_pfn, pfn);
+> -			if (cc->order > 0)
+> +
+> +			/*
+> +			 * If the free scanner has wrapped, update
+> +			 * compact_cached_free_pfn to point to the highest
+> +			 * pageblock with free pages. This reduces excessive
+> +			 * scanning of full pageblocks near the end of the
+> +			 * zone
+> +			 */
+> +			if (cc->order > 0 && cc->wrapped)
+>  				zone->compact_cached_free_pfn = high_pfn;
+>  		}
+>  	}
+> @@ -520,6 +531,11 @@ static void isolate_freepages(struct zone *zone,
+>  
+>  	cc->free_pfn = high_pfn;
+>  	cc->nr_freepages = nr_freepages;
+> +
+> +	/* If compact_cached_free_pfn is reset then set it now */
+> +	if (cc->order > 0 && !cc->wrapped &&
+> +			zone->compact_cached_free_pfn == start_free_pfn(zone))
+> +		zone->compact_cached_free_pfn = high_pfn;
+>  }
+>  
+>  /*
+> @@ -607,20 +623,6 @@ static isolate_migrate_t isolate_migratepages(struct zone *zone,
+>  	return ISOLATE_SUCCESS;
+>  }
+>  
+> -/*
+> - * Returns the start pfn of the last page block in a zone.  This is the starting
+> - * point for full compaction of a zone.  Compaction searches for free pages from
+> - * the end of each zone, while isolate_freepages_block scans forward inside each
+> - * page block.
+> - */
+> -static unsigned long start_free_pfn(struct zone *zone)
+> -{
+> -	unsigned long free_pfn;
+> -	free_pfn = zone->zone_start_pfn + zone->spanned_pages;
+> -	free_pfn &= ~(pageblock_nr_pages-1);
+> -	return free_pfn;
+> -}
+> -
+>  static int compact_finished(struct zone *zone,
+>  			    struct compact_control *cc)
+>  {
 > -- 
 > 1.7.9.2
 > 
