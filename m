@@ -1,40 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
-	by kanga.kvack.org (Postfix) with SMTP id 317546B004D
-	for <linux-mm@kvack.org>; Wed,  8 Aug 2012 13:32:44 -0400 (EDT)
-Date: Wed, 8 Aug 2012 12:31:31 -0500 (CDT)
-From: "Christoph Lameter (Open Source)" <cl@linux.com>
-Subject: Re: Common10 [13/20] Move kmem_cache allocations into common code.
-In-Reply-To: <CAAmzW4OjSm+o+dwB-EBGprQyr9TP7j3jK3=FHEFVuf97eWcrzg@mail.gmail.com>
-Message-ID: <alpine.DEB.2.02.1208081228490.7756@greybox.home>
-References: <20120803192052.448575403@linux.com> <20120803192155.337884418@linux.com> <CAAmzW4OjSm+o+dwB-EBGprQyr9TP7j3jK3=FHEFVuf97eWcrzg@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx190.postini.com [74.125.245.190])
+	by kanga.kvack.org (Postfix) with SMTP id 8C3E86B004D
+	for <linux-mm@kvack.org>; Wed,  8 Aug 2012 13:35:40 -0400 (EDT)
+Received: by pbbjt11 with SMTP id jt11so2041157pbb.14
+        for <linux-mm@kvack.org>; Wed, 08 Aug 2012 10:35:39 -0700 (PDT)
+Message-ID: <5022A369.5020304@vflare.org>
+Date: Wed, 08 Aug 2012 10:35:37 -0700
+From: Nitin Gupta <ngupta@vflare.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH 0/7] zram/zsmalloc promotion
+References: <1344406340-14128-1-git-send-email-minchan@kernel.org>
+In-Reply-To: <1344406340-14128-1-git-send-email-minchan@kernel.org>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: JoonSoo Kim <js1304@gmail.com>
-Cc: Glauber Costa <glommer@parallels.com>, Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Seth Jennings <sjenning@linux.vnet.ibm.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Konrad Rzeszutek Wilk <konrad@darnok.org>
 
-On Sun, 5 Aug 2012, JoonSoo Kim wrote:
+On 08/07/2012 11:12 PM, Minchan Kim wrote:
+> This patchset promotes zram/zsmalloc from staging.
+> Both are very clean and zram is used by many embedded product
+> for a long time.
+> 
+> [1-3] are patches not merged into linux-next yet but needed
+> it as base for [4-5] which promotes zsmalloc.
+> Greg, if you merged [1-3] already, skip them.
+> 
+> Seth Jennings (5):
+>   1. zsmalloc: s/firstpage/page in new copy map funcs
+>   2. zsmalloc: prevent mappping in interrupt context
+>   3. zsmalloc: add page table mapping method
+>   4. zsmalloc: collapse internal .h into .c
+>   5. zsmalloc: promote to mm/
+> 
+> Minchan Kim (2):
+>   6. zram: promote zram from staging
+>   7. zram: select ZSMALLOC when ZRAM is configured
+> 
 
-> > Index: linux-2.6/mm/slab_common.c
-> > ===================================================================
-> > --- linux-2.6.orig/mm/slab_common.c     2012-08-03 13:17:27.000000000 -0500
-> > +++ linux-2.6/mm/slab_common.c  2012-08-03 13:20:48.080876182 -0500
-> > @@ -104,19 +104,21 @@ struct kmem_cache *kmem_cache_create(con
-> >                 goto out_locked;
-> >         }
-> >
-> > -       s = __kmem_cache_create(n, size, align, flags, ctor);
-> > -
-> > +       s = kmem_cache_zalloc(kmem_cache, GFP_NOWAIT);
-> >         if (s) {
->
-> Is it necessary that kmem_cache_zalloc() is invoked with GFP_NOWAIT?
-> As I understand, before patch, it is called with GFP_KERNEL.
+All the changes look good to me. FWIW, for the entire series:
+Acked-by: Nitin Gupta <ngupta@vflare.org>
 
-Correct. GFP_NOWAIT would be used in a boot situation. Was doing this
-while also working on bootstrap issues. Fixed in next release.
+Thanks for all the work.
+Nitin
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
