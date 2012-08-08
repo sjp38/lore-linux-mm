@@ -1,44 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
-	by kanga.kvack.org (Postfix) with SMTP id D45A66B0072
-	for <linux-mm@kvack.org>; Wed,  8 Aug 2012 02:10:56 -0400 (EDT)
-From: Minchan Kim <minchan@kernel.org>
-Subject: [PATCH 7/7] zram: select ZSMALLOC when ZRAM is configured
-Date: Wed,  8 Aug 2012 15:12:20 +0900
-Message-Id: <1344406340-14128-8-git-send-email-minchan@kernel.org>
-In-Reply-To: <1344406340-14128-1-git-send-email-minchan@kernel.org>
-References: <1344406340-14128-1-git-send-email-minchan@kernel.org>
+Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
+	by kanga.kvack.org (Postfix) with SMTP id 234276B004D
+	for <linux-mm@kvack.org>; Wed,  8 Aug 2012 03:55:32 -0400 (EDT)
+Date: Wed, 8 Aug 2012 08:55:26 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 2/6] mm: vmscan: Scale number of pages reclaimed by
+ reclaim/compaction based on failures
+Message-ID: <20120808075526.GI29814@suse.de>
+References: <1344342677-5845-1-git-send-email-mgorman@suse.de>
+ <1344342677-5845-3-git-send-email-mgorman@suse.de>
+ <20120808014824.GB4247@bbox>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20120808014824.GB4247@bbox>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Nitin Gupta <ngupta@vflare.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Minchan Kim <minchan@kernel.org>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Linux-MM <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, Jim Schutt <jaschut@sandia.gov>, LKML <linux-kernel@vger.kernel.org>
 
-At the monent, we can configure zram in driver/block once zsmalloc
-in mm menu is configured firstly. It's not convenient.
+On Wed, Aug 08, 2012 at 10:48:24AM +0900, Minchan Kim wrote:
+> Hi Mel,
+> 
+> Just out of curiosity.
+> What's the problem did you see? (ie, What's the problem do this patch solve?)
 
-User can configure zram in driver/block regardless of zsmalloc enabling
-by this patch.
+Everythign in this series is related to the problem in the leader - high
+order allocation success rates are lower. This patch increases the success
+rates when allocating under load.
 
-Signed-off-by: Minchan Kim <minchan@kernel.org>
----
- drivers/block/zram/Kconfig |    3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+> AFAIUC, it seem to solve consecutive allocation success ratio through
+> getting several free pageblocks all at once in a process/kswapd
+> reclaim context. Right?
 
-diff --git a/drivers/block/zram/Kconfig b/drivers/block/zram/Kconfig
-index be5abe8..ee23a86 100644
---- a/drivers/block/zram/Kconfig
-+++ b/drivers/block/zram/Kconfig
-@@ -1,6 +1,7 @@
- config ZRAM
- 	tristate "Compressed RAM block device support"
--	depends on BLOCK && SYSFS && ZSMALLOC
-+	depends on BLOCK && SYSFS
-+	select ZSMALLOC
- 	select LZO_COMPRESS
- 	select LZO_DECOMPRESS
- 	default n
+Only pageblocks if it is order-9 on x86, it reclaims an amount that depends
+on an allocation size. This only happens during reclaim/compaction context
+when we know that a high-order allocation has recently failed. The objective
+is to reclaim enough order-0 pages so that compaction can succeed again.
+
 -- 
-1.7.9.5
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
