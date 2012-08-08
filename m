@@ -1,35 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx110.postini.com [74.125.245.110])
-	by kanga.kvack.org (Postfix) with SMTP id A7A6F6B004D
-	for <linux-mm@kvack.org>; Tue,  7 Aug 2012 19:24:22 -0400 (EDT)
-Date: Wed, 8 Aug 2012 08:25:52 +0900
+Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
+	by kanga.kvack.org (Postfix) with SMTP id 7E9856B004D
+	for <linux-mm@kvack.org>; Tue,  7 Aug 2012 20:56:18 -0400 (EDT)
 From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH 1/6] mm: compaction: Update comment in
- try_to_compact_pages
-Message-ID: <20120807232552.GA4247@bbox>
-References: <1344342677-5845-1-git-send-email-mgorman@suse.de>
- <1344342677-5845-2-git-send-email-mgorman@suse.de>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1344342677-5845-2-git-send-email-mgorman@suse.de>
+Subject: [PATCH] compaction: fix deferring compaction mistake
+Date: Wed,  8 Aug 2012 09:57:44 +0900
+Message-Id: <1344387464-10037-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Linux-MM <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, Jim Schutt <jaschut@sandia.gov>, LKML <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>
 
-On Tue, Aug 07, 2012 at 01:31:12PM +0100, Mel Gorman wrote:
-> The comment about order applied when the check was
-> order > PAGE_ALLOC_COSTLY_ORDER which has not been the case since
-> [c5a73c3d: thp: use compaction for all allocation orders]. Fixing
-> the comment while I'm in the general area.
-> 
-> Signed-off-by: Mel Gorman <mgorman@suse.de>
-Reviewed-by: Minchan Kim <minchan@kernel.org>
+[1] fixed bad deferring policy but made mistake about checking
+compact_order_failed in __compact_pgdat so it can't update
+compact_order_failed with new order. It ends up preventing working
+of deffering policy rightly. This patch fixes it.
 
+[1] aff62249, vmscan: only defer compaction for failed order and higher
+
+Cc: Rik van Riel <riel@redhat.com>
+Cc: Mel Gorman <mel@csn.ul.ie>
+Signed-off-by: Minchan Kim <minchan@kernel.org>
+---
+ mm/compaction.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/mm/compaction.c b/mm/compaction.c
+index e78cb96..b6984e2 100644
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -861,7 +861,7 @@ static int __compact_pgdat(pg_data_t *pgdat, struct compact_control *cc)
+ 		if (cc->order > 0) {
+ 			int ok = zone_watermark_ok(zone, cc->order,
+ 						low_wmark_pages(zone), 0, 0);
+-			if (ok && cc->order > zone->compact_order_failed)
++			if (ok && cc->order >= zone->compact_order_failed)
+ 				zone->compact_order_failed = cc->order + 1;
+ 			/* Currently async compaction is never deferred. */
+ 			else if (!ok && cc->sync)
 -- 
-Kind regards,
-Minchan Kim
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
