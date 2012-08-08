@@ -1,42 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx141.postini.com [74.125.245.141])
-	by kanga.kvack.org (Postfix) with SMTP id DE2A86B0071
-	for <linux-mm@kvack.org>; Wed,  8 Aug 2012 05:58:08 -0400 (EDT)
-Date: Wed, 8 Aug 2012 10:58:03 +0100
+Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
+	by kanga.kvack.org (Postfix) with SMTP id 667766B0073
+	for <linux-mm@kvack.org>; Wed,  8 Aug 2012 06:18:28 -0400 (EDT)
+Date: Wed, 8 Aug 2012 11:18:22 +0100
 From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 3/6] mm: kswapd: Continue reclaiming for
- reclaim/compaction if the minimum number of pages have not been reclaimed
-Message-ID: <20120808095803.GL29814@suse.de>
+Subject: Re: [PATCH 6/6] mm: have order > 0 compaction start near a pageblock
+ with free pages
+Message-ID: <20120808101822.GM29814@suse.de>
 References: <1344342677-5845-1-git-send-email-mgorman@suse.de>
- <1344342677-5845-4-git-send-email-mgorman@suse.de>
- <20120808020749.GC4247@bbox>
- <20120808090757.GK29814@suse.de>
+ <1344342677-5845-7-git-send-email-mgorman@suse.de>
+ <20120808043600.GD4247@bbox>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20120808090757.GK29814@suse.de>
+In-Reply-To: <20120808043600.GD4247@bbox>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Minchan Kim <minchan@kernel.org>
 Cc: Linux-MM <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, Jim Schutt <jaschut@sandia.gov>, LKML <linux-kernel@vger.kernel.org>
 
-On Wed, Aug 08, 2012 at 10:07:57AM +0100, Mel Gorman wrote:
-> > <SNIP>
+On Wed, Aug 08, 2012 at 01:36:00PM +0900, Minchan Kim wrote:
+> > 
+> > Second, it updates compact_cached_free_pfn in a more limited set of
+> > circumstances.
+> > 
+> > If a scanner has wrapped, it updates compact_cached_free_pfn to the end
+> > 	of the zone. Each time a wrapped scanner isoaltes a page, it
+> > 	updates compact_cached_free_pfn. The intention is that after
+> > 	wrapping, the compact_cached_free_pfn will be at the highest
+> > 	pageblock with free pages when compaction completes.
 > 
-> It was intentional at the time but asking me about it made me reconsider,
-> thanks. In too many cases, this is a no-op and any apparent increase of
-> kswapd activity is likely a co-incidence. This is untested but is what I
-> intended.
+> Okay.
 > 
-> ---8<---
-> mm: kswapd: Continue reclaiming for reclaim/compaction if the minimum number of pages have not been reclaimed
+> > 
+> > If a scanner has not wrapped when compaction completes and
+> 
+> Compaction complete?
+> Your code seem to do it in isolate_freepages.
+> Isn't it compaction complete?
 > 
 
-And considering this further again, it would partially regress fe2c2a10
-and be too aggressive. I'm dropping this patch completely for now and will
-revisit it in the future.
+s/compaction/free page isolation/
 
-Thanks Minchan.
+> > 	compact_cached_free_pfn is set the end of the the zone, initialise
+> > 	it once.
+> 
+
+> I can't understad this part.
+> Could you elaborate a bit more?
+> 
+
+Is this better?
+
+If a scanner has wrapped, it updates compact_cached_free_pfn to the end
+        of the zone. When a wrapped scanner isolates a page, it updates
+        compact_cached_free_pfn to point to the highest pageblock it
+        can isolate pages from. 
+
+If a scanner has not wrapped when it has finished isolated pages it 
+        checks if compact_cached_free_pfn is pointing to the end of the
+        zone. If so, the value is updated to point to the highest 
+        pageblock that pages were isolated from. This value will not
+        be updated again until a free page scanner wraps and resets
+        compact_cached_free_pfn.
+
+This is not optimal and it can still race but the compact_cached_free_pfn
+will be pointing to or very near a pageblock with free pages.
 
 -- 
 Mel Gorman
