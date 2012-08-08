@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
-	by kanga.kvack.org (Postfix) with SMTP id 742316B0062
-	for <linux-mm@kvack.org>; Wed,  8 Aug 2012 02:10:54 -0400 (EDT)
+	by kanga.kvack.org (Postfix) with SMTP id 6F5596B0069
+	for <linux-mm@kvack.org>; Wed,  8 Aug 2012 02:10:56 -0400 (EDT)
 From: Minchan Kim <minchan@kernel.org>
-Subject: [PATCH 4/7] zsmalloc: collapse internal .h into .c
-Date: Wed,  8 Aug 2012 15:12:17 +0900
-Message-Id: <1344406340-14128-5-git-send-email-minchan@kernel.org>
+Subject: [PATCH 6/7] zram: promote zram from staging
+Date: Wed,  8 Aug 2012 15:12:19 +0900
+Message-Id: <1344406340-14128-7-git-send-email-minchan@kernel.org>
 In-Reply-To: <1344406340-14128-1-git-send-email-minchan@kernel.org>
 References: <1344406340-14128-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
@@ -13,322 +13,108 @@ List-ID: <linux-mm.kvack.org>
 To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Nitin Gupta <ngupta@vflare.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Minchan Kim <minchan@kernel.org>
 
-From: Seth Jennings <sjenning@linux.vnet.ibm.com>
+It's time to promote zram from staging because zram is in staging
+for a long time and is improved by many contributors so code is
+very clean. Most important issue, zram's dependency with x86 is
+solved by making zsmalloc portable. In addition, many embedded
+product uses zram in real practive so I think there is no reason
+to prevent promotion now.
 
-The patch collapses in the internal zsmalloc_int.h into
-the zsmalloc-main.c file.
-
-This is done in preparation for the promotion to mm/ where
-separate internal headers are discouraged.
-
-Signed-off-by: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Cc: Nitin Gupta <ngupta@vflare.org>
 Signed-off-by: Minchan Kim <minchan@kernel.org>
 ---
- drivers/staging/zsmalloc/zsmalloc-main.c |  132 +++++++++++++++++++++++++-
- drivers/staging/zsmalloc/zsmalloc_int.h  |  149 ------------------------------
- 2 files changed, 131 insertions(+), 150 deletions(-)
- delete mode 100644 drivers/staging/zsmalloc/zsmalloc_int.h
+ drivers/block/Kconfig                        |    1 +
+ drivers/block/Makefile                       |    1 +
+ drivers/{staging => block}/zram/Kconfig      |    0
+ drivers/{staging => block}/zram/Makefile     |    0
+ drivers/{staging => block}/zram/zram.txt     |    0
+ drivers/{staging => block}/zram/zram_drv.c   |    0
+ drivers/{staging => block}/zram/zram_drv.h   |    0
+ drivers/{staging => block}/zram/zram_sysfs.c |    0
+ drivers/staging/Kconfig                      |    2 --
+ drivers/staging/Makefile                     |    1 -
+ 10 files changed, 2 insertions(+), 3 deletions(-)
+ rename drivers/{staging => block}/zram/Kconfig (100%)
+ rename drivers/{staging => block}/zram/Makefile (100%)
+ rename drivers/{staging => block}/zram/zram.txt (100%)
+ rename drivers/{staging => block}/zram/zram_drv.c (100%)
+ rename drivers/{staging => block}/zram/zram_drv.h (100%)
+ rename drivers/{staging => block}/zram/zram_sysfs.c (100%)
 
-diff --git a/drivers/staging/zsmalloc/zsmalloc-main.c b/drivers/staging/zsmalloc/zsmalloc-main.c
-index defe350..09a9d35 100644
---- a/drivers/staging/zsmalloc/zsmalloc-main.c
-+++ b/drivers/staging/zsmalloc/zsmalloc-main.c
-@@ -76,9 +76,139 @@
- #include <linux/cpu.h>
- #include <linux/vmalloc.h>
- #include <linux/hardirq.h>
-+#include <linux/spinlock.h>
-+#include <linux/types.h>
+diff --git a/drivers/block/Kconfig b/drivers/block/Kconfig
+index a796407..4277454 100644
+--- a/drivers/block/Kconfig
++++ b/drivers/block/Kconfig
+@@ -289,6 +289,7 @@ config BLK_DEV_CRYPTOLOOP
+ 	  cryptoloop device.
  
- #include "zsmalloc.h"
--#include "zsmalloc_int.h"
-+
-+/*
-+ * This must be power of 2 and greater than of equal to sizeof(link_free).
-+ * These two conditions ensure that any 'struct link_free' itself doesn't
-+ * span more than 1 page which avoids complex case of mapping 2 pages simply
-+ * to restore link_free pointer values.
-+ */
-+#define ZS_ALIGN		8
-+
-+/*
-+ * A single 'zspage' is composed of up to 2^N discontiguous 0-order (single)
-+ * pages. ZS_MAX_ZSPAGE_ORDER defines upper limit on N.
-+ */
-+#define ZS_MAX_ZSPAGE_ORDER 2
-+#define ZS_MAX_PAGES_PER_ZSPAGE (_AC(1, UL) << ZS_MAX_ZSPAGE_ORDER)
-+
-+/*
-+ * Object location (<PFN>, <obj_idx>) is encoded as
-+ * as single (void *) handle value.
-+ *
-+ * Note that object index <obj_idx> is relative to system
-+ * page <PFN> it is stored in, so for each sub-page belonging
-+ * to a zspage, obj_idx starts with 0.
-+ *
-+ * This is made more complicated by various memory models and PAE.
-+ */
-+
-+#ifndef MAX_PHYSMEM_BITS
-+#ifdef CONFIG_HIGHMEM64G
-+#define MAX_PHYSMEM_BITS 36
-+#else /* !CONFIG_HIGHMEM64G */
-+/*
-+ * If this definition of MAX_PHYSMEM_BITS is used, OBJ_INDEX_BITS will just
-+ * be PAGE_SHIFT
-+ */
-+#define MAX_PHYSMEM_BITS BITS_PER_LONG
-+#endif
-+#endif
-+#define _PFN_BITS		(MAX_PHYSMEM_BITS - PAGE_SHIFT)
-+#define OBJ_INDEX_BITS	(BITS_PER_LONG - _PFN_BITS)
-+#define OBJ_INDEX_MASK	((_AC(1, UL) << OBJ_INDEX_BITS) - 1)
-+
-+#define MAX(a, b) ((a) >= (b) ? (a) : (b))
-+/* ZS_MIN_ALLOC_SIZE must be multiple of ZS_ALIGN */
-+#define ZS_MIN_ALLOC_SIZE \
-+	MAX(32, (ZS_MAX_PAGES_PER_ZSPAGE << PAGE_SHIFT >> OBJ_INDEX_BITS))
-+#define ZS_MAX_ALLOC_SIZE	PAGE_SIZE
-+
-+/*
-+ * On systems with 4K page size, this gives 254 size classes! There is a
-+ * trader-off here:
-+ *  - Large number of size classes is potentially wasteful as free page are
-+ *    spread across these classes
-+ *  - Small number of size classes causes large internal fragmentation
-+ *  - Probably its better to use specific size classes (empirically
-+ *    determined). NOTE: all those class sizes must be set as multiple of
-+ *    ZS_ALIGN to make sure link_free itself never has to span 2 pages.
-+ *
-+ *  ZS_MIN_ALLOC_SIZE and ZS_SIZE_CLASS_DELTA must be multiple of ZS_ALIGN
-+ *  (reason above)
-+ */
-+#define ZS_SIZE_CLASS_DELTA	16
-+#define ZS_SIZE_CLASSES		((ZS_MAX_ALLOC_SIZE - ZS_MIN_ALLOC_SIZE) / \
-+					ZS_SIZE_CLASS_DELTA + 1)
-+
-+/*
-+ * We do not maintain any list for completely empty or full pages
-+ */
-+enum fullness_group {
-+	ZS_ALMOST_FULL,
-+	ZS_ALMOST_EMPTY,
-+	_ZS_NR_FULLNESS_GROUPS,
-+
-+	ZS_EMPTY,
-+	ZS_FULL
-+};
-+
-+/*
-+ * We assign a page to ZS_ALMOST_EMPTY fullness group when:
-+ *	n <= N / f, where
-+ * n = number of allocated objects
-+ * N = total number of objects zspage can store
-+ * f = 1/fullness_threshold_frac
-+ *
-+ * Similarly, we assign zspage to:
-+ *	ZS_ALMOST_FULL	when n > N / f
-+ *	ZS_EMPTY	when n == 0
-+ *	ZS_FULL		when n == N
-+ *
-+ * (see: fix_fullness_group())
-+ */
-+static const int fullness_threshold_frac = 4;
-+
-+struct size_class {
-+	/*
-+	 * Size of objects stored in this class. Must be multiple
-+	 * of ZS_ALIGN.
-+	 */
-+	int size;
-+	unsigned int index;
-+
-+	/* Number of PAGE_SIZE sized pages to combine to form a 'zspage' */
-+	int pages_per_zspage;
-+
-+	spinlock_t lock;
-+
-+	/* stats */
-+	u64 pages_allocated;
-+
-+	struct page *fullness_list[_ZS_NR_FULLNESS_GROUPS];
-+};
-+
-+/*
-+ * Placed within free objects to form a singly linked list.
-+ * For every zspage, first_page->freelist gives head of this list.
-+ *
-+ * This must be power of 2 and less than or equal to ZS_ALIGN
-+ */
-+struct link_free {
-+	/* Handle of next free chunk (encodes <PFN, obj_idx>) */
-+	void *next;
-+};
-+
-+struct zs_pool {
-+	struct size_class size_class[ZS_SIZE_CLASSES];
-+
-+	gfp_t flags;	/* allocation flags used when growing pool */
-+	const char *name;
-+};
+ source "drivers/block/drbd/Kconfig"
++source "drivers/block/zram/Kconfig"
  
- /*
-  * A zspage's class index and fullness group
-diff --git a/drivers/staging/zsmalloc/zsmalloc_int.h b/drivers/staging/zsmalloc/zsmalloc_int.h
-deleted file mode 100644
-index 8c0b344..0000000
---- a/drivers/staging/zsmalloc/zsmalloc_int.h
-+++ /dev/null
-@@ -1,149 +0,0 @@
--/*
-- * zsmalloc memory allocator
-- *
-- * Copyright (C) 2011  Nitin Gupta
-- *
-- * This code is released using a dual license strategy: BSD/GPL
-- * You can choose the license that better fits your requirements.
-- *
-- * Released under the terms of 3-clause BSD License
-- * Released under the terms of GNU General Public License Version 2.0
-- */
+ config BLK_DEV_NBD
+ 	tristate "Network block device support"
+diff --git a/drivers/block/Makefile b/drivers/block/Makefile
+index 5b79505..951ba69 100644
+--- a/drivers/block/Makefile
++++ b/drivers/block/Makefile
+@@ -30,6 +30,7 @@ obj-$(CONFIG_BLK_DEV_UMEM)	+= umem.o
+ obj-$(CONFIG_BLK_DEV_NBD)	+= nbd.o
+ obj-$(CONFIG_BLK_DEV_CRYPTOLOOP) += cryptoloop.o
+ obj-$(CONFIG_VIRTIO_BLK)	+= virtio_blk.o
++obj-$(CONFIG_ZRAM)	+= zram/
+ 
+ obj-$(CONFIG_VIODASD)		+= viodasd.o
+ obj-$(CONFIG_BLK_DEV_SX8)	+= sx8.o
+diff --git a/drivers/staging/zram/Kconfig b/drivers/block/zram/Kconfig
+similarity index 100%
+rename from drivers/staging/zram/Kconfig
+rename to drivers/block/zram/Kconfig
+diff --git a/drivers/staging/zram/Makefile b/drivers/block/zram/Makefile
+similarity index 100%
+rename from drivers/staging/zram/Makefile
+rename to drivers/block/zram/Makefile
+diff --git a/drivers/staging/zram/zram.txt b/drivers/block/zram/zram.txt
+similarity index 100%
+rename from drivers/staging/zram/zram.txt
+rename to drivers/block/zram/zram.txt
+diff --git a/drivers/staging/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
+similarity index 100%
+rename from drivers/staging/zram/zram_drv.c
+rename to drivers/block/zram/zram_drv.c
+diff --git a/drivers/staging/zram/zram_drv.h b/drivers/block/zram/zram_drv.h
+similarity index 100%
+rename from drivers/staging/zram/zram_drv.h
+rename to drivers/block/zram/zram_drv.h
+diff --git a/drivers/staging/zram/zram_sysfs.c b/drivers/block/zram/zram_sysfs.c
+similarity index 100%
+rename from drivers/staging/zram/zram_sysfs.c
+rename to drivers/block/zram/zram_sysfs.c
+diff --git a/drivers/staging/Kconfig b/drivers/staging/Kconfig
+index b7f7bc7..1a628eb 100644
+--- a/drivers/staging/Kconfig
++++ b/drivers/staging/Kconfig
+@@ -74,8 +74,6 @@ source "drivers/staging/sep/Kconfig"
+ 
+ source "drivers/staging/iio/Kconfig"
+ 
+-source "drivers/staging/zram/Kconfig"
 -
--#ifndef _ZS_MALLOC_INT_H_
--#define _ZS_MALLOC_INT_H_
--
--#include <linux/kernel.h>
--#include <linux/spinlock.h>
--#include <linux/types.h>
--
--/*
-- * This must be power of 2 and greater than of equal to sizeof(link_free).
-- * These two conditions ensure that any 'struct link_free' itself doesn't
-- * span more than 1 page which avoids complex case of mapping 2 pages simply
-- * to restore link_free pointer values.
-- */
--#define ZS_ALIGN		8
--
--/*
-- * A single 'zspage' is composed of up to 2^N discontiguous 0-order (single)
-- * pages. ZS_MAX_ZSPAGE_ORDER defines upper limit on N.
-- */
--#define ZS_MAX_ZSPAGE_ORDER 2
--#define ZS_MAX_PAGES_PER_ZSPAGE (_AC(1, UL) << ZS_MAX_ZSPAGE_ORDER)
--
--/*
-- * Object location (<PFN>, <obj_idx>) is encoded as
-- * as single (void *) handle value.
-- *
-- * Note that object index <obj_idx> is relative to system
-- * page <PFN> it is stored in, so for each sub-page belonging
-- * to a zspage, obj_idx starts with 0.
-- *
-- * This is made more complicated by various memory models and PAE.
-- */
--
--#ifndef MAX_PHYSMEM_BITS
--#ifdef CONFIG_HIGHMEM64G
--#define MAX_PHYSMEM_BITS 36
--#else /* !CONFIG_HIGHMEM64G */
--/*
-- * If this definition of MAX_PHYSMEM_BITS is used, OBJ_INDEX_BITS will just
-- * be PAGE_SHIFT
-- */
--#define MAX_PHYSMEM_BITS BITS_PER_LONG
--#endif
--#endif
--#define _PFN_BITS		(MAX_PHYSMEM_BITS - PAGE_SHIFT)
--#define OBJ_INDEX_BITS	(BITS_PER_LONG - _PFN_BITS)
--#define OBJ_INDEX_MASK	((_AC(1, UL) << OBJ_INDEX_BITS) - 1)
--
--#define MAX(a, b) ((a) >= (b) ? (a) : (b))
--/* ZS_MIN_ALLOC_SIZE must be multiple of ZS_ALIGN */
--#define ZS_MIN_ALLOC_SIZE \
--	MAX(32, (ZS_MAX_PAGES_PER_ZSPAGE << PAGE_SHIFT >> OBJ_INDEX_BITS))
--#define ZS_MAX_ALLOC_SIZE	PAGE_SIZE
--
--/*
-- * On systems with 4K page size, this gives 254 size classes! There is a
-- * trader-off here:
-- *  - Large number of size classes is potentially wasteful as free page are
-- *    spread across these classes
-- *  - Small number of size classes causes large internal fragmentation
-- *  - Probably its better to use specific size classes (empirically
-- *    determined). NOTE: all those class sizes must be set as multiple of
-- *    ZS_ALIGN to make sure link_free itself never has to span 2 pages.
-- *
-- *  ZS_MIN_ALLOC_SIZE and ZS_SIZE_CLASS_DELTA must be multiple of ZS_ALIGN
-- *  (reason above)
-- */
--#define ZS_SIZE_CLASS_DELTA	16
--#define ZS_SIZE_CLASSES		((ZS_MAX_ALLOC_SIZE - ZS_MIN_ALLOC_SIZE) / \
--					ZS_SIZE_CLASS_DELTA + 1)
--
--/*
-- * We do not maintain any list for completely empty or full pages
-- */
--enum fullness_group {
--	ZS_ALMOST_FULL,
--	ZS_ALMOST_EMPTY,
--	_ZS_NR_FULLNESS_GROUPS,
--
--	ZS_EMPTY,
--	ZS_FULL
--};
--
--/*
-- * We assign a page to ZS_ALMOST_EMPTY fullness group when:
-- *	n <= N / f, where
-- * n = number of allocated objects
-- * N = total number of objects zspage can store
-- * f = 1/fullness_threshold_frac
-- *
-- * Similarly, we assign zspage to:
-- *	ZS_ALMOST_FULL	when n > N / f
-- *	ZS_EMPTY	when n == 0
-- *	ZS_FULL		when n == N
-- *
-- * (see: fix_fullness_group())
-- */
--static const int fullness_threshold_frac = 4;
--
--struct size_class {
--	/*
--	 * Size of objects stored in this class. Must be multiple
--	 * of ZS_ALIGN.
--	 */
--	int size;
--	unsigned int index;
--
--	/* Number of PAGE_SIZE sized pages to combine to form a 'zspage' */
--	int pages_per_zspage;
--
--	spinlock_t lock;
--
--	/* stats */
--	u64 pages_allocated;
--
--	struct page *fullness_list[_ZS_NR_FULLNESS_GROUPS];
--};
--
--/*
-- * Placed within free objects to form a singly linked list.
-- * For every zspage, first_page->freelist gives head of this list.
-- *
-- * This must be power of 2 and less than or equal to ZS_ALIGN
-- */
--struct link_free {
--	/* Handle of next free chunk (encodes <PFN, obj_idx>) */
--	void *next;
--};
--
--struct zs_pool {
--	struct size_class size_class[ZS_SIZE_CLASSES];
--
--	gfp_t flags;	/* allocation flags used when growing pool */
--	const char *name;
--};
--
--#endif
+ source "drivers/staging/zcache/Kconfig"
+ 
+ source "drivers/staging/wlags49_h2/Kconfig"
+diff --git a/drivers/staging/Makefile b/drivers/staging/Makefile
+index ad74bee..ed8889f 100644
+--- a/drivers/staging/Makefile
++++ b/drivers/staging/Makefile
+@@ -32,7 +32,6 @@ obj-$(CONFIG_VME_BUS)		+= vme/
+ obj-$(CONFIG_IPACK_BUS)		+= ipack/
+ obj-$(CONFIG_DX_SEP)            += sep/
+ obj-$(CONFIG_IIO)		+= iio/
+-obj-$(CONFIG_ZRAM)		+= zram/
+ obj-$(CONFIG_ZCACHE)		+= zcache/
+ obj-$(CONFIG_WLAGS49_H2)	+= wlags49_h2/
+ obj-$(CONFIG_WLAGS49_H25)	+= wlags49_h25/
 -- 
 1.7.9.5
 
