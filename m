@@ -1,73 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
-	by kanga.kvack.org (Postfix) with SMTP id 2D5736B005A
-	for <linux-mm@kvack.org>; Wed,  8 Aug 2012 09:51:19 -0400 (EDT)
-Message-ID: <50226ED0.9080404@parallels.com>
-Date: Wed, 8 Aug 2012 17:51:12 +0400
+Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
+	by kanga.kvack.org (Postfix) with SMTP id B208C6B004D
+	for <linux-mm@kvack.org>; Wed,  8 Aug 2012 10:16:00 -0400 (EDT)
+Message-ID: <5022748E.5040809@parallels.com>
+Date: Wed, 8 Aug 2012 18:15:42 +0400
 From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Subject: Re: Common10 [13/20] Move kmem_cache allocations into common code.
-References: <20120803192052.448575403@linux.com> <20120803192155.337884418@linux.com>
-In-Reply-To: <20120803192155.337884418@linux.com>
-Content-Type: multipart/mixed;
-	boundary="------------050509080504020108020402"
-Sender: owner-linux-mm@kvack.org
-List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Joonsoo Kim <js1304@gmail.com>
-
---------------050509080504020108020402
+Subject: Re: Fork bomb limitation in memcg WAS: Re: [PATCH 00/11] kmem controller
+ for memcg: stripped down version
+References: <1340633728-12785-1-git-send-email-glommer@parallels.com> <20120625162745.eabe4f03.akpm@linux-foundation.org> <4FE9621D.2050002@parallels.com> <20120626145539.eeeab909.akpm@linux-foundation.org> <4FEAD260.4000603@parallels.com> <alpine.DEB.2.00.1206271233080.22162@chino.kir.corp.google.com> <4FEC1D63.6000903@parallels.com> <20120628152540.cc13a735.akpm@linux-foundation.org> <50211F3D.2000008@parallels.com>
+In-Reply-To: <50211F3D.2000008@parallels.com>
 Content-Type: text/plain; charset="ISO-8859-1"
 Content-Transfer-Encoding: 7bit
+Sender: owner-linux-mm@kvack.org
+List-ID: <linux-mm.kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: David Rientjes <rientjes@google.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Frederic Weisbecker <fweisbec@gmail.com>, Pekka Enberg <penberg@kernel.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Lameter <cl@linux.com>, devel@openvz.org, kamezawa.hiroyu@jp.fujitsu.com, Tejun Heo <tj@kernel.org>, Rik van Riel <riel@redhat.com>, Daniel Lezcano <daniel.lezcano@linaro.org>, Kay Sievers <kay.sievers@vrfy.org>, Lennart Poettering <lennart@poettering.net>, "Kirill A. Shutemov" <kirill@shutemov.name>, Kir Kolyshkin <kir@parallels.com>
 
-On 08/03/2012 11:21 PM, Christoph Lameter wrote:
-> Shift the allocations to common code. That way the allocation
-> and freeing of the kmem_cache structures is handled by common code.
+On 08/07/2012 05:59 PM, Glauber Costa wrote:
+> On 06/29/2012 02:25 AM, Andrew Morton wrote:
+>> On Thu, 28 Jun 2012 13:01:23 +0400
+>> Glauber Costa <glommer@parallels.com> wrote:
+>>
+>>>
+>>> ...
+>>>
+>>
+>> OK, that all sounds convincing ;) Please summarise and capture this
+>> discussion in the [patch 0/n] changelog so we (or others) don't have to
+>> go through this all again.  And let's remember this in the next
+>> patchset!
+>>
+>>> Last, but not least, note that it is totally within my interests to
+>>> merge the slab tracking as fast as we can. it'll be a matter of going
+>>> back to it, and agreeing in the final form.
+>>
+>> Yes, I'd very much like to have the whole slab implementation in a
+>> reasonably mature state before proceeding too far with this base
+>> patchset.
+>>
+> So, that was posted separately as well.
 > 
-> V1-V2: Use the return code from setup_cpucache() in slab instead of returning -ENOSPC
+> Although there is a thing to fix here and there - all of them I am
+> working on already - I believe that to be mature enough.
+> 
+> Do you have any comments on that? Would you be willing to take this
+> first part (modified with the comments on this thread itself) and let it
+> start sitting in the tree?
+> 
 
-This patch doesn't even boot! (slub)
+In the mean time, for any interested parties, I've set up a tree at:
+
+git://github.com/glommer/linux.git
+
+branches kmemcg-slab and kmemcg-stack
+
+Intended to be a throw-away tree.
 
 
 
---------------050509080504020108020402
-Content-Type: text/plain; charset="UTF-8"; name="kmalloc-bug"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: attachment; filename="kmalloc-bug"
-
-[    0.000000] Memory: 989060k/1048568k available (5273k kernel code, 452k absent, 59056k reserved, 5916k data, 932k init)
-[    0.000000] Kernel panic - not syncing: Creation of kmalloc slab kmalloc-96 size=96 failed.
-[    0.000000] 
-[    0.000000] Pid: 0, comm: swapper Not tainted 3.5.0-rc1+ #3
-[    0.000000] Call Trace:
-[    0.000000]  [<ffffffff815116c2>] panic+0xbd/0x1cd
-[    0.000000]  [<ffffffff81b2673f>] create_kmalloc_cache+0x54/0x70
-[    0.000000]  [<ffffffff81b26897>] kmem_cache_init+0x13c/0x2c2
-[    0.000000]  [<ffffffff81b049d0>] start_kernel+0x1ee/0x3d3
-[    0.000000]  [<ffffffff81b045ea>] ? repair_env_string+0x5a/0x5a
-[    0.000000]  [<ffffffff81b042d6>] x86_64_start_reservations+0xb1/0xb5
-[    0.000000]  [<ffffffff81b043d8>] x86_64_start_kernel+0xfe/0x10b
-[    0.000000] ------------[ cut here ]------------
-[    0.000000] WARNING: at kernel/lockdep.c:2585 trace_hardirqs_on_caller+0xdf/0x173()
-[    0.000000] Hardware name: Bochs
-[    0.000000] Modules linked in:
-[    0.000000] Pid: 0, comm: swapper Not tainted 3.5.0-rc1+ #3
-[    0.000000] Call Trace:
-[    0.000000]  [<ffffffff81047f89>] warn_slowpath_common+0x83/0x9c
-[    0.000000]  [<ffffffff8151178b>] ? panic+0x186/0x1cd
-[    0.000000]  [<ffffffff81047fbc>] warn_slowpath_null+0x1a/0x1c
-[    0.000000]  [<ffffffff81093e53>] trace_hardirqs_on_caller+0xdf/0x173
-[    0.000000]  [<ffffffff81093ef4>] trace_hardirqs_on+0xd/0xf
-[    0.000000]  [<ffffffff8151178b>] panic+0x186/0x1cd
-[    0.000000]  [<ffffffff81b2673f>] create_kmalloc_cache+0x54/0x70
-[    0.000000]  [<ffffffff81b26897>] kmem_cache_init+0x13c/0x2c2
-[    0.000000]  [<ffffffff81b049d0>] start_kernel+0x1ee/0x3d3
-[    0.000000]  [<ffffffff81b045ea>] ? repair_env_string+0x5a/0x5a
-[    0.000000]  [<ffffffff81b042d6>] x86_64_start_reservations+0xb1/0xb5
-[    0.000000]  [<ffffffff81b043d8>] x86_64_start_kernel+0xfe/0x10b
-[    0.000000] ---[ end trace a7919e7f17c0a725 ]---
-
---------------050509080504020108020402--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
