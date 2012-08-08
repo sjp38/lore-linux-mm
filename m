@@ -1,122 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
-	by kanga.kvack.org (Postfix) with SMTP id A4A1B6B007B
-	for <linux-mm@kvack.org>; Wed,  8 Aug 2012 17:51:22 -0400 (EDT)
-Date: Wed, 8 Aug 2012 17:49:04 -0400
-From: Rik van Riel <riel@redhat.com>
-Subject: [RFC][PATCH -mm 3/3] mm,vmscan: evict inactive file pages first
-Message-ID: <20120808174904.5d241c38@cuia.bos.redhat.com>
-In-Reply-To: <20120808174549.1b10d51a@cuia.bos.redhat.com>
-References: <20120808174549.1b10d51a@cuia.bos.redhat.com>
+Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
+	by kanga.kvack.org (Postfix) with SMTP id 611826B0068
+	for <linux-mm@kvack.org>; Wed,  8 Aug 2012 18:50:48 -0400 (EDT)
+Date: Wed, 08 Aug 2012 15:50:46 -0700 (PDT)
+Message-Id: <20120808.155046.820543563969484712.davem@davemloft.net>
+Subject: Re: [PATCH] netvm: check for page == NULL when propogating the
+ skb->pfmemalloc flag
+From: David Miller <davem@davemloft.net>
+In-Reply-To: <20120807085554.GF29814@suse.de>
+References: <20120807085554.GF29814@suse.de>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Content-Type: Text/Plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: linux-mm@kvack.org, yinghan@google.com, hannes@cmpxchg.org, mhocko@suse.cz, Mel Gorman <mel@csn.ul.ie>
+To: mgorman@suse.de
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org, xen-devel@lists.xensource.com, konrad@darnok.org, Ian.Campbell@eu.citrix.com, akpm@linux-foundation.org
 
-When a lot of streaming file IO is happening, it makes sense to
-evict just the inactive file pages and leave the other LRU lists
-alone.
+From: Mel Gorman <mgorman@suse.de>
+Date: Tue, 7 Aug 2012 09:55:55 +0100
 
-Likewise, when driving a cgroup hierarchy into its hard limit,
-or over its soft limit, it makes sense to pick a child cgroup
-that has lots of inactive file pages, and evict those first.
+> Commit [c48a11c7: netvm: propagate page->pfmemalloc to skb] is responsible
+> for the following bug triggered by a xen network driver
+ ...
+> The problem is that the xenfront driver is passing a NULL page to
+> __skb_fill_page_desc() which was unexpected. This patch checks that
+> there is a page before dereferencing.
+> 
+> Reported-and-Tested-by: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+> Signed-off-by: Mel Gorman <mgorman@suse.de>
 
-Being over its soft limit is considered a stronger preference
-than just having a lot of inactive file pages, so a well behaved
-cgroup is allowed to keep its file cache when there is a "badly
-behaving" one in the same hierarchy.
+That call to __skb_fill_page_desc() in xen-netfront.c looks completely bogus.
+It's the only driver passing NULL here.
 
-Signed-off-by: Rik van Riel <riel@redhat.com>
----
- mm/vmscan.c |   37 +++++++++++++++++++++++++++++++++----
- 1 files changed, 33 insertions(+), 4 deletions(-)
+That whole song and dance figuring out what to do with the head
+fragment page, depending upon whether the length is greater than the
+RX_COPY_THRESHOLD, is completely unnecessary.
 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 1a9688b..b4d73d4 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -1576,6 +1576,19 @@ static int inactive_list_is_low(struct lruvec *lruvec, enum lru_list lru)
- 		return inactive_anon_is_low(lruvec);
- }
- 
-+/* If this lruvec has lots of inactive file pages, reclaim those only. */
-+static bool reclaim_file_only(struct lruvec *lruvec, struct scan_control *sc,
-+			      unsigned long anon, unsigned long file)
-+{
-+	if (inactive_file_is_low(lruvec))
-+		return false;
-+
-+	if (file > (anon + file) >> sc->priority)
-+		return true;
-+
-+	return false;
-+}
-+
- static unsigned long shrink_list(enum lru_list lru, unsigned long nr_to_scan,
- 				 struct lruvec *lruvec, struct scan_control *sc)
- {
-@@ -1687,6 +1700,14 @@ static void get_scan_count(struct lruvec *lruvec, struct scan_control *sc,
- 		reclaim_stat->recent_rotated[1] /= 2;
- 	}
- 
-+	/* Lots of inactive file pages? Reclaim those only. */
-+	if (reclaim_file_only(lruvec, sc, anon, file)) {
-+		fraction[0] = 0;
-+		fraction[1] = 1;
-+		denominator = 1;
-+		goto out;
-+	}
-+
- 	/*
- 	 * The amount of pressure on anon vs file pages is inversely
- 	 * proportional to the fraction of recently scanned pages on
-@@ -1922,8 +1943,8 @@ static void age_recent_pressure(struct lruvec *lruvec, struct zone *zone)
-  * should always be larger than recent_rotated, and the size should
-  * always be larger than recent_pressure.
-  */
--static u64 reclaim_score(struct mem_cgroup *memcg,
--			 struct lruvec *lruvec)
-+static u64 reclaim_score(struct mem_cgroup *memcg, struct lruvec *lruvec,
-+			 struct scan_control *sc)
- {
- 	struct zone_reclaim_stat *reclaim_stat = &lruvec->reclaim_stat;
- 	u64 anon, file;
-@@ -1949,6 +1970,14 @@ static u64 reclaim_score(struct mem_cgroup *memcg,
- 		anon *= 10000;
- 	}
- 
-+	/*
-+	 * Prefer reclaiming from an lruvec with lots of inactive file
-+	 * pages. Once those have been reclaimed, the score will drop so
-+	 * far we will pick another lruvec to reclaim from.
-+	 */
-+	if (reclaim_file_only(lruvec, sc, anon, file))
-+		file *= 100;
-+
- 	return max(anon, file);
- }
- 
-@@ -1974,7 +2003,7 @@ static void shrink_zone(struct zone *zone, struct scan_control *sc)
- 
- 		age_recent_pressure(lruvec, zone);
- 
--		score = reclaim_score(memcg, lruvec);
-+		score = reclaim_score(memcg, lruvec, sc);
- 
- 		/* Pick the lruvec with the highest score. */
- 		if (score > max_score) {
-@@ -1995,7 +2024,7 @@ static void shrink_zone(struct zone *zone, struct scan_control *sc)
- 	 */
- 	do {
- 		shrink_lruvec(victim, sc);
--		score = reclaim_score(memcg, victim);
-+		score = reclaim_score(memcg, victim, sc);
- 	} while (sc->nr_to_reclaim > 0 && score > max_score / 2);
- 
- 	/*
+Just use something like a call to __pskb_pull_tail(skb, len) and all
+that other crap around that area can simply be deleted.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
