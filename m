@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
-	by kanga.kvack.org (Postfix) with SMTP id 08E666B005A
-	for <linux-mm@kvack.org>; Wed,  8 Aug 2012 17:51:21 -0400 (EDT)
-Date: Wed, 8 Aug 2012 17:48:28 -0400
+Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
+	by kanga.kvack.org (Postfix) with SMTP id A4A1B6B007B
+	for <linux-mm@kvack.org>; Wed,  8 Aug 2012 17:51:22 -0400 (EDT)
+Date: Wed, 8 Aug 2012 17:49:04 -0400
 From: Rik van Riel <riel@redhat.com>
-Subject: [RFC][PATCH -mm 2/3] mm,vmscan: reclaim from highest score cgroups
-Message-ID: <20120808174828.56ffa9e7@cuia.bos.redhat.com>
+Subject: [RFC][PATCH -mm 3/3] mm,vmscan: evict inactive file pages first
+Message-ID: <20120808174904.5d241c38@cuia.bos.redhat.com>
 In-Reply-To: <20120808174549.1b10d51a@cuia.bos.redhat.com>
 References: <20120808174549.1b10d51a@cuia.bos.redhat.com>
 Mime-Version: 1.0
@@ -13,182 +13,110 @@ Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: yinghan@google.com, hannes@cmpxchg.org, mhocko@suse.cz, Mel Gorman <mel@csn.ul.ie>
+To: Rik van Riel <riel@redhat.com>
+Cc: linux-mm@kvack.org, yinghan@google.com, hannes@cmpxchg.org, mhocko@suse.cz, Mel Gorman <mel@csn.ul.ie>
 
-Instead of doing a round robin reclaim over all the cgroups in a
-zone, we pick the lruvec with the top score and reclaim from that.
+When a lot of streaming file IO is happening, it makes sense to
+evict just the inactive file pages and leave the other LRU lists
+alone.
 
-We keep reclaiming from that lruvec until we have reclaimed enough
-pages (common for direct reclaim), or that lruvec's score drops in
-half. We keep reclaiming from the zone until we have reclaimed enough
-pages, or have scanned more than the number of reclaimable pages shifted
-by the reclaim priority.
+Likewise, when driving a cgroup hierarchy into its hard limit,
+or over its soft limit, it makes sense to pick a child cgroup
+that has lots of inactive file pages, and evict those first.
 
-As an additional change, targeted cgroup reclaim now reclaims from
-the highest priority lruvec. This is because when a cgroup hierarchy
-hits its limit, the best lruvec to reclaim from may be different than
-whatever lruvec is the first we run into iterating from the hierarchy's
-"root".
+Being over its soft limit is considered a stronger preference
+than just having a lot of inactive file pages, so a well behaved
+cgroup is allowed to keep its file cache when there is a "badly
+behaving" one in the same hierarchy.
 
 Signed-off-by: Rik van Riel <riel@redhat.com>
 ---
- mm/vmscan.c |  118 ++++++++++++++++++++++++++++++++++++++++------------------
- 1 files changed, 81 insertions(+), 37 deletions(-)
+ mm/vmscan.c |   37 +++++++++++++++++++++++++++++++++----
+ 1 files changed, 33 insertions(+), 4 deletions(-)
 
 diff --git a/mm/vmscan.c b/mm/vmscan.c
-index b0e5495..1a9688b 100644
+index 1a9688b..b4d73d4 100644
 --- a/mm/vmscan.c
 +++ b/mm/vmscan.c
-@@ -1901,6 +1901,57 @@ static void age_recent_pressure(struct lruvec *lruvec, struct zone *zone)
- 	spin_unlock_irq(&zone->lru_lock);
+@@ -1576,6 +1576,19 @@ static int inactive_list_is_low(struct lruvec *lruvec, enum lru_list lru)
+ 		return inactive_anon_is_low(lruvec);
  }
  
-+/*
-+ * The higher the LRU score, the more desirable it is to reclaim
-+ * from this LRU set first. The score is a function of the fraction
-+ * of recently scanned pages on the LRU that are in active use,
-+ * as well as the size of the list and the amount of memory pressure
-+ * that has been put on this LRU recently.
-+ *
-+ *          recent_scanned        size
-+ * score =  -------------- x --------------- x adjustment
-+ *          recent_rotated   recent_pressure
-+ *
-+ * The maximum score of the anon and file list in this lruvec
-+ * is returned. Adjustments are made for the file LRU having
-+ * lots of inactive pages (mostly streaming IO), or the memcg
-+ * being over its soft limit.
-+ *
-+ * This function should return a positive number for any lruvec
-+ * with more than a handful of resident pages, because recent_scanned
-+ * should always be larger than recent_rotated, and the size should
-+ * always be larger than recent_pressure.
-+ */
-+static u64 reclaim_score(struct mem_cgroup *memcg,
-+			 struct lruvec *lruvec)
++/* If this lruvec has lots of inactive file pages, reclaim those only. */
++static bool reclaim_file_only(struct lruvec *lruvec, struct scan_control *sc,
++			      unsigned long anon, unsigned long file)
 +{
-+	struct zone_reclaim_stat *reclaim_stat = &lruvec->reclaim_stat;
-+	u64 anon, file;
++	if (inactive_file_is_low(lruvec))
++		return false;
 +
-+	anon  = get_lru_size(lruvec, LRU_ACTIVE_ANON) +
-+	        get_lru_size(lruvec, LRU_INACTIVE_ANON);
-+	anon *= reclaim_stat->recent_scanned[0];
-+	anon /= (reclaim_stat->recent_rotated[0] + 1);
-+	anon /= (reclaim_stat->recent_pressure[0] + 1);
++	if (file > (anon + file) >> sc->priority)
++		return true;
 +
-+	file = get_lru_size(lruvec, LRU_ACTIVE_FILE) +
-+	       get_lru_size(lruvec, LRU_INACTIVE_FILE);
-+	file *= reclaim_stat->recent_scanned[1];
-+	file /= (reclaim_stat->recent_rotated[1] + 1);
-+	file /= (reclaim_stat->recent_pressure[1] + 1);
-+
-+	/*
-+	 * Give a STRONG preference to reclaiming memory from lruvecs
-+	 * that belong to a cgroup that is over its soft limit.
-+	 */
-+	if (mem_cgroup_over_soft_limit(memcg)) {
-+		file *= 10000;
-+		anon *= 10000;
-+	}
-+
-+	return max(anon, file);
++	return false;
 +}
 +
- static void shrink_zone(struct zone *zone, struct scan_control *sc)
+ static unsigned long shrink_list(enum lru_list lru, unsigned long nr_to_scan,
+ 				 struct lruvec *lruvec, struct scan_control *sc)
  {
- 	struct mem_cgroup *root = sc->target_mem_cgroup;
-@@ -1908,11 +1959,14 @@ static void shrink_zone(struct zone *zone, struct scan_control *sc)
- 		.zone = zone,
- 		.priority = sc->priority,
- 	};
-+	unsigned long nr_scanned = sc->nr_scanned;
- 	struct mem_cgroup *memcg;
--	bool over_softlimit, ignore_softlimit = false;
-+	struct lruvec *victim;
-+	u64 score, max_score;
+@@ -1687,6 +1700,14 @@ static void get_scan_count(struct lruvec *lruvec, struct scan_control *sc,
+ 		reclaim_stat->recent_rotated[1] /= 2;
+ 	}
  
- restart:
--	over_softlimit = false;
-+	max_score = 0;
-+	victim = NULL;
++	/* Lots of inactive file pages? Reclaim those only. */
++	if (reclaim_file_only(lruvec, sc, anon, file)) {
++		fraction[0] = 0;
++		fraction[1] = 1;
++		denominator = 1;
++		goto out;
++	}
++
+ 	/*
+ 	 * The amount of pressure on anon vs file pages is inversely
+ 	 * proportional to the fraction of recently scanned pages on
+@@ -1922,8 +1943,8 @@ static void age_recent_pressure(struct lruvec *lruvec, struct zone *zone)
+  * should always be larger than recent_rotated, and the size should
+  * always be larger than recent_pressure.
+  */
+-static u64 reclaim_score(struct mem_cgroup *memcg,
+-			 struct lruvec *lruvec)
++static u64 reclaim_score(struct mem_cgroup *memcg, struct lruvec *lruvec,
++			 struct scan_control *sc)
+ {
+ 	struct zone_reclaim_stat *reclaim_stat = &lruvec->reclaim_stat;
+ 	u64 anon, file;
+@@ -1949,6 +1970,14 @@ static u64 reclaim_score(struct mem_cgroup *memcg,
+ 		anon *= 10000;
+ 	}
  
- 	memcg = mem_cgroup_iter(root, NULL, &reclaim);
- 	do {
-@@ -1920,48 +1974,38 @@ static void shrink_zone(struct zone *zone, struct scan_control *sc)
++	/*
++	 * Prefer reclaiming from an lruvec with lots of inactive file
++	 * pages. Once those have been reclaimed, the score will drop so
++	 * far we will pick another lruvec to reclaim from.
++	 */
++	if (reclaim_file_only(lruvec, sc, anon, file))
++		file *= 100;
++
+ 	return max(anon, file);
+ }
+ 
+@@ -1974,7 +2003,7 @@ static void shrink_zone(struct zone *zone, struct scan_control *sc)
  
  		age_recent_pressure(lruvec, zone);
  
--		/*
--		 * Reclaim from mem_cgroup if any of these conditions are met:
--		 * - this is a targetted reclaim ( not global reclaim)
--		 * - reclaim priority is less than  DEF_PRIORITY - 2
--		 * - mem_cgroup or its ancestor ( not including root cgroup)
--		 * exceeds its soft limit
--		 *
--		 * Note: The priority check is a balance of how hard to
--		 * preserve the pages under softlimit. If the memcgs of the
--		 * zone having trouble to reclaim pages above their softlimit,
--		 * we have to reclaim under softlimit instead of burning more
--		 * cpu cycles.
--		 */
--		if (ignore_softlimit || !global_reclaim(sc) ||
--				sc->priority < DEF_PRIORITY - 2 ||
--				mem_cgroup_over_soft_limit(memcg)) {
--			shrink_lruvec(lruvec, sc);
-+		score = reclaim_score(memcg, lruvec);
+-		score = reclaim_score(memcg, lruvec);
++		score = reclaim_score(memcg, lruvec, sc);
  
--			over_softlimit = true;
-+		/* Pick the lruvec with the highest score. */
-+		if (score > max_score) {
-+			max_score = score;
-+			victim = lruvec;
- 		}
+ 		/* Pick the lruvec with the highest score. */
+ 		if (score > max_score) {
+@@ -1995,7 +2024,7 @@ static void shrink_zone(struct zone *zone, struct scan_control *sc)
+ 	 */
+ 	do {
+ 		shrink_lruvec(victim, sc);
+-		score = reclaim_score(memcg, victim);
++		score = reclaim_score(memcg, victim, sc);
+ 	} while (sc->nr_to_reclaim > 0 && score > max_score / 2);
  
--		/*
--		 * Limit reclaim has historically picked one memcg and
--		 * scanned it with decreasing priority levels until
--		 * nr_to_reclaim had been reclaimed.  This priority
--		 * cycle is thus over after a single memcg.
--		 *
--		 * Direct reclaim and kswapd, on the other hand, have
--		 * to scan all memory cgroups to fulfill the overall
--		 * scan target for the zone.
--		 */
--		if (!global_reclaim(sc)) {
--			mem_cgroup_iter_break(root, memcg);
--			break;
--		}
- 		memcg = mem_cgroup_iter(root, memcg, &reclaim);
- 	} while (memcg);
- 
--	if (!over_softlimit) {
--		ignore_softlimit = true;
-+	/* No lruvec in our set is suitable for reclaiming. */
-+	if (!victim)
-+		return;
-+
-+	/*
-+	 * Reclaim from the top scoring lruvec until we freed enough
-+	 * pages, or its reclaim priority has halved.
-+	 */
-+	do {
-+		shrink_lruvec(victim, sc);
-+		score = reclaim_score(memcg, victim);
-+	} while (sc->nr_to_reclaim > 0 && score > max_score / 2);
-+
-+	/*
-+	 * Do we need to reclaim more pages?
-+	 * Did we scan fewer pages than the current priority allows?
-+	 */
-+	if (sc->nr_to_reclaim > 0 &&
-+			sc->nr_scanned + nr_scanned <
-+			zone_reclaimable_pages(zone) >> sc->priority)
- 		goto restart;
--	}
- }
- 
- /* Returns true if compaction should go ahead for a high-order request */
+ 	/*
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
