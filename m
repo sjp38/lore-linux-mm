@@ -1,65 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
-	by kanga.kvack.org (Postfix) with SMTP id 9A3DE6B004D
-	for <linux-mm@kvack.org>; Wed,  8 Aug 2012 15:17:26 -0400 (EDT)
-Message-ID: <5022BAA9.7090604@redhat.com>
-Date: Wed, 08 Aug 2012 15:14:49 -0400
-From: Rik van Riel <riel@redhat.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH] netvm: check for page == NULL when propogating the skb->pfmemalloc
- flag
-References: <20120807085554.GF29814@suse.de>
-In-Reply-To: <20120807085554.GF29814@suse.de>
-Content-Type: text/plain; charset=ISO-8859-15; format=flowed
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
+	by kanga.kvack.org (Postfix) with SMTP id E35876B0044
+	for <linux-mm@kvack.org>; Wed,  8 Aug 2012 17:03:22 -0400 (EDT)
+Message-Id: <20120808210129.987345284@linux.com>
+Date: Wed, 08 Aug 2012 16:01:29 -0500
+From: Christoph Lameter <cl@linux.com>
+Subject: Common11 [00/20] Sl[auo]b: Common code rework V11
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: David Miller <davem@davemloft.net>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Linux-Netdev <netdev@vger.kernel.org>, Xen-devel <xen-devel@lists.xensource.com>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Ian Campbell <Ian.Campbell@eu.citrix.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Joonsoo Kim <js1304@gmail.com>
+Cc: Glauber Costa <glommer@parallels.com>, Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>
 
-On 08/07/2012 04:55 AM, Mel Gorman wrote:
-> Commit [c48a11c7: netvm: propagate page->pfmemalloc to skb] is responsible
-> for the following bug triggered by a xen network driver
->
-> [    1.908592] BUG: unable to handle kernel NULL pointer dereference at 0000000000000010
-> [    1.908643] IP: [<ffffffffa0037750>] xennet_poll+0x980/0xec0 [xen_netfront]
-> [    1.908703] PGD ea1df067 PUD e8ada067 PMD 0
-> [    1.908774] Oops: 0000 [#1] SMP
-> [    1.908797] Modules linked in: fbcon tileblit font radeon bitblit softcursor ttm drm_kms_helper crc32c_intel xen_blkfront xen_netfront xen_fbfront fb_sys_fops sysimgblt sysfillrect syscopyarea +xen_kbdfront xenfs xen_privcmd
-> [    1.908938] CPU 0
-> [    1.908950] Pid: 2165, comm: ip Not tainted 3.5.0upstream-08854-g444fa66 #1
-> [    1.908983] RIP: e030:[<ffffffffa0037750>]  [<ffffffffa0037750>] xennet_poll+0x980/0xec0 [xen_netfront]
-> [    1.909029] RSP: e02b:ffff8800ffc03db8  EFLAGS: 00010282
-> [    1.909055] RAX: ffff8800ea010140 RBX: ffff8800f00e86c0 RCX: 000000000000009a
-> [    1.909055] RDX: 0000000000000040 RSI: 000000000000005a RDI: ffff8800fa7dee80
-> [    1.909055] RBP: ffff8800ffc03ee8 R08: ffff8800f00e86d8 R09: ffff8800ea010000
-> [    1.909055] R10: dead000000200200 R11: dead000000100100 R12: ffff8800fa7dee80
-> [    1.909055] R13: 000000000000005a R14: ffff8800fa7dee80 R15: 0000000000000200
-> [    1.909055] FS:  00007fbafc188700(0000) GS:ffff8800ffc00000(0000) knlGS:0000000000000000
-> [    1.909055] CS:  e033 DS: 0000 ES: 0000 CR0: 000000008005003b
-> [    1.909055] CR2: 0000000000000010 CR3: 00000000ea108000 CR4: 0000000000002660
-> [    1.909055] DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
-> [    1.909055] DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
-> [    1.909055] Process ip (pid: 2165, threadinfo ffff8800ea0f2000, task ffff8800fa783040)
-> [    1.909055] Stack:
-> [    1.909055]  ffff8800e27e5040 ffff8800ffc03e88 ffff8800ffc03e68 ffff8800ffc03e48
-> [    1.909055]  7fffffffffffffff ffff8800ffc03e00 ffff8800e27e5040 ffff8800f00e86d8
-> [    1.909055]  ffff8800ffc03eb0 00000040ffffffff ffff8800f00e8000 00000000ffc03e30
-> [    1.909055] Call Trace:
-> [    1.909055]  <IRQ>
-> [    1.909055]  [<ffffffff81066028>] ?  pvclock_clocksource_read+0x58/0xd0
-> [    1.909055]  [<ffffffff81486352>] net_rx_action+0x112/0x240
-> [    1.909055]  [<ffffffff8107f319>] __do_softirq+0xb9/0x190
-> [    1.909055]  [<ffffffff815d8d7c>] call_softirq+0x1c/0x30
->
-> The problem is that the xenfront driver is passing a NULL page to
-> __skb_fill_page_desc() which was unexpected. This patch checks that
-> there is a page before dereferencing.
->
-> Reported-and-Tested-by: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-> Signed-off-by: Mel Gorman <mgorman@suse.de>
 
-Acked-by: Rik van Riel <riel@redhat.com>
+
+V10->V11
+- Fix issues pointed out by Joonsoo and Glauber
+- Simplify Slab bootstrap further
+
+V9->V10
+- Memory leak was a false alarm
+- Resequence patches to make it easier
+  to apply.
+- Do more boot sequence consolidation in slab/slub.
+  [We could still do much more like common kmalloc
+  handling]
+- Fixes suggested by David and Glauber
+
+V8->V9:
+- Fix numerous things pointed out by Glauber.
+- Cleanup the way error handling works in the
+  common kmem_cache_create() function.
+- General cleanup by breaking things up
+  into multiple patches were necessary.
+
+V7->V8:
+- Do not use kfree for kmem_cache in slub.
+- Add more patches up to a common
+  scheme for object alignment.
+
+V6->V7:
+- Omit pieces that were merged for 3.6
+- Fix issues pointed out by Glauber.
+- Include the patches up to the point at which
+  the slab name handling is unified
+
+V5->V6:
+- Patches against Pekka's for-next tree.
+- Go slow and cut down to just patches that are safe
+  (there will likely be some churn already due to the
+  mutex unification between slabs)
+- More to come next week when I have more time (
+  took me almost the whole week to catch up after
+  being gone for awhile).
+
+V4->V5
+- Rediff against current upstream + Pekka's cleanup branch.
+
+V3->V4:
+- Do not use the COMMON macro anymore.
+- Fixup various issues
+- No general sysfs support yet due to lockdep issues with
+  keys in kmalloc'ed memory.
+
+V2->V3:
+- Incorporate more feedback from Joonsoo Kim and Glauber Costa
+- And a couple more patches to deal with slab duping and move
+  more code to slab_common.c
+
+V1->V2:
+- Incorporate glommers feedback.
+- Add 2 more patches dealing with common code in kmem_cache_destroy
+
+This is a series of patches that extracts common functionality from
+slab allocators into a common code base. The intend is to standardize
+as much as possible of the allocator behavior while keeping the
+distinctive features of each allocator which are mostly due to their
+storage format and serialization approaches.
+
+This patchset makes a beginning by extracting common functionality in
+kmem_cache_create() and kmem_cache_destroy(). However, there are
+numerous other areas where such work could be beneficial:
+
+1. Extract the sysfs support from SLUB and make it common. That way
+   all allocators have a common sysfs API and are handleable in the same
+   way regardless of the allocator chose.
+
+2. Extract the error reporting and checking from SLUB and make
+   it available for all allocators. This means that all allocators
+   will gain the resiliency and error handling capabilties.
+
+3. Extract the memory hotplug and cpu hotplug handling. It seems that
+   SLAB may be more sophisticated here. Having common code here will
+   make it easier to maintain the special code.
+
+4. Extract the aliasing capability of SLUB. This will enable fast
+   slab creation without creating too many additional slab caches.
+   The arrays of caches of varying sizes in numerous subsystems
+   do not cause the creation of numerous slab caches. Storage
+   density is increased and the cache footprint is reduced.
+
+Ultimately it is to be hoped that the special code for each allocator
+shrinks to a mininum. This will also make it easier to make modification
+to allocators.
+
+In the far future one could envision that the current allocators will
+just become storage algorithms that can be chosen based on the need of
+the subsystem. F.e.
+
+Cpu cache dependend performance		= Bonwick allocator (SLAB)
+Minimal cycle count and cache footprint	= SLUB
+Maximum storage density			= K&R allocator (SLOB)
 
 
 --
