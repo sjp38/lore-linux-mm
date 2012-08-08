@@ -1,119 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
-	by kanga.kvack.org (Postfix) with SMTP id B27716B006E
-	for <linux-mm@kvack.org>; Wed,  8 Aug 2012 17:03:23 -0400 (EDT)
-Message-Id: <20120808210210.925457734@linux.com>
-Date: Wed, 08 Aug 2012 16:01:40 -0500
+Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
+	by kanga.kvack.org (Postfix) with SMTP id 4FA966B0072
+	for <linux-mm@kvack.org>; Wed,  8 Aug 2012 17:03:24 -0400 (EDT)
+Message-Id: <20120808210211.593213997@linux.com>
+Date: Wed, 08 Aug 2012 16:01:44 -0500
 From: Christoph Lameter <cl@linux.com>
-Subject: Common11 [11/20] Do slab aliasing call from common code
+Subject: Common11 [15/20] Move kmem_cache refcounting to common code
 References: <20120808210129.987345284@linux.com>
-Content-Disposition: inline; filename=slab_alias_common
+Content-Disposition: inline; filename=refcount_move
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Joonsoo Kim <js1304@gmail.com>
 Cc: Glauber Costa <glommer@parallels.com>, Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>
 
-The slab aliasing logic causes some strange contortions in
-slub. So add a call to deal with aliases to slab_common.c
-but disable it for other slab allocators by providng stubs
-that fail to create aliases.
-
-Full general support for aliases will require additional
-cleanup passes and more standardization of fields in
-kmem_cache.
-
-V1->V2:
-	- Move kstrdup before kmem_cache_alias invocation.
-	(JoonSoo Kim)
+Get rid of the refcount stuff in the allocators and do that
+part of kmem_cache management in the common code.
 
 Signed-off-by: Christoph Lameter <cl@linux.com>
 
-
----
- mm/slab.h        |   10 ++++++++++
- mm/slab_common.c |   16 +++++++---------
- mm/slub.c        |   18 ++++++++++++------
- 3 files changed, 29 insertions(+), 15 deletions(-)
-
-Index: linux-2.6/mm/slab.h
+Index: linux-2.6/mm/slab.c
 ===================================================================
---- linux-2.6.orig/mm/slab.h	2012-08-08 09:54:18.000000000 -0500
-+++ linux-2.6/mm/slab.h	2012-08-08 10:01:43.620981188 -0500
-@@ -36,6 +36,16 @@ extern struct kmem_cache *kmem_cache;
- struct kmem_cache *__kmem_cache_create(const char *name, size_t size,
- 	size_t align, unsigned long flags, void (*ctor)(void *));
+--- linux-2.6.orig/mm/slab.c	2012-08-08 12:58:11.038137838 -0500
++++ linux-2.6/mm/slab.c	2012-08-08 13:04:01.267084197 -0500
+@@ -2550,7 +2550,6 @@ __kmem_cache_create (struct kmem_cache *
+ 		 */
+ 		BUG_ON(ZERO_OR_NULL_PTR(cachep->slabp_cache));
+ 	}
+-	cachep->refcount = 1;
  
-+#ifdef CONFIG_SLUB
-+struct kmem_cache *__kmem_cache_alias(const char *name, size_t size,
-+	size_t align, unsigned long flags, void (*ctor)(void *));
-+#else
-+static inline struct kmem_cache *__kmem_cache_alias(const char *name, size_t size,
-+	size_t align, unsigned long flags, void (*ctor)(void *))
-+{ return NULL; }
-+#endif
-+
-+
- int __kmem_cache_shutdown(struct kmem_cache *);
- 
- #endif
+ 	err = setup_cpu_cache(cachep, gfp);
+ 	if (err) {
 Index: linux-2.6/mm/slab_common.c
 ===================================================================
---- linux-2.6.orig/mm/slab_common.c	2012-08-08 09:54:31.016169589 -0500
-+++ linux-2.6/mm/slab_common.c	2012-08-08 10:01:43.620981188 -0500
-@@ -94,6 +94,10 @@ struct kmem_cache *kmem_cache_create(con
- 	WARN_ON(strchr(name, ' '));	/* It confuses parsers */
- #endif
+--- linux-2.6.orig/mm/slab_common.c	2012-08-08 12:58:11.038137838 -0500
++++ linux-2.6/mm/slab_common.c	2012-08-08 13:04:01.271084210 -0500
+@@ -110,11 +110,12 @@ struct kmem_cache *kmem_cache_create(con
+ 		}
  
-+	s = __kmem_cache_alias(name, size, align, flags, ctor);
-+	if (s)
-+		goto out_locked;
-+
- 	n = kstrdup(name, GFP_KERNEL);
- 	if (!n) {
- 		err = -ENOMEM;
-Index: linux-2.6/mm/slub.c
+ 		err = __kmem_cache_create(s, flags);
+-		if (!err)
++		if (!err) {
+ 
++			s->refcount = 1;
+ 			list_add(&s->list, &slab_caches);
+ 
+-		else {
++		} else {
+ 			kfree(s->name);
+ 			kmem_cache_free(kmem_cache, s);
+ 		}
+Index: linux-2.6/mm/slob.c
 ===================================================================
---- linux-2.6.orig/mm/slub.c	2012-08-08 09:54:20.000000000 -0500
-+++ linux-2.6/mm/slub.c	2012-08-08 10:01:43.624981198 -0500
-@@ -3701,7 +3701,7 @@ void __init kmem_cache_init(void)
- 		slub_max_order = 0;
+--- linux-2.6.orig/mm/slob.c	2012-08-08 12:58:11.038137838 -0500
++++ linux-2.6/mm/slob.c	2012-08-08 13:04:01.271084210 -0500
+@@ -524,8 +524,6 @@ int __kmem_cache_create(struct kmem_cach
+ 	if (c->align < align)
+ 		c->align = align;
  
- 	kmem_size = offsetof(struct kmem_cache, node) +
--				nr_node_ids * sizeof(struct kmem_cache_node *);
-+			nr_node_ids * sizeof(struct kmem_cache_node *);
- 
- 	/* Allocate two kmem_caches from the page allocator */
- 	kmalloc_size = ALIGN(kmem_size, cache_line_size());
-@@ -3915,7 +3915,7 @@ static struct kmem_cache *find_mergeable
- 	return NULL;
+-	kmemleak_alloc(c, sizeof(struct kmem_cache), 1, GFP_KERNEL);
+-	c->refcount = 1;
+ 	return 0;
  }
  
--struct kmem_cache *__kmem_cache_create(const char *name, size_t size,
-+struct kmem_cache *__kmem_cache_alias(const char *name, size_t size,
- 		size_t align, unsigned long flags, void (*ctor)(void *))
- {
- 	struct kmem_cache *s;
-@@ -3932,11 +3932,18 @@ struct kmem_cache *__kmem_cache_create(c
+Index: linux-2.6/mm/slub.c
+===================================================================
+--- linux-2.6.orig/mm/slub.c	2012-08-08 12:58:38.850212989 -0500
++++ linux-2.6/mm/slub.c	2012-08-08 13:04:01.271084210 -0500
+@@ -3086,7 +3086,6 @@ static int kmem_cache_open(struct kmem_c
+ 	else
+ 		s->cpu_partial = 30;
  
- 		if (sysfs_slab_alias(s, name)) {
- 			s->refcount--;
--			return NULL;
-+			s = NULL;
- 		}
--		return s;
- 	}
- 
-+	return s;
-+}
-+
-+struct kmem_cache *__kmem_cache_create(const char *name, size_t size,
-+		size_t align, unsigned long flags, void (*ctor)(void *))
-+{
-+	struct kmem_cache *s;
-+
- 	s = kmem_cache_alloc(kmem_cache, GFP_KERNEL);
- 	if (s) {
- 		if (kmem_cache_open(s, name,
+-	s->refcount = 1;
+ #ifdef CONFIG_NUMA
+ 	s->remote_node_defrag_ratio = 1000;
+ #endif
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
