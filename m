@@ -1,126 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
-	by kanga.kvack.org (Postfix) with SMTP id 6A0086B004D
-	for <linux-mm@kvack.org>; Wed,  8 Aug 2012 13:48:18 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
+	by kanga.kvack.org (Postfix) with SMTP id B39456B005A
+	for <linux-mm@kvack.org>; Wed,  8 Aug 2012 13:57:25 -0400 (EDT)
+Date: Wed, 8 Aug 2012 12:56:13 -0500 (CDT)
+From: "Christoph Lameter (Open Source)" <cl@linux.com>
+Subject: Re: Common10 [13/20] Move kmem_cache allocations into common code.
+In-Reply-To: <50226ED0.9080404@parallels.com>
+Message-ID: <alpine.DEB.2.02.1208081255420.7756@greybox.home>
+References: <20120803192052.448575403@linux.com> <20120803192155.337884418@linux.com> <50226ED0.9080404@parallels.com>
 MIME-Version: 1.0
-Message-ID: <c90d1b27-280d-4a87-9359-9c0325999392@default>
-Date: Wed, 8 Aug 2012 10:47:48 -0700 (PDT)
-From: Dan Magenheimer <dan.magenheimer@oracle.com>
-Subject: RE: [PATCH 0/4] promote zcache from staging
-References: <1343413117-1989-1-git-send-email-sjenning@linux.vnet.ibm.com>
- <5021795A.5000509@linux.vnet.ibm.com>
- <3f8dfac9-2b92-442c-800a-f0bfef8a90cb@default>
- <502293E2.8010505@linux.vnet.ibm.com>
-In-Reply-To: <502293E2.8010505@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: quoted-printable
+Content-Type: MULTIPART/Mixed; BOUNDARY=------------050509080504020108020402
+Content-ID: <alpine.DEB.2.02.1208081255421.7756@greybox.home>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Seth Jennings <sjenning@linux.vnet.ibm.com>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Nitin Gupta <ngupta@vflare.org>, Minchan Kim <minchan@kernel.org>, Konrad Wilk <konrad.wilk@oracle.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org, Kurt Hackel <kurt.hackel@oracle.com>
+To: Glauber Costa <glommer@parallels.com>
+Cc: Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Joonsoo Kim <js1304@gmail.com>
 
-> From: Seth Jennings [mailto:sjenning@linux.vnet.ibm.com]
+  This message is in MIME format.  The first part should be readable text,
+  while the remaining parts are likely unreadable without MIME-aware tools.
 
-Hi Seth --
+--------------050509080504020108020402
+Content-Type: TEXT/PLAIN; CHARSET=US-ASCII
+Content-ID: <alpine.DEB.2.02.1208081255422.7756@greybox.home>
 
-Good discussion.  Even though we disagree, I appreciate
-your enthusiasm and your good work on the kernel!
+On Wed, 8 Aug 2012, Glauber Costa wrote:
 
-> Subject: Re: [PATCH 0/4] promote zcache from staging
->=20
-> On 08/07/2012 04:47 PM, Dan Magenheimer wrote:
-> > I notice your original published benchmarks [1] include
-> > N=3D24, N=3D28, and N=3D32, but these updated results do not.  Are you =
-planning
-> > on completing the runs?  Second, I now see the numbers I originally
-> > published for what I thought was the same benchmark as yours are actual=
-ly
-> > an order of magnitude larger (in sec) than yours.  I didn't notice
-> > this in March because we were focused on the percent improvement, not
-> > the raw measurements.  Since the hardware is highly similar, I suspect
-> > it is not a hardware difference but instead that you are compiling
-> > a much smaller kernel.  In other words, your test case is much
-> > smaller, and so exercises zcache much less.  My test case compiles
-> > a full enterprise kernel... what is yours doing?
->=20
-> I am doing a minimal kernel build for my local hardware
-> configuration.
->=20
-> With the reduction in RAM, 1GB to 512MB, I didn't need to do
-> test runs with >20 threads to find the peak of the benefit
-> curve at 16 threads.  Past that, zcache is saturated and I'd
-> just be burning up my disk.
-
-I think that's exactly what I said in a snippet of my response
-that you deleted.  A cache needs to work well both when it
-is non-full and when it is full.  You are only demonstrating
-that it works well when it is non-full.  When it is
-"saturated", bad things can happen.  Finding the "peak of the
-benefit" is only half the work of benchmarking.
-
-So it appears you are trying to prove your point by showing
-the workloads that look good, while _not_ showing the workloads
-that look bad, and then claiming you don't care about those
-bad workloads anyway.
-
-> Also, I provide the magnitude numbers (pages, seconds) just
-> to show my source data.  The %change numbers are the real
-> results as they remove build size as a factor.
-
-You'll have to explain what you mean because, if I understand
-correctly, this is just not true.  Different build sizes
-definitely affect memory management differently, just as
-different values of N (for make -jN) have an effect.
-
-> > At LSFMM, Andrea
-> > Arcangeli pointed out that zcache, for frontswap pages, has no "writeba=
-ck"
-> > capabilities and, when it is full, it simply rejects further attempts
-> > to put data in its cache.  He said this is unacceptable for KVM and I
-> > agreed that it was a flaw that needed to be fixed before zcache should
-> > be promoted.
->=20
-> KVM (in-tree) is not a current user of zcache.  While the
-> use cases of possible future zcache users should be
-> considered, I don't think they can be used to prevent promotion.
-
-That wasn't my point.  Andrea identified the flaw as an issue
-of zcache.
-
-> > A second flaw is that the "demo" zcache has no concept of LRU for
-> > either cleancache or frontswap pages, or ability to reclaim pageframes
-> > at all for frontswap pages.
-> ...
+> On 08/03/2012 11:21 PM, Christoph Lameter wrote:
+> > Shift the allocations to common code. That way the allocation
+> > and freeing of the kmem_cache structures is handled by common code.
 > >
-> > A third flaw is that the "demo" version has a very poor policy to
-> > determine what pages are "admitted".
-> ...
-> >
-> > I can add more issues to the list, but will stop here.
->=20
-> All of the flaws you list do not prevent zcache from being
-> beneficial right now, as my results demonstrate.  Therefore,
-> the flaws listed are really potential improvements and can
-> be done in mainline after promotion.  Even if large changes
-> are required to make these improvements, they can be made in
-> mainline in an incremental and public way.
+> > V1-V2: Use the return code from setup_cpucache() in slab instead of returning -ENOSPC
+>
+> This patch doesn't even boot! (slub)
 
-Your results only demonstrate that zcache is beneficial on
-the workloads that you chose to present.  But using the same
-workload with slightly different parameters (-jN or compiling
-a larger kernel), zcache can be _detrimental_, and you've chosen
-to not measure or present those cases, even though you did
-measure and present some of those cases in your first benchmark
-runs posted in March (on an earlier kernel).
+Yup the test in create kmalloc slab needs to do the opposite. A later
+patch removes that code. Fixed.
 
-I can only speak for myself, but this appears disingenuous to me.
+--------------050509080504020108020402
+Content-Type: TEXT/PLAIN; CHARSET=UTF-8; NAME=kmalloc-bug
+Content-ID: <alpine.DEB.2.02.1208081255423.7756@greybox.home>
+Content-Description: 
+Content-Disposition: ATTACHMENT; FILENAME=kmalloc-bug
 
-Sorry, but FWIW my vote is still a NACK.  IMHO zcache needs major
-work before it should be promoted, and I think we should be spending
-the time fixing the known flaws rather than arguing about promoting
-"demo" code.
+[    0.000000] Memory: 989060k/1048568k available (5273k kernel code, 452k absent, 59056k reserved, 5916k data, 932k init)
+[    0.000000] Kernel panic - not syncing: Creation of kmalloc slab kmalloc-96 size=96 failed.
+[    0.000000] 
+[    0.000000] Pid: 0, comm: swapper Not tainted 3.5.0-rc1+ #3
+[    0.000000] Call Trace:
+[    0.000000]  [<ffffffff815116c2>] panic+0xbd/0x1cd
+[    0.000000]  [<ffffffff81b2673f>] create_kmalloc_cache+0x54/0x70
+[    0.000000]  [<ffffffff81b26897>] kmem_cache_init+0x13c/0x2c2
+[    0.000000]  [<ffffffff81b049d0>] start_kernel+0x1ee/0x3d3
+[    0.000000]  [<ffffffff81b045ea>] ? repair_env_string+0x5a/0x5a
+[    0.000000]  [<ffffffff81b042d6>] x86_64_start_reservations+0xb1/0xb5
+[    0.000000]  [<ffffffff81b043d8>] x86_64_start_kernel+0xfe/0x10b
+[    0.000000] ------------[ cut here ]------------
+[    0.000000] WARNING: at kernel/lockdep.c:2585 trace_hardirqs_on_caller+0xdf/0x173()
+[    0.000000] Hardware name: Bochs
+[    0.000000] Modules linked in:
+[    0.000000] Pid: 0, comm: swapper Not tainted 3.5.0-rc1+ #3
+[    0.000000] Call Trace:
+[    0.000000]  [<ffffffff81047f89>] warn_slowpath_common+0x83/0x9c
+[    0.000000]  [<ffffffff8151178b>] ? panic+0x186/0x1cd
+[    0.000000]  [<ffffffff81047fbc>] warn_slowpath_null+0x1a/0x1c
+[    0.000000]  [<ffffffff81093e53>] trace_hardirqs_on_caller+0xdf/0x173
+[    0.000000]  [<ffffffff81093ef4>] trace_hardirqs_on+0xd/0xf
+[    0.000000]  [<ffffffff8151178b>] panic+0x186/0x1cd
+[    0.000000]  [<ffffffff81b2673f>] create_kmalloc_cache+0x54/0x70
+[    0.000000]  [<ffffffff81b26897>] kmem_cache_init+0x13c/0x2c2
+[    0.000000]  [<ffffffff81b049d0>] start_kernel+0x1ee/0x3d3
+[    0.000000]  [<ffffffff81b045ea>] ? repair_env_string+0x5a/0x5a
+[    0.000000]  [<ffffffff81b042d6>] x86_64_start_reservations+0xb1/0xb5
+[    0.000000]  [<ffffffff81b043d8>] x86_64_start_kernel+0xfe/0x10b
+[    0.000000] ---[ end trace a7919e7f17c0a725 ]---
 
-Dan
+--------------050509080504020108020402--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
