@@ -1,159 +1,357 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
-	by kanga.kvack.org (Postfix) with SMTP id 867F96B005D
+Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
+	by kanga.kvack.org (Postfix) with SMTP id A90866B0074
 	for <linux-mm@kvack.org>; Thu,  9 Aug 2012 09:02:46 -0400 (EDT)
 From: Glauber Costa <glommer@parallels.com>
-Subject: [PATCH v2 08/11] memcg: disable kmem code when not in use.
-Date: Thu,  9 Aug 2012 17:01:16 +0400
-Message-Id: <1344517279-30646-9-git-send-email-glommer@parallels.com>
+Subject: [PATCH v2 06/11] memcg: kmem controller infrastructure
+Date: Thu,  9 Aug 2012 17:01:14 +0400
+Message-Id: <1344517279-30646-7-git-send-email-glommer@parallels.com>
 In-Reply-To: <1344517279-30646-1-git-send-email-glommer@parallels.com>
 References: <1344517279-30646-1-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, devel@openvz.org, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, kamezawa.hiroyu@jp.fujitsu.com, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, Glauber Costa <glommer@parallels.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Suleiman Souhlal <suleiman@google.com>
+Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, devel@openvz.org, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, kamezawa.hiroyu@jp.fujitsu.com, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, Glauber Costa <glommer@parallels.com>, Pekka Enberg <penberg@cs.helsinki.fi>
 
-We can use jump labels to patch the code in or out when not used.
+This patch introduces infrastructure for tracking kernel memory pages to
+a given memcg. This will happen whenever the caller includes the flag
+__GFP_KMEMCG flag, and the task belong to a memcg other than the root.
 
-Because the assignment: memcg->kmem_accounted = true is done after the
-jump labels increment, we guarantee that the root memcg will always be
-selected until all call sites are patched (see memcg_kmem_enabled).
-This guarantees that no mischarges are applied.
+In memcontrol.h those functions are wrapped in inline accessors.  The
+idea is to later on, patch those with static branches, so we don't incur
+any overhead when no mem cgroups with limited kmem are being used.
 
-Jump label decrement happens when the last reference count from the
-memcg dies. This will only happen when the caches are all dead.
+[ v2: improved comments and standardized function names ]
 
 Signed-off-by: Glauber Costa <glommer@parallels.com>
-Acked-by: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 CC: Christoph Lameter <cl@linux.com>
 CC: Pekka Enberg <penberg@cs.helsinki.fi>
 CC: Michal Hocko <mhocko@suse.cz>
+CC: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 CC: Johannes Weiner <hannes@cmpxchg.org>
-CC: Suleiman Souhlal <suleiman@google.com>
 ---
- include/linux/memcontrol.h |  5 ++++-
- mm/memcontrol.c            | 50 ++++++++++++++++++++++++++++++++++++----------
- 2 files changed, 44 insertions(+), 11 deletions(-)
+ include/linux/memcontrol.h |  79 +++++++++++++++++++
+ mm/memcontrol.c            | 185 +++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 264 insertions(+)
 
 diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index 75b247e..f39d933 100644
+index 8d9489f..75b247e 100644
 --- a/include/linux/memcontrol.h
 +++ b/include/linux/memcontrol.h
-@@ -22,6 +22,7 @@
+@@ -21,6 +21,7 @@
+ #define _LINUX_MEMCONTROL_H
  #include <linux/cgroup.h>
  #include <linux/vm_event_item.h>
- #include <linux/hardirq.h>
-+#include <linux/jump_label.h>
++#include <linux/hardirq.h>
  
  struct mem_cgroup;
  struct page_cgroup;
-@@ -401,7 +402,9 @@ struct sock;
+@@ -399,6 +400,11 @@ struct sock;
+ #ifdef CONFIG_MEMCG_KMEM
  void sock_update_memcg(struct sock *sk);
  void sock_release_memcg(struct sock *sk);
- 
--#define memcg_kmem_on 1
-+extern struct static_key memcg_kmem_enabled_key;
-+#define memcg_kmem_on static_key_false(&memcg_kmem_enabled_key)
 +
- bool __memcg_kmem_new_page(gfp_t gfp, void *handle, int order);
- void __memcg_kmem_commit_page(struct page *page, void *handle, int order);
- void __memcg_kmem_free_page(struct page *page, int order);
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index e9824c1..3216292 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -437,6 +437,10 @@ struct mem_cgroup *mem_cgroup_from_css(struct cgroup_subsys_state *s)
- #include <net/sock.h>
- #include <net/ip.h>
- 
-+struct static_key memcg_kmem_enabled_key;
-+/* so modules can inline the checks */
-+EXPORT_SYMBOL(memcg_kmem_enabled_key);
-+
- static bool mem_cgroup_is_root(struct mem_cgroup *memcg);
- static int memcg_charge_kmem(struct mem_cgroup *memcg, gfp_t gfp, s64 delta);
- static void memcg_uncharge_kmem(struct mem_cgroup *memcg, s64 delta);
-@@ -607,6 +611,16 @@ void __memcg_kmem_free_page(struct page *page, int order)
- 	mem_cgroup_put(memcg);
++#define memcg_kmem_on 1
++bool __memcg_kmem_new_page(gfp_t gfp, void *handle, int order);
++void __memcg_kmem_commit_page(struct page *page, void *handle, int order);
++void __memcg_kmem_free_page(struct page *page, int order);
+ #else
+ static inline void sock_update_memcg(struct sock *sk)
+ {
+@@ -406,6 +412,79 @@ static inline void sock_update_memcg(struct sock *sk)
+ static inline void sock_release_memcg(struct sock *sk)
+ {
  }
- EXPORT_SYMBOL(__memcg_kmem_free_page);
 +
-+static void disarm_kmem_keys(struct mem_cgroup *memcg)
++#define memcg_kmem_on 0
++static inline bool
++__memcg_kmem_new_page(gfp_t gfp, void *handle, int order)
 +{
-+	if (memcg->kmem_accounted)
-+		static_key_slow_dec(&memcg_kmem_enabled_key);
++	return false;
 +}
-+#else
-+static void disarm_kmem_keys(struct mem_cgroup *memcg)
++
++static inline void  __memcg_kmem_free_page(struct page *page, int order)
++{
++}
++
++static inline void
++__memcg_kmem_commit_page(struct page *page, struct mem_cgroup *handle, int order)
 +{
 +}
  #endif /* CONFIG_MEMCG_KMEM */
++
++/**
++ * memcg_kmem_new_page: verify if a new kmem allocation is allowed.
++ * @gfp: the gfp allocation flags.
++ * @handle: a pointer to the memcg this was charged against.
++ * @order: allocation order.
++ *
++ * returns true if the memcg where the current task belongs can hold this
++ * allocation.
++ *
++ * We return true automatically if this allocation is not to be accounted to
++ * any memcg.
++ */
++static __always_inline bool
++memcg_kmem_new_page(gfp_t gfp, void *handle, int order)
++{
++	if (!memcg_kmem_on)
++		return true;
++	if (!(gfp & __GFP_KMEMCG) || (gfp & __GFP_NOFAIL))
++		return true;
++	if (in_interrupt() || (!current->mm) || (current->flags & PF_KTHREAD))
++		return true;
++	return __memcg_kmem_new_page(gfp, handle, order);
++}
++
++/**
++ * memcg_kmem_free_page: uncharge pages from memcg
++ * @page: pointer to struct page being freed
++ * @order: allocation order.
++ *
++ * there is no need to specify memcg here, since it is embedded in page_cgroup
++ */
++static __always_inline void
++memcg_kmem_free_page(struct page *page, int order)
++{
++	if (memcg_kmem_on)
++		__memcg_kmem_free_page(page, order);
++}
++
++/**
++ * memcg_kmem_commit_page: embeds correct memcg in a page
++ * @handle: a pointer to the memcg this was charged against.
++ * @page: pointer to struct page recently allocated
++ * @handle: the memcg structure we charged against
++ * @order: allocation order.
++ *
++ * Needs to be called after memcg_kmem_new_page, regardless of success or
++ * failure of the allocation. if @page is NULL, this function will revert the
++ * charges. Otherwise, it will commit the memcg given by @handle to the
++ * corresponding page_cgroup.
++ */
++static __always_inline void
++memcg_kmem_commit_page(struct page *page, struct mem_cgroup *handle, int order)
++{
++	if (memcg_kmem_on)
++		__memcg_kmem_commit_page(page, handle, order);
++}
+ #endif /* _LINUX_MEMCONTROL_H */
+ 
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 54e93de..e9824c1 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -10,6 +10,10 @@
+  * Copyright (C) 2009 Nokia Corporation
+  * Author: Kirill A. Shutemov
+  *
++ * Kernel Memory Controller
++ * Copyright (C) 2012 Parallels Inc. and Google Inc.
++ * Authors: Glauber Costa and Suleiman Souhlal
++ *
+  * This program is free software; you can redistribute it and/or modify
+  * it under the terms of the GNU General Public License as published by
+  * the Free Software Foundation; either version 2 of the License, or
+@@ -434,6 +438,9 @@ struct mem_cgroup *mem_cgroup_from_css(struct cgroup_subsys_state *s)
+ #include <net/ip.h>
+ 
+ static bool mem_cgroup_is_root(struct mem_cgroup *memcg);
++static int memcg_charge_kmem(struct mem_cgroup *memcg, gfp_t gfp, s64 delta);
++static void memcg_uncharge_kmem(struct mem_cgroup *memcg, s64 delta);
++
+ void sock_update_memcg(struct sock *sk)
+ {
+ 	if (mem_cgroup_sockets_enabled) {
+@@ -488,6 +495,118 @@ struct cg_proto *tcp_proto_cgroup(struct mem_cgroup *memcg)
+ }
+ EXPORT_SYMBOL(tcp_proto_cgroup);
+ #endif /* CONFIG_INET */
++
++static inline bool memcg_kmem_enabled(struct mem_cgroup *memcg)
++{
++	return !mem_cgroup_disabled() && !mem_cgroup_is_root(memcg) &&
++		memcg->kmem_accounted;
++}
++
++/*
++ * We need to verify if the allocation against current->mm->owner's memcg is
++ * possible for the given order. But the page is not allocated yet, so we'll
++ * need a further commit step to do the final arrangements.
++ *
++ * It is possible for the task to switch cgroups in this mean time, so at
++ * commit time, we can't rely on task conversion any longer.  We'll then use
++ * the handle argument to return to the caller which cgroup we should commit
++ * against
++ *
++ * Returning true means the allocation is possible.
++ */
++bool __memcg_kmem_new_page(gfp_t gfp, void *_handle, int order)
++{
++	struct mem_cgroup *memcg;
++	struct mem_cgroup **handle = (struct mem_cgroup **)_handle;
++	bool ret = true;
++	size_t size;
++	struct task_struct *p;
++
++	*handle = NULL;
++	rcu_read_lock();
++	p = rcu_dereference(current->mm->owner);
++	memcg = mem_cgroup_from_task(p);
++	if (!memcg_kmem_enabled(memcg))
++		goto out;
++
++	mem_cgroup_get(memcg);
++
++	size = PAGE_SIZE << order;
++	ret = memcg_charge_kmem(memcg, gfp, size) == 0;
++	if (!ret) {
++		mem_cgroup_put(memcg);
++		goto out;
++	}
++
++	*handle = memcg;
++out:
++	rcu_read_unlock();
++	return ret;
++}
++EXPORT_SYMBOL(__memcg_kmem_new_page);
++
++void __memcg_kmem_commit_page(struct page *page, void *handle, int order)
++{
++	struct page_cgroup *pc;
++	struct mem_cgroup *memcg = handle;
++
++	if (!memcg)
++		return;
++
++	WARN_ON(mem_cgroup_is_root(memcg));
++	/* The page allocation must have failed. Revert */
++	if (!page) {
++		size_t size = PAGE_SIZE << order;
++
++		memcg_uncharge_kmem(memcg, size);
++		mem_cgroup_put(memcg);
++		return;
++	}
++
++	pc = lookup_page_cgroup(page);
++	lock_page_cgroup(pc);
++	pc->mem_cgroup = memcg;
++	SetPageCgroupUsed(pc);
++	unlock_page_cgroup(pc);
++}
++
++void __memcg_kmem_free_page(struct page *page, int order)
++{
++	struct mem_cgroup *memcg;
++	size_t size;
++	struct page_cgroup *pc;
++
++	if (mem_cgroup_disabled())
++		return;
++
++	pc = lookup_page_cgroup(page);
++	lock_page_cgroup(pc);
++	memcg = pc->mem_cgroup;
++	pc->mem_cgroup = NULL;
++	if (!PageCgroupUsed(pc)) {
++		unlock_page_cgroup(pc);
++		return;
++	}
++	ClearPageCgroupUsed(pc);
++	unlock_page_cgroup(pc);
++
++	/*
++	 * Checking if kmem accounted is enabled won't work for uncharge, since
++	 * it is possible that the user enabled kmem tracking, allocated, and
++	 * then disabled it again.
++	 *
++	 * We trust if there is a memcg associated with the page, it is a valid
++	 * allocation
++	 */
++	if (!memcg)
++		return;
++
++	WARN_ON(mem_cgroup_is_root(memcg));
++	size = (1 << order) << PAGE_SHIFT;
++	memcg_uncharge_kmem(memcg, size);
++	mem_cgroup_put(memcg);
++}
++EXPORT_SYMBOL(__memcg_kmem_free_page);
+ #endif /* CONFIG_MEMCG_KMEM */
  
  #if defined(CONFIG_INET) && defined(CONFIG_MEMCG_KMEM)
-@@ -622,6 +636,12 @@ static void disarm_sock_keys(struct mem_cgroup *memcg)
- }
+@@ -5759,3 +5878,69 @@ static int __init enable_swap_account(char *s)
+ __setup("swapaccount=", enable_swap_account);
+ 
  #endif
- 
-+static void disarm_static_keys(struct mem_cgroup *memcg)
-+{
-+	disarm_sock_keys(memcg);
-+	disarm_kmem_keys(memcg);
-+}
 +
- static void drain_all_stock_async(struct mem_cgroup *memcg);
- 
- static struct mem_cgroup_per_zone *
-@@ -4147,6 +4167,24 @@ static ssize_t mem_cgroup_read(struct cgroup *cont, struct cftype *cft,
- 	len = scnprintf(str, sizeof(str), "%llu\n", (unsigned long long)val);
- 	return simple_read_from_buffer(buf, nbytes, ppos, str, len);
- }
-+
-+static void memcg_update_kmem_limit(struct mem_cgroup *memcg, u64 val)
-+{
 +#ifdef CONFIG_MEMCG_KMEM
-+	/*
-+	 * Once enabled, can't be disabled. We could in theory disable it if we
-+	 * haven't yet created any caches, or if we can shrink them all to
-+	 * death. But it is not worth the trouble.
-+	 */
-+	mutex_lock(&set_limit_mutex);
-+	if (!memcg->kmem_accounted && val != RESOURCE_MAX) {
-+		static_key_slow_inc(&memcg_kmem_enabled_key);
-+		memcg->kmem_accounted = true;
++int memcg_charge_kmem(struct mem_cgroup *memcg, gfp_t gfp, s64 delta)
++{
++	struct res_counter *fail_res;
++	struct mem_cgroup *_memcg;
++	int ret;
++	bool may_oom;
++	bool nofail = false;
++
++	may_oom = (gfp & __GFP_WAIT) && (gfp & __GFP_FS) &&
++	    !(gfp & __GFP_NORETRY);
++
++	ret = 0;
++
++	if (!memcg)
++		return ret;
++
++	_memcg = memcg;
++	ret = __mem_cgroup_try_charge(NULL, gfp, delta / PAGE_SIZE,
++	    &_memcg, may_oom);
++
++	if (ret == -EINTR)  {
++		nofail = true;
++		/*
++		 * __mem_cgroup_try_charge() chosed to bypass to root due to
++		 * OOM kill or fatal signal.  Since our only options are to
++		 * either fail the allocation or charge it to this cgroup, do
++		 * it as a temporary condition. But we can't fail. From a
++		 * kmem/slab perspective, the cache has already been selected,
++		 * by mem_cgroup_get_kmem_cache(), so it is too late to change
++		 * our minds
++		 */
++		res_counter_charge_nofail(&memcg->res, delta, &fail_res);
++		if (do_swap_account)
++			res_counter_charge_nofail(&memcg->memsw, delta,
++						  &fail_res);
++		ret = 0;
++	} else if (ret == -ENOMEM)
++		return ret;
++
++	if (nofail)
++		res_counter_charge_nofail(&memcg->kmem, delta, &fail_res);
++	else
++		ret = res_counter_charge(&memcg->kmem, delta, &fail_res);
++
++	if (ret) {
++		res_counter_uncharge(&memcg->res, delta);
++		if (do_swap_account)
++			res_counter_uncharge(&memcg->memsw, delta);
 +	}
-+	mutex_unlock(&set_limit_mutex);
-+#endif
++
++	return ret;
 +}
 +
- /*
-  * The user of this function is...
-  * RES_LIMIT.
-@@ -4184,15 +4222,7 @@ static int mem_cgroup_write(struct cgroup *cont, struct cftype *cft,
- 			ret = res_counter_set_limit(&memcg->kmem, val);
- 			if (ret)
- 				break;
--			/*
--			 * Once enabled, can't be disabled. We could in theory
--			 * disable it if we haven't yet created any caches, or
--			 * if we can shrink them all to death.
--			 *
--			 * But it is not worth the trouble
--			 */
--			if (!memcg->kmem_accounted && val != RESOURCE_MAX)
--				memcg->kmem_accounted = true;
-+			memcg_update_kmem_limit(memcg, val);
- 		} else
- 			return -EINVAL;
- 		break;
-@@ -5054,7 +5084,7 @@ static void free_work(struct work_struct *work)
- 	 * to move this code around, and make sure it is outside
- 	 * the cgroup_lock.
- 	 */
--	disarm_sock_keys(memcg);
-+	disarm_static_keys(memcg);
- 	if (size < PAGE_SIZE)
- 		kfree(memcg);
- 	else
++void memcg_uncharge_kmem(struct mem_cgroup *memcg, s64 delta)
++{
++	if (!memcg)
++		return;
++
++	res_counter_uncharge(&memcg->kmem, delta);
++	res_counter_uncharge(&memcg->res, delta);
++	if (do_swap_account)
++		res_counter_uncharge(&memcg->memsw, delta);
++}
++#endif /* CONFIG_MEMCG_KMEM */
 -- 
 1.7.11.2
 
