@@ -1,39 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
-	by kanga.kvack.org (Postfix) with SMTP id 69C5C6B0044
-	for <linux-mm@kvack.org>; Thu,  9 Aug 2012 04:32:33 -0400 (EDT)
-Date: Thu, 9 Aug 2012 09:31:28 +0100
-From: Catalin Marinas <catalin.marinas@arm.com>
-Subject: Re: [PATCH 3/5] kmemleak: use rbtree instead of prio tree
-Message-ID: <20120809083127.GC14102@arm.com>
-References: <1344324343-3817-1-git-send-email-walken@google.com>
- <1344324343-3817-4-git-send-email-walken@google.com>
- <CANN689EOZ64V_AO8B6N0-_B0_HdQZVk3dH8Ce5c=m5Q=ySDKUg@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
+	by kanga.kvack.org (Postfix) with SMTP id CB03E6B0044
+	for <linux-mm@kvack.org>; Thu,  9 Aug 2012 04:39:33 -0400 (EDT)
+Date: Thu, 9 Aug 2012 17:41:10 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH 3/5] mm: compaction: Capture a suitable high-order page
+ immediately when it is made available
+Message-ID: <20120809084110.GA21033@bbox>
+References: <1344452924-24438-1-git-send-email-mgorman@suse.de>
+ <1344452924-24438-4-git-send-email-mgorman@suse.de>
+ <20120809013358.GA18106@bbox>
+ <20120809081120.GB12690@suse.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CANN689EOZ64V_AO8B6N0-_B0_HdQZVk3dH8Ce5c=m5Q=ySDKUg@mail.gmail.com>
+In-Reply-To: <20120809081120.GB12690@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michel Lespinasse <walken@google.com>
-Cc: "riel@redhat.com" <riel@redhat.com>, "peterz@infradead.org" <peterz@infradead.org>, "vrajesh@umich.edu" <vrajesh@umich.edu>, "daniel.santos@pobox.com" <daniel.santos@pobox.com>, "aarcange@redhat.com" <aarcange@redhat.com>, "dwmw2@infradead.org" <dwmw2@infradead.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "torvalds@linux-foundation.org" <torvalds@linux-foundation.org>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Linux-MM <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, Jim Schutt <jaschut@sandia.gov>, LKML <linux-kernel@vger.kernel.org>
 
-On Wed, Aug 08, 2012 at 06:07:39PM +0100, Michel Lespinasse wrote:
-> kmemleak uses a tree where each node represents an allocated memory object
-> in order to quickly find out what object a given address is part of.
-> However, the objects don't overlap, so rbtrees are a better choice than
-> prio tree for this use. They are both faster and have lower memory overhead.
+On Thu, Aug 09, 2012 at 09:11:20AM +0100, Mel Gorman wrote:
+> On Thu, Aug 09, 2012 at 10:33:58AM +0900, Minchan Kim wrote:
+> > Hi Mel,
+> > 
+> > Just one questoin below.
+> > 
 > 
-> Tested by booting a kernel with kmemleak enabled, loading the kmemleak_test
-> module, and looking for the expected messages.
+> Sure! Your questions usually get me thinking about the right part of the
+> series, this series in particular :)
 > 
-> Signed-off-by: Michel Lespinasse <walken@google.com>
+> > > <SNIP>
+> > > @@ -708,6 +750,10 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
+> > >  				goto out;
+> > >  			}
+> > >  		}
+> > > +
+> > > +		/* Capture a page now if it is a suitable size */
+> > 
+> > Why do we capture only when we migrate MIGRATE_MOVABLE type?
+> > If you have a reasone, it should have been added as comment.
+> > 
+> 
+> Good question and there is an answer. However, I also spotted a problem when
+> thinking about this more where !MIGRATE_MOVABLE allocations are forced to
+> do a full compaction. The simple solution would be to only set cc->page for
+> MIGRATE_MOVABLE but there is a better approach that I've implemented in the
+> patch below. It includes a comment that should answer your question. Does
+> this make sense to you?
 
-The patch looks fine to me but I'll give it a test later today and let
-you know.
+It does make sense.
+I will add my Reviewed-by in your next spin which includes below patch.
 
+Thanks, Mel.
+
+> 
+> diff --git a/mm/compaction.c b/mm/compaction.c
+> index 63af8d2..384164e 100644
+> --- a/mm/compaction.c
+> +++ b/mm/compaction.c
+> @@ -53,13 +53,31 @@ static inline bool migrate_async_suitable(int migratetype)
+>  static void compact_capture_page(struct compact_control *cc)
+>  {
+>  	unsigned long flags;
+> -	int mtype;
+> +	int mtype, mtype_low, mtype_high;
+>  
+>  	if (!cc->page || *cc->page)
+>  		return;
+>  
+> +	/*
+> +	 * For MIGRATE_MOVABLE allocations we capture a suitable page ASAP
+> +	 * regardless of the migratetype of the freelist is is captured from.
+                                                         ^  ^
+                                                         typo?
 -- 
-Catalin
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
