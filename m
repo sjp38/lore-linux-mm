@@ -1,95 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
-	by kanga.kvack.org (Postfix) with SMTP id AB1036B0082
-	for <linux-mm@kvack.org>; Thu,  9 Aug 2012 05:09:00 -0400 (EDT)
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH, RFC 9/9] thp: lazy huge zero page allocation
-Date: Thu,  9 Aug 2012 12:08:20 +0300
-Message-Id: <1344503300-9507-10-git-send-email-kirill.shutemov@linux.intel.com>
-In-Reply-To: <1344503300-9507-1-git-send-email-kirill.shutemov@linux.intel.com>
-References: <1344503300-9507-1-git-send-email-kirill.shutemov@linux.intel.com>
+Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
+	by kanga.kvack.org (Postfix) with SMTP id E1E126B0044
+	for <linux-mm@kvack.org>; Thu,  9 Aug 2012 05:20:40 -0400 (EDT)
+Date: Thu, 9 Aug 2012 10:20:35 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 2/6] mm: vmscan: Scale number of pages reclaimed by
+ reclaim/compaction based on failures
+Message-ID: <20120809092035.GD12690@suse.de>
+References: <1344342677-5845-1-git-send-email-mgorman@suse.de>
+ <1344342677-5845-3-git-send-email-mgorman@suse.de>
+ <20120808014824.GB4247@bbox>
+ <20120808075526.GI29814@suse.de>
+ <20120808082738.GF4247@bbox>
+ <20120808085112.GJ29814@suse.de>
+ <20120808235127.GA17835@bbox>
+ <20120809074949.GA12690@suse.de>
+ <20120809082715.GA19802@bbox>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20120809082715.GA19802@bbox>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org
-Cc: Andi Kleen <ak@linux.intel.com>, "H. Peter Anvin" <hpa@linux.intel.com>, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill@shutemov.name>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Linux-MM <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, Jim Schutt <jaschut@sandia.gov>, LKML <linux-kernel@vger.kernel.org>
 
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+On Thu, Aug 09, 2012 at 05:27:15PM +0900, Minchan Kim wrote:
+> > > > +      * pages reclaimed based on the number of consecutive allocation
+> > > > +      * failures
+> > > > +      */
+> > > > +     zone = lruvec_zone(lruvec);
+> > > > +     if (zone->compact_order_failed >= sc->order)
+> > > 
+> > > I can't understand this part.
+> > > We don't defer lower order than compact_order_failed by aff62249.
+> > > Do you mean lower order compaction context should be a lamb for
+> > > deferred higher order allocation request success? I think it's not fair
+> > > and even I can't understand rationale why it has to scale the number of pages
+> > > reclaimed with the number of recent compaction failture.
+> > > Your changelog just says "What we have to do, NOT Why we have to do".
+> > > 
+> > 
+> > I'm a moron, that should be <=, not >=. All my tests were based on order==9
+> > and that was the only order using reclaim/compaction so it happened to
+> > work as expected. Thanks! I fixed that and added the following
+> > clarification to the changelog
+> > 
+> > The rationale is that reclaiming the normal number of pages still allowed
+> > compaction to fail and its success depends on the number of pages. If it's
+> > failing, reclaim more pages until it succeeds again.
+> > 
+> > Does that make more sense?
+> 
+> If compaction is defered, requestors fails to get high-order page and
+> they normally do fallback by order-0 or something.
 
-Instead of allocating huge zero page on hugepage_init() we can postpone it
-until first huge zero page map. It saves memory if THP is not in use.
+Yes. At least, one hopes they fell back to order-0.
 
-cmpxchg() is used to avoid race on huge_zero_pfn initialization.
+> In this context, if they don't depends on fallback and retrying higher order
+> allocation, your patch makes sense to me because your algorithm is based on
+> past allocation request fail rate.
+> Do I miss something?
 
-Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
----
- mm/huge_memory.c |   20 ++++++++++----------
- 1 files changed, 10 insertions(+), 10 deletions(-)
+Your question is difficult to parse but I think you are making an implicit
+assumption that it's the same caller retrying the high order allocation.
+That is not the case, not do I want it to be because that would be similar
+to the caller using __GFP_REPEAT. Retrying with more reclaim until the
+allocation succeeds would both stall and reclaim excessively.
 
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 3a78677..6861230 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -168,21 +168,23 @@ out:
- 	return err;
- }
- 
--static int init_huge_zero_page(void)
-+static int init_huge_zero_pfn(void)
- {
- 	struct page *hpage;
-+	unsigned long pfn;
- 
- 	hpage = alloc_pages(GFP_TRANSHUGE | __GFP_ZERO, HPAGE_PMD_ORDER);
- 	if (!hpage)
- 		return -ENOMEM;
--
--	huge_zero_pfn = page_to_pfn(hpage);
-+	pfn = page_to_pfn(hpage);
-+	if (cmpxchg(&huge_zero_pfn, 0, pfn))
-+		__free_page(hpage);
- 	return 0;
- }
- 
- static inline bool is_huge_zero_pfn(unsigned long pfn)
- {
--	return pfn == huge_zero_pfn;
-+	return huge_zero_pfn && pfn == huge_zero_pfn;
- }
- 
- static inline bool is_huge_zero_pmd(pmd_t pmd)
-@@ -573,10 +575,6 @@ static int __init hugepage_init(void)
- 	if (err)
- 		return err;
- 
--	err = init_huge_zero_page();
--	if (err)
--		goto out;
--
- 	err = khugepaged_slab_init();
- 	if (err)
- 		goto out;
-@@ -601,8 +599,6 @@ static int __init hugepage_init(void)
- 
- 	return 0;
- out:
--	if (huge_zero_pfn)
--		__free_page(pfn_to_page(huge_zero_pfn));
- 	hugepage_exit_sysfs(hugepage_kobj);
- 	return err;
- }
-@@ -752,6 +748,10 @@ int do_huge_pmd_anonymous_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 			return VM_FAULT_OOM;
- 		if (!(flags & FAULT_FLAG_WRITE)) {
- 			pgtable_t pgtable;
-+			if (unlikely(!huge_zero_pfn && init_huge_zero_pfn())) {
-+				count_vm_event(THP_FAULT_FALLBACK);
-+				goto out;
-+			}
- 			pgtable = pte_alloc_one(mm, haddr);
- 			if (unlikely(!pgtable))
- 				goto out;
+The intention is that an allocation can fail but each subsequent attempt will
+try harder until there is success. Each allocation request does a portion
+of the necessary work to spread the cost between multiple requests. Take
+THP for example where there is a constant request for THP allocations
+for whatever reason (heavy fork workload, large buffer allocation being
+populated etc.). Some of those allocations fail but if they do, future
+THP requests will reclaim more pages. When compaction resumes again, it
+will be more likely to succeed and compact_defer_shift gets reset. In the
+specific case of THP there will be allocations that fail but khugepaged
+will promote them later if the process is long-lived.
+
 -- 
-1.7.7.6
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
