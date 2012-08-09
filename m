@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
-	by kanga.kvack.org (Postfix) with SMTP id 01C996B0044
-	for <linux-mm@kvack.org>; Wed,  8 Aug 2012 21:38:17 -0400 (EDT)
-Message-ID: <50231467.80603@redhat.com>
-Date: Wed, 08 Aug 2012 21:37:43 -0400
+Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
+	by kanga.kvack.org (Postfix) with SMTP id 534F46B0044
+	for <linux-mm@kvack.org>; Wed,  8 Aug 2012 21:39:44 -0400 (EDT)
+Message-ID: <502314C3.2020509@redhat.com>
+Date: Wed, 08 Aug 2012 21:39:15 -0400
 From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v6 1/3] mm: introduce compaction and migration for virtio
- ballooned pages
-References: <cover.1344463786.git.aquini@redhat.com> <efb9756c5d6de8952a793bfc99a9db9cdd66b12f.1344463786.git.aquini@redhat.com>
-In-Reply-To: <efb9756c5d6de8952a793bfc99a9db9cdd66b12f.1344463786.git.aquini@redhat.com>
+Subject: Re: [PATCH v6 2/3] virtio_balloon: introduce migration primitives
+ to balloon pages
+References: <cover.1344463786.git.aquini@redhat.com> <5f4b30060e252e557882595984a8225ba6e0c9f2.1344463786.git.aquini@redhat.com>
+In-Reply-To: <5f4b30060e252e557882595984a8225ba6e0c9f2.1344463786.git.aquini@redhat.com>
 Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -23,10 +23,16 @@ On 08/08/2012 06:53 PM, Rafael Aquini wrote:
 > thus imposing performance penalties associated with the reduced number of
 > transparent huge pages that could be used by the guest workload.
 >
-> This patch introduces the helper functions as well as the necessary changes
-> to teach compaction and migration bits how to cope with pages which are
-> part of a guest memory balloon, in order to make them movable by memory
-> compaction procedures.
+> Besides making balloon pages movable at allocation time and introducing
+> the necessary primitives to perform balloon page migration/compaction,
+> this patch also introduces the following locking scheme to provide the
+> proper synchronization and protection for struct virtio_balloon elements
+> against concurrent accesses due to parallel operations introduced by
+> memory compaction / page migration.
+>   - balloon_lock (mutex) : synchronizes the access demand to elements of
+> 			  struct virtio_balloon and its queue operations;
+>   - pages_lock (spinlock): special protection to balloon pages list against
+> 			  concurrent list handling operations;
 >
 > Signed-off-by: Rafael Aquini<aquini@redhat.com>
 
