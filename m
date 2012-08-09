@@ -1,118 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx144.postini.com [74.125.245.144])
-	by kanga.kvack.org (Postfix) with SMTP id 7586B6B009A
-	for <linux-mm@kvack.org>; Thu,  9 Aug 2012 10:22:29 -0400 (EDT)
-Message-Id: <20120809135636.467748234@linux.com>
-Date: Thu, 09 Aug 2012 08:56:41 -0500
-From: Christoph Lameter <cl@linux.com>
-Subject: Common11r [18/20] slub: Use a statically allocated kmem_cache boot structure for bootstrap
-References: <20120809135623.574621297@linux.com>
-Content-Disposition: inline; filename=slub_static_init
+Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
+	by kanga.kvack.org (Postfix) with SMTP id E29116B0062
+	for <linux-mm@kvack.org>; Thu,  9 Aug 2012 10:36:36 -0400 (EDT)
+Message-ID: <5023CADC.801@sandia.gov>
+Date: Thu, 9 Aug 2012 08:36:12 -0600
+From: "Jim Schutt" <jaschut@sandia.gov>
+MIME-Version: 1.0
+Subject: Re: [RFC PATCH 0/5] Improve hugepage allocation success rates
+ under load V3
+References: <1344520165-24419-1-git-send-email-mgorman@suse.de>
+In-Reply-To: <1344520165-24419-1-git-send-email-mgorman@suse.de>
+Content-Type: text/plain;
+ charset=utf-8;
+ format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <js1304@gmail.com>
-Cc: Glauber Costa <glommer@parallels.com>, Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Linux-MM <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan@kernel.org>, LKML <linux-kernel@vger.kernel.org>
 
-Simplify bootstrap by statically allocated two kmem_cache structures. These are
-freed after bootup is complete. Allows us to no longer worry about calculations
-of sizes of kmem_cache structures during bootstrap.
+Hi Mel,
 
-Reviewed-by: Glauber Costa <glommer@parallels.com>
-Signed-off-by: Christoph Lameter <cl@linux.com>
+On 08/09/2012 07:49 AM, Mel Gorman wrote:
+> Changelog since V2
+> o Capture !MIGRATE_MOVABLE pages where possible
+> o Document the treatment of MIGRATE_MOVABLE pages while capturing
+> o Expand changelogs
+>
+> Changelog since V1
+> o Dropped kswapd related patch, basically a no-op and regresses if fixed (minchan)
+> o Expanded changelogs a little
+>
+> Allocation success rates have been far lower since 3.4 due to commit
+> [fe2c2a10: vmscan: reclaim at order 0 when compaction is enabled]. This
+> commit was introduced for good reasons and it was known in advance that
+> the success rates would suffer but it was justified on the grounds that
+> the high allocation success rates were achieved by aggressive reclaim.
+> Success rates are expected to suffer even more in 3.6 due to commit
+> [7db8889a: mm: have order>  0 compaction start off where it left] which
+> testing has shown to severely reduce allocation success rates under load -
+> to 0% in one case.  There is a proposed change to that patch in this series
+> and it would be ideal if Jim Schutt could retest the workload that led to
+> commit [7db8889a: mm: have order>  0 compaction start off where it left].
 
----
- mm/slub.c |   32 +++++++++-----------------------
- 1 file changed, 9 insertions(+), 23 deletions(-)
+I was successful at resolving my Ceph issue on 3.6-rc1, but ran
+into some other issue that isn't immediately obvious, and prevents
+me from testing your patch with 3.6-rc1.  Today I will apply your
+patch series to 3.5 and test that way.
 
-Index: linux-2.6/mm/slub.c
-===================================================================
---- linux-2.6.orig/mm/slub.c	2012-08-08 14:33:38.738052474 -0500
-+++ linux-2.6/mm/slub.c	2012-08-08 14:41:00.520972896 -0500
-@@ -3635,9 +3635,6 @@ static void __init kmem_cache_bootstrap_
- {
- 	int node;
- 
--	list_add(&s->list, &slab_caches);
--	s->refcount = -1;
--
- 	for_each_node_state(node, N_NORMAL_MEMORY) {
- 		struct kmem_cache_node *n = get_node(s, node);
- 		struct page *p;
-@@ -3654,13 +3651,13 @@ static void __init kmem_cache_bootstrap_
- 	}
- }
- 
-+static __initdata struct kmem_cache boot_kmem_cache,
-+			boot_kmem_cache_node;
-+
- void __init kmem_cache_init(void)
- {
- 	int i;
--	int caches = 0;
--	struct kmem_cache *temp_kmem_cache;
--	int order;
--	struct kmem_cache *temp_kmem_cache_node;
-+	int caches = 2;
- 	unsigned long kmalloc_size;
- 
- 	if (debug_guardpage_minorder())
-@@ -3669,49 +3666,33 @@ void __init kmem_cache_init(void)
- 	kmem_size = offsetof(struct kmem_cache, node) +
- 			nr_node_ids * sizeof(struct kmem_cache_node *);
- 
--	/* Allocate two kmem_caches from the page allocator */
- 	kmalloc_size = ALIGN(kmem_size, cache_line_size());
--	order = get_order(2 * kmalloc_size);
--	kmem_cache = (void *)__get_free_pages(GFP_NOWAIT, order);
--
--	/*
--	 * Must first have the slab cache available for the allocations of the
--	 * struct kmem_cache_node's. There is special bootstrap code in
--	 * kmem_cache_open for slab_state == DOWN.
--	 */
--	kmem_cache_node = (void *)kmem_cache + kmalloc_size;
-+	kmem_cache_node = &boot_kmem_cache_node;
- 
- 	create_boot_cache(kmem_cache_node, "kmem_cache_node",
--		       sizeof(struct kmem_cache_node), SLAB_HWCACHE_ALIGN);
-+		sizeof(struct kmem_cache_node), SLAB_HWCACHE_ALIGN);
- 
- 	hotplug_memory_notifier(slab_memory_callback, SLAB_CALLBACK_PRI);
- 
- 	/* Able to allocate the per node structures */
- 	slab_state = PARTIAL;
- 
--	temp_kmem_cache = kmem_cache;
--	create_boot_cache(kmem_cache, "kmem_cache", kmem_size, SLAB_HWCACHE_ALIGN);
-+	create_boot_cache(&boot_kmem_cache, "kmem_cache", kmem_size,
-+		       SLAB_HWCACHE_ALIGN);
- 
--	kmem_cache = kmem_cache_alloc(kmem_cache, GFP_NOWAIT);
--	memcpy(kmem_cache, temp_kmem_cache, kmem_size);
-+	kmem_cache = kmem_cache_alloc(&boot_kmem_cache, GFP_NOWAIT);
-+	memcpy(kmem_cache, &boot_kmem_cache, kmem_size);
- 
- 	/*
- 	 * Allocate kmem_cache_node properly from the kmem_cache slab.
- 	 * kmem_cache_node is separately allocated so no need to
- 	 * update any list pointers.
- 	 */
--	temp_kmem_cache_node = kmem_cache_node;
--
- 	kmem_cache_node = kmem_cache_alloc(kmem_cache, GFP_NOWAIT);
--	memcpy(kmem_cache_node, temp_kmem_cache_node, kmem_size);
-+	memcpy(kmem_cache_node, &boot_kmem_cache_node, kmem_size);
- 
- 	kmem_cache_bootstrap_fixup(kmem_cache_node);
--
--	caches++;
- 	kmem_cache_bootstrap_fixup(kmem_cache);
--	caches++;
--	/* Free temporary boot structure */
--	free_pages((unsigned long)temp_kmem_cache, order);
- 
- 	/* Now we can use the kmem_cache to allocate kmalloc slabs */
- 
+Sorry for the delay.
+
+-- Jim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
