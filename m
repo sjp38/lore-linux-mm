@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
-	by kanga.kvack.org (Postfix) with SMTP id 7FC206B005D
-	for <linux-mm@kvack.org>; Thu,  9 Aug 2012 09:02:43 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
+	by kanga.kvack.org (Postfix) with SMTP id D56F86B005D
+	for <linux-mm@kvack.org>; Thu,  9 Aug 2012 09:02:44 -0400 (EDT)
 From: Glauber Costa <glommer@parallels.com>
-Subject: [PATCH v2 11/11] protect architectures where THREAD_SIZE >= PAGE_SIZE against fork bombs
-Date: Thu,  9 Aug 2012 17:01:19 +0400
-Message-Id: <1344517279-30646-12-git-send-email-glommer@parallels.com>
+Subject: [PATCH v2 10/11] memcg: allow a memcg with kmem charges to be destructed.
+Date: Thu,  9 Aug 2012 17:01:18 +0400
+Message-Id: <1344517279-30646-11-git-send-email-glommer@parallels.com>
 In-Reply-To: <1344517279-30646-1-git-send-email-glommer@parallels.com>
 References: <1344517279-30646-1-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,73 +13,70 @@ List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
 Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, devel@openvz.org, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, kamezawa.hiroyu@jp.fujitsu.com, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, Glauber Costa <glommer@parallels.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Suleiman Souhlal <suleiman@google.com>
 
-Because those architectures will draw their stacks directly from the
-page allocator, rather than the slab cache, we can directly pass
-__GFP_KMEMCG flag, and issue the corresponding free_pages.
+Because the ultimate goal of the kmem tracking in memcg is to track slab
+pages as well, we can't guarantee that we'll always be able to point a
+page to a particular process, and migrate the charges along with it -
+since in the common case, a page will contain data belonging to multiple
+processes.
 
-This code path is taken when the architecture doesn't define
-CONFIG_ARCH_THREAD_INFO_ALLOCATOR (only ia64 seems to), and has
-THREAD_SIZE >= PAGE_SIZE. Luckily, most - if not all - of the remaining
-architectures fall in this category.
-
-This will guarantee that every stack page is accounted to the memcg the
-process currently lives on, and will have the allocations to fail if
-they go over limit.
-
-For the time being, I am defining a new variant of THREADINFO_GFP, not
-to mess with the other path. Once the slab is also tracked by memcg, we
-can get rid of that flag.
-
-Tested to successfully protect against :(){ :|:& };:
+Because of that, when we destroy a memcg, we only make sure the
+destruction will succeed by discounting the kmem charges from the user
+charges when we try to empty the cgroup.
 
 Signed-off-by: Glauber Costa <glommer@parallels.com>
-Acked-by: Frederic Weisbecker <fweisbec@redhat.com>
+Acked-by: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 CC: Christoph Lameter <cl@linux.com>
 CC: Pekka Enberg <penberg@cs.helsinki.fi>
 CC: Michal Hocko <mhocko@suse.cz>
-CC: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 CC: Johannes Weiner <hannes@cmpxchg.org>
 CC: Suleiman Souhlal <suleiman@google.com>
 ---
- include/linux/thread_info.h | 2 ++
- kernel/fork.c               | 4 ++--
- 2 files changed, 4 insertions(+), 2 deletions(-)
+ mm/memcontrol.c | 17 ++++++++++++++++-
+ 1 file changed, 16 insertions(+), 1 deletion(-)
 
-diff --git a/include/linux/thread_info.h b/include/linux/thread_info.h
-index ccc1899..e7e0473 100644
---- a/include/linux/thread_info.h
-+++ b/include/linux/thread_info.h
-@@ -61,6 +61,8 @@ extern long do_no_restart_syscall(struct restart_block *parm);
- # define THREADINFO_GFP		(GFP_KERNEL | __GFP_NOTRACK)
- #endif
- 
-+#define THREADINFO_GFP_ACCOUNTED (THREADINFO_GFP | __GFP_KMEMCG)
-+
- /*
-  * flag set/clear/test wrappers
-  * - pass TIF_xxxx constants to these functions
-diff --git a/kernel/fork.c b/kernel/fork.c
-index dc3ff16..b0b90c3 100644
---- a/kernel/fork.c
-+++ b/kernel/fork.c
-@@ -142,7 +142,7 @@ void __weak arch_release_thread_info(struct thread_info *ti) { }
- static struct thread_info *alloc_thread_info_node(struct task_struct *tsk,
- 						  int node)
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 3d30b79..7c1ea49 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -649,6 +649,11 @@ static void disarm_kmem_keys(struct mem_cgroup *memcg)
  {
--	struct page *page = alloc_pages_node(node, THREADINFO_GFP,
-+	struct page *page = alloc_pages_node(node, THREADINFO_GFP_ACCOUNTED,
- 					     THREAD_SIZE_ORDER);
- 
- 	return page ? page_address(page) : NULL;
-@@ -151,7 +151,7 @@ static struct thread_info *alloc_thread_info_node(struct task_struct *tsk,
- static inline void free_thread_info(struct thread_info *ti)
- {
- 	arch_release_thread_info(ti);
--	free_pages((unsigned long)ti, THREAD_SIZE_ORDER);
-+	free_accounted_pages((unsigned long)ti, THREAD_SIZE_ORDER);
+ 	if (test_bit(KMEM_ACCOUNTED_THIS, &memcg->kmem_accounted))
+ 		static_key_slow_dec(&memcg_kmem_enabled_key);
++	/*
++	 * This check can't live in kmem destruction function,
++	 * since the charges will outlive the cgroup
++	 */
++	WARN_ON(res_counter_read_u64(&memcg->kmem, RES_USAGE) != 0);
  }
- # else
- static struct kmem_cache *thread_info_cache;
+ #else
+ static void disarm_kmem_keys(struct mem_cgroup *memcg)
+@@ -4005,6 +4010,7 @@ static int mem_cgroup_force_empty(struct mem_cgroup *memcg, bool free_all)
+ 	int node, zid, shrink;
+ 	int nr_retries = MEM_CGROUP_RECLAIM_RETRIES;
+ 	struct cgroup *cgrp = memcg->css.cgroup;
++	u64 usage;
+ 
+ 	css_get(&memcg->css);
+ 
+@@ -4038,8 +4044,17 @@ move_account:
+ 		mem_cgroup_end_move(memcg);
+ 		memcg_oom_recover(memcg);
+ 		cond_resched();
++		/*
++		 * Kernel memory may not necessarily be trackable to a specific
++		 * process. So they are not migrated, and therefore we can't
++		 * expect their value to drop to 0 here.
++		 *
++		 * having res filled up with kmem only is enough
++		 */
++		usage = res_counter_read_u64(&memcg->res, RES_USAGE) -
++			res_counter_read_u64(&memcg->kmem, RES_USAGE);
+ 	/* "ret" should also be checked to ensure all lists are empty. */
+-	} while (res_counter_read_u64(&memcg->res, RES_USAGE) > 0 || ret);
++	} while (usage > 0 || ret);
+ out:
+ 	css_put(&memcg->css);
+ 	return ret;
 -- 
 1.7.11.2
 
