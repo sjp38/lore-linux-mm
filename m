@@ -1,263 +1,277 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
-	by kanga.kvack.org (Postfix) with SMTP id E14776B0044
-	for <linux-mm@kvack.org>; Wed,  8 Aug 2012 21:54:26 -0400 (EDT)
-Date: Thu, 9 Aug 2012 10:55:58 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH v6 1/3] mm: introduce compaction and migration for virtio
- ballooned pages
-Message-ID: <20120809015558.GB18106@bbox>
-References: <cover.1344463786.git.aquini@redhat.com>
- <efb9756c5d6de8952a793bfc99a9db9cdd66b12f.1344463786.git.aquini@redhat.com>
+Received: from psmtp.com (na3sys010amx144.postini.com [74.125.245.144])
+	by kanga.kvack.org (Postfix) with SMTP id A416E6B0044
+	for <linux-mm@kvack.org>; Thu,  9 Aug 2012 00:42:20 -0400 (EDT)
+Message-ID: <50233EF5.3050605@huawei.com>
+Date: Thu, 9 Aug 2012 12:39:17 +0800
+From: Hanjun Guo <guohanjun@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <efb9756c5d6de8952a793bfc99a9db9cdd66b12f.1344463786.git.aquini@redhat.com>
+Subject: [RFC PATCH] mm: introduce N_LRU_MEMORY to distinguish between normal
+ and movable memory
+References: <1344482788-4984-1-git-send-email-guohanjun@huawei.com>
+In-Reply-To: <1344482788-4984-1-git-send-email-guohanjun@huawei.com>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rafael Aquini <aquini@redhat.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, Rusty Russell <rusty@rustcorp.com.au>, "Michael S. Tsirkin" <mst@redhat.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: Wu Jianguo <wujianguo@huawei.com>, Jiang Liu <jiang.liu@huawei.com>, Tony Luck <tony.luck@intel.com>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Mel Gorman <mgorman@suse.de>, Yinghai Lu <yinghai@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, Minchan Kim <minchan@kernel.org>, Keping Chen <chenkeping@huawei.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Jiang Liu <liuj97@gmail.com>
 
-Hi Rafael,
+From: Wu Jianguo <wujianguo@huawei.com>
 
-On Wed, Aug 08, 2012 at 07:53:19PM -0300, Rafael Aquini wrote:
-> Memory fragmentation introduced by ballooning might reduce significantly
-> the number of 2MB contiguous memory blocks that can be used within a guest,
-> thus imposing performance penalties associated with the reduced number of
-> transparent huge pages that could be used by the guest workload.
-> 
-> This patch introduces the helper functions as well as the necessary changes
-> to teach compaction and migration bits how to cope with pages which are
-> part of a guest memory balloon, in order to make them movable by memory
-> compaction procedures.
-> 
-> Signed-off-by: Rafael Aquini <aquini@redhat.com>
-> ---
->  include/linux/mm.h |  17 +++++++
->  mm/compaction.c    | 131 +++++++++++++++++++++++++++++++++++++++++++++--------
->  mm/migrate.c       |  30 +++++++++++-
->  3 files changed, 158 insertions(+), 20 deletions(-)
-> 
-> diff --git a/include/linux/mm.h b/include/linux/mm.h
-> index 311be90..18f978b 100644
-> --- a/include/linux/mm.h
-> +++ b/include/linux/mm.h
-> @@ -1662,5 +1662,22 @@ static inline unsigned int debug_guardpage_minorder(void) { return 0; }
->  static inline bool page_is_guard(struct page *page) { return false; }
->  #endif /* CONFIG_DEBUG_PAGEALLOC */
->  
-> +#if (defined(CONFIG_VIRTIO_BALLOON) || \
-> +	defined(CONFIG_VIRTIO_BALLOON_MODULE)) && defined(CONFIG_COMPACTION)
-> +extern bool isolate_balloon_page(struct page *);
-> +extern bool putback_balloon_page(struct page *);
-> +extern struct address_space *balloon_mapping;
-> +
-> +static inline bool movable_balloon_page(struct page *page)
-> +{
-> +	return (page->mapping && page->mapping == balloon_mapping);
-> +}
-> +
-> +#else
-> +static inline bool isolate_balloon_page(struct page *page) { return false; }
-> +static inline bool putback_balloon_page(struct page *page) { return false; }
-> +static inline bool movable_balloon_page(struct page *page) { return false; }
-> +#endif /* (VIRTIO_BALLOON || VIRTIO_BALLOON_MODULE) && CONFIG_COMPACTION */
-> +
->  #endif /* __KERNEL__ */
->  #endif /* _LINUX_MM_H */
-> diff --git a/mm/compaction.c b/mm/compaction.c
-> index e78cb96..7372592 100644
-> --- a/mm/compaction.c
-> +++ b/mm/compaction.c
-> @@ -14,6 +14,7 @@
->  #include <linux/backing-dev.h>
->  #include <linux/sysctl.h>
->  #include <linux/sysfs.h>
-> +#include <linux/export.h>
->  #include "internal.h"
->  
->  #if defined CONFIG_COMPACTION || defined CONFIG_CMA
-> @@ -21,6 +22,90 @@
->  #define CREATE_TRACE_POINTS
->  #include <trace/events/compaction.h>
->  
-> +#if defined(CONFIG_VIRTIO_BALLOON) || defined(CONFIG_VIRTIO_BALLOON_MODULE)
-> +/*
-> + * Balloon pages special page->mapping.
-> + * Users must properly allocate and initialize an instance of balloon_mapping,
-> + * and set it as the page->mapping for balloon enlisted page instances.
-> + * There is no need on utilizing struct address_space locking schemes for
-> + * balloon_mapping as, once it gets initialized at balloon driver, it will
-> + * remain just like a static reference that helps us on identifying a guest
-> + * ballooned page by its mapping, as well as it will keep the 'a_ops' callback
-> + * pointers to the functions that will execute the balloon page mobility tasks.
-> + *
-> + * address_space_operations necessary methods for ballooned pages:
-> + *   .migratepage    - used to perform balloon's page migration (as is)
-> + *   .invalidatepage - used to isolate a page from balloon's page list
-> + *   .freepage       - used to reinsert an isolated page to balloon's page list
-> + */
-> +struct address_space *balloon_mapping;
-> +EXPORT_SYMBOL_GPL(balloon_mapping);
-> +
-> +static inline void __isolate_balloon_page(struct page *page)
-> +{
-> +	page->mapping->a_ops->invalidatepage(page, 0);
-> +}
-> +
-> +static inline void __putback_balloon_page(struct page *page)
-> +{
-> +	page->mapping->a_ops->freepage(page);
-> +}
-> +
-> +/* __isolate_lru_page() counterpart for a ballooned page */
-> +bool isolate_balloon_page(struct page *page)
-> +{
-> +	if (WARN_ON(!movable_balloon_page(page)))
-> +		return false;
-> +
-> +	if (likely(get_page_unless_zero(page))) {
-> +		/*
-> +		 * As balloon pages are not isolated from LRU lists, concurrent
-> +		 * compaction threads can race against page migration functions
-> +		 * move_to_new_page() & __unmap_and_move().
-> +		 * In order to avoid having an already isolated balloon page
-> +		 * being (wrongly) re-isolated while it is under migration,
-> +		 * lets be sure we have the page lock before proceeding with
-> +		 * the balloon page isolation steps.
-> +		 */
-> +		if (likely(trylock_page(page))) {
-> +			/*
-> +			 * A ballooned page, by default, has just one refcount.
-> +			 * Prevent concurrent compaction threads from isolating
-> +			 * an already isolated balloon page.
-> +			 */
-> +			if (movable_balloon_page(page) &&
-> +			    (page_count(page) == 2)) {
-> +				__isolate_balloon_page(page);
-> +				unlock_page(page);
-> +				return true;
-> +			}
-> +			unlock_page(page);
-> +		}
-> +		/* Drop refcount taken for this already isolated page */
-> +		put_page(page);
-> +	}
-> +	return false;
-> +}
-> +
-> +/* putback_lru_page() counterpart for a ballooned page */
-> +bool putback_balloon_page(struct page *page)
-> +{
-> +	if (WARN_ON(!movable_balloon_page(page)))
-> +		return false;
-> +
-> +	if (likely(trylock_page(page))) {
-> +		if (movable_balloon_page(page)) {
-> +			__putback_balloon_page(page);
-> +			put_page(page);
-> +			unlock_page(page);
-> +			return true;
-> +		}
-> +		unlock_page(page);
-> +	}
-> +	return false;
-> +}
-> +#endif /* CONFIG_VIRTIO_BALLOON || CONFIG_VIRTIO_BALLOON_MODULE */
-> +
->  static unsigned long release_freepages(struct list_head *freelist)
->  {
->  	struct page *page, *next;
-> @@ -312,32 +397,40 @@ isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
->  			continue;
->  		}
->  
-> -		if (!PageLRU(page))
-> -			continue;
-> -
->  		/*
-> -		 * PageLRU is set, and lru_lock excludes isolation,
-> -		 * splitting and collapsing (collapsing has already
-> -		 * happened if PageLRU is set).
-> +		 * It is possible to migrate LRU pages and balloon pages.
-> +		 * Skip any other type of page.
->  		 */
-> -		if (PageTransHuge(page)) {
-> -			low_pfn += (1 << compound_order(page)) - 1;
-> -			continue;
-> -		}
-> +		if (PageLRU(page)) {
-> +			/*
-> +			 * PageLRU is set, and lru_lock excludes isolation,
-> +			 * splitting and collapsing (collapsing has already
-> +			 * happened if PageLRU is set).
-> +			 */
-> +			if (PageTransHuge(page)) {
-> +				low_pfn += (1 << compound_order(page)) - 1;
-> +				continue;
-> +			}
->  
-> -		if (!cc->sync)
-> -			mode |= ISOLATE_ASYNC_MIGRATE;
-> +			if (!cc->sync)
-> +				mode |= ISOLATE_ASYNC_MIGRATE;
->  
-> -		lruvec = mem_cgroup_page_lruvec(page, zone);
-> +			lruvec = mem_cgroup_page_lruvec(page, zone);
->  
-> -		/* Try isolate the page */
-> -		if (__isolate_lru_page(page, mode) != 0)
-> -			continue;
-> +			/* Try isolate the page */
-> +			if (__isolate_lru_page(page, mode) != 0)
-> +				continue;
-> +
-> +			VM_BUG_ON(PageTransCompound(page));
->  
-> -		VM_BUG_ON(PageTransCompound(page));
-> +			/* Successfully isolated */
-> +			del_page_from_lru_list(page, lruvec, page_lru(page));
-> +		} else if (unlikely(movable_balloon_page(page))) {
-> +			if (!isolate_balloon_page(page))
-> +				continue;
-> +		} else
-> +			continue;
->  
-> -		/* Successfully isolated */
-> -		del_page_from_lru_list(page, lruvec, page_lru(page));
->  		list_add(&page->lru, migratelist);
->  		cc->nr_migratepages++;
->  		nr_isolated++;
-> diff --git a/mm/migrate.c b/mm/migrate.c
-> index 77ed2d7..871a304 100644
-> --- a/mm/migrate.c
-> +++ b/mm/migrate.c
-> @@ -79,7 +79,10 @@ void putback_lru_pages(struct list_head *l)
->  		list_del(&page->lru);
->  		dec_zone_page_state(page, NR_ISOLATED_ANON +
->  				page_is_file_cache(page));
-> -		putback_lru_page(page);
-> +		if (unlikely(movable_balloon_page(page)))
-> +			WARN_ON(!putback_balloon_page(page));
-> +		else
-> +			putback_lru_page(page);
->  	}
+Hi all,
+Now, We have node masks for both N_NORMAL_MEMORY and
+N_HIGH_MEMORY to distinguish between normal and highmem on platforms such as x86.
+But we still don't have such a mechanism to distinguish between "normal" and "movable"
+memory.
 
-Don't hack putback_lru_pages. It's a function for handling LRU pages
-and is used by several places.
-Plz, don't add complexity to unrelavant parts.
+As suggested by Christoph Lameter in threads
+http://marc.info/?l=linux-mm&m=134323057602484&w=2, we introduce N_LRU_MEMORY to
+distinguish between "normal" and "movable" memory.
 
-You can define a new function putback_migratepages should be used as pair with
-isolate_migratepages_range so that both functions are aware of balloon page.
-IMHO, it's better abstraction rather than hook of generic function.
+And this patch will fix the bug described as follow:
 
-Otherwise, Looks good to me.
+When handling a memory node with only movable zone, function
+early_kmem_cache_node_alloc() will allocate a page from remote node but
+still increase object count on local node, which will trigger a BUG_ON()
+as below when hot-removing this memory node. Actually there's no need to
+create kmem_cache_node for memory node with only movable zone at all.
 
-Thanks.
+------------[ cut here ]------------
+kernel BUG at mm/slub.c:3590!
+invalid opcode: 0000 [#1] SMP
+CPU 61
+Modules linked in: autofs4 sunrpc cpufreq_ondemand acpi_cpufreq freq_table
+mperf ip6t_REJECT nf_conntrack_ipv6 nf_defrag_ipv6 ip6table_filter ip6_tables
+ipv6 vfat fat dm_mirror dm_region_hash dm_log uinput iTCO_wdt
+iTCO_vendor_support coretemp hwmon kvm_intel kvm crc32c_intel
+ghash_clmulni_intel serio_raw pcspkr cdc_ether usbnet mii i2c_i801 i2c_core sg
+lpc_ich mfd_core shpchp ioatdma i7core_edac edac_core igb dca bnx2 ext4
+mbcache jbd2 sr_mod cdrom sd_mod crc_t10dif aesni_intel cryptd aes_x86_64
+aes_generic bfa scsi_transport_fc scsi_tgt pata_acpi ata_generic ata_piix
+megaraid_sas dm_mod [last unloaded: microcode]
+
+Pid: 46287, comm: sh Not tainted 3.5.0-rc4-pgtable-00215-g35f0828-dirty #85
+IBM System x3850 X5 -[7143O3G]-/Node 1, Processor Card
+RIP: 0010:[<ffffffff81160b2a>]  [<ffffffff81160b2a>]
+slab_memory_callback+0x1ba/0x1c0
+RSP: 0018:ffff880efdcb7c68  EFLAGS: 00010202
+RAX: 0000000000000001 RBX: ffff880f7ec06100 RCX: 0000000100400001
+RDX: 0000000100400002 RSI: ffff880f7ec02000 RDI: ffff880f7ec06100
+RBP: ffff880efdcb7c78 R08: ffff88107b6fb098 R09: ffffffff81160a00
+R10: 0000000000000000 R11: 0000000000000000 R12: 0000000000000019
+R13: 00000000fffffffb R14: 0000000000000000 R15: ffffffff81abe930
+FS:  00007f709f342700(0000) GS:ffff880f7f3a0000(0000) knlGS:0000000000000000
+CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
+CR2: 0000003b5a874570 CR3: 0000000f0da20000 CR4: 00000000000007e0
+DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
+DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
+Process sh (pid: 46287, threadinfo ffff880efdcb6000, task ffff880f0fa50000)
+Stack:
+ 0000000000000004 ffff880efdcb7da8 ffff880efdcb7cb8 ffffffff81524af5
+ 0000000000000001 ffffffff81a8b620 ffffffff81a8b640 0000000000000004
+ ffff880efdcb7da8 00000000ffffffff ffff880efdcb7d08 ffffffff8107a89a
+Call Trace:
+ [<ffffffff81524af5>] notifier_call_chain+0x55/0x80
+ [<ffffffff8107a89a>] __blocking_notifier_call_chain+0x5a/0x80
+ [<ffffffff8107a8d6>] blocking_notifier_call_chain+0x16/0x20
+ [<ffffffff81352f0b>] memory_notify+0x1b/0x20
+ [<ffffffff81507104>] offline_pages+0x624/0x700
+ [<ffffffff811619de>] remove_memory+0x1e/0x20
+ [<ffffffff813530cc>] memory_block_change_state+0x13c/0x2e0
+ [<ffffffff81153e96>] ? alloc_pages_current+0xb6/0x120
+ [<ffffffff81353332>] store_mem_state+0xc2/0xd0
+ [<ffffffff8133e190>] dev_attr_store+0x20/0x30
+ [<ffffffff811e2d4f>] sysfs_write_file+0xef/0x170
+ [<ffffffff81173e28>] vfs_write+0xc8/0x190
+ [<ffffffff81173ff1>] sys_write+0x51/0x90
+ [<ffffffff81528d29>] system_call_fastpath+0x16/0x1b
+Code: 8b 3d cb fd c4 00 be d0 00 00 00 e8 71 de ff ff 48 85 c0 75 9c 48 c7 c7
+c0 7f a5 81 e8 c0 89 f1 ff b8 0d 80 00 00 e9 69 fe ff ff <0f> 0b eb fe 66 90
+55 48 89 e5 41 57 41 56 41 55 41 54 53 48 83
+RIP  [<ffffffff81160b2a>] slab_memory_callback+0x1ba/0x1c0
+ RSP <ffff880efdcb7c68>
+---[ end trace 749e9e9a67c78c12 ]---
+
+Signed-off-by: Wu Jianguo <wujianguo@huawei.com>
+Signed-off-by: Jiang Liu <jiang.liu@huawei.com>
+---
+ arch/alpha/mm/numa.c     |    2 +-
+ arch/m32r/mm/discontig.c |    2 +-
+ arch/m68k/mm/motorola.c  |    2 +-
+ arch/parisc/mm/init.c    |    2 +-
+ arch/tile/kernel/setup.c |    2 +-
+ arch/x86/mm/init_64.c    |    2 +-
+ drivers/base/node.c      |    4 +++-
+ include/linux/nodemask.h |    5 +++--
+ mm/page_alloc.c          |   10 ++++++++--
+ 9 files changed, 20 insertions(+), 11 deletions(-)
+
+diff --git a/arch/alpha/mm/numa.c b/arch/alpha/mm/numa.c
+index 3973ae3..8402b29 100644
+--- a/arch/alpha/mm/numa.c
++++ b/arch/alpha/mm/numa.c
+@@ -313,7 +313,7 @@ void __init paging_init(void)
+ 			zones_size[ZONE_DMA] = dma_local_pfn;
+ 			zones_size[ZONE_NORMAL] = (end_pfn - start_pfn) - dma_local_pfn;
+ 		}
+-		node_set_state(nid, N_NORMAL_MEMORY);
++		node_set_state(nid, N_LRU_MEMORY);
+ 		free_area_init_node(nid, zones_size, start_pfn, NULL);
+ 	}
+
+diff --git a/arch/m32r/mm/discontig.c b/arch/m32r/mm/discontig.c
+index 2c468e8..4d76e19 100644
+--- a/arch/m32r/mm/discontig.c
++++ b/arch/m32r/mm/discontig.c
+@@ -149,7 +149,7 @@ unsigned long __init zone_sizes_init(void)
+ 		zholes_size[ZONE_DMA] = mp->holes;
+ 		holes += zholes_size[ZONE_DMA];
+
+-		node_set_state(nid, N_NORMAL_MEMORY);
++		node_set_state(nid, N_LRU_MEMORY);
+ 		free_area_init_node(nid, zones_size, start_pfn, zholes_size);
+ 	}
+
+diff --git a/arch/m68k/mm/motorola.c b/arch/m68k/mm/motorola.c
+index 0dafa69..31a0b00 100644
+--- a/arch/m68k/mm/motorola.c
++++ b/arch/m68k/mm/motorola.c
+@@ -300,7 +300,7 @@ void __init paging_init(void)
+ 		free_area_init_node(i, zones_size,
+ 				    m68k_memory[i].addr >> PAGE_SHIFT, NULL);
+ 		if (node_present_pages(i))
+-			node_set_state(i, N_NORMAL_MEMORY);
++			node_set_state(i, N_LRU_MEMORY);
+ 	}
+ }
+
+diff --git a/arch/parisc/mm/init.c b/arch/parisc/mm/init.c
+index 3ac462d..ad286fd 100644
+--- a/arch/parisc/mm/init.c
++++ b/arch/parisc/mm/init.c
+@@ -277,7 +277,7 @@ static void __init setup_bootmem(void)
+ 	memset(pfnnid_map, 0xff, sizeof(pfnnid_map));
+
+ 	for (i = 0; i < npmem_ranges; i++) {
+-		node_set_state(i, N_NORMAL_MEMORY);
++		node_set_state(i, N_LRU_MEMORY);
+ 		node_set_online(i);
+ 	}
+ #endif
+diff --git a/arch/tile/kernel/setup.c b/arch/tile/kernel/setup.c
+index 6a649a4..464672d 100644
+--- a/arch/tile/kernel/setup.c
++++ b/arch/tile/kernel/setup.c
+@@ -748,7 +748,7 @@ static void __init zone_sizes_init(void)
+
+ 		/* Track the type of memory on each node */
+ 		if (zones_size[ZONE_NORMAL] || zones_size[ZONE_DMA])
+-			node_set_state(i, N_NORMAL_MEMORY);
++			node_set_state(i, N_LRU_MEMORY);
+ #ifdef CONFIG_HIGHMEM
+ 		if (end != start)
+ 			node_set_state(i, N_HIGH_MEMORY);
+diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
+index 2b6b4a3..43bf392 100644
+--- a/arch/x86/mm/init_64.c
++++ b/arch/x86/mm/init_64.c
+@@ -625,7 +625,7 @@ void __init paging_init(void)
+ 	 *	 numa support is not compiled in, and later node_set_state
+ 	 *	 will not set it back.
+ 	 */
+-	node_clear_state(0, N_NORMAL_MEMORY);
++	node_clear_state(0, N_LRU_MEMORY);
+
+ 	zone_sizes_init();
+ }
+diff --git a/drivers/base/node.c b/drivers/base/node.c
+index af1a177..4a631f9 100644
+--- a/drivers/base/node.c
++++ b/drivers/base/node.c
+@@ -617,6 +617,7 @@ static struct node_attr node_state_attr[] = {
+ 	_NODE_ATTR(possible, N_POSSIBLE),
+ 	_NODE_ATTR(online, N_ONLINE),
+ 	_NODE_ATTR(has_normal_memory, N_NORMAL_MEMORY),
++	_NODE_ATTR(has_lru_memory, N_LRU_MEMORY),
+ 	_NODE_ATTR(has_cpu, N_CPU),
+ #ifdef CONFIG_HIGHMEM
+ 	_NODE_ATTR(has_high_memory, N_HIGH_MEMORY),
+@@ -628,8 +629,9 @@ static struct attribute *node_state_attrs[] = {
+ 	&node_state_attr[1].attr.attr,
+ 	&node_state_attr[2].attr.attr,
+ 	&node_state_attr[3].attr.attr,
+-#ifdef CONFIG_HIGHMEM
+ 	&node_state_attr[4].attr.attr,
++#ifdef CONFIG_HIGHMEM
++	&node_state_attr[5].attr.attr,
+ #endif
+ 	NULL
+ };
+diff --git a/include/linux/nodemask.h b/include/linux/nodemask.h
+index 7afc363..550f9a1 100644
+--- a/include/linux/nodemask.h
++++ b/include/linux/nodemask.h
+@@ -374,11 +374,12 @@ static inline void __nodes_fold(nodemask_t *dstp, const nodemask_t *origp,
+ enum node_states {
+ 	N_POSSIBLE,		/* The node could become online at some point */
+ 	N_ONLINE,		/* The node is online */
+-	N_NORMAL_MEMORY,	/* The node has regular memory */
++	N_NORMAL_MEMORY,	/* The node has normal memory */
++	N_LRU_MEMORY,	/* The node has regular memory */
+ #ifdef CONFIG_HIGHMEM
+ 	N_HIGH_MEMORY,		/* The node has regular or high memory */
+ #else
+-	N_HIGH_MEMORY = N_NORMAL_MEMORY,
++	N_HIGH_MEMORY = N_LRU_MEMORY,
+ #endif
+ 	N_CPU,		/* The node has one or more cpus */
+ 	NR_NODE_STATES
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 009ac28..5a7eacb 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -87,6 +87,7 @@ nodemask_t node_states[NR_NODE_STATES] __read_mostly = {
+ 	[N_ONLINE] = { { [0] = 1UL } },
+ #ifndef CONFIG_NUMA
+ 	[N_NORMAL_MEMORY] = { { [0] = 1UL } },
++	[N_LRU_MEMORY] = { { [0] = 1UL } },
+ #ifdef CONFIG_HIGHMEM
+ 	[N_HIGH_MEMORY] = { { [0] = 1UL } },
+ #endif
+@@ -4796,16 +4797,21 @@ out:
+ /* Any regular memory on that node ? */
+ static void __init check_for_regular_memory(pg_data_t *pgdat)
+ {
+-#ifdef CONFIG_HIGHMEM
++	struct zone *zone;
+ 	enum zone_type zone_type;
+
+ 	for (zone_type = 0; zone_type <= ZONE_NORMAL; zone_type++) {
+-		struct zone *zone = &pgdat->node_zones[zone_type];
++		zone = &pgdat->node_zones[zone_type];
+ 		if (zone->present_pages) {
+ 			node_set_state(zone_to_nid(zone), N_NORMAL_MEMORY);
+ 			break;
+ 		}
+ 	}
++
++#ifdef CONFIG_HIGHMEM
++	zone = &pgdat->node_zones[ZONE_MOVABLE];
++	if (zone->present_pages)
++		node_set_state(zone_to_nid(zone), N_LRU_MEMORY);
+ #endif
+ }
 
 -- 
-Kind regards,
-Minchan Kim
+1.7.1
+
+
+
+.
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
