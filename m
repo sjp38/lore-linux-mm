@@ -1,74 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
-	by kanga.kvack.org (Postfix) with SMTP id 6FDD06B0044
-	for <linux-mm@kvack.org>; Thu,  9 Aug 2012 05:00:23 -0400 (EDT)
-Date: Thu, 9 Aug 2012 10:00:19 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH v6 1/3] mm: introduce compaction and migration for virtio
- ballooned pages
-Message-ID: <20120809090019.GB10288@csn.ul.ie>
-References: <cover.1344463786.git.aquini@redhat.com>
- <efb9756c5d6de8952a793bfc99a9db9cdd66b12f.1344463786.git.aquini@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <efb9756c5d6de8952a793bfc99a9db9cdd66b12f.1344463786.git.aquini@redhat.com>
+Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
+	by kanga.kvack.org (Postfix) with SMTP id B57FA6B0044
+	for <linux-mm@kvack.org>; Thu,  9 Aug 2012 05:08:37 -0400 (EDT)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: [PATCH, RFC 1/9] thp: huge zero page: basic preparation
+Date: Thu,  9 Aug 2012 12:08:12 +0300
+Message-Id: <1344503300-9507-2-git-send-email-kirill.shutemov@linux.intel.com>
+In-Reply-To: <1344503300-9507-1-git-send-email-kirill.shutemov@linux.intel.com>
+References: <1344503300-9507-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rafael Aquini <aquini@redhat.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, Rusty Russell <rusty@rustcorp.com.au>, "Michael S. Tsirkin" <mst@redhat.com>, Rik van Riel <riel@redhat.com>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Minchan Kim <minchan@kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org
+Cc: Andi Kleen <ak@linux.intel.com>, "H. Peter Anvin" <hpa@linux.intel.com>, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill@shutemov.name>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On Wed, Aug 08, 2012 at 07:53:19PM -0300, Rafael Aquini wrote:
-> Memory fragmentation introduced by ballooning might reduce significantly
-> the number of 2MB contiguous memory blocks that can be used within a guest,
-> thus imposing performance penalties associated with the reduced number of
-> transparent huge pages that could be used by the guest workload.
-> 
-> This patch introduces the helper functions as well as the necessary changes
-> to teach compaction and migration bits how to cope with pages which are
-> part of a guest memory balloon, in order to make them movable by memory
-> compaction procedures.
-> 
-> Signed-off-by: Rafael Aquini <aquini@redhat.com>
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-Mostly looks ok but I have one question;
+For now let's allocate the page on hugepage_init(). We'll switch to lazy
+allocation later.
 
-> <SNIP>
->
-> +/* putback_lru_page() counterpart for a ballooned page */
-> +bool putback_balloon_page(struct page *page)
-> +{
-> +	if (WARN_ON(!movable_balloon_page(page)))
-> +		return false;
-> +
-> +	if (likely(trylock_page(page))) {
-> +		if (movable_balloon_page(page)) {
-> +			__putback_balloon_page(page);
-> +			put_page(page);
-> +			unlock_page(page);
-> +			return true;
-> +		}
-> +		unlock_page(page);
-> +	}
+We are not going to map the huge zero page until we can handle it
+properly on all code paths.
 
-You might have answered this already as I skipped over a few revisions
-and if you have, sorry about that and please add a comment :)
+is_huge_zero_{pfn,pmd}() functions will be used by following patches to
+check whether the pfn/pmd is huge zero page.
 
-This trylock_page looks risky as it looks like it can fail if another
-process running compaction tries to isolate this page. It locks the page,
-finds it cant and releases the lock but in the meantime this trylock can
-fail. It triggers a WARN_ON so we'll get a bug report but it leaves the
-reference count elevated and this page has now leaked.
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+---
+ mm/huge_memory.c |   29 +++++++++++++++++++++++++++++
+ 1 files changed, 29 insertions(+), 0 deletions(-)
 
-Why not just lock_page(page)? As you have already isolated this page you
-know that the lock is only going to be held by a parallel compacting
-process checking the reference count and the delay will be short. As a
-bonus you can drop the WARN_ON check in the caller and make this void as
-the WARN_ON check in the caller becomes redundant.
-
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 57c4b93..88e0a7a 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -46,6 +46,7 @@ static unsigned int khugepaged_scan_sleep_millisecs __read_mostly = 10000;
+ /* during fragmentation poll the hugepage allocator once every minute */
+ static unsigned int khugepaged_alloc_sleep_millisecs __read_mostly = 60000;
+ static struct task_struct *khugepaged_thread __read_mostly;
++static unsigned long huge_zero_pfn __read_mostly;
+ static DEFINE_MUTEX(khugepaged_mutex);
+ static DEFINE_SPINLOCK(khugepaged_mm_lock);
+ static DECLARE_WAIT_QUEUE_HEAD(khugepaged_wait);
+@@ -167,6 +168,28 @@ out:
+ 	return err;
+ }
+ 
++static int init_huge_zero_page(void)
++{
++	struct page *hpage;
++
++	hpage = alloc_pages(GFP_TRANSHUGE | __GFP_ZERO, HPAGE_PMD_ORDER);
++	if (!hpage)
++		return -ENOMEM;
++
++	huge_zero_pfn = page_to_pfn(hpage);
++	return 0;
++}
++
++static inline bool is_huge_zero_pfn(unsigned long pfn)
++{
++	return pfn == huge_zero_pfn;
++}
++
++static inline bool is_huge_zero_pmd(pmd_t pmd)
++{
++	return is_huge_zero_pfn(pmd_pfn(pmd));
++}
++
+ #ifdef CONFIG_SYSFS
+ 
+ static ssize_t double_flag_show(struct kobject *kobj,
+@@ -550,6 +573,10 @@ static int __init hugepage_init(void)
+ 	if (err)
+ 		return err;
+ 
++	err = init_huge_zero_page();
++	if (err)
++		goto out;
++
+ 	err = khugepaged_slab_init();
+ 	if (err)
+ 		goto out;
+@@ -574,6 +601,8 @@ static int __init hugepage_init(void)
+ 
+ 	return 0;
+ out:
++	if (huge_zero_pfn)
++		__free_page(pfn_to_page(huge_zero_pfn));
+ 	hugepage_exit_sysfs(hugepage_kobj);
+ 	return err;
+ }
 -- 
-Mel Gorman
-SUSE Labs
+1.7.7.6
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
