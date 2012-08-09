@@ -1,105 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
-	by kanga.kvack.org (Postfix) with SMTP id E02B86B0062
-	for <linux-mm@kvack.org>; Thu,  9 Aug 2012 12:45:10 -0400 (EDT)
-Message-ID: <5023E859.9090407@parallels.com>
-Date: Thu, 9 Aug 2012 20:42:01 +0400
-From: Glauber Costa <glommer@parallels.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH v2 07/11] mm: Allocate kernel pages to the right memcg
-References: <1344517279-30646-1-git-send-email-glommer@parallels.com> <1344517279-30646-8-git-send-email-glommer@parallels.com> <xr93boikgh4w.fsf@gthelen.mtv.corp.google.com>
-In-Reply-To: <xr93boikgh4w.fsf@gthelen.mtv.corp.google.com>
-Content-Type: text/plain; charset="ISO-8859-1"
+Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
+	by kanga.kvack.org (Postfix) with SMTP id 7AB166B005A
+	for <linux-mm@kvack.org>; Thu,  9 Aug 2012 13:01:38 -0400 (EDT)
+Message-ID: <1344531695.2393.27.camel@lorien2>
+Subject: Re: [PATCH v2] mm: Restructure kmem_cache_create() to move debug
+ cache integrity checks into a new function
+From: Shuah Khan <shuah.khan@hp.com>
+Reply-To: shuah.khan@hp.com
+Date: Thu, 09 Aug 2012 11:01:35 -0600
+In-Reply-To: <alpine.DEB.2.02.1208090911100.15909@greybox.home>
+References: <1342221125.17464.8.camel@lorien2>
+	 <CAOJsxLGjnMxs9qERG5nCfGfcS3jy6Rr54Ac36WgVnOtP_pDYgQ@mail.gmail.com>
+	 <1344224494.3053.5.camel@lorien2> <1344266096.2486.17.camel@lorien2>
+	 <CAAmzW4Ne5pD90r+6zrrD-BXsjtf5OqaKdWY+2NSGOh1M_sWq4g@mail.gmail.com>
+	 <1344272614.2486.40.camel@lorien2> <1344287631.2486.57.camel@lorien2>
+	 <alpine.DEB.2.02.1208090911100.15909@greybox.home>
+Content-Type: text/plain; charset="UTF-8"
 Content-Transfer-Encoding: 7bit
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg Thelen <gthelen@google.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, devel@openvz.org, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, kamezawa.hiroyu@jp.fujitsu.com, Christoph
- Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Suleiman Souhlal <suleiman@google.com>
+To: "Christoph Lameter (Open Source)" <cl@linux.com>
+Cc: penberg@kernel.org, glommer@parallels.com, js1304@gmail.com, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, shuahkhan@gmail.com
 
-On 08/09/2012 08:33 PM, Greg Thelen wrote:
-> On Thu, Aug 09 2012, Glauber Costa wrote:
+On Thu, 2012-08-09 at 09:13 -0500, Christoph Lameter (Open Source)
+wrote:
+> On Mon, 6 Aug 2012, Shuah Khan wrote:
 > 
->> When a process tries to allocate a page with the __GFP_KMEMCG flag, the
->> page allocator will call the corresponding memcg functions to validate
->> the allocation. Tasks in the root memcg can always proceed.
->>
->> To avoid adding markers to the page - and a kmem flag that would
->> necessarily follow, as much as doing page_cgroup lookups for no reason,
->> whoever is marking its allocations with __GFP_KMEMCG flag is responsible
->> for telling the page allocator that this is such an allocation at
->> free_pages() time. This is done by the invocation of
->> __free_accounted_pages() and free_accounted_pages().
->>
->> Signed-off-by: Glauber Costa <glommer@parallels.com>
->> CC: Christoph Lameter <cl@linux.com>
->> CC: Pekka Enberg <penberg@cs.helsinki.fi>
->> CC: Michal Hocko <mhocko@suse.cz>
->> CC: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
->> CC: Johannes Weiner <hannes@cmpxchg.org>
->> CC: Suleiman Souhlal <suleiman@google.com>
->> ---
->>  include/linux/gfp.h |  3 +++
->>  mm/page_alloc.c     | 38 ++++++++++++++++++++++++++++++++++++++
->>  2 files changed, 41 insertions(+)
->>
->> diff --git a/include/linux/gfp.h b/include/linux/gfp.h
->> index d8eae4d..029570f 100644
->> --- a/include/linux/gfp.h
->> +++ b/include/linux/gfp.h
->> @@ -370,6 +370,9 @@ extern void free_pages(unsigned long addr, unsigned int order);
->>  extern void free_hot_cold_page(struct page *page, int cold);
->>  extern void free_hot_cold_page_list(struct list_head *list, int cold);
->>  
->> +extern void __free_accounted_pages(struct page *page, unsigned int order);
->> +extern void free_accounted_pages(unsigned long addr, unsigned int order);
->> +
->>  #define __free_page(page) __free_pages((page), 0)
->>  #define free_page(addr) free_pages((addr), 0)
->>  
->> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
->> index b956cec..da341dc 100644
->> --- a/mm/page_alloc.c
->> +++ b/mm/page_alloc.c
->> @@ -2532,6 +2532,7 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
->>  	struct page *page = NULL;
->>  	int migratetype = allocflags_to_migratetype(gfp_mask);
->>  	unsigned int cpuset_mems_cookie;
->> +	void *handle = NULL;
->>  
->>  	gfp_mask &= gfp_allowed_mask;
->>  
->> @@ -2543,6 +2544,13 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
->>  		return NULL;
->>  
->>  	/*
->> +	 * Will only have any effect when __GFP_KMEMCG is set.
->> +	 * This is verified in the (always inline) callee
->> +	 */
->> +	if (!memcg_kmem_new_page(gfp_mask, &handle, order))
->> +		return NULL;
->> +
->> +	/*
->>  	 * Check the zones suitable for the gfp_mask contain at least one
->>  	 * valid zone. It's possible to have an empty zonelist as a result
->>  	 * of GFP_THISNODE and a memoryless node
+> > +#ifdef CONFIG_DEBUG_VM
+> > +static int kmem_cache_sanity_check(const char *name, size_t size)
 > 
-> If memcg_kmem_new_page() succeeds then it may have obtained a memcg
-> reference with mem_cgroup_get().  I think this reference is leaked when
-> returning below:
+> Why do we pass "size" in? AFAICT there is no need to.
+
+It is an oversight on my part. Will re-work the patch as needed. Please
+see more on your second comment below.
+
 > 
-> 	/*
-> 	 * Check the zones suitable for the gfp_mask contain at least one
-> 	 * valid zone. It's possible to have an empty zonelist as a result
-> 	 * of GFP_THISNODE and a memoryless node
-> 	 */
-> 	if (unlikely(!zonelist->_zonerefs->zone))
-> 		return NULL;
+> > @@ -53,48 +93,17 @@ struct kmem_cache *kmem_cache_create(const char *name, size_t size, size_t align
+> >  {
+> >  	struct kmem_cache *s = NULL;
+> >
+> > -#ifdef CONFIG_DEBUG_VM
+> >  	if (!name || in_interrupt() || size < sizeof(void *) ||
+> >  		size > KMALLOC_MAX_SIZE) {
+> > -		printk(KERN_ERR "kmem_cache_create(%s) integrity check"
+> > -			" failed\n", name);
+> > +		pr_err("kmem_cache_create(%s) integrity check failed\n", name);
+> >  		goto out;
+> >  	}
+> > -#endif
+> >
 > 
-> I suspect the easiest fix is to swap the call to memcg_kmem_new_page()
-> and the (!zonelist->_zonerefs->zone) check.
-> 
-You are right, indeed.
+> If you move the above code into the sanity check function then you will be
+> using the size as well. These are also sanity checks after all.
+
+Yes these are also sanity checks, however these checks are common to
+debug and non-debug paths, hence the reasoning to leave them in
+kmem_cache_create(). 
+
+You are right, if these checks get moved into the debug section in
+kmem_cache_sanity_check, size will be used.
+
+Moving these checks into kmem_cache_sanity_check() would mean return
+path handling will change. The first block of sanity checks for name,
+and size etc. are done before holding the slab_mutex and the second
+block that checks the slab lists is done after holding the mutex.
+Depending on which one fails, return handling is going to be different
+in that if second block fails, mutex needs to be unlocked and when the
+first block fails, there is no need to do that. Nothing that is too
+complex to solve, just something that needs to be handled.
+
+Comments, thoughts on
+
+1. just remove size from kmem_cache_sanity_check() parameters
+or
+2. move first block sanity checks into kmem_cache_sanity_check()
+
+Personally I prefer the first option to avoid complexity in return path
+handling. Would like to hear what others think.
+
+-- Shuah
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
