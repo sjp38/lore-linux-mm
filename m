@@ -1,284 +1,118 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
-	by kanga.kvack.org (Postfix) with SMTP id 9BDD36B00A1
+Received: from psmtp.com (na3sys010amx144.postini.com [74.125.245.144])
+	by kanga.kvack.org (Postfix) with SMTP id 7586B6B009A
 	for <linux-mm@kvack.org>; Thu,  9 Aug 2012 10:22:29 -0400 (EDT)
-Message-Id: <20120809135634.465129034@linux.com>
-Date: Thu, 09 Aug 2012 08:56:29 -0500
+Message-Id: <20120809135636.467748234@linux.com>
+Date: Thu, 09 Aug 2012 08:56:41 -0500
 From: Christoph Lameter <cl@linux.com>
-Subject: Common11r [06/20] Extract a common function for kmem_cache_destroy
+Subject: Common11r [18/20] slub: Use a statically allocated kmem_cache boot structure for bootstrap
 References: <20120809135623.574621297@linux.com>
-Content-Disposition: inline; filename=kmem_cache_destroy
+Content-Disposition: inline; filename=slub_static_init
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Joonsoo Kim <js1304@gmail.com>
 Cc: Glauber Costa <glommer@parallels.com>, Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>
 
-kmem_cache_destroy does basically the same in all allocators.
+Simplify bootstrap by statically allocated two kmem_cache structures. These are
+freed after bootup is complete. Allows us to no longer worry about calculations
+of sizes of kmem_cache structures during bootstrap.
 
-Extract common code which is easy since we already have common mutex handling.
-
-V1-V2:
-	- Move percpu freeing to later so that we fail cleaner if
-		objects are left in the cache [JoonSoo Kim]
-
+Reviewed-by: Glauber Costa <glommer@parallels.com>
 Signed-off-by: Christoph Lameter <cl@linux.com>
 
-
 ---
- mm/slab.c        |   55 +++----------------------------------------------------
- mm/slab.h        |    3 +++
- mm/slab_common.c |   25 +++++++++++++++++++++++++
- mm/slob.c        |   11 +++++++----
- mm/slub.c        |   35 +++++++++++------------------------
- 5 files changed, 49 insertions(+), 80 deletions(-)
+ mm/slub.c |   32 +++++++++-----------------------
+ 1 file changed, 9 insertions(+), 23 deletions(-)
 
-Index: linux-2.6/mm/slab_common.c
-===================================================================
---- linux-2.6.orig/mm/slab_common.c	2012-08-08 09:45:02.000000000 -0500
-+++ linux-2.6/mm/slab_common.c	2012-08-09 08:53:39.045016801 -0500
-@@ -130,6 +130,31 @@ out:
- }
- EXPORT_SYMBOL(kmem_cache_create);
- 
-+void kmem_cache_destroy(struct kmem_cache *s)
-+{
-+	get_online_cpus();
-+	mutex_lock(&slab_mutex);
-+	s->refcount--;
-+	if (!s->refcount) {
-+		list_del(&s->list);
-+
-+		if (!__kmem_cache_shutdown(s)) {
-+			if (s->flags & SLAB_DESTROY_BY_RCU)
-+				rcu_barrier();
-+
-+			__kmem_cache_destroy(s);
-+		} else {
-+			list_add(&s->list, &slab_caches);
-+			printk(KERN_ERR "kmem_cache_destroy %s: Slab cache still has objects\n",
-+				s->name);
-+			dump_stack();
-+		}
-+	}
-+	mutex_unlock(&slab_mutex);
-+	put_online_cpus();
-+}
-+EXPORT_SYMBOL(kmem_cache_destroy);
-+
- int slab_is_available(void)
- {
- 	return slab_state >= UP;
-Index: linux-2.6/mm/slab.c
-===================================================================
---- linux-2.6.orig/mm/slab.c	2012-08-08 09:45:02.847153178 -0500
-+++ linux-2.6/mm/slab.c	2012-08-09 08:53:39.025016289 -0500
-@@ -810,16 +810,6 @@ static void cache_estimate(unsigned long
- 	*left_over = slab_size - nr_objs*buffer_size - mgmt_size;
- }
- 
--#define slab_error(cachep, msg) __slab_error(__func__, cachep, msg)
--
--static void __slab_error(const char *function, struct kmem_cache *cachep,
--			char *msg)
--{
--	printk(KERN_ERR "slab error in %s(): cache `%s': %s\n",
--	       function, cachep->name, msg);
--	dump_stack();
--}
--
- /*
-  * By default on NUMA we use alien caches to stage the freeing of
-  * objects allocated from other nodes. This causes massive memory
-@@ -2213,7 +2203,7 @@ static void slab_destroy(struct kmem_cac
- 	}
- }
- 
--static void __kmem_cache_destroy(struct kmem_cache *cachep)
-+void __kmem_cache_destroy(struct kmem_cache *cachep)
- {
- 	int i;
- 	struct kmem_list3 *l3;
-@@ -2770,49 +2760,10 @@ int kmem_cache_shrink(struct kmem_cache
- }
- EXPORT_SYMBOL(kmem_cache_shrink);
- 
--/**
-- * kmem_cache_destroy - delete a cache
-- * @cachep: the cache to destroy
-- *
-- * Remove a &struct kmem_cache object from the slab cache.
-- *
-- * It is expected this function will be called by a module when it is
-- * unloaded.  This will remove the cache completely, and avoid a duplicate
-- * cache being allocated each time a module is loaded and unloaded, if the
-- * module doesn't have persistent in-kernel storage across loads and unloads.
-- *
-- * The cache must be empty before calling this function.
-- *
-- * The caller must guarantee that no one will allocate memory from the cache
-- * during the kmem_cache_destroy().
-- */
--void kmem_cache_destroy(struct kmem_cache *cachep)
-+int __kmem_cache_shutdown(struct kmem_cache *cachep)
- {
--	BUG_ON(!cachep || in_interrupt());
--
--	/* Find the cache in the chain of caches. */
--	get_online_cpus();
--	mutex_lock(&slab_mutex);
--	/*
--	 * the chain is never empty, cache_cache is never destroyed
--	 */
--	list_del(&cachep->list);
--	if (__cache_shrink(cachep)) {
--		slab_error(cachep, "Can't free all objects");
--		list_add(&cachep->list, &slab_caches);
--		mutex_unlock(&slab_mutex);
--		put_online_cpus();
--		return;
--	}
--
--	if (unlikely(cachep->flags & SLAB_DESTROY_BY_RCU))
--		rcu_barrier();
--
--	__kmem_cache_destroy(cachep);
--	mutex_unlock(&slab_mutex);
--	put_online_cpus();
-+	return __cache_shrink(cachep);
- }
--EXPORT_SYMBOL(kmem_cache_destroy);
- 
- /*
-  * Get the memory for a slab management obj.
-Index: linux-2.6/mm/slab.h
-===================================================================
---- linux-2.6.orig/mm/slab.h	2012-08-08 09:44:18.000000000 -0500
-+++ linux-2.6/mm/slab.h	2012-08-09 08:53:39.017016081 -0500
-@@ -30,4 +30,7 @@ extern struct list_head slab_caches;
- struct kmem_cache *__kmem_cache_create(const char *name, size_t size,
- 	size_t align, unsigned long flags, void (*ctor)(void *));
- 
-+int __kmem_cache_shutdown(struct kmem_cache *);
-+void __kmem_cache_destroy(struct kmem_cache *);
-+
- #endif
-Index: linux-2.6/mm/slob.c
-===================================================================
---- linux-2.6.orig/mm/slob.c	2012-08-08 09:46:46.000000000 -0500
-+++ linux-2.6/mm/slob.c	2012-08-09 08:53:39.033016495 -0500
-@@ -538,17 +538,11 @@ struct kmem_cache *__kmem_cache_create(c
- 	return c;
- }
- 
--void kmem_cache_destroy(struct kmem_cache *c)
-+void __kmem_cache_destroy(struct kmem_cache *c)
- {
--	mutex_lock(&slab_mutex);
--	list_del(&c->list);
--	mutex_unlock(&slab_mutex);
- 	kmemleak_free(c);
--	if (c->flags & SLAB_DESTROY_BY_RCU)
--		rcu_barrier();
- 	slob_free(c, sizeof(struct kmem_cache));
- }
--EXPORT_SYMBOL(kmem_cache_destroy);
- 
- void *kmem_cache_alloc_node(struct kmem_cache *c, gfp_t flags, int node)
- {
-@@ -616,6 +610,12 @@ unsigned int kmem_cache_size(struct kmem
- }
- EXPORT_SYMBOL(kmem_cache_size);
- 
-+int __kmem_cache_shutdown(struct kmem_cache *c)
-+{
-+	/* No way to check for remaining objects */
-+	return 0;
-+}
-+
- int kmem_cache_shrink(struct kmem_cache *d)
- {
- 	return 0;
 Index: linux-2.6/mm/slub.c
 ===================================================================
---- linux-2.6.orig/mm/slub.c	2012-08-08 09:45:02.000000000 -0500
-+++ linux-2.6/mm/slub.c	2012-08-09 08:53:39.053017008 -0500
-@@ -624,7 +624,7 @@ static void object_err(struct kmem_cache
- 	print_trailer(s, page, object);
- }
- 
--static void slab_err(struct kmem_cache *s, struct page *page, char *fmt, ...)
-+static void slab_err(struct kmem_cache *s, struct page *page, const char *fmt, ...)
+--- linux-2.6.orig/mm/slub.c	2012-08-08 14:33:38.738052474 -0500
++++ linux-2.6/mm/slub.c	2012-08-08 14:41:00.520972896 -0500
+@@ -3635,9 +3635,6 @@ static void __init kmem_cache_bootstrap_
  {
- 	va_list args;
- 	char buf[100];
-@@ -3139,7 +3139,7 @@ static void list_slab_objects(struct kme
- 				     sizeof(long), GFP_ATOMIC);
- 	if (!map)
- 		return;
--	slab_err(s, page, "%s", text);
-+	slab_err(s, page, text, s->name);
- 	slab_lock(page);
- 
- 	get_map(s, page, map);
-@@ -3171,7 +3171,7 @@ static void free_partial(struct kmem_cac
- 			discard_slab(s, page);
- 		} else {
- 			list_slab_objects(s, page,
--				"Objects remaining on kmem_cache_close()");
-+			"Objects remaining in %s on kmem_cache_close()");
- 		}
- 	}
- }
-@@ -3184,7 +3184,6 @@ static inline int kmem_cache_close(struc
  	int node;
  
- 	flush_all(s);
--	free_percpu(s->cpu_slab);
- 	/* Attempt to free all objects */
+-	list_add(&s->list, &slab_caches);
+-	s->refcount = -1;
+-
  	for_each_node_state(node, N_NORMAL_MEMORY) {
  		struct kmem_cache_node *n = get_node(s, node);
-@@ -3193,33 +3192,20 @@ static inline int kmem_cache_close(struc
- 		if (n->nr_partial || slabs_node(s, node))
- 			return 1;
+ 		struct page *p;
+@@ -3654,13 +3651,13 @@ static void __init kmem_cache_bootstrap_
  	}
-+	free_percpu(s->cpu_slab);
- 	free_kmem_cache_nodes(s);
- 	return 0;
  }
  
--/*
-- * Close a cache and release the kmem_cache structure
-- * (must be used for caches created using kmem_cache_create)
-- */
--void kmem_cache_destroy(struct kmem_cache *s)
-+int __kmem_cache_shutdown(struct kmem_cache *s)
- {
--	mutex_lock(&slab_mutex);
--	s->refcount--;
--	if (!s->refcount) {
--		list_del(&s->list);
--		mutex_unlock(&slab_mutex);
--		if (kmem_cache_close(s)) {
--			printk(KERN_ERR "SLUB %s: %s called for cache that "
--				"still has objects.\n", s->name, __func__);
--			dump_stack();
--		}
--		if (s->flags & SLAB_DESTROY_BY_RCU)
--			rcu_barrier();
--		sysfs_slab_remove(s);
--	} else
--		mutex_unlock(&slab_mutex);
-+	return kmem_cache_close(s);
-+}
++static __initdata struct kmem_cache boot_kmem_cache,
++			boot_kmem_cache_node;
 +
-+void __kmem_cache_destroy(struct kmem_cache *s)
-+{
-+	sysfs_slab_remove(s);
- }
--EXPORT_SYMBOL(kmem_cache_destroy);
+ void __init kmem_cache_init(void)
+ {
+ 	int i;
+-	int caches = 0;
+-	struct kmem_cache *temp_kmem_cache;
+-	int order;
+-	struct kmem_cache *temp_kmem_cache_node;
++	int caches = 2;
+ 	unsigned long kmalloc_size;
  
- /********************************************************************
-  *		Kmalloc subsystem
+ 	if (debug_guardpage_minorder())
+@@ -3669,49 +3666,33 @@ void __init kmem_cache_init(void)
+ 	kmem_size = offsetof(struct kmem_cache, node) +
+ 			nr_node_ids * sizeof(struct kmem_cache_node *);
+ 
+-	/* Allocate two kmem_caches from the page allocator */
+ 	kmalloc_size = ALIGN(kmem_size, cache_line_size());
+-	order = get_order(2 * kmalloc_size);
+-	kmem_cache = (void *)__get_free_pages(GFP_NOWAIT, order);
+-
+-	/*
+-	 * Must first have the slab cache available for the allocations of the
+-	 * struct kmem_cache_node's. There is special bootstrap code in
+-	 * kmem_cache_open for slab_state == DOWN.
+-	 */
+-	kmem_cache_node = (void *)kmem_cache + kmalloc_size;
++	kmem_cache_node = &boot_kmem_cache_node;
+ 
+ 	create_boot_cache(kmem_cache_node, "kmem_cache_node",
+-		       sizeof(struct kmem_cache_node), SLAB_HWCACHE_ALIGN);
++		sizeof(struct kmem_cache_node), SLAB_HWCACHE_ALIGN);
+ 
+ 	hotplug_memory_notifier(slab_memory_callback, SLAB_CALLBACK_PRI);
+ 
+ 	/* Able to allocate the per node structures */
+ 	slab_state = PARTIAL;
+ 
+-	temp_kmem_cache = kmem_cache;
+-	create_boot_cache(kmem_cache, "kmem_cache", kmem_size, SLAB_HWCACHE_ALIGN);
++	create_boot_cache(&boot_kmem_cache, "kmem_cache", kmem_size,
++		       SLAB_HWCACHE_ALIGN);
+ 
+-	kmem_cache = kmem_cache_alloc(kmem_cache, GFP_NOWAIT);
+-	memcpy(kmem_cache, temp_kmem_cache, kmem_size);
++	kmem_cache = kmem_cache_alloc(&boot_kmem_cache, GFP_NOWAIT);
++	memcpy(kmem_cache, &boot_kmem_cache, kmem_size);
+ 
+ 	/*
+ 	 * Allocate kmem_cache_node properly from the kmem_cache slab.
+ 	 * kmem_cache_node is separately allocated so no need to
+ 	 * update any list pointers.
+ 	 */
+-	temp_kmem_cache_node = kmem_cache_node;
+-
+ 	kmem_cache_node = kmem_cache_alloc(kmem_cache, GFP_NOWAIT);
+-	memcpy(kmem_cache_node, temp_kmem_cache_node, kmem_size);
++	memcpy(kmem_cache_node, &boot_kmem_cache_node, kmem_size);
+ 
+ 	kmem_cache_bootstrap_fixup(kmem_cache_node);
+-
+-	caches++;
+ 	kmem_cache_bootstrap_fixup(kmem_cache);
+-	caches++;
+-	/* Free temporary boot structure */
+-	free_pages((unsigned long)temp_kmem_cache, order);
+ 
+ 	/* Now we can use the kmem_cache to allocate kmalloc slabs */
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
