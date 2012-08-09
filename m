@@ -1,87 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
-	by kanga.kvack.org (Postfix) with SMTP id E1E126B0044
-	for <linux-mm@kvack.org>; Thu,  9 Aug 2012 05:20:40 -0400 (EDT)
-Date: Thu, 9 Aug 2012 10:20:35 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 2/6] mm: vmscan: Scale number of pages reclaimed by
- reclaim/compaction based on failures
-Message-ID: <20120809092035.GD12690@suse.de>
-References: <1344342677-5845-1-git-send-email-mgorman@suse.de>
- <1344342677-5845-3-git-send-email-mgorman@suse.de>
- <20120808014824.GB4247@bbox>
- <20120808075526.GI29814@suse.de>
- <20120808082738.GF4247@bbox>
- <20120808085112.GJ29814@suse.de>
- <20120808235127.GA17835@bbox>
- <20120809074949.GA12690@suse.de>
- <20120809082715.GA19802@bbox>
+Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
+	by kanga.kvack.org (Postfix) with SMTP id F343B6B0044
+	for <linux-mm@kvack.org>; Thu,  9 Aug 2012 05:28:31 -0400 (EDT)
+Received: by ggnf4 with SMTP id f4so275323ggn.14
+        for <linux-mm@kvack.org>; Thu, 09 Aug 2012 02:28:31 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20120809082715.GA19802@bbox>
+In-Reply-To: <1343447832-7182-1-git-send-email-john.stultz@linaro.org>
+References: <1343447832-7182-1-git-send-email-john.stultz@linaro.org>
+Date: Thu, 9 Aug 2012 02:28:30 -0700
+Message-ID: <CANN689FzQSLAFw0tNmdiOQ0PwV1nN8FaL0LNkkDMEB10k0jmwA@mail.gmail.com>
+Subject: Re: [PATCH 0/5][RFC] Fallocate Volatile Ranges v6
+From: Michel Lespinasse <walken@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Linux-MM <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, Jim Schutt <jaschut@sandia.gov>, LKML <linux-kernel@vger.kernel.org>
+To: John Stultz <john.stultz@linaro.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Android Kernel Team <kernel-team@android.com>, Robert Love <rlove@google.com>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Dmitry Adamushko <dmitry.adamushko@gmail.com>, Dave Chinner <david@fromorbit.com>, Neil Brown <neilb@suse.de>, Andrea Righi <andrea@betterlinux.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Mike Hommey <mh@glandium.org>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Minchan Kim <minchan@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Thu, Aug 09, 2012 at 05:27:15PM +0900, Minchan Kim wrote:
-> > > > +      * pages reclaimed based on the number of consecutive allocation
-> > > > +      * failures
-> > > > +      */
-> > > > +     zone = lruvec_zone(lruvec);
-> > > > +     if (zone->compact_order_failed >= sc->order)
-> > > 
-> > > I can't understand this part.
-> > > We don't defer lower order than compact_order_failed by aff62249.
-> > > Do you mean lower order compaction context should be a lamb for
-> > > deferred higher order allocation request success? I think it's not fair
-> > > and even I can't understand rationale why it has to scale the number of pages
-> > > reclaimed with the number of recent compaction failture.
-> > > Your changelog just says "What we have to do, NOT Why we have to do".
-> > > 
-> > 
-> > I'm a moron, that should be <=, not >=. All my tests were based on order==9
-> > and that was the only order using reclaim/compaction so it happened to
-> > work as expected. Thanks! I fixed that and added the following
-> > clarification to the changelog
-> > 
-> > The rationale is that reclaiming the normal number of pages still allowed
-> > compaction to fail and its success depends on the number of pages. If it's
-> > failing, reclaim more pages until it succeeds again.
-> > 
-> > Does that make more sense?
-> 
-> If compaction is defered, requestors fails to get high-order page and
-> they normally do fallback by order-0 or something.
+Hi John,
 
-Yes. At least, one hopes they fell back to order-0.
+On Fri, Jul 27, 2012 at 8:57 PM, John Stultz <john.stultz@linaro.org> wrote:
+> So after not getting too much positive feedback on my last
+> attempt at trying to use a non-shrinker method for managing
+> & purging volatile ranges, I decided I'd go ahead and try
+> to implement something along Minchan's ERECLAIM LRU list
+> idea.
 
-> In this context, if they don't depends on fallback and retrying higher order
-> allocation, your patch makes sense to me because your algorithm is based on
-> past allocation request fail rate.
-> Do I miss something?
+Agree that there hasn't been much feedback from MM folks yet - sorry
+about that :/
 
-Your question is difficult to parse but I think you are making an implicit
-assumption that it's the same caller retrying the high order allocation.
-That is not the case, not do I want it to be because that would be similar
-to the caller using __GFP_REPEAT. Retrying with more reclaim until the
-allocation succeeds would both stall and reclaim excessively.
+I think one issue might be that most people don't have a good
+background on how the feature is intended to be used, and it is very
+difficult to comment meaningfully without that.
 
-The intention is that an allocation can fail but each subsequent attempt will
-try harder until there is success. Each allocation request does a portion
-of the necessary work to spread the cost between multiple requests. Take
-THP for example where there is a constant request for THP allocations
-for whatever reason (heavy fork workload, large buffer allocation being
-populated etc.). Some of those allocations fail but if they do, future
-THP requests will reclaim more pages. When compaction resumes again, it
-will be more likely to succeed and compact_defer_shift gets reset. In the
-specific case of THP there will be allocations that fail but khugepaged
-will promote them later if the process is long-lived.
+As for myself, I have been wondering:
+
+- Why the feature needs to be on a per-range basis, rather than
+per-file. Is this simply to make it easier to transition the android
+use case from whatever they are doing right now, or is it that the
+object boundaries within a file can't be known in advance, and thus
+one wouldn't know how to split objects accross different files ? Or
+could it be that some of the objects would be small (less than a page)
+so space use would be inefficient if they were placed in different
+files ? Or just that there would be too many files for efficient
+management ?
+
+- What are the desired semantics for the volatile objects. Can the
+objects be accessed while they are marked as volatile, or do they have
+to get unmarked first ? Is it really the case that we always want to
+reclaim from volatile objects first, before any other kind of caches
+we might have ? This sounds like a very strong hint, and I think I
+would be more comfortable with something more subtle if that's
+possible. Also, if we have several volatile objects to reclaim from,
+is it desirable to reclaim from the one that's been marked volatile
+the longest or does it make no difference ? When an object is marked
+volatile, would it be sufficient to ensure it gets placed on the
+inactive list (maybe with the referenced bit cleared) and let the
+normal reclaim algorithm get to it, or is that an insufficiently
+strong hint somehow ?
+
+Basically, having some background information of how android would be
+using the feature would help us better understand the design decision
+here, I think.
 
 -- 
-Mel Gorman
-SUSE Labs
+Michel "Walken" Lespinasse
+A program is never fully debugged until the last user dies.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
