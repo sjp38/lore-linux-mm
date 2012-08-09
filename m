@@ -1,117 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx162.postini.com [74.125.245.162])
-	by kanga.kvack.org (Postfix) with SMTP id AD3D76B0044
-	for <linux-mm@kvack.org>; Thu,  9 Aug 2012 04:45:16 -0400 (EDT)
-Date: Thu, 9 Aug 2012 17:46:53 +0900
+Received: from psmtp.com (na3sys010amx174.postini.com [74.125.245.174])
+	by kanga.kvack.org (Postfix) with SMTP id E41016B005D
+	for <linux-mm@kvack.org>; Thu,  9 Aug 2012 04:45:40 -0400 (EDT)
+Date: Thu, 9 Aug 2012 17:47:17 +0900
 From: Minchan Kim <minchan@kernel.org>
 Subject: Re: [PATCH 5/5] mm: have order > 0 compaction start near a pageblock
  with free pages
-Message-ID: <20120809084653.GB21033@bbox>
+Message-ID: <20120809084717.GC21033@bbox>
 References: <1344452924-24438-1-git-send-email-mgorman@suse.de>
  <1344452924-24438-6-git-send-email-mgorman@suse.de>
- <20120809001212.GB17835@bbox>
- <20120809082328.GC12690@suse.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20120809082328.GC12690@suse.de>
+In-Reply-To: <1344452924-24438-6-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Mel Gorman <mgorman@suse.de>
 Cc: Linux-MM <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, Jim Schutt <jaschut@sandia.gov>, LKML <linux-kernel@vger.kernel.org>
 
-On Thu, Aug 09, 2012 at 09:23:28AM +0100, Mel Gorman wrote:
-> On Thu, Aug 09, 2012 at 09:12:12AM +0900, Minchan Kim wrote:
-> > > <SNIP>
-> > > 
-> > > Second, it updates compact_cached_free_pfn in a more limited set of
-> > > circumstances.
-> > > 
-> > > If a scanner has wrapped, it updates compact_cached_free_pfn to the end
-> > > 	of the zone. When a wrapped scanner isolates a page, it updates
-> > > 	compact_cached_free_pfn to point to the highest pageblock it
-> > > 	can isolate pages from.
-> > 
-> > Okay until here.
-> > 
+On Wed, Aug 08, 2012 at 08:08:44PM +0100, Mel Gorman wrote:
+> commit [7db8889a: mm: have order > 0 compaction start off where it left]
+> introduced a caching mechanism to reduce the amount work the free page
+> scanner does in compaction. However, it has a problem. Consider two process
+> simultaneously scanning free pages
 > 
-> Great.
+> 				    			C
+> Process A		M     S     			F
+> 		|---------------------------------------|
+> Process B		M 	FS
 > 
-> > > 
-> > > If a scanner has not wrapped when it has finished isolated pages it
-> > > 	checks if compact_cached_free_pfn is pointing to the end of the
-> > > 	zone. If so, the value is updated to point to the highest
-> > > 	pageblock that pages were isolated from. This value will not
-> > > 	be updated again until a free page scanner wraps and resets
-> > > 	compact_cached_free_pfn.
-> > 
-> > I tried to understand your intention of this part but unfortunately failed.
-> > By this part, the problem you mentioned could happen again?
-> > 
+> C is zone->compact_cached_free_pfn
+> S is cc->start_pfree_pfn
+> M is cc->migrate_pfn
+> F is cc->free_pfn
 > 
-> Potentially yes, I did say it still races in the changelog.
+> In this diagram, Process A has just reached its migrate scanner, wrapped
+> around and updated compact_cached_free_pfn accordingly.
 > 
-> >  				    			C
-> >  Process A		M     S     			F
-> >  		|---------------------------------------|
-> >  Process B		M 	FS
-> >  
-> >  C is zone->compact_cached_free_pfn
-> >  S is cc->start_pfree_pfn
-> >  M is cc->migrate_pfn
-> >  F is cc->free_pfn
-> > 
-> > In this diagram, Process A has just reached its migrate scanner, wrapped
-> > around and updated compact_cached_free_pfn to end of the zone accordingly.
-> > 
+> Simultaneously, Process B finishes isolating in a block and updates
+> compact_cached_free_pfn again to the location of its free scanner.
 > 
-> Yes. Now that it has wrapped it updates the compact_cached_free_pfn
-> every loop of isolate_freepages here.
+> Process A moves to "end_of_zone - one_pageblock" and runs this check
 > 
->                 if (isolated) {
->                         high_pfn = max(high_pfn, pfn);
+>                 if (cc->order > 0 && (!cc->wrapped ||
+>                                       zone->compact_cached_free_pfn >
+>                                       cc->start_free_pfn))
+>                         pfn = min(pfn, zone->compact_cached_free_pfn);
 > 
->                         /*
->                          * If the free scanner has wrapped, update
->                          * compact_cached_free_pfn to point to the highest
->                          * pageblock with free pages. This reduces excessive
->                          * scanning of full pageblocks near the end of the
->                          * zone
->                          */
->                         if (cc->order > 0 && cc->wrapped)
->                                 zone->compact_cached_free_pfn = high_pfn;
->                 }
+> compact_cached_free_pfn is above where it started so the free scanner skips
+> almost the entire space it should have scanned. When there are multiple
+> processes compacting it can end in a situation where the entire zone is
+> not being scanned at all.  Further, it is possible for two processes to
+> ping-pong update to compact_cached_free_pfn which is just random.
 > 
+> Overall, the end result wrecks allocation success rates.
 > 
+> There is not an obvious way around this problem without introducing new
+> locking and state so this patch takes a different approach.
 > 
-> > Simultaneously, Process B finishes isolating in a block and peek 
-> > compact_cached_free_pfn position and know it's end of the zone so
-> > update compact_cached_free_pfn to highest pageblock that pages were
-> > isolated from.
-> > 
+> First, it gets rid of the skip logic because it's not clear that it matters
+> if two free scanners happen to be in the same block but with racing updates
+> it's too easy for it to skip over blocks it should not.
 > 
-> Yes, they race at this point. One of two things happen here and I agree
-> that this is racy
+> Second, it updates compact_cached_free_pfn in a more limited set of
+> circumstances.
 > 
-> 1. Process A does another iteration of its loop and sets it back
-> 2. Process A does not do another iteration of the loop, the cached_pfn
->    is further along that it should. The next compacting process will
->    wrap early and reset cached_pfn again but continue to scan the zone.
+> If a scanner has wrapped, it updates compact_cached_free_pfn to the end
+> 	of the zone. When a wrapped scanner isolates a page, it updates
+> 	compact_cached_free_pfn to point to the highest pageblock it
+> 	can isolate pages from.
 > 
-> Either option is relatively harmless because in both cases the zone gets
-> scanned. In patch 4 it was possible that large portions of the zone were
-> frequently missed.
+> If a scanner has not wrapped when it has finished isolated pages it
+> 	checks if compact_cached_free_pfn is pointing to the end of the
+> 	zone. If so, the value is updated to point to the highest
+> 	pageblock that pages were isolated from. This value will not
+> 	be updated again until a free page scanner wraps and resets
+> 	compact_cached_free_pfn.
 > 
-> > Process A updates compact_cached_free_pfn to the highest pageblock which
-> > was set by process B because process A has wrapped. It ends up big jump
-> > without any scanning in process A.
-> > 
+> This is not optimal and it can still race but the compact_cached_free_pfn
+> will be pointing to or very near a pageblock with free pages.
 > 
-> It recovers quickly and is nowhere near as severe as what patch 4
-> suffers from.
-
-Agreed.
-Thanks, Mel.
+> Signed-off-by: Mel Gorman <mgorman@suse.de>
+> Reviewed-by: Rik van Riel <riel@redhat.com>
+Reviewed-by: Minchan Kim <minchan@kernel.org>
 
 -- 
 Kind regards,
