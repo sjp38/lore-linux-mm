@@ -1,65 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx202.postini.com [74.125.245.202])
-	by kanga.kvack.org (Postfix) with SMTP id D9CA66B008C
-	for <linux-mm@kvack.org>; Thu,  9 Aug 2012 10:51:45 -0400 (EDT)
-Date: Thu, 9 Aug 2012 15:51:41 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [RFC PATCH 0/5] Improve hugepage allocation success rates under
- load V3
-Message-ID: <20120809145141.GH12690@suse.de>
-References: <1344520165-24419-1-git-send-email-mgorman@suse.de>
- <5023CADC.801@sandia.gov>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <5023CADC.801@sandia.gov>
+Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
+	by kanga.kvack.org (Postfix) with SMTP id E13976B0044
+	for <linux-mm@kvack.org>; Thu,  9 Aug 2012 11:03:17 -0400 (EDT)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: [PATCH v2 0/6] Avoid cache trashing on clearing huge/gigantic page
+Date: Thu,  9 Aug 2012 18:02:57 +0300
+Message-Id: <1344524583-1096-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jim Schutt <jaschut@sandia.gov>
-Cc: Linux-MM <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan@kernel.org>, LKML <linux-kernel@vger.kernel.org>
+To: linux-mm@kvack.org
+Cc: Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, Andi Kleen <ak@linux.intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, Alex Shi <alex.shu@intel.com>, Jan Beulich <jbeulich@novell.com>, Robert Richter <robert.richter@amd.com>, Andy Lutomirski <luto@amacapital.net>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-mips@linux-mips.org, linux-sh@vger.kernel.org, sparclinux@vger.kernel.org
 
-On Thu, Aug 09, 2012 at 08:36:12AM -0600, Jim Schutt wrote:
-> Hi Mel,
-> 
-> On 08/09/2012 07:49 AM, Mel Gorman wrote:
-> >Changelog since V2
-> >o Capture !MIGRATE_MOVABLE pages where possible
-> >o Document the treatment of MIGRATE_MOVABLE pages while capturing
-> >o Expand changelogs
-> >
-> >Changelog since V1
-> >o Dropped kswapd related patch, basically a no-op and regresses if fixed (minchan)
-> >o Expanded changelogs a little
-> >
-> >Allocation success rates have been far lower since 3.4 due to commit
-> >[fe2c2a10: vmscan: reclaim at order 0 when compaction is enabled]. This
-> >commit was introduced for good reasons and it was known in advance that
-> >the success rates would suffer but it was justified on the grounds that
-> >the high allocation success rates were achieved by aggressive reclaim.
-> >Success rates are expected to suffer even more in 3.6 due to commit
-> >[7db8889a: mm: have order>  0 compaction start off where it left] which
-> >testing has shown to severely reduce allocation success rates under load -
-> >to 0% in one case.  There is a proposed change to that patch in this series
-> >and it would be ideal if Jim Schutt could retest the workload that led to
-> >commit [7db8889a: mm: have order>  0 compaction start off where it left].
-> 
-> I was successful at resolving my Ceph issue on 3.6-rc1, but ran
-> into some other issue that isn't immediately obvious, and prevents
-> me from testing your patch with 3.6-rc1.  Today I will apply your
-> patch series to 3.5 and test that way.
-> 
-> Sorry for the delay.
-> 
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-No need to be sorry at all. I appreciate you taking the time and as
-there were revisions since V1 you were better off waiting even if you
-did not have the Ceph issue!
+Clearing a 2MB huge page will typically blow away several levels of CPU
+caches.  To avoid this only cache clear the 4K area around the fault
+address and use a cache avoiding clears for the rest of the 2MB area.
 
-Thanks.
+This patchset implements cache avoiding version of clear_page only for
+x86. If an architecture wants to provide cache avoiding version of
+clear_page it should to define ARCH_HAS_USER_NOCACHE to 1 and implement
+clear_page_nocache() and clear_user_highpage_nocache().
+
+v2:
+  - No code change. Only commit messages are updated.
+  - RFC mark is dropped.
+
+Andi Kleen (6):
+  THP: Use real address for NUMA policy
+  mm: make clear_huge_page tolerate non aligned address
+  THP: Pass real, not rounded, address to clear_huge_page
+  x86: Add clear_page_nocache
+  mm: make clear_huge_page cache clear only around the fault address
+  x86: switch the 64bit uncached page clear to SSE/AVX v2
+
+ arch/x86/include/asm/page.h          |    2 +
+ arch/x86/include/asm/string_32.h     |    5 ++
+ arch/x86/include/asm/string_64.h     |    5 ++
+ arch/x86/lib/Makefile                |    1 +
+ arch/x86/lib/clear_page_nocache_32.S |   30 +++++++++++
+ arch/x86/lib/clear_page_nocache_64.S |   92 ++++++++++++++++++++++++++++++++++
+ arch/x86/mm/fault.c                  |    7 +++
+ mm/huge_memory.c                     |   17 +++---
+ mm/memory.c                          |   29 ++++++++++-
+ 9 files changed, 178 insertions(+), 10 deletions(-)
+ create mode 100644 arch/x86/lib/clear_page_nocache_32.S
+ create mode 100644 arch/x86/lib/clear_page_nocache_64.S
 
 -- 
-Mel Gorman
-SUSE Labs
+1.7.7.6
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
