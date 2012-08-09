@@ -1,64 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
-	by kanga.kvack.org (Postfix) with SMTP id 993206B0044
-	for <linux-mm@kvack.org>; Thu,  9 Aug 2012 05:46:38 -0400 (EDT)
-Received: by ggnf4 with SMTP id f4so292078ggn.14
-        for <linux-mm@kvack.org>; Thu, 09 Aug 2012 02:46:37 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
+	by kanga.kvack.org (Postfix) with SMTP id D85536B0044
+	for <linux-mm@kvack.org>; Thu,  9 Aug 2012 05:59:51 -0400 (EDT)
+Message-ID: <50238A10.1000606@parallels.com>
+Date: Thu, 9 Aug 2012 13:59:44 +0400
+From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-In-Reply-To: <1343447832-7182-2-git-send-email-john.stultz@linaro.org>
-References: <1343447832-7182-1-git-send-email-john.stultz@linaro.org>
-	<1343447832-7182-2-git-send-email-john.stultz@linaro.org>
-Date: Thu, 9 Aug 2012 02:46:37 -0700
-Message-ID: <CANN689HWYO5DD_p7yY39ethcFu_JO9hudMcDHd=K8FUfhpHZOg@mail.gmail.com>
-Subject: Re: [PATCH 1/5] [RFC] Add volatile range management code
-From: Michel Lespinasse <walken@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: Common11 [06/20] Extract a common function for kmem_cache_destroy
+References: <20120808210129.987345284@linux.com> <20120808210210.088838748@linux.com>
+In-Reply-To: <20120808210210.088838748@linux.com>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: John Stultz <john.stultz@linaro.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Android Kernel Team <kernel-team@android.com>, Robert Love <rlove@google.com>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Dmitry Adamushko <dmitry.adamushko@gmail.com>, Dave Chinner <david@fromorbit.com>, Neil Brown <neilb@suse.de>, Andrea Righi <andrea@betterlinux.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Mike Hommey <mh@glandium.org>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Minchan Kim <minchan@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Christoph Lameter <cl@linux.com>
+Cc: Joonsoo Kim <js1304@gmail.com>, Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>
 
-On Fri, Jul 27, 2012 at 8:57 PM, John Stultz <john.stultz@linaro.org> wrote:
-> v5:
-> * Drop intervaltree for prio_tree usage per Michel &
->   Dmitry's suggestions.
+On 08/09/2012 01:01 AM, Christoph Lameter wrote:
+> -void kmem_cache_destroy(struct kmem_cache *c)
+> +void __kmem_cache_destroy(struct kmem_cache *c)
+>  {
+> -	mutex_lock(&slab_mutex);
+> -	list_del(&c->list);
+> -	mutex_unlock(&slab_mutex);
+>  	kmemleak_free(c);
+> -	if (c->flags & SLAB_DESTROY_BY_RCU)
 
-Actually, I believe the ranges you need to track are non-overlapping, correct ?
+which tree are you based on?
 
-If that is the case, a simple rbtree, sorted by start-of-range
-address, would work best.
-(I am trying to remove prio_tree users... :)
+These lines you are removing doesn't seem to exist on Pekka's, and are
+certainly not added in the previous patches. The patch fails to apply
+because of that.
 
-> +       /* First, find any existing intervals that overlap */
-> +       prio_tree_iter_init(&iter, root, start, end);
+As a matter of fact, this removal was not present in your earlier series.
 
-Note that prio tree iterations take intervals as [start; last] not [start; end[
-So if you want to stick with prio trees, you would have to use end-1 here.
-
-> +       /* Coalesce left-adjacent ranges */
-> +       prio_tree_iter_init(&iter, root, start-1, start);
-
-Same here; you probably want to use start-1 on both ends
-
-> +       node = prio_tree_next(&iter);
-> +       while (node) {
-
-I'm confused, I don't think you ever expect more than one range to
-match, do you ???
-
-> +       /* Coalesce right-adjacent ranges */
-> +       prio_tree_iter_init(&iter, root, end, end+1);
-
-Same again, here you probably want end on both ends
-
-This is far from a complete code review, but I just wanted to point
-out a couple details that jumped to me first. I am afraid I am missing
-some of the background about how the feature is to be used to really
-dig into the rest of the changes at this point :/
-
--- 
-Michel "Walken" Lespinasse
-A program is never fully debugged until the last user dies.
+For now I'll manually edit it.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
