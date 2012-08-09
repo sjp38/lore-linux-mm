@@ -1,63 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
-	by kanga.kvack.org (Postfix) with SMTP id B5B916B005A
-	for <linux-mm@kvack.org>; Thu,  9 Aug 2012 09:03:35 -0400 (EDT)
-From: Glauber Costa <glommer@parallels.com>
-Subject: [PATCH v2 05/11] Add a __GFP_KMEMCG flag
-Date: Thu,  9 Aug 2012 17:01:13 +0400
-Message-Id: <1344517279-30646-6-git-send-email-glommer@parallels.com>
-In-Reply-To: <1344517279-30646-1-git-send-email-glommer@parallels.com>
-References: <1344517279-30646-1-git-send-email-glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
+	by kanga.kvack.org (Postfix) with SMTP id C23916B0044
+	for <linux-mm@kvack.org>; Thu,  9 Aug 2012 09:35:52 -0400 (EDT)
+Date: Thu, 9 Aug 2012 15:35:44 +0200
+From: Andrea Righi <andrea@betterlinux.com>
+Subject: Re: [PATCH 1/5] [RFC] Add volatile range management code
+Message-ID: <20120809133544.GA2086@thinkpad>
+References: <1343447832-7182-1-git-send-email-john.stultz@linaro.org>
+ <1343447832-7182-2-git-send-email-john.stultz@linaro.org>
+ <CANN689HWYO5DD_p7yY39ethcFu_JO9hudMcDHd=K8FUfhpHZOg@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CANN689HWYO5DD_p7yY39ethcFu_JO9hudMcDHd=K8FUfhpHZOg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, devel@openvz.org, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, kamezawa.hiroyu@jp.fujitsu.com, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, Glauber Costa <glommer@parallels.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Suleiman Souhlal <suleiman@google.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>
+To: Michel Lespinasse <walken@google.com>, John Stultz <john.stultz@linaro.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Android Kernel Team <kernel-team@android.com>, Robert Love <rlove@google.com>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Dmitry Adamushko <dmitry.adamushko@gmail.com>, Dave Chinner <david@fromorbit.com>, Neil Brown <neilb@suse.de>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Mike Hommey <mh@glandium.org>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Minchan Kim <minchan@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-This flag is used to indicate to the callees that this allocation is a
-kernel allocation in process context, and should be accounted to
-current's memcg. It takes numerical place of the of the recently removed
-__GFP_NO_KSWAPD.
+On Thu, Aug 09, 2012 at 02:46:37AM -0700, Michel Lespinasse wrote:
+> On Fri, Jul 27, 2012 at 8:57 PM, John Stultz <john.stultz@linaro.org> wrote:
+> > v5:
+> > * Drop intervaltree for prio_tree usage per Michel &
+> >   Dmitry's suggestions.
+> 
+> Actually, I believe the ranges you need to track are non-overlapping, correct ?
+> 
+> If that is the case, a simple rbtree, sorted by start-of-range
+> address, would work best.
+> (I am trying to remove prio_tree users... :)
+> 
 
-Signed-off-by: Glauber Costa <glommer@parallels.com>
-CC: Christoph Lameter <cl@linux.com>
-CC: Pekka Enberg <penberg@cs.helsinki.fi>
-CC: Michal Hocko <mhocko@suse.cz>
-CC: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-CC: Johannes Weiner <hannes@cmpxchg.org>
-CC: Suleiman Souhlal <suleiman@google.com>
-CC: Rik van Riel <riel@redhat.com>
-CC: Mel Gorman <mel@csn.ul.ie>
----
- include/linux/gfp.h | 7 ++++++-
- 1 file changed, 6 insertions(+), 1 deletion(-)
+John,
 
-diff --git a/include/linux/gfp.h b/include/linux/gfp.h
-index f9bc873..d8eae4d 100644
---- a/include/linux/gfp.h
-+++ b/include/linux/gfp.h
-@@ -35,6 +35,11 @@ struct vm_area_struct;
- #else
- #define ___GFP_NOTRACK		0
- #endif
-+#ifdef CONFIG_MEMCG_KMEM
-+#define ___GFP_KMEMCG		0x400000u
-+#else
-+#define ___GFP_KMEMCG		0
-+#endif
- #define ___GFP_OTHER_NODE	0x800000u
- #define ___GFP_WRITE		0x1000000u
- 
-@@ -91,7 +96,7 @@ struct vm_area_struct;
- 
- #define __GFP_OTHER_NODE ((__force gfp_t)___GFP_OTHER_NODE) /* On behalf of other node */
- #define __GFP_WRITE	((__force gfp_t)___GFP_WRITE)	/* Allocator intends to dirty page */
--
-+#define __GFP_KMEMCG	((__force gfp_t)___GFP_KMEMCG) /* Allocation comes from a memcg-accounted resource */
- /*
-  * This may seem redundant, but it's a way of annotating false positives vs.
-  * allocations that simply cannot be supported (e.g. page tables).
--- 
-1.7.11.2
+JFYI, if you want to try a possible rbtree-based implementation, as
+suggested by Michel you could try this one:
+https://github.com/arighi/kinterval
+
+This implementation supports insertion, deletion and transparent merging
+of adjacent ranges, as well as splitting ranges when chunks removed or
+different chunk types are added in the middle of an existing range; so
+if I'm not wrong probably you should be able to use this code as is,
+without any modification.
+
+If you decide to go this way and/or need help to use it in your patch
+set just let me know.
+
+-Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
