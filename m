@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
-	by kanga.kvack.org (Postfix) with SMTP id 9DABD6B005D
-	for <linux-mm@kvack.org>; Thu,  9 Aug 2012 09:02:41 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
+	by kanga.kvack.org (Postfix) with SMTP id 7FC206B005D
+	for <linux-mm@kvack.org>; Thu,  9 Aug 2012 09:02:43 -0400 (EDT)
 From: Glauber Costa <glommer@parallels.com>
-Subject: [PATCH v2 07/11] mm: Allocate kernel pages to the right memcg
-Date: Thu,  9 Aug 2012 17:01:15 +0400
-Message-Id: <1344517279-30646-8-git-send-email-glommer@parallels.com>
+Subject: [PATCH v2 11/11] protect architectures where THREAD_SIZE >= PAGE_SIZE against fork bombs
+Date: Thu,  9 Aug 2012 17:01:19 +0400
+Message-Id: <1344517279-30646-12-git-send-email-glommer@parallels.com>
 In-Reply-To: <1344517279-30646-1-git-send-email-glommer@parallels.com>
 References: <1344517279-30646-1-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,18 +13,27 @@ List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
 Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, devel@openvz.org, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, kamezawa.hiroyu@jp.fujitsu.com, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, Glauber Costa <glommer@parallels.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Suleiman Souhlal <suleiman@google.com>
 
-When a process tries to allocate a page with the __GFP_KMEMCG flag, the
-page allocator will call the corresponding memcg functions to validate
-the allocation. Tasks in the root memcg can always proceed.
+Because those architectures will draw their stacks directly from the
+page allocator, rather than the slab cache, we can directly pass
+__GFP_KMEMCG flag, and issue the corresponding free_pages.
 
-To avoid adding markers to the page - and a kmem flag that would
-necessarily follow, as much as doing page_cgroup lookups for no reason,
-whoever is marking its allocations with __GFP_KMEMCG flag is responsible
-for telling the page allocator that this is such an allocation at
-free_pages() time. This is done by the invocation of
-__free_accounted_pages() and free_accounted_pages().
+This code path is taken when the architecture doesn't define
+CONFIG_ARCH_THREAD_INFO_ALLOCATOR (only ia64 seems to), and has
+THREAD_SIZE >= PAGE_SIZE. Luckily, most - if not all - of the remaining
+architectures fall in this category.
+
+This will guarantee that every stack page is accounted to the memcg the
+process currently lives on, and will have the allocations to fail if
+they go over limit.
+
+For the time being, I am defining a new variant of THREADINFO_GFP, not
+to mess with the other path. Once the slab is also tracked by memcg, we
+can get rid of that flag.
+
+Tested to successfully protect against :(){ :|:& };:
 
 Signed-off-by: Glauber Costa <glommer@parallels.com>
+Acked-by: Frederic Weisbecker <fweisbec@redhat.com>
 CC: Christoph Lameter <cl@linux.com>
 CC: Pekka Enberg <penberg@cs.helsinki.fi>
 CC: Michal Hocko <mhocko@suse.cz>
@@ -32,94 +41,45 @@ CC: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 CC: Johannes Weiner <hannes@cmpxchg.org>
 CC: Suleiman Souhlal <suleiman@google.com>
 ---
- include/linux/gfp.h |  3 +++
- mm/page_alloc.c     | 38 ++++++++++++++++++++++++++++++++++++++
- 2 files changed, 41 insertions(+)
+ include/linux/thread_info.h | 2 ++
+ kernel/fork.c               | 4 ++--
+ 2 files changed, 4 insertions(+), 2 deletions(-)
 
-diff --git a/include/linux/gfp.h b/include/linux/gfp.h
-index d8eae4d..029570f 100644
---- a/include/linux/gfp.h
-+++ b/include/linux/gfp.h
-@@ -370,6 +370,9 @@ extern void free_pages(unsigned long addr, unsigned int order);
- extern void free_hot_cold_page(struct page *page, int cold);
- extern void free_hot_cold_page_list(struct list_head *list, int cold);
+diff --git a/include/linux/thread_info.h b/include/linux/thread_info.h
+index ccc1899..e7e0473 100644
+--- a/include/linux/thread_info.h
++++ b/include/linux/thread_info.h
+@@ -61,6 +61,8 @@ extern long do_no_restart_syscall(struct restart_block *parm);
+ # define THREADINFO_GFP		(GFP_KERNEL | __GFP_NOTRACK)
+ #endif
  
-+extern void __free_accounted_pages(struct page *page, unsigned int order);
-+extern void free_accounted_pages(unsigned long addr, unsigned int order);
++#define THREADINFO_GFP_ACCOUNTED (THREADINFO_GFP | __GFP_KMEMCG)
 +
- #define __free_page(page) __free_pages((page), 0)
- #define free_page(addr) free_pages((addr), 0)
- 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index b956cec..da341dc 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -2532,6 +2532,7 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
- 	struct page *page = NULL;
- 	int migratetype = allocflags_to_migratetype(gfp_mask);
- 	unsigned int cpuset_mems_cookie;
-+	void *handle = NULL;
- 
- 	gfp_mask &= gfp_allowed_mask;
- 
-@@ -2543,6 +2544,13 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
- 		return NULL;
- 
- 	/*
-+	 * Will only have any effect when __GFP_KMEMCG is set.
-+	 * This is verified in the (always inline) callee
-+	 */
-+	if (!memcg_kmem_new_page(gfp_mask, &handle, order))
-+		return NULL;
-+
-+	/*
- 	 * Check the zones suitable for the gfp_mask contain at least one
- 	 * valid zone. It's possible to have an empty zonelist as a result
- 	 * of GFP_THISNODE and a memoryless node
-@@ -2583,6 +2591,8 @@ out:
- 	if (unlikely(!put_mems_allowed(cpuset_mems_cookie) && !page))
- 		goto retry_cpuset;
- 
-+	memcg_kmem_commit_page(page, handle, order);
-+
- 	return page;
- }
- EXPORT_SYMBOL(__alloc_pages_nodemask);
-@@ -2635,6 +2645,34 @@ void free_pages(unsigned long addr, unsigned int order)
- 
- EXPORT_SYMBOL(free_pages);
- 
-+/*
-+ * __free_accounted_pages and free_accounted_pages will free pages allocated
-+ * with __GFP_KMEMCG.
-+ *
-+ * Those pages are accounted to a particular memcg, embedded in the
-+ * corresponding page_cgroup. To avoid adding a hit in the allocator to search
-+ * for that information only to find out that it is NULL for users who have no
-+ * interest in that whatsoever, we provide these functions.
-+ *
-+ * The caller knows better which flags it relies on.
-+ */
-+void __free_accounted_pages(struct page *page, unsigned int order)
-+{
-+	memcg_kmem_free_page(page, order);
-+	__free_pages(page, order);
-+}
-+EXPORT_SYMBOL(__free_accounted_pages);
-+
-+void free_accounted_pages(unsigned long addr, unsigned int order)
-+{
-+	if (addr != 0) {
-+		VM_BUG_ON(!virt_addr_valid((void *)addr));
-+		memcg_kmem_free_page(virt_to_page((void *)addr), order);
-+		__free_pages(virt_to_page((void *)addr), order);
-+	}
-+}
-+EXPORT_SYMBOL(free_accounted_pages);
-+
- static void *make_alloc_exact(unsigned long addr, unsigned order, size_t size)
+ /*
+  * flag set/clear/test wrappers
+  * - pass TIF_xxxx constants to these functions
+diff --git a/kernel/fork.c b/kernel/fork.c
+index dc3ff16..b0b90c3 100644
+--- a/kernel/fork.c
++++ b/kernel/fork.c
+@@ -142,7 +142,7 @@ void __weak arch_release_thread_info(struct thread_info *ti) { }
+ static struct thread_info *alloc_thread_info_node(struct task_struct *tsk,
+ 						  int node)
  {
- 	if (addr) {
+-	struct page *page = alloc_pages_node(node, THREADINFO_GFP,
++	struct page *page = alloc_pages_node(node, THREADINFO_GFP_ACCOUNTED,
+ 					     THREAD_SIZE_ORDER);
+ 
+ 	return page ? page_address(page) : NULL;
+@@ -151,7 +151,7 @@ static struct thread_info *alloc_thread_info_node(struct task_struct *tsk,
+ static inline void free_thread_info(struct thread_info *ti)
+ {
+ 	arch_release_thread_info(ti);
+-	free_pages((unsigned long)ti, THREAD_SIZE_ORDER);
++	free_accounted_pages((unsigned long)ti, THREAD_SIZE_ORDER);
+ }
+ # else
+ static struct kmem_cache *thread_info_cache;
 -- 
 1.7.11.2
 
