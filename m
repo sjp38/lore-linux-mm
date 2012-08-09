@@ -1,33 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
-	by kanga.kvack.org (Postfix) with SMTP id 199106B0081
-	for <linux-mm@kvack.org>; Thu,  9 Aug 2012 11:26:21 -0400 (EDT)
-Date: Thu, 9 Aug 2012 08:26:20 -0700
-From: Andi Kleen <ak@linux.intel.com>
-Subject: Re: [PATCH v2 4/6] x86: Add clear_page_nocache
-Message-ID: <20120809152620.GH2644@tassilo.jf.intel.com>
-References: <1344524583-1096-1-git-send-email-kirill.shutemov@linux.intel.com>
- <1344524583-1096-5-git-send-email-kirill.shutemov@linux.intel.com>
- <5023F1BC0200007800093EF0@nat28.tlf.novell.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
+	by kanga.kvack.org (Postfix) with SMTP id 1ADC76B0081
+	for <linux-mm@kvack.org>; Thu,  9 Aug 2012 11:28:59 -0400 (EDT)
+Message-Id: <5023F3580200007800093F2C@nat28.tlf.novell.com>
+Date: Thu, 09 Aug 2012 16:28:56 +0100
+From: "Jan Beulich" <JBeulich@suse.com>
+Subject: Re: [PATCH v2 6/6] x86: switch the 64bit uncached page clear
+ to SSE/AVX v2
+References: 
+ <1344524583-1096-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <1344524583-1096-7-git-send-email-kirill.shutemov@linux.intel.com>
+In-Reply-To: <1344524583-1096-7-git-send-email-kirill.shutemov@linux.intel.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: quoted-printable
 Content-Disposition: inline
-In-Reply-To: <5023F1BC0200007800093EF0@nat28.tlf.novell.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Beulich <JBeulich@suse.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andi Kleen <ak@linux.intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Andy Lutomirski <luto@amacapital.net>, Robert Richter <robert.richter@amd.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Alex Shi <alex.shu@intel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, x86@kernel.org, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>, Andrew Morton <akpm@linux-foundation.org>, linux-mips@linux-mips.org, Tim Chen <tim.c.chen@linux.intel.com>, linuxppc-dev@lists.ozlabs.org, Andrea Arcangeli <aarcange@redhat.com>, Ingo Molnar <mingo@redhat.com>, Mel Gorman <mgorman@suse.de>, linux-kernel@vger.kernel.org, linux-sh@vger.kernel.org, sparclinux@vger.kernel.org, "H. Peter Anvin" <hpa@zytor.com>
 
-> While on 64-bit this is fine, I fail to see how you avoid using the
-> SSE2 instruction on non-SSE2 systems.
+>>> On 09.08.12 at 17:03, "Kirill A. Shutemov" <kirill.shutemov@linux.intel=
+.com> wrote:
+>  ENTRY(clear_page_nocache)
+>  	CFI_STARTPROC
+> -	xorl   %eax,%eax
+> -	movl   $4096/64,%ecx
+> +	push   %rdi
+> +	call   kernel_fpu_begin
+> +	pop    %rdi
 
-You're right, this needs a fallback path for 32bit non sse
-(and fixing the ABI)
+You use CFI annotations elsewhere, so why don't you use
+pushq_cfi/popq_cfi here?
 
--Andi
-
--- 
-ak@linux.intel.com -- Speaking for myself only
+Jan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
