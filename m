@@ -1,277 +1,190 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx144.postini.com [74.125.245.144])
-	by kanga.kvack.org (Postfix) with SMTP id A416E6B0044
-	for <linux-mm@kvack.org>; Thu,  9 Aug 2012 00:42:20 -0400 (EDT)
-Message-ID: <50233EF5.3050605@huawei.com>
-Date: Thu, 9 Aug 2012 12:39:17 +0800
-From: Hanjun Guo <guohanjun@huawei.com>
+Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
+	by kanga.kvack.org (Postfix) with SMTP id E5F446B0044
+	for <linux-mm@kvack.org>; Thu,  9 Aug 2012 03:49:55 -0400 (EDT)
+Date: Thu, 9 Aug 2012 08:49:50 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 2/6] mm: vmscan: Scale number of pages reclaimed by
+ reclaim/compaction based on failures
+Message-ID: <20120809074949.GA12690@suse.de>
+References: <1344342677-5845-1-git-send-email-mgorman@suse.de>
+ <1344342677-5845-3-git-send-email-mgorman@suse.de>
+ <20120808014824.GB4247@bbox>
+ <20120808075526.GI29814@suse.de>
+ <20120808082738.GF4247@bbox>
+ <20120808085112.GJ29814@suse.de>
+ <20120808235127.GA17835@bbox>
 MIME-Version: 1.0
-Subject: [RFC PATCH] mm: introduce N_LRU_MEMORY to distinguish between normal
- and movable memory
-References: <1344482788-4984-1-git-send-email-guohanjun@huawei.com>
-In-Reply-To: <1344482788-4984-1-git-send-email-guohanjun@huawei.com>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20120808235127.GA17835@bbox>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: Wu Jianguo <wujianguo@huawei.com>, Jiang Liu <jiang.liu@huawei.com>, Tony Luck <tony.luck@intel.com>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Mel Gorman <mgorman@suse.de>, Yinghai Lu <yinghai@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, Minchan Kim <minchan@kernel.org>, Keping Chen <chenkeping@huawei.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Jiang Liu <liuj97@gmail.com>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Linux-MM <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, Jim Schutt <jaschut@sandia.gov>, LKML <linux-kernel@vger.kernel.org>
 
-From: Wu Jianguo <wujianguo@huawei.com>
+On Thu, Aug 09, 2012 at 08:51:27AM +0900, Minchan Kim wrote:
+> > > > > Just out of curiosity.
+> > > > > What's the problem did you see? (ie, What's the problem do this patch solve?)
+> > > > 
+> > > > Everythign in this series is related to the problem in the leader - high
+> > > > order allocation success rates are lower. This patch increases the success
+> > > > rates when allocating under load.
+> > > > 
+> > > > > AFAIUC, it seem to solve consecutive allocation success ratio through
+> > > > > getting several free pageblocks all at once in a process/kswapd
+> > > > > reclaim context. Right?
+> > > > 
+> > > > Only pageblocks if it is order-9 on x86, it reclaims an amount that depends
+> > > > on an allocation size. This only happens during reclaim/compaction context
+> > > > when we know that a high-order allocation has recently failed. The objective
+> > > > is to reclaim enough order-0 pages so that compaction can succeed again.
+> > > 
+> > > Your patch increases the number of pages to be reclaimed with considering
+> > > the number of fail case during deferring period and your test proved it's
+> > > really good. Without your patch, why can't VM reclaim enough pages?
+> > 
+> > It could reclaim enough pages but it doesn't. nr_to_reclaim is
+> > SWAP_CLUSTER_MAX and that gets short-cutted in direct reclaim at least
+> > by 
+> > 
+> >                 if (sc->nr_reclaimed >= sc->nr_to_reclaim)
+> >                         goto out;
+> > 
+> > I could set nr_to_reclaim in try_to_free_pages() of course and drive
+> > it from there but that's just different, not better. If driven from
+> > do_try_to_free_pages(), it is also possible that priorities will rise.
+> > When they reach DEF_PRIORITY-2, it will also start stalling and setting
+> > pages for immediate reclaim which is more disruptive than not desirable
+> > in this case. That is a more wide-reaching change than I would expect for
+> > this problem and could cause another regression related to THP requests
+> > causing interactive jitter.
+> 
+> Agreed.
+> I hope it should be added by changelog.
+> 
 
-Hi all,
-Now, We have node masks for both N_NORMAL_MEMORY and
-N_HIGH_MEMORY to distinguish between normal and highmem on platforms such as x86.
-But we still don't have such a mechanism to distinguish between "normal" and "movable"
-memory.
+I guess but it's not really part of this patch is it? The decision on
+where to drive should_continue_reclaim from was made in commit [3e7d3449:
+mm: vmscan: reclaim order-0 and use compaction instead of lumpy reclaim].
 
-As suggested by Christoph Lameter in threads
-http://marc.info/?l=linux-mm&m=134323057602484&w=2, we introduce N_LRU_MEMORY to
-distinguish between "normal" and "movable" memory.
+Anyway changelog now reads as
 
-And this patch will fix the bug described as follow:
+If allocation fails after compaction then compaction may be deferred
+for a number of allocation attempts. If there are subsequent failures,
+compact_defer_shift is increased to defer for longer periods. This
+patch uses that information to scale the number of pages reclaimed with
+compact_defer_shift until allocations succeed again. The rationale is
+that reclaiming the normal number of pages still allowed compaction to
+fail and its success depends on the number of pages. If it's failing,
+reclaim more pages until it succeeds again.
 
-When handling a memory node with only movable zone, function
-early_kmem_cache_node_alloc() will allocate a page from remote node but
-still increase object count on local node, which will trigger a BUG_ON()
-as below when hot-removing this memory node. Actually there's no need to
-create kmem_cache_node for memory node with only movable zone at all.
+Note that this is not implying that VM reclaim is not reclaiming enough
+pages or that its logic is broken. try_to_free_pages() always asks for
+SWAP_CLUSTER_MAX pages to be reclaimed regardless of order and that is
+what it does. Direct reclaim stops normally with this check.
 
-------------[ cut here ]------------
-kernel BUG at mm/slub.c:3590!
-invalid opcode: 0000 [#1] SMP
-CPU 61
-Modules linked in: autofs4 sunrpc cpufreq_ondemand acpi_cpufreq freq_table
-mperf ip6t_REJECT nf_conntrack_ipv6 nf_defrag_ipv6 ip6table_filter ip6_tables
-ipv6 vfat fat dm_mirror dm_region_hash dm_log uinput iTCO_wdt
-iTCO_vendor_support coretemp hwmon kvm_intel kvm crc32c_intel
-ghash_clmulni_intel serio_raw pcspkr cdc_ether usbnet mii i2c_i801 i2c_core sg
-lpc_ich mfd_core shpchp ioatdma i7core_edac edac_core igb dca bnx2 ext4
-mbcache jbd2 sr_mod cdrom sd_mod crc_t10dif aesni_intel cryptd aes_x86_64
-aes_generic bfa scsi_transport_fc scsi_tgt pata_acpi ata_generic ata_piix
-megaraid_sas dm_mod [last unloaded: microcode]
+        if (sc->nr_reclaimed >= sc->nr_to_reclaim)
+                goto out;
 
-Pid: 46287, comm: sh Not tainted 3.5.0-rc4-pgtable-00215-g35f0828-dirty #85
-IBM System x3850 X5 -[7143O3G]-/Node 1, Processor Card
-RIP: 0010:[<ffffffff81160b2a>]  [<ffffffff81160b2a>]
-slab_memory_callback+0x1ba/0x1c0
-RSP: 0018:ffff880efdcb7c68  EFLAGS: 00010202
-RAX: 0000000000000001 RBX: ffff880f7ec06100 RCX: 0000000100400001
-RDX: 0000000100400002 RSI: ffff880f7ec02000 RDI: ffff880f7ec06100
-RBP: ffff880efdcb7c78 R08: ffff88107b6fb098 R09: ffffffff81160a00
-R10: 0000000000000000 R11: 0000000000000000 R12: 0000000000000019
-R13: 00000000fffffffb R14: 0000000000000000 R15: ffffffff81abe930
-FS:  00007f709f342700(0000) GS:ffff880f7f3a0000(0000) knlGS:0000000000000000
-CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
-CR2: 0000003b5a874570 CR3: 0000000f0da20000 CR4: 00000000000007e0
-DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
-DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
-Process sh (pid: 46287, threadinfo ffff880efdcb6000, task ffff880f0fa50000)
-Stack:
- 0000000000000004 ffff880efdcb7da8 ffff880efdcb7cb8 ffffffff81524af5
- 0000000000000001 ffffffff81a8b620 ffffffff81a8b640 0000000000000004
- ffff880efdcb7da8 00000000ffffffff ffff880efdcb7d08 ffffffff8107a89a
-Call Trace:
- [<ffffffff81524af5>] notifier_call_chain+0x55/0x80
- [<ffffffff8107a89a>] __blocking_notifier_call_chain+0x5a/0x80
- [<ffffffff8107a8d6>] blocking_notifier_call_chain+0x16/0x20
- [<ffffffff81352f0b>] memory_notify+0x1b/0x20
- [<ffffffff81507104>] offline_pages+0x624/0x700
- [<ffffffff811619de>] remove_memory+0x1e/0x20
- [<ffffffff813530cc>] memory_block_change_state+0x13c/0x2e0
- [<ffffffff81153e96>] ? alloc_pages_current+0xb6/0x120
- [<ffffffff81353332>] store_mem_state+0xc2/0xd0
- [<ffffffff8133e190>] dev_attr_store+0x20/0x30
- [<ffffffff811e2d4f>] sysfs_write_file+0xef/0x170
- [<ffffffff81173e28>] vfs_write+0xc8/0x190
- [<ffffffff81173ff1>] sys_write+0x51/0x90
- [<ffffffff81528d29>] system_call_fastpath+0x16/0x1b
-Code: 8b 3d cb fd c4 00 be d0 00 00 00 e8 71 de ff ff 48 85 c0 75 9c 48 c7 c7
-c0 7f a5 81 e8 c0 89 f1 ff b8 0d 80 00 00 e9 69 fe ff ff <0f> 0b eb fe 66 90
-55 48 89 e5 41 57 41 56 41 55 41 54 53 48 83
-RIP  [<ffffffff81160b2a>] slab_memory_callback+0x1ba/0x1c0
- RSP <ffff880efdcb7c68>
----[ end trace 749e9e9a67c78c12 ]---
+should_continue_reclaim delays when that check is made until a minimum number
+of pages for reclaim/compaction are reclaimed. It is possible that this patch
+could instead set nr_to_reclaim in try_to_free_pages() and drive it from
+there but that's behaves differently and not necessarily for the better.
+If driven from do_try_to_free_pages(), it is also possible that priorities
+will rise. When they reach DEF_PRIORITY-2, it will also start stalling
+and setting pages for immediate reclaim which is more disruptive than not
+desirable in this case. That is a more wide-reaching change that could
+cause another regression related to THP requests causing interactive jitter.
 
-Signed-off-by: Wu Jianguo <wujianguo@huawei.com>
-Signed-off-by: Jiang Liu <jiang.liu@huawei.com>
----
- arch/alpha/mm/numa.c     |    2 +-
- arch/m32r/mm/discontig.c |    2 +-
- arch/m68k/mm/motorola.c  |    2 +-
- arch/parisc/mm/init.c    |    2 +-
- arch/tile/kernel/setup.c |    2 +-
- arch/x86/mm/init_64.c    |    2 +-
- drivers/base/node.c      |    4 +++-
- include/linux/nodemask.h |    5 +++--
- mm/page_alloc.c          |   10 ++++++++--
- 9 files changed, 20 insertions(+), 11 deletions(-)
+> > 
+> > > Other processes steal the pages reclaimed?
+> > 
+> > Or the page it reclaimed were in pageblocks that could not be used.
+> > 
+> > > Why I ask a question is that I want to know what's the problem at current
+> > > VM.
+> > > 
+> > 
+> > We cannot reliably tell in advance whether compaction is going to succeed
+> > in the future without doing a full scan of the zone which would be both
+> > very heavy and race with any allocation requests. Compaction needs free
+> > pages to succeed so the intention is to scale the number of pages reclaimed
+> > with the number of recent compaction failures.
+> 
+> > If allocation fails after compaction then compaction may be deferred for
+> > a number of allocation attempts. If there are subsequent failures,
+> > compact_defer_shift is increased to defer for longer periods. This patch
+> > uses that information to scale the number of pages reclaimed with
+> > compact_defer_shift until allocations succeed again.
+> > 
+> > Signed-off-by: Mel Gorman <mgorman@suse.de>
+> > ---
+> >  mm/vmscan.c |   10 ++++++++++
+> >  1 file changed, 10 insertions(+)
+> > 
+> > diff --git a/mm/vmscan.c b/mm/vmscan.c
+> > index 66e4310..0cb2593 100644
+> > --- a/mm/vmscan.c
+> > +++ b/mm/vmscan.c
+> > @@ -1708,6 +1708,7 @@ static inline bool should_continue_reclaim(struct lruvec *lruvec,
+> >  {
+> >       unsigned long pages_for_compaction;
+> >       unsigned long inactive_lru_pages;
+> > +     struct zone *zone;
+> >  
+> >       /* If not in reclaim/compaction mode, stop */
+> >       if (!in_reclaim_compaction(sc))
+> > @@ -1741,6 +1742,15 @@ static inline bool should_continue_reclaim(struct lruvec *lruvec,
+> >        * inactive lists are large enough, continue reclaiming
+> >        */
+> >       pages_for_compaction = (2UL << sc->order);
+> > +
+> > +     /*
+> > +      * If compaction is deferred for this order then scale the number of
+> 
+> this order? sc->order?
+> 
 
-diff --git a/arch/alpha/mm/numa.c b/arch/alpha/mm/numa.c
-index 3973ae3..8402b29 100644
---- a/arch/alpha/mm/numa.c
-+++ b/arch/alpha/mm/numa.c
-@@ -313,7 +313,7 @@ void __init paging_init(void)
- 			zones_size[ZONE_DMA] = dma_local_pfn;
- 			zones_size[ZONE_NORMAL] = (end_pfn - start_pfn) - dma_local_pfn;
- 		}
--		node_set_state(nid, N_NORMAL_MEMORY);
-+		node_set_state(nid, N_LRU_MEMORY);
- 		free_area_init_node(nid, zones_size, start_pfn, NULL);
- 	}
+yes. Comment changed to clarify.
 
-diff --git a/arch/m32r/mm/discontig.c b/arch/m32r/mm/discontig.c
-index 2c468e8..4d76e19 100644
---- a/arch/m32r/mm/discontig.c
-+++ b/arch/m32r/mm/discontig.c
-@@ -149,7 +149,7 @@ unsigned long __init zone_sizes_init(void)
- 		zholes_size[ZONE_DMA] = mp->holes;
- 		holes += zholes_size[ZONE_DMA];
+> > +      * pages reclaimed based on the number of consecutive allocation
+> > +      * failures
+> > +      */
+> > +     zone = lruvec_zone(lruvec);
+> > +     if (zone->compact_order_failed >= sc->order)
+> 
+> I can't understand this part.
+> We don't defer lower order than compact_order_failed by aff62249.
+> Do you mean lower order compaction context should be a lamb for
+> deferred higher order allocation request success? I think it's not fair
+> and even I can't understand rationale why it has to scale the number of pages
+> reclaimed with the number of recent compaction failture.
+> Your changelog just says "What we have to do, NOT Why we have to do".
+> 
 
--		node_set_state(nid, N_NORMAL_MEMORY);
-+		node_set_state(nid, N_LRU_MEMORY);
- 		free_area_init_node(nid, zones_size, start_pfn, zholes_size);
- 	}
+I'm a moron, that should be <=, not >=. All my tests were based on order==9
+and that was the only order using reclaim/compaction so it happened to
+work as expected. Thanks! I fixed that and added the following
+clarification to the changelog
 
-diff --git a/arch/m68k/mm/motorola.c b/arch/m68k/mm/motorola.c
-index 0dafa69..31a0b00 100644
---- a/arch/m68k/mm/motorola.c
-+++ b/arch/m68k/mm/motorola.c
-@@ -300,7 +300,7 @@ void __init paging_init(void)
- 		free_area_init_node(i, zones_size,
- 				    m68k_memory[i].addr >> PAGE_SHIFT, NULL);
- 		if (node_present_pages(i))
--			node_set_state(i, N_NORMAL_MEMORY);
-+			node_set_state(i, N_LRU_MEMORY);
- 	}
- }
+The rationale is that reclaiming the normal number of pages still allowed
+compaction to fail and its success depends on the number of pages. If it's
+failing, reclaim more pages until it succeeds again.
 
-diff --git a/arch/parisc/mm/init.c b/arch/parisc/mm/init.c
-index 3ac462d..ad286fd 100644
---- a/arch/parisc/mm/init.c
-+++ b/arch/parisc/mm/init.c
-@@ -277,7 +277,7 @@ static void __init setup_bootmem(void)
- 	memset(pfnnid_map, 0xff, sizeof(pfnnid_map));
+Does that make more sense?
 
- 	for (i = 0; i < npmem_ranges; i++) {
--		node_set_state(i, N_NORMAL_MEMORY);
-+		node_set_state(i, N_LRU_MEMORY);
- 		node_set_online(i);
- 	}
- #endif
-diff --git a/arch/tile/kernel/setup.c b/arch/tile/kernel/setup.c
-index 6a649a4..464672d 100644
---- a/arch/tile/kernel/setup.c
-+++ b/arch/tile/kernel/setup.c
-@@ -748,7 +748,7 @@ static void __init zone_sizes_init(void)
-
- 		/* Track the type of memory on each node */
- 		if (zones_size[ZONE_NORMAL] || zones_size[ZONE_DMA])
--			node_set_state(i, N_NORMAL_MEMORY);
-+			node_set_state(i, N_LRU_MEMORY);
- #ifdef CONFIG_HIGHMEM
- 		if (end != start)
- 			node_set_state(i, N_HIGH_MEMORY);
-diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
-index 2b6b4a3..43bf392 100644
---- a/arch/x86/mm/init_64.c
-+++ b/arch/x86/mm/init_64.c
-@@ -625,7 +625,7 @@ void __init paging_init(void)
- 	 *	 numa support is not compiled in, and later node_set_state
- 	 *	 will not set it back.
- 	 */
--	node_clear_state(0, N_NORMAL_MEMORY);
-+	node_clear_state(0, N_LRU_MEMORY);
-
- 	zone_sizes_init();
- }
-diff --git a/drivers/base/node.c b/drivers/base/node.c
-index af1a177..4a631f9 100644
---- a/drivers/base/node.c
-+++ b/drivers/base/node.c
-@@ -617,6 +617,7 @@ static struct node_attr node_state_attr[] = {
- 	_NODE_ATTR(possible, N_POSSIBLE),
- 	_NODE_ATTR(online, N_ONLINE),
- 	_NODE_ATTR(has_normal_memory, N_NORMAL_MEMORY),
-+	_NODE_ATTR(has_lru_memory, N_LRU_MEMORY),
- 	_NODE_ATTR(has_cpu, N_CPU),
- #ifdef CONFIG_HIGHMEM
- 	_NODE_ATTR(has_high_memory, N_HIGH_MEMORY),
-@@ -628,8 +629,9 @@ static struct attribute *node_state_attrs[] = {
- 	&node_state_attr[1].attr.attr,
- 	&node_state_attr[2].attr.attr,
- 	&node_state_attr[3].attr.attr,
--#ifdef CONFIG_HIGHMEM
- 	&node_state_attr[4].attr.attr,
-+#ifdef CONFIG_HIGHMEM
-+	&node_state_attr[5].attr.attr,
- #endif
- 	NULL
- };
-diff --git a/include/linux/nodemask.h b/include/linux/nodemask.h
-index 7afc363..550f9a1 100644
---- a/include/linux/nodemask.h
-+++ b/include/linux/nodemask.h
-@@ -374,11 +374,12 @@ static inline void __nodes_fold(nodemask_t *dstp, const nodemask_t *origp,
- enum node_states {
- 	N_POSSIBLE,		/* The node could become online at some point */
- 	N_ONLINE,		/* The node is online */
--	N_NORMAL_MEMORY,	/* The node has regular memory */
-+	N_NORMAL_MEMORY,	/* The node has normal memory */
-+	N_LRU_MEMORY,	/* The node has regular memory */
- #ifdef CONFIG_HIGHMEM
- 	N_HIGH_MEMORY,		/* The node has regular or high memory */
- #else
--	N_HIGH_MEMORY = N_NORMAL_MEMORY,
-+	N_HIGH_MEMORY = N_LRU_MEMORY,
- #endif
- 	N_CPU,		/* The node has one or more cpus */
- 	NR_NODE_STATES
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 009ac28..5a7eacb 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -87,6 +87,7 @@ nodemask_t node_states[NR_NODE_STATES] __read_mostly = {
- 	[N_ONLINE] = { { [0] = 1UL } },
- #ifndef CONFIG_NUMA
- 	[N_NORMAL_MEMORY] = { { [0] = 1UL } },
-+	[N_LRU_MEMORY] = { { [0] = 1UL } },
- #ifdef CONFIG_HIGHMEM
- 	[N_HIGH_MEMORY] = { { [0] = 1UL } },
- #endif
-@@ -4796,16 +4797,21 @@ out:
- /* Any regular memory on that node ? */
- static void __init check_for_regular_memory(pg_data_t *pgdat)
- {
--#ifdef CONFIG_HIGHMEM
-+	struct zone *zone;
- 	enum zone_type zone_type;
-
- 	for (zone_type = 0; zone_type <= ZONE_NORMAL; zone_type++) {
--		struct zone *zone = &pgdat->node_zones[zone_type];
-+		zone = &pgdat->node_zones[zone_type];
- 		if (zone->present_pages) {
- 			node_set_state(zone_to_nid(zone), N_NORMAL_MEMORY);
- 			break;
- 		}
- 	}
-+
-+#ifdef CONFIG_HIGHMEM
-+	zone = &pgdat->node_zones[ZONE_MOVABLE];
-+	if (zone->present_pages)
-+		node_set_state(zone_to_nid(zone), N_LRU_MEMORY);
- #endif
- }
+> 
+> > +             pages_for_compaction <<= zone->compact_defer_shift;
+> 
+> 
+> >       inactive_lru_pages = get_lru_size(lruvec, LRU_INACTIVE_FILE);
+> >       if (nr_swap_pages > 0)
+> >               inactive_lru_pages += get_lru_size(lruvec, LRU_INACTIVE_ANON);
 
 -- 
-1.7.1
-
-
-
-.
-
-
-
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
