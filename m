@@ -1,105 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
-	by kanga.kvack.org (Postfix) with SMTP id 0B0F26B006E
-	for <linux-mm@kvack.org>; Thu,  9 Aug 2012 09:57:53 -0400 (EDT)
-Message-Id: <20120809135635.465282526@linux.com>
-Date: Thu, 09 Aug 2012 08:56:35 -0500
+Received: from psmtp.com (na3sys010amx144.postini.com [74.125.245.144])
+	by kanga.kvack.org (Postfix) with SMTP id 35FEE6B0080
+	for <linux-mm@kvack.org>; Thu,  9 Aug 2012 09:57:54 -0400 (EDT)
+Message-Id: <20120809135633.629317723@linux.com>
+Date: Thu, 09 Aug 2012 08:56:24 -0500
 From: Christoph Lameter <cl@linux.com>
-Subject: Common11r [12/20] Move sysfs_slab_add to common
+Subject: Common11r [01/20] slub: Add debugging to verify correct cache use on kmem_cache_free()
 References: <20120809135623.574621297@linux.com>
-Content-Disposition: inline; filename=move_sysfs_slab_add
+Content-Disposition: inline; filename=slub_new_debug
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Joonsoo Kim <js1304@gmail.com>
 Cc: Glauber Costa <glommer@parallels.com>, Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>
 
-Simplify locking by moving the slab_add_sysfs after all locks
-have been dropped. Eases the upcoming move to provide sysfs
-support for all allocators.
+Add additional debugging to check that the objects is actually from the cache
+the caller claims. Doing so currently trips up some other debugging code. It
+takes a lot to infer from that what was happening.
+
+V2: Only warn once. 
 
 Signed-off-by: Christoph Lameter <cl@linux.com>
 
-Index: linux-2.6/mm/slab.h
-===================================================================
---- linux-2.6.orig/mm/slab.h	2012-08-08 10:01:43.620981188 -0500
-+++ linux-2.6/mm/slab.h	2012-08-09 08:52:56.751925638 -0500
-@@ -39,10 +39,13 @@ struct kmem_cache *__kmem_cache_create(c
- #ifdef CONFIG_SLUB
- struct kmem_cache *__kmem_cache_alias(const char *name, size_t size,
- 	size_t align, unsigned long flags, void (*ctor)(void *));
-+extern int sysfs_slab_add(struct kmem_cache *s);
- #else
- static inline struct kmem_cache *__kmem_cache_alias(const char *name, size_t size,
- 	size_t align, unsigned long flags, void (*ctor)(void *))
- { return NULL; }
-+static inline int sysfs_slab_add(struct kmem_cache *s) { return 0; }
-+
- #endif
- 
- 
-Index: linux-2.6/mm/slab_common.c
-===================================================================
---- linux-2.6.orig/mm/slab_common.c	2012-08-08 10:40:49.125818807 -0500
-+++ linux-2.6/mm/slab_common.c	2012-08-09 08:52:56.779926362 -0500
-@@ -140,6 +140,14 @@ out:
- 		return NULL;
- 	}
- 
-+	if (s->refcount == 1) {
-+		err = sysfs_slab_add(s);
-+		if (err)
-+			printk(KERN_WARNING "kmem_cache_create(%s) failed to"
-+				" create sysfs entry. Error %d\n",
-+					name, err);
-+	}
-+
- 	return s;
- }
- EXPORT_SYMBOL(kmem_cache_create);
 Index: linux-2.6/mm/slub.c
 ===================================================================
---- linux-2.6.orig/mm/slub.c	2012-08-08 10:01:43.624981198 -0500
-+++ linux-2.6/mm/slub.c	2012-08-09 08:52:56.787926571 -0500
-@@ -202,12 +202,10 @@ struct track {
- enum track_item { TRACK_ALLOC, TRACK_FREE };
+--- linux-2.6.orig/mm/slub.c	2012-08-03 14:16:27.396663869 -0500
++++ linux-2.6/mm/slub.c	2012-08-03 14:16:38.664866880 -0500
+@@ -2607,6 +2607,13 @@ void kmem_cache_free(struct kmem_cache *
  
- #ifdef CONFIG_SYSFS
--static int sysfs_slab_add(struct kmem_cache *);
- static int sysfs_slab_alias(struct kmem_cache *, const char *);
- static void sysfs_slab_remove(struct kmem_cache *);
+ 	page = virt_to_head_page(x);
  
- #else
--static inline int sysfs_slab_add(struct kmem_cache *s) { return 0; }
- static inline int sysfs_slab_alias(struct kmem_cache *s, const char *p)
- 							{ return 0; }
- static inline void sysfs_slab_remove(struct kmem_cache *s) { }
-@@ -3948,16 +3946,7 @@ struct kmem_cache *__kmem_cache_create(c
- 	if (s) {
- 		if (kmem_cache_open(s, name,
- 				size, align, flags, ctor)) {
--			int r;
--
--			mutex_unlock(&slab_mutex);
--			r = sysfs_slab_add(s);
--			mutex_lock(&slab_mutex);
--
--			if (!r)
--				return s;
--
--			kmem_cache_close(s);
-+			return s;
- 		}
- 		kmem_cache_free(kmem_cache, s);
- 	}
-@@ -5251,7 +5240,7 @@ static char *create_unique_id(struct kme
- 	return name;
- }
++	if (kmem_cache_debug(s) && page->slab != s) {
++		printk("kmem_cache_free: Wrong slab cache. %s but object"
++			" is from  %s\n", page->slab->name, s->name);
++		WARN_ON_ONCE(1);
++		return;
++	}
++
+ 	slab_free(s, page, x, _RET_IP_);
  
--static int sysfs_slab_add(struct kmem_cache *s)
-+int sysfs_slab_add(struct kmem_cache *s)
- {
- 	int err;
- 	const char *name;
+ 	trace_kmem_cache_free(_RET_IP_, x);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
