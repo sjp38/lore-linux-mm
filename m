@@ -1,81 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
-	by kanga.kvack.org (Postfix) with SMTP id 24FD16B005D
-	for <linux-mm@kvack.org>; Thu,  9 Aug 2012 15:12:58 -0400 (EDT)
-Received: from /spool/local
-	by e4.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <john.stultz@linaro.org>;
-	Thu, 9 Aug 2012 15:12:55 -0400
-Received: from d01relay05.pok.ibm.com (d01relay05.pok.ibm.com [9.56.227.237])
-	by d01dlp03.pok.ibm.com (Postfix) with ESMTP id 10ED2C90050
-	for <linux-mm@kvack.org>; Thu,  9 Aug 2012 15:12:25 -0400 (EDT)
-Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
-	by d01relay05.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q79JCO1g110706
-	for <linux-mm@kvack.org>; Thu, 9 Aug 2012 15:12:24 -0400
-Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av01.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q79JBxlr027389
-	for <linux-mm@kvack.org>; Thu, 9 Aug 2012 13:12:02 -0600
-Message-ID: <50240B77.2060204@linaro.org>
-Date: Thu, 09 Aug 2012 12:11:51 -0700
-From: John Stultz <john.stultz@linaro.org>
-MIME-Version: 1.0
-Subject: Re: [PATCH 1/5] [RFC] Add volatile range management code
-References: <1343447832-7182-1-git-send-email-john.stultz@linaro.org> <1343447832-7182-2-git-send-email-john.stultz@linaro.org> <CANN689HWYO5DD_p7yY39ethcFu_JO9hudMcDHd=K8FUfhpHZOg@mail.gmail.com>
-In-Reply-To: <CANN689HWYO5DD_p7yY39ethcFu_JO9hudMcDHd=K8FUfhpHZOg@mail.gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
+	by kanga.kvack.org (Postfix) with SMTP id 58EAD6B002B
+	for <linux-mm@kvack.org>; Thu,  9 Aug 2012 15:33:33 -0400 (EDT)
+Message-ID: <1344540801.2393.42.camel@lorien2>
+Subject: Re: [PATCH v2] mm: Restructure kmem_cache_create() to move debug
+ cache integrity checks into a new function
+From: Shuah Khan <shuah.khan@hp.com>
+Reply-To: shuah.khan@hp.com
+Date: Thu, 09 Aug 2012 13:33:21 -0600
+In-Reply-To: <alpine.DEB.2.02.1208091406590.20908@greybox.home>
+References: <1342221125.17464.8.camel@lorien2>
+	 <CAOJsxLGjnMxs9qERG5nCfGfcS3jy6Rr54Ac36WgVnOtP_pDYgQ@mail.gmail.com>
+	 <1344224494.3053.5.camel@lorien2> <1344266096.2486.17.camel@lorien2>
+	 <CAAmzW4Ne5pD90r+6zrrD-BXsjtf5OqaKdWY+2NSGOh1M_sWq4g@mail.gmail.com>
+	 <1344272614.2486.40.camel@lorien2> <1344287631.2486.57.camel@lorien2>
+	 <alpine.DEB.2.02.1208090911100.15909@greybox.home>
+	 <1344531695.2393.27.camel@lorien2>
+	 <alpine.DEB.2.02.1208091406590.20908@greybox.home>
+Content-Type: text/plain; charset="UTF-8"
 Content-Transfer-Encoding: 7bit
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michel Lespinasse <walken@google.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Android Kernel Team <kernel-team@android.com>, Robert Love <rlove@google.com>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Dmitry Adamushko <dmitry.adamushko@gmail.com>, Dave Chinner <david@fromorbit.com>, Neil Brown <neilb@suse.de>, Andrea Righi <andrea@betterlinux.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Mike Hommey <mh@glandium.org>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Minchan Kim <minchan@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: "Christoph Lameter (Open Source)" <cl@linux.com>
+Cc: penberg@kernel.org, glommer@parallels.com, js1304@gmail.com, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, shuah.khan@hp.com
 
-On 08/09/2012 02:46 AM, Michel Lespinasse wrote:
-> On Fri, Jul 27, 2012 at 8:57 PM, John Stultz <john.stultz@linaro.org> wrote:
->> v5:
->> * Drop intervaltree for prio_tree usage per Michel &
->>    Dmitry's suggestions.
-> Actually, I believe the ranges you need to track are non-overlapping, correct ?
-Correct.  Any overlapping range is coalesced.
+On Thu, 2012-08-09 at 14:08 -0500, Christoph Lameter (Open Source)
+wrote:
+> On Thu, 9 Aug 2012, Shuah Khan wrote:
+> 
+> > Moving these checks into kmem_cache_sanity_check() would mean return
+> > path handling will change. The first block of sanity checks for name,
+> > and size etc. are done before holding the slab_mutex and the second
+> > block that checks the slab lists is done after holding the mutex.
+> > Depending on which one fails, return handling is going to be different
+> > in that if second block fails, mutex needs to be unlocked and when the
+> > first block fails, there is no need to do that. Nothing that is too
+> > complex to solve, just something that needs to be handled.
+> 
+> Right. The taking of the mutex etc is not depending on the parameters at
+> all. So its possible. Its rather simple.
+> 
+> > Comments, thoughts on
+> >
+> > 1. just remove size from kmem_cache_sanity_check() parameters
+> > or
+> > 2. move first block sanity checks into kmem_cache_sanity_check()
+> >
+> > Personally I prefer the first option to avoid complexity in return path
+> > handling. Would like to hear what others think.
+> 
+> We already have to deal with the return path handling for other failure
+> cases.
 
-> If that is the case, a simple rbtree, sorted by start-of-range
-> address, would work best.
-> (I am trying to remove prio_tree users... :)
+Thanks for the feedback. I will send v3 patch with the changes we
+discussed.
 
-Sigh.  Sure.  Although I've blown with the wind on a number of different 
-approaches for storing the ranges. I'm not particularly passionate about 
-it, but the continual conflicting suggestions are a slight frustration.  :)
+-- Shuah
 
-
->> +       /* First, find any existing intervals that overlap */
->> +       prio_tree_iter_init(&iter, root, start, end);
-> Note that prio tree iterations take intervals as [start; last] not [start; end[
-> So if you want to stick with prio trees, you would have to use end-1 here.
-Thanks!  I think I hit this off-by-one issue in my testing, but fixed it 
-on the backend  w/ :
-
-     modify_range(&inode->i_data, start, end-1, &mark_nonvolatile_page);
-
-Clearly fixing it at the start instead of papering over it is better.
-
-
->> +       node = prio_tree_next(&iter);
->> +       while (node) {
-> I'm confused, I don't think you ever expect more than one range to
-> match, do you ???
-
-So yea.  If you already have two ranges (0-5),(10-15) and then add range 
-(0-20) we need to coalesce the two existing ranges into the new one.
-
-
-> This is far from a complete code review, but I just wanted to point
-> out a couple details that jumped to me first. I am afraid I am missing
-> some of the background about how the feature is to be used to really
-> dig into the rest of the changes at this point :/
-
-Well, I really appreciate any feedback here.
-
-thanks
--john
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
