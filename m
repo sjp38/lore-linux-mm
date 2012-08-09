@@ -1,40 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
-	by kanga.kvack.org (Postfix) with SMTP id D85536B0044
-	for <linux-mm@kvack.org>; Thu,  9 Aug 2012 05:59:51 -0400 (EDT)
-Message-ID: <50238A10.1000606@parallels.com>
-Date: Thu, 9 Aug 2012 13:59:44 +0400
-From: Glauber Costa <glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
+	by kanga.kvack.org (Postfix) with SMTP id C2D3B6B0044
+	for <linux-mm@kvack.org>; Thu,  9 Aug 2012 08:21:38 -0400 (EDT)
+Received: by vcbfl10 with SMTP id fl10so377487vcb.14
+        for <linux-mm@kvack.org>; Thu, 09 Aug 2012 05:21:37 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: Common11 [06/20] Extract a common function for kmem_cache_destroy
-References: <20120808210129.987345284@linux.com> <20120808210210.088838748@linux.com>
-In-Reply-To: <20120808210210.088838748@linux.com>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Date: Thu, 9 Aug 2012 20:21:37 +0800
+Message-ID: <CAJd=RBAjGaOXfQQ_NX+ax6=tJJ0eg7EXCFHz3rdvSR3j1K3qHA@mail.gmail.com>
+Subject: [patch] mmap: feed back correct prev vma when finding vma
+From: Hillf Danton <dhillf@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Joonsoo Kim <js1304@gmail.com>, Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Hugh Dickins <hughd@google.com>, Mikulas Patocka <mpatocka@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Hillf Danton <dhillf@gmail.com>
 
-On 08/09/2012 01:01 AM, Christoph Lameter wrote:
-> -void kmem_cache_destroy(struct kmem_cache *c)
-> +void __kmem_cache_destroy(struct kmem_cache *c)
->  {
-> -	mutex_lock(&slab_mutex);
-> -	list_del(&c->list);
-> -	mutex_unlock(&slab_mutex);
->  	kmemleak_free(c);
-> -	if (c->flags & SLAB_DESTROY_BY_RCU)
+After walking rb tree, if vma is determined, prev vma has to be determined
+based on vma; and rb_prev should be considered only if no vma determined.
 
-which tree are you based on?
+Signed-off-by: Hillf Danton <dhillf@gmail.com>
+---
 
-These lines you are removing doesn't seem to exist on Pekka's, and are
-certainly not added in the previous patches. The patch fails to apply
-because of that.
+--- a/mm/mmap.c	Fri Aug  3 07:38:10 2012
++++ b/mm/mmap.c	Mon Aug  6 20:10:18 2012
+@@ -385,9 +385,13 @@ find_vma_prepare(struct mm_struct *mm, u
+ 		}
+ 	}
 
-As a matter of fact, this removal was not present in your earlier series.
-
-For now I'll manually edit it.
+-	*pprev = NULL;
+-	if (rb_prev)
+-		*pprev = rb_entry(rb_prev, struct vm_area_struct, vm_rb);
++	if (vma) {
++		*pprev = vma->vm_prev;
++	} else {
++		*pprev = NULL;
++		if (rb_prev)
++			*pprev = rb_entry(rb_prev, struct vm_area_struct, vm_rb);
++	}
+ 	*rb_link = __rb_link;
+ 	*rb_parent = __rb_parent;
+ 	return vma;
+--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
