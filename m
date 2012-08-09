@@ -1,79 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
-	by kanga.kvack.org (Postfix) with SMTP id 650B06B0093
-	for <linux-mm@kvack.org>; Thu,  9 Aug 2012 10:22:17 -0400 (EDT)
-Message-Id: <20120809135635.968248518@linux.com>
-Date: Thu, 09 Aug 2012 08:56:38 -0500
+Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
+	by kanga.kvack.org (Postfix) with SMTP id 712096B0098
+	for <linux-mm@kvack.org>; Thu,  9 Aug 2012 10:22:21 -0400 (EDT)
+Message-Id: <20120809135633.797342157@linux.com>
+Date: Thu, 09 Aug 2012 08:56:25 -0500
 From: Christoph Lameter <cl@linux.com>
-Subject: Common11r [15/20] Move kmem_cache refcounting to common code
+Subject: Common11r [02/20] slub: Use kmem_cache for the kmem_cache structure
 References: <20120809135623.574621297@linux.com>
-Content-Disposition: inline; filename=refcount_move
+Content-Disposition: inline; filename=slub_use_kmem_cache
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Joonsoo Kim <js1304@gmail.com>
-Cc: Glauber Costa <glommer@parallels.com>, Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>
+Cc: Glauber Costa <glommer@parallels.com>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org
 
-Get rid of the refcount stuff in the allocators and do that
-part of kmem_cache management in the common code.
+Do not use kmalloc() but kmem_cache_alloc() for the allocation
+of the kmem_cache structures in slub.
 
+Acked-by: David Rientjes <rientjes@google.com>
 Signed-off-by: Christoph Lameter <cl@linux.com>
 
-Index: linux-2.6/mm/slab.c
-===================================================================
---- linux-2.6.orig/mm/slab.c	2012-08-08 12:58:11.038137838 -0500
-+++ linux-2.6/mm/slab.c	2012-08-08 13:04:01.267084197 -0500
-@@ -2550,7 +2550,6 @@ __kmem_cache_create (struct kmem_cache *
- 		 */
- 		BUG_ON(ZERO_OR_NULL_PTR(cachep->slabp_cache));
- 	}
--	cachep->refcount = 1;
- 
- 	err = setup_cpu_cache(cachep, gfp);
- 	if (err) {
-Index: linux-2.6/mm/slab_common.c
-===================================================================
---- linux-2.6.orig/mm/slab_common.c	2012-08-08 12:58:11.038137838 -0500
-+++ linux-2.6/mm/slab_common.c	2012-08-08 13:04:01.271084210 -0500
-@@ -110,11 +110,12 @@ struct kmem_cache *kmem_cache_create(con
- 		}
- 
- 		err = __kmem_cache_create(s, flags);
--		if (!err)
-+		if (!err) {
- 
-+			s->refcount = 1;
- 			list_add(&s->list, &slab_caches);
- 
--		else {
-+		} else {
- 			kfree(s->name);
- 			kmem_cache_free(kmem_cache, s);
- 		}
-Index: linux-2.6/mm/slob.c
-===================================================================
---- linux-2.6.orig/mm/slob.c	2012-08-08 12:58:11.038137838 -0500
-+++ linux-2.6/mm/slob.c	2012-08-08 13:04:01.271084210 -0500
-@@ -524,8 +524,6 @@ int __kmem_cache_create(struct kmem_cach
- 	if (c->align < align)
- 		c->align = align;
- 
--	kmemleak_alloc(c, sizeof(struct kmem_cache), 1, GFP_KERNEL);
--	c->refcount = 1;
- 	return 0;
- }
- 
 Index: linux-2.6/mm/slub.c
 ===================================================================
---- linux-2.6.orig/mm/slub.c	2012-08-08 12:58:38.850212989 -0500
-+++ linux-2.6/mm/slub.c	2012-08-08 13:04:01.271084210 -0500
-@@ -3086,7 +3086,6 @@ static int kmem_cache_open(struct kmem_c
- 	else
- 		s->cpu_partial = 30;
+--- linux-2.6.orig/mm/slub.c	2012-08-03 09:01:06.650720492 -0500
++++ linux-2.6/mm/slub.c	2012-08-03 09:01:23.583012476 -0500
+@@ -213,7 +213,7 @@ static inline int sysfs_slab_alias(struc
+ static inline void sysfs_slab_remove(struct kmem_cache *s)
+ {
+ 	kfree(s->name);
+-	kfree(s);
++	kmem_cache_free(kmem_cache, s);
+ }
  
--	s->refcount = 1;
- #ifdef CONFIG_NUMA
- 	s->remote_node_defrag_ratio = 1000;
  #endif
+@@ -3962,7 +3962,7 @@ struct kmem_cache *__kmem_cache_create(c
+ 	if (!n)
+ 		return NULL;
+ 
+-	s = kmalloc(kmem_size, GFP_KERNEL);
++	s = kmem_cache_alloc(kmem_cache, GFP_KERNEL);
+ 	if (s) {
+ 		if (kmem_cache_open(s, n,
+ 				size, align, flags, ctor)) {
+@@ -3979,7 +3979,7 @@ struct kmem_cache *__kmem_cache_create(c
+ 			list_del(&s->list);
+ 			kmem_cache_close(s);
+ 		}
+-		kfree(s);
++		kmem_cache_free(kmem_cache, s);
+ 	}
+ 	kfree(n);
+ 	return NULL;
+@@ -5217,7 +5217,7 @@ static void kmem_cache_release(struct ko
+ 	struct kmem_cache *s = to_slab(kobj);
+ 
+ 	kfree(s->name);
+-	kfree(s);
++	kmem_cache_free(kmem_cache, s);
+ }
+ 
+ static const struct sysfs_ops slab_sysfs_ops = {
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
