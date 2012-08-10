@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
-	by kanga.kvack.org (Postfix) with SMTP id A4E056B005A
-	for <linux-mm@kvack.org>; Fri, 10 Aug 2012 13:51:42 -0400 (EDT)
-Message-ID: <50254A0A.3080805@jp.fujitsu.com>
-Date: Sat, 11 Aug 2012 02:51:06 +0900
+	by kanga.kvack.org (Postfix) with SMTP id B1E5E6B005A
+	for <linux-mm@kvack.org>; Fri, 10 Aug 2012 13:55:20 -0400 (EDT)
+Message-ID: <50254AE8.6060706@jp.fujitsu.com>
+Date: Sat, 11 Aug 2012 02:54:48 +0900
 From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2 09/11] memcg: propagate kmem limiting information to
- children
-References: <1344517279-30646-1-git-send-email-glommer@parallels.com> <1344517279-30646-10-git-send-email-glommer@parallels.com>
-In-Reply-To: <1344517279-30646-10-git-send-email-glommer@parallels.com>
+Subject: Re: [PATCH v2 11/11] protect architectures where THREAD_SIZE >= PAGE_SIZE
+ against fork bombs
+References: <1344517279-30646-1-git-send-email-glommer@parallels.com> <1344517279-30646-12-git-send-email-glommer@parallels.com>
+In-Reply-To: <1344517279-30646-12-git-send-email-glommer@parallels.com>
 Content-Type: text/plain; charset=ISO-2022-JP
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -18,32 +18,27 @@ To: Glauber Costa <glommer@parallels.com>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, devel@openvz.org, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Suleiman Souhlal <suleiman@google.com>
 
 (2012/08/09 22:01), Glauber Costa wrote:
-> The current memcg slab cache management fails to present satisfatory
-> hierarchical behavior in the following scenario:
+> Because those architectures will draw their stacks directly from the
+> page allocator, rather than the slab cache, we can directly pass
+> __GFP_KMEMCG flag, and issue the corresponding free_pages.
 > 
-> -> /cgroups/memory/A/B/C
+> This code path is taken when the architecture doesn't define
+> CONFIG_ARCH_THREAD_INFO_ALLOCATOR (only ia64 seems to), and has
+> THREAD_SIZE >= PAGE_SIZE. Luckily, most - if not all - of the remaining
+> architectures fall in this category.
 > 
-> * kmem limit set at A,
-> * A and B have no tasks,
-> * span a new task in in C.
+> This will guarantee that every stack page is accounted to the memcg the
+> process currently lives on, and will have the allocations to fail if
+> they go over limit.
 > 
-> Because kmem_accounted is a boolean that was not set for C, no
-> accounting would be done. This is, however, not what we expect.
+> For the time being, I am defining a new variant of THREADINFO_GFP, not
+> to mess with the other path. Once the slab is also tracked by memcg, we
+> can get rid of that flag.
 > 
-> The basic idea, is that when a cgroup is limited, we walk the tree
-> upwards (something Kame and I already thought about doing for other
-> purposes), and make sure that we store the information about the parent
-> being limited in kmem_accounted (that is turned into a bitmap: two
-> booleans would not be space efficient). The code for that is taken from
-> sched/core.c. My reasons for not putting it into a common place is to
-> dodge the type issues that would arise from a common implementation
-> between memcg and the scheduler - but I think that it should ultimately
-> happen, so if you want me to do it now, let me know.
-> 
-> We do the reverse operation when a formerly limited cgroup becomes
-> unlimited.
+> Tested to successfully protect against :(){ :|:& };:
 > 
 > Signed-off-by: Glauber Costa <glommer@parallels.com>
+> Acked-by: Frederic Weisbecker <fweisbec@redhat.com>
 > CC: Christoph Lameter <cl@linux.com>
 > CC: Pekka Enberg <penberg@cs.helsinki.fi>
 > CC: Michal Hocko <mhocko@suse.cz>
@@ -51,135 +46,51 @@ Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, d
 > CC: Johannes Weiner <hannes@cmpxchg.org>
 > CC: Suleiman Souhlal <suleiman@google.com>
 
+Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
 
 > ---
->   mm/memcontrol.c | 88 +++++++++++++++++++++++++++++++++++++++++++++++++++------
->   1 file changed, 79 insertions(+), 9 deletions(-)
+>   include/linux/thread_info.h | 2 ++
+>   kernel/fork.c               | 4 ++--
+>   2 files changed, 4 insertions(+), 2 deletions(-)
 > 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 3216292..3d30b79 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -295,7 +295,8 @@ struct mem_cgroup {
->   	 * Should the accounting and control be hierarchical, per subtree?
->   	 */
->   	bool use_hierarchy;
-> -	bool kmem_accounted;
-> +
-> +	unsigned long kmem_accounted; /* See KMEM_ACCOUNTED_*, below */
->   
->   	bool		oom_lock;
->   	atomic_t	under_oom;
-> @@ -348,6 +349,38 @@ struct mem_cgroup {
+> diff --git a/include/linux/thread_info.h b/include/linux/thread_info.h
+> index ccc1899..e7e0473 100644
+> --- a/include/linux/thread_info.h
+> +++ b/include/linux/thread_info.h
+> @@ -61,6 +61,8 @@ extern long do_no_restart_syscall(struct restart_block *parm);
+>   # define THREADINFO_GFP		(GFP_KERNEL | __GFP_NOTRACK)
 >   #endif
->   };
 >   
-> +enum {
-> +	KMEM_ACCOUNTED_THIS, /* accounted by this cgroup itself */
-> +	KMEM_ACCOUNTED_PARENT, /* accounted by any of its parents. */
-> +};
+> +#define THREADINFO_GFP_ACCOUNTED (THREADINFO_GFP | __GFP_KMEMCG)
 > +
-> +#ifdef CONFIG_MEMCG_KMEM
-> +static bool memcg_kmem_account(struct mem_cgroup *memcg)
-> +{
-> +	return !test_and_set_bit(KMEM_ACCOUNTED_THIS, &memcg->kmem_accounted);
-> +}
-> +
-> +static bool memcg_kmem_clear_account(struct mem_cgroup *memcg)
-> +{
-> +	return test_and_clear_bit(KMEM_ACCOUNTED_THIS, &memcg->kmem_accounted);
-> +}
-> +
-> +static bool memcg_kmem_is_accounted(struct mem_cgroup *memcg)
-> +{
-> +	return test_bit(KMEM_ACCOUNTED_THIS, &memcg->kmem_accounted);
-> +}
-> +
-> +static void memcg_kmem_account_parent(struct mem_cgroup *memcg)
-> +{
-> +	set_bit(KMEM_ACCOUNTED_PARENT, &memcg->kmem_accounted);
-> +}
-> +
-> +static void memcg_kmem_clear_account_parent(struct mem_cgroup *memcg)
-> +{
-> +	clear_bit(KMEM_ACCOUNTED_PARENT, &memcg->kmem_accounted);
-> +}
-> +#endif /* CONFIG_MEMCG_KMEM */
-> +
->   /* Stuffs for move charges at task migration. */
 >   /*
->    * Types of charges to be moved. "move_charge_at_immitgrate" is treated as a
-> @@ -614,7 +647,7 @@ EXPORT_SYMBOL(__memcg_kmem_free_page);
+>    * flag set/clear/test wrappers
+>    * - pass TIF_xxxx constants to these functions
+> diff --git a/kernel/fork.c b/kernel/fork.c
+> index dc3ff16..b0b90c3 100644
+> --- a/kernel/fork.c
+> +++ b/kernel/fork.c
+> @@ -142,7 +142,7 @@ void __weak arch_release_thread_info(struct thread_info *ti) { }
+>   static struct thread_info *alloc_thread_info_node(struct task_struct *tsk,
+>   						  int node)
+>   {
+> -	struct page *page = alloc_pages_node(node, THREADINFO_GFP,
+> +	struct page *page = alloc_pages_node(node, THREADINFO_GFP_ACCOUNTED,
+>   					     THREAD_SIZE_ORDER);
 >   
->   static void disarm_kmem_keys(struct mem_cgroup *memcg)
+>   	return page ? page_address(page) : NULL;
+> @@ -151,7 +151,7 @@ static struct thread_info *alloc_thread_info_node(struct task_struct *tsk,
+>   static inline void free_thread_info(struct thread_info *ti)
 >   {
-> -	if (memcg->kmem_accounted)
-> +	if (test_bit(KMEM_ACCOUNTED_THIS, &memcg->kmem_accounted))
->   		static_key_slow_dec(&memcg_kmem_enabled_key);
+>   	arch_release_thread_info(ti);
+> -	free_pages((unsigned long)ti, THREAD_SIZE_ORDER);
+> +	free_accounted_pages((unsigned long)ti, THREAD_SIZE_ORDER);
 >   }
->   #else
-> @@ -4171,17 +4204,54 @@ static ssize_t mem_cgroup_read(struct cgroup *cont, struct cftype *cft,
->   static void memcg_update_kmem_limit(struct mem_cgroup *memcg, u64 val)
->   {
->   #ifdef CONFIG_MEMCG_KMEM
-> -	/*
-> -	 * Once enabled, can't be disabled. We could in theory disable it if we
-> -	 * haven't yet created any caches, or if we can shrink them all to
-> -	 * death. But it is not worth the trouble.
-> -	 */
-> +	struct mem_cgroup *iter;
-> +
->   	mutex_lock(&set_limit_mutex);
-> -	if (!memcg->kmem_accounted && val != RESOURCE_MAX) {
-> +	if ((val != RESOURCE_MAX) && memcg_kmem_account(memcg)) {
-> +
-> +		/*
-> +		 * Once enabled, can't be disabled. We could in theory disable
-> +		 * it if we haven't yet created any caches, or if we can shrink
-> +		 * them all to death. But it is not worth the trouble
-> +		 */
->   		static_key_slow_inc(&memcg_kmem_enabled_key);
-> -		memcg->kmem_accounted = true;
-> +
-> +		if (!memcg->use_hierarchy)
-> +			goto out;
-> +
-> +		for_each_mem_cgroup_tree(iter, memcg) {
-> +			if (iter == memcg)
-> +				continue;
-> +			memcg_kmem_account_parent(iter);
-> +		}
+>   # else
+>   static struct kmem_cache *thread_info_cache;
+> 
 
-Could you add an explanation comment ?
-
-
-> +	} else if ((val == RESOURCE_MAX) && memcg_kmem_clear_account(memcg)) {
-> +
-> +		if (!memcg->use_hierarchy)
-> +			goto out;
-> +
-ditto.
-
-> +		for_each_mem_cgroup_tree(iter, memcg) {
-> +			struct mem_cgroup *parent;
-> +
-> +			if (iter == memcg)
-> +				continue;
-> +			/*
-> +			 * We should only have our parent bit cleared if none
-> +			 * of our parents are accounted. The transversal order
-> +			 * of our iter function forces us to always look at the
-> +			 * parents.
-> +			 */
-> +			parent = parent_mem_cgroup(iter);
-> +			for (; parent != memcg; parent = parent_mem_cgroup(iter))
-> +				if (memcg_kmem_is_accounted(parent))
-> +					goto noclear;
-> +			memcg_kmem_clear_account_parent(iter);
-
-
-Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
