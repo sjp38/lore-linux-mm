@@ -1,136 +1,135 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
-	by kanga.kvack.org (Postfix) with SMTP id 2E92B6B005A
-	for <linux-mm@kvack.org>; Fri, 10 Aug 2012 11:43:58 -0400 (EDT)
-Date: Fri, 10 Aug 2012 17:43:53 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH v2 03/11] memcg: change defines to an enum
-Message-ID: <20120810154353.GH1425@dhcp22.suse.cz>
-References: <1344517279-30646-1-git-send-email-glommer@parallels.com>
- <1344517279-30646-4-git-send-email-glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
+	by kanga.kvack.org (Postfix) with SMTP id 1792A6B005A
+	for <linux-mm@kvack.org>; Fri, 10 Aug 2012 11:48:33 -0400 (EDT)
+Message-ID: <50252D45.50308@redhat.com>
+Date: Fri, 10 Aug 2012 11:48:21 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1344517279-30646-4-git-send-email-glommer@parallels.com>
+Subject: Re: [RFC][PATCH -mm 1/3] mm,vmscan: track recent pressure on each
+ LRU set
+References: <20120808174549.1b10d51a@cuia.bos.redhat.com> <20120808174750.615d9974@cuia.bos.redhat.com> <CALWz4ixBJNu8s9irH9G8O=vMQo1JAzG-jLhOfH4Zbod2EWM-6g@mail.gmail.com>
+In-Reply-To: <CALWz4ixBJNu8s9irH9G8O=vMQo1JAzG-jLhOfH4Zbod2EWM-6g@mail.gmail.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, devel@openvz.org, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, kamezawa.hiroyu@jp.fujitsu.com, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>
+To: Ying Han <yinghan@google.com>
+Cc: linux-mm@kvack.org, hannes@cmpxchg.org, mhocko@suse.cz, Mel Gorman <mel@csn.ul.ie>
 
-On Thu 09-08-12 17:01:11, Glauber Costa wrote:
-> This is just a cleanup patch for clarity of expression.  In earlier
-> submissions, people asked it to be in a separate patch, so here it is.
-> 
-> [ v2: use named enum as type throughout the file as well ]
-> 
-> Signed-off-by: Glauber Costa <glommer@parallels.com>
-> CC: Michal Hocko <mhocko@suse.cz>
-> CC: Johannes Weiner <hannes@cmpxchg.org>
-> Acked-by: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+On 08/09/2012 09:22 PM, Ying Han wrote:
 
-Acked-by: Michal Hocko <mhocko@suse.cz>
+>> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+>> index f222e06..b03be69 100644
+>> --- a/include/linux/mmzone.h
+>> +++ b/include/linux/mmzone.h
+>> @@ -189,12 +189,20 @@ struct zone_reclaim_stat {
+>>           * The pageout code in vmscan.c keeps track of how many of the
+>>           * mem/swap backed and file backed pages are referenced.
+>>           * The higher the rotated/scanned ratio, the more valuable
+>> -        * that cache is.
+>> +        * that cache is. These numbers are aged separately for each LRU.
+>>           *
+>>           * The anon LRU stats live in [0], file LRU stats in [1]
+>>           */
+>>          unsigned long           recent_rotated[2];
+>>          unsigned long           recent_scanned[2];
+>> +       /*
+>> +        * This number is incremented together with recent_rotated,
+>
+> s/recent_rotated/recent/scanned.
+>
+> I assume the idea here is to associate the scanned to the amount of
+> pressure applied on the list.
 
-> ---
->  mm/memcontrol.c | 26 ++++++++++++++++----------
->  1 file changed, 16 insertions(+), 10 deletions(-)
-> 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 2cef99a..b0e29f4 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -393,9 +393,12 @@ enum charge_type {
->  };
->  
->  /* for encoding cft->private value on file */
-> -#define _MEM			(0)
-> -#define _MEMSWAP		(1)
-> -#define _OOM_TYPE		(2)
-> +enum res_type {
-> +	_MEM,
-> +	_MEMSWAP,
-> +	_OOM_TYPE,
-> +};
-> +
->  #define MEMFILE_PRIVATE(x, val)	((x) << 16 | (val))
->  #define MEMFILE_TYPE(val)	((val) >> 16 & 0xffff)
->  #define MEMFILE_ATTR(val)	((val) & 0xffff)
-> @@ -3983,7 +3986,8 @@ static ssize_t mem_cgroup_read(struct cgroup *cont, struct cftype *cft,
->  	struct mem_cgroup *memcg = mem_cgroup_from_cont(cont);
->  	char str[64];
->  	u64 val;
-> -	int type, name, len;
-> +	int name, len;
-> +	enum res_type type;
->  
->  	type = MEMFILE_TYPE(cft->private);
->  	name = MEMFILE_ATTR(cft->private);
-> @@ -4019,7 +4023,8 @@ static int mem_cgroup_write(struct cgroup *cont, struct cftype *cft,
->  			    const char *buffer)
->  {
->  	struct mem_cgroup *memcg = mem_cgroup_from_cont(cont);
-> -	int type, name;
-> +	enum res_type type;
-> +	int name;
->  	unsigned long long val;
->  	int ret;
->  
-> @@ -4095,7 +4100,8 @@ out:
->  static int mem_cgroup_reset(struct cgroup *cont, unsigned int event)
->  {
->  	struct mem_cgroup *memcg = mem_cgroup_from_cont(cont);
-> -	int type, name;
-> +	int name;
-> +	enum res_type type;
->  
->  	type = MEMFILE_TYPE(event);
->  	name = MEMFILE_ATTR(event);
-> @@ -4423,7 +4429,7 @@ static int mem_cgroup_usage_register_event(struct cgroup *cgrp,
->  	struct mem_cgroup *memcg = mem_cgroup_from_cont(cgrp);
->  	struct mem_cgroup_thresholds *thresholds;
->  	struct mem_cgroup_threshold_ary *new;
-> -	int type = MEMFILE_TYPE(cft->private);
-> +	enum res_type type = MEMFILE_TYPE(cft->private);
->  	u64 threshold, usage;
->  	int i, size, ret;
->  
-> @@ -4506,7 +4512,7 @@ static void mem_cgroup_usage_unregister_event(struct cgroup *cgrp,
->  	struct mem_cgroup *memcg = mem_cgroup_from_cont(cgrp);
->  	struct mem_cgroup_thresholds *thresholds;
->  	struct mem_cgroup_threshold_ary *new;
-> -	int type = MEMFILE_TYPE(cft->private);
-> +	enum res_type type = MEMFILE_TYPE(cft->private);
->  	u64 usage;
->  	int i, j, size;
->  
-> @@ -4584,7 +4590,7 @@ static int mem_cgroup_oom_register_event(struct cgroup *cgrp,
->  {
->  	struct mem_cgroup *memcg = mem_cgroup_from_cont(cgrp);
->  	struct mem_cgroup_eventfd_list *event;
-> -	int type = MEMFILE_TYPE(cft->private);
-> +	enum res_type type = MEMFILE_TYPE(cft->private);
->  
->  	BUG_ON(type != _OOM_TYPE);
->  	event = kmalloc(sizeof(*event),	GFP_KERNEL);
-> @@ -4609,7 +4615,7 @@ static void mem_cgroup_oom_unregister_event(struct cgroup *cgrp,
->  {
->  	struct mem_cgroup *memcg = mem_cgroup_from_cont(cgrp);
->  	struct mem_cgroup_eventfd_list *ev, *tmp;
-> -	int type = MEMFILE_TYPE(cft->private);
-> +	enum res_type type = MEMFILE_TYPE(cft->private);
->  
->  	BUG_ON(type != _OOM_TYPE);
->  
-> -- 
-> 1.7.11.2
-> 
-> --
-> To unsubscribe from this list: send the line "unsubscribe cgroups" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+Indeed.  Pageout scanning equals pressure :)
+
+>> +/*
+>> + * Ensure that the ->recent_pressure statistics for this lruvec are
+>> + * aged to the same degree as those elsewhere in the system, before
+>> + * we do reclaim on this lruvec or evaluate its reclaim priority.
+>> + */
+>> +static DEFINE_SPINLOCK(recent_pressure_lock);
+>> +static int recent_pressure_seq;
+>> +static void age_recent_pressure(struct lruvec *lruvec, struct zone *zone)
+>> +{
+>> +       struct zone_reclaim_stat *reclaim_stat = &lruvec->reclaim_stat;
+>> +       unsigned long anon  = get_lru_size(lruvec, LRU_ACTIVE_ANON) +
+>> +                             get_lru_size(lruvec, LRU_INACTIVE_ANON);
+>> +       unsigned long file  = get_lru_size(lruvec, LRU_ACTIVE_FILE) +
+>> +                             get_lru_size(lruvec, LRU_INACTIVE_FILE);
+>> +       int shift;
+>> +
+>> +       /*
+>> +        * Do not bother recalculating unless we are behind with the
+>> +        * system wide statistics, or our local recent_pressure numbers
+>> +        * have grown too large. We have to keep the number somewhat
+>> +        * small, to ensure that reclaim_score returns non-zero.
+>> +        */
+>> +       if (reclaim_stat->recent_pressure_seq != recent_pressure_seq &&
+>> +                       reclaim_stat->recent_pressure[0] < anon / 4 &&
+>> +                       reclaim_stat->recent_pressure[1] < file / 4)
+>> +               return;
+>
+> Let's see if I understand the logic here:
+>
+> If updating the reclaim_stat->recent_pressure for this lruvec is
+> falling behind, don't bother to update it unless the scan count grows
+> fast enough. When that happens, recent_pressure is adjusted based on
+> the gap between the global pressure level (recent_pressure_seq) and
+> local pressure level (reclaim_stat->recent_pressure_seq). The lager
+> the gap, the more pressure applied on the lruvec.
+>
+> 1. if the usage activity(scan_count) is always low on a lruvec, the
+> pressure will be low.
+
+The scan count being low, indicates that the lruvec has seen little
+pageout pressure recently.
+
+This is essentially unrelated to how actively programs are using
+(touching) the pages that are sitting on the lists in this lruvec.
+
+> 2. if the usage activity is low for a while, and then when the
+> scan_count jumps suddenly, it will cause the pressure to jump as well
+> 3. if the usage activity is always high, the pressure will be high .
+>
+> So, the mechanism here is a way to balance the system pressure across
+> lruvec over time?
+
+Yes.
+
+>> +
+>> +       spin_lock(&recent_pressure_lock);
+>> +       /*
+>> +        * If we are aging due to local activity, increment the global
+>> +        * sequence counter. Leave the global counter alone if we are
+>> +        * merely playing catchup.
+>> +        */
+>> +       if (reclaim_stat->recent_pressure_seq == recent_pressure_seq)
+>> +               recent_pressure_seq++;
+>> +       shift = recent_pressure_seq - reclaim_stat->recent_pressure_seq;
+>> +       shift = min(shift, (BITS_PER_LONG-1));
+>> +       reclaim_stat->recent_pressure_seq = recent_pressure_seq;
+>> +       spin_unlock(&recent_pressure_lock);
+>> +
+>> +       /* For every aging interval, do one division by two. */
+>> +       spin_lock_irq(&zone->lru_lock);
+>> +       reclaim_stat->recent_pressure[0] >>= shift;
+>> +       reclaim_stat->recent_pressure[1] >>= shift;
+>
+> This is a bit confusing. I would assume the bigger the shift, the less
+> pressure it causes. However, the end result is the other way around.
+
+The longer ago it has been since this lruvec was last scanned by
+the page reclaim code, the more the pressure is aged.
+
+The less recent pressure an lruvec has recently seen, the more
+likely it is that it will be scanned in the future (see patch 2/3).
+
+Is there anything that I could explain better?
 
 -- 
-Michal Hocko
-SUSE Labs
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
