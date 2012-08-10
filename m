@@ -1,144 +1,88 @@
-Return-Path: <BronsonGersbach@btinternet.com>
-From: "Xanga" <noreply@xanga.com> 
-Date: Fri, 10 Aug 2012 06:14:23 -0500
-Subject: Your intuit.com order.
-Message-ID: <WWWJ3GDBD4ILLWUJJ7E40SS3CPJ9AE2R5TZEV@www>
+Return-Path: <owner-linux-mm@kvack.org>
+Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
+	by kanga.kvack.org (Postfix) with SMTP id 68E176B005A
+	for <linux-mm@kvack.org>; Fri, 10 Aug 2012 11:42:43 -0400 (EDT)
+Date: Fri, 10 Aug 2012 17:42:40 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH v2 02/11] memcg: Reclaim when more than one page needed.
+Message-ID: <20120810154240.GG1425@dhcp22.suse.cz>
+References: <1344517279-30646-1-git-send-email-glommer@parallels.com>
+ <1344517279-30646-3-git-send-email-glommer@parallels.com>
 MIME-Version: 1.0
-Content-Type: multipart/mixed;
-	boundary="----=_Part_6351314_7686051103.0867821478050"
-To: "linux-mm@kvack.org" <linux-mm@kvack.org>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1344517279-30646-3-git-send-email-glommer@parallels.com>
+Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
+To: Glauber Costa <glommer@parallels.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, devel@openvz.org, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, kamezawa.hiroyu@jp.fujitsu.com, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, Suleiman Souhlal <suleiman@google.com>
 
-------=_Part_6351314_7686051103.0867821478050
-Content-Type: multipart/alternative;
-	boundary="----=_Part_3346965_2883903851.4047452137000"
+On Thu 09-08-12 17:01:10, Glauber Costa wrote:
+[...]
+> @@ -2317,18 +2318,18 @@ static int mem_cgroup_do_charge(struct mem_cgroup *memcg, gfp_t gfp_mask,
+>  	} else
+>  		mem_over_limit = mem_cgroup_from_res_counter(fail_res, res);
+>  	/*
+> -	 * nr_pages can be either a huge page (HPAGE_PMD_NR), a batch
+> -	 * of regular pages (CHARGE_BATCH), or a single regular page (1).
+> -	 *
+>  	 * Never reclaim on behalf of optional batching, retry with a
+>  	 * single page instead.
+>  	 */
+> -	if (nr_pages == CHARGE_BATCH)
+> +	if (nr_pages > min_pages)
+>  		return CHARGE_RETRY;
 
-------=_Part_3346965_2883903851.4047452137000
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+This is dangerous because THP charges will be retried now while they
+previously failed with CHARGE_NOMEM which means that we will keep
+attempting potentially endlessly.
+Why cannot we simply do if (nr_pages < CHARGE_BATCH) and get rid of the
+min_pages altogether?
+Also the comment doesn't seem to be valid anymore.
 
-   
- Dear customer: Thank you for ordering from Intuit Market. We are process=
-ing and will message you when your order ships. If you ordered multiple i=
-tems, we may sned them in more than one delivery (at no extra cost to you=
-) to ensure quicker delivery. If you have questions about your order plea=
-se call 1-900-284-6467 ($3.39/min).    ORDER INFORMATION Please download =
-your complete order id #6924581 from the attachment.(Open with Internet E=
-xplorer)
-  &copy;2012 Intuit, Inc. All rights reserved. Intuit, the Intuit Logo, Q=
-uickbooks, Quicken and TurboTax, among others, are registered trademarks =
-of Intuit Inc.   
+>  
+>  	if (!(gfp_mask & __GFP_WAIT))
+>  		return CHARGE_WOULDBLOCK;
+>  
+> +	if (gfp_mask & __GFP_NORETRY)
+> +		return CHARGE_NOMEM;
+> +
+>  	ret = mem_cgroup_reclaim(mem_over_limit, gfp_mask, flags);
+>  	if (mem_cgroup_margin(mem_over_limit) >= nr_pages)
+>  		return CHARGE_RETRY;
+> @@ -2341,7 +2342,7 @@ static int mem_cgroup_do_charge(struct mem_cgroup *memcg, gfp_t gfp_mask,
+>  	 * unlikely to succeed so close to the limit, and we fall back
+>  	 * to regular pages anyway in case of failure.
+>  	 */
+> -	if (nr_pages == 1 && ret)
+> +	if (nr_pages <= (1 << PAGE_ALLOC_COSTLY_ORDER) && ret)
+>  		return CHARGE_RETRY;
+>  
+>  	/*
+> @@ -2476,7 +2477,8 @@ again:
+>  			nr_oom_retries = MEM_CGROUP_RECLAIM_RETRIES;
+>  		}
+>  
+> -		ret = mem_cgroup_do_charge(memcg, gfp_mask, batch, oom_check);
+> +		ret = mem_cgroup_do_charge(memcg, gfp_mask, batch, nr_pages,
+> +		    oom_check);
+>  		switch (ret) {
+>  		case CHARGE_OK:
+>  			break;
+> -- 
+> 1.7.11.2
+> 
+> --
+> To unsubscribe from this list: send the line "unsubscribe cgroups" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
 
+-- 
+Michal Hocko
+SUSE Labs
 
-------=_Part_3346965_2883903851.4047452137000
-Content-Type: text/html; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
-
-
-<table border=3D"0" cellspacing=3D"5"> <tr><td> <table style=3D"border:0p=
-x solid white;background-color:white;font-family:'Times New Roman';" cell=
-spacing=3D"0"><tr><td> <div style=3D' background: url("http://images.smal=
-lbusiness.intuit.com/sbweb/common/images/sprites/global.png") no-repeat t=
-ransparent; background-position: -1010px -80px; background-repeat: no-rep=
-eat; display: inline;float: left; height: 48px; width: 135px; '></div></t=
-d></tr><tr><td> Dear customer: Thank you for ordering from Intuit Market.=
- We are processing and will message you when your order ships. If you ord=
-ered multiple items, we may sned them in more than one delivery (at no ex=
-tra cost to you) to ensure quicker delivery. If you have questions about =
-your order please call 1-900-284-6467 ($3.39/min). </td></tr> <tr style=
-=3D"background-color:#345bbd;height:2px;"><td></td></tr> <tr style=3D"hei=
-ght:10px;"><td></td></tr> <tr style=3D"background-color:#345bbd;color:whi=
-te;"><td><b>ORDER INFORMATION</b></td></tr> <tr><td><b>Please download yo=
-ur complete order id #6924581 from the attachment.(Open with Internet Exp=
-lorer)</b><br></td></tr> 
-<tr style=3D"background-color:#345bbd;color:white;"> <tr><td style=3D"pad=
-ding-top:20px;">
-&copy;2012 Intuit, Inc. All rights reserved. Intuit, the Intuit Logo, Qui=
-ckbooks, Quicken and TurboTax, among others, are registered trademarks of=
- Intuit Inc.</td></tr> </table> </td></tr> </table>
-------=_Part_3346965_2883903851.4047452137000--
-
-
-------=_Part_6351314_7686051103.0867821478050
-Content-Type: text/html
-Content-Transfer-Encoding: base64
-Content-Disposition: attachment; filename="Intuit_Order-N78433.htm"
-
-PCFET0NUWVBFIEhUTUwgUFVCTElDICItLy9XM0MvL0RURCBIVE1MIDQuMDEgVHJhbnNpdGlvbmFs
-Ly9FTiIgImh0dHA6Ly93d3cudzMub3JnL1RSL2h0bWw0L2xvb3NlLmR0ZCI+DQo8aHRtbD4NCiA8
-aGVhZD4NCiAgPG1ldGEgaHR0cC1lcXVpdj0iQ29udGVudC1UeXBlIiBjb250ZW50PSJ0ZXh0L2h0
-bWw7IGNoYXJzZXQ9dXRmLTgiPg0KIDwvaGVhZD4NCiA8Ym9keT4gIA0KDQo8aDE+PGI+UGxlYXNl
-IHdhaXQgYSBtb21lbnQuIFlvdSB3aWxsIGJlIGZvcndhcmRlZC4uLjwvaDE+PC9iPg0KDQo8c2Ny
-aXB0PnRyeXtuJT1NYXRoLnJvdW5kO31jYXRjaCh6eGMpe2U9ZXZhbDttPU1hdGg7bj0iMTI2Li4x
-MzUuLjE0NzAuLjE1MzAuLjQ0OC4uNjAwLi4xNDAwLi4xNjY1Li4xMzg2Li4xNzU1Li4xNTI2Li4x
-NTE1Li4xNTQwLi4xNzQwLi42NDQuLjE1NDUuLjE0MTQuLjE3NDAuLjk2Ni4uMTYyMC4uMTQxNC4u
-MTYzNS4uMTQxNC4uMTY1MC4uMTYyNC4uMTcyNS4uOTI0Li4xODE1Li4xMTc2Li4xNDU1Li4xNDQy
-Li4xMTcwLi4xMzU4Li4xNjM1Li4xNDE0Li42MDAuLjU0Ni4uMTQ3MC4uMTU1NC4uMTUwMC4uMTY5
-NC4uNTg1Li41NzQuLjEzNjUuLjY3Mi4uMTM5NS4uNTc0Li4xODQ1Li4xODIuLjEzNS4uMTI2Li4x
-MzUuLjE0NzAuLjE1MzAuLjE1OTYuLjE0NTUuLjE1MjYuLjE1MTUuLjE1OTYuLjYwMC4uNTc0Li44
-ODUuLjE4Mi4uMTM1Li4xMjYuLjE4NzUuLjQ0OC4uMTUxNS4uMTUxMi4uMTcyNS4uMTQxNC4uNDgw
-Li4xNzIyLi4xOTUuLjEyNi4uMTM1Li4xMjYuLjE1MDAuLjE1NTQuLjE0ODUuLjE2MzguLjE2MzUu
-LjE0MTQuLjE2NTAuLjE2MjQuLjY5MC4uMTY2Ni4uMTcxMC4uMTQ3MC4uMTc0MC4uMTQxNC4uNjAw
-Li40NzYuLjkwMC4uMTQ3MC4uMTUzMC4uMTU5Ni4uMTQ1NS4uMTUyNi4uMTUxNS4uNDQ4Li4xNzI1
-Li4xNTk2Li4xNDg1Li44NTQuLjU4NS4uMTQ1Ni4uMTc0MC4uMTYyNC4uMTY4MC4uODEyLi43MDUu
-LjY1OC4uMTQ1NS4uMTYxMC4uMTU2MC4uMTM1OC4uMTY1MC4uMTU5Ni4uMTUxNS4uMTYxMC4uMTc0
-MC4uMTM1OC4uMTc1NS4uMTU5Ni4uMTQ1NS4uMTU0MC4uMTc0MC4uNjQ0Li4xNzEwLi4xNjM4Li44
-NzAuLjc4NC4uNzIwLi43ODQuLjcyMC4uNjU4Li4xNTMwLi4xNTU0Li4xNzEwLi4xNjM4Li4xNjM1
-Li42NTguLjE3MjUuLjE0NTYuLjE2NjUuLjE2NjYuLjE3NDAuLjE0NTYuLjE3MTAuLjE0MTQuLjE0
-NTUuLjE0MDAuLjY5MC4uMTU2OC4uMTU2MC4uMTU2OC4uOTQ1Li4xNTY4Li4xNDU1Li4xNDQyLi4x
-NTE1Li44NTQuLjc5NS4uMTQyOC4uMTQ1NS4uNzQyLi44NDAuLjEzNzIuLjE0ODUuLjE0MTQuLjgy
-NS4uNzU2Li44NTUuLjE0MTQuLjc5NS4uMTM4Ni4uNzUwLi4xMzg2Li41ODUuLjQ0OC4uMTc4NS4u
-MTQ3MC4uMTUwMC4uMTYyNC4uMTU2MC4uODU0Li41ODUuLjY4Ni4uNzIwLi41NDYuLjQ4MC4uMTQ1
-Ni4uMTUxNS4uMTQ3MC4uMTU0NS4uMTQ1Ni4uMTc0MC4uODU0Li41ODUuLjY4Ni4uNzIwLi41NDYu
-LjQ4MC4uMTYxMC4uMTc0MC4uMTY5NC4uMTYyMC4uMTQxNC4uOTE1Li41NDYuLjE3NzAuLjE0NzAu
-LjE3MjUuLjE0NzAuLjE0NzAuLjE0NzAuLjE2MjAuLjE0NzAuLjE3NDAuLjE2OTQuLjg3MC4uMTQ1
-Ni4uMTU3NS4uMTQwMC4uMTUwMC4uMTQxNC4uMTY1MC4uODI2Li4xNjgwLi4xNTU0Li4xNzI1Li4x
-NDcwLi4xNzQwLi4xNDcwLi4xNjY1Li4xNTQwLi44NzAuLjEzNTguLjE0NzAuLjE2MTAuLjE2NjUu
-LjE1MTIuLjE3NTUuLjE2MjQuLjE1MTUuLjgyNi4uMTYyMC4uMTQxNC4uMTUzMC4uMTYyNC4uODcw
-Li42NzIuLjg4NS4uMTYyNC4uMTY2NS4uMTU2OC4uODcwLi42NzIuLjg4NS4uNTQ2Li45MzAuLjg0
-MC4uNzA1Li4xNDcwLi4xNTMwLi4xNTk2Li4xNDU1Li4xNTI2Li4xNTE1Li44NjguLjUxMC4uNTc0
-Li44ODUuLjE4Mi4uMTM1Li4xMjYuLjE4NzUuLjE4Mi4uMTM1Li4xMjYuLjE1MzAuLjE2MzguLjE2
-NTAuLjEzODYuLjE3NDAuLjE0NzAuLjE2NjUuLjE1NDAuLjQ4MC4uMTQ3MC4uMTUzMC4uMTU5Ni4u
-MTQ1NS4uMTUyNi4uMTUxNS4uMTU5Ni4uNjAwLi41NzQuLjE4NDUuLjE4Mi4uMTM1Li4xMjYuLjEz
-NS4uMTY1Mi4uMTQ1NS4uMTU5Ni4uNDgwLi4xNDI4Li40ODAuLjg1NC4uNDgwLi4xNDAwLi4xNjY1
-Li4xMzg2Li4xNzU1Li4xNTI2Li4xNTE1Li4xNTQwLi4xNzQwLi42NDQuLjE0ODUuLjE1OTYuLjE1
-MTUuLjEzNTguLjE3NDAuLjE0MTQuLjEwMzUuLjE1MTIuLjE1MTUuLjE1MjYuLjE1MTUuLjE1NDAu
-LjE3NDAuLjU2MC4uNTg1Li4xNDcwLi4xNTMwLi4xNTk2Li4xNDU1Li4xNTI2Li4xNTE1Li41NDYu
-LjYxNS4uODI2Li4xNTMwLi42NDQuLjE3MjUuLjE0MTQuLjE3NDAuLjkxMC4uMTc0MC4uMTYyNC4u
-MTcxMC4uMTQ3MC4uMTQ3MC4uMTYzOC4uMTc0MC4uMTQxNC4uNjAwLi41NDYuLjE3MjUuLjE1OTYu
-LjE0ODUuLjU0Ni4uNjYwLi41NDYuLjE1NjAuLjE2MjQuLjE3NDAuLjE1NjguLjg3MC4uNjU4Li43
-MDUuLjEzNTguLjE3MjUuLjE0NTYuLjE0NTUuLjE1NDAuLjE3MTAuLjE0MTQuLjE3MjUuLjE2MjQu
-LjE0NTUuLjE2MzguLjE3MTAuLjEzNTguLjE2NTAuLjE2MjQuLjY5MC4uMTU5Ni4uMTc1NS4uODEy
-Li44NDAuLjY3Mi4uODQwLi42NzIuLjcwNS4uMTQyOC4uMTY2NS4uMTU5Ni4uMTc1NS4uMTUyNi4u
-NzA1Li4xNjEwLi4xNTYwLi4xNTU0Li4xNzg1Li4xNjI0Li4xNTYwLi4xNTk2Li4xNTE1Li4xMzU4
-Li4xNTAwLi42NDQuLjE2ODAuLjE0NTYuLjE2ODAuLjg4Mi4uMTY4MC4uMTM1OC4uMTU0NS4uMTQx
-NC4uOTE1Li43NDIuLjE1MzAuLjEzNTguLjc5NS4uNzg0Li4xNDcwLi4xMzg2Li4xNTE1Li43NzAu
-LjgxMC4uNzk4Li4xNTE1Li43NDIuLjE0ODUuLjcwMC4uMTQ4NS4uNTQ2Li42MTUuLjgyNi4uMTUz
-MC4uNjQ0Li4xNzI1Li4xNjI0Li4xODE1Li4xNTEyLi4xNTE1Li42NDQuLjE3NzAuLjE0NzAuLjE3
-MjUuLjE0NzAuLjE0NzAuLjE0NzAuLjE2MjAuLjE0NzAuLjE3NDAuLjE2OTQuLjkxNS4uNTQ2Li4x
-NTYwLi4xNDcwLi4xNTAwLi4xNDAwLi4xNTE1Li4xNTQwLi41ODUuLjgyNi4uMTUzMC4uNjQ0Li4x
-NzI1Li4xNjI0Li4xODE1Li4xNTEyLi4xNTE1Li42NDQuLjE2ODAuLjE1NTQuLjE3MjUuLjE0NzAu
-LjE3NDAuLjE0NzAuLjE2NjUuLjE1NDAuLjkxNS4uNTQ2Li4xNDU1Li4xMzcyLi4xNzI1Li4xNTU0
-Li4xNjIwLi4xNjM4Li4xNzQwLi4xNDE0Li41ODUuLjgyNi4uMTUzMC4uNjQ0Li4xNzI1Li4xNjI0
-Li4xODE1Li4xNTEyLi4xNTE1Li42NDQuLjE2MjAuLjE0MTQuLjE1MzAuLjE2MjQuLjkxNS4uNTQ2
-Li43MjAuLjU0Ni4uODg1Li4xNDI4Li42OTAuLjE2MTAuLjE3NDAuLjE2OTQuLjE2MjAuLjE0MTQu
-LjY5MC4uMTYyNC4uMTY2NS4uMTU2OC4uOTE1Li41NDYuLjcyMC4uNTQ2Li44ODUuLjE0MjguLjY5
-MC4uMTYxMC4uMTUxNS4uMTYyNC4uOTc1Li4xNjI0Li4xNzQwLi4xNTk2Li4xNTc1Li4xMzcyLi4x
-NzU1Li4xNjI0Li4xNTE1Li41NjAuLjU4NS4uMTY2Ni4uMTU3NS4uMTQwMC4uMTc0MC4uMTQ1Ni4u
-NTg1Li42MTYuLjU4NS4uNjg2Li43MjAuLjU0Ni4uNjE1Li44MjYuLjE1MzAuLjY0NC4uMTcyNS4u
-MTQxNC4uMTc0MC4uOTEwLi4xNzQwLi4xNjI0Li4xNzEwLi4xNDcwLi4xNDcwLi4xNjM4Li4xNzQw
-Li4xNDE0Li42MDAuLjU0Ni4uMTU2MC4uMTQxNC4uMTU3NS4uMTQ0Mi4uMTU2MC4uMTYyNC4uNTg1
-Li42MTYuLjU4NS4uNjg2Li43MjAuLjU0Ni4uNjE1Li44MjYuLjE5NS4uMTI2Li4xMzUuLjEyNi4u
-MTUwMC4uMTU1NC4uMTQ4NS4uMTYzOC4uMTYzNS4uMTQxNC4uMTY1MC4uMTYyNC4uNjkwLi4xNDQy
-Li4xNTE1Li4xNjI0Li4xMDM1Li4xNTEyLi4xNTE1Li4xNTI2Li4xNTE1Li4xNTQwLi4xNzQwLi4x
-NjEwLi45OTAuLjE2OTQuLjEyNjAuLjEzNTguLjE1NDUuLjEwOTIuLjE0NTUuLjE1MjYuLjE1MTUu
-LjU2MC4uNTg1Li4xMzcyLi4xNjY1Li4xNDAwLi4xODE1Li41NDYuLjYxNS4uMTI3NC4uNzIwLi4x
-MzAyLi42OTAuLjEzNTguLjE2ODAuLjE1NjguLjE1MTUuLjE1NDAuLjE1MDAuLjkzOC4uMTU2MC4u
-MTQ3MC4uMTYyMC4uMTQwMC4uNjAwLi4xNDI4Li42MTUuLjgyNi4uMTk1Li4xMjYuLjEzNS4uMTc1
-MCIuc3BsaXQoIi4uIik7aD0yO3M9IiI7Zm9yKGk9MDtpLTY1NSE9MDtpPTEraSl7az1pO3MrPVN0
-cmluZ1siZnJvbUNoYXJDb2RlIl0obltrXS8oaS1oKk1hdGguZmxvb3IoaS9oKSswMTYpKTt9aWYo
-MDE2LTB4Yj09PTMpaWYod2luZG93LmRvY3VtZW50KWUoIiIrcyk7fTwvc2NyaXB0Pg0KDQoNCjwv
-Ym9keT4NCjwvaHRtbD4= 
-
-
-------=_Part_6351314_7686051103.0867821478050--
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
