@@ -1,53 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
-	by kanga.kvack.org (Postfix) with SMTP id F1F1A6B002B
-	for <linux-mm@kvack.org>; Fri, 10 Aug 2012 09:39:22 -0400 (EDT)
-Received: by vcbfl10 with SMTP id fl10so1895885vcb.14
-        for <linux-mm@kvack.org>; Fri, 10 Aug 2012 06:39:22 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <CAJd=RBDtnF6eoTmDu4HOBGfHnWnxNsXEzArR51+-XhzFCwOmOQ@mail.gmail.com>
-References: <CAJd=RBB=jKD+9JcuBmBGC8R8pAQ-QoWHexMNMsXpb9zV548h5g@mail.gmail.com>
-	<20120803133235.GA8434@dhcp22.suse.cz>
-	<20120810094825.GA1440@dhcp22.suse.cz>
-	<CAJd=RBDA3pLYDpryxafx6dLoy7Fk8PmY-EFkXCkuJTB2ywfsjA@mail.gmail.com>
-	<20120810122730.GA1425@dhcp22.suse.cz>
-	<CAJd=RBAvCd-QcyN9N4xWEiLeVqRypzCzbADvD1qTziRVCHjd4Q@mail.gmail.com>
-	<20120810125102.GB1425@dhcp22.suse.cz>
-	<CAJd=RBB8Yuk1FEQxTUbEEeD96oqnO26VojetuDgRo=JxOfnadw@mail.gmail.com>
-	<20120810131643.GC1425@dhcp22.suse.cz>
-	<CAJd=RBDtnF6eoTmDu4HOBGfHnWnxNsXEzArR51+-XhzFCwOmOQ@mail.gmail.com>
-Date: Fri, 10 Aug 2012 21:39:21 +0800
-Message-ID: <CAJd=RBAOu9b5FRmYxbY7dKRp5G8VmOxvtgHLE7jwin1ZgqMmLw@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
+	by kanga.kvack.org (Postfix) with SMTP id 476DB6B002B
+	for <linux-mm@kvack.org>; Fri, 10 Aug 2012 09:48:14 -0400 (EDT)
+Date: Fri, 10 Aug 2012 15:48:11 +0200
+From: Michal Hocko <mhocko@suse.cz>
 Subject: Re: [patch] hugetlb: correct page offset index for sharing pmd
-From: Hillf Danton <dhillf@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Message-ID: <20120810134811.GD1425@dhcp22.suse.cz>
+References: <CAJd=RBB=jKD+9JcuBmBGC8R8pAQ-QoWHexMNMsXpb9zV548h5g@mail.gmail.com>
+ <20120803133235.GA8434@dhcp22.suse.cz>
+ <20120810094825.GA1440@dhcp22.suse.cz>
+ <CAJd=RBDA3pLYDpryxafx6dLoy7Fk8PmY-EFkXCkuJTB2ywfsjA@mail.gmail.com>
+ <20120810122730.GA1425@dhcp22.suse.cz>
+ <CAJd=RBAvCd-QcyN9N4xWEiLeVqRypzCzbADvD1qTziRVCHjd4Q@mail.gmail.com>
+ <20120810125102.GB1425@dhcp22.suse.cz>
+ <CAJd=RBB8Yuk1FEQxTUbEEeD96oqnO26VojetuDgRo=JxOfnadw@mail.gmail.com>
+ <20120810131643.GC1425@dhcp22.suse.cz>
+ <CAJd=RBDtnF6eoTmDu4HOBGfHnWnxNsXEzArR51+-XhzFCwOmOQ@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAJd=RBDtnF6eoTmDu4HOBGfHnWnxNsXEzArR51+-XhzFCwOmOQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
+To: Hillf Danton <dhillf@gmail.com>
 Cc: Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, David Rientjes <rientjes@google.com>
 
-On Fri, Aug 10, 2012 at 9:21 PM, Hillf Danton <dhillf@gmail.com> wrote:
+On Fri 10-08-12 21:21:15, Hillf Danton wrote:
 > On Fri, Aug 10, 2012 at 9:16 PM, Michal Hocko <mhocko@suse.cz> wrote:
->> Subject: [PATCH] hugetlb: do not use vma_hugecache_offset for
->>  vma_prio_tree_foreach
->>
->> 0c176d5 (mm: hugetlb: fix pgoff computation when unmapping page
->> from vma) fixed pgoff calculation but it has replaced it by
->> vma_hugecache_offset which is not approapriate for offsets used for
->> vma_prio_tree_foreach because that one expects index in page units
->> rather than in huge_page_shift.
->> Using vma_hugecache_offset is not incorrect because the pgoff will fit
->> into the same vmas but it is confusing.
->>
->
+> > Subject: [PATCH] hugetlb: do not use vma_hugecache_offset for
+> >  vma_prio_tree_foreach
+> >
+> > 0c176d5 (mm: hugetlb: fix pgoff computation when unmapping page
+> > from vma) fixed pgoff calculation but it has replaced it by
+> > vma_hugecache_offset which is not approapriate for offsets used for
+> > vma_prio_tree_foreach because that one expects index in page units
+> > rather than in huge_page_shift.
+> > Using vma_hugecache_offset is not incorrect because the pgoff will fit
+> > into the same vmas but it is confusing.
+> >
+> 
 > Well, how is the patch tested?
 
+It's been compile tested because it only restores the previous code with
+a simple and obvious bug fix.
+Do you see any issue in the patch?
 
-You see, Michal, it is weekend and I have to be offline now.
+> > Cc: Hillf Danton <dhillf@gmail.com>
+> > Cc: Mel Gorman <mel@csn.ul.ie>
+> > Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> > Cc: David Rientjes <rientjes@google.com>
+> > Signed-off-by: Michal Hocko <mhocko@suse.cz>
+> > ---
+> >  mm/hugetlb.c |    3 ++-
+> >  1 file changed, 2 insertions(+), 1 deletion(-)
+> >
+> > diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+> > index c39e4be..a74ea31 100644
+> > --- a/mm/hugetlb.c
+> > +++ b/mm/hugetlb.c
+> > @@ -2462,7 +2462,8 @@ static int unmap_ref_private(struct mm_struct *mm, struct vm_area_struct *vma,
+> >          * from page cache lookup which is in HPAGE_SIZE units.
+> >          */
+> >         address = address & huge_page_mask(h);
+> > -       pgoff = vma_hugecache_offset(h, vma, address);
+> > +       pgoff = ((address - vma->vm_start) >> PAGE_SHIFT) +
+> > +                       vma->vm_pgoff;
+> >         mapping = vma->vm_file->f_dentry->d_inode->i_mapping;
+> >
+> >         /*
+> > --
+> > 1.7.10.4
+> >
+> >
+> > --
+> > Michal Hocko
+> > SUSE Labs
 
-See you next week ;)
-
-Hillf
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
