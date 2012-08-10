@@ -1,75 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
-	by kanga.kvack.org (Postfix) with SMTP id 381136B005A
+Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
+	by kanga.kvack.org (Postfix) with SMTP id AA5786B005D
 	for <linux-mm@kvack.org>; Fri, 10 Aug 2012 17:42:15 -0400 (EDT)
 From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: [PATCH 1/3] HWPOISON: fix action_result() to print out dirty/clean
-Date: Fri, 10 Aug 2012 17:41:51 -0400
-Message-Id: <1344634913-13681-2-git-send-email-n-horiguchi@ah.jp.nec.com>
+Subject: [PATCH 2/3] HWPOISON: undo memory error handling for dirty pagecache
+Date: Fri, 10 Aug 2012 17:41:52 -0400
+Message-Id: <1344634913-13681-3-git-send-email-n-horiguchi@ah.jp.nec.com>
 In-Reply-To: <1344634913-13681-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 References: <1344634913-13681-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andi Kleen <andi.kleen@intel.com>, Wu Fengguang <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Tony Luck <tony.luck@intel.com>, Rik van Riel <riel@redhat.com>, Jun'ichi Nomura <j-nomura@ce.jp.nec.com>, Naoya Horiguchi <nhoriguc@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Tony Luck <tony.luck@intel.com>, Rik van Riel <riel@redhat.com>, Jun'ichi Nomura <j-nomura@ce.jp.nec.com>, Naoya Horiguchi <nhoriguc@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, stable@vger.kernel.org
 
-action_result() fails to print out "dirty" even if an error occurred on a
-dirty pagecache, because when we check PageDirty in action_result() it was
-cleared after page isolation even if it's dirty before error handling. This
-can break some applications that monitor this message, so should be fixed.
+Current memory error handling on dirty pagecache has a bug that user
+processes who use corrupted pages via read() or write() can't be aware
+of the memory error and result in discarding dirty data silently.
 
-There are several callers of action_result() except page_action(), but
-either of them are not for LRU pages but for free pages or kernel pages,
-so we don't have to consider dirty or not for them.
+The following patch is to improve handling/reporting memory errors on
+this case, but as a short term solution I suggest that we should undo
+the present error handling code and just leave errors for such cases
+(which expect the 2nd MCE to panic the system) to ensure data consistency.
 
 Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: stable@vger.kernel.org
 ---
- mm/memory-failure.c | 22 +++++++++-------------
- 1 file changed, 9 insertions(+), 13 deletions(-)
+ mm/memory-failure.c | 54 +++++++++++------------------------------------------
+ 1 file changed, 11 insertions(+), 43 deletions(-)
 
 diff --git v3.6-rc1.orig/mm/memory-failure.c v3.6-rc1/mm/memory-failure.c
-index a6e2141..79dfb2f 100644
+index 79dfb2f..7e62797 100644
 --- v3.6-rc1.orig/mm/memory-failure.c
 +++ v3.6-rc1/mm/memory-failure.c
-@@ -779,16 +779,16 @@ static struct page_state {
- 	{ compound,	compound,	"huge",		me_huge_page },
- #endif
- 
--	{ sc|dirty,	sc|dirty,	"swapcache",	me_swapcache_dirty },
--	{ sc|dirty,	sc,		"swapcache",	me_swapcache_clean },
-+	{ sc|dirty,	sc|dirty,	"dirty swapcache",	me_swapcache_dirty },
-+	{ sc|dirty,	sc,		"clean swapcache",	me_swapcache_clean },
- 
--	{ unevict|dirty, unevict|dirty,	"unevictable LRU", me_pagecache_dirty},
--	{ unevict,	unevict,	"unevictable LRU", me_pagecache_clean},
-+	{ unevict|dirty, unevict|dirty,	"dirty unevictable LRU", me_pagecache_dirty },
-+	{ unevict,	unevict,	"clean unevictable LRU", me_pagecache_clean },
- 
--	{ mlock|dirty,	mlock|dirty,	"mlocked LRU",	me_pagecache_dirty },
--	{ mlock,	mlock,		"mlocked LRU",	me_pagecache_clean },
-+	{ mlock|dirty,	mlock|dirty,	"dirty mlocked LRU",	me_pagecache_dirty },
-+	{ mlock,	mlock,		"clean mlocked LRU",	me_pagecache_clean },
- 
--	{ lru|dirty,	lru|dirty,	"LRU",		me_pagecache_dirty },
-+	{ lru|dirty,	lru|dirty,	"dirty LRU",	me_pagecache_dirty },
- 	{ lru|dirty,	lru,		"clean LRU",	me_pagecache_clean },
- 
- 	/*
-@@ -812,12 +812,8 @@ static struct page_state {
- 
- static void action_result(unsigned long pfn, char *msg, int result)
+@@ -613,49 +613,17 @@ static int me_pagecache_clean(struct page *p, unsigned long pfn)
+  */
+ static int me_pagecache_dirty(struct page *p, unsigned long pfn)
  {
--	struct page *page = pfn_to_page(pfn);
+-	struct address_space *mapping = page_mapping(p);
 -
--	printk(KERN_ERR "MCE %#lx: %s%s page recovery: %s\n",
--		pfn,
--		PageDirty(page) ? "dirty " : "",
--		msg, action_name[result]);
-+	pr_err("MCE %#lx: %s page recovery: %s\n",
-+		pfn, msg, action_name[result]);
+-	SetPageError(p);
+-	/* TBD: print more information about the file. */
+-	if (mapping) {
+-		/*
+-		 * IO error will be reported by write(), fsync(), etc.
+-		 * who check the mapping.
+-		 * This way the application knows that something went
+-		 * wrong with its dirty file data.
+-		 *
+-		 * There's one open issue:
+-		 *
+-		 * The EIO will be only reported on the next IO
+-		 * operation and then cleared through the IO map.
+-		 * Normally Linux has two mechanisms to pass IO error
+-		 * first through the AS_EIO flag in the address space
+-		 * and then through the PageError flag in the page.
+-		 * Since we drop pages on memory failure handling the
+-		 * only mechanism open to use is through AS_AIO.
+-		 *
+-		 * This has the disadvantage that it gets cleared on
+-		 * the first operation that returns an error, while
+-		 * the PageError bit is more sticky and only cleared
+-		 * when the page is reread or dropped.  If an
+-		 * application assumes it will always get error on
+-		 * fsync, but does other operations on the fd before
+-		 * and the page is dropped between then the error
+-		 * will not be properly reported.
+-		 *
+-		 * This can already happen even without hwpoisoned
+-		 * pages: first on metadata IO errors (which only
+-		 * report through AS_EIO) or when the page is dropped
+-		 * at the wrong time.
+-		 *
+-		 * So right now we assume that the application DTRT on
+-		 * the first EIO, but we're not worse than other parts
+-		 * of the kernel.
+-		 */
+-		mapping_set_error(mapping, EIO);
+-	}
+-
+-	return me_pagecache_clean(p, pfn);
++	/*
++	 * The original memory error handling on dirty pagecache has
++	 * a bug that user processes who use corrupted pages via read()
++	 * or write() can't be aware of the memory error and result
++	 * in throwing out dirty data silently.
++	 *
++	 * Until we solve the problem, let's close the path of memory
++	 * error handling for dirty pagecache. We just leave errors
++	 * for the 2nd MCE to trigger panics.
++	 */
++	return IGNORED;
  }
  
- static int page_action(struct page_state *ps, struct page *p,
+ /*
 -- 
 1.7.11.2
 
