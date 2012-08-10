@@ -1,66 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
-	by kanga.kvack.org (Postfix) with SMTP id 53E696B002B
-	for <linux-mm@kvack.org>; Fri, 10 Aug 2012 13:56:52 -0400 (EDT)
-Message-ID: <50254B44.7090107@jp.fujitsu.com>
-Date: Sat, 11 Aug 2012 02:56:20 +0900
-From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
+	by kanga.kvack.org (Postfix) with SMTP id CCCE26B002B
+	for <linux-mm@kvack.org>; Fri, 10 Aug 2012 14:15:15 -0400 (EDT)
+Received: from /spool/local
+	by e6.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
+	Fri, 10 Aug 2012 14:15:14 -0400
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by d01dlp02.pok.ibm.com (Postfix) with ESMTP id B42056E803C
+	for <linux-mm@kvack.org>; Fri, 10 Aug 2012 14:15:08 -0400 (EDT)
+Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
+	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q7AIF4qr172450
+	for <linux-mm@kvack.org>; Fri, 10 Aug 2012 14:15:06 -0400
+Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av01.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q7AIE2gW008729
+	for <linux-mm@kvack.org>; Fri, 10 Aug 2012 12:14:03 -0600
+Message-ID: <50254F69.2000409@linux.vnet.ibm.com>
+Date: Fri, 10 Aug 2012 13:14:01 -0500
+From: Seth Jennings <sjenning@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2 02/11] memcg: Reclaim when more than one page needed.
-References: <1344517279-30646-1-git-send-email-glommer@parallels.com> <1344517279-30646-3-git-send-email-glommer@parallels.com> <20120810154240.GG1425@dhcp22.suse.cz> <50253B95.7010905@jp.fujitsu.com> <20120810172824.GA14591@dhcp22.suse.cz>
-In-Reply-To: <20120810172824.GA14591@dhcp22.suse.cz>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Subject: Re: [PATCH 0/4] promote zcache from staging
+References: <1343413117-1989-1-git-send-email-sjenning@linux.vnet.ibm.com> <5021795A.5000509@linux.vnet.ibm.com> <5024067F.3010602@linux.vnet.ibm.com> <2e9ccb4f-1339-4c26-88dd-ea294b022127@default>
+In-Reply-To: <2e9ccb4f-1339-4c26-88dd-ea294b022127@default>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Glauber Costa <glommer@parallels.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, devel@openvz.org, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, Suleiman Souhlal <suleiman@google.com>
+To: Dan Magenheimer <dan.magenheimer@oracle.com>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Nitin Gupta <ngupta@vflare.org>, Minchan Kim <minchan@kernel.org>, Konrad Wilk <konrad.wilk@oracle.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org, Kurt Hackel <kurt.hackel@oracle.com>
 
-(2012/08/11 2:28), Michal Hocko wrote:
-> On Sat 11-08-12 01:49:25, KAMEZAWA Hiroyuki wrote:
->> (2012/08/11 0:42), Michal Hocko wrote:
->>> On Thu 09-08-12 17:01:10, Glauber Costa wrote:
->>> [...]
->>>> @@ -2317,18 +2318,18 @@ static int mem_cgroup_do_charge(struct mem_cgroup *memcg, gfp_t gfp_mask,
->>>>   	} else
->>>>   		mem_over_limit = mem_cgroup_from_res_counter(fail_res, res);
->>>>   	/*
->>>> -	 * nr_pages can be either a huge page (HPAGE_PMD_NR), a batch
->>>> -	 * of regular pages (CHARGE_BATCH), or a single regular page (1).
->>>> -	 *
->>>>   	 * Never reclaim on behalf of optional batching, retry with a
->>>>   	 * single page instead.
->>>>   	 */
->>>> -	if (nr_pages == CHARGE_BATCH)
->>>> +	if (nr_pages > min_pages)
->>>>   		return CHARGE_RETRY;
->>>
->>> This is dangerous because THP charges will be retried now while they
->>> previously failed with CHARGE_NOMEM which means that we will keep
->>> attempting potentially endlessly.
->>
->> with THP, I thought nr_pages == min_pages, and no retry.
->
-> right you are.
->
->>> Why cannot we simply do if (nr_pages < CHARGE_BATCH) and get rid of the
->>> min_pages altogether?
->>
->> Hm, I think a slab can be larger than CHARGE_BATCH.
->>
->>> Also the comment doesn't seem to be valid anymore.
->>>
->> I agree it's not clean. Because our assumption on nr_pages are changed,
->> I think this behavior should not depend on nr_pages value..
->> Shouldn't we have a flag to indicate "trial-for-batched charge" ?
->
-> dunno, it would require a new parameter anyway (because abusing gfp
-> doesn't seem great idea).
->
-ok, agreed.
+On 08/09/2012 03:20 PM, Dan Magenheimer wrote
+> I also wonder if you have anything else unusual in your
+> test setup, such as a fast swap disk (mine is a partition
+> on the same rotating disk as source and target of the kernel build,
+> the default install for a RHEL6 system)?
 
--Kame
+I'm using a normal SATA HDD with two partitions, one for
+swap and the other an ext3 filesystem with the kernel source.
 
+> Or have you disabled cleancache?
+
+Yes, I _did_ disable cleancache.  I could see where having
+cleancache enabled could explain the difference in results.
+
+> Or have you changed any sysfs parameters or
+> other kernel files?
+
+No.
+
+> And are you using 512M of physical memory or relying on
+> kernel boot parameters to reduce visible memory
+
+Limited with mem=512M boot parameter.
+
+> ... and
+> if the latter have you confirmed with /proc/meminfo?
+
+Yes, confirmed.
+
+Seth
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
