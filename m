@@ -1,73 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
-	by kanga.kvack.org (Postfix) with SMTP id B229B6B002B
-	for <linux-mm@kvack.org>; Fri, 10 Aug 2012 08:46:52 -0400 (EDT)
-Date: Fri, 10 Aug 2012 13:46:49 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH v6 1/3] mm: introduce compaction and migration for virtio
- ballooned pages
-Message-ID: <20120810124649.GL10288@csn.ul.ie>
-References: <cover.1344463786.git.aquini@redhat.com>
- <efb9756c5d6de8952a793bfc99a9db9cdd66b12f.1344463786.git.aquini@redhat.com>
- <20120809090019.GB10288@csn.ul.ie>
- <20120809144835.GA2719@t510.redhat.com>
- <20120809151218.GB2719@t510.redhat.com>
+Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
+	by kanga.kvack.org (Postfix) with SMTP id 9FD766B002B
+	for <linux-mm@kvack.org>; Fri, 10 Aug 2012 08:51:05 -0400 (EDT)
+Date: Fri, 10 Aug 2012 14:51:02 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [patch] hugetlb: correct page offset index for sharing pmd
+Message-ID: <20120810125102.GB1425@dhcp22.suse.cz>
+References: <CAJd=RBB=jKD+9JcuBmBGC8R8pAQ-QoWHexMNMsXpb9zV548h5g@mail.gmail.com>
+ <20120803133235.GA8434@dhcp22.suse.cz>
+ <20120810094825.GA1440@dhcp22.suse.cz>
+ <CAJd=RBDA3pLYDpryxafx6dLoy7Fk8PmY-EFkXCkuJTB2ywfsjA@mail.gmail.com>
+ <20120810122730.GA1425@dhcp22.suse.cz>
+ <CAJd=RBAvCd-QcyN9N4xWEiLeVqRypzCzbADvD1qTziRVCHjd4Q@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20120809151218.GB2719@t510.redhat.com>
+In-Reply-To: <CAJd=RBAvCd-QcyN9N4xWEiLeVqRypzCzbADvD1qTziRVCHjd4Q@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rafael Aquini <aquini@redhat.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, Rusty Russell <rusty@rustcorp.com.au>, "Michael S. Tsirkin" <mst@redhat.com>, Rik van Riel <riel@redhat.com>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Minchan Kim <minchan@kernel.org>
+To: Hillf Danton <dhillf@gmail.com>
+Cc: Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Thu, Aug 09, 2012 at 12:12:19PM -0300, Rafael Aquini wrote:
-> On Thu, Aug 09, 2012 at 11:48:36AM -0300, Rafael Aquini wrote:
-> > Sure! 
-> > what do you think of:
-> > 
-> > +/* putback_lru_page() counterpart for a ballooned page */
-> > +void putback_balloon_page(struct page *page)
-> > +{
-> > +   lock_page(page);
-> > +   if (!WARN_ON(!movable_balloon_page(page))) {
-> > +           __putback_balloon_page(page);
-> > +           put_page(page);
-> > +   }
-> > +   unlock_page(page);
-> > +}
+On Fri 10-08-12 20:37:20, Hillf Danton wrote:
+> On Fri, Aug 10, 2012 at 8:27 PM, Michal Hocko <mhocko@suse.cz> wrote:
 > >
-> Or perhaps
->  
-> +/* putback_lru_page() counterpart for a ballooned page */
-> +void putback_balloon_page(struct page *page)
-> +{
-> +   if (!WARN_ON(!movable_balloon_page(page))) {
-> +           lock_page(page);
-> +           __putback_balloon_page(page);
-> +           put_page(page);
-> +           unlock_page(page);
-> +   }
-> +}
+> > I guess you mean unmap_ref_private and that has been changed by you
+> > (0c176d5 mm: hugetlb: fix pgoff computation when unmapping page from
+> > vma)...  I was wrong at that time when giving my Reviewed-by. The patch
+> > didn't break anything because you still find all relevant vmas because
+> > vma_hugecache_offset just provides a smaller index which is still within
+> > boundaries.
+> 
+> No, as shown by the log message of 0c176d52b,  that fix was
+> triggered by  (vma->vm_pgoff >> PAGE_SHIFT), thus I dont see
+> what you really want to revert.
 
-That should be fine. I find the WARN_ON construct odd to read but only
-because it's unusual. It is more typical to see something like
-
-if (WARN_ON(!movable_balooon_page(page)))
-	return;
-
-lock_page(page);
-__putback_balloon_page(page);
-put_page(page);
-unlock_page(page);
-
-but either works. Do not forget to update the caller of course.
-
-Thanks.
-
+fix for that would be a part of the revert of course.
+ 
+> > I think that 0c176d52 should be reverted because we do not have to refer
+> > to the head page in this case and as we can see it causes confusion.
 
 -- 
-Mel Gorman
+Michal Hocko
 SUSE Labs
 
 --
