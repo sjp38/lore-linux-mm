@@ -1,43 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
-	by kanga.kvack.org (Postfix) with SMTP id 690096B0044
-	for <linux-mm@kvack.org>; Sun, 12 Aug 2012 05:31:15 -0400 (EDT)
-Date: Sun, 12 Aug 2012 11:31:11 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [patch] hugetlb: correct page offset index for sharing pmd
-Message-ID: <20120812093110.GB18057@dhcp22.suse.cz>
-References: <20120810094825.GA1440@dhcp22.suse.cz>
- <CAJd=RBDA3pLYDpryxafx6dLoy7Fk8PmY-EFkXCkuJTB2ywfsjA@mail.gmail.com>
- <20120810122730.GA1425@dhcp22.suse.cz>
- <CAJd=RBAvCd-QcyN9N4xWEiLeVqRypzCzbADvD1qTziRVCHjd4Q@mail.gmail.com>
- <20120810125102.GB1425@dhcp22.suse.cz>
- <CAJd=RBB8Yuk1FEQxTUbEEeD96oqnO26VojetuDgRo=JxOfnadw@mail.gmail.com>
- <20120810131643.GC1425@dhcp22.suse.cz>
- <CAJd=RBDtnF6eoTmDu4HOBGfHnWnxNsXEzArR51+-XhzFCwOmOQ@mail.gmail.com>
- <20120810134811.GD1425@dhcp22.suse.cz>
- <CAJd=RBDUJXOHKbes0KE1aQ7tJCYBr04+=-bCbs8xT9wJ-CtrTw@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAJd=RBDUJXOHKbes0KE1aQ7tJCYBr04+=-bCbs8xT9wJ-CtrTw@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
+	by kanga.kvack.org (Postfix) with SMTP id 0FB216B0044
+	for <linux-mm@kvack.org>; Sun, 12 Aug 2012 11:19:38 -0400 (EDT)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH 3/3] HWPOISON: improve handling/reporting of memory error on dirty pagecache
+Date: Sun, 12 Aug 2012 11:19:21 -0400
+Message-Id: <1344784761-6183-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <20120812032844.GE11413@one.firstfloor.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hillf Danton <dhillf@gmail.com>
-Cc: Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, David Rientjes <rientjes@google.com>
+To: Andi Kleen <andi@firstfloor.org>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Andi Kleen <andi.kleen@intel.com>, Wu Fengguang <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Tony Luck <tony.luck@intel.com>, Rik van Riel <riel@redhat.com>, Jun'ichi Nomura <j-nomura@ce.jp.nec.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Sun 12-08-12 12:08:21, Hillf Danton wrote:
-> On Fri, Aug 10, 2012 at 9:48 PM, Michal Hocko <mhocko@suse.cz> wrote:
+Hi,
+
+On Sun, Aug 12, 2012 at 05:28:44AM +0200, Andi Kleen wrote:
+> > > That function uses a global lock. fdatawait is quite common. This will
+> > > likely cause performance problems in IO workloads.
+> > 
+> > OK, I should avoid it.
 > 
-> > It's been compile tested because it only restores the previous code with
-> > a simple and obvious bug fix.
+> Maybe just RCU the hash table.
+
+OK.
+
+> > > You need to get that lock out of the hot path somehow.
+> > > 
+> > > Probably better to try to put the data into a existing data structure,
+> > > or if you cannot do that you would need some way to localize the lock.
+> > 
+> > Yes, I have thought about adding some data like new pagecache tag or
+> > new members in struct address_space, but it makes the size of heavily
+> > used data structure larger so I'm not sure it's acceptable.
+> > And localizing the lock is worth trying, I think.
 > 
-> It helps more if you elaborate on such a simple and obvious bug and
-> enrich your change log accordingly?
+> It's cheaper than a hash table lookup in the hot path.
+>  
+> > > Or at least make it conditional of hwpoison errors being around. 
+> > 
+> > I'll try to do your suggestions, but I'm not sure your point of the
+> > last one. Can you explain more about 'make it conditional' option?
+> 
+> The code should check some flag first that is only set when hwpoison
+> happened on the address space (or global, but that would mean that 
+> performance can go down globally when any error is around)
 
-Hmmm, to be honest I really don't care much about this change. It is just
-that your previous patch (0c176d5) made the code more confusing and this
-aims at fixing that.
+I defined hwpoison_file_range() and hwpoison_partial_write() as wrapper
+functions of __hwpoison_* variants, and they hold hwp_dirty_lock only
+if AS_HWPOISON flag in mapping is set. So I hope we already did it.
+But yes, I understand that in general a global lock is not good,
+so I'll try to do other options.
 
-But anyway. I will post this to Andrew unless somebody has any
-objections.
----
+Thank you,
+Naoya
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
