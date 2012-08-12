@@ -1,59 +1,169 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx190.postini.com [74.125.245.190])
-	by kanga.kvack.org (Postfix) with SMTP id 932136B0044
-	for <linux-mm@kvack.org>; Sun, 12 Aug 2012 11:58:03 -0400 (EDT)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH 3/3] HWPOISON: improve handling/reporting of memory error on dirty pagecache
-Date: Sun, 12 Aug 2012 11:57:54 -0400
-Message-Id: <1344787074-6795-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <3908561D78D1C84285E8C5FCA982C28F19375BFE@ORSMSX104.amr.corp.intel.com>
+Received: from psmtp.com (na3sys010amx135.postini.com [74.125.245.135])
+	by kanga.kvack.org (Postfix) with SMTP id CCDA36B0044
+	for <linux-mm@kvack.org>; Sun, 12 Aug 2012 12:40:22 -0400 (EDT)
+Message-ID: <1344789618.5128.5.camel@lorien2>
+Subject: [PATCH v3] mm: Restructure kmem_cache_create() to move debug cache
+ integrity checks into a new function
+From: Shuah Khan <shuah.khan@hp.com>
+Reply-To: shuah.khan@hp.com
+Date: Sun, 12 Aug 2012 10:40:18 -0600
+In-Reply-To: <1344540801.2393.42.camel@lorien2>
+References: <1342221125.17464.8.camel@lorien2>
+	 <CAOJsxLGjnMxs9qERG5nCfGfcS3jy6Rr54Ac36WgVnOtP_pDYgQ@mail.gmail.com>
+	 <1344224494.3053.5.camel@lorien2> <1344266096.2486.17.camel@lorien2>
+	 <CAAmzW4Ne5pD90r+6zrrD-BXsjtf5OqaKdWY+2NSGOh1M_sWq4g@mail.gmail.com>
+	 <1344272614.2486.40.camel@lorien2> <1344287631.2486.57.camel@lorien2>
+	 <alpine.DEB.2.02.1208090911100.15909@greybox.home>
+	 <1344531695.2393.27.camel@lorien2>
+	 <alpine.DEB.2.02.1208091406590.20908@greybox.home>
+	 <1344540801.2393.42.camel@lorien2>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 7bit
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tony Luck <tony.luck@intel.com>
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Andi Kleen <andi.kleen@intel.com>, Wu Fengguang <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Jun'ichi Nomura <j-nomura@ce.jp.nec.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: "Christoph Lameter (Open Source)" <cl@linux.com>
+Cc: penberg@kernel.org, glommer@parallels.com, js1304@gmail.com, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, shuahkhan@gmail.com
 
-Hi Tony,
+kmem_cache_create() does cache integrity checks when CONFIG_DEBUG_VM
+is defined. These checks interspersed with the regular code path has
+lead to compile time warnings when compiled without CONFIG_DEBUG_VM
+defined. Restructuring the code to move the integrity checks in to a new
+function would eliminate the current compile warning problem and also
+will allow for future changes to the debug only code to evolve without
+introducing new warnings in the regular path. This restructuring work
+is based on the discussion in the following thread:
 
-Thank you for the comment.
+https://lkml.org/lkml/2012/7/13/424
 
-On Sat, Aug 11, 2012 at 10:41:49PM +0000, Luck, Tony wrote:
-> > dirty pagecache error recoverable under some conditions. Consider that
-> > if there is a copy of the corrupted dirty pagecache on user buffer and
-> > you write() over the error page with the copy data, then we can ignore
-> > the effect of the error because no one consumes the corrupted data.
-> 
-> This sounds like a quite rare corner case. If the page is already dirty, it is
-> most likely because someone recently did a write(2) (or touched it via
-> mmap(2)).
+Signed-off-by: Shuah Khan <shuah.khan@hp.com>
+---
+ mm/slab_common.c |   90 +++++++++++++++++++++++++++++-------------------------
+ 1 file changed, 48 insertions(+), 42 deletions(-)
 
-Yes, that's right.
+diff --git a/mm/slab_common.c b/mm/slab_common.c
+index 12637ce..44facdf 100644
+--- a/mm/slab_common.c
++++ b/mm/slab_common.c
+@@ -23,6 +23,52 @@ enum slab_state slab_state;
+ LIST_HEAD(slab_caches);
+ DEFINE_MUTEX(slab_mutex);
+ 
++#ifdef CONFIG_DEBUG_VM
++static int kmem_cache_sanity_check(const char *name, size_t size)
++{
++	struct kmem_cache *s = NULL;
++
++	if (!name || in_interrupt() || size < sizeof(void *) ||
++		size > KMALLOC_MAX_SIZE) {
++		pr_err("kmem_cache_create(%s) integrity check failed\n", name);
++		return -EINVAL;
++	}
++
++	list_for_each_entry(s, &slab_caches, list) {
++		char tmp;
++		int res;
++
++		/*
++		 * This happens when the module gets unloaded and doesn't
++		 * destroy its slab cache and no-one else reuses the vmalloc
++		 * area of the module.  Print a warning.
++		 */
++		res = probe_kernel_address(s->name, tmp);
++		if (res) {
++			pr_err("Slab cache with size %d has lost its name\n",
++			       s->object_size);
++			continue;
++		}
++
++		if (!strcmp(s->name, name)) {
++			pr_err("%s (%s): Cache name already exists.\n",
++			       __func__, name);
++			dump_stack();
++			s = NULL;
++			return -EINVAL;
++		}
++	}
++
++	WARN_ON(strchr(name, ' '));	/* It confuses parsers */
++	return 0;
++}
++#else
++static inline int kmem_cache_sanity_check(const char *name, size_t size)
++{
++	return 0;
++}
++#endif
++
+ /*
+  * kmem_cache_create - Create a cache.
+  * @name: A string which is used in /proc/slabinfo to identify this cache.
+@@ -53,48 +99,11 @@ struct kmem_cache *kmem_cache_create(const char *name, size_t size, size_t align
+ {
+ 	struct kmem_cache *s = NULL;
+ 
+-#ifdef CONFIG_DEBUG_VM
+-	if (!name || in_interrupt() || size < sizeof(void *) ||
+-		size > KMALLOC_MAX_SIZE) {
+-		printk(KERN_ERR "kmem_cache_create(%s) integrity check"
+-			" failed\n", name);
+-		goto out;
+-	}
+-#endif
+-
+ 	get_online_cpus();
+ 	mutex_lock(&slab_mutex);
+ 
+-#ifdef CONFIG_DEBUG_VM
+-	list_for_each_entry(s, &slab_caches, list) {
+-		char tmp;
+-		int res;
+-
+-		/*
+-		 * This happens when the module gets unloaded and doesn't
+-		 * destroy its slab cache and no-one else reuses the vmalloc
+-		 * area of the module.  Print a warning.
+-		 */
+-		res = probe_kernel_address(s->name, tmp);
+-		if (res) {
+-			printk(KERN_ERR
+-			       "Slab cache with size %d has lost its name\n",
+-			       s->object_size);
+-			continue;
+-		}
+-
+-		if (!strcmp(s->name, name)) {
+-			printk(KERN_ERR "kmem_cache_create(%s): Cache name"
+-				" already exists.\n",
+-				name);
+-			dump_stack();
+-			s = NULL;
+-			goto oops;
+-		}
+-	}
+-
+-	WARN_ON(strchr(name, ' '));	/* It confuses parsers */
+-#endif
++	if (kmem_cache_sanity_check(name, size))
++		goto oops;
+ 
+ 	s = __kmem_cache_create(name, size, align, flags, ctor);
+ 
+@@ -102,9 +111,6 @@ oops:
+ 	mutex_unlock(&slab_mutex);
+ 	put_online_cpus();
+ 
+-#ifdef CONFIG_DEBUG_VM
+-out:
+-#endif
+ 	if (!s && (flags & SLAB_PANIC))
+ 		panic("kmem_cache_create: Failed to create slab '%s'\n", name);
+ 
+-- 
+1.7.9.5
 
-> Now you are hoping that some process is going to write the
-> same page again.  Do you have an application in mind where this would
-> be common.
 
-No, I don't, particularly.
-
-> Remember that the write(2), memory-error, new write(2)
-> have to happen close together (before Linux decides to write out the
-> dirty page).
-
-Maybe this is different from my scenario, where I assumed that a hwpoison-
-aware application kicks the second write(2) when it catches a memory error
-report from kernel, and this write(2) copies from the same buffer from
-which the first write(2) copied into pagecache.
-In many case, user space applications keep their buffers for a while after
-calling write(2), so then we can consider that dirty pagecaches also can
-have copies in the buffers. This is a key idea of error recovery.
-
-And let me discuss about another point. When memory errors happen on
-dirty pagecaches, they are isolated from pagecache trees. So neither
-fsync(2) nor writeback can write out the corrupted data on the backing
-devices. So I don't think that we have to be careful about closeness
-between two write(2)s.
-
-Thanks,
-Naoya
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
