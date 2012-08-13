@@ -1,64 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
-	by kanga.kvack.org (Postfix) with SMTP id 5BFEB6B002B
-	for <linux-mm@kvack.org>; Mon, 13 Aug 2012 09:10:18 -0400 (EDT)
-Date: Mon, 13 Aug 2012 15:10:14 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH v2 02/11] memcg: Reclaim when more than one page needed.
-Message-ID: <20120813131014.GB24248@dhcp22.suse.cz>
-References: <1344517279-30646-1-git-send-email-glommer@parallels.com>
- <1344517279-30646-3-git-send-email-glommer@parallels.com>
- <20120810185417.GB16110@dhcp22.suse.cz>
- <5028B552.2070708@parallels.com>
+Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
+	by kanga.kvack.org (Postfix) with SMTP id 439DA6B002B
+	for <linux-mm@kvack.org>; Mon, 13 Aug 2012 09:24:38 -0400 (EDT)
+Received: by vbkv13 with SMTP id v13so4281449vbk.14
+        for <linux-mm@kvack.org>; Mon, 13 Aug 2012 06:24:37 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <5028B552.2070708@parallels.com>
+Date: Mon, 13 Aug 2012 21:24:36 +0800
+Message-ID: <CAJd=RBCJL+oPRZMNNmtwSWH6CM1fiUNh=X+Leuk25Lyd3uKB5Q@mail.gmail.com>
+Subject: Re: [PATCH] hugetlb: do not use vma_hugecache_offset for vma_prio_tree_foreach
+From: Hillf Danton <dhillf@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, devel@openvz.org, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, kamezawa.hiroyu@jp.fujitsu.com, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, Suleiman Souhlal <suleiman@google.com>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, David Rientjes <rientjes@google.com>
 
-On Mon 13-08-12 12:05:38, Glauber Costa wrote:
-> On 08/10/2012 10:54 PM, Michal Hocko wrote:
-> > On Thu 09-08-12 17:01:10, Glauber Costa wrote:
-> >> From: Suleiman Souhlal <ssouhlal@FreeBSD.org>
-> >>
-> >> mem_cgroup_do_charge() was written before kmem accounting, and expects
-> >> three cases: being called for 1 page, being called for a stock of 32
-> >> pages, or being called for a hugepage.  If we call for 2 or 3 pages (and
-> >> both the stack and several slabs used in process creation are such, at
-> >> least with the debug options I had), it assumed it's being called for
-> >> stock and just retried without reclaiming.
-> >>
-> >> Fix that by passing down a minsize argument in addition to the csize.
-> >>
-> >> And what to do about that (csize == PAGE_SIZE && ret) retry?  If it's
-> >> needed at all (and presumably is since it's there, perhaps to handle
-> >> races), then it should be extended to more than PAGE_SIZE, yet how far?
-> >> And should there be a retry count limit, of what?  For now retry up to
-> >> COSTLY_ORDER (as page_alloc.c does) and make sure not to do it if
-> >> __GFP_NORETRY.
-> >>
-> >> [v4: fixed nr pages calculation pointed out by Christoph Lameter ]
-> >>
-> >> Signed-off-by: Suleiman Souhlal <suleiman@google.com>
-> >> Signed-off-by: Glauber Costa <glommer@parallels.com>
-> >> Reviewed-by: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> > 
-> > I am not happy with the min_pages argument but we can do something more
-> > clever  later.
-> > 
-> > Acked-by: Michal Hocko <mhocko@suse.cz>
-> > 
-> 
-> I am a bit confused here. Does your ack come before or after your other
-> comments on this patch?
+On Mon, Aug 13, 2012 at 9:09 PM, Michal Hocko <mhocko@suse.cz> wrote:
+> On Mon 13-08-12 20:10:41, Hillf Danton wrote:
+>> On Sun, Aug 12, 2012 at 5:31 PM, Michal Hocko <mhocko@suse.cz> wrote:
+>> > From d07b88a70ee1dbcc96502c48cde878931e7deb38 Mon Sep 17 00:00:00 2001
+>> > From: Michal Hocko <mhocko@suse.cz>
+>> > Date: Fri, 10 Aug 2012 15:03:07 +0200
+>> > Subject: [PATCH] hugetlb: do not use vma_hugecache_offset for
+>> >  vma_prio_tree_foreach
+>> >
+>> > 0c176d5 (mm: hugetlb: fix pgoff computation when unmapping page
+>> > from vma) fixed pgoff calculation but it has replaced it by
+>> > vma_hugecache_offset which is not approapriate for offsets used for
+>> > vma_prio_tree_foreach because that one expects index in page units
+>> > rather than in huge_page_shift.
+>>
+>>
+>> What if another case of vma_prio_tree_foreach in try_to_unmap_file
+>> is correct?
+>
+> That one is surely correct (linear_page_index converts the page offset).
 
-Heh, it was hard Friday ;) Yes, it was after the mind fart...
--- 
-Michal Hocko
-SUSE Labs
+But linear_page_index is not used in this patch, why?
+
+> Anyway do you actually have any _real_ objection to the patch?
+
+I will sign ack only after I see your answers to my questions.
+Feel free to info me if you are unlikely to answer questions, Michal.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
