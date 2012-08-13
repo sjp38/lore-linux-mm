@@ -1,114 +1,180 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx140.postini.com [74.125.245.140])
-	by kanga.kvack.org (Postfix) with SMTP id 569EB6B0044
-	for <linux-mm@kvack.org>; Mon, 13 Aug 2012 17:21:29 -0400 (EDT)
-Received: by weyx56 with SMTP id x56so192687wey.2
-        for <linux-mm@kvack.org>; Mon, 13 Aug 2012 14:21:27 -0700 (PDT)
-From: Greg Thelen <gthelen@google.com>
-Subject: Re: [PATCH v2 06/11] memcg: kmem controller infrastructure
-References: <1344517279-30646-1-git-send-email-glommer@parallels.com>
-	<1344517279-30646-7-git-send-email-glommer@parallels.com>
-	<xr93ehnec8sl.fsf@gthelen.mtv.corp.google.com>
-	<5028D016.1030902@parallels.com>
-Date: Mon, 13 Aug 2012 14:21:19 -0700
-Message-ID: <xr93lihijxo0.fsf@gthelen.mtv.corp.google.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Received: from psmtp.com (na3sys010amx159.postini.com [74.125.245.159])
+	by kanga.kvack.org (Postfix) with SMTP id C36FC6B005A
+	for <linux-mm@kvack.org>; Mon, 13 Aug 2012 19:56:52 -0400 (EDT)
+Received: by obbun3 with SMTP id un3so3206136obb.2
+        for <linux-mm@kvack.org>; Mon, 13 Aug 2012 16:56:52 -0700 (PDT)
+Subject: mmotm 2012-08-13-16-55 uploaded
+From: akpm@linux-foundation.org
+Date: Mon, 13 Aug 2012 16:56:50 -0700
+Message-Id: <20120813235651.00A13100047@wpzn3.hot.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, devel@openvz.org, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, kamezawa.hiroyu@jp.fujitsu.com, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, Pekka Enberg <penberg@cs.helsinki.fi>
+To: mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org
 
-On Mon, Aug 13 2012, Glauber Costa wrote:
+The mm-of-the-moment snapshot 2012-08-13-16-55 has been uploaded to
 
->> 
->> Here's the dmesg splat.
->> 
->
-> Do you always get this report in the same way?
-> I managed to get a softirq inconsistency like yours, but the complaint
-> goes for a different lock.
+   http://www.ozlabs.org/~akpm/mmotm/
 
-Yes, I repeatedly get the same dmesg splat below.
+mmotm-readme.txt says
 
-Once I your 'execute the whole memcg freeing in rcu callback' patch,
-then the warnings are not printed.  I'll take a closer look at the patch
-soon.
+README for mm-of-the-moment:
 
->> [  335.550398] =================================
->> [  335.554739] [ INFO: inconsistent lock state ]
->> [  335.559091] 3.5.0-dbg-DEV #3 Tainted: G        W
->> [  335.563946] ---------------------------------
->> [  335.568290] inconsistent {SOFTIRQ-ON-W} -> {IN-SOFTIRQ-W} usage.
->> [  335.574286] swapper/10/0 [HC0[0]:SC1[1]:HE1:SE0] takes:
->> [  335.579508]  (&(&rtpz->lock)->rlock){+.?...}, at: [<ffffffff8118216d>] __mem_cgroup_free+0x8d/0x1b0
->> [  335.588525] {SOFTIRQ-ON-W} state was registered at:
->> [  335.593389]   [<ffffffff810cb073>] __lock_acquire+0x623/0x1a50
->> [  335.599200]   [<ffffffff810cca55>] lock_acquire+0x95/0x150
->> [  335.604670]   [<ffffffff81582531>] _raw_spin_lock+0x41/0x50
->> [  335.610232]   [<ffffffff8118216d>] __mem_cgroup_free+0x8d/0x1b0
->> [  335.616135]   [<ffffffff811822d5>] mem_cgroup_put+0x45/0x50
->> [  335.621696]   [<ffffffff81182302>] mem_cgroup_destroy+0x22/0x30
->> [  335.627592]   [<ffffffff810e093f>] cgroup_diput+0xbf/0x160
->> [  335.633062]   [<ffffffff811a07ef>] d_delete+0x12f/0x1a0
->> [  335.638276]   [<ffffffff8119671e>] vfs_rmdir+0x11e/0x140
->> [  335.643565]   [<ffffffff81199173>] do_rmdir+0x113/0x130
->> [  335.648773]   [<ffffffff8119a5e6>] sys_rmdir+0x16/0x20
->> [  335.653900]   [<ffffffff8158c74f>] cstar_dispatch+0x7/0x1f
->> [  335.659370] irq event stamp: 399732
->> [  335.662846] hardirqs last  enabled at (399732): [<ffffffff810e8e08>] res_counter_uncharge_until+0x68/0xa0
->> [  335.672383] hardirqs last disabled at (399731): [<ffffffff810e8dc8>] res_counter_uncharge_until+0x28/0xa0
->> [  335.681916] softirqs last  enabled at (399710): [<ffffffff81085dd3>] _local_bh_enable+0x13/0x20
->> [  335.690590] softirqs last disabled at (399711): [<ffffffff8158c48c>] call_softirq+0x1c/0x30
->> [  335.698914]
->> [  335.698914] other info that might help us debug this:
->> [  335.705415]  Possible unsafe locking scenario:
->> [  335.705415]
->> [  335.711317]        CPU0
->> [  335.713757]        ----
->> [  335.716198]   lock(&(&rtpz->lock)->rlock);
->> [  335.720282]   <Interrupt>
->> [  335.722896]     lock(&(&rtpz->lock)->rlock);
->> [  335.727153]
->> [  335.727153]  *** DEADLOCK ***
->> [  335.727153]
->> [  335.733055] no locks held by swapper/10/0.
->> [  335.737141]
->> [  335.737141] stack backtrace:
->> [  335.741483] Pid: 0, comm: swapper/10 Tainted: G        W    3.5.0-dbg-DEV #3
->> [  335.748510] Call Trace:
->> [  335.750952]  <IRQ>  [<ffffffff81579a27>] print_usage_bug+0x1fc/0x20d
->> [  335.757286]  [<ffffffff81058a9f>] ? save_stack_trace+0x2f/0x50
->> [  335.763098]  [<ffffffff810ca9ed>] mark_lock+0x29d/0x300
->> [  335.768309]  [<ffffffff810c9e10>] ? print_irq_inversion_bug.part.36+0x1f0/0x1f0
->> [  335.775599]  [<ffffffff810caffc>] __lock_acquire+0x5ac/0x1a50
->> [  335.781323]  [<ffffffff810cad34>] ? __lock_acquire+0x2e4/0x1a50
->> [  335.787224]  [<ffffffff8118216d>] ? __mem_cgroup_free+0x8d/0x1b0
->> [  335.793212]  [<ffffffff810cca55>] lock_acquire+0x95/0x150
->> [  335.798594]  [<ffffffff8118216d>] ? __mem_cgroup_free+0x8d/0x1b0
->> [  335.804581]  [<ffffffff810e8ddd>] ? res_counter_uncharge_until+0x3d/0xa0
->> [  335.811263]  [<ffffffff81582531>] _raw_spin_lock+0x41/0x50
->> [  335.816731]  [<ffffffff8118216d>] ? __mem_cgroup_free+0x8d/0x1b0
->> [  335.822724]  [<ffffffff8118216d>] __mem_cgroup_free+0x8d/0x1b0
->> [  335.828538]  [<ffffffff811822d5>] mem_cgroup_put+0x45/0x50
->> [  335.834002]  [<ffffffff811828a6>] __memcg_kmem_free_page+0xa6/0x110
->> [  335.840256]  [<ffffffff81138109>] free_accounted_pages+0x99/0xa0
->> [  335.846243]  [<ffffffff8107b09f>] free_task+0x3f/0x70
->> [  335.851278]  [<ffffffff8107b18c>] __put_task_struct+0xbc/0x130
->> [  335.857094]  [<ffffffff81081524>] delayed_put_task_struct+0x54/0xd0
->> [  335.863338]  [<ffffffff810fd354>] __rcu_process_callbacks+0x1e4/0x490
->> [  335.869757]  [<ffffffff810fd62f>] rcu_process_callbacks+0x2f/0x80
->> [  335.875835]  [<ffffffff810862f5>] __do_softirq+0xc5/0x270
->> [  335.881218]  [<ffffffff810c49b4>] ? clockevents_program_event+0x74/0x100
->> [  335.887895]  [<ffffffff810c5d94>] ? tick_program_event+0x24/0x30
->> [  335.893882]  [<ffffffff8158c48c>] call_softirq+0x1c/0x30
->> [  335.899179]  [<ffffffff8104cefd>] do_softirq+0x8d/0xc0
->> [  335.904301]  [<ffffffff810867de>] irq_exit+0xae/0xe0
->> [  335.909251]  [<ffffffff8158cc3e>] smp_apic_timer_interrupt+0x6e/0x99
->> [  335.915591]  [<ffffffff8158ba9c>] apic_timer_interrupt+0x6c/0x80
->> [  335.921583]  <EOI>  [<ffffffff810530e7>] ? default_idle+0x67/0x270
->> [  335.927741]  [<ffffffff810530e5>] ? default_idle+0x65/0x270
->> 
+http://www.ozlabs.org/~akpm/mmotm/
+
+This is a snapshot of my -mm patch queue.  Uploaded at random hopefully
+more than once a week.
+
+You will need quilt to apply these patches to the latest Linus release (3.x
+or 3.x-rcY).  The series file is in broken-out.tar.gz and is duplicated in
+http://ozlabs.org/~akpm/mmotm/series
+
+The file broken-out.tar.gz contains two datestamp files: .DATE and
+.DATE-yyyy-mm-dd-hh-mm-ss.  Both contain the string yyyy-mm-dd-hh-mm-ss,
+followed by the base kernel version against which this patch series is to
+be applied.
+
+This tree is partially included in linux-next.  To see which patches are
+included in linux-next, consult the `series' file.  Only the patches
+within the #NEXT_PATCHES_START/#NEXT_PATCHES_END markers are included in
+linux-next.
+
+A git tree which contains the memory management portion of this tree is
+maintained at https://github.com/mstsxfx/memcg-devel.git by Michal Hocko. 
+It contains the patches which are between the "#NEXT_PATCHES_START mm" and
+"#NEXT_PATCHES_END" markers, from the series file,
+http://www.ozlabs.org/~akpm/mmotm/series.
+
+
+A full copy of the full kernel tree with the linux-next and mmotm patches
+already applied is available through git within an hour of the mmotm
+release.  Individual mmotm releases are tagged.  The master branch always
+points to the latest release, so it's constantly rebasing.
+
+http://git.cmpxchg.org/?p=linux-mmotm.git;a=summary
+
+To develop on top of mmotm git:
+
+  $ git remote add mmotm git://git.cmpxchg.org/linux-mmotm.git
+  $ git remote update mmotm
+  $ git checkout -b topic mmotm/master
+  <make changes, commit>
+  $ git send-email mmotm/master.. [...]
+
+To rebase a branch with older patches to a new mmotm release:
+
+  $ git remote update mmotm
+  $ git rebase --onto mmotm/master <topic base> topic
+
+
+
+
+The directory http://www.ozlabs.org/~akpm/mmots/ (mm-of-the-second)
+contains daily snapshots of the -mm tree.  It is updated more frequently
+than mmotm, and is untested.
+
+A git copy of this tree is available at
+
+	http://git.cmpxchg.org/?p=linux-mmots.git;a=summary
+
+and use of this tree is similar to
+http://git.cmpxchg.org/?p=linux-mmotm.git, described above.
+
+
+This mmotm tree contains the following patches against 3.6-rc1:
+(patches marked "*" will be included in linux-next)
+
+  origin.patch
+  linux-next.patch
+  i-need-old-gcc.patch
+  arch-alpha-kernel-systblss-remove-debug-check.patch
+* cs5535-clockevt-typo-its-mfgpt-not-mfpgt.patch
+* mm-change-nr_ptes-bug_on-to-warn_on.patch
+* documentation-update-mount-option-in-filesystem-vfattxt.patch
+* cciss-fix-incorrect-scsi-status-reporting.patch
+* acpi_memhotplugc-fix-memory-leak-when-memory-device-is-unbound-from-the-module-acpi_memhotplug.patch
+* acpi_memhotplugc-free-memory-device-if-acpi_memory_enable_device-failed.patch
+* acpi_memhotplugc-remove-memory-info-from-list-before-freeing-it.patch
+* acpi_memhotplugc-dont-allow-to-eject-the-memory-device-if-it-is-being-used.patch
+* acpi_memhotplugc-bind-the-memory-device-when-the-driver-is-being-loaded.patch
+* acpi_memhotplugc-auto-bind-the-memory-device-which-is-hotplugged-before-the-driver-is-loaded.patch
+* arch-x86-platform-iris-irisc-register-a-platform-device-and-a-platform-driver.patch
+* arch-x86-include-asm-spinlockh-fix-comment.patch
+* mn10300-only-add-mmem-funcs-to-kbuild_cflags-if-gcc-supports-it.patch
+* dma-dmaengine-lower-the-priority-of-failed-to-get-dma-channel-message.patch
+* pcmcia-move-unbind-rebind-into-dev_pm_opscomplete.patch
+* ppc-e500_tlb-memset-clears-nothing.patch
+  cyber2000fb-avoid-palette-corruption-at-higher-clocks.patch
+* timeconstpl-remove-deprecated-defined-array.patch
+* time-dont-inline-export_symbol-functions.patch
+* thermal-add-generic-cpufreq-cooling-implementation.patch
+* hwmon-exynos4-move-thermal-sensor-driver-to-driver-thermal-directory.patch
+* thermal-exynos5-add-exynos5-thermal-sensor-driver-support.patch
+* thermal-exynos-register-the-tmu-sensor-with-the-kernel-thermal-layer.patch
+* arm-exynos-add-thermal-sensor-driver-platform-data-support.patch
+* ocfs2-use-find_last_bit.patch
+* ocfs2-use-bitmap_weight.patch
+* drivers-scsi-atp870uc-fix-bad-use-of-udelay.patch
+* vfs-increment-iversion-when-a-file-is-truncated.patch
+* fs-push-rcu_barrier-from-deactivate_locked_super-to-filesystems.patch
+* mm-slab-remove-duplicate-check.patch
+* slab-do-not-call-compound_head-in-page_get_cache.patch
+* mm-slab_commonc-fix-warning.patch
+  mm.patch
+* mm-remove-__gfp_no_kswapd.patch
+* remove-__gfp_no_kswapd-fixes.patch
+* remove-__gfp_no_kswapd-fixes-fix.patch
+* x86-pat-remove-the-dependency-on-vm_pgoff-in-track-untrack-pfn-vma-routines.patch
+* x86-pat-separate-the-pfn-attribute-tracking-for-remap_pfn_range-and-vm_insert_pfn.patch
+* x86-pat-separate-the-pfn-attribute-tracking-for-remap_pfn_range-and-vm_insert_pfn-fix.patch
+* mm-x86-pat-rework-linear-pfn-mmap-tracking.patch
+* mm-introduce-arch-specific-vma-flag-vm_arch_1.patch
+* mm-kill-vma-flag-vm_insertpage.patch
+* mm-kill-vma-flag-vm_can_nonlinear.patch
+* mm-use-mm-exe_file-instead-of-first-vm_executable-vma-vm_file.patch
+* mm-kill-vma-flag-vm_executable-and-mm-num_exe_file_vmas.patch
+* mm-prepare-vm_dontdump-for-using-in-drivers.patch
+* mm-kill-vma-flag-vm_reserved-and-mm-reserved_vm-counter.patch
+* mm-kill-vma-flag-vm_reserved-and-mm-reserved_vm-counter-fix.patch
+* frv-kill-used-but-uninitialized-variable.patch
+* ipc-mqueue-remove-unnecessary-rb_init_node-calls.patch
+* rbtree-reference-documentation-rbtreetxt-for-usage-instructions.patch
+* rbtree-empty-nodes-have-no-color.patch
+* rbtree-empty-nodes-have-no-color-fix.patch
+* rbtree-fix-incorrect-rbtree-node-insertion-in-fs-proc-proc_sysctlc.patch
+* rbtree-move-some-implementation-details-from-rbtreeh-to-rbtreec.patch
+* rbtree-move-some-implementation-details-from-rbtreeh-to-rbtreec-fix.patch
+* rbtree-performance-and-correctness-test.patch
+* rbtree-performance-and-correctness-test-fix.patch
+* rbtree-break-out-of-rb_insert_color-loop-after-tree-rotation.patch
+* rbtree-adjust-root-color-in-rb_insert_color-only-when-necessary.patch
+* rbtree-low-level-optimizations-in-rb_insert_color.patch
+* rbtree-adjust-node-color-in-__rb_erase_color-only-when-necessary.patch
+* rbtree-optimize-case-selection-logic-in-__rb_erase_color.patch
+* rbtree-low-level-optimizations-in-__rb_erase_color.patch
+* rbtree-coding-style-adjustments.patch
+* rbtree-rb_erase-updates-and-comments.patch
+* rbtree-optimize-fetching-of-sibling-node.patch
+* drivers-firmware-dmi_scanc-check-dmi-version-when-get-system-uuid.patch
+* drivers-firmware-dmi_scanc-check-dmi-version-when-get-system-uuid-fix.patch
+* drivers-firmware-dmi_scanc-fetch-dmi-version-from-smbios-if-it-exists.patch
+* drivers-firmware-dmi_scanc-fetch-dmi-version-from-smbios-if-it-exists-checkpatch-fixes.patch
+* fat-exportfs-move-nfs-support-code.patch
+* fat-exportfs-fix-dentry-reconnection.patch
+* ipc-semc-alternatives-to-preempt_disable.patch
+  make-sure-nobodys-leaking-resources.patch
+  journal_add_journal_head-debug.patch
+  releasing-resources-with-children.patch
+  make-frame_pointer-default=y.patch
+  mutex-subsystem-synchro-test-module.patch
+  mutex-subsystem-synchro-test-module-fix.patch
+  slab-leaks3-default-y.patch
+  put_bh-debug.patch
+  add-debugging-aid-for-memory-initialisation-problems.patch
+  workaround-for-a-pci-restoring-bug.patch
+  prio_tree-debugging-patch.patch
+  single_open-seq_release-leak-diagnostics.patch
+  add-a-refcount-check-in-dput.patch
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
