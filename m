@@ -1,60 +1,33 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
-	by kanga.kvack.org (Postfix) with SMTP id CED546B002B
-	for <linux-mm@kvack.org>; Mon, 13 Aug 2012 11:51:45 -0400 (EDT)
-Date: Mon, 13 Aug 2012 11:41:44 -0400
-From: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-Subject: Re: [Xen-devel] [PATCH] netvm: check for page == NULL when
- propogating the skb->pfmemalloc flag
-Message-ID: <20120813154144.GA24868@phenom.dumpdata.com>
-References: <20120807085554.GF29814@suse.de>
- <20120808.155046.820543563969484712.davem@davemloft.net>
+Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
+	by kanga.kvack.org (Postfix) with SMTP id 306CB6B002B
+	for <linux-mm@kvack.org>; Mon, 13 Aug 2012 12:27:56 -0400 (EDT)
+Date: Mon, 13 Aug 2012 09:27:53 -0700
+From: Andi Kleen <ak@linux.intel.com>
+Subject: Re: [PATCH v2 4/6] x86: Add clear_page_nocache
+Message-ID: <20120813162753.GM2644@tassilo.jf.intel.com>
+References: <1344524583-1096-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <1344524583-1096-5-git-send-email-kirill.shutemov@linux.intel.com>
+ <5023F1BC0200007800093EF0@nat28.tlf.novell.com>
+ <20120813114334.GA21855@otc-wbsnb-06>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20120808.155046.820543563969484712.davem@davemloft.net>
+In-Reply-To: <20120813114334.GA21855@otc-wbsnb-06>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Miller <davem@davemloft.net>, Ian Campbell <Ian.Campbell@eu.citrix.com>
-Cc: mgorman@suse.de, xen-devel@lists.xensource.com, netdev@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, konrad@darnok.org, akpm@linux-foundation.org
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Jan Beulich <JBeulich@suse.com>, Andy Lutomirski <luto@amacapital.net>, Robert Richter <robert.richter@amd.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Alex Shi <alex.shu@intel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, x86@kernel.org, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>, Andrew Morton <akpm@linux-foundation.org>, linux-mips@linux-mips.org, Tim Chen <tim.c.chen@linux.intel.com>, linuxppc-dev@lists.ozlabs.org, Andrea Arcangeli <aarcange@redhat.com>, Ingo Molnar <mingo@redhat.com>, Mel Gorman <mgorman@suse.de>, linux-kernel@vger.kernel.org, linux-sh@vger.kernel.org, sparclinux@vger.kernel.org, "H. Peter Anvin" <hpa@zytor.com>
 
-On Wed, Aug 08, 2012 at 03:50:46PM -0700, David Miller wrote:
-> From: Mel Gorman <mgorman@suse.de>
-> Date: Tue, 7 Aug 2012 09:55:55 +0100
-> 
-> > Commit [c48a11c7: netvm: propagate page->pfmemalloc to skb] is responsible
-> > for the following bug triggered by a xen network driver
->  ...
-> > The problem is that the xenfront driver is passing a NULL page to
-> > __skb_fill_page_desc() which was unexpected. This patch checks that
-> > there is a page before dereferencing.
-> > 
-> > Reported-and-Tested-by: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-> > Signed-off-by: Mel Gorman <mgorman@suse.de>
-> 
-> That call to __skb_fill_page_desc() in xen-netfront.c looks completely bogus.
-> It's the only driver passing NULL here.
+> Moving 64 bytes per cycle is faster on Sandy Bridge, but slower on
+> Westmere. Any preference? ;)
 
-It looks to be passing a valid page pointer (at least by looking
-at the code) so I am not sure how it got turned in a NULL.
+You have to be careful with these benchmarks.
 
-But let me double-check by instrumenting the driver..
-> 
-> That whole song and dance figuring out what to do with the head
-> fragment page, depending upon whether the length is greater than the
-> RX_COPY_THRESHOLD, is completely unnecessary.
-> 
-> Just use something like a call to __pskb_pull_tail(skb, len) and all
-> that other crap around that area can simply be deleted.
+- You need to make sure the data is cache cold, cache hot is misleading.
+- The numbers can change if you have multiple CPUs doing this in parallel.
 
-It looks like an overkill - it does a lot more than just allocate an SKB
-and a page.
-
-Deleting of extra code would be nice - however I am not going to be able
-to do that for the next two weeks sadly - as my plate if full of debugging
-some other stuff.
-
-Lets see if Ian has some time.
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
