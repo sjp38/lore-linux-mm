@@ -1,50 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
-	by kanga.kvack.org (Postfix) with SMTP id 60B456B005A
-	for <linux-mm@kvack.org>; Mon, 13 Aug 2012 06:11:35 -0400 (EDT)
-Message-ID: <5028D2B0.4010800@ce.jp.nec.com>
-Date: Mon, 13 Aug 2012 19:10:56 +0900
-From: "Jun'ichi Nomura" <j-nomura@ce.jp.nec.com>
+Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
+	by kanga.kvack.org (Postfix) with SMTP id CC32C6B005A
+	for <linux-mm@kvack.org>; Mon, 13 Aug 2012 06:26:14 -0400 (EDT)
+Date: Mon, 13 Aug 2012 11:26:04 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH] netvm: check for page == NULL when propogating the
+ skb->pfmemalloc flag
+Message-ID: <20120813102604.GC4177@suse.de>
+References: <20120807085554.GF29814@suse.de>
+ <20120808.155046.820543563969484712.davem@davemloft.net>
 MIME-Version: 1.0
-Subject: Re: [PATCH 2/3] HWPOISON: undo memory error handling for dirty pagecache
-References: <1344634913-13681-1-git-send-email-n-horiguchi@ah.jp.nec.com> <1344634913-13681-3-git-send-email-n-horiguchi@ah.jp.nec.com> <m2a9y2cpj7.fsf@firstfloor.org>
-In-Reply-To: <m2a9y2cpj7.fsf@firstfloor.org>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20120808.155046.820543563969484712.davem@davemloft.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andi Kleen <andi@firstfloor.org>
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Andi Kleen <andi.kleen@intel.com>, Wu Fengguang <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Tony Luck <tony.luck@intel.com>, Rik van Riel <riel@redhat.com>, Naoya Horiguchi <nhoriguc@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, stable@vger.kernel.org
+To: David Miller <davem@davemloft.net>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org, xen-devel@lists.xensource.com, konrad@darnok.org, Ian.Campbell@eu.citrix.com, Jeremy Fitzhardinge <jeremy@xensource.com>, akpm@linux-foundation.org
 
-On 08/11/12 08:09, Andi Kleen wrote:
-> Naoya Horiguchi <n-horiguchi@ah.jp.nec.com> writes:
+On Wed, Aug 08, 2012 at 03:50:46PM -0700, David Miller wrote:
+> From: Mel Gorman <mgorman@suse.de>
+> Date: Tue, 7 Aug 2012 09:55:55 +0100
 > 
->> Current memory error handling on dirty pagecache has a bug that user
->> processes who use corrupted pages via read() or write() can't be aware
->> of the memory error and result in discarding dirty data silently.
->>
->> The following patch is to improve handling/reporting memory errors on
->> this case, but as a short term solution I suggest that we should undo
->> the present error handling code and just leave errors for such cases
->> (which expect the 2nd MCE to panic the system) to ensure data consistency.
+> > Commit [c48a11c7: netvm: propagate page->pfmemalloc to skb] is responsible
+> > for the following bug triggered by a xen network driver
+>  ...
+> > The problem is that the xenfront driver is passing a NULL page to
+> > __skb_fill_page_desc() which was unexpected. This patch checks that
+> > there is a page before dereferencing.
+> > 
+> > Reported-and-Tested-by: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+> > Signed-off-by: Mel Gorman <mgorman@suse.de>
 > 
-> Not sure that's the right approach. It's not worse than any other IO 
-> errors isn't it? 
+> That call to __skb_fill_page_desc() in xen-netfront.c looks completely bogus.
+> It's the only driver passing NULL here.
+> 
+> That whole song and dance figuring out what to do with the head
+> fragment page, depending upon whether the length is greater than the
+> RX_COPY_THRESHOLD, is completely unnecessary.
+> 
+> Just use something like a call to __pskb_pull_tail(skb, len) and all
+> that other crap around that area can simply be deleted.
 
-IMO, it's worse in certain cases.  For example, producer-consumer type
-program which uses file as a temporary storage.
-Current memory-failure.c drops produced data from dirty pagecache
-and allows reader to consume old or empty data from disk (silently!),
-that's what I think HWPOISON should prevent.
+I looked at this for a while but I did not see how __pskb_pull_tail()
+could be used sensibly but I'm simily not familiar with writing network
+device drivers or Xen.
 
-Similar thing could happen theoretically with disk I/O errors,
-though, practically those errors are often persistent and reader will
-likely get errors again instead of bad data.
-Also, ext3/ext4 has an option to panic when an error is detected,
-for people who want to avoid corruption on intermittent errors.
+This messing with RX_COPY_THRESHOLD seems to be related to how the frontend
+and backend communicate (maybe some fixed limitation of the xenbus). The
+existing code looks like it is trying to take the fragments received and
+pass them straight to the backend without copying by passing the fragments
+to the backend without copying. I worry that if I try converting this to
+__pskb_pull_tail() that it would either hit the limitation of xenbus or
+introduce copying where it is not wanted.
+
+I'm going to have to punt this to Jeremy and the other Xen folk as I'm not
+sure what the original intention was and I don't have a Xen setup anywhere
+to test any patch. Jeremy, xen folk? 
 
 -- 
-Jun'ichi Nomura, NEC Corporation
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
