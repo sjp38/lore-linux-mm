@@ -1,95 +1,155 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx141.postini.com [74.125.245.141])
-	by kanga.kvack.org (Postfix) with SMTP id 3CDF66B002B
-	for <linux-mm@kvack.org>; Sun, 12 Aug 2012 19:56:32 -0400 (EDT)
-Date: Sun, 12 Aug 2012 20:56:16 -0300
-From: Rafael Aquini <aquini@redhat.com>
-Subject: Re: [RFC][PATCH -mm 3/3] mm,vmscan: evict inactive file pages first
-Message-ID: <20120812235616.GA9033@x61.redhat.com>
+Received: from psmtp.com (na3sys010amx110.postini.com [74.125.245.110])
+	by kanga.kvack.org (Postfix) with SMTP id C15566B002B
+	for <linux-mm@kvack.org>; Sun, 12 Aug 2012 22:13:26 -0400 (EDT)
+Date: Sun, 12 Aug 2012 22:13:13 -0400
+From: Rik van Riel <riel@redhat.com>
+Subject: [RFC][PATCH -mm -v2 3/3] mm,vmscan: evict inactive file pages first
+Message-ID: <20120812221313.429db08b@annuminas.surriel.com>
+In-Reply-To: <20120812235616.GA9033@x61.redhat.com>
 References: <20120808174549.1b10d51a@cuia.bos.redhat.com>
- <20120808174904.5d241c38@cuia.bos.redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120808174904.5d241c38@cuia.bos.redhat.com>
+	<20120808174904.5d241c38@cuia.bos.redhat.com>
+	<20120812235616.GA9033@x61.redhat.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
+To: Rafael Aquini <aquini@redhat.com>
 Cc: linux-mm@kvack.org, yinghan@google.com, hannes@cmpxchg.org, mhocko@suse.cz, Mel Gorman <mel@csn.ul.ie>
 
-Howdy Rik,
+On Sun, 12 Aug 2012 20:56:16 -0300
+Rafael Aquini <aquini@redhat.com> wrote:
 
-On Wed, Aug 08, 2012 at 05:49:04PM -0400, Rik van Riel wrote:
-> @@ -1687,6 +1700,14 @@ static void get_scan_count(struct lruvec *lruvec, struct scan_control *sc,
->  		reclaim_stat->recent_rotated[1] /= 2;
->  	}
->  
-> +	/* Lots of inactive file pages? Reclaim those only. */
-> +	if (reclaim_file_only(lruvec, sc, anon, file)) {
-> +		fraction[0] = 0;
-> +		fraction[1] = 1;
-> +		denominator = 1;
-> +		goto out;
-> +	}
-> +
+> Howdy Rik,
+> 
+> On Wed, Aug 08, 2012 at 05:49:04PM -0400, Rik van Riel wrote:
+> > @@ -1687,6 +1700,14 @@ static void get_scan_count(struct lruvec *lruvec, struct scan_control *sc,
+> >  		reclaim_stat->recent_rotated[1] /= 2;
+> >  	}
+> >  
+> > +	/* Lots of inactive file pages? Reclaim those only. */
+> > +	if (reclaim_file_only(lruvec, sc, anon, file)) {
+> > +		fraction[0] = 0;
+> > +		fraction[1] = 1;
+> > +		denominator = 1;
+> > +		goto out;
+> > +	}
+> > +
+> 
+> This hunk causes a &zone->lru_lock spinlock lockup down this path:
+>  shrink_zone()->shrink_lruvec()->shrink_list()->shrink_inactive_list()
 
-This hunk causes a &zone->lru_lock spinlock lockup down this path:
- shrink_zone()->shrink_lruvec()->shrink_list()->shrink_inactive_list()
+Oops.  Looks like I put it in the wrong spot in get_scan_count,
+the spot that is under the lru lock, which we really do not
+need for this code.
 
-I could trigger it by doing a Kernel RPM install on a 2GB guest, for all shots.
+Can you try this one?
 ---8<---
-...
-============================================= 
-[ INFO: possible recursive locking detected ]
-3.6.0-rc1+ #197 Not tainted
----------------------------------------------
-kswapd0/29 is trying to acquire lock:
- (&(&zone->lru_lock)->rlock){....-.}, at: [<ffffffff81167b34>]
-shrink_inactive_list+0xd4/0x4b0
-but task is already holding lock:
- (&(&zone->lru_lock)->rlock){....-.}, at: [<ffffffff81168037>]
-shrink_lruvec+0x127/0x630
-         
-other info that might help us debug this:
- Possible unsafe locking scenario:
 
-       CPU0
-       ----
-  lock(&(&zone->lru_lock)->rlock);
-  lock(&(&zone->lru_lock)->rlock);
+Subject: vm,vmscan: evict inactive file pages first
 
- *** DEADLOCK ***
+When a lot of streaming file IO is happening, it makes sense to
+evict just the inactive file pages and leave the other LRU lists
+alone.
 
- May be due to missing lock nesting notation
+Likewise, when driving a cgroup hierarchy into its hard limit,
+or over its soft limit, it makes sense to pick a child cgroup
+that has lots of inactive file pages, and evict those first.
 
-1 lock held by kswapd0/29:
- #0:  (&(&zone->lru_lock)->rlock){....-.}, at: [<ffffffff81168037>]
-shrink_lruvec+0x127/0x630
+Being over its soft limit is considered a stronger preference
+than just having a lot of inactive file pages, so a well behaved
+cgroup is allowed to keep its file cache when there is a "badly
+behaving" one in the same hierarchy.
 
-stack backtrace:
-Pid: 29, comm: kswapd0 Not tainted 3.6.0-rc1+ #197
-Call Trace:
- [<ffffffff810cedda>] __lock_acquire+0x125a/0x1660
- [<ffffffff8108a618>] ? __kernel_text_address+0x58/0x80
- [<ffffffff810cf27f>] lock_acquire+0x9f/0x190
- [<ffffffff81167b34>] ? shrink_inactive_list+0xd4/0x4b0
- [<ffffffff8169c9dd>] _raw_spin_lock_irq+0x4d/0x60
- [<ffffffff81167b34>] ? shrink_inactive_list+0xd4/0x4b0
- [<ffffffff811612cf>] ? lru_add_drain+0x2f/0x40
- [<ffffffff81167b34>] shrink_inactive_list+0xd4/0x4b0
- [<ffffffff81168037>] ? shrink_lruvec+0x127/0x630
- [<ffffffff81168395>] shrink_lruvec+0x485/0x630
- [<ffffffff81168743>] shrink_zone+0x203/0x2a0
- [<ffffffff8116991b>] kswapd+0x85b/0xf60
- [<ffffffff8108e4f0>] ? wake_up_bit+0x40/0x40
- [<ffffffff811690c0>] ? zone_reclaim+0x420/0x420
- [<ffffffff8108dd8e>] kthread+0xbe/0xd0
- [<ffffffff816a74c4>] kernel_thread_helper+0x4/0x10
- [<ffffffff8169d630>] ? retint_restore_args+0x13/0x13
- [<ffffffff8108dcd0>] ? __init_kthread_worker+0x70/0x70
- [<ffffffff816a74c0>] ? gs_change+0x13/0x13
-...
----8<---
+Signed-off-by: Rik van Riel <riel@redhat.com>
+---
+ mm/vmscan.c |   37 +++++++++++++++++++++++++++++++++----
+ 1 files changed, 33 insertions(+), 4 deletions(-)
+
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 1a9688b..0844b09 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -1576,6 +1576,19 @@ static int inactive_list_is_low(struct lruvec *lruvec, enum lru_list lru)
+ 		return inactive_anon_is_low(lruvec);
+ }
+ 
++/* If this lruvec has lots of inactive file pages, reclaim those only. */
++static bool reclaim_file_only(struct lruvec *lruvec, struct scan_control *sc,
++			      unsigned long anon, unsigned long file)
++{
++	if (inactive_file_is_low(lruvec))
++		return false;
++
++	if (file > (anon + file) >> sc->priority)
++		return true;
++
++	return false;
++}
++
+ static unsigned long shrink_list(enum lru_list lru, unsigned long nr_to_scan,
+ 				 struct lruvec *lruvec, struct scan_control *sc)
+ {
+@@ -1658,6 +1671,14 @@ static void get_scan_count(struct lruvec *lruvec, struct scan_control *sc,
+ 		}
+ 	}
+ 
++	/* Lots of inactive file pages? Reclaim those only. */
++	if (reclaim_file_only(lruvec, sc, anon, file)) {
++		fraction[0] = 0;
++		fraction[1] = 1;
++		denominator = 1;
++		goto out;
++	}
++
+ 	/*
+ 	 * With swappiness at 100, anonymous and file have the same priority.
+ 	 * This scanning priority is essentially the inverse of IO cost.
+@@ -1922,8 +1943,8 @@ static void age_recent_pressure(struct lruvec *lruvec, struct zone *zone)
+  * should always be larger than recent_rotated, and the size should
+  * always be larger than recent_pressure.
+  */
+-static u64 reclaim_score(struct mem_cgroup *memcg,
+-			 struct lruvec *lruvec)
++static u64 reclaim_score(struct mem_cgroup *memcg, struct lruvec *lruvec,
++			 struct scan_control *sc)
+ {
+ 	struct zone_reclaim_stat *reclaim_stat = &lruvec->reclaim_stat;
+ 	u64 anon, file;
+@@ -1949,6 +1970,14 @@ static u64 reclaim_score(struct mem_cgroup *memcg,
+ 		anon *= 10000;
+ 	}
+ 
++	/*
++	 * Prefer reclaiming from an lruvec with lots of inactive file
++	 * pages. Once those have been reclaimed, the score will drop so
++	 * far we will pick another lruvec to reclaim from.
++	 */
++	if (reclaim_file_only(lruvec, sc, anon, file))
++		file *= 100;
++
+ 	return max(anon, file);
+ }
+ 
+@@ -1974,7 +2003,7 @@ static void shrink_zone(struct zone *zone, struct scan_control *sc)
+ 
+ 		age_recent_pressure(lruvec, zone);
+ 
+-		score = reclaim_score(memcg, lruvec);
++		score = reclaim_score(memcg, lruvec, sc);
+ 
+ 		/* Pick the lruvec with the highest score. */
+ 		if (score > max_score) {
+@@ -1995,7 +2024,7 @@ static void shrink_zone(struct zone *zone, struct scan_control *sc)
+ 	 */
+ 	do {
+ 		shrink_lruvec(victim, sc);
+-		score = reclaim_score(memcg, victim);
++		score = reclaim_score(memcg, victim, sc);
+ 	} while (sc->nr_to_reclaim > 0 && score > max_score / 2);
+ 
+ 	/*
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
