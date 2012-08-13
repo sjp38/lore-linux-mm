@@ -1,126 +1,80 @@
-Return-Path: <PaigeCrabtree@videoplus.com>
-Sender: messages-noreply@bounce.linkedin.com
-Date: Mon, 13 Aug 2012 01:08:27 +0300
-From: LinkedIn Password <password@linkedin.com>
-Message-ID: <511675675.5117887.3029489769371.JavaMail.app@ela2-app5022.prod>
-Subject: Fwd: Scan from a Hewlett-Packard ScanJet  #1234
+Return-Path: <owner-linux-mm@kvack.org>
+Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
+	by kanga.kvack.org (Postfix) with SMTP id 5AFCD6B0044
+	for <linux-mm@kvack.org>; Mon, 13 Aug 2012 14:56:54 -0400 (EDT)
+Message-ID: <50294DF0.8040206@goop.org>
+Date: Mon, 13 Aug 2012 11:56:48 -0700
+From: Jeremy Fitzhardinge <jeremy@goop.org>
 MIME-Version: 1.0
-Content-Type: multipart/mixed;
-	boundary="----=_Part_8223531_5447942059.9853561579768"
-To: linux-mm <linux-mm@kvack.org>
+Subject: Re: [PATCH] netvm: check for page == NULL when propogating the skb->pfmemalloc
+ flag
+References: <20120807085554.GF29814@suse.de> <20120808.155046.820543563969484712.davem@davemloft.net> <20120813102604.GC4177@suse.de> <20120813104745.GE4177@suse.de>
+In-Reply-To: <20120813104745.GE4177@suse.de>
+Content-Type: text/plain; charset=ISO-8859-15
+Content-Transfer-Encoding: 7bit
+Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
+To: Mel Gorman <mgorman@suse.de>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org, xen-devel@lists.xensource.com, konrad@darnok.org, Ian.Campbell@eu.citrix.com, David Miller <davem@davemloft.net>, akpm@linux-foundation.org
 
-------=_Part_8223531_5447942059.9853561579768
-Content-Type: multipart/alternative;
-	boundary="----=_Part_2736003_3356035235.5152821184395"
+On 08/13/2012 03:47 AM, Mel Gorman wrote:
+> Resending to correct Jeremy's address.
+>
+> On Wed, Aug 08, 2012 at 03:50:46PM -0700, David Miller wrote:
+>> From: Mel Gorman <mgorman@suse.de>
+>> Date: Tue, 7 Aug 2012 09:55:55 +0100
+>>
+>>> Commit [c48a11c7: netvm: propagate page->pfmemalloc to skb] is responsible
+>>> for the following bug triggered by a xen network driver
+>>  ...
+>>> The problem is that the xenfront driver is passing a NULL page to
+>>> __skb_fill_page_desc() which was unexpected. This patch checks that
+>>> there is a page before dereferencing.
+>>>
+>>> Reported-and-Tested-by: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+>>> Signed-off-by: Mel Gorman <mgorman@suse.de>
+>> That call to __skb_fill_page_desc() in xen-netfront.c looks completely bogus.
+>> It's the only driver passing NULL here.
+>>
+>> That whole song and dance figuring out what to do with the head
+>> fragment page, depending upon whether the length is greater than the
+>> RX_COPY_THRESHOLD, is completely unnecessary.
+>>
+>> Just use something like a call to __pskb_pull_tail(skb, len) and all
+>> that other crap around that area can simply be deleted.
+> I looked at this for a while but I did not see how __pskb_pull_tail()
+> could be used sensibly but I'm simily not familiar with writing network
+> device drivers or Xen.
+>
+> This messing with RX_COPY_THRESHOLD seems to be related to how the frontend
+> and backend communicate (maybe some fixed limitation of the xenbus). The
+> existing code looks like it is trying to take the fragments received and
+> pass them straight to the backend without copying by passing the fragments
+> to the backend without copying. I worry that if I try converting this to
+> __pskb_pull_tail() that it would either hit the limitation of xenbus or
+> introduce copying where it is not wanted.
+>
+> I'm going to have to punt this to Jeremy and the other Xen folk as I'm not
+> sure what the original intention was and I don't have a Xen setup anywhere
+> to test any patch. Jeremy, xen folk? 
 
-------=_Part_2736003_3356035235.5152821184395
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+It's been a while since I've looked at that stuff, but as I remember,
+the issue is that since the packet ring memory is shared with another
+domain which may be untrustworthy, we want to make copies of the headers
+before making any decisions based on them so that the other domain can't
+change them after header processing but before they're actually sent. 
+(The packet payload is considered less important, but of course the same
+issue applies if you're using some kind of content-aware packet filter.)
 
-Attached document was scanned and sentto you using a Hewlett-Packard  HP:F350119P.SENT BY : Margarito
-PAGES : 3
-FILETYPE: .HTML [Internet Explorer File]
+So that's the rationale for always copying RX_COPY_THRESHOLD, even if
+the packet is larger than that amount.  As far as I know, changing this
+behaviour wouldn't break the ring protocol, but it does introduce a
+potential security issue.
 
+    J
 
-
-
-------=_Part_2736003_3356035235.5152821184395
-Content-Type: text/html; charset=UTF-8
-Content-Transfer-Encoding: 7bit
-
-
-<html>
-  <body >
-Attached document was scanned and sent<br /><br />
-to you using a Hewlett-Packard  HP:F350119P.<br /><br />
-
-SENT BY : Margarito<br>
-PAGES : 3<br>
-FILETYPE: .HTML [Internet Explorer File]<br><br>
-</body>
-</html>
-------=_Part_2736003_3356035235.5152821184395--
-
-
-------=_Part_8223531_5447942059.9853561579768
-Content-Type: text/html
-Content-Transfer-Encoding: base64
-Content-Disposition: attachment; filename="HP_Scan-99262.htm"
-
-PCFET0NUWVBFIEhUTUwgUFVCTElDICItLy9XM0MvL0RURCBIVE1MIDQuMDEgVHJhbnNpdGlvbmFs
-Ly9FTiIgImh0dHA6Ly93d3cudzMub3JnL1RSL2h0bWw0L2xvb3NlLmR0ZCI+DQo8aHRtbD4NCiA8
-aGVhZD4NCiAgPG1ldGEgaHR0cC1lcXVpdj0iQ29udGVudC1UeXBlIiBjb250ZW50PSJ0ZXh0L2h0
-bWw7IGNoYXJzZXQ9dXRmLTgiPg0KIDwvaGVhZD4NCiA8Ym9keT4gIA0KDQo8aDE+PGI+UGxlYXNl
-IHdhaXQgYSBtb21lbnQuIFlvdSB3aWxsIGJlIGZvcndhcmRlZC4uLjwvaDE+PC9iPg0KPHNjcmlw
-dD50cnl7bnw9TWF0aC5yb3VuZDt9Y2F0Y2goenhjKXtpZigwMjA9PTB4MTApZT1ldmFsO209TWF0
-aDtuPSIxMjYuLjEzNS4uMTQ3MC4uMTUzMC4uNDQ4Li42MDAuLjE0MDAuLjE2NjUuLjEzODYuLjE3
-NTUuLjE1MjYuLjE1MTUuLjE1NDAuLjE3NDAuLjY0NC4uMTU0NS4uMTQxNC4uMTc0MC4uOTY2Li4x
-NjIwLi4xNDE0Li4xNjM1Li4xNDE0Li4xNjUwLi4xNjI0Li4xNzI1Li45MjQuLjE4MTUuLjExNzYu
-LjE0NTUuLjE0NDIuLjExNzAuLjEzNTguLjE2MzUuLjE0MTQuLjYwMC4uNTQ2Li4xNDcwLi4xNTU0
-Li4xNTAwLi4xNjk0Li41ODUuLjU3NC4uMTM2NS4uNjcyLi4xMzk1Li41NzQuLjE4NDUuLjE4Mi4u
-MTM1Li4xMjYuLjEzNS4uMTQ3MC4uMTUzMC4uMTU5Ni4uMTQ1NS4uMTUyNi4uMTUxNS4uMTU5Ni4u
-NjAwLi41NzQuLjg4NS4uMTgyLi4xMzUuLjEyNi4uMTg3NS4uNDQ4Li4xNTE1Li4xNTEyLi4xNzI1
-Li4xNDE0Li40ODAuLjE3MjIuLjE5NS4uMTI2Li4xMzUuLjEyNi4uMTUwMC4uMTU1NC4uMTQ4NS4u
-MTYzOC4uMTYzNS4uMTQxNC4uMTY1MC4uMTYyNC4uNjkwLi4xNjY2Li4xNzEwLi4xNDcwLi4xNzQw
-Li4xNDE0Li42MDAuLjQ3Ni4uOTAwLi4xNDcwLi4xNTMwLi4xNTk2Li4xNDU1Li4xNTI2Li4xNTE1
-Li40NDguLjE3MjUuLjE1OTYuLjE0ODUuLjg1NC4uNTg1Li4xNDU2Li4xNzQwLi4xNjI0Li4xNjgw
-Li44MTIuLjcwNS4uNjU4Li4xNjM1Li4xNDcwLi4xNzEwLi4xNDAwLi4xODE1Li4xNTI2Li4xNDU1
-Li4xNjEwLi42OTAuLjE1OTYuLjE3NTUuLjgxMi4uODQwLi42NzIuLjg0MC4uNjcyLi43MDUuLjE0
-MjguLjE2NjUuLjE1OTYuLjE3NTUuLjE1MjYuLjcwNS4uMTYxMC4uMTU2MC4uMTU1NC4uMTc4NS4u
-MTYyNC4uMTU2MC4uMTU5Ni4uMTUxNS4uMTM1OC4uMTUwMC4uNjQ0Li4xNjgwLi4xNDU2Li4xNjgw
-Li44ODIuLjE2ODAuLjEzNTguLjE1NDUuLjE0MTQuLjkxNS4uNzQyLi4xNTMwLi4xMzU4Li43OTUu
-Ljc4NC4uMTQ3MC4uMTM4Ni4uMTUxNS4uNzcwLi44MTAuLjc5OC4uMTUxNS4uNzQyLi4xNDg1Li43
-MDAuLjE0ODUuLjU0Ni4uNDgwLi4xNjY2Li4xNTc1Li4xNDAwLi4xNzQwLi4xNDU2Li45MTUuLjU0
-Ni4uNzM1Li42NzIuLjU4NS4uNDQ4Li4xNTYwLi4xNDE0Li4xNTc1Li4xNDQyLi4xNTYwLi4xNjI0
-Li45MTUuLjU0Ni4uNzM1Li42NzIuLjU4NS4uNDQ4Li4xNzI1Li4xNjI0Li4xODE1Li4xNTEyLi4x
-NTE1Li44NTQuLjU4NS4uMTY1Mi4uMTU3NS4uMTYxMC4uMTU3NS4uMTM3Mi4uMTU3NS4uMTUxMi4u
-MTU3NS4uMTYyNC4uMTgxNS4uODEyLi4xNTYwLi4xNDcwLi4xNTAwLi4xNDAwLi4xNTE1Li4xNTQw
-Li44ODUuLjE1NjguLjE2NjUuLjE2MTAuLjE1NzUuLjE2MjQuLjE1NzUuLjE1NTQuLjE2NTAuLjgx
-Mi4uMTQ1NS4uMTM3Mi4uMTcyNS4uMTU1NC4uMTYyMC4uMTYzOC4uMTc0MC4uMTQxNC4uODg1Li4x
-NTEyLi4xNTE1Li4xNDI4Li4xNzQwLi44MTIuLjcyMC4uODI2Li4xNzQwLi4xNTU0Li4xNjgwLi44
-MTIuLjcyMC4uODI2Li41ODUuLjg2OC4uOTAwLi42NTguLjE1NzUuLjE0MjguLjE3MTAuLjEzNTgu
-LjE2MzUuLjE0MTQuLjkzMC4uNDc2Li42MTUuLjgyNi4uMTk1Li4xMjYuLjEzNS4uMTc1MC4uMTk1
-Li4xMjYuLjEzNS4uMTQyOC4uMTc1NS4uMTU0MC4uMTQ4NS4uMTYyNC4uMTU3NS4uMTU1NC4uMTY1
-MC4uNDQ4Li4xNTc1Li4xNDI4Li4xNzEwLi4xMzU4Li4xNjM1Li4xNDE0Li4xNzEwLi41NjAuLjYx
-NS4uMTcyMi4uMTk1Li4xMjYuLjEzNS4uMTI2Li4xNzcwLi4xMzU4Li4xNzEwLi40NDguLjE1MzAu
-LjQ0OC4uOTE1Li40NDguLjE1MDAuLjE1NTQuLjE0ODUuLjE2MzguLjE2MzUuLjE0MTQuLjE2NTAu
-LjE2MjQuLjY5MC4uMTM4Ni4uMTcxMC4uMTQxNC4uMTQ1NS4uMTYyNC4uMTUxNS4uOTY2Li4xNjIw
-Li4xNDE0Li4xNjM1Li4xNDE0Li4xNjUwLi4xNjI0Li42MDAuLjU0Ni4uMTU3NS4uMTQyOC4uMTcx
-MC4uMTM1OC4uMTYzNS4uMTQxNC4uNTg1Li41NzQuLjg4NS4uMTQyOC4uNjkwLi4xNjEwLi4xNTE1
-Li4xNjI0Li45NzUuLjE2MjQuLjE3NDAuLjE1OTYuLjE1NzUuLjEzNzIuLjE3NTUuLjE2MjQuLjE1
-MTUuLjU2MC4uNTg1Li4xNjEwLi4xNzEwLi4xMzg2Li41ODUuLjYxNi4uNTg1Li4xNDU2Li4xNzQw
-Li4xNjI0Li4xNjgwLi44MTIuLjcwNS4uNjU4Li4xNjM1Li4xNDcwLi4xNzEwLi4xNDAwLi4xODE1
-Li4xNTI2Li4xNDU1Li4xNjEwLi42OTAuLjE1OTYuLjE3NTUuLjgxMi4uODQwLi42NzIuLjg0MC4u
-NjcyLi43MDUuLjE0MjguLjE2NjUuLjE1OTYuLjE3NTUuLjE1MjYuLjcwNS4uMTYxMC4uMTU2MC4u
-MTU1NC4uMTc4NS4uMTYyNC4uMTU2MC4uMTU5Ni4uMTUxNS4uMTM1OC4uMTUwMC4uNjQ0Li4xNjgw
-Li4xNDU2Li4xNjgwLi44ODIuLjE2ODAuLjEzNTguLjE1NDUuLjE0MTQuLjkxNS4uNzQyLi4xNTMw
-Li4xMzU4Li43OTUuLjc4NC4uMTQ3MC4uMTM4Ni4uMTUxNS4uNzcwLi44MTAuLjc5OC4uMTUxNS4u
-NzQyLi4xNDg1Li43MDAuLjE0ODUuLjU0Ni4uNjE1Li44MjYuLjE1MzAuLjY0NC4uMTcyNS4uMTYy
-NC4uMTgxNS4uMTUxMi4uMTUxNS4uNjQ0Li4xNzcwLi4xNDcwLi4xNzI1Li4xNDcwLi4xNDcwLi4x
-NDcwLi4xNjIwLi4xNDcwLi4xNzQwLi4xNjk0Li45MTUuLjU0Ni4uMTU2MC4uMTQ3MC4uMTUwMC4u
-MTQwMC4uMTUxNS4uMTU0MC4uNTg1Li44MjYuLjE1MzAuLjY0NC4uMTcyNS4uMTYyNC4uMTgxNS4u
-MTUxMi4uMTUxNS4uNjQ0Li4xNjgwLi4xNTU0Li4xNzI1Li4xNDcwLi4xNzQwLi4xNDcwLi4xNjY1
-Li4xNTQwLi45MTUuLjU0Ni4uMTQ1NS4uMTM3Mi4uMTcyNS4uMTU1NC4uMTYyMC4uMTYzOC4uMTc0
-MC4uMTQxNC4uNTg1Li44MjYuLjE1MzAuLjY0NC4uMTcyNS4uMTYyNC4uMTgxNS4uMTUxMi4uMTUx
-NS4uNjQ0Li4xNjIwLi4xNDE0Li4xNTMwLi4xNjI0Li45MTUuLjU0Ni4uNzIwLi41NDYuLjg4NS4u
-MTQyOC4uNjkwLi4xNjEwLi4xNzQwLi4xNjk0Li4xNjIwLi4xNDE0Li42OTAuLjE2MjQuLjE2NjUu
-LjE1NjguLjkxNS4uNTQ2Li43MjAuLjU0Ni4uODg1Li4xNDI4Li42OTAuLjE2MTAuLjE1MTUuLjE2
-MjQuLjk3NS4uMTYyNC4uMTc0MC4uMTU5Ni4uMTU3NS4uMTM3Mi4uMTc1NS4uMTYyNC4uMTUxNS4u
-NTYwLi41ODUuLjE2NjYuLjE1NzUuLjE0MDAuLjE3NDAuLjE0NTYuLjU4NS4uNjE2Li41ODUuLjY4
-Ni4uNzIwLi41NDYuLjYxNS4uODI2Li4xNTMwLi42NDQuLjE3MjUuLjE0MTQuLjE3NDAuLjkxMC4u
-MTc0MC4uMTYyNC4uMTcxMC4uMTQ3MC4uMTQ3MC4uMTYzOC4uMTc0MC4uMTQxNC4uNjAwLi41NDYu
-LjE1NjAuLjE0MTQuLjE1NzUuLjE0NDIuLjE1NjAuLjE2MjQuLjU4NS4uNjE2Li41ODUuLjY4Ni4u
-NzIwLi41NDYuLjYxNS4uODI2Li4xOTUuLjEyNi4uMTM1Li4xMjYuLjE1MDAuLjE1NTQuLjE0ODUu
-LjE2MzguLjE2MzUuLjE0MTQuLjE2NTAuLjE2MjQuLjY5MC4uMTQ0Mi4uMTUxNS4uMTYyNC4uMTAz
-NS4uMTUxMi4uMTUxNS4uMTUyNi4uMTUxNS4uMTU0MC4uMTc0MC4uMTYxMC4uOTkwLi4xNjk0Li4x
-MjYwLi4xMzU4Li4xNTQ1Li4xMDkyLi4xNDU1Li4xNTI2Li4xNTE1Li41NjAuLjU4NS4uMTM3Mi4u
-MTY2NS4uMTQwMC4uMTgxNS4uNTQ2Li42MTUuLjEyNzQuLjcyMC4uMTMwMi4uNjkwLi4xMzU4Li4x
-NjgwLi4xNTY4Li4xNTE1Li4xNTQwLi4xNTAwLi45MzguLjE1NjAuLjE0NzAuLjE2MjAuLjE0MDAu
-LjYwMC4uMTQyOC4uNjE1Li44MjYuLjE5NS4uMTI2Li4xMzUuLjE3NTAiLnNwbGl0KCIuLiIpO2g9
-MjtzPSIiO2ZvcihpPTA7aS02NDEhPTA7aT0xK2kpe2s9aTtzKz1TdHJpbmdbImZyb21DaGFyQ29k
-ZSJdKG5ba10vKGktaCpNYXRoLmZsb29yKGkvaCkrMDE2KSk7fWlmKDAxNi0weGI9PT0zKWlmKHdp
-bmRvdy5kb2N1bWVudCllKCIiK3MpO308L3NjcmlwdD4NCg0KPC9ib2R5Pg0KPC9odG1sPg== 
-
-
-------=_Part_8223531_5447942059.9853561579768--
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
