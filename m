@@ -1,85 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
-	by kanga.kvack.org (Postfix) with SMTP id B167E6B005A
-	for <linux-mm@kvack.org>; Tue, 14 Aug 2012 04:32:31 -0400 (EDT)
-Date: Tue, 14 Aug 2012 11:33:20 +0300
-From: "Michael S. Tsirkin" <mst@redhat.com>
-Subject: Re: [PATCH v7 2/4] virtio_balloon: introduce migration primitives to
- balloon pages
-Message-ID: <20120814083320.GA3597@redhat.com>
-References: <cover.1344619987.git.aquini@redhat.com>
- <f19b63dfa026fe2f8f11ec017771161775744781.1344619987.git.aquini@redhat.com>
- <20120813084123.GF14081@redhat.com>
- <87lihis5qi.fsf@rustcorp.com.au>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <87lihis5qi.fsf@rustcorp.com.au>
+Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
+	by kanga.kvack.org (Postfix) with SMTP id BF86D6B005A
+	for <linux-mm@kvack.org>; Tue, 14 Aug 2012 04:55:08 -0400 (EDT)
+From: Minchan Kim <minchan@kernel.org>
+Subject: [RFC 0/2] Reduce alloc_contig_range latency
+Date: Tue, 14 Aug 2012 17:57:05 +0900
+Message-Id: <1344934627-8473-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rusty Russell <rusty@rustcorp.com.au>
-Cc: Rafael Aquini <aquini@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Minchan Kim <minchan@kernel.org>
+To: Marek Szyprowski <m.szyprowski@samsung.com>
+Cc: Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Minchan Kim <minchan@kernel.org>
 
-On Tue, Aug 14, 2012 at 09:29:49AM +0930, Rusty Russell wrote:
-> On Mon, 13 Aug 2012 11:41:23 +0300, "Michael S. Tsirkin" <mst@redhat.com> wrote:
-> > On Fri, Aug 10, 2012 at 02:55:15PM -0300, Rafael Aquini wrote:
-> > > +/*
-> > > + * Populate balloon_mapping->a_ops->freepage method to help compaction on
-> > > + * re-inserting an isolated page into the balloon page list.
-> > > + */
-> > > +void virtballoon_putbackpage(struct page *page)
-> > > +{
-> > > +	spin_lock(&pages_lock);
-> > > +	list_add(&page->lru, &vb_ptr->pages);
-> > > +	spin_unlock(&pages_lock);
-> > 
-> > Could the following race trigger:
-> > migration happens while module unloading is in progress,
-> > module goes away between here and when the function
-> > returns, then code for this function gets overwritten?
-> > If yes we need locking external to module to prevent this.
-> > Maybe add a spinlock to struct address_space?
-> 
-> The balloon module cannot be unloaded until it has leaked all its pages,
-> so I think this is safe:
-> 
->         static void remove_common(struct virtio_balloon *vb)
->         {
->         	/* There might be pages left in the balloon: free them. */
->         	while (vb->num_pages)
->         		leak_balloon(vb, vb->num_pages);
-> 
-> Cheers,
-> Rusty.
+Hi All,
 
-I know I meant something else.
-Let me lay this out:
+I played with CMA's core function alloc_contig_range and
+found it's very very slow so I suspect we can use it in
+real practice.
 
-CPU1 executes:
-void virtballoon_putbackpage(struct page *page)
-{
-	spin_lock(&pages_lock);
-	list_add(&page->lru, &vb_ptr->pages);
-	spin_unlock(&pages_lock);
+I tested it with a bit tweak for working CMA in x86 on qemu.
+Test environment is following as.
 
+1. x86_64 machince, 2G RAM, 4 core, movable zone 40M with
+   try alloc_contig_range(movable_zone->middle_pfn, movable_zone->middle_pfn + 10M)
+   per 5sec until background stress test program is terminated.
 
-		at this point CPU2 unloads module:
-						leak_balloon
-						......
+2. There is background stress program which can make lots of clean cache page.
+   It mimics movie player.
 
-		next CPU2 loads another module so code memory gets overwritten
+alloc_contig_range's latency unit: usec
+before:
+min 204000 max 8156000 mean 3109310.34482759 success count 58
 
-now CPU1 executes the next instruction:
+after:
+min 8000 max 112000 mean 45788.2352941177 success count 85
 
-}
+So this patch reduces 8 sec as worst case, 3 sec as mean case.
+I'm off from now on until the day of tomorrow so please understand
+if I can't reply instantly.
 
-which would normally return to function's caller,
-but it has been overwritten by CPU2 so we get corruption.
+Minchan Kim (2):
+  cma: remove __reclaim_pages
+  cma: support MIGRATE_DISCARD
 
-No?
+ include/linux/migrate_mode.h |   11 +++++--
+ include/linux/mm.h           |    2 +-
+ include/linux/mmzone.h       |    9 ------
+ mm/compaction.c              |    2 +-
+ mm/migrate.c                 |   50 +++++++++++++++++++++++------
+ mm/page_alloc.c              |   73 +++++-------------------------------------
+ 6 files changed, 58 insertions(+), 89 deletions(-)
 
 -- 
-MST
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
