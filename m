@@ -1,66 +1,30 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
-	by kanga.kvack.org (Postfix) with SMTP id 5A2806B002B
-	for <linux-mm@kvack.org>; Tue, 14 Aug 2012 13:44:27 -0400 (EDT)
-Date: Tue, 14 Aug 2012 14:44:05 -0300
-From: Rafael Aquini <aquini@redhat.com>
-Subject: Re: [PATCH v7 1/4] mm: introduce compaction and migration for virtio
- ballooned pages
-Message-ID: <20120814174404.GA13338@t510.redhat.com>
-References: <cover.1344619987.git.aquini@redhat.com>
- <292b1b52e863a05b299f94bda69a61371011ac19.1344619987.git.aquini@redhat.com>
- <20120813082619.GE14081@redhat.com>
+Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
+	by kanga.kvack.org (Postfix) with SMTP id 492B46B002B
+	for <linux-mm@kvack.org>; Tue, 14 Aug 2012 14:16:28 -0400 (EDT)
+Date: Tue, 14 Aug 2012 14:16:14 -0400
+From: "J. Bruce Fields" <bfields@fieldses.org>
+Subject: Re: [PATCH 00/16] generic hashtable implementation
+Message-ID: <20120814181614.GA15099@fieldses.org>
+References: <1344961490-4068-1-git-send-email-levinsasha928@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20120813082619.GE14081@redhat.com>
+In-Reply-To: <1344961490-4068-1-git-send-email-levinsasha928@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Michael S. Tsirkin" <mst@redhat.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, Rusty Russell <rusty@rustcorp.com.au>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Minchan Kim <minchan@kernel.org>
+To: Sasha Levin <levinsasha928@gmail.com>
+Cc: torvalds@linux-foundation.org, tj@kernel.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, paul.gortmaker@windriver.com, davem@davemloft.net, rostedt@goodmis.org, mingo@elte.hu, ebiederm@xmission.com, aarcange@redhat.com, ericvh@gmail.com, netdev@vger.kernel.org, josh@joshtriplett.org, eric.dumazet@gmail.com, mathieu.desnoyers@efficios.com, axboe@kernel.dk, agk@redhat.com, dm-devel@redhat.com, neilb@suse.de, ccaulfie@redhat.com, teigland@redhat.com, Trond.Myklebust@netapp.com, fweisbec@gmail.com, jesse@nicira.com, venkat.x.venkatsubra@oracle.com, ejt@redhat.com, snitzer@redhat.com, edumazet@google.com, linux-nfs@vger.kernel.org, dev@openvswitch.org, rds-devel@oss.oracle.com, lw@cn.fujitsu.com
 
-On Mon, Aug 13, 2012 at 11:26:19AM +0300, Michael S. Tsirkin wrote:
-> > +static inline bool movable_balloon_page(struct page *page)
-> > +{
-> > +	return (page->mapping && page->mapping == balloon_mapping);
-> 
-> I am guessing this needs smp_read_barrier_depends, and maybe
-> ACCESS_ONCE ...
-> 
+On Tue, Aug 14, 2012 at 06:24:34PM +0200, Sasha Levin wrote:
+>   SUNRPC/cache: use new hashtable implementation
+..
+>   lockd: use new hashtable implementation
 
-I'm curious about your guessing here. Could you ellaborate it further, please?
+FWIW, these look fine (and I ran them through some nfs tests and didn't
+see any problems).
 
-
-> > +#else
-> > +static inline bool isolate_balloon_page(struct page *page) { return false; }
-> > +static inline void putback_balloon_page(struct page *page) { return false; }
-> > +static inline bool movable_balloon_page(struct page *page) { return false; }
-> > +#endif /* (VIRTIO_BALLOON || VIRTIO_BALLOON_MODULE) && CONFIG_COMPACTION */
-> > +
-> 
-> This does mean that only one type of balloon is useable at a time.
-> I wonder whether using a flag in address_space structure instead
-> is possible ...
-
-This means we are only introducing this feature for virtio_balloon by now.
-Despite the flagging address_space stuff is something we surely can look in the
-future, I quite didn't get how we could be using two different types of balloon
-devices at the same time for the same system. Could you ellaborate it a little
-more, please?
-
-
-> > +/* __isolate_lru_page() counterpart for a ballooned page */
-> > +bool isolate_balloon_page(struct page *page)
-> > +{
-> > +	if (WARN_ON(!movable_balloon_page(page)))
-> 
-> Looks like this actually can happen if the page is leaked
-> between previous movable_balloon_page and here.
-> 
-> > +		return false;
-
-Yes, it surely can happen, and it does not harm to catch it here, print a warn and
-return. While testing it, I wasn't lucky to see this small window opening, though.
+--b.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
