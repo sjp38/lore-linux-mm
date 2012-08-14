@@ -1,195 +1,142 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx135.postini.com [74.125.245.135])
-	by kanga.kvack.org (Postfix) with SMTP id AE2446B0044
-	for <linux-mm@kvack.org>; Tue, 14 Aug 2012 06:53:53 -0400 (EDT)
-Date: Tue, 14 Aug 2012 12:53:50 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: mmotm 2012-08-13-16-55 uploaded
-Message-ID: <20120814105349.GA6905@dhcp22.suse.cz>
-References: <20120813235651.00A13100047@wpzn3.hot.corp.google.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120813235651.00A13100047@wpzn3.hot.corp.google.com>
+Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
+	by kanga.kvack.org (Postfix) with SMTP id 51A996B0044
+	for <linux-mm@kvack.org>; Tue, 14 Aug 2012 07:01:50 -0400 (EDT)
+From: Glauber Costa <glommer@parallels.com>
+Subject: [PATCH 1/2] return amount of charges after res_counter_uncharge
+Date: Tue, 14 Aug 2012 14:58:32 +0400
+Message-Id: <1344941913-15075-2-git-send-email-glommer@parallels.com>
+In-Reply-To: <1344941913-15075-1-git-send-email-glommer@parallels.com>
+References: <1344941913-15075-1-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org
+To: linux-mm@kvack.org
+Cc: cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Greg Thelen <gthelen@google.com>, Frederic Weisbecker <fweisbec@gmail.com>, Glauber Costa <glommer@parallels.com>, Suleiman Souhlal <suleiman@google.com>
 
-On Mon 13-08-12 16:56:50, Andrew Morton wrote:
-> The mm-of-the-moment snapshot 2012-08-13-16-55 has been uploaded to
-> 
->    http://www.ozlabs.org/~akpm/mmotm/
+It is useful to know how many charges are still left after a call to
+res_counter_uncharge. While it is possible to issue a res_counter_read
+after uncharge, this is racy. It would be better if uncharge itself
+would tell us what the current status is.
 
--mm git tree has been updated as well. You can find the tree at
-https://github.com/mstsxfx/memcg-devel.git since-3.5
+Since the current return value is void, we don't need to worry about
+anything breaking due to this change: nobody relied on that, and only
+users appearing from now on will be checking this value.
 
-tagged as mmotm-2012-08-13-16-55
+Signed-off-by: Glauber Costa <glommer@parallels.com>
+CC: Michal Hocko <mhocko@suse.cz>
+CC: Johannes Weiner <hannes@cmpxchg.org>
+CC: Suleiman Souhlal <suleiman@google.com>
+CC: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+---
+ Documentation/cgroups/resource_counter.txt |  7 ++++---
+ include/linux/res_counter.h                | 12 +++++++-----
+ kernel/res_counter.c                       | 20 +++++++++++++-------
+ 3 files changed, 24 insertions(+), 15 deletions(-)
 
-> 
-> mmotm-readme.txt says
-> 
-> README for mm-of-the-moment:
-> 
-> http://www.ozlabs.org/~akpm/mmotm/
-> 
-> This is a snapshot of my -mm patch queue.  Uploaded at random hopefully
-> more than once a week.
-> 
-> You will need quilt to apply these patches to the latest Linus release (3.x
-> or 3.x-rcY).  The series file is in broken-out.tar.gz and is duplicated in
-> http://ozlabs.org/~akpm/mmotm/series
-> 
-> The file broken-out.tar.gz contains two datestamp files: .DATE and
-> .DATE-yyyy-mm-dd-hh-mm-ss.  Both contain the string yyyy-mm-dd-hh-mm-ss,
-> followed by the base kernel version against which this patch series is to
-> be applied.
-> 
-> This tree is partially included in linux-next.  To see which patches are
-> included in linux-next, consult the `series' file.  Only the patches
-> within the #NEXT_PATCHES_START/#NEXT_PATCHES_END markers are included in
-> linux-next.
-> 
-> A git tree which contains the memory management portion of this tree is
-> maintained at https://github.com/mstsxfx/memcg-devel.git by Michal Hocko. 
-> It contains the patches which are between the "#NEXT_PATCHES_START mm" and
-> "#NEXT_PATCHES_END" markers, from the series file,
-> http://www.ozlabs.org/~akpm/mmotm/series.
-> 
-> 
-> A full copy of the full kernel tree with the linux-next and mmotm patches
-> already applied is available through git within an hour of the mmotm
-> release.  Individual mmotm releases are tagged.  The master branch always
-> points to the latest release, so it's constantly rebasing.
-> 
-> http://git.cmpxchg.org/?p=linux-mmotm.git;a=summary
-> 
-> To develop on top of mmotm git:
-> 
->   $ git remote add mmotm git://git.cmpxchg.org/linux-mmotm.git
->   $ git remote update mmotm
->   $ git checkout -b topic mmotm/master
->   <make changes, commit>
->   $ git send-email mmotm/master.. [...]
-> 
-> To rebase a branch with older patches to a new mmotm release:
-> 
->   $ git remote update mmotm
->   $ git rebase --onto mmotm/master <topic base> topic
-> 
-> 
-> 
-> 
-> The directory http://www.ozlabs.org/~akpm/mmots/ (mm-of-the-second)
-> contains daily snapshots of the -mm tree.  It is updated more frequently
-> than mmotm, and is untested.
-> 
-> A git copy of this tree is available at
-> 
-> 	http://git.cmpxchg.org/?p=linux-mmots.git;a=summary
-> 
-> and use of this tree is similar to
-> http://git.cmpxchg.org/?p=linux-mmotm.git, described above.
-> 
-> 
-> This mmotm tree contains the following patches against 3.6-rc1:
-> (patches marked "*" will be included in linux-next)
-> 
->   origin.patch
->   linux-next.patch
->   i-need-old-gcc.patch
->   arch-alpha-kernel-systblss-remove-debug-check.patch
-> * cs5535-clockevt-typo-its-mfgpt-not-mfpgt.patch
-> * mm-change-nr_ptes-bug_on-to-warn_on.patch
-> * documentation-update-mount-option-in-filesystem-vfattxt.patch
-> * cciss-fix-incorrect-scsi-status-reporting.patch
-> * acpi_memhotplugc-fix-memory-leak-when-memory-device-is-unbound-from-the-module-acpi_memhotplug.patch
-> * acpi_memhotplugc-free-memory-device-if-acpi_memory_enable_device-failed.patch
-> * acpi_memhotplugc-remove-memory-info-from-list-before-freeing-it.patch
-> * acpi_memhotplugc-dont-allow-to-eject-the-memory-device-if-it-is-being-used.patch
-> * acpi_memhotplugc-bind-the-memory-device-when-the-driver-is-being-loaded.patch
-> * acpi_memhotplugc-auto-bind-the-memory-device-which-is-hotplugged-before-the-driver-is-loaded.patch
-> * arch-x86-platform-iris-irisc-register-a-platform-device-and-a-platform-driver.patch
-> * arch-x86-include-asm-spinlockh-fix-comment.patch
-> * mn10300-only-add-mmem-funcs-to-kbuild_cflags-if-gcc-supports-it.patch
-> * dma-dmaengine-lower-the-priority-of-failed-to-get-dma-channel-message.patch
-> * pcmcia-move-unbind-rebind-into-dev_pm_opscomplete.patch
-> * ppc-e500_tlb-memset-clears-nothing.patch
->   cyber2000fb-avoid-palette-corruption-at-higher-clocks.patch
-> * timeconstpl-remove-deprecated-defined-array.patch
-> * time-dont-inline-export_symbol-functions.patch
-> * thermal-add-generic-cpufreq-cooling-implementation.patch
-> * hwmon-exynos4-move-thermal-sensor-driver-to-driver-thermal-directory.patch
-> * thermal-exynos5-add-exynos5-thermal-sensor-driver-support.patch
-> * thermal-exynos-register-the-tmu-sensor-with-the-kernel-thermal-layer.patch
-> * arm-exynos-add-thermal-sensor-driver-platform-data-support.patch
-> * ocfs2-use-find_last_bit.patch
-> * ocfs2-use-bitmap_weight.patch
-> * drivers-scsi-atp870uc-fix-bad-use-of-udelay.patch
-> * vfs-increment-iversion-when-a-file-is-truncated.patch
-> * fs-push-rcu_barrier-from-deactivate_locked_super-to-filesystems.patch
-> * mm-slab-remove-duplicate-check.patch
-> * slab-do-not-call-compound_head-in-page_get_cache.patch
-> * mm-slab_commonc-fix-warning.patch
->   mm.patch
-> * mm-remove-__gfp_no_kswapd.patch
-> * remove-__gfp_no_kswapd-fixes.patch
-> * remove-__gfp_no_kswapd-fixes-fix.patch
-> * x86-pat-remove-the-dependency-on-vm_pgoff-in-track-untrack-pfn-vma-routines.patch
-> * x86-pat-separate-the-pfn-attribute-tracking-for-remap_pfn_range-and-vm_insert_pfn.patch
-> * x86-pat-separate-the-pfn-attribute-tracking-for-remap_pfn_range-and-vm_insert_pfn-fix.patch
-> * mm-x86-pat-rework-linear-pfn-mmap-tracking.patch
-> * mm-introduce-arch-specific-vma-flag-vm_arch_1.patch
-> * mm-kill-vma-flag-vm_insertpage.patch
-> * mm-kill-vma-flag-vm_can_nonlinear.patch
-> * mm-use-mm-exe_file-instead-of-first-vm_executable-vma-vm_file.patch
-> * mm-kill-vma-flag-vm_executable-and-mm-num_exe_file_vmas.patch
-> * mm-prepare-vm_dontdump-for-using-in-drivers.patch
-> * mm-kill-vma-flag-vm_reserved-and-mm-reserved_vm-counter.patch
-> * mm-kill-vma-flag-vm_reserved-and-mm-reserved_vm-counter-fix.patch
-> * frv-kill-used-but-uninitialized-variable.patch
-> * ipc-mqueue-remove-unnecessary-rb_init_node-calls.patch
-> * rbtree-reference-documentation-rbtreetxt-for-usage-instructions.patch
-> * rbtree-empty-nodes-have-no-color.patch
-> * rbtree-empty-nodes-have-no-color-fix.patch
-> * rbtree-fix-incorrect-rbtree-node-insertion-in-fs-proc-proc_sysctlc.patch
-> * rbtree-move-some-implementation-details-from-rbtreeh-to-rbtreec.patch
-> * rbtree-move-some-implementation-details-from-rbtreeh-to-rbtreec-fix.patch
-> * rbtree-performance-and-correctness-test.patch
-> * rbtree-performance-and-correctness-test-fix.patch
-> * rbtree-break-out-of-rb_insert_color-loop-after-tree-rotation.patch
-> * rbtree-adjust-root-color-in-rb_insert_color-only-when-necessary.patch
-> * rbtree-low-level-optimizations-in-rb_insert_color.patch
-> * rbtree-adjust-node-color-in-__rb_erase_color-only-when-necessary.patch
-> * rbtree-optimize-case-selection-logic-in-__rb_erase_color.patch
-> * rbtree-low-level-optimizations-in-__rb_erase_color.patch
-> * rbtree-coding-style-adjustments.patch
-> * rbtree-rb_erase-updates-and-comments.patch
-> * rbtree-optimize-fetching-of-sibling-node.patch
-> * drivers-firmware-dmi_scanc-check-dmi-version-when-get-system-uuid.patch
-> * drivers-firmware-dmi_scanc-check-dmi-version-when-get-system-uuid-fix.patch
-> * drivers-firmware-dmi_scanc-fetch-dmi-version-from-smbios-if-it-exists.patch
-> * drivers-firmware-dmi_scanc-fetch-dmi-version-from-smbios-if-it-exists-checkpatch-fixes.patch
-> * fat-exportfs-move-nfs-support-code.patch
-> * fat-exportfs-fix-dentry-reconnection.patch
-> * ipc-semc-alternatives-to-preempt_disable.patch
->   make-sure-nobodys-leaking-resources.patch
->   journal_add_journal_head-debug.patch
->   releasing-resources-with-children.patch
->   make-frame_pointer-default=y.patch
->   mutex-subsystem-synchro-test-module.patch
->   mutex-subsystem-synchro-test-module-fix.patch
->   slab-leaks3-default-y.patch
->   put_bh-debug.patch
->   add-debugging-aid-for-memory-initialisation-problems.patch
->   workaround-for-a-pci-restoring-bug.patch
->   prio_tree-debugging-patch.patch
->   single_open-seq_release-leak-diagnostics.patch
->   add-a-refcount-check-in-dput.patch
-
+diff --git a/Documentation/cgroups/resource_counter.txt b/Documentation/cgroups/resource_counter.txt
+index 0c4a344..c4d99ed 100644
+--- a/Documentation/cgroups/resource_counter.txt
++++ b/Documentation/cgroups/resource_counter.txt
+@@ -83,16 +83,17 @@ to work with it.
+ 	res_counter->lock internally (it must be called with res_counter->lock
+ 	held). The force parameter indicates whether we can bypass the limit.
+ 
+- e. void res_counter_uncharge[_locked]
++ e. u64 res_counter_uncharge[_locked]
+ 			(struct res_counter *rc, unsigned long val)
+ 
+ 	When a resource is released (freed) it should be de-accounted
+ 	from the resource counter it was accounted to.  This is called
+-	"uncharging".
++	"uncharging". The return value of this function indicate the amount
++	of charges still present in the counter.
+ 
+ 	The _locked routines imply that the res_counter->lock is taken.
+ 
+- f. void res_counter_uncharge_until
++ f. u64 res_counter_uncharge_until
+ 		(struct res_counter *rc, struct res_counter *top,
+ 		 unsinged long val)
+ 
+diff --git a/include/linux/res_counter.h b/include/linux/res_counter.h
+index 7d7fbe2..4b173b6 100644
+--- a/include/linux/res_counter.h
++++ b/include/linux/res_counter.h
+@@ -130,14 +130,16 @@ int res_counter_charge_nofail(struct res_counter *counter,
+  *
+  * these calls check for usage underflow and show a warning on the console
+  * _locked call expects the counter->lock to be taken
++ *
++ * returns the total charges still present in @counter.
+  */
+ 
+-void res_counter_uncharge_locked(struct res_counter *counter, unsigned long val);
+-void res_counter_uncharge(struct res_counter *counter, unsigned long val);
++u64 res_counter_uncharge_locked(struct res_counter *counter, unsigned long val);
++u64 res_counter_uncharge(struct res_counter *counter, unsigned long val);
+ 
+-void res_counter_uncharge_until(struct res_counter *counter,
+-				struct res_counter *top,
+-				unsigned long val);
++u64 res_counter_uncharge_until(struct res_counter *counter,
++			       struct res_counter *top,
++			       unsigned long val);
+ /**
+  * res_counter_margin - calculate chargeable space of a counter
+  * @cnt: the counter
+diff --git a/kernel/res_counter.c b/kernel/res_counter.c
+index ad581aa..7b3d6dc 100644
+--- a/kernel/res_counter.c
++++ b/kernel/res_counter.c
+@@ -86,33 +86,39 @@ int res_counter_charge_nofail(struct res_counter *counter, unsigned long val,
+ 	return __res_counter_charge(counter, val, limit_fail_at, true);
+ }
+ 
+-void res_counter_uncharge_locked(struct res_counter *counter, unsigned long val)
++u64 res_counter_uncharge_locked(struct res_counter *counter, unsigned long val)
+ {
+ 	if (WARN_ON(counter->usage < val))
+ 		val = counter->usage;
+ 
+ 	counter->usage -= val;
++	return counter->usage;
+ }
+ 
+-void res_counter_uncharge_until(struct res_counter *counter,
+-				struct res_counter *top,
+-				unsigned long val)
++u64 res_counter_uncharge_until(struct res_counter *counter,
++			       struct res_counter *top,
++			       unsigned long val)
+ {
+ 	unsigned long flags;
+ 	struct res_counter *c;
++	u64 ret = 0;
+ 
+ 	local_irq_save(flags);
+ 	for (c = counter; c != top; c = c->parent) {
++		u64 r;
+ 		spin_lock(&c->lock);
+-		res_counter_uncharge_locked(c, val);
++		r = res_counter_uncharge_locked(c, val);
++		if (c == counter)
++			ret = r;
+ 		spin_unlock(&c->lock);
+ 	}
+ 	local_irq_restore(flags);
++	return ret;
+ }
+ 
+-void res_counter_uncharge(struct res_counter *counter, unsigned long val)
++u64 res_counter_uncharge(struct res_counter *counter, unsigned long val)
+ {
+-	res_counter_uncharge_until(counter, NULL, val);
++	return res_counter_uncharge_until(counter, NULL, val);
+ }
+ 
+ static inline unsigned long long *
 -- 
-Michal Hocko
-SUSE Labs
+1.7.11.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
