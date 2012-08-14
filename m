@@ -1,71 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
-	by kanga.kvack.org (Postfix) with SMTP id 835466B005A
-	for <linux-mm@kvack.org>; Tue, 14 Aug 2012 05:24:05 -0400 (EDT)
-Date: Tue, 14 Aug 2012 10:23:58 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [RFC PATCH 0/5] Improve hugepage allocation success rates under
- load V3
-Message-ID: <20120814092358.GJ4177@suse.de>
-References: <1344520165-24419-1-git-send-email-mgorman@suse.de>
- <5023FE83.4090200@sandia.gov>
- <20120809204630.GJ12690@suse.de>
- <50243BE0.9060007@sandia.gov>
- <20120810110225.GO12690@suse.de>
- <502542C7.8050306@sandia.gov>
- <20120812202257.GA4177@suse.de>
- <50296522.2000809@sandia.gov>
+Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
+	by kanga.kvack.org (Postfix) with SMTP id 47D5B6B005A
+	for <linux-mm@kvack.org>; Tue, 14 Aug 2012 05:59:44 -0400 (EDT)
+Received: by vbkv13 with SMTP id v13so220823vbk.14
+        for <linux-mm@kvack.org>; Tue, 14 Aug 2012 02:59:43 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <50296522.2000809@sandia.gov>
+Date: Tue, 14 Aug 2012 15:29:42 +0530
+Message-ID: <CAB5gotsB--4JhGqhXJEhu3TTTDEev_YxLN-r6UA+N7uFMiZHyA@mail.gmail.com>
+Subject: 
+From: vaibhav shinde <v.bhav.shinde@gmail.com>
+Content-Type: multipart/alternative; boundary=047d7b5d9e6b90960f04c736dea4
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jim Schutt <jaschut@sandia.gov>
-Cc: Linux-MM <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan@kernel.org>, LKML <linux-kernel@vger.kernel.org>
+To: tj@kernel.org, khlebnikov@openvz.org, david@fromorbit.com, akpm@linux-foundation.org, baramsori72@gmail.com, righi.andrea@gmail.com, mgorman@suse.de, riel@redhat.com, minchan.kim@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, Aug 13, 2012 at 02:35:46PM -0600, Jim Schutt wrote:
-> Hi Mel,
-> 
-> On 08/12/2012 02:22 PM, Mel Gorman wrote:
-> 
-> >
-> >I went through the patch again but only found the following which is a
-> >weak candidate. Still, can you retest with the following patch on top and
-> >CONFIG_PROVE_LOCKING set please?
-> >
-> 
-> I've gotten in several hours of testing on this patch with
-> no issues at all, and no output from CONFIG_PROVE_LOCKING
-> (I'm assuming it would show up on a serial console).  So,
-> it seems to me this patch has done the trick.
-> 
+--047d7b5d9e6b90960f04c736dea4
+Content-Type: text/plain; charset=ISO-8859-1
 
-Super.
+ Hi all,
 
-> CPU utilization is staying under control, and write-out rate
-> is good.
-> 
+I am facing the same issue regarding cgroup block io behavior as mentioned
+by Mr. Naveen in the below link
+*http://lkml.org/lkml/2012/7/27/35*
 
-Even better.
+I am testing using following tunnable parameters-
 
-> You can add my Tested-by: as you see fit.  If you work
-> up any refinements and would like me to test, please
-> let me know.
-> 
+*              blkio.throttle.write_bps_device (set to different cgroups
+depending on default readings)*
+*              blkio.throttle.read_bps_device *
+*              blkio.throttle.write_iops_device * *
+*
+*              blkio.throttle.read_iops_device * *
+*
+*              blkio.weight (range 100-1000)*
 
-I'll be adding your Tested-by and I'll keep you cc'd on the series. It'll
-look a little different because I'm expect to adjust it slightly to match
-Andrew's tree but there should be no major surprises and my expectation is
-that testing a -rc kernel after it gets merged is all that is necessary. I'm
-planning to backport this to -stable but it'll remain to be seen if I can
-convince the relevant maintainers that it should be merged.
+I tested once using a user level application that creates few processes
+with two threads in each process.
+The threads perform read and write operations using 'dd' command and
+records the readings.
 
-Thanks.
+The readings achieved from above test appear unpredictable to me.
 
--- 
-Mel Gorman
-SUSE Labs
+Can you suggest any method or testcase for analyzing the behavior of
+ cgroup block io in case of threads.
+
+Thanks in advance
+
+
+Kind Regards,
+Vaibhav Shinde
+*
+*
+
+--047d7b5d9e6b90960f04c736dea4
+Content-Type: text/html; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
+
+<div>
+<div><font>Hi all,</font><font><br></font></div></div><div><font><br></font=
+></div><div><font>I am facing the same issue regarding cgroup block io beha=
+vior as mentioned by Mr. Naveen in the below link</font><font><br></font></=
+div>
+
+<div><font><i><a href=3D"http://lkml.org/lkml/2012/7/27/35" target=3D"_blan=
+k">http://lkml.org/lkml/2012/7/27/35</a></i><br></font></div><div><font><br=
+></font></div><div><font>I am testing using following tunnable parameters-<=
+br>
+</font></div>
+<div><font><br></font></div><div>
+<div><b><span lang=3D"EN-US" style=3D"line-height:115%;font-size:11.0pt;fon=
+t-family:&quot;Courier New&quot;">=A0 =A0 =A0 =A0 =A0 =A0 =A0 blkio.throttl=
+e.write_bps_device (set to different cgroups depending on default readings)=
+</span></b>
+<font><br></font></div><div>
+<b><span lang=3D"EN-US" style=3D"line-height:115%;font-size:11.0pt;font-fam=
+ily:&quot;Courier New&quot;">=A0 =A0 =A0 =A0 =A0 =A0 =A0 blkio.throttle.rea=
+d_bps_device=A0</span></b>
+<font><br></font></div><div>
+<b><span lang=3D"EN-US" style=3D"line-height:115%;font-size:11.0pt;font-fam=
+ily:&quot;Courier New&quot;">=A0 =A0 =A0 =A0 =A0 =A0 =A0 blkio.throttle.wri=
+te_iops_device=A0</span></b>
+<b><span lang=3D"EN-US" style=3D"line-height:115%;font-size:11.0pt;font-fam=
+ily:&quot;Courier New&quot;"><br></span></b></div><div>
+<b><span lang=3D"EN-US" style=3D"line-height:115%;font-size:11.0pt;font-fam=
+ily:&quot;Courier New&quot;">=A0 =A0 =A0 =A0 =A0 =A0 =A0 blkio.throttle.rea=
+d_iops_device=A0</span></b>
+<b><span lang=3D"EN-US" style=3D"line-height:115%;font-size:11.0pt;font-fam=
+ily:&quot;Courier New&quot;"><br></span></b></div><div>
+<b><span lang=3D"EN-US" style=3D"line-height:115%;font-size:11.0pt;font-fam=
+ily:&quot;Courier New&quot;">=A0 =A0 =A0 =A0 =A0 =A0 =A0 blkio.weight (rang=
+e 100-1000)</span></b></div><font><br></font></div><div><font>I tested once=
+ using a user level application that creates few processes with two threads=
+ in each process.</font><font><br>
+
+</font></div><div><font>The threads perform read and write operations using=
+ &#39;dd&#39; command and records the readings.<br></font></div><div><font>=
+<br></font></div><div><font>The readings achieved from above test appear un=
+predictable to me.<br>
+
+</font></div><div><font><br></font></div><div><font>Can you suggest any met=
+hod or testcase for analyzing the behavior of =A0cgroup block io in case of=
+ threads.<br></font></div><div><font><br></font></div><div><font>Thanks in =
+advance<br>
+
+</font></div><div><font><br></font></div><div><font><br></font></div><div><=
+font>Kind Regards,<br></font></div><div><font>Vaibhav Shinde<br></font></di=
+v><div><b><span lang=3D"EN-US" style=3D"line-height:115%;font-size:11.0pt;f=
+ont-family:&quot;Courier New&quot;"><br>
+
+</span></b></div>
+
+--047d7b5d9e6b90960f04c736dea4--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
