@@ -1,103 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
-	by kanga.kvack.org (Postfix) with SMTP id 962386B0044
-	for <linux-mm@kvack.org>; Tue, 14 Aug 2012 18:47:23 -0400 (EDT)
-Date: Wed, 15 Aug 2012 01:48:16 +0300
-From: "Michael S. Tsirkin" <mst@redhat.com>
-Subject: Re: [PATCH v7 2/4] virtio_balloon: introduce migration primitives to
- balloon pages
-Message-ID: <20120814224816.GB29180@redhat.com>
-References: <f19b63dfa026fe2f8f11ec017771161775744781.1344619987.git.aquini@redhat.com>
- <20120813084123.GF14081@redhat.com>
- <20120814182244.GB13338@t510.redhat.com>
- <20120814195139.GA28870@redhat.com>
- <20120814195916.GC28870@redhat.com>
- <20120814200830.GD22133@t510.redhat.com>
- <20120814202401.GB28990@redhat.com>
- <20120814202949.GF22133@t510.redhat.com>
- <20120814204906.GD28990@redhat.com>
- <20120814213412.GG22133@t510.redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120814213412.GG22133@t510.redhat.com>
+Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
+	by kanga.kvack.org (Postfix) with SMTP id F28F86B0044
+	for <linux-mm@kvack.org>; Tue, 14 Aug 2012 19:25:58 -0400 (EDT)
+Date: Wed, 15 Aug 2012 09:25:23 +1000
+From: NeilBrown <neilb@suse.de>
+Subject: Re: [PATCH 01/16] hashtable: introduce a small and naive hashtable
+Message-ID: <20120815092523.00a909ef@notabene.brown>
+In-Reply-To: <1344961490-4068-2-git-send-email-levinsasha928@gmail.com>
+References: <1344961490-4068-1-git-send-email-levinsasha928@gmail.com>
+	<1344961490-4068-2-git-send-email-levinsasha928@gmail.com>
+Mime-Version: 1.0
+Content-Type: multipart/signed; micalg=PGP-SHA1;
+ boundary="Sig_/WaPYDSkmDZTaSUO/RNup8tR"; protocol="application/pgp-signature"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rafael Aquini <aquini@redhat.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, Rusty Russell <rusty@rustcorp.com.au>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Minchan Kim <minchan@kernel.org>
+To: Sasha Levin <levinsasha928@gmail.com>
+Cc: torvalds@linux-foundation.org, tj@kernel.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, paul.gortmaker@windriver.com, davem@davemloft.net, rostedt@goodmis.org, mingo@elte.hu, ebiederm@xmission.com, aarcange@redhat.com, ericvh@gmail.com, netdev@vger.kernel.org, josh@joshtriplett.org, eric.dumazet@gmail.com, mathieu.desnoyers@efficios.com, axboe@kernel.dk, agk@redhat.com, dm-devel@redhat.com, ccaulfie@redhat.com, teigland@redhat.com, Trond.Myklebust@netapp.com, bfields@fieldses.org, fweisbec@gmail.com, jesse@nicira.com, venkat.x.venkatsubra@oracle.com, ejt@redhat.com, snitzer@redhat.com, edumazet@google.com, linux-nfs@vger.kernel.org, dev@openvswitch.org, rds-devel@oss.oracle.com, lw@cn.fujitsu.com
 
-On Tue, Aug 14, 2012 at 06:34:13PM -0300, Rafael Aquini wrote:
-> On Tue, Aug 14, 2012 at 11:49:06PM +0300, Michael S. Tsirkin wrote:
-> > On Tue, Aug 14, 2012 at 05:29:50PM -0300, Rafael Aquini wrote:
-> > > On Tue, Aug 14, 2012 at 11:24:01PM +0300, Michael S. Tsirkin wrote:
-> > > > On Tue, Aug 14, 2012 at 05:08:31PM -0300, Rafael Aquini wrote:
-> > > > > On Tue, Aug 14, 2012 at 10:59:16PM +0300, Michael S. Tsirkin wrote:
-> > > > > > > > > What if there is more than one balloon device?
-> > > > > > > > 
-> > > > > > > > Is it possible to load this driver twice, or are you foreseeing a future case
-> > > > > > > > where this driver will be able to manage several distinct memory balloons for
-> > > > > > > > the same guest?
-> > > > > > > > 
-> > > > > > > 
-> > > > > > > Second.
-> > > > > > > It is easy to create several balloons they are just
-> > > > > > > pci devices.
-> > > > > >  
-> > > > > > 
-> > > > > > 
-> > > > > > and it might not be too important to make it work but
-> > > > > > at least would be nice not to have a crash in this
-> > > > > > setup.
-> > > > > >
-> > > > > Fair enough. For now, as I believe it's safe to assume we are only inflating one
-> > > > > balloon per guest, I'd like to propose this as a future enhancement. Sounds
-> > > > > good?
-> > > > >  
-> > > > 
-> > > > Since guest crashes when it's not the case, no it doesn't, sorry :(.
-> > > >
-> > > Ok, but right now this driver only takes care of 1 balloon per guest,
-> > 
-> > It does? Are you sure? There is no global state as far as I can see. So
-> > I can create 2 devices and driver will happily create two instances,
-> > each one can be inflated/deflated independently.
-> > 
-> > > so how
-> > > could this approach crash it? 
-> > 
-> > Add device. inflate. Add another device. inflate. deflate. unplug.
-> > Now you have pointer to freed memory and when mm touches
-> > page from first device, you ge use after free.
-> > 
-> > > Your point is a good thing to be on a to-do list for future enhancements, but
-> > > it's not a dealbreaker for the present balloon driver implementation, IMHO.
-> > > 
-> > 
-> > Yes it looks like a dealbreaker to me.
-> 
-> Sorry. You're right, I'm wrong.
-> 
-> I'll get back to the scracthpad to overcome this constraint. I believe the way
-> this patch was at its v4 revision (wrt this particular case) could possibly
-> address this concern of yours.
+--Sig_/WaPYDSkmDZTaSUO/RNup8tR
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: quoted-printable
 
-Almost. We still have a global balloon_mapping. The only reason for
-it to exist seems solely to detect balloon mappings, so it
-can just be replaced by a flag in the mapping, or in mapping
-ops, or elsewhere. Also, please add APIs to mm so we can
-avoid doing internal mm stuff like
+On Tue, 14 Aug 2012 18:24:35 +0200 Sasha Levin <levinsasha928@gmail.com>
+wrote:
 
-INIT_RADIX_TREE(&balloon_mapping->page_tree, GFP_ATOMIC | __GFP_NOWARN);
 
-in the driver. It should be
-alloc_address_mapping(&virtio_balloon_aops);
-free_address_mapping
+> +static inline void hash_init_size(struct hlist_head *hashtable, int bits)
+> +{
+> +	int i;
+> +
+> +	for (i =3D 0; i < HASH_SIZE(bits); i++)
+> +		INIT_HLIST_HEAD(hashtable + i);
+> +}
 
-Make page->mapping use rcu, and sync rcu in
-free_address_mapping.
+This seems like an inefficient way to do "memset(hashtable, 0, ...);".
+And in many cases it isn't needed as the hash table is static and initialis=
+ed
+to zero.
+I note that in the SUNRPC/cache patch you call hash_init(), but in the lockd
+patch you don't.  You don't actually need to in either case.
 
--- 
-MST
+I realise that any optimisation here is for code that is only executed once
+per boot, so no big deal, and even the presence of extra code making the
+kernel bigger is unlikely to be an issue.  But I'd at least like to see
+consistency: Either use hash_init everywhere, even when not needed, or only
+use it where absolutely needed which might be no-where because static tables
+are already initialised, and dynamic tables can use GFP_ZERO.
+
+And if you keep hash_init_size I would rather see a memset(0)....
+
+Thanks,
+NeilBrown
+
+--Sig_/WaPYDSkmDZTaSUO/RNup8tR
+Content-Type: application/pgp-signature; name=signature.asc
+Content-Disposition: attachment; filename=signature.asc
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v2.0.18 (GNU/Linux)
+
+iQIVAwUBUCreYznsnt1WYoG5AQJjuA//cxInQBsHXHRtWYyYJpxwOX9hqpSDNaZ2
+37aTlFSGjdhr1yn+RcwmtWh9nEj+oHEFlds46gW/woLpGFSXuCPD85CDtZDjPSpL
+7VNXdZ1i3+EEPR0K2vjMaUs1cpdz2KIx8KZjIXfQVnARaZNfts7EuaTCpGM+5bac
+G4CX6uoFtPc/A4LVEiYbowLzhUG+GmxcofMjd9ZJ4Ug0Xg4sl8xXtYg8YDkSn3LJ
+zef9ltlJ1WxLSTtBm6+jyH25Xlb31P7TT3BUgNcStSz9Jak2wdggbUE79iOb3GJL
+sP6/meXapGELz7IE8PVo/cdYdfBcskH6M8ai8pNNYTguSh/2VSRnjR1hPqXhgUYn
+FDKLL8galmS5OxQMwv4mb3zhUIHIiTT7tWBq6eYXo3xUzInU5VufAyLIcpRX3fXm
+VNLnnDOyaoWJCP/fUDrmHskSWPhLQA5/1YtiSI1NYwbY2C+OCybFHYixcWe5CT4w
+YvQ2TTweApDjk5JRndjiO0/j4++kAYvQ8KwC7oo7CUK13dH/9h8rxzV3H4zAhxkh
+4F6FzPEagR1CzKpSkJEA46DJQNIdAbbyCM0VkHORy7gTUa0MA3MsjW8dOKSnBnux
+xsx1GI08WW16NEf1TyGrkqdE/caa4WtDDoLNG3cpwLTZNlMACcZOHXQmgeQu3Ija
+TqL1y22gF/Q=
+=lYgD
+-----END PGP SIGNATURE-----
+
+--Sig_/WaPYDSkmDZTaSUO/RNup8tR--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
