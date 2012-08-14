@@ -1,66 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx151.postini.com [74.125.245.151])
-	by kanga.kvack.org (Postfix) with SMTP id 7552E6B005A
-	for <linux-mm@kvack.org>; Tue, 14 Aug 2012 00:27:49 -0400 (EDT)
-Received: by qafk30 with SMTP id k30so3391878qaf.14
-        for <linux-mm@kvack.org>; Mon, 13 Aug 2012 21:27:48 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx162.postini.com [74.125.245.162])
+	by kanga.kvack.org (Postfix) with SMTP id 6481D6B0068
+	for <linux-mm@kvack.org>; Tue, 14 Aug 2012 01:36:51 -0400 (EDT)
+Received: by obhx4 with SMTP id x4so13575obh.14
+        for <linux-mm@kvack.org>; Mon, 13 Aug 2012 22:36:50 -0700 (PDT)
+Message-ID: <5029E3EF.9080301@vflare.org>
+Date: Mon, 13 Aug 2012 22:36:47 -0700
+From: Nitin Gupta <ngupta@vflare.org>
 MIME-Version: 1.0
-In-Reply-To: <1344861970-9999-1-git-send-email-glommer@parallels.com>
-References: <1344861970-9999-1-git-send-email-glommer@parallels.com>
-From: Greg Thelen <gthelen@google.com>
-Date: Mon, 13 Aug 2012 21:27:27 -0700
-Message-ID: <CAHH2K0bJumAy43BjP3XxfrZz6eMQFKzTY-dw26Aw17zFXehtfQ@mail.gmail.com>
-Subject: Re: [PATCH] execute the whole memcg freeing in rcu callback
+Subject: Re: [PATCH 0/7] zram/zsmalloc promotion
+References: <1344406340-14128-1-git-send-email-minchan@kernel.org> <20120814023530.GA9787@kroah.com>
+In-Reply-To: <20120814023530.GA9787@kroah.com>
 Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>
+To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Cc: Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Seth Jennings <sjenning@linux.vnet.ibm.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Konrad Rzeszutek Wilk <konrad@darnok.org>
 
-On Mon, Aug 13, 2012 at 5:46 AM, Glauber Costa <glommer@parallels.com> wrote:
-> A lot of the initialization we do in mem_cgroup_create() is done with
-> softirqs enabled. This include grabbing a css id, which holds
-> &ss->id_lock->rlock, and the per-zone trees, which holds
-> rtpz->lock->rlock. All of those signal to the lockdep mechanism that
-> those locks can be used in SOFTIRQ-ON-W context. This means that the
-> freeing of memcg structure must happen in a compatible context,
-> otherwise we'll get a deadlock.
+On 08/13/2012 07:35 PM, Greg Kroah-Hartman wrote:
+> On Wed, Aug 08, 2012 at 03:12:13PM +0900, Minchan Kim wrote:
+>> This patchset promotes zram/zsmalloc from staging.
+>> Both are very clean and zram is used by many embedded product
+>> for a long time.
+>>
+>> [1-3] are patches not merged into linux-next yet but needed
+>> it as base for [4-5] which promotes zsmalloc.
+>> Greg, if you merged [1-3] already, skip them.
+> 
+> I've applied 1-3 and now 4, but that's it, I can't apply the rest
+> without getting acks from the -mm maintainers, sorry.  Please work with
+> them to get those acks, and then I will be glad to apply the rest (after
+> you resend them of course...)
 >
-> The reference counting mechanism we use allows the memcg structure to be
-> freed later and outlive the actual memcg destruction from the
-> filesystem. However, we have little, if any, means to guarantee in which
-> context the last memcg_put will happen. The best we can do is test it
-> and try to make sure no invalid context releases are happening. But as
-> we add more code to memcg, the possible interactions grow in number and
-> expose more ways to get context conflicts.
->
-> Context-related problems already appeared for static branches
-> destruction, since their locking forced us to disable them from process
-> context, which we could not always guarantee. Now that we're trying to
-> add kmem controller, the possibilities of where the freeing can be
-> triggered from just increases.
->
-> Greg Thelen reported a bug with that patchset applied that would trigger
-> if a task would hold a reference to a memcg through its kmem counter.
-> This would mean that killing that task would eventually get us to
-> __mem_cgroup_free() after dropping the last kernel page reference, in an
-> invalid IN-SOFTIRQ-W.
->
-> We already moved a part of the freeing to a worker thread to be
-> context-safe for the static branches disabling. Although we could move
-> the new offending part to such a place as well, I see no reason not
-> to do it for the whole freeing action. I consider this to be the safe
-> choice.
->
-> Signed-off-by: Glauber Costa <glommer@parallels.com>
-> Reported-by: Greg Thelen <gthelen@google.com>
-> CC: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> CC: Michal Hocko <mhocko@suse.cz>
-> CC: Johannes Weiner <hannes@cmpxchg.org>
 
-The problem I reported is fixed by this patch.  Thanks.
+On a second thought, I think zsmalloc should stay in drivers/block/zram
+since zram is now the only user of zsmalloc since zcache and ramster are
+moving to another allocator. Secondly, zsmalloc does not provide
+standard slab like interface, so should not be part of mm/. At the best,
+it could be moved to lib/ with header in include/linux just like genalloc.
 
-Tested-by: Greg Thelen <gthelen@google.com>
+Thanks,
+Nitin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
