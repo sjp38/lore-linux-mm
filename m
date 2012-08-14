@@ -1,136 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
-	by kanga.kvack.org (Postfix) with SMTP id 6585F6B0068
-	for <linux-mm@kvack.org>; Tue, 14 Aug 2012 12:21:59 -0400 (EDT)
-Date: Tue, 14 Aug 2012 18:21:55 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH v2 04/11] kmem accounting basic infrastructure
-Message-ID: <20120814162144.GC6905@dhcp22.suse.cz>
-References: <1344517279-30646-1-git-send-email-glommer@parallels.com>
- <1344517279-30646-5-git-send-email-glommer@parallels.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1344517279-30646-5-git-send-email-glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
+	by kanga.kvack.org (Postfix) with SMTP id 579D26B002B
+	for <linux-mm@kvack.org>; Tue, 14 Aug 2012 12:24:54 -0400 (EDT)
+Received: by bkcjc3 with SMTP id jc3so297284bkc.14
+        for <linux-mm@kvack.org>; Tue, 14 Aug 2012 09:24:52 -0700 (PDT)
+From: Sasha Levin <levinsasha928@gmail.com>
+Subject: [PATCH 00/16] generic hashtable implementation
+Date: Tue, 14 Aug 2012 18:24:34 +0200
+Message-Id: <1344961490-4068-1-git-send-email-levinsasha928@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, devel@openvz.org, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, kamezawa.hiroyu@jp.fujitsu.com, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>
+To: torvalds@linux-foundation.org
+Cc: tj@kernel.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, paul.gortmaker@windriver.com, davem@davemloft.net, rostedt@goodmis.org, mingo@elte.hu, ebiederm@xmission.com, aarcange@redhat.com, ericvh@gmail.com, netdev@vger.kernel.org, josh@joshtriplett.org, eric.dumazet@gmail.com, mathieu.desnoyers@efficios.com, axboe@kernel.dk, agk@redhat.com, dm-devel@redhat.com, neilb@suse.de, ccaulfie@redhat.com, teigland@redhat.com, Trond.Myklebust@netapp.com, bfields@fieldses.org, fweisbec@gmail.com, jesse@nicira.com, venkat.x.venkatsubra@oracle.com, ejt@redhat.com, snitzer@redhat.com, edumazet@google.com, linux-nfs@vger.kernel.org, dev@openvswitch.org, rds-devel@oss.oracle.com, lw@cn.fujitsu.com, Sasha Levin <levinsasha928@gmail.com>
 
-On Thu 09-08-12 17:01:12, Glauber Costa wrote:
-> This patch adds the basic infrastructure for the accounting of the slab
-> caches. To control that, the following files are created:
-> 
->  * memory.kmem.usage_in_bytes
->  * memory.kmem.limit_in_bytes
->  * memory.kmem.failcnt
->  * memory.kmem.max_usage_in_bytes
-> 
-> They have the same meaning of their user memory counterparts. They
-> reflect the state of the "kmem" res_counter.
-> 
-> The code is not enabled until a limit is set. This can be tested by the
-> flag "kmem_accounted". This means that after the patch is applied, no
-> behavioral changes exists for whoever is still using memcg to control
-> their memory usage.
-> 
-> We always account to both user and kernel resource_counters. This
-> effectively means that an independent kernel limit is in place when the
-> limit is set to a lower value than the user memory. A equal or higher
-> value means that the user limit will always hit first, meaning that kmem
-> is effectively unlimited.
+There are quite a few places in the kernel which implement a hashtable
+in a very similar way. Instead of having implementations of a hashtable
+all over the kernel, we can re-use the code.
 
-Well, it contributes to the user limit so it is not unlimited. It just
-falls under a different limit and it tends to contribute less. This can
-be quite confusing.  I am still not sure whether we should mix the two
-things together. If somebody wants to limit the kernel memory he has to
-touch the other limit anyway.  Do you have a strong reason to mix the
-user and kernel counters?
-My impression was that kernel allocation should simply fail while user
-allocations might reclaim as well. Why should we reclaim just because of
-the kernel allocation (which is unreclaimable from hard limit reclaim
-point of view)?
-I also think that the whole thing would get much simpler if those two
-are split. Anyway if this is really a must then this should be
-documented here.
- 
-One nit bellow.
+New changes since the RFC:
 
-> People who want to track kernel memory but not limit it, can set this
-> limit to a very high number (like RESOURCE_MAX - 1page - that no one
-> will ever hit, or equal to the user memory)
-> 
-> Signed-off-by: Glauber Costa <glommer@parallels.com>
-> CC: Michal Hocko <mhocko@suse.cz>
-> CC: Johannes Weiner <hannes@cmpxchg.org>
-> Reviewed-by: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> ---
->  mm/memcontrol.c | 69 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++-
->  1 file changed, 68 insertions(+), 1 deletion(-)
-> 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index b0e29f4..54e93de 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-[...]
-> @@ -4046,8 +4059,23 @@ static int mem_cgroup_write(struct cgroup *cont, struct cftype *cft,
->  			break;
->  		if (type == _MEM)
->  			ret = mem_cgroup_resize_limit(memcg, val);
-> -		else
-> +		else if (type == _MEMSWAP)
->  			ret = mem_cgroup_resize_memsw_limit(memcg, val);
-> +		else if (type == _KMEM) {
-> +			ret = res_counter_set_limit(&memcg->kmem, val);
-> +			if (ret)
-> +				break;
-> +			/*
-> +			 * Once enabled, can't be disabled. We could in theory
-> +			 * disable it if we haven't yet created any caches, or
-> +			 * if we can shrink them all to death.
-> +			 *
-> +			 * But it is not worth the trouble
-> +			 */
-> +			if (!memcg->kmem_accounted && val != RESOURCE_MAX)
-> +				memcg->kmem_accounted = true;
-> +		} else
-> +			return -EINVAL;
->  		break;
+ - Addressed last comments about previous patches.
+ - RCU support.
+ - Simplified the case where the hashtable is allocated statically, which is
+ the common case.
+ - A lot more places converted to use the new hashtable.
 
-This doesn't check for the hierachy so kmem_accounted might not be in 
-sync with it's parents. mem_cgroup_create (below) needs to copy
-kmem_accounted down from the parent and the above needs to check if this
-is a similar dance like mem_cgroup_oom_control_write.
 
-[...]
+Sasha Levin (16):
+  hashtable: introduce a small and naive hashtable
+  user_ns: use new hashtable implementation
+  mm,ksm: use new hashtable implementation
+  workqueue: use new hashtable implementation
+  mm/huge_memory: use new hashtable implementation
+  tracepoint: use new hashtable implementation
+  net,9p: use new hashtable implementation
+  block,elevator: use new hashtable implementation
+  SUNRPC/cache: use new hashtable implementation
+  dlm: use new hashtable implementation
+  net,l2tp: use new hashtable implementation
+  dm: use new hashtable implementation
+  lockd: use new hashtable implementation
+  net,rds: use new hashtable implementation
+  openvswitch: use new hashtable implementation
+  tracing output: use new hashtable implementation
 
-> @@ -5033,6 +5098,7 @@ mem_cgroup_create(struct cgroup *cont)
->  	if (parent && parent->use_hierarchy) {
->  		res_counter_init(&memcg->res, &parent->res);
->  		res_counter_init(&memcg->memsw, &parent->memsw);
-> +		res_counter_init(&memcg->kmem, &parent->kmem);
->  		/*
->  		 * We increment refcnt of the parent to ensure that we can
->  		 * safely access it on res_counter_charge/uncharge.
-> @@ -5043,6 +5109,7 @@ mem_cgroup_create(struct cgroup *cont)
->  	} else {
->  		res_counter_init(&memcg->res, NULL);
->  		res_counter_init(&memcg->memsw, NULL);
-> +		res_counter_init(&memcg->kmem, NULL);
->  	}
->  	memcg->last_scanned_node = MAX_NUMNODES;
->  	INIT_LIST_HEAD(&memcg->oom_notify);
-> -- 
-> 1.7.11.2
-> 
-> --
-> To unsubscribe from this list: send the line "unsubscribe cgroups" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+ block/blk.h                                        |    2 +-
+ block/elevator.c                                   |   23 +--
+ drivers/md/dm-snap.c                               |   24 +--
+ drivers/md/persistent-data/dm-block-manager.c      |    1 -
+ .../persistent-data/dm-persistent-data-internal.h  |   19 --
+ .../md/persistent-data/dm-transaction-manager.c    |   30 +--
+ fs/dlm/lowcomms.c                                  |   47 +---
+ fs/lockd/svcsubs.c                                 |   58 ++--
+ include/linux/elevator.h                           |    5 +-
+ include/linux/hashtable.h                          |  284 ++++++++++++++++++++
+ kernel/trace/trace_output.c                        |   20 +-
+ kernel/tracepoint.c                                |   27 +--
+ kernel/user.c                                      |   33 +--
+ kernel/workqueue.c                                 |   86 +-----
+ mm/huge_memory.c                                   |   57 +---
+ mm/ksm.c                                           |   33 +--
+ net/9p/error.c                                     |   21 +-
+ net/l2tp/l2tp_core.c                               |  132 ++++------
+ net/l2tp/l2tp_core.h                               |    8 +-
+ net/l2tp/l2tp_debugfs.c                            |   19 +-
+ net/openvswitch/vport.c                            |   30 +--
+ net/rds/bind.c                                     |   20 +-
+ net/rds/connection.c                               |  102 +++----
+ net/sunrpc/cache.c                                 |   20 +-
+ 24 files changed, 573 insertions(+), 528 deletions(-)
+ delete mode 100644 drivers/md/persistent-data/dm-persistent-data-internal.h
+ create mode 100644 include/linux/hashtable.h
 
 -- 
-Michal Hocko
-SUSE Labs
+1.7.8.6
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
