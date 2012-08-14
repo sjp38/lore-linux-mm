@@ -1,62 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx162.postini.com [74.125.245.162])
-	by kanga.kvack.org (Postfix) with SMTP id BBF706B0068
-	for <linux-mm@kvack.org>; Tue, 14 Aug 2012 02:20:47 -0400 (EDT)
-Date: Tue, 14 Aug 2012 15:22:47 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH 0/7] zram/zsmalloc promotion
-Message-ID: <20120814062246.GB31621@bbox>
-References: <1344406340-14128-1-git-send-email-minchan@kernel.org>
- <20120814023530.GA9787@kroah.com>
+Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
+	by kanga.kvack.org (Postfix) with SMTP id B167E6B005A
+	for <linux-mm@kvack.org>; Tue, 14 Aug 2012 04:32:31 -0400 (EDT)
+Date: Tue, 14 Aug 2012 11:33:20 +0300
+From: "Michael S. Tsirkin" <mst@redhat.com>
+Subject: Re: [PATCH v7 2/4] virtio_balloon: introduce migration primitives to
+ balloon pages
+Message-ID: <20120814083320.GA3597@redhat.com>
+References: <cover.1344619987.git.aquini@redhat.com>
+ <f19b63dfa026fe2f8f11ec017771161775744781.1344619987.git.aquini@redhat.com>
+ <20120813084123.GF14081@redhat.com>
+ <87lihis5qi.fsf@rustcorp.com.au>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20120814023530.GA9787@kroah.com>
+In-Reply-To: <87lihis5qi.fsf@rustcorp.com.au>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Nitin Gupta <ngupta@vflare.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Konrad Rzeszutek Wilk <konrad@darnok.org>
+To: Rusty Russell <rusty@rustcorp.com.au>
+Cc: Rafael Aquini <aquini@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Minchan Kim <minchan@kernel.org>
 
-Hi Greg,
-
-On Mon, Aug 13, 2012 at 07:35:30PM -0700, Greg Kroah-Hartman wrote:
-> On Wed, Aug 08, 2012 at 03:12:13PM +0900, Minchan Kim wrote:
-> > This patchset promotes zram/zsmalloc from staging.
-> > Both are very clean and zram is used by many embedded product
-> > for a long time.
+On Tue, Aug 14, 2012 at 09:29:49AM +0930, Rusty Russell wrote:
+> On Mon, 13 Aug 2012 11:41:23 +0300, "Michael S. Tsirkin" <mst@redhat.com> wrote:
+> > On Fri, Aug 10, 2012 at 02:55:15PM -0300, Rafael Aquini wrote:
+> > > +/*
+> > > + * Populate balloon_mapping->a_ops->freepage method to help compaction on
+> > > + * re-inserting an isolated page into the balloon page list.
+> > > + */
+> > > +void virtballoon_putbackpage(struct page *page)
+> > > +{
+> > > +	spin_lock(&pages_lock);
+> > > +	list_add(&page->lru, &vb_ptr->pages);
+> > > +	spin_unlock(&pages_lock);
 > > 
-> > [1-3] are patches not merged into linux-next yet but needed
-> > it as base for [4-5] which promotes zsmalloc.
-> > Greg, if you merged [1-3] already, skip them.
+> > Could the following race trigger:
+> > migration happens while module unloading is in progress,
+> > module goes away between here and when the function
+> > returns, then code for this function gets overwritten?
+> > If yes we need locking external to module to prevent this.
+> > Maybe add a spinlock to struct address_space?
 > 
-> I've applied 1-3 and now 4, but that's it, I can't apply the rest
-
-Thanks!
-
-> without getting acks from the -mm maintainers, sorry.  Please work with
-
-Nitin suggested zsmalloc could be in /lib or /zram out of /mm but I want
-to confirm it from akpm so let's wait his opinion.
-
-Anyway, another question. zram would be under driver/blocks.
-Do I need ACK from Jens for that?
-
-> them to get those acks, and then I will be glad to apply the rest (after
-> you resend them of course...)
+> The balloon module cannot be unloaded until it has leaked all its pages,
+> so I think this is safe:
 > 
-> thanks,
+>         static void remove_common(struct virtio_balloon *vb)
+>         {
+>         	/* There might be pages left in the balloon: free them. */
+>         	while (vb->num_pages)
+>         		leak_balloon(vb, vb->num_pages);
 > 
-> greg k-h
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> Cheers,
+> Rusty.
+
+I know I meant something else.
+Let me lay this out:
+
+CPU1 executes:
+void virtballoon_putbackpage(struct page *page)
+{
+	spin_lock(&pages_lock);
+	list_add(&page->lru, &vb_ptr->pages);
+	spin_unlock(&pages_lock);
+
+
+		at this point CPU2 unloads module:
+						leak_balloon
+						......
+
+		next CPU2 loads another module so code memory gets overwritten
+
+now CPU1 executes the next instruction:
+
+}
+
+which would normally return to function's caller,
+but it has been overwritten by CPU2 so we get corruption.
+
+No?
 
 -- 
-Kind regards,
-Minchan Kim
+MST
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
