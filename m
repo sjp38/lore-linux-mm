@@ -1,95 +1,194 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
-	by kanga.kvack.org (Postfix) with SMTP id 566786B0068
-	for <linux-mm@kvack.org>; Tue, 14 Aug 2012 06:18:17 -0400 (EDT)
-Date: Tue, 14 Aug 2012 11:18:07 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH] netvm: check for page == NULL when propogating the
- skb->pfmemalloc flag
-Message-ID: <20120814101807.GM4177@suse.de>
-References: <20120807085554.GF29814@suse.de>
- <20120808.155046.820543563969484712.davem@davemloft.net>
- <20120813102604.GC4177@suse.de>
- <20120813104745.GE4177@suse.de>
- <50294DF0.8040206@goop.org>
+Received: from psmtp.com (na3sys010amx135.postini.com [74.125.245.135])
+	by kanga.kvack.org (Postfix) with SMTP id AE2446B0044
+	for <linux-mm@kvack.org>; Tue, 14 Aug 2012 06:53:53 -0400 (EDT)
+Date: Tue, 14 Aug 2012 12:53:50 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: mmotm 2012-08-13-16-55 uploaded
+Message-ID: <20120814105349.GA6905@dhcp22.suse.cz>
+References: <20120813235651.00A13100047@wpzn3.hot.corp.google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <50294DF0.8040206@goop.org>
+In-Reply-To: <20120813235651.00A13100047@wpzn3.hot.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jeremy Fitzhardinge <jeremy@goop.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org, xen-devel@lists.xensource.com, konrad@darnok.org, Ian.Campbell@eu.citrix.com, David Miller <davem@davemloft.net>, akpm@linux-foundation.org
+To: akpm@linux-foundation.org
+Cc: mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org
 
-On Mon, Aug 13, 2012 at 11:56:48AM -0700, Jeremy Fitzhardinge wrote:
-> On 08/13/2012 03:47 AM, Mel Gorman wrote:
-> > Resending to correct Jeremy's address.
-> >
-> > On Wed, Aug 08, 2012 at 03:50:46PM -0700, David Miller wrote:
-> >> From: Mel Gorman <mgorman@suse.de>
-> >> Date: Tue, 7 Aug 2012 09:55:55 +0100
-> >>
-> >>> Commit [c48a11c7: netvm: propagate page->pfmemalloc to skb] is responsible
-> >>> for the following bug triggered by a xen network driver
-> >>  ...
-> >>> The problem is that the xenfront driver is passing a NULL page to
-> >>> __skb_fill_page_desc() which was unexpected. This patch checks that
-> >>> there is a page before dereferencing.
-> >>>
-> >>> Reported-and-Tested-by: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-> >>> Signed-off-by: Mel Gorman <mgorman@suse.de>
-> >> That call to __skb_fill_page_desc() in xen-netfront.c looks completely bogus.
-> >> It's the only driver passing NULL here.
-> >>
-> >> That whole song and dance figuring out what to do with the head
-> >> fragment page, depending upon whether the length is greater than the
-> >> RX_COPY_THRESHOLD, is completely unnecessary.
-> >>
-> >> Just use something like a call to __pskb_pull_tail(skb, len) and all
-> >> that other crap around that area can simply be deleted.
-> > I looked at this for a while but I did not see how __pskb_pull_tail()
-> > could be used sensibly but I'm simily not familiar with writing network
-> > device drivers or Xen.
-> >
-> > This messing with RX_COPY_THRESHOLD seems to be related to how the frontend
-> > and backend communicate (maybe some fixed limitation of the xenbus). The
-> > existing code looks like it is trying to take the fragments received and
-> > pass them straight to the backend without copying by passing the fragments
-> > to the backend without copying. I worry that if I try converting this to
-> > __pskb_pull_tail() that it would either hit the limitation of xenbus or
-> > introduce copying where it is not wanted.
-> >
-> > I'm going to have to punt this to Jeremy and the other Xen folk as I'm not
-> > sure what the original intention was and I don't have a Xen setup anywhere
-> > to test any patch. Jeremy, xen folk? 
+On Mon 13-08-12 16:56:50, Andrew Morton wrote:
+> The mm-of-the-moment snapshot 2012-08-13-16-55 has been uploaded to
 > 
-> It's been a while since I've looked at that stuff, but as I remember,
-> the issue is that since the packet ring memory is shared with another
-> domain which may be untrustworthy, we want to make copies of the headers
-> before making any decisions based on them so that the other domain can't
-> change them after header processing but before they're actually sent. 
-> (The packet payload is considered less important, but of course the same
-> issue applies if you're using some kind of content-aware packet filter.)
-> 
-> So that's the rationale for always copying RX_COPY_THRESHOLD, even if
-> the packet is larger than that amount.  As far as I know, changing this
-> behaviour wouldn't break the ring protocol, but it does introduce a
-> potential security issue.
-> 
+>    http://www.ozlabs.org/~akpm/mmotm/
 
-David,
+-mm git tree has been updated as well. You can find the tree at
+https://github.com/mstsxfx/memcg-devel.git since-3.5
 
-This leaves us somewhat in a pickle. If I'm reading this right (which I may
-not be) it means that using __pskb_pull_tail() will work in the ideal case
-but potentially introduces a subtle issue in the future. This bug could be
-"fixed" in the driver by partially reverting [01c68026: xen: netfront:
-convert to SKB paged frag API.]. That could be viewed as sweeping the
-problem under the carpet but it does contain the problem to the xen-netfront
-driver. A new helper could be created like __skb_clear_page_desc but that
-is overkill for one driver and feels as ugly.
+tagged as mmotm-2012-08-13-16-55
+
+> 
+> mmotm-readme.txt says
+> 
+> README for mm-of-the-moment:
+> 
+> http://www.ozlabs.org/~akpm/mmotm/
+> 
+> This is a snapshot of my -mm patch queue.  Uploaded at random hopefully
+> more than once a week.
+> 
+> You will need quilt to apply these patches to the latest Linus release (3.x
+> or 3.x-rcY).  The series file is in broken-out.tar.gz and is duplicated in
+> http://ozlabs.org/~akpm/mmotm/series
+> 
+> The file broken-out.tar.gz contains two datestamp files: .DATE and
+> .DATE-yyyy-mm-dd-hh-mm-ss.  Both contain the string yyyy-mm-dd-hh-mm-ss,
+> followed by the base kernel version against which this patch series is to
+> be applied.
+> 
+> This tree is partially included in linux-next.  To see which patches are
+> included in linux-next, consult the `series' file.  Only the patches
+> within the #NEXT_PATCHES_START/#NEXT_PATCHES_END markers are included in
+> linux-next.
+> 
+> A git tree which contains the memory management portion of this tree is
+> maintained at https://github.com/mstsxfx/memcg-devel.git by Michal Hocko. 
+> It contains the patches which are between the "#NEXT_PATCHES_START mm" and
+> "#NEXT_PATCHES_END" markers, from the series file,
+> http://www.ozlabs.org/~akpm/mmotm/series.
+> 
+> 
+> A full copy of the full kernel tree with the linux-next and mmotm patches
+> already applied is available through git within an hour of the mmotm
+> release.  Individual mmotm releases are tagged.  The master branch always
+> points to the latest release, so it's constantly rebasing.
+> 
+> http://git.cmpxchg.org/?p=linux-mmotm.git;a=summary
+> 
+> To develop on top of mmotm git:
+> 
+>   $ git remote add mmotm git://git.cmpxchg.org/linux-mmotm.git
+>   $ git remote update mmotm
+>   $ git checkout -b topic mmotm/master
+>   <make changes, commit>
+>   $ git send-email mmotm/master.. [...]
+> 
+> To rebase a branch with older patches to a new mmotm release:
+> 
+>   $ git remote update mmotm
+>   $ git rebase --onto mmotm/master <topic base> topic
+> 
+> 
+> 
+> 
+> The directory http://www.ozlabs.org/~akpm/mmots/ (mm-of-the-second)
+> contains daily snapshots of the -mm tree.  It is updated more frequently
+> than mmotm, and is untested.
+> 
+> A git copy of this tree is available at
+> 
+> 	http://git.cmpxchg.org/?p=linux-mmots.git;a=summary
+> 
+> and use of this tree is similar to
+> http://git.cmpxchg.org/?p=linux-mmotm.git, described above.
+> 
+> 
+> This mmotm tree contains the following patches against 3.6-rc1:
+> (patches marked "*" will be included in linux-next)
+> 
+>   origin.patch
+>   linux-next.patch
+>   i-need-old-gcc.patch
+>   arch-alpha-kernel-systblss-remove-debug-check.patch
+> * cs5535-clockevt-typo-its-mfgpt-not-mfpgt.patch
+> * mm-change-nr_ptes-bug_on-to-warn_on.patch
+> * documentation-update-mount-option-in-filesystem-vfattxt.patch
+> * cciss-fix-incorrect-scsi-status-reporting.patch
+> * acpi_memhotplugc-fix-memory-leak-when-memory-device-is-unbound-from-the-module-acpi_memhotplug.patch
+> * acpi_memhotplugc-free-memory-device-if-acpi_memory_enable_device-failed.patch
+> * acpi_memhotplugc-remove-memory-info-from-list-before-freeing-it.patch
+> * acpi_memhotplugc-dont-allow-to-eject-the-memory-device-if-it-is-being-used.patch
+> * acpi_memhotplugc-bind-the-memory-device-when-the-driver-is-being-loaded.patch
+> * acpi_memhotplugc-auto-bind-the-memory-device-which-is-hotplugged-before-the-driver-is-loaded.patch
+> * arch-x86-platform-iris-irisc-register-a-platform-device-and-a-platform-driver.patch
+> * arch-x86-include-asm-spinlockh-fix-comment.patch
+> * mn10300-only-add-mmem-funcs-to-kbuild_cflags-if-gcc-supports-it.patch
+> * dma-dmaengine-lower-the-priority-of-failed-to-get-dma-channel-message.patch
+> * pcmcia-move-unbind-rebind-into-dev_pm_opscomplete.patch
+> * ppc-e500_tlb-memset-clears-nothing.patch
+>   cyber2000fb-avoid-palette-corruption-at-higher-clocks.patch
+> * timeconstpl-remove-deprecated-defined-array.patch
+> * time-dont-inline-export_symbol-functions.patch
+> * thermal-add-generic-cpufreq-cooling-implementation.patch
+> * hwmon-exynos4-move-thermal-sensor-driver-to-driver-thermal-directory.patch
+> * thermal-exynos5-add-exynos5-thermal-sensor-driver-support.patch
+> * thermal-exynos-register-the-tmu-sensor-with-the-kernel-thermal-layer.patch
+> * arm-exynos-add-thermal-sensor-driver-platform-data-support.patch
+> * ocfs2-use-find_last_bit.patch
+> * ocfs2-use-bitmap_weight.patch
+> * drivers-scsi-atp870uc-fix-bad-use-of-udelay.patch
+> * vfs-increment-iversion-when-a-file-is-truncated.patch
+> * fs-push-rcu_barrier-from-deactivate_locked_super-to-filesystems.patch
+> * mm-slab-remove-duplicate-check.patch
+> * slab-do-not-call-compound_head-in-page_get_cache.patch
+> * mm-slab_commonc-fix-warning.patch
+>   mm.patch
+> * mm-remove-__gfp_no_kswapd.patch
+> * remove-__gfp_no_kswapd-fixes.patch
+> * remove-__gfp_no_kswapd-fixes-fix.patch
+> * x86-pat-remove-the-dependency-on-vm_pgoff-in-track-untrack-pfn-vma-routines.patch
+> * x86-pat-separate-the-pfn-attribute-tracking-for-remap_pfn_range-and-vm_insert_pfn.patch
+> * x86-pat-separate-the-pfn-attribute-tracking-for-remap_pfn_range-and-vm_insert_pfn-fix.patch
+> * mm-x86-pat-rework-linear-pfn-mmap-tracking.patch
+> * mm-introduce-arch-specific-vma-flag-vm_arch_1.patch
+> * mm-kill-vma-flag-vm_insertpage.patch
+> * mm-kill-vma-flag-vm_can_nonlinear.patch
+> * mm-use-mm-exe_file-instead-of-first-vm_executable-vma-vm_file.patch
+> * mm-kill-vma-flag-vm_executable-and-mm-num_exe_file_vmas.patch
+> * mm-prepare-vm_dontdump-for-using-in-drivers.patch
+> * mm-kill-vma-flag-vm_reserved-and-mm-reserved_vm-counter.patch
+> * mm-kill-vma-flag-vm_reserved-and-mm-reserved_vm-counter-fix.patch
+> * frv-kill-used-but-uninitialized-variable.patch
+> * ipc-mqueue-remove-unnecessary-rb_init_node-calls.patch
+> * rbtree-reference-documentation-rbtreetxt-for-usage-instructions.patch
+> * rbtree-empty-nodes-have-no-color.patch
+> * rbtree-empty-nodes-have-no-color-fix.patch
+> * rbtree-fix-incorrect-rbtree-node-insertion-in-fs-proc-proc_sysctlc.patch
+> * rbtree-move-some-implementation-details-from-rbtreeh-to-rbtreec.patch
+> * rbtree-move-some-implementation-details-from-rbtreeh-to-rbtreec-fix.patch
+> * rbtree-performance-and-correctness-test.patch
+> * rbtree-performance-and-correctness-test-fix.patch
+> * rbtree-break-out-of-rb_insert_color-loop-after-tree-rotation.patch
+> * rbtree-adjust-root-color-in-rb_insert_color-only-when-necessary.patch
+> * rbtree-low-level-optimizations-in-rb_insert_color.patch
+> * rbtree-adjust-node-color-in-__rb_erase_color-only-when-necessary.patch
+> * rbtree-optimize-case-selection-logic-in-__rb_erase_color.patch
+> * rbtree-low-level-optimizations-in-__rb_erase_color.patch
+> * rbtree-coding-style-adjustments.patch
+> * rbtree-rb_erase-updates-and-comments.patch
+> * rbtree-optimize-fetching-of-sibling-node.patch
+> * drivers-firmware-dmi_scanc-check-dmi-version-when-get-system-uuid.patch
+> * drivers-firmware-dmi_scanc-check-dmi-version-when-get-system-uuid-fix.patch
+> * drivers-firmware-dmi_scanc-fetch-dmi-version-from-smbios-if-it-exists.patch
+> * drivers-firmware-dmi_scanc-fetch-dmi-version-from-smbios-if-it-exists-checkpatch-fixes.patch
+> * fat-exportfs-move-nfs-support-code.patch
+> * fat-exportfs-fix-dentry-reconnection.patch
+> * ipc-semc-alternatives-to-preempt_disable.patch
+>   make-sure-nobodys-leaking-resources.patch
+>   journal_add_journal_head-debug.patch
+>   releasing-resources-with-children.patch
+>   make-frame_pointer-default=y.patch
+>   mutex-subsystem-synchro-test-module.patch
+>   mutex-subsystem-synchro-test-module-fix.patch
+>   slab-leaks3-default-y.patch
+>   put_bh-debug.patch
+>   add-debugging-aid-for-memory-initialisation-problems.patch
+>   workaround-for-a-pci-restoring-bug.patch
+>   prio_tree-debugging-patch.patch
+>   single_open-seq_release-leak-diagnostics.patch
+>   add-a-refcount-check-in-dput.patch
 
 -- 
-Mel Gorman
+Michal Hocko
 SUSE Labs
 
 --
