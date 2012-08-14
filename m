@@ -1,50 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx177.postini.com [74.125.245.177])
-	by kanga.kvack.org (Postfix) with SMTP id 60A176B005A
-	for <linux-mm@kvack.org>; Tue, 14 Aug 2012 06:05:31 -0400 (EDT)
-Date: Tue, 14 Aug 2012 11:05:22 +0100
+Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
+	by kanga.kvack.org (Postfix) with SMTP id 566786B0068
+	for <linux-mm@kvack.org>; Tue, 14 Aug 2012 06:18:17 -0400 (EDT)
+Date: Tue, 14 Aug 2012 11:18:07 +0100
 From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [Xen-devel] [PATCH] netvm: check for page == NULL when
- propogating the skb->pfmemalloc flag
-Message-ID: <20120814100522.GL4177@suse.de>
+Subject: Re: [PATCH] netvm: check for page == NULL when propogating the
+ skb->pfmemalloc flag
+Message-ID: <20120814101807.GM4177@suse.de>
 References: <20120807085554.GF29814@suse.de>
  <20120808.155046.820543563969484712.davem@davemloft.net>
- <20120813154144.GA24868@phenom.dumpdata.com>
+ <20120813102604.GC4177@suse.de>
+ <20120813104745.GE4177@suse.de>
+ <50294DF0.8040206@goop.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20120813154144.GA24868@phenom.dumpdata.com>
+In-Reply-To: <50294DF0.8040206@goop.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-Cc: David Miller <davem@davemloft.net>, Ian Campbell <Ian.Campbell@eu.citrix.com>, xen-devel@lists.xensource.com, netdev@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, konrad@darnok.org, akpm@linux-foundation.org
+To: Jeremy Fitzhardinge <jeremy@goop.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org, xen-devel@lists.xensource.com, konrad@darnok.org, Ian.Campbell@eu.citrix.com, David Miller <davem@davemloft.net>, akpm@linux-foundation.org
 
-On Mon, Aug 13, 2012 at 11:41:44AM -0400, Konrad Rzeszutek Wilk wrote:
-> On Wed, Aug 08, 2012 at 03:50:46PM -0700, David Miller wrote:
-> > From: Mel Gorman <mgorman@suse.de>
-> > Date: Tue, 7 Aug 2012 09:55:55 +0100
-> > 
-> > > Commit [c48a11c7: netvm: propagate page->pfmemalloc to skb] is responsible
-> > > for the following bug triggered by a xen network driver
-> >  ...
-> > > The problem is that the xenfront driver is passing a NULL page to
-> > > __skb_fill_page_desc() which was unexpected. This patch checks that
-> > > there is a page before dereferencing.
-> > > 
-> > > Reported-and-Tested-by: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-> > > Signed-off-by: Mel Gorman <mgorman@suse.de>
-> > 
-> > That call to __skb_fill_page_desc() in xen-netfront.c looks completely bogus.
-> > It's the only driver passing NULL here.
+On Mon, Aug 13, 2012 at 11:56:48AM -0700, Jeremy Fitzhardinge wrote:
+> On 08/13/2012 03:47 AM, Mel Gorman wrote:
+> > Resending to correct Jeremy's address.
+> >
+> > On Wed, Aug 08, 2012 at 03:50:46PM -0700, David Miller wrote:
+> >> From: Mel Gorman <mgorman@suse.de>
+> >> Date: Tue, 7 Aug 2012 09:55:55 +0100
+> >>
+> >>> Commit [c48a11c7: netvm: propagate page->pfmemalloc to skb] is responsible
+> >>> for the following bug triggered by a xen network driver
+> >>  ...
+> >>> The problem is that the xenfront driver is passing a NULL page to
+> >>> __skb_fill_page_desc() which was unexpected. This patch checks that
+> >>> there is a page before dereferencing.
+> >>>
+> >>> Reported-and-Tested-by: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+> >>> Signed-off-by: Mel Gorman <mgorman@suse.de>
+> >> That call to __skb_fill_page_desc() in xen-netfront.c looks completely bogus.
+> >> It's the only driver passing NULL here.
+> >>
+> >> That whole song and dance figuring out what to do with the head
+> >> fragment page, depending upon whether the length is greater than the
+> >> RX_COPY_THRESHOLD, is completely unnecessary.
+> >>
+> >> Just use something like a call to __pskb_pull_tail(skb, len) and all
+> >> that other crap around that area can simply be deleted.
+> > I looked at this for a while but I did not see how __pskb_pull_tail()
+> > could be used sensibly but I'm simily not familiar with writing network
+> > device drivers or Xen.
+> >
+> > This messing with RX_COPY_THRESHOLD seems to be related to how the frontend
+> > and backend communicate (maybe some fixed limitation of the xenbus). The
+> > existing code looks like it is trying to take the fragments received and
+> > pass them straight to the backend without copying by passing the fragments
+> > to the backend without copying. I worry that if I try converting this to
+> > __pskb_pull_tail() that it would either hit the limitation of xenbus or
+> > introduce copying where it is not wanted.
+> >
+> > I'm going to have to punt this to Jeremy and the other Xen folk as I'm not
+> > sure what the original intention was and I don't have a Xen setup anywhere
+> > to test any patch. Jeremy, xen folk? 
 > 
-> It looks to be passing a valid page pointer (at least by looking
-> at the code) so I am not sure how it got turned in a NULL.
+> It's been a while since I've looked at that stuff, but as I remember,
+> the issue is that since the packet ring memory is shared with another
+> domain which may be untrustworthy, we want to make copies of the headers
+> before making any decisions based on them so that the other domain can't
+> change them after header processing but before they're actually sent. 
+> (The packet payload is considered less important, but of course the same
+> issue applies if you're using some kind of content-aware packet filter.)
+> 
+> So that's the rationale for always copying RX_COPY_THRESHOLD, even if
+> the packet is larger than that amount.  As far as I know, changing this
+> behaviour wouldn't break the ring protocol, but it does introduce a
+> potential security issue.
 > 
 
-Are we looking at different code bases? I see this and I was assuming it
-was the source of the bug.
+David,
 
-	__skb_fill_page_desc(skb, 0, NULL, 0, 0);
+This leaves us somewhat in a pickle. If I'm reading this right (which I may
+not be) it means that using __pskb_pull_tail() will work in the ideal case
+but potentially introduces a subtle issue in the future. This bug could be
+"fixed" in the driver by partially reverting [01c68026: xen: netfront:
+convert to SKB paged frag API.]. That could be viewed as sweeping the
+problem under the carpet but it does contain the problem to the xen-netfront
+driver. A new helper could be created like __skb_clear_page_desc but that
+is overkill for one driver and feels as ugly.
 
 -- 
 Mel Gorman
