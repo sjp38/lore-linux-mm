@@ -1,26 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
-	by kanga.kvack.org (Postfix) with SMTP id 5F5676B0068
-	for <linux-mm@kvack.org>; Tue, 14 Aug 2012 10:23:54 -0400 (EDT)
-Date: Tue, 14 Aug 2012 14:23:53 +0000
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH] mm: Use __do_krealloc to do the krealloc job
-In-Reply-To: <1344948921-17633-1-git-send-email-elezegarcia@gmail.com>
-Message-ID: <000001392584f1a0-401c6058-361e-4d4f-ab94-70c7770b5763-000000@email.amazonses.com>
-References: <1344948921-17633-1-git-send-email-elezegarcia@gmail.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
+	by kanga.kvack.org (Postfix) with SMTP id DAB486B006C
+	for <linux-mm@kvack.org>; Tue, 14 Aug 2012 10:39:04 -0400 (EDT)
+Received: by yenl1 with SMTP id l1so666739yen.14
+        for <linux-mm@kvack.org>; Tue, 14 Aug 2012 07:39:04 -0700 (PDT)
+From: Ezequiel Garcia <elezegarcia@gmail.com>
+Subject: [PATCH 1/2] mm, slob: Prevent false positive trace upon allocation failure
+Date: Tue, 14 Aug 2012 11:38:49 -0300
+Message-Id: <1344955130-29478-1-git-send-email-elezegarcia@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ezequiel Garcia <elezegarcia@gmail.com>
-Cc: linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, Glauber Costa <glommer@parallels.com>
+To: linux-mm@kvack.org
+Cc: Ezequiel Garcia <elezegarcia@gmail.com>, Pekka Enberg <penberg@kernel.org>, Christoph Lameter <cl@linux.com>, Glauber Costa <glommer@parallels.com>
 
-On Tue, 14 Aug 2012, Ezequiel Garcia wrote:
+This patch changes the __kmalloc_node() logic to return NULL
+if alloc_pages() fails to return valid pages.
+This is done to avoid to trace a false positive kmalloc event.
 
-> Without this patch we can get (many) kmem trace events
-> with call site at krealloc().
+Cc: Pekka Enberg <penberg@kernel.org>
+Cc: Christoph Lameter <cl@linux.com>
+Cc: Glauber Costa <glommer@parallels.com>
+Signed-off-by: Ezequiel Garcia <elezegarcia@gmail.com>
+---
+ mm/slob.c |   11 ++++++-----
+ 1 files changed, 6 insertions(+), 5 deletions(-)
 
-Acked-by: Christoph Lameter <cl@linux.com>
+diff --git a/mm/slob.c b/mm/slob.c
+index 45d4ca7..686e98b 100644
+--- a/mm/slob.c
++++ b/mm/slob.c
+@@ -450,15 +450,16 @@ void *__kmalloc_node(size_t size, gfp_t gfp, int node)
+ 				   size, size + align, gfp, node);
+ 	} else {
+ 		unsigned int order = get_order(size);
++		struct page *page;
+ 
+ 		if (likely(order))
+ 			gfp |= __GFP_COMP;
+ 		ret = slob_new_pages(gfp, order, node);
+-		if (ret) {
+-			struct page *page;
+-			page = virt_to_page(ret);
+-			page->private = size;
+-		}
++		if (!ret)
++			return NULL;
++
++		page = virt_to_page(ret);
++		page->private = size;
+ 
+ 		trace_kmalloc_node(_RET_IP_, ret,
+ 				   size, PAGE_SIZE << order, gfp, node);
+-- 
+1.7.8.6
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
