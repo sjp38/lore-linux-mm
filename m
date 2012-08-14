@@ -1,49 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx190.postini.com [74.125.245.190])
-	by kanga.kvack.org (Postfix) with SMTP id 543CB6B0068
-	for <linux-mm@kvack.org>; Tue, 14 Aug 2012 07:02:15 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
+	by kanga.kvack.org (Postfix) with SMTP id 6CFB76B0044
+	for <linux-mm@kvack.org>; Tue, 14 Aug 2012 07:04:03 -0400 (EDT)
+Message-ID: <502A2FE5.4060809@parallels.com>
+Date: Tue, 14 Aug 2012 15:00:53 +0400
 From: Glauber Costa <glommer@parallels.com>
-Subject: [PATCH 0/2] Avoiding expensive reference counting in charge page path
-Date: Tue, 14 Aug 2012 14:58:31 +0400
-Message-Id: <1344941913-15075-1-git-send-email-glommer@parallels.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH v2 06/11] memcg: kmem controller infrastructure
+References: <1344517279-30646-1-git-send-email-glommer@parallels.com> <1344517279-30646-7-git-send-email-glommer@parallels.com> <50254475.4000201@jp.fujitsu.com>
+In-Reply-To: <50254475.4000201@jp.fujitsu.com>
+Content-Type: text/plain; charset="ISO-2022-JP"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Greg Thelen <gthelen@google.com>, Frederic Weisbecker <fweisbec@gmail.com>
+To: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, devel@openvz.org, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, Pekka Enberg <penberg@cs.helsinki.fi>
 
-Hi,
+On 08/10/2012 09:27 PM, Kamezawa Hiroyuki wrote:
+>> +bool __memcg_kmem_new_page(gfp_t gfp, void *_handle, int order)
+>> > +{
+>> > +	struct mem_cgroup *memcg;
+>> > +	struct mem_cgroup **handle = (struct mem_cgroup **)_handle;
+>> > +	bool ret = true;
+>> > +	size_t size;
+>> > +	struct task_struct *p;
+>> > +
+>> > +	*handle = NULL;
+>> > +	rcu_read_lock();
+>> > +	p = rcu_dereference(current->mm->owner);
+>> > +	memcg = mem_cgroup_from_task(p);
+>> > +	if (!memcg_kmem_enabled(memcg))
+>> > +		goto out;
+>> > +
+>> > +	mem_cgroup_get(memcg);
+>> > +
+> This mem_cgroup_get() will be a potentioal performance problem.
+> Don't you have good idea to avoid accessing atomic counter here ?
+> I think some kind of percpu counter or a feature to disable "move task"
+> will be a help.
+> 
+> 
 
-In my last submission for the kmem controller for memcg, Kame noted that the
-way we use to guarantee that the memcg will still be around while there are
-charges is quite expensive: we issue mem_cgroup_get() in every charge, that is
-countered by mem_cgroup_put() in every uncharge.
+I have just sent out a proposal to deal with this. I tried the trick of
+marking only the first charge and last uncharge, and it works quite
+alright at the cost of a bit test on most calls to memcg_kmem_charge.
 
-I am trying an alternate way through the two patches that follow. The idea is to
-only call mem_cgroup_get() when the first charge happens. We'll use a bit in the
-kmem_accounted bitmap for that: we have plenty.
-
-We allow the allocations to continue paying only the cost of a likely branch
-over a simple test after that. We also note through another bit the destruction
-of that group. When charges get down to 0 after destruction, we then proceed
-to release the reference.
-
-I am sending those two patches separately so they get reviewed on their own.
-If nobody opposes, I'll add them ontop of the current kmem patches.
-
-Thanks.
-
-Glauber Costa (2):
-  return amount of charges after res_counter_uncharge
-  Avoid doing a get/put pair in every kmemcg charge
-
- Documentation/cgroups/resource_counter.txt |  7 ++--
- include/linux/res_counter.h                | 12 ++++---
- kernel/res_counter.c                       | 20 +++++++----
- mm/memcontrol.c                            | 57 ++++++++++++++++++++++++++----
- 4 files changed, 74 insertions(+), 22 deletions(-)
-
--- 
-1.7.11.2
+Please let me know what you think.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
