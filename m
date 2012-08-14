@@ -1,417 +1,196 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
-	by kanga.kvack.org (Postfix) with SMTP id 20E076B0092
-	for <linux-mm@kvack.org>; Tue, 14 Aug 2012 12:41:40 -0400 (EDT)
-From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 5/5] mm: compaction: Abort async compaction if locks are contended or taking too long
-Date: Tue, 14 Aug 2012 17:41:32 +0100
-Message-Id: <1344962492-1914-6-git-send-email-mgorman@suse.de>
-In-Reply-To: <1344962492-1914-1-git-send-email-mgorman@suse.de>
-References: <1344962492-1914-1-git-send-email-mgorman@suse.de>
+Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
+	by kanga.kvack.org (Postfix) with SMTP id A33906B005D
+	for <linux-mm@kvack.org>; Tue, 14 Aug 2012 13:25:45 -0400 (EDT)
+Date: Tue, 14 Aug 2012 19:25:40 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH v2 06/11] memcg: kmem controller infrastructure
+Message-ID: <20120814172540.GD6905@dhcp22.suse.cz>
+References: <1344517279-30646-1-git-send-email-glommer@parallels.com>
+ <1344517279-30646-7-git-send-email-glommer@parallels.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1344517279-30646-7-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Rik van Riel <riel@redhat.com>, Minchan Kim <minchan@kernel.org>, Jim Schutt <jaschut@sandia.gov>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
+To: Glauber Costa <glommer@parallels.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, devel@openvz.org, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, kamezawa.hiroyu@jp.fujitsu.com, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, Pekka Enberg <penberg@cs.helsinki.fi>
 
-Jim Schutt reported a problem that pointed at compaction contending
-heavily on locks. The workload is straight-forward and in his own words;
+On Thu 09-08-12 17:01:14, Glauber Costa wrote:
+> This patch introduces infrastructure for tracking kernel memory pages to
+> a given memcg. This will happen whenever the caller includes the flag
+> __GFP_KMEMCG flag, and the task belong to a memcg other than the root.
+> 
+> In memcontrol.h those functions are wrapped in inline accessors.  The
+> idea is to later on, patch those with static branches, so we don't incur
+> any overhead when no mem cgroups with limited kmem are being used.
+> 
+> [ v2: improved comments and standardized function names ]
+> 
+> Signed-off-by: Glauber Costa <glommer@parallels.com>
+> CC: Christoph Lameter <cl@linux.com>
+> CC: Pekka Enberg <penberg@cs.helsinki.fi>
+> CC: Michal Hocko <mhocko@suse.cz>
+> CC: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> CC: Johannes Weiner <hannes@cmpxchg.org>
+> ---
+>  include/linux/memcontrol.h |  79 +++++++++++++++++++
+>  mm/memcontrol.c            | 185 +++++++++++++++++++++++++++++++++++++++++++++
+>  2 files changed, 264 insertions(+)
+> 
+> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+> index 8d9489f..75b247e 100644
+> --- a/include/linux/memcontrol.h
+> +++ b/include/linux/memcontrol.h
+[...]
+> +/**
+> + * memcg_kmem_new_page: verify if a new kmem allocation is allowed.
+> + * @gfp: the gfp allocation flags.
+> + * @handle: a pointer to the memcg this was charged against.
+> + * @order: allocation order.
+> + *
+> + * returns true if the memcg where the current task belongs can hold this
+> + * allocation.
+> + *
+> + * We return true automatically if this allocation is not to be accounted to
+> + * any memcg.
+> + */
+> +static __always_inline bool
+> +memcg_kmem_new_page(gfp_t gfp, void *handle, int order)
+> +{
+> +	if (!memcg_kmem_on)
+> +		return true;
+> +	if (!(gfp & __GFP_KMEMCG) || (gfp & __GFP_NOFAIL))
 
-	The systems in question have 24 SAS drives spread across 3 HBAs,
-	running 24 Ceph OSD instances, one per drive.  FWIW these servers
-	are dual-socket Intel 5675 Xeons w/48 GB memory.  I've got ~160
-	Ceph Linux clients doing dd simultaneously to a Ceph file system
-	backed by 12 of these servers.
+OK, I see the point behind __GFP_NOFAIL but it would deserve a comment
+or a mention in the changelog.
 
-Early in the test everything looks fine
+[...]
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 54e93de..e9824c1 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+[...]
+> +EXPORT_SYMBOL(__memcg_kmem_new_page);
 
-procs -------------------memory------------------ ---swap-- -----io---- --system-- -----cpu-------
- r  b       swpd       free       buff      cache   si   so    bi    bo   in   cs  us sy  id wa st
-31 15          0     287216        576   38606628    0    0     2  1158    2   14   1  3  95  0  0
-27 15          0     225288        576   38583384    0    0    18 2222016 203357 134876  11 56  17 15  0
-28 17          0     219256        576   38544736    0    0    11 2305932 203141 146296  11 49  23 17  0
- 6 18          0     215596        576   38552872    0    0     7 2363207 215264 166502  12 45  22 20  0
-22 18          0     226984        576   38596404    0    0     3 2445741 223114 179527  12 43  23 22  0
+Why is this exported?
 
-and then it goes to pot
+> +
+> +void __memcg_kmem_commit_page(struct page *page, void *handle, int order)
+> +{
+> +	struct page_cgroup *pc;
+> +	struct mem_cgroup *memcg = handle;
+> +
+> +	if (!memcg)
+> +		return;
+> +
+> +	WARN_ON(mem_cgroup_is_root(memcg));
+> +	/* The page allocation must have failed. Revert */
+> +	if (!page) {
+> +		size_t size = PAGE_SIZE << order;
+> +
+> +		memcg_uncharge_kmem(memcg, size);
+> +		mem_cgroup_put(memcg);
+> +		return;
+> +	}
+> +
+> +	pc = lookup_page_cgroup(page);
+> +	lock_page_cgroup(pc);
+> +	pc->mem_cgroup = memcg;
+> +	SetPageCgroupUsed(pc);
 
-procs -------------------memory------------------ ---swap-- -----io---- --system-- -----cpu-------
- r  b       swpd       free       buff      cache   si   so    bi    bo   in   cs  us sy  id wa st
-163  8          0     464308        576   36791368    0    0    11 22210  866  536   3 13  79  4  0
-207 14          0     917752        576   36181928    0    0   712 1345376 134598 47367   7 90   1  2  0
-123 12          0     685516        576   36296148    0    0   429 1386615 158494 60077   8 84   5  3  0
-123 12          0     598572        576   36333728    0    0  1107 1233281 147542 62351   7 84   5  4  0
-622  7          0     660768        576   36118264    0    0   557 1345548 151394 59353   7 85   4  3  0
-223 11          0     283960        576   36463868    0    0    46 1107160 121846 33006   6 93   1  1  0
+Don't we need a write barrier before assigning memcg? Same as
+__mem_cgroup_commit_charge. This tests the Used bit always from within
+lock_page_cgroup so it should be safe but I am not 100% sure about the
+rest of the code.
 
-Note that system CPU usage is very high blocks being written out has
-dropped by 42%. He analysed this with perf and found
+[...]
+> +EXPORT_SYMBOL(__memcg_kmem_free_page);
 
-  perf record -g -a sleep 10
-  perf report --sort symbol --call-graph fractal,5
-    34.63%  [k] _raw_spin_lock_irqsave
-            |
-            |--97.30%-- isolate_freepages
-            |          compaction_alloc
-            |          unmap_and_move
-            |          migrate_pages
-            |          compact_zone
-            |          compact_zone_order
-            |          try_to_compact_pages
-            |          __alloc_pages_direct_compact
-            |          __alloc_pages_slowpath
-            |          __alloc_pages_nodemask
-            |          alloc_pages_vma
-            |          do_huge_pmd_anonymous_page
-            |          handle_mm_fault
-            |          do_page_fault
-            |          page_fault
-            |          |
-            |          |--87.39%-- skb_copy_datagram_iovec
-            |          |          tcp_recvmsg
-            |          |          inet_recvmsg
-            |          |          sock_recvmsg
-            |          |          sys_recvfrom
-            |          |          system_call
-            |          |          __recv
-            |          |          |
-            |          |           --100.00%-- (nil)
-            |          |
-            |           --12.61%-- memcpy
-             --2.70%-- [...]
+Why is the symbol exported?
 
-There was other data but primarily it is all showing that compaction is
-contended heavily on the zone->lock and zone->lru_lock.
+>  #endif /* CONFIG_MEMCG_KMEM */
+>  
+>  #if defined(CONFIG_INET) && defined(CONFIG_MEMCG_KMEM)
+> @@ -5759,3 +5878,69 @@ static int __init enable_swap_account(char *s)
+>  __setup("swapaccount=", enable_swap_account);
+>  
+>  #endif
+> +
+> +#ifdef CONFIG_MEMCG_KMEM
+> +int memcg_charge_kmem(struct mem_cgroup *memcg, gfp_t gfp, s64 delta)
+> +{
+> +	struct res_counter *fail_res;
+> +	struct mem_cgroup *_memcg;
+> +	int ret;
+> +	bool may_oom;
+> +	bool nofail = false;
+> +
+> +	may_oom = (gfp & __GFP_WAIT) && (gfp & __GFP_FS) &&
+> +	    !(gfp & __GFP_NORETRY);
 
-commit [b2eef8c0: mm: compaction: minimise the time IRQs are disabled
-while isolating pages for migration] noted that it was possible for
-migration to hold the lru_lock for an excessive amount of time. Very
-broadly speaking this patch expands the concept.
+This deserves a comment.
 
-This patch introduces compact_checklock_irqsave() to check if a lock
-is contended or the process needs to be scheduled. If either condition
-is true then async compaction is aborted and the caller is informed.
-The page allocator will fail a THP allocation if compaction failed due
-to contention. This patch also introduces compact_trylock_irqsave()
-which will acquire the lock only if it is not contended and the process
-does not need to schedule.
+> +
+> +	ret = 0;
+> +
+> +	if (!memcg)
+> +		return ret;
+> +
+> +	_memcg = memcg;
+> +	ret = __mem_cgroup_try_charge(NULL, gfp, delta / PAGE_SIZE,
+> +	    &_memcg, may_oom);
 
-Reported-and-tested-by: Jim Schutt <jaschut@sandia.gov>
-Signed-off-by: Mel Gorman <mgorman@suse.de>
----
- include/linux/compaction.h |    4 +-
- mm/compaction.c            |  105 ++++++++++++++++++++++++++++++++++----------
- mm/internal.h              |    1 +
- mm/page_alloc.c            |   17 ++++---
- 4 files changed, 96 insertions(+), 31 deletions(-)
+This is really dangerous because atomic allocation which seem to be
+possible could result in deadlocks because of the reclaim. Also, as I
+have mentioned in the other email in this thread. Why should we reclaim
+just because of kernel allocation when we are not reclaiming any of it
+because shrink_slab is ignored in the memcg reclaim.
 
-diff --git a/include/linux/compaction.h b/include/linux/compaction.h
-index fd20c15..0e38a1d 100644
---- a/include/linux/compaction.h
-+++ b/include/linux/compaction.h
-@@ -22,7 +22,7 @@ extern int sysctl_extfrag_handler(struct ctl_table *table, int write,
- extern int fragmentation_index(struct zone *zone, unsigned int order);
- extern unsigned long try_to_compact_pages(struct zonelist *zonelist,
- 			int order, gfp_t gfp_mask, nodemask_t *mask,
--			bool sync, struct page **page);
-+			bool sync, bool *contended, struct page **page);
- extern int compact_pgdat(pg_data_t *pgdat, int order);
- extern unsigned long compaction_suitable(struct zone *zone, int order);
- 
-@@ -64,7 +64,7 @@ static inline bool compaction_deferred(struct zone *zone, int order)
- #else
- static inline unsigned long try_to_compact_pages(struct zonelist *zonelist,
- 			int order, gfp_t gfp_mask, nodemask_t *nodemask,
--			bool sync, struct page **page)
-+			bool sync, bool *contended, struct page **page)
- {
- 	return COMPACT_CONTINUE;
- }
-diff --git a/mm/compaction.c b/mm/compaction.c
-index c2d0958..b95e263 100644
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -50,6 +50,47 @@ static inline bool migrate_async_suitable(int migratetype)
- 	return is_migrate_cma(migratetype) || migratetype == MIGRATE_MOVABLE;
- }
- 
-+/*
-+ * Compaction requires the taking of some coarse locks that are potentially
-+ * very heavily contended. Check if the process needs to be scheduled or
-+ * if the lock is contended. For async compaction, back out in the event
-+ * if contention is severe. For sync compaction, schedule.
-+ *
-+ * Returns true if the lock is held.
-+ * Returns false if the lock is released and compaction should abort
-+ */
-+static bool compact_checklock_irqsave(spinlock_t *lock, unsigned long *flags,
-+				      bool locked, struct compact_control *cc)
-+{
-+	if (need_resched() || spin_is_contended(lock)) {
-+		if (locked) {
-+			spin_unlock_irqrestore(lock, *flags);
-+			locked = false;
-+		}
-+
-+		/* async aborts if taking too long or contended */
-+		if (!cc->sync) {
-+			if (cc->contended)
-+				*cc->contended = true;
-+			return false;
-+		}
-+
-+		cond_resched();
-+		if (fatal_signal_pending(current))
-+			return false;
-+	}
-+
-+	if (!locked)
-+		spin_lock_irqsave(lock, *flags);
-+	return true;
-+}
-+
-+static inline bool compact_trylock_irqsave(spinlock_t *lock,
-+			unsigned long *flags, struct compact_control *cc)
-+{
-+	return compact_checklock_irqsave(lock, flags, false, cc);
-+}
-+
- static void compact_capture_page(struct compact_control *cc)
- {
- 	unsigned long flags;
-@@ -87,7 +128,8 @@ static void compact_capture_page(struct compact_control *cc)
- 				continue;
- 
- 			/* Take the lock and attempt capture of the page */
--			spin_lock_irqsave(&cc->zone->lock, flags);
-+			if (!compact_trylock_irqsave(&cc->zone->lock, &flags, cc))
-+				return;
- 			if (!list_empty(&area->free_list[mtype])) {
- 				page = list_entry(area->free_list[mtype].next,
- 							struct page, lru);
-@@ -226,7 +268,7 @@ isolate_freepages_range(unsigned long start_pfn, unsigned long end_pfn)
- }
- 
- /* Update the number of anon and file isolated pages in the zone */
--static void acct_isolated(struct zone *zone, struct compact_control *cc)
-+static void acct_isolated(struct zone *zone, bool locked, struct compact_control *cc)
- {
- 	struct page *page;
- 	unsigned int count[2] = { 0, };
-@@ -234,8 +276,14 @@ static void acct_isolated(struct zone *zone, struct compact_control *cc)
- 	list_for_each_entry(page, &cc->migratepages, lru)
- 		count[!!page_is_file_cache(page)]++;
- 
--	__mod_zone_page_state(zone, NR_ISOLATED_ANON, count[0]);
--	__mod_zone_page_state(zone, NR_ISOLATED_FILE, count[1]);
-+	/* If locked we can use the interrupt unsafe versions */
-+	if (locked) {
-+		__mod_zone_page_state(zone, NR_ISOLATED_ANON, count[0]);
-+		__mod_zone_page_state(zone, NR_ISOLATED_FILE, count[1]);
-+	} else {
-+		mod_zone_page_state(zone, NR_ISOLATED_ANON, count[0]);
-+		mod_zone_page_state(zone, NR_ISOLATED_FILE, count[1]);
-+	}
- }
- 
- /* Similar to reclaim, but different enough that they don't share logic */
-@@ -281,6 +329,8 @@ isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
- 	struct list_head *migratelist = &cc->migratepages;
- 	isolate_mode_t mode = 0;
- 	struct lruvec *lruvec;
-+	unsigned long flags;
-+	bool locked;
- 
- 	/*
- 	 * Ensure that there are not too many pages isolated from the LRU
-@@ -300,25 +350,22 @@ isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
- 
- 	/* Time to isolate some pages for migration */
- 	cond_resched();
--	spin_lock_irq(&zone->lru_lock);
-+	spin_lock_irqsave(&zone->lru_lock, flags);
-+	locked = true;
- 	for (; low_pfn < end_pfn; low_pfn++) {
- 		struct page *page;
--		bool locked = true;
- 
- 		/* give a chance to irqs before checking need_resched() */
- 		if (!((low_pfn+1) % SWAP_CLUSTER_MAX)) {
--			spin_unlock_irq(&zone->lru_lock);
-+			spin_unlock_irqrestore(&zone->lru_lock, flags);
- 			locked = false;
- 		}
--		if (need_resched() || spin_is_contended(&zone->lru_lock)) {
--			if (locked)
--				spin_unlock_irq(&zone->lru_lock);
--			cond_resched();
--			spin_lock_irq(&zone->lru_lock);
--			if (fatal_signal_pending(current))
--				break;
--		} else if (!locked)
--			spin_lock_irq(&zone->lru_lock);
-+
-+		/* Check if it is ok to still hold the lock */
-+		locked = compact_checklock_irqsave(&zone->lru_lock, &flags,
-+								locked, cc);
-+		if (!locked)
-+			break;
- 
- 		/*
- 		 * migrate_pfn does not necessarily start aligned to a
-@@ -402,9 +449,10 @@ isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
- 		}
- 	}
- 
--	acct_isolated(zone, cc);
-+	acct_isolated(zone, locked, cc);
- 
--	spin_unlock_irq(&zone->lru_lock);
-+	if (locked)
-+		spin_unlock_irqrestore(&zone->lru_lock, flags);
- 
- 	trace_mm_compaction_isolate_migratepages(nr_scanned, nr_isolated);
- 
-@@ -514,7 +562,16 @@ static void isolate_freepages(struct zone *zone,
- 		 * are disabled
- 		 */
- 		isolated = 0;
--		spin_lock_irqsave(&zone->lock, flags);
-+
-+		/*
-+		 * The zone lock must be held to isolate freepages. This
-+		 * unfortunately this is a very coarse lock and can be
-+		 * heavily contended if there are parallel allocations
-+		 * or parallel compactions. For async compaction do not
-+		 * spin on the lock
-+		 */
-+		if (!compact_trylock_irqsave(&zone->lock, &flags, cc))
-+			break;
- 		if (suitable_migration_target(page)) {
- 			end_pfn = min(pfn + pageblock_nr_pages, zone_end_pfn);
- 			trace_mm_compaction_freepage_scanpfn(pfn);
-@@ -837,8 +894,8 @@ out:
- }
- 
- static unsigned long compact_zone_order(struct zone *zone,
--				 int order, gfp_t gfp_mask,
--				 bool sync, struct page **page)
-+				 int order, gfp_t gfp_mask, bool sync,
-+				 bool *contended, struct page **page)
- {
- 	struct compact_control cc = {
- 		.nr_freepages = 0,
-@@ -848,6 +905,7 @@ static unsigned long compact_zone_order(struct zone *zone,
- 		.zone = zone,
- 		.sync = sync,
- 		.page = page,
-+		.contended = contended,
- 	};
- 	INIT_LIST_HEAD(&cc.freepages);
- 	INIT_LIST_HEAD(&cc.migratepages);
-@@ -869,7 +927,7 @@ int sysctl_extfrag_threshold = 500;
-  */
- unsigned long try_to_compact_pages(struct zonelist *zonelist,
- 			int order, gfp_t gfp_mask, nodemask_t *nodemask,
--			bool sync, struct page **page)
-+			bool sync, bool *contended, struct page **page)
- {
- 	enum zone_type high_zoneidx = gfp_zone(gfp_mask);
- 	int may_enter_fs = gfp_mask & __GFP_FS;
-@@ -889,7 +947,8 @@ unsigned long try_to_compact_pages(struct zonelist *zonelist,
- 								nodemask) {
- 		int status;
- 
--		status = compact_zone_order(zone, order, gfp_mask, sync, page);
-+		status = compact_zone_order(zone, order, gfp_mask, sync,
-+						contended, page);
- 		rc = max(status, rc);
- 
- 		/* If a normal allocation would succeed, stop compacting */
-diff --git a/mm/internal.h b/mm/internal.h
-index b03f05e..e549a7f 100644
---- a/mm/internal.h
-+++ b/mm/internal.h
-@@ -130,6 +130,7 @@ struct compact_control {
- 	int order;			/* order a direct compactor needs */
- 	int migratetype;		/* MOVABLE, RECLAIMABLE etc */
- 	struct zone *zone;
-+	bool *contended;		/* True if a lock was contended */
- 	struct page **page;		/* Page captured of requested size */
- };
- 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index d1759f5..373d05f 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -2114,7 +2114,7 @@ __alloc_pages_direct_compact(gfp_t gfp_mask, unsigned int order,
- 	struct zonelist *zonelist, enum zone_type high_zoneidx,
- 	nodemask_t *nodemask, int alloc_flags, struct zone *preferred_zone,
- 	int migratetype, bool sync_migration,
--	bool *deferred_compaction,
-+	bool *contended_compaction, bool *deferred_compaction,
- 	unsigned long *did_some_progress)
- {
- 	struct page *page = NULL;
-@@ -2129,7 +2129,8 @@ __alloc_pages_direct_compact(gfp_t gfp_mask, unsigned int order,
- 
- 	current->flags |= PF_MEMALLOC;
- 	*did_some_progress = try_to_compact_pages(zonelist, order, gfp_mask,
--					nodemask, sync_migration, &page);
-+					nodemask, sync_migration,
-+					contended_compaction, &page);
- 	current->flags &= ~PF_MEMALLOC;
- 
- 	/* If compaction captured a page, prep and use it */
-@@ -2182,7 +2183,7 @@ __alloc_pages_direct_compact(gfp_t gfp_mask, unsigned int order,
- 	struct zonelist *zonelist, enum zone_type high_zoneidx,
- 	nodemask_t *nodemask, int alloc_flags, struct zone *preferred_zone,
- 	int migratetype, bool sync_migration,
--	bool *deferred_compaction,
-+	bool *contended_compaction, bool *deferred_compaction,
- 	unsigned long *did_some_progress)
- {
- 	return NULL;
-@@ -2355,6 +2356,7 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
- 	unsigned long did_some_progress;
- 	bool sync_migration = false;
- 	bool deferred_compaction = false;
-+	bool contended_compaction = false;
- 
- 	/*
- 	 * In the slowpath, we sanity check order to avoid ever trying to
-@@ -2451,6 +2453,7 @@ rebalance:
- 					nodemask,
- 					alloc_flags, preferred_zone,
- 					migratetype, sync_migration,
-+					&contended_compaction,
- 					&deferred_compaction,
- 					&did_some_progress);
- 	if (page)
-@@ -2460,10 +2463,11 @@ rebalance:
- 	/*
- 	 * If compaction is deferred for high-order allocations, it is because
- 	 * sync compaction recently failed. In this is the case and the caller
--	 * has requested the system not be heavily disrupted, fail the
--	 * allocation now instead of entering direct reclaim
-+	 * requested a movable allocation that does not heavily disrupt the
-+	 * system then fail the allocation instead of entering direct reclaim.
- 	 */
--	if (deferred_compaction)
-+	if (contended_compaction &&
-+	    (gfp_mask & (__GFP_MOVABLE|__GFP_REPEAT)) == __GFP_MOVABLE)
- 		goto nopage;
- 
- 	/* Try direct reclaim and then allocating */
-@@ -2534,6 +2538,7 @@ rebalance:
- 					nodemask,
- 					alloc_flags, preferred_zone,
- 					migratetype, sync_migration,
-+					&contended_compaction,
- 					&deferred_compaction,
- 					&did_some_progress);
- 		if (page)
+> +
+> +	if (ret == -EINTR)  {
+> +		nofail = true;
+> +		/*
+> +		 * __mem_cgroup_try_charge() chosed to bypass to root due to
+> +		 * OOM kill or fatal signal.  Since our only options are to
+> +		 * either fail the allocation or charge it to this cgroup, do
+> +		 * it as a temporary condition. But we can't fail. From a
+> +		 * kmem/slab perspective, the cache has already been selected,
+> +		 * by mem_cgroup_get_kmem_cache(), so it is too late to change
+> +		 * our minds
+> +		 */
+> +		res_counter_charge_nofail(&memcg->res, delta, &fail_res);
+> +		if (do_swap_account)
+> +			res_counter_charge_nofail(&memcg->memsw, delta,
+> +						  &fail_res);
+
+Hmmm, this is kind of ugly but I guess unvoidable with the current
+implementation. Oh well...
+
+> +		ret = 0;
+> +	} else if (ret == -ENOMEM)
+> +		return ret;
+> +
+> +	if (nofail)
+> +		res_counter_charge_nofail(&memcg->kmem, delta, &fail_res);
+> +	else
+> +		ret = res_counter_charge(&memcg->kmem, delta, &fail_res);
+> +
+> +	if (ret) {
+> +		res_counter_uncharge(&memcg->res, delta);
+> +		if (do_swap_account)
+> +			res_counter_uncharge(&memcg->memsw, delta);
+> +	}
+> +
+> +	return ret;
+> +}
+> +
+[...]
+
 -- 
-1.7.9.2
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
