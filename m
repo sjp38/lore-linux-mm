@@ -1,91 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
-	by kanga.kvack.org (Postfix) with SMTP id A91596B0044
-	for <linux-mm@kvack.org>; Tue, 14 Aug 2012 14:44:25 -0400 (EDT)
-Date: Tue, 14 Aug 2012 15:44:09 -0300
-From: Rafael Aquini <aquini@redhat.com>
-Subject: Re: [PATCH v7 2/4] virtio_balloon: introduce migration primitives to
- balloon pages
-Message-ID: <20120814184409.GC13338@t510.redhat.com>
-References: <cover.1344619987.git.aquini@redhat.com>
- <f19b63dfa026fe2f8f11ec017771161775744781.1344619987.git.aquini@redhat.com>
- <20120813084123.GF14081@redhat.com>
- <87lihis5qi.fsf@rustcorp.com.au>
- <20120814083320.GA3597@redhat.com>
+Received: from psmtp.com (na3sys010amx165.postini.com [74.125.245.165])
+	by kanga.kvack.org (Postfix) with SMTP id 06A436B0044
+	for <linux-mm@kvack.org>; Tue, 14 Aug 2012 14:58:23 -0400 (EDT)
+Received: by bkwj4 with SMTP id j4so37737bkw.2
+        for <linux-mm@kvack.org>; Tue, 14 Aug 2012 11:58:22 -0700 (PDT)
+From: Greg Thelen <gthelen@google.com>
+Subject: Re: [PATCH v2 06/11] memcg: kmem controller infrastructure
+References: <1344517279-30646-1-git-send-email-glommer@parallels.com>
+	<1344517279-30646-7-git-send-email-glommer@parallels.com>
+	<50254475.4000201@jp.fujitsu.com> <5028BA9E.7000302@parallels.com>
+Date: Tue, 14 Aug 2012 11:58:10 -0700
+In-Reply-To: <5028BA9E.7000302@parallels.com> (Glauber Costa's message of
+	"Mon, 13 Aug 2012 12:28:14 +0400")
+Message-ID: <xr93ipcl9u7x.fsf@gthelen.mtv.corp.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120814083320.GA3597@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Michael S. Tsirkin" <mst@redhat.com>
-Cc: Rusty Russell <rusty@rustcorp.com.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Minchan Kim <minchan@kernel.org>
+To: Glauber Costa <glommer@parallels.com>
+Cc: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, devel@openvz.org, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, Pekka Enberg <penberg@cs.helsinki.fi>
 
-On Tue, Aug 14, 2012 at 11:33:20AM +0300, Michael S. Tsirkin wrote:
-> On Tue, Aug 14, 2012 at 09:29:49AM +0930, Rusty Russell wrote:
-> > On Mon, 13 Aug 2012 11:41:23 +0300, "Michael S. Tsirkin" <mst@redhat.com> wrote:
-> > > On Fri, Aug 10, 2012 at 02:55:15PM -0300, Rafael Aquini wrote:
-> > > > +/*
-> > > > + * Populate balloon_mapping->a_ops->freepage method to help compaction on
-> > > > + * re-inserting an isolated page into the balloon page list.
-> > > > + */
-> > > > +void virtballoon_putbackpage(struct page *page)
-> > > > +{
-> > > > +	spin_lock(&pages_lock);
-> > > > +	list_add(&page->lru, &vb_ptr->pages);
-> > > > +	spin_unlock(&pages_lock);
-> > > 
-> > > Could the following race trigger:
-> > > migration happens while module unloading is in progress,
-> > > module goes away between here and when the function
-> > > returns, then code for this function gets overwritten?
-> > > If yes we need locking external to module to prevent this.
-> > > Maybe add a spinlock to struct address_space?
-> > 
-> > The balloon module cannot be unloaded until it has leaked all its pages,
-> > so I think this is safe:
-> > 
-> >         static void remove_common(struct virtio_balloon *vb)
-> >         {
-> >         	/* There might be pages left in the balloon: free them. */
-> >         	while (vb->num_pages)
-> >         		leak_balloon(vb, vb->num_pages);
-> > 
-> > Cheers,
-> > Rusty.
-> 
-> I know I meant something else.
-> Let me lay this out:
-> 
-> CPU1 executes:
-> void virtballoon_putbackpage(struct page *page)
-> {
-> 	spin_lock(&pages_lock);
-> 	list_add(&page->lru, &vb_ptr->pages);
-> 	spin_unlock(&pages_lock);
-> 
-> 
-> 		at this point CPU2 unloads module:
-> 						leak_balloon
-> 						......
-> 
-> 		next CPU2 loads another module so code memory gets overwritten
-> 
-> now CPU1 executes the next instruction:
-> 
-> }
-> 
-> which would normally return to function's caller,
-> but it has been overwritten by CPU2 so we get corruption.
-> 
-> No?
+On Mon, Aug 13 2012, Glauber Costa wrote:
 
-At the point CPU2 is unloading the module, it will be kept looping at the
-snippet Rusty pointed out because the isolation / migration steps do not mess
-with 'vb->num_pages'. The driver will only unload after leaking the total amount
-of balloon's inflated pages, which means (for this hypothetical case) CPU2 will
-wait until CPU1 finishes the putaback procedure.
+>>> > +	WARN_ON(mem_cgroup_is_root(memcg));
+>>> > +	size = (1 << order) << PAGE_SHIFT;
+>>> > +	memcg_uncharge_kmem(memcg, size);
+>>> > +	mem_cgroup_put(memcg);
+>> Why do we need ref-counting here ? kmem res_counter cannot work as
+>> reference ?
+> This is of course the pair of the mem_cgroup_get() you commented on
+> earlier. If we need one, we need the other. If we don't need one, we
+> don't need the other =)
+>
+> The guarantee we're trying to give here is that the memcg structure will
+> stay around while there are dangling charges to kmem, that we decided
+> not to move (remember: moving it for the stack is simple, for the slab
+> is very complicated and ill-defined, and I believe it is better to treat
+> all kmem equally here)
 
+By keeping memcg structures hanging around until the last referring kmem
+page is uncharged do such zombie memcg each consume a css_id and thus
+put pressure on the 64k css_id space?  I imagine in pathological cases
+this would prevent creation of new cgroups until these zombies are
+dereferenced.
+
+Is there any way to see how much kmem such zombie memcg are consuming?
+I think we could find these with
+for_each_mem_cgroup_tree(root_mem_cgroup).  Basically, I'm wanting to
+know where kernel memory has been allocated.  For live memcg, an admin
+can cat memory.kmem.usage_in_bytes.  But for zombie memcg, I'm not sure
+how to get this info.  It looks like the root_mem_cgroup
+memory.kmem.usage_in_bytes is not hierarchically charged.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
