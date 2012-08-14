@@ -1,64 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
-	by kanga.kvack.org (Postfix) with SMTP id E192B6B0044
-	for <linux-mm@kvack.org>; Tue, 14 Aug 2012 16:22:13 -0400 (EDT)
-Date: Tue, 14 Aug 2012 23:23:10 +0300
+Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
+	by kanga.kvack.org (Postfix) with SMTP id 208296B0044
+	for <linux-mm@kvack.org>; Tue, 14 Aug 2012 16:23:03 -0400 (EDT)
+Date: Tue, 14 Aug 2012 23:24:01 +0300
 From: "Michael S. Tsirkin" <mst@redhat.com>
-Subject: Re: [PATCH v7 1/4] mm: introduce compaction and migration for virtio
- ballooned pages
-Message-ID: <20120814202310.GA28990@redhat.com>
+Subject: Re: [PATCH v7 2/4] virtio_balloon: introduce migration primitives to
+ balloon pages
+Message-ID: <20120814202401.GB28990@redhat.com>
 References: <cover.1344619987.git.aquini@redhat.com>
- <292b1b52e863a05b299f94bda69a61371011ac19.1344619987.git.aquini@redhat.com>
- <20120813082619.GE14081@redhat.com>
- <20120814174404.GA13338@t510.redhat.com>
- <20120814193525.GB28840@redhat.com>
- <20120814200043.GB22133@t510.redhat.com>
+ <f19b63dfa026fe2f8f11ec017771161775744781.1344619987.git.aquini@redhat.com>
+ <20120813084123.GF14081@redhat.com>
+ <20120814182244.GB13338@t510.redhat.com>
+ <20120814195139.GA28870@redhat.com>
+ <20120814195916.GC28870@redhat.com>
+ <20120814200830.GD22133@t510.redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20120814200043.GB22133@t510.redhat.com>
+In-Reply-To: <20120814200830.GD22133@t510.redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Rafael Aquini <aquini@redhat.com>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, Rusty Russell <rusty@rustcorp.com.au>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Minchan Kim <minchan@kernel.org>
 
-On Tue, Aug 14, 2012 at 05:00:49PM -0300, Rafael Aquini wrote:
-> On Tue, Aug 14, 2012 at 10:35:25PM +0300, Michael S. Tsirkin wrote:
-> > > > > +/* __isolate_lru_page() counterpart for a ballooned page */
-> > > > > +bool isolate_balloon_page(struct page *page)
-> > > > > +{
-> > > > > +	if (WARN_ON(!movable_balloon_page(page)))
+On Tue, Aug 14, 2012 at 05:08:31PM -0300, Rafael Aquini wrote:
+> On Tue, Aug 14, 2012 at 10:59:16PM +0300, Michael S. Tsirkin wrote:
+> > > > > What if there is more than one balloon device?
 > > > > 
-> > > > Looks like this actually can happen if the page is leaked
-> > > > between previous movable_balloon_page and here.
+> > > > Is it possible to load this driver twice, or are you foreseeing a future case
+> > > > where this driver will be able to manage several distinct memory balloons for
+> > > > the same guest?
 > > > > 
-> > > > > +		return false;
 > > > 
-> > > Yes, it surely can happen, and it does not harm to catch it here, print a warn and
-> > > return.
+> > > Second.
+> > > It is easy to create several balloons they are just
+> > > pci devices.
+> >  
 > > 
-> > If it is legal, why warn? For that matter why test here at all?
+> > 
+> > and it might not be too important to make it work but
+> > at least would be nice not to have a crash in this
+> > setup.
 > >
-> 
-> As this is a public symbol, and despite the usage we introduce is sane, the warn
-> was placed as an insurance policy to let us know about any insane attempt to use
-> the procedure in the future. That was due to a nice review nitpick, actually.
-> 
-> Even though the code already had a test to properly avoid this race you
-> mention, I thought that sustaining the warn was a good thing. As I told you,
-> despite real, I've never got (un)lucky enough to stumble across that race window
-> while testing the patch.
-> 
-> If your concern is about being too much verbose on logging, under certain
-> conditions, perhaps we can change that test to a WARN_ON_ONCE() ?
-> 
-> Mel, what are your thoughts here?
+> Fair enough. For now, as I believe it's safe to assume we are only inflating one
+> balloon per guest, I'd like to propose this as a future enhancement. Sounds
+> good?
 >  
-> > > While testing it, I wasn't lucky to see this small window opening, though.
 
-
-think about it: you see it in log. so you know race triggered.
-now what? why is it useful to know this?
+Since guest crashes when it's not the case, no it doesn't, sorry :(.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
