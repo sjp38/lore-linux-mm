@@ -1,37 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
-	by kanga.kvack.org (Postfix) with SMTP id 6C42D6B0044
-	for <linux-mm@kvack.org>; Tue, 14 Aug 2012 16:57:08 -0400 (EDT)
-Message-ID: <502ABB9B.90108@redhat.com>
-Date: Tue, 14 Aug 2012 16:56:59 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
+	by kanga.kvack.org (Postfix) with SMTP id 82AAF6B0044
+	for <linux-mm@kvack.org>; Tue, 14 Aug 2012 17:34:29 -0400 (EDT)
+Date: Tue, 14 Aug 2012 18:34:13 -0300
+From: Rafael Aquini <aquini@redhat.com>
+Subject: Re: [PATCH v7 2/4] virtio_balloon: introduce migration primitives to
+ balloon pages
+Message-ID: <20120814213412.GG22133@t510.redhat.com>
+References: <cover.1344619987.git.aquini@redhat.com>
+ <f19b63dfa026fe2f8f11ec017771161775744781.1344619987.git.aquini@redhat.com>
+ <20120813084123.GF14081@redhat.com>
+ <20120814182244.GB13338@t510.redhat.com>
+ <20120814195139.GA28870@redhat.com>
+ <20120814195916.GC28870@redhat.com>
+ <20120814200830.GD22133@t510.redhat.com>
+ <20120814202401.GB28990@redhat.com>
+ <20120814202949.GF22133@t510.redhat.com>
+ <20120814204906.GD28990@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v7 2/4] virtio_balloon: introduce migration primitives
- to balloon pages
-References: <cover.1344619987.git.aquini@redhat.com> <f19b63dfa026fe2f8f11ec017771161775744781.1344619987.git.aquini@redhat.com> <20120813084123.GF14081@redhat.com> <20120814182244.GB13338@t510.redhat.com> <20120814195139.GA28870@redhat.com> <20120814195916.GC28870@redhat.com> <20120814200830.GD22133@t510.redhat.com> <20120814202401.GB28990@redhat.com> <20120814202949.GF22133@t510.redhat.com> <20120814204906.GD28990@redhat.com> <20120814205426.GA29162@redhat.com>
-In-Reply-To: <20120814205426.GA29162@redhat.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120814204906.GD28990@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: "Michael S. Tsirkin" <mst@redhat.com>
-Cc: Rafael Aquini <aquini@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, Rusty Russell <rusty@rustcorp.com.au>, Mel Gorman <mel@csn.ul.ie>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Minchan Kim <minchan@kernel.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, Rusty Russell <rusty@rustcorp.com.au>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Minchan Kim <minchan@kernel.org>
 
-On 08/14/2012 04:54 PM, Michael S. Tsirkin wrote:
+On Tue, Aug 14, 2012 at 11:49:06PM +0300, Michael S. Tsirkin wrote:
+> On Tue, Aug 14, 2012 at 05:29:50PM -0300, Rafael Aquini wrote:
+> > On Tue, Aug 14, 2012 at 11:24:01PM +0300, Michael S. Tsirkin wrote:
+> > > On Tue, Aug 14, 2012 at 05:08:31PM -0300, Rafael Aquini wrote:
+> > > > On Tue, Aug 14, 2012 at 10:59:16PM +0300, Michael S. Tsirkin wrote:
+> > > > > > > > What if there is more than one balloon device?
+> > > > > > > 
+> > > > > > > Is it possible to load this driver twice, or are you foreseeing a future case
+> > > > > > > where this driver will be able to manage several distinct memory balloons for
+> > > > > > > the same guest?
+> > > > > > > 
+> > > > > > 
+> > > > > > Second.
+> > > > > > It is easy to create several balloons they are just
+> > > > > > pci devices.
+> > > > >  
+> > > > > 
+> > > > > 
+> > > > > and it might not be too important to make it work but
+> > > > > at least would be nice not to have a crash in this
+> > > > > setup.
+> > > > >
+> > > > Fair enough. For now, as I believe it's safe to assume we are only inflating one
+> > > > balloon per guest, I'd like to propose this as a future enhancement. Sounds
+> > > > good?
+> > > >  
+> > > 
+> > > Since guest crashes when it's not the case, no it doesn't, sorry :(.
+> > >
+> > Ok, but right now this driver only takes care of 1 balloon per guest,
+> 
+> It does? Are you sure? There is no global state as far as I can see. So
+> I can create 2 devices and driver will happily create two instances,
+> each one can be inflated/deflated independently.
+> 
+> > so how
+> > could this approach crash it? 
+> 
+> Add device. inflate. Add another device. inflate. deflate. unplug.
+> Now you have pointer to freed memory and when mm touches
+> page from first device, you ge use after free.
+> 
+> > Your point is a good thing to be on a to-do list for future enhancements, but
+> > it's not a dealbreaker for the present balloon driver implementation, IMHO.
+> > 
+> 
+> Yes it looks like a dealbreaker to me.
 
-> To clarify, the global state that this patch adds, is ugly
-> even if we didn't support multiple balloons yet.
-> So I don't think I can accept such a patch.
-> Rusty has a final word here, maybe he thinks differently.
+Sorry. You're right, I'm wrong.
 
-Before deciding that "does not support multiple balloon drivers
-at once" is an issue, is there any use case at all for having
-multiple balloon drivers active at a time?
-
-I do not see any.
-
--- 
-All rights reversed
+I'll get back to the scracthpad to overcome this constraint. I believe the way
+this patch was at its v4 revision (wrt this particular case) could possibly
+address this concern of yours.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
