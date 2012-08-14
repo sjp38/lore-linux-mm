@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
-	by kanga.kvack.org (Postfix) with SMTP id D85C76B0070
-	for <linux-mm@kvack.org>; Tue, 14 Aug 2012 12:25:22 -0400 (EDT)
+	by kanga.kvack.org (Postfix) with SMTP id C3D9D6B006E
+	for <linux-mm@kvack.org>; Tue, 14 Aug 2012 12:25:28 -0400 (EDT)
 Received: by mail-bk0-f41.google.com with SMTP id jc3so297284bkc.14
-        for <linux-mm@kvack.org>; Tue, 14 Aug 2012 09:25:22 -0700 (PDT)
+        for <linux-mm@kvack.org>; Tue, 14 Aug 2012 09:25:28 -0700 (PDT)
 From: Sasha Levin <levinsasha928@gmail.com>
-Subject: [PATCH 04/16] workqueue: use new hashtable implementation
-Date: Tue, 14 Aug 2012 18:24:38 +0200
-Message-Id: <1344961490-4068-5-git-send-email-levinsasha928@gmail.com>
+Subject: [PATCH 05/16] mm/huge_memory: use new hashtable implementation
+Date: Tue, 14 Aug 2012 18:24:39 +0200
+Message-Id: <1344961490-4068-6-git-send-email-levinsasha928@gmail.com>
 In-Reply-To: <1344961490-4068-1-git-send-email-levinsasha928@gmail.com>
 References: <1344961490-4068-1-git-send-email-levinsasha928@gmail.com>
 Sender: owner-linux-mm@kvack.org
@@ -15,188 +15,149 @@ List-ID: <linux-mm.kvack.org>
 To: torvalds@linux-foundation.org
 Cc: tj@kernel.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, paul.gortmaker@windriver.com, davem@davemloft.net, rostedt@goodmis.org, mingo@elte.hu, ebiederm@xmission.com, aarcange@redhat.com, ericvh@gmail.com, netdev@vger.kernel.org, josh@joshtriplett.org, eric.dumazet@gmail.com, mathieu.desnoyers@efficios.com, axboe@kernel.dk, agk@redhat.com, dm-devel@redhat.com, neilb@suse.de, ccaulfie@redhat.com, teigland@redhat.com, Trond.Myklebust@netapp.com, bfields@fieldses.org, fweisbec@gmail.com, jesse@nicira.com, venkat.x.venkatsubra@oracle.com, ejt@redhat.com, snitzer@redhat.com, edumazet@google.com, linux-nfs@vger.kernel.org, dev@openvswitch.org, rds-devel@oss.oracle.com, lw@cn.fujitsu.com, Sasha Levin <levinsasha928@gmail.com>
 
-Switch workqueues to use the new hashtable implementation. This reduces the amount of
-generic unrelated code in the workqueues.
+Switch hugemem to use the new hashtable implementation. This reduces the amount of
+generic unrelated code in the hugemem.
+
+This also removes the dymanic allocation of the hash table. The size of the table is
+constant so there's no point in paying the price of an extra dereference when accessing
+it.
 
 Signed-off-by: Sasha Levin <levinsasha928@gmail.com>
 ---
- kernel/workqueue.c |   86 +++++++++-------------------------------------------
- 1 files changed, 15 insertions(+), 71 deletions(-)
+ mm/huge_memory.c |   57 ++++++++++++++---------------------------------------
+ 1 files changed, 15 insertions(+), 42 deletions(-)
 
-diff --git a/kernel/workqueue.c b/kernel/workqueue.c
-index 692d976..1db6328 100644
---- a/kernel/workqueue.c
-+++ b/kernel/workqueue.c
-@@ -41,6 +41,7 @@
- #include <linux/debug_locks.h>
- #include <linux/lockdep.h>
- #include <linux/idr.h>
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 57c4b93..a5d0a8a 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -17,6 +17,7 @@
+ #include <linux/khugepaged.h>
+ #include <linux/freezer.h>
+ #include <linux/mman.h>
 +#include <linux/hashtable.h>
+ #include <asm/tlb.h>
+ #include <asm/pgalloc.h>
+ #include "internal.h"
+@@ -57,12 +58,12 @@ static DECLARE_WAIT_QUEUE_HEAD(khugepaged_wait);
+ static unsigned int khugepaged_max_ptes_none __read_mostly = HPAGE_PMD_NR-1;
  
- #include "workqueue_sched.h"
+ static int khugepaged(void *none);
+-static int mm_slots_hash_init(void);
+ static int khugepaged_slab_init(void);
+ static void khugepaged_slab_free(void);
  
-@@ -82,8 +83,6 @@ enum {
- 	NR_WORKER_POOLS		= 2,		/* # worker pools per gcwq */
- 
- 	BUSY_WORKER_HASH_ORDER	= 6,		/* 64 pointers */
--	BUSY_WORKER_HASH_SIZE	= 1 << BUSY_WORKER_HASH_ORDER,
--	BUSY_WORKER_HASH_MASK	= BUSY_WORKER_HASH_SIZE - 1,
- 
- 	MAX_IDLE_WORKERS_RATIO	= 4,		/* 1/4 of busy can be idle */
- 	IDLE_WORKER_TIMEOUT	= 300 * HZ,	/* keep idle ones for 5 mins */
-@@ -180,7 +179,7 @@ struct global_cwq {
- 	unsigned int		flags;		/* L: GCWQ_* flags */
- 
- 	/* workers are chained either in busy_hash or pool idle_list */
--	struct hlist_head	busy_hash[BUSY_WORKER_HASH_SIZE];
-+	DEFINE_HASHTABLE(busy_hash, BUSY_WORKER_HASH_ORDER);
- 						/* L: hash of busy workers */
- 
- 	struct worker_pool	pools[2];	/* normal and highpri pools */
-@@ -288,8 +287,7 @@ EXPORT_SYMBOL_GPL(system_nrt_freezable_wq);
- 	     (pool) < &(gcwq)->pools[NR_WORKER_POOLS]; (pool)++)
- 
- #define for_each_busy_worker(worker, i, pos, gcwq)			\
--	for (i = 0; i < BUSY_WORKER_HASH_SIZE; i++)			\
--		hlist_for_each_entry(worker, pos, &gcwq->busy_hash[i], hentry)
-+	hash_for_each(gcwq->busy_hash, i, pos, worker, hentry)
- 
- static inline int __next_gcwq_cpu(int cpu, const struct cpumask *mask,
- 				  unsigned int sw)
-@@ -822,63 +820,6 @@ static inline void worker_clr_flags(struct worker *worker, unsigned int flags)
- }
+-#define MM_SLOTS_HASH_HEADS 1024
+-static struct hlist_head *mm_slots_hash __read_mostly;
++#define MM_SLOTS_HASH_BITS 10
++static DEFINE_HASHTABLE(mm_slots_hash, MM_SLOTS_HASH_BITS);
++
+ static struct kmem_cache *mm_slot_cache __read_mostly;
  
  /**
-- * busy_worker_head - return the busy hash head for a work
-- * @gcwq: gcwq of interest
-- * @work: work to be hashed
-- *
-- * Return hash head of @gcwq for @work.
-- *
-- * CONTEXT:
-- * spin_lock_irq(gcwq->lock).
-- *
-- * RETURNS:
-- * Pointer to the hash head.
-- */
--static struct hlist_head *busy_worker_head(struct global_cwq *gcwq,
--					   struct work_struct *work)
--{
--	const int base_shift = ilog2(sizeof(struct work_struct));
--	unsigned long v = (unsigned long)work;
+@@ -140,7 +141,7 @@ static int start_khugepaged(void)
+ 	int err = 0;
+ 	if (khugepaged_enabled()) {
+ 		int wakeup;
+-		if (unlikely(!mm_slot_cache || !mm_slots_hash)) {
++		if (unlikely(!mm_slot_cache)) {
+ 			err = -ENOMEM;
+ 			goto out;
+ 		}
+@@ -554,12 +555,6 @@ static int __init hugepage_init(void)
+ 	if (err)
+ 		goto out;
+ 
+-	err = mm_slots_hash_init();
+-	if (err) {
+-		khugepaged_slab_free();
+-		goto out;
+-	}
 -
--	/* simple shift and fold hash, do we need something better? */
--	v >>= base_shift;
--	v += v >> BUSY_WORKER_HASH_ORDER;
--	v &= BUSY_WORKER_HASH_MASK;
--
--	return &gcwq->busy_hash[v];
--}
--
--/**
-- * __find_worker_executing_work - find worker which is executing a work
-- * @gcwq: gcwq of interest
-- * @bwh: hash head as returned by busy_worker_head()
-- * @work: work to find worker for
-- *
-- * Find a worker which is executing @work on @gcwq.  @bwh should be
-- * the hash head obtained by calling busy_worker_head() with the same
-- * work.
-- *
-- * CONTEXT:
-- * spin_lock_irq(gcwq->lock).
-- *
-- * RETURNS:
-- * Pointer to worker which is executing @work if found, NULL
-- * otherwise.
-- */
--static struct worker *__find_worker_executing_work(struct global_cwq *gcwq,
--						   struct hlist_head *bwh,
--						   struct work_struct *work)
--{
--	struct worker *worker;
--	struct hlist_node *tmp;
--
--	hlist_for_each_entry(worker, tmp, bwh, hentry)
--		if (worker->current_work == work)
--			return worker;
--	return NULL;
--}
--
--/**
-  * find_worker_executing_work - find worker which is executing a work
-  * @gcwq: gcwq of interest
-  * @work: work to find worker for
-@@ -897,8 +838,14 @@ static struct worker *__find_worker_executing_work(struct global_cwq *gcwq,
- static struct worker *find_worker_executing_work(struct global_cwq *gcwq,
- 						 struct work_struct *work)
- {
--	return __find_worker_executing_work(gcwq, busy_worker_head(gcwq, work),
--					    work);
-+	struct worker *worker;
-+	struct hlist_node *tmp;
+ 	/*
+ 	 * By default disable transparent hugepages on smaller systems,
+ 	 * where the extra memory used could hurt more than TLB overhead
+@@ -1541,6 +1536,8 @@ static int __init khugepaged_slab_init(void)
+ 	if (!mm_slot_cache)
+ 		return -ENOMEM;
+ 
++	hash_init(mm_slots_hash);
 +
-+	hash_for_each_possible(gcwq->busy_hash, worker, tmp, hentry, (unsigned long)work)
-+		if (worker->current_work == work)
-+			return worker;
-+
-+	return NULL;
+ 	return 0;
  }
  
- /**
-@@ -1932,7 +1879,6 @@ __acquires(&gcwq->lock)
- 	struct cpu_workqueue_struct *cwq = get_work_cwq(work);
- 	struct worker_pool *pool = worker->pool;
- 	struct global_cwq *gcwq = pool->gcwq;
--	struct hlist_head *bwh = busy_worker_head(gcwq, work);
- 	bool cpu_intensive = cwq->wq->flags & WQ_CPU_INTENSIVE;
- 	work_func_t f = work->func;
- 	int work_color;
-@@ -1964,7 +1910,7 @@ __acquires(&gcwq->lock)
- 	 * already processing the work.  If so, defer the work to the
- 	 * currently executing one.
- 	 */
--	collision = __find_worker_executing_work(gcwq, bwh, work);
-+	collision = find_worker_executing_work(gcwq, work);
- 	if (unlikely(collision)) {
- 		move_linked_works(work, &collision->scheduled, NULL);
- 		return;
-@@ -1972,7 +1918,7 @@ __acquires(&gcwq->lock)
+@@ -1562,47 +1559,23 @@ static inline void free_mm_slot(struct mm_slot *mm_slot)
+ 	kmem_cache_free(mm_slot_cache, mm_slot);
+ }
  
- 	/* claim and process */
- 	debug_work_deactivate(work);
--	hlist_add_head(&worker->hentry, bwh);
-+	hash_add(gcwq->busy_hash, &worker->hentry, (unsigned long)worker);
- 	worker->current_work = work;
- 	worker->current_cwq = cwq;
- 	work_color = get_work_color(work);
-@@ -2027,7 +1973,7 @@ __acquires(&gcwq->lock)
- 		worker_clr_flags(worker, WORKER_CPU_INTENSIVE);
- 
- 	/* we're done with it, release */
--	hlist_del_init(&worker->hentry);
-+	hash_del(&worker->hentry);
- 	worker->current_work = NULL;
- 	worker->current_cwq = NULL;
- 	cwq_dec_nr_in_flight(cwq, work_color, false);
-@@ -3690,7 +3636,6 @@ out_unlock:
- static int __init init_workqueues(void)
+-static int __init mm_slots_hash_init(void)
+-{
+-	mm_slots_hash = kzalloc(MM_SLOTS_HASH_HEADS * sizeof(struct hlist_head),
+-				GFP_KERNEL);
+-	if (!mm_slots_hash)
+-		return -ENOMEM;
+-	return 0;
+-}
+-
+-#if 0
+-static void __init mm_slots_hash_free(void)
+-{
+-	kfree(mm_slots_hash);
+-	mm_slots_hash = NULL;
+-}
+-#endif
+-
+ static struct mm_slot *get_mm_slot(struct mm_struct *mm)
  {
- 	unsigned int cpu;
--	int i;
+-	struct mm_slot *mm_slot;
+-	struct hlist_head *bucket;
++	struct mm_slot *slot;
+ 	struct hlist_node *node;
  
- 	cpu_notifier(workqueue_cpu_up_callback, CPU_PRI_WORKQUEUE_UP);
- 	cpu_notifier(workqueue_cpu_down_callback, CPU_PRI_WORKQUEUE_DOWN);
-@@ -3704,8 +3649,7 @@ static int __init init_workqueues(void)
- 		gcwq->cpu = cpu;
- 		gcwq->flags |= GCWQ_DISASSOCIATED;
+-	bucket = &mm_slots_hash[((unsigned long)mm / sizeof(struct mm_struct))
+-				% MM_SLOTS_HASH_HEADS];
+-	hlist_for_each_entry(mm_slot, node, bucket, hash) {
+-		if (mm == mm_slot->mm)
+-			return mm_slot;
+-	}
++	hash_for_each_possible(mm_slots_hash, slot, node, hash, (unsigned long) mm)
++		if (slot->mm == mm)
++			return slot;
++
+ 	return NULL;
+ }
  
--		for (i = 0; i < BUSY_WORKER_HASH_SIZE; i++)
--			INIT_HLIST_HEAD(&gcwq->busy_hash[i]);
-+		hash_init(gcwq->busy_hash);
+ static void insert_to_mm_slots_hash(struct mm_struct *mm,
+ 				    struct mm_slot *mm_slot)
+ {
+-	struct hlist_head *bucket;
+-
+-	bucket = &mm_slots_hash[((unsigned long)mm / sizeof(struct mm_struct))
+-				% MM_SLOTS_HASH_HEADS];
+ 	mm_slot->mm = mm;
+-	hlist_add_head(&mm_slot->hash, bucket);
++	hash_add(mm_slots_hash, &mm_slot->hash, (long)mm);
+ }
  
- 		for_each_worker_pool(pool, gcwq) {
- 			pool->gcwq = gcwq;
+ static inline int khugepaged_test_exit(struct mm_struct *mm)
+@@ -1675,7 +1648,7 @@ void __khugepaged_exit(struct mm_struct *mm)
+ 	spin_lock(&khugepaged_mm_lock);
+ 	mm_slot = get_mm_slot(mm);
+ 	if (mm_slot && khugepaged_scan.mm_slot != mm_slot) {
+-		hlist_del(&mm_slot->hash);
++		hash_del(&mm_slot->hash);
+ 		list_del(&mm_slot->mm_node);
+ 		free = 1;
+ 	}
+@@ -2089,7 +2062,7 @@ static void collect_mm_slot(struct mm_slot *mm_slot)
+ 
+ 	if (khugepaged_test_exit(mm)) {
+ 		/* free mm_slot */
+-		hlist_del(&mm_slot->hash);
++		hash_del(&mm_slot->hash);
+ 		list_del(&mm_slot->mm_node);
+ 
+ 		/*
 -- 
 1.7.8.6
 
