@@ -1,98 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
-	by kanga.kvack.org (Postfix) with SMTP id E15286B005D
-	for <linux-mm@kvack.org>; Tue, 14 Aug 2012 13:39:39 -0400 (EDT)
-Received: from /spool/local
-	by e4.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
-	Tue, 14 Aug 2012 13:39:36 -0400
-Received: from d01relay03.pok.ibm.com (d01relay03.pok.ibm.com [9.56.227.235])
-	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id A8B0038C8079
-	for <linux-mm@kvack.org>; Tue, 14 Aug 2012 13:39:33 -0400 (EDT)
-Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
-	by d01relay03.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q7EHdWDK097964
-	for <linux-mm@kvack.org>; Tue, 14 Aug 2012 13:39:33 -0400
-Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av01.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q7EHdSlr022922
-	for <linux-mm@kvack.org>; Tue, 14 Aug 2012 11:39:29 -0600
-Message-ID: <502A8D4D.3080101@linux.vnet.ibm.com>
-Date: Tue, 14 Aug 2012 12:39:25 -0500
-From: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
+	by kanga.kvack.org (Postfix) with SMTP id 5A2806B002B
+	for <linux-mm@kvack.org>; Tue, 14 Aug 2012 13:44:27 -0400 (EDT)
+Date: Tue, 14 Aug 2012 14:44:05 -0300
+From: Rafael Aquini <aquini@redhat.com>
+Subject: Re: [PATCH v7 1/4] mm: introduce compaction and migration for virtio
+ ballooned pages
+Message-ID: <20120814174404.GA13338@t510.redhat.com>
+References: <cover.1344619987.git.aquini@redhat.com>
+ <292b1b52e863a05b299f94bda69a61371011ac19.1344619987.git.aquini@redhat.com>
+ <20120813082619.GE14081@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 0/7] zram/zsmalloc promotion
-References: <1344406340-14128-1-git-send-email-minchan@kernel.org> <20120814023530.GA9787@kroah.com> <5029E3EF.9080301@vflare.org>
-In-Reply-To: <5029E3EF.9080301@vflare.org>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120813082619.GE14081@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nitin Gupta <ngupta@vflare.org>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Dan Magenheimer <dan.magenheimer@oracle.com>, Konrad Rzeszutek Wilk <konrad@darnok.org>
+To: "Michael S. Tsirkin" <mst@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, Rusty Russell <rusty@rustcorp.com.au>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Minchan Kim <minchan@kernel.org>
 
-On 08/14/2012 12:36 AM, Nitin Gupta wrote:
-> On 08/13/2012 07:35 PM, Greg Kroah-Hartman wrote:
->> On Wed, Aug 08, 2012 at 03:12:13PM +0900, Minchan Kim wrote:
->>> This patchset promotes zram/zsmalloc from staging.
->>> Both are very clean and zram is used by many embedded product
->>> for a long time.
->>>
->>> [1-3] are patches not merged into linux-next yet but needed
->>> it as base for [4-5] which promotes zsmalloc.
->>> Greg, if you merged [1-3] already, skip them.
->>
->> I've applied 1-3 and now 4, but that's it, I can't apply the rest
->> without getting acks from the -mm maintainers, sorry.  Please work with
->> them to get those acks, and then I will be glad to apply the rest (after
->> you resend them of course...)
->>
+On Mon, Aug 13, 2012 at 11:26:19AM +0300, Michael S. Tsirkin wrote:
+> > +static inline bool movable_balloon_page(struct page *page)
+> > +{
+> > +	return (page->mapping && page->mapping == balloon_mapping);
 > 
-> On a second thought, I think zsmalloc should stay in drivers/block/zram
-> since zram is now the only user of zsmalloc since zcache and ramster are
-> moving to another allocator.
+> I am guessing this needs smp_read_barrier_depends, and maybe
+> ACCESS_ONCE ...
+> 
 
-The removal of zsmalloc from zcache has not been agreed upon
-yet.
+I'm curious about your guessing here. Could you ellaborate it further, please?
 
-Dan _suggested_ removing zsmalloc as the persistent
-allocator for zcache in favor of zbud to solve "flaws" in
-zcache.  However, zbud has large deficiencies.
 
-A zero-filled 4k page will compress with LZO to 103 bytes.
-zbud can only store two compressed pages in each memory pool
-page, resulting in 95% fragmentation (i.e. 95% of the memory
-pool page goes unused).  While this might not be a typical
-case, it is the worst case and absolutely does happen.
+> > +#else
+> > +static inline bool isolate_balloon_page(struct page *page) { return false; }
+> > +static inline void putback_balloon_page(struct page *page) { return false; }
+> > +static inline bool movable_balloon_page(struct page *page) { return false; }
+> > +#endif /* (VIRTIO_BALLOON || VIRTIO_BALLOON_MODULE) && CONFIG_COMPACTION */
+> > +
+> 
+> This does mean that only one type of balloon is useable at a time.
+> I wonder whether using a flag in address_space structure instead
+> is possible ...
 
-zbud's design also effectively limits the useful page
-compression to 50%. If pages are compressed beyond that, the
-added space savings is lost in memory pool fragmentation.
-For example, if two pages compress to 30% of their original
-size, those two pages take up 60% of the zbud memory pool
-page, and 40% is lost to fragmentation because zbud can't
-store anything in the remaining space.
+This means we are only introducing this feature for virtio_balloon by now.
+Despite the flagging address_space stuff is something we surely can look in the
+future, I quite didn't get how we could be using two different types of balloon
+devices at the same time for the same system. Could you ellaborate it a little
+more, please?
 
-To say it another way, for every two page cache pages that
-cleancache stores in zcache, zbud _must_ allocate a memory
-pool page, regardless of how well those pages compress.
-This reduces the efficiency of the page cache reclaim
-mechanism by half.
 
-I have posted some work (zsmalloc shrinker interface, user
-registered alloc/free functions for the zsmalloc memory
-pool) that begins to make zsmalloc a suitable replacement
-for zbud, but that work was put on hold until the path out
-of staging was established.
+> > +/* __isolate_lru_page() counterpart for a ballooned page */
+> > +bool isolate_balloon_page(struct page *page)
+> > +{
+> > +	if (WARN_ON(!movable_balloon_page(page)))
+> 
+> Looks like this actually can happen if the page is leaked
+> between previous movable_balloon_page and here.
+> 
+> > +		return false;
 
-I'm hoping to continue this work once the code is in
-mainline.  While zbud has deficiencies, it doesn't prevent
-zcache from having value as I have already demonstrated.
-However, replacing zsmalloc with zbud would step backward
-for the reasons mentioned above.
-
-I do not support the removal of zsmalloc from zcache.  As
-such, I think the zsmalloc code should remain independent.
-
-Seth
+Yes, it surely can happen, and it does not harm to catch it here, print a warn and
+return. While testing it, I wasn't lucky to see this small window opening, though.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
