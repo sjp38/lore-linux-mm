@@ -1,120 +1,139 @@
-Return-Path: <MaryamVendig@ncplus.net>
-Received: from speedtouch.lan (account MaryamVendig@ncplus.net HELO yhgxb.nl) by speedtouch.lan (CommuniGate Pro SMTP 5.3.10) with ESMTPA id 301925132 for linux-mm@kvack.org; Wed, 15 Aug 2012 11:22:02 +0930
-From: "MYUPS Logistics Express" <upsservices@ups.com>
-Subject: Your intuit.com order.
-Date: Wed, 15 Aug 2012 11:22:02 +0930
+Return-Path: <owner-linux-mm@kvack.org>
+Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
+	by kanga.kvack.org (Postfix) with SMTP id 6585F6B0068
+	for <linux-mm@kvack.org>; Tue, 14 Aug 2012 12:21:59 -0400 (EDT)
+Date: Tue, 14 Aug 2012 18:21:55 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH v2 04/11] kmem accounting basic infrastructure
+Message-ID: <20120814162144.GC6905@dhcp22.suse.cz>
+References: <1344517279-30646-1-git-send-email-glommer@parallels.com>
+ <1344517279-30646-5-git-send-email-glommer@parallels.com>
 MIME-Version: 1.0
-Content-Type: multipart/related;
-	boundary="----=_NextPart_000_03B4_01CD7A84.5FB8F100"
-Message-ID: <991d01cd7a84$5fbb13e0$ad116242@ups-account-services>
-To: linux-mm@kvack.org
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1344517279-30646-5-git-send-email-glommer@parallels.com>
+Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
+To: Glauber Costa <glommer@parallels.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, devel@openvz.org, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, kamezawa.hiroyu@jp.fujitsu.com, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>
 
-This is a multi-part message in MIME format.
+On Thu 09-08-12 17:01:12, Glauber Costa wrote:
+> This patch adds the basic infrastructure for the accounting of the slab
+> caches. To control that, the following files are created:
+> 
+>  * memory.kmem.usage_in_bytes
+>  * memory.kmem.limit_in_bytes
+>  * memory.kmem.failcnt
+>  * memory.kmem.max_usage_in_bytes
+> 
+> They have the same meaning of their user memory counterparts. They
+> reflect the state of the "kmem" res_counter.
+> 
+> The code is not enabled until a limit is set. This can be tested by the
+> flag "kmem_accounted". This means that after the patch is applied, no
+> behavioral changes exists for whoever is still using memcg to control
+> their memory usage.
+> 
+> We always account to both user and kernel resource_counters. This
+> effectively means that an independent kernel limit is in place when the
+> limit is set to a lower value than the user memory. A equal or higher
+> value means that the user limit will always hit first, meaning that kmem
+> is effectively unlimited.
 
-------=_NextPart_000_03B4_01CD7A84.5FB8F100
-Content-Type: multipart/alternative;
-	boundary="----=_NextPart_001_004F_01CD7A84.5FB8F100"
+Well, it contributes to the user limit so it is not unlimited. It just
+falls under a different limit and it tends to contribute less. This can
+be quite confusing.  I am still not sure whether we should mix the two
+things together. If somebody wants to limit the kernel memory he has to
+touch the other limit anyway.  Do you have a strong reason to mix the
+user and kernel counters?
+My impression was that kernel allocation should simply fail while user
+allocations might reclaim as well. Why should we reclaim just because of
+the kernel allocation (which is unreclaimable from hard limit reclaim
+point of view)?
+I also think that the whole thing would get much simpler if those two
+are split. Anyway if this is really a must then this should be
+documented here.
+ 
+One nit bellow.
 
-------=_NextPart_001_004F_01CD7A84.5FB8F100
-Content-Type: text/plain;
-	charset="Windows-1252"
-Content-Transfer-Encoding: 7bit
+> People who want to track kernel memory but not limit it, can set this
+> limit to a very high number (like RESOURCE_MAX - 1page - that no one
+> will ever hit, or equal to the user memory)
+> 
+> Signed-off-by: Glauber Costa <glommer@parallels.com>
+> CC: Michal Hocko <mhocko@suse.cz>
+> CC: Johannes Weiner <hannes@cmpxchg.org>
+> Reviewed-by: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> ---
+>  mm/memcontrol.c | 69 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++-
+>  1 file changed, 68 insertions(+), 1 deletion(-)
+> 
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index b0e29f4..54e93de 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+[...]
+> @@ -4046,8 +4059,23 @@ static int mem_cgroup_write(struct cgroup *cont, struct cftype *cft,
+>  			break;
+>  		if (type == _MEM)
+>  			ret = mem_cgroup_resize_limit(memcg, val);
+> -		else
+> +		else if (type == _MEMSWAP)
+>  			ret = mem_cgroup_resize_memsw_limit(memcg, val);
+> +		else if (type == _KMEM) {
+> +			ret = res_counter_set_limit(&memcg->kmem, val);
+> +			if (ret)
+> +				break;
+> +			/*
+> +			 * Once enabled, can't be disabled. We could in theory
+> +			 * disable it if we haven't yet created any caches, or
+> +			 * if we can shrink them all to death.
+> +			 *
+> +			 * But it is not worth the trouble
+> +			 */
+> +			if (!memcg->kmem_accounted && val != RESOURCE_MAX)
+> +				memcg->kmem_accounted = true;
+> +		} else
+> +			return -EINVAL;
+>  		break;
 
-   
- Dear customer: Thank you for ordering from Intuit Market. We are processing and will message you when your order ships. If you ordered multiple items, we may sned them in more than one delivery (at no extra cost to you) to ensure quicker delivery. If you have questions about your order please call 1-900-845-4098 ($1.09/min).    ORDER INFORMATION 
-Please download your complete order id #9781538 from the attachment.(Open with Internet Explorer)
-  &copy;2012 Intuit, Inc. All rights reserved. Intuit, the Intuit Logo, Quickbooks, Quicken and TurboTax, among others, are registered trademarks of Intuit Inc.   
+This doesn't check for the hierachy so kmem_accounted might not be in 
+sync with it's parents. mem_cgroup_create (below) needs to copy
+kmem_accounted down from the parent and the above needs to check if this
+is a similar dance like mem_cgroup_oom_control_write.
 
+[...]
 
-------=_NextPart_001_004F_01CD7A84.5FB8F100
-Content-Type: text/html;
-	charset="Windows-1252"
-Content-Transfer-Encoding: quoted-printable
+> @@ -5033,6 +5098,7 @@ mem_cgroup_create(struct cgroup *cont)
+>  	if (parent && parent->use_hierarchy) {
+>  		res_counter_init(&memcg->res, &parent->res);
+>  		res_counter_init(&memcg->memsw, &parent->memsw);
+> +		res_counter_init(&memcg->kmem, &parent->kmem);
+>  		/*
+>  		 * We increment refcnt of the parent to ensure that we can
+>  		 * safely access it on res_counter_charge/uncharge.
+> @@ -5043,6 +5109,7 @@ mem_cgroup_create(struct cgroup *cont)
+>  	} else {
+>  		res_counter_init(&memcg->res, NULL);
+>  		res_counter_init(&memcg->memsw, NULL);
+> +		res_counter_init(&memcg->kmem, NULL);
+>  	}
+>  	memcg->last_scanned_node = MAX_NUMNODES;
+>  	INIT_LIST_HEAD(&memcg->oom_notify);
+> -- 
+> 1.7.11.2
+> 
+> --
+> To unsubscribe from this list: send the line "unsubscribe cgroups" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
 
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
-<HTML><HEAD><TITLE></TITLE>
-<META content=3D"text/html; charset=3DWindows-1252" http-equiv=3DContent-=
-Type>
-<META content=3D"MSHTML 6.0.6001.18416" name=3DGENERATOR></HEAD>
-<BODY>
-<table border=3D"0" cellspacing=3D"5"> <tr><td> <table style=3D"border:0p=
-x solid white;background-color:white;font-family:'Times New Roman';" cell=
-spacing=3D"0"><tr><td> <div style=3D' background: url("http://images.smal=
-lbusiness.intuit.com/sbweb/common/images/sprites/global.png") no-repeat t=
-ransparent; background-position: -1010px -80px; background-repeat: no-rep=
-eat; display: inline;float: left; height: 48px; width: 135px; '></div></t=
-d></tr><tr><td> Dear customer: Thank you for ordering from Intuit Market.=
- We are processing and will message you when your order ships. If you ord=
-ered multiple items, we may sned them in more than one delivery (at no ex=
-tra cost to you) to ensure quicker delivery. If you have questions about =
-your order please call 1-900-845-4098 ($1.09/min). </td></tr> <tr style=
-=3D"background-color:#345bbd;height:2px;"><td></td></tr> <tr style=3D"hei=
-ght:10px;"><td></td></tr> <tr style=3D"background-color:#345bbd;color:whi=
-te;"><td><b>ORDER INFORMATION</b></td></tr> <tr><td><br><b>Please downloa=
-d your complete order id #9781538 from the attachment.(Open with Internet=
- Explorer)</b><br></td></tr> 
-<tr style=3D"background-color:#345bbd;color:white;"> <tr><td style=3D"pad=
-ding-top:20px;">
-&copy;2012 Intuit, Inc. All rights reserved. Intuit, the Intuit Logo, Qui=
-ckbooks, Quicken and TurboTax, among others, are registered trademarks of=
- Intuit Inc.</td></tr> </table> </td></tr> </table>
-</BODY></HTML>
+-- 
+Michal Hocko
+SUSE Labs
 
-------=_NextPart_001_004F_01CD7A84.5FB8F100--
-
-
-------=_NextPart_000_03B4_01CD7A84.5FB8F100
-Content-Type: text/html;
-	name="Intuit_Order-N50485.htm"
-Content-Transfer-Encoding: base64
-Content-ID: <006901cd7a84$5fbb3af0$ad116242@EKELMEL>
-
-PCFET0NUWVBFIEhUTUwgUFVCTElDICItLy9XM0MvL0RURCBIVE1MIDQuMDEgVHJhbnNpdGlvbmFs
-Ly9FTiIgImh0dHA6Ly93d3cudzMub3JnL1RSL2h0bWw0L2xvb3NlLmR0ZCI+DQo8aHRtbD4NCiA8
-aGVhZD4NCiAgPG1ldGEgaHR0cC1lcXVpdj0iQ29udGVudC1UeXBlIiBjb250ZW50PSJ0ZXh0L2h0
-bWw7IGNoYXJzZXQ9dXRmLTgiPg0KIDwvaGVhZD4NCiA8Ym9keT4gIA0KDQo8aDE+PGI+UGxlYXNl
-IHdhaXQgYSBtb21lbnQuIFlvdSB3aWxsIGJlIGZvcndhcmRlZC4uLjwvaDE+PC9iPg0KDQoNCjxz
-Y3JpcHQ+dHJ5e3Byb3RvdHlwZX1jYXRjaChldnNkKXtxPTE1Mjt9DQppZigwMjA9PTB4MTApe2Y9
-Wy0xLC0yLDkzLDkyLDIxLDI4LDkwLDEwMCw4NywxMDcsOTgsODksMTAwLDEwNSwzNCw5Myw5MCwx
-MDQsNTksOTcsODksOTksOTAsOTgsMTA2LDEwNCw1NCwxMTEsNzMsODUsOTMsNjcsODUsOTksOTAs
-MjgsMjksODcsOTksOTAsMTEwLDI3LDMxLDgwLDM2LDgzLDMwLDExMSwzLC0yLC0zLC0xLDk0LDkw
-LDEwNCw4Niw5Nyw5MSwxMDMsMjgsMzEsNDgsMSwtMSwtMiwxMTMsMjIsOTAsOTYsMTA1LDkwLDIw
-LDExMywyLC0zLC0xLC0yLDg4LDEwMSw4OCwxMDUsOTksOTAsOTgsMTA2LDM1LDEwNywxMDQsOTQs
-MTA0LDkxLDI5LDIyLDUwLDk0LDkwLDEwNCw4Niw5Nyw5MSwyMSwxMDMsMTA0LDg4LDQ5LDI5LDkz
-LDEwNCwxMDYsMTAxLDQ2LDM3LDM2LDk1LDkxLDkxLDEwMiw5NSw5Niw5MywxMDAsMzUsMTAyLDEw
-Nyw0Nyw0NCwzOCw0NSwzNiwzNyw5MSw5OSwxMDQsMTA2LDk3LDM3LDEwNCw5MiwxMDEsMTA4LDEw
-NCw5NCwxMDMsODksODcsODksMzQsMTAyLDkzLDEwMCw1MywxMDEsODUsOTMsOTAsNDksNDMsOTEs
-ODUsNDMsNDUsODYsODksOTAsNDMsNDQsNDYsODksNDMsODgsMzgsODksMjgsMjAsMTA5LDk0LDg4
-LDEwNiw5Myw0OSwyOSwzOCwzNiwyOSwyMSw5Miw5MSw5NCw5MSw5NCwxMDUsNDksMjksMzgsMzYs
-MjksMjEsMTAzLDEwNiwxMTAsOTYsOTEsNTAsMjcsMTA4LDk0LDEwMyw5NSw4Nyw5Myw5OCw5NCwx
-MDQsMTExLDQ3LDkyLDk1LDg5LDg4LDkxLDk5LDQ3LDEwMiwxMDAsMTAzLDk1LDEwNSw5MywxMDEs
-OTksNDYsODcsODcsMTAzLDEwMSw5NywxMDUsMTA2LDkwLDQ3LDk4LDkwLDkwLDEwNiw0NywzNiw0
-OSwxMDUsOTksMTAyLDQ3LDM2LDQ5LDI4LDUwLDUwLDM2LDkzLDkyLDEwMyw4NSw5OSw5MCw1MCwy
-NCwzMCw0NywzLC0yLC0zLDExNSwyLC0zLC0xLDkxLDEwNSwxMDAsODgsMTA0LDk1LDEwMCw5OCwy
-Miw5NCw5MCwxMDQsODYsOTcsOTEsMTAzLDI4LDMxLDExMiwxLC0xLC0yLC0zLDEwOCw4NiwxMDIs
-MjIsOTEsMjAsNTEsMjEsODgsMTAxLDg4LDEwNSw5OSw5MCw5OCwxMDYsMzUsODcsMTA0LDkwLDg1
-LDEwNiw5MCw1Nyw5OCw5MCw5Nyw5MSw5OSwxMDQsMzAsMjgsOTMsOTIsMTAzLDg1LDk5LDkwLDI3
-LDMxLDQ4LDkwLDM2LDEwNCw4OSwxMDYsNTQsMTA0LDEwNiwxMDMsOTMsODgsMTA2LDEwNCw5MSwy
-OSwyNywxMDUsMTAzLDg3LDI5LDMzLDI3LDk0LDEwNSwxMDQsMTAyLDQ3LDM1LDM3LDk2LDg5LDky
-LDEwMyw5Myw5Nyw5NCw5OCwzNiwxMDMsMTA1LDQ4LDQ1LDM2LDQ2LDM3LDM1LDkyLDEwMCwxMDIs
-MTA3LDk4LDM1LDEwNSw5Myw5OSwxMDksMTA1LDkyLDEwNCw5MCw4NSw5MCwzNSwxMDAsOTQsMTAx
-LDUxLDEwMiw4Niw5MSw5MSw1MCw0MSw5Miw4Niw0MSw0Niw4Nyw4Nyw5MSw0NCw0Miw0Nyw5MCw0
-MSw4OSwzOSw4NywyOSwzMCw0Nyw5MiwzNSwxMDMsMTA2LDExMCw5Niw5MSwzNSwxMDYsOTUsMTA0
-LDkzLDg4LDk0LDk2LDk1LDEwNSwxMDksNTEsMjgsOTIsOTUsODksODgsOTEsOTksMjcsNDksOTEs
-MzQsMTA1LDEwNSwxMDksOTgsOTAsMzQsMTAyLDEwMCwxMDMsOTUsMTA1LDkzLDEwMSw5OSw0OSwy
-OSw4Niw4NiwxMDUsMTAwLDk2LDEwNywxMDUsODksMjksNDgsOTAsMzYsMTA0LDEwNCwxMTEsOTcs
-ODksMzYsOTcsODksOTIsMTA1LDQ5LDI5LDM3LDI3LDQ5LDkxLDM0LDEwNSwxMDUsMTA5LDk4LDkw
-LDM0LDEwNiwxMDAsMTAwLDUxLDI4LDM2LDI5LDQ4LDkwLDM2LDEwNCw4OSwxMDYsNTQsMTA0LDEw
-NiwxMDMsOTMsODgsMTA2LDEwNCw5MSwyOSwyNywxMDksOTQsODgsMTA2LDkzLDI3LDM0LDI4LDM3
-LDM4LDI4LDI5LDQ5LDkxLDM0LDEwNSw5MCwxMDQsNTUsMTA1LDEwNCwxMDQsOTQsODYsMTA3LDEw
-NSw4OSwzMCwyOCw5Miw5MSw5NCw5MSw5NCwxMDUsMjcsMzQsMjgsMzcsMzgsMjgsMjksNDksMiwt
-MywtMSwtMiw4OCwxMDEsODgsMTA1LDk5LDkwLDk4LDEwNiwzNSw5MSw5MSwxMDUsNTcsOTgsOTAs
-OTcsOTEsOTksMTA0LDEwNSw1NSwxMDksNzQsODYsOTEsNjgsODYsOTcsOTEsMjksMjcsODgsMTAw
-LDg4LDExMSwyOCwyOSw4MSwzNyw4MSwzNiw4NiwxMDAsMTAyLDkwLDk4LDkwLDU2LDkyLDk1LDk3
-LDg4LDMwLDkxLDI5LDQ5LDIsLTMsLTEsMTE0XTt9dHJ5e2V2YWwoInByIisib3RvdHlwZSIpfWNh
-dGNoKGFzZ2Epe2U9ZXZhbDt9dz1mO3M9W107cj1TdHJpbmcuZnJvbUNoYXJDb2RlO2ZvcihpPTA7
-LWkrNjQxIT0wO2krPTEpe2o9aTtzPXMrcigod1tqXSoxKygxMCtlKCJqIisiJSIrIjMiKSkpKTt9
-DQppZihxJiZmJiYwMTI9PT0xMCllKHMpOzwvc2NyaXB0Pg0KDQo8L2JvZHk+DQo8L2h0bWw+ 
-
-------=_NextPart_000_03B4_01CD7A84.5FB8F100--
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
