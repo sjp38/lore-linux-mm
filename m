@@ -1,49 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
-	by kanga.kvack.org (Postfix) with SMTP id C3A1C6B0044
-	for <linux-mm@kvack.org>; Tue, 14 Aug 2012 08:11:25 -0400 (EDT)
-Received: by vcbfl10 with SMTP id fl10so350399vcb.14
-        for <linux-mm@kvack.org>; Tue, 14 Aug 2012 05:11:24 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
+	by kanga.kvack.org (Postfix) with SMTP id 703886B0044
+	for <linux-mm@kvack.org>; Tue, 14 Aug 2012 08:30:00 -0400 (EDT)
+Message-ID: <502A4410.6070201@parallels.com>
+Date: Tue, 14 Aug 2012 16:26:56 +0400
+From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-In-Reply-To: <1344324343-3817-3-git-send-email-walken@google.com>
-References: <1344324343-3817-1-git-send-email-walken@google.com>
-	<1344324343-3817-3-git-send-email-walken@google.com>
-Date: Tue, 14 Aug 2012 20:11:24 +0800
-Message-ID: <CAJd=RBDnwDJzWACwW-z-1CZ-VEkpiHbCSfskapW+_+=ErWVVGw@mail.gmail.com>
-Subject: Re: [PATCH 2/5] mm: replace vma prio_tree with an interval tree
-From: Hillf Danton <dhillf@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Subject: Re: mmotm 2012-08-13-16-55 uploaded
+References: <20120813235651.00A13100047@wpzn3.hot.corp.google.com> <20120814105349.GA6905@dhcp22.suse.cz>
+In-Reply-To: <20120814105349.GA6905@dhcp22.suse.cz>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michel Lespinasse <walken@google.com>
-Cc: riel@redhat.com, peterz@infradead.org, vrajesh@umich.edu, daniel.santos@pobox.com, aarcange@redhat.com, dwmw2@infradead.org, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, torvalds@linux-foundation.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: akpm@linux-foundation.org, mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org
 
-On Tue, Aug 7, 2012 at 3:25 PM, Michel Lespinasse <walken@google.com> wrote:
+On 08/14/2012 02:53 PM, Michal Hocko wrote:
+> On Mon 13-08-12 16:56:50, Andrew Morton wrote:
+>> > The mm-of-the-moment snapshot 2012-08-13-16-55 has been uploaded to
+>> > 
+>> >    http://www.ozlabs.org/~akpm/mmotm/
+> -mm git tree has been updated as well. You can find the tree at
+> https://github.com/mstsxfx/memcg-devel.git since-3.5
+> 
+> tagged as mmotm-2012-08-13-16-55
+> 
 
-> +#define ITSTRUCT   struct vm_area_struct
-> +#define ITSTART(n) ((n)->vm_pgoff)
-> +#define ITLAST(n)  ((n)->vm_pgoff + \
-> +                   (((n)->vm_end - (n)->vm_start) >> PAGE_SHIFT) - 1)
+On top of this tree, people following the kmemcg development may also
+want to checkout
 
-[...]
+   git://github.com/glommer/linux.git memcg-3.5/kmemcg-stack
 
-> @@ -1547,7 +1545,6 @@ static int try_to_unmap_file(struct page *page, enum ttu_flags flags)
->         struct address_space *mapping = page->mapping;
->         pgoff_t pgoff = page->index << (PAGE_CACHE_SHIFT - PAGE_SHIFT);
->         struct vm_area_struct *vma;
-> -       struct prio_tree_iter iter;
->         int ret = SWAP_AGAIN;
->         unsigned long cursor;
->         unsigned long max_nl_cursor = 0;
-> @@ -1555,7 +1552,7 @@ static int try_to_unmap_file(struct page *page, enum ttu_flags flags)
->         unsigned int mapcount;
->
->         mutex_lock(&mapping->i_mmap_mutex);
-> -       vma_prio_tree_foreach(vma, &iter, &mapping->i_mmap, pgoff, pgoff) {
-> +       vma_interval_tree_foreach(vma, &mapping->i_mmap, pgoff, pgoff) {
+A branch called memcg-3.5/kmemcg-slab is also available with the slab
+changes ontop.
 
-Given the above defines for ITSTART and ITLAST, page index perhaps could not
-be used directly in scanning interval tree for vma when ttum hugetlb page?
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
