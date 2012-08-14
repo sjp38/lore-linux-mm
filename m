@@ -1,196 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
-	by kanga.kvack.org (Postfix) with SMTP id A33906B005D
-	for <linux-mm@kvack.org>; Tue, 14 Aug 2012 13:25:45 -0400 (EDT)
-Date: Tue, 14 Aug 2012 19:25:40 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH v2 06/11] memcg: kmem controller infrastructure
-Message-ID: <20120814172540.GD6905@dhcp22.suse.cz>
-References: <1344517279-30646-1-git-send-email-glommer@parallels.com>
- <1344517279-30646-7-git-send-email-glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
+	by kanga.kvack.org (Postfix) with SMTP id E15286B005D
+	for <linux-mm@kvack.org>; Tue, 14 Aug 2012 13:39:39 -0400 (EDT)
+Received: from /spool/local
+	by e4.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
+	Tue, 14 Aug 2012 13:39:36 -0400
+Received: from d01relay03.pok.ibm.com (d01relay03.pok.ibm.com [9.56.227.235])
+	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id A8B0038C8079
+	for <linux-mm@kvack.org>; Tue, 14 Aug 2012 13:39:33 -0400 (EDT)
+Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
+	by d01relay03.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q7EHdWDK097964
+	for <linux-mm@kvack.org>; Tue, 14 Aug 2012 13:39:33 -0400
+Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av01.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q7EHdSlr022922
+	for <linux-mm@kvack.org>; Tue, 14 Aug 2012 11:39:29 -0600
+Message-ID: <502A8D4D.3080101@linux.vnet.ibm.com>
+Date: Tue, 14 Aug 2012 12:39:25 -0500
+From: Seth Jennings <sjenning@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1344517279-30646-7-git-send-email-glommer@parallels.com>
+Subject: Re: [PATCH 0/7] zram/zsmalloc promotion
+References: <1344406340-14128-1-git-send-email-minchan@kernel.org> <20120814023530.GA9787@kroah.com> <5029E3EF.9080301@vflare.org>
+In-Reply-To: <5029E3EF.9080301@vflare.org>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, devel@openvz.org, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, kamezawa.hiroyu@jp.fujitsu.com, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, Pekka Enberg <penberg@cs.helsinki.fi>
+To: Nitin Gupta <ngupta@vflare.org>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Dan Magenheimer <dan.magenheimer@oracle.com>, Konrad Rzeszutek Wilk <konrad@darnok.org>
 
-On Thu 09-08-12 17:01:14, Glauber Costa wrote:
-> This patch introduces infrastructure for tracking kernel memory pages to
-> a given memcg. This will happen whenever the caller includes the flag
-> __GFP_KMEMCG flag, and the task belong to a memcg other than the root.
+On 08/14/2012 12:36 AM, Nitin Gupta wrote:
+> On 08/13/2012 07:35 PM, Greg Kroah-Hartman wrote:
+>> On Wed, Aug 08, 2012 at 03:12:13PM +0900, Minchan Kim wrote:
+>>> This patchset promotes zram/zsmalloc from staging.
+>>> Both are very clean and zram is used by many embedded product
+>>> for a long time.
+>>>
+>>> [1-3] are patches not merged into linux-next yet but needed
+>>> it as base for [4-5] which promotes zsmalloc.
+>>> Greg, if you merged [1-3] already, skip them.
+>>
+>> I've applied 1-3 and now 4, but that's it, I can't apply the rest
+>> without getting acks from the -mm maintainers, sorry.  Please work with
+>> them to get those acks, and then I will be glad to apply the rest (after
+>> you resend them of course...)
+>>
 > 
-> In memcontrol.h those functions are wrapped in inline accessors.  The
-> idea is to later on, patch those with static branches, so we don't incur
-> any overhead when no mem cgroups with limited kmem are being used.
-> 
-> [ v2: improved comments and standardized function names ]
-> 
-> Signed-off-by: Glauber Costa <glommer@parallels.com>
-> CC: Christoph Lameter <cl@linux.com>
-> CC: Pekka Enberg <penberg@cs.helsinki.fi>
-> CC: Michal Hocko <mhocko@suse.cz>
-> CC: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> CC: Johannes Weiner <hannes@cmpxchg.org>
-> ---
->  include/linux/memcontrol.h |  79 +++++++++++++++++++
->  mm/memcontrol.c            | 185 +++++++++++++++++++++++++++++++++++++++++++++
->  2 files changed, 264 insertions(+)
-> 
-> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-> index 8d9489f..75b247e 100644
-> --- a/include/linux/memcontrol.h
-> +++ b/include/linux/memcontrol.h
-[...]
-> +/**
-> + * memcg_kmem_new_page: verify if a new kmem allocation is allowed.
-> + * @gfp: the gfp allocation flags.
-> + * @handle: a pointer to the memcg this was charged against.
-> + * @order: allocation order.
-> + *
-> + * returns true if the memcg where the current task belongs can hold this
-> + * allocation.
-> + *
-> + * We return true automatically if this allocation is not to be accounted to
-> + * any memcg.
-> + */
-> +static __always_inline bool
-> +memcg_kmem_new_page(gfp_t gfp, void *handle, int order)
-> +{
-> +	if (!memcg_kmem_on)
-> +		return true;
-> +	if (!(gfp & __GFP_KMEMCG) || (gfp & __GFP_NOFAIL))
+> On a second thought, I think zsmalloc should stay in drivers/block/zram
+> since zram is now the only user of zsmalloc since zcache and ramster are
+> moving to another allocator.
 
-OK, I see the point behind __GFP_NOFAIL but it would deserve a comment
-or a mention in the changelog.
+The removal of zsmalloc from zcache has not been agreed upon
+yet.
 
-[...]
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 54e93de..e9824c1 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-[...]
-> +EXPORT_SYMBOL(__memcg_kmem_new_page);
+Dan _suggested_ removing zsmalloc as the persistent
+allocator for zcache in favor of zbud to solve "flaws" in
+zcache.  However, zbud has large deficiencies.
 
-Why is this exported?
+A zero-filled 4k page will compress with LZO to 103 bytes.
+zbud can only store two compressed pages in each memory pool
+page, resulting in 95% fragmentation (i.e. 95% of the memory
+pool page goes unused).  While this might not be a typical
+case, it is the worst case and absolutely does happen.
 
-> +
-> +void __memcg_kmem_commit_page(struct page *page, void *handle, int order)
-> +{
-> +	struct page_cgroup *pc;
-> +	struct mem_cgroup *memcg = handle;
-> +
-> +	if (!memcg)
-> +		return;
-> +
-> +	WARN_ON(mem_cgroup_is_root(memcg));
-> +	/* The page allocation must have failed. Revert */
-> +	if (!page) {
-> +		size_t size = PAGE_SIZE << order;
-> +
-> +		memcg_uncharge_kmem(memcg, size);
-> +		mem_cgroup_put(memcg);
-> +		return;
-> +	}
-> +
-> +	pc = lookup_page_cgroup(page);
-> +	lock_page_cgroup(pc);
-> +	pc->mem_cgroup = memcg;
-> +	SetPageCgroupUsed(pc);
+zbud's design also effectively limits the useful page
+compression to 50%. If pages are compressed beyond that, the
+added space savings is lost in memory pool fragmentation.
+For example, if two pages compress to 30% of their original
+size, those two pages take up 60% of the zbud memory pool
+page, and 40% is lost to fragmentation because zbud can't
+store anything in the remaining space.
 
-Don't we need a write barrier before assigning memcg? Same as
-__mem_cgroup_commit_charge. This tests the Used bit always from within
-lock_page_cgroup so it should be safe but I am not 100% sure about the
-rest of the code.
+To say it another way, for every two page cache pages that
+cleancache stores in zcache, zbud _must_ allocate a memory
+pool page, regardless of how well those pages compress.
+This reduces the efficiency of the page cache reclaim
+mechanism by half.
 
-[...]
-> +EXPORT_SYMBOL(__memcg_kmem_free_page);
+I have posted some work (zsmalloc shrinker interface, user
+registered alloc/free functions for the zsmalloc memory
+pool) that begins to make zsmalloc a suitable replacement
+for zbud, but that work was put on hold until the path out
+of staging was established.
 
-Why is the symbol exported?
+I'm hoping to continue this work once the code is in
+mainline.  While zbud has deficiencies, it doesn't prevent
+zcache from having value as I have already demonstrated.
+However, replacing zsmalloc with zbud would step backward
+for the reasons mentioned above.
 
->  #endif /* CONFIG_MEMCG_KMEM */
->  
->  #if defined(CONFIG_INET) && defined(CONFIG_MEMCG_KMEM)
-> @@ -5759,3 +5878,69 @@ static int __init enable_swap_account(char *s)
->  __setup("swapaccount=", enable_swap_account);
->  
->  #endif
-> +
-> +#ifdef CONFIG_MEMCG_KMEM
-> +int memcg_charge_kmem(struct mem_cgroup *memcg, gfp_t gfp, s64 delta)
-> +{
-> +	struct res_counter *fail_res;
-> +	struct mem_cgroup *_memcg;
-> +	int ret;
-> +	bool may_oom;
-> +	bool nofail = false;
-> +
-> +	may_oom = (gfp & __GFP_WAIT) && (gfp & __GFP_FS) &&
-> +	    !(gfp & __GFP_NORETRY);
+I do not support the removal of zsmalloc from zcache.  As
+such, I think the zsmalloc code should remain independent.
 
-This deserves a comment.
-
-> +
-> +	ret = 0;
-> +
-> +	if (!memcg)
-> +		return ret;
-> +
-> +	_memcg = memcg;
-> +	ret = __mem_cgroup_try_charge(NULL, gfp, delta / PAGE_SIZE,
-> +	    &_memcg, may_oom);
-
-This is really dangerous because atomic allocation which seem to be
-possible could result in deadlocks because of the reclaim. Also, as I
-have mentioned in the other email in this thread. Why should we reclaim
-just because of kernel allocation when we are not reclaiming any of it
-because shrink_slab is ignored in the memcg reclaim.
-
-> +
-> +	if (ret == -EINTR)  {
-> +		nofail = true;
-> +		/*
-> +		 * __mem_cgroup_try_charge() chosed to bypass to root due to
-> +		 * OOM kill or fatal signal.  Since our only options are to
-> +		 * either fail the allocation or charge it to this cgroup, do
-> +		 * it as a temporary condition. But we can't fail. From a
-> +		 * kmem/slab perspective, the cache has already been selected,
-> +		 * by mem_cgroup_get_kmem_cache(), so it is too late to change
-> +		 * our minds
-> +		 */
-> +		res_counter_charge_nofail(&memcg->res, delta, &fail_res);
-> +		if (do_swap_account)
-> +			res_counter_charge_nofail(&memcg->memsw, delta,
-> +						  &fail_res);
-
-Hmmm, this is kind of ugly but I guess unvoidable with the current
-implementation. Oh well...
-
-> +		ret = 0;
-> +	} else if (ret == -ENOMEM)
-> +		return ret;
-> +
-> +	if (nofail)
-> +		res_counter_charge_nofail(&memcg->kmem, delta, &fail_res);
-> +	else
-> +		ret = res_counter_charge(&memcg->kmem, delta, &fail_res);
-> +
-> +	if (ret) {
-> +		res_counter_uncharge(&memcg->res, delta);
-> +		if (do_swap_account)
-> +			res_counter_uncharge(&memcg->memsw, delta);
-> +	}
-> +
-> +	return ret;
-> +}
-> +
-[...]
-
--- 
-Michal Hocko
-SUSE Labs
+Seth
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
