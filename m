@@ -1,36 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
-	by kanga.kvack.org (Postfix) with SMTP id 2EFAA6B0044
-	for <linux-mm@kvack.org>; Tue, 14 Aug 2012 14:43:49 -0400 (EDT)
-Received: by qafk30 with SMTP id k30so4128714qaf.14
-        for <linux-mm@kvack.org>; Tue, 14 Aug 2012 11:43:48 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
+	by kanga.kvack.org (Postfix) with SMTP id A91596B0044
+	for <linux-mm@kvack.org>; Tue, 14 Aug 2012 14:44:25 -0400 (EDT)
+Date: Tue, 14 Aug 2012 15:44:09 -0300
+From: Rafael Aquini <aquini@redhat.com>
+Subject: Re: [PATCH v7 2/4] virtio_balloon: introduce migration primitives to
+ balloon pages
+Message-ID: <20120814184409.GC13338@t510.redhat.com>
+References: <cover.1344619987.git.aquini@redhat.com>
+ <f19b63dfa026fe2f8f11ec017771161775744781.1344619987.git.aquini@redhat.com>
+ <20120813084123.GF14081@redhat.com>
+ <87lihis5qi.fsf@rustcorp.com.au>
+ <20120814083320.GA3597@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <20120809135634.298829888@linux.com>
-References: <20120809135623.574621297@linux.com>
-	<20120809135634.298829888@linux.com>
-Date: Wed, 15 Aug 2012 03:43:48 +0900
-Message-ID: <CAAmzW4MkR8Bug8QNtPH4ghiXUYtL7UwTAt9EEYUm7_dUybF88w@mail.gmail.com>
-Subject: Re: Common11r [05/20] Move list_add() to slab_common.c
-From: JoonSoo Kim <js1304@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120814083320.GA3597@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Glauber Costa <glommer@parallels.com>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org
+To: "Michael S. Tsirkin" <mst@redhat.com>
+Cc: Rusty Russell <rusty@rustcorp.com.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Minchan Kim <minchan@kernel.org>
 
-2012/8/9 Christoph Lameter <cl@linux.com>:
-> Move the code to append the new kmem_cache to the list of slab caches to
-> the kmem_cache_create code in the shared code.
->
-> This is possible now since the acquisition of the mutex was moved into
-> kmem_cache_create().
->
-> V1->V2:
->         - SLOB: Add code to remove the slab from list
->          (will be removed a couple of patches down when we also move the
->          list_del to common code).
+On Tue, Aug 14, 2012 at 11:33:20AM +0300, Michael S. Tsirkin wrote:
+> On Tue, Aug 14, 2012 at 09:29:49AM +0930, Rusty Russell wrote:
+> > On Mon, 13 Aug 2012 11:41:23 +0300, "Michael S. Tsirkin" <mst@redhat.com> wrote:
+> > > On Fri, Aug 10, 2012 at 02:55:15PM -0300, Rafael Aquini wrote:
+> > > > +/*
+> > > > + * Populate balloon_mapping->a_ops->freepage method to help compaction on
+> > > > + * re-inserting an isolated page into the balloon page list.
+> > > > + */
+> > > > +void virtballoon_putbackpage(struct page *page)
+> > > > +{
+> > > > +	spin_lock(&pages_lock);
+> > > > +	list_add(&page->lru, &vb_ptr->pages);
+> > > > +	spin_unlock(&pages_lock);
+> > > 
+> > > Could the following race trigger:
+> > > migration happens while module unloading is in progress,
+> > > module goes away between here and when the function
+> > > returns, then code for this function gets overwritten?
+> > > If yes we need locking external to module to prevent this.
+> > > Maybe add a spinlock to struct address_space?
+> > 
+> > The balloon module cannot be unloaded until it has leaked all its pages,
+> > so I think this is safe:
+> > 
+> >         static void remove_common(struct virtio_balloon *vb)
+> >         {
+> >         	/* There might be pages left in the balloon: free them. */
+> >         	while (vb->num_pages)
+> >         		leak_balloon(vb, vb->num_pages);
+> > 
+> > Cheers,
+> > Rusty.
+> 
+> I know I meant something else.
+> Let me lay this out:
+> 
+> CPU1 executes:
+> void virtballoon_putbackpage(struct page *page)
+> {
+> 	spin_lock(&pages_lock);
+> 	list_add(&page->lru, &vb_ptr->pages);
+> 	spin_unlock(&pages_lock);
+> 
+> 
+> 		at this point CPU2 unloads module:
+> 						leak_balloon
+> 						......
+> 
+> 		next CPU2 loads another module so code memory gets overwritten
+> 
+> now CPU1 executes the next instruction:
+> 
+> }
+> 
+> which would normally return to function's caller,
+> but it has been overwritten by CPU2 so we get corruption.
+> 
+> No?
 
-There is no code for "SLOB: Add code to remove the slab from list"
+At the point CPU2 is unloading the module, it will be kept looping at the
+snippet Rusty pointed out because the isolation / migration steps do not mess
+with 'vb->num_pages'. The driver will only unload after leaking the total amount
+of balloon's inflated pages, which means (for this hypothetical case) CPU2 will
+wait until CPU1 finishes the putaback procedure.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
