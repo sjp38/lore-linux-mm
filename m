@@ -1,98 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
-	by kanga.kvack.org (Postfix) with SMTP id 1CF406B0044
-	for <linux-mm@kvack.org>; Tue, 14 Aug 2012 07:56:15 -0400 (EDT)
-Received: by vcbfl10 with SMTP id fl10so333432vcb.14
-        for <linux-mm@kvack.org>; Tue, 14 Aug 2012 04:56:14 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
+	by kanga.kvack.org (Postfix) with SMTP id 8A62A6B0044
+	for <linux-mm@kvack.org>; Tue, 14 Aug 2012 07:58:18 -0400 (EDT)
+Message-ID: <502A3CD2.9000007@huawei.com>
+Date: Tue, 14 Aug 2012 19:56:02 +0800
+From: Hanjun Guo <guohanjun@huawei.com>
 MIME-Version: 1.0
-In-Reply-To: <alpine.LSU.2.00.1208131900260.29738@eggly.anvils>
-References: <CAJd=RBAjGaOXfQQ_NX+ax6=tJJ0eg7EXCFHz3rdvSR3j1K3qHA@mail.gmail.com>
-	<alpine.LSU.2.00.1208091816240.9631@eggly.anvils>
-	<CAJd=RBDu5ebAAOuie5yNc8x7vkn7LPfDZZyGzRsCUFNRojWmwQ@mail.gmail.com>
-	<alpine.LSU.2.00.1208131900260.29738@eggly.anvils>
-Date: Tue, 14 Aug 2012 19:56:13 +0800
-Message-ID: <CAJd=RBD53oRWx7d7=tynzzHVe=pLV_5Y4ryi695VSq_T-YLx9Q@mail.gmail.com>
-Subject: Re: [patch] mmap: feed back correct prev vma when finding vma
-From: Hillf Danton <dhillf@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Subject: Re: [RFC PATCH] mm: introduce N_LRU_MEMORY to distinguish between
+ normal and movable memory
+References: <1344482788-4984-1-git-send-email-guohanjun@huawei.com> <50233EF5.3050605@huawei.com> <alpine.DEB.2.02.1208090900450.15909@greybox.home> <5024CADC.1010202@huawei.com> <alpine.DEB.2.02.1208100909410.3903@greybox.home>
+In-Reply-To: <alpine.DEB.2.02.1208100909410.3903@greybox.home>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mikulas Patocka <mpatocka@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Benny Halevy <bhalevy@tonian.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
+To: "Christoph Lameter (Open Source)" <cl@linux.com>
+Cc: Wu Jianguo <wujianguo@huawei.com>, Jiang Liu <jiang.liu@huawei.com>, Tony Luck <tony.luck@intel.com>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Mel Gorman <mgorman@suse.de>, Yinghai Lu <yinghai@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, Minchan Kim <minchan@kernel.org>, Keping Chen <chenkeping@huawei.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Jiang Liu <liuj97@gmail.com>
 
-On Tue, Aug 14, 2012 at 10:17 AM, Hugh Dickins <hughd@google.com> wrote:
-> [PATCH] mm: replace find_vma_prepare by clearer find_vma_links
->
-> People get confused by find_vma_prepare(), because it doesn't care about
-> what it returns in its output args, when its callers won't be interested.
->
-> Clarify by passing in end-of-range address too, and returning failure if
-> any existing vma overlaps the new range: instead of returning an ambiguous
-> vma which most callers then must check.  find_vma_links() is a clearer name.
->
-> This does revert 2.6.27's dfe195fb79e88 ("mm: fix uninitialized variables
-> for find_vma_prepare callers"), but it looks like gcc 4.3.0 was one of
-> those releases too eager to shout about uninitialized variables: only
-> copy_vma() warns with 4.5.1 and 4.7.1, which a BUG on error silences.
->
-> Signed-off-by: Hugh Dickins <hughd@google.com>
-> Cc: Benny Halevy <bhalevy@tonian.com>
+On 2012/8/10 22:12, Christoph Lameter (Open Source) wrote:
+> On Fri, 10 Aug 2012, Hanjun Guo wrote:
+> 
+>> On 2012/8/9 22:06, Christoph Lameter (Open Source) wrote:
+>>> On Thu, 9 Aug 2012, Hanjun Guo wrote:
+>>>
+>>>> Now, We have node masks for both N_NORMAL_MEMORY and
+>>>> N_HIGH_MEMORY to distinguish between normal and highmem on platforms such as x86.
+>>>> But we still don't have such a mechanism to distinguish between "normal" and "movable"
+>>>> memory.
+>>>
+>>> What is the exact difference that you want to establish?
+>>
+>> Hi Christoph,
+>>     Thanks for your comments very much!
+>>
+>> We want to identify the node only has ZONE_MOVABLE memory.
+>> for example:
+>> 	node 0: ZONE_DMA, ZONE_DMA32, ZONE_NORMAL--> N_LRU_MEMORY, N_NORMAL_MEMORY
+>> 	node 1: ZONE_MOVABLE			 --> N_LRU_MEMORY
+>> thus, in SLUB allocator, will not allocate memory control structures for node1.
+> 
+> So this would change the N_NORMAL_MEMORY definition so that N_NORMAL
+> means !LRU allocs possible? So far N_NORMAL_MEMORY has a wider scope of
+> meaning. We need an accurate definition of the meaning of all these
+> attributes.
 
+Hi Christoph,
+Sorry for the late reply.
 
-Acked-by: Hillf Danton <dhillf@gmail.com>
+yes, N_LRU_MEMORY means LRU allocs possible,
+N_NORMAL_MEMORY means !LRU allocs possible.
+node with ZONE_DMA/ZONE_DMA32/ZONE_NORMAL is marked with N_LRU_MEMORY and N_NORMAL_MEMORY,
+node with ZONE_MOVABLE is *only* marked with N_LRU_MEMORY.
 
->  mm/mmap.c |   45 +++++++++++++++++++++------------------------
->  1 file changed, 21 insertions(+), 24 deletions(-)
->
-> --- 3.6-rc1/mm/mmap.c   2012-08-03 08:31:27.064842271 -0700
-> +++ linux/mm/mmap.c     2012-08-13 12:23:35.862895633 -0700
-> @@ -356,17 +356,14 @@ void validate_mm(struct mm_struct *mm)
->  #define validate_mm(mm) do { } while (0)
->  #endif
->
-> -static struct vm_area_struct *
-> -find_vma_prepare(struct mm_struct *mm, unsigned long addr,
-> -               struct vm_area_struct **pprev, struct rb_node ***rb_link,
-> -               struct rb_node ** rb_parent)
-> +static int find_vma_links(struct mm_struct *mm, unsigned long addr,
-> +               unsigned long end, struct vm_area_struct **pprev,
-> +               struct rb_node ***rb_link, struct rb_node **rb_parent)
->  {
-> -       struct vm_area_struct * vma;
-> -       struct rb_node ** __rb_link, * __rb_parent, * rb_prev;
-> +       struct rb_node **__rb_link, *__rb_parent, *rb_prev;
->
+> 
+>>> For the slab case that you want to solve here you will need to know if the
+>>> node has *only* movable memory and will never have any ZONE_NORMAL memory.
+>>> If so then memory control structures for allocators that do not allow
+>>> movable memory will not need to be allocated for these node. The node can
+>>> be excluded from handling.
+>>
+>> I think this is what we are trying to do in this patch.
+>> did I miss something?
+> 
+> THe meaning of ZONE_NORMAL seems to change which causes confusion. Please
+> describe in detail what each of these attributes mean.
+> 
+> .
+> 
 
-Just a nitpick, we could further cut a couple of lines if
-rb_prev is replaced by vma.
-
->         __rb_link = &mm->mm_rb.rb_node;
->         rb_prev = __rb_parent = NULL;
-> -       vma = NULL;
->
->         while (*__rb_link) {
->                 struct vm_area_struct *vma_tmp;
-> @@ -375,9 +372,9 @@ find_vma_prepare(struct mm_struct *mm, u
->                 vma_tmp = rb_entry(__rb_parent, struct vm_area_struct, vm_rb);
->
->                 if (vma_tmp->vm_end > addr) {
-> -                       vma = vma_tmp;
-> -                       if (vma_tmp->vm_start <= addr)
-> -                               break;
-> +                       /* Fail if an existing vma overlaps the area */
-> +                       if (vma_tmp->vm_start < end)
-> +                               return -ENOMEM;
->                         __rb_link = &__rb_parent->rb_left;
->                 } else {
->                         rb_prev = __rb_parent;
-> @@ -390,7 +387,7 @@ find_vma_prepare(struct mm_struct *mm, u
->                 *pprev = rb_entry(rb_prev, struct vm_area_struct, vm_rb);
->         *rb_link = __rb_link;
->         *rb_parent = __rb_parent;
-> -       return vma;
-> +       return 0;
->  }
->
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
