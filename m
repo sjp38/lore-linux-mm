@@ -1,73 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
-	by kanga.kvack.org (Postfix) with SMTP id 8A62A6B0044
-	for <linux-mm@kvack.org>; Tue, 14 Aug 2012 07:58:18 -0400 (EDT)
-Message-ID: <502A3CD2.9000007@huawei.com>
-Date: Tue, 14 Aug 2012 19:56:02 +0800
-From: Hanjun Guo <guohanjun@huawei.com>
+Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
+	by kanga.kvack.org (Postfix) with SMTP id C3A1C6B0044
+	for <linux-mm@kvack.org>; Tue, 14 Aug 2012 08:11:25 -0400 (EDT)
+Received: by vcbfl10 with SMTP id fl10so350399vcb.14
+        for <linux-mm@kvack.org>; Tue, 14 Aug 2012 05:11:24 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [RFC PATCH] mm: introduce N_LRU_MEMORY to distinguish between
- normal and movable memory
-References: <1344482788-4984-1-git-send-email-guohanjun@huawei.com> <50233EF5.3050605@huawei.com> <alpine.DEB.2.02.1208090900450.15909@greybox.home> <5024CADC.1010202@huawei.com> <alpine.DEB.2.02.1208100909410.3903@greybox.home>
-In-Reply-To: <alpine.DEB.2.02.1208100909410.3903@greybox.home>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <1344324343-3817-3-git-send-email-walken@google.com>
+References: <1344324343-3817-1-git-send-email-walken@google.com>
+	<1344324343-3817-3-git-send-email-walken@google.com>
+Date: Tue, 14 Aug 2012 20:11:24 +0800
+Message-ID: <CAJd=RBDnwDJzWACwW-z-1CZ-VEkpiHbCSfskapW+_+=ErWVVGw@mail.gmail.com>
+Subject: Re: [PATCH 2/5] mm: replace vma prio_tree with an interval tree
+From: Hillf Danton <dhillf@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Christoph Lameter (Open Source)" <cl@linux.com>
-Cc: Wu Jianguo <wujianguo@huawei.com>, Jiang Liu <jiang.liu@huawei.com>, Tony Luck <tony.luck@intel.com>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Mel Gorman <mgorman@suse.de>, Yinghai Lu <yinghai@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, Minchan Kim <minchan@kernel.org>, Keping Chen <chenkeping@huawei.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Jiang Liu <liuj97@gmail.com>
+To: Michel Lespinasse <walken@google.com>
+Cc: riel@redhat.com, peterz@infradead.org, vrajesh@umich.edu, daniel.santos@pobox.com, aarcange@redhat.com, dwmw2@infradead.org, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, torvalds@linux-foundation.org
 
-On 2012/8/10 22:12, Christoph Lameter (Open Source) wrote:
-> On Fri, 10 Aug 2012, Hanjun Guo wrote:
-> 
->> On 2012/8/9 22:06, Christoph Lameter (Open Source) wrote:
->>> On Thu, 9 Aug 2012, Hanjun Guo wrote:
->>>
->>>> Now, We have node masks for both N_NORMAL_MEMORY and
->>>> N_HIGH_MEMORY to distinguish between normal and highmem on platforms such as x86.
->>>> But we still don't have such a mechanism to distinguish between "normal" and "movable"
->>>> memory.
->>>
->>> What is the exact difference that you want to establish?
->>
->> Hi Christoph,
->>     Thanks for your comments very much!
->>
->> We want to identify the node only has ZONE_MOVABLE memory.
->> for example:
->> 	node 0: ZONE_DMA, ZONE_DMA32, ZONE_NORMAL--> N_LRU_MEMORY, N_NORMAL_MEMORY
->> 	node 1: ZONE_MOVABLE			 --> N_LRU_MEMORY
->> thus, in SLUB allocator, will not allocate memory control structures for node1.
-> 
-> So this would change the N_NORMAL_MEMORY definition so that N_NORMAL
-> means !LRU allocs possible? So far N_NORMAL_MEMORY has a wider scope of
-> meaning. We need an accurate definition of the meaning of all these
-> attributes.
+On Tue, Aug 7, 2012 at 3:25 PM, Michel Lespinasse <walken@google.com> wrote:
 
-Hi Christoph,
-Sorry for the late reply.
+> +#define ITSTRUCT   struct vm_area_struct
+> +#define ITSTART(n) ((n)->vm_pgoff)
+> +#define ITLAST(n)  ((n)->vm_pgoff + \
+> +                   (((n)->vm_end - (n)->vm_start) >> PAGE_SHIFT) - 1)
 
-yes, N_LRU_MEMORY means LRU allocs possible,
-N_NORMAL_MEMORY means !LRU allocs possible.
-node with ZONE_DMA/ZONE_DMA32/ZONE_NORMAL is marked with N_LRU_MEMORY and N_NORMAL_MEMORY,
-node with ZONE_MOVABLE is *only* marked with N_LRU_MEMORY.
+[...]
 
-> 
->>> For the slab case that you want to solve here you will need to know if the
->>> node has *only* movable memory and will never have any ZONE_NORMAL memory.
->>> If so then memory control structures for allocators that do not allow
->>> movable memory will not need to be allocated for these node. The node can
->>> be excluded from handling.
->>
->> I think this is what we are trying to do in this patch.
->> did I miss something?
-> 
-> THe meaning of ZONE_NORMAL seems to change which causes confusion. Please
-> describe in detail what each of these attributes mean.
-> 
-> .
-> 
+> @@ -1547,7 +1545,6 @@ static int try_to_unmap_file(struct page *page, enum ttu_flags flags)
+>         struct address_space *mapping = page->mapping;
+>         pgoff_t pgoff = page->index << (PAGE_CACHE_SHIFT - PAGE_SHIFT);
+>         struct vm_area_struct *vma;
+> -       struct prio_tree_iter iter;
+>         int ret = SWAP_AGAIN;
+>         unsigned long cursor;
+>         unsigned long max_nl_cursor = 0;
+> @@ -1555,7 +1552,7 @@ static int try_to_unmap_file(struct page *page, enum ttu_flags flags)
+>         unsigned int mapcount;
+>
+>         mutex_lock(&mapping->i_mmap_mutex);
+> -       vma_prio_tree_foreach(vma, &iter, &mapping->i_mmap, pgoff, pgoff) {
+> +       vma_interval_tree_foreach(vma, &mapping->i_mmap, pgoff, pgoff) {
 
+Given the above defines for ITSTART and ITLAST, page index perhaps could not
+be used directly in scanning interval tree for vma when ttum hugetlb page?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
