@@ -1,72 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
-	by kanga.kvack.org (Postfix) with SMTP id 064D46B0044
-	for <linux-mm@kvack.org>; Tue, 14 Aug 2012 09:31:41 -0400 (EDT)
-Date: Tue, 14 Aug 2012 09:21:31 -0400
+Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
+	by kanga.kvack.org (Postfix) with SMTP id 58E636B002B
+	for <linux-mm@kvack.org>; Tue, 14 Aug 2012 09:38:04 -0400 (EDT)
+Date: Tue, 14 Aug 2012 09:28:03 -0400
 From: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-Subject: Re: [PATCH 0/7] zram/zsmalloc promotion
-Message-ID: <20120814132131.GB10880@phenom.dumpdata.com>
-References: <1344406340-14128-1-git-send-email-minchan@kernel.org>
- <20120814023530.GA9787@kroah.com>
- <20120814062246.GB31621@bbox>
+Subject: Re: [Xen-devel] [PATCH] netvm: check for page == NULL when
+ propogating the skb->pfmemalloc flag
+Message-ID: <20120814132803.GC10880@phenom.dumpdata.com>
+References: <20120807085554.GF29814@suse.de>
+ <20120808.155046.820543563969484712.davem@davemloft.net>
+ <20120813154144.GA24868@phenom.dumpdata.com>
+ <20120814100522.GL4177@suse.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20120814062246.GB31621@bbox>
+In-Reply-To: <20120814100522.GL4177@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Nitin Gupta <ngupta@vflare.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Konrad Rzeszutek Wilk <konrad@darnok.org>
+To: Mel Gorman <mgorman@suse.de>
+Cc: David Miller <davem@davemloft.net>, Ian Campbell <Ian.Campbell@eu.citrix.com>, xen-devel@lists.xensource.com, netdev@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, konrad@darnok.org, akpm@linux-foundation.org
 
-On Tue, Aug 14, 2012 at 03:22:47PM +0900, Minchan Kim wrote:
-> Hi Greg,
-> 
-> On Mon, Aug 13, 2012 at 07:35:30PM -0700, Greg Kroah-Hartman wrote:
-> > On Wed, Aug 08, 2012 at 03:12:13PM +0900, Minchan Kim wrote:
-> > > This patchset promotes zram/zsmalloc from staging.
-> > > Both are very clean and zram is used by many embedded product
-> > > for a long time.
+On Tue, Aug 14, 2012 at 11:05:22AM +0100, Mel Gorman wrote:
+> On Mon, Aug 13, 2012 at 11:41:44AM -0400, Konrad Rzeszutek Wilk wrote:
+> > On Wed, Aug 08, 2012 at 03:50:46PM -0700, David Miller wrote:
+> > > From: Mel Gorman <mgorman@suse.de>
+> > > Date: Tue, 7 Aug 2012 09:55:55 +0100
 > > > 
-> > > [1-3] are patches not merged into linux-next yet but needed
-> > > it as base for [4-5] which promotes zsmalloc.
-> > > Greg, if you merged [1-3] already, skip them.
+> > > > Commit [c48a11c7: netvm: propagate page->pfmemalloc to skb] is responsible
+> > > > for the following bug triggered by a xen network driver
+> > >  ...
+> > > > The problem is that the xenfront driver is passing a NULL page to
+> > > > __skb_fill_page_desc() which was unexpected. This patch checks that
+> > > > there is a page before dereferencing.
+> > > > 
+> > > > Reported-and-Tested-by: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+> > > > Signed-off-by: Mel Gorman <mgorman@suse.de>
+> > > 
+> > > That call to __skb_fill_page_desc() in xen-netfront.c looks completely bogus.
+> > > It's the only driver passing NULL here.
 > > 
-> > I've applied 1-3 and now 4, but that's it, I can't apply the rest
+> > It looks to be passing a valid page pointer (at least by looking
+> > at the code) so I am not sure how it got turned in a NULL.
+> > 
 > 
-> Thanks!
+> Are we looking at different code bases? I see this and I was assuming it
+> was the source of the bug.
 > 
-> > without getting acks from the -mm maintainers, sorry.  Please work with
-> 
-> Nitin suggested zsmalloc could be in /lib or /zram out of /mm but I want
-> to confirm it from akpm so let's wait his opinion.
-> 
-> Anyway, another question. zram would be under driver/blocks.
-> Do I need ACK from Jens for that?
+> 	__skb_fill_page_desc(skb, 0, NULL, 0, 0);
 
-Yes.
-> 
-> > them to get those acks, and then I will be glad to apply the rest (after
-> > you resend them of course...)
-> > 
-> > thanks,
-> > 
-> > greg k-h
-> > 
-> > --
-> > To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> > the body to majordomo@kvack.org.  For more info on Linux MM,
-> > see: http://www.linux-mm.org/ .
-> > Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Yes! Well, that is embarrassing. I was looking at the first invocation of 
+__skb_fill_page_desc (which is in xennet_alloc_rx_buffers) <sigh>
+
 > 
 > -- 
-> Kind regards,
-> Minchan Kim
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> Mel Gorman
+> SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
