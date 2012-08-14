@@ -1,58 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
-	by kanga.kvack.org (Postfix) with SMTP id 0DD9B6B005D
-	for <linux-mm@kvack.org>; Tue, 14 Aug 2012 16:01:01 -0400 (EDT)
-Date: Tue, 14 Aug 2012 17:00:49 -0300
-From: Rafael Aquini <aquini@redhat.com>
-Subject: Re: [PATCH v7 1/4] mm: introduce compaction and migration for virtio
- ballooned pages
-Message-ID: <20120814200043.GB22133@t510.redhat.com>
-References: <cover.1344619987.git.aquini@redhat.com>
- <292b1b52e863a05b299f94bda69a61371011ac19.1344619987.git.aquini@redhat.com>
- <20120813082619.GE14081@redhat.com>
- <20120814174404.GA13338@t510.redhat.com>
- <20120814193525.GB28840@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120814193525.GB28840@redhat.com>
+Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
+	by kanga.kvack.org (Postfix) with SMTP id EF8866B0044
+	for <linux-mm@kvack.org>; Tue, 14 Aug 2012 16:03:28 -0400 (EDT)
+Received: by yhr47 with SMTP id 47so1113523yhr.14
+        for <linux-mm@kvack.org>; Tue, 14 Aug 2012 13:03:26 -0700 (PDT)
+From: Ezequiel Garcia <elezegarcia@gmail.com>
+Subject: [PATCH] mm, slob: Drop usage of page->private for storing page-sized allocations
+Date: Tue, 14 Aug 2012 17:03:05 -0300
+Message-Id: <1344974585-9701-1-git-send-email-elezegarcia@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Michael S. Tsirkin" <mst@redhat.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, Rusty Russell <rusty@rustcorp.com.au>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Minchan Kim <minchan@kernel.org>
+To: linux-mm@kvack.org
+Cc: Ezequiel Garcia <elezegarcia@gmail.com>, Pekka Enberg <penberg@kernel.org>, Christoph Lameter <cl@linux.com>, Glauber Costa <glommer@parallels.com>
 
-On Tue, Aug 14, 2012 at 10:35:25PM +0300, Michael S. Tsirkin wrote:
-> > > > +/* __isolate_lru_page() counterpart for a ballooned page */
-> > > > +bool isolate_balloon_page(struct page *page)
-> > > > +{
-> > > > +	if (WARN_ON(!movable_balloon_page(page)))
-> > > 
-> > > Looks like this actually can happen if the page is leaked
-> > > between previous movable_balloon_page and here.
-> > > 
-> > > > +		return false;
-> > 
-> > Yes, it surely can happen, and it does not harm to catch it here, print a warn and
-> > return.
-> 
-> If it is legal, why warn? For that matter why test here at all?
->
+This field was being used to store size allocation so it could be
+retrieved by ksize(). However, it is a bad practice to not mark a page
+as a slab page and then use fields for special purposes.
+There is no need to store the allocated size and
+ksize() can simply return PAGE_SIZE << compound_order(page).
 
-As this is a public symbol, and despite the usage we introduce is sane, the warn
-was placed as an insurance policy to let us know about any insane attempt to use
-the procedure in the future. That was due to a nice review nitpick, actually.
+Cc: Pekka Enberg <penberg@kernel.org>
+Cc: Christoph Lameter <cl@linux.com>
+Cc: Glauber Costa <glommer@parallels.com>
+Signed-off-by: Ezequiel Garcia <elezegarcia@gmail.com>
+---
+ mm/slob.c |   23 ++++++++++-------------
+ 1 files changed, 10 insertions(+), 13 deletions(-)
 
-Even though the code already had a test to properly avoid this race you
-mention, I thought that sustaining the warn was a good thing. As I told you,
-despite real, I've never got (un)lucky enough to stumble across that race window
-while testing the patch.
-
-If your concern is about being too much verbose on logging, under certain
-conditions, perhaps we can change that test to a WARN_ON_ONCE() ?
-
-Mel, what are your thoughts here?
+diff --git a/mm/slob.c b/mm/slob.c
+index 686e98b..987da93 100644
+--- a/mm/slob.c
++++ b/mm/slob.c
+@@ -28,9 +28,8 @@
+  * from kmalloc are prepended with a 4-byte header with the kmalloc size.
+  * If kmalloc is asked for objects of PAGE_SIZE or larger, it calls
+  * alloc_pages() directly, allocating compound pages so the page order
+- * does not have to be separately tracked, and also stores the exact
+- * allocation size in page->private so that it can be used to accurately
+- * provide ksize(). These objects are detected in kfree() because slob_page()
++ * does not have to be separately tracked.
++ * These objects are detected in kfree() because PageSlab()
+  * is false for them.
+  *
+  * SLAB is emulated on top of SLOB by simply calling constructors and
+@@ -450,7 +449,6 @@ void *__kmalloc_node(size_t size, gfp_t gfp, int node)
+ 				   size, size + align, gfp, node);
+ 	} else {
+ 		unsigned int order = get_order(size);
+-		struct page *page;
  
-> > While testing it, I wasn't lucky to see this small window opening, though.
+ 		if (likely(order))
+ 			gfp |= __GFP_COMP;
+@@ -458,9 +456,6 @@ void *__kmalloc_node(size_t size, gfp_t gfp, int node)
+ 		if (!ret)
+ 			return NULL;
+ 
+-		page = virt_to_page(ret);
+-		page->private = size;
+-
+ 		trace_kmalloc_node(_RET_IP_, ret,
+ 				   size, PAGE_SIZE << order, gfp, node);
+ 	}
+@@ -494,18 +489,20 @@ EXPORT_SYMBOL(kfree);
+ size_t ksize(const void *block)
+ {
+ 	struct page *sp;
++	int align;
++	unsigned int *m;
+ 
+ 	BUG_ON(!block);
+ 	if (unlikely(block == ZERO_SIZE_PTR))
+ 		return 0;
+ 
+ 	sp = virt_to_page(block);
+-	if (PageSlab(sp)) {
+-		int align = max(ARCH_KMALLOC_MINALIGN, ARCH_SLAB_MINALIGN);
+-		unsigned int *m = (unsigned int *)(block - align);
+-		return SLOB_UNITS(*m) * SLOB_UNIT;
+-	} else
+-		return sp->private;
++	if (unlikely(!PageSlab(sp)))
++		return PAGE_SIZE << compound_order(sp);
++
++	align = max(ARCH_KMALLOC_MINALIGN, ARCH_SLAB_MINALIGN);
++	m = (unsigned int *)(block - align);
++	return SLOB_UNITS(*m) * SLOB_UNIT;
+ }
+ EXPORT_SYMBOL(ksize);
+ 
+-- 
+1.7.8.6
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
