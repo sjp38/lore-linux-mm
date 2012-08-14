@@ -1,103 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
-	by kanga.kvack.org (Postfix) with SMTP id 087106B0081
-	for <linux-mm@kvack.org>; Tue, 14 Aug 2012 12:26:39 -0400 (EDT)
-Received: by mail-bk0-f41.google.com with SMTP id jc3so297284bkc.14
-        for <linux-mm@kvack.org>; Tue, 14 Aug 2012 09:26:39 -0700 (PDT)
-From: Sasha Levin <levinsasha928@gmail.com>
-Subject: [PATCH 16/16] tracing output: use new hashtable implementation
-Date: Tue, 14 Aug 2012 18:24:50 +0200
-Message-Id: <1344961490-4068-17-git-send-email-levinsasha928@gmail.com>
-In-Reply-To: <1344961490-4068-1-git-send-email-levinsasha928@gmail.com>
-References: <1344961490-4068-1-git-send-email-levinsasha928@gmail.com>
+Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
+	by kanga.kvack.org (Postfix) with SMTP id BE9D36B0068
+	for <linux-mm@kvack.org>; Tue, 14 Aug 2012 12:41:36 -0400 (EDT)
+From: Mel Gorman <mgorman@suse.de>
+Subject: [PATCH 1/5] mm: compaction: Update comment in try_to_compact_pages
+Date: Tue, 14 Aug 2012 17:41:28 +0100
+Message-Id: <1344962492-1914-2-git-send-email-mgorman@suse.de>
+In-Reply-To: <1344962492-1914-1-git-send-email-mgorman@suse.de>
+References: <1344962492-1914-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: torvalds@linux-foundation.org
-Cc: tj@kernel.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, paul.gortmaker@windriver.com, davem@davemloft.net, rostedt@goodmis.org, mingo@elte.hu, ebiederm@xmission.com, aarcange@redhat.com, ericvh@gmail.com, netdev@vger.kernel.org, josh@joshtriplett.org, eric.dumazet@gmail.com, mathieu.desnoyers@efficios.com, axboe@kernel.dk, agk@redhat.com, dm-devel@redhat.com, neilb@suse.de, ccaulfie@redhat.com, teigland@redhat.com, Trond.Myklebust@netapp.com, bfields@fieldses.org, fweisbec@gmail.com, jesse@nicira.com, venkat.x.venkatsubra@oracle.com, ejt@redhat.com, snitzer@redhat.com, edumazet@google.com, linux-nfs@vger.kernel.org, dev@openvswitch.org, rds-devel@oss.oracle.com, lw@cn.fujitsu.com, Sasha Levin <levinsasha928@gmail.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Rik van Riel <riel@redhat.com>, Minchan Kim <minchan@kernel.org>, Jim Schutt <jaschut@sandia.gov>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
 
-Switch tracing to use the new hashtable implementation. This reduces the amount of
-generic unrelated code in the tracing module.
+The comment about order applied when the check was
+order > PAGE_ALLOC_COSTLY_ORDER which has not been the case since
+[c5a73c3d: thp: use compaction for all allocation orders]. Fixing
+the comment while I'm in the general area.
 
-Signed-off-by: Sasha Levin <levinsasha928@gmail.com>
+Signed-off-by: Mel Gorman <mgorman@suse.de>
+Reviewed-by: Rik van Riel <riel@redhat.com>
+Reviewed-by: Minchan Kim <minchan@kernel.org>
 ---
- kernel/trace/trace_output.c |   20 ++++++++------------
- 1 files changed, 8 insertions(+), 12 deletions(-)
+ mm/compaction.c |    6 +-----
+ 1 file changed, 1 insertion(+), 5 deletions(-)
 
-diff --git a/kernel/trace/trace_output.c b/kernel/trace/trace_output.c
-index 123b189..1324c1a 100644
---- a/kernel/trace/trace_output.c
-+++ b/kernel/trace/trace_output.c
-@@ -8,15 +8,15 @@
- #include <linux/module.h>
- #include <linux/mutex.h>
- #include <linux/ftrace.h>
-+#include <linux/hashtable.h>
+diff --git a/mm/compaction.c b/mm/compaction.c
+index 36276e6..ea588eb 100644
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -812,11 +812,7 @@ unsigned long try_to_compact_pages(struct zonelist *zonelist,
+ 	struct zone *zone;
+ 	int rc = COMPACT_SKIPPED;
  
- #include "trace_output.h"
+-	/*
+-	 * Check whether it is worth even starting compaction. The order check is
+-	 * made because an assumption is made that the page allocator can satisfy
+-	 * the "cheaper" orders without taking special steps
+-	 */
++	/* Check if the GFP flags allow compaction */
+ 	if (!order || !may_enter_fs || !may_perform_io)
+ 		return rc;
  
--/* must be a power of 2 */
--#define EVENT_HASHSIZE	128
-+#define EVENT_HASH_BITS	7
- 
- DECLARE_RWSEM(trace_event_mutex);
- 
--static struct hlist_head event_hash[EVENT_HASHSIZE] __read_mostly;
-+static DEFINE_HASHTABLE(event_hash, EVENT_HASH_BITS);
- 
- static int next_event_type = __TRACE_LAST_TYPE + 1;
- 
-@@ -712,11 +712,8 @@ struct trace_event *ftrace_find_event(int type)
- {
- 	struct trace_event *event;
- 	struct hlist_node *n;
--	unsigned key;
- 
--	key = type & (EVENT_HASHSIZE - 1);
--
--	hlist_for_each_entry(event, n, &event_hash[key], node) {
-+	hash_for_each_possible(event_hash, event, n, node, type) {
- 		if (event->type == type)
- 			return event;
- 	}
-@@ -781,7 +778,6 @@ void trace_event_read_unlock(void)
-  */
- int register_ftrace_event(struct trace_event *event)
- {
--	unsigned key;
- 	int ret = 0;
- 
- 	down_write(&trace_event_mutex);
-@@ -833,9 +829,7 @@ int register_ftrace_event(struct trace_event *event)
- 	if (event->funcs->binary == NULL)
- 		event->funcs->binary = trace_nop_print;
- 
--	key = event->type & (EVENT_HASHSIZE - 1);
--
--	hlist_add_head(&event->node, &event_hash[key]);
-+	hash_add(event_hash, &event->node, event->type);
- 
- 	ret = event->type;
-  out:
-@@ -850,7 +844,7 @@ EXPORT_SYMBOL_GPL(register_ftrace_event);
-  */
- int __unregister_ftrace_event(struct trace_event *event)
- {
--	hlist_del(&event->node);
-+	hash_del(&event->node);
- 	list_del(&event->list);
- 	return 0;
- }
-@@ -1323,6 +1317,8 @@ __init static int init_events(void)
- 		}
- 	}
- 
-+	hash_init(event_hash);
-+
- 	return 0;
- }
- early_initcall(init_events);
 -- 
-1.7.8.6
+1.7.9.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
