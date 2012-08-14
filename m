@@ -1,30 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
-	by kanga.kvack.org (Postfix) with SMTP id B8A1B6B005D
-	for <linux-mm@kvack.org>; Tue, 14 Aug 2012 16:53:51 -0400 (EDT)
-Date: Tue, 14 Aug 2012 20:53:50 +0000
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH] mm, slob: Drop usage of page->private for storing
- page-sized allocations
-In-Reply-To: <1344974585-9701-1-git-send-email-elezegarcia@gmail.com>
-Message-ID: <0000013926e9f534-137f9d40-77b0-4dbc-90cb-d588c68e9526-000000@email.amazonses.com>
-References: <1344974585-9701-1-git-send-email-elezegarcia@gmail.com>
+Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
+	by kanga.kvack.org (Postfix) with SMTP id 6C42D6B0044
+	for <linux-mm@kvack.org>; Tue, 14 Aug 2012 16:57:08 -0400 (EDT)
+Message-ID: <502ABB9B.90108@redhat.com>
+Date: Tue, 14 Aug 2012 16:56:59 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH v7 2/4] virtio_balloon: introduce migration primitives
+ to balloon pages
+References: <cover.1344619987.git.aquini@redhat.com> <f19b63dfa026fe2f8f11ec017771161775744781.1344619987.git.aquini@redhat.com> <20120813084123.GF14081@redhat.com> <20120814182244.GB13338@t510.redhat.com> <20120814195139.GA28870@redhat.com> <20120814195916.GC28870@redhat.com> <20120814200830.GD22133@t510.redhat.com> <20120814202401.GB28990@redhat.com> <20120814202949.GF22133@t510.redhat.com> <20120814204906.GD28990@redhat.com> <20120814205426.GA29162@redhat.com>
+In-Reply-To: <20120814205426.GA29162@redhat.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ezequiel Garcia <elezegarcia@gmail.com>
-Cc: linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, Glauber Costa <glommer@parallels.com>
+To: "Michael S. Tsirkin" <mst@redhat.com>
+Cc: Rafael Aquini <aquini@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, Rusty Russell <rusty@rustcorp.com.au>, Mel Gorman <mel@csn.ul.ie>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Minchan Kim <minchan@kernel.org>
 
-On Tue, 14 Aug 2012, Ezequiel Garcia wrote:
+On 08/14/2012 04:54 PM, Michael S. Tsirkin wrote:
 
-> This field was being used to store size allocation so it could be
-> retrieved by ksize(). However, it is a bad practice to not mark a page
-> as a slab page and then use fields for special purposes.
-> There is no need to store the allocated size and
-> ksize() can simply return PAGE_SIZE << compound_order(page).
+> To clarify, the global state that this patch adds, is ugly
+> even if we didn't support multiple balloons yet.
+> So I don't think I can accept such a patch.
+> Rusty has a final word here, maybe he thinks differently.
 
-Acked-by: Christoph Lameter <cl@linux.com>
+Before deciding that "does not support multiple balloon drivers
+at once" is an issue, is there any use case at all for having
+multiple balloon drivers active at a time?
+
+I do not see any.
+
+-- 
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
