@@ -1,45 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
-	by kanga.kvack.org (Postfix) with SMTP id B56116B0044
-	for <linux-mm@kvack.org>; Wed, 15 Aug 2012 05:05:31 -0400 (EDT)
-Date: Wed, 15 Aug 2012 10:05:28 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH v7 2/4] virtio_balloon: introduce migration primitives to
- balloon pages
-Message-ID: <20120815090528.GH4052@csn.ul.ie>
-References: <cover.1344619987.git.aquini@redhat.com>
- <f19b63dfa026fe2f8f11ec017771161775744781.1344619987.git.aquini@redhat.com>
- <20120813084123.GF14081@redhat.com>
- <20120814182244.GB13338@t510.redhat.com>
- <20120814195139.GA28870@redhat.com>
- <20120814201113.GE22133@t510.redhat.com>
+Received: from psmtp.com (na3sys010amx202.postini.com [74.125.245.202])
+	by kanga.kvack.org (Postfix) with SMTP id 910A16B005D
+	for <linux-mm@kvack.org>; Wed, 15 Aug 2012 05:05:35 -0400 (EDT)
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	(using TLSv1 with cipher DHE-RSA-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx2.suse.de (Postfix) with ESMTP id AB653A3B06
+	for <linux-mm@kvack.org>; Wed, 15 Aug 2012 11:05:33 +0200 (CEST)
+From: Petr Tesarik <ptesarik@suse.cz>
+Subject: Strange VM stats in /proc/zoneinfo
+Date: Wed, 15 Aug 2012 11:05:27 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20120814201113.GE22133@t510.redhat.com>
+Content-Type: text/plain;
+  charset="us-ascii"
+Content-Transfer-Encoding: 7bit
+Message-Id: <201208151105.27411.ptesarik@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rafael Aquini <aquini@redhat.com>
-Cc: "Michael S. Tsirkin" <mst@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, Rusty Russell <rusty@rustcorp.com.au>, Rik van Riel <riel@redhat.com>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Minchan Kim <minchan@kernel.org>
+To: linux-mm@kvack.org
 
-On Tue, Aug 14, 2012 at 05:11:13PM -0300, Rafael Aquini wrote:
-> On Tue, Aug 14, 2012 at 10:51:39PM +0300, Michael S. Tsirkin wrote:
-> > What I think you should do is use rcu for access.
-> > And here sync rcu before freeing.
-> > Maybe an overkill but at least a documented synchronization
-> > primitive, and it is very light weight.
-> > 
-> 
-> I liked your suggestion on barriers, as well.
-> 
+Hi folks,
 
-I have not thought about this as deeply as I shouold but is simply rechecking
-the mapping under the pages_lock to make sure the page is still a balloon
-page an option? i.e. use pages_lock to stabilise page->mapping.
+while looking at my /proc/zoneinfo, I noticed that the counters are a bit 
+strange:
 
--- 
-Mel Gorman
-SUSE Labs
+Node 0, zone      DMA
+  pages free     3945
+        min      7
+        low      8
+        high     10
+        scanned  0
+        spanned  4080
+        present  3905
+    nr_free_pages 3945
+
+OK, you'll probably argue that the rest is hidden in PCP differentials... BUT:
+
+1. this machine has only 2 CPUs
+2. stat_threshold = 4
+3. vm_stat_diff[NR_FREE_PAGES] = 0 on both CPUs
+
+Is this only me? Or do I misrepresent what these number actually tell?
+
+TIA,
+Petr Tesarik
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
