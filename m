@@ -1,67 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
-	by kanga.kvack.org (Postfix) with SMTP id 58B796B0070
-	for <linux-mm@kvack.org>; Wed, 15 Aug 2012 09:31:38 -0400 (EDT)
-Message-ID: <502BA4AC.9040000@parallels.com>
-Date: Wed, 15 Aug 2012 17:31:24 +0400
-From: Glauber Costa <glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
+	by kanga.kvack.org (Postfix) with SMTP id 9CB2E6B0070
+	for <linux-mm@kvack.org>; Wed, 15 Aug 2012 09:39:33 -0400 (EDT)
+Received: by obhx4 with SMTP id x4so2708167obh.14
+        for <linux-mm@kvack.org>; Wed, 15 Aug 2012 06:39:32 -0700 (PDT)
+Message-ID: <502BA6B4.9020106@gmail.com>
+Date: Wed, 15 Aug 2012 15:40:04 +0200
+From: Sasha Levin <levinsasha928@gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2 04/11] kmem accounting basic infrastructure
-References: <1344517279-30646-1-git-send-email-glommer@parallels.com> <1344517279-30646-5-git-send-email-glommer@parallels.com> <20120814162144.GC6905@dhcp22.suse.cz> <502B6D03.1080804@parallels.com> <20120815123931.GF23985@dhcp22.suse.cz> <502B9BD4.4070003@parallels.com> <20120815130228.GH23985@dhcp22.suse.cz> <502B9E5F.2080907@parallels.com> <20120815132621.GJ23985@dhcp22.suse.cz>
-In-Reply-To: <20120815132621.GJ23985@dhcp22.suse.cz>
-Content-Type: text/plain; charset="ISO-8859-1"
+Subject: Re: [PATCH 02/16] user_ns: use new hashtable implementation
+References: <1344961490-4068-1-git-send-email-levinsasha928@gmail.com> <1344961490-4068-3-git-send-email-levinsasha928@gmail.com> <87txw5hw0s.fsf@xmission.com> <502AF184.4010907@gmail.com> <87393phshy.fsf@xmission.com> <502AFCD5.6070104@gmail.com> <87obmchmpu.fsf@xmission.com> <20120815033155.GA32653@Krystal>
+In-Reply-To: <20120815033155.GA32653@Krystal>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, devel@openvz.org, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, kamezawa.hiroyu@jp.fujitsu.com, Christoph Lameter <cl@linux.com>, David
- Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>
+To: Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
+Cc: "Eric W. Biederman" <ebiederm@xmission.com>, torvalds@linux-foundation.org, tj@kernel.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, paul.gortmaker@windriver.com, davem@davemloft.net, rostedt@goodmis.org, mingo@elte.hu, aarcange@redhat.com, ericvh@gmail.com, netdev@vger.kernel.org, josh@joshtriplett.org, eric.dumazet@gmail.com, axboe@kernel.dk, agk@redhat.com, dm-devel@redhat.com, neilb@suse.de, ccaulfie@redhat.com, teigland@redhat.com, Trond.Myklebust@netapp.com, bfields@fieldses.org, fweisbec@gmail.com, jesse@nicira.com, venkat.x.venkatsubra@oracle.com, ejt@redhat.com, snitzer@redhat.com, edumazet@google.com, linux-nfs@vger.kernel.org, dev@openvswitch.org, rds-devel@oss.oracle.com, lw@cn.fujitsu.com
 
-On 08/15/2012 05:26 PM, Michal Hocko wrote:
-> On Wed 15-08-12 17:04:31, Glauber Costa wrote:
->> On 08/15/2012 05:02 PM, Michal Hocko wrote:
->>> On Wed 15-08-12 16:53:40, Glauber Costa wrote:
->>> [...]
->>>>>>> This doesn't check for the hierachy so kmem_accounted might not be in 
->>>>>>> sync with it's parents. mem_cgroup_create (below) needs to copy
->>>>>>> kmem_accounted down from the parent and the above needs to check if this
->>>>>>> is a similar dance like mem_cgroup_oom_control_write.
->>>>>>>
->>>>>>
->>>>>> I don't see why we have to.
->>>>>>
->>>>>> I believe in a A/B/C hierarchy, C should be perfectly able to set a
->>>>>> different limit than its parents. Note that this is not a boolean.
->>>>>
->>>>> Ohh, I wasn't clear enough. I am not against setting the _limit_ I just
->>>>> meant that the kmem_accounted should be consistent within the hierarchy.
->>>>>
->>>>
->>>> If a parent of yours is accounted, you get accounted as well. This is
->>>> not the state in this patch, but gets added later. Isn't this enough ?
->>>
->>> But if the parent is not accounted, you can set the children to be
->>> accounted, right? Or maybe this is changed later in the series? I didn't
->>> get to the end yet.
->>>
+On 08/15/2012 05:31 AM, Mathieu Desnoyers wrote:
+> * Eric W. Biederman (ebiederm@xmission.com) wrote:
+>> Sasha Levin <levinsasha928@gmail.com> writes:
 >>
->> Yes, you can. Do you see any problem with that?
+>>> On 08/15/2012 03:08 AM, Eric W. Biederman wrote:
+>>>>> I can offer the following: I'll write a small module that will hash 1...10000
+>>>>>> into a hashtable which uses 7 bits (just like user_ns) and post the distribution
+>>>>>> we'll get.
+>>>> That won't hurt.  I think 1-100 then 1000-1100 may actually be more
+>>>> representative.  Not that I would mind seeing the larger range.
+>>>> Especially since I am in the process of encouraging the use of more
+>>>> uids.
+>>>>
+>>>
+>>> Alrighty, the results are in (numbers are objects in bucket):
+>>>
+>>> For the 0...10000 range:
+>>>
+>>> Average: 78.125
+>>> Std dev: 1.4197704151
+>>> Min: 75
+>>> Max: 80
+>>>
+>>>
+>>> For the 1...100 range:
+>>>
+>>> Average: 0.78125
+>>> Std dev: 0.5164613088
+>>> Min: 0
+>>> Max: 2
+>>>
+>>>
+>>> For the 1000...1100 range:
+>>>
+>>> Average: 0.7890625
+>>> Std dev: 0.4964812206
+>>> Min: 0
+>>> Max: 2
+>>>
+>>>
+>>> Looks like hash_32 is pretty good with small numbers.
+>>
+>> Yes hash_32 seems reasonable for the uid hash.   With those long hash
+>> chains I wouldn't like to be on a machine with 10,000 processes with
+>> each with a different uid, and a processes calling setuid in the fast
+>> path.
+>>
+>> The uid hash that we are playing with is one that I sort of wish that
+>> the hash table could grow in size, so that we could scale up better.
 > 
-> Well, if a child contributes with the kmem charges upwards the hierachy
-> then a parent can have kmem.usage > 0 with disabled accounting.
-> I am not saying this is a no-go but it definitely is confusing and I do
-> not see any good reason for it. I've considered it as an overlook rather
-> than a deliberate design decision.
+> Hi Eric,
 > 
+> If you want to try out something that has more features than a basic
+> hash table, already exists and is available for you to play with, you
+> might want to have a look at the RCU lock-free resizable hash table.
+> It's initially done in userspace, but shares the same RCU semantic as
+> the kernel, and has chunk-based kernel-friendly index backends (thanks
+> to Lai Jiangshan), very useful to integrate with the kernel page
+> allocator.
 
-No, it is not an overlook.
-It is theoretically possible to skip accounting on non-limited parents,
-but how expensive is that? This is, indeed, confusing.
-
-Of course I can be biased, but the way I see it, once you have
-hierarchy, you account everything your child accounts.
-
-I really don't see what is the concern here.
+I'm guessing that once this static hashtable is stable, a
+DEFINE_DYNAMIC_HASHTABLE() will get introduced which will evolve into something
+similar to what Mathieu has pointed out in the urcu.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
