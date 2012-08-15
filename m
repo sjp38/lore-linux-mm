@@ -1,48 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
-	by kanga.kvack.org (Postfix) with SMTP id 517EE6B005D
-	for <linux-mm@kvack.org>; Wed, 15 Aug 2012 15:25:47 -0400 (EDT)
-Message-ID: <502BF6FA.6050602@parallels.com>
-Date: Wed, 15 Aug 2012 23:22:34 +0400
+Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
+	by kanga.kvack.org (Postfix) with SMTP id 802E16B005D
+	for <linux-mm@kvack.org>; Wed, 15 Aug 2012 15:34:47 -0400 (EDT)
+Message-ID: <502BF916.10902@parallels.com>
+Date: Wed, 15 Aug 2012 23:31:34 +0400
 From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2 04/11] kmem accounting basic infrastructure
-References: <1344517279-30646-1-git-send-email-glommer@parallels.com> <1344517279-30646-5-git-send-email-glommer@parallels.com> <20120814162144.GC6905@dhcp22.suse.cz> <502B6D03.1080804@parallels.com> <20120815123931.GF23985@dhcp22.suse.cz> <000001392ac15404-43a3fd2c-a6d3-4985-b173-74bb586ad47c-000000@email.amazonses.com> <502BBC35.809@parallels.com> <000001392aec1926-72b3a631-1fb1-460c-803d-38c4405151e1-000000@email.amazonses.com> <CALWz4ixv8wfOqQ34CBLQ1jVdWoQc4-hQRkeRTb6U5x93gxjZZw@mail.gmail.com> <000001392b881bf0-4cf7cb93-c142-4ddb-960a-b35390caca0f-000000@email.amazonses.com>
-In-Reply-To: <000001392b881bf0-4cf7cb93-c142-4ddb-960a-b35390caca0f-000000@email.amazonses.com>
+Subject: Re: [PATCH v2 06/11] memcg: kmem controller infrastructure
+References: <1344517279-30646-1-git-send-email-glommer@parallels.com> <1344517279-30646-7-git-send-email-glommer@parallels.com> <50254475.4000201@jp.fujitsu.com> <5028BA9E.7000302@parallels.com> <xr93ipcl9u7x.fsf@gthelen.mtv.corp.google.com> <502B6956.5030508@parallels.com> <xr93wr109kke.fsf@gthelen.mtv.corp.google.com> <502BD5AF.301@parallels.com> <xr93lihg9j0q.fsf@gthelen.mtv.corp.google.com>
+In-Reply-To: <xr93lihg9j0q.fsf@gthelen.mtv.corp.google.com>
 Content-Type: text/plain; charset="ISO-8859-1"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Ying Han <yinghan@google.com>, Michal Hocko <mhocko@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, devel@openvz.org, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, kamezawa.hiroyu@jp.fujitsu.com, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>
+To: Greg Thelen <gthelen@google.com>
+Cc: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, devel@openvz.org, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, Pekka Enberg <penberg@cs.helsinki.fi>
 
-On 08/15/2012 10:25 PM, Christoph Lameter wrote:
-> On Wed, 15 Aug 2012, Ying Han wrote:
+On 08/15/2012 09:12 PM, Greg Thelen wrote:
+> On Wed, Aug 15 2012, Glauber Costa wrote:
 > 
->>> How can you figure out which objects belong to which memcg? The ownerships
->>> of dentries and inodes is a dubious concept already.
+>> On 08/15/2012 08:38 PM, Greg Thelen wrote:
+>>> On Wed, Aug 15 2012, Glauber Costa wrote:
+>>>
+>>>> On 08/14/2012 10:58 PM, Greg Thelen wrote:
+>>>>> On Mon, Aug 13 2012, Glauber Costa wrote:
+>>>>>
+>>>>>>>>> +	WARN_ON(mem_cgroup_is_root(memcg));
+>>>>>>>>> +	size = (1 << order) << PAGE_SHIFT;
+>>>>>>>>> +	memcg_uncharge_kmem(memcg, size);
+>>>>>>>>> +	mem_cgroup_put(memcg);
+>>>>>>> Why do we need ref-counting here ? kmem res_counter cannot work as
+>>>>>>> reference ?
+>>>>>> This is of course the pair of the mem_cgroup_get() you commented on
+>>>>>> earlier. If we need one, we need the other. If we don't need one, we
+>>>>>> don't need the other =)
+>>>>>>
+>>>>>> The guarantee we're trying to give here is that the memcg structure will
+>>>>>> stay around while there are dangling charges to kmem, that we decided
+>>>>>> not to move (remember: moving it for the stack is simple, for the slab
+>>>>>> is very complicated and ill-defined, and I believe it is better to treat
+>>>>>> all kmem equally here)
+>>>>>
+>>>>> By keeping memcg structures hanging around until the last referring kmem
+>>>>> page is uncharged do such zombie memcg each consume a css_id and thus
+>>>>> put pressure on the 64k css_id space?  I imagine in pathological cases
+>>>>> this would prevent creation of new cgroups until these zombies are
+>>>>> dereferenced.
+>>>>
+>>>> Yes, but although this patch makes it more likely, it doesn't introduce
+>>>> that. If the tasks, for instance, grab a reference to the cgroup dentry
+>>>> in the filesystem (like their CWD, etc), they will also keep the cgroup
+>>>> around.
+>>>
+>>> Fair point.  But this doesn't seems like a feature.  It's probably not
+>>> needed initially, but what do you think about creating a
+>>> memcg_kernel_context structure which is allocated when memcg is
+>>> allocated?  Kernel pages charged to a memcg would have
+>>> page_cgroup->mem_cgroup=memcg_kernel_context rather than memcg.  This
+>>> would allow the mem_cgroup and its css_id to be deleted when the cgroup
+>>> is unlinked from cgroupfs while allowing for the active kernel pages to
+>>> continue pointing to a valid memcg_kernel_context.  This would be a
+>>> reference counted structure much like you are doing with memcg.  When a
+>>> memcg is deleted the memcg_kernel_context would be linked into its
+>>> surviving parent memcg.  This would avoid needing to visit each kernel
+>>> page.
 >>
->> I figured it out based on the kernel slab accounting.
->> obj->page->kmem_cache->memcg
+>> You need more, you need at the res_counters to stay around as well. And
+>> probably other fields.
 > 
-> Well that is only the memcg which allocated it. It may be in use heavily
-> by other processes.
+> I am not sure the res_counters would need to stay around.  Once a
+> memcg_kernel_context has been reparented, then any future kernel page
+> uncharge calls will uncharge the parent res_counter.
+
+Well, if you hold the memcg due to a reference, like in the dentry case,
+then fine. But if this is a dangling charge, as will be the case with
+the slab, then you have to uncharge it.
+
+An arbitrary number of parents might have been deleted as well, so you
+need to transverse them all until you reach a live parent to uncharge from.
+
+To do that, your counters have to be still alive.
+
 > 
+>> So my fear here is that as you add fields to that structure, you can
+>> defeat a bit the goal of reducing memory consumption. Still leaves the
+>> css space, yes. But by doing this we can introduce some subtle bugs by
+>> having a field in the wrong structure.
+>>
+>> Did you observe that to be a big problem in your systems?
+> 
+> No I have not seen this yet.  But our past solutions have reparented
+> kmem_cache's to root memcg so we have been avoiding zombie memcg.  My
+> concerns with your approach are just a suspicion because we have been
+> experimenting with accounting of even more kernel memory (e.g. vmalloc,
+> kernel stacks, page tables).  As the scope of such accounting grows the
+> chance of long lived charged pages grows and thus the chance of zombies
+> which exhaust the css_id space grows.
 
-Yes, but a lot of the use cases for cgroups/containers are pretty local.
-That is why we have been able to get away with a first-touch mechanism
-even in user pages memcg. In those cases - which we expect to be the
-majority of them - this will perform well.
+Well, since we agree this can all be done under the hood, I'd say let's
+wait until a problem actually exists, since the solution is likely to be
+a bit convoluted...
 
-Now, this is not of course representative of the whole range of possible
-use cases, and others are valid. There are people like Greg
-and Ying Han herself that want a more fine grained control on which
-memcg gets the accounting. That is one of the topics for the summit.
+I personally believe that if won't have a lot of task movement, most of
+the data will go away as the cgroup dies. The remainder shouldn't be too
+much to hold it in memory for a lot of time. This is of course assuming
+a real use case, not an adversarial scenario, which is quite easy to
+come up with: just create a task, hold a bunch of kmem, move the task
+away, delete the cgroup, etc.
 
-But even then: regardless of what mechanism is in place, one cgroup is
-to be accounted (or not accounted at all, meaning it belongs to a
-non-accounted cgroup). And then we can just grab whichever memcg it was
-allocated from and shrink it.
+That said, nothing stops us to actively try to create a scenario that
+would demonstrate such a problem.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
