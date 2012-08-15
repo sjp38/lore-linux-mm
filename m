@@ -1,43 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx103.postini.com [74.125.245.103])
-	by kanga.kvack.org (Postfix) with SMTP id 0AA296B005D
-	for <linux-mm@kvack.org>; Wed, 15 Aug 2012 07:45:48 -0400 (EDT)
-Received: by yenl1 with SMTP id l1so2017249yen.14
-        for <linux-mm@kvack.org>; Wed, 15 Aug 2012 04:45:48 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
+	by kanga.kvack.org (Postfix) with SMTP id D3B356B005D
+	for <linux-mm@kvack.org>; Wed, 15 Aug 2012 08:34:51 -0400 (EDT)
+Received: by iahk25 with SMTP id k25so200398iah.14
+        for <linux-mm@kvack.org>; Wed, 15 Aug 2012 05:34:51 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <CAOJsxLEJe=aZHHAu3JT5-U7JsXMenP5xUc=aeKrhz6VcKuPOVQ@mail.gmail.com>
-References: <1344974585-9701-1-git-send-email-elezegarcia@gmail.com>
-	<0000013926e9f534-137f9d40-77b0-4dbc-90cb-d588c68e9526-000000@email.amazonses.com>
-	<CALF0-+XcmmeWr4qjDoKGit7fqyWwpCk_S9v+F18+x9heN9Y1oA@mail.gmail.com>
-	<CAOJsxLEJe=aZHHAu3JT5-U7JsXMenP5xUc=aeKrhz6VcKuPOVQ@mail.gmail.com>
-Date: Wed, 15 Aug 2012 08:45:47 -0300
-Message-ID: <CALF0-+VTY1YH0+wT_HLgpCNNzZAKuce6gDHrRbJhhEBE80FGVQ@mail.gmail.com>
-Subject: Re: [PATCH] mm, slob: Drop usage of page->private for storing
- page-sized allocations
+In-Reply-To: <1344955130-29478-1-git-send-email-elezegarcia@gmail.com>
+References: <1344955130-29478-1-git-send-email-elezegarcia@gmail.com>
+Date: Wed, 15 Aug 2012 09:34:50 -0300
+Message-ID: <CALF0-+VXA+4us1CSz5DGcSmKr37SnVF6ZMNbh8iLNsM7VYVnQQ@mail.gmail.com>
+Subject: Re: [PATCH 1/2] mm, slob: Prevent false positive trace upon
+ allocation failure
 From: Ezequiel Garcia <elezegarcia@gmail.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pekka Enberg <penberg@kernel.org>
-Cc: Christoph Lameter <cl@linux.com>, linux-mm@kvack.org, Glauber Costa <glommer@parallels.com>
+To: linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>
+Cc: Ezequiel Garcia <elezegarcia@gmail.com>, Christoph Lameter <cl@linux.com>, Glauber Costa <glommer@parallels.com>
 
-Hi Pekka,
+Pekka,
 
-On Wed, Aug 15, 2012 at 8:42 AM, Pekka Enberg <penberg@kernel.org> wrote:
-> On Wed, Aug 15, 2012 at 2:38 PM, Ezequiel Garcia <elezegarcia@gmail.com> wrote:
->> Who's the slob maintainer? Currently MAINTAINERS file
->> mentions slob's author Matt Mackal, but I didn't notice his presence
->> in this ML.
+I'd like to bring your attention to this patch, and make a little question.
+
+
+On Tue, Aug 14, 2012 at 11:38 AM, Ezequiel Garcia <elezegarcia@gmail.com> wrote:
+> This patch changes the __kmalloc_node() logic to return NULL
+> if alloc_pages() fails to return valid pages.
+> This is done to avoid to trace a false positive kmalloc event.
 >
-> I'm handling patches for all slab allocators.
+> Cc: Pekka Enberg <penberg@kernel.org>
+> Cc: Christoph Lameter <cl@linux.com>
+> Cc: Glauber Costa <glommer@parallels.com>
+> Signed-off-by: Ezequiel Garcia <elezegarcia@gmail.com>
+> ---
+>  mm/slob.c |   11 ++++++-----
+>  1 files changed, 6 insertions(+), 5 deletions(-)
+>
+> diff --git a/mm/slob.c b/mm/slob.c
+> index 45d4ca7..686e98b 100644
+> --- a/mm/slob.c
+> +++ b/mm/slob.c
+> @@ -450,15 +450,16 @@ void *__kmalloc_node(size_t size, gfp_t gfp, int node)
+>                                    size, size + align, gfp, node);
+>         } else {
+>                 unsigned int order = get_order(size);
+> +               struct page *page;
+>
+>                 if (likely(order))
+>                         gfp |= __GFP_COMP;
+>                 ret = slob_new_pages(gfp, order, node);
+> -               if (ret) {
+> -                       struct page *page;
+> -                       page = virt_to_page(ret);
+> -                       page->private = size;
+> -               }
+> +               if (!ret)
+> +                       return NULL;
+> +
+> +               page = virt_to_page(ret);
+> +               page->private = size;
+>
+>                 trace_kmalloc_node(_RET_IP_, ret,
+>                                    size, PAGE_SIZE << order, gfp, node);
 
-Ah, great. I sent these three based on your branch:
 
-git://git.kernel.org/pub/scm/linux/kernel/git/penberg/linux.git slab/next
+As you can see this patch prevents to trace a kmem event if the allocation
+fails.
 
-I hope this is ok.
+I'm still unsure about tracing or not this ones, and I'm considering tracing
+failures, perhaps with return=0 and allocated size=0.
 
-Regards and thank you,
+In this case, it would be nice to have SLxB all do the same.
+Right now, this is not the case.
+
+You can see how slob::kmem_cache_alloc_node traces independently
+of the allocation succeeding.
+I have no problem trying a fix for this, but I don't now how to trace
+this cases.
+
+Although it is a corner case, I think it's important to define a clear
+and consistent
+behaviour to make tracing reliable.
+
+Thanks,
 Ezequiel.
 
 --
