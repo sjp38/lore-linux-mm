@@ -1,43 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
-	by kanga.kvack.org (Postfix) with SMTP id 27D896B002B
-	for <linux-mm@kvack.org>; Wed, 15 Aug 2012 06:47:25 -0400 (EDT)
-Message-ID: <502B7D7F.3070603@parallels.com>
-Date: Wed, 15 Aug 2012 14:44:15 +0400
-From: Glauber Costa <glommer@parallels.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH v2 06/11] memcg: kmem controller infrastructure
-References: <1344517279-30646-1-git-send-email-glommer@parallels.com> <1344517279-30646-7-git-send-email-glommer@parallels.com> <20120814172540.GD6905@dhcp22.suse.cz> <502B6F00.8040207@parallels.com>
-In-Reply-To: <502B6F00.8040207@parallels.com>
-Content-Type: text/plain; charset="ISO-8859-1"
+Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
+	by kanga.kvack.org (Postfix) with SMTP id 170FA6B005D
+	for <linux-mm@kvack.org>; Wed, 15 Aug 2012 07:12:31 -0400 (EDT)
+Message-ID: <1345029143.2976.41.camel@dabdike.int.hansenpartnership.com>
+Subject: Re: [PATCH v2 04/11] kmem accounting basic infrastructure
+From: James Bottomley <James.Bottomley@HansenPartnership.com>
+Date: Wed, 15 Aug 2012 12:12:23 +0100
+In-Reply-To: <502B6D03.1080804@parallels.com>
+References: <1344517279-30646-1-git-send-email-glommer@parallels.com>
+	 <1344517279-30646-5-git-send-email-glommer@parallels.com>
+	 <20120814162144.GC6905@dhcp22.suse.cz> <502B6D03.1080804@parallels.com>
+Content-Type: text/plain; charset="UTF-8"
 Content-Transfer-Encoding: 7bit
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, devel@openvz.org, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, kamezawa.hiroyu@jp.fujitsu.com, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, Pekka Enberg <penberg@cs.helsinki.fi>
+To: Glauber Costa <glommer@parallels.com>
+Cc: Michal Hocko <mhocko@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, devel@openvz.org, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, kamezawa.hiroyu@jp.fujitsu.com, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>
 
-On 08/15/2012 01:42 PM, Glauber Costa wrote:
->> Also, as I
->> > have mentioned in the other email in this thread. Why should we reclaim
->> > just because of kernel allocation when we are not reclaiming any of it
->> > because shrink_slab is ignored in the memcg reclaim.
+On Wed, 2012-08-15 at 13:33 +0400, Glauber Costa wrote:
+> > This can
+> > be quite confusing.  I am still not sure whether we should mix the two
+> > things together. If somebody wants to limit the kernel memory he has to
+> > touch the other limit anyway.  Do you have a strong reason to mix the
+> > user and kernel counters?
 > 
-> Don't get too distracted by the fact that shrink_slab is ignored. It is
-> temporary, and while this being ignored now leads to suboptimal
-> behavior, it will 1st, only affect its users, and 2nd, not be disastrous.
+> This is funny, because the first opposition I found to this work was
+> "Why would anyone want to limit it separately?" =p
 > 
-> I see it this as more or less on pair with the soft limit reclaim
-> problem we had. It is not ideal, but it already provided functionality
+> It seems that a quite common use case is to have a container with a
+> unified view of "memory" that it can use the way he likes, be it with
+> kernel memory, or user memory. I believe those people would be happy to
+> just silently account kernel memory to user memory, or at the most have
+> a switch to enable it.
 > 
+> What gets clear from this back and forth, is that there are people
+> interested in both use cases.
 
-Okay, I sent the e-mail before finishing it... duh
+Haven't we already had this discussion during the Prague get together?
+We discussed the use cases and finally agreed to separate accounting for
+k and then k+u mem because that satisfies both the Google and Parallels
+cases.  No-one was overjoyed by k and k+u but no-one had a better
+suggestion ... is there a better way of doing this that everyone can
+agree to?
 
-What I meant in this last sentence, is that the situation while the
-memcg-aware shrinkers doesn't land in the kernel is more or less the
-same (obviously not exactly) as with the soft reclaim work. It is an
-evolutionary approach that provides some functionality that is not yet
-perfect but already solves lots of problems for people willing to live
-with its temporary drawbacks.
+We do need to get this nailed down because it's the foundation of the
+patch series.
+
+James
 
 
 --
