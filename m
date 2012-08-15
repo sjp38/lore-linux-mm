@@ -1,42 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
-	by kanga.kvack.org (Postfix) with SMTP id 74CC86B005D
-	for <linux-mm@kvack.org>; Wed, 15 Aug 2012 16:20:52 -0400 (EDT)
-Date: Wed, 15 Aug 2012 13:20:50 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 0/6][resend] mempolicy memory corruption fixlet
-Message-Id: <20120815132050.12f4dec4.akpm@linux-foundation.org>
-In-Reply-To: <CA+5PVA7YejzbWDEpX=gj8s2QAQtgoxyNUUa5HhGtVGY+2BHqRA@mail.gmail.com>
-References: <1339406250-10169-1-git-send-email-kosaki.motohiro@gmail.com>
-	<CA+5PVA4CE0kwD1FmV=081wfCObVYe5GFYBQFO9_kVL4JWJBqpA@mail.gmail.com>
-	<50201BB5.9050005@jp.fujitsu.com>
-	<CA+5PVA7YejzbWDEpX=gj8s2QAQtgoxyNUUa5HhGtVGY+2BHqRA@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
+	by kanga.kvack.org (Postfix) with SMTP id 80B906B005D
+	for <linux-mm@kvack.org>; Wed, 15 Aug 2012 16:53:09 -0400 (EDT)
+Received: by ghrr18 with SMTP id r18so2750408ghr.14
+        for <linux-mm@kvack.org>; Wed, 15 Aug 2012 13:53:08 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <CAHkRjk4pQOktEGFZy9Jd5NDth8f_+JUC0OrgcRUaCFGUEUOTKg@mail.gmail.com>
+References: <1344324343-3817-1-git-send-email-walken@google.com>
+	<1344324343-3817-4-git-send-email-walken@google.com>
+	<CANN689EOZ64V_AO8B6N0-_B0_HdQZVk3dH8Ce5c=m5Q=ySDKUg@mail.gmail.com>
+	<20120809083127.GC14102@arm.com>
+	<CAHkRjk4pQOktEGFZy9Jd5NDth8f_+JUC0OrgcRUaCFGUEUOTKg@mail.gmail.com>
+Date: Wed, 15 Aug 2012 13:53:07 -0700
+Message-ID: <CANN689F_FgFP0tUwpTJmhWO+XaLH9+2tEb6xYJzonXVv5KsOSA@mail.gmail.com>
+Subject: Re: [PATCH 3/5] kmemleak: use rbtree instead of prio tree
+From: Michel Lespinasse <walken@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Josh Boyer <jwboyer@gmail.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, kosaki.motohiro@gmail.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, davej@redhat.com, mgorman@suse.de, cl@linux.com, stable@vger.kernel.org
+To: Catalin Marinas <catalin.marinas@arm.com>
+Cc: "riel@redhat.com" <riel@redhat.com>, "peterz@infradead.org" <peterz@infradead.org>, "vrajesh@umich.edu" <vrajesh@umich.edu>, "daniel.santos@pobox.com" <daniel.santos@pobox.com>, "aarcange@redhat.com" <aarcange@redhat.com>, "dwmw2@infradead.org" <dwmw2@infradead.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "torvalds@linux-foundation.org" <torvalds@linux-foundation.org>
 
-On Wed, 15 Aug 2012 07:40:46 -0400
-Josh Boyer <jwboyer@gmail.com> wrote:
+On Wed, Aug 15, 2012 at 9:36 AM, Catalin Marinas
+<catalin.marinas@arm.com> wrote:
+> Couldn't test it because the patch got messed up somewhere on the
+> email path (tabs replaced with spaces). Is there a Git tree I can grab
+> it from (or you could just send it to me separately as attachment)?
 
-> >> I don't see these patches queued anywhere.  They aren't in linux-next,
-> >> mmotm, or Linus' tree.  Did these get dropped?  Is the revert still
-> >> needed?
-> >
-> > Sorry. my fault. yes, it is needed. currently, Some LTP was fail since
-> > Mel's "mm: mempolicy: Let vma_merge and vma_split handle vma->vm_policy linkages" patch.
-> 
-> The series still isn't queued anywhere.  Are you planning on resending
-> it again, or should it get picked up in a particular tree?
+Sorry about that. The original patch I sent to lkml & linux-mm wasn't
+corrupted, but the forward I sent you after I realized I had forgotten
+to include you was.
 
-The patches need a refresh and a retest please, including incorporation
-of Christoph's changelog modifications.
+https://lkml.org/lkml/2012/8/7/52 has the original patch, and "get
+diff 1" in the left column can be used to retrieve it.
 
-And for gawd's sake, please stop using my google address!  It messes me
-all up.
+-- 
+Michel "Walken" Lespinasse
+A program is never fully debugged until the last user dies.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
