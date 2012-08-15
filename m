@@ -1,32 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
-	by kanga.kvack.org (Postfix) with SMTP id 06A3E6B005D
-	for <linux-mm@kvack.org>; Wed, 15 Aug 2012 14:25:05 -0400 (EDT)
-Date: Wed, 15 Aug 2012 18:25:04 +0000
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH v2 04/11] kmem accounting basic infrastructure
-In-Reply-To: <CALWz4ixv8wfOqQ34CBLQ1jVdWoQc4-hQRkeRTb6U5x93gxjZZw@mail.gmail.com>
-Message-ID: <000001392b881bf0-4cf7cb93-c142-4ddb-960a-b35390caca0f-000000@email.amazonses.com>
-References: <1344517279-30646-1-git-send-email-glommer@parallels.com> <1344517279-30646-5-git-send-email-glommer@parallels.com> <20120814162144.GC6905@dhcp22.suse.cz> <502B6D03.1080804@parallels.com> <20120815123931.GF23985@dhcp22.suse.cz>
- <000001392ac15404-43a3fd2c-a6d3-4985-b173-74bb586ad47c-000000@email.amazonses.com> <502BBC35.809@parallels.com> <000001392aec1926-72b3a631-1fb1-460c-803d-38c4405151e1-000000@email.amazonses.com>
- <CALWz4ixv8wfOqQ34CBLQ1jVdWoQc4-hQRkeRTb6U5x93gxjZZw@mail.gmail.com>
+	by kanga.kvack.org (Postfix) with SMTP id 23D856B006E
+	for <linux-mm@kvack.org>; Wed, 15 Aug 2012 14:51:52 -0400 (EDT)
+Message-ID: <502BEF53.80200@redhat.com>
+Date: Wed, 15 Aug 2012 14:49:55 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [RFC 1/2] cma: remove __reclaim_pages
+References: <1344934627-8473-1-git-send-email-minchan@kernel.org> <1344934627-8473-2-git-send-email-minchan@kernel.org>
+In-Reply-To: <1344934627-8473-2-git-send-email-minchan@kernel.org>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ying Han <yinghan@google.com>
-Cc: Glauber Costa <glommer@parallels.com>, Michal Hocko <mhocko@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, devel@openvz.org, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, kamezawa.hiroyu@jp.fujitsu.com, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Marek Szyprowski <m.szyprowski@samsung.com>, Mel Gorman <mgorman@suse.de>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, 15 Aug 2012, Ying Han wrote:
-
-> > How can you figure out which objects belong to which memcg? The ownerships
-> > of dentries and inodes is a dubious concept already.
+On 08/14/2012 04:57 AM, Minchan Kim wrote:
+> Now cma reclaims too many pages by __reclaim_pages which says
+> following as
 >
-> I figured it out based on the kernel slab accounting.
-> obj->page->kmem_cache->memcg
+>          * Reclaim enough pages to make sure that contiguous allocation
+>          * will not starve the system.
+>
+> Starve? What does it starve the system? The function which allocate
+> free page for migration target would wake up kswapd and do direct reclaim
+> if needed during migration so system doesn't starve.
+>
+> Let remove __reclaim_pages and related function and fields.
 
-Well that is only the memcg which allocated it. It may be in use heavily
-by other processes.
+Fair enough.
+
+> Signed-off-by: Minchan Kim <minchan@kernel.org>
+
+Acked-by: Rik van Riel <riel@redhat.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
