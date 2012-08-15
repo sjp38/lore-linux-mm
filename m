@@ -1,79 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
-	by kanga.kvack.org (Postfix) with SMTP id B146A6B005D
-	for <linux-mm@kvack.org>; Tue, 14 Aug 2012 20:25:48 -0400 (EDT)
-Date: Wed, 15 Aug 2012 03:25:36 +0300
-From: Aaro Koskinen <aaro.koskinen@iki.fi>
-Subject: Re: Potential Regression in 3.6-rc1 - Kirkwood SATA
-Message-ID: <20120815002536.GC747@harshnoise.musicnaut.iki.fi>
-References: <CAMW5UfZ_kVz_b4_98zPdY2RFjTMN9H2OzjYcRQrCTgA1xqdmPw@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
+	by kanga.kvack.org (Postfix) with SMTP id F2B1E6B005D
+	for <linux-mm@kvack.org>; Tue, 14 Aug 2012 20:28:40 -0400 (EDT)
+Received: by obhx4 with SMTP id x4so1589996obh.14
+        for <linux-mm@kvack.org>; Tue, 14 Aug 2012 17:28:40 -0700 (PDT)
+Date: Tue, 14 Aug 2012 17:28:34 -0700
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH 01/16] hashtable: introduce a small and naive hashtable
+Message-ID: <20120815002834.GI25632@google.com>
+References: <1344961490-4068-1-git-send-email-levinsasha928@gmail.com>
+ <1344961490-4068-2-git-send-email-levinsasha928@gmail.com>
+ <20120815092523.00a909ef@notabene.brown>
+ <502AEC51.2010305@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <CAMW5UfZ_kVz_b4_98zPdY2RFjTMN9H2OzjYcRQrCTgA1xqdmPw@mail.gmail.com>
+In-Reply-To: <502AEC51.2010305@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Josh Coombs <josh.coombs@gmail.com>
-Cc: linux ARM <linux-arm-kernel@lists.infradead.org>, Andrew Lunn <andrew@lunn.ch>, m.szyprowski@samsung.com, linux-mm@kvack.org
+To: Sasha Levin <levinsasha928@gmail.com>
+Cc: NeilBrown <neilb@suse.de>, torvalds@linux-foundation.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, paul.gortmaker@windriver.com, davem@davemloft.net, rostedt@goodmis.org, mingo@elte.hu, ebiederm@xmission.com, aarcange@redhat.com, ericvh@gmail.com, netdev@vger.kernel.org, josh@joshtriplett.org, eric.dumazet@gmail.com, mathieu.desnoyers@efficios.com, axboe@kernel.dk, agk@redhat.com, dm-devel@redhat.com, ccaulfie@redhat.com, teigland@redhat.com, Trond.Myklebust@netapp.com, bfields@fieldses.org, fweisbec@gmail.com, jesse@nicira.com, venkat.x.venkatsubra@oracle.com, ejt@redhat.com, snitzer@redhat.com, edumazet@google.com, linux-nfs@vger.kernel.org, dev@openvswitch.org, rds-devel@oss.oracle.com, lw@cn.fujitsu.com
 
-Him
+Hello,
 
-On Tue, Aug 14, 2012 at 07:59:00PM -0400, Josh Coombs wrote:
-> I finally got a chance to test 3.6-rc1 after having my GoFlex Net
-> support patch accepted for the 3.6 release train.  Included in 3.6-rc1
-> was an update for Kirkwoods switching SATA to DT which was not part of
-> my original testing.  It seems something with this change has
-> partially broken the GoFlex and a couple other Kirkwood based devices.
-> 
-> The key factor is the number of SATA ports defined in the dts:
-> 
-> 		sata@80000 {
-> 			status = "okay";
-> 			nr-ports = <2>;
-> 		};
-> 
-> If set at the correct number for my device, 2, my GFN does not
-> complete kernel init, hanging here:
-> 
-> <SNIP>
-> [   15.287832] Dquot-cache hash table entries: 1024 (order 0, 4096 bytes)
-> [   15.296545] jffs2: version 2.2. (NAND) ?(C) 2001-2006 Red Hat, Inc.
-> [   15.303202] msgmni has been set to 240
-> [   15.308503] Block layer SCSI generic (bsg) driver version 0.4 loaded (major )
-> [   15.316021] io scheduler noop registered
-> [   15.320149] io scheduler deadline registered
-> [   15.324558] io scheduler cfq registered (default)
-> [   15.329462] mv_xor_shared mv_xor_shared.0: Marvell shared XOR driver
-> [   15.335962] mv_xor_shared mv_xor_shared.1: Marvell shared XOR driver
-> [   15.376751] mv_xor mv_xor.0: Marvell XOR: ( xor cpy )
-> [   15.416736] mv_xor mv_xor.1: Marvell XOR: ( xor fill cpy )
-> [   15.456735] mv_xor mv_xor.2: Marvell XOR: ( xor cpy )
-> [   15.496734] mv_xor mv_xor.3: Marvell XOR: ( xor fill cpy )
-> [   15.506309] Serial: 8250/16550 driver, 2 ports, IRQ sharing disabled
-> [   15.509111] serial8250.0: ttyS0 at MMIO 0xf1012000 (irq = 33) is a 16550A
-> [   15.509141] console [ttyS0] enabled, bootconsole disabled
-> [   15.518967] brd: module loaded
-> [   15.524991] loop: module loaded
-> [   15.528584] sata_mv sata_mv.0: cannot get optional clkdev
-> [   15.534180] sata_mv sata_mv.0: slots 32 ports 2
-> 
-> If you set nr-ports to 1 the unit boots cleanly, save for only
-> detecting one functional SATA port.  Another user has confirmed this
-> behavior on an Iomega IX2-200.
+(Sasha, would it be possible to change your MUA so that it breaks long
+ lines.  It's pretty difficult to reply to.)
 
-Try booting with "coherent_pool=1M" (or bigger) kernel parameter. I think
-with the recent DMA mapping changes, the default 256 KB coherent pool may
-be too small, mv_xor and sata_mv together needs more. (I'm not sure how
-it actually worked before commit e9da6e9905e639b0f842a244bc770b48ad0523e9,
-but it seems this is the cuase).
+On Wed, Aug 15, 2012 at 02:24:49AM +0200, Sasha Levin wrote:
+> The hashtable uses hlist. hlist provides us with an entire family of
+> init functions which I'm supposed to use to initialize hlist heads.
+> 
+> So while a memset(0) will work perfectly here, I consider that
+> cheating - it results in an uglier code that assumes to know about
+> hlist internals, and will probably break as soon as someone tries to
+> do something to hlist.
 
-It should be noted that dma_pool_alloc() uses GFP_ATOMIC always, and if
-drivers exhaust the coherent pool already during the boot that function
-just keeps looping forever. Users only see boot hanging with no clue
-what to do. I would say it's quite a poor error handling...
+I think we should stick with INIT_HLIST_HEAD().  It's not a hot path
+and we might add, say, debug fields or initialization magics added
+later.  If this really matters, the right thing to do would be adding
+something like INIT_HLIST_HEAD_ARRAY().
 
-A.
+Thanks.
+
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
