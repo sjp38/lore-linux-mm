@@ -1,32 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
-	by kanga.kvack.org (Postfix) with SMTP id BE75F6B005D
-	for <linux-mm@kvack.org>; Wed, 15 Aug 2012 10:47:58 -0400 (EDT)
-Date: Wed, 15 Aug 2012 14:47:57 +0000
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH v2 04/11] kmem accounting basic infrastructure
-In-Reply-To: <20120815123931.GF23985@dhcp22.suse.cz>
-Message-ID: <000001392ac15404-43a3fd2c-a6d3-4985-b173-74bb586ad47c-000000@email.amazonses.com>
-References: <1344517279-30646-1-git-send-email-glommer@parallels.com> <1344517279-30646-5-git-send-email-glommer@parallels.com> <20120814162144.GC6905@dhcp22.suse.cz> <502B6D03.1080804@parallels.com> <20120815123931.GF23985@dhcp22.suse.cz>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
+	by kanga.kvack.org (Postfix) with SMTP id 9EC546B005D
+	for <linux-mm@kvack.org>; Wed, 15 Aug 2012 11:04:00 -0400 (EDT)
+Received: by ggnf4 with SMTP id f4so2285277ggn.14
+        for <linux-mm@kvack.org>; Wed, 15 Aug 2012 08:03:59 -0700 (PDT)
+From: Joonsoo Kim <js1304@gmail.com>
+Subject: [PATCH 1/2] slub: reduce failure of this_cpu_cmpxchg in put_cpu_partial() after unfreezing
+Date: Thu, 16 Aug 2012 00:02:39 +0900
+Message-Id: <1345042960-6287-1-git-send-email-js1304@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Glauber Costa <glommer@parallels.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, devel@openvz.org, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, kamezawa.hiroyu@jp.fujitsu.com, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>
+To: Pekka Enberg <penberg@kernel.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Joonsoo Kim <js1304@gmail.com>, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>
 
-On Wed, 15 Aug 2012, Michal Hocko wrote:
+In current implementation, after unfreezing, we doesn't touch oldpage,
+so it remain 'NOT NULL'. When we call this_cpu_cmpxchg()
+with this old oldpage, this_cpu_cmpxchg() is mostly be failed.
 
-> > That is not what the kernel does, in general. We assume that if he wants
-> > that memory and we can serve it, we should. Also, not all kernel memory
-> > is unreclaimable. We can shrink the slabs, for instance. Ying Han
-> > claims she has patches for that already...
->
-> Are those patches somewhere around?
+We can change value of oldpage to NULL after unfreezing,
+because unfreeze_partial() ensure that all the cpu partial slabs is removed
+from cpu partial list. In this time, we could expect that
+this_cpu_cmpxchg is mostly succeed.
 
-You can already shrink the reclaimable slabs (dentries / inodes) via
-calls to the subsystem specific shrinkers. Did Ying Han do anything to
-go beyond that?
+Signed-off-by: Joonsoo Kim <js1304@gmail.com>
+Cc: Christoph Lameter <cl@linux.com>
+Cc: David Rientjes <rientjes@google.com>
+Acked-by: Christoph Lameter <cl@linux.com>
+
+---
+Hello, Pekka.
+
+These two patches get "Acked-by: Christoph Lameter <cl@linux.com>",
+but, I don't hear any answer from U.
+Could you review these, please?
+
+Thanks!
+
+diff --git a/mm/slub.c b/mm/slub.c
+index e517d43..ca778e5 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -1952,6 +1952,7 @@ int put_cpu_partial(struct kmem_cache *s, struct page *page, int drain)
+ 				local_irq_save(flags);
+ 				unfreeze_partials(s);
+ 				local_irq_restore(flags);
++				oldpage = NULL;
+ 				pobjects = 0;
+ 				pages = 0;
+ 				stat(s, CPU_PARTIAL_DRAIN);
+-- 
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
