@@ -1,131 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
-	by kanga.kvack.org (Postfix) with SMTP id 554F06B0069
-	for <linux-mm@kvack.org>; Wed, 15 Aug 2012 11:04:03 -0400 (EDT)
-Received: by yenl1 with SMTP id l1so2289172yen.14
-        for <linux-mm@kvack.org>; Wed, 15 Aug 2012 08:04:02 -0700 (PDT)
-From: Joonsoo Kim <js1304@gmail.com>
-Subject: [PATCH 2/2] slub: remove one code path and reduce lock contention in __slab_free()
-Date: Thu, 16 Aug 2012 00:02:40 +0900
-Message-Id: <1345042960-6287-2-git-send-email-js1304@gmail.com>
-In-Reply-To: <1345042960-6287-1-git-send-email-js1304@gmail.com>
-References: <1345042960-6287-1-git-send-email-js1304@gmail.com>
+Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
+	by kanga.kvack.org (Postfix) with SMTP id 787796B005D
+	for <linux-mm@kvack.org>; Wed, 15 Aug 2012 11:15:01 -0400 (EDT)
+Message-ID: <502BBC35.809@parallels.com>
+Date: Wed, 15 Aug 2012 19:11:49 +0400
+From: Glauber Costa <glommer@parallels.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH v2 04/11] kmem accounting basic infrastructure
+References: <1344517279-30646-1-git-send-email-glommer@parallels.com> <1344517279-30646-5-git-send-email-glommer@parallels.com> <20120814162144.GC6905@dhcp22.suse.cz> <502B6D03.1080804@parallels.com> <20120815123931.GF23985@dhcp22.suse.cz> <000001392ac15404-43a3fd2c-a6d3-4985-b173-74bb586ad47c-000000@email.amazonses.com>
+In-Reply-To: <000001392ac15404-43a3fd2c-a6d3-4985-b173-74bb586ad47c-000000@email.amazonses.com>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pekka Enberg <penberg@kernel.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Joonsoo Kim <js1304@gmail.com>, Christoph Lameter <cl@linux.com>
+To: Christoph Lameter <cl@linux.com>
+Cc: Michal Hocko <mhocko@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, devel@openvz.org, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, kamezawa.hiroyu@jp.fujitsu.com, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>
 
-When we try to free object, there is some of case that we need
-to take a node lock. This is the necessary step for preventing a race.
-After taking a lock, then we try to cmpxchg_double_slab().
-But, there is a possible scenario that cmpxchg_double_slab() is failed
-with taking a lock. Following example explains it.
-
-CPU A               CPU B
-need lock
-...                 need lock
-...                 lock!!
-lock..but spin      free success
-spin...             unlock
-lock!!
-free fail
-
-In this case, retry with taking a lock is occured in CPU A.
-I think that in this case for CPU A,
-"release a lock first, and re-take a lock if necessary" is preferable way.
-
-There are two reasons for this.
-
-First, this makes __slab_free()'s logic somehow simple.
-With this patch, 'was_frozen = 1' is "always" handled without taking a lock.
-So we can remove one code path.
-
-Second, it may reduce lock contention.
-When we do retrying, status of slab is already changed,
-so we don't need a lock anymore in almost every case.
-"release a lock first, and re-take a lock if necessary" policy is
-helpful to this.
-
-Signed-off-by: Joonsoo Kim <js1304@gmail.com>
-Cc: Christoph Lameter <cl@linux.com>
-Acked-by: Christoph Lameter <cl@linux.com>
-
-diff --git a/mm/slub.c b/mm/slub.c
-index ca778e5..efce427 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -2421,7 +2421,6 @@ static void __slab_free(struct kmem_cache *s, struct page *page,
- 	void *prior;
- 	void **object = (void *)x;
- 	int was_frozen;
--	int inuse;
- 	struct page new;
- 	unsigned long counters;
- 	struct kmem_cache_node *n = NULL;
-@@ -2433,13 +2432,17 @@ static void __slab_free(struct kmem_cache *s, struct page *page,
- 		return;
- 
- 	do {
-+		if (unlikely(n)) {
-+			spin_unlock_irqrestore(&n->list_lock, flags);
-+			n = NULL;
-+		}
- 		prior = page->freelist;
- 		counters = page->counters;
- 		set_freepointer(s, object, prior);
- 		new.counters = counters;
- 		was_frozen = new.frozen;
- 		new.inuse--;
--		if ((!new.inuse || !prior) && !was_frozen && !n) {
-+		if ((!new.inuse || !prior) && !was_frozen) {
- 
- 			if (!kmem_cache_debug(s) && !prior)
- 
-@@ -2464,7 +2467,6 @@ static void __slab_free(struct kmem_cache *s, struct page *page,
- 
- 			}
- 		}
--		inuse = new.inuse;
- 
- 	} while (!cmpxchg_double_slab(s, page,
- 		prior, counters,
-@@ -2490,25 +2492,17 @@ static void __slab_free(struct kmem_cache *s, struct page *page,
-                 return;
-         }
- 
-+	if (unlikely(!new.inuse && n->nr_partial > s->min_partial))
-+		goto slab_empty;
-+
- 	/*
--	 * was_frozen may have been set after we acquired the list_lock in
--	 * an earlier loop. So we need to check it here again.
-+	 * Objects left in the slab. If it was not on the partial list before
-+	 * then add it.
- 	 */
--	if (was_frozen)
--		stat(s, FREE_FROZEN);
--	else {
--		if (unlikely(!inuse && n->nr_partial > s->min_partial))
--                        goto slab_empty;
--
--		/*
--		 * Objects left in the slab. If it was not on the partial list before
--		 * then add it.
--		 */
--		if (unlikely(!prior)) {
--			remove_full(s, page);
--			add_partial(n, page, DEACTIVATE_TO_TAIL);
--			stat(s, FREE_ADD_PARTIAL);
--		}
-+	if (kmem_cache_debug(s) && unlikely(!prior)) {
-+		remove_full(s, page);
-+		add_partial(n, page, DEACTIVATE_TO_TAIL);
-+		stat(s, FREE_ADD_PARTIAL);
- 	}
- 	spin_unlock_irqrestore(&n->list_lock, flags);
- 	return;
--- 
-1.7.9.5
+On 08/15/2012 06:47 PM, Christoph Lameter wrote:
+> On Wed, 15 Aug 2012, Michal Hocko wrote:
+> 
+>>> That is not what the kernel does, in general. We assume that if he wants
+>>> that memory and we can serve it, we should. Also, not all kernel memory
+>>> is unreclaimable. We can shrink the slabs, for instance. Ying Han
+>>> claims she has patches for that already...
+>>
+>> Are those patches somewhere around?
+> 
+> You can already shrink the reclaimable slabs (dentries / inodes) via
+> calls to the subsystem specific shrinkers. Did Ying Han do anything to
+> go beyond that?
+> 
+That is not enough for us.
+We would like to make sure that the objects being discarded belong to
+the memcg which is under pressure. We don't need to be perfect here, and
+an occasional slip is totally fine. But if in general, shrinking from
+memcg A will mostly wipe out objects from memcg B, we harmed the system
+in return for nothing good.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
