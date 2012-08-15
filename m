@@ -1,16 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
-	by kanga.kvack.org (Postfix) with SMTP id A17326B005D
-	for <linux-mm@kvack.org>; Wed, 15 Aug 2012 07:42:11 -0400 (EDT)
-Received: by wibhm6 with SMTP id hm6so4495358wib.8
-        for <linux-mm@kvack.org>; Wed, 15 Aug 2012 04:42:09 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
+	by kanga.kvack.org (Postfix) with SMTP id 87B446B005D
+	for <linux-mm@kvack.org>; Wed, 15 Aug 2012 07:43:48 -0400 (EDT)
+Received: by wibhm6 with SMTP id hm6so4496250wib.8
+        for <linux-mm@kvack.org>; Wed, 15 Aug 2012 04:43:46 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <CALF0-+XcmmeWr4qjDoKGit7fqyWwpCk_S9v+F18+x9heN9Y1oA@mail.gmail.com>
+In-Reply-To: <1344974585-9701-1-git-send-email-elezegarcia@gmail.com>
 References: <1344974585-9701-1-git-send-email-elezegarcia@gmail.com>
-	<0000013926e9f534-137f9d40-77b0-4dbc-90cb-d588c68e9526-000000@email.amazonses.com>
-	<CALF0-+XcmmeWr4qjDoKGit7fqyWwpCk_S9v+F18+x9heN9Y1oA@mail.gmail.com>
-Date: Wed, 15 Aug 2012 14:42:09 +0300
-Message-ID: <CAOJsxLEJe=aZHHAu3JT5-U7JsXMenP5xUc=aeKrhz6VcKuPOVQ@mail.gmail.com>
+Date: Wed, 15 Aug 2012 14:43:46 +0300
+Message-ID: <CAOJsxLG3DVocuakT91vmgKWFME94PL9_XAqGM_=jru-Tbg4oPw@mail.gmail.com>
 Subject: Re: [PATCH] mm, slob: Drop usage of page->private for storing
  page-sized allocations
 From: Pekka Enberg <penberg@kernel.org>
@@ -18,14 +16,95 @@ Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Ezequiel Garcia <elezegarcia@gmail.com>
-Cc: Christoph Lameter <cl@linux.com>, linux-mm@kvack.org, Glauber Costa <glommer@parallels.com>
+Cc: linux-mm@kvack.org, Christoph Lameter <cl@linux.com>, Glauber Costa <glommer@parallels.com>, Matt Mackall <mpm@selenic.com>
 
-On Wed, Aug 15, 2012 at 2:38 PM, Ezequiel Garcia <elezegarcia@gmail.com> wrote:
-> Who's the slob maintainer? Currently MAINTAINERS file
-> mentions slob's author Matt Mackal, but I didn't notice his presence
-> in this ML.
+On Tue, Aug 14, 2012 at 11:03 PM, Ezequiel Garcia <elezegarcia@gmail.com> wrote:
+> This field was being used to store size allocation so it could be
+> retrieved by ksize(). However, it is a bad practice to not mark a page
+> as a slab page and then use fields for special purposes.
+> There is no need to store the allocated size and
+> ksize() can simply return PAGE_SIZE << compound_order(page).
+>
+> Cc: Pekka Enberg <penberg@kernel.org>
+> Cc: Christoph Lameter <cl@linux.com>
+> Cc: Glauber Costa <glommer@parallels.com>
+> Signed-off-by: Ezequiel Garcia <elezegarcia@gmail.com>
 
-I'm handling patches for all slab allocators.
+Looks good to me. Matt?
+
+> ---
+>  mm/slob.c |   23 ++++++++++-------------
+>  1 files changed, 10 insertions(+), 13 deletions(-)
+>
+> diff --git a/mm/slob.c b/mm/slob.c
+> index 686e98b..987da93 100644
+> --- a/mm/slob.c
+> +++ b/mm/slob.c
+> @@ -28,9 +28,8 @@
+>   * from kmalloc are prepended with a 4-byte header with the kmalloc size.
+>   * If kmalloc is asked for objects of PAGE_SIZE or larger, it calls
+>   * alloc_pages() directly, allocating compound pages so the page order
+> - * does not have to be separately tracked, and also stores the exact
+> - * allocation size in page->private so that it can be used to accurately
+> - * provide ksize(). These objects are detected in kfree() because slob_page()
+> + * does not have to be separately tracked.
+> + * These objects are detected in kfree() because PageSlab()
+>   * is false for them.
+>   *
+>   * SLAB is emulated on top of SLOB by simply calling constructors and
+> @@ -450,7 +449,6 @@ void *__kmalloc_node(size_t size, gfp_t gfp, int node)
+>                                    size, size + align, gfp, node);
+>         } else {
+>                 unsigned int order = get_order(size);
+> -               struct page *page;
+>
+>                 if (likely(order))
+>                         gfp |= __GFP_COMP;
+> @@ -458,9 +456,6 @@ void *__kmalloc_node(size_t size, gfp_t gfp, int node)
+>                 if (!ret)
+>                         return NULL;
+>
+> -               page = virt_to_page(ret);
+> -               page->private = size;
+> -
+>                 trace_kmalloc_node(_RET_IP_, ret,
+>                                    size, PAGE_SIZE << order, gfp, node);
+>         }
+> @@ -494,18 +489,20 @@ EXPORT_SYMBOL(kfree);
+>  size_t ksize(const void *block)
+>  {
+>         struct page *sp;
+> +       int align;
+> +       unsigned int *m;
+>
+>         BUG_ON(!block);
+>         if (unlikely(block == ZERO_SIZE_PTR))
+>                 return 0;
+>
+>         sp = virt_to_page(block);
+> -       if (PageSlab(sp)) {
+> -               int align = max(ARCH_KMALLOC_MINALIGN, ARCH_SLAB_MINALIGN);
+> -               unsigned int *m = (unsigned int *)(block - align);
+> -               return SLOB_UNITS(*m) * SLOB_UNIT;
+> -       } else
+> -               return sp->private;
+> +       if (unlikely(!PageSlab(sp)))
+> +               return PAGE_SIZE << compound_order(sp);
+> +
+> +       align = max(ARCH_KMALLOC_MINALIGN, ARCH_SLAB_MINALIGN);
+> +       m = (unsigned int *)(block - align);
+> +       return SLOB_UNITS(*m) * SLOB_UNIT;
+>  }
+>  EXPORT_SYMBOL(ksize);
+>
+> --
+> 1.7.8.6
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
