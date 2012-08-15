@@ -1,65 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
-	by kanga.kvack.org (Postfix) with SMTP id 2B5276B006C
-	for <linux-mm@kvack.org>; Wed, 15 Aug 2012 09:26:25 -0400 (EDT)
-Date: Wed, 15 Aug 2012 15:26:21 +0200
-From: Michal Hocko <mhocko@suse.cz>
+Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
+	by kanga.kvack.org (Postfix) with SMTP id 24A156B006C
+	for <linux-mm@kvack.org>; Wed, 15 Aug 2012 09:30:09 -0400 (EDT)
+Message-ID: <1345037397.2976.44.camel@dabdike.int.hansenpartnership.com>
 Subject: Re: [PATCH v2 04/11] kmem accounting basic infrastructure
-Message-ID: <20120815132621.GJ23985@dhcp22.suse.cz>
+From: James Bottomley <James.Bottomley@HansenPartnership.com>
+Date: Wed, 15 Aug 2012 14:29:57 +0100
+In-Reply-To: <20120815125555.GG23985@dhcp22.suse.cz>
 References: <1344517279-30646-1-git-send-email-glommer@parallels.com>
- <1344517279-30646-5-git-send-email-glommer@parallels.com>
- <20120814162144.GC6905@dhcp22.suse.cz>
- <502B6D03.1080804@parallels.com>
- <20120815123931.GF23985@dhcp22.suse.cz>
- <502B9BD4.4070003@parallels.com>
- <20120815130228.GH23985@dhcp22.suse.cz>
- <502B9E5F.2080907@parallels.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <502B9E5F.2080907@parallels.com>
+	 <1344517279-30646-5-git-send-email-glommer@parallels.com>
+	 <20120814162144.GC6905@dhcp22.suse.cz> <502B6D03.1080804@parallels.com>
+	 <1345029143.2976.41.camel@dabdike.int.hansenpartnership.com>
+	 <20120815125555.GG23985@dhcp22.suse.cz>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 7bit
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, devel@openvz.org, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, kamezawa.hiroyu@jp.fujitsu.com, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Glauber Costa <glommer@parallels.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, devel@openvz.org, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, kamezawa.hiroyu@jp.fujitsu.com, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>
 
-On Wed 15-08-12 17:04:31, Glauber Costa wrote:
-> On 08/15/2012 05:02 PM, Michal Hocko wrote:
-> > On Wed 15-08-12 16:53:40, Glauber Costa wrote:
-> > [...]
-> >>>>> This doesn't check for the hierachy so kmem_accounted might not be in 
-> >>>>> sync with it's parents. mem_cgroup_create (below) needs to copy
-> >>>>> kmem_accounted down from the parent and the above needs to check if this
-> >>>>> is a similar dance like mem_cgroup_oom_control_write.
-> >>>>>
-> >>>>
-> >>>> I don't see why we have to.
-> >>>>
-> >>>> I believe in a A/B/C hierarchy, C should be perfectly able to set a
-> >>>> different limit than its parents. Note that this is not a boolean.
-> >>>
-> >>> Ohh, I wasn't clear enough. I am not against setting the _limit_ I just
-> >>> meant that the kmem_accounted should be consistent within the hierarchy.
-> >>>
-> >>
-> >> If a parent of yours is accounted, you get accounted as well. This is
-> >> not the state in this patch, but gets added later. Isn't this enough ?
+On Wed, 2012-08-15 at 14:55 +0200, Michal Hocko wrote:
+> On Wed 15-08-12 12:12:23, James Bottomley wrote:
+> > On Wed, 2012-08-15 at 13:33 +0400, Glauber Costa wrote:
+> > > > This can
+> > > > be quite confusing.  I am still not sure whether we should mix the two
+> > > > things together. If somebody wants to limit the kernel memory he has to
+> > > > touch the other limit anyway.  Do you have a strong reason to mix the
+> > > > user and kernel counters?
+> > > 
+> > > This is funny, because the first opposition I found to this work was
+> > > "Why would anyone want to limit it separately?" =p
+> > > 
+> > > It seems that a quite common use case is to have a container with a
+> > > unified view of "memory" that it can use the way he likes, be it with
+> > > kernel memory, or user memory. I believe those people would be happy to
+> > > just silently account kernel memory to user memory, or at the most have
+> > > a switch to enable it.
+> > > 
+> > > What gets clear from this back and forth, is that there are people
+> > > interested in both use cases.
 > > 
-> > But if the parent is not accounted, you can set the children to be
-> > accounted, right? Or maybe this is changed later in the series? I didn't
-> > get to the end yet.
-> > 
+> > Haven't we already had this discussion during the Prague get together?
+> > We discussed the use cases and finally agreed to separate accounting for
+> > k and then k+u mem because that satisfies both the Google and Parallels
+> > cases.  No-one was overjoyed by k and k+u but no-one had a better
+> > suggestion ... is there a better way of doing this that everyone can
+> > agree to?
+> > We do need to get this nailed down because it's the foundation of the
+> > patch series.
 > 
-> Yes, you can. Do you see any problem with that?
+> There is a slot in MM/memcg minisum at KS so we have a slot to discuss
+> this.
 
-Well, if a child contributes with the kmem charges upwards the hierachy
-then a parent can have kmem.usage > 0 with disabled accounting.
-I am not saying this is a no-go but it definitely is confusing and I do
-not see any good reason for it. I've considered it as an overlook rather
-than a deliberate design decision.
--- 
-Michal Hocko
-SUSE Labs
+Sure, to get things moving, can you pre-prime us with what you're
+thinking in this area so we can be prepared (and if it doesn't work,
+tell you beforehand)?
+
+Thanks,
+
+James
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
