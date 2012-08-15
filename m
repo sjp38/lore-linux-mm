@@ -1,9 +1,9 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
-	by kanga.kvack.org (Postfix) with SMTP id B86496B0070
-	for <linux-mm@kvack.org>; Wed, 15 Aug 2012 09:40:09 -0400 (EDT)
-Message-ID: <502BA6AE.9000209@parallels.com>
-Date: Wed, 15 Aug 2012 17:39:58 +0400
+Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
+	by kanga.kvack.org (Postfix) with SMTP id 649DB6B005D
+	for <linux-mm@kvack.org>; Wed, 15 Aug 2012 09:51:51 -0400 (EDT)
+Message-ID: <502BA96C.8070602@parallels.com>
+Date: Wed, 15 Aug 2012 17:51:40 +0400
 From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
 Subject: Re: [PATCH v2 07/11] mm: Allocate kernel pages to the right memcg
@@ -16,106 +16,41 @@ List-ID: <linux-mm.kvack.org>
 To: Mel Gorman <mgorman@suse.de>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, devel@openvz.org, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, kamezawa.hiroyu@jp.fujitsu.com, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Suleiman Souhlal <suleiman@google.com>
 
->>
->> As for the type, do you think using struct mem_cgroup would be less
->> confusing?
->>
-> 
-> Yes and returning the mem_cgroup or NULL instead of bool.
-
-Ok. struct mem_cgroup it is.
-
-> 
->> The placeholder is there, but it is later patched
->> to the final thing.
->> With that explained, if you want me to change it to something else, I
->> can do it. Should I ?
->>
-> 
-> Not in this patch anyway. I would have preferred a pattern like this but
-> that's about it.
-> 
-> #ifdef CONFIG_MEMCG_KMEM
-> extern struct static_key memcg_kmem_enabled_key;
-> static inline int memcg_kmem_enabled(void)
-> {
->        return static_key_false(&memcg_kmem_enabled_key);
-> }
-> #else
-> 
-> static inline bool memcg_kmem_enabled(void)
-> {
->        return false;
-> }
-> #endif
+On 08/15/2012 05:22 PM, Mel Gorman wrote:
+>> I believe it
+>> > to be a better and less complicated approach then letting a page appear
+>> > and then charging it. Besides being consistent with the rest of memcg,
+>> > it won't create unnecessary disturbance in the page allocator
+>> > when the allocation is to fail.
+>> > 
+> I still don't get why you did not just return a mem_cgroup instead of a
+> handle.
 > 
 
-humm, I'll have to think about this name.
-"memcg_kmem_enabled" means it is enabled in this cgroup. It is actually
-used inside memcontrol.c to denote precisely that.
+Forgot this one, sorry:
 
-Now the static branch, of course, means it is globally enabled. Or as I
-called here, "on".
+The reason is to keep the semantics simple.
 
+What should we return if the code is not compiled in? If we return NULL
+for failure, the test becomes
 
-> Two reasons. One, it does not use the terms "on" and "enabled"
-> interchangeably.  The other reason is down to taste as I'm copying the
-> pattern I used myself for sk_memalloc_socks(). Of course I am biased.
-> 
-> Also, why is the key exported?
-> 
+memcg = memcg_kmem_charge_page(gfp, order);
+if (!memcg)
+  exit;
 
-Same reason. The slab will now have inline functions that will test
-against that. The alloc functions themselves, are inside the page
-allocator, and the exports can go away.
+If we're not compiled in, we'd either return positive garbage or we need
+to wrap it inside an ifdef
 
-But the static branch will still be tested inside inlined functions in
-the slab.
+I personally believe to be a lot more clear to standardize on true
+to mean "allocation can proceed".
 
-That said, for the sake of simplicity, I can make it go away here, and
-add that to the right place later.
+the compiled out case becomes:
 
->>> I also find it *very* strange to have a function named as if it is an
->>> allocation-style function when it in fact it's looking up a mem_cgroup
->>> and charging it (and uncharging it in the error path if necessary). If
->>> it was called memcg_kmem_newpage_charge I might have found it a little
->>> better.
->>
->> I don't feel strongly about names in general. I can change it.
->> Will update to memcg_kmem_newpage_charge() and memcg_kmem_page_uncharge().
->>
-> 
-> I would prefer that anyway. Names have meaning and people make assumptions on
-> the implementation depending on the name. We should try to be as consistent
-> as possible or maintenance becomes harder. I know there are areas where
-> we are not consistent at all but we should not compound the problem.
+if (!true)
+   exit;
 
-memcg_kmem_page_charge() is even better I believe, and that is what I
-changed this to in my tree.
-
->>> As this thing is called from within the allocator, it's not clear why
->>> __memcg_kmem_new_page is exported. I can't imagine why a module would call
->>> it directly although maybe you cover that somewhere else in the series.
->>
->> Okay, more people commented on this, so let me clarify: They shouldn't
->> be. They were initially exported when this was about the slab only,
->> because they could be called from inlined functions from the allocators.
->> Now that the charge/uncharge was moved to the page allocator - which
->> already allowed me the big benefit of separating this in two pieces,
->> none of this needs to be exported.
->>
->> Sorry for not noticing this myself, but thanks for the eyes =)
->>
-> 
-> You're welcome. I expect to see all the exports disappear so. If there
-> are any exports left I think it would be important to document why they
-> have to be exported. This is particularly true because they are
-> EXPORT_SYMBOL not EXPORT_SYMBOL_GPL. I think it would be good to know in
-> advance why a module (particularly an out-of-tree one) would be
-> interested.
-> 
-
-I will remove them all for now.
+which is easily compiled away altogether. Now of course, using struct
+mem_cgroup makes sense, and I have already changed that here.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
