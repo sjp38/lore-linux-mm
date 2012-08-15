@@ -1,57 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx167.postini.com [74.125.245.167])
-	by kanga.kvack.org (Postfix) with SMTP id 7C85D6B0044
-	for <linux-mm@kvack.org>; Tue, 14 Aug 2012 20:46:27 -0400 (EDT)
-Received: by obhx4 with SMTP id x4so1612603obh.14
-        for <linux-mm@kvack.org>; Tue, 14 Aug 2012 17:46:26 -0700 (PDT)
-Message-ID: <502AF184.4010907@gmail.com>
-Date: Wed, 15 Aug 2012 02:47:00 +0200
-From: Sasha Levin <levinsasha928@gmail.com>
+Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
+	by kanga.kvack.org (Postfix) with SMTP id F30866B0044
+	for <linux-mm@kvack.org>; Tue, 14 Aug 2012 20:47:33 -0400 (EDT)
+Received: by yenl1 with SMTP id l1so1453339yen.14
+        for <linux-mm@kvack.org>; Tue, 14 Aug 2012 17:47:33 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [PATCH 02/16] user_ns: use new hashtable implementation
-References: <1344961490-4068-1-git-send-email-levinsasha928@gmail.com> <1344961490-4068-3-git-send-email-levinsasha928@gmail.com> <87txw5hw0s.fsf@xmission.com>
-In-Reply-To: <87txw5hw0s.fsf@xmission.com>
+In-Reply-To: <20120815002536.GC747@harshnoise.musicnaut.iki.fi>
+References: <CAMW5UfZ_kVz_b4_98zPdY2RFjTMN9H2OzjYcRQrCTgA1xqdmPw@mail.gmail.com>
+	<20120815002536.GC747@harshnoise.musicnaut.iki.fi>
+Date: Tue, 14 Aug 2012 20:47:32 -0400
+Message-ID: <CAMW5Ufa8YwhVbCtQwswVBi8VXiTDWFPz9Kfj3NYxF7VrWz5t=w@mail.gmail.com>
+Subject: Re: Potential Regression in 3.6-rc1 - Kirkwood SATA
+From: Josh Coombs <josh.coombs@gmail.com>
 Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Eric W. Biederman" <ebiederm@xmission.com>
-Cc: torvalds@linux-foundation.org, tj@kernel.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, paul.gortmaker@windriver.com, davem@davemloft.net, rostedt@goodmis.org, mingo@elte.hu, aarcange@redhat.com, ericvh@gmail.com, netdev@vger.kernel.org, josh@joshtriplett.org, eric.dumazet@gmail.com, mathieu.desnoyers@efficios.com, axboe@kernel.dk, agk@redhat.com, dm-devel@redhat.com, neilb@suse.de, ccaulfie@redhat.com, teigland@redhat.com, Trond.Myklebust@netapp.com, bfields@fieldses.org, fweisbec@gmail.com, jesse@nicira.com, venkat.x.venkatsubra@oracle.com, ejt@redhat.com, snitzer@redhat.com, edumazet@google.com, linux-nfs@vger.kernel.org, dev@openvswitch.org, rds-devel@oss.oracle.com, lw@cn.fujitsu.com
+To: Aaro Koskinen <aaro.koskinen@iki.fi>
+Cc: linux ARM <linux-arm-kernel@lists.infradead.org>, Andrew Lunn <andrew@lunn.ch>, m.szyprowski@samsung.com, linux-mm@kvack.org
 
-On 08/15/2012 01:52 AM, Eric W. Biederman wrote:
-> Sasha Levin <levinsasha928@gmail.com> writes:
-> 
->> Switch user_ns to use the new hashtable implementation. This reduces the amount of
->> generic unrelated code in user_ns.
-> 
-> Two concerns here.
-> 1) When adding a new entry you recompute the hash where previously that
->    was not done.  I believe that will slow down adding of new entries.
+On Tue, Aug 14, 2012 at 8:25 PM, Aaro Koskinen <aaro.koskinen@iki.fi> wrote=
+:
+> Him
+>
+> On Tue, Aug 14, 2012 at 07:59:00PM -0400, Josh Coombs wrote:
+>> I finally got a chance to test 3.6-rc1 after having my GoFlex Net
+>> support patch accepted for the 3.6 release train.  Included in 3.6-rc1
+>> was an update for Kirkwoods switching SATA to DT which was not part of
+>> my original testing.  It seems something with this change has
+>> partially broken the GoFlex and a couple other Kirkwood based devices.
+>>
+>> The key factor is the number of SATA ports defined in the dts:
+>>
+>>               sata@80000 {
+>>                       status =3D "okay";
+>>                       nr-ports =3D <2>;
+>>               };
+>>
+>> If set at the correct number for my device, 2, my GFN does not
+>> complete kernel init, hanging here:
+>>
+>> <SNIP>
+>> [   15.287832] Dquot-cache hash table entries: 1024 (order 0, 4096 bytes=
+)
+>> [   15.296545] jffs2: version 2.2. (NAND) ?=A9 2001-2006 Red Hat, Inc.
+>> [   15.303202] msgmni has been set to 240
+>> [   15.308503] Block layer SCSI generic (bsg) driver version 0.4 loaded =
+(major )
+>> [   15.316021] io scheduler noop registered
+>> [   15.320149] io scheduler deadline registered
+>> [   15.324558] io scheduler cfq registered (default)
+>> [   15.329462] mv_xor_shared mv_xor_shared.0: Marvell shared XOR driver
+>> [   15.335962] mv_xor_shared mv_xor_shared.1: Marvell shared XOR driver
+>> [   15.376751] mv_xor mv_xor.0: Marvell XOR: ( xor cpy )
+>> [   15.416736] mv_xor mv_xor.1: Marvell XOR: ( xor fill cpy )
+>> [   15.456735] mv_xor mv_xor.2: Marvell XOR: ( xor cpy )
+>> [   15.496734] mv_xor mv_xor.3: Marvell XOR: ( xor fill cpy )
+>> [   15.506309] Serial: 8250/16550 driver, 2 ports, IRQ sharing disabled
+>> [   15.509111] serial8250.0: ttyS0 at MMIO 0xf1012000 (irq =3D 33) is a =
+16550A
+>> [   15.509141] console [ttyS0] enabled, bootconsole disabled
+>> [   15.518967] brd: module loaded
+>> [   15.524991] loop: module loaded
+>> [   15.528584] sata_mv sata_mv.0: cannot get optional clkdev
+>> [   15.534180] sata_mv sata_mv.0: slots 32 ports 2
+>>
+>> If you set nr-ports to 1 the unit boots cleanly, save for only
+>> detecting one functional SATA port.  Another user has confirmed this
+>> behavior on an Iomega IX2-200.
+>
+> Try booting with "coherent_pool=3D1M" (or bigger) kernel parameter. I thi=
+nk
+> with the recent DMA mapping changes, the default 256 KB coherent pool may
+> be too small, mv_xor and sata_mv together needs more. (I'm not sure how
+> it actually worked before commit e9da6e9905e639b0f842a244bc770b48ad0523e9=
+,
+> but it seems this is the cuase).
+>
+> It should be noted that dma_pool_alloc() uses GFP_ATOMIC always, and if
+> drivers exhaust the coherent pool already during the boot that function
+> just keeps looping forever. Users only see boot hanging with no clue
+> what to do. I would say it's quite a poor error handling...
+>
+> A.
 
-I figured that the price for the extra hashing isn't significant since hash_32
-is just a multiplication and a shift.
+I can confirm that fixes my GoFlex.  Would this justify raising the
+default for Kirkwoods, or just for specific devices within the family?
 
-I'll modify the code to calculate the key just once.
-
-> 2) Using hash_32 for uids is an interesting choice.  hash_32 discards
->    the low bits.  Last I checked for uids the low bits were the bits
->    that were most likely to be different and had the most entropy.
-> 
->    I'm not certain how multiplying by the GOLDEN_RATION_PRIME_32 will
->    affect things but I would be surprised if it shifted all of the
->    randomness from the low bits to the high bits.
-
-"Is hash_* good enough for our purpose?" - I was actually surprised that no one
-raised that question during the RFC and assumed it was because everybody agreed
-that it's indeed good enough.
-
-I can offer the following: I'll write a small module that will hash 1...10000
-into a hashtable which uses 7 bits (just like user_ns) and post the distribution
-we'll get.
-
-If the results of the above will be satisfactory we can avoid the discussion
-about which hash function we should really be using. If not, I guess now is a
-good time for that :)
+Josh C
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
