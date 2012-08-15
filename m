@@ -1,127 +1,160 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
-	by kanga.kvack.org (Postfix) with SMTP id 462386B005D
-	for <linux-mm@kvack.org>; Wed, 15 Aug 2012 19:18:17 -0400 (EDT)
-Date: Thu, 16 Aug 2012 08:20:23 +0900
+Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
+	by kanga.kvack.org (Postfix) with SMTP id AEE626B005D
+	for <linux-mm@kvack.org>; Wed, 15 Aug 2012 19:31:16 -0400 (EDT)
+Date: Thu, 16 Aug 2012 08:33:23 +0900
 From: Minchan Kim <minchan@kernel.org>
 Subject: Re: [RFC 2/2] cma: support MIGRATE_DISCARD
-Message-ID: <20120815232023.GA15225@bbox>
+Message-ID: <20120815233323.GB15225@bbox>
 References: <1344934627-8473-1-git-send-email-minchan@kernel.org>
  <1344934627-8473-3-git-send-email-minchan@kernel.org>
- <xa1t7gt1pnck.fsf@mina86.com>
+ <502BF139.3040403@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <xa1t7gt1pnck.fsf@mina86.com>
+In-Reply-To: <502BF139.3040403@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Nazarewicz <mina86@mina86.com>
-Cc: Marek Szyprowski <m.szyprowski@samsung.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Rik van Riel <riel@redhat.com>
+Cc: Marek Szyprowski <m.szyprowski@samsung.com>, Mel Gorman <mgorman@suse.de>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Hi Michal,
+Hi Rik,
 
-On Tue, Aug 14, 2012 at 04:19:55PM +0200, Michal Nazarewicz wrote:
-> Minchan Kim <minchan@kernel.org> writes:
-> > This patch introudes MIGRATE_DISCARD mode in migration.
-> > It drop clean cache pages instead of migration so that
-> > migration latency could be reduced. Of course, it could
-> > evict code pages but latency of big contiguous memory
-> > is more important than some background application's slow down
-> > in mobile embedded enviroment.
+On Wed, Aug 15, 2012 at 02:58:01PM -0400, Rik van Riel wrote:
+> On 08/14/2012 04:57 AM, Minchan Kim wrote:
+> >This patch introudes MIGRATE_DISCARD mode in migration.
+> >It drop clean cache pages instead of migration so that
+> >migration latency could be reduced. Of course, it could
+> >evict code pages but latency of big contiguous memory
+> >is more important than some background application's slow down
+> >in mobile embedded enviroment.
+> 
+> Would it be an idea to only drop clean UNMAPPED
+> page cache pages?
+
+Firstly I thougt about that but I chose more agressive thing.
+Namely, even drop mapped page cache.
+Because it can reduce latency more(ex, memcpy + remapping cost
+during migration) and it could not trivial if migration range is big.
+
+> 
+> >Signed-off-by: Minchan Kim <minchan@kernel.org>
+> 
+> >@@ -799,12 +802,39 @@ static int __unmap_and_move(struct page *page, struct page *newpage,
+> >  		goto skip_unmap;
+> >  	}
 > >
-> > Signed-off-by: Minchan Kim <minchan@kernel.org>
+> >+	file = page_is_file_cache(page);
+> >+	ttu_flags = TTU_IGNORE_MLOCK|TTU_IGNORE_ACCESS;
+> >+
+> >+	if (!(mode & MIGRATE_DISCARD) || !file || PageDirty(page))
+> >+		ttu_flags |= TTU_MIGRATION;
+> >+	else
+> >+		discard_mode = true;
+> >+
+> >  	/* Establish migration ptes or remove ptes */
+> >-	try_to_unmap(page, TTU_MIGRATION|TTU_IGNORE_MLOCK|TTU_IGNORE_ACCESS);
+> >+	try_to_unmap(page, ttu_flags);
 > 
-> This looks good to me.
-> 
-> > ---
-> >  include/linux/migrate_mode.h |   11 +++++++---
-> >  mm/migrate.c                 |   50 +++++++++++++++++++++++++++++++++---------
-> >  mm/page_alloc.c              |    2 +-
-> >  3 files changed, 49 insertions(+), 14 deletions(-)
-> >
-> > diff --git a/include/linux/migrate_mode.h b/include/linux/migrate_mode.h
-> > index ebf3d89..04ca19c 100644
-> > --- a/include/linux/migrate_mode.h
-> > +++ b/include/linux/migrate_mode.h
-> > @@ -6,11 +6,16 @@
-> >   *	on most operations but not ->writepage as the potential stall time
-> >   *	is too significant
-> >   * MIGRATE_SYNC will block when migrating pages
-> > + * MIGRTATE_DISCARD will discard clean cache page instead of migration
-> > + *
-> > + * MIGRATE_ASYNC, MIGRATE_SYNC_LIGHT, MIGRATE_SYNC shouldn't be used
-> > + * together as OR flag.
-> >   */
-> >  enum migrate_mode {
-> > -	MIGRATE_ASYNC,
-> > -	MIGRATE_SYNC_LIGHT,
-> > -	MIGRATE_SYNC,
-> > +	MIGRATE_ASYNC = 1 << 0,
-> > +	MIGRATE_SYNC_LIGHT = 1 << 1,
-> > +	MIGRATE_SYNC = 1 << 2,
-> > +	MIGRATE_DISCARD = 1 << 3,
-> >  };
-> 
-> Since CMA is the only user of MIGRATE_DISCARD it may be worth it to
-> guard it inside an #ifdef, eg:
-> 
-> #ifdef CONFIG_CMA
-> 	MIGRATE_DISCARD = 1 << 3,
-> #define is_migrate_discard(mode) (((mode) & MIGRATE_DISCARD) == MIGRATE_DISCARD)
+> This bit looks wrong, because you end up ignoring
+> mlock and then discarding the page.
 
-The mode bit can be used with other bits like MIGRATE_SYNC|MIGRATE_DISCARD.
-So it is correct that (mode & MIGRATE_DISCARD).
-
-Anyway, I don't want to fold it into only CMA because I think we can
-have a pontential users in mm.
-For example, memory-hotplug case. No enough free memory in the system
-but lots of page cache page as a migration source, then we can remove
-page cache page instead of migration and it might be better than failing
-memory-hotremove.
-
-In summary, I want to open it for potential usecases in future if anyone
-doesn't oppose strongly.
-
-> #endif
-> 
->   
-> >  #endif		/* MIGRATE_MODE_H_INCLUDED */
-> > diff --git a/mm/migrate.c b/mm/migrate.c
-> > index 77ed2d7..8119a59 100644
-> > --- a/mm/migrate.c
-> > +++ b/mm/migrate.c
-> > @@ -685,9 +685,12 @@ static int __unmap_and_move(struct page *page, struct page *newpage,
-> >  	int remap_swapcache = 1;
-> >  	struct mem_cgroup *mem;
-> >  	struct anon_vma *anon_vma = NULL;
-> > +	enum ttu_flags ttu_flags;
-> > +	bool discard_mode = false;
-> > +	bool file = false;
-> >  
-> >  	if (!trylock_page(page)) {
-> > -		if (!force || mode == MIGRATE_ASYNC)
-> > +		if (!force || mode & MIGRATE_ASYNC)
-
-It's not wrong technically but for readability, NP.
+Argh, Thanks!
+I will fix it in next spin.
 
 > 
-> +		if (!force || (mode & MIGRATE_ASYNC))
+> Only dropping clean page cache pages that are not
+> mapped would avoid that problem, without introducing
+> much complexity in the code.
+
+Hmm, I don't think it makes code much complex.
+How about this?
+
+diff --git a/mm/rmap.c b/mm/rmap.c
+index 0f3b7cd..0909d79 100644
+--- a/mm/rmap.c
++++ b/mm/rmap.c
+@@ -1223,7 +1223,8 @@ out:
+  * repeatedly from try_to_unmap_ksm, try_to_unmap_anon or try_to_unmap_file.
+  */
+ int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
+-                    unsigned long address, enum ttu_flags flags)
++                    unsigned long address, enum ttu_flags flags,
++                    unsigned long *vm_flags)
+ {
+        struct mm_struct *mm = vma->vm_mm;
+        pte_t *pte;
+@@ -1235,6 +1236,7 @@ int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
+        if (!pte)
+                goto out;
+ 
++       vm_flags |= vma->vm_flags;
+        /*
+         * If the page is mlock()d, we cannot swap it out.
+         * If it's recently referenced (perhaps page_referenced
+@@ -1652,7 +1654,7 @@ out:
+  * SWAP_FAIL   - the page is unswappable
+  * SWAP_MLOCK  - page is mlocked.
+  */
+-int try_to_unmap(struct page *page, enum ttu_flags flags)
++int try_to_unmap(struct page *page, enum ttu_flags flags, unsigned long *vm_flags)
+ {
+        int ret;
+
+<snip> 
+
++       file = page_is_file_cache(page);
++       ttu_flags = TTU_IGNORE_MLOCK|TTU_IGNORE_ACCESS;
++
++       if (!(mode & MIGRATE_DISCARD) || !file || PageDirty(page) ||
++               vm_flags & VM_LOCKED)
++               ttu_flags |= TTU_MIGRATION;
++       else
++               discard_mode = true;
++
+
+
 > 
-> >  			goto out;
-> >  
-> >  		/*
+> That would turn the test above into:
+> 
+> 	if (!page_mapped(page))
+> 		discard_mode = true;
+> 
+> >  skip_unmap:
+> >-	if (!page_mapped(page))
+> >-		rc = move_to_new_page(newpage, page, remap_swapcache, mode);
+> >+	if (!page_mapped(page)) {
+> >+		if (!discard_mode)
+> >+			rc = move_to_new_page(newpage, page, remap_swapcache, mode);
+> >+		else {
+> >+			struct address_space *mapping;
+> >+			mapping = page_mapping(page);
+> >+
+> >+			if (page_has_private(page)) {
+> >+				if (!try_to_release_page(page, GFP_KERNEL)) {
+> >+					rc = -EAGAIN;
+> >+					goto uncharge;
+> >+				}
+> >+			}
+> >+
+> >+			if (remove_mapping(mapping, page))
+> >+				rc = 0;
+> >+			else
+> >+				rc = -EAGAIN;
+> >+			goto uncharge;
+> >+		}
+> >+	}
+> 
+> This big piece of code could probably be split out
+> into its own function.
 > 
 > 
-> -- 
-> Best regards,                                         _     _
-> .o. | Liege of Serenely Enlightened Majesty of      o' \,=./ `o
-> ..o | Computer Science,  MichaA? a??mina86a?? Nazarewicz    (o o)
-> ooo +----<email/xmpp: mpn@google.com>--------------ooO--(_)--Ooo--
-
-
-
-
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 -- 
 Kind regards,
