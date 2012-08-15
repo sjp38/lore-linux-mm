@@ -1,59 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
-	by kanga.kvack.org (Postfix) with SMTP id E2F436B002B
-	for <linux-mm@kvack.org>; Wed, 15 Aug 2012 10:02:03 -0400 (EDT)
-Message-ID: <502BABCF.7020608@parallels.com>
-Date: Wed, 15 Aug 2012 18:01:51 +0400
-From: Glauber Costa <glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
+	by kanga.kvack.org (Postfix) with SMTP id D4E5F6B0069
+	for <linux-mm@kvack.org>; Wed, 15 Aug 2012 10:04:06 -0400 (EDT)
+Date: Wed, 15 Aug 2012 14:04:05 +0000
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH] mm, slob: Drop usage of page->private for storing
+ page-sized allocations
+In-Reply-To: <CALF0-+XcmmeWr4qjDoKGit7fqyWwpCk_S9v+F18+x9heN9Y1oA@mail.gmail.com>
+Message-ID: <000001392a992e13-09a7bf5a-df83-4148-a3e1-3aa50b9e96c7-000000@email.amazonses.com>
+References: <1344974585-9701-1-git-send-email-elezegarcia@gmail.com> <0000013926e9f534-137f9d40-77b0-4dbc-90cb-d588c68e9526-000000@email.amazonses.com> <CALF0-+XcmmeWr4qjDoKGit7fqyWwpCk_S9v+F18+x9heN9Y1oA@mail.gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2 06/11] memcg: kmem controller infrastructure
-References: <1344517279-30646-1-git-send-email-glommer@parallels.com> <1344517279-30646-7-git-send-email-glommer@parallels.com> <20120814172540.GD6905@dhcp22.suse.cz> <502B6F00.8040207@parallels.com> <20120815130952.GI23985@dhcp22.suse.cz>
-In-Reply-To: <20120815130952.GI23985@dhcp22.suse.cz>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, devel@openvz.org, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, kamezawa.hiroyu@jp.fujitsu.com, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, Pekka Enberg <penberg@cs.helsinki.fi>
+To: Ezequiel Garcia <elezegarcia@gmail.com>
+Cc: linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, Glauber Costa <glommer@parallels.com>
 
-On 08/15/2012 05:09 PM, Michal Hocko wrote:
-> On Wed 15-08-12 13:42:24, Glauber Costa wrote:
-> [...]
->>>> +
->>>> +	ret = 0;
->>>> +
->>>> +	if (!memcg)
->>>> +		return ret;
->>>> +
->>>> +	_memcg = memcg;
->>>> +	ret = __mem_cgroup_try_charge(NULL, gfp, delta / PAGE_SIZE,
->>>> +	    &_memcg, may_oom);
->>>
->>> This is really dangerous because atomic allocation which seem to be
->>> possible could result in deadlocks because of the reclaim. 
->>
->> Can you elaborate on how this would happen?
-> 
-> Say you have an atomic allocation and we hit the limit so we get either
-> to reclaim which can sleep or to oom which can sleep as well (depending
-> on the oom_control).
-> 
+On Wed, 15 Aug 2012, Ezequiel Garcia wrote:
 
-I see now, you seem to be right.
+> Hi Christoph,
+>
+> On Tue, Aug 14, 2012 at 5:53 PM, Christoph Lameter <cl@linux.com> wrote:
+> > On Tue, 14 Aug 2012, Ezequiel Garcia wrote:
+> >
+> >> This field was being used to store size allocation so it could be
+> >> retrieved by ksize(). However, it is a bad practice to not mark a page
+> >> as a slab page and then use fields for special purposes.
+> >> There is no need to store the allocated size and
+> >> ksize() can simply return PAGE_SIZE << compound_order(page).
+> >
+> > Acked-by: Christoph Lameter <cl@linux.com>
+> >
+>
+> Who's the slob maintainer? Currently MAINTAINERS file
+> mentions slob's author Matt Mackal, but I didn't notice his presence
+> in this ML.
 
-How about we change the following code in mem_cgroup_do_charge:
+Well I have not heard from him recently. Matt, Pekka and I are the
+"official" (whatever that means...) maintainers of the slab allocators
+which includes slob. See the MAINTAINERS file.
 
-        if (gfp_mask & __GFP_NORETRY)
-                return CHARGE_NOMEM;
 
-to:
-
-        if ((gfp_mask & __GFP_NORETRY) || (gfp_mask & __GFP_ATOMIC))
-                return CHARGE_NOMEM;
-
-?
-
-Would this take care of the issue ?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
