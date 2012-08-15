@@ -1,42 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
-	by kanga.kvack.org (Postfix) with SMTP id 80B906B005D
-	for <linux-mm@kvack.org>; Wed, 15 Aug 2012 16:53:09 -0400 (EDT)
-Received: by ghrr18 with SMTP id r18so2750408ghr.14
-        for <linux-mm@kvack.org>; Wed, 15 Aug 2012 13:53:08 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <CAHkRjk4pQOktEGFZy9Jd5NDth8f_+JUC0OrgcRUaCFGUEUOTKg@mail.gmail.com>
-References: <1344324343-3817-1-git-send-email-walken@google.com>
-	<1344324343-3817-4-git-send-email-walken@google.com>
-	<CANN689EOZ64V_AO8B6N0-_B0_HdQZVk3dH8Ce5c=m5Q=ySDKUg@mail.gmail.com>
-	<20120809083127.GC14102@arm.com>
-	<CAHkRjk4pQOktEGFZy9Jd5NDth8f_+JUC0OrgcRUaCFGUEUOTKg@mail.gmail.com>
-Date: Wed, 15 Aug 2012 13:53:07 -0700
-Message-ID: <CANN689F_FgFP0tUwpTJmhWO+XaLH9+2tEb6xYJzonXVv5KsOSA@mail.gmail.com>
-Subject: Re: [PATCH 3/5] kmemleak: use rbtree instead of prio tree
-From: Michel Lespinasse <walken@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
+	by kanga.kvack.org (Postfix) with SMTP id 91A426B005D
+	for <linux-mm@kvack.org>; Wed, 15 Aug 2012 19:03:44 -0400 (EDT)
+Date: Wed, 15 Aug 2012 16:03:42 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [patch v2] hugetlb: correct page offset index for sharing pmd
+Message-Id: <20120815160342.5b77bd3b.akpm@linux-foundation.org>
+In-Reply-To: <CAJd=RBCuvpG49JcTUY+qw-tTdH_vFLgOfJDE3sW97+M04TR+hg@mail.gmail.com>
+References: <CAJd=RBC9HhKh5Q0-yXi3W0x3guXJPFz4BNsniyOFmp0TjBdFqg@mail.gmail.com>
+	<20120806132410.GA6150@dhcp22.suse.cz>
+	<CAJd=RBCuvpG49JcTUY+qw-tTdH_vFLgOfJDE3sW97+M04TR+hg@mail.gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Catalin Marinas <catalin.marinas@arm.com>
-Cc: "riel@redhat.com" <riel@redhat.com>, "peterz@infradead.org" <peterz@infradead.org>, "vrajesh@umich.edu" <vrajesh@umich.edu>, "daniel.santos@pobox.com" <daniel.santos@pobox.com>, "aarcange@redhat.com" <aarcange@redhat.com>, "dwmw2@infradead.org" <dwmw2@infradead.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "torvalds@linux-foundation.org" <torvalds@linux-foundation.org>
+To: Hillf Danton <dhillf@gmail.com>
+Cc: Michal Hocko <mhocko@suse.cz>, Mel Gorman <mgorman@suse.de>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Wed, Aug 15, 2012 at 9:36 AM, Catalin Marinas
-<catalin.marinas@arm.com> wrote:
-> Couldn't test it because the patch got messed up somewhere on the
-> email path (tabs replaced with spaces). Is there a Git tree I can grab
-> it from (or you could just send it to me separately as attachment)?
+On Mon, 6 Aug 2012 21:37:45 +0800
+Hillf Danton <dhillf@gmail.com> wrote:
 
-Sorry about that. The original patch I sent to lkml & linux-mm wasn't
-corrupted, but the forward I sent you after I realized I had forgotten
-to include you was.
+> On Mon, Aug 6, 2012 at 9:24 PM, Michal Hocko <mhocko@suse.cz> wrote:
+> > On Sat 04-08-12 14:08:31, Hillf Danton wrote:
+> >> The computation of page offset index is incorrect to be used in scanning
+> >> prio tree, as huge page offset is required, and is fixed with well
+> >> defined routine.
+> >>
+> >> Changes from v1
+> >>       o s/linear_page_index/linear_hugepage_index/ for clearer code
+> >>       o hp_idx variable added for less change
+> >>
+> >>
+> >> Signed-off-by: Hillf Danton <dhillf@gmail.com>
+> >> ---
+> >>
+> >> --- a/arch/x86/mm/hugetlbpage.c       Fri Aug  3 20:34:58 2012
+> >> +++ b/arch/x86/mm/hugetlbpage.c       Fri Aug  3 20:40:16 2012
+> >> @@ -62,6 +62,7 @@ static void huge_pmd_share(struct mm_str
+> >>  {
+> >>       struct vm_area_struct *vma = find_vma(mm, addr);
+> >>       struct address_space *mapping = vma->vm_file->f_mapping;
+> >> +     pgoff_t hp_idx;
+> >>       pgoff_t idx = ((addr - vma->vm_start) >> PAGE_SHIFT) +
+> >>                       vma->vm_pgoff;
+> >
+> > So we have two indexes now. That is just plain ugly!
+> >
+> 
+> Two indexes result in less code change here and no change
+> in page_table_shareable. Plus linear_hugepage_index tells
+> clearly readers that hp_idx and idx are different.
+> 
+> Anyway I have no strong opinion to keep
+> page_table_shareable unchanged, but prefer less changes.
 
-https://lkml.org/lkml/2012/8/7/52 has the original patch, and "get
-diff 1" in the left column can be used to retrieve it.
+Don't be too concerned about the size of a change - it's the end result
+which matters.  If a larger patch results in a better end result, then
+do the larger patch.
 
--- 
-Michel "Walken" Lespinasse
-A program is never fully debugged until the last user dies.
+Also, please add some details to the changelog: the patch is fixing a
+bug but we aren't told about the end-user-visible effects of that bug. 
+This is important information.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
