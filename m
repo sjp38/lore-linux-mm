@@ -1,68 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
-	by kanga.kvack.org (Postfix) with SMTP id 68F8E6B006E
-	for <linux-mm@kvack.org>; Wed, 15 Aug 2012 05:24:10 -0400 (EDT)
-Date: Wed, 15 Aug 2012 11:24:05 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH v2 07/11] mm: Allocate kernel pages to the right memcg
-Message-ID: <20120815092404.GA23985@dhcp22.suse.cz>
-References: <1344517279-30646-1-git-send-email-glommer@parallels.com>
- <1344517279-30646-8-git-send-email-glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
+	by kanga.kvack.org (Postfix) with SMTP id C0CF06B0072
+	for <linux-mm@kvack.org>; Wed, 15 Aug 2012 05:24:34 -0400 (EDT)
+Date: Wed, 15 Aug 2012 12:25:28 +0300
+From: "Michael S. Tsirkin" <mst@redhat.com>
+Subject: Re: [PATCH v7 2/4] virtio_balloon: introduce migration primitives to
+ balloon pages
+Message-ID: <20120815092528.GA29214@redhat.com>
+References: <cover.1344619987.git.aquini@redhat.com>
+ <f19b63dfa026fe2f8f11ec017771161775744781.1344619987.git.aquini@redhat.com>
+ <20120813084123.GF14081@redhat.com>
+ <20120814182244.GB13338@t510.redhat.com>
+ <20120814195139.GA28870@redhat.com>
+ <20120814201113.GE22133@t510.redhat.com>
+ <20120815090528.GH4052@csn.ul.ie>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1344517279-30646-8-git-send-email-glommer@parallels.com>
+In-Reply-To: <20120815090528.GH4052@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, devel@openvz.org, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, kamezawa.hiroyu@jp.fujitsu.com, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Suleiman Souhlal <suleiman@google.com>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Rafael Aquini <aquini@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, Rusty Russell <rusty@rustcorp.com.au>, Rik van Riel <riel@redhat.com>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Minchan Kim <minchan@kernel.org>
 
-On Thu 09-08-12 17:01:15, Glauber Costa wrote:
-[...]
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index b956cec..da341dc 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -2532,6 +2532,7 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
->  	struct page *page = NULL;
->  	int migratetype = allocflags_to_migratetype(gfp_mask);
->  	unsigned int cpuset_mems_cookie;
-> +	void *handle = NULL;
->  
->  	gfp_mask &= gfp_allowed_mask;
->  
-> @@ -2543,6 +2544,13 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
->  		return NULL;
->  
->  	/*
-> +	 * Will only have any effect when __GFP_KMEMCG is set.
-> +	 * This is verified in the (always inline) callee
-> +	 */
-> +	if (!memcg_kmem_new_page(gfp_mask, &handle, order))
-> +		return NULL;
+On Wed, Aug 15, 2012 at 10:05:28AM +0100, Mel Gorman wrote:
+> On Tue, Aug 14, 2012 at 05:11:13PM -0300, Rafael Aquini wrote:
+> > On Tue, Aug 14, 2012 at 10:51:39PM +0300, Michael S. Tsirkin wrote:
+> > > What I think you should do is use rcu for access.
+> > > And here sync rcu before freeing.
+> > > Maybe an overkill but at least a documented synchronization
+> > > primitive, and it is very light weight.
+> > > 
+> > 
+> > I liked your suggestion on barriers, as well.
+> > 
+> 
+> I have not thought about this as deeply as I shouold but is simply rechecking
+> the mapping under the pages_lock to make sure the page is still a balloon
+> page an option? i.e. use pages_lock to stabilise page->mapping.
 
-When the previous patch introduced this function I thought the handle
-obfuscantion is to prevent from spreading struct mem_cgroup inside the
-page allocator but memcg_kmem_commit_page uses the type directly. So why
-that obfuscation? Even handle as a name sounds unnecessarily confusing.
-I would go with struct mem_cgroup **memcgp or even return the pointer on
-success or NULL otherwise.
+To clarify, are you concerned about cost of rcu_read_lock
+for non balloon pages?
 
-[...]
-> +EXPORT_SYMBOL(__free_accounted_pages);
-
-Why exported?
-
-Btw. this is called from call_rcu context but it itself calls call_rcu
-down the chain in mem_cgroup_put. Is it safe?
-
-[...]
-> +EXPORT_SYMBOL(free_accounted_pages);
-
-here again
--- 
-Michal Hocko
-SUSE Labs
+> -- 
+> Mel Gorman
+> SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
