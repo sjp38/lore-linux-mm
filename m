@@ -1,56 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
-	by kanga.kvack.org (Postfix) with SMTP id 649DB6B005D
-	for <linux-mm@kvack.org>; Wed, 15 Aug 2012 09:51:51 -0400 (EDT)
-Message-ID: <502BA96C.8070602@parallels.com>
-Date: Wed, 15 Aug 2012 17:51:40 +0400
+Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
+	by kanga.kvack.org (Postfix) with SMTP id E2F436B002B
+	for <linux-mm@kvack.org>; Wed, 15 Aug 2012 10:02:03 -0400 (EDT)
+Message-ID: <502BABCF.7020608@parallels.com>
+Date: Wed, 15 Aug 2012 18:01:51 +0400
 From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2 07/11] mm: Allocate kernel pages to the right memcg
-References: <1344517279-30646-1-git-send-email-glommer@parallels.com> <1344517279-30646-8-git-send-email-glommer@parallels.com> <20120814151616.GO4177@suse.de> <502B66F8.30909@parallels.com> <20120815132244.GQ4177@suse.de>
-In-Reply-To: <20120815132244.GQ4177@suse.de>
-Content-Type: text/plain; charset="ISO-8859-15"
+Subject: Re: [PATCH v2 06/11] memcg: kmem controller infrastructure
+References: <1344517279-30646-1-git-send-email-glommer@parallels.com> <1344517279-30646-7-git-send-email-glommer@parallels.com> <20120814172540.GD6905@dhcp22.suse.cz> <502B6F00.8040207@parallels.com> <20120815130952.GI23985@dhcp22.suse.cz>
+In-Reply-To: <20120815130952.GI23985@dhcp22.suse.cz>
+Content-Type: text/plain; charset="ISO-8859-1"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, devel@openvz.org, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, kamezawa.hiroyu@jp.fujitsu.com, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Suleiman Souhlal <suleiman@google.com>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, devel@openvz.org, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, kamezawa.hiroyu@jp.fujitsu.com, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, Pekka Enberg <penberg@cs.helsinki.fi>
 
-On 08/15/2012 05:22 PM, Mel Gorman wrote:
->> I believe it
->> > to be a better and less complicated approach then letting a page appear
->> > and then charging it. Besides being consistent with the rest of memcg,
->> > it won't create unnecessary disturbance in the page allocator
->> > when the allocation is to fail.
->> > 
-> I still don't get why you did not just return a mem_cgroup instead of a
-> handle.
+On 08/15/2012 05:09 PM, Michal Hocko wrote:
+> On Wed 15-08-12 13:42:24, Glauber Costa wrote:
+> [...]
+>>>> +
+>>>> +	ret = 0;
+>>>> +
+>>>> +	if (!memcg)
+>>>> +		return ret;
+>>>> +
+>>>> +	_memcg = memcg;
+>>>> +	ret = __mem_cgroup_try_charge(NULL, gfp, delta / PAGE_SIZE,
+>>>> +	    &_memcg, may_oom);
+>>>
+>>> This is really dangerous because atomic allocation which seem to be
+>>> possible could result in deadlocks because of the reclaim. 
+>>
+>> Can you elaborate on how this would happen?
+> 
+> Say you have an atomic allocation and we hit the limit so we get either
+> to reclaim which can sleep or to oom which can sleep as well (depending
+> on the oom_control).
 > 
 
-Forgot this one, sorry:
+I see now, you seem to be right.
 
-The reason is to keep the semantics simple.
+How about we change the following code in mem_cgroup_do_charge:
 
-What should we return if the code is not compiled in? If we return NULL
-for failure, the test becomes
+        if (gfp_mask & __GFP_NORETRY)
+                return CHARGE_NOMEM;
 
-memcg = memcg_kmem_charge_page(gfp, order);
-if (!memcg)
-  exit;
+to:
 
-If we're not compiled in, we'd either return positive garbage or we need
-to wrap it inside an ifdef
+        if ((gfp_mask & __GFP_NORETRY) || (gfp_mask & __GFP_ATOMIC))
+                return CHARGE_NOMEM;
 
-I personally believe to be a lot more clear to standardize on true
-to mean "allocation can proceed".
+?
 
-the compiled out case becomes:
-
-if (!true)
-   exit;
-
-which is easily compiled away altogether. Now of course, using struct
-mem_cgroup makes sense, and I have already changed that here.
+Would this take care of the issue ?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
