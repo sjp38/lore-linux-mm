@@ -1,86 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
-	by kanga.kvack.org (Postfix) with SMTP id 9CB2E6B0070
-	for <linux-mm@kvack.org>; Wed, 15 Aug 2012 09:39:33 -0400 (EDT)
-Received: by obhx4 with SMTP id x4so2708167obh.14
-        for <linux-mm@kvack.org>; Wed, 15 Aug 2012 06:39:32 -0700 (PDT)
-Message-ID: <502BA6B4.9020106@gmail.com>
-Date: Wed, 15 Aug 2012 15:40:04 +0200
-From: Sasha Levin <levinsasha928@gmail.com>
+	by kanga.kvack.org (Postfix) with SMTP id B86496B0070
+	for <linux-mm@kvack.org>; Wed, 15 Aug 2012 09:40:09 -0400 (EDT)
+Message-ID: <502BA6AE.9000209@parallels.com>
+Date: Wed, 15 Aug 2012 17:39:58 +0400
+From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 02/16] user_ns: use new hashtable implementation
-References: <1344961490-4068-1-git-send-email-levinsasha928@gmail.com> <1344961490-4068-3-git-send-email-levinsasha928@gmail.com> <87txw5hw0s.fsf@xmission.com> <502AF184.4010907@gmail.com> <87393phshy.fsf@xmission.com> <502AFCD5.6070104@gmail.com> <87obmchmpu.fsf@xmission.com> <20120815033155.GA32653@Krystal>
-In-Reply-To: <20120815033155.GA32653@Krystal>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [PATCH v2 07/11] mm: Allocate kernel pages to the right memcg
+References: <1344517279-30646-1-git-send-email-glommer@parallels.com> <1344517279-30646-8-git-send-email-glommer@parallels.com> <20120814151616.GO4177@suse.de> <502B66F8.30909@parallels.com> <20120815132244.GQ4177@suse.de>
+In-Reply-To: <20120815132244.GQ4177@suse.de>
+Content-Type: text/plain; charset="ISO-8859-15"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
-Cc: "Eric W. Biederman" <ebiederm@xmission.com>, torvalds@linux-foundation.org, tj@kernel.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, paul.gortmaker@windriver.com, davem@davemloft.net, rostedt@goodmis.org, mingo@elte.hu, aarcange@redhat.com, ericvh@gmail.com, netdev@vger.kernel.org, josh@joshtriplett.org, eric.dumazet@gmail.com, axboe@kernel.dk, agk@redhat.com, dm-devel@redhat.com, neilb@suse.de, ccaulfie@redhat.com, teigland@redhat.com, Trond.Myklebust@netapp.com, bfields@fieldses.org, fweisbec@gmail.com, jesse@nicira.com, venkat.x.venkatsubra@oracle.com, ejt@redhat.com, snitzer@redhat.com, edumazet@google.com, linux-nfs@vger.kernel.org, dev@openvswitch.org, rds-devel@oss.oracle.com, lw@cn.fujitsu.com
+To: Mel Gorman <mgorman@suse.de>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, devel@openvz.org, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, kamezawa.hiroyu@jp.fujitsu.com, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Suleiman Souhlal <suleiman@google.com>
 
-On 08/15/2012 05:31 AM, Mathieu Desnoyers wrote:
-> * Eric W. Biederman (ebiederm@xmission.com) wrote:
->> Sasha Levin <levinsasha928@gmail.com> writes:
 >>
->>> On 08/15/2012 03:08 AM, Eric W. Biederman wrote:
->>>>> I can offer the following: I'll write a small module that will hash 1...10000
->>>>>> into a hashtable which uses 7 bits (just like user_ns) and post the distribution
->>>>>> we'll get.
->>>> That won't hurt.  I think 1-100 then 1000-1100 may actually be more
->>>> representative.  Not that I would mind seeing the larger range.
->>>> Especially since I am in the process of encouraging the use of more
->>>> uids.
->>>>
->>>
->>> Alrighty, the results are in (numbers are objects in bucket):
->>>
->>> For the 0...10000 range:
->>>
->>> Average: 78.125
->>> Std dev: 1.4197704151
->>> Min: 75
->>> Max: 80
->>>
->>>
->>> For the 1...100 range:
->>>
->>> Average: 0.78125
->>> Std dev: 0.5164613088
->>> Min: 0
->>> Max: 2
->>>
->>>
->>> For the 1000...1100 range:
->>>
->>> Average: 0.7890625
->>> Std dev: 0.4964812206
->>> Min: 0
->>> Max: 2
->>>
->>>
->>> Looks like hash_32 is pretty good with small numbers.
+>> As for the type, do you think using struct mem_cgroup would be less
+>> confusing?
 >>
->> Yes hash_32 seems reasonable for the uid hash.   With those long hash
->> chains I wouldn't like to be on a machine with 10,000 processes with
->> each with a different uid, and a processes calling setuid in the fast
->> path.
->>
->> The uid hash that we are playing with is one that I sort of wish that
->> the hash table could grow in size, so that we could scale up better.
 > 
-> Hi Eric,
-> 
-> If you want to try out something that has more features than a basic
-> hash table, already exists and is available for you to play with, you
-> might want to have a look at the RCU lock-free resizable hash table.
-> It's initially done in userspace, but shares the same RCU semantic as
-> the kernel, and has chunk-based kernel-friendly index backends (thanks
-> to Lai Jiangshan), very useful to integrate with the kernel page
-> allocator.
+> Yes and returning the mem_cgroup or NULL instead of bool.
 
-I'm guessing that once this static hashtable is stable, a
-DEFINE_DYNAMIC_HASHTABLE() will get introduced which will evolve into something
-similar to what Mathieu has pointed out in the urcu.
+Ok. struct mem_cgroup it is.
+
+> 
+>> The placeholder is there, but it is later patched
+>> to the final thing.
+>> With that explained, if you want me to change it to something else, I
+>> can do it. Should I ?
+>>
+> 
+> Not in this patch anyway. I would have preferred a pattern like this but
+> that's about it.
+> 
+> #ifdef CONFIG_MEMCG_KMEM
+> extern struct static_key memcg_kmem_enabled_key;
+> static inline int memcg_kmem_enabled(void)
+> {
+>        return static_key_false(&memcg_kmem_enabled_key);
+> }
+> #else
+> 
+> static inline bool memcg_kmem_enabled(void)
+> {
+>        return false;
+> }
+> #endif
+> 
+
+humm, I'll have to think about this name.
+"memcg_kmem_enabled" means it is enabled in this cgroup. It is actually
+used inside memcontrol.c to denote precisely that.
+
+Now the static branch, of course, means it is globally enabled. Or as I
+called here, "on".
+
+
+> Two reasons. One, it does not use the terms "on" and "enabled"
+> interchangeably.  The other reason is down to taste as I'm copying the
+> pattern I used myself for sk_memalloc_socks(). Of course I am biased.
+> 
+> Also, why is the key exported?
+> 
+
+Same reason. The slab will now have inline functions that will test
+against that. The alloc functions themselves, are inside the page
+allocator, and the exports can go away.
+
+But the static branch will still be tested inside inlined functions in
+the slab.
+
+That said, for the sake of simplicity, I can make it go away here, and
+add that to the right place later.
+
+>>> I also find it *very* strange to have a function named as if it is an
+>>> allocation-style function when it in fact it's looking up a mem_cgroup
+>>> and charging it (and uncharging it in the error path if necessary). If
+>>> it was called memcg_kmem_newpage_charge I might have found it a little
+>>> better.
+>>
+>> I don't feel strongly about names in general. I can change it.
+>> Will update to memcg_kmem_newpage_charge() and memcg_kmem_page_uncharge().
+>>
+> 
+> I would prefer that anyway. Names have meaning and people make assumptions on
+> the implementation depending on the name. We should try to be as consistent
+> as possible or maintenance becomes harder. I know there are areas where
+> we are not consistent at all but we should not compound the problem.
+
+memcg_kmem_page_charge() is even better I believe, and that is what I
+changed this to in my tree.
+
+>>> As this thing is called from within the allocator, it's not clear why
+>>> __memcg_kmem_new_page is exported. I can't imagine why a module would call
+>>> it directly although maybe you cover that somewhere else in the series.
+>>
+>> Okay, more people commented on this, so let me clarify: They shouldn't
+>> be. They were initially exported when this was about the slab only,
+>> because they could be called from inlined functions from the allocators.
+>> Now that the charge/uncharge was moved to the page allocator - which
+>> already allowed me the big benefit of separating this in two pieces,
+>> none of this needs to be exported.
+>>
+>> Sorry for not noticing this myself, but thanks for the eyes =)
+>>
+> 
+> You're welcome. I expect to see all the exports disappear so. If there
+> are any exports left I think it would be important to document why they
+> have to be exported. This is particularly true because they are
+> EXPORT_SYMBOL not EXPORT_SYMBOL_GPL. I think it would be good to know in
+> advance why a module (particularly an out-of-tree one) would be
+> interested.
+> 
+
+I will remove them all for now.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
