@@ -1,44 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
-	by kanga.kvack.org (Postfix) with SMTP id 07B256B005D
-	for <linux-mm@kvack.org>; Wed, 15 Aug 2012 07:38:13 -0400 (EDT)
-Received: by yenl1 with SMTP id l1so2009066yen.14
-        for <linux-mm@kvack.org>; Wed, 15 Aug 2012 04:38:13 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
+	by kanga.kvack.org (Postfix) with SMTP id DA35D6B005D
+	for <linux-mm@kvack.org>; Wed, 15 Aug 2012 07:40:47 -0400 (EDT)
+Received: by qady1 with SMTP id y1so1368582qad.14
+        for <linux-mm@kvack.org>; Wed, 15 Aug 2012 04:40:46 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <0000013926e9f534-137f9d40-77b0-4dbc-90cb-d588c68e9526-000000@email.amazonses.com>
-References: <1344974585-9701-1-git-send-email-elezegarcia@gmail.com>
-	<0000013926e9f534-137f9d40-77b0-4dbc-90cb-d588c68e9526-000000@email.amazonses.com>
-Date: Wed, 15 Aug 2012 08:38:12 -0300
-Message-ID: <CALF0-+XcmmeWr4qjDoKGit7fqyWwpCk_S9v+F18+x9heN9Y1oA@mail.gmail.com>
-Subject: Re: [PATCH] mm, slob: Drop usage of page->private for storing
- page-sized allocations
-From: Ezequiel Garcia <elezegarcia@gmail.com>
+In-Reply-To: <50201BB5.9050005@jp.fujitsu.com>
+References: <1339406250-10169-1-git-send-email-kosaki.motohiro@gmail.com>
+	<CA+5PVA4CE0kwD1FmV=081wfCObVYe5GFYBQFO9_kVL4JWJBqpA@mail.gmail.com>
+	<50201BB5.9050005@jp.fujitsu.com>
+Date: Wed, 15 Aug 2012 07:40:46 -0400
+Message-ID: <CA+5PVA7YejzbWDEpX=gj8s2QAQtgoxyNUUa5HhGtVGY+2BHqRA@mail.gmail.com>
+Subject: Re: [PATCH 0/6][resend] mempolicy memory corruption fixlet
+From: Josh Boyer <jwboyer@gmail.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, Glauber Costa <glommer@parallels.com>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: kosaki.motohiro@gmail.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@google.com, davej@redhat.com, mgorman@suse.de, cl@linux.com, stable@vger.kernel.org
 
-Hi Christoph,
-
-On Tue, Aug 14, 2012 at 5:53 PM, Christoph Lameter <cl@linux.com> wrote:
-> On Tue, 14 Aug 2012, Ezequiel Garcia wrote:
+On Mon, Aug 6, 2012 at 3:32 PM, KOSAKI Motohiro
+<kosaki.motohiro@jp.fujitsu.com> wrote:
+> On 7/31/2012 8:33 AM, Josh Boyer wrote:
+>> On Mon, Jun 11, 2012 at 5:17 AM,  <kosaki.motohiro@gmail.com> wrote:
+>>> From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+>>>
+>>> Hi
+>>>
+>>> This is trivial fixes of mempolicy meory corruption issues. There
+>>> are independent patches each ather. and, they don't change userland
+>>> ABIs.
+>>>
+>>> Thanks.
+>>>
+>>> changes from v1: fix some typo of changelogs s.
+>>>
+>>> -----------------------------------------------
+>>> KOSAKI Motohiro (6):
+>>>   Revert "mm: mempolicy: Let vma_merge and vma_split handle
+>>>     vma->vm_policy linkages"
+>>>   mempolicy: Kill all mempolicy sharing
+>>>   mempolicy: fix a race in shared_policy_replace()
+>>>   mempolicy: fix refcount leak in mpol_set_shared_policy()
+>>>   mempolicy: fix a memory corruption by refcount imbalance in
+>>>     alloc_pages_vma()
+>>>   MAINTAINERS: Added MEMPOLICY entry
+>>>
+>>>  MAINTAINERS    |    7 +++
+>>>  mm/mempolicy.c |  151 ++++++++++++++++++++++++++++++++++++++++----------------
+>>>  mm/shmem.c     |    9 ++--
+>>>  3 files changed, 120 insertions(+), 47 deletions(-)
+>>
+>> I don't see these patches queued anywhere.  They aren't in linux-next,
+>> mmotm, or Linus' tree.  Did these get dropped?  Is the revert still
+>> needed?
 >
->> This field was being used to store size allocation so it could be
->> retrieved by ksize(). However, it is a bad practice to not mark a page
->> as a slab page and then use fields for special purposes.
->> There is no need to store the allocated size and
->> ksize() can simply return PAGE_SIZE << compound_order(page).
->
-> Acked-by: Christoph Lameter <cl@linux.com>
->
+> Sorry. my fault. yes, it is needed. currently, Some LTP was fail since
+> Mel's "mm: mempolicy: Let vma_merge and vma_split handle vma->vm_policy linkages" patch.
 
-Who's the slob maintainer? Currently MAINTAINERS file
-mentions slob's author Matt Mackal, but I didn't notice his presence
-in this ML.
+The series still isn't queued anywhere.  Are you planning on resending
+it again, or should it get picked up in a particular tree?
 
-Thanks,
-Ezequiel.
+josh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
