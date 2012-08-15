@@ -1,34 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
-	by kanga.kvack.org (Postfix) with SMTP id 7738B6B006C
-	for <linux-mm@kvack.org>; Wed, 15 Aug 2012 13:26:26 -0400 (EDT)
-Date: Wed, 15 Aug 2012 17:26:25 +0000
+Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
+	by kanga.kvack.org (Postfix) with SMTP id 092076B006C
+	for <linux-mm@kvack.org>; Wed, 15 Aug 2012 13:32:07 -0400 (EDT)
+Date: Wed, 15 Aug 2012 17:32:06 +0000
 From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH v2 04/11] kmem accounting basic infrastructure
-In-Reply-To: <502BC1B1.3010807@parallels.com>
-Message-ID: <000001392b526a8a-3ec5f35e-405f-47f5-a7c1-ec0cae473fe9-000000@email.amazonses.com>
-References: <1344517279-30646-1-git-send-email-glommer@parallels.com> <1344517279-30646-5-git-send-email-glommer@parallels.com> <20120814162144.GC6905@dhcp22.suse.cz> <502B6D03.1080804@parallels.com> <20120815123931.GF23985@dhcp22.suse.cz>
- <000001392ac15404-43a3fd2c-a6d3-4985-b173-74bb586ad47c-000000@email.amazonses.com> <502BBC35.809@parallels.com> <000001392aec1926-72b3a631-1fb1-460c-803d-38c4405151e1-000000@email.amazonses.com> <502BC1B1.3010807@parallels.com>
+Subject: Re: [PATCH] slub: try to get cpu partial slab even if we get enough
+ objects for cpu freelist
+In-Reply-To: <CAAmzW4M9WMnxVKpR00SqufHadY-=i0Jgf8Ktydrw5YXK8VwJ7A@mail.gmail.com>
+Message-ID: <000001392b579d4f-bb5ccaf5-1a2c-472c-9b76-05ec86297706-000000@email.amazonses.com>
+References: <1345045084-7292-1-git-send-email-js1304@gmail.com> <000001392af5ab4e-41dbbbe4-5808-484b-900a-6f4eba102376-000000@email.amazonses.com> <CAAmzW4M9WMnxVKpR00SqufHadY-=i0Jgf8Ktydrw5YXK8VwJ7A@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: Michal Hocko <mhocko@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, devel@openvz.org, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, kamezawa.hiroyu@jp.fujitsu.com, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>
+To: JoonSoo Kim <js1304@gmail.com>
+Cc: Pekka Enberg <penberg@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, David Rientjes <rientjes@google.com>
 
-On Wed, 15 Aug 2012, Glauber Costa wrote:
+On Thu, 16 Aug 2012, JoonSoo Kim wrote:
 
-> Remember we copy over the metadata and create copies of the caches
-> per-memcg. Therefore, a dentry belongs to a memcg if it was allocated
-> from the slab pertaining to that memcg.
+> > Maybe I do not understand you correctly. Could you explain this in some
+> > more detail?
+>
+> I assume that cpu slab and cpu partial slab are not same thing.
+>
+> In my definition,
+> cpu slab is in c->page,
+> cpu partial slab is in c->partial
 
-The dentry could be used by other processes in the system though. F.e.
-directory names could easily be created by one process and then used by a
-multitude of others.
+Correct.
 
-> It is not 100 % accurate, but it is good enough.
+> When we have no free objects in cpu slab and cpu partial slab, we try
+> to get slab via get_partial_node().
+> In that function, we call acquire_slab(). Then we hit "!object" case
+> (for cpu slab).
+> In that case, we test available with s->cpu_partial.
 
-Lets hope that is true.
+> I think that s->cpu_partial is for cpu partial slab, not cpu slab.
+
+Ummm... Not entirely. s->cpu_partial is the mininum number of objects to
+"cache" per processor. This includes the objects available in the per cpu
+slab and the other slabs on the per cpu partial list.
+
+> So this test is not proper.
+
+Ok so this tests occurs in get_partial_node() not in acquire_slab().
+
+If object == NULL then we have so far nothing allocated an c->page ==
+NULL. The first allocation refills the cpu_slab (by freezing a slab) so
+that we can allocate again. If we go through the loop again then we refill
+the per cpu partial lists with more frozen slabs until we have a
+sufficient number of objects that we can allocate without obtaining any
+locks.
+
+> This patch is for correcting this.
+
+There is nothing wrong with this. The name c->cpu_partial is a bit
+awkward. Maybe rename that to c->min_per_cpu_objects or so?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
