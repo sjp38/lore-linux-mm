@@ -1,67 +1,131 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
-	by kanga.kvack.org (Postfix) with SMTP id 91A426B005D
-	for <linux-mm@kvack.org>; Wed, 15 Aug 2012 19:03:44 -0400 (EDT)
-Date: Wed, 15 Aug 2012 16:03:42 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [patch v2] hugetlb: correct page offset index for sharing pmd
-Message-Id: <20120815160342.5b77bd3b.akpm@linux-foundation.org>
-In-Reply-To: <CAJd=RBCuvpG49JcTUY+qw-tTdH_vFLgOfJDE3sW97+M04TR+hg@mail.gmail.com>
-References: <CAJd=RBC9HhKh5Q0-yXi3W0x3guXJPFz4BNsniyOFmp0TjBdFqg@mail.gmail.com>
-	<20120806132410.GA6150@dhcp22.suse.cz>
-	<CAJd=RBCuvpG49JcTUY+qw-tTdH_vFLgOfJDE3sW97+M04TR+hg@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
+	by kanga.kvack.org (Postfix) with SMTP id 462386B005D
+	for <linux-mm@kvack.org>; Wed, 15 Aug 2012 19:18:17 -0400 (EDT)
+Date: Thu, 16 Aug 2012 08:20:23 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [RFC 2/2] cma: support MIGRATE_DISCARD
+Message-ID: <20120815232023.GA15225@bbox>
+References: <1344934627-8473-1-git-send-email-minchan@kernel.org>
+ <1344934627-8473-3-git-send-email-minchan@kernel.org>
+ <xa1t7gt1pnck.fsf@mina86.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <xa1t7gt1pnck.fsf@mina86.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hillf Danton <dhillf@gmail.com>
-Cc: Michal Hocko <mhocko@suse.cz>, Mel Gorman <mgorman@suse.de>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Michal Nazarewicz <mina86@mina86.com>
+Cc: Marek Szyprowski <m.szyprowski@samsung.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Mon, 6 Aug 2012 21:37:45 +0800
-Hillf Danton <dhillf@gmail.com> wrote:
+Hi Michal,
 
-> On Mon, Aug 6, 2012 at 9:24 PM, Michal Hocko <mhocko@suse.cz> wrote:
-> > On Sat 04-08-12 14:08:31, Hillf Danton wrote:
-> >> The computation of page offset index is incorrect to be used in scanning
-> >> prio tree, as huge page offset is required, and is fixed with well
-> >> defined routine.
-> >>
-> >> Changes from v1
-> >>       o s/linear_page_index/linear_hugepage_index/ for clearer code
-> >>       o hp_idx variable added for less change
-> >>
-> >>
-> >> Signed-off-by: Hillf Danton <dhillf@gmail.com>
-> >> ---
-> >>
-> >> --- a/arch/x86/mm/hugetlbpage.c       Fri Aug  3 20:34:58 2012
-> >> +++ b/arch/x86/mm/hugetlbpage.c       Fri Aug  3 20:40:16 2012
-> >> @@ -62,6 +62,7 @@ static void huge_pmd_share(struct mm_str
-> >>  {
-> >>       struct vm_area_struct *vma = find_vma(mm, addr);
-> >>       struct address_space *mapping = vma->vm_file->f_mapping;
-> >> +     pgoff_t hp_idx;
-> >>       pgoff_t idx = ((addr - vma->vm_start) >> PAGE_SHIFT) +
-> >>                       vma->vm_pgoff;
+On Tue, Aug 14, 2012 at 04:19:55PM +0200, Michal Nazarewicz wrote:
+> Minchan Kim <minchan@kernel.org> writes:
+> > This patch introudes MIGRATE_DISCARD mode in migration.
+> > It drop clean cache pages instead of migration so that
+> > migration latency could be reduced. Of course, it could
+> > evict code pages but latency of big contiguous memory
+> > is more important than some background application's slow down
+> > in mobile embedded enviroment.
 > >
-> > So we have two indexes now. That is just plain ugly!
+> > Signed-off-by: Minchan Kim <minchan@kernel.org>
+> 
+> This looks good to me.
+> 
+> > ---
+> >  include/linux/migrate_mode.h |   11 +++++++---
+> >  mm/migrate.c                 |   50 +++++++++++++++++++++++++++++++++---------
+> >  mm/page_alloc.c              |    2 +-
+> >  3 files changed, 49 insertions(+), 14 deletions(-)
 > >
+> > diff --git a/include/linux/migrate_mode.h b/include/linux/migrate_mode.h
+> > index ebf3d89..04ca19c 100644
+> > --- a/include/linux/migrate_mode.h
+> > +++ b/include/linux/migrate_mode.h
+> > @@ -6,11 +6,16 @@
+> >   *	on most operations but not ->writepage as the potential stall time
+> >   *	is too significant
+> >   * MIGRATE_SYNC will block when migrating pages
+> > + * MIGRTATE_DISCARD will discard clean cache page instead of migration
+> > + *
+> > + * MIGRATE_ASYNC, MIGRATE_SYNC_LIGHT, MIGRATE_SYNC shouldn't be used
+> > + * together as OR flag.
+> >   */
+> >  enum migrate_mode {
+> > -	MIGRATE_ASYNC,
+> > -	MIGRATE_SYNC_LIGHT,
+> > -	MIGRATE_SYNC,
+> > +	MIGRATE_ASYNC = 1 << 0,
+> > +	MIGRATE_SYNC_LIGHT = 1 << 1,
+> > +	MIGRATE_SYNC = 1 << 2,
+> > +	MIGRATE_DISCARD = 1 << 3,
+> >  };
 > 
-> Two indexes result in less code change here and no change
-> in page_table_shareable. Plus linear_hugepage_index tells
-> clearly readers that hp_idx and idx are different.
+> Since CMA is the only user of MIGRATE_DISCARD it may be worth it to
+> guard it inside an #ifdef, eg:
 > 
-> Anyway I have no strong opinion to keep
-> page_table_shareable unchanged, but prefer less changes.
+> #ifdef CONFIG_CMA
+> 	MIGRATE_DISCARD = 1 << 3,
+> #define is_migrate_discard(mode) (((mode) & MIGRATE_DISCARD) == MIGRATE_DISCARD)
 
-Don't be too concerned about the size of a change - it's the end result
-which matters.  If a larger patch results in a better end result, then
-do the larger patch.
+The mode bit can be used with other bits like MIGRATE_SYNC|MIGRATE_DISCARD.
+So it is correct that (mode & MIGRATE_DISCARD).
 
-Also, please add some details to the changelog: the patch is fixing a
-bug but we aren't told about the end-user-visible effects of that bug. 
-This is important information.
+Anyway, I don't want to fold it into only CMA because I think we can
+have a pontential users in mm.
+For example, memory-hotplug case. No enough free memory in the system
+but lots of page cache page as a migration source, then we can remove
+page cache page instead of migration and it might be better than failing
+memory-hotremove.
+
+In summary, I want to open it for potential usecases in future if anyone
+doesn't oppose strongly.
+
+> #endif
+> 
+>   
+> >  #endif		/* MIGRATE_MODE_H_INCLUDED */
+> > diff --git a/mm/migrate.c b/mm/migrate.c
+> > index 77ed2d7..8119a59 100644
+> > --- a/mm/migrate.c
+> > +++ b/mm/migrate.c
+> > @@ -685,9 +685,12 @@ static int __unmap_and_move(struct page *page, struct page *newpage,
+> >  	int remap_swapcache = 1;
+> >  	struct mem_cgroup *mem;
+> >  	struct anon_vma *anon_vma = NULL;
+> > +	enum ttu_flags ttu_flags;
+> > +	bool discard_mode = false;
+> > +	bool file = false;
+> >  
+> >  	if (!trylock_page(page)) {
+> > -		if (!force || mode == MIGRATE_ASYNC)
+> > +		if (!force || mode & MIGRATE_ASYNC)
+
+It's not wrong technically but for readability, NP.
+
+> 
+> +		if (!force || (mode & MIGRATE_ASYNC))
+> 
+> >  			goto out;
+> >  
+> >  		/*
+> 
+> 
+> -- 
+> Best regards,                                         _     _
+> .o. | Liege of Serenely Enlightened Majesty of      o' \,=./ `o
+> ..o | Computer Science,  MichaA? a??mina86a?? Nazarewicz    (o o)
+> ooo +----<email/xmpp: mpn@google.com>--------------ooO--(_)--Ooo--
+
+
+
+
+
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
