@@ -1,44 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
-	by kanga.kvack.org (Postfix) with SMTP id 997336B005D
-	for <linux-mm@kvack.org>; Thu, 16 Aug 2012 11:07:23 -0400 (EDT)
-Date: Thu, 16 Aug 2012 16:06:28 +0100
-From: Catalin Marinas <catalin.marinas@arm.com>
-Subject: Re: [PATCH 3/5] kmemleak: use rbtree instead of prio tree
-Message-ID: <20120816150628.GE30876@arm.com>
-References: <1344324343-3817-1-git-send-email-walken@google.com>
- <1344324343-3817-4-git-send-email-walken@google.com>
- <CANN689EOZ64V_AO8B6N0-_B0_HdQZVk3dH8Ce5c=m5Q=ySDKUg@mail.gmail.com>
- <20120809083127.GC14102@arm.com>
- <CAHkRjk4pQOktEGFZy9Jd5NDth8f_+JUC0OrgcRUaCFGUEUOTKg@mail.gmail.com>
- <CANN689F_FgFP0tUwpTJmhWO+XaLH9+2tEb6xYJzonXVv5KsOSA@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx178.postini.com [74.125.245.178])
+	by kanga.kvack.org (Postfix) with SMTP id BB2446B005D
+	for <linux-mm@kvack.org>; Thu, 16 Aug 2012 11:11:51 -0400 (EDT)
+Date: Thu, 16 Aug 2012 17:11:49 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH] hugetlb: do not use vma_hugecache_offset for
+ vma_prio_tree_foreach
+Message-ID: <20120816151149.GF2817@dhcp22.suse.cz>
+References: <1344866141-27906-1-git-send-email-mhocko@suse.cz>
+ <CAJd=RBAwg0k0=8zmRh6jwAYe7Msmxw=HE8qs3YjwXrtsezr78Q@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CANN689F_FgFP0tUwpTJmhWO+XaLH9+2tEb6xYJzonXVv5KsOSA@mail.gmail.com>
+In-Reply-To: <CAJd=RBAwg0k0=8zmRh6jwAYe7Msmxw=HE8qs3YjwXrtsezr78Q@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michel Lespinasse <walken@google.com>
-Cc: "riel@redhat.com" <riel@redhat.com>, "peterz@infradead.org" <peterz@infradead.org>, "vrajesh@umich.edu" <vrajesh@umich.edu>, "daniel.santos@pobox.com" <daniel.santos@pobox.com>, "aarcange@redhat.com" <aarcange@redhat.com>, "dwmw2@infradead.org" <dwmw2@infradead.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "torvalds@linux-foundation.org" <torvalds@linux-foundation.org>
+To: Hillf Danton <dhillf@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>, David Rientjes <rientjes@google.com>
 
-On Wed, Aug 15, 2012 at 09:53:07PM +0100, Michel Lespinasse wrote:
-> On Wed, Aug 15, 2012 at 9:36 AM, Catalin Marinas
-> <catalin.marinas@arm.com> wrote:
-> > Couldn't test it because the patch got messed up somewhere on the
-> > email path (tabs replaced with spaces). Is there a Git tree I can grab
-> > it from (or you could just send it to me separately as attachment)?
+On Thu 16-08-12 20:45:15, Hillf Danton wrote:
+> On Mon, Aug 13, 2012 at 9:55 PM, Michal Hocko <mhocko@suse.cz> wrote:
+> > 0c176d5 (mm: hugetlb: fix pgoff computation when unmapping page
+> > from vma) fixed pgoff calculation but it has replaced it by
+> > vma_hugecache_offset which is not approapriate for offsets used for
+> > vma_prio_tree_foreach because that one expects index in page units
+> > rather than in huge_page_shift.
+> > Using vma_hugecache_offset is not incorrect because the pgoff will fit
+> > into the same vmas but it is confusing so the standard PAGE_SHIFT based
+> > index calculation is used instead.
+> >
+> > Cc: Hillf Danton <dhillf@gmail.com>
+> > Cc: Mel Gorman <mel@csn.ul.ie>
+> > Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> > Cc: Andrea Arcangeli <aarcange@redhat.com>
+> > Cc: David Rientjes <rientjes@google.com>
+> > Signed-off-by: Michal Hocko <mhocko@suse.cz>
+> > ---
 > 
-> Sorry about that. The original patch I sent to lkml & linux-mm wasn't
-> corrupted, but the forward I sent you after I realized I had forgotten
-> to include you was.
+> Thanks
 > 
-> https://lkml.org/lkml/2012/8/7/52 has the original patch, and "get
-> diff 1" in the left column can be used to retrieve it.
+> Acked-by: Hillf Danton <dhillf@gmail.com>
 
-Thanks. It works fine in my tests and the scanning time seems to have
-got down from 22s to 19s on my board.
+Thanks Hillf!
 
-Acked-by: Catalin Marinas <catalin.marinas@arm.com>
+> >  mm/hugetlb.c |    3 ++-
+> >  1 file changed, 2 insertions(+), 1 deletion(-)
+> >
+> > diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+> > index c39e4be..a74ea31 100644
+> > --- a/mm/hugetlb.c
+> > +++ b/mm/hugetlb.c
+> > @@ -2462,7 +2462,8 @@ static int unmap_ref_private(struct mm_struct *mm, struct vm_area_struct *vma,
+> >          * from page cache lookup which is in HPAGE_SIZE units.
+> >          */
+> >         address = address & huge_page_mask(h);
+> > -       pgoff = vma_hugecache_offset(h, vma, address);
+> > +       pgoff = ((address - vma->vm_start) >> PAGE_SHIFT) +
+> > +                       vma->vm_pgoff;
+> >         mapping = vma->vm_file->f_dentry->d_inode->i_mapping;
+> >
+> >         /*
+> > --
+> > 1.7.10.4
+> >
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
