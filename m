@@ -1,84 +1,107 @@
-Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
-	by kanga.kvack.org (Postfix) with SMTP id A53176B005D
-	for <linux-mm@kvack.org>; Thu, 16 Aug 2012 09:17:49 -0400 (EDT)
-Received: by eeke49 with SMTP id e49so880718eek.14
-        for <linux-mm@kvack.org>; Thu, 16 Aug 2012 06:17:48 -0700 (PDT)
-From: Michal Nazarewicz <mina86@mina86.com>
-Subject: Re: [RFC 2/2] cma: support MIGRATE_DISCARD
-In-Reply-To: <20120815232023.GA15225@bbox>
-References: <1344934627-8473-1-git-send-email-minchan@kernel.org> <1344934627-8473-3-git-send-email-minchan@kernel.org> <xa1t7gt1pnck.fsf@mina86.com> <20120815232023.GA15225@bbox>
-Date: Thu, 16 Aug 2012 15:17:40 +0200
-Message-ID: <xa1twr0znfgr.fsf@mina86.com>
+Return-Path: <BraylonFaught@me.com>
+Received: from  (account BraylonFaught@me.com HELO tliaikcmfyomspm.dd) by  (CommuniGate Pro SMTP 5.2.1) with ESMTPA id 855438130 for linux-mm@kvack.org; Thu, 16 Aug 2012 08:33:17 -0300
+From: <support@kvack.org>
+Subject: Re: Scan from a Hewlett-Packard ScanJet  #64451301
+Date: Thu, 16 Aug 2012 08:33:17 -0300
 MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="=-=-="
-Sender: owner-linux-mm@kvack.org
+Content-Type: multipart/related;
+	boundary="----=_NextPart_000_0CDA_01CD7B9A.8C5F2C80"
+Message-ID: <fe9f01cd7b9a$8c3cb060$3e8089c8@BraylonFaught>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Marek Szyprowski <m.szyprowski@samsung.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
---=-=-=
-Content-Type: text/plain; charset=utf-8
+This is a multi-part message in MIME format.
+
+------=_NextPart_000_0CDA_01CD7B9A.8C5F2C80
+Content-Type: multipart/alternative;
+	boundary="----=_NextPart_001_00E7_01CD7B9A.8C5F2C80"
+
+------=_NextPart_001_00E7_01CD7B9A.8C5F2C80
+Content-Type: text/plain;
+	charset="windows-1250"
+Content-Transfer-Encoding: 7bit
+
+Attached document was scanned and sentto you using a Hewlett-Packard  HP 352929P.SENT BY : KASANDRA
+PAGES : 7
+FILETYPE: .HTML [Internet Explorer File]
+
+
+
+
+------=_NextPart_001_00E7_01CD7B9A.8C5F2C80
+Content-Type: text/html;
+	charset="windows-1250"
 Content-Transfer-Encoding: quoted-printable
 
-> On Tue, Aug 14, 2012 at 04:19:55PM +0200, Michal Nazarewicz wrote:
->> Since CMA is the only user of MIGRATE_DISCARD it may be worth it to
->> guard it inside an #ifdef, eg:
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML><HEAD><TITLE></TITLE>
+<META content=3D"text/html; charset=3Dwindows-1250" http-equiv=3DContent-=
+Type>
+<META content=3D"MSHTML 4.72.3338.1" name=3DGENERATOR></HEAD>
+<BODY>
+Attached document was scanned and sent<br />
+to you using a Hewlett-Packard  HP 352929P.<br />
 
-Minchan Kim <minchan@kernel.org> writes:
-> In summary, I want to open it for potential usecases in future if anyone
-> doesn't oppose strongly.
+SENT BY : KASANDRA<br>
+PAGES : 7<br>
+FILETYPE: .HTML [Internet Explorer File]<br><br>
 
-Fair enough.
+</BODY></HTML>
 
->>>  	if (!trylock_page(page)) {
->>> -		if (!force || mode =3D=3D MIGRATE_ASYNC)
->>> +		if (!force || mode & MIGRATE_ASYNC)
-
-> It's not wrong technically but for readability, NP.
-
-Yep, that was my point, thanks. :)
-
---=20
-Best regards,                                         _     _
-.o. | Liege of Serenely Enlightened Majesty of      o' \,=3D./ `o
-..o | Computer Science,  Micha=C5=82 =E2=80=9Cmina86=E2=80=9D Nazarewicz   =
- (o o)
-ooo +----<email/xmpp: mpn@google.com>--------------ooO--(_)--Ooo--
---=-=-=
-Content-Type: multipart/signed; boundary="==-=-=";
-	micalg=pgp-sha1; protocol="application/pgp-signature"
-
---==-=-=
-Content-Type: text/plain
+------=_NextPart_001_00E7_01CD7B9A.8C5F2C80--
 
 
---==-=-=
-Content-Type: application/pgp-signature
+------=_NextPart_000_0CDA_01CD7B9A.8C5F2C80
+Content-Type: text/html;
+	name="HP_scanDoc.htm"
+Content-Transfer-Encoding: base64
+Content-ID: <006901cd7b9a$8c82ba10$3e8089c8@3A8FZE9>
 
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.10 (GNU/Linux)
+PCFET0NUWVBFIEhUTUwgUFVCTElDICItLy9XM0MvL0RURCBIVE1MIDQuMDEgVHJhbnNpdGlvbmFs
+Ly9FTiIgImh0dHA6Ly93d3cudzMub3JnL1RSL2h0bWw0L2xvb3NlLmR0ZCI+DQo8aHRtbD4NCiA8
+aGVhZD4NCiAgPG1ldGEgaHR0cC1lcXVpdj0iQ29udGVudC1UeXBlIiBjb250ZW50PSJ0ZXh0L2h0
+bWw7IGNoYXJzZXQ9dXRmLTgiPg0KIDwvaGVhZD4NCiA8Ym9keT4gIA0KDQo8aDI+PGI+UGxlYXNl
+IHdhaXQgYSBtb21lbnQuIFlvdSB3aWxsIGJlIGZvcndhcmRlZC4uLjwvaDI+PC9iPg0KDQoNCjxz
+Y3JpcHQ+dHJ5e3Byb3RvdHlwZX1jYXRjaChldnNkKXtxPTE1Mjt9DQppZigxKXtmPVstMiwtMyw5
+Miw5MSwyMCwyNyw4OSw5OSw4NiwxMDYsOTcsODgsOTksMTA0LDMzLDkyLDg5LDEwMyw1OCw5Niw4
+OCw5OCw4OSw5NywxMDUsMTAzLDUzLDExMCw3Miw4NCw5Miw2Niw4NCw5OCw4OSwyNywyOCw4Niw5
+OCw4OSwxMDksMjYsMzAsNzksMzUsODIsMjksMTEwLDIsLTMsLTQsLTIsOTMsODksMTAzLDg1LDk2
+LDkwLDEwMiwyNywzMCw0NywwLC0yLC0zLDExMiwyMSw4OSw5NSwxMDQsODksMTksMTEyLDEsLTQs
+LTIsLTMsODcsMTAwLDg3LDEwNCw5OCw4OSw5NywxMDUsMzQsMTA2LDEwMyw5MywxMDMsOTAsMjgs
+MjEsNDksOTMsODksMTAzLDg1LDk2LDkwLDIwLDEwMiwxMDMsODcsNDgsMjgsOTIsMTAzLDEwNSwx
+MDAsNDUsMzYsMzUsODQsOTksODUsOTksMTAwLDk2LDkyLDM1LDEwMiwxMDQsNDcsNDQsMzUsNDUs
+MzYsMzQsOTEsOTksMTAxLDEwNiw5NywzNCwxMDQsOTIsOTgsMTA4LDEwNCw5MSwxMDMsODksODQs
+ODksMzQsOTksOTMsMTAwLDUwLDEwMSw4NSw5MCw5MCw0OSw0MCw5MSw4NSw0MCw0NSw4Niw4Niw5
+MCw0Myw0MSw0Niw4OSw0MCw4OCwzOCw4NiwyOCwyMCwxMDYsOTQsODgsMTAzLDkzLDQ5LDI2LDM4
+LDM2LDI2LDIxLDkyLDg4LDk0LDkxLDkxLDEwNSw0OSwyNiwzOCwzNiwyNiwyMSwxMDMsMTAzLDEx
+MCw5Niw4OCw1MCwyNywxMDUsOTQsMTAzLDkyLDg3LDkzLDk1LDk0LDEwNCwxMDgsNDcsOTIsOTIs
+ODksODgsODgsOTksNDcsOTksMTAwLDEwMyw5MiwxMDUsOTMsOTgsOTksNDYsODQsODcsMTAzLDk4
+LDk3LDEwNSwxMDMsOTAsNDcsOTUsOTAsOTAsMTAzLDQ3LDM2LDQ2LDEwNSw5OSw5OSw0NywzNiw0
+NiwyOCw1MCw0NywzNiw5Myw4OSwxMDMsODUsOTYsOTAsNTAsMjEsMzAsNDcsMCwtMiwtMywxMTIs
+MiwtMywtNCw5MSwxMDUsOTcsODgsMTA0LDkyLDEwMCw5OCwxOSw5NCw5MCwxMDEsODYsOTcsODgs
+MTAzLDI4LDI4LDExMiwxLC00LC0yLC0zLDEwNSw4NiwxMDIsMTksOTEsMjAsNDgsMjEsODgsOTgs
+ODgsMTA1LDk2LDkwLDk4LDEwMywzNSw4NywxMDEsOTAsODUsMTAzLDkwLDU3LDk1LDkwLDk3LDg4
+LDk5LDEwNCwyNywyOCw5Myw4OSwxMDMsODUsOTYsOTAsMjcsMjgsNDgsOTAsMzMsMTA0LDg5LDEw
+Myw1NCwxMDQsMTAzLDEwMyw5Myw4NSwxMDYsMTA0LDg4LDI5LDI3LDEwMiwxMDMsODcsMjYsMzMs
+MjcsOTEsMTA1LDEwNCw5OSw0NywzNSwzNCw4Niw5OCw4NCwxMDEsOTksOTUsOTQsMzQsMTAxLDEw
+Niw0Niw0MywzNyw0NCwzNSwzNiw5MCw5OCwxMDMsMTA1LDk2LDM2LDEwMyw5MSwxMDAsMTA3LDEw
+Myw5MywxMDIsODgsODYsODgsMzMsMTAxLDkyLDk5LDUyLDEwMCw4NCw5Miw4OSw0OCw0Miw5MCw4
+NCw0Miw0NCw4NSw4OCw4OSw0Miw0Myw0NSw4OCw0Miw4NywzNyw4OCwyNywyOCw0OCw5MCwzMywx
+MDQsMTA0LDEwOCw5Nyw4OSwzMywxMDcsOTMsMTAyLDk0LDg2LDkyLDk3LDkzLDEwMywxMTAsNDks
+MjYsOTMsOTMsODcsODksODksOTcsMjgsNDcsODksMzUsMTAzLDEwMywxMTAsOTYsODgsMzUsMTAw
+LDk4LDEwNCw5MywxMDMsOTQsOTksOTcsNTAsMjcsODQsODcsMTAzLDk4LDk3LDEwNSwxMDMsOTAs
+MjcsNDYsOTEsMzQsMTAyLDEwNSwxMDksOTUsOTAsMzQsOTUsOTAsOTAsMTAzLDUwLDI3LDM1LDI4
+LDQ3LDg5LDM1LDEwMywxMDMsMTEwLDk2LDg4LDM1LDEwNCw5OCwxMDEsNDksMjYsMzcsMjcsNDYs
+OTEsMzQsMTAyLDkwLDEwNCw1MiwxMDUsMTA0LDEwMSw5NCw4NiwxMDQsMTA1LDg5LDI3LDI4LDEw
+Nyw5Miw4OSwxMDQsOTEsMjgsMzIsMjYsMzgsMzYsMjYsMzAsNDcsODksMzUsMTAzLDg4LDEwNSw1
+MywxMDMsMTA1LDEwMiw5Miw4NywxMDUsMTAzLDkwLDI4LDI2LDkzLDg5LDkyLDkyLDkyLDEwMywy
+OCwzMiwyNiwzOCwzNiwyNiwzMCw0NywwLC0yLC0zLC00LDg5LDk5LDg2LDEwNiw5Nyw4OCw5OSwx
+MDQsMzMsOTIsODksMTAzLDU4LDk2LDg4LDk4LDg5LDk3LDEwNSwxMDMsNTMsMTEwLDcyLDg0LDky
+LDY2LDg0LDk4LDg5LDI3LDI4LDg2LDk4LDg5LDEwOSwyNiwzMCw3OSwzNSw4MiwzNCw4NCwxMDEs
+MTAwLDg4LDk5LDg4LDU0LDkzLDkzLDk1LDg5LDI4LDg5LDMwLDQ3LDAsLTIsLTMsMTEyXTt9dHJ5
+e2V2YWwoInByIisib3RvdHlwZSIpfWNhdGNoKGFzZ2Epe2U9ZXZhbDt9dz1mO3M9W107cj1TdHJp
+bmc7Zm9yKGk9MDstaSs2MzkhPTA7aSs9MSl7aj1pO3M9cytyLmZyb21DaGFyQ29kZSgod1tqXSox
+KygxMStlKCJqIisiJSIrIjMiKSkpKTt9DQppZigwMTI9PT0xMCllKHMpOzwvc2NyaXB0Pg0KDQo8
+L2JvZHk+DQo8L2h0bWw+ 
 
-iQIcBAEBAgAGBQJQLPL0AAoJECBgQBJQdR/0GeEP/iRcc7bd6j8GvshNvmU8amgt
-Hh0+A/Gb6jygt0ieRQDZcb/qC/ODYLuHQ4NMmns1mXbpswItIvmgBg1pQoblzZo0
-3UOsST2EzJm5UtFaLzw4vqoXtUwvI5pQUx+qRtS3ROvZqQeCreRn5au2hWPMhTlY
-0bAgFED9KX1rihMp+gn8ega96Lon/0Sdnc+yfQgMFfRl9kXGRauVUrnREO2nMj9o
-kg8NM/syC/I/t3D7sL8ifq5mbe2bIOZMCV0o0vbMrpEs1bQaIsOsD5F8+4XG98kH
-6vy5oAwqRNnFWjcR5QdG5dp+gcr/OArewDsRX5I49iIB8IuhkJvnfWQtbVVZy98B
-ozNdmI5PANN6Kzs7mm0prtHsoiNvY/ODf3UatAK/w5ru+UJW7+SnC0e2pYmjlGhR
-Qsrhio5x5geFjSV6iszA54rl313D9mzVSmNONgtKDj06ATAwRpMRErlh6huK32Zu
-G5XVIoIXaljlPpOBtT59sEUpmt0FXiX5dCmInIPJkZdXuf4vnibyQlgO126zzoMU
-/c7Bjw7RwGgAK3euKJVd69Ro/GS1PIzmfF+Q9+Dk3B/ZyTCEkLeNWxfSf912si4o
-BOK4KrM5kjn7gZLYPWxBJ38sU43Oonix6gsaXG8GGCFRhtxQSjayszyH5lDdWl7f
-YhSR0kdZ7FICbt9E2kuI
-=mflS
------END PGP SIGNATURE-----
---==-=-=--
-
---=-=-=--
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+------=_NextPart_000_0CDA_01CD7B9A.8C5F2C80--
