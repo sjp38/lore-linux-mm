@@ -1,92 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
-	by kanga.kvack.org (Postfix) with SMTP id 023DC6B005D
-	for <linux-mm@kvack.org>; Thu, 16 Aug 2012 09:47:05 -0400 (EDT)
-Received: by yhr47 with SMTP id 47so3584626yhr.14
-        for <linux-mm@kvack.org>; Thu, 16 Aug 2012 06:47:05 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
+	by kanga.kvack.org (Postfix) with SMTP id CD7756B005D
+	for <linux-mm@kvack.org>; Thu, 16 Aug 2012 09:58:24 -0400 (EDT)
+Date: Thu, 16 Aug 2012 14:58:18 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [RFC 1/2] cma: remove __reclaim_pages
+Message-ID: <20120816135817.GS4177@suse.de>
+References: <1344934627-8473-1-git-send-email-minchan@kernel.org>
+ <1344934627-8473-2-git-send-email-minchan@kernel.org>
 MIME-Version: 1.0
-In-Reply-To: <000001392b579d4f-bb5ccaf5-1a2c-472c-9b76-05ec86297706-000000@email.amazonses.com>
-References: <1345045084-7292-1-git-send-email-js1304@gmail.com>
-	<000001392af5ab4e-41dbbbe4-5808-484b-900a-6f4eba102376-000000@email.amazonses.com>
-	<CAAmzW4M9WMnxVKpR00SqufHadY-=i0Jgf8Ktydrw5YXK8VwJ7A@mail.gmail.com>
-	<000001392b579d4f-bb5ccaf5-1a2c-472c-9b76-05ec86297706-000000@email.amazonses.com>
-Date: Thu, 16 Aug 2012 22:47:04 +0900
-Message-ID: <CAAmzW4MMY5TmjMjG50idZNgRUW3qC0kNMnfbGjGXaoxtba8gGQ@mail.gmail.com>
-Subject: Re: [PATCH] slub: try to get cpu partial slab even if we get enough
- objects for cpu freelist
-From: JoonSoo Kim <js1304@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <1344934627-8473-2-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Pekka Enberg <penberg@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, David Rientjes <rientjes@google.com>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Marek Szyprowski <m.szyprowski@samsung.com>, Rik van Riel <riel@redhat.com>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
->> I think that s->cpu_partial is for cpu partial slab, not cpu slab.
->
-> Ummm... Not entirely. s->cpu_partial is the mininum number of objects to
-> "cache" per processor. This includes the objects available in the per cpu
-> slab and the other slabs on the per cpu partial list.
+On Tue, Aug 14, 2012 at 05:57:06PM +0900, Minchan Kim wrote:
+> Now cma reclaims too many pages by __reclaim_pages which says
+> following as
+> 
+>         * Reclaim enough pages to make sure that contiguous allocation
+>         * will not starve the system.
+> 
+> Starve? What does it starve the system? The function which allocate
+> free page for migration target would wake up kswapd and do direct reclaim
+> if needed during migration so system doesn't starve.
+> 
 
-Hmm..
-When we do test for unfreezing in put_cpu_partial(), we only compare
-how many objects is in "cpu partial slab" with s->cpu_partial,
-although it is just approximation of number of objects kept in cpu partial slab.
-We do not consider number of objects kept in cpu slab in that time.
-This makes me "s->cpu_partial is only for cpu partial slab, not cpu slab".
+I thought this patch was overkill at the time it was introduced but
+didn't have a concrete reason to reject it when I commented on it
+https://lkml.org/lkml/2012/1/30/136 . Marek did want this and followed
+up with "contiguous allocations should have higher priority than others"
+which I took to mean that he was also ok with excessive reclaim.
 
-We can't count number of objects kept in in cpu slab easily.
-Therefore, it it more consistent that s->cpu_partial is always for cpu
-partial slab.
+> Let remove __reclaim_pages and related function and fields.
+> 
 
-But, if you prefer that s->cpu_partial is for both cpu slab and cpu
-partial slab,
-get_partial_node() needs an another minor fix.
-We should add number of objects in cpu slab when we refill cpu partial slab.
-Following is my suggestion.
+That should be one patch and I don't object to it being removed as such
+but it's Marek's call.
 
-@@ -1546,7 +1546,7 @@ static void *get_partial_node(struct kmem_cache *s,
-        spin_lock(&n->list_lock);
-        list_for_each_entry_safe(page, page2, &n->partial, lru) {
-                void *t = acquire_slab(s, n, page, object == NULL);
--               int available;
-+               int available, nr = 0;
+> I modified split_free_page slightly because I removed __reclaim_pages,
+> isolate_freepages_range can fail by split_free_page's watermark check.
+> It's very critical in CMA because it ends up failing alloc_contig_range.
+> 
 
-                if (!t)
-                        break;
-@@ -1557,10 +1557,10 @@ static void *get_partial_node(struct kmem_cache *s,
-                        object = t;
-                        available =  page->objects - page->inuse;
-                } else {
--                       available = put_cpu_partial(s, page, 0);
-+                       nr = put_cpu_partial(s, page, 0);
-                        stat(s, CPU_PARTIAL_NODE);
-                }
--               if (kmem_cache_debug(s) || available > s->cpu_partial / 2)
-+               if (kmem_cache_debug(s) || (available + nr) >
-s->cpu_partial / 2)
-                        break;
+This is a big change and should have been in a patch on its
+own. split_free_page checks watermarks because if the watermarks are
+not obeyed a zone can become fully allocated. This can cause a system to
+livelock under certain circumstances if a page cannot be allocated and a
+free page is required before other pages can be freed.
 
-        }
+> I think we don't need the check in case of CMA because CMA allocates
+> free pages by alloc_pages, not isolate_freepages_block in migrate_pages
+> so watermark is already checked in alloc_pages.
 
-If you agree with this suggestion, I send a patch for this.
+It uses alloc_pages when migrating pages out of the CMA area but note
+that it uses isolate_freepages_block when allocating the CMA buffer when
+alloc_contig_range calls isolate_freepages_range
 
+isolate_freepages_range(unsigned long start_pfn, unsigned long end_pfn)
+{
+	for (pfn = start_pfn; pfn < end_pfn; pfn += isolated) {
+               isolated = isolate_freepages_block(pfn, block_end_pfn,
+                                                   &freelist, true);
+	}
+	map_pages(&freelist);
+}
 
-> If object == NULL then we have so far nothing allocated an c->page ==
-> NULL. The first allocation refills the cpu_slab (by freezing a slab) so
-> that we can allocate again. If we go through the loop again then we refill
-> the per cpu partial lists with more frozen slabs until we have a
-> sufficient number of objects that we can allocate without obtaining any
-> locks.
->
->> This patch is for correcting this.
->
-> There is nothing wrong with this. The name c->cpu_partial is a bit
-> awkward. Maybe rename that to c->min_per_cpu_objects or so?
+so the actual CMA allocation itself is not using alloc_pages. By removing
+the watermark check you allow the CMA to breach watermarks and puts the
+system at risk of livelock.
 
-Okay.
-It look better.
+I'm not keen on the split_free_page() change at all.
 
-Thanks!
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
