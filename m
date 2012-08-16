@@ -1,50 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
-	by kanga.kvack.org (Postfix) with SMTP id CBEEB6B0074
-	for <linux-mm@kvack.org>; Thu, 16 Aug 2012 14:37:00 -0400 (EDT)
-Date: Thu, 16 Aug 2012 21:37:25 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH v3 6/7] mm: make clear_huge_page cache clear only around
- the fault address
-Message-ID: <20120816183725.GA30284@shutemov.name>
-References: <1345130154-9602-1-git-send-email-kirill.shutemov@linux.intel.com>
- <1345130154-9602-7-git-send-email-kirill.shutemov@linux.intel.com>
- <20120816161647.GM11188@redhat.com>
- <20120816164356.GA30106@shutemov.name>
- <20120816182944.GN11188@redhat.com>
+Received: from psmtp.com (na3sys010amx190.postini.com [74.125.245.190])
+	by kanga.kvack.org (Postfix) with SMTP id E9D416B002B
+	for <linux-mm@kvack.org>; Thu, 16 Aug 2012 15:00:40 -0400 (EDT)
+Message-ID: <502D42E5.7090403@redhat.com>
+Date: Thu, 16 Aug 2012 14:58:45 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120816182944.GN11188@redhat.com>
+Subject: Re: Repeated fork() causes SLAB to grow without bound
+References: <20120816024610.GA5350@evergreen.ssec.wisc.edu>
+In-Reply-To: <20120816024610.GA5350@evergreen.ssec.wisc.edu>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, Andi Kleen <ak@linux.intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, Alex Shi <alex.shu@intel.com>, Jan Beulich <jbeulich@novell.com>, Robert Richter <robert.richter@amd.com>, Andy Lutomirski <luto@amacapital.net>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-mips@linux-mips.org, linux-sh@vger.kernel.org, sparclinux@vger.kernel.org
+To: linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>
+Cc: linux-mm <linux-mm@kvack.org>
 
-On Thu, Aug 16, 2012 at 08:29:44PM +0200, Andrea Arcangeli wrote:
-> On Thu, Aug 16, 2012 at 07:43:56PM +0300, Kirill A. Shutemov wrote:
-> > Hm.. I think with static_key we can avoid cache overhead here. I'll try.
-> 
-> Could you elaborate on the static_key? Is it some sort of self
-> modifying code?
+On 08/15/2012 10:46 PM, Daniel Forrest wrote:
+> I'm hoping someone has seen this before...
+>
+> I've been trying to track down a performance problem with Linux 3.0.4.
+> The symptom is system-mode load increasing over time while user-mode
+> load remains constant while running a data ingest/processing program.
+>
+> Looking at /proc/meminfo I noticed SUnreclaim increasing steadily.
+>
+> Looking at /proc/slabinfo I noticed anon_vma and anon_vma_chain also
+> increasing steadily.
 
-Runtime code patching. See Documentation/static-keys.txt. We can patch it
-on sysctl.
+Oh dear.
 
-> 
-> > Thanks, for review. Could you take a look at huge zero page patchset? ;)
-> 
-> I've noticed that too, nice :). I'm checking some detail on the
-> wrprotect fault behavior but I'll comment there.
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Basically, what happens is that at fork time, a new
+"level" is created for the anon_vma hierarchy. This
+works great for normal forking daemons, since the
+parent process just keeps running, and forking off
+children.
 
--- 
- Kirill A. Shutemov
+Look at anon_vma_fork() in mm/rmap.c for the details.
+
+Having each child become the new parent, and the
+previous parent exit, can result in an "infinite"
+stack of anon_vmas.
+
+Now, the parent anon_vma we cannot get rid of,
+because that is where the anon_vma lock lives.
+
+However, in your case you have many more anon_vma
+levels than you have processes!
+
+I wonder if it may be possible to fix your bug
+by adding a refcount to the struct anon_vma,
+one count for each VMA that is directly attached
+to the anon_vma (ie. vma->anon_vma == anon_vma),
+and one for each page that points to the anon_vma.
+
+If the reference count on an anon_vma reaches 0,
+we can skip that anon_vma in anon_vma_clone, and
+the child process should not get that anon_vma.
+
+A scheme like that may be enough to avoid the trouble
+you are running into.
+
+Does this sound realistic?
+
+> I was able to generate a simple test program that will cause this:
+>
+> ---
+>
+> #include <unistd.h>
+>
+> int main(int argc, char *argv[])
+> {
+>     pid_t pid;
+>
+>     while (1) {
+>        pid = fork();
+>        if (pid == -1) {
+> 	 /* error */
+> 	 return 1;
+>        }
+>        if (pid) {
+> 	 /* parent */
+> 	 sleep(2);
+> 	 break;
+>        }
+>        else {
+> 	 /* child */
+> 	 sleep(1);
+>        }
+>     }
+>     return 0;
+> }
+>
+> ---
+>
+> In the actual program (running as a daemon), a child is reading data
+> while its parent is processing the previously read data.  At any time
+> there are only a few processes in existence, with older processes
+> exiting and new processes being fork()ed.  Killing the program frees
+> the slab usage.
+>
+> I patched the kernel to 3.0.40, but the problem remains.  I also
+> compiled with slab debugging and can see that the growth of anon_vma
+> and anon_vma_chain is due to anon_vma_clone/anon_vma_fork.
+>
+> Is this a known issue?  Is it fixed in a later release?
+>
+> Thanks,
+>
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
