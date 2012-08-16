@@ -1,59 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
-	by kanga.kvack.org (Postfix) with SMTP id AF6F06B006C
-	for <linux-mm@kvack.org>; Thu, 16 Aug 2012 13:08:24 -0400 (EDT)
-Date: Thu, 16 Aug 2012 17:08:23 +0000
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH] slub: try to get cpu partial slab even if we get enough
- objects for cpu freelist
-In-Reply-To: <CAAmzW4MMY5TmjMjG50idZNgRUW3qC0kNMnfbGjGXaoxtba8gGQ@mail.gmail.com>
-Message-ID: <00000139306844c8-bb717c88-ca56-48b3-9b8f-9186053359d3-000000@email.amazonses.com>
-References: <1345045084-7292-1-git-send-email-js1304@gmail.com> <000001392af5ab4e-41dbbbe4-5808-484b-900a-6f4eba102376-000000@email.amazonses.com> <CAAmzW4M9WMnxVKpR00SqufHadY-=i0Jgf8Ktydrw5YXK8VwJ7A@mail.gmail.com>
- <000001392b579d4f-bb5ccaf5-1a2c-472c-9b76-05ec86297706-000000@email.amazonses.com> <CAAmzW4MMY5TmjMjG50idZNgRUW3qC0kNMnfbGjGXaoxtba8gGQ@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx167.postini.com [74.125.245.167])
+	by kanga.kvack.org (Postfix) with SMTP id EE2B86B0070
+	for <linux-mm@kvack.org>; Thu, 16 Aug 2012 13:25:30 -0400 (EDT)
+Date: Thu, 16 Aug 2012 19:25:27 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH] mm: hugetlb: flush dcache before returning zeroed huge
+ page to userspace
+Message-ID: <20120816172527.GA12578@dhcp22.suse.cz>
+References: <alpine.LSU.2.00.1207091622470.2261@eggly.anvils>
+ <20120710094513.GB9108@mudshark.cambridge.arm.com>
+ <20120710104234.GI9108@mudshark.cambridge.arm.com>
+ <20120711174802.GG13498@mudshark.cambridge.arm.com>
+ <20120712111659.GF21013@tiehlicka.suse.cz>
+ <20120712112645.GG2816@mudshark.cambridge.arm.com>
+ <20120712115708.GG21013@tiehlicka.suse.cz>
+ <20120807160337.GC16877@mudshark.cambridge.arm.com>
+ <20120808162607.GA7885@dhcp22.suse.cz>
+ <20120816160954.GA4330@mudshark.cambridge.arm.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120816160954.GA4330@mudshark.cambridge.arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: JoonSoo Kim <js1304@gmail.com>
-Cc: Pekka Enberg <penberg@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, David Rientjes <rientjes@google.com>
+To: Will Deacon <will.deacon@arm.com>
+Cc: Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Hillf Danton <dhillf@gmail.com>, Russell King <linux@arm.linux.org.uk>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Thu, 16 Aug 2012, JoonSoo Kim wrote:
+On Thu 16-08-12 17:09:54, Will Deacon wrote:
+> On Wed, Aug 08, 2012 at 05:26:07PM +0100, Michal Hocko wrote:
+> > I guess the cleanest way is to hook into dequeue_huge_page_node and add
+> > something like arch_clear_hugepage_flags.
+> 
+> I hooked into enqueue_huge_page instead, but how about something like this?:
 
-> But, if you prefer that s->cpu_partial is for both cpu slab and cpu
-> partial slab,
-> get_partial_node() needs an another minor fix.
-> We should add number of objects in cpu slab when we refill cpu partial slab.
-> Following is my suggestion.
->
-> @@ -1546,7 +1546,7 @@ static void *get_partial_node(struct kmem_cache *s,
->         spin_lock(&n->list_lock);
->         list_for_each_entry_safe(page, page2, &n->partial, lru) {
->                 void *t = acquire_slab(s, n, page, object == NULL);
-> -               int available;
-> +               int available, nr = 0;
->
->                 if (!t)
->                         break;
-> @@ -1557,10 +1557,10 @@ static void *get_partial_node(struct kmem_cache *s,
->                         object = t;
->                         available =  page->objects - page->inuse;
->                 } else {
-> -                       available = put_cpu_partial(s, page, 0);
-> +                       nr = put_cpu_partial(s, page, 0);
->                         stat(s, CPU_PARTIAL_NODE);
->                 }
-> -               if (kmem_cache_debug(s) || available > s->cpu_partial / 2)
-> +               if (kmem_cache_debug(s) || (available + nr) >
-> s->cpu_partial / 2)
->                         break;
->
->         }
->
-> If you agree with this suggestion, I send a patch for this.
-
-What difference does this patch make? At the end of the day you need the
-total number of objects available in the partial slabs and the cpu slab
-for comparison.
+Do you have any specific reason for that? enqueue_huge_page is called on
+pages which potentially never get used so isn't that wasting a bit?
+Not that it would be wrong I was just thinking why shouldn't we do it
+when the page is actualy going to be used for sure.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
