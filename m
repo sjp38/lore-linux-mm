@@ -1,114 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx190.postini.com [74.125.245.190])
-	by kanga.kvack.org (Postfix) with SMTP id E9D416B002B
-	for <linux-mm@kvack.org>; Thu, 16 Aug 2012 15:00:40 -0400 (EDT)
-Message-ID: <502D42E5.7090403@redhat.com>
-Date: Thu, 16 Aug 2012 14:58:45 -0400
-From: Rik van Riel <riel@redhat.com>
-MIME-Version: 1.0
-Subject: Re: Repeated fork() causes SLAB to grow without bound
-References: <20120816024610.GA5350@evergreen.ssec.wisc.edu>
-In-Reply-To: <20120816024610.GA5350@evergreen.ssec.wisc.edu>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
+	by kanga.kvack.org (Postfix) with SMTP id 3BFA76B0044
+	for <linux-mm@kvack.org>; Thu, 16 Aug 2012 15:20:25 -0400 (EDT)
+Date: Thu, 16 Aug 2012 12:20:23 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH, RFC 0/9] Introduce huge zero page
+Message-Id: <20120816122023.c0e9bbc0.akpm@linux-foundation.org>
+In-Reply-To: <1344503300-9507-1-git-send-email-kirill.shutemov@linux.intel.com>
+References: <1344503300-9507-1-git-send-email-kirill.shutemov@linux.intel.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>
-Cc: linux-mm <linux-mm@kvack.org>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, "H. Peter Anvin" <hpa@linux.intel.com>, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill@shutemov.name>
 
-On 08/15/2012 10:46 PM, Daniel Forrest wrote:
-> I'm hoping someone has seen this before...
->
-> I've been trying to track down a performance problem with Linux 3.0.4.
-> The symptom is system-mode load increasing over time while user-mode
-> load remains constant while running a data ingest/processing program.
->
-> Looking at /proc/meminfo I noticed SUnreclaim increasing steadily.
->
-> Looking at /proc/slabinfo I noticed anon_vma and anon_vma_chain also
-> increasing steadily.
+On Thu,  9 Aug 2012 12:08:11 +0300
+"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> wrote:
 
-Oh dear.
-
-Basically, what happens is that at fork time, a new
-"level" is created for the anon_vma hierarchy. This
-works great for normal forking daemons, since the
-parent process just keeps running, and forking off
-children.
-
-Look at anon_vma_fork() in mm/rmap.c for the details.
-
-Having each child become the new parent, and the
-previous parent exit, can result in an "infinite"
-stack of anon_vmas.
-
-Now, the parent anon_vma we cannot get rid of,
-because that is where the anon_vma lock lives.
-
-However, in your case you have many more anon_vma
-levels than you have processes!
-
-I wonder if it may be possible to fix your bug
-by adding a refcount to the struct anon_vma,
-one count for each VMA that is directly attached
-to the anon_vma (ie. vma->anon_vma == anon_vma),
-and one for each page that points to the anon_vma.
-
-If the reference count on an anon_vma reaches 0,
-we can skip that anon_vma in anon_vma_clone, and
-the child process should not get that anon_vma.
-
-A scheme like that may be enough to avoid the trouble
-you are running into.
-
-Does this sound realistic?
-
-> I was able to generate a simple test program that will cause this:
->
-> ---
->
+> During testing I noticed big (up to 2.5 times) memory consumption overhead
+> on some workloads (e.g. ft.A from NPB) if THP is enabled.
+> 
+> The main reason for that big difference is lacking zero page in THP case.
+> We have to allocate a real page on read page fault.
+> 
+> A program to demonstrate the issue:
+> #include <assert.h>
+> #include <stdlib.h>
 > #include <unistd.h>
->
-> int main(int argc, char *argv[])
+> 
+> #define MB 1024*1024
+> 
+> int main(int argc, char **argv)
 > {
->     pid_t pid;
->
->     while (1) {
->        pid = fork();
->        if (pid == -1) {
-> 	 /* error */
-> 	 return 1;
->        }
->        if (pid) {
-> 	 /* parent */
-> 	 sleep(2);
-> 	 break;
->        }
->        else {
-> 	 /* child */
-> 	 sleep(1);
->        }
->     }
->     return 0;
+>         char *p;
+>         int i;
+> 
+>         posix_memalign((void **)&p, 2 * MB, 200 * MB);
+>         for (i = 0; i < 200 * MB; i+= 4096)
+>                 assert(p[i] == 0);
+>         pause();
+>         return 0;
 > }
->
-> ---
->
-> In the actual program (running as a daemon), a child is reading data
-> while its parent is processing the previously read data.  At any time
-> there are only a few processes in existence, with older processes
-> exiting and new processes being fork()ed.  Killing the program frees
-> the slab usage.
->
-> I patched the kernel to 3.0.40, but the problem remains.  I also
-> compiled with slab debugging and can see that the growth of anon_vma
-> and anon_vma_chain is due to anon_vma_clone/anon_vma_fork.
->
-> Is this a known issue?  Is it fixed in a later release?
->
-> Thanks,
->
+> 
+> With thp-never RSS is about 400k, but with thp-always it's 200M.
+> After the patcheset thp-always RSS is 400k too.
 
+That's a pretty big improvement for a rather fake test case.  I wonder
+how much benefit we'd see with real workloads?
+
+Things are rather quiet at present, with summer and beaches and Kernel
+Summit coming up.  Please resend these patches early next month and
+let's see if we can get a bit of action happening?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
