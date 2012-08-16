@@ -1,40 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
-	by kanga.kvack.org (Postfix) with SMTP id 2759A6B006C
-	for <linux-mm@kvack.org>; Thu, 16 Aug 2012 04:21:46 -0400 (EDT)
-Message-ID: <502CAD25.7060201@huawei.com>
-Date: Thu, 16 Aug 2012 16:19:49 +0800
-From: Hanjun Guo <guohanjun@huawei.com>
+Received: from psmtp.com (na3sys010amx190.postini.com [74.125.245.190])
+	by kanga.kvack.org (Postfix) with SMTP id 1BBF36B002B
+	for <linux-mm@kvack.org>; Thu, 16 Aug 2012 05:13:35 -0400 (EDT)
+Message-ID: <502CB900.1010907@parallels.com>
+Date: Thu, 16 Aug 2012 13:10:24 +0400
+From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Subject: Re: [RFC PATCH] mm: introduce N_LRU_MEMORY to distinguish between
- normal and movable memory
-References: <1344482788-4984-1-git-send-email-guohanjun@huawei.com> <50233EF5.3050605@huawei.com> <alpine.DEB.2.02.1208090900450.15909@greybox.home> <5024CADC.1010202@huawei.com> <alpine.DEB.2.02.1208100909410.3903@greybox.home> <502A3CD2.9000007@huawei.com> <00000139257cb4f7-55034aa0-7541-498a-9a3f-259435ccec65-000000@email.amazonses.com>
-In-Reply-To: <00000139257cb4f7-55034aa0-7541-498a-9a3f-259435ccec65-000000@email.amazonses.com>
+Subject: Re: [PATCH] execute the whole memcg freeing in rcu callback
+References: <1344861970-9999-1-git-send-email-glommer@parallels.com>
+In-Reply-To: <1344861970-9999-1-git-send-email-glommer@parallels.com>
 Content-Type: text/plain; charset="ISO-8859-1"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Wu Jianguo <wujianguo@huawei.com>, Jiang Liu <jiang.liu@huawei.com>, Tony Luck <tony.luck@intel.com>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Mel Gorman <mgorman@suse.de>, Yinghai Lu <yinghai@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, Minchan Kim <minchan@kernel.org>, Keping Chen <chenkeping@huawei.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Jiang Liu <liuj97@gmail.com>
+To: Glauber Costa <glommer@parallels.com>
+Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Greg Thelen <gthelen@google.com>
 
-On 2012/8/14 22:14, Christoph Lameter wrote:
-> On Tue, 14 Aug 2012, Hanjun Guo wrote:
+On 08/13/2012 04:46 PM, Glauber Costa wrote:
+> A lot of the initialization we do in mem_cgroup_create() is done with
+> softirqs enabled. This include grabbing a css id, which holds
+> &ss->id_lock->rlock, and the per-zone trees, which holds
+> rtpz->lock->rlock. All of those signal to the lockdep mechanism that
+> those locks can be used in SOFTIRQ-ON-W context. This means that the
+> freeing of memcg structure must happen in a compatible context,
+> otherwise we'll get a deadlock.
 > 
->> N_NORMAL_MEMORY means !LRU allocs possible.
+> The reference counting mechanism we use allows the memcg structure to be
+> freed later and outlive the actual memcg destruction from the
+> filesystem. However, we have little, if any, means to guarantee in which
+> context the last memcg_put will happen. The best we can do is test it
+> and try to make sure no invalid context releases are happening. But as
+> we add more code to memcg, the possible interactions grow in number and
+> expose more ways to get context conflicts.
 > 
-> Ok. I am fine with that change. However this is a significant change that
-> needs to be mentioned prominently in the changelog and there need to be
-> some comments explaining the meaning of these flags clearly in the source.
+> Context-related problems already appeared for static branches
+> destruction, since their locking forced us to disable them from process
+> context, which we could not always guarantee. Now that we're trying to
+> add kmem controller, the possibilities of where the freeing can be
+> triggered from just increases.
+> 
+> Greg Thelen reported a bug with that patchset applied that would trigger
+> if a task would hold a reference to a memcg through its kmem counter.
+> This would mean that killing that task would eventually get us to
+> __mem_cgroup_free() after dropping the last kernel page reference, in an
+> invalid IN-SOFTIRQ-W.
+> 
+> We already moved a part of the freeing to a worker thread to be
+> context-safe for the static branches disabling. Although we could move
+> the new offending part to such a place as well, I see no reason not
+> to do it for the whole freeing action. I consider this to be the safe
+> choice.
+> 
+> Signed-off-by: Glauber Costa <glommer@parallels.com>
+> Reported-by: Greg Thelen <gthelen@google.com>
+> CC: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> CC: Michal Hocko <mhocko@suse.cz>
+> CC: Johannes Weiner <hannes@cmpxchg.org>
+> 
+> ---
+> I am adding this to the kmemcg tree, but I am hoping this can get
+> independent review, and maybe be applied independently as well. As you
+> can see, this is a problem that was made visible by that patchset, but
+> is, ultimately, already there.
+> 
+> Also, please note that this bug would be mostly invisible with the slab
+> patches applied ontop, since killing the task would unlikely release the
+> last reference on the structure. But still, theorectically present. This
+> is exactly the kind of issues I am trying to capture by applying the two
+> parts independently.
 
-No problem, we will handle it in next version of this patch.
+After discussing the last discussion I had with Greg, I believe I have a
+slightly better idea about this one.
 
-Thanks
-Hanjun Guo
+We can do most of the freeing synchronously from a predictable context
+in mem_cgroup_destroy(), including the release of the css_id. We would
+be left then with only the static branches decrement and final free pending.
 
-> 
-> 
-> .
-> 
+I am stressing this a bit here, and will send another version shortly
+
+
 
 
 --
