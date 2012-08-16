@@ -1,129 +1,149 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
-	by kanga.kvack.org (Postfix) with SMTP id EC43B6B005D
-	for <linux-mm@kvack.org>; Wed, 15 Aug 2012 20:13:14 -0400 (EDT)
-Date: Thu, 16 Aug 2012 09:15:17 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [RFC 2/2] cma: support MIGRATE_DISCARD
-Message-ID: <20120816001517.GC15225@bbox>
-References: <1344934627-8473-1-git-send-email-minchan@kernel.org>
- <1344934627-8473-3-git-send-email-minchan@kernel.org>
- <502BF139.3040403@redhat.com>
- <20120815233323.GB15225@bbox>
+Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
+	by kanga.kvack.org (Postfix) with SMTP id 69A1A6B005D
+	for <linux-mm@kvack.org>; Wed, 15 Aug 2012 23:37:03 -0400 (EDT)
+Received: by iadx2 with SMTP id x2so180277iad.2
+        for <linux-mm@kvack.org>; Wed, 15 Aug 2012 20:37:02 -0700 (PDT)
+From: Greg Thelen <gthelen@google.com>
+Subject: Re: [PATCH v2 06/11] memcg: kmem controller infrastructure
+References: <1344517279-30646-1-git-send-email-glommer@parallels.com>
+	<1344517279-30646-7-git-send-email-glommer@parallels.com>
+	<50254475.4000201@jp.fujitsu.com> <5028BA9E.7000302@parallels.com>
+	<xr93ipcl9u7x.fsf@gthelen.mtv.corp.google.com>
+	<502B6956.5030508@parallels.com>
+	<xr93wr109kke.fsf@gthelen.mtv.corp.google.com>
+	<502BD5AF.301@parallels.com>
+	<xr93lihg9j0q.fsf@gthelen.mtv.corp.google.com>
+	<502BF916.10902@parallels.com>
+Date: Wed, 15 Aug 2012 20:37:01 -0700
+In-Reply-To: <502BF916.10902@parallels.com> (Glauber Costa's message of "Wed,
+	15 Aug 2012 23:31:34 +0400")
+Message-ID: <xr93zk5vecde.fsf@gthelen.mtv.corp.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120815233323.GB15225@bbox>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Marek Szyprowski <m.szyprowski@samsung.com>, Mel Gorman <mgorman@suse.de>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Glauber Costa <glommer@parallels.com>
+Cc: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, devel@openvz.org, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, Pekka Enberg <penberg@cs.helsinki.fi>
 
-On Thu, Aug 16, 2012 at 08:33:23AM +0900, Minchan Kim wrote:
-> Hi Rik,
-> 
-> On Wed, Aug 15, 2012 at 02:58:01PM -0400, Rik van Riel wrote:
-> > On 08/14/2012 04:57 AM, Minchan Kim wrote:
-> > >This patch introudes MIGRATE_DISCARD mode in migration.
-> > >It drop clean cache pages instead of migration so that
-> > >migration latency could be reduced. Of course, it could
-> > >evict code pages but latency of big contiguous memory
-> > >is more important than some background application's slow down
-> > >in mobile embedded enviroment.
-> > 
-> > Would it be an idea to only drop clean UNMAPPED
-> > page cache pages?
-> 
-> Firstly I thougt about that but I chose more agressive thing.
-> Namely, even drop mapped page cache.
-> Because it can reduce latency more(ex, memcpy + remapping cost
-> during migration) and it could not trivial if migration range is big.
-> 
-> > 
-> > >Signed-off-by: Minchan Kim <minchan@kernel.org>
-> > 
-> > >@@ -799,12 +802,39 @@ static int __unmap_and_move(struct page *page, struct page *newpage,
-> > >  		goto skip_unmap;
-> > >  	}
-> > >
-> > >+	file = page_is_file_cache(page);
-> > >+	ttu_flags = TTU_IGNORE_MLOCK|TTU_IGNORE_ACCESS;
-> > >+
-> > >+	if (!(mode & MIGRATE_DISCARD) || !file || PageDirty(page))
-> > >+		ttu_flags |= TTU_MIGRATION;
-> > >+	else
-> > >+		discard_mode = true;
-> > >+
-> > >  	/* Establish migration ptes or remove ptes */
-> > >-	try_to_unmap(page, TTU_MIGRATION|TTU_IGNORE_MLOCK|TTU_IGNORE_ACCESS);
-> > >+	try_to_unmap(page, ttu_flags);
-> > 
-> > This bit looks wrong, because you end up ignoring
-> > mlock and then discarding the page.
-> 
-> Argh, Thanks!
-> I will fix it in next spin.
-> 
-> > 
-> > Only dropping clean page cache pages that are not
-> > mapped would avoid that problem, without introducing
-> > much complexity in the code.
-> 
-> Hmm, I don't think it makes code much complex.
-> How about this?
-> 
-> diff --git a/mm/rmap.c b/mm/rmap.c
-> index 0f3b7cd..0909d79 100644
-> --- a/mm/rmap.c
-> +++ b/mm/rmap.c
-> @@ -1223,7 +1223,8 @@ out:
->   * repeatedly from try_to_unmap_ksm, try_to_unmap_anon or try_to_unmap_file.
->   */
->  int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
-> -                    unsigned long address, enum ttu_flags flags)
-> +                    unsigned long address, enum ttu_flags flags,
-> +                    unsigned long *vm_flags)
->  {
->         struct mm_struct *mm = vma->vm_mm;
->         pte_t *pte;
-> @@ -1235,6 +1236,7 @@ int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
->         if (!pte)
->                 goto out;
->  
-> +       vm_flags |= vma->vm_flags;
->         /*
->          * If the page is mlock()d, we cannot swap it out.
->          * If it's recently referenced (perhaps page_referenced
-> @@ -1652,7 +1654,7 @@ out:
->   * SWAP_FAIL   - the page is unswappable
->   * SWAP_MLOCK  - page is mlocked.
->   */
-> -int try_to_unmap(struct page *page, enum ttu_flags flags)
-> +int try_to_unmap(struct page *page, enum ttu_flags flags, unsigned long *vm_flags)
->  {
->         int ret;
-> 
-> <snip> 
-> 
-> +       file = page_is_file_cache(page);
-> +       ttu_flags = TTU_IGNORE_MLOCK|TTU_IGNORE_ACCESS;
-> +
-> +       if (!(mode & MIGRATE_DISCARD) || !file || PageDirty(page) ||
-> +               vm_flags & VM_LOCKED)
+On Wed, Aug 15 2012, Glauber Costa wrote:
 
-We do try_to_unmap after this piece so we can't get the information in advance. :(
-I don't have better idea which doesn't have a drawback so I will accept your idea.
-Thanks, Rik.
+> On 08/15/2012 09:12 PM, Greg Thelen wrote:
+>> On Wed, Aug 15 2012, Glauber Costa wrote:
+>> 
+>>> On 08/15/2012 08:38 PM, Greg Thelen wrote:
+>>>> On Wed, Aug 15 2012, Glauber Costa wrote:
+>>>>
+>>>>> On 08/14/2012 10:58 PM, Greg Thelen wrote:
+>>>>>> On Mon, Aug 13 2012, Glauber Costa wrote:
+>>>>>>
+>>>>>>>>>> +	WARN_ON(mem_cgroup_is_root(memcg));
+>>>>>>>>>> +	size = (1 << order) << PAGE_SHIFT;
+>>>>>>>>>> +	memcg_uncharge_kmem(memcg, size);
+>>>>>>>>>> +	mem_cgroup_put(memcg);
+>>>>>>>> Why do we need ref-counting here ? kmem res_counter cannot work as
+>>>>>>>> reference ?
+>>>>>>> This is of course the pair of the mem_cgroup_get() you commented on
+>>>>>>> earlier. If we need one, we need the other. If we don't need one, we
+>>>>>>> don't need the other =)
+>>>>>>>
+>>>>>>> The guarantee we're trying to give here is that the memcg structure will
+>>>>>>> stay around while there are dangling charges to kmem, that we decided
+>>>>>>> not to move (remember: moving it for the stack is simple, for the slab
+>>>>>>> is very complicated and ill-defined, and I believe it is better to treat
+>>>>>>> all kmem equally here)
+>>>>>>
+>>>>>> By keeping memcg structures hanging around until the last referring kmem
+>>>>>> page is uncharged do such zombie memcg each consume a css_id and thus
+>>>>>> put pressure on the 64k css_id space?  I imagine in pathological cases
+>>>>>> this would prevent creation of new cgroups until these zombies are
+>>>>>> dereferenced.
+>>>>>
+>>>>> Yes, but although this patch makes it more likely, it doesn't introduce
+>>>>> that. If the tasks, for instance, grab a reference to the cgroup dentry
+>>>>> in the filesystem (like their CWD, etc), they will also keep the cgroup
+>>>>> around.
+>>>>
+>>>> Fair point.  But this doesn't seems like a feature.  It's probably not
+>>>> needed initially, but what do you think about creating a
+>>>> memcg_kernel_context structure which is allocated when memcg is
+>>>> allocated?  Kernel pages charged to a memcg would have
+>>>> page_cgroup->mem_cgroup=memcg_kernel_context rather than memcg.  This
+>>>> would allow the mem_cgroup and its css_id to be deleted when the cgroup
+>>>> is unlinked from cgroupfs while allowing for the active kernel pages to
+>>>> continue pointing to a valid memcg_kernel_context.  This would be a
+>>>> reference counted structure much like you are doing with memcg.  When a
+>>>> memcg is deleted the memcg_kernel_context would be linked into its
+>>>> surviving parent memcg.  This would avoid needing to visit each kernel
+>>>> page.
+>>>
+>>> You need more, you need at the res_counters to stay around as well. And
+>>> probably other fields.
+>> 
+>> I am not sure the res_counters would need to stay around.  Once a
+>> memcg_kernel_context has been reparented, then any future kernel page
+>> uncharge calls will uncharge the parent res_counter.
+>
+> Well, if you hold the memcg due to a reference, like in the dentry case,
+> then fine. But if this is a dangling charge, as will be the case with
+> the slab, then you have to uncharge it.
+>
+> An arbitrary number of parents might have been deleted as well, so you
+> need to transverse them all until you reach a live parent to uncharge from.
 
-> +               ttu_flags |= TTU_MIGRATION;
-> +       else
-> +               discard_mode = true;
-> +
-> 
-> 
--- 
-Kind regards,
-Minchan Kim
+I was thinking that each time a memcg is deleted move the
+memcg_kernel_context from the victim memcg to its parent.  When moving,
+also update the context to refer to the parent and link context to
+parent:
+  for_each_kernel_context(kernel_context, memcg) {
+    kernel_context->memcg = memcg->parent;
+    list_add(&kernel_context->list, &memcg->parent->kernel_contexts);
+  }
+
+Whenever pages referring to a memcg_kernel_context are uncharged they
+will uncharge the nearest surviving parent memcg.
+
+> To do that, your counters have to be still alive.
+
+The counters of nearest surviving parent will be alive and pointed to by
+memcg_kernel_context->memcg.
+
+>>> So my fear here is that as you add fields to that structure, you can
+>>> defeat a bit the goal of reducing memory consumption. Still leaves the
+>>> css space, yes. But by doing this we can introduce some subtle bugs by
+>>> having a field in the wrong structure.
+>>>
+>>> Did you observe that to be a big problem in your systems?
+>> 
+>> No I have not seen this yet.  But our past solutions have reparented
+>> kmem_cache's to root memcg so we have been avoiding zombie memcg.  My
+>> concerns with your approach are just a suspicion because we have been
+>> experimenting with accounting of even more kernel memory (e.g. vmalloc,
+>> kernel stacks, page tables).  As the scope of such accounting grows the
+>> chance of long lived charged pages grows and thus the chance of zombies
+>> which exhaust the css_id space grows.
+>
+> Well, since we agree this can all be done under the hood, I'd say let's
+> wait until a problem actually exists, since the solution is likely to be
+> a bit convoluted...
+>
+> I personally believe that if won't have a lot of task movement, most of
+> the data will go away as the cgroup dies. The remainder shouldn't be too
+> much to hold it in memory for a lot of time. This is of course assuming
+> a real use case, not an adversarial scenario, which is quite easy to
+> come up with: just create a task, hold a bunch of kmem, move the task
+> away, delete the cgroup, etc.
+>
+> That said, nothing stops us to actively try to create a scenario that
+> would demonstrate such a problem.
+
+With our in-house per-memcg slab accounting (similar to what's discussed
+here), we're seeing a few slab allocations (mostly radix_tree_node) that
+survive a long time after memcg deletion.  This isn't meant as criticism
+of this patch series, just an fyi that I expect there will be scenarios
+where some dead kmem caches will live for a long time.  Though I think
+that in your patches a dead kmem cache does not hold reference to the
+memcg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
