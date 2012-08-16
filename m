@@ -1,37 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
-	by kanga.kvack.org (Postfix) with SMTP id 405FE6B005D
-	for <linux-mm@kvack.org>; Thu, 16 Aug 2012 12:10:07 -0400 (EDT)
-Date: Thu, 16 Aug 2012 17:09:54 +0100
-From: Will Deacon <will.deacon@arm.com>
-Subject: Re: [PATCH] mm: hugetlb: flush dcache before returning zeroed huge
- page to userspace
-Message-ID: <20120816160954.GA4330@mudshark.cambridge.arm.com>
-References: <20120709141324.GK7315@mudshark.cambridge.arm.com>
- <alpine.LSU.2.00.1207091622470.2261@eggly.anvils>
- <20120710094513.GB9108@mudshark.cambridge.arm.com>
- <20120710104234.GI9108@mudshark.cambridge.arm.com>
- <20120711174802.GG13498@mudshark.cambridge.arm.com>
- <20120712111659.GF21013@tiehlicka.suse.cz>
- <20120712112645.GG2816@mudshark.cambridge.arm.com>
- <20120712115708.GG21013@tiehlicka.suse.cz>
- <20120807160337.GC16877@mudshark.cambridge.arm.com>
- <20120808162607.GA7885@dhcp22.suse.cz>
+Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
+	by kanga.kvack.org (Postfix) with SMTP id 24A346B005D
+	for <linux-mm@kvack.org>; Thu, 16 Aug 2012 12:17:05 -0400 (EDT)
+Date: Thu, 16 Aug 2012 18:16:47 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH v3 6/7] mm: make clear_huge_page cache clear only around
+ the fault address
+Message-ID: <20120816161647.GM11188@redhat.com>
+References: <1345130154-9602-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <1345130154-9602-7-git-send-email-kirill.shutemov@linux.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20120808162607.GA7885@dhcp22.suse.cz>
+In-Reply-To: <1345130154-9602-7-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Hillf Danton <dhillf@gmail.com>, Russell King <linux@arm.linux.org.uk>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, Andi Kleen <ak@linux.intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, Alex Shi <alex.shu@intel.com>, Jan Beulich <jbeulich@novell.com>, Robert Richter <robert.richter@amd.com>, Andy Lutomirski <luto@amacapital.net>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-mips@linux-mips.org, linux-sh@vger.kernel.org, sparclinux@vger.kernel.org
 
-On Wed, Aug 08, 2012 at 05:26:07PM +0100, Michal Hocko wrote:
-> I guess the cleanest way is to hook into dequeue_huge_page_node and add
-> something like arch_clear_hugepage_flags.
+Hi Kirill,
 
-I hooked into enqueue_huge_page instead, but how about something like this?:
+On Thu, Aug 16, 2012 at 06:15:53PM +0300, Kirill A. Shutemov wrote:
+>  	for (i = 0; i < pages_per_huge_page;
+>  	     i++, p = mem_map_next(p, page, i)) {
 
-Will
+It may be more optimal to avoid a multiplication/shiftleft before the
+add, and to do:
 
---- >8
+  	for (i = 0, vaddr = haddr; i < pages_per_huge_page;
+  	     i++, p = mem_map_next(p, page, i), vaddr += PAGE_SIZE) {
+
+>  		cond_resched();
+> -		clear_user_highpage(p, addr + i * PAGE_SIZE);
+> +		vaddr = haddr + i*PAGE_SIZE;
+
+Not sure if gcc can optimize it away because of the external calls.
+
+> +		if (!ARCH_HAS_USER_NOCACHE || i == target)
+> +			clear_user_highpage(page + i, vaddr);
+> +		else
+> +			clear_user_highpage_nocache(page + i, vaddr);
+>  	}
+
+
+My only worry overall is if there can be some workload where this may
+actually slow down userland if the CPU cache is very large and
+userland would access most of the faulted in memory after the first
+fault.
+
+So I wouldn't mind to add one more check in addition of
+!ARCH_HAS_USER_NOCACHE above to check a runtime sysctl variable. It'll
+waste a cacheline yes but I doubt it's measurable compared to the time
+it takes to do a >=2M hugepage copy.
+
+Furthermore it would allow people to benchmark its effect without
+having to rebuild the kernel themself.
+
+All other patches looks fine to me.
+
+Thanks!
+Andrea
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
