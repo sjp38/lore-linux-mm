@@ -1,12 +1,12 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
-	by kanga.kvack.org (Postfix) with SMTP id 3792F6B005D
-	for <linux-mm@kvack.org>; Thu, 16 Aug 2012 11:40:23 -0400 (EDT)
-Date: Thu, 16 Aug 2012 11:35:38 -0400
+Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
+	by kanga.kvack.org (Postfix) with SMTP id 275C16B0069
+	for <linux-mm@kvack.org>; Thu, 16 Aug 2012 11:40:30 -0400 (EDT)
+Date: Thu, 16 Aug 2012 11:37:33 -0400
 From: Rik van Riel <riel@redhat.com>
-Subject: [RFC][PATCH -mm -v2 1/4] mm,vmscan: track recent pressure on each
- LRU set
-Message-ID: <20120816113538.469ccb63@cuia.bos.redhat.com>
+Subject: [RFC][PATCH -mm -v2 3/4] mm,vmscan: reclaim from the highest score
+ cgroups
+Message-ID: <20120816113733.7ba45fde@cuia.bos.redhat.com>
 In-Reply-To: <20120816113450.52f4e633@cuia.bos.redhat.com>
 References: <20120816113450.52f4e633@cuia.bos.redhat.com>
 Mime-Version: 1.0
@@ -17,175 +17,197 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: yinghan@google.com, aquini@redhat.com, hannes@cmpxchg.org, mhocko@suse.cz, Mel Gorman <mel@csn.ul.ie>
 
-Keep track of the recent amount of pressure applied to each LRU list.
+Instead of doing a round robin reclaim over all the cgroups in a
+zone, we pick the lruvec with the top score and reclaim from that.
 
-This statistic is incremented simultaneously with ->recent_scanned,
-however it is aged in a different way. Recent_scanned and recent_rotated
-are aged locally for each list, to estimate the fraction of objects
-on each list that are in active use.
+We keep reclaiming from that lruvec until we have reclaimed enough
+pages (common for direct reclaim), or that lruvec's score drops in
+half. We keep reclaiming from the zone until we have reclaimed enough
+pages, or have scanned more than the number of reclaimable pages shifted
+by the reclaim priority.
 
-The recent_pressure statistic is aged globally for all lists. We
-can use this to figure out which LRUs we should reclaim from.
-Because this figure is only used at reclaim time, we can lazily
-age it whenever we consider an lruvec for reclaiming.
+As an additional change, targeted cgroup reclaim now reclaims from
+the highest priority lruvec. This is because when a cgroup hierarchy
+hits its limit, the best lruvec to reclaim from may be different than
+whatever lruvec is the first we run into iterating from the hierarchy's
+"root".
 
 Signed-off-by: Rik van Riel <riel@redhat.com>
 ---
- include/linux/mmzone.h |   10 ++++++++-
- mm/memcontrol.c        |    5 ++++
- mm/swap.c              |    1 +
- mm/vmscan.c            |   51 ++++++++++++++++++++++++++++++++++++++++++++++++
- 4 files changed, 66 insertions(+), 1 deletions(-)
+ mm/vmscan.c |  137 ++++++++++++++++++++++++++++++++++++++++++----------------
+ 1 files changed, 99 insertions(+), 38 deletions(-)
 
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index f222e06..be93e7e 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -189,12 +189,20 @@ struct zone_reclaim_stat {
- 	 * The pageout code in vmscan.c keeps track of how many of the
- 	 * mem/swap backed and file backed pages are referenced.
- 	 * The higher the rotated/scanned ratio, the more valuable
--	 * that cache is.
-+	 * that cache is. These numbers are aged separately for each LRU.
- 	 *
- 	 * The anon LRU stats live in [0], file LRU stats in [1]
- 	 */
- 	unsigned long		recent_rotated[2];
- 	unsigned long		recent_scanned[2];
-+	/*
-+	 * This number is incremented together with recent_scanned,
-+	 * but is aged simultaneously for all LRUs. This allows the
-+	 * system to determine which LRUs have already been scanned
-+	 * enough, and which should be scanned next.
-+	 */
-+	unsigned long		recent_pressure[2];
-+	unsigned long		recent_pressure_seq;
- };
- 
- struct lruvec {
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index d906b43..a18a0d5 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -3852,6 +3852,7 @@ static int memcg_stat_show(struct cgroup *cont, struct cftype *cft,
- 		struct zone_reclaim_stat *rstat;
- 		unsigned long recent_rotated[2] = {0, 0};
- 		unsigned long recent_scanned[2] = {0, 0};
-+		unsigned long recent_pressure[2] = {0, 0};
- 
- 		for_each_online_node(nid)
- 			for (zid = 0; zid < MAX_NR_ZONES; zid++) {
-@@ -3862,11 +3863,15 @@ static int memcg_stat_show(struct cgroup *cont, struct cftype *cft,
- 				recent_rotated[1] += rstat->recent_rotated[1];
- 				recent_scanned[0] += rstat->recent_scanned[0];
- 				recent_scanned[1] += rstat->recent_scanned[1];
-+				recent_pressure[0] += rstat->recent_pressure[0];
-+				recent_pressure[1] += rstat->recent_pressure[1];
- 			}
- 		seq_printf(m, "recent_rotated_anon %lu\n", recent_rotated[0]);
- 		seq_printf(m, "recent_rotated_file %lu\n", recent_rotated[1]);
- 		seq_printf(m, "recent_scanned_anon %lu\n", recent_scanned[0]);
- 		seq_printf(m, "recent_scanned_file %lu\n", recent_scanned[1]);
-+		seq_printf(m, "recent_pressure_anon %lu\n", recent_pressure[0]);
-+		seq_printf(m, "recent_pressure_file %lu\n", recent_pressure[1]);
- 	}
- #endif
- 
-diff --git a/mm/swap.c b/mm/swap.c
-index 4e7e2ec..0cca972 100644
---- a/mm/swap.c
-+++ b/mm/swap.c
-@@ -316,6 +316,7 @@ static void update_page_reclaim_stat(struct lruvec *lruvec,
- 	struct zone_reclaim_stat *reclaim_stat = &lruvec->reclaim_stat;
- 
- 	reclaim_stat->recent_scanned[file]++;
-+	reclaim_stat->recent_pressure[file]++;
- 	if (rotated)
- 		reclaim_stat->recent_rotated[file]++;
- }
 diff --git a/mm/vmscan.c b/mm/vmscan.c
-index a779b03..b0e5495 100644
+index b0e5495..769fdcd 100644
 --- a/mm/vmscan.c
 +++ b/mm/vmscan.c
-@@ -1282,6 +1282,7 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
- 	spin_lock_irq(&zone->lru_lock);
- 
- 	reclaim_stat->recent_scanned[file] += nr_taken;
-+	reclaim_stat->recent_pressure[file] += nr_taken;
- 
- 	if (global_reclaim(sc)) {
- 		if (current_is_kswapd())
-@@ -1426,6 +1427,7 @@ static void shrink_active_list(unsigned long nr_to_scan,
- 		zone->pages_scanned += nr_scanned;
- 
- 	reclaim_stat->recent_scanned[file] += nr_taken;
-+	reclaim_stat->recent_pressure[file] += nr_taken;
- 
- 	__count_zone_vm_events(PGREFILL, zone, nr_scanned);
- 	__mod_zone_page_state(zone, NR_LRU_BASE + lru, -nr_taken);
-@@ -1852,6 +1854,53 @@ static void shrink_lruvec(struct lruvec *lruvec, struct scan_control *sc)
- 	throttle_vm_writeout(sc->gfp_mask);
+@@ -1901,6 +1901,57 @@ static void age_recent_pressure(struct lruvec *lruvec, struct zone *zone)
+ 	spin_unlock_irq(&zone->lru_lock);
  }
  
 +/*
-+ * Ensure that the ->recent_pressure statistics for this lruvec are
-+ * aged to the same degree as those elsewhere in the system, before
-+ * we do reclaim on this lruvec or evaluate its reclaim priority.
++ * The higher the LRU score, the more desirable it is to reclaim
++ * from this LRU set first. The score is a function of the fraction
++ * of recently scanned pages on the LRU that are in active use,
++ * as well as the size of the list and the amount of memory pressure
++ * that has been put on this LRU recently.
++ *
++ *          recent_scanned        size
++ * score =  -------------- x --------------- x adjustment
++ *          recent_rotated   recent_pressure
++ *
++ * The maximum score of the anon and file list in this lruvec
++ * is returned. Adjustments are made for the file LRU having
++ * lots of inactive pages (mostly streaming IO), or the memcg
++ * being over its soft limit.
++ *
++ * This function should return a positive number for any lruvec
++ * with more than a handful of resident pages, because recent_scanned
++ * should always be larger than recent_rotated, and the size should
++ * always be larger than recent_pressure.
 + */
-+static DEFINE_SPINLOCK(recent_pressure_lock);
-+static int recent_pressure_seq;
-+static void age_recent_pressure(struct lruvec *lruvec, struct zone *zone)
++static u64 reclaim_score(struct mem_cgroup *memcg,
++			 struct lruvec *lruvec)
 +{
 +	struct zone_reclaim_stat *reclaim_stat = &lruvec->reclaim_stat;
-+	unsigned long anon  = get_lru_size(lruvec, LRU_ACTIVE_ANON) +
-+			      get_lru_size(lruvec, LRU_INACTIVE_ANON);
-+	unsigned long file  = get_lru_size(lruvec, LRU_ACTIVE_FILE) +
-+			      get_lru_size(lruvec, LRU_INACTIVE_FILE);
-+	int shift;
++	u64 anon, file;
++
++	anon  = get_lru_size(lruvec, LRU_ACTIVE_ANON) +
++	        get_lru_size(lruvec, LRU_INACTIVE_ANON);
++	anon *= reclaim_stat->recent_scanned[0];
++	anon /= (reclaim_stat->recent_rotated[0] + 1);
++	anon /= (reclaim_stat->recent_pressure[0] + 1);
++
++	file = get_lru_size(lruvec, LRU_ACTIVE_FILE) +
++	       get_lru_size(lruvec, LRU_INACTIVE_FILE);
++	file *= reclaim_stat->recent_scanned[1];
++	file /= (reclaim_stat->recent_rotated[1] + 1);
++	file /= (reclaim_stat->recent_pressure[1] + 1);
 +
 +	/*
-+	 * Do not bother recalculating unless we are behind with the
-+	 * system wide statistics, or our local recent_pressure numbers
-+	 * have grown too large. We have to keep the number somewhat
-+	 * small, to ensure that reclaim_score returns non-zero.
++	 * Give a STRONG preference to reclaiming memory from lruvecs
++	 * that belong to a cgroup that is over its soft limit.
 +	 */
-+	if (reclaim_stat->recent_pressure_seq != recent_pressure_seq &&
-+			reclaim_stat->recent_pressure[0] < anon / 4 &&
-+			reclaim_stat->recent_pressure[1] < file / 4)
-+		return;
++	if (mem_cgroup_over_soft_limit(memcg)) {
++		file *= 10000;
++		anon *= 10000;
++	}
 +
-+	spin_lock(&recent_pressure_lock);
-+	/*
-+	 * If we are aging due to local activity, increment the global
-+	 * sequence counter. Leave the global counter alone if we are
-+	 * merely playing catchup.
-+	 */
-+	if (reclaim_stat->recent_pressure_seq == recent_pressure_seq)
-+		recent_pressure_seq++;
-+	shift = recent_pressure_seq - reclaim_stat->recent_pressure_seq;
-+	shift = min(shift, (BITS_PER_LONG-1));
-+	reclaim_stat->recent_pressure_seq = recent_pressure_seq;
-+	spin_unlock(&recent_pressure_lock);
-+
-+	/* For every aging interval, do one division by two. */
-+	spin_lock_irq(&zone->lru_lock);
-+	reclaim_stat->recent_pressure[0] >>= shift;
-+	reclaim_stat->recent_pressure[1] >>= shift;
-+	spin_unlock_irq(&zone->lru_lock);
++	return max(anon, file);
 +}
 +
  static void shrink_zone(struct zone *zone, struct scan_control *sc)
  {
  	struct mem_cgroup *root = sc->target_mem_cgroup;
-@@ -1869,6 +1918,8 @@ static void shrink_zone(struct zone *zone, struct scan_control *sc)
- 	do {
- 		struct lruvec *lruvec = mem_cgroup_zone_lruvec(zone, memcg);
+@@ -1908,11 +1959,17 @@ static void shrink_zone(struct zone *zone, struct scan_control *sc)
+ 		.zone = zone,
+ 		.priority = sc->priority,
+ 	};
+-	struct mem_cgroup *memcg;
+-	bool over_softlimit, ignore_softlimit = false;
++	unsigned long nr_scanned = sc->nr_scanned;
++	unsigned long nr_scanned_this_round;
++	struct mem_cgroup *memcg, *victim_memcg;
++	struct lruvec *victim_lruvec;
++	u64 score, max_score;
  
-+		age_recent_pressure(lruvec, zone);
+ restart:
+-	over_softlimit = false;
++	nr_scanned_this_round = sc->nr_scanned;
++	victim_lruvec = NULL;
++	victim_memcg = NULL;
++	max_score = 0;
+ 
+ 	memcg = mem_cgroup_iter(root, NULL, &reclaim);
+ 	do {
+@@ -1920,48 +1977,52 @@ static void shrink_zone(struct zone *zone, struct scan_control *sc)
+ 
+ 		age_recent_pressure(lruvec, zone);
+ 
+-		/*
+-		 * Reclaim from mem_cgroup if any of these conditions are met:
+-		 * - this is a targetted reclaim ( not global reclaim)
+-		 * - reclaim priority is less than  DEF_PRIORITY - 2
+-		 * - mem_cgroup or its ancestor ( not including root cgroup)
+-		 * exceeds its soft limit
+-		 *
+-		 * Note: The priority check is a balance of how hard to
+-		 * preserve the pages under softlimit. If the memcgs of the
+-		 * zone having trouble to reclaim pages above their softlimit,
+-		 * we have to reclaim under softlimit instead of burning more
+-		 * cpu cycles.
+-		 */
+-		if (ignore_softlimit || !global_reclaim(sc) ||
+-				sc->priority < DEF_PRIORITY - 2 ||
+-				mem_cgroup_over_soft_limit(memcg)) {
+-			shrink_lruvec(lruvec, sc);
++		score = reclaim_score(memcg, lruvec);
+ 
+-			over_softlimit = true;
++		/* Pick the lruvec with the highest score. */
++		if (score > max_score) {
++			max_score = score;
++			if (victim_memcg)
++				mem_cgroup_put(victim_memcg);
++			mem_cgroup_get(memcg);
++			victim_lruvec = lruvec;
++			victim_memcg = memcg;
+ 		}
+ 
+-		/*
+-		 * Limit reclaim has historically picked one memcg and
+-		 * scanned it with decreasing priority levels until
+-		 * nr_to_reclaim had been reclaimed.  This priority
+-		 * cycle is thus over after a single memcg.
+-		 *
+-		 * Direct reclaim and kswapd, on the other hand, have
+-		 * to scan all memory cgroups to fulfill the overall
+-		 * scan target for the zone.
+-		 */
+-		if (!global_reclaim(sc)) {
+-			mem_cgroup_iter_break(root, memcg);
+-			break;
+-		}
+ 		memcg = mem_cgroup_iter(root, memcg, &reclaim);
+ 	} while (memcg);
+ 
+-	if (!over_softlimit) {
+-		ignore_softlimit = true;
++	/* No lruvec in our set is suitable for reclaiming. */
++	if (!victim_lruvec)
++		return;
 +
- 		/*
- 		 * Reclaim from mem_cgroup if any of these conditions are met:
- 		 * - this is a targetted reclaim ( not global reclaim)
++	/*
++	 * Reclaim from the top scoring lruvec until we freed enough
++	 * pages, or its reclaim priority has halved.
++	 */
++	do {
++		shrink_lruvec(victim_lruvec, sc);
++		score = reclaim_score(memcg, victim_lruvec);
++	} while (sc->nr_to_reclaim > 0 && score > max_score / 2);
++
++	mem_cgroup_put(victim_memcg);
++
++	/*
++	 * The shrinking code increments sc->nr_scanned for every
++	 * page scanned. If we failed to scan any pages from the
++	 * top reclaim victim, bail out to prevent a livelock.
++	 */
++	if (sc->nr_scanned == nr_scanned_this_round)
++		return;
++
++	/*
++	 * Do we need to reclaim more pages?
++	 * Did we scan fewer pages than the current priority allows?
++	 */
++	if (sc->nr_to_reclaim > 0 &&
++			sc->nr_scanned - nr_scanned <
++			zone_reclaimable_pages(zone) >> sc->priority)
+ 		goto restart;
+-	}
+ }
+ 
+ /* Returns true if compaction should go ahead for a high-order request */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
