@@ -1,58 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
-	by kanga.kvack.org (Postfix) with SMTP id 3BFA76B0044
-	for <linux-mm@kvack.org>; Thu, 16 Aug 2012 15:20:25 -0400 (EDT)
-Date: Thu, 16 Aug 2012 12:20:23 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH, RFC 0/9] Introduce huge zero page
-Message-Id: <20120816122023.c0e9bbc0.akpm@linux-foundation.org>
-In-Reply-To: <1344503300-9507-1-git-send-email-kirill.shutemov@linux.intel.com>
-References: <1344503300-9507-1-git-send-email-kirill.shutemov@linux.intel.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
+	by kanga.kvack.org (Postfix) with SMTP id 3F6906B0044
+	for <linux-mm@kvack.org>; Thu, 16 Aug 2012 15:26:24 -0400 (EDT)
+Received: by pbbro12 with SMTP id ro12so2254912pbb.14
+        for <linux-mm@kvack.org>; Thu, 16 Aug 2012 12:26:23 -0700 (PDT)
+Date: Thu, 16 Aug 2012 12:26:20 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: [patch] mm, slab: remove dflags
+Message-ID: <alpine.DEB.2.00.1208161225480.28427@chino.kir.corp.google.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, "H. Peter Anvin" <hpa@linux.intel.com>, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill@shutemov.name>
+To: Pekka Enberg <penberg@kernel.org>
+Cc: Christoph Lameter <cl@linux-foundation.org>, linux-mm@kvack.org
 
-On Thu,  9 Aug 2012 12:08:11 +0300
-"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> wrote:
+cachep->dflags is never referenced, so remove it.
 
-> During testing I noticed big (up to 2.5 times) memory consumption overhead
-> on some workloads (e.g. ft.A from NPB) if THP is enabled.
-> 
-> The main reason for that big difference is lacking zero page in THP case.
-> We have to allocate a real page on read page fault.
-> 
-> A program to demonstrate the issue:
-> #include <assert.h>
-> #include <stdlib.h>
-> #include <unistd.h>
-> 
-> #define MB 1024*1024
-> 
-> int main(int argc, char **argv)
-> {
->         char *p;
->         int i;
-> 
->         posix_memalign((void **)&p, 2 * MB, 200 * MB);
->         for (i = 0; i < 200 * MB; i+= 4096)
->                 assert(p[i] == 0);
->         pause();
->         return 0;
-> }
-> 
-> With thp-never RSS is about 400k, but with thp-always it's 200M.
-> After the patcheset thp-always RSS is 400k too.
+Signed-off-by: David Rientjes <rientjes@google.com>
+---
+ include/linux/slab_def.h |    1 -
+ 1 files changed, 0 insertions(+), 1 deletions(-)
 
-That's a pretty big improvement for a rather fake test case.  I wonder
-how much benefit we'd see with real workloads?
-
-Things are rather quiet at present, with summer and beaches and Kernel
-Summit coming up.  Please resend these patches early next month and
-let's see if we can get a bit of action happening?
+diff --git a/include/linux/slab_def.h b/include/linux/slab_def.h
+--- a/include/linux/slab_def.h
++++ b/include/linux/slab_def.h
+@@ -45,7 +45,6 @@ struct kmem_cache {
+ 	unsigned int colour_off;	/* colour offset */
+ 	struct kmem_cache *slabp_cache;
+ 	unsigned int slab_size;
+-	unsigned int dflags;		/* dynamic flags */
+ 
+ 	/* constructor func */
+ 	void (*ctor)(void *obj);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
