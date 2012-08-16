@@ -1,147 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
-	by kanga.kvack.org (Postfix) with SMTP id 827A36B0044
-	for <linux-mm@kvack.org>; Thu, 16 Aug 2012 15:27:41 -0400 (EDT)
-Date: Thu, 16 Aug 2012 21:27:38 +0200
+Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
+	by kanga.kvack.org (Postfix) with SMTP id 4AF846B0044
+	for <linux-mm@kvack.org>; Thu, 16 Aug 2012 15:40:29 -0400 (EDT)
+Date: Thu, 16 Aug 2012 21:40:24 +0200
 From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH, RFC 7/9] thp: implement splitting pmd for huge zero page
-Message-ID: <20120816192738.GO11188@redhat.com>
+Subject: Re: [PATCH, RFC 0/9] Introduce huge zero page
+Message-ID: <20120816194024.GP11188@redhat.com>
 References: <1344503300-9507-1-git-send-email-kirill.shutemov@linux.intel.com>
- <1344503300-9507-8-git-send-email-kirill.shutemov@linux.intel.com>
+ <20120816122023.c0e9bbc0.akpm@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1344503300-9507-8-git-send-email-kirill.shutemov@linux.intel.com>
+In-Reply-To: <20120816122023.c0e9bbc0.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, "H. Peter Anvin" <hpa@linux.intel.com>, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill@shutemov.name>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, "H. Peter Anvin" <hpa@linux.intel.com>, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill@shutemov.name>
 
-On Thu, Aug 09, 2012 at 12:08:18PM +0300, Kirill A. Shutemov wrote:
-> +static void __split_huge_zero_page_pmd(struct mm_struct *mm, pmd_t *pmd,
-> +		unsigned long address)
-> +{
-> +	pgtable_t pgtable;
-> +	pmd_t _pmd;
-> +	unsigned long haddr = address & HPAGE_PMD_MASK;
-> +	struct vm_area_struct *vma;
-> +	int i;
-> +
-> +	vma = find_vma(mm, address);
-> +	VM_BUG_ON(vma == NULL);
+Hi Andrew,
 
-I think you can use BUG_ON here just in case but see below how I would
-change it.
+On Thu, Aug 16, 2012 at 12:20:23PM -0700, Andrew Morton wrote:
+> That's a pretty big improvement for a rather fake test case.  I wonder
+> how much benefit we'd see with real workloads?
 
-> +	pmdp_clear_flush_notify(vma, haddr, pmd);
-> +	/* leave pmd empty until pte is filled */
-> +
-> +	pgtable = get_pmd_huge_pte(mm);
-> +	pmd_populate(mm, &_pmd, pgtable);
-> +
-> +	for (i = 0; i < HPAGE_PMD_NR; i++, haddr += PAGE_SIZE) {
-> +		pte_t *pte, entry;
-> +		entry = pfn_pte(my_zero_pfn(haddr), vma->vm_page_prot);
-> +		entry = pte_mkspecial(entry);
-> +		pte = pte_offset_map(&_pmd, haddr);
-> +		VM_BUG_ON(!pte_none(*pte));
-> +		set_pte_at(mm, haddr, pte, entry);
-> +		pte_unmap(pte);
-> +	}
-> +	smp_wmb(); /* make pte visible before pmd */
-> +	pmd_populate(mm, pmd, pgtable);
-> +}
-> +
+The same discussion happened about the zero page in general and
+there's no easy answer. I seem to recall that it was dropped at some
+point and then we reintroduced the zero page later.
 
-The last pmd_populate will corrupt memory.
+Most of the time it won't be worth it, it's just a few pathological
+compute loads that benefits IIRC. So I'm overall positive about it
+(after it's stable).
 
-See the comment in __split_huge_page_splitting. If you set it to none
-at any given time, a new page fault will instantiate a hugepmd
-thinking it's the first fault and then you'll overwrite it leaking
-memory and corrupting userland.
-
-The caller may be holding the mmap_sem in read mode too (pagewalk is
-an example). The PSE bit must also remain on at all times.
-
-The non present bit must be clear and a tlb flush must happen before
-the final pmd_populate with the regular pmd to avoid tripping machine
-checks on some CPU (to avoid a 4k and 2m tlb to appear for the same
-vaddr).
-
-I think you should replace pmdp_clear_flush_notify with:
-
-  	    	pmdp_splitting_flush_notify(vma, haddr, pmd);
-
-then build the 4k zero pages in the loop using the temporary _pmd set with
-pmd_populate(&_pmd) and then:
-
-
-		/*
-		 * Up to this point the pmd is present and huge and
-		 * userland has the whole access to the hugepage
-		 * during the split (which happens in place). If we
-		 * overwrite the pmd with the not-huge version
-		 * pointing to the pte here (which of course we could
-		 * if all CPUs were bug free), userland could trigger
-		 * a small page size TLB miss on the small sized TLB
-		 * while the hugepage TLB entry is still established
-		 * in the huge TLB. Some CPU doesn't like that. See
-		 * http://support.amd.com/us/Processor_TechDocs/41322.pdf,
-		 * Erratum 383 on page 93. Intel should be safe but is
-		 * also warns that it's only safe if the permission
-		 * and cache attributes of the two entries loaded in
-		 * the two TLB is identical (which should be the case
-		 * here). But it is generally safer to never allow
-		 * small and huge TLB entries for the same virtual
-		 * address to be loaded simultaneously. So instead of
-		 * doing "pmd_populate(); flush_tlb_range();" we first
-		 * mark the current pmd notpresent (atomically because
-		 * here the pmd_trans_huge and pmd_trans_splitting
-		 * must remain set at all times on the pmd until the
-		 * split is complete for this pmd), then we flush the
-		 * SMP TLB and finally we write the non-huge version
-		 * of the pmd entry with pmd_populate.
-		 */
-		set_pmd_at(mm, address, pmd, pmd_mknotpresent(*pmd));
-		flush_tlb_range(vma, address, address + HPAGE_PMD_SIZE);
-		pmd_populate(mm, pmd, pgtable);
-
-note address above is actually haddr aligned (generated by
-vma_address(page, vma) where page is a thp page)
-
-> +	if (is_huge_zero_pmd(*pmd)) {
-> +		__split_huge_zero_page_pmd(mm, pmd, address);
-
-This will work fine but it's a bit sad having to add "address" at
-every call, just to run a find_vma(). The only place that doesn't have
-a vma already on the caller stack is actually pagewalk, all other
-places already have a vma on the stack without having to find it with
-the rbtree.
-
-I think it may be better to change the param to
-split_huge_page_pmd(vma, pmd).
-
-Then have standard split_huge_page_pmd obtain the mm with vma->vm_mm
-(most callers already calles it with split_huge_page_pmd(vma->vm_mm)
-so it won't alter the cost to do vma->vm_mm in caller or callee).
-
-split_huge_page_address also should take the vma (all callers are
-invoking it as split_huge_page_address(vma->vm_mm) so it'll be zero
-cost change).
-
-Then we can add a split_huge_page_pmd_mm(mm, address, pmd) or
-split_huge_page_pmd_address(mm, address, pmd) (call it as you
-prefer...) only for the pagewalk caller that will do the find_vma and
-BUG_ON if it's not found.
-
-In that new split_huge_page_pmd_mm you can also add a BUG_ON checking
-vma->vm_start to be <= haddr and vma->vm_end >= haddr+HPAGE_PMD_SIZE
-in addition to BUG_ON(!vma) above, for more robustness. I'm not aware
-of any place calling it without mmap_sem hold at least for reading
-and the vma must be stable, but more debug checks won't hurt.
-
-Thanks!
-Andrea
+Because this is done the right way (i.e. to allocate an hugepage at
+the first wp fault, and to fallback exclusively if compaction fails)
+it will help much less than the 4k zero pages if the zero pages are
+scattered over the address space and not contiguous (it only helps if
+there are 512 of them in a row). OTOH if they're contiguous, the huge
+zero pages will perform better than the 4k zero pages.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
