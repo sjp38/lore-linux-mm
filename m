@@ -1,86 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx165.postini.com [74.125.245.165])
-	by kanga.kvack.org (Postfix) with SMTP id F026D6B0072
-	for <linux-mm@kvack.org>; Thu, 16 Aug 2012 11:25:58 -0400 (EDT)
-Message-ID: <502D1045.4070807@parallels.com>
-Date: Thu, 16 Aug 2012 19:22:45 +0400
-From: Glauber Costa <glommer@parallels.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH v2 06/11] memcg: kmem controller infrastructure
-References: <1344517279-30646-1-git-send-email-glommer@parallels.com> <1344517279-30646-7-git-send-email-glommer@parallels.com> <20120814172540.GD6905@dhcp22.suse.cz> <502B6F00.8040207@parallels.com> <20120815130952.GI23985@dhcp22.suse.cz> <502BABCF.7020608@parallels.com> <20120815142338.GL23985@dhcp22.suse.cz> <502BB1E1.5080403@parallels.com> <20120816095309.GB2817@dhcp22.suse.cz> <502CC3F3.5060706@parallels.com> <20120816150518.GE2817@dhcp22.suse.cz>
-In-Reply-To: <20120816150518.GE2817@dhcp22.suse.cz>
-Content-Type: text/plain; charset="ISO-8859-1"
+Received: from psmtp.com (na3sys010amx202.postini.com [74.125.245.202])
+	by kanga.kvack.org (Postfix) with SMTP id 3F3EA6B0069
+	for <linux-mm@kvack.org>; Thu, 16 Aug 2012 11:40:23 -0400 (EDT)
+Date: Thu, 16 Aug 2012 11:36:22 -0400
+From: Rik van Riel <riel@redhat.com>
+Subject: [RFC][PATCH -mm -v2 2/4] mm,memcontrol: export mem_cgroup_get/put
+Message-ID: <20120816113622.58c1bc85@cuia.bos.redhat.com>
+In-Reply-To: <20120816113450.52f4e633@cuia.bos.redhat.com>
+References: <20120816113450.52f4e633@cuia.bos.redhat.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, devel@openvz.org, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, kamezawa.hiroyu@jp.fujitsu.com, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, Pekka Enberg <penberg@cs.helsinki.fi>
+To: linux-mm@kvack.org
+Cc: yinghan@google.com, aquini@redhat.com, hannes@cmpxchg.org, mhocko@suse.cz, Mel Gorman <mel@csn.ul.ie>
 
-On 08/16/2012 07:05 PM, Michal Hocko wrote:
-> On Thu 16-08-12 13:57:07, Glauber Costa wrote:
->> On 08/16/2012 01:53 PM, Michal Hocko wrote:
->>> On Wed 15-08-12 18:27:45, Glauber Costa wrote:
->>>>
->>>>>>
->>>>>> I see now, you seem to be right.
->>>>>
->>>>> No I am not because it seems that I am really blind these days...
->>>>> We were doing this in mem_cgroup_do_charge for ages:
->>>>> 	if (!(gfp_mask & __GFP_WAIT))
->>>>>                 return CHARGE_WOULDBLOCK;
->>>>>
->>>>> /me goes to hide and get with further feedback with a clean head.
->>>>>
->>>>> Sorry about that.
->>>>>
->>>> I am as well, since I went to look at mem_cgroup_do_charge() and missed
->>>> that.
->>>
->>> I thought we are not doing atomic allocations in user pages accounting
->>> but I was obviously wrong because at least shmem uses atomic
->>> allocations for ages.
->>>
->>>> Do you have any other concerns specific to this patch ?
->>>
->>> I understood you changed also handle thingy. So the patch should be
->>> correct.
->>> Do you plan to send an updated version?
->>>
->> That depends more on you than on me! =)
->>
->> Do you still have any concerns regarding the u+k charging as it stands
->> now? That would be the last big concern I heard during this iteration.
-> 
-> Well, I am still not 100% sure because I still see technical
-> difficulties that are not addressed by the patchset (memcg-oom, memcg
-> slab shrinking, possibly others). More importantly this is changing the
-> current semantic of the limit so we should better be careful about it
-> and check that we are not making the code tight to specific workloads
-> without a way out.
-> 
-> On the other hand I do not want to block the progress here without
-> having _really_ good arguments against that couldn't be handled later
-> (and it seems that some of my concerns are work in progress already).
-> 
-> I have to admit I like several things about the patchset. Especially the
-> way how it enables easy-to-setup (aka don't care about kmem details just
-> make sure you can cap the thing) as well as "I know exactly what I want
-> to do" usecases.
-> It is also good nice that only users of the feature are affected by
-> potential issues.
-> 
-> So I think it is worth a broader attention which could produce other use
-> cases which could show potential drawbacks from the u+k semantic but I
-> would be still very careful about merging it to the Linus tree and only
-> merge it after at least the memcg reclaim path is slab aware. Living in
-> the -mm tree should help us with the testing converage.
-> 
-> Does it sounds reasonable?
-> 
-What I really want is to have it in an "official" tree so it starts
-getting used and tested without me having to rebase at every single change.
+The page reclaim code should keep a reference to a cgroup while
+reclaiming from that cgroup.  In order to do this when selecting
+the highest score cgroup for reclaim, the VM code needs access
+to refcounting functions for the memory cgroup code.
 
-If Andrew is okay merging this into -mm, it is fine for me.
+Signed-off-by: Rik van Riel <riel@redhat.com>
+---
+ include/linux/memcontrol.h |   11 +++++++++++
+ mm/memcontrol.c            |    6 ++----
+ 2 files changed, 13 insertions(+), 4 deletions(-)
+
+diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+index 65538f9..c4cc64c 100644
+--- a/include/linux/memcontrol.h
++++ b/include/linux/memcontrol.h
+@@ -65,6 +65,9 @@ extern int mem_cgroup_cache_charge(struct page *page, struct mm_struct *mm,
+ struct lruvec *mem_cgroup_zone_lruvec(struct zone *, struct mem_cgroup *);
+ struct lruvec *mem_cgroup_page_lruvec(struct page *, struct zone *);
+ 
++extern void mem_cgroup_get(struct mem_cgroup *memcg);
++extern void mem_cgroup_put(struct mem_cgroup *memcg);
++
+ /* For coalescing uncharge for reducing memcg' overhead*/
+ extern void mem_cgroup_uncharge_start(void);
+ extern void mem_cgroup_uncharge_end(void);
+@@ -298,6 +301,14 @@ static inline void mem_cgroup_iter_break(struct mem_cgroup *root,
+ {
+ }
+ 
++static inline void mem_cgroup_get(struct mem_cgroup *memcg)
++{
++}
++
++static inline void mem_cgroup_put(struct mem_cgroup *memcg)
++{
++}
++
+ static inline bool mem_cgroup_disabled(void)
+ {
+ 	return true;
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index a18a0d5..376f680 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -368,8 +368,6 @@ enum charge_type {
+ #define MEM_CGROUP_RECLAIM_SHRINK_BIT	0x1
+ #define MEM_CGROUP_RECLAIM_SHRINK	(1 << MEM_CGROUP_RECLAIM_SHRINK_BIT)
+ 
+-static void mem_cgroup_get(struct mem_cgroup *memcg);
+-static void mem_cgroup_put(struct mem_cgroup *memcg);
+ static bool mem_cgroup_is_root(struct mem_cgroup *memcg);
+ 
+ /* Writing them here to avoid exposing memcg's inner layout */
+@@ -4492,7 +4490,7 @@ static void __mem_cgroup_free(struct mem_cgroup *memcg)
+ 	call_rcu(&memcg->rcu_freeing, free_rcu);
+ }
+ 
+-static void mem_cgroup_get(struct mem_cgroup *memcg)
++void mem_cgroup_get(struct mem_cgroup *memcg)
+ {
+ 	atomic_inc(&memcg->refcnt);
+ }
+@@ -4507,7 +4505,7 @@ static void __mem_cgroup_put(struct mem_cgroup *memcg, int count)
+ 	}
+ }
+ 
+-static void mem_cgroup_put(struct mem_cgroup *memcg)
++void mem_cgroup_put(struct mem_cgroup *memcg)
+ {
+ 	__mem_cgroup_put(memcg, 1);
+ }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
