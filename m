@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx202.postini.com [74.125.245.202])
-	by kanga.kvack.org (Postfix) with SMTP id 3F3EA6B0069
+Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
+	by kanga.kvack.org (Postfix) with SMTP id 425096B006C
 	for <linux-mm@kvack.org>; Thu, 16 Aug 2012 11:40:23 -0400 (EDT)
-Date: Thu, 16 Aug 2012 11:36:22 -0400
+Date: Thu, 16 Aug 2012 11:38:05 -0400
 From: Rik van Riel <riel@redhat.com>
-Subject: [RFC][PATCH -mm -v2 2/4] mm,memcontrol: export mem_cgroup_get/put
-Message-ID: <20120816113622.58c1bc85@cuia.bos.redhat.com>
+Subject: [RFC][PATCH -mm -v2 4/4] mm,vmscan: evict inactive file pages first
+Message-ID: <20120816113805.5ae65af0@cuia.bos.redhat.com>
 In-Reply-To: <20120816113450.52f4e633@cuia.bos.redhat.com>
 References: <20120816113450.52f4e633@cuia.bos.redhat.com>
 Mime-Version: 1.0
@@ -16,77 +16,107 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: yinghan@google.com, aquini@redhat.com, hannes@cmpxchg.org, mhocko@suse.cz, Mel Gorman <mel@csn.ul.ie>
 
-The page reclaim code should keep a reference to a cgroup while
-reclaiming from that cgroup.  In order to do this when selecting
-the highest score cgroup for reclaim, the VM code needs access
-to refcounting functions for the memory cgroup code.
+When a lot of streaming file IO is happening, it makes sense to
+evict just the inactive file pages and leave the other LRU lists
+alone.
+
+Likewise, when driving a cgroup hierarchy into its hard limit,
+or over its soft limit, it makes sense to pick a child cgroup
+that has lots of inactive file pages, and evict those first.
+
+Being over its soft limit is considered a stronger preference
+than just having a lot of inactive file pages, so a well behaved
+cgroup is allowed to keep its file cache when there is a "badly
+behaving" one in the same hierarchy.
 
 Signed-off-by: Rik van Riel <riel@redhat.com>
 ---
- include/linux/memcontrol.h |   11 +++++++++++
- mm/memcontrol.c            |    6 ++----
- 2 files changed, 13 insertions(+), 4 deletions(-)
+ mm/vmscan.c |   37 +++++++++++++++++++++++++++++++++----
+ 1 files changed, 33 insertions(+), 4 deletions(-)
 
-diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index 65538f9..c4cc64c 100644
---- a/include/linux/memcontrol.h
-+++ b/include/linux/memcontrol.h
-@@ -65,6 +65,9 @@ extern int mem_cgroup_cache_charge(struct page *page, struct mm_struct *mm,
- struct lruvec *mem_cgroup_zone_lruvec(struct zone *, struct mem_cgroup *);
- struct lruvec *mem_cgroup_page_lruvec(struct page *, struct zone *);
- 
-+extern void mem_cgroup_get(struct mem_cgroup *memcg);
-+extern void mem_cgroup_put(struct mem_cgroup *memcg);
-+
- /* For coalescing uncharge for reducing memcg' overhead*/
- extern void mem_cgroup_uncharge_start(void);
- extern void mem_cgroup_uncharge_end(void);
-@@ -298,6 +301,14 @@ static inline void mem_cgroup_iter_break(struct mem_cgroup *root,
- {
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 769fdcd..2884b4f 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -1576,6 +1576,19 @@ static int inactive_list_is_low(struct lruvec *lruvec, enum lru_list lru)
+ 		return inactive_anon_is_low(lruvec);
  }
  
-+static inline void mem_cgroup_get(struct mem_cgroup *memcg)
++/* If this lruvec has lots of inactive file pages, reclaim those only. */
++static bool reclaim_file_only(struct lruvec *lruvec, struct scan_control *sc,
++			      unsigned long anon, unsigned long file)
 +{
++	if (inactive_file_is_low(lruvec))
++		return false;
++
++	if (file > (anon + file) >> sc->priority)
++		return true;
++
++	return false;
 +}
 +
-+static inline void mem_cgroup_put(struct mem_cgroup *memcg)
-+{
-+}
-+
- static inline bool mem_cgroup_disabled(void)
+ static unsigned long shrink_list(enum lru_list lru, unsigned long nr_to_scan,
+ 				 struct lruvec *lruvec, struct scan_control *sc)
  {
- 	return true;
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index a18a0d5..376f680 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -368,8 +368,6 @@ enum charge_type {
- #define MEM_CGROUP_RECLAIM_SHRINK_BIT	0x1
- #define MEM_CGROUP_RECLAIM_SHRINK	(1 << MEM_CGROUP_RECLAIM_SHRINK_BIT)
- 
--static void mem_cgroup_get(struct mem_cgroup *memcg);
--static void mem_cgroup_put(struct mem_cgroup *memcg);
- static bool mem_cgroup_is_root(struct mem_cgroup *memcg);
- 
- /* Writing them here to avoid exposing memcg's inner layout */
-@@ -4492,7 +4490,7 @@ static void __mem_cgroup_free(struct mem_cgroup *memcg)
- 	call_rcu(&memcg->rcu_freeing, free_rcu);
- }
- 
--static void mem_cgroup_get(struct mem_cgroup *memcg)
-+void mem_cgroup_get(struct mem_cgroup *memcg)
- {
- 	atomic_inc(&memcg->refcnt);
- }
-@@ -4507,7 +4505,7 @@ static void __mem_cgroup_put(struct mem_cgroup *memcg, int count)
+@@ -1658,6 +1671,14 @@ static void get_scan_count(struct lruvec *lruvec, struct scan_control *sc,
+ 		}
  	}
+ 
++	/* Lots of inactive file pages? Reclaim those only. */
++	if (reclaim_file_only(lruvec, sc, anon, file)) {
++		fraction[0] = 0;
++		fraction[1] = 1;
++		denominator = 1;
++		goto out;
++	}
++
+ 	/*
+ 	 * With swappiness at 100, anonymous and file have the same priority.
+ 	 * This scanning priority is essentially the inverse of IO cost.
+@@ -1922,8 +1943,8 @@ static void age_recent_pressure(struct lruvec *lruvec, struct zone *zone)
+  * should always be larger than recent_rotated, and the size should
+  * always be larger than recent_pressure.
+  */
+-static u64 reclaim_score(struct mem_cgroup *memcg,
+-			 struct lruvec *lruvec)
++static u64 reclaim_score(struct mem_cgroup *memcg, struct lruvec *lruvec,
++			 struct scan_control *sc)
+ {
+ 	struct zone_reclaim_stat *reclaim_stat = &lruvec->reclaim_stat;
+ 	u64 anon, file;
+@@ -1949,6 +1970,14 @@ static u64 reclaim_score(struct mem_cgroup *memcg,
+ 		anon *= 10000;
+ 	}
+ 
++	/*
++	 * Prefer reclaiming from an lruvec with lots of inactive file
++	 * pages. Once those have been reclaimed, the score will drop so
++	 * far we will pick another lruvec to reclaim from.
++	 */
++	if (reclaim_file_only(lruvec, sc, anon, file))
++		file *= 100;
++
+ 	return max(anon, file);
  }
  
--static void mem_cgroup_put(struct mem_cgroup *memcg)
-+void mem_cgroup_put(struct mem_cgroup *memcg)
- {
- 	__mem_cgroup_put(memcg, 1);
- }
+@@ -1977,7 +2006,7 @@ static void shrink_zone(struct zone *zone, struct scan_control *sc)
+ 
+ 		age_recent_pressure(lruvec, zone);
+ 
+-		score = reclaim_score(memcg, lruvec);
++		score = reclaim_score(memcg, lruvec, sc);
+ 
+ 		/* Pick the lruvec with the highest score. */
+ 		if (score > max_score) {
+@@ -2002,7 +2031,7 @@ static void shrink_zone(struct zone *zone, struct scan_control *sc)
+ 	 */
+ 	do {
+ 		shrink_lruvec(victim_lruvec, sc);
+-		score = reclaim_score(memcg, victim_lruvec);
++		score = reclaim_score(memcg, victim_lruvec, sc);
+ 	} while (sc->nr_to_reclaim > 0 && score > max_score / 2);
+ 
+ 	mem_cgroup_put(victim_memcg);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
