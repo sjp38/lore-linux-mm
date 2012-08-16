@@ -1,65 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
-	by kanga.kvack.org (Postfix) with SMTP id E89826B005D
-	for <linux-mm@kvack.org>; Thu, 16 Aug 2012 08:45:16 -0400 (EDT)
-Received: by vcbfl10 with SMTP id fl10so2906888vcb.14
-        for <linux-mm@kvack.org>; Thu, 16 Aug 2012 05:45:16 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
+	by kanga.kvack.org (Postfix) with SMTP id A53176B005D
+	for <linux-mm@kvack.org>; Thu, 16 Aug 2012 09:17:49 -0400 (EDT)
+Received: by eeke49 with SMTP id e49so880718eek.14
+        for <linux-mm@kvack.org>; Thu, 16 Aug 2012 06:17:48 -0700 (PDT)
+From: Michal Nazarewicz <mina86@mina86.com>
+Subject: Re: [RFC 2/2] cma: support MIGRATE_DISCARD
+In-Reply-To: <20120815232023.GA15225@bbox>
+References: <1344934627-8473-1-git-send-email-minchan@kernel.org> <1344934627-8473-3-git-send-email-minchan@kernel.org> <xa1t7gt1pnck.fsf@mina86.com> <20120815232023.GA15225@bbox>
+Date: Thu, 16 Aug 2012 15:17:40 +0200
+Message-ID: <xa1twr0znfgr.fsf@mina86.com>
 MIME-Version: 1.0
-In-Reply-To: <1344866141-27906-1-git-send-email-mhocko@suse.cz>
-References: <1344866141-27906-1-git-send-email-mhocko@suse.cz>
-Date: Thu, 16 Aug 2012 20:45:15 +0800
-Message-ID: <CAJd=RBAwg0k0=8zmRh6jwAYe7Msmxw=HE8qs3YjwXrtsezr78Q@mail.gmail.com>
-Subject: Re: [PATCH] hugetlb: do not use vma_hugecache_offset for vma_prio_tree_foreach
-From: Hillf Danton <dhillf@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: multipart/mixed; boundary="=-=-="
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>, David Rientjes <rientjes@google.com>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Marek Szyprowski <m.szyprowski@samsung.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Mon, Aug 13, 2012 at 9:55 PM, Michal Hocko <mhocko@suse.cz> wrote:
-> 0c176d5 (mm: hugetlb: fix pgoff computation when unmapping page
-> from vma) fixed pgoff calculation but it has replaced it by
-> vma_hugecache_offset which is not approapriate for offsets used for
-> vma_prio_tree_foreach because that one expects index in page units
-> rather than in huge_page_shift.
-> Using vma_hugecache_offset is not incorrect because the pgoff will fit
-> into the same vmas but it is confusing so the standard PAGE_SHIFT based
-> index calculation is used instead.
->
-> Cc: Hillf Danton <dhillf@gmail.com>
-> Cc: Mel Gorman <mel@csn.ul.ie>
-> Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> Cc: Andrea Arcangeli <aarcange@redhat.com>
-> Cc: David Rientjes <rientjes@google.com>
-> Signed-off-by: Michal Hocko <mhocko@suse.cz>
-> ---
+--=-=-=
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
 
-Thanks
+> On Tue, Aug 14, 2012 at 04:19:55PM +0200, Michal Nazarewicz wrote:
+>> Since CMA is the only user of MIGRATE_DISCARD it may be worth it to
+>> guard it inside an #ifdef, eg:
 
-Acked-by: Hillf Danton <dhillf@gmail.com>
+Minchan Kim <minchan@kernel.org> writes:
+> In summary, I want to open it for potential usecases in future if anyone
+> doesn't oppose strongly.
+
+Fair enough.
+
+>>>  	if (!trylock_page(page)) {
+>>> -		if (!force || mode =3D=3D MIGRATE_ASYNC)
+>>> +		if (!force || mode & MIGRATE_ASYNC)
+
+> It's not wrong technically but for readability, NP.
+
+Yep, that was my point, thanks. :)
+
+--=20
+Best regards,                                         _     _
+.o. | Liege of Serenely Enlightened Majesty of      o' \,=3D./ `o
+..o | Computer Science,  Micha=C5=82 =E2=80=9Cmina86=E2=80=9D Nazarewicz   =
+ (o o)
+ooo +----<email/xmpp: mpn@google.com>--------------ooO--(_)--Ooo--
+--=-=-=
+Content-Type: multipart/signed; boundary="==-=-=";
+	micalg=pgp-sha1; protocol="application/pgp-signature"
+
+--==-=-=
+Content-Type: text/plain
 
 
->  mm/hugetlb.c |    3 ++-
->  1 file changed, 2 insertions(+), 1 deletion(-)
->
-> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> index c39e4be..a74ea31 100644
-> --- a/mm/hugetlb.c
-> +++ b/mm/hugetlb.c
-> @@ -2462,7 +2462,8 @@ static int unmap_ref_private(struct mm_struct *mm, struct vm_area_struct *vma,
->          * from page cache lookup which is in HPAGE_SIZE units.
->          */
->         address = address & huge_page_mask(h);
-> -       pgoff = vma_hugecache_offset(h, vma, address);
-> +       pgoff = ((address - vma->vm_start) >> PAGE_SHIFT) +
-> +                       vma->vm_pgoff;
->         mapping = vma->vm_file->f_dentry->d_inode->i_mapping;
->
->         /*
-> --
-> 1.7.10.4
->
+--==-=-=
+Content-Type: application/pgp-signature
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.10 (GNU/Linux)
+
+iQIcBAEBAgAGBQJQLPL0AAoJECBgQBJQdR/0GeEP/iRcc7bd6j8GvshNvmU8amgt
+Hh0+A/Gb6jygt0ieRQDZcb/qC/ODYLuHQ4NMmns1mXbpswItIvmgBg1pQoblzZo0
+3UOsST2EzJm5UtFaLzw4vqoXtUwvI5pQUx+qRtS3ROvZqQeCreRn5au2hWPMhTlY
+0bAgFED9KX1rihMp+gn8ega96Lon/0Sdnc+yfQgMFfRl9kXGRauVUrnREO2nMj9o
+kg8NM/syC/I/t3D7sL8ifq5mbe2bIOZMCV0o0vbMrpEs1bQaIsOsD5F8+4XG98kH
+6vy5oAwqRNnFWjcR5QdG5dp+gcr/OArewDsRX5I49iIB8IuhkJvnfWQtbVVZy98B
+ozNdmI5PANN6Kzs7mm0prtHsoiNvY/ODf3UatAK/w5ru+UJW7+SnC0e2pYmjlGhR
+Qsrhio5x5geFjSV6iszA54rl313D9mzVSmNONgtKDj06ATAwRpMRErlh6huK32Zu
+G5XVIoIXaljlPpOBtT59sEUpmt0FXiX5dCmInIPJkZdXuf4vnibyQlgO126zzoMU
+/c7Bjw7RwGgAK3euKJVd69Ro/GS1PIzmfF+Q9+Dk3B/ZyTCEkLeNWxfSf912si4o
+BOK4KrM5kjn7gZLYPWxBJ38sU43Oonix6gsaXG8GGCFRhtxQSjayszyH5lDdWl7f
+YhSR0kdZ7FICbt9E2kuI
+=mflS
+-----END PGP SIGNATURE-----
+--==-=-=--
+
+--=-=-=--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
