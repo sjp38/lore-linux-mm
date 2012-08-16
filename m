@@ -1,50 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
-	by kanga.kvack.org (Postfix) with SMTP id 7B3E96B002B
-	for <linux-mm@kvack.org>; Thu, 16 Aug 2012 14:33:05 -0400 (EDT)
-Date: Thu, 16 Aug 2012 19:32:56 +0100
-From: Will Deacon <will.deacon@arm.com>
-Subject: Re: [PATCH] mm: hugetlb: flush dcache before returning zeroed huge
- page to userspace
-Message-ID: <20120816183255.GB19401@mudshark.cambridge.arm.com>
-References: <20120710094513.GB9108@mudshark.cambridge.arm.com>
- <20120710104234.GI9108@mudshark.cambridge.arm.com>
- <20120711174802.GG13498@mudshark.cambridge.arm.com>
- <20120712111659.GF21013@tiehlicka.suse.cz>
- <20120712112645.GG2816@mudshark.cambridge.arm.com>
- <20120712115708.GG21013@tiehlicka.suse.cz>
- <20120807160337.GC16877@mudshark.cambridge.arm.com>
- <20120808162607.GA7885@dhcp22.suse.cz>
- <20120816160954.GA4330@mudshark.cambridge.arm.com>
- <20120816182015.GC12578@dhcp22.suse.cz>
+Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
+	by kanga.kvack.org (Postfix) with SMTP id CBEEB6B0074
+	for <linux-mm@kvack.org>; Thu, 16 Aug 2012 14:37:00 -0400 (EDT)
+Date: Thu, 16 Aug 2012 21:37:25 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH v3 6/7] mm: make clear_huge_page cache clear only around
+ the fault address
+Message-ID: <20120816183725.GA30284@shutemov.name>
+References: <1345130154-9602-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <1345130154-9602-7-git-send-email-kirill.shutemov@linux.intel.com>
+ <20120816161647.GM11188@redhat.com>
+ <20120816164356.GA30106@shutemov.name>
+ <20120816182944.GN11188@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20120816182015.GC12578@dhcp22.suse.cz>
+In-Reply-To: <20120816182944.GN11188@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Hillf Danton <dhillf@gmail.com>, Russell King <linux@arm.linux.org.uk>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, Andi Kleen <ak@linux.intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, Alex Shi <alex.shu@intel.com>, Jan Beulich <jbeulich@novell.com>, Robert Richter <robert.richter@amd.com>, Andy Lutomirski <luto@amacapital.net>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-mips@linux-mips.org, linux-sh@vger.kernel.org, sparclinux@vger.kernel.org
 
-On Thu, Aug 16, 2012 at 07:20:15PM +0100, Michal Hocko wrote:
-> On Thu 16-08-12 17:09:54, Will Deacon wrote:
-> > +static inline void arch_clear_hugepage_flags(struct page *page)
-> > +{
-> > +	flush_dcache_page(page);
-> > +}
-> > +
+On Thu, Aug 16, 2012 at 08:29:44PM +0200, Andrea Arcangeli wrote:
+> On Thu, Aug 16, 2012 at 07:43:56PM +0300, Kirill A. Shutemov wrote:
+> > Hm.. I think with static_key we can avoid cache overhead here. I'll try.
 > 
-> Why do we need the hook for ia64? hugetlb_no_page calls clear_huge_page
-> and that one calls flush_dcache_page (via clear_user_page), right?
-> The same applies to copy_huge_page for COW.
+> Could you elaborate on the static_key? Is it some sort of self
+> modifying code?
 
-You're right, these are redundant for ppc and ia64 (although ppc does have a
-comment moaning about the flush). Looks like it's just sh and ARM that need to
-do anything.
+Runtime code patching. See Documentation/static-keys.txt. We can patch it
+on sysctl.
 
-Cheers,
+> 
+> > Thanks, for review. Could you take a look at huge zero page patchset? ;)
+> 
+> I've noticed that too, nice :). I'm checking some detail on the
+> wrprotect fault behavior but I'll comment there.
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
-Will
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
