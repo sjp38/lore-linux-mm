@@ -1,54 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
-	by kanga.kvack.org (Postfix) with SMTP id 6C2606B005D
-	for <linux-mm@kvack.org>; Fri, 17 Aug 2012 09:24:15 -0400 (EDT)
-Received: by pbbro12 with SMTP id ro12so3740578pbb.14
-        for <linux-mm@kvack.org>; Fri, 17 Aug 2012 06:24:14 -0700 (PDT)
-Date: Fri, 17 Aug 2012 06:24:10 -0700
-From: Greg KH <gregkh@linuxfoundation.org>
-Subject: Re: [PATCH] memory hotplug: avoid double registration on ia64
- platform
-Message-ID: <20120817132410.GB28980@kroah.com>
-References: <502DF84F.8040708@gmail.com>
+Received: from psmtp.com (na3sys010amx177.postini.com [74.125.245.177])
+	by kanga.kvack.org (Postfix) with SMTP id DD53B6B005D
+	for <linux-mm@kvack.org>; Fri, 17 Aug 2012 09:34:19 -0400 (EDT)
+Received: by yhr47 with SMTP id 47so4879838yhr.14
+        for <linux-mm@kvack.org>; Fri, 17 Aug 2012 06:34:19 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <502DF84F.8040708@gmail.com>
+In-Reply-To: <00000139306844c8-bb717c88-ca56-48b3-9b8f-9186053359d3-000000@email.amazonses.com>
+References: <1345045084-7292-1-git-send-email-js1304@gmail.com>
+	<000001392af5ab4e-41dbbbe4-5808-484b-900a-6f4eba102376-000000@email.amazonses.com>
+	<CAAmzW4M9WMnxVKpR00SqufHadY-=i0Jgf8Ktydrw5YXK8VwJ7A@mail.gmail.com>
+	<000001392b579d4f-bb5ccaf5-1a2c-472c-9b76-05ec86297706-000000@email.amazonses.com>
+	<CAAmzW4MMY5TmjMjG50idZNgRUW3qC0kNMnfbGjGXaoxtba8gGQ@mail.gmail.com>
+	<00000139306844c8-bb717c88-ca56-48b3-9b8f-9186053359d3-000000@email.amazonses.com>
+Date: Fri, 17 Aug 2012 22:34:18 +0900
+Message-ID: <CAAmzW4P=w6-yrmDmK1SPo3pwgH68Q0+RCe0tpqZPXnk-QEBLMQ@mail.gmail.com>
+Subject: Re: [PATCH] slub: try to get cpu partial slab even if we get enough
+ objects for cpu freelist
+From: JoonSoo Kim <js1304@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: qiuxishi <qiuxishi@gmail.com>
-Cc: akpm@linux-foundation.org, mgorman@suse.de, tony.luck@intel.com, yinghai@kernel.org, jiang.liu@huawei.com, qiuxishi@huawei.com, bessel.wang@huawei.com, wujianguo@huawei.com, paul.gortmaker@windriver.com, kamezawa.hiroyu@jp.fujitsu.com, kosaki.motohiro@jp.fujitsu.com, rientjes@google.com, minchan@kernel.org, chenkeping@huawei.com, linux-mm@kvack.org, stable@vger.kernel.org, linux-kernel@vger.kernel.org, liuj97@gmail.com
+To: Christoph Lameter <cl@linux.com>
+Cc: Pekka Enberg <penberg@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, David Rientjes <rientjes@google.com>
 
-On Fri, Aug 17, 2012 at 03:52:47PM +0800, qiuxishi wrote:
-> From: Xishi Qiu <qiuxishi@huawei.com>
-> 
-> Hi all,
-> There may be have a bug when register section info. For example, on
-> an Itanium platform, the pfn range of node0 includes the other nodes.
-> So when hot remove memory, we can't free the memmap's page because
-> page_count() is 2 after put_page_bootmem().
-> 
-> sparse_remove_one_section()->free_section_usemap()->free_map_bootmem()
-> ->put_page_bootmem()
-> 
-> pgdat0: start_pfn=0x100,    spanned_pfn=0x20fb00, present_pfn=0x7f8a3, => 0x100-0x20fc00
-> pgdat1: start_pfn=0x80000,  spanned_pfn=0x80000,  present_pfn=0x80000, => 0x80000-0x100000
-> pgdat2: start_pfn=0x100000, spanned_pfn=0x80000,  present_pfn=0x80000, => 0x100000-0x180000
-> pgdat3: start_pfn=0x180000, spanned_pfn=0x80000,  present_pfn=0x80000, => 0x180000-0x200000
-> 
-> 
-> Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
-> ---
->  mm/memory_hotplug.c |   10 ++++------
->  1 files changed, 4 insertions(+), 6 deletions(-)
+2012/8/17 Christoph Lameter <cl@linux.com>:
+> On Thu, 16 Aug 2012, JoonSoo Kim wrote:
+>
+>> But, if you prefer that s->cpu_partial is for both cpu slab and cpu
+>> partial slab,
+>> get_partial_node() needs an another minor fix.
+>> We should add number of objects in cpu slab when we refill cpu partial slab.
+>> Following is my suggestion.
+>>
+>> @@ -1546,7 +1546,7 @@ static void *get_partial_node(struct kmem_cache *s,
+>>         spin_lock(&n->list_lock);
+>>         list_for_each_entry_safe(page, page2, &n->partial, lru) {
+>>                 void *t = acquire_slab(s, n, page, object == NULL);
+>> -               int available;
+>> +               int available, nr = 0;
+>>
+>>                 if (!t)
+>>                         break;
+>> @@ -1557,10 +1557,10 @@ static void *get_partial_node(struct kmem_cache *s,
+>>                         object = t;
+>>                         available =  page->objects - page->inuse;
+>>                 } else {
+>> -                       available = put_cpu_partial(s, page, 0);
+>> +                       nr = put_cpu_partial(s, page, 0);
+>>                         stat(s, CPU_PARTIAL_NODE);
+>>                 }
+>> -               if (kmem_cache_debug(s) || available > s->cpu_partial / 2)
+>> +               if (kmem_cache_debug(s) || (available + nr) >
+>> s->cpu_partial / 2)
+>>                         break;
+>>
+>>         }
+>>
+>> If you agree with this suggestion, I send a patch for this.
+>
+> What difference does this patch make? At the end of the day you need the
+> total number of objects available in the partial slabs and the cpu slab
+> for comparison.
 
-<formletter>
+It doesn't induce any large difference, but this makes code robust and
+consistent.
+Consistent code make us easily knowing what code does.
 
-This is not the correct way to submit patches for inclusion in the
-stable kernel tree.  Please read Documentation/stable_kernel_rules.txt
-for how to do this properly.
+It is somewhat odd that in first loop, we consider number of objects
+kept in cpu slab,
+but second loop exclude that number and just consider number of
+objects in cpu partial slab.
 
-</formletter>
+Thanks!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
