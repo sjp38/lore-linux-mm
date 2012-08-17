@@ -1,75 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
-	by kanga.kvack.org (Postfix) with SMTP id DDF5B6B005D
-	for <linux-mm@kvack.org>; Fri, 17 Aug 2012 03:49:22 -0400 (EDT)
-Date: Fri, 17 Aug 2012 10:49:01 +0300
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: Re: [PATCH, RFC 6/9] thp: add address parameter to
- split_huge_page_pmd()
-Message-ID: <20120817074901.GA9833@otc-wbsnb-06>
-References: <1344503300-9507-1-git-send-email-kirill.shutemov@linux.intel.com>
- <1344503300-9507-7-git-send-email-kirill.shutemov@linux.intel.com>
- <20120816194201.GQ11188@redhat.com>
+Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
+	by kanga.kvack.org (Postfix) with SMTP id 731A16B005D
+	for <linux-mm@kvack.org>; Fri, 17 Aug 2012 03:52:55 -0400 (EDT)
+Received: by pbbro12 with SMTP id ro12so3264468pbb.14
+        for <linux-mm@kvack.org>; Fri, 17 Aug 2012 00:52:54 -0700 (PDT)
+Message-ID: <502DF84F.8040708@gmail.com>
+Date: Fri, 17 Aug 2012 15:52:47 +0800
+From: qiuxishi <qiuxishi@gmail.com>
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="W/nzBZO5zC0uMSeA"
-Content-Disposition: inline
-In-Reply-To: <20120816194201.GQ11188@redhat.com>
+Subject: [PATCH] memory hotplug: avoid double registration on ia64 platform
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, "H. Peter Anvin" <hpa@linux.intel.com>, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill@shutemov.name>
+To: akpm@linux-foundation.org, mgorman@suse.de, tony.luck@intel.com, yinghai@kernel.org, jiang.liu@huawei.com
+Cc: qiuxishi@huawei.com, bessel.wang@huawei.com, wujianguo@huawei.com, paul.gortmaker@windriver.com, kamezawa.hiroyu@jp.fujitsu.com, kosaki.motohiro@jp.fujitsu.com, rientjes@google.com, minchan@kernel.org, chenkeping@huawei.com, linux-mm@kvack.org, stable@vger.kernel.org, linux-kernel@vger.kernel.org, liuj97@gmail.com
+
+From: Xishi Qiu <qiuxishi@huawei.com>
+
+Hi all,
+There may be have a bug when register section info. For example, on
+an Itanium platform, the pfn range of node0 includes the other nodes.
+So when hot remove memory, we can't free the memmap's page because
+page_count() is 2 after put_page_bootmem().
+
+sparse_remove_one_section()->free_section_usemap()->free_map_bootmem()
+->put_page_bootmem()
+
+pgdat0: start_pfn=0x100,    spanned_pfn=0x20fb00, present_pfn=0x7f8a3, => 0x100-0x20fc00
+pgdat1: start_pfn=0x80000,  spanned_pfn=0x80000,  present_pfn=0x80000, => 0x80000-0x100000
+pgdat2: start_pfn=0x100000, spanned_pfn=0x80000,  present_pfn=0x80000, => 0x100000-0x180000
+pgdat3: start_pfn=0x180000, spanned_pfn=0x80000,  present_pfn=0x80000, => 0x180000-0x200000
 
 
---W/nzBZO5zC0uMSeA
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
+---
+ mm/memory_hotplug.c |   10 ++++------
+ 1 files changed, 4 insertions(+), 6 deletions(-)
 
-On Thu, Aug 16, 2012 at 09:42:01PM +0200, Andrea Arcangeli wrote:
-> On Thu, Aug 09, 2012 at 12:08:17PM +0300, Kirill A. Shutemov wrote:
-> > From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-> >=20
-> > It's required to implement huge zero pmd splitting.
-> >=20
->=20
-> This isn't bisectable with the next one, it'd fail on wfg 0-DAY kernel
-> build testing backend, however this is clearly to separate this patch
-> from the next, to keep the size small so I don't mind.
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index 2adbcac..cf493c7 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -126,9 +126,6 @@ static void register_page_bootmem_info_section(unsigned long start_pfn)
+ 	struct mem_section *ms;
+ 	struct page *page, *memmap;
 
-Hm. I don't see why it's not bisectable. It's only add a new parameter to
-the function. The parameter is unused until next patch.
+-	if (!pfn_valid(start_pfn))
+-		return;
+-
+ 	section_nr = pfn_to_section_nr(start_pfn);
+ 	ms = __nr_to_section(section_nr);
 
-Actually, I've checked build bisectability with aiaiai[1].
+@@ -187,9 +184,10 @@ void register_page_bootmem_info_node(struct pglist_data *pgdat)
+ 	end_pfn = pfn + pgdat->node_spanned_pages;
 
-[1] http://git.infradead.org/users/dedekind/aiaiai.git
+ 	/* register_section info */
+-	for (; pfn < end_pfn; pfn += PAGES_PER_SECTION)
+-		register_page_bootmem_info_section(pfn);
+-
++	for (; pfn < end_pfn; pfn += PAGES_PER_SECTION) {
++		if (pfn_valid(pfn) && (pfn_to_nid(pfn) == node))
++			register_page_bootmem_info_section(pfn);
++	}
+ }
+ #endif /* !CONFIG_SPARSEMEM_VMEMMAP */
 
---=20
- Kirill A. Shutemov
-
---W/nzBZO5zC0uMSeA
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: Digital signature
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.12 (GNU/Linux)
-
-iQIcBAEBAgAGBQJQLfdtAAoJEAd+omnVudOM3rMQAIcawtMYkfooQfvwZvr6w3JW
-oC0ege7lexwLyYvaEdPGMurV9cnUn8wsf66TlN8It43mdPGbCy3cQ0qMtFy2nBcn
-BlD6vbDto7Gn6PUZmQhjQjHpYwiQhbFESeMJ23e9JlCy9M1i842VpePj4aXNpO3t
-oF0basphC/R7+2dx3Ffi4JL3lP3B/cEapw+Mt3F1HJQc2aLN83AWnSiTvwMBkwzR
-YWBDZzMrb5R0+fvdxgVH/B5gi97tWjT2mXTcmRKekKeP/lbrENYAo4ZXhSwIbQlc
-FTil+YzgV3GG1lTb0wYbmTq4NYsJYt2DkSGWvDJVvRuZ6sEBwO3RC65IU+wmvTw9
-L3PVxDNVEnGFrRRk2ePq8mlWEuxV1vvQFV8w1uOmWiZP5ef8eYSZXrXRNiRADbA9
-+hk3IerQDdVG1Rk0gnjqlOLDVTxq4TYc3gfvKpYhrmoPd5qj/ELeE9fG/Vy/Lg3a
-U1hCce8jK6hCFiTkEYsKvG3XRd6AvYYh1AtrOmOYgn6Wi9yE1TB8rTsDBClM/GEW
-t0dsJPI8T4snylWGsWx+rMBZUYdHeyKyuNHHuVfMXRzg88UzkjCl/aeBFYeOiAtE
-d88viONyShLty6X2Nlri0B6VQvQ3sb77o/UyPt279hGNTP102TNegF99OP+n6Unl
-XLmVJXnf8pyqt2eGflzK
-=HQXK
------END PGP SIGNATURE-----
-
---W/nzBZO5zC0uMSeA--
+-- 1.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
