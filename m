@@ -1,54 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
-	by kanga.kvack.org (Postfix) with SMTP id 94C0F6B0069
-	for <linux-mm@kvack.org>; Fri, 17 Aug 2012 10:56:17 -0400 (EDT)
-Date: Fri, 17 Aug 2012 14:56:16 +0000
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH] slub: try to get cpu partial slab even if we get enough
- objects for cpu freelist
-In-Reply-To: <CAAmzW4PXf=GK-a8-r_Ep4vR=kx54pr9h5K00iEDx3rVii5ROiA@mail.gmail.com>
-Message-ID: <000001393515ab5f-b518fa1e-a5e1-4849-b711-c2ebbdfd65a1-000000@email.amazonses.com>
-References: <1345045084-7292-1-git-send-email-js1304@gmail.com> <000001392af5ab4e-41dbbbe4-5808-484b-900a-6f4eba102376-000000@email.amazonses.com> <CAAmzW4M9WMnxVKpR00SqufHadY-=i0Jgf8Ktydrw5YXK8VwJ7A@mail.gmail.com>
- <000001392b579d4f-bb5ccaf5-1a2c-472c-9b76-05ec86297706-000000@email.amazonses.com> <CAAmzW4MMY5TmjMjG50idZNgRUW3qC0kNMnfbGjGXaoxtba8gGQ@mail.gmail.com> <00000139306844c8-bb717c88-ca56-48b3-9b8f-9186053359d3-000000@email.amazonses.com>
- <CAAmzW4P=w6-yrmDmK1SPo3pwgH68Q0+RCe0tpqZPXnk-QEBLMQ@mail.gmail.com> <0000013934e4a8cf-51ac82e4-ad78-46b0-abf7-8dc81be01952-000000@email.amazonses.com> <CAAmzW4PXf=GK-a8-r_Ep4vR=kx54pr9h5K00iEDx3rVii5ROiA@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
+	by kanga.kvack.org (Postfix) with SMTP id 9D6DA6B005A
+	for <linux-mm@kvack.org>; Fri, 17 Aug 2012 12:33:49 -0400 (EDT)
+Date: Fri, 17 Aug 2012 18:33:46 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH, RFC 7/9] thp: implement splitting pmd for huge zero page
+Message-ID: <20120817163346.GC10129@redhat.com>
+References: <1344503300-9507-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <1344503300-9507-8-git-send-email-kirill.shutemov@linux.intel.com>
+ <20120816192738.GO11188@redhat.com>
+ <20120817081233.GB9833@otc-wbsnb-06>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120817081233.GB9833@otc-wbsnb-06>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: JoonSoo Kim <js1304@gmail.com>
-Cc: Pekka Enberg <penberg@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, David Rientjes <rientjes@google.com>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, "H. Peter Anvin" <hpa@linux.intel.com>, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill@shutemov.name>
 
-On Fri, 17 Aug 2012, JoonSoo Kim wrote:
+On Fri, Aug 17, 2012 at 11:12:33AM +0300, Kirill A. Shutemov wrote:
+> I've used do_huge_pmd_wp_page_fallback() as template for my code.
+> What's difference between these two code paths?
+> Why is do_huge_pmd_wp_page_fallback() safe?
 
-> In case of !object (available =  page->objects - page->inuse;),
-> "available" means the number of objects in cpu slab.
+Good point. do_huge_pmd_wp_page_fallback works only on the current
+"mm" so it doesn't need the splitting transition, but thinking twice
+the split_huge_zero_page_pmd also works only on the local "mm" because
+you're not really splitting the zero page there (you're not affecting
+other mm). As long as you keep holding the page_table_lock of the "mm"
+that you're altering your current version is safe.
 
-Right because we do not have allocated any cpu partial slabs yet.
+I got mistaken because I'm very used to think at split huge page as
+something that cannot relay on the page_table_lock, but this is a
+simpler case that isn't splitting the "page" but only the "pmd" of a
+single "mm", so you can safely relay on the mm->page_table_lock :).
 
-> In this time, we don't have any cpu partial slab, so "available" imply
-> the number of objects available to the cpu without locking.
-> This is what we want.
->
->
-> But, see another "available" (available = put_cpu_partial(s, page, 0);).
->
-> This "available" doesn't include the number of objects in cpu slab.
+> Looks resonable. I'll update it in next revision.
 
-Ok. Now I see.
-
-> Therefore, I think a minor fix is needed for consistency.
-> Isn't it reasonable?
-
-Yup it is. Let me look over your patch again.
-
-Ok so use meaningful names for the variables to clarify the issue.
-
-cpu_objects and partial_objects or so?
-
-Then the check would be as you proposed in the last message
-
-if (cpu_objects + partial_objects < s->cpu_partial ...
-
+Thanks. Of course the function parameter comments to avoid unnecessary
+calls of find_vma, weren't related to the above locking issues.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
