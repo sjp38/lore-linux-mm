@@ -1,84 +1,233 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
-	by kanga.kvack.org (Postfix) with SMTP id B98636B0069
-	for <linux-mm@kvack.org>; Fri, 17 Aug 2012 19:33:25 -0400 (EDT)
-Received: from /spool/local
-	by e33.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
-	Fri, 17 Aug 2012 17:33:24 -0600
-Received: from d03relay01.boulder.ibm.com (d03relay01.boulder.ibm.com [9.17.195.226])
-	by d03dlp03.boulder.ibm.com (Postfix) with ESMTP id A9A5119D803D
-	for <linux-mm@kvack.org>; Fri, 17 Aug 2012 17:33:22 -0600 (MDT)
-Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
-	by d03relay01.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q7HNXMa4178510
-	for <linux-mm@kvack.org>; Fri, 17 Aug 2012 17:33:22 -0600
-Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av04.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q7HNXL7p026547
-	for <linux-mm@kvack.org>; Fri, 17 Aug 2012 17:33:22 -0600
-Message-ID: <502ED4C0.70305@linux.vnet.ibm.com>
-Date: Fri, 17 Aug 2012 18:33:20 -0500
-From: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
+	by kanga.kvack.org (Postfix) with SMTP id 8CB9A6B0069
+	for <linux-mm@kvack.org>; Fri, 17 Aug 2012 19:34:56 -0400 (EDT)
+Received: by lbon3 with SMTP id n3so2878120lbo.14
+        for <linux-mm@kvack.org>; Fri, 17 Aug 2012 16:34:54 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [PATCH 0/4] promote zcache from staging
-References: <1343413117-1989-1-git-send-email-sjenning@linux.vnet.ibm.com> <5021795A.5000509@linux.vnet.ibm.com> <5024067F.3010602@linux.vnet.ibm.com> <2e9ccb4f-1339-4c26-88dd-ea294b022127@default> <50254F69.2000409@linux.vnet.ibm.com> <8fa37327-17ff-4734-9007-40412b18d0fb@default>
-In-Reply-To: <8fa37327-17ff-4734-9007-40412b18d0fb@default>
+In-Reply-To: <20120816113733.7ba45fde@cuia.bos.redhat.com>
+References: <20120816113450.52f4e633@cuia.bos.redhat.com>
+	<20120816113733.7ba45fde@cuia.bos.redhat.com>
+Date: Fri, 17 Aug 2012 16:34:54 -0700
+Message-ID: <CALWz4iz6QETaevrg4QAV390K=BXTQKdWfXb2_SOYj4eYWLxfAw@mail.gmail.com>
+Subject: Re: [RFC][PATCH -mm -v2 3/4] mm,vmscan: reclaim from the highest
+ score cgroups
+From: Ying Han <yinghan@google.com>
 Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Magenheimer <dan.magenheimer@oracle.com>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Nitin Gupta <ngupta@vflare.org>, Minchan Kim <minchan@kernel.org>, Konrad Wilk <konrad.wilk@oracle.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org, Kurt Hackel <kurt.hackel@oracle.com>
+To: Rik van Riel <riel@redhat.com>
+Cc: linux-mm@kvack.org, aquini@redhat.com, hannes@cmpxchg.org, mhocko@suse.cz, Mel Gorman <mel@csn.ul.ie>
 
-On 08/17/2012 05:21 PM, Dan Magenheimer wrote:
->> From: Seth Jennings [mailto:sjenning@linux.vnet.ibm.com]
->> Subject: Re: [PATCH 0/4] promote zcache from staging
->>
->> On 08/09/2012 03:20 PM, Dan Magenheimer wrote
->>> I also wonder if you have anything else unusual in your
->>> test setup, such as a fast swap disk (mine is a partition
->>> on the same rotating disk as source and target of the kernel build,
->>> the default install for a RHEL6 system)?
->>
->> I'm using a normal SATA HDD with two partitions, one for
->> swap and the other an ext3 filesystem with the kernel source.
->>
->>> Or have you disabled cleancache?
->>
->> Yes, I _did_ disable cleancache.  I could see where having
->> cleancache enabled could explain the difference in results.
-> 
-> Sorry to beat a dead horse, but I meant to report this
-> earlier in the week and got tied up by other things.
-> 
-> I finally got my test scaffold set up earlier this week
-> to try to reproduce my "bad" numbers with the RHEL6-ish
-> config file.
-> 
-> I found that with "make -j28" and "make -j32" I experienced
-> __DATA CORRUPTION__.  This was repeatable.
+On Thu, Aug 16, 2012 at 8:37 AM, Rik van Riel <riel@redhat.com> wrote:
+> Instead of doing a round robin reclaim over all the cgroups in a
+> zone, we pick the lruvec with the top score and reclaim from that.
+>
+> We keep reclaiming from that lruvec until we have reclaimed enough
+> pages (common for direct reclaim), or that lruvec's score drops in
+> half. We keep reclaiming from the zone until we have reclaimed enough
+> pages, or have scanned more than the number of reclaimable pages shifted
+> by the reclaim priority.
+>
+> As an additional change, targeted cgroup reclaim now reclaims from
+> the highest priority lruvec. This is because when a cgroup hierarchy
+> hits its limit, the best lruvec to reclaim from may be different than
+> whatever lruvec is the first we run into iterating from the hierarchy's
+> "root".
+>
+> Signed-off-by: Rik van Riel <riel@redhat.com>
+> ---
+>  mm/vmscan.c |  137 ++++++++++++++++++++++++++++++++++++++++++----------------
+>  1 files changed, 99 insertions(+), 38 deletions(-)
+>
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index b0e5495..769fdcd 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -1901,6 +1901,57 @@ static void age_recent_pressure(struct lruvec *lruvec, struct zone *zone)
+>         spin_unlock_irq(&zone->lru_lock);
+>  }
+>
+> +/*
+> + * The higher the LRU score, the more desirable it is to reclaim
+> + * from this LRU set first. The score is a function of the fraction
+> + * of recently scanned pages on the LRU that are in active use,
+> + * as well as the size of the list and the amount of memory pressure
+> + * that has been put on this LRU recently.
+> + *
+> + *          recent_scanned        size
+> + * score =  -------------- x --------------- x adjustment
+> + *          recent_rotated   recent_pressure
+> + *
+> + * The maximum score of the anon and file list in this lruvec
+> + * is returned. Adjustments are made for the file LRU having
+> + * lots of inactive pages (mostly streaming IO), or the memcg
+> + * being over its soft limit.
+> + *
+> + * This function should return a positive number for any lruvec
+> + * with more than a handful of resident pages, because recent_scanned
+> + * should always be larger than recent_rotated, and the size should
+> + * always be larger than recent_pressure.
+> + */
+> +static u64 reclaim_score(struct mem_cgroup *memcg,
+> +                        struct lruvec *lruvec)
+> +{
+> +       struct zone_reclaim_stat *reclaim_stat = &lruvec->reclaim_stat;
+> +       u64 anon, file;
+> +
+> +       anon  = get_lru_size(lruvec, LRU_ACTIVE_ANON) +
+> +               get_lru_size(lruvec, LRU_INACTIVE_ANON);
+> +       anon *= reclaim_stat->recent_scanned[0];
+> +       anon /= (reclaim_stat->recent_rotated[0] + 1);
+> +       anon /= (reclaim_stat->recent_pressure[0] + 1);
+> +
+> +       file = get_lru_size(lruvec, LRU_ACTIVE_FILE) +
+> +              get_lru_size(lruvec, LRU_INACTIVE_FILE);
+> +       file *= reclaim_stat->recent_scanned[1];
+> +       file /= (reclaim_stat->recent_rotated[1] + 1);
+> +       file /= (reclaim_stat->recent_pressure[1] + 1);
+> +
+> +       /*
+> +        * Give a STRONG preference to reclaiming memory from lruvecs
+> +        * that belong to a cgroup that is over its soft limit.
+> +        */
+> +       if (mem_cgroup_over_soft_limit(memcg)) {
+> +               file *= 10000;
+> +               anon *= 10000;
+> +       }
+> +
+> +       return max(anon, file);
+> +}
+> +
+>  static void shrink_zone(struct zone *zone, struct scan_control *sc)
+>  {
+>         struct mem_cgroup *root = sc->target_mem_cgroup;
+> @@ -1908,11 +1959,17 @@ static void shrink_zone(struct zone *zone, struct scan_control *sc)
+>                 .zone = zone,
+>                 .priority = sc->priority,
+>         };
+> -       struct mem_cgroup *memcg;
+> -       bool over_softlimit, ignore_softlimit = false;
+> +       unsigned long nr_scanned = sc->nr_scanned;
+> +       unsigned long nr_scanned_this_round;
+> +       struct mem_cgroup *memcg, *victim_memcg;
+> +       struct lruvec *victim_lruvec;
+> +       u64 score, max_score;
+>
+>  restart:
+> -       over_softlimit = false;
+> +       nr_scanned_this_round = sc->nr_scanned;
+> +       victim_lruvec = NULL;
+> +       victim_memcg = NULL;
+> +       max_score = 0;
+>
+>         memcg = mem_cgroup_iter(root, NULL, &reclaim);
+>         do {
+> @@ -1920,48 +1977,52 @@ static void shrink_zone(struct zone *zone, struct scan_control *sc)
+>
+>                 age_recent_pressure(lruvec, zone);
+>
+> -               /*
+> -                * Reclaim from mem_cgroup if any of these conditions are met:
+> -                * - this is a targetted reclaim ( not global reclaim)
+> -                * - reclaim priority is less than  DEF_PRIORITY - 2
+> -                * - mem_cgroup or its ancestor ( not including root cgroup)
+> -                * exceeds its soft limit
+> -                *
+> -                * Note: The priority check is a balance of how hard to
+> -                * preserve the pages under softlimit. If the memcgs of the
+> -                * zone having trouble to reclaim pages above their softlimit,
+> -                * we have to reclaim under softlimit instead of burning more
+> -                * cpu cycles.
+> -                */
+> -               if (ignore_softlimit || !global_reclaim(sc) ||
+> -                               sc->priority < DEF_PRIORITY - 2 ||
+> -                               mem_cgroup_over_soft_limit(memcg)) {
+> -                       shrink_lruvec(lruvec, sc);
+> +               score = reclaim_score(memcg, lruvec);
+>
+> -                       over_softlimit = true;
+> +               /* Pick the lruvec with the highest score. */
+> +               if (score > max_score) {
+> +                       max_score = score;
+> +                       if (victim_memcg)
+> +                               mem_cgroup_put(victim_memcg);
+> +                       mem_cgroup_get(memcg);
+> +                       victim_lruvec = lruvec;
+> +                       victim_memcg = memcg;
+>                 }
+>
+> -               /*
+> -                * Limit reclaim has historically picked one memcg and
+> -                * scanned it with decreasing priority levels until
+> -                * nr_to_reclaim had been reclaimed.  This priority
+> -                * cycle is thus over after a single memcg.
+> -                *
+> -                * Direct reclaim and kswapd, on the other hand, have
+> -                * to scan all memory cgroups to fulfill the overall
+> -                * scan target for the zone.
+> -                */
+> -               if (!global_reclaim(sc)) {
+> -                       mem_cgroup_iter_break(root, memcg);
+> -                       break;
+> -               }
+>                 memcg = mem_cgroup_iter(root, memcg, &reclaim);
+>         } while (memcg);
+>
+> -       if (!over_softlimit) {
+> -               ignore_softlimit = true;
+> +       /* No lruvec in our set is suitable for reclaiming. */
+> +       if (!victim_lruvec)
+> +               return;
+> +
+> +       /*
+> +        * Reclaim from the top scoring lruvec until we freed enough
+> +        * pages, or its reclaim priority has halved.
+> +        */
+> +       do {
+> +               shrink_lruvec(victim_lruvec, sc);
+> +               score = reclaim_score(memcg, victim_lruvec);
+> +       } while (sc->nr_to_reclaim > 0 && score > max_score / 2);
 
-I actually hit this for the first time a few hours ago when
-I was running performance for your rewrite.  I didn't know
-what to make of it yet.  The 24-thread kernel build failed
-when both frontswap and cleancache were enabled.
+This would violate the user expectation of soft_limit badly,
+especially for background reclaim where nr_to_reclaim equals to
+ULONG_MAX.
 
-> The type of error led me to believe that the problem was
-> due to concurrency of cleancache reclaim.  I did not try
-> with cleancache disabled to prove/support this theory
-> but it is consistent with the fact that you (Seth) have not
-> seen a similar problem and has disabled cleancache.
-> 
-> While this problem is most likely in my code and I am
-> suitably chagrined, it re-emphasizes the fact that
-> the current zcache in staging is 20-month old "demo"
-> code.  The proposed new zcache codebase handles concurrency
-> much more effectively.
+Here we keep hitting cgroup A and potentially push it down to
+softlimit until the score drops to certain level. It is bad since it
+causes "hot" memory (under softlimit) of A being reclaimed while other
+cgroups has plenty of "cold" (above softlimit) to give out.
 
-I imagine this can be solved without rewriting the entire
-codebase.  If your new code contains a fix for this, can we
-just pull it as a single patch?
+In general, pick one cgroup to reclaim instead of round-robin is ok as
+long as we don't reclaim further down to the softlimit. The next
+question then is what's the next cgroup to reclaim if that doesn't
+give us enough.
 
-Seth
+--Ying
+
+> +
+> +       mem_cgroup_put(victim_memcg);
+> +
+> +       /*
+> +        * The shrinking code increments sc->nr_scanned for every
+> +        * page scanned. If we failed to scan any pages from the
+> +        * top reclaim victim, bail out to prevent a livelock.
+> +        */
+> +       if (sc->nr_scanned == nr_scanned_this_round)
+> +               return;
+> +
+> +       /*
+> +        * Do we need to reclaim more pages?
+> +        * Did we scan fewer pages than the current priority allows?
+> +        */
+> +       if (sc->nr_to_reclaim > 0 &&
+> +                       sc->nr_scanned - nr_scanned <
+> +                       zone_reclaimable_pages(zone) >> sc->priority)
+>                 goto restart;
+> -       }
+>  }
+>
+>  /* Returns true if compaction should go ahead for a high-order request */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
