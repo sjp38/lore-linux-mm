@@ -1,135 +1,229 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
-	by kanga.kvack.org (Postfix) with SMTP id 3B9B56B006C
-	for <linux-mm@kvack.org>; Fri, 17 Aug 2012 04:12:48 -0400 (EDT)
-Date: Fri, 17 Aug 2012 11:12:33 +0300
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: Re: [PATCH, RFC 7/9] thp: implement splitting pmd for huge zero page
-Message-ID: <20120817081233.GB9833@otc-wbsnb-06>
-References: <1344503300-9507-1-git-send-email-kirill.shutemov@linux.intel.com>
- <1344503300-9507-8-git-send-email-kirill.shutemov@linux.intel.com>
- <20120816192738.GO11188@redhat.com>
+Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
+	by kanga.kvack.org (Postfix) with SMTP id BCD046B005D
+	for <linux-mm@kvack.org>; Fri, 17 Aug 2012 05:00:09 -0400 (EDT)
+Date: Fri, 17 Aug 2012 11:00:06 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH v2 09/11] memcg: propagate kmem limiting information to
+ children
+Message-ID: <20120817090005.GC18600@dhcp22.suse.cz>
+References: <1344517279-30646-1-git-send-email-glommer@parallels.com>
+ <1344517279-30646-10-git-send-email-glommer@parallels.com>
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="MfFXiAuoTsnnDAfZ"
-Content-Disposition: inline
-In-Reply-To: <20120816192738.GO11188@redhat.com>
-Sender: owner-linux-mm@kvack.org
-List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, "H. Peter Anvin" <hpa@linux.intel.com>, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill@shutemov.name>
-
-
---MfFXiAuoTsnnDAfZ
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+In-Reply-To: <1344517279-30646-10-git-send-email-glommer@parallels.com>
+Sender: owner-linux-mm@kvack.org
+List-ID: <linux-mm.kvack.org>
+To: Glauber Costa <glommer@parallels.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, devel@openvz.org, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, kamezawa.hiroyu@jp.fujitsu.com, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Suleiman Souhlal <suleiman@google.com>
 
-On Thu, Aug 16, 2012 at 09:27:38PM +0200, Andrea Arcangeli wrote:
-> On Thu, Aug 09, 2012 at 12:08:18PM +0300, Kirill A. Shutemov wrote:
-> > +static void __split_huge_zero_page_pmd(struct mm_struct *mm, pmd_t *pm=
-d,
-> > +		unsigned long address)
-> > +{
-> > +	pgtable_t pgtable;
-> > +	pmd_t _pmd;
-> > +	unsigned long haddr =3D address & HPAGE_PMD_MASK;
-> > +	struct vm_area_struct *vma;
-> > +	int i;
-> > +
-> > +	vma =3D find_vma(mm, address);
-> > +	VM_BUG_ON(vma =3D=3D NULL);
->=20
-> I think you can use BUG_ON here just in case but see below how I would
-> change it.
->=20
-> > +	pmdp_clear_flush_notify(vma, haddr, pmd);
-> > +	/* leave pmd empty until pte is filled */
-> > +
-> > +	pgtable =3D get_pmd_huge_pte(mm);
-> > +	pmd_populate(mm, &_pmd, pgtable);
-> > +
-> > +	for (i =3D 0; i < HPAGE_PMD_NR; i++, haddr +=3D PAGE_SIZE) {
-> > +		pte_t *pte, entry;
-> > +		entry =3D pfn_pte(my_zero_pfn(haddr), vma->vm_page_prot);
-> > +		entry =3D pte_mkspecial(entry);
-> > +		pte =3D pte_offset_map(&_pmd, haddr);
-> > +		VM_BUG_ON(!pte_none(*pte));
-> > +		set_pte_at(mm, haddr, pte, entry);
-> > +		pte_unmap(pte);
-> > +	}
-> > +	smp_wmb(); /* make pte visible before pmd */
-> > +	pmd_populate(mm, pmd, pgtable);
-> > +}
-> > +
->=20
-> The last pmd_populate will corrupt memory.
+On Thu 09-08-12 17:01:17, Glauber Costa wrote:
+> The current memcg slab cache management fails to present satisfatory
+> hierarchical behavior in the following scenario:
+> 
+> -> /cgroups/memory/A/B/C
+> 
+> * kmem limit set at A,
+> * A and B have no tasks,
+> * span a new task in in C.
+> 
+> Because kmem_accounted is a boolean that was not set for C, no
+> accounting would be done. This is, however, not what we expect.
+> 
+> The basic idea, is that when a cgroup is limited, we walk the tree
+> upwards 
 
-Nice catch, thank you.
+Isn't it rather downwards? We start at A and then mark all children so
+we go down the tree. Moreover the walk is not atomic wrt. parallel
+charges nor to a new child creation. First one seems to be acceptable
+as the charges go to the root. The second one requires cgroup_lock.
 
-I've used do_huge_pmd_wp_page_fallback() as template for my code.
-What's difference between these two code paths?
-Why is do_huge_pmd_wp_page_fallback() safe?
+It also seems that you are missing memcg_kmem_account_parent in
+mem_cgroup_create (use_hierarchy path) if memcg_kmem_is_accounted(parent).
 
-> > +	if (is_huge_zero_pmd(*pmd)) {
-> > +		__split_huge_zero_page_pmd(mm, pmd, address);
->=20
-> This will work fine but it's a bit sad having to add "address" at
-> every call, just to run a find_vma(). The only place that doesn't have
-> a vma already on the caller stack is actually pagewalk, all other
-> places already have a vma on the stack without having to find it with
-> the rbtree.
->=20
-> I think it may be better to change the param to
-> split_huge_page_pmd(vma, pmd).
->=20
-> Then have standard split_huge_page_pmd obtain the mm with vma->vm_mm
-> (most callers already calles it with split_huge_page_pmd(vma->vm_mm)
-> so it won't alter the cost to do vma->vm_mm in caller or callee).
->=20
-> split_huge_page_address also should take the vma (all callers are
-> invoking it as split_huge_page_address(vma->vm_mm) so it'll be zero
-> cost change).
->=20
-> Then we can add a split_huge_page_pmd_mm(mm, address, pmd) or
-> split_huge_page_pmd_address(mm, address, pmd) (call it as you
-> prefer...) only for the pagewalk caller that will do the find_vma and
-> BUG_ON if it's not found.
->=20
-> In that new split_huge_page_pmd_mm you can also add a BUG_ON checking
-> vma->vm_start to be <=3D haddr and vma->vm_end >=3D haddr+HPAGE_PMD_SIZE
-> in addition to BUG_ON(!vma) above, for more robustness. I'm not aware
-> of any place calling it without mmap_sem hold at least for reading
-> and the vma must be stable, but more debug checks won't hurt.
+Some further "wording" comments below. Other than that the patch looks
+correct.
 
-Looks resonable. I'll update it in next revision.
+> (something Kame and I already thought about doing for other
+> purposes), and make sure that we store the information about the parent
+> being limited in kmem_accounted (that is turned into a bitmap: two
+> booleans would not be space efficient). 
 
---=20
- Kirill A. Shutemov
+Two booleans even don't serve the purpose because you want to test this
+atomically, right?
 
---MfFXiAuoTsnnDAfZ
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: Digital signature
+> The code for that is taken from sched/core.c. My reasons for not
+> putting it into a common place is to dodge the type issues that would
+> arise from a common implementation between memcg and the scheduler -
+> but I think that it should ultimately happen, so if you want me to do
+> it now, let me know.
 
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.12 (GNU/Linux)
+Is this really relevant for the patch?
 
-iQIcBAEBAgAGBQJQLfzxAAoJEAd+omnVudOMY58P/i466DRlrDYRpqaOYJvfbQ4p
-TXY4C7LS7HgxpcXWyylMWcLkjhJcttCPxIqK6sJuEFU9c5Ik4t+evJjHeZ2OP3If
-3DRWixflL0+rMHa1R24eJXZlptW4hjbDp94sQGMcnJnHt0c9v3qm6LRhUqKZDnDf
-XxLGr09MowJc7YINluOjZqC26I/+QnDs+DeYynuTa8HjAEjFRs6zJBhO2m8/l/7D
-pR9g5YgLapmErMnP+VAhEI4Eaz9C7THmq0/fSit7W4EHL0IzuqoIXqKdlzmAUNnq
-Nxp2ZQ5lZ2/F0Qwe6VMtklHAbR0Y4DmDX0fWne0qLQOmRTh+Qd/cEEkQli56YDB/
-G2ROZwWMYX8tT4yM30xpe3p0zZWvn3xSEUgTpY+p6WXv5ysFnmwT2V86KoP14S9U
-pUwS0Zb1MEe8jtjdtjNMzJx3AzvM5d6WXsqAxVMx8VQ7siA/xYoCWs/6lBWHUfdu
-30WEYSOREnSO6LKx5DTLWMl+C9NzjyOG/4yDdOGKk1eumog6KGPatVRkRv0quTIA
-Tx7bSSHMBZkV2Q83/kbW9xJmfmF1UVyA2/yOLFyEG38BC6DXFzQg1VfezF8+n+Wy
-/u0XFlDm89YPu1RkAoNWkiH9DOP1n2a9A+aiaoffDPPB29tdiMVrwWhyYt4zW/HB
-vLgkGpsqt0eFo61kuGCH
-=iflw
------END PGP SIGNATURE-----
+> We do the reverse operation when a formerly limited cgroup becomes
+> unlimited.
+> 
+> Signed-off-by: Glauber Costa <glommer@parallels.com>
+> CC: Christoph Lameter <cl@linux.com>
+> CC: Pekka Enberg <penberg@cs.helsinki.fi>
+> CC: Michal Hocko <mhocko@suse.cz>
+> CC: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> CC: Johannes Weiner <hannes@cmpxchg.org>
+> CC: Suleiman Souhlal <suleiman@google.com>
+> ---
+>  mm/memcontrol.c | 88 +++++++++++++++++++++++++++++++++++++++++++++++++++------
+>  1 file changed, 79 insertions(+), 9 deletions(-)
+> 
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 3216292..3d30b79 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -295,7 +295,8 @@ struct mem_cgroup {
+>  	 * Should the accounting and control be hierarchical, per subtree?
+>  	 */
+>  	bool use_hierarchy;
+> -	bool kmem_accounted;
+> +
+> +	unsigned long kmem_accounted; /* See KMEM_ACCOUNTED_*, below */
+>  
+>  	bool		oom_lock;
+>  	atomic_t	under_oom;
+> @@ -348,6 +349,38 @@ struct mem_cgroup {
+>  #endif
+>  };
+>  
+> +enum {
+> +	KMEM_ACCOUNTED_THIS, /* accounted by this cgroup itself */
+> +	KMEM_ACCOUNTED_PARENT, /* accounted by any of its parents. */
 
---MfFXiAuoTsnnDAfZ--
+How it can be accounted by its parent, the charge doesn't go downwards.
+Shouldn't it rather be /* a parent is accounted */
+
+> +};
+> +
+> +#ifdef CONFIG_MEMCG_KMEM
+> +static bool memcg_kmem_account(struct mem_cgroup *memcg)
+
+memcg_kmem_set_account? It matches _clear_ counterpart and it makes
+obvious that the value is changed actually.
+
+[...]
+> +static bool memcg_kmem_is_accounted(struct mem_cgroup *memcg)
+> +{
+> +	return test_bit(KMEM_ACCOUNTED_THIS, &memcg->kmem_accounted);
+> +}
+> +
+> +static void memcg_kmem_account_parent(struct mem_cgroup *memcg)
+
+same here _set_parent
+
+[...]
+> @@ -614,7 +647,7 @@ EXPORT_SYMBOL(__memcg_kmem_free_page);
+>  
+>  static void disarm_kmem_keys(struct mem_cgroup *memcg)
+>  {
+> -	if (memcg->kmem_accounted)
+> +	if (test_bit(KMEM_ACCOUNTED_THIS, &memcg->kmem_accounted))
+
+memcg_kmem_is_accounted. I do not see any reason to open code this.
+
+>  		static_key_slow_dec(&memcg_kmem_enabled_key);
+>  }
+>  #else
+> @@ -4171,17 +4204,54 @@ static ssize_t mem_cgroup_read(struct cgroup *cont, struct cftype *cft,
+>  static void memcg_update_kmem_limit(struct mem_cgroup *memcg, u64 val)
+>  {
+>  #ifdef CONFIG_MEMCG_KMEM
+> -	/*
+> -	 * Once enabled, can't be disabled. We could in theory disable it if we
+> -	 * haven't yet created any caches, or if we can shrink them all to
+> -	 * death. But it is not worth the trouble.
+> -	 */
+> +	struct mem_cgroup *iter;
+> +
+>  	mutex_lock(&set_limit_mutex);
+> -	if (!memcg->kmem_accounted && val != RESOURCE_MAX) {
+> +	if ((val != RESOURCE_MAX) && memcg_kmem_account(memcg)) {
+> +
+> +		/*
+> +		 * Once enabled, can't be disabled. We could in theory disable
+> +		 * it if we haven't yet created any caches, or if we can shrink
+> +		 * them all to death. But it is not worth the trouble
+> +		 */
+>  		static_key_slow_inc(&memcg_kmem_enabled_key);
+> -		memcg->kmem_accounted = true;
+> +
+> +		if (!memcg->use_hierarchy)
+> +			goto out;
+> +
+> +		for_each_mem_cgroup_tree(iter, memcg) {
+
+for_each_mem_cgroup_tree does respect use_hierarchy so the above
+shortcut is not necessary. Dunno but IMHO we should get rid of explicit
+tests as much as possible. This doesn't look like a hot path anyway.
+
+> +			if (iter == memcg)
+> +				continue;
+> +			memcg_kmem_account_parent(iter);
+> +		}
+> +	} else if ((val == RESOURCE_MAX) && memcg_kmem_clear_account(memcg)) {
+
+Above you said "Once enabled, can't be disabled." and now you can
+disable it? Say you are a leaf group with non accounted parents. This
+will clear the flag and so no further accounting is done. Shouldn't
+unlimited mean that we will never reach the limit? Or am I missing
+something?
+
+> +
+> +		if (!memcg->use_hierarchy)
+> +			goto out;
+> +
+> +		for_each_mem_cgroup_tree(iter, memcg) {
+> +			struct mem_cgroup *parent;
+> +
+> +			if (iter == memcg)
+> +				continue;
+> +			/*
+> +			 * We should only have our parent bit cleared if none
+> +			 * of our parents are accounted. The transversal order
+> +			 * of our iter function forces us to always look at the
+> +			 * parents.
+> +			 */
+> +			parent = parent_mem_cgroup(iter);
+> +			for (; parent != memcg; parent = parent_mem_cgroup(iter))
+> +				if (memcg_kmem_is_accounted(parent))
+> +					goto noclear;
+> +			memcg_kmem_clear_account_parent(iter);
+
+Brain hurts...
+Yes we are iterating in the creation ordering so we cannot rely on the
+first encountered accounted memcg
+A(a) - B - D
+     - C (a) - E
+
+
+> +noclear:
+> +			continue;
+> +		}
+>  	}
+> +out:
+>  	mutex_unlock(&set_limit_mutex);
+> +
+>  #endif
+>  }
+>  
+> -- 
+> 1.7.11.2
+> 
+> --
+> To unsubscribe from this list: send the line "unsubscribe cgroups" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
