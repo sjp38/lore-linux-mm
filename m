@@ -1,4363 +1,6477 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
-	by kanga.kvack.org (Postfix) with SMTP id E46D16B006C
-	for <linux-mm@kvack.org>; Fri, 17 Aug 2012 18:02:42 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
+	by kanga.kvack.org (Postfix) with SMTP id 1A0AF6B0070
+	for <linux-mm@kvack.org>; Fri, 17 Aug 2012 18:02:51 -0400 (EDT)
 From: Dan Magenheimer <dan.magenheimer@oracle.com>
-Subject: [PATCH 2/3] staging: zcache: move to new zcache codebase
-Date: Fri, 17 Aug 2012 15:02:31 -0700
-Message-Id: <1345240952-28302-3-git-send-email-dan.magenheimer@oracle.com>
+Subject: [PATCH 3/3] staging: zcache+ramster: move to new ramster codebase, re-merged with new zcache codebase
+Date: Fri, 17 Aug 2012 15:02:32 -0700
+Message-Id: <1345240952-28302-4-git-send-email-dan.magenheimer@oracle.com>
 In-Reply-To: <1345240952-28302-1-git-send-email-dan.magenheimer@oracle.com>
 References: <1345240952-28302-1-git-send-email-dan.magenheimer@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: devel@linuxdriverproject.org, linux-kernel@vger.kernel.org, gregkh@linuxfoundation.org, linux-mm@kvack.org, ngupta@vflare.org, konrad.wilk@oracle.com, sjenning@linux.vnet.ibm.com, minchan@kernel.org, dan.magenheimer@oracle.com
 
-The original zcache in staging was a "demo" version and this is a massive
-rewrite.  Alas, no history of changes was recorded during the rewrite and
-recreating a sane one would be a Sisyphean task but, since zcache is still
-in staging, presumably this is acceptable.
+This new ramster codebase is now built on and as a subdirectory of zcache.
+Ramster extends zcache to allow pages compressed via zcache to be
+"load-balanced" across machines in a cluster.  Control and data communication
+is done via kernel sockets, and cluster configuration and management is
+heavily leveraged from the ocfs2 cluster filesystem.
 
-This commit also provides the hooks for ramster in zcache, but the ramster
-code will be provided in another commit.
+There are no new features since the codebase introduced into staging at 3.4.
+Some cleanup was performed though:
+ 1) Interfaces directly with new zbud
+ 2) Debugfs now used instead of sysfs where possible.  Sysfs still
+    used where necessary for userland cluster configuration.
 
-Some of the highlights of this rewritten codebase for zcache:
-(Note: If you are not familiar with the tmem terminology, you can review
-it here: http://lwn.net/Articles/454795/ )
- 1. Merge of zcache and ramster.  Zcache and ramster had a great deal of
-    duplicate code which is now merged.  In essence, zcache *is* ramster
-    but with no remote machine available, but !CONFIG_RAMSTER will avoid
-    compiling lots of ramster-specific code.
- 2. Allocator.  Previously, persistent pools used zsmalloc and ephemeral pools
-    used zbud.  Now a completely rewritten zbud is used for both.  Notably
-    this zbud maintains all persistent (frontswap) and ephemeral (cleancache)
-    pageframes in separate queues in LRU order.
- 3. Interaction with page allocator.  Zbud does no page allocation/freeing,
-    it is done entirely in zcache where it can be tracked more effectively.
- 4. Better pre-allocation.  Previously, on put, if a new pageframe could not be
-    pre-allocated, the put would fail, even if the allocator had plenty of
-    partial pages where the data could be stored; this is now fixed.
- 5. Ouroboros ("eating its own tail") allocation.  If no pageframe can be
-    allocated AND no partial pages are available, the least-recently-used
-    ephemeral pageframe is reclaimed immediately (including flushing tmem
-    pointers to it) and re-used.  This ensures that most-recently-used
-    cleancache pages are more likely to be retained than LRU pages and also
-    that, as in the core mm subsystem, anonymous pages have a higher priority
-    than clean page cache pages.
- 6. Zcache and zbud now use debugfs instead of sysfs.  Ramster uses debugfs
-    where possible and sysfs where necessary.  (Some ramster configuration
-    is done from userspace so some sysfs is necessary.)
- 7. Modularization.  As some have observed, the monolithic zcache-main.c code
-    included zbud code, which has now been separated into its own code module.
-    Much ramster-specific code in the old ramster zcache-main.c has also been
-    moved into ramster.c so that it does not get compiled with !CONFIG_RAMSTER.
- 8. Rebased to 3.5.
+Ramster is very much a work-in-progress but also does really work!
 
-This new codebase also provides hooks for several future new features:
- A. WasActive patch, requires some mm/frontswap changes previously posted.
-    A new version of this patch will be provided separately.
-    See ifdef __PG_WAS_ACTIVE
- B. Exclusive gets.  It seems tmem _can_ support exclusive gets with a
-    minor change to both zcache and a small backwards-compatible change
-    to frontswap.c.  Explanation and frontswap patch will be provided
-    separately.  See ifdef FRONTSWAP_HAS_EXCLUSIVE_GETS
- C. Ouroboros writeback.  Since persistent (frontswap) pages may now also be
-    reclaimed in LRU order, the foundation is in place to properly writeback
-    these pages back into the swap cache and then the swap disk.  This is still
-    under development and requires some other mm changes which are prototyped.
-    See ifdef FRONTSWAP_HAS_UNUSE.
+RAMSTER HIGH LEVEL OVERVIEW (from original V5 posting in Feb 2012)
 
-A new feature that desperately needs attention (if someone is looking for
-a way to contribute) is kernel module support.  A preliminary version of
-a patch was posted by Erlangen University and needs to be integrated and
-tested for zcache and brought up to kernel standards.
+RAMster implements peer-to-peer transcendent memory, allowing a "cluster" of
+kernels to dynamically pool their RAM so that a RAM-hungry workload on one
+machine can temporarily and transparently utilize RAM on another machine which
+is presumably idle or running a non-RAM-hungry workload.  Other than the
+already-merged cleancache patchset and frontswap patchset, no core kernel
+changes are currently required.
 
-If anybody is interested on helping out with any of these, let me know!
+(Note that, unlike previous public descriptions of RAMster, this implementation
+does NOT require synchronous "gets" or core networking changes. As of V5,
+it also co-exists with ocfs2.)
+
+RAMster combines a clustering and messaging foundation based on the ocfs2
+cluster layer with the in-kernel compression implementation of zcache, and
+adds code to glue them together.  When a page is "put" to RAMster, it is
+compressed and stored locally.  Periodically, a thread will "remotify" these
+pages by sending them via messages to a remote machine.  When the page is
+later needed as indicated by a page fault, a "get" is issued.  If the data
+is local, it is uncompressed and the fault is resolved.  If the data is
+remote, a message is sent to fetch the data and the faulting thread sleeps;
+when the data arrives, the thread awakens, the data is decompressed and
+the fault is resolved.
+
+As of V5, clusters up to eight nodes are supported; each node can remotify
+pages to one specified node, so clusters can be configured as clients to
+a "memory server".  Some simple policy is in place that will need to be
+refined over time.  Larger clusters and fault-resistant protocols can also
+be added over time.
+
+A HOW-TO is available at:
+http://oss.oracle.com/projects/tmem/dist/files/RAMster/HOWTO-120817
 
 Signed-off-by: Dan Magenheimer <dan.magenheimer@oracle.com>
 ---
- drivers/staging/Kconfig              |    2 +
- drivers/staging/Makefile             |    1 +
- drivers/staging/zcache/Kconfig       |   15 +
- drivers/staging/zcache/Makefile      |    2 +
- drivers/staging/zcache/ramster.h     |   59 ++
- drivers/staging/zcache/tmem.c        |  894 +++++++++++++++++
- drivers/staging/zcache/tmem.h        |  259 +++++
- drivers/staging/zcache/zbud.c        | 1060 ++++++++++++++++++++
- drivers/staging/zcache/zbud.h        |   33 +
- drivers/staging/zcache/zcache-main.c | 1812 ++++++++++++++++++++++++++++++++++
- drivers/staging/zcache/zcache.h      |   53 +
- 11 files changed, 4190 insertions(+), 0 deletions(-)
- create mode 100644 drivers/staging/zcache/Kconfig
- create mode 100644 drivers/staging/zcache/Makefile
- create mode 100644 drivers/staging/zcache/ramster.h
- create mode 100644 drivers/staging/zcache/tmem.c
- create mode 100644 drivers/staging/zcache/tmem.h
- create mode 100644 drivers/staging/zcache/zbud.c
- create mode 100644 drivers/staging/zcache/zbud.h
- create mode 100644 drivers/staging/zcache/zcache-main.c
- create mode 100644 drivers/staging/zcache/zcache.h
+ drivers/staging/zcache/Kconfig                     |   18 +
+ drivers/staging/zcache/Makefile                    |    4 +
+ drivers/staging/zcache/ramster/heartbeat.c         |  462 ++++
+ drivers/staging/zcache/ramster/heartbeat.h         |   87 +
+ drivers/staging/zcache/ramster/masklog.c           |  155 ++
+ drivers/staging/zcache/ramster/masklog.h           |  220 ++
+ drivers/staging/zcache/ramster/nodemanager.c       |  995 +++++++++
+ drivers/staging/zcache/ramster/nodemanager.h       |   88 +
+ drivers/staging/zcache/ramster/r2net.c             |  414 ++++
+ drivers/staging/zcache/ramster/ramster.c           |  985 +++++++++
+ drivers/staging/zcache/ramster/ramster.h           |  161 ++
+ .../staging/zcache/ramster/ramster_nodemanager.h   |   39 +
+ drivers/staging/zcache/ramster/tcp.c               | 2253 ++++++++++++++++++++
+ drivers/staging/zcache/ramster/tcp.h               |  159 ++
+ drivers/staging/zcache/ramster/tcp_internal.h      |  248 +++
+ 15 files changed, 6288 insertions(+), 0 deletions(-)
+ create mode 100644 drivers/staging/zcache/ramster/heartbeat.c
+ create mode 100644 drivers/staging/zcache/ramster/heartbeat.h
+ create mode 100644 drivers/staging/zcache/ramster/masklog.c
+ create mode 100644 drivers/staging/zcache/ramster/masklog.h
+ create mode 100644 drivers/staging/zcache/ramster/nodemanager.c
+ create mode 100644 drivers/staging/zcache/ramster/nodemanager.h
+ create mode 100644 drivers/staging/zcache/ramster/r2net.c
+ create mode 100644 drivers/staging/zcache/ramster/ramster.c
+ create mode 100644 drivers/staging/zcache/ramster/ramster.h
+ create mode 100644 drivers/staging/zcache/ramster/ramster_nodemanager.h
+ create mode 100644 drivers/staging/zcache/ramster/tcp.c
+ create mode 100644 drivers/staging/zcache/ramster/tcp.h
+ create mode 100644 drivers/staging/zcache/ramster/tcp_internal.h
 
-diff --git a/drivers/staging/Kconfig b/drivers/staging/Kconfig
-index ff8870b..ae2fbe9 100644
---- a/drivers/staging/Kconfig
-+++ b/drivers/staging/Kconfig
-@@ -128,4 +128,6 @@ source "drivers/staging/ipack/Kconfig"
- 
- source "drivers/staging/gdm72xx/Kconfig"
- 
-+source "drivers/staging/zcache/Kconfig"
-+
- endif # STAGING
-diff --git a/drivers/staging/Makefile b/drivers/staging/Makefile
-index c03bf4a..5975796 100644
---- a/drivers/staging/Makefile
-+++ b/drivers/staging/Makefile
-@@ -56,3 +56,4 @@ obj-$(CONFIG_PHONE)		+= telephony/
- obj-$(CONFIG_USB_WPAN_HCD)	+= ozwpan/
- obj-$(CONFIG_USB_G_CCG)		+= ccg/
- obj-$(CONFIG_WIMAX_GDM72XX)	+= gdm72xx/
-+obj-$(CONFIG_ZCACHE)		+= zcache/
 diff --git a/drivers/staging/zcache/Kconfig b/drivers/staging/zcache/Kconfig
-new file mode 100644
-index 0000000..0cd7460
---- /dev/null
+index 0cd7460..cb7f9dd 100644
+--- a/drivers/staging/zcache/Kconfig
 +++ b/drivers/staging/zcache/Kconfig
-@@ -0,0 +1,15 @@
-+config ZCACHE
-+	bool "Dynamic compression of swap pages and clean pagecache pages"
-+	# X86 dependency is because zsmalloc uses non-portable pte/tlb
-+	# functions
-+	depends on CRYPTO=y
+@@ -13,3 +13,21 @@ config ZCACHE
+ 	  compression and an in-kernel implementation of transcendent
+ 	  memory to store clean page cache pages and swap in RAM,
+ 	  providing a noticeable reduction in disk I/O.
++
++config RAMSTER
++	bool "Cross-machine RAM capacity sharing, aka peer-to-peer tmem"
++	depends on CRYPTO=y && CONFIGFS_FS=y && SYSFS=y && !HIGHMEM
++	select ZCACHE
 +	select CLEANCACHE
 +	select FRONTSWAP
 +	select CRYPTO_LZO
++	# must ensure struct page is 8-byte aligned
++	select HAVE_ALIGNED_STRUCT_PAGE if !64_BIT
 +	default n
 +	help
-+	  Zcache doubles RAM efficiency while providing a significant
-+	  performance boosts on many workloads.  Zcache uses
-+	  compression and an in-kernel implementation of transcendent
-+	  memory to store clean page cache pages and swap in RAM,
-+	  providing a noticeable reduction in disk I/O.
++	  RAMster allows RAM on other machines in a cluster to be utilized
++	  dynamically and symmetrically instead of swapping to a local swap
++	  disk, thus improving performance on memory-constrained workloads
++	  while minimizing total RAM across the cluster.  RAMster, like
++	  zcache, compresses swap pages into local RAM, but then remotifies
++	  the compressed pages to another node in the RAMster cluster.
 diff --git a/drivers/staging/zcache/Makefile b/drivers/staging/zcache/Makefile
-new file mode 100644
-index 0000000..30ac53b
---- /dev/null
+index 30ac53b..4711049 100644
+--- a/drivers/staging/zcache/Makefile
 +++ b/drivers/staging/zcache/Makefile
-@@ -0,0 +1,2 @@
-+zcache-y	:=		zcache-main.o tmem.o zbud.o
-+obj-$(CONFIG_ZCACHE)	+=	zcache.o
-diff --git a/drivers/staging/zcache/ramster.h b/drivers/staging/zcache/ramster.h
-new file mode 100644
-index 0000000..1b71aea
---- /dev/null
-+++ b/drivers/staging/zcache/ramster.h
-@@ -0,0 +1,59 @@
+@@ -1,2 +1,6 @@
+ zcache-y	:=		zcache-main.o tmem.o zbud.o
++zcache-$(CONFIG_RAMSTER)	+=	ramster/ramster.o ramster/r2net.o
++zcache-$(CONFIG_RAMSTER)	+=	ramster/nodemanager.o ramster/tcp.o
++zcache-$(CONFIG_RAMSTER)	+=	ramster/heartbeat.o ramster/masklog.o
 +
-+/*
-+ * zcache/ramster.h
+ obj-$(CONFIG_ZCACHE)	+=	zcache.o
+diff --git a/drivers/staging/zcache/ramster/heartbeat.c b/drivers/staging/zcache/ramster/heartbeat.c
+new file mode 100644
+index 0000000..75d3fe8
+--- /dev/null
++++ b/drivers/staging/zcache/ramster/heartbeat.c
+@@ -0,0 +1,462 @@
++/* -*- mode: c; c-basic-offset: 8; -*-
++ * vim: noexpandtab sw=8 ts=8 sts=0:
 + *
-+ * Placeholder to resolve ramster references when !CONFIG_RAMSTER
-+ * Real ramster.h lives in ramster subdirectory.
++ * Copyright (C) 2004, 2005, 2012 Oracle.  All rights reserved.
 + *
-+ * Copyright (c) 2009-2012, Dan Magenheimer, Oracle Corp.
++ * This program is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU General Public
++ * License as published by the Free Software Foundation; either
++ * version 2 of the License, or (at your option) any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public
++ * License along with this program; if not, write to the
++ * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
++ * Boston, MA 021110-1307, USA.
 + */
 +
-+#ifndef _ZCACHE_RAMSTER_H_
-+#define _ZCACHE_RAMSTER_H_
++#include <linux/kernel.h>
++#include <linux/module.h>
++#include <linux/configfs.h>
 +
-+#ifdef CONFIG_RAMSTER
-+#include "ramster/ramster.h"
-+#else
-+static inline void ramster_init(bool x, bool y, bool z)
++#include "heartbeat.h"
++#include "tcp.h"
++#include "nodemanager.h"
++
++#include "masklog.h"
++
++/*
++ * The first heartbeat pass had one global thread that would serialize all hb
++ * callback calls.  This global serializing sem should only be removed once
++ * we've made sure that all callees can deal with being called concurrently
++ * from multiple hb region threads.
++ */
++static DECLARE_RWSEM(r2hb_callback_sem);
++
++/*
++ * multiple hb threads are watching multiple regions.  A node is live
++ * whenever any of the threads sees activity from the node in its region.
++ */
++static DEFINE_SPINLOCK(r2hb_live_lock);
++static unsigned long r2hb_live_node_bitmap[BITS_TO_LONGS(R2NM_MAX_NODES)];
++
++static struct r2hb_callback {
++	struct list_head list;
++} r2hb_callbacks[R2HB_NUM_CB];
++
++enum r2hb_heartbeat_modes {
++	R2HB_HEARTBEAT_LOCAL		= 0,
++	R2HB_HEARTBEAT_GLOBAL,
++	R2HB_HEARTBEAT_NUM_MODES,
++};
++
++char *r2hb_heartbeat_mode_desc[R2HB_HEARTBEAT_NUM_MODES] = {
++		"local",	/* R2HB_HEARTBEAT_LOCAL */
++		"global",	/* R2HB_HEARTBEAT_GLOBAL */
++};
++
++unsigned int r2hb_dead_threshold = R2HB_DEFAULT_DEAD_THRESHOLD;
++unsigned int r2hb_heartbeat_mode = R2HB_HEARTBEAT_LOCAL;
++
++/* Only sets a new threshold if there are no active regions.
++ *
++ * No locking or otherwise interesting code is required for reading
++ * r2hb_dead_threshold as it can't change once regions are active and
++ * it's not interesting to anyone until then anyway. */
++static void r2hb_dead_threshold_set(unsigned int threshold)
++{
++	if (threshold > R2HB_MIN_DEAD_THRESHOLD) {
++		spin_lock(&r2hb_live_lock);
++		r2hb_dead_threshold = threshold;
++		spin_unlock(&r2hb_live_lock);
++	}
++}
++
++static int r2hb_global_hearbeat_mode_set(unsigned int hb_mode)
++{
++	int ret = -1;
++
++	if (hb_mode < R2HB_HEARTBEAT_NUM_MODES) {
++		spin_lock(&r2hb_live_lock);
++		r2hb_heartbeat_mode = hb_mode;
++		ret = 0;
++		spin_unlock(&r2hb_live_lock);
++	}
++
++	return ret;
++}
++
++void r2hb_exit(void)
 +{
 +}
 +
-+static inline void ramster_register_pamops(struct tmem_pamops *p)
++int r2hb_init(void)
 +{
-+}
++	int i;
 +
-+static inline int ramster_remotify_pageframe(bool b)
-+{
++	for (i = 0; i < ARRAY_SIZE(r2hb_callbacks); i++)
++		INIT_LIST_HEAD(&r2hb_callbacks[i].list);
++
++	memset(r2hb_live_node_bitmap, 0, sizeof(r2hb_live_node_bitmap));
++
 +	return 0;
 +}
 +
-+static inline void *ramster_pampd_free(void *v, struct tmem_pool *p,
-+			struct tmem_oid *o, uint32_t u, bool b)
++/* if we're already in a callback then we're already serialized by the sem */
++static void r2hb_fill_node_map_from_callback(unsigned long *map,
++					     unsigned bytes)
 +{
-+	return NULL;
-+}
++	BUG_ON(bytes < (BITS_TO_LONGS(R2NM_MAX_NODES) * sizeof(unsigned long)));
 +
-+static inline int ramster_do_preload_flnode(struct tmem_pool *p)
-+{
-+	return -1;
-+}
-+
-+static inline bool pampd_is_remote(void *v)
-+{
-+	return false;
-+}
-+
-+static inline void ramster_count_foreign_pages(bool b, int i)
-+{
-+}
-+
-+static inline void ramster_cpu_up(int cpu)
-+{
-+}
-+
-+static inline void ramster_cpu_down(int cpu)
-+{
-+}
-+#endif
-+
-+#endif /* _ZCACHE_RAMSTER_H */
-diff --git a/drivers/staging/zcache/tmem.c b/drivers/staging/zcache/tmem.c
-new file mode 100644
-index 0000000..a2b7e03
---- /dev/null
-+++ b/drivers/staging/zcache/tmem.c
-@@ -0,0 +1,894 @@
-+/*
-+ * In-kernel transcendent memory (generic implementation)
-+ *
-+ * Copyright (c) 2009-2012, Dan Magenheimer, Oracle Corp.
-+ *
-+ * The primary purpose of Transcedent Memory ("tmem") is to map object-oriented
-+ * "handles" (triples containing a pool id, and object id, and an index), to
-+ * pages in a page-accessible memory (PAM).  Tmem references the PAM pages via
-+ * an abstract "pampd" (PAM page-descriptor), which can be operated on by a
-+ * set of functions (pamops).  Each pampd contains some representation of
-+ * PAGE_SIZE bytes worth of data. For those familiar with key-value stores,
-+ * the tmem handle is a three-level hierarchical key, and the value is always
-+ * reconstituted (but not necessarily stored) as PAGE_SIZE bytes and is
-+ * referenced in the datastore by the pampd.  The hierarchy is required
-+ * to ensure that certain invalidation functions can be performed efficiently
-+ * (i.e. flush all indexes associated with this object_id, or
-+ * flush all objects associated with this pool).
-+ *
-+ * Tmem must support potentially millions of pages and must be able to insert,
-+ * find, and delete these pages at a potential frequency of thousands per
-+ * second concurrently across many CPUs, (and, if used with KVM, across many
-+ * vcpus across many guests).  Tmem is tracked with a hierarchy of data
-+ * structures, organized by the elements in the handle-tuple: pool_id,
-+ * object_id, and page index.  One or more "clients" (e.g. guests) each
-+ * provide one or more tmem_pools.  Each pool, contains a hash table of
-+ * rb_trees of tmem_objs.  Each tmem_obj contains a radix-tree-like tree
-+ * of pointers, with intermediate nodes called tmem_objnodes.  Each leaf
-+ * pointer in this tree points to a pampd, which is accessible only through
-+ * a small set of callbacks registered by the PAM implementation (see
-+ * tmem_register_pamops). Tmem only needs to memory allocation for objs
-+ * and objnodes and this is done via a set of callbacks that must be
-+ * registered by the tmem host implementation (e.g. see tmem_register_hostops).
-+ */
-+
-+#include <linux/list.h>
-+#include <linux/spinlock.h>
-+#include <linux/atomic.h>
-+#ifdef CONFIG_RAMSTER
-+#include <linux/delay.h>
-+#endif
-+
-+#include "tmem.h"
-+
-+/* data structure sentinels used for debugging... see tmem.h */
-+#define POOL_SENTINEL 0x87658765
-+#define OBJ_SENTINEL 0x12345678
-+#define OBJNODE_SENTINEL 0xfedcba09
-+
-+/*
-+ * A tmem host implementation must use this function to register callbacks
-+ * for memory allocation.
-+ */
-+static struct tmem_hostops tmem_hostops;
-+
-+static void tmem_objnode_tree_init(void);
-+
-+void tmem_register_hostops(struct tmem_hostops *m)
-+{
-+	tmem_objnode_tree_init();
-+	tmem_hostops = *m;
++	memcpy(map, &r2hb_live_node_bitmap, bytes);
 +}
 +
 +/*
-+ * A tmem host implementation must use this function to register
-+ * callbacks for a page-accessible memory (PAM) implementation.
++ * get a map of all nodes that are heartbeating in any regions
 + */
-+static struct tmem_pamops tmem_pamops;
-+
-+void tmem_register_pamops(struct tmem_pamops *m)
++void r2hb_fill_node_map(unsigned long *map, unsigned bytes)
 +{
-+	tmem_pamops = *m;
++	/* callers want to serialize this map and callbacks so that they
++	 * can trust that they don't miss nodes coming to the party */
++	down_read(&r2hb_callback_sem);
++	spin_lock(&r2hb_live_lock);
++	r2hb_fill_node_map_from_callback(map, bytes);
++	spin_unlock(&r2hb_live_lock);
++	up_read(&r2hb_callback_sem);
 +}
++EXPORT_SYMBOL_GPL(r2hb_fill_node_map);
 +
 +/*
-+ * Oid's are potentially very sparse and tmem_objs may have an indeterminately
-+ * short life, being added and deleted at a relatively high frequency.
-+ * So an rb_tree is an ideal data structure to manage tmem_objs.  But because
-+ * of the potentially huge number of tmem_objs, each pool manages a hashtable
-+ * of rb_trees to reduce search, insert, delete, and rebalancing time.
-+ * Each hashbucket also has a lock to manage concurrent access and no
-+ * searches, inserts, or deletions can be performed unless the lock is held.
-+ * As a result, care must be taken to ensure tmem routines are not called
-+ * recursively; the vast majority of the time, a recursive call may work
-+ * but a deadlock will occur a small fraction of the time due to the
-+ * hashbucket lock.
-+ *
-+ * The following routines manage tmem_objs.  In all of these routines,
-+ * the hashbucket lock is already held.
++ * heartbeat configfs bits.  The heartbeat set is a default set under
++ * the cluster set in nodemanager.c.
 + */
 +
-+/* Search for object==oid in pool, returns object if found. */
-+static struct tmem_obj *__tmem_obj_find(struct tmem_hashbucket *hb,
-+					struct tmem_oid *oidp,
-+					struct rb_node **parent,
-+					struct rb_node ***link)
-+{
-+	struct rb_node *_parent = NULL, **rbnode;
-+	struct tmem_obj *obj = NULL;
++/* heartbeat set */
 +
-+	rbnode = &hb->obj_rb_root.rb_node;
-+	while (*rbnode) {
-+		BUG_ON(RB_EMPTY_NODE(*rbnode));
-+		_parent = *rbnode;
-+		obj = rb_entry(*rbnode, struct tmem_obj,
-+			       rb_tree_node);
-+		switch (tmem_oid_compare(oidp, &obj->oid)) {
-+		case 0: /* equal */
-+			goto out;
-+		case -1:
-+			rbnode = &(*rbnode)->rb_left;
-+			break;
-+		case 1:
-+			rbnode = &(*rbnode)->rb_right;
-+			break;
-+		}
-+	}
-+
-+	if (parent)
-+		*parent = _parent;
-+	if (link)
-+		*link = rbnode;
-+	obj = NULL;
-+out:
-+	return obj;
-+}
-+
-+static struct tmem_obj *tmem_obj_find(struct tmem_hashbucket *hb,
-+					struct tmem_oid *oidp)
-+{
-+	return __tmem_obj_find(hb, oidp, NULL, NULL);
-+}
-+
-+static void tmem_pampd_destroy_all_in_obj(struct tmem_obj *, bool);
-+
-+/* Free an object that has no more pampds in it. */
-+static void tmem_obj_free(struct tmem_obj *obj, struct tmem_hashbucket *hb)
-+{
-+	struct tmem_pool *pool;
-+
-+	BUG_ON(obj == NULL);
-+	ASSERT_SENTINEL(obj, OBJ);
-+	BUG_ON(obj->pampd_count > 0);
-+	pool = obj->pool;
-+	BUG_ON(pool == NULL);
-+	if (obj->objnode_tree_root != NULL) /* may be "stump" with no leaves */
-+		tmem_pampd_destroy_all_in_obj(obj, false);
-+	BUG_ON(obj->objnode_tree_root != NULL);
-+	BUG_ON((long)obj->objnode_count != 0);
-+	atomic_dec(&pool->obj_count);
-+	BUG_ON(atomic_read(&pool->obj_count) < 0);
-+	INVERT_SENTINEL(obj, OBJ);
-+	obj->pool = NULL;
-+	tmem_oid_set_invalid(&obj->oid);
-+	rb_erase(&obj->rb_tree_node, &hb->obj_rb_root);
-+}
-+
-+/*
-+ * Initialize, and insert an tmem_object_root (called only if find failed).
-+ */
-+static void tmem_obj_init(struct tmem_obj *obj, struct tmem_hashbucket *hb,
-+					struct tmem_pool *pool,
-+					struct tmem_oid *oidp)
-+{
-+	struct rb_root *root = &hb->obj_rb_root;
-+	struct rb_node **new = NULL, *parent = NULL;
-+
-+	BUG_ON(pool == NULL);
-+	atomic_inc(&pool->obj_count);
-+	obj->objnode_tree_height = 0;
-+	obj->objnode_tree_root = NULL;
-+	obj->pool = pool;
-+	obj->oid = *oidp;
-+	obj->objnode_count = 0;
-+	obj->pampd_count = 0;
-+#ifdef CONFIG_RAMSTER
-+	if (tmem_pamops.new_obj != NULL)
-+		(*tmem_pamops.new_obj)(obj);
-+#endif
-+	SET_SENTINEL(obj, OBJ);
-+
-+	if (__tmem_obj_find(hb, oidp, &parent, &new))
-+		BUG();
-+
-+	rb_link_node(&obj->rb_tree_node, parent, new);
-+	rb_insert_color(&obj->rb_tree_node, root);
-+}
-+
-+/*
-+ * Tmem is managed as a set of tmem_pools with certain attributes, such as
-+ * "ephemeral" vs "persistent".  These attributes apply to all tmem_objs
-+ * and all pampds that belong to a tmem_pool.  A tmem_pool is created
-+ * or deleted relatively rarely (for example, when a filesystem is
-+ * mounted or unmounted).
-+ */
-+
-+/* flush all data from a pool and, optionally, free it */
-+static void tmem_pool_flush(struct tmem_pool *pool, bool destroy)
-+{
-+	struct rb_node *rbnode;
-+	struct tmem_obj *obj;
-+	struct tmem_hashbucket *hb = &pool->hashbucket[0];
-+	int i;
-+
-+	BUG_ON(pool == NULL);
-+	for (i = 0; i < TMEM_HASH_BUCKETS; i++, hb++) {
-+		spin_lock(&hb->lock);
-+		rbnode = rb_first(&hb->obj_rb_root);
-+		while (rbnode != NULL) {
-+			obj = rb_entry(rbnode, struct tmem_obj, rb_tree_node);
-+			rbnode = rb_next(rbnode);
-+			tmem_pampd_destroy_all_in_obj(obj, true);
-+			tmem_obj_free(obj, hb);
-+			(*tmem_hostops.obj_free)(obj, pool);
-+		}
-+		spin_unlock(&hb->lock);
-+	}
-+	if (destroy)
-+		list_del(&pool->pool_list);
-+}
-+
-+/*
-+ * A tmem_obj contains a radix-tree-like tree in which the intermediate
-+ * nodes are called tmem_objnodes.  (The kernel lib/radix-tree.c implementation
-+ * is very specialized and tuned for specific uses and is not particularly
-+ * suited for use from this code, though some code from the core algorithms has
-+ * been reused, thus the copyright notices below).  Each tmem_objnode contains
-+ * a set of pointers which point to either a set of intermediate tmem_objnodes
-+ * or a set of of pampds.
-+ *
-+ * Portions Copyright (C) 2001 Momchil Velikov
-+ * Portions Copyright (C) 2001 Christoph Hellwig
-+ * Portions Copyright (C) 2005 SGI, Christoph Lameter <clameter@sgi.com>
-+ */
-+
-+struct tmem_objnode_tree_path {
-+	struct tmem_objnode *objnode;
-+	int offset;
++struct r2hb_hb_group {
++	struct config_group hs_group;
++	/* some stuff? */
 +};
 +
-+/* objnode height_to_maxindex translation */
-+static unsigned long tmem_objnode_tree_h2max[OBJNODE_TREE_MAX_PATH + 1];
-+
-+static void tmem_objnode_tree_init(void)
++static struct r2hb_hb_group *to_r2hb_hb_group(struct config_group *group)
 +{
-+	unsigned int ht, tmp;
-+
-+	for (ht = 0; ht < ARRAY_SIZE(tmem_objnode_tree_h2max); ht++) {
-+		tmp = ht * OBJNODE_TREE_MAP_SHIFT;
-+		if (tmp >= OBJNODE_TREE_INDEX_BITS)
-+			tmem_objnode_tree_h2max[ht] = ~0UL;
-+		else
-+			tmem_objnode_tree_h2max[ht] =
-+			    (~0UL >> (OBJNODE_TREE_INDEX_BITS - tmp - 1)) >> 1;
-+	}
++	return group ?
++		container_of(group, struct r2hb_hb_group, hs_group)
++		: NULL;
 +}
 +
-+static struct tmem_objnode *tmem_objnode_alloc(struct tmem_obj *obj)
-+{
-+	struct tmem_objnode *objnode;
++static struct config_item r2hb_config_item;
 +
-+	ASSERT_SENTINEL(obj, OBJ);
-+	BUG_ON(obj->pool == NULL);
-+	ASSERT_SENTINEL(obj->pool, POOL);
-+	objnode = (*tmem_hostops.objnode_alloc)(obj->pool);
-+	if (unlikely(objnode == NULL))
-+		goto out;
-+	objnode->obj = obj;
-+	SET_SENTINEL(objnode, OBJNODE);
-+	memset(&objnode->slots, 0, sizeof(objnode->slots));
-+	objnode->slots_in_use = 0;
-+	obj->objnode_count++;
-+out:
-+	return objnode;
-+}
-+
-+static void tmem_objnode_free(struct tmem_objnode *objnode)
-+{
-+	struct tmem_pool *pool;
-+	int i;
-+
-+	BUG_ON(objnode == NULL);
-+	for (i = 0; i < OBJNODE_TREE_MAP_SIZE; i++)
-+		BUG_ON(objnode->slots[i] != NULL);
-+	ASSERT_SENTINEL(objnode, OBJNODE);
-+	INVERT_SENTINEL(objnode, OBJNODE);
-+	BUG_ON(objnode->obj == NULL);
-+	ASSERT_SENTINEL(objnode->obj, OBJ);
-+	pool = objnode->obj->pool;
-+	BUG_ON(pool == NULL);
-+	ASSERT_SENTINEL(pool, POOL);
-+	objnode->obj->objnode_count--;
-+	objnode->obj = NULL;
-+	(*tmem_hostops.objnode_free)(objnode, pool);
-+}
-+
-+/*
-+ * Lookup index in object and return associated pampd (or NULL if not found).
-+ */
-+static void **__tmem_pampd_lookup_in_obj(struct tmem_obj *obj, uint32_t index)
-+{
-+	unsigned int height, shift;
-+	struct tmem_objnode **slot = NULL;
-+
-+	BUG_ON(obj == NULL);
-+	ASSERT_SENTINEL(obj, OBJ);
-+	BUG_ON(obj->pool == NULL);
-+	ASSERT_SENTINEL(obj->pool, POOL);
-+
-+	height = obj->objnode_tree_height;
-+	if (index > tmem_objnode_tree_h2max[obj->objnode_tree_height])
-+		goto out;
-+	if (height == 0 && obj->objnode_tree_root) {
-+		slot = &obj->objnode_tree_root;
-+		goto out;
-+	}
-+	shift = (height-1) * OBJNODE_TREE_MAP_SHIFT;
-+	slot = &obj->objnode_tree_root;
-+	while (height > 0) {
-+		if (*slot == NULL)
-+			goto out;
-+		slot = (struct tmem_objnode **)
-+			((*slot)->slots +
-+			 ((index >> shift) & OBJNODE_TREE_MAP_MASK));
-+		shift -= OBJNODE_TREE_MAP_SHIFT;
-+		height--;
-+	}
-+out:
-+	return slot != NULL ? (void **)slot : NULL;
-+}
-+
-+static void *tmem_pampd_lookup_in_obj(struct tmem_obj *obj, uint32_t index)
-+{
-+	struct tmem_objnode **slot;
-+
-+	slot = (struct tmem_objnode **)__tmem_pampd_lookup_in_obj(obj, index);
-+	return slot != NULL ? *slot : NULL;
-+}
-+
-+#ifdef CONFIG_RAMSTER
-+static void *tmem_pampd_replace_in_obj(struct tmem_obj *obj, uint32_t index,
-+					void *new_pampd, bool no_free)
-+{
-+	struct tmem_objnode **slot;
-+	void *ret = NULL;
-+
-+	slot = (struct tmem_objnode **)__tmem_pampd_lookup_in_obj(obj, index);
-+	if ((slot != NULL) && (*slot != NULL)) {
-+		void *old_pampd = *(void **)slot;
-+		*(void **)slot = new_pampd;
-+		if (!no_free)
-+			(*tmem_pamops.free)(old_pampd, obj->pool,
-+						NULL, 0, false);
-+		ret = new_pampd;
-+	}
-+	return ret;
-+}
-+#endif
-+
-+static int tmem_pampd_add_to_obj(struct tmem_obj *obj, uint32_t index,
-+					void *pampd)
-+{
-+	int ret = 0;
-+	struct tmem_objnode *objnode = NULL, *newnode, *slot;
-+	unsigned int height, shift;
-+	int offset = 0;
-+
-+	/* if necessary, extend the tree to be higher  */
-+	if (index > tmem_objnode_tree_h2max[obj->objnode_tree_height]) {
-+		height = obj->objnode_tree_height + 1;
-+		if (index > tmem_objnode_tree_h2max[height])
-+			while (index > tmem_objnode_tree_h2max[height])
-+				height++;
-+		if (obj->objnode_tree_root == NULL) {
-+			obj->objnode_tree_height = height;
-+			goto insert;
-+		}
-+		do {
-+			newnode = tmem_objnode_alloc(obj);
-+			if (!newnode) {
-+				ret = -ENOMEM;
-+				goto out;
-+			}
-+			newnode->slots[0] = obj->objnode_tree_root;
-+			newnode->slots_in_use = 1;
-+			obj->objnode_tree_root = newnode;
-+			obj->objnode_tree_height++;
-+		} while (height > obj->objnode_tree_height);
-+	}
-+insert:
-+	slot = obj->objnode_tree_root;
-+	height = obj->objnode_tree_height;
-+	shift = (height-1) * OBJNODE_TREE_MAP_SHIFT;
-+	while (height > 0) {
-+		if (slot == NULL) {
-+			/* add a child objnode.  */
-+			slot = tmem_objnode_alloc(obj);
-+			if (!slot) {
-+				ret = -ENOMEM;
-+				goto out;
-+			}
-+			if (objnode) {
-+
-+				objnode->slots[offset] = slot;
-+				objnode->slots_in_use++;
-+			} else
-+				obj->objnode_tree_root = slot;
-+		}
-+		/* go down a level */
-+		offset = (index >> shift) & OBJNODE_TREE_MAP_MASK;
-+		objnode = slot;
-+		slot = objnode->slots[offset];
-+		shift -= OBJNODE_TREE_MAP_SHIFT;
-+		height--;
-+	}
-+	BUG_ON(slot != NULL);
-+	if (objnode) {
-+		objnode->slots_in_use++;
-+		objnode->slots[offset] = pampd;
-+	} else
-+		obj->objnode_tree_root = pampd;
-+	obj->pampd_count++;
-+out:
-+	return ret;
-+}
-+
-+static void *tmem_pampd_delete_from_obj(struct tmem_obj *obj, uint32_t index)
-+{
-+	struct tmem_objnode_tree_path path[OBJNODE_TREE_MAX_PATH + 1];
-+	struct tmem_objnode_tree_path *pathp = path;
-+	struct tmem_objnode *slot = NULL;
-+	unsigned int height, shift;
-+	int offset;
-+
-+	BUG_ON(obj == NULL);
-+	ASSERT_SENTINEL(obj, OBJ);
-+	BUG_ON(obj->pool == NULL);
-+	ASSERT_SENTINEL(obj->pool, POOL);
-+	height = obj->objnode_tree_height;
-+	if (index > tmem_objnode_tree_h2max[height])
-+		goto out;
-+	slot = obj->objnode_tree_root;
-+	if (height == 0 && obj->objnode_tree_root) {
-+		obj->objnode_tree_root = NULL;
-+		goto out;
-+	}
-+	shift = (height - 1) * OBJNODE_TREE_MAP_SHIFT;
-+	pathp->objnode = NULL;
-+	do {
-+		if (slot == NULL)
-+			goto out;
-+		pathp++;
-+		offset = (index >> shift) & OBJNODE_TREE_MAP_MASK;
-+		pathp->offset = offset;
-+		pathp->objnode = slot;
-+		slot = slot->slots[offset];
-+		shift -= OBJNODE_TREE_MAP_SHIFT;
-+		height--;
-+	} while (height > 0);
-+	if (slot == NULL)
-+		goto out;
-+	while (pathp->objnode) {
-+		pathp->objnode->slots[pathp->offset] = NULL;
-+		pathp->objnode->slots_in_use--;
-+		if (pathp->objnode->slots_in_use) {
-+			if (pathp->objnode == obj->objnode_tree_root) {
-+				while (obj->objnode_tree_height > 0 &&
-+				  obj->objnode_tree_root->slots_in_use == 1 &&
-+				  obj->objnode_tree_root->slots[0]) {
-+					struct tmem_objnode *to_free =
-+						obj->objnode_tree_root;
-+
-+					obj->objnode_tree_root =
-+							to_free->slots[0];
-+					obj->objnode_tree_height--;
-+					to_free->slots[0] = NULL;
-+					to_free->slots_in_use = 0;
-+					tmem_objnode_free(to_free);
-+				}
-+			}
-+			goto out;
-+		}
-+		tmem_objnode_free(pathp->objnode); /* 0 slots used, free it */
-+		pathp--;
-+	}
-+	obj->objnode_tree_height = 0;
-+	obj->objnode_tree_root = NULL;
-+
-+out:
-+	if (slot != NULL)
-+		obj->pampd_count--;
-+	BUG_ON(obj->pampd_count < 0);
-+	return slot;
-+}
-+
-+/* Recursively walk the objnode_tree destroying pampds and objnodes. */
-+static void tmem_objnode_node_destroy(struct tmem_obj *obj,
-+					struct tmem_objnode *objnode,
-+					unsigned int ht)
-+{
-+	int i;
-+
-+	if (ht == 0)
-+		return;
-+	for (i = 0; i < OBJNODE_TREE_MAP_SIZE; i++) {
-+		if (objnode->slots[i]) {
-+			if (ht == 1) {
-+				obj->pampd_count--;
-+				(*tmem_pamops.free)(objnode->slots[i],
-+						obj->pool, NULL, 0, true);
-+				objnode->slots[i] = NULL;
-+				continue;
-+			}
-+			tmem_objnode_node_destroy(obj, objnode->slots[i], ht-1);
-+			tmem_objnode_free(objnode->slots[i]);
-+			objnode->slots[i] = NULL;
-+		}
-+	}
-+}
-+
-+static void tmem_pampd_destroy_all_in_obj(struct tmem_obj *obj,
-+						bool pool_destroy)
-+{
-+	if (obj->objnode_tree_root == NULL)
-+		return;
-+	if (obj->objnode_tree_height == 0) {
-+		obj->pampd_count--;
-+		(*tmem_pamops.free)(obj->objnode_tree_root,
-+					obj->pool, NULL, 0, true);
-+	} else {
-+		tmem_objnode_node_destroy(obj, obj->objnode_tree_root,
-+					obj->objnode_tree_height);
-+		tmem_objnode_free(obj->objnode_tree_root);
-+		obj->objnode_tree_height = 0;
-+	}
-+	obj->objnode_tree_root = NULL;
-+#ifdef CONFIG_RAMSTER
-+	if (tmem_pamops.free_obj != NULL)
-+		(*tmem_pamops.free_obj)(obj->pool, obj, pool_destroy);
-+#endif
-+}
-+
-+/*
-+ * Tmem is operated on by a set of well-defined actions:
-+ * "put", "get", "flush", "flush_object", "new pool" and "destroy pool".
-+ * (The tmem ABI allows for subpages and exchanges but these operations
-+ * are not included in this implementation.)
-+ *
-+ * These "tmem core" operations are implemented in the following functions.
-+ */
-+
-+/*
-+ * "Put" a page, e.g. associate the passed pampd with the passed handle.
-+ * Tmem_put is complicated by a corner case: What if a page with matching
-+ * handle already exists in tmem?  To guarantee coherency, one of two
-+ * actions is necessary: Either the data for the page must be overwritten,
-+ * or the page must be "flushed" so that the data is not accessible to a
-+ * subsequent "get".  Since these "duplicate puts" are relatively rare,
-+ * this implementation always flushes for simplicity.
-+ */
-+int tmem_put(struct tmem_pool *pool, struct tmem_oid *oidp, uint32_t index,
-+		bool raw, void *pampd_to_use)
-+{
-+	struct tmem_obj *obj = NULL, *objfound = NULL, *objnew = NULL;
-+	void *pampd = NULL, *pampd_del = NULL;
-+	int ret = -ENOMEM;
-+	struct tmem_hashbucket *hb;
-+
-+	hb = &pool->hashbucket[tmem_oid_hash(oidp)];
-+	spin_lock(&hb->lock);
-+	obj = objfound = tmem_obj_find(hb, oidp);
-+	if (obj != NULL) {
-+		pampd = tmem_pampd_lookup_in_obj(objfound, index);
-+		if (pampd != NULL) {
-+			/* if found, is a dup put, flush the old one */
-+			pampd_del = tmem_pampd_delete_from_obj(obj, index);
-+			BUG_ON(pampd_del != pampd);
-+			(*tmem_pamops.free)(pampd, pool, oidp, index, true);
-+			if (obj->pampd_count == 0) {
-+				objnew = obj;
-+				objfound = NULL;
-+			}
-+			pampd = NULL;
-+		}
-+	} else {
-+		obj = objnew = (*tmem_hostops.obj_alloc)(pool);
-+		if (unlikely(obj == NULL)) {
-+			ret = -ENOMEM;
-+			goto out;
-+		}
-+		tmem_obj_init(obj, hb, pool, oidp);
-+	}
-+	BUG_ON(obj == NULL);
-+	BUG_ON(((objnew != obj) && (objfound != obj)) || (objnew == objfound));
-+	pampd = pampd_to_use;
-+	BUG_ON(pampd_to_use == NULL);
-+	ret = tmem_pampd_add_to_obj(obj, index, pampd);
-+	if (unlikely(ret == -ENOMEM))
-+		/* may have partially built objnode tree ("stump") */
-+		goto delete_and_free;
-+	(*tmem_pamops.create_finish)(pampd, is_ephemeral(pool));
-+	goto out;
-+
-+delete_and_free:
-+	(void)tmem_pampd_delete_from_obj(obj, index);
-+	if (pampd)
-+		(*tmem_pamops.free)(pampd, pool, NULL, 0, true);
-+	if (objnew) {
-+		tmem_obj_free(objnew, hb);
-+		(*tmem_hostops.obj_free)(objnew, pool);
-+	}
-+out:
-+	spin_unlock(&hb->lock);
-+	return ret;
-+}
-+
-+#ifdef CONFIG_RAMSTER
-+/*
-+ * For ramster only:  The following routines provide a two-step sequence
-+ * to allow the caller to replace a pampd in the tmem data structures with
-+ * another pampd. Here, we lookup the passed handle and, if found, return the
-+ * associated pampd and object, leaving the hashbucket locked and returning
-+ * a reference to it.  The caller is expected to immediately call the
-+ * matching tmem_localify_finish routine which will handles the replacement
-+ * and unlocks the hashbucket.
-+ */
-+void *tmem_localify_get_pampd(struct tmem_pool *pool, struct tmem_oid *oidp,
-+				uint32_t index, struct tmem_obj **ret_obj,
-+				void **saved_hb)
-+{
-+	struct tmem_hashbucket *hb;
-+	struct tmem_obj *obj = NULL;
-+	void *pampd = NULL;
-+
-+	hb = &pool->hashbucket[tmem_oid_hash(oidp)];
-+	spin_lock(&hb->lock);
-+	obj = tmem_obj_find(hb, oidp);
-+	if (likely(obj != NULL))
-+		pampd = tmem_pampd_lookup_in_obj(obj, index);
-+	*ret_obj = obj;
-+	*saved_hb = (void *)hb;
-+	/* note, hashbucket remains locked */
-+	return pampd;
-+}
-+
-+void tmem_localify_finish(struct tmem_obj *obj, uint32_t index,
-+			  void *pampd, void *saved_hb, bool delete)
-+{
-+	struct tmem_hashbucket *hb = (struct tmem_hashbucket *)saved_hb;
-+
-+	BUG_ON(!spin_is_locked(&hb->lock));
-+	if (pampd != NULL) {
-+		BUG_ON(obj == NULL);
-+		(void)tmem_pampd_replace_in_obj(obj, index, pampd, 1);
-+		(*tmem_pamops.create_finish)(pampd, is_ephemeral(obj->pool));
-+	} else if (delete) {
-+		BUG_ON(obj == NULL);
-+		(void)tmem_pampd_delete_from_obj(obj, index);
-+	}
-+	spin_unlock(&hb->lock);
-+}
-+
-+/*
-+ * For ramster only.  Helper function to support asynchronous tmem_get.
-+ */
-+static int tmem_repatriate(void **ppampd, struct tmem_hashbucket *hb,
-+				struct tmem_pool *pool, struct tmem_oid *oidp,
-+				uint32_t index, bool free, char *data)
-+{
-+	void *old_pampd = *ppampd, *new_pampd = NULL;
-+	bool intransit = false;
-+	int ret = 0;
-+
-+	if (!is_ephemeral(pool))
-+		new_pampd = (*tmem_pamops.repatriate_preload)(
-+				old_pampd, pool, oidp, index, &intransit);
-+	if (intransit)
-+		ret = -EAGAIN;
-+	else if (new_pampd != NULL)
-+		*ppampd = new_pampd;
-+	/* must release the hb->lock else repatriate can't sleep */
-+	spin_unlock(&hb->lock);
-+	if (!intransit)
-+		ret = (*tmem_pamops.repatriate)(old_pampd, new_pampd, pool,
-+						oidp, index, free, data);
-+	if (ret == -EAGAIN) {
-+		/* rare I think, but should cond_resched()??? */
-+		usleep_range(10, 1000);
-+	} else if (ret == -ENOTCONN || ret == -EHOSTDOWN) {
-+		ret = -1;
-+	} else if (ret != 0 && ret != -ENOENT) {
-+		ret = -1;
-+	}
-+	/* note hb->lock has now been unlocked */
-+	return ret;
-+}
-+
-+/*
-+ * For ramster only.  If a page in tmem matches the handle, replace the
-+ * page so that any subsequent "get" gets the new page.  Returns 0 if
-+ * there was a page to replace, else returns -1.
-+ */
-+int tmem_replace(struct tmem_pool *pool, struct tmem_oid *oidp,
-+			uint32_t index, void *new_pampd)
-+{
-+	struct tmem_obj *obj;
-+	int ret = -1;
-+	struct tmem_hashbucket *hb;
-+
-+	hb = &pool->hashbucket[tmem_oid_hash(oidp)];
-+	spin_lock(&hb->lock);
-+	obj = tmem_obj_find(hb, oidp);
-+	if (obj == NULL)
-+		goto out;
-+	new_pampd = tmem_pampd_replace_in_obj(obj, index, new_pampd, 0);
-+	/* if we bug here, pamops wasn't properly set up for ramster */
-+	BUG_ON(tmem_pamops.replace_in_obj == NULL);
-+	ret = (*tmem_pamops.replace_in_obj)(new_pampd, obj);
-+out:
-+	spin_unlock(&hb->lock);
-+	return ret;
-+}
-+#endif
-+
-+/*
-+ * "Get" a page, e.g. if a pampd can be found matching the passed handle,
-+ * use a pamops callback to recreated the page from the pampd with the
-+ * matching handle.  By tmem definition, when a "get" is successful on
-+ * an ephemeral page, the page is "flushed", and when a "get" is successful
-+ * on a persistent page, the page is retained in tmem.  Note that to preserve
-+ * coherency, "get" can never be skipped if tmem contains the data.
-+ * That is, if a get is done with a certain handle and fails, any
-+ * subsequent "get" must also fail (unless of course there is a
-+ * "put" done with the same handle).
-+ */
-+int tmem_get(struct tmem_pool *pool, struct tmem_oid *oidp, uint32_t index,
-+		char *data, size_t *sizep, bool raw, int get_and_free)
-+{
-+	struct tmem_obj *obj;
-+	void *pampd = NULL;
-+	bool ephemeral = is_ephemeral(pool);
-+	int ret = -1;
-+	struct tmem_hashbucket *hb;
-+	bool free = (get_and_free == 1) || ((get_and_free == 0) && ephemeral);
-+	bool lock_held = false;
-+	void **ppampd;
-+
-+	do {
-+		hb = &pool->hashbucket[tmem_oid_hash(oidp)];
-+		spin_lock(&hb->lock);
-+		lock_held = true;
-+		obj = tmem_obj_find(hb, oidp);
-+		if (obj == NULL)
-+			goto out;
-+		ppampd = __tmem_pampd_lookup_in_obj(obj, index);
-+		if (ppampd == NULL)
-+			goto out;
-+#ifdef CONFIG_RAMSTER
-+		if ((tmem_pamops.is_remote != NULL) &&
-+		     tmem_pamops.is_remote(*ppampd)) {
-+			ret = tmem_repatriate(ppampd, hb, pool, oidp,
-+						index, free, data);
-+			/* tmem_repatriate releases hb->lock */
-+			lock_held = false;
-+			*sizep = PAGE_SIZE;
-+			if (ret != -EAGAIN)
-+				goto out;
-+		}
-+#endif
-+	} while (ret == -EAGAIN);
-+	if (free)
-+		pampd = tmem_pampd_delete_from_obj(obj, index);
-+	else
-+		pampd = tmem_pampd_lookup_in_obj(obj, index);
-+	if (pampd == NULL)
-+		goto out;
-+	if (free) {
-+		if (obj->pampd_count == 0) {
-+			tmem_obj_free(obj, hb);
-+			(*tmem_hostops.obj_free)(obj, pool);
-+			obj = NULL;
-+		}
-+	}
-+	if (free)
-+		ret = (*tmem_pamops.get_data_and_free)(
-+				data, sizep, raw, pampd, pool, oidp, index);
-+	else
-+		ret = (*tmem_pamops.get_data)(
-+				data, sizep, raw, pampd, pool, oidp, index);
-+	if (ret < 0)
-+		goto out;
-+	ret = 0;
-+out:
-+	if (lock_held)
-+		spin_unlock(&hb->lock);
-+	return ret;
-+}
-+
-+/*
-+ * If a page in tmem matches the handle, "flush" this page from tmem such
-+ * that any subsequent "get" does not succeed (unless, of course, there
-+ * was another "put" with the same handle).
-+ */
-+int tmem_flush_page(struct tmem_pool *pool,
-+				struct tmem_oid *oidp, uint32_t index)
-+{
-+	struct tmem_obj *obj;
-+	void *pampd;
-+	int ret = -1;
-+	struct tmem_hashbucket *hb;
-+
-+	hb = &pool->hashbucket[tmem_oid_hash(oidp)];
-+	spin_lock(&hb->lock);
-+	obj = tmem_obj_find(hb, oidp);
-+	if (obj == NULL)
-+		goto out;
-+	pampd = tmem_pampd_delete_from_obj(obj, index);
-+	if (pampd == NULL)
-+		goto out;
-+	(*tmem_pamops.free)(pampd, pool, oidp, index, true);
-+	if (obj->pampd_count == 0) {
-+		tmem_obj_free(obj, hb);
-+		(*tmem_hostops.obj_free)(obj, pool);
-+	}
-+	ret = 0;
-+
-+out:
-+	spin_unlock(&hb->lock);
-+	return ret;
-+}
-+
-+/*
-+ * "Flush" all pages in tmem matching this oid.
-+ */
-+int tmem_flush_object(struct tmem_pool *pool, struct tmem_oid *oidp)
-+{
-+	struct tmem_obj *obj;
-+	struct tmem_hashbucket *hb;
-+	int ret = -1;
-+
-+	hb = &pool->hashbucket[tmem_oid_hash(oidp)];
-+	spin_lock(&hb->lock);
-+	obj = tmem_obj_find(hb, oidp);
-+	if (obj == NULL)
-+		goto out;
-+	tmem_pampd_destroy_all_in_obj(obj, false);
-+	tmem_obj_free(obj, hb);
-+	(*tmem_hostops.obj_free)(obj, pool);
-+	ret = 0;
-+
-+out:
-+	spin_unlock(&hb->lock);
-+	return ret;
-+}
-+
-+/*
-+ * "Flush" all pages (and tmem_objs) from this tmem_pool and disable
-+ * all subsequent access to this tmem_pool.
-+ */
-+int tmem_destroy_pool(struct tmem_pool *pool)
-+{
-+	int ret = -1;
-+
-+	if (pool == NULL)
-+		goto out;
-+	tmem_pool_flush(pool, 1);
-+	ret = 0;
-+out:
-+	return ret;
-+}
-+
-+static LIST_HEAD(tmem_global_pool_list);
-+
-+/*
-+ * Create a new tmem_pool with the provided flag and return
-+ * a pool id provided by the tmem host implementation.
-+ */
-+void tmem_new_pool(struct tmem_pool *pool, uint32_t flags)
-+{
-+	int persistent = flags & TMEM_POOL_PERSIST;
-+	int shared = flags & TMEM_POOL_SHARED;
-+	struct tmem_hashbucket *hb = &pool->hashbucket[0];
-+	int i;
-+
-+	for (i = 0; i < TMEM_HASH_BUCKETS; i++, hb++) {
-+		hb->obj_rb_root = RB_ROOT;
-+		spin_lock_init(&hb->lock);
-+	}
-+	INIT_LIST_HEAD(&pool->pool_list);
-+	atomic_set(&pool->obj_count, 0);
-+	SET_SENTINEL(pool, POOL);
-+	list_add_tail(&pool->pool_list, &tmem_global_pool_list);
-+	pool->persistent = persistent;
-+	pool->shared = shared;
-+}
-diff --git a/drivers/staging/zcache/tmem.h b/drivers/staging/zcache/tmem.h
-new file mode 100644
-index 0000000..adbe5a8
---- /dev/null
-+++ b/drivers/staging/zcache/tmem.h
-@@ -0,0 +1,259 @@
-+/*
-+ * tmem.h
-+ *
-+ * Transcendent memory
-+ *
-+ * Copyright (c) 2009-2012, Dan Magenheimer, Oracle Corp.
-+ */
-+
-+#ifndef _TMEM_H_
-+#define _TMEM_H_
-+
-+#include <linux/types.h>
-+#include <linux/highmem.h>
-+#include <linux/hash.h>
-+#include <linux/atomic.h>
-+
-+/*
-+ * These are defined by the Xen<->Linux ABI so should remain consistent
-+ */
-+#define TMEM_POOL_PERSIST		1
-+#define TMEM_POOL_SHARED		2
-+#define TMEM_POOL_PRECOMPRESSED		4
-+#define TMEM_POOL_PAGESIZE_SHIFT	4
-+#define TMEM_POOL_PAGESIZE_MASK		0xf
-+#define TMEM_POOL_RESERVED_BITS		0x00ffff00
-+
-+/*
-+ * sentinels have proven very useful for debugging but can be removed
-+ * or disabled before final merge.
-+ */
-+#undef SENTINELS
-+#ifdef SENTINELS
-+#define DECL_SENTINEL uint32_t sentinel;
-+#define SET_SENTINEL(_x, _y) (_x->sentinel = _y##_SENTINEL)
-+#define INVERT_SENTINEL(_x, _y) (_x->sentinel = ~_y##_SENTINEL)
-+#define ASSERT_SENTINEL(_x, _y) WARN_ON(_x->sentinel != _y##_SENTINEL)
-+#define ASSERT_INVERTED_SENTINEL(_x, _y) WARN_ON(_x->sentinel != ~_y##_SENTINEL)
-+#else
-+#define DECL_SENTINEL
-+#define SET_SENTINEL(_x, _y) do { } while (0)
-+#define INVERT_SENTINEL(_x, _y) do { } while (0)
-+#define ASSERT_SENTINEL(_x, _y) do { } while (0)
-+#define ASSERT_INVERTED_SENTINEL(_x, _y) do { } while (0)
-+#endif
-+
-+#define ASSERT_SPINLOCK(_l)	lockdep_assert_held(_l)
-+
-+/*
-+ * A pool is the highest-level data structure managed by tmem and
-+ * usually corresponds to a large independent set of pages such as
-+ * a filesystem.  Each pool has an id, and certain attributes and counters.
-+ * It also contains a set of hash buckets, each of which contains an rbtree
-+ * of objects and a lock to manage concurrency within the pool.
-+ */
-+
-+#define TMEM_HASH_BUCKET_BITS	8
-+#define TMEM_HASH_BUCKETS	(1<<TMEM_HASH_BUCKET_BITS)
-+
-+struct tmem_hashbucket {
-+	struct rb_root obj_rb_root;
-+	spinlock_t lock;
-+};
-+
-+struct tmem_pool {
-+	void *client; /* "up" for some clients, avoids table lookup */
-+	struct list_head pool_list;
-+	uint32_t pool_id;
-+	bool persistent;
-+	bool shared;
-+	atomic_t obj_count;
-+	atomic_t refcount;
-+	struct tmem_hashbucket hashbucket[TMEM_HASH_BUCKETS];
-+	DECL_SENTINEL
-+};
-+
-+#define is_persistent(_p)  (_p->persistent)
-+#define is_ephemeral(_p)   (!(_p->persistent))
-+
-+/*
-+ * An object id ("oid") is large: 192-bits (to ensure, for example, files
-+ * in a modern filesystem can be uniquely identified).
-+ */
-+
-+struct tmem_oid {
-+	uint64_t oid[3];
-+};
-+
-+static inline void tmem_oid_set_invalid(struct tmem_oid *oidp)
-+{
-+	oidp->oid[0] = oidp->oid[1] = oidp->oid[2] = -1UL;
-+}
-+
-+static inline bool tmem_oid_valid(struct tmem_oid *oidp)
-+{
-+	return oidp->oid[0] != -1UL || oidp->oid[1] != -1UL ||
-+		oidp->oid[2] != -1UL;
-+}
-+
-+static inline int tmem_oid_compare(struct tmem_oid *left,
-+					struct tmem_oid *right)
++static struct config_item *r2hb_hb_group_make_item(struct config_group *group,
++							  const char *name)
 +{
 +	int ret;
 +
-+	if (left->oid[2] == right->oid[2]) {
-+		if (left->oid[1] == right->oid[1]) {
-+			if (left->oid[0] == right->oid[0])
-+				ret = 0;
-+			else if (left->oid[0] < right->oid[0])
-+				ret = -1;
-+			else
-+				return 1;
-+		} else if (left->oid[1] < right->oid[1])
-+			ret = -1;
-+		else
-+			ret = 1;
-+	} else if (left->oid[2] < right->oid[2])
-+		ret = -1;
-+	else
-+		ret = 1;
++	if (strlen(name) > R2HB_MAX_REGION_NAME_LEN) {
++		ret = -ENAMETOOLONG;
++		goto free;
++	}
++
++	config_item_put(&r2hb_config_item);
++
++	return &r2hb_config_item;
++free:
++	return ERR_PTR(ret);
++}
++
++static void r2hb_hb_group_drop_item(struct config_group *group,
++					   struct config_item *item)
++{
++	if (r2hb_global_heartbeat_active()) {
++		pr_notice("ramster: Heartbeat %s on region %s (%s)\n",
++			"stopped/aborted", config_item_name(item),
++			"no region");
++	}
++
++	config_item_put(item);
++}
++
++struct r2hb_hb_group_attribute {
++	struct configfs_attribute attr;
++	ssize_t (*show)(struct r2hb_hb_group *, char *);
++	ssize_t (*store)(struct r2hb_hb_group *, const char *, size_t);
++};
++
++static ssize_t r2hb_hb_group_show(struct config_item *item,
++					 struct configfs_attribute *attr,
++					 char *page)
++{
++	struct r2hb_hb_group *reg = to_r2hb_hb_group(to_config_group(item));
++	struct r2hb_hb_group_attribute *r2hb_hb_group_attr =
++		container_of(attr, struct r2hb_hb_group_attribute, attr);
++	ssize_t ret = 0;
++
++	if (r2hb_hb_group_attr->show)
++		ret = r2hb_hb_group_attr->show(reg, page);
 +	return ret;
 +}
 +
-+static inline unsigned tmem_oid_hash(struct tmem_oid *oidp)
++static ssize_t r2hb_hb_group_store(struct config_item *item,
++					  struct configfs_attribute *attr,
++					  const char *page, size_t count)
 +{
-+	return hash_long(oidp->oid[0] ^ oidp->oid[1] ^ oidp->oid[2],
-+				TMEM_HASH_BUCKET_BITS);
++	struct r2hb_hb_group *reg = to_r2hb_hb_group(to_config_group(item));
++	struct r2hb_hb_group_attribute *r2hb_hb_group_attr =
++		container_of(attr, struct r2hb_hb_group_attribute, attr);
++	ssize_t ret = -EINVAL;
++
++	if (r2hb_hb_group_attr->store)
++		ret = r2hb_hb_group_attr->store(reg, page, count);
++	return ret;
 +}
 +
-+#ifdef CONFIG_RAMSTER
-+struct tmem_xhandle {
-+	uint8_t client_id;
-+	uint8_t xh_data_cksum;
-+	uint16_t xh_data_size;
-+	uint16_t pool_id;
-+	struct tmem_oid oid;
-+	uint32_t index;
-+	void *extra;
++static ssize_t r2hb_hb_group_threshold_show(struct r2hb_hb_group *group,
++						     char *page)
++{
++	return sprintf(page, "%u\n", r2hb_dead_threshold);
++}
++
++static ssize_t r2hb_hb_group_threshold_store(struct r2hb_hb_group *group,
++						    const char *page,
++						    size_t count)
++{
++	unsigned long tmp;
++	char *p = (char *)page;
++	int err;
++
++	err = kstrtoul(p, 10, &tmp);
++	if (err)
++		return err;
++
++	/* this will validate ranges for us. */
++	r2hb_dead_threshold_set((unsigned int) tmp);
++
++	return count;
++}
++
++static
++ssize_t r2hb_hb_group_mode_show(struct r2hb_hb_group *group,
++				       char *page)
++{
++	return sprintf(page, "%s\n",
++		       r2hb_heartbeat_mode_desc[r2hb_heartbeat_mode]);
++}
++
++static
++ssize_t r2hb_hb_group_mode_store(struct r2hb_hb_group *group,
++					const char *page, size_t count)
++{
++	unsigned int i;
++	int ret;
++	size_t len;
++
++	len = (page[count - 1] == '\n') ? count - 1 : count;
++	if (!len)
++		return -EINVAL;
++
++	for (i = 0; i < R2HB_HEARTBEAT_NUM_MODES; ++i) {
++		if (strnicmp(page, r2hb_heartbeat_mode_desc[i], len))
++			continue;
++
++		ret = r2hb_global_hearbeat_mode_set(i);
++		if (!ret)
++			pr_notice("ramster: Heartbeat mode set to %s\n",
++			       r2hb_heartbeat_mode_desc[i]);
++		return count;
++	}
++
++	return -EINVAL;
++
++}
++
++static struct r2hb_hb_group_attribute r2hb_hb_group_attr_threshold = {
++	.attr	= { .ca_owner = THIS_MODULE,
++		    .ca_name = "dead_threshold",
++		    .ca_mode = S_IRUGO | S_IWUSR },
++	.show	= r2hb_hb_group_threshold_show,
++	.store	= r2hb_hb_group_threshold_store,
 +};
 +
-+static inline struct tmem_xhandle tmem_xhandle_fill(uint16_t client_id,
-+					struct tmem_pool *pool,
-+					struct tmem_oid *oidp,
-+					uint32_t index)
-+{
-+	struct tmem_xhandle xh;
-+	xh.client_id = client_id;
-+	xh.xh_data_cksum = (uint8_t)-1;
-+	xh.xh_data_size = (uint16_t)-1;
-+	xh.pool_id = pool->pool_id;
-+	xh.oid = *oidp;
-+	xh.index = index;
-+	return xh;
-+}
-+#endif
++static struct r2hb_hb_group_attribute r2hb_hb_group_attr_mode = {
++	.attr   = { .ca_owner = THIS_MODULE,
++		.ca_name = "mode",
++		.ca_mode = S_IRUGO | S_IWUSR },
++	.show   = r2hb_hb_group_mode_show,
++	.store  = r2hb_hb_group_mode_store,
++};
 +
++static struct configfs_attribute *r2hb_hb_group_attrs[] = {
++	&r2hb_hb_group_attr_threshold.attr,
++	&r2hb_hb_group_attr_mode.attr,
++	NULL,
++};
++
++static struct configfs_item_operations r2hb_hearbeat_group_item_ops = {
++	.show_attribute		= r2hb_hb_group_show,
++	.store_attribute	= r2hb_hb_group_store,
++};
++
++static struct configfs_group_operations r2hb_hb_group_group_ops = {
++	.make_item	= r2hb_hb_group_make_item,
++	.drop_item	= r2hb_hb_group_drop_item,
++};
++
++static struct config_item_type r2hb_hb_group_type = {
++	.ct_group_ops	= &r2hb_hb_group_group_ops,
++	.ct_item_ops	= &r2hb_hearbeat_group_item_ops,
++	.ct_attrs	= r2hb_hb_group_attrs,
++	.ct_owner	= THIS_MODULE,
++};
++
++/* this is just here to avoid touching group in heartbeat.h which the
++ * entire damn world #includes */
++struct config_group *r2hb_alloc_hb_set(void)
++{
++	struct r2hb_hb_group *hs = NULL;
++	struct config_group *ret = NULL;
++
++	hs = kzalloc(sizeof(struct r2hb_hb_group), GFP_KERNEL);
++	if (hs == NULL)
++		goto out;
++
++	config_group_init_type_name(&hs->hs_group, "heartbeat",
++				    &r2hb_hb_group_type);
++
++	ret = &hs->hs_group;
++out:
++	if (ret == NULL)
++		kfree(hs);
++	return ret;
++}
++
++void r2hb_free_hb_set(struct config_group *group)
++{
++	struct r2hb_hb_group *hs = to_r2hb_hb_group(group);
++	kfree(hs);
++}
++
++/* hb callback registration and issuing */
++
++static struct r2hb_callback *hbcall_from_type(enum r2hb_callback_type type)
++{
++	if (type == R2HB_NUM_CB)
++		return ERR_PTR(-EINVAL);
++
++	return &r2hb_callbacks[type];
++}
++
++void r2hb_setup_callback(struct r2hb_callback_func *hc,
++			 enum r2hb_callback_type type,
++			 r2hb_cb_func *func,
++			 void *data,
++			 int priority)
++{
++	INIT_LIST_HEAD(&hc->hc_item);
++	hc->hc_func = func;
++	hc->hc_data = data;
++	hc->hc_priority = priority;
++	hc->hc_type = type;
++	hc->hc_magic = R2HB_CB_MAGIC;
++}
++EXPORT_SYMBOL_GPL(r2hb_setup_callback);
++
++int r2hb_register_callback(const char *region_uuid,
++			   struct r2hb_callback_func *hc)
++{
++	struct r2hb_callback_func *tmp;
++	struct list_head *iter;
++	struct r2hb_callback *hbcall;
++	int ret;
++
++	BUG_ON(hc->hc_magic != R2HB_CB_MAGIC);
++	BUG_ON(!list_empty(&hc->hc_item));
++
++	hbcall = hbcall_from_type(hc->hc_type);
++	if (IS_ERR(hbcall)) {
++		ret = PTR_ERR(hbcall);
++		goto out;
++	}
++
++	down_write(&r2hb_callback_sem);
++
++	list_for_each(iter, &hbcall->list) {
++		tmp = list_entry(iter, struct r2hb_callback_func, hc_item);
++		if (hc->hc_priority < tmp->hc_priority) {
++			list_add_tail(&hc->hc_item, iter);
++			break;
++		}
++	}
++	if (list_empty(&hc->hc_item))
++		list_add_tail(&hc->hc_item, &hbcall->list);
++
++	up_write(&r2hb_callback_sem);
++	ret = 0;
++out:
++	mlog(ML_CLUSTER, "returning %d on behalf of %p for funcs %p\n",
++	     ret, __builtin_return_address(0), hc);
++	return ret;
++}
++EXPORT_SYMBOL_GPL(r2hb_register_callback);
++
++void r2hb_unregister_callback(const char *region_uuid,
++			      struct r2hb_callback_func *hc)
++{
++	BUG_ON(hc->hc_magic != R2HB_CB_MAGIC);
++
++	mlog(ML_CLUSTER, "on behalf of %p for funcs %p\n",
++	     __builtin_return_address(0), hc);
++
++	/* XXX Can this happen _with_ a region reference? */
++	if (list_empty(&hc->hc_item))
++		return;
++
++	down_write(&r2hb_callback_sem);
++
++	list_del_init(&hc->hc_item);
++
++	up_write(&r2hb_callback_sem);
++}
++EXPORT_SYMBOL_GPL(r2hb_unregister_callback);
++
++int r2hb_check_node_heartbeating_from_callback(u8 node_num)
++{
++	unsigned long testing_map[BITS_TO_LONGS(R2NM_MAX_NODES)];
++
++	r2hb_fill_node_map_from_callback(testing_map, sizeof(testing_map));
++	if (!test_bit(node_num, testing_map)) {
++		mlog(ML_HEARTBEAT,
++		     "node (%u) does not have heartbeating enabled.\n",
++		     node_num);
++		return 0;
++	}
++
++	return 1;
++}
++EXPORT_SYMBOL_GPL(r2hb_check_node_heartbeating_from_callback);
++
++void r2hb_stop_all_regions(void)
++{
++}
++EXPORT_SYMBOL_GPL(r2hb_stop_all_regions);
 +
 +/*
-+ * A tmem_obj contains an identifier (oid), pointers to the parent
-+ * pool and the rb_tree to which it belongs, counters, and an ordered
-+ * set of pampds, structured in a radix-tree-like tree.  The intermediate
-+ * nodes of the tree are called tmem_objnodes.
++ * this is just a hack until we get the plumbing which flips file systems
++ * read only and drops the hb ref instead of killing the node dead.
++ */
++int r2hb_global_heartbeat_active(void)
++{
++	return (r2hb_heartbeat_mode == R2HB_HEARTBEAT_GLOBAL);
++}
++EXPORT_SYMBOL(r2hb_global_heartbeat_active);
++
++/* added for RAMster */
++void r2hb_manual_set_node_heartbeating(int node_num)
++{
++	if (node_num < R2NM_MAX_NODES)
++		set_bit(node_num, r2hb_live_node_bitmap);
++}
++EXPORT_SYMBOL(r2hb_manual_set_node_heartbeating);
+diff --git a/drivers/staging/zcache/ramster/heartbeat.h b/drivers/staging/zcache/ramster/heartbeat.h
+new file mode 100644
+index 0000000..6cbc775
+--- /dev/null
++++ b/drivers/staging/zcache/ramster/heartbeat.h
+@@ -0,0 +1,87 @@
++/* -*- mode: c; c-basic-offset: 8; -*-
++ * vim: noexpandtab sw=8 ts=8 sts=0:
++ *
++ * heartbeat.h
++ *
++ * Function prototypes
++ *
++ * Copyright (C) 2004 Oracle.  All rights reserved.
++ *
++ * This program is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU General Public
++ * License as published by the Free Software Foundation; either
++ * version 2 of the License, or (at your option) any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public
++ * License along with this program; if not, write to the
++ * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
++ * Boston, MA 021110-1307, USA.
++ *
 + */
 +
-+struct tmem_objnode;
++#ifndef R2CLUSTER_HEARTBEAT_H
++#define R2CLUSTER_HEARTBEAT_H
 +
-+struct tmem_obj {
-+	struct tmem_oid oid;
-+	struct tmem_pool *pool;
-+	struct rb_node rb_tree_node;
-+	struct tmem_objnode *objnode_tree_root;
-+	unsigned int objnode_tree_height;
-+	unsigned long objnode_count;
-+	long pampd_count;
-+#ifdef CONFIG_RAMSTER
-+	/*
-+	 * for current design of ramster, all pages belonging to
-+	 * an object reside on the same remotenode and extra is
-+	 * used to record the number of the remotenode so a
-+	 * flush-object operation can specify it
-+	 */
-+	void *extra; /* for private use by pampd implementation */
-+#endif
-+	DECL_SENTINEL
++#define R2HB_REGION_TIMEOUT_MS		2000
++
++#define R2HB_MAX_REGION_NAME_LEN	32
++
++/* number of changes to be seen as live */
++#define R2HB_LIVE_THRESHOLD	   2
++/* number of equal samples to be seen as dead */
++extern unsigned int r2hb_dead_threshold;
++#define R2HB_DEFAULT_DEAD_THRESHOLD	   31
++/* Otherwise MAX_WRITE_TIMEOUT will be zero... */
++#define R2HB_MIN_DEAD_THRESHOLD	  2
++#define R2HB_MAX_WRITE_TIMEOUT_MS \
++	(R2HB_REGION_TIMEOUT_MS * (r2hb_dead_threshold - 1))
++
++#define R2HB_CB_MAGIC		0x51d1e4ec
++
++/* callback stuff */
++enum r2hb_callback_type {
++	R2HB_NODE_DOWN_CB = 0,
++	R2HB_NODE_UP_CB,
++	R2HB_NUM_CB
 +};
 +
-+#define OBJNODE_TREE_MAP_SHIFT 6
-+#define OBJNODE_TREE_MAP_SIZE (1UL << OBJNODE_TREE_MAP_SHIFT)
-+#define OBJNODE_TREE_MAP_MASK (OBJNODE_TREE_MAP_SIZE-1)
-+#define OBJNODE_TREE_INDEX_BITS (8 /* CHAR_BIT */ * sizeof(unsigned long))
-+#define OBJNODE_TREE_MAX_PATH \
-+		(OBJNODE_TREE_INDEX_BITS/OBJNODE_TREE_MAP_SHIFT + 2)
++struct r2nm_node;
++typedef void (r2hb_cb_func)(struct r2nm_node *, int, void *);
 +
-+struct tmem_objnode {
-+	struct tmem_obj *obj;
-+	DECL_SENTINEL
-+	void *slots[OBJNODE_TREE_MAP_SIZE];
-+	unsigned int slots_in_use;
++struct r2hb_callback_func {
++	u32			hc_magic;
++	struct list_head	hc_item;
++	r2hb_cb_func		*hc_func;
++	void			*hc_data;
++	int			hc_priority;
++	enum r2hb_callback_type hc_type;
 +};
 +
-+struct tmem_handle {
-+	struct tmem_oid oid; /* 24 bytes */
-+	uint32_t index;
-+	uint16_t pool_id;
-+	uint16_t client_id;
-+};
++struct config_group *r2hb_alloc_hb_set(void);
++void r2hb_free_hb_set(struct config_group *group);
 +
++void r2hb_setup_callback(struct r2hb_callback_func *hc,
++			 enum r2hb_callback_type type,
++			 r2hb_cb_func *func,
++			 void *data,
++			 int priority);
++int r2hb_register_callback(const char *region_uuid,
++			   struct r2hb_callback_func *hc);
++void r2hb_unregister_callback(const char *region_uuid,
++			      struct r2hb_callback_func *hc);
++void r2hb_fill_node_map(unsigned long *map,
++			unsigned bytes);
++void r2hb_exit(void);
++int r2hb_init(void);
++int r2hb_check_node_heartbeating_from_callback(u8 node_num);
++void r2hb_stop_all_regions(void);
++int r2hb_get_all_regions(char *region_uuids, u8 numregions);
++int r2hb_global_heartbeat_active(void);
++void r2hb_manual_set_node_heartbeating(int);
 +
-+/* pampd abstract datatype methods provided by the PAM implementation */
-+struct tmem_pamops {
-+	void (*create_finish)(void *, bool);
-+	int (*get_data)(char *, size_t *, bool, void *, struct tmem_pool *,
-+				struct tmem_oid *, uint32_t);
-+	int (*get_data_and_free)(char *, size_t *, bool, void *,
-+				struct tmem_pool *, struct tmem_oid *,
-+				uint32_t);
-+	void (*free)(void *, struct tmem_pool *,
-+				struct tmem_oid *, uint32_t, bool);
-+#ifdef CONFIG_RAMSTER
-+	void (*new_obj)(struct tmem_obj *);
-+	void (*free_obj)(struct tmem_pool *, struct tmem_obj *, bool);
-+	void *(*repatriate_preload)(void *, struct tmem_pool *,
-+					struct tmem_oid *, uint32_t, bool *);
-+	int (*repatriate)(void *, void *, struct tmem_pool *,
-+				struct tmem_oid *, uint32_t, bool, void *);
-+	bool (*is_remote)(void *);
-+	int (*replace_in_obj)(void *, struct tmem_obj *);
-+#endif
-+};
-+extern void tmem_register_pamops(struct tmem_pamops *m);
-+
-+/* memory allocation methods provided by the host implementation */
-+struct tmem_hostops {
-+	struct tmem_obj *(*obj_alloc)(struct tmem_pool *);
-+	void (*obj_free)(struct tmem_obj *, struct tmem_pool *);
-+	struct tmem_objnode *(*objnode_alloc)(struct tmem_pool *);
-+	void (*objnode_free)(struct tmem_objnode *, struct tmem_pool *);
-+};
-+extern void tmem_register_hostops(struct tmem_hostops *m);
-+
-+/* core tmem accessor functions */
-+extern int tmem_put(struct tmem_pool *, struct tmem_oid *, uint32_t index,
-+			bool, void *);
-+extern int tmem_get(struct tmem_pool *, struct tmem_oid *, uint32_t index,
-+			char *, size_t *, bool, int);
-+extern int tmem_flush_page(struct tmem_pool *, struct tmem_oid *,
-+			uint32_t index);
-+extern int tmem_flush_object(struct tmem_pool *, struct tmem_oid *);
-+extern int tmem_destroy_pool(struct tmem_pool *);
-+extern void tmem_new_pool(struct tmem_pool *, uint32_t);
-+#ifdef CONFIG_RAMSTER
-+extern int tmem_replace(struct tmem_pool *, struct tmem_oid *, uint32_t index,
-+			void *);
-+extern void *tmem_localify_get_pampd(struct tmem_pool *, struct tmem_oid *,
-+				   uint32_t index, struct tmem_obj **,
-+				   void **);
-+extern void tmem_localify_finish(struct tmem_obj *, uint32_t index,
-+				 void *, void *, bool);
-+#endif
-+#endif /* _TMEM_H */
-diff --git a/drivers/staging/zcache/zbud.c b/drivers/staging/zcache/zbud.c
++#endif /* R2CLUSTER_HEARTBEAT_H */
+diff --git a/drivers/staging/zcache/ramster/masklog.c b/drivers/staging/zcache/ramster/masklog.c
 new file mode 100644
-index 0000000..a7c4361
+index 0000000..1261d85
 --- /dev/null
-+++ b/drivers/staging/zcache/zbud.c
-@@ -0,0 +1,1060 @@
-+/*
-+ * zbud.c - Compression buddies allocator
++++ b/drivers/staging/zcache/ramster/masklog.c
+@@ -0,0 +1,155 @@
++/* -*- mode: c; c-basic-offset: 8; -*-
++ * vim: noexpandtab sw=8 ts=8 sts=0:
 + *
-+ * Copyright (c) 2010-2012, Dan Magenheimer, Oracle Corp.
++ * Copyright (C) 2004, 2005, 2012 Oracle.  All rights reserved.
 + *
-+ * Compression buddies ("zbud") provides for efficiently packing two
-+ * (or, possibly in the future, more) compressed pages ("zpages") into
-+ * a single "raw" pageframe and for tracking both zpages and pageframes
-+ * so that whole pageframes can be easily reclaimed in LRU-like order.
-+ * It is designed to be used in conjunction with transcendent memory
-+ * ("tmem"); for example separate LRU lists are maintained for persistent
-+ * vs. ephemeral pages.
++ * This program is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU General Public
++ * License as published by the Free Software Foundation; either
++ * version 2 of the License, or (at your option) any later version.
 + *
-+ * A zbudpage is an overlay for a struct page and thus each zbudpage
-+ * refers to a physical pageframe of RAM.  When the caller passes a
-+ * struct page from the kernel's page allocator, zbud "transforms" it
-+ * to a zbudpage which sets/uses a different set of fields than the
-+ * struct-page and thus must "untransform" it back by reinitializing
-+ * certain fields before the struct-page can be freed.  The fields
-+ * of a zbudpage include a page lock for controlling access to the
-+ * corresponding pageframe, and there is a size field for each zpage.
-+ * Each zbudpage also lives on two linked lists: a "budlist" which is
-+ * used to support efficient buddying of zpages; and an "lru" which
-+ * is used for reclaiming pageframes in approximately least-recently-used
-+ * order.
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * General Public License for more details.
 + *
-+ * A zbudpageframe is a pageframe divided up into aligned 64-byte "chunks"
-+ * which contain the compressed data for zero, one, or two zbuds.  Contained
-+ * with the compressed data is a tmem_handle which is a key to allow
-+ * the same data to be found via the tmem interface so the zpage can
-+ * be invalidated (for ephemeral pages) or repatriated to the swap cache
-+ * (for persistent pages).  The contents of a zbudpageframe must never
-+ * be accessed without holding the page lock for the corresponding
-+ * zbudpage and, to accomodate highmem machines, the contents may
-+ * only be examined or changes when kmapped.  Thus, when in use, a
-+ * kmapped zbudpageframe is referred to in the zbud code as "void *zbpg".
-+ *
-+ * Note that the term "zbud" refers to the combination of a zpage and
-+ * a tmem_handle that is stored as one of possibly two "buddied" zpages;
-+ * it also generically refers to this allocator... sorry for any confusion.
-+ *
-+ * A zbudref is a pointer to a struct zbudpage (which can be cast to a
-+ * struct page), with the LSB either cleared or set to indicate, respectively,
-+ * the first or second zpage in the zbudpageframe. Since a zbudref can be
-+ * cast to a pointer, it is used as the tmem "pampd" pointer and uniquely
-+ * references a stored tmem page and so is the only zbud data structure
-+ * externally visible to zbud.c/zbud.h.
-+ *
-+ * Since we wish to reclaim entire pageframes but zpages may be randomly
-+ * added and deleted to any given pageframe, we approximate LRU by
-+ * promoting a pageframe to MRU when a zpage is added to it, but
-+ * leaving it at the current place in the list when a zpage is deleted
-+ * from it.  As a side effect, zpages that are difficult to buddy (e.g.
-+ * very large paages) will be reclaimed faster than average, which seems
-+ * reasonable.
-+ *
-+ * In the current implementation, no more than two zpages may be stored in
-+ * any pageframe and no zpage ever crosses a pageframe boundary.  While
-+ * other zpage allocation mechanisms may allow greater density, this two
-+ * zpage-per-pageframe limit both ensures simple reclaim of pageframes
-+ * (including garbage collection of references to the contents of those
-+ * pageframes from tmem data structures) AND avoids the need for compaction.
-+ * With additional complexity, zbud could be modified to support storing
-+ * up to three zpages per pageframe or, to handle larger average zpages,
-+ * up to three zpages per pair of pageframes, but it is not clear if the
-+ * additional complexity would be worth it.  So consider it an exercise
-+ * for future developers.
-+ *
-+ * Note also that zbud does no page allocation or freeing.  This is so
-+ * that the caller has complete control over and, for accounting, visibility
-+ * into if/when pages are allocated and freed.
-+ *
-+ * Finally, note that zbud limits the size of zpages it can store; the
-+ * caller must check the zpage size with zbud_max_buddy_size before
-+ * storing it, else BUGs will result.  User beware.
++ * You should have received a copy of the GNU General Public
++ * License along with this program; if not, write to the
++ * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
++ * Boston, MA 021110-1307, USA.
 + */
 +
 +#include <linux/module.h>
-+#include <linux/highmem.h>
-+#include <linux/list.h>
-+#include <linux/spinlock.h>
-+#include <linux/pagemap.h>
-+#include <linux/atomic.h>
-+#include <linux/bug.h>
-+#include "tmem.h"
-+#include "zcache.h"
-+#include "zbud.h"
++#include <linux/kernel.h>
++#include <linux/proc_fs.h>
++#include <linux/seq_file.h>
++#include <linux/string.h>
++#include <linux/uaccess.h>
 +
-+/*
-+ * We need to ensure that a struct zbudpage is never larger than a
-+ * struct page.  This is checked with a BUG_ON in zbud_init.
-+ *
-+ * The unevictable field indicates that a zbud is being added to the
-+ * zbudpage.  Since this is a two-phase process (due to tmem locking),
-+ * this field locks the zbudpage against eviction when a zbud match
-+ * or creation is in process.  Since this addition process may occur
-+ * in parallel for two zbuds in one zbudpage, the field is a counter
-+ * that must not exceed two.
-+ */
-+struct zbudpage {
-+	union {
-+		struct page page;
-+		struct {
-+			unsigned long space_for_flags;
-+			struct {
-+				unsigned zbud0_size:12;
-+				unsigned zbud1_size:12;
-+				unsigned unevictable:2;
-+			};
-+			struct list_head budlist;
-+			struct list_head lru;
-+		};
-+	};
-+};
++#include "masklog.h"
 +
-+struct zbudref {
-+	union {
-+		struct zbudpage *zbudpage;
-+		unsigned long zbudref;
-+	};
-+};
++struct mlog_bits r2_mlog_and_bits = MLOG_BITS_RHS(MLOG_INITIAL_AND_MASK);
++EXPORT_SYMBOL_GPL(r2_mlog_and_bits);
++struct mlog_bits r2_mlog_not_bits = MLOG_BITS_RHS(0);
++EXPORT_SYMBOL_GPL(r2_mlog_not_bits);
 +
-+#define CHUNK_SHIFT	6
-+#define CHUNK_SIZE	(1 << CHUNK_SHIFT)
-+#define CHUNK_MASK	(~(CHUNK_SIZE-1))
-+#define NCHUNKS		(PAGE_SIZE >> CHUNK_SHIFT)
-+#define MAX_CHUNK	(NCHUNKS-1)
-+
-+/*
-+ * The following functions deal with the difference between struct
-+ * page and struct zbudpage.  Note the hack of using the pageflags
-+ * from struct page; this is to avoid duplicating all the complex
-+ * pageflag macros.
-+ */
-+static inline void zbudpage_spin_lock(struct zbudpage *zbudpage)
++static ssize_t mlog_mask_show(u64 mask, char *buf)
 +{
-+	struct page *page = (struct page *)zbudpage;
++	char *state;
 +
-+	while (unlikely(test_and_set_bit_lock(PG_locked, &page->flags))) {
-+		do {
-+			cpu_relax();
-+		} while (test_bit(PG_locked, &page->flags));
++	if (__mlog_test_u64(mask, r2_mlog_and_bits))
++		state = "allow";
++	else if (__mlog_test_u64(mask, r2_mlog_not_bits))
++		state = "deny";
++	else
++		state = "off";
++
++	return snprintf(buf, PAGE_SIZE, "%s\n", state);
++}
++
++static ssize_t mlog_mask_store(u64 mask, const char *buf, size_t count)
++{
++	if (!strnicmp(buf, "allow", 5)) {
++		__mlog_set_u64(mask, r2_mlog_and_bits);
++		__mlog_clear_u64(mask, r2_mlog_not_bits);
++	} else if (!strnicmp(buf, "deny", 4)) {
++		__mlog_set_u64(mask, r2_mlog_not_bits);
++		__mlog_clear_u64(mask, r2_mlog_and_bits);
++	} else if (!strnicmp(buf, "off", 3)) {
++		__mlog_clear_u64(mask, r2_mlog_not_bits);
++		__mlog_clear_u64(mask, r2_mlog_and_bits);
++	} else
++		return -EINVAL;
++
++	return count;
++}
++
++struct mlog_attribute {
++	struct attribute attr;
++	u64 mask;
++};
++
++#define to_mlog_attr(_attr) container_of(_attr, struct mlog_attribute, attr)
++
++#define define_mask(_name) {			\
++	.attr = {				\
++		.name = #_name,			\
++		.mode = S_IRUGO | S_IWUSR,	\
++	},					\
++	.mask = ML_##_name,			\
++}
++
++static struct mlog_attribute mlog_attrs[MLOG_MAX_BITS] = {
++	define_mask(TCP),
++	define_mask(MSG),
++	define_mask(SOCKET),
++	define_mask(HEARTBEAT),
++	define_mask(HB_BIO),
++	define_mask(DLMFS),
++	define_mask(DLM),
++	define_mask(DLM_DOMAIN),
++	define_mask(DLM_THREAD),
++	define_mask(DLM_MASTER),
++	define_mask(DLM_RECOVERY),
++	define_mask(DLM_GLUE),
++	define_mask(VOTE),
++	define_mask(CONN),
++	define_mask(QUORUM),
++	define_mask(BASTS),
++	define_mask(CLUSTER),
++	define_mask(ERROR),
++	define_mask(NOTICE),
++	define_mask(KTHREAD),
++};
++
++static struct attribute *mlog_attr_ptrs[MLOG_MAX_BITS] = {NULL, };
++
++static ssize_t mlog_show(struct kobject *obj, struct attribute *attr,
++			 char *buf)
++{
++	struct mlog_attribute *mlog_attr = to_mlog_attr(attr);
++
++	return mlog_mask_show(mlog_attr->mask, buf);
++}
++
++static ssize_t mlog_store(struct kobject *obj, struct attribute *attr,
++			  const char *buf, size_t count)
++{
++	struct mlog_attribute *mlog_attr = to_mlog_attr(attr);
++
++	return mlog_mask_store(mlog_attr->mask, buf, count);
++}
++
++static const struct sysfs_ops mlog_attr_ops = {
++	.show  = mlog_show,
++	.store = mlog_store,
++};
++
++static struct kobj_type mlog_ktype = {
++	.default_attrs = mlog_attr_ptrs,
++	.sysfs_ops     = &mlog_attr_ops,
++};
++
++static struct kset mlog_kset = {
++	.kobj   = {.ktype = &mlog_ktype},
++};
++
++int r2_mlog_sys_init(struct kset *r2cb_kset)
++{
++	int i = 0;
++
++	while (mlog_attrs[i].attr.mode) {
++		mlog_attr_ptrs[i] = &mlog_attrs[i].attr;
++		i++;
 +	}
++	mlog_attr_ptrs[i] = NULL;
++
++	kobject_set_name(&mlog_kset.kobj, "logmask");
++	mlog_kset.kobj.kset = r2cb_kset;
++	return kset_register(&mlog_kset);
 +}
 +
-+static inline void zbudpage_spin_unlock(struct zbudpage *zbudpage)
++void r2_mlog_sys_shutdown(void)
 +{
-+	struct page *page = (struct page *)zbudpage;
-+
-+	clear_bit(PG_locked, &page->flags);
++	kset_unregister(&mlog_kset);
 +}
-+
-+static inline int zbudpage_spin_trylock(struct zbudpage *zbudpage)
-+{
-+	return trylock_page((struct page *)zbudpage);
-+}
-+
-+static inline int zbudpage_is_locked(struct zbudpage *zbudpage)
-+{
-+	return PageLocked((struct page *)zbudpage);
-+}
-+
-+static inline void *kmap_zbudpage_atomic(struct zbudpage *zbudpage)
-+{
-+	return kmap_atomic((struct page *)zbudpage);
-+}
-+
-+/*
-+ * A dying zbudpage is an ephemeral page in the process of being evicted.
-+ * Any data contained in the zbudpage is invalid and we are just waiting for
-+ * the tmem pampds to be invalidated before freeing the page
-+ */
-+static inline int zbudpage_is_dying(struct zbudpage *zbudpage)
-+{
-+	struct page *page = (struct page *)zbudpage;
-+
-+	return test_bit(PG_reclaim, &page->flags);
-+}
-+
-+static inline void zbudpage_set_dying(struct zbudpage *zbudpage)
-+{
-+	struct page *page = (struct page *)zbudpage;
-+
-+	set_bit(PG_reclaim, &page->flags);
-+}
-+
-+static inline void zbudpage_clear_dying(struct zbudpage *zbudpage)
-+{
-+	struct page *page = (struct page *)zbudpage;
-+
-+	clear_bit(PG_reclaim, &page->flags);
-+}
-+
-+/*
-+ * A zombie zbudpage is a persistent page in the process of being evicted.
-+ * The data contained in the zbudpage is valid and we are just waiting for
-+ * the tmem pampds to be invalidated before freeing the page
-+ */
-+static inline int zbudpage_is_zombie(struct zbudpage *zbudpage)
-+{
-+	struct page *page = (struct page *)zbudpage;
-+
-+	return test_bit(PG_dirty, &page->flags);
-+}
-+
-+static inline void zbudpage_set_zombie(struct zbudpage *zbudpage)
-+{
-+	struct page *page = (struct page *)zbudpage;
-+
-+	set_bit(PG_dirty, &page->flags);
-+}
-+
-+static inline void zbudpage_clear_zombie(struct zbudpage *zbudpage)
-+{
-+	struct page *page = (struct page *)zbudpage;
-+
-+	clear_bit(PG_dirty, &page->flags);
-+}
-+
-+static inline void kunmap_zbudpage_atomic(void *zbpg)
-+{
-+	kunmap_atomic(zbpg);
-+}
-+
-+/*
-+ * zbud "translation" and helper functions
+diff --git a/drivers/staging/zcache/ramster/masklog.h b/drivers/staging/zcache/ramster/masklog.h
+new file mode 100644
+index 0000000..918ae11
+--- /dev/null
++++ b/drivers/staging/zcache/ramster/masklog.h
+@@ -0,0 +1,220 @@
++/* -*- mode: c; c-basic-offset: 8; -*-
++ * vim: noexpandtab sw=8 ts=8 sts=0:
++ *
++ * Copyright (C) 2005, 2012 Oracle.  All rights reserved.
++ *
++ * This program is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU General Public
++ * License as published by the Free Software Foundation; either
++ * version 2 of the License, or (at your option) any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public
++ * License along with this program; if not, write to the
++ * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
++ * Boston, MA 021110-1307, USA.
 + */
 +
-+static inline struct zbudpage *zbudref_to_zbudpage(struct zbudref *zref)
-+{
-+	unsigned long zbud = (unsigned long)zref;
-+	zbud &= ~1UL;
-+	return (struct zbudpage *)zbud;
-+}
-+
-+static inline struct zbudref *zbudpage_to_zbudref(struct zbudpage *zbudpage,
-+							unsigned budnum)
-+{
-+	unsigned long zbud = (unsigned long)zbudpage;
-+	BUG_ON(budnum > 1);
-+	zbud |= budnum;
-+	return (struct zbudref *)zbud;
-+}
-+
-+static inline int zbudref_budnum(struct zbudref *zbudref)
-+{
-+	unsigned long zbud = (unsigned long)zbudref;
-+	return zbud & 1UL;
-+}
-+
-+static inline unsigned zbud_max_size(void)
-+{
-+	return MAX_CHUNK << CHUNK_SHIFT;
-+}
-+
-+static inline unsigned zbud_size_to_chunks(unsigned size)
-+{
-+	BUG_ON(size == 0 || size > zbud_max_size());
-+	return (size + CHUNK_SIZE - 1) >> CHUNK_SHIFT;
-+}
-+
-+/* can only be used between kmap_zbudpage_atomic/kunmap_zbudpage_atomic! */
-+static inline char *zbud_data(void *zbpg,
-+			unsigned budnum, unsigned size)
-+{
-+	char *p;
-+
-+	BUG_ON(size == 0 || size > zbud_max_size());
-+	p = (char *)zbpg;
-+	if (budnum == 1)
-+		p += PAGE_SIZE - ((size + CHUNK_SIZE - 1) & CHUNK_MASK);
-+	return p;
-+}
++#ifndef R2CLUSTER_MASKLOG_H
++#define R2CLUSTER_MASKLOG_H
 +
 +/*
-+ * These are all informative and exposed through debugfs... except for
-+ * the arrays... anyone know how to do that?  To avoid confusion for
-+ * debugfs viewers, some of these should also be atomic_long_t, but
-+ * I don't know how to expose atomics via debugfs either...
++ * For now this is a trivial wrapper around printk() that gives the critical
++ * ability to enable sets of debugging output at run-time.  In the future this
++ * will almost certainly be redirected to relayfs so that it can pay a
++ * substantially lower heisenberg tax.
++ *
++ * Callers associate the message with a bitmask and a global bitmask is
++ * maintained with help from /proc.  If any of the bits match the message is
++ * output.
++ *
++ * We must have efficient bit tests on i386 and it seems gcc still emits crazy
++ * code for the 64bit compare.  It emits very good code for the dual unsigned
++ * long tests, though, completely avoiding tests that can never pass if the
++ * caller gives a constant bitmask that fills one of the longs with all 0s.  So
++ * the desire is to have almost all of the calls decided on by comparing just
++ * one of the longs.  This leads to having infrequently given bits that are
++ * frequently matched in the high bits.
++ *
++ * _ERROR and _NOTICE are used for messages that always go to the console and
++ * have appropriate KERN_ prefixes.  We wrap these in our function instead of
++ * just calling printk() so that this can eventually make its way through
++ * relayfs along with the debugging messages.  Everything else gets KERN_DEBUG.
++ * The inline tests and macro dance give GCC the opportunity to quite cleverly
++ * only emit the appropriage printk() when the caller passes in a constant
++ * mask, as is almost always the case.
++ *
++ * All this bitmask nonsense is managed from the files under
++ * /sys/fs/r2cb/logmask/.  Reading the files gives a straightforward
++ * indication of which bits are allowed (allow) or denied (off/deny).
++ *	ENTRY deny
++ *	EXIT deny
++ *	TCP off
++ *	MSG off
++ *	SOCKET off
++ *	ERROR allow
++ *	NOTICE allow
++ *
++ * Writing changes the state of a given bit and requires a strictly formatted
++ * single write() call:
++ *
++ *	write(fd, "allow", 5);
++ *
++ * Echoing allow/deny/off string into the logmask files can flip the bits
++ * on or off as expected; here is the bash script for example:
++ *
++ * log_mask="/sys/fs/r2cb/log_mask"
++ * for node in ENTRY EXIT TCP MSG SOCKET ERROR NOTICE; do
++ *	echo allow >"$log_mask"/"$node"
++ * done
++ *
++ * The debugfs.ramster tool can also flip the bits with the -l option:
++ *
++ * debugfs.ramster -l TCP allow
 + */
-+static unsigned long zbud_eph_pageframes;
-+static unsigned long zbud_pers_pageframes;
-+static unsigned long zbud_eph_zpages;
-+static unsigned long zbud_pers_zpages;
-+static u64 zbud_eph_zbytes;
-+static u64 zbud_pers_zbytes;
-+static unsigned long zbud_eph_evicted_pageframes;
-+static unsigned long zbud_pers_evicted_pageframes;
-+static unsigned long zbud_eph_cumul_zpages;
-+static unsigned long zbud_pers_cumul_zpages;
-+static u64 zbud_eph_cumul_zbytes;
-+static u64 zbud_pers_cumul_zbytes;
-+static unsigned long zbud_eph_cumul_chunk_counts[NCHUNKS];
-+static unsigned long zbud_pers_cumul_chunk_counts[NCHUNKS];
-+static unsigned long zbud_eph_buddied_count;
-+static unsigned long zbud_pers_buddied_count;
-+static unsigned long zbud_eph_unbuddied_count;
-+static unsigned long zbud_pers_unbuddied_count;
-+static unsigned long zbud_eph_zombie_count;
-+static unsigned long zbud_pers_zombie_count;
-+static atomic_t zbud_eph_zombie_atomic;
-+static atomic_t zbud_pers_zombie_atomic;
 +
-+#ifdef CONFIG_DEBUG_FS
-+#include <linux/debugfs.h>
-+#define	zdfs	debugfs_create_size_t
-+#define	zdfs64	debugfs_create_u64
-+static int zbud_debugfs_init(void)
++/* for task_struct */
++#include <linux/sched.h>
++
++/* bits that are frequently given and infrequently matched in the low word */
++/* NOTE: If you add a flag, you need to also update masklog.c! */
++#define ML_TCP		0x0000000000000001ULL /* net cluster/tcp.c */
++#define ML_MSG		0x0000000000000002ULL /* net network messages */
++#define ML_SOCKET	0x0000000000000004ULL /* net socket lifetime */
++#define ML_HEARTBEAT	0x0000000000000008ULL /* hb all heartbeat tracking */
++#define ML_HB_BIO	0x0000000000000010ULL /* hb io tracing */
++#define ML_DLMFS	0x0000000000000020ULL /* dlm user dlmfs */
++#define ML_DLM		0x0000000000000040ULL /* dlm general debugging */
++#define ML_DLM_DOMAIN	0x0000000000000080ULL /* dlm domain debugging */
++#define ML_DLM_THREAD	0x0000000000000100ULL /* dlm domain thread */
++#define ML_DLM_MASTER	0x0000000000000200ULL /* dlm master functions */
++#define ML_DLM_RECOVERY	0x0000000000000400ULL /* dlm master functions */
++#define ML_DLM_GLUE	0x0000000000000800ULL /* ramster dlm glue layer */
++#define ML_VOTE		0x0000000000001000ULL /* ramster node messaging  */
++#define ML_CONN		0x0000000000002000ULL /* net connection management */
++#define ML_QUORUM	0x0000000000004000ULL /* net connection quorum */
++#define ML_BASTS	0x0000000000008000ULL /* dlmglue asts and basts */
++#define ML_CLUSTER	0x0000000000010000ULL /* cluster stack */
++
++/* bits that are infrequently given and frequently matched in the high word */
++#define ML_ERROR	0x1000000000000000ULL /* sent to KERN_ERR */
++#define ML_NOTICE	0x2000000000000000ULL /* setn to KERN_NOTICE */
++#define ML_KTHREAD	0x4000000000000000ULL /* kernel thread activity */
++
++#define MLOG_INITIAL_AND_MASK (ML_ERROR|ML_NOTICE)
++#ifndef MLOG_MASK_PREFIX
++#define MLOG_MASK_PREFIX 0
++#endif
++
++/*
++ * When logging is disabled, force the bit test to 0 for anything other
++ * than errors and notices, allowing gcc to remove the code completely.
++ * When enabled, allow all masks.
++ */
++#if defined(CONFIG_RAMSTER_DEBUG_MASKLOG)
++#define ML_ALLOWED_BITS (~0)
++#else
++#define ML_ALLOWED_BITS (ML_ERROR|ML_NOTICE)
++#endif
++
++#define MLOG_MAX_BITS 64
++
++struct mlog_bits {
++	unsigned long words[MLOG_MAX_BITS / BITS_PER_LONG];
++};
++
++extern struct mlog_bits r2_mlog_and_bits, r2_mlog_not_bits;
++
++#if BITS_PER_LONG == 32
++
++#define __mlog_test_u64(mask, bits)			\
++	((u32)(mask & 0xffffffff) & bits.words[0] ||	\
++	  ((u64)(mask) >> 32) & bits.words[1])
++#define __mlog_set_u64(mask, bits) do {			\
++	bits.words[0] |= (u32)(mask & 0xffffffff);	\
++	bits.words[1] |= (u64)(mask) >> 32;		\
++} while (0)
++#define __mlog_clear_u64(mask, bits) do {		\
++	bits.words[0] &= ~((u32)(mask & 0xffffffff));	\
++	bits.words[1] &= ~((u64)(mask) >> 32);		\
++} while (0)
++#define MLOG_BITS_RHS(mask) {				\
++	{						\
++		[0] = (u32)(mask & 0xffffffff),		\
++		[1] = (u64)(mask) >> 32,		\
++	}						\
++}
++
++#else /* 32bit long above, 64bit long below */
++
++#define __mlog_test_u64(mask, bits)	((mask) & bits.words[0])
++#define __mlog_set_u64(mask, bits) do {		\
++	bits.words[0] |= (mask);		\
++} while (0)
++#define __mlog_clear_u64(mask, bits) do {	\
++	bits.words[0] &= ~(mask);		\
++} while (0)
++#define MLOG_BITS_RHS(mask) { { (mask) } }
++
++#endif
++
++/*
++ * smp_processor_id() "helpfully" screams when called outside preemptible
++ * regions in current kernels.  sles doesn't have the variants that don't
++ * scream.  just do this instead of trying to guess which we're building
++ * against.. *sigh*.
++ */
++#define __mlog_cpu_guess ({		\
++	unsigned long _cpu = get_cpu();	\
++	put_cpu();			\
++	_cpu;				\
++})
++
++/* In the following two macros, the whitespace after the ',' just
++ * before ##args is intentional. Otherwise, gcc 2.95 will eat the
++ * previous token if args expands to nothing.
++ */
++#define __mlog_printk(level, fmt, args...)				\
++	printk(level "(%s,%u,%lu):%s:%d " fmt, current->comm,		\
++	       task_pid_nr(current), __mlog_cpu_guess,			\
++	       __PRETTY_FUNCTION__, __LINE__ , ##args)
++
++#define mlog(mask, fmt, args...) do {					\
++	u64 __m = MLOG_MASK_PREFIX | (mask);				\
++	if ((__m & ML_ALLOWED_BITS) &&					\
++	    __mlog_test_u64(__m, r2_mlog_and_bits) &&			\
++	    !__mlog_test_u64(__m, r2_mlog_not_bits)) {			\
++		if (__m & ML_ERROR)					\
++			__mlog_printk(KERN_ERR, "ERROR: "fmt , ##args);	\
++		else if (__m & ML_NOTICE)				\
++			__mlog_printk(KERN_NOTICE, fmt , ##args);	\
++		else							\
++			__mlog_printk(KERN_INFO, fmt , ##args);		\
++	}								\
++} while (0)
++
++#define mlog_errno(st) do {						\
++	int _st = (st);							\
++	if (_st != -ERESTARTSYS && _st != -EINTR &&			\
++	    _st != AOP_TRUNCATED_PAGE && _st != -ENOSPC)		\
++		mlog(ML_ERROR, "status = %lld\n", (long long)_st);	\
++} while (0)
++
++#define mlog_bug_on_msg(cond, fmt, args...) do {			\
++	if (cond) {							\
++		mlog(ML_ERROR, "bug expression: " #cond "\n");		\
++		mlog(ML_ERROR, fmt, ##args);				\
++		BUG();							\
++	}								\
++} while (0)
++
++#include <linux/kobject.h>
++#include <linux/sysfs.h>
++int r2_mlog_sys_init(struct kset *r2cb_subsys);
++void r2_mlog_sys_shutdown(void);
++
++#endif /* R2CLUSTER_MASKLOG_H */
+diff --git a/drivers/staging/zcache/ramster/nodemanager.c b/drivers/staging/zcache/ramster/nodemanager.c
+new file mode 100644
+index 0000000..c0f4815
+--- /dev/null
++++ b/drivers/staging/zcache/ramster/nodemanager.c
+@@ -0,0 +1,995 @@
++/* -*- mode: c; c-basic-offset: 8; -*-
++ * vim: noexpandtab sw=8 ts=8 sts=0:
++ *
++ * Copyright (C) 2004, 2005, 2012 Oracle.  All rights reserved.
++ *
++ * This program is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU General Public
++ * License as published by the Free Software Foundation; either
++ * version 2 of the License, or (at your option) any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public
++ * License along with this program; if not, write to the
++ * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
++ * Boston, MA 021110-1307, USA.
++ */
++
++#include <linux/slab.h>
++#include <linux/kernel.h>
++#include <linux/module.h>
++#include <linux/configfs.h>
++
++#include "tcp.h"
++#include "nodemanager.h"
++#include "heartbeat.h"
++#include "masklog.h"
++
++/* for now we operate under the assertion that there can be only one
++ * cluster active at a time.  Changing this will require trickling
++ * cluster references throughout where nodes are looked up */
++struct r2nm_cluster *r2nm_single_cluster;
++
++char *r2nm_fence_method_desc[R2NM_FENCE_METHODS] = {
++		"reset",	/* R2NM_FENCE_RESET */
++		"panic",	/* R2NM_FENCE_PANIC */
++};
++
++struct r2nm_node *r2nm_get_node_by_num(u8 node_num)
 +{
-+	struct dentry *root = debugfs_create_dir("zbud", NULL);
-+	if (root == NULL)
-+		return -ENXIO;
++	struct r2nm_node *node = NULL;
 +
-+	/*
-+	 * would be nice to dump the sizes of the unbuddied
-+	 * arrays, like was done with sysfs, but it doesn't
-+	 * look like debugfs is flexible enough to do that
-+	 */
-+	zdfs64("eph_zbytes", S_IRUGO, root, &zbud_eph_zbytes);
-+	zdfs64("eph_cumul_zbytes", S_IRUGO, root, &zbud_eph_cumul_zbytes);
-+	zdfs64("pers_zbytes", S_IRUGO, root, &zbud_pers_zbytes);
-+	zdfs64("pers_cumul_zbytes", S_IRUGO, root, &zbud_pers_cumul_zbytes);
-+	zdfs("eph_cumul_zpages", S_IRUGO, root, &zbud_eph_cumul_zpages);
-+	zdfs("eph_evicted_pageframes", S_IRUGO, root,
-+				&zbud_eph_evicted_pageframes);
-+	zdfs("eph_zpages", S_IRUGO, root, &zbud_eph_zpages);
-+	zdfs("eph_pageframes", S_IRUGO, root, &zbud_eph_pageframes);
-+	zdfs("eph_buddied_count", S_IRUGO, root, &zbud_eph_buddied_count);
-+	zdfs("eph_unbuddied_count", S_IRUGO, root, &zbud_eph_unbuddied_count);
-+	zdfs("pers_cumul_zpages", S_IRUGO, root, &zbud_pers_cumul_zpages);
-+	zdfs("pers_evicted_pageframes", S_IRUGO, root,
-+				&zbud_pers_evicted_pageframes);
-+	zdfs("pers_zpages", S_IRUGO, root, &zbud_pers_zpages);
-+	zdfs("pers_pageframes", S_IRUGO, root, &zbud_pers_pageframes);
-+	zdfs("pers_buddied_count", S_IRUGO, root, &zbud_pers_buddied_count);
-+	zdfs("pers_unbuddied_count", S_IRUGO, root, &zbud_pers_unbuddied_count);
-+	zdfs("pers_zombie_count", S_IRUGO, root, &zbud_pers_zombie_count);
++	if (node_num >= R2NM_MAX_NODES || r2nm_single_cluster == NULL)
++		goto out;
++
++	read_lock(&r2nm_single_cluster->cl_nodes_lock);
++	node = r2nm_single_cluster->cl_nodes[node_num];
++	if (node)
++		config_item_get(&node->nd_item);
++	read_unlock(&r2nm_single_cluster->cl_nodes_lock);
++out:
++	return node;
++}
++EXPORT_SYMBOL_GPL(r2nm_get_node_by_num);
++
++int r2nm_configured_node_map(unsigned long *map, unsigned bytes)
++{
++	struct r2nm_cluster *cluster = r2nm_single_cluster;
++
++	BUG_ON(bytes < (sizeof(cluster->cl_nodes_bitmap)));
++
++	if (cluster == NULL)
++		return -EINVAL;
++
++	read_lock(&cluster->cl_nodes_lock);
++	memcpy(map, cluster->cl_nodes_bitmap, sizeof(cluster->cl_nodes_bitmap));
++	read_unlock(&cluster->cl_nodes_lock);
++
 +	return 0;
 +}
-+#undef	zdfs
-+#undef	zdfs64
-+#endif
++EXPORT_SYMBOL_GPL(r2nm_configured_node_map);
 +
-+/* protects the buddied list and all unbuddied lists */
-+static DEFINE_SPINLOCK(zbud_eph_lists_lock);
-+static DEFINE_SPINLOCK(zbud_pers_lists_lock);
++static struct r2nm_node *r2nm_node_ip_tree_lookup(struct r2nm_cluster *cluster,
++						  __be32 ip_needle,
++						  struct rb_node ***ret_p,
++						  struct rb_node **ret_parent)
++{
++	struct rb_node **p = &cluster->cl_node_ip_tree.rb_node;
++	struct rb_node *parent = NULL;
++	struct r2nm_node *node, *ret = NULL;
 +
-+struct zbud_unbuddied {
-+	struct list_head list;
-+	unsigned count;
++	while (*p) {
++		int cmp;
++
++		parent = *p;
++		node = rb_entry(parent, struct r2nm_node, nd_ip_node);
++
++		cmp = memcmp(&ip_needle, &node->nd_ipv4_address,
++				sizeof(ip_needle));
++		if (cmp < 0)
++			p = &(*p)->rb_left;
++		else if (cmp > 0)
++			p = &(*p)->rb_right;
++		else {
++			ret = node;
++			break;
++		}
++	}
++
++	if (ret_p != NULL)
++		*ret_p = p;
++	if (ret_parent != NULL)
++		*ret_parent = parent;
++
++	return ret;
++}
++
++struct r2nm_node *r2nm_get_node_by_ip(__be32 addr)
++{
++	struct r2nm_node *node = NULL;
++	struct r2nm_cluster *cluster = r2nm_single_cluster;
++
++	if (cluster == NULL)
++		goto out;
++
++	read_lock(&cluster->cl_nodes_lock);
++	node = r2nm_node_ip_tree_lookup(cluster, addr, NULL, NULL);
++	if (node)
++		config_item_get(&node->nd_item);
++	read_unlock(&cluster->cl_nodes_lock);
++
++out:
++	return node;
++}
++EXPORT_SYMBOL_GPL(r2nm_get_node_by_ip);
++
++void r2nm_node_put(struct r2nm_node *node)
++{
++	config_item_put(&node->nd_item);
++}
++EXPORT_SYMBOL_GPL(r2nm_node_put);
++
++void r2nm_node_get(struct r2nm_node *node)
++{
++	config_item_get(&node->nd_item);
++}
++EXPORT_SYMBOL_GPL(r2nm_node_get);
++
++u8 r2nm_this_node(void)
++{
++	u8 node_num = R2NM_MAX_NODES;
++
++	if (r2nm_single_cluster && r2nm_single_cluster->cl_has_local)
++		node_num = r2nm_single_cluster->cl_local_node;
++
++	return node_num;
++}
++EXPORT_SYMBOL_GPL(r2nm_this_node);
++
++/* node configfs bits */
++
++static struct r2nm_cluster *to_r2nm_cluster(struct config_item *item)
++{
++	return item ?
++		container_of(to_config_group(item), struct r2nm_cluster,
++			     cl_group)
++		: NULL;
++}
++
++static struct r2nm_node *to_r2nm_node(struct config_item *item)
++{
++	return item ? container_of(item, struct r2nm_node, nd_item) : NULL;
++}
++
++static void r2nm_node_release(struct config_item *item)
++{
++	struct r2nm_node *node = to_r2nm_node(item);
++	kfree(node);
++}
++
++static ssize_t r2nm_node_num_read(struct r2nm_node *node, char *page)
++{
++	return sprintf(page, "%d\n", node->nd_num);
++}
++
++static struct r2nm_cluster *to_r2nm_cluster_from_node(struct r2nm_node *node)
++{
++	/* through the first node_set .parent
++	 * mycluster/nodes/mynode == r2nm_cluster->r2nm_node_group->r2nm_node */
++	return to_r2nm_cluster(node->nd_item.ci_parent->ci_parent);
++}
++
++enum {
++	R2NM_NODE_ATTR_NUM = 0,
++	R2NM_NODE_ATTR_PORT,
++	R2NM_NODE_ATTR_ADDRESS,
++	R2NM_NODE_ATTR_LOCAL,
 +};
 +
-+/* list N contains pages with N chunks USED and NCHUNKS-N unused */
-+/* element 0 is never used but optimizing that isn't worth it */
-+static struct zbud_unbuddied zbud_eph_unbuddied[NCHUNKS];
-+static struct zbud_unbuddied zbud_pers_unbuddied[NCHUNKS];
-+static LIST_HEAD(zbud_eph_lru_list);
-+static LIST_HEAD(zbud_pers_lru_list);
-+static LIST_HEAD(zbud_eph_buddied_list);
-+static LIST_HEAD(zbud_pers_buddied_list);
-+static LIST_HEAD(zbud_eph_zombie_list);
-+static LIST_HEAD(zbud_pers_zombie_list);
-+
-+/*
-+ * Given a struct page, transform it to a zbudpage so that it can be
-+ * used by zbud and initialize fields as necessary.
-+ */
-+static inline struct zbudpage *zbud_init_zbudpage(struct page *page, bool eph)
++static ssize_t r2nm_node_num_write(struct r2nm_node *node, const char *page,
++				   size_t count)
 +{
-+	struct zbudpage *zbudpage = (struct zbudpage *)page;
++	struct r2nm_cluster *cluster = to_r2nm_cluster_from_node(node);
++	unsigned long tmp;
++	char *p = (char *)page;
++	int err;
 +
-+	BUG_ON(page == NULL);
-+	INIT_LIST_HEAD(&zbudpage->budlist);
-+	INIT_LIST_HEAD(&zbudpage->lru);
-+	zbudpage->zbud0_size = 0;
-+	zbudpage->zbud1_size = 0;
-+	zbudpage->unevictable = 0;
-+	if (eph)
-+		zbud_eph_pageframes++;
-+	else
-+		zbud_pers_pageframes++;
-+	return zbudpage;
++	err = kstrtoul(p, 10, &tmp);
++	if (err)
++		return err;
++
++	if (tmp >= R2NM_MAX_NODES)
++		return -ERANGE;
++
++	/* once we're in the cl_nodes tree networking can look us up by
++	 * node number and try to use our address and port attributes
++	 * to connect to this node.. make sure that they've been set
++	 * before writing the node attribute? */
++	if (!test_bit(R2NM_NODE_ATTR_ADDRESS, &node->nd_set_attributes) ||
++	    !test_bit(R2NM_NODE_ATTR_PORT, &node->nd_set_attributes))
++		return -EINVAL; /* XXX */
++
++	write_lock(&cluster->cl_nodes_lock);
++	if (cluster->cl_nodes[tmp])
++		p = NULL;
++	else  {
++		cluster->cl_nodes[tmp] = node;
++		node->nd_num = tmp;
++		set_bit(tmp, cluster->cl_nodes_bitmap);
++	}
++	write_unlock(&cluster->cl_nodes_lock);
++	if (p == NULL)
++		return -EEXIST;
++
++	return count;
++}
++static ssize_t r2nm_node_ipv4_port_read(struct r2nm_node *node, char *page)
++{
++	return sprintf(page, "%u\n", ntohs(node->nd_ipv4_port));
 +}
 +
-+/* "Transform" a zbudpage back to a struct page suitable to free. */
-+static inline struct page *zbud_unuse_zbudpage(struct zbudpage *zbudpage,
-+								bool eph)
++static ssize_t r2nm_node_ipv4_port_write(struct r2nm_node *node,
++					 const char *page, size_t count)
 +{
-+	struct page *page = (struct page *)zbudpage;
++	unsigned long tmp;
++	char *p = (char *)page;
++	int err;
 +
-+	BUG_ON(!list_empty(&zbudpage->budlist));
-+	BUG_ON(!list_empty(&zbudpage->lru));
-+	BUG_ON(zbudpage->zbud0_size != 0);
-+	BUG_ON(zbudpage->zbud1_size != 0);
-+	BUG_ON(!PageLocked(page));
-+	BUG_ON(zbudpage->unevictable != 0);
-+	BUG_ON(zbudpage_is_dying(zbudpage));
-+	BUG_ON(zbudpage_is_zombie(zbudpage));
-+	if (eph)
-+		zbud_eph_pageframes--;
-+	else
-+		zbud_pers_pageframes--;
-+	zbudpage_spin_unlock(zbudpage);
-+	reset_page_mapcount(page);
-+	init_page_count(page);
-+	page->index = 0;
-+	return page;
++	err = kstrtoul(p, 10, &tmp);
++	if (err)
++		return err;
++
++	if (tmp == 0)
++		return -EINVAL;
++	if (tmp >= (u16)-1)
++		return -ERANGE;
++
++	node->nd_ipv4_port = htons(tmp);
++
++	return count;
 +}
 +
-+/* Mark a zbud as unused and do accounting */
-+static inline void zbud_unuse_zbud(struct zbudpage *zbudpage,
-+					int budnum, bool eph)
++static ssize_t r2nm_node_ipv4_address_read(struct r2nm_node *node, char *page)
 +{
-+	unsigned size;
-+
-+	BUG_ON(!zbudpage_is_locked(zbudpage));
-+	if (budnum == 0) {
-+		size = zbudpage->zbud0_size;
-+		zbudpage->zbud0_size = 0;
-+	} else {
-+		size = zbudpage->zbud1_size;
-+		zbudpage->zbud1_size = 0;
-+	}
-+	if (eph) {
-+		zbud_eph_zbytes -= size;
-+		zbud_eph_zpages--;
-+	} else {
-+		zbud_pers_zbytes -= size;
-+		zbud_pers_zpages--;
-+	}
++	return sprintf(page, "%pI4\n", &node->nd_ipv4_address);
 +}
 +
-+/*
-+ * Given a zbudpage/budnum/size, a tmem handle, and a kmapped pointer
-+ * to some data, set up the zbud appropriately including data copying
-+ * and accounting.  Note that if cdata is NULL, the data copying is
-+ * skipped.  (This is useful for lazy writes such as for RAMster.)
-+ */
-+static void zbud_init_zbud(struct zbudpage *zbudpage, struct tmem_handle *th,
-+				bool eph, void *cdata,
-+				unsigned budnum, unsigned size)
++static ssize_t r2nm_node_ipv4_address_write(struct r2nm_node *node,
++					    const char *page,
++					    size_t count)
 +{
-+	char *to;
-+	void *zbpg;
-+	struct tmem_handle *to_th;
-+	unsigned nchunks = zbud_size_to_chunks(size);
++	struct r2nm_cluster *cluster = to_r2nm_cluster_from_node(node);
++	int ret, i;
++	struct rb_node **p, *parent;
++	unsigned int octets[4];
++	__be32 ipv4_addr = 0;
 +
-+	BUG_ON(!zbudpage_is_locked(zbudpage));
-+	zbpg = kmap_zbudpage_atomic(zbudpage);
-+	to = zbud_data(zbpg, budnum, size);
-+	to_th = (struct tmem_handle *)to;
-+	to_th->index = th->index;
-+	to_th->oid = th->oid;
-+	to_th->pool_id = th->pool_id;
-+	to_th->client_id = th->client_id;
-+	to += sizeof(struct tmem_handle);
-+	if (cdata != NULL)
-+		memcpy(to, cdata, size - sizeof(struct tmem_handle));
-+	kunmap_zbudpage_atomic(zbpg);
-+	if (budnum == 0)
-+		zbudpage->zbud0_size = size;
-+	else
-+		zbudpage->zbud1_size = size;
-+	if (eph) {
-+		zbud_eph_cumul_chunk_counts[nchunks]++;
-+		zbud_eph_zpages++;
-+		zbud_eph_cumul_zpages++;
-+		zbud_eph_zbytes += size;
-+		zbud_eph_cumul_zbytes += size;
-+	} else {
-+		zbud_pers_cumul_chunk_counts[nchunks]++;
-+		zbud_pers_zpages++;
-+		zbud_pers_cumul_zpages++;
-+		zbud_pers_zbytes += size;
-+		zbud_pers_cumul_zbytes += size;
++	ret = sscanf(page, "%3u.%3u.%3u.%3u", &octets[3], &octets[2],
++		     &octets[1], &octets[0]);
++	if (ret != 4)
++		return -EINVAL;
++
++	for (i = 0; i < ARRAY_SIZE(octets); i++) {
++		if (octets[i] > 255)
++			return -ERANGE;
++		be32_add_cpu(&ipv4_addr, octets[i] << (i * 8));
 +	}
-+}
 +
-+/*
-+ * Given a locked dying zbudpage, read out the tmem handles from the data,
-+ * unlock the page, then use the handles to tell tmem to flush out its
-+ * references
-+ */
-+static void zbud_evict_tmem(struct zbudpage *zbudpage)
-+{
-+	int i, j;
-+	uint32_t pool_id[2], client_id[2];
-+	uint32_t index[2];
-+	struct tmem_oid oid[2];
-+	struct tmem_pool *pool;
-+	void *zbpg;
-+	struct tmem_handle *th;
-+	unsigned size;
-+
-+	/* read out the tmem handles from the data and set aside */
-+	zbpg = kmap_zbudpage_atomic(zbudpage);
-+	for (i = 0, j = 0; i < 2; i++) {
-+		size = (i == 0) ? zbudpage->zbud0_size : zbudpage->zbud1_size;
-+		if (size) {
-+			th = (struct tmem_handle *)zbud_data(zbpg, i, size);
-+			client_id[j] = th->client_id;
-+			pool_id[j] = th->pool_id;
-+			oid[j] = th->oid;
-+			index[j] = th->index;
-+			j++;
-+			zbud_unuse_zbud(zbudpage, i, true);
-+		}
-+	}
-+	kunmap_zbudpage_atomic(zbpg);
-+	zbudpage_spin_unlock(zbudpage);
-+	/* zbudpage is now an unlocked dying... tell tmem to flush pointers */
-+	for (i = 0; i < j; i++) {
-+		pool = zcache_get_pool_by_id(client_id[i], pool_id[i]);
-+		if (pool != NULL) {
-+			tmem_flush_page(pool, &oid[i], index[i]);
-+			zcache_put_pool(pool);
-+		}
-+	}
-+}
-+
-+/*
-+ * Externally callable zbud handling routines.
-+ */
-+
-+/*
-+ * Return the maximum size compressed page that can be stored (secretly
-+ * setting aside space for the tmem handle.
-+ */
-+unsigned int zbud_max_buddy_size(void)
-+{
-+	return zbud_max_size() - sizeof(struct tmem_handle);
-+}
-+
-+/*
-+ * Given a zbud reference, free the corresponding zbud from all lists,
-+ * mark it as unused, do accounting, and if the freeing of the zbud
-+ * frees up an entire pageframe, return it to the caller (else NULL).
-+ */
-+struct page *zbud_free_and_delist(struct zbudref *zref, bool eph,
-+				  unsigned int *zsize, unsigned int *zpages)
-+{
-+	unsigned long budnum = zbudref_budnum(zref);
-+	struct zbudpage *zbudpage = zbudref_to_zbudpage(zref);
-+	struct page *page = NULL;
-+	unsigned chunks, bud_size, other_bud_size;
-+	spinlock_t *lists_lock =
-+		eph ? &zbud_eph_lists_lock : &zbud_pers_lists_lock;
-+	struct zbud_unbuddied *unbud =
-+		eph ? zbud_eph_unbuddied : zbud_pers_unbuddied;
-+
-+
-+	spin_lock(lists_lock);
-+	zbudpage_spin_lock(zbudpage);
-+	if (zbudpage_is_dying(zbudpage)) {
-+		/* ignore dying zbudpage... see zbud_evict_pageframe_lru() */
-+		zbudpage_spin_unlock(zbudpage);
-+		spin_unlock(lists_lock);
-+		*zpages = 0;
-+		*zsize = 0;
-+		goto out;
-+	}
-+	if (budnum == 0) {
-+		bud_size = zbudpage->zbud0_size;
-+		other_bud_size = zbudpage->zbud1_size;
-+	} else {
-+		bud_size = zbudpage->zbud1_size;
-+		other_bud_size = zbudpage->zbud0_size;
-+	}
-+	*zsize = bud_size - sizeof(struct tmem_handle);
-+	*zpages = 1;
-+	zbud_unuse_zbud(zbudpage, budnum, eph);
-+	if (other_bud_size == 0) { /* was unbuddied: unlist and free */
-+		chunks = zbud_size_to_chunks(bud_size) ;
-+		if (zbudpage_is_zombie(zbudpage)) {
-+			if (eph)
-+				zbud_pers_zombie_count =
-+				  atomic_dec_return(&zbud_eph_zombie_atomic);
-+			else
-+				zbud_pers_zombie_count =
-+				  atomic_dec_return(&zbud_pers_zombie_atomic);
-+			zbudpage_clear_zombie(zbudpage);
-+		} else {
-+			BUG_ON(list_empty(&unbud[chunks].list));
-+			list_del_init(&zbudpage->budlist);
-+			unbud[chunks].count--;
-+		}
-+		list_del_init(&zbudpage->lru);
-+		spin_unlock(lists_lock);
-+		if (eph)
-+			zbud_eph_unbuddied_count--;
-+		else
-+			zbud_pers_unbuddied_count--;
-+		page = zbud_unuse_zbudpage(zbudpage, eph);
-+	} else { /* was buddied: move remaining buddy to unbuddied list */
-+		chunks = zbud_size_to_chunks(other_bud_size) ;
-+		if (!zbudpage_is_zombie(zbudpage)) {
-+			list_del_init(&zbudpage->budlist);
-+			list_add_tail(&zbudpage->budlist, &unbud[chunks].list);
-+			unbud[chunks].count++;
-+		}
-+		if (eph) {
-+			zbud_eph_buddied_count--;
-+			zbud_eph_unbuddied_count++;
-+		} else {
-+			zbud_pers_unbuddied_count++;
-+			zbud_pers_buddied_count--;
-+		}
-+		/* don't mess with lru, no need to move it */
-+		zbudpage_spin_unlock(zbudpage);
-+		spin_unlock(lists_lock);
-+	}
-+out:
-+	return page;
-+}
-+
-+/*
-+ * Given a tmem handle, and a kmapped pointer to compressed data of
-+ * the given size, try to find an unbuddied zbudpage in which to
-+ * create a zbud. If found, put it there, mark the zbudpage unevictable,
-+ * and return a zbudref to it.  Else return NULL.
-+ */
-+struct zbudref *zbud_match_prep(struct tmem_handle *th, bool eph,
-+				void *cdata, unsigned size)
-+{
-+	struct zbudpage *zbudpage = NULL, *zbudpage2;
-+	unsigned long budnum = 0UL;
-+	unsigned nchunks;
-+	int i, found_good_buddy = 0;
-+	spinlock_t *lists_lock =
-+		eph ? &zbud_eph_lists_lock : &zbud_pers_lists_lock;
-+	struct zbud_unbuddied *unbud =
-+		eph ? zbud_eph_unbuddied : zbud_pers_unbuddied;
-+
-+	size += sizeof(struct tmem_handle);
-+	nchunks = zbud_size_to_chunks(size);
-+	for (i = MAX_CHUNK - nchunks + 1; i > 0; i--) {
-+		spin_lock(lists_lock);
-+		if (!list_empty(&unbud[i].list)) {
-+			list_for_each_entry_safe(zbudpage, zbudpage2,
-+				    &unbud[i].list, budlist) {
-+				if (zbudpage_spin_trylock(zbudpage)) {
-+					found_good_buddy = i;
-+					goto found_unbuddied;
-+				}
-+			}
-+		}
-+		spin_unlock(lists_lock);
-+	}
-+	zbudpage = NULL;
-+	goto out;
-+
-+found_unbuddied:
-+	BUG_ON(!zbudpage_is_locked(zbudpage));
-+	BUG_ON(!((zbudpage->zbud0_size == 0) ^ (zbudpage->zbud1_size == 0)));
-+	if (zbudpage->zbud0_size == 0)
-+		budnum = 0UL;
-+	else if (zbudpage->zbud1_size == 0)
-+		budnum = 1UL;
-+	list_del_init(&zbudpage->budlist);
-+	if (eph) {
-+		list_add_tail(&zbudpage->budlist, &zbud_eph_buddied_list);
-+		unbud[found_good_buddy].count--;
-+		zbud_eph_unbuddied_count--;
-+		zbud_eph_buddied_count++;
-+		/* "promote" raw zbudpage to most-recently-used */
-+		list_del_init(&zbudpage->lru);
-+		list_add_tail(&zbudpage->lru, &zbud_eph_lru_list);
-+	} else {
-+		list_add_tail(&zbudpage->budlist, &zbud_pers_buddied_list);
-+		unbud[found_good_buddy].count--;
-+		zbud_pers_unbuddied_count--;
-+		zbud_pers_buddied_count++;
-+		/* "promote" raw zbudpage to most-recently-used */
-+		list_del_init(&zbudpage->lru);
-+		list_add_tail(&zbudpage->lru, &zbud_pers_lru_list);
-+	}
-+	zbud_init_zbud(zbudpage, th, eph, cdata, budnum, size);
-+	zbudpage->unevictable++;
-+	BUG_ON(zbudpage->unevictable == 3);
-+	zbudpage_spin_unlock(zbudpage);
-+	spin_unlock(lists_lock);
-+out:
-+	return zbudpage_to_zbudref(zbudpage, budnum);
-+
-+}
-+
-+/*
-+ * Given a tmem handle, and a kmapped pointer to compressed data of
-+ * the given size, and a newly allocated struct page, create an unevictable
-+ * zbud in that new page and return a zbudref to it.
-+ */
-+struct zbudref *zbud_create_prep(struct tmem_handle *th, bool eph,
-+					void *cdata, unsigned size,
-+					struct page *newpage)
-+{
-+	struct zbudpage *zbudpage;
-+	unsigned long budnum = 0;
-+	unsigned nchunks;
-+	spinlock_t *lists_lock =
-+		eph ? &zbud_eph_lists_lock : &zbud_pers_lists_lock;
-+	struct zbud_unbuddied *unbud =
-+		eph ? zbud_eph_unbuddied : zbud_pers_unbuddied;
-+
-+#if 0
-+	/* this may be worth it later to support decompress-in-place? */
-+	static unsigned long counter;
-+	budnum = counter++ & 1;	/* alternate using zbud0 and zbud1 */
-+#endif
-+
-+	if (size  > zbud_max_buddy_size())
-+		return NULL;
-+	if (newpage == NULL)
-+		return NULL;
-+
-+	size += sizeof(struct tmem_handle);
-+	nchunks = zbud_size_to_chunks(size) ;
-+	spin_lock(lists_lock);
-+	zbudpage = zbud_init_zbudpage(newpage, eph);
-+	zbudpage_spin_lock(zbudpage);
-+	list_add_tail(&zbudpage->budlist, &unbud[nchunks].list);
-+	if (eph) {
-+		list_add_tail(&zbudpage->lru, &zbud_eph_lru_list);
-+		zbud_eph_unbuddied_count++;
-+	} else {
-+		list_add_tail(&zbudpage->lru, &zbud_pers_lru_list);
-+		zbud_pers_unbuddied_count++;
-+	}
-+	unbud[nchunks].count++;
-+	zbud_init_zbud(zbudpage, th, eph, cdata, budnum, size);
-+	zbudpage->unevictable++;
-+	BUG_ON(zbudpage->unevictable == 3);
-+	zbudpage_spin_unlock(zbudpage);
-+	spin_unlock(lists_lock);
-+	return zbudpage_to_zbudref(zbudpage, budnum);
-+}
-+
-+/*
-+ * Finish creation of a zbud by, assuming another zbud isn't being created
-+ * in parallel, marking it evictable.
-+ */
-+void zbud_create_finish(struct zbudref *zref, bool eph)
-+{
-+	struct zbudpage *zbudpage = zbudref_to_zbudpage(zref);
-+	spinlock_t *lists_lock =
-+		eph ? &zbud_eph_lists_lock : &zbud_pers_lists_lock;
-+
-+	spin_lock(lists_lock);
-+	zbudpage_spin_lock(zbudpage);
-+	BUG_ON(zbudpage_is_dying(zbudpage));
-+	zbudpage->unevictable--;
-+	BUG_ON((int)zbudpage->unevictable < 0);
-+	zbudpage_spin_unlock(zbudpage);
-+	spin_unlock(lists_lock);
-+}
-+
-+/*
-+ * Given a zbudref and a struct page, decompress the data from
-+ * the zbud into the physical page represented by the struct page
-+ * by upcalling to zcache_decompress
-+ */
-+int zbud_decompress(struct page *data_page, struct zbudref *zref, bool eph,
-+			void (*decompress)(char *, unsigned int, char *))
-+{
-+	struct zbudpage *zbudpage = zbudref_to_zbudpage(zref);
-+	unsigned long budnum = zbudref_budnum(zref);
-+	void *zbpg;
-+	char *to_va, *from_va;
-+	unsigned size;
-+	int ret = -1;
-+	spinlock_t *lists_lock =
-+		eph ? &zbud_eph_lists_lock : &zbud_pers_lists_lock;
-+
-+	spin_lock(lists_lock);
-+	zbudpage_spin_lock(zbudpage);
-+	if (zbudpage_is_dying(zbudpage)) {
-+		/* ignore dying zbudpage... see zbud_evict_pageframe_lru() */
-+		goto out;
-+	}
-+	zbpg = kmap_zbudpage_atomic(zbudpage);
-+	to_va = kmap_atomic(data_page);
-+	if (budnum == 0)
-+		size = zbudpage->zbud0_size;
-+	else
-+		size = zbudpage->zbud1_size;
-+	BUG_ON(size == 0 || size > zbud_max_size());
-+	from_va = zbud_data(zbpg, budnum, size);
-+	from_va += sizeof(struct tmem_handle);
-+	size -= sizeof(struct tmem_handle);
-+	decompress(from_va, size, to_va);
-+	kunmap_atomic(to_va);
-+	kunmap_zbudpage_atomic(zbpg);
 +	ret = 0;
-+out:
-+	zbudpage_spin_unlock(zbudpage);
-+	spin_unlock(lists_lock);
-+	return ret;
++	write_lock(&cluster->cl_nodes_lock);
++	if (r2nm_node_ip_tree_lookup(cluster, ipv4_addr, &p, &parent))
++		ret = -EEXIST;
++	else {
++		rb_link_node(&node->nd_ip_node, parent, p);
++		rb_insert_color(&node->nd_ip_node, &cluster->cl_node_ip_tree);
++	}
++	write_unlock(&cluster->cl_nodes_lock);
++	if (ret)
++		return ret;
++
++	memcpy(&node->nd_ipv4_address, &ipv4_addr, sizeof(ipv4_addr));
++
++	return count;
 +}
 +
-+/*
-+ * Given a zbudref and a kernel pointer, copy the data from
-+ * the zbud to the kernel pointer.
-+ */
-+int zbud_copy_from_zbud(char *to_va, struct zbudref *zref,
-+				size_t *sizep, bool eph)
++static ssize_t r2nm_node_local_read(struct r2nm_node *node, char *page)
 +{
-+	struct zbudpage *zbudpage = zbudref_to_zbudpage(zref);
-+	unsigned long budnum = zbudref_budnum(zref);
-+	void *zbpg;
-+	char *from_va;
-+	unsigned size;
-+	int ret = -1;
-+	spinlock_t *lists_lock =
-+		eph ? &zbud_eph_lists_lock : &zbud_pers_lists_lock;
-+
-+	spin_lock(lists_lock);
-+	zbudpage_spin_lock(zbudpage);
-+	if (zbudpage_is_dying(zbudpage)) {
-+		/* ignore dying zbudpage... see zbud_evict_pageframe_lru() */
-+		goto out;
-+	}
-+	zbpg = kmap_zbudpage_atomic(zbudpage);
-+	if (budnum == 0)
-+		size = zbudpage->zbud0_size;
-+	else
-+		size = zbudpage->zbud1_size;
-+	BUG_ON(size == 0 || size > zbud_max_size());
-+	from_va = zbud_data(zbpg, budnum, size);
-+	from_va += sizeof(struct tmem_handle);
-+	size -= sizeof(struct tmem_handle);
-+	*sizep = size;
-+	memcpy(to_va, from_va, size);
-+
-+	kunmap_zbudpage_atomic(zbpg);
-+	ret = 0;
-+out:
-+	zbudpage_spin_unlock(zbudpage);
-+	spin_unlock(lists_lock);
-+	return ret;
++	return sprintf(page, "%d\n", node->nd_local);
 +}
 +
-+/*
-+ * Given a zbudref and a kernel pointer, copy the data from
-+ * the kernel pointer to the zbud.
-+ */
-+int zbud_copy_to_zbud(struct zbudref *zref, char *from_va, bool eph)
++static ssize_t r2nm_node_local_write(struct r2nm_node *node, const char *page,
++				     size_t count)
 +{
-+	struct zbudpage *zbudpage = zbudref_to_zbudpage(zref);
-+	unsigned long budnum = zbudref_budnum(zref);
-+	void *zbpg;
-+	char *to_va;
-+	unsigned size;
-+	int ret = -1;
-+	spinlock_t *lists_lock =
-+		eph ? &zbud_eph_lists_lock : &zbud_pers_lists_lock;
++	struct r2nm_cluster *cluster = to_r2nm_cluster_from_node(node);
++	unsigned long tmp;
++	char *p = (char *)page;
++	ssize_t ret;
++	int err;
 +
-+	spin_lock(lists_lock);
-+	zbudpage_spin_lock(zbudpage);
-+	if (zbudpage_is_dying(zbudpage)) {
-+		/* ignore dying zbudpage... see zbud_evict_pageframe_lru() */
-+		goto out;
++	err = kstrtoul(p, 10, &tmp);
++	if (err)
++		return err;
++
++	tmp = !!tmp; /* boolean of whether this node wants to be local */
++
++	/* setting local turns on networking rx for now so we require having
++	 * set everything else first */
++	if (!test_bit(R2NM_NODE_ATTR_ADDRESS, &node->nd_set_attributes) ||
++	    !test_bit(R2NM_NODE_ATTR_NUM, &node->nd_set_attributes) ||
++	    !test_bit(R2NM_NODE_ATTR_PORT, &node->nd_set_attributes))
++		return -EINVAL; /* XXX */
++
++	/* the only failure case is trying to set a new local node
++	 * when a different one is already set */
++	if (tmp && tmp == cluster->cl_has_local &&
++	    cluster->cl_local_node != node->nd_num)
++		return -EBUSY;
++
++	/* bring up the rx thread if we're setting the new local node. */
++	if (tmp && !cluster->cl_has_local) {
++		ret = r2net_start_listening(node);
++		if (ret)
++			return ret;
 +	}
-+	zbpg = kmap_zbudpage_atomic(zbudpage);
-+	if (budnum == 0)
-+		size = zbudpage->zbud0_size;
-+	else
-+		size = zbudpage->zbud1_size;
-+	BUG_ON(size == 0 || size > zbud_max_size());
-+	to_va = zbud_data(zbpg, budnum, size);
-+	to_va += sizeof(struct tmem_handle);
-+	size -= sizeof(struct tmem_handle);
-+	memcpy(to_va, from_va, size);
 +
-+	kunmap_zbudpage_atomic(zbpg);
-+	ret = 0;
-+out:
-+	zbudpage_spin_unlock(zbudpage);
-+	spin_unlock(lists_lock);
-+	return ret;
++	if (!tmp && cluster->cl_has_local &&
++	    cluster->cl_local_node == node->nd_num) {
++		r2net_stop_listening(node);
++		cluster->cl_local_node = R2NM_INVALID_NODE_NUM;
++	}
++
++	node->nd_local = tmp;
++	if (node->nd_local) {
++		cluster->cl_has_local = tmp;
++		cluster->cl_local_node = node->nd_num;
++	}
++
++	return count;
 +}
 +
-+/*
-+ * Choose an ephemeral LRU zbudpage that is evictable (not locked), ensure
-+ * there are no references to it remaining, and return the now unused
-+ * (and re-init'ed) struct page and the total amount of compressed
-+ * data that was evicted.
-+ */
-+struct page *zbud_evict_pageframe_lru(unsigned int *zsize, unsigned int *zpages)
-+{
-+	struct zbudpage *zbudpage = NULL, *zbudpage2;
-+	struct zbud_unbuddied *unbud = zbud_eph_unbuddied;
-+	struct page *page = NULL;
-+	bool irqs_disabled = irqs_disabled();
++struct r2nm_node_attribute {
++	struct configfs_attribute attr;
++	ssize_t (*show)(struct r2nm_node *, char *);
++	ssize_t (*store)(struct r2nm_node *, const char *, size_t);
++};
 +
-+	/*
-+	 * Since this can be called indirectly from cleancache_put, which
-+	 * has interrupts disabled, as well as frontswap_put, which does not,
-+	 * we need to be able to handle both cases, even though it is ugly.
-+	 */
-+	if (irqs_disabled)
-+		spin_lock(&zbud_eph_lists_lock);
-+	else
-+		spin_lock_bh(&zbud_eph_lists_lock);
-+	*zsize = 0;
-+	if (list_empty(&zbud_eph_lru_list))
-+		goto unlock_out;
-+	list_for_each_entry_safe(zbudpage, zbudpage2, &zbud_eph_lru_list, lru) {
-+		/* skip a locked zbudpage */
-+		if (unlikely(!zbudpage_spin_trylock(zbudpage)))
-+			continue;
-+		/* skip an unevictable zbudpage */
-+		if (unlikely(zbudpage->unevictable != 0)) {
-+			zbudpage_spin_unlock(zbudpage);
-+			continue;
-+		}
-+		/* got a locked evictable page */
-+		goto evict_page;
++static struct r2nm_node_attribute r2nm_node_attr_num = {
++	.attr	= { .ca_owner = THIS_MODULE,
++		    .ca_name = "num",
++		    .ca_mode = S_IRUGO | S_IWUSR },
++	.show	= r2nm_node_num_read,
++	.store	= r2nm_node_num_write,
++};
 +
-+	}
-+unlock_out:
-+	/* no unlocked evictable pages, give up */
-+	if (irqs_disabled)
-+		spin_unlock(&zbud_eph_lists_lock);
-+	else
-+		spin_unlock_bh(&zbud_eph_lists_lock);
-+	goto out;
++static struct r2nm_node_attribute r2nm_node_attr_ipv4_port = {
++	.attr	= { .ca_owner = THIS_MODULE,
++		    .ca_name = "ipv4_port",
++		    .ca_mode = S_IRUGO | S_IWUSR },
++	.show	= r2nm_node_ipv4_port_read,
++	.store	= r2nm_node_ipv4_port_write,
++};
 +
-+evict_page:
-+	list_del_init(&zbudpage->budlist);
-+	list_del_init(&zbudpage->lru);
-+	zbudpage_set_dying(zbudpage);
-+	/*
-+	 * the zbudpage is now "dying" and attempts to read, write,
-+	 * or delete data from it will be ignored
-+	 */
-+	if (zbudpage->zbud0_size != 0 && zbudpage->zbud1_size !=  0) {
-+		*zsize = zbudpage->zbud0_size + zbudpage->zbud1_size -
-+				(2 * sizeof(struct tmem_handle));
-+		*zpages = 2;
-+	} else if (zbudpage->zbud0_size != 0) {
-+		unbud[zbud_size_to_chunks(zbudpage->zbud0_size)].count--;
-+		*zsize = zbudpage->zbud0_size - sizeof(struct tmem_handle);
-+		*zpages = 1;
-+	} else if (zbudpage->zbud1_size != 0) {
-+		unbud[zbud_size_to_chunks(zbudpage->zbud1_size)].count--;
-+		*zsize = zbudpage->zbud1_size - sizeof(struct tmem_handle);
-+		*zpages = 1;
-+	} else {
-+		BUG();
-+	}
-+	spin_unlock(&zbud_eph_lists_lock);
-+	zbud_eph_evicted_pageframes++;
-+	if (*zpages == 1)
-+		zbud_eph_unbuddied_count--;
-+	else
-+		zbud_eph_buddied_count--;
-+	zbud_evict_tmem(zbudpage);
-+	zbudpage_spin_lock(zbudpage);
-+	zbudpage_clear_dying(zbudpage);
-+	page = zbud_unuse_zbudpage(zbudpage, true);
-+	if (!irqs_disabled)
-+		local_bh_enable();
-+out:
-+	return page;
-+}
++static struct r2nm_node_attribute r2nm_node_attr_ipv4_address = {
++	.attr	= { .ca_owner = THIS_MODULE,
++		    .ca_name = "ipv4_address",
++		    .ca_mode = S_IRUGO | S_IWUSR },
++	.show	= r2nm_node_ipv4_address_read,
++	.store	= r2nm_node_ipv4_address_write,
++};
 +
-+/*
-+ * Choose a persistent LRU zbudpage that is evictable (not locked), zombify it,
-+ * read the tmem_handle(s) out of it into the passed array, and return the
-+ * number of zbuds.  Caller must perform necessary tmem functions and,
-+ * indirectly, zbud functions to fetch any valid data and cause the
-+ * now-zombified zbudpage to eventually be freed.  We track the zombified
-+ * zbudpage count so it is possible to observe if there is a leak.
-+ FIXME: describe (ramster) case where data pointers are passed in for memcpy
-+ */
-+unsigned int zbud_make_zombie_lru(struct tmem_handle *th, unsigned char **data,
-+					unsigned int *zsize, bool eph)
-+{
-+	struct zbudpage *zbudpage = NULL, *zbudpag2;
-+	struct tmem_handle *thfrom;
-+	char *from_va;
-+	void *zbpg;
-+	unsigned size;
-+	int ret = 0, i;
-+	spinlock_t *lists_lock =
-+		eph ? &zbud_eph_lists_lock : &zbud_pers_lists_lock;
-+	struct list_head *lru_list =
-+		eph ? &zbud_eph_lru_list : &zbud_pers_lru_list;
++static struct r2nm_node_attribute r2nm_node_attr_local = {
++	.attr	= { .ca_owner = THIS_MODULE,
++		    .ca_name = "local",
++		    .ca_mode = S_IRUGO | S_IWUSR },
++	.show	= r2nm_node_local_read,
++	.store	= r2nm_node_local_write,
++};
 +
-+	spin_lock_bh(lists_lock);
-+	if (list_empty(lru_list))
-+		goto out;
-+	list_for_each_entry_safe(zbudpage, zbudpag2, lru_list, lru) {
-+		/* skip a locked zbudpage */
-+		if (unlikely(!zbudpage_spin_trylock(zbudpage)))
-+			continue;
-+		/* skip an unevictable zbudpage */
-+		if (unlikely(zbudpage->unevictable != 0)) {
-+			zbudpage_spin_unlock(zbudpage);
-+			continue;
-+		}
-+		/* got a locked evictable page */
-+		goto zombify_page;
-+	}
-+	/* no unlocked evictable pages, give up */
-+	goto out;
++static struct configfs_attribute *r2nm_node_attrs[] = {
++	[R2NM_NODE_ATTR_NUM] = &r2nm_node_attr_num.attr,
++	[R2NM_NODE_ATTR_PORT] = &r2nm_node_attr_ipv4_port.attr,
++	[R2NM_NODE_ATTR_ADDRESS] = &r2nm_node_attr_ipv4_address.attr,
++	[R2NM_NODE_ATTR_LOCAL] = &r2nm_node_attr_local.attr,
++	NULL,
++};
 +
-+zombify_page:
-+	/* got an unlocked evictable page, zombify it */
-+	list_del_init(&zbudpage->budlist);
-+	zbudpage_set_zombie(zbudpage);
-+	/* FIXME what accounting do I need to do here? */
-+	list_del_init(&zbudpage->lru);
-+	if (eph) {
-+		list_add_tail(&zbudpage->lru, &zbud_eph_zombie_list);
-+		zbud_eph_zombie_count =
-+				atomic_inc_return(&zbud_eph_zombie_atomic);
-+	} else {
-+		list_add_tail(&zbudpage->lru, &zbud_pers_zombie_list);
-+		zbud_pers_zombie_count =
-+				atomic_inc_return(&zbud_pers_zombie_atomic);
-+	}
-+	/* FIXME what accounting do I need to do here? */
-+	zbpg = kmap_zbudpage_atomic(zbudpage);
-+	for (i = 0; i < 2; i++) {
-+		size = (i == 0) ? zbudpage->zbud0_size : zbudpage->zbud1_size;
-+		if (size) {
-+			from_va = zbud_data(zbpg, i, size);
-+			thfrom = (struct tmem_handle *)from_va;
-+			from_va += sizeof(struct tmem_handle);
-+			size -= sizeof(struct tmem_handle);
-+			if (th != NULL)
-+				th[ret] = *thfrom;
-+			if (data != NULL)
-+				memcpy(data[ret], from_va, size);
-+			if (zsize != NULL)
-+				*zsize++ = size;
-+			ret++;
-+		}
-+	}
-+	kunmap_zbudpage_atomic(zbpg);
-+	zbudpage_spin_unlock(zbudpage);
-+out:
-+	spin_unlock_bh(lists_lock);
-+	return ret;
-+}
-+
-+void __init zbud_init(void)
++static int r2nm_attr_index(struct configfs_attribute *attr)
 +{
 +	int i;
-+
-+#ifdef CONFIG_DEBUG_FS
-+	zbud_debugfs_init();
-+#endif
-+	BUG_ON((sizeof(struct tmem_handle) * 2 > CHUNK_SIZE));
-+	BUG_ON(sizeof(struct zbudpage) > sizeof(struct page));
-+	for (i = 0; i < NCHUNKS; i++) {
-+		INIT_LIST_HEAD(&zbud_eph_unbuddied[i].list);
-+		INIT_LIST_HEAD(&zbud_pers_unbuddied[i].list);
++	for (i = 0; i < ARRAY_SIZE(r2nm_node_attrs); i++) {
++		if (attr == r2nm_node_attrs[i])
++			return i;
 +	}
++	BUG();
++	return 0;
 +}
-diff --git a/drivers/staging/zcache/zbud.h b/drivers/staging/zcache/zbud.h
++
++static ssize_t r2nm_node_show(struct config_item *item,
++			      struct configfs_attribute *attr,
++			      char *page)
++{
++	struct r2nm_node *node = to_r2nm_node(item);
++	struct r2nm_node_attribute *r2nm_node_attr =
++		container_of(attr, struct r2nm_node_attribute, attr);
++	ssize_t ret = 0;
++
++	if (r2nm_node_attr->show)
++		ret = r2nm_node_attr->show(node, page);
++	return ret;
++}
++
++static ssize_t r2nm_node_store(struct config_item *item,
++			       struct configfs_attribute *attr,
++			       const char *page, size_t count)
++{
++	struct r2nm_node *node = to_r2nm_node(item);
++	struct r2nm_node_attribute *r2nm_node_attr =
++		container_of(attr, struct r2nm_node_attribute, attr);
++	ssize_t ret;
++	int attr_index = r2nm_attr_index(attr);
++
++	if (r2nm_node_attr->store == NULL) {
++		ret = -EINVAL;
++		goto out;
++	}
++
++	if (test_bit(attr_index, &node->nd_set_attributes))
++		return -EBUSY;
++
++	ret = r2nm_node_attr->store(node, page, count);
++	if (ret < count)
++		goto out;
++
++	set_bit(attr_index, &node->nd_set_attributes);
++out:
++	return ret;
++}
++
++static struct configfs_item_operations r2nm_node_item_ops = {
++	.release		= r2nm_node_release,
++	.show_attribute		= r2nm_node_show,
++	.store_attribute	= r2nm_node_store,
++};
++
++static struct config_item_type r2nm_node_type = {
++	.ct_item_ops	= &r2nm_node_item_ops,
++	.ct_attrs	= r2nm_node_attrs,
++	.ct_owner	= THIS_MODULE,
++};
++
++/* node set */
++
++struct r2nm_node_group {
++	struct config_group ns_group;
++	/* some stuff? */
++};
++
++#if 0
++static struct r2nm_node_group *to_r2nm_node_group(struct config_group *group)
++{
++	return group ?
++		container_of(group, struct r2nm_node_group, ns_group)
++		: NULL;
++}
++#endif
++
++struct r2nm_cluster_attribute {
++	struct configfs_attribute attr;
++	ssize_t (*show)(struct r2nm_cluster *, char *);
++	ssize_t (*store)(struct r2nm_cluster *, const char *, size_t);
++};
++
++static ssize_t r2nm_cluster_attr_write(const char *page, ssize_t count,
++					unsigned int *val)
++{
++	unsigned long tmp;
++	char *p = (char *)page;
++	int err;
++
++	err = kstrtoul(p, 10, &tmp);
++	if (err)
++		return err;
++
++	if (tmp == 0)
++		return -EINVAL;
++	if (tmp >= (u32)-1)
++		return -ERANGE;
++
++	*val = tmp;
++
++	return count;
++}
++
++static ssize_t r2nm_cluster_attr_idle_timeout_ms_read(
++	struct r2nm_cluster *cluster, char *page)
++{
++	return sprintf(page, "%u\n", cluster->cl_idle_timeout_ms);
++}
++
++static ssize_t r2nm_cluster_attr_idle_timeout_ms_write(
++	struct r2nm_cluster *cluster, const char *page, size_t count)
++{
++	ssize_t ret;
++	unsigned int val = 0;
++
++	ret =  r2nm_cluster_attr_write(page, count, &val);
++
++	if (ret > 0) {
++		if (cluster->cl_idle_timeout_ms != val
++			&& r2net_num_connected_peers()) {
++			mlog(ML_NOTICE,
++			     "r2net: cannot change idle timeout after "
++			     "the first peer has agreed to it."
++			     "  %d connected peers\n",
++			     r2net_num_connected_peers());
++			ret = -EINVAL;
++		} else if (val <= cluster->cl_keepalive_delay_ms) {
++			mlog(ML_NOTICE,
++			     "r2net: idle timeout must be larger "
++			     "than keepalive delay\n");
++			ret = -EINVAL;
++		} else {
++			cluster->cl_idle_timeout_ms = val;
++		}
++	}
++
++	return ret;
++}
++
++static ssize_t r2nm_cluster_attr_keepalive_delay_ms_read(
++	struct r2nm_cluster *cluster, char *page)
++{
++	return sprintf(page, "%u\n", cluster->cl_keepalive_delay_ms);
++}
++
++static ssize_t r2nm_cluster_attr_keepalive_delay_ms_write(
++	struct r2nm_cluster *cluster, const char *page, size_t count)
++{
++	ssize_t ret;
++	unsigned int val = 0;
++
++	ret =  r2nm_cluster_attr_write(page, count, &val);
++
++	if (ret > 0) {
++		if (cluster->cl_keepalive_delay_ms != val
++		    && r2net_num_connected_peers()) {
++			mlog(ML_NOTICE,
++			     "r2net: cannot change keepalive delay after"
++			     " the first peer has agreed to it."
++			     "  %d connected peers\n",
++			     r2net_num_connected_peers());
++			ret = -EINVAL;
++		} else if (val >= cluster->cl_idle_timeout_ms) {
++			mlog(ML_NOTICE,
++			     "r2net: keepalive delay must be "
++			     "smaller than idle timeout\n");
++			ret = -EINVAL;
++		} else {
++			cluster->cl_keepalive_delay_ms = val;
++		}
++	}
++
++	return ret;
++}
++
++static ssize_t r2nm_cluster_attr_reconnect_delay_ms_read(
++	struct r2nm_cluster *cluster, char *page)
++{
++	return sprintf(page, "%u\n", cluster->cl_reconnect_delay_ms);
++}
++
++static ssize_t r2nm_cluster_attr_reconnect_delay_ms_write(
++	struct r2nm_cluster *cluster, const char *page, size_t count)
++{
++	return r2nm_cluster_attr_write(page, count,
++					&cluster->cl_reconnect_delay_ms);
++}
++
++static ssize_t r2nm_cluster_attr_fence_method_read(
++	struct r2nm_cluster *cluster, char *page)
++{
++	ssize_t ret = 0;
++
++	if (cluster)
++		ret = sprintf(page, "%s\n",
++			      r2nm_fence_method_desc[cluster->cl_fence_method]);
++	return ret;
++}
++
++static ssize_t r2nm_cluster_attr_fence_method_write(
++	struct r2nm_cluster *cluster, const char *page, size_t count)
++{
++	unsigned int i;
++
++	if (page[count - 1] != '\n')
++		goto bail;
++
++	for (i = 0; i < R2NM_FENCE_METHODS; ++i) {
++		if (count != strlen(r2nm_fence_method_desc[i]) + 1)
++			continue;
++		if (strncasecmp(page, r2nm_fence_method_desc[i], count - 1))
++			continue;
++		if (cluster->cl_fence_method != i) {
++			pr_info("ramster: Changing fence method to %s\n",
++			       r2nm_fence_method_desc[i]);
++			cluster->cl_fence_method = i;
++		}
++		return count;
++	}
++
++bail:
++	return -EINVAL;
++}
++
++static struct r2nm_cluster_attribute r2nm_cluster_attr_idle_timeout_ms = {
++	.attr	= { .ca_owner = THIS_MODULE,
++		    .ca_name = "idle_timeout_ms",
++		    .ca_mode = S_IRUGO | S_IWUSR },
++	.show	= r2nm_cluster_attr_idle_timeout_ms_read,
++	.store	= r2nm_cluster_attr_idle_timeout_ms_write,
++};
++
++static struct r2nm_cluster_attribute r2nm_cluster_attr_keepalive_delay_ms = {
++	.attr	= { .ca_owner = THIS_MODULE,
++		    .ca_name = "keepalive_delay_ms",
++		    .ca_mode = S_IRUGO | S_IWUSR },
++	.show	= r2nm_cluster_attr_keepalive_delay_ms_read,
++	.store	= r2nm_cluster_attr_keepalive_delay_ms_write,
++};
++
++static struct r2nm_cluster_attribute r2nm_cluster_attr_reconnect_delay_ms = {
++	.attr	= { .ca_owner = THIS_MODULE,
++		    .ca_name = "reconnect_delay_ms",
++		    .ca_mode = S_IRUGO | S_IWUSR },
++	.show	= r2nm_cluster_attr_reconnect_delay_ms_read,
++	.store	= r2nm_cluster_attr_reconnect_delay_ms_write,
++};
++
++static struct r2nm_cluster_attribute r2nm_cluster_attr_fence_method = {
++	.attr	= { .ca_owner = THIS_MODULE,
++		    .ca_name = "fence_method",
++		    .ca_mode = S_IRUGO | S_IWUSR },
++	.show	= r2nm_cluster_attr_fence_method_read,
++	.store	= r2nm_cluster_attr_fence_method_write,
++};
++
++static struct configfs_attribute *r2nm_cluster_attrs[] = {
++	&r2nm_cluster_attr_idle_timeout_ms.attr,
++	&r2nm_cluster_attr_keepalive_delay_ms.attr,
++	&r2nm_cluster_attr_reconnect_delay_ms.attr,
++	&r2nm_cluster_attr_fence_method.attr,
++	NULL,
++};
++static ssize_t r2nm_cluster_show(struct config_item *item,
++					struct configfs_attribute *attr,
++					char *page)
++{
++	struct r2nm_cluster *cluster = to_r2nm_cluster(item);
++	struct r2nm_cluster_attribute *r2nm_cluster_attr =
++		container_of(attr, struct r2nm_cluster_attribute, attr);
++	ssize_t ret = 0;
++
++	if (r2nm_cluster_attr->show)
++		ret = r2nm_cluster_attr->show(cluster, page);
++	return ret;
++}
++
++static ssize_t r2nm_cluster_store(struct config_item *item,
++					struct configfs_attribute *attr,
++					const char *page, size_t count)
++{
++	struct r2nm_cluster *cluster = to_r2nm_cluster(item);
++	struct r2nm_cluster_attribute *r2nm_cluster_attr =
++		container_of(attr, struct r2nm_cluster_attribute, attr);
++	ssize_t ret;
++
++	if (r2nm_cluster_attr->store == NULL) {
++		ret = -EINVAL;
++		goto out;
++	}
++
++	ret = r2nm_cluster_attr->store(cluster, page, count);
++	if (ret < count)
++		goto out;
++out:
++	return ret;
++}
++
++static struct config_item *r2nm_node_group_make_item(struct config_group *group,
++						     const char *name)
++{
++	struct r2nm_node *node = NULL;
++
++	if (strlen(name) > R2NM_MAX_NAME_LEN)
++		return ERR_PTR(-ENAMETOOLONG);
++
++	node = kzalloc(sizeof(struct r2nm_node), GFP_KERNEL);
++	if (node == NULL)
++		return ERR_PTR(-ENOMEM);
++
++	strcpy(node->nd_name, name); /* use item.ci_namebuf instead? */
++	config_item_init_type_name(&node->nd_item, name, &r2nm_node_type);
++	spin_lock_init(&node->nd_lock);
++
++	mlog(ML_CLUSTER, "r2nm: Registering node %s\n", name);
++
++	return &node->nd_item;
++}
++
++static void r2nm_node_group_drop_item(struct config_group *group,
++				      struct config_item *item)
++{
++	struct r2nm_node *node = to_r2nm_node(item);
++	struct r2nm_cluster *cluster =
++				to_r2nm_cluster(group->cg_item.ci_parent);
++
++	r2net_disconnect_node(node);
++
++	if (cluster->cl_has_local &&
++	    (cluster->cl_local_node == node->nd_num)) {
++		cluster->cl_has_local = 0;
++		cluster->cl_local_node = R2NM_INVALID_NODE_NUM;
++		r2net_stop_listening(node);
++	}
++
++	/* XXX call into net to stop this node from trading messages */
++
++	write_lock(&cluster->cl_nodes_lock);
++
++	/* XXX sloppy */
++	if (node->nd_ipv4_address)
++		rb_erase(&node->nd_ip_node, &cluster->cl_node_ip_tree);
++
++	/* nd_num might be 0 if the node number hasn't been set.. */
++	if (cluster->cl_nodes[node->nd_num] == node) {
++		cluster->cl_nodes[node->nd_num] = NULL;
++		clear_bit(node->nd_num, cluster->cl_nodes_bitmap);
++	}
++	write_unlock(&cluster->cl_nodes_lock);
++
++	mlog(ML_CLUSTER, "r2nm: Unregistered node %s\n",
++	     config_item_name(&node->nd_item));
++
++	config_item_put(item);
++}
++
++static struct configfs_group_operations r2nm_node_group_group_ops = {
++	.make_item	= r2nm_node_group_make_item,
++	.drop_item	= r2nm_node_group_drop_item,
++};
++
++static struct config_item_type r2nm_node_group_type = {
++	.ct_group_ops	= &r2nm_node_group_group_ops,
++	.ct_owner	= THIS_MODULE,
++};
++
++/* cluster */
++
++static void r2nm_cluster_release(struct config_item *item)
++{
++	struct r2nm_cluster *cluster = to_r2nm_cluster(item);
++
++	kfree(cluster->cl_group.default_groups);
++	kfree(cluster);
++}
++
++static struct configfs_item_operations r2nm_cluster_item_ops = {
++	.release	= r2nm_cluster_release,
++	.show_attribute		= r2nm_cluster_show,
++	.store_attribute	= r2nm_cluster_store,
++};
++
++static struct config_item_type r2nm_cluster_type = {
++	.ct_item_ops	= &r2nm_cluster_item_ops,
++	.ct_attrs	= r2nm_cluster_attrs,
++	.ct_owner	= THIS_MODULE,
++};
++
++/* cluster set */
++
++struct r2nm_cluster_group {
++	struct configfs_subsystem cs_subsys;
++	/* some stuff? */
++};
++
++#if 0
++static struct r2nm_cluster_group *
++to_r2nm_cluster_group(struct config_group *group)
++{
++	return group ?
++		container_of(to_configfs_subsystem(group),
++				struct r2nm_cluster_group, cs_subsys)
++	       : NULL;
++}
++#endif
++
++static struct config_group *
++r2nm_cluster_group_make_group(struct config_group *group,
++							  const char *name)
++{
++	struct r2nm_cluster *cluster = NULL;
++	struct r2nm_node_group *ns = NULL;
++	struct config_group *r2hb_group = NULL, *ret = NULL;
++	void *defs = NULL;
++
++	/* this runs under the parent dir's i_mutex; there can be only
++	 * one caller in here at a time */
++	if (r2nm_single_cluster)
++		return ERR_PTR(-ENOSPC);
++
++	cluster = kzalloc(sizeof(struct r2nm_cluster), GFP_KERNEL);
++	ns = kzalloc(sizeof(struct r2nm_node_group), GFP_KERNEL);
++	defs = kcalloc(3, sizeof(struct config_group *), GFP_KERNEL);
++	r2hb_group = r2hb_alloc_hb_set();
++	if (cluster == NULL || ns == NULL || r2hb_group == NULL || defs == NULL)
++		goto out;
++
++	config_group_init_type_name(&cluster->cl_group, name,
++				    &r2nm_cluster_type);
++	config_group_init_type_name(&ns->ns_group, "node",
++				    &r2nm_node_group_type);
++
++	cluster->cl_group.default_groups = defs;
++	cluster->cl_group.default_groups[0] = &ns->ns_group;
++	cluster->cl_group.default_groups[1] = r2hb_group;
++	cluster->cl_group.default_groups[2] = NULL;
++	rwlock_init(&cluster->cl_nodes_lock);
++	cluster->cl_node_ip_tree = RB_ROOT;
++	cluster->cl_reconnect_delay_ms = R2NET_RECONNECT_DELAY_MS_DEFAULT;
++	cluster->cl_idle_timeout_ms    = R2NET_IDLE_TIMEOUT_MS_DEFAULT;
++	cluster->cl_keepalive_delay_ms = R2NET_KEEPALIVE_DELAY_MS_DEFAULT;
++	cluster->cl_fence_method       = R2NM_FENCE_RESET;
++
++	ret = &cluster->cl_group;
++	r2nm_single_cluster = cluster;
++
++out:
++	if (ret == NULL) {
++		kfree(cluster);
++		kfree(ns);
++		r2hb_free_hb_set(r2hb_group);
++		kfree(defs);
++		ret = ERR_PTR(-ENOMEM);
++	}
++
++	return ret;
++}
++
++static void r2nm_cluster_group_drop_item(struct config_group *group,
++						struct config_item *item)
++{
++	struct r2nm_cluster *cluster = to_r2nm_cluster(item);
++	int i;
++	struct config_item *killme;
++
++	BUG_ON(r2nm_single_cluster != cluster);
++	r2nm_single_cluster = NULL;
++
++	for (i = 0; cluster->cl_group.default_groups[i]; i++) {
++		killme = &cluster->cl_group.default_groups[i]->cg_item;
++		cluster->cl_group.default_groups[i] = NULL;
++		config_item_put(killme);
++	}
++
++	config_item_put(item);
++}
++
++static struct configfs_group_operations r2nm_cluster_group_group_ops = {
++	.make_group	= r2nm_cluster_group_make_group,
++	.drop_item	= r2nm_cluster_group_drop_item,
++};
++
++static struct config_item_type r2nm_cluster_group_type = {
++	.ct_group_ops	= &r2nm_cluster_group_group_ops,
++	.ct_owner	= THIS_MODULE,
++};
++
++static struct r2nm_cluster_group r2nm_cluster_group = {
++	.cs_subsys = {
++		.su_group = {
++			.cg_item = {
++				.ci_namebuf = "cluster",
++				.ci_type = &r2nm_cluster_group_type,
++			},
++		},
++	},
++};
++
++int r2nm_depend_item(struct config_item *item)
++{
++	return configfs_depend_item(&r2nm_cluster_group.cs_subsys, item);
++}
++
++void r2nm_undepend_item(struct config_item *item)
++{
++	configfs_undepend_item(&r2nm_cluster_group.cs_subsys, item);
++}
++
++int r2nm_depend_this_node(void)
++{
++	int ret = 0;
++	struct r2nm_node *local_node;
++
++	local_node = r2nm_get_node_by_num(r2nm_this_node());
++	if (!local_node) {
++		ret = -EINVAL;
++		goto out;
++	}
++
++	ret = r2nm_depend_item(&local_node->nd_item);
++	r2nm_node_put(local_node);
++
++out:
++	return ret;
++}
++
++void r2nm_undepend_this_node(void)
++{
++	struct r2nm_node *local_node;
++
++	local_node = r2nm_get_node_by_num(r2nm_this_node());
++	BUG_ON(!local_node);
++
++	r2nm_undepend_item(&local_node->nd_item);
++	r2nm_node_put(local_node);
++}
++
++
++static void __exit exit_r2nm(void)
++{
++	/* XXX sync with hb callbacks and shut down hb? */
++	r2net_unregister_hb_callbacks();
++	configfs_unregister_subsystem(&r2nm_cluster_group.cs_subsys);
++
++	r2net_exit();
++	r2hb_exit();
++}
++
++static int __init init_r2nm(void)
++{
++	int ret = -1;
++
++	ret = r2hb_init();
++	if (ret)
++		goto out;
++
++	ret = r2net_init();
++	if (ret)
++		goto out_r2hb;
++
++	ret = r2net_register_hb_callbacks();
++	if (ret)
++		goto out_r2net;
++
++	config_group_init(&r2nm_cluster_group.cs_subsys.su_group);
++	mutex_init(&r2nm_cluster_group.cs_subsys.su_mutex);
++	ret = configfs_register_subsystem(&r2nm_cluster_group.cs_subsys);
++	if (ret) {
++		pr_err("nodemanager: Registration returned %d\n", ret);
++		goto out_callbacks;
++	}
++
++	if (!ret)
++		goto out;
++
++	configfs_unregister_subsystem(&r2nm_cluster_group.cs_subsys);
++out_callbacks:
++	r2net_unregister_hb_callbacks();
++out_r2net:
++	r2net_exit();
++out_r2hb:
++	r2hb_exit();
++out:
++	return ret;
++}
++
++MODULE_AUTHOR("Oracle");
++MODULE_LICENSE("GPL");
++
++/* module_init(init_r2nm) */
++late_initcall(init_r2nm);
++/* module_exit(exit_r2nm) */
+diff --git a/drivers/staging/zcache/ramster/nodemanager.h b/drivers/staging/zcache/ramster/nodemanager.h
 new file mode 100644
-index 0000000..891e8a7
+index 0000000..41a04df
 --- /dev/null
-+++ b/drivers/staging/zcache/zbud.h
-@@ -0,0 +1,33 @@
-+/*
-+ * zbud.h
++++ b/drivers/staging/zcache/ramster/nodemanager.h
+@@ -0,0 +1,88 @@
++/* -*- mode: c; c-basic-offset: 8; -*-
++ * vim: noexpandtab sw=8 ts=8 sts=0:
 + *
-+ * Copyright (c) 2010-2012, Dan Magenheimer, Oracle Corp.
++ * nodemanager.h
++ *
++ * Function prototypes
++ *
++ * Copyright (C) 2004 Oracle.  All rights reserved.
++ *
++ * This program is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU General Public
++ * License as published by the Free Software Foundation; either
++ * version 2 of the License, or (at your option) any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public
++ * License along with this program; if not, write to the
++ * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
++ * Boston, MA 021110-1307, USA.
 + *
 + */
 +
-+#ifndef _ZBUD_H_
-+#define _ZBUD_H_
++#ifndef R2CLUSTER_NODEMANAGER_H
++#define R2CLUSTER_NODEMANAGER_H
 +
-+#include "tmem.h"
++#include "ramster_nodemanager.h"
 +
-+struct zbudref;
++/* This totally doesn't belong here. */
++#include <linux/configfs.h>
++#include <linux/rbtree.h>
 +
-+extern unsigned int zbud_max_buddy_size(void);
-+extern struct zbudref *zbud_match_prep(struct tmem_handle *th, bool eph,
-+						void *cdata, unsigned size);
-+extern struct zbudref *zbud_create_prep(struct tmem_handle *th, bool eph,
-+						void *cdata, unsigned size,
-+						struct page *newpage);
-+extern void zbud_create_finish(struct zbudref *, bool);
-+extern int zbud_decompress(struct page *, struct zbudref *, bool,
-+				void (*func)(char *, unsigned int, char *));
-+extern int zbud_copy_from_zbud(char *, struct zbudref *, size_t *, bool);
-+extern int zbud_copy_to_zbud(struct zbudref *, char *, bool);
-+extern struct page *zbud_free_and_delist(struct zbudref *, bool eph,
-+						unsigned int *, unsigned int *);
-+extern struct page *zbud_evict_pageframe_lru(unsigned int *, unsigned int *);
-+extern unsigned int zbud_make_zombie_lru(struct tmem_handle *, unsigned char **,
-+						unsigned int *, bool);
-+extern void zbud_init(void);
++enum r2nm_fence_method {
++	R2NM_FENCE_RESET	= 0,
++	R2NM_FENCE_PANIC,
++	R2NM_FENCE_METHODS,	/* Number of fence methods */
++};
 +
-+#endif /* _ZBUD_H_ */
-diff --git a/drivers/staging/zcache/zcache-main.c b/drivers/staging/zcache/zcache-main.c
++struct r2nm_node {
++	spinlock_t		nd_lock;
++	struct config_item	nd_item;
++	char			nd_name[R2NM_MAX_NAME_LEN+1]; /* replace? */
++	__u8			nd_num;
++	/* only one address per node, as attributes, for now. */
++	__be32			nd_ipv4_address;
++	__be16			nd_ipv4_port;
++	struct rb_node		nd_ip_node;
++	/* there can be only one local node for now */
++	int			nd_local;
++
++	unsigned long		nd_set_attributes;
++};
++
++struct r2nm_cluster {
++	struct config_group	cl_group;
++	unsigned		cl_has_local:1;
++	u8			cl_local_node;
++	rwlock_t		cl_nodes_lock;
++	struct r2nm_node	*cl_nodes[R2NM_MAX_NODES];
++	struct rb_root		cl_node_ip_tree;
++	unsigned int		cl_idle_timeout_ms;
++	unsigned int		cl_keepalive_delay_ms;
++	unsigned int		cl_reconnect_delay_ms;
++	enum r2nm_fence_method	cl_fence_method;
++
++	/* part of a hack for disk bitmap.. will go eventually. - zab */
++	unsigned long	cl_nodes_bitmap[BITS_TO_LONGS(R2NM_MAX_NODES)];
++};
++
++extern struct r2nm_cluster *r2nm_single_cluster;
++
++u8 r2nm_this_node(void);
++
++int r2nm_configured_node_map(unsigned long *map, unsigned bytes);
++struct r2nm_node *r2nm_get_node_by_num(u8 node_num);
++struct r2nm_node *r2nm_get_node_by_ip(__be32 addr);
++void r2nm_node_get(struct r2nm_node *node);
++void r2nm_node_put(struct r2nm_node *node);
++
++int r2nm_depend_item(struct config_item *item);
++void r2nm_undepend_item(struct config_item *item);
++int r2nm_depend_this_node(void);
++void r2nm_undepend_this_node(void);
++
++#endif /* R2CLUSTER_NODEMANAGER_H */
+diff --git a/drivers/staging/zcache/ramster/r2net.c b/drivers/staging/zcache/ramster/r2net.c
 new file mode 100644
-index 0000000..24b3d4a
+index 0000000..34818dc
 --- /dev/null
-+++ b/drivers/staging/zcache/zcache-main.c
-@@ -0,0 +1,1812 @@
++++ b/drivers/staging/zcache/ramster/r2net.c
+@@ -0,0 +1,414 @@
 +/*
-+ * zcache.c
++ * r2net.c
++ *
++ * Copyright (c) 2011-2012, Dan Magenheimer, Oracle Corp.
++ *
++ * Ramster_r2net provides an interface between zcache and r2net.
++ *
++ * FIXME: support more than two nodes
++ */
++
++#include <linux/list.h>
++#include "tcp.h"
++#include "nodemanager.h"
++#include "../tmem.h"
++#include "../zcache.h"
++#include "ramster.h"
++
++#define RAMSTER_TESTING
++
++#define RMSTR_KEY	0x77347734
++
++enum {
++	RMSTR_TMEM_PUT_EPH = 100,
++	RMSTR_TMEM_PUT_PERS,
++	RMSTR_TMEM_ASYNC_GET_REQUEST,
++	RMSTR_TMEM_ASYNC_GET_AND_FREE_REQUEST,
++	RMSTR_TMEM_ASYNC_GET_REPLY,
++	RMSTR_TMEM_FLUSH,
++	RMSTR_TMEM_FLOBJ,
++	RMSTR_TMEM_DESTROY_POOL,
++};
++
++#define RMSTR_R2NET_MAX_LEN \
++		(R2NET_MAX_PAYLOAD_BYTES - sizeof(struct tmem_xhandle))
++
++#include "tcp_internal.h"
++
++static struct r2nm_node *r2net_target_node;
++static int r2net_target_nodenum;
++
++int r2net_remote_target_node_set(int node_num)
++{
++	int ret = -1;
++
++	r2net_target_node = r2nm_get_node_by_num(node_num);
++	if (r2net_target_node != NULL) {
++		r2net_target_nodenum = node_num;
++		r2nm_node_put(r2net_target_node);
++		ret = 0;
++	}
++	return ret;
++}
++
++/* FIXME following buffer should be per-cpu, protected by preempt_disable */
++static char ramster_async_get_buf[R2NET_MAX_PAYLOAD_BYTES];
++
++static int ramster_remote_async_get_request_handler(struct r2net_msg *msg,
++				u32 len, void *data, void **ret_data)
++{
++	char *pdata;
++	struct tmem_xhandle xh;
++	int found;
++	size_t size = RMSTR_R2NET_MAX_LEN;
++	u16 msgtype = be16_to_cpu(msg->msg_type);
++	bool get_and_free = (msgtype == RMSTR_TMEM_ASYNC_GET_AND_FREE_REQUEST);
++	unsigned long flags;
++
++	xh = *(struct tmem_xhandle *)msg->buf;
++	if (xh.xh_data_size > RMSTR_R2NET_MAX_LEN)
++		BUG();
++	pdata = ramster_async_get_buf;
++	*(struct tmem_xhandle *)pdata = xh;
++	pdata += sizeof(struct tmem_xhandle);
++	local_irq_save(flags);
++	found = zcache_get_page(xh.client_id, xh.pool_id, &xh.oid, xh.index,
++				pdata, &size, true, get_and_free ? 1 : -1);
++	local_irq_restore(flags);
++	if (found < 0) {
++		/* a zero size indicates the get failed */
++		size = 0;
++	}
++	if (size > RMSTR_R2NET_MAX_LEN)
++		BUG();
++	*ret_data = pdata - sizeof(struct tmem_xhandle);
++	/* now make caller (r2net_process_message) handle specially */
++	r2net_force_data_magic(msg, RMSTR_TMEM_ASYNC_GET_REPLY, RMSTR_KEY);
++	return size + sizeof(struct tmem_xhandle);
++}
++
++static int ramster_remote_async_get_reply_handler(struct r2net_msg *msg,
++				u32 len, void *data, void **ret_data)
++{
++	char *in = (char *)msg->buf;
++	int datalen = len - sizeof(struct r2net_msg);
++	int ret = -1;
++	struct tmem_xhandle *xh = (struct tmem_xhandle *)in;
++
++	in += sizeof(struct tmem_xhandle);
++	datalen -= sizeof(struct tmem_xhandle);
++	BUG_ON(datalen < 0 || datalen > PAGE_SIZE);
++	ret = ramster_localify(xh->pool_id, &xh->oid, xh->index,
++				in, datalen, xh->extra);
++#ifdef RAMSTER_TESTING
++	if (ret == -EEXIST)
++		pr_err("TESTING ArrgREP, aborted overwrite on racy put\n");
++#endif
++	return ret;
++}
++
++int ramster_remote_put_handler(struct r2net_msg *msg,
++				u32 len, void *data, void **ret_data)
++{
++	struct tmem_xhandle *xh;
++	char *p = (char *)msg->buf;
++	int datalen = len - sizeof(struct r2net_msg) -
++				sizeof(struct tmem_xhandle);
++	u16 msgtype = be16_to_cpu(msg->msg_type);
++	bool ephemeral = (msgtype == RMSTR_TMEM_PUT_EPH);
++	unsigned long flags;
++	int ret;
++
++	xh = (struct tmem_xhandle *)p;
++	p += sizeof(struct tmem_xhandle);
++	zcache_autocreate_pool(xh->client_id, xh->pool_id, ephemeral);
++	local_irq_save(flags);
++	ret = zcache_put_page(xh->client_id, xh->pool_id, &xh->oid, xh->index,
++				p, datalen, true, ephemeral);
++	local_irq_restore(flags);
++	return ret;
++}
++
++int ramster_remote_flush_handler(struct r2net_msg *msg,
++				u32 len, void *data, void **ret_data)
++{
++	struct tmem_xhandle *xh;
++	char *p = (char *)msg->buf;
++
++	xh = (struct tmem_xhandle *)p;
++	p += sizeof(struct tmem_xhandle);
++	(void)zcache_flush_page(xh->client_id, xh->pool_id,
++					&xh->oid, xh->index);
++	return 0;
++}
++
++int ramster_remote_flobj_handler(struct r2net_msg *msg,
++				u32 len, void *data, void **ret_data)
++{
++	struct tmem_xhandle *xh;
++	char *p = (char *)msg->buf;
++
++	xh = (struct tmem_xhandle *)p;
++	p += sizeof(struct tmem_xhandle);
++	(void)zcache_flush_object(xh->client_id, xh->pool_id, &xh->oid);
++	return 0;
++}
++
++int r2net_remote_async_get(struct tmem_xhandle *xh, bool free, int remotenode,
++				size_t expect_size, uint8_t expect_cksum,
++				void *extra)
++{
++	int nodenum, ret = -1, status;
++	struct r2nm_node *node = NULL;
++	struct kvec vec[1];
++	size_t veclen = 1;
++	u32 msg_type;
++	struct r2net_node *nn;
++
++	node = r2nm_get_node_by_num(remotenode);
++	if (node == NULL)
++		goto out;
++	xh->client_id = r2nm_this_node(); /* which node is getting */
++	xh->xh_data_cksum = expect_cksum;
++	xh->xh_data_size = expect_size;
++	xh->extra = extra;
++	vec[0].iov_len = sizeof(*xh);
++	vec[0].iov_base = xh;
++
++	node = r2net_target_node;
++	if (!node)
++		goto out;
++
++	nodenum = r2net_target_nodenum;
++
++	r2nm_node_get(node);
++	nn = r2net_nn_from_num(nodenum);
++	if (nn->nn_persistent_error || !nn->nn_sc_valid) {
++		ret = -ENOTCONN;
++		r2nm_node_put(node);
++		goto out;
++	}
++
++	if (free)
++		msg_type = RMSTR_TMEM_ASYNC_GET_AND_FREE_REQUEST;
++	else
++		msg_type = RMSTR_TMEM_ASYNC_GET_REQUEST;
++	ret = r2net_send_message_vec(msg_type, RMSTR_KEY,
++					vec, veclen, remotenode, &status);
++	r2nm_node_put(node);
++	if (ret < 0) {
++		if (ret == -ENOTCONN || ret == -EHOSTDOWN)
++			goto out;
++		if (ret == -EAGAIN)
++			goto out;
++		/* FIXME handle bad message possibilities here? */
++		pr_err("UNTESTED ret<0 in ramster_remote_async_get: ret=%d\n",
++				ret);
++	}
++	ret = status;
++out:
++	return ret;
++}
++
++#ifdef RAMSTER_TESTING
++/* leave me here to see if it catches a weird crash */
++static void ramster_check_irq_counts(void)
++{
++	static int last_hardirq_cnt, last_softirq_cnt, last_preempt_cnt;
++	int cur_hardirq_cnt, cur_softirq_cnt, cur_preempt_cnt;
++
++	cur_hardirq_cnt = hardirq_count() >> HARDIRQ_SHIFT;
++	if (cur_hardirq_cnt > last_hardirq_cnt) {
++		last_hardirq_cnt = cur_hardirq_cnt;
++		if (!(last_hardirq_cnt&(last_hardirq_cnt-1)))
++			pr_err("RAMSTER TESTING RRP hardirq_count=%d\n",
++				last_hardirq_cnt);
++	}
++	cur_softirq_cnt = softirq_count() >> SOFTIRQ_SHIFT;
++	if (cur_softirq_cnt > last_softirq_cnt) {
++		last_softirq_cnt = cur_softirq_cnt;
++		if (!(last_softirq_cnt&(last_softirq_cnt-1)))
++			pr_err("RAMSTER TESTING RRP softirq_count=%d\n",
++				last_softirq_cnt);
++	}
++	cur_preempt_cnt = preempt_count() & PREEMPT_MASK;
++	if (cur_preempt_cnt > last_preempt_cnt) {
++		last_preempt_cnt = cur_preempt_cnt;
++		if (!(last_preempt_cnt&(last_preempt_cnt-1)))
++			pr_err("RAMSTER TESTING RRP preempt_count=%d\n",
++				last_preempt_cnt);
++	}
++}
++#endif
++
++int r2net_remote_put(struct tmem_xhandle *xh, char *data, size_t size,
++				bool ephemeral, int *remotenode)
++{
++	int nodenum, ret = -1, status;
++	struct r2nm_node *node = NULL;
++	struct kvec vec[2];
++	size_t veclen = 2;
++	u32 msg_type;
++	struct r2net_node *nn;
++
++	BUG_ON(size > RMSTR_R2NET_MAX_LEN);
++	xh->client_id = r2nm_this_node(); /* which node is putting */
++	vec[0].iov_len = sizeof(*xh);
++	vec[0].iov_base = xh;
++	vec[1].iov_len = size;
++	vec[1].iov_base = data;
++
++	node = r2net_target_node;
++	if (!node)
++		goto out;
++
++	nodenum = r2net_target_nodenum;
++
++	r2nm_node_get(node);
++
++	nn = r2net_nn_from_num(nodenum);
++	if (nn->nn_persistent_error || !nn->nn_sc_valid) {
++		ret = -ENOTCONN;
++		r2nm_node_put(node);
++		goto out;
++	}
++
++	if (ephemeral)
++		msg_type = RMSTR_TMEM_PUT_EPH;
++	else
++		msg_type = RMSTR_TMEM_PUT_PERS;
++#ifdef RAMSTER_TESTING
++	/* leave me here to see if it catches a weird crash */
++	ramster_check_irq_counts();
++#endif
++
++	ret = r2net_send_message_vec(msg_type, RMSTR_KEY, vec, veclen,
++						nodenum, &status);
++	if (ret < 0)
++		ret = -1;
++	else {
++		ret = status;
++		*remotenode = nodenum;
++	}
++
++	r2nm_node_put(node);
++out:
++	return ret;
++}
++
++int r2net_remote_flush(struct tmem_xhandle *xh, int remotenode)
++{
++	int ret = -1, status;
++	struct r2nm_node *node = NULL;
++	struct kvec vec[1];
++	size_t veclen = 1;
++
++	node = r2nm_get_node_by_num(remotenode);
++	BUG_ON(node == NULL);
++	xh->client_id = r2nm_this_node(); /* which node is flushing */
++	vec[0].iov_len = sizeof(*xh);
++	vec[0].iov_base = xh;
++	BUG_ON(irqs_disabled());
++	BUG_ON(in_softirq());
++	ret = r2net_send_message_vec(RMSTR_TMEM_FLUSH, RMSTR_KEY,
++					vec, veclen, remotenode, &status);
++	r2nm_node_put(node);
++	return ret;
++}
++
++int r2net_remote_flush_object(struct tmem_xhandle *xh, int remotenode)
++{
++	int ret = -1, status;
++	struct r2nm_node *node = NULL;
++	struct kvec vec[1];
++	size_t veclen = 1;
++
++	node = r2nm_get_node_by_num(remotenode);
++	BUG_ON(node == NULL);
++	xh->client_id = r2nm_this_node(); /* which node is flobjing */
++	vec[0].iov_len = sizeof(*xh);
++	vec[0].iov_base = xh;
++	ret = r2net_send_message_vec(RMSTR_TMEM_FLOBJ, RMSTR_KEY,
++					vec, veclen, remotenode, &status);
++	r2nm_node_put(node);
++	return ret;
++}
++
++/*
++ * Handler registration
++ */
++
++static LIST_HEAD(r2net_unreg_list);
++
++static void r2net_unregister_handlers(void)
++{
++	r2net_unregister_handler_list(&r2net_unreg_list);
++}
++
++int r2net_register_handlers(void)
++{
++	int status;
++
++	status = r2net_register_handler(RMSTR_TMEM_PUT_EPH, RMSTR_KEY,
++				RMSTR_R2NET_MAX_LEN,
++				ramster_remote_put_handler,
++				NULL, NULL, &r2net_unreg_list);
++	if (status)
++		goto bail;
++
++	status = r2net_register_handler(RMSTR_TMEM_PUT_PERS, RMSTR_KEY,
++				RMSTR_R2NET_MAX_LEN,
++				ramster_remote_put_handler,
++				NULL, NULL, &r2net_unreg_list);
++	if (status)
++		goto bail;
++
++	status = r2net_register_handler(RMSTR_TMEM_ASYNC_GET_REQUEST, RMSTR_KEY,
++				RMSTR_R2NET_MAX_LEN,
++				ramster_remote_async_get_request_handler,
++				NULL, NULL,
++				&r2net_unreg_list);
++	if (status)
++		goto bail;
++
++	status = r2net_register_handler(RMSTR_TMEM_ASYNC_GET_AND_FREE_REQUEST,
++				RMSTR_KEY, RMSTR_R2NET_MAX_LEN,
++				ramster_remote_async_get_request_handler,
++				NULL, NULL,
++				&r2net_unreg_list);
++	if (status)
++		goto bail;
++
++	status = r2net_register_handler(RMSTR_TMEM_ASYNC_GET_REPLY, RMSTR_KEY,
++				RMSTR_R2NET_MAX_LEN,
++				ramster_remote_async_get_reply_handler,
++				NULL, NULL,
++				&r2net_unreg_list);
++	if (status)
++		goto bail;
++
++	status = r2net_register_handler(RMSTR_TMEM_FLUSH, RMSTR_KEY,
++				RMSTR_R2NET_MAX_LEN,
++				ramster_remote_flush_handler,
++				NULL, NULL,
++				&r2net_unreg_list);
++	if (status)
++		goto bail;
++
++	status = r2net_register_handler(RMSTR_TMEM_FLOBJ, RMSTR_KEY,
++				RMSTR_R2NET_MAX_LEN,
++				ramster_remote_flobj_handler,
++				NULL, NULL,
++				&r2net_unreg_list);
++	if (status)
++		goto bail;
++
++	pr_info("ramster: r2net handlers registered\n");
++
++bail:
++	if (status) {
++		r2net_unregister_handlers();
++		pr_err("ramster: couldn't register r2net handlers\n");
++	}
++	return status;
++}
+diff --git a/drivers/staging/zcache/ramster/ramster.c b/drivers/staging/zcache/ramster/ramster.c
+new file mode 100644
+index 0000000..c06709f
+--- /dev/null
++++ b/drivers/staging/zcache/ramster/ramster.c
+@@ -0,0 +1,985 @@
++/*
++ * ramster.c
 + *
 + * Copyright (c) 2010-2012, Dan Magenheimer, Oracle Corp.
-+ * Copyright (c) 2010,2011, Nitin Gupta
 + *
-+ * Zcache provides an in-kernel "host implementation" for transcendent memory
-+ * ("tmem") and, thus indirectly, for cleancache and frontswap.  Zcache uses
-+ * lzo1x compression to improve density and an embedded allocator called
-+ * "zbud" which "buddies" two compressed pages semi-optimally in each physical
-+ * pageframe.  Zbud is integrally tied into tmem to allow pageframes to
-+ * be "reclaimed" efficiently.
++ * RAMster implements peer-to-peer transcendent memory, allowing a "cluster" of
++ * kernels to dynamically pool their RAM so that a RAM-hungry workload on one
++ * machine can temporarily and transparently utilize RAM on another machine
++ * which is presumably idle or running a non-RAM-hungry workload.
++ *
++ * RAMster combines a clustering and messaging foundation based on the ocfs2
++ * cluster layer with the in-kernel compression implementation of zcache, and
++ * adds code to glue them together.  When a page is "put" to RAMster, it is
++ * compressed and stored locally.  Periodically, a thread will "remotify" these
++ * pages by sending them via messages to a remote machine.  When the page is
++ * later needed as indicated by a page fault, a "get" is issued.  If the data
++ * is local, it is uncompressed and the fault is resolved.  If the data is
++ * remote, a message is sent to fetch the data and the faulting thread sleeps;
++ * when the data arrives, the thread awakens, the data is decompressed and
++ * the fault is resolved.
++
++ * As of V5, clusters up to eight nodes are supported; each node can remotify
++ * pages to one specified node, so clusters can be configured as clients to
++ * a "memory server".  Some simple policy is in place that will need to be
++ * refined over time.  Larger clusters and fault-resistant protocols can also
++ * be added over time.
 + */
 +
 +#include <linux/module.h>
 +#include <linux/cpu.h>
 +#include <linux/highmem.h>
 +#include <linux/list.h>
++#include <linux/lzo.h>
 +#include <linux/slab.h>
 +#include <linux/spinlock.h>
 +#include <linux/types.h>
 +#include <linux/atomic.h>
-+#include <linux/math64.h>
-+#include <linux/crypto.h>
-+
-+#include <linux/cleancache.h>
 +#include <linux/frontswap.h>
-+#include "tmem.h"
-+#include "zcache.h"
-+#include "zbud.h"
++#include "../tmem.h"
++#include "../zcache.h"
++#include "../zbud.h"
 +#include "ramster.h"
-+#ifdef CONFIG_RAMSTER
-+static int ramster_enabled;
-+#else
-+#define ramster_enabled 0
++#include "ramster_nodemanager.h"
++#include "tcp.h"
++
++#define RAMSTER_TESTING
++
++#ifndef CONFIG_SYSFS
++#error "ramster needs sysfs to define cluster nodes to use"
 +#endif
 +
-+#ifndef __PG_WAS_ACTIVE
-+static inline bool PageWasActive(struct page *page)
-+{
-+	return true;
-+}
++static bool use_cleancache __read_mostly;
++static bool use_frontswap __read_mostly;
++static bool use_frontswap_exclusive_gets __read_mostly;
 +
-+static inline void SetPageWasActive(struct page *page)
-+{
-+}
-+#endif
++/* These must be sysfs not debugfs as they are checked/used by userland!! */
++static unsigned long ramster_interface_revision __read_mostly =
++	R2NM_API_VERSION; /* interface revision must match userspace! */
++static unsigned long ramster_pers_remotify_enable __read_mostly;
++static unsigned long ramster_eph_remotify_enable __read_mostly;
++static atomic_t ramster_remote_pers_pages = ATOMIC_INIT(0);
++#define MANUAL_NODES 8
++static bool ramster_nodes_manual_up[MANUAL_NODES] __read_mostly;
++static int ramster_remote_target_nodenum __read_mostly = -1;
 +
-+#ifdef FRONTSWAP_HAS_EXCLUSIVE_GETS
-+static bool frontswap_has_exclusive_gets __read_mostly = true;
-+#else
-+static bool frontswap_has_exclusive_gets __read_mostly;
-+static inline void frontswap_tmem_exclusive_gets(bool b)
-+{
-+}
-+#endif
-+
-+static int zcache_enabled __read_mostly;
-+static int disable_cleancache __read_mostly;
-+static int disable_frontswap __read_mostly;
-+static int disable_frontswap_ignore_nonactive __read_mostly;
-+static int disable_cleancache_ignore_nonactive __read_mostly;
-+static char *namestr __read_mostly = "zcache";
-+
-+#define ZCACHE_GFP_MASK \
-+	(__GFP_FS | __GFP_NORETRY | __GFP_NOWARN | __GFP_NOMEMALLOC)
-+
-+MODULE_LICENSE("GPL");
-+
-+/* crypto API for zcache  */
-+#define ZCACHE_COMP_NAME_SZ CRYPTO_MAX_ALG_NAME
-+static char zcache_comp_name[ZCACHE_COMP_NAME_SZ] __read_mostly;
-+static struct crypto_comp * __percpu *zcache_comp_pcpu_tfms __read_mostly;
-+
-+enum comp_op {
-+	ZCACHE_COMPOP_COMPRESS,
-+	ZCACHE_COMPOP_DECOMPRESS
-+};
-+
-+static inline int zcache_comp_op(enum comp_op op,
-+				const u8 *src, unsigned int slen,
-+				u8 *dst, unsigned int *dlen)
-+{
-+	struct crypto_comp *tfm;
-+	int ret = -1;
-+
-+	BUG_ON(!zcache_comp_pcpu_tfms);
-+	tfm = *per_cpu_ptr(zcache_comp_pcpu_tfms, get_cpu());
-+	BUG_ON(!tfm);
-+	switch (op) {
-+	case ZCACHE_COMPOP_COMPRESS:
-+		ret = crypto_comp_compress(tfm, src, slen, dst, dlen);
-+		break;
-+	case ZCACHE_COMPOP_DECOMPRESS:
-+		ret = crypto_comp_decompress(tfm, src, slen, dst, dlen);
-+		break;
-+	default:
-+		ret = -EINVAL;
-+	}
-+	put_cpu();
-+	return ret;
-+}
-+
-+/*
-+ * policy parameters
-+ */
-+
-+/*
-+ * byte count defining poor compression; pages with greater zsize will be
-+ * rejected
-+ */
-+static unsigned int zbud_max_zsize __read_mostly = (PAGE_SIZE / 8) * 7;
-+/*
-+ * byte count defining poor *mean* compression; pages with greater zsize
-+ * will be rejected until sufficient better-compressed pages are accepted
-+ * driving the mean below this threshold
-+ */
-+static unsigned int zbud_max_mean_zsize __read_mostly = (PAGE_SIZE / 8) * 5;
-+
-+/*
-+ * for now, used named slabs so can easily track usage; later can
-+ * either just use kmalloc, or perhaps add a slab-like allocator
-+ * to more carefully manage total memory utilization
-+ */
-+static struct kmem_cache *zcache_objnode_cache;
-+static struct kmem_cache *zcache_obj_cache;
-+
-+static DEFINE_PER_CPU(struct zcache_preload, zcache_preloads) = { 0, };
-+
-+/* we try to keep these statistics SMP-consistent */
-+static long zcache_obj_count;
-+static atomic_t zcache_obj_atomic = ATOMIC_INIT(0);
-+static long zcache_obj_count_max;
-+static long zcache_objnode_count;
-+static atomic_t zcache_objnode_atomic = ATOMIC_INIT(0);
-+static long zcache_objnode_count_max;
-+static u64 zcache_eph_zbytes;
-+static atomic_long_t zcache_eph_zbytes_atomic = ATOMIC_INIT(0);
-+static u64 zcache_eph_zbytes_max;
-+static u64 zcache_pers_zbytes;
-+static atomic_long_t zcache_pers_zbytes_atomic = ATOMIC_INIT(0);
-+static u64 zcache_pers_zbytes_max;
-+static long zcache_eph_pageframes;
-+static atomic_t zcache_eph_pageframes_atomic = ATOMIC_INIT(0);
-+static long zcache_eph_pageframes_max;
-+static long zcache_pers_pageframes;
-+static atomic_t zcache_pers_pageframes_atomic = ATOMIC_INIT(0);
-+static long zcache_pers_pageframes_max;
-+static long zcache_pageframes_alloced;
-+static atomic_t zcache_pageframes_alloced_atomic = ATOMIC_INIT(0);
-+static long zcache_pageframes_freed;
-+static atomic_t zcache_pageframes_freed_atomic = ATOMIC_INIT(0);
-+static long zcache_eph_zpages;
-+static atomic_t zcache_eph_zpages_atomic = ATOMIC_INIT(0);
-+static long zcache_eph_zpages_max;
-+static long zcache_pers_zpages;
-+static atomic_t zcache_pers_zpages_atomic = ATOMIC_INIT(0);
-+static long zcache_pers_zpages_max;
-+
-+/* but for the rest of these, counting races are ok */
-+static unsigned long zcache_flush_total;
-+static unsigned long zcache_flush_found;
-+static unsigned long zcache_flobj_total;
-+static unsigned long zcache_flobj_found;
-+static unsigned long zcache_failed_eph_puts;
-+static unsigned long zcache_failed_pers_puts;
-+static unsigned long zcache_failed_getfreepages;
-+static unsigned long zcache_failed_alloc;
-+static unsigned long zcache_put_to_flush;
-+static unsigned long zcache_compress_poor;
-+static unsigned long zcache_mean_compress_poor;
-+static unsigned long zcache_eph_ate_tail;
-+static unsigned long zcache_eph_ate_tail_failed;
-+static unsigned long zcache_pers_ate_eph;
-+static unsigned long zcache_pers_ate_eph_failed;
-+static unsigned long zcache_evicted_eph_zpages;
-+static unsigned long zcache_evicted_eph_pageframes;
-+static unsigned long zcache_last_active_file_pageframes;
-+static unsigned long zcache_last_inactive_file_pageframes;
-+static unsigned long zcache_last_active_anon_pageframes;
-+static unsigned long zcache_last_inactive_anon_pageframes;
-+static unsigned long zcache_eph_nonactive_puts_ignored;
-+static unsigned long zcache_pers_nonactive_puts_ignored;
++/* these counters are made available via debugfs */
++static long ramster_flnodes;
++static atomic_t ramster_flnodes_atomic = ATOMIC_INIT(0);
++static unsigned long ramster_flnodes_max;
++static long ramster_foreign_eph_pages;
++static atomic_t ramster_foreign_eph_pages_atomic = ATOMIC_INIT(0);
++static unsigned long ramster_foreign_eph_pages_max;
++static long ramster_foreign_pers_pages;
++static atomic_t ramster_foreign_pers_pages_atomic = ATOMIC_INIT(0);
++static unsigned long ramster_foreign_pers_pages_max;
++static unsigned long ramster_eph_pages_remoted;
++static unsigned long ramster_pers_pages_remoted;
++static unsigned long ramster_eph_pages_remote_failed;
++static unsigned long ramster_pers_pages_remote_failed;
++static unsigned long ramster_remote_eph_pages_succ_get;
++static unsigned long ramster_remote_pers_pages_succ_get;
++static unsigned long ramster_remote_eph_pages_unsucc_get;
++static unsigned long ramster_remote_pers_pages_unsucc_get;
++static unsigned long ramster_pers_pages_remote_nomem;
++static unsigned long ramster_remote_objects_flushed;
++static unsigned long ramster_remote_object_flushes_failed;
++static unsigned long ramster_remote_pages_flushed;
++static unsigned long ramster_remote_page_flushes_failed;
++/* FIXME frontswap selfshrinking knobs in debugfs? */
 +
 +#ifdef CONFIG_DEBUG_FS
 +#include <linux/debugfs.h>
 +#define	zdfs	debugfs_create_size_t
 +#define	zdfs64	debugfs_create_u64
-+static int zcache_debugfs_init(void)
++static int __init ramster_debugfs_init(void)
 +{
-+	struct dentry *root = debugfs_create_dir("zcache", NULL);
++	struct dentry *root = debugfs_create_dir("ramster", NULL);
 +	if (root == NULL)
 +		return -ENXIO;
 +
-+	zdfs("obj_count", S_IRUGO, root, &zcache_obj_count);
-+	zdfs("obj_count_max", S_IRUGO, root, &zcache_obj_count_max);
-+	zdfs("objnode_count", S_IRUGO, root, &zcache_objnode_count);
-+	zdfs("objnode_count_max", S_IRUGO, root, &zcache_objnode_count_max);
-+	zdfs("flush_total", S_IRUGO, root, &zcache_flush_total);
-+	zdfs("flush_found", S_IRUGO, root, &zcache_flush_found);
-+	zdfs("flobj_total", S_IRUGO, root, &zcache_flobj_total);
-+	zdfs("flobj_found", S_IRUGO, root, &zcache_flobj_found);
-+	zdfs("failed_eph_puts", S_IRUGO, root, &zcache_failed_eph_puts);
-+	zdfs("failed_pers_puts", S_IRUGO, root, &zcache_failed_pers_puts);
-+	zdfs("failed_get_free_pages", S_IRUGO, root,
-+				&zcache_failed_getfreepages);
-+	zdfs("failed_alloc", S_IRUGO, root, &zcache_failed_alloc);
-+	zdfs("put_to_flush", S_IRUGO, root, &zcache_put_to_flush);
-+	zdfs("compress_poor", S_IRUGO, root, &zcache_compress_poor);
-+	zdfs("mean_compress_poor", S_IRUGO, root, &zcache_mean_compress_poor);
-+	zdfs("eph_ate_tail", S_IRUGO, root, &zcache_eph_ate_tail);
-+	zdfs("eph_ate_tail_failed", S_IRUGO, root, &zcache_eph_ate_tail_failed);
-+	zdfs("pers_ate_eph", S_IRUGO, root, &zcache_pers_ate_eph);
-+	zdfs("pers_ate_eph_failed", S_IRUGO, root, &zcache_pers_ate_eph_failed);
-+	zdfs("evicted_eph_zpages", S_IRUGO, root, &zcache_evicted_eph_zpages);
-+	zdfs("evicted_eph_pageframes", S_IRUGO, root,
-+				&zcache_evicted_eph_pageframes);
-+	zdfs("eph_pageframes", S_IRUGO, root, &zcache_eph_pageframes);
-+	zdfs("eph_pageframes_max", S_IRUGO, root, &zcache_eph_pageframes_max);
-+	zdfs("pers_pageframes", S_IRUGO, root, &zcache_pers_pageframes);
-+	zdfs("pers_pageframes_max", S_IRUGO, root, &zcache_pers_pageframes_max);
-+	zdfs("eph_zpages", S_IRUGO, root, &zcache_eph_zpages);
-+	zdfs("eph_zpages_max", S_IRUGO, root, &zcache_eph_zpages_max);
-+	zdfs("pers_zpages", S_IRUGO, root, &zcache_pers_zpages);
-+	zdfs("pers_zpages_max", S_IRUGO, root, &zcache_pers_zpages_max);
-+	zdfs("last_active_file_pageframes", S_IRUGO, root,
-+				&zcache_last_active_file_pageframes);
-+	zdfs("last_inactive_file_pageframes", S_IRUGO, root,
-+				&zcache_last_inactive_file_pageframes);
-+	zdfs("last_active_anon_pageframes", S_IRUGO, root,
-+				&zcache_last_active_anon_pageframes);
-+	zdfs("last_inactive_anon_pageframes", S_IRUGO, root,
-+				&zcache_last_inactive_anon_pageframes);
-+	zdfs("eph_nonactive_puts_ignored", S_IRUGO, root,
-+				&zcache_eph_nonactive_puts_ignored);
-+	zdfs("pers_nonactive_puts_ignored", S_IRUGO, root,
-+				&zcache_pers_nonactive_puts_ignored);
-+	zdfs64("eph_zbytes", S_IRUGO, root, &zcache_eph_zbytes);
-+	zdfs64("eph_zbytes_max", S_IRUGO, root, &zcache_eph_zbytes_max);
-+	zdfs64("pers_zbytes", S_IRUGO, root, &zcache_pers_zbytes);
-+	zdfs64("pers_zbytes_max", S_IRUGO, root, &zcache_pers_zbytes_max);
++	zdfs("eph_pages_remoted", S_IRUGO, root, &ramster_eph_pages_remoted);
++	zdfs("pers_pages_remoted", S_IRUGO, root, &ramster_pers_pages_remoted);
++	zdfs("eph_pages_remote_failed", S_IRUGO, root,
++			&ramster_eph_pages_remote_failed);
++	zdfs("pers_pages_remote_failed", S_IRUGO, root,
++			&ramster_pers_pages_remote_failed);
++	zdfs("remote_eph_pages_succ_get", S_IRUGO, root,
++			&ramster_remote_eph_pages_succ_get);
++	zdfs("remote_pers_pages_succ_get", S_IRUGO, root,
++			&ramster_remote_pers_pages_succ_get);
++	zdfs("remote_eph_pages_unsucc_get", S_IRUGO, root,
++			&ramster_remote_eph_pages_unsucc_get);
++	zdfs("remote_pers_pages_unsucc_get", S_IRUGO, root,
++			&ramster_remote_pers_pages_unsucc_get);
++	zdfs("pers_pages_remote_nomem", S_IRUGO, root,
++			&ramster_pers_pages_remote_nomem);
++	zdfs("remote_objects_flushed", S_IRUGO, root,
++			&ramster_remote_objects_flushed);
++	zdfs("remote_pages_flushed", S_IRUGO, root,
++			&ramster_remote_pages_flushed);
++	zdfs("remote_object_flushes_failed", S_IRUGO, root,
++			&ramster_remote_object_flushes_failed);
++	zdfs("remote_page_flushes_failed", S_IRUGO, root,
++			&ramster_remote_page_flushes_failed);
++	zdfs("foreign_eph_pages", S_IRUGO, root,
++			&ramster_foreign_eph_pages);
++	zdfs("foreign_eph_pages_max", S_IRUGO, root,
++			&ramster_foreign_eph_pages_max);
++	zdfs("foreign_pers_pages", S_IRUGO, root,
++			&ramster_foreign_pers_pages);
++	zdfs("foreign_pers_pages_max", S_IRUGO, root,
++			&ramster_foreign_pers_pages_max);
 +	return 0;
 +}
 +#undef	zdebugfs
 +#undef	zdfs64
 +#endif
 +
-+#define ZCACHE_DEBUG
-+#ifdef ZCACHE_DEBUG
-+/* developers can call this in case of ooms, e.g. to find memory leaks */
-+void zcache_dump(void)
++static LIST_HEAD(ramster_rem_op_list);
++static DEFINE_SPINLOCK(ramster_rem_op_list_lock);
++static DEFINE_PER_CPU(struct ramster_preload, ramster_preloads);
++
++static DEFINE_PER_CPU(unsigned char *, ramster_remoteputmem1);
++static DEFINE_PER_CPU(unsigned char *, ramster_remoteputmem2);
++
++static struct kmem_cache *ramster_flnode_cache __read_mostly;
++
++static struct flushlist_node *ramster_flnode_alloc(struct tmem_pool *pool)
 +{
-+	pr_info("zcache: obj_count=%lu\n", zcache_obj_count);
-+	pr_info("zcache: obj_count_max=%lu\n", zcache_obj_count_max);
-+	pr_info("zcache: objnode_count=%lu\n", zcache_objnode_count);
-+	pr_info("zcache: objnode_count_max=%lu\n", zcache_objnode_count_max);
-+	pr_info("zcache: flush_total=%lu\n", zcache_flush_total);
-+	pr_info("zcache: flush_found=%lu\n", zcache_flush_found);
-+	pr_info("zcache: flobj_total=%lu\n", zcache_flobj_total);
-+	pr_info("zcache: flobj_found=%lu\n", zcache_flobj_found);
-+	pr_info("zcache: failed_eph_puts=%lu\n", zcache_failed_eph_puts);
-+	pr_info("zcache: failed_pers_puts=%lu\n", zcache_failed_pers_puts);
-+	pr_info("zcache: failed_get_free_pages=%lu\n",
-+				zcache_failed_getfreepages);
-+	pr_info("zcache: failed_alloc=%lu\n", zcache_failed_alloc);
-+	pr_info("zcache: put_to_flush=%lu\n", zcache_put_to_flush);
-+	pr_info("zcache: compress_poor=%lu\n", zcache_compress_poor);
-+	pr_info("zcache: mean_compress_poor=%lu\n",
-+				zcache_mean_compress_poor);
-+	pr_info("zcache: eph_ate_tail=%lu\n", zcache_eph_ate_tail);
-+	pr_info("zcache: eph_ate_tail_failed=%lu\n",
-+				zcache_eph_ate_tail_failed);
-+	pr_info("zcache: pers_ate_eph=%lu\n", zcache_pers_ate_eph);
-+	pr_info("zcache: pers_ate_eph_failed=%lu\n",
-+				zcache_pers_ate_eph_failed);
-+	pr_info("zcache: evicted_eph_zpages=%lu\n", zcache_evicted_eph_zpages);
-+	pr_info("zcache: evicted_eph_pageframes=%lu\n",
-+				zcache_evicted_eph_pageframes);
-+	pr_info("zcache: eph_pageframes=%lu\n", zcache_eph_pageframes);
-+	pr_info("zcache: eph_pageframes_max=%lu\n", zcache_eph_pageframes_max);
-+	pr_info("zcache: pers_pageframes=%lu\n", zcache_pers_pageframes);
-+	pr_info("zcache: pers_pageframes_max=%lu\n",
-+				zcache_pers_pageframes_max);
-+	pr_info("zcache: eph_zpages=%lu\n", zcache_eph_zpages);
-+	pr_info("zcache: eph_zpages_max=%lu\n", zcache_eph_zpages_max);
-+	pr_info("zcache: pers_zpages=%lu\n", zcache_pers_zpages);
-+	pr_info("zcache: pers_zpages_max=%lu\n", zcache_pers_zpages_max);
-+	pr_info("zcache: eph_zbytes=%llu\n",
-+				(unsigned long long)zcache_eph_zbytes);
-+	pr_info("zcache: eph_zbytes_max=%llu\n",
-+				(unsigned long long)zcache_eph_zbytes_max);
-+	pr_info("zcache: pers_zbytes=%llu\n",
-+				(unsigned long long)zcache_pers_zbytes);
-+	pr_info("zcache: pers_zbytes_max=%llu\n",
-+			(unsigned long long)zcache_pers_zbytes_max);
-+}
-+#endif
++	struct flushlist_node *flnode = NULL;
++	struct ramster_preload *kp;
 +
-+/*
-+ * zcache core code starts here
-+ */
-+
-+static struct zcache_client zcache_host;
-+static struct zcache_client zcache_clients[MAX_CLIENTS];
-+
-+static inline bool is_local_client(struct zcache_client *cli)
-+{
-+	return cli == &zcache_host;
++	kp = &__get_cpu_var(ramster_preloads);
++	flnode = kp->flnode;
++	BUG_ON(flnode == NULL);
++	kp->flnode = NULL;
++	ramster_flnodes = atomic_inc_return(&ramster_flnodes_atomic);
++	if (ramster_flnodes > ramster_flnodes_max)
++		ramster_flnodes_max = ramster_flnodes;
++	return flnode;
 +}
 +
-+static struct zcache_client *zcache_get_client_by_id(uint16_t cli_id)
++/* the "flush list" asynchronously collects pages to remotely flush */
++#define FLUSH_ENTIRE_OBJECT ((uint32_t)-1)
++static void ramster_flnode_free(struct flushlist_node *flnode,
++				struct tmem_pool *pool)
 +{
-+	struct zcache_client *cli = &zcache_host;
++	int flnodes;
 +
-+	if (cli_id != LOCAL_CLIENT) {
-+		if (cli_id >= MAX_CLIENTS)
-+			goto out;
-+		cli = &zcache_clients[cli_id];
-+	}
-+out:
-+	return cli;
++	flnodes = atomic_dec_return(&ramster_flnodes_atomic);
++	BUG_ON(flnodes < 0);
++	kmem_cache_free(ramster_flnode_cache, flnode);
 +}
 +
-+/*
-+ * Tmem operations assume the poolid implies the invoking client.
-+ * Zcache only has one client (the kernel itself): LOCAL_CLIENT.
-+ * RAMster has each client numbered by cluster node, and a KVM version
-+ * of zcache would have one client per guest and each client might
-+ * have a poolid==N.
-+ */
-+struct tmem_pool *zcache_get_pool_by_id(uint16_t cli_id, uint16_t poolid)
++int ramster_do_preload_flnode(struct tmem_pool *pool)
 +{
-+	struct tmem_pool *pool = NULL;
-+	struct zcache_client *cli = NULL;
-+
-+	cli = zcache_get_client_by_id(cli_id);
-+	if (cli == NULL)
-+		goto out;
-+	if (!is_local_client(cli))
-+		atomic_inc(&cli->refcount);
-+	if (poolid < MAX_POOLS_PER_CLIENT) {
-+		pool = cli->tmem_pools[poolid];
-+		if (pool != NULL)
-+			atomic_inc(&pool->refcount);
-+	}
-+out:
-+	return pool;
-+}
-+
-+void zcache_put_pool(struct tmem_pool *pool)
-+{
-+	struct zcache_client *cli = NULL;
-+
-+	if (pool == NULL)
-+		BUG();
-+	cli = pool->client;
-+	atomic_dec(&pool->refcount);
-+	if (!is_local_client(cli))
-+		atomic_dec(&cli->refcount);
-+}
-+
-+int zcache_new_client(uint16_t cli_id)
-+{
-+	struct zcache_client *cli;
-+	int ret = -1;
-+
-+	cli = zcache_get_client_by_id(cli_id);
-+	if (cli == NULL)
-+		goto out;
-+	if (cli->allocated)
-+		goto out;
-+	cli->allocated = 1;
-+	ret = 0;
-+out:
-+	return ret;
-+}
-+
-+/*
-+ * zcache implementation for tmem host ops
-+ */
-+
-+static struct tmem_objnode *zcache_objnode_alloc(struct tmem_pool *pool)
-+{
-+	struct tmem_objnode *objnode = NULL;
-+	struct zcache_preload *kp;
-+	int i;
-+
-+	kp = &__get_cpu_var(zcache_preloads);
-+	for (i = 0; i < ARRAY_SIZE(kp->objnodes); i++) {
-+		objnode = kp->objnodes[i];
-+		if (objnode != NULL) {
-+			kp->objnodes[i] = NULL;
-+			break;
-+		}
-+	}
-+	BUG_ON(objnode == NULL);
-+	zcache_objnode_count = atomic_inc_return(&zcache_objnode_atomic);
-+	if (zcache_objnode_count > zcache_objnode_count_max)
-+		zcache_objnode_count_max = zcache_objnode_count;
-+	return objnode;
-+}
-+
-+static void zcache_objnode_free(struct tmem_objnode *objnode,
-+					struct tmem_pool *pool)
-+{
-+	zcache_objnode_count =
-+		atomic_dec_return(&zcache_objnode_atomic);
-+	BUG_ON(zcache_objnode_count < 0);
-+	kmem_cache_free(zcache_objnode_cache, objnode);
-+}
-+
-+static struct tmem_obj *zcache_obj_alloc(struct tmem_pool *pool)
-+{
-+	struct tmem_obj *obj = NULL;
-+	struct zcache_preload *kp;
-+
-+	kp = &__get_cpu_var(zcache_preloads);
-+	obj = kp->obj;
-+	BUG_ON(obj == NULL);
-+	kp->obj = NULL;
-+	zcache_obj_count = atomic_inc_return(&zcache_obj_atomic);
-+	if (zcache_obj_count > zcache_obj_count_max)
-+		zcache_obj_count_max = zcache_obj_count;
-+	return obj;
-+}
-+
-+static void zcache_obj_free(struct tmem_obj *obj, struct tmem_pool *pool)
-+{
-+	zcache_obj_count =
-+		atomic_dec_return(&zcache_obj_atomic);
-+	BUG_ON(zcache_obj_count < 0);
-+	kmem_cache_free(zcache_obj_cache, obj);
-+}
-+
-+static struct tmem_hostops zcache_hostops = {
-+	.obj_alloc = zcache_obj_alloc,
-+	.obj_free = zcache_obj_free,
-+	.objnode_alloc = zcache_objnode_alloc,
-+	.objnode_free = zcache_objnode_free,
-+};
-+
-+static struct page *zcache_alloc_page(void)
-+{
-+	struct page *page = alloc_page(ZCACHE_GFP_MASK);
-+
-+	if (page != NULL)
-+		zcache_pageframes_alloced =
-+			atomic_inc_return(&zcache_pageframes_alloced_atomic);
-+	return page;
-+}
-+
-+static void zcache_unacct_page(void)
-+{
-+	zcache_pageframes_freed =
-+		atomic_inc_return(&zcache_pageframes_freed_atomic);
-+}
-+
-+static void zcache_free_page(struct page *page)
-+{
-+	long curr_pageframes;
-+	static long max_pageframes, min_pageframes, total_freed;
-+
-+	if (page == NULL)
-+		BUG();
-+	__free_page(page);
-+	zcache_pageframes_freed =
-+		atomic_inc_return(&zcache_pageframes_freed_atomic);
-+	curr_pageframes = zcache_pageframes_alloced -
-+			atomic_read(&zcache_pageframes_freed_atomic) -
-+			atomic_read(&zcache_eph_pageframes_atomic) -
-+			atomic_read(&zcache_pers_pageframes_atomic);
-+	if (curr_pageframes > max_pageframes)
-+		max_pageframes = curr_pageframes;
-+	if (curr_pageframes < min_pageframes)
-+		min_pageframes = curr_pageframes;
-+#ifdef ZCACHE_DEBUG
-+	if (curr_pageframes > 2L || curr_pageframes < -2L) {
-+		/* pr_info here */
-+	}
-+#endif
-+}
-+
-+/*
-+ * zcache implementations for PAM page descriptor ops
-+ */
-+
-+/* forward reference */
-+static void zcache_compress(struct page *from,
-+				void **out_va, unsigned *out_len);
-+
-+static struct page *zcache_evict_eph_pageframe(void);
-+
-+static void *zcache_pampd_eph_create(char *data, size_t size, bool raw,
-+					struct tmem_handle *th)
-+{
-+	void *pampd = NULL, *cdata = data;
-+	unsigned clen = size;
-+	struct page *page = (struct page *)(data), *newpage;
-+
-+	if (!raw) {
-+		zcache_compress(page, &cdata, &clen);
-+		if (clen > zbud_max_buddy_size()) {
-+			zcache_compress_poor++;
-+			goto out;
-+		}
-+	} else {
-+		BUG_ON(clen > zbud_max_buddy_size());
-+	}
-+
-+	/* look for space via an existing match first */
-+	pampd = (void *)zbud_match_prep(th, true, cdata, clen);
-+	if (pampd != NULL)
-+		goto got_pampd;
-+
-+	/* no match, now we need to find (or free up) a full page */
-+	newpage = zcache_alloc_page();
-+	if (newpage != NULL)
-+		goto create_in_new_page;
-+
-+	zcache_failed_getfreepages++;
-+	/* can't allocate a page, evict an ephemeral page via LRU */
-+	newpage = zcache_evict_eph_pageframe();
-+	if (newpage == NULL) {
-+		zcache_eph_ate_tail_failed++;
-+		goto out;
-+	}
-+	zcache_eph_ate_tail++;
-+
-+create_in_new_page:
-+	pampd = (void *)zbud_create_prep(th, true, cdata, clen, newpage);
-+	BUG_ON(pampd == NULL);
-+	zcache_eph_pageframes =
-+		atomic_inc_return(&zcache_eph_pageframes_atomic);
-+	if (zcache_eph_pageframes > zcache_eph_pageframes_max)
-+		zcache_eph_pageframes_max = zcache_eph_pageframes;
-+
-+got_pampd:
-+	zcache_eph_zbytes =
-+		atomic_long_add_return(clen, &zcache_eph_zbytes_atomic);
-+	if (zcache_eph_zbytes > zcache_eph_zbytes_max)
-+		zcache_eph_zbytes_max = zcache_eph_zbytes;
-+	zcache_eph_zpages = atomic_inc_return(&zcache_eph_zpages_atomic);
-+	if (zcache_eph_zpages > zcache_eph_zpages_max)
-+		zcache_eph_zpages_max = zcache_eph_zpages;
-+	if (ramster_enabled && raw)
-+		ramster_count_foreign_pages(true, 1);
-+out:
-+	return pampd;
-+}
-+
-+static void *zcache_pampd_pers_create(char *data, size_t size, bool raw,
-+					struct tmem_handle *th)
-+{
-+	void *pampd = NULL, *cdata = data;
-+	unsigned clen = size;
-+	struct page *page = (struct page *)(data), *newpage;
-+	unsigned long zbud_mean_zsize;
-+	unsigned long curr_pers_zpages, total_zsize;
-+
-+	if (data == NULL) {
-+		BUG_ON(!ramster_enabled);
-+		goto create_pampd;
-+	}
-+	curr_pers_zpages = zcache_pers_zpages;
-+/* FIXME CONFIG_RAMSTER... subtract atomic remote_pers_pages here? */
-+	if (!raw)
-+		zcache_compress(page, &cdata, &clen);
-+	/* reject if compression is too poor */
-+	if (clen > zbud_max_zsize) {
-+		zcache_compress_poor++;
-+		goto out;
-+	}
-+	/* reject if mean compression is too poor */
-+	if ((clen > zbud_max_mean_zsize) && (curr_pers_zpages > 0)) {
-+		total_zsize = zcache_pers_zbytes;
-+		if ((long)total_zsize < 0)
-+			total_zsize = 0;
-+		zbud_mean_zsize = div_u64(total_zsize,
-+					curr_pers_zpages);
-+		if (zbud_mean_zsize > zbud_max_mean_zsize) {
-+			zcache_mean_compress_poor++;
-+			goto out;
-+		}
-+	}
-+
-+create_pampd:
-+	/* look for space via an existing match first */
-+	pampd = (void *)zbud_match_prep(th, false, cdata, clen);
-+	if (pampd != NULL)
-+		goto got_pampd;
-+
-+	/* no match, now we need to find (or free up) a full page */
-+	newpage = zcache_alloc_page();
-+	if (newpage != NULL)
-+		goto create_in_new_page;
-+	/*
-+	 * FIXME do the following only if eph is oversized?
-+	 * if (zcache_eph_pageframes >
-+	 * (global_page_state(NR_LRU_BASE + LRU_ACTIVE_FILE) +
-+	 * global_page_state(NR_LRU_BASE + LRU_INACTIVE_FILE)))
-+	 */
-+	zcache_failed_getfreepages++;
-+	/* can't allocate a page, evict an ephemeral page via LRU */
-+	newpage = zcache_evict_eph_pageframe();
-+	if (newpage == NULL) {
-+		zcache_pers_ate_eph_failed++;
-+		goto out;
-+	}
-+	zcache_pers_ate_eph++;
-+
-+create_in_new_page:
-+	pampd = (void *)zbud_create_prep(th, false, cdata, clen, newpage);
-+	BUG_ON(pampd == NULL);
-+	zcache_pers_pageframes =
-+		atomic_inc_return(&zcache_pers_pageframes_atomic);
-+	if (zcache_pers_pageframes > zcache_pers_pageframes_max)
-+		zcache_pers_pageframes_max = zcache_pers_pageframes;
-+
-+got_pampd:
-+	zcache_pers_zpages = atomic_inc_return(&zcache_pers_zpages_atomic);
-+	if (zcache_pers_zpages > zcache_pers_zpages_max)
-+		zcache_pers_zpages_max = zcache_pers_zpages;
-+	zcache_pers_zbytes =
-+		atomic_long_add_return(clen, &zcache_pers_zbytes_atomic);
-+	if (zcache_pers_zbytes > zcache_pers_zbytes_max)
-+		zcache_pers_zbytes_max = zcache_pers_zbytes;
-+	if (ramster_enabled && raw)
-+		ramster_count_foreign_pages(false, 1);
-+out:
-+	return pampd;
-+}
-+
-+/*
-+ * This is called directly from zcache_put_page to pre-allocate space
-+ * to store a zpage.
-+ */
-+void *zcache_pampd_create(char *data, unsigned int size, bool raw,
-+					int eph, struct tmem_handle *th)
-+{
-+	void *pampd = NULL;
-+	struct zcache_preload *kp;
-+	struct tmem_objnode *objnode;
-+	struct tmem_obj *obj;
-+	int i;
++	struct ramster_preload *kp;
++	struct flushlist_node *flnode;
++	int ret = -ENOMEM;
 +
 +	BUG_ON(!irqs_disabled());
-+	/* pre-allocate per-cpu metadata */
-+	BUG_ON(zcache_objnode_cache == NULL);
-+	BUG_ON(zcache_obj_cache == NULL);
-+	kp = &__get_cpu_var(zcache_preloads);
-+	for (i = 0; i < ARRAY_SIZE(kp->objnodes); i++) {
-+		objnode = kp->objnodes[i];
-+		if (objnode == NULL) {
-+			objnode = kmem_cache_alloc(zcache_objnode_cache,
-+							ZCACHE_GFP_MASK);
-+			if (unlikely(objnode == NULL)) {
-+				zcache_failed_alloc++;
-+				goto out;
-+			}
-+			kp->objnodes[i] = objnode;
-+		}
-+	}
-+	if (kp->obj == NULL) {
-+		obj = kmem_cache_alloc(zcache_obj_cache, ZCACHE_GFP_MASK);
-+		kp->obj = obj;
-+	}
-+	if (unlikely(kp->obj == NULL)) {
-+		zcache_failed_alloc++;
++	if (unlikely(ramster_flnode_cache == NULL))
++		BUG();
++	kp = &__get_cpu_var(ramster_preloads);
++	flnode = kmem_cache_alloc(ramster_flnode_cache, GFP_ATOMIC);
++	if (unlikely(flnode == NULL) && kp->flnode == NULL)
++		BUG();  /* FIXME handle more gracefully, but how??? */
++	else if (kp->flnode == NULL)
++		kp->flnode = flnode;
++	else
++		kmem_cache_free(ramster_flnode_cache, flnode);
++	return ret;
++}
++
++/*
++ * Called by the message handler after a (still compressed) page has been
++ * fetched from the remote machine in response to an "is_remote" tmem_get
++ * or persistent tmem_localify.  For a tmem_get, "extra" is the address of
++ * the page that is to be filled to successfully resolve the tmem_get; for
++ * a (persistent) tmem_localify, "extra" is NULL (as the data is placed only
++ * in the local zcache).  "data" points to "size" bytes of (compressed) data
++ * passed in the message.  In the case of a persistent remote get, if
++ * pre-allocation was successful (see ramster_repatriate_preload), the page
++ * is placed into both local zcache and at "extra".
++ */
++int ramster_localify(int pool_id, struct tmem_oid *oidp, uint32_t index,
++			char *data, unsigned int size, void *extra)
++{
++	int ret = -ENOENT;
++	unsigned long flags;
++	struct tmem_pool *pool;
++	bool eph, delete = false;
++	void *pampd, *saved_hb;
++	struct tmem_obj *obj;
++
++	pool = zcache_get_pool_by_id(LOCAL_CLIENT, pool_id);
++	if (unlikely(pool == NULL))
++		/* pool doesn't exist anymore */
 +		goto out;
++	eph = is_ephemeral(pool);
++	local_irq_save(flags);  /* FIXME: maybe only disable softirqs? */
++	pampd = tmem_localify_get_pampd(pool, oidp, index, &obj, &saved_hb);
++	if (pampd == NULL) {
++		/* hmmm... must have been a flush while waiting */
++#ifdef RAMSTER_TESTING
++		pr_err("UNTESTED pampd==NULL in ramster_localify\n");
++#endif
++		if (eph)
++			ramster_remote_eph_pages_unsucc_get++;
++		else
++			ramster_remote_pers_pages_unsucc_get++;
++		obj = NULL;
++		goto finish;
++	} else if (unlikely(!pampd_is_remote(pampd))) {
++		/* hmmm... must have been a dup put while waiting */
++#ifdef RAMSTER_TESTING
++		pr_err("UNTESTED dup while waiting in ramster_localify\n");
++#endif
++		if (eph)
++			ramster_remote_eph_pages_unsucc_get++;
++		else
++			ramster_remote_pers_pages_unsucc_get++;
++		obj = NULL;
++		pampd = NULL;
++		ret = -EEXIST;
++		goto finish;
++	} else if (size == 0) {
++		/* no remote data, delete the local is_remote pampd */
++		pampd = NULL;
++		if (eph)
++			ramster_remote_eph_pages_unsucc_get++;
++		else
++			BUG();
++		delete = true;
++		goto finish;
++	}
++	if (pampd_is_intransit(pampd)) {
++		/*
++		 *  a pampd is marked intransit if it is remote and space has
++		 *  been allocated for it locally (note, only happens for
++		 *  persistent pages, in which case the remote copy is freed)
++		 */
++		BUG_ON(eph);
++		pampd = pampd_mask_intransit_and_remote(pampd);
++		zbud_copy_to_zbud(pampd, data, size);
++	} else {
++		/*
++		 * setting pampd to NULL tells tmem_localify_finish to leave
++		 * pampd alone... meaning it is left pointing to the
++		 * remote copy
++		 */
++		pampd = NULL;
++		obj = NULL;
 +	}
 +	/*
-+	 * ok, have all the metadata pre-allocated, now do the data
-+	 * but since how we allocate the data is dependent on ephemeral
-+	 * or persistent, we split the call here to different sub-functions
++	 * but in all cases, we decompress direct-to-memory to complete
++	 * the remotify and return success
 +	 */
++	BUG_ON(extra == NULL);
++	zcache_decompress_to_page(data, size, (struct page *)extra);
 +	if (eph)
-+		pampd = zcache_pampd_eph_create(data, size, raw, th);
++		ramster_remote_eph_pages_succ_get++;
 +	else
-+		pampd = zcache_pampd_pers_create(data, size, raw, th);
++		ramster_remote_pers_pages_succ_get++;
++	ret = 0;
++finish:
++	tmem_localify_finish(obj, index, pampd, saved_hb, delete);
++	zcache_put_pool(pool);
++	local_irq_restore(flags);
 +out:
-+	return pampd;
-+}
-+
-+/*
-+ * This is a pamops called via tmem_put and is necessary to "finish"
-+ * a pampd creation.
-+ */
-+void zcache_pampd_create_finish(void *pampd, bool eph)
-+{
-+	zbud_create_finish((struct zbudref *)pampd, eph);
-+}
-+
-+/*
-+ * This is passed as a function parameter to zbud_decompress so that
-+ * zbud need not be familiar with the details of crypto. It assumes that
-+ * the bytes from_va and to_va through from_va+size-1 and to_va+size-1 are
-+ * kmapped.  It must be successful, else there is a logic bug somewhere.
-+ */
-+static void zcache_decompress(char *from_va, unsigned int size, char *to_va)
-+{
-+	int ret;
-+	unsigned int outlen = PAGE_SIZE;
-+
-+	ret = zcache_comp_op(ZCACHE_COMPOP_DECOMPRESS, from_va, size,
-+				to_va, &outlen);
-+	BUG_ON(ret);
-+	BUG_ON(outlen != PAGE_SIZE);
-+}
-+
-+/*
-+ * Decompress from the kernel va to a pageframe
-+ */
-+void zcache_decompress_to_page(char *from_va, unsigned int size,
-+					struct page *to_page)
-+{
-+	char *to_va = kmap_atomic(to_page);
-+	zcache_decompress(from_va, size, to_va);
-+	kunmap_atomic(to_va);
-+}
-+
-+/*
-+ * fill the pageframe corresponding to the struct page with the data
-+ * from the passed pampd
-+ */
-+static int zcache_pampd_get_data(char *data, size_t *sizep, bool raw,
-+					void *pampd, struct tmem_pool *pool,
-+					struct tmem_oid *oid, uint32_t index)
-+{
-+	int ret;
-+	bool eph = !is_persistent(pool);
-+
-+	BUG_ON(preemptible());
-+	BUG_ON(eph);	/* fix later if shared pools get implemented */
-+	BUG_ON(pampd_is_remote(pampd));
-+	if (raw)
-+		ret = zbud_copy_from_zbud(data, (struct zbudref *)pampd,
-+						sizep, eph);
-+	else {
-+		ret = zbud_decompress((struct page *)(data),
-+					(struct zbudref *)pampd, false,
-+					zcache_decompress);
-+		*sizep = PAGE_SIZE;
-+	}
 +	return ret;
 +}
 +
-+/*
-+ * fill the pageframe corresponding to the struct page with the data
-+ * from the passed pampd
-+ */
-+static int zcache_pampd_get_data_and_free(char *data, size_t *sizep, bool raw,
-+					void *pampd, struct tmem_pool *pool,
-+					struct tmem_oid *oid, uint32_t index)
++void ramster_pampd_new_obj(struct tmem_obj *obj)
 +{
-+	int ret;
-+	bool eph = !is_persistent(pool);
-+	struct page *page = NULL;
-+	unsigned int zsize, zpages;
++	obj->extra = NULL;
++}
++
++void ramster_pampd_free_obj(struct tmem_pool *pool, struct tmem_obj *obj,
++				bool pool_destroy)
++{
++	struct flushlist_node *flnode;
 +
 +	BUG_ON(preemptible());
-+	BUG_ON(pampd_is_remote(pampd));
-+	if (raw)
-+		ret = zbud_copy_from_zbud(data, (struct zbudref *)pampd,
-+						sizep, eph);
-+	else {
-+		ret = zbud_decompress((struct page *)(data),
-+					(struct zbudref *)pampd, eph,
-+					zcache_decompress);
-+		*sizep = PAGE_SIZE;
++	if (obj->extra == NULL)
++		return;
++	if (pool_destroy && is_ephemeral(pool))
++		/* FIXME don't bother with remote eph data for now */
++		return;
++	BUG_ON(!pampd_is_remote(obj->extra));
++	flnode = ramster_flnode_alloc(pool);
++	flnode->xh.client_id = pampd_remote_node(obj->extra);
++	flnode->xh.pool_id = pool->pool_id;
++	flnode->xh.oid = obj->oid;
++	flnode->xh.index = FLUSH_ENTIRE_OBJECT;
++	flnode->rem_op.op = RAMSTER_REMOTIFY_FLUSH_OBJ;
++	spin_lock(&ramster_rem_op_list_lock);
++	list_add(&flnode->rem_op.list, &ramster_rem_op_list);
++	spin_unlock(&ramster_rem_op_list_lock);
++}
++
++/*
++ * Called on a remote persistent tmem_get to attempt to preallocate
++ * local storage for the data contained in the remote persistent page.
++ * If successfully preallocated, returns the pampd, marked as remote and
++ * in_transit.  Else returns NULL.  Note that the appropriate tmem data
++ * structure must be locked.
++ */
++void *ramster_pampd_repatriate_preload(void *pampd, struct tmem_pool *pool,
++					struct tmem_oid *oidp, uint32_t index,
++					bool *intransit)
++{
++	int clen = pampd_remote_size(pampd), c;
++	void *ret_pampd = NULL;
++	unsigned long flags;
++	struct tmem_handle th;
++
++	BUG_ON(!pampd_is_remote(pampd));
++	BUG_ON(is_ephemeral(pool));
++	if (use_frontswap_exclusive_gets)
++		/* don't need local storage */
++		goto out;
++	if (pampd_is_intransit(pampd)) {
++		/*
++		 * to avoid multiple allocations (and maybe a memory leak)
++		 * don't preallocate if already in the process of being
++		 * repatriated
++		 */
++		*intransit = true;
++		goto out;
 +	}
-+	page = zbud_free_and_delist((struct zbudref *)pampd, eph,
-+					&zsize, &zpages);
-+	if (eph) {
-+		if (page)
-+			zcache_eph_pageframes =
-+			    atomic_dec_return(&zcache_eph_pageframes_atomic);
-+		zcache_eph_zpages =
-+		    atomic_sub_return(zpages, &zcache_eph_zpages_atomic);
-+		zcache_eph_zbytes =
-+		    atomic_long_sub_return(zsize, &zcache_eph_zbytes_atomic);
++	*intransit = false;
++	local_irq_save(flags);
++	th.client_id = pampd_remote_node(pampd);
++	th.pool_id = pool->pool_id;
++	th.oid = *oidp;
++	th.index = index;
++	ret_pampd = zcache_pampd_create(NULL, clen, true, false, &th);
++	if (ret_pampd != NULL) {
++		/*
++		 *  a pampd is marked intransit if it is remote and space has
++		 *  been allocated for it locally (note, only happens for
++		 *  persistent pages, in which case the remote copy is freed)
++		 */
++		ret_pampd = pampd_mark_intransit(ret_pampd);
++		c = atomic_dec_return(&ramster_remote_pers_pages);
++		WARN_ON_ONCE(c < 0);
 +	} else {
-+		if (page)
-+			zcache_pers_pageframes =
-+			    atomic_dec_return(&zcache_pers_pageframes_atomic);
-+		zcache_pers_zpages =
-+		    atomic_sub_return(zpages, &zcache_pers_zpages_atomic);
-+		zcache_pers_zbytes =
-+		    atomic_long_sub_return(zsize, &zcache_pers_zbytes_atomic);
++		ramster_pers_pages_remote_nomem++;
 +	}
-+	if (!is_local_client(pool->client))
-+		ramster_count_foreign_pages(eph, -1);
-+	if (page)
-+		zcache_free_page(page);
-+	return ret;
++	local_irq_restore(flags);
++out:
++	return ret_pampd;
 +}
 +
 +/*
-+ * free the pampd and remove it from any zcache lists
-+ * pampd must no longer be pointed to from any tmem data structures!
++ * Called on a remote tmem_get to invoke a message to fetch the page.
++ * Might sleep so no tmem locks can be held.  "extra" is passed
++ * all the way through the round-trip messaging to ramster_localify.
 + */
-+static void zcache_pampd_free(void *pampd, struct tmem_pool *pool,
++int ramster_pampd_repatriate(void *fake_pampd, void *real_pampd,
++				struct tmem_pool *pool,
++				struct tmem_oid *oid, uint32_t index,
++				bool free, void *extra)
++{
++	struct tmem_xhandle xh;
++	int ret;
++
++	if (pampd_is_intransit(real_pampd))
++		/* have local space pre-reserved, so free remote copy */
++		free = true;
++	xh = tmem_xhandle_fill(LOCAL_CLIENT, pool, oid, index);
++	/* unreliable request/response for now */
++	ret = r2net_remote_async_get(&xh, free,
++					pampd_remote_node(fake_pampd),
++					pampd_remote_size(fake_pampd),
++					pampd_remote_cksum(fake_pampd),
++					extra);
++	return ret;
++}
++
++bool ramster_pampd_is_remote(void *pampd)
++{
++	return pampd_is_remote(pampd);
++}
++
++int ramster_pampd_replace_in_obj(void *new_pampd, struct tmem_obj *obj)
++{
++	int ret = -1;
++
++	if (new_pampd != NULL) {
++		if (obj->extra == NULL)
++			obj->extra = new_pampd;
++		/* enforce that all remote pages in an object reside
++		 * in the same node! */
++		else if (pampd_remote_node(new_pampd) !=
++				pampd_remote_node((void *)(obj->extra)))
++			BUG();
++		ret = 0;
++	}
++	return ret;
++}
++
++void *ramster_pampd_free(void *pampd, struct tmem_pool *pool,
 +			      struct tmem_oid *oid, uint32_t index, bool acct)
 +{
-+	struct page *page = NULL;
-+	unsigned int zsize, zpages;
++	bool eph = is_ephemeral(pool);
++	void *local_pampd = NULL;
++	int c;
 +
 +	BUG_ON(preemptible());
-+	if (pampd_is_remote(pampd)) {
-+		BUG_ON(!ramster_enabled);
-+		pampd = ramster_pampd_free(pampd, pool, oid, index, acct);
-+		if (pampd == NULL)
-+			return;
-+	}
-+	if (is_ephemeral(pool)) {
-+		page = zbud_free_and_delist((struct zbudref *)pampd,
-+						true, &zsize, &zpages);
-+		if (page)
-+			zcache_eph_pageframes =
-+			    atomic_dec_return(&zcache_eph_pageframes_atomic);
-+		zcache_eph_zpages =
-+		    atomic_sub_return(zpages, &zcache_eph_zpages_atomic);
-+		zcache_eph_zbytes =
-+		    atomic_long_sub_return(zsize, &zcache_eph_zbytes_atomic);
-+		/* FIXME CONFIG_RAMSTER... check acct parameter? */
++	BUG_ON(!pampd_is_remote(pampd));
++	WARN_ON(acct == false);
++	if (oid == NULL) {
++		/*
++		 * a NULL oid means to ignore this pampd free
++		 * as the remote freeing will be handled elsewhere
++		 */
++	} else if (eph) {
++		/* FIXME remote flush optional but probably good idea */
++	} else if (pampd_is_intransit(pampd)) {
++		/* did a pers remote get_and_free, so just free local */
++		local_pampd = pampd_mask_intransit_and_remote(pampd);
 +	} else {
-+		page = zbud_free_and_delist((struct zbudref *)pampd,
-+						false, &zsize, &zpages);
-+		if (page)
-+			zcache_pers_pageframes =
-+			    atomic_dec_return(&zcache_pers_pageframes_atomic);
-+		zcache_pers_zpages =
-+		     atomic_sub_return(zpages, &zcache_pers_zpages_atomic);
-+		zcache_pers_zbytes =
-+		    atomic_long_sub_return(zsize, &zcache_pers_zbytes_atomic);
++		struct flushlist_node *flnode =
++			ramster_flnode_alloc(pool);
++
++		flnode->xh.client_id = pampd_remote_node(pampd);
++		flnode->xh.pool_id = pool->pool_id;
++		flnode->xh.oid = *oid;
++		flnode->xh.index = index;
++		flnode->rem_op.op = RAMSTER_REMOTIFY_FLUSH_PAGE;
++		spin_lock(&ramster_rem_op_list_lock);
++		list_add(&flnode->rem_op.list, &ramster_rem_op_list);
++		spin_unlock(&ramster_rem_op_list_lock);
++		c = atomic_dec_return(&ramster_remote_pers_pages);
++		WARN_ON_ONCE(c < 0);
 +	}
-+	if (!is_local_client(pool->client))
-+		ramster_count_foreign_pages(is_ephemeral(pool), -1);
-+	if (page)
-+		zcache_free_page(page);
++	return local_pampd;
 +}
 +
-+static struct tmem_pamops zcache_pamops = {
-+	.create_finish = zcache_pampd_create_finish,
-+	.get_data = zcache_pampd_get_data,
-+	.get_data_and_free = zcache_pampd_get_data_and_free,
-+	.free = zcache_pampd_free,
-+};
-+
-+/*
-+ * zcache compression/decompression and related per-cpu stuff
-+ */
-+
-+static DEFINE_PER_CPU(unsigned char *, zcache_dstmem);
-+#define ZCACHE_DSTMEM_ORDER 1
-+
-+static void zcache_compress(struct page *from, void **out_va, unsigned *out_len)
++void ramster_count_foreign_pages(bool eph, int count)
 +{
-+	int ret;
-+	unsigned char *dmem = __get_cpu_var(zcache_dstmem);
-+	char *from_va;
++	int c;
 +
-+	BUG_ON(!irqs_disabled());
-+	/* no buffer or no compressor so can't compress */
-+	BUG_ON(dmem == NULL);
-+	*out_len = PAGE_SIZE << ZCACHE_DSTMEM_ORDER;
-+	from_va = kmap_atomic(from);
-+	mb();
-+	ret = zcache_comp_op(ZCACHE_COMPOP_COMPRESS, from_va, PAGE_SIZE, dmem,
-+				out_len);
-+	BUG_ON(ret);
-+	*out_va = dmem;
-+	kunmap_atomic(from_va);
-+}
-+
-+static int zcache_comp_cpu_up(int cpu)
-+{
-+	struct crypto_comp *tfm;
-+
-+	tfm = crypto_alloc_comp(zcache_comp_name, 0, 0);
-+	if (IS_ERR(tfm))
-+		return NOTIFY_BAD;
-+	*per_cpu_ptr(zcache_comp_pcpu_tfms, cpu) = tfm;
-+	return NOTIFY_OK;
-+}
-+
-+static void zcache_comp_cpu_down(int cpu)
-+{
-+	struct crypto_comp *tfm;
-+
-+	tfm = *per_cpu_ptr(zcache_comp_pcpu_tfms, cpu);
-+	crypto_free_comp(tfm);
-+	*per_cpu_ptr(zcache_comp_pcpu_tfms, cpu) = NULL;
-+}
-+
-+static int zcache_cpu_notifier(struct notifier_block *nb,
-+				unsigned long action, void *pcpu)
-+{
-+	int ret, i, cpu = (long)pcpu;
-+	struct zcache_preload *kp;
-+
-+	switch (action) {
-+	case CPU_UP_PREPARE:
-+		ret = zcache_comp_cpu_up(cpu);
-+		if (ret != NOTIFY_OK) {
-+			pr_err("%s: can't allocate compressor xform\n",
-+				namestr);
-+			return ret;
-+		}
-+		per_cpu(zcache_dstmem, cpu) = (void *)__get_free_pages(
-+			GFP_KERNEL | __GFP_REPEAT, ZCACHE_DSTMEM_ORDER);
-+		if (ramster_enabled)
-+			ramster_cpu_up(cpu);
-+		break;
-+	case CPU_DEAD:
-+	case CPU_UP_CANCELED:
-+		zcache_comp_cpu_down(cpu);
-+		free_pages((unsigned long)per_cpu(zcache_dstmem, cpu),
-+			ZCACHE_DSTMEM_ORDER);
-+		per_cpu(zcache_dstmem, cpu) = NULL;
-+		kp = &per_cpu(zcache_preloads, cpu);
-+		for (i = 0; i < ARRAY_SIZE(kp->objnodes); i++) {
-+			if (kp->objnodes[i])
-+				kmem_cache_free(zcache_objnode_cache,
-+						kp->objnodes[i]);
-+		}
-+		if (kp->obj) {
-+			kmem_cache_free(zcache_obj_cache, kp->obj);
-+			kp->obj = NULL;
-+		}
-+		if (ramster_enabled)
-+			ramster_cpu_down(cpu);
-+		break;
-+	default:
-+		break;
-+	}
-+	return NOTIFY_OK;
-+}
-+
-+static struct notifier_block zcache_cpu_notifier_block = {
-+	.notifier_call = zcache_cpu_notifier
-+};
-+
-+/*
-+ * The following code interacts with the zbud eviction and zbud
-+ * zombify code to access LRU pages
-+ */
-+
-+static struct page *zcache_evict_eph_pageframe(void)
-+{
-+	struct page *page;
-+	unsigned int zsize = 0, zpages = 0;
-+
-+	page = zbud_evict_pageframe_lru(&zsize, &zpages);
-+	if (page == NULL)
-+		goto out;
-+	zcache_eph_zbytes = atomic_long_sub_return(zsize,
-+					&zcache_eph_zbytes_atomic);
-+	zcache_eph_zpages = atomic_sub_return(zpages,
-+					&zcache_eph_zpages_atomic);
-+	zcache_evicted_eph_zpages++;
-+	zcache_eph_pageframes =
-+		atomic_dec_return(&zcache_eph_pageframes_atomic);
-+	zcache_evicted_eph_pageframes++;
-+out:
-+	return page;
-+}
-+
-+static void unswiz(struct tmem_oid oid, u32 index,
-+				unsigned *type, pgoff_t *offset);
-+#ifdef FRONTSWAP_HAS_UNUSE
-+/*
-+ *  Choose an LRU persistent pageframe and attempt to "unuse" it by
-+ *  calling frontswap_unuse on both zpages.
-+ *
-+ *  This is work-in-progress.
-+ */
-+
-+static int zcache_frontswap_unuse(void)
-+{
-+	struct tmem_handle th[2];
-+	int ret = -ENOMEM;
-+	int nzbuds, unuse_ret;
-+	unsigned type;
-+	struct page *newpage1 = NULL, *newpage2 = NULL;
-+	struct page *evictpage1 = NULL, *evictpage2 = NULL;
-+	pgoff_t offset;
-+
-+	newpage1 = alloc_page(ZCACHE_GFP_MASK);
-+	newpage2 = alloc_page(ZCACHE_GFP_MASK);
-+	if (newpage1 == NULL)
-+		evictpage1 = zcache_evict_eph_pageframe();
-+	if (newpage2 == NULL)
-+		evictpage2 = zcache_evict_eph_pageframe();
-+	if (evictpage1 == NULL || evictpage2 == NULL)
-+		goto free_and_out;
-+	/* ok, we have two pages pre-allocated */
-+	nzbuds = zbud_make_zombie_lru(&th[0], NULL, NULL, false);
-+	if (nzbuds == 0) {
-+		ret = -ENOENT;
-+		goto free_and_out;
-+	}
-+	unswiz(th[0].oid, th[0].index, &type, &offset);
-+	unuse_ret = frontswap_unuse(type, offset,
-+				newpage1 != NULL ? newpage1 : evictpage1,
-+				ZCACHE_GFP_MASK);
-+	if (unuse_ret != 0)
-+		goto free_and_out;
-+	else if (evictpage1 != NULL)
-+		zcache_unacct_page();
-+	newpage1 = NULL;
-+	evictpage1 = NULL;
-+	if (nzbuds == 2) {
-+		unswiz(th[1].oid, th[1].index, &type, &offset);
-+		unuse_ret = frontswap_unuse(type, offset,
-+				newpage2 != NULL ? newpage2 : evictpage2,
-+				ZCACHE_GFP_MASK);
-+		if (unuse_ret != 0) {
-+			goto free_and_out;
-+		} else if (evictpage2 != NULL) {
-+			zcache_unacct_page();
-+		}
-+	}
-+	ret = 0;
-+	goto out;
-+
-+free_and_out:
-+	if (newpage1 != NULL)
-+		__free_page(newpage1);
-+	if (newpage2 != NULL)
-+		__free_page(newpage2);
-+	if (evictpage1 != NULL)
-+		zcache_free_page(evictpage1);
-+	if (evictpage2 != NULL)
-+		zcache_free_page(evictpage2);
-+out:
-+	return ret;
-+}
-+#endif
-+
-+/*
-+ * When zcache is disabled ("frozen"), pools can be created and destroyed,
-+ * but all puts (and thus all other operations that require memory allocation)
-+ * must fail.  If zcache is unfrozen, accepts puts, then frozen again,
-+ * data consistency requires all puts while frozen to be converted into
-+ * flushes.
-+ */
-+static bool zcache_freeze;
-+
-+/*
-+ * This zcache shrinker interface reduces the number of ephemeral pageframes
-+ * used by zcache to approximately the same as the total number of LRU_FILE
-+ * pageframes in use.
-+ */
-+static int shrink_zcache_memory(struct shrinker *shrink,
-+				struct shrink_control *sc)
-+{
-+	static bool in_progress;
-+	int ret = -1;
-+	int nr = sc->nr_to_scan;
-+	int nr_evict = 0;
-+	int nr_unuse = 0;
-+	struct page *page;
-+	int unuse_ret;
-+
-+	if (nr <= 0)
-+		goto skip_evict;
-+
-+	/* don't allow more than one eviction thread at a time */
-+	if (in_progress)
-+		goto skip_evict;
-+
-+	in_progress = true;
-+
-+	/* we are going to ignore nr, and target a different value */
-+	zcache_last_active_file_pageframes =
-+		global_page_state(NR_LRU_BASE + LRU_ACTIVE_FILE);
-+	zcache_last_inactive_file_pageframes =
-+		global_page_state(NR_LRU_BASE + LRU_INACTIVE_FILE);
-+	nr_evict = zcache_eph_pageframes - zcache_last_active_file_pageframes +
-+		zcache_last_inactive_file_pageframes;
-+	while (nr_evict-- > 0) {
-+		page = zcache_evict_eph_pageframe();
-+		if (page == NULL)
-+			break;
-+		zcache_free_page(page);
-+	}
-+
-+	zcache_last_active_anon_pageframes =
-+		global_page_state(NR_LRU_BASE + LRU_ACTIVE_ANON);
-+	zcache_last_inactive_anon_pageframes =
-+		global_page_state(NR_LRU_BASE + LRU_INACTIVE_ANON);
-+	nr_unuse = zcache_pers_pageframes - zcache_last_active_anon_pageframes +
-+		zcache_last_inactive_anon_pageframes;
-+#ifdef FRONTSWAP_HAS_UNUSE
-+	/* rate limit for testing */
-+	if (nr_unuse > 32)
-+		nr_unuse = 32;
-+	while (nr_unuse-- > 0) {
-+		unuse_ret = zcache_frontswap_unuse();
-+		if (unuse_ret == -ENOMEM)
-+			break;
-+	}
-+#endif
-+	in_progress = false;
-+
-+skip_evict:
-+	/* resample: has changed, but maybe not all the way yet */
-+	zcache_last_active_file_pageframes =
-+		global_page_state(NR_LRU_BASE + LRU_ACTIVE_FILE);
-+	zcache_last_inactive_file_pageframes =
-+		global_page_state(NR_LRU_BASE + LRU_INACTIVE_FILE);
-+	ret = zcache_eph_pageframes - zcache_last_active_file_pageframes +
-+		zcache_last_inactive_file_pageframes;
-+	if (ret < 0)
-+		ret = 0;
-+	return ret;
-+}
-+
-+static struct shrinker zcache_shrinker = {
-+	.shrink = shrink_zcache_memory,
-+	.seeks = DEFAULT_SEEKS,
-+};
-+
-+/*
-+ * zcache shims between cleancache/frontswap ops and tmem
-+ */
-+
-+/* FIXME rename these core routines to zcache_tmemput etc? */
-+int zcache_put_page(int cli_id, int pool_id, struct tmem_oid *oidp,
-+				uint32_t index, void *page,
-+				unsigned int size, bool raw, int ephemeral)
-+{
-+	struct tmem_pool *pool;
-+	struct tmem_handle th;
-+	int ret = -1;
-+	void *pampd = NULL;
-+
-+	BUG_ON(!irqs_disabled());
-+	pool = zcache_get_pool_by_id(cli_id, pool_id);
-+	if (unlikely(pool == NULL))
-+		goto out;
-+	if (!zcache_freeze) {
-+		ret = 0;
-+		th.client_id = cli_id;
-+		th.pool_id = pool_id;
-+		th.oid = *oidp;
-+		th.index = index;
-+		pampd = zcache_pampd_create((char *)page, size, raw,
-+				ephemeral, &th);
-+		if (pampd == NULL) {
-+			ret = -ENOMEM;
-+			if (ephemeral)
-+				zcache_failed_eph_puts++;
-+			else
-+				zcache_failed_pers_puts++;
++	BUG_ON(count != 1 && count != -1);
++	if (eph) {
++		if (count > 0) {
++			c = atomic_inc_return(
++					&ramster_foreign_eph_pages_atomic);
++			if (c > ramster_foreign_eph_pages_max)
++				ramster_foreign_eph_pages_max = c;
 +		} else {
-+			if (ramster_enabled)
-+				ramster_do_preload_flnode(pool);
-+			ret = tmem_put(pool, oidp, index, 0, pampd);
-+			if (ret < 0)
-+				BUG();
++			c = atomic_dec_return(&ramster_foreign_eph_pages_atomic);
++			WARN_ON_ONCE(c < 0);
 +		}
-+		zcache_put_pool(pool);
++		ramster_foreign_eph_pages = c;
 +	} else {
-+		zcache_put_to_flush++;
-+		if (ramster_enabled)
-+			ramster_do_preload_flnode(pool);
-+		if (atomic_read(&pool->obj_count) > 0)
-+			/* the put fails whether the flush succeeds or not */
-+			(void)tmem_flush_page(pool, oidp, index);
-+		zcache_put_pool(pool);
++		if (count > 0) {
++			c = atomic_inc_return(
++					&ramster_foreign_pers_pages_atomic);
++			if (c > ramster_foreign_pers_pages_max)
++				ramster_foreign_pers_pages_max = c;
++		} else {
++			c = atomic_dec_return(
++					&ramster_foreign_pers_pages_atomic);
++			WARN_ON_ONCE(c < 0);
++		}
++		ramster_foreign_pers_pages = c;
 +	}
-+out:
-+	return ret;
 +}
 +
-+int zcache_get_page(int cli_id, int pool_id, struct tmem_oid *oidp,
-+				uint32_t index, void *page,
-+				size_t *sizep, bool raw, int get_and_free)
-+{
-+	struct tmem_pool *pool;
-+	int ret = -1;
-+	bool eph;
++/*
++ * For now, just push over a few pages every few seconds to
++ * ensure that it basically works
++ */
++static struct workqueue_struct *ramster_remotify_workqueue;
++static void ramster_remotify_process(struct work_struct *work);
++static DECLARE_DELAYED_WORK(ramster_remotify_worker,
++		ramster_remotify_process);
 +
-+	if (!raw) {
-+		BUG_ON(irqs_disabled());
-+		BUG_ON(in_softirq());
-+	}
-+	pool = zcache_get_pool_by_id(cli_id, pool_id);
-+	eph = is_ephemeral(pool);
-+	if (likely(pool != NULL)) {
-+		if (atomic_read(&pool->obj_count) > 0)
-+			ret = tmem_get(pool, oidp, index, (char *)(page),
-+					sizep, raw, get_and_free);
-+		zcache_put_pool(pool);
-+	}
-+	WARN_ONCE((!is_ephemeral(pool) && (ret != 0)),
-+			"zcache_get fails on persistent pool, "
-+			"bad things are very likely to happen soon\n");
-+#ifdef RAMSTER_TESTING
-+	if (ret != 0 && ret != -1 && !(ret == -EINVAL && is_ephemeral(pool)))
-+		pr_err("TESTING zcache_get tmem_get returns ret=%d\n", ret);
-+#endif
-+	return ret;
++static void ramster_remotify_queue_delayed_work(unsigned long delay)
++{
++	if (!queue_delayed_work(ramster_remotify_workqueue,
++				&ramster_remotify_worker, delay))
++		pr_err("ramster_remotify: bad workqueue\n");
 +}
 +
-+int zcache_flush_page(int cli_id, int pool_id,
-+				struct tmem_oid *oidp, uint32_t index)
++static void ramster_remote_flush_page(struct flushlist_node *flnode)
 +{
-+	struct tmem_pool *pool;
-+	int ret = -1;
-+	unsigned long flags;
++	struct tmem_xhandle *xh;
++	int remotenode, ret;
 +
-+	local_irq_save(flags);
-+	zcache_flush_total++;
-+	pool = zcache_get_pool_by_id(cli_id, pool_id);
-+	if (ramster_enabled)
-+		ramster_do_preload_flnode(pool);
-+	if (likely(pool != NULL)) {
-+		if (atomic_read(&pool->obj_count) > 0)
-+			ret = tmem_flush_page(pool, oidp, index);
-+		zcache_put_pool(pool);
-+	}
++	preempt_disable();
++	xh = &flnode->xh;
++	remotenode = flnode->xh.client_id;
++	ret = r2net_remote_flush(xh, remotenode);
 +	if (ret >= 0)
-+		zcache_flush_found++;
-+	local_irq_restore(flags);
-+	return ret;
++		ramster_remote_pages_flushed++;
++	else
++		ramster_remote_page_flushes_failed++;
++	preempt_enable_no_resched();
++	ramster_flnode_free(flnode, NULL);
 +}
 +
-+int zcache_flush_object(int cli_id, int pool_id,
-+				struct tmem_oid *oidp)
++static void ramster_remote_flush_object(struct flushlist_node *flnode)
 +{
-+	struct tmem_pool *pool;
-+	int ret = -1;
-+	unsigned long flags;
++	struct tmem_xhandle *xh;
++	int remotenode, ret;
 +
-+	local_irq_save(flags);
-+	zcache_flobj_total++;
-+	pool = zcache_get_pool_by_id(cli_id, pool_id);
-+	if (ramster_enabled)
-+		ramster_do_preload_flnode(pool);
-+	if (likely(pool != NULL)) {
-+		if (atomic_read(&pool->obj_count) > 0)
-+			ret = tmem_flush_object(pool, oidp);
-+		zcache_put_pool(pool);
-+	}
++	preempt_disable();
++	xh = &flnode->xh;
++	remotenode = flnode->xh.client_id;
++	ret = r2net_remote_flush_object(xh, remotenode);
 +	if (ret >= 0)
-+		zcache_flobj_found++;
-+	local_irq_restore(flags);
-+	return ret;
++		ramster_remote_objects_flushed++;
++	else
++		ramster_remote_object_flushes_failed++;
++	preempt_enable_no_resched();
++	ramster_flnode_free(flnode, NULL);
 +}
 +
-+static int zcache_client_destroy_pool(int cli_id, int pool_id)
++int ramster_remotify_pageframe(bool eph)
 +{
-+	struct tmem_pool *pool = NULL;
-+	struct zcache_client *cli = NULL;
-+	int ret = -1;
++	struct tmem_xhandle xh;
++	unsigned int size;
++	int remotenode, ret, zbuds;
++	struct tmem_pool *pool;
++	unsigned long flags;
++	unsigned char cksum;
++	char *p;
++	int i, j;
++	unsigned char *tmpmem[2];
++	struct tmem_handle th[2];
++	unsigned int zsize[2];
 +
-+	if (pool_id < 0)
-+		goto out;
-+	if (cli_id == LOCAL_CLIENT)
-+		cli = &zcache_host;
-+	else if ((unsigned int)cli_id < MAX_CLIENTS)
-+		cli = &zcache_clients[cli_id];
-+	if (cli == NULL)
-+		goto out;
-+	atomic_inc(&cli->refcount);
-+	pool = cli->tmem_pools[pool_id];
-+	if (pool == NULL)
-+		goto out;
-+	cli->tmem_pools[pool_id] = NULL;
-+	/* wait for pool activity on other cpus to quiesce */
-+	while (atomic_read(&pool->refcount) != 0)
-+		;
-+	atomic_dec(&cli->refcount);
++	tmpmem[0] = __get_cpu_var(ramster_remoteputmem1);
++	tmpmem[1] = __get_cpu_var(ramster_remoteputmem2);
 +	local_bh_disable();
-+	ret = tmem_destroy_pool(pool);
++	zbuds = zbud_make_zombie_lru(&th[0], &tmpmem[0], &zsize[0], eph);
++	/* now OK to release lock set in caller */
 +	local_bh_enable();
-+	kfree(pool);
-+	if (cli_id == LOCAL_CLIENT)
-+		pr_info("%s: destroyed local pool id=%d\n", namestr, pool_id);
-+	else
-+		pr_info("%s: destroyed pool id=%d, client=%d\n",
-+				namestr, pool_id, cli_id);
-+out:
-+	return ret;
-+}
-+
-+int zcache_new_pool(uint16_t cli_id, uint32_t flags)
-+{
-+	int poolid = -1;
-+	struct tmem_pool *pool;
-+	struct zcache_client *cli = NULL;
-+
-+	if (cli_id == LOCAL_CLIENT)
-+		cli = &zcache_host;
-+	else if ((unsigned int)cli_id < MAX_CLIENTS)
-+		cli = &zcache_clients[cli_id];
-+	if (cli == NULL)
++	if (zbuds == 0)
 +		goto out;
-+	atomic_inc(&cli->refcount);
-+	pool = kmalloc(sizeof(struct tmem_pool), GFP_ATOMIC);
-+	if (pool == NULL) {
-+		pr_info("%s: pool creation failed: out of memory\n", namestr);
-+		goto out;
-+	}
-+
-+	for (poolid = 0; poolid < MAX_POOLS_PER_CLIENT; poolid++)
-+		if (cli->tmem_pools[poolid] == NULL)
++	BUG_ON(zbuds > 2);
++	for (i = 0; i < zbuds; i++) {
++		xh.client_id = th[i].client_id;
++		xh.pool_id = th[i].pool_id;
++		xh.oid = th[i].oid;
++		xh.index = th[i].index;
++		size = zsize[i];
++		BUG_ON(size == 0 || size > zbud_max_buddy_size());
++		for (p = tmpmem[i], cksum = 0, j = 0; j < size; j++)
++			cksum += *p++;
++		ret = r2net_remote_put(&xh, tmpmem[i], size, eph, &remotenode);
++		if (ret != 0) {
++		/*
++		 * This is some form of a memory leak... if the remote put
++		 * fails, there will never be another attempt to remotify
++		 * this page.  But since we've dropped the zv pointer,
++		 * the page may have been freed or the data replaced
++		 * so we can't just "put it back" in the remote op list.
++		 * Even if we could, not sure where to put it in the list
++		 * because there may be flushes that must be strictly
++		 * ordered vs the put.  So leave this as a FIXME for now.
++		 * But count them so we know if it becomes a problem.
++		 */
++			if (eph)
++				ramster_eph_pages_remote_failed++;
++			else
++				ramster_pers_pages_remote_failed++;
 +			break;
-+	if (poolid >= MAX_POOLS_PER_CLIENT) {
-+		pr_info("%s: pool creation failed: max exceeded\n", namestr);
-+		kfree(pool);
-+		poolid = -1;
-+		goto out;
++		} else {
++			if (!eph)
++				atomic_inc(&ramster_remote_pers_pages);
++		}
++		if (eph)
++			ramster_eph_pages_remoted++;
++		else
++			ramster_pers_pages_remoted++;
++		/*
++		 * data was successfully remoted so change the local version to
++		 * point to the remote node where it landed
++		 */
++		local_bh_disable();
++		pool = zcache_get_pool_by_id(LOCAL_CLIENT, xh.pool_id);
++		local_irq_save(flags);
++		(void)tmem_replace(pool, &xh.oid, xh.index,
++				pampd_make_remote(remotenode, size, cksum));
++		local_irq_restore(flags);
++		zcache_put_pool(pool);
++		local_bh_enable();
 +	}
-+	atomic_set(&pool->refcount, 0);
-+	pool->client = cli;
-+	pool->pool_id = poolid;
-+	tmem_new_pool(pool, flags);
-+	cli->tmem_pools[poolid] = pool;
-+	if (cli_id == LOCAL_CLIENT)
-+		pr_info("%s: created %s local tmem pool, id=%d\n", namestr,
-+			flags & TMEM_POOL_PERSIST ? "persistent" : "ephemeral",
-+			poolid);
++out:
++	return zbuds;
++}
++
++static void zcache_do_remotify_flushes(void)
++{
++	struct ramster_remotify_hdr *rem_op;
++	union remotify_list_node *u;
++
++	while (1) {
++		spin_lock(&ramster_rem_op_list_lock);
++		if (list_empty(&ramster_rem_op_list)) {
++			spin_unlock(&ramster_rem_op_list_lock);
++			goto out;
++		}
++		rem_op = list_first_entry(&ramster_rem_op_list,
++				struct ramster_remotify_hdr, list);
++		list_del_init(&rem_op->list);
++		spin_unlock(&ramster_rem_op_list_lock);
++		u = (union remotify_list_node *)rem_op;
++		switch (rem_op->op) {
++		case RAMSTER_REMOTIFY_FLUSH_PAGE:
++			ramster_remote_flush_page((struct flushlist_node *)u);
++			break;
++		case RAMSTER_REMOTIFY_FLUSH_OBJ:
++			ramster_remote_flush_object((struct flushlist_node *)u);
++			break;
++		default:
++			BUG();
++		}
++	}
++out:
++	return;
++}
++
++static void ramster_remotify_process(struct work_struct *work)
++{
++	static bool remotify_in_progress;
++	int i;
++
++	BUG_ON(irqs_disabled());
++	if (remotify_in_progress)
++		goto requeue;
++	if (ramster_remote_target_nodenum == -1)
++		goto requeue;
++	remotify_in_progress = true;
++	if (use_cleancache && ramster_eph_remotify_enable) {
++		for (i = 0; i < 100; i++) {
++			zcache_do_remotify_flushes();
++			(void)ramster_remotify_pageframe(true);
++		}
++	}
++	if (use_frontswap && ramster_pers_remotify_enable) {
++		for (i = 0; i < 100; i++) {
++			zcache_do_remotify_flushes();
++			(void)ramster_remotify_pageframe(false);
++		}
++	}
++	remotify_in_progress = false;
++requeue:
++	ramster_remotify_queue_delayed_work(HZ);
++}
++
++void __init ramster_remotify_init(void)
++{
++	unsigned long n = 60UL;
++	ramster_remotify_workqueue =
++		create_singlethread_workqueue("ramster_remotify");
++	ramster_remotify_queue_delayed_work(n * HZ);
++}
++
++static ssize_t ramster_manual_node_up_show(struct kobject *kobj,
++				struct kobj_attribute *attr, char *buf)
++{
++	int i;
++	char *p = buf;
++	for (i = 0; i < MANUAL_NODES; i++)
++		if (ramster_nodes_manual_up[i])
++			p += sprintf(p, "%d ", i);
++	p += sprintf(p, "\n");
++	return p - buf;
++}
++
++static ssize_t ramster_manual_node_up_store(struct kobject *kobj,
++		struct kobj_attribute *attr, const char *buf, size_t count)
++{
++	int err;
++	unsigned long node_num;
++
++	err = kstrtoul(buf, 10, &node_num);
++	if (err) {
++		pr_err("ramster: bad strtoul?\n");
++		return -EINVAL;
++	}
++	if (node_num >= MANUAL_NODES) {
++		pr_err("ramster: bad node_num=%lu?\n", node_num);
++		return -EINVAL;
++	}
++	if (ramster_nodes_manual_up[node_num]) {
++		pr_err("ramster: node %d already up, ignoring\n",
++							(int)node_num);
++	} else {
++		ramster_nodes_manual_up[node_num] = true;
++		r2net_hb_node_up_manual((int)node_num);
++	}
++	return count;
++}
++
++static struct kobj_attribute ramster_manual_node_up_attr = {
++	.attr = { .name = "manual_node_up", .mode = 0644 },
++	.show = ramster_manual_node_up_show,
++	.store = ramster_manual_node_up_store,
++};
++
++static ssize_t ramster_remote_target_nodenum_show(struct kobject *kobj,
++				struct kobj_attribute *attr, char *buf)
++{
++	if (ramster_remote_target_nodenum == -1UL)
++		return sprintf(buf, "unset\n");
 +	else
-+		pr_info("%s: created %s tmem pool, id=%d, client=%d\n", namestr,
-+			flags & TMEM_POOL_PERSIST ? "persistent" : "ephemeral",
-+			poolid, cli_id);
-+out:
-+	if (cli != NULL)
-+		atomic_dec(&cli->refcount);
-+	return poolid;
++		return sprintf(buf, "%d\n", ramster_remote_target_nodenum);
 +}
 +
-+static int zcache_local_new_pool(uint32_t flags)
++static ssize_t ramster_remote_target_nodenum_store(struct kobject *kobj,
++		struct kobj_attribute *attr, const char *buf, size_t count)
 +{
-+	return zcache_new_pool(LOCAL_CLIENT, flags);
++	int err;
++	unsigned long node_num;
++
++	err = kstrtoul(buf, 10, &node_num);
++	if (err) {
++		pr_err("ramster: bad strtoul?\n");
++		return -EINVAL;
++	} else if (node_num == -1UL) {
++		pr_err("ramster: disabling all remotification, "
++			"data may still reside on remote nodes however\n");
++		return -EINVAL;
++	} else if (node_num >= MANUAL_NODES) {
++		pr_err("ramster: bad node_num=%lu?\n", node_num);
++		return -EINVAL;
++	} else if (!ramster_nodes_manual_up[node_num]) {
++		pr_err("ramster: node %d not up, ignoring setting "
++			"of remotification target\n", (int)node_num);
++	} else if (r2net_remote_target_node_set((int)node_num) >= 0) {
++		pr_info("ramster: node %d set as remotification target\n",
++				(int)node_num);
++		ramster_remote_target_nodenum = (int)node_num;
++	} else {
++		pr_err("ramster: bad num to node node_num=%d?\n",
++				(int)node_num);
++		return -EINVAL;
++	}
++	return count;
 +}
 +
-+int zcache_autocreate_pool(int cli_id, int pool_id, bool eph)
-+{
-+	struct tmem_pool *pool;
-+	struct zcache_client *cli = NULL;
-+	uint32_t flags = eph ? 0 : TMEM_POOL_PERSIST;
-+	int ret = -1;
++static struct kobj_attribute ramster_remote_target_nodenum_attr = {
++	.attr = { .name = "remote_target_nodenum", .mode = 0644 },
++	.show = ramster_remote_target_nodenum_show,
++	.store = ramster_remote_target_nodenum_store,
++};
 +
-+	BUG_ON(!ramster_enabled);
-+	if (cli_id == LOCAL_CLIENT)
-+		goto out;
-+	if (pool_id >= MAX_POOLS_PER_CLIENT)
-+		goto out;
-+	else if ((unsigned int)cli_id < MAX_CLIENTS)
-+		cli = &zcache_clients[cli_id];
-+	if ((eph && disable_cleancache) || (!eph && disable_frontswap)) {
-+		pr_err("zcache_autocreate_pool: pool type disabled\n");
-+		goto out;
++#define RAMSTER_SYSFS_RO(_name) \
++	static ssize_t ramster_##_name##_show(struct kobject *kobj, \
++				struct kobj_attribute *attr, char *buf) \
++	{ \
++		return sprintf(buf, "%lu\n", ramster_##_name); \
++	} \
++	static struct kobj_attribute ramster_##_name##_attr = { \
++		.attr = { .name = __stringify(_name), .mode = 0444 }, \
++		.show = ramster_##_name##_show, \
 +	}
-+	if (!cli->allocated) {
-+		if (zcache_new_client(cli_id)) {
-+			pr_err("zcache_autocreate_pool: can't create client\n");
-+			goto out;
-+		}
-+		cli = &zcache_clients[cli_id];
-+	}
-+	atomic_inc(&cli->refcount);
-+	pool = cli->tmem_pools[pool_id];
-+	if (pool != NULL) {
-+		if (pool->persistent && eph) {
-+			pr_err("zcache_autocreate_pool: type mismatch\n");
-+			goto out;
-+		}
-+		ret = 0;
-+		goto out;
-+	}
-+	pool = kmalloc(sizeof(struct tmem_pool), GFP_KERNEL);
-+	if (pool == NULL) {
-+		pr_info("%s: pool creation failed: out of memory\n", namestr);
-+		goto out;
-+	}
-+	atomic_set(&pool->refcount, 0);
-+	pool->client = cli;
-+	pool->pool_id = pool_id;
-+	tmem_new_pool(pool, flags);
-+	cli->tmem_pools[pool_id] = pool;
-+	pr_info("%s: AUTOcreated %s tmem poolid=%d, for remote client=%d\n",
-+		namestr, flags & TMEM_POOL_PERSIST ? "persistent" : "ephemeral",
-+		pool_id, cli_id);
-+	ret = 0;
-+out:
-+	if (cli != NULL)
-+		atomic_dec(&cli->refcount);
-+	return ret;
-+}
 +
-+/**********
-+ * Two kernel functionalities currently can be layered on top of tmem.
-+ * These are "cleancache" which is used as a second-chance cache for clean
-+ * page cache pages; and "frontswap" which is used for swap pages
-+ * to avoid writes to disk.  A generic "shim" is provided here for each
-+ * to translate in-kernel semantics to zcache semantics.
++#define RAMSTER_SYSFS_RW(_name) \
++	static ssize_t ramster_##_name##_show(struct kobject *kobj, \
++				struct kobj_attribute *attr, char *buf) \
++	{ \
++		return sprintf(buf, "%lu\n", ramster_##_name); \
++	} \
++	static ssize_t ramster_##_name##_store(struct kobject *kobj, \
++		struct kobj_attribute *attr, const char *buf, size_t count) \
++	{ \
++		int err; \
++		unsigned long enable; \
++		err = kstrtoul(buf, 10, &enable); \
++		if (err) \
++			return -EINVAL; \
++		ramster_##_name = enable; \
++		return count; \
++	} \
++	static struct kobj_attribute ramster_##_name##_attr = { \
++		.attr = { .name = __stringify(_name), .mode = 0644 }, \
++		.show = ramster_##_name##_show, \
++		.store = ramster_##_name##_store, \
++	}
++
++#define RAMSTER_SYSFS_RO_ATOMIC(_name) \
++	static ssize_t ramster_##_name##_show(struct kobject *kobj, \
++				struct kobj_attribute *attr, char *buf) \
++	{ \
++	    return sprintf(buf, "%d\n", atomic_read(&ramster_##_name)); \
++	} \
++	static struct kobj_attribute ramster_##_name##_attr = { \
++		.attr = { .name = __stringify(_name), .mode = 0444 }, \
++		.show = ramster_##_name##_show, \
++	}
++
++RAMSTER_SYSFS_RO(interface_revision);
++RAMSTER_SYSFS_RO_ATOMIC(remote_pers_pages);
++RAMSTER_SYSFS_RW(pers_remotify_enable);
++RAMSTER_SYSFS_RW(eph_remotify_enable);
++
++static struct attribute *ramster_attrs[] = {
++	&ramster_interface_revision_attr.attr,
++	&ramster_remote_pers_pages_attr.attr,
++	&ramster_manual_node_up_attr.attr,
++	&ramster_remote_target_nodenum_attr.attr,
++	&ramster_pers_remotify_enable_attr.attr,
++	&ramster_eph_remotify_enable_attr.attr,
++	NULL,
++};
++
++static struct attribute_group ramster_attr_group = {
++	.attrs = ramster_attrs,
++	.name = "ramster",
++};
++
++/*
++ * frontswap selfshrinking
 + */
 +
-+static void zcache_cleancache_put_page(int pool_id,
-+					struct cleancache_filekey key,
-+					pgoff_t index, struct page *page)
-+{
-+	u32 ind = (u32) index;
-+	struct tmem_oid oid = *(struct tmem_oid *)&key;
++/* In HZ, controls frequency of worker invocation. */
++static unsigned int selfshrink_interval __read_mostly = 5;
++/* Enable/disable with sysfs. */
++static bool frontswap_selfshrinking __read_mostly;
 +
-+	if (!disable_cleancache_ignore_nonactive && !PageWasActive(page)) {
-+		zcache_eph_nonactive_puts_ignored++;
++static void selfshrink_process(struct work_struct *work);
++static DECLARE_DELAYED_WORK(selfshrink_worker, selfshrink_process);
++
++/* Enable/disable with kernel boot option. */
++static bool use_frontswap_selfshrink __initdata = true;
++
++/*
++ * The default values for the following parameters were deemed reasonable
++ * by experimentation, may be workload-dependent, and can all be
++ * adjusted via sysfs.
++ */
++
++/* Control rate for frontswap shrinking. Higher hysteresis is slower. */
++static unsigned int frontswap_hysteresis __read_mostly = 20;
++
++/*
++ * Number of selfshrink worker invocations to wait before observing that
++ * frontswap selfshrinking should commence. Note that selfshrinking does
++ * not use a separate worker thread.
++ */
++static unsigned int frontswap_inertia __read_mostly = 3;
++
++/* Countdown to next invocation of frontswap_shrink() */
++static unsigned long frontswap_inertia_counter;
++
++/*
++ * Invoked by the selfshrink worker thread, uses current number of pages
++ * in frontswap (frontswap_curr_pages()), previous status, and control
++ * values (hysteresis and inertia) to determine if frontswap should be
++ * shrunk and what the new frontswap size should be.  Note that
++ * frontswap_shrink is essentially a partial swapoff that immediately
++ * transfers pages from the "swap device" (frontswap) back into kernel
++ * RAM; despite the name, frontswap "shrinking" is very different from
++ * the "shrinker" interface used by the kernel MM subsystem to reclaim
++ * memory.
++ */
++static void frontswap_selfshrink(void)
++{
++	static unsigned long cur_frontswap_pages;
++	static unsigned long last_frontswap_pages;
++	static unsigned long tgt_frontswap_pages;
++
++	last_frontswap_pages = cur_frontswap_pages;
++	cur_frontswap_pages = frontswap_curr_pages();
++	if (!cur_frontswap_pages ||
++			(cur_frontswap_pages > last_frontswap_pages)) {
++		frontswap_inertia_counter = frontswap_inertia;
 +		return;
 +	}
-+	if (likely(ind == index))
-+		(void)zcache_put_page(LOCAL_CLIENT, pool_id, &oid, index,
-+					page, PAGE_SIZE, false, 1);
-+}
-+
-+static int zcache_cleancache_get_page(int pool_id,
-+					struct cleancache_filekey key,
-+					pgoff_t index, struct page *page)
-+{
-+	u32 ind = (u32) index;
-+	struct tmem_oid oid = *(struct tmem_oid *)&key;
-+	size_t size;
-+	int ret = -1;
-+
-+	if (likely(ind == index)) {
-+		ret = zcache_get_page(LOCAL_CLIENT, pool_id, &oid, index,
-+					page, &size, false, 0);
-+		BUG_ON(ret >= 0 && size != PAGE_SIZE);
-+		if (ret == 0)
-+			SetPageWasActive(page);
-+	}
-+	return ret;
-+}
-+
-+static void zcache_cleancache_flush_page(int pool_id,
-+					struct cleancache_filekey key,
-+					pgoff_t index)
-+{
-+	u32 ind = (u32) index;
-+	struct tmem_oid oid = *(struct tmem_oid *)&key;
-+
-+	if (likely(ind == index))
-+		(void)zcache_flush_page(LOCAL_CLIENT, pool_id, &oid, ind);
-+}
-+
-+static void zcache_cleancache_flush_inode(int pool_id,
-+					struct cleancache_filekey key)
-+{
-+	struct tmem_oid oid = *(struct tmem_oid *)&key;
-+
-+	(void)zcache_flush_object(LOCAL_CLIENT, pool_id, &oid);
-+}
-+
-+static void zcache_cleancache_flush_fs(int pool_id)
-+{
-+	if (pool_id >= 0)
-+		(void)zcache_client_destroy_pool(LOCAL_CLIENT, pool_id);
-+}
-+
-+static int zcache_cleancache_init_fs(size_t pagesize)
-+{
-+	BUG_ON(sizeof(struct cleancache_filekey) !=
-+				sizeof(struct tmem_oid));
-+	BUG_ON(pagesize != PAGE_SIZE);
-+	return zcache_local_new_pool(0);
-+}
-+
-+static int zcache_cleancache_init_shared_fs(char *uuid, size_t pagesize)
-+{
-+	/* shared pools are unsupported and map to private */
-+	BUG_ON(sizeof(struct cleancache_filekey) !=
-+				sizeof(struct tmem_oid));
-+	BUG_ON(pagesize != PAGE_SIZE);
-+	return zcache_local_new_pool(0);
-+}
-+
-+static struct cleancache_ops zcache_cleancache_ops = {
-+	.put_page = zcache_cleancache_put_page,
-+	.get_page = zcache_cleancache_get_page,
-+	.invalidate_page = zcache_cleancache_flush_page,
-+	.invalidate_inode = zcache_cleancache_flush_inode,
-+	.invalidate_fs = zcache_cleancache_flush_fs,
-+	.init_shared_fs = zcache_cleancache_init_shared_fs,
-+	.init_fs = zcache_cleancache_init_fs
-+};
-+
-+struct cleancache_ops zcache_cleancache_register_ops(void)
-+{
-+	struct cleancache_ops old_ops =
-+		cleancache_register_ops(&zcache_cleancache_ops);
-+
-+	return old_ops;
-+}
-+
-+/* a single tmem poolid is used for all frontswap "types" (swapfiles) */
-+static int zcache_frontswap_poolid __read_mostly = -1;
-+
-+/*
-+ * Swizzling increases objects per swaptype, increasing tmem concurrency
-+ * for heavy swaploads.  Later, larger nr_cpus -> larger SWIZ_BITS
-+ * Setting SWIZ_BITS to 27 basically reconstructs the swap entry from
-+ * frontswap_get_page(), but has side-effects. Hence using 8.
-+ */
-+#define SWIZ_BITS		8
-+#define SWIZ_MASK		((1 << SWIZ_BITS) - 1)
-+#define _oswiz(_type, _ind)	((_type << SWIZ_BITS) | (_ind & SWIZ_MASK))
-+#define iswiz(_ind)		(_ind >> SWIZ_BITS)
-+
-+static inline struct tmem_oid oswiz(unsigned type, u32 ind)
-+{
-+	struct tmem_oid oid = { .oid = { 0 } };
-+	oid.oid[0] = _oswiz(type, ind);
-+	return oid;
-+}
-+
-+static void unswiz(struct tmem_oid oid, u32 index,
-+				unsigned *type, pgoff_t *offset)
-+{
-+	*type = (unsigned)(oid.oid[0] >> SWIZ_BITS);
-+	*offset = (pgoff_t)((index << SWIZ_BITS) |
-+			(oid.oid[0] & SWIZ_MASK));
-+}
-+
-+static int zcache_frontswap_put_page(unsigned type, pgoff_t offset,
-+					struct page *page)
-+{
-+	u64 ind64 = (u64)offset;
-+	u32 ind = (u32)offset;
-+	struct tmem_oid oid = oswiz(type, ind);
-+	int ret = -1;
-+	unsigned long flags;
-+	int unuse_ret;
-+
-+	BUG_ON(!PageLocked(page));
-+	if (!disable_frontswap_ignore_nonactive && !PageWasActive(page)) {
-+		zcache_pers_nonactive_puts_ignored++;
-+		ret = -ERANGE;
-+		goto out;
-+	}
-+	if (likely(ind64 == ind)) {
-+		local_irq_save(flags);
-+		ret = zcache_put_page(LOCAL_CLIENT, zcache_frontswap_poolid,
-+					&oid, iswiz(ind),
-+					page, PAGE_SIZE, false, 0);
-+		local_irq_restore(flags);
-+	}
-+out:
-+	return ret;
-+}
-+
-+/* returns 0 if the page was successfully gotten from frontswap, -1 if
-+ * was not present (should never happen!) */
-+static int zcache_frontswap_get_page(unsigned type, pgoff_t offset,
-+					struct page *page)
-+{
-+	u64 ind64 = (u64)offset;
-+	u32 ind = (u32)offset;
-+	struct tmem_oid oid = oswiz(type, ind);
-+	size_t size;
-+	int ret = -1, get_and_free;
-+
-+	if (frontswap_has_exclusive_gets)
-+		get_and_free = 1;
++	if (frontswap_inertia_counter && --frontswap_inertia_counter)
++		return;
++	if (cur_frontswap_pages <= frontswap_hysteresis)
++		tgt_frontswap_pages = 0;
 +	else
-+		get_and_free = -1;
-+	BUG_ON(!PageLocked(page));
-+	if (likely(ind64 == ind)) {
-+		ret = zcache_get_page(LOCAL_CLIENT, zcache_frontswap_poolid,
-+					&oid, iswiz(ind),
-+					page, &size, false, get_and_free);
-+		BUG_ON(ret >= 0 && size != PAGE_SIZE);
-+	}
-+	return ret;
++		tgt_frontswap_pages = cur_frontswap_pages -
++			(cur_frontswap_pages / frontswap_hysteresis);
++	frontswap_shrink(tgt_frontswap_pages);
 +}
 +
-+/* flush a single page from frontswap */
-+static void zcache_frontswap_flush_page(unsigned type, pgoff_t offset)
++static int __init ramster_nofrontswap_selfshrink_setup(char *s)
 +{
-+	u64 ind64 = (u64)offset;
-+	u32 ind = (u32)offset;
-+	struct tmem_oid oid = oswiz(type, ind);
-+
-+	if (likely(ind64 == ind))
-+		(void)zcache_flush_page(LOCAL_CLIENT, zcache_frontswap_poolid,
-+					&oid, iswiz(ind));
++	use_frontswap_selfshrink = false;
++	return 1;
 +}
 +
-+/* flush all pages from the passed swaptype */
-+static void zcache_frontswap_flush_area(unsigned type)
-+{
-+	struct tmem_oid oid;
-+	int ind;
++__setup("noselfshrink", ramster_nofrontswap_selfshrink_setup);
 +
-+	for (ind = SWIZ_MASK; ind >= 0; ind--) {
-+		oid = oswiz(type, ind);
-+		(void)zcache_flush_object(LOCAL_CLIENT,
-+						zcache_frontswap_poolid, &oid);
++static void selfshrink_process(struct work_struct *work)
++{
++	if (frontswap_selfshrinking && frontswap_enabled) {
++		frontswap_selfshrink();
++		schedule_delayed_work(&selfshrink_worker,
++			selfshrink_interval * HZ);
 +	}
 +}
 +
-+static void zcache_frontswap_init(unsigned ignored)
++void ramster_cpu_up(int cpu)
 +{
-+	/* a single tmem poolid is used for all frontswap "types" (swapfiles) */
-+	if (zcache_frontswap_poolid < 0)
-+		zcache_frontswap_poolid =
-+			zcache_local_new_pool(TMEM_POOL_PERSIST);
++	unsigned char *p1 = kzalloc(PAGE_SIZE, GFP_KERNEL | __GFP_REPEAT);
++	unsigned char *p2 = kzalloc(PAGE_SIZE, GFP_KERNEL | __GFP_REPEAT);
++	BUG_ON(!p1 || !p2);
++	per_cpu(ramster_remoteputmem1, cpu) = p1;
++	per_cpu(ramster_remoteputmem2, cpu) = p2;
 +}
 +
-+static struct frontswap_ops zcache_frontswap_ops = {
-+	.store = zcache_frontswap_put_page,
-+	.load = zcache_frontswap_get_page,
-+	.invalidate_page = zcache_frontswap_flush_page,
-+	.invalidate_area = zcache_frontswap_flush_area,
-+	.init = zcache_frontswap_init
-+};
-+
-+struct frontswap_ops zcache_frontswap_register_ops(void)
++void ramster_cpu_down(int cpu)
 +{
-+	struct frontswap_ops old_ops =
-+		frontswap_register_ops(&zcache_frontswap_ops);
++	struct ramster_preload *kp;
 +
-+	return old_ops;
++	kfree(per_cpu(ramster_remoteputmem1, cpu));
++	per_cpu(ramster_remoteputmem1, cpu) = NULL;
++	kfree(per_cpu(ramster_remoteputmem2, cpu));
++	per_cpu(ramster_remoteputmem2, cpu) = NULL;
++	kp = &per_cpu(ramster_preloads, cpu);
++	if (kp->flnode) {
++		kmem_cache_free(ramster_flnode_cache, kp->flnode);
++		kp->flnode = NULL;
++	}
 +}
 +
-+/*
-+ * zcache initialization
-+ * NOTE FOR NOW zcache or ramster MUST BE PROVIDED AS A KERNEL BOOT PARAMETER
-+ * OR NOTHING HAPPENS!
-+ */
-+
-+static int __init enable_zcache(char *s)
++void ramster_register_pamops(struct tmem_pamops *pamops)
 +{
-+	zcache_enabled = 1;
-+	return 1;
-+}
-+__setup("zcache", enable_zcache);
-+
-+static int __init enable_ramster(char *s)
-+{
-+	zcache_enabled = 1;
-+#ifdef CONFIG_RAMSTER
-+	ramster_enabled = 1;
-+#endif
-+	return 1;
-+}
-+__setup("ramster", enable_ramster);
-+
-+/* allow independent dynamic disabling of cleancache and frontswap */
-+
-+static int __init no_cleancache(char *s)
-+{
-+	disable_cleancache = 1;
-+	return 1;
++	pamops->free_obj = ramster_pampd_free_obj;
++	pamops->new_obj = ramster_pampd_new_obj;
++	pamops->replace_in_obj = ramster_pampd_replace_in_obj;
++	pamops->is_remote = ramster_pampd_is_remote;
++	pamops->repatriate = ramster_pampd_repatriate;
++	pamops->repatriate_preload = ramster_pampd_repatriate_preload;
 +}
 +
-+__setup("nocleancache", no_cleancache);
-+
-+static int __init no_frontswap(char *s)
-+{
-+	disable_frontswap = 1;
-+	return 1;
-+}
-+
-+__setup("nofrontswap", no_frontswap);
-+
-+static int __init no_frontswap_exclusive_gets(char *s)
-+{
-+	frontswap_has_exclusive_gets = false;
-+	return 1;
-+}
-+
-+__setup("nofrontswapexclusivegets", no_frontswap_exclusive_gets);
-+
-+static int __init no_frontswap_ignore_nonactive(char *s)
-+{
-+	disable_frontswap_ignore_nonactive = 1;
-+	return 1;
-+}
-+
-+__setup("nofrontswapignorenonactive", no_frontswap_ignore_nonactive);
-+
-+static int __init no_cleancache_ignore_nonactive(char *s)
-+{
-+	disable_cleancache_ignore_nonactive = 1;
-+	return 1;
-+}
-+
-+__setup("nocleancacheignorenonactive", no_cleancache_ignore_nonactive);
-+
-+static int __init enable_zcache_compressor(char *s)
-+{
-+	strncpy(zcache_comp_name, s, ZCACHE_COMP_NAME_SZ);
-+	zcache_enabled = 1;
-+	return 1;
-+}
-+__setup("zcache=", enable_zcache_compressor);
-+
-+
-+static int __init zcache_comp_init(void)
++void __init ramster_init(bool cleancache, bool frontswap,
++				bool frontswap_exclusive_gets)
 +{
 +	int ret = 0;
 +
-+	/* check crypto algorithm */
-+	if (*zcache_comp_name != '\0') {
-+		ret = crypto_has_comp(zcache_comp_name, 0, 0);
-+		if (!ret)
-+			pr_info("zcache: %s not supported\n",
-+					zcache_comp_name);
++	if (cleancache)
++		use_cleancache = true;
++	if (frontswap)
++		use_frontswap = true;
++	if (frontswap_exclusive_gets)
++		use_frontswap_exclusive_gets = true;
++	ramster_debugfs_init();
++	ret = sysfs_create_group(mm_kobj, &ramster_attr_group);
++	if (ret)
++		pr_err("ramster: can't create sysfs for ramster\n");
++	(void)r2net_register_handlers();
++	INIT_LIST_HEAD(&ramster_rem_op_list);
++	ramster_flnode_cache = kmem_cache_create("ramster_flnode",
++				sizeof(struct flushlist_node), 0, 0, NULL);
++	frontswap_selfshrinking = use_frontswap_selfshrink;
++	if (frontswap_selfshrinking) {
++		pr_info("ramster: Initializing frontswap selfshrink driver.\n");
++		schedule_delayed_work(&selfshrink_worker,
++					selfshrink_interval * HZ);
 +	}
-+	if (!ret)
-+		strcpy(zcache_comp_name, "lzo");
-+	ret = crypto_has_comp(zcache_comp_name, 0, 0);
-+	if (!ret) {
-+		ret = 1;
-+		goto out;
-+	}
-+	pr_info("zcache: using %s compressor\n", zcache_comp_name);
-+
-+	/* alloc percpu transforms */
-+	ret = 0;
-+	zcache_comp_pcpu_tfms = alloc_percpu(struct crypto_comp *);
-+	if (!zcache_comp_pcpu_tfms)
-+		ret = 1;
-+out:
-+	return ret;
++	ramster_remotify_init();
 +}
-+
-+static int __init zcache_init(void)
-+{
-+	int ret = 0;
-+
-+	if (ramster_enabled) {
-+		namestr = "ramster";
-+		ramster_register_pamops(&zcache_pamops);
-+	}
-+#ifdef CONFIG_DEBUG_FS
-+	zcache_debugfs_init();
-+#endif
-+	if (zcache_enabled) {
-+		unsigned int cpu;
-+
-+		tmem_register_hostops(&zcache_hostops);
-+		tmem_register_pamops(&zcache_pamops);
-+		ret = register_cpu_notifier(&zcache_cpu_notifier_block);
-+		if (ret) {
-+			pr_err("%s: can't register cpu notifier\n", namestr);
-+			goto out;
-+		}
-+		ret = zcache_comp_init();
-+		if (ret) {
-+			pr_err("%s: compressor initialization failed\n",
-+				namestr);
-+			goto out;
-+		}
-+		for_each_online_cpu(cpu) {
-+			void *pcpu = (void *)(long)cpu;
-+			zcache_cpu_notifier(&zcache_cpu_notifier_block,
-+				CPU_UP_PREPARE, pcpu);
-+		}
-+	}
-+	zcache_objnode_cache = kmem_cache_create("zcache_objnode",
-+				sizeof(struct tmem_objnode), 0, 0, NULL);
-+	zcache_obj_cache = kmem_cache_create("zcache_obj",
-+				sizeof(struct tmem_obj), 0, 0, NULL);
-+	ret = zcache_new_client(LOCAL_CLIENT);
-+	if (ret) {
-+		pr_err("%s: can't create client\n", namestr);
-+		goto out;
-+	}
-+	zbud_init();
-+	if (zcache_enabled && !disable_cleancache) {
-+		struct cleancache_ops old_ops;
-+
-+		register_shrinker(&zcache_shrinker);
-+		old_ops = zcache_cleancache_register_ops();
-+		pr_info("%s: cleancache enabled using kernel transcendent "
-+			"memory and compression buddies\n", namestr);
-+#ifdef ZCACHE_DEBUG
-+		pr_info("%s: cleancache: ignorenonactive = %d\n",
-+			namestr, !disable_cleancache_ignore_nonactive);
-+#endif
-+		if (old_ops.init_fs != NULL)
-+			pr_warn("%s: cleancache_ops overridden\n", namestr);
-+	}
-+	if (zcache_enabled && !disable_frontswap) {
-+		struct frontswap_ops old_ops;
-+
-+		old_ops = zcache_frontswap_register_ops();
-+		if (frontswap_has_exclusive_gets)
-+			frontswap_tmem_exclusive_gets(true);
-+		pr_info("%s: frontswap enabled using kernel transcendent "
-+			"memory and compression buddies\n", namestr);
-+#ifdef ZCACHE_DEBUG
-+		pr_info("%s: frontswap: excl gets = %d active only = %d\n",
-+			namestr, frontswap_has_exclusive_gets,
-+			!disable_frontswap_ignore_nonactive);
-+#endif
-+		if (old_ops.init != NULL)
-+			pr_warn("%s: frontswap_ops overridden\n", namestr);
-+	}
-+	if (ramster_enabled)
-+		ramster_init(!disable_cleancache, !disable_frontswap,
-+				frontswap_has_exclusive_gets);
-+out:
-+	return ret;
-+}
-+
-+late_initcall(zcache_init);
-diff --git a/drivers/staging/zcache/zcache.h b/drivers/staging/zcache/zcache.h
+diff --git a/drivers/staging/zcache/ramster/ramster.h b/drivers/staging/zcache/ramster/ramster.h
 new file mode 100644
-index 0000000..c59666e
+index 0000000..12ae56f
 --- /dev/null
-+++ b/drivers/staging/zcache/zcache.h
-@@ -0,0 +1,53 @@
-+
++++ b/drivers/staging/zcache/ramster/ramster.h
+@@ -0,0 +1,161 @@
 +/*
-+ * zcache.h
++ * ramster.h
 + *
-+ * Copyright (c) 2012, Dan Magenheimer, Oracle Corp.
++ * Peer-to-peer transcendent memory
++ *
++ * Copyright (c) 2009-2012, Dan Magenheimer, Oracle Corp.
 + */
 +
-+#ifndef _ZCACHE_H_
-+#define _ZCACHE_H_
++#ifndef _RAMSTER_RAMSTER_H_
++#define _RAMSTER_RAMSTER_H_
 +
-+struct zcache_preload {
-+	struct tmem_obj *obj;
-+	struct tmem_objnode *objnodes[OBJNODE_TREE_MAX_PATH];
++#include "../tmem.h"
++
++enum ramster_remotify_op {
++	RAMSTER_REMOTIFY_FLUSH_PAGE,
++	RAMSTER_REMOTIFY_FLUSH_OBJ,
 +};
 +
-+struct tmem_pool;
-+
-+#define MAX_POOLS_PER_CLIENT 16
-+
-+#define MAX_CLIENTS 16
-+#define LOCAL_CLIENT ((uint16_t)-1)
-+
-+struct zcache_client {
-+	struct tmem_pool *tmem_pools[MAX_POOLS_PER_CLIENT];
-+	bool allocated;
-+	atomic_t refcount;
++struct ramster_remotify_hdr {
++	enum ramster_remotify_op op;
++	struct list_head list;
 +};
 +
-+extern struct tmem_pool *zcache_get_pool_by_id(uint16_t cli_id,
-+							uint16_t poolid);
-+extern void zcache_put_pool(struct tmem_pool *pool);
++struct flushlist_node {
++	struct ramster_remotify_hdr rem_op;
++	struct tmem_xhandle xh;
++};
 +
-+extern int zcache_put_page(int, int, struct tmem_oid *,
-+				uint32_t, void *,
-+				unsigned int, bool, int);
-+extern int zcache_get_page(int, int, struct tmem_oid *, uint32_t,
-+				void *, size_t *, bool, int);
-+extern int zcache_flush_page(int, int, struct tmem_oid *, uint32_t);
-+extern int zcache_flush_object(int, int, struct tmem_oid *);
-+extern void zcache_decompress_to_page(char *, unsigned int, struct page *);
++struct ramster_preload {
++	struct flushlist_node *flnode;
++};
 +
-+#ifdef CONFIG_RAMSTER
-+extern void *zcache_pampd_create(char *, unsigned int, bool, int,
-+				struct tmem_handle *);
-+extern int zcache_autocreate_pool(int, int, bool);
++union remotify_list_node {
++	struct ramster_remotify_hdr rem_op;
++	struct {
++		struct ramster_remotify_hdr rem_op;
++		struct tmem_handle th;
++	} zbud_hdr;
++	struct flushlist_node flist;
++};
++
++/*
++ * format of remote pampd:
++ *   bit 0 is reserved for zbud (in-page buddy selection)
++ *   bit 1 == intransit
++ *   bit 2 == is_remote... if this bit is set, then
++ *   bit 3-10 == remotenode
++ *   bit 11-23 == size
++ *   bit 24-31 == cksum
++ */
++#define FAKE_PAMPD_INTRANSIT_BITS	1
++#define FAKE_PAMPD_ISREMOTE_BITS	1
++#define FAKE_PAMPD_REMOTENODE_BITS	8
++#define FAKE_PAMPD_REMOTESIZE_BITS	13
++#define FAKE_PAMPD_CHECKSUM_BITS	8
++
++#define FAKE_PAMPD_INTRANSIT_SHIFT	1
++#define FAKE_PAMPD_ISREMOTE_SHIFT	(FAKE_PAMPD_INTRANSIT_SHIFT + \
++					 FAKE_PAMPD_INTRANSIT_BITS)
++#define FAKE_PAMPD_REMOTENODE_SHIFT	(FAKE_PAMPD_ISREMOTE_SHIFT + \
++					 FAKE_PAMPD_ISREMOTE_BITS)
++#define FAKE_PAMPD_REMOTESIZE_SHIFT	(FAKE_PAMPD_REMOTENODE_SHIFT + \
++					 FAKE_PAMPD_REMOTENODE_BITS)
++#define FAKE_PAMPD_CHECKSUM_SHIFT	(FAKE_PAMPD_REMOTESIZE_SHIFT + \
++					 FAKE_PAMPD_REMOTESIZE_BITS)
++
++#define FAKE_PAMPD_MASK(x)		((1UL << (x)) - 1)
++
++static inline void *pampd_make_remote(int remotenode, size_t size,
++					unsigned char cksum)
++{
++	unsigned long fake_pampd = 0;
++	fake_pampd |= 1UL << FAKE_PAMPD_ISREMOTE_SHIFT;
++	fake_pampd |= ((unsigned long)remotenode &
++			FAKE_PAMPD_MASK(FAKE_PAMPD_REMOTENODE_BITS)) <<
++				FAKE_PAMPD_REMOTENODE_SHIFT;
++	fake_pampd |= ((unsigned long)size &
++			FAKE_PAMPD_MASK(FAKE_PAMPD_REMOTESIZE_BITS)) <<
++				FAKE_PAMPD_REMOTESIZE_SHIFT;
++	fake_pampd |= ((unsigned long)cksum &
++			FAKE_PAMPD_MASK(FAKE_PAMPD_CHECKSUM_BITS)) <<
++				FAKE_PAMPD_CHECKSUM_SHIFT;
++	return (void *)fake_pampd;
++}
++
++static inline unsigned int pampd_remote_node(void *pampd)
++{
++	unsigned long fake_pampd = (unsigned long)pampd;
++	return (fake_pampd >> FAKE_PAMPD_REMOTENODE_SHIFT) &
++		FAKE_PAMPD_MASK(FAKE_PAMPD_REMOTENODE_BITS);
++}
++
++static inline unsigned int pampd_remote_size(void *pampd)
++{
++	unsigned long fake_pampd = (unsigned long)pampd;
++	return (fake_pampd >> FAKE_PAMPD_REMOTESIZE_SHIFT) &
++		FAKE_PAMPD_MASK(FAKE_PAMPD_REMOTESIZE_BITS);
++}
++
++static inline unsigned char pampd_remote_cksum(void *pampd)
++{
++	unsigned long fake_pampd = (unsigned long)pampd;
++	return (fake_pampd >> FAKE_PAMPD_CHECKSUM_SHIFT) &
++		FAKE_PAMPD_MASK(FAKE_PAMPD_CHECKSUM_BITS);
++}
++
++static inline bool pampd_is_remote(void *pampd)
++{
++	unsigned long fake_pampd = (unsigned long)pampd;
++	return (fake_pampd >> FAKE_PAMPD_ISREMOTE_SHIFT) &
++		FAKE_PAMPD_MASK(FAKE_PAMPD_ISREMOTE_BITS);
++}
++
++static inline bool pampd_is_intransit(void *pampd)
++{
++	unsigned long fake_pampd = (unsigned long)pampd;
++	return (fake_pampd >> FAKE_PAMPD_INTRANSIT_SHIFT) &
++		FAKE_PAMPD_MASK(FAKE_PAMPD_INTRANSIT_BITS);
++}
++
++/* note that it is a BUG for intransit to be set without isremote also set */
++static inline void *pampd_mark_intransit(void *pampd)
++{
++	unsigned long fake_pampd = (unsigned long)pampd;
++
++	fake_pampd |= 1UL << FAKE_PAMPD_ISREMOTE_SHIFT;
++	fake_pampd |= 1UL << FAKE_PAMPD_INTRANSIT_SHIFT;
++	return (void *)fake_pampd;
++}
++
++static inline void *pampd_mask_intransit_and_remote(void *marked_pampd)
++{
++	unsigned long pampd = (unsigned long)marked_pampd;
++
++	pampd &= ~(1UL << FAKE_PAMPD_INTRANSIT_SHIFT);
++	pampd &= ~(1UL << FAKE_PAMPD_ISREMOTE_SHIFT);
++	return (void *)pampd;
++}
++
++extern int r2net_remote_async_get(struct tmem_xhandle *,
++				bool, int, size_t, uint8_t, void *extra);
++extern int r2net_remote_put(struct tmem_xhandle *, char *, size_t,
++				bool, int *);
++extern int r2net_remote_flush(struct tmem_xhandle *, int);
++extern int r2net_remote_flush_object(struct tmem_xhandle *, int);
++extern int r2net_register_handlers(void);
++extern int r2net_remote_target_node_set(int);
++
++extern int ramster_remotify_pageframe(bool);
++extern void ramster_init(bool, bool, bool);
++extern void ramster_register_pamops(struct tmem_pamops *);
++extern int ramster_localify(int, struct tmem_oid *oidp, uint32_t, char *,
++				unsigned int, void *);
++extern void *ramster_pampd_free(void *, struct tmem_pool *, struct tmem_oid *,
++				uint32_t, bool);
++extern void ramster_count_foreign_pages(bool, int);
++extern int ramster_do_preload_flnode(struct tmem_pool *);
++extern void ramster_cpu_up(int);
++extern void ramster_cpu_down(int);
++
++#endif /* _RAMSTER_RAMSTER_H */
+diff --git a/drivers/staging/zcache/ramster/ramster_nodemanager.h b/drivers/staging/zcache/ramster/ramster_nodemanager.h
+new file mode 100644
+index 0000000..49f879d
+--- /dev/null
++++ b/drivers/staging/zcache/ramster/ramster_nodemanager.h
+@@ -0,0 +1,39 @@
++/* -*- mode: c; c-basic-offset: 8; -*-
++ * vim: noexpandtab sw=8 ts=8 sts=0:
++ *
++ * ramster_nodemanager.h
++ *
++ * Header describing the interface between userspace and the kernel
++ * for the ramster_nodemanager module.
++ *
++ * Copyright (C) 2002, 2004, 2012 Oracle.  All rights reserved.
++ *
++ * This program is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU General Public
++ * License as published by the Free Software Foundation; either
++ * version 2 of the License, or (at your option) any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public
++ * License along with this program; if not, write to the
++ * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
++ * Boston, MA 021110-1307, USA.
++ *
++ */
++
++#ifndef _RAMSTER_NODEMANAGER_H
++#define _RAMSTER_NODEMANAGER_H
++
++#define R2NM_API_VERSION	5
++
++#define R2NM_MAX_NODES		255
++#define R2NM_INVALID_NODE_NUM	255
++
++/* host name, group name, cluster name all 64 bytes */
++#define R2NM_MAX_NAME_LEN        64    /* __NEW_UTS_LEN */
++
++#endif /* _RAMSTER_NODEMANAGER_H */
+diff --git a/drivers/staging/zcache/ramster/tcp.c b/drivers/staging/zcache/ramster/tcp.c
+new file mode 100644
+index 0000000..aa2a1a7
+--- /dev/null
++++ b/drivers/staging/zcache/ramster/tcp.c
+@@ -0,0 +1,2253 @@
++/* -*- mode: c; c-basic-offset: 8; -*-
++ *
++ * vim: noexpandtab sw=8 ts=8 sts=0:
++ *
++ * Copyright (C) 2004 Oracle.  All rights reserved.
++ *
++ * This program is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU General Public
++ * License as published by the Free Software Foundation; either
++ * version 2 of the License, or (at your option) any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public
++ * License along with this program; if not, write to the
++ * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
++ * Boston, MA 021110-1307, USA.
++ *
++ * ----
++ *
++ * Callers for this were originally written against a very simple synchronus
++ * API.  This implementation reflects those simple callers.  Some day I'm sure
++ * we'll need to move to a more robust posting/callback mechanism.
++ *
++ * Transmit calls pass in kernel virtual addresses and block copying this into
++ * the socket's tx buffers via a usual blocking sendmsg.  They'll block waiting
++ * for a failed socket to timeout.  TX callers can also pass in a poniter to an
++ * 'int' which gets filled with an errno off the wire in response to the
++ * message they send.
++ *
++ * Handlers for unsolicited messages are registered.  Each socket has a page
++ * that incoming data is copied into.  First the header, then the data.
++ * Handlers are called from only one thread with a reference to this per-socket
++ * page.  This page is destroyed after the handler call, so it can't be
++ * referenced beyond the call.  Handlers may block but are discouraged from
++ * doing so.
++ *
++ * Any framing errors (bad magic, large payload lengths) close a connection.
++ *
++ * Our sock_container holds the state we associate with a socket.  It's current
++ * framing state is held there as well as the refcounting we do around when it
++ * is safe to tear down the socket.  The socket is only finally torn down from
++ * the container when the container loses all of its references -- so as long
++ * as you hold a ref on the container you can trust that the socket is valid
++ * for use with kernel socket APIs.
++ *
++ * Connections are initiated between a pair of nodes when the node with the
++ * higher node number gets a heartbeat callback which indicates that the lower
++ * numbered node has started heartbeating.  The lower numbered node is passive
++ * and only accepts the connection if the higher numbered node is heartbeating.
++ */
++
++#include <linux/kernel.h>
++#include <linux/jiffies.h>
++#include <linux/slab.h>
++#include <linux/idr.h>
++#include <linux/kref.h>
++#include <linux/net.h>
++#include <linux/export.h>
++#include <linux/uaccess.h>
++#include <net/tcp.h>
++
++
++#include "heartbeat.h"
++#include "tcp.h"
++#include "nodemanager.h"
++#define MLOG_MASK_PREFIX ML_TCP
++#include "masklog.h"
++
++#include "tcp_internal.h"
++
++#define SC_NODEF_FMT "node %s (num %u) at %pI4:%u"
++
++/*
++ * In the following two log macros, the whitespace after the ',' just
++ * before ##args is intentional. Otherwise, gcc 2.95 will eat the
++ * previous token if args expands to nothing.
++ */
++#define msglog(hdr, fmt, args...) do {					\
++	typeof(hdr) __hdr = (hdr);					\
++	mlog(ML_MSG, "[mag %u len %u typ %u stat %d sys_stat %d "	\
++	     "key %08x num %u] " fmt,					\
++	be16_to_cpu(__hdr->magic), be16_to_cpu(__hdr->data_len),	\
++	     be16_to_cpu(__hdr->msg_type), be32_to_cpu(__hdr->status),	\
++	     be32_to_cpu(__hdr->sys_status), be32_to_cpu(__hdr->key),	\
++	     be32_to_cpu(__hdr->msg_num) ,  ##args);			\
++} while (0)
++
++#define sclog(sc, fmt, args...) do {					\
++	typeof(sc) __sc = (sc);						\
++	mlog(ML_SOCKET, "[sc %p refs %d sock %p node %u page %p "	\
++	     "pg_off %zu] " fmt, __sc,					\
++	     atomic_read(&__sc->sc_kref.refcount), __sc->sc_sock,	\
++	    __sc->sc_node->nd_num, __sc->sc_page, __sc->sc_page_off ,	\
++	    ##args);							\
++} while (0)
++
++static DEFINE_RWLOCK(r2net_handler_lock);
++static struct rb_root r2net_handler_tree = RB_ROOT;
++
++static struct r2net_node r2net_nodes[R2NM_MAX_NODES];
++
++/* XXX someday we'll need better accounting */
++static struct socket *r2net_listen_sock;
++
++/*
++ * listen work is only queued by the listening socket callbacks on the
++ * r2net_wq.  teardown detaches the callbacks before destroying the workqueue.
++ * quorum work is queued as sock containers are shutdown.. stop_listening
++ * tears down all the node's sock containers, preventing future shutdowns
++ * and queued quorum work, before canceling delayed quorum work and
++ * destroying the work queue.
++ */
++static struct workqueue_struct *r2net_wq;
++static struct work_struct r2net_listen_work;
++
++static struct r2hb_callback_func r2net_hb_up, r2net_hb_down;
++#define R2NET_HB_PRI 0x1
++
++static struct r2net_handshake *r2net_hand;
++static struct r2net_msg *r2net_keep_req, *r2net_keep_resp;
++
++static int r2net_sys_err_translations[R2NET_ERR_MAX] = {
++		[R2NET_ERR_NONE]	= 0,
++		[R2NET_ERR_NO_HNDLR]	= -ENOPROTOOPT,
++		[R2NET_ERR_OVERFLOW]	= -EOVERFLOW,
++		[R2NET_ERR_DIED]	= -EHOSTDOWN,};
++
++/* can't quite avoid *all* internal declarations :/ */
++static void r2net_sc_connect_completed(struct work_struct *work);
++static void r2net_rx_until_empty(struct work_struct *work);
++static void r2net_shutdown_sc(struct work_struct *work);
++static void r2net_listen_data_ready(struct sock *sk, int bytes);
++static void r2net_sc_send_keep_req(struct work_struct *work);
++static void r2net_idle_timer(unsigned long data);
++static void r2net_sc_postpone_idle(struct r2net_sock_container *sc);
++static void r2net_sc_reset_idle_timer(struct r2net_sock_container *sc);
++
++#ifdef CONFIG_DEBUG_FS
++static void r2net_init_nst(struct r2net_send_tracking *nst, u32 msgtype,
++			   u32 msgkey, struct task_struct *task, u8 node)
++{
++	INIT_LIST_HEAD(&nst->st_net_debug_item);
++	nst->st_task = task;
++	nst->st_msg_type = msgtype;
++	nst->st_msg_key = msgkey;
++	nst->st_node = node;
++}
++
++static inline void r2net_set_nst_sock_time(struct r2net_send_tracking *nst)
++{
++	nst->st_sock_time = ktime_get();
++}
++
++static inline void r2net_set_nst_send_time(struct r2net_send_tracking *nst)
++{
++	nst->st_send_time = ktime_get();
++}
++
++static inline void r2net_set_nst_status_time(struct r2net_send_tracking *nst)
++{
++	nst->st_status_time = ktime_get();
++}
++
++static inline void r2net_set_nst_sock_container(struct r2net_send_tracking *nst,
++						struct r2net_sock_container *sc)
++{
++	nst->st_sc = sc;
++}
++
++static inline void r2net_set_nst_msg_id(struct r2net_send_tracking *nst,
++					u32 msg_id)
++{
++	nst->st_id = msg_id;
++}
++
++static inline void r2net_set_sock_timer(struct r2net_sock_container *sc)
++{
++	sc->sc_tv_timer = ktime_get();
++}
++
++static inline void r2net_set_data_ready_time(struct r2net_sock_container *sc)
++{
++	sc->sc_tv_data_ready = ktime_get();
++}
++
++static inline void r2net_set_advance_start_time(struct r2net_sock_container *sc)
++{
++	sc->sc_tv_advance_start = ktime_get();
++}
++
++static inline void r2net_set_advance_stop_time(struct r2net_sock_container *sc)
++{
++	sc->sc_tv_advance_stop = ktime_get();
++}
++
++static inline void r2net_set_func_start_time(struct r2net_sock_container *sc)
++{
++	sc->sc_tv_func_start = ktime_get();
++}
++
++static inline void r2net_set_func_stop_time(struct r2net_sock_container *sc)
++{
++	sc->sc_tv_func_stop = ktime_get();
++}
++
++#else  /* CONFIG_DEBUG_FS */
++# define r2net_init_nst(a, b, c, d, e)
++# define r2net_set_nst_sock_time(a)
++# define r2net_set_nst_send_time(a)
++# define r2net_set_nst_status_time(a)
++# define r2net_set_nst_sock_container(a, b)
++# define r2net_set_nst_msg_id(a, b)
++# define r2net_set_sock_timer(a)
++# define r2net_set_data_ready_time(a)
++# define r2net_set_advance_start_time(a)
++# define r2net_set_advance_stop_time(a)
++# define r2net_set_func_start_time(a)
++# define r2net_set_func_stop_time(a)
++#endif /* CONFIG_DEBUG_FS */
++
++#ifdef CONFIG_RAMSTER_FS_STATS
++static ktime_t r2net_get_func_run_time(struct r2net_sock_container *sc)
++{
++	return ktime_sub(sc->sc_tv_func_stop, sc->sc_tv_func_start);
++}
++
++static void r2net_update_send_stats(struct r2net_send_tracking *nst,
++				    struct r2net_sock_container *sc)
++{
++	sc->sc_tv_status_total = ktime_add(sc->sc_tv_status_total,
++					   ktime_sub(ktime_get(),
++						     nst->st_status_time));
++	sc->sc_tv_send_total = ktime_add(sc->sc_tv_send_total,
++					 ktime_sub(nst->st_status_time,
++						   nst->st_send_time));
++	sc->sc_tv_acquiry_total = ktime_add(sc->sc_tv_acquiry_total,
++					    ktime_sub(nst->st_send_time,
++						      nst->st_sock_time));
++	sc->sc_send_count++;
++}
++
++static void r2net_update_recv_stats(struct r2net_sock_container *sc)
++{
++	sc->sc_tv_process_total = ktime_add(sc->sc_tv_process_total,
++					    r2net_get_func_run_time(sc));
++	sc->sc_recv_count++;
++}
++
++#else
++
++# define r2net_update_send_stats(a, b)
++
++# define r2net_update_recv_stats(sc)
++
++#endif /* CONFIG_RAMSTER_FS_STATS */
++
++static inline int r2net_reconnect_delay(void)
++{
++	return r2nm_single_cluster->cl_reconnect_delay_ms;
++}
++
++static inline int r2net_keepalive_delay(void)
++{
++	return r2nm_single_cluster->cl_keepalive_delay_ms;
++}
++
++static inline int r2net_idle_timeout(void)
++{
++	return r2nm_single_cluster->cl_idle_timeout_ms;
++}
++
++static inline int r2net_sys_err_to_errno(enum r2net_system_error err)
++{
++	int trans;
++	BUG_ON(err >= R2NET_ERR_MAX);
++	trans = r2net_sys_err_translations[err];
++
++	/* Just in case we mess up the translation table above */
++	BUG_ON(err != R2NET_ERR_NONE && trans == 0);
++	return trans;
++}
++
++struct r2net_node *r2net_nn_from_num(u8 node_num)
++{
++	BUG_ON(node_num >= ARRAY_SIZE(r2net_nodes));
++	return &r2net_nodes[node_num];
++}
++
++static u8 r2net_num_from_nn(struct r2net_node *nn)
++{
++	BUG_ON(nn == NULL);
++	return nn - r2net_nodes;
++}
++
++/* ------------------------------------------------------------ */
++
++static int r2net_prep_nsw(struct r2net_node *nn, struct r2net_status_wait *nsw)
++{
++	int ret = 0;
++
++	do {
++		if (!idr_pre_get(&nn->nn_status_idr, GFP_ATOMIC)) {
++			ret = -EAGAIN;
++			break;
++		}
++		spin_lock(&nn->nn_lock);
++		ret = idr_get_new(&nn->nn_status_idr, nsw, &nsw->ns_id);
++		if (ret == 0)
++			list_add_tail(&nsw->ns_node_item,
++				      &nn->nn_status_list);
++		spin_unlock(&nn->nn_lock);
++	} while (ret == -EAGAIN);
++
++	if (ret == 0)  {
++		init_waitqueue_head(&nsw->ns_wq);
++		nsw->ns_sys_status = R2NET_ERR_NONE;
++		nsw->ns_status = 0;
++	}
++
++	return ret;
++}
++
++static void r2net_complete_nsw_locked(struct r2net_node *nn,
++				      struct r2net_status_wait *nsw,
++				      enum r2net_system_error sys_status,
++				      s32 status)
++{
++	assert_spin_locked(&nn->nn_lock);
++
++	if (!list_empty(&nsw->ns_node_item)) {
++		list_del_init(&nsw->ns_node_item);
++		nsw->ns_sys_status = sys_status;
++		nsw->ns_status = status;
++		idr_remove(&nn->nn_status_idr, nsw->ns_id);
++		wake_up(&nsw->ns_wq);
++	}
++}
++
++static void r2net_complete_nsw(struct r2net_node *nn,
++			       struct r2net_status_wait *nsw,
++			       u64 id, enum r2net_system_error sys_status,
++			       s32 status)
++{
++	spin_lock(&nn->nn_lock);
++	if (nsw == NULL) {
++		if (id > INT_MAX)
++			goto out;
++
++		nsw = idr_find(&nn->nn_status_idr, id);
++		if (nsw == NULL)
++			goto out;
++	}
++
++	r2net_complete_nsw_locked(nn, nsw, sys_status, status);
++
++out:
++	spin_unlock(&nn->nn_lock);
++	return;
++}
++
++static void r2net_complete_nodes_nsw(struct r2net_node *nn)
++{
++	struct r2net_status_wait *nsw, *tmp;
++	unsigned int num_kills = 0;
++
++	assert_spin_locked(&nn->nn_lock);
++
++	list_for_each_entry_safe(nsw, tmp, &nn->nn_status_list, ns_node_item) {
++		r2net_complete_nsw_locked(nn, nsw, R2NET_ERR_DIED, 0);
++		num_kills++;
++	}
++
++	mlog(0, "completed %d messages for node %u\n", num_kills,
++	     r2net_num_from_nn(nn));
++}
++
++static int r2net_nsw_completed(struct r2net_node *nn,
++			       struct r2net_status_wait *nsw)
++{
++	int completed;
++	spin_lock(&nn->nn_lock);
++	completed = list_empty(&nsw->ns_node_item);
++	spin_unlock(&nn->nn_lock);
++	return completed;
++}
++
++/* ------------------------------------------------------------ */
++
++static void sc_kref_release(struct kref *kref)
++{
++	struct r2net_sock_container *sc = container_of(kref,
++					struct r2net_sock_container, sc_kref);
++	BUG_ON(timer_pending(&sc->sc_idle_timeout));
++
++	sclog(sc, "releasing\n");
++
++	if (sc->sc_sock) {
++		sock_release(sc->sc_sock);
++		sc->sc_sock = NULL;
++	}
++
++	r2nm_undepend_item(&sc->sc_node->nd_item);
++	r2nm_node_put(sc->sc_node);
++	sc->sc_node = NULL;
++
++	r2net_debug_del_sc(sc);
++	kfree(sc);
++}
++
++static void sc_put(struct r2net_sock_container *sc)
++{
++	sclog(sc, "put\n");
++	kref_put(&sc->sc_kref, sc_kref_release);
++}
++static void sc_get(struct r2net_sock_container *sc)
++{
++	sclog(sc, "get\n");
++	kref_get(&sc->sc_kref);
++}
++static struct r2net_sock_container *sc_alloc(struct r2nm_node *node)
++{
++	struct r2net_sock_container *sc, *ret = NULL;
++	struct page *page = NULL;
++	int status = 0;
++
++	page = alloc_page(GFP_NOFS);
++	sc = kzalloc(sizeof(*sc), GFP_NOFS);
++	if (sc == NULL || page == NULL)
++		goto out;
++
++	kref_init(&sc->sc_kref);
++	r2nm_node_get(node);
++	sc->sc_node = node;
++
++	/* pin the node item of the remote node */
++	status = r2nm_depend_item(&node->nd_item);
++	if (status) {
++		mlog_errno(status);
++		r2nm_node_put(node);
++		goto out;
++	}
++	INIT_WORK(&sc->sc_connect_work, r2net_sc_connect_completed);
++	INIT_WORK(&sc->sc_rx_work, r2net_rx_until_empty);
++	INIT_WORK(&sc->sc_shutdown_work, r2net_shutdown_sc);
++	INIT_DELAYED_WORK(&sc->sc_keepalive_work, r2net_sc_send_keep_req);
++
++	init_timer(&sc->sc_idle_timeout);
++	sc->sc_idle_timeout.function = r2net_idle_timer;
++	sc->sc_idle_timeout.data = (unsigned long)sc;
++
++	sclog(sc, "alloced\n");
++
++	ret = sc;
++	sc->sc_page = page;
++	r2net_debug_add_sc(sc);
++	sc = NULL;
++	page = NULL;
++
++out:
++	if (page)
++		__free_page(page);
++	kfree(sc);
++
++	return ret;
++}
++
++/* ------------------------------------------------------------ */
++
++static void r2net_sc_queue_work(struct r2net_sock_container *sc,
++				struct work_struct *work)
++{
++	sc_get(sc);
++	if (!queue_work(r2net_wq, work))
++		sc_put(sc);
++}
++static void r2net_sc_queue_delayed_work(struct r2net_sock_container *sc,
++					struct delayed_work *work,
++					int delay)
++{
++	sc_get(sc);
++	if (!queue_delayed_work(r2net_wq, work, delay))
++		sc_put(sc);
++}
++static void r2net_sc_cancel_delayed_work(struct r2net_sock_container *sc,
++					 struct delayed_work *work)
++{
++	if (cancel_delayed_work(work))
++		sc_put(sc);
++}
++
++static atomic_t r2net_connected_peers = ATOMIC_INIT(0);
++
++int r2net_num_connected_peers(void)
++{
++	return atomic_read(&r2net_connected_peers);
++}
++
++static void r2net_set_nn_state(struct r2net_node *nn,
++			       struct r2net_sock_container *sc,
++			       unsigned valid, int err)
++{
++	int was_valid = nn->nn_sc_valid;
++	int was_err = nn->nn_persistent_error;
++	struct r2net_sock_container *old_sc = nn->nn_sc;
++
++	assert_spin_locked(&nn->nn_lock);
++
++	if (old_sc && !sc)
++		atomic_dec(&r2net_connected_peers);
++	else if (!old_sc && sc)
++		atomic_inc(&r2net_connected_peers);
++
++	/* the node num comparison and single connect/accept path should stop
++	 * an non-null sc from being overwritten with another */
++	BUG_ON(sc && nn->nn_sc && nn->nn_sc != sc);
++	mlog_bug_on_msg(err && valid, "err %d valid %u\n", err, valid);
++	mlog_bug_on_msg(valid && !sc, "valid %u sc %p\n", valid, sc);
++
++	if (was_valid && !valid && err == 0)
++		err = -ENOTCONN;
++
++	mlog(ML_CONN, "node %u sc: %p -> %p, valid %u -> %u, err %d -> %d\n",
++	     r2net_num_from_nn(nn), nn->nn_sc, sc, nn->nn_sc_valid, valid,
++	     nn->nn_persistent_error, err);
++
++	nn->nn_sc = sc;
++	nn->nn_sc_valid = valid ? 1 : 0;
++	nn->nn_persistent_error = err;
++
++	/* mirrors r2net_tx_can_proceed() */
++	if (nn->nn_persistent_error || nn->nn_sc_valid)
++		wake_up(&nn->nn_sc_wq);
++
++	if (!was_err && nn->nn_persistent_error) {
++		queue_delayed_work(r2net_wq, &nn->nn_still_up,
++				   msecs_to_jiffies(R2NET_QUORUM_DELAY_MS));
++	}
++
++	if (was_valid && !valid) {
++		pr_notice("ramster: No longer connected to " SC_NODEF_FMT "\n",
++			old_sc->sc_node->nd_name, old_sc->sc_node->nd_num,
++			&old_sc->sc_node->nd_ipv4_address,
++			ntohs(old_sc->sc_node->nd_ipv4_port));
++		r2net_complete_nodes_nsw(nn);
++	}
++
++	if (!was_valid && valid) {
++		cancel_delayed_work(&nn->nn_connect_expired);
++		pr_notice("ramster: %s " SC_NODEF_FMT "\n",
++		       r2nm_this_node() > sc->sc_node->nd_num ?
++		       "Connected to" : "Accepted connection from",
++		       sc->sc_node->nd_name, sc->sc_node->nd_num,
++			&sc->sc_node->nd_ipv4_address,
++			ntohs(sc->sc_node->nd_ipv4_port));
++	}
++
++	/* trigger the connecting worker func as long as we're not valid,
++	 * it will back off if it shouldn't connect.  This can be called
++	 * from node config teardown and so needs to be careful about
++	 * the work queue actually being up. */
++	if (!valid && r2net_wq) {
++		unsigned long delay;
++		/* delay if we're within a RECONNECT_DELAY of the
++		 * last attempt */
++		delay = (nn->nn_last_connect_attempt +
++			 msecs_to_jiffies(r2net_reconnect_delay()))
++			- jiffies;
++		if (delay > msecs_to_jiffies(r2net_reconnect_delay()))
++			delay = 0;
++		mlog(ML_CONN, "queueing conn attempt in %lu jiffies\n", delay);
++		queue_delayed_work(r2net_wq, &nn->nn_connect_work, delay);
++
++		/*
++		 * Delay the expired work after idle timeout.
++		 *
++		 * We might have lots of failed connection attempts that run
++		 * through here but we only cancel the connect_expired work when
++		 * a connection attempt succeeds.  So only the first enqueue of
++		 * the connect_expired work will do anything.  The rest will see
++		 * that it's already queued and do nothing.
++		 */
++		delay += msecs_to_jiffies(r2net_idle_timeout());
++		queue_delayed_work(r2net_wq, &nn->nn_connect_expired, delay);
++	}
++
++	/* keep track of the nn's sc ref for the caller */
++	if ((old_sc == NULL) && sc)
++		sc_get(sc);
++	if (old_sc && (old_sc != sc)) {
++		r2net_sc_queue_work(old_sc, &old_sc->sc_shutdown_work);
++		sc_put(old_sc);
++	}
++}
++
++/* see r2net_register_callbacks() */
++static void r2net_data_ready(struct sock *sk, int bytes)
++{
++	void (*ready)(struct sock *sk, int bytes);
++
++	read_lock(&sk->sk_callback_lock);
++	if (sk->sk_user_data) {
++		struct r2net_sock_container *sc = sk->sk_user_data;
++		sclog(sc, "data_ready hit\n");
++		r2net_set_data_ready_time(sc);
++		r2net_sc_queue_work(sc, &sc->sc_rx_work);
++		ready = sc->sc_data_ready;
++	} else {
++		ready = sk->sk_data_ready;
++	}
++	read_unlock(&sk->sk_callback_lock);
++
++	ready(sk, bytes);
++}
++
++/* see r2net_register_callbacks() */
++static void r2net_state_change(struct sock *sk)
++{
++	void (*state_change)(struct sock *sk);
++	struct r2net_sock_container *sc;
++
++	read_lock(&sk->sk_callback_lock);
++	sc = sk->sk_user_data;
++	if (sc == NULL) {
++		state_change = sk->sk_state_change;
++		goto out;
++	}
++
++	sclog(sc, "state_change to %d\n", sk->sk_state);
++
++	state_change = sc->sc_state_change;
++
++	switch (sk->sk_state) {
++
++	/* ignore connecting sockets as they make progress */
++	case TCP_SYN_SENT:
++	case TCP_SYN_RECV:
++		break;
++	case TCP_ESTABLISHED:
++		r2net_sc_queue_work(sc, &sc->sc_connect_work);
++		break;
++	default:
++		pr_info("ramster: Connection to "
++			SC_NODEF_FMT " shutdown, state %d\n",
++			sc->sc_node->nd_name, sc->sc_node->nd_num,
++			&sc->sc_node->nd_ipv4_address,
++			ntohs(sc->sc_node->nd_ipv4_port), sk->sk_state);
++		r2net_sc_queue_work(sc, &sc->sc_shutdown_work);
++		break;
++
++	}
++out:
++	read_unlock(&sk->sk_callback_lock);
++	state_change(sk);
++}
++
++/*
++ * we register callbacks so we can queue work on events before calling
++ * the original callbacks.  our callbacks are careful to test user_data
++ * to discover when they've reaced with r2net_unregister_callbacks().
++ */
++static void r2net_register_callbacks(struct sock *sk,
++				     struct r2net_sock_container *sc)
++{
++	write_lock_bh(&sk->sk_callback_lock);
++
++	/* accepted sockets inherit the old listen socket data ready */
++	if (sk->sk_data_ready == r2net_listen_data_ready) {
++		sk->sk_data_ready = sk->sk_user_data;
++		sk->sk_user_data = NULL;
++	}
++
++	BUG_ON(sk->sk_user_data != NULL);
++	sk->sk_user_data = sc;
++	sc_get(sc);
++
++	sc->sc_data_ready = sk->sk_data_ready;
++	sc->sc_state_change = sk->sk_state_change;
++	sk->sk_data_ready = r2net_data_ready;
++	sk->sk_state_change = r2net_state_change;
++
++	mutex_init(&sc->sc_send_lock);
++
++	write_unlock_bh(&sk->sk_callback_lock);
++}
++
++static int r2net_unregister_callbacks(struct sock *sk,
++					struct r2net_sock_container *sc)
++{
++	int ret = 0;
++
++	write_lock_bh(&sk->sk_callback_lock);
++	if (sk->sk_user_data == sc) {
++		ret = 1;
++		sk->sk_user_data = NULL;
++		sk->sk_data_ready = sc->sc_data_ready;
++		sk->sk_state_change = sc->sc_state_change;
++	}
++	write_unlock_bh(&sk->sk_callback_lock);
++
++	return ret;
++}
++
++/*
++ * this is a little helper that is called by callers who have seen a problem
++ * with an sc and want to detach it from the nn if someone already hasn't beat
++ * them to it.  if an error is given then the shutdown will be persistent
++ * and pending transmits will be canceled.
++ */
++static void r2net_ensure_shutdown(struct r2net_node *nn,
++					struct r2net_sock_container *sc,
++				   int err)
++{
++	spin_lock(&nn->nn_lock);
++	if (nn->nn_sc == sc)
++		r2net_set_nn_state(nn, NULL, 0, err);
++	spin_unlock(&nn->nn_lock);
++}
++
++/*
++ * This work queue function performs the blocking parts of socket shutdown.  A
++ * few paths lead here.  set_nn_state will trigger this callback if it sees an
++ * sc detached from the nn.  state_change will also trigger this callback
++ * directly when it sees errors.  In that case we need to call set_nn_state
++ * ourselves as state_change couldn't get the nn_lock and call set_nn_state
++ * itself.
++ */
++static void r2net_shutdown_sc(struct work_struct *work)
++{
++	struct r2net_sock_container *sc =
++		container_of(work, struct r2net_sock_container,
++			     sc_shutdown_work);
++	struct r2net_node *nn = r2net_nn_from_num(sc->sc_node->nd_num);
++
++	sclog(sc, "shutting down\n");
++
++	/* drop the callbacks ref and call shutdown only once */
++	if (r2net_unregister_callbacks(sc->sc_sock->sk, sc)) {
++		/* we shouldn't flush as we're in the thread, the
++		 * races with pending sc work structs are harmless */
++		del_timer_sync(&sc->sc_idle_timeout);
++		r2net_sc_cancel_delayed_work(sc, &sc->sc_keepalive_work);
++		sc_put(sc);
++		kernel_sock_shutdown(sc->sc_sock, SHUT_RDWR);
++	}
++
++	/* not fatal so failed connects before the other guy has our
++	 * heartbeat can be retried */
++	r2net_ensure_shutdown(nn, sc, 0);
++	sc_put(sc);
++}
++
++/* ------------------------------------------------------------ */
++
++static int r2net_handler_cmp(struct r2net_msg_handler *nmh, u32 msg_type,
++			     u32 key)
++{
++	int ret = memcmp(&nmh->nh_key, &key, sizeof(key));
++
++	if (ret == 0)
++		ret = memcmp(&nmh->nh_msg_type, &msg_type, sizeof(msg_type));
++
++	return ret;
++}
++
++static struct r2net_msg_handler *
++r2net_handler_tree_lookup(u32 msg_type, u32 key, struct rb_node ***ret_p,
++				struct rb_node **ret_parent)
++{
++	struct rb_node **p = &r2net_handler_tree.rb_node;
++	struct rb_node *parent = NULL;
++	struct r2net_msg_handler *nmh, *ret = NULL;
++	int cmp;
++
++	while (*p) {
++		parent = *p;
++		nmh = rb_entry(parent, struct r2net_msg_handler, nh_node);
++		cmp = r2net_handler_cmp(nmh, msg_type, key);
++
++		if (cmp < 0)
++			p = &(*p)->rb_left;
++		else if (cmp > 0)
++			p = &(*p)->rb_right;
++		else {
++			ret = nmh;
++			break;
++		}
++	}
++
++	if (ret_p != NULL)
++		*ret_p = p;
++	if (ret_parent != NULL)
++		*ret_parent = parent;
++
++	return ret;
++}
++
++static void r2net_handler_kref_release(struct kref *kref)
++{
++	struct r2net_msg_handler *nmh;
++	nmh = container_of(kref, struct r2net_msg_handler, nh_kref);
++
++	kfree(nmh);
++}
++
++static void r2net_handler_put(struct r2net_msg_handler *nmh)
++{
++	kref_put(&nmh->nh_kref, r2net_handler_kref_release);
++}
++
++/* max_len is protection for the handler func.  incoming messages won't
++ * be given to the handler if their payload is longer than the max. */
++int r2net_register_handler(u32 msg_type, u32 key, u32 max_len,
++			   r2net_msg_handler_func *func, void *data,
++			   r2net_post_msg_handler_func *post_func,
++			   struct list_head *unreg_list)
++{
++	struct r2net_msg_handler *nmh = NULL;
++	struct rb_node **p, *parent;
++	int ret = 0;
++
++	if (max_len > R2NET_MAX_PAYLOAD_BYTES) {
++		mlog(0, "max_len for message handler out of range: %u\n",
++			max_len);
++		ret = -EINVAL;
++		goto out;
++	}
++
++	if (!msg_type) {
++		mlog(0, "no message type provided: %u, %p\n", msg_type, func);
++		ret = -EINVAL;
++		goto out;
++
++	}
++	if (!func) {
++		mlog(0, "no message handler provided: %u, %p\n",
++		       msg_type, func);
++		ret = -EINVAL;
++		goto out;
++	}
++
++	nmh = kzalloc(sizeof(struct r2net_msg_handler), GFP_NOFS);
++	if (nmh == NULL) {
++		ret = -ENOMEM;
++		goto out;
++	}
++
++	nmh->nh_func = func;
++	nmh->nh_func_data = data;
++	nmh->nh_post_func = post_func;
++	nmh->nh_msg_type = msg_type;
++	nmh->nh_max_len = max_len;
++	nmh->nh_key = key;
++	/* the tree and list get this ref.. they're both removed in
++	 * unregister when this ref is dropped */
++	kref_init(&nmh->nh_kref);
++	INIT_LIST_HEAD(&nmh->nh_unregister_item);
++
++	write_lock(&r2net_handler_lock);
++	if (r2net_handler_tree_lookup(msg_type, key, &p, &parent))
++		ret = -EEXIST;
++	else {
++		rb_link_node(&nmh->nh_node, parent, p);
++		rb_insert_color(&nmh->nh_node, &r2net_handler_tree);
++		list_add_tail(&nmh->nh_unregister_item, unreg_list);
++
++		mlog(ML_TCP, "registered handler func %p type %u key %08x\n",
++		     func, msg_type, key);
++		/* we've had some trouble with handlers seemingly vanishing. */
++		mlog_bug_on_msg(r2net_handler_tree_lookup(msg_type, key, &p,
++							  &parent) == NULL,
++				"couldn't find handler we *just* registered "
++				"for type %u key %08x\n", msg_type, key);
++	}
++	write_unlock(&r2net_handler_lock);
++	if (ret)
++		goto out;
++
++out:
++	if (ret)
++		kfree(nmh);
++
++	return ret;
++}
++EXPORT_SYMBOL_GPL(r2net_register_handler);
++
++void r2net_unregister_handler_list(struct list_head *list)
++{
++	struct r2net_msg_handler *nmh, *n;
++
++	write_lock(&r2net_handler_lock);
++	list_for_each_entry_safe(nmh, n, list, nh_unregister_item) {
++		mlog(ML_TCP, "unregistering handler func %p type %u key %08x\n",
++		     nmh->nh_func, nmh->nh_msg_type, nmh->nh_key);
++		rb_erase(&nmh->nh_node, &r2net_handler_tree);
++		list_del_init(&nmh->nh_unregister_item);
++		kref_put(&nmh->nh_kref, r2net_handler_kref_release);
++	}
++	write_unlock(&r2net_handler_lock);
++}
++EXPORT_SYMBOL_GPL(r2net_unregister_handler_list);
++
++static struct r2net_msg_handler *r2net_handler_get(u32 msg_type, u32 key)
++{
++	struct r2net_msg_handler *nmh;
++
++	read_lock(&r2net_handler_lock);
++	nmh = r2net_handler_tree_lookup(msg_type, key, NULL, NULL);
++	if (nmh)
++		kref_get(&nmh->nh_kref);
++	read_unlock(&r2net_handler_lock);
++
++	return nmh;
++}
++
++/* ------------------------------------------------------------ */
++
++static int r2net_recv_tcp_msg(struct socket *sock, void *data, size_t len)
++{
++	int ret;
++	mm_segment_t oldfs;
++	struct kvec vec = {
++		.iov_len = len,
++		.iov_base = data,
++	};
++	struct msghdr msg = {
++		.msg_iovlen = 1,
++		.msg_iov = (struct iovec *)&vec,
++		.msg_flags = MSG_DONTWAIT,
++	};
++
++	oldfs = get_fs();
++	set_fs(get_ds());
++	ret = sock_recvmsg(sock, &msg, len, msg.msg_flags);
++	set_fs(oldfs);
++
++	return ret;
++}
++
++static int r2net_send_tcp_msg(struct socket *sock, struct kvec *vec,
++			      size_t veclen, size_t total)
++{
++	int ret;
++	mm_segment_t oldfs;
++	struct msghdr msg = {
++		.msg_iov = (struct iovec *)vec,
++		.msg_iovlen = veclen,
++	};
++
++	if (sock == NULL) {
++		ret = -EINVAL;
++		goto out;
++	}
++
++	oldfs = get_fs();
++	set_fs(get_ds());
++	ret = sock_sendmsg(sock, &msg, total);
++	set_fs(oldfs);
++	if (ret != total) {
++		mlog(ML_ERROR, "sendmsg returned %d instead of %zu\n", ret,
++		     total);
++		if (ret >= 0)
++			ret = -EPIPE; /* should be smarter, I bet */
++		goto out;
++	}
++
++	ret = 0;
++out:
++	if (ret < 0)
++		mlog(0, "returning error: %d\n", ret);
++	return ret;
++}
++
++static void r2net_sendpage(struct r2net_sock_container *sc,
++			   void *kmalloced_virt,
++			   size_t size)
++{
++	struct r2net_node *nn = r2net_nn_from_num(sc->sc_node->nd_num);
++	ssize_t ret;
++
++	while (1) {
++		mutex_lock(&sc->sc_send_lock);
++		ret = sc->sc_sock->ops->sendpage(sc->sc_sock,
++					virt_to_page(kmalloced_virt),
++					(long)kmalloced_virt & ~PAGE_MASK,
++					size, MSG_DONTWAIT);
++		mutex_unlock(&sc->sc_send_lock);
++		if (ret == size)
++			break;
++		if (ret == (ssize_t)-EAGAIN) {
++			mlog(0, "sendpage of size %zu to " SC_NODEF_FMT
++			     " returned EAGAIN\n", size, sc->sc_node->nd_name,
++				sc->sc_node->nd_num,
++				&sc->sc_node->nd_ipv4_address,
++				ntohs(sc->sc_node->nd_ipv4_port));
++			cond_resched();
++			continue;
++		}
++		mlog(ML_ERROR, "sendpage of size %zu to " SC_NODEF_FMT
++		     " failed with %zd\n", size, sc->sc_node->nd_name,
++			sc->sc_node->nd_num, &sc->sc_node->nd_ipv4_address,
++			ntohs(sc->sc_node->nd_ipv4_port), ret);
++		r2net_ensure_shutdown(nn, sc, 0);
++		break;
++	}
++}
++
++static void r2net_init_msg(struct r2net_msg *msg, u16 data_len,
++				u16 msg_type, u32 key)
++{
++	memset(msg, 0, sizeof(struct r2net_msg));
++	msg->magic = cpu_to_be16(R2NET_MSG_MAGIC);
++	msg->data_len = cpu_to_be16(data_len);
++	msg->msg_type = cpu_to_be16(msg_type);
++	msg->sys_status = cpu_to_be32(R2NET_ERR_NONE);
++	msg->status = 0;
++	msg->key = cpu_to_be32(key);
++}
++
++static int r2net_tx_can_proceed(struct r2net_node *nn,
++				struct r2net_sock_container **sc_ret,
++				int *error)
++{
++	int ret = 0;
++
++	spin_lock(&nn->nn_lock);
++	if (nn->nn_persistent_error) {
++		ret = 1;
++		*sc_ret = NULL;
++		*error = nn->nn_persistent_error;
++	} else if (nn->nn_sc_valid) {
++		kref_get(&nn->nn_sc->sc_kref);
++
++		ret = 1;
++		*sc_ret = nn->nn_sc;
++		*error = 0;
++	}
++	spin_unlock(&nn->nn_lock);
++
++	return ret;
++}
++
++/* Get a map of all nodes to which this node is currently connected to */
++void r2net_fill_node_map(unsigned long *map, unsigned bytes)
++{
++	struct r2net_sock_container *sc;
++	int node, ret;
++
++	BUG_ON(bytes < (BITS_TO_LONGS(R2NM_MAX_NODES) * sizeof(unsigned long)));
++
++	memset(map, 0, bytes);
++	for (node = 0; node < R2NM_MAX_NODES; ++node) {
++		r2net_tx_can_proceed(r2net_nn_from_num(node), &sc, &ret);
++		if (!ret) {
++			set_bit(node, map);
++			sc_put(sc);
++		}
++	}
++}
++EXPORT_SYMBOL_GPL(r2net_fill_node_map);
++
++int r2net_send_message_vec(u32 msg_type, u32 key, struct kvec *caller_vec,
++			   size_t caller_veclen, u8 target_node, int *status)
++{
++	int ret = 0;
++	struct r2net_msg *msg = NULL;
++	size_t veclen, caller_bytes = 0;
++	struct kvec *vec = NULL;
++	struct r2net_sock_container *sc = NULL;
++	struct r2net_node *nn = r2net_nn_from_num(target_node);
++	struct r2net_status_wait nsw = {
++		.ns_node_item = LIST_HEAD_INIT(nsw.ns_node_item),
++	};
++	struct r2net_send_tracking nst;
++
++	/* this may be a general bug fix */
++	init_waitqueue_head(&nsw.ns_wq);
++
++	r2net_init_nst(&nst, msg_type, key, current, target_node);
++
++	if (r2net_wq == NULL) {
++		mlog(0, "attempt to tx without r2netd running\n");
++		ret = -ESRCH;
++		goto out;
++	}
++
++	if (caller_veclen == 0) {
++		mlog(0, "bad kvec array length\n");
++		ret = -EINVAL;
++		goto out;
++	}
++
++	caller_bytes = iov_length((struct iovec *)caller_vec, caller_veclen);
++	if (caller_bytes > R2NET_MAX_PAYLOAD_BYTES) {
++		mlog(0, "total payload len %zu too large\n", caller_bytes);
++		ret = -EINVAL;
++		goto out;
++	}
++
++	if (target_node == r2nm_this_node()) {
++		ret = -ELOOP;
++		goto out;
++	}
++
++	r2net_debug_add_nst(&nst);
++
++	r2net_set_nst_sock_time(&nst);
++
++	wait_event(nn->nn_sc_wq, r2net_tx_can_proceed(nn, &sc, &ret));
++	if (ret)
++		goto out;
++
++	r2net_set_nst_sock_container(&nst, sc);
++
++	veclen = caller_veclen + 1;
++	vec = kmalloc(sizeof(struct kvec) * veclen, GFP_ATOMIC);
++	if (vec == NULL) {
++		mlog(0, "failed to %zu element kvec!\n", veclen);
++		ret = -ENOMEM;
++		goto out;
++	}
++
++	msg = kmalloc(sizeof(struct r2net_msg), GFP_ATOMIC);
++	if (!msg) {
++		mlog(0, "failed to allocate a r2net_msg!\n");
++		ret = -ENOMEM;
++		goto out;
++	}
++
++	r2net_init_msg(msg, caller_bytes, msg_type, key);
++
++	vec[0].iov_len = sizeof(struct r2net_msg);
++	vec[0].iov_base = msg;
++	memcpy(&vec[1], caller_vec, caller_veclen * sizeof(struct kvec));
++
++	ret = r2net_prep_nsw(nn, &nsw);
++	if (ret)
++		goto out;
++
++	msg->msg_num = cpu_to_be32(nsw.ns_id);
++	r2net_set_nst_msg_id(&nst, nsw.ns_id);
++
++	r2net_set_nst_send_time(&nst);
++
++	/* finally, convert the message header to network byte-order
++	 * and send */
++	mutex_lock(&sc->sc_send_lock);
++	ret = r2net_send_tcp_msg(sc->sc_sock, vec, veclen,
++				 sizeof(struct r2net_msg) + caller_bytes);
++	mutex_unlock(&sc->sc_send_lock);
++	msglog(msg, "sending returned %d\n", ret);
++	if (ret < 0) {
++		mlog(0, "error returned from r2net_send_tcp_msg=%d\n", ret);
++		goto out;
++	}
++
++	/* wait on other node's handler */
++	r2net_set_nst_status_time(&nst);
++	wait_event(nsw.ns_wq, r2net_nsw_completed(nn, &nsw) ||
++			nn->nn_persistent_error || !nn->nn_sc_valid);
++
++	r2net_update_send_stats(&nst, sc);
++
++	/* Note that we avoid overwriting the callers status return
++	 * variable if a system error was reported on the other
++	 * side. Callers beware. */
++	ret = r2net_sys_err_to_errno(nsw.ns_sys_status);
++	if (status && !ret)
++		*status = nsw.ns_status;
++
++	mlog(0, "woken, returning system status %d, user status %d\n",
++	     ret, nsw.ns_status);
++out:
++	r2net_debug_del_nst(&nst); /* must be before dropping sc and node */
++	if (sc)
++		sc_put(sc);
++	kfree(vec);
++	kfree(msg);
++	r2net_complete_nsw(nn, &nsw, 0, 0, 0);
++	return ret;
++}
++EXPORT_SYMBOL_GPL(r2net_send_message_vec);
++
++int r2net_send_message(u32 msg_type, u32 key, void *data, u32 len,
++		       u8 target_node, int *status)
++{
++	struct kvec vec = {
++		.iov_base = data,
++		.iov_len = len,
++	};
++	return r2net_send_message_vec(msg_type, key, &vec, 1,
++				      target_node, status);
++}
++EXPORT_SYMBOL_GPL(r2net_send_message);
++
++static int r2net_send_status_magic(struct socket *sock, struct r2net_msg *hdr,
++				   enum r2net_system_error syserr, int err)
++{
++	struct kvec vec = {
++		.iov_base = hdr,
++		.iov_len = sizeof(struct r2net_msg),
++	};
++
++	BUG_ON(syserr >= R2NET_ERR_MAX);
++
++	/* leave other fields intact from the incoming message, msg_num
++	 * in particular */
++	hdr->sys_status = cpu_to_be32(syserr);
++	hdr->status = cpu_to_be32(err);
++	/* twiddle the magic */
++	hdr->magic = cpu_to_be16(R2NET_MSG_STATUS_MAGIC);
++	hdr->data_len = 0;
++
++	msglog(hdr, "about to send status magic %d\n", err);
++	/* hdr has been in host byteorder this whole time */
++	return r2net_send_tcp_msg(sock, &vec, 1, sizeof(struct r2net_msg));
++}
++
++/*
++ * "data magic" is a long version of "status magic" where the message
++ * payload actually contains data to be passed in reply to certain messages
++ */
++static int r2net_send_data_magic(struct r2net_sock_container *sc,
++			  struct r2net_msg *hdr,
++			  void *data, size_t data_len,
++			  enum r2net_system_error syserr, int err)
++{
++	struct kvec vec[2];
++	int ret;
++
++	vec[0].iov_base = hdr;
++	vec[0].iov_len = sizeof(struct r2net_msg);
++	vec[1].iov_base = data;
++	vec[1].iov_len = data_len;
++
++	BUG_ON(syserr >= R2NET_ERR_MAX);
++
++	/* leave other fields intact from the incoming message, msg_num
++	 * in particular */
++	hdr->sys_status = cpu_to_be32(syserr);
++	hdr->status = cpu_to_be32(err);
++	hdr->magic = cpu_to_be16(R2NET_MSG_DATA_MAGIC);  /* twiddle magic */
++	hdr->data_len = cpu_to_be16(data_len);
++
++	msglog(hdr, "about to send data magic %d\n", err);
++	/* hdr has been in host byteorder this whole time */
++	ret = r2net_send_tcp_msg(sc->sc_sock, vec, 2,
++			sizeof(struct r2net_msg) + data_len);
++	return ret;
++}
++
++/*
++ * called by a message handler to convert an otherwise normal reply
++ * message into a "data magic" message
++ */
++void r2net_force_data_magic(struct r2net_msg *hdr, u16 msgtype, u32 msgkey)
++{
++	hdr->magic = cpu_to_be16(R2NET_MSG_DATA_MAGIC);
++	hdr->msg_type = cpu_to_be16(msgtype);
++	hdr->key = cpu_to_be32(msgkey);
++}
++
++/* this returns -errno if the header was unknown or too large, etc.
++ * after this is called the buffer us reused for the next message */
++static int r2net_process_message(struct r2net_sock_container *sc,
++				 struct r2net_msg *hdr)
++{
++	struct r2net_node *nn = r2net_nn_from_num(sc->sc_node->nd_num);
++	int ret = 0, handler_status;
++	enum  r2net_system_error syserr;
++	struct r2net_msg_handler *nmh = NULL;
++	void *ret_data = NULL;
++	int data_magic = 0;
++
++	msglog(hdr, "processing message\n");
++
++	r2net_sc_postpone_idle(sc);
++
++	switch (be16_to_cpu(hdr->magic)) {
++
++	case R2NET_MSG_STATUS_MAGIC:
++		/* special type for returning message status */
++		r2net_complete_nsw(nn, NULL, be32_to_cpu(hdr->msg_num),
++						be32_to_cpu(hdr->sys_status),
++						be32_to_cpu(hdr->status));
++		goto out;
++	case R2NET_MSG_KEEP_REQ_MAGIC:
++		r2net_sendpage(sc, r2net_keep_resp, sizeof(*r2net_keep_resp));
++		goto out;
++	case R2NET_MSG_KEEP_RESP_MAGIC:
++		goto out;
++	case R2NET_MSG_MAGIC:
++		break;
++	case R2NET_MSG_DATA_MAGIC:
++		/*
++		 * unlike a normal status magic, a data magic DOES
++		 * (MUST) have a handler, so the control flow is
++		 * a little funky here as a result
++		 */
++		data_magic = 1;
++		break;
++	default:
++		msglog(hdr, "bad magic\n");
++		ret = -EINVAL;
++		goto out;
++		break;
++	}
++
++	/* find a handler for it */
++	handler_status = 0;
++	nmh = r2net_handler_get(be16_to_cpu(hdr->msg_type),
++				be32_to_cpu(hdr->key));
++	if (!nmh) {
++		mlog(ML_TCP, "couldn't find handler for type %u key %08x\n",
++		     be16_to_cpu(hdr->msg_type), be32_to_cpu(hdr->key));
++		syserr = R2NET_ERR_NO_HNDLR;
++		goto out_respond;
++	}
++
++	syserr = R2NET_ERR_NONE;
++
++	if (be16_to_cpu(hdr->data_len) > nmh->nh_max_len)
++		syserr = R2NET_ERR_OVERFLOW;
++
++	if (syserr != R2NET_ERR_NONE) {
++		pr_err("ramster_r2net, message length problem\n");
++		goto out_respond;
++	}
++
++	r2net_set_func_start_time(sc);
++	sc->sc_msg_key = be32_to_cpu(hdr->key);
++	sc->sc_msg_type = be16_to_cpu(hdr->msg_type);
++	handler_status = (nmh->nh_func)(hdr, sizeof(struct r2net_msg) +
++					     be16_to_cpu(hdr->data_len),
++					nmh->nh_func_data, &ret_data);
++	if (data_magic) {
++		/*
++		 * handler handled data sent in reply to request
++		 * so complete the transaction
++		 */
++		r2net_complete_nsw(nn, NULL, be32_to_cpu(hdr->msg_num),
++			be32_to_cpu(hdr->sys_status), handler_status);
++		goto out;
++	}
++	/*
++	 * handler changed magic to DATA_MAGIC to reply to request for data,
++	 * implies ret_data points to data to return and handler_status
++	 * is the number of bytes of data
++	 */
++	if (be16_to_cpu(hdr->magic) == R2NET_MSG_DATA_MAGIC) {
++		ret = r2net_send_data_magic(sc, hdr,
++						ret_data, handler_status,
++						syserr, 0);
++		hdr = NULL;
++		mlog(0, "sending data reply %d, syserr %d returned %d\n",
++			handler_status, syserr, ret);
++		r2net_set_func_stop_time(sc);
++
++		r2net_update_recv_stats(sc);
++		goto out;
++	}
++	r2net_set_func_stop_time(sc);
++
++	r2net_update_recv_stats(sc);
++
++out_respond:
++	/* this destroys the hdr, so don't use it after this */
++	mutex_lock(&sc->sc_send_lock);
++	ret = r2net_send_status_magic(sc->sc_sock, hdr, syserr,
++				      handler_status);
++	mutex_unlock(&sc->sc_send_lock);
++	hdr = NULL;
++	mlog(0, "sending handler status %d, syserr %d returned %d\n",
++	     handler_status, syserr, ret);
++
++	if (nmh) {
++		BUG_ON(ret_data != NULL && nmh->nh_post_func == NULL);
++		if (nmh->nh_post_func)
++			(nmh->nh_post_func)(handler_status, nmh->nh_func_data,
++					    ret_data);
++	}
++
++out:
++	if (nmh)
++		r2net_handler_put(nmh);
++	return ret;
++}
++
++static int r2net_check_handshake(struct r2net_sock_container *sc)
++{
++	struct r2net_handshake *hand = page_address(sc->sc_page);
++	struct r2net_node *nn = r2net_nn_from_num(sc->sc_node->nd_num);
++
++	if (hand->protocol_version != cpu_to_be64(R2NET_PROTOCOL_VERSION)) {
++		pr_notice("ramster: " SC_NODEF_FMT " Advertised net "
++		       "protocol version %llu but %llu is required. "
++		       "Disconnecting.\n", sc->sc_node->nd_name,
++			sc->sc_node->nd_num, &sc->sc_node->nd_ipv4_address,
++			ntohs(sc->sc_node->nd_ipv4_port),
++		       (unsigned long long)be64_to_cpu(hand->protocol_version),
++		       R2NET_PROTOCOL_VERSION);
++
++		/* don't bother reconnecting if its the wrong version. */
++		r2net_ensure_shutdown(nn, sc, -ENOTCONN);
++		return -1;
++	}
++
++	/*
++	 * Ensure timeouts are consistent with other nodes, otherwise
++	 * we can end up with one node thinking that the other must be down,
++	 * but isn't. This can ultimately cause corruption.
++	 */
++	if (be32_to_cpu(hand->r2net_idle_timeout_ms) !=
++				r2net_idle_timeout()) {
++		pr_notice("ramster: " SC_NODEF_FMT " uses a network "
++		       "idle timeout of %u ms, but we use %u ms locally. "
++		       "Disconnecting.\n", sc->sc_node->nd_name,
++			sc->sc_node->nd_num, &sc->sc_node->nd_ipv4_address,
++			ntohs(sc->sc_node->nd_ipv4_port),
++		       be32_to_cpu(hand->r2net_idle_timeout_ms),
++		       r2net_idle_timeout());
++		r2net_ensure_shutdown(nn, sc, -ENOTCONN);
++		return -1;
++	}
++
++	if (be32_to_cpu(hand->r2net_keepalive_delay_ms) !=
++			r2net_keepalive_delay()) {
++		pr_notice("ramster: " SC_NODEF_FMT " uses a keepalive "
++		       "delay of %u ms, but we use %u ms locally. "
++		       "Disconnecting.\n", sc->sc_node->nd_name,
++			sc->sc_node->nd_num, &sc->sc_node->nd_ipv4_address,
++			ntohs(sc->sc_node->nd_ipv4_port),
++		       be32_to_cpu(hand->r2net_keepalive_delay_ms),
++		       r2net_keepalive_delay());
++		r2net_ensure_shutdown(nn, sc, -ENOTCONN);
++		return -1;
++	}
++
++	if (be32_to_cpu(hand->r2hb_heartbeat_timeout_ms) !=
++			R2HB_MAX_WRITE_TIMEOUT_MS) {
++		pr_notice("ramster: " SC_NODEF_FMT " uses a heartbeat "
++		       "timeout of %u ms, but we use %u ms locally. "
++		       "Disconnecting.\n", sc->sc_node->nd_name,
++			sc->sc_node->nd_num, &sc->sc_node->nd_ipv4_address,
++			ntohs(sc->sc_node->nd_ipv4_port),
++		       be32_to_cpu(hand->r2hb_heartbeat_timeout_ms),
++		       R2HB_MAX_WRITE_TIMEOUT_MS);
++		r2net_ensure_shutdown(nn, sc, -ENOTCONN);
++		return -1;
++	}
++
++	sc->sc_handshake_ok = 1;
++
++	spin_lock(&nn->nn_lock);
++	/* set valid and queue the idle timers only if it hasn't been
++	 * shut down already */
++	if (nn->nn_sc == sc) {
++		r2net_sc_reset_idle_timer(sc);
++		atomic_set(&nn->nn_timeout, 0);
++		r2net_set_nn_state(nn, sc, 1, 0);
++	}
++	spin_unlock(&nn->nn_lock);
++
++	/* shift everything up as though it wasn't there */
++	sc->sc_page_off -= sizeof(struct r2net_handshake);
++	if (sc->sc_page_off)
++		memmove(hand, hand + 1, sc->sc_page_off);
++
++	return 0;
++}
++
++/* this demuxes the queued rx bytes into header or payload bits and calls
++ * handlers as each full message is read off the socket.  it returns -error,
++ * == 0 eof, or > 0 for progress made.*/
++static int r2net_advance_rx(struct r2net_sock_container *sc)
++{
++	struct r2net_msg *hdr;
++	int ret = 0;
++	void *data;
++	size_t datalen;
++
++	sclog(sc, "receiving\n");
++	r2net_set_advance_start_time(sc);
++
++	if (unlikely(sc->sc_handshake_ok == 0)) {
++		if (sc->sc_page_off < sizeof(struct r2net_handshake)) {
++			data = page_address(sc->sc_page) + sc->sc_page_off;
++			datalen = sizeof(struct r2net_handshake) -
++							sc->sc_page_off;
++			ret = r2net_recv_tcp_msg(sc->sc_sock, data, datalen);
++			if (ret > 0)
++				sc->sc_page_off += ret;
++		}
++
++		if (sc->sc_page_off == sizeof(struct r2net_handshake)) {
++			r2net_check_handshake(sc);
++			if (unlikely(sc->sc_handshake_ok == 0))
++				ret = -EPROTO;
++		}
++		goto out;
++	}
++
++	/* do we need more header? */
++	if (sc->sc_page_off < sizeof(struct r2net_msg)) {
++		data = page_address(sc->sc_page) + sc->sc_page_off;
++		datalen = sizeof(struct r2net_msg) - sc->sc_page_off;
++		ret = r2net_recv_tcp_msg(sc->sc_sock, data, datalen);
++		if (ret > 0) {
++			sc->sc_page_off += ret;
++			/* only swab incoming here.. we can
++			 * only get here once as we cross from
++			 * being under to over */
++			if (sc->sc_page_off == sizeof(struct r2net_msg)) {
++				hdr = page_address(sc->sc_page);
++				if (be16_to_cpu(hdr->data_len) >
++				    R2NET_MAX_PAYLOAD_BYTES)
++					ret = -EOVERFLOW;
++				WARN_ON_ONCE(ret == -EOVERFLOW);
++			}
++		}
++		if (ret <= 0)
++			goto out;
++	}
++
++	if (sc->sc_page_off < sizeof(struct r2net_msg)) {
++		/* oof, still don't have a header */
++		goto out;
++	}
++
++	/* this was swabbed above when we first read it */
++	hdr = page_address(sc->sc_page);
++
++	msglog(hdr, "at page_off %zu\n", sc->sc_page_off);
++
++	/* do we need more payload? */
++	if (sc->sc_page_off - sizeof(struct r2net_msg) <
++					be16_to_cpu(hdr->data_len)) {
++		/* need more payload */
++		data = page_address(sc->sc_page) + sc->sc_page_off;
++		datalen = (sizeof(struct r2net_msg) +
++				be16_to_cpu(hdr->data_len)) -
++				sc->sc_page_off;
++		ret = r2net_recv_tcp_msg(sc->sc_sock, data, datalen);
++		if (ret > 0)
++			sc->sc_page_off += ret;
++		if (ret <= 0)
++			goto out;
++	}
++
++	if (sc->sc_page_off - sizeof(struct r2net_msg) ==
++						be16_to_cpu(hdr->data_len)) {
++		/* we can only get here once, the first time we read
++		 * the payload.. so set ret to progress if the handler
++		 * works out. after calling this the message is toast */
++		ret = r2net_process_message(sc, hdr);
++		if (ret == 0)
++			ret = 1;
++		sc->sc_page_off = 0;
++	}
++
++out:
++	sclog(sc, "ret = %d\n", ret);
++	r2net_set_advance_stop_time(sc);
++	return ret;
++}
++
++/* this work func is triggerd by data ready.  it reads until it can read no
++ * more.  it interprets 0, eof, as fatal.  if data_ready hits while we're doing
++ * our work the work struct will be marked and we'll be called again. */
++static void r2net_rx_until_empty(struct work_struct *work)
++{
++	struct r2net_sock_container *sc =
++		container_of(work, struct r2net_sock_container, sc_rx_work);
++	int ret;
++
++	do {
++		ret = r2net_advance_rx(sc);
++	} while (ret > 0);
++
++	if (ret <= 0 && ret != -EAGAIN) {
++		struct r2net_node *nn = r2net_nn_from_num(sc->sc_node->nd_num);
++		sclog(sc, "saw error %d, closing\n", ret);
++		/* not permanent so read failed handshake can retry */
++		r2net_ensure_shutdown(nn, sc, 0);
++	}
++	sc_put(sc);
++}
++
++static int r2net_set_nodelay(struct socket *sock)
++{
++	int ret, val = 1;
++	mm_segment_t oldfs;
++
++	oldfs = get_fs();
++	set_fs(KERNEL_DS);
++
++	/*
++	 * Dear unsuspecting programmer,
++	 *
++	 * Don't use sock_setsockopt() for SOL_TCP.  It doesn't check its level
++	 * argument and assumes SOL_SOCKET so, say, your TCP_NODELAY will
++	 * silently turn into SO_DEBUG.
++	 *
++	 * Yours,
++	 * Keeper of hilariously fragile interfaces.
++	 */
++	ret = sock->ops->setsockopt(sock, SOL_TCP, TCP_NODELAY,
++				    (char __user *)&val, sizeof(val));
++
++	set_fs(oldfs);
++	return ret;
++}
++
++static void r2net_initialize_handshake(void)
++{
++	r2net_hand->r2hb_heartbeat_timeout_ms = cpu_to_be32(
++		R2HB_MAX_WRITE_TIMEOUT_MS);
++	r2net_hand->r2net_idle_timeout_ms = cpu_to_be32(r2net_idle_timeout());
++	r2net_hand->r2net_keepalive_delay_ms = cpu_to_be32(
++		r2net_keepalive_delay());
++	r2net_hand->r2net_reconnect_delay_ms = cpu_to_be32(
++		r2net_reconnect_delay());
++}
++
++/* ------------------------------------------------------------ */
++
++/* called when a connect completes and after a sock is accepted.  the
++ * rx path will see the response and mark the sc valid */
++static void r2net_sc_connect_completed(struct work_struct *work)
++{
++	struct r2net_sock_container *sc =
++			container_of(work, struct r2net_sock_container,
++			     sc_connect_work);
++
++	mlog(ML_MSG, "sc sending handshake with ver %llu id %llx\n",
++		(unsigned long long)R2NET_PROTOCOL_VERSION,
++		(unsigned long long)be64_to_cpu(r2net_hand->connector_id));
++
++	r2net_initialize_handshake();
++	r2net_sendpage(sc, r2net_hand, sizeof(*r2net_hand));
++	sc_put(sc);
++}
++
++/* this is called as a work_struct func. */
++static void r2net_sc_send_keep_req(struct work_struct *work)
++{
++	struct r2net_sock_container *sc =
++		container_of(work, struct r2net_sock_container,
++			     sc_keepalive_work.work);
++
++	r2net_sendpage(sc, r2net_keep_req, sizeof(*r2net_keep_req));
++	sc_put(sc);
++}
++
++/* socket shutdown does a del_timer_sync against this as it tears down.
++ * we can't start this timer until we've got to the point in sc buildup
++ * where shutdown is going to be involved */
++static void r2net_idle_timer(unsigned long data)
++{
++	struct r2net_sock_container *sc = (struct r2net_sock_container *)data;
++	struct r2net_node *nn = r2net_nn_from_num(sc->sc_node->nd_num);
++#ifdef CONFIG_DEBUG_FS
++	unsigned long msecs = ktime_to_ms(ktime_get()) -
++		ktime_to_ms(sc->sc_tv_timer);
++#else
++	unsigned long msecs = r2net_idle_timeout();
 +#endif
 +
-+#define MAX_POOLS_PER_CLIENT 16
++	pr_notice("ramster: Connection to " SC_NODEF_FMT " has been "
++	       "idle for %lu.%lu secs, shutting it down.\n",
++		sc->sc_node->nd_name, sc->sc_node->nd_num,
++		&sc->sc_node->nd_ipv4_address, ntohs(sc->sc_node->nd_ipv4_port),
++	       msecs / 1000, msecs % 1000);
 +
-+#define MAX_CLIENTS 16
-+#define LOCAL_CLIENT ((uint16_t)-1)
++	/*
++	 * Initialize the nn_timeout so that the next connection attempt
++	 * will continue in r2net_start_connect.
++	 */
++	atomic_set(&nn->nn_timeout, 1);
++	r2net_sc_queue_work(sc, &sc->sc_shutdown_work);
++}
 +
-+#endif /* _ZCACHE_H_ */
++static void r2net_sc_reset_idle_timer(struct r2net_sock_container *sc)
++{
++	r2net_sc_cancel_delayed_work(sc, &sc->sc_keepalive_work);
++	r2net_sc_queue_delayed_work(sc, &sc->sc_keepalive_work,
++		      msecs_to_jiffies(r2net_keepalive_delay()));
++	r2net_set_sock_timer(sc);
++	mod_timer(&sc->sc_idle_timeout,
++	       jiffies + msecs_to_jiffies(r2net_idle_timeout()));
++}
++
++static void r2net_sc_postpone_idle(struct r2net_sock_container *sc)
++{
++	/* Only push out an existing timer */
++	if (timer_pending(&sc->sc_idle_timeout))
++		r2net_sc_reset_idle_timer(sc);
++}
++
++/* this work func is kicked whenever a path sets the nn state which doesn't
++ * have valid set.  This includes seeing hb come up, losing a connection,
++ * having a connect attempt fail, etc. This centralizes the logic which decides
++ * if a connect attempt should be made or if we should give up and all future
++ * transmit attempts should fail */
++static void r2net_start_connect(struct work_struct *work)
++{
++	struct r2net_node *nn =
++		container_of(work, struct r2net_node, nn_connect_work.work);
++	struct r2net_sock_container *sc = NULL;
++	struct r2nm_node *node = NULL, *mynode = NULL;
++	struct socket *sock = NULL;
++	struct sockaddr_in myaddr = {0, }, remoteaddr = {0, };
++	int ret = 0, stop;
++	unsigned int timeout;
++
++	/* if we're greater we initiate tx, otherwise we accept */
++	if (r2nm_this_node() <= r2net_num_from_nn(nn))
++		goto out;
++
++	/* watch for racing with tearing a node down */
++	node = r2nm_get_node_by_num(r2net_num_from_nn(nn));
++	if (node == NULL) {
++		ret = 0;
++		goto out;
++	}
++
++	mynode = r2nm_get_node_by_num(r2nm_this_node());
++	if (mynode == NULL) {
++		ret = 0;
++		goto out;
++	}
++
++	spin_lock(&nn->nn_lock);
++	/*
++	 * see if we already have one pending or have given up.
++	 * For nn_timeout, it is set when we close the connection
++	 * because of the idle time out. So it means that we have
++	 * at least connected to that node successfully once,
++	 * now try to connect to it again.
++	 */
++	timeout = atomic_read(&nn->nn_timeout);
++	stop = (nn->nn_sc ||
++		(nn->nn_persistent_error &&
++		(nn->nn_persistent_error != -ENOTCONN || timeout == 0)));
++	spin_unlock(&nn->nn_lock);
++	if (stop)
++		goto out;
++
++	nn->nn_last_connect_attempt = jiffies;
++
++	sc = sc_alloc(node);
++	if (sc == NULL) {
++		mlog(0, "couldn't allocate sc\n");
++		ret = -ENOMEM;
++		goto out;
++	}
++
++	ret = sock_create(PF_INET, SOCK_STREAM, IPPROTO_TCP, &sock);
++	if (ret < 0) {
++		mlog(0, "can't create socket: %d\n", ret);
++		goto out;
++	}
++	sc->sc_sock = sock; /* freed by sc_kref_release */
++
++	sock->sk->sk_allocation = GFP_ATOMIC;
++
++	myaddr.sin_family = AF_INET;
++	myaddr.sin_addr.s_addr = mynode->nd_ipv4_address;
++	myaddr.sin_port = htons(0); /* any port */
++
++	ret = sock->ops->bind(sock, (struct sockaddr *)&myaddr,
++			      sizeof(myaddr));
++	if (ret) {
++		mlog(ML_ERROR, "bind failed with %d at address %pI4\n",
++		     ret, &mynode->nd_ipv4_address);
++		goto out;
++	}
++
++	ret = r2net_set_nodelay(sc->sc_sock);
++	if (ret) {
++		mlog(ML_ERROR, "setting TCP_NODELAY failed with %d\n", ret);
++		goto out;
++	}
++
++	r2net_register_callbacks(sc->sc_sock->sk, sc);
++
++	spin_lock(&nn->nn_lock);
++	/* handshake completion will set nn->nn_sc_valid */
++	r2net_set_nn_state(nn, sc, 0, 0);
++	spin_unlock(&nn->nn_lock);
++
++	remoteaddr.sin_family = AF_INET;
++	remoteaddr.sin_addr.s_addr = node->nd_ipv4_address;
++	remoteaddr.sin_port = node->nd_ipv4_port;
++
++	ret = sc->sc_sock->ops->connect(sc->sc_sock,
++					(struct sockaddr *)&remoteaddr,
++					sizeof(remoteaddr),
++					O_NONBLOCK);
++	if (ret == -EINPROGRESS)
++		ret = 0;
++
++out:
++	if (ret) {
++		pr_notice("ramster: Connect attempt to " SC_NODEF_FMT
++		       " failed with errno %d\n", sc->sc_node->nd_name,
++			sc->sc_node->nd_num, &sc->sc_node->nd_ipv4_address,
++			ntohs(sc->sc_node->nd_ipv4_port), ret);
++		/* 0 err so that another will be queued and attempted
++		 * from set_nn_state */
++		if (sc)
++			r2net_ensure_shutdown(nn, sc, 0);
++	}
++	if (sc)
++		sc_put(sc);
++	if (node)
++		r2nm_node_put(node);
++	if (mynode)
++		r2nm_node_put(mynode);
++
++	return;
++}
++
++static void r2net_connect_expired(struct work_struct *work)
++{
++	struct r2net_node *nn =
++		container_of(work, struct r2net_node, nn_connect_expired.work);
++
++	spin_lock(&nn->nn_lock);
++	if (!nn->nn_sc_valid) {
++		pr_notice("ramster: No connection established with "
++		       "node %u after %u.%u seconds, giving up.\n",
++		     r2net_num_from_nn(nn),
++		     r2net_idle_timeout() / 1000,
++		     r2net_idle_timeout() % 1000);
++
++		r2net_set_nn_state(nn, NULL, 0, -ENOTCONN);
++	}
++	spin_unlock(&nn->nn_lock);
++}
++
++static void r2net_still_up(struct work_struct *work)
++{
++}
++
++/* ------------------------------------------------------------ */
++
++void r2net_disconnect_node(struct r2nm_node *node)
++{
++	struct r2net_node *nn = r2net_nn_from_num(node->nd_num);
++
++	/* don't reconnect until it's heartbeating again */
++	spin_lock(&nn->nn_lock);
++	atomic_set(&nn->nn_timeout, 0);
++	r2net_set_nn_state(nn, NULL, 0, -ENOTCONN);
++	spin_unlock(&nn->nn_lock);
++
++	if (r2net_wq) {
++		cancel_delayed_work(&nn->nn_connect_expired);
++		cancel_delayed_work(&nn->nn_connect_work);
++		cancel_delayed_work(&nn->nn_still_up);
++		flush_workqueue(r2net_wq);
++	}
++}
++
++static void r2net_hb_node_down_cb(struct r2nm_node *node, int node_num,
++				  void *data)
++{
++	if (!node)
++		return;
++
++	if (node_num != r2nm_this_node())
++		r2net_disconnect_node(node);
++
++	BUG_ON(atomic_read(&r2net_connected_peers) < 0);
++}
++
++static void r2net_hb_node_up_cb(struct r2nm_node *node, int node_num,
++				void *data)
++{
++	struct r2net_node *nn = r2net_nn_from_num(node_num);
++
++	BUG_ON(!node);
++
++	/* ensure an immediate connect attempt */
++	nn->nn_last_connect_attempt = jiffies -
++		(msecs_to_jiffies(r2net_reconnect_delay()) + 1);
++
++	if (node_num != r2nm_this_node()) {
++		/* believe it or not, accept and node hearbeating testing
++		 * can succeed for this node before we got here.. so
++		 * only use set_nn_state to clear the persistent error
++		 * if that hasn't already happened */
++		spin_lock(&nn->nn_lock);
++		atomic_set(&nn->nn_timeout, 0);
++		if (nn->nn_persistent_error)
++			r2net_set_nn_state(nn, NULL, 0, 0);
++		spin_unlock(&nn->nn_lock);
++	}
++}
++
++void r2net_unregister_hb_callbacks(void)
++{
++	r2hb_unregister_callback(NULL, &r2net_hb_up);
++	r2hb_unregister_callback(NULL, &r2net_hb_down);
++}
++
++int r2net_register_hb_callbacks(void)
++{
++	int ret;
++
++	r2hb_setup_callback(&r2net_hb_down, R2HB_NODE_DOWN_CB,
++			    r2net_hb_node_down_cb, NULL, R2NET_HB_PRI);
++	r2hb_setup_callback(&r2net_hb_up, R2HB_NODE_UP_CB,
++			    r2net_hb_node_up_cb, NULL, R2NET_HB_PRI);
++
++	ret = r2hb_register_callback(NULL, &r2net_hb_up);
++	if (ret == 0)
++		ret = r2hb_register_callback(NULL, &r2net_hb_down);
++
++	if (ret)
++		r2net_unregister_hb_callbacks();
++
++	return ret;
++}
++
++/* ------------------------------------------------------------ */
++
++static int r2net_accept_one(struct socket *sock)
++{
++	int ret, slen;
++	struct sockaddr_in sin;
++	struct socket *new_sock = NULL;
++	struct r2nm_node *node = NULL;
++	struct r2nm_node *local_node = NULL;
++	struct r2net_sock_container *sc = NULL;
++	struct r2net_node *nn;
++
++	BUG_ON(sock == NULL);
++	ret = sock_create_lite(sock->sk->sk_family, sock->sk->sk_type,
++			       sock->sk->sk_protocol, &new_sock);
++	if (ret)
++		goto out;
++
++	new_sock->type = sock->type;
++	new_sock->ops = sock->ops;
++	ret = sock->ops->accept(sock, new_sock, O_NONBLOCK);
++	if (ret < 0)
++		goto out;
++
++	new_sock->sk->sk_allocation = GFP_ATOMIC;
++
++	ret = r2net_set_nodelay(new_sock);
++	if (ret) {
++		mlog(ML_ERROR, "setting TCP_NODELAY failed with %d\n", ret);
++		goto out;
++	}
++
++	slen = sizeof(sin);
++	ret = new_sock->ops->getname(new_sock, (struct sockaddr *) &sin,
++				       &slen, 1);
++	if (ret < 0)
++		goto out;
++
++	node = r2nm_get_node_by_ip(sin.sin_addr.s_addr);
++	if (node == NULL) {
++		pr_notice("ramster: Attempt to connect from unknown "
++		       "node at %pI4:%d\n", &sin.sin_addr.s_addr,
++		       ntohs(sin.sin_port));
++		ret = -EINVAL;
++		goto out;
++	}
++
++	if (r2nm_this_node() >= node->nd_num) {
++		local_node = r2nm_get_node_by_num(r2nm_this_node());
++		pr_notice("ramster: Unexpected connect attempt seen "
++		       "at node '%s' (%u, %pI4:%d) from node '%s' (%u, "
++		       "%pI4:%d)\n", local_node->nd_name, local_node->nd_num,
++		       &(local_node->nd_ipv4_address),
++		       ntohs(local_node->nd_ipv4_port), node->nd_name,
++		       node->nd_num, &sin.sin_addr.s_addr, ntohs(sin.sin_port));
++		ret = -EINVAL;
++		goto out;
++	}
++
++	/* this happens all the time when the other node sees our heartbeat
++	 * and tries to connect before we see their heartbeat */
++	if (!r2hb_check_node_heartbeating_from_callback(node->nd_num)) {
++		mlog(ML_CONN, "attempt to connect from node '%s' at "
++		     "%pI4:%d but it isn't heartbeating\n",
++		     node->nd_name, &sin.sin_addr.s_addr,
++		     ntohs(sin.sin_port));
++		ret = -EINVAL;
++		goto out;
++	}
++
++	nn = r2net_nn_from_num(node->nd_num);
++
++	spin_lock(&nn->nn_lock);
++	if (nn->nn_sc)
++		ret = -EBUSY;
++	else
++		ret = 0;
++	spin_unlock(&nn->nn_lock);
++	if (ret) {
++		pr_notice("ramster: Attempt to connect from node '%s' "
++		       "at %pI4:%d but it already has an open connection\n",
++		       node->nd_name, &sin.sin_addr.s_addr,
++		       ntohs(sin.sin_port));
++		goto out;
++	}
++
++	sc = sc_alloc(node);
++	if (sc == NULL) {
++		ret = -ENOMEM;
++		goto out;
++	}
++
++	sc->sc_sock = new_sock;
++	new_sock = NULL;
++
++	spin_lock(&nn->nn_lock);
++	atomic_set(&nn->nn_timeout, 0);
++	r2net_set_nn_state(nn, sc, 0, 0);
++	spin_unlock(&nn->nn_lock);
++
++	r2net_register_callbacks(sc->sc_sock->sk, sc);
++	r2net_sc_queue_work(sc, &sc->sc_rx_work);
++
++	r2net_initialize_handshake();
++	r2net_sendpage(sc, r2net_hand, sizeof(*r2net_hand));
++
++out:
++	if (new_sock)
++		sock_release(new_sock);
++	if (node)
++		r2nm_node_put(node);
++	if (local_node)
++		r2nm_node_put(local_node);
++	if (sc)
++		sc_put(sc);
++	return ret;
++}
++
++static void r2net_accept_many(struct work_struct *work)
++{
++	struct socket *sock = r2net_listen_sock;
++	while (r2net_accept_one(sock) == 0)
++		cond_resched();
++}
++
++static void r2net_listen_data_ready(struct sock *sk, int bytes)
++{
++	void (*ready)(struct sock *sk, int bytes);
++
++	read_lock(&sk->sk_callback_lock);
++	ready = sk->sk_user_data;
++	if (ready == NULL) { /* check for teardown race */
++		ready = sk->sk_data_ready;
++		goto out;
++	}
++
++	/* ->sk_data_ready is also called for a newly established child socket
++	 * before it has been accepted and the acceptor has set up their
++	 * data_ready.. we only want to queue listen work for our listening
++	 * socket */
++	if (sk->sk_state == TCP_LISTEN) {
++		mlog(ML_TCP, "bytes: %d\n", bytes);
++		queue_work(r2net_wq, &r2net_listen_work);
++	}
++
++out:
++	read_unlock(&sk->sk_callback_lock);
++	ready(sk, bytes);
++}
++
++static int r2net_open_listening_sock(__be32 addr, __be16 port)
++{
++	struct socket *sock = NULL;
++	int ret;
++	struct sockaddr_in sin = {
++		.sin_family = PF_INET,
++		.sin_addr = { .s_addr = addr },
++		.sin_port = port,
++	};
++
++	ret = sock_create(PF_INET, SOCK_STREAM, IPPROTO_TCP, &sock);
++	if (ret < 0) {
++		pr_err("ramster: Error %d while creating socket\n", ret);
++		goto out;
++	}
++
++	sock->sk->sk_allocation = GFP_ATOMIC;
++
++	write_lock_bh(&sock->sk->sk_callback_lock);
++	sock->sk->sk_user_data = sock->sk->sk_data_ready;
++	sock->sk->sk_data_ready = r2net_listen_data_ready;
++	write_unlock_bh(&sock->sk->sk_callback_lock);
++
++	r2net_listen_sock = sock;
++	INIT_WORK(&r2net_listen_work, r2net_accept_many);
++
++	sock->sk->sk_reuse = /* SK_CAN_REUSE FIXME FOR 3.4 */ 1;
++	ret = sock->ops->bind(sock, (struct sockaddr *)&sin, sizeof(sin));
++	if (ret < 0) {
++		pr_err("ramster: Error %d while binding socket at %pI4:%u\n",
++			ret, &addr, ntohs(port));
++		goto out;
++	}
++
++	ret = sock->ops->listen(sock, 64);
++	if (ret < 0)
++		pr_err("ramster: Error %d while listening on %pI4:%u\n",
++		       ret, &addr, ntohs(port));
++
++out:
++	if (ret) {
++		r2net_listen_sock = NULL;
++		if (sock)
++			sock_release(sock);
++	}
++	return ret;
++}
++
++/*
++ * called from node manager when we should bring up our network listening
++ * socket.  node manager handles all the serialization to only call this
++ * once and to match it with r2net_stop_listening().  note,
++ * r2nm_this_node() doesn't work yet as we're being called while it
++ * is being set up.
++ */
++int r2net_start_listening(struct r2nm_node *node)
++{
++	int ret = 0;
++
++	BUG_ON(r2net_wq != NULL);
++	BUG_ON(r2net_listen_sock != NULL);
++
++	mlog(ML_KTHREAD, "starting r2net thread...\n");
++	r2net_wq = create_singlethread_workqueue("r2net");
++	if (r2net_wq == NULL) {
++		mlog(ML_ERROR, "unable to launch r2net thread\n");
++		return -ENOMEM; /* ? */
++	}
++
++	ret = r2net_open_listening_sock(node->nd_ipv4_address,
++					node->nd_ipv4_port);
++	if (ret) {
++		destroy_workqueue(r2net_wq);
++		r2net_wq = NULL;
++	}
++
++	return ret;
++}
++
++/* again, r2nm_this_node() doesn't work here as we're involved in
++ * tearing it down */
++void r2net_stop_listening(struct r2nm_node *node)
++{
++	struct socket *sock = r2net_listen_sock;
++	size_t i;
++
++	BUG_ON(r2net_wq == NULL);
++	BUG_ON(r2net_listen_sock == NULL);
++
++	/* stop the listening socket from generating work */
++	write_lock_bh(&sock->sk->sk_callback_lock);
++	sock->sk->sk_data_ready = sock->sk->sk_user_data;
++	sock->sk->sk_user_data = NULL;
++	write_unlock_bh(&sock->sk->sk_callback_lock);
++
++	for (i = 0; i < ARRAY_SIZE(r2net_nodes); i++) {
++		struct r2nm_node *node = r2nm_get_node_by_num(i);
++		if (node) {
++			r2net_disconnect_node(node);
++			r2nm_node_put(node);
++		}
++	}
++
++	/* finish all work and tear down the work queue */
++	mlog(ML_KTHREAD, "waiting for r2net thread to exit....\n");
++	destroy_workqueue(r2net_wq);
++	r2net_wq = NULL;
++
++	sock_release(r2net_listen_sock);
++	r2net_listen_sock = NULL;
++}
++
++void r2net_hb_node_up_manual(int node_num)
++{
++	struct r2nm_node dummy;
++	if (r2nm_single_cluster == NULL)
++		pr_err("ramster: cluster not alive, node_up_manual ignored\n");
++	else {
++		r2hb_manual_set_node_heartbeating(node_num);
++		r2net_hb_node_up_cb(&dummy, node_num, NULL);
++	}
++}
++
++/* ------------------------------------------------------------ */
++
++int r2net_init(void)
++{
++	unsigned long i;
++
++	if (r2net_debugfs_init())
++		return -ENOMEM;
++
++	r2net_hand = kzalloc(sizeof(struct r2net_handshake), GFP_KERNEL);
++	r2net_keep_req = kzalloc(sizeof(struct r2net_msg), GFP_KERNEL);
++	r2net_keep_resp = kzalloc(sizeof(struct r2net_msg), GFP_KERNEL);
++	if (!r2net_hand || !r2net_keep_req || !r2net_keep_resp) {
++		kfree(r2net_hand);
++		kfree(r2net_keep_req);
++		kfree(r2net_keep_resp);
++		return -ENOMEM;
++	}
++
++	r2net_hand->protocol_version = cpu_to_be64(R2NET_PROTOCOL_VERSION);
++	r2net_hand->connector_id = cpu_to_be64(1);
++
++	r2net_keep_req->magic = cpu_to_be16(R2NET_MSG_KEEP_REQ_MAGIC);
++	r2net_keep_resp->magic = cpu_to_be16(R2NET_MSG_KEEP_RESP_MAGIC);
++
++	for (i = 0; i < ARRAY_SIZE(r2net_nodes); i++) {
++		struct r2net_node *nn = r2net_nn_from_num(i);
++
++		atomic_set(&nn->nn_timeout, 0);
++		spin_lock_init(&nn->nn_lock);
++		INIT_DELAYED_WORK(&nn->nn_connect_work, r2net_start_connect);
++		INIT_DELAYED_WORK(&nn->nn_connect_expired,
++				  r2net_connect_expired);
++		INIT_DELAYED_WORK(&nn->nn_still_up, r2net_still_up);
++		/* until we see hb from a node we'll return einval */
++		nn->nn_persistent_error = -ENOTCONN;
++		init_waitqueue_head(&nn->nn_sc_wq);
++		idr_init(&nn->nn_status_idr);
++		INIT_LIST_HEAD(&nn->nn_status_list);
++	}
++
++	return 0;
++}
++
++void r2net_exit(void)
++{
++	kfree(r2net_hand);
++	kfree(r2net_keep_req);
++	kfree(r2net_keep_resp);
++	r2net_debugfs_exit();
++}
+diff --git a/drivers/staging/zcache/ramster/tcp.h b/drivers/staging/zcache/ramster/tcp.h
+new file mode 100644
+index 0000000..9d05833
+--- /dev/null
++++ b/drivers/staging/zcache/ramster/tcp.h
+@@ -0,0 +1,159 @@
++/* -*- mode: c; c-basic-offset: 8; -*-
++ * vim: noexpandtab sw=8 ts=8 sts=0:
++ *
++ * tcp.h
++ *
++ * Function prototypes
++ *
++ * Copyright (C) 2004 Oracle.  All rights reserved.
++ *
++ * This program is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU General Public
++ * License as published by the Free Software Foundation; either
++ * version 2 of the License, or (at your option) any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public
++ * License along with this program; if not, write to the
++ * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
++ * Boston, MA 021110-1307, USA.
++ *
++ */
++
++#ifndef R2CLUSTER_TCP_H
++#define R2CLUSTER_TCP_H
++
++#include <linux/socket.h>
++#ifdef __KERNEL__
++#include <net/sock.h>
++#include <linux/tcp.h>
++#else
++#include <sys/socket.h>
++#endif
++#include <linux/inet.h>
++#include <linux/in.h>
++
++struct r2net_msg {
++	__be16 magic;
++	__be16 data_len;
++	__be16 msg_type;
++	__be16 pad1;
++	__be32 sys_status;
++	__be32 status;
++	__be32 key;
++	__be32 msg_num;
++	__u8  buf[0];
++};
++
++typedef int (r2net_msg_handler_func)(struct r2net_msg *msg, u32 len, void *data,
++				     void **ret_data);
++typedef void (r2net_post_msg_handler_func)(int status, void *data,
++					   void *ret_data);
++
++#define R2NET_MAX_PAYLOAD_BYTES  (4096 - sizeof(struct r2net_msg))
++
++/* same as hb delay, we're waiting for another node to recognize our hb */
++#define R2NET_RECONNECT_DELAY_MS_DEFAULT	2000
++
++#define R2NET_KEEPALIVE_DELAY_MS_DEFAULT	2000
++#define R2NET_IDLE_TIMEOUT_MS_DEFAULT		30000
++
++
++/* TODO: figure this out.... */
++static inline int r2net_link_down(int err, struct socket *sock)
++{
++	if (sock) {
++		if (sock->sk->sk_state != TCP_ESTABLISHED &&
++			sock->sk->sk_state != TCP_CLOSE_WAIT)
++			return 1;
++	}
++
++	if (err >= 0)
++		return 0;
++	switch (err) {
++
++	/* ????????????????????????? */
++	case -ERESTARTSYS:
++	case -EBADF:
++	/* When the server has died, an ICMP port unreachable
++	 * message prompts ECONNREFUSED. */
++	case -ECONNREFUSED:
++	case -ENOTCONN:
++	case -ECONNRESET:
++	case -EPIPE:
++		return 1;
++
++	}
++	return 0;
++}
++
++enum {
++	R2NET_DRIVER_UNINITED,
++	R2NET_DRIVER_READY,
++};
++
++int r2net_send_message(u32 msg_type, u32 key, void *data, u32 len,
++		       u8 target_node, int *status);
++int r2net_send_message_vec(u32 msg_type, u32 key, struct kvec *vec,
++			   size_t veclen, u8 target_node, int *status);
++
++int r2net_register_handler(u32 msg_type, u32 key, u32 max_len,
++			   r2net_msg_handler_func *func, void *data,
++			   r2net_post_msg_handler_func *post_func,
++			   struct list_head *unreg_list);
++void r2net_unregister_handler_list(struct list_head *list);
++
++void r2net_fill_node_map(unsigned long *map, unsigned bytes);
++
++void r2net_force_data_magic(struct r2net_msg *, u16, u32);
++void r2net_hb_node_up_manual(int);
++struct r2net_node *r2net_nn_from_num(u8);
++
++struct r2nm_node;
++int r2net_register_hb_callbacks(void);
++void r2net_unregister_hb_callbacks(void);
++int r2net_start_listening(struct r2nm_node *node);
++void r2net_stop_listening(struct r2nm_node *node);
++void r2net_disconnect_node(struct r2nm_node *node);
++int r2net_num_connected_peers(void);
++
++int r2net_init(void);
++void r2net_exit(void);
++
++struct r2net_send_tracking;
++struct r2net_sock_container;
++
++#if 0
++int r2net_debugfs_init(void);
++void r2net_debugfs_exit(void);
++void r2net_debug_add_nst(struct r2net_send_tracking *nst);
++void r2net_debug_del_nst(struct r2net_send_tracking *nst);
++void r2net_debug_add_sc(struct r2net_sock_container *sc);
++void r2net_debug_del_sc(struct r2net_sock_container *sc);
++#else
++static inline int r2net_debugfs_init(void)
++{
++	return 0;
++}
++static inline void r2net_debugfs_exit(void)
++{
++}
++static inline void r2net_debug_add_nst(struct r2net_send_tracking *nst)
++{
++}
++static inline void r2net_debug_del_nst(struct r2net_send_tracking *nst)
++{
++}
++static inline void r2net_debug_add_sc(struct r2net_sock_container *sc)
++{
++}
++static inline void r2net_debug_del_sc(struct r2net_sock_container *sc)
++{
++}
++#endif	/* CONFIG_DEBUG_FS */
++
++#endif /* R2CLUSTER_TCP_H */
+diff --git a/drivers/staging/zcache/ramster/tcp_internal.h b/drivers/staging/zcache/ramster/tcp_internal.h
+new file mode 100644
+index 0000000..4d8cc9f
+--- /dev/null
++++ b/drivers/staging/zcache/ramster/tcp_internal.h
+@@ -0,0 +1,248 @@
++/* -*- mode: c; c-basic-offset: 8; -*-
++ * vim: noexpandtab sw=8 ts=8 sts=0:
++ *
++ * Copyright (C) 2005 Oracle.  All rights reserved.
++ *
++ * This program is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU General Public
++ * License as published by the Free Software Foundation; either
++ * version 2 of the License, or (at your option) any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public
++ * License along with this program; if not, write to the
++ * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
++ * Boston, MA 021110-1307, USA.
++ */
++
++#ifndef R2CLUSTER_TCP_INTERNAL_H
++#define R2CLUSTER_TCP_INTERNAL_H
++
++#define R2NET_MSG_MAGIC           ((u16)0xfa55)
++#define R2NET_MSG_STATUS_MAGIC    ((u16)0xfa56)
++#define R2NET_MSG_KEEP_REQ_MAGIC  ((u16)0xfa57)
++#define R2NET_MSG_KEEP_RESP_MAGIC ((u16)0xfa58)
++/*
++ * "data magic" is a long version of "status magic" where the message
++ * payload actually contains data to be passed in reply to certain messages
++ */
++#define R2NET_MSG_DATA_MAGIC      ((u16)0xfa59)
++
++/* we're delaying our quorum decision so that heartbeat will have timed
++ * out truly dead nodes by the time we come around to making decisions
++ * on their number */
++#define R2NET_QUORUM_DELAY_MS	\
++		((r2hb_dead_threshold + 2) * R2HB_REGION_TIMEOUT_MS)
++
++/*
++ * This version number represents quite a lot, unfortunately.  It not
++ * only represents the raw network message protocol on the wire but also
++ * locking semantics of the file system using the protocol.  It should
++ * be somewhere else, I'm sure, but right now it isn't.
++ *
++ * With version 11, we separate out the filesystem locking portion.  The
++ * filesystem now has a major.minor version it negotiates.  Version 11
++ * introduces this negotiation to the r2dlm protocol, and as such the
++ * version here in tcp_internal.h should not need to be bumped for
++ * filesystem locking changes.
++ *
++ * New in version 11
++ *	- Negotiation of filesystem locking in the dlm join.
++ *
++ * New in version 10:
++ *	- Meta/data locks combined
++ *
++ * New in version 9:
++ *	- All votes removed
++ *
++ * New in version 8:
++ *	- Replace delete inode votes with a cluster lock
++ *
++ * New in version 7:
++ *	- DLM join domain includes the live nodemap
++ *
++ * New in version 6:
++ *	- DLM lockres remote refcount fixes.
++ *
++ * New in version 5:
++ *	- Network timeout checking protocol
++ *
++ * New in version 4:
++ *	- Remove i_generation from lock names for better stat performance.
++ *
++ * New in version 3:
++ *	- Replace dentry votes with a cluster lock
++ *
++ * New in version 2:
++ *	- full 64 bit i_size in the metadata lock lvbs
++ *	- introduction of "rw" lock and pushing meta/data locking down
++ */
++#define R2NET_PROTOCOL_VERSION 11ULL
++struct r2net_handshake {
++	__be64	protocol_version;
++	__be64	connector_id;
++	__be32  r2hb_heartbeat_timeout_ms;
++	__be32  r2net_idle_timeout_ms;
++	__be32  r2net_keepalive_delay_ms;
++	__be32  r2net_reconnect_delay_ms;
++};
++
++struct r2net_node {
++	/* this is never called from int/bh */
++	spinlock_t			nn_lock;
++
++	/* set the moment an sc is allocated and a connect is started */
++	struct r2net_sock_container	*nn_sc;
++	/* _valid is only set after the handshake passes and tx can happen */
++	unsigned			nn_sc_valid:1;
++	/* if this is set tx just returns it */
++	int				nn_persistent_error;
++	/* It is only set to 1 after the idle time out. */
++	atomic_t			nn_timeout;
++
++	/* threads waiting for an sc to arrive wait on the wq for generation
++	 * to increase.  it is increased when a connecting socket succeeds
++	 * or fails or when an accepted socket is attached. */
++	wait_queue_head_t		nn_sc_wq;
++
++	struct idr			nn_status_idr;
++	struct list_head		nn_status_list;
++
++	/* connects are attempted from when heartbeat comes up until either hb
++	 * goes down, the node is unconfigured, no connect attempts succeed
++	 * before R2NET_CONN_IDLE_DELAY, or a connect succeeds.  connect_work
++	 * is queued from set_nn_state both from hb up and from itself if a
++	 * connect attempt fails and so can be self-arming.  shutdown is
++	 * careful to first mark the nn such that no connects will be attempted
++	 * before canceling delayed connect work and flushing the queue. */
++	struct delayed_work		nn_connect_work;
++	unsigned long			nn_last_connect_attempt;
++
++	/* this is queued as nodes come up and is canceled when a connection is
++	 * established.  this expiring gives up on the node and errors out
++	 * transmits */
++	struct delayed_work		nn_connect_expired;
++
++	/* after we give up on a socket we wait a while before deciding
++	 * that it is still heartbeating and that we should do some
++	 * quorum work */
++	struct delayed_work		nn_still_up;
++};
++
++struct r2net_sock_container {
++	struct kref		sc_kref;
++	/* the next two are valid for the life time of the sc */
++	struct socket		*sc_sock;
++	struct r2nm_node	*sc_node;
++
++	/* all of these sc work structs hold refs on the sc while they are
++	 * queued.  they should not be able to ref a freed sc.  the teardown
++	 * race is with r2net_wq destruction in r2net_stop_listening() */
++
++	/* rx and connect work are generated from socket callbacks.  sc
++	 * shutdown removes the callbacks and then flushes the work queue */
++	struct work_struct	sc_rx_work;
++	struct work_struct	sc_connect_work;
++	/* shutdown work is triggered in two ways.  the simple way is
++	 * for a code path calls ensure_shutdown which gets a lock, removes
++	 * the sc from the nn, and queues the work.  in this case the
++	 * work is single-shot.  the work is also queued from a sock
++	 * callback, though, and in this case the work will find the sc
++	 * still on the nn and will call ensure_shutdown itself.. this
++	 * ends up triggering the shutdown work again, though nothing
++	 * will be done in that second iteration.  so work queue teardown
++	 * has to be careful to remove the sc from the nn before waiting
++	 * on the work queue so that the shutdown work doesn't remove the
++	 * sc and rearm itself.
++	 */
++	struct work_struct	sc_shutdown_work;
++
++	struct timer_list	sc_idle_timeout;
++	struct delayed_work	sc_keepalive_work;
++
++	unsigned		sc_handshake_ok:1;
++
++	struct page		*sc_page;
++	size_t			sc_page_off;
++
++	/* original handlers for the sockets */
++	void			(*sc_state_change)(struct sock *sk);
++	void			(*sc_data_ready)(struct sock *sk, int bytes);
++
++	u32			sc_msg_key;
++	u16			sc_msg_type;
++
++#ifdef CONFIG_DEBUG_FS
++	struct list_head        sc_net_debug_item;
++	ktime_t			sc_tv_timer;
++	ktime_t			sc_tv_data_ready;
++	ktime_t			sc_tv_advance_start;
++	ktime_t			sc_tv_advance_stop;
++	ktime_t			sc_tv_func_start;
++	ktime_t			sc_tv_func_stop;
++#endif
++#ifdef CONFIG_RAMSTER_FS_STATS
++	ktime_t			sc_tv_acquiry_total;
++	ktime_t			sc_tv_send_total;
++	ktime_t			sc_tv_status_total;
++	u32			sc_send_count;
++	u32			sc_recv_count;
++	ktime_t			sc_tv_process_total;
++#endif
++	struct mutex		sc_send_lock;
++};
++
++struct r2net_msg_handler {
++	struct rb_node		nh_node;
++	u32			nh_max_len;
++	u32			nh_msg_type;
++	u32			nh_key;
++	r2net_msg_handler_func	*nh_func;
++	r2net_msg_handler_func	*nh_func_data;
++	r2net_post_msg_handler_func
++				*nh_post_func;
++	struct kref		nh_kref;
++	struct list_head	nh_unregister_item;
++};
++
++enum r2net_system_error {
++	R2NET_ERR_NONE = 0,
++	R2NET_ERR_NO_HNDLR,
++	R2NET_ERR_OVERFLOW,
++	R2NET_ERR_DIED,
++	R2NET_ERR_MAX
++};
++
++struct r2net_status_wait {
++	enum r2net_system_error	ns_sys_status;
++	s32			ns_status;
++	int			ns_id;
++	wait_queue_head_t	ns_wq;
++	struct list_head	ns_node_item;
++};
++
++#ifdef CONFIG_DEBUG_FS
++/* just for state dumps */
++struct r2net_send_tracking {
++	struct list_head		st_net_debug_item;
++	struct task_struct		*st_task;
++	struct r2net_sock_container	*st_sc;
++	u32				st_id;
++	u32				st_msg_type;
++	u32				st_msg_key;
++	u8				st_node;
++	ktime_t				st_sock_time;
++	ktime_t				st_send_time;
++	ktime_t				st_status_time;
++};
++#else
++struct r2net_send_tracking {
++	u32	dummy;
++};
++#endif	/* CONFIG_DEBUG_FS */
++
++#endif /* R2CLUSTER_TCP_INTERNAL_H */
 -- 
 1.7.1
 
