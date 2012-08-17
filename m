@@ -1,93 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
-	by kanga.kvack.org (Postfix) with SMTP id 48B1A6B006C
-	for <linux-mm@kvack.org>; Fri, 17 Aug 2012 10:37:41 -0400 (EDT)
-Received: by yenl1 with SMTP id l1so4977661yen.14
-        for <linux-mm@kvack.org>; Fri, 17 Aug 2012 07:37:40 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx127.postini.com [74.125.245.127])
+	by kanga.kvack.org (Postfix) with SMTP id 31E7E6B005D
+	for <linux-mm@kvack.org>; Fri, 17 Aug 2012 10:45:05 -0400 (EDT)
+Message-ID: <502E58DF.4000809@redhat.com>
+Date: Fri, 17 Aug 2012 10:44:47 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <0000013934e4a8cf-51ac82e4-ad78-46b0-abf7-8dc81be01952-000000@email.amazonses.com>
-References: <1345045084-7292-1-git-send-email-js1304@gmail.com>
-	<000001392af5ab4e-41dbbbe4-5808-484b-900a-6f4eba102376-000000@email.amazonses.com>
-	<CAAmzW4M9WMnxVKpR00SqufHadY-=i0Jgf8Ktydrw5YXK8VwJ7A@mail.gmail.com>
-	<000001392b579d4f-bb5ccaf5-1a2c-472c-9b76-05ec86297706-000000@email.amazonses.com>
-	<CAAmzW4MMY5TmjMjG50idZNgRUW3qC0kNMnfbGjGXaoxtba8gGQ@mail.gmail.com>
-	<00000139306844c8-bb717c88-ca56-48b3-9b8f-9186053359d3-000000@email.amazonses.com>
-	<CAAmzW4P=w6-yrmDmK1SPo3pwgH68Q0+RCe0tpqZPXnk-QEBLMQ@mail.gmail.com>
-	<0000013934e4a8cf-51ac82e4-ad78-46b0-abf7-8dc81be01952-000000@email.amazonses.com>
-Date: Fri, 17 Aug 2012 23:37:40 +0900
-Message-ID: <CAAmzW4PXf=GK-a8-r_Ep4vR=kx54pr9h5K00iEDx3rVii5ROiA@mail.gmail.com>
-Subject: Re: [PATCH] slub: try to get cpu partial slab even if we get enough
- objects for cpu freelist
-From: JoonSoo Kim <js1304@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [RFC PATCH 0/6] memcg: vfs isolation in memory cgroup
+References: <1345150417-30856-1-git-send-email-yinghan@google.com> <502D61E1.8040704@redhat.com> <20120816234157.GB2776@devil.redhat.com> <502DD35F.7080009@parallels.com> <20120817075440.GD2776@devil.redhat.com>
+In-Reply-To: <20120817075440.GD2776@devil.redhat.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Pekka Enberg <penberg@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, David Rientjes <rientjes@google.com>
+To: Dave Chinner <dchinner@redhat.com>
+Cc: Glauber Costa <glommer@parallels.com>, Ying Han <yinghan@google.com>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, Christoph Lameter <cl@linux.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, linux-mm@kvack.org
 
-2012/8/17 Christoph Lameter <cl@linux.com>:
-> On Fri, 17 Aug 2012, JoonSoo Kim wrote:
->
->> > What difference does this patch make? At the end of the day you need the
->> > total number of objects available in the partial slabs and the cpu slab
->> > for comparison.
->>
->> It doesn't induce any large difference, but this makes code robust and
->> consistent.
->> Consistent code make us easily knowing what code does.
->
-> Consistency depends on the way you think about the code.
->
->> It is somewhat odd that in first loop, we consider number of objects
->> kept in cpu slab,
->> but second loop exclude that number and just consider number of
->> objects in cpu partial slab.
->
-> In the loop we consider the number of objects available to the cpu
-> without locking.
->
-> First we populate the per_cpu slab and if that does not give us enough per
-> cpu objects then we use the per cpu partial list to increase that number
-> to the desired count given by s->cpu_partial.
->
-> "available" is the number of objects available for a particular cpu
-> without having to go to the partial slab lists (which means having to acquire a
-> per node lock).
->
+On 08/17/2012 03:54 AM, Dave Chinner wrote:
 
-Yes! You are right!
-But, currently, "available" is not used as above meaning exactly.
-It is used twice and each one has different meaning.
+> IOWs, it's still the same count/scan shrinker interface, just with
+> all the LRU and shrinker bits abstracted and implemented in common
+> code. The generic LRU abstraction is that it only knows about the
+> list-head in the structure that is passed to it, and it passes that
+> listhead to the per-object callbacks for the subsystem to do the
+> specific work that is needed.
 
-                if (!object) {
-                        c->page = page;
-                        stat(s, ALLOC_FROM_PARTIAL);
-                        object = t;
-                        available =  page->objects - page->inuse;
-                } else {
-                        available = put_cpu_partial(s, page, 0);
-                        stat(s, CPU_PARTIAL_NODE);
-                }
+This will make it very easy to iterate over the slab object
+LRUs in my "reclaim from the highest score LRU" patch set.
 
-See above code.
-In case of !object (available =  page->objects - page->inuse;),
-"available" means the number of objects in cpu slab.
-In this time, we don't have any cpu partial slab, so "available" imply
-the number of objects available to the cpu without locking.
-This is what we want.
+That in turn will allow us to properly balance pressure between
+cgroup and non-cgroup object LRUs, between the LRUs of various
+superblocks, etc...
 
-
-But, see another "available" (available = put_cpu_partial(s, page, 0);).
-
-This "available" doesn't include the number of objects in cpu slab.
-It only include the number of objects in cpu partial slab.
-So, it doesn't imply the number of objects available to the cpu without locking.
-This isn't what we want.
-
-Therefore, I think a minor fix is needed for consistency.
-Isn't it reasonable?
-
-Thanks!
+-- 
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
