@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
-	by kanga.kvack.org (Postfix) with SMTP id 66F9C6B005D
-	for <linux-mm@kvack.org>; Fri, 17 Aug 2012 10:14:38 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
+	by kanga.kvack.org (Postfix) with SMTP id 1EA9B6B006C
+	for <linux-mm@kvack.org>; Fri, 17 Aug 2012 10:14:39 -0400 (EDT)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 1/7] Revert __GFP_NO_KSWAPD removal
-Date: Fri, 17 Aug 2012 15:14:27 +0100
-Message-Id: <1345212873-22447-2-git-send-email-mgorman@suse.de>
+Subject: [PATCH 2/7] mm: have order > 0 compaction start near a pageblock with free pages
+Date: Fri, 17 Aug 2012 15:14:28 +0100
+Message-Id: <1345212873-22447-3-git-send-email-mgorman@suse.de>
 In-Reply-To: <1345212873-22447-1-git-send-email-mgorman@suse.de>
 References: <1345212873-22447-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -13,112 +13,167 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Rik van Riel <riel@redhat.com>, Minchan Kim <minchan@kernel.org>, Jim Schutt <jaschut@sandia.gov>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
 
-This is a temporary removal to allow the important parts of this series
-to be merged for v3.6. The patch is reimplemented later in the series.
+commit [7db8889a: mm: have order > 0 compaction start off where it left]
+introduced a caching mechanism to reduce the amount work the free page
+scanner does in compaction. However, it has a problem. Consider two process
+simultaneously scanning free pages
 
-mm-remove-__gfp_no_kswapd.patch
-remove-__gfp_no_kswapd-fixes.patch
-remove-__gfp_no_kswapd-fixes-fix.patch
+				    			C
+Process A		M     S     			F
+		|---------------------------------------|
+Process B		M 	FS
+
+C is zone->compact_cached_free_pfn
+S is cc->start_pfree_pfn
+M is cc->migrate_pfn
+F is cc->free_pfn
+
+In this diagram, Process A has just reached its migrate scanner, wrapped
+around and updated compact_cached_free_pfn accordingly.
+
+Simultaneously, Process B finishes isolating in a block and updates
+compact_cached_free_pfn again to the location of its free scanner.
+
+Process A moves to "end_of_zone - one_pageblock" and runs this check
+
+                if (cc->order > 0 && (!cc->wrapped ||
+                                      zone->compact_cached_free_pfn >
+                                      cc->start_free_pfn))
+                        pfn = min(pfn, zone->compact_cached_free_pfn);
+
+compact_cached_free_pfn is above where it started so the free scanner skips
+almost the entire space it should have scanned. When there are multiple
+processes compacting it can end in a situation where the entire zone is
+not being scanned at all.  Further, it is possible for two processes to
+ping-pong update to compact_cached_free_pfn which is just random.
+
+Overall, the end result wrecks allocation success rates.
+
+There is not an obvious way around this problem without introducing new
+locking and state so this patch takes a different approach.
+
+First, it gets rid of the skip logic because it's not clear that it matters
+if two free scanners happen to be in the same block but with racing updates
+it's too easy for it to skip over blocks it should not.
+
+Second, it updates compact_cached_free_pfn in a more limited set of
+circumstances.
+
+If a scanner has wrapped, it updates compact_cached_free_pfn to the end
+	of the zone. When a wrapped scanner isolates a page, it updates
+	compact_cached_free_pfn to point to the highest pageblock it
+	can isolate pages from.
+
+If a scanner has not wrapped when it has finished isolated pages it
+	checks if compact_cached_free_pfn is pointing to the end of the
+	zone. If so, the value is updated to point to the highest
+	pageblock that pages were isolated from. This value will not
+	be updated again until a free page scanner wraps and resets
+	compact_cached_free_pfn.
+
+This is not optimal and it can still race but the compact_cached_free_pfn
+will be pointing to or very near a pageblock with free pages.
 
 Signed-off-by: Mel Gorman <mgorman@suse.de>
+Reviewed-by: Rik van Riel <riel@redhat.com>
+Reviewed-by: Minchan Kim <minchan@kernel.org>
 ---
- drivers/mtd/mtdcore.c           |    6 ++++--
- include/linux/gfp.h             |    5 ++++-
- include/trace/events/gfpflags.h |    1 +
- mm/page_alloc.c                 |    7 ++++---
- 4 files changed, 13 insertions(+), 6 deletions(-)
+ mm/compaction.c |   54 ++++++++++++++++++++++++++++--------------------------
+ 1 file changed, 28 insertions(+), 26 deletions(-)
 
-diff --git a/drivers/mtd/mtdcore.c b/drivers/mtd/mtdcore.c
-index 374c46d..ec794a7 100644
---- a/drivers/mtd/mtdcore.c
-+++ b/drivers/mtd/mtdcore.c
-@@ -1077,7 +1077,8 @@ EXPORT_SYMBOL_GPL(mtd_writev);
-  * until the request succeeds or until the allocation size falls below
-  * the system page size. This attempts to make sure it does not adversely
-  * impact system performance, so when allocating more than one page, we
-- * ask the memory allocator to avoid re-trying.
-+ * ask the memory allocator to avoid re-trying, swapping, writing back
-+ * or performing I/O.
-  *
-  * Note, this function also makes sure that the allocated buffer is aligned to
-  * the MTD device's min. I/O unit, i.e. the "mtd->writesize" value.
-@@ -1091,7 +1092,8 @@ EXPORT_SYMBOL_GPL(mtd_writev);
+diff --git a/mm/compaction.c b/mm/compaction.c
+index 36276e6..1a8d460 100644
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -384,6 +384,20 @@ static bool suitable_migration_target(struct page *page)
+ }
+ 
+ /*
++ * Returns the start pfn of the last page block in a zone.  This is the starting
++ * point for full compaction of a zone.  Compaction searches for free pages from
++ * the end of each zone, while isolate_freepages_block scans forward inside each
++ * page block.
++ */
++static unsigned long start_free_pfn(struct zone *zone)
++{
++	unsigned long free_pfn;
++	free_pfn = zone->zone_start_pfn + zone->spanned_pages;
++	free_pfn &= ~(pageblock_nr_pages-1);
++	return free_pfn;
++}
++
++/*
+  * Based on information in the current compact_control, find blocks
+  * suitable for isolating free pages from and then isolate them.
   */
- void *mtd_kmalloc_up_to(const struct mtd_info *mtd, size_t *size)
+@@ -422,17 +436,6 @@ static void isolate_freepages(struct zone *zone,
+ 					pfn -= pageblock_nr_pages) {
+ 		unsigned long isolated;
+ 
+-		/*
+-		 * Skip ahead if another thread is compacting in the area
+-		 * simultaneously. If we wrapped around, we can only skip
+-		 * ahead if zone->compact_cached_free_pfn also wrapped to
+-		 * above our starting point.
+-		 */
+-		if (cc->order > 0 && (!cc->wrapped ||
+-				      zone->compact_cached_free_pfn >
+-				      cc->start_free_pfn))
+-			pfn = min(pfn, zone->compact_cached_free_pfn);
+-
+ 		if (!pfn_valid(pfn))
+ 			continue;
+ 
+@@ -475,7 +478,15 @@ static void isolate_freepages(struct zone *zone,
+ 		 */
+ 		if (isolated) {
+ 			high_pfn = max(high_pfn, pfn);
+-			if (cc->order > 0)
++
++			/*
++			 * If the free scanner has wrapped, update
++			 * compact_cached_free_pfn to point to the highest
++			 * pageblock with free pages. This reduces excessive
++			 * scanning of full pageblocks near the end of the
++			 * zone
++			 */
++			if (cc->order > 0 && cc->wrapped)
+ 				zone->compact_cached_free_pfn = high_pfn;
+ 		}
+ 	}
+@@ -485,6 +496,11 @@ static void isolate_freepages(struct zone *zone,
+ 
+ 	cc->free_pfn = high_pfn;
+ 	cc->nr_freepages = nr_freepages;
++
++	/* If compact_cached_free_pfn is reset then set it now */
++	if (cc->order > 0 && !cc->wrapped &&
++			zone->compact_cached_free_pfn == start_free_pfn(zone))
++		zone->compact_cached_free_pfn = high_pfn;
+ }
+ 
+ /*
+@@ -572,20 +588,6 @@ static isolate_migrate_t isolate_migratepages(struct zone *zone,
+ 	return ISOLATE_SUCCESS;
+ }
+ 
+-/*
+- * Returns the start pfn of the last page block in a zone.  This is the starting
+- * point for full compaction of a zone.  Compaction searches for free pages from
+- * the end of each zone, while isolate_freepages_block scans forward inside each
+- * page block.
+- */
+-static unsigned long start_free_pfn(struct zone *zone)
+-{
+-	unsigned long free_pfn;
+-	free_pfn = zone->zone_start_pfn + zone->spanned_pages;
+-	free_pfn &= ~(pageblock_nr_pages-1);
+-	return free_pfn;
+-}
+-
+ static int compact_finished(struct zone *zone,
+ 			    struct compact_control *cc)
  {
--	gfp_t flags = __GFP_NOWARN | __GFP_WAIT | __GFP_NORETRY;
-+	gfp_t flags = __GFP_NOWARN | __GFP_WAIT |
-+		       __GFP_NORETRY | __GFP_NO_KSWAPD;
- 	size_t min_alloc = max_t(size_t, mtd->writesize, PAGE_SIZE);
- 	void *kbuf;
- 
-diff --git a/include/linux/gfp.h b/include/linux/gfp.h
-index f9bc873..4883f39 100644
---- a/include/linux/gfp.h
-+++ b/include/linux/gfp.h
-@@ -35,6 +35,7 @@ struct vm_area_struct;
- #else
- #define ___GFP_NOTRACK		0
- #endif
-+#define ___GFP_NO_KSWAPD	0x400000u
- #define ___GFP_OTHER_NODE	0x800000u
- #define ___GFP_WRITE		0x1000000u
- 
-@@ -89,6 +90,7 @@ struct vm_area_struct;
- #define __GFP_RECLAIMABLE ((__force gfp_t)___GFP_RECLAIMABLE) /* Page is reclaimable */
- #define __GFP_NOTRACK	((__force gfp_t)___GFP_NOTRACK)  /* Don't track with kmemcheck */
- 
-+#define __GFP_NO_KSWAPD	((__force gfp_t)___GFP_NO_KSWAPD)
- #define __GFP_OTHER_NODE ((__force gfp_t)___GFP_OTHER_NODE) /* On behalf of other node */
- #define __GFP_WRITE	((__force gfp_t)___GFP_WRITE)	/* Allocator intends to dirty page */
- 
-@@ -118,7 +120,8 @@ struct vm_area_struct;
- 				 __GFP_MOVABLE)
- #define GFP_IOFS	(__GFP_IO | __GFP_FS)
- #define GFP_TRANSHUGE	(GFP_HIGHUSER_MOVABLE | __GFP_COMP | \
--			 __GFP_NOMEMALLOC | __GFP_NORETRY | __GFP_NOWARN)
-+			 __GFP_NOMEMALLOC | __GFP_NORETRY | __GFP_NOWARN | \
-+			 __GFP_NO_KSWAPD)
- 
- #ifdef CONFIG_NUMA
- #define GFP_THISNODE	(__GFP_THISNODE | __GFP_NOWARN | __GFP_NORETRY)
-diff --git a/include/trace/events/gfpflags.h b/include/trace/events/gfpflags.h
-index 9391706..d6fd8e5 100644
---- a/include/trace/events/gfpflags.h
-+++ b/include/trace/events/gfpflags.h
-@@ -36,6 +36,7 @@
- 	{(unsigned long)__GFP_RECLAIMABLE,	"GFP_RECLAIMABLE"},	\
- 	{(unsigned long)__GFP_MOVABLE,		"GFP_MOVABLE"},		\
- 	{(unsigned long)__GFP_NOTRACK,		"GFP_NOTRACK"},		\
-+	{(unsigned long)__GFP_NO_KSWAPD,	"GFP_NO_KSWAPD"},	\
- 	{(unsigned long)__GFP_OTHER_NODE,	"GFP_OTHER_NODE"}	\
- 	) : "GFP_NOWAIT"
- 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index cefac39..c10a9b7 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -2348,8 +2348,9 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
- 		goto nopage;
- 
- restart:
--	wake_all_kswapd(order, zonelist, high_zoneidx,
--					zone_idx(preferred_zone));
-+	if (!(gfp_mask & __GFP_NO_KSWAPD))
-+		wake_all_kswapd(order, zonelist, high_zoneidx,
-+						zone_idx(preferred_zone));
- 
- 	/*
- 	 * OK, we're below the kswapd watermark and have kicked background
-@@ -2432,7 +2433,7 @@ rebalance:
- 	 * has requested the system not be heavily disrupted, fail the
- 	 * allocation now instead of entering direct reclaim
- 	 */
--	if (deferred_compaction)
-+	if (deferred_compaction && (gfp_mask & __GFP_NO_KSWAPD))
- 		goto nopage;
- 
- 	/* Try direct reclaim and then allocating */
 -- 
 1.7.9.2
 
