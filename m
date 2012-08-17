@@ -1,33 +1,32 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx133.postini.com [74.125.245.133])
-	by kanga.kvack.org (Postfix) with SMTP id BA7506B005A
-	for <linux-mm@kvack.org>; Fri, 17 Aug 2012 01:45:24 -0400 (EDT)
-Message-ID: <502DD9B7.5070604@parallels.com>
-Date: Fri, 17 Aug 2012 09:42:15 +0400
+Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
+	by kanga.kvack.org (Postfix) with SMTP id DE0596B006C
+	for <linux-mm@kvack.org>; Fri, 17 Aug 2012 01:46:06 -0400 (EDT)
+Message-ID: <502DD9E3.7060701@parallels.com>
+Date: Fri, 17 Aug 2012 09:42:59 +0400
 From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Subject: Re: [RFC PATCH 0/6] memcg: vfs isolation in memory cgroup
-References: <1345150417-30856-1-git-send-email-yinghan@google.com> <502D61E1.8040704@redhat.com> <20120816234157.GB2776@devil.redhat.com> <502DD35F.7080009@parallels.com> <CALWz4iw444F+odvnbrS_zfN_cNr0g+n3QBBTBtDGwZ8iJ89ujA@mail.gmail.com>
-In-Reply-To: <CALWz4iw444F+odvnbrS_zfN_cNr0g+n3QBBTBtDGwZ8iJ89ujA@mail.gmail.com>
+Subject: Re: [RFC PATCH 1/6] memcg: pass priority to prune_icache_sb()
+References: <1345150430-30910-1-git-send-email-yinghan@google.com> <502DD663.2020504@parallels.com> <CALWz4iy=NR=yo5+-jj2nVqUiZtS+3866QiecUv3VGr2bkQONaQ@mail.gmail.com>
+In-Reply-To: <CALWz4iy=NR=yo5+-jj2nVqUiZtS+3866QiecUv3VGr2bkQONaQ@mail.gmail.com>
 Content-Type: text/plain; charset="ISO-8859-1"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Ying Han <yinghan@google.com>
-Cc: Dave Chinner <dchinner@redhat.com>, Rik van Riel <riel@redhat.com>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, Christoph Lameter <cl@linux.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, linux-mm@kvack.org
+Cc: Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Greg Thelen <gthelen@google.com>, Christoph Lameter <cl@linux.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, linux-mm@kvack.org
 
-On 08/17/2012 09:40 AM, Ying Han wrote:
->> > 2) There is no memcg associated with the object, and then we should not
->> > bother with that object at all.
-> In the patch I have, all objects are associated with *a* memcg. For
-> those objects are charged to root or reparented to root,
-> they do get associated with root and further memory pressure on root (
-> global reclaim ) will be applied on those objects.
+On 08/17/2012 09:44 AM, Ying Han wrote:
+>> >
+>> > Wouldn't it be possible to make sure that such inodes are in the end of
+>> > the shrinkable list, so they are effectively left for last without
+>> > messing with priorities?
+> You mean rotate them to the end of the list? Thought that is what the
+> patch end up doing.
 > 
-For the practical purposes of what Dave is concerned about, "no memcg"
-equals "root memcg", right? It still holds we would expect globally
-accessed dentries to belong to root/no-memcg, and per-group pressure
-would not get to them.
+> --Ying
+
+Yes, but not at shrink time.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
