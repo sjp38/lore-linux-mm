@@ -1,58 +1,29 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
-	by kanga.kvack.org (Postfix) with SMTP id C3C406B005D
-	for <linux-mm@kvack.org>; Fri, 17 Aug 2012 06:42:34 -0400 (EDT)
-Message-ID: <502E1F5B.9090601@parallels.com>
-Date: Fri, 17 Aug 2012 14:39:23 +0400
-From: Glauber Costa <glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
+	by kanga.kvack.org (Postfix) with SMTP id 51B876B005D
+	for <linux-mm@kvack.org>; Fri, 17 Aug 2012 07:32:26 -0400 (EDT)
+Received: by lahd3 with SMTP id d3so2418455lah.14
+        for <linux-mm@kvack.org>; Fri, 17 Aug 2012 04:32:24 -0700 (PDT)
+Date: Fri, 17 Aug 2012 14:32:22 +0300 (EEST)
+From: Pekka Enberg <penberg@kernel.org>
+Subject: Re: [patch] mm, slab: remove dflags
+In-Reply-To: <000001393190efa8-08cba91b-1bf6-4d31-8b0c-f3864bbe26b0-000000@email.amazonses.com>
+Message-ID: <alpine.LFD.2.02.1208171432110.2553@tux.localdomain>
+References: <alpine.DEB.2.00.1208161225480.28427@chino.kir.corp.google.com> <000001393190efa8-08cba91b-1bf6-4d31-8b0c-f3864bbe26b0-000000@email.amazonses.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2 09/11] memcg: propagate kmem limiting information to
- children
-References: <1344517279-30646-1-git-send-email-glommer@parallels.com> <1344517279-30646-10-git-send-email-glommer@parallels.com> <20120817090005.GC18600@dhcp22.suse.cz> <502E0BC3.8090204@parallels.com> <20120817093504.GE18600@dhcp22.suse.cz> <502E17C4.7060204@parallels.com> <20120817103550.GF18600@dhcp22.suse.cz>
-In-Reply-To: <20120817103550.GF18600@dhcp22.suse.cz>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, devel@openvz.org, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, kamezawa.hiroyu@jp.fujitsu.com, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Suleiman Souhlal <suleiman@google.com>
+To: Christoph Lameter <cl@linux.com>
+Cc: David Rientjes <rientjes@google.com>, linux-mm@kvack.org
 
-On 08/17/2012 02:35 PM, Michal Hocko wrote:
-> On Fri 17-08-12 14:07:00, Glauber Costa wrote:
->> On 08/17/2012 01:35 PM, Michal Hocko wrote:
->>>>> Above you said "Once enabled, can't be disabled." and now you can
->>>>>>> disable it? Say you are a leaf group with non accounted parents. This
->>>>>>> will clear the flag and so no further accounting is done. Shouldn't
->>>>>>> unlimited mean that we will never reach the limit? Or am I missing
->>>>>>> something?
->>>>>>>
->>>>>
->>>>> You are missing something, and maybe I should be more clear about that.
->>>>> The static branches can't be disabled (it is only safe to disable them
->>>>> from disarm_static_branches(), when all references are gone). Note that
->>>>> when unlimited, we flip bits, do a transversal, but there is no mention
->>>>> to the static branch.
->>> My little brain still doesn't get this. I wasn't concerned about static
->>> branches. I was worried about memcg_can_account_kmem which will return
->>> false now, doesn't it.
->>>
->>
->> Yes, it will. If I got you right, you are concerned because I said that
->> can't happen. But it will.
->>
->> But I never said that can't happen. I said (ok, I meant) the static
->> branches can't be disabled.
-> 
-> Ok, then I misunderstood that because the comment was there even before
-> static branches were introduced and it made sense to me. This is
-> inconsistent with what we do for user accounting because even if we set
-> limit to unlimitted we still account. Why should we differ here?
-> 
-There is another thing as well. Mel was right in his comment: I am
-actually abusing this bit (because it is flippable), and it seems the
-static branch can be updated more than once...
+On Thu, 16 Aug 2012, David Rientjes wrote:
+> > cachep->dflags is never referenced, so remove it.
 
-I'll merge your comments, and fix this.
+On Thu, 16 Aug 2012, Christoph Lameter wrote:
+> Acked-by: Christoph Lameter <cl@linux.com>
+
+Applied, thanks!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
