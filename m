@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx151.postini.com [74.125.245.151])
-	by kanga.kvack.org (Postfix) with SMTP id 02B3A6B0070
-	for <linux-mm@kvack.org>; Fri, 17 Aug 2012 10:14:39 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
+	by kanga.kvack.org (Postfix) with SMTP id D25596B006C
+	for <linux-mm@kvack.org>; Fri, 17 Aug 2012 10:14:40 -0400 (EDT)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 3/7] mm: compaction: Abort async compaction if locks are contended or taking too long
-Date: Fri, 17 Aug 2012 15:14:29 +0100
-Message-Id: <1345212873-22447-4-git-send-email-mgorman@suse.de>
+Subject: [PATCH 4/7] mm: remove __GFP_NO_KSWAPD
+Date: Fri, 17 Aug 2012 15:14:30 +0100
+Message-Id: <1345212873-22447-5-git-send-email-mgorman@suse.de>
 In-Reply-To: <1345212873-22447-1-git-send-email-mgorman@suse.de>
 References: <1345212873-22447-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -13,391 +13,119 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Rik van Riel <riel@redhat.com>, Minchan Kim <minchan@kernel.org>, Jim Schutt <jaschut@sandia.gov>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
 
-Jim Schutt reported a problem that pointed at compaction contending
-heavily on locks. The workload is straight-forward and in his own words;
+From: Rik van Riel <riel@redhat.com>
 
-	The systems in question have 24 SAS drives spread across 3 HBAs,
-	running 24 Ceph OSD instances, one per drive.  FWIW these servers
-	are dual-socket Intel 5675 Xeons w/48 GB memory.  I've got ~160
-	Ceph Linux clients doing dd simultaneously to a Ceph file system
-	backed by 12 of these servers.
+When transparent huge pages were introduced, memory compaction and swap
+storms were an issue, and the kernel had to be careful to not make THP
+allocations cause pageout or compaction.
 
-Early in the test everything looks fine
+Now that we have working compaction deferral, kswapd is smart enough to
+invoke compaction and the quadratic behaviour around isolate_free_pages
+has been fixed, it should be safe to remove __GFP_NO_KSWAPD.
 
-procs -------------------memory------------------ ---swap-- -----io---- --system-- -----cpu-------
- r  b       swpd       free       buff      cache   si   so    bi    bo   in   cs  us sy  id wa st
-31 15          0     287216        576   38606628    0    0     2  1158    2   14   1  3  95  0  0
-27 15          0     225288        576   38583384    0    0    18 2222016 203357 134876  11 56  17 15  0
-28 17          0     219256        576   38544736    0    0    11 2305932 203141 146296  11 49  23 17  0
- 6 18          0     215596        576   38552872    0    0     7 2363207 215264 166502  12 45  22 20  0
-22 18          0     226984        576   38596404    0    0     3 2445741 223114 179527  12 43  23 22  0
-
-and then it goes to pot
-
-procs -------------------memory------------------ ---swap-- -----io---- --system-- -----cpu-------
- r  b       swpd       free       buff      cache   si   so    bi    bo   in   cs  us sy  id wa st
-163  8          0     464308        576   36791368    0    0    11 22210  866  536   3 13  79  4  0
-207 14          0     917752        576   36181928    0    0   712 1345376 134598 47367   7 90   1  2  0
-123 12          0     685516        576   36296148    0    0   429 1386615 158494 60077   8 84   5  3  0
-123 12          0     598572        576   36333728    0    0  1107 1233281 147542 62351   7 84   5  4  0
-622  7          0     660768        576   36118264    0    0   557 1345548 151394 59353   7 85   4  3  0
-223 11          0     283960        576   36463868    0    0    46 1107160 121846 33006   6 93   1  1  0
-
-Note that system CPU usage is very high blocks being written out has
-dropped by 42%. He analysed this with perf and found
-
-  perf record -g -a sleep 10
-  perf report --sort symbol --call-graph fractal,5
-    34.63%  [k] _raw_spin_lock_irqsave
-            |
-            |--97.30%-- isolate_freepages
-            |          compaction_alloc
-            |          unmap_and_move
-            |          migrate_pages
-            |          compact_zone
-            |          compact_zone_order
-            |          try_to_compact_pages
-            |          __alloc_pages_direct_compact
-            |          __alloc_pages_slowpath
-            |          __alloc_pages_nodemask
-            |          alloc_pages_vma
-            |          do_huge_pmd_anonymous_page
-            |          handle_mm_fault
-            |          do_page_fault
-            |          page_fault
-            |          |
-            |          |--87.39%-- skb_copy_datagram_iovec
-            |          |          tcp_recvmsg
-            |          |          inet_recvmsg
-            |          |          sock_recvmsg
-            |          |          sys_recvfrom
-            |          |          system_call
-            |          |          __recv
-            |          |          |
-            |          |           --100.00%-- (nil)
-            |          |
-            |           --12.61%-- memcpy
-             --2.70%-- [...]
-
-There was other data but primarily it is all showing that compaction is
-contended heavily on the zone->lock and zone->lru_lock.
-
-commit [b2eef8c0: mm: compaction: minimise the time IRQs are disabled
-while isolating pages for migration] noted that it was possible for
-migration to hold the lru_lock for an excessive amount of time. Very
-broadly speaking this patch expands the concept.
-
-This patch introduces compact_checklock_irqsave() to check if a lock
-is contended or the process needs to be scheduled. If either condition
-is true then async compaction is aborted and the caller is informed.
-The page allocator will fail a THP allocation if compaction failed due
-to contention. This patch also introduces compact_trylock_irqsave()
-which will acquire the lock only if it is not contended and the process
-does not need to schedule.
-
-Reported-and-tested-by: Jim Schutt <jaschut@sandia.gov>
+[minchan@kernel.org: Comment fix]
+[mgorman@suse.de: Avoid direct reclaim for deferred compaction]
+Cc: Andrea Arcangeli <aarcange@redhat.com>
+Signed-off-by: Rik van Riel <riel@redhat.com>
 Signed-off-by: Mel Gorman <mgorman@suse.de>
 ---
- include/linux/compaction.h |    4 +-
- mm/compaction.c            |  100 ++++++++++++++++++++++++++++++++++----------
- mm/internal.h              |    1 +
- mm/page_alloc.c            |   17 +++++---
- 4 files changed, 93 insertions(+), 29 deletions(-)
+ drivers/mtd/mtdcore.c           |    6 ++----
+ include/linux/gfp.h             |    5 +----
+ include/trace/events/gfpflags.h |    1 -
+ mm/page_alloc.c                 |    7 +++----
+ 4 files changed, 6 insertions(+), 13 deletions(-)
 
-diff --git a/include/linux/compaction.h b/include/linux/compaction.h
-index 133ddcf..ef65814 100644
---- a/include/linux/compaction.h
-+++ b/include/linux/compaction.h
-@@ -22,7 +22,7 @@ extern int sysctl_extfrag_handler(struct ctl_table *table, int write,
- extern int fragmentation_index(struct zone *zone, unsigned int order);
- extern unsigned long try_to_compact_pages(struct zonelist *zonelist,
- 			int order, gfp_t gfp_mask, nodemask_t *mask,
--			bool sync);
-+			bool sync, bool *contended);
- extern int compact_pgdat(pg_data_t *pgdat, int order);
- extern unsigned long compaction_suitable(struct zone *zone, int order);
- 
-@@ -64,7 +64,7 @@ static inline bool compaction_deferred(struct zone *zone, int order)
- #else
- static inline unsigned long try_to_compact_pages(struct zonelist *zonelist,
- 			int order, gfp_t gfp_mask, nodemask_t *nodemask,
--			bool sync)
-+			bool sync, bool *contended)
- {
- 	return COMPACT_CONTINUE;
- }
-diff --git a/mm/compaction.c b/mm/compaction.c
-index 1a8d460..6bf7f86 100644
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -51,6 +51,47 @@ static inline bool migrate_async_suitable(int migratetype)
- }
- 
- /*
-+ * Compaction requires the taking of some coarse locks that are potentially
-+ * very heavily contended. Check if the process needs to be scheduled or
-+ * if the lock is contended. For async compaction, back out in the event
-+ * if contention is severe. For sync compaction, schedule.
-+ *
-+ * Returns true if the lock is held.
-+ * Returns false if the lock is released and compaction should abort
-+ */
-+static bool compact_checklock_irqsave(spinlock_t *lock, unsigned long *flags,
-+				      bool locked, struct compact_control *cc)
-+{
-+	if (need_resched() || spin_is_contended(lock)) {
-+		if (locked) {
-+			spin_unlock_irqrestore(lock, *flags);
-+			locked = false;
-+		}
-+
-+		/* async aborts if taking too long or contended */
-+		if (!cc->sync) {
-+			if (cc->contended)
-+				*cc->contended = true;
-+			return false;
-+		}
-+
-+		cond_resched();
-+		if (fatal_signal_pending(current))
-+			return false;
-+	}
-+
-+	if (!locked)
-+		spin_lock_irqsave(lock, *flags);
-+	return true;
-+}
-+
-+static inline bool compact_trylock_irqsave(spinlock_t *lock,
-+			unsigned long *flags, struct compact_control *cc)
-+{
-+	return compact_checklock_irqsave(lock, flags, false, cc);
-+}
-+
-+/*
-  * Isolate free pages onto a private freelist. Caller must hold zone->lock.
-  * If @strict is true, will abort returning 0 on any invalid PFNs or non-free
-  * pages inside of the pageblock (even though it may still end up isolating
-@@ -173,7 +214,7 @@ isolate_freepages_range(unsigned long start_pfn, unsigned long end_pfn)
- }
- 
- /* Update the number of anon and file isolated pages in the zone */
--static void acct_isolated(struct zone *zone, struct compact_control *cc)
-+static void acct_isolated(struct zone *zone, bool locked, struct compact_control *cc)
- {
- 	struct page *page;
- 	unsigned int count[2] = { 0, };
-@@ -181,8 +222,14 @@ static void acct_isolated(struct zone *zone, struct compact_control *cc)
- 	list_for_each_entry(page, &cc->migratepages, lru)
- 		count[!!page_is_file_cache(page)]++;
- 
--	__mod_zone_page_state(zone, NR_ISOLATED_ANON, count[0]);
--	__mod_zone_page_state(zone, NR_ISOLATED_FILE, count[1]);
-+	/* If locked we can use the interrupt unsafe versions */
-+	if (locked) {
-+		__mod_zone_page_state(zone, NR_ISOLATED_ANON, count[0]);
-+		__mod_zone_page_state(zone, NR_ISOLATED_FILE, count[1]);
-+	} else {
-+		mod_zone_page_state(zone, NR_ISOLATED_ANON, count[0]);
-+		mod_zone_page_state(zone, NR_ISOLATED_FILE, count[1]);
-+	}
- }
- 
- /* Similar to reclaim, but different enough that they don't share logic */
-@@ -228,6 +275,8 @@ isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
- 	struct list_head *migratelist = &cc->migratepages;
- 	isolate_mode_t mode = 0;
- 	struct lruvec *lruvec;
-+	unsigned long flags;
-+	bool locked;
- 
- 	/*
- 	 * Ensure that there are not too many pages isolated from the LRU
-@@ -247,25 +296,22 @@ isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
- 
- 	/* Time to isolate some pages for migration */
- 	cond_resched();
--	spin_lock_irq(&zone->lru_lock);
-+	spin_lock_irqsave(&zone->lru_lock, flags);
-+	locked = true;
- 	for (; low_pfn < end_pfn; low_pfn++) {
- 		struct page *page;
--		bool locked = true;
- 
- 		/* give a chance to irqs before checking need_resched() */
- 		if (!((low_pfn+1) % SWAP_CLUSTER_MAX)) {
--			spin_unlock_irq(&zone->lru_lock);
-+			spin_unlock_irqrestore(&zone->lru_lock, flags);
- 			locked = false;
- 		}
--		if (need_resched() || spin_is_contended(&zone->lru_lock)) {
--			if (locked)
--				spin_unlock_irq(&zone->lru_lock);
--			cond_resched();
--			spin_lock_irq(&zone->lru_lock);
--			if (fatal_signal_pending(current))
--				break;
--		} else if (!locked)
--			spin_lock_irq(&zone->lru_lock);
-+
-+		/* Check if it is ok to still hold the lock */
-+		locked = compact_checklock_irqsave(&zone->lru_lock, &flags,
-+								locked, cc);
-+		if (!locked)
-+			break;
- 
- 		/*
- 		 * migrate_pfn does not necessarily start aligned to a
-@@ -349,9 +395,10 @@ isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
- 		}
- 	}
- 
--	acct_isolated(zone, cc);
-+	acct_isolated(zone, locked, cc);
- 
--	spin_unlock_irq(&zone->lru_lock);
-+	if (locked)
-+		spin_unlock_irqrestore(&zone->lru_lock, flags);
- 
- 	trace_mm_compaction_isolate_migratepages(nr_scanned, nr_isolated);
- 
-@@ -461,7 +508,16 @@ static void isolate_freepages(struct zone *zone,
- 		 * are disabled
- 		 */
- 		isolated = 0;
--		spin_lock_irqsave(&zone->lock, flags);
-+
-+		/*
-+		 * The zone lock must be held to isolate freepages. This
-+		 * unfortunately this is a very coarse lock and can be
-+		 * heavily contended if there are parallel allocations
-+		 * or parallel compactions. For async compaction do not
-+		 * spin on the lock
-+		 */
-+		if (!compact_trylock_irqsave(&zone->lock, &flags, cc))
-+			break;
- 		if (suitable_migration_target(page)) {
- 			end_pfn = min(pfn + pageblock_nr_pages, zone_end_pfn);
- 			trace_mm_compaction_freepage_scanpfn(pfn);
-@@ -775,7 +831,7 @@ out:
- 
- static unsigned long compact_zone_order(struct zone *zone,
- 				 int order, gfp_t gfp_mask,
--				 bool sync)
-+				 bool sync, bool *contended)
- {
- 	struct compact_control cc = {
- 		.nr_freepages = 0,
-@@ -784,6 +840,7 @@ static unsigned long compact_zone_order(struct zone *zone,
- 		.migratetype = allocflags_to_migratetype(gfp_mask),
- 		.zone = zone,
- 		.sync = sync,
-+		.contended = contended,
- 	};
- 	INIT_LIST_HEAD(&cc.freepages);
- 	INIT_LIST_HEAD(&cc.migratepages);
-@@ -805,7 +862,7 @@ int sysctl_extfrag_threshold = 500;
+diff --git a/drivers/mtd/mtdcore.c b/drivers/mtd/mtdcore.c
+index ec794a7..374c46d 100644
+--- a/drivers/mtd/mtdcore.c
++++ b/drivers/mtd/mtdcore.c
+@@ -1077,8 +1077,7 @@ EXPORT_SYMBOL_GPL(mtd_writev);
+  * until the request succeeds or until the allocation size falls below
+  * the system page size. This attempts to make sure it does not adversely
+  * impact system performance, so when allocating more than one page, we
+- * ask the memory allocator to avoid re-trying, swapping, writing back
+- * or performing I/O.
++ * ask the memory allocator to avoid re-trying.
+  *
+  * Note, this function also makes sure that the allocated buffer is aligned to
+  * the MTD device's min. I/O unit, i.e. the "mtd->writesize" value.
+@@ -1092,8 +1091,7 @@ EXPORT_SYMBOL_GPL(mtd_writev);
   */
- unsigned long try_to_compact_pages(struct zonelist *zonelist,
- 			int order, gfp_t gfp_mask, nodemask_t *nodemask,
--			bool sync)
-+			bool sync, bool *contended)
+ void *mtd_kmalloc_up_to(const struct mtd_info *mtd, size_t *size)
  {
- 	enum zone_type high_zoneidx = gfp_zone(gfp_mask);
- 	int may_enter_fs = gfp_mask & __GFP_FS;
-@@ -829,7 +886,8 @@ unsigned long try_to_compact_pages(struct zonelist *zonelist,
- 								nodemask) {
- 		int status;
+-	gfp_t flags = __GFP_NOWARN | __GFP_WAIT |
+-		       __GFP_NORETRY | __GFP_NO_KSWAPD;
++	gfp_t flags = __GFP_NOWARN | __GFP_WAIT | __GFP_NORETRY;
+ 	size_t min_alloc = max_t(size_t, mtd->writesize, PAGE_SIZE);
+ 	void *kbuf;
  
--		status = compact_zone_order(zone, order, gfp_mask, sync);
-+		status = compact_zone_order(zone, order, gfp_mask, sync,
-+						contended);
- 		rc = max(status, rc);
+diff --git a/include/linux/gfp.h b/include/linux/gfp.h
+index 4883f39..f9bc873 100644
+--- a/include/linux/gfp.h
++++ b/include/linux/gfp.h
+@@ -35,7 +35,6 @@ struct vm_area_struct;
+ #else
+ #define ___GFP_NOTRACK		0
+ #endif
+-#define ___GFP_NO_KSWAPD	0x400000u
+ #define ___GFP_OTHER_NODE	0x800000u
+ #define ___GFP_WRITE		0x1000000u
  
- 		/* If a normal allocation would succeed, stop compacting */
-diff --git a/mm/internal.h b/mm/internal.h
-index 3314f79..b8c91b3 100644
---- a/mm/internal.h
-+++ b/mm/internal.h
-@@ -130,6 +130,7 @@ struct compact_control {
- 	int order;			/* order a direct compactor needs */
- 	int migratetype;		/* MOVABLE, RECLAIMABLE etc */
- 	struct zone *zone;
-+	bool *contended;		/* True if a lock was contended */
- };
+@@ -90,7 +89,6 @@ struct vm_area_struct;
+ #define __GFP_RECLAIMABLE ((__force gfp_t)___GFP_RECLAIMABLE) /* Page is reclaimable */
+ #define __GFP_NOTRACK	((__force gfp_t)___GFP_NOTRACK)  /* Don't track with kmemcheck */
  
- unsigned long
+-#define __GFP_NO_KSWAPD	((__force gfp_t)___GFP_NO_KSWAPD)
+ #define __GFP_OTHER_NODE ((__force gfp_t)___GFP_OTHER_NODE) /* On behalf of other node */
+ #define __GFP_WRITE	((__force gfp_t)___GFP_WRITE)	/* Allocator intends to dirty page */
+ 
+@@ -120,8 +118,7 @@ struct vm_area_struct;
+ 				 __GFP_MOVABLE)
+ #define GFP_IOFS	(__GFP_IO | __GFP_FS)
+ #define GFP_TRANSHUGE	(GFP_HIGHUSER_MOVABLE | __GFP_COMP | \
+-			 __GFP_NOMEMALLOC | __GFP_NORETRY | __GFP_NOWARN | \
+-			 __GFP_NO_KSWAPD)
++			 __GFP_NOMEMALLOC | __GFP_NORETRY | __GFP_NOWARN)
+ 
+ #ifdef CONFIG_NUMA
+ #define GFP_THISNODE	(__GFP_THISNODE | __GFP_NOWARN | __GFP_NORETRY)
+diff --git a/include/trace/events/gfpflags.h b/include/trace/events/gfpflags.h
+index d6fd8e5..9391706 100644
+--- a/include/trace/events/gfpflags.h
++++ b/include/trace/events/gfpflags.h
+@@ -36,7 +36,6 @@
+ 	{(unsigned long)__GFP_RECLAIMABLE,	"GFP_RECLAIMABLE"},	\
+ 	{(unsigned long)__GFP_MOVABLE,		"GFP_MOVABLE"},		\
+ 	{(unsigned long)__GFP_NOTRACK,		"GFP_NOTRACK"},		\
+-	{(unsigned long)__GFP_NO_KSWAPD,	"GFP_NO_KSWAPD"},	\
+ 	{(unsigned long)__GFP_OTHER_NODE,	"GFP_OTHER_NODE"}	\
+ 	) : "GFP_NOWAIT"
+ 
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index c10a9b7..0a71d32 100644
+index 0a71d32..b83199b 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -2090,7 +2090,7 @@ __alloc_pages_direct_compact(gfp_t gfp_mask, unsigned int order,
- 	struct zonelist *zonelist, enum zone_type high_zoneidx,
- 	nodemask_t *nodemask, int alloc_flags, struct zone *preferred_zone,
- 	int migratetype, bool sync_migration,
--	bool *deferred_compaction,
-+	bool *contended_compaction, bool *deferred_compaction,
- 	unsigned long *did_some_progress)
- {
- 	struct page *page;
-@@ -2105,7 +2105,8 @@ __alloc_pages_direct_compact(gfp_t gfp_mask, unsigned int order,
+@@ -2350,9 +2350,8 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+ 		goto nopage;
  
- 	current->flags |= PF_MEMALLOC;
- 	*did_some_progress = try_to_compact_pages(zonelist, order, gfp_mask,
--						nodemask, sync_migration);
-+						nodemask, sync_migration,
-+						contended_compaction);
- 	current->flags &= ~PF_MEMALLOC;
- 	if (*did_some_progress != COMPACT_SKIPPED) {
- 
-@@ -2151,7 +2152,7 @@ __alloc_pages_direct_compact(gfp_t gfp_mask, unsigned int order,
- 	struct zonelist *zonelist, enum zone_type high_zoneidx,
- 	nodemask_t *nodemask, int alloc_flags, struct zone *preferred_zone,
- 	int migratetype, bool sync_migration,
--	bool *deferred_compaction,
-+	bool *contended_compaction, bool *deferred_compaction,
- 	unsigned long *did_some_progress)
- {
- 	return NULL;
-@@ -2324,6 +2325,7 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
- 	unsigned long did_some_progress;
- 	bool sync_migration = false;
- 	bool deferred_compaction = false;
-+	bool contended_compaction = false;
+ restart:
+-	if (!(gfp_mask & __GFP_NO_KSWAPD))
+-		wake_all_kswapd(order, zonelist, high_zoneidx,
+-						zone_idx(preferred_zone));
++	wake_all_kswapd(order, zonelist, high_zoneidx,
++					zone_idx(preferred_zone));
  
  	/*
- 	 * In the slowpath, we sanity check order to avoid ever trying to
-@@ -2421,6 +2423,7 @@ rebalance:
- 					nodemask,
- 					alloc_flags, preferred_zone,
- 					migratetype, sync_migration,
-+					&contended_compaction,
- 					&deferred_compaction,
- 					&did_some_progress);
- 	if (page)
-@@ -2430,10 +2433,11 @@ rebalance:
- 	/*
- 	 * If compaction is deferred for high-order allocations, it is because
- 	 * sync compaction recently failed. In this is the case and the caller
--	 * has requested the system not be heavily disrupted, fail the
--	 * allocation now instead of entering direct reclaim
-+	 * requested a movable allocation that does not heavily disrupt the
-+	 * system then fail the allocation instead of entering direct reclaim.
+ 	 * OK, we're below the kswapd watermark and have kicked background
+@@ -2437,7 +2436,7 @@ rebalance:
+ 	 * system then fail the allocation instead of entering direct reclaim.
  	 */
--	if (deferred_compaction && (gfp_mask & __GFP_NO_KSWAPD))
-+	if ((deferred_compaction || contended_compaction) &&
-+						(gfp_mask & __GFP_NO_KSWAPD))
+ 	if ((deferred_compaction || contended_compaction) &&
+-						(gfp_mask & __GFP_NO_KSWAPD))
++	    (gfp_mask & (__GFP_MOVABLE|__GFP_REPEAT)) == __GFP_MOVABLE)
  		goto nopage;
  
  	/* Try direct reclaim and then allocating */
-@@ -2504,6 +2508,7 @@ rebalance:
- 					nodemask,
- 					alloc_flags, preferred_zone,
- 					migratetype, sync_migration,
-+					&contended_compaction,
- 					&deferred_compaction,
- 					&did_some_progress);
- 		if (page)
 -- 
 1.7.9.2
 
