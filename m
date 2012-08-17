@@ -1,89 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
-	by kanga.kvack.org (Postfix) with SMTP id BA6EF6B005D
-	for <linux-mm@kvack.org>; Thu, 16 Aug 2012 22:39:03 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 3B69D3EE0C5
-	for <linux-mm@kvack.org>; Fri, 17 Aug 2012 11:39:02 +0900 (JST)
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 07A6945DE53
-	for <linux-mm@kvack.org>; Fri, 17 Aug 2012 11:39:02 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id E379E45DD78
-	for <linux-mm@kvack.org>; Fri, 17 Aug 2012 11:39:01 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id D25AA1DB8043
-	for <linux-mm@kvack.org>; Fri, 17 Aug 2012 11:39:01 +0900 (JST)
-Received: from m1000.s.css.fujitsu.com (m1000.s.css.fujitsu.com [10.240.81.136])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 8D5F51DB802C
-	for <linux-mm@kvack.org>; Fri, 17 Aug 2012 11:39:01 +0900 (JST)
-Message-ID: <502DAEAA.4000805@jp.fujitsu.com>
-Date: Fri, 17 Aug 2012 11:38:34 +0900
-From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
+	by kanga.kvack.org (Postfix) with SMTP id 87D756B005D
+	for <linux-mm@kvack.org>; Fri, 17 Aug 2012 00:33:34 -0400 (EDT)
+Received: from /spool/local
+	by e23smtp02.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <wangyun@linux.vnet.ibm.com>;
+	Fri, 17 Aug 2012 14:32:40 +1000
+Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
+	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q7H4OfAZ23068742
+	for <linux-mm@kvack.org>; Fri, 17 Aug 2012 14:24:42 +1000
+Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
+	by d23av04.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q7H4XQDv026929
+	for <linux-mm@kvack.org>; Fri, 17 Aug 2012 14:33:26 +1000
+Message-ID: <502DC992.4040304@linux.vnet.ibm.com>
+Date: Fri, 17 Aug 2012 12:33:22 +0800
+From: Michael Wang <wangyun@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2 04/11] kmem accounting basic infrastructure
-References: <1344517279-30646-1-git-send-email-glommer@parallels.com> <1344517279-30646-5-git-send-email-glommer@parallels.com> <50253EA8.9080205@jp.fujitsu.com> <5028BCA3.6040506@parallels.com>
-In-Reply-To: <5028BCA3.6040506@parallels.com>
-Content-Type: text/plain; charset=ISO-2022-JP
+Subject: [PATCH 0/3] raid, kmemleak, netfilter: replace list_for_each_continue_rcu
+ with new interface
+References: <502CB91E.4050304@linux.vnet.ibm.com>
+In-Reply-To: <502CB91E.4050304@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, devel@openvz.org, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>
+To: LKML <linux-kernel@vger.kernel.org>, linux-raid@vger.kernel.org, linux-mm@kvack.org, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, netfilter@vger.kernel.org, coreteam@netfilter.org, netfilter-devel@vger.kernel.org
+Cc: neilb@suse.de, catalin.marinas@arm.com, David Miller <davem@davemloft.net>, kaber@trash.net, pablo@netfilter.org, "paulmck@linux.vnet.ibm.com" <paulmck@linux.vnet.ibm.com>
 
-(2012/08/13 17:36), Glauber Costa wrote:
-> On 08/10/2012 09:02 PM, Kamezawa Hiroyuki wrote:
->> (2012/08/09 22:01), Glauber Costa wrote:
->>> This patch adds the basic infrastructure for the accounting of the slab
->>> caches. To control that, the following files are created:
->>>
->>>    * memory.kmem.usage_in_bytes
->>>    * memory.kmem.limit_in_bytes
->>>    * memory.kmem.failcnt
->>>    * memory.kmem.max_usage_in_bytes
->>>
->>> They have the same meaning of their user memory counterparts. They
->>> reflect the state of the "kmem" res_counter.
->>>
->>> The code is not enabled until a limit is set. This can be tested by the
->>> flag "kmem_accounted". This means that after the patch is applied, no
->>> behavioral changes exists for whoever is still using memcg to control
->>> their memory usage.
->>>
->>> We always account to both user and kernel resource_counters. This
->>> effectively means that an independent kernel limit is in place when the
->>> limit is set to a lower value than the user memory. A equal or higher
->>> value means that the user limit will always hit first, meaning that kmem
->>> is effectively unlimited.
->>>
->>> People who want to track kernel memory but not limit it, can set this
->>> limit to a very high number (like RESOURCE_MAX - 1page - that no one
->>> will ever hit, or equal to the user memory)
->>>
->>> Signed-off-by: Glauber Costa <glommer@parallels.com>
->>> CC: Michal Hocko <mhocko@suse.cz>
->>> CC: Johannes Weiner <hannes@cmpxchg.org>
->>> Reviewed-by: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
->>
->> Could you add  a patch for documentation of this new interface and a text
->> explaining the behavior of "kmem_accounting" ?
->>
->> Hm, my concern is the difference of behavior between user page accounting and
->> kmem accounting...but this is how tcp-accounting is working.
->>
->> Once you add Documentation, it's okay to add my Ack.
->>
-> I plan to add documentation in a separate patch. Due to that, can I add
-> your ack to this patch here?
-> 
-> Also, I find that the description text in patch0 grew to be quite
-> informative and complete. I plan to add that to the documentation
-> if that is ok with you
-> 
+From: Michael Wang <wangyun@linux.vnet.ibm.com>
 
-Ack to this patch.
+This patch set will replace the list_for_each_continue_rcu with the new
+interface list_for_each_entry_continue_rcu, so we could remove the old
+one later.
 
--Kame
+Changed:
+	raid:		in "next_active_rdev"
+	kmemleak:	in "kmemleak_seq_next"
+	netfilter:	in "nf_iterate"	
+
+Tested:
+	raid:
+		mdadm command with an internal bitmap.
+	kmemleak:
+		enable kmemleak and check the info it captured.
+	netfilter:
+		add rule to iptables and check result by ping.
+		nfqnl_test which is a test utility of libnetfilter_queue.
+
+	All testing are using printk to make sure the code we want test
+	was invoked.
+
+Signed-off-by: Michael Wang <wangyun@linux.vnet.ibm.com>
+---
+ drivers/md/bitmap.c  |    9 +++------
+ mm/kmemleak.c        |    6 ++----
+ net/netfilter/core.c |   11 +++++++----
+ 3 files changed, 12 insertions(+), 14 deletions(-)
 
 
 --
