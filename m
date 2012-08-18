@@ -1,40 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx110.postini.com [74.125.245.110])
-	by kanga.kvack.org (Postfix) with SMTP id 94AD86B0069
-	for <linux-mm@kvack.org>; Sat, 18 Aug 2012 00:10:17 -0400 (EDT)
-Message-ID: <502F15A6.5060902@redhat.com>
-Date: Sat, 18 Aug 2012 00:10:14 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
+	by kanga.kvack.org (Postfix) with SMTP id 9244D6B0069
+	for <linux-mm@kvack.org>; Sat, 18 Aug 2012 15:10:02 -0400 (EDT)
 MIME-Version: 1.0
-Subject: Re: Repeated fork() causes SLAB to grow without bound
-References: <20120816024610.GA5350@evergreen.ssec.wisc.edu> <502D42E5.7090403@redhat.com> <20120818000312.GA4262@evergreen.ssec.wisc.edu> <502F100A.1080401@redhat.com> <20120818040747.GA22793@evergreen.ssec.wisc.edu>
-In-Reply-To: <20120818040747.GA22793@evergreen.ssec.wisc.edu>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Message-ID: <caed8bcf-9a9c-46bc-b6e5-a607e9bc7ecb@default>
+Date: Sat, 18 Aug 2012 12:09:27 -0700 (PDT)
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Subject: RE: [PATCH 0/4] promote zcache from staging
+References: <1343413117-1989-1-git-send-email-sjenning@linux.vnet.ibm.com>
+ <5021795A.5000509@linux.vnet.ibm.com> <5024067F.3010602@linux.vnet.ibm.com>
+ <2e9ccb4f-1339-4c26-88dd-ea294b022127@default>
+ <50254F69.2000409@linux.vnet.ibm.com>
+ <8fa37327-17ff-4734-9007-40412b18d0fb@default>
+ <502ED4C0.70305@linux.vnet.ibm.com>
+In-Reply-To: <502ED4C0.70305@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, linux-mm <linux-mm@kvack.org>
+To: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Nitin Gupta <ngupta@vflare.org>, Minchan Kim <minchan@kernel.org>, Konrad Wilk <konrad.wilk@oracle.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org
 
-On 08/18/2012 12:07 AM, Daniel Forrest wrote:
+> From: Seth Jennings [mailto:sjenning@linux.vnet.ibm.com]
+> Sent: Friday, August 17, 2012 5:33 PM
+> To: Dan Magenheimer
+> Cc: Greg Kroah-Hartman; Andrew Morton; Nitin Gupta; Minchan Kim; Konrad W=
+ilk; Robert Jennings; linux-
+> mm@kvack.org; linux-kernel@vger.kernel.org; devel@driverdev.osuosl.org; K=
+urt Hackel
+> Subject: Re: [PATCH 0/4] promote zcache from staging
+>=20
+> >
+> > Sorry to beat a dead horse, but I meant to report this
+> > earlier in the week and got tied up by other things.
+> >
+> > I finally got my test scaffold set up earlier this week
+> > to try to reproduce my "bad" numbers with the RHEL6-ish
+> > config file.
+> >
+> > I found that with "make -j28" and "make -j32" I experienced
+> > __DATA CORRUPTION__.  This was repeatable.
+>=20
+> I actually hit this for the first time a few hours ago when
+> I was running performance for your rewrite.  I didn't know
+> what to make of it yet.  The 24-thread kernel build failed
+> when both frontswap and cleancache were enabled.
+>=20
+> > The type of error led me to believe that the problem was
+> > due to concurrency of cleancache reclaim.  I did not try
+> > with cleancache disabled to prove/support this theory
+> > but it is consistent with the fact that you (Seth) have not
+> > seen a similar problem and has disabled cleancache.
+> >
+> > While this problem is most likely in my code and I am
+> > suitably chagrined, it re-emphasizes the fact that
+> > the current zcache in staging is 20-month old "demo"
+> > code.  The proposed new zcache codebase handles concurrency
+> > much more effectively.
+>=20
+> I imagine this can be solved without rewriting the entire
+> codebase.  If your new code contains a fix for this, can we
+> just pull it as a single patch?
 
-> I was being careful since I wasn't certain about the locking.  Does
-> the test need to be protected by "lock_anon_vma_root"?  That's why I
-> chose the overhead of the possible wasted "anon_vma_chain_alloc".
+Hi Seth --
 
-The function anon_vma_clone is being called from fork().
+I didn't even observe this before this week, let alone fix this
+as an individual bug.  The redesign takes into account LRU ordering
+and zombie pageframes (which have valid pointers to the contained
+zbuds and possibly valid data, so can't be recycled yet),
+taking races and concurrency carefully into account.
 
-When running fork(), the kernel holds the mm->mmap_sem for
-write, which prevents page faults by the parent process.
-This means if the anon_vma in question belongs to the parent
-process, no new pages will be added to it in this time.
+The demo codebase is pretty dumb about concurrency, really
+a hack that seemed to work.  Given the above, I guess the
+hack only works _most_ of the time... when it doesn't
+data corruption can occur.
 
-Likewise, if the anon_vma belonged to a grandparent process,
-any new pages instantiated in it will not be visible to the
-parent process, or to the newly created process. This means
-it is safe to skip the anon_vma.
+It would be an interesting challenge, but likely very
+time-consuming, to fix this one bug while minimizing other
+changes so that the fix could be delivered as a self-contained
+incremental patch.  I suspect if you try, you will learn why
+the rewrite was preferable and necessary.
 
--- 
-All rights reversed
+(Away from email for a few days very soon now.)
+Dan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
