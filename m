@@ -1,124 +1,164 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
-	by kanga.kvack.org (Postfix) with SMTP id A13E86B0069
-	for <linux-mm@kvack.org>; Fri, 17 Aug 2012 20:26:36 -0400 (EDT)
-Received: by lbon3 with SMTP id n3so2892716lbo.14
-        for <linux-mm@kvack.org>; Fri, 17 Aug 2012 17:26:34 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <502ED6A1.9090201@redhat.com>
-References: <20120816113450.52f4e633@cuia.bos.redhat.com>
-	<20120816113733.7ba45fde@cuia.bos.redhat.com>
-	<CALWz4iz6QETaevrg4QAV390K=BXTQKdWfXb2_SOYj4eYWLxfAw@mail.gmail.com>
-	<502ED6A1.9090201@redhat.com>
-Date: Fri, 17 Aug 2012 17:26:34 -0700
-Message-ID: <CALWz4ixRDG9biZrO2VXcvsCAYS5WS7CNwrw0i+3o1u+r1Ls_UQ@mail.gmail.com>
-Subject: Re: [RFC][PATCH -mm -v2 3/4] mm,vmscan: reclaim from the highest
- score cgroups
-From: Ying Han <yinghan@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
+	by kanga.kvack.org (Postfix) with SMTP id DC2776B0069
+	for <linux-mm@kvack.org>; Fri, 17 Aug 2012 21:06:45 -0400 (EDT)
+Subject: [RFC PATCH 1/2] mm: Batch unmapping of file mapped pages in
+ shrink_page_list
+From: Tim Chen <tim.c.chen@linux.intel.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Fri, 17 Aug 2012 18:06:36 -0700
+Message-ID: <1345251996.13492.234.camel@schen9-DESK>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: linux-mm@kvack.org, aquini@redhat.com, hannes@cmpxchg.org, mhocko@suse.cz, Mel Gorman <mel@csn.ul.ie>
+To: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Minchan Kim <minchan@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Matthew Wilcox <willy@linux.intel.com>, Andi Kleen <ak@linux.intel.com>, linux-mm@kvack.org, linux-kernel <linux-kernel@vger.kernel.org>, Alex Shi <alex.shi@intel.com>
 
-On Fri, Aug 17, 2012 at 4:41 PM, Rik van Riel <riel@redhat.com> wrote:
-> On 08/17/2012 07:34 PM, Ying Han wrote:
->>
->> On Thu, Aug 16, 2012 at 8:37 AM, Rik van Riel <riel@redhat.com> wrote:
->
->
->>> +       /*
->>> +        * Reclaim from the top scoring lruvec until we freed enough
->>> +        * pages, or its reclaim priority has halved.
->>> +        */
->>> +       do {
->>> +               shrink_lruvec(victim_lruvec, sc);
->>> +               score = reclaim_score(memcg, victim_lruvec);
->>> +       } while (sc->nr_to_reclaim > 0 && score > max_score / 2);
->>
->>
->> This would violate the user expectation of soft_limit badly,
->> especially for background reclaim where nr_to_reclaim equals to
->> ULONG_MAX.
->>
->> Here we keep hitting cgroup A and potentially push it down to
->> softlimit until the score drops to certain level. It is bad since it
->> causes "hot" memory (under softlimit) of A being reclaimed while other
->> cgroups has plenty of "cold" (above softlimit) to give out.
->
->
-> Look at the function reclaim_score().
->
-> Once a group drops below its soft limit, its score will
-> be a factor 10000 smaller, making sure we hit the second
-> exit condition.
->
-> After that, we will pick another group.
->
->
->> In general, pick one cgroup to reclaim instead of round-robin is ok as
->> long as we don't reclaim further down to the softlimit. The next
->> question then is what's the next cgroup to reclaim if that doesn't
->> give us enough.
->
->
-> Again, look at the function reclaim_score().
->
-> If there is a group above the softlimit, we pretty much
-> guarantee we will reclaim from that group.  If any reclaim
-> will happen from another group, it will be absolutely
-> minimal (taking recent_pressure from 0 to SWAP_CLUSTER_MAX,
-> and then moving on to another group).
+We gather the pages that need to be unmapped in shrink_page_list.  We do
+the unmap in a single batch to reduce the frequency of acquisition of
+the tree lock protecting the address mapping radix tree. This is
+possible as successive pages likely share the same mapping in the
+__remove_mapping_batch routine.  This avoids excessive cache bouncing of
+the tree lock when page reclamations are occurring simultaneously.
 
-Seems I should really look into the numbers, which i tried to avoid at
-the beginning... :(
+Tim
 
-Another way of teaching myself on how it works is to run a sanity
-test. Let's say I have two cgroups under root, and they are running
-different workload:
+---
+Signed-off-by: Tim Chen <tim.c.chen@linux.intel.com>
+---
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index aac5672..a538565 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -600,6 +600,85 @@ cannot_free:
+ 	return 0;
+ }
+ 
++/* Same as __remove_mapping, but batching operations to minimize locking */
++/* Pages to be unmapped should be locked first */
++static int __remove_mapping_batch(struct list_head *unmap_pages,
++				  struct list_head *ret_pages,
++				  struct list_head *free_pages)
++{
++	struct address_space *mapping, *next;
++	LIST_HEAD(swap_pages);
++	swp_entry_t swap;
++	struct page *page;
++	int nr_reclaimed;
++
++	mapping = NULL;
++	nr_reclaimed = 0;
++	while (!list_empty(unmap_pages)) {
++
++		page = lru_to_page(unmap_pages);
++		BUG_ON(!PageLocked(page));
++
++		list_del(&page->lru);
++		next = page_mapping(page);
++		if (mapping != next) {
++			if (mapping)
++				spin_unlock_irq(&mapping->tree_lock);
++			mapping = next;
++			spin_lock_irq(&mapping->tree_lock);
++		}
++
++		if (!page_freeze_refs(page, 2))
++			goto cannot_free;
++		if (unlikely(PageDirty(page))) {
++			page_unfreeze_refs(page, 2);
++			goto cannot_free;
++		}
++
++		if (PageSwapCache(page)) {
++			__delete_from_swap_cache(page);
++			/* swapcahce_free need to be called without tree_lock */
++			list_add(&page->lru, &swap_pages);
++		} else {
++			void (*freepage)(struct page *);
++
++			freepage = mapping->a_ops->freepage;
++
++			__delete_from_page_cache(page);
++			mem_cgroup_uncharge_cache_page(page);
++
++			if (freepage != NULL)
++				freepage(page);
++
++			unlock_page(page);
++			nr_reclaimed++;
++			list_add(&page->lru, free_pages);
++		}
++		continue;
++cannot_free:
++		unlock_page(page);
++		list_add(&page->lru, ret_pages);
++		VM_BUG_ON(PageLRU(page) || PageUnevictable(page));
++
++	}
++
++	if (mapping)
++		spin_unlock_irq(&mapping->tree_lock);
++
++	while (!list_empty(&swap_pages)) {
++		page = lru_to_page(&swap_pages);
++		list_del(&page->lru);
++
++		swap.val = page_private(page);
++		swapcache_free(swap, page);
++
++		unlock_page(page);
++		nr_reclaimed++;
++		list_add(&page->lru, free_pages);
++	}
++
++	return nr_reclaimed;
++}
+ /*
+  * Attempt to detach a locked page from its ->mapping.  If it is dirty or if
+  * someone else has a ref on the page, abort and return 0.  If it was
+@@ -771,6 +850,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+ {
+ 	LIST_HEAD(ret_pages);
+ 	LIST_HEAD(free_pages);
++	LIST_HEAD(unmap_pages);
+ 	int pgactivate = 0;
+ 	unsigned long nr_dirty = 0;
+ 	unsigned long nr_congested = 0;
+@@ -969,17 +1049,13 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+ 			}
+ 		}
+ 
+-		if (!mapping || !__remove_mapping(mapping, page))
++		if (!mapping)
+ 			goto keep_locked;
+ 
+-		/*
+-		 * At this point, we have no other references and there is
+-		 * no way to pick any more up (removed from LRU, removed
+-		 * from pagecache). Can use non-atomic bitops now (and
+-		 * we obviously don't have to worry about waking up a process
+-		 * waiting on the page lock, because there are no references.
+-		 */
+-		__clear_page_locked(page);
++		/* remove pages from mapping in batch at end of loop */
++		list_add(&page->lru, &unmap_pages);
++		continue;
++
+ free_it:
+ 		nr_reclaimed++;
+ 
+@@ -1014,6 +1090,9 @@ keep_lumpy:
+ 		VM_BUG_ON(PageLRU(page) || PageUnevictable(page));
+ 	}
+ 
++	nr_reclaimed += __remove_mapping_batch(&unmap_pages, &ret_pages,
++					       &free_pages);
++
+ 	/*
+ 	 * Tag a zone as congested if all the dirty pages encountered were
+ 	 * backed by a congested BDI. In this case, reclaimers should just
 
-root
-   ->A ( mem_alloc which keep touching its working set)
-   ->B ( stream IO, like dd )
-
-Here are the test cases on top of my head as well as the expected
-output, forget about root cgroup for now:
-
-case 1. A & B above softlimit
-    a) score(B) > score(A), and keep reclaiming from B
-    b) as long as usage(B) > softlimit(B), no reclaim on A
-    c) until B under softlimit, reclaim from A
-
-case 2. A above softlimit and B under softlimit
-    a) score(A) > score(B), and keep reclaiming from A
-    b) as long as usage (A) > softlimit (A), no reclaim on B
-    c) until A under softlimit, then reclaim on both as case 3
-
-case 3. A & B under softlimit
-    a) score(B) > score(A), and keep reclaiming from B
-    b) there should be no reclaim happen on A.
-
-My patch delivers the functionality of case 2, but not distributing
-the pressure across memcgs as this patch does (case 1 & 3).  Also, on
-case3 where in my patch I would scan all the memcgs for nothing where
-in this patch it will eventually pick a memcg to reclaim. Not sure if
-it is a lot save though.
-
-Over the three cases, I would say case 2 is the basic functionality we
-want to guarantee and the case 1 and case 3 are optimizations on top
-of that.
-
-I would like to run the test above and please help to clarify if they
-make sense.
-
-Thanks
-
---Ying
-
-
->
-> --
-> All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
