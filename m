@@ -1,13 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
-	by kanga.kvack.org (Postfix) with SMTP id D83806B005D
-	for <linux-mm@kvack.org>; Mon, 20 Aug 2012 15:35:15 -0400 (EDT)
-Date: Mon, 20 Aug 2012 19:35:14 +0000
+Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
+	by kanga.kvack.org (Postfix) with SMTP id 6AE936B005D
+	for <linux-mm@kvack.org>; Mon, 20 Aug 2012 15:46:10 -0400 (EDT)
+Date: Mon, 20 Aug 2012 19:46:09 +0000
 From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH 2/5] mempolicy: Remove mempolicy sharing
-In-Reply-To: <1345480594-27032-3-git-send-email-mgorman@suse.de>
-Message-ID: <00000139458826d2-f72fceae-338d-4f6c-84f3-67d8817ece99-000000@email.amazonses.com>
-References: <1345480594-27032-1-git-send-email-mgorman@suse.de> <1345480594-27032-3-git-send-email-mgorman@suse.de>
+Subject: Re: [PATCH 4/5] mempolicy: fix refcount leak in
+ mpol_set_shared_policy()
+In-Reply-To: <1345480594-27032-5-git-send-email-mgorman@suse.de>
+Message-ID: <00000139459223d7-93a9c53f-6724-4a4b-b675-cd25d8d53c71-000000@email.amazonses.com>
+References: <1345480594-27032-1-git-send-email-mgorman@suse.de> <1345480594-27032-5-git-send-email-mgorman@suse.de>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -17,23 +18,22 @@ Cc: Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@
 
 On Mon, 20 Aug 2012, Mel Gorman wrote:
 
-> Ideally, the shared policy handling would be rewritten to either properly
-> handle COW of the policy structures or at least reference count MPOL_F_SHARED
-> based exclusively on information within the policy.  However, this patch takes
-> the easier approach of disabling any policy sharing between VMAs. Each new
-> range allocated with sp_alloc will allocate a new policy, set the reference
-> count to 1 and drop the reference count of the old policy. This increases
-> the memory footprint but is not expected to be a major problem as mbind()
-> is unlikely to be used for fine-grained ranges. It is also inefficient
-> because it means we allocate a new policy even in cases where mbind_range()
-> could use the new_policy passed to it. However, it is more straight-forward
-> and the change should be invisible to the user.
+> @@ -2318,9 +2323,7 @@ void mpol_free_shared_policy(struct shared_policy *p)
+>  	while (next) {
+>  		n = rb_entry(next, struct sp_node, nd);
+>  		next = rb_next(&n->nd);
+> -		rb_erase(&n->nd, &p->root);
 
+Looks like we need to keep the above line? sp_delete does not remove the
+tree entry.
 
-Hmmm. I dont like the additional memory use but this is definitely an
-issue that needs addressing.
-
-Reviewed-by: Christoph Lameter <cl@linux.com>
+> -		mpol_put(n->policy);
+> -		kmem_cache_free(sn_cache, n);
+> +		sp_delete(p, n);
+>  	}
+>  	mutex_unlock(&p->mutex);
+>  }
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
