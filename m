@@ -1,23 +1,33 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx151.postini.com [74.125.245.151])
-	by kanga.kvack.org (Postfix) with SMTP id EAC8C6B006C
-	for <linux-mm@kvack.org>; Mon, 20 Aug 2012 05:30:49 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx104.postini.com [74.125.245.104])
+	by kanga.kvack.org (Postfix) with SMTP id 338A26B0070
+	for <linux-mm@kvack.org>; Mon, 20 Aug 2012 05:30:51 -0400 (EDT)
 From: wency@cn.fujitsu.com
-Subject: [RFC V7 PATCH 06/19] memory-hotplug: export the function acpi_bus_remove()
-Date: Mon, 20 Aug 2012 17:35:29 +0800
-Message-Id: <1345455342-27752-7-git-send-email-wency@cn.fujitsu.com>
+Subject: [RFC V7 PATCH 02/19] memory-hotplug: implement offline_memory()
+Date: Mon, 20 Aug 2012 17:35:25 +0800
+Message-Id: <1345455342-27752-3-git-send-email-wency@cn.fujitsu.com>
 In-Reply-To: <1345455342-27752-1-git-send-email-wency@cn.fujitsu.com>
 References: <1345455342-27752-1-git-send-email-wency@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-ia64@vger.kernel.org, cmetcalf@tilera.com
-Cc: rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, Wen Congyang <wency@cn.fujitsu.com>
+Cc: rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, Wen Congyang <wency@cn.fujitsu.com>, Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>
 
 From: Wen Congyang <wency@cn.fujitsu.com>
 
-The function acpi_bus_remove() can remove a acpi device from acpi device.
-When a acpi device is removed, we need to call this function to remove
-the acpi device from acpi bus. So export this function.
+The function offline_memory() will be called when hot removing a
+memory device. The memory device may contain more than one memory
+block. If the memory block has been offlined, __offline_pages()
+will fail. So we should try to offline one memory block at a
+time.
+
+If the memory block is offlined in offline_memory(), we also
+update it's state, and notify the userspace that its state is
+changed.
+
+The function offline_memory() also check each memory block's
+state. So there is no need to check the memory block's state
+before calling offline_memory().
 
 CC: David Rientjes <rientjes@google.com>
 CC: Jiang Liu <liuj97@gmail.com>
@@ -29,45 +39,145 @@ Cc: Minchan Kim <minchan.kim@gmail.com>
 CC: Andrew Morton <akpm@linux-foundation.org>
 CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 CC: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+CC: Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>
 Signed-off-by: Wen Congyang <wency@cn.fujitsu.com>
 ---
- drivers/acpi/scan.c     |    3 ++-
- include/acpi/acpi_bus.h |    1 +
- 2 files changed, 3 insertions(+), 1 deletions(-)
+ drivers/base/memory.c          |   31 +++++++++++++++++++++++++++----
+ include/linux/memory_hotplug.h |    2 ++
+ mm/memory_hotplug.c            |   37 ++++++++++++++++++++++++++++++++++++-
+ 3 files changed, 65 insertions(+), 5 deletions(-)
 
-diff --git a/drivers/acpi/scan.c b/drivers/acpi/scan.c
-index d1ecca2..1cefc34 100644
---- a/drivers/acpi/scan.c
-+++ b/drivers/acpi/scan.c
-@@ -1224,7 +1224,7 @@ static int acpi_device_set_context(struct acpi_device *device)
- 	return -ENODEV;
+diff --git a/drivers/base/memory.c b/drivers/base/memory.c
+index 44e7de6..86c8821 100644
+--- a/drivers/base/memory.c
++++ b/drivers/base/memory.c
+@@ -275,13 +275,11 @@ memory_block_action(unsigned long phys_index, unsigned long action)
+ 	return ret;
  }
  
--static int acpi_bus_remove(struct acpi_device *dev, int rmdevice)
-+int acpi_bus_remove(struct acpi_device *dev, int rmdevice)
+-static int memory_block_change_state(struct memory_block *mem,
++static int __memory_block_change_state(struct memory_block *mem,
+ 		unsigned long to_state, unsigned long from_state_req)
  {
- 	if (!dev)
- 		return -EINVAL;
-@@ -1246,6 +1246,7 @@ static int acpi_bus_remove(struct acpi_device *dev, int rmdevice)
+ 	int ret = 0;
  
- 	return 0;
+-	mutex_lock(&mem->state_mutex);
+-
+ 	if (mem->state != from_state_req) {
+ 		ret = -EINVAL;
+ 		goto out;
+@@ -309,10 +307,20 @@ static int memory_block_change_state(struct memory_block *mem,
+ 		break;
+ 	}
+ out:
+-	mutex_unlock(&mem->state_mutex);
+ 	return ret;
  }
-+EXPORT_SYMBOL(acpi_bus_remove);
  
- static int acpi_add_single_object(struct acpi_device **child,
- 				  acpi_handle handle, int type,
-diff --git a/include/acpi/acpi_bus.h b/include/acpi/acpi_bus.h
-index bde976e..2ccf109 100644
---- a/include/acpi/acpi_bus.h
-+++ b/include/acpi/acpi_bus.h
-@@ -360,6 +360,7 @@ bool acpi_bus_power_manageable(acpi_handle handle);
- bool acpi_bus_can_wakeup(acpi_handle handle);
- int acpi_power_resource_register_device(struct device *dev, acpi_handle handle);
- void acpi_power_resource_unregister_device(struct device *dev, acpi_handle handle);
-+int acpi_bus_remove(struct acpi_device *dev, int rmdevice);
- #ifdef CONFIG_ACPI_PROC_EVENT
- int acpi_bus_generate_proc_event(struct acpi_device *device, u8 type, int data);
- int acpi_bus_generate_proc_event4(const char *class, const char *bid, u8 type, int data);
++static int memory_block_change_state(struct memory_block *mem,
++		unsigned long to_state, unsigned long from_state_req)
++{
++	int ret;
++
++	mutex_lock(&mem->state_mutex);
++	ret = __memory_block_change_state(mem, to_state, from_state_req);
++	mutex_unlock(&mem->state_mutex);
++
++	return ret;
++}
+ static ssize_t
+ store_mem_state(struct device *dev,
+ 		struct device_attribute *attr, const char *buf, size_t count)
+@@ -653,6 +661,21 @@ int unregister_memory_section(struct mem_section *section)
+ }
+ 
+ /*
++ * offline one memory block. If the memory block has been offlined, do nothing.
++ */
++int offline_memory_block(struct memory_block *mem)
++{
++	int ret = 0;
++
++	mutex_lock(&mem->state_mutex);
++	if (mem->state != MEM_OFFLINE)
++		ret = __memory_block_change_state(mem, MEM_OFFLINE, MEM_ONLINE);
++	mutex_unlock(&mem->state_mutex);
++
++	return ret;
++}
++
++/*
+  * Initialize the sysfs support for memory devices...
+  */
+ int __init memory_dev_init(void)
+diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
+index c183f39..0b040bb 100644
+--- a/include/linux/memory_hotplug.h
++++ b/include/linux/memory_hotplug.h
+@@ -10,6 +10,7 @@ struct page;
+ struct zone;
+ struct pglist_data;
+ struct mem_section;
++struct memory_block;
+ 
+ #ifdef CONFIG_MEMORY_HOTPLUG
+ 
+@@ -234,6 +235,7 @@ extern int mem_online_node(int nid);
+ extern int add_memory(int nid, u64 start, u64 size);
+ extern int arch_add_memory(int nid, u64 start, u64 size);
+ extern int offline_pages(unsigned long start_pfn, unsigned long nr_pages);
++extern int offline_memory_block(struct memory_block *mem);
+ extern int offline_memory(u64 start, u64 size);
+ extern int sparse_add_one_section(struct zone *zone, unsigned long start_pfn,
+ 								int nr_pages);
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index c182c76..3113cd4 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -1001,7 +1001,42 @@ int offline_pages(unsigned long start_pfn, unsigned long nr_pages)
+ 
+ int offline_memory(u64 start, u64 size)
+ {
+-	return -EINVAL;
++	struct memory_block *mem = NULL;
++	struct mem_section *section;
++	unsigned long start_pfn, end_pfn;
++	unsigned long pfn, section_nr;
++	int ret;
++
++	start_pfn = PFN_DOWN(start);
++	end_pfn = start_pfn + PFN_DOWN(size);
++
++	for (pfn = start_pfn; pfn < end_pfn; pfn += PAGES_PER_SECTION) {
++		section_nr = pfn_to_section_nr(pfn);
++		if (!present_section_nr(section_nr))
++			continue;
++
++		section = __nr_to_section(section_nr);
++		/* same memblock? */
++		if (mem)
++			if ((section_nr >= mem->start_section_nr) &&
++			    (section_nr <= mem->end_section_nr))
++				continue;
++
++		mem = find_memory_block_hinted(section, mem);
++		if (!mem)
++			continue;
++
++		ret = offline_memory_block(mem);
++		if (ret) {
++			kobject_put(&mem->dev.kobj);
++			return ret;
++		}
++	}
++
++	if (mem)
++		kobject_put(&mem->dev.kobj);
++
++	return 0;
+ }
+ #else
+ int offline_pages(u64 start, u64 size)
 -- 
 1.7.1
 
