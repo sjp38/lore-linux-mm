@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
-	by kanga.kvack.org (Postfix) with SMTP id 0A30D6B005A
-	for <linux-mm@kvack.org>; Mon, 20 Aug 2012 09:52:38 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
+	by kanga.kvack.org (Postfix) with SMTP id 5C8106B0069
+	for <linux-mm@kvack.org>; Mon, 20 Aug 2012 09:52:39 -0400 (EDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH v4 3/8] hugetlb: pass fault address to hugetlb_no_page()
-Date: Mon, 20 Aug 2012 16:52:32 +0300
-Message-Id: <1345470757-12005-4-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCH v4 1/8] THP: Use real address for NUMA policy
+Date: Mon, 20 Aug 2012 16:52:30 +0300
+Message-Id: <1345470757-12005-2-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1345470757-12005-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1345470757-12005-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,155 +13,54 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, Andi Kleen <ak@linux.intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, Alex Shi <alex.shu@intel.com>, Jan Beulich <jbeulich@novell.com>, Robert Richter <robert.richter@amd.com>, Andy Lutomirski <luto@amacapital.net>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-mips@linux-mips.org, linux-sh@vger.kernel.org, sparclinux@vger.kernel.org
 
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+From: Andi Kleen <ak@linux.intel.com>
 
+Use the fault address, not the rounded down hpage address for NUMA
+policy purposes. In some circumstances this can give more exact
+NUMA policy.
+
+Signed-off-by: Andi Kleen <ak@linux.intel.com>
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- mm/hugetlb.c |   38 +++++++++++++++++++-------------------
- 1 files changed, 19 insertions(+), 19 deletions(-)
+ mm/huge_memory.c |    8 ++++----
+ 1 files changed, 4 insertions(+), 4 deletions(-)
 
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index bc72712..3c86d3d 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -2672,7 +2672,8 @@ static bool hugetlbfs_pagecache_present(struct hstate *h,
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 57c4b93..70737ec 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -681,11 +681,11 @@ static inline gfp_t alloc_hugepage_gfpmask(int defrag, gfp_t extra_gfp)
+ 
+ static inline struct page *alloc_hugepage_vma(int defrag,
+ 					      struct vm_area_struct *vma,
+-					      unsigned long haddr, int nd,
++					      unsigned long address, int nd,
+ 					      gfp_t extra_gfp)
+ {
+ 	return alloc_pages_vma(alloc_hugepage_gfpmask(defrag, extra_gfp),
+-			       HPAGE_PMD_ORDER, vma, haddr, nd);
++			       HPAGE_PMD_ORDER, vma, address, nd);
  }
  
- static int hugetlb_no_page(struct mm_struct *mm, struct vm_area_struct *vma,
--			unsigned long address, pte_t *ptep, unsigned int flags)
-+			unsigned long haddr, unsigned long fault_address,
-+			pte_t *ptep, unsigned int flags)
- {
- 	struct hstate *h = hstate_vma(vma);
- 	int ret = VM_FAULT_SIGBUS;
-@@ -2696,7 +2697,7 @@ static int hugetlb_no_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 	}
- 
- 	mapping = vma->vm_file->f_mapping;
--	idx = vma_hugecache_offset(h, vma, address);
-+	idx = vma_hugecache_offset(h, vma, haddr);
- 
- 	/*
- 	 * Use page lock to guard against racing truncation
-@@ -2708,7 +2709,7 @@ retry:
- 		size = i_size_read(mapping->host) >> huge_page_shift(h);
- 		if (idx >= size)
+ #ifndef CONFIG_NUMA
+@@ -710,7 +710,7 @@ int do_huge_pmd_anonymous_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ 		if (unlikely(khugepaged_enter(vma)))
+ 			return VM_FAULT_OOM;
+ 		page = alloc_hugepage_vma(transparent_hugepage_defrag(vma),
+-					  vma, haddr, numa_node_id(), 0);
++					  vma, address, numa_node_id(), 0);
+ 		if (unlikely(!page)) {
+ 			count_vm_event(THP_FAULT_FALLBACK);
  			goto out;
--		page = alloc_huge_page(vma, address, 0);
-+		page = alloc_huge_page(vma, haddr, 0);
- 		if (IS_ERR(page)) {
- 			ret = PTR_ERR(page);
- 			if (ret == -ENOMEM)
-@@ -2717,7 +2718,7 @@ retry:
- 				ret = VM_FAULT_SIGBUS;
- 			goto out;
- 		}
--		clear_huge_page(page, address, pages_per_huge_page(h));
-+		clear_huge_page(page, haddr, pages_per_huge_page(h));
- 		__SetPageUptodate(page);
- 
- 		if (vma->vm_flags & VM_MAYSHARE) {
-@@ -2763,7 +2764,7 @@ retry:
- 	 * the spinlock.
- 	 */
- 	if ((flags & FAULT_FLAG_WRITE) && !(vma->vm_flags & VM_SHARED))
--		if (vma_needs_reservation(h, vma, address) < 0) {
-+		if (vma_needs_reservation(h, vma, haddr) < 0) {
- 			ret = VM_FAULT_OOM;
- 			goto backout_unlocked;
- 		}
-@@ -2778,16 +2779,16 @@ retry:
- 		goto backout;
- 
- 	if (anon_rmap)
--		hugepage_add_new_anon_rmap(page, vma, address);
-+		hugepage_add_new_anon_rmap(page, vma, haddr);
+@@ -944,7 +944,7 @@ int do_huge_pmd_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ 	if (transparent_hugepage_enabled(vma) &&
+ 	    !transparent_hugepage_debug_cow())
+ 		new_page = alloc_hugepage_vma(transparent_hugepage_defrag(vma),
+-					      vma, haddr, numa_node_id(), 0);
++					      vma, address, numa_node_id(), 0);
  	else
- 		page_dup_rmap(page);
- 	new_pte = make_huge_pte(vma, page, ((vma->vm_flags & VM_WRITE)
- 				&& (vma->vm_flags & VM_SHARED)));
--	set_huge_pte_at(mm, address, ptep, new_pte);
-+	set_huge_pte_at(mm, haddr, ptep, new_pte);
+ 		new_page = NULL;
  
- 	if ((flags & FAULT_FLAG_WRITE) && !(vma->vm_flags & VM_SHARED)) {
- 		/* Optimization, do the COW without a second fault */
--		ret = hugetlb_cow(mm, vma, address, ptep, new_pte, page);
-+		ret = hugetlb_cow(mm, vma, haddr, ptep, new_pte, page);
- 	}
- 
- 	spin_unlock(&mm->page_table_lock);
-@@ -2813,21 +2814,20 @@ int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
- 	struct page *pagecache_page = NULL;
- 	static DEFINE_MUTEX(hugetlb_instantiation_mutex);
- 	struct hstate *h = hstate_vma(vma);
-+	unsigned long haddr = address & huge_page_mask(h);
- 
--	address &= huge_page_mask(h);
--
--	ptep = huge_pte_offset(mm, address);
-+	ptep = huge_pte_offset(mm, haddr);
- 	if (ptep) {
- 		entry = huge_ptep_get(ptep);
- 		if (unlikely(is_hugetlb_entry_migration(entry))) {
--			migration_entry_wait(mm, (pmd_t *)ptep, address);
-+			migration_entry_wait(mm, (pmd_t *)ptep, haddr);
- 			return 0;
- 		} else if (unlikely(is_hugetlb_entry_hwpoisoned(entry)))
- 			return VM_FAULT_HWPOISON_LARGE |
- 				VM_FAULT_SET_HINDEX(hstate_index(h));
- 	}
- 
--	ptep = huge_pte_alloc(mm, address, huge_page_size(h));
-+	ptep = huge_pte_alloc(mm, haddr, huge_page_size(h));
- 	if (!ptep)
- 		return VM_FAULT_OOM;
- 
-@@ -2839,7 +2839,7 @@ int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
- 	mutex_lock(&hugetlb_instantiation_mutex);
- 	entry = huge_ptep_get(ptep);
- 	if (huge_pte_none(entry)) {
--		ret = hugetlb_no_page(mm, vma, address, ptep, flags);
-+		ret = hugetlb_no_page(mm, vma, haddr, address, ptep, flags);
- 		goto out_mutex;
- 	}
- 
-@@ -2854,14 +2854,14 @@ int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
- 	 * consumed.
- 	 */
- 	if ((flags & FAULT_FLAG_WRITE) && !pte_write(entry)) {
--		if (vma_needs_reservation(h, vma, address) < 0) {
-+		if (vma_needs_reservation(h, vma, haddr) < 0) {
- 			ret = VM_FAULT_OOM;
- 			goto out_mutex;
- 		}
- 
- 		if (!(vma->vm_flags & VM_MAYSHARE))
- 			pagecache_page = hugetlbfs_pagecache_page(h,
--								vma, address);
-+								vma, haddr);
- 	}
- 
- 	/*
-@@ -2884,16 +2884,16 @@ int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
- 
- 	if (flags & FAULT_FLAG_WRITE) {
- 		if (!pte_write(entry)) {
--			ret = hugetlb_cow(mm, vma, address, ptep, entry,
-+			ret = hugetlb_cow(mm, vma, haddr, ptep, entry,
- 							pagecache_page);
- 			goto out_page_table_lock;
- 		}
- 		entry = pte_mkdirty(entry);
- 	}
- 	entry = pte_mkyoung(entry);
--	if (huge_ptep_set_access_flags(vma, address, ptep, entry,
-+	if (huge_ptep_set_access_flags(vma, haddr, ptep, entry,
- 						flags & FAULT_FLAG_WRITE))
--		update_mmu_cache(vma, address, ptep);
-+		update_mmu_cache(vma, haddr, ptep);
- 
- out_page_table_lock:
- 	spin_unlock(&mm->page_table_lock);
 -- 
 1.7.7.6
 
