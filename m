@@ -1,96 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
-	by kanga.kvack.org (Postfix) with SMTP id 1EB676B005A
-	for <linux-mm@kvack.org>; Mon, 20 Aug 2012 11:33:00 -0400 (EDT)
-Message-ID: <503257DD.50709@parallels.com>
-Date: Mon, 20 Aug 2012 19:29:33 +0400
-From: Glauber Costa <glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
+	by kanga.kvack.org (Postfix) with SMTP id 3ECA36B0069
+	for <linux-mm@kvack.org>; Mon, 20 Aug 2012 11:53:57 -0400 (EDT)
+Received: by ggnf4 with SMTP id f4so6283454ggn.14
+        for <linux-mm@kvack.org>; Mon, 20 Aug 2012 08:53:56 -0700 (PDT)
+Date: Mon, 20 Aug 2012 08:53:12 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH 06/15] mm: teach truncate_inode_pages_range() to handle
+ non page aligned ranges
+In-Reply-To: <alpine.LFD.2.00.1208201221360.3975@vpn-8-6.rdu.redhat.com>
+Message-ID: <alpine.LSU.2.00.1208200851500.25707@eggly.anvils>
+References: <1343376074-28034-1-git-send-email-lczerner@redhat.com> <1343376074-28034-7-git-send-email-lczerner@redhat.com> <alpine.LSU.2.00.1208192144260.2390@eggly.anvils> <alpine.LFD.2.00.1208201221360.3975@vpn-8-6.rdu.redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2 06/11] memcg: kmem controller infrastructure
-References: <1344517279-30646-1-git-send-email-glommer@parallels.com> <1344517279-30646-7-git-send-email-glommer@parallels.com> <50254475.4000201@jp.fujitsu.com> <5028BA9E.7000302@parallels.com> <xr93ipcl9u7x.fsf@gthelen.mtv.corp.google.com> <502B6956.5030508@parallels.com> <xr93wr109kke.fsf@gthelen.mtv.corp.google.com> <502BD5AF.301@parallels.com> <50323D50.8070307@jp.fujitsu.com>
-In-Reply-To: <50323D50.8070307@jp.fujitsu.com>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Greg Thelen <gthelen@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, devel@openvz.org, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, Pekka Enberg <penberg@cs.helsinki.fi>
+To: Lukas Czerner <lczerner@redhat.com>
+Cc: Hugh Dickins <hughd@google.com>, linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org, tytso@mit.edu, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
 
-On 08/20/2012 05:36 PM, Kamezawa Hiroyuki wrote:
-> (2012/08/16 2:00), Glauber Costa wrote:
->> On 08/15/2012 08:38 PM, Greg Thelen wrote:
->>> On Wed, Aug 15 2012, Glauber Costa wrote:
->>>
->>>> On 08/14/2012 10:58 PM, Greg Thelen wrote:
->>>>> On Mon, Aug 13 2012, Glauber Costa wrote:
->>>>>
->>>>>>>>> +    WARN_ON(mem_cgroup_is_root(memcg));
->>>>>>>>> +    size = (1 << order) << PAGE_SHIFT;
->>>>>>>>> +    memcg_uncharge_kmem(memcg, size);
->>>>>>>>> +    mem_cgroup_put(memcg);
->>>>>>> Why do we need ref-counting here ? kmem res_counter cannot work as
->>>>>>> reference ?
->>>>>> This is of course the pair of the mem_cgroup_get() you commented on
->>>>>> earlier. If we need one, we need the other. If we don't need one, we
->>>>>> don't need the other =)
->>>>>>
->>>>>> The guarantee we're trying to give here is that the memcg
->>>>>> structure will
->>>>>> stay around while there are dangling charges to kmem, that we decided
->>>>>> not to move (remember: moving it for the stack is simple, for the
->>>>>> slab
->>>>>> is very complicated and ill-defined, and I believe it is better to
->>>>>> treat
->>>>>> all kmem equally here)
->>>>>
->>>>> By keeping memcg structures hanging around until the last referring
->>>>> kmem
->>>>> page is uncharged do such zombie memcg each consume a css_id and thus
->>>>> put pressure on the 64k css_id space?  I imagine in pathological cases
->>>>> this would prevent creation of new cgroups until these zombies are
->>>>> dereferenced.
->>>>
->>>> Yes, but although this patch makes it more likely, it doesn't introduce
->>>> that. If the tasks, for instance, grab a reference to the cgroup dentry
->>>> in the filesystem (like their CWD, etc), they will also keep the cgroup
->>>> around.
->>>
->>> Fair point.  But this doesn't seems like a feature.  It's probably not
->>> needed initially, but what do you think about creating a
->>> memcg_kernel_context structure which is allocated when memcg is
->>> allocated?  Kernel pages charged to a memcg would have
->>> page_cgroup->mem_cgroup=memcg_kernel_context rather than memcg.  This
->>> would allow the mem_cgroup and its css_id to be deleted when the cgroup
->>> is unlinked from cgroupfs while allowing for the active kernel pages to
->>> continue pointing to a valid memcg_kernel_context.  This would be a
->>> reference counted structure much like you are doing with memcg.  When a
->>> memcg is deleted the memcg_kernel_context would be linked into its
->>> surviving parent memcg.  This would avoid needing to visit each kernel
->>> page.
->>
->> You need more, you need at the res_counters to stay around as well. And
->> probably other fields.
->>
->> So my fear here is that as you add fields to that structure, you can
->> defeat a bit the goal of reducing memory consumption. Still leaves the
->> css space, yes. But by doing this we can introduce some subtle bugs by
->> having a field in the wrong structure.
->>
+Urrgh, now I messed up trying to correct linux-mm: resend to fix.
+
+On Mon, 20 Aug 2012, Lukas Czerner wrote:
+> On Sun, 19 Aug 2012, Hugh Dickins wrote:
+> > 
+> > This looks good to me.  I like the way you provide the same args
+> > to do_invalidatepage_range() as to zero_user_segment():
+> > 
+> > 		zero_user_segment(page, partial_start, top);
+> > 		if (page_has_private(page))
+> > 			do_invalidatepage_range(page, partial_start, top);
+> > 
+> > Unfortunately, that is not what patches 01-05 are expecting...
 > 
-> Hm, can't we free css_id and delete css structure from the css_id idr tree
-> when a memcg goes zombie ?
+> Thank for the review Hugh. The fact is that the third argument of
+> the invalidatepage_range() was meant to be length and the problem is
+> actually in this patch, where I am passing end offset as the third
+> argument.
 > 
-> Thanks,
-> -Kame
+> But you've made it clear that you would like better the semantics
+> where the third argument is actually the end offset. Is that right ?
+> If so, I'll change it accordingly, otherwise I'll just fix this
+> patch.
 
-Kame,
+I do get irritated by gratuitous differences between function calling
+conventions, so yes, I liked that you (appeared to) follow
+zero_user_segment() here.
 
-I wrote a patch that does exactly that. Can you take a look? (I posted
-it already)
-I actually need to go back to it, because greg seems to be right saying
-that that will break things for memsw. But a simplified version may work.
+However, I don't think my opinion and that precedent are very important
+in this case.  What do the VFS people think makes the most sensible
+interface for ->invalidatepage_range()?  page, startoffset-within-page,
+length-within-page or page, startoffset-within-page, endoffset-within-page?
+(where "within" may actually take you to the end of the page).
 
+If they think 3rd arg should be length (and I'd still suggest unsigned
+int for both 2nd and 3rd argument, to make it clearer that it's inside
+the page, not an erroneous use of unsigned long for ssize_t or loff_t),
+that's okay by me.
 
+I can see advantages to length, actually: it's often unclear
+whether "end" is of the "last-of-this" or "start-of-next" variety;
+in most of mm we are consistent in using end in the start-of-next
+sense, but here truncate_inode_pages_range() itself has gone for
+the last-of-this meaning.
+
+But even you keep to length, you still need to go through patches 01-05,
+changing block_invalidatepage() etc. to
+	block_invalidatepage_range(page, offset, PAGE_CACHE_SIZE - offset);
+and removing (or more probably replacing by some BUG_ONs for now) the
+strange "(stop < length)" stuff in the invalidatatepage_range()s.
+
+I do not think it's a good idea to be lenient about out-of-range args
+there: that approach has already wasted time.
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
