@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx104.postini.com [74.125.245.104])
-	by kanga.kvack.org (Postfix) with SMTP id 13FEF6B0080
+Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
+	by kanga.kvack.org (Postfix) with SMTP id 140206B0081
 	for <linux-mm@kvack.org>; Mon, 20 Aug 2012 05:30:54 -0400 (EDT)
 From: wency@cn.fujitsu.com
-Subject: [RFC V7 PATCH 10/19] memory-hotplug: add memory_block_release
-Date: Mon, 20 Aug 2012 17:35:33 +0800
-Message-Id: <1345455342-27752-11-git-send-email-wency@cn.fujitsu.com>
+Subject: [RFC V7 PATCH 07/19] memory-hotplug: call acpi_bus_remove() to remove memory device
+Date: Mon, 20 Aug 2012 17:35:30 +0800
+Message-Id: <1345455342-27752-8-git-send-email-wency@cn.fujitsu.com>
 In-Reply-To: <1345455342-27752-1-git-send-email-wency@cn.fujitsu.com>
 References: <1345455342-27752-1-git-send-email-wency@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,16 +13,10 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-ia64@vger.kernel.org, cmetcalf@tilera.com
 Cc: rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, Wen Congyang <wency@cn.fujitsu.com>
 
-From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+From: Wen Congyang <wency@cn.fujitsu.com>
 
-When calling remove_memory_block(), the function shows following message at
-device_release().
-
-Device 'memory528' does not have a release() function, it is broken and must
-be fixed.
-
-remove_memory_block() calls kfree(mem). I think it shouled be called from
-device_release(). So the patch implements memory_block_release()
+The memory device has been ejected and powoffed, so we can call
+acpi_bus_remove() to remove the memory device from acpi bus.
 
 CC: David Rientjes <rientjes@google.com>
 CC: Jiang Liu <liuj97@gmail.com>
@@ -33,48 +27,27 @@ CC: Christoph Lameter <cl@linux.com>
 Cc: Minchan Kim <minchan.kim@gmail.com>
 CC: Andrew Morton <akpm@linux-foundation.org>
 CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-CC: Wen Congyang <wency@cn.fujitsu.com>
-Signed-off-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+CC: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+Signed-off-by: Wen Congyang <wency@cn.fujitsu.com>
 ---
- drivers/base/memory.c |   11 ++++++++++-
- 1 files changed, 10 insertions(+), 1 deletions(-)
+ drivers/acpi/acpi_memhotplug.c |    3 ++-
+ 1 files changed, 2 insertions(+), 1 deletions(-)
 
-diff --git a/drivers/base/memory.c b/drivers/base/memory.c
-index 038be73..1cd3ef3 100644
---- a/drivers/base/memory.c
-+++ b/drivers/base/memory.c
-@@ -109,6 +109,15 @@ bool is_memblk_offline(unsigned long start, unsigned long size)
- }
- EXPORT_SYMBOL(is_memblk_offline);
+diff --git a/drivers/acpi/acpi_memhotplug.c b/drivers/acpi/acpi_memhotplug.c
+index 9d47458..b152767 100644
+--- a/drivers/acpi/acpi_memhotplug.c
++++ b/drivers/acpi/acpi_memhotplug.c
+@@ -425,8 +425,9 @@ static void acpi_memory_device_notify(acpi_handle handle, u32 event, void *data)
+ 		}
  
-+#define to_memory_block(device) container_of(device, struct memory_block, dev)
-+
-+static void release_memory_block(struct device *dev)
-+{
-+	struct memory_block *mem = to_memory_block(dev);
-+
-+	kfree(mem);
-+}
-+
- /*
-  * register_memory - Setup a sysfs device for a memory block
-  */
-@@ -119,6 +128,7 @@ int register_memory(struct memory_block *memory)
+ 		/*
+-		 * TBD: Invoke acpi_bus_remove to cleanup data structures
++		 * Invoke acpi_bus_remove() to remove memory device
+ 		 */
++		acpi_bus_remove(device, 1);
  
- 	memory->dev.bus = &memory_subsys;
- 	memory->dev.id = memory->start_section_nr / sections_per_block;
-+	memory->dev.release = release_memory_block;
- 
- 	error = device_register(&memory->dev);
- 	return error;
-@@ -674,7 +684,6 @@ int remove_memory_block(unsigned long node_id, struct mem_section *section,
- 		mem_remove_simple_file(mem, phys_device);
- 		mem_remove_simple_file(mem, removable);
- 		unregister_memory(mem);
--		kfree(mem);
- 	} else
- 		kobject_put(&mem->dev.kobj);
- 
+ 		/* _EJ0 succeeded; _OST is not necessary */
+ 		return;
 -- 
 1.7.1
 
