@@ -1,95 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx101.postini.com [74.125.245.101])
-	by kanga.kvack.org (Postfix) with SMTP id 369C76B0069
-	for <linux-mm@kvack.org>; Mon, 20 Aug 2012 10:09:52 -0400 (EDT)
-Received: by dadi14 with SMTP id i14so2690486dad.14
-        for <linux-mm@kvack.org>; Mon, 20 Aug 2012 07:09:51 -0700 (PDT)
-Message-ID: <50324524.5000501@gmail.com>
-Date: Mon, 20 Aug 2012 22:09:40 +0800
-From: Jianguo Wu <wujianguo106@gmail.com>
+Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
+	by kanga.kvack.org (Postfix) with SMTP id 1EB676B005A
+	for <linux-mm@kvack.org>; Mon, 20 Aug 2012 11:33:00 -0400 (EDT)
+Message-ID: <503257DD.50709@parallels.com>
+Date: Mon, 20 Aug 2012 19:29:33 +0400
+From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Subject: Re: [RFC V7 PATCH 18/19] memory-hotplug: add node_device_release
-References: <1345455342-27752-1-git-send-email-wency@cn.fujitsu.com> <1345455342-27752-19-git-send-email-wency@cn.fujitsu.com>
-In-Reply-To: <1345455342-27752-19-git-send-email-wency@cn.fujitsu.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [PATCH v2 06/11] memcg: kmem controller infrastructure
+References: <1344517279-30646-1-git-send-email-glommer@parallels.com> <1344517279-30646-7-git-send-email-glommer@parallels.com> <50254475.4000201@jp.fujitsu.com> <5028BA9E.7000302@parallels.com> <xr93ipcl9u7x.fsf@gthelen.mtv.corp.google.com> <502B6956.5030508@parallels.com> <xr93wr109kke.fsf@gthelen.mtv.corp.google.com> <502BD5AF.301@parallels.com> <50323D50.8070307@jp.fujitsu.com>
+In-Reply-To: <50323D50.8070307@jp.fujitsu.com>
+Content-Type: text/plain; charset="ISO-8859-1"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: wency@cn.fujitsu.com
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-ia64@vger.kernel.org, cmetcalf@tilera.com, rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com
+To: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Greg Thelen <gthelen@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, devel@openvz.org, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, Pekka Enberg <penberg@cs.helsinki.fi>
 
-On 2012/8/20 17:35, wency@cn.fujitsu.com wrote:
-> From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+On 08/20/2012 05:36 PM, Kamezawa Hiroyuki wrote:
+> (2012/08/16 2:00), Glauber Costa wrote:
+>> On 08/15/2012 08:38 PM, Greg Thelen wrote:
+>>> On Wed, Aug 15 2012, Glauber Costa wrote:
+>>>
+>>>> On 08/14/2012 10:58 PM, Greg Thelen wrote:
+>>>>> On Mon, Aug 13 2012, Glauber Costa wrote:
+>>>>>
+>>>>>>>>> +    WARN_ON(mem_cgroup_is_root(memcg));
+>>>>>>>>> +    size = (1 << order) << PAGE_SHIFT;
+>>>>>>>>> +    memcg_uncharge_kmem(memcg, size);
+>>>>>>>>> +    mem_cgroup_put(memcg);
+>>>>>>> Why do we need ref-counting here ? kmem res_counter cannot work as
+>>>>>>> reference ?
+>>>>>> This is of course the pair of the mem_cgroup_get() you commented on
+>>>>>> earlier. If we need one, we need the other. If we don't need one, we
+>>>>>> don't need the other =)
+>>>>>>
+>>>>>> The guarantee we're trying to give here is that the memcg
+>>>>>> structure will
+>>>>>> stay around while there are dangling charges to kmem, that we decided
+>>>>>> not to move (remember: moving it for the stack is simple, for the
+>>>>>> slab
+>>>>>> is very complicated and ill-defined, and I believe it is better to
+>>>>>> treat
+>>>>>> all kmem equally here)
+>>>>>
+>>>>> By keeping memcg structures hanging around until the last referring
+>>>>> kmem
+>>>>> page is uncharged do such zombie memcg each consume a css_id and thus
+>>>>> put pressure on the 64k css_id space?  I imagine in pathological cases
+>>>>> this would prevent creation of new cgroups until these zombies are
+>>>>> dereferenced.
+>>>>
+>>>> Yes, but although this patch makes it more likely, it doesn't introduce
+>>>> that. If the tasks, for instance, grab a reference to the cgroup dentry
+>>>> in the filesystem (like their CWD, etc), they will also keep the cgroup
+>>>> around.
+>>>
+>>> Fair point.  But this doesn't seems like a feature.  It's probably not
+>>> needed initially, but what do you think about creating a
+>>> memcg_kernel_context structure which is allocated when memcg is
+>>> allocated?  Kernel pages charged to a memcg would have
+>>> page_cgroup->mem_cgroup=memcg_kernel_context rather than memcg.  This
+>>> would allow the mem_cgroup and its css_id to be deleted when the cgroup
+>>> is unlinked from cgroupfs while allowing for the active kernel pages to
+>>> continue pointing to a valid memcg_kernel_context.  This would be a
+>>> reference counted structure much like you are doing with memcg.  When a
+>>> memcg is deleted the memcg_kernel_context would be linked into its
+>>> surviving parent memcg.  This would avoid needing to visit each kernel
+>>> page.
+>>
+>> You need more, you need at the res_counters to stay around as well. And
+>> probably other fields.
+>>
+>> So my fear here is that as you add fields to that structure, you can
+>> defeat a bit the goal of reducing memory consumption. Still leaves the
+>> css space, yes. But by doing this we can introduce some subtle bugs by
+>> having a field in the wrong structure.
+>>
 > 
-> When calling unregister_node(), the function shows following message at
-> device_release().
+> Hm, can't we free css_id and delete css structure from the css_id idr tree
+> when a memcg goes zombie ?
 > 
-> Device 'node2' does not have a release() function, it is broken and must be
-> fixed.
-> 
-> So the patch implements node_device_release()
-> 
-> CC: David Rientjes <rientjes@google.com>
-> CC: Jiang Liu <liuj97@gmail.com>
-> CC: Len Brown <len.brown@intel.com>
-> CC: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-> CC: Paul Mackerras <paulus@samba.org>
-> CC: Christoph Lameter <cl@linux.com>
-> Cc: Minchan Kim <minchan.kim@gmail.com>
-> CC: Andrew Morton <akpm@linux-foundation.org>
-> CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> Signed-off-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-> Signed-off-by: Wen Congyang <wency@cn.fujitsu.com>
-> ---
->  drivers/base/node.c |    8 ++++++++
->  1 files changed, 8 insertions(+), 0 deletions(-)
-> 
-> diff --git a/drivers/base/node.c b/drivers/base/node.c
-> index af1a177..9bc2f57 100644
-> --- a/drivers/base/node.c
-> +++ b/drivers/base/node.c
-> @@ -252,6 +252,13 @@ static inline void hugetlb_register_node(struct node *node) {}
->  static inline void hugetlb_unregister_node(struct node *node) {}
->  #endif
->  
-> +static void node_device_release(struct device *dev)
-> +{
-> +	struct node *node_dev = to_node(dev);
-> +
-> +	flush_work(&node_dev->node_work);
+> Thanks,
+> -Kame
 
-Hi Congyang,
-	I think this should be:
-#if defined(CONFIG_MEMORY_HOTPLUG_SPARSE) && defined(CONFIG_HUGETLBFS)
-	flush_work(&node_dev->node_work);
-#endif
+Kame,
 
-	As struct node defined in node.h:
-struct node {
-	struct sys_device	sysdev;
+I wrote a patch that does exactly that. Can you take a look? (I posted
+it already)
+I actually need to go back to it, because greg seems to be right saying
+that that will break things for memsw. But a simplified version may work.
 
-#if defined(CONFIG_MEMORY_HOTPLUG_SPARSE) && defined(CONFIG_HUGETLBFS)
-	struct work_struct	node_work;
-#endif
-};
 
-	Thanks
-	Jianguo Wu
-
-> +	memset(node_dev, 0, sizeof(struct node));
-> +}
->  
->  /*
->   * register_node - Setup a sysfs device for a node.
-> @@ -265,6 +272,7 @@ int register_node(struct node *node, int num, struct node *parent)
->  
->  	node->dev.id = num;
->  	node->dev.bus = &node_subsys;
-> +	node->dev.release = node_device_release;
->  	error = device_register(&node->dev);
->  
->  	if (!error){
-> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
