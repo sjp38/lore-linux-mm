@@ -1,45 +1,26 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
-	by kanga.kvack.org (Postfix) with SMTP id AAEAC6B005D
-	for <linux-mm@kvack.org>; Mon, 20 Aug 2012 16:47:52 -0400 (EDT)
-Message-Id: <0000013945ca92e7-6a552895-9ede-4e78-9ef1-0324b72fef9e-000000@email.amazonses.com>
-Date: Mon, 20 Aug 2012 20:47:47 +0000
+Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
+	by kanga.kvack.org (Postfix) with SMTP id 55E586B005D
+	for <linux-mm@kvack.org>; Mon, 20 Aug 2012 16:49:55 -0400 (EDT)
+Date: Mon, 20 Aug 2012 20:49:54 +0000
 From: Christoph Lameter <cl@linux.com>
-Subject: C12 [01/19] slub: Add debugging to verify correct cache use on kmem_cache_free()
-References: <20120820204021.494276880@linux.com>
+Subject: Re: C12 [00/19] Sl[auo]b: Common code rework V12
+In-Reply-To: <0000013945a1cc89-ebeb1806-0a5a-4306-882e-ce0ac88e523c-000000@email.amazonses.com>
+Message-ID: <0000013945cc8133-3a4b5c1d-fa83-4ab5-970a-061643dcd568-000000@email.amazonses.com>
+References: <0000013945a1cc89-ebeb1806-0a5a-4306-882e-ce0ac88e523c-000000@email.amazonses.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Pekka Enberg <penberg@kernel.org>
 Cc: Joonsoo Kim <js1304@gmail.com>, Glauber Costa <glommer@parallels.com>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>
 
-Add additional debugging to check that the objects is actually from the cache
-the caller claims. Doing so currently trips up some other debugging code. It
-takes a lot to infer from that what was happening.
+Sorry guys "quit mail" seems to have the hiccups today. It creates
+content-disposition headers which are not liked too much by my email
+provider.
 
-V2: Only warn once.
-
-Signed-off-by: Christoph Lameter <cl@linux.com>
----
- mm/slub.c |    7 +++++++
- 1 file changed, 7 insertions(+)
-
-diff --git a/mm/slub.c b/mm/slub.c
-index c67bd0a..00f8557 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -2614,6 +2614,13 @@ void kmem_cache_free(struct kmem_cache *s, void *x)
- 
- 	page = virt_to_head_page(x);
- 
-+	if (kmem_cache_debug(s) && page->slab != s) {
-+		printk("kmem_cache_free: Wrong slab cache. %s but object"
-+			" is from  %s\n", page->slab->name, s->name);
-+		WARN_ON_ONCE(1);
-+		return;
-+	}
-+
- 	slab_free(s, page, x, _RET_IP_);
- 
- 	trace_kmem_cache_free(_RET_IP_, x);
--- 
-1.7.9.5
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
