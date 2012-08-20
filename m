@@ -1,14 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
-	by kanga.kvack.org (Postfix) with SMTP id 1A8046B005D
-	for <linux-mm@kvack.org>; Mon, 20 Aug 2012 15:51:12 -0400 (EDT)
-Date: Mon, 20 Aug 2012 19:51:10 +0000
+Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
+	by kanga.kvack.org (Postfix) with SMTP id 075706B005D
+	for <linux-mm@kvack.org>; Mon, 20 Aug 2012 15:52:56 -0400 (EDT)
+Date: Mon, 20 Aug 2012 19:52:55 +0000
 From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH 5/5] mempolicy: fix a memory corruption by refcount
- imbalance in alloc_pages_vma()
-In-Reply-To: <1345480594-27032-6-git-send-email-mgorman@suse.de>
-Message-ID: <000001394596bd69-2c16d7fb-71b5-4009-95cc-7068103b2bfd-000000@email.amazonses.com>
-References: <1345480594-27032-1-git-send-email-mgorman@suse.de> <1345480594-27032-6-git-send-email-mgorman@suse.de>
+Subject: Re: [PATCH 3/5] mempolicy: fix a race in shared_policy_replace()
+In-Reply-To: <1345480594-27032-4-git-send-email-mgorman@suse.de>
+Message-ID: <00000139459858e2-456fe4a0-e238-47cc-a057-d87d6a193b6a-000000@email.amazonses.com>
+References: <1345480594-27032-1-git-send-email-mgorman@suse.de> <1345480594-27032-4-git-send-email-mgorman@suse.de>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -18,52 +17,13 @@ Cc: Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@
 
 On Mon, 20 Aug 2012, Mel Gorman wrote:
 
-> diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-> index 45f9825..82e872f 100644
-> --- a/mm/mempolicy.c
-> +++ b/mm/mempolicy.c
-> @@ -1545,15 +1545,28 @@ struct mempolicy *get_vma_policy(struct task_struct *task,
->  		struct vm_area_struct *vma, unsigned long addr)
->  {
->  	struct mempolicy *pol = task->mempolicy;
-> +	int got_ref;
+> Kosaki's original patch for this problem was to allocate an sp node and policy
+> within shared_policy_replace and initialise it when the lock is reacquired. I
+> was not keen on this approach because it partially duplicates sp_alloc(). As
+> the paths were sp->lock is taken are not that performance critical this
+> patch converts sp->lock to sp->mutex so it can sleep when calling sp_alloc().
 
-New variable. Need to set it to zero?
-
->
->  	if (vma) {
->  		if (vma->vm_ops && vma->vm_ops->get_policy) {
->  			struct mempolicy *vpol = vma->vm_ops->get_policy(vma,
->  									addr);
-> -			if (vpol)
-> +			if (vpol) {
->  				pol = vpol;
-> -		} else if (vma->vm_policy)
-> +				got_ref = 1;
-
-Set the new variable. But it was not initialzed before. So now its 1 or
-undefined?
-
-> +			}
-> +		} else if (vma->vm_policy) {
->  			pol = vma->vm_policy;
-> +
-> +			/*
-> +			 * shmem_alloc_page() passes MPOL_F_SHARED policy with
-> +			 * a pseudo vma whose vma->vm_ops=NULL. Take a reference
-> +			 * count on these policies which will be dropped by
-> +			 * mpol_cond_put() later
-> +			 */
-> +			if (mpol_needs_cond_ref(pol))
-> +				mpol_get(pol);
-> +		}
->  	}
->  	if (!pol)
->  		pol = &default_policy;
->
-
-I do not see any use of got_ref. Can we get rid of the variable?
-
+Reviewed-by: Christoph Lameter <cl@linux.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
