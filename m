@@ -1,14 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
-	by kanga.kvack.org (Postfix) with SMTP id 6AE936B005D
-	for <linux-mm@kvack.org>; Mon, 20 Aug 2012 15:46:10 -0400 (EDT)
-Date: Mon, 20 Aug 2012 19:46:09 +0000
+Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
+	by kanga.kvack.org (Postfix) with SMTP id 1A8046B005D
+	for <linux-mm@kvack.org>; Mon, 20 Aug 2012 15:51:12 -0400 (EDT)
+Date: Mon, 20 Aug 2012 19:51:10 +0000
 From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH 4/5] mempolicy: fix refcount leak in
- mpol_set_shared_policy()
-In-Reply-To: <1345480594-27032-5-git-send-email-mgorman@suse.de>
-Message-ID: <00000139459223d7-93a9c53f-6724-4a4b-b675-cd25d8d53c71-000000@email.amazonses.com>
-References: <1345480594-27032-1-git-send-email-mgorman@suse.de> <1345480594-27032-5-git-send-email-mgorman@suse.de>
+Subject: Re: [PATCH 5/5] mempolicy: fix a memory corruption by refcount
+ imbalance in alloc_pages_vma()
+In-Reply-To: <1345480594-27032-6-git-send-email-mgorman@suse.de>
+Message-ID: <000001394596bd69-2c16d7fb-71b5-4009-95cc-7068103b2bfd-000000@email.amazonses.com>
+References: <1345480594-27032-1-git-send-email-mgorman@suse.de> <1345480594-27032-6-git-send-email-mgorman@suse.de>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -18,22 +18,52 @@ Cc: Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@
 
 On Mon, 20 Aug 2012, Mel Gorman wrote:
 
-> @@ -2318,9 +2323,7 @@ void mpol_free_shared_policy(struct shared_policy *p)
->  	while (next) {
->  		n = rb_entry(next, struct sp_node, nd);
->  		next = rb_next(&n->nd);
-> -		rb_erase(&n->nd, &p->root);
+> diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+> index 45f9825..82e872f 100644
+> --- a/mm/mempolicy.c
+> +++ b/mm/mempolicy.c
+> @@ -1545,15 +1545,28 @@ struct mempolicy *get_vma_policy(struct task_struct *task,
+>  		struct vm_area_struct *vma, unsigned long addr)
+>  {
+>  	struct mempolicy *pol = task->mempolicy;
+> +	int got_ref;
 
-Looks like we need to keep the above line? sp_delete does not remove the
-tree entry.
+New variable. Need to set it to zero?
 
-> -		mpol_put(n->policy);
-> -		kmem_cache_free(sn_cache, n);
-> +		sp_delete(p, n);
->  	}
->  	mutex_unlock(&p->mutex);
->  }
 >
+>  	if (vma) {
+>  		if (vma->vm_ops && vma->vm_ops->get_policy) {
+>  			struct mempolicy *vpol = vma->vm_ops->get_policy(vma,
+>  									addr);
+> -			if (vpol)
+> +			if (vpol) {
+>  				pol = vpol;
+> -		} else if (vma->vm_policy)
+> +				got_ref = 1;
+
+Set the new variable. But it was not initialzed before. So now its 1 or
+undefined?
+
+> +			}
+> +		} else if (vma->vm_policy) {
+>  			pol = vma->vm_policy;
+> +
+> +			/*
+> +			 * shmem_alloc_page() passes MPOL_F_SHARED policy with
+> +			 * a pseudo vma whose vma->vm_ops=NULL. Take a reference
+> +			 * count on these policies which will be dropped by
+> +			 * mpol_cond_put() later
+> +			 */
+> +			if (mpol_needs_cond_ref(pol))
+> +				mpol_get(pol);
+> +		}
+>  	}
+>  	if (!pol)
+>  		pol = &default_policy;
+>
+
+I do not see any use of got_ref. Can we get rid of the variable?
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
