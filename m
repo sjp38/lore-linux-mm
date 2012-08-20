@@ -1,109 +1,159 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
-	by kanga.kvack.org (Postfix) with SMTP id 66CF76B0072
-	for <linux-mm@kvack.org>; Mon, 20 Aug 2012 16:50:40 -0400 (EDT)
-Message-Id: <0000013945cd2c3e-98e825e1-bade-43c6-b657-a54cec84d4dd-000000@email.amazonses.com>
-Date: Mon, 20 Aug 2012 20:50:37 +0000
+Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
+	by kanga.kvack.org (Postfix) with SMTP id 1447D6B0081
+	for <linux-mm@kvack.org>; Mon, 20 Aug 2012 16:50:41 -0400 (EDT)
+Message-Id: <0000013945cd3096-6b286b42-575a-4599-97b1-474bee4932ef-000000@email.amazonses.com>
+Date: Mon, 20 Aug 2012 20:50:38 +0000
 From: Christoph Lameter <cl@linux.com>
-Subject: C12 [11/19] Move sysfs_slab_add to common
+Subject: C12 [09/19] Move duping of slab name to slab_common.c
 References: <20120820204021.494276880@linux.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Pekka Enberg <penberg@kernel.org>
 Cc: Joonsoo Kim <js1304@gmail.com>, Glauber Costa <glommer@parallels.com>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>
 
-Simplify locking by moving the slab_add_sysfs after all locks
-have been dropped. Eases the upcoming move to provide sysfs
-support for all allocators.
+Duping of the slabname has to be done by each slab. Moving this code
+to slab_common avoids duplicate implementations.
+
+With this patch we have common string handling for all slab allocators.
+Strings passed to kmem_cache_create() are copied internally. Subsystems
+can create temporary strings to create slab caches.
+
+Slabs allocated in early states of bootstrap will never be freed (and those
+can never be freed since they are essential to slab allocator operations).
+During bootstrap we therefore do not have to worry about duping names.
 
 Signed-off-by: Christoph Lameter <cl@linux.com>
 ---
- mm/slab.h        |    3 +++
- mm/slab_common.c |    8 ++++++++
- mm/slub.c        |   15 ++-------------
- 3 files changed, 13 insertions(+), 13 deletions(-)
+ mm/slab_common.c |   30 +++++++++++++++++++++---------
+ mm/slub.c        |   21 ++-------------------
+ 2 files changed, 23 insertions(+), 28 deletions(-)
 
-diff --git a/mm/slab.h b/mm/slab.h
-index 84c28f4..ec7b944 100644
---- a/mm/slab.h
-+++ b/mm/slab.h
-@@ -39,10 +39,13 @@ struct kmem_cache *__kmem_cache_create(const char *name, size_t size,
- #ifdef CONFIG_SLUB
- struct kmem_cache *__kmem_cache_alias(const char *name, size_t size,
- 	size_t align, unsigned long flags, void (*ctor)(void *));
-+extern int sysfs_slab_add(struct kmem_cache *s);
- #else
- static inline struct kmem_cache *__kmem_cache_alias(const char *name, size_t size,
- 	size_t align, unsigned long flags, void (*ctor)(void *))
- { return NULL; }
-+static inline int sysfs_slab_add(struct kmem_cache *s) { return 0; }
-+
- #endif
- 
- 
 diff --git a/mm/slab_common.c b/mm/slab_common.c
-index e5cd47f..ec93056 100644
+index 777cae0..cb3b2c1 100644
 --- a/mm/slab_common.c
 +++ b/mm/slab_common.c
-@@ -152,6 +152,14 @@ out_locked:
- 		return NULL;
- 	}
+@@ -100,6 +100,7 @@ struct kmem_cache *kmem_cache_create(const char *name, size_t size, size_t align
+ {
+ 	struct kmem_cache *s;
+ 	int err = 0;
++	char *n;
  
-+	if (s->refcount == 1) {
-+		err = sysfs_slab_add(s);
-+		if (err)
-+			printk(KERN_WARNING "kmem_cache_create(%s) failed to"
-+				" create sysfs entry. Error %d\n",
-+					name, err);
+ 	get_online_cpus();
+ 	mutex_lock(&slab_mutex);
+@@ -108,16 +109,26 @@ struct kmem_cache *kmem_cache_create(const char *name, size_t size, size_t align
+ 		goto out_locked;
+ 
+ 
+-	s = __kmem_cache_create(name, size, align, flags, ctor);
+-	if (!s)
+-		err = -ENOSYS; /* Until __kmem_cache_create returns code */
++	n = kstrdup(name, GFP_KERNEL);
++	if (!n) {
++		err = -ENOMEM;
++		goto out_locked;
 +	}
 +
- 	return s;
- }
- EXPORT_SYMBOL(kmem_cache_create);
++	s = __kmem_cache_create(n, size, align, flags, ctor);
++
++	if (s) {
++		/*
++		 * Check if the slab has actually been created and if it was a
++		 * real instatiation. Aliases do not belong on the list
++		 */
++		if (s->refcount == 1)
++			list_add(&s->list, &slab_caches);
+ 
+-	/*
+-	 * Check if the slab has actually been created and if it was a
+-	 * real instatiation. Aliases do not belong on the list
+-	 */
+-	if (s && s->refcount == 1)
+-		list_add(&s->list, &slab_caches);
++	} else {
++		kfree(n);
++		err = -ENOSYS; /* Until __kmem_cache_create returns code */
++	}
+ 
+ out_locked:
+ 	mutex_unlock(&slab_mutex);
+@@ -153,6 +164,7 @@ void kmem_cache_destroy(struct kmem_cache *s)
+ 			if (s->flags & SLAB_DESTROY_BY_RCU)
+ 				rcu_barrier();
+ 
++			kfree(s->name);
+ 			kmem_cache_free(kmem_cache, s);
+ 		} else {
+ 			list_add(&s->list, &slab_caches);
 diff --git a/mm/slub.c b/mm/slub.c
-index 5751f30..5e37c89 100644
+index bb02589..09ea157 100644
 --- a/mm/slub.c
 +++ b/mm/slub.c
-@@ -202,12 +202,10 @@ struct track {
- enum track_item { TRACK_ALLOC, TRACK_FREE };
- 
- #ifdef CONFIG_SYSFS
--static int sysfs_slab_add(struct kmem_cache *);
- static int sysfs_slab_alias(struct kmem_cache *, const char *);
- static void sysfs_slab_remove(struct kmem_cache *);
- 
- #else
--static inline int sysfs_slab_add(struct kmem_cache *s) { return 0; }
+@@ -210,10 +210,7 @@ static void sysfs_slab_remove(struct kmem_cache *);
+ static inline int sysfs_slab_add(struct kmem_cache *s) { return 0; }
  static inline int sysfs_slab_alias(struct kmem_cache *s, const char *p)
  							{ return 0; }
- static inline void sysfs_slab_remove(struct kmem_cache *s) { }
-@@ -3955,16 +3953,7 @@ struct kmem_cache *__kmem_cache_create(const char *name, size_t size,
+-static inline void sysfs_slab_remove(struct kmem_cache *s)
+-{
+-	kfree(s->name);
+-}
++static inline void sysfs_slab_remove(struct kmem_cache *s) { }
+ 
+ #endif
+ 
+@@ -3929,7 +3926,6 @@ struct kmem_cache *__kmem_cache_create(const char *name, size_t size,
+ 		size_t align, unsigned long flags, void (*ctor)(void *))
+ {
+ 	struct kmem_cache *s;
+-	char *n;
+ 
+ 	s = find_mergeable(size, align, flags, name, ctor);
  	if (s) {
- 		if (kmem_cache_open(s, name,
+@@ -3948,13 +3944,9 @@ struct kmem_cache *__kmem_cache_create(const char *name, size_t size,
+ 		return s;
+ 	}
+ 
+-	n = kstrdup(name, GFP_KERNEL);
+-	if (!n)
+-		return NULL;
+-
+ 	s = kmem_cache_alloc(kmem_cache, GFP_KERNEL);
+ 	if (s) {
+-		if (kmem_cache_open(s, n,
++		if (kmem_cache_open(s, name,
  				size, align, flags, ctor)) {
--			int r;
--
--			mutex_unlock(&slab_mutex);
--			r = sysfs_slab_add(s);
--			mutex_lock(&slab_mutex);
--
--			if (!r)
--				return s;
--
--			kmem_cache_close(s);
-+			return s;
+ 			int r;
+ 
+@@ -3969,7 +3961,6 @@ struct kmem_cache *__kmem_cache_create(const char *name, size_t size,
  		}
  		kmem_cache_free(kmem_cache, s);
  	}
-@@ -5258,7 +5247,7 @@ static char *create_unique_id(struct kmem_cache *s)
- 	return name;
+-	kfree(n);
+ 	return NULL;
  }
  
--static int sysfs_slab_add(struct kmem_cache *s)
-+int sysfs_slab_add(struct kmem_cache *s)
- {
- 	int err;
- 	const char *name;
+@@ -5200,13 +5191,6 @@ static ssize_t slab_attr_store(struct kobject *kobj,
+ 	return err;
+ }
+ 
+-static void kmem_cache_release(struct kobject *kobj)
+-{
+-	struct kmem_cache *s = to_slab(kobj);
+-
+-	kfree(s->name);
+-}
+-
+ static const struct sysfs_ops slab_sysfs_ops = {
+ 	.show = slab_attr_show,
+ 	.store = slab_attr_store,
+@@ -5214,7 +5198,6 @@ static const struct sysfs_ops slab_sysfs_ops = {
+ 
+ static struct kobj_type slab_ktype = {
+ 	.sysfs_ops = &slab_sysfs_ops,
+-	.release = kmem_cache_release
+ };
+ 
+ static int uevent_filter(struct kset *kset, struct kobject *kobj)
 -- 
 1.7.9.5
 
