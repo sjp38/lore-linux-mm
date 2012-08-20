@@ -1,45 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
-	by kanga.kvack.org (Postfix) with SMTP id 4D4B46B005D
-	for <linux-mm@kvack.org>; Mon, 20 Aug 2012 15:11:45 -0400 (EDT)
-Received: by ghrr18 with SMTP id r18so6493473ghr.14
-        for <linux-mm@kvack.org>; Mon, 20 Aug 2012 12:11:44 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
+	by kanga.kvack.org (Postfix) with SMTP id D83806B005D
+	for <linux-mm@kvack.org>; Mon, 20 Aug 2012 15:35:15 -0400 (EDT)
+Date: Mon, 20 Aug 2012 19:35:14 +0000
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH 2/5] mempolicy: Remove mempolicy sharing
+In-Reply-To: <1345480594-27032-3-git-send-email-mgorman@suse.de>
+Message-ID: <00000139458826d2-f72fceae-338d-4f6c-84f3-67d8817ece99-000000@email.amazonses.com>
+References: <1345480594-27032-1-git-send-email-mgorman@suse.de> <1345480594-27032-3-git-send-email-mgorman@suse.de>
 MIME-Version: 1.0
-In-Reply-To: <CANN689Hch8ao9MnV0Luk6_b0kFJtcvfZZ7jEGWyvUN41Q=FWnA@mail.gmail.com>
-References: <20120816024610.GA5350@evergreen.ssec.wisc.edu>
-	<502D42E5.7090403@redhat.com>
-	<20120818000312.GA4262@evergreen.ssec.wisc.edu>
-	<502F100A.1080401@redhat.com>
-	<alpine.LSU.2.00.1208200032450.24855@eggly.anvils>
-	<CANN689Ej7XLh8VKuaPrTttDrtDGQbXuYJgS2uKnZL2EYVTM3Dg@mail.gmail.com>
-	<50321CD3.5050501@redhat.com>
-	<CANN689Hch8ao9MnV0Luk6_b0kFJtcvfZZ7jEGWyvUN41Q=FWnA@mail.gmail.com>
-Date: Mon, 20 Aug 2012 12:11:43 -0700
-Message-ID: <CANN689FiU87Vju7zTJ2yZNkw2aDd=K05fRKhoRGTn6Dp8btjLg@mail.gmail.com>
-Subject: Re: Repeated fork() causes SLAB to grow without bound
-From: Michel Lespinasse <walken@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Hugh Dickins <hughd@google.com>, Daniel Forrest <dan.forrest@ssec.wisc.edu>, Andrea Arcangeli <aarcange@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Dave Jones <davej@redhat.com>, Ben Hutchings <ben@decadent.org.uk>, Andi Kleen <ak@linux.intel.com>, Hugh Dickins <hughd@google.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
 
-On Mon, Aug 20, 2012 at 4:53 AM, Michel Lespinasse <walken@google.com> wrote:
-> I wonder if it might help to add the child VMA onto the parent's
-> anon_vma only at the first child COW event. That way it would at least
-> be possible (with userspace changes) for any forking servers to
-> separate the areas they want to write into from the parent (such as
-> things that need expensive initialization), from the ones that they
-> want to write into from the child, and have none of the anon_vma lists
-> grow too large.
+On Mon, 20 Aug 2012, Mel Gorman wrote:
 
-Actually that wouldn't work. The parent's anon pages are visible from
-the child, so the child vma needs to be on the parent anon_vma list.
-Sorry for the noise :/
+> Ideally, the shared policy handling would be rewritten to either properly
+> handle COW of the policy structures or at least reference count MPOL_F_SHARED
+> based exclusively on information within the policy.  However, this patch takes
+> the easier approach of disabling any policy sharing between VMAs. Each new
+> range allocated with sp_alloc will allocate a new policy, set the reference
+> count to 1 and drop the reference count of the old policy. This increases
+> the memory footprint but is not expected to be a major problem as mbind()
+> is unlikely to be used for fine-grained ranges. It is also inefficient
+> because it means we allocate a new policy even in cases where mbind_range()
+> could use the new_policy passed to it. However, it is more straight-forward
+> and the change should be invisible to the user.
 
--- 
-Michel "Walken" Lespinasse
-A program is never fully debugged until the last user dies.
+
+Hmmm. I dont like the additional memory use but this is definitely an
+issue that needs addressing.
+
+Reviewed-by: Christoph Lameter <cl@linux.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
