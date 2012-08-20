@@ -1,92 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
-	by kanga.kvack.org (Postfix) with SMTP id D3AA36B0070
-	for <linux-mm@kvack.org>; Mon, 20 Aug 2012 01:11:24 -0400 (EDT)
-Date: Mon, 20 Aug 2012 08:12:18 +0300
-From: "Michael S. Tsirkin" <mst@redhat.com>
-Subject: Re: [PATCH v7 2/4] virtio_balloon: introduce migration primitives to
- balloon pages
-Message-ID: <20120820051218.GA1095@redhat.com>
-References: <cover.1344619987.git.aquini@redhat.com>
- <f19b63dfa026fe2f8f11ec017771161775744781.1344619987.git.aquini@redhat.com>
- <20120813084123.GF14081@redhat.com>
- <87lihis5qi.fsf@rustcorp.com.au>
- <20120814083320.GA3597@redhat.com>
- <20120814184409.GC13338@t510.redhat.com>
- <20120814193109.GA28840@redhat.com>
- <20120815123457.GA2175@t510.redhat.com>
- <20120815144019.GH3068@redhat.com>
- <87fw7i5ma0.fsf@rustcorp.com.au>
+Received: from psmtp.com (na3sys010amx101.postini.com [74.125.245.101])
+	by kanga.kvack.org (Postfix) with SMTP id 6047A6B0069
+	for <linux-mm@kvack.org>; Mon, 20 Aug 2012 03:55:16 -0400 (EDT)
+Message-ID: <5031EC9E.1070000@parallels.com>
+Date: Mon, 20 Aug 2012 11:51:58 +0400
+From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <87fw7i5ma0.fsf@rustcorp.com.au>
+Subject: Re: [PATCH v2 00/11] Request for Inclusion: kmem controller for memcg.
+References: <1344517279-30646-1-git-send-email-glommer@parallels.com> <CALWz4iycCxuUaEeBz_b8+U13fcCLep3rvuSNUTPD8N-eZkDBrg@mail.gmail.com>
+In-Reply-To: <CALWz4iycCxuUaEeBz_b8+U13fcCLep3rvuSNUTPD8N-eZkDBrg@mail.gmail.com>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rusty Russell <rusty@rustcorp.com.au>
-Cc: Rafael Aquini <aquini@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Minchan Kim <minchan@kernel.org>
+To: Ying Han <yinghan@google.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, devel@openvz.org, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, kamezawa.hiroyu@jp.fujitsu.com, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>
 
-On Mon, Aug 20, 2012 at 11:59:11AM +0930, Rusty Russell wrote:
-> On Wed, 15 Aug 2012 17:40:19 +0300, "Michael S. Tsirkin" <mst@redhat.com> wrote:
-> > On Wed, Aug 15, 2012 at 09:34:58AM -0300, Rafael Aquini wrote:
-> > > On Tue, Aug 14, 2012 at 10:31:09PM +0300, Michael S. Tsirkin wrote:
-> > > > > > now CPU1 executes the next instruction:
-> > > > > > 
-> > > > > > }
-> > > > > > 
-> > > > > > which would normally return to function's caller,
-> > > > > > but it has been overwritten by CPU2 so we get corruption.
-> > > > > > 
-> > > > > > No?
-> > > > > 
-> > > > > At the point CPU2 is unloading the module, it will be kept looping at the
-> > > > > snippet Rusty pointed out because the isolation / migration steps do not mess
-> > > > > with 'vb->num_pages'. The driver will only unload after leaking the total amount
-> > > > > of balloon's inflated pages, which means (for this hypothetical case) CPU2 will
-> > > > > wait until CPU1 finishes the putaback procedure.
-> > > > > 
-> > > > 
-> > > > Yes but only until unlock finishes. The last return from function
-> > > > is not guarded and can be overwritten.
-> > > 
-> > > CPU1 will be returning to putback_balloon_page() which code is located at core
-> > > mm/compaction.c, outside the driver.
-> > 
-> > Sorry, I don't seem to be able to articulate this clearly.
-> > But this is a correctness issue so I am compelled to try again.
+On 08/18/2012 01:37 AM, Ying Han wrote:
+> On Thu, Aug 9, 2012 at 6:01 AM, Glauber Costa <glommer@parallels.com> wrote:
+>> Hi,
+>>
+>> This is the first part of the kernel memory controller for memcg. It has been
+>> discussed many times, and I consider this stable enough to be on tree. A follow
+>> up to this series are the patches to also track slab memory. They are not
+>> included here because I believe we could benefit from merging them separately
+>> for better testing coverage. If there are any issues preventing this to be
+>> merged, let me know. I'll be happy to address them.
+>>
+>> The slab patches are also mature in my self evaluation and could be merged not
+>> too long after this. For the reference, the last discussion about them happened
+>> at http://lwn.net/Articles/508087/
+>>
+>> A (throwaway) git tree with them is placed at:
+>>
+>>         git://github.com/glommer/linux.git kmemcg-slab
 > 
-> But if there are 0 balloon pages, how is it migrating a page?
-
-It could be we just finished migrating a page
-dropped page lock and are 1 instruction away from
-returning from callback.
-
-> > In the end the rule is simple: you can not
-> > prevent module unloading from within module
-> > itself. It always must be the caller of your
-> > module that uses some lock to do this.
+> I would like to make a kernel on the tree and run some perf tests on
+> it. However the kernel
+> doesn't boot due to "divide error: 0000 [#1] SMP".
+> https://lkml.org/lkml/2012/5/21/502
 > 
-> Not quite.  If you clean up everything in your cleanup function, it also
-> works,
-
-No, we also need a way to make sure we returned
-to caller, this is missing here.
-
-> which is what this does, right?
+> I believe the issue has been fixed ( didn't look through) and can you
+> do a rebase on your tree?
 > 
-> Cheers,
-> Rusty.
 
-
-This makes sure callback was invoked but not that it returned
-to caller.
-
-All will be well if callbacks are done in rcu critical section
-and we synchronise it before unload.
-
-
--- 
-MST
+Could you please try the branch memcg-3.5/kmemcg-slab instead? It is
+rebased on top of the latest mmotm.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
