@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
-	by kanga.kvack.org (Postfix) with SMTP id DD5F96B0069
-	for <linux-mm@kvack.org>; Mon, 20 Aug 2012 18:05:50 -0400 (EDT)
-Received: by mail-pb0-f41.google.com with SMTP id ro12so8652360pbb.14
-        for <linux-mm@kvack.org>; Mon, 20 Aug 2012 15:05:50 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
+	by kanga.kvack.org (Postfix) with SMTP id 7FFDC6B0071
+	for <linux-mm@kvack.org>; Mon, 20 Aug 2012 18:05:52 -0400 (EDT)
+Received: by dadi14 with SMTP id i14so54187dad.14
+        for <linux-mm@kvack.org>; Mon, 20 Aug 2012 15:05:51 -0700 (PDT)
 From: Michel Lespinasse <walken@google.com>
-Subject: [PATCH v3 4/9] rbtree: handle 1-child recoloring in rb_erase() instead of rb_erase_color()
-Date: Mon, 20 Aug 2012 15:05:26 -0700
-Message-Id: <1345500331-10546-5-git-send-email-walken@google.com>
+Subject: [PATCH v3 5/9] rbtree: low level optimizations in rb_erase()
+Date: Mon, 20 Aug 2012 15:05:27 -0700
+Message-Id: <1345500331-10546-6-git-send-email-walken@google.com>
 In-Reply-To: <1345500331-10546-1-git-send-email-walken@google.com>
 References: <1345500331-10546-1-git-send-email-walken@google.com>
 Sender: owner-linux-mm@kvack.org
@@ -15,208 +15,167 @@ List-ID: <linux-mm.kvack.org>
 To: riel@redhat.com, peterz@infradead.org, daniel.santos@pobox.com, aarcange@redhat.com, dwmw2@infradead.org, akpm@linux-foundation.org
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, torvalds@linux-foundation.org
 
-An interesting observation for rb_erase() is that when a node has
-exactly one child, the node must be black and the child must be red.
-An interesting consequence is that removing such a node can be done by
-simply replacing it with its child and making the child black,
-which we can do efficiently in rb_erase(). __rb_erase_color() then
-only needs to handle the no-childs case and can be modified accordingly.
+Various minor optimizations in rb_erase():
+- Avoid multiple loading of node->__rb_parent_color when computing parent
+  and color information (possibly not in close sequence, as there might
+  be further branches in the algorithm)
+- In the 1-child subcase of case 1, copy the __rb_parent_color field from
+  the erased node to the child instead of recomputing it from the desired
+  parent and color
+- When searching for the erased node's successor, differentiate between
+  cases 2 and 3 based on whether any left links were followed. This avoids
+  a condition later down.
+- In case 3, keep a pointer to the erased node's right child so we don't
+  have to refetch it later to adjust its parent.
+- In the no-childs subcase of cases 2 and 3, place the rebalance assigment
+  last so that the compiler can remove the following if(rebalance) test.
+
+Also, added some comments to illustrate cases 2 and 3.
 
 Signed-off-by: Michel Lespinasse <walken@google.com>
 Acked-by: Rik van Riel <riel@redhat.com>
 
 ---
- lib/rbtree.c |  105 ++++++++++++++++++++++++++++++++++------------------------
- 1 files changed, 62 insertions(+), 43 deletions(-)
+ lib/rbtree.c |   98 ++++++++++++++++++++++++++++++++++++++--------------------
+ 1 files changed, 64 insertions(+), 34 deletions(-)
 
 diff --git a/lib/rbtree.c b/lib/rbtree.c
-index bde1b5c5fb33..80b092538fa9 100644
+index 80b092538fa9..938061ecbe61 100644
 --- a/lib/rbtree.c
 +++ b/lib/rbtree.c
-@@ -2,7 +2,8 @@
-   Red Black Trees
-   (C) 1999  Andrea Arcangeli <andrea@suse.de>
-   (C) 2002  David Woodhouse <dwmw2@infradead.org>
--  
-+  (C) 2012  Michel Lespinasse <walken@google.com>
+@@ -47,9 +47,14 @@
+ #define	RB_RED		0
+ #define	RB_BLACK	1
+ 
+-#define rb_color(r)   ((r)->__rb_parent_color & 1)
+-#define rb_is_red(r)   (!rb_color(r))
+-#define rb_is_black(r) rb_color(r)
++#define __rb_parent(pc)    ((struct rb_node *)(pc & ~3))
 +
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 2 of the License, or
-@@ -50,6 +51,11 @@
- #define rb_is_red(r)   (!rb_color(r))
- #define rb_is_black(r) rb_color(r)
++#define __rb_color(pc)     ((pc) & 1)
++#define __rb_is_black(pc)  __rb_color(pc)
++#define __rb_is_red(pc)    (!__rb_color(pc))
++#define rb_color(rb)       __rb_color((rb)->__rb_parent_color)
++#define rb_is_red(rb)      __rb_is_red((rb)->__rb_parent_color)
++#define rb_is_black(rb)    __rb_is_black((rb)->__rb_parent_color)
  
-+static inline void rb_set_black(struct rb_node *rb)
-+{
-+	rb->__rb_parent_color |= RB_BLACK;
-+}
-+
- static inline void rb_set_parent(struct rb_node *rb, struct rb_node *p)
+ static inline void rb_set_black(struct rb_node *rb)
  {
- 	rb->__rb_parent_color = rb_color(rb) | (unsigned long)p;
-@@ -214,27 +220,18 @@ void rb_insert_color(struct rb_node *node, struct rb_root *root)
- }
- EXPORT_SYMBOL(rb_insert_color);
- 
--static void __rb_erase_color(struct rb_node *node, struct rb_node *parent,
--			     struct rb_root *root)
-+static void __rb_erase_color(struct rb_node *parent, struct rb_root *root)
- {
--	struct rb_node *sibling, *tmp1, *tmp2;
-+	struct rb_node *node = NULL, *sibling, *tmp1, *tmp2;
- 
- 	while (true) {
- 		/*
--		 * Loop invariant: all leaf paths going through node have a
--		 * black node count that is 1 lower than other leaf paths.
--		 *
--		 * If node is red, we can flip it to black to adjust.
--		 * If node is the root, all leaf paths go through it.
--		 * Otherwise, we need to adjust the tree through color flips
--		 * and tree rotations as per one of the 4 cases below.
-+		 * Loop invariants:
-+		 * - node is black (or NULL on first iteration)
-+		 * - node is not the root (parent is not NULL)
-+		 * - All leaf paths going through parent and node have a
-+		 *   black node count that is 1 lower than other leaf paths.
- 		 */
--		if (node && rb_is_red(node)) {
--			rb_set_parent_color(node, parent, RB_BLACK);
--			break;
--		} else if (!parent) {
--			break;
--		}
- 		sibling = parent->rb_right;
- 		if (node != sibling) {	/* node == parent->rb_left */
- 			if (rb_is_red(sibling)) {
-@@ -268,17 +265,22 @@ static void __rb_erase_color(struct rb_node *node, struct rb_node *parent,
- 					 *      / \           / \
- 					 *     Sl  Sr        Sl  Sr
- 					 *
--					 * This leaves us violating 5), so
--					 * recurse at p. If p is red, the
--					 * recursion will just flip it to black
--					 * and exit. If coming from Case 1,
--					 * p is known to be red.
-+					 * This leaves us violating 5) which
-+					 * can be fixed by flipping p to black
-+					 * if it was red, or by recursing at p.
-+					 * p is red when coming from Case 1.
- 					 */
- 					rb_set_parent_color(sibling, parent,
- 							    RB_RED);
--					node = parent;
--					parent = rb_parent(node);
--					continue;
-+					if (rb_is_red(parent))
-+						rb_set_black(parent);
-+					else {
-+						node = parent;
-+						parent = rb_parent(node);
-+						if (parent)
-+							continue;
-+					}
-+					break;
- 				}
- 				/*
- 				 * Case 3 - right rotate at sibling
-@@ -339,9 +341,15 @@ static void __rb_erase_color(struct rb_node *node, struct rb_node *parent,
- 					/* Case 2 - sibling color flip */
- 					rb_set_parent_color(sibling, parent,
- 							    RB_RED);
--					node = parent;
--					parent = rb_parent(node);
--					continue;
-+					if (rb_is_red(parent))
-+						rb_set_black(parent);
-+					else {
-+						node = parent;
-+						parent = rb_parent(node);
-+						if (parent)
-+							continue;
-+					}
-+					break;
- 				}
- 				/* Case 3 - right rotate at sibling */
- 				sibling->rb_right = tmp1 = tmp2->rb_left;
-@@ -369,23 +377,31 @@ static void __rb_erase_color(struct rb_node *node, struct rb_node *parent,
- void rb_erase(struct rb_node *node, struct rb_root *root)
+@@ -378,6 +383,7 @@ void rb_erase(struct rb_node *node, struct rb_root *root)
  {
  	struct rb_node *child = node->rb_right, *tmp = node->rb_left;
--	struct rb_node *parent;
--	int color;
-+	struct rb_node *parent, *rebalance;
+ 	struct rb_node *parent, *rebalance;
++	unsigned long pc;
  
  	if (!tmp) {
--	case1:
--		/* Case 1: node to erase has no more than 1 child (easy!) */
-+		/*
-+		 * Case 1: node to erase has no more than 1 child (easy!)
-+		 *
-+		 * Note that if there is one child it must be red due to 5)
-+		 * and node must be black due to 4). We adjust colors locally
-+		 * so as to bypass __rb_erase_color() later on.
-+		 */
- 
- 		parent = rb_parent(node);
--		color = rb_color(node);
+ 		/*
+@@ -387,51 +393,75 @@ void rb_erase(struct rb_node *node, struct rb_root *root)
+ 		 * and node must be black due to 4). We adjust colors locally
+ 		 * so as to bypass __rb_erase_color() later on.
+ 		 */
 -
--		if (child)
--			rb_set_parent(child, parent);
+-		parent = rb_parent(node);
++		pc = node->__rb_parent_color;
++		parent = __rb_parent(pc);
  		__rb_change_child(node, child, parent, root);
-+		if (child) {
-+			rb_set_parent_color(child, parent, RB_BLACK);
-+			rebalance = NULL;
-+		} else {
-+			rebalance = rb_is_black(node) ? parent : NULL;
-+		}
+ 		if (child) {
+-			rb_set_parent_color(child, parent, RB_BLACK);
++			child->__rb_parent_color = pc;
+ 			rebalance = NULL;
+-		} else {
+-			rebalance = rb_is_black(node) ? parent : NULL;
+-		}
++		} else
++			rebalance = __rb_is_black(pc) ? parent : NULL;
  	} else if (!child) {
  		/* Still case 1, but this time the child is node->rb_left */
--		child = tmp;
--		goto case1;
-+		parent = rb_parent(node);
-+		__rb_change_child(node, tmp, parent, root);
-+		rb_set_parent_color(tmp, parent, RB_BLACK);
-+		rebalance = NULL;
+-		parent = rb_parent(node);
++		tmp->__rb_parent_color = pc = node->__rb_parent_color;
++		parent = __rb_parent(pc);
+ 		__rb_change_child(node, tmp, parent, root);
+-		rb_set_parent_color(tmp, parent, RB_BLACK);
+ 		rebalance = NULL;
  	} else {
- 		struct rb_node *old = node, *left;
- 
-@@ -397,26 +413,29 @@ void rb_erase(struct rb_node *node, struct rb_root *root)
- 
- 		child = node->rb_right;
- 		parent = rb_parent(node);
--		color = rb_color(node);
- 
- 		if (parent == old) {
- 			parent = node;
+-		struct rb_node *old = node, *left;
+-
+-		node = child;
+-		while ((left = node->rb_left) != NULL)
+-			node = left;
+-
+-		__rb_change_child(old, node, rb_parent(old), root);
+-
+-		child = node->rb_right;
+-		parent = rb_parent(node);
+-
+-		if (parent == old) {
+-			parent = node;
++		struct rb_node *successor = child, *child2;
++		tmp = child->rb_left;
++		if (!tmp) {
++			/*
++			 * Case 2: node's successor is its right child
++			 *
++			 *    (n)          (s)
++			 *    / \          / \
++			 *  (x) (s)  ->  (x) (c)
++			 *        \
++			 *        (c)
++			 */
++			parent = child;
++			child2 = child->rb_right;
  		} else {
--			if (child)
--				rb_set_parent(child, parent);
- 			parent->rb_left = child;
- 
- 			node->rb_right = old->rb_right;
- 			rb_set_parent(old->rb_right, node);
+-			parent->rb_left = child;
+-
+-			node->rb_right = old->rb_right;
+-			rb_set_parent(old->rb_right, node);
++			/*
++			 * Case 3: node's successor is leftmost under
++			 * node's right child subtree
++			 *
++			 *    (n)          (s)
++			 *    / \          / \
++			 *  (x) (y)  ->  (x) (y)
++			 *      /            /
++			 *    (p)          (p)
++			 *    /            /
++			 *  (s)          (c)
++			 *    \
++			 *    (c)
++			 */
++			do {
++				parent = successor;
++				successor = tmp;
++				tmp = tmp->rb_left;
++			} while (tmp);
++			parent->rb_left = child2 = successor->rb_right;
++			successor->rb_right = child;
++			rb_set_parent(child, successor);
  		}
  
-+		if (child) {
-+			rb_set_parent_color(child, parent, RB_BLACK);
-+			rebalance = NULL;
-+		} else {
-+			rebalance = rb_is_black(node) ? parent : NULL;
-+		}
- 		node->__rb_parent_color = old->__rb_parent_color;
- 		node->rb_left = old->rb_left;
- 		rb_set_parent(old->rb_left, node);
+-		if (child) {
+-			rb_set_parent_color(child, parent, RB_BLACK);
++		successor->rb_left = tmp = node->rb_left;
++		rb_set_parent(tmp, successor);
++
++		pc = node->__rb_parent_color;
++		tmp = __rb_parent(pc);
++		__rb_change_child(node, successor, tmp, root);
++		if (child2) {
++			successor->__rb_parent_color = pc;
++			rb_set_parent_color(child2, parent, RB_BLACK);
+ 			rebalance = NULL;
+ 		} else {
+-			rebalance = rb_is_black(node) ? parent : NULL;
++			unsigned long pc2 = successor->__rb_parent_color;
++			successor->__rb_parent_color = pc;
++			rebalance = __rb_is_black(pc2) ? parent : NULL;
+ 		}
+-		node->__rb_parent_color = old->__rb_parent_color;
+-		node->rb_left = old->rb_left;
+-		rb_set_parent(old->rb_left, node);
  	}
  
--	if (color == RB_BLACK)
--		__rb_erase_color(child, parent, root);
-+	if (rebalance)
-+		__rb_erase_color(rebalance, root);
- }
- EXPORT_SYMBOL(rb_erase);
- 
+ 	if (rebalance)
 -- 
 1.7.7.3
 
