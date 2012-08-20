@@ -1,78 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
-	by kanga.kvack.org (Postfix) with SMTP id 468856B0069
-	for <linux-mm@kvack.org>; Sun, 19 Aug 2012 12:17:14 -0400 (EDT)
-Received: by bkcjc3 with SMTP id jc3so2133241bkc.14
-        for <linux-mm@kvack.org>; Sun, 19 Aug 2012 09:17:12 -0700 (PDT)
-Message-ID: <503111A8.5030703@gmail.com>
-Date: Sun, 19 Aug 2012 18:17:44 +0200
-From: Sasha Levin <levinsasha928@gmail.com>
+Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
+	by kanga.kvack.org (Postfix) with SMTP id A8C456B0069
+	for <linux-mm@kvack.org>; Mon, 20 Aug 2012 01:01:22 -0400 (EDT)
+From: Rusty Russell <rusty@rustcorp.com.au>
+Subject: Re: [PATCH v7 2/4] virtio_balloon: introduce migration primitives to balloon pages
+In-Reply-To: <20120815144019.GH3068@redhat.com>
+References: <cover.1344619987.git.aquini@redhat.com> <f19b63dfa026fe2f8f11ec017771161775744781.1344619987.git.aquini@redhat.com> <20120813084123.GF14081@redhat.com> <87lihis5qi.fsf@rustcorp.com.au> <20120814083320.GA3597@redhat.com> <20120814184409.GC13338@t510.redhat.com> <20120814193109.GA28840@redhat.com> <20120815123457.GA2175@t510.redhat.com> <20120815144019.GH3068@redhat.com>
+Date: Mon, 20 Aug 2012 11:59:11 +0930
+Message-ID: <87fw7i5ma0.fsf@rustcorp.com.au>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2 01/16] hashtable: introduce a small and naive hashtable
-References: <1345337550-24304-1-git-send-email-levinsasha928@gmail.com> <1345337550-24304-2-git-send-email-levinsasha928@gmail.com> <20120819131637.GA8272@Krystal> <20120819141641.GA9082@Krystal>
-In-Reply-To: <20120819141641.GA9082@Krystal>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
-Cc: torvalds@linux-foundation.org, tj@kernel.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, paul.gortmaker@windriver.com, davem@davemloft.net, rostedt@goodmis.org, mingo@elte.hu, ebiederm@xmission.com, aarcange@redhat.com, ericvh@gmail.com, netdev@vger.kernel.org, josh@joshtriplett.org, eric.dumazet@gmail.com, axboe@kernel.dk, agk@redhat.com, dm-devel@redhat.com, neilb@suse.de, ccaulfie@redhat.com, teigland@redhat.com, Trond.Myklebust@netapp.com, bfields@fieldses.org, fweisbec@gmail.com, jesse@nicira.com, venkat.x.venkatsubra@oracle.com, ejt@redhat.com, snitzer@redhat.com, edumazet@google.com, linux-nfs@vger.kernel.org, dev@openvswitch.org, rds-devel@oss.oracle.com, lw@cn.fujitsu.com
+To: "Michael S. Tsirkin" <mst@redhat.com>, Rafael Aquini <aquini@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Minchan Kim <minchan@kernel.org>
 
-On 08/19/2012 04:16 PM, Mathieu Desnoyers wrote:
-> * Mathieu Desnoyers (mathieu.desnoyers@efficios.com) wrote:
->> * Sasha Levin (levinsasha928@gmail.com) wrote:
-> [...]
->>> +/**
->>> + * hash_for_each_possible - iterate over all possible objects for a given key
->>> + * @name: hashtable to iterate
->>> + * @obj: the type * to use as a loop cursor for each bucket
->>> + * @bits: bit count of hashing function of the hashtable
->>> + * @node: the &struct list_head to use as a loop cursor for each bucket
->>> + * @member: the name of the hlist_node within the struct
->>> + * @key: the key of the objects to iterate over
->>> + */
->>> +#define hash_for_each_possible_size(name, obj, bits, node, member, key)		\
->>> +	hlist_for_each_entry(obj, node,	&name[hash_min(key, bits)], member)
->>
->> Second point: "for_each_possible" does not express the iteration scope.
->> Citing WordNet: "possible adj 1: capable of happening or existing;" --
->> which has nothing to do with iteration on duplicate keys within a hash
->> table.
->>
->> I would recommend to rename "possible" to "duplicate", e.g.:
->>
->>   hash_for_each_duplicate()
->>
->> which clearly says what is the scope of this iteration: duplicate keys.
+On Wed, 15 Aug 2012 17:40:19 +0300, "Michael S. Tsirkin" <mst@redhat.com> wrote:
+> On Wed, Aug 15, 2012 at 09:34:58AM -0300, Rafael Aquini wrote:
+> > On Tue, Aug 14, 2012 at 10:31:09PM +0300, Michael S. Tsirkin wrote:
+> > > > > now CPU1 executes the next instruction:
+> > > > > 
+> > > > > }
+> > > > > 
+> > > > > which would normally return to function's caller,
+> > > > > but it has been overwritten by CPU2 so we get corruption.
+> > > > > 
+> > > > > No?
+> > > > 
+> > > > At the point CPU2 is unloading the module, it will be kept looping at the
+> > > > snippet Rusty pointed out because the isolation / migration steps do not mess
+> > > > with 'vb->num_pages'. The driver will only unload after leaking the total amount
+> > > > of balloon's inflated pages, which means (for this hypothetical case) CPU2 will
+> > > > wait until CPU1 finishes the putaback procedure.
+> > > > 
+> > > 
+> > > Yes but only until unlock finishes. The last return from function
+> > > is not guarded and can be overwritten.
+> > 
+> > CPU1 will be returning to putback_balloon_page() which code is located at core
+> > mm/compaction.c, outside the driver.
 > 
-> OK, about this part: I now see that you iterate over all objects within
-> the same hash chain. I guess the description "iterate over all possible
-> objects for a given key" is misleading: it's not all objects with a
-> given key, but rather all objects hashing to the same bucket.
-> 
-> I understand that you don't want to build knowledge of the key
-> comparison function in the iterator (which makes sense for a simple hash
-> table).
-> 
-> By the way, the comment "@obj: the type * to use as a loop cursor for
-> each bucket" is also misleading: it's a loop cursor for each entry,
-> since you iterate on all nodes within single bucket. Same for "@node:
-> the &struct list_head to use as a loop cursor for each bucket".
-> 
-> So with these documentation changes applied, hash_for_each_possible
-> starts to make more sense, because it refers to entries that can
-> _possibly_ be a match (or not). Other options would be
-> hash_chain_for_each() or hash_bucket_for_each().
+> Sorry, I don't seem to be able to articulate this clearly.
+> But this is a correctness issue so I am compelled to try again.
 
-I'd rather avoid starting to use chain/bucket since they're not used anywhere
-else (I've tried keeping internal hashing/bucketing opaque to the user).
+But if there are 0 balloon pages, how is it migrating a page?
 
-Otherwise makes sense, I'll improve the documentation as suggested. Thanks!
+> In the end the rule is simple: you can not
+> prevent module unloading from within module
+> itself. It always must be the caller of your
+> module that uses some lock to do this.
 
-> Thanks,
-> 
-> Mathieu
-> 
+Not quite.  If you clean up everything in your cleanup function, it also
+works, which is what this does, right?
+
+Cheers,
+Rusty.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
