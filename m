@@ -1,51 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx101.postini.com [74.125.245.101])
-	by kanga.kvack.org (Postfix) with SMTP id 6047A6B0069
-	for <linux-mm@kvack.org>; Mon, 20 Aug 2012 03:55:16 -0400 (EDT)
-Message-ID: <5031EC9E.1070000@parallels.com>
-Date: Mon, 20 Aug 2012 11:51:58 +0400
-From: Glauber Costa <glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
+	by kanga.kvack.org (Postfix) with SMTP id A04406B0069
+	for <linux-mm@kvack.org>; Mon, 20 Aug 2012 04:00:54 -0400 (EDT)
+Received: by pbbro12 with SMTP id ro12so7521565pbb.14
+        for <linux-mm@kvack.org>; Mon, 20 Aug 2012 01:00:53 -0700 (PDT)
+Date: Mon, 20 Aug 2012 01:00:11 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: Repeated fork() causes SLAB to grow without bound
+In-Reply-To: <502F100A.1080401@redhat.com>
+Message-ID: <alpine.LSU.2.00.1208200032450.24855@eggly.anvils>
+References: <20120816024610.GA5350@evergreen.ssec.wisc.edu> <502D42E5.7090403@redhat.com> <20120818000312.GA4262@evergreen.ssec.wisc.edu> <502F100A.1080401@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2 00/11] Request for Inclusion: kmem controller for memcg.
-References: <1344517279-30646-1-git-send-email-glommer@parallels.com> <CALWz4iycCxuUaEeBz_b8+U13fcCLep3rvuSNUTPD8N-eZkDBrg@mail.gmail.com>
-In-Reply-To: <CALWz4iycCxuUaEeBz_b8+U13fcCLep3rvuSNUTPD8N-eZkDBrg@mail.gmail.com>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ying Han <yinghan@google.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, devel@openvz.org, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, kamezawa.hiroyu@jp.fujitsu.com, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>
+To: Rik van Riel <riel@redhat.com>
+Cc: Daniel Forrest <dan.forrest@ssec.wisc.edu>, Andrea Arcangeli <aarcange@redhat.com>, Michel Lespinasse <walken@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 08/18/2012 01:37 AM, Ying Han wrote:
-> On Thu, Aug 9, 2012 at 6:01 AM, Glauber Costa <glommer@parallels.com> wrote:
->> Hi,
->>
->> This is the first part of the kernel memory controller for memcg. It has been
->> discussed many times, and I consider this stable enough to be on tree. A follow
->> up to this series are the patches to also track slab memory. They are not
->> included here because I believe we could benefit from merging them separately
->> for better testing coverage. If there are any issues preventing this to be
->> merged, let me know. I'll be happy to address them.
->>
->> The slab patches are also mature in my self evaluation and could be merged not
->> too long after this. For the reference, the last discussion about them happened
->> at http://lwn.net/Articles/508087/
->>
->> A (throwaway) git tree with them is placed at:
->>
->>         git://github.com/glommer/linux.git kmemcg-slab
+On Fri, 17 Aug 2012, Rik van Riel wrote:
+> On 08/17/2012 08:03 PM, Daniel Forrest wrote:
 > 
-> I would like to make a kernel on the tree and run some perf tests on
-> it. However the kernel
-> doesn't boot due to "divide error: 0000 [#1] SMP".
-> https://lkml.org/lkml/2012/5/21/502
+> > Based on your comments, I came up with the following patch.  It boots
+> > and the anon_vma/anon_vma_chain SLAB usage is stable, but I don't know
+> > if I've overlooked something.  I'm not a kernel hacker.
 > 
-> I believe the issue has been fixed ( didn't look through) and can you
-> do a rebase on your tree?
+> The patch looks reasonable to me.  There is one spot left
+> for optimization, which I have pointed out below.
 > 
+> Of course, that leaves the big question: do we want the
+> overhead of having the atomic addition and decrement for
+> every anonymous memory page, or is it easier to fix this
+> issue in userspace?
 
-Could you please try the branch memcg-3.5/kmemcg-slab instead? It is
-rebased on top of the latest mmotm.
+I've not given any thought to alternatives, and I've not done any
+performance analysis; but my instinct says that we really do not
+want another atomic increment and decrement (and another cache
+line redirtied) for every single page mapped.
+
+One of the things I've often admired about Andrea's anon_vma design
+was the way it did not need a refcount; and although we later added
+one for KSM and migration, that scarcely mattered, because it was
+for exceptional circumstances, and not per page.
+
+May I dare to think: what if we just backed out all the anon_vma_chain
+complexity, and returned to the simple anon_vma list we had in 2.6.33?
+
+Just how realistic was the workload which led you to anon_vma_chains?
+And isn't it correct to say that the performance evaluation was made
+while believing that each anon_vma->lock was useful, before the sad
+realization that anon_vma->root->lock (or ->mutex) had to be used?
+
+I've Cc'ed Michel, because I think he has plans (or at least hopes) for
+the anon_vmas, in his relentless pursuit of world domination by rbtree.
+
+Hugh
+
+> 
+> Given that malicious userspace could potentially run the
+> system out of memory, without needing special privileges,
+> and the OOM killer may not be able to reclaim it due to
+> internal slab fragmentation, I guess this issue could be
+> classified as a low impact denial of service vulnerability.
+> 
+> Furthermore, there is already a fair amount of bookkeeping
+> being done in the rmap code, so this patch is not likely
+> to add a whole lot - some testing might be useful, though.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
