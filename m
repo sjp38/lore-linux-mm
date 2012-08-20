@@ -1,89 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx190.postini.com [74.125.245.190])
-	by kanga.kvack.org (Postfix) with SMTP id 044676B0068
-	for <linux-mm@kvack.org>; Mon, 20 Aug 2012 09:20:19 -0400 (EDT)
-Message-ID: <50323968.1030503@jp.fujitsu.com>
-Date: Mon, 20 Aug 2012 22:19:36 +0900
+Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
+	by kanga.kvack.org (Postfix) with SMTP id C52926B0044
+	for <linux-mm@kvack.org>; Mon, 20 Aug 2012 09:36:57 -0400 (EDT)
+Message-ID: <50323D50.8070307@jp.fujitsu.com>
+Date: Mon, 20 Aug 2012 22:36:16 +0900
 From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH V8 1/2] mm: memcg softlimit reclaim rework
-References: <1343942658-13307-1-git-send-email-yinghan@google.com> <20120803152234.GE8434@dhcp22.suse.cz> <501BF952.7070202@redhat.com> <CALWz4iw6Q500k5qGWaubwLi-3V3qziPuQ98Et9Ay=LS0-PB0dQ@mail.gmail.com> <20120806133324.GD6150@dhcp22.suse.cz> <CALWz4iw2NqQw3FgjM9k6nbMb7k8Gy2khdyL_9NpGM6T7Ma5t3g@mail.gmail.com>
-In-Reply-To: <CALWz4iw2NqQw3FgjM9k6nbMb7k8Gy2khdyL_9NpGM6T7Ma5t3g@mail.gmail.com>
+Subject: Re: [PATCH v2 06/11] memcg: kmem controller infrastructure
+References: <1344517279-30646-1-git-send-email-glommer@parallels.com> <1344517279-30646-7-git-send-email-glommer@parallels.com> <50254475.4000201@jp.fujitsu.com> <5028BA9E.7000302@parallels.com> <xr93ipcl9u7x.fsf@gthelen.mtv.corp.google.com> <502B6956.5030508@parallels.com> <xr93wr109kke.fsf@gthelen.mtv.corp.google.com> <502BD5AF.301@parallels.com>
+In-Reply-To: <502BD5AF.301@parallels.com>
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ying Han <yinghan@google.com>
-Cc: Michal Hocko <mhocko@suse.cz>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>, Hillf Danton <dhillf@gmail.com>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+To: Glauber Costa <glommer@parallels.com>
+Cc: Greg Thelen <gthelen@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, devel@openvz.org, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, Pekka Enberg <penberg@cs.helsinki.fi>
 
-(2012/08/18 7:03), Ying Han wrote:
-> On Mon, Aug 6, 2012 at 6:33 AM, Michal Hocko <mhocko@suse.cz> wrote:
->> On Fri 03-08-12 09:34:11, Ying Han wrote:
->>> On Fri, Aug 3, 2012 at 9:16 AM, Rik van Riel <riel@redhat.com> wrote:
->>>> On 08/03/2012 11:22 AM, Michal Hocko wrote:
->>>>>
->>>>> On Thu 02-08-12 14:24:18, Ying Han wrote:
->>>>>
->>>>> I am thinking that we could add a constant for the priority
->>>>> limit. Something like
->>>>> #define MEMCG_LOW_SOFTLIMIT_PRIORITY    DEF_PRIORITY
->>>>>
->>>>> Although it doesn't seem necessary at the moment, because there is just
->>>>> one location where it matters but it could help in the future.
->>>>> What do you think?
+(2012/08/16 2:00), Glauber Costa wrote:
+> On 08/15/2012 08:38 PM, Greg Thelen wrote:
+>> On Wed, Aug 15 2012, Glauber Costa wrote:
+>>
+>>> On 08/14/2012 10:58 PM, Greg Thelen wrote:
+>>>> On Mon, Aug 13 2012, Glauber Costa wrote:
 >>>>
+>>>>>>>> +	WARN_ON(mem_cgroup_is_root(memcg));
+>>>>>>>> +	size = (1 << order) << PAGE_SHIFT;
+>>>>>>>> +	memcg_uncharge_kmem(memcg, size);
+>>>>>>>> +	mem_cgroup_put(memcg);
+>>>>>> Why do we need ref-counting here ? kmem res_counter cannot work as
+>>>>>> reference ?
+>>>>> This is of course the pair of the mem_cgroup_get() you commented on
+>>>>> earlier. If we need one, we need the other. If we don't need one, we
+>>>>> don't need the other =)
+>>>>>
+>>>>> The guarantee we're trying to give here is that the memcg structure will
+>>>>> stay around while there are dangling charges to kmem, that we decided
+>>>>> not to move (remember: moving it for the stack is simple, for the slab
+>>>>> is very complicated and ill-defined, and I believe it is better to treat
+>>>>> all kmem equally here)
 >>>>
->>>> I am working on changing the code to find the "highest priority"
->>>> LRU and reclaim from that list first.  That will obviate the need
->>>> for such a change. However, the other cleanups and simplifications
->>>> made by Ying's patch are good to have...
+>>>> By keeping memcg structures hanging around until the last referring kmem
+>>>> page is uncharged do such zombie memcg each consume a css_id and thus
+>>>> put pressure on the 64k css_id space?  I imagine in pathological cases
+>>>> this would prevent creation of new cgroups until these zombies are
+>>>> dereferenced.
 >>>
->>> So what you guys think to take from here. I can make the change as
->>> Michal suggested if that would be something helpful future changes.
->>> However, I wonder whether or not it is necessary.
+>>> Yes, but although this patch makes it more likely, it doesn't introduce
+>>> that. If the tasks, for instance, grab a reference to the cgroup dentry
+>>> in the filesystem (like their CWD, etc), they will also keep the cgroup
+>>> around.
 >>
->> I am afraid we will not move forward without a proper implementation of
->> the "nobody under soft limit" case. Maybe Rik's idea would just work out
->> but this patch on it's own could regress so taking it separately is no
->> go IMO. I like how it reduces the code size but we are not "there" yet...
->>
+>> Fair point.  But this doesn't seems like a feature.  It's probably not
+>> needed initially, but what do you think about creating a
+>> memcg_kernel_context structure which is allocated when memcg is
+>> allocated?  Kernel pages charged to a memcg would have
+>> page_cgroup->mem_cgroup=memcg_kernel_context rather than memcg.  This
+>> would allow the mem_cgroup and its css_id to be deleted when the cgroup
+>> is unlinked from cgroupfs while allowing for the active kernel pages to
+>> continue pointing to a valid memcg_kernel_context.  This would be a
+>> reference counted structure much like you are doing with memcg.  When a
+>> memcg is deleted the memcg_kernel_context would be linked into its
+>> surviving parent memcg.  This would avoid needing to visit each kernel
+>> page.
 >
-> Sorry for getting back to the thread late. Being distracted to
-> something else which of course happens all the time.
+> You need more, you need at the res_counters to stay around as well. And
+> probably other fields.
 >
-> Before me jumping into actions of any changes, let me clarify the
-> problem I am facing:
->
-> All the concerns are related to the configuration where none of the
-> memcg is eligible for reclaim ( usage < softlimit ) under global
-> pressure.   The current code works like the following:
->
-> 1. walk the memcg tree and for each checks the softlimit
-> 2. if none of the memcg is being reclaimed, then set the ignore_softlimit
-> 3. restart the walk and this round forget about the softlimit
->
-> There are two problems I heard here:
-> 1. doing a full walk on step 1 would cause potential scalability issue.
+> So my fear here is that as you add fields to that structure, you can
+> defeat a bit the goal of reducing memory consumption. Still leaves the
+> css space, yes. But by doing this we can introduce some subtle bugs by
+> having a field in the wrong structure.
 >
 
-Simply thinking, I think maintaining & updating the whole softlimit information
-periodically is a way to avoid double-scan. memcg has a percpu event-counter and
-css-id bitmap will be enough for keeping information. Then, you can find
-over-softlimit memcg by bitmap scanning.
-
-
-> 2. root cgroup is a exception where it always eligible for reclaim (
-> softlimit = 0 always). That will cause root to be punished more than
-> necessary.
->
-
-When use_hierarchy==0 ?
-How about having implicit softlimit value for root, which is automatically
-calculated from total_ram or the number of tasks in root ?
+Hm, can't we free css_id and delete css structure from the css_id idr tree
+when a memcg goes zombie ?
 
 Thanks,
 -Kame
-
 
 
 
