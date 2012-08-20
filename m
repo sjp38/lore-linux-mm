@@ -1,86 +1,169 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
-	by kanga.kvack.org (Postfix) with SMTP id C52926B0044
-	for <linux-mm@kvack.org>; Mon, 20 Aug 2012 09:36:57 -0400 (EDT)
-Message-ID: <50323D50.8070307@jp.fujitsu.com>
-Date: Mon, 20 Aug 2012 22:36:16 +0900
-From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH v2 06/11] memcg: kmem controller infrastructure
-References: <1344517279-30646-1-git-send-email-glommer@parallels.com> <1344517279-30646-7-git-send-email-glommer@parallels.com> <50254475.4000201@jp.fujitsu.com> <5028BA9E.7000302@parallels.com> <xr93ipcl9u7x.fsf@gthelen.mtv.corp.google.com> <502B6956.5030508@parallels.com> <xr93wr109kke.fsf@gthelen.mtv.corp.google.com> <502BD5AF.301@parallels.com>
-In-Reply-To: <502BD5AF.301@parallels.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
+	by kanga.kvack.org (Postfix) with SMTP id 0A30D6B005A
+	for <linux-mm@kvack.org>; Mon, 20 Aug 2012 09:52:38 -0400 (EDT)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: [PATCH v4 3/8] hugetlb: pass fault address to hugetlb_no_page()
+Date: Mon, 20 Aug 2012 16:52:32 +0300
+Message-Id: <1345470757-12005-4-git-send-email-kirill.shutemov@linux.intel.com>
+In-Reply-To: <1345470757-12005-1-git-send-email-kirill.shutemov@linux.intel.com>
+References: <1345470757-12005-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: Greg Thelen <gthelen@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, devel@openvz.org, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, Pekka Enberg <penberg@cs.helsinki.fi>
+To: linux-mm@kvack.org
+Cc: Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, Andi Kleen <ak@linux.intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, Alex Shi <alex.shu@intel.com>, Jan Beulich <jbeulich@novell.com>, Robert Richter <robert.richter@amd.com>, Andy Lutomirski <luto@amacapital.net>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-mips@linux-mips.org, linux-sh@vger.kernel.org, sparclinux@vger.kernel.org
 
-(2012/08/16 2:00), Glauber Costa wrote:
-> On 08/15/2012 08:38 PM, Greg Thelen wrote:
->> On Wed, Aug 15 2012, Glauber Costa wrote:
->>
->>> On 08/14/2012 10:58 PM, Greg Thelen wrote:
->>>> On Mon, Aug 13 2012, Glauber Costa wrote:
->>>>
->>>>>>>> +	WARN_ON(mem_cgroup_is_root(memcg));
->>>>>>>> +	size = (1 << order) << PAGE_SHIFT;
->>>>>>>> +	memcg_uncharge_kmem(memcg, size);
->>>>>>>> +	mem_cgroup_put(memcg);
->>>>>> Why do we need ref-counting here ? kmem res_counter cannot work as
->>>>>> reference ?
->>>>> This is of course the pair of the mem_cgroup_get() you commented on
->>>>> earlier. If we need one, we need the other. If we don't need one, we
->>>>> don't need the other =)
->>>>>
->>>>> The guarantee we're trying to give here is that the memcg structure will
->>>>> stay around while there are dangling charges to kmem, that we decided
->>>>> not to move (remember: moving it for the stack is simple, for the slab
->>>>> is very complicated and ill-defined, and I believe it is better to treat
->>>>> all kmem equally here)
->>>>
->>>> By keeping memcg structures hanging around until the last referring kmem
->>>> page is uncharged do such zombie memcg each consume a css_id and thus
->>>> put pressure on the 64k css_id space?  I imagine in pathological cases
->>>> this would prevent creation of new cgroups until these zombies are
->>>> dereferenced.
->>>
->>> Yes, but although this patch makes it more likely, it doesn't introduce
->>> that. If the tasks, for instance, grab a reference to the cgroup dentry
->>> in the filesystem (like their CWD, etc), they will also keep the cgroup
->>> around.
->>
->> Fair point.  But this doesn't seems like a feature.  It's probably not
->> needed initially, but what do you think about creating a
->> memcg_kernel_context structure which is allocated when memcg is
->> allocated?  Kernel pages charged to a memcg would have
->> page_cgroup->mem_cgroup=memcg_kernel_context rather than memcg.  This
->> would allow the mem_cgroup and its css_id to be deleted when the cgroup
->> is unlinked from cgroupfs while allowing for the active kernel pages to
->> continue pointing to a valid memcg_kernel_context.  This would be a
->> reference counted structure much like you are doing with memcg.  When a
->> memcg is deleted the memcg_kernel_context would be linked into its
->> surviving parent memcg.  This would avoid needing to visit each kernel
->> page.
->
-> You need more, you need at the res_counters to stay around as well. And
-> probably other fields.
->
-> So my fear here is that as you add fields to that structure, you can
-> defeat a bit the goal of reducing memory consumption. Still leaves the
-> css space, yes. But by doing this we can introduce some subtle bugs by
-> having a field in the wrong structure.
->
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-Hm, can't we free css_id and delete css structure from the css_id idr tree
-when a memcg goes zombie ?
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+---
+ mm/hugetlb.c |   38 +++++++++++++++++++-------------------
+ 1 files changed, 19 insertions(+), 19 deletions(-)
 
-Thanks,
--Kame
-
-
-
-
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index bc72712..3c86d3d 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -2672,7 +2672,8 @@ static bool hugetlbfs_pagecache_present(struct hstate *h,
+ }
+ 
+ static int hugetlb_no_page(struct mm_struct *mm, struct vm_area_struct *vma,
+-			unsigned long address, pte_t *ptep, unsigned int flags)
++			unsigned long haddr, unsigned long fault_address,
++			pte_t *ptep, unsigned int flags)
+ {
+ 	struct hstate *h = hstate_vma(vma);
+ 	int ret = VM_FAULT_SIGBUS;
+@@ -2696,7 +2697,7 @@ static int hugetlb_no_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ 	}
+ 
+ 	mapping = vma->vm_file->f_mapping;
+-	idx = vma_hugecache_offset(h, vma, address);
++	idx = vma_hugecache_offset(h, vma, haddr);
+ 
+ 	/*
+ 	 * Use page lock to guard against racing truncation
+@@ -2708,7 +2709,7 @@ retry:
+ 		size = i_size_read(mapping->host) >> huge_page_shift(h);
+ 		if (idx >= size)
+ 			goto out;
+-		page = alloc_huge_page(vma, address, 0);
++		page = alloc_huge_page(vma, haddr, 0);
+ 		if (IS_ERR(page)) {
+ 			ret = PTR_ERR(page);
+ 			if (ret == -ENOMEM)
+@@ -2717,7 +2718,7 @@ retry:
+ 				ret = VM_FAULT_SIGBUS;
+ 			goto out;
+ 		}
+-		clear_huge_page(page, address, pages_per_huge_page(h));
++		clear_huge_page(page, haddr, pages_per_huge_page(h));
+ 		__SetPageUptodate(page);
+ 
+ 		if (vma->vm_flags & VM_MAYSHARE) {
+@@ -2763,7 +2764,7 @@ retry:
+ 	 * the spinlock.
+ 	 */
+ 	if ((flags & FAULT_FLAG_WRITE) && !(vma->vm_flags & VM_SHARED))
+-		if (vma_needs_reservation(h, vma, address) < 0) {
++		if (vma_needs_reservation(h, vma, haddr) < 0) {
+ 			ret = VM_FAULT_OOM;
+ 			goto backout_unlocked;
+ 		}
+@@ -2778,16 +2779,16 @@ retry:
+ 		goto backout;
+ 
+ 	if (anon_rmap)
+-		hugepage_add_new_anon_rmap(page, vma, address);
++		hugepage_add_new_anon_rmap(page, vma, haddr);
+ 	else
+ 		page_dup_rmap(page);
+ 	new_pte = make_huge_pte(vma, page, ((vma->vm_flags & VM_WRITE)
+ 				&& (vma->vm_flags & VM_SHARED)));
+-	set_huge_pte_at(mm, address, ptep, new_pte);
++	set_huge_pte_at(mm, haddr, ptep, new_pte);
+ 
+ 	if ((flags & FAULT_FLAG_WRITE) && !(vma->vm_flags & VM_SHARED)) {
+ 		/* Optimization, do the COW without a second fault */
+-		ret = hugetlb_cow(mm, vma, address, ptep, new_pte, page);
++		ret = hugetlb_cow(mm, vma, haddr, ptep, new_pte, page);
+ 	}
+ 
+ 	spin_unlock(&mm->page_table_lock);
+@@ -2813,21 +2814,20 @@ int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+ 	struct page *pagecache_page = NULL;
+ 	static DEFINE_MUTEX(hugetlb_instantiation_mutex);
+ 	struct hstate *h = hstate_vma(vma);
++	unsigned long haddr = address & huge_page_mask(h);
+ 
+-	address &= huge_page_mask(h);
+-
+-	ptep = huge_pte_offset(mm, address);
++	ptep = huge_pte_offset(mm, haddr);
+ 	if (ptep) {
+ 		entry = huge_ptep_get(ptep);
+ 		if (unlikely(is_hugetlb_entry_migration(entry))) {
+-			migration_entry_wait(mm, (pmd_t *)ptep, address);
++			migration_entry_wait(mm, (pmd_t *)ptep, haddr);
+ 			return 0;
+ 		} else if (unlikely(is_hugetlb_entry_hwpoisoned(entry)))
+ 			return VM_FAULT_HWPOISON_LARGE |
+ 				VM_FAULT_SET_HINDEX(hstate_index(h));
+ 	}
+ 
+-	ptep = huge_pte_alloc(mm, address, huge_page_size(h));
++	ptep = huge_pte_alloc(mm, haddr, huge_page_size(h));
+ 	if (!ptep)
+ 		return VM_FAULT_OOM;
+ 
+@@ -2839,7 +2839,7 @@ int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+ 	mutex_lock(&hugetlb_instantiation_mutex);
+ 	entry = huge_ptep_get(ptep);
+ 	if (huge_pte_none(entry)) {
+-		ret = hugetlb_no_page(mm, vma, address, ptep, flags);
++		ret = hugetlb_no_page(mm, vma, haddr, address, ptep, flags);
+ 		goto out_mutex;
+ 	}
+ 
+@@ -2854,14 +2854,14 @@ int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+ 	 * consumed.
+ 	 */
+ 	if ((flags & FAULT_FLAG_WRITE) && !pte_write(entry)) {
+-		if (vma_needs_reservation(h, vma, address) < 0) {
++		if (vma_needs_reservation(h, vma, haddr) < 0) {
+ 			ret = VM_FAULT_OOM;
+ 			goto out_mutex;
+ 		}
+ 
+ 		if (!(vma->vm_flags & VM_MAYSHARE))
+ 			pagecache_page = hugetlbfs_pagecache_page(h,
+-								vma, address);
++								vma, haddr);
+ 	}
+ 
+ 	/*
+@@ -2884,16 +2884,16 @@ int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+ 
+ 	if (flags & FAULT_FLAG_WRITE) {
+ 		if (!pte_write(entry)) {
+-			ret = hugetlb_cow(mm, vma, address, ptep, entry,
++			ret = hugetlb_cow(mm, vma, haddr, ptep, entry,
+ 							pagecache_page);
+ 			goto out_page_table_lock;
+ 		}
+ 		entry = pte_mkdirty(entry);
+ 	}
+ 	entry = pte_mkyoung(entry);
+-	if (huge_ptep_set_access_flags(vma, address, ptep, entry,
++	if (huge_ptep_set_access_flags(vma, haddr, ptep, entry,
+ 						flags & FAULT_FLAG_WRITE))
+-		update_mmu_cache(vma, address, ptep);
++		update_mmu_cache(vma, haddr, ptep);
+ 
+ out_page_table_lock:
+ 	spin_unlock(&mm->page_table_lock);
+-- 
+1.7.7.6
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
