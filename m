@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx104.postini.com [74.125.245.104])
-	by kanga.kvack.org (Postfix) with SMTP id 4E6346B0075
-	for <linux-mm@kvack.org>; Mon, 20 Aug 2012 05:30:53 -0400 (EDT)
+	by kanga.kvack.org (Postfix) with SMTP id 13FEF6B0080
+	for <linux-mm@kvack.org>; Mon, 20 Aug 2012 05:30:54 -0400 (EDT)
 From: wency@cn.fujitsu.com
-Subject: [RFC V7 PATCH 03/19] memory-hotplug: store the node id in acpi_memory_device
-Date: Mon, 20 Aug 2012 17:35:26 +0800
-Message-Id: <1345455342-27752-4-git-send-email-wency@cn.fujitsu.com>
+Subject: [RFC V7 PATCH 10/19] memory-hotplug: add memory_block_release
+Date: Mon, 20 Aug 2012 17:35:33 +0800
+Message-Id: <1345455342-27752-11-git-send-email-wency@cn.fujitsu.com>
 In-Reply-To: <1345455342-27752-1-git-send-email-wency@cn.fujitsu.com>
 References: <1345455342-27752-1-git-send-email-wency@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,11 +13,16 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-ia64@vger.kernel.org, cmetcalf@tilera.com
 Cc: rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, Wen Congyang <wency@cn.fujitsu.com>
 
-From: Wen Congyang <wency@cn.fujitsu.com>
+From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 
-The memory device has only one node id. Store the node id when
-enable the memory device, and we can reuse it when removing the
-memory device.
+When calling remove_memory_block(), the function shows following message at
+device_release().
+
+Device 'memory528' does not have a release() function, it is broken and must
+be fixed.
+
+remove_memory_block() calls kfree(mem). I think it shouled be called from
+device_release(). So the patch implements memory_block_release()
 
 CC: David Rientjes <rientjes@google.com>
 CC: Jiang Liu <liuj97@gmail.com>
@@ -28,35 +33,48 @@ CC: Christoph Lameter <cl@linux.com>
 Cc: Minchan Kim <minchan.kim@gmail.com>
 CC: Andrew Morton <akpm@linux-foundation.org>
 CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-CC: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-Signed-off-by: Wen Congyang <wency@cn.fujitsu.com>
-Reviewed-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+CC: Wen Congyang <wency@cn.fujitsu.com>
+Signed-off-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 ---
- drivers/acpi/acpi_memhotplug.c |    4 ++++
- 1 files changed, 4 insertions(+), 0 deletions(-)
+ drivers/base/memory.c |   11 ++++++++++-
+ 1 files changed, 10 insertions(+), 1 deletions(-)
 
-diff --git a/drivers/acpi/acpi_memhotplug.c b/drivers/acpi/acpi_memhotplug.c
-index 2a7beac..7873832 100644
---- a/drivers/acpi/acpi_memhotplug.c
-+++ b/drivers/acpi/acpi_memhotplug.c
-@@ -83,6 +83,7 @@ struct acpi_memory_info {
- struct acpi_memory_device {
- 	struct acpi_device * device;
- 	unsigned int state;	/* State of the memory device */
-+	int nid;
- 	struct list_head res_list;
- };
+diff --git a/drivers/base/memory.c b/drivers/base/memory.c
+index 038be73..1cd3ef3 100644
+--- a/drivers/base/memory.c
++++ b/drivers/base/memory.c
+@@ -109,6 +109,15 @@ bool is_memblk_offline(unsigned long start, unsigned long size)
+ }
+ EXPORT_SYMBOL(is_memblk_offline);
  
-@@ -256,6 +257,9 @@ static int acpi_memory_enable_device(struct acpi_memory_device *mem_device)
- 		info->enabled = 1;
- 		num_enabled++;
- 	}
++#define to_memory_block(device) container_of(device, struct memory_block, dev)
 +
-+	mem_device->nid = node;
++static void release_memory_block(struct device *dev)
++{
++	struct memory_block *mem = to_memory_block(dev);
 +
- 	if (!num_enabled) {
- 		printk(KERN_ERR PREFIX "add_memory failed\n");
- 		mem_device->state = MEMORY_INVALID_STATE;
++	kfree(mem);
++}
++
+ /*
+  * register_memory - Setup a sysfs device for a memory block
+  */
+@@ -119,6 +128,7 @@ int register_memory(struct memory_block *memory)
+ 
+ 	memory->dev.bus = &memory_subsys;
+ 	memory->dev.id = memory->start_section_nr / sections_per_block;
++	memory->dev.release = release_memory_block;
+ 
+ 	error = device_register(&memory->dev);
+ 	return error;
+@@ -674,7 +684,6 @@ int remove_memory_block(unsigned long node_id, struct mem_section *section,
+ 		mem_remove_simple_file(mem, phys_device);
+ 		mem_remove_simple_file(mem, removable);
+ 		unregister_memory(mem);
+-		kfree(mem);
+ 	} else
+ 		kobject_put(&mem->dev.kobj);
+ 
 -- 
 1.7.1
 
