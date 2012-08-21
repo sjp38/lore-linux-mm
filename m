@@ -1,54 +1,26 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
-	by kanga.kvack.org (Postfix) with SMTP id 4E42F6B0068
-	for <linux-mm@kvack.org>; Tue, 21 Aug 2012 11:37:23 -0400 (EDT)
-Message-ID: <1345563433.26596.2.camel@twins>
-Subject: Re: [PATCH v8 3/5] virtio_balloon: introduce migration primitives
- to balloon pages
-From: Peter Zijlstra <peterz@infradead.org>
-Date: Tue, 21 Aug 2012 17:37:13 +0200
-In-Reply-To: <20120821144013.GA7784@redhat.com>
-References: <cover.1345519422.git.aquini@redhat.com>
-	 <c5f02c618c99b0da11240c1b504672de6f70a074.1345519422.git.aquini@redhat.com>
-	 <20120821144013.GA7784@redhat.com>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: quoted-printable
-Mime-Version: 1.0
+Received: from psmtp.com (na3sys010amx165.postini.com [74.125.245.165])
+	by kanga.kvack.org (Postfix) with SMTP id A334E6B0069
+	for <linux-mm@kvack.org>; Tue, 21 Aug 2012 11:37:25 -0400 (EDT)
+Date: Tue, 21 Aug 2012 15:37:24 +0000
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH 5/5] mempolicy: fix a memory corruption by refcount
+ imbalance in alloc_pages_vma()
+In-Reply-To: <20120821072611.GC1657@suse.de>
+Message-ID: <0000013949d4c42b-231ae8aa-8ef8-47a4-b658-6c3fb5961347-000000@email.amazonses.com>
+References: <1345480594-27032-1-git-send-email-mgorman@suse.de> <1345480594-27032-6-git-send-email-mgorman@suse.de> <000001394596bd69-2c16d7fb-71b5-4009-95cc-7068103b2bfd-000000@email.amazonses.com> <20120821072611.GC1657@suse.de>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Michael S. Tsirkin" <mst@redhat.com>
-Cc: Rafael Aquini <aquini@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, Rusty Russell <rusty@rustcorp.com.au>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Minchan Kim <minchan@kernel.org>, paulmck <paulmck@linux.vnet.ibm.com>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Dave Jones <davej@redhat.com>, Ben Hutchings <ben@decadent.org.uk>, Andi Kleen <ak@linux.intel.com>, Hugh Dickins <hughd@google.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
 
-On Tue, 2012-08-21 at 17:40 +0300, Michael S. Tsirkin wrote:
-> > +             spin_lock(&vb->pages_lock);
-> > +             page =3D list_first_or_null_rcu(&vb->pages, struct page, =
-lru);
->=20
-> Why is list_first_or_null_rcu called outside
-> RCU critical section here?
+On Tue, 21 Aug 2012, Mel Gorman wrote:
 
-It looks like vb->pages_lock is the exclusive (or modification)
-counterpart to the rcu-read-lock in this particular case, so it should
-be fine.
+> mempolicy: fix a memory corruption by refcount imbalance in alloc_pages_vma()
 
-Although for that same reason, it seems superfluous to use the RCU list
-method since we're exclusive with list manipulations anyway.
-
-> > +             if (!page) {
-> > +                     spin_unlock(&vb->pages_lock);
-> > +                     break;
-> > +             }
-> > +             /*
-> > +              * It is safe now to drop page->mapping and delete this p=
-age
-> > +              * from balloon page list, since we are grabbing 'pages_l=
-ock'
-> > +              * which prevents 'virtballoon_isolatepage()' from acting=
-.
-> > +              */
-> > +             clear_balloon_mapping(page);
-> > +             list_del_rcu(&page->lru);
-> > +             spin_unlock(&vb->pages_lock);=20
+Reviewed-by: Christoph Lameter <cl@linux.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
