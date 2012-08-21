@@ -1,149 +1,208 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
-	by kanga.kvack.org (Postfix) with SMTP id 86A6F6B005D
-	for <linux-mm@kvack.org>; Tue, 21 Aug 2012 07:22:41 -0400 (EDT)
-Date: Tue, 21 Aug 2012 14:22:35 +0300
-From: Hiroshi Doyu <hdoyu@nvidia.com>
-Subject: Re: [PATCHv6 2/2] ARM: dma-mapping: remove custom consistent dma
- region
-Message-ID: <20120821142235.97984abc9ad98d01015a3338@nvidia.com>
-In-Reply-To: <1343636899-19508-3-git-send-email-m.szyprowski@samsung.com>
-References: <1343636899-19508-1-git-send-email-m.szyprowski@samsung.com>
-	<1343636899-19508-3-git-send-email-m.szyprowski@samsung.com>
+Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
+	by kanga.kvack.org (Postfix) with SMTP id EBE206B005D
+	for <linux-mm@kvack.org>; Tue, 21 Aug 2012 07:55:24 -0400 (EDT)
+Message-ID: <50337671.9040004@parallels.com>
+Date: Tue, 21 Aug 2012 15:52:17 +0400
+From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
+Subject: Re: C12 [00/19] Sl[auo]b: Common code rework V12
+References: <0000013945a1cc89-ebeb1806-0a5a-4306-882e-ce0ac88e523c-000000@email.amazonses.com>
+In-Reply-To: <0000013945a1cc89-ebeb1806-0a5a-4306-882e-ce0ac88e523c-000000@email.amazonses.com>
+Content-Type: multipart/mixed;
+	boundary="------------000500070603030008050301"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Marek Szyprowski <m.szyprowski@samsung.com>
-Cc: "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linaro-mm-sig@lists.linaro.org" <linaro-mm-sig@lists.linaro.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Kyungmin Park <kyungmin.park@samsung.com>, Arnd Bergmann <arnd@arndb.de>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Chunsang Jeong <chunsang.jeong@linaro.org>, Krishna Reddy <vdumpa@nvidia.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Subash Patel <subashrp@gmail.com>, Minchan Kim <minchan@kernel.org>
+To: Christoph Lameter <cl@linux.com>
+Cc: Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <js1304@gmail.com>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>
 
-Hi,
+--------------000500070603030008050301
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 
-On Mon, 30 Jul 2012 10:28:19 +0200
-Marek Szyprowski <m.szyprowski@samsung.com> wrote:
-
-> This patch changes dma-mapping subsystem to use generic vmalloc areas
-> for all consistent dma allocations. This increases the total size limit
-> of the consistent allocations and removes platform hacks and a lot of
-> duplicated code.
+On 08/21/2012 12:03 AM, Christoph Lameter wrote:
+> V11->V12
+> - Rediff against current slab/next from Pekka
+> - Drop label name change patch
 > 
-> Atomic allocations are served from special pool preallocated on boot,
-> because vmalloc areas cannot be reliably created in atomic context.
+> V10->V11
+> - Fix issues pointed out by Joonsoo and Glauber
+> - Simplify Slab bootstrap further
 > 
-> Signed-off-by: Marek Szyprowski <m.szyprowski@samsung.com>
-> Reviewed-by: Kyungmin Park <kyungmin.park@samsung.com>
-> ---
->  Documentation/kernel-parameters.txt |    2 +-
->  arch/arm/include/asm/dma-mapping.h  |    2 +-
->  arch/arm/mm/dma-mapping.c           |  486 ++++++++++++-----------------------
->  arch/arm/mm/mm.h                    |    3 +
->  include/linux/vmalloc.h             |    1 +
->  mm/vmalloc.c                        |   10 +-
->  6 files changed, 181 insertions(+), 323 deletions(-)
+> V9->V10
+> - Memory leak was a false alarm
+> - Resequence patches to make it easier
+>   to apply.
+> - Do more boot sequence consolidation in slab/slub.
+>   [We could still do much more like common kmalloc
+>   handling]
+> - Fixes suggested by David and Glauber
 > 
-...
-> @@ -1117,61 +984,32 @@ static int __iommu_free_buffer(struct device *dev, struct page **pages, size_t s
->   * Create a CPU mapping for a specified pages
->   */
->  static void *
-> -__iommu_alloc_remap(struct page **pages, size_t size, gfp_t gfp, pgprot_t prot)
-> +__iommu_alloc_remap(struct page **pages, size_t size, gfp_t gfp, pgprot_t prot,
-> +                   const void *caller)
->  {
-> -       struct arm_vmregion *c;
-> -       size_t align;
-> -       size_t count = size >> PAGE_SHIFT;
-> -       int bit;
-> +       unsigned int i, nr_pages = PAGE_ALIGN(size) >> PAGE_SHIFT;
-> +       struct vm_struct *area;
-> +       unsigned long p;
+> V8->V9:
+> - Fix numerous things pointed out by Glauber.
+> - Cleanup the way error handling works in the
+>   common kmem_cache_create() function.
+> - General cleanup by breaking things up
+>   into multiple patches were necessary.
 > 
-> -       if (!consistent_pte[0]) {
-> -               pr_err("%s: not initialised\n", __func__);
-> -               dump_stack();
-> +       area = get_vm_area_caller(size, VM_ARM_DMA_CONSISTENT | VM_USERMAP,
-> +                                 caller);
-> +       if (!area)
+> V7->V8:
+> - Do not use kfree for kmem_cache in slub.
+> - Add more patches up to a common
+>   scheme for object alignment.
+> 
+> V6->V7:
+> - Omit pieces that were merged for 3.6
+> - Fix issues pointed out by Glauber.
+> - Include the patches up to the point at which
+>   the slab name handling is unified
+> 
+> V5->V6:
+> - Patches against Pekka's for-next tree.
+> - Go slow and cut down to just patches that are safe
+>   (there will likely be some churn already due to the
+>   mutex unification between slabs)
+> - More to come next week when I have more time (
+>   took me almost the whole week to catch up after
+>   being gone for awhile).
+> 
+> V4->V5
+> - Rediff against current upstream + Pekka's cleanup branch.
+> 
+> V3->V4:
+> - Do not use the COMMON macro anymore.
+> - Fixup various issues
+> - No general sysfs support yet due to lockdep issues with
+>   keys in kmalloc'ed memory.
+> 
+> V2->V3:
+> - Incorporate more feedback from Joonsoo Kim and Glauber Costa
+> - And a couple more patches to deal with slab duping and move
+>   more code to slab_common.c
+> 
+> V1->V2:
+> - Incorporate glommers feedback.
+> - Add 2 more patches dealing with common code in kmem_cache_destroy
+> 
+> This is a series of patches that extracts common functionality from
+> slab allocators into a common code base. The intend is to standardize
+> as much as possible of the allocator behavior while keeping the
+> distinctive features of each allocator which are mostly due to their
+> storage format and serialization approaches.
+> 
+> This patchset makes a beginning by extracting common functionality in
+> kmem_cache_create() and kmem_cache_destroy(). However, there are
+> numerous other areas where such work could be beneficial:
+> 
+> 1. Extract the sysfs support from SLUB and make it common. That way
+>    all allocators have a common sysfs API and are handleable in the same
+>    way regardless of the allocator chose.
+> 
+> 2. Extract the error reporting and checking from SLUB and make
+>    it available for all allocators. This means that all allocators
+>    will gain the resiliency and error handling capabilties.
+> 
+> 3. Extract the memory hotplug and cpu hotplug handling. It seems that
+>    SLAB may be more sophisticated here. Having common code here will
+>    make it easier to maintain the special code.
+> 
+> 4. Extract the aliasing capability of SLUB. This will enable fast
+>    slab creation without creating too many additional slab caches.
+>    The arrays of caches of varying sizes in numerous subsystems
+>    do not cause the creation of numerous slab caches. Storage
+>    density is increased and the cache footprint is reduced.
+> 
+> Ultimately it is to be hoped that the special code for each allocator
+> shrinks to a mininum. This will also make it easier to make modification
+> to allocators.
+> 
+> In the far future one could envision that the current allocators will
+> just become storage algorithms that can be chosen based on the need of
+> the subsystem. F.e.
+> 
+> Cpu cache dependend performance		= Bonwick allocator (SLAB)
+> Minimal cycle count and cache footprint	= SLUB
+> Maximum storage density			= K&R allocator (SLOB)
+> 
+> 
+With the whole series applied, I get a bug (dmesg attached). Allocator
+is SLUB, with all the debugging options ontop.
 
-This patch replaced the custom "consistent_pte" with
-get_vm_area_caller()", which breaks the compatibility with the
-existing driver. This causes the following kernel oops(*1). That
-driver has called dma_pool_alloc() to allocate memory from the
-interrupt context, and it hits BUG_ON(in_interrpt()) in
-"get_vm_area_caller()"(*2). Regardless of the badness of allocation
-from interrupt handler in the driver, I have the following question.
+Triggered by executing the test routine "mybug()" after the kernel is
+fully functional, and then issuing "cat /proc/slabinfo".
 
-The following "__get_vm_area_node()" can take gfp_mask, it means that
-this function is expected to be called from atomic context, but why
-it's _NOT_ allowed _ONLY_ from interrupt context?
+This is the test case I was using before, but this time it all works
+immediately after the caches are destructed and recreated - so it's
+better. But transversing the list triggers it.
 
-According to the following definitions, "in_interrupt()" is in "in_atomic()".
+Code I used is below:
 
-#define in_interrupt()	(preempt_count() & (HARDIRQ_MASK | SOFTIRQ_MASK | NMI_MASK))
-#define in_atomic()	((preempt_count() & ~PREEMPT_ACTIVE) != 0)
+void mybug(void)
+{
+        struct kmem_cache *c1;
 
-Does anyone know why BUG_ON(in_interrupt()) is set in __get_vm_area_node(*3)?
+        c1 = KMEM_CACHE(st1,
+                SLAB_RECLAIM_ACCOUNT|SLAB_PANIC|SLAB_MEM_SPREAD);
 
-*2:
-  static struct vm_struct *__get_vm_area_node(unsigned long size,
-                  unsigned long align, unsigned long flags, unsigned long start,
-                  unsigned long end, int node, gfp_t gfp_mask, const void *caller)
-  {
-          struct vmap_area *va;
-          struct vm_struct *area;
+        printk("c1: %p\n", c1);
+        kmem_cache_destroy(c1);
 
-          BUG_ON(in_interrupt());
-          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^*3:
-*1:
-[    8.321343] ------------[ cut here ]------------
-[    8.325971] kernel BUG at /home/hdoyu/mydroid-k340-cardhu/kernel/mm/vmalloc.c:1322!
-[    8.333615] Internal error: Oops - BUG: 0 [#1] PREEMPT SMP ARM
-[    8.339436] Modules linked in:
-[    8.342496] CPU: 0    Tainted: G        W     (3.4.6-00067-g5d485f7 #67)
-[    8.349192] PC is at __get_vm_area_node.isra.29+0x164/0x16c
-[    8.354758] LR is at get_vm_area_caller+0x4c/0x54
-[    8.359454] pc : [<c011297c>]    lr : [<c011318c>]    psr: 20000193
-[    8.359458] sp : c09edca0  ip : c09ec000  fp : ae278000
-[    8.370922] r10: f0000000  r9 : c011aa54  r8 : c0a26cb8
-[    8.376136] r7 : 00000001  r6 : 000000d0  r5 : 20000008  r4 : c09edca0
-[    8.382651] r3 : 00010000  r2 : 20000008  r1 : 00000001  r0 : 00001000
-[    8.389166] Flags: nzCv  IRQs off  FIQs on  Mode SVC_32  ISA ARM  Segment kernel
-[    8.396549] Control: 10c5387d  Table: ad98c04a  DAC: 00000015
-....
-[    9.169162] dfa0: 412fc099 c09ec000 00000000 c000fdd8 c06df1e4 c0a1b080 00000000 00000000
-[    9.177329] dfc0: c0a235cc 8000406a 00000000 c0986818 ffffffff ffffffff c0986404 00000000
-[    9.185497] dfe0: 00000000 c09bb070 10c5387d c0a19c58 c09bb064 80008044 00000000 00000000
-[    9.193673] [<c011297c>] (__get_vm_area_node.isra.29+0x164/0x16c) from [<c011318c>] (get_vm_area_caller+0x4c/0x54)
-[    9.204022] [<c011318c>] (get_vm_area_caller+0x4c/0x54) from [<c001aed8>] (__iommu_alloc_remap.isra.14+0x2c/0xfc)
-[    9.214276] [<c001aed8>] (__iommu_alloc_remap.isra.14+0x2c/0xfc) from [<c001b06c>] (arm_iommu_alloc_attrs+0xc4/0xf8)
-[    9.224795] [<c001b06c>] (arm_iommu_alloc_attrs+0xc4/0xf8) from [<c011aa54>] (pool_alloc_page.constprop.5+0x6c/0xf8)
-[    9.235309] [<c011aa54>] (pool_alloc_page.constprop.5+0x6c/0xf8) from [<c011ab60>] (dma_pool_alloc+0x80/0x170)
-[    9.245304] [<c011ab60>] (dma_pool_alloc+0x80/0x170) from [<c03cbbcc>] (tegra_build_dtd+0x48/0x14c)
-[    9.254344] [<c03cbbcc>] (tegra_build_dtd+0x48/0x14c) from [<c03cbd4c>] (tegra_req_to_dtd+0x7c/0xa8)
-[    9.263467] [<c03cbd4c>] (tegra_req_to_dtd+0x7c/0xa8) from [<c03cc140>] (tegra_ep_queue+0x154/0x33c)
-[    9.272592] [<c03cc140>] (tegra_ep_queue+0x154/0x33c) from [<c03dd5b4>] (composite_setup+0x364/0x6d4)
-[    9.281804] [<c03dd5b4>] (composite_setup+0x364/0x6d4) from [<c03dd9dc>] (android_setup+0xb8/0x14c)
-[    9.290843] [<c03dd9dc>] (android_setup+0xb8/0x14c) from [<c03cd144>] (setup_received_irq+0xbc/0x270)
-[    9.300053] [<c03cd144>] (setup_received_irq+0xbc/0x270) from [<c03cda64>] (tegra_udc_irq+0x2ac/0x2c4)
-[    9.309353] [<c03cda64>] (tegra_udc_irq+0x2ac/0x2c4) from [<c00b5708>] (handle_irq_event_percpu+0x78/0x2e0)
-[    9.319087] [<c00b5708>] (handle_irq_event_percpu+0x78/0x2e0) from [<c00b59b4>] (handle_irq_event+0x44/0x64)
-[    9.328907] [<c00b59b4>] (handle_irq_event+0x44/0x64) from [<c00b8688>] (handle_fasteoi_irq+0xc4/0x16c)
-[    9.338294] [<c00b8688>] (handle_fasteoi_irq+0xc4/0x16c) from [<c00b4f14>] (generic_handle_irq+0x34/0x48)
-[    9.347858] [<c00b4f14>] (generic_handle_irq+0x34/0x48) from [<c000f6f4>] (handle_IRQ+0x54/0xb4)
-[    9.356637] [<c000f6f4>] (handle_IRQ+0x54/0xb4) from [<c00084b0>] (gic_handle_irq+0x2c/0x60)
-[    9.365068] [<c00084b0>] (gic_handle_irq+0x2c/0x60) from [<c000e900>] (__irq_svc+0x40/0x70)
-[    9.373405] Exception stack(0xc09edf10 to 0xc09edf58)
-[    9.378447] df00:                                     00000000 000f4240 00000003 00000000
-[    9.386615] df20: 00000000 e55bbc00 ef66f3ca 00000001 00000000 412fc099 c0abb9c8 00000000
-[    9.394781] df40: 3b9ac9ff c09edf58 c027a9bc c0042880 20000113 ffffffff
-[    9.401396] [<c000e900>] (__irq_svc+0x40/0x70) from [<c0042880>] (tegra_idle_enter_lp3+0x68/0x78)
-[    9.410272] [<c0042880>] (tegra_idle_enter_lp3+0x68/0x78) from [<c04701d4>] (cpuidle_idle_call+0xdc/0x3a4)
-[    9.419922] [<c04701d4>] (cpuidle_idle_call+0xdc/0x3a4) from [<c000fdd8>] (cpu_idle+0xd8/0x134)
-[    9.428612] [<c000fdd8>] (cpu_idle+0xd8/0x134) from [<c0986818>] (start_kernel+0x27c/0x2cc)
-[    9.436952] Code: e1a00004 e3a04000 eb002265 eaffffe0 (e7f001f2)
-[    9.443038] ---[ end trace 1b75b31a2719ed24 ]---
-[    9.447645] Kernel panic - not syncing: Fatal exception in interrupt
+        c1 = KMEM_CACHE(st1,
+                SLAB_RECLAIM_ACCOUNT|SLAB_PANIC|SLAB_MEM_SPREAD);
+        printk("c1 again: %p\n", c1);
+
+        kmem_cache_destroy(c1);
+}
+
+I tried to bisect it to the precise point, but I couldn't. The series is
+not runtime bisectable. Since it is such a fragile code, having all
+patches to at least boot would be of great help. (I'll post the output
+in reply to the relevant patch)
+
+
+
+
+
+
+--------------000500070603030008050301
+Content-Type: text/plain; charset="UTF-8"; name="newbug"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: attachment; filename="newbug"
+
+[   61.334165] general protection fault: 0000 [#1] SMP 
+[   61.335015] Modules linked in:
+[   61.335015] CPU 0 
+[   61.335015] Pid: 1152, comm: cat Not tainted 3.6.0-rc1+ #452 Bochs Bochs
+[   61.335015] RIP: 0010:[<ffffffff81134a9c>]  [<ffffffff81134a9c>] s_show+0x42/0x111
+[   61.335015] RSP: 0018:ffff88003a49bde8  EFLAGS: 00010286
+[   61.335015] RAX: 0000000000000000 RBX: ffff880037972000 RCX: 0000000000000000
+[   61.335015] RDX: 0000000000000000 RSI: 0000000000000200 RDI: 840f04f883078b41
+[   61.335015] RBP: ffff88003a49be38 R08: ffffffff81b8a948 R09: 00000000fffffffd
+[   61.335015] R10: 0000000038320000 R11: 0000000000000000 R12: 0000000000000000
+[   61.335015] R13: ffffffff81b8a948 R14: 0000000000000000 R15: 0000000000000000
+[   61.335015] FS:  00007f2af63d5720(0000) GS:ffff88003ea00000(0000) knlGS:0000000000000000
+[   61.335015] CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
+[   61.335015] CR2: 00000000025ee000 CR3: 000000003b443000 CR4: 00000000000006f0
+[   61.335015] DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
+[   61.335015] DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
+[   61.335015] Process cat (pid: 1152, threadinfo ffff88003a49a000, task ffff88003a27c220)
+[   61.335015] Stack:
+[   61.335015]  0000000000000013 ffffffff00000002 ffff880037972000 ffff880000000000
+[   61.335015]  ffff88003a49be38 0000000000000000 0000000000008000 ffff88003a49bf60
+[   61.335015]  ffff880037972000 ffff880037b2a500 ffff88003a49bea8 ffffffff81162fbb
+[   61.335015] Call Trace:
+[   61.335015]  [<ffffffff81162fbb>] seq_read+0x28e/0x371
+[   61.335015]  [<ffffffff81162d2d>] ? seq_lseek+0xd2/0xd2
+[   61.335015]  [<ffffffff81199c8e>] proc_reg_read+0x8d/0xac
+[   61.335015]  [<ffffffff81146e88>] vfs_read+0x9d/0xff
+[   61.335015]  [<ffffffff811480ff>] ? fget_light+0x38/0x99
+[   61.335015]  [<ffffffff81146f2d>] sys_read+0x43/0x70
+[   61.335015]  [<ffffffff8152dd69>] system_call_fastpath+0x16/0x1b
+[   61.335015] Code: 31 ff 45 31 f6 45 31 e4 48 89 fb 48 c7 c7 10 d2 ae 81 49 89 f5 e8 79 e7 ff ff 89 c2 eb 40 48 63 c2 49 8b 7c c5 58 48 85 ff 74 23 <48> 8b 47 50 48 c7 c6 84 30 13 81 49 01 c4 48 8b 47 58 89 55 c8 
+[   61.335015] RIP  [<ffffffff81134a9c>] s_show+0x42/0x111
+[   61.335015]  RSP <ffff88003a49bde8>
+[   61.376508] ---[ end trace 9afcc456cc5b11e1 ]---
+
+--------------000500070603030008050301--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
