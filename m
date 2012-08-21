@@ -1,61 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
-	by kanga.kvack.org (Postfix) with SMTP id 6880B6B005D
-	for <linux-mm@kvack.org>; Tue, 21 Aug 2012 05:25:22 -0400 (EDT)
-Message-ID: <50335341.6010400@parallels.com>
-Date: Tue, 21 Aug 2012 13:22:09 +0400
+Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
+	by kanga.kvack.org (Postfix) with SMTP id 3B5266B005D
+	for <linux-mm@kvack.org>; Tue, 21 Aug 2012 05:32:47 -0400 (EDT)
+Message-ID: <503354FF.1070809@parallels.com>
+Date: Tue, 21 Aug 2012 13:29:35 +0400
 From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2 09/11] memcg: propagate kmem limiting information to
- children
-References: <1344517279-30646-1-git-send-email-glommer@parallels.com> <1344517279-30646-10-git-send-email-glommer@parallels.com> <20120817090005.GC18600@dhcp22.suse.cz> <502E0BC3.8090204@parallels.com> <20120817093504.GE18600@dhcp22.suse.cz> <502E17C4.7060204@parallels.com> <20120817103550.GF18600@dhcp22.suse.cz> <502E1E90.1080805@parallels.com> <20120821075430.GA19797@dhcp22.suse.cz>
-In-Reply-To: <20120821075430.GA19797@dhcp22.suse.cz>
+Subject: Re: [PATCH V8 1/2] mm: memcg softlimit reclaim rework
+References: <1343942658-13307-1-git-send-email-yinghan@google.com> <20120803152234.GE8434@dhcp22.suse.cz> <501BF952.7070202@redhat.com> <CALWz4iw6Q500k5qGWaubwLi-3V3qziPuQ98Et9Ay=LS0-PB0dQ@mail.gmail.com> <20120806133324.GD6150@dhcp22.suse.cz> <CALWz4iw2NqQw3FgjM9k6nbMb7k8Gy2khdyL_9NpGM6T7Ma5t3g@mail.gmail.com> <5031EF4C.6070204@parallels.com> <CALWz4izy1zK5ZNZOK+82x-YPa-WdQnJu1Gq=70SDJmOVVrpPwQ@mail.gmail.com>
+In-Reply-To: <CALWz4izy1zK5ZNZOK+82x-YPa-WdQnJu1Gq=70SDJmOVVrpPwQ@mail.gmail.com>
 Content-Type: text/plain; charset="ISO-8859-1"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, devel@openvz.org, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, kamezawa.hiroyu@jp.fujitsu.com, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Suleiman Souhlal <suleiman@google.com>
+To: Ying Han <yinghan@google.com>
+Cc: Michal Hocko <mhocko@suse.cz>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hillf Danton <dhillf@gmail.com>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 
-On 08/21/2012 11:54 AM, Michal Hocko wrote:
-> On Fri 17-08-12 14:36:00, Glauber Costa wrote:
->> On 08/17/2012 02:35 PM, Michal Hocko wrote:
->>>>> But I never said that can't happen. I said (ok, I meant) the static
->>>>> branches can't be disabled.
->>> Ok, then I misunderstood that because the comment was there even before
->>> static branches were introduced and it made sense to me. This is
->>> inconsistent with what we do for user accounting because even if we set
->>> limit to unlimitted we still account. Why should we differ here?
->>
->> Well, we account even without a limit for user accounting. This is a
->> fundamental difference, no ?
+On 08/20/2012 10:30 PM, Ying Han wrote:
+> Not exactly. Here reclaiming from root is mainly for "reclaiming from
+> root's exclusive lru", which links the page includes:
+> 1. processes running under root
+> 2. reparented pages from rmdir memcg under root
+> 3. bypassed pages
 > 
-> Yes, user memory accounting is either on or off all the time (switchable
-> at boot time). 
-> My understanding of kmem is that the feature is off by default because
-> it brings an overhead that is worth only special use cases. And that
-> sounds good to me. I do not see a good reason to have runtime switch
-> off. It makes the code more complicated for no good reason. E.g. how do
-> you handle charges you left behind? Say you charged some pages for
-> stack?
+> Setting root cgroup's softlimit = 0 has the implication of putting
+> those pages to likely to reclaim, which works fine. The question is
+> that if no other memcg is above its softlimit, would it be a problem
+> to adding a bit extra pressure to root which always is eligible for
+> softlimit reclaim ( usage is always greater than softlimit).
 > 
-Answered in your other e-mail. About the code complication, yes, it does
-make the code more complicated. See below.
+> As an example, it works fine in our environment since we don't
+> explicitly put any process under root. Most of  the pages linked in
+> root lru would be reparented pages which should be reclaimed prior to
+> others.
 
-> But maybe you have a good use case for that?
-> 
-Honestly, I don't. For my particular use case, this would be always on,
-and end of story. I was operating under the belief that being able to
-say "Oh, I regret", and then turning it off would be beneficial, even at
-the expense of the - self contained - complication.
+Keep in mind that not all environments will be specialized to the point
+of having root memcg empty. This basically treats root memcg as a trash
+bin, and can be very detrimental to use cases where actual memory is
+present in there.
 
-For the general sanity of the interface, it is also a bit simpler to say
-"if kmem is unlimited, x happens", which is a verifiable statement, than
-to have a statement that is dependent on past history. But all of those
-need of course, as you pointed out, to be traded off by the code complexity.
-
-I am fine with either, I just need a clear sign from you guys so I don't
-keep deimplementing and reimplementing this forever.
+It would maybe be better to have all this garbage to go to a separate
+place, like a shadow garbage memcg, which is invisible to the
+filesystem, and is always the first to be reclaimed from, in any
+circumstance.
 
 
 --
