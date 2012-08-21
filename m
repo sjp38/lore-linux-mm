@@ -1,43 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx104.postini.com [74.125.245.104])
-	by kanga.kvack.org (Postfix) with SMTP id EB5366B005D
-	for <linux-mm@kvack.org>; Tue, 21 Aug 2012 02:43:56 -0400 (EDT)
-Message-ID: <50332B37.2000500@cn.fujitsu.com>
-Date: Tue, 21 Aug 2012 14:31:19 +0800
-From: Wen Congyang <wency@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
+	by kanga.kvack.org (Postfix) with SMTP id BEAD26B005D
+	for <linux-mm@kvack.org>; Tue, 21 Aug 2012 03:21:28 -0400 (EDT)
+Date: Tue, 21 Aug 2012 08:15:32 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 4/5] mempolicy: fix refcount leak in
+ mpol_set_shared_policy()
+Message-ID: <20120821071532.GB1657@suse.de>
+References: <1345480594-27032-1-git-send-email-mgorman@suse.de>
+ <1345480594-27032-5-git-send-email-mgorman@suse.de>
+ <00000139459223d7-93a9c53f-6724-4a4b-b675-cd25d8d53c71-000000@email.amazonses.com>
 MIME-Version: 1.0
-Subject: [PATCH] memory hotplug: reset pgdat->kswapd to NULL if creating kernel
- thread fails
-Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <00000139459223d7-93a9c53f-6724-4a4b-b675-cd25d8d53c71-000000@email.amazonses.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, mgorman@suse.de, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, hughd@google.com, minchan@kernel.org, linux-mm@kvack.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Christoph Lameter <cl@linux.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Dave Jones <davej@redhat.com>, Ben Hutchings <ben@decadent.org.uk>, Andi Kleen <ak@linux.intel.com>, Hugh Dickins <hughd@google.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
 
-If kthread_run() fails, pgdat->kswapd contains errno. When we stop
-this thread, we only check whether pgdat->kswapd is NULL and access
-it. If it contains errno, it will cause page fault. Reset pgdat->kswapd
-to NULL when creating kernel thread fails can avoid this problem.
+On Mon, Aug 20, 2012 at 07:46:09PM +0000, Christoph Lameter wrote:
+> On Mon, 20 Aug 2012, Mel Gorman wrote:
+> 
+> > @@ -2318,9 +2323,7 @@ void mpol_free_shared_policy(struct shared_policy *p)
+> >  	while (next) {
+> >  		n = rb_entry(next, struct sp_node, nd);
+> >  		next = rb_next(&n->nd);
+> > -		rb_erase(&n->nd, &p->root);
+> 
+> Looks like we need to keep the above line? sp_delete does not remove the
+> tree entry.
+> 
+> > -		mpol_put(n->policy);
+> > -		kmem_cache_free(sn_cache, n);
+> > +		sp_delete(p, n);
 
-Signed-off-by: Wen Congyang <wency@cn.fujitsu.com>
----
- mm/vmscan.c |    1 +
- 1 files changed, 1 insertions(+), 0 deletions(-)
+Yes it does, could you have accidentally mixed up sp_free (which does not
+remove the tree entry) and sp_delete (which does)? The altered code ends
+up looking like this;
 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 347b3ff..1e8e2aa 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -2953,6 +2953,7 @@ int kswapd_run(int nid)
- 		/* failure at boot is fatal */
- 		BUG_ON(system_state == SYSTEM_BOOTING);
- 		printk("Failed to start kswapd on node %d\n",nid);
-+		pgdat->kswapd = NULL;
- 		ret = -1;
- 	}
- 	return ret;
+static void sp_delete(struct shared_policy *sp, struct sp_node *n)
+{
+        pr_debug("deleting %lx-l%lx\n", n->start, n->end);
+        rb_erase(&n->nd, &sp->root);				<----- frees node here
+        sp_free(n);
+}
+
+void mpol_free_shared_policy(struct shared_policy *p)
+{
+        struct sp_node *n;
+        struct rb_node *next;
+
+        if (!p->root.rb_node)
+                return;
+        mutex_lock(&p->mutex);
+        next = rb_first(&p->root);
+        while (next) {
+                n = rb_entry(next, struct sp_node, nd);
+                next = rb_next(&n->nd);
+                sp_delete(p, n);				<---- equivalent to rb_erase(&n->nd, &p->root); sp_free(n);
+        }
+        mutex_unlock(&p->mutex);
+}
+
+Thanks Christoph for looking at this.
+
 -- 
-1.7.1
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
