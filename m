@@ -1,98 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
-	by kanga.kvack.org (Postfix) with SMTP id 671556B005D
-	for <linux-mm@kvack.org>; Tue, 21 Aug 2012 16:46:18 -0400 (EDT)
-Date: Tue, 21 Aug 2012 17:45:56 -0300
-From: Rafael Aquini <aquini@redhat.com>
-Subject: Re: [PATCH v8 1/5] mm: introduce a common interface for balloon
- pages mobility
-Message-ID: <20120821204556.GF12294@t510.redhat.com>
-References: <cover.1345519422.git.aquini@redhat.com>
- <e24f3073ef539985dea52943dcb84762213a0857.1345519422.git.aquini@redhat.com>
- <1345562411.23018.111.camel@twins>
- <20120821162432.GG2456@linux.vnet.ibm.com>
- <20120821172819.GA12294@t510.redhat.com>
- <20120821191330.GA8324@redhat.com>
- <20120821192357.GD12294@t510.redhat.com>
- <20120821193031.GC9027@redhat.com>
+Received: from psmtp.com (na3sys010amx104.postini.com [74.125.245.104])
+	by kanga.kvack.org (Postfix) with SMTP id 2FA096B005A
+	for <linux-mm@kvack.org>; Tue, 21 Aug 2012 16:58:21 -0400 (EDT)
+Date: Tue, 21 Aug 2012 20:58:19 +0000
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: C12 [12/19] Move kmem_cache allocations into common code.
+In-Reply-To: <50337722.3040908@parallels.com>
+Message-ID: <000001394afa9429-b8219750-1ae1-45f2-be1b-e02054615021-000000@email.amazonses.com>
+References: <20120820204021.494276880@linux.com> <0000013945cd2d87-d71d0827-51b3-4c98-890f-12beb8ecc72b-000000@email.amazonses.com> <50337722.3040908@parallels.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120821193031.GC9027@redhat.com>
+Content-Type: TEXT/PLAIN; CHARSET=US-ASCII
+Content-ID: <alpine.DEB.2.02.1208211558012.30260@gentwo.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Michael S. Tsirkin" <mst@redhat.com>
-Cc: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Peter Zijlstra <peterz@infradead.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, Rusty Russell <rusty@rustcorp.com.au>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Minchan Kim <minchan@kernel.org>
+To: Glauber Costa <glommer@parallels.com>
+Cc: Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <js1304@gmail.com>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>
 
-On Tue, Aug 21, 2012 at 10:30:31PM +0300, Michael S. Tsirkin wrote:
-> On Tue, Aug 21, 2012 at 04:23:58PM -0300, Rafael Aquini wrote:
-> > On Tue, Aug 21, 2012 at 10:13:30PM +0300, Michael S. Tsirkin wrote:
-> > > > 
-> > > > I believe rcu_dereference_protected() is what I want/need here, since this code
-> > > > is always called for pages which we hold locked (PG_locked bit).
-> > > 
-> > > It would only help if we locked the page while updating the mapping,
-> > > as far as I can see we don't.
-> > >
-> > 
-> > But we can do it. In fact, by doing it (locking the page) we can easily avoid
-> > the nasty race balloon_isolate_page / leak_balloon, in a much simpler way, IMHO.
-> 
-> Absolutely. Further, we should look hard at whether most RCU uses
-> in this patchset can be replaced with page lock.
->
+On Tue, 21 Aug 2012, Glauber Costa wrote:
 
-Yeah, In fact, by testing/grabbing the page lock at leak_balloon() even the
-module unload X migration / putback race seems to fade away, since migration
-code holds the page locked all the way.
+> Doesn't boot (SLUB + debug options)
 
-And that seems a quite easy task to be accomplished:
+Subject: slub: use kmem_cache_zalloc to zero kmalloc cache
 
-....
-@@ -169,21 +197,61 @@ static void leak_balloon(struct virtio_balloon *vb, size_t
-num)
-        /* We can only do one array worth at a time. */
-        num = min(num, ARRAY_SIZE(vb->pfns));
+Memory for kmem_cache needs to be zeroed in slub after we moved the
+allocation into slab_commmon.
 
-+       mutex_lock(&vb->balloon_lock);
-        for (vb->num_pfns = 0; vb->num_pfns < num;
-             vb->num_pfns += VIRTIO_BALLOON_PAGES_PER_PAGE) {
-+               spin_lock(&vb->pages_lock);
-+               /*
-+                * 'virtballoon_isolatepage()' can drain vb->pages list
-+                * making us to stumble across a _temporarily_ empty list.
-+                *
-+                * Release the spinlock and resume from here in order to
-+                * give page migration a shot to refill vb->pages list.
-+                */
-+               if (unlikely(list_empty(&vb->pages))) {
-+                       spin_unlock(&vb->pages_lock);
-+                       break;
-+               }
-+
-                page = list_first_entry(&vb->pages, struct page, lru);
-+
-+               /*
-+                * Grab the page lock to avoid racing against threads isolating
-+                * pages from vb->pages list (it's done under page lock).
-+                *
-+                * Failing to grab the page lock here means this page has been
-+                * selected for isolation already.
-+                */
-+               if (!trylock_page(page)) {
-+                       spin_unlock(&vb->pages_lock);
-+                       break;
-+               }
-+
-+               clear_balloon_mapping(page);
-                list_del(&page->lru);
-                set_page_pfns(vb->pfns + vb->num_pfns, page);
-                vb->num_pages -= VIRTIO_BALLOON_PAGES_PER_PAGE;
-+               unlock_page(page);
-+               spin_unlock(&vb->pages_lock);
-        }
+Signed-off-by: Christoph Lameter <cl@linux.com>
 
-.....
+Index: linux/mm/slub.c
+===================================================================
+--- linux.orig/mm/slub.c	2012-08-21 15:54:42.298087150 -0500
++++ linux/mm/slub.c	2012-08-21 15:55:16.386555367 -0500
+@@ -3259,7 +3259,7 @@ static struct kmem_cache *__init create_
+ {
+ 	struct kmem_cache *s;
+
+-	s = kmem_cache_alloc(kmem_cache, GFP_NOWAIT);
++	s = kmem_cache_zalloc(kmem_cache, GFP_NOWAIT);
+
+ 	/*
+ 	 * This function is called with IRQs disabled during early-boot on
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
