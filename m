@@ -1,128 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
-	by kanga.kvack.org (Postfix) with SMTP id 36CB96B006C
-	for <linux-mm@kvack.org>; Tue, 21 Aug 2012 11:01:26 -0400 (EDT)
-Received: from epcpsbgm2.samsung.com (mailout3.samsung.com [203.254.224.33])
- by mailout3.samsung.com
- (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
- 17 2011)) with ESMTP id <0M94008X61QCM7S0@mailout3.samsung.com> for
- linux-mm@kvack.org; Wed, 22 Aug 2012 00:01:24 +0900 (KST)
-Received: from AMDC159 ([106.116.147.30])
- by mmp1.samsung.com (Oracle Communications Messaging Server 7u4-24.01
- (7.0.4.24.0) 64bit (built Nov 17 2011))
- with ESMTPA id <0M940036O1PXLJC0@mmp1.samsung.com> for linux-mm@kvack.org;
- Wed, 22 Aug 2012 00:01:24 +0900 (KST)
-From: Marek Szyprowski <m.szyprowski@samsung.com>
-References: <1343636899-19508-1-git-send-email-m.szyprowski@samsung.com>
- <1343636899-19508-3-git-send-email-m.szyprowski@samsung.com>
- <20120821142235.97984abc9ad98d01015a3338@nvidia.com>
- <20120821.151521.702882672715065253.hdoyu@nvidia.com>
-In-reply-to: <20120821.151521.702882672715065253.hdoyu@nvidia.com>
-Subject: RE: [PATCHv6 2/2] ARM: dma-mapping: remove custom consistent dma region
-Date: Tue, 21 Aug 2012 17:01:08 +0200
-Message-id: <00c301cd7fad$cfc7f3f0$6f57dbd0$%szyprowski@samsung.com>
-MIME-version: 1.0
-Content-type: text/plain; charset=us-ascii
-Content-transfer-encoding: 7bit
-Content-language: pl
+Received: from psmtp.com (na3sys010amx176.postini.com [74.125.245.176])
+	by kanga.kvack.org (Postfix) with SMTP id C421C6B0072
+	for <linux-mm@kvack.org>; Tue, 21 Aug 2012 11:06:21 -0400 (EDT)
+Date: Tue, 21 Aug 2012 17:06:18 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH] mm: mmu_notifier: fix inconsistent memory between
+ secondary MMU and host
+Message-ID: <20120821150618.GJ27696@redhat.com>
+References: <503358FF.3030009@linux.vnet.ibm.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <503358FF.3030009@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Hiroshi Doyu' <hdoyu@nvidia.com>
-Cc: linux-arm-kernel@lists.infradead.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kyungmin.park@samsung.com, arnd@arndb.de, linux@arm.linux.org.uk, chunsang.jeong@linaro.org, 'Krishna Reddy' <vdumpa@nvidia.com>, konrad.wilk@oracle.com, subashrp@gmail.com, minchan@kernel.org
+To: Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Avi Kivity <avi@redhat.com>, Marcelo Tosatti <mtosatti@redhat.com>, LKML <linux-kernel@vger.kernel.org>, KVM <kvm@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
 
-Hi Hiroshi,
-
-On Tuesday, August 21, 2012 2:15 PM Hiroshi Doyu wrote:
-
-> Hiroshi Doyu <hdoyu@nvidia.com> wrote @ Tue, 21 Aug 2012 13:22:35 +0200:
+On Tue, Aug 21, 2012 at 05:46:39PM +0800, Xiao Guangrong wrote:
+> There has a bug in set_pte_at_notify which always set the pte to the
+> new page before release the old page in secondary MMU, at this time,
+> the process will access on the new page, but the secondary MMU still
+> access on the old page, the memory is inconsistent between them
 > 
-> > Hi,
-> >
-> > On Mon, 30 Jul 2012 10:28:19 +0200
-> > Marek Szyprowski <m.szyprowski@samsung.com> wrote:
-> >
-> > > This patch changes dma-mapping subsystem to use generic vmalloc areas
-> > > for all consistent dma allocations. This increases the total size limit
-> > > of the consistent allocations and removes platform hacks and a lot of
-> > > duplicated code.
-> > >
-> > > Atomic allocations are served from special pool preallocated on boot,
-> > > because vmalloc areas cannot be reliably created in atomic context.
-> > >
-> > > Signed-off-by: Marek Szyprowski <m.szyprowski@samsung.com>
-> > > Reviewed-by: Kyungmin Park <kyungmin.park@samsung.com>
-> > > ---
-> > >  Documentation/kernel-parameters.txt |    2 +-
-> > >  arch/arm/include/asm/dma-mapping.h  |    2 +-
-> > >  arch/arm/mm/dma-mapping.c           |  486 ++++++++++++-----------------------
-> > >  arch/arm/mm/mm.h                    |    3 +
-> > >  include/linux/vmalloc.h             |    1 +
-> > >  mm/vmalloc.c                        |   10 +-
-> > >  6 files changed, 181 insertions(+), 323 deletions(-)
-> > >
-> > ...
-> > > @@ -1117,61 +984,32 @@ static int __iommu_free_buffer(struct device *dev, struct page
-> **pages, size_t s
-> > >   * Create a CPU mapping for a specified pages
-> > >   */
-> > >  static void *
-> > > -__iommu_alloc_remap(struct page **pages, size_t size, gfp_t gfp, pgprot_t prot)
-> > > +__iommu_alloc_remap(struct page **pages, size_t size, gfp_t gfp, pgprot_t prot,
-> > > +                   const void *caller)
-> > >  {
-> > > -       struct arm_vmregion *c;
-> > > -       size_t align;
-> > > -       size_t count = size >> PAGE_SHIFT;
-> > > -       int bit;
-> > > +       unsigned int i, nr_pages = PAGE_ALIGN(size) >> PAGE_SHIFT;
-> > > +       struct vm_struct *area;
-> > > +       unsigned long p;
-> > >
-> > > -       if (!consistent_pte[0]) {
-> > > -               pr_err("%s: not initialised\n", __func__);
-> > > -               dump_stack();
-> > > +       area = get_vm_area_caller(size, VM_ARM_DMA_CONSISTENT | VM_USERMAP,
-> > > +                                 caller);
-> > > +       if (!area)
-> >
-> > This patch replaced the custom "consistent_pte" with
-> > get_vm_area_caller()", which breaks the compatibility with the
-> > existing driver. This causes the following kernel oops(*1). That
-> > driver has called dma_pool_alloc() to allocate memory from the
-> > interrupt context, and it hits BUG_ON(in_interrpt()) in
-> > "get_vm_area_caller()"(*2). Regardless of the badness of allocation
-> > from interrupt handler in the driver, I have the following question.
-> >
-> > The following "__get_vm_area_node()" can take gfp_mask, it means that
-> > this function is expected to be called from atomic context, but why
-> > it's _NOT_ allowed _ONLY_ from interrupt context?
-> >
-> > According to the following definitions, "in_interrupt()" is in "in_atomic()".
-> >
-> > #define in_interrupt()	(preempt_count() & (HARDIRQ_MASK | SOFTIRQ_MASK | NMI_MASK))
-> > #define in_atomic()	((preempt_count() & ~PREEMPT_ACTIVE) != 0)
-> >
-> > Does anyone know why BUG_ON(in_interrupt()) is set in __get_vm_area_node(*3)?
+> Below scenario shows the bug more clearly:
 > 
-> For arm_dma_alloc(), it allocates from the pool if GFP_ATOMIC, but for
-> arm_iommu_alloc_attrs() doesn't have pre-allocate pool at all, and it
-> always call "get_vm_area_caller()". That's why it hits BUG(). But
-> still I don't understand why it's not BUG_ON(in_atomic) as Russell
-> already pointed out(*1).
+> at the beginning: *p = 0, and p is write-protected by KSM or shared with
+> parent process
 > 
-> *1: http://article.gmane.org/gmane.linux.kernel.mm/76708
+> CPU 0                                       CPU 1
+> write 1 to p to trigger COW,
+> set_pte_at_notify will be called:
+>   *pte = new_page + W; /* The W bit of pte is set */
+> 
+>                                      *p = 1; /* pte is valid, so no #PF */
+> 
+>                                      return back to secondary MMU, then
+>                                      the secondary MMU read p, but get:
+>                                      *p == 0;
+> 
+>                          /*
+>                           * !!!!!!
+>                           * the host has already set p to 1, but the secondary
+>                           * MMU still get the old value 0
+>                           */
+> 
+>   call mmu_notifier_change_pte to release
+>   old page in secondary MMU
 
-Ok, now I see the problem. I will try to find out a solution for your issue.
+The KSM usage of it looks safe because it will only establish readonly
+ptes with it.
 
-Best regards
--- 
-Marek Szyprowski
-Samsung Poland R&D Center
+It seems a problem only for do_wp_page. It wasn't safe to setup
+writable ptes with it. I guess we first introduced it for KSM and then
+we added it to do_wp_page too by mistake.
 
+The race window is really tiny, it's unlikely it has ever triggered,
+however this one seem to be possible so it's slightly more serious
+than the other race you recently found (the previous one in the exit
+path I think it was impossible to trigger with KVM).
 
+> We can fix it by release old page first, then set the pte to the new
+> page.
+> 
+> Note, the new page will be firstly used in secondary MMU before it is
+> mapped into the page table of the process, but this is safe because it
+> is protected by the page table lock, there is no race to change the pte
+> 
+> Signed-off-by: Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>
+> ---
+>  include/linux/mmu_notifier.h |    2 +-
+>  1 files changed, 1 insertions(+), 1 deletions(-)
+> 
+> diff --git a/include/linux/mmu_notifier.h b/include/linux/mmu_notifier.h
+> index 1d1b1e1..8c7435a 100644
+> --- a/include/linux/mmu_notifier.h
+> +++ b/include/linux/mmu_notifier.h
+> @@ -317,8 +317,8 @@ static inline void mmu_notifier_mm_destroy(struct mm_struct *mm)
+>  	unsigned long ___address = __address;				\
+>  	pte_t ___pte = __pte;						\
+>  									\
+> -	set_pte_at(___mm, ___address, __ptep, ___pte);			\
+>  	mmu_notifier_change_pte(___mm, ___address, ___pte);		\
+> +	set_pte_at(___mm, ___address, __ptep, ___pte);			\
+>  })
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+If we establish the spte on the new page, what will happen is the same
+race in reverse. The fundamental problem is that the first guy that
+writes to the "newpage" (guest or host) won't fault again and so it
+will fail to serialize against the PT lock.
+
+CPU0  		    	    	CPU1
+				oldpage[1] == 0 (both guest & host)
+oldpage[0] = 1
+trigger do_wp_page
+mmu_notifier_change_pte
+spte = newpage + writable
+				guest does newpage[1] = 1
+				vmexit
+				host read oldpage[1] == 0
+pte = newpage + writable (too late)
+
+I think the fix is to use ptep_clear_flush_notify whenever
+set_pte_at_notify will establish a writable pte/spte. If the pte/spte
+established by set_pte_at_notify/change_pte is readonly we don't need
+to do the ptep_clear_flush_notify instead because when the host will
+write to the page that will fault and serialize against the
+PT lock (set_pte_at_notify must always run under the PT lock of course).
+
+How about this:
+
+=====
