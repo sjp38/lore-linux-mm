@@ -1,76 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx165.postini.com [74.125.245.165])
-	by kanga.kvack.org (Postfix) with SMTP id 10D8C6B005D
-	for <linux-mm@kvack.org>; Mon, 20 Aug 2012 20:03:01 -0400 (EDT)
-Received: from /spool/local
-	by e35.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
-	Mon, 20 Aug 2012 18:02:59 -0600
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by d03dlp02.boulder.ibm.com (Postfix) with ESMTP id 73E993E4003D
-	for <linux-mm@kvack.org>; Mon, 20 Aug 2012 18:02:49 -0600 (MDT)
-Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
-	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q7L02WPm113076
-	for <linux-mm@kvack.org>; Mon, 20 Aug 2012 18:02:33 -0600
-Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av01.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q7L02Wi5015507
-	for <linux-mm@kvack.org>; Mon, 20 Aug 2012 18:02:32 -0600
-Date: Mon, 20 Aug 2012 17:02:31 -0700
-From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Subject: Re: [PATCH 2/3] kmemleak: replace list_for_each_continue_rcu with
- new interface
-Message-ID: <20120821000230.GO2435@linux.vnet.ibm.com>
-Reply-To: paulmck@linux.vnet.ibm.com
-References: <502CB92F.2010700@linux.vnet.ibm.com>
- <502DC99E.4060408@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
+	by kanga.kvack.org (Postfix) with SMTP id 52DFA6B005D
+	for <linux-mm@kvack.org>; Mon, 20 Aug 2012 20:56:01 -0400 (EDT)
+Date: Tue, 21 Aug 2012 09:56:17 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH 0/7] zram/zsmalloc promotion
+Message-ID: <20120821005617.GA14280@bbox>
+References: <1344406340-14128-1-git-send-email-minchan@kernel.org>
+ <20120814023530.GA9787@kroah.com>
+ <20120814062246.GB31621@bbox>
+ <502DDB0E.8070001@vflare.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <502DC99E.4060408@linux.vnet.ibm.com>
+In-Reply-To: <502DDB0E.8070001@vflare.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michael Wang <wangyun@linux.vnet.ibm.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, catalin.marinas@arm.com
+To: Nitin Gupta <ngupta@vflare.org>, Andrew Morton <akpm@linux-foundation.org>, axboe@kernel.dk
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Seth Jennings <sjenning@linux.vnet.ibm.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Konrad Rzeszutek Wilk <konrad@darnok.org>
 
-On Fri, Aug 17, 2012 at 12:33:34PM +0800, Michael Wang wrote:
-> From: Michael Wang <wangyun@linux.vnet.ibm.com>
+On Thu, Aug 16, 2012 at 10:47:58PM -0700, Nitin Gupta wrote:
+> On 08/13/2012 11:22 PM, Minchan Kim wrote:
+> > Hi Greg,
+> > 
+> > On Mon, Aug 13, 2012 at 07:35:30PM -0700, Greg Kroah-Hartman wrote:
+> >> On Wed, Aug 08, 2012 at 03:12:13PM +0900, Minchan Kim wrote:
+> >>> This patchset promotes zram/zsmalloc from staging.
+> >>> Both are very clean and zram is used by many embedded product
+> >>> for a long time.
+> >>>
+> >>> [1-3] are patches not merged into linux-next yet but needed
+> >>> it as base for [4-5] which promotes zsmalloc.
+> >>> Greg, if you merged [1-3] already, skip them.
+> >>
+> >> I've applied 1-3 and now 4, but that's it, I can't apply the rest
+> > 
+> > Thanks!
+> > 
+> >> without getting acks from the -mm maintainers, sorry.  Please work with
+> > 
+> > Nitin suggested zsmalloc could be in /lib or /zram out of /mm but I want
+> > to confirm it from akpm so let's wait his opinion.
+> > 
 > 
-> This patch replaces list_for_each_continue_rcu() with
-> list_for_each_entry_continue_rcu() to save a few lines
-> of code and allow removing list_for_each_continue_rcu().
-> 
-> Signed-off-by: Michael Wang <wangyun@linux.vnet.ibm.com>
+> akpm, please?
 
-Reviewed-by: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
+To Nitin
+Now both zram/zcache uses zsmalloc so I think second place is under /lib than
+/zram if we really want to put it out of /mm but my preference is still
+under /mm. If akpm don't oppose, I will do.
+(Let's not consider removal of zsmalloc in zcache at the moment because
+it's just Dan's trial and it's not realized yet. It's very twisted problem
+and I don't expect it will finish soon :( )
 
-> ---
->  mm/kmemleak.c |    6 ++----
->  1 files changed, 2 insertions(+), 4 deletions(-)
+To akpm,
+
+I would like to put zsmalloc under /mm because it uses a few field of struct
+page freely. IIRC, you pointed out, too. What do you think about it?
+If you don't want, I will put zsmalloc under /lib.
+
+To Jens,
+
+I would like to put zram under driver/blocks.
+Can I get your Ack?
+
 > 
-> diff --git a/mm/kmemleak.c b/mm/kmemleak.c
-> index 45eb621..0de83b4 100644
-> --- a/mm/kmemleak.c
-> +++ b/mm/kmemleak.c
-> @@ -1483,13 +1483,11 @@ static void *kmemleak_seq_next(struct seq_file *seq, void *v, loff_t *pos)
->  {
->  	struct kmemleak_object *prev_obj = v;
->  	struct kmemleak_object *next_obj = NULL;
-> -	struct list_head *n = &prev_obj->object_list;
-> +	struct kmemleak_object *obj = prev_obj;
+> > Anyway, another question. zram would be under driver/blocks.
+> > Do I need ACK from Jens for that?
+> > 
 > 
->  	++(*pos);
+> Added Jens to CC list.
 > 
-> -	list_for_each_continue_rcu(n, &object_list) {
-> -		struct kmemleak_object *obj =
-> -			list_entry(n, struct kmemleak_object, object_list);
-> +	list_for_each_entry_continue_rcu(obj, &object_list, object_list) {
->  		if (get_object(obj)) {
->  			next_obj = obj;
->  			break;
-> -- 
-> 1.7.4.1
+> Thanks,
+> Nitin
 > 
-> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
