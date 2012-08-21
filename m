@@ -1,70 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx140.postini.com [74.125.245.140])
-	by kanga.kvack.org (Postfix) with SMTP id 3B2886B0070
-	for <linux-mm@kvack.org>; Mon, 20 Aug 2012 18:28:04 -0400 (EDT)
-Date: Mon, 20 Aug 2012 15:28:02 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v3 3/9] rbtree: place easiest case first in rb_erase()
-Message-Id: <20120820152802.272ec736.akpm@linux-foundation.org>
-In-Reply-To: <1345500331-10546-4-git-send-email-walken@google.com>
-References: <1345500331-10546-1-git-send-email-walken@google.com>
-	<1345500331-10546-4-git-send-email-walken@google.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx165.postini.com [74.125.245.165])
+	by kanga.kvack.org (Postfix) with SMTP id 10D8C6B005D
+	for <linux-mm@kvack.org>; Mon, 20 Aug 2012 20:03:01 -0400 (EDT)
+Received: from /spool/local
+	by e35.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
+	Mon, 20 Aug 2012 18:02:59 -0600
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by d03dlp02.boulder.ibm.com (Postfix) with ESMTP id 73E993E4003D
+	for <linux-mm@kvack.org>; Mon, 20 Aug 2012 18:02:49 -0600 (MDT)
+Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
+	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q7L02WPm113076
+	for <linux-mm@kvack.org>; Mon, 20 Aug 2012 18:02:33 -0600
+Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av01.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q7L02Wi5015507
+	for <linux-mm@kvack.org>; Mon, 20 Aug 2012 18:02:32 -0600
+Date: Mon, 20 Aug 2012 17:02:31 -0700
+From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Subject: Re: [PATCH 2/3] kmemleak: replace list_for_each_continue_rcu with
+ new interface
+Message-ID: <20120821000230.GO2435@linux.vnet.ibm.com>
+Reply-To: paulmck@linux.vnet.ibm.com
+References: <502CB92F.2010700@linux.vnet.ibm.com>
+ <502DC99E.4060408@linux.vnet.ibm.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <502DC99E.4060408@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michel Lespinasse <walken@google.com>
-Cc: riel@redhat.com, peterz@infradead.org, daniel.santos@pobox.com, aarcange@redhat.com, dwmw2@infradead.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, torvalds@linux-foundation.org
+To: Michael Wang <wangyun@linux.vnet.ibm.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, catalin.marinas@arm.com
 
-On Mon, 20 Aug 2012 15:05:25 -0700
-Michel Lespinasse <walken@google.com> wrote:
+On Fri, Aug 17, 2012 at 12:33:34PM +0800, Michael Wang wrote:
+> From: Michael Wang <wangyun@linux.vnet.ibm.com>
+> 
+> This patch replaces list_for_each_continue_rcu() with
+> list_for_each_entry_continue_rcu() to save a few lines
+> of code and allow removing list_for_each_continue_rcu().
+> 
+> Signed-off-by: Michael Wang <wangyun@linux.vnet.ibm.com>
 
-> In rb_erase, move the easy case (node to erase has no more than
-> 1 child) first. I feel the code reads easier that way.
+Reviewed-by: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
 
-Well.  For efficiency we should put the commonest case first.  Is that
-the case here?
-
-> --- a/lib/rbtree.c
-> +++ b/lib/rbtree.c
-> @@ -368,17 +368,28 @@ static void __rb_erase_color(struct rb_node *node, struct rb_node *parent,
->  
->  void rb_erase(struct rb_node *node, struct rb_root *root)
+> ---
+>  mm/kmemleak.c |    6 ++----
+>  1 files changed, 2 insertions(+), 4 deletions(-)
+> 
+> diff --git a/mm/kmemleak.c b/mm/kmemleak.c
+> index 45eb621..0de83b4 100644
+> --- a/mm/kmemleak.c
+> +++ b/mm/kmemleak.c
+> @@ -1483,13 +1483,11 @@ static void *kmemleak_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 >  {
-> -	struct rb_node *child, *parent;
-> +	struct rb_node *child = node->rb_right, *tmp = node->rb_left;
-
-Coding style nit: multiple-definitions-per-line makes it harder to
-locate a particular definition, and from long experience I can assure
-you that it makes management of subsequent overlapping patches quite a
-lot harder.  Also, one-definition-per-line gives room for a nice little
-comment, and we all like nice little comments.
-
-Also, "tmp" is a rotten name.  Your choice of an identifier is your
-opportunity to communicate something to the reader.  When you choose
-"tmp", you threw away that opportunity.  Should it be called "left"?
-
-
---- a/lib/rbtree.c~rbtree-place-easiest-case-first-in-rb_erase-fix
-+++ a/lib/rbtree.c
-@@ -368,12 +368,13 @@ static void __rb_erase_color(struct rb_n
- 
- void rb_erase(struct rb_node *node, struct rb_root *root)
- {
--	struct rb_node *child = node->rb_right, *tmp = node->rb_left;
-+	struct rb_node *child = node->rb_right
-+	struct rb_node *tmp = node->rb_left;
- 	struct rb_node *parent;
- 	int color;
- 
- 	if (!tmp) {
--	case1:
-+case1:
- 		/* Case 1: node to erase has no more than 1 child (easy!) */
- 
- 		parent = rb_parent(node);
-_
+>  	struct kmemleak_object *prev_obj = v;
+>  	struct kmemleak_object *next_obj = NULL;
+> -	struct list_head *n = &prev_obj->object_list;
+> +	struct kmemleak_object *obj = prev_obj;
+> 
+>  	++(*pos);
+> 
+> -	list_for_each_continue_rcu(n, &object_list) {
+> -		struct kmemleak_object *obj =
+> -			list_entry(n, struct kmemleak_object, object_list);
+> +	list_for_each_entry_continue_rcu(obj, &object_list, object_list) {
+>  		if (get_object(obj)) {
+>  			next_obj = obj;
+>  			break;
+> -- 
+> 1.7.4.1
+> 
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
