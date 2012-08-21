@@ -1,61 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx151.postini.com [74.125.245.151])
-	by kanga.kvack.org (Postfix) with SMTP id 2A0786B0069
-	for <linux-mm@kvack.org>; Tue, 21 Aug 2012 14:22:26 -0400 (EDT)
-Date: Tue, 21 Aug 2012 14:42:52 -0300
-From: Rafael Aquini <aquini@redhat.com>
-Subject: Re: [PATCH v8 1/5] mm: introduce a common interface for balloon
- pages mobility
-Message-ID: <20120821174251.GB12294@t510.redhat.com>
-References: <cover.1345519422.git.aquini@redhat.com>
- <e24f3073ef539985dea52943dcb84762213a0857.1345519422.git.aquini@redhat.com>
- <20120821135223.GA7117@redhat.com>
- <1345562166.23018.109.camel@twins>
- <20120821154142.GA8268@redhat.com>
+Received: from psmtp.com (na3sys010amx190.postini.com [74.125.245.190])
+	by kanga.kvack.org (Postfix) with SMTP id 7E9366B005D
+	for <linux-mm@kvack.org>; Tue, 21 Aug 2012 14:45:24 -0400 (EDT)
+Received: by ggnf4 with SMTP id f4so146367ggn.14
+        for <linux-mm@kvack.org>; Tue, 21 Aug 2012 11:45:23 -0700 (PDT)
+Date: Tue, 21 Aug 2012 11:44:39 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH 06/15] mm: teach truncate_inode_pages_range() to handle
+ non page aligned ranges
+In-Reply-To: <50339e0d.69b2340a.50ba.ffff92bcSMTPIN_ADDED@mx.google.com>
+Message-ID: <alpine.LSU.2.00.1208211142510.2178@eggly.anvils>
+References: <1343376074-28034-1-git-send-email-lczerner@redhat.com> <1343376074-28034-7-git-send-email-lczerner@redhat.com> <alpine.LSU.2.00.1208192144260.2390@eggly.anvils> <alpine.LFD.2.00.1208201221360.3975@vpn-8-6.rdu.redhat.com>
+ <alpine.LSU.2.00.1208200812110.25681@eggly.anvils> <50339e0d.69b2340a.50ba.ffff92bcSMTPIN_ADDED@mx.google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120821154142.GA8268@redhat.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Michael S. Tsirkin" <mst@redhat.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, Rusty Russell <rusty@rustcorp.com.au>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Minchan Kim <minchan@kernel.org>
+To: Lukas Czerner <lczerner@redhat.com>
+Cc: linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org, tytso@mit.edu, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
 
-On Tue, Aug 21, 2012 at 06:41:42PM +0300, Michael S. Tsirkin wrote:
-> On Tue, Aug 21, 2012 at 05:16:06PM +0200, Peter Zijlstra wrote:
-> > On Tue, 2012-08-21 at 16:52 +0300, Michael S. Tsirkin wrote:
-> > > > +             rcu_read_lock();
-> > > > +             mapping = rcu_dereference(page->mapping);
-> > > > +             if (mapping_balloon(mapping))
-> > > > +                     ret = true;
-> > > > +             rcu_read_unlock();
-> > > 
-> > > This looks suspicious: you drop rcu_read_unlock
-> > > so can't page switch from balloon to non balloon? 
+On Tue, 21 Aug 2012, Lukas Czerner wrote:
+> On Mon, 20 Aug 2012, Hugh Dickins wrote:
 > > 
-> > RCU read lock is a non-exclusive lock, it cannot avoid anything like
-> > that.
+> > I can see advantages to length, actually: it's often unclear
+> > whether "end" is of the "last-of-this" or "start-of-next" variety;
+> > in most of mm we are consistent in using end in the start-of-next
+> > sense, but here truncate_inode_pages_range() itself has gone for
+> > the last-of-this meaning.
 > 
-> You are right, of course. So even keeping rcu_read_lock across both test
-> and operation won't be enough - you need to make this function return
-> the mapping and pass it to isolate_page/putback_page so that it is only
-> dereferenced once.
->
-No, I need to dereference page->mapping to check ->mapping flags here, before
-returning. Remember this function is used at MM's compaction/migration inner
-circles to identify ballooned pages and decide what's the next step. This
-function is doing the right thing, IMHO.
+> I really do agree with this paragraph and this is why I like the "length"
+> argument better. So if there is no objections I'll stick with it and
+> fix the other things you've pointed out.
 
-Also, looking at how compaction/migration work, we verify the only critical path
-for this function is the page isolation step. The other steps (migration and
-putback) perform their work on private lists previouly isolated from a given
-source.
-
-So, we just need to make sure that the isolation part does not screw things up
-by isolating pages that balloon driver is about to release. That's why there are
-so many checkpoints down the page isolation path assuring we really are
-isolating a balloon page. 
-
+Okay
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
