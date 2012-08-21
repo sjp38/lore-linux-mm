@@ -1,58 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
-	by kanga.kvack.org (Postfix) with SMTP id 1D51D6B005D
-	for <linux-mm@kvack.org>; Tue, 21 Aug 2012 05:44:00 -0400 (EDT)
-Message-ID: <5033579D.5000203@parallels.com>
-Date: Tue, 21 Aug 2012 13:40:45 +0400
-From: Glauber Costa <glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
+	by kanga.kvack.org (Postfix) with SMTP id C739A6B005D
+	for <linux-mm@kvack.org>; Tue, 21 Aug 2012 05:47:02 -0400 (EDT)
+Received: from /spool/local
+	by e28smtp02.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <xiaoguangrong@linux.vnet.ibm.com>;
+	Tue, 21 Aug 2012 15:16:56 +0530
+Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
+	by d28relay05.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q7L9krUC29950072
+	for <linux-mm@kvack.org>; Tue, 21 Aug 2012 15:16:54 +0530
+Received: from d28av04.in.ibm.com (loopback [127.0.0.1])
+	by d28av04.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q7L9krnj005942
+	for <linux-mm@kvack.org>; Tue, 21 Aug 2012 19:46:53 +1000
+Message-ID: <503358FF.3030009@linux.vnet.ibm.com>
+Date: Tue, 21 Aug 2012 17:46:39 +0800
+From: Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2 11/11] protect architectures where THREAD_SIZE >= PAGE_SIZE
- against fork bombs
-References: <1344517279-30646-1-git-send-email-glommer@parallels.com> <1344517279-30646-12-git-send-email-glommer@parallels.com> <20120821093513.GD19797@dhcp22.suse.cz>
-In-Reply-To: <20120821093513.GD19797@dhcp22.suse.cz>
-Content-Type: text/plain; charset="ISO-8859-1"
+Subject: [PATCH] mm: mmu_notifier: fix inconsistent memory between secondary
+ MMU and host
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, devel@openvz.org, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, kamezawa.hiroyu@jp.fujitsu.com, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Suleiman Souhlal <suleiman@google.com>
+To: Andrew Morton <akpm@linux-foundation.org>, Avi Kivity <avi@redhat.com>, Marcelo Tosatti <mtosatti@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, LKML <linux-kernel@vger.kernel.org>, KVM <kvm@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
 
-On 08/21/2012 01:35 PM, Michal Hocko wrote:
-> On Thu 09-08-12 17:01:19, Glauber Costa wrote:
->> Because those architectures will draw their stacks directly from the
->> page allocator, rather than the slab cache, we can directly pass
->> __GFP_KMEMCG flag, and issue the corresponding free_pages.
->>
->> This code path is taken when the architecture doesn't define
->> CONFIG_ARCH_THREAD_INFO_ALLOCATOR (only ia64 seems to), and has
->> THREAD_SIZE >= PAGE_SIZE. Luckily, most - if not all - of the remaining
->> architectures fall in this category.
-> 
-> quick git grep "define *THREAD_SIZE\>" arch says that there is no such
-> architecture.
-> 
->> This will guarantee that every stack page is accounted to the memcg the
->> process currently lives on, and will have the allocations to fail if
->> they go over limit.
->>
->> For the time being, I am defining a new variant of THREADINFO_GFP, not
->> to mess with the other path. Once the slab is also tracked by memcg, we
->> can get rid of that flag.
->>
->> Tested to successfully protect against :(){ :|:& };:
-> 
-> I guess there were no other tasks in the same group (except for the
-> parent shell), right? 
+There has a bug in set_pte_at_notify which always set the pte to the
+new page before release the old page in secondary MMU, at this time,
+the process will access on the new page, but the secondary MMU still
+access on the old page, the memory is inconsistent between them
 
-Yes.
+Below scenario shows the bug more clearly:
 
-> I am asking because this should trigger memcg-oom
-> but that one will usually pick up something else than the fork bomb
-> which would have a small memory footprint. But that needs to be handled
-> on the oom level obviously.
-> 
-Sure, but keep in mind that the main protection is against tasks *not*
-in this memcg.
+at the beginning: *p = 0, and p is write-protected by KSM or shared with
+parent process
+
+CPU 0                                       CPU 1
+write 1 to p to trigger COW,
+set_pte_at_notify will be called:
+  *pte = new_page + W; /* The W bit of pte is set */
+
+                                     *p = 1; /* pte is valid, so no #PF */
+
+                                     return back to secondary MMU, then
+                                     the secondary MMU read p, but get:
+                                     *p == 0;
+
+                         /*
+                          * !!!!!!
+                          * the host has already set p to 1, but the secondary
+                          * MMU still get the old value 0
+                          */
+
+  call mmu_notifier_change_pte to release
+  old page in secondary MMU
+
+We can fix it by release old page first, then set the pte to the new
+page.
+
+Note, the new page will be firstly used in secondary MMU before it is
+mapped into the page table of the process, but this is safe because it
+is protected by the page table lock, there is no race to change the pte
+
+Signed-off-by: Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>
+---
+ include/linux/mmu_notifier.h |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
+
+diff --git a/include/linux/mmu_notifier.h b/include/linux/mmu_notifier.h
+index 1d1b1e1..8c7435a 100644
+--- a/include/linux/mmu_notifier.h
++++ b/include/linux/mmu_notifier.h
+@@ -317,8 +317,8 @@ static inline void mmu_notifier_mm_destroy(struct mm_struct *mm)
+ 	unsigned long ___address = __address;				\
+ 	pte_t ___pte = __pte;						\
+ 									\
+-	set_pte_at(___mm, ___address, __ptep, ___pte);			\
+ 	mmu_notifier_change_pte(___mm, ___address, ___pte);		\
++	set_pte_at(___mm, ___address, __ptep, ___pte);			\
+ })
+
+ #else /* CONFIG_MMU_NOTIFIER */
+-- 
+1.7.7.6
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
