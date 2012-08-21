@@ -1,49 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
-	by kanga.kvack.org (Postfix) with SMTP id 3B5266B005D
-	for <linux-mm@kvack.org>; Tue, 21 Aug 2012 05:32:47 -0400 (EDT)
-Message-ID: <503354FF.1070809@parallels.com>
-Date: Tue, 21 Aug 2012 13:29:35 +0400
-From: Glauber Costa <glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
+	by kanga.kvack.org (Postfix) with SMTP id 0AFD46B005D
+	for <linux-mm@kvack.org>; Tue, 21 Aug 2012 05:35:18 -0400 (EDT)
+Date: Tue, 21 Aug 2012 11:35:13 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH v2 11/11] protect architectures where THREAD_SIZE >=
+ PAGE_SIZE against fork bombs
+Message-ID: <20120821093513.GD19797@dhcp22.suse.cz>
+References: <1344517279-30646-1-git-send-email-glommer@parallels.com>
+ <1344517279-30646-12-git-send-email-glommer@parallels.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH V8 1/2] mm: memcg softlimit reclaim rework
-References: <1343942658-13307-1-git-send-email-yinghan@google.com> <20120803152234.GE8434@dhcp22.suse.cz> <501BF952.7070202@redhat.com> <CALWz4iw6Q500k5qGWaubwLi-3V3qziPuQ98Et9Ay=LS0-PB0dQ@mail.gmail.com> <20120806133324.GD6150@dhcp22.suse.cz> <CALWz4iw2NqQw3FgjM9k6nbMb7k8Gy2khdyL_9NpGM6T7Ma5t3g@mail.gmail.com> <5031EF4C.6070204@parallels.com> <CALWz4izy1zK5ZNZOK+82x-YPa-WdQnJu1Gq=70SDJmOVVrpPwQ@mail.gmail.com>
-In-Reply-To: <CALWz4izy1zK5ZNZOK+82x-YPa-WdQnJu1Gq=70SDJmOVVrpPwQ@mail.gmail.com>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1344517279-30646-12-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ying Han <yinghan@google.com>
-Cc: Michal Hocko <mhocko@suse.cz>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hillf Danton <dhillf@gmail.com>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+To: Glauber Costa <glommer@parallels.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, devel@openvz.org, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, kamezawa.hiroyu@jp.fujitsu.com, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Suleiman Souhlal <suleiman@google.com>
 
-On 08/20/2012 10:30 PM, Ying Han wrote:
-> Not exactly. Here reclaiming from root is mainly for "reclaiming from
-> root's exclusive lru", which links the page includes:
-> 1. processes running under root
-> 2. reparented pages from rmdir memcg under root
-> 3. bypassed pages
+On Thu 09-08-12 17:01:19, Glauber Costa wrote:
+> Because those architectures will draw their stacks directly from the
+> page allocator, rather than the slab cache, we can directly pass
+> __GFP_KMEMCG flag, and issue the corresponding free_pages.
 > 
-> Setting root cgroup's softlimit = 0 has the implication of putting
-> those pages to likely to reclaim, which works fine. The question is
-> that if no other memcg is above its softlimit, would it be a problem
-> to adding a bit extra pressure to root which always is eligible for
-> softlimit reclaim ( usage is always greater than softlimit).
+> This code path is taken when the architecture doesn't define
+> CONFIG_ARCH_THREAD_INFO_ALLOCATOR (only ia64 seems to), and has
+> THREAD_SIZE >= PAGE_SIZE. Luckily, most - if not all - of the remaining
+> architectures fall in this category.
+
+quick git grep "define *THREAD_SIZE\>" arch says that there is no such
+architecture.
+
+> This will guarantee that every stack page is accounted to the memcg the
+> process currently lives on, and will have the allocations to fail if
+> they go over limit.
 > 
-> As an example, it works fine in our environment since we don't
-> explicitly put any process under root. Most of  the pages linked in
-> root lru would be reparented pages which should be reclaimed prior to
-> others.
+> For the time being, I am defining a new variant of THREADINFO_GFP, not
+> to mess with the other path. Once the slab is also tracked by memcg, we
+> can get rid of that flag.
+> 
+> Tested to successfully protect against :(){ :|:& };:
 
-Keep in mind that not all environments will be specialized to the point
-of having root memcg empty. This basically treats root memcg as a trash
-bin, and can be very detrimental to use cases where actual memory is
-present in there.
+I guess there were no other tasks in the same group (except for the
+parent shell), right? I am asking because this should trigger memcg-oom
+but that one will usually pick up something else than the fork bomb
+which would have a small memory footprint. But that needs to be handled
+on the oom level obviously.
 
-It would maybe be better to have all this garbage to go to a separate
-place, like a shadow garbage memcg, which is invisible to the
-filesystem, and is always the first to be reclaimed from, in any
-circumstance.
+> Signed-off-by: Glauber Costa <glommer@parallels.com>
+> Acked-by: Frederic Weisbecker <fweisbec@redhat.com>
+> CC: Christoph Lameter <cl@linux.com>
+> CC: Pekka Enberg <penberg@cs.helsinki.fi>
+> CC: Michal Hocko <mhocko@suse.cz>
+> CC: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> CC: Johannes Weiner <hannes@cmpxchg.org>
+> CC: Suleiman Souhlal <suleiman@google.com>
 
+Reviewed-by: Michal Hocko <mhocko@suse.cz>
+
+> ---
+>  include/linux/thread_info.h | 2 ++
+>  kernel/fork.c               | 4 ++--
+>  2 files changed, 4 insertions(+), 2 deletions(-)
+> 
+> diff --git a/include/linux/thread_info.h b/include/linux/thread_info.h
+> index ccc1899..e7e0473 100644
+> --- a/include/linux/thread_info.h
+> +++ b/include/linux/thread_info.h
+> @@ -61,6 +61,8 @@ extern long do_no_restart_syscall(struct restart_block *parm);
+>  # define THREADINFO_GFP		(GFP_KERNEL | __GFP_NOTRACK)
+>  #endif
+>  
+> +#define THREADINFO_GFP_ACCOUNTED (THREADINFO_GFP | __GFP_KMEMCG)
+> +
+>  /*
+>   * flag set/clear/test wrappers
+>   * - pass TIF_xxxx constants to these functions
+> diff --git a/kernel/fork.c b/kernel/fork.c
+> index dc3ff16..b0b90c3 100644
+> --- a/kernel/fork.c
+> +++ b/kernel/fork.c
+> @@ -142,7 +142,7 @@ void __weak arch_release_thread_info(struct thread_info *ti) { }
+>  static struct thread_info *alloc_thread_info_node(struct task_struct *tsk,
+>  						  int node)
+>  {
+> -	struct page *page = alloc_pages_node(node, THREADINFO_GFP,
+> +	struct page *page = alloc_pages_node(node, THREADINFO_GFP_ACCOUNTED,
+>  					     THREAD_SIZE_ORDER);
+>  
+>  	return page ? page_address(page) : NULL;
+> @@ -151,7 +151,7 @@ static struct thread_info *alloc_thread_info_node(struct task_struct *tsk,
+>  static inline void free_thread_info(struct thread_info *ti)
+>  {
+>  	arch_release_thread_info(ti);
+> -	free_pages((unsigned long)ti, THREAD_SIZE_ORDER);
+> +	free_accounted_pages((unsigned long)ti, THREAD_SIZE_ORDER);
+>  }
+>  # else
+>  static struct kmem_cache *thread_info_cache;
+> -- 
+> 1.7.11.2
+> 
+> --
+> To unsubscribe from this list: send the line "unsubscribe cgroups" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
