@@ -1,46 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
-	by kanga.kvack.org (Postfix) with SMTP id 060926B0068
-	for <linux-mm@kvack.org>; Tue, 21 Aug 2012 11:38:53 -0400 (EDT)
-Date: Tue, 21 Aug 2012 15:38:52 +0000
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH 4/5] mempolicy: fix refcount leak in
- mpol_set_shared_policy()
-In-Reply-To: <20120821071532.GB1657@suse.de>
-Message-ID: <0000013949d61abd-83aaf442-a4a1-4558-9045-ed91d77aae00-000000@email.amazonses.com>
-References: <1345480594-27032-1-git-send-email-mgorman@suse.de> <1345480594-27032-5-git-send-email-mgorman@suse.de> <00000139459223d7-93a9c53f-6724-4a4b-b675-cd25d8d53c71-000000@email.amazonses.com> <20120821071532.GB1657@suse.de>
+Received: from psmtp.com (na3sys010amx151.postini.com [74.125.245.151])
+	by kanga.kvack.org (Postfix) with SMTP id 29F8D6B005D
+	for <linux-mm@kvack.org>; Tue, 21 Aug 2012 11:40:52 -0400 (EDT)
+Date: Tue, 21 Aug 2012 18:41:42 +0300
+From: "Michael S. Tsirkin" <mst@redhat.com>
+Subject: Re: [PATCH v8 1/5] mm: introduce a common interface for balloon
+ pages mobility
+Message-ID: <20120821154142.GA8268@redhat.com>
+References: <cover.1345519422.git.aquini@redhat.com>
+ <e24f3073ef539985dea52943dcb84762213a0857.1345519422.git.aquini@redhat.com>
+ <20120821135223.GA7117@redhat.com>
+ <1345562166.23018.109.camel@twins>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1345562166.23018.109.camel@twins>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Dave Jones <davej@redhat.com>, Ben Hutchings <ben@decadent.org.uk>, Andi Kleen <ak@linux.intel.com>, Hugh Dickins <hughd@google.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Rafael Aquini <aquini@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, Rusty Russell <rusty@rustcorp.com.au>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Minchan Kim <minchan@kernel.org>
 
-On Tue, 21 Aug 2012, Mel Gorman wrote:
+On Tue, Aug 21, 2012 at 05:16:06PM +0200, Peter Zijlstra wrote:
+> On Tue, 2012-08-21 at 16:52 +0300, Michael S. Tsirkin wrote:
+> > > +             rcu_read_lock();
+> > > +             mapping = rcu_dereference(page->mapping);
+> > > +             if (mapping_balloon(mapping))
+> > > +                     ret = true;
+> > > +             rcu_read_unlock();
+> > 
+> > This looks suspicious: you drop rcu_read_unlock
+> > so can't page switch from balloon to non balloon? 
+> 
+> RCU read lock is a non-exclusive lock, it cannot avoid anything like
+> that.
 
-> On Mon, Aug 20, 2012 at 07:46:09PM +0000, Christoph Lameter wrote:
-> > On Mon, 20 Aug 2012, Mel Gorman wrote:
-> >
-> > > @@ -2318,9 +2323,7 @@ void mpol_free_shared_policy(struct shared_policy *p)
-> > >  	while (next) {
-> > >  		n = rb_entry(next, struct sp_node, nd);
-> > >  		next = rb_next(&n->nd);
-> > > -		rb_erase(&n->nd, &p->root);
-> >
-> > Looks like we need to keep the above line? sp_delete does not remove the
-> > tree entry.
-> >
-> > > -		mpol_put(n->policy);
-> > > -		kmem_cache_free(sn_cache, n);
-> > > +		sp_delete(p, n);
->
-> Yes it does, could you have accidentally mixed up sp_free (which does not
-> remove the tree entry) and sp_delete (which does)? The altered code ends
-> up looking like this;
+You are right, of course. So even keeping rcu_read_lock across both test
+and operation won't be enough - you need to make this function return
+the mapping and pass it to isolate_page/putback_page so that it is only
+dereferenced once.
 
-Yup I got that mixed up.
-
-Reviewed-by: Christoph Lameter <cl@linux.com>
+-- 
+MST
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
