@@ -1,44 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
-	by kanga.kvack.org (Postfix) with SMTP id CF99F6B005D
-	for <linux-mm@kvack.org>; Tue, 21 Aug 2012 03:34:55 -0400 (EDT)
-Date: Tue, 21 Aug 2012 08:29:01 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 0/5] Memory policy corruption fixes V2
-Message-ID: <20120821072901.GD1657@suse.de>
-References: <1345480594-27032-1-git-send-email-mgorman@suse.de>
+Received: from psmtp.com (na3sys010amx110.postini.com [74.125.245.110])
+	by kanga.kvack.org (Postfix) with SMTP id A0F666B005D
+	for <linux-mm@kvack.org>; Tue, 21 Aug 2012 03:37:19 -0400 (EDT)
+Date: Tue, 21 Aug 2012 16:37:38 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH] memory hotplug: reset pgdat->kswapd to NULL if creating
+ kernel thread fails
+Message-ID: <20120821073738.GA24667@bbox>
+References: <50332B37.2000500@cn.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1345480594-27032-1-git-send-email-mgorman@suse.de>
+In-Reply-To: <50332B37.2000500@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Josh Boyer <jwboyer@gmail.com>
-Cc: Dave Jones <davej@redhat.com>, Christoph Lameter <cl@linux.com>, Ben Hutchings <ben@decadent.org.uk>, Andi Kleen <ak@linux.intel.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
+To: Wen Congyang <wency@cn.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, mgorman@suse.de, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, hughd@google.com, linux-mm@kvack.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-On Mon, Aug 20, 2012 at 05:36:29PM +0100, Mel Gorman wrote:
-> This is a rebase with some small changes to Kosaki's "mempolicy memory
-> corruption fixlet" series. I had expected that Kosaki would have revised
-> the series by now but it's been waiting a long time.
+On Tue, Aug 21, 2012 at 02:31:19PM +0800, Wen Congyang wrote:
+> If kthread_run() fails, pgdat->kswapd contains errno. When we stop
+> this thread, we only check whether pgdat->kswapd is NULL and access
+> it. If it contains errno, it will cause page fault. Reset pgdat->kswapd
+> to NULL when creating kernel thread fails can avoid this problem.
 > 
-> Changelog since V1
-> o Rebase to 3.6-rc2
-> o Editted some of the changelogs
-> o Converted sp->lock to sp->mutex to close a race in shared_policy_replace()
-> o Reworked the refcount imbalance fix slightly
-> o Do not call mpol_put in shmem_alloc_page.
-> 
-> I tested this with trinity with CONFIG_DEBUG_SLAB enabled and it passed. I
-> did not test LTP such as Josh reported a problem with or with a database that
-> used shared policies like Andi tested. The series is almost all Kosaki's
-> work of course. If he has a revised series that simply got delayed in
-> posting it should take precedence.
+> Signed-off-by: Wen Congyang <wency@cn.fujitsu.com>
+Reviewed-by: Minchan Kim <minchan@kernel.org>
 
-I meant to add Josh to the cc, adding him now.
+Nitpick: Why doesn't online_pages check kswapd_run's return value?
+         I hope memory-hotplug can handle this error rightly without
+         relying on this patch in the future.
 
 -- 
-Mel Gorman
-SUSE Labs
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
