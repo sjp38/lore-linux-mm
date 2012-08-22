@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
-	by kanga.kvack.org (Postfix) with SMTP id 6C3FA6B0072
+Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
+	by kanga.kvack.org (Postfix) with SMTP id 6EE8C6B0075
 	for <linux-mm@kvack.org>; Wed, 22 Aug 2012 11:00:35 -0400 (EDT)
 From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: [PATCH 03/36] autonuma: define _PAGE_NUMA_PTE and _PAGE_NUMA_PMD
-Date: Wed, 22 Aug 2012 16:58:47 +0200
-Message-Id: <1345647560-30387-4-git-send-email-aarcange@redhat.com>
+Subject: [PATCH 11/36] autonuma: add page structure fields
+Date: Wed, 22 Aug 2012 16:58:55 +0200
+Message-Id: <1345647560-30387-12-git-send-email-aarcange@redhat.com>
 In-Reply-To: <1345647560-30387-1-git-send-email-aarcange@redhat.com>
 References: <1345647560-30387-1-git-send-email-aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,72 +13,76 @@ List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 Cc: Hillf Danton <dhillf@gmail.com>, Dan Smith <danms@us.ibm.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Srivatsa Vaddagiri <vatsa@linux.vnet.ibm.com>, Christoph Lameter <cl@linux.com>, Alex Shi <alex.shi@intel.com>, Mauricio Faria de Oliveira <mauricfo@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Don Morris <don.morris@hp.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
 
-We will set these bitflags only when the pmd or pte is not present.
+On 64bit archs, 20 bytes are used for async memory migration (specific
+to the knuma_migrated per-node threads), and 4 bytes are used for the
+thread NUMA false sharing detection logic.
 
-They work like PROTNONE but they identify a request for the numa
-hinting page fault to trigger.
+This is the basic implementation improved by later patches.
 
-Because we want to be able to set these bitflags in any established
-pte or pmd (while clearing the present bit at the same time) without
-losing information, these bitflags must never be set when the pte and
-pmd are present.
-
-For _PAGE_NUMA_PTE the pte bitflag used is _PAGE_PSE, which cannot be
-set on ptes and it also fits in between _PAGE_FILE and _PAGE_PROTNONE
-which avoids having to alter the swp entries format.
-
-For _PAGE_NUMA_PMD, we use a reserved bitflag. pmds never contain
-swap_entries but if in the future we'll swap transparent hugepages, we
-must keep in mind not to use the _PAGE_UNUSED2 bitflag in the swap
-entry format and to start the swap entry offset above it.
-
-PAGE_UNUSED2 is used by Xen but only on ptes established by ioremap,
-never on pmds so there's no risk of collision with Xen.
+Later patches moves the new fields to a dynamically allocated
+page_autonuma of 32 bytes per page (only allocated if booted on NUMA
+hardware, unless "noautonuma" is passed as parameter to the kernel at
+boot). Yet another later patch introduces the autonuma_list and
+reduces the size of the page_autonuma from 32 to 12 bytes.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 ---
- arch/x86/include/asm/pgtable_types.h |   28 ++++++++++++++++++++++++++++
- 1 files changed, 28 insertions(+), 0 deletions(-)
+ include/linux/mm_types.h |   26 ++++++++++++++++++++++++++
+ mm/page_alloc.c          |    4 ++++
+ 2 files changed, 30 insertions(+), 0 deletions(-)
 
-diff --git a/arch/x86/include/asm/pgtable_types.h b/arch/x86/include/asm/pgtable_types.h
-index 013286a..400d771 100644
---- a/arch/x86/include/asm/pgtable_types.h
-+++ b/arch/x86/include/asm/pgtable_types.h
-@@ -64,6 +64,34 @@
- #define _PAGE_FILE	(_AT(pteval_t, 1) << _PAGE_BIT_FILE)
- #define _PAGE_PROTNONE	(_AT(pteval_t, 1) << _PAGE_BIT_PROTNONE)
+diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
+index c80101c..3f10fef 100644
+--- a/include/linux/mm_types.h
++++ b/include/linux/mm_types.h
+@@ -152,6 +152,32 @@ struct page {
+ 		struct page *first_page;	/* Compound tail pages */
+ 	};
  
-+/*
-+ * _PAGE_NUMA_PTE indicates that this page will trigger a numa hinting
-+ * minor page fault to gather autonuma statistics (see
-+ * pte_numa()). The bit picked (7) is purposefully in between the
-+ * _PAGE_FILE (6) and _PAGE_PROTNONE (8) bits. Therefore, it doesn't
-+ * require changes to the swp entry format because that bit is always
-+ * zero when the pte is not present. It is also always zero when the
-+ * pte is present (_PAGE_PAT (7) is never set on the pte according to
-+ * arch/x86/mm/pat.c).
-+ *
-+ * The bit picked must be always zero when the pmd is present and not
-+ * present, so that we don't lose information when we set it while
-+ * atomically clearing the present bit.
-+ */
-+#define _PAGE_NUMA_PTE	_PAGE_PSE
-+/*
-+ * _PAGE_NUMA_PMD indicates that this page will trigger a numa hinting
-+ * minor page fault to gather autonuma statistics (see
-+ * pmd_numa())._PAGE_IOMAP is used by Xen but only on the pte, never
-+ * on the pmd. If transparent hugepages will be swapped out natively,
-+ * the swap entry offset will have to start above _PAGE_IOMAP.
-+ *
-+ * The bit picked must be always zero when the pmd is present and not
-+ * present, so that we don't lose information when we set it while
-+ * atomically clearing the present bit.
-+ */
-+#define _PAGE_NUMA_PMD	_PAGE_IOMAP
++#ifdef CONFIG_AUTONUMA
++	/*
++	 * FIXME: move to pgdat section along with the memcg and allocate
++	 * at runtime only in presence of a numa system.
++	 */
++	/*
++	 * To modify autonuma_last_nid lockless the architecture,
++	 * needs SMP atomic granularity < sizeof(long), not all archs
++	 * have that, notably some ancient alpha (but none of those
++	 * should run in NUMA systems). Archs without that requires
++	 * autonuma_last_nid to be a long.
++	 */
++#ifdef CONFIG_64BIT
++	int autonuma_migrate_nid;
++	int autonuma_last_nid;
++#else
++#if MAX_NUMNODES > 32767
++#error "too many nodes"
++#endif
++	/* FIXME: remember to check the updates are atomic */
++	short autonuma_migrate_nid;
++	short autonuma_last_nid;
++#endif
++	struct list_head autonuma_migrate_node;
++#endif
 +
- #define _PAGE_TABLE	(_PAGE_PRESENT | _PAGE_RW | _PAGE_USER |	\
- 			 _PAGE_ACCESSED | _PAGE_DIRTY)
- #define _KERNPG_TABLE	(_PAGE_PRESENT | _PAGE_RW | _PAGE_ACCESSED |	\
+ 	/*
+ 	 * On machines where all RAM is mapped into kernel address space,
+ 	 * we can simply calculate the virtual address. On machines with
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index ff61443..a6337b3 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -3787,6 +3787,10 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
+ 			set_pageblock_migratetype(page, MIGRATE_MOVABLE);
+ 
+ 		INIT_LIST_HEAD(&page->lru);
++#ifdef CONFIG_AUTONUMA
++		page->autonuma_last_nid = -1;
++		page->autonuma_migrate_nid = -1;
++#endif
+ #ifdef WANT_PAGE_VIRTUAL
+ 		/* The shift won't overflow because ZONE_NORMAL is below 4G. */
+ 		if (!is_highmem_idx(zone))
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
