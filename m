@@ -1,92 +1,304 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
-	by kanga.kvack.org (Postfix) with SMTP id 330C36B0044
-	for <linux-mm@kvack.org>; Tue, 21 Aug 2012 23:34:19 -0400 (EDT)
-Date: Wed, 22 Aug 2012 12:34:41 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH] memory-hotplug: fix a drain pcp bug when offline pages
-Message-ID: <20120822033441.GB24667@bbox>
-References: <50337B15.2090701@gmail.com>
+	by kanga.kvack.org (Postfix) with SMTP id 3A7B76B0044
+	for <linux-mm@kvack.org>; Tue, 21 Aug 2012 23:40:23 -0400 (EDT)
+Received: by pbbro12 with SMTP id ro12so910120pbb.14
+        for <linux-mm@kvack.org>; Tue, 21 Aug 2012 20:40:22 -0700 (PDT)
+Date: Wed, 22 Aug 2012 11:40:12 +0800
+From: Shaohua Li <shli@kernel.org>
+Subject: [patch]readahead: fault retry breaks mmap file read random detection
+Message-ID: <20120822034012.GA24099@kernel.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <50337B15.2090701@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: qiuxishi <qiuxishi@gmail.com>
-Cc: akpm@linux-foundation.org, lliubbo@gmail.com, jiang.liu@huawei.com, mgorman@suse.de, kamezawa.hiroyu@jp.fujitsu.com, mhocko@suse.cz, linux-mm@kvack.org, linux-kernel@vger.kernel.org, qiuxishi@huawei.com, wujianguo@huawei.com, bessel.wang@huawei.com, guohanjun@huawei.com, chenkeping@huawei.com, yinghai@kernel.org, wency@cn.fujitsu.com
+To: linux-mm@kvack.org
+Cc: fengguang.wu@intel.com, akpm@linux-foundation.org, riel@redhat.com
 
-Hello Xishi,
+.fault now can retry. The retry can break state machine of .fault. In
+filemap_fault, if page is miss, ra->mmap_miss is increased. In the second try,
+since the page is in page cache now, ra->mmap_miss is decreased. And these are
+done in one fault, so we can't detect random mmap file access.
 
-On Tue, Aug 21, 2012 at 08:12:05PM +0800, qiuxishi wrote:
-> From: Xishi Qiu <qiuxishi@huawei.com>
-> 
-> When offline a section, we move all the free pages and pcp into MIGRATE_ISOLATE list first.
-> start_isolate_page_range()
-> 	set_migratetype_isolate()
-> 		drain_all_pages(),
-> 
-> Here is a problem, it is not sure that pcp will be moved into MIGRATE_ISOLATE list. They may
-> be moved into MIGRATE_MOVABLE list because page_private() maybe 2. So when finish migrating
-> pages, the free pages from pcp may be allocated again, and faild in check_pages_isolated().
-> drain_all_pages()
-> 	drain_local_pages()
-> 		drain_pages()
-> 			free_pcppages_bulk()
-> 				__free_one_page(page, zone, 0, page_private(page));
-> 
-> If we add move_freepages_block() after drain_all_pages(), it can not sure that all the pcp
-> will be moved into MIGRATE_ISOLATE list when the system works on high load. The free pages
-> which from pcp may immediately be allocated again.
-> 
-> I think the similar bug described in http://marc.info/?t=134250882300003&r=1&w=2
+Add a new flag to indicate .fault is tried once. In the second try, skip
+ra->mmap_miss decreasing. The filemap_fault state machine is ok with it.
 
-Yes. I reported the problem a few month ago but it's not real bug in practice
-but found by my eyes during looking the code so I wanted to confirm the problem.
+I only tested x86, didn't test other archs, but looks the change for other
+archs is obvious, but who knows :)
 
-Do you find that problem in real practice? or just code review?
+Signed-off-by: Shaohua Li <shaohua.li@fusionio.com>
+---
+ arch/arm/mm/fault.c        |    1 +
+ arch/avr32/mm/fault.c      |    1 +
+ arch/cris/mm/fault.c       |    1 +
+ arch/hexagon/mm/vm_fault.c |    1 +
+ arch/ia64/mm/fault.c       |    1 +
+ arch/m68k/mm/fault.c       |    1 +
+ arch/microblaze/mm/fault.c |    1 +
+ arch/mips/mm/fault.c       |    1 +
+ arch/openrisc/mm/fault.c   |    1 +
+ arch/powerpc/mm/fault.c    |    1 +
+ arch/s390/mm/fault.c       |    1 +
+ arch/sh/mm/fault.c         |    1 +
+ arch/sparc/mm/fault_32.c   |    1 +
+ arch/sparc/mm/fault_64.c   |    1 +
+ arch/tile/mm/fault.c       |    1 +
+ arch/um/kernel/trap.c      |    1 +
+ arch/x86/mm/fault.c        |    1 +
+ arch/xtensa/mm/fault.c     |    1 +
+ include/linux/mm.h         |    1 +
+ mm/filemap.c               |    4 ++--
+ 20 files changed, 21 insertions(+), 2 deletions(-)
 
-Anyway, I don't like your approach which I already considered because it hurts hotpath
-while the race is really unlikely. Get_pageblock_migratetype is never trivial.
-We should avoid the overhead in hotpath and move into memory-hotplug itself.
-Do you see my patch in https://patchwork.kernel.org/patch/1225081/ ?
-
-> 
-> 
-> Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
-> ---
->  mm/page_alloc.c |    3 ++-
->  1 files changed, 2 insertions(+), 1 deletions(-)
-> 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index d0723b2..501f6de 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -673,7 +673,8 @@ static void free_pcppages_bulk(struct zone *zone, int count,
->  			/* must delete as __free_one_page list manipulates */
->  			list_del(&page->lru);
->  			/* MIGRATE_MOVABLE list may include MIGRATE_RESERVEs */
-> -			__free_one_page(page, zone, 0, page_private(page));
-> +			__free_one_page(page, zone, 0,
-> +					get_pageblock_migratetype(page));
->  			trace_mm_page_pcpu_drain(page, 0, page_private(page));
->  		} while (--to_free && --batch_free && !list_empty(list));
->  	}
-> -- 1.7.6.1 .
-> 
-> 
-> 
-> .
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-
--- 
-Kind regards,
-Minchan Kim
+Index: linux/arch/x86/mm/fault.c
+===================================================================
+--- linux.orig/arch/x86/mm/fault.c	2012-08-22 09:51:22.939527887 +0800
++++ linux/arch/x86/mm/fault.c	2012-08-22 09:52:22.818774975 +0800
+@@ -1201,6 +1201,7 @@ good_area:
+ 			/* Clear FAULT_FLAG_ALLOW_RETRY to avoid any risk
+ 			 * of starvation. */
+ 			flags &= ~FAULT_FLAG_ALLOW_RETRY;
++			flags |= FAULT_FLAG_TRIED;
+ 			goto retry;
+ 		}
+ 	}
+Index: linux/include/linux/mm.h
+===================================================================
+--- linux.orig/include/linux/mm.h	2012-08-22 09:51:23.087526029 +0800
++++ linux/include/linux/mm.h	2012-08-22 09:52:22.822775020 +0800
+@@ -157,6 +157,7 @@ extern pgprot_t protection_map[16];
+ #define FAULT_FLAG_ALLOW_RETRY	0x08	/* Retry fault if blocking */
+ #define FAULT_FLAG_RETRY_NOWAIT	0x10	/* Don't drop mmap_sem and wait when retrying */
+ #define FAULT_FLAG_KILLABLE	0x20	/* The fault task is in SIGKILL killable region */
++#define FAULT_FLAG_TRIED	0x40	/* second try */
+ 
+ /*
+  * This interface is used by x86 PAT code to identify a pfn mapping that is
+Index: linux/mm/filemap.c
+===================================================================
+--- linux.orig/mm/filemap.c	2012-08-22 09:51:23.079526129 +0800
++++ linux/mm/filemap.c	2012-08-22 09:52:22.822775020 +0800
+@@ -1611,13 +1611,13 @@ int filemap_fault(struct vm_area_struct
+ 	 * Do we have something in the page cache already?
+ 	 */
+ 	page = find_get_page(mapping, offset);
+-	if (likely(page)) {
++	if (likely(page) && !(vmf->flags & FAULT_FLAG_TRIED)) {
+ 		/*
+ 		 * We found the page, so try async readahead before
+ 		 * waiting for the lock.
+ 		 */
+ 		do_async_mmap_readahead(vma, ra, file, page, offset);
+-	} else {
++	} else if (!page) {
+ 		/* No page in the page cache at all */
+ 		do_sync_mmap_readahead(vma, ra, file, offset);
+ 		count_vm_event(PGMAJFAULT);
+Index: linux/arch/arm/mm/fault.c
+===================================================================
+--- linux.orig/arch/arm/mm/fault.c	2012-08-22 09:51:22.899528391 +0800
++++ linux/arch/arm/mm/fault.c	2012-08-22 09:52:22.822775020 +0800
+@@ -336,6 +336,7 @@ retry:
+ 			/* Clear FAULT_FLAG_ALLOW_RETRY to avoid any risk
+ 			* of starvation. */
+ 			flags &= ~FAULT_FLAG_ALLOW_RETRY;
++			flags |= FAULT_FLAG_TRIED;
+ 			goto retry;
+ 		}
+ 	}
+Index: linux/arch/avr32/mm/fault.c
+===================================================================
+--- linux.orig/arch/avr32/mm/fault.c	2012-08-22 09:51:23.035526683 +0800
++++ linux/arch/avr32/mm/fault.c	2012-08-22 09:52:22.822775020 +0800
+@@ -152,6 +152,7 @@ good_area:
+ 			tsk->min_flt++;
+ 		if (fault & VM_FAULT_RETRY) {
+ 			flags &= ~FAULT_FLAG_ALLOW_RETRY;
++			flags |= FAULT_FLAG_TRIED;
+ 
+ 			/*
+ 			 * No need to up_read(&mm->mmap_sem) as we would have
+Index: linux/arch/cris/mm/fault.c
+===================================================================
+--- linux.orig/arch/cris/mm/fault.c	2012-08-22 09:51:23.059526379 +0800
++++ linux/arch/cris/mm/fault.c	2012-08-22 09:52:22.822775020 +0800
+@@ -186,6 +186,7 @@ retry:
+ 			tsk->min_flt++;
+ 		if (fault & VM_FAULT_RETRY) {
+ 			flags &= ~FAULT_FLAG_ALLOW_RETRY;
++			flags |= FAULT_FLAG_TRIED;
+ 
+ 			/*
+ 			 * No need to up_read(&mm->mmap_sem) as we would
+Index: linux/arch/hexagon/mm/vm_fault.c
+===================================================================
+--- linux.orig/arch/hexagon/mm/vm_fault.c	2012-08-22 09:51:22.915528191 +0800
++++ linux/arch/hexagon/mm/vm_fault.c	2012-08-22 09:52:22.822775020 +0800
+@@ -113,6 +113,7 @@ good_area:
+ 				current->min_flt++;
+ 			if (fault & VM_FAULT_RETRY) {
+ 				flags &= ~FAULT_FLAG_ALLOW_RETRY;
++				flags |= FAULT_FLAG_TRIED;
+ 				goto retry;
+ 			}
+ 		}
+Index: linux/arch/ia64/mm/fault.c
+===================================================================
+--- linux.orig/arch/ia64/mm/fault.c	2012-08-22 09:51:22.967527537 +0800
++++ linux/arch/ia64/mm/fault.c	2012-08-22 09:52:22.822775020 +0800
+@@ -184,6 +184,7 @@ retry:
+ 			current->min_flt++;
+ 		if (fault & VM_FAULT_RETRY) {
+ 			flags &= ~FAULT_FLAG_ALLOW_RETRY;
++			flags |= FAULT_FLAG_TRIED;
+ 
+ 			 /* No need to up_read(&mm->mmap_sem) as we would
+ 			 * have already released it in __lock_page_or_retry
+Index: linux/arch/m68k/mm/fault.c
+===================================================================
+--- linux.orig/arch/m68k/mm/fault.c	2012-08-22 09:51:23.015526933 +0800
++++ linux/arch/m68k/mm/fault.c	2012-08-22 09:52:22.822775020 +0800
+@@ -170,6 +170,7 @@ good_area:
+ 			/* Clear FAULT_FLAG_ALLOW_RETRY to avoid any risk
+ 			 * of starvation. */
+ 			flags &= ~FAULT_FLAG_ALLOW_RETRY;
++			flags |= FAULT_FLAG_TRIED;
+ 
+ 			/*
+ 			 * No need to up_read(&mm->mmap_sem) as we would
+Index: linux/arch/microblaze/mm/fault.c
+===================================================================
+--- linux.orig/arch/microblaze/mm/fault.c	2012-08-22 09:51:22.995527183 +0800
++++ linux/arch/microblaze/mm/fault.c	2012-08-22 09:52:22.822775020 +0800
+@@ -233,6 +233,7 @@ good_area:
+ 			current->min_flt++;
+ 		if (fault & VM_FAULT_RETRY) {
+ 			flags &= ~FAULT_FLAG_ALLOW_RETRY;
++			flags |= FAULT_FLAG_TRIED;
+ 
+ 			/*
+ 			 * No need to up_read(&mm->mmap_sem) as we would
+Index: linux/arch/mips/mm/fault.c
+===================================================================
+--- linux.orig/arch/mips/mm/fault.c	2012-08-22 09:51:22.975527437 +0800
++++ linux/arch/mips/mm/fault.c	2012-08-22 09:52:22.822775020 +0800
+@@ -171,6 +171,7 @@ good_area:
+ 		}
+ 		if (fault & VM_FAULT_RETRY) {
+ 			flags &= ~FAULT_FLAG_ALLOW_RETRY;
++			flags |= FAULT_FLAG_TRIED;
+ 
+ 			/*
+ 			 * No need to up_read(&mm->mmap_sem) as we would
+Index: linux/arch/openrisc/mm/fault.c
+===================================================================
+--- linux.orig/arch/openrisc/mm/fault.c	2012-08-22 09:51:23.027526783 +0800
++++ linux/arch/openrisc/mm/fault.c	2012-08-22 09:52:22.822775020 +0800
+@@ -183,6 +183,7 @@ good_area:
+ 			tsk->min_flt++;
+ 		if (fault & VM_FAULT_RETRY) {
+ 			flags &= ~FAULT_FLAG_ALLOW_RETRY;
++			flags |= FAULT_FLAG_TRIED;
+ 
+ 			 /* No need to up_read(&mm->mmap_sem) as we would
+ 			 * have already released it in __lock_page_or_retry
+Index: linux/arch/powerpc/mm/fault.c
+===================================================================
+--- linux.orig/arch/powerpc/mm/fault.c	2012-08-22 09:51:22.987527285 +0800
++++ linux/arch/powerpc/mm/fault.c	2012-08-22 09:52:22.822775020 +0800
+@@ -450,6 +450,7 @@ good_area:
+ 			/* Clear FAULT_FLAG_ALLOW_RETRY to avoid any risk
+ 			 * of starvation. */
+ 			flags &= ~FAULT_FLAG_ALLOW_RETRY;
++			flags |= FAULT_FLAG_TRIED;
+ 			goto retry;
+ 		}
+ 	}
+Index: linux/arch/s390/mm/fault.c
+===================================================================
+--- linux.orig/arch/s390/mm/fault.c	2012-08-22 09:51:23.067526279 +0800
++++ linux/arch/s390/mm/fault.c	2012-08-22 09:52:22.822775020 +0800
+@@ -367,6 +367,7 @@ retry:
+ 			/* Clear FAULT_FLAG_ALLOW_RETRY to avoid any risk
+ 			 * of starvation. */
+ 			flags &= ~FAULT_FLAG_ALLOW_RETRY;
++			flags |= FAULT_FLAG_TRIED;
+ 			down_read(&mm->mmap_sem);
+ 			goto retry;
+ 		}
+Index: linux/arch/sh/mm/fault.c
+===================================================================
+--- linux.orig/arch/sh/mm/fault.c	2012-08-22 09:51:22.907528291 +0800
++++ linux/arch/sh/mm/fault.c	2012-08-22 09:52:22.822775020 +0800
+@@ -504,6 +504,7 @@ good_area:
+ 		}
+ 		if (fault & VM_FAULT_RETRY) {
+ 			flags &= ~FAULT_FLAG_ALLOW_RETRY;
++			flags |= FAULT_FLAG_TRIED;
+ 
+ 			/*
+ 			 * No need to up_read(&mm->mmap_sem) as we would
+Index: linux/arch/sparc/mm/fault_32.c
+===================================================================
+--- linux.orig/arch/sparc/mm/fault_32.c	2012-08-22 09:51:22.955527687 +0800
++++ linux/arch/sparc/mm/fault_32.c	2012-08-22 09:52:22.826775037 +0800
+@@ -265,6 +265,7 @@ good_area:
+ 		}
+ 		if (fault & VM_FAULT_RETRY) {
+ 			flags &= ~FAULT_FLAG_ALLOW_RETRY;
++			flags |= FAULT_FLAG_TRIED;
+ 
+ 			/* No need to up_read(&mm->mmap_sem) as we would
+ 			 * have already released it in __lock_page_or_retry
+Index: linux/arch/sparc/mm/fault_64.c
+===================================================================
+--- linux.orig/arch/sparc/mm/fault_64.c	2012-08-22 09:51:22.947527787 +0800
++++ linux/arch/sparc/mm/fault_64.c	2012-08-22 09:52:22.826775037 +0800
+@@ -452,6 +452,7 @@ good_area:
+ 		}
+ 		if (fault & VM_FAULT_RETRY) {
+ 			flags &= ~FAULT_FLAG_ALLOW_RETRY;
++			flags |= FAULT_FLAG_TRIED;
+ 
+ 			/* No need to up_read(&mm->mmap_sem) as we would
+ 			 * have already released it in __lock_page_or_retry
+Index: linux/arch/tile/mm/fault.c
+===================================================================
+--- linux.orig/arch/tile/mm/fault.c	2012-08-22 09:51:23.007527033 +0800
++++ linux/arch/tile/mm/fault.c	2012-08-22 09:52:22.826775037 +0800
+@@ -454,6 +454,7 @@ good_area:
+ 			tsk->min_flt++;
+ 		if (fault & VM_FAULT_RETRY) {
+ 			flags &= ~FAULT_FLAG_ALLOW_RETRY;
++			flags |= FAULT_FLAG_TRIED;
+ 
+ 			 /*
+ 			  * No need to up_read(&mm->mmap_sem) as we would
+Index: linux/arch/um/kernel/trap.c
+===================================================================
+--- linux.orig/arch/um/kernel/trap.c	2012-08-22 09:51:23.047526530 +0800
++++ linux/arch/um/kernel/trap.c	2012-08-22 09:52:22.826775037 +0800
+@@ -89,6 +89,7 @@ good_area:
+ 				current->min_flt++;
+ 			if (fault & VM_FAULT_RETRY) {
+ 				flags &= ~FAULT_FLAG_ALLOW_RETRY;
++				flags |= FAULT_FLAG_TRIED;
+ 
+ 				goto retry;
+ 			}
+Index: linux/arch/xtensa/mm/fault.c
+===================================================================
+--- linux.orig/arch/xtensa/mm/fault.c	2012-08-22 09:51:22.927528040 +0800
++++ linux/arch/xtensa/mm/fault.c	2012-08-22 09:52:22.826775037 +0800
+@@ -126,6 +126,7 @@ good_area:
+ 			current->min_flt++;
+ 		if (fault & VM_FAULT_RETRY) {
+ 			flags &= ~FAULT_FLAG_ALLOW_RETRY;
++			flags |= FAULT_FLAG_TRIED;
+ 
+ 			 /* No need to up_read(&mm->mmap_sem) as we would
+ 			 * have already released it in __lock_page_or_retry
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
