@@ -1,142 +1,142 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
-	by kanga.kvack.org (Postfix) with SMTP id 363636B009D
-	for <linux-mm@kvack.org>; Tue, 21 Aug 2012 22:28:41 -0400 (EDT)
-Received: by mail-ob0-f169.google.com with SMTP id x4so779582obh.14
-        for <linux-mm@kvack.org>; Tue, 21 Aug 2012 19:28:40 -0700 (PDT)
-From: Sasha Levin <levinsasha928@gmail.com>
-Subject: [PATCH v3 17/17] SUNRPC: use new hashtable implementation in auth
-Date: Wed, 22 Aug 2012 04:27:12 +0200
-Message-Id: <1345602432-27673-18-git-send-email-levinsasha928@gmail.com>
-In-Reply-To: <1345602432-27673-1-git-send-email-levinsasha928@gmail.com>
-References: <1345602432-27673-1-git-send-email-levinsasha928@gmail.com>
+Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
+	by kanga.kvack.org (Postfix) with SMTP id 344D96B0044
+	for <linux-mm@kvack.org>; Tue, 21 Aug 2012 23:21:04 -0400 (EDT)
+Received: by pbbro12 with SMTP id ro12so890943pbb.14
+        for <linux-mm@kvack.org>; Tue, 21 Aug 2012 20:21:03 -0700 (PDT)
+Date: Tue, 21 Aug 2012 20:20:57 -0700
+From: Michel Lespinasse <walken@google.com>
+Subject: [RFC PATCH] Re: Repeated fork() causes SLAB to grow without bound
+Message-ID: <20120822032057.GA30871@google.com>
+References: <20120816024610.GA5350@evergreen.ssec.wisc.edu>
+ <502D42E5.7090403@redhat.com>
+ <20120818000312.GA4262@evergreen.ssec.wisc.edu>
+ <502F100A.1080401@redhat.com>
+ <alpine.LSU.2.00.1208200032450.24855@eggly.anvils>
+ <CANN689Ej7XLh8VKuaPrTttDrtDGQbXuYJgS2uKnZL2EYVTM3Dg@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CANN689Ej7XLh8VKuaPrTttDrtDGQbXuYJgS2uKnZL2EYVTM3Dg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: torvalds@linux-foundation.org
-Cc: tj@kernel.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, paul.gortmaker@windriver.com, davem@davemloft.net, rostedt@goodmis.org, mingo@elte.hu, ebiederm@xmission.com, aarcange@redhat.com, ericvh@gmail.com, netdev@vger.kernel.org, josh@joshtriplett.org, eric.dumazet@gmail.com, mathieu.desnoyers@efficios.com, axboe@kernel.dk, agk@redhat.com, dm-devel@redhat.com, neilb@suse.de, ccaulfie@redhat.com, teigland@redhat.com, Trond.Myklebust@netapp.com, bfields@fieldses.org, fweisbec@gmail.com, jesse@nicira.com, venkat.x.venkatsubra@oracle.com, ejt@redhat.com, snitzer@redhat.com, edumazet@google.com, linux-nfs@vger.kernel.org, dev@openvswitch.org, rds-devel@oss.oracle.com, lw@cn.fujitsu.com, Sasha Levin <levinsasha928@gmail.com>
+To: Hugh Dickins <hughd@google.com>
+Cc: Rik van Riel <riel@redhat.com>, Daniel Forrest <dan.forrest@ssec.wisc.edu>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Switch sunrpc/auth.c  to use the new hashtable implementation. This reduces the amount of
-generic unrelated code in auth.c.
+On Mon, Aug 20, 2012 at 02:39:26AM -0700, Michel Lespinasse wrote:
+> Instead of adding an atomic count for page references, we could limit
+> the anon_vma stacking depth. In fork, we would only clone anon_vmas
+> that have a low enough generation count. I think that's not great
+> (adds a special case for the deep-fork-without-exec behavior), but
+> still better than the atomic page reference counter.
 
-Signed-off-by: Sasha Levin <levinsasha928@gmail.com>
+Here is an attached patch to demonstrate the idea.
+
+anon_vma_clone() is modified to return the length of the existing same_vma
+anon vma chain, and we create a new anon_vma in the child only on the first
+fork (this could be tweaked to allow up to a set number of forks, but
+I think the first fork would cover all the common forking server cases).
+
+Signed-off-by: Michel Lespinasse <walken@google.com>
 ---
- net/sunrpc/auth.c |   45 +++++++++++++++++++--------------------------
- 1 files changed, 19 insertions(+), 26 deletions(-)
+ mm/mmap.c |    6 +++---
+ mm/rmap.c |   18 ++++++++++++++----
+ 2 files changed, 17 insertions(+), 7 deletions(-)
 
-diff --git a/net/sunrpc/auth.c b/net/sunrpc/auth.c
-index b5c067b..5d50e2d 100644
---- a/net/sunrpc/auth.c
-+++ b/net/sunrpc/auth.c
-@@ -15,6 +15,7 @@
- #include <linux/sunrpc/clnt.h>
- #include <linux/sunrpc/gss_api.h>
- #include <linux/spinlock.h>
-+#include <linux/hashtable.h>
- 
- #ifdef RPC_DEBUG
- # define RPCDBG_FACILITY	RPCDBG_AUTH
-@@ -222,7 +223,7 @@ static DEFINE_SPINLOCK(rpc_credcache_lock);
- static void
- rpcauth_unhash_cred_locked(struct rpc_cred *cred)
- {
--	hlist_del_rcu(&cred->cr_hash);
-+	hash_del_rcu(&cred->cr_hash);
- 	smp_mb__before_clear_bit();
- 	clear_bit(RPCAUTH_CRED_HASHED, &cred->cr_flags);
- }
-@@ -249,16 +250,15 @@ int
- rpcauth_init_credcache(struct rpc_auth *auth)
- {
- 	struct rpc_cred_cache *new;
--	unsigned int hashsize;
- 
- 	new = kmalloc(sizeof(*new), GFP_KERNEL);
- 	if (!new)
- 		goto out_nocache;
- 	new->hashbits = auth_hashbits;
--	hashsize = 1U << new->hashbits;
--	new->hashtable = kcalloc(hashsize, sizeof(new->hashtable[0]), GFP_KERNEL);
-+	new->hashtable = kmalloc(HASH_REQUIRED_SIZE(new->hashbits), GFP_KERNEL);
- 	if (!new->hashtable)
- 		goto out_nohashtbl;
-+	hash_init_size(new->hashtable, new->hashbits);
- 	spin_lock_init(&new->lock);
- 	auth->au_credcache = new;
- 	return 0;
-@@ -292,25 +292,20 @@ void
- rpcauth_clear_credcache(struct rpc_cred_cache *cache)
- {
- 	LIST_HEAD(free);
--	struct hlist_head *head;
-+	struct hlist_node *n, *t;
- 	struct rpc_cred	*cred;
--	unsigned int hashsize = 1U << cache->hashbits;
--	int		i;
-+	int i;
- 
- 	spin_lock(&rpc_credcache_lock);
- 	spin_lock(&cache->lock);
--	for (i = 0; i < hashsize; i++) {
--		head = &cache->hashtable[i];
--		while (!hlist_empty(head)) {
--			cred = hlist_entry(head->first, struct rpc_cred, cr_hash);
--			get_rpccred(cred);
--			if (!list_empty(&cred->cr_lru)) {
--				list_del(&cred->cr_lru);
--				number_cred_unused--;
--			}
--			list_add_tail(&cred->cr_lru, &free);
--			rpcauth_unhash_cred_locked(cred);
-+	hash_for_each_safe_size(cache->hashtable, cache->hashbits, i, n, t, cred, cr_hash) {
-+		get_rpccred(cred);
-+		if (!list_empty(&cred->cr_lru)) {
-+			list_del(&cred->cr_lru);
-+			number_cred_unused--;
+diff --git a/mm/mmap.c b/mm/mmap.c
+index 3edfcdfa42d9..e14b19a838cb 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -539,7 +539,7 @@ again:			remove_next = 1 + (end > next->vm_end);
+ 		 * shrinking vma had, to cover any anon pages imported.
+ 		 */
+ 		if (exporter && exporter->anon_vma && !importer->anon_vma) {
+-			if (anon_vma_clone(importer, exporter))
++			if (anon_vma_clone(importer, exporter) < 0)
+ 				return -ENOMEM;
+ 			importer->anon_vma = exporter->anon_vma;
  		}
-+		list_add_tail(&cred->cr_lru, &free);
-+		rpcauth_unhash_cred_locked(cred);
+@@ -1988,7 +1988,7 @@ static int __split_vma(struct mm_struct * mm, struct vm_area_struct * vma,
  	}
- 	spin_unlock(&cache->lock);
- 	spin_unlock(&rpc_credcache_lock);
-@@ -408,14 +403,11 @@ rpcauth_lookup_credcache(struct rpc_auth *auth, struct auth_cred * acred,
- 	LIST_HEAD(free);
- 	struct rpc_cred_cache *cache = auth->au_credcache;
- 	struct hlist_node *pos;
--	struct rpc_cred	*cred = NULL,
--			*entry, *new;
--	unsigned int nr;
--
--	nr = hash_long(acred->uid, cache->hashbits);
-+	struct rpc_cred	*cred = NULL, *entry = NULL, *new;
+ 	vma_set_policy(new, pol);
  
- 	rcu_read_lock();
--	hlist_for_each_entry_rcu(entry, pos, &cache->hashtable[nr], cr_hash) {
-+	hash_for_each_possible_rcu_size(cache->hashtable, cred, cache->hashbits,
-+					pos, cr_hash, acred->uid) {
- 		if (!entry->cr_ops->crmatch(acred, entry, flags))
- 			continue;
- 		spin_lock(&cache->lock);
-@@ -439,7 +431,8 @@ rpcauth_lookup_credcache(struct rpc_auth *auth, struct auth_cred * acred,
+-	if (anon_vma_clone(new, vma))
++	if (anon_vma_clone(new, vma) < 0)
+ 		goto out_free_mpol;
+ 
+ 	if (new->vm_file) {
+@@ -2409,7 +2409,7 @@ struct vm_area_struct *copy_vma(struct vm_area_struct **vmap,
+ 			if (IS_ERR(pol))
+ 				goto out_free_vma;
+ 			INIT_LIST_HEAD(&new_vma->anon_vma_chain);
+-			if (anon_vma_clone(new_vma, vma))
++			if (anon_vma_clone(new_vma, vma) < 0)
+ 				goto out_free_mempol;
+ 			vma_set_policy(new_vma, pol);
+ 			new_vma->vm_start = addr;
+diff --git a/mm/rmap.c b/mm/rmap.c
+index 0f3b7cda2a24..ba8a726aaee6 100644
+--- a/mm/rmap.c
++++ b/mm/rmap.c
+@@ -238,12 +238,13 @@ static inline void unlock_anon_vma_root(struct anon_vma *root)
+ 
+ /*
+  * Attach the anon_vmas from src to dst.
+- * Returns 0 on success, -ENOMEM on failure.
++ * Returns length of the anon_vma chain on success, -ENOMEM on failure.
+  */
+ int anon_vma_clone(struct vm_area_struct *dst, struct vm_area_struct *src)
+ {
+ 	struct anon_vma_chain *avc, *pavc;
+ 	struct anon_vma *root = NULL;
++	int length = 0;
+ 
+ 	list_for_each_entry_reverse(pavc, &src->anon_vma_chain, same_vma) {
+ 		struct anon_vma *anon_vma;
+@@ -259,9 +260,10 @@ int anon_vma_clone(struct vm_area_struct *dst, struct vm_area_struct *src)
+ 		anon_vma = pavc->anon_vma;
+ 		root = lock_anon_vma_root(root, anon_vma);
+ 		anon_vma_chain_link(dst, avc, anon_vma);
++		length++;
  	}
+ 	unlock_anon_vma_root(root);
+-	return 0;
++	return length;
  
- 	spin_lock(&cache->lock);
--	hlist_for_each_entry(entry, pos, &cache->hashtable[nr], cr_hash) {
-+	hash_for_each_possible_size(cache->hashtable, entry, cache->hashbits, pos,
-+					cr_hash, acred->uid) {
- 		if (!entry->cr_ops->crmatch(acred, entry, flags))
- 			continue;
- 		cred = get_rpccred(entry);
-@@ -448,7 +441,7 @@ rpcauth_lookup_credcache(struct rpc_auth *auth, struct auth_cred * acred,
- 	if (cred == NULL) {
- 		cred = new;
- 		set_bit(RPCAUTH_CRED_HASHED, &cred->cr_flags);
--		hlist_add_head_rcu(&cred->cr_hash, &cache->hashtable[nr]);
-+		hash_add_size(cache->hashtable, cache->hashbits, &cred->cr_hash, acred->uid);
- 	} else
- 		list_add_tail(&new->cr_lru, &free);
- 	spin_unlock(&cache->lock);
+  enomem_failure:
+ 	unlink_anon_vmas(dst);
+@@ -322,6 +324,7 @@ int anon_vma_fork(struct vm_area_struct *vma, struct vm_area_struct *pvma)
+ {
+ 	struct anon_vma_chain *avc;
+ 	struct anon_vma *anon_vma;
++	int length;
+ 
+ 	/* Don't bother if the parent process has no anon_vma here. */
+ 	if (!pvma->anon_vma)
+@@ -331,10 +334,17 @@ int anon_vma_fork(struct vm_area_struct *vma, struct vm_area_struct *pvma)
+ 	 * First, attach the new VMA to the parent VMA's anon_vmas,
+ 	 * so rmap can find non-COWed pages in child processes.
+ 	 */
+-	if (anon_vma_clone(vma, pvma))
++	length = anon_vma_clone(vma, pvma);
++	if (length < 0)
+ 		return -ENOMEM;
++	else if (length > 1)
++		return 0;
+ 
+-	/* Then add our own anon_vma. */
++	/*
++	 * Then add our own anon_vma. We do this only on the first fork after
++	 * the anon_vma is created, as we don't want the same_vma chain to
++	 * grow arbitrarily large.
++	 */
+ 	anon_vma = anon_vma_alloc();
+ 	if (!anon_vma)
+ 		goto out_error;
+
 -- 
-1.7.8.6
+Michel "Walken" Lespinasse
+A program is never fully debugged until the last user dies.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
