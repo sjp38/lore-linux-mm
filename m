@@ -1,30 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
-	by kanga.kvack.org (Postfix) with SMTP id CB1116B005D
-	for <linux-mm@kvack.org>; Wed, 22 Aug 2012 06:26:53 -0400 (EDT)
-Message-ID: <1345631207.6821.140.camel@zakaz.uk.xensource.com>
-Subject: Re: [PATCH] netvm: check for page == NULL when propogating the
- skb->pfmemalloc flag
-From: Ian Campbell <Ian.Campbell@citrix.com>
-Date: Wed, 22 Aug 2012 11:26:47 +0100
-In-Reply-To: <20120808.155046.820543563969484712.davem@davemloft.net>
-References: <20120807085554.GF29814@suse.de>
-	 <20120808.155046.820543563969484712.davem@davemloft.net>
-Content-Type: text/plain; charset="UTF-8"
+Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
+	by kanga.kvack.org (Postfix) with SMTP id 9108F6B0069
+	for <linux-mm@kvack.org>; Wed, 22 Aug 2012 06:54:02 -0400 (EDT)
+Date: Wed, 22 Aug 2012 11:48:06 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [MMTests] dbench4 async on ext3
+Message-ID: <20120822104806.GD15058@suse.de>
+References: <20120620113252.GE4011@suse.de>
+ <20120629111932.GA14154@suse.de>
+ <20120723212146.GG9222@suse.de>
+ <20120821220038.GA19171@quack.suse.cz>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20120821220038.GA19171@quack.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Miller <davem@davemloft.net>
-Cc: "mgorman@suse.de" <mgorman@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, "xen-devel@lists.xensource.com" <xen-devel@lists.xensource.com>, "konrad@darnok.org" <konrad@darnok.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
+To: Jan Kara <jack@suse.cz>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org
 
-On Wed, 2012-08-08 at 23:50 +0100, David Miller wrote:
-> Just use something like a call to __pskb_pull_tail(skb, len) and all
-> that other crap around that area can simply be deleted.
+On Wed, Aug 22, 2012 at 12:00:38AM +0200, Jan Kara wrote:
+> On Mon 23-07-12 22:21:46, Mel Gorman wrote:
+> > Configuration:	global-dhp__io-dbench4-async-ext3
+> > Result: 	http://www.csn.ul.ie/~mel/postings/mmtests-20120424/global-dhp__io-dbench4-async-ext3
+> > Benchmarks:	dbench4
+> > 
+> > Summary
+> > =======
+> > 
+> > In general there was a massive drop in throughput after 3.0. Very broadly
+> > speaking it looks like the Read operation got faster but at the cost of
+> > a big regression in the Flush operation.
+>
+>   Mel, I had a look into this and it's actually very likely only a
+> configuration issue. In 3.1 ext3 started to default to enabled barriers
+> (barrier=1 in mount options) which is a safer but slower choice. When I set
+> barriers explicitely, I see no performance difference for dbench4 between
+> 3.0 and 3.1.
+> 
 
-I think you mean something like this, which works for me, although I've
-only lightly tested it.
+I've confirmed that disabling barriers fixed it, for one test machine and
+one test at least. I'll reschedule the tests to run with barriers disabled
+at some point in the future. Thanks for tracking it down, I was at least
+two weeks away before I got the chance to even look.
 
-Ian.
+-- 
+Mel Gorman
+SUSE Labs
 
-8<----------------------------------------
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
