@@ -1,52 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
-	by kanga.kvack.org (Postfix) with SMTP id 9108F6B0069
-	for <linux-mm@kvack.org>; Wed, 22 Aug 2012 06:54:02 -0400 (EDT)
-Date: Wed, 22 Aug 2012 11:48:06 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [MMTests] dbench4 async on ext3
-Message-ID: <20120822104806.GD15058@suse.de>
-References: <20120620113252.GE4011@suse.de>
- <20120629111932.GA14154@suse.de>
- <20120723212146.GG9222@suse.de>
- <20120821220038.GA19171@quack.suse.cz>
+Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
+	by kanga.kvack.org (Postfix) with SMTP id 8F6216B005D
+	for <linux-mm@kvack.org>; Wed, 22 Aug 2012 07:48:04 -0400 (EDT)
+Date: Wed, 22 Aug 2012 07:47:53 -0400
+From: "J. Bruce Fields" <bfields@fieldses.org>
+Subject: Re: [PATCH v3 13/17] lockd: use new hashtable implementation
+Message-ID: <20120822114752.GC20158@fieldses.org>
+References: <1345602432-27673-1-git-send-email-levinsasha928@gmail.com>
+ <1345602432-27673-14-git-send-email-levinsasha928@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20120821220038.GA19171@quack.suse.cz>
+In-Reply-To: <1345602432-27673-14-git-send-email-levinsasha928@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org
+To: Sasha Levin <levinsasha928@gmail.com>
+Cc: torvalds@linux-foundation.org, tj@kernel.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, paul.gortmaker@windriver.com, davem@davemloft.net, rostedt@goodmis.org, mingo@elte.hu, ebiederm@xmission.com, aarcange@redhat.com, ericvh@gmail.com, netdev@vger.kernel.org, josh@joshtriplett.org, eric.dumazet@gmail.com, mathieu.desnoyers@efficios.com, axboe@kernel.dk, agk@redhat.com, dm-devel@redhat.com, neilb@suse.de, ccaulfie@redhat.com, teigland@redhat.com, Trond.Myklebust@netapp.com, fweisbec@gmail.com, jesse@nicira.com, venkat.x.venkatsubra@oracle.com, ejt@redhat.com, snitzer@redhat.com, edumazet@google.com, linux-nfs@vger.kernel.org, dev@openvswitch.org, rds-devel@oss.oracle.com, lw@cn.fujitsu.com
 
-On Wed, Aug 22, 2012 at 12:00:38AM +0200, Jan Kara wrote:
-> On Mon 23-07-12 22:21:46, Mel Gorman wrote:
-> > Configuration:	global-dhp__io-dbench4-async-ext3
-> > Result: 	http://www.csn.ul.ie/~mel/postings/mmtests-20120424/global-dhp__io-dbench4-async-ext3
-> > Benchmarks:	dbench4
-> > 
-> > Summary
-> > =======
-> > 
-> > In general there was a massive drop in throughput after 3.0. Very broadly
-> > speaking it looks like the Read operation got faster but at the cost of
-> > a big regression in the Flush operation.
->
->   Mel, I had a look into this and it's actually very likely only a
-> configuration issue. In 3.1 ext3 started to default to enabled barriers
-> (barrier=1 in mount options) which is a safer but slower choice. When I set
-> barriers explicitely, I see no performance difference for dbench4 between
-> 3.0 and 3.1.
-> 
+On Wed, Aug 22, 2012 at 04:27:08AM +0200, Sasha Levin wrote:
+> +static int __init nlm_init(void)
+> +{
+> +	hash_init(nlm_files);
+> +	return 0;
+> +}
+> +
+> +module_init(nlm_init);
 
-I've confirmed that disabling barriers fixed it, for one test machine and
-one test at least. I'll reschedule the tests to run with barriers disabled
-at some point in the future. Thanks for tracking it down, I was at least
-two weeks away before I got the chance to even look.
+That's giving me:
 
--- 
-Mel Gorman
-SUSE Labs
+fs/lockd/svcsubs.o: In function `nlm_init':
+/home/bfields/linux-2.6/fs/lockd/svcsubs.c:454: multiple definition of `init_module'
+fs/lockd/svc.o:/home/bfields/linux-2.6/fs/lockd/svc.c:606: first defined here
+make[2]: *** [fs/lockd/lockd.o] Error 1
+make[1]: *** [fs/lockd] Error 2
+make[1]: *** Waiting for unfinished jobs....
+
+--b.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
