@@ -1,151 +1,134 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
-	by kanga.kvack.org (Postfix) with SMTP id C90DB6B0044
-	for <linux-mm@kvack.org>; Wed, 22 Aug 2012 18:27:57 -0400 (EDT)
-Received: by lbon3 with SMTP id n3so74262lbo.14
-        for <linux-mm@kvack.org>; Wed, 22 Aug 2012 15:27:55 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
+	by kanga.kvack.org (Postfix) with SMTP id 7A4726B0044
+	for <linux-mm@kvack.org>; Wed, 22 Aug 2012 18:36:19 -0400 (EDT)
+Date: Thu, 23 Aug 2012 00:35:42 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH 33/36] autonuma: powerpc port
+Message-ID: <20120822223542.GG8107@redhat.com>
+References: <1345647560-30387-1-git-send-email-aarcange@redhat.com>
+ <1345647560-30387-34-git-send-email-aarcange@redhat.com>
+ <1345672907.2617.44.camel@pasglop>
 MIME-Version: 1.0
-In-Reply-To: <503354FF.1070809@parallels.com>
-References: <1343942658-13307-1-git-send-email-yinghan@google.com>
-	<20120803152234.GE8434@dhcp22.suse.cz>
-	<501BF952.7070202@redhat.com>
-	<CALWz4iw6Q500k5qGWaubwLi-3V3qziPuQ98Et9Ay=LS0-PB0dQ@mail.gmail.com>
-	<20120806133324.GD6150@dhcp22.suse.cz>
-	<CALWz4iw2NqQw3FgjM9k6nbMb7k8Gy2khdyL_9NpGM6T7Ma5t3g@mail.gmail.com>
-	<5031EF4C.6070204@parallels.com>
-	<CALWz4izy1zK5ZNZOK+82x-YPa-WdQnJu1Gq=70SDJmOVVrpPwQ@mail.gmail.com>
-	<503354FF.1070809@parallels.com>
-Date: Wed, 22 Aug 2012 15:27:55 -0700
-Message-ID: <CALWz4iwtRzO07pU859CaK4Oz2EgziMvSJWRYDhULQ6ZdtR-4xg@mail.gmail.com>
-Subject: Re: [PATCH V8 1/2] mm: memcg softlimit reclaim rework
-From: Ying Han <yinghan@google.com>
-Content-Type: multipart/alternative; boundary=f46d0401723f1a2f5004c7e241ba
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1345672907.2617.44.camel@pasglop>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: Michal Hocko <mhocko@suse.cz>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hillf Danton <dhillf@gmail.com>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Cc: Vaidyanathan Srinivasan <svaidy@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hillf Danton <dhillf@gmail.com>, Dan Smith <danms@us.ibm.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Srivatsa Vaddagiri <vatsa@linux.vnet.ibm.com>, Christoph Lameter <cl@linux.com>, Alex Shi <alex.shi@intel.com>, Mauricio Faria de Oliveira <mauricfo@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Don Morris <don.morris@hp.com>
 
---f46d0401723f1a2f5004c7e241ba
-Content-Type: text/plain; charset=ISO-8859-1
+On Thu, Aug 23, 2012 at 08:01:47AM +1000, Benjamin Herrenschmidt wrote:
+> On Wed, 2012-08-22 at 16:59 +0200, Andrea Arcangeli wrote:
+> > diff --git a/arch/powerpc/include/asm/pgtable.h b/arch/powerpc/include/asm/pgtable.h
+> > index 2e0e411..5f03079 100644
+> > --- a/arch/powerpc/include/asm/pgtable.h
+> > +++ b/arch/powerpc/include/asm/pgtable.h
+> > @@ -33,10 +33,56 @@ static inline int pte_dirty(pte_t pte)		{ return pte_val(pte) & _PAGE_DIRTY; }
+> >  static inline int pte_young(pte_t pte)		{ return pte_val(pte) & _PAGE_ACCESSED; }
+> >  static inline int pte_file(pte_t pte)		{ return pte_val(pte) & _PAGE_FILE; }
+> >  static inline int pte_special(pte_t pte)	{ return pte_val(pte) & _PAGE_SPECIAL; }
+> > -static inline int pte_present(pte_t pte)	{ return pte_val(pte) & _PAGE_PRESENT; }
+> > +static inline int pte_present(pte_t pte)	{ return pte_val(pte) &
+> > +							(_PAGE_PRESENT|_PAGE_NUMA_PTE); }
+> 
+> Is this absolutely necessary ? (testing two bits). It somewhat changes
+> the semantics of "pte_present" which I don't really like.
 
-On Tue, Aug 21, 2012 at 2:29 AM, Glauber Costa <glommer@parallels.com>wrote:
+I'm actually surprised you don't already check for PROTNONE
+there. Anyway yes this is necessary, the whole concept of NUMA hinting
+page faults is to make the pte not present, and to set another bit (be
+it a reserved bit or PROTNONE doesn't change anything in that
+respect). But another bit replacing _PAGE_PRESENT must exist.
 
-> On 08/20/2012 10:30 PM, Ying Han wrote:
-> > Not exactly. Here reclaiming from root is mainly for "reclaiming from
-> > root's exclusive lru", which links the page includes:
-> > 1. processes running under root
-> > 2. reparented pages from rmdir memcg under root
-> > 3. bypassed pages
-> >
-> > Setting root cgroup's softlimit = 0 has the implication of putting
-> > those pages to likely to reclaim, which works fine. The question is
-> > that if no other memcg is above its softlimit, would it be a problem
-> > to adding a bit extra pressure to root which always is eligible for
-> > softlimit reclaim ( usage is always greater than softlimit).
-> >
-> > As an example, it works fine in our environment since we don't
-> > explicitly put any process under root. Most of  the pages linked in
-> > root lru would be reparented pages which should be reclaimed prior to
-> > others.
->
-> Keep in mind that not all environments will be specialized to the point
-> of having root memcg empty. This basically treats root memcg as a trash
-> bin, and can be very detrimental to use cases where actual memory is
-> present in there.
->
-> It would maybe be better to have all this garbage to go to a separate
-> place, like a shadow garbage memcg, which is invisible to the
-> filesystem, and is always the first to be reclaimed from, in any
-> circumstance.
->
+This change is zero cost at runtime, and 0x1 or 0x3 won't change a
+thing for the CPU.
 
-We can certainly do something like that, and actually we have the *special*
-cgroup setup today in google's environment. It is mainly targeting for
-pages that are allocated not on behalf of applications, but more of
-system maintainess overhead. One example would be kernel thread memory
-charging.
+> >  static inline int pte_none(pte_t pte)		{ return (pte_val(pte) & ~_PTE_NONE_MASK) == 0; }
+> >  static inline pgprot_t pte_pgprot(pte_t pte)	{ return __pgprot(pte_val(pte) & PAGE_PROT_BITS); }
+> >  
+> > +#ifdef CONFIG_AUTONUMA
+> > +static inline int pte_numa(pte_t pte)
+> > +{
+> > +       return (pte_val(pte) &
+> > +               (_PAGE_NUMA_PTE|_PAGE_PRESENT)) == _PAGE_NUMA_PTE;
+> > +}
+> > +
+> > +#endif
+> 
+> Why the ifdef and not anywhere else ?
 
-In this case, it might make sense to put those reparented pages to
-a separate cgroup. However I do wonder with the following questions:
+The generic version is implemented in asm-generic/pgtable.h to avoid dups.
 
-1.  it might only make sense to do that if something else running under
-root. As we know, root is kind of special in memcg where there is no limit
-on it. So I wonder what would be the real life use case to put something
-under root?
+> > diff --git a/arch/powerpc/include/asm/pte-hash64-64k.h b/arch/powerpc/include/asm/pte-hash64-64k.h
+> > index 59247e8..f7e1468 100644
+> > --- a/arch/powerpc/include/asm/pte-hash64-64k.h
+> > +++ b/arch/powerpc/include/asm/pte-hash64-64k.h
+> > @@ -7,6 +7,8 @@
+> >  #define _PAGE_COMBO	0x10000000 /* this is a combo 4k page */
+> >  #define _PAGE_4K_PFN	0x20000000 /* PFN is for a single 4k page */
+> >  
+> > +#define _PAGE_NUMA_PTE 0x40000000 /* Adjust PTE_RPN_SHIFT below */
+> > +
+> >  /* For 64K page, we don't have a separate _PAGE_HASHPTE bit. Instead,
+> >   * we set that to be the whole sub-bits mask. The C code will only
+> >   * test this, so a multi-bit mask will work. For combo pages, this
+> > @@ -36,7 +38,7 @@
+> >   * That gives us a max RPN of 34 bits, which means a max of 50 bits
+> >   * of addressable physical space, or 46 bits for the special 4k PFNs.
+> >   */
+> > -#define PTE_RPN_SHIFT	(30)
+> > +#define PTE_RPN_SHIFT	(31)
+> 
+> I'm concerned. We are already running short on RPN bits. We can't spare
+> more. If you absolutely need a PTE bit, we'll need to explore ways to
+> free some, but just reducing the RPN isn't an option.
 
-2.  even the reparented pages are mixed together with pages from process
-running under root, the LRU mechanism should still take effect of evicting
-cold pages first. if the reparent pages are the left-over pages from the
-removed cgroups, I would assume they are the candidate to reclaim first.
+No way to do it without a spare bit.
 
-I am curious that in your environment, do you have things running root?
+Note that this is now true for sched-numa rewrite as well because it
+also introduced the NUMA hinting page faults of AutoNUMA (except what
+it does during the fault is different there, but the mechanism of
+firing them and the need of a spare pte bit is identical).
 
---Ying
+But you must have a bit for protnone, don't you? You can implement it
+with prot none, I can add the vma as parameter to some function to
+achieve it if you need. It may be good idea to do anyway even if
+there's no need on x86 at this point.
 
---f46d0401723f1a2f5004c7e241ba
-Content-Type: text/html; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+> Think of what happens if PTE_4K_PFN is set...
 
-<br><br><div class=3D"gmail_quote">On Tue, Aug 21, 2012 at 2:29 AM, Glauber=
- Costa <span dir=3D"ltr">&lt;<a href=3D"mailto:glommer@parallels.com" targe=
-t=3D"_blank">glommer@parallels.com</a>&gt;</span> wrote:<br><blockquote cla=
-ss=3D"gmail_quote" style=3D"margin:0 0 0 .8ex;border-left:1px #ccc solid;pa=
-dding-left:1ex">
-<div class=3D"im">On 08/20/2012 10:30 PM, Ying Han wrote:<br>
-&gt; Not exactly. Here reclaiming from root is mainly for &quot;reclaiming =
-from<br>
-&gt; root&#39;s exclusive lru&quot;, which links the page includes:<br>
-&gt; 1. processes running under root<br>
-&gt; 2. reparented pages from rmdir memcg under root<br>
-&gt; 3. bypassed pages<br>
-&gt;<br>
-&gt; Setting root cgroup&#39;s softlimit =3D 0 has the implication of putti=
-ng<br>
-&gt; those pages to likely to reclaim, which works fine. The question is<br=
->
-&gt; that if no other memcg is above its softlimit, would it be a problem<b=
-r>
-&gt; to adding a bit extra pressure to root which always is eligible for<br=
->
-&gt; softlimit reclaim ( usage is always greater than softlimit).<br>
-&gt;<br>
-&gt; As an example, it works fine in our environment since we don&#39;t<br>
-&gt; explicitly put any process under root. Most of =A0the pages linked in<=
-br>
-&gt; root lru would be reparented pages which should be reclaimed prior to<=
-br>
-&gt; others.<br>
-<br>
-</div>Keep in mind that not all environments will be specialized to the poi=
-nt<br>
-of having root memcg empty. This basically treats root memcg as a trash<br>
-bin, and can be very detrimental to use cases where actual memory is<br>
-present in there.<br>
-<br>
-It would maybe be better to have all this garbage to go to a separate<br>
-place, like a shadow garbage memcg, which is invisible to the<br>
-filesystem, and is always the first to be reclaimed from, in any<br>
-circumstance.<br></blockquote><div><br></div><div>We can certainly do somet=
-hing like that, and actually we have the *special* cgroup setup today in go=
-ogle&#39;s=A0environment. It is mainly targeting for pages that are allocat=
-ed not on behalf of applications, but more of=A0</div>
-<div>system=A0maintainess=A0overhead. One example would be kernel thread me=
-mory charging.</div><div><br></div><div>In this case, it might make sense t=
-o put those reparented pages to a=A0separate cgroup. However I do wonder wi=
-th the following questions:</div>
-<div><br></div><div>1. =A0it might only make sense to do that if something =
-else running under root. As we know, root is kind of special in memcg where=
- there is no limit on it. So I wonder what would be the real life use case =
-to put something under root?</div>
-<div><br></div><div>2. =A0even the reparented pages are mixed together with=
- pages from process running under root, the LRU mechanism should still take=
- effect of evicting cold pages first. if the reparent pages are the left-ov=
-er pages from the removed cgroups, I would assume they are the candidate to=
- reclaim first.</div>
-<div><br></div><div>I am curious that in your=A0environment, do you have th=
-ings running root?=A0</div><div><br></div><div>--Ying</div></div><br>
+It may very well broken with PTE_4K_PFN is set, I'm not familiar with
+that. If that's the case we'll just add an option to prevent
+AUTONUMA=y to be set if PTE_4K_PFN is set thanks for the info.
 
---f46d0401723f1a2f5004c7e241ba--
+> Also you conveniently avoided all the other pte-*.h variants meaning you
+> broke the build for everything except ppc64 with 64k pages.
+
+This can only be enabled on PPC64 in KConfig so no problem about
+ppc32.
+
+> > diff --git a/mm/autonuma.c b/mm/autonuma.c
+> > index ada6c57..a4da3f3 100644
+> > --- a/mm/autonuma.c
+> > +++ b/mm/autonuma.c
+> > @@ -25,7 +25,7 @@ unsigned long autonuma_flags __read_mostly =
+> >  #ifdef CONFIG_AUTONUMA_DEFAULT_ENABLED
+> >  	|(1<<AUTONUMA_ENABLED_FLAG)
+> >  #endif
+> > -	|(1<<AUTONUMA_SCAN_PMD_FLAG);
+> > +	|(0<<AUTONUMA_SCAN_PMD_FLAG);
+> 
+> That changes the default accross all architectures, is that ok vs.
+> Andrea ?
+
+:) Indeed! But the next patch (34) undoes this hack. I just merged the
+patch with "git am" and then introduced a proper way for the arch to
+specify if the PMD scan is supported or not in an incremental
+patch. Adding ppc64 support, and making the PMD scan mode arch
+conditional are two separate things so I thought it was cleaner
+keeping those in two separate patches but I can fold them if you
+prefer.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
