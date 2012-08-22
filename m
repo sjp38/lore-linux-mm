@@ -1,86 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
-	by kanga.kvack.org (Postfix) with SMTP id 5CDC96B005D
-	for <linux-mm@kvack.org>; Tue, 21 Aug 2012 21:19:50 -0400 (EDT)
-Date: Tue, 21 Aug 2012 22:19:31 -0300
-From: Rafael Aquini <aquini@redhat.com>
-Subject: Re: [PATCH v8 1/5] mm: introduce a common interface for balloon
- pages mobility
-Message-ID: <20120822011930.GA23753@t510.redhat.com>
-References: <cover.1345519422.git.aquini@redhat.com>
- <e24f3073ef539985dea52943dcb84762213a0857.1345519422.git.aquini@redhat.com>
- <1345562411.23018.111.camel@twins>
- <20120821162432.GG2456@linux.vnet.ibm.com>
- <20120821172819.GA12294@t510.redhat.com>
- <20120821191330.GA8324@redhat.com>
- <20120821192357.GD12294@t510.redhat.com>
- <20120821193031.GC9027@redhat.com>
- <20120821204556.GF12294@t510.redhat.com>
- <20120822000741.GI9027@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120822000741.GI9027@redhat.com>
+Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
+	by kanga.kvack.org (Postfix) with SMTP id 4FD3F6B005D
+	for <linux-mm@kvack.org>; Tue, 21 Aug 2012 22:26:51 -0400 (EDT)
+Received: by obhx4 with SMTP id x4so779582obh.14
+        for <linux-mm@kvack.org>; Tue, 21 Aug 2012 19:26:50 -0700 (PDT)
+From: Sasha Levin <levinsasha928@gmail.com>
+Subject: [PATCH v3 00/17] generic hashtable implementation
+Date: Wed, 22 Aug 2012 04:26:55 +0200
+Message-Id: <1345602432-27673-1-git-send-email-levinsasha928@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Michael S. Tsirkin" <mst@redhat.com>
-Cc: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Peter Zijlstra <peterz@infradead.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, Rusty Russell <rusty@rustcorp.com.au>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Minchan Kim <minchan@kernel.org>
+To: torvalds@linux-foundation.org
+Cc: tj@kernel.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, paul.gortmaker@windriver.com, davem@davemloft.net, rostedt@goodmis.org, mingo@elte.hu, ebiederm@xmission.com, aarcange@redhat.com, ericvh@gmail.com, netdev@vger.kernel.org, josh@joshtriplett.org, eric.dumazet@gmail.com, mathieu.desnoyers@efficios.com, axboe@kernel.dk, agk@redhat.com, dm-devel@redhat.com, neilb@suse.de, ccaulfie@redhat.com, teigland@redhat.com, Trond.Myklebust@netapp.com, bfields@fieldses.org, fweisbec@gmail.com, jesse@nicira.com, venkat.x.venkatsubra@oracle.com, ejt@redhat.com, snitzer@redhat.com, edumazet@google.com, linux-nfs@vger.kernel.org, dev@openvswitch.org, rds-devel@oss.oracle.com, lw@cn.fujitsu.com, Sasha Levin <levinsasha928@gmail.com>
 
-On Wed, Aug 22, 2012 at 03:07:41AM +0300, Michael S. Tsirkin wrote:
-> On Tue, Aug 21, 2012 at 05:45:56PM -0300, Rafael Aquini wrote:
-> > On Tue, Aug 21, 2012 at 10:30:31PM +0300, Michael S. Tsirkin wrote:
-> > > On Tue, Aug 21, 2012 at 04:23:58PM -0300, Rafael Aquini wrote:
-> > > > On Tue, Aug 21, 2012 at 10:13:30PM +0300, Michael S. Tsirkin wrote:
-> > > > > > 
-> > > > > > I believe rcu_dereference_protected() is what I want/need here, since this code
-> > > > > > is always called for pages which we hold locked (PG_locked bit).
-> > > > > 
-> > > > > It would only help if we locked the page while updating the mapping,
-> > > > > as far as I can see we don't.
-> > > > >
-> > > > 
-> > > > But we can do it. In fact, by doing it (locking the page) we can easily avoid
-> > > > the nasty race balloon_isolate_page / leak_balloon, in a much simpler way, IMHO.
-> > > 
-> > > Absolutely. Further, we should look hard at whether most RCU uses
-> > > in this patchset can be replaced with page lock.
-> > >
-> > 
-> > Yeah, In fact, by testing/grabbing the page lock at leak_balloon() even the
-> > module unload X migration / putback race seems to fade away, since migration
-> > code holds the page locked all the way.
-> > And that seems a quite easy task to be accomplished:
-> > 
-> > ....
-> > @@ -169,21 +197,61 @@ static void leak_balloon(struct virtio_balloon *vb, size_t
-> > num)
-> >         /* We can only do one array worth at a time. */
-> >         num = min(num, ARRAY_SIZE(vb->pfns));
-> > 
-> > +       mutex_lock(&vb->balloon_lock);
-> >         for (vb->num_pfns = 0; vb->num_pfns < num;
-> >              vb->num_pfns += VIRTIO_BALLOON_PAGES_PER_PAGE) {
-> > +               spin_lock(&vb->pages_lock);
-> > +               /*
-> > +                * 'virtballoon_isolatepage()' can drain vb->pages list
-> > +                * making us to stumble across a _temporarily_ empty list.
-> 
-> This still worries me. If this happens we do not
-> lock the page so module can go away?
-> if not need to document why.
->
-The module won't unload unless it leaks all its pages. If we hit that test that
-worries you, leak_balloon() will get back to its caller -- remove_common(), and
-it will kept looping at:
+There are quite a few places in the kernel which implement a hashtable
+in a very similar way. Instead of having implementations of a hashtable
+all over the kernel, we can re-use the code.
 
-        /* There might be pages left in the balloon: free them. */
-        while (vb->num_pages)
-                leak_balloon(vb, vb->num_pages);
+Since it looks like all the major issues we're addressed in the RFC phase
+and no major issues were raised with this patch set, I'd be happy to see
+this getting merged so that work could continue on different aspects of
+the hashtable. Some interesting directions include:
 
-This is true because we do not mess with vb->num_pages while isolating/migrating
-balloon pages, so the module will only unload when all isolated pages get back
-to vb->pages_list and leak_balloon() reap them appropriatelly. As we will be
-doing isolation/migration/putback steps under 'page lock' that race is gone.
+ - Introducing a dynamic RCU hashtable such as the one Mathieu Desnoyers
+ wrote about out in the userspace RCU.
+
+ - Replacing the rest of the the kernel structures which use the same basec
+ hashtable construct to use this new interface.
+
+ - Same as above, but for non-obvious places (for example, I'm looking into
+ using the hashtable to store KVM vcpus instead of the linked list being used
+ there now - this should help performance with a large amount of vcpus).
+
+
+Changes since v2:
+ - Documentation improvements from Mathieu Desnoyers.
+ - Converted the SUNRPC audit code to use hashtables as well. Since that code
+ requires a dynamic hashtable this shows off the _size() API usage.
+
+Changes since v1:
+
+ - Added missing hash_init in rds and lockd.
+ - Addressed the userns comments by Eric Biederman.
+ - Ran a small test to confirm hash_32 does a good job for low key
+ values (1-10000), which showed it did - this resulted in no changes to the
+ code.
+
+Sasha Levin (17):
+  hashtable: introduce a small and naive hashtable
+  userns: use new hashtable implementation
+  mm,ksm: use new hashtable implementation
+  workqueue: use new hashtable implementation
+  mm/huge_memory: use new hashtable implementation
+  tracepoint: use new hashtable implementation
+  net,9p: use new hashtable implementation
+  block,elevator: use new hashtable implementation
+  SUNRPC/cache: use new hashtable implementation
+  dlm: use new hashtable implementation
+  net,l2tp: use new hashtable implementation
+  dm: use new hashtable implementation
+  lockd: use new hashtable implementation
+  net,rds: use new hashtable implementation
+  openvswitch: use new hashtable implementation
+  tracing output: use new hashtable implementation
+  SUNRPC: use new hashtable implementation in auth
+
+ block/blk.h                                        |    2 +-
+ block/elevator.c                                   |   23 +--
+ drivers/md/dm-snap.c                               |   24 +--
+ drivers/md/persistent-data/dm-block-manager.c      |    1 -
+ .../persistent-data/dm-persistent-data-internal.h  |   19 --
+ .../md/persistent-data/dm-transaction-manager.c    |   30 +--
+ fs/dlm/lowcomms.c                                  |   47 +---
+ fs/lockd/svcsubs.c                                 |   66 +++--
+ include/linux/elevator.h                           |    5 +-
+ include/linux/hashtable.h                          |  291 ++++++++++++++++++++
+ kernel/trace/trace_output.c                        |   20 +-
+ kernel/tracepoint.c                                |   27 +-
+ kernel/user.c                                      |   33 +--
+ kernel/workqueue.c                                 |   86 +-----
+ mm/huge_memory.c                                   |   57 +---
+ mm/ksm.c                                           |   33 +--
+ net/9p/error.c                                     |   21 +-
+ net/l2tp/l2tp_core.c                               |  134 ++++------
+ net/l2tp/l2tp_core.h                               |    8 +-
+ net/l2tp/l2tp_debugfs.c                            |   19 +-
+ net/openvswitch/vport.c                            |   30 +--
+ net/rds/bind.c                                     |   28 ++-
+ net/rds/connection.c                               |  102 +++----
+ net/sunrpc/auth.c                                  |   45 ++--
+ net/sunrpc/cache.c                                 |   20 +-
+ 25 files changed, 617 insertions(+), 554 deletions(-)
+ delete mode 100644 drivers/md/persistent-data/dm-persistent-data-internal.h
+ create mode 100644 include/linux/hashtable.h
+
+-- 
+1.7.8.6
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
