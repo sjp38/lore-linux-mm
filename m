@@ -1,112 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
-	by kanga.kvack.org (Postfix) with SMTP id 9F48E6B005D
-	for <linux-mm@kvack.org>; Wed, 22 Aug 2012 08:53:20 -0400 (EDT)
-From: Hiroshi Doyu <hdoyu@nvidia.com>
-Date: Wed, 22 Aug 2012 14:52:28 +0200
-Subject: Re: [RFC 2/4] ARM: dma-mapping: IOMMU allocates pages from pool
- with GFP_ATOMIC
-Message-ID: <20120822.155228.1203479129187316092.hdoyu@nvidia.com>
-References: <1345630830-9586-1-git-send-email-hdoyu@nvidia.com><1345630830-9586-3-git-send-email-hdoyu@nvidia.com><005a01cd8061$d58998c0$809cca40$%szyprowski@samsung.com>
-In-Reply-To: <005a01cd8061$d58998c0$809cca40$%szyprowski@samsung.com>
-Content-Type: text/plain; charset="iso-8859-1"
-Content-Transfer-Encoding: quoted-printable
+Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
+	by kanga.kvack.org (Postfix) with SMTP id BBF126B005D
+	for <linux-mm@kvack.org>; Wed, 22 Aug 2012 09:12:35 -0400 (EDT)
+Date: Wed, 22 Aug 2012 09:12:25 -0400
+From: "J. Bruce Fields" <bfields@fieldses.org>
+Subject: Re: [PATCH v3 13/17] lockd: use new hashtable implementation
+Message-ID: <20120822131225.GD20158@fieldses.org>
+References: <1345602432-27673-1-git-send-email-levinsasha928@gmail.com>
+ <1345602432-27673-14-git-send-email-levinsasha928@gmail.com>
+ <20120822114752.GC20158@fieldses.org>
+ <5034CD02.2010103@gmail.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <5034CD02.2010103@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "m.szyprowski@samsung.com" <m.szyprowski@samsung.com>
-Cc: "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linaro-mm-sig@lists.linaro.org" <linaro-mm-sig@lists.linaro.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "kyungmin.park@samsung.com" <kyungmin.park@samsung.com>, "arnd@arndb.de" <arnd@arndb.de>, "linux@arm.linux.org.uk" <linux@arm.linux.org.uk>, "chunsang.jeong@linaro.org" <chunsang.jeong@linaro.org>, Krishna Reddy <vdumpa@nvidia.com>, "konrad.wilk@oracle.com" <konrad.wilk@oracle.com>, "subashrp@gmail.com" <subashrp@gmail.com>, "minchan@kernel.org" <minchan@kernel.org>
+To: Sasha Levin <levinsasha928@gmail.com>
+Cc: torvalds@linux-foundation.org, tj@kernel.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, paul.gortmaker@windriver.com, davem@davemloft.net, rostedt@goodmis.org, mingo@elte.hu, ebiederm@xmission.com, aarcange@redhat.com, ericvh@gmail.com, netdev@vger.kernel.org, josh@joshtriplett.org, eric.dumazet@gmail.com, mathieu.desnoyers@efficios.com, axboe@kernel.dk, agk@redhat.com, dm-devel@redhat.com, neilb@suse.de, ccaulfie@redhat.com, teigland@redhat.com, Trond.Myklebust@netapp.com, fweisbec@gmail.com, jesse@nicira.com, venkat.x.venkatsubra@oracle.com, ejt@redhat.com, snitzer@redhat.com, edumazet@google.com, linux-nfs@vger.kernel.org, dev@openvswitch.org, rds-devel@oss.oracle.com, lw@cn.fujitsu.com
 
-Marek Szyprowski <m.szyprowski@samsung.com> wrote @ Wed, 22 Aug 2012 14:29:=
-47 +0200:
+On Wed, Aug 22, 2012 at 02:13:54PM +0200, Sasha Levin wrote:
+> On 08/22/2012 01:47 PM, J. Bruce Fields wrote:
+> > On Wed, Aug 22, 2012 at 04:27:08AM +0200, Sasha Levin wrote:
+> >> +static int __init nlm_init(void)
+> >> +{
+> >> +	hash_init(nlm_files);
+> >> +	return 0;
+> >> +}
+> >> +
+> >> +module_init(nlm_init);
+> > 
+> > That's giving me:
+> > 
+> > fs/lockd/svcsubs.o: In function `nlm_init':
+> > /home/bfields/linux-2.6/fs/lockd/svcsubs.c:454: multiple definition of `init_module'
+> > fs/lockd/svc.o:/home/bfields/linux-2.6/fs/lockd/svc.c:606: first defined here
+> > make[2]: *** [fs/lockd/lockd.o] Error 1
+> > make[1]: *** [fs/lockd] Error 2
+> > make[1]: *** Waiting for unfinished jobs....
+> 
+> I tested this entire patch set both with linux-next and Linus' latest master,
+> and it worked fine in both places.
+> 
+> Is it possible that lockd has a -next tree which isn't pulled into linux-next?
+> (there's nothing listed in MAINTAINERS that I could see).
 
-> Hello,
->=20
-> On Wednesday, August 22, 2012 12:20 PM Hiroshi Doyu wrote:
->=20
-> > Makes use of the same atomic pool from DMA, and skips kernel page
-> > mapping which can involves sleep'able operation at allocating a kernel
-> > page table.
-> >=20
-> > Signed-off-by: Hiroshi Doyu <hdoyu@nvidia.com>
-> > ---
-> >  arch/arm/mm/dma-mapping.c |   22 ++++++++++++++++++----
-> >  1 files changed, 18 insertions(+), 4 deletions(-)
-> >=20
-> > diff --git a/arch/arm/mm/dma-mapping.c b/arch/arm/mm/dma-mapping.c
-> > index aec0c06..9260107 100644
-> > --- a/arch/arm/mm/dma-mapping.c
-> > +++ b/arch/arm/mm/dma-mapping.c
-> > @@ -1028,7 +1028,6 @@ static struct page **__iommu_alloc_buffer(struct =
-device *dev, size_t
-> > size,
-> >  	struct page **pages;
-> >  	int count =3D size >> PAGE_SHIFT;
-> >  	int array_size =3D count * sizeof(struct page *);
-> > -	int err;
-> >=20
-> >  	if (array_size <=3D PAGE_SIZE)
-> >  		pages =3D kzalloc(array_size, gfp);
-> > @@ -1037,9 +1036,20 @@ static struct page **__iommu_alloc_buffer(struct=
- device *dev, size_t
-> > size,
-> >  	if (!pages)
-> >  		return NULL;
-> >=20
-> > -	err =3D __alloc_fill_pages(&pages, count, gfp);
-> > -	if (err)
-> > -		goto error
-> > +	if (gfp & GFP_ATOMIC) {
-> > +		struct page *page;
-> > +		int i;
-> > +		void *addr =3D __alloc_from_pool(size, &page);
-> > +		if (!addr)
-> > +			goto err_out;
-> > +
-> > +		for (i =3D 0; i < count; i++)
-> > +			pages[i] =3D page + i;
-> > +	} else {
-> > +		int err =3D __alloc_fill_pages(&pages, count, gfp);
-> > +		if (err)
-> > +			goto error;
-> > +	}
-> >=20
-> >  	return pages;
-> >  error:
-> > @@ -1055,6 +1065,10 @@ static int __iommu_free_buffer(struct device *de=
-v, struct page **pages,
-> > size_t s
-> >  	int count =3D size >> PAGE_SHIFT;
-> >  	int array_size =3D count * sizeof(struct page *);
-> >  	int i;
-> > +
-> > +	if (__free_from_pool(page_address(pages[0]), size))
-> > +		return 0;
->=20
-> You leak memory here. pages array should be also freed.
+No, there's the same problem with Linus's latest.
 
-Right, I'll fix as below:
+I'm applying just patches 1 and 13--but doesn't look like your earlier
+patches touch lockd.
 
-	Modified arch/arm/mm/dma-mapping.c
-diff --git a/arch/arm/mm/dma-mapping.c b/arch/arm/mm/dma-mapping.c
-index 47c4978..4656c0f 100644
---- a/arch/arm/mm/dma-mapping.c
-+++ b/arch/arm/mm/dma-mapping.c
-@@ -1121,11 +1121,12 @@ static int __iommu_free_buffer(struct device *dev, =
-struct page **pages, size_t s
- 	int i;
-=20
- 	if (__free_from_pool(page_address(pages[0]), size))
--		return 0;
-+		goto out;
-=20
- 	for (i =3D 0; i < count; i++)
- 		if (pages[i])
- 			__free_pages(pages[i], 0);
-+out:
- 	if (array_size <=3D PAGE_SIZE)
- 		kfree(pages);
- 	else
+Are you actually building lockd?  (CONFIG_LOCKD).
+
+--b.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
