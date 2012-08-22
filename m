@@ -1,87 +1,151 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
-	by kanga.kvack.org (Postfix) with SMTP id 3F5EE6B0068
-	for <linux-mm@kvack.org>; Wed, 22 Aug 2012 18:20:13 -0400 (EDT)
-Date: Thu, 23 Aug 2012 00:19:31 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 00/36] AutoNUMA24
-Message-ID: <20120822221931.GE8107@redhat.com>
-References: <1345647560-30387-1-git-send-email-aarcange@redhat.com>
- <5035325C.3070909@redhat.com>
- <20120822214048.GA3092@gmail.com>
+Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
+	by kanga.kvack.org (Postfix) with SMTP id C90DB6B0044
+	for <linux-mm@kvack.org>; Wed, 22 Aug 2012 18:27:57 -0400 (EDT)
+Received: by lbon3 with SMTP id n3so74262lbo.14
+        for <linux-mm@kvack.org>; Wed, 22 Aug 2012 15:27:55 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120822214048.GA3092@gmail.com>
+In-Reply-To: <503354FF.1070809@parallels.com>
+References: <1343942658-13307-1-git-send-email-yinghan@google.com>
+	<20120803152234.GE8434@dhcp22.suse.cz>
+	<501BF952.7070202@redhat.com>
+	<CALWz4iw6Q500k5qGWaubwLi-3V3qziPuQ98Et9Ay=LS0-PB0dQ@mail.gmail.com>
+	<20120806133324.GD6150@dhcp22.suse.cz>
+	<CALWz4iw2NqQw3FgjM9k6nbMb7k8Gy2khdyL_9NpGM6T7Ma5t3g@mail.gmail.com>
+	<5031EF4C.6070204@parallels.com>
+	<CALWz4izy1zK5ZNZOK+82x-YPa-WdQnJu1Gq=70SDJmOVVrpPwQ@mail.gmail.com>
+	<503354FF.1070809@parallels.com>
+Date: Wed, 22 Aug 2012 15:27:55 -0700
+Message-ID: <CALWz4iwtRzO07pU859CaK4Oz2EgziMvSJWRYDhULQ6ZdtR-4xg@mail.gmail.com>
+Subject: Re: [PATCH V8 1/2] mm: memcg softlimit reclaim rework
+From: Ying Han <yinghan@google.com>
+Content-Type: multipart/alternative; boundary=f46d0401723f1a2f5004c7e241ba
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>
-Cc: Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hillf Danton <dhillf@gmail.com>, Dan Smith <danms@us.ibm.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Johannes Weiner <hannes@cmpxchg.org>, Srivatsa Vaddagiri <vatsa@linux.vnet.ibm.com>, Christoph Lameter <cl@linux.com>, Alex Shi <alex.shi@intel.com>, Mauricio Faria de Oliveira <mauricfo@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Don Morris <don.morris@hp.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
+To: Glauber Costa <glommer@parallels.com>
+Cc: Michal Hocko <mhocko@suse.cz>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hillf Danton <dhillf@gmail.com>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 
-On Wed, Aug 22, 2012 at 11:40:48PM +0200, Ingo Molnar wrote:
-> 
-> * Rik van Riel <riel@redhat.com> wrote:
-> 
-> > On 08/22/2012 10:58 AM, Andrea Arcangeli wrote:
-> > >Hello everyone,
-> > >
-> > >Before the Kernel Summit, I think it's good idea to post a new
-> > >AutoNUMA24 and to go through a new review cycle. The last review cycle
-> > >has been fundamental in improving the patchset. Thanks!
-> > 
-> > Thanks for improving the code and incorporating all our 
-> > feedback. The AutoNUMA codebase is now in a state where I can 
-> > live with it.
-> > 
-> > I hope the code will be acceptable to others, too.
-> 
-> Lots of scheduler changes. Has all of peterz's review feedback 
-> been addressed?
+--f46d0401723f1a2f5004c7e241ba
+Content-Type: text/plain; charset=ISO-8859-1
 
-git diff --stat origin kernel/sched/
- kernel/sched/Makefile |    1 +
- kernel/sched/core.c   |    1 +
- kernel/sched/fair.c   |   86 ++++++-
- kernel/sched/numa.c   |  604 +++++++++++++++++++++++++++++++++++++++++++++++++
- kernel/sched/sched.h  |   19 ++
- 5 files changed, 699 insertions(+), 12 deletions(-)
+On Tue, Aug 21, 2012 at 2:29 AM, Glauber Costa <glommer@parallels.com>wrote:
 
-Lots of scheduler changes only if CONFIG_AUTONUMA=y. If
-CONFIG_AUTONUMA=n it's just 107 lines of scheduler changes (numa.c
-won't get built in that case).
+> On 08/20/2012 10:30 PM, Ying Han wrote:
+> > Not exactly. Here reclaiming from root is mainly for "reclaiming from
+> > root's exclusive lru", which links the page includes:
+> > 1. processes running under root
+> > 2. reparented pages from rmdir memcg under root
+> > 3. bypassed pages
+> >
+> > Setting root cgroup's softlimit = 0 has the implication of putting
+> > those pages to likely to reclaim, which works fine. The question is
+> > that if no other memcg is above its softlimit, would it be a problem
+> > to adding a bit extra pressure to root which always is eligible for
+> > softlimit reclaim ( usage is always greater than softlimit).
+> >
+> > As an example, it works fine in our environment since we don't
+> > explicitly put any process under root. Most of  the pages linked in
+> > root lru would be reparented pages which should be reclaimed prior to
+> > others.
+>
+> Keep in mind that not all environments will be specialized to the point
+> of having root memcg empty. This basically treats root memcg as a trash
+> bin, and can be very detrimental to use cases where actual memory is
+> present in there.
+>
+> It would maybe be better to have all this garbage to go to a separate
+> place, like a shadow garbage memcg, which is invisible to the
+> filesystem, and is always the first to be reclaimed from, in any
+> circumstance.
+>
 
-> Hm, he isn't even Cc:-ed, how is that supposed to work?
+We can certainly do something like that, and actually we have the *special*
+cgroup setup today in google's environment. It is mainly targeting for
+pages that are allocated not on behalf of applications, but more of
+system maintainess overhead. One example would be kernel thread memory
+charging.
 
-I separately forwarded him the announcement email because I wanted to
-add a few more (minor) details for him. Of course Peter's review is
-fundamental and appreciated and already helped to make the code a lot
-better.
+In this case, it might make sense to put those reparented pages to
+a separate cgroup. However I do wonder with the following questions:
 
-His previous comments should have been addressed, the documentation of
-sched_autonuma_balance has been rewritten from scratch,
-PF_THREAD_BOUND is gone, etc... It's possible we'll have to go through
-more rewrites of the docs if this still isn't good enough. I don't
-know yet. This is what the review is about after all :).
+1.  it might only make sense to do that if something else running under
+root. As we know, root is kind of special in memcg where there is no limit
+on it. So I wonder what would be the real life use case to put something
+under root?
 
-numa.c is self contained but I see it as a plus that it's self
-contained. First it's easy to nuke AutoNUMA by just deleting the .[ch]
-files and fixing up the build errors as result in case a better
-algorithm emerges in the future. Second it's trivial to proof those 107
-lines won't regress CFS when CONFIG_AUTONUMA=n.
+2.  even the reparented pages are mixed together with pages from process
+running under root, the LRU mechanism should still take effect of evicting
+cold pages first. if the reparent pages are the left-over pages from the
+removed cgroups, I would assume they are the candidate to reclaim first.
 
-About the CFS integration: sched_autonuma_balance() is simply yet
-another idle active load balancing method.
+I am curious that in your environment, do you have things running root?
 
-The idle active load balancing that with hyperthreading takes care of
-distributing the threads to be sure to fill all idle cores, in
-principle works identical to AutoNUMA. It also works side by side with
-CFS and moves tasks under CFS control (without CFS possibly noticing)
-to optimize for HT. numa.c in principle does the exact same thing (and
-it also calls the very same stop_one_cpu_nowait to do the migrations)
-but it optimizes for NUMA instead of HT.
+--Ying
 
-Thanks,
-Andrea
+--f46d0401723f1a2f5004c7e241ba
+Content-Type: text/html; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
+
+<br><br><div class=3D"gmail_quote">On Tue, Aug 21, 2012 at 2:29 AM, Glauber=
+ Costa <span dir=3D"ltr">&lt;<a href=3D"mailto:glommer@parallels.com" targe=
+t=3D"_blank">glommer@parallels.com</a>&gt;</span> wrote:<br><blockquote cla=
+ss=3D"gmail_quote" style=3D"margin:0 0 0 .8ex;border-left:1px #ccc solid;pa=
+dding-left:1ex">
+<div class=3D"im">On 08/20/2012 10:30 PM, Ying Han wrote:<br>
+&gt; Not exactly. Here reclaiming from root is mainly for &quot;reclaiming =
+from<br>
+&gt; root&#39;s exclusive lru&quot;, which links the page includes:<br>
+&gt; 1. processes running under root<br>
+&gt; 2. reparented pages from rmdir memcg under root<br>
+&gt; 3. bypassed pages<br>
+&gt;<br>
+&gt; Setting root cgroup&#39;s softlimit =3D 0 has the implication of putti=
+ng<br>
+&gt; those pages to likely to reclaim, which works fine. The question is<br=
+>
+&gt; that if no other memcg is above its softlimit, would it be a problem<b=
+r>
+&gt; to adding a bit extra pressure to root which always is eligible for<br=
+>
+&gt; softlimit reclaim ( usage is always greater than softlimit).<br>
+&gt;<br>
+&gt; As an example, it works fine in our environment since we don&#39;t<br>
+&gt; explicitly put any process under root. Most of =A0the pages linked in<=
+br>
+&gt; root lru would be reparented pages which should be reclaimed prior to<=
+br>
+&gt; others.<br>
+<br>
+</div>Keep in mind that not all environments will be specialized to the poi=
+nt<br>
+of having root memcg empty. This basically treats root memcg as a trash<br>
+bin, and can be very detrimental to use cases where actual memory is<br>
+present in there.<br>
+<br>
+It would maybe be better to have all this garbage to go to a separate<br>
+place, like a shadow garbage memcg, which is invisible to the<br>
+filesystem, and is always the first to be reclaimed from, in any<br>
+circumstance.<br></blockquote><div><br></div><div>We can certainly do somet=
+hing like that, and actually we have the *special* cgroup setup today in go=
+ogle&#39;s=A0environment. It is mainly targeting for pages that are allocat=
+ed not on behalf of applications, but more of=A0</div>
+<div>system=A0maintainess=A0overhead. One example would be kernel thread me=
+mory charging.</div><div><br></div><div>In this case, it might make sense t=
+o put those reparented pages to a=A0separate cgroup. However I do wonder wi=
+th the following questions:</div>
+<div><br></div><div>1. =A0it might only make sense to do that if something =
+else running under root. As we know, root is kind of special in memcg where=
+ there is no limit on it. So I wonder what would be the real life use case =
+to put something under root?</div>
+<div><br></div><div>2. =A0even the reparented pages are mixed together with=
+ pages from process running under root, the LRU mechanism should still take=
+ effect of evicting cold pages first. if the reparent pages are the left-ov=
+er pages from the removed cgroups, I would assume they are the candidate to=
+ reclaim first.</div>
+<div><br></div><div>I am curious that in your=A0environment, do you have th=
+ings running root?=A0</div><div><br></div><div>--Ying</div></div><br>
+
+--f46d0401723f1a2f5004c7e241ba--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
