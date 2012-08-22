@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx176.postini.com [74.125.245.176])
-	by kanga.kvack.org (Postfix) with SMTP id E76DC6B0068
-	for <linux-mm@kvack.org>; Wed, 22 Aug 2012 06:20:55 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
+	by kanga.kvack.org (Postfix) with SMTP id 19CFA6B0069
+	for <linux-mm@kvack.org>; Wed, 22 Aug 2012 06:21:06 -0400 (EDT)
 From: Hiroshi Doyu <hdoyu@nvidia.com>
-Subject: [RFC 4/4] ARM: dma-mapping: dma_{alloc,free}_coherent with empty attrs
-Date: Wed, 22 Aug 2012 13:20:30 +0300
-Message-ID: <1345630830-9586-5-git-send-email-hdoyu@nvidia.com>
+Subject: [RFC 2/4] ARM: dma-mapping: IOMMU allocates pages from pool with GFP_ATOMIC
+Date: Wed, 22 Aug 2012 13:20:28 +0300
+Message-ID: <1345630830-9586-3-git-send-email-hdoyu@nvidia.com>
 In-Reply-To: <1345630830-9586-1-git-send-email-hdoyu@nvidia.com>
 References: <1345630830-9586-1-git-send-email-hdoyu@nvidia.com>
 MIME-Version: 1.0
@@ -15,71 +15,62 @@ List-ID: <linux-mm.kvack.org>
 To: Marek Szyprowski <m.szyprowski@samsung.com>
 Cc: Hiroshi Doyu <hdoyu@nvidia.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linaro-mm-sig@lists.linaro.org" <linaro-mm-sig@lists.linaro.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "kyungmin.park@samsung.com" <kyungmin.park@samsung.com>, "arnd@arndb.de" <arnd@arndb.de>, "linux@arm.linux.org.uk" <linux@arm.linux.org.uk>, "chunsang.jeong@linaro.org" <chunsang.jeong@linaro.org>, Krishna Reddy <vdumpa@nvidia.com>, "konrad.wilk@oracle.com" <konrad.wilk@oracle.com>, "subashrp@gmail.com" <subashrp@gmail.com>, "minchan@kernel.org" <minchan@kernel.org>
 
-There's possibility that this attrs be used later to set.
+Makes use of the same atomic pool from DMA, and skips kernel page
+mapping which can involves sleep'able operation at allocating a kernel
+page table.
 
 Signed-off-by: Hiroshi Doyu <hdoyu@nvidia.com>
 ---
- arch/arm/include/asm/dma-mapping.h |   21 +++++++++++++++++----
- 1 files changed, 17 insertions(+), 4 deletions(-)
+ arch/arm/mm/dma-mapping.c |   22 ++++++++++++++++++----
+ 1 files changed, 18 insertions(+), 4 deletions(-)
 
-diff --git a/arch/arm/include/asm/dma-mapping.h b/arch/arm/include/asm/dma-mapping.h
-index c27d855..96b67c7 100644
---- a/arch/arm/include/asm/dma-mapping.h
-+++ b/arch/arm/include/asm/dma-mapping.h
-@@ -125,8 +125,6 @@ extern int dma_supported(struct device *dev, u64 mask);
- extern void *arm_dma_alloc(struct device *dev, size_t size, dma_addr_t *handle,
- 			   gfp_t gfp, struct dma_attrs *attrs);
+diff --git a/arch/arm/mm/dma-mapping.c b/arch/arm/mm/dma-mapping.c
+index aec0c06..9260107 100644
+--- a/arch/arm/mm/dma-mapping.c
++++ b/arch/arm/mm/dma-mapping.c
+@@ -1028,7 +1028,6 @@ static struct page **__iommu_alloc_buffer(struct device *dev, size_t size,
+ 	struct page **pages;
+ 	int count = size >> PAGE_SHIFT;
+ 	int array_size = count * sizeof(struct page *);
+-	int err;
  
--#define dma_alloc_coherent(d, s, h, f) dma_alloc_attrs(d, s, h, f, NULL)
--
- static inline void *dma_alloc_attrs(struct device *dev, size_t size,
- 				       dma_addr_t *dma_handle, gfp_t flag,
- 				       struct dma_attrs *attrs)
-@@ -135,11 +133,21 @@ static inline void *dma_alloc_attrs(struct device *dev, size_t size,
- 	void *cpu_addr;
- 	BUG_ON(!ops);
+ 	if (array_size <= PAGE_SIZE)
+ 		pages = kzalloc(array_size, gfp);
+@@ -1037,9 +1036,20 @@ static struct page **__iommu_alloc_buffer(struct device *dev, size_t size,
+ 	if (!pages)
+ 		return NULL;
  
-+	if (flag & GFP_ATOMIC)
-+		dma_set_attr(DMA_ATTR_NO_KERNEL_MAPPING, attrs);
+-	err = __alloc_fill_pages(&pages, count, gfp);
+-	if (err)
+-		goto error
++	if (gfp & GFP_ATOMIC) {
++		struct page *page;
++		int i;
++		void *addr = __alloc_from_pool(size, &page);
++		if (!addr)
++			goto err_out;
 +
- 	cpu_addr = ops->alloc(dev, size, dma_handle, flag, attrs);
- 	debug_dma_alloc_coherent(dev, size, *dma_handle, cpu_addr);
- 	return cpu_addr;
- }
++		for (i = 0; i < count; i++)
++			pages[i] = page + i;
++	} else {
++		int err = __alloc_fill_pages(&pages, count, gfp);
++		if (err)
++			goto error;
++	}
  
-+static inline void *dma_alloc_coherent(struct device *dev, size_t size,
-+				       dma_addr_t *dma_handle, gfp_t flag)
-+{
-+	DEFINE_DMA_ATTRS(attrs);
-+	return dma_alloc_attrs(dev, size, dma_handle, flag, &attrs);
-+}
+ 	return pages;
+ error:
+@@ -1055,6 +1065,10 @@ static int __iommu_free_buffer(struct device *dev, struct page **pages, size_t s
+ 	int count = size >> PAGE_SHIFT;
+ 	int array_size = count * sizeof(struct page *);
+ 	int i;
 +
- /**
-  * arm_dma_free - free memory allocated by arm_dma_alloc
-  * @dev: valid struct device pointer, or NULL for ISA and EISA-like devices
-@@ -157,8 +165,6 @@ static inline void *dma_alloc_attrs(struct device *dev, size_t size,
- extern void arm_dma_free(struct device *dev, size_t size, void *cpu_addr,
- 			 dma_addr_t handle, struct dma_attrs *attrs);
- 
--#define dma_free_coherent(d, s, c, h) dma_free_attrs(d, s, c, h, NULL)
--
- static inline void dma_free_attrs(struct device *dev, size_t size,
- 				     void *cpu_addr, dma_addr_t dma_handle,
- 				     struct dma_attrs *attrs)
-@@ -170,6 +176,13 @@ static inline void dma_free_attrs(struct device *dev, size_t size,
- 	ops->free(dev, size, cpu_addr, dma_handle, attrs);
- }
- 
-+static inline void dma_free_coherent(struct device *dev, size_t size,
-+				     void *cpu_addr, dma_addr_t dma_handle)
-+{
-+	DEFINE_DMA_ATTRS(attrs);
-+	return dma_free_attrs(dev, size, cpu_addr, dma_handle, &attrs);
-+}
++	if (__free_from_pool(page_address(pages[0]), size))
++		return 0;
 +
- /**
-  * arm_dma_mmap - map a coherent DMA allocation into user space
-  * @dev: valid struct device pointer, or NULL for ISA and EISA-like devices
+ 	for (i = 0; i < count; i++)
+ 		if (pages[i])
+ 			__free_pages(pages[i], 0);
 -- 
 1.7.5.4
 
