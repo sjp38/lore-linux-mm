@@ -1,97 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx110.postini.com [74.125.245.110])
-	by kanga.kvack.org (Postfix) with SMTP id 38EEA6B005D
-	for <linux-mm@kvack.org>; Tue, 21 Aug 2012 21:12:22 -0400 (EDT)
-Date: Wed, 22 Aug 2012 03:12:13 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: mm: kernel BUG at mm/memory.c:1230
-Message-ID: <20120822011213.GM29978@redhat.com>
-References: <1337884054.3292.22.camel@lappy>
- <20120524120727.6eab2f97.akpm@linux-foundation.org>
+Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
+	by kanga.kvack.org (Postfix) with SMTP id 5CDC96B005D
+	for <linux-mm@kvack.org>; Tue, 21 Aug 2012 21:19:50 -0400 (EDT)
+Date: Tue, 21 Aug 2012 22:19:31 -0300
+From: Rafael Aquini <aquini@redhat.com>
+Subject: Re: [PATCH v8 1/5] mm: introduce a common interface for balloon
+ pages mobility
+Message-ID: <20120822011930.GA23753@t510.redhat.com>
+References: <cover.1345519422.git.aquini@redhat.com>
+ <e24f3073ef539985dea52943dcb84762213a0857.1345519422.git.aquini@redhat.com>
+ <1345562411.23018.111.camel@twins>
+ <20120821162432.GG2456@linux.vnet.ibm.com>
+ <20120821172819.GA12294@t510.redhat.com>
+ <20120821191330.GA8324@redhat.com>
+ <20120821192357.GD12294@t510.redhat.com>
+ <20120821193031.GC9027@redhat.com>
+ <20120821204556.GF12294@t510.redhat.com>
+ <20120822000741.GI9027@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20120524120727.6eab2f97.akpm@linux-foundation.org>
+In-Reply-To: <20120822000741.GI9027@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Sasha Levin <levinsasha928@gmail.com>, viro <viro@zeniv.linux.org.uk>, oleg@redhat.com, "a.p.zijlstra" <a.p.zijlstra@chello.nl>, mingo <mingo@kernel.org>, Dave Jones <davej@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: "Michael S. Tsirkin" <mst@redhat.com>
+Cc: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Peter Zijlstra <peterz@infradead.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, Rusty Russell <rusty@rustcorp.com.au>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Minchan Kim <minchan@kernel.org>
 
-Hi everyone,
-
-On Thu, May 24, 2012 at 12:07:27PM -0700, Andrew Morton wrote:
-> On Thu, 24 May 2012 20:27:34 +0200
-> Sasha Levin <levinsasha928@gmail.com> wrote:
-> 
-> > Hi all,
+On Wed, Aug 22, 2012 at 03:07:41AM +0300, Michael S. Tsirkin wrote:
+> On Tue, Aug 21, 2012 at 05:45:56PM -0300, Rafael Aquini wrote:
+> > On Tue, Aug 21, 2012 at 10:30:31PM +0300, Michael S. Tsirkin wrote:
+> > > On Tue, Aug 21, 2012 at 04:23:58PM -0300, Rafael Aquini wrote:
+> > > > On Tue, Aug 21, 2012 at 10:13:30PM +0300, Michael S. Tsirkin wrote:
+> > > > > > 
+> > > > > > I believe rcu_dereference_protected() is what I want/need here, since this code
+> > > > > > is always called for pages which we hold locked (PG_locked bit).
+> > > > > 
+> > > > > It would only help if we locked the page while updating the mapping,
+> > > > > as far as I can see we don't.
+> > > > >
+> > > > 
+> > > > But we can do it. In fact, by doing it (locking the page) we can easily avoid
+> > > > the nasty race balloon_isolate_page / leak_balloon, in a much simpler way, IMHO.
+> > > 
+> > > Absolutely. Further, we should look hard at whether most RCU uses
+> > > in this patchset can be replaced with page lock.
+> > >
 > > 
-> > During fuzzing with trinity inside a KVM tools guest, using latest linux-next, I've stumbled on the following:
+> > Yeah, In fact, by testing/grabbing the page lock at leak_balloon() even the
+> > module unload X migration / putback race seems to fade away, since migration
+> > code holds the page locked all the way.
+> > And that seems a quite easy task to be accomplished:
 > > 
-> > [ 2043.098949] ------------[ cut here ]------------
-> > [ 2043.099014] kernel BUG at mm/memory.c:1230!
+> > ....
+> > @@ -169,21 +197,61 @@ static void leak_balloon(struct virtio_balloon *vb, size_t
+> > num)
+> >         /* We can only do one array worth at a time. */
+> >         num = min(num, ARRAY_SIZE(vb->pfns));
+> > 
+> > +       mutex_lock(&vb->balloon_lock);
+> >         for (vb->num_pfns = 0; vb->num_pfns < num;
+> >              vb->num_pfns += VIRTIO_BALLOON_PAGES_PER_PAGE) {
+> > +               spin_lock(&vb->pages_lock);
+> > +               /*
+> > +                * 'virtballoon_isolatepage()' can drain vb->pages list
+> > +                * making us to stumble across a _temporarily_ empty list.
 > 
-> That's
-> 
-> 	VM_BUG_ON(!rwsem_is_locked(&tlb->mm->mmap_sem));
-> 
-> in zap_pmd_range()?
+> This still worries me. If this happens we do not
+> lock the page so module can go away?
+> if not need to document why.
+>
+The module won't unload unless it leaks all its pages. If we hit that test that
+worries you, leak_balloon() will get back to its caller -- remove_common(), and
+it will kept looping at:
 
-Originally split_huge_page_address didn't exist. If the vma was
-splitted at a not 2m aligned address by a syscall like madvise that
-would only mangle the vma and not touch the pagetables (munmap for
-example was safe), the THP would remain in place and it would lead to
-a BUG_ON in split_huge_page where the number of rmaps was different
-than the page_mapcount for a cascade of side effects of the above bug
-triggering. It was a the most more obscure BUG_ON I got in the whole
-THP development and the hardest bug to fix (it was not easily
-reproducible either, madvise not so common).
+        /* There might be pages left in the balloon: free them. */
+        while (vb->num_pages)
+                leak_balloon(vb, vb->num_pages);
 
-After I fixed it adding split_huge_page_address, I also added this
-VM_BUG_ON(!rwsem_is_locked(&tlb->mm->mmap_sem)). So if I missed any
-split_huge_page_address invocation I would get a more meaningful
-VM_BUG_ON, closer to the actual bug, signaling problems in the vma
-layout and not anymore a misleading BUG_ON in the split_huge_page
-internals when in fact split_huge_page was perfectly fine.
+This is true because we do not mess with vb->num_pages while isolating/migrating
+balloon pages, so the module will only unload when all isolated pages get back
+to vb->pages_list and leak_balloon() reap them appropriatelly. As we will be
+doing isolation/migration/putback steps under 'page lock' that race is gone.
 
-My previous theory was a bug in the vma mangling of mbind, it could
-still be it, I didn't review it closely yet. But mbind is one syscall
-that like madvise depends on split_huge_page_address when it does
-split_vma!
-
-So now I think I found the cause of the above
-VM_BUG_ON. split_huge_page_address uses pmd_present so it won't run if
-the hugepage is under splitting. So it's likely the below will fix the
-above VM_BUG_ON. The race condition is tiny, it's not a critical bug
-and it makes sense that only a syscall stresser like trinity can
-exercise it and not any real app.
-
-static void split_huge_page_address(struct mm_struct *mm,
-				    unsigned long address)
-{
-[..]
-	if (!pmd_present(*pmd))
-		return;
-	/*
-	 * Caller holds the mmap_sem write mode, so a huge pmd cannot
-	 * materialize from under us.
-	 */
-	split_huge_page_pmd(mm, pmd);
-}
-
-This time I think it is worth to fix pmd_present for good instead of
-converting it to !pmd_none like I did with most others.
-
-I'm well aware pmd_present wasn't ok during split_huge_page but most
-have been converted and I didn't change what wasn't absolutely
-necessary in case some lowlevel code depended on the lowlevel
-semantics of pmd_present (strict _PRESENT check) but now it looks to
-risky not to fix it.
-
-The below patch isn't well tested yet. Reviews welcome. Especially if
-you could test it again with trinity over the mbind syscall it'd be
-wonderful.
-
-Thanks,
-Andrea
-
-===
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
