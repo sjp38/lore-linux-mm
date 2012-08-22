@@ -1,97 +1,172 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
-	by kanga.kvack.org (Postfix) with SMTP id 669E26B0044
-	for <linux-mm@kvack.org>; Tue, 21 Aug 2012 23:40:51 -0400 (EDT)
-Received: by mail-pb0-f41.google.com with SMTP id ro12so910120pbb.14
-        for <linux-mm@kvack.org>; Tue, 21 Aug 2012 20:40:51 -0700 (PDT)
-Date: Wed, 22 Aug 2012 11:40:44 +0800
-From: Shaohua Li <shli@kernel.org>
-Subject: [RFC]swap: add a simple random read swapin detection
-Message-ID: <20120822034044.GB24099@kernel.org>
+Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
+	by kanga.kvack.org (Postfix) with SMTP id C0E766B0044
+	for <linux-mm@kvack.org>; Tue, 21 Aug 2012 23:51:29 -0400 (EDT)
+Received: from /spool/local
+	by e23smtp09.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <xiaoguangrong@linux.vnet.ibm.com>;
+	Wed, 22 Aug 2012 13:50:16 +1000
+Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
+	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q7M3gUmA24051772
+	for <linux-mm@kvack.org>; Wed, 22 Aug 2012 13:42:31 +1000
+Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
+	by d23av02.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q7M3pK9u030544
+	for <linux-mm@kvack.org>; Wed, 22 Aug 2012 13:51:20 +1000
+Message-ID: <50345735.2000807@linux.vnet.ibm.com>
+Date: Wed, 22 Aug 2012 11:51:17 +0800
+From: Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Subject: Re: [PATCH] mm: mmu_notifier: fix inconsistent memory between secondary
+ MMU and host
+References: <503358FF.3030009@linux.vnet.ibm.com> <20120821150618.GJ27696@redhat.com>
+In-Reply-To: <20120821150618.GJ27696@redhat.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: akpm@linux-foundation.org, riel@redhat.com, fengguang.wu@intel.com
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Avi Kivity <avi@redhat.com>, Marcelo Tosatti <mtosatti@redhat.com>, LKML <linux-kernel@vger.kernel.org>, KVM <kvm@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
 
-The swapin readahead does a blind readahead regardless if the swapin is
-sequential. This is ok for harddisk and random read, because read big size has
-no penality in harddisk, and if the readahead pages are garbage, they can be
-reclaimed fastly. But for SSD, big size read is more expensive than small size
-read. If readahead pages are garbage, such readahead only has overhead.
+On 08/21/2012 11:06 PM, Andrea Arcangeli wrote:
+> On Tue, Aug 21, 2012 at 05:46:39PM +0800, Xiao Guangrong wrote:
+>> There has a bug in set_pte_at_notify which always set the pte to the
+>> new page before release the old page in secondary MMU, at this time,
+>> the process will access on the new page, but the secondary MMU still
+>> access on the old page, the memory is inconsistent between them
+>>
+>> Below scenario shows the bug more clearly:
+>>
+>> at the beginning: *p = 0, and p is write-protected by KSM or shared with
+>> parent process
+>>
+>> CPU 0                                       CPU 1
+>> write 1 to p to trigger COW,
+>> set_pte_at_notify will be called:
+>>   *pte = new_page + W; /* The W bit of pte is set */
+>>
+>>                                      *p = 1; /* pte is valid, so no #PF */
+>>
+>>                                      return back to secondary MMU, then
+>>                                      the secondary MMU read p, but get:
+>>                                      *p == 0;
+>>
+>>                          /*
+>>                           * !!!!!!
+>>                           * the host has already set p to 1, but the secondary
+>>                           * MMU still get the old value 0
+>>                           */
+>>
+>>   call mmu_notifier_change_pte to release
+>>   old page in secondary MMU
+> 
+> The KSM usage of it looks safe because it will only establish readonly
+> ptes with it.
 
-This patch addes a simple random read detection like what file mmap readahead
-does. If random read is detected, swapin readahead will be skipped. This
-improves a lot for a swap workload with random IO in a fast SSD.
+Hmm, in KSM code, i found this code in replace_page:
 
-Signed-off-by: Shaohua Li <shli@fusionio.com>
----
- include/linux/mm_types.h |    1 +
- mm/memory.c              |    3 ++-
- mm/swap_state.c          |    9 +++++++++
- 3 files changed, 12 insertions(+), 1 deletion(-)
+set_pte_at_notify(mm, addr, ptep, mk_pte(kpage, vma->vm_page_prot));
 
-Index: linux/mm/swap_state.c
-===================================================================
---- linux.orig/mm/swap_state.c	2012-08-21 23:01:43.825613437 +0800
-+++ linux/mm/swap_state.c	2012-08-22 10:38:36.687902916 +0800
-@@ -351,6 +351,7 @@ struct page *read_swap_cache_async(swp_e
- 	return found_page;
- }
- 
-+#define SWAPRA_MISS  (100)
- /**
-  * swapin_readahead - swap in pages in hope we need them soon
-  * @entry: swap entry of this memory
-@@ -379,6 +380,13 @@ struct page *swapin_readahead(swp_entry_
- 	unsigned long mask = (1UL << page_cluster) - 1;
- 	struct blk_plug plug;
- 
-+	if (vma) {
-+		if (atomic_read(&vma->swapra_miss) < SWAPRA_MISS * 10)
-+			atomic_inc(&vma->swapra_miss);
-+		if (atomic_read(&vma->swapra_miss) > SWAPRA_MISS)
-+			goto skip;
-+	}
-+
- 	/* Read a page_cluster sized and aligned cluster around offset. */
- 	start_offset = offset & ~mask;
- 	end_offset = offset | mask;
-@@ -397,5 +405,6 @@ struct page *swapin_readahead(swp_entry_
- 	blk_finish_plug(&plug);
- 
- 	lru_add_drain();	/* Push any new pages onto the LRU now */
-+skip:
- 	return read_swap_cache_async(entry, gfp_mask, vma, addr);
- }
-Index: linux/include/linux/mm_types.h
-===================================================================
---- linux.orig/include/linux/mm_types.h	2012-08-21 23:02:01.969385586 +0800
-+++ linux/include/linux/mm_types.h	2012-08-22 10:37:59.028376385 +0800
-@@ -279,6 +279,7 @@ struct vm_area_struct {
- #ifdef CONFIG_NUMA
- 	struct mempolicy *vm_policy;	/* NUMA policy for the VMA */
- #endif
-+	atomic_t swapra_miss;
- };
- 
- struct core_thread {
-Index: linux/mm/memory.c
-===================================================================
---- linux.orig/mm/memory.c	2012-08-21 23:01:20.861907922 +0800
-+++ linux/mm/memory.c	2012-08-22 10:39:58.638872631 +0800
-@@ -2953,7 +2953,8 @@ static int do_swap_page(struct mm_struct
- 		ret = VM_FAULT_HWPOISON;
- 		delayacct_clear_flag(DELAYACCT_PF_SWAPIN);
- 		goto out_release;
--	}
-+	} else if (!(flags & FAULT_FLAG_TRIED))
-+		atomic_dec_if_positive(&vma->swapra_miss);
- 
- 	locked = lock_page_or_retry(page, mm, flags);
- 
+It is possible to establish a writable pte, no?
+
+> 
+> It seems a problem only for do_wp_page. It wasn't safe to setup
+> writable ptes with it. I guess we first introduced it for KSM and then
+> we added it to do_wp_page too by mistake.
+> 
+> The race window is really tiny, it's unlikely it has ever triggered,
+> however this one seem to be possible so it's slightly more serious
+> than the other race you recently found (the previous one in the exit
+> path I think it was impossible to trigger with KVM).
+
+Unfortunately, all these bugs are triggered by test cases.
+
+> 
+>> We can fix it by release old page first, then set the pte to the new
+>> page.
+>>
+>> Note, the new page will be firstly used in secondary MMU before it is
+>> mapped into the page table of the process, but this is safe because it
+>> is protected by the page table lock, there is no race to change the pte
+>>
+>> Signed-off-by: Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>
+>> ---
+>>  include/linux/mmu_notifier.h |    2 +-
+>>  1 files changed, 1 insertions(+), 1 deletions(-)
+>>
+>> diff --git a/include/linux/mmu_notifier.h b/include/linux/mmu_notifier.h
+>> index 1d1b1e1..8c7435a 100644
+>> --- a/include/linux/mmu_notifier.h
+>> +++ b/include/linux/mmu_notifier.h
+>> @@ -317,8 +317,8 @@ static inline void mmu_notifier_mm_destroy(struct mm_struct *mm)
+>>  	unsigned long ___address = __address;				\
+>>  	pte_t ___pte = __pte;						\
+>>  									\
+>> -	set_pte_at(___mm, ___address, __ptep, ___pte);			\
+>>  	mmu_notifier_change_pte(___mm, ___address, ___pte);		\
+>> +	set_pte_at(___mm, ___address, __ptep, ___pte);			\
+>>  })
+> 
+> If we establish the spte on the new page, what will happen is the same
+> race in reverse. The fundamental problem is that the first guy that
+> writes to the "newpage" (guest or host) won't fault again and so it
+> will fail to serialize against the PT lock.
+> 
+> CPU0  		    	    	CPU1
+> 				oldpage[1] == 0 (both guest & host)
+> oldpage[0] = 1
+> trigger do_wp_page
+> mmu_notifier_change_pte
+> spte = newpage + writable
+> 				guest does newpage[1] = 1
+> 				vmexit
+> 				host read oldpage[1] == 0
+> pte = newpage + writable (too late)
+> 
+> I think the fix is to use ptep_clear_flush_notify whenever
+> set_pte_at_notify will establish a writable pte/spte. If the pte/spte
+> established by set_pte_at_notify/change_pte is readonly we don't need
+> to do the ptep_clear_flush_notify instead because when the host will
+> write to the page that will fault and serialize against the
+> PT lock (set_pte_at_notify must always run under the PT lock of course).
+> 
+> How about this:
+> 
+> =====
+>>From 160a0b1b2be9bf96c45b30d9423f8196ecebe351 Mon Sep 17 00:00:00 2001
+> From: Andrea Arcangeli <aarcange@redhat.com>
+> Date: Tue, 21 Aug 2012 16:48:11 +0200
+> Subject: [PATCH] mmu_notifier: fix race in set_pte_at_notify usage
+> 
+> Whenever we establish a writable spte with set_pte_at_notify the
+> ptep_clear_flush before it must be a _notify one that clears the spte
+> too.
+> 
+> The fundamental problem is that if the primary MMU that writes to the
+> "newpage" won't fault again if the pte established by
+> set_pte_at_notify is writable. And so it will fail to serialize
+> against the PT lock to wait the set_pte_at_notify to finish
+> updating all secondary MMUs before the write hits the newpage.
+> 
+> CPU0  		    	    	CPU1
+> 				oldpage[1] == 0 (all MMUs)
+> oldpage[0] = 1
+> trigger do_wp_page
+> take PT lock
+> ptep_clear_flush (secondary MMUs
+> still have read access to oldpage)
+> mmu_notifier_change_pte
+> pte = newpage + writable (primary MMU can write to
+> newpage)
+> 				host write newpage[1] == 1 (no fault,
+> 				failed to serialize against PT lock)
+> 				vmenter
+> 				guest read oldpage[1] == 0
+
+
+Why? Why guest can read the old page?
+
+Before you set the pte to be writable, mmu_notifier_change_pte is called
+that all old pages have been released.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
