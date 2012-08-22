@@ -1,58 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
-	by kanga.kvack.org (Postfix) with SMTP id 3766A6B0069
-	for <linux-mm@kvack.org>; Wed, 22 Aug 2012 04:26:14 -0400 (EDT)
-Message-ID: <503496D9.3020806@parallels.com>
-Date: Wed, 22 Aug 2012 12:22:49 +0400
-From: Glauber Costa <glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
+	by kanga.kvack.org (Postfix) with SMTP id DEBEF6B006C
+	for <linux-mm@kvack.org>; Wed, 22 Aug 2012 04:31:05 -0400 (EDT)
+Message-ID: <50349891.7020809@huawei.com>
+Date: Wed, 22 Aug 2012 16:30:09 +0800
+From: Jiang Liu <jiang.liu@huawei.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2 09/11] memcg: propagate kmem limiting information to
- children
-References: <1344517279-30646-1-git-send-email-glommer@parallels.com> <1344517279-30646-10-git-send-email-glommer@parallels.com> <20120817090005.GC18600@dhcp22.suse.cz> <502E0BC3.8090204@parallels.com> <20120817093504.GE18600@dhcp22.suse.cz> <502E17C4.7060204@parallels.com> <20120817103550.GF18600@dhcp22.suse.cz> <502E1E90.1080805@parallels.com> <20120821075430.GA19797@dhcp22.suse.cz> <50335341.6010400@parallels.com> <20120821100007.GE19797@dhcp22.suse.cz> <xr93fw7fbumo.fsf@gthelen.mtv.corp.google.com>
-In-Reply-To: <xr93fw7fbumo.fsf@gthelen.mtv.corp.google.com>
+Subject: Re: [PATCH] memory-hotplug: fix a drain pcp bug when offline pages
+References: <50337B15.2090701@gmail.com> <20120822033441.GB24667@bbox> <503490F9.2050805@gmail.com> <20120822081410.GA5369@bbox>
+In-Reply-To: <20120822081410.GA5369@bbox>
 Content-Type: text/plain; charset="ISO-8859-1"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg Thelen <gthelen@google.com>
-Cc: Michal Hocko <mhocko@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, devel@openvz.org, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, kamezawa.hiroyu@jp.fujitsu.com, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Suleiman Souhlal <suleiman@google.com>
+To: Minchan Kim <minchan@kernel.org>
+Cc: qiuxishi <qiuxishi@gmail.com>, akpm@linux-foundation.org, lliubbo@gmail.com, mgorman@suse.de, kamezawa.hiroyu@jp.fujitsu.com, mhocko@suse.cz, linux-mm@kvack.org, linux-kernel@vger.kernel.org, qiuxishi@huawei.com, wujianguo@huawei.com, bessel.wang@huawei.com, guohanjun@huawei.com, chenkeping@huawei.com, yinghai@kernel.org, wency@cn.fujitsu.com
 
-
+On 2012-8-22 16:14, Minchan Kim wrote:
+> On Wed, Aug 22, 2012 at 03:57:45PM +0800, qiuxishi wrote:
+>> On 2012-8-22 11:34, Minchan Kim wrote:
+>>> Hello Xishi,
 >>>
->>> I am fine with either, I just need a clear sign from you guys so I don't
->>> keep deimplementing and reimplementing this forever.
+>>> On Tue, Aug 21, 2012 at 08:12:05PM +0800, qiuxishi wrote:
+>>>> From: Xishi Qiu <qiuxishi@huawei.com>
+>>>>
+>>>> When offline a section, we move all the free pages and pcp into MIGRATE_ISOLATE list first.
+>>>> start_isolate_page_range()
+>>>> 	set_migratetype_isolate()
+>>>> 		drain_all_pages(),
+>>>>
+>>>> Here is a problem, it is not sure that pcp will be moved into MIGRATE_ISOLATE list. They may
+>>>> be moved into MIGRATE_MOVABLE list because page_private() maybe 2. So when finish migrating
+>>>> pages, the free pages from pcp may be allocated again, and faild in check_pages_isolated().
+>>>> drain_all_pages()
+>>>> 	drain_local_pages()
+>>>> 		drain_pages()
+>>>> 			free_pcppages_bulk()
+>>>> 				__free_one_page(page, zone, 0, page_private(page));
+>>>>
+>>>> If we add move_freepages_block() after drain_all_pages(), it can not sure that all the pcp
+>>>> will be moved into MIGRATE_ISOLATE list when the system works on high load. The free pages
+>>>> which from pcp may immediately be allocated again.
+>>>>
+>>>> I think the similar bug described in http://marc.info/?t=134250882300003&r=1&w=2
+>>>
+>>> Yes. I reported the problem a few month ago but it's not real bug in practice
+>>> but found by my eyes during looking the code so I wanted to confirm the problem.
+>>>
+>>> Do you find that problem in real practice? or just code review?
+>>>
 >>
->> I would be for make it simple now and go with additional features later
->> when there is a demand for them. Maybe we will have runtimg switch for
->> user memory accounting as well one day.
+>> I use /sys/devices/system/memory/soft_offline_page to offline a lot of pages when the
+>> system works on high load, then I find some unknown zero refcount pages, such as
+>> get_any_page: 0x650422: unknown zero refcount page type 19400c00000000
+>> get_any_page: 0x650867: unknown zero refcount page type 19400c00000000
 >>
->> But let's see what others think?
+>> soft_offline_page()
+>> 	get_any_page()
+>> 		set_migratetype_isolate()
+>> 			drain_all_pages()
+>>
+>> I think after drain_all_pages(), pcp are moved into MIGRATE_MOVABLE list which managed by
+>> buddy allocator, but they are allocated and becaome pcp again as the system works on high
+>> load. There will be no this problem by applying this patch.
+>>
+>>> Anyway, I don't like your approach which I already considered because it hurts hotpath
+>>> while the race is really unlikely. Get_pageblock_migratetype is never trivial.
+>>> We should avoid the overhead in hotpath and move into memory-hotplug itself.
+>>> Do you see my patch in https://patchwork.kernel.org/patch/1225081/ ?
+>>
+>> Yes, you are right, I will try to find another way to fix this problem.
+>> How about doing this work in set_migratetype_isolate(), find the pcp and change the value
+>> of private to get_pageblock_migratetype(page)?
+>>
 > 
-> In my use case memcg will either be disable or (enabled and kmem
-> limiting enabled).
-> 
-> I'm not sure I follow the discussion about history.  Are we saying that
-> once a kmem limit is set then kmem will be accounted/charged to memcg.
-> Is this discussion about the static branches/etc that are autotuned the
-> first time is enabled?  
+> Allocator doesn't have any lock when he allocates the page from pcp.
+> How could you prevent race between allocator and memory-hotplug
+> routine(ie, set_migratetype_isolate) without hurting hotpath?
+Hi Minchan,
+	I have thought about using a jump label in the hot path, which won't cause big
+performance drop, but it seems a little dirty. What's your thoughts?
 
-No, the question is about when you unlimit a former kmem-limited memcg.
+	migrate_type = page_private(page);
+	if (static_key_false(&memory_hotplug_inprogress))
+		migrate_type = get_pageblock_migratetype(page);
+	__free_one_page(page, zone, 0, migrate_type);
 
-> The first time its set there parts of the system
-> will be adjusted in such a way that may impose a performance overhead
-> (static branches, etc).  Thereafter the performance cannot be regained
-> without a reboot.  This makes sense to me.  Are we saying that
-> kmem.limit_in_bytes will have three states?
-
-It is not about performance, about interface.
-
-Michal says that once a particular memcg was kmem-limited, it will keep
-accounting pages, even if you make it unlimited. The limits won't be
-enforced, for sure - there is no limit, but pages will still be accounted.
-
-This simplifies the code galore, but I worry about the interface: A
-person looking at the current status of the files only, without
-knowledge of past history, can't tell if allocations will be tracked or not.
+	Regards!
+	Gerry
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
