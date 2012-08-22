@@ -1,42 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
-	by kanga.kvack.org (Postfix) with SMTP id 87A4B6B002B
-	for <linux-mm@kvack.org>; Wed, 22 Aug 2012 15:25:09 -0400 (EDT)
-Message-ID: <5035325C.3070909@redhat.com>
-Date: Wed, 22 Aug 2012 15:26:20 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
+	by kanga.kvack.org (Postfix) with SMTP id 26A986B0068
+	for <linux-mm@kvack.org>; Wed, 22 Aug 2012 15:36:04 -0400 (EDT)
+Date: Wed, 22 Aug 2012 12:35:32 -0700
+From: Andi Kleen <ak@linux.intel.com>
+Subject: Re: [PATCH 2/5] mempolicy: Remove mempolicy sharing
+Message-ID: <20120822193532.GB12707@tassilo.jf.intel.com>
+References: <1345480594-27032-1-git-send-email-mgorman@suse.de>
+ <1345480594-27032-3-git-send-email-mgorman@suse.de>
+ <20120822120314.9fc30d47.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH 00/36] AutoNUMA24
-References: <1345647560-30387-1-git-send-email-aarcange@redhat.com>
-In-Reply-To: <1345647560-30387-1-git-send-email-aarcange@redhat.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120822120314.9fc30d47.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hillf Danton <dhillf@gmail.com>, Dan Smith <danms@us.ibm.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Johannes Weiner <hannes@cmpxchg.org>, Srivatsa Vaddagiri <vatsa@linux.vnet.ibm.com>, Christoph Lameter <cl@linux.com>, Alex Shi <alex.shi@intel.com>, Mauricio Faria de Oliveira <mauricfo@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Don Morris <don.morris@hp.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Mel Gorman <mgorman@suse.de>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Dave Jones <davej@redhat.com>, Christoph Lameter <cl@linux.com>, Ben Hutchings <ben@decadent.org.uk>, Hugh Dickins <hughd@google.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
 
-On 08/22/2012 10:58 AM, Andrea Arcangeli wrote:
-> Hello everyone,
->
-> Before the Kernel Summit, I think it's good idea to post a new
-> AutoNUMA24 and to go through a new review cycle. The last review cycle
-> has been fundamental in improving the patchset. Thanks!
+On Wed, Aug 22, 2012 at 12:03:14PM -0700, Andrew Morton wrote:
+> On Mon, 20 Aug 2012 17:36:31 +0100
+> Mel Gorman <mgorman@suse.de> wrote:
+> 
+> > From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> > 
+> > Dave Jones' system call fuzz testing tool "trinity" triggered the following
+> > bug error with slab debugging enabled
+> > 
+> > ...
+> >
+> > Cc: <stable@vger.kernel.org>
+> 
+> The patch dosn't apply to 3.5 at all well.  I don't see much point in
+> retaining the stable tag so I think I'll remove it, and suggest that
+> you prepare a fresh patch for Greg and explain the situation?
 
-Thanks for improving the code and incorporating all our
-feedback. The AutoNUMA codebase is now in a state where
-I can live with it.
+Everything applies fine if you redo the revert manually.
 
-I hope the code will be acceptable to others, too.
+BTW we tested it now and the new patchkit indeed fixes the database.
+Please queue for 3.6 and 3.5 stable.
 
-> The objective of AutoNUMA is to be able to perform as close as
-> possible to (and sometime faster than) the NUMA hard CPU/memory
-> bindings setups, without requiring the administrator to manually setup
-> any NUMA hard bind.
+-Andi
 
-It is a difficult problem, but the performance numbers
-I have seen before (with older versions) seem to suggest
-that AutoNUMA is accomplishing the goal.
+-- 
+ak@linux.intel.com -- Speaking for myself only
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
