@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
-	by kanga.kvack.org (Postfix) with SMTP id EE8D36B0073
-	for <linux-mm@kvack.org>; Wed, 22 Aug 2012 11:00:01 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
+	by kanga.kvack.org (Postfix) with SMTP id 36B4A6B006C
+	for <linux-mm@kvack.org>; Wed, 22 Aug 2012 11:00:02 -0400 (EDT)
 From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: [PATCH 18/36] autonuma: teach CFS about autonuma affinity
-Date: Wed, 22 Aug 2012 16:59:02 +0200
-Message-Id: <1345647560-30387-19-git-send-email-aarcange@redhat.com>
+Subject: [PATCH 24/36] autonuma: numa hinting page faults entry points
+Date: Wed, 22 Aug 2012 16:59:08 +0200
+Message-Id: <1345647560-30387-25-git-send-email-aarcange@redhat.com>
 In-Reply-To: <1345647560-30387-1-git-send-email-aarcange@redhat.com>
 References: <1345647560-30387-1-git-send-email-aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,211 +13,128 @@ List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 Cc: Hillf Danton <dhillf@gmail.com>, Dan Smith <danms@us.ibm.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Srivatsa Vaddagiri <vatsa@linux.vnet.ibm.com>, Christoph Lameter <cl@linux.com>, Alex Shi <alex.shi@intel.com>, Mauricio Faria de Oliveira <mauricfo@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Don Morris <don.morris@hp.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
 
-The CFS scheduler is still in charge of all scheduling decisions. At
-times, however, AutoNUMA balancing will override them.
-
-Generally, we'll just rely on the CFS scheduler to keep doing its
-thing, while preferring the task's AutoNUMA affine node when deciding
-to move a task to a different runqueue or when waking it up.
-
-For example, idle balancing, while looking into the runqueues of busy
-CPUs, will first look for a task that "wants" to run on the NUMA node
-of this idle CPU (one where task_autonuma_cpu() returns true).
-
-Most of this is encoded in can_migrate_task becoming AutoNUMA aware
-and running two passes for each balancing pass, the first NUMA aware,
-and the second one relaxed.
-
-Idle or newidle balancing is always allowed to fall back to scheduling
-non-affine AutoNUMA tasks (ones with task_selected_nid set to another
-node). Load_balancing, which affects fairness more than performance,
-is only able to schedule against AutoNUMA affinity if the flag
-/sys/kernel/mm/autonuma/scheduler/load_balance_strict is not set.
-
-Tasks that haven't been fully profiled yet, are not affected by this
-because their p->task_autonuma->task_selected_nid is still set to the
-original value of -1 and task_autonuma_cpu will always return true in
-that case.
-
-Includes fixes from Hillf Danton <dhillf@gmail.com>.
+This is where the numa hinting page faults are detected and are passed
+over to the AutoNUMA core logic.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 ---
- kernel/sched/fair.c |   71 ++++++++++++++++++++++++++++++++++++++++++--------
- 1 files changed, 59 insertions(+), 12 deletions(-)
+ include/linux/huge_mm.h |    2 ++
+ mm/huge_memory.c        |   18 ++++++++++++++++++
+ mm/memory.c             |   31 +++++++++++++++++++++++++++++++
+ 3 files changed, 51 insertions(+), 0 deletions(-)
 
-diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
-index 677b99e..560a170 100644
---- a/kernel/sched/fair.c
-+++ b/kernel/sched/fair.c
-@@ -2622,6 +2622,8 @@ find_idlest_cpu(struct sched_group *group, struct task_struct *p, int this_cpu)
- 		load = weighted_cpuload(i);
- 
- 		if (load < min_load || (load == min_load && i == this_cpu)) {
-+			if (!task_autonuma_cpu(p, i))
-+				continue;
- 			min_load = load;
- 			idlest = i;
- 		}
-@@ -2638,31 +2640,43 @@ static int select_idle_sibling(struct task_struct *p, int target)
- 	int cpu = smp_processor_id();
- 	int prev_cpu = task_cpu(p);
- 	struct sched_domain *sd;
-+	bool idle_target;
- 
- 	/*
--	 * If the task is going to be woken-up on this cpu and if it is
--	 * already idle, then it is the right target.
-+	 * If the task is going to be woken-up on this cpu and if it
-+	 * is already idle and if this cpu is in the AutoNUMA selected
-+	 * NUMA node, then it is the right target.
- 	 */
--	if (target == cpu && idle_cpu(cpu))
-+	if (target == cpu && idle_cpu(cpu) && task_autonuma_cpu(p, cpu))
- 		return cpu;
- 
- 	/*
--	 * If the task is going to be woken-up on the cpu where it previously
--	 * ran and if it is currently idle, then it the right target.
-+	 * If the task is going to be woken-up on the cpu where it
-+	 * previously ran and if it is currently idle and if the cpu
-+	 * where it run previously is in the AutoNUMA selected node,
-+	 * then it the right target.
- 	 */
--	if (target == prev_cpu && idle_cpu(prev_cpu))
-+	if (target == prev_cpu && idle_cpu(prev_cpu) &&
-+	    task_autonuma_cpu(p, prev_cpu))
- 		return prev_cpu;
- 
- 	/*
- 	 * Otherwise, check assigned siblings to find an elegible idle cpu.
- 	 */
-+	idle_target = false;
- 	sd = rcu_dereference(per_cpu(sd_llc, target));
- 
- 	for_each_lower_domain(sd) {
- 		if (!cpumask_test_cpu(sd->idle_buddy, tsk_cpus_allowed(p)))
- 			continue;
--		if (idle_cpu(sd->idle_buddy))
--			return sd->idle_buddy;
-+		if (idle_cpu(sd->idle_buddy)) {
-+			if (task_autonuma_cpu(p, sd->idle_buddy))
-+				return sd->idle_buddy;
-+			else if (!idle_target) {
-+				idle_target = true;
-+				target = sd->idle_buddy;
-+			}
-+		}
- 	}
- 
- 	return target;
-@@ -2694,7 +2708,8 @@ select_task_rq_fair(struct task_struct *p, int sd_flag, int wake_flags)
- 		return prev_cpu;
- 
- 	if (sd_flag & SD_BALANCE_WAKE) {
--		if (cpumask_test_cpu(cpu, tsk_cpus_allowed(p)))
-+		if (cpumask_test_cpu(cpu, tsk_cpus_allowed(p)) &&
-+		    task_autonuma_cpu(p, cpu))
- 			want_affine = 1;
- 		new_cpu = prev_cpu;
- 	}
-@@ -3067,6 +3082,7 @@ static unsigned long __read_mostly max_load_balance_interval = HZ/10;
- #define LBF_ALL_PINNED	0x01
- #define LBF_NEED_BREAK	0x02
- #define LBF_SOME_PINNED 0x04
-+#define LBF_NUMA	0x08
- 
- struct lb_env {
- 	struct sched_domain	*sd;
-@@ -3146,7 +3162,9 @@ int can_migrate_task(struct task_struct *p, struct lb_env *env)
- 	 * We do not migrate tasks that are:
- 	 * 1) running (obviously), or
- 	 * 2) cannot be migrated to this CPU due to cpus_allowed, or
--	 * 3) are cache-hot on their current CPU.
-+	 * 3) are cache-hot on their current CPU, or
-+	 * 4) going to be migrated to a dst_cpu not in the selected NUMA node
-+	 *    if LBF_NUMA is set.
- 	 */
- 	if (!cpumask_test_cpu(env->dst_cpu, tsk_cpus_allowed(p))) {
- 		int new_dst_cpu;
-@@ -3181,6 +3199,10 @@ int can_migrate_task(struct task_struct *p, struct lb_env *env)
- 		return 0;
- 	}
- 
-+	if (!sched_autonuma_can_migrate_task(p, env->flags & LBF_NUMA,
-+					     env->dst_cpu, env->idle))
-+		return 0;
-+
- 	/*
- 	 * Aggressive migration if:
- 	 * 1) task is cache cold, or
-@@ -3217,6 +3239,8 @@ static int move_one_task(struct lb_env *env)
- {
- 	struct task_struct *p, *n;
- 
-+	env->flags |= LBF_NUMA;
-+numa_repeat:
- 	list_for_each_entry_safe(p, n, &env->src_rq->cfs_tasks, se.group_node) {
- 		if (throttled_lb_pair(task_group(p), env->src_rq->cpu, env->dst_cpu))
- 			continue;
-@@ -3231,8 +3255,14 @@ static int move_one_task(struct lb_env *env)
- 		 * stats here rather than inside move_task().
- 		 */
- 		schedstat_inc(env->sd, lb_gained[env->idle]);
-+		env->flags &= ~LBF_NUMA;
- 		return 1;
- 	}
-+	if (env->flags & LBF_NUMA) {
-+		env->flags &= ~LBF_NUMA;
-+		goto numa_repeat;
-+	}
-+
- 	return 0;
+diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
+index ad4e2e0..5270c81 100644
+--- a/include/linux/huge_mm.h
++++ b/include/linux/huge_mm.h
+@@ -11,6 +11,8 @@ extern int copy_huge_pmd(struct mm_struct *dst_mm, struct mm_struct *src_mm,
+ extern int do_huge_pmd_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ 			       unsigned long address, pmd_t *pmd,
+ 			       pmd_t orig_pmd);
++extern pmd_t __huge_pmd_numa_fixup(struct mm_struct *mm, unsigned long addr,
++				   pmd_t pmd, pmd_t *pmdp);
+ extern pgtable_t get_pmd_huge_pte(struct mm_struct *mm);
+ extern struct page *follow_trans_huge_pmd(struct mm_struct *mm,
+ 					  unsigned long addr,
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 0d2a12f..067cba1 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -1037,6 +1037,24 @@ out:
+ 	return page;
  }
  
-@@ -3257,6 +3287,8 @@ static int move_tasks(struct lb_env *env)
- 	if (env->imbalance <= 0)
- 		return 0;
- 
-+	env->flags |= LBF_NUMA;
-+numa_repeat:
- 	while (!list_empty(tasks)) {
- 		p = list_first_entry(tasks, struct task_struct, se.group_node);
- 
-@@ -3296,9 +3328,13 @@ static int move_tasks(struct lb_env *env)
- 		 * kernels will stop after the first task is pulled to minimize
- 		 * the critical section.
- 		 */
--		if (env->idle == CPU_NEWLY_IDLE)
--			break;
-+		if (env->idle == CPU_NEWLY_IDLE) {
-+			env->flags &= ~LBF_NUMA;
-+			goto out;
-+		}
- #endif
-+		/* not idle anymore after pulling first task */
-+		env->idle = CPU_NOT_IDLE;
- 
- 		/*
- 		 * We only want to steal up to the prescribed amount of
-@@ -3311,6 +3347,17 @@ static int move_tasks(struct lb_env *env)
- next:
- 		list_move_tail(&p->se.group_node, tasks);
- 	}
-+	if ((env->flags & (LBF_NUMA|LBF_NEED_BREAK)) == LBF_NUMA) {
-+		env->flags &= ~LBF_NUMA;
-+		if (env->imbalance > 0) {
-+			env->loop = 0;
-+			env->loop_break = sched_nr_migrate_break;
-+			goto numa_repeat;
-+		}
++#ifdef CONFIG_AUTONUMA
++/* NUMA hinting page fault entry point for trans huge pmds */
++pmd_t __huge_pmd_numa_fixup(struct mm_struct *mm, unsigned long addr,
++			    pmd_t pmd, pmd_t *pmdp)
++{
++	spin_lock(&mm->page_table_lock);
++	if (pmd_same(pmd, *pmdp)) {
++		struct page *page = pmd_page(pmd);
++		pmd = pmd_mknonnuma(pmd);
++		set_pmd_at(mm, addr & HPAGE_PMD_MASK, pmdp, pmd);
++		numa_hinting_fault(page, HPAGE_PMD_NR);
++		VM_BUG_ON(pmd_numa(pmd));
 +	}
-+#ifdef CONFIG_PREEMPT
-+out:
++	spin_unlock(&mm->page_table_lock);
++	return pmd;
++}
 +#endif
++
+ int zap_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
+ 		 pmd_t *pmd, unsigned long addr)
+ {
+diff --git a/mm/memory.c b/mm/memory.c
+index 71282f5..00f1ae7 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -57,6 +57,7 @@
+ #include <linux/swapops.h>
+ #include <linux/elf.h>
+ #include <linux/gfp.h>
++#include <linux/autonuma.h>
  
+ #include <asm/io.h>
+ #include <asm/pgalloc.h>
+@@ -3418,6 +3419,31 @@ static int do_nonlinear_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+ 	return __do_fault(mm, vma, address, pmd, pgoff, flags, orig_pte);
+ }
+ 
++static inline pte_t pte_numa_fixup(struct mm_struct *mm,
++				   struct vm_area_struct *vma,
++				   unsigned long addr, pte_t pte, pte_t *ptep)
++{
++	if (pte_numa(pte))
++		pte = __pte_numa_fixup(mm, vma, addr, pte, ptep);
++	return pte;
++}
++
++static inline void pmd_numa_fixup(struct mm_struct *mm,
++				  unsigned long addr, pmd_t *pmd)
++{
++	if (pmd_numa(*pmd))
++		__pmd_numa_fixup(mm, addr, pmd);
++}
++
++static inline pmd_t huge_pmd_numa_fixup(struct mm_struct *mm,
++					unsigned long addr,
++					pmd_t pmd, pmd_t *pmdp)
++{
++	if (pmd_numa(pmd))
++		pmd = __huge_pmd_numa_fixup(mm, addr, pmd, pmdp);
++	return pmd;
++}
++
+ /*
+  * These routines also need to handle stuff like marking pages dirty
+  * and/or accessed for architectures that don't do it in hardware (most
+@@ -3460,6 +3486,7 @@ int handle_pte_fault(struct mm_struct *mm,
+ 	spin_lock(ptl);
+ 	if (unlikely(!pte_same(*pte, entry)))
+ 		goto unlock;
++	entry = pte_numa_fixup(mm, vma, address, entry, pte);
+ 	if (flags & FAULT_FLAG_WRITE) {
+ 		if (!pte_write(entry))
+ 			return do_wp_page(mm, vma, address,
+@@ -3530,6 +3557,8 @@ retry:
+ 		 */
+ 		orig_pmd = ACCESS_ONCE(*pmd);
+ 		if (pmd_trans_huge(orig_pmd)) {
++			orig_pmd = huge_pmd_numa_fixup(mm, address,
++						       orig_pmd, pmd);
+ 			if (flags & FAULT_FLAG_WRITE &&
+ 			    !pmd_write(orig_pmd) &&
+ 			    !pmd_trans_splitting(orig_pmd)) {
+@@ -3548,6 +3577,8 @@ retry:
+ 		}
+ 	}
+ 
++	pmd_numa_fixup(mm, address, pmd);
++
  	/*
- 	 * Right now, this is one of only two places move_task() is called,
+ 	 * Use __pte_alloc instead of pte_alloc_map, because we can't
+ 	 * run pte_offset_map on the pmd, if an huge pmd could
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
