@@ -1,67 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
-	by kanga.kvack.org (Postfix) with SMTP id 7BF176B00A0
-	for <linux-mm@kvack.org>; Wed, 22 Aug 2012 11:49:10 -0400 (EDT)
-Message-ID: <5034FEFC.1030901@redhat.com>
-Date: Wed, 22 Aug 2012 11:47:08 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from psmtp.com (na3sys010amx133.postini.com [74.125.245.133])
+	by kanga.kvack.org (Postfix) with SMTP id 0B01C6B0080
+	for <linux-mm@kvack.org>; Wed, 22 Aug 2012 12:14:43 -0400 (EDT)
+Received: by lahd3 with SMTP id d3so805890lah.14
+        for <linux-mm@kvack.org>; Wed, 22 Aug 2012 09:14:41 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [RFC]swap: add a simple random read swapin detection
-References: <20120822034044.GB24099@kernel.org>
-In-Reply-To: <20120822034044.GB24099@kernel.org>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Date: Wed, 22 Aug 2012 09:14:40 -0700
+Message-ID: <CALWz4ixhNbBer_yc1BuG6_8zkZsNk7z_Azi2vuRpo9Lde0HJRQ@mail.gmail.com>
+Subject: KS day2: memcg & mm mini-summit schedule
+From: Ying Han <yinghan@google.com>
+Content-Type: multipart/alternative; boundary=bcaec54ee7b843341104c7dd0a49
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shaohua Li <shli@kernel.org>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, fengguang.wu@intel.com
+To: linux-mm@kvack.org
+Cc: Johannes Weiner <hannes@cmpxchg.org>
 
-On 08/21/2012 11:40 PM, Shaohua Li wrote:
+--bcaec54ee7b843341104c7dd0a49
+Content-Type: text/plain; charset=ISO-8859-1
 
-> +#define SWAPRA_MISS  (100)
->   /**
->    * swapin_readahead - swap in pages in hope we need them soon
->    * @entry: swap entry of this memory
-> @@ -379,6 +380,13 @@ struct page *swapin_readahead(swp_entry_
->   	unsigned long mask = (1UL << page_cluster) - 1;
->   	struct blk_plug plug;
->
-> +	if (vma) {
-> +		if (atomic_read(&vma->swapra_miss) < SWAPRA_MISS * 10)
-> +			atomic_inc(&vma->swapra_miss);
-> +		if (atomic_read(&vma->swapra_miss) > SWAPRA_MISS)
-> +			goto skip;
-> +	}
+Hi All:
 
-> --- linux.orig/mm/memory.c	2012-08-21 23:01:20.861907922 +0800
-> +++ linux/mm/memory.c	2012-08-22 10:39:58.638872631 +0800
-> @@ -2953,7 +2953,8 @@ static int do_swap_page(struct mm_struct
->   		ret = VM_FAULT_HWPOISON;
->   		delayacct_clear_flag(DELAYACCT_PF_SWAPIN);
->   		goto out_release;
-> -	}
-> +	} else if (!(flags & FAULT_FLAG_TRIED))
-> +		atomic_dec_if_positive(&vma->swapra_miss);
+The latest schedule as well as attendees is listed at:
+https://docs.google.com/spreadsheet/ccc?key=0AiRyiGDzcy2VdE1VdVV3em9uWjBUazlwc1dnUExOVEE#gid=0
 
-The approach makes sense when viewed together with
-the changelog, but I fear it will be non-obvious
-to anyone who just looks at the code later in time.
+The time could shift for each talk since we haven't received further plan
+for Day2 including schedule and room arrangement. So comment on the topics
+would be welcomed.
 
-Please hide these increments and decrements behind
-some simple accessor functions, eg:
+The same schedule is sent to ksummit-2012-discuss@ in case not everyone
+subscribed.
 
-swap_cache_hit()
-swap_cache_miss()
-swap_cache_skip_readahead()
+--Ying
 
-These small functions can then be placed together
-(maybe in swap.c?) and get a good comment documenting
-exactly what they are supposed to do.
+--bcaec54ee7b843341104c7dd0a49
+Content-Type: text/html; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 
-As an aside, how well do these patches work?
+<div style=3D"color:rgb(34,34,34);font-family:arial,sans-serif;font-size:13=
+px;background-color:rgb(255,255,255)">Hi All:</div><div style=3D"color:rgb(=
+34,34,34);font-family:arial,sans-serif;font-size:13px;background-color:rgb(=
+255,255,255)">
+<br></div><span style=3D"color:rgb(34,34,34);font-family:arial,sans-serif;f=
+ont-size:13px;background-color:rgb(255,255,255)">The latest schedule as wel=
+l as attendees is listed at:</span><div style=3D"color:rgb(34,34,34);font-f=
+amily:arial,sans-serif;font-size:13px;background-color:rgb(255,255,255)">
+<a href=3D"https://docs.google.com/spreadsheet/ccc?key=3D0AiRyiGDzcy2VdE1Vd=
+VV3em9uWjBUazlwc1dnUExOVEE#gid=3D0" target=3D"_blank" style=3D"color:rgb(17=
+,85,204)">https://docs.google.com/spreadsheet/ccc?key=3D0AiRyiGDzcy2VdE1VdV=
+V3em9uWjBUazlwc1dnUExOVEE#gid=3D0</a></div>
+<div style=3D"color:rgb(34,34,34);font-family:arial,sans-serif;font-size:13=
+px;background-color:rgb(255,255,255)"><br></div><div style=3D"color:rgb(34,=
+34,34);font-family:arial,sans-serif;font-size:13px;background-color:rgb(255=
+,255,255)">
+The time could shift for each talk since we haven&#39;t received further pl=
+an for Day2 including schedule and room arrangement. So comment on the topi=
+cs would be welcomed.</div><div><br></div><div>The same schedule is sent to=
+ ksummit-2012-discuss@ in case not everyone subscribed.</div>
+<div><br></div><div>--Ying</div>
 
-What kind of performance changes have you seen, both
-on SSDs and hard disks?
+--bcaec54ee7b843341104c7dd0a49--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
