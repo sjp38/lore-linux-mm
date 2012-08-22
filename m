@@ -1,95 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
-	by kanga.kvack.org (Postfix) with SMTP id 2E5A36B0044
-	for <linux-mm@kvack.org>; Wed, 22 Aug 2012 19:23:16 -0400 (EDT)
-Received: by weyx56 with SMTP id x56so4049wey.2
-        for <linux-mm@kvack.org>; Wed, 22 Aug 2012 16:23:14 -0700 (PDT)
-From: Greg Thelen <gthelen@google.com>
-Subject: Re: [PATCH v2 09/11] memcg: propagate kmem limiting information to children
-References: <1344517279-30646-1-git-send-email-glommer@parallels.com>
-	<1344517279-30646-10-git-send-email-glommer@parallels.com>
-	<20120817090005.GC18600@dhcp22.suse.cz>
-	<502E0BC3.8090204@parallels.com>
-	<20120817093504.GE18600@dhcp22.suse.cz>
-	<502E17C4.7060204@parallels.com>
-	<20120817103550.GF18600@dhcp22.suse.cz>
-	<502E1E90.1080805@parallels.com>
-	<20120821075430.GA19797@dhcp22.suse.cz>
-	<50335341.6010400@parallels.com>
-	<20120821100007.GE19797@dhcp22.suse.cz>
-	<xr93fw7fbumo.fsf@gthelen.mtv.corp.google.com>
-	<503496D9.3020806@parallels.com>
-Date: Wed, 22 Aug 2012 16:23:12 -0700
-In-Reply-To: <503496D9.3020806@parallels.com> (Glauber Costa's message of
-	"Wed, 22 Aug 2012 12:22:49 +0400")
-Message-ID: <xr93a9xmwly7.fsf@gthelen.mtv.corp.google.com>
+Received: from psmtp.com (na3sys010amx151.postini.com [74.125.245.151])
+	by kanga.kvack.org (Postfix) with SMTP id 1C99C6B0044
+	for <linux-mm@kvack.org>; Wed, 22 Aug 2012 19:54:31 -0400 (EDT)
+Received: by pbbro12 with SMTP id ro12so259589pbb.14
+        for <linux-mm@kvack.org>; Wed, 22 Aug 2012 16:54:30 -0700 (PDT)
+Message-ID: <50357127.1000608@gmail.com>
+Date: Thu, 23 Aug 2012 09:54:15 +1000
+From: Ryan Mallon <rmallon@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Subject: Re: [PATCH v3 01/17] hashtable: introduce a small and naive hashtable
+References: <1345602432-27673-1-git-send-email-levinsasha928@gmail.com> <1345602432-27673-2-git-send-email-levinsasha928@gmail.com> <20120822180138.GA19212@google.com>
+In-Reply-To: <20120822180138.GA19212@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: Michal Hocko <mhocko@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, devel@openvz.org, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, kamezawa.hiroyu@jp.fujitsu.com, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Suleiman Souhlal <suleiman@google.com>
+To: Tejun Heo <tj@kernel.org>
+Cc: Sasha Levin <levinsasha928@gmail.com>, torvalds@linux-foundation.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, paul.gortmaker@windriver.com, davem@davemloft.net, rostedt@goodmis.org, mingo@elte.hu, ebiederm@xmission.com, aarcange@redhat.com, ericvh@gmail.com, netdev@vger.kernel.org, josh@joshtriplett.org, eric.dumazet@gmail.com, mathieu.desnoyers@efficios.com, axboe@kernel.dk, agk@redhat.com, dm-devel@redhat.com, neilb@suse.de, ccaulfie@redhat.com, teigland@redhat.com, Trond.Myklebust@netapp.com, bfields@fieldses.org, fweisbec@gmail.com, jesse@nicira.com, venkat.x.venkatsubra@oracle.com, ejt@redhat.com, snitzer@redhat.com, edumazet@google.com, linux-nfs@vger.kernel.org, dev@openvswitch.org, rds-devel@oss.oracle.com, lw@cn.fujitsu.com
 
-On Wed, Aug 22 2012, Glauber Costa wrote:
+On 23/08/12 04:01, Tejun Heo wrote:
+> Hello, Sasha.
+> 
+> On Wed, Aug 22, 2012 at 04:26:56AM +0200, Sasha Levin wrote:
+>> +#define DEFINE_HASHTABLE(name, bits)					\
+>> +	struct hlist_head name[HASH_SIZE(bits)];
+> 
+> Shouldn't this be something like the following?
+> 
+> #define DEFINE_HASHTABLE(name, bits)					\
+> 	struct hlist_head name[HASH_SIZE(bits)] =			\
+> 		{ [0 ... HASH_SIZE(bits) - 1] = HLIST_HEAD_INIT };
+> 
+> Also, given that the declaration isn't non-trivial, you'll probably
+> want a matching DECLARE_HASHTABLE() macro too.
+> 
+>> +/* Use hash_32 when possible to allow for fast 32bit hashing in 64bit kernels. */
+>> +#define hash_min(val, bits) ((sizeof(val)==4) ? hash_32((val), (bits)) : hash_long((val), (bits)))
+> 
+> Why is the branching condition sizeof(val) == 4 instead of <= 4?
+> Also, no biggie but why isn't this macro in caps?
 
->>>>
->>>> I am fine with either, I just need a clear sign from you guys so I don't
->>>> keep deimplementing and reimplementing this forever.
->>>
->>> I would be for make it simple now and go with additional features later
->>> when there is a demand for them. Maybe we will have runtimg switch for
->>> user memory accounting as well one day.
->>>
->>> But let's see what others think?
->> 
->> In my use case memcg will either be disable or (enabled and kmem
->> limiting enabled).
->> 
->> I'm not sure I follow the discussion about history.  Are we saying that
->> once a kmem limit is set then kmem will be accounted/charged to memcg.
->> Is this discussion about the static branches/etc that are autotuned the
->> first time is enabled?  
->
-> No, the question is about when you unlimit a former kmem-limited memcg.
->
->> The first time its set there parts of the system
->> will be adjusted in such a way that may impose a performance overhead
->> (static branches, etc).  Thereafter the performance cannot be regained
->> without a reboot.  This makes sense to me.  Are we saying that
->> kmem.limit_in_bytes will have three states?
->
-> It is not about performance, about interface.
->
-> Michal says that once a particular memcg was kmem-limited, it will keep
-> accounting pages, even if you make it unlimited. The limits won't be
-> enforced, for sure - there is no limit, but pages will still be accounted.
->
-> This simplifies the code galore, but I worry about the interface: A
-> person looking at the current status of the files only, without
-> knowledge of past history, can't tell if allocations will be tracked or not.
+It should probably use gcc's statement expression extensions to prevent
+side-effect issues with the arguments:
 
-In the current patch set we've conflating enabling kmem accounting with
-the kmem limit value (RESOURCE_MAX=disabled, all_other_values=enabled).
+  #define hash_min ({		\
+	sizeof(val) <= 4 ?	\
+	hash_32(val, bits) :	\
+	hash_long(val, bits));	\
+  })
 
-I see no problem with simpling the kernel code with the requirement that
-once a particular memcg enables kmem accounting that it cannot be
-disabled for that memcg.
-
-The only question is the user space interface.  Two options spring to
-mind:
-a) Close to current code.  Once kmem.limit_in_bytes is set to
-   non-RESOURCE_MAX, then kmem accounting is enabled and cannot be
-   disabled.  Therefore the limit cannot be set to RESOURCE_MAX
-   thereafter.  The largest value would be something like
-   RESOURCE_MAX-PAGE_SIZE.  An admin wondering if kmem is enabled only
-   has to cat kmem.limit_in_bytes - if it's less than RESOURCE_MAX, then
-   kmem is enabled.
-
-b) Or, if we could introduce a separate sticky kmem.enabled file.  Once
-   set it could not be unset.  Kmem accounting would only be enabled if
-   kmem.enabled=1.
-
-I think (b) is clearer.
+~Ryan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
