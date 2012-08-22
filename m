@@ -1,53 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
-	by kanga.kvack.org (Postfix) with SMTP id 01D3E6B0044
-	for <linux-mm@kvack.org>; Tue, 21 Aug 2012 23:30:00 -0400 (EDT)
-Message-ID: <50345232.4090002@redhat.com>
-Date: Tue, 21 Aug 2012 23:29:54 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
+	by kanga.kvack.org (Postfix) with SMTP id 330C36B0044
+	for <linux-mm@kvack.org>; Tue, 21 Aug 2012 23:34:19 -0400 (EDT)
+Date: Wed, 22 Aug 2012 12:34:41 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH] memory-hotplug: fix a drain pcp bug when offline pages
+Message-ID: <20120822033441.GB24667@bbox>
+References: <50337B15.2090701@gmail.com>
 MIME-Version: 1.0
-Subject: Re: [RFC PATCH] Re: Repeated fork() causes SLAB to grow without bound
-References: <20120816024610.GA5350@evergreen.ssec.wisc.edu> <502D42E5.7090403@redhat.com> <20120818000312.GA4262@evergreen.ssec.wisc.edu> <502F100A.1080401@redhat.com> <alpine.LSU.2.00.1208200032450.24855@eggly.anvils> <CANN689Ej7XLh8VKuaPrTttDrtDGQbXuYJgS2uKnZL2EYVTM3Dg@mail.gmail.com> <20120822032057.GA30871@google.com>
-In-Reply-To: <20120822032057.GA30871@google.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <50337B15.2090701@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michel Lespinasse <walken@google.com>
-Cc: Hugh Dickins <hughd@google.com>, Daniel Forrest <dan.forrest@ssec.wisc.edu>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: qiuxishi <qiuxishi@gmail.com>
+Cc: akpm@linux-foundation.org, lliubbo@gmail.com, jiang.liu@huawei.com, mgorman@suse.de, kamezawa.hiroyu@jp.fujitsu.com, mhocko@suse.cz, linux-mm@kvack.org, linux-kernel@vger.kernel.org, qiuxishi@huawei.com, wujianguo@huawei.com, bessel.wang@huawei.com, guohanjun@huawei.com, chenkeping@huawei.com, yinghai@kernel.org, wency@cn.fujitsu.com
 
-On 08/21/2012 11:20 PM, Michel Lespinasse wrote:
-> On Mon, Aug 20, 2012 at 02:39:26AM -0700, Michel Lespinasse wrote:
->> Instead of adding an atomic count for page references, we could limit
->> the anon_vma stacking depth. In fork, we would only clone anon_vmas
->> that have a low enough generation count. I think that's not great
->> (adds a special case for the deep-fork-without-exec behavior), but
->> still better than the atomic page reference counter.
->
-> Here is an attached patch to demonstrate the idea.
->
-> anon_vma_clone() is modified to return the length of the existing same_vma
-> anon vma chain, and we create a new anon_vma in the child only on the first
-> fork (this could be tweaked to allow up to a set number of forks, but
-> I think the first fork would cover all the common forking server cases).
+Hello Xishi,
 
-I suspect we need 2 or 3.
+On Tue, Aug 21, 2012 at 08:12:05PM +0800, qiuxishi wrote:
+> From: Xishi Qiu <qiuxishi@huawei.com>
+> 
+> When offline a section, we move all the free pages and pcp into MIGRATE_ISOLATE list first.
+> start_isolate_page_range()
+> 	set_migratetype_isolate()
+> 		drain_all_pages(),
+> 
+> Here is a problem, it is not sure that pcp will be moved into MIGRATE_ISOLATE list. They may
+> be moved into MIGRATE_MOVABLE list because page_private() maybe 2. So when finish migrating
+> pages, the free pages from pcp may be allocated again, and faild in check_pages_isolated().
+> drain_all_pages()
+> 	drain_local_pages()
+> 		drain_pages()
+> 			free_pcppages_bulk()
+> 				__free_one_page(page, zone, 0, page_private(page));
+> 
+> If we add move_freepages_block() after drain_all_pages(), it can not sure that all the pcp
+> will be moved into MIGRATE_ISOLATE list when the system works on high load. The free pages
+> which from pcp may immediately be allocated again.
+> 
+> I think the similar bug described in http://marc.info/?t=134250882300003&r=1&w=2
 
-Some forking servers first fork off one child, and have
-the original parent exit, in order to "background the server".
-That first child then becomes the parent to the real child
-processes that do the work.
+Yes. I reported the problem a few month ago but it's not real bug in practice
+but found by my eyes during looking the code so I wanted to confirm the problem.
 
-It is conceivable that we might need an extra level for
-processes that do something special with privilege dropping,
-namespace changing, etc...
+Do you find that problem in real practice? or just code review?
 
-Even setting the threshold to 5 should be totally harmless,
-since the problem does not kick in until we have really
-long chains, like in Dan's bug report.
+Anyway, I don't like your approach which I already considered because it hurts hotpath
+while the race is really unlikely. Get_pageblock_migratetype is never trivial.
+We should avoid the overhead in hotpath and move into memory-hotplug itself.
+Do you see my patch in https://patchwork.kernel.org/patch/1225081/ ?
+
+> 
+> 
+> Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
+> ---
+>  mm/page_alloc.c |    3 ++-
+>  1 files changed, 2 insertions(+), 1 deletions(-)
+> 
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index d0723b2..501f6de 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -673,7 +673,8 @@ static void free_pcppages_bulk(struct zone *zone, int count,
+>  			/* must delete as __free_one_page list manipulates */
+>  			list_del(&page->lru);
+>  			/* MIGRATE_MOVABLE list may include MIGRATE_RESERVEs */
+> -			__free_one_page(page, zone, 0, page_private(page));
+> +			__free_one_page(page, zone, 0,
+> +					get_pageblock_migratetype(page));
+>  			trace_mm_page_pcpu_drain(page, 0, page_private(page));
+>  		} while (--to_free && --batch_free && !list_empty(list));
+>  	}
+> -- 1.7.6.1 .
+> 
+> 
+> 
+> .
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 -- 
-All rights reversed
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
