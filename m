@@ -1,47 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx190.postini.com [74.125.245.190])
-	by kanga.kvack.org (Postfix) with SMTP id CB2966B005D
-	for <linux-mm@kvack.org>; Wed, 22 Aug 2012 08:13:30 -0400 (EDT)
-Received: by obhx4 with SMTP id x4so1636022obh.14
-        for <linux-mm@kvack.org>; Wed, 22 Aug 2012 05:13:29 -0700 (PDT)
-Message-ID: <5034CD02.2010103@gmail.com>
-Date: Wed, 22 Aug 2012 14:13:54 +0200
-From: Sasha Levin <levinsasha928@gmail.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH v3 13/17] lockd: use new hashtable implementation
-References: <1345602432-27673-1-git-send-email-levinsasha928@gmail.com> <1345602432-27673-14-git-send-email-levinsasha928@gmail.com> <20120822114752.GC20158@fieldses.org>
-In-Reply-To: <20120822114752.GC20158@fieldses.org>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
+	by kanga.kvack.org (Postfix) with SMTP id EA9F56B005D
+	for <linux-mm@kvack.org>; Wed, 22 Aug 2012 08:30:04 -0400 (EDT)
+Received: from epcpsbgm1.samsung.com (mailout1.samsung.com [203.254.224.24])
+ by mailout1.samsung.com
+ (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
+ 17 2011)) with ESMTP id <0M9500L4LPE342D0@mailout1.samsung.com> for
+ linux-mm@kvack.org; Wed, 22 Aug 2012 21:30:03 +0900 (KST)
+Received: from AMDC159 ([106.116.147.30])
+ by mmp1.samsung.com (Oracle Communications Messaging Server 7u4-24.01
+ (7.0.4.24.0) 64bit (built Nov 17 2011))
+ with ESMTPA id <0M9500I3OPDOJN70@mmp1.samsung.com> for linux-mm@kvack.org;
+ Wed, 22 Aug 2012 21:30:03 +0900 (KST)
+From: Marek Szyprowski <m.szyprowski@samsung.com>
+References: <1345630830-9586-1-git-send-email-hdoyu@nvidia.com>
+ <1345630830-9586-3-git-send-email-hdoyu@nvidia.com>
+In-reply-to: <1345630830-9586-3-git-send-email-hdoyu@nvidia.com>
+Subject: RE: [RFC 2/4] ARM: dma-mapping: IOMMU allocates pages from pool with
+ GFP_ATOMIC
+Date: Wed, 22 Aug 2012 14:29:47 +0200
+Message-id: <005a01cd8061$d58998c0$809cca40$%szyprowski@samsung.com>
+MIME-version: 1.0
+Content-type: text/plain; charset=us-ascii
+Content-transfer-encoding: 7bit
+Content-language: pl
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "J. Bruce Fields" <bfields@fieldses.org>
-Cc: torvalds@linux-foundation.org, tj@kernel.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, paul.gortmaker@windriver.com, davem@davemloft.net, rostedt@goodmis.org, mingo@elte.hu, ebiederm@xmission.com, aarcange@redhat.com, ericvh@gmail.com, netdev@vger.kernel.org, josh@joshtriplett.org, eric.dumazet@gmail.com, mathieu.desnoyers@efficios.com, axboe@kernel.dk, agk@redhat.com, dm-devel@redhat.com, neilb@suse.de, ccaulfie@redhat.com, teigland@redhat.com, Trond.Myklebust@netapp.com, fweisbec@gmail.com, jesse@nicira.com, venkat.x.venkatsubra@oracle.com, ejt@redhat.com, snitzer@redhat.com, edumazet@google.com, linux-nfs@vger.kernel.org, dev@openvswitch.org, rds-devel@oss.oracle.com, lw@cn.fujitsu.com
+To: 'Hiroshi Doyu' <hdoyu@nvidia.com>
+Cc: linux-arm-kernel@lists.infradead.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kyungmin.park@samsung.com, arnd@arndb.de, linux@arm.linux.org.uk, chunsang.jeong@linaro.org, 'Krishna Reddy' <vdumpa@nvidia.com>, konrad.wilk@oracle.com, subashrp@gmail.com, minchan@kernel.org
 
-On 08/22/2012 01:47 PM, J. Bruce Fields wrote:
-> On Wed, Aug 22, 2012 at 04:27:08AM +0200, Sasha Levin wrote:
->> +static int __init nlm_init(void)
->> +{
->> +	hash_init(nlm_files);
->> +	return 0;
->> +}
->> +
->> +module_init(nlm_init);
+Hello,
+
+On Wednesday, August 22, 2012 12:20 PM Hiroshi Doyu wrote:
+
+> Makes use of the same atomic pool from DMA, and skips kernel page
+> mapping which can involves sleep'able operation at allocating a kernel
+> page table.
 > 
-> That's giving me:
+> Signed-off-by: Hiroshi Doyu <hdoyu@nvidia.com>
+> ---
+>  arch/arm/mm/dma-mapping.c |   22 ++++++++++++++++++----
+>  1 files changed, 18 insertions(+), 4 deletions(-)
 > 
-> fs/lockd/svcsubs.o: In function `nlm_init':
-> /home/bfields/linux-2.6/fs/lockd/svcsubs.c:454: multiple definition of `init_module'
-> fs/lockd/svc.o:/home/bfields/linux-2.6/fs/lockd/svc.c:606: first defined here
-> make[2]: *** [fs/lockd/lockd.o] Error 1
-> make[1]: *** [fs/lockd] Error 2
-> make[1]: *** Waiting for unfinished jobs....
+> diff --git a/arch/arm/mm/dma-mapping.c b/arch/arm/mm/dma-mapping.c
+> index aec0c06..9260107 100644
+> --- a/arch/arm/mm/dma-mapping.c
+> +++ b/arch/arm/mm/dma-mapping.c
+> @@ -1028,7 +1028,6 @@ static struct page **__iommu_alloc_buffer(struct device *dev, size_t
+> size,
+>  	struct page **pages;
+>  	int count = size >> PAGE_SHIFT;
+>  	int array_size = count * sizeof(struct page *);
+> -	int err;
+> 
+>  	if (array_size <= PAGE_SIZE)
+>  		pages = kzalloc(array_size, gfp);
+> @@ -1037,9 +1036,20 @@ static struct page **__iommu_alloc_buffer(struct device *dev, size_t
+> size,
+>  	if (!pages)
+>  		return NULL;
+> 
+> -	err = __alloc_fill_pages(&pages, count, gfp);
+> -	if (err)
+> -		goto error
+> +	if (gfp & GFP_ATOMIC) {
+> +		struct page *page;
+> +		int i;
+> +		void *addr = __alloc_from_pool(size, &page);
+> +		if (!addr)
+> +			goto err_out;
+> +
+> +		for (i = 0; i < count; i++)
+> +			pages[i] = page + i;
+> +	} else {
+> +		int err = __alloc_fill_pages(&pages, count, gfp);
+> +		if (err)
+> +			goto error;
+> +	}
+> 
+>  	return pages;
+>  error:
+> @@ -1055,6 +1065,10 @@ static int __iommu_free_buffer(struct device *dev, struct page **pages,
+> size_t s
+>  	int count = size >> PAGE_SHIFT;
+>  	int array_size = count * sizeof(struct page *);
+>  	int i;
+> +
+> +	if (__free_from_pool(page_address(pages[0]), size))
+> +		return 0;
 
-I tested this entire patch set both with linux-next and Linus' latest master,
-and it worked fine in both places.
+You leak memory here. pages array should be also freed.
 
-Is it possible that lockd has a -next tree which isn't pulled into linux-next?
-(there's nothing listed in MAINTAINERS that I could see).
+> +
+>  	for (i = 0; i < count; i++)
+>  		if (pages[i])
+>  			__free_pages(pages[i], 0);
+> --
+> 1.7.5.4
+
+
+Best regards
+-- 
+Marek Szyprowski
+Samsung Poland R&D Center
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
