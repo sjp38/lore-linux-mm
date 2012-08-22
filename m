@@ -1,36 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx174.postini.com [74.125.245.174])
-	by kanga.kvack.org (Postfix) with SMTP id 597E86B0070
-	for <linux-mm@kvack.org>; Wed, 22 Aug 2012 14:05:06 -0400 (EDT)
-Received: by dadi14 with SMTP id i14so1116420dad.14
-        for <linux-mm@kvack.org>; Wed, 22 Aug 2012 11:05:05 -0700 (PDT)
-Date: Wed, 22 Aug 2012 11:05:00 -0700
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH v3 04/17] workqueue: use new hashtable implementation
-Message-ID: <20120822180500.GB19212@google.com>
-References: <1345602432-27673-1-git-send-email-levinsasha928@gmail.com>
- <1345602432-27673-5-git-send-email-levinsasha928@gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1345602432-27673-5-git-send-email-levinsasha928@gmail.com>
+Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
+	by kanga.kvack.org (Postfix) with SMTP id 8A0B06B005D
+	for <linux-mm@kvack.org>; Wed, 22 Aug 2012 15:03:16 -0400 (EDT)
+Date: Wed, 22 Aug 2012 12:03:14 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 2/5] mempolicy: Remove mempolicy sharing
+Message-Id: <20120822120314.9fc30d47.akpm@linux-foundation.org>
+In-Reply-To: <1345480594-27032-3-git-send-email-mgorman@suse.de>
+References: <1345480594-27032-1-git-send-email-mgorman@suse.de>
+	<1345480594-27032-3-git-send-email-mgorman@suse.de>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <levinsasha928@gmail.com>
-Cc: torvalds@linux-foundation.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, paul.gortmaker@windriver.com, davem@davemloft.net, rostedt@goodmis.org, mingo@elte.hu, ebiederm@xmission.com, aarcange@redhat.com, ericvh@gmail.com, netdev@vger.kernel.org, josh@joshtriplett.org, eric.dumazet@gmail.com, mathieu.desnoyers@efficios.com, axboe@kernel.dk, agk@redhat.com, dm-devel@redhat.com, neilb@suse.de, ccaulfie@redhat.com, teigland@redhat.com, Trond.Myklebust@netapp.com, bfields@fieldses.org, fweisbec@gmail.com, jesse@nicira.com, venkat.x.venkatsubra@oracle.com, ejt@redhat.com, snitzer@redhat.com, edumazet@google.com, linux-nfs@vger.kernel.org, dev@openvswitch.org, rds-devel@oss.oracle.com, lw@cn.fujitsu.com
+To: Mel Gorman <mgorman@suse.de>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Dave Jones <davej@redhat.com>, Christoph Lameter <cl@linux.com>, Ben Hutchings <ben@decadent.org.uk>, Andi Kleen <ak@linux.intel.com>, Hugh Dickins <hughd@google.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
 
-On Wed, Aug 22, 2012 at 04:26:59AM +0200, Sasha Levin wrote:
-> Switch workqueues to use the new hashtable implementation. This reduces the amount of
-> generic unrelated code in the workqueues.
+On Mon, 20 Aug 2012 17:36:31 +0100
+Mel Gorman <mgorman@suse.de> wrote:
+
+> From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 > 
-> Signed-off-by: Sasha Levin <levinsasha928@gmail.com>
+> Dave Jones' system call fuzz testing tool "trinity" triggered the following
+> bug error with slab debugging enabled
+> 
+> ...
+>
+> Cc: <stable@vger.kernel.org>
 
-Acked-by: Tejun Heo <tj@kernel.org>
-
-Thanks.
-
--- 
-tejun
+The patch dosn't apply to 3.5 at all well.  I don't see much point in
+retaining the stable tag so I think I'll remove it, and suggest that
+you prepare a fresh patch for Greg and explain the situation?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
