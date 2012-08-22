@@ -1,55 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
-	by kanga.kvack.org (Postfix) with SMTP id 087286B0080
-	for <linux-mm@kvack.org>; Wed, 22 Aug 2012 12:37:48 -0400 (EDT)
-Date: Wed, 22 Aug 2012 18:37:46 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH] mm: mmu_notifier: fix inconsistent memory between
- secondary MMU and host
-Message-ID: <20120822163746.GU29978@redhat.com>
-References: <503358FF.3030009@linux.vnet.ibm.com>
- <20120821150618.GJ27696@redhat.com>
- <50345735.2000807@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
+	by kanga.kvack.org (Postfix) with SMTP id DC0096B0070
+	for <linux-mm@kvack.org>; Wed, 22 Aug 2012 13:32:26 -0400 (EDT)
+Received: by bkcjc3 with SMTP id jc3so468992bkc.14
+        for <linux-mm@kvack.org>; Wed, 22 Aug 2012 10:32:25 -0700 (PDT)
+Message-ID: <503517C4.5030500@gmail.com>
+Date: Wed, 22 Aug 2012 19:32:52 +0200
+From: Sasha Levin <levinsasha928@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <50345735.2000807@linux.vnet.ibm.com>
+Subject: Re: [PATCH v3 13/17] lockd: use new hashtable implementation
+References: <1345602432-27673-1-git-send-email-levinsasha928@gmail.com> <1345602432-27673-14-git-send-email-levinsasha928@gmail.com> <20120822114752.GC20158@fieldses.org> <5034CD02.2010103@gmail.com> <20120822132243.GA2844@Krystal>
+In-Reply-To: <20120822132243.GA2844@Krystal>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Avi Kivity <avi@redhat.com>, Marcelo Tosatti <mtosatti@redhat.com>, LKML <linux-kernel@vger.kernel.org>, KVM <kvm@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
+Cc: "J. Bruce Fields" <bfields@fieldses.org>, torvalds@linux-foundation.org, tj@kernel.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, paul.gortmaker@windriver.com, davem@davemloft.net, rostedt@goodmis.org, mingo@elte.hu, ebiederm@xmission.com, aarcange@redhat.com, ericvh@gmail.com, netdev@vger.kernel.org, josh@joshtriplett.org, eric.dumazet@gmail.com, axboe@kernel.dk, agk@redhat.com, dm-devel@redhat.com, neilb@suse.de, ccaulfie@redhat.com, teigland@redhat.com, Trond.Myklebust@netapp.com, fweisbec@gmail.com, jesse@nicira.com, venkat.x.venkatsubra@oracle.com, ejt@redhat.com, snitzer@redhat.com, edumazet@google.com, linux-nfs@vger.kernel.org, dev@openvswitch.org, rds-devel@oss.oracle.com, lw@cn.fujitsu.com
 
-On Wed, Aug 22, 2012 at 11:51:17AM +0800, Xiao Guangrong wrote:
-> Hmm, in KSM code, i found this code in replace_page:
+On 08/22/2012 03:22 PM, Mathieu Desnoyers wrote:
+> * Sasha Levin (levinsasha928@gmail.com) wrote:
+>> On 08/22/2012 01:47 PM, J. Bruce Fields wrote:
+>>> On Wed, Aug 22, 2012 at 04:27:08AM +0200, Sasha Levin wrote:
+>>>> +static int __init nlm_init(void)
+>>>> +{
+>>>> +	hash_init(nlm_files);
+>>>> +	return 0;
+>>>> +}
+>>>> +
+>>>> +module_init(nlm_init);
+>>>
+>>> That's giving me:
+>>>
+>>> fs/lockd/svcsubs.o: In function `nlm_init':
+>>> /home/bfields/linux-2.6/fs/lockd/svcsubs.c:454: multiple definition of `init_module'
+>>> fs/lockd/svc.o:/home/bfields/linux-2.6/fs/lockd/svc.c:606: first defined here
+>>> make[2]: *** [fs/lockd/lockd.o] Error 1
+>>> make[1]: *** [fs/lockd] Error 2
+>>> make[1]: *** Waiting for unfinished jobs....
+>>
+>> I tested this entire patch set both with linux-next and Linus' latest master,
+>> and it worked fine in both places.
+>>
+>> Is it possible that lockd has a -next tree which isn't pulled into linux-next?
+>> (there's nothing listed in MAINTAINERS that I could see).
 > 
-> set_pte_at_notify(mm, addr, ptep, mk_pte(kpage, vma->vm_page_prot));
+> fs/lockd/Makefile:
 > 
-> It is possible to establish a writable pte, no?
+> obj-$(CONFIG_LOCKD) += lockd.o
+> 
+> lockd-objs-y := clntlock.o clntproc.o clntxdr.o host.o svc.o svclock.o \
+>                 svcshare.o svcproc.o svcsubs.o mon.o xdr.o grace.o
+> 
+> your patch adds a module_init to svcsubs.c.
+> However, there is already one in svc.c, pulled into the same module.
+> 
+> in your test build, is CONFIG_LOCKD defined as "m" or "y" ? You should
+> always test both.
+> 
+> One solution here is to create a "local" init function in svcsubs.c and
+> expose it to svc.c, so the latter can call it from its module init
+> function.
 
-Hugh already answered this thanks. Further details on the vm_page_prot
-are in top of mmap.c, and KSM never scans MAP_SHARED vmas.
+Ah yes, it was on =y and I didn't notice :/
 
-> Unfortunately, all these bugs are triggered by test cases.
+I'll fix that.
 
-Sure, I've seen the very Oops for the other one, and this one also can
-trigger if unlucky.
-
-This one can trigger with KVM but only if KSM is enabled or with live
-migration or with device hotplug or some other event that triggers a
-fork in qemu.
-
-My curiosity about the other one in the exit/unregister/release paths
-is if it really ever triggered with KVM. Because I can't easily see
-how it could trigger. By the time kvm_destroy_vm or exit_mmap() runs,
-no vcpu can be in guest mode anymore, so it cannot matter whatever the
-status of any leftover spte at that time.
-
-The process in the oops certainly wasn't qemu*. This is what I meant
-in the previous email about this. Of course the fix was certainly good
-and needed for other mmu notifier users, great fix.
-
-Thanks,
-Andrea
+> Thanks,
+> 
+> Mathieu
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
