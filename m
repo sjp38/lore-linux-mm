@@ -1,44 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
-	by kanga.kvack.org (Postfix) with SMTP id 9CBB26B0044
-	for <linux-mm@kvack.org>; Wed, 22 Aug 2012 16:14:58 -0400 (EDT)
-Date: Wed, 22 Aug 2012 22:14:55 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH] mm: mmu_notifier: fix inconsistent memory between
- secondary MMU and host
-Message-ID: <20120822201455.GB8107@redhat.com>
-References: <503358FF.3030009@linux.vnet.ibm.com>
- <20120821150618.GJ27696@redhat.com>
- <5034763D.60508@linux.vnet.ibm.com>
- <20120822162955.GT29978@redhat.com>
- <20120822121535.8be38858.akpm@linux-foundation.org>
- <20120822195043.GA8107@redhat.com>
- <20120822125805.9c62aa79.akpm@linux-foundation.org>
+Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
+	by kanga.kvack.org (Postfix) with SMTP id A55476B0044
+	for <linux-mm@kvack.org>; Wed, 22 Aug 2012 16:19:05 -0400 (EDT)
+From: Andi Kleen <andi@firstfloor.org>
+Subject: Re: [PATCH 19/36] autonuma: memory follows CPU algorithm and task/mm_autonuma stats collection
+References: <1345647560-30387-1-git-send-email-aarcange@redhat.com>
+	<1345647560-30387-20-git-send-email-aarcange@redhat.com>
+Date: Wed, 22 Aug 2012 13:19:04 -0700
+In-Reply-To: <1345647560-30387-20-git-send-email-aarcange@redhat.com> (Andrea
+	Arcangeli's message of "Wed, 22 Aug 2012 16:59:03 +0200")
+Message-ID: <m2sjbe7k93.fsf@firstfloor.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120822125805.9c62aa79.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>, Avi Kivity <avi@redhat.com>, Marcelo Tosatti <mtosatti@redhat.com>, LKML <linux-kernel@vger.kernel.org>, KVM <kvm@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, Aug 22, 2012 at 12:58:05PM -0700, Andrew Morton wrote:
-> If you can suggest some text I'll type it in right now.
+Andrea Arcangeli <aarcange@redhat.com> writes:
 
-Ok ;), I tried below:
+> +/*
+> + * In this function we build a temporal CPU_node<->page relation by
+> + * using a two-stage autonuma_last_nid filter to remove short/unlikely
+> + * relations.
+> + *
+> + * Using P(p) ~ n_p / n_t as per frequentest probability, we can
+> + * equate a node's CPU usage of a particular page (n_p) per total
+> + * usage of this page (n_t) (in a given time-span) to a probability.
+> + *
+> + * Our periodic faults will then sample this probability and getting
+> + * the same result twice in a row, given these samples are fully
+> + * independent, is then given by P(n)^2, provided our sample period
+> + * is sufficiently short compared to the usage pattern.
+> + *
+> + * This quadric squishes small probabilities, making it less likely
+> + * we act on an unlikely CPU_node<->page relation.
+> + */
 
-This is safe to start by updating the secondary MMUs, because the
-relevant primary MMU pte invalidate must have already happened with a
-ptep_clear_flush before set_pte_at_notify has been invoked. Updating
-the secondary MMUs first is required when we change both the
-protection of the mapping from read-only to read-write and the pfn
-(like during copy on write page faults). Otherwise the old page would
-remain mapped readonly in the secondary MMUs after the new page is
-already writable by some CPU through the primary MMU."
+The code does not seem to do what the comment describes.
 
-Thanks!
-Andrea
+> +static inline bool last_nid_set(struct page *page, int this_nid)
+> +{
+> +	bool ret = true;
+> +	int autonuma_last_nid = ACCESS_ONCE(page->autonuma_last_nid);
+> +	VM_BUG_ON(this_nid < 0);
+> +	VM_BUG_ON(this_nid >= MAX_NUMNODES);
+> +	if (autonuma_last_nid >= 0 && autonuma_last_nid != this_nid) {
+> +		int migrate_nid = ACCESS_ONCE(page->autonuma_migrate_nid);
+> +		if (migrate_nid >= 0)
+> +			__autonuma_migrate_page_remove(page);
+> +		ret = false;
+> +	}
+> +	if (autonuma_last_nid != this_nid)
+> +		ACCESS_ONCE(page->autonuma_last_nid) = this_nid;
+> +	return ret;
+> +}
+> +
+> +		/*
+> +		 * Take the lock with irqs disabled to avoid a lock
+> +		 * inversion with the lru_lock. The lru_lock is taken
+> +		 * before the autonuma_migrate_lock in
+> +		 * split_huge_page. If we didn't disable irqs, the
+> +		 * lru_lock could be taken by interrupts after we have
+> +		 * obtained the autonuma_migrate_lock here.
+> +		 */
+
+Which interrupt code takes the lru_lock? That sounds like a bug.
+
+
+-- 
+ak@linux.intel.com -- Speaking for myself only
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
