@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
-	by kanga.kvack.org (Postfix) with SMTP id 378A36B007D
-	for <linux-mm@kvack.org>; Tue, 21 Aug 2012 22:27:40 -0400 (EDT)
+	by kanga.kvack.org (Postfix) with SMTP id 3000B6B007B
+	for <linux-mm@kvack.org>; Tue, 21 Aug 2012 22:27:46 -0400 (EDT)
 Received: by mail-ob0-f169.google.com with SMTP id x4so779582obh.14
-        for <linux-mm@kvack.org>; Tue, 21 Aug 2012 19:27:39 -0700 (PDT)
+        for <linux-mm@kvack.org>; Tue, 21 Aug 2012 19:27:45 -0700 (PDT)
 From: Sasha Levin <levinsasha928@gmail.com>
-Subject: [PATCH v3 08/17] block,elevator: use new hashtable implementation
-Date: Wed, 22 Aug 2012 04:27:03 +0200
-Message-Id: <1345602432-27673-9-git-send-email-levinsasha928@gmail.com>
+Subject: [PATCH v3 09/17] SUNRPC/cache: use new hashtable implementation
+Date: Wed, 22 Aug 2012 04:27:04 +0200
+Message-Id: <1345602432-27673-10-git-send-email-levinsasha928@gmail.com>
 In-Reply-To: <1345602432-27673-1-git-send-email-levinsasha928@gmail.com>
 References: <1345602432-27673-1-git-send-email-levinsasha928@gmail.com>
 Sender: owner-linux-mm@kvack.org
@@ -15,142 +15,93 @@ List-ID: <linux-mm.kvack.org>
 To: torvalds@linux-foundation.org
 Cc: tj@kernel.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, paul.gortmaker@windriver.com, davem@davemloft.net, rostedt@goodmis.org, mingo@elte.hu, ebiederm@xmission.com, aarcange@redhat.com, ericvh@gmail.com, netdev@vger.kernel.org, josh@joshtriplett.org, eric.dumazet@gmail.com, mathieu.desnoyers@efficios.com, axboe@kernel.dk, agk@redhat.com, dm-devel@redhat.com, neilb@suse.de, ccaulfie@redhat.com, teigland@redhat.com, Trond.Myklebust@netapp.com, bfields@fieldses.org, fweisbec@gmail.com, jesse@nicira.com, venkat.x.venkatsubra@oracle.com, ejt@redhat.com, snitzer@redhat.com, edumazet@google.com, linux-nfs@vger.kernel.org, dev@openvswitch.org, rds-devel@oss.oracle.com, lw@cn.fujitsu.com, Sasha Levin <levinsasha928@gmail.com>
 
-Switch elevator to use the new hashtable implementation. This reduces the amount of
-generic unrelated code in the elevator.
-
-This also removes the dymanic allocation of the hash table. The size of the table is
-constant so there's no point in paying the price of an extra dereference when accessing
-it.
+Switch cache to use the new hashtable implementation. This reduces the amount of
+generic unrelated code in the cache implementation.
 
 Signed-off-by: Sasha Levin <levinsasha928@gmail.com>
 ---
- block/blk.h              |    2 +-
- block/elevator.c         |   23 ++++-------------------
- include/linux/elevator.h |    5 ++++-
- 3 files changed, 9 insertions(+), 21 deletions(-)
+ net/sunrpc/cache.c |   20 +++++++++-----------
+ 1 files changed, 9 insertions(+), 11 deletions(-)
 
-diff --git a/block/blk.h b/block/blk.h
-index 2a0ea32..5650d48 100644
---- a/block/blk.h
-+++ b/block/blk.h
-@@ -61,7 +61,7 @@ static inline void blk_clear_rq_complete(struct request *rq)
- /*
-  * Internal elevator interface
-  */
--#define ELV_ON_HASH(rq)		(!hlist_unhashed(&(rq)->hash))
-+#define ELV_ON_HASH(rq) hash_hashed(&(rq)->hash)
- 
- void blk_insert_flush(struct request *rq);
- void blk_abort_flushes(struct request_queue *q);
-diff --git a/block/elevator.c b/block/elevator.c
-index 6a55d41..f462a83 100644
---- a/block/elevator.c
-+++ b/block/elevator.c
-@@ -46,11 +46,6 @@ static LIST_HEAD(elv_list);
- /*
-  * Merge hash stuff.
-  */
--static const int elv_hash_shift = 6;
--#define ELV_HASH_BLOCK(sec)	((sec) >> 3)
--#define ELV_HASH_FN(sec)	\
--		(hash_long(ELV_HASH_BLOCK((sec)), elv_hash_shift))
--#define ELV_HASH_ENTRIES	(1 << elv_hash_shift)
- #define rq_hash_key(rq)		(blk_rq_pos(rq) + blk_rq_sectors(rq))
- 
- /*
-@@ -142,7 +137,6 @@ static struct elevator_queue *elevator_alloc(struct request_queue *q,
- 				  struct elevator_type *e)
- {
- 	struct elevator_queue *eq;
--	int i;
- 
- 	eq = kmalloc_node(sizeof(*eq), GFP_KERNEL | __GFP_ZERO, q->node);
- 	if (unlikely(!eq))
-@@ -151,14 +145,7 @@ static struct elevator_queue *elevator_alloc(struct request_queue *q,
- 	eq->type = e;
- 	kobject_init(&eq->kobj, &elv_ktype);
- 	mutex_init(&eq->sysfs_lock);
--
--	eq->hash = kmalloc_node(sizeof(struct hlist_head) * ELV_HASH_ENTRIES,
--					GFP_KERNEL, q->node);
--	if (!eq->hash)
--		goto err;
--
--	for (i = 0; i < ELV_HASH_ENTRIES; i++)
--		INIT_HLIST_HEAD(&eq->hash[i]);
-+	hash_init(eq->hash);
- 
- 	return eq;
- err:
-@@ -173,7 +160,6 @@ static void elevator_release(struct kobject *kobj)
- 
- 	e = container_of(kobj, struct elevator_queue, kobj);
- 	elevator_put(e->type);
--	kfree(e->hash);
- 	kfree(e);
- }
- 
-@@ -240,7 +226,7 @@ EXPORT_SYMBOL(elevator_exit);
- 
- static inline void __elv_rqhash_del(struct request *rq)
- {
--	hlist_del_init(&rq->hash);
-+	hash_del(&rq->hash);
- }
- 
- static void elv_rqhash_del(struct request_queue *q, struct request *rq)
-@@ -254,7 +240,7 @@ static void elv_rqhash_add(struct request_queue *q, struct request *rq)
- 	struct elevator_queue *e = q->elevator;
- 
- 	BUG_ON(ELV_ON_HASH(rq));
--	hlist_add_head(&rq->hash, &e->hash[ELV_HASH_FN(rq_hash_key(rq))]);
-+	hash_add(e->hash, &rq->hash, rq_hash_key(rq));
- }
- 
- static void elv_rqhash_reposition(struct request_queue *q, struct request *rq)
-@@ -266,11 +252,10 @@ static void elv_rqhash_reposition(struct request_queue *q, struct request *rq)
- static struct request *elv_rqhash_find(struct request_queue *q, sector_t offset)
- {
- 	struct elevator_queue *e = q->elevator;
--	struct hlist_head *hash_list = &e->hash[ELV_HASH_FN(offset)];
- 	struct hlist_node *entry, *next;
- 	struct request *rq;
- 
--	hlist_for_each_entry_safe(rq, entry, next, hash_list, hash) {
-+	hash_for_each_possible_safe(e->hash, rq, entry, next, hash, offset) {
- 		BUG_ON(!ELV_ON_HASH(rq));
- 
- 		if (unlikely(!rq_mergeable(rq))) {
-diff --git a/include/linux/elevator.h b/include/linux/elevator.h
-index c03af76..20b539c 100644
---- a/include/linux/elevator.h
-+++ b/include/linux/elevator.h
-@@ -2,6 +2,7 @@
- #define _LINUX_ELEVATOR_H
- 
- #include <linux/percpu.h>
+diff --git a/net/sunrpc/cache.c b/net/sunrpc/cache.c
+index 2afd2a8..8a8ef6d 100644
+--- a/net/sunrpc/cache.c
++++ b/net/sunrpc/cache.c
+@@ -28,6 +28,7 @@
+ #include <linux/workqueue.h>
+ #include <linux/mutex.h>
+ #include <linux/pagemap.h>
 +#include <linux/hashtable.h>
- 
- #ifdef CONFIG_BLOCK
- 
-@@ -96,6 +97,8 @@ struct elevator_type
- 	struct list_head list;
- };
- 
-+#define ELV_HASH_BITS 6
-+
- /*
-  * each queue has an elevator_queue associated with it
+ #include <asm/ioctls.h>
+ #include <linux/sunrpc/types.h>
+ #include <linux/sunrpc/cache.h>
+@@ -524,19 +525,18 @@ EXPORT_SYMBOL_GPL(cache_purge);
+  * it to be revisited when cache info is available
   */
-@@ -105,7 +108,7 @@ struct elevator_queue
- 	void *elevator_data;
- 	struct kobject kobj;
- 	struct mutex sysfs_lock;
--	struct hlist_head *hash;
-+	DEFINE_HASHTABLE(hash, ELV_HASH_BITS);
- 	unsigned int registered:1;
- };
  
+-#define	DFR_HASHSIZE	(PAGE_SIZE/sizeof(struct list_head))
+-#define	DFR_HASH(item)	((((long)item)>>4 ^ (((long)item)>>13)) % DFR_HASHSIZE)
++#define	DFR_HASH_BITS	9
+ 
+ #define	DFR_MAX	300	/* ??? */
+ 
+ static DEFINE_SPINLOCK(cache_defer_lock);
+ static LIST_HEAD(cache_defer_list);
+-static struct hlist_head cache_defer_hash[DFR_HASHSIZE];
++static DEFINE_HASHTABLE(cache_defer_hash, DFR_HASH_BITS)
+ static int cache_defer_cnt;
+ 
+ static void __unhash_deferred_req(struct cache_deferred_req *dreq)
+ {
+-	hlist_del_init(&dreq->hash);
++	hash_del(&dreq->hash);
+ 	if (!list_empty(&dreq->recent)) {
+ 		list_del_init(&dreq->recent);
+ 		cache_defer_cnt--;
+@@ -545,10 +545,7 @@ static void __unhash_deferred_req(struct cache_deferred_req *dreq)
+ 
+ static void __hash_deferred_req(struct cache_deferred_req *dreq, struct cache_head *item)
+ {
+-	int hash = DFR_HASH(item);
+-
+-	INIT_LIST_HEAD(&dreq->recent);
+-	hlist_add_head(&dreq->hash, &cache_defer_hash[hash]);
++	hash_add(cache_defer_hash, &dreq->hash, (unsigned long)item);
+ }
+ 
+ static void setup_deferral(struct cache_deferred_req *dreq,
+@@ -600,7 +597,7 @@ static void cache_wait_req(struct cache_req *req, struct cache_head *item)
+ 		 * to clean up
+ 		 */
+ 		spin_lock(&cache_defer_lock);
+-		if (!hlist_unhashed(&sleeper.handle.hash)) {
++		if (hash_hashed(&sleeper.handle.hash)) {
+ 			__unhash_deferred_req(&sleeper.handle);
+ 			spin_unlock(&cache_defer_lock);
+ 		} else {
+@@ -671,12 +668,11 @@ static void cache_revisit_request(struct cache_head *item)
+ 	struct cache_deferred_req *dreq;
+ 	struct list_head pending;
+ 	struct hlist_node *lp, *tmp;
+-	int hash = DFR_HASH(item);
+ 
+ 	INIT_LIST_HEAD(&pending);
+ 	spin_lock(&cache_defer_lock);
+ 
+-	hlist_for_each_entry_safe(dreq, lp, tmp, &cache_defer_hash[hash], hash)
++	hash_for_each_possible_safe(cache_defer_hash, dreq, lp, tmp, hash, (unsigned long)item)
+ 		if (dreq->item == item) {
+ 			__unhash_deferred_req(dreq);
+ 			list_add(&dreq->recent, &pending);
+@@ -1636,6 +1632,8 @@ static int create_cache_proc_entries(struct cache_detail *cd, struct net *net)
+ void __init cache_initialize(void)
+ {
+ 	INIT_DELAYED_WORK_DEFERRABLE(&cache_cleaner, do_cache_clean);
++
++	hash_init(cache_defer_hash);
+ }
+ 
+ int cache_register_net(struct cache_detail *cd, struct net *net)
 -- 
 1.7.8.6
 
