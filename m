@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
-	by kanga.kvack.org (Postfix) with SMTP id 9628C6B0068
-	for <linux-mm@kvack.org>; Thu, 23 Aug 2012 02:11:16 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
+	by kanga.kvack.org (Postfix) with SMTP id F25776B0068
+	for <linux-mm@kvack.org>; Thu, 23 Aug 2012 02:11:17 -0400 (EDT)
 From: Hiroshi Doyu <hdoyu@nvidia.com>
-Subject: [v2 3/4] ARM: dma-mapping: Refactor out to introduce __alloc_fill_pages
-Date: Thu, 23 Aug 2012 09:10:28 +0300
-Message-ID: <1345702229-9539-4-git-send-email-hdoyu@nvidia.com>
+Subject: [v2 4/4] ARM: dma-mapping: IOMMU allocates pages from atomic_pool with GFP_ATOMIC
+Date: Thu, 23 Aug 2012 09:10:29 +0300
+Message-ID: <1345702229-9539-5-git-send-email-hdoyu@nvidia.com>
 In-Reply-To: <1345702229-9539-1-git-send-email-hdoyu@nvidia.com>
 References: <1345702229-9539-1-git-send-email-hdoyu@nvidia.com>
 MIME-Version: 1.0
@@ -15,96 +15,87 @@ List-ID: <linux-mm.kvack.org>
 To: m.szyprowski@samsung.com
 Cc: Hiroshi Doyu <hdoyu@nvidia.com>, linux-arm-kernel@lists.infradead.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kyungmin.park@samsung.com, arnd@arndb.de, linux@arm.linux.org.uk, chunsang.jeong@linaro.org, vdumpa@nvidia.com, konrad.wilk@oracle.com, subashrp@gmail.com, minchan@kernel.org, pullip.cho@samsung.com
 
-__alloc_fill_pages() allocates power of 2 page number allocation at
-most repeatedly.
+Makes use of the same atomic pool from DMA, and skips kernel page
+mapping which can involve sleep'able operations at allocating a kernel
+page table.
 
 Signed-off-by: Hiroshi Doyu <hdoyu@nvidia.com>
 ---
- arch/arm/mm/dma-mapping.c |   50 ++++++++++++++++++++++++++++++--------------
- 1 files changed, 34 insertions(+), 16 deletions(-)
+ arch/arm/mm/dma-mapping.c |   30 +++++++++++++++++++++++++-----
+ 1 files changed, 25 insertions(+), 5 deletions(-)
 
 diff --git a/arch/arm/mm/dma-mapping.c b/arch/arm/mm/dma-mapping.c
-index b64475a..7ab016b 100644
+index 7ab016b..433312a 100644
 --- a/arch/arm/mm/dma-mapping.c
 +++ b/arch/arm/mm/dma-mapping.c
-@@ -1022,20 +1022,11 @@ static inline void __free_iova(struct dma_iommu_mapping *mapping,
- 	spin_unlock_irqrestore(&mapping->lock, flags);
- }
+@@ -1063,7 +1063,6 @@ static struct page **__iommu_alloc_buffer(struct device *dev, size_t size,
+ 	struct page **pages;
+ 	int count = size >> PAGE_SHIFT;
+ 	int array_size = count * sizeof(struct page *);
+-	int err;
  
--static struct page **__iommu_alloc_buffer(struct device *dev, size_t size, gfp_t gfp)
-+static int __alloc_fill_pages(struct page ***ppages, int count, gfp_t gfp)
- {
--	struct page **pages;
--	int count = size >> PAGE_SHIFT;
--	int array_size = count * sizeof(struct page *);
-+	struct page **pages = *ppages;
- 	int i = 0;
+ 	if ((array_size <= PAGE_SIZE) || (gfp & GFP_ATOMIC))
+ 		pages = kzalloc(array_size, gfp);
+@@ -1072,9 +1071,20 @@ static struct page **__iommu_alloc_buffer(struct device *dev, size_t size,
+ 	if (!pages)
+ 		return NULL;
  
--	if ((array_size <= PAGE_SIZE) || (gfp & GFP_ATOMIC))
--		pages = kzalloc(array_size, gfp);
--	else
--		pages = vzalloc(array_size);
--	if (!pages)
--		return NULL;
--
- 	while (count) {
- 		int j, order = __fls(count);
- 
-@@ -1045,22 +1036,49 @@ static struct page **__iommu_alloc_buffer(struct device *dev, size_t size, gfp_t
- 		if (!pages[i])
- 			goto error;
- 
--		if (order)
-+		if (order) {
- 			split_page(pages[i], order);
--		j = 1 << order;
--		while (--j)
--			pages[i + j] = pages[i] + j;
-+			j = 1 << order;
-+			while (--j)
-+				pages[i + j] = pages[i] + j;
-+		}
- 
- 		__dma_clear_buffer(pages[i], PAGE_SIZE << order);
- 		i += 1 << order;
- 		count -= 1 << order;
- 	}
- 
--	return pages;
-+	return 0;
+-	err = __alloc_fill_pages(&pages, count, gfp);
+-	if (err)
+-		goto error
++	if (gfp & GFP_ATOMIC) {
++		struct page *page;
++		int i;
++		void *addr = __alloc_from_pool(size, &page);
++		if (!addr)
++			goto error;
 +
- error:
- 	while (i--)
++		for (i = 0; i < count; i++)
++			pages[i] = page + i;
++	} else {
++		int err = __alloc_fill_pages(&pages, count, gfp);
++		if (err)
++			goto error;
++	}
+ 
+ 	return pages;
+ 
+@@ -1091,9 +1101,15 @@ static int __iommu_free_buffer(struct device *dev, struct page **pages, size_t s
+ 	int count = size >> PAGE_SHIFT;
+ 	int array_size = count * sizeof(struct page *);
+ 	int i;
++
++	if (__free_from_pool(page_address(pages[0]), size))
++		goto out;
++
+ 	for (i = 0; i < count; i++)
  		if (pages[i])
  			__free_pages(pages[i], 0);
-+	return -ENOMEM;
-+}
 +
-+static struct page **__iommu_alloc_buffer(struct device *dev, size_t size,
-+					  gfp_t gfp)
-+{
-+	struct page **pages;
-+	int count = size >> PAGE_SHIFT;
-+	int array_size = count * sizeof(struct page *);
-+	int err;
-+
-+	if ((array_size <= PAGE_SIZE) || (gfp & GFP_ATOMIC))
-+		pages = kzalloc(array_size, gfp);
-+	else
-+		pages = vzalloc(array_size);
-+	if (!pages)
-+		return NULL;
-+
-+	err = __alloc_fill_pages(&pages, count, gfp);
-+	if (err)
-+		goto error
-+
-+	return pages;
-+
-+error:
- 	if ((array_size <= PAGE_SIZE) || (gfp & GFP_ATOMIC))
++out:
+ 	if ((array_size <= PAGE_SIZE) ||
+ 	    __in_atomic_pool(page_address(pages[0]), size))
  		kfree(pages);
- 	else
+@@ -1221,6 +1237,9 @@ static void *arm_iommu_alloc_attrs(struct device *dev, size_t size,
+ 	if (*handle == DMA_ERROR_CODE)
+ 		goto err_buffer;
+ 
++	if (gfp & GFP_ATOMIC)
++		return page_address(pages[0]);
++
+ 	if (dma_get_attr(DMA_ATTR_NO_KERNEL_MAPPING, attrs))
+ 		return pages;
+ 
+@@ -1279,7 +1298,8 @@ void arm_iommu_free_attrs(struct device *dev, size_t size, void *cpu_addr,
+ 		return;
+ 	}
+ 
+-	if (!dma_get_attr(DMA_ATTR_NO_KERNEL_MAPPING, attrs)) {
++	if (!dma_get_attr(DMA_ATTR_NO_KERNEL_MAPPING, attrs) ||
++	    !__in_atomic_pool(cpu_addr, size)) {
+ 		unmap_kernel_range((unsigned long)cpu_addr, size);
+ 		vunmap(cpu_addr);
+ 	}
 -- 
 1.7.5.4
 
