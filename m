@@ -1,72 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
-	by kanga.kvack.org (Postfix) with SMTP id 623D96B005A
-	for <linux-mm@kvack.org>; Thu, 23 Aug 2012 09:58:46 -0400 (EDT)
-Date: Thu, 23 Aug 2012 15:58:39 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: Fixup the page of buddy_higher address's calculation
-Message-ID: <20120823135839.GB19968@dhcp22.suse.cz>
-References: <CAFNq8R7ibTNeRP_Wftwyr7mK6Du4TVysQysgL_RYj+CGf9N2qg@mail.gmail.com>
- <20120823095022.GB10685@dhcp22.suse.cz>
- <CAFNq8R5pY0yPp-LQYNywpMhVtXgqPSy3RYqHVTVpPXs52kOmJw@mail.gmail.com>
- <20120823123034.GA3793@shangw.(null)>
+Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
+	by kanga.kvack.org (Postfix) with SMTP id 0ED1A6B005A
+	for <linux-mm@kvack.org>; Thu, 23 Aug 2012 10:00:42 -0400 (EDT)
+Message-ID: <503636CE.20501@parallels.com>
+Date: Thu, 23 Aug 2012 17:57:34 +0400
+From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120823123034.GA3793@shangw.(null)>
+Subject: Re: C12 [12/19] Move kmem_cache allocations into common code.
+References: <20120820204021.494276880@linux.com> <0000013945cd2d87-d71d0827-51b3-4c98-890f-12beb8ecc72b-000000@email.amazonses.com> <50337722.3040908@parallels.com> <000001394afa9429-b8219750-1ae1-45f2-be1b-e02054615021-000000@email.amazonses.com> <50349B70.1050208@parallels.com> <000001394ef0020a-6778ce80-b864-41f4-a515-458cb0a95e6d-000000@email.amazonses.com> <5035DF2E.2010101@parallels.com> <0000013953bebca6-5a541bae-58b7-4a3c-a3c2-69cc7bb9c04b-000000@email.amazonses.com>
+In-Reply-To: <0000013953bebca6-5a541bae-58b7-4a3c-a3c2-69cc7bb9c04b-000000@email.amazonses.com>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Gavin Shan <shangw@linux.vnet.ibm.com>
-Cc: Li Haifeng <omycle@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan.kim@gmail.com>, Johannes Weiner <jweiner@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Christoph Lameter <cl@linux.com>
+Cc: Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <js1304@gmail.com>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>
 
-On Thu 23-08-12 20:30:34, Gavin Shan wrote:
-> On Thu, Aug 23, 2012 at 06:21:06PM +0800, Li Haifeng wrote:
-[...]
-> >>> From d7cd78f9d71a5c9ddeed02724558096f0bb4508a Mon Sep 17 00:00:00 2001
-> >>> From: Haifeng Li <omycle@gmail.com>
-> >>> Date: Thu, 23 Aug 2012 16:27:19 +0800
-> >>> Subject: [PATCH] Fixup the page of buddy_higher address's calculation
-> >>
-> >> Some general questions:
-> >> Any word about the change? Is it really that obvious? Why do you think the
-> >> current state is incorrect? How did you find out?
-> >>
-> >> And more specific below:
-> >>
-> >>> Signed-off-by: Haifeng Li <omycle@gmail.com>
-> >>> ---
-> >>>  mm/page_alloc.c |    2 +-
-> >>>  1 files changed, 1 insertions(+), 1 deletions(-)
-> >>>
-> >>> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> >>> index ddbc17d..5588f68 100644
-> >>> --- a/mm/page_alloc.c
-> >>> +++ b/mm/page_alloc.c
-> >>> @@ -579,7 +579,7 @@ static inline void __free_one_page(struct page *page,
-> >>>                 combined_idx = buddy_idx & page_idx;
-> >>>                 higher_page = page + (combined_idx - page_idx);
-> >>>                 buddy_idx = __find_buddy_index(combined_idx, order + 1);
-> >>> -               higher_buddy = page + (buddy_idx - combined_idx);
-> >>> +               higher_buddy = page + (buddy_idx - page_idx);
+On 08/23/2012 05:49 PM, Christoph Lameter wrote:
+> On Thu, 23 Aug 2012, Glauber Costa wrote:
 > 
-> Haifeng, Not sure it would be better? At least, the expression
-> would be more explicitly meaningful than yours.
+>> This code is prone to errors, as can be easily seen by the amount of
+>> interactions it had, all of them with bugs. Our best friend in finding
+>> those bugs is pinpointing the patch where it happens. Please make it easy.
 > 
-> 		    higher_buddy = higher_page + (buddy_idx - combined_idx);
+> Yes this is pretty key stuff and I am definitely trying to make it as
+> clean and easy possible.. I am trying my best but I have a limited time
+> that I can spend on running tests.
+> 
 
-Yes, indeed. It would be also good to mention that this is a regression
-since 43506fad (mm/page_alloc.c: simplify calculation of combined index
-of adjacent buddy lists). IIUC this basically disables the heuristic
-because page_is_buddy will fail for order+1, right?
+That is understandable. The way to scale that is to have other people
+testing the final result, and that is precisely what I am doing.
 
-Maybe 2.6.38+ stable candidate, then.
+> It would help if you could try to understand the code, suggest
+> improvements and verify that the changes are sane. So far I mostly see
+> "this aint working" instead of an engagement with the code.
+> 
 
-Could you repost with the full changelog, please?
+You can't be serious...
+I tested every series you posted. I code reviewed all your iterations so
+far. Found a bunch of bugs, debugged all of them up to v11. Pinpointed
+to you the exact source of a lot of them, as a result of the
+aforementioned debugging.
 
-Thanks
--- 
-Michal Hocko
-SUSE Labs
+How isn't it engagement? Seriously?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
