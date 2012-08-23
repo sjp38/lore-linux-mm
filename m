@@ -1,117 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
-	by kanga.kvack.org (Postfix) with SMTP id 981AD6B0044
-	for <linux-mm@kvack.org>; Thu, 23 Aug 2012 08:31:14 -0400 (EDT)
-Received: from /spool/local
-	by e37.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <shangw@linux.vnet.ibm.com>;
-	Thu, 23 Aug 2012 06:31:13 -0600
-Received: from d03relay05.boulder.ibm.com (d03relay05.boulder.ibm.com [9.17.195.107])
-	by d03dlp01.boulder.ibm.com (Postfix) with ESMTP id 785A21FF003B
-	for <linux-mm@kvack.org>; Thu, 23 Aug 2012 06:31:07 -0600 (MDT)
-Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
-	by d03relay05.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q7NCUjgV044412
-	for <linux-mm@kvack.org>; Thu, 23 Aug 2012 06:31:01 -0600
-Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av04.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q7NCUj9K002561
-	for <linux-mm@kvack.org>; Thu, 23 Aug 2012 06:30:45 -0600
-Date: Thu, 23 Aug 2012 20:30:34 +0800
-From: Gavin Shan <shangw@linux.vnet.ibm.com>
-Subject: Re: Fixup the page of buddy_higher address's calculation
-Message-ID: <20120823123034.GA3793@shangw.(null)>
-Reply-To: Gavin Shan <shangw@linux.vnet.ibm.com>
-References: <CAFNq8R7ibTNeRP_Wftwyr7mK6Du4TVysQysgL_RYj+CGf9N2qg@mail.gmail.com>
- <20120823095022.GB10685@dhcp22.suse.cz>
- <CAFNq8R5pY0yPp-LQYNywpMhVtXgqPSy3RYqHVTVpPXs52kOmJw@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
+	by kanga.kvack.org (Postfix) with SMTP id A68BB6B0044
+	for <linux-mm@kvack.org>; Thu, 23 Aug 2012 08:33:43 -0400 (EDT)
+Date: Thu, 23 Aug 2012 15:34:32 +0300
+From: "Michael S. Tsirkin" <mst@redhat.com>
+Subject: Re: [PATCH v8 1/5] mm: introduce a common interface for balloon
+ pages mobility
+Message-ID: <20120823123432.GA25659@redhat.com>
+References: <20120821191330.GA8324@redhat.com>
+ <20120821192357.GD12294@t510.redhat.com>
+ <20120821193031.GC9027@redhat.com>
+ <20120821204556.GF12294@t510.redhat.com>
+ <20120822000741.GI9027@redhat.com>
+ <20120822011930.GA23753@t510.redhat.com>
+ <20120822093317.GC10680@redhat.com>
+ <20120823021903.GA23660@x61.redhat.com>
+ <20120823100107.GA17409@redhat.com>
+ <20120823121338.GA3062@t510.redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <CAFNq8R5pY0yPp-LQYNywpMhVtXgqPSy3RYqHVTVpPXs52kOmJw@mail.gmail.com>
+In-Reply-To: <20120823121338.GA3062@t510.redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Li Haifeng <omycle@gmail.com>
-Cc: Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan.kim@gmail.com>, Johannes Weiner <jweiner@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Rafael Aquini <aquini@redhat.com>
+Cc: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Peter Zijlstra <peterz@infradead.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, Rusty Russell <rusty@rustcorp.com.au>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Minchan Kim <minchan@kernel.org>
 
-On Thu, Aug 23, 2012 at 06:21:06PM +0800, Li Haifeng wrote:
->I am sorry for my mistake.
->
->higher_buddy is corresponding with buddy_index, and higher page is
->corresponding with combined_idx. That is right.
->
->But, How we get the page address from index offset? The key answer is
->what is the base value.
->So calculating the address based page should be (page + (buddy_idx - page_idx)).
->
->Maybe, a diagram is easier to understand.
->
-> |-------------------------|-------------|
->page               combined   buddy
->
->buddy's page address= pagea??s page address + (buddy - page)*sizeof(struct page)
->
->Clear?
->
+On Thu, Aug 23, 2012 at 09:13:39AM -0300, Rafael Aquini wrote:
+> On Thu, Aug 23, 2012 at 01:01:07PM +0300, Michael S. Tsirkin wrote:
+> > > So, when remove_common() calls leak_balloon() looping on
+> > > vb->num_pages, that won't become a tight loop. 
+> > > The scheme was apparently working before this series, and it will remain working
+> > > after it.
+> > 
+> > It seems that before we would always leak all requested memory
+> > in one go. I can't tell why we have a while loop there at all.
+> > Rusty, could you clarify please?
+> >
+> 
+> It seems that your claim isn't right. leak_balloon() cannot do it all at once,
+> as for each round it only releases 256 pages, at most; and the 'one go' would
+> require a couple of loop rounds at remove_common().
 
-It sounds reasonable.
+You are right in this respect.
 
->2012/8/23 Michal Hocko <mhocko@suse.cz>:
->> On Thu 23-08-12 16:40:13, Li Haifeng wrote:
->>> From d7cd78f9d71a5c9ddeed02724558096f0bb4508a Mon Sep 17 00:00:00 2001
->>> From: Haifeng Li <omycle@gmail.com>
->>> Date: Thu, 23 Aug 2012 16:27:19 +0800
->>> Subject: [PATCH] Fixup the page of buddy_higher address's calculation
->>
->> Some general questions:
->> Any word about the change? Is it really that obvious? Why do you think the
->> current state is incorrect? How did you find out?
->>
->> And more specific below:
->>
->>> Signed-off-by: Haifeng Li <omycle@gmail.com>
->>> ---
->>>  mm/page_alloc.c |    2 +-
->>>  1 files changed, 1 insertions(+), 1 deletions(-)
->>>
->>> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
->>> index ddbc17d..5588f68 100644
->>> --- a/mm/page_alloc.c
->>> +++ b/mm/page_alloc.c
->>> @@ -579,7 +579,7 @@ static inline void __free_one_page(struct page *page,
->>>                 combined_idx = buddy_idx & page_idx;
->>>                 higher_page = page + (combined_idx - page_idx);
->>>                 buddy_idx = __find_buddy_index(combined_idx, order + 1);
->>> -               higher_buddy = page + (buddy_idx - combined_idx);
->>> +               higher_buddy = page + (buddy_idx - page_idx);
+> So, nothing has changed here.
 
-Haifeng, Not sure it would be better? At least, the expression
-would be more explicitly meaningful than yours.
+Yes, your patch does change things:
+leak_balloon now might return without freeing any pages.
+In that case we will not be making any progress, and just
+spin, pinning CPU.
 
-		    higher_buddy = higher_page + (buddy_idx - combined_idx);
+>  
+> > > Just as before, same thing here. If you leaked less than required, balloon()
+> > > will keep calling leak_balloon() until the balloon target is reached. This
+> > > scheme was working before, and it will keep working after this patch.
+> > >
+> > 
+> > IIUC we never hit this path before.
+> >  
+> So, how does balloon() works then?
+> 
 
-Thanks,
-Gavin
+It gets a request to leak a given number of pages
+and executes it, then tells host that it is done.
+It never needs to spin busy-waiting on a CPU for this.
 
->>
->> We are finding buddy index for combined_idx so why should we use
->> page_idx here?
->>
->>>                 if (page_is_buddy(higher_page, higher_buddy, order + 1)) {
->>>                         list_add_tail(&page->lru,
->>>                                 &zone->free_area[order].free_list[migratetype]);
->>> --
->>> 1.7.5.4
->>
->> --
->> Michal Hocko
->> SUSE Labs
->
->--
->To unsubscribe, send a message with 'unsubscribe linux-mm' in
->the body to majordomo@kvack.org.  For more info on Linux MM,
->see: http://www.linux-mm.org/ .
->Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
->
+> > > > How about we signal config_change
+> > > > event when pages are back to pages_list?
+> > > 
+> > > I really don't know what to tell you here, but, to me, it seems like an
+> > > overcomplication that isn't directly entangled with this patch purposes.
+> > > Besides, you cannot expect compation / migration happening and racing against
+> > > leak_balloon() all the time to make them signal events to the later, so we might
+> > > just be creating a wait-forever condition for leak_balloon(), IMHO.
+> > 
+> > So use wait_event or similar, check for existance of isolated pages.
+> > 
+> 
+> The thing here is expecting compaction as being an external event to signal
+> actions to the balloon driver won't work as you desire. Also, as far as the
+> balloon driver is concerned, it's only a matter of time to accomplish a total,
+> or partial, balloon leak, even when we have some pages isolated from balloon's
+> page list.
+> 
+> IMHO, you're attempting to complicate a simple thing that is already working
+> well. As said before, there are no guarantees you'll have isolated pages 
+> by the time you're leaking the balloon, so you might leave it waiting forever
+> on something that will not happen. And if there are isolated pages while balloon
+> is leaking, they'll have their chance to get back to the list before the device
+> finishes its leaking job.
+
+Well busy wait pinning CPU is ugly.  Instead we should block thread and
+wake it up when done.  I don't mind how we fix it specifically.
+
+-- 
+MST
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
