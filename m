@@ -1,75 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
-	by kanga.kvack.org (Postfix) with SMTP id 876B06B005A
-	for <linux-mm@kvack.org>; Thu, 23 Aug 2012 11:24:24 -0400 (EDT)
-Date: Thu, 23 Aug 2012 17:23:31 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 33/36] autonuma: powerpc port
-Message-ID: <20120823152331.GF3570@redhat.com>
-References: <1345647560-30387-1-git-send-email-aarcange@redhat.com>
- <1345647560-30387-34-git-send-email-aarcange@redhat.com>
- <1345672907.2617.44.camel@pasglop>
- <20120822223542.GG8107@redhat.com>
- <1345698660.13399.23.camel@pasglop>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1345698660.13399.23.camel@pasglop>
+Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
+	by kanga.kvack.org (Postfix) with SMTP id 2DAD16B0068
+	for <linux-mm@kvack.org>; Thu, 23 Aug 2012 11:33:53 -0400 (EDT)
+Received: from /spool/local
+	by e8.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
+	Thu, 23 Aug 2012 11:33:51 -0400
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by d01dlp02.pok.ibm.com (Postfix) with ESMTP id 6F3096E8044
+	for <linux-mm@kvack.org>; Thu, 23 Aug 2012 11:33:18 -0400 (EDT)
+Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
+	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q7NFXIkx121988
+	for <linux-mm@kvack.org>; Thu, 23 Aug 2012 11:33:18 -0400
+Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
+	by d01av04.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q7NFXH1v004822
+	for <linux-mm@kvack.org>; Thu, 23 Aug 2012 11:33:18 -0400
+From: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Subject: [PATCH 2/2] Revert "staging: zcache: optimize zcache_do_preload"
+Date: Thu, 23 Aug 2012 10:33:11 -0500
+Message-Id: <1345735991-6995-3-git-send-email-sjenning@linux.vnet.ibm.com>
+In-Reply-To: <1345735991-6995-1-git-send-email-sjenning@linux.vnet.ibm.com>
+References: <1345735991-6995-1-git-send-email-sjenning@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Cc: Vaidyanathan Srinivasan <svaidy@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hillf Danton <dhillf@gmail.com>, Dan Smith <danms@us.ibm.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Srivatsa Vaddagiri <vatsa@linux.vnet.ibm.com>, Christoph Lameter <cl@linux.com>, Alex Shi <alex.shi@intel.com>, Mauricio Faria de Oliveira <mauricfo@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Don Morris <don.morris@hp.com>, Tony Breeds <tbreeds@au1.ibm.com>, Kumar Gala <galak@kernel.crashing.org>
+To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Nitin Gupta <ngupta@vflare.org>, Minchan Kim <minchan@kernel.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org
 
-Hi Benjamin,
+This reverts commit 79c0d92c5b6175c1462fbe38bf44180f325aa478.
 
-On Thu, Aug 23, 2012 at 03:11:00PM +1000, Benjamin Herrenschmidt wrote:
-> Basically PROT_NONE turns into _PAGE_PRESENT without _PAGE_USER for us.
+This commit is resulting  memory corruption in the cleancache case
 
-Maybe the simplest is to implement pte_numa as !_PAGE_USER too. No
-need to clear the _PAGE_PRESENT bit and to alter pte_present() if
-clearing _PAGE_USER already achieves it.
+Signed-off-by: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Reported-by: Dan Magenheimer <dan.magenheimer@oracle.com>
+---
+ drivers/staging/zcache/zcache-main.c |   21 ++++++++++++---------
+ 1 file changed, 12 insertions(+), 9 deletions(-)
 
-It should be trivial to add the vma parameter to pte_numa(pte, vma) so
-you can implement pte_numa by checking the vma->vm_page_prot in the
-inline pte_numa function, to be able to tell if it's a real prot none
-(in which case pte_numa return false) or if it's the NUMA hinting page
-fault. In the latter case pte_numa will return true.
-
-> However, the embedded ppc situation is more interesting... and it looks
-> like it is indeed broken, meaning that a user can coerce the kernel into
-> accessing PROT_NONE on its behalf with copy_from_user & co (though read
-> only really).
-> 
-> Looks like the SW TLB handlers used on embedded should also check
-> whether the address is a user or kernel address, and enforce _PAGE_USER
-> in the former case. They might have done in the past, it's possible that
-> it's code we lost, but as it is, it's broken.
-> 
-> The case of HW loaded TLB embedded will need a different definition of
-> PAGE_NONE as well I suspect. Kumar, can you have a look ?
-
-Even if we can't track copy-user accesses with the NUMA
-hinting page faults, AUTONUMA should still work fairly well. The
-flakey PROTNONE on embedded, is more a problem in itself than it would
-be for pte_numa on embedded.
-
-OTOH AutoNUMA working on embedded isn't important so it may be just
-better to disable it until !_PAGE_USER is reliable.
-
-> I wasn't especially thinking of ppc32... there's also hash64-4k or
-> embedded 64... Also pgtable.h is common, so all those added uses of
-> _PAGE_NUMA_PTE to static inline functions are going to break the build
-> unless _PAGE_NUMA_PTE is #defined to 0 when not used (we do that for a
-> bunch of bits in pte-common.h already).
-
-It'd be actually worse if it would build ;). But I guess using
-_PAGE_USER to implement pte_numa will solve the problem for 4k page
-size too.
-
-We can discuss this during kernel summit ;).
-
-Thanks a lot!
-Andrea
+diff --git a/drivers/staging/zcache/zcache-main.c b/drivers/staging/zcache/zcache-main.c
+index 8a335b9..4f92d87 100644
+--- a/drivers/staging/zcache/zcache-main.c
++++ b/drivers/staging/zcache/zcache-main.c
+@@ -1034,43 +1034,45 @@ static int zcache_do_preload(struct tmem_pool *pool)
+ 		goto out;
+ 	if (unlikely(zcache_obj_cache == NULL))
+ 		goto out;
+-
+-	/* IRQ has already been disabled. */
++	preempt_disable();
+ 	kp = &__get_cpu_var(zcache_preloads);
+ 	while (kp->nr < ARRAY_SIZE(kp->objnodes)) {
++		preempt_enable_no_resched();
+ 		objnode = kmem_cache_alloc(zcache_objnode_cache,
+ 				ZCACHE_GFP_MASK);
+ 		if (unlikely(objnode == NULL)) {
+ 			zcache_failed_alloc++;
+ 			goto out;
+ 		}
+-
+-		kp->objnodes[kp->nr++] = objnode;
++		preempt_disable();
++		kp = &__get_cpu_var(zcache_preloads);
++		if (kp->nr < ARRAY_SIZE(kp->objnodes))
++			kp->objnodes[kp->nr++] = objnode;
++		else
++			kmem_cache_free(zcache_objnode_cache, objnode);
+ 	}
+-
++	preempt_enable_no_resched();
+ 	obj = kmem_cache_alloc(zcache_obj_cache, ZCACHE_GFP_MASK);
+ 	if (unlikely(obj == NULL)) {
+ 		zcache_failed_alloc++;
+ 		goto out;
+ 	}
+-
+ 	page = (void *)__get_free_page(ZCACHE_GFP_MASK);
+ 	if (unlikely(page == NULL)) {
+ 		zcache_failed_get_free_pages++;
+ 		kmem_cache_free(zcache_obj_cache, obj);
+ 		goto out;
+ 	}
+-
++	preempt_disable();
++	kp = &__get_cpu_var(zcache_preloads);
+ 	if (kp->obj == NULL)
+ 		kp->obj = obj;
+ 	else
+ 		kmem_cache_free(zcache_obj_cache, obj);
+-
+ 	if (kp->page == NULL)
+ 		kp->page = page;
+ 	else
+ 		free_page((unsigned long)page);
+-
+ 	ret = 0;
+ out:
+ 	return ret;
+@@ -1581,6 +1583,7 @@ static int zcache_put_page(int cli_id, int pool_id, struct tmem_oid *oidp,
+ 				zcache_failed_pers_puts++;
+ 		}
+ 		zcache_put_pool(pool);
++		preempt_enable_no_resched();
+ 	} else {
+ 		zcache_put_to_flush++;
+ 		if (atomic_read(&pool->obj_count) > 0)
+-- 
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
