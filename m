@@ -1,56 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx103.postini.com [74.125.245.103])
-	by kanga.kvack.org (Postfix) with SMTP id 190866B0044
-	for <linux-mm@kvack.org>; Thu, 23 Aug 2012 02:17:32 -0400 (EDT)
-Date: Thu, 23 Aug 2012 09:15:19 +0300
-From: Hiroshi Doyu <hdoyu@nvidia.com>
-Subject: Re: [RFC 2/4] ARM: dma-mapping: IOMMU allocates pages from pool
- with GFP_ATOMIC
-Message-ID: <20120823091519.804aeae4ba93bcfe011e787c@nvidia.com>
-In-Reply-To: <012401cd80f4$59727020$0c575060$%szyprowski@samsung.com>
-References: <1345630830-9586-1-git-send-email-hdoyu@nvidia.com>
-	<1345630830-9586-3-git-send-email-hdoyu@nvidia.com>
-	<CAHQjnOOF7Ca-Dz8K_zcS=gxQsJvKYaWA3tqUeK1RSd-wLYZ44w@mail.gmail.com>
-	<20120822.163648.3800987367886904.hdoyu@nvidia.com>
-	<012401cd80f4$59727020$0c575060$%szyprowski@samsung.com>
+Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
+	by kanga.kvack.org (Postfix) with SMTP id C651B6B0044
+	for <linux-mm@kvack.org>; Thu, 23 Aug 2012 02:43:29 -0400 (EDT)
+Date: Thu, 23 Aug 2012 15:43:57 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [v2 0/4] ARM: dma-mapping: IOMMU atomic allocation
+Message-ID: <20120823064357.GD5369@bbox>
+References: <1345702229-9539-1-git-send-email-hdoyu@nvidia.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1345702229-9539-1-git-send-email-hdoyu@nvidia.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Marek Szyprowski <m.szyprowski@samsung.com>
-Cc: "pullip.cho@samsung.com" <pullip.cho@samsung.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linaro-mm-sig@lists.linaro.org" <linaro-mm-sig@lists.linaro.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "kyungmin.park@samsung.com" <kyungmin.park@samsung.com>, "arnd@arndb.de" <arnd@arndb.de>, "linux@arm.linux.org.uk" <linux@arm.linux.org.uk>, "chunsang.jeong@linaro.org" <chunsang.jeong@linaro.org>, Krishna Reddy <vdumpa@nvidia.com>, "konrad.wilk@oracle.com" <konrad.wilk@oracle.com>, "subashrp@gmail.com" <subashrp@gmail.com>, "minchan@kernel.org" <minchan@kernel.org>
+To: Hiroshi Doyu <hdoyu@nvidia.com>
+Cc: m.szyprowski@samsung.com, linux-arm-kernel@lists.infradead.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kyungmin.park@samsung.com, arnd@arndb.de, linux@arm.linux.org.uk, chunsang.jeong@linaro.org, vdumpa@nvidia.com, konrad.wilk@oracle.com, subashrp@gmail.com, pullip.cho@samsung.com
 
-Hi,
-
-On Thu, 23 Aug 2012 07:58:34 +0200
-Marek Szyprowski <m.szyprowski@samsung.com> wrote:
-
-> Hello,
+On Thu, Aug 23, 2012 at 09:10:25AM +0300, Hiroshi Doyu wrote:
+> Hi,
 > 
-> On Wednesday, August 22, 2012 3:37 PM Hiroshi Doyu wrote:
+> The commit e9da6e9 "ARM: dma-mapping: remove custom consistent dma
+> region" breaks the compatibility with existing drivers. This causes
+> the following kernel oops(*1). That driver has called dma_pool_alloc()
+> to allocate memory from the interrupt context, and it hits
+> BUG_ON(in_interrpt()) in "get_vm_area_caller()". This patch seris
+> fixes this problem with making use of the pre-allocate atomic memory
+> pool which DMA is using in the same way as DMA does now.
 > 
-> > KyongHo Cho <pullip.cho@samsung.com> wrote @ Wed, 22 Aug 2012 14:47:00 +0200:
-> > 
-> > > vzalloc() call in __iommu_alloc_buffer() also causes BUG() in atomic context.
-> > 
-> > Right.
-> > 
-> > I've been thinking that kzalloc() may be enough here, since
-> > vzalloc() was introduced to avoid allocation failure for big chunk of
-> > memory, but I think that it's unlikely that the number of page array
-> > can be so big. So I propose to drop vzalloc() here, and just simply to
-> > use kzalloc only as below(*1).
+> Any comment would be really appreciated.
 > 
-> We already had a discussion about this, so I don't think it makes much sense to
-> change it back to kzalloc. This vmalloc() call won't hurt anyone. It should not
-> be considered a problem for atomic allocations, because no sane driver will try
-> to allocate buffers larger than a dozen KiB with GFP_ATOMIC flag. I would call
-> such try a serious bug, which we should not care here.
+> v2:
+> Don't modify attrs(DMA_ATTR_NO_KERNEL_MAPPING) for atomic allocation. (Marek)
+> Skip vzalloc (KyongHo, Minchan)
 
-Ok, I've already sent v2 just now, where, instead of changing it back,
-just with GFP_ATOMIC, kzalloc() would be selected, just in case. I guess
-that this would be ok(a bit safer?)
+Huh? I would like to correct exactly. I didn't say that kzalloc unify is okay.
+As KyongHo said, there are other usecases for allocating big buffer but
+I can't agree his opinion that it's system memory shortage if the allocation
+fails. Because there are lots of freeable pages(cached page + anon pages
+with swap , shrinkable slab and so on). But as I said early, VM can't do
+anything except relying on kswapd in atomic context while there are a ton
+of freeable pages in system and we can't gaurantee kswapd will do something
+for us before seeing the page allocation failure in process context.
+Especially, UP is more problem. So, it never indicate system needs more memory.
+
+Atomic high order allocation is very fragile in VM POV
+so caller should have fallback mechanism. Otherwise, don't do that.
+
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
