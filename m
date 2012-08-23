@@ -1,121 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
-	by kanga.kvack.org (Postfix) with SMTP id 5871F6B0044
-	for <linux-mm@kvack.org>; Thu, 23 Aug 2012 05:22:14 -0400 (EDT)
-Date: Thu, 23 Aug 2012 17:22:11 +0800
+Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
+	by kanga.kvack.org (Postfix) with SMTP id 5E8596B0044
+	for <linux-mm@kvack.org>; Thu, 23 Aug 2012 05:33:33 -0400 (EDT)
+Date: Thu, 23 Aug 2012 17:33:30 +0800
 From: Fengguang Wu <fengguang.wu@intel.com>
-Subject: Re: [PATCH 2/3] HWPOISON: report sticky EIO for poisoned file
-Message-ID: <20120823092211.GB12745@localhost>
+Subject: Re: [PATCH 1/3] HWPOISON: fix action_result() to print out
+ dirty/clean
+Message-ID: <20120823093330.GC12745@localhost>
 References: <1345648655-4497-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <1345648655-4497-3-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <1345648655-4497-2-git-send-email-n-horiguchi@ah.jp.nec.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1345648655-4497-3-git-send-email-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <1345648655-4497-2-git-send-email-n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 Cc: Andi Kleen <andi.kleen@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Tony Luck <tony.luck@intel.com>, Rik van Riel <riel@redhat.com>, Jun'ichi Nomura <j-nomura@ce.jp.nec.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, Aug 22, 2012 at 11:17:34AM -0400, Naoya Horiguchi wrote:
-> From: Wu Fengguang <fengguang.wu@intel.com>
+On Wed, Aug 22, 2012 at 11:17:33AM -0400, Naoya Horiguchi wrote:
+> action_result() fails to print out "dirty" even if an error occurred on a
+> dirty pagecache, because when we check PageDirty in action_result() it was
+> cleared after page isolation even if it's dirty before error handling. This
+> can break some applications that monitor this message, so should be fixed.
 > 
-> This makes the EIO reports on write(), fsync(), or the NFS close()
-> sticky enough. The only way to get rid of it may be
+> There are several callers of action_result() except page_action(), but
+> either of them are not for LRU pages but for free pages or kernel pages,
+> so we don't have to consider dirty or not for them.
 > 
-> 	echo 3 > /proc/sys/vm/drop_caches
-
-That's no longer valid with your next patch. If I understand it right,
-the EIO will only go away after truncate. So it may also need to
-update comments in memory-failure.c and Documentation/vm/hwpoison.txt
-
-> Note that the impacted process will only be killed if it mapped the page.
-> XXX
-> via read()/write()/fsync() instead of memory mapped reads/writes, simply
-> because it's very hard to find them.
- 
-Please remove the above scratched texts.
-
-> Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> Reviewed-by: Andi Kleen <ak@linux.intel.com>
 > ---
->  include/linux/pagemap.h | 13 +++++++++++++
->  mm/filemap.c            | 11 +++++++++++
->  mm/memory-failure.c     |  2 +-
->  3 files changed, 25 insertions(+), 1 deletion(-)
+>  mm/memory-failure.c | 22 +++++++++-------------
+>  1 file changed, 9 insertions(+), 13 deletions(-)
 > 
-> diff --git v3.6-rc1.orig/include/linux/pagemap.h v3.6-rc1/include/linux/pagemap.h
-> index e42c762..4d8d821 100644
-> --- v3.6-rc1.orig/include/linux/pagemap.h
-> +++ v3.6-rc1/include/linux/pagemap.h
-> @@ -24,6 +24,7 @@ enum mapping_flags {
->  	AS_ENOSPC	= __GFP_BITS_SHIFT + 1,	/* ENOSPC on async write */
->  	AS_MM_ALL_LOCKS	= __GFP_BITS_SHIFT + 2,	/* under mm_take_all_locks() */
->  	AS_UNEVICTABLE	= __GFP_BITS_SHIFT + 3,	/* e.g., ramdisk, SHM_LOCK */
-> +	AS_HWPOISON	= __GFP_BITS_SHIFT + 4,	/* hardware memory corruption */
->  };
->  
->  static inline void mapping_set_error(struct address_space *mapping, int error)
-> @@ -53,6 +54,18 @@ static inline int mapping_unevictable(struct address_space *mapping)
->  	return !!mapping;
->  }
->  
-> +#ifdef CONFIG_MEMORY_FAILURE
-> +static inline int mapping_hwpoison(struct address_space *mapping)
-> +{
-> +	return test_bit(AS_HWPOISON, &mapping->flags);
-> +}
-> +#else
-> +static inline int mapping_hwpoison(struct address_space *mapping)
-> +{
-> +	return 0;
-> +}
-> +#endif
-> +
->  static inline gfp_t mapping_gfp_mask(struct address_space * mapping)
->  {
->  	return (__force gfp_t)mapping->flags & __GFP_BITS_MASK;
-> diff --git v3.6-rc1.orig/mm/filemap.c v3.6-rc1/mm/filemap.c
-> index fa5ca30..8bdaf57 100644
-> --- v3.6-rc1.orig/mm/filemap.c
-> +++ v3.6-rc1/mm/filemap.c
-> @@ -297,6 +297,8 @@ int filemap_fdatawait_range(struct address_space *mapping, loff_t start_byte,
->  		ret = -ENOSPC;
->  	if (test_and_clear_bit(AS_EIO, &mapping->flags))
->  		ret = -EIO;
-> +	if (mapping_hwpoison(mapping))
-> +		ret = -EIO;
->  
->  	return ret;
->  }
-> @@ -447,6 +449,15 @@ int add_to_page_cache_locked(struct page *page, struct address_space *mapping,
->  	VM_BUG_ON(!PageLocked(page));
->  	VM_BUG_ON(PageSwapBacked(page));
->  
-> +	/*
-> +	 * Hardware corrupted page will be removed from mapping,
-> +	 * so we want to deny (possibly) reloading the old data.
-> +	 */
-> +	if (unlikely(mapping_hwpoison(mapping))) {
-> +		error = -EIO;
-> +		goto out;
-> +	}
-> +
->  	error = mem_cgroup_cache_charge(page, current->mm,
->  					gfp_mask & GFP_RECLAIM_MASK);
->  	if (error)
 > diff --git v3.6-rc1.orig/mm/memory-failure.c v3.6-rc1/mm/memory-failure.c
-> index 79dfb2f..a1e7e00 100644
+> index a6e2141..79dfb2f 100644
 > --- v3.6-rc1.orig/mm/memory-failure.c
 > +++ v3.6-rc1/mm/memory-failure.c
-> @@ -652,7 +652,7 @@ static int me_pagecache_dirty(struct page *p, unsigned long pfn)
->  		 * the first EIO, but we're not worse than other parts
->  		 * of the kernel.
->  		 */
-> -		mapping_set_error(mapping, EIO);
-> +		set_bit(AS_HWPOISON, &mapping->flags);
->  	}
+> @@ -779,16 +779,16 @@ static struct page_state {
+>  	{ compound,	compound,	"huge",		me_huge_page },
+>  #endif
 >  
->  	return me_pagecache_clean(p, pfn);
+> -	{ sc|dirty,	sc|dirty,	"swapcache",	me_swapcache_dirty },
+> -	{ sc|dirty,	sc,		"swapcache",	me_swapcache_clean },
+> +	{ sc|dirty,	sc|dirty,	"dirty swapcache",	me_swapcache_dirty },
+> +	{ sc|dirty,	sc,		"clean swapcache",	me_swapcache_clean },
+>  
+> -	{ unevict|dirty, unevict|dirty,	"unevictable LRU", me_pagecache_dirty},
+> -	{ unevict,	unevict,	"unevictable LRU", me_pagecache_clean},
+> +	{ unevict|dirty, unevict|dirty,	"dirty unevictable LRU", me_pagecache_dirty },
+> +	{ unevict,	unevict,	"clean unevictable LRU", me_pagecache_clean },
+>  
+> -	{ mlock|dirty,	mlock|dirty,	"mlocked LRU",	me_pagecache_dirty },
+> -	{ mlock,	mlock,		"mlocked LRU",	me_pagecache_clean },
+> +	{ mlock|dirty,	mlock|dirty,	"dirty mlocked LRU",	me_pagecache_dirty },
+> +	{ mlock,	mlock,		"clean mlocked LRU",	me_pagecache_clean },
+>  
+> -	{ lru|dirty,	lru|dirty,	"LRU",		me_pagecache_dirty },
+> +	{ lru|dirty,	lru|dirty,	"dirty LRU",	me_pagecache_dirty },
+>  	{ lru|dirty,	lru,		"clean LRU",	me_pagecache_clean },
+
+According to the set_page_dirty() comment, the dirty bit might be set
+outside the page lock (however I don't know any concrete examples).
+That means the word "clean" is not 100% right.  That's probably why we
+only report "dirty LRU" and didn't say "clean LRU".
+
+Thanks,
+Fengguang
+
+>  	/*
+> @@ -812,12 +812,8 @@ static struct page_state {
+>  
+>  static void action_result(unsigned long pfn, char *msg, int result)
+>  {
+> -	struct page *page = pfn_to_page(pfn);
+> -
+> -	printk(KERN_ERR "MCE %#lx: %s%s page recovery: %s\n",
+> -		pfn,
+> -		PageDirty(page) ? "dirty " : "",
+> -		msg, action_name[result]);
+> +	pr_err("MCE %#lx: %s page recovery: %s\n",
+> +		pfn, msg, action_name[result]);
+>  }
+>  
+>  static int page_action(struct page_state *ps, struct page *p,
 > -- 
 > 1.7.11.4
 
