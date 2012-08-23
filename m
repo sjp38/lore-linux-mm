@@ -1,142 +1,142 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
-	by kanga.kvack.org (Postfix) with SMTP id 40F266B0068
-	for <linux-mm@kvack.org>; Thu, 23 Aug 2012 11:48:30 -0400 (EDT)
-Date: Thu, 23 Aug 2012 17:48:25 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH] mm/ia64: fix a memory block size bug
-Message-ID: <20120823154646.GA10789@dhcp22.suse.cz>
-References: <50330482.4070204@gmail.com>
+Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
+	by kanga.kvack.org (Postfix) with SMTP id 192106B0068
+	for <linux-mm@kvack.org>; Thu, 23 Aug 2012 11:53:14 -0400 (EDT)
+Date: Thu, 23 Aug 2012 18:54:01 +0300
+From: "Michael S. Tsirkin" <mst@redhat.com>
+Subject: Re: [PATCH v8 1/5] mm: introduce a common interface for balloon
+ pages mobility
+Message-ID: <20120823155401.GA28876@redhat.com>
+References: <20120822000741.GI9027@redhat.com>
+ <20120822011930.GA23753@t510.redhat.com>
+ <20120822093317.GC10680@redhat.com>
+ <20120823021903.GA23660@x61.redhat.com>
+ <20120823100107.GA17409@redhat.com>
+ <20120823121338.GA3062@t510.redhat.com>
+ <20120823123432.GA25659@redhat.com>
+ <20120823130606.GB3746@t510.redhat.com>
+ <20120823135328.GB25709@redhat.com>
+ <20120823152128.GA8975@t510.redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <50330482.4070204@gmail.com>
+In-Reply-To: <20120823152128.GA8975@t510.redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: wujianguo <wujianguo106@gmail.com>
-Cc: tony.luck@intel.com, kay.sievers@vrfy.org, minchan.kim@gmail.com, mgorman@suse.de, Christoph Lameter <cl@linux.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-ia64@vger.kernel.org, wency@cn.fujitsu.com, akpm@linux-foundation.org, yinghai@kernel.org, liuj97@gmail.com, jiang.liu@huawei.com, qiuxishi@huawei.com, wujianguo@huawei.com, guohanjun@huawei.com, Greg KH <greg@kroah.com>
+To: Rafael Aquini <aquini@redhat.com>
+Cc: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Peter Zijlstra <peterz@infradead.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, Rusty Russell <rusty@rustcorp.com.au>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Minchan Kim <minchan@kernel.org>
 
-[Fixed gregkh email address]
-
-On Tue 21-08-12 11:46:10, wujianguo wrote:
-> From: Jianguo Wu <wujianguo@huawei.com>
+On Thu, Aug 23, 2012 at 12:21:29PM -0300, Rafael Aquini wrote:
+> On Thu, Aug 23, 2012 at 04:53:29PM +0300, Michael S. Tsirkin wrote:
+> > On Thu, Aug 23, 2012 at 10:06:07AM -0300, Rafael Aquini wrote:
+> > > On Thu, Aug 23, 2012 at 03:34:32PM +0300, Michael S. Tsirkin wrote:
+> > > > > So, nothing has changed here.
+> > > > 
+> > > > Yes, your patch does change things:
+> > > > leak_balloon now might return without freeing any pages.
+> > > > In that case we will not be making any progress, and just
+> > > > spin, pinning CPU.
+> > > 
+> > > That's a transitory condition, that migh happen if leak_balloon() takes place
+> > > when compaction, or migration are under their way and it might only affects the
+> > > module unload case.
+> > 
+> > Regular operation seems even more broken: host might ask
+> > you to leak memory but because it is under compaction
+> > you might leak nothing. No?
+> >
 > 
-> Hi all,
-> 	I found following definition in include/linux/memory.h, in my IA64
-> platform, SECTION_SIZE_BITS is equal to 32, and MIN_MEMORY_BLOCK_SIZE will be 0.
-> 	#define MIN_MEMORY_BLOCK_SIZE     (1 << SECTION_SIZE_BITS)
+> And that is exactely what it wants to do. If there is (temporarily) nothing to leak,
+> then not leaking is the only sane thing to do.
 
-OK, so I assume you have CONFIG_FORCE_MAX_ZONEORDER 17 and PAGE_SHIFT
-16, right? But even CONFIG_FORCE_MAX_ZONEORDER 16 would be a problem.
+It's an internal issue between balloon and mm. User does not care.
 
-> 	Because MIN_MEMORY_BLOCK_SIZE is 32bits, so MIN_MEMORY_BLOCK_SIZE(1 << 32)
-> will equal to 0. This will cause wrong system memory infomation in sysfs. I think
-> it should be:
-> 	#define MIN_MEMORY_BLOCK_SIZE     (1UL << SECTION_SIZE_BITS)
-> 
-
-I guess the part below is not necessary for the changelog
-
-> linux-drf:/sys/devices/system/memory # ll
-> total 0
-> -r--r--r-- 1 root root 65536 Aug 20 02:35 block_size_bytes
-> drwxr-xr-x 3 root root     0 Aug 20 02:19 memory0
-> drwxr-xr-x 2 root root     0 Aug 20 02:35 power
-> -rw-r--r-- 1 root root 65536 Aug 20 02:35 uevent
-> 
-> linux-drf:/sys/devices/system/memory # cat block_size_bytes
-> 0
-> 
-> linux-drf:/sys/devices/system/memory/memory0 # cat *
-> 8000000000000000
-> cat: node0: Is a directory
-> cat: node1: Is a directory
-> cat: node2: Is a directory
-> cat: node3: Is a directory
-> 0
-> 8000000000000000
-> cat: power: Is a directory
-> 1
-> online
-> cat: subsystem: Is a directory
+> Having balloon pages being migrated
+> does not break the leak at all, despite it can last a little longer.
 > 
 
-Up to here.
+Not "longer" - apparently forever unless user resend the leak command.
+It's wrong - it should
+1. not tell host if nothing was done
+2. after migration finished leak and tell host
 
-> 	And "echo offline > memory0/state" will cause following call trace:
+> > > 
+> > > I already told you that we do not do that by any mean introduced by this patch.
+> > > You're just being stubborn here. If those bits are broken, they were already
+> > > broken before I did come up with this proposal.
+> > 
+> > Sorry you don't address the points I am making.  Maybe there are no
+> > bugs. But it looks like there are.  And assuming I am just seeing things
+> > this just means patch needs more comments, in commit log and in
+> > code to explain the design so that it stops looking like that.
+> >
 > 
-> kernel BUG at mm/memory_hotplug.c:885!
-> sh[6455]: bugcheck! 0 [1]
+> Yes, I belive you're biased here.
 > 
-> Pid: 6455, CPU 0, comm:                   sh
-> psr : 0000101008526030 ifs : 8000000000000fa4 ip  : [<a0000001008c40f0>]    Not tainted (3.6.0-rc1)
-> ip is at offline_pages+0x210/0xee0
-> unat: 0000000000000000 pfs : 0000000000000fa4 rsc : 0000000000000003
-> rnat: a0000001008f2d50 bsps: 0000000000000000 pr  : 65519a96659a9565
-> ldrs: 0000000000000000 ccv : 0000010b9263f310 fpsr: 0009804c0270033f
-> csd : 0000000000000000 ssd : 0000000000000000
-> b0  : a0000001008c40f0 b6  : a000000100473980 b7  : a0000001000106d0
-> f6  : 000000000000000000000 f7  : 1003e0000000085c9354c
-> f8  : 1003e0044b82fa09b5a53 f9  : 1003e000000d65cd62abf
-> f10 : 1003efd02efdec682803d f11 : 1003e0000000000000042
-> r1  : a00000010152c2e0 r2  : 0000000000006ada r3  : 000000000000fffe
-> r8  : 0000000000000026 r9  : a00000010121cc18 r10 : a0000001013309f0
-> r11 : 65519a96659a19e9 r12 : e00000070a91fdf0 r13 : e00000070a910000
-> r14 : 0000000000006ada r15 : 0000000000004000 r16 : 000000006ad8356c
-> r17 : a0000001019a525e r18 : 0000000000007fff r19 : 0000000000000000
-> r20 : 0000000000006ad6 r21 : 0000000000006ad6 r22 : a00000010133bec8
-> r23 : 0000000000006ad4 r24 : 0000000000000002 r25 : 8200000000260038
-> r26 : 00000000000004f9 r27 : 00000000000004f8 r28 : 000000000001cf98
-> r29 : 0000000000000038 r30 : a0000001019a5ae0 r31 : 000000000001cf60
 > 
-> Call Trace:
->  [<a0000001000163e0>] show_stack+0x80/0xa0
->                                 sp=e00000070a91f9b0 bsp=e00000070a9115e0
->  [<a000000100016a40>] show_regs+0x640/0x920
->                                 sp=e00000070a91fb80 bsp=e00000070a911588
->  [<a000000100040590>] die+0x190/0x2c0
->                                 sp=e00000070a91fb90 bsp=e00000070a911548
->  [<a000000100040710>] die_if_kernel+0x50/0x80
->                                 sp=e00000070a91fb90 bsp=e00000070a911518
->  [<a0000001008f8030>] ia64_bad_break+0x3d0/0x6e0
->                                 sp=e00000070a91fb90 bsp=e00000070a9114f0
->  [<a00000010000c0c0>] ia64_native_leave_kernel+0x0/0x270
->                                 sp=e00000070a91fc20 bsp=e00000070a9114f0
->  [<a0000001008c40f0>] offline_pages+0x210/0xee0
->                                 sp=e00000070a91fdf0 bsp=e00000070a9113c8
->  [<a00000010022d580>] alloc_pages_current+0x180/0x2a0
->                                 sp=e00000070a91fe20 bsp=e00000070a9113a
+> > Basically it was very simple: we assumed page->lru was never
+> > touched for an allocated page, so it's safe to use it for
+> > internal book-keeping by the driver.
+> >
+> > Now, this is not the case anymore, you add some logic in mm/ that might
+> > or might not touch page->lru depending on things like reference count.
+> > And you are asking why things break even though you change very little
+> > in balloon itself?  Because the interface between balloon and mm is now
+> > big, fragile and largely undocumented.
+> > 
 > 
-> This patch is trying to fix the bug.
+> The driver don't use page->lru as its bookeeping at all, it uses
+> vb->num_pages instead. 
 
-not just trying ;)
+$ grep lru drivers/virtio/virtio_balloon.c
+                list_add(&page->lru, &vb->pages);
+                page = list_first_entry(&vb->pages, struct page, lru);
+                list_del(&page->lru);
+
 
 > 
-> Signed-off-by: Jianguo Wu <wujianguo@huawei.com>
-
-Reviewed-by: Michal Hocko <mhocko@suse.cz>
-
-> ---
->  include/linux/memory.h |    2 +-
->  1 files changed, 1 insertions(+), 1 deletions(-)
+> > Another strangeness I just noticed: if we ever do an extra get_page in
+> > balloon, compaction logic in mm will break, yes?  But one expects to be
+> > able to do get_page after alloc_page without ill effects
+> > as long as one does put_page before free.
+> >
 > 
-> diff --git a/include/linux/memory.h b/include/linux/memory.h
-> index 1ac7f6e..ff9a9f8 100644
-> --- a/include/linux/memory.h
-> +++ b/include/linux/memory.h
-> @@ -19,7 +19,7 @@
->  #include <linux/compiler.h>
->  #include <linux/mutex.h>
+> You can do it (bump up the balloon page refcount), and it will only prevent
+> balloon pages from being isolated and migrated, thus reducing the effectiveness of
+> defragmenting memory when balloon pages are present, just like it happens today.
 > 
-> -#define MIN_MEMORY_BLOCK_SIZE     (1 << SECTION_SIZE_BITS)
-> +#define MIN_MEMORY_BLOCK_SIZE     (1UL << SECTION_SIZE_BITS)
-> 
->  struct memory_block {
->  	unsigned long start_section_nr;
+> It really doesn't seems the case of virtio_balloon driver, or any other driver,
+> which allocates pages directly from buddy to keep raising the page refcount,
+> though.
+>  
 
--- 
-Michal Hocko
-SUSE Labs
+E.g. network devices routinely play with pages they get from buddy,
+this is used for sharing memory between skbs.
+
+> > Just a thought: maybe it is cleaner to move all balloon page tracking
+> > into mm/?  Implement alloc_balloon/free_balloon with methods to fill and
+> > leak pages, and callbacks to invoke when done.  This should be good for
+> > other hypervisors too. If you like this idea, I can even try to help out
+> > by refactoring current code in this way, so that you can build on it.
+> > But this is just a thought, not a must.
+> >
+> 
+> That seems to be a good thought to be on a future enhancements wish-list, for sure.
+> We can start thinking of it, and I surely would be more than happy on be doing
+> it along with you. But I don't think not having it right away is a dealbreaker
+> for this proposal, as is.
+
+I grant busywait on module unloading isn't a huge deal breaker.
+
+Poking in mm internals is not a dealbreaker?
+Not leaking as much as
+you are asked to isn't?
+
+> I'm not against your thoughts, and I'm really glad that you're providing such
+> good dicussion over this subject, but, now I'll wait for Rusty thoughts on 
+> this one question.
+> 
+> Cheers!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
