@@ -1,50 +1,179 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
-	by kanga.kvack.org (Postfix) with SMTP id 61C106B005A
-	for <linux-mm@kvack.org>; Thu, 23 Aug 2012 12:24:06 -0400 (EDT)
-Date: Thu, 23 Aug 2012 19:25:05 +0300
-From: "Michael S. Tsirkin" <mst@redhat.com>
-Subject: Re: [PATCH v8 1/5] mm: introduce a common interface for balloon
- pages mobility
-Message-ID: <20120823162504.GA1522@redhat.com>
-References: <20120821204556.GF12294@t510.redhat.com>
- <20120822000741.GI9027@redhat.com>
- <20120822011930.GA23753@t510.redhat.com>
- <20120822093317.GC10680@redhat.com>
- <20120823021903.GA23660@x61.redhat.com>
- <20120823100107.GA17409@redhat.com>
- <20120823121338.GA3062@t510.redhat.com>
- <20120823123432.GA25659@redhat.com>
- <20120823130606.GB3746@t510.redhat.com>
- <20120823135328.GB25709@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120823135328.GB25709@redhat.com>
+Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
+	by kanga.kvack.org (Postfix) with SMTP id 5F0936B005D
+	for <linux-mm@kvack.org>; Thu, 23 Aug 2012 12:37:54 -0400 (EDT)
+From: Will Deacon <will.deacon@arm.com>
+Subject: [PATCH v2] mm: hugetlb: add arch hook for clearing page flags before entering pool
+Date: Thu, 23 Aug 2012 17:37:13 +0100
+Message-Id: <1345739833-25008-1-git-send-email-will.deacon@arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rafael Aquini <aquini@redhat.com>
-Cc: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Peter Zijlstra <peterz@infradead.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, Rusty Russell <rusty@rustcorp.com.au>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Minchan Kim <minchan@kernel.org>
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, akpm@linux-foundation.org, Will Deacon <will.deacon@arm.com>, Michal Hocko <mhocko@suse.cz>
 
-On Thu, Aug 23, 2012 at 04:53:28PM +0300, Michael S. Tsirkin wrote:
-> Basically it was very simple: we assumed page->lru was never
-> touched for an allocated page, so it's safe to use it for
-> internal book-keeping by the driver.
-> 
-> Now, this is not the case anymore, you add some logic in mm/ that might
-> or might not touch page->lru depending on things like reference count.
+The core page allocator ensures that page flags are zeroed when freeing
+pages via free_pages_check. A number of architectures (ARM, PPC, MIPS)
+rely on this property to treat new pages as dirty with respect to the
+data cache and perform the appropriate flushing before mapping the pages
+into userspace.
 
-Another thought: would the issue go away if balloon used
-page->private to link pages instead of LRU?
-mm core could keep a reference on page to avoid it
-being used while mm handles it (maybe it does already?).
+This can lead to cache synchronisation problems when using hugepages,
+since the allocator keeps its own pool of pages above the usual page
+allocator and does not reset the page flags when freeing a page into
+the pool.
 
-If we do this, will not the only change to balloon be to tell mm that it
-can use compaction for these pages when it allocates the page: using
-some GPF flag or a new API?
+This patch adds a new architecture hook, arch_clear_hugepage_flags, so
+that architectures which rely on the page flags being in a particular
+state for fresh allocations can adjust the flags accordingly when a
+page is freed into the pool.
 
+Cc: Michal Hocko <mhocko@suse.cz>
+Signed-off-by: Will Deacon <will.deacon@arm.com>
+---
+
+v2: Made ia64 and powerpc code a nop, moved hook to free_huge_page
+
+ arch/ia64/include/asm/hugetlb.h    |    4 ++++
+ arch/mips/include/asm/hugetlb.h    |    4 ++++
+ arch/powerpc/include/asm/hugetlb.h |    4 ++++
+ arch/s390/include/asm/hugetlb.h    |    1 +
+ arch/sh/include/asm/hugetlb.h      |    6 ++++++
+ arch/sparc/include/asm/hugetlb.h   |    4 ++++
+ arch/tile/include/asm/hugetlb.h    |    4 ++++
+ arch/x86/include/asm/hugetlb.h     |    4 ++++
+ mm/hugetlb.c                       |    1 +
+ 9 files changed, 32 insertions(+), 0 deletions(-)
+
+diff --git a/arch/ia64/include/asm/hugetlb.h b/arch/ia64/include/asm/hugetlb.h
+index da55c63..94eaa5b 100644
+--- a/arch/ia64/include/asm/hugetlb.h
++++ b/arch/ia64/include/asm/hugetlb.h
+@@ -77,4 +77,8 @@ static inline void arch_release_hugepage(struct page *page)
+ {
+ }
+ 
++static inline void arch_clear_hugepage_flags(struct page *page)
++{
++}
++
+ #endif /* _ASM_IA64_HUGETLB_H */
+diff --git a/arch/mips/include/asm/hugetlb.h b/arch/mips/include/asm/hugetlb.h
+index 58d3688..bd94946 100644
+--- a/arch/mips/include/asm/hugetlb.h
++++ b/arch/mips/include/asm/hugetlb.h
+@@ -112,4 +112,8 @@ static inline void arch_release_hugepage(struct page *page)
+ {
+ }
+ 
++static inline void arch_clear_hugepage_flags(struct page *page)
++{
++}
++
+ #endif /* __ASM_HUGETLB_H */
+diff --git a/arch/powerpc/include/asm/hugetlb.h b/arch/powerpc/include/asm/hugetlb.h
+index dfdb95b..62e11a3 100644
+--- a/arch/powerpc/include/asm/hugetlb.h
++++ b/arch/powerpc/include/asm/hugetlb.h
+@@ -151,6 +151,10 @@ static inline void arch_release_hugepage(struct page *page)
+ {
+ }
+ 
++static inline void arch_clear_hugepage_flags(struct page *page)
++{
++}
++
+ #else /* ! CONFIG_HUGETLB_PAGE */
+ static inline void flush_hugetlb_page(struct vm_area_struct *vma,
+ 				      unsigned long vmaddr)
+diff --git a/arch/s390/include/asm/hugetlb.h b/arch/s390/include/asm/hugetlb.h
+index 799ed0f..faa7655 100644
+--- a/arch/s390/include/asm/hugetlb.h
++++ b/arch/s390/include/asm/hugetlb.h
+@@ -33,6 +33,7 @@ static inline int prepare_hugepage_range(struct file *file,
+ }
+ 
+ #define hugetlb_prefault_arch_hook(mm)		do { } while (0)
++#define arch_clear_hugepage_flags(page)		do { } while (0)
+ 
+ int arch_prepare_hugepage(struct page *page);
+ void arch_release_hugepage(struct page *page);
+diff --git a/arch/sh/include/asm/hugetlb.h b/arch/sh/include/asm/hugetlb.h
+index 967068f..b3808c7 100644
+--- a/arch/sh/include/asm/hugetlb.h
++++ b/arch/sh/include/asm/hugetlb.h
+@@ -1,6 +1,7 @@
+ #ifndef _ASM_SH_HUGETLB_H
+ #define _ASM_SH_HUGETLB_H
+ 
++#include <asm/cacheflush.h>
+ #include <asm/page.h>
+ 
+ 
+@@ -89,4 +90,9 @@ static inline void arch_release_hugepage(struct page *page)
+ {
+ }
+ 
++static inline void arch_clear_hugepage_flags(struct page *page)
++{
++	clear_bit(PG_dcache_clean, &page->flags);
++}
++
+ #endif /* _ASM_SH_HUGETLB_H */
+diff --git a/arch/sparc/include/asm/hugetlb.h b/arch/sparc/include/asm/hugetlb.h
+index 1770610..e7927c9 100644
+--- a/arch/sparc/include/asm/hugetlb.h
++++ b/arch/sparc/include/asm/hugetlb.h
+@@ -82,4 +82,8 @@ static inline void arch_release_hugepage(struct page *page)
+ {
+ }
+ 
++static inline void arch_clear_hugepage_flags(struct page *page)
++{
++}
++
+ #endif /* _ASM_SPARC64_HUGETLB_H */
+diff --git a/arch/tile/include/asm/hugetlb.h b/arch/tile/include/asm/hugetlb.h
+index b204238..0f885af 100644
+--- a/arch/tile/include/asm/hugetlb.h
++++ b/arch/tile/include/asm/hugetlb.h
+@@ -106,6 +106,10 @@ static inline void arch_release_hugepage(struct page *page)
+ {
+ }
+ 
++static inline void arch_clear_hugepage_flags(struct page *page)
++{
++}
++
+ #ifdef CONFIG_HUGETLB_SUPER_PAGES
+ static inline pte_t arch_make_huge_pte(pte_t entry, struct vm_area_struct *vma,
+ 				       struct page *page, int writable)
+diff --git a/arch/x86/include/asm/hugetlb.h b/arch/x86/include/asm/hugetlb.h
+index 439a9ac..bdd35db 100644
+--- a/arch/x86/include/asm/hugetlb.h
++++ b/arch/x86/include/asm/hugetlb.h
+@@ -90,4 +90,8 @@ static inline void arch_release_hugepage(struct page *page)
+ {
+ }
+ 
++static inline void arch_clear_hugepage_flags(struct page *page)
++{
++}
++
+ #endif /* _ASM_X86_HUGETLB_H */
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index bc72712..f1bb534 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -637,6 +637,7 @@ static void free_huge_page(struct page *page)
+ 		h->surplus_huge_pages--;
+ 		h->surplus_huge_pages_node[nid]--;
+ 	} else {
++		arch_clear_hugepage_flags(page);
+ 		enqueue_huge_page(h, page);
+ 	}
+ 	spin_unlock(&hugetlb_lock);
 -- 
-MST
+1.7.4.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
