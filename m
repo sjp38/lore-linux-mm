@@ -1,118 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
-	by kanga.kvack.org (Postfix) with SMTP id 5BBD56B005A
-	for <linux-mm@kvack.org>; Thu, 23 Aug 2012 11:21:53 -0400 (EDT)
-Date: Thu, 23 Aug 2012 12:21:29 -0300
-From: Rafael Aquini <aquini@redhat.com>
-Subject: Re: [PATCH v8 1/5] mm: introduce a common interface for balloon
- pages mobility
-Message-ID: <20120823152128.GA8975@t510.redhat.com>
-References: <20120821204556.GF12294@t510.redhat.com>
- <20120822000741.GI9027@redhat.com>
- <20120822011930.GA23753@t510.redhat.com>
- <20120822093317.GC10680@redhat.com>
- <20120823021903.GA23660@x61.redhat.com>
- <20120823100107.GA17409@redhat.com>
- <20120823121338.GA3062@t510.redhat.com>
- <20120823123432.GA25659@redhat.com>
- <20120823130606.GB3746@t510.redhat.com>
- <20120823135328.GB25709@redhat.com>
+Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
+	by kanga.kvack.org (Postfix) with SMTP id 876B06B005A
+	for <linux-mm@kvack.org>; Thu, 23 Aug 2012 11:24:24 -0400 (EDT)
+Date: Thu, 23 Aug 2012 17:23:31 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH 33/36] autonuma: powerpc port
+Message-ID: <20120823152331.GF3570@redhat.com>
+References: <1345647560-30387-1-git-send-email-aarcange@redhat.com>
+ <1345647560-30387-34-git-send-email-aarcange@redhat.com>
+ <1345672907.2617.44.camel@pasglop>
+ <20120822223542.GG8107@redhat.com>
+ <1345698660.13399.23.camel@pasglop>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20120823135328.GB25709@redhat.com>
+In-Reply-To: <1345698660.13399.23.camel@pasglop>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Michael S. Tsirkin" <mst@redhat.com>
-Cc: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Peter Zijlstra <peterz@infradead.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, Rusty Russell <rusty@rustcorp.com.au>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Minchan Kim <minchan@kernel.org>
+To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Cc: Vaidyanathan Srinivasan <svaidy@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hillf Danton <dhillf@gmail.com>, Dan Smith <danms@us.ibm.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Srivatsa Vaddagiri <vatsa@linux.vnet.ibm.com>, Christoph Lameter <cl@linux.com>, Alex Shi <alex.shi@intel.com>, Mauricio Faria de Oliveira <mauricfo@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Don Morris <don.morris@hp.com>, Tony Breeds <tbreeds@au1.ibm.com>, Kumar Gala <galak@kernel.crashing.org>
 
-On Thu, Aug 23, 2012 at 04:53:29PM +0300, Michael S. Tsirkin wrote:
-> On Thu, Aug 23, 2012 at 10:06:07AM -0300, Rafael Aquini wrote:
-> > On Thu, Aug 23, 2012 at 03:34:32PM +0300, Michael S. Tsirkin wrote:
-> > > > So, nothing has changed here.
-> > > 
-> > > Yes, your patch does change things:
-> > > leak_balloon now might return without freeing any pages.
-> > > In that case we will not be making any progress, and just
-> > > spin, pinning CPU.
-> > 
-> > That's a transitory condition, that migh happen if leak_balloon() takes place
-> > when compaction, or migration are under their way and it might only affects the
-> > module unload case.
+Hi Benjamin,
+
+On Thu, Aug 23, 2012 at 03:11:00PM +1000, Benjamin Herrenschmidt wrote:
+> Basically PROT_NONE turns into _PAGE_PRESENT without _PAGE_USER for us.
+
+Maybe the simplest is to implement pte_numa as !_PAGE_USER too. No
+need to clear the _PAGE_PRESENT bit and to alter pte_present() if
+clearing _PAGE_USER already achieves it.
+
+It should be trivial to add the vma parameter to pte_numa(pte, vma) so
+you can implement pte_numa by checking the vma->vm_page_prot in the
+inline pte_numa function, to be able to tell if it's a real prot none
+(in which case pte_numa return false) or if it's the NUMA hinting page
+fault. In the latter case pte_numa will return true.
+
+> However, the embedded ppc situation is more interesting... and it looks
+> like it is indeed broken, meaning that a user can coerce the kernel into
+> accessing PROT_NONE on its behalf with copy_from_user & co (though read
+> only really).
 > 
-> Regular operation seems even more broken: host might ask
-> you to leak memory but because it is under compaction
-> you might leak nothing. No?
->
-
-And that is exactely what it wants to do. If there is (temporarily) nothing to leak,
-then not leaking is the only sane thing to do. Having balloon pages being migrated
-does not break the leak at all, despite it can last a little longer.
-
- 
- 
-> > 
-> > I already told you that we do not do that by any mean introduced by this patch.
-> > You're just being stubborn here. If those bits are broken, they were already
-> > broken before I did come up with this proposal.
+> Looks like the SW TLB handlers used on embedded should also check
+> whether the address is a user or kernel address, and enforce _PAGE_USER
+> in the former case. They might have done in the past, it's possible that
+> it's code we lost, but as it is, it's broken.
 > 
-> Sorry you don't address the points I am making.  Maybe there are no
-> bugs. But it looks like there are.  And assuming I am just seeing things
-> this just means patch needs more comments, in commit log and in
-> code to explain the design so that it stops looking like that.
->
+> The case of HW loaded TLB embedded will need a different definition of
+> PAGE_NONE as well I suspect. Kumar, can you have a look ?
 
-Yes, I belive you're biased here.
+Even if we can't track copy-user accesses with the NUMA
+hinting page faults, AUTONUMA should still work fairly well. The
+flakey PROTNONE on embedded, is more a problem in itself than it would
+be for pte_numa on embedded.
 
+OTOH AutoNUMA working on embedded isn't important so it may be just
+better to disable it until !_PAGE_USER is reliable.
 
-> Basically it was very simple: we assumed page->lru was never
-> touched for an allocated page, so it's safe to use it for
-> internal book-keeping by the driver.
->
-> Now, this is not the case anymore, you add some logic in mm/ that might
-> or might not touch page->lru depending on things like reference count.
-> And you are asking why things break even though you change very little
-> in balloon itself?  Because the interface between balloon and mm is now
-> big, fragile and largely undocumented.
-> 
+> I wasn't especially thinking of ppc32... there's also hash64-4k or
+> embedded 64... Also pgtable.h is common, so all those added uses of
+> _PAGE_NUMA_PTE to static inline functions are going to break the build
+> unless _PAGE_NUMA_PTE is #defined to 0 when not used (we do that for a
+> bunch of bits in pte-common.h already).
 
-The driver don't use page->lru as its bookeeping at all, it uses
-vb->num_pages instead. 
+It'd be actually worse if it would build ;). But I guess using
+_PAGE_USER to implement pte_numa will solve the problem for 4k page
+size too.
 
+We can discuss this during kernel summit ;).
 
-> Another strangeness I just noticed: if we ever do an extra get_page in
-> balloon, compaction logic in mm will break, yes?  But one expects to be
-> able to do get_page after alloc_page without ill effects
-> as long as one does put_page before free.
->
-
-You can do it (bump up the balloon page refcount), and it will only prevent
-balloon pages from being isolated and migrated, thus reducing the effectiveness of
-defragmenting memory when balloon pages are present, just like it happens today.
-
-It really doesn't seems the case of virtio_balloon driver, or any other driver,
-which allocates pages directly from buddy to keep raising the page refcount,
-though.
- 
-
-> Just a thought: maybe it is cleaner to move all balloon page tracking
-> into mm/?  Implement alloc_balloon/free_balloon with methods to fill and
-> leak pages, and callbacks to invoke when done.  This should be good for
-> other hypervisors too. If you like this idea, I can even try to help out
-> by refactoring current code in this way, so that you can build on it.
-> But this is just a thought, not a must.
->
-
-That seems to be a good thought to be on a future enhancements wish-list, for sure.
-We can start thinking of it, and I surely would be more than happy on be doing
-it along with you. But I don't think not having it right away is a dealbreaker
-for this proposal, as is.
-
-I'm not against your thoughts, and I'm really glad that you're providing such
-good dicussion over this subject, but, now I'll wait for Rusty thoughts on 
-this one question.
-
-Cheers!
+Thanks a lot!
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
