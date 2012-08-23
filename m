@@ -1,103 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
-	by kanga.kvack.org (Postfix) with SMTP id F25776B0068
-	for <linux-mm@kvack.org>; Thu, 23 Aug 2012 02:11:17 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx103.postini.com [74.125.245.103])
+	by kanga.kvack.org (Postfix) with SMTP id 190866B0044
+	for <linux-mm@kvack.org>; Thu, 23 Aug 2012 02:17:32 -0400 (EDT)
+Date: Thu, 23 Aug 2012 09:15:19 +0300
 From: Hiroshi Doyu <hdoyu@nvidia.com>
-Subject: [v2 4/4] ARM: dma-mapping: IOMMU allocates pages from atomic_pool with GFP_ATOMIC
-Date: Thu, 23 Aug 2012 09:10:29 +0300
-Message-ID: <1345702229-9539-5-git-send-email-hdoyu@nvidia.com>
-In-Reply-To: <1345702229-9539-1-git-send-email-hdoyu@nvidia.com>
-References: <1345702229-9539-1-git-send-email-hdoyu@nvidia.com>
+Subject: Re: [RFC 2/4] ARM: dma-mapping: IOMMU allocates pages from pool
+ with GFP_ATOMIC
+Message-ID: <20120823091519.804aeae4ba93bcfe011e787c@nvidia.com>
+In-Reply-To: <012401cd80f4$59727020$0c575060$%szyprowski@samsung.com>
+References: <1345630830-9586-1-git-send-email-hdoyu@nvidia.com>
+	<1345630830-9586-3-git-send-email-hdoyu@nvidia.com>
+	<CAHQjnOOF7Ca-Dz8K_zcS=gxQsJvKYaWA3tqUeK1RSd-wLYZ44w@mail.gmail.com>
+	<20120822.163648.3800987367886904.hdoyu@nvidia.com>
+	<012401cd80f4$59727020$0c575060$%szyprowski@samsung.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: m.szyprowski@samsung.com
-Cc: Hiroshi Doyu <hdoyu@nvidia.com>, linux-arm-kernel@lists.infradead.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kyungmin.park@samsung.com, arnd@arndb.de, linux@arm.linux.org.uk, chunsang.jeong@linaro.org, vdumpa@nvidia.com, konrad.wilk@oracle.com, subashrp@gmail.com, minchan@kernel.org, pullip.cho@samsung.com
+To: Marek Szyprowski <m.szyprowski@samsung.com>
+Cc: "pullip.cho@samsung.com" <pullip.cho@samsung.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linaro-mm-sig@lists.linaro.org" <linaro-mm-sig@lists.linaro.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "kyungmin.park@samsung.com" <kyungmin.park@samsung.com>, "arnd@arndb.de" <arnd@arndb.de>, "linux@arm.linux.org.uk" <linux@arm.linux.org.uk>, "chunsang.jeong@linaro.org" <chunsang.jeong@linaro.org>, Krishna Reddy <vdumpa@nvidia.com>, "konrad.wilk@oracle.com" <konrad.wilk@oracle.com>, "subashrp@gmail.com" <subashrp@gmail.com>, "minchan@kernel.org" <minchan@kernel.org>
 
-Makes use of the same atomic pool from DMA, and skips kernel page
-mapping which can involve sleep'able operations at allocating a kernel
-page table.
+Hi,
 
-Signed-off-by: Hiroshi Doyu <hdoyu@nvidia.com>
----
- arch/arm/mm/dma-mapping.c |   30 +++++++++++++++++++++++++-----
- 1 files changed, 25 insertions(+), 5 deletions(-)
+On Thu, 23 Aug 2012 07:58:34 +0200
+Marek Szyprowski <m.szyprowski@samsung.com> wrote:
 
-diff --git a/arch/arm/mm/dma-mapping.c b/arch/arm/mm/dma-mapping.c
-index 7ab016b..433312a 100644
---- a/arch/arm/mm/dma-mapping.c
-+++ b/arch/arm/mm/dma-mapping.c
-@@ -1063,7 +1063,6 @@ static struct page **__iommu_alloc_buffer(struct device *dev, size_t size,
- 	struct page **pages;
- 	int count = size >> PAGE_SHIFT;
- 	int array_size = count * sizeof(struct page *);
--	int err;
- 
- 	if ((array_size <= PAGE_SIZE) || (gfp & GFP_ATOMIC))
- 		pages = kzalloc(array_size, gfp);
-@@ -1072,9 +1071,20 @@ static struct page **__iommu_alloc_buffer(struct device *dev, size_t size,
- 	if (!pages)
- 		return NULL;
- 
--	err = __alloc_fill_pages(&pages, count, gfp);
--	if (err)
--		goto error
-+	if (gfp & GFP_ATOMIC) {
-+		struct page *page;
-+		int i;
-+		void *addr = __alloc_from_pool(size, &page);
-+		if (!addr)
-+			goto error;
-+
-+		for (i = 0; i < count; i++)
-+			pages[i] = page + i;
-+	} else {
-+		int err = __alloc_fill_pages(&pages, count, gfp);
-+		if (err)
-+			goto error;
-+	}
- 
- 	return pages;
- 
-@@ -1091,9 +1101,15 @@ static int __iommu_free_buffer(struct device *dev, struct page **pages, size_t s
- 	int count = size >> PAGE_SHIFT;
- 	int array_size = count * sizeof(struct page *);
- 	int i;
-+
-+	if (__free_from_pool(page_address(pages[0]), size))
-+		goto out;
-+
- 	for (i = 0; i < count; i++)
- 		if (pages[i])
- 			__free_pages(pages[i], 0);
-+
-+out:
- 	if ((array_size <= PAGE_SIZE) ||
- 	    __in_atomic_pool(page_address(pages[0]), size))
- 		kfree(pages);
-@@ -1221,6 +1237,9 @@ static void *arm_iommu_alloc_attrs(struct device *dev, size_t size,
- 	if (*handle == DMA_ERROR_CODE)
- 		goto err_buffer;
- 
-+	if (gfp & GFP_ATOMIC)
-+		return page_address(pages[0]);
-+
- 	if (dma_get_attr(DMA_ATTR_NO_KERNEL_MAPPING, attrs))
- 		return pages;
- 
-@@ -1279,7 +1298,8 @@ void arm_iommu_free_attrs(struct device *dev, size_t size, void *cpu_addr,
- 		return;
- 	}
- 
--	if (!dma_get_attr(DMA_ATTR_NO_KERNEL_MAPPING, attrs)) {
-+	if (!dma_get_attr(DMA_ATTR_NO_KERNEL_MAPPING, attrs) ||
-+	    !__in_atomic_pool(cpu_addr, size)) {
- 		unmap_kernel_range((unsigned long)cpu_addr, size);
- 		vunmap(cpu_addr);
- 	}
--- 
-1.7.5.4
+> Hello,
+> 
+> On Wednesday, August 22, 2012 3:37 PM Hiroshi Doyu wrote:
+> 
+> > KyongHo Cho <pullip.cho@samsung.com> wrote @ Wed, 22 Aug 2012 14:47:00 +0200:
+> > 
+> > > vzalloc() call in __iommu_alloc_buffer() also causes BUG() in atomic context.
+> > 
+> > Right.
+> > 
+> > I've been thinking that kzalloc() may be enough here, since
+> > vzalloc() was introduced to avoid allocation failure for big chunk of
+> > memory, but I think that it's unlikely that the number of page array
+> > can be so big. So I propose to drop vzalloc() here, and just simply to
+> > use kzalloc only as below(*1).
+> 
+> We already had a discussion about this, so I don't think it makes much sense to
+> change it back to kzalloc. This vmalloc() call won't hurt anyone. It should not
+> be considered a problem for atomic allocations, because no sane driver will try
+> to allocate buffers larger than a dozen KiB with GFP_ATOMIC flag. I would call
+> such try a serious bug, which we should not care here.
+
+Ok, I've already sent v2 just now, where, instead of changing it back,
+just with GFP_ATOMIC, kzalloc() would be selected, just in case. I guess
+that this would be ok(a bit safer?)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
