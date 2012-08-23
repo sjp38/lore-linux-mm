@@ -1,50 +1,33 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
-	by kanga.kvack.org (Postfix) with SMTP id 851E16B0070
-	for <linux-mm@kvack.org>; Thu, 23 Aug 2012 13:36:07 -0400 (EDT)
-Date: Thu, 23 Aug 2012 18:36:02 +0100
-From: Will Deacon <will.deacon@arm.com>
-Subject: Re: [PATCH v2] mm: hugetlb: add arch hook for clearing page flags
- before entering pool
-Message-ID: <20120823173602.GA3117@mudshark.cambridge.arm.com>
-References: <1345739833-25008-1-git-send-email-will.deacon@arm.com>
- <20120823171156.GE19968@dhcp22.suse.cz>
+Received: from psmtp.com (na3sys010amx101.postini.com [74.125.245.101])
+	by kanga.kvack.org (Postfix) with SMTP id 0EBF56B0070
+	for <linux-mm@kvack.org>; Thu, 23 Aug 2012 13:37:25 -0400 (EDT)
+Message-ID: <50366A64.8030203@redhat.com>
+Date: Thu, 23 Aug 2012 13:37:40 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120823171156.GE19968@dhcp22.suse.cz>
+Subject: Re: [PATCH 1/5] vmscan: Fix obsolete comment of balance_pgdat
+References: <1345619717-5322-1-git-send-email-minchan@kernel.org> <1345619717-5322-2-git-send-email-minchan@kernel.org>
+In-Reply-To: <1345619717-5322-2-git-send-email-minchan@kernel.org>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Nick Piggin <npiggin@kernel.dk>
 
-On Thu, Aug 23, 2012 at 06:11:56PM +0100, Michal Hocko wrote:
-> On Thu 23-08-12 17:37:13, Will Deacon wrote:
-> > The core page allocator ensures that page flags are zeroed when freeing
-> > pages via free_pages_check. A number of architectures (ARM, PPC, MIPS)
-> > rely on this property to treat new pages as dirty with respect to the
-> > data cache and perform the appropriate flushing before mapping the pages
-> > into userspace.
-> > 
-> > This can lead to cache synchronisation problems when using hugepages,
-> > since the allocator keeps its own pool of pages above the usual page
-> > allocator and does not reset the page flags when freeing a page into
-> > the pool.
-> > 
-> > This patch adds a new architecture hook, arch_clear_hugepage_flags, so
-> > that architectures which rely on the page flags being in a particular
-> > state for fresh allocations can adjust the flags accordingly when a
-> > page is freed into the pool.
-> > 
-> > Cc: Michal Hocko <mhocko@suse.cz>
-> > Signed-off-by: Will Deacon <will.deacon@arm.com>
-> 
-> Looks good to me
-> Reviewed-by: Michal Hocko <mhocko@suse.cz>
+On 08/22/2012 03:15 AM, Minchan Kim wrote:
+> This patch correct obsolete comment caused by [1] and [2].
+>
+> [1] 7ac6218, kswapd lockup fix
+> [2] 32a4330, mm: prevent kswapd from freeing excessive amounts of lowmem
+>
+> Cc: Rik van Riel <riel@redhat.com>
+> Cc: Mel Gorman <mgorman@suse.de>
+> Cc: Nick Piggin <npiggin@kernel.dk>
+> Signed-off-by: Minchan Kim <minchan@kernel.org>
 
-Cheers Michal. Next step: start posting the ARM code!
-
-Will
+Acked-by: Rik van Riel <riel@redhat.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
