@@ -1,58 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx177.postini.com [74.125.245.177])
-	by kanga.kvack.org (Postfix) with SMTP id D10C16B0044
-	for <linux-mm@kvack.org>; Wed, 22 Aug 2012 21:10:11 -0400 (EDT)
-Received: by pbbro12 with SMTP id ro12so357243pbb.14
-        for <linux-mm@kvack.org>; Wed, 22 Aug 2012 18:10:11 -0700 (PDT)
-Date: Thu, 23 Aug 2012 09:10:03 +0800
-From: Shaohua Li <shli@kernel.org>
-Subject: Re: [patch]readahead: fault retry breaks mmap file read random
- detection
-Message-ID: <20120823011003.GA8944@kernel.org>
-References: <20120822034012.GA24099@kernel.org>
- <5034FD71.3000406@redhat.com>
+Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
+	by kanga.kvack.org (Postfix) with SMTP id 45C356B0044
+	for <linux-mm@kvack.org>; Wed, 22 Aug 2012 22:19:28 -0400 (EDT)
+Date: Wed, 22 Aug 2012 23:19:04 -0300
+From: Rafael Aquini <aquini@redhat.com>
+Subject: Re: [PATCH v8 1/5] mm: introduce a common interface for balloon
+ pages mobility
+Message-ID: <20120823021903.GA23660@x61.redhat.com>
+References: <1345562411.23018.111.camel@twins>
+ <20120821162432.GG2456@linux.vnet.ibm.com>
+ <20120821172819.GA12294@t510.redhat.com>
+ <20120821191330.GA8324@redhat.com>
+ <20120821192357.GD12294@t510.redhat.com>
+ <20120821193031.GC9027@redhat.com>
+ <20120821204556.GF12294@t510.redhat.com>
+ <20120822000741.GI9027@redhat.com>
+ <20120822011930.GA23753@t510.redhat.com>
+ <20120822093317.GC10680@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <5034FD71.3000406@redhat.com>
+In-Reply-To: <20120822093317.GC10680@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: linux-mm@kvack.org, fengguang.wu@intel.com, akpm@linux-foundation.org
+To: "Michael S. Tsirkin" <mst@redhat.com>
+Cc: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Peter Zijlstra <peterz@infradead.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, Rusty Russell <rusty@rustcorp.com.au>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Minchan Kim <minchan@kernel.org>
 
-On Wed, Aug 22, 2012 at 11:40:33AM -0400, Rik van Riel wrote:
-> On 08/21/2012 11:40 PM, Shaohua Li wrote:
-> >.fault now can retry. The retry can break state machine of .fault. In
-> >filemap_fault, if page is miss, ra->mmap_miss is increased. In the second try,
-> >since the page is in page cache now, ra->mmap_miss is decreased. And these are
-> >done in one fault, so we can't detect random mmap file access.
-> >
-> >Add a new flag to indicate .fault is tried once. In the second try, skip
-> >ra->mmap_miss decreasing. The filemap_fault state machine is ok with it.
-> 
-> >Index: linux/arch/avr32/mm/fault.c
-> >===================================================================
-> >--- linux.orig/arch/avr32/mm/fault.c	2012-08-22 09:51:23.035526683 +0800
-> >+++ linux/arch/avr32/mm/fault.c	2012-08-22 09:52:22.822775020 +0800
-> >@@ -152,6 +152,7 @@ good_area:
-> >  			tsk->min_flt++;
-> >  		if (fault & VM_FAULT_RETRY) {
-> >  			flags &= ~FAULT_FLAG_ALLOW_RETRY;
-> >+			flags |= FAULT_FLAG_TRIED;
-> 
-> Is there any place where you set FAULT_FLAG_TRIED
-> where FAULT_FLAG_ALLOW_RETRY is not cleared?
-> 
-> In other words, could we use the absence of the
-> FAULT_FLAG_ALLOW_RETRY as the test, avoiding the
-> need for a new bit flag?
+On Wed, Aug 22, 2012 at 12:33:17PM +0300, Michael S. Tsirkin wrote:
+> Hmm, so this will busy wait which is unelegant.
+> We need some event IMO.
 
-There are still several archs (~7) don't enable fault retry yet. For such
-archs, FAULT_FLAG_ALLOW_RETRY isn't set in the first try. If all archs support
-fault retry, the new flag is unnecessary.
+No, it does not busy wait. leak_balloon() is mutual exclusive with migration
+steps, so for the case we have one racing against the other, we really want
+leak_balloon() dropping the mutex temporarily to allow migration complete its
+work of refilling vb->pages list. Also, leak_balloon() calls tell_host(), which
+will potentially make it to schedule for each round of vb->pfns leak_balloon()
+will release. So, when remove_common() calls leak_balloon() looping on
+vb->num_pages, that won't become a tight loop. 
+The scheme was apparently working before this series, and it will remain working
+after it.
 
-Thanks,
-Shaohua
+
+> Also, reading num_pages without a lock here
+> which seems wrong.
+
+I'll protect it with vb->balloon_lock mutex. That will be consistent with the
+lock protection scheme this patch is introducing for struct virtio_balloon
+elements.
+
+
+> A similar concern applies to normal leaking
+> of the balloon: here we might leak less than
+> required, then wait for the next config change
+> event.
+
+Just as before, same thing here. If you leaked less than required, balloon()
+will keep calling leak_balloon() until the balloon target is reached. This
+scheme was working before, and it will keep working after this patch.
+
+
+> How about we signal config_change
+> event when pages are back to pages_list?
+
+I really don't know what to tell you here, but, to me, it seems like an
+overcomplication that isn't directly entangled with this patch purposes.
+Besides, you cannot expect compation / migration happening and racing against
+leak_balloon() all the time to make them signal events to the later, so we might
+just be creating a wait-forever condition for leak_balloon(), IMHO.
+
+Cheers!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
