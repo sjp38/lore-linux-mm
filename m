@@ -1,83 +1,143 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
-	by kanga.kvack.org (Postfix) with SMTP id 1200B6B0044
-	for <linux-mm@kvack.org>; Thu, 23 Aug 2012 04:42:45 -0400 (EDT)
-Received: by wibhq4 with SMTP id hq4so459662wib.8
-        for <linux-mm@kvack.org>; Thu, 23 Aug 2012 01:42:43 -0700 (PDT)
-Date: Thu, 23 Aug 2012 10:42:38 +0200
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [PATCH 00/36] AutoNUMA24
-Message-ID: <20120823084238.GB8742@gmail.com>
-References: <1345647560-30387-1-git-send-email-aarcange@redhat.com>
- <5035325C.3070909@redhat.com>
- <20120822214048.GA3092@gmail.com>
- <20120822221931.GE8107@redhat.com>
+Received: from psmtp.com (na3sys010amx207.postini.com [74.125.245.207])
+	by kanga.kvack.org (Postfix) with SMTP id 819646B0044
+	for <linux-mm@kvack.org>; Thu, 23 Aug 2012 05:11:28 -0400 (EDT)
+Date: Thu, 23 Aug 2012 17:11:25 +0800
+From: Fengguang Wu <fengguang.wu@intel.com>
+Subject: Re: [PATCH 3/3] HWPOISON: prevent inode cache removal to keep
+ AS_HWPOISON sticky
+Message-ID: <20120823091125.GA12745@localhost>
+References: <1345648655-4497-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <1345648655-4497-4-git-send-email-n-horiguchi@ah.jp.nec.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20120822221931.GE8107@redhat.com>
+In-Reply-To: <1345648655-4497-4-git-send-email-n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hillf Danton <dhillf@gmail.com>, Dan Smith <danms@us.ibm.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Johannes Weiner <hannes@cmpxchg.org>, Srivatsa Vaddagiri <vatsa@linux.vnet.ibm.com>, Christoph Lameter <cl@linux.com>, Alex Shi <alex.shi@intel.com>, Mauricio Faria de Oliveira <mauricfo@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Don Morris <don.morris@hp.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Andi Kleen <andi.kleen@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Tony Luck <tony.luck@intel.com>, Rik van Riel <riel@redhat.com>, Jun'ichi Nomura <j-nomura@ce.jp.nec.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-
-* Andrea Arcangeli <aarcange@redhat.com> wrote:
-
-> On Wed, Aug 22, 2012 at 11:40:48PM +0200, Ingo Molnar wrote:
-> > 
-> > * Rik van Riel <riel@redhat.com> wrote:
-> > 
-> > > On 08/22/2012 10:58 AM, Andrea Arcangeli wrote:
-> > > >Hello everyone,
-> > > >
-> > > >Before the Kernel Summit, I think it's good idea to post a new
-> > > >AutoNUMA24 and to go through a new review cycle. The last review cycle
-> > > >has been fundamental in improving the patchset. Thanks!
-> > > 
-> > > Thanks for improving the code and incorporating all our 
-> > > feedback. The AutoNUMA codebase is now in a state where I can 
-> > > live with it.
-> > > 
-> > > I hope the code will be acceptable to others, too.
-> > 
-> > Lots of scheduler changes. Has all of peterz's review feedback 
-> > been addressed?
+On Wed, Aug 22, 2012 at 11:17:35AM -0400, Naoya Horiguchi wrote:
+> "HWPOISON: report sticky EIO for poisoned file" still has a corner case
+> where we have possibilities of data lost. This is because in this fix
+> AS_HWPOISON is cleared when the inode cache is dropped.
 > 
-> git diff --stat origin kernel/sched/
->  kernel/sched/Makefile |    1 +
->  kernel/sched/core.c   |    1 +
->  kernel/sched/fair.c   |   86 ++++++-
->  kernel/sched/numa.c   |  604 +++++++++++++++++++++++++++++++++++++++++++++++++
->  kernel/sched/sched.h  |   19 ++
->  5 files changed, 699 insertions(+), 12 deletions(-)
+> For example, consider an application in which a process periodically
+> (every 10 minutes) writes some logs on a file (and closes it after
+> each writes,) and at the end of each day some batch programs run using
+> the log file. If a memory error hits on dirty pagecache of this log file
+> just after periodic write/close and the inode cache is cleared before the
+> next write, then this application is not aware of the error and the batch
+> programs will work wrongly.
 > 
-> Lots of scheduler changes only if CONFIG_AUTONUMA=y.
+> To avoid this, this patch makes us pin the hwpoisoned inode on memory
+> until we remove or completely truncate the hwpoisoned file.
 
-That's a lot of scheduler changes.
-
-> [...] If CONFIG_AUTONUMA=n it's just 107 lines of scheduler 
-> changes (numa.c won't get built in that case).
+Good point!
+ 
+> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> ---
+>  fs/inode.c              | 12 ++++++++++++
+>  include/linux/pagemap.h | 11 +++++++++++
+>  mm/memory-failure.c     |  2 +-
+>  mm/truncate.c           |  2 ++
+>  4 files changed, 26 insertions(+), 1 deletion(-)
 > 
-> > Hm, he isn't even Cc:-ed, how is that supposed to work?
-> 
-> I separately forwarded him the announcement email because I 
-> wanted to add a few more (minor) details for him. Of course 
-> Peter's review is fundamental and appreciated and already 
-> helped to make the code a lot better.
+> diff --git v3.6-rc1.orig/fs/inode.c v3.6-rc1/fs/inode.c
+> index ac8d904..8742397 100644
+> --- v3.6-rc1.orig/fs/inode.c
+> +++ v3.6-rc1/fs/inode.c
+> @@ -717,6 +717,15 @@ void prune_icache_sb(struct super_block *sb, int nr_to_scan)
+>  		}
+>  
+>  		/*
+> +		 * Keep inode caches on memory for user processes to certainly
+> +		 * be aware of memory errors.
+> +		 */
+> +		if (unlikely(mapping_hwpoison(inode->i_mapping))) {
+> +			spin_unlock(&inode->i_lock);
+> +			continue;
+> +		}
 
-I see no reason why such details shouldn't be discussed openly 
-and why forwarding him things separately should cause you to 
-drop a scheduler co-maintainer from the Cc:, with a 700 lines 
-kernel/sched/ diffstat ...
+That chunk prevents reclaiming all the cached pages. However the intention
+is only to keep the struct inode together with the hwpoison bit?
 
-> His previous comments should have been addressed, [...]
+> +		/*
+>  		 * Referenced or dirty inodes are still in use. Give them
+>  		 * another pass through the LRU as we canot reclaim them now.
+>  		 */
+> @@ -1405,6 +1414,9 @@ static void iput_final(struct inode *inode)
+>  		inode->i_state &= ~I_WILL_FREE;
+>  	}
+>  
+> +	if (unlikely(mapping_hwpoison(inode->i_mapping) && drop))
+> +		mapping_clear_hwpoison(inode->i_mapping);
 
-That's good news. Peter?
+Is that clear necessary? Because the bit will be gone with the inode
+struct: it's going to be de-allocated anyway.
 
-Thanks,
+>  	inode->i_state |= I_FREEING;
+>  	if (!list_empty(&inode->i_lru))
+>  		inode_lru_list_del(inode);
+> diff --git v3.6-rc1.orig/include/linux/pagemap.h v3.6-rc1/include/linux/pagemap.h
+> index 4d8d821..9fce4e4 100644
+> --- v3.6-rc1.orig/include/linux/pagemap.h
+> +++ v3.6-rc1/include/linux/pagemap.h
+> @@ -59,11 +59,22 @@ static inline int mapping_hwpoison(struct address_space *mapping)
+>  {
+>  	return test_bit(AS_HWPOISON, &mapping->flags);
+>  }
+> +static inline void mapping_set_hwpoison(struct address_space *mapping)
+> +{
+> +	set_bit(AS_HWPOISON, &mapping->flags);
+> +}
+> +static inline void mapping_clear_hwpoison(struct address_space *mapping)
+> +{
+> +	clear_bit(AS_HWPOISON, &mapping->flags);
+> +}
+>  #else
+>  static inline int mapping_hwpoison(struct address_space *mapping)
+>  {
+>  	return 0;
+>  }
+> +static inline void mapping_clear_hwpoison(struct address_space *mapping)
+> +{
+> +}
+>  #endif
+>  
+>  static inline gfp_t mapping_gfp_mask(struct address_space * mapping)
+> diff --git v3.6-rc1.orig/mm/memory-failure.c v3.6-rc1/mm/memory-failure.c
+> index a1e7e00..ca064c6 100644
+> --- v3.6-rc1.orig/mm/memory-failure.c
+> +++ v3.6-rc1/mm/memory-failure.c
+> @@ -652,7 +652,7 @@ static int me_pagecache_dirty(struct page *p, unsigned long pfn)
+>  		 * the first EIO, but we're not worse than other parts
+>  		 * of the kernel.
+>  		 */
+> -		set_bit(AS_HWPOISON, &mapping->flags);
+> +		mapping_set_hwpoison(mapping);
+>  	}
+>  
+>  	return me_pagecache_clean(p, pfn);
+> diff --git v3.6-rc1.orig/mm/truncate.c v3.6-rc1/mm/truncate.c
+> index 75801ac..82a994f 100644
+> --- v3.6-rc1.orig/mm/truncate.c
+> +++ v3.6-rc1/mm/truncate.c
+> @@ -574,6 +574,8 @@ void truncate_setsize(struct inode *inode, loff_t newsize)
+>  
+>  	oldsize = inode->i_size;
+>  	i_size_write(inode, newsize);
+> +	if (unlikely(mapping_hwpoison(inode->i_mapping) && !newsize))
 
-	Ingo
+It might be a bit better to test !newsize first.
+
+> +		mapping_clear_hwpoison(inode->i_mapping);
+>  
+>  	truncate_pagecache(inode, oldsize, newsize);
+>  }
+> -- 
+> 1.7.11.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
