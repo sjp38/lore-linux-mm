@@ -1,74 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
-	by kanga.kvack.org (Postfix) with SMTP id CECCC6B0044
-	for <linux-mm@kvack.org>; Thu, 23 Aug 2012 16:05:01 -0400 (EDT)
-Received: by dadi14 with SMTP id i14so655909dad.14
-        for <linux-mm@kvack.org>; Thu, 23 Aug 2012 13:05:01 -0700 (PDT)
-Date: Thu, 23 Aug 2012 13:04:56 -0700
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH v3 01/17] hashtable: introduce a small and naive
- hashtable
-Message-ID: <20120823200456.GD14962@google.com>
-References: <1345602432-27673-1-git-send-email-levinsasha928@gmail.com>
- <1345602432-27673-2-git-send-email-levinsasha928@gmail.com>
- <20120822180138.GA19212@google.com>
- <50357840.5020201@gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <50357840.5020201@gmail.com>
+Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
+	by kanga.kvack.org (Postfix) with SMTP id AC66D6B0044
+	for <linux-mm@kvack.org>; Thu, 23 Aug 2012 16:31:17 -0400 (EDT)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH 1/3] HWPOISON: fix action_result() to print out dirty/clean
+Date: Thu, 23 Aug 2012 16:31:09 -0400
+Message-Id: <1345753869-31053-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <20120823093330.GC12745@localhost>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <levinsasha928@gmail.com>
-Cc: torvalds@linux-foundation.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, paul.gortmaker@windriver.com, davem@davemloft.net, rostedt@goodmis.org, mingo@elte.hu, ebiederm@xmission.com, aarcange@redhat.com, ericvh@gmail.com, netdev@vger.kernel.org, josh@joshtriplett.org, eric.dumazet@gmail.com, mathieu.desnoyers@efficios.com, axboe@kernel.dk, agk@redhat.com, dm-devel@redhat.com, neilb@suse.de, ccaulfie@redhat.com, teigland@redhat.com, Trond.Myklebust@netapp.com, bfields@fieldses.org, fweisbec@gmail.com, jesse@nicira.com, venkat.x.venkatsubra@oracle.com, ejt@redhat.com, snitzer@redhat.com, edumazet@google.com, linux-nfs@vger.kernel.org, dev@openvswitch.org, rds-devel@oss.oracle.com, lw@cn.fujitsu.com
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Andi Kleen <andi.kleen@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Tony Luck <tony.luck@intel.com>, Rik van Riel <riel@redhat.com>, Jun'ichi Nomura <j-nomura@ce.jp.nec.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Hello, Sasha.
+Hello,
 
-On Thu, Aug 23, 2012 at 02:24:32AM +0200, Sasha Levin wrote:
-> > I think the almost trivial nature of hlist hashtables makes this a bit
-> > tricky and I'm not very sure but having this combinatory explosion is
-> > a bit dazzling when the same functionality can be achieved by simply
-> > combining operations which are already defined and named considering
-> > hashtable.  I'm not feeling too strong about this tho.  What do others
-> > think?
+Thank you for your review.
+
+On Thu, Aug 23, 2012 at 05:33:30PM +0800, Fengguang Wu wrote:
+> On Wed, Aug 22, 2012 at 11:17:33AM -0400, Naoya Horiguchi wrote:
+> > action_result() fails to print out "dirty" even if an error occurred on a
+> > dirty pagecache, because when we check PageDirty in action_result() it was
+> > cleared after page isolation even if it's dirty before error handling. This
+> > can break some applications that monitor this message, so should be fixed.
+> > 
+> > There are several callers of action_result() except page_action(), but
+> > either of them are not for LRU pages but for free pages or kernel pages,
+> > so we don't have to consider dirty or not for them.
+> > 
+> > Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> > Reviewed-by: Andi Kleen <ak@linux.intel.com>
+> > ---
+> >  mm/memory-failure.c | 22 +++++++++-------------
+> >  1 file changed, 9 insertions(+), 13 deletions(-)
+> > 
+> > diff --git v3.6-rc1.orig/mm/memory-failure.c v3.6-rc1/mm/memory-failure.c
+> > index a6e2141..79dfb2f 100644
+> > --- v3.6-rc1.orig/mm/memory-failure.c
+> > +++ v3.6-rc1/mm/memory-failure.c
+> > @@ -779,16 +779,16 @@ static struct page_state {
+> >  	{ compound,	compound,	"huge",		me_huge_page },
+> >  #endif
+> >  
+> > -	{ sc|dirty,	sc|dirty,	"swapcache",	me_swapcache_dirty },
+> > -	{ sc|dirty,	sc,		"swapcache",	me_swapcache_clean },
+> > +	{ sc|dirty,	sc|dirty,	"dirty swapcache",	me_swapcache_dirty },
+> > +	{ sc|dirty,	sc,		"clean swapcache",	me_swapcache_clean },
+> >  
+> > -	{ unevict|dirty, unevict|dirty,	"unevictable LRU", me_pagecache_dirty},
+> > -	{ unevict,	unevict,	"unevictable LRU", me_pagecache_clean},
+> > +	{ unevict|dirty, unevict|dirty,	"dirty unevictable LRU", me_pagecache_dirty },
+> > +	{ unevict,	unevict,	"clean unevictable LRU", me_pagecache_clean },
+> >  
+> > -	{ mlock|dirty,	mlock|dirty,	"mlocked LRU",	me_pagecache_dirty },
+> > -	{ mlock,	mlock,		"mlocked LRU",	me_pagecache_clean },
+> > +	{ mlock|dirty,	mlock|dirty,	"dirty mlocked LRU",	me_pagecache_dirty },
+> > +	{ mlock,	mlock,		"clean mlocked LRU",	me_pagecache_clean },
+> >  
+> > -	{ lru|dirty,	lru|dirty,	"LRU",		me_pagecache_dirty },
+> > +	{ lru|dirty,	lru|dirty,	"dirty LRU",	me_pagecache_dirty },
+> >  	{ lru|dirty,	lru,		"clean LRU",	me_pagecache_clean },
 > 
-> I'm thinking that this hashtable API will have 2 purposes: First, it would
-> prevent the excessive duplication of hashtable implementations all around the code.
-> 
-> Second, it will allow more easily interchangeable hashtable implementations to
-> find their way into the kernel. There are several maintainers who would be happy
-> to see dynamically sized RCU hashtable, and I'm guessing that several more
-> variants could be added based on needs in specific modules.
-> 
-> The second reason is why several things you've mentioned look the way they are:
-> 
->  - No DEFINE_HASHTABLE(): I wanted to force the use of hash_init() since
-> initialization for other hashtables may be more complicated than the static
-> initialization for this implementation, which means that any place that used
-> DEFINE_HASHTABLE() and didn't do hash_init() will be buggy.
+> According to the set_page_dirty() comment, the dirty bit might be set
+> outside the page lock (however I don't know any concrete examples).
+> That means the word "clean" is not 100% right.  That's probably why we
+> only report "dirty LRU" and didn't say "clean LRU".
 
-I think this is problematic.  It looks exactly like other existing
-DEFINE macros yet what its semantics is different.  I don't think
-that's a good idea.
+So this doesn't seem to be just a messaging problem. If PageDirty is set
+outside page lock, we can handle the dirty page only with me_pagecache_clean(),
+without me_pagecache_dirty().
+It might be a good idea to add some check code to detect such kind of race
+and give up error isolation if it does.
+I'll dig into who sets dirty flags outside/inside page locks, and look for
+a workaround. (But it will be in another patch...)
 
-> I'm actually tempted in hiding hlist completely from hashtable users, probably
-> by simply defining a hash_head/hash_node on top of the hlist_ counterparts.
-
-I think that it would be best to keep this one simple & obvious, which
-already has enough in-kernel users to justify its existence.  There
-are significant benefits in being trivially understandable and
-expectable.  If we want more advanced ones - say resizing, hybrid or
-what not, let's make that a separate one.  No need to complicate the
-common straight-forward case for that.
-
-So, I think it would be best to keep this one as straight-forward and
-trivial as possible.  Helper macros to help its users are fine but
-let's please not go for full encapsulation.
-
-Thanks.
-
--- 
-tejun
+Thanks,
+Naoya
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
