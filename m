@@ -1,74 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
-	by kanga.kvack.org (Postfix) with SMTP id 45C356B0044
-	for <linux-mm@kvack.org>; Wed, 22 Aug 2012 22:19:28 -0400 (EDT)
-Date: Wed, 22 Aug 2012 23:19:04 -0300
-From: Rafael Aquini <aquini@redhat.com>
-Subject: Re: [PATCH v8 1/5] mm: introduce a common interface for balloon
- pages mobility
-Message-ID: <20120823021903.GA23660@x61.redhat.com>
-References: <1345562411.23018.111.camel@twins>
- <20120821162432.GG2456@linux.vnet.ibm.com>
- <20120821172819.GA12294@t510.redhat.com>
- <20120821191330.GA8324@redhat.com>
- <20120821192357.GD12294@t510.redhat.com>
- <20120821193031.GC9027@redhat.com>
- <20120821204556.GF12294@t510.redhat.com>
- <20120822000741.GI9027@redhat.com>
- <20120822011930.GA23753@t510.redhat.com>
- <20120822093317.GC10680@redhat.com>
+Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
+	by kanga.kvack.org (Postfix) with SMTP id 1668C6B0044
+	for <linux-mm@kvack.org>; Wed, 22 Aug 2012 23:49:08 -0400 (EDT)
+Date: Thu, 23 Aug 2012 12:49:35 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [RFC 2/4] ARM: dma-mapping: IOMMU allocates pages from pool with
+ GFP_ATOMIC
+Message-ID: <20120823034935.GC5369@bbox>
+References: <1345630830-9586-1-git-send-email-hdoyu@nvidia.com>
+ <1345630830-9586-3-git-send-email-hdoyu@nvidia.com>
+ <CAHQjnOOF7Ca-Dz8K_zcS=gxQsJvKYaWA3tqUeK1RSd-wLYZ44w@mail.gmail.com>
+ <20120822.163648.3800987367886904.hdoyu@nvidia.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20120822093317.GC10680@redhat.com>
+In-Reply-To: <20120822.163648.3800987367886904.hdoyu@nvidia.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Michael S. Tsirkin" <mst@redhat.com>
-Cc: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Peter Zijlstra <peterz@infradead.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, Rusty Russell <rusty@rustcorp.com.au>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Minchan Kim <minchan@kernel.org>
+To: Hiroshi Doyu <hdoyu@nvidia.com>
+Cc: "pullip.cho@samsung.com" <pullip.cho@samsung.com>, "m.szyprowski@samsung.com" <m.szyprowski@samsung.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linaro-mm-sig@lists.linaro.org" <linaro-mm-sig@lists.linaro.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "kyungmin.park@samsung.com" <kyungmin.park@samsung.com>, "arnd@arndb.de" <arnd@arndb.de>, "linux@arm.linux.org.uk" <linux@arm.linux.org.uk>, "chunsang.jeong@linaro.org" <chunsang.jeong@linaro.org>, Krishna Reddy <vdumpa@nvidia.com>, "konrad.wilk@oracle.com" <konrad.wilk@oracle.com>, "subashrp@gmail.com" <subashrp@gmail.com>
 
-On Wed, Aug 22, 2012 at 12:33:17PM +0300, Michael S. Tsirkin wrote:
-> Hmm, so this will busy wait which is unelegant.
-> We need some event IMO.
+On Wed, Aug 22, 2012 at 03:36:48PM +0200, Hiroshi Doyu wrote:
+> Hi,
+> 
+> KyongHo Cho <pullip.cho@samsung.com> wrote @ Wed, 22 Aug 2012 14:47:00 +0200:
+> 
+> > vzalloc() call in __iommu_alloc_buffer() also causes BUG() in atomic context.
+> 
+> Right.
+> 
+> I've been thinking that kzalloc() may be enough here, since
+> vzalloc() was introduced to avoid allocation failure for big chunk of
+> memory, but I think that it's unlikely that the number of page array
+> can be so big. So I propose to drop vzalloc() here, and just simply to
+> use kzalloc only as below(*1).
+> 
+> For example, 
+> 
+> 1920(H) x 1080(W) x 4(bytes) ~= 8MiB
+> 
+> For 8 MiB buffer,
+>   8(MiB) * 1024 = 8192(KiB)
+>   8192(KiB) / 4(KiB/page) = 2048 pages
+>   sizeof(struct page *) = 4 bytes
+>   2048(pages) * 4(bytes/page) = 8192(bytes) = 8(KiB)
+>   8(KiB) / 4(KiB/page) = 2 pages
+> 
+> If the above estimation is right(I hope;)), the necessary pages are
+> _at most_ 2 pages. If the system gets into the situation to fail to
+> allocate 2 contiguous pages, that's real the problem. I guess that
+> that kind of fragmentation problem would be solved with page migration
+> or something, especially nowadays devices are getting larger memories.
 
-No, it does not busy wait. leak_balloon() is mutual exclusive with migration
-steps, so for the case we have one racing against the other, we really want
-leak_balloon() dropping the mutex temporarily to allow migration complete its
-work of refilling vb->pages list. Also, leak_balloon() calls tell_host(), which
-will potentially make it to schedule for each round of vb->pfns leak_balloon()
-will release. So, when remove_common() calls leak_balloon() looping on
-vb->num_pages, that won't become a tight loop. 
-The scheme was apparently working before this series, and it will remain working
-after it.
+In atomic context, VM have no choice except relying on kswapd so
+high order allocation can fail easily when memory fragementation
+is high.
 
-
-> Also, reading num_pages without a lock here
-> which seems wrong.
-
-I'll protect it with vb->balloon_lock mutex. That will be consistent with the
-lock protection scheme this patch is introducing for struct virtio_balloon
-elements.
-
-
-> A similar concern applies to normal leaking
-> of the balloon: here we might leak less than
-> required, then wait for the next config change
-> event.
-
-Just as before, same thing here. If you leaked less than required, balloon()
-will keep calling leak_balloon() until the balloon target is reached. This
-scheme was working before, and it will keep working after this patch.
-
-
-> How about we signal config_change
-> event when pages are back to pages_list?
-
-I really don't know what to tell you here, but, to me, it seems like an
-overcomplication that isn't directly entangled with this patch purposes.
-Besides, you cannot expect compation / migration happening and racing against
-leak_balloon() all the time to make them signal events to the later, so we might
-just be creating a wait-forever condition for leak_balloon(), IMHO.
-
-Cheers!
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
