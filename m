@@ -1,64 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
-	by kanga.kvack.org (Postfix) with SMTP id 8EA3E6B0044
-	for <linux-mm@kvack.org>; Thu, 23 Aug 2012 18:10:09 -0400 (EDT)
-Received: from /spool/local
-	by e31.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
-	Thu, 23 Aug 2012 16:10:08 -0600
-Received: from d03relay01.boulder.ibm.com (d03relay01.boulder.ibm.com [9.17.195.226])
-	by d03dlp01.boulder.ibm.com (Postfix) with ESMTP id 408F4C40004
-	for <linux-mm@kvack.org>; Thu, 23 Aug 2012 16:10:06 -0600 (MDT)
-Received: from d03av05.boulder.ibm.com (d03av05.boulder.ibm.com [9.17.195.85])
-	by d03relay01.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q7NMA3iM162608
-	for <linux-mm@kvack.org>; Thu, 23 Aug 2012 16:10:04 -0600
-Received: from d03av05.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av05.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q7NMA2sF004709
-	for <linux-mm@kvack.org>; Thu, 23 Aug 2012 16:10:03 -0600
-Message-ID: <5036AA38.6010400@linux.vnet.ibm.com>
-Date: Thu, 23 Aug 2012 17:10:00 -0500
-From: Seth Jennings <sjenning@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 0/2] revert changes to zcache_do_preload()
-References: <1345735991-6995-1-git-send-email-sjenning@linux.vnet.ibm.com> <20120823205648.GA2066@barrios>
-In-Reply-To: <20120823205648.GA2066@barrios>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
+	by kanga.kvack.org (Postfix) with SMTP id E4CA16B0044
+	for <linux-mm@kvack.org>; Thu, 23 Aug 2012 18:14:25 -0400 (EDT)
+Message-ID: <1345759998.29170.20.camel@pasglop>
+Subject: Re: [PATCH 33/36] autonuma: powerpc port
+From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Date: Fri, 24 Aug 2012 08:13:18 +1000
+In-Reply-To: <1345698660.13399.23.camel@pasglop>
+References: <1345647560-30387-1-git-send-email-aarcange@redhat.com>
+	 <1345647560-30387-34-git-send-email-aarcange@redhat.com>
+	 <1345672907.2617.44.camel@pasglop> <20120822223542.GG8107@redhat.com>
+	 <1345698660.13399.23.camel@pasglop>
+Content-Type: text/plain; charset="UTF-8"
 Content-Transfer-Encoding: 7bit
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Nitin Gupta <ngupta@vflare.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org, xiaoguangrong@linux.vnet.ibm.com
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Vaidyanathan Srinivasan <svaidy@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hillf Danton <dhillf@gmail.com>, Dan Smith <danms@us.ibm.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Srivatsa Vaddagiri <vatsa@linux.vnet.ibm.com>, Christoph Lameter <cl@linux.com>, Alex Shi <alex.shi@intel.com>, Mauricio Faria de Oliveira <mauricfo@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Don Morris <don.morris@hp.com>, Tony Breeds <tbreeds@au1.ibm.com>, Kumar Gala <galak@kernel.crashing.org>
 
-On 08/23/2012 03:56 PM, Minchan Kim wrote:
-> Hi Seth,
+On Thu, 2012-08-23 at 15:11 +1000, Benjamin Herrenschmidt wrote:
+
+> So we don't do protnone, and now that you mention it, I think that
+> means
+> that some of our embedded stuff is busted :-)
 > 
-> On Thu, Aug 23, 2012 at 10:33:09AM -0500, Seth Jennings wrote:
->> This patchset fixes a regression in 3.6 by reverting two dependent
->> commits that made changes to zcache_do_preload().
->>
->> The commits undermine an assumption made by tmem_put() in
->> the cleancache path that preemption is disabled.  This change
->> introduces a race condition that can result in the wrong page
->> being returned by tmem_get(), causing assorted errors (segfaults,
->> apparent file corruption, etc) in userspace.
->>
->> The corruption was discussed in this thread:
->> https://lkml.org/lkml/2012/8/17/494
+> Basically PROT_NONE turns into _PAGE_PRESENT without _PAGE_USER for
+> us.
+
+ .../...
+
+> Looks like the SW TLB handlers used on embedded should also check
+> whether the address is a user or kernel address, and enforce
+> _PAGE_USER
+> in the former case. They might have done in the past, it's possible
+> that
+> it's code we lost, but as it is, it's broken.
 > 
-> I think changelog isn't enough to explain what's the race.
-> Could you write it down in detail?
+> The case of HW loaded TLB embedded will need a different definition of
+> PAGE_NONE as well I suspect. Kumar, can you have a look ?
 
-I didn't come upon this solution via code inspection, but
-rather through discovering that the issue didn't exist in
-v3.5 and just looking at the changes since then.
+Ok, replying to myself... I wrote some of that stuff so I was all ready
+to put the brown paper bag on etc... but in fact:
 
-> And you should Cc'ed Xiao who is author of reverted patch.
+ - On Book3e.h, we have all 6 protection bits in the PTE (user R,W,X and
+supervisor R,W,X). _PAGE_BASE has none of them and _PAGE_USER brings
+both UR and SR. Since _PAGE_USER is not set for PROT_NONE we should be
+fine. That's the one I wrote so here goes the brown paper bag :-)
 
-Thanks for adding Xiao.  I meant to do this. For some reason
-I thought that you submitted that patchset :-/
-My bad.
+ - 44x/47x is in trouble. _PAGE_USER is just a bit in the PTE that the
+TLB load handler uses to copy the S bits into the U bits. So we need to
+modify the code to also refuse to load a TLB entry with an EA below
+PAGE_OFFSET if _PAGE_USER isn't set. I'll give a try at a patch today if
+I get a chance, else it will have to wait til after I'm back from
+Plumbers.
 
-Seth
+ - 8xx is probably in trouble, I don't know, I never touch that code, so
+somebody from FSL should have a look if they care.
+
+ - FSL BookE looks wrong after a quick look, I'll also let FSL take care
+of it.
+
+Cheers,
+Ben.
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
