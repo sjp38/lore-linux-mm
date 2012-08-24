@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
-	by kanga.kvack.org (Postfix) with SMTP id 7202E6B006C
-	for <linux-mm@kvack.org>; Fri, 24 Aug 2012 06:45:47 -0400 (EDT)
-Received: from epcpsbgm2.samsung.com (mailout3.samsung.com [203.254.224.33])
- by mailout3.samsung.com
+Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
+	by kanga.kvack.org (Postfix) with SMTP id 0809B6B006C
+	for <linux-mm@kvack.org>; Fri, 24 Aug 2012 06:45:51 -0400 (EDT)
+Received: from epcpsbgm1.samsung.com (mailout2.samsung.com [203.254.224.25])
+ by mailout2.samsung.com
  (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
- 17 2011)) with ESMTP id <0M9900KSU9UQ0N00@mailout3.samsung.com> for
- linux-mm@kvack.org; Fri, 24 Aug 2012 19:45:46 +0900 (KST)
+ 17 2011)) with ESMTP id <0M99003ET9V7INU0@mailout2.samsung.com> for
+ linux-mm@kvack.org; Fri, 24 Aug 2012 19:45:39 +0900 (KST)
 Received: from mcdsrvbld02.digital.local ([106.116.37.23])
  by mmp1.samsung.com (Oracle Communications Messaging Server 7u4-24.01
  (7.0.4.24.0) 64bit (built Nov 17 2011))
  with ESMTPA id <0M990073E9VOI960@mmp1.samsung.com> for linux-mm@kvack.org;
- Fri, 24 Aug 2012 19:45:45 +0900 (KST)
+ Fri, 24 Aug 2012 19:45:39 +0900 (KST)
 From: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
-Subject: [PATCH 4/4] cma: fix watermark checking
-Date: Fri, 24 Aug 2012 12:45:20 +0200
-Message-id: <1345805120-797-5-git-send-email-b.zolnierkie@samsung.com>
+Subject: [PATCH 2/4] cma: count free CMA pages
+Date: Fri, 24 Aug 2012 12:45:18 +0200
+Message-id: <1345805120-797-3-git-send-email-b.zolnierkie@samsung.com>
 In-reply-to: <1345805120-797-1-git-send-email-b.zolnierkie@samsung.com>
 References: <1345805120-797-1-git-send-email-b.zolnierkie@samsung.com>
 Sender: owner-linux-mm@kvack.org
@@ -23,9 +23,9 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: m.szyprowski@samsung.com, mina86@mina86.com, minchan@kernel.org, mgorman@suse.de, kyungmin.park@samsung.com, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
 
-Pass GFP flags to [__]zone_watermark_ok() and use them to account
-free CMA pages only when necessary (there is no need to check
-watermark against only non-CMA free pages for movable allocations).
+Add NR_FREE_CMA_PAGES counter to be later used for checking watermark
+in __zone_watermark_ok().  For simplicity and to avoid #ifdef hell make
+this counter always available (not only when CONFIG_CMA=y).
 
 Cc: Marek Szyprowski <m.szyprowski@samsung.com>
 Cc: Michal Nazarewicz <mina86@mina86.com>
@@ -34,185 +34,206 @@ Cc: Mel Gorman <mgorman@suse.de>
 Signed-off-by: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
 Signed-off-by: Kyungmin Park <kyungmin.park@samsung.com>
 ---
- include/linux/mmzone.h |  2 +-
- mm/compaction.c        | 11 ++++++-----
- mm/page_alloc.c        | 29 +++++++++++++++++++----------
- mm/vmscan.c            |  4 ++--
- 4 files changed, 28 insertions(+), 18 deletions(-)
+ include/linux/mmzone.h |  3 +++
+ mm/page_alloc.c        | 39 +++++++++++++++++++++++++++++++++++----
+ mm/page_isolation.c    |  7 +++++++
+ mm/vmstat.c            |  1 +
+ 4 files changed, 46 insertions(+), 4 deletions(-)
 
 diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index 1ef0696..49ded3f 100644
+index ca034a1..1ef0696 100644
 --- a/include/linux/mmzone.h
 +++ b/include/linux/mmzone.h
-@@ -727,7 +727,7 @@ extern struct mutex zonelists_mutex;
- void build_all_zonelists(pg_data_t *pgdat, struct zone *zone);
- void wakeup_kswapd(struct zone *zone, int order, enum zone_type classzone_idx);
- bool zone_watermark_ok(struct zone *z, int order, unsigned long mark,
--		int classzone_idx, int alloc_flags);
-+		int classzone_idx, int alloc_flags, gfp_t gfp_flags);
- bool zone_watermark_ok_safe(struct zone *z, int order, unsigned long mark,
- 		int classzone_idx, int alloc_flags);
- enum memmap_context {
-diff --git a/mm/compaction.c b/mm/compaction.c
-index 8afa6dc..48efdc3 100644
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -626,7 +626,7 @@ static int compact_finished(struct zone *zone,
- 	watermark = low_wmark_pages(zone);
- 	watermark += (1 << cc->order);
+@@ -62,8 +62,10 @@ enum {
+ };
  
--	if (!zone_watermark_ok(zone, cc->order, watermark, 0, 0))
-+	if (!zone_watermark_ok(zone, cc->order, watermark, 0, 0, 0))
- 		return COMPACT_CONTINUE;
- 
- 	/* Direct compactor: Is a suitable page free? */
-@@ -668,7 +668,7 @@ unsigned long compaction_suitable(struct zone *zone, int order)
- 	 * allocated and for a short time, the footprint is higher
- 	 */
- 	watermark = low_wmark_pages(zone) + (2UL << order);
--	if (!zone_watermark_ok(zone, 0, watermark, 0, 0))
-+	if (!zone_watermark_ok(zone, 0, watermark, 0, 0, 0))
- 		return COMPACT_SKIPPED;
- 
- 	/*
-@@ -687,7 +687,7 @@ unsigned long compaction_suitable(struct zone *zone, int order)
- 		return COMPACT_SKIPPED;
- 
- 	if (fragindex == -1000 && zone_watermark_ok(zone, order, watermark,
--	    0, 0))
-+	    0, 0, 0))
- 		return COMPACT_PARTIAL;
- 
- 	return COMPACT_CONTINUE;
-@@ -829,7 +829,8 @@ unsigned long try_to_compact_pages(struct zonelist *zonelist,
- 		rc = max(status, rc);
- 
- 		/* If a normal allocation would succeed, stop compacting */
--		if (zone_watermark_ok(zone, order, low_wmark_pages(zone), 0, 0))
-+		if (zone_watermark_ok(zone, order, low_wmark_pages(zone), 0, 0,
-+				      gfp_mask))
- 			break;
- 	}
- 
-@@ -860,7 +861,7 @@ static int __compact_pgdat(pg_data_t *pgdat, struct compact_control *cc)
- 
- 		if (cc->order > 0) {
- 			int ok = zone_watermark_ok(zone, cc->order,
--						low_wmark_pages(zone), 0, 0);
-+						low_wmark_pages(zone), 0, 0, 0);
- 			if (ok && cc->order > zone->compact_order_failed)
- 				zone->compact_order_failed = cc->order + 1;
- 			/* Currently async compaction is never deferred. */
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index b06096a..5e33503 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -1425,7 +1425,7 @@ int split_free_page(struct page *page, bool check_wmark)
- 	if (check_wmark) {
- 		/* Obey watermarks as if the page was being allocated */
- 		watermark = low_wmark_pages(zone) + (1 << order);
--		if (!zone_watermark_ok(zone, 0, watermark, 0, 0))
-+		if (!zone_watermark_ok(zone, 0, watermark, 0, 0, 0))
- 			return 0;
- 	}
- 
-@@ -1629,12 +1629,13 @@ static inline bool should_fail_alloc_page(gfp_t gfp_mask, unsigned int order)
-  * of the allocation.
-  */
- static bool __zone_watermark_ok(struct zone *z, int order, unsigned long mark,
--		      int classzone_idx, int alloc_flags, long free_pages, long free_cma_pages)
-+		      int classzone_idx, int alloc_flags, long free_pages,
-+		      long free_cma_pages, gfp_t gfp_flags)
- {
- 	/* free_pages my go negative - that's OK */
- 	long min = mark;
- 	long lowmem_reserve = z->lowmem_reserve[classzone_idx];
--	int o;
-+	int mt, o;
- 
- 	free_pages -= (1 << order) - 1;
- 	if (alloc_flags & ALLOC_HIGH)
-@@ -1642,8 +1643,14 @@ static bool __zone_watermark_ok(struct zone *z, int order, unsigned long mark,
- 	if (alloc_flags & ALLOC_HARDER)
- 		min -= min / 4;
- 
--	if (free_pages - free_cma_pages <= min + lowmem_reserve)
--		return false;
-+	mt = allocflags_to_migratetype(gfp_flags);
-+	if (mt == MIGRATE_MOVABLE) {
-+		if (free_pages <= min + lowmem_reserve)
-+			return false;
-+	} else {
-+		if (free_pages - free_cma_pages <= min + lowmem_reserve)
-+			return false;
-+	}
- 	for (o = 0; o < order; o++) {
- 		/* At the next order, this order's pages become unavailable */
- 		free_pages -= z->free_area[o].nr_free << o;
-@@ -1672,11 +1679,12 @@ static inline unsigned long nr_zone_isolate_freepages(struct zone *zone)
+ #ifdef CONFIG_CMA
++bool is_cma_pageblock(struct page *page);
+ #  define is_migrate_cma(migratetype) unlikely((migratetype) == MIGRATE_CMA)
+ #else
++#  define is_cma_pageblock(page) false
+ #  define is_migrate_cma(migratetype) false
  #endif
  
- bool zone_watermark_ok(struct zone *z, int order, unsigned long mark,
--		      int classzone_idx, int alloc_flags)
-+		      int classzone_idx, int alloc_flags, gfp_t gfp_flags)
+@@ -140,6 +142,7 @@ enum zone_stat_item {
+ 	NUMA_OTHER,		/* allocation from other node */
+ #endif
+ 	NR_ANON_TRANSPARENT_HUGEPAGES,
++	NR_FREE_CMA_PAGES,
+ 	NR_VM_ZONE_STAT_ITEMS };
+ 
+ /*
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index e9bbd7c..e28e506 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -559,6 +559,9 @@ static inline void __free_one_page(struct page *page,
+ 			clear_page_guard_flag(buddy);
+ 			set_page_private(page, 0);
+ 			__mod_zone_page_state(zone, NR_FREE_PAGES, 1 << order);
++			if (is_cma_pageblock(page))
++				__mod_zone_page_state(zone, NR_FREE_CMA_PAGES,
++						      1 << order);
+ 		} else {
+ 			list_del(&buddy->lru);
+ 			zone->free_area[order].nr_free--;
+@@ -674,6 +677,8 @@ static void free_pcppages_bulk(struct zone *zone, int count,
+ 			/* MIGRATE_MOVABLE list may include MIGRATE_RESERVEs */
+ 			__free_one_page(page, zone, 0, page_private(page));
+ 			trace_mm_page_pcpu_drain(page, 0, page_private(page));
++			if (is_cma_pageblock(page))
++				__mod_zone_page_state(zone, NR_FREE_CMA_PAGES, 1);
+ 		} while (--to_free && --batch_free && !list_empty(list));
+ 	}
+ 	__mod_zone_page_state(zone, NR_FREE_PAGES, count);
+@@ -688,8 +693,12 @@ static void free_one_page(struct zone *zone, struct page *page, int order,
+ 	zone->pages_scanned = 0;
+ 
+ 	__free_one_page(page, zone, order, migratetype);
+-	if (get_pageblock_migratetype(page) != MIGRATE_ISOLATE)
++	if (get_pageblock_migratetype(page) != MIGRATE_ISOLATE) {
+ 		__mod_zone_page_state(zone, NR_FREE_PAGES, 1 << order);
++		if (is_cma_pageblock(page))
++			__mod_zone_page_state(zone, NR_FREE_CMA_PAGES,
++					      1 << order);
++	}
+ 	spin_unlock(&zone->lock);
+ }
+ 
+@@ -756,6 +765,11 @@ void __meminit __free_pages_bootmem(struct page *page, unsigned int order)
+ }
+ 
+ #ifdef CONFIG_CMA
++bool is_cma_pageblock(struct page *page)
++{
++	return get_pageblock_migratetype(page) == MIGRATE_CMA;
++}
++
+ /* Free whole pageblock and set it's migration type to MIGRATE_CMA. */
+ void __init init_cma_reserved_pageblock(struct page *page)
  {
- 	return __zone_watermark_ok(z, order, mark, classzone_idx, alloc_flags,
- 					zone_page_state(z, NR_FREE_PAGES),
--					zone_page_state(z, NR_FREE_CMA_PAGES));
-+					zone_page_state(z, NR_FREE_CMA_PAGES),
-+					gfp_flags);
- }
- 
- bool zone_watermark_ok_safe(struct zone *z, int order, unsigned long mark,
-@@ -1697,7 +1705,7 @@ bool zone_watermark_ok_safe(struct zone *z, int order, unsigned long mark,
- 	 */
- 	free_pages -= nr_zone_isolate_freepages(z);
- 	return __zone_watermark_ok(z, order, mark, classzone_idx, alloc_flags,
--					free_pages, free_cma_pages);
-+					free_pages, free_cma_pages, 0);
- }
- 
- #ifdef CONFIG_NUMA
-@@ -1907,7 +1915,7 @@ zonelist_scan:
- 
- 			mark = zone->watermark[alloc_flags & ALLOC_WMARK_MASK];
- 			if (zone_watermark_ok(zone, order, mark,
--				    classzone_idx, alloc_flags))
-+				    classzone_idx, alloc_flags, gfp_mask))
- 				goto try_this_zone;
- 
- 			if (NUMA_BUILD && !did_zlc_setup && nr_online_nodes > 1) {
-@@ -1943,7 +1951,8 @@ zonelist_scan:
- 			default:
- 				/* did we reclaim enough */
- 				if (!zone_watermark_ok(zone, order, mark,
--						classzone_idx, alloc_flags))
-+						classzone_idx, alloc_flags,
-+						gfp_mask))
- 					goto this_zone_full;
- 			}
+@@ -813,6 +827,9 @@ static inline void expand(struct zone *zone, struct page *page,
+ 			set_page_private(&page[size], high);
+ 			/* Guard pages are not available for any usage */
+ 			__mod_zone_page_state(zone, NR_FREE_PAGES, -(1 << high));
++			if (is_cma_pageblock(&page[size]))
++				__mod_zone_page_state(zone, NR_FREE_CMA_PAGES,
++						      -(1 << high));
+ 			continue;
  		}
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 8d01243..4a10038b 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -2777,14 +2777,14 @@ out:
+ #endif
+@@ -1138,6 +1155,9 @@ static int rmqueue_bulk(struct zone *zone, unsigned int order,
+ 		}
+ 		set_page_private(page, mt);
+ 		list = &page->lru;
++		if (is_cma_pageblock(page))
++			__mod_zone_page_state(zone, NR_FREE_CMA_PAGES,
++					      -(1 << order));
+ 	}
+ 	__mod_zone_page_state(zone, NR_FREE_PAGES, -(i << order));
+ 	spin_unlock(&zone->lock);
+@@ -1414,8 +1434,12 @@ int split_free_page(struct page *page, bool check_wmark)
+ 	zone->free_area[order].nr_free--;
+ 	rmv_page_order(page);
  
- 			/* Confirm the zone is balanced for order-0 */
- 			if (!zone_watermark_ok(zone, 0,
--					high_wmark_pages(zone), 0, 0)) {
-+					high_wmark_pages(zone), 0, 0, 0)) {
- 				order = sc.order = 0;
- 				goto loop_again;
- 			}
+-	if (get_pageblock_migratetype(page) != MIGRATE_ISOLATE)
++	if (get_pageblock_migratetype(page) != MIGRATE_ISOLATE) {
+ 		__mod_zone_page_state(zone, NR_FREE_PAGES, -(1UL << order));
++		if (is_cma_pageblock(page))
++			__mod_zone_page_state(zone, NR_FREE_CMA_PAGES,
++					      -(1UL << order));
++	}
  
- 			/* Check if the memory needs to be defragmented. */
- 			if (zone_watermark_ok(zone, order,
--				    low_wmark_pages(zone), *classzone_idx, 0))
-+				    low_wmark_pages(zone), *classzone_idx, 0, 0))
- 				zones_need_compaction = 0;
+ 	/* Split into individual pages */
+ 	set_page_refcounted(page);
+@@ -1490,6 +1514,9 @@ again:
+ 		spin_unlock(&zone->lock);
+ 		if (!page)
+ 			goto failed;
++		if (is_cma_pageblock(page))
++			__mod_zone_page_state(zone, NR_FREE_CMA_PAGES,
++					      -(1 << order));
+ 		__mod_zone_page_state(zone, NR_FREE_PAGES, -(1 << order));
+ 	}
  
- 			/* If balanced, clear the congested flag */
+@@ -2852,7 +2879,8 @@ void show_free_areas(unsigned int filter)
+ 		" unevictable:%lu"
+ 		" dirty:%lu writeback:%lu unstable:%lu\n"
+ 		" free:%lu slab_reclaimable:%lu slab_unreclaimable:%lu\n"
+-		" mapped:%lu shmem:%lu pagetables:%lu bounce:%lu\n",
++		" mapped:%lu shmem:%lu pagetables:%lu bounce:%lu\n"
++		" free_cma:%lu\n",
+ 		global_page_state(NR_ACTIVE_ANON),
+ 		global_page_state(NR_INACTIVE_ANON),
+ 		global_page_state(NR_ISOLATED_ANON),
+@@ -2869,7 +2897,8 @@ void show_free_areas(unsigned int filter)
+ 		global_page_state(NR_FILE_MAPPED),
+ 		global_page_state(NR_SHMEM),
+ 		global_page_state(NR_PAGETABLE),
+-		global_page_state(NR_BOUNCE));
++		global_page_state(NR_BOUNCE),
++		global_page_state(NR_FREE_CMA_PAGES));
+ 
+ 	for_each_populated_zone(zone) {
+ 		int i;
+@@ -2901,6 +2930,7 @@ void show_free_areas(unsigned int filter)
+ 			" pagetables:%lukB"
+ 			" unstable:%lukB"
+ 			" bounce:%lukB"
++			" free_cma:%lukB"
+ 			" writeback_tmp:%lukB"
+ 			" pages_scanned:%lu"
+ 			" all_unreclaimable? %s"
+@@ -2930,6 +2960,7 @@ void show_free_areas(unsigned int filter)
+ 			K(zone_page_state(zone, NR_PAGETABLE)),
+ 			K(zone_page_state(zone, NR_UNSTABLE_NFS)),
+ 			K(zone_page_state(zone, NR_BOUNCE)),
++			K(zone_page_state(zone, NR_FREE_CMA_PAGES)),
+ 			K(zone_page_state(zone, NR_WRITEBACK_TEMP)),
+ 			zone->pages_scanned,
+ 			(zone->all_unreclaimable ? "yes" : "no")
+diff --git a/mm/page_isolation.c b/mm/page_isolation.c
+index d210cc8..b8dba12 100644
+--- a/mm/page_isolation.c
++++ b/mm/page_isolation.c
+@@ -77,11 +77,15 @@ int set_migratetype_isolate(struct page *page)
+ out:
+ 	if (!ret) {
+ 		unsigned long nr_pages;
++		int mt = get_pageblock_migratetype(page);
+ 
+ 		set_pageblock_isolate(page);
+ 		nr_pages = move_freepages_block(zone, page, MIGRATE_ISOLATE);
+ 
+ 		__mod_zone_page_state(zone, NR_FREE_PAGES, -nr_pages);
++		if (mt == MIGRATE_CMA)
++			__mod_zone_page_state(zone, NR_FREE_CMA_PAGES,
++					      -nr_pages);
+ 	}
+ 
+ 	spin_unlock_irqrestore(&zone->lock, flags);
+@@ -102,6 +106,9 @@ void unset_migratetype_isolate(struct page *page, unsigned migratetype)
+ 		goto out;
+ 	nr_pages = move_freepages_block(zone, page, migratetype);
+ 	__mod_zone_page_state(zone, NR_FREE_PAGES, nr_pages);
++	if (migratetype == MIGRATE_CMA)
++		__mod_zone_page_state(zone, NR_FREE_CMA_PAGES,
++				      nr_pages);
+ 	restore_pageblock_isolate(page, migratetype);
+ out:
+ 	spin_unlock_irqrestore(&zone->lock, flags);
+diff --git a/mm/vmstat.c b/mm/vmstat.c
+index df7a674..7c102e6 100644
+--- a/mm/vmstat.c
++++ b/mm/vmstat.c
+@@ -722,6 +722,7 @@ const char * const vmstat_text[] = {
+ 	"numa_other",
+ #endif
+ 	"nr_anon_transparent_hugepages",
++	"nr_free_cma",
+ 	"nr_dirty_threshold",
+ 	"nr_dirty_background_threshold",
+ 
 -- 
 1.7.11.3
 
