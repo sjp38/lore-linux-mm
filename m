@@ -1,68 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
-	by kanga.kvack.org (Postfix) with SMTP id 5CCE86B002B
-	for <linux-mm@kvack.org>; Fri, 24 Aug 2012 11:20:44 -0400 (EDT)
-Received: by pbbro12 with SMTP id ro12so3991856pbb.14
-        for <linux-mm@kvack.org>; Fri, 24 Aug 2012 08:20:43 -0700 (PDT)
-Date: Sat, 25 Aug 2012 00:20:35 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [RFC] mm: support MIGRATE_DISCARD
-Message-ID: <20120824152035.GA2127@barrios>
-References: <1345782330-23234-1-git-send-email-minchan@kernel.org>
- <503797F0.1050805@redhat.com>
+Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
+	by kanga.kvack.org (Postfix) with SMTP id E278F6B002B
+	for <linux-mm@kvack.org>; Fri, 24 Aug 2012 11:39:04 -0400 (EDT)
+Date: Fri, 24 Aug 2012 17:39:02 +0200
+From: Sam Ravnborg <sam@ravnborg.org>
+Subject: Re: [PATCH 2/5] mm/memblock: rename
+	get_allocated_memblock_reserved_regions_info()
+Message-ID: <20120824153902.GA22555@merkur.ravnborg.org>
+References: <1345818820-12102-1-git-send-email-liwanp@linux.vnet.ibm.com> <1345818820-12102-2-git-send-email-liwanp@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <503797F0.1050805@redhat.com>
+In-Reply-To: <1345818820-12102-2-git-send-email-liwanp@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, Mel Gorman <mgorman@suse.de>
+To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Gavin Shan <shangw@linux.vnet.ibm.com>
 
-Hi Rik,
+On Fri, Aug 24, 2012 at 10:33:37PM +0800, Wanpeng Li wrote:
+> From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+> 
+> Rename get_allocated_memblock_reserved_regions_info() to
+> memblock_reserved_regions_info() so that the function name
+> looks more short and has prefix "memblock".
+> 
+> Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+> ---
+>  include/linux/memblock.h |    2 +-
+>  mm/memblock.c            |    2 +-
+>  mm/nobootmem.c           |    2 +-
+>  3 files changed, 3 insertions(+), 3 deletions(-)
+> 
+> diff --git a/include/linux/memblock.h b/include/linux/memblock.h
+> index 569d67d..ab7b887 100644
+> --- a/include/linux/memblock.h
+> +++ b/include/linux/memblock.h
+> @@ -50,7 +50,7 @@ phys_addr_t memblock_find_in_range_node(phys_addr_t start, phys_addr_t end,
+>  				phys_addr_t size, phys_addr_t align, int nid);
+>  phys_addr_t memblock_find_in_range(phys_addr_t start, phys_addr_t end,
+>  				   phys_addr_t size, phys_addr_t align);
+> -phys_addr_t get_allocated_memblock_reserved_regions_info(phys_addr_t *addr);
+> +phys_addr_t memblock_reserved_regions_info(phys_addr_t *addr);
+When you anyway change the prototype a description of what this function
+is supposed to be used for would be good.
+Many memblock function lacks this :-(
 
-On Fri, Aug 24, 2012 at 11:04:16AM -0400, Rik van Riel wrote:
-> On 08/24/2012 12:25 AM, Minchan Kim wrote:
-> >This patch introudes MIGRATE_DISCARD mode in migration.
-> >It drops *unmapped clean cache pages* instead of migration so that
-> 
-> Am I confused, or does the code not match the changelog?
-> 
-> It looks like it is still trying to discard mapped page cache pages:
-
-Embarrassing typo :( "clean cache page" is right.
-That includes both mapped/unmapped clean cache pages.
-
-> 
-> >+	file = page_is_file_cache(page);
-> >+	ttu_flags = TTU_IGNORE_ACCESS;
-> >+retry:
-> >+	if (!(mode & MIGRATE_DISCARD) || !file || PageDirty(page))
-> >+		ttu_flags |= (TTU_MIGRATION | TTU_IGNORE_MLOCK);
-> >+	else
-> >+		discard_mode = true;
-> >+
-> >  	/* Establish migration ptes or remove ptes */
-> >-	try_to_unmap(page, TTU_MIGRATION|TTU_IGNORE_MLOCK|TTU_IGNORE_ACCESS);
-> >+	rc = try_to_unmap(page, ttu_flags);
-> >
-> >  skip_unmap:
-> >-	if (!page_mapped(page))
-> >-		rc = move_to_new_page(newpage, page, remap_swapcache, mode);
-> >+	if (rc == SWAP_SUCCESS) {
-> >+		if (!discard_mode)
-> >+			rc = move_to_new_page(newpage, page,
-> >+					remap_swapcache, mode);
-> >+		else {
-> >+
-> >+			rc = discard_page(page);
-> >+			goto uncharge;
-> >+		}
-> 
-> 
-> 
-> -- 
-> All rights reversed
+	Sam
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
