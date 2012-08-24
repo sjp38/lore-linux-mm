@@ -1,51 +1,119 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
-	by kanga.kvack.org (Postfix) with SMTP id E278F6B002B
-	for <linux-mm@kvack.org>; Fri, 24 Aug 2012 11:39:04 -0400 (EDT)
-Date: Fri, 24 Aug 2012 17:39:02 +0200
-From: Sam Ravnborg <sam@ravnborg.org>
-Subject: Re: [PATCH 2/5] mm/memblock: rename
-	get_allocated_memblock_reserved_regions_info()
-Message-ID: <20120824153902.GA22555@merkur.ravnborg.org>
-References: <1345818820-12102-1-git-send-email-liwanp@linux.vnet.ibm.com> <1345818820-12102-2-git-send-email-liwanp@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1345818820-12102-2-git-send-email-liwanp@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
+	by kanga.kvack.org (Postfix) with SMTP id 5E3986B005D
+	for <linux-mm@kvack.org>; Fri, 24 Aug 2012 11:59:54 -0400 (EDT)
+Message-Id: <00000139595c6bd5-d4d69367-3e15-4c86-be54-0288f834038c-000000@email.amazonses.com>
+Date: Fri, 24 Aug 2012 15:59:52 +0000
+From: Christoph Lameter <cl@linux.com>
+Subject: C13 [00/14] Sl[auo]b: Common slab code for cgroups V13
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Gavin Shan <shangw@linux.vnet.ibm.com>
+To: Pekka Enberg <penberg@kernel.org>
+Cc: Joonsoo Kim <js1304@gmail.com>, Glauber Costa <glommer@parallels.com>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>
 
-On Fri, Aug 24, 2012 at 10:33:37PM +0800, Wanpeng Li wrote:
-> From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-> 
-> Rename get_allocated_memblock_reserved_regions_info() to
-> memblock_reserved_regions_info() so that the function name
-> looks more short and has prefix "memblock".
-> 
-> Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-> ---
->  include/linux/memblock.h |    2 +-
->  mm/memblock.c            |    2 +-
->  mm/nobootmem.c           |    2 +-
->  3 files changed, 3 insertions(+), 3 deletions(-)
-> 
-> diff --git a/include/linux/memblock.h b/include/linux/memblock.h
-> index 569d67d..ab7b887 100644
-> --- a/include/linux/memblock.h
-> +++ b/include/linux/memblock.h
-> @@ -50,7 +50,7 @@ phys_addr_t memblock_find_in_range_node(phys_addr_t start, phys_addr_t end,
->  				phys_addr_t size, phys_addr_t align, int nid);
->  phys_addr_t memblock_find_in_range(phys_addr_t start, phys_addr_t end,
->  				   phys_addr_t size, phys_addr_t align);
-> -phys_addr_t get_allocated_memblock_reserved_regions_info(phys_addr_t *addr);
-> +phys_addr_t memblock_reserved_regions_info(phys_addr_t *addr);
-When you anyway change the prototype a description of what this function
-is supposed to be used for would be good.
-Many memblock function lacks this :-(
+V12->V13
+- Reduce patches to those useful for cgroup support
+- Additional patches continuing slab unification will
+  be posted separately.
 
-	Sam
+V10->V11
+- Fix issues pointed out by Joonsoo and Glauber
+- Simplify Slab bootstrap further
+
+V9->V10
+- Memory leak was a false alarm
+- Resequence patches to make it easier
+  to apply.
+- Do more boot sequence consolidation in slab/slub.
+  [We could still do much more like common kmalloc
+  handling]
+- Fixes suggested by David and Glauber
+
+V8->V9:
+- Fix numerous things pointed out by Glauber.
+- Cleanup the way error handling works in the
+  common kmem_cache_create() function.
+- General cleanup by breaking things up
+  into multiple patches were necessary.
+
+V7->V8:
+- Do not use kfree for kmem_cache in slub.
+- Add more patches up to a common
+  scheme for object alignment.
+
+V6->V7:
+- Omit pieces that were merged for 3.6
+- Fix issues pointed out by Glauber.
+- Include the patches up to the point at which
+  the slab name handling is unified
+
+V5->V6:
+- Patches against Pekka's for-next tree.
+- Go slow and cut down to just patches that are safe
+  (there will likely be some churn already due to the
+  mutex unification between slabs)
+- More to come next week when I have more time (
+  took me almost the whole week to catch up after
+  being gone for awhile).
+
+V4->V5
+- Rediff against current upstream + Pekka's cleanup branch.
+
+V3->V4:
+- Do not use the COMMON macro anymore.
+- Fixup various issues
+- No general sysfs support yet due to lockdep issues with
+  keys in kmalloc'ed memory.
+
+V2->V3:
+- Incorporate more feedback from Joonsoo Kim and Glauber Costa
+- And a couple more patches to deal with slab duping and move
+  more code to slab_common.c
+
+V1->V2:
+- Incorporate glommers feedback.
+- Add 2 more patches dealing with common code in kmem_cache_destroy
+
+This is a series of patches that extracts common functionality from
+slab allocators into a common code base. The intend is to standardize
+as much as possible of the allocator behavior while keeping the
+distinctive features of each allocator which are mostly due to their
+storage format and serialization approaches.
+
+This patchset makes a beginning by extracting common functionality in
+kmem_cache_create() and kmem_cache_destroy(). However, there are
+numerous other areas where such work could be beneficial:
+
+1. Extract the sysfs support from SLUB and make it common. That way
+   all allocators have a common sysfs API and are handleable in the same
+   way regardless of the allocator chose.
+
+2. Extract the error reporting and checking from SLUB and make
+   it available for all allocators. This means that all allocators
+   will gain the resiliency and error handling capabilties.
+
+3. Extract the memory hotplug and cpu hotplug handling. It seems that
+   SLAB may be more sophisticated here. Having common code here will
+   make it easier to maintain the special code.
+
+4. Extract the aliasing capability of SLUB. This will enable fast
+   slab creation without creating too many additional slab caches.
+   The arrays of caches of varying sizes in numerous subsystems
+   do not cause the creation of numerous slab caches. Storage
+   density is increased and the cache footprint is reduced.
+
+Ultimately it is to be hoped that the special code for each allocator
+shrinks to a mininum. This will also make it easier to make modification
+to allocators.
+
+In the far future one could envision that the current allocators will
+just become storage algorithms that can be chosen based on the need of
+the subsystem. F.e.
+
+Cpu cache dependend performance		= Bonwick allocator (SLAB)
+Minimal cycle count and cache footprint	= SLUB
+Maximum storage density			= K&R allocator (SLOB)
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
