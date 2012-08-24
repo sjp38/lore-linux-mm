@@ -1,127 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx165.postini.com [74.125.245.165])
-	by kanga.kvack.org (Postfix) with SMTP id 90D446B0044
-	for <linux-mm@kvack.org>; Fri, 24 Aug 2012 05:44:21 -0400 (EDT)
-Date: Fri, 24 Aug 2012 11:44:15 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: Fixup the page of buddy_higher address's calculation
-Message-ID: <20120824094415.GD29282@dhcp22.suse.cz>
-References: <CAFNq8R7ibTNeRP_Wftwyr7mK6Du4TVysQysgL_RYj+CGf9N2qg@mail.gmail.com>
- <20120823095022.GB10685@dhcp22.suse.cz>
- <CAFNq8R5pY0yPp-LQYNywpMhVtXgqPSy3RYqHVTVpPXs52kOmJw@mail.gmail.com>
- <20120823135839.GB19968@dhcp22.suse.cz>
- <CAFNq8R7ry5kyuMombamf6jLmiLcWFnRQRp2vYt1+kv+pPec1_w@mail.gmail.com>
- <20120824080626.GC29282@dhcp22.suse.cz>
- <CAFNq8R6uiNhBR8BJD2B=ehFFk=aY0Be1DLRRbiXWKQP4LHPC=Q@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
+	by kanga.kvack.org (Postfix) with SMTP id 3349E6B0044
+	for <linux-mm@kvack.org>; Fri, 24 Aug 2012 06:05:35 -0400 (EDT)
+Date: Fri, 24 Aug 2012 11:05:05 +0100
+From: Catalin Marinas <catalin.marinas@arm.com>
+Subject: Re: [PATCH 2/3] kmemleak: replace list_for_each_continue_rcu with
+ new interface
+Message-ID: <20120824100505.GG7585@arm.com>
+References: <502CB92F.2010700@linux.vnet.ibm.com>
+ <502DC99E.4060408@linux.vnet.ibm.com>
+ <5036D062.7070003@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAFNq8R6uiNhBR8BJD2B=ehFFk=aY0Be1DLRRbiXWKQP4LHPC=Q@mail.gmail.com>
+In-Reply-To: <5036D062.7070003@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Li Haifeng <omycle@gmail.com>
-Cc: Gavin Shan <shangw@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan.kim@gmail.com>, Johannes Weiner <jweiner@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Michael Wang <wangyun@linux.vnet.ibm.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "paulmck@linux.vnet.ibm.com" <paulmck@linux.vnet.ibm.com>
 
-On Fri 24-08-12 17:08:36, Li Haifeng wrote:
-> 2012/8/24 Michal Hocko <mhocko@suse.cz>:
-> > On Fri 24-08-12 10:08:20, Li Haifeng wrote:
-> > [...]
-> >> Subject: [PATCH] Fix the page address of higher page's buddy calculation
-> >>
-> >> Calculate the page address of higher page's buddy should be based
-> >> higher_page with the offset between index of higher page and
-> >> index of higher page's buddy.
-> >
-> > Sorry for insisting but could you add an information about when this has
-> > been introduced (I have mentioned the commit in the other email) and the
-> > effect of the bug so that we can consider whether this is worth
-> > backporting to stable trees.
-> >
-> >> Signed-off-by: Haifeng Li <omycle@gmail.com>
-> >> Signed-off-by: Gavin Shan <shangw@linux.vnet.ibm.com>
-> >
-> > Other than that
-> > Reviewed-by: Michal Hocko <mhocko@suse.cz>
-> >
-> >> ---
-> >>  mm/page_alloc.c |    2 +-
-> >>  1 files changed, 1 insertions(+), 1 deletions(-)
-> >>
-> >> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> >> index cdef1d4..642cd62 100644
-> >> --- a/mm/page_alloc.c
-> >> +++ b/mm/page_alloc.c
-> >> @@ -536,7 +536,7 @@ static inline void __free_one_page(struct page *page,
-> >>                 combined_idx = buddy_idx & page_idx;
-> >>                 higher_page = page + (combined_idx - page_idx);
-> >>                 buddy_idx = __find_buddy_index(combined_idx, order + 1);
-> >> -               higher_buddy = page + (buddy_idx - combined_idx);
-> >> +               higher_buddy = higher_page + (buddy_idx - combined_idx);
-> >>                 if (page_is_buddy(higher_page, higher_buddy, order + 1)) {
-> >>                         list_add_tail(&page->lru,
-> >>                                 &zone->free_area[order].free_list[migratetype]);
-> >> --
-> >> 1.7.5.4
-> >
-> > --
-> > Michal Hocko
-> > SUSE Labs
+On Fri, Aug 24, 2012 at 01:52:50AM +0100, Michael Wang wrote:
+> On 08/17/2012 12:33 PM, Michael Wang wrote:
+> > From: Michael Wang <wangyun@linux.vnet.ibm.com>
+> > 
+> > This patch replaces list_for_each_continue_rcu() with
+> > list_for_each_entry_continue_rcu() to save a few lines
+> > of code and allow removing list_for_each_continue_rcu().
 > 
-> I am sorry Michal. I misinterpreted what you mean.
-> 
-> And the post blow is OK?
-> ------------------------------------------>
-> Subject: [PATCH] Fix the page address of higher page's buddy calculation
-> 
-> The heuristic method for buddy has been introduced since
-> 43506fad(mm/page_alloc.c: simplify calculation of combined index
-> of adjacent buddy lists). 
+> Could I get some comments on this patch?
 
-Maybe I just misunderstood you here but the heuristic has been
-introduced by 6dda9d55 (page allocator: reduce fragmentation in buddy
-allocator by adding buddies that are merging to the tail of the free
-lists) and the commit you are mentioning broke it.
+Sorry, busy with other things and forgot about this.
 
-> But the page address of higher page's buddy was wrongly calculated,
-> which will lead page_is_buddy to fail for ever. IOW, the heuristic
-> method would be disabled with the wrong page address of higher page's
-> buddy.
-> 
-> Calculating the page address of higher page's buddy should be based
-> higher_page with the offset between index of higher page and
-> index of higher page's buddy.
->
-
-I would also add CC: stable [2.6.38+] although it is not clear how much
-the heuristic is helpful. Anyway it's a regression and should be fix
-IMHO.
-
-> Signed-off-by: Haifeng Li <omycle@gmail.com>
-> Signed-off-by: Gavin Shan <shangw@linux.vnet.ibm.com>
-> Reviewed-by: Michal Hocko <mhocko@suse.cz>
-> ---
->  mm/page_alloc.c |    2 +-
->  1 files changed, 1 insertions(+), 1 deletions(-)
-> 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index ddbc17d..0754a3c 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -579,7 +579,7 @@ static inline void __free_one_page(struct page *page,
->                 combined_idx = buddy_idx & page_idx;
->                 higher_page = page + (combined_idx - page_idx);
->                 buddy_idx = __find_buddy_index(combined_idx, order + 1);
-> -               higher_buddy = page + (buddy_idx - combined_idx);
-> +               higher_buddy = higher_page + (buddy_idx - combined_idx);
->                 if (page_is_buddy(higher_page, higher_buddy, order + 1)) {
->                         list_add_tail(&page->lru,
->                                 &zone->free_area[order].free_list[migratetype]);
-> --
-> 1.7.5.4
-
--- 
-Michal Hocko
-SUSE Labs
+Acked-by: Catalin Marinas <catalin.marinas@arm.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
