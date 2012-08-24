@@ -1,52 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx127.postini.com [74.125.245.127])
-	by kanga.kvack.org (Postfix) with SMTP id E16D66B002B
-	for <linux-mm@kvack.org>; Fri, 24 Aug 2012 18:01:55 -0400 (EDT)
-Date: Fri, 24 Aug 2012 15:01:54 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v2] mm: hugetlb: add arch hook for clearing page flags
- before entering pool
-Message-Id: <20120824150154.fc16a78e.akpm@linux-foundation.org>
-In-Reply-To: <20120823173602.GA3117@mudshark.cambridge.arm.com>
-References: <1345739833-25008-1-git-send-email-will.deacon@arm.com>
-	<20120823171156.GE19968@dhcp22.suse.cz>
-	<20120823173602.GA3117@mudshark.cambridge.arm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
+	by kanga.kvack.org (Postfix) with SMTP id 7D0A76B002B
+	for <linux-mm@kvack.org>; Fri, 24 Aug 2012 18:59:03 -0400 (EDT)
+Received: by bkcjc3 with SMTP id jc3so859626bkc.14
+        for <linux-mm@kvack.org>; Fri, 24 Aug 2012 15:59:01 -0700 (PDT)
+Message-ID: <5038074D.300@gmail.com>
+Date: Sat, 25 Aug 2012 00:59:25 +0200
+From: Sasha Levin <levinsasha928@gmail.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH v3 01/17] hashtable: introduce a small and naive hashtable
+References: <1345602432-27673-1-git-send-email-levinsasha928@gmail.com> <1345602432-27673-2-git-send-email-levinsasha928@gmail.com> <20120822180138.GA19212@google.com> <50357840.5020201@gmail.com> <20120823200456.GD14962@google.com> <5037DA47.9010306@gmail.com> <20120824195941.GC21325@google.com> <5037E00B.6090606@gmail.com> <20120824203332.GF21325@google.com> <5037E9D9.9000605@gmail.com> <20120824212348.GK21325@google.com>
+In-Reply-To: <20120824212348.GK21325@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Will Deacon <will.deacon@arm.com>
-Cc: Michal Hocko <mhocko@suse.cz>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>
+To: Tejun Heo <tj@kernel.org>
+Cc: torvalds@linux-foundation.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, paul.gortmaker@windriver.com, davem@davemloft.net, rostedt@goodmis.org, mingo@elte.hu, ebiederm@xmission.com, aarcange@redhat.com, ericvh@gmail.com, netdev@vger.kernel.org, josh@joshtriplett.org, eric.dumazet@gmail.com, mathieu.desnoyers@efficios.com, axboe@kernel.dk, agk@redhat.com, dm-devel@redhat.com, neilb@suse.de, ccaulfie@redhat.com, teigland@redhat.com, Trond.Myklebust@netapp.com, bfields@fieldses.org, fweisbec@gmail.com, jesse@nicira.com, venkat.x.venkatsubra@oracle.com, ejt@redhat.com, snitzer@redhat.com, edumazet@google.com, linux-nfs@vger.kernel.org, dev@openvswitch.org, rds-devel@oss.oracle.com, lw@cn.fujitsu.com
 
-On Thu, 23 Aug 2012 18:36:02 +0100
-Will Deacon <will.deacon@arm.com> wrote:
+>> Why do we need hash_head/hash_for_each_head()? I haven't stumbled on a place yet
+>> that needed direct access to the bucket itself.
+> 
+> Because whole hash table walking is much less common and we can avoid
+> another full set of iterators.
 
-> On Thu, Aug 23, 2012 at 06:11:56PM +0100, Michal Hocko wrote:
-> > On Thu 23-08-12 17:37:13, Will Deacon wrote:
-> > > The core page allocator ensures that page flags are zeroed when freeing
-> > > pages via free_pages_check. A number of architectures (ARM, PPC, MIPS)
-> > > rely on this property to treat new pages as dirty with respect to the
-> > > data cache and perform the appropriate flushing before mapping the pages
-> > > into userspace.
-> > > 
-> > > This can lead to cache synchronisation problems when using hugepages,
-> > > since the allocator keeps its own pool of pages above the usual page
-> > > allocator and does not reset the page flags when freeing a page into
-> > > the pool.
-> > > 
-> > > This patch adds a new architecture hook, arch_clear_hugepage_flags, so
-> > > that architectures which rely on the page flags being in a particular
-> > > state for fresh allocations can adjust the flags accordingly when a
-> > > page is freed into the pool.
+I don't agree. Out of 32 places which now use a hashtable iterator of some kind,
+12 of them (38%) walk the entire table.
 
-You could have used __weak here quite neatly, but whatever.
+The thing is that usually data structures are indexable by more than one key, so
+usually hashtables are fully walked in cold paths to look for different keys.
 
-> Next step: start posting the ARM code!
+Take kernel/workqueue.c for example: There are 4 places which do a key lookup
+(find_worker_executing_work()) and 3 places which fully walk the entire table
+(for_each_busy_worker()).
 
-I suggest you keep this patch in whichever tree holds that arm code.  If
-I see this patch turn up in linux-next then I'll just drop my copy,
-expecting that this patch will be merged alongside the ARM changes.
+>> This basically means 11 macros/functions that would let us have full
+>> encapsulation and will make it very easy for future implementations to work with
+>> this API instead of making up a new one. It's also not significantly (+~2-3)
+>> more than the ones you listed.
+> 
+> I'm not sure whether full encapsulation is a good idea for trivial
+> hashtable.  For higher level stuff, sure but at this level I think
+> benefits coming from known obvious implementation can be larger.
+> e.g. suppose the caller knows certain entries to be way colder than
+> others and wants to put them at the end of the chain.
+
+Thats the thing, the amount of things of things you can do with a given bucket
+is very limited. You can't add entries to any point besides the head (without
+walking the entire list).
+
+Basically you can do only two things with a bucket:
+
+ - Add something to it at a very specific place.
+ - Walk it
+
+So I don't understand whats the point in exposing the internal structure of the
+hashtable if there's nothing significant that can be gained from it by the user.
+
+> 
+> So, I think implmenting the minimal set of helpers which reflect the
+> underlying trivial implementation explicitly could actually be better
+> even when discounting the reduced number of wrappers.
+> 
+> Thanks.
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
