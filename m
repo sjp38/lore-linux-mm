@@ -1,12 +1,12 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
-	by kanga.kvack.org (Postfix) with SMTP id 84F7E6B0044
-	for <linux-mm@kvack.org>; Thu, 23 Aug 2012 20:26:31 -0400 (EDT)
-Date: Thu, 23 Aug 2012 21:26:09 -0300
+Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
+	by kanga.kvack.org (Postfix) with SMTP id 994D26B0044
+	for <linux-mm@kvack.org>; Thu, 23 Aug 2012 20:34:15 -0400 (EDT)
+Date: Thu, 23 Aug 2012 21:33:53 -0300
 From: Rafael Aquini <aquini@redhat.com>
 Subject: Re: [PATCH v8 1/5] mm: introduce a common interface for balloon
  pages mobility
-Message-ID: <20120824002607.GF10777@t510.redhat.com>
+Message-ID: <20120824003353.GG10777@t510.redhat.com>
 References: <20120822093317.GC10680@redhat.com>
  <20120823021903.GA23660@x61.redhat.com>
  <20120823100107.GA17409@redhat.com>
@@ -27,114 +27,99 @@ To: "Michael S. Tsirkin" <mst@redhat.com>
 Cc: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Peter Zijlstra <peterz@infradead.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, Rusty Russell <rusty@rustcorp.com.au>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Minchan Kim <minchan@kernel.org>
 
 On Fri, Aug 24, 2012 at 02:36:16AM +0300, Michael S. Tsirkin wrote:
-> On Thu, Aug 23, 2012 at 02:28:45PM -0300, Rafael Aquini wrote:
-> > On Thu, Aug 23, 2012 at 07:25:05PM +0300, Michael S. Tsirkin wrote:
-> > > On Thu, Aug 23, 2012 at 04:53:28PM +0300, Michael S. Tsirkin wrote:
-> > > > Basically it was very simple: we assumed page->lru was never
-> > > > touched for an allocated page, so it's safe to use it for
-> > > > internal book-keeping by the driver.
-> > > > 
-> > > > Now, this is not the case anymore, you add some logic in mm/ that might
-> > > > or might not touch page->lru depending on things like reference count.
-> > > 
-> > > Another thought: would the issue go away if balloon used
-> > > page->private to link pages instead of LRU?
-> > > mm core could keep a reference on page to avoid it
-> > > being used while mm handles it (maybe it does already?).
-> > >
-> > I don't think so. That would be a lot more trikier and complex, IMHO.
-> 
-> What's tricky? Linking pages through a void * orivate pointer?
-> I can code it up in a couple of minutes.
-> It's middle of the night so too tired to test but still:
-> 
-> > > If we do this, will not the only change to balloon be to tell mm that it
-> > > can use compaction for these pages when it allocates the page: using
-> > > some GPF flag or a new API?
-> > > 
-> > 
-> > What about keep a conter at virtio_balloon structure on how much pages are
-> > isolated from balloon's list and check it at leak time?
-> > if the counter gets > 0 than we can safely put leak_balloon() to wait until
-> > balloon page list gets completely refilled. I guess that is simple to get
-> > accomplished and potentially addresses all your concerns on this issue.
-> > 
-> > Cheers!
-> 
 > I would wake it each time after adding a page, then it
 > can stop waiting when it leaks enough.
 > But again, it's cleaner to just keep tracking all
 > pages, let mm hang on to them by keeping a reference.
 > 
-> --->
-> 
-> virtio-balloon: replace page->lru list with page->private.
-> 
-> The point is to free up page->lru for use by compaction.
-> Warning: completely untested, will provide tested version
-> if we agree on this direction.
-> 
-> Signed-off-by: Michael S. Tsirkin <mst@redhat.com>
->
+Here is a rough idea on how it's getting:
 
-This way balloon driver will potentially release pages that were already
-migrated and doesn't belong to it anymore, since the page under migration never
-gets isolated from balloon's page list. It's a lot more dangerous than it was
-before. 
+Basically, I'm have introducing an atomic counter to track isolated pages, I
+also have changed vb->num_pages into an atomic conter. All inc/dec operations
+take place under pages_lock spinlock, and we only perform work under page lock.
 
-I'm working on having leak_balloon on the right way, as you correctly has
-pointed. I was blind and biased. So, thank you for pointing me the way.
+It's still missing the wait-part (I'll write it during the weekend) and your
+concerns (and mine) will be addressed, IMHO.
 
+---8<---
++/*
++ *
++ */
++static inline void __wait_on_isolated_pages(struct virtio_balloon *vb,
++                                           size_t num)
++{
++       /* There are no isolated pages for this balloon device */
++       if (!atomic_read(&vb->num_isolated_pages))
++               return;
++
++       /* the leak target is smaller than # of pages on vb->pages list */
++       if (num < (atomic_read(&vb->num_pages) -
++           atomic_read(&vb->num_isolated_pages)))
++               return;
++       else {
++               spin_unlock(&vb->pages_lock);
++               /* wait stuff goes here */
++               spin_lock(&vb->pages_lock);
++       }
++}
++
+ static void leak_balloon(struct virtio_balloon *vb, size_t num)
+ {
+-       struct page *page;
++       /* The array of pfns we tell the Host about. */
++       unsigned int num_pfns;
++       u32 pfns[VIRTIO_BALLOON_ARRAY_PFNS_MAX];
 
-> ---
-> 
-> diff --git a/drivers/virtio/virtio_balloon.c b/drivers/virtio/virtio_balloon.c
-> index 0908e60..b38f57ce 100644
-> --- a/drivers/virtio/virtio_balloon.c
-> +++ b/drivers/virtio/virtio_balloon.c
-> @@ -56,7 +56,7 @@ struct virtio_balloon
->  	 * Each page on this list adds VIRTIO_BALLOON_PAGES_PER_PAGE
->  	 * to num_pages above.
->  	 */
-> -	struct list_head pages;
-> +	void *pages;
->  
->  	/* The array of pfns we tell the Host about. */
->  	unsigned int num_pfns;
-> @@ -141,7 +141,9 @@ static void fill_balloon(struct virtio_balloon *vb, size_t num)
->  		set_page_pfns(vb->pfns + vb->num_pfns, page);
->  		vb->num_pages += VIRTIO_BALLOON_PAGES_PER_PAGE;
->  		totalram_pages--;
-> -		list_add(&page->lru, &vb->pages);
-> +		/* Add to list of pages */
-> +		page->private = vb->pages;
-> +		vb->pages = page->private;
->  	}
->  
->  	/* Didn't get any?  Oh well. */
-> @@ -171,8 +173,9 @@ static void leak_balloon(struct virtio_balloon *vb, size_t num)
->  
->  	for (vb->num_pfns = 0; vb->num_pfns < num;
->  	     vb->num_pfns += VIRTIO_BALLOON_PAGES_PER_PAGE) {
-> -		page = list_first_entry(&vb->pages, struct page, lru);
-> -		list_del(&page->lru);
-> +		/* Delete from list of pages */
-> +		page = vb->pages;
-> +		vb->pages = page->private;
->  		set_page_pfns(vb->pfns + vb->num_pfns, page);
->  		vb->num_pages -= VIRTIO_BALLOON_PAGES_PER_PAGE;
->  	}
-> @@ -350,7 +353,7 @@ static int virtballoon_probe(struct virtio_device *vdev)
->  		goto out;
->  	}
->  
-> -	INIT_LIST_HEAD(&vb->pages);
-> +	vb->pages = NULL;
->  	vb->num_pages = 0;
->  	init_waitqueue_head(&vb->config_change);
->  	init_waitqueue_head(&vb->acked);
-> -- 
-> MST
+        /* We can only do one array worth at a time. */
+-       num = min(num, ARRAY_SIZE(vb->pfns));
++       num = min(num, ARRAY_SIZE(pfns));
+
+-       for (vb->num_pfns = 0; vb->num_pfns < num;
+-            vb->num_pfns += VIRTIO_BALLOON_PAGES_PER_PAGE) {
+-               page = list_first_entry(&vb->pages, struct page, lru);
+-               list_del(&page->lru);
+-               set_page_pfns(vb->pfns + vb->num_pfns, page);
+-               vb->num_pages -= VIRTIO_BALLOON_PAGES_PER_PAGE;
++       for (num_pfns = 0; num_pfns < num;
++            num_pfns += VIRTIO_BALLOON_PAGES_PER_PAGE) {
++               struct page *page = NULL;
++               spin_lock(&vb->pages_lock);
++               __wait_on_isolated_pages(vb, num);
++
++               if (!list_empty(&vb->pages))
++                       page = list_first_entry(&vb->pages, struct page, lru);
++               /*
++                * Grab the page lock to avoid racing against threads isolating
++                * pages from, or migrating pages back to vb->pages list.
++                * (both tasks are done under page lock protection)
++                *
++                * Failing to grab the page lock here means this page is being
++                * isolated already, or its migration has not finished yet.
++                */
++               if (page && trylock_page(page)) {
++                       clear_balloon_mapping(page);
++                       list_del(&page->lru);
++                       set_page_pfns(pfns + num_pfns, page);
++                       atomic_sub(VIRTIO_BALLOON_PAGES_PER_PAGE,
++                                  &vb->num_pages);
++                       unlock_page(page);
++               }
++               spin_unlock(&vb->pages_lock);
+        }
+
+        /*
+@@ -182,8 +251,10 @@ static void leak_balloon(struct virtio_balloon *vb, size_t
+num)
+         * virtio_has_feature(vdev, VIRTIO_BALLOON_F_MUST_TELL_HOST);
+         * is true, we *have* to do it in this order
+         */
++       mutex_lock(&vb->balloon_lock);
+        tell_host(vb, vb->deflate_vq);
+-       release_pages_by_pfn(vb->pfns, vb->num_pfns);
++       mutex_unlock(&vb->balloon_lock);
++       release_pages_by_pfn(pfns, num_pfns);
+ }
+---8<---
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
