@@ -1,74 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
-	by kanga.kvack.org (Postfix) with SMTP id 5D6066B0044
-	for <linux-mm@kvack.org>; Fri, 24 Aug 2012 17:52:16 -0400 (EDT)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH 3/3] HWPOISON: prevent inode cache removal to keep AS_HWPOISON sticky
-Date: Fri, 24 Aug 2012 17:52:07 -0400
-Message-Id: <1345845127-13650-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <1345753903-31389-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+Received: from psmtp.com (na3sys010amx127.postini.com [74.125.245.127])
+	by kanga.kvack.org (Postfix) with SMTP id E16D66B002B
+	for <linux-mm@kvack.org>; Fri, 24 Aug 2012 18:01:55 -0400 (EDT)
+Date: Fri, 24 Aug 2012 15:01:54 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v2] mm: hugetlb: add arch hook for clearing page flags
+ before entering pool
+Message-Id: <20120824150154.fc16a78e.akpm@linux-foundation.org>
+In-Reply-To: <20120823173602.GA3117@mudshark.cambridge.arm.com>
+References: <1345739833-25008-1-git-send-email-will.deacon@arm.com>
+	<20120823171156.GE19968@dhcp22.suse.cz>
+	<20120823173602.GA3117@mudshark.cambridge.arm.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Wu Fengguang <fengguang.wu@intel.com>, Andi Kleen <andi.kleen@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Tony Luck <tony.luck@intel.com>, Rik van Riel <riel@redhat.com>, Jun'ichi Nomura <j-nomura@ce.jp.nec.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Will Deacon <will.deacon@arm.com>
+Cc: Michal Hocko <mhocko@suse.cz>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>
 
-Hello,
+On Thu, 23 Aug 2012 18:36:02 +0100
+Will Deacon <will.deacon@arm.com> wrote:
 
-On Thu, Aug 23, 2012 at 04:31:43PM -0400, Naoya Horiguchi wrote:
-> On Thu, Aug 23, 2012 at 05:11:25PM +0800, Fengguang Wu wrote:
-> > On Wed, Aug 22, 2012 at 11:17:35AM -0400, Naoya Horiguchi wrote:
-...
-> > > diff --git v3.6-rc1.orig/fs/inode.c v3.6-rc1/fs/inode.c
-> > > index ac8d904..8742397 100644
-> > > --- v3.6-rc1.orig/fs/inode.c
-> > > +++ v3.6-rc1/fs/inode.c
-> > > @@ -717,6 +717,15 @@ void prune_icache_sb(struct super_block *sb, int nr_to_scan)
-> > >  		}
-> > >  
-> > >  		/*
-> > > +		 * Keep inode caches on memory for user processes to certainly
-> > > +		 * be aware of memory errors.
-> > > +		 */
-> > > +		if (unlikely(mapping_hwpoison(inode->i_mapping))) {
-> > > +			spin_unlock(&inode->i_lock);
-> > > +			continue;
-> > > +		}
-> > 
-> > That chunk prevents reclaiming all the cached pages. However the intention
-> > is only to keep the struct inode together with the hwpoison bit?
-> 
-> Yes, we can not reclaim pagecaches from shrink_slab(), but we can do from
-> shrink_zone(). So it shouldn't happen that cached pages on hwpoisoned file
-> remain for long under high memory pressure.
+> On Thu, Aug 23, 2012 at 06:11:56PM +0100, Michal Hocko wrote:
+> > On Thu 23-08-12 17:37:13, Will Deacon wrote:
+> > > The core page allocator ensures that page flags are zeroed when freeing
+> > > pages via free_pages_check. A number of architectures (ARM, PPC, MIPS)
+> > > rely on this property to treat new pages as dirty with respect to the
+> > > data cache and perform the appropriate flushing before mapping the pages
+> > > into userspace.
+> > > 
+> > > This can lead to cache synchronisation problems when using hugepages,
+> > > since the allocator keeps its own pool of pages above the usual page
+> > > allocator and does not reset the page flags when freeing a page into
+> > > the pool.
+> > > 
+> > > This patch adds a new architecture hook, arch_clear_hugepage_flags, so
+> > > that architectures which rely on the page flags being in a particular
+> > > state for fresh allocations can adjust the flags accordingly when a
+> > > page is freed into the pool.
 
-I might lose your point. Are you suggesting this chunk should come after
-if (inode_has_buffers(inode) || inode->i_data.nrpages) { ... } block,
-aren't you?  I think that's right, so I'll try and test it this weekend.
+You could have used __weak here quite neatly, but whatever.
 
-> > > +		/*
-> > >  		 * Referenced or dirty inodes are still in use. Give them
-> > >  		 * another pass through the LRU as we canot reclaim them now.
-> > >  		 */
-> > > @@ -1405,6 +1414,9 @@ static void iput_final(struct inode *inode)
-> > >  		inode->i_state &= ~I_WILL_FREE;
-> > >  	}
-> > >  
-> > > +	if (unlikely(mapping_hwpoison(inode->i_mapping) && drop))
-> > > +		mapping_clear_hwpoison(inode->i_mapping);
-> > 
-> > Is that clear necessary? Because the bit will be gone with the inode
-> > struct: it's going to be de-allocated anyway.
-> 
-> With the chunk in prune_icache_sb() we keep the inode struct with
-> AS_HWPOISON set on memory, so in order to remove it, we need explicitly
-> clear the bit.
-> Without this clear, the inode remains until system reboot.
+> Next step: start posting the ARM code!
 
-And again, you are right here. Without this clear, this inode will be
-cleared in destroy_inode().
-
-Thanks,
-Naoya
+I suggest you keep this patch in whichever tree holds that arm code.  If
+I see this patch turn up in linux-next then I'll just drop my copy,
+expecting that this patch will be merged alongside the ARM changes.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
