@@ -1,151 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
-	by kanga.kvack.org (Postfix) with SMTP id 17D1B6B0044
-	for <linux-mm@kvack.org>; Thu, 23 Aug 2012 22:38:44 -0400 (EDT)
-Received: by pbbro12 with SMTP id ro12so2769759pbb.14
-        for <linux-mm@kvack.org>; Thu, 23 Aug 2012 19:38:43 -0700 (PDT)
-Message-ID: <5036E92D.8090803@gmail.com>
-Date: Fri, 24 Aug 2012 10:38:37 +0800
-From: wujianguo <wujianguo106@gmail.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH] mm/ia64: fix a memory block size bug
-References: <50330482.4070204@gmail.com> <20120823154646.GA10789@dhcp22.suse.cz>
-In-Reply-To: <20120823154646.GA10789@dhcp22.suse.cz>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
+	by kanga.kvack.org (Postfix) with SMTP id CED106B0044
+	for <linux-mm@kvack.org>; Thu, 23 Aug 2012 22:39:43 -0400 (EDT)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH 3/3] HWPOISON: prevent inode cache removal to keep AS_HWPOISON sticky
+Date: Thu, 23 Aug 2012 22:39:32 -0400
+Message-Id: <1345775972-1134-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <20120824013118.GZ19235@dastard>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: tony.luck@intel.com, kay.sievers@vrfy.org, minchan.kim@gmail.com, mgorman@suse.de, Christoph Lameter <cl@linux.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-ia64@vger.kernel.org, wency@cn.fujitsu.com, akpm@linux-foundation.org, yinghai@kernel.org, liuj97@gmail.com, jiang.liu@huawei.com, qiuxishi@huawei.com, wujianguo@huawei.com, guohanjun@huawei.com, Greg KH <greg@kroah.com>
+To: david@fromorbit.com
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Andi Kleen <andi.kleen@intel.com>, Wu Fengguang <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Tony Luck <tony.luck@intel.com>, Rik van Riel <riel@redhat.com>, Jun'ichi Nomura <j-nomura@ce.jp.nec.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Hi Michal,
-	Thanks for your comments and review.
+On Fri, Aug 24, 2012 at 11:31:18AM +1000, Dave Chinner wrote:
+> On Wed, Aug 22, 2012 at 11:17:35AM -0400, Naoya Horiguchi wrote:
+> > "HWPOISON: report sticky EIO for poisoned file" still has a corner case
+> > where we have possibilities of data lost. This is because in this fix
+> > AS_HWPOISON is cleared when the inode cache is dropped.
+> > 
+> > For example, consider an application in which a process periodically
+> > (every 10 minutes) writes some logs on a file (and closes it after
+> > each writes,) and at the end of each day some batch programs run using
+> > the log file. If a memory error hits on dirty pagecache of this log file
+> > just after periodic write/close and the inode cache is cleared before the
+> > next write, then this application is not aware of the error and the batch
+> > programs will work wrongly.
+> > 
+> > To avoid this, this patch makes us pin the hwpoisoned inode on memory
+> > until we remove or completely truncate the hwpoisoned file.
+> > 
+> > Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> > ---
+> >  fs/inode.c              | 12 ++++++++++++
+> >  include/linux/pagemap.h | 11 +++++++++++
+> >  mm/memory-failure.c     |  2 +-
+> >  mm/truncate.c           |  2 ++
+> >  4 files changed, 26 insertions(+), 1 deletion(-)
+> > 
+> > diff --git v3.6-rc1.orig/fs/inode.c v3.6-rc1/fs/inode.c
+> > index ac8d904..8742397 100644
+> > --- v3.6-rc1.orig/fs/inode.c
+> > +++ v3.6-rc1/fs/inode.c
+> > @@ -717,6 +717,15 @@ void prune_icache_sb(struct super_block *sb, int nr_to_scan)
+> >  		}
+> >  
+> >  		/*
+> > +		 * Keep inode caches on memory for user processes to certainly
+> > +		 * be aware of memory errors.
+> > +		 */
+> > +		if (unlikely(mapping_hwpoison(inode->i_mapping))) {
+> > +			spin_unlock(&inode->i_lock);
+> > +			continue;
+> > +		}
+> > +
+> > +		/*
+> >  		 * Referenced or dirty inodes are still in use. Give them
+> >  		 * another pass through the LRU as we canot reclaim them now.
+> >  		 */
+> 
+> I don't think you tested this at all. Have a look at what the loop
+> does more closely - inodes with poisoned mappings will get stuck
+> and reclaim doesn't make progress past them.
 
-On 2012-8-23 23:48, Michal Hocko wrote:
-> [Fixed gregkh email address]
-> 
-> On Tue 21-08-12 11:46:10, wujianguo wrote:
->> From: Jianguo Wu <wujianguo@huawei.com>
->>
->> Hi all,
->> 	I found following definition in include/linux/memory.h, in my IA64
->> platform, SECTION_SIZE_BITS is equal to 32, and MIN_MEMORY_BLOCK_SIZE will be 0.
->> 	#define MIN_MEMORY_BLOCK_SIZE     (1 << SECTION_SIZE_BITS)
-> 
-> OK, so I assume you have CONFIG_FORCE_MAX_ZONEORDER 17 and PAGE_SHIFT
-> 16, right? But even CONFIG_FORCE_MAX_ZONEORDER 16 would be a problem.
-> 
+Sorry, I overlooked something important in my testing. I'll correct it.
+Maybe we need list_move_tail() in this block.
 
-Yes, you are right, CONFIG_FORCE_MAX_ZONEORDER 16 would be a problem too.
+> I think you also need to document this inode lifecycle change....
 
->> 	Because MIN_MEMORY_BLOCK_SIZE is 32bits, so MIN_MEMORY_BLOCK_SIZE(1 << 32)
->> will equal to 0. This will cause wrong system memory infomation in sysfs. I think
->> it should be:
->> 	#define MIN_MEMORY_BLOCK_SIZE     (1UL << SECTION_SIZE_BITS)
->>
-> 
-> I guess the part below is not necessary for the changelog
-> 
+OK, I'll do it.
 
-Thanks for your suggestion, I will delete them in version 2.
+> > diff --git v3.6-rc1.orig/mm/truncate.c v3.6-rc1/mm/truncate.c
+> > index 75801ac..82a994f 100644
+> > --- v3.6-rc1.orig/mm/truncate.c
+> > +++ v3.6-rc1/mm/truncate.c
+> > @@ -574,6 +574,8 @@ void truncate_setsize(struct inode *inode, loff_t newsize)
+> >  
+> >  	oldsize = inode->i_size;
+> >  	i_size_write(inode, newsize);
+> > +	if (unlikely(mapping_hwpoison(inode->i_mapping) && !newsize))
+> > +		mapping_clear_hwpoison(inode->i_mapping);
+> 
+> So only a truncate to zero size will clear the poison flag?
 
->> linux-drf:/sys/devices/system/memory # ll
->> total 0
->> -r--r--r-- 1 root root 65536 Aug 20 02:35 block_size_bytes
->> drwxr-xr-x 3 root root     0 Aug 20 02:19 memory0
->> drwxr-xr-x 2 root root     0 Aug 20 02:35 power
->> -rw-r--r-- 1 root root 65536 Aug 20 02:35 uevent
->>
->> linux-drf:/sys/devices/system/memory # cat block_size_bytes
->> 0
->>
->> linux-drf:/sys/devices/system/memory/memory0 # cat *
->> 8000000000000000
->> cat: node0: Is a directory
->> cat: node1: Is a directory
->> cat: node2: Is a directory
->> cat: node3: Is a directory
->> 0
->> 8000000000000000
->> cat: power: Is a directory
->> 1
->> online
->> cat: subsystem: Is a directory
->>
-> 
-> Up to here.
-> 
->> 	And "echo offline > memory0/state" will cause following call trace:
->>
->> kernel BUG at mm/memory_hotplug.c:885!
->> sh[6455]: bugcheck! 0 [1]
->>
->> Pid: 6455, CPU 0, comm:                   sh
->> psr : 0000101008526030 ifs : 8000000000000fa4 ip  : [<a0000001008c40f0>]    Not tainted (3.6.0-rc1)
->> ip is at offline_pages+0x210/0xee0
->> unat: 0000000000000000 pfs : 0000000000000fa4 rsc : 0000000000000003
->> rnat: a0000001008f2d50 bsps: 0000000000000000 pr  : 65519a96659a9565
->> ldrs: 0000000000000000 ccv : 0000010b9263f310 fpsr: 0009804c0270033f
->> csd : 0000000000000000 ssd : 0000000000000000
->> b0  : a0000001008c40f0 b6  : a000000100473980 b7  : a0000001000106d0
->> f6  : 000000000000000000000 f7  : 1003e0000000085c9354c
->> f8  : 1003e0044b82fa09b5a53 f9  : 1003e000000d65cd62abf
->> f10 : 1003efd02efdec682803d f11 : 1003e0000000000000042
->> r1  : a00000010152c2e0 r2  : 0000000000006ada r3  : 000000000000fffe
->> r8  : 0000000000000026 r9  : a00000010121cc18 r10 : a0000001013309f0
->> r11 : 65519a96659a19e9 r12 : e00000070a91fdf0 r13 : e00000070a910000
->> r14 : 0000000000006ada r15 : 0000000000004000 r16 : 000000006ad8356c
->> r17 : a0000001019a525e r18 : 0000000000007fff r19 : 0000000000000000
->> r20 : 0000000000006ad6 r21 : 0000000000006ad6 r22 : a00000010133bec8
->> r23 : 0000000000006ad4 r24 : 0000000000000002 r25 : 8200000000260038
->> r26 : 00000000000004f9 r27 : 00000000000004f8 r28 : 000000000001cf98
->> r29 : 0000000000000038 r30 : a0000001019a5ae0 r31 : 000000000001cf60
->>
->> Call Trace:
->>  [<a0000001000163e0>] show_stack+0x80/0xa0
->>                                 sp=e00000070a91f9b0 bsp=e00000070a9115e0
->>  [<a000000100016a40>] show_regs+0x640/0x920
->>                                 sp=e00000070a91fb80 bsp=e00000070a911588
->>  [<a000000100040590>] die+0x190/0x2c0
->>                                 sp=e00000070a91fb90 bsp=e00000070a911548
->>  [<a000000100040710>] die_if_kernel+0x50/0x80
->>                                 sp=e00000070a91fb90 bsp=e00000070a911518
->>  [<a0000001008f8030>] ia64_bad_break+0x3d0/0x6e0
->>                                 sp=e00000070a91fb90 bsp=e00000070a9114f0
->>  [<a00000010000c0c0>] ia64_native_leave_kernel+0x0/0x270
->>                                 sp=e00000070a91fc20 bsp=e00000070a9114f0
->>  [<a0000001008c40f0>] offline_pages+0x210/0xee0
->>                                 sp=e00000070a91fdf0 bsp=e00000070a9113c8
->>  [<a00000010022d580>] alloc_pages_current+0x180/0x2a0
->>                                 sp=e00000070a91fe20 bsp=e00000070a9113a
->>
->> This patch is trying to fix the bug.
-> 
-> not just trying ;)
-> 
->>
->> Signed-off-by: Jianguo Wu <wujianguo@huawei.com>
-> 
-> Reviewed-by: Michal Hocko <mhocko@suse.cz>
-> 
->> ---
->>  include/linux/memory.h |    2 +-
->>  1 files changed, 1 insertions(+), 1 deletions(-)
->>
->> diff --git a/include/linux/memory.h b/include/linux/memory.h
->> index 1ac7f6e..ff9a9f8 100644
->> --- a/include/linux/memory.h
->> +++ b/include/linux/memory.h
->> @@ -19,7 +19,7 @@
->>  #include <linux/compiler.h>
->>  #include <linux/mutex.h>
->>
->> -#define MIN_MEMORY_BLOCK_SIZE     (1 << SECTION_SIZE_BITS)
->> +#define MIN_MEMORY_BLOCK_SIZE     (1UL << SECTION_SIZE_BITS)
->>
->>  struct memory_block {
->>  	unsigned long start_section_nr;
-> 
+Yes, this is because we only know if the file is affected by hwpoison,
+but not where the hwpoisoned page is in the file. We could remember it,
+but I did not do it for simplicity.
+
+> What happens if it is the last page in the mapping that is poisoned,
+> and we truncate that away? Shouldn't that clear the poisoned bit?
+
+When we handle the hwpoisoned inode, the error page should already
+be removed from pagecache, so the remaining pages are not related
+to the error and we need not care about them when we consider bit
+clearing.
+
+> What about a hole punch over the poisoned range?
+
+For the same reason, this is also not related to when to clear the bit.
+
+Thanks,
+Naoya
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
