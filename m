@@ -1,78 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
-	by kanga.kvack.org (Postfix) with SMTP id 6F05C6B008C
+Received: from psmtp.com (na3sys010amx178.postini.com [74.125.245.178])
+	by kanga.kvack.org (Postfix) with SMTP id 9FB446B0092
 	for <linux-mm@kvack.org>; Fri, 24 Aug 2012 12:17:22 -0400 (EDT)
-Message-Id: <00000139596c66f1-eb21326d-76c1-4ccb-af7f-d755d596d37e-000000@email.amazonses.com>
+Message-Id: <00000139596c66ee-862b5103-18d2-4d88-88cb-e8728f0f54f8-000000@email.amazonses.com>
 Date: Fri, 24 Aug 2012 16:17:20 +0000
 From: Christoph Lameter <cl@linux.com>
-Subject: C13 [03/14] Improve error handling in kmem_cache_create
+Subject: C13 [11/14] Move sysfs_slab_add to common
 References: <20120824160903.168122683@linux.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Pekka Enberg <penberg@kernel.org>
-Cc: Joonsoo Kim <js1304@gmail.com>, David Rientjes <rientjes@google.com>, Glauber Costa <glommer@parallels.com>, linux-mm@kvack.org
+Cc: Joonsoo Kim <js1304@gmail.com>, Glauber Costa <glommer@parallels.com>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>
 
-Instead of using s == NULL use an errorcode. This allows much more
-detailed diagnostics as to what went wrong. As we add more functionality
-from the slab allocators to the common kmem_cache_create() function we will
-also add more error conditions.
+Simplify locking by moving the slab_add_sysfs after all locks
+have been dropped. Eases the upcoming move to provide sysfs
+support for all allocators.
 
-Print the error code during the panic as well as in a warning if the module
-can handle failure. The API for kmem_cache_create() currently does not allow
-the returning of an error code. Return NULL but log the cause of the problem
-in the syslog.
-
-Acked-by: David Rientjes <rientjes@google.com>
 Signed-off-by: Christoph Lameter <cl@linux.com>
 ---
- mm/slab_common.c |   30 +++++++++++++++++++++++++-----
- 1 file changed, 25 insertions(+), 5 deletions(-)
+ mm/slab.h        |    3 +++
+ mm/slab_common.c |    8 ++++++++
+ mm/slub.c        |   15 ++-------------
+ 3 files changed, 13 insertions(+), 13 deletions(-)
 
-Index: linux/mm/slab_common.c
-===================================================================
---- linux.orig/mm/slab_common.c	2012-08-24 10:49:41.632579621 -0500
-+++ linux/mm/slab_common.c	2012-08-24 10:49:59.352854993 -0500
-@@ -98,16 +98,36 @@ struct kmem_cache *kmem_cache_create(con
- 		unsigned long flags, void (*ctor)(void *))
- {
- 	struct kmem_cache *s = NULL;
-+	int err = 0;
+diff --git a/mm/slab.h b/mm/slab.h
+index 84c28f4..ec7b944 100644
+--- a/mm/slab.h
++++ b/mm/slab.h
+@@ -39,10 +39,13 @@ struct kmem_cache *__kmem_cache_create(const char *name, size_t size,
+ #ifdef CONFIG_SLUB
+ struct kmem_cache *__kmem_cache_alias(const char *name, size_t size,
+ 	size_t align, unsigned long flags, void (*ctor)(void *));
++extern int sysfs_slab_add(struct kmem_cache *s);
+ #else
+ static inline struct kmem_cache *__kmem_cache_alias(const char *name, size_t size,
+ 	size_t align, unsigned long flags, void (*ctor)(void *))
+ { return NULL; }
++static inline int sysfs_slab_add(struct kmem_cache *s) { return 0; }
++
+ #endif
  
- 	get_online_cpus();
- 	mutex_lock(&slab_mutex);
--	if (kmem_cache_sanity_check(name, size) == 0)
--		s = __kmem_cache_create(name, size, align, flags, ctor);
-+
-+	if (!kmem_cache_sanity_check(name, size) == 0)
-+		goto out_locked;
-+
-+
-+	s = __kmem_cache_create(name, size, align, flags, ctor);
-+	if (!s)
-+		err = -ENOSYS; /* Until __kmem_cache_create returns code */
-+
-+out_locked:
- 	mutex_unlock(&slab_mutex);
- 	put_online_cpus();
  
--	if (!s && (flags & SLAB_PANIC))
--		panic("kmem_cache_create: Failed to create slab '%s'\n", name);
-+	if (err) {
-+
-+		if (flags & SLAB_PANIC)
-+			panic("kmem_cache_create: Failed to create slab '%s'. Error %d\n",
-+				name, err);
-+		else {
-+			printk(KERN_WARNING "kmem_cache_create(%s) failed with error %d",
-+				name, err);
-+			dump_stack();
-+		}
-+
-+		return NULL;
+diff --git a/mm/slab_common.c b/mm/slab_common.c
+index e5cd47f..ec93056 100644
+--- a/mm/slab_common.c
++++ b/mm/slab_common.c
+@@ -152,6 +152,14 @@ out_locked:
+ 		return NULL;
+ 	}
+ 
++	if (s->refcount == 1) {
++		err = sysfs_slab_add(s);
++		if (err)
++			printk(KERN_WARNING "kmem_cache_create(%s) failed to"
++				" create sysfs entry. Error %d\n",
++					name, err);
 +	}
- 
++
  	return s;
  }
+ EXPORT_SYMBOL(kmem_cache_create);
+diff --git a/mm/slub.c b/mm/slub.c
+index 5751f30..5e37c89 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -202,12 +202,10 @@ struct track {
+ enum track_item { TRACK_ALLOC, TRACK_FREE };
+ 
+ #ifdef CONFIG_SYSFS
+-static int sysfs_slab_add(struct kmem_cache *);
+ static int sysfs_slab_alias(struct kmem_cache *, const char *);
+ static void sysfs_slab_remove(struct kmem_cache *);
+ 
+ #else
+-static inline int sysfs_slab_add(struct kmem_cache *s) { return 0; }
+ static inline int sysfs_slab_alias(struct kmem_cache *s, const char *p)
+ 							{ return 0; }
+ static inline void sysfs_slab_remove(struct kmem_cache *s) { }
+@@ -3955,16 +3953,7 @@ struct kmem_cache *__kmem_cache_create(const char *name, size_t size,
+ 	if (s) {
+ 		if (kmem_cache_open(s, name,
+ 				size, align, flags, ctor)) {
+-			int r;
+-
+-			mutex_unlock(&slab_mutex);
+-			r = sysfs_slab_add(s);
+-			mutex_lock(&slab_mutex);
+-
+-			if (!r)
+-				return s;
+-
+-			kmem_cache_close(s);
++			return s;
+ 		}
+ 		kmem_cache_free(kmem_cache, s);
+ 	}
+@@ -5258,7 +5247,7 @@ static char *create_unique_id(struct kmem_cache *s)
+ 	return name;
+ }
+ 
+-static int sysfs_slab_add(struct kmem_cache *s)
++int sysfs_slab_add(struct kmem_cache *s)
+ {
+ 	int err;
+ 	const char *name;
+-- 
+1.7.9.5
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
