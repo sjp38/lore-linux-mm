@@ -1,123 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
-	by kanga.kvack.org (Postfix) with SMTP id E84A86B002B
-	for <linux-mm@kvack.org>; Fri, 24 Aug 2012 14:01:21 -0400 (EDT)
-Received: by pbbro12 with SMTP id ro12so4259939pbb.14
-        for <linux-mm@kvack.org>; Fri, 24 Aug 2012 11:01:21 -0700 (PDT)
-From: Joonsoo Kim <js1304@gmail.com>
-Subject: [PATCH] slub: consider pfmemalloc_match() in get_partial_node()
-Date: Sat, 25 Aug 2012 03:00:02 +0900
-Message-Id: <1345831202-4225-1-git-send-email-js1304@gmail.com>
+Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
+	by kanga.kvack.org (Postfix) with SMTP id 360146B002B
+	for <linux-mm@kvack.org>; Fri, 24 Aug 2012 15:46:52 -0400 (EDT)
+Received: by bkcjc3 with SMTP id jc3so824882bkc.14
+        for <linux-mm@kvack.org>; Fri, 24 Aug 2012 12:46:50 -0700 (PDT)
+Message-ID: <5037DA47.9010306@gmail.com>
+Date: Fri, 24 Aug 2012 21:47:19 +0200
+From: Sasha Levin <levinsasha928@gmail.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH v3 01/17] hashtable: introduce a small and naive hashtable
+References: <1345602432-27673-1-git-send-email-levinsasha928@gmail.com> <1345602432-27673-2-git-send-email-levinsasha928@gmail.com> <20120822180138.GA19212@google.com> <50357840.5020201@gmail.com> <20120823200456.GD14962@google.com>
+In-Reply-To: <20120823200456.GD14962@google.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pekka Enberg <penberg@kernel.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Joonsoo Kim <js1304@gmail.com>, David Miller <davem@davemloft.net>, Neil Brown <neilb@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mike Christie <michaelc@cs.wisc.edu>, Eric B Munson <emunson@mgebm.net>, Eric Dumazet <eric.dumazet@gmail.com>, Sebastian Andrzej Siewior <sebastian@breakpoint.cc>, Mel Gorman <mgorman@suse.de>, Christoph Lameter <cl@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Tejun Heo <tj@kernel.org>
+Cc: torvalds@linux-foundation.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, paul.gortmaker@windriver.com, davem@davemloft.net, rostedt@goodmis.org, mingo@elte.hu, ebiederm@xmission.com, aarcange@redhat.com, ericvh@gmail.com, netdev@vger.kernel.org, josh@joshtriplett.org, eric.dumazet@gmail.com, mathieu.desnoyers@efficios.com, axboe@kernel.dk, agk@redhat.com, dm-devel@redhat.com, neilb@suse.de, ccaulfie@redhat.com, teigland@redhat.com, Trond.Myklebust@netapp.com, bfields@fieldses.org, fweisbec@gmail.com, jesse@nicira.com, venkat.x.venkatsubra@oracle.com, ejt@redhat.com, snitzer@redhat.com, edumazet@google.com, linux-nfs@vger.kernel.org, dev@openvswitch.org, rds-devel@oss.oracle.com, lw@cn.fujitsu.com
 
-There is no consideration for pfmemalloc_match() in get_partial(). If we don't
-consider that, we can't restrict access to PFMEMALLOC page mostly.
+On 08/23/2012 10:04 PM, Tejun Heo wrote:
+> Hello, Sasha.
+> 
+> On Thu, Aug 23, 2012 at 02:24:32AM +0200, Sasha Levin wrote:
+>>> I think the almost trivial nature of hlist hashtables makes this a bit
+>>> tricky and I'm not very sure but having this combinatory explosion is
+>>> a bit dazzling when the same functionality can be achieved by simply
+>>> combining operations which are already defined and named considering
+>>> hashtable.  I'm not feeling too strong about this tho.  What do others
+>>> think?
+>>
+>> I'm thinking that this hashtable API will have 2 purposes: First, it would
+>> prevent the excessive duplication of hashtable implementations all around the code.
+>>
+>> Second, it will allow more easily interchangeable hashtable implementations to
+>> find their way into the kernel. There are several maintainers who would be happy
+>> to see dynamically sized RCU hashtable, and I'm guessing that several more
+>> variants could be added based on needs in specific modules.
+>>
+>> The second reason is why several things you've mentioned look the way they are:
+>>
+>>  - No DEFINE_HASHTABLE(): I wanted to force the use of hash_init() since
+>> initialization for other hashtables may be more complicated than the static
+>> initialization for this implementation, which means that any place that used
+>> DEFINE_HASHTABLE() and didn't do hash_init() will be buggy.
+> 
+> I think this is problematic.  It looks exactly like other existing
+> DEFINE macros yet what its semantics is different.  I don't think
+> that's a good idea.
 
-We may encounter following scenario.
+I can switch that to be DECLARE_HASHTABLE() if the issue is semantics.
 
-Assume there is a request from normal allocation
-and there is no objects in per cpu cache and no node partial slab.
+>> I'm actually tempted in hiding hlist completely from hashtable users, probably
+>> by simply defining a hash_head/hash_node on top of the hlist_ counterparts.
+> 
+> I think that it would be best to keep this one simple & obvious, which
+> already has enough in-kernel users to justify its existence.  There
+> are significant benefits in being trivially understandable and
+> expectable.  If we want more advanced ones - say resizing, hybrid or
+> what not, let's make that a separate one.  No need to complicate the
+> common straight-forward case for that.
+> 
+> So, I think it would be best to keep this one as straight-forward and
+> trivial as possible.  Helper macros to help its users are fine but
+> let's please not go for full encapsulation.
 
-In this case, slab_alloc go into slow-path and
-new_slab_objects() is invoked. It may return PFMEMALLOC page.
-Current user is not allowed to access PFMEMALLOC page,
-deactivate_slab() is called (commit 5091b74a95d447e34530e713a8971450a45498b3),
-then return object from PFMEMALLOC page.
+What if we cut off the dynamic allocated (but not resizable) hashtable out for
+the moment, and focus on the most common statically allocated hashtable case?
 
-Next time, when we meet another request from normal allocation,
-slab_alloc() go into slow-path and re-go new_slab_objects().
-In new_slab_objects(), we invoke get_partial() and we get a partial slab
-which we have been deactivated just before, that is, PFMEMALLOC page.
-We extract one object from it and re-deactivate.
+The benefits would be:
 
-"deactivate -> re-get in get_partial -> re-deactivate" occures repeatedly.
+ - Getting rid of all the _size() macros, which will make the amount of helpers
+here reasonable.
+ - Dynamically allocated hashtable can be easily added as a separate
+implementation using the same API. We already have some of those in the kernel...
+ - When that's ready, I feel it's a shame to lose full encapsulation just due to
+hash_hashed().
 
-As a result, we can't restrict access to PFMEMALLOC page and
-moreover, it introduce much performance degration to normal allocation
-because of deactivation frequently.
 
-Now, we need to consider pfmemalloc_match() in get_partial_node()
-It prevent "deactivate -> re-get in get_partial".
-Instead, new_slab() is called. It may return !PFMEMALLOC page,
-so above situation will be suspended sometime.
+Thanks,
+Sasha
 
-Signed-off-by: Joonsoo Kim <js1304@gmail.com>
-Cc: David Miller <davem@davemloft.net>
-Cc: Neil Brown <neilb@suse.de>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Mike Christie <michaelc@cs.wisc.edu>
-Cc: Eric B Munson <emunson@mgebm.net>
-Cc: Eric Dumazet <eric.dumazet@gmail.com>
-Cc: Sebastian Andrzej Siewior <sebastian@breakpoint.cc>
-Cc: Mel Gorman <mgorman@suse.de>
-Cc: Christoph Lameter <cl@linux-foundation.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>
----
-This patch based on Pekka's slab/next tree with my two patches.
-
-[PATCH 1/2] slub: rename cpu_partial to max_cpu_object
-https://lkml.org/lkml/2012/8/24/293
-
-[PATCH 2/2] slub: correct the calculation of the number of cpu objects in get_partial_node
-https://lkml.org/lkml/2012/8/24/290
-
-diff --git a/mm/slub.c b/mm/slub.c
-index c96e0e4..a21da3a 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -1529,12 +1529,13 @@ static inline void *acquire_slab(struct kmem_cache *s,
- }
- 
- static int put_cpu_partial(struct kmem_cache *s, struct page *page, int drain);
-+static inline bool pfmemalloc_match(struct page *page, gfp_t gfpflags);
- 
- /*
-  * Try to allocate a partial slab from a specific node.
-  */
--static void *get_partial_node(struct kmem_cache *s,
--		struct kmem_cache_node *n, struct kmem_cache_cpu *c)
-+static void *get_partial_node(struct kmem_cache *s, struct kmem_cache_node *n,
-+				struct kmem_cache_cpu *c, gfp_t flags)
- {
- 	struct page *page, *page2;
- 	void *object = NULL;
-@@ -1551,8 +1552,12 @@ static void *get_partial_node(struct kmem_cache *s,
- 
- 	spin_lock(&n->list_lock);
- 	list_for_each_entry_safe(page, page2, &n->partial, lru) {
--		void *t = acquire_slab(s, n, page, object == NULL);
-+		void *t;
- 
-+		if (!pfmemalloc_match(page, flags))
-+			continue;
-+
-+		t = acquire_slab(s, n, page, object == NULL);
- 		if (!t)
- 			break;
- 
-@@ -1620,7 +1625,7 @@ static void *get_any_partial(struct kmem_cache *s, gfp_t flags,
- 
- 			if (n && cpuset_zone_allowed_hardwall(zone, flags) &&
- 					n->nr_partial > s->min_partial) {
--				object = get_partial_node(s, n, c);
-+				object = get_partial_node(s, n, c, flags);
- 				if (object) {
- 					/*
- 					 * Return the object even if
-@@ -1649,7 +1654,7 @@ static void *get_partial(struct kmem_cache *s, gfp_t flags, int node,
- 	void *object;
- 	int searchnode = (node == NUMA_NO_NODE) ? numa_node_id() : node;
- 
--	object = get_partial_node(s, get_node(s, searchnode), c);
-+	object = get_partial_node(s, get_node(s, searchnode), c, flags);
- 	if (object || node != NUMA_NO_NODE)
- 		return object;
- 
--- 
-1.7.9.5
+> 
+> Thanks.
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
