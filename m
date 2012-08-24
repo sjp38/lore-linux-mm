@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
-	by kanga.kvack.org (Postfix) with SMTP id E1A256B002B
-	for <linux-mm@kvack.org>; Fri, 24 Aug 2012 10:37:27 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
+	by kanga.kvack.org (Postfix) with SMTP id D74836B002B
+	for <linux-mm@kvack.org>; Fri, 24 Aug 2012 10:38:13 -0400 (EDT)
 Received: from /spool/local
-	by e23smtp04.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e23smtp07.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Sat, 25 Aug 2012 00:35:52 +1000
-Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
-	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q7OESbFJ29360258
-	for <linux-mm@kvack.org>; Sat, 25 Aug 2012 00:28:37 +1000
-Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
-	by d23av03.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q7OEbLlP032491
-	for <linux-mm@kvack.org>; Sat, 25 Aug 2012 00:37:21 +1000
+	Sat, 25 Aug 2012 00:36:56 +1000
+Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q7OEc9XB25624700
+	for <linux-mm@kvack.org>; Sat, 25 Aug 2012 00:38:09 +1000
+Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
+	by d23av02.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q7OEc8Jg023372
+	for <linux-mm@kvack.org>; Sat, 25 Aug 2012 00:38:08 +1000
 From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 Subject: [PATCH 1/2] mm/mmu_notifier: init notifier if necessary
-Date: Fri, 24 Aug 2012 22:37:04 +0800
-Message-Id: <1345819025-12445-1-git-send-email-liwanp@linux.vnet.ibm.com>
+Date: Fri, 24 Aug 2012 22:37:55 +0800
+Message-Id: <1345819076-12545-1-git-send-email-liwanp@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
