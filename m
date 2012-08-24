@@ -1,119 +1,140 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
-	by kanga.kvack.org (Postfix) with SMTP id 5E3986B005D
-	for <linux-mm@kvack.org>; Fri, 24 Aug 2012 11:59:54 -0400 (EDT)
-Message-Id: <00000139595c6bd5-d4d69367-3e15-4c86-be54-0288f834038c-000000@email.amazonses.com>
-Date: Fri, 24 Aug 2012 15:59:52 +0000
-From: Christoph Lameter <cl@linux.com>
-Subject: C13 [00/14] Sl[auo]b: Common slab code for cgroups V13
+Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
+	by kanga.kvack.org (Postfix) with SMTP id 57AFE6B0044
+	for <linux-mm@kvack.org>; Fri, 24 Aug 2012 12:06:58 -0400 (EDT)
+Received: by obhx4 with SMTP id x4so5555824obh.14
+        for <linux-mm@kvack.org>; Fri, 24 Aug 2012 09:06:57 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <1345042960-6287-2-git-send-email-js1304@gmail.com>
+References: <1345042960-6287-1-git-send-email-js1304@gmail.com>
+	<1345042960-6287-2-git-send-email-js1304@gmail.com>
+Date: Sat, 25 Aug 2012 01:06:57 +0900
+Message-ID: <CAAmzW4MjqETWfZuyzJUMF+5q-aGgZ20gKpgWSvFTYWp-LqdrHA@mail.gmail.com>
+Subject: Re: [PATCH 2/2] slub: remove one code path and reduce lock contention
+ in __slab_free()
+From: JoonSoo Kim <js1304@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Pekka Enberg <penberg@kernel.org>
-Cc: Joonsoo Kim <js1304@gmail.com>, Glauber Costa <glommer@parallels.com>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Joonsoo Kim <js1304@gmail.com>, Christoph Lameter <cl@linux.com>
 
-V12->V13
-- Reduce patches to those useful for cgroup support
-- Additional patches continuing slab unification will
-  be posted separately.
+2012/8/16 Joonsoo Kim <js1304@gmail.com>:
+> When we try to free object, there is some of case that we need
+> to take a node lock. This is the necessary step for preventing a race.
+> After taking a lock, then we try to cmpxchg_double_slab().
+> But, there is a possible scenario that cmpxchg_double_slab() is failed
+> with taking a lock. Following example explains it.
+>
+> CPU A               CPU B
+> need lock
+> ...                 need lock
+> ...                 lock!!
+> lock..but spin      free success
+> spin...             unlock
+> lock!!
+> free fail
+>
+> In this case, retry with taking a lock is occured in CPU A.
+> I think that in this case for CPU A,
+> "release a lock first, and re-take a lock if necessary" is preferable way.
+>
+> There are two reasons for this.
+>
+> First, this makes __slab_free()'s logic somehow simple.
+> With this patch, 'was_frozen = 1' is "always" handled without taking a lock.
+> So we can remove one code path.
+>
+> Second, it may reduce lock contention.
+> When we do retrying, status of slab is already changed,
+> so we don't need a lock anymore in almost every case.
+> "release a lock first, and re-take a lock if necessary" policy is
+> helpful to this.
+>
+> Signed-off-by: Joonsoo Kim <js1304@gmail.com>
+> Cc: Christoph Lameter <cl@linux.com>
+> Acked-by: Christoph Lameter <cl@linux.com>
+>
+> diff --git a/mm/slub.c b/mm/slub.c
+> index ca778e5..efce427 100644
+> --- a/mm/slub.c
+> +++ b/mm/slub.c
+> @@ -2421,7 +2421,6 @@ static void __slab_free(struct kmem_cache *s, struct page *page,
+>         void *prior;
+>         void **object = (void *)x;
+>         int was_frozen;
+> -       int inuse;
+>         struct page new;
+>         unsigned long counters;
+>         struct kmem_cache_node *n = NULL;
+> @@ -2433,13 +2432,17 @@ static void __slab_free(struct kmem_cache *s, struct page *page,
+>                 return;
+>
+>         do {
+> +               if (unlikely(n)) {
+> +                       spin_unlock_irqrestore(&n->list_lock, flags);
+> +                       n = NULL;
+> +               }
+>                 prior = page->freelist;
+>                 counters = page->counters;
+>                 set_freepointer(s, object, prior);
+>                 new.counters = counters;
+>                 was_frozen = new.frozen;
+>                 new.inuse--;
+> -               if ((!new.inuse || !prior) && !was_frozen && !n) {
+> +               if ((!new.inuse || !prior) && !was_frozen) {
+>
+>                         if (!kmem_cache_debug(s) && !prior)
+>
+> @@ -2464,7 +2467,6 @@ static void __slab_free(struct kmem_cache *s, struct page *page,
+>
+>                         }
+>                 }
+> -               inuse = new.inuse;
+>
+>         } while (!cmpxchg_double_slab(s, page,
+>                 prior, counters,
+> @@ -2490,25 +2492,17 @@ static void __slab_free(struct kmem_cache *s, struct page *page,
+>                  return;
+>          }
+>
+> +       if (unlikely(!new.inuse && n->nr_partial > s->min_partial))
+> +               goto slab_empty;
+> +
+>         /*
+> -        * was_frozen may have been set after we acquired the list_lock in
+> -        * an earlier loop. So we need to check it here again.
+> +        * Objects left in the slab. If it was not on the partial list before
+> +        * then add it.
+>          */
+> -       if (was_frozen)
+> -               stat(s, FREE_FROZEN);
+> -       else {
+> -               if (unlikely(!inuse && n->nr_partial > s->min_partial))
+> -                        goto slab_empty;
+> -
+> -               /*
+> -                * Objects left in the slab. If it was not on the partial list before
+> -                * then add it.
+> -                */
+> -               if (unlikely(!prior)) {
+> -                       remove_full(s, page);
+> -                       add_partial(n, page, DEACTIVATE_TO_TAIL);
+> -                       stat(s, FREE_ADD_PARTIAL);
+> -               }
+> +       if (kmem_cache_debug(s) && unlikely(!prior)) {
+> +               remove_full(s, page);
+> +               add_partial(n, page, DEACTIVATE_TO_TAIL);
+> +               stat(s, FREE_ADD_PARTIAL);
+>         }
+>         spin_unlock_irqrestore(&n->list_lock, flags);
+>         return;
+> --
+> 1.7.9.5
+>
 
-V10->V11
-- Fix issues pointed out by Joonsoo and Glauber
-- Simplify Slab bootstrap further
-
-V9->V10
-- Memory leak was a false alarm
-- Resequence patches to make it easier
-  to apply.
-- Do more boot sequence consolidation in slab/slub.
-  [We could still do much more like common kmalloc
-  handling]
-- Fixes suggested by David and Glauber
-
-V8->V9:
-- Fix numerous things pointed out by Glauber.
-- Cleanup the way error handling works in the
-  common kmem_cache_create() function.
-- General cleanup by breaking things up
-  into multiple patches were necessary.
-
-V7->V8:
-- Do not use kfree for kmem_cache in slub.
-- Add more patches up to a common
-  scheme for object alignment.
-
-V6->V7:
-- Omit pieces that were merged for 3.6
-- Fix issues pointed out by Glauber.
-- Include the patches up to the point at which
-  the slab name handling is unified
-
-V5->V6:
-- Patches against Pekka's for-next tree.
-- Go slow and cut down to just patches that are safe
-  (there will likely be some churn already due to the
-  mutex unification between slabs)
-- More to come next week when I have more time (
-  took me almost the whole week to catch up after
-  being gone for awhile).
-
-V4->V5
-- Rediff against current upstream + Pekka's cleanup branch.
-
-V3->V4:
-- Do not use the COMMON macro anymore.
-- Fixup various issues
-- No general sysfs support yet due to lockdep issues with
-  keys in kmalloc'ed memory.
-
-V2->V3:
-- Incorporate more feedback from Joonsoo Kim and Glauber Costa
-- And a couple more patches to deal with slab duping and move
-  more code to slab_common.c
-
-V1->V2:
-- Incorporate glommers feedback.
-- Add 2 more patches dealing with common code in kmem_cache_destroy
-
-This is a series of patches that extracts common functionality from
-slab allocators into a common code base. The intend is to standardize
-as much as possible of the allocator behavior while keeping the
-distinctive features of each allocator which are mostly due to their
-storage format and serialization approaches.
-
-This patchset makes a beginning by extracting common functionality in
-kmem_cache_create() and kmem_cache_destroy(). However, there are
-numerous other areas where such work could be beneficial:
-
-1. Extract the sysfs support from SLUB and make it common. That way
-   all allocators have a common sysfs API and are handleable in the same
-   way regardless of the allocator chose.
-
-2. Extract the error reporting and checking from SLUB and make
-   it available for all allocators. This means that all allocators
-   will gain the resiliency and error handling capabilties.
-
-3. Extract the memory hotplug and cpu hotplug handling. It seems that
-   SLAB may be more sophisticated here. Having common code here will
-   make it easier to maintain the special code.
-
-4. Extract the aliasing capability of SLUB. This will enable fast
-   slab creation without creating too many additional slab caches.
-   The arrays of caches of varying sizes in numerous subsystems
-   do not cause the creation of numerous slab caches. Storage
-   density is increased and the cache footprint is reduced.
-
-Ultimately it is to be hoped that the special code for each allocator
-shrinks to a mininum. This will also make it easier to make modification
-to allocators.
-
-In the far future one could envision that the current allocators will
-just become storage algorithms that can be chosen based on the need of
-the subsystem. F.e.
-
-Cpu cache dependend performance		= Bonwick allocator (SLAB)
-Minimal cycle count and cache footprint	= SLUB
-Maximum storage density			= K&R allocator (SLOB)
-
+Hello, Pekka.
+Could you review this patch and comment it, please?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
