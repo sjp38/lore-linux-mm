@@ -1,67 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
-	by kanga.kvack.org (Postfix) with SMTP id C85106B0044
-	for <linux-mm@kvack.org>; Fri, 24 Aug 2012 04:06:30 -0400 (EDT)
-Date: Fri, 24 Aug 2012 10:06:26 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: Fixup the page of buddy_higher address's calculation
-Message-ID: <20120824080626.GC29282@dhcp22.suse.cz>
-References: <CAFNq8R7ibTNeRP_Wftwyr7mK6Du4TVysQysgL_RYj+CGf9N2qg@mail.gmail.com>
- <20120823095022.GB10685@dhcp22.suse.cz>
- <CAFNq8R5pY0yPp-LQYNywpMhVtXgqPSy3RYqHVTVpPXs52kOmJw@mail.gmail.com>
- <20120823135839.GB19968@dhcp22.suse.cz>
- <CAFNq8R7ry5kyuMombamf6jLmiLcWFnRQRp2vYt1+kv+pPec1_w@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
+	by kanga.kvack.org (Postfix) with SMTP id 235096B0044
+	for <linux-mm@kvack.org>; Fri, 24 Aug 2012 04:06:59 -0400 (EDT)
+Received: from /spool/local
+	by e06smtp15.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <heiko.carstens@de.ibm.com>;
+	Fri, 24 Aug 2012 09:06:57 +0100
+Received: from d06av01.portsmouth.uk.ibm.com (d06av01.portsmouth.uk.ibm.com [9.149.37.212])
+	by b06cxnps4074.portsmouth.uk.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q7O86mua19529836
+	for <linux-mm@kvack.org>; Fri, 24 Aug 2012 08:06:48 GMT
+Received: from d06av01.portsmouth.uk.ibm.com (loopback [127.0.0.1])
+	by d06av01.portsmouth.uk.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q7O86s4s018183
+	for <linux-mm@kvack.org>; Fri, 24 Aug 2012 02:06:54 -0600
+Date: Fri, 24 Aug 2012 10:07:00 +0200
+From: Heiko Carstens <heiko.carstens@de.ibm.com>
+Subject: Re: [RFC patch 7/7] thp, s390: architecture backend for thp on
+ System z
+Message-ID: <20120824080700.GC3533@osiris.de.ibm.com>
+References: <20120823171733.595087166@de.ibm.com>
+ <20120823171855.006932817@de.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAFNq8R7ry5kyuMombamf6jLmiLcWFnRQRp2vYt1+kv+pPec1_w@mail.gmail.com>
+In-Reply-To: <20120823171855.006932817@de.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Li Haifeng <omycle@gmail.com>
-Cc: Gavin Shan <shangw@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan.kim@gmail.com>, Johannes Weiner <jweiner@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Gerald Schaefer <gerald.schaefer@de.ibm.com>
+Cc: akpm@linux-foundation.org, aarcange@redhat.com, linux-mm@kvack.org, ak@linux.intel.com, hughd@google.com, linux-kernel@vger.kernel.org, schwidefsky@de.ibm.com
 
-On Fri 24-08-12 10:08:20, Li Haifeng wrote:
-[...]
-> Subject: [PATCH] Fix the page address of higher page's buddy calculation
-> 
-> Calculate the page address of higher page's buddy should be based
-> higher_page with the offset between index of higher page and
-> index of higher page's buddy.
+On Thu, Aug 23, 2012 at 07:17:40PM +0200, Gerald Schaefer wrote:
+> +#define __HAVE_ARCH_PMDP_TEST_AND_CLEAR_YOUNG
+> +static inline int pmdp_test_and_clear_young(struct vm_area_struct *vma,
+> +					    unsigned long address,
+> +					    pmd_t *pmdp)
+> +{
+> +	int rc = 0;
+> +	int counter = PTRS_PER_PTE;
+> +	unsigned long pmd_addr = pmd_val(*pmdp) & HPAGE_MASK;
+> +
+> +	asm volatile(
+> +		"0:	rrbe	0,%2\n"
+> +		"	la	%2,0(%3,%2)\n"
+> +		"	brc	12,1f\n"
+> +		"	lhi	%0,1\n"
+> +		"1:	brct	%1,0b\n"
+> +		: "+d" (rc), "+d" (counter), "+a" (pmd_addr)
+> +		: "a" (4096UL): "cc" );
+> +	return rc;
+> +}
 
-Sorry for insisting but could you add an information about when this has
-been introduced (I have mentioned the commit in the other email) and the
-effect of the bug so that we can consider whether this is worth
-backporting to stable trees.
-
-> Signed-off-by: Haifeng Li <omycle@gmail.com>
-> Signed-off-by: Gavin Shan <shangw@linux.vnet.ibm.com>
-
-Other than that
-Reviewed-by: Michal Hocko <mhocko@suse.cz>
-
-> ---
->  mm/page_alloc.c |    2 +-
->  1 files changed, 1 insertions(+), 1 deletions(-)
-> 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index cdef1d4..642cd62 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -536,7 +536,7 @@ static inline void __free_one_page(struct page *page,
->                 combined_idx = buddy_idx & page_idx;
->                 higher_page = page + (combined_idx - page_idx);
->                 buddy_idx = __find_buddy_index(combined_idx, order + 1);
-> -               higher_buddy = page + (buddy_idx - combined_idx);
-> +               higher_buddy = higher_page + (buddy_idx - combined_idx);
->                 if (page_is_buddy(higher_page, higher_buddy, order + 1)) {
->                         list_add_tail(&page->lru,
->                                 &zone->free_area[order].free_list[migratetype]);
-> --
-> 1.7.5.4
-
--- 
-Michal Hocko
-SUSE Labs
+Just a small side note: given that rrbe is very expensive you probably
+should extend this function so it makes use of the rrbm instruction
+if available.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
