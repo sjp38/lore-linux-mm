@@ -1,57 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx127.postini.com [74.125.245.127])
-	by kanga.kvack.org (Postfix) with SMTP id 7032F6B005D
-	for <linux-mm@kvack.org>; Fri, 24 Aug 2012 15:54:49 -0400 (EDT)
-Received: from /spool/local
-	by e3.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
-	Fri, 24 Aug 2012 15:54:44 -0400
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id D982438C8041
-	for <linux-mm@kvack.org>; Fri, 24 Aug 2012 15:54:10 -0400 (EDT)
-Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
-	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q7OJs9DE184680
-	for <linux-mm@kvack.org>; Fri, 24 Aug 2012 15:54:10 -0400
-Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av01.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q7OJrxPY002353
-	for <linux-mm@kvack.org>; Fri, 24 Aug 2012 13:54:00 -0600
-Date: Fri, 24 Aug 2012 12:53:57 -0700
-From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Subject: Re: [PATCH 2/3] kmemleak: replace list_for_each_continue_rcu with
- new interface
-Message-ID: <20120824195357.GR2472@linux.vnet.ibm.com>
-Reply-To: paulmck@linux.vnet.ibm.com
-References: <502CB92F.2010700@linux.vnet.ibm.com>
- <502DC99E.4060408@linux.vnet.ibm.com>
- <5036D062.7070003@linux.vnet.ibm.com>
- <20120824100505.GG7585@arm.com>
+Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
+	by kanga.kvack.org (Postfix) with SMTP id 28E166B005D
+	for <linux-mm@kvack.org>; Fri, 24 Aug 2012 15:59:47 -0400 (EDT)
+Received: by pbbro12 with SMTP id ro12so4434020pbb.14
+        for <linux-mm@kvack.org>; Fri, 24 Aug 2012 12:59:46 -0700 (PDT)
+Date: Fri, 24 Aug 2012 12:59:41 -0700
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH v3 01/17] hashtable: introduce a small and naive
+ hashtable
+Message-ID: <20120824195941.GC21325@google.com>
+References: <1345602432-27673-1-git-send-email-levinsasha928@gmail.com>
+ <1345602432-27673-2-git-send-email-levinsasha928@gmail.com>
+ <20120822180138.GA19212@google.com>
+ <50357840.5020201@gmail.com>
+ <20120823200456.GD14962@google.com>
+ <5037DA47.9010306@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20120824100505.GG7585@arm.com>
+In-Reply-To: <5037DA47.9010306@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Catalin Marinas <catalin.marinas@arm.com>
-Cc: Michael Wang <wangyun@linux.vnet.ibm.com>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Sasha Levin <levinsasha928@gmail.com>
+Cc: torvalds@linux-foundation.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, paul.gortmaker@windriver.com, davem@davemloft.net, rostedt@goodmis.org, mingo@elte.hu, ebiederm@xmission.com, aarcange@redhat.com, ericvh@gmail.com, netdev@vger.kernel.org, josh@joshtriplett.org, eric.dumazet@gmail.com, mathieu.desnoyers@efficios.com, axboe@kernel.dk, agk@redhat.com, dm-devel@redhat.com, neilb@suse.de, ccaulfie@redhat.com, teigland@redhat.com, Trond.Myklebust@netapp.com, bfields@fieldses.org, fweisbec@gmail.com, jesse@nicira.com, venkat.x.venkatsubra@oracle.com, ejt@redhat.com, snitzer@redhat.com, edumazet@google.com, linux-nfs@vger.kernel.org, dev@openvswitch.org, rds-devel@oss.oracle.com, lw@cn.fujitsu.com
 
-On Fri, Aug 24, 2012 at 11:05:05AM +0100, Catalin Marinas wrote:
-> On Fri, Aug 24, 2012 at 01:52:50AM +0100, Michael Wang wrote:
-> > On 08/17/2012 12:33 PM, Michael Wang wrote:
-> > > From: Michael Wang <wangyun@linux.vnet.ibm.com>
-> > > 
-> > > This patch replaces list_for_each_continue_rcu() with
-> > > list_for_each_entry_continue_rcu() to save a few lines
-> > > of code and allow removing list_for_each_continue_rcu().
-> > 
-> > Could I get some comments on this patch?
+Hello, Sasha.
+
+On Fri, Aug 24, 2012 at 09:47:19PM +0200, Sasha Levin wrote:
+> > I think this is problematic.  It looks exactly like other existing
+> > DEFINE macros yet what its semantics is different.  I don't think
+> > that's a good idea.
 > 
-> Sorry, busy with other things and forgot about this.
+> I can switch that to be DECLARE_HASHTABLE() if the issue is semantics.
+
+If this implementation is about the common trivial case, why not just
+have the usual DECLARE/DEFINE_HASHTABLE() combination?
+
+> > So, I think it would be best to keep this one as straight-forward and
+> > trivial as possible.  Helper macros to help its users are fine but
+> > let's please not go for full encapsulation.
 > 
-> Acked-by: Catalin Marinas <catalin.marinas@arm.com>
+> What if we cut off the dynamic allocated (but not resizable) hashtable out for
+> the moment, and focus on the most common statically allocated hashtable case?
+> 
+> The benefits would be:
+> 
+>  - Getting rid of all the _size() macros, which will make the amount of helpers
+> here reasonable.
+>  - Dynamically allocated hashtable can be easily added as a separate
+> implementation using the same API. We already have some of those in the kernel...
 
-Queued, thank you both!
+It seems we have enough of this static usage and solving the static
+case first shouldn't hinder the dynamic (!resize) case later, so,
+yeah, sounds good to me.
 
-							Thanx, Paul
+>  - When that's ready, I feel it's a shame to lose full encapsulation just due to
+> hash_hashed().
+
+I don't know.  If we stick to the static (or even !resize dymaic)
+straight-forward hash - and we need something like that - I don't see
+what the full encapsulation buys us other than a lot of trivial
+wrappers.
+
+Thanks.
+
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
