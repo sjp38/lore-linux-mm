@@ -1,109 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
-	by kanga.kvack.org (Postfix) with SMTP id 9F3F16B0044
-	for <linux-mm@kvack.org>; Thu, 23 Aug 2012 22:08:22 -0400 (EDT)
-Received: by lbon3 with SMTP id n3so994938lbo.14
-        for <linux-mm@kvack.org>; Thu, 23 Aug 2012 19:08:20 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
+	by kanga.kvack.org (Postfix) with SMTP id A90D16B005D
+	for <linux-mm@kvack.org>; Thu, 23 Aug 2012 22:21:19 -0400 (EDT)
+Received: from /spool/local
+	by e28smtp08.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <xiaoguangrong@linux.vnet.ibm.com>;
+	Fri, 24 Aug 2012 07:51:14 +0530
+Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
+	by d28relay05.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q7O2LA744653446
+	for <linux-mm@kvack.org>; Fri, 24 Aug 2012 07:51:10 +0530
+Received: from d28av04.in.ibm.com (loopback [127.0.0.1])
+	by d28av04.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q7O2LARo032181
+	for <linux-mm@kvack.org>; Fri, 24 Aug 2012 12:21:10 +1000
+Message-ID: <5036E514.1090509@linux.vnet.ibm.com>
+Date: Fri, 24 Aug 2012 10:21:08 +0800
+From: Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>
 MIME-Version: 1.0
-In-Reply-To: <20120823135839.GB19968@dhcp22.suse.cz>
-References: <CAFNq8R7ibTNeRP_Wftwyr7mK6Du4TVysQysgL_RYj+CGf9N2qg@mail.gmail.com>
-	<20120823095022.GB10685@dhcp22.suse.cz>
-	<CAFNq8R5pY0yPp-LQYNywpMhVtXgqPSy3RYqHVTVpPXs52kOmJw@mail.gmail.com>
-	<20120823135839.GB19968@dhcp22.suse.cz>
-Date: Fri, 24 Aug 2012 10:08:20 +0800
-Message-ID: <CAFNq8R7ry5kyuMombamf6jLmiLcWFnRQRp2vYt1+kv+pPec1_w@mail.gmail.com>
-Subject: Re: Fixup the page of buddy_higher address's calculation
-From: Li Haifeng <omycle@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [PATCH 0/2] revert changes to zcache_do_preload()
+References: <1345735991-6995-1-git-send-email-sjenning@linux.vnet.ibm.com> <20120823205648.GA2066@barrios> <5036AA38.6010400@linux.vnet.ibm.com> <20120823232845.GE5369@bbox>
+In-Reply-To: <20120823232845.GE5369@bbox>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Gavin Shan <shangw@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan.kim@gmail.com>, Johannes Weiner <jweiner@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Nitin Gupta <ngupta@vflare.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org
 
-2012/8/23 Michal Hocko <mhocko@suse.cz>:
-> On Thu 23-08-12 20:30:34, Gavin Shan wrote:
->> On Thu, Aug 23, 2012 at 06:21:06PM +0800, Li Haifeng wrote:
-> [...]
->> >>> From d7cd78f9d71a5c9ddeed02724558096f0bb4508a Mon Sep 17 00:00:00 2001
->> >>> From: Haifeng Li <omycle@gmail.com>
->> >>> Date: Thu, 23 Aug 2012 16:27:19 +0800
->> >>> Subject: [PATCH] Fixup the page of buddy_higher address's calculation
->> >>
->> >> Some general questions:
->> >> Any word about the change? Is it really that obvious? Why do you think the
->> >> current state is incorrect? How did you find out?
->> >>
->> >> And more specific below:
->> >>
->> >>> Signed-off-by: Haifeng Li <omycle@gmail.com>
->> >>> ---
->> >>>  mm/page_alloc.c |    2 +-
->> >>>  1 files changed, 1 insertions(+), 1 deletions(-)
->> >>>
->> >>> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
->> >>> index ddbc17d..5588f68 100644
->> >>> --- a/mm/page_alloc.c
->> >>> +++ b/mm/page_alloc.c
->> >>> @@ -579,7 +579,7 @@ static inline void __free_one_page(struct page *page,
->> >>>                 combined_idx = buddy_idx & page_idx;
->> >>>                 higher_page = page + (combined_idx - page_idx);
->> >>>                 buddy_idx = __find_buddy_index(combined_idx, order + 1);
->> >>> -               higher_buddy = page + (buddy_idx - combined_idx);
->> >>> +               higher_buddy = page + (buddy_idx - page_idx);
+On 08/24/2012 07:28 AM, Minchan Kim wrote:
+> On Thu, Aug 23, 2012 at 05:10:00PM -0500, Seth Jennings wrote:
+>> On 08/23/2012 03:56 PM, Minchan Kim wrote:
+>>> Hi Seth,
+>>>
+>>> On Thu, Aug 23, 2012 at 10:33:09AM -0500, Seth Jennings wrote:
+>>>> This patchset fixes a regression in 3.6 by reverting two dependent
+>>>> commits that made changes to zcache_do_preload().
+>>>>
+>>>> The commits undermine an assumption made by tmem_put() in
+>>>> the cleancache path that preemption is disabled.  This change
+>>>> introduces a race condition that can result in the wrong page
+>>>> being returned by tmem_get(), causing assorted errors (segfaults,
+>>>> apparent file corruption, etc) in userspace.
+>>>>
+>>>> The corruption was discussed in this thread:
+>>>> https://lkml.org/lkml/2012/8/17/494
+>>>
+>>> I think changelog isn't enough to explain what's the race.
+>>> Could you write it down in detail?
 >>
->> Haifeng, Not sure it would be better? At least, the expression
->> would be more explicitly meaningful than yours.
->>
->>                   higher_buddy = higher_page + (buddy_idx - combined_idx);
->
-Thanks Gavin. Yes, it's more meaningful. :)
+>> I didn't come upon this solution via code inspection, but
+>> rather through discovering that the issue didn't exist in
+>> v3.5 and just looking at the changes since then.
+> 
+> Okay, then, why do you think the patchsets are culprit?
+> I didn't look the cleanup patch series of Xiao at that time
+> so I can be wrong but as I just look through patch of
+> "zcache: optimize zcache_do_preload", I can't find any fault
+> because zcache_put_page checks irq_disable so we don't need
+> to disable preemption so it seems that patch is correct to me.
+> If the race happens by preemption, BUG_ON in zcache_put_page
+> should catch it.
 
-> Yes, indeed. It would be also good to mention that this is a regression
-> since 43506fad (mm/page_alloc.c: simplify calculation of combined index
-> of adjacent buddy lists). IIUC this basically disables the heuristic
-> because page_is_buddy will fail for order+1, right?
->
-> Maybe 2.6.38+ stable candidate, then.
->
-> Could you repost with the full changelog, please?
->
+Confused me too!
 
-OK.
-
-> Thanks
-> --
-> Michal Hocko
-> SUSE Labs
-
-Also sorry for the confusing title. Repost it.
------------------------------------------------------->
-Subject: [PATCH] Fix the page address of higher page's buddy calculation
-
-Calculate the page address of higher page's buddy should be based
-higher_page with the offset between index of higher page and
-index of higher page's buddy.
-
-Signed-off-by: Haifeng Li <omycle@gmail.com>
-Signed-off-by: Gavin Shan <shangw@linux.vnet.ibm.com>
----
- mm/page_alloc.c |    2 +-
- 1 files changed, 1 insertions(+), 1 deletions(-)
-
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index cdef1d4..642cd62 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -536,7 +536,7 @@ static inline void __free_one_page(struct page *page,
-                combined_idx = buddy_idx & page_idx;
-                higher_page = page + (combined_idx - page_idx);
-                buddy_idx = __find_buddy_index(combined_idx, order + 1);
--               higher_buddy = page + (buddy_idx - combined_idx);
-+               higher_buddy = higher_page + (buddy_idx - combined_idx);
-                if (page_is_buddy(higher_page, higher_buddy, order + 1)) {
-                        list_add_tail(&page->lru,
-                                &zone->free_area[order].free_list[migratetype]);
---
-1.7.5.4
+And the first patch just do the cleanup, it is not different
+before the patch and after the patch, what i missed?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
