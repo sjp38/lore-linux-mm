@@ -1,73 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
-	by kanga.kvack.org (Postfix) with SMTP id 961B56B005D
-	for <linux-mm@kvack.org>; Thu, 23 Aug 2012 20:53:11 -0400 (EDT)
-Received: from /spool/local
-	by e23smtp08.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <wangyun@linux.vnet.ibm.com>;
-	Fri, 24 Aug 2012 10:52:41 +1000
-Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q7O0qqLC24576114
-	for <linux-mm@kvack.org>; Fri, 24 Aug 2012 10:52:57 +1000
-Received: from d23av01.au.ibm.com (loopback [127.0.0.1])
-	by d23av01.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q7O0qq3d011675
-	for <linux-mm@kvack.org>; Fri, 24 Aug 2012 10:52:52 +1000
-Message-ID: <5036D062.7070003@linux.vnet.ibm.com>
-Date: Fri, 24 Aug 2012 08:52:50 +0800
-From: Michael Wang <wangyun@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
+	by kanga.kvack.org (Postfix) with SMTP id D41896B0044
+	for <linux-mm@kvack.org>; Thu, 23 Aug 2012 21:31:23 -0400 (EDT)
+Date: Fri, 24 Aug 2012 11:31:18 +1000
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH 3/3] HWPOISON: prevent inode cache removal to keep
+ AS_HWPOISON sticky
+Message-ID: <20120824013118.GZ19235@dastard>
+References: <1345648655-4497-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <1345648655-4497-4-git-send-email-n-horiguchi@ah.jp.nec.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 2/3] kmemleak: replace list_for_each_continue_rcu with
- new interface
-References: <502CB92F.2010700@linux.vnet.ibm.com> <502DC99E.4060408@linux.vnet.ibm.com>
-In-Reply-To: <502DC99E.4060408@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1345648655-4497-4-git-send-email-n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
-Cc: catalin.marinas@arm.com, "paulmck@linux.vnet.ibm.com" <paulmck@linux.vnet.ibm.com>
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Andi Kleen <andi.kleen@intel.com>, Wu Fengguang <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Tony Luck <tony.luck@intel.com>, Rik van Riel <riel@redhat.com>, Jun'ichi Nomura <j-nomura@ce.jp.nec.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 08/17/2012 12:33 PM, Michael Wang wrote:
-> From: Michael Wang <wangyun@linux.vnet.ibm.com>
+On Wed, Aug 22, 2012 at 11:17:35AM -0400, Naoya Horiguchi wrote:
+> "HWPOISON: report sticky EIO for poisoned file" still has a corner case
+> where we have possibilities of data lost. This is because in this fix
+> AS_HWPOISON is cleared when the inode cache is dropped.
 > 
-> This patch replaces list_for_each_continue_rcu() with
-> list_for_each_entry_continue_rcu() to save a few lines
-> of code and allow removing list_for_each_continue_rcu().
-
-Hi, Catalin
-
-Could I get some comments on this patch?
-
-Regards,
-Michael Wang
-
+> For example, consider an application in which a process periodically
+> (every 10 minutes) writes some logs on a file (and closes it after
+> each writes,) and at the end of each day some batch programs run using
+> the log file. If a memory error hits on dirty pagecache of this log file
+> just after periodic write/close and the inode cache is cleared before the
+> next write, then this application is not aware of the error and the batch
+> programs will work wrongly.
 > 
-> Signed-off-by: Michael Wang <wangyun@linux.vnet.ibm.com>
+> To avoid this, this patch makes us pin the hwpoisoned inode on memory
+> until we remove or completely truncate the hwpoisoned file.
+> 
+> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 > ---
->  mm/kmemleak.c |    6 ++----
->  1 files changed, 2 insertions(+), 4 deletions(-)
+>  fs/inode.c              | 12 ++++++++++++
+>  include/linux/pagemap.h | 11 +++++++++++
+>  mm/memory-failure.c     |  2 +-
+>  mm/truncate.c           |  2 ++
+>  4 files changed, 26 insertions(+), 1 deletion(-)
 > 
-> diff --git a/mm/kmemleak.c b/mm/kmemleak.c
-> index 45eb621..0de83b4 100644
-> --- a/mm/kmemleak.c
-> +++ b/mm/kmemleak.c
-> @@ -1483,13 +1483,11 @@ static void *kmemleak_seq_next(struct seq_file *seq, void *v, loff_t *pos)
->  {
->  	struct kmemleak_object *prev_obj = v;
->  	struct kmemleak_object *next_obj = NULL;
-> -	struct list_head *n = &prev_obj->object_list;
-> +	struct kmemleak_object *obj = prev_obj;
-> 
->  	++(*pos);
-> 
-> -	list_for_each_continue_rcu(n, &object_list) {
-> -		struct kmemleak_object *obj =
-> -			list_entry(n, struct kmemleak_object, object_list);
-> +	list_for_each_entry_continue_rcu(obj, &object_list, object_list) {
->  		if (get_object(obj)) {
->  			next_obj = obj;
->  			break;
-> 
+> diff --git v3.6-rc1.orig/fs/inode.c v3.6-rc1/fs/inode.c
+> index ac8d904..8742397 100644
+> --- v3.6-rc1.orig/fs/inode.c
+> +++ v3.6-rc1/fs/inode.c
+> @@ -717,6 +717,15 @@ void prune_icache_sb(struct super_block *sb, int nr_to_scan)
+>  		}
+>  
+>  		/*
+> +		 * Keep inode caches on memory for user processes to certainly
+> +		 * be aware of memory errors.
+> +		 */
+> +		if (unlikely(mapping_hwpoison(inode->i_mapping))) {
+> +			spin_unlock(&inode->i_lock);
+> +			continue;
+> +		}
+> +
+> +		/*
+>  		 * Referenced or dirty inodes are still in use. Give them
+>  		 * another pass through the LRU as we canot reclaim them now.
+>  		 */
+
+I don't think you tested this at all. Have a look at what the loop
+does more closely - inodes with poisoned mappings will get stuck
+and reclaim doesn't make progress past them.
+
+I think you also need to document this inode lifecycle change....
+
+> diff --git v3.6-rc1.orig/mm/truncate.c v3.6-rc1/mm/truncate.c
+> index 75801ac..82a994f 100644
+> --- v3.6-rc1.orig/mm/truncate.c
+> +++ v3.6-rc1/mm/truncate.c
+> @@ -574,6 +574,8 @@ void truncate_setsize(struct inode *inode, loff_t newsize)
+>  
+>  	oldsize = inode->i_size;
+>  	i_size_write(inode, newsize);
+> +	if (unlikely(mapping_hwpoison(inode->i_mapping) && !newsize))
+> +		mapping_clear_hwpoison(inode->i_mapping);
+
+So only a truncate to zero size will clear the poison flag?
+
+What happens if it is the last page in the mapping that is poisoned,
+and we truncate that away? Shouldn't that clear the poisoned bit?
+What about a hole punch over the poisoned range?
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
