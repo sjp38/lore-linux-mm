@@ -1,105 +1,151 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
-	by kanga.kvack.org (Postfix) with SMTP id CED106B0044
-	for <linux-mm@kvack.org>; Thu, 23 Aug 2012 22:39:43 -0400 (EDT)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH 3/3] HWPOISON: prevent inode cache removal to keep AS_HWPOISON sticky
-Date: Thu, 23 Aug 2012 22:39:32 -0400
-Message-Id: <1345775972-1134-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <20120824013118.GZ19235@dastard>
+Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
+	by kanga.kvack.org (Postfix) with SMTP id CB83E6B0044
+	for <linux-mm@kvack.org>; Thu, 23 Aug 2012 23:00:22 -0400 (EDT)
+Message-ID: <5036EE39.706@redhat.com>
+Date: Thu, 23 Aug 2012 23:00:09 -0400
+From: Rik van Riel <riel@redhat.com>
+MIME-Version: 1.0
+Subject: Re: [RFC][PATCH -mm -v2 4/4] mm,vmscan: evict inactive file pages
+ first
+References: <20120816113450.52f4e633@cuia.bos.redhat.com> <20120816113805.5ae65af0@cuia.bos.redhat.com> <CALWz4iz4kxi=gasZsomqgKW+y4MgJEWMhefaiaBjO8Mktk932Q@mail.gmail.com>
+In-Reply-To: <CALWz4iz4kxi=gasZsomqgKW+y4MgJEWMhefaiaBjO8Mktk932Q@mail.gmail.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: david@fromorbit.com
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Andi Kleen <andi.kleen@intel.com>, Wu Fengguang <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Tony Luck <tony.luck@intel.com>, Rik van Riel <riel@redhat.com>, Jun'ichi Nomura <j-nomura@ce.jp.nec.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Ying Han <yinghan@google.com>
+Cc: linux-mm@kvack.org, aquini@redhat.com, hannes@cmpxchg.org, mhocko@suse.cz, Mel Gorman <mel@csn.ul.ie>
 
-On Fri, Aug 24, 2012 at 11:31:18AM +1000, Dave Chinner wrote:
-> On Wed, Aug 22, 2012 at 11:17:35AM -0400, Naoya Horiguchi wrote:
-> > "HWPOISON: report sticky EIO for poisoned file" still has a corner case
-> > where we have possibilities of data lost. This is because in this fix
-> > AS_HWPOISON is cleared when the inode cache is dropped.
-> > 
-> > For example, consider an application in which a process periodically
-> > (every 10 minutes) writes some logs on a file (and closes it after
-> > each writes,) and at the end of each day some batch programs run using
-> > the log file. If a memory error hits on dirty pagecache of this log file
-> > just after periodic write/close and the inode cache is cleared before the
-> > next write, then this application is not aware of the error and the batch
-> > programs will work wrongly.
-> > 
-> > To avoid this, this patch makes us pin the hwpoisoned inode on memory
-> > until we remove or completely truncate the hwpoisoned file.
-> > 
-> > Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> > ---
-> >  fs/inode.c              | 12 ++++++++++++
-> >  include/linux/pagemap.h | 11 +++++++++++
-> >  mm/memory-failure.c     |  2 +-
-> >  mm/truncate.c           |  2 ++
-> >  4 files changed, 26 insertions(+), 1 deletion(-)
-> > 
-> > diff --git v3.6-rc1.orig/fs/inode.c v3.6-rc1/fs/inode.c
-> > index ac8d904..8742397 100644
-> > --- v3.6-rc1.orig/fs/inode.c
-> > +++ v3.6-rc1/fs/inode.c
-> > @@ -717,6 +717,15 @@ void prune_icache_sb(struct super_block *sb, int nr_to_scan)
-> >  		}
-> >  
-> >  		/*
-> > +		 * Keep inode caches on memory for user processes to certainly
-> > +		 * be aware of memory errors.
-> > +		 */
-> > +		if (unlikely(mapping_hwpoison(inode->i_mapping))) {
-> > +			spin_unlock(&inode->i_lock);
-> > +			continue;
-> > +		}
-> > +
-> > +		/*
-> >  		 * Referenced or dirty inodes are still in use. Give them
-> >  		 * another pass through the LRU as we canot reclaim them now.
-> >  		 */
-> 
-> I don't think you tested this at all. Have a look at what the loop
-> does more closely - inodes with poisoned mappings will get stuck
-> and reclaim doesn't make progress past them.
+On 08/23/2012 07:07 PM, Ying Han wrote:
+>
+>
+> On Thu, Aug 16, 2012 at 8:38 AM, Rik van Riel <riel@redhat.com
+> <mailto:riel@redhat.com>> wrote:
+>
+>     When a lot of streaming file IO is happening, it makes sense to
+>     evict just the inactive file pages and leave the other LRU lists
+>     alone.
+>
+>     Likewise, when driving a cgroup hierarchy into its hard limit,
+>     or over its soft limit, it makes sense to pick a child cgroup
+>     that has lots of inactive file pages, and evict those first.
+>
+>     Being over its soft limit is considered a stronger preference
+>     than just having a lot of inactive file pages, so a well behaved
+>     cgroup is allowed to keep its file cache when there is a "badly
+>     behaving" one in the same hierarchy.
+>
+>     Signed-off-by: Rik van Riel <riel@redhat.com <mailto:riel@redhat.com>>
+>     ---
+>       mm/vmscan.c |   37 +++++++++++++++++++++++++++++++++----
+>       1 files changed, 33 insertions(+), 4 deletions(-)
+>
+>     diff --git a/mm/vmscan.c b/mm/vmscan.c
+>     index 769fdcd..2884b4f 100644
+>     --- a/mm/vmscan.c
+>     +++ b/mm/vmscan.c
+>     @@ -1576,6 +1576,19 @@ static int inactive_list_is_low(struct lruvec
+>     *lruvec, enum lru_list lru)
+>                      return inactive_anon_is_low(lruvec);
+>       }
+>
+>     +/* If this lruvec has lots of inactive file pages, reclaim those
+>     only. */
+>     +static bool reclaim_file_only(struct lruvec *lruvec, struct
+>     scan_control *sc,
+>     +                             unsigned long anon, unsigned long file)
+>     +{
+>     +       if (inactive_file_is_low(lruvec))
+>     +               return false;
+>     +
+>     +       if (file > (anon + file) >> sc->priority)
+>     +               return true;
+>     +
+>     +       return false;
+>     +}
+>     +
+>       static unsigned long shrink_list(enum lru_list lru, unsigned long
+>     nr_to_scan,
+>                                       struct lruvec *lruvec, struct
+>     scan_control *sc)
+>       {
+>     @@ -1658,6 +1671,14 @@ static void get_scan_count(struct lruvec
+>     *lruvec, struct scan_control *sc,
+>                      }
+>              }
+>
+>     +       /* Lots of inactive file pages? Reclaim those only. */
+>     +       if (reclaim_file_only(lruvec, sc, anon, file)) {
+>     +               fraction[0] = 0;
+>     +               fraction[1] = 1;
+>     +               denominator = 1;
+>     +               goto out;
+>     +       }
+>     +
+>              /*
+>               * With swappiness at 100, anonymous and file have the same
+>     priority.
+>               * This scanning priority is essentially the inverse of IO
+>     cost.
+>     @@ -1922,8 +1943,8 @@ static void age_recent_pressure(struct lruvec
+>     *lruvec, struct zone *zone)
+>        * should always be larger than recent_rotated, and the size should
+>        * always be larger than recent_pressure.
+>        */
+>     -static u64 reclaim_score(struct mem_cgroup *memcg,
+>     -                        struct lruvec *lruvec)
+>     +static u64 reclaim_score(struct mem_cgroup *memcg, struct lruvec
+>     *lruvec,
+>     +                        struct scan_control *sc)
+>       {
+>              struct zone_reclaim_stat *reclaim_stat = &lruvec->reclaim_stat;
+>              u64 anon, file;
+>     @@ -1949,6 +1970,14 @@ static u64 reclaim_score(struct mem_cgroup
+>     *memcg,
+>                      anon *= 10000;
+>              }
+>
+>     +       /*
+>     +        * Prefer reclaiming from an lruvec with lots of inactive file
+>     +        * pages. Once those have been reclaimed, the score will drop so
+>     +        * far we will pick another lruvec to reclaim from.
+>     +        */
+>     +       if (reclaim_file_only(lruvec, sc, anon, file))
+>     +               file *= 100;
+>     +
+>              return max(anon, file);
+>       }
+>
+>     @@ -1977,7 +2006,7 @@ static void shrink_zone(struct zone *zone,
+>     struct scan_control *sc)
+>
+>                      age_recent_pressure(lruvec, zone);
+>
+>     -               score = reclaim_score(memcg, lruvec);
+>     +               score = reclaim_score(memcg, lruvec, sc);
+>
+>                      /* Pick the lruvec with the highest score. */
+>                      if (score > max_score) {
+>     @@ -2002,7 +2031,7 @@ static void shrink_zone(struct zone *zone,
+>     struct scan_control *sc)
+>               */
+>              do {
+>                      shrink_lruvec(victim_lruvec, sc);
+>     -               score = reclaim_score(memcg, victim_lruvec);
+>     +               score = reclaim_score(memcg, victim_lruvec, sc);
+>
+>
+> I wonder if you meant s/memcg/victim_memcg here.
 
-Sorry, I overlooked something important in my testing. I'll correct it.
-Maybe we need list_move_tail() in this block.
+You are totally right, that should be victim_memcg.
 
-> I think you also need to document this inode lifecycle change....
+Time for me to get a tree that works here, and where my patches
+will apply. I got the c-state governor patches sent out for KS,
+now I should be able to get some time again for cgroups stuff :)
 
-OK, I'll do it.
-
-> > diff --git v3.6-rc1.orig/mm/truncate.c v3.6-rc1/mm/truncate.c
-> > index 75801ac..82a994f 100644
-> > --- v3.6-rc1.orig/mm/truncate.c
-> > +++ v3.6-rc1/mm/truncate.c
-> > @@ -574,6 +574,8 @@ void truncate_setsize(struct inode *inode, loff_t newsize)
-> >  
-> >  	oldsize = inode->i_size;
-> >  	i_size_write(inode, newsize);
-> > +	if (unlikely(mapping_hwpoison(inode->i_mapping) && !newsize))
-> > +		mapping_clear_hwpoison(inode->i_mapping);
-> 
-> So only a truncate to zero size will clear the poison flag?
-
-Yes, this is because we only know if the file is affected by hwpoison,
-but not where the hwpoisoned page is in the file. We could remember it,
-but I did not do it for simplicity.
-
-> What happens if it is the last page in the mapping that is poisoned,
-> and we truncate that away? Shouldn't that clear the poisoned bit?
-
-When we handle the hwpoisoned inode, the error page should already
-be removed from pagecache, so the remaining pages are not related
-to the error and we need not care about them when we consider bit
-clearing.
-
-> What about a hole punch over the poisoned range?
-
-For the same reason, this is also not related to when to clear the bit.
-
-Thanks,
-Naoya
+-- 
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
