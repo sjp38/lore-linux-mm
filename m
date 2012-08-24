@@ -1,151 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
-	by kanga.kvack.org (Postfix) with SMTP id CB83E6B0044
-	for <linux-mm@kvack.org>; Thu, 23 Aug 2012 23:00:22 -0400 (EDT)
-Message-ID: <5036EE39.706@redhat.com>
-Date: Thu, 23 Aug 2012 23:00:09 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
+	by kanga.kvack.org (Postfix) with SMTP id 6DA1B6B0044
+	for <linux-mm@kvack.org>; Thu, 23 Aug 2012 23:10:13 -0400 (EDT)
+Received: by qcsd16 with SMTP id d16so1178043qcs.14
+        for <linux-mm@kvack.org>; Thu, 23 Aug 2012 20:10:12 -0700 (PDT)
+Message-ID: <5036F090.4040209@gmail.com>
+Date: Fri, 24 Aug 2012 11:10:08 +0800
+From: wujianguo <wujianguo106@gmail.com>
 MIME-Version: 1.0
-Subject: Re: [RFC][PATCH -mm -v2 4/4] mm,vmscan: evict inactive file pages
- first
-References: <20120816113450.52f4e633@cuia.bos.redhat.com> <20120816113805.5ae65af0@cuia.bos.redhat.com> <CALWz4iz4kxi=gasZsomqgKW+y4MgJEWMhefaiaBjO8Mktk932Q@mail.gmail.com>
-In-Reply-To: <CALWz4iz4kxi=gasZsomqgKW+y4MgJEWMhefaiaBjO8Mktk932Q@mail.gmail.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
+Subject: [PATCH v2] mm/ia64: fix a memory block size bug
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ying Han <yinghan@google.com>
-Cc: linux-mm@kvack.org, aquini@redhat.com, hannes@cmpxchg.org, mhocko@suse.cz, Mel Gorman <mel@csn.ul.ie>
+To: akpm@linux-foundation.org, tony.luck@intel.com
+Cc: Michal Hocko <mhocko@suse.cz>, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, liuj97@gmail.com, jiang.liu@huawei.com, wency@cn.fujitsu.com, yinghai@kernel.org, qiuxishi@huawei.com, guohanjun@huawei.com, wujianguo@huawei.com, minchan.kim@gmail.com, mgorman@suse.de, Christoph Lameter <cl@linux.com>, kay.sievers@vrfy.org
 
-On 08/23/2012 07:07 PM, Ying Han wrote:
->
->
-> On Thu, Aug 16, 2012 at 8:38 AM, Rik van Riel <riel@redhat.com
-> <mailto:riel@redhat.com>> wrote:
->
->     When a lot of streaming file IO is happening, it makes sense to
->     evict just the inactive file pages and leave the other LRU lists
->     alone.
->
->     Likewise, when driving a cgroup hierarchy into its hard limit,
->     or over its soft limit, it makes sense to pick a child cgroup
->     that has lots of inactive file pages, and evict those first.
->
->     Being over its soft limit is considered a stronger preference
->     than just having a lot of inactive file pages, so a well behaved
->     cgroup is allowed to keep its file cache when there is a "badly
->     behaving" one in the same hierarchy.
->
->     Signed-off-by: Rik van Riel <riel@redhat.com <mailto:riel@redhat.com>>
->     ---
->       mm/vmscan.c |   37 +++++++++++++++++++++++++++++++++----
->       1 files changed, 33 insertions(+), 4 deletions(-)
->
->     diff --git a/mm/vmscan.c b/mm/vmscan.c
->     index 769fdcd..2884b4f 100644
->     --- a/mm/vmscan.c
->     +++ b/mm/vmscan.c
->     @@ -1576,6 +1576,19 @@ static int inactive_list_is_low(struct lruvec
->     *lruvec, enum lru_list lru)
->                      return inactive_anon_is_low(lruvec);
->       }
->
->     +/* If this lruvec has lots of inactive file pages, reclaim those
->     only. */
->     +static bool reclaim_file_only(struct lruvec *lruvec, struct
->     scan_control *sc,
->     +                             unsigned long anon, unsigned long file)
->     +{
->     +       if (inactive_file_is_low(lruvec))
->     +               return false;
->     +
->     +       if (file > (anon + file) >> sc->priority)
->     +               return true;
->     +
->     +       return false;
->     +}
->     +
->       static unsigned long shrink_list(enum lru_list lru, unsigned long
->     nr_to_scan,
->                                       struct lruvec *lruvec, struct
->     scan_control *sc)
->       {
->     @@ -1658,6 +1671,14 @@ static void get_scan_count(struct lruvec
->     *lruvec, struct scan_control *sc,
->                      }
->              }
->
->     +       /* Lots of inactive file pages? Reclaim those only. */
->     +       if (reclaim_file_only(lruvec, sc, anon, file)) {
->     +               fraction[0] = 0;
->     +               fraction[1] = 1;
->     +               denominator = 1;
->     +               goto out;
->     +       }
->     +
->              /*
->               * With swappiness at 100, anonymous and file have the same
->     priority.
->               * This scanning priority is essentially the inverse of IO
->     cost.
->     @@ -1922,8 +1943,8 @@ static void age_recent_pressure(struct lruvec
->     *lruvec, struct zone *zone)
->        * should always be larger than recent_rotated, and the size should
->        * always be larger than recent_pressure.
->        */
->     -static u64 reclaim_score(struct mem_cgroup *memcg,
->     -                        struct lruvec *lruvec)
->     +static u64 reclaim_score(struct mem_cgroup *memcg, struct lruvec
->     *lruvec,
->     +                        struct scan_control *sc)
->       {
->              struct zone_reclaim_stat *reclaim_stat = &lruvec->reclaim_stat;
->              u64 anon, file;
->     @@ -1949,6 +1970,14 @@ static u64 reclaim_score(struct mem_cgroup
->     *memcg,
->                      anon *= 10000;
->              }
->
->     +       /*
->     +        * Prefer reclaiming from an lruvec with lots of inactive file
->     +        * pages. Once those have been reclaimed, the score will drop so
->     +        * far we will pick another lruvec to reclaim from.
->     +        */
->     +       if (reclaim_file_only(lruvec, sc, anon, file))
->     +               file *= 100;
->     +
->              return max(anon, file);
->       }
->
->     @@ -1977,7 +2006,7 @@ static void shrink_zone(struct zone *zone,
->     struct scan_control *sc)
->
->                      age_recent_pressure(lruvec, zone);
->
->     -               score = reclaim_score(memcg, lruvec);
->     +               score = reclaim_score(memcg, lruvec, sc);
->
->                      /* Pick the lruvec with the highest score. */
->                      if (score > max_score) {
->     @@ -2002,7 +2031,7 @@ static void shrink_zone(struct zone *zone,
->     struct scan_control *sc)
->               */
->              do {
->                      shrink_lruvec(victim_lruvec, sc);
->     -               score = reclaim_score(memcg, victim_lruvec);
->     +               score = reclaim_score(memcg, victim_lruvec, sc);
->
->
-> I wonder if you meant s/memcg/victim_memcg here.
+From: Jianguo Wu <wujianguo@huawei.com>
 
-You are totally right, that should be victim_memcg.
+I found following definition in include/linux/memory.h, in my IA64
+platform, SECTION_SIZE_BITS is equal to 32, and MIN_MEMORY_BLOCK_SIZE will be 0.
 
-Time for me to get a tree that works here, and where my patches
-will apply. I got the c-state governor patches sent out for KS,
-now I should be able to get some time again for cgroups stuff :)
+#define MIN_MEMORY_BLOCK_SIZE     (1 << SECTION_SIZE_BITS)
 
+Because MIN_MEMORY_BLOCK_SIZE is int type and length of 32bits,
+so MIN_MEMORY_BLOCK_SIZE(1 << 32) will will equal to 0.
+Actually when SECTION_SIZE_BITS >= 31, MIN_MEMORY_BLOCK_SIZE will be wrong.
+This will cause wrong system memory infomation in sysfs.
+I think it should be:
+
+#define MIN_MEMORY_BLOCK_SIZE     (1UL << SECTION_SIZE_BITS)
+
+And "echo offline > memory0/state" will cause following call trace:
+
+kernel BUG at mm/memory_hotplug.c:885!
+sh[6455]: bugcheck! 0 [1]
+
+Pid: 6455, CPU 0, comm:                   sh
+psr : 0000101008526030 ifs : 8000000000000fa4 ip  : [<a0000001008c40f0>]    Not tainted (3.6.0-rc1)
+ip is at offline_pages+0x210/0xee0
+unat: 0000000000000000 pfs : 0000000000000fa4 rsc : 0000000000000003
+rnat: a0000001008f2d50 bsps: 0000000000000000 pr  : 65519a96659a9565
+ldrs: 0000000000000000 ccv : 0000010b9263f310 fpsr: 0009804c0270033f
+csd : 0000000000000000 ssd : 0000000000000000
+b0  : a0000001008c40f0 b6  : a000000100473980 b7  : a0000001000106d0
+f6  : 000000000000000000000 f7  : 1003e0000000085c9354c
+f8  : 1003e0044b82fa09b5a53 f9  : 1003e000000d65cd62abf
+f10 : 1003efd02efdec682803d f11 : 1003e0000000000000042
+r1  : a00000010152c2e0 r2  : 0000000000006ada r3  : 000000000000fffe
+r8  : 0000000000000026 r9  : a00000010121cc18 r10 : a0000001013309f0
+r11 : 65519a96659a19e9 r12 : e00000070a91fdf0 r13 : e00000070a910000
+r14 : 0000000000006ada r15 : 0000000000004000 r16 : 000000006ad8356c
+r17 : a0000001019a525e r18 : 0000000000007fff r19 : 0000000000000000
+r20 : 0000000000006ad6 r21 : 0000000000006ad6 r22 : a00000010133bec8
+r23 : 0000000000006ad4 r24 : 0000000000000002 r25 : 8200000000260038
+r26 : 00000000000004f9 r27 : 00000000000004f8 r28 : 000000000001cf98
+r29 : 0000000000000038 r30 : a0000001019a5ae0 r31 : 000000000001cf60
+
+Call Trace:
+ [<a0000001000163e0>] show_stack+0x80/0xa0
+                                sp=e00000070a91f9b0 bsp=e00000070a9115e0
+ [<a000000100016a40>] show_regs+0x640/0x920
+                                sp=e00000070a91fb80 bsp=e00000070a911588
+ [<a000000100040590>] die+0x190/0x2c0
+                                sp=e00000070a91fb90 bsp=e00000070a911548
+ [<a000000100040710>] die_if_kernel+0x50/0x80
+                                sp=e00000070a91fb90 bsp=e00000070a911518
+ [<a0000001008f8030>] ia64_bad_break+0x3d0/0x6e0
+                                sp=e00000070a91fb90 bsp=e00000070a9114f0
+ [<a00000010000c0c0>] ia64_native_leave_kernel+0x0/0x270
+                                sp=e00000070a91fc20 bsp=e00000070a9114f0
+ [<a0000001008c40f0>] offline_pages+0x210/0xee0
+                                sp=e00000070a91fdf0 bsp=e00000070a9113c8
+ [<a00000010022d580>] alloc_pages_current+0x180/0x2a0
+                                sp=e00000070a91fe20 bsp=e00000070a9113a
+
+This patch will fix the bug.
+
+Signed-off-by: Jianguo Wu <wujianguo@huawei.com>
+Signed-off-by: Jiang Liu <jiang.liu@huawei.com>
+Reviewed-by: Michal Hocko <mhocko@suse.cz>
+---
+ include/linux/memory.h |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
+
+diff --git a/include/linux/memory.h b/include/linux/memory.h
+index 1ac7f6e..ff9a9f8 100644
+--- a/include/linux/memory.h
++++ b/include/linux/memory.h
+@@ -19,7 +19,7 @@
+ #include <linux/compiler.h>
+ #include <linux/mutex.h>
+
+-#define MIN_MEMORY_BLOCK_SIZE     (1 << SECTION_SIZE_BITS)
++#define MIN_MEMORY_BLOCK_SIZE     (1UL << SECTION_SIZE_BITS)
+
+ struct memory_block {
+ 	unsigned long start_section_nr;
 -- 
-All rights reversed
+1.7.6.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
