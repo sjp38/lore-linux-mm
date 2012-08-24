@@ -1,118 +1,284 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
-	by kanga.kvack.org (Postfix) with SMTP id 832E76B0072
-	for <linux-mm@kvack.org>; Fri, 24 Aug 2012 12:09:14 -0400 (EDT)
-Message-Id: <000001395964f744-d2c49443-b8b7-4ab8-bcab-ab68a418f276-000000@email.amazonses.com>
-Date: Fri, 24 Aug 2012 16:09:12 +0000
+Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
+	by kanga.kvack.org (Postfix) with SMTP id 362F96B0073
+	for <linux-mm@kvack.org>; Fri, 24 Aug 2012 12:10:20 -0400 (EDT)
+Message-Id: <000001395965f8f6-7ff20b9e-f748-4af4-a3c9-a9684022361f-000000@email.amazonses.com>
+Date: Fri, 24 Aug 2012 16:10:18 +0000
 From: Christoph Lameter <cl@linux.com>
-Subject: C13 [00/14] Sl[auo]b: Common code for cgroups V13
+Subject: C13 [05/14] Extract a common function for kmem_cache_destroy
+References: <20120824160903.168122683@linux.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Pekka Enberg <penberg@kernel.org>
 Cc: Joonsoo Kim <js1304@gmail.com>, Glauber Costa <glommer@parallels.com>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>
 
-V12->V13
-- Reduce patches to those useful for cgroup support
-- Additional patches continuing slab unification will
-  be posted separately.
+kmem_cache_destroy does basically the same in all allocators.
 
-V10->V11
-- Fix issues pointed out by Joonsoo and Glauber
-- Simplify Slab bootstrap further
+Extract common code which is easy since we already have common mutex handling.
 
-V9->V10
-- Memory leak was a false alarm
-- Resequence patches to make it easier
-  to apply.
-- Do more boot sequence consolidation in slab/slub.
-  [We could still do much more like common kmalloc
-  handling]
-- Fixes suggested by David and Glauber
+V1-V2:
+	- Move percpu freeing to later so that we fail cleaner if
+		objects are left in the cache [JoonSoo Kim]
 
-V8->V9:
-- Fix numerous things pointed out by Glauber.
-- Cleanup the way error handling works in the
-  common kmem_cache_create() function.
-- General cleanup by breaking things up
-  into multiple patches were necessary.
+Signed-off-by: Christoph Lameter <cl@linux.com>
+---
+ mm/slab.c        |   55 +++---------------------------------------------------
+ mm/slab.h        |    3 +++
+ mm/slab_common.c |   25 +++++++++++++++++++++++++
+ mm/slob.c        |   15 +++++++--------
+ mm/slub.c        |   36 +++++++++++------------------------
+ 5 files changed, 49 insertions(+), 85 deletions(-)
 
-V7->V8:
-- Do not use kfree for kmem_cache in slub.
-- Add more patches up to a common
-  scheme for object alignment.
-
-V6->V7:
-- Omit pieces that were merged for 3.6
-- Fix issues pointed out by Glauber.
-- Include the patches up to the point at which
-  the slab name handling is unified
-
-V5->V6:
-- Patches against Pekka's for-next tree.
-- Go slow and cut down to just patches that are safe
-  (there will likely be some churn already due to the
-  mutex unification between slabs)
-- More to come next week when I have more time (
-  took me almost the whole week to catch up after
-  being gone for awhile).
-
-V4->V5
-- Rediff against current upstream + Pekka's cleanup branch.
-
-V3->V4:
-- Do not use the COMMON macro anymore.
-- Fixup various issues
-- No general sysfs support yet due to lockdep issues with
-  keys in kmalloc'ed memory.
-
-V2->V3:
-- Incorporate more feedback from Joonsoo Kim and Glauber Costa
-- And a couple more patches to deal with slab duping and move
-  more code to slab_common.c
-
-V1->V2:
-- Incorporate glommers feedback.
-- Add 2 more patches dealing with common code in kmem_cache_destroy
-
-This is a series of patches that extracts common functionality from
-slab allocators into a common code base. The intend is to standardize
-as much as possible of the allocator behavior while keeping the
-distinctive features of each allocator which are mostly due to their
-storage format and serialization approaches.
-
-This patchset makes a beginning by extracting common functionality in
-kmem_cache_create() and kmem_cache_destroy(). However, there are
-numerous other areas where such work could be beneficial:
-
-1. Extract the sysfs support from SLUB and make it common. That way
-   all allocators have a common sysfs API and are handleable in the same
-   way regardless of the allocator chose.
-
-2. Extract the error reporting and checking from SLUB and make
-   it available for all allocators. This means that all allocators
-   will gain the resiliency and error handling capabilties.
-
-3. Extract the memory hotplug and cpu hotplug handling. It seems that
-   SLAB may be more sophisticated here. Having common code here will
-   make it easier to maintain the special code.
-
-4. Extract the aliasing capability of SLUB. This will enable fast
-   slab creation without creating too many additional slab caches.
-   The arrays of caches of varying sizes in numerous subsystems
-   do not cause the creation of numerous slab caches. Storage
-   density is increased and the cache footprint is reduced.
-
-Ultimately it is to be hoped that the special code for each allocator
-shrinks to a mininum. This will also make it easier to make modification
-to allocators.
-
-In the far future one could envision that the current allocators will
-just become storage algorithms that can be chosen based on the need of
-the subsystem. F.e.
-
-Cpu cache dependend performance		= Bonwick allocator (SLAB)
-Minimal cycle count and cache footprint	= SLUB
-Maximum storage density			= K&R allocator (SLOB)
+diff --git a/mm/slab.c b/mm/slab.c
+index a699031..6826d93 100644
+--- a/mm/slab.c
++++ b/mm/slab.c
+@@ -803,16 +803,6 @@ static void cache_estimate(unsigned long gfporder, size_t buffer_size,
+ 	*left_over = slab_size - nr_objs*buffer_size - mgmt_size;
+ }
+ 
+-#define slab_error(cachep, msg) __slab_error(__func__, cachep, msg)
+-
+-static void __slab_error(const char *function, struct kmem_cache *cachep,
+-			char *msg)
+-{
+-	printk(KERN_ERR "slab error in %s(): cache `%s': %s\n",
+-	       function, cachep->name, msg);
+-	dump_stack();
+-}
+-
+ /*
+  * By default on NUMA we use alien caches to stage the freeing of
+  * objects allocated from other nodes. This causes massive memory
+@@ -2206,7 +2196,7 @@ static void slab_destroy(struct kmem_cache *cachep, struct slab *slabp)
+ 	}
+ }
+ 
+-static void __kmem_cache_destroy(struct kmem_cache *cachep)
++void __kmem_cache_destroy(struct kmem_cache *cachep)
+ {
+ 	int i;
+ 	struct kmem_list3 *l3;
+@@ -2763,49 +2753,10 @@ int kmem_cache_shrink(struct kmem_cache *cachep)
+ }
+ EXPORT_SYMBOL(kmem_cache_shrink);
+ 
+-/**
+- * kmem_cache_destroy - delete a cache
+- * @cachep: the cache to destroy
+- *
+- * Remove a &struct kmem_cache object from the slab cache.
+- *
+- * It is expected this function will be called by a module when it is
+- * unloaded.  This will remove the cache completely, and avoid a duplicate
+- * cache being allocated each time a module is loaded and unloaded, if the
+- * module doesn't have persistent in-kernel storage across loads and unloads.
+- *
+- * The cache must be empty before calling this function.
+- *
+- * The caller must guarantee that no one will allocate memory from the cache
+- * during the kmem_cache_destroy().
+- */
+-void kmem_cache_destroy(struct kmem_cache *cachep)
++int __kmem_cache_shutdown(struct kmem_cache *cachep)
+ {
+-	BUG_ON(!cachep || in_interrupt());
+-
+-	/* Find the cache in the chain of caches. */
+-	get_online_cpus();
+-	mutex_lock(&slab_mutex);
+-	/*
+-	 * the chain is never empty, cache_cache is never destroyed
+-	 */
+-	list_del(&cachep->list);
+-	if (__cache_shrink(cachep)) {
+-		slab_error(cachep, "Can't free all objects");
+-		list_add(&cachep->list, &slab_caches);
+-		mutex_unlock(&slab_mutex);
+-		put_online_cpus();
+-		return;
+-	}
+-
+-	if (unlikely(cachep->flags & SLAB_DESTROY_BY_RCU))
+-		rcu_barrier();
+-
+-	__kmem_cache_destroy(cachep);
+-	mutex_unlock(&slab_mutex);
+-	put_online_cpus();
++	return __cache_shrink(cachep);
+ }
+-EXPORT_SYMBOL(kmem_cache_destroy);
+ 
+ /*
+  * Get the memory for a slab management obj.
+diff --git a/mm/slab.h b/mm/slab.h
+index db7848c..07a537e 100644
+--- a/mm/slab.h
++++ b/mm/slab.h
+@@ -30,4 +30,7 @@ extern struct list_head slab_caches;
+ struct kmem_cache *__kmem_cache_create(const char *name, size_t size,
+ 	size_t align, unsigned long flags, void (*ctor)(void *));
+ 
++int __kmem_cache_shutdown(struct kmem_cache *);
++void __kmem_cache_destroy(struct kmem_cache *);
++
+ #endif
+diff --git a/mm/slab_common.c b/mm/slab_common.c
+index d419a3e..5cc1371 100644
+--- a/mm/slab_common.c
++++ b/mm/slab_common.c
+@@ -140,6 +140,31 @@ out_locked:
+ }
+ EXPORT_SYMBOL(kmem_cache_create);
+ 
++void kmem_cache_destroy(struct kmem_cache *s)
++{
++	get_online_cpus();
++	mutex_lock(&slab_mutex);
++	s->refcount--;
++	if (!s->refcount) {
++		list_del(&s->list);
++
++		if (!__kmem_cache_shutdown(s)) {
++			if (s->flags & SLAB_DESTROY_BY_RCU)
++				rcu_barrier();
++
++			__kmem_cache_destroy(s);
++		} else {
++			list_add(&s->list, &slab_caches);
++			printk(KERN_ERR "kmem_cache_destroy %s: Slab cache still has objects\n",
++				s->name);
++			dump_stack();
++		}
++	}
++	mutex_unlock(&slab_mutex);
++	put_online_cpus();
++}
++EXPORT_SYMBOL(kmem_cache_destroy);
++
+ int slab_is_available(void)
+ {
+ 	return slab_state >= UP;
+diff --git a/mm/slob.c b/mm/slob.c
+index 5225d28..289be4f 100644
+--- a/mm/slob.c
++++ b/mm/slob.c
+@@ -538,18 +538,11 @@ struct kmem_cache *__kmem_cache_create(const char *name, size_t size,
+ 	return c;
+ }
+ 
+-void kmem_cache_destroy(struct kmem_cache *c)
++void __kmem_cache_destroy(struct kmem_cache *c)
+ {
+-	mutex_lock(&slab_mutex);
+-	list_del(&c->list);
+-	mutex_unlock(&slab_mutex);
+-
+ 	kmemleak_free(c);
+-	if (c->flags & SLAB_DESTROY_BY_RCU)
+-		rcu_barrier();
+ 	slob_free(c, sizeof(struct kmem_cache));
+ }
+-EXPORT_SYMBOL(kmem_cache_destroy);
+ 
+ void *kmem_cache_alloc_node(struct kmem_cache *c, gfp_t flags, int node)
+ {
+@@ -617,6 +610,12 @@ unsigned int kmem_cache_size(struct kmem_cache *c)
+ }
+ EXPORT_SYMBOL(kmem_cache_size);
+ 
++int __kmem_cache_shutdown(struct kmem_cache *c)
++{
++	/* No way to check for remaining objects */
++	return 0;
++}
++
+ int kmem_cache_shrink(struct kmem_cache *d)
+ {
+ 	return 0;
+diff --git a/mm/slub.c b/mm/slub.c
+index 37d5177..c99c0af 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -624,7 +624,7 @@ static void object_err(struct kmem_cache *s, struct page *page,
+ 	print_trailer(s, page, object);
+ }
+ 
+-static void slab_err(struct kmem_cache *s, struct page *page, char *fmt, ...)
++static void slab_err(struct kmem_cache *s, struct page *page, const char *fmt, ...)
+ {
+ 	va_list args;
+ 	char buf[100];
+@@ -3146,7 +3146,7 @@ static void list_slab_objects(struct kmem_cache *s, struct page *page,
+ 				     sizeof(long), GFP_ATOMIC);
+ 	if (!map)
+ 		return;
+-	slab_err(s, page, "%s", text);
++	slab_err(s, page, text, s->name);
+ 	slab_lock(page);
+ 
+ 	get_map(s, page, map);
+@@ -3178,7 +3178,7 @@ static void free_partial(struct kmem_cache *s, struct kmem_cache_node *n)
+ 			discard_slab(s, page);
+ 		} else {
+ 			list_slab_objects(s, page,
+-				"Objects remaining on kmem_cache_close()");
++			"Objects remaining in %s on kmem_cache_close()");
+ 		}
+ 	}
+ }
+@@ -3191,7 +3191,6 @@ static inline int kmem_cache_close(struct kmem_cache *s)
+ 	int node;
+ 
+ 	flush_all(s);
+-	free_percpu(s->cpu_slab);
+ 	/* Attempt to free all objects */
+ 	for_each_node_state(node, N_NORMAL_MEMORY) {
+ 		struct kmem_cache_node *n = get_node(s, node);
+@@ -3200,33 +3199,20 @@ static inline int kmem_cache_close(struct kmem_cache *s)
+ 		if (n->nr_partial || slabs_node(s, node))
+ 			return 1;
+ 	}
++	free_percpu(s->cpu_slab);
+ 	free_kmem_cache_nodes(s);
+ 	return 0;
+ }
+ 
+-/*
+- * Close a cache and release the kmem_cache structure
+- * (must be used for caches created using kmem_cache_create)
+- */
+-void kmem_cache_destroy(struct kmem_cache *s)
++int __kmem_cache_shutdown(struct kmem_cache *s)
+ {
+-	mutex_lock(&slab_mutex);
+-	s->refcount--;
+-	if (!s->refcount) {
+-		list_del(&s->list);
+-		mutex_unlock(&slab_mutex);
+-		if (kmem_cache_close(s)) {
+-			printk(KERN_ERR "SLUB %s: %s called for cache that "
+-				"still has objects.\n", s->name, __func__);
+-			dump_stack();
+-		}
+-		if (s->flags & SLAB_DESTROY_BY_RCU)
+-			rcu_barrier();
+-		sysfs_slab_remove(s);
+-	} else
+-		mutex_unlock(&slab_mutex);
++	return kmem_cache_close(s);
++}
++
++void __kmem_cache_destroy(struct kmem_cache *s)
++{
++	sysfs_slab_remove(s);
+ }
+-EXPORT_SYMBOL(kmem_cache_destroy);
+ 
+ /********************************************************************
+  *		Kmalloc subsystem
+-- 
+1.7.9.5
 
 
 --
