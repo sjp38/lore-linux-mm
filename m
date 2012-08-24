@@ -1,76 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
-	by kanga.kvack.org (Postfix) with SMTP id ACB846B002B
-	for <linux-mm@kvack.org>; Fri, 24 Aug 2012 17:51:53 -0400 (EDT)
-Date: Fri, 24 Aug 2012 14:51:51 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 1/2] mm/mmu_notifier: init notifier if necessary
-Message-Id: <20120824145151.b92557cc.akpm@linux-foundation.org>
-In-Reply-To: <1345819076-12545-1-git-send-email-liwanp@linux.vnet.ibm.com>
-References: <1345819076-12545-1-git-send-email-liwanp@linux.vnet.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
+	by kanga.kvack.org (Postfix) with SMTP id 5D6066B0044
+	for <linux-mm@kvack.org>; Fri, 24 Aug 2012 17:52:16 -0400 (EDT)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH 3/3] HWPOISON: prevent inode cache removal to keep AS_HWPOISON sticky
+Date: Fri, 24 Aug 2012 17:52:07 -0400
+Message-Id: <1345845127-13650-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <1345753903-31389-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Minchan Kim <minchan@kernel.org>, Gavin Shan <shangw@linux.vnet.ibm.com>
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Wu Fengguang <fengguang.wu@intel.com>, Andi Kleen <andi.kleen@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Tony Luck <tony.luck@intel.com>, Rik van Riel <riel@redhat.com>, Jun'ichi Nomura <j-nomura@ce.jp.nec.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, 24 Aug 2012 22:37:55 +0800
-Wanpeng Li <liwanp@linux.vnet.ibm.com> wrote:
+Hello,
 
-> From: Gavin Shan <shangw@linux.vnet.ibm.com>
+On Thu, Aug 23, 2012 at 04:31:43PM -0400, Naoya Horiguchi wrote:
+> On Thu, Aug 23, 2012 at 05:11:25PM +0800, Fengguang Wu wrote:
+> > On Wed, Aug 22, 2012 at 11:17:35AM -0400, Naoya Horiguchi wrote:
+...
+> > > diff --git v3.6-rc1.orig/fs/inode.c v3.6-rc1/fs/inode.c
+> > > index ac8d904..8742397 100644
+> > > --- v3.6-rc1.orig/fs/inode.c
+> > > +++ v3.6-rc1/fs/inode.c
+> > > @@ -717,6 +717,15 @@ void prune_icache_sb(struct super_block *sb, int nr_to_scan)
+> > >  		}
+> > >  
+> > >  		/*
+> > > +		 * Keep inode caches on memory for user processes to certainly
+> > > +		 * be aware of memory errors.
+> > > +		 */
+> > > +		if (unlikely(mapping_hwpoison(inode->i_mapping))) {
+> > > +			spin_unlock(&inode->i_lock);
+> > > +			continue;
+> > > +		}
+> > 
+> > That chunk prevents reclaiming all the cached pages. However the intention
+> > is only to keep the struct inode together with the hwpoison bit?
 > 
-> While registering MMU notifier, new instance of MMU notifier_mm will
-> be allocated and later free'd if currrent mm_struct's MMU notifier_mm
-> has been initialized. That cause some overhead. The patch tries to
-> eleminate that.
-> 
-> Signed-off-by: Gavin Shan <shangw@linux.vnet.ibm.com>
-> Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-> ---
->  mm/mmu_notifier.c |   22 +++++++++++-----------
->  1 files changed, 11 insertions(+), 11 deletions(-)
-> 
-> diff --git a/mm/mmu_notifier.c b/mm/mmu_notifier.c
-> index 862b608..fb4067f 100644
-> --- a/mm/mmu_notifier.c
-> +++ b/mm/mmu_notifier.c
-> @@ -192,22 +192,23 @@ static int do_mmu_notifier_register(struct mmu_notifier *mn,
->  
->  	BUG_ON(atomic_read(&mm->mm_users) <= 0);
->  
-> -	ret = -ENOMEM;
-> -	mmu_notifier_mm = kmalloc(sizeof(struct mmu_notifier_mm), GFP_KERNEL);
-> -	if (unlikely(!mmu_notifier_mm))
-> -		goto out;
-> -
->  	if (take_mmap_sem)
->  		down_write(&mm->mmap_sem);
->  	ret = mm_take_all_locks(mm);
->  	if (unlikely(ret))
-> -		goto out_cleanup;
-> +		goto out;
->  
->  	if (!mm_has_notifiers(mm)) {
-> +		mmu_notifier_mm = kmalloc(sizeof(struct mmu_notifier_mm),
-> +					GFP_ATOMIC);
+> Yes, we can not reclaim pagecaches from shrink_slab(), but we can do from
+> shrink_zone(). So it shouldn't happen that cached pages on hwpoisoned file
+> remain for long under high memory pressure.
 
-Why was the code switched to the far weaker GFP_ATOMIC?  We can still
-perform sleeping allocations inside mmap_sem.
+I might lose your point. Are you suggesting this chunk should come after
+if (inode_has_buffers(inode) || inode->i_data.nrpages) { ... } block,
+aren't you?  I think that's right, so I'll try and test it this weekend.
 
-> +		if (unlikely(!mmu_notifier_mm)) {
-> +			ret = -ENOMEM;
-> +			goto out_of_mem;
-> +		}
->  		INIT_HLIST_HEAD(&mmu_notifier_mm->list);
->  		spin_lock_init(&mmu_notifier_mm->lock);
-> +
->  		mm->mmu_notifier_mm = mmu_notifier_mm;
-> -		mmu_notifier_mm = NULL;
->  	}
->  	atomic_inc(&mm->mm_count);
->  
+> > > +		/*
+> > >  		 * Referenced or dirty inodes are still in use. Give them
+> > >  		 * another pass through the LRU as we canot reclaim them now.
+> > >  		 */
+> > > @@ -1405,6 +1414,9 @@ static void iput_final(struct inode *inode)
+> > >  		inode->i_state &= ~I_WILL_FREE;
+> > >  	}
+> > >  
+> > > +	if (unlikely(mapping_hwpoison(inode->i_mapping) && drop))
+> > > +		mapping_clear_hwpoison(inode->i_mapping);
+> > 
+> > Is that clear necessary? Because the bit will be gone with the inode
+> > struct: it's going to be de-allocated anyway.
+> 
+> With the chunk in prune_icache_sb() we keep the inode struct with
+> AS_HWPOISON set on memory, so in order to remove it, we need explicitly
+> clear the bit.
+> Without this clear, the inode remains until system reboot.
+
+And again, you are right here. Without this clear, this inode will be
+cleared in destroy_inode().
+
+Thanks,
+Naoya
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
