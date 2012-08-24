@@ -1,145 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
-	by kanga.kvack.org (Postfix) with SMTP id A48CF6B009B
-	for <linux-mm@kvack.org>; Fri, 24 Aug 2012 12:17:31 -0400 (EDT)
-Message-Id: <00000139596c8acb-b15f7991-0015-4be6-81c0-818a4475aac2-000000@email.amazonses.com>
-Date: Fri, 24 Aug 2012 16:17:29 +0000
+Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
+	by kanga.kvack.org (Postfix) with SMTP id 504506B009C
+	for <linux-mm@kvack.org>; Fri, 24 Aug 2012 12:17:36 -0400 (EDT)
+Message-Id: <00000139596ca1bb-cd01519b-4a4a-4673-9567-2f2b6d7d3616-000000@email.amazonses.com>
+Date: Fri, 24 Aug 2012 16:17:35 +0000
 From: Christoph Lameter <cl@linux.com>
-Subject: C13 [04/14] Move list_add() to slab_common.c
+Subject: C13 [01/14] slub: Add debugging to verify correct cache use on kmem_cache_free()
 References: <20120824160903.168122683@linux.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Pekka Enberg <penberg@kernel.org>
-Cc: Joonsoo Kim <js1304@gmail.com>, David Rientjes <rientjes@google.com>, Glauber Costa <glommer@parallels.com>, linux-mm@kvack.org
+Cc: Joonsoo Kim <js1304@gmail.com>, Glauber Costa <glommer@parallels.com>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>
 
-Move the code to append the new kmem_cache to the list of slab caches to
-the kmem_cache_create code in the shared code.
+Add additional debugging to check that the objects is actually from the cache
+the caller claims. Doing so currently trips up some other debugging code. It
+takes a lot to infer from that what was happening.
 
-This is possible now since the acquisition of the mutex was moved into
-kmem_cache_create().
+V2: Only warn once.
 
-V1->V2:
-	- SLOB: Add code to remove the slab from list
-	 (will be removed a couple of patches down when we also move the
-	 list_del to common code).
-
-Acked-by: David Rientjes <rientjes@google.com>
-Reviewed-by: Glauber Costa <glommer@parallels.com>
-Reviewed-by: Joonsoo Kim <js1304@gmail.com>
 Signed-off-by: Christoph Lameter <cl@linux.com>
 ---
- mm/slab.c        |    7 +++++--
- mm/slab_common.c |    7 +++++++
- mm/slob.c        |    4 ++++
- mm/slub.c        |    2 --
- 4 files changed, 16 insertions(+), 4 deletions(-)
+ mm/slub.c |    7 +++++++
+ 1 file changed, 7 insertions(+)
 
-diff --git a/mm/slab.c b/mm/slab.c
-index 3b4587b..a699031 100644
---- a/mm/slab.c
-+++ b/mm/slab.c
-@@ -1680,6 +1680,7 @@ void __init kmem_cache_init(void)
- 					ARCH_KMALLOC_FLAGS|SLAB_PANIC,
- 					NULL);
- 
-+	list_add(&sizes[INDEX_AC].cs_cachep->list, &slab_caches);
- 	if (INDEX_AC != INDEX_L3) {
- 		sizes[INDEX_L3].cs_cachep =
- 			__kmem_cache_create(names[INDEX_L3].name,
-@@ -1687,6 +1688,7 @@ void __init kmem_cache_init(void)
- 				ARCH_KMALLOC_MINALIGN,
- 				ARCH_KMALLOC_FLAGS|SLAB_PANIC,
- 				NULL);
-+		list_add(&sizes[INDEX_L3].cs_cachep->list, &slab_caches);
- 	}
- 
- 	slab_early_init = 0;
-@@ -1705,6 +1707,7 @@ void __init kmem_cache_init(void)
- 					ARCH_KMALLOC_MINALIGN,
- 					ARCH_KMALLOC_FLAGS|SLAB_PANIC,
- 					NULL);
-+			list_add(&sizes->cs_cachep->list, &slab_caches);
- 		}
- #ifdef CONFIG_ZONE_DMA
- 		sizes->cs_dmacachep = __kmem_cache_create(
-@@ -1714,6 +1717,7 @@ void __init kmem_cache_init(void)
- 					ARCH_KMALLOC_FLAGS|SLAB_CACHE_DMA|
- 						SLAB_PANIC,
- 					NULL);
-+		list_add(&sizes->cs_dmacachep->list, &slab_caches);
- #endif
- 		sizes++;
- 		names++;
-@@ -2583,6 +2587,7 @@ __kmem_cache_create (const char *name, size_t size, size_t align,
- 	}
- 	cachep->ctor = ctor;
- 	cachep->name = name;
-+	cachep->refcount = 1;
- 
- 	if (setup_cpu_cache(cachep, gfp)) {
- 		__kmem_cache_destroy(cachep);
-@@ -2599,8 +2604,6 @@ __kmem_cache_create (const char *name, size_t size, size_t align,
- 		slab_set_debugobj_lock_classes(cachep);
- 	}
- 
--	/* cache setup completed, link it into the list */
--	list_add(&cachep->list, &slab_caches);
- 	return cachep;
- }
- 
-diff --git a/mm/slab_common.c b/mm/slab_common.c
-index b61c9ae..d419a3e 100644
---- a/mm/slab_common.c
-+++ b/mm/slab_common.c
-@@ -111,6 +111,13 @@ struct kmem_cache *kmem_cache_create(const char *name, size_t size, size_t align
- 	if (!s)
- 		err = -ENOSYS; /* Until __kmem_cache_create returns code */
- 
-+	/*
-+	 * Check if the slab has actually been created and if it was a
-+	 * real instatiation. Aliases do not belong on the list
-+	 */
-+	if (s && s->refcount == 1)
-+		list_add(&s->list, &slab_caches);
-+
- out_locked:
- 	mutex_unlock(&slab_mutex);
- 	put_online_cpus();
-diff --git a/mm/slob.c b/mm/slob.c
-index 45d4ca7..5225d28 100644
---- a/mm/slob.c
-+++ b/mm/slob.c
-@@ -540,6 +540,10 @@ struct kmem_cache *__kmem_cache_create(const char *name, size_t size,
- 
- void kmem_cache_destroy(struct kmem_cache *c)
- {
-+	mutex_lock(&slab_mutex);
-+	list_del(&c->list);
-+	mutex_unlock(&slab_mutex);
-+
- 	kmemleak_free(c);
- 	if (c->flags & SLAB_DESTROY_BY_RCU)
- 		rcu_barrier();
 diff --git a/mm/slub.c b/mm/slub.c
-index e0b9403..37d5177 100644
+index c67bd0a..00f8557 100644
 --- a/mm/slub.c
 +++ b/mm/slub.c
-@@ -3975,7 +3975,6 @@ struct kmem_cache *__kmem_cache_create(const char *name, size_t size,
- 				size, align, flags, ctor)) {
- 			int r;
+@@ -2614,6 +2614,13 @@ void kmem_cache_free(struct kmem_cache *s, void *x)
  
--			list_add(&s->list, &slab_caches);
- 			mutex_unlock(&slab_mutex);
- 			r = sysfs_slab_add(s);
- 			mutex_lock(&slab_mutex);
-@@ -3983,7 +3982,6 @@ struct kmem_cache *__kmem_cache_create(const char *name, size_t size,
- 			if (!r)
- 				return s;
+ 	page = virt_to_head_page(x);
  
--			list_del(&s->list);
- 			kmem_cache_close(s);
- 		}
- 		kmem_cache_free(kmem_cache, s);
++	if (kmem_cache_debug(s) && page->slab != s) {
++		printk("kmem_cache_free: Wrong slab cache. %s but object"
++			" is from  %s\n", page->slab->name, s->name);
++		WARN_ON_ONCE(1);
++		return;
++	}
++
+ 	slab_free(s, page, x, _RET_IP_);
+ 
+ 	trace_kmem_cache_free(_RET_IP_, x);
 -- 
 1.7.9.5
 
