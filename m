@@ -1,88 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
-	by kanga.kvack.org (Postfix) with SMTP id 360146B002B
-	for <linux-mm@kvack.org>; Fri, 24 Aug 2012 15:46:52 -0400 (EDT)
-Received: by bkcjc3 with SMTP id jc3so824882bkc.14
-        for <linux-mm@kvack.org>; Fri, 24 Aug 2012 12:46:50 -0700 (PDT)
-Message-ID: <5037DA47.9010306@gmail.com>
-Date: Fri, 24 Aug 2012 21:47:19 +0200
-From: Sasha Levin <levinsasha928@gmail.com>
+Received: from psmtp.com (na3sys010amx127.postini.com [74.125.245.127])
+	by kanga.kvack.org (Postfix) with SMTP id 7032F6B005D
+	for <linux-mm@kvack.org>; Fri, 24 Aug 2012 15:54:49 -0400 (EDT)
+Received: from /spool/local
+	by e3.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
+	Fri, 24 Aug 2012 15:54:44 -0400
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id D982438C8041
+	for <linux-mm@kvack.org>; Fri, 24 Aug 2012 15:54:10 -0400 (EDT)
+Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
+	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q7OJs9DE184680
+	for <linux-mm@kvack.org>; Fri, 24 Aug 2012 15:54:10 -0400
+Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av01.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q7OJrxPY002353
+	for <linux-mm@kvack.org>; Fri, 24 Aug 2012 13:54:00 -0600
+Date: Fri, 24 Aug 2012 12:53:57 -0700
+From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Subject: Re: [PATCH 2/3] kmemleak: replace list_for_each_continue_rcu with
+ new interface
+Message-ID: <20120824195357.GR2472@linux.vnet.ibm.com>
+Reply-To: paulmck@linux.vnet.ibm.com
+References: <502CB92F.2010700@linux.vnet.ibm.com>
+ <502DC99E.4060408@linux.vnet.ibm.com>
+ <5036D062.7070003@linux.vnet.ibm.com>
+ <20120824100505.GG7585@arm.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v3 01/17] hashtable: introduce a small and naive hashtable
-References: <1345602432-27673-1-git-send-email-levinsasha928@gmail.com> <1345602432-27673-2-git-send-email-levinsasha928@gmail.com> <20120822180138.GA19212@google.com> <50357840.5020201@gmail.com> <20120823200456.GD14962@google.com>
-In-Reply-To: <20120823200456.GD14962@google.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120824100505.GG7585@arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: torvalds@linux-foundation.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, paul.gortmaker@windriver.com, davem@davemloft.net, rostedt@goodmis.org, mingo@elte.hu, ebiederm@xmission.com, aarcange@redhat.com, ericvh@gmail.com, netdev@vger.kernel.org, josh@joshtriplett.org, eric.dumazet@gmail.com, mathieu.desnoyers@efficios.com, axboe@kernel.dk, agk@redhat.com, dm-devel@redhat.com, neilb@suse.de, ccaulfie@redhat.com, teigland@redhat.com, Trond.Myklebust@netapp.com, bfields@fieldses.org, fweisbec@gmail.com, jesse@nicira.com, venkat.x.venkatsubra@oracle.com, ejt@redhat.com, snitzer@redhat.com, edumazet@google.com, linux-nfs@vger.kernel.org, dev@openvswitch.org, rds-devel@oss.oracle.com, lw@cn.fujitsu.com
+To: Catalin Marinas <catalin.marinas@arm.com>
+Cc: Michael Wang <wangyun@linux.vnet.ibm.com>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On 08/23/2012 10:04 PM, Tejun Heo wrote:
-> Hello, Sasha.
+On Fri, Aug 24, 2012 at 11:05:05AM +0100, Catalin Marinas wrote:
+> On Fri, Aug 24, 2012 at 01:52:50AM +0100, Michael Wang wrote:
+> > On 08/17/2012 12:33 PM, Michael Wang wrote:
+> > > From: Michael Wang <wangyun@linux.vnet.ibm.com>
+> > > 
+> > > This patch replaces list_for_each_continue_rcu() with
+> > > list_for_each_entry_continue_rcu() to save a few lines
+> > > of code and allow removing list_for_each_continue_rcu().
+> > 
+> > Could I get some comments on this patch?
 > 
-> On Thu, Aug 23, 2012 at 02:24:32AM +0200, Sasha Levin wrote:
->>> I think the almost trivial nature of hlist hashtables makes this a bit
->>> tricky and I'm not very sure but having this combinatory explosion is
->>> a bit dazzling when the same functionality can be achieved by simply
->>> combining operations which are already defined and named considering
->>> hashtable.  I'm not feeling too strong about this tho.  What do others
->>> think?
->>
->> I'm thinking that this hashtable API will have 2 purposes: First, it would
->> prevent the excessive duplication of hashtable implementations all around the code.
->>
->> Second, it will allow more easily interchangeable hashtable implementations to
->> find their way into the kernel. There are several maintainers who would be happy
->> to see dynamically sized RCU hashtable, and I'm guessing that several more
->> variants could be added based on needs in specific modules.
->>
->> The second reason is why several things you've mentioned look the way they are:
->>
->>  - No DEFINE_HASHTABLE(): I wanted to force the use of hash_init() since
->> initialization for other hashtables may be more complicated than the static
->> initialization for this implementation, which means that any place that used
->> DEFINE_HASHTABLE() and didn't do hash_init() will be buggy.
+> Sorry, busy with other things and forgot about this.
 > 
-> I think this is problematic.  It looks exactly like other existing
-> DEFINE macros yet what its semantics is different.  I don't think
-> that's a good idea.
+> Acked-by: Catalin Marinas <catalin.marinas@arm.com>
 
-I can switch that to be DECLARE_HASHTABLE() if the issue is semantics.
+Queued, thank you both!
 
->> I'm actually tempted in hiding hlist completely from hashtable users, probably
->> by simply defining a hash_head/hash_node on top of the hlist_ counterparts.
-> 
-> I think that it would be best to keep this one simple & obvious, which
-> already has enough in-kernel users to justify its existence.  There
-> are significant benefits in being trivially understandable and
-> expectable.  If we want more advanced ones - say resizing, hybrid or
-> what not, let's make that a separate one.  No need to complicate the
-> common straight-forward case for that.
-> 
-> So, I think it would be best to keep this one as straight-forward and
-> trivial as possible.  Helper macros to help its users are fine but
-> let's please not go for full encapsulation.
-
-What if we cut off the dynamic allocated (but not resizable) hashtable out for
-the moment, and focus on the most common statically allocated hashtable case?
-
-The benefits would be:
-
- - Getting rid of all the _size() macros, which will make the amount of helpers
-here reasonable.
- - Dynamically allocated hashtable can be easily added as a separate
-implementation using the same API. We already have some of those in the kernel...
- - When that's ready, I feel it's a shame to lose full encapsulation just due to
-hash_hashed().
-
-
-Thanks,
-Sasha
-
-> 
-> Thanks.
-> 
+							Thanx, Paul
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
