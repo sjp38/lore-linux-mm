@@ -1,97 +1,119 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
-	by kanga.kvack.org (Postfix) with SMTP id 55E5E6B0069
-	for <linux-mm@kvack.org>; Fri, 24 Aug 2012 12:07:11 -0400 (EDT)
-Received: by mail-pb0-f41.google.com with SMTP id ro12so4071582pbb.14
-        for <linux-mm@kvack.org>; Fri, 24 Aug 2012 09:07:10 -0700 (PDT)
-From: Joonsoo Kim <js1304@gmail.com>
-Subject: [PATCH 2/2] slub: correct the calculation of the number of cpu objects in get_partial_node
-Date: Sat, 25 Aug 2012 01:05:03 +0900
-Message-Id: <1345824303-30292-2-git-send-email-js1304@gmail.com>
-In-Reply-To: <1345824303-30292-1-git-send-email-js1304@gmail.com>
-References: <Yes>
- <1345824303-30292-1-git-send-email-js1304@gmail.com>
+Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
+	by kanga.kvack.org (Postfix) with SMTP id 832E76B0072
+	for <linux-mm@kvack.org>; Fri, 24 Aug 2012 12:09:14 -0400 (EDT)
+Message-Id: <000001395964f744-d2c49443-b8b7-4ab8-bcab-ab68a418f276-000000@email.amazonses.com>
+Date: Fri, 24 Aug 2012 16:09:12 +0000
+From: Christoph Lameter <cl@linux.com>
+Subject: C13 [00/14] Sl[auo]b: Common code for cgroups V13
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Pekka Enberg <penberg@kernel.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Joonsoo Kim <js1304@gmail.com>, Christoph Lameter <cl@linux-foundation.org>
+Cc: Joonsoo Kim <js1304@gmail.com>, Glauber Costa <glommer@parallels.com>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>
 
-In get_partial_node(), we want to refill cpu slab and cpu partial slabs
-until the number of object kept in the per cpu slab and cpu partial lists
-of a processor is reached to max_cpu_object.
+V12->V13
+- Reduce patches to those useful for cgroup support
+- Additional patches continuing slab unification will
+  be posted separately.
 
-However, in current implementation, it is not achieved.
-See following code in get_partial_node().
+V10->V11
+- Fix issues pointed out by Joonsoo and Glauber
+- Simplify Slab bootstrap further
 
-if (!object) {
-	c->page = page;
-	stat(s, ALLOC_FROM_PARTIAL);
-	object = t;
-	available =  page->objects - page->inuse;
-} else {
-	available = put_cpu_partial(s, page, 0);
-	stat(s, CPU_PARTIAL_NODE);
-}
-if (kmem_cache_debug(s) || available > s->cpu_partial / 2)
-	break;
+V9->V10
+- Memory leak was a false alarm
+- Resequence patches to make it easier
+  to apply.
+- Do more boot sequence consolidation in slab/slub.
+  [We could still do much more like common kmalloc
+  handling]
+- Fixes suggested by David and Glauber
 
-In case of !object (available = page->objects - page->inuse),
-"available" means the number of objects in cpu slab.
-In this time, we don't have any cpu partial slab, so "available" imply
-the number of objects available to the cpu without locking.
-This is what we want.
+V8->V9:
+- Fix numerous things pointed out by Glauber.
+- Cleanup the way error handling works in the
+  common kmem_cache_create() function.
+- General cleanup by breaking things up
+  into multiple patches were necessary.
 
-But, look at another "available" (available = put_cpu_partial(s, page, 0)).
-This "available" doesn't include the number of objects in cpu slab.
-It only include the number of objects in cpu partial slabs.
-So, it doesn't imply the number of objects available to the cpu without locking.
-This isn't what we want.
+V7->V8:
+- Do not use kfree for kmem_cache in slub.
+- Add more patches up to a common
+  scheme for object alignment.
 
-Therefore fix it to imply same meaning in both case
-and rename "available" to "cpu_slab_objects" for readability.
+V6->V7:
+- Omit pieces that were merged for 3.6
+- Fix issues pointed out by Glauber.
+- Include the patches up to the point at which
+  the slab name handling is unified
 
-Signed-off-by: Joonsoo Kim <js1304@gmail.com>
-Cc: Christoph Lameter <cl@linux-foundation.org>
+V5->V6:
+- Patches against Pekka's for-next tree.
+- Go slow and cut down to just patches that are safe
+  (there will likely be some churn already due to the
+  mutex unification between slabs)
+- More to come next week when I have more time (
+  took me almost the whole week to catch up after
+  being gone for awhile).
 
-diff --git a/mm/slub.c b/mm/slub.c
-index d597530..c96e0e4 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -1538,6 +1538,7 @@ static void *get_partial_node(struct kmem_cache *s,
- {
- 	struct page *page, *page2;
- 	void *object = NULL;
-+	int cpu_slab_objects = 0, pobjects = 0;
- 
- 	/*
- 	 * Racy check. If we mistakenly see no partial slabs then we
-@@ -1551,7 +1552,6 @@ static void *get_partial_node(struct kmem_cache *s,
- 	spin_lock(&n->list_lock);
- 	list_for_each_entry_safe(page, page2, &n->partial, lru) {
- 		void *t = acquire_slab(s, n, page, object == NULL);
--		int available;
- 
- 		if (!t)
- 			break;
-@@ -1560,12 +1560,13 @@ static void *get_partial_node(struct kmem_cache *s,
- 			c->page = page;
- 			stat(s, ALLOC_FROM_PARTIAL);
- 			object = t;
--			available =  page->objects - page->inuse;
-+			cpu_slab_objects = page->objects - page->inuse;
- 		} else {
--			available = put_cpu_partial(s, page, 0);
-+			pobjects = put_cpu_partial(s, page, 0);
- 			stat(s, CPU_PARTIAL_NODE);
- 		}
--		if (kmem_cache_debug(s) || available > s->max_cpu_object / 2)
-+		if (kmem_cache_debug(s)
-+			|| cpu_slab_objects + pobjects > s->max_cpu_object / 2)
- 			break;
- 
- 	}
--- 
-1.7.9.5
+V4->V5
+- Rediff against current upstream + Pekka's cleanup branch.
+
+V3->V4:
+- Do not use the COMMON macro anymore.
+- Fixup various issues
+- No general sysfs support yet due to lockdep issues with
+  keys in kmalloc'ed memory.
+
+V2->V3:
+- Incorporate more feedback from Joonsoo Kim and Glauber Costa
+- And a couple more patches to deal with slab duping and move
+  more code to slab_common.c
+
+V1->V2:
+- Incorporate glommers feedback.
+- Add 2 more patches dealing with common code in kmem_cache_destroy
+
+This is a series of patches that extracts common functionality from
+slab allocators into a common code base. The intend is to standardize
+as much as possible of the allocator behavior while keeping the
+distinctive features of each allocator which are mostly due to their
+storage format and serialization approaches.
+
+This patchset makes a beginning by extracting common functionality in
+kmem_cache_create() and kmem_cache_destroy(). However, there are
+numerous other areas where such work could be beneficial:
+
+1. Extract the sysfs support from SLUB and make it common. That way
+   all allocators have a common sysfs API and are handleable in the same
+   way regardless of the allocator chose.
+
+2. Extract the error reporting and checking from SLUB and make
+   it available for all allocators. This means that all allocators
+   will gain the resiliency and error handling capabilties.
+
+3. Extract the memory hotplug and cpu hotplug handling. It seems that
+   SLAB may be more sophisticated here. Having common code here will
+   make it easier to maintain the special code.
+
+4. Extract the aliasing capability of SLUB. This will enable fast
+   slab creation without creating too many additional slab caches.
+   The arrays of caches of varying sizes in numerous subsystems
+   do not cause the creation of numerous slab caches. Storage
+   density is increased and the cache footprint is reduced.
+
+Ultimately it is to be hoped that the special code for each allocator
+shrinks to a mininum. This will also make it easier to make modification
+to allocators.
+
+In the far future one could envision that the current allocators will
+just become storage algorithms that can be chosen based on the need of
+the subsystem. F.e.
+
+Cpu cache dependend performance		= Bonwick allocator (SLAB)
+Minimal cycle count and cache footprint	= SLUB
+Maximum storage density			= K&R allocator (SLOB)
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
