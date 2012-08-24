@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
-	by kanga.kvack.org (Postfix) with SMTP id 5446C6B002B
-	for <linux-mm@kvack.org>; Fri, 24 Aug 2012 10:34:54 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx167.postini.com [74.125.245.167])
+	by kanga.kvack.org (Postfix) with SMTP id A89066B002B
+	for <linux-mm@kvack.org>; Fri, 24 Aug 2012 10:35:34 -0400 (EDT)
 Received: from /spool/local
-	by e28smtp02.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e28smtp09.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Fri, 24 Aug 2012 20:04:50 +0530
-Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
-	by d28relay03.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q7OEYlIw6029758
-	for <linux-mm@kvack.org>; Fri, 24 Aug 2012 20:04:47 +0530
-Received: from d28av05.in.ibm.com (loopback [127.0.0.1])
-	by d28av05.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q7OEYkSn004833
-	for <linux-mm@kvack.org>; Sat, 25 Aug 2012 00:34:47 +1000
+	Fri, 24 Aug 2012 20:05:31 +0530
+Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
+	by d28relay03.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q7OEZSXH6029650
+	for <linux-mm@kvack.org>; Fri, 24 Aug 2012 20:05:28 +0530
+Received: from d28av04.in.ibm.com (loopback [127.0.0.1])
+	by d28av04.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q7OEZRNm014884
+	for <linux-mm@kvack.org>; Sat, 25 Aug 2012 00:35:27 +1000
 From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: [PATCH 3/5] mm/memblock: reduce overhead in binary search
-Date: Fri, 24 Aug 2012 22:33:38 +0800
-Message-Id: <1345818820-12102-3-git-send-email-liwanp@linux.vnet.ibm.com>
+Subject: [PATCH 4/5] mm/memblock: use existing interface to set nid
+Date: Fri, 24 Aug 2012 22:33:39 +0800
+Message-Id: <1345818820-12102-4-git-send-email-liwanp@linux.vnet.ibm.com>
 In-Reply-To: <1345818820-12102-1-git-send-email-liwanp@linux.vnet.ibm.com>
 References: <1345818820-12102-1-git-send-email-liwanp@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
@@ -25,33 +25,27 @@ Cc: linux-kernel@vger.kernel.org, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyu
 
 From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 
-When checking the indicated address belongs to the memory
-or reserved region, the memory or reserved regions are checked
-one by one through binary search, which would be a little
-time consuming. If the indicated address isn't in memory
-region, then we needn't do the time-sonsuming search. The
-patch adds more check on the indicated address for that purpose.
+Use existing interface (function) to set NUMA node ID (NID) for
+the regions, either memory or reserved region.
 
 Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 ---
- mm/memblock.c |    4 ++++
- 1 files changed, 4 insertions(+), 0 deletions(-)
+ mm/memblock.c |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
 
 diff --git a/mm/memblock.c b/mm/memblock.c
-index 2feff8d..880e461 100644
+index 880e461..3620493 100644
 --- a/mm/memblock.c
 +++ b/mm/memblock.c
-@@ -871,6 +871,10 @@ static int __init_memblock memblock_search(struct memblock_type *type, phys_addr
- {
- 	unsigned int left = 0, right = type->cnt;
+@@ -756,7 +756,7 @@ int __init_memblock memblock_set_node(phys_addr_t base, phys_addr_t size,
+ 		return ret;
  
-+	if (unlikely(addr < memblock_start_of_DRAM() ||
-+		addr >= memblock_end_of_DRAM()))
-+			return 0;
-+
- 	do {
- 		unsigned int mid = (right + left) / 2;
+ 	for (i = start_rgn; i < end_rgn; i++)
+-		type->regions[i].nid = nid;
++		memblock_set_region_node(&type->regions[i], nid);
  
+ 	memblock_merge_regions(type);
+ 	return 0;
 -- 
 1.7.5.4
 
