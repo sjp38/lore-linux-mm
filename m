@@ -1,76 +1,185 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
-	by kanga.kvack.org (Postfix) with SMTP id E3B7D6B002B
-	for <linux-mm@kvack.org>; Sat, 25 Aug 2012 00:24:21 -0400 (EDT)
-Date: Sat, 25 Aug 2012 00:24:19 -0400
-From: Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
-Subject: Re: [PATCH v3 01/17] hashtable: introduce a small and naive
-	hashtable
-Message-ID: <20120825042419.GA27240@Krystal>
-References: <50357840.5020201@gmail.com> <20120823200456.GD14962@google.com> <5037DA47.9010306@gmail.com> <20120824195941.GC21325@google.com> <5037E00B.6090606@gmail.com> <20120824203332.GF21325@google.com> <5037E9D9.9000605@gmail.com> <20120824212348.GK21325@google.com> <5038074D.300@gmail.com> <20120824230740.GN21325@google.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120824230740.GN21325@google.com>
+Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
+	by kanga.kvack.org (Postfix) with SMTP id 6E5946B002B
+	for <linux-mm@kvack.org>; Sat, 25 Aug 2012 01:25:26 -0400 (EDT)
+From: Rafael Aquini <aquini@redhat.com>
+Subject: [PATCH v9 2/5] mm: introduce compaction and migration for ballooned pages
+Date: Sat, 25 Aug 2012 02:24:57 -0300
+Message-Id: <c284efbe61157e6164af01d0e362a222a53a075a.1345869378.git.aquini@redhat.com>
+In-Reply-To: <cover.1345869378.git.aquini@redhat.com>
+References: <cover.1345869378.git.aquini@redhat.com>
+In-Reply-To: <cover.1345869378.git.aquini@redhat.com>
+References: <cover.1345869378.git.aquini@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Sasha Levin <levinsasha928@gmail.com>, torvalds@linux-foundation.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, paul.gortmaker@windriver.com, davem@davemloft.net, rostedt@goodmis.org, mingo@elte.hu, ebiederm@xmission.com, aarcange@redhat.com, ericvh@gmail.com, netdev@vger.kernel.org, josh@joshtriplett.org, eric.dumazet@gmail.com, axboe@kernel.dk, agk@redhat.com, dm-devel@redhat.com, neilb@suse.de, ccaulfie@redhat.com, teigland@redhat.com, Trond.Myklebust@netapp.com, bfields@fieldses.org, fweisbec@gmail.com, jesse@nicira.com, venkat.x.venkatsubra@oracle.com, ejt@redhat.com, snitzer@redhat.com, edumazet@google.com, linux-nfs@vger.kernel.org, dev@openvswitch.org, rds-devel@oss.oracle.com, lw@cn.fujitsu.com
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, Rusty Russell <rusty@rustcorp.com.au>, "Michael S. Tsirkin" <mst@redhat.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Minchan Kim <minchan@kernel.org>, Peter Zijlstra <peterz@infradead.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Rafael Aquini <aquini@redhat.com>
 
-* Tejun Heo (tj@kernel.org) wrote:
-> Hello,
-> 
-> On Sat, Aug 25, 2012 at 12:59:25AM +0200, Sasha Levin wrote:
-> > Thats the thing, the amount of things of things you can do with a given bucket
-> > is very limited. You can't add entries to any point besides the head (without
-> > walking the entire list).
-> 
-> Kinda my point.  We already have all the hlist*() interface to deal
-> with such cases.  Having something which is evidently the trivial
-> hlist hashtable and advertises as such in the interface can be
-> helpful.  I think we need that more than we need anything fancy.
-> 
-> Heh, this is a debate about which one is less insignificant.  I can
-> see your point.  I'd really like to hear what others think on this.
-> 
-> Guys, do we want something which is evidently trivial hlist hashtable
-> which can use hlist_*() API directly or do we want something better
-> encapsulated?
+Memory fragmentation introduced by ballooning might reduce significantly
+the number of 2MB contiguous memory blocks that can be used within a guest,
+thus imposing performance penalties associated with the reduced number of
+transparent huge pages that could be used by the guest workload.
 
-My 2 cents, FWIW: I think this specific effort should target a trivially
-understandable API and implementation, for use-cases where one would be
-tempted to reimplement his own trivial hash table anyway. So here
-exposing hlist internals, with which kernel developers are already
-familiar, seems like a good approach in my opinion, because hiding stuff
-behind new abstraction might make the target users go away.
+This patch introduces the helper functions as well as the necessary changes
+to teach compaction and migration bits how to cope with pages which are
+part of a guest memory balloon, in order to make them movable by memory
+compaction procedures.
 
-Then, as we see the need, we can eventually merge a more elaborate hash
-table with poneys and whatnot, but I would expect that the trivial hash
-table implementation would still be useful. There are of course very
-compelling reasons to use a more featureful hash table: automatic
-resize, RT-aware updates, scalable updates, etc... but I see a purpose
-for a trivial implementation. Its primary strong points being:
+Signed-off-by: Rafael Aquini <aquini@redhat.com>
+---
+ mm/compaction.c | 47 ++++++++++++++++++++++++++++-------------------
+ mm/migrate.c    | 36 ++++++++++++++++++++++++++++++++++--
+ 2 files changed, 62 insertions(+), 21 deletions(-)
 
-- it's trivially understandable, so anyone how want to be really sure
-  they won't end up debugging the hash table instead of their
-  work-in-progress code can have a full understanding of it,
-- it has few dependencies, which makes it easier to understand and
-  easier to use in some contexts (e.g. early boot).
-
-So I'm in favor of not overdoing the abstraction for this trivial hash
-table, and honestly I would rather prefer that this trivial hash table
-stays trivial. A more elaborate hash table should probably come as a
-separate API.
-
-Thanks,
-
-Mathieu
-
+diff --git a/mm/compaction.c b/mm/compaction.c
+index 7fcd3a5..e50836b 100644
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -14,6 +14,7 @@
+ #include <linux/backing-dev.h>
+ #include <linux/sysctl.h>
+ #include <linux/sysfs.h>
++#include <linux/balloon_compaction.h>
+ #include "internal.h"
+ 
+ #if defined CONFIG_COMPACTION || defined CONFIG_CMA
+@@ -358,32 +359,40 @@ isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
+ 			continue;
+ 		}
+ 
+-		if (!PageLRU(page))
+-			continue;
+-
+ 		/*
+-		 * PageLRU is set, and lru_lock excludes isolation,
+-		 * splitting and collapsing (collapsing has already
+-		 * happened if PageLRU is set).
++		 * It is possible to migrate LRU pages and balloon pages.
++		 * Skip any other type of page.
+ 		 */
+-		if (PageTransHuge(page)) {
+-			low_pfn += (1 << compound_order(page)) - 1;
+-			continue;
+-		}
++		if (PageLRU(page)) {
++			/*
++			 * PageLRU is set, and lru_lock excludes isolation,
++			 * splitting and collapsing (collapsing has already
++			 * happened if PageLRU is set).
++			 */
++			if (PageTransHuge(page)) {
++				low_pfn += (1 << compound_order(page)) - 1;
++				continue;
++			}
+ 
+-		if (!cc->sync)
+-			mode |= ISOLATE_ASYNC_MIGRATE;
++			if (!cc->sync)
++				mode |= ISOLATE_ASYNC_MIGRATE;
+ 
+-		lruvec = mem_cgroup_page_lruvec(page, zone);
++			lruvec = mem_cgroup_page_lruvec(page, zone);
+ 
+-		/* Try isolate the page */
+-		if (__isolate_lru_page(page, mode) != 0)
+-			continue;
++			/* Try isolate the page */
++			if (__isolate_lru_page(page, mode) != 0)
++				continue;
+ 
+-		VM_BUG_ON(PageTransCompound(page));
++			VM_BUG_ON(PageTransCompound(page));
++
++			/* Successfully isolated */
++			del_page_from_lru_list(page, lruvec, page_lru(page));
++		} else if (unlikely(movable_balloon_page(page))) {
++			if (!isolate_balloon_page(page))
++				continue;
++		} else
++			continue;
+ 
+-		/* Successfully isolated */
+-		del_page_from_lru_list(page, lruvec, page_lru(page));
+ 		list_add(&page->lru, migratelist);
+ 		cc->nr_migratepages++;
+ 		nr_isolated++;
+diff --git a/mm/migrate.c b/mm/migrate.c
+index 77ed2d7..ec439f8 100644
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -35,6 +35,7 @@
+ #include <linux/hugetlb.h>
+ #include <linux/hugetlb_cgroup.h>
+ #include <linux/gfp.h>
++#include <linux/balloon_compaction.h>
+ 
+ #include <asm/tlbflush.h>
+ 
+@@ -79,7 +80,10 @@ void putback_lru_pages(struct list_head *l)
+ 		list_del(&page->lru);
+ 		dec_zone_page_state(page, NR_ISOLATED_ANON +
+ 				page_is_file_cache(page));
+-		putback_lru_page(page);
++		if (unlikely(movable_balloon_page(page)))
++			putback_balloon_page(page);
++		else
++			putback_lru_page(page);
+ 	}
+ }
+ 
+@@ -799,6 +803,18 @@ static int __unmap_and_move(struct page *page, struct page *newpage,
+ 		goto skip_unmap;
+ 	}
+ 
++	if (unlikely(movable_balloon_page(page))) {
++		/*
++		 * A ballooned page does not need any special attention from
++		 * physical to virtual reverse mapping procedures.
++		 * Skip any attempt to unmap PTEs or to remap swap cache,
++		 * in order to avoid burning cycles at rmap level, and perform
++		 * the page migration right away (proteced by page lock).
++		 */
++		rc = migrate_balloon_page(newpage, page, mode);
++		goto uncharge;
++	}
++
+ 	/* Establish migration ptes or remove ptes */
+ 	try_to_unmap(page, TTU_MIGRATION|TTU_IGNORE_MLOCK|TTU_IGNORE_ACCESS);
+ 
+@@ -814,7 +830,8 @@ skip_unmap:
+ 		put_anon_vma(anon_vma);
+ 
+ uncharge:
+-	mem_cgroup_end_migration(mem, page, newpage, rc == 0);
++	mem_cgroup_end_migration(mem, page, newpage,
++				 (rc == 0 || rc == BALLOON_MIGRATION_RETURN));
+ unlock:
+ 	unlock_page(page);
+ out:
+@@ -846,6 +863,21 @@ static int unmap_and_move(new_page_t get_new_page, unsigned long private,
+ 			goto out;
+ 
+ 	rc = __unmap_and_move(page, newpage, force, offlining, mode);
++
++	if (unlikely(rc == BALLOON_MIGRATION_RETURN)) {
++		/*
++		 * A ballooned page has been migrated already.
++		 * Now, it's the time to remove the old page from the isolated
++		 * pageset list and handle it back to Buddy, wrap-up counters
++		 * and return.
++		 */
++		dec_zone_page_state(page, NR_ISOLATED_ANON +
++				    page_is_file_cache(page));
++		list_del(&page->lru);
++		put_page(page);
++		__free_page(page);
++		return 0;
++	}
+ out:
+ 	if (rc != -EAGAIN) {
+ 		/*
 -- 
-Mathieu Desnoyers
-Operating System Efficiency R&D Consultant
-EfficiOS Inc.
-http://www.efficios.com
+1.7.11.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
