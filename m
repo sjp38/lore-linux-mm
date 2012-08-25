@@ -1,43 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
-	by kanga.kvack.org (Postfix) with SMTP id 027946B0044
-	for <linux-mm@kvack.org>; Sat, 25 Aug 2012 10:12:29 -0400 (EDT)
-Received: by mail-pb0-f41.google.com with SMTP id ro12so5540475pbb.14
-        for <linux-mm@kvack.org>; Sat, 25 Aug 2012 07:12:29 -0700 (PDT)
-From: Joonsoo Kim <js1304@gmail.com>
-Subject: [PATCH 2/2] slab: fix starting index for finding another object
-Date: Sat, 25 Aug 2012 23:11:11 +0900
-Message-Id: <1345903871-1921-2-git-send-email-js1304@gmail.com>
-In-Reply-To: <1345903871-1921-1-git-send-email-js1304@gmail.com>
-References: <Yes>
- <1345903871-1921-1-git-send-email-js1304@gmail.com>
+Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
+	by kanga.kvack.org (Postfix) with SMTP id 623C66B002B
+	for <linux-mm@kvack.org>; Sat, 25 Aug 2012 19:02:59 -0400 (EDT)
+Message-ID: <50395999.1030004@redhat.com>
+Date: Sat, 25 Aug 2012 19:02:49 -0400
+From: Rik van Riel <riel@redhat.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH 2/5] vmscan: sleep only if backingdev is congested
+References: <1345619717-5322-1-git-send-email-minchan@kernel.org> <1345619717-5322-3-git-send-email-minchan@kernel.org>
+In-Reply-To: <1345619717-5322-3-git-send-email-minchan@kernel.org>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pekka Enberg <penberg@kernel.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Joonsoo Kim <js1304@gmail.com>, Mel Gorman <mgorman@suse.de>, Christoph Lameter <cl@linux-foundation.org>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-In array cache, there is a object at index 0.
-So fix it.
+On 08/22/2012 03:15 AM, Minchan Kim wrote:
 
-Signed-off-by: Joonsoo Kim <js1304@gmail.com>
-Cc: Mel Gorman <mgorman@suse.de>
-Cc: Christoph Lameter <cl@linux-foundation.org>
+> +++ b/mm/vmscan.c
+> @@ -2705,8 +2705,16 @@ loop_again:
+>   		if (total_scanned && (sc.priority < DEF_PRIORITY - 2)) {
+>   			if (has_under_min_watermark_zone)
+>   				count_vm_event(KSWAPD_SKIP_CONGESTION_WAIT);
+> -			else
+> -				congestion_wait(BLK_RW_ASYNC, HZ/10);
+> +			else {
+> +				for (i = 0; i <= end_zone; i++) {
+> +					struct zone *zone = pgdat->node_zones
+> +								+ i;
+> +					if (!populated_zone(zone))
+> +						continue;
+> +					wait_iff_congested(zone, BLK_RW_ASYNC,
+> +								HZ/10);
+> +				}
+> +			}
+>   		}
 
-diff --git a/mm/slab.c b/mm/slab.c
-index 45cf59a..eb74bf5 100644
---- a/mm/slab.c
-+++ b/mm/slab.c
-@@ -976,7 +976,7 @@ static void *__ac_get_obj(struct kmem_cache *cachep, struct array_cache *ac,
- 		}
- 
- 		/* The caller cannot use PFMEMALLOC objects, find another one */
--		for (i = 1; i < ac->avail; i++) {
-+		for (i = 0; i < ac->avail; i++) {
- 			/* If a !PFMEMALLOC object is found, swap them */
- 			if (!is_obj_pfmemalloc(ac->entry[i])) {
- 				objp = ac->entry[i];
+Do we really want to wait on every zone?
+
+That could increase the sleep time by a factor 3.
+
 -- 
-1.7.9.5
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
