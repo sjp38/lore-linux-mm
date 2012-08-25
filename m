@@ -1,59 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
-	by kanga.kvack.org (Postfix) with SMTP id C01EE6B002B
-	for <linux-mm@kvack.org>; Sat, 25 Aug 2012 08:47:38 -0400 (EDT)
-Received: by vcbfl10 with SMTP id fl10so3747519vcb.14
-        for <linux-mm@kvack.org>; Sat, 25 Aug 2012 05:47:37 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20120823171854.580076595@de.ibm.com>
-References: <20120823171733.595087166@de.ibm.com>
-	<20120823171854.580076595@de.ibm.com>
-Date: Sat, 25 Aug 2012 20:47:37 +0800
-Message-ID: <CAJd=RBBJa934R53AHYVhkxE+2e=RiKU1zJXsLMCBFw_NHZE0oQ@mail.gmail.com>
-Subject: Re: [RFC patch 3/7] thp: make MADV_HUGEPAGE check for mm->def_flags
-From: Hillf Danton <dhillf@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
+	by kanga.kvack.org (Postfix) with SMTP id F24E56B002B
+	for <linux-mm@kvack.org>; Sat, 25 Aug 2012 10:12:27 -0400 (EDT)
+Received: by pbbro12 with SMTP id ro12so5540475pbb.14
+        for <linux-mm@kvack.org>; Sat, 25 Aug 2012 07:12:27 -0700 (PDT)
+From: Joonsoo Kim <js1304@gmail.com>
+Subject: [PATCH 1/2] slab:  do ClearSlabPfmemalloc() for all pages of slab
+Date: Sat, 25 Aug 2012 23:11:10 +0900
+Message-Id: <1345903871-1921-1-git-send-email-js1304@gmail.com>
+In-Reply-To: <Yes>
+References: <Yes>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Gerald Schaefer <gerald.schaefer@de.ibm.com>
-Cc: akpm@linux-foundation.org, aarcange@redhat.com, linux-mm@kvack.org, ak@linux.intel.com, hughd@google.com, linux-kernel@vger.kernel.org, schwidefsky@de.ibm.com, heiko.carstens@de.ibm.com
+To: Pekka Enberg <penberg@kernel.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Joonsoo Kim <js1304@gmail.com>, Mel Gorman <mgorman@suse.de>, Christoph Lameter <cl@linux-foundation.org>
 
-On Fri, Aug 24, 2012 at 1:17 AM, Gerald Schaefer
-<gerald.schaefer@de.ibm.com> wrote:
-> This adds a check to hugepage_madvise(), to refuse MADV_HUGEPAGE
-> if VM_NOHUGEPAGE is set in mm->def_flags. On System z, the VM_NOHUGEPAGE
-> flag will be set in mm->def_flags for kvm processes, to prevent any
-> future thp mappings. In order to also prevent MADV_HUGEPAGE on such an
-> mm, hugepage_madvise() should check mm->def_flags.
->
-> Signed-off-by: Gerald Schaefer <gerald.schaefer@de.ibm.com>
-> ---
->  mm/huge_memory.c |    4 ++++
->  1 file changed, 4 insertions(+)
->
-> --- a/mm/huge_memory.c
-> +++ b/mm/huge_memory.c
-> @@ -1464,6 +1464,8 @@ out:
->  int hugepage_madvise(struct vm_area_struct *vma,
->                      unsigned long *vm_flags, int advice)
->  {
-> +       struct mm_struct *mm = vma->vm_mm;
-> +
->         switch (advice) {
->         case MADV_HUGEPAGE:
->                 /*
-> @@ -1471,6 +1473,8 @@ int hugepage_madvise(struct vm_area_stru
->                  */
->                 if (*vm_flags & (VM_HUGEPAGE | VM_NO_THP))
->                         return -EINVAL;
-> +               if (mm->def_flags & VM_NOHUGEPAGE)
-> +                       return -EINVAL;
+Now, we just do ClearSlabPfmemalloc() for first page of slab
+when we clear SlabPfmemalloc flag. It is a problem because we sometimes
+test flag of page which is not first page of slab in __ac_put_obj().
 
-Looks ifdefinery needed for s390 to wrap the added check, and
-a brief comment?
+So add code to do ClearSlabPfmemalloc for all pages of slab.
 
->                 *vm_flags &= ~VM_NOHUGEPAGE;
->                 *vm_flags |= VM_HUGEPAGE;
+Signed-off-by: Joonsoo Kim <js1304@gmail.com>
+Cc: Mel Gorman <mgorman@suse.de>
+Cc: Christoph Lameter <cl@linux-foundation.org>
+---
+This patch based on Pekka's slab/next tree
+
+diff --git a/mm/slab.c b/mm/slab.c
+index 3b4587b..45cf59a 100644
+--- a/mm/slab.c
++++ b/mm/slab.c
+@@ -992,8 +992,11 @@ static void *__ac_get_obj(struct kmem_cache *cachep, struct array_cache *ac,
+ 		 */
+ 		l3 = cachep->nodelists[numa_mem_id()];
+ 		if (!list_empty(&l3->slabs_free) && force_refill) {
+-			struct slab *slabp = virt_to_slab(objp);
+-			ClearPageSlabPfmemalloc(virt_to_page(slabp->s_mem));
++			int i, nr_pages = (1 << cachep->gfporder);
++			struct page *page = virt_to_head_page(objp);
++
++			for (i = 0; i < nr_pages; i++)
++				ClearPageSlabPfmemalloc(page + i);
+ 			clear_obj_pfmemalloc(&objp);
+ 			recheck_pfmemalloc_active(cachep, ac);
+ 			return objp;
+-- 
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
