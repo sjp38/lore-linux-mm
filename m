@@ -1,118 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
-	by kanga.kvack.org (Postfix) with SMTP id 3FB696B0062
-	for <linux-mm@kvack.org>; Sat, 25 Aug 2012 01:25:35 -0400 (EDT)
-From: Rafael Aquini <aquini@redhat.com>
-Subject: [PATCH v9 5/5] mm: add vm event counters for balloon pages compaction
-Date: Sat, 25 Aug 2012 02:25:00 -0300
-Message-Id: <f2341d66d6db776cb143b0151ce16243ee6a39f2.1345869378.git.aquini@redhat.com>
-In-Reply-To: <cover.1345869378.git.aquini@redhat.com>
-References: <cover.1345869378.git.aquini@redhat.com>
-In-Reply-To: <cover.1345869378.git.aquini@redhat.com>
-References: <cover.1345869378.git.aquini@redhat.com>
+Received: from psmtp.com (na3sys010amx159.postini.com [74.125.245.159])
+	by kanga.kvack.org (Postfix) with SMTP id 332956B002B
+	for <linux-mm@kvack.org>; Sat, 25 Aug 2012 05:47:57 -0400 (EDT)
+Received: from /spool/local
+	by e2.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <shangw@linux.vnet.ibm.com>;
+	Sat, 25 Aug 2012 05:47:56 -0400
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id 3C4EA38C803B
+	for <linux-mm@kvack.org>; Sat, 25 Aug 2012 05:47:54 -0400 (EDT)
+Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
+	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q7P9lsLE148426
+	for <linux-mm@kvack.org>; Sat, 25 Aug 2012 05:47:54 -0400
+Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
+	by d01av04.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q7P9lr1u005618
+	for <linux-mm@kvack.org>; Sat, 25 Aug 2012 05:47:53 -0400
+Date: Sat, 25 Aug 2012 17:47:50 +0800
+From: Gavin Shan <shangw@linux.vnet.ibm.com>
+Subject: Re: [PATCH 1/2] mm/mmu_notifier: init notifier if necessary
+Message-ID: <20120825094750.GA5415@shangw.(null)>
+Reply-To: Gavin Shan <shangw@linux.vnet.ibm.com>
+References: <1345819076-12545-1-git-send-email-liwanp@linux.vnet.ibm.com>
+ <20120824145151.b92557cc.akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120824145151.b92557cc.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, Rusty Russell <rusty@rustcorp.com.au>, "Michael S. Tsirkin" <mst@redhat.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Minchan Kim <minchan@kernel.org>, Peter Zijlstra <peterz@infradead.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Rafael Aquini <aquini@redhat.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Wanpeng Li <liwanp@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Minchan Kim <minchan@kernel.org>, Gavin Shan <shangw@linux.vnet.ibm.com>
 
-This patch introduces a new set of vm event counters to keep track of
-ballooned pages compaction activity.
+On Fri, Aug 24, 2012 at 02:51:51PM -0700, Andrew Morton wrote:
+>On Fri, 24 Aug 2012 22:37:55 +0800
+>Wanpeng Li <liwanp@linux.vnet.ibm.com> wrote:
+>
+>> From: Gavin Shan <shangw@linux.vnet.ibm.com>
+>> 
+>> While registering MMU notifier, new instance of MMU notifier_mm will
+>> be allocated and later free'd if currrent mm_struct's MMU notifier_mm
+>> has been initialized. That cause some overhead. The patch tries to
+>> eleminate that.
+>> 
+>> Signed-off-by: Gavin Shan <shangw@linux.vnet.ibm.com>
+>> Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+>> ---
+>>  mm/mmu_notifier.c |   22 +++++++++++-----------
+>>  1 files changed, 11 insertions(+), 11 deletions(-)
+>> 
+>> diff --git a/mm/mmu_notifier.c b/mm/mmu_notifier.c
+>> index 862b608..fb4067f 100644
+>> --- a/mm/mmu_notifier.c
+>> +++ b/mm/mmu_notifier.c
+>> @@ -192,22 +192,23 @@ static int do_mmu_notifier_register(struct mmu_notifier *mn,
+>>  
+>>  	BUG_ON(atomic_read(&mm->mm_users) <= 0);
+>>  
+>> -	ret = -ENOMEM;
+>> -	mmu_notifier_mm = kmalloc(sizeof(struct mmu_notifier_mm), GFP_KERNEL);
+>> -	if (unlikely(!mmu_notifier_mm))
+>> -		goto out;
+>> -
+>>  	if (take_mmap_sem)
+>>  		down_write(&mm->mmap_sem);
+>>  	ret = mm_take_all_locks(mm);
+>>  	if (unlikely(ret))
+>> -		goto out_cleanup;
+>> +		goto out;
+>>  
+>>  	if (!mm_has_notifiers(mm)) {
+>> +		mmu_notifier_mm = kmalloc(sizeof(struct mmu_notifier_mm),
+>> +					GFP_ATOMIC);
+>
+>Why was the code switched to the far weaker GFP_ATOMIC?  We can still
+>perform sleeping allocations inside mmap_sem.
+>
 
-Signed-off-by: Rafael Aquini <aquini@redhat.com>
----
- drivers/virtio/virtio_balloon.c |  1 +
- include/linux/vm_event_item.h   |  8 +++++++-
- mm/balloon_compaction.c         |  2 ++
- mm/migrate.c                    |  1 +
- mm/vmstat.c                     | 10 +++++++++-
- 5 files changed, 20 insertions(+), 2 deletions(-)
+Yes, we can perform sleeping while allocating memory, but we're holding
+the "mmap_sem". GFP_KERNEL possiblly block somebody else who also waits
+on mmap_sem for long time even though the case should be rare :-)
 
-diff --git a/drivers/virtio/virtio_balloon.c b/drivers/virtio/virtio_balloon.c
-index 9b0bc46..e1e8e30 100644
---- a/drivers/virtio/virtio_balloon.c
-+++ b/drivers/virtio/virtio_balloon.c
-@@ -528,6 +528,7 @@ int virtballoon_migratepage(struct address_space *mapping,
- 
- 	mutex_unlock(&vb->balloon_lock);
- 	wake_up(&vb->config_change);
-+	count_balloon_event(COMPACTBALLOONMIGRATED);
- 
- 	return BALLOON_MIGRATION_RETURN;
- }
-diff --git a/include/linux/vm_event_item.h b/include/linux/vm_event_item.h
-index 57f7b10..13573fe 100644
---- a/include/linux/vm_event_item.h
-+++ b/include/linux/vm_event_item.h
-@@ -41,7 +41,13 @@ enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
- #ifdef CONFIG_COMPACTION
- 		COMPACTBLOCKS, COMPACTPAGES, COMPACTPAGEFAILED,
- 		COMPACTSTALL, COMPACTFAIL, COMPACTSUCCESS,
--#endif
-+#ifdef CONFIG_BALLOON_COMPACTION
-+		COMPACTBALLOONISOLATED, /* isolated from balloon pagelist */
-+		COMPACTBALLOONMIGRATED, /* balloon page sucessfully migrated */
-+		COMPACTBALLOONRELEASED, /* old-page released after migration */
-+		COMPACTBALLOONRETURNED, /* putback to pagelist, not-migrated */
-+#endif /* CONFIG_BALLOON_COMPACTION */
-+#endif /* CONFIG_COMPACTION */
- #ifdef CONFIG_HUGETLB_PAGE
- 		HTLB_BUDDY_PGALLOC, HTLB_BUDDY_PGALLOC_FAIL,
- #endif
-diff --git a/mm/balloon_compaction.c b/mm/balloon_compaction.c
-index 86a3692..00e7ea9 100644
---- a/mm/balloon_compaction.c
-+++ b/mm/balloon_compaction.c
-@@ -110,6 +110,7 @@ bool isolate_balloon_page(struct page *page)
- 			if (__is_movable_balloon_page(page) &&
- 			    (page_count(page) == 2)) {
- 				__isolate_balloon_page(page);
-+				count_balloon_event(COMPACTBALLOONISOLATED);
- 				unlock_page(page);
- 				return true;
- 			} else if (unlikely(!__is_movable_balloon_page(page))) {
-@@ -139,6 +140,7 @@ void putback_balloon_page(struct page *page)
- 	if (__is_movable_balloon_page(page)) {
- 		__putback_balloon_page(page);
- 		put_page(page);
-+		count_balloon_event(COMPACTBALLOONRETURNED);
- 	} else {
- 		dump_page(page);
- 		__WARN();
-diff --git a/mm/migrate.c b/mm/migrate.c
-index e47daf5..124b16b 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -896,6 +896,7 @@ static int unmap_and_move(new_page_t get_new_page, unsigned long private,
- 		list_del(&page->lru);
- 		put_page(page);
- 		__free_page(page);
-+		count_balloon_event(COMPACTBALLOONRELEASED);
- 		return 0;
- 	}
- out:
-diff --git a/mm/vmstat.c b/mm/vmstat.c
-index df7a674..5824ad2 100644
---- a/mm/vmstat.c
-+++ b/mm/vmstat.c
-@@ -768,7 +768,15 @@ const char * const vmstat_text[] = {
- 	"compact_stall",
- 	"compact_fail",
- 	"compact_success",
--#endif
-+
-+#ifdef CONFIG_BALLOON_COMPACTION
-+	"compact_balloon_isolated",
-+	"compact_balloon_migrated",
-+	"compact_balloon_released",
-+	"compact_balloon_returned",
-+#endif /* CONFIG_BALLOON_COMPACTION */
-+
-+#endif /* CONFIG_COMPACTION */
- 
- #ifdef CONFIG_HUGETLB_PAGE
- 	"htlb_buddy_alloc_success",
--- 
-1.7.11.4
+Thanks,
+Gavin
+
+>> +		if (unlikely(!mmu_notifier_mm)) {
+>> +			ret = -ENOMEM;
+>> +			goto out_of_mem;
+>> +		}
+>>  		INIT_HLIST_HEAD(&mmu_notifier_mm->list);
+>>  		spin_lock_init(&mmu_notifier_mm->lock);
+>> +
+>>  		mm->mmu_notifier_mm = mmu_notifier_mm;
+>> -		mmu_notifier_mm = NULL;
+>>  	}
+>>  	atomic_inc(&mm->mm_count);
+>>  
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
