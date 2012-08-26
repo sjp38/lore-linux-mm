@@ -1,48 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
-	by kanga.kvack.org (Postfix) with SMTP id 623C66B002B
-	for <linux-mm@kvack.org>; Sat, 25 Aug 2012 19:02:59 -0400 (EDT)
-Message-ID: <50395999.1030004@redhat.com>
-Date: Sat, 25 Aug 2012 19:02:49 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
+	by kanga.kvack.org (Postfix) with SMTP id E097F6B002B
+	for <linux-mm@kvack.org>; Sat, 25 Aug 2012 21:34:35 -0400 (EDT)
+Received: by qcsd16 with SMTP id d16so2357364qcs.14
+        for <linux-mm@kvack.org>; Sat, 25 Aug 2012 18:34:31 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [PATCH 2/5] vmscan: sleep only if backingdev is congested
-References: <1345619717-5322-1-git-send-email-minchan@kernel.org> <1345619717-5322-3-git-send-email-minchan@kernel.org>
-In-Reply-To: <1345619717-5322-3-git-send-email-minchan@kernel.org>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Date: Sun, 26 Aug 2012 09:34:31 +0800
+Message-ID: <CAPgLHd9zgUBU+aWLhiFW8t5Jx=xCFk8WZim0J9TgBqg83jznSQ@mail.gmail.com>
+Subject: [PATCH] hugetlb: remove duplicated include from hugetlb.c
+From: Wei Yongjun <weiyj.lk@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org
+Cc: yongjun_wei@trendmicro.com.cn
 
-On 08/22/2012 03:15 AM, Minchan Kim wrote:
+From: Wei Yongjun <yongjun_wei@trendmicro.com.cn>
 
-> +++ b/mm/vmscan.c
-> @@ -2705,8 +2705,16 @@ loop_again:
->   		if (total_scanned && (sc.priority < DEF_PRIORITY - 2)) {
->   			if (has_under_min_watermark_zone)
->   				count_vm_event(KSWAPD_SKIP_CONGESTION_WAIT);
-> -			else
-> -				congestion_wait(BLK_RW_ASYNC, HZ/10);
-> +			else {
-> +				for (i = 0; i <= end_zone; i++) {
-> +					struct zone *zone = pgdat->node_zones
-> +								+ i;
-> +					if (!populated_zone(zone))
-> +						continue;
-> +					wait_iff_congested(zone, BLK_RW_ASYNC,
-> +								HZ/10);
-> +				}
-> +			}
->   		}
+To: linux-mm@kvack.org,
+    linux-kernel@vger.kernel.org
 
-Do we really want to wait on every zone?
+From: Wei Yongjun <yongjun_wei@trendmicro.com.cn>
 
-That could increase the sleep time by a factor 3.
+Remove duplicated include.
 
--- 
-All rights reversed
+Signed-off-by: Wei Yongjun <yongjun_wei@trendmicro.com.cn>
+---
+ mm/hugetlb.c | 1 -
+ 1 file changed, 1 deletion(-)
+
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index bc72712..5bf325b 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -30,7 +30,6 @@
+ #include <linux/hugetlb.h>
+ #include <linux/hugetlb_cgroup.h>
+ #include <linux/node.h>
+-#include <linux/hugetlb_cgroup.h>
+ #include "internal.h"
+ 
+ const unsigned long hugetlb_zero = 0, hugetlb_infinity = ~0UL;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
