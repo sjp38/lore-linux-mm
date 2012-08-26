@@ -1,83 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
-	by kanga.kvack.org (Postfix) with SMTP id 645666B006E
-	for <linux-mm@kvack.org>; Sun, 26 Aug 2012 05:01:01 -0400 (EDT)
-Received: from /spool/local
-	by e28smtp07.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Sun, 26 Aug 2012 14:30:57 +0530
-Received: from d28av02.in.ibm.com (d28av02.in.ibm.com [9.184.220.64])
-	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q7Q90tlZ2228730
-	for <linux-mm@kvack.org>; Sun, 26 Aug 2012 14:30:55 +0530
-Received: from d28av02.in.ibm.com (loopback [127.0.0.1])
-	by d28av02.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q7Q90s4S031070
-	for <linux-mm@kvack.org>; Sun, 26 Aug 2012 19:00:54 +1000
-From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: [PATCH v2 4/4] mm/memblock: cleanup early_node_map[] related comments  
-Date: Sun, 26 Aug 2012 17:00:26 +0800
-Message-Id: <1345971626-17090-4-git-send-email-liwanp@linux.vnet.ibm.com>
-In-Reply-To: <1345971626-17090-1-git-send-email-liwanp@linux.vnet.ibm.com>
-References: <1345971626-17090-1-git-send-email-liwanp@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
+	by kanga.kvack.org (Postfix) with SMTP id F364D6B0078
+	for <linux-mm@kvack.org>; Sun, 26 Aug 2012 06:12:14 -0400 (EDT)
+From: Haggai Eran <haggaie@mellanox.com>
+Subject: [PATCH 0/3] Enable clients to schedule in mmu_notifier methods
+Date: Sun, 26 Aug 2012 13:11:36 +0300
+Message-Id: <1345975899-2236-1-git-send-email-haggaie@mellanox.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Minchan Kim <minchan@kernel.org>, Gavin Shan <shangw@linux.vnet.ibm.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>
+To: linux-mm@kvack.org
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Sagi Grimberg <sagig@mellanox.com>, Or Gerlitz <ogerlitz@mellanox.com>, Haggai Eran <haggaie@mellanox.com>
 
-From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+The following short patch series completes the support for allowing clients to
+sleep in mmu notifiers (specifically in invalidate_page and
+invalidate_range_start/end), adding on the work done by Andrea Arcangeli and
+Sagi Grimberg in http://marc.info/?l=linux-mm&m=133113297028676&w=3
 
-Commit 0ee332c14518699 ("memblock: Kill early_node_map[]") removed
-early_node_map[], the patch does cleanup on comments to comply with
-that change.
+This patchset is a preliminary step towards on-demand paging design to be
+added to the Infiniband stack. Our goal is to avoid pinning pages in
+memory regions registered for IB communication, so we need to get
+notifications for invalidations on such memory regions, and stop the hardware
+from continuing its access to the invalidated pages. The hardware operation
+that flushes the page tables can block, so we need to sleep until the hardware
+is guaranteed not to access these pages anymore.
 
-Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
----
- include/linux/memblock.h |    3 +--
- mm/nobootmem.c           |    2 --
- mm/page_alloc.c          |    2 +-
- 3 files changed, 2 insertions(+), 5 deletions(-)
+The first patch moves the mentioned notifier functions out of the PTL, and the
+other two patches prevent notifiers from sleeping between calls to
+tlb_gather_mmu and tlb_flush_mmu. I believe that Peter Zijlstra
+made a comment saying that patch 2 isn't needed anymore. For the same reason
+patch 3 would no longer be necessary. Let's discuss this now...
 
-diff --git a/include/linux/memblock.h b/include/linux/memblock.h
-index d3d53aa..ab7b887 100644
---- a/include/linux/memblock.h
-+++ b/include/linux/memblock.h
-@@ -70,8 +70,7 @@ void __next_mem_pfn_range(int *idx, int nid, unsigned long *out_start_pfn,
-  * @p_end: ptr to ulong for end pfn of the range, can be %NULL
-  * @p_nid: ptr to int for nid of the range, can be %NULL
-  *
-- * Walks over configured memory ranges.  Available after early_node_map is
-- * populated.
-+ * Walks over configured memory ranges.
-  */
- #define for_each_mem_pfn_range(i, nid, p_start, p_end, p_nid)		\
- 	for (i = -1, __next_mem_pfn_range(&i, nid, p_start, p_end, p_nid); \
-diff --git a/mm/nobootmem.c b/mm/nobootmem.c
-index 8ec48484..7e95953 100644
---- a/mm/nobootmem.c
-+++ b/mm/nobootmem.c
-@@ -162,8 +162,6 @@ unsigned long __init free_all_bootmem(void)
- 	 * We need to use MAX_NUMNODES instead of NODE_DATA(0)->node_id
- 	 *  because in some case like Node0 doesn't have RAM installed
- 	 *  low ram will be on Node1
--	 * Use MAX_NUMNODES will make sure all ranges in early_node_map[]
--	 *  will be used instead of only Node0 related
- 	 */
- 	return free_low_memory_core_early(MAX_NUMNODES);
- }
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 009ac28..c1e2949 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -4873,7 +4873,7 @@ void __init free_area_init_nodes(unsigned long *max_zone_pfn)
- 			       zone_movable_pfn[i] << PAGE_SHIFT);
- 	}
- 
--	/* Print out the early_node_map[] */
-+	/* Print out the early node map */
- 	printk("Early memory node ranges\n");
- 	for_each_mem_pfn_range(i, MAX_NUMNODES, &start_pfn, &end_pfn, &nid)
- 		printk("  node %3d: [mem %#010lx-%#010lx]\n", nid,
+Regards,
+Haggai Eran
+
+Sagi Grimberg (3):
+  mm: Move all mmu notifier invocations to be done outside the PT lock
+  mm: Move the tlb flushing into free_pgtables
+  mm: Move the tlb flushing inside of unmap vmas
+
+ include/linux/mmu_notifier.h | 48 --------------------------------------------
+ mm/filemap_xip.c             |  4 +++-
+ mm/huge_memory.c             | 32 +++++++++++++++++++++++------
+ mm/hugetlb.c                 | 15 ++++++++------
+ mm/memory.c                  | 25 +++++++++++++----------
+ mm/mmap.c                    |  7 -------
+ mm/rmap.c                    | 27 ++++++++++++++++++-------
+ 7 files changed, 72 insertions(+), 86 deletions(-)
+
 -- 
-1.7.7.6
+1.7.11.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
