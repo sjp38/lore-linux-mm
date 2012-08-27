@@ -1,33 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
-	by kanga.kvack.org (Postfix) with SMTP id D384A6B002B
-	for <linux-mm@kvack.org>; Mon, 27 Aug 2012 08:26:38 -0400 (EDT)
-Received: by vcbfl10 with SMTP id fl10so5327764vcb.14
-        for <linux-mm@kvack.org>; Mon, 27 Aug 2012 05:26:37 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
+	by kanga.kvack.org (Postfix) with SMTP id CC5546B002B
+	for <linux-mm@kvack.org>; Mon, 27 Aug 2012 08:57:13 -0400 (EDT)
+Message-ID: <503B6E9C.50904@redhat.com>
+Date: Mon, 27 Aug 2012 08:57:00 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <20120827123917.3313dfda@thinkpad>
-References: <20120823171733.595087166@de.ibm.com>
-	<20120823171854.580076595@de.ibm.com>
-	<CAJd=RBBJa934R53AHYVhkxE+2e=RiKU1zJXsLMCBFw_NHZE0oQ@mail.gmail.com>
-	<20120827123917.3313dfda@thinkpad>
-Date: Mon, 27 Aug 2012 20:26:36 +0800
-Message-ID: <CAJd=RBA-GyFvQ3_vMVqhBS89QT_xDLEBbysBzhCA7sU7rt00+g@mail.gmail.com>
-Subject: Re: [RFC patch 3/7] thp: make MADV_HUGEPAGE check for mm->def_flags
-From: Hillf Danton <dhillf@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Subject: Re: [patch v2]swap: add a simple random read swapin detection
+References: <20120827040037.GA8062@kernel.org>
+In-Reply-To: <20120827040037.GA8062@kernel.org>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: gerald.schaefer@de.ibm.com
-Cc: akpm@linux-foundation.org, aarcange@redhat.com, linux-mm@kvack.org, ak@linux.intel.com, hughd@google.com, linux-kernel@vger.kernel.org, schwidefsky@de.ibm.com, heiko.carstens@de.ibm.com
+To: Shaohua Li <shli@kernel.org>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, fengguang.wu@intel.com, minchan@kernel.org
 
-On Mon, Aug 27, 2012 at 6:39 PM, Gerald Schaefer
-<gerald.schaefer@de.ibm.com> wrote:
-> Hmm, architecture #ifdefs in common code are ugly. I'd rather keep
-> the check even if it is redundant right now for other architectures
-> than s390. It is not a performance critical path, and there may be
-> other users of that in the future.
+On 08/27/2012 12:00 AM, Shaohua Li wrote:
+> The swapin readahead does a blind readahead regardless if the swapin is
+> sequential. This is ok for harddisk and random read, because read big size has
+> no penality in harddisk, and if the readahead pages are garbage, they can be
+> reclaimed fastly. But for SSD, big size read is more expensive than small size
+> read. If readahead pages are garbage, such readahead only has overhead.
+>
+> This patch addes a simple random read detection like what file mmap readahead
+> does. If random read is detected, swapin readahead will be skipped. This
+> improves a lot for a swap workload with random IO in a fast SSD.
+>
+> I run anonymous mmap write micro benchmark, which will triger swapin/swapout.
+> 			runtime changes with path
+> randwrite harddisk	-38.7%
+> seqwrite harddisk	-1.1%
+> randwrite SSD		-46.9%
+> seqwrite SSD		+0.3%
+>
+> For both harddisk and SSD, the randwrite swap workload run time is reduced
+> significant. sequential write swap workload hasn't chanage.
 
-Fair if no changes in semantics
+Very nice results!
+
+> Signed-off-by: Shaohua Li <shli@fusionio.com>
+
+Acked-by: Rik van Riel <riel@redhat.com>
+
+
+-- 
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
