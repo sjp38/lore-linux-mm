@@ -1,56 +1,171 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
-	by kanga.kvack.org (Postfix) with SMTP id EFACE6B002B
-	for <linux-mm@kvack.org>; Sun, 26 Aug 2012 22:02:26 -0400 (EDT)
-Received: by qady1 with SMTP id y1so1754305qad.14
-        for <linux-mm@kvack.org>; Sun, 26 Aug 2012 19:02:26 -0700 (PDT)
-Message-ID: <503AD533.1040307@gmail.com>
-Date: Mon, 27 Aug 2012 10:02:27 +0800
-From: qiuxishi <qiuxishi@gmail.com>
+Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
+	by kanga.kvack.org (Postfix) with SMTP id BF78A6B002B
+	for <linux-mm@kvack.org>; Mon, 27 Aug 2012 00:00:46 -0400 (EDT)
+Received: by dadi14 with SMTP id i14so2584303dad.14
+        for <linux-mm@kvack.org>; Sun, 26 Aug 2012 21:00:45 -0700 (PDT)
+Date: Mon, 27 Aug 2012 12:00:37 +0800
+From: Shaohua Li <shli@kernel.org>
+Subject: [patch v2]swap: add a simple random read swapin detection
+Message-ID: <20120827040037.GA8062@kernel.org>
 MIME-Version: 1.0
-Subject: [PATCH V2] memory-hotplug: add build zonelists when offline pages
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, liuj97@gmail.com, Wen Congyang <wency@cn.fujitsu.com>
-Cc: paul.gortmaker@windriver.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, bessel.wang@huawei.com, wujianguo@huawei.com, qiuxishi@huawei.com, jiang.liu@huawei.com, guohanjun@huawei.com, yinghai@kernel.org
+To: linux-mm@kvack.org
+Cc: akpm@linux-foundation.org, riel@redhat.com, fengguang.wu@intel.com, minchan@kernel.org
 
-From: Xishi Qiu <qiuxishi@huawei.com>
+The swapin readahead does a blind readahead regardless if the swapin is
+sequential. This is ok for harddisk and random read, because read big size has
+no penality in harddisk, and if the readahead pages are garbage, they can be
+reclaimed fastly. But for SSD, big size read is more expensive than small size
+read. If readahead pages are garbage, such readahead only has overhead.
 
-online_pages() does build_all_zonelists() and zone_pcp_update(),
-I think offline_pages() should do it too.
-When the zone has no  memory to allocate, remove it form other
-nodes' zonelists. zone_batchsize() depends on zone's present pages,
-if zone's present pages are changed, zone's pcp should be updated.
+This patch addes a simple random read detection like what file mmap readahead
+does. If random read is detected, swapin readahead will be skipped. This
+improves a lot for a swap workload with random IO in a fast SSD.
 
+I run anonymous mmap write micro benchmark, which will triger swapin/swapout.
+			runtime changes with path
+randwrite harddisk	-38.7%
+seqwrite harddisk	-1.1%
+randwrite SSD		-46.9%
+seqwrite SSD		+0.3%
 
-Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
+For both harddisk and SSD, the randwrite swap workload run time is reduced
+significant. sequential write swap workload hasn't chanage.
+
+Interesting is the randwrite harddisk test is improved too. This might be
+because swapin readahead need allocate extra memory, which further tights
+memory pressure, so more swapout/swapin.
+
+This patch depends on readahead-fault-retry-breaks-mmap-file-read-random-detection.patch
+
+V1->V2:
+1. Move the swap readahead accounting to separate functions as suggested by Riel.
+2. Enable the logic only with CONFIG_SWAP enabled as suggested by Minchan.
+
+Signed-off-by: Shaohua Li <shli@fusionio.com>
 ---
- mm/memory_hotplug.c |    7 ++++++-
- 1 files changed, 6 insertions(+), 1 deletions(-)
+ include/linux/mm_types.h |    3 +++
+ mm/internal.h            |   44 ++++++++++++++++++++++++++++++++++++++++++++
+ mm/memory.c              |    3 ++-
+ mm/swap_state.c          |    8 ++++++++
+ 4 files changed, 57 insertions(+), 1 deletion(-)
 
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index bc7e7a2..5f6997f 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -973,8 +973,13 @@ repeat:
-
- 	init_per_zone_wmark_min();
-
--	if (!populated_zone(zone))
-+	if (!populated_zone(zone)) {
- 		zone_pcp_reset(zone);
-+		mutex_lock(&zonelists_mutex);
-+		build_all_zonelists(NULL, NULL);
-+		mutex_unlock(&zonelists_mutex);
-+	} else
-+		zone_pcp_update(zone);
-
- 	if (!node_present_pages(node)) {
- 		node_clear_state(node, N_HIGH_MEMORY);
--- 
-1.7.6.1
+Index: linux/mm/swap_state.c
+===================================================================
+--- linux.orig/mm/swap_state.c	2012-08-22 11:44:53.057913107 +0800
++++ linux/mm/swap_state.c	2012-08-23 17:27:28.560013412 +0800
+@@ -20,6 +20,7 @@
+ #include <linux/page_cgroup.h>
+ 
+ #include <asm/pgtable.h>
++#include "internal.h"
+ 
+ /*
+  * swapper_space is a fiction, retained to simplify the path through
+@@ -379,6 +380,12 @@ struct page *swapin_readahead(swp_entry_
+ 	unsigned long mask = (1UL << page_cluster) - 1;
+ 	struct blk_plug plug;
+ 
++	if (vma) {
++		swap_cache_miss(vma);
++		if (swap_cache_skip_readahead(vma))
++			goto skip;
++	}
++
+ 	/* Read a page_cluster sized and aligned cluster around offset. */
+ 	start_offset = offset & ~mask;
+ 	end_offset = offset | mask;
+@@ -397,5 +404,6 @@ struct page *swapin_readahead(swp_entry_
+ 	blk_finish_plug(&plug);
+ 
+ 	lru_add_drain();	/* Push any new pages onto the LRU now */
++skip:
+ 	return read_swap_cache_async(entry, gfp_mask, vma, addr);
+ }
+Index: linux/include/linux/mm_types.h
+===================================================================
+--- linux.orig/include/linux/mm_types.h	2012-08-22 11:44:53.077912855 +0800
++++ linux/include/linux/mm_types.h	2012-08-24 13:07:11.798576941 +0800
+@@ -279,6 +279,9 @@ struct vm_area_struct {
+ #ifdef CONFIG_NUMA
+ 	struct mempolicy *vm_policy;	/* NUMA policy for the VMA */
+ #endif
++#ifdef CONFIG_SWAP
++	atomic_t swapra_miss;
++#endif
+ };
+ 
+ struct core_thread {
+Index: linux/mm/memory.c
+===================================================================
+--- linux.orig/mm/memory.c	2012-08-22 11:44:53.065913005 +0800
++++ linux/mm/memory.c	2012-08-23 17:27:23.424074216 +0800
+@@ -2953,7 +2953,8 @@ static int do_swap_page(struct mm_struct
+ 		ret = VM_FAULT_HWPOISON;
+ 		delayacct_clear_flag(DELAYACCT_PF_SWAPIN);
+ 		goto out_release;
+-	}
++	} else if (!(flags & FAULT_FLAG_TRIED))
++		swap_cache_hit(vma);
+ 
+ 	locked = lock_page_or_retry(page, mm, flags);
+ 
+Index: linux/mm/internal.h
+===================================================================
+--- linux.orig/mm/internal.h	2012-08-22 09:51:39.295322268 +0800
++++ linux/mm/internal.h	2012-08-27 11:51:27.447915373 +0800
+@@ -356,3 +356,47 @@ extern unsigned long vm_mmap_pgoff(struc
+         unsigned long, unsigned long);
+ 
+ extern void set_pageblock_order(void);
++
++/*
++ * Unnecessary readahead harms performance. 1. for SSD, big size read is more
++ * expensive than small size read, so extra unnecessary read only has overhead.
++ * For harddisk, this overhead doesn't exist. 2. unnecessary readahead will
++ * allocate extra memroy, which further tights memory pressure, so more
++ * swapout/swapin.
++ * These adds a simple swap random access detection. In swap page fault, if
++ * page is found in swap cache, decrease an account of vma, otherwise we need
++ * do sync swapin and the account is increased. Optionally swapin will do
++ * readahead if the counter is below a threshold.
++ */
++#ifdef CONFIG_SWAP
++#define SWAPRA_MISS  (100)
++static inline void swap_cache_hit(struct vm_area_struct *vma)
++{
++	atomic_dec_if_positive(&vma->swapra_miss);
++}
++
++static inline void swap_cache_miss(struct vm_area_struct *vma)
++{
++	if (atomic_read(&vma->swapra_miss) < SWAPRA_MISS * 10)
++		atomic_inc(&vma->swapra_miss);
++}
++
++static inline int swap_cache_skip_readahead(struct vm_area_struct *vma)
++{
++	return atomic_read(&vma->swapra_miss) > SWAPRA_MISS;
++}
++#else
++static inline void swap_cache_hit(struct vm_area_struct *vma)
++{
++}
++
++static inline void swap_cache_miss(struct vm_area_struct *vma)
++{
++}
++
++static inline int swap_cache_skip_readahead(struct vm_area_struct *vma)
++{
++	return 0;
++}
++
++#endif
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
