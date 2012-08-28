@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
-	by kanga.kvack.org (Postfix) with SMTP id 474826B005D
-	for <linux-mm@kvack.org>; Tue, 28 Aug 2012 01:13:50 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
+	by kanga.kvack.org (Postfix) with SMTP id DAA146B002B
+	for <linux-mm@kvack.org>; Tue, 28 Aug 2012 01:14:28 -0400 (EDT)
 From: Hiroshi Doyu <hdoyu@nvidia.com>
-Subject: [v4 4/4] ARM: dma-mapping: IOMMU allocates pages from atomic_pool with GFP_ATOMIC
-Date: Tue, 28 Aug 2012 08:13:04 +0300
-Message-ID: <1346130784-23571-5-git-send-email-hdoyu@nvidia.com>
+Subject: [v4 1/4] ARM: dma-mapping: atomic_pool with struct page **pages
+Date: Tue, 28 Aug 2012 08:13:01 +0300
+Message-ID: <1346130784-23571-2-git-send-email-hdoyu@nvidia.com>
 In-Reply-To: <1346130784-23571-1-git-send-email-hdoyu@nvidia.com>
 References: <1346130784-23571-1-git-send-email-hdoyu@nvidia.com>
 MIME-Version: 1.0
@@ -15,76 +15,78 @@ List-ID: <linux-mm.kvack.org>
 To: m.szyprowski@samsung.com
 Cc: Hiroshi Doyu <hdoyu@nvidia.com>, linux-arm-kernel@lists.infradead.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kyungmin.park@samsung.com, arnd@arndb.de, linux@arm.linux.org.uk, chunsang.jeong@linaro.org, vdumpa@nvidia.com, subashrp@gmail.com, minchan@kernel.org, pullip.cho@samsung.com, konrad.wilk@oracle.com, linux-tegra@vger.kernel.org
 
-Make use of the same atomic pool as DMA does, and skip a kernel page
-mapping which can involve sleep'able operations at allocating a kernel
-page table.
+struct page **pages is necessary to align with non atomic path in
+__iommu_get_pages(). atomic_pool() has the intialized **pages instead
+of just *page.
 
 Signed-off-by: Hiroshi Doyu <hdoyu@nvidia.com>
 ---
- arch/arm/mm/dma-mapping.c |   36 ++++++++++++++++++++++++++++++++++++
- 1 files changed, 36 insertions(+), 0 deletions(-)
+ arch/arm/mm/dma-mapping.c |   17 ++++++++++++++---
+ 1 files changed, 14 insertions(+), 3 deletions(-)
 
 diff --git a/arch/arm/mm/dma-mapping.c b/arch/arm/mm/dma-mapping.c
-index 4ef2d7b..f5024f9 100644
+index 1123808..51d5e2b 100644
 --- a/arch/arm/mm/dma-mapping.c
 +++ b/arch/arm/mm/dma-mapping.c
-@@ -1309,6 +1309,34 @@ static struct page **__iommu_get_pages(void *cpu_addr, struct dma_attrs *attrs)
- 	return NULL;
- }
+@@ -296,7 +296,7 @@ struct dma_pool {
+ 	unsigned long *bitmap;
+ 	unsigned long nr_pages;
+ 	void *vaddr;
+-	struct page *page;
++	struct page **pages;
+ };
  
-+static void *__iommu_alloc_atomic(struct device *dev, size_t size,
-+				  dma_addr_t *handle)
-+{
-+	struct page *page;
-+	void *addr;
-+
-+	addr = __alloc_from_pool(size, &page);
-+	if (!addr)
-+		return NULL;
-+
-+	*handle = __iommu_create_mapping(dev, &page, size);
-+	if (*handle == DMA_ERROR_CODE)
-+		goto err_mapping;
-+
-+	return addr;
-+
-+err_mapping:
-+	__free_from_pool(addr, size);
-+	return NULL;
-+}
-+
-+static void __iommu_free_atomic(struct device *dev, struct page **pages,
-+				dma_addr_t handle, size_t size)
-+{
-+	__iommu_remove_mapping(dev, handle, size);
-+	__free_from_pool(page_address(pages[0]), size);
-+}
-+
- static void *arm_iommu_alloc_attrs(struct device *dev, size_t size,
- 	    dma_addr_t *handle, gfp_t gfp, struct dma_attrs *attrs)
- {
-@@ -1326,6 +1354,9 @@ static void *arm_iommu_alloc_attrs(struct device *dev, size_t size,
- 	*handle = DMA_ERROR_CODE;
- 	size = PAGE_ALIGN(size);
+ static struct dma_pool atomic_pool = {
+@@ -335,6 +335,7 @@ static int __init atomic_pool_init(void)
+ 	unsigned long nr_pages = pool->size >> PAGE_SHIFT;
+ 	unsigned long *bitmap;
+ 	struct page *page;
++	struct page **pages;
+ 	void *ptr;
+ 	int bitmap_size = BITS_TO_LONGS(nr_pages) * sizeof(long);
  
-+	if (gfp & GFP_ATOMIC)
-+		return __iommu_alloc_atomic(dev, size, handle);
+@@ -342,21 +343,31 @@ static int __init atomic_pool_init(void)
+ 	if (!bitmap)
+ 		goto no_bitmap;
+ 
++	pages = kzalloc(nr_pages * sizeof(struct page *), GFP_KERNEL);
++	if (!pages)
++		goto no_pages;
 +
- 	pages = __iommu_alloc_buffer(dev, size, gfp);
- 	if (!pages)
- 		return NULL;
-@@ -1392,6 +1423,11 @@ void arm_iommu_free_attrs(struct device *dev, size_t size, void *cpu_addr,
- 		return;
+ 	if (IS_ENABLED(CONFIG_CMA))
+ 		ptr = __alloc_from_contiguous(NULL, pool->size, prot, &page);
+ 	else
+ 		ptr = __alloc_remap_buffer(NULL, pool->size, GFP_KERNEL, prot,
+ 					   &page, NULL);
+ 	if (ptr) {
++		int i;
++
++		for (i = 0; i < nr_pages; i++)
++			pages[i] = page + i;
++
+ 		spin_lock_init(&pool->lock);
+ 		pool->vaddr = ptr;
+-		pool->page = page;
++		pool->pages = pages;
+ 		pool->bitmap = bitmap;
+ 		pool->nr_pages = nr_pages;
+ 		pr_info("DMA: preallocated %u KiB pool for atomic coherent allocations\n",
+ 		       (unsigned)pool->size / 1024);
+ 		return 0;
  	}
- 
-+	if (__in_atomic_pool(cpu_addr, size)) {
-+		__iommu_free_atomic(dev, pages, handle, size);
-+		return;
-+	}
-+
- 	if (!dma_get_attr(DMA_ATTR_NO_KERNEL_MAPPING, attrs)) {
- 		unmap_kernel_range((unsigned long)cpu_addr, size);
- 		vunmap(cpu_addr);
++no_pages:
+ 	kfree(bitmap);
+ no_bitmap:
+ 	pr_err("DMA: failed to allocate %u KiB pool for atomic coherent allocation\n",
+@@ -481,7 +492,7 @@ static void *__alloc_from_pool(size_t size, struct page **ret_page)
+ 	if (pageno < pool->nr_pages) {
+ 		bitmap_set(pool->bitmap, pageno, count);
+ 		ptr = pool->vaddr + PAGE_SIZE * pageno;
+-		*ret_page = pool->page + pageno;
++		*ret_page = pool->pages[pageno];
+ 	} else {
+ 		pr_err_once("ERROR: %u KiB atomic DMA coherent pool is too small!\n"
+ 			    "Please increase it with coherent_pool= kernel parameter!\n",
 -- 
 1.7.5.4
 
