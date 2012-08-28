@@ -1,175 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx177.postini.com [74.125.245.177])
-	by kanga.kvack.org (Postfix) with SMTP id E25486B002B
-	for <linux-mm@kvack.org>; Mon, 27 Aug 2012 18:05:19 -0400 (EDT)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH 3/3] HWPOISON: prevent inode cache removal to keep AS_HWPOISON sticky
-Date: Mon, 27 Aug 2012 18:05:06 -0400
-Message-Id: <1346105106-26033-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <20120826222607.GD19235@dastard>
+Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
+	by kanga.kvack.org (Postfix) with SMTP id 75F0C6B002B
+	for <linux-mm@kvack.org>; Tue, 28 Aug 2012 01:13:24 -0400 (EDT)
+From: Hiroshi Doyu <hdoyu@nvidia.com>
+Subject: [v4 0/4] ARM: dma-mapping: IOMMU atomic allocation
+Date: Tue, 28 Aug 2012 08:13:00 +0300
+Message-ID: <1346130784-23571-1-git-send-email-hdoyu@nvidia.com>
+MIME-Version: 1.0
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Andi Kleen <andi.kleen@intel.com>, Wu Fengguang <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Tony Luck <tony.luck@intel.com>, Rik van Riel <riel@redhat.com>, Jun'ichi Nomura <j-nomura@ce.jp.nec.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: m.szyprowski@samsung.com
+Cc: Hiroshi Doyu <hdoyu@nvidia.com>, linux-arm-kernel@lists.infradead.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kyungmin.park@samsung.com, arnd@arndb.de, linux@arm.linux.org.uk, chunsang.jeong@linaro.org, vdumpa@nvidia.com, subashrp@gmail.com, minchan@kernel.org, pullip.cho@samsung.com, konrad.wilk@oracle.com, linux-tegra@vger.kernel.org
 
-On Mon, Aug 27, 2012 at 08:26:07AM +1000, Dave Chinner wrote:
-> On Fri, Aug 24, 2012 at 01:24:16PM -0400, Naoya Horiguchi wrote:
-> > On Fri, Aug 24, 2012 at 02:39:17PM +1000, Dave Chinner wrote:
-> > > On Thu, Aug 23, 2012 at 10:39:32PM -0400, Naoya Horiguchi wrote:
-> > > > On Fri, Aug 24, 2012 at 11:31:18AM +1000, Dave Chinner wrote:
-> > > > > On Wed, Aug 22, 2012 at 11:17:35AM -0400, Naoya Horiguchi wrote:
-> > > > > > "HWPOISON: report sticky EIO for poisoned file" still has a corner case
-> > > > > > where we have possibilities of data lost. This is because in this fix
-> > > > > > AS_HWPOISON is cleared when the inode cache is dropped.
-> > > ....
-> > > > > > --- v3.6-rc1.orig/mm/truncate.c
-> > > > > > +++ v3.6-rc1/mm/truncate.c
-> > > > > > @@ -574,6 +574,8 @@ void truncate_setsize(struct inode *inode, loff_t newsize)
-> > > > > >  
-> > > > > >  	oldsize = inode->i_size;
-> > > > > >  	i_size_write(inode, newsize);
-> > > > > > +	if (unlikely(mapping_hwpoison(inode->i_mapping) && !newsize))
-> > > > > > +		mapping_clear_hwpoison(inode->i_mapping);
-> > > > > 
-> > > > > So only a truncate to zero size will clear the poison flag?
-> > > > 
-> > > > Yes, this is because we only know if the file is affected by hwpoison,
-> > > > but not where the hwpoisoned page is in the file. We could remember it,
-> > > > but I did not do it for simplicity.
-> > > 
-> > > Surely the page has flags on it to say it is poisoned? That is,
-> > > after truncating the page cache, if the address space is poisoned,
-> > > then you can do a pass across the mapping tree checking if there are
-> > > any poisoned pages left? Or perhaps adding a new mapping tree tag so
-> > > that the poisoned status is automatically determined by the presence
-> > > of the poisoned page in the mapping tree?
-> > 
-> > The answer for the first question is yes. And for the second question,
-> > I don't think it's easy because the mapping tree has no reference to
-> > the error page (I explain more about this below, please see also it,)
-> > and it can cost too much to search poisoned pages over page cache in
-> > each request.
-> 
-> Which is my point about a radix tree tag - that's very efficient.
-> 
-> > And for the third question, I think we could do this, but to do it
-> > we need an additional space (8 bytes) in struct radix_tree_node.
-> > Considering that this new tag is not used so frequently, so I'm not
-> > sure that it's worth the cost.
-> 
-> A radix tree node is currently 560 bytes on x86_64, packed 7 to a
-> page. i.e. using 3920 bytes. We can add another 8 bytes to it
-> without increasing memory usage at all. So, no cost at all.
+Hi,
 
-OK.
+The commit e9da6e9 "ARM: dma-mapping: remove custom consistent dma
+region" breaks the compatibility with existing drivers. This causes
+the following kernel oops(*1). That driver has called dma_pool_alloc()
+to allocate memory from the interrupt context, and it hits
+BUG_ON(in_interrpt()) in "get_vm_area_caller()". This patch seris
+fixes this problem with making use of the pre-allocate atomic memory
+pool which DMA is using in the same way as DMA does now.
 
-> > > > > What happens if it is the last page in the mapping that is poisoned,
-> > > > > and we truncate that away? Shouldn't that clear the poisoned bit?
-> > > > 
-> > > > When we handle the hwpoisoned inode, the error page should already
-> > > > be removed from pagecache, so the remaining pages are not related
-> > > > to the error and we need not care about them when we consider bit
-> > > > clearing.
-> > > 
-> > > Sorry, I don't follow. What removed the page from the page cache?
-> > > The truncate_page_cache() call that follows the above code hunk is
-> > > what does that, so I don't see how it can already be removed from
-> > > the page cache....
-> > 
-> > Memory error handler (memory_failure() in mm/memory-failure.c) has
-> > removed the error page from the page cache.
-> > And truncate_page_cache() that follows this hunk removes all pages
-> > belonging to the page cache of the poisoned file (where the error
-> > page itself is not included in them.)
-> > 
-> > Let me explain more to clarify my whole scenario. If a memory error
-> > hits on a dirty pagecache, kernel works like below:
-> > 
-> >   1. handles a MCE interrupt (logging MCE events,)
-> >   2. calls memory error handler (doing 3 to 6,)
-> >   3. sets PageHWPoison flag on the error page,
-> >   4. unmaps all mappings to processes' virtual addresses,
-> 
-> So nothing in userspace sees the bad page after this.
-> 
-> >   5. sets AS_HWPOISON on mappings to which the error page belongs
-> >   6. invalidates the error page (unlinks it from LRU list and removes
-> >      it from pagecache,)
-> >   (memory error handler finished)
-> 
-> Ok, so the moment a memory error is handled, the page has been
-> removed from the inode's mapping, and it will never be seen by
-> aplications again. It's a transient error....
-> 
-> >   7. later accesses to the file returns -EIO,
-> >   8. AS_HWPOISON is cleared when the file is removed or completely
-> >      truncated.
-> 
-> .... so why do we have to keep an EIO on the inode forever?
-> 
-> If the page is not dirty, then just tossing it from the cache (as
-> is already done) and rereading it from disk next time it is accessed
-> removes the need for any error to be reported at all. It's
-> effectively a transient error at this point, and as such no errors
-> should be visible from userspace.
-> 
-> If the page is dirty, then it needs to be treated just like any
-> other failed page write - the page is invalidated and the address
-> space is marked with AS_EIO, and that is reported to the next
-> operation that waits on IO on that file (i.e. fsync)
-> 
-> If you have a second application that reads the files that depends
-> on a guarantee of good data, then the first step in that process is
-> that application that writes it needs to use fsync to check the data
-> was written correctly. That ensures that you only have clean pages
-> in the cache before the writer closes the file, and any h/w error
-> then devolves to the above transient clean page invalidation case.
+Any comment would be really appreciated.
 
-Thank you for detailed explanations.
-And yes, I understand it's ideal, but many applications choose not to
-do that for performance reason.
-So I think it's helpful if we can surely report to such applications.
+v4:
+Fix plain memory allocation. (Konrad,Marek)
+Print nicer error message at __in_atomic_pool() (Konrad)
+v3:
+Provide a different path for IOMMU for more clean code. (Marek)
+atomic_pool is backed with struct page *pages[].
+http://lists.linaro.org/pipermail/linaro-mm-sig/2012-August/002446.html
+v2:
+Don't modify attrs(DMA_ATTR_NO_KERNEL_MAPPING) for atomic allocation. (Marek)
+Modify vzalloc (KyongHo,Minchan)
+http://lists.linaro.org/pipermail/linaro-mm-sig/2012-August/002430.html
+v1:
+http://lists.linaro.org/pipermail/linaro-mm-sig/2012-August/002398.html
 
-> Hence I fail to see why this type of IO error needs to be sticky.
-> The error on the mapping is transient - it is gone as soon as the
-> page is removed from the mapping. Hence the error can be dropped as
-> soon as it is reported to userspace because the mapping is now error
-> free.
+*1:
+[    8.321343] ------------[ cut here ]------------
+[    8.325971] kernel BUG at kernel/mm/vmalloc.c:1322!
+[    8.333615] Internal error: Oops - BUG: 0 [#1] PREEMPT SMP ARM
+[    8.339436] Modules linked in:
+[    8.342496] CPU: 0    Tainted: G        W     (3.4.6-00067-g5d485f7 #67)
+[    8.349192] PC is at __get_vm_area_node.isra.29+0x164/0x16c
+[    8.354758] LR is at get_vm_area_caller+0x4c/0x54
+[    8.359454] pc : [<c011297c>]    lr : [<c011318c>]    psr: 20000193
+[    8.359458] sp : c09edca0  ip : c09ec000  fp : ae278000
+[    8.370922] r10: f0000000  r9 : c011aa54  r8 : c0a26cb8
+[    8.376136] r7 : 00000001  r6 : 000000d0  r5 : 20000008  r4 : c09edca0
+[    8.382651] r3 : 00010000  r2 : 20000008  r1 : 00000001  r0 : 00001000
+[    8.389166] Flags: nzCv  IRQs off  FIQs on  Mode SVC_32  ISA ARM  Segment kernel
+[    8.396549] Control: 10c5387d  Table: ad98c04a  DAC: 00000015
+....
+[    9.169162] dfa0: 412fc099 c09ec000 00000000 c000fdd8 c06df1e4 c0a1b080 00000000 00000000
+[    9.177329] dfc0: c0a235cc 8000406a 00000000 c0986818 ffffffff ffffffff c0986404 00000000
+[    9.185497] dfe0: 00000000 c09bb070 10c5387d c0a19c58 c09bb064 80008044 00000000 00000000
+[    9.193673] [<c011297c>] (__get_vm_area_node.isra.29+0x164/0x16c) from [<c011318c>] (get_vm_area_caller+0x4c/0x54)
+[    9.204022] [<c011318c>] (get_vm_area_caller+0x4c/0x54) from [<c001aed8>] (__iommu_alloc_remap.isra.14+0x2c/0xfc)
+[    9.214276] [<c001aed8>] (__iommu_alloc_remap.isra.14+0x2c/0xfc) from [<c001b06c>] (arm_iommu_alloc_attrs+0xc4/0xf8)
+[    9.224795] [<c001b06c>] (arm_iommu_alloc_attrs+0xc4/0xf8) from [<c011aa54>] (pool_alloc_page.constprop.5+0x6c/0xf8)
+[    9.235309] [<c011aa54>] (pool_alloc_page.constprop.5+0x6c/0xf8) from [<c011ab60>] (dma_pool_alloc+0x80/0x170)
+[    9.245304] [<c011ab60>] (dma_pool_alloc+0x80/0x170) from [<c03cbbcc>] (tegra_build_dtd+0x48/0x14c)
+[    9.254344] [<c03cbbcc>] (tegra_build_dtd+0x48/0x14c) from [<c03cbd4c>] (tegra_req_to_dtd+0x7c/0xa8)
+[    9.263467] [<c03cbd4c>] (tegra_req_to_dtd+0x7c/0xa8) from [<c03cc140>] (tegra_ep_queue+0x154/0x33c)
+[    9.272592] [<c03cc140>] (tegra_ep_queue+0x154/0x33c) from [<c03dd5b4>] (composite_setup+0x364/0x6d4)
+[    9.281804] [<c03dd5b4>] (composite_setup+0x364/0x6d4) from [<c03dd9dc>] (android_setup+0xb8/0x14c)
+[    9.290843] [<c03dd9dc>] (android_setup+0xb8/0x14c) from [<c03cd144>] (setup_received_irq+0xbc/0x270)
+[    9.300053] [<c03cd144>] (setup_received_irq+0xbc/0x270) from [<c03cda64>] (tegra_udc_irq+0x2ac/0x2c4)
+[    9.309353] [<c03cda64>] (tegra_udc_irq+0x2ac/0x2c4) from [<c00b5708>] (handle_irq_event_percpu+0x78/0x2e0)
+[    9.319087] [<c00b5708>] (handle_irq_event_percpu+0x78/0x2e0) from [<c00b59b4>] (handle_irq_event+0x44/0x64)
+[    9.328907] [<c00b59b4>] (handle_irq_event+0x44/0x64) from [<c00b8688>] (handle_fasteoi_irq+0xc4/0x16c)
+[    9.338294] [<c00b8688>] (handle_fasteoi_irq+0xc4/0x16c) from [<c00b4f14>] (generic_handle_irq+0x34/0x48)
+[    9.347858] [<c00b4f14>] (generic_handle_irq+0x34/0x48) from [<c000f6f4>] (handle_IRQ+0x54/0xb4)
+[    9.356637] [<c000f6f4>] (handle_IRQ+0x54/0xb4) from [<c00084b0>] (gic_handle_irq+0x2c/0x60)
+[    9.365068] [<c00084b0>] (gic_handle_irq+0x2c/0x60) from [<c000e900>] (__irq_svc+0x40/0x70)
+[    9.373405] Exception stack(0xc09edf10 to 0xc09edf58)
+[    9.378447] df00:                                     00000000 000f4240 00000003 00000000
+[    9.386615] df20: 00000000 e55bbc00 ef66f3ca 00000001 00000000 412fc099 c0abb9c8 00000000
+[    9.394781] df40: 3b9ac9ff c09edf58 c027a9bc c0042880 20000113 ffffffff
+[    9.401396] [<c000e900>] (__irq_svc+0x40/0x70) from [<c0042880>] (tegra_idle_enter_lp3+0x68/0x78)
+[    9.410272] [<c0042880>] (tegra_idle_enter_lp3+0x68/0x78) from [<c04701d4>] (cpuidle_idle_call+0xdc/0x3a4)
+[    9.419922] [<c04701d4>] (cpuidle_idle_call+0xdc/0x3a4) from [<c000fdd8>] (cpu_idle+0xd8/0x134)
+[    9.428612] [<c000fdd8>] (cpu_idle+0xd8/0x134) from [<c0986818>] (start_kernel+0x27c/0x2cc)
+[    9.436952] Code: e1a00004 e3a04000 eb002265 eaffffe0 (e7f001f2)
+[    9.443038] ---[ end trace 1b75b31a2719ed24 ]---
+[    9.447645] Kernel panic - not syncing: Fatal exception in interrupt
 
-It's error free only for the applications which do fsync check in
-each write, but not for the applications which don't do.
-I think the penalty for the latters (ignore dirty data lost and get
-wrong results) is too big to consider it as a reasonable trade-off.
+Hiroshi Doyu (4):
+  ARM: dma-mapping: atomic_pool with struct page **pages
+  ARM: dma-mapping: Refactor out to introduce __in_atomic_pool
+  ARM: dma-mapping: Introduce __atomic_get_pages() for
+    __iommu_get_pages()
+  ARM: dma-mapping: IOMMU allocates pages from atomic_pool with
+    GFP_ATOMIC
 
-> > You may think it strange that the condition of clearing AS_HWPOISON
-> > is checked with file granularity.
-> 
-> I don't think it is strange, I think it is *wrong*.
+ arch/arm/mm/dma-mapping.c |   91 ++++++++++++++++++++++++++++++++++++++++----
+ 1 files changed, 82 insertions(+), 9 deletions(-)
 
-OK, we can move to a new tag approach, and we can avoid this.
-
-> > This is because currently userspace
-> > applications know the memory errors only with file granularity for
-> > simplicity, when they access via read(), write() and/or fsync().
-> 
-> Trying to report this error to every potential future access
-> regardless of whether the error still exists or the access is to the
-> poisoned range with magical sticky errors on inode address spaces
-> and hacks to memory the reclaim subsystems smells to me like a really
-> bad hack to work around applications that use bad data integrity
-> practices.
-> 
-> As such, I think you probably need to rethink the approach you are
-> taking to handling this error. The error is transient w.r.t. to the
-> mapping and page cache, and needs to be addressed consistently
-> compared to other transient IO errors that are reported through the
-> mapping....
-
-Agreed. We can handle this error without a controversial flag on the
-mapping, in new pagecache tag approach. I'll try that one.
-
-Thanks,
-Naoya
+-- 
+1.7.5.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
