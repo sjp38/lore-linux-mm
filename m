@@ -1,185 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
-	by kanga.kvack.org (Postfix) with SMTP id 5A2F36B0087
-	for <linux-mm@kvack.org>; Tue, 28 Aug 2012 06:00:09 -0400 (EDT)
-From: wency@cn.fujitsu.com
-Subject: [RFC v8 PATCH 02/20] memory-hotplug: implement offline_memory()
-Date: Tue, 28 Aug 2012 18:00:09 +0800
-Message-Id: <1346148027-24468-3-git-send-email-wency@cn.fujitsu.com>
-In-Reply-To: <1346148027-24468-1-git-send-email-wency@cn.fujitsu.com>
-References: <1346148027-24468-1-git-send-email-wency@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
+	by kanga.kvack.org (Postfix) with SMTP id 417AA6B0098
+	for <linux-mm@kvack.org>; Tue, 28 Aug 2012 06:11:51 -0400 (EDT)
+Date: Tue, 28 Aug 2012 06:11:48 -0400
+From: Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
+Subject: Re: [PATCH v3 01/17] hashtable: introduce a small and naive
+	hashtable
+Message-ID: <20120828101148.GA21683@Krystal>
+References: <5037DA47.9010306@gmail.com> <20120824195941.GC21325@google.com> <5037E00B.6090606@gmail.com> <20120824203332.GF21325@google.com> <5037E9D9.9000605@gmail.com> <20120824212348.GK21325@google.com> <5038074D.300@gmail.com> <20120824230740.GN21325@google.com> <20120825042419.GA27240@Krystal> <503C95E4.3010000@gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <503C95E4.3010000@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-ia64@vger.kernel.org, cmetcalf@tilera.com, sparclinux@vger.kernel.org
-Cc: rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, Wen Congyang <wency@cn.fujitsu.com>, Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>
+To: Sasha Levin <levinsasha928@gmail.com>
+Cc: Tejun Heo <tj@kernel.org>, torvalds@linux-foundation.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, paul.gortmaker@windriver.com, davem@davemloft.net, rostedt@goodmis.org, mingo@elte.hu, ebiederm@xmission.com, aarcange@redhat.com, ericvh@gmail.com, netdev@vger.kernel.org, josh@joshtriplett.org, eric.dumazet@gmail.com, axboe@kernel.dk, agk@redhat.com, dm-devel@redhat.com, neilb@suse.de, ccaulfie@redhat.com, teigland@redhat.com, Trond.Myklebust@netapp.com, bfields@fieldses.org, fweisbec@gmail.com, jesse@nicira.com, venkat.x.venkatsubra@oracle.com, ejt@redhat.com, snitzer@redhat.com, edumazet@google.com, linux-nfs@vger.kernel.org, dev@openvswitch.org, rds-devel@oss.oracle.com, lw@cn.fujitsu.com
 
-From: Wen Congyang <wency@cn.fujitsu.com>
+* Sasha Levin (levinsasha928@gmail.com) wrote:
+> On 08/25/2012 06:24 AM, Mathieu Desnoyers wrote:
+> > * Tejun Heo (tj@kernel.org) wrote:
+> >> Hello,
+> >>
+> >> On Sat, Aug 25, 2012 at 12:59:25AM +0200, Sasha Levin wrote:
+> >>> Thats the thing, the amount of things of things you can do with a given bucket
+> >>> is very limited. You can't add entries to any point besides the head (without
+> >>> walking the entire list).
+> >>
+> >> Kinda my point.  We already have all the hlist*() interface to deal
+> >> with such cases.  Having something which is evidently the trivial
+> >> hlist hashtable and advertises as such in the interface can be
+> >> helpful.  I think we need that more than we need anything fancy.
+> >>
+> >> Heh, this is a debate about which one is less insignificant.  I can
+> >> see your point.  I'd really like to hear what others think on this.
+> >>
+> >> Guys, do we want something which is evidently trivial hlist hashtable
+> >> which can use hlist_*() API directly or do we want something better
+> >> encapsulated?
+> > 
+> > My 2 cents, FWIW: I think this specific effort should target a trivially
+> > understandable API and implementation, for use-cases where one would be
+> > tempted to reimplement his own trivial hash table anyway. So here
+> > exposing hlist internals, with which kernel developers are already
+> > familiar, seems like a good approach in my opinion, because hiding stuff
+> > behind new abstraction might make the target users go away.
+> > 
+> > Then, as we see the need, we can eventually merge a more elaborate hash
+> > table with poneys and whatnot, but I would expect that the trivial hash
+> > table implementation would still be useful. There are of course very
+> > compelling reasons to use a more featureful hash table: automatic
+> > resize, RT-aware updates, scalable updates, etc... but I see a purpose
+> > for a trivial implementation. Its primary strong points being:
+> > 
+> > - it's trivially understandable, so anyone how want to be really sure
+> >   they won't end up debugging the hash table instead of their
+> >   work-in-progress code can have a full understanding of it,
+> > - it has few dependencies, which makes it easier to understand and
+> >   easier to use in some contexts (e.g. early boot).
+> > 
+> > So I'm in favor of not overdoing the abstraction for this trivial hash
+> > table, and honestly I would rather prefer that this trivial hash table
+> > stays trivial. A more elaborate hash table should probably come as a
+> > separate API.
+> > 
+> > Thanks,
+> > 
+> > Mathieu
+> > 
+> 
+> Alright, let's keep it simple then.
+> 
+> I do want to keep the hash_for_each[rcu,safe] family though.
 
-The function offline_memory() will be called when hot removing a
-memory device. The memory device may contain more than one memory
-block. If the memory block has been offlined, __offline_pages()
-will fail. So we should try to offline one memory block at a
-time.
+Just a thought: if the API offered by the simple hash table focus on
+providing a mechanism to find the hash bucket to which belongs the hash
+chain containing the key looked up, and then expects the user to use the
+hlist API to iterate on the chain (with or without the hlist _rcu
+variant), then it might seem consistent that a helper providing
+iteration over the entire table would actually just provide iteration on
+all buckets, and let the user call the hlist for each iterator for each
+node within the bucket, e.g.:
 
-If the memory block is offlined in offline_memory(), we also
-update it's state, and notify the userspace that its state is
-changed.
+struct hlist_head *head;
+struct hlist_node *pos;
 
-The function offline_memory() also check each memory block's
-state. So there is no need to check the memory block's state
-before calling offline_memory().
+hash_for_each_bucket(ht, head) {
+        hlist_for_each(pos, head) {
+                ...
+        }
+}
 
-CC: David Rientjes <rientjes@google.com>
-CC: Jiang Liu <liuj97@gmail.com>
-CC: Len Brown <len.brown@intel.com>
-CC: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-CC: Paul Mackerras <paulus@samba.org>
-CC: Christoph Lameter <cl@linux.com>
-Cc: Minchan Kim <minchan.kim@gmail.com>
-CC: Andrew Morton <akpm@linux-foundation.org>
-CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-CC: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-CC: Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>
-Signed-off-by: Wen Congyang <wency@cn.fujitsu.com>
----
- drivers/base/memory.c          |   31 +++++++++++++++++++++++++++----
- include/linux/memory_hotplug.h |    2 ++
- mm/memory_hotplug.c            |   37 ++++++++++++++++++++++++++++++++++++-
- 3 files changed, 65 insertions(+), 5 deletions(-)
+That way you only have to provide one single macro
+(hash_for_each_bucket), and rely on the already existing:
 
-diff --git a/drivers/base/memory.c b/drivers/base/memory.c
-index 44e7de6..86c8821 100644
---- a/drivers/base/memory.c
-+++ b/drivers/base/memory.c
-@@ -275,13 +275,11 @@ memory_block_action(unsigned long phys_index, unsigned long action)
- 	return ret;
- }
- 
--static int memory_block_change_state(struct memory_block *mem,
-+static int __memory_block_change_state(struct memory_block *mem,
- 		unsigned long to_state, unsigned long from_state_req)
- {
- 	int ret = 0;
- 
--	mutex_lock(&mem->state_mutex);
--
- 	if (mem->state != from_state_req) {
- 		ret = -EINVAL;
- 		goto out;
-@@ -309,10 +307,20 @@ static int memory_block_change_state(struct memory_block *mem,
- 		break;
- 	}
- out:
--	mutex_unlock(&mem->state_mutex);
- 	return ret;
- }
- 
-+static int memory_block_change_state(struct memory_block *mem,
-+		unsigned long to_state, unsigned long from_state_req)
-+{
-+	int ret;
-+
-+	mutex_lock(&mem->state_mutex);
-+	ret = __memory_block_change_state(mem, to_state, from_state_req);
-+	mutex_unlock(&mem->state_mutex);
-+
-+	return ret;
-+}
- static ssize_t
- store_mem_state(struct device *dev,
- 		struct device_attribute *attr, const char *buf, size_t count)
-@@ -653,6 +661,21 @@ int unregister_memory_section(struct mem_section *section)
- }
- 
- /*
-+ * offline one memory block. If the memory block has been offlined, do nothing.
-+ */
-+int offline_memory_block(struct memory_block *mem)
-+{
-+	int ret = 0;
-+
-+	mutex_lock(&mem->state_mutex);
-+	if (mem->state != MEM_OFFLINE)
-+		ret = __memory_block_change_state(mem, MEM_OFFLINE, MEM_ONLINE);
-+	mutex_unlock(&mem->state_mutex);
-+
-+	return ret;
-+}
-+
-+/*
-  * Initialize the sysfs support for memory devices...
-  */
- int __init memory_dev_init(void)
-diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
-index c183f39..0b040bb 100644
---- a/include/linux/memory_hotplug.h
-+++ b/include/linux/memory_hotplug.h
-@@ -10,6 +10,7 @@ struct page;
- struct zone;
- struct pglist_data;
- struct mem_section;
-+struct memory_block;
- 
- #ifdef CONFIG_MEMORY_HOTPLUG
- 
-@@ -234,6 +235,7 @@ extern int mem_online_node(int nid);
- extern int add_memory(int nid, u64 start, u64 size);
- extern int arch_add_memory(int nid, u64 start, u64 size);
- extern int offline_pages(unsigned long start_pfn, unsigned long nr_pages);
-+extern int offline_memory_block(struct memory_block *mem);
- extern int offline_memory(u64 start, u64 size);
- extern int sparse_add_one_section(struct zone *zone, unsigned long start_pfn,
- 								int nr_pages);
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index c182c76..3113cd4 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -1001,7 +1001,42 @@ int offline_pages(unsigned long start_pfn, unsigned long nr_pages)
- 
- int offline_memory(u64 start, u64 size)
- {
--	return -EINVAL;
-+	struct memory_block *mem = NULL;
-+	struct mem_section *section;
-+	unsigned long start_pfn, end_pfn;
-+	unsigned long pfn, section_nr;
-+	int ret;
-+
-+	start_pfn = PFN_DOWN(start);
-+	end_pfn = start_pfn + PFN_DOWN(size);
-+
-+	for (pfn = start_pfn; pfn < end_pfn; pfn += PAGES_PER_SECTION) {
-+		section_nr = pfn_to_section_nr(pfn);
-+		if (!present_section_nr(section_nr))
-+			continue;
-+
-+		section = __nr_to_section(section_nr);
-+		/* same memblock? */
-+		if (mem)
-+			if ((section_nr >= mem->start_section_nr) &&
-+			    (section_nr <= mem->end_section_nr))
-+				continue;
-+
-+		mem = find_memory_block_hinted(section, mem);
-+		if (!mem)
-+			continue;
-+
-+		ret = offline_memory_block(mem);
-+		if (ret) {
-+			kobject_put(&mem->dev.kobj);
-+			return ret;
-+		}
-+	}
-+
-+	if (mem)
-+		kobject_put(&mem->dev.kobj);
-+
-+	return 0;
- }
- #else
- int offline_pages(u64 start, u64 size)
+- hlist_for_each_entry
+- hlist_for_each_safe
+- hlist_for_each_entry_rcu
+- hlist_for_each_safe_rcu
+  .....
+
+and various flavors that can appear in the future without duplicating
+this API. So you won't even have to create _rcu, _safe, nor _safe_rcu
+versions of the hash_for_each_bucket macro.
+
+Thoughts ?
+
+Thanks,
+
+Mathieu
+
 -- 
-1.7.1
+Mathieu Desnoyers
+Operating System Efficiency R&D Consultant
+EfficiOS Inc.
+http://www.efficios.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
