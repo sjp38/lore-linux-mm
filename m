@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
-	by kanga.kvack.org (Postfix) with SMTP id 6D8F36B0072
+Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
+	by kanga.kvack.org (Postfix) with SMTP id 8EE0C6B0073
 	for <linux-mm@kvack.org>; Tue, 28 Aug 2012 05:59:55 -0400 (EDT)
 From: wency@cn.fujitsu.com
-Subject: [RFC v8 PATCH 10/20] memory-hotplug: add memory_block_release
-Date: Tue, 28 Aug 2012 18:00:17 +0800
-Message-Id: <1346148027-24468-11-git-send-email-wency@cn.fujitsu.com>
+Subject: [RFC v8 PATCH 19/20] memory-hotplug: remove sysfs file of node
+Date: Tue, 28 Aug 2012 18:00:26 +0800
+Message-Id: <1346148027-24468-20-git-send-email-wency@cn.fujitsu.com>
 In-Reply-To: <1346148027-24468-1-git-send-email-wency@cn.fujitsu.com>
 References: <1346148027-24468-1-git-send-email-wency@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,16 +13,12 @@ List-ID: <linux-mm.kvack.org>
 To: x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-ia64@vger.kernel.org, cmetcalf@tilera.com, sparclinux@vger.kernel.org
 Cc: rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, Wen Congyang <wency@cn.fujitsu.com>
 
-From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+From: Wen Congyang <wency@cn.fujitsu.com>
 
-When calling remove_memory_block(), the function shows following message at
-device_release().
-
-Device 'memory528' does not have a release() function, it is broken and must
-be fixed.
-
-remove_memory_block() calls kfree(mem). I think it shouled be called from
-device_release(). So the patch implements memory_block_release()
+This patch introduces a new function try_offline_node() to
+remove sysfs file of node when all memory sections of this
+node are removed. If some memory sections of this node are
+not removed, this function does nothing.
 
 CC: David Rientjes <rientjes@google.com>
 CC: Jiang Liu <liuj97@gmail.com>
@@ -33,48 +29,63 @@ CC: Christoph Lameter <cl@linux.com>
 Cc: Minchan Kim <minchan.kim@gmail.com>
 CC: Andrew Morton <akpm@linux-foundation.org>
 CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-CC: Wen Congyang <wency@cn.fujitsu.com>
-Signed-off-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+CC: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+Signed-off-by: Wen Congyang <wency@cn.fujitsu.com>
 ---
- drivers/base/memory.c |   11 ++++++++++-
- 1 files changed, 10 insertions(+), 1 deletions(-)
+ mm/memory_hotplug.c |   33 +++++++++++++++++++++++++++++++++
+ 1 files changed, 33 insertions(+), 0 deletions(-)
 
-diff --git a/drivers/base/memory.c b/drivers/base/memory.c
-index 038be73..1cd3ef3 100644
---- a/drivers/base/memory.c
-+++ b/drivers/base/memory.c
-@@ -109,6 +109,15 @@ bool is_memblk_offline(unsigned long start, unsigned long size)
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index 493298f..fb8af64 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -1286,6 +1286,37 @@ int offline_memory(u64 start, u64 size)
+ 	return 0;
  }
- EXPORT_SYMBOL(is_memblk_offline);
  
-+#define to_memory_block(device) container_of(device, struct memory_block, dev)
-+
-+static void release_memory_block(struct device *dev)
++/* offline the node if all memory sections of this node are removed */
++static void try_offline_node(int nid)
 +{
-+	struct memory_block *mem = to_memory_block(dev);
++	unsigned long start_pfn = NODE_DATA(nid)->node_start_pfn;
++	unsigned long end_pfn = start_pfn + NODE_DATA(nid)->node_spanned_pages;
++	unsigned long pfn;
 +
-+	kfree(mem);
++	for (pfn = start_pfn; pfn < end_pfn; pfn += PAGES_PER_SECTION) {
++		unsigned long section_nr = pfn_to_section_nr(pfn);
++
++		if (!present_section_nr(section_nr))
++			continue;
++
++		if (pfn_to_nid(pfn) != nid)
++			continue;
++
++		/*
++		 * some memory sections of this node are not removed, and we
++		 * can't offline node now.
++		 */
++		return;
++	}
++
++	/*
++	 * all memory sections of this node are removed, we can offline this
++	 * node now.
++	 */
++	node_set_offline(nid);
++	unregister_one_node(nid);
 +}
 +
- /*
-  * register_memory - Setup a sysfs device for a memory block
-  */
-@@ -119,6 +128,7 @@ int register_memory(struct memory_block *memory)
+ int __ref remove_memory(int nid, u64 start, u64 size)
+ {
+ 	int ret = 0;
+@@ -1306,6 +1337,8 @@ int __ref remove_memory(int nid, u64 start, u64 size)
+ 	firmware_map_remove(start, start + size, "System RAM");
  
- 	memory->dev.bus = &memory_subsys;
- 	memory->dev.id = memory->start_section_nr / sections_per_block;
-+	memory->dev.release = release_memory_block;
- 
- 	error = device_register(&memory->dev);
- 	return error;
-@@ -674,7 +684,6 @@ int remove_memory_block(unsigned long node_id, struct mem_section *section,
- 		mem_remove_simple_file(mem, phys_device);
- 		mem_remove_simple_file(mem, removable);
- 		unregister_memory(mem);
--		kfree(mem);
- 	} else
- 		kobject_put(&mem->dev.kobj);
- 
+ 	arch_remove_memory(start, size);
++
++	try_offline_node(nid);
+ out:
+ 	unlock_memory_hotplug();
+ 	return ret;
 -- 
 1.7.1
 
