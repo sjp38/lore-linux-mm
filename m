@@ -1,74 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx110.postini.com [74.125.245.110])
-	by kanga.kvack.org (Postfix) with SMTP id 35EA76B0068
-	for <linux-mm@kvack.org>; Tue, 28 Aug 2012 11:54:55 -0400 (EDT)
-Date: Tue, 28 Aug 2012 18:54:10 +0300
+Received: from psmtp.com (na3sys010amx144.postini.com [74.125.245.144])
+	by kanga.kvack.org (Postfix) with SMTP id 05F266B006C
+	for <linux-mm@kvack.org>; Tue, 28 Aug 2012 12:26:12 -0400 (EDT)
+Date: Tue, 28 Aug 2012 18:23:12 +0300
 From: "Michael S. Tsirkin" <mst@redhat.com>
-Subject: Re: [PATCH v9 3/5] virtio_balloon: introduce migration primitives to
- balloon pages
-Message-ID: <20120828155410.GE2903@redhat.com>
+Subject: Re: [PATCH v9 1/5] mm: introduce a common interface for balloon
+ pages mobility
+Message-ID: <20120828152312.GB2903@redhat.com>
 References: <cover.1345869378.git.aquini@redhat.com>
- <a1ceca79d95bc7de2a6b62a2e565b95286dbdf75.1345869378.git.aquini@redhat.com>
- <20120826074244.GC19551@redhat.com>
- <20120827194713.GA6517@t510.redhat.com>
+ <aa4af6e819584cb05fc0dba44594ae23ab761d03.1345869378.git.aquini@redhat.com>
+ <20120826075557.GD19551@redhat.com>
+ <20120827202834.GC6517@t510.redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20120827194713.GA6517@t510.redhat.com>
+In-Reply-To: <20120827202834.GC6517@t510.redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Rafael Aquini <aquini@redhat.com>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, Rusty Russell <rusty@rustcorp.com.au>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Minchan Kim <minchan@kernel.org>, Peter Zijlstra <peterz@infradead.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
 
-On Mon, Aug 27, 2012 at 04:47:13PM -0300, Rafael Aquini wrote:
-> On Sun, Aug 26, 2012 at 10:42:44AM +0300, Michael S. Tsirkin wrote:
+On Mon, Aug 27, 2012 at 05:28:35PM -0300, Rafael Aquini wrote:
+> On Sun, Aug 26, 2012 at 10:55:58AM +0300, Michael S. Tsirkin wrote:
+> > On Sat, Aug 25, 2012 at 02:24:56AM -0300, Rafael Aquini wrote:
+> > > Memory fragmentation introduced by ballooning might reduce significantly
+> > > the number of 2MB contiguous memory blocks that can be used within a guest,
+> > > thus imposing performance penalties associated with the reduced number of
+> > > transparent huge pages that could be used by the guest workload.
+> > > 
+> > > This patch introduces a common interface to help a balloon driver on
+> > > making its page set movable to compaction, and thus allowing the system
+> > > to better leverage the compation efforts on memory defragmentation.
+> > > 
+> > > Signed-off-by: Rafael Aquini <aquini@redhat.com>
 > > 
-> > Reading two atomics and doing math? Result can even be negative.
-> > I did not look at use closely but it looks suspicious.
-> Doc on atomic_read says:
-> "
-> The read is atomic in that the return value is guaranteed to be one of the
-> values initialized or modified with the interface operations if a proper
-> implicit or explicit memory barrier is used after possible runtime
-> initialization by any other thread and the value is modified only with the
-> interface operations.
-> "
+> > Tons of rcu uses but not sync in sight. This looks suspicious.
 > 
-> There's no runtime init by other thread than balloon's itself at device register,
-> and the operations (inc, dec) are made by the proper interface operations
-> only when protected by the spinlock pages_lock. It does not look suspicious, IMHO.
+> There's no critical section marked with rcu_read_lock/rcu_read_unlock. that's
+> why there's no call for sync anywhere. As we are behaving mostly as updaters,
+> the hole rcu usage is awkward and it's placed basically to enforce the proper
+> order. To avoid hurting the RCU API usage with this awk approach I'll drop it
+> for the next series submission (it will use barriers instead).
 
-Any use of multiple atomics is suspicious.
-Please just avoid it if you can. What's wrong with locking?
-
-> I'm failing to see how it could become a negative on that case, since you cannot
-> isolate more pages than what was previoulsy inflated to balloon's list.
-
-There is no order guarantee. So in
-A - B you can read B long after both A and B has been incremented.
-Maybe it is safe in this case but it needs careful documentation
-to explain how ordering works. Much easier to keep it all simple.
-
-> 
-> > It's already the case everywhere except __wait_on_isolated_pages,
-> > so just fix that, and then we can keep using int instead of atomics.
-> > 
-> Sorry, I quite didn't get you here. fix what?
-
-It's in the text you removed above. Access values under lock.
-
->  
-> > That's 1K on stack - and can become more if we increase
-> > VIRTIO_BALLOON_ARRAY_PFNS_MAX.  Probably too much - this is the reason
-> > we use vb->pfns.
-> >
-> If we want to use vb->pfns we'll have to make leak_balloon mutual exclusive with
-> page migration (as it was before), but that will inevictably bring us back to
-> the discussion on breaking the loop when isolated pages make leak_balloon find
-> less pages than it wants to release at each leak round.
-> 
-
-I don't think this is an issue. The issue was busy waiting in that case.
+If everything is under page lock, barriers are likely not required.
+If not, they might not be sufficient.
 
 -- 
 MST
