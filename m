@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
-	by kanga.kvack.org (Postfix) with SMTP id D0C846B005D
-	for <linux-mm@kvack.org>; Tue, 28 Aug 2012 05:59:52 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
+	by kanga.kvack.org (Postfix) with SMTP id C4DE36B0069
+	for <linux-mm@kvack.org>; Tue, 28 Aug 2012 05:59:53 -0400 (EDT)
 From: wency@cn.fujitsu.com
-Subject: [RFC v8 PATCH 20/20] memory-hotplug: clear hwpoisoned flag when onlining pages
-Date: Tue, 28 Aug 2012 18:00:27 +0800
-Message-Id: <1346148027-24468-21-git-send-email-wency@cn.fujitsu.com>
+Subject: [RFC v8 PATCH 03/20] memory-hotplug: store the node id in acpi_memory_device
+Date: Tue, 28 Aug 2012 18:00:10 +0800
+Message-Id: <1346148027-24468-4-git-send-email-wency@cn.fujitsu.com>
 In-Reply-To: <1346148027-24468-1-git-send-email-wency@cn.fujitsu.com>
 References: <1346148027-24468-1-git-send-email-wency@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
@@ -15,12 +15,9 @@ Cc: rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.cras
 
 From: Wen Congyang <wency@cn.fujitsu.com>
 
-hwpoisoned may set when we offline a page by the sysfs interface
-/sys/devices/system/memory/soft_offline_page or
-/sys/devices/system/memory/hard_offline_page. If we don't clear
-this flag when onlining pages, this page can't be freed, and will
-not in free list. So we can't offline these pages again. So we
-should clear this flag when onlining pages.
+The memory device has only one node id. Store the node id when
+enable the memory device, and we can reuse it when removing the
+memory device.
 
 CC: David Rientjes <rientjes@google.com>
 CC: Jiang Liu <liuj97@gmail.com>
@@ -33,26 +30,33 @@ CC: Andrew Morton <akpm@linux-foundation.org>
 CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 CC: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 Signed-off-by: Wen Congyang <wency@cn.fujitsu.com>
+Reviewed-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 ---
- mm/memory_hotplug.c |    5 +++++
- 1 files changed, 5 insertions(+), 0 deletions(-)
+ drivers/acpi/acpi_memhotplug.c |    4 ++++
+ 1 files changed, 4 insertions(+), 0 deletions(-)
 
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index fb8af64..85603c4 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -661,6 +661,11 @@ EXPORT_SYMBOL_GPL(__online_page_increment_counters);
+diff --git a/drivers/acpi/acpi_memhotplug.c b/drivers/acpi/acpi_memhotplug.c
+index 2a7beac..7873832 100644
+--- a/drivers/acpi/acpi_memhotplug.c
++++ b/drivers/acpi/acpi_memhotplug.c
+@@ -83,6 +83,7 @@ struct acpi_memory_info {
+ struct acpi_memory_device {
+ 	struct acpi_device * device;
+ 	unsigned int state;	/* State of the memory device */
++	int nid;
+ 	struct list_head res_list;
+ };
  
- void __online_page_free(struct page *page)
- {
-+#ifdef CONFIG_MEMORY_FAILURE
-+	/* The page may be marked HWPoisoned by soft/hard offline page */
-+	ClearPageHWPoison(page);
-+#endif
+@@ -256,6 +257,9 @@ static int acpi_memory_enable_device(struct acpi_memory_device *mem_device)
+ 		info->enabled = 1;
+ 		num_enabled++;
+ 	}
 +
- 	ClearPageReserved(page);
- 	init_page_count(page);
- 	__free_page(page);
++	mem_device->nid = node;
++
+ 	if (!num_enabled) {
+ 		printk(KERN_ERR PREFIX "add_memory failed\n");
+ 		mem_device->state = MEMORY_INVALID_STATE;
 -- 
 1.7.1
 
