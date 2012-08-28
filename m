@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
-	by kanga.kvack.org (Postfix) with SMTP id C4DE36B0069
-	for <linux-mm@kvack.org>; Tue, 28 Aug 2012 05:59:53 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
+	by kanga.kvack.org (Postfix) with SMTP id 31A656B0070
+	for <linux-mm@kvack.org>; Tue, 28 Aug 2012 05:59:54 -0400 (EDT)
 From: wency@cn.fujitsu.com
-Subject: [RFC v8 PATCH 03/20] memory-hotplug: store the node id in acpi_memory_device
-Date: Tue, 28 Aug 2012 18:00:10 +0800
-Message-Id: <1346148027-24468-4-git-send-email-wency@cn.fujitsu.com>
+Subject: [RFC v8 PATCH 13/20] memory-hotplug: check page type in get_page_bootmem
+Date: Tue, 28 Aug 2012 18:00:20 +0800
+Message-Id: <1346148027-24468-14-git-send-email-wency@cn.fujitsu.com>
 In-Reply-To: <1346148027-24468-1-git-send-email-wency@cn.fujitsu.com>
 References: <1346148027-24468-1-git-send-email-wency@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,11 +13,11 @@ List-ID: <linux-mm.kvack.org>
 To: x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-ia64@vger.kernel.org, cmetcalf@tilera.com, sparclinux@vger.kernel.org
 Cc: rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, Wen Congyang <wency@cn.fujitsu.com>
 
-From: Wen Congyang <wency@cn.fujitsu.com>
+From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 
-The memory device has only one node id. Store the node id when
-enable the memory device, and we can reuse it when removing the
-memory device.
+There is a possibility that get_page_bootmem() is called to the same page many
+times. So when get_page_bootmem is called to the same page, the function only
+increments page->_count.
 
 CC: David Rientjes <rientjes@google.com>
 CC: Jiang Liu <liuj97@gmail.com>
@@ -28,35 +28,38 @@ CC: Christoph Lameter <cl@linux.com>
 Cc: Minchan Kim <minchan.kim@gmail.com>
 CC: Andrew Morton <akpm@linux-foundation.org>
 CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-CC: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-Signed-off-by: Wen Congyang <wency@cn.fujitsu.com>
-Reviewed-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+CC: Wen Congyang <wency@cn.fujitsu.com>
+Signed-off-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 ---
- drivers/acpi/acpi_memhotplug.c |    4 ++++
- 1 files changed, 4 insertions(+), 0 deletions(-)
+ mm/memory_hotplug.c |   15 +++++++++++----
+ 1 files changed, 11 insertions(+), 4 deletions(-)
 
-diff --git a/drivers/acpi/acpi_memhotplug.c b/drivers/acpi/acpi_memhotplug.c
-index 2a7beac..7873832 100644
---- a/drivers/acpi/acpi_memhotplug.c
-+++ b/drivers/acpi/acpi_memhotplug.c
-@@ -83,6 +83,7 @@ struct acpi_memory_info {
- struct acpi_memory_device {
- 	struct acpi_device * device;
- 	unsigned int state;	/* State of the memory device */
-+	int nid;
- 	struct list_head res_list;
- };
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index 5f9f8c7..d85af6d 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -95,10 +95,17 @@ static void release_memory_resource(struct resource *res)
+ static void get_page_bootmem(unsigned long info,  struct page *page,
+ 			     unsigned long type)
+ {
+-	page->lru.next = (struct list_head *) type;
+-	SetPagePrivate(page);
+-	set_page_private(page, info);
+-	atomic_inc(&page->_count);
++	unsigned long page_type;
++
++	page_type = (unsigned long) page->lru.next;
++	if (page_type < MEMORY_HOTPLUG_MIN_BOOTMEM_TYPE ||
++	    page_type > MEMORY_HOTPLUG_MAX_BOOTMEM_TYPE){
++		page->lru.next = (struct list_head *) type;
++		SetPagePrivate(page);
++		set_page_private(page, info);
++		atomic_inc(&page->_count);
++	} else
++		atomic_inc(&page->_count);
+ }
  
-@@ -256,6 +257,9 @@ static int acpi_memory_enable_device(struct acpi_memory_device *mem_device)
- 		info->enabled = 1;
- 		num_enabled++;
- 	}
-+
-+	mem_device->nid = node;
-+
- 	if (!num_enabled) {
- 		printk(KERN_ERR PREFIX "add_memory failed\n");
- 		mem_device->state = MEMORY_INVALID_STATE;
+ /* reference to __meminit __free_pages_bootmem is valid
 -- 
 1.7.1
 
