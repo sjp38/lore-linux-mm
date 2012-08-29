@@ -1,120 +1,130 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
-	by kanga.kvack.org (Postfix) with SMTP id 00D0C6B0070
-	for <linux-mm@kvack.org>; Wed, 29 Aug 2012 02:56:43 -0400 (EDT)
-From: Hiroshi Doyu <hdoyu@nvidia.com>
-Subject: [RFC 4/5] ARM: dma-mapping: New dma_map_ops->map_page*_at* function
-Date: Wed, 29 Aug 2012 09:55:34 +0300
-Message-ID: <1346223335-31455-5-git-send-email-hdoyu@nvidia.com>
-In-Reply-To: <1346223335-31455-1-git-send-email-hdoyu@nvidia.com>
-References: <1346223335-31455-1-git-send-email-hdoyu@nvidia.com>
+Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
+	by kanga.kvack.org (Postfix) with SMTP id 0DED26B0044
+	for <linux-mm@kvack.org>; Wed, 29 Aug 2012 05:35:42 -0400 (EDT)
+Received: by pbbro12 with SMTP id ro12so904623pbb.14
+        for <linux-mm@kvack.org>; Wed, 29 Aug 2012 02:35:42 -0700 (PDT)
+Message-ID: <503DE262.20006@gmail.com>
+Date: Wed, 29 Aug 2012 17:35:30 +0800
+From: qiuxishi <qiuxishi@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Subject: [PATCH] memory-hotplug: fix a drain pcp bug when offline pages
+References: <50337B15.2090701@gmail.com> <20120822033441.GB24667@bbox> <503490F9.2050805@gmail.com> <20120822081410.GA5369@bbox> <50349891.7020809@huawei.com> <20120822083745.GB5369@bbox>
+In-Reply-To: <20120822083745.GB5369@bbox>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: m.szyprowski@samsung.com
-Cc: iommu@lists.linux-foundation.org, Hiroshi Doyu <hdoyu@nvidia.com>, linux-arm-kernel@lists.infradead.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kyungmin.park@samsung.com, arnd@arndb.de, linux@arm.linux.org.uk, chunsang.jeong@linaro.org, vdumpa@nvidia.com, subashrp@gmail.com, minchan@kernel.org, pullip.cho@samsung.com, konrad.wilk@oracle.com, linux-tegra@vger.kernel.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: Jiang Liu <jiang.liu@huawei.com>, akpm@linux-foundation.org, lliubbo@gmail.com, mgorman@suse.de, kamezawa.hiroyu@jp.fujitsu.com, mhocko@suse.cz, linux-mm@kvack.org, linux-kernel@vger.kernel.org, qiuxishi@huawei.com, wujianguo@huawei.com, bessel.wang@huawei.com, guohanjun@huawei.com, chenkeping@huawei.com, yinghai@kernel.org, wency@cn.fujitsu.com
 
-Signed-off-by: Hiroshi Doyu <hdoyu@nvidia.com>
----
- arch/arm/mm/dma-mapping.c                |   18 ++++++++++++++++++
- include/asm-generic/dma-mapping-common.h |   19 +++++++++++++++++++
- include/linux/dma-mapping.h              |    7 +++++++
- 3 files changed, 44 insertions(+), 0 deletions(-)
+On 2012-8-22 16:37, Minchan Kim wrote:
+> Hi Jiang,
+> 
+> On Wed, Aug 22, 2012 at 04:30:09PM +0800, Jiang Liu wrote:
+>> On 2012-8-22 16:14, Minchan Kim wrote:
+>>> On Wed, Aug 22, 2012 at 03:57:45PM +0800, qiuxishi wrote:
+>>>> On 2012-8-22 11:34, Minchan Kim wrote:
+>>>>> Hello Xishi,
+>>>>>
+>>>>> On Tue, Aug 21, 2012 at 08:12:05PM +0800, qiuxishi wrote:
+>>>>>> From: Xishi Qiu <qiuxishi@huawei.com>
+>>>>>>
+>>>>>> When offline a section, we move all the free pages and pcp into MIGRATE_ISOLATE list first.
+>>>>>> start_isolate_page_range()
+>>>>>> 	set_migratetype_isolate()
+>>>>>> 		drain_all_pages(),
+>>>>>>
+>>>>>> Here is a problem, it is not sure that pcp will be moved into MIGRATE_ISOLATE list. They may
+>>>>>> be moved into MIGRATE_MOVABLE list because page_private() maybe 2. So when finish migrating
+>>>>>> pages, the free pages from pcp may be allocated again, and faild in check_pages_isolated().
+>>>>>> drain_all_pages()
+>>>>>> 	drain_local_pages()
+>>>>>> 		drain_pages()
+>>>>>> 			free_pcppages_bulk()
+>>>>>> 				__free_one_page(page, zone, 0, page_private(page));
+>>>>>>
+>>>>>> If we add move_freepages_block() after drain_all_pages(), it can not sure that all the pcp
+>>>>>> will be moved into MIGRATE_ISOLATE list when the system works on high load. The free pages
+>>>>>> which from pcp may immediately be allocated again.
+>>>>>>
+>>>>>> I think the similar bug described in http://marc.info/?t=134250882300003&r=1&w=2
+>>>>>
+>>>>> Yes. I reported the problem a few month ago but it's not real bug in practice
+>>>>> but found by my eyes during looking the code so I wanted to confirm the problem.
+>>>>>
+>>>>> Do you find that problem in real practice? or just code review?
+>>>>>
+>>>>
+>>>> I use /sys/devices/system/memory/soft_offline_page to offline a lot of pages when the
+>>>> system works on high load, then I find some unknown zero refcount pages, such as
+>>>> get_any_page: 0x650422: unknown zero refcount page type 19400c00000000
+>>>> get_any_page: 0x650867: unknown zero refcount page type 19400c00000000
+>>>>
+>>>> soft_offline_page()
+>>>> 	get_any_page()
+>>>> 		set_migratetype_isolate()
+>>>> 			drain_all_pages()
+>>>>
+>>>> I think after drain_all_pages(), pcp are moved into MIGRATE_MOVABLE list which managed by
+>>>> buddy allocator, but they are allocated and becaome pcp again as the system works on high
+>>>> load. There will be no this problem by applying this patch.
+>>>>
+>>>>> Anyway, I don't like your approach which I already considered because it hurts hotpath
+>>>>> while the race is really unlikely. Get_pageblock_migratetype is never trivial.
+>>>>> We should avoid the overhead in hotpath and move into memory-hotplug itself.
+>>>>> Do you see my patch in https://patchwork.kernel.org/patch/1225081/ ?
+>>>>
+>>>> Yes, you are right, I will try to find another way to fix this problem.
+>>>> How about doing this work in set_migratetype_isolate(), find the pcp and change the value
+>>>> of private to get_pageblock_migratetype(page)?
+>>>>
+>>>
+>>> Allocator doesn't have any lock when he allocates the page from pcp.
+>>> How could you prevent race between allocator and memory-hotplug
+>>> routine(ie, set_migratetype_isolate) without hurting hotpath?
+>> Hi Minchan,
+>> 	I have thought about using a jump label in the hot path, which won't cause big
+>> performance drop, but it seems a little dirty. What's your thoughts?
+> 
+> I don't know static_key_false internal well.
+> Questions.
+> 
+> 1. Is it implemented by all archs?
+> 2. How is it work? It's almost zero on all archs?
+> 3. Don't we really have any solution other than hacking the hotpath
+>    (ie, order-0 page allocation)?
+> 4. Please see my solution on above URL. Does it has any problem?
+> 
 
-diff --git a/arch/arm/mm/dma-mapping.c b/arch/arm/mm/dma-mapping.c
-index 8ca2d1a..242289f 100644
---- a/arch/arm/mm/dma-mapping.c
-+++ b/arch/arm/mm/dma-mapping.c
-@@ -1715,6 +1715,23 @@ static dma_addr_t arm_iommu_map_page(struct device *dev, struct page *page,
- 	return arm_coherent_iommu_map_page(dev, page, offset, size, dir, attrs);
- }
- 
-+static dma_addr_t arm_iommu_map_page_at(struct device *dev, struct page *page,
-+		 dma_addr_t dma_addr, unsigned long offset, size_t size,
-+		 enum dma_data_direction dir, struct dma_attrs *attrs)
-+{
-+	struct dma_iommu_mapping *mapping = dev->archdata.mapping;
-+	int ret, len = PAGE_ALIGN(size + offset);
-+
-+	if (!dma_get_attr(DMA_ATTR_SKIP_CPU_SYNC, attrs))
-+		__dma_page_cpu_to_dev(page, offset, size, dir);
-+
-+	ret = iommu_map(mapping->domain, dma_addr, page_to_phys(page), len, 0);
-+	if (ret < 0)
-+		return DMA_ERROR_CODE;
-+
-+	return dma_addr + offset;
-+}
-+
- /**
-  * arm_coherent_iommu_unmap_page
-  * @dev: valid struct device pointer
-@@ -1813,6 +1830,7 @@ struct dma_map_ops iommu_ops = {
- 	.get_sgtable	= arm_iommu_get_sgtable,
- 
- 	.map_page		= arm_iommu_map_page,
-+	.map_page_at		= arm_iommu_map_page_at,
- 	.unmap_page		= arm_iommu_unmap_page,
- 	.sync_single_for_cpu	= arm_iommu_sync_single_for_cpu,
- 	.sync_single_for_device	= arm_iommu_sync_single_for_device,
-diff --git a/include/asm-generic/dma-mapping-common.h b/include/asm-generic/dma-mapping-common.h
-index de8bf89..eada2d8 100644
---- a/include/asm-generic/dma-mapping-common.h
-+++ b/include/asm-generic/dma-mapping-common.h
-@@ -26,6 +26,23 @@ static inline dma_addr_t dma_map_single_attrs(struct device *dev, void *ptr,
- 	return addr;
- }
- 
-+static inline dma_addr_t dma_map_single_at_attrs(struct device *dev, void *ptr,
-+					      dma_addr_t handle,
-+					      size_t size,
-+					      enum dma_data_direction dir,
-+					      struct dma_attrs *attrs)
-+{
-+	struct dma_map_ops *ops = get_dma_ops(dev);
-+	dma_addr_t addr;
-+
-+	kmemcheck_mark_initialized(ptr, size);
-+	BUG_ON(!valid_dma_direction(dir));
-+	addr = ops->map_page_at(dev, virt_to_page(ptr), handle,
-+			     (unsigned long)ptr & ~PAGE_MASK, size,
-+			     dir, attrs);
-+	return addr;
-+}
-+
- static inline void dma_unmap_single_attrs(struct device *dev, dma_addr_t addr,
- 					  size_t size,
- 					  enum dma_data_direction dir,
-@@ -172,6 +189,8 @@ dma_sync_sg_for_device(struct device *dev, struct scatterlist *sg,
- }
- 
- #define dma_map_single(d, a, s, r) dma_map_single_attrs(d, a, s, r, NULL)
-+#define dma_map_single_at(d, a, h, s, r)		\
-+	dma_map_single_at_attrs(d, a, h, s, r, NULL)
- #define dma_unmap_single(d, a, s, r) dma_unmap_single_attrs(d, a, s, r, NULL)
- #define dma_map_sg(d, s, n, r) dma_map_sg_attrs(d, s, n, r, NULL)
- #define dma_unmap_sg(d, s, n, r) dma_unmap_sg_attrs(d, s, n, r, NULL)
-diff --git a/include/linux/dma-mapping.h b/include/linux/dma-mapping.h
-index 4cf4427..218bee3 100644
---- a/include/linux/dma-mapping.h
-+++ b/include/linux/dma-mapping.h
-@@ -25,6 +25,13 @@ struct dma_map_ops {
- 			       unsigned long offset, size_t size,
- 			       enum dma_data_direction dir,
- 			       struct dma_attrs *attrs);
-+
-+	dma_addr_t (*map_page_at)(struct device *dev, struct page *page,
-+				  dma_addr_t dma_handle,
-+				  unsigned long offset, size_t size,
-+				  enum dma_data_direction dir,
-+				  struct dma_attrs *attrs);
-+
- 	void (*unmap_page)(struct device *dev, dma_addr_t dma_handle,
- 			   size_t size, enum dma_data_direction dir,
- 			   struct dma_attrs *attrs);
--- 
-1.7.5.4
+Hi Minchan,
+
+Yes, your patch does resolve this problem, it returns the failed flag in
+__test_page_isolated_in_pageblock(), so memory offline will be failed.
+
+My patch resolve this problem too, it drain pcp to MIGRATE_ISOLATE list,
+so memory offline will be successful, but it causes big performance drop.
+
+I think Gerry's method looks fine.
+
+Thanks
+Xishi Qiu
+
+>>
+>> 	migrate_type = page_private(page);
+>> 	if (static_key_false(&memory_hotplug_inprogress))
+>> 		migrate_type = get_pageblock_migratetype(page);
+>> 	__free_one_page(page, zone, 0, migrate_type);
+>>
+>> 	Regards!
+>> 	Gerry
+>>
+>> --
+>> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>> the body to majordomo@kvack.org.  For more info on Linux MM,
+>> see: http://www.linux-mm.org/ .
+>> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
