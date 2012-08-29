@@ -1,27 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
-	by kanga.kvack.org (Postfix) with SMTP id 39E696B0070
-	for <int-list-linux-mm@kvack.org>; Wed, 29 Aug 2012 14:56:40 -0400 (EDT)
-Content-Transfer-Encoding: quoted-printable
-Content-Type: text/html; charset="utf-8"
-Message-Id: <20120829115635.15b003fd008c746239a208f875931e82.d839283267.wbe@email19.asia.secureserver.net>
-From: <newsvile@secureusoffers.com>
-Subject: Hi
-Date: Wed, 29 Aug 2012 11:56:35 -0700
-Mime-Version: 1.0
+Received: from psmtp.com (na3sys010amx174.postini.com [74.125.245.174])
+	by kanga.kvack.org (Postfix) with SMTP id 137746B0069
+	for <linux-mm@kvack.org>; Wed, 29 Aug 2012 17:59:08 -0400 (EDT)
+Received: from /spool/local
+	by e6.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
+	Wed, 29 Aug 2012 17:59:06 -0400
+Received: from d01relay03.pok.ibm.com (d01relay03.pok.ibm.com [9.56.227.235])
+	by d01dlp03.pok.ibm.com (Postfix) with ESMTP id 4A87EC90040
+	for <linux-mm@kvack.org>; Wed, 29 Aug 2012 17:59:03 -0400 (EDT)
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay03.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q7TLx2tl143938
+	for <linux-mm@kvack.org>; Wed, 29 Aug 2012 17:59:03 -0400
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q7TLx0Xa000565
+	for <linux-mm@kvack.org>; Wed, 29 Aug 2012 18:59:02 -0300
+From: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Subject: [PATCH] staging: zcache: fix cleancache race condition with shrinker
+Date: Wed, 29 Aug 2012 16:58:45 -0500
+Message-Id: <1346277525-22062-1-git-send-email-sjenning@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: newsvile@secureusoffers.com
+To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Nitin Gupta <ngupta@vflare.org>, Minchan Kim <minchan@kernel.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org
 
-<html><body><span style=3D"font-family:Verdana; color:#000000; font-size:10=
-pt;"><div><div style=3D"">Hello</div><div style=3D""><br></div></div><div s=
-tyle=3D"">If you want to earn more than $175,000 working just an hour or 2 =
-a day from home.<span style=3D"font-size: 10pt; ">Just Click&nbsp;<a target=
-=3D"_blank" href=3D"http://ow.ly/dj8fz">http://ow.ly/dj8fz</a></span></div>=
-<div style=3D""><br style=3D""></div><div style=3D""><b>Remember You Have N=
-othing To Lose!<span class=3D"black" style=3D"">&nbsp;</span>I'm not asking=
- you for any of your money.</b></div><div style=3D""><b><br></b></div><div =
-style=3D"">Great Day</div><div></div> </span></body></html>
+This patch fixes a race condition that results in memory
+corruption when using cleancache.
+
+The race exists between the zcache shrinker handler,
+shrink_zcache_memory() and cleancache_get_page().
+
+In most cases, the shrinker will both evict a zbpg
+from its buddy list and flush it from tmem before a
+cleancache_get_page() occurs on that page. A subsequent
+cleancache_get_page() will fail in the tmem layer.
+
+In the rare case that two occur together and the
+cleancache_get_page() path gets through the tmem
+layer before the shrinker path can flush tmem,
+zbud_decompress() does a check to see if the zbpg is a
+"zombie", i.e. not on a buddy list, which means the shrinker
+is in the process of reclaiming it. If the zbpg is a zombie,
+zbud_decompress() returns -EINVAL.
+
+However, this return code is being ignored by the caller,
+zcache_pampd_get_data_and_free(), which results in the
+caller of cleancache_get_page() thinking that the page has
+been properly retrieved when it has not.
+
+This patch modifies zcache_pampd_get_data_and_free() to
+convey the failure up the stack so that the caller of
+cleancache_get_page() knows the page retrieval failed.
+
+---
+Based on v3.6-rc3.
+
+This needs to be applied to stable trees as well.
+zcache-main.c was named zcache.c before v3.1, so
+I'm not sure how you want to handle trees earlier
+than that.
+
+Signed-off-by: Seth Jennings <sjenning@linux.vnet.ibm.com>
+---
+ drivers/staging/zcache/zcache-main.c |    7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)
+
+diff --git a/drivers/staging/zcache/zcache-main.c b/drivers/staging/zcache/zcache-main.c
+index c214977..52b43b7 100644
+--- a/drivers/staging/zcache/zcache-main.c
++++ b/drivers/staging/zcache/zcache-main.c
+@@ -1251,13 +1251,12 @@ static int zcache_pampd_get_data_and_free(char *data, size_t *bufsize, bool raw,
+ 					void *pampd, struct tmem_pool *pool,
+ 					struct tmem_oid *oid, uint32_t index)
+ {
+-	int ret = 0;
+-
+ 	BUG_ON(!is_ephemeral(pool));
+-	zbud_decompress((struct page *)(data), pampd);
++	if (zbud_decompress((struct page *)(data), pampd) < 0)
++		return -EINVAL;
+ 	zbud_free_and_delist((struct zbud_hdr *)pampd);
+ 	atomic_dec(&zcache_curr_eph_pampd_count);
+-	return ret;
++	return 0;
+ }
+ 
+ /*
+-- 
+1.7.9.5
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
