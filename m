@@ -1,93 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
-	by kanga.kvack.org (Postfix) with SMTP id 72EBD6B0068
-	for <linux-mm@kvack.org>; Wed, 29 Aug 2012 02:28:49 -0400 (EDT)
-From: Jim Meyering <jim@meyering.net>
-Subject: Re: [PATCH] kmemleak: avoid buffer overrun: NUL-terminate strncpy-copied command
-In-Reply-To: <20120828202459.GA13638@mwanda> (Dan Carpenter's message of "Tue,
-	28 Aug 2012 13:24:59 -0700")
-References: <1345481724-30108-1-git-send-email-jim@meyering.net>
-	<1345481724-30108-4-git-send-email-jim@meyering.net>
-	<20120824102725.GH7585@arm.com> <876288o7ny.fsf@rho.meyering.net>
-	<20120828202459.GA13638@mwanda>
-Date: Wed, 29 Aug 2012 08:28:47 +0200
-Message-ID: <874nnm6wkg.fsf@rho.meyering.net>
+Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
+	by kanga.kvack.org (Postfix) with SMTP id A874F6B0068
+	for <linux-mm@kvack.org>; Wed, 29 Aug 2012 02:55:56 -0400 (EDT)
+From: Hiroshi Doyu <hdoyu@nvidia.com>
+Subject: [RFC 0/5] ARM: dma-mapping: New dma_map_ops to control IOVA more precisely
+Date: Wed, 29 Aug 2012 09:55:30 +0300
+Message-ID: <1346223335-31455-1-git-send-email-hdoyu@nvidia.com>
 MIME-Version: 1.0
 Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Carpenter <dan.carpenter@oracle.com>
-Cc: Catalin Marinas <catalin.marinas@arm.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: m.szyprowski@samsung.com
+Cc: iommu@lists.linux-foundation.org, Hiroshi Doyu <hdoyu@nvidia.com>, linux-arm-kernel@lists.infradead.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kyungmin.park@samsung.com, arnd@arndb.de, linux@arm.linux.org.uk, chunsang.jeong@linaro.org, vdumpa@nvidia.com, subashrp@gmail.com, minchan@kernel.org, pullip.cho@samsung.com, konrad.wilk@oracle.com, linux-tegra@vger.kernel.org
 
-Dan Carpenter wrote:
-> On Fri, Aug 24, 2012 at 01:23:29PM +0200, Jim Meyering wrote:
->> In that case, what would you think of a patch to use strcpy instead?
->>
->>   -		strncpy(object->comm, current->comm, sizeof(object->comm));
->>   +		strcpy(object->comm, current->comm);
->
-> Another option would be to use strlcpy().  It's slightly neater than
-> the strncpy() followed by a NUL assignment.
->
->> Is there a preferred method of adding a static_assert-like statement?
->> I see compile_time_assert and a few similar macros, but I haven't
->> spotted anything that is used project-wide.
->
-> BUILD_BUG_ON().
+Hi,
 
-Hi Dan,
+The following APIs are needed for us to support the legacy Tegra
+memory manager for devices("NvMap") with *DMA mapping API*.
 
-Thanks for the feedback and tip.  How about this patch?
+New API:
 
--- >8 --
-Subject: [PATCH] kmemleak: remove unwarranted uses of strncpy
+ ->iova_alloc(): To allocate IOVA area.
+ ->iova_alloc_at(): To allocate IOVA area at specific address.
+ ->iova_free():  To free IOVA area.
 
-Use of strncpy was not justified -- was misleading, in fact, since
-none of the three uses could trigger strncpy's truncation feature,
-nor did they require the NUL-padding it can provide.  Replace each
-use with a BUG_ON_BUILD to ensure that the existing constraint
-(source string is no larger than the size of the destination buffer)
-and a use of strcpy.  With the literals, it's easy to see that each
-is shorter than TASK_COMM_LEN (aka, 16).  In the third case, the
-source and destination buffer have the same length, so there is no
-possibility of truncation.
+ ->map_page_at(): To map page at specific IOVA.
 
-Signed-off-by: Jim Meyering <meyering@redhat.com>
----
- mm/kmemleak.c | 9 ++++++---
- 1 file changed, 6 insertions(+), 3 deletions(-)
+misc:
+ ->iova_get_free_total(): To return how much IOVA is available totally.
+ ->iova_get_free_max():   To return the size of biggest IOVA area.
 
-diff --git a/mm/kmemleak.c b/mm/kmemleak.c
-index 45eb621..7359ffa 100644
---- a/mm/kmemleak.c
-+++ b/mm/kmemleak.c
-@@ -542,10 +542,12 @@ static struct kmemleak_object *create_object(unsigned long ptr, size_t size,
- 	/* task information */
- 	if (in_irq()) {
- 		object->pid = 0;
--		strncpy(object->comm, "hardirq", sizeof(object->comm));
-+		BUILD_BUG_ON(sizeof "hardirq" > sizeof(current->comm));
-+		strcpy(object->comm, "hardirq");
- 	} else if (in_softirq()) {
- 		object->pid = 0;
--		strncpy(object->comm, "softirq", sizeof(object->comm));
-+		BUILD_BUG_ON(sizeof "softirq" > sizeof(current->comm));
-+		strcpy(object->comm, "softirq");
- 	} else {
- 		object->pid = current->pid;
- 		/*
-@@ -554,7 +556,8 @@ static struct kmemleak_object *create_object(unsigned long ptr, size_t size,
- 		 * dependency issues with current->alloc_lock. In the worst
- 		 * case, the command line is not correct.
- 		 */
--		strncpy(object->comm, current->comm, sizeof(object->comm));
-+		BUILD_BUG_ON(sizeof (object->comm) > sizeof(current->comm));
-+		strcpy(object->comm, current->comm);
- 	}
+Although  NvMap itself will be replaced soon, there are cases for the
+above API where we need to specify IOVA explicitly.
 
- 	/* kernel backtrace */
---
-1.7.12.116.g31e0100
+(1) HWAs may require the address for special purpose, like reset vector.
+(2) IOVA linear mapping: ex: [RFC 5/5] ARM: dma-mapping: Introduce
+    dma_map_linear_attrs() for IOVA linear map
+(3) To support different heaps. To have allocation and mapping
+    independently.
+
+Some of them could be supported with creating different mappings, but
+currently a device can have a single contiguous mapping, and we cannot
+specifiy any address inside of a map since all IOVA alloction is done
+implicitly now.
+
+This is the revised version of:
+
+ http://lists.linaro.org/pipermail/linaro-mm-sig/2012-May/001947.html
+ http://lists.linaro.org/pipermail/linaro-mm-sig/2012-May/001948.html
+ http://lists.linaro.org/pipermail/linaro-mm-sig/2012-May/001949.html
+
+Any comment would be really appreciated.
+
+Hiroshi Doyu (5):
+  ARM: dma-mapping: New dma_map_ops->iova_get_free_{total,max}
+    functions
+  ARM: dma-mapping: New dma_map_ops->iova_{alloc,free}() functions
+  ARM: dma-mapping: New dma_map_ops->iova_alloc*_at* function
+  ARM: dma-mapping: New dma_map_ops->map_page*_at* function
+  ARM: dma-mapping: Introduce dma_map_linear_attrs() for IOVA linear
+    map
+
+ arch/arm/include/asm/dma-mapping.h       |   55 +++++++++++++
+ arch/arm/mm/dma-mapping.c                |  124 ++++++++++++++++++++++++++++++
+ include/asm-generic/dma-mapping-common.h |   20 +++++
+ include/linux/dma-mapping.h              |   14 ++++
+ 4 files changed, 213 insertions(+), 0 deletions(-)
+
+-- 
+1.7.5.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
