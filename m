@@ -1,65 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx140.postini.com [74.125.245.140])
-	by kanga.kvack.org (Postfix) with SMTP id 10E4D6B0069
-	for <linux-mm@kvack.org>; Thu, 30 Aug 2012 13:55:50 -0400 (EDT)
-Received: by dadi14 with SMTP id i14so1500784dad.14
-        for <linux-mm@kvack.org>; Thu, 30 Aug 2012 10:55:49 -0700 (PDT)
-Date: Fri, 31 Aug 2012 02:55:43 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH] staging: zcache: fix cleancache race condition with
- shrinker
-Message-ID: <20120830175543.GA3534@barrios>
-References: <1346277525-22062-1-git-send-email-sjenning@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1346277525-22062-1-git-send-email-sjenning@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
+	by kanga.kvack.org (Postfix) with SMTP id 8882D6B0069
+	for <linux-mm@kvack.org>; Thu, 30 Aug 2012 15:13:04 -0400 (EDT)
+Date: Thu, 30 Aug 2012 12:13:02 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 1/2] mm/mmu_notifier: init notifier if necessary
+Message-Id: <20120830121302.492732d2.akpm@linux-foundation.org>
+In-Reply-To: <50389f4d.0793b60a.1627.7710SMTPIN_ADDED@mx.google.com>
+References: <1345819076-12545-1-git-send-email-liwanp@linux.vnet.ibm.com>
+	<20120824145151.b92557cc.akpm@linux-foundation.org>
+	<50389f4d.0793b60a.1627.7710SMTPIN_ADDED@mx.google.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Seth Jennings <sjenning@linux.vnet.ibm.com>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Nitin Gupta <ngupta@vflare.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org
+To: Gavin Shan <shangw@linux.vnet.ibm.com>
+Cc: Wanpeng Li <liwanp@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Minchan Kim <minchan@kernel.org>
 
-On Wed, Aug 29, 2012 at 04:58:45PM -0500, Seth Jennings wrote:
-> This patch fixes a race condition that results in memory
-> corruption when using cleancache.
-> 
-> The race exists between the zcache shrinker handler,
-> shrink_zcache_memory() and cleancache_get_page().
-> 
-> In most cases, the shrinker will both evict a zbpg
-> from its buddy list and flush it from tmem before a
-> cleancache_get_page() occurs on that page. A subsequent
-> cleancache_get_page() will fail in the tmem layer.
-> 
-> In the rare case that two occur together and the
-> cleancache_get_page() path gets through the tmem
-> layer before the shrinker path can flush tmem,
-> zbud_decompress() does a check to see if the zbpg is a
-> "zombie", i.e. not on a buddy list, which means the shrinker
-> is in the process of reclaiming it. If the zbpg is a zombie,
-> zbud_decompress() returns -EINVAL.
-> 
-> However, this return code is being ignored by the caller,
-> zcache_pampd_get_data_and_free(), which results in the
-> caller of cleancache_get_page() thinking that the page has
-> been properly retrieved when it has not.
-> 
-> This patch modifies zcache_pampd_get_data_and_free() to
-> convey the failure up the stack so that the caller of
-> cleancache_get_page() knows the page retrieval failed.
-> 
-> ---
-> Based on v3.6-rc3.
-> 
-> This needs to be applied to stable trees as well.
-> zcache-main.c was named zcache.c before v3.1, so
-> I'm not sure how you want to handle trees earlier
-> than that.
-> 
-> Signed-off-by: Seth Jennings <sjenning@linux.vnet.ibm.com>
-Reviewed-by: Minchan Kim <minchan@kernel.org>
+On Sat, 25 Aug 2012 17:47:50 +0800
+Gavin Shan <shangw@linux.vnet.ibm.com> wrote:
 
-Thanks!
+> >> --- a/mm/mmu_notifier.c
+> >> +++ b/mm/mmu_notifier.c
+> >> @@ -192,22 +192,23 @@ static int do_mmu_notifier_register(struct mmu_notifier *mn,
+> >>  
+> >>  	BUG_ON(atomic_read(&mm->mm_users) <= 0);
+> >>  
+> >> -	ret = -ENOMEM;
+> >> -	mmu_notifier_mm = kmalloc(sizeof(struct mmu_notifier_mm), GFP_KERNEL);
+> >> -	if (unlikely(!mmu_notifier_mm))
+> >> -		goto out;
+> >> -
+> >>  	if (take_mmap_sem)
+> >>  		down_write(&mm->mmap_sem);
+> >>  	ret = mm_take_all_locks(mm);
+> >>  	if (unlikely(ret))
+> >> -		goto out_cleanup;
+> >> +		goto out;
+> >>  
+> >>  	if (!mm_has_notifiers(mm)) {
+> >> +		mmu_notifier_mm = kmalloc(sizeof(struct mmu_notifier_mm),
+> >> +					GFP_ATOMIC);
+> >
+> >Why was the code switched to the far weaker GFP_ATOMIC?  We can still
+> >perform sleeping allocations inside mmap_sem.
+> >
+> 
+> Yes, we can perform sleeping while allocating memory, but we're holding
+> the "mmap_sem". GFP_KERNEL possiblly block somebody else who also waits
+> on mmap_sem for long time even though the case should be rare :-)
+
+GFP_ATOMIC allocations are unreliable.  If the allocation attempt fails
+here, an entire kernel subsystem will have failed, quite probably
+requiring a reboot.  It's a bad tradeoff.
+
+Please fix this and retest.  With lockdep enabled, of course.
+
+And please do not attempt to sneak changes like this into the kernel
+without even mentioning them in the changelog.  If I hadn't have
+happened to notice this, we'd have ended up with a less reliable
+kernel.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
