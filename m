@@ -1,83 +1,240 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
-	by kanga.kvack.org (Postfix) with SMTP id F2DB26B0069
-	for <linux-mm@kvack.org>; Thu, 30 Aug 2012 13:21:29 -0400 (EDT)
-Received: by dadi14 with SMTP id i14so1480188dad.14
-        for <linux-mm@kvack.org>; Thu, 30 Aug 2012 10:21:29 -0700 (PDT)
-Date: Fri, 31 Aug 2012 02:21:23 +0900
+Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
+	by kanga.kvack.org (Postfix) with SMTP id 961A86B0069
+	for <linux-mm@kvack.org>; Thu, 30 Aug 2012 13:42:30 -0400 (EDT)
+Received: by pbbro12 with SMTP id ro12so3728600pbb.14
+        for <linux-mm@kvack.org>; Thu, 30 Aug 2012 10:42:29 -0700 (PDT)
+Date: Fri, 31 Aug 2012 02:42:23 +0900
 From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [patch]readahead: fault retry breaks mmap file read random
- detection
-Message-ID: <20120830172123.GA2141@barrios>
-References: <20120822034012.GA24099@kernel.org>
- <5034FD71.3000406@redhat.com>
- <20120823011003.GA8944@kernel.org>
+Subject: Re: [patch v3]swap: add a simple random read swapin detection
+Message-ID: <20120830174223.GB2141@barrios>
+References: <20120827040037.GA8062@kernel.org>
+ <503B8997.4040604@openvz.org>
+ <20120830103612.GA12292@kernel.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20120823011003.GA8944@kernel.org>
+In-Reply-To: <20120830103612.GA12292@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Shaohua Li <shli@kernel.org>
-Cc: Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, fengguang.wu@intel.com, akpm@linux-foundation.org
+Cc: Konstantin Khlebnikov <khlebnikov@openvz.org>, akpm@linux-foundation.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, "riel@redhat.com" <riel@redhat.com>, "fengguang.wu@intel.com" <fengguang.wu@intel.com>, "minchan@kernel.org" <minchan@kernel.org>
 
-On Thu, Aug 23, 2012 at 09:10:03AM +0800, Shaohua Li wrote:
-> On Wed, Aug 22, 2012 at 11:40:33AM -0400, Rik van Riel wrote:
-> > On 08/21/2012 11:40 PM, Shaohua Li wrote:
-> > >.fault now can retry. The retry can break state machine of .fault. In
-> > >filemap_fault, if page is miss, ra->mmap_miss is increased. In the second try,
-> > >since the page is in page cache now, ra->mmap_miss is decreased. And these are
-> > >done in one fault, so we can't detect random mmap file access.
-> > >
-> > >Add a new flag to indicate .fault is tried once. In the second try, skip
-> > >ra->mmap_miss decreasing. The filemap_fault state machine is ok with it.
+On Thu, Aug 30, 2012 at 06:36:12PM +0800, Shaohua Li wrote:
+> On Mon, Aug 27, 2012 at 06:52:07PM +0400, Konstantin Khlebnikov wrote:
+> > >--- linux.orig/include/linux/mm_types.h	2012-08-22 11:44:53.077912855 +0800
+> > >+++ linux/include/linux/mm_types.h	2012-08-24 13:07:11.798576941 +0800
+> > >@@ -279,6 +279,9 @@ struct vm_area_struct {
+> > >  #ifdef CONFIG_NUMA
+> > >  	struct mempolicy *vm_policy;	/* NUMA policy for the VMA */
+> > >  #endif
+> > >+#ifdef CONFIG_SWAP
+> > >+	atomic_t swapra_miss;
+> > >+#endif
 > > 
-> > >Index: linux/arch/avr32/mm/fault.c
-> > >===================================================================
-> > >--- linux.orig/arch/avr32/mm/fault.c	2012-08-22 09:51:23.035526683 +0800
-> > >+++ linux/arch/avr32/mm/fault.c	2012-08-22 09:52:22.822775020 +0800
-> > >@@ -152,6 +152,7 @@ good_area:
-> > >  			tsk->min_flt++;
-> > >  		if (fault & VM_FAULT_RETRY) {
-> > >  			flags &= ~FAULT_FLAG_ALLOW_RETRY;
-> > >+			flags |= FAULT_FLAG_TRIED;
-> > 
-> > Is there any place where you set FAULT_FLAG_TRIED
-> > where FAULT_FLAG_ALLOW_RETRY is not cleared?
-> > 
-> > In other words, could we use the absence of the
-> > FAULT_FLAG_ALLOW_RETRY as the test, avoiding the
-> > need for a new bit flag?
+> > You can place this atomic on vma->anon_vma, it has perfect 4-byte
+> > hole right after field "refcount". vma->anon_vma already exists
+> > since this vma already contains anon pages.
 > 
-> There are still several archs (~7) don't enable fault retry yet. For such
-> archs, FAULT_FLAG_ALLOW_RETRY isn't set in the first try. If all archs support
-> fault retry, the new flag is unnecessary.
-
-I'm not sure it's a good idea because archs support FAULT_FLAG_ALLOW_RETRY
-use FAULT_FLAG_ALLOW_RETRY to avoid miscount major/minor fault accouting.
-It's a similar to your goal so if you introduce new flag, major/minor fault
-accounting should use your flag for the consistency, too. Otherwise,
-you could be better to use FAULT_FLAG_ALLOW_RETRY but the problem is
-all arch don't support it now as you mentioned. So ideal solution is that
-firstly you can make all archs support FAULT_FLAG_ALLOW_RETRY(I'm not sure
-it's easy or not), then use that bit flag instead of introducing new flag.
-If you don't like it, I'm not strongly against with you but at least,
-please write down TODO for tidy up in future.
-
-TODO :
-If all arch support FAULT_FLAG_ALLOW_RETRY in future, we can remove
-FAULT_FLAG_TRIED and use FAULT_FLAG_ALLOW_RETRY to prevent misaccounting
-major/minor fault and readahead mmap_miss.
-
+> makes sense. vma->anon_vma could be NUll (shmem), but in shmem
+> case, vma could NULL too, so maybe just ignore it.
 > 
-> Thanks,
-> Shaohua
 > 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> Subject: swap: add a simple random read swapin detection
+> 
+> The swapin readahead does a blind readahead regardless if the swapin is
+> sequential. This is ok for harddisk and random read, because read big size has
+> no penality in harddisk, and if the readahead pages are garbage, they can be
+> reclaimed fastly. But for SSD, big size read is more expensive than small size
+> read. If readahead pages are garbage, such readahead only has overhead.
+> 
+> This patch addes a simple random read detection like what file mmap readahead
+> does. If random read is detected, swapin readahead will be skipped. This
+> improves a lot for a swap workload with random IO in a fast SSD.
+> 
+> I run anonymous mmap write micro benchmark, which will triger swapin/swapout.
+> 			runtime changes with path
+> randwrite harddisk	-38.7%
+> seqwrite harddisk	-1.1%
+> randwrite SSD		-46.9%
+> seqwrite SSD		+0.3%
+> 
+> For both harddisk and SSD, the randwrite swap workload run time is reduced
+> significant. sequential write swap workload hasn't chanage.
+> 
+> Interesting is the randwrite harddisk test is improved too. This might be
+> because swapin readahead need allocate extra memory, which further tights
+> memory pressure, so more swapout/swapin.
+> 
+> This patch depends on readahead-fault-retry-breaks-mmap-file-read-random-detection.patch
+> 
+> V2->V3:
+> move swapra_miss to 'struct anon_vma' as suggested by Konstantin. 
+> 
+> V1->V2:
+> 1. Move the swap readahead accounting to separate functions as suggested by Riel.
+> 2. Enable the logic only with CONFIG_SWAP enabled as suggested by Minchan.
+> 
+> Signed-off-by: Shaohua Li <shli@fusionio.com>
+> ---
+>  include/linux/rmap.h |    3 +++
+>  mm/internal.h        |   50 ++++++++++++++++++++++++++++++++++++++++++++++++++
+>  mm/memory.c          |    3 ++-
+>  mm/shmem.c           |    1 +
+>  mm/swap_state.c      |    6 ++++++
+>  5 files changed, 62 insertions(+), 1 deletion(-)
+> 
+> Index: linux/mm/swap_state.c
+> ===================================================================
+> --- linux.orig/mm/swap_state.c	2012-08-29 16:13:00.912112140 +0800
+> +++ linux/mm/swap_state.c	2012-08-30 18:28:24.678315187 +0800
+> @@ -20,6 +20,7 @@
+>  #include <linux/page_cgroup.h>
+>  
+>  #include <asm/pgtable.h>
+> +#include "internal.h"
+>  
+>  /*
+>   * swapper_space is a fiction, retained to simplify the path through
+> @@ -379,6 +380,10 @@ struct page *swapin_readahead(swp_entry_
+>  	unsigned long mask = (1UL << page_cluster) - 1;
+>  	struct blk_plug plug;
+>  
+> +	swap_cache_miss(vma);
+> +	if (swap_cache_skip_readahead(vma))
+> +		goto skip;
+> +
+>  	/* Read a page_cluster sized and aligned cluster around offset. */
+>  	start_offset = offset & ~mask;
+>  	end_offset = offset | mask;
+> @@ -397,5 +402,6 @@ struct page *swapin_readahead(swp_entry_
+>  	blk_finish_plug(&plug);
+>  
+>  	lru_add_drain();	/* Push any new pages onto the LRU now */
+> +skip:
+>  	return read_swap_cache_async(entry, gfp_mask, vma, addr);
+>  }
+> Index: linux/mm/memory.c
+> ===================================================================
+> --- linux.orig/mm/memory.c	2012-08-29 16:13:00.920112040 +0800
+> +++ linux/mm/memory.c	2012-08-30 13:32:05.425830660 +0800
+> @@ -2953,7 +2953,8 @@ static int do_swap_page(struct mm_struct
+>  		ret = VM_FAULT_HWPOISON;
+>  		delayacct_clear_flag(DELAYACCT_PF_SWAPIN);
+>  		goto out_release;
+> -	}
+> +	} else if (!(flags & FAULT_FLAG_TRIED))
+> +		swap_cache_hit(vma);
+>  
+>  	locked = lock_page_or_retry(page, mm, flags);
+>  
+> Index: linux/mm/internal.h
+> ===================================================================
+> --- linux.orig/mm/internal.h	2012-08-29 16:13:00.932111888 +0800
+> +++ linux/mm/internal.h	2012-08-30 18:28:03.698578951 +0800
+> @@ -12,6 +12,7 @@
+>  #define __MM_INTERNAL_H
+>  
+>  #include <linux/mm.h>
+> +#include <linux/rmap.h>
+>  
+>  void free_pgtables(struct mmu_gather *tlb, struct vm_area_struct *start_vma,
+>  		unsigned long floor, unsigned long ceiling);
+> @@ -356,3 +357,52 @@ extern unsigned long vm_mmap_pgoff(struc
+>          unsigned long, unsigned long);
+>  
+>  extern void set_pageblock_order(void);
+> +
+> +/*
+> + * Unnecessary readahead harms performance. 1. for SSD, big size read is more
+> + * expensive than small size read, so extra unnecessary read only has overhead.
+> + * For harddisk, this overhead doesn't exist. 2. unnecessary readahead will
+> + * allocate extra memroy, which further tights memory pressure, so more
+> + * swapout/swapin.
+> + * These adds a simple swap random access detection. In swap page fault, if
+> + * page is found in swap cache, decrease an account of vma, otherwise we need
+> + * do sync swapin and the account is increased. Optionally swapin will do
+> + * readahead if the counter is below a threshold.
+> + */
+> +#ifdef CONFIG_SWAP
+> +#define SWAPRA_MISS  (100)
+> +static inline void swap_cache_hit(struct vm_area_struct *vma)
+> +{
+> +	if (vma && vma->anon_vma)
+> +		atomic_dec_if_positive(&vma->anon_vma->swapra_miss);
+> +}
+> +
+> +static inline void swap_cache_miss(struct vm_area_struct *vma)
+> +{
+> +	if (!vma || !vma->anon_vma)
+> +		return;
+> +	if (atomic_read(&vma->anon_vma->swapra_miss) < SWAPRA_MISS * 10)
+
+You can use some meaningful macro instead of magic vaule 10.
+
+/*
+ * If swapra_miss is higher than SWAPRA_SKIP_THRESHOLD, swapin readahead
+ * will be skipped.
+ * swapra_miss count could be increased until SWAPRA_MISS_MAX_COUNT.
+ * If swapra_miss count is decreased by SWAPRA_SKIP_THRESHOLD below
+ * by cache hit, we can start swapin readahead, again.
+ */
+#define SWAPRA_SKIP_THRESHOLD 100
+#define SWAPRA_MISS_MAX_COUNT		(SWAPRA_SKIP_THRESHOLD * 10)
+
+> +		atomic_inc(&vma->anon_vma->swapra_miss);
+> +}
+> +
+> +static inline int swap_cache_skip_readahead(struct vm_area_struct *vma)
+> +{
+> +	if (!vma || !vma->anon_vma)
+> +		return 0;
+> +	return atomic_read(&vma->anon_vma->swapra_miss) > SWAPRA_MISS;
+> +}
+> +#else
+> +static inline void swap_cache_hit(struct vm_area_struct *vma)
+> +{
+> +}
+> +
+> +static inline void swap_cache_miss(struct vm_area_struct *vma)
+> +{
+> +}
+> +
+> +static inline int swap_cache_skip_readahead(struct vm_area_struct *vma)
+> +{
+> +	return 0;
+> +}
+> +
+> +#endif
+> Index: linux/include/linux/rmap.h
+> ===================================================================
+> --- linux.orig/include/linux/rmap.h	2012-06-01 10:10:31.686394463 +0800
+> +++ linux/include/linux/rmap.h	2012-08-30 18:10:12.256048781 +0800
+> @@ -35,6 +35,9 @@ struct anon_vma {
+>  	 * anon_vma if they are the last user on release
+>  	 */
+>  	atomic_t refcount;
+> +#ifdef CONFIG_SWAP
+> +	atomic_t swapra_miss;
+> +#endif
+>  
+>  	/*
+>  	 * NOTE: the LSB of the head.next is set by
+> Index: linux/mm/shmem.c
+> ===================================================================
+> --- linux.orig/mm/shmem.c	2012-08-06 16:00:45.465441525 +0800
+> +++ linux/mm/shmem.c	2012-08-30 18:10:51.755553250 +0800
+> @@ -933,6 +933,7 @@ static struct page *shmem_swapin(swp_ent
+>  	pvma.vm_pgoff = index + info->vfs_inode.i_ino;
+>  	pvma.vm_ops = NULL;
+>  	pvma.vm_policy = spol;
+> +	pvma.anon_vma = NULL;
+
+So, shmem always do readahead blindly still?
+
+>  	return swapin_readahead(swap, gfp, &pvma, 0);
+>  }
+>  
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
