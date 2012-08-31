@@ -1,129 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx162.postini.com [74.125.245.162])
-	by kanga.kvack.org (Postfix) with SMTP id 2F1EA6B0069
-	for <linux-mm@kvack.org>; Thu, 30 Aug 2012 20:00:32 -0400 (EDT)
-Date: Thu, 30 Aug 2012 20:00:20 -0400
-From: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-Subject: Re: [PATCH 0/3] staging: ramster: move to new zcache2 code base
-Message-ID: <20120831000020.GA14628@localhost.localdomain>
-References: <1346366764-31717-1-git-send-email-dan.magenheimer@oracle.com>
+Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
+	by kanga.kvack.org (Postfix) with SMTP id DE2266B0069
+	for <linux-mm@kvack.org>; Thu, 30 Aug 2012 21:07:40 -0400 (EDT)
+Received: from /spool/local
+	by e5.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <shangw@linux.vnet.ibm.com>;
+	Thu, 30 Aug 2012 21:07:38 -0400
+Received: from d01relay03.pok.ibm.com (d01relay03.pok.ibm.com [9.56.227.235])
+	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id 90C4A38C8047
+	for <linux-mm@kvack.org>; Thu, 30 Aug 2012 21:07:06 -0400 (EDT)
+Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
+	by d01relay03.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q7V176sR125948
+	for <linux-mm@kvack.org>; Thu, 30 Aug 2012 21:07:06 -0400
+Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
+	by d01av04.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q7V175AN026630
+	for <linux-mm@kvack.org>; Thu, 30 Aug 2012 21:07:06 -0400
+Date: Fri, 31 Aug 2012 09:07:01 +0800
+From: Gavin Shan <shangw@linux.vnet.ibm.com>
+Subject: Re: [PATCH 1/2] mm/mmu_notifier: init notifier if necessary
+Message-ID: <20120831010701.GA5026@shangw.(null)>
+Reply-To: Gavin Shan <shangw@linux.vnet.ibm.com>
+References: <1345819076-12545-1-git-send-email-liwanp@linux.vnet.ibm.com>
+ <20120824145151.b92557cc.akpm@linux-foundation.org>
+ <50389f4d.0793b60a.1627.7710SMTPIN_ADDED@mx.google.com>
+ <20120830121302.492732d2.akpm@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1346366764-31717-1-git-send-email-dan.magenheimer@oracle.com>
+In-Reply-To: <20120830121302.492732d2.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Magenheimer <dan.magenheimer@oracle.com>
-Cc: devel@linuxdriverproject.org, linux-kernel@vger.kernel.org, gregkh@linuxfoundation.org, linux-mm@kvack.org, ngupta@vflare.org, sjenning@linux.vnet.ibm.com, minchan@kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Gavin Shan <shangw@linux.vnet.ibm.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Minchan Kim <minchan@kernel.org>
 
-On Thu, Aug 30, 2012 at 03:46:01PM -0700, Dan Magenheimer wrote:
-> Hi Greg --
-> 
-> gregkh> If you feel that the existing code needs to be dropped
-> gregkh> and replaced with a totally new version, that's fine with
-> gregkh> me.  It's forward progress, which is all that I ask for. 
-> (http://lkml.indiana.edu/hypermail/linux/kernel/1208.0/02240.html,
-> in reference to zcache, assuming applies to ramster as well)
-> 
-> Please apply for staging-next for the 3.7 window to move ramster forward.
-> Since AFAICT there have been no patches or contributions from others to
-> drivers/staging/ramster since it was merged, this totally new version
-> of ramster should not run afoul and the patches should apply to
-> 3.5 or 3.6-rcN.
-> 
-> Thanks,
-> Dan
-> 
-> When ramster was merged into staging at 3.4, it used a "temporarily" forked
-> version of zcache.  Code was proposed to merge zcache and ramster into
-> a new common redesigned codebase which both resolves various serious design
-> flaws and eliminates all code duplication between zcache and ramster, with
-> the result to replace "zcache".  Sadly, that proposal was blocked, so the
-> zcache (and tmem) code in drivers/staging/zcache and the zcache (and tmem)
-> code in drivers/staging/ramster continue to be different.
+On Thu, Aug 30, 2012 at 12:13:02PM -0700, Andrew Morton wrote:
+>On Sat, 25 Aug 2012 17:47:50 +0800
+>Gavin Shan <shangw@linux.vnet.ibm.com> wrote:
+>
+>> >> --- a/mm/mmu_notifier.c
+>> >> +++ b/mm/mmu_notifier.c
+>> >> @@ -192,22 +192,23 @@ static int do_mmu_notifier_register(struct mmu_notifier *mn,
+>> >>  
+>> >>  	BUG_ON(atomic_read(&mm->mm_users) <= 0);
+>> >>  
+>> >> -	ret = -ENOMEM;
+>> >> -	mmu_notifier_mm = kmalloc(sizeof(struct mmu_notifier_mm), GFP_KERNEL);
+>> >> -	if (unlikely(!mmu_notifier_mm))
+>> >> -		goto out;
+>> >> -
+>> >>  	if (take_mmap_sem)
+>> >>  		down_write(&mm->mmap_sem);
+>> >>  	ret = mm_take_all_locks(mm);
+>> >>  	if (unlikely(ret))
+>> >> -		goto out_cleanup;
+>> >> +		goto out;
+>> >>  
+>> >>  	if (!mm_has_notifiers(mm)) {
+>> >> +		mmu_notifier_mm = kmalloc(sizeof(struct mmu_notifier_mm),
+>> >> +					GFP_ATOMIC);
+>> >
+>> >Why was the code switched to the far weaker GFP_ATOMIC?  We can still
+>> >perform sleeping allocations inside mmap_sem.
+>> >
+>> 
+>> Yes, we can perform sleeping while allocating memory, but we're holding
+>> the "mmap_sem". GFP_KERNEL possiblly block somebody else who also waits
+>> on mmap_sem for long time even though the case should be rare :-)
+>
+>GFP_ATOMIC allocations are unreliable.  If the allocation attempt fails
+>here, an entire kernel subsystem will have failed, quite probably
+>requiring a reboot.  It's a bad tradeoff.
+>
 
-Right. They will diverge for now.
-> 
-> This patchset moves ramster to the new redesigned codebase and calls that
-> new codebase "zcache2".  Most, if not all, of the redesign will eventually
-> need to be merged with "zcache1" before zcache functionality should be
-> promoted out of staging.
+Yep. Thanks, Andrew :-)
 
-Or as part of ramster unstaging  'zcache1' can be made more in a
-library so that ramster can use it. Naturally this also requires some
-modifications in zcache1 to have the infrastructure functionality for
-ramster. But that is something we can worry about later.
+>Please fix this and retest.  With lockdep enabled, of course.
+>
+>And please do not attempt to sneak changes like this into the kernel
+>without even mentioning them in the changelog.  If I hadn't have
+>happened to notice this, we'd have ended up with a less reliable
+>kernel.
+>
 
-> 
-> An overview of the zcache2 rewrite is provided in a git commit comment
-> later in this series.
-> 
-> A significant item of debate in the new codebase is the removal of zsmalloc.
+I'll fix and rerest it.
 
-Just clarifying since what you mean is that in your ramster's version
-of zcache (so zcache2), as you are not using it.
-
-> This removal may be temporary if zsmalloc is enhanced with necessary
-> features to meet the needs of the new zcache codebase.  Justification
-> for the change can be found at http://lkml.org/lkml/2012/8/15/292
-> Such zsmalloc enhancments will almost certainly necessitate a major
-> rework, not a small patch.
-
-Or have the zcache be able to select whether its going to use zbud
-or xsmalloc for any type of pages (so you could use xsmalloc for
-both cleancache and frontswap pages, or be more selective like
-zcache1 is).
-> 
-> While this zcache2 codebase is far from perfect (and thus remains in staging),
-> the foundation is now cleaner, more stable, more maintainable, and much
-> better commented.
-> 
-> Signed-off-by: Dan Magenheimer <dan.magenheimer@oracle.com>
-> 
-> ---
-> Diffstat:
-> 
->  drivers/staging/Kconfig                            |    4 +-
->  drivers/staging/Makefile                           |    2 +-
->  drivers/staging/ramster/Kconfig                    |   25 +-
->  drivers/staging/ramster/Makefile                   |    7 +-
->  drivers/staging/ramster/TODO                       |   13 -
->  drivers/staging/ramster/cluster/Makefile           |    3 -
->  drivers/staging/ramster/cluster/heartbeat.c        |  464 ---
->  drivers/staging/ramster/cluster/heartbeat.h        |   87 -
->  drivers/staging/ramster/cluster/masklog.c          |  155 -
->  drivers/staging/ramster/cluster/masklog.h          |  220 --
->  drivers/staging/ramster/cluster/nodemanager.c      |  992 ------
->  drivers/staging/ramster/cluster/nodemanager.h      |   88 -
->  .../staging/ramster/cluster/ramster_nodemanager.h  |   39 -
->  drivers/staging/ramster/cluster/tcp.c              | 2256 -------------
->  drivers/staging/ramster/cluster/tcp.h              |  159 -
->  drivers/staging/ramster/cluster/tcp_internal.h     |  248 --
->  drivers/staging/ramster/r2net.c                    |  401 ---
->  drivers/staging/ramster/ramster.h                  |  113 +-
->  drivers/staging/ramster/ramster/heartbeat.c        |  462 +++
->  drivers/staging/ramster/ramster/heartbeat.h        |   87 +
->  drivers/staging/ramster/ramster/masklog.c          |  155 +
->  drivers/staging/ramster/ramster/masklog.h          |  220 ++
->  drivers/staging/ramster/ramster/nodemanager.c      |  995 ++++++
->  drivers/staging/ramster/ramster/nodemanager.h      |   88 +
->  drivers/staging/ramster/ramster/r2net.c            |  414 +++
->  drivers/staging/ramster/ramster/ramster.c          |  985 ++++++
->  drivers/staging/ramster/ramster/ramster.h          |  161 +
->  .../staging/ramster/ramster/ramster_nodemanager.h  |   39 +
->  drivers/staging/ramster/ramster/tcp.c              | 2253 +++++++++++++
->  drivers/staging/ramster/ramster/tcp.h              |  159 +
->  drivers/staging/ramster/ramster/tcp_internal.h     |  248 ++
->  drivers/staging/ramster/tmem.c                     |  313 +-
->  drivers/staging/ramster/tmem.h                     |  109 +-
->  drivers/staging/ramster/xvmalloc.c                 |  509 ---
->  drivers/staging/ramster/xvmalloc.h                 |   30 -
->  drivers/staging/ramster/xvmalloc_int.h             |   95 -
->  drivers/staging/ramster/zbud.c                     | 1060 ++++++
->  drivers/staging/ramster/zbud.h                     |   33 +
->  drivers/staging/ramster/zcache-main.c              | 3532 ++++++--------------
->  drivers/staging/ramster/zcache.h                   |   55 +-
->  40 files changed, 8711 insertions(+), 8567 deletions(-)
+Thanks,
+Gavin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
