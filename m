@@ -1,9 +1,11 @@
 From: Gavin Shan <shangw@linux.vnet.ibm.com>
 Subject: Re: [PATCH 1/2] mm/mmu_notifier: init notifier if necessary
-Date: Sat, 25 Aug 2012 17:47:50 +0800
-Message-ID: <16547.8324205198$1345888084@news.gmane.org>
+Date: Fri, 31 Aug 2012 09:07:01 +0800
+Message-ID: <35210.2869692773$1346375269@news.gmane.org>
 References: <1345819076-12545-1-git-send-email-liwanp@linux.vnet.ibm.com>
  <20120824145151.b92557cc.akpm@linux-foundation.org>
+ <50389f4d.0793b60a.1627.7710SMTPIN_ADDED@mx.google.com>
+ <20120830121302.492732d2.akpm@linux-foundation.org>
 Reply-To: Gavin Shan <shangw@linux.vnet.ibm.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
@@ -11,96 +13,84 @@ Return-path: <owner-linux-mm@kvack.org>
 Received: from kanga.kvack.org ([205.233.56.17])
 	by plane.gmane.org with esmtp (Exim 4.69)
 	(envelope-from <owner-linux-mm@kvack.org>)
-	id 1T5CyH-0007mE-Re
-	for glkm-linux-mm-2@m.gmane.org; Sat, 25 Aug 2012 11:48:02 +0200
-Received: from psmtp.com (na3sys010amx159.postini.com [74.125.245.159])
-	by kanga.kvack.org (Postfix) with SMTP id 332956B002B
-	for <linux-mm@kvack.org>; Sat, 25 Aug 2012 05:47:57 -0400 (EDT)
+	id 1T7Fi5-0004NK-RO
+	for glkm-linux-mm-2@m.gmane.org; Fri, 31 Aug 2012 03:07:46 +0200
+Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
+	by kanga.kvack.org (Postfix) with SMTP id DE2266B0069
+	for <linux-mm@kvack.org>; Thu, 30 Aug 2012 21:07:40 -0400 (EDT)
 Received: from /spool/local
-	by e2.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e5.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <shangw@linux.vnet.ibm.com>;
-	Sat, 25 Aug 2012 05:47:56 -0400
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id 3C4EA38C803B
-	for <linux-mm@kvack.org>; Sat, 25 Aug 2012 05:47:54 -0400 (EDT)
+	Thu, 30 Aug 2012 21:07:38 -0400
+Received: from d01relay03.pok.ibm.com (d01relay03.pok.ibm.com [9.56.227.235])
+	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id 90C4A38C8047
+	for <linux-mm@kvack.org>; Thu, 30 Aug 2012 21:07:06 -0400 (EDT)
 Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q7P9lsLE148426
-	for <linux-mm@kvack.org>; Sat, 25 Aug 2012 05:47:54 -0400
+	by d01relay03.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q7V176sR125948
+	for <linux-mm@kvack.org>; Thu, 30 Aug 2012 21:07:06 -0400
 Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
-	by d01av04.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q7P9lr1u005618
-	for <linux-mm@kvack.org>; Sat, 25 Aug 2012 05:47:53 -0400
+	by d01av04.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q7V175AN026630
+	for <linux-mm@kvack.org>; Thu, 30 Aug 2012 21:07:06 -0400
 Content-Disposition: inline
-In-Reply-To: <20120824145151.b92557cc.akpm@linux-foundation.org>
+In-Reply-To: <20120830121302.492732d2.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Wanpeng Li <liwanp@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Minchan Kim <minchan@kernel.org>, Gavin Shan <shangw@linux.vnet.ibm.com>
+Cc: Gavin Shan <shangw@linux.vnet.ibm.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Minchan Kim <minchan@kernel.org>
 
-On Fri, Aug 24, 2012 at 02:51:51PM -0700, Andrew Morton wrote:
->On Fri, 24 Aug 2012 22:37:55 +0800
->Wanpeng Li <liwanp@linux.vnet.ibm.com> wrote:
+On Thu, Aug 30, 2012 at 12:13:02PM -0700, Andrew Morton wrote:
+>On Sat, 25 Aug 2012 17:47:50 +0800
+>Gavin Shan <shangw@linux.vnet.ibm.com> wrote:
 >
->> From: Gavin Shan <shangw@linux.vnet.ibm.com>
+>> >> --- a/mm/mmu_notifier.c
+>> >> +++ b/mm/mmu_notifier.c
+>> >> @@ -192,22 +192,23 @@ static int do_mmu_notifier_register(struct mmu_notifier *mn,
+>> >>  
+>> >>  	BUG_ON(atomic_read(&mm->mm_users) <= 0);
+>> >>  
+>> >> -	ret = -ENOMEM;
+>> >> -	mmu_notifier_mm = kmalloc(sizeof(struct mmu_notifier_mm), GFP_KERNEL);
+>> >> -	if (unlikely(!mmu_notifier_mm))
+>> >> -		goto out;
+>> >> -
+>> >>  	if (take_mmap_sem)
+>> >>  		down_write(&mm->mmap_sem);
+>> >>  	ret = mm_take_all_locks(mm);
+>> >>  	if (unlikely(ret))
+>> >> -		goto out_cleanup;
+>> >> +		goto out;
+>> >>  
+>> >>  	if (!mm_has_notifiers(mm)) {
+>> >> +		mmu_notifier_mm = kmalloc(sizeof(struct mmu_notifier_mm),
+>> >> +					GFP_ATOMIC);
+>> >
+>> >Why was the code switched to the far weaker GFP_ATOMIC?  We can still
+>> >perform sleeping allocations inside mmap_sem.
+>> >
 >> 
->> While registering MMU notifier, new instance of MMU notifier_mm will
->> be allocated and later free'd if currrent mm_struct's MMU notifier_mm
->> has been initialized. That cause some overhead. The patch tries to
->> eleminate that.
->> 
->> Signed-off-by: Gavin Shan <shangw@linux.vnet.ibm.com>
->> Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
->> ---
->>  mm/mmu_notifier.c |   22 +++++++++++-----------
->>  1 files changed, 11 insertions(+), 11 deletions(-)
->> 
->> diff --git a/mm/mmu_notifier.c b/mm/mmu_notifier.c
->> index 862b608..fb4067f 100644
->> --- a/mm/mmu_notifier.c
->> +++ b/mm/mmu_notifier.c
->> @@ -192,22 +192,23 @@ static int do_mmu_notifier_register(struct mmu_notifier *mn,
->>  
->>  	BUG_ON(atomic_read(&mm->mm_users) <= 0);
->>  
->> -	ret = -ENOMEM;
->> -	mmu_notifier_mm = kmalloc(sizeof(struct mmu_notifier_mm), GFP_KERNEL);
->> -	if (unlikely(!mmu_notifier_mm))
->> -		goto out;
->> -
->>  	if (take_mmap_sem)
->>  		down_write(&mm->mmap_sem);
->>  	ret = mm_take_all_locks(mm);
->>  	if (unlikely(ret))
->> -		goto out_cleanup;
->> +		goto out;
->>  
->>  	if (!mm_has_notifiers(mm)) {
->> +		mmu_notifier_mm = kmalloc(sizeof(struct mmu_notifier_mm),
->> +					GFP_ATOMIC);
+>> Yes, we can perform sleeping while allocating memory, but we're holding
+>> the "mmap_sem". GFP_KERNEL possiblly block somebody else who also waits
+>> on mmap_sem for long time even though the case should be rare :-)
 >
->Why was the code switched to the far weaker GFP_ATOMIC?  We can still
->perform sleeping allocations inside mmap_sem.
+>GFP_ATOMIC allocations are unreliable.  If the allocation attempt fails
+>here, an entire kernel subsystem will have failed, quite probably
+>requiring a reboot.  It's a bad tradeoff.
 >
 
-Yes, we can perform sleeping while allocating memory, but we're holding
-the "mmap_sem". GFP_KERNEL possiblly block somebody else who also waits
-on mmap_sem for long time even though the case should be rare :-)
+Yep. Thanks, Andrew :-)
+
+>Please fix this and retest.  With lockdep enabled, of course.
+>
+>And please do not attempt to sneak changes like this into the kernel
+>without even mentioning them in the changelog.  If I hadn't have
+>happened to notice this, we'd have ended up with a less reliable
+>kernel.
+>
+
+I'll fix and rerest it.
 
 Thanks,
 Gavin
-
->> +		if (unlikely(!mmu_notifier_mm)) {
->> +			ret = -ENOMEM;
->> +			goto out_of_mem;
->> +		}
->>  		INIT_HLIST_HEAD(&mmu_notifier_mm->list);
->>  		spin_lock_init(&mmu_notifier_mm->lock);
->> +
->>  		mm->mmu_notifier_mm = mmu_notifier_mm;
->> -		mmu_notifier_mm = NULL;
->>  	}
->>  	atomic_inc(&mm->mm_count);
->>  
->
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
