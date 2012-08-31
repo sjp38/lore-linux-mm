@@ -1,91 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
-	by kanga.kvack.org (Postfix) with SMTP id DE2266B0069
-	for <linux-mm@kvack.org>; Thu, 30 Aug 2012 21:07:40 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
+	by kanga.kvack.org (Postfix) with SMTP id CD89B6B0069
+	for <linux-mm@kvack.org>; Fri, 31 Aug 2012 02:56:30 -0400 (EDT)
 Received: from /spool/local
-	by e5.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e38.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <shangw@linux.vnet.ibm.com>;
-	Thu, 30 Aug 2012 21:07:38 -0400
-Received: from d01relay03.pok.ibm.com (d01relay03.pok.ibm.com [9.56.227.235])
-	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id 90C4A38C8047
-	for <linux-mm@kvack.org>; Thu, 30 Aug 2012 21:07:06 -0400 (EDT)
-Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by d01relay03.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q7V176sR125948
-	for <linux-mm@kvack.org>; Thu, 30 Aug 2012 21:07:06 -0400
-Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
-	by d01av04.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q7V175AN026630
-	for <linux-mm@kvack.org>; Thu, 30 Aug 2012 21:07:06 -0400
-Date: Fri, 31 Aug 2012 09:07:01 +0800
+	Fri, 31 Aug 2012 00:56:30 -0600
+Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
+	by d03dlp02.boulder.ibm.com (Postfix) with ESMTP id 43D0A3E4003F
+	for <linux-mm@kvack.org>; Fri, 31 Aug 2012 00:55:46 -0600 (MDT)
+Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q7V6tkbx177734
+	for <linux-mm@kvack.org>; Fri, 31 Aug 2012 00:55:46 -0600
+Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av04.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q7V6tjiD031659
+	for <linux-mm@kvack.org>; Fri, 31 Aug 2012 00:55:45 -0600
 From: Gavin Shan <shangw@linux.vnet.ibm.com>
-Subject: Re: [PATCH 1/2] mm/mmu_notifier: init notifier if necessary
-Message-ID: <20120831010701.GA5026@shangw.(null)>
-Reply-To: Gavin Shan <shangw@linux.vnet.ibm.com>
-References: <1345819076-12545-1-git-send-email-liwanp@linux.vnet.ibm.com>
- <20120824145151.b92557cc.akpm@linux-foundation.org>
- <50389f4d.0793b60a.1627.7710SMTPIN_ADDED@mx.google.com>
- <20120830121302.492732d2.akpm@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120830121302.492732d2.akpm@linux-foundation.org>
+Subject: [PATCH v2] mm/mmu_notifier: init notifier if necessary
+Date: Fri, 31 Aug 2012 14:55:40 +0800
+Message-Id: <1346396140-32344-1-git-send-email-shangw@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Gavin Shan <shangw@linux.vnet.ibm.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Minchan Kim <minchan@kernel.org>
+To: linux-mm@kvack.org
+Cc: akpm@linux-foundation.org, Gavin Shan <shangw@linux.vnet.ibm.com>
 
-On Thu, Aug 30, 2012 at 12:13:02PM -0700, Andrew Morton wrote:
->On Sat, 25 Aug 2012 17:47:50 +0800
->Gavin Shan <shangw@linux.vnet.ibm.com> wrote:
->
->> >> --- a/mm/mmu_notifier.c
->> >> +++ b/mm/mmu_notifier.c
->> >> @@ -192,22 +192,23 @@ static int do_mmu_notifier_register(struct mmu_notifier *mn,
->> >>  
->> >>  	BUG_ON(atomic_read(&mm->mm_users) <= 0);
->> >>  
->> >> -	ret = -ENOMEM;
->> >> -	mmu_notifier_mm = kmalloc(sizeof(struct mmu_notifier_mm), GFP_KERNEL);
->> >> -	if (unlikely(!mmu_notifier_mm))
->> >> -		goto out;
->> >> -
->> >>  	if (take_mmap_sem)
->> >>  		down_write(&mm->mmap_sem);
->> >>  	ret = mm_take_all_locks(mm);
->> >>  	if (unlikely(ret))
->> >> -		goto out_cleanup;
->> >> +		goto out;
->> >>  
->> >>  	if (!mm_has_notifiers(mm)) {
->> >> +		mmu_notifier_mm = kmalloc(sizeof(struct mmu_notifier_mm),
->> >> +					GFP_ATOMIC);
->> >
->> >Why was the code switched to the far weaker GFP_ATOMIC?  We can still
->> >perform sleeping allocations inside mmap_sem.
->> >
->> 
->> Yes, we can perform sleeping while allocating memory, but we're holding
->> the "mmap_sem". GFP_KERNEL possiblly block somebody else who also waits
->> on mmap_sem for long time even though the case should be rare :-)
->
->GFP_ATOMIC allocations are unreliable.  If the allocation attempt fails
->here, an entire kernel subsystem will have failed, quite probably
->requiring a reboot.  It's a bad tradeoff.
->
+While registering MMU notifier, new instance of MMU notifier_mm will
+be allocated and later free'd if currrent mm_struct's MMU notifier_mm
+has been initialized. That cause some overhead. The patch tries to
+eleminate that by allocating the MMU notifier_mm only when the current
+mm_struct doesn't have initialized MMU notifier_mm yet.
 
-Yep. Thanks, Andrew :-)
+v2: Using GFP_KERNEL instead of GFP_ATOMIC when allocating the MMU
+    notifier_mm as Andrew suggested.
 
->Please fix this and retest.  With lockdep enabled, of course.
->
->And please do not attempt to sneak changes like this into the kernel
->without even mentioning them in the changelog.  If I hadn't have
->happened to notice this, we'd have ended up with a less reliable
->kernel.
->
+Signed-off-by: Gavin Shan <shangw@linux.vnet.ibm.com>
+---
+ mm/mmu_notifier.c |   22 +++++++++++-----------
+ 1 files changed, 11 insertions(+), 11 deletions(-)
 
-I'll fix and rerest it.
-
-Thanks,
-Gavin
+diff --git a/mm/mmu_notifier.c b/mm/mmu_notifier.c
+index 862b608..8676453 100644
+--- a/mm/mmu_notifier.c
++++ b/mm/mmu_notifier.c
+@@ -192,22 +192,23 @@ static int do_mmu_notifier_register(struct mmu_notifier *mn,
+ 
+ 	BUG_ON(atomic_read(&mm->mm_users) <= 0);
+ 
+-	ret = -ENOMEM;
+-	mmu_notifier_mm = kmalloc(sizeof(struct mmu_notifier_mm), GFP_KERNEL);
+-	if (unlikely(!mmu_notifier_mm))
+-		goto out;
+-
+ 	if (take_mmap_sem)
+ 		down_write(&mm->mmap_sem);
+ 	ret = mm_take_all_locks(mm);
+ 	if (unlikely(ret))
+-		goto out_cleanup;
++		goto out;
+ 
+ 	if (!mm_has_notifiers(mm)) {
++		mmu_notifier_mm = kmalloc(sizeof(struct mmu_notifier_mm),
++					GFP_KERNEL);
++		if (unlikely(!mmu_notifier_mm)) {
++			ret = -ENOMEM;
++			goto out_of_mem;
++		}
+ 		INIT_HLIST_HEAD(&mmu_notifier_mm->list);
+ 		spin_lock_init(&mmu_notifier_mm->lock);
++
+ 		mm->mmu_notifier_mm = mmu_notifier_mm;
+-		mmu_notifier_mm = NULL;
+ 	}
+ 	atomic_inc(&mm->mm_count);
+ 
+@@ -223,13 +224,12 @@ static int do_mmu_notifier_register(struct mmu_notifier *mn,
+ 	hlist_add_head(&mn->hlist, &mm->mmu_notifier_mm->list);
+ 	spin_unlock(&mm->mmu_notifier_mm->lock);
+ 
++out_of_mem:
+ 	mm_drop_all_locks(mm);
+-out_cleanup:
++out:
+ 	if (take_mmap_sem)
+ 		up_write(&mm->mmap_sem);
+-	/* kfree() does nothing if mmu_notifier_mm is NULL */
+-	kfree(mmu_notifier_mm);
+-out:
++
+ 	BUG_ON(atomic_read(&mm->mm_users) <= 0);
+ 	return ret;
+ }
+-- 
+1.7.5.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
