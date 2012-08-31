@@ -1,177 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
-	by kanga.kvack.org (Postfix) with SMTP id D6B1C6B0072
-	for <linux-mm@kvack.org>; Fri, 31 Aug 2012 17:06:25 -0400 (EDT)
-Date: Fri, 31 Aug 2012 14:06:23 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [RFC v8 PATCH 08/20] memory-hotplug: remove
- /sys/firmware/memmap/X sysfs
-Message-Id: <20120831140623.8d13bd2c.akpm@linux-foundation.org>
-In-Reply-To: <1346148027-24468-9-git-send-email-wency@cn.fujitsu.com>
-References: <1346148027-24468-1-git-send-email-wency@cn.fujitsu.com>
-	<1346148027-24468-9-git-send-email-wency@cn.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
+	by kanga.kvack.org (Postfix) with SMTP id F28016B0069
+	for <linux-mm@kvack.org>; Fri, 31 Aug 2012 17:10:49 -0400 (EDT)
+Date: Fri, 31 Aug 2012 17:10:38 -0400
+From: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+Subject: Re: [PATCH] frontswap: support exclusive gets if tmem backend is
+ capable
+Message-ID: <20120831211038.GA20594@localhost.localdomain>
+References: <5557ec97-daa1-41a6-b3db-671f116ddc50@default>
+ <20120831170814.GF18929@localhost.localdomain>
+ <89702248-0c3f-465c-bc1f-2115a21c8c89@default>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <89702248-0c3f-465c-bc1f-2115a21c8c89@default>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: wency@cn.fujitsu.com
-Cc: x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-ia64@vger.kernel.org, cmetcalf@tilera.com, sparclinux@vger.kernel.org, rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, kosaki.motohiro@jp.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com
+To: Dan Magenheimer <dan.magenheimer@oracle.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>
 
-On Tue, 28 Aug 2012 18:00:15 +0800
-wency@cn.fujitsu.com wrote:
-
-> From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+On Fri, Aug 31, 2012 at 10:23:21AM -0700, Dan Magenheimer wrote:
+> > From: Konrad Rzeszutek Wilk
 > 
-> When (hot)adding memory into system, /sys/firmware/memmap/X/{end, start, type}
-> sysfs files are created. But there is no code to remove these files. The patch
-> implements the function to remove them.
+> Hi Konrad --
 > 
-> Note : The code does not free firmware_map_entry since there is no way to free
->        memory which is allocated by bootmem.
+> Thanks for the fast feedback!
+
+Sure. Had a couple of minutes in between the talks.
 > 
-> ....
->
-> +#define to_memmap_entry(obj) container_of(obj, struct firmware_map_entry, kobj)
+> > > +#define FRONTSWAP_HAS_EXCLUSIVE_GETS
+> > > +extern void frontswap_tmem_exclusive_gets(bool);
+> > 
+> > I don't think you need the #define here..
+> 
+> The #define is used by an ifdef in the backend to ensure
+> that it is using a version of frontswap that has this feature,
+> so avoids the need for the frontend (frontswap) and
+> the backend (e.g. zcache2) to merge in lockstep.
 
-It would be better to implement this as an inlined C function.  That
-has improved type safety and improved readability.
+Then lets post the ramster patch as part of the patch series
+which will include this patch as the first component and the
+second would be the ramster part.
 
-> +static void release_firmware_map_entry(struct kobject *kobj)
-> +{
-> +	struct firmware_map_entry *entry = to_memmap_entry(kobj);
-> +	struct page *page;
-> +
-> +	page = virt_to_page(entry);
-> +	if (PageSlab(page) || PageCompound(page))
+> 
+> > > +EXPORT_SYMBOL(frontswap_tmem_exclusive_gets);
+> > 
+> > We got two of these now - the writethrough and this one. Merging
+> > them in one function and one flag might be better. So something like:
+> > static int frontswap_mode = 0;
+> >
+> > void frontswap_set_mode(int set_mode)
+> > {
+> > 	if (mode & (FRONTSWAP_WRITETH | FRONTSWAP_EXCLUS..)
+> > 		mode |= set_mode;
+> > }
+> 
+> IMHO, it's too soon to try to optimize this.  One or
+> both of these may go away.   Or the mode may become
+> more fine-grained in the future (e.g. to allow individual
+> gets to be exclusive).
 
-That PageCompound() test looks rather odd.  Why is this done?
+Sure. At which point we can modify it/remove this. Lets
+do the 'frontswap_set_mode' as it seems much nicer than just adding
+extra frontswap_some_new_function.
 
-> +		kfree(entry);
-> +
-> +	/* There is no way to free memory allocated from bootmem*/
-> +}
+> 
+> So unless you object strongly, let's just leave this
+> as is for now and revisit in the future if more "modes"
+> are needed.
 
-This function is a bit ugly - poking around in page flags to determine
-whether or not the memory came from bootmem.  It would be cleaner to
-use a separate boolean.  Although I guess we can live with it as you
-have it here.
-
->  static struct kobj_type memmap_ktype = {
-> +	.release	= release_firmware_map_entry,
->  	.sysfs_ops	= &memmap_attr_ops,
->  	.default_attrs	= def_attrs,
->  };
-> @@ -123,6 +139,16 @@ static int firmware_map_add_entry(u64 start, u64 end,
->  	return 0;
->  }
+Nah. Lets do the mode.
 >  
-> +/**
-> + * firmware_map_remove_entry() - Does the real work to remove a firmware
-> + * memmap entry.
-> + * @entry: removed entry.
-> + **/
-> +static inline void firmware_map_remove_entry(struct firmware_map_entry *entry)
-> +{
-> +	list_del(&entry->list);
-> +}
+> > ... and
+> > > +
+> > > +/*
+> > >   * Called when a swap device is swapon'd.
+> > >   */
+> > >  void __frontswap_init(unsigned type)
+> > > @@ -174,8 +190,13 @@ int __frontswap_load(struct page *page)
+> > >  	BUG_ON(sis == NULL);
+> > >  	if (frontswap_test(sis, offset))
+> > >  		ret = (*frontswap_ops.load)(type, offset, page);
+> > > -	if (ret == 0)
+> > > +	if (ret == 0) {
+> > >  		inc_frontswap_loads();
+> > > +		if (frontswap_tmem_exclusive_gets_enabled) {
+> > 
+> > For these perhaps use asm goto for optimization? Is this showing up in
+> > perf as a hotspot? The asm goto might be a bit too much.
+> 
+> This is definitely not a performance hotspot.  Frontswap code
+> only is ever executed in situations where a swap-to-disk would
+> otherwise have occurred.  And in this case, this code only
+> gets executed after the frontswap_test has confirmed that
+> tmem does already contain the page of data, in which case
+> there is thousands of cycles spent copying and/or decompressing.
 
-Is there no locking  to protect that list?
-
->  /*
->   * Add memmap entry on sysfs
->   */
-> @@ -144,6 +170,31 @@ static int add_sysfs_fw_map_entry(struct firmware_map_entry *entry)
->  	return 0;
->  }
->  
-> +/*
-> + * Remove memmap entry on sysfs
-> + */
-> +static inline void remove_sysfs_fw_map_entry(struct firmware_map_entry *entry)
-> +{
-> +	kobject_put(&entry->kobj);
-> +}
-> +
-> +/*
-> + * Search memmap entry
-> + */
-> +
-> +struct firmware_map_entry * __meminit
-> +find_firmware_map_entry(u64 start, u64 end, const char *type)
-
-A better name would be firmware_map_find_entry().  To retain the (good)
-convention that symbols exported from here all start with
-"firmware_map_".
-
-> +{
-> +	struct firmware_map_entry *entry;
-> +
-> +	list_for_each_entry(entry, &map_entries, list)
-> +		if ((entry->start == start) && (entry->end == end) &&
-> +		    (!strcmp(entry->type, type)))
-> +			return entry;
-> +
-> +	return NULL;
-> +}
-> +
->  /**
->   * firmware_map_add_hotplug() - Adds a firmware mapping entry when we do
->   * memory hotplug.
-> @@ -196,6 +247,32 @@ int __init firmware_map_add_early(u64 start, u64 end, const char *type)
->  	return firmware_map_add_entry(start, end, type, entry);
->  }
->  
-> +/**
-> + * firmware_map_remove() - remove a firmware mapping entry
-> + * @start: Start of the memory range.
-> + * @end:   End of the memory range.
-> + * @type:  Type of the memory range.
-> + *
-> + * removes a firmware mapping entry.
-> + *
-> + * Returns 0 on success, or -EINVAL if no entry.
-> + **/
-> +int __meminit firmware_map_remove(u64 start, u64 end, const char *type)
-> +{
-> +	struct firmware_map_entry *entry;
-> +
-> +	entry = find_firmware_map_entry(start, end - 1, type);
-> +	if (!entry)
-> +		return -EINVAL;
-> +
-> +	firmware_map_remove_entry(entry);
-> +
-> +	/* remove the memmap entry */
-> +	remove_sysfs_fw_map_entry(entry);
-> +
-> +	return 0;
-> +}
-
-Again, the lack of locking looks bad.
-
-> ...
->
-> --- a/mm/memory_hotplug.c
-> +++ b/mm/memory_hotplug.c
-> @@ -1052,9 +1052,9 @@ int offline_memory(u64 start, u64 size)
->  	return 0;
->  }
->  
-> -int remove_memory(int nid, u64 start, u64 size)
-> +int __ref remove_memory(int nid, u64 start, u64 size)
-
-Why was __ref added?
-
->  {
-> -	int ret = -EBUSY;
-> +	int ret = 0;
->  	lock_memory_hotplug();
->  	/*
->  	 * The memory might become online by other task, even if you offine it.
->
-> ...
->
+Ok. Lets leave this with just a check: if (frontswap_flag &
+FRONTSWAP_EXCLUSIVE_GET)...
+> 
+> Dan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
