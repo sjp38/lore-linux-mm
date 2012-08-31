@@ -1,35 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
-	by kanga.kvack.org (Postfix) with SMTP id 894426B0070
-	for <linux-mm@kvack.org>; Fri, 31 Aug 2012 04:39:49 -0400 (EDT)
-Received: by iagk10 with SMTP id k10so5877786iag.14
-        for <linux-mm@kvack.org>; Fri, 31 Aug 2012 01:39:49 -0700 (PDT)
-MIME-Version: 1.0
+Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
+	by kanga.kvack.org (Postfix) with SMTP id 575886B006C
+	for <linux-mm@kvack.org>; Fri, 31 Aug 2012 05:24:43 -0400 (EDT)
+From: Alexander Shishkin <alexander.shishkin@intel.com>
+Subject: Re: [PATCH v2 07/12] rbtree: adjust root color in rb_insert_color() only when necessary
 In-Reply-To: <5040775C.3070205@intel.com>
-References: <1342139517-3451-1-git-send-email-walken@google.com>
-	<1342139517-3451-8-git-send-email-walken@google.com>
-	<50406F60.5040707@intel.com>
-	<CANN689EBA6yPk3pS-yXZ1-ticG7eU3mY1mWMWp2S3xhJ73ODFA@mail.gmail.com>
-	<20120831011541.ddf8ed78.akpm@linux-foundation.org>
-	<5040775C.3070205@intel.com>
-Date: Fri, 31 Aug 2012 01:39:48 -0700
-Message-ID: <CANN689E8u-rx08NMG3JRaay1BdM=VTe6nzE_FfcPSFSShbL=9A@mail.gmail.com>
-Subject: Re: [PATCH v2 07/12] rbtree: adjust root color in rb_insert_color()
- only when necessary
-From: Michel Lespinasse <walken@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
+References: <1342139517-3451-1-git-send-email-walken@google.com> <1342139517-3451-8-git-send-email-walken@google.com> <50406F60.5040707@intel.com> <CANN689EBA6yPk3pS-yXZ1-ticG7eU3mY1mWMWp2S3xhJ73ODFA@mail.gmail.com> <20120831011541.ddf8ed78.akpm@linux-foundation.org> <5040775C.3070205@intel.com>
+Date: Fri, 31 Aug 2012 12:25:10 +0300
+Message-ID: <87txvjifbd.fsf@ashishki-desk.ger.corp.intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Adrian Hunter <adrian.hunter@intel.com>
-Cc: "Shishkin, Alexander" <alexander.shishkin@intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, acme@redhat.com
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michel Lespinasse <walken@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, acme@redhat.com
 
-On Fri, Aug 31, 2012 at 1:35 AM, Adrian Hunter <adrian.hunter@intel.com> wrote:
+Adrian Hunter <adrian.hunter@intel.com> writes:
+
 > On 31/08/12 11:15, Andrew Morton wrote:
 >> On Fri, 31 Aug 2012 01:07:24 -0700 Michel Lespinasse <walken@google.com> wrote:
+>> 
+>>> On Fri, Aug 31, 2012 at 1:01 AM, Adrian Hunter <adrian.hunter@intel.com> wrote:
+>>>> This breaks tools/perf build in linux-next:
+>>>>
+>>>> ../../lib/rbtree.c: In function 'rb_insert_color':
+>>>> ../../lib/rbtree.c:95:9: error: 'true' undeclared (first use in this function)
+>>>> ../../lib/rbtree.c:95:9: note: each undeclared identifier is reported only once for each function it appears in
+>>>> ../../lib/rbtree.c: In function '__rb_erase_color':
+>>>> ../../lib/rbtree.c:216:9: error: 'true' undeclared (first use in this function)
+>>>> ../../lib/rbtree.c: In function 'rb_erase':
+>>>> ../../lib/rbtree.c:368:2: error: unknown type name 'bool'
+>>>> make: *** [util/rbtree.o] Error 1
+>>>
 >>> I thought Andrew had a patch
 >>> rbtree-adjust-root-color-in-rb_insert_color-only-when-necessary-fix-perf-compilation
 >>> that fixed this though a Makefile change ?
->>
+>> 
 >> Yup.  But it's unclear why we should include the header via the cc
 >> command line?
 >
@@ -49,14 +55,11 @@ On Fri, Aug 31, 2012 at 1:35 AM, Adrian Hunter <adrian.hunter@intel.com> wrote:
 >
 > Alex?
 
-Ah, makes sense to me. I wasn't previously aware of the
-tools/perf/util/include/linux directory. I think your fix is fine.
-(I don't understand how you hit the issue given the previous Makefile
-fix, but I think your fix looks nicer)
+Whichever color like best. :) Consider my initial patch a bugreport.
 
--- 
-Michel "Walken" Lespinasse
-A program is never fully debugged until the last user dies.
+Regards,
+--
+Alex
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
