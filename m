@@ -1,105 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
-	by kanga.kvack.org (Postfix) with SMTP id F28016B0069
-	for <linux-mm@kvack.org>; Fri, 31 Aug 2012 17:10:49 -0400 (EDT)
-Date: Fri, 31 Aug 2012 17:10:38 -0400
-From: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-Subject: Re: [PATCH] frontswap: support exclusive gets if tmem backend is
- capable
-Message-ID: <20120831211038.GA20594@localhost.localdomain>
-References: <5557ec97-daa1-41a6-b3db-671f116ddc50@default>
- <20120831170814.GF18929@localhost.localdomain>
- <89702248-0c3f-465c-bc1f-2115a21c8c89@default>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <89702248-0c3f-465c-bc1f-2115a21c8c89@default>
+Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
+	by kanga.kvack.org (Postfix) with SMTP id D0C386B0070
+	for <linux-mm@kvack.org>; Fri, 31 Aug 2012 17:30:34 -0400 (EDT)
+Date: Fri, 31 Aug 2012 14:30:32 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [RFC v8 PATCH 13/20] memory-hotplug: check page type in
+ get_page_bootmem
+Message-Id: <20120831143032.1343e99a.akpm@linux-foundation.org>
+In-Reply-To: <1346148027-24468-14-git-send-email-wency@cn.fujitsu.com>
+References: <1346148027-24468-1-git-send-email-wency@cn.fujitsu.com>
+	<1346148027-24468-14-git-send-email-wency@cn.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Magenheimer <dan.magenheimer@oracle.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>
+To: wency@cn.fujitsu.com
+Cc: x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-ia64@vger.kernel.org, cmetcalf@tilera.com, sparclinux@vger.kernel.org, rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, kosaki.motohiro@jp.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com
 
-On Fri, Aug 31, 2012 at 10:23:21AM -0700, Dan Magenheimer wrote:
-> > From: Konrad Rzeszutek Wilk
-> 
-> Hi Konrad --
-> 
-> Thanks for the fast feedback!
+On Tue, 28 Aug 2012 18:00:20 +0800
+wency@cn.fujitsu.com wrote:
 
-Sure. Had a couple of minutes in between the talks.
+> From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 > 
-> > > +#define FRONTSWAP_HAS_EXCLUSIVE_GETS
-> > > +extern void frontswap_tmem_exclusive_gets(bool);
-> > 
-> > I don't think you need the #define here..
-> 
-> The #define is used by an ifdef in the backend to ensure
-> that it is using a version of frontswap that has this feature,
-> so avoids the need for the frontend (frontswap) and
-> the backend (e.g. zcache2) to merge in lockstep.
+> There is a possibility that get_page_bootmem() is called to the same page many
+> times. So when get_page_bootmem is called to the same page, the function only
+> increments page->_count.
 
-Then lets post the ramster patch as part of the patch series
-which will include this patch as the first component and the
-second would be the ramster part.
+I really don't understand this explanation, even after having looked at
+the code.  Can you please have another attempt at the changelog?
 
-> 
-> > > +EXPORT_SYMBOL(frontswap_tmem_exclusive_gets);
-> > 
-> > We got two of these now - the writethrough and this one. Merging
-> > them in one function and one flag might be better. So something like:
-> > static int frontswap_mode = 0;
-> >
-> > void frontswap_set_mode(int set_mode)
-> > {
-> > 	if (mode & (FRONTSWAP_WRITETH | FRONTSWAP_EXCLUS..)
-> > 		mode |= set_mode;
-> > }
-> 
-> IMHO, it's too soon to try to optimize this.  One or
-> both of these may go away.   Or the mode may become
-> more fine-grained in the future (e.g. to allow individual
-> gets to be exclusive).
+> --- a/mm/memory_hotplug.c
+> +++ b/mm/memory_hotplug.c
+> @@ -95,10 +95,17 @@ static void release_memory_resource(struct resource *res)
+>  static void get_page_bootmem(unsigned long info,  struct page *page,
+>  			     unsigned long type)
+>  {
+> -	page->lru.next = (struct list_head *) type;
+> -	SetPagePrivate(page);
+> -	set_page_private(page, info);
+> -	atomic_inc(&page->_count);
+> +	unsigned long page_type;
+> +
+> +	page_type = (unsigned long) page->lru.next;
+> +	if (page_type < MEMORY_HOTPLUG_MIN_BOOTMEM_TYPE ||
+> +	    page_type > MEMORY_HOTPLUG_MAX_BOOTMEM_TYPE){
+> +		page->lru.next = (struct list_head *) type;
+> +		SetPagePrivate(page);
+> +		set_page_private(page, info);
+> +		atomic_inc(&page->_count);
+> +	} else
+> +		atomic_inc(&page->_count);
+>  }
 
-Sure. At which point we can modify it/remove this. Lets
-do the 'frontswap_set_mode' as it seems much nicer than just adding
-extra frontswap_some_new_function.
-
-> 
-> So unless you object strongly, let's just leave this
-> as is for now and revisit in the future if more "modes"
-> are needed.
-
-Nah. Lets do the mode.
->  
-> > ... and
-> > > +
-> > > +/*
-> > >   * Called when a swap device is swapon'd.
-> > >   */
-> > >  void __frontswap_init(unsigned type)
-> > > @@ -174,8 +190,13 @@ int __frontswap_load(struct page *page)
-> > >  	BUG_ON(sis == NULL);
-> > >  	if (frontswap_test(sis, offset))
-> > >  		ret = (*frontswap_ops.load)(type, offset, page);
-> > > -	if (ret == 0)
-> > > +	if (ret == 0) {
-> > >  		inc_frontswap_loads();
-> > > +		if (frontswap_tmem_exclusive_gets_enabled) {
-> > 
-> > For these perhaps use asm goto for optimization? Is this showing up in
-> > perf as a hotspot? The asm goto might be a bit too much.
-> 
-> This is definitely not a performance hotspot.  Frontswap code
-> only is ever executed in situations where a swap-to-disk would
-> otherwise have occurred.  And in this case, this code only
-> gets executed after the frontswap_test has confirmed that
-> tmem does already contain the page of data, in which case
-> there is thousands of cycles spent copying and/or decompressing.
-
-Ok. Lets leave this with just a check: if (frontswap_flag &
-FRONTSWAP_EXCLUSIVE_GET)...
-> 
-> Dan
+And a code comment which explains what is going on would be good.  As
+is always the case ;)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
