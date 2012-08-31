@@ -1,86 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx141.postini.com [74.125.245.141])
-	by kanga.kvack.org (Postfix) with SMTP id CF3B36B0070
-	for <linux-mm@kvack.org>; Fri, 31 Aug 2012 13:24:02 -0400 (EDT)
-MIME-Version: 1.0
-Message-ID: <89702248-0c3f-465c-bc1f-2115a21c8c89@default>
-Date: Fri, 31 Aug 2012 10:23:21 -0700 (PDT)
-From: Dan Magenheimer <dan.magenheimer@oracle.com>
-Subject: RE: [PATCH] frontswap: support exclusive gets if tmem backend is
- capable
-References: <5557ec97-daa1-41a6-b3db-671f116ddc50@default>
- <20120831170814.GF18929@localhost.localdomain>
-In-Reply-To: <20120831170814.GF18929@localhost.localdomain>
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: quoted-printable
+Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
+	by kanga.kvack.org (Postfix) with SMTP id 4C35D6B0069
+	for <linux-mm@kvack.org>; Fri, 31 Aug 2012 16:49:58 -0400 (EDT)
+Date: Fri, 31 Aug 2012 13:49:56 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [RFC v8 PATCH 00/20] memory-hotplug: hot-remove physical memory
+Message-Id: <20120831134956.fec0f681.akpm@linux-foundation.org>
+In-Reply-To: <1346148027-24468-1-git-send-email-wency@cn.fujitsu.com>
+References: <1346148027-24468-1-git-send-email-wency@cn.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konrad Wilk <konrad.wilk@oracle.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>
+To: wency@cn.fujitsu.com
+Cc: x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-ia64@vger.kernel.org, cmetcalf@tilera.com, sparclinux@vger.kernel.org, rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, kosaki.motohiro@jp.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com
 
-> From: Konrad Rzeszutek Wilk
+On Tue, 28 Aug 2012 18:00:07 +0800
+wency@cn.fujitsu.com wrote:
 
-Hi Konrad --
+> This patch series aims to support physical memory hot-remove.
 
-Thanks for the fast feedback!
+Have you had much review and testing feedback yet?
 
-> > +#define FRONTSWAP_HAS_EXCLUSIVE_GETS
-> > +extern void frontswap_tmem_exclusive_gets(bool);
->=20
-> I don't think you need the #define here..
+> The patches can free/remove the following things:
+> 
+>   - acpi_memory_info                          : [RFC PATCH 4/19]
+>   - /sys/firmware/memmap/X/{end, start, type} : [RFC PATCH 8/19]
+>   - iomem_resource                            : [RFC PATCH 9/19]
+>   - mem_section and related sysfs files       : [RFC PATCH 10-11, 13-16/19]
+>   - page table of removed memory              : [RFC PATCH 12/19]
+>   - node and related sysfs files              : [RFC PATCH 18-19/19]
+> 
+> If you find lack of function for physical memory hot-remove, please let me
+> know.
 
-The #define is used by an ifdef in the backend to ensure
-that it is using a version of frontswap that has this feature,
-so avoids the need for the frontend (frontswap) and
-the backend (e.g. zcache2) to merge in lockstep.
+I doubt if many people have hardware which permits physical memory
+removal?  How would you suggest that people with regular hardware can
+test these chagnes?
 
-> > +EXPORT_SYMBOL(frontswap_tmem_exclusive_gets);
->=20
-> We got two of these now - the writethrough and this one. Merging
-> them in one function and one flag might be better. So something like:
-> static int frontswap_mode =3D 0;
->
-> void frontswap_set_mode(int set_mode)
-> {
-> =09if (mode & (FRONTSWAP_WRITETH | FRONTSWAP_EXCLUS..)
-> =09=09mode |=3D set_mode;
-> }
+> Known problems:
+> 1. memory can't be offlined when CONFIG_MEMCG is selected.
 
-IMHO, it's too soon to try to optimize this.  One or
-both of these may go away.   Or the mode may become
-more fine-grained in the future (e.g. to allow individual
-gets to be exclusive).
-
-So unless you object strongly, let's just leave this
-as is for now and revisit in the future if more "modes"
-are needed.
-=20
-> ... and
-> > +
-> > +/*
-> >   * Called when a swap device is swapon'd.
-> >   */
-> >  void __frontswap_init(unsigned type)
-> > @@ -174,8 +190,13 @@ int __frontswap_load(struct page *page)
-> >  =09BUG_ON(sis =3D=3D NULL);
-> >  =09if (frontswap_test(sis, offset))
-> >  =09=09ret =3D (*frontswap_ops.load)(type, offset, page);
-> > -=09if (ret =3D=3D 0)
-> > +=09if (ret =3D=3D 0) {
-> >  =09=09inc_frontswap_loads();
-> > +=09=09if (frontswap_tmem_exclusive_gets_enabled) {
->=20
-> For these perhaps use asm goto for optimization? Is this showing up in
-> perf as a hotspot? The asm goto might be a bit too much.
-
-This is definitely not a performance hotspot.  Frontswap code
-only is ever executed in situations where a swap-to-disk would
-otherwise have occurred.  And in this case, this code only
-gets executed after the frontswap_test has confirmed that
-tmem does already contain the page of data, in which case
-there is thousands of cycles spent copying and/or decompressing.
-
-Dan
+That's quite a problem!  Do you have a description of why this is the
+case, and a plan for fixing it?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
