@@ -1,68 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
-	by kanga.kvack.org (Postfix) with SMTP id 33C8B6B0069
-	for <linux-mm@kvack.org>; Fri, 31 Aug 2012 10:06:12 -0400 (EDT)
-Date: Fri, 31 Aug 2012 17:06:27 +0300
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: Re: [PATCH, RFC 7/9] thp: implement splitting pmd for huge zero page
-Message-ID: <20120831140627.GA29891@otc-wbsnb-06>
-References: <1344503300-9507-1-git-send-email-kirill.shutemov@linux.intel.com>
- <1344503300-9507-8-git-send-email-kirill.shutemov@linux.intel.com>
- <20120816192738.GO11188@redhat.com>
+Received: from psmtp.com (na3sys010amx177.postini.com [74.125.245.177])
+	by kanga.kvack.org (Postfix) with SMTP id C47E36B006C
+	for <linux-mm@kvack.org>; Fri, 31 Aug 2012 10:10:54 -0400 (EDT)
+Received: by bkcjc3 with SMTP id jc3so1594791bkc.14
+        for <linux-mm@kvack.org>; Fri, 31 Aug 2012 07:10:53 -0700 (PDT)
+Message-ID: <5040C461.4030409@gmail.com>
+Date: Fri, 31 Aug 2012 16:04:17 +0200
+From: Marco Stornelli <marco.stornelli@gmail.com>
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="4Ckj6UjgE2iN1+kY"
-Content-Disposition: inline
-In-Reply-To: <20120816192738.GO11188@redhat.com>
+Subject: [PATCH 21/21] mm: drop vmtruncate
+Content-Type: text/plain; charset=ISO-8859-15
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, "H. Peter Anvin" <hpa@linux.intel.com>, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill@shutemov.name>
+To: Linux FS Devel <linux-fsdevel@vger.kernel.org>
+Cc: Guenter Roeck <linux@roeck-us.net>, Luca Tettamanti <kronos.it@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
+Removed vmtruncate.
 
---4Ckj6UjgE2iN1+kY
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+Signed-off-by: Marco Stornelli <marco.stornelli@gmail.com>
+---
+ include/linux/mm.h |    1 -
+ mm/truncate.c      |   23 -----------------------
+ 2 files changed, 0 insertions(+), 24 deletions(-)
 
-On Thu, Aug 16, 2012 at 09:27:38PM +0200, Andrea Arcangeli wrote:
-> On Thu, Aug 09, 2012 at 12:08:18PM +0300, Kirill A. Shutemov wrote:
-> > +	if (is_huge_zero_pmd(*pmd)) {
-> > +		__split_huge_zero_page_pmd(mm, pmd, address);
->=20
-> This will work fine but it's a bit sad having to add "address" at
-> every call, just to run a find_vma().
-
-Hm. address is also used to calculate haddr..
-
-It seems we need pass address anyway. I mean vma + address.
-
---=20
- Kirill A. Shutemov
-
---4Ckj6UjgE2iN1+kY
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: Digital signature
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.12 (GNU/Linux)
-
-iQIcBAEBAgAGBQJQQMTjAAoJEAd+omnVudOMUnEQAJnGckuJQxNR9+SXTgTGEHj7
-Ut9b9Bm4MhUG/LgXcu5TXNasugeisovFxFqAecJfxM32J2qr0DFcxXUA6zr4M1rg
-5ogvBFWDCW1ZJVhoFbhs6EClMLsOf9wHqD0sHsGE4mrBMZyxxbDFH5gcUqv6NHpA
-pq2Xk7IE4px6DQ1EvZ54gVa/6dz5tp4msUDQqIMHEMIlAIuLQF3Hw1Sdc6J2tWaU
-riuJ8A52toHUFO/zpaTSilyBQNFcOtvcKvMY2fj+n/US7cmVJS34U33IUF64nUCO
-tboBo+KQj1E4oGloSpmJ0Hr80PuERBOo4sDOD3sGMYjyRVm9+brb4PPVvKX9k7XG
-rKvxlAlSx3ZHRkVOeGDQaXUa9ShVfGOG8RKCuNohCBg1gGFbMfqfMnbvP+nDqeL3
-qNqrOvarwQrA9vCz9GcH4jFeLxE2BYVn1rEUDI8F4MwyEKQgdMVHkCXFGIuin4MD
-VqMD0pZgqeDz2RpvB8FFOGhalBaNc5PSYGkddWjpMSZupqYGZzyMvHaUo7+Cmh9W
-kDTfvJ4P47RgMkdn4ZCO53CtsKu3AA3Ixy2Df8utL6Ql+Eh/q5t6XhV/+e7U2hIx
-f1KV4z6JL97MOZ4W6LkYUXtdcyGsEzcGLeavLLu0YSrp1VwH7lqTjhKaLvCSh/4D
-80OHnxAl/COvW9b3dknI
-=YKwD
------END PGP SIGNATURE-----
-
---4Ckj6UjgE2iN1+kY--
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 311be90..7eebde6 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -975,7 +975,6 @@ static inline void unmap_shared_mapping_range(struct address_space *mapping,
+ 
+ extern void truncate_pagecache(struct inode *inode, loff_t old, loff_t new);
+ extern void truncate_setsize(struct inode *inode, loff_t newsize);
+-extern int vmtruncate(struct inode *inode, loff_t offset);
+ void truncate_pagecache_range(struct inode *inode, loff_t offset, loff_t end);
+ int truncate_inode_page(struct address_space *mapping, struct page *page);
+ int generic_error_remove_page(struct address_space *mapping, struct page *page);
+diff --git a/mm/truncate.c b/mm/truncate.c
+index 75801ac..4e96354 100644
+--- a/mm/truncate.c
++++ b/mm/truncate.c
+@@ -580,29 +580,6 @@ void truncate_setsize(struct inode *inode, loff_t newsize)
+ EXPORT_SYMBOL(truncate_setsize);
+ 
+ /**
+- * vmtruncate - unmap mappings "freed" by truncate() syscall
+- * @inode: inode of the file used
+- * @newsize: file offset to start truncating
+- *
+- * This function is deprecated and truncate_setsize or truncate_pagecache
+- * should be used instead, together with filesystem specific block truncation.
+- */
+-int vmtruncate(struct inode *inode, loff_t newsize)
+-{
+-	int error;
+-
+-	error = inode_newsize_ok(inode, newsize);
+-	if (error)
+-		return error;
+-
+-	truncate_setsize(inode, newsize);
+-	if (inode->i_op->truncate)
+-		inode->i_op->truncate(inode);
+-	return 0;
+-}
+-EXPORT_SYMBOL(vmtruncate);
+-
+-/**
+  * truncate_pagecache_range - unmap and remove pagecache that is hole-punched
+  * @inode: inode
+  * @lstart: offset of beginning of hole
+-- 
+1.7.3.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
