@@ -1,60 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
-	by kanga.kvack.org (Postfix) with SMTP id D0C386B0070
-	for <linux-mm@kvack.org>; Fri, 31 Aug 2012 17:30:34 -0400 (EDT)
-Date: Fri, 31 Aug 2012 14:30:32 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [RFC v8 PATCH 13/20] memory-hotplug: check page type in
- get_page_bootmem
-Message-Id: <20120831143032.1343e99a.akpm@linux-foundation.org>
-In-Reply-To: <1346148027-24468-14-git-send-email-wency@cn.fujitsu.com>
-References: <1346148027-24468-1-git-send-email-wency@cn.fujitsu.com>
-	<1346148027-24468-14-git-send-email-wency@cn.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx144.postini.com [74.125.245.144])
+	by kanga.kvack.org (Postfix) with SMTP id D2BD76B0070
+	for <linux-mm@kvack.org>; Fri, 31 Aug 2012 18:22:13 -0400 (EDT)
+From: Lukas Czerner <lczerner@redhat.com>
+Subject: [PATCH 02/15 v2] jbd2: implement jbd2_journal_invalidatepage_range
+Date: Fri, 31 Aug 2012 18:21:38 -0400
+Message-Id: <1346451711-1931-3-git-send-email-lczerner@redhat.com>
+In-Reply-To: <1346451711-1931-1-git-send-email-lczerner@redhat.com>
+References: <1346451711-1931-1-git-send-email-lczerner@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: wency@cn.fujitsu.com
-Cc: x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-ia64@vger.kernel.org, cmetcalf@tilera.com, sparclinux@vger.kernel.org, rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, kosaki.motohiro@jp.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com
+To: linux-fsdevel@vger.kernel.org
+Cc: linux-ext4@vger.kernel.org, tytso@mit.edu, hughd@google.com, linux-mm@kvack.org, Lukas Czerner <lczerner@redhat.com>
 
-On Tue, 28 Aug 2012 18:00:20 +0800
-wency@cn.fujitsu.com wrote:
+mm now supports invalidatepage_range address space operation and there
+are two file system using jbd2 also implementing punch hole feature
+which can benefit from this. We need to implement the same thing for
+jbd2 layer in order to allow those file system take benefit of this
+functionality.
 
-> From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-> 
-> There is a possibility that get_page_bootmem() is called to the same page many
-> times. So when get_page_bootmem is called to the same page, the function only
-> increments page->_count.
+With new function jbd2_journal_invalidatepage_range() we can now specify
+length to invalidate, rather than assuming invalidate to the end of the
+page.
 
-I really don't understand this explanation, even after having looked at
-the code.  Can you please have another attempt at the changelog?
+Signed-off-by: Lukas Czerner <lczerner@redhat.com>
+---
+ fs/jbd2/journal.c     |    1 +
+ fs/jbd2/transaction.c |   19 +++++++++++++++++--
+ include/linux/jbd2.h  |    2 ++
+ 3 files changed, 20 insertions(+), 2 deletions(-)
 
-> --- a/mm/memory_hotplug.c
-> +++ b/mm/memory_hotplug.c
-> @@ -95,10 +95,17 @@ static void release_memory_resource(struct resource *res)
->  static void get_page_bootmem(unsigned long info,  struct page *page,
->  			     unsigned long type)
->  {
-> -	page->lru.next = (struct list_head *) type;
-> -	SetPagePrivate(page);
-> -	set_page_private(page, info);
-> -	atomic_inc(&page->_count);
-> +	unsigned long page_type;
-> +
-> +	page_type = (unsigned long) page->lru.next;
-> +	if (page_type < MEMORY_HOTPLUG_MIN_BOOTMEM_TYPE ||
-> +	    page_type > MEMORY_HOTPLUG_MAX_BOOTMEM_TYPE){
-> +		page->lru.next = (struct list_head *) type;
-> +		SetPagePrivate(page);
-> +		set_page_private(page, info);
-> +		atomic_inc(&page->_count);
-> +	} else
-> +		atomic_inc(&page->_count);
->  }
-
-And a code comment which explains what is going on would be good.  As
-is always the case ;)
+diff --git a/fs/jbd2/journal.c b/fs/jbd2/journal.c
+index e149b99..e4618e9 100644
+--- a/fs/jbd2/journal.c
++++ b/fs/jbd2/journal.c
+@@ -86,6 +86,7 @@ EXPORT_SYMBOL(jbd2_journal_force_commit_nested);
+ EXPORT_SYMBOL(jbd2_journal_wipe);
+ EXPORT_SYMBOL(jbd2_journal_blocks_per_page);
+ EXPORT_SYMBOL(jbd2_journal_invalidatepage);
++EXPORT_SYMBOL(jbd2_journal_invalidatepage_range);
+ EXPORT_SYMBOL(jbd2_journal_try_to_free_buffers);
+ EXPORT_SYMBOL(jbd2_journal_force_commit);
+ EXPORT_SYMBOL(jbd2_journal_file_inode);
+diff --git a/fs/jbd2/transaction.c b/fs/jbd2/transaction.c
+index fb1ab953..65c1374 100644
+--- a/fs/jbd2/transaction.c
++++ b/fs/jbd2/transaction.c
+@@ -1993,10 +1993,20 @@ zap_buffer_unlocked:
+  *
+  */
+ void jbd2_journal_invalidatepage(journal_t *journal,
+-		      struct page *page,
+-		      unsigned long offset)
++				 struct page *page,
++				 unsigned long offset)
++{
++	jbd2_journal_invalidatepage_range(journal, page, offset,
++					  PAGE_CACHE_SIZE - offset);
++}
++
++void jbd2_journal_invalidatepage_range(journal_t *journal,
++				       struct page *page,
++				       unsigned int offset,
++				       unsigned int length)
+ {
+ 	struct buffer_head *head, *bh, *next;
++	unsigned int stop = offset + length;
+ 	unsigned int curr_off = 0;
+ 	int may_free = 1;
+ 
+@@ -2005,6 +2015,8 @@ void jbd2_journal_invalidatepage(journal_t *journal,
+ 	if (!page_has_buffers(page))
+ 		return;
+ 
++	BUG_ON(stop > PAGE_CACHE_SIZE || stop < length);
++
+ 	/* We will potentially be playing with lists other than just the
+ 	 * data lists (especially for journaled data mode), so be
+ 	 * cautious in our locking. */
+@@ -2014,6 +2026,9 @@ void jbd2_journal_invalidatepage(journal_t *journal,
+ 		unsigned int next_off = curr_off + bh->b_size;
+ 		next = bh->b_this_page;
+ 
++		if (next_off > stop)
++			return;
++
+ 		if (offset <= curr_off) {
+ 			/* This block is wholly outside the truncation point */
+ 			lock_buffer(bh);
+diff --git a/include/linux/jbd2.h b/include/linux/jbd2.h
+index 3efc43f..21288fa 100644
+--- a/include/linux/jbd2.h
++++ b/include/linux/jbd2.h
+@@ -1101,6 +1101,8 @@ extern int	 jbd2_journal_forget (handle_t *, struct buffer_head *);
+ extern void	 journal_sync_buffer (struct buffer_head *);
+ extern void	 jbd2_journal_invalidatepage(journal_t *,
+ 				struct page *, unsigned long);
++extern void	 jbd2_journal_invalidatepage_range(journal_t *, struct page *,
++						   unsigned int, unsigned int);
+ extern int	 jbd2_journal_try_to_free_buffers(journal_t *, struct page *, gfp_t);
+ extern int	 jbd2_journal_stop(handle_t *);
+ extern int	 jbd2_journal_flush (journal_t *);
+-- 
+1.7.7.6
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
