@@ -1,68 +1,14 @@
-Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx133.postini.com [74.125.245.133])
-	by kanga.kvack.org (Postfix) with SMTP id C01696B0072
-	for <linux-mm@kvack.org>; Fri, 31 Aug 2012 18:22:18 -0400 (EDT)
-From: Lukas Czerner <lczerner@redhat.com>
-Subject: [PATCH 12/15 v2] ext4: remove unused code from ext4_remove_blocks()
-Date: Fri, 31 Aug 2012 18:21:48 -0400
-Message-Id: <1346451711-1931-13-git-send-email-lczerner@redhat.com>
-In-Reply-To: <1346451711-1931-1-git-send-email-lczerner@redhat.com>
-References: <1346451711-1931-1-git-send-email-lczerner@redhat.com>
-Sender: owner-linux-mm@kvack.org
+Return-Path: <lindsyroselyn@jtax.com>
+Date: Sat, 01 Sep 2012 05:55:45 +0500
+Subject: Order Viagra Online 100mg, 50mg for Cheapest Price on Net and get Free Pills o4l7kw3ii
+MIME-Version: 1.0
+Message-ID: <69r33x78o69-25211947-028y4o42@gtfwgzzh>
+From: "Elizbeth Claudie" <lindsyroselyn@jtax.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
+To: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-fsdevel@vger.kernel.org
-Cc: linux-ext4@vger.kernel.org, tytso@mit.edu, hughd@google.com, linux-mm@kvack.org, Lukas Czerner <lczerner@redhat.com>
 
-The "head removal" branch in the condition is never used in any code
-path in ext4 since the function only caller ext4_ext_rm_leaf() will make
-sure that the extent is properly split before removing blocks. Note that
-there is a bug in this branch anyway.
-
-This commit removes the unused code completely and makes use of
-ext4_error() instead of printk if dubious range is provided.
-
-Signed-off-by: Lukas Czerner <lczerner@redhat.com>
----
- fs/ext4/extents.c |   21 ++++-----------------
- 1 files changed, 4 insertions(+), 17 deletions(-)
-
-diff --git a/fs/ext4/extents.c b/fs/ext4/extents.c
-index 6c4a7fa..f2a6174 100644
---- a/fs/ext4/extents.c
-+++ b/fs/ext4/extents.c
-@@ -2338,23 +2338,10 @@ static int ext4_remove_blocks(handle_t *handle, struct inode *inode,
- 			*partial_cluster = EXT4_B2C(sbi, pblk);
- 		else
- 			*partial_cluster = 0;
--	} else if (from == le32_to_cpu(ex->ee_block)
--		   && to <= le32_to_cpu(ex->ee_block) + ee_len - 1) {
--		/* head removal */
--		ext4_lblk_t num;
--		ext4_fsblk_t start;
--
--		num = to - from;
--		start = ext4_ext_pblock(ex);
--
--		ext_debug("free first %u blocks starting %llu\n", num, start);
--		ext4_free_blocks(handle, inode, NULL, start, num, flags);
--
--	} else {
--		printk(KERN_INFO "strange request: removal(2) "
--				"%u-%u from %u:%u\n",
--				from, to, le32_to_cpu(ex->ee_block), ee_len);
--	}
-+	} else
-+		ext4_error(sbi->s_sb, "strange request: removal(2) "
-+			   "%u-%u from %u:%u\n",
-+			   from, to, le32_to_cpu(ex->ee_block), ee_len);
- 	return 0;
- }
- 
--- 
-1.7.7.6
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+        
+Buy Viagra for Lowest Cost on Net - Order Viagra Online 100mg, 50mg for Cheapest Price on Net and get Free Pills, we accept Visa cards Safe & Secure Processing since the year 1999 http://eers.ru
+                             
