@@ -1,233 +1,189 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
-	by kanga.kvack.org (Postfix) with SMTP id 568916B0062
-	for <linux-mm@kvack.org>; Mon,  3 Sep 2012 03:21:47 -0400 (EDT)
-Received: by pbbro12 with SMTP id ro12so8094493pbb.14
-        for <linux-mm@kvack.org>; Mon, 03 Sep 2012 00:21:46 -0700 (PDT)
-Date: Mon, 3 Sep 2012 15:21:37 +0800
-From: Shaohua Li <shli@kernel.org>
-Subject: [patch v4]swap: add a simple random read swapin detection
-Message-ID: <20120903072137.GA26821@kernel.org>
-References: <20120827040037.GA8062@kernel.org>
- <503B8997.4040604@openvz.org>
- <20120830103612.GA12292@kernel.org>
- <20120830174223.GB2141@barrios>
+Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
+	by kanga.kvack.org (Postfix) with SMTP id D53C36B0062
+	for <linux-mm@kvack.org>; Mon,  3 Sep 2012 03:44:40 -0400 (EDT)
+Message-ID: <50445CB4.80303@cn.fujitsu.com>
+Date: Mon, 03 Sep 2012 15:31:00 +0800
+From: Wen Congyang <wency@cn.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120830174223.GB2141@barrios>
+Subject: Re: [RFC v8 PATCH 08/20] memory-hotplug: remove /sys/firmware/memmap/X
+ sysfs
+References: <1346148027-24468-1-git-send-email-wency@cn.fujitsu.com>	<1346148027-24468-9-git-send-email-wency@cn.fujitsu.com> <20120831140623.8d13bd2c.akpm@linux-foundation.org>
+In-Reply-To: <20120831140623.8d13bd2c.akpm@linux-foundation.org>
+Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>, akpm@linux-foundation.org
-Cc: Konstantin Khlebnikov <khlebnikov@openvz.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "riel@redhat.com" <riel@redhat.com>, "fengguang.wu@intel.com" <fengguang.wu@intel.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-ia64@vger.kernel.org, cmetcalf@tilera.com, sparclinux@vger.kernel.org, rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, kosaki.motohiro@jp.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com
 
-On Fri, Aug 31, 2012 at 02:42:23AM +0900, Minchan Kim wrote:
->  */
-> #define SWAPRA_SKIP_THRESHOLD 100
-> #define SWAPRA_MISS_MAX_COUNT		(SWAPRA_SKIP_THRESHOLD * 10)
-
-Ok, updated to use macro.
- 
-> > ===================================================================
-> > --- linux.orig/mm/shmem.c	2012-08-06 16:00:45.465441525 +0800
-> > +++ linux/mm/shmem.c	2012-08-30 18:10:51.755553250 +0800
-> > @@ -933,6 +933,7 @@ static struct page *shmem_swapin(swp_ent
-> >  	pvma.vm_pgoff = index + info->vfs_inode.i_ino;
-> >  	pvma.vm_ops = NULL;
-> >  	pvma.vm_policy = spol;
-> > +	pvma.anon_vma = NULL;
+At 09/01/2012 05:06 AM, Andrew Morton Wrote:
+> On Tue, 28 Aug 2012 18:00:15 +0800
+> wency@cn.fujitsu.com wrote:
 > 
-> So, shmem always do readahead blindly still?
+>> From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+>>
+>> When (hot)adding memory into system, /sys/firmware/memmap/X/{end, start, type}
+>> sysfs files are created. But there is no code to remove these files. The patch
+>> implements the function to remove them.
+>>
+>> Note : The code does not free firmware_map_entry since there is no way to free
+>>        memory which is allocated by bootmem.
+>>
+>> ....
+>>
+>> +#define to_memmap_entry(obj) container_of(obj, struct firmware_map_entry, kobj)
+> 
+> It would be better to implement this as an inlined C function.  That
+> has improved type safety and improved readability.
 
-yes, I had no idea how to prevent the ra for shmem so far. It could be a
-tmpfs file read, so no vma ever.
+Hmm, this macro is not a new macro. It is defined after the function
+release_firmware_map_entry(). We just moved it here because we
+need it in the function release_firmware_map_entry().
 
-Thanks,
-Shaohua
+> 
+>> +static void release_firmware_map_entry(struct kobject *kobj)
+>> +{
+>> +	struct firmware_map_entry *entry = to_memmap_entry(kobj);
+>> +	struct page *page;
+>> +
+>> +	page = virt_to_page(entry);
+>> +	if (PageSlab(page) || PageCompound(page))
+> 
+> That PageCompound() test looks rather odd.  Why is this done?
+> 
+>> +		kfree(entry);
+>> +
+>> +	/* There is no way to free memory allocated from bootmem*/
+>> +}
+> 
+> This function is a bit ugly - poking around in page flags to determine
+> whether or not the memory came from bootmem.  It would be cleaner to
+> use a separate boolean.  Although I guess we can live with it as you
+> have it here.
+> 
+>>  static struct kobj_type memmap_ktype = {
+>> +	.release	= release_firmware_map_entry,
+>>  	.sysfs_ops	= &memmap_attr_ops,
+>>  	.default_attrs	= def_attrs,
+>>  };
+>> @@ -123,6 +139,16 @@ static int firmware_map_add_entry(u64 start, u64 end,
+>>  	return 0;
+>>  }
+>>  
+>> +/**
+>> + * firmware_map_remove_entry() - Does the real work to remove a firmware
+>> + * memmap entry.
+>> + * @entry: removed entry.
+>> + **/
+>> +static inline void firmware_map_remove_entry(struct firmware_map_entry *entry)
+>> +{
+>> +	list_del(&entry->list);
+>> +}
+> 
+> Is there no locking  to protect that list?
 
+OK, I will add a lock to protect it.
 
-Subject: swap: add a simple random read swapin detection
+Thanks
+Wen Congyang
 
-The swapin readahead does a blind readahead regardless if the swapin is
-sequential. This is ok for harddisk and random read, because read big size has
-no penality in harddisk, and if the readahead pages are garbage, they can be
-reclaimed fastly. But for SSD, big size read is more expensive than small size
-read. If readahead pages are garbage, such readahead only has overhead.
-
-This patch addes a simple random read detection like what file mmap readahead
-does. If random read is detected, swapin readahead will be skipped. This
-improves a lot for a swap workload with random IO in a fast SSD.
-
-I run anonymous mmap write micro benchmark, which will triger swapin/swapout.
-			runtime changes with path
-randwrite harddisk	-38.7%
-seqwrite harddisk	-1.1%
-randwrite SSD		-46.9%
-seqwrite SSD		+0.3%
-
-For both harddisk and SSD, the randwrite swap workload run time is reduced
-significant. sequential write swap workload hasn't chanage.
-
-Interesting is the randwrite harddisk test is improved too. This might be
-because swapin readahead need allocate extra memory, which further tights
-memory pressure, so more swapout/swapin.
-
-This patch depends on readahead-fault-retry-breaks-mmap-file-read-random-detection.patch
-
-V2->V3:
-move swapra_miss to 'struct anon_vma' as suggested by Konstantin. 
-
-V1->V2:
-1. Move the swap readahead accounting to separate functions as suggested by Riel.
-2. Enable the logic only with CONFIG_SWAP enabled as suggested by Minchan.
-
-Signed-off-by: Shaohua Li <shli@fusionio.com>
-Acked-by: Rik van Riel <riel@redhat.com>
----
- include/linux/rmap.h |    3 ++
- mm/internal.h        |   52 +++++++++++++++++++++++++++++++++++++++++++++++++++
- mm/memory.c          |    3 +-
- mm/shmem.c           |    1 
- mm/swap_state.c      |    6 +++++
- 5 files changed, 64 insertions(+), 1 deletion(-)
-
-Index: linux/mm/swap_state.c
-===================================================================
---- linux.orig/mm/swap_state.c	2012-08-29 16:13:00.912112140 +0800
-+++ linux/mm/swap_state.c	2012-08-30 18:28:24.678315187 +0800
-@@ -20,6 +20,7 @@
- #include <linux/page_cgroup.h>
- 
- #include <asm/pgtable.h>
-+#include "internal.h"
- 
- /*
-  * swapper_space is a fiction, retained to simplify the path through
-@@ -379,6 +380,10 @@ struct page *swapin_readahead(swp_entry_
- 	unsigned long mask = (1UL << page_cluster) - 1;
- 	struct blk_plug plug;
- 
-+	swap_cache_miss(vma);
-+	if (swap_cache_skip_readahead(vma))
-+		goto skip;
-+
- 	/* Read a page_cluster sized and aligned cluster around offset. */
- 	start_offset = offset & ~mask;
- 	end_offset = offset | mask;
-@@ -397,5 +402,6 @@ struct page *swapin_readahead(swp_entry_
- 	blk_finish_plug(&plug);
- 
- 	lru_add_drain();	/* Push any new pages onto the LRU now */
-+skip:
- 	return read_swap_cache_async(entry, gfp_mask, vma, addr);
- }
-Index: linux/mm/memory.c
-===================================================================
---- linux.orig/mm/memory.c	2012-08-29 16:13:00.920112040 +0800
-+++ linux/mm/memory.c	2012-08-30 13:32:05.425830660 +0800
-@@ -2953,7 +2953,8 @@ static int do_swap_page(struct mm_struct
- 		ret = VM_FAULT_HWPOISON;
- 		delayacct_clear_flag(DELAYACCT_PF_SWAPIN);
- 		goto out_release;
--	}
-+	} else if (!(flags & FAULT_FLAG_TRIED))
-+		swap_cache_hit(vma);
- 
- 	locked = lock_page_or_retry(page, mm, flags);
- 
-Index: linux/mm/internal.h
-===================================================================
---- linux.orig/mm/internal.h	2012-08-29 16:13:00.932111888 +0800
-+++ linux/mm/internal.h	2012-09-03 15:16:30.566299444 +0800
-@@ -12,6 +12,7 @@
- #define __MM_INTERNAL_H
- 
- #include <linux/mm.h>
-+#include <linux/rmap.h>
- 
- void free_pgtables(struct mmu_gather *tlb, struct vm_area_struct *start_vma,
- 		unsigned long floor, unsigned long ceiling);
-@@ -356,3 +357,54 @@ extern unsigned long vm_mmap_pgoff(struc
-         unsigned long, unsigned long);
- 
- extern void set_pageblock_order(void);
-+
-+/*
-+ * Unnecessary readahead harms performance. 1. for SSD, big size read is more
-+ * expensive than small size read, so extra unnecessary read only has overhead.
-+ * For harddisk, this overhead doesn't exist. 2. unnecessary readahead will
-+ * allocate extra memroy, which further tights memory pressure, so more
-+ * swapout/swapin.
-+ * These adds a simple swap random access detection. In swap page fault, if
-+ * page is found in swap cache, decrease an account of vma, otherwise we need
-+ * do sync swapin and the account is increased. Optionally swapin will do
-+ * readahead if the counter is below a threshold.
-+ */
-+#ifdef CONFIG_SWAP
-+#define SWAPRA_MISS_THRESHOLD  (100)
-+#define SWAPRA_MAX_MISS ((SWAPRA_MISS_THRESHOLD) * 10)
-+static inline void swap_cache_hit(struct vm_area_struct *vma)
-+{
-+	if (vma && vma->anon_vma)
-+		atomic_dec_if_positive(&vma->anon_vma->swapra_miss);
-+}
-+
-+static inline void swap_cache_miss(struct vm_area_struct *vma)
-+{
-+	if (!vma || !vma->anon_vma)
-+		return;
-+	if (atomic_read(&vma->anon_vma->swapra_miss) < SWAPRA_MAX_MISS)
-+		atomic_inc(&vma->anon_vma->swapra_miss);
-+}
-+
-+static inline int swap_cache_skip_readahead(struct vm_area_struct *vma)
-+{
-+	if (!vma || !vma->anon_vma)
-+		return 0;
-+	return atomic_read(&vma->anon_vma->swapra_miss) >
-+		SWAPRA_MISS_THRESHOLD;
-+}
-+#else
-+static inline void swap_cache_hit(struct vm_area_struct *vma)
-+{
-+}
-+
-+static inline void swap_cache_miss(struct vm_area_struct *vma)
-+{
-+}
-+
-+static inline int swap_cache_skip_readahead(struct vm_area_struct *vma)
-+{
-+	return 0;
-+}
-+
-+#endif
-Index: linux/include/linux/rmap.h
-===================================================================
---- linux.orig/include/linux/rmap.h	2012-06-01 10:10:31.686394463 +0800
-+++ linux/include/linux/rmap.h	2012-08-30 18:10:12.256048781 +0800
-@@ -35,6 +35,9 @@ struct anon_vma {
- 	 * anon_vma if they are the last user on release
- 	 */
- 	atomic_t refcount;
-+#ifdef CONFIG_SWAP
-+	atomic_t swapra_miss;
-+#endif
- 
- 	/*
- 	 * NOTE: the LSB of the head.next is set by
-Index: linux/mm/shmem.c
-===================================================================
---- linux.orig/mm/shmem.c	2012-08-06 16:00:45.465441525 +0800
-+++ linux/mm/shmem.c	2012-08-30 18:10:51.755553250 +0800
-@@ -933,6 +933,7 @@ static struct page *shmem_swapin(swp_ent
- 	pvma.vm_pgoff = index + info->vfs_inode.i_ino;
- 	pvma.vm_ops = NULL;
- 	pvma.vm_policy = spol;
-+	pvma.anon_vma = NULL;
- 	return swapin_readahead(swap, gfp, &pvma, 0);
- }
- 
+> 
+>>  /*
+>>   * Add memmap entry on sysfs
+>>   */
+>> @@ -144,6 +170,31 @@ static int add_sysfs_fw_map_entry(struct firmware_map_entry *entry)
+>>  	return 0;
+>>  }
+>>  
+>> +/*
+>> + * Remove memmap entry on sysfs
+>> + */
+>> +static inline void remove_sysfs_fw_map_entry(struct firmware_map_entry *entry)
+>> +{
+>> +	kobject_put(&entry->kobj);
+>> +}
+>> +
+>> +/*
+>> + * Search memmap entry
+>> + */
+>> +
+>> +struct firmware_map_entry * __meminit
+>> +find_firmware_map_entry(u64 start, u64 end, const char *type)
+> 
+> A better name would be firmware_map_find_entry().  To retain the (good)
+> convention that symbols exported from here all start with
+> "firmware_map_".
+> 
+>> +{
+>> +	struct firmware_map_entry *entry;
+>> +
+>> +	list_for_each_entry(entry, &map_entries, list)
+>> +		if ((entry->start == start) && (entry->end == end) &&
+>> +		    (!strcmp(entry->type, type)))
+>> +			return entry;
+>> +
+>> +	return NULL;
+>> +}
+>> +
+>>  /**
+>>   * firmware_map_add_hotplug() - Adds a firmware mapping entry when we do
+>>   * memory hotplug.
+>> @@ -196,6 +247,32 @@ int __init firmware_map_add_early(u64 start, u64 end, const char *type)
+>>  	return firmware_map_add_entry(start, end, type, entry);
+>>  }
+>>  
+>> +/**
+>> + * firmware_map_remove() - remove a firmware mapping entry
+>> + * @start: Start of the memory range.
+>> + * @end:   End of the memory range.
+>> + * @type:  Type of the memory range.
+>> + *
+>> + * removes a firmware mapping entry.
+>> + *
+>> + * Returns 0 on success, or -EINVAL if no entry.
+>> + **/
+>> +int __meminit firmware_map_remove(u64 start, u64 end, const char *type)
+>> +{
+>> +	struct firmware_map_entry *entry;
+>> +
+>> +	entry = find_firmware_map_entry(start, end - 1, type);
+>> +	if (!entry)
+>> +		return -EINVAL;
+>> +
+>> +	firmware_map_remove_entry(entry);
+>> +
+>> +	/* remove the memmap entry */
+>> +	remove_sysfs_fw_map_entry(entry);
+>> +
+>> +	return 0;
+>> +}
+> 
+> Again, the lack of locking looks bad.
+> 
+>> ...
+>>
+>> --- a/mm/memory_hotplug.c
+>> +++ b/mm/memory_hotplug.c
+>> @@ -1052,9 +1052,9 @@ int offline_memory(u64 start, u64 size)
+>>  	return 0;
+>>  }
+>>  
+>> -int remove_memory(int nid, u64 start, u64 size)
+>> +int __ref remove_memory(int nid, u64 start, u64 size)
+> 
+> Why was __ref added?
+> 
+>>  {
+>> -	int ret = -EBUSY;
+>> +	int ret = 0;
+>>  	lock_memory_hotplug();
+>>  	/*
+>>  	 * The memory might become online by other task, even if you offine it.
+>>
+>> ...
+>>
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
