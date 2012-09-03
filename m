@@ -1,39 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
-	by kanga.kvack.org (Postfix) with SMTP id 292476B005D
-	for <linux-mm@kvack.org>; Mon,  3 Sep 2012 11:29:40 -0400 (EDT)
-Message-ID: <5044CC24.7000800@parallels.com>
-Date: Mon, 3 Sep 2012 19:26:28 +0400
-From: Glauber Costa <glommer@parallels.com>
-MIME-Version: 1.0
-Subject: Re: C13 [05/14] Extract a common function for kmem_cache_destroy
-References: <20120824160903.168122683@linux.com> <000001395965f8f6-7ff20b9e-f748-4af4-a3c9-a9684022361f-000000@email.amazonses.com>
-In-Reply-To: <000001395965f8f6-7ff20b9e-f748-4af4-a3c9-a9684022361f-000000@email.amazonses.com>
-Content-Type: text/plain; charset="windows-1252"
-Content-Transfer-Encoding: quoted-printable
+Received: from psmtp.com (na3sys010amx176.postini.com [74.125.245.176])
+	by kanga.kvack.org (Postfix) with SMTP id D16966B0068
+	for <linux-mm@kvack.org>; Mon,  3 Sep 2012 11:33:26 -0400 (EDT)
+Received: from epcpsbgm2.samsung.com (epcpsbgm2 [203.254.230.27])
+ by mailout1.samsung.com
+ (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
+ 17 2011)) with ESMTP id <0M9S00IAK5VPATU0@mailout1.samsung.com> for
+ linux-mm@kvack.org; Tue, 04 Sep 2012 00:33:25 +0900 (KST)
+Received: from mcdsrvbld02.digital.local ([106.116.37.23])
+ by mmp1.samsung.com (Oracle Communications Messaging Server 7u4-24.01
+ (7.0.4.24.0) 64bit (built Nov 17 2011))
+ with ESMTPA id <0M9S000OM5VGTX90@mmp1.samsung.com> for linux-mm@kvack.org;
+ Tue, 04 Sep 2012 00:33:25 +0900 (KST)
+From: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
+Subject: [PATCH v2 0/4] cma: fix watermark checking
+Date: Mon, 03 Sep 2012 17:33:00 +0200
+Message-id: <1346686384-1866-1-git-send-email-b.zolnierkie@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <js1304@gmail.com>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>
+To: linux-mm@kvack.org
+Cc: m.szyprowski@samsung.com, mina86@mina86.com, minchan@kernel.org, mgorman@suse.de, kyungmin.park@samsung.com, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
 
-On 08/24/2012 08:10 PM, Christoph Lameter wrote:
-> kmem_cache_destroy does basically the same in all allocators.
->=20
-> Extract common code which is easy since we already have common mutex hand=
-ling.
->=20
-> V1-V2:
-> 	- Move percpu freeing to later so that we fail cleaner if
-> 		objects are left in the cache [JoonSoo Kim]
->=20
-> Signed-off-by: Christoph Lameter <cl@linux.com>
+Free pages belonging to Contiguous Memory Allocator (CMA) areas cannot be
+used by unmovable allocations and this fact should be accounted for while
+doing zone watermark checking.  Additionaly while CMA pages are isolated
+they shouldn't be included in the total number of free pages (as they
+cannot be allocated while they are isolated).  The following patch series
+should fix both issues.  It is based on top of recent Minchan's CMA series
+(https://lkml.org/lkml/2012/8/14/81 "[RFC 0/2] Reduce alloc_contig_range
+latency").
 
-Fails to build for the slab. Error is pretty much self-explanatory:
+v2:
+- no need to call get_pageblock_migratetype() in free_one_page() in patch #1
+  (thanks to review from Michal Nazarewicz)
+- fix issues pointed in http://www.spinics.net/lists/linux-mm/msg41017.html
+  in patch #2 (ditto)
+- remove no longer needed is_cma_pageblock() from patch #2
 
-  CC      mm/slab.o
-mm/slab.c: In function =91slab_destroy_debugcheck=92:
-mm/slab.c:2157:5: error: implicit declaration of function =91slab_error=92
-[-Werror=3Dimplicit-function-declaration]
+
+Bartlomiej Zolnierkiewicz (3):
+  cma: fix counting of isolated pages
+  cma: count free CMA pages
+  cma: fix watermark checking
+
+Marek Szyprowski (1):
+  mm: add accounting for CMA pages and use them for watermark
+    calculation
+
+ include/linux/mmzone.h |  3 ++-
+ mm/compaction.c        | 11 ++++----
+ mm/page_alloc.c        | 70 ++++++++++++++++++++++++++++++++++++++++----------
+ mm/page_isolation.c    | 20 ++++++++++++---
+ mm/vmscan.c            |  4 +--
+ mm/vmstat.c            |  1 +
+ 6 files changed, 84 insertions(+), 25 deletions(-)
+
+-- 
+1.7.11.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
