@@ -1,69 +1,246 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx174.postini.com [74.125.245.174])
-	by kanga.kvack.org (Postfix) with SMTP id 3C7E96B005D
-	for <linux-mm@kvack.org>; Mon,  3 Sep 2012 06:09:01 -0400 (EDT)
-Date: Mon, 3 Sep 2012 11:08:55 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 1/2] slab:  do ClearSlabPfmemalloc() for all pages of slab
-Message-ID: <20120903100855.GA11266@suse.de>
-References: <Yes>
- <1345903871-1921-1-git-send-email-js1304@gmail.com>
+Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
+	by kanga.kvack.org (Postfix) with SMTP id 4BAA16B0062
+	for <linux-mm@kvack.org>; Mon,  3 Sep 2012 07:46:59 -0400 (EDT)
+Received: by pbbro12 with SMTP id ro12so8452202pbb.14
+        for <linux-mm@kvack.org>; Mon, 03 Sep 2012 04:46:58 -0700 (PDT)
+Date: Mon, 3 Sep 2012 19:46:31 +0800
+From: Shaohua Li <shli@kernel.org>
+Subject: Re: [patch v4]swap: add a simple random read swapin detection
+Message-ID: <20120903114631.GA5410@kernel.org>
+References: <20120827040037.GA8062@kernel.org>
+ <503B8997.4040604@openvz.org>
+ <20120830103612.GA12292@kernel.org>
+ <20120830174223.GB2141@barrios>
+ <20120903072137.GA26821@kernel.org>
+ <20120903083245.GA7674@bbox>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1345903871-1921-1-git-send-email-js1304@gmail.com>
+In-Reply-To: <20120903083245.GA7674@bbox>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <js1304@gmail.com>
-Cc: Pekka Enberg <penberg@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Christoph Lameter <cl@linux-foundation.org>
+To: Minchan Kim <minchan@kernel.org>
+Cc: akpm@linux-foundation.org, Konstantin Khlebnikov <khlebnikov@openvz.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "riel@redhat.com" <riel@redhat.com>, "fengguang.wu@intel.com" <fengguang.wu@intel.com>
 
-It took me a while to getting around to reviewing this due to attending
-kernel summit. Sorry about that.
-
-On Sat, Aug 25, 2012 at 11:11:10PM +0900, Joonsoo Kim wrote:
-> Now, we just do ClearSlabPfmemalloc() for first page of slab
-> when we clear SlabPfmemalloc flag. It is a problem because we sometimes
-> test flag of page which is not first page of slab in __ac_put_obj().
+On Mon, Sep 03, 2012 at 05:32:45PM +0900, Minchan Kim wrote:
+> Don't we need initialization?
 > 
+> diff --git a/mm/rmap.c b/mm/rmap.c
+> index 0f3b7cd..c0f3221 100644
+> --- a/mm/rmap.c
+> +++ b/mm/rmap.c
+> @@ -416,6 +416,9 @@ static void anon_vma_ctor(void *data)
+>  
+>         mutex_init(&anon_vma->mutex);
+>         atomic_set(&anon_vma->refcount, 0);
+> +#ifdef CONFIG_SWAP
+> +       atomic_set(&anon_vma->swapra_miss, 0);
+> +#endif
+>         INIT_LIST_HEAD(&anon_vma->head);
+>  }
 
-Well spotted.
+Sorry about this silly problem. I'm wondering why I didn't notice it, maybe
+because only tested random swap after move swapra_miss to anon_vma.
 
-The impact is marginal as far as pfmemalloc protection is concerned. I do not
-believe that any of the slabs that use high-order allocations are used in for
-the swap-over-network paths. It would be unfortunate if that ever changed.
 
-> So add code to do ClearSlabPfmemalloc for all pages of slab.
-> 
+Subject: swap: add a simple random read swapin detection
 
-I would prefer if the pfmemalloc information was kept on the head page.
-Would the following patch also address your concerns?
+The swapin readahead does a blind readahead regardless if the swapin is
+sequential. This is ok for harddisk and random read, because read big size has
+no penality in harddisk, and if the readahead pages are garbage, they can be
+reclaimed fastly. But for SSD, big size read is more expensive than small size
+read. If readahead pages are garbage, such readahead only has overhead.
 
-diff --git a/mm/slab.c b/mm/slab.c
-index 811af03..d34a903 100644
---- a/mm/slab.c
-+++ b/mm/slab.c
-@@ -1000,7 +1000,7 @@ static void *__ac_get_obj(struct kmem_cache *cachep, struct array_cache *ac,
- 		l3 = cachep->nodelists[numa_mem_id()];
- 		if (!list_empty(&l3->slabs_free) && force_refill) {
- 			struct slab *slabp = virt_to_slab(objp);
--			ClearPageSlabPfmemalloc(virt_to_page(slabp->s_mem));
-+			ClearPageSlabPfmemalloc(virt_to_head_page(slabp->s_mem));
- 			clear_obj_pfmemalloc(&objp);
- 			recheck_pfmemalloc_active(cachep, ac);
- 			return objp;
-@@ -1032,7 +1032,7 @@ static void *__ac_put_obj(struct kmem_cache *cachep, struct array_cache *ac,
- {
- 	if (unlikely(pfmemalloc_active)) {
- 		/* Some pfmemalloc slabs exist, check if this is one */
--		struct page *page = virt_to_page(objp);
-+		struct page *page = virt_to_head_page(objp);
- 		if (PageSlabPfmemalloc(page))
- 			set_obj_pfmemalloc(&objp);
- 	}
+This patch addes a simple random read detection like what file mmap readahead
+does. If random read is detected, swapin readahead will be skipped. This
+improves a lot for a swap workload with random IO in a fast SSD.
 
--- 
-Mel Gorman
-SUSE Labs
+I run anonymous mmap write micro benchmark, which will triger swapin/swapout.
+			runtime changes with path
+randwrite harddisk	-38.7%
+seqwrite harddisk	-1.1%
+randwrite SSD		-46.9%
+seqwrite SSD		+0.3%
+
+For both harddisk and SSD, the randwrite swap workload run time is reduced
+significant. sequential write swap workload hasn't chanage.
+
+Interesting is the randwrite harddisk test is improved too. This might be
+because swapin readahead need allocate extra memory, which further tights
+memory pressure, so more swapout/swapin.
+
+This patch depends on readahead-fault-retry-breaks-mmap-file-read-random-detection.patch
+
+V2->V3:
+move swapra_miss to 'struct anon_vma' as suggested by Konstantin. 
+
+V1->V2:
+1. Move the swap readahead accounting to separate functions as suggested by Riel.
+2. Enable the logic only with CONFIG_SWAP enabled as suggested by Minchan.
+
+Signed-off-by: Shaohua Li <shli@fusionio.com>
+Acked-by: Rik van Riel <riel@redhat.com>
+---
+ include/linux/rmap.h |    3 ++
+ mm/internal.h        |   52 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ mm/memory.c          |    3 +-
+ mm/rmap.c            |    3 ++
+ mm/shmem.c           |    1 
+ mm/swap_state.c      |    6 +++++
+ 6 files changed, 67 insertions(+), 1 deletion(-)
+
+Index: linux/mm/swap_state.c
+===================================================================
+--- linux.orig/mm/swap_state.c	2012-08-29 16:13:00.912112140 +0800
++++ linux/mm/swap_state.c	2012-08-30 18:28:24.678315187 +0800
+@@ -20,6 +20,7 @@
+ #include <linux/page_cgroup.h>
+ 
+ #include <asm/pgtable.h>
++#include "internal.h"
+ 
+ /*
+  * swapper_space is a fiction, retained to simplify the path through
+@@ -379,6 +380,10 @@ struct page *swapin_readahead(swp_entry_
+ 	unsigned long mask = (1UL << page_cluster) - 1;
+ 	struct blk_plug plug;
+ 
++	swap_cache_miss(vma);
++	if (swap_cache_skip_readahead(vma))
++		goto skip;
++
+ 	/* Read a page_cluster sized and aligned cluster around offset. */
+ 	start_offset = offset & ~mask;
+ 	end_offset = offset | mask;
+@@ -397,5 +402,6 @@ struct page *swapin_readahead(swp_entry_
+ 	blk_finish_plug(&plug);
+ 
+ 	lru_add_drain();	/* Push any new pages onto the LRU now */
++skip:
+ 	return read_swap_cache_async(entry, gfp_mask, vma, addr);
+ }
+Index: linux/mm/memory.c
+===================================================================
+--- linux.orig/mm/memory.c	2012-08-29 16:13:00.920112040 +0800
++++ linux/mm/memory.c	2012-08-30 13:32:05.425830660 +0800
+@@ -2953,7 +2953,8 @@ static int do_swap_page(struct mm_struct
+ 		ret = VM_FAULT_HWPOISON;
+ 		delayacct_clear_flag(DELAYACCT_PF_SWAPIN);
+ 		goto out_release;
+-	}
++	} else if (!(flags & FAULT_FLAG_TRIED))
++		swap_cache_hit(vma);
+ 
+ 	locked = lock_page_or_retry(page, mm, flags);
+ 
+Index: linux/mm/internal.h
+===================================================================
+--- linux.orig/mm/internal.h	2012-08-29 16:13:00.932111888 +0800
++++ linux/mm/internal.h	2012-09-03 15:16:30.566299444 +0800
+@@ -12,6 +12,7 @@
+ #define __MM_INTERNAL_H
+ 
+ #include <linux/mm.h>
++#include <linux/rmap.h>
+ 
+ void free_pgtables(struct mmu_gather *tlb, struct vm_area_struct *start_vma,
+ 		unsigned long floor, unsigned long ceiling);
+@@ -356,3 +357,54 @@ extern unsigned long vm_mmap_pgoff(struc
+         unsigned long, unsigned long);
+ 
+ extern void set_pageblock_order(void);
++
++/*
++ * Unnecessary readahead harms performance. 1. for SSD, big size read is more
++ * expensive than small size read, so extra unnecessary read only has overhead.
++ * For harddisk, this overhead doesn't exist. 2. unnecessary readahead will
++ * allocate extra memroy, which further tights memory pressure, so more
++ * swapout/swapin.
++ * These adds a simple swap random access detection. In swap page fault, if
++ * page is found in swap cache, decrease an account of vma, otherwise we need
++ * do sync swapin and the account is increased. Optionally swapin will do
++ * readahead if the counter is below a threshold.
++ */
++#ifdef CONFIG_SWAP
++#define SWAPRA_MISS_THRESHOLD  (100)
++#define SWAPRA_MAX_MISS ((SWAPRA_MISS_THRESHOLD) * 10)
++static inline void swap_cache_hit(struct vm_area_struct *vma)
++{
++	if (vma && vma->anon_vma)
++		atomic_dec_if_positive(&vma->anon_vma->swapra_miss);
++}
++
++static inline void swap_cache_miss(struct vm_area_struct *vma)
++{
++	if (!vma || !vma->anon_vma)
++		return;
++	if (atomic_read(&vma->anon_vma->swapra_miss) < SWAPRA_MAX_MISS)
++		atomic_inc(&vma->anon_vma->swapra_miss);
++}
++
++static inline int swap_cache_skip_readahead(struct vm_area_struct *vma)
++{
++	if (!vma || !vma->anon_vma)
++		return 0;
++	return atomic_read(&vma->anon_vma->swapra_miss) >
++		SWAPRA_MISS_THRESHOLD;
++}
++#else
++static inline void swap_cache_hit(struct vm_area_struct *vma)
++{
++}
++
++static inline void swap_cache_miss(struct vm_area_struct *vma)
++{
++}
++
++static inline int swap_cache_skip_readahead(struct vm_area_struct *vma)
++{
++	return 0;
++}
++
++#endif
+Index: linux/include/linux/rmap.h
+===================================================================
+--- linux.orig/include/linux/rmap.h	2012-06-01 10:10:31.686394463 +0800
++++ linux/include/linux/rmap.h	2012-08-30 18:10:12.256048781 +0800
+@@ -35,6 +35,9 @@ struct anon_vma {
+ 	 * anon_vma if they are the last user on release
+ 	 */
+ 	atomic_t refcount;
++#ifdef CONFIG_SWAP
++	atomic_t swapra_miss;
++#endif
+ 
+ 	/*
+ 	 * NOTE: the LSB of the head.next is set by
+Index: linux/mm/shmem.c
+===================================================================
+--- linux.orig/mm/shmem.c	2012-08-06 16:00:45.465441525 +0800
++++ linux/mm/shmem.c	2012-08-30 18:10:51.755553250 +0800
+@@ -933,6 +933,7 @@ static struct page *shmem_swapin(swp_ent
+ 	pvma.vm_pgoff = index + info->vfs_inode.i_ino;
+ 	pvma.vm_ops = NULL;
+ 	pvma.vm_policy = spol;
++	pvma.anon_vma = NULL;
+ 	return swapin_readahead(swap, gfp, &pvma, 0);
+ }
+ 
+Index: linux/mm/rmap.c
+===================================================================
+--- linux.orig/mm/rmap.c	2012-06-01 10:10:31.706394210 +0800
++++ linux/mm/rmap.c	2012-09-03 19:42:15.454127265 +0800
+@@ -416,6 +416,9 @@ static void anon_vma_ctor(void *data)
+ 
+ 	mutex_init(&anon_vma->mutex);
+ 	atomic_set(&anon_vma->refcount, 0);
++#ifdef CONFIG_SWAP
++	atomic_set(&anon_vma->swapra_miss, 0);
++#endif
+ 	INIT_LIST_HEAD(&anon_vma->head);
+ }
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
