@@ -1,40 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
-	by kanga.kvack.org (Postfix) with SMTP id 5190E6B0075
-	for <linux-mm@kvack.org>; Tue,  4 Sep 2012 09:30:55 -0400 (EDT)
-Message-ID: <504601B8.2050907@parallels.com>
-Date: Tue, 4 Sep 2012 17:27:20 +0400
-From: Glauber Costa <glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
+	by kanga.kvack.org (Postfix) with SMTP id C39816B007D
+	for <linux-mm@kvack.org>; Tue,  4 Sep 2012 10:15:14 -0400 (EDT)
+Message-ID: <50460CED.6060006@redhat.com>
+Date: Tue, 04 Sep 2012 10:15:09 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2] memcg: first step towards hierarchical controller
-References: <1346687211-31848-1-git-send-email-glommer@parallels.com> <20120903170806.GA21682@dhcp22.suse.cz> <5045BD25.10301@parallels.com> <20120904130905.GA15683@dhcp22.suse.cz>
-In-Reply-To: <20120904130905.GA15683@dhcp22.suse.cz>
-Content-Type: text/plain; charset="ISO-8859-1"
+Subject: Re: [patch v4]swap: add a simple random read swapin detection
+References: <20120827040037.GA8062@kernel.org> <503B8997.4040604@openvz.org> <20120830103612.GA12292@kernel.org> <20120830174223.GB2141@barrios> <20120903072137.GA26821@kernel.org> <20120903083245.GA7674@bbox> <20120903114631.GA5410@kernel.org> <5044FEE3.4050009@openvz.org> <5044FF89.5090400@redhat.com> <5045AF14.7040309@openvz.org>
+In-Reply-To: <5045AF14.7040309@openvz.org>
+Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org, Dave Jones <davej@redhat.com>, Ben Hutchings <ben@decadent.org.uk>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Paul Turner <pjt@google.com>, Lennart Poettering <lennart@poettering.net>, Kay Sievers <kay.sievers@vrfy.org>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>
+To: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Cc: Shaohua Li <shli@kernel.org>, Minchan Kim <minchan@kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "fengguang.wu@intel.com" <fengguang.wu@intel.com>
 
-On 09/04/2012 05:09 PM, Michal Hocko wrote:
-> Not really. Do it slowly means that somebody actually _notices_ that
-> something is about to change and they have a lot of time for that. This
-> will be really hard with the config option saying N by default.  People
-> will ignore that until it's too late.
-> We are interested in those users who would keep the config default N and
-> they are (ab)using use_hierarchy=0 in a way which is hard/impossible to
-> fix. This is where distributions might help and they should IMHO but why
-> to put an additional code into upstream? Isn't it sufficient that those
-> who would like to help (and take the risk) would just take the patch?
+On 09/04/2012 03:34 AM, Konstantin Khlebnikov wrote:
 
-At least Fedora, seem to frown upon heavily at non-upstream patches.
-To follow up with what you say, what would you say if we would WARN_ON()
-unconditionally even if this switch is turned off?
+> It disables reahahead if it is ineffective in one particular VMA,
+> but in recovering-case this does not important -- we really want to read
+> whole swap back, no matter which VMA around pages belongs to.
+> [BTW this case was mentioned in you patch which added skipping-over-holes]
 
-a warn on dmesg is almost impossible not to be seen by anyone who cares.
-That warning would tell people to flip the Kconfig option for the
-warning will disappear. But ultimately, we are still keeping the
-behavior intact.
+This is a good point.  It is entirely possible that we may
+be better off deciding this on a system wide level, and not
+a VMA level, since that would allow for the statistic to
+move faster.
+
+On the other hand, keeping readahead enabled for some VMAs
+at any times may be required to get the hits we need to
+re-enable it for others :)
+
+> And its metric is strange, looks like it just disables headahead for all
+> VMAs
+> after hundred swapins and never enables it back. Why we cannot disable
+> it from
+> the beginning and turn it on when needed? This ways is even more simple.
+
+Take a careful look at the code, specifically do_swap_page().
+If a page is found in the swap cache, it is counted as a hit.
+If enough pages are found in the swap cache, readahead is
+enabled again for the VMA.
+
+Having swap readahead enabled by default is probably the best
+thing to do, since IO clustering is generally useful.
+
+How would you determine when to "turn it on when needed"?
+
+What kind of criteria would you use?
+
+What would be the threshold for enabling it?
+
+-- 
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
