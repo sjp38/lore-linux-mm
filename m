@@ -1,42 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
-	by kanga.kvack.org (Postfix) with SMTP id 1A0466B006C
-	for <linux-mm@kvack.org>; Tue,  4 Sep 2012 18:58:43 -0400 (EDT)
-Message-ID: <50468778.5000207@redhat.com>
-Date: Tue, 04 Sep 2012 23:58:00 +0100
-From: Pedro Alves <palves@redhat.com>
+Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
+	by kanga.kvack.org (Postfix) with SMTP id 920D46B006E
+	for <linux-mm@kvack.org>; Tue,  4 Sep 2012 18:59:00 -0400 (EDT)
+Date: Tue, 4 Sep 2012 22:58:59 +0000
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: C13 [05/14] Extract a common function for kmem_cache_destroy
+In-Reply-To: <5044CC24.7000800@parallels.com>
+Message-ID: <00000139938213ef-f5749497-9038-4275-9aaa-bb6b08f54dec-000000@email.amazonses.com>
+References: <20120824160903.168122683@linux.com> <000001395965f8f6-7ff20b9e-f748-4af4-a3c9-a9684022361f-000000@email.amazonses.com> <5044CC24.7000800@parallels.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v3 01/17] hashtable: introduce a small and naive hashtable
-References: <20120824203332.GF21325@google.com> <5037E9D9.9000605@gmail.com>     <20120824212348.GK21325@google.com> <5038074D.300@gmail.com>     <20120824230740.GN21325@google.com> <20120825042419.GA27240@Krystal>     <503C95E4.3010000@gmail.com> <20120828101148.GA21683@Krystal>     <503CAB1E.5010408@gmail.com> <20120828115638.GC23818@Krystal>     <20120828230050.GA3337@Krystal>    <1346772948.27919.9.camel@gandalf.local.home>   <50462C99.5000007@redhat.com>  <50462EE8.1090903@redhat.com>   <1346779027.27919.15.camel@gandalf.local.home>   <50463883.8080706@redhat.com>  <1346792345.27919.18.camel@gandalf.local.home>  <504677C8.3050801@redhat.com> <1346798509.27919.25.camel@gandalf.local.home>
-In-Reply-To: <1346798509.27919.25.camel@gandalf.local.home>
-Content-Type: text/plain; charset=ISO-8859-15
-Content-Transfer-Encoding: 7bit
+Content-Type: MULTIPART/MIXED; BOUNDARY="288502408-323154704-1346799548=:30174"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Steven Rostedt <rostedt@goodmis.org>
-Cc: Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Sasha Levin <levinsasha928@gmail.com>, Tejun Heo <tj@kernel.org>, torvalds@linux-foundation.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, paul.gortmaker@windriver.com, davem@davemloft.net, mingo@elte.hu, ebiederm@xmission.com, aarcange@redhat.com, ericvh@gmail.com, netdev@vger.kernel.org, josh@joshtriplett.org, eric.dumazet@gmail.com, axboe@kernel.dk, agk@redhat.com, dm-devel@redhat.com, neilb@suse.de, ccaulfie@redhat.com, teigland@redhat.com, Trond.Myklebust@netapp.com, bfields@fieldses.org, fweisbec@gmail.com, jesse@nicira.com, venkat.x.venkatsubra@oracle.com, ejt@redhat.com, snitzer@redhat.com, edumazet@google.com, linux-nfs@vger.kernel.org, dev@openvswitch.org, rds-devel@oss.oracle.com, lw@cn.fujitsu.com
+To: Glauber Costa <glommer@parallels.com>
+Cc: Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <js1304@gmail.com>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>
 
-On 09/04/2012 11:41 PM, Steven Rostedt wrote:
-> Ah, I missed the condition with the rec == &pg->records[pg->index]. But
-> if ftrace_pages_start is NULL, the rec = &pg->records[pg->index] will
-> fault.
+  This message is in MIME format.  The first part should be readable text,
+  while the remaining parts are likely unreadable without MIME-aware tools.
 
-Right.
+--288502408-323154704-1346799548=:30174
+Content-Type: TEXT/PLAIN; charset=windows-1252
+Content-Transfer-Encoding: 8BIT
 
-> 
-> You could do something like rec = pg ? &pg->records[pg->index] : NULL,
+On Mon, 3 Sep 2012, Glauber Costa wrote:
 
-Right.
+> On 08/24/2012 08:10 PM, Christoph Lameter wrote:
+> > kmem_cache_destroy does basically the same in all allocators.
+> >
+> > Extract common code which is easy since we already have common mutex handling.
+> >
+> > V1-V2:
+> > 	- Move percpu freeing to later so that we fail cleaner if
+> > 		objects are left in the cache [JoonSoo Kim]
+> >
+> > Signed-off-by: Christoph Lameter <cl@linux.com>
+>
+> Fails to build for the slab. Error is pretty much self-explanatory:
+>
+>   CC      mm/slab.o
+> mm/slab.c: In function i? 1/2 slab_destroy_debugchecki? 1/2 :
+> mm/slab.c:2157:5: error: implicit declaration of function i? 1/2 slab_errori? 1/2 
+> [-Werror=implicit-function-declaration]
 
-> but IIRC, the comma operator does not guarantee order evaluation. That
-> is, the compiler is allowed to process "a , b" as "b; a;" and not "a;
-> b;".
+Ok. We need to keep the slab_error function for now.
 
-Not true.  The comma operator introduces a sequence point.  It's the comma
-that separates function parameters that doesn't guarantee ordering.
-
--- 
-Pedro Alves
+--288502408-323154704-1346799548=:30174--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
