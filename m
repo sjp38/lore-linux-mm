@@ -1,91 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
-	by kanga.kvack.org (Postfix) with SMTP id 54ED86B005D
-	for <linux-mm@kvack.org>; Mon,  3 Sep 2012 18:03:42 -0400 (EDT)
-Received: by pbbro12 with SMTP id ro12so9076017pbb.14
-        for <linux-mm@kvack.org>; Mon, 03 Sep 2012 15:03:41 -0700 (PDT)
-Date: Tue, 4 Sep 2012 07:03:32 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [patch v4]swap: add a simple random read swapin detection
-Message-ID: <20120903220332.GA1997@barrios>
-References: <20120827040037.GA8062@kernel.org>
- <503B8997.4040604@openvz.org>
- <20120830103612.GA12292@kernel.org>
- <20120830174223.GB2141@barrios>
- <20120903072137.GA26821@kernel.org>
- <20120903083245.GA7674@bbox>
- <20120903114631.GA5410@kernel.org>
+Received: from psmtp.com (na3sys010amx165.postini.com [74.125.245.165])
+	by kanga.kvack.org (Postfix) with SMTP id E3CCE6B005D
+	for <linux-mm@kvack.org>; Mon,  3 Sep 2012 23:44:47 -0400 (EDT)
+Message-ID: <50457983.1050304@cn.fujitsu.com>
+Date: Tue, 04 Sep 2012 11:46:11 +0800
+From: Wen Congyang <wency@cn.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120903114631.GA5410@kernel.org>
+Subject: Re: [RFC v8 PATCH 13/20] memory-hotplug: check page type in get_page_bootmem
+References: <1346148027-24468-1-git-send-email-wency@cn.fujitsu.com>	<1346148027-24468-14-git-send-email-wency@cn.fujitsu.com> <20120831143032.1343e99a.akpm@linux-foundation.org>
+In-Reply-To: <20120831143032.1343e99a.akpm@linux-foundation.org>
+Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shaohua Li <shli@kernel.org>
-Cc: akpm@linux-foundation.org, Konstantin Khlebnikov <khlebnikov@openvz.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "riel@redhat.com" <riel@redhat.com>, "fengguang.wu@intel.com" <fengguang.wu@intel.com>
+To: Andrew Morton <akpm@linux-foundation.org>, isimatu.yasuaki@jp.fujitsu.com
+Cc: x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-ia64@vger.kernel.org, cmetcalf@tilera.com, sparclinux@vger.kernel.org, rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, kosaki.motohiro@jp.fujitsu.com
 
-On Mon, Sep 03, 2012 at 07:46:31PM +0800, Shaohua Li wrote:
-> On Mon, Sep 03, 2012 at 05:32:45PM +0900, Minchan Kim wrote:
-> > Don't we need initialization?
-> > 
-> > diff --git a/mm/rmap.c b/mm/rmap.c
-> > index 0f3b7cd..c0f3221 100644
-> > --- a/mm/rmap.c
-> > +++ b/mm/rmap.c
-> > @@ -416,6 +416,9 @@ static void anon_vma_ctor(void *data)
-> >  
-> >         mutex_init(&anon_vma->mutex);
-> >         atomic_set(&anon_vma->refcount, 0);
-> > +#ifdef CONFIG_SWAP
-> > +       atomic_set(&anon_vma->swapra_miss, 0);
-> > +#endif
-> >         INIT_LIST_HEAD(&anon_vma->head);
-> >  }
-> 
-> Sorry about this silly problem. I'm wondering why I didn't notice it, maybe
-> because only tested random swap after move swapra_miss to anon_vma.
-> 
-> 
-> Subject: swap: add a simple random read swapin detection
-> 
-> The swapin readahead does a blind readahead regardless if the swapin is
-> sequential. This is ok for harddisk and random read, because read big size has
-> no penality in harddisk, and if the readahead pages are garbage, they can be
-> reclaimed fastly. But for SSD, big size read is more expensive than small size
-> read. If readahead pages are garbage, such readahead only has overhead.
-> 
-> This patch addes a simple random read detection like what file mmap readahead
-> does. If random read is detected, swapin readahead will be skipped. This
-> improves a lot for a swap workload with random IO in a fast SSD.
-> 
-> I run anonymous mmap write micro benchmark, which will triger swapin/swapout.
-> 			runtime changes with path
-> randwrite harddisk	-38.7%
-> seqwrite harddisk	-1.1%
-> randwrite SSD		-46.9%
-> seqwrite SSD		+0.3%
-> 
-> For both harddisk and SSD, the randwrite swap workload run time is reduced
-> significant. sequential write swap workload hasn't chanage.
-> 
-> Interesting is the randwrite harddisk test is improved too. This might be
-> because swapin readahead need allocate extra memory, which further tights
-> memory pressure, so more swapout/swapin.
-> 
-> This patch depends on readahead-fault-retry-breaks-mmap-file-read-random-detection.patch
-> 
-> V2->V3:
-> move swapra_miss to 'struct anon_vma' as suggested by Konstantin. 
-> 
-> V1->V2:
-> 1. Move the swap readahead accounting to separate functions as suggested by Riel.
-> 2. Enable the logic only with CONFIG_SWAP enabled as suggested by Minchan.
-> 
-> Signed-off-by: Shaohua Li <shli@fusionio.com>
-> Acked-by: Rik van Riel <riel@redhat.com>
-Reviewed-by: Minchan Kim <minchan@kernel.org>
+Hi, isimatu-san
 
-Thanks.
+At 09/01/2012 05:30 AM, Andrew Morton Wrote:
+> On Tue, 28 Aug 2012 18:00:20 +0800
+> wency@cn.fujitsu.com wrote:
+> 
+>> From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+>>
+>> There is a possibility that get_page_bootmem() is called to the same page many
+>> times. So when get_page_bootmem is called to the same page, the function only
+>> increments page->_count.
+> 
+> I really don't understand this explanation, even after having looked at
+> the code.  Can you please have another attempt at the changelog?
+
+What is the problem that you want to fix? The function get_page_bootmem()
+may be called to the same page more than once, but I don't find any problem
+about current implementation.
+
+Thanks
+Wen Congyang
+
+> 
+>> --- a/mm/memory_hotplug.c
+>> +++ b/mm/memory_hotplug.c
+>> @@ -95,10 +95,17 @@ static void release_memory_resource(struct resource *res)
+>>  static void get_page_bootmem(unsigned long info,  struct page *page,
+>>  			     unsigned long type)
+>>  {
+>> -	page->lru.next = (struct list_head *) type;
+>> -	SetPagePrivate(page);
+>> -	set_page_private(page, info);
+>> -	atomic_inc(&page->_count);
+>> +	unsigned long page_type;
+>> +
+>> +	page_type = (unsigned long) page->lru.next;
+>> +	if (page_type < MEMORY_HOTPLUG_MIN_BOOTMEM_TYPE ||
+>> +	    page_type > MEMORY_HOTPLUG_MAX_BOOTMEM_TYPE){
+>> +		page->lru.next = (struct list_head *) type;
+>> +		SetPagePrivate(page);
+>> +		set_page_private(page, info);
+>> +		atomic_inc(&page->_count);
+>> +	} else
+>> +		atomic_inc(&page->_count);
+>>  }
+> 
+> And a code comment which explains what is going on would be good.  As
+> is always the case ;)
+> 
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
