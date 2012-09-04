@@ -1,107 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
-	by kanga.kvack.org (Postfix) with SMTP id 2F59C6B006C
-	for <linux-mm@kvack.org>; Tue,  4 Sep 2012 13:24:46 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
+	by kanga.kvack.org (Postfix) with SMTP id 29F6A6B0071
+	for <linux-mm@kvack.org>; Tue,  4 Sep 2012 13:24:47 -0400 (EDT)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 3/4] slub: consider pfmemalloc_match() in get_partial_node()
-Date: Tue,  4 Sep 2012 18:24:38 +0100
-Message-Id: <1346779479-1097-4-git-send-email-mgorman@suse.de>
+Subject: [PATCH 4/4] Squelch compiler warning in sk_rmem_schedule()
+Date: Tue,  4 Sep 2012 18:24:39 +0100
+Message-Id: <1346779479-1097-5-git-send-email-mgorman@suse.de>
 In-Reply-To: <1346779479-1097-1-git-send-email-mgorman@suse.de>
 References: <1346779479-1097-1-git-send-email-mgorman@suse.de>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Linux-MM <linux-mm@kvack.org>, Linux-Netdev <netdev@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, David Miller <davem@davemloft.net>, Chuck Lever <chuck.lever@oracle.com>, Joonsoo Kim <js1304@gmail.com>, Pekka@suse.de, "Enberg <penberg"@kernel.org, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>
 
-From: Joonsoo Kim <js1304@gmail.com>
+From: Chuck Lever <chuck.lever@oracle.com>
 
-The function get_partial() is currently not checking pfmemalloc_match()
-meaning that it is possible for pfmemalloc pages to leak to non-pfmemalloc
-users. This is a problem in the following situation.  Assume that there is
-a request from normal allocation and there are no objects in the per-cpu
-cache and no node-partial slab.
+In file included from linux/include/linux/tcp.h:227:0,
+                 from linux/include/linux/ipv6.h:221,
+                 from linux/include/net/ipv6.h:16,
+                 from linux/include/linux/sunrpc/clnt.h:26,
+                 from linux/net/sunrpc/stats.c:22:
+linux/include/net/sock.h: In function a??sk_rmem_schedulea??:
+linux/nfs-2.6/include/net/sock.h:1339:13: warning: comparison between
+  signed and unsigned integer expressions [-Wsign-compare]
 
-In this case, slab_alloc enters the slow path and new_slab_objects()
-is called which may return a PFMEMALLOC page. As the current user is not
-allowed to access PFMEMALLOC page, deactivate_slab() is called ([5091b74a:
-mm: slub: optimise the SLUB fast path to avoid pfmemalloc checks]) and
-returns an object from PFMEMALLOC page.
+Seen with gcc (GCC) 4.6.3 20120306 (Red Hat 4.6.3-2) using the
+-Wextra option.
 
-Next time, when we get another request from normal allocation, slab_alloc()
-enters the slow-path and calls new_slab_objects().  In new_slab_objects(),
-we call get_partial() and get a partial slab which was just deactivated
-but is a pfmemalloc page. We extract one object from it and re-deactivate.
+[c76562b6: netvm: prevent a stream-specific deadlock] accidentally replaced
+the "size" parameter of sk_rmem_schedule() with an unsigned int. This
+changes the semantics of the comparison in the return statement.
 
-"deactivate -> re-get in get_partial -> re-deactivate" occures repeatedly.
+In sk_wmem_schedule we have syntactically the same comparison, but
+"size" is a signed integer.  In addition, __sk_mem_schedule() takes
+a signed integer for its "size" parameter, so there is an implicit
+type conversion in sk_rmem_schedule() anyway.
 
-As a result, access to PFMEMALLOC page is not properly restricted and it
-can cause a performance degradation due to frequent deactivation.
-deactivation frequently.
+Revert the "size" parameter back to a signed integer so that the
+semantics of the expressions in both sk_[rw]mem_schedule() are
+exactly the same.
 
-This patch changes get_partial_node() to take pfmemalloc_match() into
-account and prevents the "deactivate -> re-get in get_partial() scenario.
-Instead, new_slab() is called.
-
-Signed-off-by: Joonsoo Kim <js1304@gmail.com>
-Acked-by: David Rientjes <rientjes@google.com>
+Signed-off-by: Chuck Lever <chuck.lever@oracle.com>
 Signed-off-by: Mel Gorman <mgorman@suse.de>
 ---
- mm/slub.c |   15 ++++++++++-----
- 1 file changed, 10 insertions(+), 5 deletions(-)
+ include/net/sock.h |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/mm/slub.c b/mm/slub.c
-index 8f78e25..2fdd96f9e9 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -1524,12 +1524,13 @@ static inline void *acquire_slab(struct kmem_cache *s,
+diff --git a/include/net/sock.h b/include/net/sock.h
+index 72132ae..adb7da2 100644
+--- a/include/net/sock.h
++++ b/include/net/sock.h
+@@ -1332,7 +1332,7 @@ static inline bool sk_wmem_schedule(struct sock *sk, int size)
  }
  
- static int put_cpu_partial(struct kmem_cache *s, struct page *page, int drain);
-+static inline bool pfmemalloc_match(struct page *page, gfp_t gfpflags);
- 
- /*
-  * Try to allocate a partial slab from a specific node.
-  */
--static void *get_partial_node(struct kmem_cache *s,
--		struct kmem_cache_node *n, struct kmem_cache_cpu *c)
-+static void *get_partial_node(struct kmem_cache *s, struct kmem_cache_node *n,
-+				struct kmem_cache_cpu *c, gfp_t flags)
+ static inline bool
+-sk_rmem_schedule(struct sock *sk, struct sk_buff *skb, unsigned int size)
++sk_rmem_schedule(struct sock *sk, struct sk_buff *skb, int size)
  {
- 	struct page *page, *page2;
- 	void *object = NULL;
-@@ -1545,9 +1546,13 @@ static void *get_partial_node(struct kmem_cache *s,
- 
- 	spin_lock(&n->list_lock);
- 	list_for_each_entry_safe(page, page2, &n->partial, lru) {
--		void *t = acquire_slab(s, n, page, object == NULL);
-+		void *t;
- 		int available;
- 
-+		if (!pfmemalloc_match(page, flags))
-+			continue;
-+
-+		t = acquire_slab(s, n, page, object == NULL);
- 		if (!t)
- 			break;
- 
-@@ -1614,7 +1619,7 @@ static void *get_any_partial(struct kmem_cache *s, gfp_t flags,
- 
- 			if (n && cpuset_zone_allowed_hardwall(zone, flags) &&
- 					n->nr_partial > s->min_partial) {
--				object = get_partial_node(s, n, c);
-+				object = get_partial_node(s, n, c, flags);
- 				if (object) {
- 					/*
- 					 * Return the object even if
-@@ -1643,7 +1648,7 @@ static void *get_partial(struct kmem_cache *s, gfp_t flags, int node,
- 	void *object;
- 	int searchnode = (node == NUMA_NO_NODE) ? numa_node_id() : node;
- 
--	object = get_partial_node(s, get_node(s, searchnode), c);
-+	object = get_partial_node(s, get_node(s, searchnode), c, flags);
- 	if (object || node != NUMA_NO_NODE)
- 		return object;
- 
+ 	if (!sk_has_account(sk))
+ 		return true;
 -- 
 1.7.9.2
 
