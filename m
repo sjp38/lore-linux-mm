@@ -1,45 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
-	by kanga.kvack.org (Postfix) with SMTP id A34206B0069
-	for <linux-mm@kvack.org>; Tue,  4 Sep 2012 16:59:25 -0400 (EDT)
-Date: Tue, 4 Sep 2012 13:59:24 -0700
+Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
+	by kanga.kvack.org (Postfix) with SMTP id CBD436B006E
+	for <linux-mm@kvack.org>; Tue,  4 Sep 2012 17:12:36 -0400 (EDT)
+Date: Tue, 4 Sep 2012 14:12:35 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm: fix mmap overflow checking
-Message-Id: <20120904135924.b61e04e0.akpm@linux-foundation.org>
-In-Reply-To: <1346750580-11352-1-git-send-email-gaowanlong@cn.fujitsu.com>
-References: <1346750580-11352-1-git-send-email-gaowanlong@cn.fujitsu.com>
+Subject: Re: [PATCH 1/1] mm: Fix unused function warnings in vmstat.c
+Message-Id: <20120904141235.dd9a3e39.akpm@linux-foundation.org>
+In-Reply-To: <CALF0-+XNXNWm7qQ3vZRrN1cd89hCowDiJgTn7Ty80FBRsqB=4g@mail.gmail.com>
+References: <1346750545-2094-1-git-send-email-luisgf@gmail.com>
+	<CALF0-+WgGPT=x93a3p1TKL8w_kNhXPACXMWrPGF2tmBnnQKCWw@mail.gmail.com>
+	<CAHve1mzGvzrvu+QTgUg0FAFOuQrhcY12H3LfMjCHJKBUrK0OhA@mail.gmail.com>
+	<CALF0-+XNXNWm7qQ3vZRrN1cd89hCowDiJgTn7Ty80FBRsqB=4g@mail.gmail.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wanlong Gao <gaowanlong@cn.fujitsu.com>
-Cc: linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "open list:MEMORY
- MANAGEMENT" <linux-mm@kvack.org>
+To: Ezequiel Garcia <elezegarcia@gmail.com>
+Cc: "Luis G.F" <luisgf@gmail.com>, linux-mm@kvack.org
 
-On Tue, 4 Sep 2012 17:23:00 +0800
-Wanlong Gao <gaowanlong@cn.fujitsu.com> wrote:
+On Tue, 4 Sep 2012 07:01:20 -0300
+Ezequiel Garcia <elezegarcia@gmail.com> wrote:
 
-> POSIX said that if the file is a regular file and the value of "off"
-> plus "len" exceeds the offset maximum established in the open file
-> description associated with fildes, mmap should return EOVERFLOW.
+> Also, in the future when fixing warnings you may want to add the warning message
+> to the commit message.
 
-That's what POSIX says, but what does Linux do?  It is important that
-we precisely describe and understand the behaviour change, as there is
-potential here to break existing applications.
+Yes, please always quote the messages in the changelog.
 
-I'm assuming that Linux presently permits the mmap() and then generates
-SIGBUS if an access is attempted beyond the max file size?
+> Anyway, I don't really know why are you getting that (wrong) warning,
+> but I don't think the solution is to add the 'unused' attribute.
 
-> 	/* offset overflow? */
-> -	if ((pgoff + (len >> PAGE_SHIFT)) < pgoff)
-> -               return -EOVERFLOW;
-> +	if (off + len < off)
-> +		return -EOVERFLOW;
+And yes, let's not work around compiler problems too eagerly.  We _do_
+occasionally work around bogus warnings, but only long-established ones
+which we see no other way of fixing.
 
-Well, this treats sizeof(off_t) as the "offset maximum established in
-the open file".  But from my reading of the above excerpt, we should in
-fact be checking against the underlying fs's s_maxbytes?
+In this case, it might be that these functions are indeed unused with
+certain Kconfig combinations.  For example and from inspection,
+CONFIG_PROCFS=n, CONFIG_DEBUG_FS=n, CONFIG_COMPACTION=y might cause
+such a warning?
+
+Also, please don't directly use __attribute__((unused)) - we have
+various helper macros in include/linux/compiler*.h for this.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
