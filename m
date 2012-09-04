@@ -1,54 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
-	by kanga.kvack.org (Postfix) with SMTP id E53CC6B0068
-	for <linux-mm@kvack.org>; Tue,  4 Sep 2012 18:16:48 -0400 (EDT)
-Date: Wed, 5 Sep 2012 00:16:41 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 2/7] mm: fix potential anon_vma locking issue in
- mprotect()
-Message-ID: <20120904221641.GL3334@redhat.com>
-References: <1346750457-12385-1-git-send-email-walken@google.com>
- <1346750457-12385-3-git-send-email-walken@google.com>
- <20120904142745.GE3334@redhat.com>
- <20120904215347.GA6769@google.com>
+Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
+	by kanga.kvack.org (Postfix) with SMTP id 5A9056B005D
+	for <linux-mm@kvack.org>; Tue,  4 Sep 2012 18:39:49 -0400 (EDT)
+Date: Tue, 4 Sep 2012 22:39:48 +0000
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: C13 [08/14] Get rid of __kmem_cache_destroy
+In-Reply-To: <5044C587.60801@parallels.com>
+Message-ID: <00000139937082ef-c61760a5-47fe-42d9-a043-ba81b2dfd216-000000@email.amazonses.com>
+References: <20120824160903.168122683@linux.com> <000001395967d71c-8ea585e1-ebf1-43ac-a9e4-b3b89f7d64d9-000000@email.amazonses.com> <5044C587.60801@parallels.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120904215347.GA6769@google.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michel Lespinasse <walken@google.com>
-Cc: linux-mm@kvack.org, riel@redhat.com, peterz@infradead.org, hughd@google.com, daniel.santos@pobox.com, linux-kernel@vger.kernel.org, akpm@linux-foundation.org
+To: Glauber Costa <glommer@parallels.com>
+Cc: Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <js1304@gmail.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>
 
-On Tue, Sep 04, 2012 at 02:53:47PM -0700, Michel Lespinasse wrote:
-> I think the minimal fix would actually be:
-> 
->  	if (vma->anon_vma && (importer || start != vma->vm_start)) {
->  		anon_vma = vma->anon_vma;
-> +	else if (next->anon_vma && adjust_next)
-> +		anon_vma = next->anon_vma;
+On Mon, 3 Sep 2012, Glauber Costa wrote:
 
-Right indeed. The last change required to the above is to check
-adjust_next first.
+> Here is the code for that in slab_common.c:
+>
+>     if (!__kmem_cache_shutdown(s)) {
+>         if (s->flags & SLAB_DESTROY_BY_RCU)
+>             rcu_barrier();
+>
+>         __kmem_cache_destroy(s);
+>     } ...
+>
+> All that code that used to belong in __kmem_cache_destroy(), will not be
+> executed in kmem_cache_shutdown() without an rcu_barrier.
 
-> I suppose if we were to consider adding this fix to the stable series,
-> we should probably do it in such a minimal way. I hadn't actually
-> considered it, because I was only thinking about this patch series,
-> and at patch 4/7 it becomes necessary to lock the anon_vma even if
-> only the vm_end side gets modified (so we'd still end up with what I
-> proposed in the end)
+But that allocator specific code in __kmem_cache_destroy will not free the
+kmem_cache structure. That is the only important thing to be aware of.
+Only deferred frees of slab pages may still be in progress at this time
+until the close of the RCU period. These deferred freeing actions do not
+refer to anything but the kmem_cache structure. Therefore the rest can be
+freed before the period is over. And we check that the rest can be freed.
+Should there be a leftover at that point then f.e.
+free_partial() will issue a warning.
 
-Ah, that fully explains you removed the optimization :). I was
-reviewing the patch as a bugfix for upstream without noticing the
-new requirements introduced by the later patches.
+kmem_cache_destroy() can only be called after all objects have been freed
+and it checks that this actually was done. "Have been freed" means in the
+context of an SLAB_DESTROY_BY_RCU slab that the rcu delayed frees for the
+individual objects are complete. During kmem_cache_destroy() only slab
+pages that contain no objects are freed back to the page allocator. Those
+will be also freed in a deferred way at kmem_cache_destroy. Hmmm.... we
+could simply delete the SLAB_DESTROY_BY_RCU flag and free the objects
+without obeying the rcu period since no objects should be allocated at
+that point.
 
-I would suggest to do the strict fix as above in as patch 1/8 and push
-it in -mm, and to do only the optimization removal in 3/8. I think
-we want it in -stable too later, so it'll make life easier to
-cherry-pick the commit if it's merged independently.
+> You need at least Paul's ack here to guarantee it is safe, but I believe
+> it is not. Take a look for instance at 7ed9f7e5db5, which describes a
+> subtle bug arising from such a situation.
 
-Thanks!
-Andrea
+The commit that you referred to ensures that kmem_cache is not freed
+before the rcu period is over. This patch does not change that guarantee.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
