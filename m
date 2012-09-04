@@ -1,83 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
-	by kanga.kvack.org (Postfix) with SMTP id 0F4916B0075
-	for <linux-mm@kvack.org>; Tue,  4 Sep 2012 19:38:36 -0400 (EDT)
-Message-Id: <0000013993a64ddd-0d791c46-537f-4b7f-811b-a8834fe02093-000000@email.amazonses.com>
-Date: Tue, 4 Sep 2012 23:38:33 +0000
-From: Christoph Lameter <cl@linux.com>
-Subject: C14 [14/14] [PATCH 23/28] Move kmem_cache refcounting to common code
-References: <20120904230609.691088980@linux.com>
+Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
+	by kanga.kvack.org (Postfix) with SMTP id 51E296B006E
+	for <linux-mm@kvack.org>; Tue,  4 Sep 2012 19:40:03 -0400 (EDT)
+Received: by pbbro12 with SMTP id ro12so10939929pbb.14
+        for <linux-mm@kvack.org>; Tue, 04 Sep 2012 16:40:02 -0700 (PDT)
+From: Michel Lespinasse <walken@google.com>
+Subject: [PATCH] mm: fix potential anon_vma locking issue in mprotect()
+Date: Tue,  4 Sep 2012 16:39:49 -0700
+Message-Id: <1346801989-18274-1-git-send-email-walken@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pekka Enberg <penberg@kernel.org>
-Cc: Joonsoo Kim <js1304@gmail.com>, Glauber Costa <glommer@parallels.com>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>
+To: linux-mm@kvack.org, akpm@linux-foundation.org
+Cc: aarcange@redhat.com
 
-Get rid of the refcount stuff in the allocators and do that
-part of kmem_cache management in the common code.
+This change fixes an anon_vma locking issue in the following situation:
+- vma has no anon_vma
+- next has an anon_vma
+- vma is being shrunk / next is being expanded, due to an mprotect call
 
-Signed-off-by: Christoph Lameter <cl@linux.com>
+We need to take next's anon_vma lock to avoid races with rmap users
+(such as page migration) while next is being expanded.
+
+Signed-off-by: Michel Lespinasse <walken@google.com>
 ---
- mm/slab.c        |    1 -
- mm/slab_common.c |    5 +++--
- mm/slob.c        |    2 --
- mm/slub.c        |    1 -
- 4 files changed, 3 insertions(+), 6 deletions(-)
+ mm/mmap.c |    6 +++++-
+ 1 files changed, 5 insertions(+), 1 deletions(-)
 
-Index: linux/mm/slab.c
-===================================================================
---- linux.orig/mm/slab.c	2012-09-04 18:00:16.870082786 -0500
-+++ linux/mm/slab.c	2012-09-04 18:00:16.882082975 -0500
-@@ -2555,7 +2555,6 @@ __kmem_cache_create (struct kmem_cache *
- 		 */
- 		BUG_ON(ZERO_OR_NULL_PTR(cachep->slabp_cache));
- 	}
--	cachep->refcount = 1;
+diff --git a/mm/mmap.c b/mm/mmap.c
+index 3edfcdfa42d9..6fd7afa0e651 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -578,8 +578,12 @@ again:			remove_next = 1 + (end > next->vm_end);
+ 	 */
+ 	if (vma->anon_vma && (importer || start != vma->vm_start)) {
+ 		anon_vma = vma->anon_vma;
++		VM_BUG_ON(adjust_next && next->anon_vma &&
++			  anon_vma != next->anon_vma);
++	} else if (adjust_next && next->anon_vma)
++		anon_vma = next->anon_vma;
++	if (anon_vma)
+ 		anon_vma_lock(anon_vma);
+-	}
  
- 	err = setup_cpu_cache(cachep, gfp);
- 	if (err) {
-Index: linux/mm/slab_common.c
-===================================================================
---- linux.orig/mm/slab_common.c	2012-09-04 18:00:16.870082786 -0500
-+++ linux/mm/slab_common.c	2012-09-04 18:00:16.886083040 -0500
-@@ -125,11 +125,12 @@ struct kmem_cache *kmem_cache_create(con
- 		}
- 
- 		err = __kmem_cache_create(s, flags);
--		if (!err)
-+		if (!err) {
- 
-+			s->refcount = 1;
- 			list_add(&s->list, &slab_caches);
- 
--		else {
-+		} else {
- 			kfree(s->name);
- 			kmem_cache_free(kmem_cache, s);
- 		}
-Index: linux/mm/slob.c
-===================================================================
---- linux.orig/mm/slob.c	2012-09-04 18:00:16.870082786 -0500
-+++ linux/mm/slob.c	2012-09-04 18:00:16.886083040 -0500
-@@ -524,7 +524,6 @@ int __kmem_cache_create(struct kmem_cach
- 	if (c->align < align)
- 		c->align = align;
- 
--	c->refcount = 1;
- 	return 0;
- }
- 
-Index: linux/mm/slub.c
-===================================================================
---- linux.orig/mm/slub.c	2012-09-04 18:00:16.870082786 -0500
-+++ linux/mm/slub.c	2012-09-04 18:00:16.886083040 -0500
-@@ -3093,7 +3093,6 @@ static int kmem_cache_open(struct kmem_c
- 	else
- 		s->cpu_partial = 30;
- 
--	s->refcount = 1;
- #ifdef CONFIG_NUMA
- 	s->remote_node_defrag_ratio = 1000;
- #endif
+ 	if (root) {
+ 		flush_dcache_mmap_lock(mapping);
+-- 
+1.7.7.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
