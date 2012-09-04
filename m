@@ -1,59 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
-	by kanga.kvack.org (Postfix) with SMTP id C39816B007D
-	for <linux-mm@kvack.org>; Tue,  4 Sep 2012 10:15:14 -0400 (EDT)
-Message-ID: <50460CED.6060006@redhat.com>
-Date: Tue, 04 Sep 2012 10:15:09 -0400
-From: Rik van Riel <riel@redhat.com>
-MIME-Version: 1.0
-Subject: Re: [patch v4]swap: add a simple random read swapin detection
-References: <20120827040037.GA8062@kernel.org> <503B8997.4040604@openvz.org> <20120830103612.GA12292@kernel.org> <20120830174223.GB2141@barrios> <20120903072137.GA26821@kernel.org> <20120903083245.GA7674@bbox> <20120903114631.GA5410@kernel.org> <5044FEE3.4050009@openvz.org> <5044FF89.5090400@redhat.com> <5045AF14.7040309@openvz.org>
-In-Reply-To: <5045AF14.7040309@openvz.org>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
+	by kanga.kvack.org (Postfix) with SMTP id D43846B0062
+	for <linux-mm@kvack.org>; Tue,  4 Sep 2012 10:21:41 -0400 (EDT)
+From: Glauber Costa <glommer@parallels.com>
+Subject: [RFC 0/5] forced comounts for cgroups.
+Date: Tue,  4 Sep 2012 18:18:15 +0400
+Message-Id: <1346768300-10282-1-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konstantin Khlebnikov <khlebnikov@openvz.org>
-Cc: Shaohua Li <shli@kernel.org>, Minchan Kim <minchan@kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "fengguang.wu@intel.com" <fengguang.wu@intel.com>
+To: linux-kernel@vger.kernel.org
+Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, davej@redhat.com, ben@decadent.org.uk, a.p.zijlstra@chello.nl, pjt@google.com, lennart@poettering.net, kay.sievers@vrfy.org, tj@kernel.org
 
-On 09/04/2012 03:34 AM, Konstantin Khlebnikov wrote:
+Hi,
 
-> It disables reahahead if it is ineffective in one particular VMA,
-> but in recovering-case this does not important -- we really want to read
-> whole swap back, no matter which VMA around pages belongs to.
-> [BTW this case was mentioned in you patch which added skipping-over-holes]
+As we have been extensively discussing, the cost and pain points for cgroups
+come from many places. But at least one of those is the arbitrary nature of
+hierarchies. Many people, including at least Tejun and me would like this to go
+away altogether. Problem so far, is breaking compatiblity with existing setups
 
-This is a good point.  It is entirely possible that we may
-be better off deciding this on a system wide level, and not
-a VMA level, since that would allow for the statistic to
-move faster.
+I am proposing here a default-n Kconfig option that will guarantee that the cpu
+cgroups (for now) will be comounted. I started with them because the
+cpu/cpuacct division is clearly the worst offender. Also, the default-n is here
+so distributions will have time to adapt: Forcing this flag to be on without
+userspace changes will just lead to cgroups failing to mount, which we don't
+want.
 
-On the other hand, keeping readahead enabled for some VMAs
-at any times may be required to get the hits we need to
-re-enable it for others :)
+Although I've tested it and it works, I haven't compile-tested all possible
+config combinations. So this is mostly for your eyes. If this gets traction,
+I'll submit it properly, along with any changes that you might require.
 
-> And its metric is strange, looks like it just disables headahead for all
-> VMAs
-> after hundred swapins and never enables it back. Why we cannot disable
-> it from
-> the beginning and turn it on when needed? This ways is even more simple.
+Thanks.
 
-Take a careful look at the code, specifically do_swap_page().
-If a page is found in the swap cache, it is counted as a hit.
-If enough pages are found in the swap cache, readahead is
-enabled again for the VMA.
+Glauber Costa (5):
+  cgroup: allow some comounts to be forced.
+  sched: adjust exec_clock to use it as cpu usage metric
+  sched: do not call cpuacct_charge when cpu and cpuacct are comounted
+  cpuacct: do not gather cpuacct statistics when not mounted
+  sched: add cpusets to comounts list
 
-Having swap readahead enabled by default is probably the best
-thing to do, since IO clustering is generally useful.
-
-How would you determine when to "turn it on when needed"?
-
-What kind of criteria would you use?
-
-What would be the threshold for enabling it?
+ include/linux/cgroup.h |   6 ++
+ init/Kconfig           |  23 ++++++++
+ kernel/cgroup.c        |  29 +++++++++-
+ kernel/cpuset.c        |   4 ++
+ kernel/sched/core.c    | 149 +++++++++++++++++++++++++++++++++++++++++++++----
+ kernel/sched/rt.c      |   1 +
+ kernel/sched/sched.h   |  20 ++++++-
+ 7 files changed, 220 insertions(+), 12 deletions(-)
 
 -- 
-All rights reversed
+1.7.11.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
