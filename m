@@ -1,45 +1,172 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
-	by kanga.kvack.org (Postfix) with SMTP id 2CC586B0085
-	for <linux-mm@kvack.org>; Tue,  4 Sep 2012 19:27:11 -0400 (EDT)
-Message-ID: <1346801227.27919.40.camel@gandalf.local.home>
-Subject: Re: [PATCH v3 01/17] hashtable: introduce a small and naive
- hashtable
-From: Steven Rostedt <rostedt@goodmis.org>
-Date: Tue, 04 Sep 2012 19:27:07 -0400
-In-Reply-To: <50468778.5000207@redhat.com>
-References: <20120824203332.GF21325@google.com> <5037E9D9.9000605@gmail.com>
-	     <20120824212348.GK21325@google.com> <5038074D.300@gmail.com>
-	     <20120824230740.GN21325@google.com> <20120825042419.GA27240@Krystal>
-	     <503C95E4.3010000@gmail.com> <20120828101148.GA21683@Krystal>
-	     <503CAB1E.5010408@gmail.com> <20120828115638.GC23818@Krystal>
-	     <20120828230050.GA3337@Krystal>
-	    <1346772948.27919.9.camel@gandalf.local.home>
-	   <50462C99.5000007@redhat.com>  <50462EE8.1090903@redhat.com>
-	   <1346779027.27919.15.camel@gandalf.local.home>
-	   <50463883.8080706@redhat.com>
-	  <1346792345.27919.18.camel@gandalf.local.home>
-	  <504677C8.3050801@redhat.com>
-	 <1346798509.27919.25.camel@gandalf.local.home>
-	 <50468778.5000207@redhat.com>
-Content-Type: text/plain; charset="ISO-8859-15"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
+	by kanga.kvack.org (Postfix) with SMTP id E6DDD6B006E
+	for <linux-mm@kvack.org>; Tue,  4 Sep 2012 19:38:34 -0400 (EDT)
+Message-Id: <0000013993a64e65-040bae0f-e472-4ec5-b49e-ecc834fb8ef3-000000@email.amazonses.com>
+Date: Tue, 4 Sep 2012 23:38:33 +0000
+From: Christoph Lameter <cl@linux.com>
+Subject: C14 [08/14] Get rid of __kmem_cache_destroy
+References: <20120904230609.691088980@linux.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pedro Alves <palves@redhat.com>
-Cc: Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Sasha Levin <levinsasha928@gmail.com>, Tejun Heo <tj@kernel.org>, torvalds@linux-foundation.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, paul.gortmaker@windriver.com, davem@davemloft.net, mingo@elte.hu, ebiederm@xmission.com, aarcange@redhat.com, ericvh@gmail.com, netdev@vger.kernel.org, josh@joshtriplett.org, eric.dumazet@gmail.com, axboe@kernel.dk, agk@redhat.com, dm-devel@redhat.com, neilb@suse.de, ccaulfie@redhat.com, teigland@redhat.com, Trond.Myklebust@netapp.com, bfields@fieldses.org, fweisbec@gmail.com, jesse@nicira.com, venkat.x.venkatsubra@oracle.com, ejt@redhat.com, snitzer@redhat.com, edumazet@google.com, linux-nfs@vger.kernel.org, dev@openvswitch.org, rds-devel@oss.oracle.com, lw@cn.fujitsu.com
+To: Pekka Enberg <penberg@kernel.org>
+Cc: Joonsoo Kim <js1304@gmail.com>, Glauber Costa <glommer@parallels.com>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>
 
-On Tue, 2012-09-04 at 23:58 +0100, Pedro Alves wrote:
+What is done there can be done in __kmem_cache_shutdown.
 
-> Not true.  The comma operator introduces a sequence point.  It's the comma
-> that separates function parameters that doesn't guarantee ordering.
+This affects RCU handling somewhat. On rcu free all slab allocators
+do not refer to other management structures than the kmem_cache structure.
+Therefore these other structures can be freed before the rcu deferred
+free to the page allocator occurs.
 
-Bah! C language is almost as confusing as English.
+Reviewed-by: Joonsoo Kim <js1304@gmail.com>
+Signed-off-by: Christoph Lameter <cl@linux.com>
+---
+ mm/slab.c        |   46 +++++++++++++++++++++-------------------------
+ mm/slab.h        |    1 -
+ mm/slab_common.c |    1 -
+ mm/slob.c        |    4 ----
+ mm/slub.c        |   10 +++++-----
+ 5 files changed, 26 insertions(+), 36 deletions(-)
 
--- Steve
-
-
+Index: linux/mm/slab.c
+===================================================================
+--- linux.orig/mm/slab.c	2012-09-04 18:00:16.790081538 -0500
++++ linux/mm/slab.c	2012-09-04 18:01:54.239602415 -0500
+@@ -2208,26 +2208,6 @@ static void slab_destroy(struct kmem_cac
+ 	}
+ }
+ 
+-void __kmem_cache_destroy(struct kmem_cache *cachep)
+-{
+-	int i;
+-	struct kmem_list3 *l3;
+-
+-	for_each_online_cpu(i)
+-	    kfree(cachep->array[i]);
+-
+-	/* NUMA: free the list3 structures */
+-	for_each_online_node(i) {
+-		l3 = cachep->nodelists[i];
+-		if (l3) {
+-			kfree(l3->shared);
+-			free_alien_cache(l3->alien);
+-			kfree(l3);
+-		}
+-	}
+-}
+-
+-
+ /**
+  * calculate_slab_order - calculate size (page order) of slabs
+  * @cachep: pointer to the cache that is being created
+@@ -2364,9 +2344,6 @@ static int __init_refok setup_cpu_cache(
+  * Cannot be called within a int, but can be interrupted.
+  * The @ctor is run when new pages are allocated by the cache.
+  *
+- * @name must be valid until the cache is destroyed. This implies that
+- * the module calling this has to destroy the cache before getting unloaded.
+- *
+  * The flags are
+  *
+  * %SLAB_POISON - Poison the slab with a known test pattern (a5a5a5a5)
+@@ -2591,7 +2568,7 @@ __kmem_cache_create (const char *name, s
+ 	cachep->refcount = 1;
+ 
+ 	if (setup_cpu_cache(cachep, gfp)) {
+-		__kmem_cache_destroy(cachep);
++		__kmem_cache_shutdown(cachep);
+ 		return NULL;
+ 	}
+ 
+@@ -2766,7 +2743,26 @@ EXPORT_SYMBOL(kmem_cache_shrink);
+ 
+ int __kmem_cache_shutdown(struct kmem_cache *cachep)
+ {
+-	return __cache_shrink(cachep);
++	int i;
++	struct kmem_list3 *l3;
++	int rc = __cache_shrink(cachep);
++
++	if (rc)
++		return rc;
++
++	for_each_online_cpu(i)
++	    kfree(cachep->array[i]);
++
++	/* NUMA: free the list3 structures */
++	for_each_online_node(i) {
++		l3 = cachep->nodelists[i];
++		if (l3) {
++			kfree(l3->shared);
++			free_alien_cache(l3->alien);
++			kfree(l3);
++		}
++	}
++	return 0;
+ }
+ 
+ /*
+Index: linux/mm/slab.h
+===================================================================
+--- linux.orig/mm/slab.h	2012-09-04 18:00:16.774081296 -0500
++++ linux/mm/slab.h	2012-09-04 18:01:55.523622455 -0500
+@@ -37,6 +37,5 @@ struct kmem_cache *__kmem_cache_create(c
+ 	size_t align, unsigned long flags, void (*ctor)(void *));
+ 
+ int __kmem_cache_shutdown(struct kmem_cache *);
+-void __kmem_cache_destroy(struct kmem_cache *);
+ 
+ #endif
+Index: linux/mm/slab_common.c
+===================================================================
+--- linux.orig/mm/slab_common.c	2012-09-04 18:00:16.790081538 -0500
++++ linux/mm/slab_common.c	2012-09-04 18:01:56.147632189 -0500
+@@ -153,7 +153,6 @@ void kmem_cache_destroy(struct kmem_cach
+ 			if (s->flags & SLAB_DESTROY_BY_RCU)
+ 				rcu_barrier();
+ 
+-			__kmem_cache_destroy(s);
+ 			kmem_cache_free(kmem_cache, s);
+ 		} else {
+ 			list_add(&s->list, &slab_caches);
+Index: linux/mm/slob.c
+===================================================================
+--- linux.orig/mm/slob.c	2012-09-04 18:00:16.790081538 -0500
++++ linux/mm/slob.c	2012-09-04 18:01:54.247602537 -0500
+@@ -538,10 +538,6 @@ struct kmem_cache *__kmem_cache_create(c
+ 	return c;
+ }
+ 
+-void __kmem_cache_destroy(struct kmem_cache *c)
+-{
+-}
+-
+ void *kmem_cache_alloc_node(struct kmem_cache *c, gfp_t flags, int node)
+ {
+ 	void *b;
+Index: linux/mm/slub.c
+===================================================================
+--- linux.orig/mm/slub.c	2012-09-04 18:00:16.790081538 -0500
++++ linux/mm/slub.c	2012-09-04 18:01:56.159632381 -0500
+@@ -3205,12 +3205,12 @@ static inline int kmem_cache_close(struc
+ 
+ int __kmem_cache_shutdown(struct kmem_cache *s)
+ {
+-	return kmem_cache_close(s);
+-}
++	int rc = kmem_cache_close(s);
+ 
+-void __kmem_cache_destroy(struct kmem_cache *s)
+-{
+-	sysfs_slab_remove(s);
++	if (!rc)
++		sysfs_slab_remove(s);
++
++	return rc;
+ }
+ 
+ /********************************************************************
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
