@@ -1,72 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx133.postini.com [74.125.245.133])
-	by kanga.kvack.org (Postfix) with SMTP id 1962E6B0068
-	for <linux-mm@kvack.org>; Tue,  4 Sep 2012 18:54:21 -0400 (EDT)
-Subject: Re: [RFC PATCH 2/2] mm: Batch page_check_references in
- shrink_page_list sharing the same i_mmap_mutex
-From: Tim Chen <tim.c.chen@linux.intel.com>
-In-Reply-To: <1346772077.13492.267.camel@schen9-DESK>
-References: <1345251998.13492.235.camel@schen9-DESK>
-	 <1345480982.13492.239.camel@schen9-DESK>
-	 <20120821132129.GC6960@linux.intel.com>
-	 <1345596500.13492.264.camel@schen9-DESK>
-	 <1346772077.13492.267.camel@schen9-DESK>
-Content-Type: text/plain; charset="UTF-8"
-Date: Tue, 04 Sep 2012 15:54:19 -0700
-Message-ID: <1346799259.13492.272.camel@schen9-DESK>
-Mime-Version: 1.0
+Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
+	by kanga.kvack.org (Postfix) with SMTP id 1A0466B006C
+	for <linux-mm@kvack.org>; Tue,  4 Sep 2012 18:58:43 -0400 (EDT)
+Message-ID: <50468778.5000207@redhat.com>
+Date: Tue, 04 Sep 2012 23:58:00 +0100
+From: Pedro Alves <palves@redhat.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH v3 01/17] hashtable: introduce a small and naive hashtable
+References: <20120824203332.GF21325@google.com> <5037E9D9.9000605@gmail.com>     <20120824212348.GK21325@google.com> <5038074D.300@gmail.com>     <20120824230740.GN21325@google.com> <20120825042419.GA27240@Krystal>     <503C95E4.3010000@gmail.com> <20120828101148.GA21683@Krystal>     <503CAB1E.5010408@gmail.com> <20120828115638.GC23818@Krystal>     <20120828230050.GA3337@Krystal>    <1346772948.27919.9.camel@gandalf.local.home>   <50462C99.5000007@redhat.com>  <50462EE8.1090903@redhat.com>   <1346779027.27919.15.camel@gandalf.local.home>   <50463883.8080706@redhat.com>  <1346792345.27919.18.camel@gandalf.local.home>  <504677C8.3050801@redhat.com> <1346798509.27919.25.camel@gandalf.local.home>
+In-Reply-To: <1346798509.27919.25.camel@gandalf.local.home>
+Content-Type: text/plain; charset=ISO-8859-15
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@linux.intel.com>
-Cc: Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andi Kleen <ak@linux.intel.com>, linux-mm@kvack.org, linux-kernel <linux-kernel@vger.kernel.org>, Alex Shi <alex.shi@intel.com>
+To: Steven Rostedt <rostedt@goodmis.org>
+Cc: Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Sasha Levin <levinsasha928@gmail.com>, Tejun Heo <tj@kernel.org>, torvalds@linux-foundation.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, paul.gortmaker@windriver.com, davem@davemloft.net, mingo@elte.hu, ebiederm@xmission.com, aarcange@redhat.com, ericvh@gmail.com, netdev@vger.kernel.org, josh@joshtriplett.org, eric.dumazet@gmail.com, axboe@kernel.dk, agk@redhat.com, dm-devel@redhat.com, neilb@suse.de, ccaulfie@redhat.com, teigland@redhat.com, Trond.Myklebust@netapp.com, bfields@fieldses.org, fweisbec@gmail.com, jesse@nicira.com, venkat.x.venkatsubra@oracle.com, ejt@redhat.com, snitzer@redhat.com, edumazet@google.com, linux-nfs@vger.kernel.org, dev@openvswitch.org, rds-devel@oss.oracle.com, lw@cn.fujitsu.com
 
-On Tue, 2012-09-04 at 08:21 -0700, Tim Chen wrote:
-> On Tue, 2012-08-21 at 17:48 -0700, Tim Chen wrote:
+On 09/04/2012 11:41 PM, Steven Rostedt wrote:
+> Ah, I missed the condition with the rec == &pg->records[pg->index]. But
+> if ftrace_pages_start is NULL, the rec = &pg->records[pg->index] will
+> fault.
+
+Right.
+
 > 
-> > 
-> > Thanks to Matthew's suggestions on improving the patch. Here's the
-> > updated version.  It seems to be sane when I booted my machine up.  I
-> > will put it through more testing when I get a chance.
-> > 
-> > Tim
-> > 
-> 
-> Matthew,
-> 
-> The new patch seems to be causing some of the workloads with mmaped file
-> read to seg fault.  Will need to dig further to find out why.
-> 
-> Tim
-> 
+> You could do something like rec = pg ? &pg->records[pg->index] : NULL,
 
-Okay, the problem seems to be the code below.  It is too restrictive and
-causes some cases where the mutex needs to be taken in try_to_unmap_file
-to be missed.
+Right.
 
-> > +int needs_page_mmap_mutex(struct page *page)
-> > +{
-> > +	return page->mapping && page_mapped(page) && page_rmapping(page) &&
-> > +		!PageKsm(page) && !PageAnon(page);
-> > +}
-> > +
+> but IIRC, the comma operator does not guarantee order evaluation. That
+> is, the compiler is allowed to process "a , b" as "b; a;" and not "a;
+> b;".
 
-Changing the check to the following fixes the problem:
+Not true.  The comma operator introduces a sequence point.  It's the comma
+that separates function parameters that doesn't guarantee ordering.
 
-@@ -873,8 +873,7 @@ static int page_referenced_file(struct page *page,
- 
- int needs_page_mmap_mutex(struct page *page)
- {
--       return page->mapping && page_mapped(page) && page_rmapping(page) &&
--               !PageKsm(page) && !PageAnon(page);
-+       return page->mapping && !PageKsm(page) && !PageAnon(page);
- }
-
-I'll do more testing and generate a second version of the patch set with the fixes.
-
-Tim
-
-
+-- 
+Pedro Alves
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
