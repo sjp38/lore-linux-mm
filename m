@@ -1,70 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
-	by kanga.kvack.org (Postfix) with SMTP id 0EDC76B0069
-	for <linux-mm@kvack.org>; Tue,  4 Sep 2012 05:22:38 -0400 (EDT)
-Received: by weys10 with SMTP id s10so4064210wey.14
-        for <linux-mm@kvack.org>; Tue, 04 Sep 2012 02:22:36 -0700 (PDT)
-From: Luis Gonzalez Fernandez <luisgf@gmail.com>
-Subject: [PATCH 1/1] mm: Fix unused function warnings in vmstat.c
-Date: Tue,  4 Sep 2012 11:22:25 +0200
-Message-Id: <1346750545-2094-1-git-send-email-luisgf@gmail.com>
+Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
+	by kanga.kvack.org (Postfix) with SMTP id 9222D6B006E
+	for <linux-mm@kvack.org>; Tue,  4 Sep 2012 05:25:11 -0400 (EDT)
+From: Wanlong Gao <gaowanlong@cn.fujitsu.com>
+Subject: [PATCH] mm: fix mmap overflow checking
+Date: Tue, 4 Sep 2012 17:23:00 +0800
+Message-Id: <1346750580-11352-1-git-send-email-gaowanlong@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, linux-mm@kvack.org
-Cc: Luis Gonzalez Fernandez <luisgf@gmail.com>
+To: linux-kernel@vger.kernel.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, Wanlong Gao <gaowanlong@cn.fujitsu.com>
 
-frag_start(), frag_next(), frag_stop(), walk_zones_in_node() throws
-compilation warnings (-Wunused-function) even when are currently used.
+POSIX said that if the file is a regular file and the value of "off"
+plus "len" exceeds the offset maximum established in the open file
+description associated with fildes, mmap should return EOVERFLOW.
 
-This patchs fix the compilation warnings in vmstat.c
+The following test from LTP can reproduce this bug.
 
-Signed-off-by: Luis Gonzalez Fernandez <luisgf@gmail.com>
+	char tmpfname[256];
+	void *pa = NULL;
+	void *addr = NULL;
+	size_t len;
+	int flag;
+	int fd;
+	off_t off = 0;
+	int prot;
+
+	long page_size = sysconf(_SC_PAGE_SIZE);
+
+	snprintf(tmpfname, sizeof(tmpfname), "/tmp/mmap_test_%d", getpid());
+	unlink(tmpfname);
+	fd = open(tmpfname, O_CREAT | O_RDWR | O_EXCL, S_IRUSR | S_IWUSR);
+	if (fd == -1) {
+		printf(" Error at open(): %s\n", strerror(errno));
+		return 1;
+	}
+	unlink(tmpfname);
+
+	flag = MAP_SHARED;
+	prot = PROT_READ | PROT_WRITE;
+
+	/* len + off > maximum offset */
+
+	len = ULONG_MAX;
+	if (len % page_size) {
+		/* Lower boundary */
+		len &= ~(page_size - 1);
+	}
+
+	off = ULONG_MAX;
+	if (off % page_size) {
+		/* Lower boundary */
+		off &= ~(page_size - 1);
+	}
+
+	printf("off: %lx, len: %lx\n", (unsigned long)off, (unsigned long)len);
+	pa = mmap(addr, len, prot, flag, fd, off);
+	if (pa == MAP_FAILED && errno == EOVERFLOW) {
+		printf("Test Pass: Error at mmap: %s\n", strerror(errno));
+		return 0;
+	}
+
+	if (pa == MAP_FAILED)
+		perror("Test FAIL: expect EOVERFLOW but get other error");
+	else
+		printf("Test FAIL : Expect EOVERFLOW but got no error\n");
+
+	close(fd);
+	munmap(pa, len);
+	return 1;
+
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: linux-mm@kvack.org (open list:MEMORY MANAGEMENT)
+Signed-off-by: Wanlong Gao <gaowanlong@cn.fujitsu.com>
 ---
- mm/vmstat.c |   11 +++++++----
- 1 file changed, 7 insertions(+), 4 deletions(-)
+ mm/mmap.c | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
 
-diff --git a/mm/vmstat.c b/mm/vmstat.c
-index df7a674..e8f7dbd 100644
---- a/mm/vmstat.c
-+++ b/mm/vmstat.c
-@@ -619,7 +619,8 @@ static char * const migratetype_names[MIGRATE_TYPES] = {
- 	"Isolate",
- };
+diff --git a/mm/mmap.c b/mm/mmap.c
+index ae18a48..5380764 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -980,6 +980,7 @@ unsigned long do_mmap_pgoff(struct file *file, unsigned long addr,
+ 	struct mm_struct * mm = current->mm;
+ 	struct inode *inode;
+ 	vm_flags_t vm_flags;
++	off_t off = pgoff << PAGE_SHIFT;
  
--static void *frag_start(struct seq_file *m, loff_t *pos)
-+static void __attribute__((unused)) *frag_start(struct seq_file *m,
-+							loff_t *pos)
- {
- 	pg_data_t *pgdat;
- 	loff_t node = *pos;
-@@ -631,7 +632,8 @@ static void *frag_start(struct seq_file *m, loff_t *pos)
- 	return pgdat;
- }
+ 	/*
+ 	 * Does the application expect PROT_READ to imply PROT_EXEC?
+@@ -1003,8 +1004,8 @@ unsigned long do_mmap_pgoff(struct file *file, unsigned long addr,
+ 		return -ENOMEM;
  
--static void *frag_next(struct seq_file *m, void *arg, loff_t *pos)
-+static void __attribute__((unused)) *frag_next(struct seq_file *m,
-+						void *arg, loff_t *pos)
- {
- 	pg_data_t *pgdat = (pg_data_t *)arg;
+ 	/* offset overflow? */
+-	if ((pgoff + (len >> PAGE_SHIFT)) < pgoff)
+-               return -EOVERFLOW;
++	if (off + len < off)
++		return -EOVERFLOW;
  
-@@ -639,12 +641,13 @@ static void *frag_next(struct seq_file *m, void *arg, loff_t *pos)
- 	return next_online_pgdat(pgdat);
- }
- 
--static void frag_stop(struct seq_file *m, void *arg)
-+static void __attribute__((unused)) frag_stop(struct seq_file *m, void *arg)
- {
- }
- 
- /* Walk all the zones in a node and print using a callback */
--static void walk_zones_in_node(struct seq_file *m, pg_data_t *pgdat,
-+static void __attribute__((unused)) walk_zones_in_node(struct seq_file *m,
-+							pg_data_t *pgdat,
- 		void (*print)(struct seq_file *m, pg_data_t *, struct zone *))
- {
- 	struct zone *zone;
+ 	/* Too many mappings? */
+ 	if (mm->map_count > sysctl_max_map_count)
 -- 
-1.7.9.5
+1.7.12
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
