@@ -1,431 +1,268 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
-	by kanga.kvack.org (Postfix) with SMTP id 4A8786B0069
-	for <linux-mm@kvack.org>; Tue,  4 Sep 2012 04:42:12 -0400 (EDT)
-From: Haggai Eran <haggaie@mellanox.com>
-Subject: [PATCH V1 1/2] mm: Move all mmu notifier invocations to be done outside the PT lock
-Date: Tue,  4 Sep 2012 11:41:20 +0300
-Message-Id: <1346748081-1652-2-git-send-email-haggaie@mellanox.com>
-In-Reply-To: <1346748081-1652-1-git-send-email-haggaie@mellanox.com>
-References: <1346748081-1652-1-git-send-email-haggaie@mellanox.com>
+Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
+	by kanga.kvack.org (Postfix) with SMTP id DD68D6B005D
+	for <linux-mm@kvack.org>; Tue,  4 Sep 2012 05:12:32 -0400 (EDT)
+Message-ID: <5045C749.80904@cn.fujitsu.com>
+Date: Tue, 04 Sep 2012 17:18:01 +0800
+From: Wen Congyang <wency@cn.fujitsu.com>
+MIME-Version: 1.0
+Subject: Re: [RFC PATCH 1/4] mm: introduce a safer interface to check whether
+ a page is managed by SLxB
+References: <1341287837-7904-1-git-send-email-jiang.liu@huawei.com>
+In-Reply-To: <1341287837-7904-1-git-send-email-jiang.liu@huawei.com>
+Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>, Haggai Eran <haggaie@mellanox.com>, Shachar Raindel <raindel@mellanox.com>, Sagi Grimberg <sagig@mellanox.com>, Or Gerlitz <ogerlitz@mellanox.com>, Andrea Arcangeli <andrea@qumranet.com>
+To: Jiang Liu <jiang.liu@huawei.com>
+Cc: Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Mel Gorman <mgorman@suse.de>, Yinghai Lu <yinghai@kernel.org>, Tony Luck <tony.luck@intel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, Minchan Kim <minchan@kernel.org>, Keping Chen <chenkeping@huawei.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Jiang Liu <liuj97@gmail.com>
 
-From: Sagi Grimberg <sagig@mellanox.com>
+At 07/03/2012 11:57 AM, Jiang Liu Wrote:
+> Several subsystems, including memory-failure, swap, sparse, DRBD etc,
+> use PageSlab() to check whether a page is managed by SLAB/SLUB/SLOB.
+> And they treat slab pages differently from pagecache/anonymous pages.
+> 
+> But it's unsafe to use PageSlab() to detect whether a page is managed by
+> SLUB. SLUB allocates compound pages when page order is bigger than 0 and
+> only sets PG_slab on head pages. So if a SLUB object is hosted by a tail
+> page, PageSlab() will incorrectly return false for that object.
+> 
+> Following code from sparse.c triggers this issue, which causes failure
+> when removing a hot-added memory device.
 
-In order to allow sleeping during mmu notifier calls, we need to avoid
-invoking them under the page table spinlock. This patch solves the
-problem by calling invalidate_page notification after releasing
-the lock (but before freeing the page itself), or by wrapping the page
-invalidation with calls to invalidate_range_begin and
-invalidate_range_end.
+Hi, Liu
 
-Signed-off-by: Andrea Arcangeli <andrea@qumranet.com>
-Signed-off-by: Sagi Grimberg <sagig@mellanox.com>
-Signed-off-by: Haggai Eran <haggaie@mellanox.com>
----
- include/linux/mmu_notifier.h | 47 --------------------------------------------
- mm/filemap_xip.c             |  4 +++-
- mm/huge_memory.c             | 32 ++++++++++++++++++++++++------
- mm/hugetlb.c                 | 15 ++++++++------
- mm/memory.c                  | 10 +++++++---
- mm/rmap.c                    | 27 ++++++++++++++++++-------
- 6 files changed, 65 insertions(+), 70 deletions(-)
+What is the status of this patch?
+I encounter the same problem when removing a hot-added memory device. It
+causes the kernel panicked
 
-diff --git a/include/linux/mmu_notifier.h b/include/linux/mmu_notifier.h
-index ee2baf0..2702bcb 100644
---- a/include/linux/mmu_notifier.h
-+++ b/include/linux/mmu_notifier.h
-@@ -246,50 +246,6 @@ static inline void mmu_notifier_mm_destroy(struct mm_struct *mm)
- 		__mmu_notifier_mm_destroy(mm);
- }
- 
--/*
-- * These two macros will sometime replace ptep_clear_flush.
-- * ptep_clear_flush is implemented as macro itself, so this also is
-- * implemented as a macro until ptep_clear_flush will converted to an
-- * inline function, to diminish the risk of compilation failure. The
-- * invalidate_page method over time can be moved outside the PT lock
-- * and these two macros can be later removed.
-- */
--#define ptep_clear_flush_notify(__vma, __address, __ptep)		\
--({									\
--	pte_t __pte;							\
--	struct vm_area_struct *___vma = __vma;				\
--	unsigned long ___address = __address;				\
--	__pte = ptep_clear_flush(___vma, ___address, __ptep);		\
--	mmu_notifier_invalidate_page(___vma->vm_mm, ___address);	\
--	__pte;								\
--})
--
--#define pmdp_clear_flush_notify(__vma, __address, __pmdp)		\
--({									\
--	pmd_t __pmd;							\
--	struct vm_area_struct *___vma = __vma;				\
--	unsigned long ___address = __address;				\
--	VM_BUG_ON(__address & ~HPAGE_PMD_MASK);				\
--	mmu_notifier_invalidate_range_start(___vma->vm_mm, ___address,	\
--					    (__address)+HPAGE_PMD_SIZE);\
--	__pmd = pmdp_clear_flush(___vma, ___address, __pmdp);		\
--	mmu_notifier_invalidate_range_end(___vma->vm_mm, ___address,	\
--					  (__address)+HPAGE_PMD_SIZE);	\
--	__pmd;								\
--})
--
--#define pmdp_splitting_flush_notify(__vma, __address, __pmdp)		\
--({									\
--	struct vm_area_struct *___vma = __vma;				\
--	unsigned long ___address = __address;				\
--	VM_BUG_ON(__address & ~HPAGE_PMD_MASK);				\
--	mmu_notifier_invalidate_range_start(___vma->vm_mm, ___address,	\
--					    (__address)+HPAGE_PMD_SIZE);\
--	pmdp_splitting_flush(___vma, ___address, __pmdp);		\
--	mmu_notifier_invalidate_range_end(___vma->vm_mm, ___address,	\
--					  (__address)+HPAGE_PMD_SIZE);	\
--})
--
- #define ptep_clear_flush_young_notify(__vma, __address, __ptep)		\
- ({									\
- 	int __young;							\
-@@ -370,9 +326,6 @@ static inline void mmu_notifier_mm_destroy(struct mm_struct *mm)
- 
- #define ptep_clear_flush_young_notify ptep_clear_flush_young
- #define pmdp_clear_flush_young_notify pmdp_clear_flush_young
--#define ptep_clear_flush_notify ptep_clear_flush
--#define pmdp_clear_flush_notify pmdp_clear_flush
--#define pmdp_splitting_flush_notify pmdp_splitting_flush
- #define set_pte_at_notify set_pte_at
- 
- #endif /* CONFIG_MMU_NOTIFIER */
-diff --git a/mm/filemap_xip.c b/mm/filemap_xip.c
-index 13e013b..a002a6d 100644
---- a/mm/filemap_xip.c
-+++ b/mm/filemap_xip.c
-@@ -193,11 +193,13 @@ retry:
- 		if (pte) {
- 			/* Nuke the page table entry. */
- 			flush_cache_page(vma, address, pte_pfn(*pte));
--			pteval = ptep_clear_flush_notify(vma, address, pte);
-+			pteval = ptep_clear_flush(vma, address, pte);
- 			page_remove_rmap(page);
- 			dec_mm_counter(mm, MM_FILEPAGES);
- 			BUG_ON(pte_dirty(pteval));
- 			pte_unmap_unlock(pte, ptl);
-+			/* must invalidate_page _before_ freeing the page */
-+			mmu_notifier_invalidate_page(mm, address);
- 			page_cache_release(page);
- 		}
- 	}
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 57c4b93..5a5b9e4 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -868,12 +868,14 @@ static int do_huge_pmd_wp_page_fallback(struct mm_struct *mm,
- 		cond_resched();
- 	}
- 
-+	mmu_notifier_invalidate_range_start(mm, haddr, haddr + HPAGE_PMD_SIZE);
-+
- 	spin_lock(&mm->page_table_lock);
- 	if (unlikely(!pmd_same(*pmd, orig_pmd)))
- 		goto out_free_pages;
- 	VM_BUG_ON(!PageHead(page));
- 
--	pmdp_clear_flush_notify(vma, haddr, pmd);
-+	pmdp_clear_flush(vma, haddr, pmd);
- 	/* leave pmd empty until pte is filled */
- 
- 	pgtable = get_pmd_huge_pte(mm);
-@@ -896,6 +898,9 @@ static int do_huge_pmd_wp_page_fallback(struct mm_struct *mm,
- 	page_remove_rmap(page);
- 	spin_unlock(&mm->page_table_lock);
- 
-+	mmu_notifier_invalidate_range_end(vma->vm_mm, haddr,
-+					  haddr + HPAGE_PMD_SIZE);
-+
- 	ret |= VM_FAULT_WRITE;
- 	put_page(page);
- 
-@@ -904,6 +909,7 @@ out:
- 
- out_free_pages:
- 	spin_unlock(&mm->page_table_lock);
-+	mmu_notifier_invalidate_range_end(mm, haddr, haddr + HPAGE_PMD_SIZE);
- 	mem_cgroup_uncharge_start();
- 	for (i = 0; i < HPAGE_PMD_NR; i++) {
- 		mem_cgroup_uncharge_page(pages[i]);
-@@ -970,20 +976,22 @@ int do_huge_pmd_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 	copy_user_huge_page(new_page, page, haddr, vma, HPAGE_PMD_NR);
- 	__SetPageUptodate(new_page);
- 
-+	mmu_notifier_invalidate_range_start(mm, haddr, haddr + HPAGE_PMD_SIZE);
-+
- 	spin_lock(&mm->page_table_lock);
- 	put_page(page);
- 	if (unlikely(!pmd_same(*pmd, orig_pmd))) {
- 		spin_unlock(&mm->page_table_lock);
- 		mem_cgroup_uncharge_page(new_page);
- 		put_page(new_page);
--		goto out;
-+		goto out_mn;
- 	} else {
- 		pmd_t entry;
- 		VM_BUG_ON(!PageHead(page));
- 		entry = mk_pmd(new_page, vma->vm_page_prot);
- 		entry = maybe_pmd_mkwrite(pmd_mkdirty(entry), vma);
- 		entry = pmd_mkhuge(entry);
--		pmdp_clear_flush_notify(vma, haddr, pmd);
-+		pmdp_clear_flush(vma, haddr, pmd);
- 		page_add_new_anon_rmap(new_page, vma, haddr);
- 		set_pmd_at(mm, haddr, pmd, entry);
- 		update_mmu_cache(vma, address, entry);
-@@ -991,10 +999,14 @@ int do_huge_pmd_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 		put_page(page);
- 		ret |= VM_FAULT_WRITE;
- 	}
--out_unlock:
- 	spin_unlock(&mm->page_table_lock);
-+out_mn:
-+	mmu_notifier_invalidate_range_end(mm, haddr, haddr + HPAGE_PMD_SIZE);
- out:
- 	return ret;
-+out_unlock:
-+	spin_unlock(&mm->page_table_lock);
-+	return ret;
- }
- 
- struct page *follow_trans_huge_pmd(struct mm_struct *mm,
-@@ -1208,6 +1220,8 @@ static int __split_huge_page_splitting(struct page *page,
- 	pmd_t *pmd;
- 	int ret = 0;
- 
-+	mmu_notifier_invalidate_range_start(mm, address,
-+					    address + HPAGE_PMD_SIZE);
- 	spin_lock(&mm->page_table_lock);
- 	pmd = page_check_address_pmd(page, mm, address,
- 				     PAGE_CHECK_ADDRESS_PMD_NOTSPLITTING_FLAG);
-@@ -1219,10 +1233,12 @@ static int __split_huge_page_splitting(struct page *page,
- 		 * and it won't wait on the anon_vma->root->mutex to
- 		 * serialize against split_huge_page*.
- 		 */
--		pmdp_splitting_flush_notify(vma, address, pmd);
-+		pmdp_splitting_flush(vma, address, pmd);
- 		ret = 1;
- 	}
- 	spin_unlock(&mm->page_table_lock);
-+	mmu_notifier_invalidate_range_end(mm, address,
-+					  address + HPAGE_PMD_SIZE);
- 
- 	return ret;
- }
-@@ -1937,6 +1953,8 @@ static void collapse_huge_page(struct mm_struct *mm,
- 	pte = pte_offset_map(pmd, address);
- 	ptl = pte_lockptr(mm, pmd);
- 
-+	mmu_notifier_invalidate_range_start(mm, address,
-+					    address + HPAGE_PMD_SIZE);
- 	spin_lock(&mm->page_table_lock); /* probably unnecessary */
- 	/*
- 	 * After this gup_fast can't run anymore. This also removes
-@@ -1944,8 +1962,10 @@ static void collapse_huge_page(struct mm_struct *mm,
- 	 * huge and small TLB entries for the same virtual address
- 	 * to avoid the risk of CPU bugs in that area.
- 	 */
--	_pmd = pmdp_clear_flush_notify(vma, address, pmd);
-+	_pmd = pmdp_clear_flush(vma, address, pmd);
- 	spin_unlock(&mm->page_table_lock);
-+	mmu_notifier_invalidate_range_end(mm, address,
-+					  address + HPAGE_PMD_SIZE);
- 
- 	spin_lock(ptl);
- 	isolated = __collapse_huge_page_isolate(vma, address, pte);
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index bc72712..c569b97 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -2611,6 +2611,9 @@ retry_avoidcopy:
- 			    pages_per_huge_page(h));
- 	__SetPageUptodate(new_page);
- 
-+	mmu_notifier_invalidate_range_start(mm,
-+		address & huge_page_mask(h),
-+		(address & huge_page_mask(h)) + huge_page_size(h));
- 	/*
- 	 * Retake the page_table_lock to check for racing updates
- 	 * before the page tables are altered
-@@ -2619,9 +2622,6 @@ retry_avoidcopy:
- 	ptep = huge_pte_offset(mm, address & huge_page_mask(h));
- 	if (likely(pte_same(huge_ptep_get(ptep), pte))) {
- 		/* Break COW */
--		mmu_notifier_invalidate_range_start(mm,
--			address & huge_page_mask(h),
--			(address & huge_page_mask(h)) + huge_page_size(h));
- 		huge_ptep_clear_flush(vma, address, ptep);
- 		set_huge_pte_at(mm, address, ptep,
- 				make_huge_pte(vma, new_page, 1));
-@@ -2629,10 +2629,13 @@ retry_avoidcopy:
- 		hugepage_add_new_anon_rmap(new_page, vma, address);
- 		/* Make the old page be freed below */
- 		new_page = old_page;
--		mmu_notifier_invalidate_range_end(mm,
--			address & huge_page_mask(h),
--			(address & huge_page_mask(h)) + huge_page_size(h));
- 	}
-+	spin_unlock(&mm->page_table_lock);
-+	mmu_notifier_invalidate_range_end(mm,
-+		address & huge_page_mask(h),
-+		(address & huge_page_mask(h)) + huge_page_size(h));
-+	/* Caller expects lock to be held */
-+	spin_lock(&mm->page_table_lock);
- 	page_cache_release(new_page);
- 	page_cache_release(old_page);
- 	return 0;
-diff --git a/mm/memory.c b/mm/memory.c
-index 5736170..b657a2e 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -2516,7 +2516,7 @@ static int do_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 		spinlock_t *ptl, pte_t orig_pte)
- 	__releases(ptl)
- {
--	struct page *old_page, *new_page;
-+	struct page *old_page, *new_page = NULL;
- 	pte_t entry;
- 	int ret = 0;
- 	int page_mkwrite = 0;
-@@ -2760,10 +2760,14 @@ gotten:
- 	} else
- 		mem_cgroup_uncharge_page(new_page);
- 
--	if (new_page)
--		page_cache_release(new_page);
- unlock:
- 	pte_unmap_unlock(page_table, ptl);
-+	if (new_page) {
-+		if (new_page == old_page)
-+			/* cow happened, notify before releasing old_page */
-+			mmu_notifier_invalidate_page(mm, address);
-+		page_cache_release(new_page);
-+	}
- 	if (old_page) {
- 		/*
- 		 * Don't let another task, with possibly unlocked vma,
-diff --git a/mm/rmap.c b/mm/rmap.c
-index 0f3b7cd..f13e6cf 100644
---- a/mm/rmap.c
-+++ b/mm/rmap.c
-@@ -694,7 +694,7 @@ int page_referenced_one(struct page *page, struct vm_area_struct *vma,
- 			unsigned long *vm_flags)
- {
- 	struct mm_struct *mm = vma->vm_mm;
--	int referenced = 0;
-+	int referenced = 0, clear_flush_young = 0;
- 
- 	if (unlikely(PageTransHuge(page))) {
- 		pmd_t *pmd;
-@@ -741,7 +741,8 @@ int page_referenced_one(struct page *page, struct vm_area_struct *vma,
- 			goto out;
- 		}
- 
--		if (ptep_clear_flush_young_notify(vma, address, pte)) {
-+		clear_flush_young = 1;
-+		if (ptep_clear_flush_young(vma, address, pte)) {
- 			/*
- 			 * Don't treat a reference through a sequentially read
- 			 * mapping as such.  If the page has been used in
-@@ -757,6 +758,9 @@ int page_referenced_one(struct page *page, struct vm_area_struct *vma,
- 
- 	(*mapcount)--;
- 
-+	if (clear_flush_young)
-+		referenced += mmu_notifier_clear_flush_young(mm, address);
-+
- 	if (referenced)
- 		*vm_flags |= vma->vm_flags;
- out:
-@@ -929,7 +933,7 @@ static int page_mkclean_one(struct page *page, struct vm_area_struct *vma,
- 		pte_t entry;
- 
- 		flush_cache_page(vma, address, pte_pfn(*pte));
--		entry = ptep_clear_flush_notify(vma, address, pte);
-+		entry = ptep_clear_flush(vma, address, pte);
- 		entry = pte_wrprotect(entry);
- 		entry = pte_mkclean(entry);
- 		set_pte_at(mm, address, pte, entry);
-@@ -937,6 +941,9 @@ static int page_mkclean_one(struct page *page, struct vm_area_struct *vma,
- 	}
- 
- 	pte_unmap_unlock(pte, ptl);
-+
-+	if (ret)
-+		mmu_notifier_invalidate_page(mm, address);
- out:
- 	return ret;
- }
-@@ -1256,7 +1263,7 @@ int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
- 
- 	/* Nuke the page table entry. */
- 	flush_cache_page(vma, address, page_to_pfn(page));
--	pteval = ptep_clear_flush_notify(vma, address, pte);
-+	pteval = ptep_clear_flush(vma, address, pte);
- 
- 	/* Move the dirty bit to the physical page now the pte is gone. */
- 	if (pte_dirty(pteval))
-@@ -1318,6 +1325,8 @@ int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
- 
- out_unmap:
- 	pte_unmap_unlock(pte, ptl);
-+	if (ret != SWAP_FAIL)
-+		mmu_notifier_invalidate_page(mm, address);
- out:
- 	return ret;
- 
-@@ -1382,7 +1391,7 @@ static int try_to_unmap_cluster(unsigned long cursor, unsigned int *mapcount,
- 	spinlock_t *ptl;
- 	struct page *page;
- 	unsigned long address;
--	unsigned long end;
-+	unsigned long start, end;
- 	int ret = SWAP_AGAIN;
- 	int locked_vma = 0;
- 
-@@ -1405,6 +1414,9 @@ static int try_to_unmap_cluster(unsigned long cursor, unsigned int *mapcount,
- 	if (!pmd_present(*pmd))
- 		return ret;
- 
-+	start = address;
-+	mmu_notifier_invalidate_range_start(mm, start, end);
-+
- 	/*
- 	 * If we can acquire the mmap_sem for read, and vma is VM_LOCKED,
- 	 * keep the sem while scanning the cluster for mlocking pages.
-@@ -1433,12 +1445,12 @@ static int try_to_unmap_cluster(unsigned long cursor, unsigned int *mapcount,
- 			continue;	/* don't unmap */
- 		}
- 
--		if (ptep_clear_flush_young_notify(vma, address, pte))
-+		if (ptep_clear_flush_young(vma, address, pte))
- 			continue;
- 
- 		/* Nuke the page table entry. */
- 		flush_cache_page(vma, address, pte_pfn(*pte));
--		pteval = ptep_clear_flush_notify(vma, address, pte);
-+		pteval = ptep_clear_flush(vma, address, pte);
- 
- 		/* If nonlinear, store the file page offset in the pte. */
- 		if (page->index != linear_page_index(vma, address))
-@@ -1454,6 +1466,7 @@ static int try_to_unmap_cluster(unsigned long cursor, unsigned int *mapcount,
- 		(*mapcount)--;
- 	}
- 	pte_unmap_unlock(pte - 1, ptl);
-+	mmu_notifier_invalidate_range_end(mm, start, end);
- 	if (locked_vma)
- 		up_read(&vma->vm_mm->mmap_sem);
- 	return ret;
--- 
-1.7.11.2
+Thanks
+Wen Congyang
+
+>         /*
+>          * Check to see if allocation came from hot-plug-add
+>          */
+>         if (PageSlab(usemap_page)) {
+>                 kfree(usemap);
+>                 if (memmap)
+>                         __kfree_section_memmap(memmap, PAGES_PER_SECTION);
+>                 return;
+>         }
+> 
+> So introduce a transparent huge page and compound page safe macro as below
+> to check whether a page is managed by SLAB/SLUB/SLOB allocator.
+> 
+> #define page_managed_by_slab(page)     (!!PageSlab(compound_trans_head(page)))
+> 
+> Signed-off-by: Jiang Liu <liuj97@gmail.com>
+> ---
+>  arch/arm/mm/init.c             |    3 ++-
+>  arch/ia64/kernel/mca_drv.c     |    2 +-
+>  arch/unicore32/mm/init.c       |    3 ++-
+>  crypto/scatterwalk.c           |    2 +-
+>  drivers/ata/libata-sff.c       |    3 ++-
+>  drivers/block/drbd/drbd_main.c |    3 ++-
+>  fs/proc/page.c                 |    4 ++--
+>  include/linux/slab.h           |    7 +++++++
+>  mm/memory-failure.c            |    6 +++---
+>  mm/sparse.c                    |    4 +---
+>  10 files changed, 23 insertions(+), 14 deletions(-)
+> 
+> diff --git a/arch/arm/mm/init.c b/arch/arm/mm/init.c
+> index f54d592..73ff340 100644
+> --- a/arch/arm/mm/init.c
+> +++ b/arch/arm/mm/init.c
+> @@ -18,6 +18,7 @@
+>  #include <linux/initrd.h>
+>  #include <linux/of_fdt.h>
+>  #include <linux/highmem.h>
+> +#include <linux/huge_mm.h>
+>  #include <linux/gfp.h>
+>  #include <linux/memblock.h>
+>  #include <linux/dma-contiguous.h>
+> @@ -116,7 +117,7 @@ void show_mem(unsigned int filter)
+>  				reserved++;
+>  			else if (PageSwapCache(page))
+>  				cached++;
+> -			else if (PageSlab(page))
+> +			else if (page_managed_by_slab(page))
+>  				slab++;
+>  			else if (!page_count(page))
+>  				free++;
+> diff --git a/arch/ia64/kernel/mca_drv.c b/arch/ia64/kernel/mca_drv.c
+> index 1c2e894..4415bb6 100644
+> --- a/arch/ia64/kernel/mca_drv.c
+> +++ b/arch/ia64/kernel/mca_drv.c
+> @@ -136,7 +136,7 @@ mca_page_isolate(unsigned long paddr)
+>  		return ISOLATE_NG;
+>  
+>  	/* kick pages having attribute 'SLAB' or 'Reserved' */
+> -	if (PageSlab(p) || PageReserved(p))
+> +	if (page_managed_by_slab(p) || PageReserved(p))
+>  		return ISOLATE_NG;
+>  
+>  	/* add attribute 'Reserved' and register the page */
+> diff --git a/arch/unicore32/mm/init.c b/arch/unicore32/mm/init.c
+> index de186bd..829a0d9 100644
+> --- a/arch/unicore32/mm/init.c
+> +++ b/arch/unicore32/mm/init.c
+> @@ -21,6 +21,7 @@
+>  #include <linux/sort.h>
+>  #include <linux/dma-mapping.h>
+>  #include <linux/export.h>
+> +#include <linux/huge_mm.h>
+>  
+>  #include <asm/sections.h>
+>  #include <asm/setup.h>
+> @@ -83,7 +84,7 @@ void show_mem(unsigned int filter)
+>  				reserved++;
+>  			else if (PageSwapCache(page))
+>  				cached++;
+> -			else if (PageSlab(page))
+> +			else if (page_managed_by_slab(page))
+>  				slab++;
+>  			else if (!page_count(page))
+>  				free++;
+> diff --git a/crypto/scatterwalk.c b/crypto/scatterwalk.c
+> index 7281b8a..a20e019 100644
+> --- a/crypto/scatterwalk.c
+> +++ b/crypto/scatterwalk.c
+> @@ -54,7 +54,7 @@ static void scatterwalk_pagedone(struct scatter_walk *walk, int out,
+>  		struct page *page;
+>  
+>  		page = sg_page(walk->sg) + ((walk->offset - 1) >> PAGE_SHIFT);
+> -		if (!PageSlab(page))
+> +		if (!page_managed_by_slab(page))
+>  			flush_dcache_page(page);
+>  	}
+>  
+> diff --git a/drivers/ata/libata-sff.c b/drivers/ata/libata-sff.c
+> index d8af325..1ab8378 100644
+> --- a/drivers/ata/libata-sff.c
+> +++ b/drivers/ata/libata-sff.c
+> @@ -38,6 +38,7 @@
+>  #include <linux/module.h>
+>  #include <linux/libata.h>
+>  #include <linux/highmem.h>
+> +#include <linux/huge_mm.h>
+>  
+>  #include "libata.h"
+>  
+> @@ -734,7 +735,7 @@ static void ata_pio_sector(struct ata_queued_cmd *qc)
+>  				       do_write);
+>  	}
+>  
+> -	if (!do_write && !PageSlab(page))
+> +	if (!do_write && !page_managed_by_slab(page))
+>  		flush_dcache_page(page);
+>  
+>  	qc->curbytes += qc->sect_size;
+> diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
+> index 920ede2..de5b395 100644
+> --- a/drivers/block/drbd/drbd_main.c
+> +++ b/drivers/block/drbd/drbd_main.c
+> @@ -2734,7 +2734,8 @@ static int _drbd_send_page(struct drbd_conf *mdev, struct page *page,
+>  	 * put_page(); and would cause either a VM_BUG directly, or
+>  	 * __page_cache_release a page that would actually still be referenced
+>  	 * by someone, leading to some obscure delayed Oops somewhere else. */
+> -	if (disable_sendpage || (page_count(page) < 1) || PageSlab(page))
+> +	if (disable_sendpage || (page_count(page) < 1) ||
+> +	    page_managed_by_slab(page))
+>  		return _drbd_no_send_page(mdev, page, offset, size, msg_flags);
+>  
+>  	msg_flags |= MSG_NOSIGNAL;
+> diff --git a/fs/proc/page.c b/fs/proc/page.c
+> index 7fcd0d6..ae42dc7 100644
+> --- a/fs/proc/page.c
+> +++ b/fs/proc/page.c
+> @@ -40,7 +40,7 @@ static ssize_t kpagecount_read(struct file *file, char __user *buf,
+>  			ppage = pfn_to_page(pfn);
+>  		else
+>  			ppage = NULL;
+> -		if (!ppage || PageSlab(ppage))
+> +		if (!ppage || page_managed_by_slab(ppage))
+>  			pcount = 0;
+>  		else
+>  			pcount = page_mapcount(ppage);
+> @@ -98,7 +98,7 @@ u64 stable_page_flags(struct page *page)
+>  	 * Note that page->_mapcount is overloaded in SLOB/SLUB/SLQB, so the
+>  	 * simple test in page_mapped() is not enough.
+>  	 */
+> -	if (!PageSlab(page) && page_mapped(page))
+> +	if (!page_managed_by_slab(page) && page_mapped(page))
+>  		u |= 1 << KPF_MMAP;
+>  	if (PageAnon(page))
+>  		u |= 1 << KPF_ANON;
+> diff --git a/include/linux/slab.h b/include/linux/slab.h
+> index 67d5d94..bb26fab 100644
+> --- a/include/linux/slab.h
+> +++ b/include/linux/slab.h
+> @@ -364,4 +364,11 @@ static inline void *kzalloc_node(size_t size, gfp_t flags, int node)
+>  
+>  void __init kmem_cache_init_late(void);
+>  
+> +/*
+> + * Check whether a page is allocated/managed by SLAB/SLUB/SLOB allocator.
+> + * Defined as macro instead of function to avoid header file pollution.
+> + */
+> +#define page_managed_by_slab(page)	(!!PageSlab(compound_trans_head(page)))
+> +#define mem_managed_by_slab(addr)	page_managed_by_slab(virt_to_page(addr))
+> +
+>  #endif	/* _LINUX_SLAB_H */
+> diff --git a/mm/memory-failure.c b/mm/memory-failure.c
+> index ab1e714..684e7f7 100644
+> --- a/mm/memory-failure.c
+> +++ b/mm/memory-failure.c
+> @@ -88,7 +88,7 @@ static int hwpoison_filter_dev(struct page *p)
+>  	/*
+>  	 * page_mapping() does not accept slab pages.
+>  	 */
+> -	if (PageSlab(p))
+> +	if (page_managed_by_slab(p))
+>  		return -EINVAL;
+>  
+>  	mapping = page_mapping(p);
+> @@ -233,7 +233,7 @@ static int kill_proc(struct task_struct *t, unsigned long addr, int trapno,
+>   */
+>  void shake_page(struct page *p, int access)
+>  {
+> -	if (!PageSlab(p)) {
+> +	if (!page_managed_by_slab(p)) {
+>  		lru_add_drain_all();
+>  		if (PageLRU(p))
+>  			return;
+> @@ -862,7 +862,7 @@ static int hwpoison_user_mappings(struct page *p, unsigned long pfn,
+>  	struct page *hpage = compound_head(p);
+>  	struct page *ppage;
+>  
+> -	if (PageReserved(p) || PageSlab(p))
+> +	if (PageReserved(p) || page_managed_by_slab(p))
+>  		return SWAP_SUCCESS;
+>  
+>  	/*
+> diff --git a/mm/sparse.c b/mm/sparse.c
+> index 6a4bf91..32a908b 100644
+> --- a/mm/sparse.c
+> +++ b/mm/sparse.c
+> @@ -688,17 +688,15 @@ static void free_map_bootmem(struct page *page, unsigned long nr_pages)
+>  
+>  static void free_section_usemap(struct page *memmap, unsigned long *usemap)
+>  {
+> -	struct page *usemap_page;
+>  	unsigned long nr_pages;
+>  
+>  	if (!usemap)
+>  		return;
+>  
+> -	usemap_page = virt_to_page(usemap);
+>  	/*
+>  	 * Check to see if allocation came from hot-plug-add
+>  	 */
+> -	if (PageSlab(usemap_page)) {
+> +	if (mem_managed_by_slab(usemap)) {
+>  		kfree(usemap);
+>  		if (memmap)
+>  			__kfree_section_memmap(memmap, PAGES_PER_SECTION);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
