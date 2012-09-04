@@ -1,88 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
-	by kanga.kvack.org (Postfix) with SMTP id 171C06B006C
-	for <linux-mm@kvack.org>; Tue,  4 Sep 2012 10:21:59 -0400 (EDT)
-From: Glauber Costa <glommer@parallels.com>
-Subject: [RFC 4/5] cpuacct: do not gather cpuacct statistics when not mounted
-Date: Tue,  4 Sep 2012 18:18:19 +0400
-Message-Id: <1346768300-10282-5-git-send-email-glommer@parallels.com>
-In-Reply-To: <1346768300-10282-1-git-send-email-glommer@parallels.com>
-References: <1346768300-10282-1-git-send-email-glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
+	by kanga.kvack.org (Postfix) with SMTP id 3DF846B0062
+	for <linux-mm@kvack.org>; Tue,  4 Sep 2012 10:27:52 -0400 (EDT)
+Date: Tue, 4 Sep 2012 16:27:45 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH 2/7] mm: fix potential anon_vma locking issue in
+ mprotect()
+Message-ID: <20120904142745.GE3334@redhat.com>
+References: <1346750457-12385-1-git-send-email-walken@google.com>
+ <1346750457-12385-3-git-send-email-walken@google.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1346750457-12385-3-git-send-email-walken@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, davej@redhat.com, ben@decadent.org.uk, a.p.zijlstra@chello.nl, pjt@google.com, lennart@poettering.net, kay.sievers@vrfy.org, tj@kernel.org, Glauber Costa <glommer@parallels.com>
+To: Michel Lespinasse <walken@google.com>
+Cc: linux-mm@kvack.org, riel@redhat.com, peterz@infradead.org, hughd@google.com, daniel.santos@pobox.com, linux-kernel@vger.kernel.org, akpm@linux-foundation.org
 
-Currently, the only test that prevents us from running the expensive
-cpuacct_charge() is cpuacct_subsys.active == true. This will hold at all
-times after the subsystem is activated, even if it is not mounted.
+Hi Michel,
 
-IOW, use it or not, you pay it. By hooking with the bind() callback, we
-can detect when cpuacct is mounted or umounted, and stop collecting
-statistics when this cgroup is not in use.
+On Tue, Sep 04, 2012 at 02:20:52AM -0700, Michel Lespinasse wrote:
+> This change fixes an anon_vma locking issue in the following situation:
+> - vma has no anon_vma
+> - next has an anon_vma
+> - vma is being shrunk / next is being expanded, due to an mprotect call
+> 
+> We need to take next's anon_vma lock to avoid races with rmap users
+> (such as page migration) while next is being expanded.
+> 
+> This change also removes an optimization which avoided taking anon_vma
+> lock during brk adjustments. We could probably make that optimization
+> work again, but the following anon rmap change would break it,
+> so I kept things as simple as possible here.
 
-Signed-off-by: Glauber Costa <glommer@parallels.com>
-CC: Dave Jones <davej@redhat.com>
-CC: Ben Hutchings <ben@decadent.org.uk>
-CC: Peter Zijlstra <a.p.zijlstra@chello.nl>
-CC: Paul Turner <pjt@google.com>
-CC: Lennart Poettering <lennart@poettering.net>
-CC: Kay Sievers <kay.sievers@vrfy.org>
-CC: Tejun Heo <tj@kernel.org>
----
- kernel/sched/core.c  | 8 ++++++++
- kernel/sched/sched.h | 3 +++
- 2 files changed, 11 insertions(+)
+Agreed, definitely a bug not to take the lock whenever any
+vm_start/vm_pgoff are moved, regardless if they're the next or current
+vma. Only vm_end can be moved without taking the lock.
 
-diff --git a/kernel/sched/core.c b/kernel/sched/core.c
-index e46871d..d654bd1 100644
---- a/kernel/sched/core.c
-+++ b/kernel/sched/core.c
-@@ -8595,6 +8595,13 @@ static struct cftype files[] = {
- 	{ }	/* terminate */
- };
- 
-+bool cpuacct_mounted;
-+
-+void cpuacct_bind(struct cgroup *root)
-+{
-+	cpuacct_mounted = root->root == root_cpuacct.css.cgroup->root;
-+}
-+
- /*
-  * charge this task's execution time to its accounting group.
-  *
-@@ -8628,6 +8635,7 @@ struct cgroup_subsys cpuacct_subsys = {
- 	.destroy = cpuacct_destroy,
- 	.subsys_id = cpuacct_subsys_id,
- 	.base_cftypes = files,
-+	.bind = cpuacct_bind,
- #ifdef CONFIG_CGROUP_FORCE_COMOUNT_CPU
- 	.comounts = 1,
- 	.must_comount = { cpu_cgroup_subsys_id, },
-diff --git a/kernel/sched/sched.h b/kernel/sched/sched.h
-index 1da9fa8..d33f777 100644
---- a/kernel/sched/sched.h
-+++ b/kernel/sched/sched.h
-@@ -887,6 +887,7 @@ extern void update_idle_cpu_load(struct rq *this_rq);
- #include <linux/cgroup.h>
- 
- extern bool cpuacct_from_cpu;
-+extern bool cpuacct_mounted;
- 
- /* track cpu usage of a group of tasks and its child groups */
- struct cpuacct {
-@@ -921,6 +922,8 @@ extern void __cpuacct_charge(struct task_struct *tsk, u64 cputime);
- 
- static inline void cpuacct_charge(struct task_struct *tsk, u64 cputime)
- {
-+	if (unlikely(!cpuacct_mounted))
-+		return;
- #ifdef CONFIG_CGROUP_FORCE_COMOUNT_CPU
- 	if (likely(!cpuacct_from_cpu))
- 		return;
--- 
-1.7.11.4
+I'd prefer to fix it like this though:
+
+-	if (vma->anon_vma && (importer || start != vma->vm_start)) {
++	if ((vma->anon_vma && (importer || start != vma->vm_start) ||
++           (adjust_next && next->anon_vma)) {
+
+The strict fix is just to check also if we're moving next->vm_start or
+not, and the lock is only needed if next->anon_vma is set (otherwise
+there's no page yet set in the vma and we hold the mmap_sem in write
+mode clearly that prevents new pages to be instantiated under us).
+
+Plus we know if adjust_next is set, next is not null, so the above
+should work. The already existing (optimized) check for the "vma"
+should have been ok, so no need to de-optimize it.
+
+Then it's still fine to retain the VM_BUG_ON in the branch where
+anon_vma was not null.
+
+Thanks!
+Andrea
+
+> 
+> Signed-off-by: Michel Lespinasse <walken@google.com>
+> ---
+>  mm/mmap.c |   14 ++++++--------
+>  1 files changed, 6 insertions(+), 8 deletions(-)
+> 
+> diff --git a/mm/mmap.c b/mm/mmap.c
+> index cebc346ba0db..5e64c7dfc090 100644
+> --- a/mm/mmap.c
+> +++ b/mm/mmap.c
+> @@ -570,14 +570,12 @@ again:			remove_next = 1 + (end > next->vm_end);
+>  
+>  	vma_adjust_trans_huge(vma, start, end, adjust_next);
+>  
+> -	/*
+> -	 * When changing only vma->vm_end, we don't really need anon_vma
+> -	 * lock. This is a fairly rare case by itself, but the anon_vma
+> -	 * lock may be shared between many sibling processes.  Skipping
+> -	 * the lock for brk adjustments makes a difference sometimes.
+> -	 */
+> -	if (vma->anon_vma && (importer || start != vma->vm_start)) {
+> -		anon_vma = vma->anon_vma;
+> +	anon_vma = vma->anon_vma;
+> +	if (!anon_vma && adjust_next)
+> +		anon_vma = next->anon_vma;
+> +	if (anon_vma) {
+> +		VM_BUG_ON(adjust_next && next->anon_vma &&
+> +			  anon_vma != next->anon_vma);
+>  		anon_vma_lock(anon_vma);
+>  	}
+>  
+> -- 
+> 1.7.7.3
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
