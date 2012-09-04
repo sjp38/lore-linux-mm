@@ -1,43 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx202.postini.com [74.125.245.202])
-	by kanga.kvack.org (Postfix) with SMTP id 6888A6B0068
-	for <linux-mm@kvack.org>; Tue,  4 Sep 2012 06:01:21 -0400 (EDT)
-Received: by iagk10 with SMTP id k10so11016607iag.14
-        for <linux-mm@kvack.org>; Tue, 04 Sep 2012 03:01:20 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <CAHve1mzGvzrvu+QTgUg0FAFOuQrhcY12H3LfMjCHJKBUrK0OhA@mail.gmail.com>
-References: <1346750545-2094-1-git-send-email-luisgf@gmail.com>
-	<CALF0-+WgGPT=x93a3p1TKL8w_kNhXPACXMWrPGF2tmBnnQKCWw@mail.gmail.com>
-	<CAHve1mzGvzrvu+QTgUg0FAFOuQrhcY12H3LfMjCHJKBUrK0OhA@mail.gmail.com>
-Date: Tue, 4 Sep 2012 07:01:20 -0300
-Message-ID: <CALF0-+XNXNWm7qQ3vZRrN1cd89hCowDiJgTn7Ty80FBRsqB=4g@mail.gmail.com>
-Subject: Re: [PATCH 1/1] mm: Fix unused function warnings in vmstat.c
+Received: from psmtp.com (na3sys010amx165.postini.com [74.125.245.165])
+	by kanga.kvack.org (Postfix) with SMTP id 534A66B006C
+	for <linux-mm@kvack.org>; Tue,  4 Sep 2012 06:14:13 -0400 (EDT)
+Received: by ghrr18 with SMTP id r18so1218749ghr.14
+        for <linux-mm@kvack.org>; Tue, 04 Sep 2012 03:14:12 -0700 (PDT)
 From: Ezequiel Garcia <elezegarcia@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: [PATCH v2] mm, slob: Drop usage of page->private for storing page-sized allocations
+Date: Tue,  4 Sep 2012 07:13:57 -0300
+Message-Id: <1346753637-13389-1-git-send-email-elezegarcia@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Luis G.F" <luisgf@gmail.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org
+To: linux-mm@kvack.org
+Cc: Ezequiel Garcia <elezegarcia@gmail.com>, Pekka Enberg <penberg@kernel.org>, Christoph Lameter <cl@linux.com>, Glauber Costa <glommer@parallels.com>
 
-Hi Luis,
+This field was being used to store size allocation so it could be
+retrieved by ksize(). However, it is a bad practice to not mark a page
+as a slab page and then use fields for special purposes.
+There is no need to store the allocated size and
+ksize() can simply return PAGE_SIZE << compound_order(page).
 
-On Tue, Sep 4, 2012 at 6:51 AM, Luis G.F <luisgf@gmail.com> wrote:
-> Hi Ezequiel:
->
-> I'm using GCC 4.6.3
->
+Cc: Pekka Enberg <penberg@kernel.org>
+Cc: Christoph Lameter <cl@linux.com>
+Cc: Glauber Costa <glommer@parallels.com>
+Signed-off-by: Ezequiel Garcia <elezegarcia@gmail.com>
+---
+Changes from v1:
+ * Rebased on top of slab/next
 
-Please, avoid top posting as it makes very difficult to follow the discussion
-(and people around here hate it).
+ mm/slob.c |   24 ++++++++++--------------
+ 1 files changed, 10 insertions(+), 14 deletions(-)
 
-Also, in the future when fixing warnings you may want to add the warning message
-to the commit message.
-
-Anyway, I don't really know why are you getting that (wrong) warning,
-but I don't think the solution is to add the 'unused' attribute.
-
-Hope this helps,
-Ezequiel.
+diff --git a/mm/slob.c b/mm/slob.c
+index 45d4ca7..ae46edc 100644
+--- a/mm/slob.c
++++ b/mm/slob.c
+@@ -28,9 +28,8 @@
+  * from kmalloc are prepended with a 4-byte header with the kmalloc size.
+  * If kmalloc is asked for objects of PAGE_SIZE or larger, it calls
+  * alloc_pages() directly, allocating compound pages so the page order
+- * does not have to be separately tracked, and also stores the exact
+- * allocation size in page->private so that it can be used to accurately
+- * provide ksize(). These objects are detected in kfree() because slob_page()
++ * does not have to be separately tracked.
++ * These objects are detected in kfree() because PageSlab()
+  * is false for them.
+  *
+  * SLAB is emulated on top of SLOB by simply calling constructors and
+@@ -454,11 +453,6 @@ void *__kmalloc_node(size_t size, gfp_t gfp, int node)
+ 		if (likely(order))
+ 			gfp |= __GFP_COMP;
+ 		ret = slob_new_pages(gfp, order, node);
+-		if (ret) {
+-			struct page *page;
+-			page = virt_to_page(ret);
+-			page->private = size;
+-		}
+ 
+ 		trace_kmalloc_node(_RET_IP_, ret,
+ 				   size, PAGE_SIZE << order, gfp, node);
+@@ -493,18 +487,20 @@ EXPORT_SYMBOL(kfree);
+ size_t ksize(const void *block)
+ {
+ 	struct page *sp;
++	int align;
++	unsigned int *m;
+ 
+ 	BUG_ON(!block);
+ 	if (unlikely(block == ZERO_SIZE_PTR))
+ 		return 0;
+ 
+ 	sp = virt_to_page(block);
+-	if (PageSlab(sp)) {
+-		int align = max(ARCH_KMALLOC_MINALIGN, ARCH_SLAB_MINALIGN);
+-		unsigned int *m = (unsigned int *)(block - align);
+-		return SLOB_UNITS(*m) * SLOB_UNIT;
+-	} else
+-		return sp->private;
++	if (unlikely(!PageSlab(sp)))
++		return PAGE_SIZE << compound_order(sp);
++
++	align = max(ARCH_KMALLOC_MINALIGN, ARCH_SLAB_MINALIGN);
++	m = (unsigned int *)(block - align);
++	return SLOB_UNITS(*m) * SLOB_UNIT;
+ }
+ EXPORT_SYMBOL(ksize);
+ 
+-- 
+1.7.8.6
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
