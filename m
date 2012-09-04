@@ -1,50 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
-	by kanga.kvack.org (Postfix) with SMTP id 4A5376B0068
-	for <linux-mm@kvack.org>; Tue,  4 Sep 2012 17:51:38 -0400 (EDT)
-Message-ID: <504677C8.3050801@redhat.com>
-Date: Tue, 04 Sep 2012 22:51:04 +0100
-From: Pedro Alves <palves@redhat.com>
+Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
+	by kanga.kvack.org (Postfix) with SMTP id 1B2546B0068
+	for <linux-mm@kvack.org>; Tue,  4 Sep 2012 17:53:52 -0400 (EDT)
+Received: by pbbro12 with SMTP id ro12so10830533pbb.14
+        for <linux-mm@kvack.org>; Tue, 04 Sep 2012 14:53:51 -0700 (PDT)
+Date: Tue, 4 Sep 2012 14:53:47 -0700
+From: Michel Lespinasse <walken@google.com>
+Subject: Re: [PATCH 2/7] mm: fix potential anon_vma locking issue in
+ mprotect()
+Message-ID: <20120904215347.GA6769@google.com>
+References: <1346750457-12385-1-git-send-email-walken@google.com>
+ <1346750457-12385-3-git-send-email-walken@google.com>
+ <20120904142745.GE3334@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v3 01/17] hashtable: introduce a small and naive hashtable
-References: <20120824203332.GF21325@google.com> <5037E9D9.9000605@gmail.com>    <20120824212348.GK21325@google.com> <5038074D.300@gmail.com>    <20120824230740.GN21325@google.com> <20120825042419.GA27240@Krystal>    <503C95E4.3010000@gmail.com> <20120828101148.GA21683@Krystal>    <503CAB1E.5010408@gmail.com> <20120828115638.GC23818@Krystal>    <20120828230050.GA3337@Krystal>   <1346772948.27919.9.camel@gandalf.local.home>  <50462C99.5000007@redhat.com>  <50462EE8.1090903@redhat.com>  <1346779027.27919.15.camel@gandalf.local.home>  <50463883.8080706@redhat.com> <1346792345.27919.18.camel@gandalf.local.home>
-In-Reply-To: <1346792345.27919.18.camel@gandalf.local.home>
-Content-Type: text/plain; charset=ISO-8859-15
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120904142745.GE3334@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Steven Rostedt <rostedt@goodmis.org>
-Cc: Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Sasha Levin <levinsasha928@gmail.com>, Tejun Heo <tj@kernel.org>, torvalds@linux-foundation.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, paul.gortmaker@windriver.com, davem@davemloft.net, mingo@elte.hu, ebiederm@xmission.com, aarcange@redhat.com, ericvh@gmail.com, netdev@vger.kernel.org, josh@joshtriplett.org, eric.dumazet@gmail.com, axboe@kernel.dk, agk@redhat.com, dm-devel@redhat.com, neilb@suse.de, ccaulfie@redhat.com, teigland@redhat.com, Trond.Myklebust@netapp.com, bfields@fieldses.org, fweisbec@gmail.com, jesse@nicira.com, venkat.x.venkatsubra@oracle.com, ejt@redhat.com, snitzer@redhat.com, edumazet@google.com, linux-nfs@vger.kernel.org, dev@openvswitch.org, rds-devel@oss.oracle.com, lw@cn.fujitsu.com
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: linux-mm@kvack.org, riel@redhat.com, peterz@infradead.org, hughd@google.com, daniel.santos@pobox.com, linux-kernel@vger.kernel.org, akpm@linux-foundation.org
 
-On 09/04/2012 09:59 PM, Steven Rostedt wrote:
-> On Tue, 2012-09-04 at 18:21 +0100, Pedro Alves wrote:
->> On 09/04/2012 06:17 PM, Steven Rostedt wrote:
->>> On Tue, 2012-09-04 at 17:40 +0100, Pedro Alves wrote:
->>>
->>>> BTW, you can also go a step further and remove the need to close with double }},
->>>> with something like:
->>>>
->>>> #define do_for_each_ftrace_rec(pg, rec)                                          \
->>>>         for (pg = ftrace_pages_start, rec = &pg->records[pg->index];             \
->>>>              pg && rec == &pg->records[pg->index];                               \
->>>>              pg = pg->next)                                                      \
->>>>           for (rec = pg->records; rec < &pg->records[pg->index]; rec++)
->>>>
->>>
->>> Yeah, but why bother? It's hidden in a macro, and the extra '{ }' shows
->>> that this is something "special".
->>
->> The point of both changes is that there's nothing special in the end
->> at all.  It all just works...
->>
+On Tue, Sep 04, 2012 at 04:27:45PM +0200, Andrea Arcangeli wrote:
+> Hi Michel,
 > 
-> It would still fail on a 'break'. The 'while' macro tells us that it is
-> special, because in the end, it wont work.
+> On Tue, Sep 04, 2012 at 02:20:52AM -0700, Michel Lespinasse wrote:
+> > This change fixes an anon_vma locking issue in the following situation:
+> > - vma has no anon_vma
+> > - next has an anon_vma
+> > - vma is being shrunk / next is being expanded, due to an mprotect call
+> > 
+> > We need to take next's anon_vma lock to avoid races with rmap users
+> > (such as page migration) while next is being expanded.
+> > 
+> > This change also removes an optimization which avoided taking anon_vma
+> > lock during brk adjustments. We could probably make that optimization
+> > work again, but the following anon rmap change would break it,
+> > so I kept things as simple as possible here.
+> 
+> Agreed, definitely a bug not to take the lock whenever any
+> vm_start/vm_pgoff are moved, regardless if they're the next or current
+> vma. Only vm_end can be moved without taking the lock.
+> 
+> I'd prefer to fix it like this though:
+> 
+> -	if (vma->anon_vma && (importer || start != vma->vm_start)) {
+> +	if ((vma->anon_vma && (importer || start != vma->vm_start) ||
+> +           (adjust_next && next->anon_vma)) {
 
-Please explain why it would fail on a 'break'.
+I think the minimal fix would actually be:
+
+ 	if (vma->anon_vma && (importer || start != vma->vm_start)) {
+ 		anon_vma = vma->anon_vma;
++	else if (next->anon_vma && adjust_next)
++		anon_vma = next->anon_vma;
+
+I suppose if we were to consider adding this fix to the stable series,
+we should probably do it in such a minimal way. I hadn't actually
+considered it, because I was only thinking about this patch series,
+and at patch 4/7 it becomes necessary to lock the anon_vma even if
+only the vm_end side gets modified (so we'd still end up with what I
+proposed in the end)
 
 -- 
-Pedro Alves
+Michel "Walken" Lespinasse
+A program is never fully debugged until the last user dies.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
