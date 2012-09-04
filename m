@@ -1,57 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
-	by kanga.kvack.org (Postfix) with SMTP id 431326B005D
-	for <linux-mm@kvack.org>; Tue,  4 Sep 2012 16:59:09 -0400 (EDT)
-Message-ID: <1346792345.27919.18.camel@gandalf.local.home>
-Subject: Re: [PATCH v3 01/17] hashtable: introduce a small and naive
- hashtable
-From: Steven Rostedt <rostedt@goodmis.org>
-Date: Tue, 04 Sep 2012 16:59:05 -0400
-In-Reply-To: <50463883.8080706@redhat.com>
-References: <20120824203332.GF21325@google.com> <5037E9D9.9000605@gmail.com>
-	   <20120824212348.GK21325@google.com> <5038074D.300@gmail.com>
-	   <20120824230740.GN21325@google.com> <20120825042419.GA27240@Krystal>
-	   <503C95E4.3010000@gmail.com> <20120828101148.GA21683@Krystal>
-	   <503CAB1E.5010408@gmail.com> <20120828115638.GC23818@Krystal>
-	   <20120828230050.GA3337@Krystal>
-	  <1346772948.27919.9.camel@gandalf.local.home>
-	 <50462C99.5000007@redhat.com>  <50462EE8.1090903@redhat.com>
-	 <1346779027.27919.15.camel@gandalf.local.home>
-	 <50463883.8080706@redhat.com>
-Content-Type: text/plain; charset="ISO-8859-15"
+Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
+	by kanga.kvack.org (Postfix) with SMTP id A34206B0069
+	for <linux-mm@kvack.org>; Tue,  4 Sep 2012 16:59:25 -0400 (EDT)
+Date: Tue, 4 Sep 2012 13:59:24 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm: fix mmap overflow checking
+Message-Id: <20120904135924.b61e04e0.akpm@linux-foundation.org>
+In-Reply-To: <1346750580-11352-1-git-send-email-gaowanlong@cn.fujitsu.com>
+References: <1346750580-11352-1-git-send-email-gaowanlong@cn.fujitsu.com>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pedro Alves <palves@redhat.com>
-Cc: Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Sasha Levin <levinsasha928@gmail.com>, Tejun Heo <tj@kernel.org>, torvalds@linux-foundation.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, paul.gortmaker@windriver.com, davem@davemloft.net, mingo@elte.hu, ebiederm@xmission.com, aarcange@redhat.com, ericvh@gmail.com, netdev@vger.kernel.org, josh@joshtriplett.org, eric.dumazet@gmail.com, axboe@kernel.dk, agk@redhat.com, dm-devel@redhat.com, neilb@suse.de, ccaulfie@redhat.com, teigland@redhat.com, Trond.Myklebust@netapp.com, bfields@fieldses.org, fweisbec@gmail.com, jesse@nicira.com, venkat.x.venkatsubra@oracle.com, ejt@redhat.com, snitzer@redhat.com, edumazet@google.com, linux-nfs@vger.kernel.org, dev@openvswitch.org, rds-devel@oss.oracle.com, lw@cn.fujitsu.com
+To: Wanlong Gao <gaowanlong@cn.fujitsu.com>
+Cc: linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "open list:MEMORY
+ MANAGEMENT" <linux-mm@kvack.org>
 
-On Tue, 2012-09-04 at 18:21 +0100, Pedro Alves wrote:
-> On 09/04/2012 06:17 PM, Steven Rostedt wrote:
-> > On Tue, 2012-09-04 at 17:40 +0100, Pedro Alves wrote:
-> > 
-> >> BTW, you can also go a step further and remove the need to close with double }},
-> >> with something like:
-> >>
-> >> #define do_for_each_ftrace_rec(pg, rec)                                          \
-> >>         for (pg = ftrace_pages_start, rec = &pg->records[pg->index];             \
-> >>              pg && rec == &pg->records[pg->index];                               \
-> >>              pg = pg->next)                                                      \
-> >>           for (rec = pg->records; rec < &pg->records[pg->index]; rec++)
-> >>
-> > 
-> > Yeah, but why bother? It's hidden in a macro, and the extra '{ }' shows
-> > that this is something "special".
-> 
-> The point of both changes is that there's nothing special in the end
-> at all.  It all just works...
-> 
+On Tue, 4 Sep 2012 17:23:00 +0800
+Wanlong Gao <gaowanlong@cn.fujitsu.com> wrote:
 
-It would still fail on a 'break'. The 'while' macro tells us that it is
-special, because in the end, it wont work.
+> POSIX said that if the file is a regular file and the value of "off"
+> plus "len" exceeds the offset maximum established in the open file
+> description associated with fildes, mmap should return EOVERFLOW.
 
--- Steve
+That's what POSIX says, but what does Linux do?  It is important that
+we precisely describe and understand the behaviour change, as there is
+potential here to break existing applications.
 
+I'm assuming that Linux presently permits the mmap() and then generates
+SIGBUS if an access is attempted beyond the max file size?
+
+> 	/* offset overflow? */
+> -	if ((pgoff + (len >> PAGE_SHIFT)) < pgoff)
+> -               return -EOVERFLOW;
+> +	if (off + len < off)
+> +		return -EOVERFLOW;
+
+Well, this treats sizeof(off_t) as the "offset maximum established in
+the open file".  But from my reading of the above excerpt, we should in
+fact be checking against the underlying fs's s_maxbytes?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
