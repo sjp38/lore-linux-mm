@@ -1,59 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
-	by kanga.kvack.org (Postfix) with SMTP id 72F246B0062
-	for <linux-mm@kvack.org>; Tue,  4 Sep 2012 17:41:00 -0400 (EDT)
-Received: by pbbro12 with SMTP id ro12so10816239pbb.14
-        for <linux-mm@kvack.org>; Tue, 04 Sep 2012 14:40:59 -0700 (PDT)
-Date: Tue, 4 Sep 2012 14:38:27 -0700
-From: Greg KH <gregkh@linuxfoundation.org>
-Subject: Re: [PATCH 0/3] staging: ramster: move to new zcache2 code base
-Message-ID: <20120904213827.GA12394@kroah.com>
-References: <1346366764-31717-1-git-send-email-dan.magenheimer@oracle.com>
- <20120831000020.GA14628@localhost.localdomain>
+Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
+	by kanga.kvack.org (Postfix) with SMTP id C793D6B0068
+	for <linux-mm@kvack.org>; Tue,  4 Sep 2012 17:46:07 -0400 (EDT)
+Received: by dadi14 with SMTP id i14so4994209dad.14
+        for <linux-mm@kvack.org>; Tue, 04 Sep 2012 14:46:07 -0700 (PDT)
+Date: Tue, 4 Sep 2012 14:46:02 -0700
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [RFC 0/5] forced comounts for cgroups.
+Message-ID: <20120904214602.GA9092@dhcp-172-17-108-109.mtv.corp.google.com>
+References: <1346768300-10282-1-git-send-email-glommer@parallels.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20120831000020.GA14628@localhost.localdomain>
+In-Reply-To: <1346768300-10282-1-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-Cc: Dan Magenheimer <dan.magenheimer@oracle.com>, sjenning@linux.vnet.ibm.com, minchan@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, devel@linuxdriverproject.org, ngupta@vflare.org
+To: Glauber Costa <glommer@parallels.com>
+Cc: linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org, davej@redhat.com, ben@decadent.org.uk, a.p.zijlstra@chello.nl, pjt@google.com, lennart@poettering.net, kay.sievers@vrfy.org
 
-On Thu, Aug 30, 2012 at 08:00:20PM -0400, Konrad Rzeszutek Wilk wrote:
-> On Thu, Aug 30, 2012 at 03:46:01PM -0700, Dan Magenheimer wrote:
-> > Hi Greg --
-> > 
-> > gregkh> If you feel that the existing code needs to be dropped
-> > gregkh> and replaced with a totally new version, that's fine with
-> > gregkh> me.  It's forward progress, which is all that I ask for. 
-> > (http://lkml.indiana.edu/hypermail/linux/kernel/1208.0/02240.html,
-> > in reference to zcache, assuming applies to ramster as well)
-> > 
-> > Please apply for staging-next for the 3.7 window to move ramster forward.
-> > Since AFAICT there have been no patches or contributions from others to
-> > drivers/staging/ramster since it was merged, this totally new version
-> > of ramster should not run afoul and the patches should apply to
-> > 3.5 or 3.6-rcN.
-> > 
-> > Thanks,
-> > Dan
-> > 
-> > When ramster was merged into staging at 3.4, it used a "temporarily" forked
-> > version of zcache.  Code was proposed to merge zcache and ramster into
-> > a new common redesigned codebase which both resolves various serious design
-> > flaws and eliminates all code duplication between zcache and ramster, with
-> > the result to replace "zcache".  Sadly, that proposal was blocked, so the
-> > zcache (and tmem) code in drivers/staging/zcache and the zcache (and tmem)
-> > code in drivers/staging/ramster continue to be different.
+Hello, Glauber.
+
+On Tue, Sep 04, 2012 at 06:18:15PM +0400, Glauber Costa wrote:
+> As we have been extensively discussing, the cost and pain points for cgroups
+> come from many places. But at least one of those is the arbitrary nature of
+> hierarchies. Many people, including at least Tejun and me would like this to go
+> away altogether. Problem so far, is breaking compatiblity with existing setups
 > 
-> Right. They will diverge for now.
+> I am proposing here a default-n Kconfig option that will guarantee that the cpu
+> cgroups (for now) will be comounted. I started with them because the
+> cpu/cpuacct division is clearly the worst offender. Also, the default-n is here
+> so distributions will have time to adapt: Forcing this flag to be on without
+> userspace changes will just lead to cgroups failing to mount, which we don't
+> want.
+> 
+> Although I've tested it and it works, I haven't compile-tested all possible
+> config combinations. So this is mostly for your eyes. If this gets traction,
+> I'll submit it properly, along with any changes that you might require.
 
-Konrad, can I get your Acked-by: for this series?  I need that before I
-can apply it.
+As I said during the discussion, I'm skeptical about how useful this
+is.  This can't nudge existing users in any meaningfully gradual way.
+Kconfig doesn't make it any better.  It's still an abrupt behavior
+change when seen from userland.
 
-thanks,
+Also, I really don't see much point in enforcing this almost arbitrary
+grouping of controllers.  It doesn't simplify anything and using
+cpuacct in more granular way than cpu actually is one of the better
+justified use of multiple hierarchies.  Also, what about memcg and
+blkcg?  Do they *really* coincide?  Note that both blkcg and memcg
+involve non-trivial overhead and blkcg is essentially broken
+hierarchy-wise.
 
-greg k-h
+Currently, from userland visible behavior POV, the crazy parts are
+
+1. The flat hierarchy thing.  This just should go away.
+
+2. Orthogonal multiple hierarchies.
+
+I think we agree that #1 should go away one way or the other.  I
+*really* wanna get rid of #2 but am not sure how.  I'll give it
+another stab once the writeback thing is resolved.
+
+Thanks.
+
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
