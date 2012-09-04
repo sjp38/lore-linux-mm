@@ -1,50 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
-	by kanga.kvack.org (Postfix) with SMTP id 920D46B006E
-	for <linux-mm@kvack.org>; Tue,  4 Sep 2012 18:59:00 -0400 (EDT)
-Date: Tue, 4 Sep 2012 22:58:59 +0000
+Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
+	by kanga.kvack.org (Postfix) with SMTP id 1FDFB6B0072
+	for <linux-mm@kvack.org>; Tue,  4 Sep 2012 19:06:16 -0400 (EDT)
+Message-Id: <000001399388b912-0f946031-9abd-4b99-8380-e6dd4d88341d-000000@email.amazonses.com>
+Date: Tue, 4 Sep 2012 23:06:14 +0000
 From: Christoph Lameter <cl@linux.com>
-Subject: Re: C13 [05/14] Extract a common function for kmem_cache_destroy
-In-Reply-To: <5044CC24.7000800@parallels.com>
-Message-ID: <00000139938213ef-f5749497-9038-4275-9aaa-bb6b08f54dec-000000@email.amazonses.com>
-References: <20120824160903.168122683@linux.com> <000001395965f8f6-7ff20b9e-f748-4af4-a3c9-a9684022361f-000000@email.amazonses.com> <5044CC24.7000800@parallels.com>
-MIME-Version: 1.0
-Content-Type: MULTIPART/MIXED; BOUNDARY="288502408-323154704-1346799548=:30174"
+Subject: C14 [01/14] [PATCH 10/28] slub: Add debugging to verify correct cache use on kmem_cache_free()
+References: <20120904230609.691088980@linux.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <js1304@gmail.com>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>
+To: Pekka Enberg <penberg@kernel.org>
+Cc: Joonsoo Kim <js1304@gmail.com>, Glauber Costa <glommer@parallels.com>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>
 
-  This message is in MIME format.  The first part should be readable text,
-  while the remaining parts are likely unreadable without MIME-aware tools.
+Add additional debugging to check that the objects is actually from the cache
+the caller claims. Doing so currently trips up some other debugging code. It
+takes a lot to infer from that what was happening.
 
---288502408-323154704-1346799548=:30174
-Content-Type: TEXT/PLAIN; charset=windows-1252
-Content-Transfer-Encoding: 8BIT
+V2: Only warn once.
 
-On Mon, 3 Sep 2012, Glauber Costa wrote:
+Reviewed-by: Glauber Costa <glommer@parallels.com>
+Signed-off-by: Christoph Lameter <cl@linux.com>
+---
+ mm/slub.c |    7 +++++++
+ 1 file changed, 7 insertions(+)
 
-> On 08/24/2012 08:10 PM, Christoph Lameter wrote:
-> > kmem_cache_destroy does basically the same in all allocators.
-> >
-> > Extract common code which is easy since we already have common mutex handling.
-> >
-> > V1-V2:
-> > 	- Move percpu freeing to later so that we fail cleaner if
-> > 		objects are left in the cache [JoonSoo Kim]
-> >
-> > Signed-off-by: Christoph Lameter <cl@linux.com>
->
-> Fails to build for the slab. Error is pretty much self-explanatory:
->
->   CC      mm/slab.o
-> mm/slab.c: In function i? 1/2 slab_destroy_debugchecki? 1/2 :
-> mm/slab.c:2157:5: error: implicit declaration of function i? 1/2 slab_errori? 1/2 
-> [-Werror=implicit-function-declaration]
-
-Ok. We need to keep the slab_error function for now.
-
---288502408-323154704-1346799548=:30174--
+Index: linux/mm/slub.c
+===================================================================
+--- linux.orig/mm/slub.c	2012-09-04 18:00:13.218025791 -0500
++++ linux/mm/slub.c	2012-09-04 18:02:00.947707104 -0500
+@@ -2614,6 +2614,13 @@ void kmem_cache_free(struct kmem_cache *
+ 
+ 	page = virt_to_head_page(x);
+ 
++	if (kmem_cache_debug(s) && page->slab != s) {
++		printk("kmem_cache_free: Wrong slab cache. %s but object"
++			" is from  %s\n", page->slab->name, s->name);
++		WARN_ON_ONCE(1);
++		return;
++	}
++
+ 	slab_free(s, page, x, _RET_IP_);
+ 
+ 	trace_kmem_cache_free(_RET_IP_, x);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
