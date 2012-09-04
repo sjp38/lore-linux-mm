@@ -1,70 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
-	by kanga.kvack.org (Postfix) with SMTP id 1B2546B0068
-	for <linux-mm@kvack.org>; Tue,  4 Sep 2012 17:53:52 -0400 (EDT)
-Received: by pbbro12 with SMTP id ro12so10830533pbb.14
-        for <linux-mm@kvack.org>; Tue, 04 Sep 2012 14:53:51 -0700 (PDT)
-Date: Tue, 4 Sep 2012 14:53:47 -0700
-From: Michel Lespinasse <walken@google.com>
-Subject: Re: [PATCH 2/7] mm: fix potential anon_vma locking issue in
- mprotect()
-Message-ID: <20120904215347.GA6769@google.com>
-References: <1346750457-12385-1-git-send-email-walken@google.com>
- <1346750457-12385-3-git-send-email-walken@google.com>
- <20120904142745.GE3334@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120904142745.GE3334@redhat.com>
+Received: from psmtp.com (na3sys010amx133.postini.com [74.125.245.133])
+	by kanga.kvack.org (Postfix) with SMTP id 713096B0068
+	for <linux-mm@kvack.org>; Tue,  4 Sep 2012 18:06:17 -0400 (EDT)
+Date: Tue, 4 Sep 2012 15:06:15 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH V1 0/2] Enable clients to schedule in mmu_notifier
+ methods
+Message-Id: <20120904150615.f6c1a618.akpm@linux-foundation.org>
+In-Reply-To: <1346748081-1652-1-git-send-email-haggaie@mellanox.com>
+References: <1346748081-1652-1-git-send-email-haggaie@mellanox.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: linux-mm@kvack.org, riel@redhat.com, peterz@infradead.org, hughd@google.com, daniel.santos@pobox.com, linux-kernel@vger.kernel.org, akpm@linux-foundation.org
+To: Haggai Eran <haggaie@mellanox.com>
+Cc: linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>, Shachar Raindel <raindel@mellanox.com>, Sagi Grimberg <sagig@mellanox.com>, Or Gerlitz <ogerlitz@mellanox.com>
 
-On Tue, Sep 04, 2012 at 04:27:45PM +0200, Andrea Arcangeli wrote:
-> Hi Michel,
-> 
-> On Tue, Sep 04, 2012 at 02:20:52AM -0700, Michel Lespinasse wrote:
-> > This change fixes an anon_vma locking issue in the following situation:
-> > - vma has no anon_vma
-> > - next has an anon_vma
-> > - vma is being shrunk / next is being expanded, due to an mprotect call
-> > 
-> > We need to take next's anon_vma lock to avoid races with rmap users
-> > (such as page migration) while next is being expanded.
-> > 
-> > This change also removes an optimization which avoided taking anon_vma
-> > lock during brk adjustments. We could probably make that optimization
-> > work again, but the following anon rmap change would break it,
-> > so I kept things as simple as possible here.
-> 
-> Agreed, definitely a bug not to take the lock whenever any
-> vm_start/vm_pgoff are moved, regardless if they're the next or current
-> vma. Only vm_end can be moved without taking the lock.
-> 
-> I'd prefer to fix it like this though:
-> 
-> -	if (vma->anon_vma && (importer || start != vma->vm_start)) {
-> +	if ((vma->anon_vma && (importer || start != vma->vm_start) ||
-> +           (adjust_next && next->anon_vma)) {
+On Tue,  4 Sep 2012 11:41:19 +0300
+Haggai Eran <haggaie@mellanox.com> wrote:
 
-I think the minimal fix would actually be:
+> > This patchset is a preliminary step towards on-demand paging design to be
+> > added to the Infiniband stack.
 
- 	if (vma->anon_vma && (importer || start != vma->vm_start)) {
- 		anon_vma = vma->anon_vma;
-+	else if (next->anon_vma && adjust_next)
-+		anon_vma = next->anon_vma;
+The above sentence is the most important part of the patchset.  Because
+it answers the question "ytf is Haggai sending this stuff at me".
 
-I suppose if we were to consider adding this fix to the stable series,
-we should probably do it in such a minimal way. I hadn't actually
-considered it, because I was only thinking about this patch series,
-and at patch 4/7 it becomes necessary to lock the anon_vma even if
-only the vm_end side gets modified (so we'd still end up with what I
-proposed in the end)
+I'm unsure if the patchset adds runtime overhead but it does add
+maintenance overhead (perhaps we can reduce this - see later emails). 
+So we need to take a close look at what we're getting in return for
+that overhead, please.
 
--- 
-Michel "Walken" Lespinasse
-A program is never fully debugged until the last user dies.
+Exactly why do we want on-demand paging for Infiniband?  Why should
+anyone care?  What problems are users currently experiencing?  How many
+users and how serious are the problems and what if any workarounds are
+available?
+
+Is there any prospect that any other subsystems will utilise these
+infrastructural changes?  If so, which and how, etc?
+
+
+
+IOW, sell this code to us!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
