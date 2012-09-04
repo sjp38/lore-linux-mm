@@ -1,108 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
-	by kanga.kvack.org (Postfix) with SMTP id 9222D6B006E
-	for <linux-mm@kvack.org>; Tue,  4 Sep 2012 05:25:11 -0400 (EDT)
-From: Wanlong Gao <gaowanlong@cn.fujitsu.com>
-Subject: [PATCH] mm: fix mmap overflow checking
-Date: Tue, 4 Sep 2012 17:23:00 +0800
-Message-Id: <1346750580-11352-1-git-send-email-gaowanlong@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
+	by kanga.kvack.org (Postfix) with SMTP id BC8ED6B005D
+	for <linux-mm@kvack.org>; Tue,  4 Sep 2012 05:39:10 -0400 (EDT)
+Received: by iec9 with SMTP id 9so5630692iec.14
+        for <linux-mm@kvack.org>; Tue, 04 Sep 2012 02:39:10 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <CAOJsxLEb7qCo4uZUJtNDkYMFLE9aGT1fV9Wyw+Jpu2-kSqhX2g@mail.gmail.com>
+References: <1344955130-29478-1-git-send-email-elezegarcia@gmail.com>
+	<CAOJsxLEb7qCo4uZUJtNDkYMFLE9aGT1fV9Wyw+Jpu2-kSqhX2g@mail.gmail.com>
+Date: Tue, 4 Sep 2012 06:39:09 -0300
+Message-ID: <CALF0-+V0JQ08vURjdqhT7FemSt=+TYOW-Q-7D4KoLGwVsHB8iA@mail.gmail.com>
+Subject: Re: [PATCH 1/2] mm, slob: Prevent false positive trace upon
+ allocation failure
+From: Ezequiel Garcia <elezegarcia@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, Wanlong Gao <gaowanlong@cn.fujitsu.com>
+To: Pekka Enberg <penberg@kernel.org>
+Cc: linux-mm@kvack.org, Christoph Lameter <cl@linux.com>, Glauber Costa <glommer@parallels.com>
 
-POSIX said that if the file is a regular file and the value of "off"
-plus "len" exceeds the offset maximum established in the open file
-description associated with fildes, mmap should return EOVERFLOW.
+Hi Pekka,
 
-The following test from LTP can reproduce this bug.
+On Tue, Sep 4, 2012 at 4:32 AM, Pekka Enberg <penberg@kernel.org> wrote:
+> Hi Ezequiel,
+>
+> On Tue, Aug 14, 2012 at 5:38 PM, Ezequiel Garcia <elezegarcia@gmail.com> wrote:
+>> This patch changes the __kmalloc_node() logic to return NULL
+>> if alloc_pages() fails to return valid pages.
+>> This is done to avoid to trace a false positive kmalloc event.
+>>
+>> Cc: Pekka Enberg <penberg@kernel.org>
+>> Cc: Christoph Lameter <cl@linux.com>
+>> Cc: Glauber Costa <glommer@parallels.com>
+>> Signed-off-by: Ezequiel Garcia <elezegarcia@gmail.com>
+>> ---
+>>  mm/slob.c |   11 ++++++-----
+>>  1 files changed, 6 insertions(+), 5 deletions(-)
+>>
+>> diff --git a/mm/slob.c b/mm/slob.c
+>> index 45d4ca7..686e98b 100644
+>> --- a/mm/slob.c
+>> +++ b/mm/slob.c
+>> @@ -450,15 +450,16 @@ void *__kmalloc_node(size_t size, gfp_t gfp, int node)
+>>                                    size, size + align, gfp, node);
+>>         } else {
+>>                 unsigned int order = get_order(size);
+>> +               struct page *page;
+>>
+>>                 if (likely(order))
+>>                         gfp |= __GFP_COMP;
+>>                 ret = slob_new_pages(gfp, order, node);
+>> -               if (ret) {
+>> -                       struct page *page;
+>> -                       page = virt_to_page(ret);
+>> -                       page->private = size;
+>> -               }
+>> +               if (!ret)
+>> +                       return NULL;
+>> +
+>> +               page = virt_to_page(ret);
+>> +               page->private = size;
+>>
+>>                 trace_kmalloc_node(_RET_IP_, ret,
+>>                                    size, PAGE_SIZE << order, gfp, node);
+>
+> As mentioned earlier, I think it's valuable for the userspace to be
+> able to trace allocation failures as well. So I'm not applying this
+> patch.
 
-	char tmpfname[256];
-	void *pa = NULL;
-	void *addr = NULL;
-	size_t len;
-	int flag;
-	int fd;
-	off_t off = 0;
-	int prot;
+Yes, you're right. I have a few patches for that.
 
-	long page_size = sysconf(_SC_PAGE_SIZE);
-
-	snprintf(tmpfname, sizeof(tmpfname), "/tmp/mmap_test_%d", getpid());
-	unlink(tmpfname);
-	fd = open(tmpfname, O_CREAT | O_RDWR | O_EXCL, S_IRUSR | S_IWUSR);
-	if (fd == -1) {
-		printf(" Error at open(): %s\n", strerror(errno));
-		return 1;
-	}
-	unlink(tmpfname);
-
-	flag = MAP_SHARED;
-	prot = PROT_READ | PROT_WRITE;
-
-	/* len + off > maximum offset */
-
-	len = ULONG_MAX;
-	if (len % page_size) {
-		/* Lower boundary */
-		len &= ~(page_size - 1);
-	}
-
-	off = ULONG_MAX;
-	if (off % page_size) {
-		/* Lower boundary */
-		off &= ~(page_size - 1);
-	}
-
-	printf("off: %lx, len: %lx\n", (unsigned long)off, (unsigned long)len);
-	pa = mmap(addr, len, prot, flag, fd, off);
-	if (pa == MAP_FAILED && errno == EOVERFLOW) {
-		printf("Test Pass: Error at mmap: %s\n", strerror(errno));
-		return 0;
-	}
-
-	if (pa == MAP_FAILED)
-		perror("Test FAIL: expect EOVERFLOW but get other error");
-	else
-		printf("Test FAIL : Expect EOVERFLOW but got no error\n");
-
-	close(fd);
-	munmap(pa, len);
-	return 1;
-
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: linux-mm@kvack.org (open list:MEMORY MANAGEMENT)
-Signed-off-by: Wanlong Gao <gaowanlong@cn.fujitsu.com>
----
- mm/mmap.c | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
-
-diff --git a/mm/mmap.c b/mm/mmap.c
-index ae18a48..5380764 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -980,6 +980,7 @@ unsigned long do_mmap_pgoff(struct file *file, unsigned long addr,
- 	struct mm_struct * mm = current->mm;
- 	struct inode *inode;
- 	vm_flags_t vm_flags;
-+	off_t off = pgoff << PAGE_SHIFT;
- 
- 	/*
- 	 * Does the application expect PROT_READ to imply PROT_EXEC?
-@@ -1003,8 +1004,8 @@ unsigned long do_mmap_pgoff(struct file *file, unsigned long addr,
- 		return -ENOMEM;
- 
- 	/* offset overflow? */
--	if ((pgoff + (len >> PAGE_SHIFT)) < pgoff)
--               return -EOVERFLOW;
-+	if (off + len < off)
-+		return -EOVERFLOW;
- 
- 	/* Too many mappings? */
- 	if (mm->map_count > sysctl_max_map_count)
--- 
-1.7.12
+Thanks!
+Ezequiel.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
