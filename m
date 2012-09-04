@@ -1,54 +1,158 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
-	by kanga.kvack.org (Postfix) with SMTP id C6F3C6B005D
-	for <linux-mm@kvack.org>; Tue,  4 Sep 2012 11:35:51 -0400 (EDT)
-Message-ID: <1346772948.27919.9.camel@gandalf.local.home>
-Subject: Re: [PATCH v3 01/17] hashtable: introduce a small and naive
- hashtable
-From: Steven Rostedt <rostedt@goodmis.org>
-Date: Tue, 04 Sep 2012 11:35:48 -0400
-In-Reply-To: <20120828230050.GA3337@Krystal>
-References: <20120824203332.GF21325@google.com> <5037E9D9.9000605@gmail.com>
-	 <20120824212348.GK21325@google.com> <5038074D.300@gmail.com>
-	 <20120824230740.GN21325@google.com> <20120825042419.GA27240@Krystal>
-	 <503C95E4.3010000@gmail.com> <20120828101148.GA21683@Krystal>
-	 <503CAB1E.5010408@gmail.com> <20120828115638.GC23818@Krystal>
-	 <20120828230050.GA3337@Krystal>
-Content-Type: text/plain; charset="ISO-8859-15"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
+	by kanga.kvack.org (Postfix) with SMTP id 1E0D36B0069
+	for <linux-mm@kvack.org>; Tue,  4 Sep 2012 11:37:18 -0400 (EDT)
+Date: Tue, 4 Sep 2012 11:37:13 -0400 (EDT)
+From: =?ISO-8859-15?Q?Luk=E1=A8_Czerner?= <lczerner@redhat.com>
+Subject: Re: [PATCH 02/15 v2] jbd2: implement
+ jbd2_journal_invalidatepage_range
+In-Reply-To: <20120904145213.GA26656@fieldses.org>
+Message-ID: <alpine.LFD.2.00.1209041127230.18459@new-host-2>
+References: <1346451711-1931-1-git-send-email-lczerner@redhat.com> <1346451711-1931-3-git-send-email-lczerner@redhat.com> <20120904145213.GA26656@fieldses.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
-Cc: Sasha Levin <levinsasha928@gmail.com>, Tejun Heo <tj@kernel.org>, torvalds@linux-foundation.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, paul.gortmaker@windriver.com, davem@davemloft.net, mingo@elte.hu, ebiederm@xmission.com, aarcange@redhat.com, ericvh@gmail.com, netdev@vger.kernel.org, josh@joshtriplett.org, eric.dumazet@gmail.com, axboe@kernel.dk, agk@redhat.com, dm-devel@redhat.com, neilb@suse.de, ccaulfie@redhat.com, teigland@redhat.com, Trond.Myklebust@netapp.com, bfields@fieldses.org, fweisbec@gmail.com, jesse@nicira.com, venkat.x.venkatsubra@oracle.com, ejt@redhat.com, snitzer@redhat.com, edumazet@google.com, linux-nfs@vger.kernel.org, dev@openvswitch.org, rds-devel@oss.oracle.com, lw@cn.fujitsu.com
+To: "J. Bruce Fields" <bfields@fieldses.org>
+Cc: Lukas Czerner <lczerner@redhat.com>, linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org, tytso@mit.edu, hughd@google.com, linux-mm@kvack.org
 
-On Tue, 2012-08-28 at 19:00 -0400, Mathieu Desnoyers wrote:
+On Tue, 4 Sep 2012, J. Bruce Fields wrote:
 
-> Looking again at:
+> Date: Tue, 4 Sep 2012 10:52:13 -0400
+> From: J. Bruce Fields <bfields@fieldses.org>
+> To: Lukas Czerner <lczerner@redhat.com>
+> Cc: linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org, tytso@mit.edu,
+>     hughd@google.com, linux-mm@kvack.org
+> Subject: Re: [PATCH 02/15 v2] jbd2: implement
+>     jbd2_journal_invalidatepage_range
 > 
-> +#define hash_for_each_size(name, bits, bkt, node, obj, member)                 \
-> +       for (bkt = 0; bkt < HASH_SIZE(bits); bkt++)                             \
-> +               hlist_for_each_entry(obj, node, &name[bkt], member)
+> On Fri, Aug 31, 2012 at 06:21:38PM -0400, Lukas Czerner wrote:
+> > mm now supports invalidatepage_range address space operation and there
+> > are two file system using jbd2 also implementing punch hole feature
+> > which can benefit from this. We need to implement the same thing for
+> > jbd2 layer in order to allow those file system take benefit of this
+> > functionality.
+> > 
+> > With new function jbd2_journal_invalidatepage_range() we can now specify
+> > length to invalidate, rather than assuming invalidate to the end of the
+> > page.
+> > 
+> > Signed-off-by: Lukas Czerner <lczerner@redhat.com>
+> > ---
+> >  fs/jbd2/journal.c     |    1 +
+> >  fs/jbd2/transaction.c |   19 +++++++++++++++++--
+> >  include/linux/jbd2.h  |    2 ++
+> >  3 files changed, 20 insertions(+), 2 deletions(-)
+> > 
+> > diff --git a/fs/jbd2/journal.c b/fs/jbd2/journal.c
+> > index e149b99..e4618e9 100644
+> > --- a/fs/jbd2/journal.c
+> > +++ b/fs/jbd2/journal.c
+> > @@ -86,6 +86,7 @@ EXPORT_SYMBOL(jbd2_journal_force_commit_nested);
+> >  EXPORT_SYMBOL(jbd2_journal_wipe);
+> >  EXPORT_SYMBOL(jbd2_journal_blocks_per_page);
+> >  EXPORT_SYMBOL(jbd2_journal_invalidatepage);
+> > +EXPORT_SYMBOL(jbd2_journal_invalidatepage_range);
+> >  EXPORT_SYMBOL(jbd2_journal_try_to_free_buffers);
+> >  EXPORT_SYMBOL(jbd2_journal_force_commit);
+> >  EXPORT_SYMBOL(jbd2_journal_file_inode);
+> > diff --git a/fs/jbd2/transaction.c b/fs/jbd2/transaction.c
+> > index fb1ab953..65c1374 100644
+> > --- a/fs/jbd2/transaction.c
+> > +++ b/fs/jbd2/transaction.c
+> > @@ -1993,10 +1993,20 @@ zap_buffer_unlocked:
+> >   *
+> >   */
+> >  void jbd2_journal_invalidatepage(journal_t *journal,
+> > -		      struct page *page,
+> > -		      unsigned long offset)
+> > +				 struct page *page,
+> > +				 unsigned long offset)
+> > +{
+> > +	jbd2_journal_invalidatepage_range(journal, page, offset,
+> > +					  PAGE_CACHE_SIZE - offset);
+> > +}
+> > +
+> > +void jbd2_journal_invalidatepage_range(journal_t *journal,
+> > +				       struct page *page,
+> > +				       unsigned int offset,
+> > +				       unsigned int length)
+> >  {
+> >  	struct buffer_head *head, *bh, *next;
+> > +	unsigned int stop = offset + length;
+> >  	unsigned int curr_off = 0;
+> >  	int may_free = 1;
+> >  
+> > @@ -2005,6 +2015,8 @@ void jbd2_journal_invalidatepage(journal_t *journal,
+> >  	if (!page_has_buffers(page))
+> >  		return;
+> >  
+> > +	BUG_ON(stop > PAGE_CACHE_SIZE || stop < length);
 > 
-> you will notice that a "break" or "continue" in the inner loop will not
-> affect the outer loop, which is certainly not what the programmer would
-> expect!
+> This misses e.g. length == (unsigned int)(-1), offset = 1.  Could make
+> it obvious with:
+
+Hmm.. So if length = -1 (e.g. UINT_MAX) and offset = 1 then:
+
+offset + length = 0
+
+so 
+
+length is bigger than (offset + length) right ? Speaking in numbers:
+
+length = 4294967295
+offset = 1
+stop = length + offset = 0
+
+so (0 < 4294967295) is true and we'll BUG() on this, right ?
+
+Am I missing something ?
+
+-Lukas
+
 > 
-> I advise strongly against creating such error-prone construct.
+> 	BUG_ON(offset > PAGE_CACHE_SIZE || length > PAGE_CACHE_SIZE);
+> 	BUG_ON(stop > PAGE_CACHE_SIZE);
 > 
-
-A few existing loop macros do this. But they require a do { } while ()
-approach, and all have a comment.
-
-It's used by do_each_thread() in sched.h and ftrace does this as well.
-Look at kernel/trace/ftrace.c at do_for_each_ftrace_rec().
-
-Yes it breaks 'break' but it does not break 'continue' as it would just
-go to the next item that would have been found (like a normal for
-would).
-
--- Steve
-
+> Or is that overkill?
+> 
+> --b.
+> 
+> > +
+> >  	/* We will potentially be playing with lists other than just the
+> >  	 * data lists (especially for journaled data mode), so be
+> >  	 * cautious in our locking. */
+> > @@ -2014,6 +2026,9 @@ void jbd2_journal_invalidatepage(journal_t *journal,
+> >  		unsigned int next_off = curr_off + bh->b_size;
+> >  		next = bh->b_this_page;
+> >  
+> > +		if (next_off > stop)
+> > +			return;
+> > +
+> >  		if (offset <= curr_off) {
+> >  			/* This block is wholly outside the truncation point */
+> >  			lock_buffer(bh);
+> > diff --git a/include/linux/jbd2.h b/include/linux/jbd2.h
+> > index 3efc43f..21288fa 100644
+> > --- a/include/linux/jbd2.h
+> > +++ b/include/linux/jbd2.h
+> > @@ -1101,6 +1101,8 @@ extern int	 jbd2_journal_forget (handle_t *, struct buffer_head *);
+> >  extern void	 journal_sync_buffer (struct buffer_head *);
+> >  extern void	 jbd2_journal_invalidatepage(journal_t *,
+> >  				struct page *, unsigned long);
+> > +extern void	 jbd2_journal_invalidatepage_range(journal_t *, struct page *,
+> > +						   unsigned int, unsigned int);
+> >  extern int	 jbd2_journal_try_to_free_buffers(journal_t *, struct page *, gfp_t);
+> >  extern int	 jbd2_journal_stop(handle_t *);
+> >  extern int	 jbd2_journal_flush (journal_t *);
+> > -- 
+> > 1.7.7.6
+> > 
+> > --
+> > To unsubscribe from this list: send the line "unsubscribe linux-fsdevel" in
+> > the body of a message to majordomo@vger.kernel.org
+> > More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
