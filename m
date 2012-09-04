@@ -1,69 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
-	by kanga.kvack.org (Postfix) with SMTP id C793D6B0068
-	for <linux-mm@kvack.org>; Tue,  4 Sep 2012 17:46:07 -0400 (EDT)
-Received: by dadi14 with SMTP id i14so4994209dad.14
-        for <linux-mm@kvack.org>; Tue, 04 Sep 2012 14:46:07 -0700 (PDT)
-Date: Tue, 4 Sep 2012 14:46:02 -0700
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [RFC 0/5] forced comounts for cgroups.
-Message-ID: <20120904214602.GA9092@dhcp-172-17-108-109.mtv.corp.google.com>
-References: <1346768300-10282-1-git-send-email-glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
+	by kanga.kvack.org (Postfix) with SMTP id 4A5376B0068
+	for <linux-mm@kvack.org>; Tue,  4 Sep 2012 17:51:38 -0400 (EDT)
+Message-ID: <504677C8.3050801@redhat.com>
+Date: Tue, 04 Sep 2012 22:51:04 +0100
+From: Pedro Alves <palves@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1346768300-10282-1-git-send-email-glommer@parallels.com>
+Subject: Re: [PATCH v3 01/17] hashtable: introduce a small and naive hashtable
+References: <20120824203332.GF21325@google.com> <5037E9D9.9000605@gmail.com>    <20120824212348.GK21325@google.com> <5038074D.300@gmail.com>    <20120824230740.GN21325@google.com> <20120825042419.GA27240@Krystal>    <503C95E4.3010000@gmail.com> <20120828101148.GA21683@Krystal>    <503CAB1E.5010408@gmail.com> <20120828115638.GC23818@Krystal>    <20120828230050.GA3337@Krystal>   <1346772948.27919.9.camel@gandalf.local.home>  <50462C99.5000007@redhat.com>  <50462EE8.1090903@redhat.com>  <1346779027.27919.15.camel@gandalf.local.home>  <50463883.8080706@redhat.com> <1346792345.27919.18.camel@gandalf.local.home>
+In-Reply-To: <1346792345.27919.18.camel@gandalf.local.home>
+Content-Type: text/plain; charset=ISO-8859-15
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org, davej@redhat.com, ben@decadent.org.uk, a.p.zijlstra@chello.nl, pjt@google.com, lennart@poettering.net, kay.sievers@vrfy.org
+To: Steven Rostedt <rostedt@goodmis.org>
+Cc: Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Sasha Levin <levinsasha928@gmail.com>, Tejun Heo <tj@kernel.org>, torvalds@linux-foundation.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, paul.gortmaker@windriver.com, davem@davemloft.net, mingo@elte.hu, ebiederm@xmission.com, aarcange@redhat.com, ericvh@gmail.com, netdev@vger.kernel.org, josh@joshtriplett.org, eric.dumazet@gmail.com, axboe@kernel.dk, agk@redhat.com, dm-devel@redhat.com, neilb@suse.de, ccaulfie@redhat.com, teigland@redhat.com, Trond.Myklebust@netapp.com, bfields@fieldses.org, fweisbec@gmail.com, jesse@nicira.com, venkat.x.venkatsubra@oracle.com, ejt@redhat.com, snitzer@redhat.com, edumazet@google.com, linux-nfs@vger.kernel.org, dev@openvswitch.org, rds-devel@oss.oracle.com, lw@cn.fujitsu.com
 
-Hello, Glauber.
-
-On Tue, Sep 04, 2012 at 06:18:15PM +0400, Glauber Costa wrote:
-> As we have been extensively discussing, the cost and pain points for cgroups
-> come from many places. But at least one of those is the arbitrary nature of
-> hierarchies. Many people, including at least Tejun and me would like this to go
-> away altogether. Problem so far, is breaking compatiblity with existing setups
+On 09/04/2012 09:59 PM, Steven Rostedt wrote:
+> On Tue, 2012-09-04 at 18:21 +0100, Pedro Alves wrote:
+>> On 09/04/2012 06:17 PM, Steven Rostedt wrote:
+>>> On Tue, 2012-09-04 at 17:40 +0100, Pedro Alves wrote:
+>>>
+>>>> BTW, you can also go a step further and remove the need to close with double }},
+>>>> with something like:
+>>>>
+>>>> #define do_for_each_ftrace_rec(pg, rec)                                          \
+>>>>         for (pg = ftrace_pages_start, rec = &pg->records[pg->index];             \
+>>>>              pg && rec == &pg->records[pg->index];                               \
+>>>>              pg = pg->next)                                                      \
+>>>>           for (rec = pg->records; rec < &pg->records[pg->index]; rec++)
+>>>>
+>>>
+>>> Yeah, but why bother? It's hidden in a macro, and the extra '{ }' shows
+>>> that this is something "special".
+>>
+>> The point of both changes is that there's nothing special in the end
+>> at all.  It all just works...
+>>
 > 
-> I am proposing here a default-n Kconfig option that will guarantee that the cpu
-> cgroups (for now) will be comounted. I started with them because the
-> cpu/cpuacct division is clearly the worst offender. Also, the default-n is here
-> so distributions will have time to adapt: Forcing this flag to be on without
-> userspace changes will just lead to cgroups failing to mount, which we don't
-> want.
-> 
-> Although I've tested it and it works, I haven't compile-tested all possible
-> config combinations. So this is mostly for your eyes. If this gets traction,
-> I'll submit it properly, along with any changes that you might require.
+> It would still fail on a 'break'. The 'while' macro tells us that it is
+> special, because in the end, it wont work.
 
-As I said during the discussion, I'm skeptical about how useful this
-is.  This can't nudge existing users in any meaningfully gradual way.
-Kconfig doesn't make it any better.  It's still an abrupt behavior
-change when seen from userland.
-
-Also, I really don't see much point in enforcing this almost arbitrary
-grouping of controllers.  It doesn't simplify anything and using
-cpuacct in more granular way than cpu actually is one of the better
-justified use of multiple hierarchies.  Also, what about memcg and
-blkcg?  Do they *really* coincide?  Note that both blkcg and memcg
-involve non-trivial overhead and blkcg is essentially broken
-hierarchy-wise.
-
-Currently, from userland visible behavior POV, the crazy parts are
-
-1. The flat hierarchy thing.  This just should go away.
-
-2. Orthogonal multiple hierarchies.
-
-I think we agree that #1 should go away one way or the other.  I
-*really* wanna get rid of #2 but am not sure how.  I'll give it
-another stab once the writeback thing is resolved.
-
-Thanks.
+Please explain why it would fail on a 'break'.
 
 -- 
-tejun
+Pedro Alves
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
