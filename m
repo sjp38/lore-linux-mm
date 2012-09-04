@@ -1,47 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx103.postini.com [74.125.245.103])
-	by kanga.kvack.org (Postfix) with SMTP id B71646B007D
-	for <linux-mm@kvack.org>; Tue,  4 Sep 2012 16:11:36 -0400 (EDT)
-Received: from /spool/local
-	by e9.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
-	Tue, 4 Sep 2012 16:11:35 -0400
-Received: from d01relay05.pok.ibm.com (d01relay05.pok.ibm.com [9.56.227.237])
-	by d01dlp02.pok.ibm.com (Postfix) with ESMTP id 1BC7D6E8046
-	for <linux-mm@kvack.org>; Tue,  4 Sep 2012 16:11:32 -0400 (EDT)
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay05.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q84KBVvk117860
-	for <linux-mm@kvack.org>; Tue, 4 Sep 2012 16:11:31 -0400
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q84KBV2j008355
-	for <linux-mm@kvack.org>; Tue, 4 Sep 2012 17:11:31 -0300
-Message-ID: <5046606B.7000705@linux.vnet.ibm.com>
-Date: Tue, 04 Sep 2012 15:11:23 -0500
-From: Seth Jennings <sjenning@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH v2 0/3] promote zcache from staging
-References: <1346788969-4100-1-git-send-email-sjenning@linux.vnet.ibm.com> <20120904195711.GC12469@phenom.dumpdata.com>
-In-Reply-To: <20120904195711.GC12469@phenom.dumpdata.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
+	by kanga.kvack.org (Postfix) with SMTP id 431326B005D
+	for <linux-mm@kvack.org>; Tue,  4 Sep 2012 16:59:09 -0400 (EDT)
+Message-ID: <1346792345.27919.18.camel@gandalf.local.home>
+Subject: Re: [PATCH v3 01/17] hashtable: introduce a small and naive
+ hashtable
+From: Steven Rostedt <rostedt@goodmis.org>
+Date: Tue, 04 Sep 2012 16:59:05 -0400
+In-Reply-To: <50463883.8080706@redhat.com>
+References: <20120824203332.GF21325@google.com> <5037E9D9.9000605@gmail.com>
+	   <20120824212348.GK21325@google.com> <5038074D.300@gmail.com>
+	   <20120824230740.GN21325@google.com> <20120825042419.GA27240@Krystal>
+	   <503C95E4.3010000@gmail.com> <20120828101148.GA21683@Krystal>
+	   <503CAB1E.5010408@gmail.com> <20120828115638.GC23818@Krystal>
+	   <20120828230050.GA3337@Krystal>
+	  <1346772948.27919.9.camel@gandalf.local.home>
+	 <50462C99.5000007@redhat.com>  <50462EE8.1090903@redhat.com>
+	 <1346779027.27919.15.camel@gandalf.local.home>
+	 <50463883.8080706@redhat.com>
+Content-Type: text/plain; charset="ISO-8859-15"
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Nitin Gupta <ngupta@vflare.org>, Minchan Kim <minchan@kernel.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org
+To: Pedro Alves <palves@redhat.com>
+Cc: Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Sasha Levin <levinsasha928@gmail.com>, Tejun Heo <tj@kernel.org>, torvalds@linux-foundation.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, paul.gortmaker@windriver.com, davem@davemloft.net, mingo@elte.hu, ebiederm@xmission.com, aarcange@redhat.com, ericvh@gmail.com, netdev@vger.kernel.org, josh@joshtriplett.org, eric.dumazet@gmail.com, axboe@kernel.dk, agk@redhat.com, dm-devel@redhat.com, neilb@suse.de, ccaulfie@redhat.com, teigland@redhat.com, Trond.Myklebust@netapp.com, bfields@fieldses.org, fweisbec@gmail.com, jesse@nicira.com, venkat.x.venkatsubra@oracle.com, ejt@redhat.com, snitzer@redhat.com, edumazet@google.com, linux-nfs@vger.kernel.org, dev@openvswitch.org, rds-devel@oss.oracle.com, lw@cn.fujitsu.com
 
-On 09/04/2012 02:57 PM, Konrad Rzeszutek Wilk wrote:
-> On Tue, Sep 04, 2012 at 03:02:46PM -0500, Seth Jennings wrote:
->> zcache is the remaining piece of code required to support in-kernel
->> memory compression.  The other two features, cleancache and frontswap,
->> have been promoted to mainline in 3.0 and 3.5 respectively.  This
->> patchset promotes zcache from the staging tree to mainline.
+On Tue, 2012-09-04 at 18:21 +0100, Pedro Alves wrote:
+> On 09/04/2012 06:17 PM, Steven Rostedt wrote:
+> > On Tue, 2012-09-04 at 17:40 +0100, Pedro Alves wrote:
+> > 
+> >> BTW, you can also go a step further and remove the need to close with double }},
+> >> with something like:
+> >>
+> >> #define do_for_each_ftrace_rec(pg, rec)                                          \
+> >>         for (pg = ftrace_pages_start, rec = &pg->records[pg->index];             \
+> >>              pg && rec == &pg->records[pg->index];                               \
+> >>              pg = pg->next)                                                      \
+> >>           for (rec = pg->records; rec < &pg->records[pg->index]; rec++)
+> >>
+> > 
+> > Yeah, but why bother? It's hidden in a macro, and the extra '{ }' shows
+> > that this is something "special".
 > 
-> Could you please post it as a singular path. As if it was out-off-tree?
-> That way it will be much easier to review it by looking at the full code.
+> The point of both changes is that there's nothing special in the end
+> at all.  It all just works...
+> 
 
-Ah yes, my bad. Scratch v2. Nothing to see here.
+It would still fail on a 'break'. The 'while' macro tells us that it is
+special, because in the end, it wont work.
 
-Seth
+-- Steve
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
