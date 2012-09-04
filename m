@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
-	by kanga.kvack.org (Postfix) with SMTP id 360F16B0068
-	for <linux-mm@kvack.org>; Tue,  4 Sep 2012 10:21:52 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
+	by kanga.kvack.org (Postfix) with SMTP id EA6EB6B0070
+	for <linux-mm@kvack.org>; Tue,  4 Sep 2012 10:21:53 -0400 (EDT)
 From: Glauber Costa <glommer@parallels.com>
-Subject: [RFC 2/5] sched: adjust exec_clock to use it as cpu usage metric
-Date: Tue,  4 Sep 2012 18:18:17 +0400
-Message-Id: <1346768300-10282-3-git-send-email-glommer@parallels.com>
+Subject: [RFC 5/5] sched: add cpusets to comounts list
+Date: Tue,  4 Sep 2012 18:18:20 +0400
+Message-Id: <1346768300-10282-6-git-send-email-glommer@parallels.com>
 In-Reply-To: <1346768300-10282-1-git-send-email-glommer@parallels.com>
 References: <1346768300-10282-1-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,13 +13,15 @@ List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
 Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, davej@redhat.com, ben@decadent.org.uk, a.p.zijlstra@chello.nl, pjt@google.com, lennart@poettering.net, kay.sievers@vrfy.org, tj@kernel.org, Glauber Costa <glommer@parallels.com>
 
-exec_clock already provides per-group cpu usage metrics, and can be
-reused by cpuacct in case cpu and cpuacct are comounted.
+Although we have not yet identified any place where cpusets could be
+improved performance-wise by guaranteeing comounts with the other two
+cpu cgroups, it is a sane choice to mount them together.
 
-However, it is only provided by tasks in fair class. Doing the same for
-rt is easy, and can be done in an already existing hierarchy loop. This
-is an improvement over the independent hierarchy walk executed by
-cpuacct.
+We can preemptively benefit from it and avoid a growing mess, by
+guaranteeing that subsystems that mostly contraint the same kind of
+resource will live together. With cgroups is never that simple, and
+things crosses boundaries quite often. But I hope this can be seen as a
+potential improvement.
 
 Signed-off-by: Glauber Costa <glommer@parallels.com>
 CC: Dave Jones <davej@redhat.com>
@@ -30,43 +32,51 @@ CC: Lennart Poettering <lennart@poettering.net>
 CC: Kay Sievers <kay.sievers@vrfy.org>
 CC: Tejun Heo <tj@kernel.org>
 ---
- kernel/sched/rt.c    | 1 +
- kernel/sched/sched.h | 3 +++
- 2 files changed, 4 insertions(+)
+ kernel/cpuset.c     | 4 ++++
+ kernel/sched/core.c | 8 ++++----
+ 2 files changed, 8 insertions(+), 4 deletions(-)
 
-diff --git a/kernel/sched/rt.c b/kernel/sched/rt.c
-index 573e1ca..40ef6af 100644
---- a/kernel/sched/rt.c
-+++ b/kernel/sched/rt.c
-@@ -930,6 +930,7 @@ static void update_curr_rt(struct rq *rq)
+diff --git a/kernel/cpuset.c b/kernel/cpuset.c
+index 8c8bd65..f8e1c49 100644
+--- a/kernel/cpuset.c
++++ b/kernel/cpuset.c
+@@ -1879,6 +1879,10 @@ struct cgroup_subsys cpuset_subsys = {
+ 	.post_clone = cpuset_post_clone,
+ 	.subsys_id = cpuset_subsys_id,
+ 	.base_cftypes = files,
++#ifdef CONFIG_CGROUP_FORCE_COMOUNT_CPU
++	.comounts = 2,
++	.must_comount = { cpu_cgroup_subsys_id, cpuacct_subsys_id, },
++#endif
+ 	.early_init = 1,
+ };
  
- 	for_each_sched_rt_entity(rt_se) {
- 		rt_rq = rt_rq_of_se(rt_se);
-+		schedstat_add(rt_rq, exec_clock, delta_exec);
- 
- 		if (sched_rt_runtime(rt_rq) != RUNTIME_INF) {
- 			raw_spin_lock(&rt_rq->rt_runtime_lock);
-diff --git a/kernel/sched/sched.h b/kernel/sched/sched.h
-index 55844f2..8da579d 100644
---- a/kernel/sched/sched.h
-+++ b/kernel/sched/sched.h
-@@ -204,6 +204,7 @@ struct cfs_rq {
- 	unsigned int nr_running, h_nr_running;
- 
- 	u64 exec_clock;
-+	u64 prev_exec_clock;
- 	u64 min_vruntime;
- #ifndef CONFIG_64BIT
- 	u64 min_vruntime_copy;
-@@ -295,6 +296,8 @@ struct rt_rq {
- 	struct plist_head pushable_tasks;
+diff --git a/kernel/sched/core.c b/kernel/sched/core.c
+index d654bd1..aeff02c 100644
+--- a/kernel/sched/core.c
++++ b/kernel/sched/core.c
+@@ -8301,8 +8301,8 @@ struct cgroup_subsys cpu_cgroup_subsys = {
+ 	.subsys_id	= cpu_cgroup_subsys_id,
+ 	.base_cftypes	= cpu_files,
+ #ifdef CONFIG_CGROUP_FORCE_COMOUNT_CPU
+-	.comounts	= 1,
+-	.must_comount	= { cpuacct_subsys_id, },
++	.comounts	= 2,
++	.must_comount	= { cpuacct_subsys_id, cpuset_subsys_id, },
+ 	.bind		= cpu_cgroup_bind,
  #endif
- 	int rt_throttled;
-+	u64 exec_clock;
-+	u64 prev_exec_clock;
- 	u64 rt_time;
- 	u64 rt_runtime;
- 	/* Nests inside the rq lock: */
+ 	.early_init	= 1,
+@@ -8637,8 +8637,8 @@ struct cgroup_subsys cpuacct_subsys = {
+ 	.base_cftypes = files,
+ 	.bind = cpuacct_bind,
+ #ifdef CONFIG_CGROUP_FORCE_COMOUNT_CPU
+-	.comounts = 1,
+-	.must_comount = { cpu_cgroup_subsys_id, },
++	.comounts = 2,
++	.must_comount = { cpu_cgroup_subsys_id, cpuset_subsys_id, },
+ #endif
+ };
+ #endif	/* CONFIG_CGROUP_CPUACCT */
 -- 
 1.7.11.4
 
