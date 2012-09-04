@@ -1,56 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx110.postini.com [74.125.245.110])
-	by kanga.kvack.org (Postfix) with SMTP id 4CA756B005D
-	for <linux-mm@kvack.org>; Tue,  4 Sep 2012 14:22:54 -0400 (EDT)
-Received: by dadi14 with SMTP id i14so4884518dad.14
-        for <linux-mm@kvack.org>; Tue, 04 Sep 2012 11:22:53 -0700 (PDT)
-Date: Tue, 4 Sep 2012 11:22:54 -0700
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH v2] memcg: first step towards hierarchical controller
-Message-ID: <20120904182254.GA3638@dhcp-172-17-108-109.mtv.corp.google.com>
-References: <1346687211-31848-1-git-send-email-glommer@parallels.com>
- <20120903170806.GA21682@dhcp22.suse.cz>
- <5045BD25.10301@parallels.com>
- <20120904130905.GA15683@dhcp22.suse.cz>
- <504601B8.2050907@parallels.com>
- <20120904143552.GB15683@dhcp22.suse.cz>
+Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
+	by kanga.kvack.org (Postfix) with SMTP id 596D26B005D
+	for <linux-mm@kvack.org>; Tue,  4 Sep 2012 15:10:35 -0400 (EDT)
+Date: Tue, 4 Sep 2012 19:10:34 +0000
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: C13 [14/14] Move kmem_cache refcounting to common code
+In-Reply-To: <5044C8E7.4000001@parallels.com>
+Message-ID: <0000013992b0f412-655e9134-efbc-41ff-b47e-2bc24885cedd-000000@email.amazonses.com>
+References: <20120824160903.168122683@linux.com> <00000139596cab0a-61fcd4d7-52b5-4e16-89de-57c8df4dc8a4-000000@email.amazonses.com> <5044C8E7.4000001@parallels.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120904143552.GB15683@dhcp22.suse.cz>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Glauber Costa <glommer@parallels.com>, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org, Dave Jones <davej@redhat.com>, Ben Hutchings <ben@decadent.org.uk>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Paul Turner <pjt@google.com>, Lennart Poettering <lennart@poettering.net>, Kay Sievers <kay.sievers@vrfy.org>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>
+To: Glauber Costa <glommer@parallels.com>
+Cc: Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <js1304@gmail.com>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>
 
-Hello,
 
-On Tue, Sep 04, 2012 at 04:35:52PM +0200, Michal Hocko wrote:
-...
-> The problem is that we don't know whether somebody has an use case which
-> cannot be transformed like that. Therefore this patch starts the slow
-> transition to hierarchical only memory controller by warning users who
-> are using flat hierarchies. The warning triggers only if a subgroup of
-> non-root group is created with use_hierarchy==0.
-> 
-> Signed-off-by: Michal Hocko <mhocko@suse.cz>
+On Mon, 3 Sep 2012, Glauber Costa wrote:
 
-I think this could work as the first step.  Regardless of the involved
-steps, the goal is 1. finding out whether there are use cases or users
-of flat hierarchy (ugh... even the name is stupid :) and 2. if so,
-push them to stop doing that and give them time to do so.  While
-userland growing "echo 1" to use_hierarchy isn't optimal, it isn't the
-end of the world and something which can be taken care of by the
-distros.
+> On 08/24/2012 08:17 PM, Christoph Lameter wrote:
+> > Index: linux/mm/slob.c
+> > ===================================================================
+> > --- linux.orig/mm/slob.c	2012-08-22 10:27:54.846388442 -0500
+> > +++ linux/mm/slob.c	2012-08-22 10:28:31.658969127 -0500
+> > @@ -524,8 +524,6 @@ int __kmem_cache_create(struct kmem_cach
+> >  	if (c->align < align)
+> >  		c->align = align;
+> >
+> > -	kmemleak_alloc(c, sizeof(struct kmem_cache), 1, GFP_KERNEL);
+> > -	c->refcount = 1;
+> >  	return 0;
+> >  }
+> >
+> Is the removal of kmemleak_alloc intended ?
+> Nothing about that is mentioned in the changelog.
 
-That said, I don't see how different this is from the staged way I
-suggested other than requiring "echo 1" instead of a mount option.  At
-any rate, the two aren't mutually exclusive and this looks good to me.
-
-Thanks.
-
--- 
-tejun
+The statement should have been removed earlier. Checking is done when
+allocating the object.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
