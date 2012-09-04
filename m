@@ -1,145 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
-	by kanga.kvack.org (Postfix) with SMTP id D69276B0073
-	for <linux-mm@kvack.org>; Tue,  4 Sep 2012 19:38:35 -0400 (EDT)
-Message-Id: <0000013993a64e67-74febcd2-a441-4115-8675-3a6ae30206ef-000000@email.amazonses.com>
+Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
+	by kanga.kvack.org (Postfix) with SMTP id 0F4916B0075
+	for <linux-mm@kvack.org>; Tue,  4 Sep 2012 19:38:36 -0400 (EDT)
+Message-Id: <0000013993a64ddd-0d791c46-537f-4b7f-811b-a8834fe02093-000000@email.amazonses.com>
 Date: Tue, 4 Sep 2012 23:38:33 +0000
 From: Christoph Lameter <cl@linux.com>
-Subject: C14 [04/14] Move list_add() to slab_common.c
+Subject: C14 [14/14] [PATCH 23/28] Move kmem_cache refcounting to common code
 References: <20120904230609.691088980@linux.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Pekka Enberg <penberg@kernel.org>
-Cc: Joonsoo Kim <js1304@gmail.com>, David Rientjes <rientjes@google.com>, Glauber Costa <glommer@parallels.com>, linux-mm@kvack.org
+Cc: Joonsoo Kim <js1304@gmail.com>, Glauber Costa <glommer@parallels.com>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>
 
-Move the code to append the new kmem_cache to the list of slab caches to
-the kmem_cache_create code in the shared code.
+Get rid of the refcount stuff in the allocators and do that
+part of kmem_cache management in the common code.
 
-This is possible now since the acquisition of the mutex was moved into
-kmem_cache_create().
-
-V1->V2:
-	- SLOB: Add code to remove the slab from list
-	 (will be removed a couple of patches down when we also move the
-	 list_del to common code).
-
-Acked-by: David Rientjes <rientjes@google.com>
-Reviewed-by: Glauber Costa <glommer@parallels.com>
-Reviewed-by: Joonsoo Kim <js1304@gmail.com>
 Signed-off-by: Christoph Lameter <cl@linux.com>
 ---
- mm/slab.c        |    7 +++++--
- mm/slab_common.c |    7 +++++++
- mm/slob.c        |    4 ++++
- mm/slub.c        |    2 --
- 4 files changed, 16 insertions(+), 4 deletions(-)
+ mm/slab.c        |    1 -
+ mm/slab_common.c |    5 +++--
+ mm/slob.c        |    2 --
+ mm/slub.c        |    1 -
+ 4 files changed, 3 insertions(+), 6 deletions(-)
 
 Index: linux/mm/slab.c
 ===================================================================
---- linux.orig/mm/slab.c	2012-09-04 18:00:13.010022624 -0500
-+++ linux/mm/slab.c	2012-09-04 18:01:58.979676391 -0500
-@@ -1680,6 +1680,7 @@ void __init kmem_cache_init(void)
- 					ARCH_KMALLOC_FLAGS|SLAB_PANIC,
- 					NULL);
- 
-+	list_add(&sizes[INDEX_AC].cs_cachep->list, &slab_caches);
- 	if (INDEX_AC != INDEX_L3) {
- 		sizes[INDEX_L3].cs_cachep =
- 			__kmem_cache_create(names[INDEX_L3].name,
-@@ -1687,6 +1688,7 @@ void __init kmem_cache_init(void)
- 				ARCH_KMALLOC_MINALIGN,
- 				ARCH_KMALLOC_FLAGS|SLAB_PANIC,
- 				NULL);
-+		list_add(&sizes[INDEX_L3].cs_cachep->list, &slab_caches);
+--- linux.orig/mm/slab.c	2012-09-04 18:00:16.870082786 -0500
++++ linux/mm/slab.c	2012-09-04 18:00:16.882082975 -0500
+@@ -2555,7 +2555,6 @@ __kmem_cache_create (struct kmem_cache *
+ 		 */
+ 		BUG_ON(ZERO_OR_NULL_PTR(cachep->slabp_cache));
  	}
+-	cachep->refcount = 1;
  
- 	slab_early_init = 0;
-@@ -1705,6 +1707,7 @@ void __init kmem_cache_init(void)
- 					ARCH_KMALLOC_MINALIGN,
- 					ARCH_KMALLOC_FLAGS|SLAB_PANIC,
- 					NULL);
-+			list_add(&sizes->cs_cachep->list, &slab_caches);
- 		}
- #ifdef CONFIG_ZONE_DMA
- 		sizes->cs_dmacachep = __kmem_cache_create(
-@@ -1714,6 +1717,7 @@ void __init kmem_cache_init(void)
- 					ARCH_KMALLOC_FLAGS|SLAB_CACHE_DMA|
- 						SLAB_PANIC,
- 					NULL);
-+		list_add(&sizes->cs_dmacachep->list, &slab_caches);
- #endif
- 		sizes++;
- 		names++;
-@@ -2583,6 +2587,7 @@ __kmem_cache_create (const char *name, s
- 	}
- 	cachep->ctor = ctor;
- 	cachep->name = name;
-+	cachep->refcount = 1;
- 
- 	if (setup_cpu_cache(cachep, gfp)) {
- 		__kmem_cache_destroy(cachep);
-@@ -2599,8 +2604,6 @@ __kmem_cache_create (const char *name, s
- 		slab_set_debugobj_lock_classes(cachep);
- 	}
- 
--	/* cache setup completed, link it into the list */
--	list_add(&cachep->list, &slab_caches);
- 	return cachep;
- }
- 
+ 	err = setup_cpu_cache(cachep, gfp);
+ 	if (err) {
 Index: linux/mm/slab_common.c
 ===================================================================
---- linux.orig/mm/slab_common.c	2012-09-04 18:00:16.734080689 -0500
-+++ linux/mm/slab_common.c	2012-09-04 18:01:58.999676703 -0500
-@@ -111,6 +111,13 @@ struct kmem_cache *kmem_cache_create(con
- 	if (!s)
- 		err = -ENOSYS; /* Until __kmem_cache_create returns code */
+--- linux.orig/mm/slab_common.c	2012-09-04 18:00:16.870082786 -0500
++++ linux/mm/slab_common.c	2012-09-04 18:00:16.886083040 -0500
+@@ -125,11 +125,12 @@ struct kmem_cache *kmem_cache_create(con
+ 		}
  
-+	/*
-+	 * Check if the slab has actually been created and if it was a
-+	 * real instatiation. Aliases do not belong on the list
-+	 */
-+	if (s && s->refcount == 1)
-+		list_add(&s->list, &slab_caches);
-+
- out_locked:
- 	mutex_unlock(&slab_mutex);
- 	put_online_cpus();
+ 		err = __kmem_cache_create(s, flags);
+-		if (!err)
++		if (!err) {
+ 
++			s->refcount = 1;
+ 			list_add(&s->list, &slab_caches);
+ 
+-		else {
++		} else {
+ 			kfree(s->name);
+ 			kmem_cache_free(kmem_cache, s);
+ 		}
 Index: linux/mm/slob.c
 ===================================================================
---- linux.orig/mm/slob.c	2012-09-04 18:00:13.018022700 -0500
-+++ linux/mm/slob.c	2012-09-04 18:01:58.991676576 -0500
-@@ -540,6 +540,10 @@ struct kmem_cache *__kmem_cache_create(c
+--- linux.orig/mm/slob.c	2012-09-04 18:00:16.870082786 -0500
++++ linux/mm/slob.c	2012-09-04 18:00:16.886083040 -0500
+@@ -524,7 +524,6 @@ int __kmem_cache_create(struct kmem_cach
+ 	if (c->align < align)
+ 		c->align = align;
  
- void kmem_cache_destroy(struct kmem_cache *c)
- {
-+	mutex_lock(&slab_mutex);
-+	list_del(&c->list);
-+	mutex_unlock(&slab_mutex);
-+
- 	kmemleak_free(c);
- 	if (c->flags & SLAB_DESTROY_BY_RCU)
- 		rcu_barrier();
+-	c->refcount = 1;
+ 	return 0;
+ }
+ 
 Index: linux/mm/slub.c
 ===================================================================
---- linux.orig/mm/slub.c	2012-09-04 18:00:16.722080462 -0500
-+++ linux/mm/slub.c	2012-09-04 18:01:59.011676888 -0500
-@@ -3975,7 +3975,6 @@ struct kmem_cache *__kmem_cache_create(c
- 				size, align, flags, ctor)) {
- 			int r;
+--- linux.orig/mm/slub.c	2012-09-04 18:00:16.870082786 -0500
++++ linux/mm/slub.c	2012-09-04 18:00:16.886083040 -0500
+@@ -3093,7 +3093,6 @@ static int kmem_cache_open(struct kmem_c
+ 	else
+ 		s->cpu_partial = 30;
  
--			list_add(&s->list, &slab_caches);
- 			mutex_unlock(&slab_mutex);
- 			r = sysfs_slab_add(s);
- 			mutex_lock(&slab_mutex);
-@@ -3983,7 +3982,6 @@ struct kmem_cache *__kmem_cache_create(c
- 			if (!r)
- 				return s;
- 
--			list_del(&s->list);
- 			kmem_cache_close(s);
- 		}
- 		kmem_cache_free(kmem_cache, s);
+-	s->refcount = 1;
+ #ifdef CONFIG_NUMA
+ 	s->remote_node_defrag_ratio = 1000;
+ #endif
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
