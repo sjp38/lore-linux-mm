@@ -1,59 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
-	by kanga.kvack.org (Postfix) with SMTP id 5A9056B005D
-	for <linux-mm@kvack.org>; Tue,  4 Sep 2012 18:39:49 -0400 (EDT)
-Date: Tue, 4 Sep 2012 22:39:48 +0000
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: C13 [08/14] Get rid of __kmem_cache_destroy
-In-Reply-To: <5044C587.60801@parallels.com>
-Message-ID: <00000139937082ef-c61760a5-47fe-42d9-a043-ba81b2dfd216-000000@email.amazonses.com>
-References: <20120824160903.168122683@linux.com> <000001395967d71c-8ea585e1-ebf1-43ac-a9e4-b3b89f7d64d9-000000@email.amazonses.com> <5044C587.60801@parallels.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
+	by kanga.kvack.org (Postfix) with SMTP id E6D8E6B005D
+	for <linux-mm@kvack.org>; Tue,  4 Sep 2012 18:41:52 -0400 (EDT)
+Message-ID: <1346798509.27919.25.camel@gandalf.local.home>
+Subject: Re: [PATCH v3 01/17] hashtable: introduce a small and naive
+ hashtable
+From: Steven Rostedt <rostedt@goodmis.org>
+Date: Tue, 04 Sep 2012 18:41:49 -0400
+In-Reply-To: <504677C8.3050801@redhat.com>
+References: <20120824203332.GF21325@google.com> <5037E9D9.9000605@gmail.com>
+	    <20120824212348.GK21325@google.com> <5038074D.300@gmail.com>
+	    <20120824230740.GN21325@google.com> <20120825042419.GA27240@Krystal>
+	    <503C95E4.3010000@gmail.com> <20120828101148.GA21683@Krystal>
+	    <503CAB1E.5010408@gmail.com> <20120828115638.GC23818@Krystal>
+	    <20120828230050.GA3337@Krystal>
+	   <1346772948.27919.9.camel@gandalf.local.home>
+	  <50462C99.5000007@redhat.com>  <50462EE8.1090903@redhat.com>
+	  <1346779027.27919.15.camel@gandalf.local.home>
+	  <50463883.8080706@redhat.com>
+	 <1346792345.27919.18.camel@gandalf.local.home>
+	 <504677C8.3050801@redhat.com>
+Content-Type: text/plain; charset="ISO-8859-15"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <js1304@gmail.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>
+To: Pedro Alves <palves@redhat.com>
+Cc: Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Sasha Levin <levinsasha928@gmail.com>, Tejun Heo <tj@kernel.org>, torvalds@linux-foundation.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, paul.gortmaker@windriver.com, davem@davemloft.net, mingo@elte.hu, ebiederm@xmission.com, aarcange@redhat.com, ericvh@gmail.com, netdev@vger.kernel.org, josh@joshtriplett.org, eric.dumazet@gmail.com, axboe@kernel.dk, agk@redhat.com, dm-devel@redhat.com, neilb@suse.de, ccaulfie@redhat.com, teigland@redhat.com, Trond.Myklebust@netapp.com, bfields@fieldses.org, fweisbec@gmail.com, jesse@nicira.com, venkat.x.venkatsubra@oracle.com, ejt@redhat.com, snitzer@redhat.com, edumazet@google.com, linux-nfs@vger.kernel.org, dev@openvswitch.org, rds-devel@oss.oracle.com, lw@cn.fujitsu.com
 
-On Mon, 3 Sep 2012, Glauber Costa wrote:
+On Tue, 2012-09-04 at 22:51 +0100, Pedro Alves wrote:
+> On 09/04/2012 09:59 PM, Steven Rostedt wrote:
+> > On Tue, 2012-09-04 at 18:21 +0100, Pedro Alves wrote:
+> >> On 09/04/2012 06:17 PM, Steven Rostedt wrote:
+> >>> On Tue, 2012-09-04 at 17:40 +0100, Pedro Alves wrote:
+> >>>
+> >>>> BTW, you can also go a step further and remove the need to close with double }},
+> >>>> with something like:
+> >>>>
+> >>>> #define do_for_each_ftrace_rec(pg, rec)                                          \
+> >>>>         for (pg = ftrace_pages_start, rec = &pg->records[pg->index];             \
+> >>>>              pg && rec == &pg->records[pg->index];                               \
+> >>>>              pg = pg->next)                                                      \
+> >>>>           for (rec = pg->records; rec < &pg->records[pg->index]; rec++)
+> >>>>
+> >>>
+> >>> Yeah, but why bother? It's hidden in a macro, and the extra '{ }' shows
+> >>> that this is something "special".
+> >>
+> >> The point of both changes is that there's nothing special in the end
+> >> at all.  It all just works...
+> >>
+> > 
+> > It would still fail on a 'break'. The 'while' macro tells us that it is
+> > special, because in the end, it wont work.
+> 
+> Please explain why it would fail on a 'break'.
+> 
 
-> Here is the code for that in slab_common.c:
->
->     if (!__kmem_cache_shutdown(s)) {
->         if (s->flags & SLAB_DESTROY_BY_RCU)
->             rcu_barrier();
->
->         __kmem_cache_destroy(s);
->     } ...
->
-> All that code that used to belong in __kmem_cache_destroy(), will not be
-> executed in kmem_cache_shutdown() without an rcu_barrier.
+Ah, I missed the condition with the rec == &pg->records[pg->index]. But
+if ftrace_pages_start is NULL, the rec = &pg->records[pg->index] will
+fault.
 
-But that allocator specific code in __kmem_cache_destroy will not free the
-kmem_cache structure. That is the only important thing to be aware of.
-Only deferred frees of slab pages may still be in progress at this time
-until the close of the RCU period. These deferred freeing actions do not
-refer to anything but the kmem_cache structure. Therefore the rest can be
-freed before the period is over. And we check that the rest can be freed.
-Should there be a leftover at that point then f.e.
-free_partial() will issue a warning.
+You could do something like rec = pg ? &pg->records[pg->index] : NULL,
+but IIRC, the comma operator does not guarantee order evaluation. That
+is, the compiler is allowed to process "a , b" as "b; a;" and not "a;
+b;".
 
-kmem_cache_destroy() can only be called after all objects have been freed
-and it checks that this actually was done. "Have been freed" means in the
-context of an SLAB_DESTROY_BY_RCU slab that the rcu delayed frees for the
-individual objects are complete. During kmem_cache_destroy() only slab
-pages that contain no objects are freed back to the page allocator. Those
-will be also freed in a deferred way at kmem_cache_destroy. Hmmm.... we
-could simply delete the SLAB_DESTROY_BY_RCU flag and free the objects
-without obeying the rcu period since no objects should be allocated at
-that point.
+-- Steve
 
-> You need at least Paul's ack here to guarantee it is safe, but I believe
-> it is not. Take a look for instance at 7ed9f7e5db5, which describes a
-> subtle bug arising from such a situation.
-
-The commit that you referred to ensures that kmem_cache is not freed
-before the rcu period is over. This patch does not change that guarantee.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
