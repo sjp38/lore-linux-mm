@@ -1,33 +1,28 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
-	by kanga.kvack.org (Postfix) with SMTP id 871956B0092
-	for <linux-mm@kvack.org>; Wed,  5 Sep 2012 05:20:35 -0400 (EDT)
+	by kanga.kvack.org (Postfix) with SMTP id A3D9C6B009A
+	for <linux-mm@kvack.org>; Wed,  5 Sep 2012 05:20:37 -0400 (EDT)
 From: wency@cn.fujitsu.com
-Subject: [RFC v9 PATCH 02/21] memory-hotplug: implement offline_memory()
-Date: Wed, 5 Sep 2012 17:25:36 +0800
-Message-Id: <1346837155-534-3-git-send-email-wency@cn.fujitsu.com>
+Subject: [RFC v9 PATCH 21/21] memory-hotplug: auto offline page_cgroup when onlining memory block failed
+Date: Wed, 5 Sep 2012 17:25:55 +0800
+Message-Id: <1346837155-534-22-git-send-email-wency@cn.fujitsu.com>
 In-Reply-To: <1346837155-534-1-git-send-email-wency@cn.fujitsu.com>
 References: <1346837155-534-1-git-send-email-wency@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-ia64@vger.kernel.org, cmetcalf@tilera.com, sparclinux@vger.kernel.org
-Cc: rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, Wen Congyang <wency@cn.fujitsu.com>, Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>
+Cc: rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, Wen Congyang <wency@cn.fujitsu.com>
 
 From: Wen Congyang <wency@cn.fujitsu.com>
 
-The function offline_memory() will be called when hot removing a
-memory device. The memory device may contain more than one memory
-block. If the memory block has been offlined, __offline_pages()
-will fail. So we should try to offline one memory block at a
-time.
-
-If the memory block is offlined in offline_memory(), we also
-update it's state, and notify the userspace that its state is
-changed.
-
-The function offline_memory() also check each memory block's
-state. So there is no need to check the memory block's state
-before calling offline_memory().
+When a memory block is onlined, we will try allocate memory on that node
+to store page_cgroup. If onlining the memory block failed, we don't
+offline the page cgroup, and we have no chance to offline this page cgroup
+unless the memory block is onlined successfully again. It will cause
+that we can't hot-remove the memory device on that node, because some
+memory is used to store page cgroup. If onlining the memory block
+is failed, there is no need to stort page cgroup for this memory. So
+auto offline page_cgroup when onlining memory block failed.
 
 CC: David Rientjes <rientjes@google.com>
 CC: Jiang Liu <liuj97@gmail.com>
@@ -39,145 +34,25 @@ Cc: Minchan Kim <minchan.kim@gmail.com>
 CC: Andrew Morton <akpm@linux-foundation.org>
 CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 CC: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-CC: Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>
 Signed-off-by: Wen Congyang <wency@cn.fujitsu.com>
 ---
- drivers/base/memory.c          |   31 +++++++++++++++++++++++++++----
- include/linux/memory_hotplug.h |    2 ++
- mm/memory_hotplug.c            |   37 ++++++++++++++++++++++++++++++++++++-
- 3 files changed, 65 insertions(+), 5 deletions(-)
+ mm/page_cgroup.c |    3 +++
+ 1 files changed, 3 insertions(+), 0 deletions(-)
 
-diff --git a/drivers/base/memory.c b/drivers/base/memory.c
-index 44e7de6..86c8821 100644
---- a/drivers/base/memory.c
-+++ b/drivers/base/memory.c
-@@ -275,13 +275,11 @@ memory_block_action(unsigned long phys_index, unsigned long action)
- 	return ret;
- }
- 
--static int memory_block_change_state(struct memory_block *mem,
-+static int __memory_block_change_state(struct memory_block *mem,
- 		unsigned long to_state, unsigned long from_state_req)
- {
- 	int ret = 0;
- 
--	mutex_lock(&mem->state_mutex);
--
- 	if (mem->state != from_state_req) {
- 		ret = -EINVAL;
- 		goto out;
-@@ -309,10 +307,20 @@ static int memory_block_change_state(struct memory_block *mem,
+diff --git a/mm/page_cgroup.c b/mm/page_cgroup.c
+index 5ddad0c..44db00e 100644
+--- a/mm/page_cgroup.c
++++ b/mm/page_cgroup.c
+@@ -251,6 +251,9 @@ static int __meminit page_cgroup_callback(struct notifier_block *self,
+ 				mn->nr_pages, mn->status_change_nid);
  		break;
- 	}
- out:
--	mutex_unlock(&mem->state_mutex);
- 	return ret;
- }
- 
-+static int memory_block_change_state(struct memory_block *mem,
-+		unsigned long to_state, unsigned long from_state_req)
-+{
-+	int ret;
-+
-+	mutex_lock(&mem->state_mutex);
-+	ret = __memory_block_change_state(mem, to_state, from_state_req);
-+	mutex_unlock(&mem->state_mutex);
-+
-+	return ret;
-+}
- static ssize_t
- store_mem_state(struct device *dev,
- 		struct device_attribute *attr, const char *buf, size_t count)
-@@ -653,6 +661,21 @@ int unregister_memory_section(struct mem_section *section)
- }
- 
- /*
-+ * offline one memory block. If the memory block has been offlined, do nothing.
-+ */
-+int offline_memory_block(struct memory_block *mem)
-+{
-+	int ret = 0;
-+
-+	mutex_lock(&mem->state_mutex);
-+	if (mem->state != MEM_OFFLINE)
-+		ret = __memory_block_change_state(mem, MEM_OFFLINE, MEM_ONLINE);
-+	mutex_unlock(&mem->state_mutex);
-+
-+	return ret;
-+}
-+
-+/*
-  * Initialize the sysfs support for memory devices...
-  */
- int __init memory_dev_init(void)
-diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
-index c183f39..0b040bb 100644
---- a/include/linux/memory_hotplug.h
-+++ b/include/linux/memory_hotplug.h
-@@ -10,6 +10,7 @@ struct page;
- struct zone;
- struct pglist_data;
- struct mem_section;
-+struct memory_block;
- 
- #ifdef CONFIG_MEMORY_HOTPLUG
- 
-@@ -234,6 +235,7 @@ extern int mem_online_node(int nid);
- extern int add_memory(int nid, u64 start, u64 size);
- extern int arch_add_memory(int nid, u64 start, u64 size);
- extern int offline_pages(unsigned long start_pfn, unsigned long nr_pages);
-+extern int offline_memory_block(struct memory_block *mem);
- extern int offline_memory(u64 start, u64 size);
- extern int sparse_add_one_section(struct zone *zone, unsigned long start_pfn,
- 								int nr_pages);
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index bb42316..6fc1908 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -1001,7 +1001,42 @@ int offline_pages(unsigned long start_pfn, unsigned long nr_pages)
- 
- int offline_memory(u64 start, u64 size)
- {
--	return -EINVAL;
-+	struct memory_block *mem = NULL;
-+	struct mem_section *section;
-+	unsigned long start_pfn, end_pfn;
-+	unsigned long pfn, section_nr;
-+	int ret;
-+
-+	start_pfn = PFN_DOWN(start);
-+	end_pfn = start_pfn + PFN_DOWN(size);
-+
-+	for (pfn = start_pfn; pfn < end_pfn; pfn += PAGES_PER_SECTION) {
-+		section_nr = pfn_to_section_nr(pfn);
-+		if (!present_section_nr(section_nr))
-+			continue;
-+
-+		section = __nr_to_section(section_nr);
-+		/* same memblock? */
-+		if (mem)
-+			if ((section_nr >= mem->start_section_nr) &&
-+			    (section_nr <= mem->end_section_nr))
-+				continue;
-+
-+		mem = find_memory_block_hinted(section, mem);
-+		if (!mem)
-+			continue;
-+
-+		ret = offline_memory_block(mem);
-+		if (ret) {
-+			kobject_put(&mem->dev.kobj);
-+			return ret;
-+		}
-+	}
-+
-+	if (mem)
-+		kobject_put(&mem->dev.kobj);
-+
-+	return 0;
- }
- #else
- int offline_pages(unsigned long start, unsigned long size)
+ 	case MEM_CANCEL_ONLINE:
++		offline_page_cgroup(mn->start_pfn,
++				mn->nr_pages, mn->status_change_nid);
++		break;
+ 	case MEM_GOING_OFFLINE:
+ 		break;
+ 	case MEM_ONLINE:
 -- 
 1.7.1
 
