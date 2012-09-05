@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
-	by kanga.kvack.org (Postfix) with SMTP id 39B676B005D
-	for <linux-mm@kvack.org>; Wed,  5 Sep 2012 08:41:31 -0400 (EDT)
-Received: by weys10 with SMTP id s10so540000wey.14
-        for <linux-mm@kvack.org>; Wed, 05 Sep 2012 05:41:29 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
+	by kanga.kvack.org (Postfix) with SMTP id 640E76B005D
+	for <linux-mm@kvack.org>; Wed,  5 Sep 2012 08:43:54 -0400 (EDT)
+Received: by weys10 with SMTP id s10so541608wey.14
+        for <linux-mm@kvack.org>; Wed, 05 Sep 2012 05:43:52 -0700 (PDT)
 From: Michal Nazarewicz <mina86@mina86.com>
-Subject: Re: [PATCH 1/2] mm: change enum migrate_mode with bitwise type
-In-Reply-To: <1346832673-12512-1-git-send-email-minchan@kernel.org>
-References: <1346832673-12512-1-git-send-email-minchan@kernel.org>
-Date: Wed, 05 Sep 2012 14:41:21 +0200
-Message-ID: <xa1tpq60prpq.fsf@mina86.com>
+Subject: Re: [PATCH 2/2] mm: support MIGRATE_DISCARD
+In-Reply-To: <1346832673-12512-2-git-send-email-minchan@kernel.org>
+References: <1346832673-12512-1-git-send-email-minchan@kernel.org> <1346832673-12512-2-git-send-email-minchan@kernel.org>
+Date: Wed, 05 Sep 2012 14:43:44 +0200
+Message-ID: <xa1tmx14prlr.fsf@mina86.com>
 MIME-Version: 1.0
 Content-Type: multipart/mixed; boundary="=-=-="
 Sender: owner-linux-mm@kvack.org
@@ -22,16 +22,23 @@ Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: quoted-printable
 
 On Wed, Sep 05 2012, Minchan Kim wrote:
-> This patch changes migrate_mode type to bitwise type because
-> next patch will add MIGRATE_DISCARD and it could be ORed with other
-> attributes so it would be better to change it with bitwise type.
+> This patch introudes MIGRATE_DISCARD mode in migration.
+> It drops *clean cache pages* instead of migration so that
+> migration latency could be reduced by avoiding (memcpy + page remapping).
+> It's useful for CMA because latency of migration is very important rather
+> than eviction of background processes's workingset. In addition, it needs
+> less free pages for migration targets so it could avoid memory reclaiming
+> to get free pages, which is another factor increase latency.
 >
+> Cc: Marek Szyprowski <m.szyprowski@samsung.com>
+> Cc: Michal Nazarewicz <mina86@mina86.com>
 > Cc: Rik van Riel <riel@redhat.com>
 > Cc: Mel Gorman <mgorman@suse.de>
-> Suggested-by: Michal Nazarewicz <mina86@mina86.com>
 > Signed-off-by: Minchan Kim <minchan@kernel.org>
 
-Acked-by: Michal Nazarewicz <mina86@mina86.com>
+The principle is very good (I always intended for CMA to discard clean
+pages but simply did not have time to implement it), and the code looks
+reasonably good to me.
 
 --=20
 Best regards,                                         _     _
@@ -53,19 +60,19 @@ Content-Type: application/pgp-signature
 -----BEGIN PGP SIGNATURE-----
 Version: GnuPG v1.4.10 (GNU/Linux)
 
-iQIcBAEBAgAGBQJQR0hxAAoJECBgQBJQdR/0gwwP/RJlbZFdIP6gyyiMI6lP2YFy
-QRoG1uUjrQTw74grU6PAkO1C5Lji1X15pQJLcu5lJYPQCEa8AwJLCDa46C8xVZlY
-4PFDdMdatFQtcenxK1OsEkmXsWZJWHT8/1KVr+RXhn3N0Z7RCAgcjwCNgb6OgrWo
-0g3KuvMLp8jidEPPWKNlWyew7B41dXpwsKdLipf0MCkqJRke1zWBIPE2pkvRFDC5
-REemuyN9/FJZEoX6ysVyeXt2X6jm9U5JLPDbnWfxgWBYtV+p8auI70kEy3SguKZo
-BY7P54hJYAZx0VjCMEl2D3TdwN6XIGwuxvPLcIn/srm0EI3ka6RX8+iA8IE+wS8g
-sAaIBCWdioFey+AKvE8mCyNA2ywXoBByn57OZvvsdQILTJCOX6BAgeasg41+aWor
-rH+hWAB7SlN+XxbGPOLLT3TskYh7MuGFo8BgAir2vBnTz4yt1bVw0hFRd6mz4ZSC
-AlwvulAWEPqrCnBqI5vlRnS9VIYMIEpycjjcZ1OnxWVg9HJFLqIEHGKRmxxkRaJY
-KaNgTlMAtgCU6f2uSftzEzzSRKDNRmgvaJGFmhGg2oaUpAfIqfjYTDlA1q5jsGfw
-EFjsJWeZG62QDLkvgiupoLpCSIr8bpXyWkokDKDjPbxSE/MWzVKQ4AS23D663bI+
-lIaya+3sywBGB+aEPeOW
-=8tXk
+iQIcBAEBAgAGBQJQR0kBAAoJECBgQBJQdR/0kGsP/2NCgi4lCCoDTDUf98M9ayaE
+1yG7CBCBtwkwZ6whTmQiVokBBuhbzXK2+fKzmT5pJin2WS0Yz+A2mBJQM4pIgwf7
+QPWYEB6pJ0Y2uS9SkSCAYrxAdkRDXIufhvv9y/tQk24S0ZPNfTdSWSe43H5s5oEP
+/GlBX+1Z/7HapE3xOtbFLsQxnREdC3hoolGNhxpoAXp9hQZO4EnFqmd4VQsnoJ7s
+w34cPv4Whnjs32wP9ItCRhE0mOfgCixhKNWqKAe46Nb9lAx6NTfdZq/D+E2LB4KF
+51tGE/Z3Q4XyZEax8xf0BDIKRGZeIJpq0WzxJlJlkCkihQgvojmGbRCp47Spr6pj
+/Cs4rJExHWLrs4YKJu+pxNMLVVxMS0vIforPtMG/WOzSlHdND3jVJBz1SOXVEpN8
+O9egq3ObQL7/i29539shdM1ulsrXcmoCNRBVZVsgu2v+a//fct+Ryh0dxfmMdt7X
+iPD33G4Nn2V23P5hnWlEiXJwBobEEvxzI3ky9TN7HwFI2vIDddEiP407GVLmLqgY
+ZirLXPf7/L0abDnusYP9SWDFDn3fqwHGuWyl1YzhewXerwGG8c7ThJJeZuAcBm9f
+m3oOH841SFd31tjUe7VpF8LvAeHhEHyyxO3ERX1q6DiMFutYismi4DsF8Ohvywv5
+WluorFV3c6a0DSTyR9uE
+=8XOl
 -----END PGP SIGNATURE-----
 --==-=-=--
 
