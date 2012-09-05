@@ -1,164 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
-	by kanga.kvack.org (Postfix) with SMTP id D6EDE6B0069
-	for <linux-mm@kvack.org>; Wed,  5 Sep 2012 10:36:04 -0400 (EDT)
-Date: Wed, 5 Sep 2012 10:36:00 -0400 (EDT)
-From: =?ISO-8859-15?Q?Luk=E1=A8_Czerner?= <lczerner@redhat.com>
-Subject: Re: [PATCH 01/15 v2] mm: add invalidatepage_range address space
- operation
-In-Reply-To: <20120904164316.6e058cbe.akpm@linux-foundation.org>
-Message-ID: <alpine.LFD.2.00.1209051002310.509@new-host-2>
-References: <1346451711-1931-1-git-send-email-lczerner@redhat.com> <1346451711-1931-2-git-send-email-lczerner@redhat.com> <20120904164316.6e058cbe.akpm@linux-foundation.org>
+Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
+	by kanga.kvack.org (Postfix) with SMTP id E0E1C6B005D
+	for <linux-mm@kvack.org>; Wed,  5 Sep 2012 10:49:45 -0400 (EDT)
+Date: Wed, 5 Sep 2012 16:49:42 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH v2] memcg: first step towards hierarchical controller
+Message-ID: <20120905144942.GH5388@dhcp22.suse.cz>
+References: <20120903170806.GA21682@dhcp22.suse.cz>
+ <5045BD25.10301@parallels.com>
+ <20120904130905.GA15683@dhcp22.suse.cz>
+ <504601B8.2050907@parallels.com>
+ <20120904143552.GB15683@dhcp22.suse.cz>
+ <50461241.5010300@parallels.com>
+ <20120904145414.GC15683@dhcp22.suse.cz>
+ <50461610.30305@parallels.com>
+ <20120904162501.GE15683@dhcp22.suse.cz>
+ <504709D4.2010800@parallels.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <504709D4.2010800@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Lukas Czerner <lczerner@redhat.com>, linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org, tytso@mit.edu, hughd@google.com, linux-mm@kvack.org
+To: Glauber Costa <glommer@parallels.com>
+Cc: linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org, Dave Jones <davej@redhat.com>, Ben Hutchings <ben@decadent.org.uk>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Paul Turner <pjt@google.com>, Lennart Poettering <lennart@poettering.net>, Kay Sievers <kay.sievers@vrfy.org>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>
 
-On Tue, 4 Sep 2012, Andrew Morton wrote:
-
-> Date: Tue, 4 Sep 2012 16:43:16 -0700
-> From: Andrew Morton <akpm@linux-foundation.org>
-> To: Lukas Czerner <lczerner@redhat.com>
-> Cc: linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org, tytso@mit.edu,
->     hughd@google.com, linux-mm@kvack.org
-> Subject: Re: [PATCH 01/15 v2] mm: add invalidatepage_range address space
->     operation
-> 
-> On Fri, 31 Aug 2012 18:21:37 -0400
-> Lukas Czerner <lczerner@redhat.com> wrote:
-> 
-> > Currently there is no way to truncate partial page where the end
-> > truncate point is not at the end of the page. This is because it was not
-> > needed and the functionality was enough for file system truncate
-> > operation to work properly. However more file systems now support punch
-> > hole feature and it can benefit from mm supporting truncating page just
-> > up to the certain point.
+On Wed 05-09-12 12:14:12, Glauber Costa wrote:
+> On 09/04/2012 08:25 PM, Michal Hocko wrote:
+> > On Tue 04-09-12 18:54:08, Glauber Costa wrote:
+> > [...]
+> >>>> I'd personally believe merging both our patches together would achieve a
+> >>>> good result.
+> >>>
+> >>> I am still not sure we want to add a config option for something that is
+> >>> meant to go away. But let's see what others think.
+> >>>
+> >>
+> >> So what you propose in the end is that we add a userspace tweak for
+> >> something that could go away, instead of a Kconfig for something that go
+> >> away.
 > > 
-> > Specifically, with this functionality truncate_inode_pages_range() can
-> > be changed so it supports truncating partial page at the end of the
-> > range (currently it will BUG_ON() if 'end' is not at the end of the
-> > page).
+> > The tweak is necessary only if you want to have use_hierarchy=1 for all
+> > cgroups without taking care about that (aka setting the attribute for
+> > the first level under the root). All the users that use only one level
+> > bellow root don't have to do anything at all.
 > > 
-> > This commit add new address space operation invalidatepage_range which
-> > allows specifying length of bytes to invalidate, rather than assuming
-> > truncate to the end of the page. It also introduce
-> > block_invalidatepage_range() and do_invalidatepage)range() functions for
-> > exactly the same reason.
+> >> Way I see it, Kconfig is better because it is totally transparent, under
+> >> the hood, and will give us a single location to unpatch in case/when it
+> >> really goes away.
 > > 
-> > The caller does not have to implement both aops (invalidatepage and
-> > invalidatepage_range) and the latter is preferred. The old method will be
-> > used only if invalidatepage_range is not implemented by the caller.
+> > I guess that by the single location you mean that no other user space
+> > changes would have to be done, right? If yes then this is not true
+> > because there will be a lot of configurations setting this up already
+> > (either by cgconfig or by other scripts). All of them will have to be
+> > fixed some day.
 > > 
-> > ...
-> >
-> > +/**
-> > + * do_invalidatepage_range - invalidate range of the page
-> > + *
-> > + * @page: the page which is affected
-> > + * @offset: start of the range to invalidate
-> > + * @length: length of the range to invalidate
-> > +  */
-> > +void do_invalidatepage_range(struct page *page, unsigned int offset,
-> > +			     unsigned int length)
-> > +{
-> > +	void (*invalidatepage_range)(struct page *, unsigned int,
-> > +				     unsigned int);
-> >  	void (*invalidatepage)(struct page *, unsigned long);
-> > +
-> > +	/*
-> > +	 * Try invalidatepage_range first
-> > +	 */
-> > +	invalidatepage_range = page->mapping->a_ops->invalidatepage_range;
-> > +	if (invalidatepage_range) {
-> > +		(*invalidatepage_range)(page, offset, length);
-> > +		return;
-> > +	}
-> > +
-> > +	/*
-> > +	 * When only invalidatepage is registered length + offset must be
-> > +	 * PAGE_CACHE_SIZE
-> > +	 */
-> >  	invalidatepage = page->mapping->a_ops->invalidatepage;
-> > +	if (invalidatepage) {
-> > +		BUG_ON(length + offset != PAGE_CACHE_SIZE);
-> > +		(*invalidatepage)(page, offset);
-> > +	}
-> >  #ifdef CONFIG_BLOCK
-> > -	if (!invalidatepage)
-> > -		invalidatepage = block_invalidatepage;
-> > +	if (!invalidatepage_range && !invalidatepage)
-> > +		block_invalidatepage_range(page, offset, length);
-> >  #endif
-> > -	if (invalidatepage)
-> > -		(*invalidatepage)(page, offset);
-> >  }
 > 
-> This interface is ...  strange.  If the caller requests a
-> non-page-aligned invalidateion against an fs which doesn't implement
-> ->invalidatepage_range then the kernel goes BUG.  So the caller must
-> know beforehand that the underlying fs _does_ implement
-> ->invalidatepage_range.
+> Some userspaces, not all. And the ones who set:
 > 
-> For practical purposes, this implies that invalidation of a
-> non-page-aligned region will only be performed by fs code, because the
-> fs implicitly knows that it implements ->invalidatepage_range.
-> 
-> However this function isn't exported to modules, so scratch that.
-> 
-> So how is calling code supposed to determine whether it can actually
-> _use_ this interface?
+> They are either explicitly setting to 0, and those are the ones we need
+> to find out, or they are setting to 1, which will be harmless. If they
+> were all mandated to do it, fine. But they are not everywhere, and much
+> many other exists that don't touch it at all. What you are proposing is
+> that *all* userspace tools that use it go flip it, instead of doing it
+> in the kernel.
 
-Right now the only place we use ->invalidatepage_range is
-do_invalidatepage_range() which is only used in
-truncate_inode_pages_range(). Without these patches
-truncate_inode_pages_range() throw a BUG() if it gets unaligned
-range, so it is file system responsibility to take case about the
-alignment, which is currently happening in all file systems unless
-there is a bug (like in ocfs2).
+If we want to have a big coverage then older kernels (aka distributions)
+have to help here and their users cannot simply change the config. So
+distributions would need to enable the config by default and we are
+back...
 
-So currently callers of truncate_inode_pages_range() know that the
-range has to be aligned and with these patches they should know (it
-is documented in the function comment after all) that when they want
-to pass unaligned range the underlying file system has to implement
-->invalidatepage_range().
+> As I've said before, distributions have lifecycles where changes in
+> behavior like this are tolerated. 
 
-Now I agree that the only one who will have this information will be
-the file system itself. But both truncate_pagecache_range() and
-truncate_inode_pages_range() are used from within the file system as
-you pointed out earlier, so it does not look like a real problem to
-me. But I have to admit that it is a bit strange.
+We can do that only when a new codestream is released. Config changes
+are not allowed otherwise - at least here in Suse.
 
-However if we would want to keep ->invalidatepage_range() and
-->invalidatepage() completely separate then we would have to have
-separate truncate_inode_pages_range() and truncate_pagecache_range()
-as well for the separation to actually matter. And IMO this would be
-much worse...
+> Some of those lifecycles are incredibly long, in the 5+ years
+> range. It could be really nice if they would never see use_hierarchy=0
+> *at all*, which is much better accomplished by a kernel-side switch. A
+> Kconfig option is the choice between carrying either an upstream patch
+> or no patch at all (Depending on timing), and carrying a non-standard
+> patch.
 
-As it is now the caller is forced to implement
-->invalidatepage_range() if he wants to invalidate unaligned range
-by the use of BUG_ON() in the kind of same way we would force him to
-implement it if he would like to use the 'new'
-truncate_inode_pages_range(), or truncate_pagecache_range().
-
-I am intentionally not mentioning do_invalidatepage_range() since it
-currently does not have other users than truncate_inode_pages_range() where
-the range may be unaligned.
-
-Thanks!
--Lukas
-
-> 
-> 
-> Also...  one would obviously like to see the old ->invalidatepage() get
-> removed entirely.  But about 20 filesystems implement
-> ->invalidatepage() and implementation of ->invalidatepage_range() is
-> non-trivial and actually unnecessary.
-> 
-> So I dunno.  Perhaps we should keep ->invalidatepage() and
-> ->invalidatepage_range() completely separate.
-> 
+Can we settle on the following 3 steps?
+1) warn about "flat" hierarchies (give it X releases) - I will push it
+   to as many Suse code streams as possible (hope other distributions
+   could do the same)
+2) flip the default on the root cgroup & warn when somebody tries to
+   change it to 0 (give it another X releases) that the knob will be
+   removed
+3) remove the knob and the whole nonsese
+4) revert 3 if somebody really objects
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
