@@ -1,74 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx140.postini.com [74.125.245.140])
-	by kanga.kvack.org (Postfix) with SMTP id 6019B6B0068
-	for <linux-mm@kvack.org>; Wed,  5 Sep 2012 04:28:30 -0400 (EDT)
-Message-ID: <50470C6D.201@parallels.com>
-Date: Wed, 5 Sep 2012 12:25:17 +0400
-From: Glauber Costa <glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
+	by kanga.kvack.org (Postfix) with SMTP id EF2A06B0068
+	for <linux-mm@kvack.org>; Wed,  5 Sep 2012 04:29:52 -0400 (EDT)
+Received: by pbbro12 with SMTP id ro12so595640pbb.14
+        for <linux-mm@kvack.org>; Wed, 05 Sep 2012 01:29:52 -0700 (PDT)
+Date: Wed, 5 Sep 2012 01:29:47 -0700
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [RFC 0/5] forced comounts for cgroups.
+Message-ID: <20120905082947.GD3195@dhcp-172-17-108-109.mtv.corp.google.com>
+References: <1346768300-10282-1-git-send-email-glommer@parallels.com>
+ <20120904214602.GA9092@dhcp-172-17-108-109.mtv.corp.google.com>
+ <5047074D.1030104@parallels.com>
+ <20120905081439.GC3195@dhcp-172-17-108-109.mtv.corp.google.com>
+ <50470A87.1040701@parallels.com>
 MIME-Version: 1.0
-Subject: Re: C13 [08/14] Get rid of __kmem_cache_destroy
-References: <20120824160903.168122683@linux.com> <000001395967d71c-8ea585e1-ebf1-43ac-a9e4-b3b89f7d64d9-000000@email.amazonses.com> <5044C587.60801@parallels.com> <00000139937082ef-c61760a5-47fe-42d9-a043-ba81b2dfd216-000000@email.amazonses.com>
-In-Reply-To: <00000139937082ef-c61760a5-47fe-42d9-a043-ba81b2dfd216-000000@email.amazonses.com>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <50470A87.1040701@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <js1304@gmail.com>, "Paul
- E. McKenney" <paulmck@linux.vnet.ibm.com>, linux-mm@kvack.org, David
- Rientjes <rientjes@google.com>
+To: Glauber Costa <glommer@parallels.com>
+Cc: linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org, davej@redhat.com, ben@decadent.org.uk, a.p.zijlstra@chello.nl, pjt@google.com, lennart@poettering.net, kay.sievers@vrfy.org
 
-On 09/05/2012 02:39 AM, Christoph Lameter wrote:
-> On Mon, 3 Sep 2012, Glauber Costa wrote:
-> 
->> Here is the code for that in slab_common.c:
->>
->>     if (!__kmem_cache_shutdown(s)) {
->>         if (s->flags & SLAB_DESTROY_BY_RCU)
->>             rcu_barrier();
->>
->>         __kmem_cache_destroy(s);
->>     } ...
->>
->> All that code that used to belong in __kmem_cache_destroy(), will not be
->> executed in kmem_cache_shutdown() without an rcu_barrier.
-> 
-> But that allocator specific code in __kmem_cache_destroy will not free the
-> kmem_cache structure. That is the only important thing to be aware of.
-> Only deferred frees of slab pages may still be in progress at this time
-> until the close of the RCU period. These deferred freeing actions do not
-> refer to anything but the kmem_cache structure. Therefore the rest can be
-> freed before the period is over. And we check that the rest can be freed.
-> Should there be a leftover at that point then f.e.
-> free_partial() will issue a warning.
-> 
+Hello, Glauber.
 
-Ok. That sounds reasonable.
-(not sure if correct, but reasonable)
+On Wed, Sep 05, 2012 at 12:17:11PM +0400, Glauber Costa wrote:
+> > Distros can just co-mount them during boot.  What's the point of the
+> > config options?
+> 
+> Pretty simple. The kernel can't assume the distro did. And then we still
+> need to pay a stupid big price in the scheduler.
+> 
+> After this patchset, We can assume this. And cpuusage can totally be
+> derived from the cpu cgroup. Because much more than "they can comount",
+> we can assume they did.
 
-> kmem_cache_destroy() can only be called after all objects have been freed
-> and it checks that this actually was done. "Have been freed" means in the
-> context of an SLAB_DESTROY_BY_RCU slab that the rcu delayed frees for the
-> individual objects are complete. During kmem_cache_destroy() only slab
-> pages that contain no objects are freed back to the page allocator. Those
-> will be also freed in a deferred way at kmem_cache_destroy. Hmmm.... we
-> could simply delete the SLAB_DESTROY_BY_RCU flag and free the objects
-> without obeying the rcu period since no objects should be allocated at
-> that point.
+As long as cpuacct and cpu are separate, I think it makes sense to
+assume that they at least could be at different granularity.  As for
+optimization for co-mounted case, if that is *really* necessary,
+couldn't it be done dynamically?  It's not like CONFIG_XXX blocks are
+pretty things and they're worse for runtime code path coverage.
+
+> > Differing hierarchies in memcg and blkcg currently is the most
+> > prominent case where the intersection in writeback is problematic and
+> > your proposed solution doesn't help one way or the other.  What's the
+> > point?
 > 
->> You need at least Paul's ack here to guarantee it is safe, but I believe
->> it is not. Take a look for instance at 7ed9f7e5db5, which describes a
->> subtle bug arising from such a situation.
+> The point is that I am focusing at one problem at a time. But FWIW, I
+> don't see why memcg/blkcg can't use a step just like this one in a
+> separate pass.
 > 
-> The commit that you referred to ensures that kmem_cache is not freed
-> before the rcu period is over. This patch does not change that guarantee.
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
+> If the goal is comounting them eventually, at some point when the issues
+> are sorted out, just do it. Get a switch like this one, and then you
+> will start being able to assume a lot of things in the code. Miracles
+> can happen.
+
+The problem is that I really don't see how this leads to where we
+eventually wanna be.  Orthogonal hierarchies are bad because,
+
+* It complicates the code.  This doesn't really help there much.
+
+* Intersections between controllers are cumbersome to handle.  Again,
+  this doesn't help much.
+
+And this restricts the only valid use case for multiple hierarchies
+which is applying differing level of granularity depending on
+controllers.  So, I don't know.  Doesn't seem like a good idea to me.
+
+Thanks.
+
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
