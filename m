@@ -1,117 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx159.postini.com [74.125.245.159])
-	by kanga.kvack.org (Postfix) with SMTP id 3D8816B00A6
-	for <linux-mm@kvack.org>; Wed,  5 Sep 2012 05:40:46 -0400 (EDT)
-Date: Wed, 5 Sep 2012 10:40:41 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 3/3] memory-hotplug: bug fix race between isolation and
- allocation
-Message-ID: <20120905094041.GF11266@suse.de>
-References: <1346829962-31989-1-git-send-email-minchan@kernel.org>
- <1346829962-31989-4-git-send-email-minchan@kernel.org>
+Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
+	by kanga.kvack.org (Postfix) with SMTP id A49BD6B00A8
+	for <linux-mm@kvack.org>; Wed,  5 Sep 2012 05:41:55 -0400 (EDT)
+Message-ID: <50471DA2.5010302@parallels.com>
+Date: Wed, 5 Sep 2012 13:38:42 +0400
+From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <1346829962-31989-4-git-send-email-minchan@kernel.org>
+Subject: Re: C14 [00/14] Sl[auo]b: Common code for cgroups V13
+References: <000001399388b97b-d8cf8122-411a-470d-8964-7d134bbf3c03-000000@email.amazonses.com> <CAOJsxLESTFPETQVeDM7RUw=EUOMJUYVcUrwY7ryqwaTDs8Kvxw@mail.gmail.com>
+In-Reply-To: <CAOJsxLESTFPETQVeDM7RUw=EUOMJUYVcUrwY7ryqwaTDs8Kvxw@mail.gmail.com>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Xishi Qiu <qiuxishi@huawei.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Pekka Enberg <penberg@kernel.org>
+Cc: Christoph Lameter <cl@linux.com>, Joonsoo Kim <js1304@gmail.com>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Michal Hocko <mhocko@suse.cz>
 
-On Wed, Sep 05, 2012 at 04:26:02PM +0900, Minchan Kim wrote:
-> Like below, memory-hotplug makes race between page-isolation
-> and page-allocation so it can hit BUG_ON in __offline_isolated_pages.
+On 09/05/2012 01:20 PM, Pekka Enberg wrote:
+> On Wed, Sep 5, 2012 at 2:06 AM, Christoph Lameter <cl@linux.com> wrote:
+>> This is a series of patches that extracts common functionality from
+>> slab allocators into a common code base. The intend is to standardize
+>> as much as possible of the allocator behavior while keeping the
+>> distinctive features of each allocator which are mostly due to their
+>> storage format and serialization approaches.
+>>
+>> This patchset makes a beginning by extracting common functionality in
+>> kmem_cache_create() and kmem_cache_destroy(). However, there are
+>> numerous other areas where such work could be beneficial:
+>>
+>> 1. Extract the sysfs support from SLUB and make it common. That way
+>>    all allocators have a common sysfs API and are handleable in the same
+>>    way regardless of the allocator chose.
+>>
+>> 2. Extract the error reporting and checking from SLUB and make
+>>    it available for all allocators. This means that all allocators
+>>    will gain the resiliency and error handling capabilties.
+>>
+>> 3. Extract the memory hotplug and cpu hotplug handling. It seems that
+>>    SLAB may be more sophisticated here. Having common code here will
+>>    make it easier to maintain the special code.
+>>
+>> 4. Extract the aliasing capability of SLUB. This will enable fast
+>>    slab creation without creating too many additional slab caches.
+>>    The arrays of caches of varying sizes in numerous subsystems
+>>    do not cause the creation of numerous slab caches. Storage
+>>    density is increased and the cache footprint is reduced.
+>>
+>> Ultimately it is to be hoped that the special code for each allocator
+>> shrinks to a mininum. This will also make it easier to make modification
+>> to allocators.
+>>
+>> In the far future one could envision that the current allocators will
+>> just become storage algorithms that can be chosen based on the need of
+>> the subsystem. F.e.
+>>
+>> Cpu cache dependend performance         = Bonwick allocator (SLAB)
+>> Minimal cycle count and cache footprint = SLUB
+>> Maximum storage density                 = K&R allocator (SLOB)
 > 
-> 	CPU A					CPU B
+> I've created a 'slab/common-for-groups' branch for this and queued it
+> for linux-next. I had to revert the sysfs patch because it caused
+> warnings during boot:
 > 
-> start_isolate_page_range
-> set_migratetype_isolate
-> spin_lock_irqsave(zone->lock)
+> https://github.com/penberg/linux/commit/aac3a1664aba429f47c70edfc76ee10fcd808471
 > 
-> 				free_hot_cold_page(Page A)
-> 				/* without zone->lock */
-> 				migratetype = get_pageblock_migratetype(Page A);
-> 				/*
-> 				 * Page could be moved into MIGRATE_MOVABLE
-> 				 * of per_cpu_pages
-> 				 */
-> 				list_add_tail(&page->lru, &pcp->lists[migratetype]);
-> 
-> set_pageblock_isolate
-> move_freepages_block
-> drain_all_pages
-> 
-> 				/* Page A could be in MIGRATE_MOVABLE of free_list. */
-> 
-> check_pages_isolated
-> __test_page_isolated_in_pageblock
-> /*
->  * We can't catch freed page which
->  * is free_list[MIGRATE_MOVABLE]
->  */
-> if (PageBuddy(page A))
-> 	pfn += 1 << page_order(page A);
-> 
-> 				/* So, Page A could be allocated */
-> 
-> __offline_isolated_pages
-> /*
->  * BUG_ON hit or offline page
->  * which is used by someone
->  */
-> BUG_ON(!PageBuddy(page A));
-> 
-
-offline_page calling BUG_ON because someone allocated the page is
-ridiculous. I did not spot where that check is but it should be changed. The
-correct action is to retry the isolation.
-
-> Signed-off-by: Minchan Kim <minchan@kernel.org>
-
-At no point in the changelog do you actually say what he patch does :/
-
-> ---
->  mm/page_isolation.c |    5 ++++-
->  1 file changed, 4 insertions(+), 1 deletion(-)
-> 
-> diff --git a/mm/page_isolation.c b/mm/page_isolation.c
-> index acf65a7..4699d1f 100644
-> --- a/mm/page_isolation.c
-> +++ b/mm/page_isolation.c
-> @@ -196,8 +196,11 @@ __test_page_isolated_in_pageblock(unsigned long pfn, unsigned long end_pfn)
->  			continue;
->  		}
->  		page = pfn_to_page(pfn);
-> -		if (PageBuddy(page))
-> +		if (PageBuddy(page)) {
-> +			if (get_page_migratetype(page) != MIGRATE_ISOLATE)
-> +				break;
->  			pfn += 1 << page_order(page);
-> +		}
-
-It is possible the page is moved to the MIGRATE_ISOLATE list between when
-the page was freed to the buddy allocator and this check was made. The
-page->index information is stale and the impact is that the hotplug
-operation fails when it could have succeeded. That said, I think it is a
-very unlikely race that will never happen in practice.
-
-More importantly, the effect of this path is that EBUSY gets bubbled all
-the way up and the hotplug operations fails. This is fine but as the page
-is free at the time this problem is detected you also have the option
-of moving the PageBuddy page to the MIGRATE_ISOLATE list at this time
-if you take the zone lock. This will mean you need to change the name of
-test_pages_isolated() of course.
-
->  		else if (page_count(page) == 0 &&
->  				get_page_migratetype(page) == MIGRATE_ISOLATE)
->  			pfn += 1;
-> -- 
-> 1.7.9.5
+> I'd like to keep it append-only from now on please send incremental
+> patches on top of the branch.
 > 
 
--- 
-Mel Gorman
-SUSE Labs
+Michal,
+
+Would you merge this branch into your memcg-devel tree?
+
+Thanks.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
