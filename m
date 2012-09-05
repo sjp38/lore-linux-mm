@@ -1,92 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx135.postini.com [74.125.245.135])
-	by kanga.kvack.org (Postfix) with SMTP id E15A26B005D
-	for <linux-mm@kvack.org>; Tue,  4 Sep 2012 22:33:28 -0400 (EDT)
-Received: from /spool/local
-	by e23smtp09.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <wangyun@linux.vnet.ibm.com>;
-	Wed, 5 Sep 2012 12:31:48 +1000
-Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q852XKYE22151168
-	for <linux-mm@kvack.org>; Wed, 5 Sep 2012 12:33:21 +1000
-Received: from d23av01.au.ibm.com (loopback [127.0.0.1])
-	by d23av01.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q852XJJx032741
-	for <linux-mm@kvack.org>; Wed, 5 Sep 2012 12:33:20 +1000
-Message-ID: <5046B9EE.7000804@linux.vnet.ibm.com>
-Date: Wed, 05 Sep 2012 10:33:18 +0800
-From: Michael Wang <wangyun@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx162.postini.com [74.125.245.162])
+	by kanga.kvack.org (Postfix) with SMTP id A233A6B005D
+	for <linux-mm@kvack.org>; Tue,  4 Sep 2012 23:22:20 -0400 (EDT)
+Message-ID: <5046C4E7.5040407@cn.fujitsu.com>
+Date: Wed, 05 Sep 2012 11:20:07 +0800
+From: Wanlong Gao <gaowanlong@cn.fujitsu.com>
+Reply-To: gaowanlong@cn.fujitsu.com
 MIME-Version: 1.0
-Subject: [PATCH] slab: fix the DEADLOCK issue on l3 alien lock
-References: <5044692D.7080608@linux.vnet.ibm.com>
-In-Reply-To: <5044692D.7080608@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [PATCH] mm: fix mmap overflow checking
+References: <1346750580-11352-1-git-send-email-gaowanlong@cn.fujitsu.com> <20120904135924.b61e04e0.akpm@linux-foundation.org>
+In-Reply-To: <20120904135924.b61e04e0.akpm@linux-foundation.org>
 Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
-Cc: Matt Mackall <mpm@selenic.com>, Pekka Enberg <penberg@kernel.org>, Christoph Lameter <cl@linux-foundation.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, open@kvack.org, list@kvack.org, MEMORY MANAGEMENT <linux-mm@kvack.org>
 
-From: Michael Wang <wangyun@linux.vnet.ibm.com>
+On 09/05/2012 04:59 AM, Andrew Morton wrote:
+> On Tue, 4 Sep 2012 17:23:00 +0800
+> Wanlong Gao <gaowanlong@cn.fujitsu.com> wrote:
+> 
+>> POSIX said that if the file is a regular file and the value of "off"
+>> plus "len" exceeds the offset maximum established in the open file
+>> description associated with fildes, mmap should return EOVERFLOW.
+> 
+> That's what POSIX says, but what does Linux do?  It is important that
 
-DEADLOCK will be report while running a kernel with NUMA and LOCKDEP enabled,
-the process of this fake report is:
+Current Linux checks whether the shifted off+len exceed ULONG_MAX, it seems
+never happen.
 
-	   kmem_cache_free()	//free obj in cachep
-	-> cache_free_alien()	//acquire cachep's l3 alien lock
-	-> __drain_alien_cache()
-	-> free_block()
-	-> slab_destroy()
-	-> kmem_cache_free()	//free slab in cachep->slabp_cache
-	-> cache_free_alien()	//acquire cachep->slabp_cache's l3 alien lock
+> we precisely describe and understand the behaviour change, as there is
+> potential here to break existing applications.
+> 
+> I'm assuming that Linux presently permits the mmap() and then generates
+> SIGBUS if an access is attempted beyond the max file size?
 
-Since the cachep and cachep->slabp_cache's l3 alien are in the same lock class,
-fake report generated.
+What I saw is ENOMEM because the "len" here is too large.
+ 
+> 
+>> 	/* offset overflow? */
+>> -	if ((pgoff + (len >> PAGE_SHIFT)) < pgoff)
+>> -               return -EOVERFLOW;
+>> +	if (off + len < off)
+>> +		return -EOVERFLOW;
+> 
+> Well, this treats sizeof(off_t) as the "offset maximum established in
+> the open file".  But from my reading of the above excerpt, we should in
+> fact be checking against the underlying fs's s_maxbytes?
 
-This should not happen since we already have init_lock_keys() which will
-reassign the lock class for both l3 list and l3 alien.
+More reasonable, how about following?
 
-However, init_lock_keys() was invoked at a wrong position which is before we
-invoke enable_cpucache() on each cache.
-
-Since until set slab_state to be FULL, we won't invoke enable_cpucache()
-on caches to build their l3 alien while creating them, so although we invoked
-init_lock_keys(), the l3 alien lock class won't change since we don't have
-them until invoked enable_cpucache() later.
-
-This patch will invoke init_lock_keys() after we done enable_cpucache()
-instead of before to avoid the fake DEADLOCK report.
-
-Signed-off-by: Michael Wang <wangyun@linux.vnet.ibm.com>
 ---
- mm/slab.c |    6 +++---
- 1 files changed, 3 insertions(+), 3 deletions(-)
+ mm/mmap.c | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)
 
-diff --git a/mm/slab.c b/mm/slab.c
-index d4715e5..cc679ef 100644
---- a/mm/slab.c
-+++ b/mm/slab.c
-@@ -1780,9 +1780,6 @@ void __init kmem_cache_init_late(void)
+diff --git a/mm/mmap.c b/mm/mmap.c
+index ae18a48..4d7bc64 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -980,6 +980,10 @@ unsigned long do_mmap_pgoff(struct file *file, unsigned long addr,
+ 	struct mm_struct * mm = current->mm;
+ 	struct inode *inode;
+ 	vm_flags_t vm_flags;
++	loff_t off = pgoff << PAGE_SHIFT;
++	loff_t maxbytes = -1;
++	if (file)
++		maxbytes = file->f_mapping->host->i_sb->s_maxbytes;
  
- 	slab_state = UP;
+ 	/*
+ 	 * Does the application expect PROT_READ to imply PROT_EXEC?
+@@ -1003,8 +1007,8 @@ unsigned long do_mmap_pgoff(struct file *file, unsigned long addr,
+ 		return -ENOMEM;
  
--	/* Annotate slab for lockdep -- annotate the malloc caches */
--	init_lock_keys();
--
- 	/* 6) resize the head arrays to their final sizes */
- 	mutex_lock(&slab_mutex);
- 	list_for_each_entry(cachep, &slab_caches, list)
-@@ -1790,6 +1787,9 @@ void __init kmem_cache_init_late(void)
- 			BUG();
- 	mutex_unlock(&slab_mutex);
+ 	/* offset overflow? */
+-	if ((pgoff + (len >> PAGE_SHIFT)) < pgoff)
+-               return -EOVERFLOW;
++	if (off + len > maxbytes)
++		return -EOVERFLOW;
  
-+	/* Annotate slab for lockdep -- annotate the malloc caches */
-+	init_lock_keys();
-+
- 	/* Done! */
- 	slab_state = FULL;
- 
+ 	/* Too many mappings? */
+ 	if (mm->map_count > sysctl_max_map_count)
 -- 
-1.7.4.1
+
+Thanks,
+Wanlong Gao
+
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
