@@ -1,69 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
-	by kanga.kvack.org (Postfix) with SMTP id 0F8596B009F
-	for <linux-mm@kvack.org>; Wed,  5 Sep 2012 06:05:00 -0400 (EDT)
-Message-ID: <1346839487.2600.24.camel@twins>
-Subject: Re: [RFC 0/5] forced comounts for cgroups.
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Date: Wed, 05 Sep 2012 12:04:47 +0200
-In-Reply-To: <20120905093204.GL3195@dhcp-172-17-108-109.mtv.corp.google.com>
-References: <1346768300-10282-1-git-send-email-glommer@parallels.com>
-	 <20120904214602.GA9092@dhcp-172-17-108-109.mtv.corp.google.com>
-	 <5047074D.1030104@parallels.com>
-	 <20120905081439.GC3195@dhcp-172-17-108-109.mtv.corp.google.com>
-	 <50470A87.1040701@parallels.com>
-	 <20120905082947.GD3195@dhcp-172-17-108-109.mtv.corp.google.com>
-	 <50470EBF.9070109@parallels.com>
-	 <20120905084740.GE3195@dhcp-172-17-108-109.mtv.corp.google.com>
-	 <1346835993.2600.9.camel@twins>
-	 <20120905093204.GL3195@dhcp-172-17-108-109.mtv.corp.google.com>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: quoted-printable
-Mime-Version: 1.0
+Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
+	by kanga.kvack.org (Postfix) with SMTP id C9D7D6B009F
+	for <linux-mm@kvack.org>; Wed,  5 Sep 2012 06:11:47 -0400 (EDT)
+Date: Wed, 5 Sep 2012 12:11:43 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH] mm: fix potential anon_vma locking issue in mprotect()
+Message-ID: <20120905101142.GP3334@redhat.com>
+References: <1346801989-18274-1-git-send-email-walken@google.com>
+ <20120904164636.158d8012.akpm@linux-foundation.org>
+ <CANN689HVhMogAWjLAEJOkaKL0DL-ECD_eZngrCQqaUrQ6pubeA@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CANN689HVhMogAWjLAEJOkaKL0DL-ECD_eZngrCQqaUrQ6pubeA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Glauber Costa <glommer@parallels.com>, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org, davej@redhat.com, ben@decadent.org.uk, pjt@google.com, lennart@poettering.net, kay.sievers@vrfy.org
+To: Michel Lespinasse <walken@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 
-On Wed, 2012-09-05 at 02:32 -0700, Tejun Heo wrote:
-> Hey, again.
->=20
-> On Wed, Sep 05, 2012 at 11:06:33AM +0200, Peter Zijlstra wrote:
-> > Doing all this runtime is just going to make the mess even bigger,
-> > because now we have to deal with even more stupid cases.
-> >=20
-> > So either we go and try to contain this mess as proposed by Glauber or
-> > we go delete controllers.. I've had it with this crap.
->=20
-> cpuacct is rather unique tho.  I think it's gonna be silly whether the
-> hierarchy is unified or not.
->=20
-> 1. If they always can live on the exact same hierarchy, there's no
->    point in having the two separate.  Just merge them.
->=20
-> 2. If they need differing levels of granularity, they either need to
->    do it completely separately as they do now or have some form of
->    dynamic optimization if absolutely necesary.
->=20
-> So, I think that choice is rather separate from other issues.  If
-> cpuacct is gonna be kept, I'd just keep it separate and warn that it
-> incurs extra overhead for the current users if for nothing else.
-> Otherwise, kill it or merge it into cpu.
+On Tue, Sep 04, 2012 at 05:02:49PM -0700, Michel Lespinasse wrote:
+> On Tue, Sep 4, 2012 at 4:46 PM, Andrew Morton <akpm@linux-foundation.org> wrote:
+> > On Tue,  4 Sep 2012 16:39:49 -0700
+> > Michel Lespinasse <walken@google.com> wrote:
+> >
+> >> This change fixes an anon_vma locking issue in the following situation:
+> >> - vma has no anon_vma
+> >> - next has an anon_vma
+> >> - vma is being shrunk / next is being expanded, due to an mprotect call
+> >>
+> >> We need to take next's anon_vma lock to avoid races with rmap users
+> >> (such as page migration) while next is being expanded.
+> >
+> > hm, OK.  How serious was that bug?  I'm suspecting "only needed in
+> > 3.7".
 
-Quite, hence my 'proposal' to remove cpuacct.
+Agreed.
 
-There was some whining last time Glauber proposed this, but the one
-whining never convinced and has gone away from Linux, so lets just do
-this.
+> That was my starting position as well. I'd expect the biggest issue
+> would be page migration races, and we do have assertions for that
+> case, and we've not been hitting them (that I know of). So, this
+> should not be a high frequency issue AFAICT.
 
-Lets make cpuacct print a deprecated msg to dmesg for a few releases and
-make cpu do all this.
+I exclude it's reproducible with real load too, the window is far too
+small.
 
-The co-mounting stuff would have been nice for cpusets as well, knowing
-all your tasks are affine to a subset of cpus allows for a few
-optimizations (smaller cpumask iterations), but I guess we'll have to do
-that dynamically, we'll just have to see how ugly that is.
+A malicious load might reproduce it, but the worst case would be to
+trigger the BUG_ON assertion in migration_entry_to_page like you
+mentioned above or to "gracefully" hang in migration_entry_wait, or to
+trigger one of the BUG_ONs in split_huge_page with no risk of memory
+corruption or anything.
 
+The only two places in the VM that depends on full accuracy in finding
+all ptes from the rmap walk are remove_migration_ptes and
+split_huge_page and they both are (and must remain) robust enough not
+to generate memory corruption or any other adverse side effects if the
+rmap walk actually wasn't 100% accurate because of some race condition
+like in this case.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
