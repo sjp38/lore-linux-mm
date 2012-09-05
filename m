@@ -1,57 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
-	by kanga.kvack.org (Postfix) with SMTP id 82DCC6B0068
-	for <linux-mm@kvack.org>; Wed,  5 Sep 2012 02:54:33 -0400 (EDT)
-Received: by iagk10 with SMTP id k10so381066iag.14
-        for <linux-mm@kvack.org>; Tue, 04 Sep 2012 23:54:32 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20120904141235.dd9a3e39.akpm@linux-foundation.org>
-References: <1346750545-2094-1-git-send-email-luisgf@gmail.com>
- <CALF0-+WgGPT=x93a3p1TKL8w_kNhXPACXMWrPGF2tmBnnQKCWw@mail.gmail.com>
- <CAHve1mzGvzrvu+QTgUg0FAFOuQrhcY12H3LfMjCHJKBUrK0OhA@mail.gmail.com>
- <CALF0-+XNXNWm7qQ3vZRrN1cd89hCowDiJgTn7Ty80FBRsqB=4g@mail.gmail.com> <20120904141235.dd9a3e39.akpm@linux-foundation.org>
-From: "Luis G.F" <luisgf@gmail.com>
-Date: Wed, 5 Sep 2012 08:54:11 +0200
-Message-ID: <CAHve1myEUVa4AF_1tijpnCBBy=qcP+U5YQDRcCzvv7cPMeLiqA@mail.gmail.com>
-Subject: Re: [PATCH 1/1] mm: Fix unused function warnings in vmstat.c
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
+	by kanga.kvack.org (Postfix) with SMTP id 6C6146B005D
+	for <linux-mm@kvack.org>; Wed,  5 Sep 2012 03:24:34 -0400 (EDT)
+From: Minchan Kim <minchan@kernel.org>
+Subject: [PATCH 0/3] memory-hotplug: handle page race between allocation and isolation
+Date: Wed,  5 Sep 2012 16:25:59 +0900
+Message-Id: <1346829962-31989-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Ezequiel Garcia <elezegarcia@gmail.com>, linux-mm@kvack.org
+Cc: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Xishi Qiu <qiuxishi@huawei.com>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Minchan Kim <minchan@kernel.org>
 
-Hi Andrew:
+Memory hotplug has a subtle race problem so this patchset fixes the problem
+(Look at [3/3] for detail and please confirm the problem before review
+other patches in this series.)
 
-2012/9/4 Andrew Morton <akpm@linux-foundation.org>:
-> On Tue, 4 Sep 2012 07:01:20 -0300
-> Ezequiel Garcia <elezegarcia@gmail.com> wrote:
->
->> Also, in the future when fixing warnings you may want to add the warning message
->> to the commit message.
->
-> Yes, please always quote the messages in the changelog.
->
->> Anyway, I don't really know why are you getting that (wrong) warning,
->> but I don't think the solution is to add the 'unused' attribute.
->
-> And yes, let's not work around compiler problems too eagerly.  We _do_
-> occasionally work around bogus warnings, but only long-established ones
-> which we see no other way of fixing.
->
-> In this case, it might be that these functions are indeed unused with
-> certain Kconfig combinations.  For example and from inspection,
-> CONFIG_PROCFS=n, CONFIG_DEBUG_FS=n, CONFIG_COMPACTION=y might cause
-> such a warning?
->
+ [1/3] is just clean up and help for [2/3].
+ [2/3] keeps the migratetype information to freed page's index field
+       and [3/3] uses the information.
+ [3/3] fixes the race problem with [2/3]'s information.
 
-I generate a complete random conf (with make randconfig) and the
-problem with warnings is that
-CONFIG_PROC_FS is undefined but CONFIG_COMPACTION=y (as you say).That's create
-certain scenario where the variables are defined but never used.
+After applying [2/3], migratetype argument in __free_one_page
+and free_one_page is redundant so we can remove it but I decide
+to not touch them because it increases code size about 50 byte.
 
+Minchan Kim (3):
+  mm: use get_page_migratetype instead of page_private
+  mm: remain migratetype in freed page
+  memory-hotplug: bug fix race between isolation and allocation
 
-> Also, please don't directly use __attribute__((unused)) - we have
-> various helper macros in include/linux/compiler*.h for this.
+ include/linux/mm.h  |   12 ++++++++++++
+ mm/page_alloc.c     |   16 ++++++++++------
+ mm/page_isolation.c |    7 +++++--
+ 3 files changed, 27 insertions(+), 8 deletions(-)
+
+-- 
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
