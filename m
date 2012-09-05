@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
-	by kanga.kvack.org (Postfix) with SMTP id A6A276B00A9
+Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
+	by kanga.kvack.org (Postfix) with SMTP id 6E3486B00AC
 	for <linux-mm@kvack.org>; Wed,  5 Sep 2012 05:44:57 -0400 (EDT)
 From: wency@cn.fujitsu.com
-Subject: [RFC v9 PATCH 11/21] memory-hotplug: remove_memory calls __remove_pages
-Date: Wed, 5 Sep 2012 17:25:45 +0800
-Message-Id: <1346837155-534-12-git-send-email-wency@cn.fujitsu.com>
+Subject: [RFC v9 PATCH 14/21] memory-hotplug: move register_page_bootmem_info_node and put_page_bootmem for sparse-vmemmap
+Date: Wed, 5 Sep 2012 17:25:48 +0800
+Message-Id: <1346837155-534-15-git-send-email-wency@cn.fujitsu.com>
 In-Reply-To: <1346837155-534-1-git-send-email-wency@cn.fujitsu.com>
 References: <1346837155-534-1-git-send-email-wency@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
@@ -15,13 +15,9 @@ Cc: rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.cras
 
 From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 
-The patch adds __remove_pages() to remove_memory(). Then the range of
-phys_start_pfn argument and nr_pages argument in __remove_pagse() may
-have different zone. So zone argument is removed from __remove_pages()
-and __remove_pages() caluculates zone in each section.
-
-When CONFIG_SPARSEMEM_VMEMMAP is defined, there is no way to remove a memmap.
-So __remove_section only calls unregister_memory_section().
+For implementing register_page_bootmem_info_node of sparse-vmemmap,
+register_page_bootmem_info_node and put_page_bootmem are moved to
+memory_hotplug.c
 
 CC: David Rientjes <rientjes@google.com>
 CC: Jiang Liu <liuj97@gmail.com>
@@ -35,97 +31,72 @@ CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 CC: Wen Congyang <wency@cn.fujitsu.com>
 Signed-off-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 ---
- arch/powerpc/platforms/pseries/hotplug-memory.c |    5 +----
- include/linux/memory_hotplug.h                  |    3 +--
- mm/memory_hotplug.c                             |   17 ++++++++++-------
- 3 files changed, 12 insertions(+), 13 deletions(-)
+ include/linux/memory_hotplug.h |    9 ---------
+ mm/memory_hotplug.c            |    8 ++++++--
+ 2 files changed, 6 insertions(+), 11 deletions(-)
 
-diff --git a/arch/powerpc/platforms/pseries/hotplug-memory.c b/arch/powerpc/platforms/pseries/hotplug-memory.c
-index dc0a035..cc14da4 100644
---- a/arch/powerpc/platforms/pseries/hotplug-memory.c
-+++ b/arch/powerpc/platforms/pseries/hotplug-memory.c
-@@ -76,7 +76,6 @@ unsigned long memory_block_size_bytes(void)
- static int pseries_remove_memblock(unsigned long base, unsigned int memblock_size)
- {
- 	unsigned long start, start_pfn;
--	struct zone *zone;
- 	int i, ret;
- 	int sections_to_remove;
- 
-@@ -87,8 +86,6 @@ static int pseries_remove_memblock(unsigned long base, unsigned int memblock_siz
- 		return 0;
- 	}
- 
--	zone = page_zone(pfn_to_page(start_pfn));
--
- 	/*
- 	 * Remove section mappings and sysfs entries for the
- 	 * section of the memory we are removing.
-@@ -101,7 +98,7 @@ static int pseries_remove_memblock(unsigned long base, unsigned int memblock_siz
- 	sections_to_remove = (memblock_size >> PAGE_SHIFT) / PAGES_PER_SECTION;
- 	for (i = 0; i < sections_to_remove; i++) {
- 		unsigned long pfn = start_pfn + i * PAGES_PER_SECTION;
--		ret = __remove_pages(zone, start_pfn,  PAGES_PER_SECTION);
-+		ret = __remove_pages(start_pfn,  PAGES_PER_SECTION);
- 		if (ret)
- 			return ret;
- 	}
 diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
-index fd84ea9..8bf820d 100644
+index cdbbd79..1133e63 100644
 --- a/include/linux/memory_hotplug.h
 +++ b/include/linux/memory_hotplug.h
-@@ -90,8 +90,7 @@ extern bool is_pageblock_removable_nolock(struct page *page);
- /* reasonably generic interface to expand the physical pages in a zone  */
- extern int __add_pages(int nid, struct zone *zone, unsigned long start_pfn,
- 	unsigned long nr_pages);
--extern int __remove_pages(struct zone *zone, unsigned long start_pfn,
--	unsigned long nr_pages);
-+extern int __remove_pages(unsigned long start_pfn, unsigned long nr_pages);
+@@ -162,17 +162,8 @@ static inline void arch_refresh_nodedata(int nid, pg_data_t *pgdat)
+ #endif /* CONFIG_NUMA */
+ #endif /* CONFIG_HAVE_ARCH_NODEDATA_EXTENSION */
  
- #ifdef CONFIG_NUMA
- extern int memory_add_physaddr_to_nid(u64 start);
+-#ifdef CONFIG_SPARSEMEM_VMEMMAP
+-static inline void register_page_bootmem_info_node(struct pglist_data *pgdat)
+-{
+-}
+-static inline void put_page_bootmem(struct page *page)
+-{
+-}
+-#else
+ extern void register_page_bootmem_info_node(struct pglist_data *pgdat);
+ extern void put_page_bootmem(struct page *page);
+-#endif
+ 
+ /*
+  * Lock for memory hotplug guarantees 1) all callbacks for memory hotplug
 diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index 2353887..7fbfc9f 100644
+index 26a5012..df6857b 100644
 --- a/mm/memory_hotplug.c
 +++ b/mm/memory_hotplug.c
-@@ -275,11 +275,14 @@ static int __meminit __add_section(int nid, struct zone *zone,
- #ifdef CONFIG_SPARSEMEM_VMEMMAP
- static int __remove_section(struct zone *zone, struct mem_section *ms)
- {
--	/*
--	 * XXX: Freeing memmap with vmemmap is not implement yet.
--	 *      This should be removed later.
--	 */
--	return -EBUSY;
-+	int ret = -EINVAL;
-+
-+	if (!valid_section(ms))
-+		return ret;
-+
-+	ret = unregister_memory_section(ms);
-+
-+	return ret;
+@@ -91,7 +91,6 @@ static void release_memory_resource(struct resource *res)
  }
- #else
- static int __remove_section(struct zone *zone, struct mem_section *ms)
-@@ -346,8 +349,7 @@ EXPORT_SYMBOL_GPL(__add_pages);
-  * sure that pages are marked reserved and zones are adjust properly by
-  * calling offline_pages().
-  */
--int __remove_pages(struct zone *zone, unsigned long phys_start_pfn,
--		 unsigned long nr_pages)
-+int __remove_pages(unsigned long phys_start_pfn, unsigned long nr_pages)
+ 
+ #ifdef CONFIG_MEMORY_HOTPLUG_SPARSE
+-#ifndef CONFIG_SPARSEMEM_VMEMMAP
+ static void get_page_bootmem(unsigned long info,  struct page *page,
+ 			     unsigned long type)
  {
- 	unsigned long i, ret = 0;
- 	int sections_to_remove;
-@@ -363,6 +365,7 @@ int __remove_pages(struct zone *zone, unsigned long phys_start_pfn,
- 	sections_to_remove = nr_pages / PAGES_PER_SECTION;
- 	for (i = 0; i < sections_to_remove; i++) {
- 		unsigned long pfn = phys_start_pfn + i*PAGES_PER_SECTION;
-+		struct zone *zone = page_zone(pfn_to_page(pfn));
- 		ret = __remove_section(zone, __pfn_to_section(pfn));
- 		if (ret)
- 			break;
+@@ -127,6 +126,7 @@ void __ref put_page_bootmem(struct page *page)
+ 
+ }
+ 
++#ifndef CONFIG_SPARSEMEM_VMEMMAP
+ static void register_page_bootmem_info_section(unsigned long start_pfn)
+ {
+ 	unsigned long *usemap, mapsize, section_nr, i;
+@@ -163,6 +163,11 @@ static void register_page_bootmem_info_section(unsigned long start_pfn)
+ 		get_page_bootmem(section_nr, page, MIX_SECTION_INFO);
+ 
+ }
++#else
++static inline void register_page_bootmem_info_section(unsigned long start_pfn)
++{
++}
++#endif
+ 
+ void register_page_bootmem_info_node(struct pglist_data *pgdat)
+ {
+@@ -198,7 +203,6 @@ void register_page_bootmem_info_node(struct pglist_data *pgdat)
+ 		register_page_bootmem_info_section(pfn);
+ 
+ }
+-#endif /* !CONFIG_SPARSEMEM_VMEMMAP */
+ 
+ static void grow_zone_span(struct zone *zone, unsigned long start_pfn,
+ 			   unsigned long end_pfn)
 -- 
 1.7.1
 
