@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
-	by kanga.kvack.org (Postfix) with SMTP id A048D6B0081
-	for <linux-mm@kvack.org>; Wed,  5 Sep 2012 18:51:00 -0400 (EDT)
-Received: by ggnf4 with SMTP id f4so241518ggn.14
-        for <linux-mm@kvack.org>; Wed, 05 Sep 2012 15:50:59 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
+	by kanga.kvack.org (Postfix) with SMTP id C96456B0088
+	for <linux-mm@kvack.org>; Wed,  5 Sep 2012 18:51:02 -0400 (EDT)
+Received: by ghrr18 with SMTP id r18so245748ghr.14
+        for <linux-mm@kvack.org>; Wed, 05 Sep 2012 15:51:02 -0700 (PDT)
 From: Ezequiel Garcia <elezegarcia@gmail.com>
-Subject: [PATCH 3/5] mm, util: Do strndup_user allocation directly, instead of through memdup_user
-Date: Wed,  5 Sep 2012 19:48:41 -0300
-Message-Id: <1346885323-15689-3-git-send-email-elezegarcia@gmail.com>
+Subject: [PATCH 4/5] mm, slob: Use only 'ret' variable for both slob object and returned pointer
+Date: Wed,  5 Sep 2012 19:48:42 -0300
+Message-Id: <1346885323-15689-4-git-send-email-elezegarcia@gmail.com>
 In-Reply-To: <1346885323-15689-1-git-send-email-elezegarcia@gmail.com>
 References: <1346885323-15689-1-git-send-email-elezegarcia@gmail.com>
 Sender: owner-linux-mm@kvack.org
@@ -15,52 +15,46 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: Ezequiel Garcia <elezegarcia@gmail.com>, Pekka Enberg <penberg@kernel.org>, Christoph Lameter <cl@linux.com>
 
-Since the allocation was being done throug memdup_user, the caller
-is wrongly traced as being strndup_user (the correct trace should
-report the caller of strndup_user).
-
-This is a common problem: in order to get accurate callsite tracing,
-a utils function can't allocate through another utils function,
-but instead do the allocation himself.
+There's no need to use two variables, 'ret' and 'm'.
+This is a minor cleanup patch, but it will allow next patch to clean
+the way tracing is done.
 
 Cc: Pekka Enberg <penberg@kernel.org>
 Cc: Christoph Lameter <cl@linux.com>
 Signed-off-by: Ezequiel Garcia <elezegarcia@gmail.com>
 ---
-I'm not sure this is the best solution,
-but creating another function to reuse between strndup_user
-and memdup_user seemed like an overkill.
+ mm/slob.c |    9 ++++-----
+ 1 files changed, 4 insertions(+), 5 deletions(-)
 
- mm/util.c |   15 ++++++++++++---
- 1 files changed, 12 insertions(+), 3 deletions(-)
-
-diff --git a/mm/util.c b/mm/util.c
-index dc3036c..87ff667 100644
---- a/mm/util.c
-+++ b/mm/util.c
-@@ -214,10 +214,19 @@ char *strndup_user(const char __user *s, long n)
- 	if (length > n)
- 		return ERR_PTR(-EINVAL);
+diff --git a/mm/slob.c b/mm/slob.c
+index 083959a..3f4dc9a 100644
+--- a/mm/slob.c
++++ b/mm/slob.c
+@@ -427,7 +427,6 @@ out:
+ static __always_inline void *
+ __do_kmalloc_node(size_t size, gfp_t gfp, int node, unsigned long caller)
+ {
+-	unsigned int *m;
+ 	int align = max(ARCH_KMALLOC_MINALIGN, ARCH_SLAB_MINALIGN);
+ 	void *ret;
  
--	p = memdup_user(s, length);
-+	/*
-+	 * Always use GFP_KERNEL, since copy_from_user() can sleep and
-+	 * cause pagefault, which makes it pointless to use GFP_NOFS
-+	 * or GFP_ATOMIC.
-+	 */
-+	p = kmalloc_track_caller(length, GFP_KERNEL);
-+	if (!p)
-+		return ERR_PTR(-ENOMEM);
+@@ -439,12 +438,12 @@ __do_kmalloc_node(size_t size, gfp_t gfp, int node, unsigned long caller)
+ 		if (!size)
+ 			return ZERO_SIZE_PTR;
  
--	if (IS_ERR(p))
--		return p;
-+	if (copy_from_user(p, s, length)) {
-+		kfree(p);
-+		return ERR_PTR(-EFAULT);
-+	}
+-		m = slob_alloc(size + align, gfp, align, node);
++		ret = slob_alloc(size + align, gfp, align, node);
  
- 	p[length - 1] = '\0';
+-		if (!m)
++		if (!ret)
+ 			return NULL;
+-		*m = size;
+-		ret = (void *)m + align;
++		*(unsigned int *)ret = size;
++		ret += align;
  
+ 		trace_kmalloc_node(caller, ret,
+ 				   size, size + align, gfp, node);
 -- 
 1.7.8.6
 
