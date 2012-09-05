@@ -1,59 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx141.postini.com [74.125.245.141])
-	by kanga.kvack.org (Postfix) with SMTP id 66CE56B005D
-	for <linux-mm@kvack.org>; Wed,  5 Sep 2012 08:55:36 -0400 (EDT)
-Message-ID: <50474BBB.2070509@redhat.com>
-Date: Wed, 05 Sep 2012 15:55:23 +0300
-From: Avi Kivity <avi@redhat.com>
+Received: from psmtp.com (na3sys010amx140.postini.com [74.125.245.140])
+	by kanga.kvack.org (Postfix) with SMTP id 0C51F6B005D
+	for <linux-mm@kvack.org>; Wed,  5 Sep 2012 09:55:36 -0400 (EDT)
+Date: Wed, 5 Sep 2012 13:55:35 +0000
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH] slab: fix the DEADLOCK issue on l3 alien lock
+In-Reply-To: <5046B9EE.7000804@linux.vnet.ibm.com>
+Message-ID: <0000013996b6f21d-d45be653-3111-4aef-b079-31dc673e6fd8-000000@email.amazonses.com>
+References: <5044692D.7080608@linux.vnet.ibm.com> <5046B9EE.7000804@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH V1 0/2] Enable clients to schedule in mmu_notifier methods
-References: <1346748081-1652-1-git-send-email-haggaie@mellanox.com> <20120904150615.f6c1a618.akpm@linux-foundation.org>
-In-Reply-To: <20120904150615.f6c1a618.akpm@linux-foundation.org>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Haggai Eran <haggaie@mellanox.com>, linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>, Shachar Raindel <raindel@mellanox.com>, Sagi Grimberg <sagig@mellanox.com>, Or Gerlitz <ogerlitz@mellanox.com>
+To: Michael Wang <wangyun@linux.vnet.ibm.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Matt Mackall <mpm@selenic.com>, Pekka Enberg <penberg@kernel.org>
 
-On 09/05/2012 01:06 AM, Andrew Morton wrote:
-> On Tue,  4 Sep 2012 11:41:19 +0300
-> Haggai Eran <haggaie@mellanox.com> wrote:
-> 
->> > This patchset is a preliminary step towards on-demand paging design to be
->> > added to the Infiniband stack.
-> 
-> The above sentence is the most important part of the patchset.  Because
-> it answers the question "ytf is Haggai sending this stuff at me".
-> 
-> I'm unsure if the patchset adds runtime overhead but it does add
-> maintenance overhead (perhaps we can reduce this - see later emails). 
-> So we need to take a close look at what we're getting in return for
-> that overhead, please.
-> 
-> Exactly why do we want on-demand paging for Infiniband?  Why should
-> anyone care?  What problems are users currently experiencing?  How many
-> users and how serious are the problems and what if any workarounds are
-> available?
-> 
-> Is there any prospect that any other subsystems will utilise these
-> infrastructural changes?  If so, which and how, etc?
-> 
-> 
-> 
-> IOW, sell this code to us!
+On Wed, 5 Sep 2012, Michael Wang wrote:
 
-kvm may be a buyer.  kvm::mmu_lock, which serializes guest page faults,
-also protects long operations such as destroying large ranges.  It would
-be good to convert it into a spinlock, but as it is used inside mmu
-notifiers, this cannot be done.
+> Since the cachep and cachep->slabp_cache's l3 alien are in the same lock class,
+> fake report generated.
 
-(there are alternatives, such as keeping the spinlock and using a
-generation counter to do the teardown in O(1), which is what the "may"
-is doing up there).
+Ahh... That is a key insight into why this occurs.
 
--- 
-error compiling committee.c: too many arguments to function
+> This should not happen since we already have init_lock_keys() which will
+> reassign the lock class for both l3 list and l3 alien.
+
+Right. I was wondering why we still get intermitted reports on this.
+
+> This patch will invoke init_lock_keys() after we done enable_cpucache()
+> instead of before to avoid the fake DEADLOCK report.
+
+Acked-by: Christoph Lameter <cl@linux.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
