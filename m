@@ -1,38 +1,34 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
-	by kanga.kvack.org (Postfix) with SMTP id CC63A6B005D
-	for <linux-mm@kvack.org>; Wed,  5 Sep 2012 06:56:15 -0400 (EDT)
-Date: Wed, 5 Sep 2012 11:56:11 +0100
+Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
+	by kanga.kvack.org (Postfix) with SMTP id 0FB3A6B005D
+	for <linux-mm@kvack.org>; Wed,  5 Sep 2012 06:59:06 -0400 (EDT)
+Date: Wed, 5 Sep 2012 11:59:00 +0100
 From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 2/2] mm: support MIGRATE_DISCARD
-Message-ID: <20120905105611.GI11266@suse.de>
-References: <1346832673-12512-1-git-send-email-minchan@kernel.org>
- <1346832673-12512-2-git-send-email-minchan@kernel.org>
+Subject: Re: [PATCH v3 1/5] mm: fix tracing in free_pcppages_bulk()
+Message-ID: <20120905105900.GJ11266@suse.de>
+References: <1346765185-30977-1-git-send-email-b.zolnierkie@samsung.com>
+ <1346765185-30977-2-git-send-email-b.zolnierkie@samsung.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <1346832673-12512-2-git-send-email-minchan@kernel.org>
+In-Reply-To: <1346765185-30977-2-git-send-email-b.zolnierkie@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, Rik van Riel <riel@redhat.com>
+To: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
+Cc: linux-mm@kvack.org, m.szyprowski@samsung.com, mina86@mina86.com, minchan@kernel.org, hughd@google.com, kyungmin.park@samsung.com
 
-On Wed, Sep 05, 2012 at 05:11:13PM +0900, Minchan Kim wrote:
-> This patch introudes MIGRATE_DISCARD mode in migration.
-> It drops *clean cache pages* instead of migration so that
-> migration latency could be reduced by avoiding (memcpy + page remapping).
-> It's useful for CMA because latency of migration is very important rather
-> than eviction of background processes's workingset. In addition, it needs
-> less free pages for migration targets so it could avoid memory reclaiming
-> to get free pages, which is another factor increase latency.
+On Tue, Sep 04, 2012 at 03:26:21PM +0200, Bartlomiej Zolnierkiewicz wrote:
+> page->private gets re-used in __free_one_page() to store page order
+> so migratetype value must be cached locally.
+> 
+> Fixes regression introduced in a701623 ("mm: fix migratetype bug
+> which slowed swapping").
 > 
 
-Bah, this was released while I was reviewing the older version. I did
-not read this one as closely but I see the enum problems have gone away
-at least. I'd still prefer if CMA had an additional helper to discard
-some pages with shrink_page_list() and migrate the remaining pages with
-migrate_pages(). That would remove the need to add a MIGRATE_DISCARD
-migrate mode at all.
+This is unrelated to the rest of the series and should be sent on its
+own but otherwise.
+
+Acked-by: Mel Gorman <mgorman@suse.de>
 
 -- 
 Mel Gorman
