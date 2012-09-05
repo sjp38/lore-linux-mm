@@ -1,40 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx103.postini.com [74.125.245.103])
-	by kanga.kvack.org (Postfix) with SMTP id 0B5226B0069
-	for <linux-mm@kvack.org>; Wed,  5 Sep 2012 05:10:01 -0400 (EDT)
-Message-ID: <5047161F.60503@parallels.com>
-Date: Wed, 5 Sep 2012 13:06:39 +0400
-From: Glauber Costa <glommer@parallels.com>
-MIME-Version: 1.0
+Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
+	by kanga.kvack.org (Postfix) with SMTP id 4581D6B006E
+	for <linux-mm@kvack.org>; Wed,  5 Sep 2012 05:11:46 -0400 (EDT)
+Received: by pbbro12 with SMTP id ro12so661159pbb.14
+        for <linux-mm@kvack.org>; Wed, 05 Sep 2012 02:11:45 -0700 (PDT)
+Date: Wed, 5 Sep 2012 02:11:40 -0700
+From: Tejun Heo <tj@kernel.org>
 Subject: Re: [RFC 0/5] forced comounts for cgroups.
-References: <1346768300-10282-1-git-send-email-glommer@parallels.com> <20120904214602.GA9092@dhcp-172-17-108-109.mtv.corp.google.com> <5047074D.1030104@parallels.com> <20120905081439.GC3195@dhcp-172-17-108-109.mtv.corp.google.com> <50470A87.1040701@parallels.com> <20120905082947.GD3195@dhcp-172-17-108-109.mtv.corp.google.com> <50470EBF.9070109@parallels.com> <20120905084740.GE3195@dhcp-172-17-108-109.mtv.corp.google.com> <50471379.3060603@parallels.com> <20120905090744.GG3195@dhcp-172-17-108-109.mtv.corp.google.com>
-In-Reply-To: <20120905090744.GG3195@dhcp-172-17-108-109.mtv.corp.google.com>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Message-ID: <20120905091140.GH3195@dhcp-172-17-108-109.mtv.corp.google.com>
+References: <1346768300-10282-1-git-send-email-glommer@parallels.com>
+ <20120904214602.GA9092@dhcp-172-17-108-109.mtv.corp.google.com>
+ <5047074D.1030104@parallels.com>
+ <20120905081439.GC3195@dhcp-172-17-108-109.mtv.corp.google.com>
+ <50470A87.1040701@parallels.com>
+ <20120905082947.GD3195@dhcp-172-17-108-109.mtv.corp.google.com>
+ <50470EBF.9070109@parallels.com>
+ <20120905084740.GE3195@dhcp-172-17-108-109.mtv.corp.google.com>
+ <1346835993.2600.9.camel@twins>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1346835993.2600.9.camel@twins>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org, davej@redhat.com, ben@decadent.org.uk, a.p.zijlstra@chello.nl, pjt@google.com, lennart@poettering.net, kay.sievers@vrfy.org
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Glauber Costa <glommer@parallels.com>, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org, davej@redhat.com, ben@decadent.org.uk, pjt@google.com, lennart@poettering.net, kay.sievers@vrfy.org
 
-On 09/05/2012 01:07 PM, Tejun Heo wrote:
-> Hello, Glauber.
+Hello, Peter.
+
+On Wed, Sep 05, 2012 at 11:06:33AM +0200, Peter Zijlstra wrote:
+> *confused* I always thought that was exactly what you meant with unified
+> hierarchy.
+
+No, I never counted out differing granularity.
+
+> Doing all this runtime is just going to make the mess even bigger,
+> because now we have to deal with even more stupid cases.
 > 
-> On Wed, Sep 05, 2012 at 12:55:21PM +0400, Glauber Costa wrote:
->>> So, I think it's desirable for all controllers to be able to handle
->>> hierarchies the same way and to have the ability to tag something as
->>> belonging to certain group in the hierarchy for all controllers but I
->>> don't think it's desirable or feasible to require all of them to
->>> follow exactly the same grouping at all levels.
->>
->> By "different levels of granularity" do you mean having just a subset of
->> them turned on at a particular place?
-> 
-> Heh, this is tricky to describe and I'm not really following what you
-> mean. 
+> So either we go and try to contain this mess as proposed by Glauber or
+> we go delete controllers.. I've had it with this crap.
 
-Do we really want to start cleaning up all this by changing the
-interface to something that is described as "tricky" ?
+If cpuacct can really go away, that's great, but I don't think the
+problem at hand is unsolvable, so let's not jump it.  cpuacct and cpu
+aren't the onlfy problem cases after all.  We need to solve it for
+other controllers too.
 
+Thanks.
+
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
