@@ -1,61 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
-	by kanga.kvack.org (Postfix) with SMTP id C9D7D6B009F
-	for <linux-mm@kvack.org>; Wed,  5 Sep 2012 06:11:47 -0400 (EDT)
-Date: Wed, 5 Sep 2012 12:11:43 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH] mm: fix potential anon_vma locking issue in mprotect()
-Message-ID: <20120905101142.GP3334@redhat.com>
-References: <1346801989-18274-1-git-send-email-walken@google.com>
- <20120904164636.158d8012.akpm@linux-foundation.org>
- <CANN689HVhMogAWjLAEJOkaKL0DL-ECD_eZngrCQqaUrQ6pubeA@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CANN689HVhMogAWjLAEJOkaKL0DL-ECD_eZngrCQqaUrQ6pubeA@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx159.postini.com [74.125.245.159])
+	by kanga.kvack.org (Postfix) with SMTP id DCC066B0083
+	for <linux-mm@kvack.org>; Wed,  5 Sep 2012 06:21:00 -0400 (EDT)
+Received: from canuck.infradead.org ([2001:4978:20e::1])
+	by merlin.infradead.org with esmtps (Exim 4.76 #1 (Red Hat Linux))
+	id 1T9CjD-0006Te-5d
+	for linux-mm@kvack.org; Wed, 05 Sep 2012 10:20:59 +0000
+Received: from dhcp-089-099-019-018.chello.nl ([89.99.19.18] helo=dyad.programming.kicks-ass.net)
+	by canuck.infradead.org with esmtpsa (Exim 4.76 #1 (Red Hat Linux))
+	id 1T9CjC-0000wa-DR
+	for linux-mm@kvack.org; Wed, 05 Sep 2012 10:20:58 +0000
+Subject: Re: [RFC 0/5] forced comounts for cgroups.
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+In-Reply-To: <50471C0C.7050600@parallels.com>
+References: <1346768300-10282-1-git-send-email-glommer@parallels.com>
+	 <20120904214602.GA9092@dhcp-172-17-108-109.mtv.corp.google.com>
+	 <5047074D.1030104@parallels.com>
+	 <20120905081439.GC3195@dhcp-172-17-108-109.mtv.corp.google.com>
+	 <50470A87.1040701@parallels.com>
+	 <20120905082947.GD3195@dhcp-172-17-108-109.mtv.corp.google.com>
+	 <50470EBF.9070109@parallels.com>
+	 <20120905084740.GE3195@dhcp-172-17-108-109.mtv.corp.google.com>
+	 <1346835993.2600.9.camel@twins>
+	 <20120905091140.GH3195@dhcp-172-17-108-109.mtv.corp.google.com>
+	 <50471782.6060800@parallels.com> <1346837209.2600.14.camel@twins>
+	 <50471C0C.7050600@parallels.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Wed, 05 Sep 2012 12:20:53 +0200
+Message-ID: <1346840453.2461.6.camel@laptop>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michel Lespinasse <walken@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+To: Glauber Costa <glommer@parallels.com>
+Cc: Tejun Heo <tj@kernel.org>, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org, davej@redhat.com, ben@decadent.org.uk, pjt@google.com, lennart@poettering.net, kay.sievers@vrfy.org
 
-On Tue, Sep 04, 2012 at 05:02:49PM -0700, Michel Lespinasse wrote:
-> On Tue, Sep 4, 2012 at 4:46 PM, Andrew Morton <akpm@linux-foundation.org> wrote:
-> > On Tue,  4 Sep 2012 16:39:49 -0700
-> > Michel Lespinasse <walken@google.com> wrote:
-> >
-> >> This change fixes an anon_vma locking issue in the following situation:
-> >> - vma has no anon_vma
-> >> - next has an anon_vma
-> >> - vma is being shrunk / next is being expanded, due to an mprotect call
-> >>
-> >> We need to take next's anon_vma lock to avoid races with rmap users
-> >> (such as page migration) while next is being expanded.
-> >
-> > hm, OK.  How serious was that bug?  I'm suspecting "only needed in
-> > 3.7".
+On Wed, 2012-09-05 at 13:31 +0400, Glauber Costa wrote:
+> 
+> You wouldn't have to do more than one hierarchy walks for that. What
+> Tejun seems to want, is the ability to not have a particular controller
+> at some point in the tree. But if they exist, they are always together. 
 
-Agreed.
+Right, but the accounting is very much tied to the control structures, I
+suppose we could change that, but my jet-leg addled brain isn't seeing
+anything particularly nice atm.
 
-> That was my starting position as well. I'd expect the biggest issue
-> would be page migration races, and we do have assertions for that
-> case, and we've not been hitting them (that I know of). So, this
-> should not be a high frequency issue AFAICT.
+But I don't really see the point though, this kind of interface would
+only ever work for the non-controlling and controlling controller
+combination (confused yet ;-), and I don't think we have many of those.
 
-I exclude it's reproducible with real load too, the window is far too
-small.
-
-A malicious load might reproduce it, but the worst case would be to
-trigger the BUG_ON assertion in migration_entry_to_page like you
-mentioned above or to "gracefully" hang in migration_entry_wait, or to
-trigger one of the BUG_ONs in split_huge_page with no risk of memory
-corruption or anything.
-
-The only two places in the VM that depends on full accuracy in finding
-all ptes from the rmap walk are remove_migration_ptes and
-split_huge_page and they both are (and must remain) robust enough not
-to generate memory corruption or any other adverse side effects if the
-rmap walk actually wasn't 100% accurate because of some race condition
-like in this case.
+I would really rather see a simplification of the entire cgroup
+interface space as opposed to making it more complex. And adding this
+subtree 'feature' only makes it more complex.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
