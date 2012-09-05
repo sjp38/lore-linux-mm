@@ -1,58 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
-	by kanga.kvack.org (Postfix) with SMTP id 6F0776B0070
-	for <linux-mm@kvack.org>; Wed,  5 Sep 2012 05:35:15 -0400 (EDT)
-Message-ID: <50471C0C.7050600@parallels.com>
-Date: Wed, 5 Sep 2012 13:31:56 +0400
-From: Glauber Costa <glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx159.postini.com [74.125.245.159])
+	by kanga.kvack.org (Postfix) with SMTP id 3D8816B00A6
+	for <linux-mm@kvack.org>; Wed,  5 Sep 2012 05:40:46 -0400 (EDT)
+Date: Wed, 5 Sep 2012 10:40:41 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 3/3] memory-hotplug: bug fix race between isolation and
+ allocation
+Message-ID: <20120905094041.GF11266@suse.de>
+References: <1346829962-31989-1-git-send-email-minchan@kernel.org>
+ <1346829962-31989-4-git-send-email-minchan@kernel.org>
 MIME-Version: 1.0
-Subject: Re: [RFC 0/5] forced comounts for cgroups.
-References: <1346768300-10282-1-git-send-email-glommer@parallels.com>  <20120904214602.GA9092@dhcp-172-17-108-109.mtv.corp.google.com>  <5047074D.1030104@parallels.com>  <20120905081439.GC3195@dhcp-172-17-108-109.mtv.corp.google.com>  <50470A87.1040701@parallels.com>  <20120905082947.GD3195@dhcp-172-17-108-109.mtv.corp.google.com>  <50470EBF.9070109@parallels.com>  <20120905084740.GE3195@dhcp-172-17-108-109.mtv.corp.google.com>  <1346835993.2600.9.camel@twins>  <20120905091140.GH3195@dhcp-172-17-108-109.mtv.corp.google.com>  <50471782.6060800@parallels.com> <1346837209.2600.14.camel@twins>
-In-Reply-To: <1346837209.2600.14.camel@twins>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <1346829962-31989-4-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Tejun Heo <tj@kernel.org>, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org, davej@redhat.com, ben@decadent.org.uk, pjt@google.com, lennart@poettering.net, kay.sievers@vrfy.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Xishi Qiu <qiuxishi@huawei.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 09/05/2012 01:26 PM, Peter Zijlstra wrote:
-> On Wed, 2012-09-05 at 13:12 +0400, Glauber Costa wrote:
->> On 09/05/2012 01:11 PM, Tejun Heo wrote:
->>> Hello, Peter.
->>>
->>> On Wed, Sep 05, 2012 at 11:06:33AM +0200, Peter Zijlstra wrote:
->>>> *confused* I always thought that was exactly what you meant with unified
->>>> hierarchy.
->>>
->>> No, I never counted out differing granularity.
->>>
->>
->> Can you elaborate on which interface do you envision to make it work?
->> They will clearly be mounted in the same hierarchy, or as said
->> alternatively, comounted.
->>
->> If you can turn them on/off on a per-subtree basis, which interface
->> exactly do you propose for that?
+On Wed, Sep 05, 2012 at 04:26:02PM +0900, Minchan Kim wrote:
+> Like below, memory-hotplug makes race between page-isolation
+> and page-allocation so it can hit BUG_ON in __offline_isolated_pages.
 > 
-> I wouldn't, screw that. That would result in the exact same problem
-> we're trying to fix. I want a single hierarchy walk, that's expensive
-> enough.
+> 	CPU A					CPU B
 > 
->> Would a pair of cgroup core files like available_controllers and
->> current_controllers are a lot of drivers do, suffice?
+> start_isolate_page_range
+> set_migratetype_isolate
+> spin_lock_irqsave(zone->lock)
 > 
-> No.. its not a 'feature' I care to support for 'my' controllers.
+> 				free_hot_cold_page(Page A)
+> 				/* without zone->lock */
+> 				migratetype = get_pageblock_migratetype(Page A);
+> 				/*
+> 				 * Page could be moved into MIGRATE_MOVABLE
+> 				 * of per_cpu_pages
+> 				 */
+> 				list_add_tail(&page->lru, &pcp->lists[migratetype]);
 > 
-> I simply don't want to have to do two (or more) hierarchy walks for
-> accounting on every schedule event, all that pointer chasing is stupidly
-> expensive.
+> set_pageblock_isolate
+> move_freepages_block
+> drain_all_pages
+> 
+> 				/* Page A could be in MIGRATE_MOVABLE of free_list. */
+> 
+> check_pages_isolated
+> __test_page_isolated_in_pageblock
+> /*
+>  * We can't catch freed page which
+>  * is free_list[MIGRATE_MOVABLE]
+>  */
+> if (PageBuddy(page A))
+> 	pfn += 1 << page_order(page A);
+> 
+> 				/* So, Page A could be allocated */
+> 
+> __offline_isolated_pages
+> /*
+>  * BUG_ON hit or offline page
+>  * which is used by someone
+>  */
+> BUG_ON(!PageBuddy(page A));
 > 
 
-You wouldn't have to do more than one hierarchy walks for that. What
-Tejun seems to want, is the ability to not have a particular controller
-at some point in the tree. But if they exist, they are always together.
+offline_page calling BUG_ON because someone allocated the page is
+ridiculous. I did not spot where that check is but it should be changed. The
+correct action is to retry the isolation.
 
+> Signed-off-by: Minchan Kim <minchan@kernel.org>
+
+At no point in the changelog do you actually say what he patch does :/
+
+> ---
+>  mm/page_isolation.c |    5 ++++-
+>  1 file changed, 4 insertions(+), 1 deletion(-)
+> 
+> diff --git a/mm/page_isolation.c b/mm/page_isolation.c
+> index acf65a7..4699d1f 100644
+> --- a/mm/page_isolation.c
+> +++ b/mm/page_isolation.c
+> @@ -196,8 +196,11 @@ __test_page_isolated_in_pageblock(unsigned long pfn, unsigned long end_pfn)
+>  			continue;
+>  		}
+>  		page = pfn_to_page(pfn);
+> -		if (PageBuddy(page))
+> +		if (PageBuddy(page)) {
+> +			if (get_page_migratetype(page) != MIGRATE_ISOLATE)
+> +				break;
+>  			pfn += 1 << page_order(page);
+> +		}
+
+It is possible the page is moved to the MIGRATE_ISOLATE list between when
+the page was freed to the buddy allocator and this check was made. The
+page->index information is stale and the impact is that the hotplug
+operation fails when it could have succeeded. That said, I think it is a
+very unlikely race that will never happen in practice.
+
+More importantly, the effect of this path is that EBUSY gets bubbled all
+the way up and the hotplug operations fails. This is fine but as the page
+is free at the time this problem is detected you also have the option
+of moving the PageBuddy page to the MIGRATE_ISOLATE list at this time
+if you take the zone lock. This will mean you need to change the name of
+test_pages_isolated() of course.
+
+>  		else if (page_count(page) == 0 &&
+>  				get_page_migratetype(page) == MIGRATE_ISOLATE)
+>  			pfn += 1;
+> -- 
+> 1.7.9.5
+> 
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
