@@ -1,57 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
-	by kanga.kvack.org (Postfix) with SMTP id 4612F6B005A
-	for <linux-mm@kvack.org>; Wed,  5 Sep 2012 16:12:44 -0400 (EDT)
-Received: by dadi14 with SMTP id i14so649840dad.14
-        for <linux-mm@kvack.org>; Wed, 05 Sep 2012 13:12:43 -0700 (PDT)
-Date: Wed, 5 Sep 2012 13:12:38 -0700
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH v2] memcg: first step towards hierarchical controller
-Message-ID: <20120905201238.GE13737@google.com>
-References: <5045BD25.10301@parallels.com>
- <20120904130905.GA15683@dhcp22.suse.cz>
- <504601B8.2050907@parallels.com>
- <20120904143552.GB15683@dhcp22.suse.cz>
- <50461241.5010300@parallels.com>
- <20120904145414.GC15683@dhcp22.suse.cz>
- <50461610.30305@parallels.com>
- <20120904162501.GE15683@dhcp22.suse.cz>
- <504709D4.2010800@parallels.com>
- <20120905144942.GH5388@dhcp22.suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120905144942.GH5388@dhcp22.suse.cz>
+Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
+	by kanga.kvack.org (Postfix) with SMTP id B80C36B0068
+	for <linux-mm@kvack.org>; Wed,  5 Sep 2012 16:41:34 -0400 (EDT)
+Date: Wed, 5 Sep 2012 13:41:33 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm: fix mmap overflow checking
+Message-Id: <20120905134133.f5858d3c.akpm@linux-foundation.org>
+In-Reply-To: <5046C4E7.5040407@cn.fujitsu.com>
+References: <1346750580-11352-1-git-send-email-gaowanlong@cn.fujitsu.com>
+	<20120904135924.b61e04e0.akpm@linux-foundation.org>
+	<5046C4E7.5040407@cn.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Glauber Costa <glommer@parallels.com>, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org, Dave Jones <davej@redhat.com>, Ben Hutchings <ben@decadent.org.uk>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Paul Turner <pjt@google.com>, Lennart Poettering <lennart@poettering.net>, Kay Sievers <kay.sievers@vrfy.org>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>
+To: gaowanlong@cn.fujitsu.com
+Cc: linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, open@kvack.org, list@kvack.org, MEMORY MANAGEMENT <linux-mm@kvack.org>
 
-Hello, Michal.
+On Wed, 05 Sep 2012 11:20:07 +0800
+Wanlong Gao <gaowanlong@cn.fujitsu.com> wrote:
 
-On Wed, Sep 05, 2012 at 04:49:42PM +0200, Michal Hocko wrote:
-> Can we settle on the following 3 steps?
-> 1) warn about "flat" hierarchies (give it X releases) - I will push it
->    to as many Suse code streams as possible (hope other distributions
->    could do the same)
+> On 09/05/2012 04:59 AM, Andrew Morton wrote:
+> > On Tue, 4 Sep 2012 17:23:00 +0800
+> > Wanlong Gao <gaowanlong@cn.fujitsu.com> wrote:
+> > 
+> >> POSIX said that if the file is a regular file and the value of "off"
+> >> plus "len" exceeds the offset maximum established in the open file
+> >> description associated with fildes, mmap should return EOVERFLOW.
+> > 
+> > That's what POSIX says, but what does Linux do?  It is important that
+> 
+> Current Linux checks whether the shifted off+len exceed ULONG_MAX, it seems
+> never happen.
+> 
+> > we precisely describe and understand the behaviour change, as there is
+> > potential here to break existing applications.
+> > 
+> > I'm assuming that Linux presently permits the mmap() and then generates
+> > SIGBUS if an access is attempted beyond the max file size?
+> 
+> What I saw is ENOMEM because the "len" here is too large.
 
-I think I'm just gonna trigger WARN from cgroup core if anyone tries
-to create hierarchy with a controller which doesn't support full
-hierarchy.  WARN_ON_ONCE() at first and then WARN_ON() on each
-creation later on.
+I don't think I understand this.  You're saying that without your patch
+applied, the mmap() attempt returns -ENOMEM?  If so, where in the code
+does that occur?
 
-> 2) flip the default on the root cgroup & warn when somebody tries to
->    change it to 0 (give it another X releases) that the knob will be
->    removed
-> 3) remove the knob and the whole nonsese
-> 4) revert 3 if somebody really objects
+In the current upstream kernel is there some combination of mmap()
+arguments which will permit the mmap() to succeed, even though it
+refers to a section of the file which lies beyond the file's maximum
+offset?
 
-If we can get to 3, I don't think 4 would be a problem.
+> > 
+> >> 	/* offset overflow? */
+> >> -	if ((pgoff + (len >> PAGE_SHIFT)) < pgoff)
+> >> -               return -EOVERFLOW;
+> >> +	if (off + len < off)
+> >> +		return -EOVERFLOW;
+> > 
+> > Well, this treats sizeof(off_t) as the "offset maximum established in
+> > the open file".  But from my reading of the above excerpt, we should in
+> > fact be checking against the underlying fs's s_maxbytes?
+> 
+> More reasonable, how about following?
 
-Thanks.
-
--- 
-tejun
+Well I don't know.  Again, the concern here is the risk of breaking
+existing applications.  So before proceeding, we need a very complete
+and accurate understanding of the kernel's behaviour both before and
+after this patch.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
