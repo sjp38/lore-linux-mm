@@ -1,66 +1,128 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
-	by kanga.kvack.org (Postfix) with SMTP id A556F6B0069
-	for <linux-mm@kvack.org>; Wed,  5 Sep 2012 05:07:49 -0400 (EDT)
-Received: by pbbro12 with SMTP id ro12so654207pbb.14
-        for <linux-mm@kvack.org>; Wed, 05 Sep 2012 02:07:49 -0700 (PDT)
-Date: Wed, 5 Sep 2012 02:07:44 -0700
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [RFC 0/5] forced comounts for cgroups.
-Message-ID: <20120905090744.GG3195@dhcp-172-17-108-109.mtv.corp.google.com>
-References: <1346768300-10282-1-git-send-email-glommer@parallels.com>
- <20120904214602.GA9092@dhcp-172-17-108-109.mtv.corp.google.com>
- <5047074D.1030104@parallels.com>
- <20120905081439.GC3195@dhcp-172-17-108-109.mtv.corp.google.com>
- <50470A87.1040701@parallels.com>
- <20120905082947.GD3195@dhcp-172-17-108-109.mtv.corp.google.com>
- <50470EBF.9070109@parallels.com>
- <20120905084740.GE3195@dhcp-172-17-108-109.mtv.corp.google.com>
- <50471379.3060603@parallels.com>
+Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
+	by kanga.kvack.org (Postfix) with SMTP id D0B5C6B005D
+	for <linux-mm@kvack.org>; Wed,  5 Sep 2012 05:10:00 -0400 (EDT)
+Date: Wed, 5 Sep 2012 10:09:55 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 1/3] mm: use get_page_migratetype instead of page_private
+Message-ID: <20120905090955.GD11266@suse.de>
+References: <1346829962-31989-1-git-send-email-minchan@kernel.org>
+ <1346829962-31989-2-git-send-email-minchan@kernel.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <50471379.3060603@parallels.com>
+In-Reply-To: <1346829962-31989-2-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org, davej@redhat.com, ben@decadent.org.uk, a.p.zijlstra@chello.nl, pjt@google.com, lennart@poettering.net, kay.sievers@vrfy.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Xishi Qiu <qiuxishi@huawei.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Hello, Glauber.
-
-On Wed, Sep 05, 2012 at 12:55:21PM +0400, Glauber Costa wrote:
-> > So, I think it's desirable for all controllers to be able to handle
-> > hierarchies the same way and to have the ability to tag something as
-> > belonging to certain group in the hierarchy for all controllers but I
-> > don't think it's desirable or feasible to require all of them to
-> > follow exactly the same grouping at all levels.
+On Wed, Sep 05, 2012 at 04:26:00PM +0900, Minchan Kim wrote:
+> page allocator uses set_page_private and page_private for handling
+> migratetype when it frees page. Let's replace them with [set|get]
+> _page_migratetype to make it more clear.
 > 
-> By "different levels of granularity" do you mean having just a subset of
-> them turned on at a particular place?
+> Signed-off-by: Minchan Kim <minchan@kernel.org>
 
-Heh, this is tricky to describe and I'm not really following what you
-mean.  They're all on the same tree but a controller should be able to
-handle a given subtree as single group.  e.g. if you draw the tree,
-different controllers should be able to draw different enclosing
-circles and operate on the simplifed tree.  How flexible that should
-be, I don't know.  Maybe it would be enough to be able to say "treat
-all children of this node as belonging to this node for controllers X
-and Y".
+Maybe it's because I'm used of setting set_page_private() in the page
+allocator and what it means but I fear that it'll be very easy to confuse
+get_page_migratetype() with get_pageblock_migratetype(). The former only
+works while the page is in the buddy allocator. The latter can be called
+at any time. I'm not against the patch as such but I'm not convinced
+either :)
 
-> If yes, having them guaranteed to be comounted is still perceived by me
-> as a good first step. A natural following would be to turn them on/off
-> on a per-group basis.
+One nit below
 
-I don't agree with that.  If we do it that way, we would lose
-differing granularity from forcing co-mounting and then restore it
-later when the subtree handling is implemented.  If we can do away
-with differing granularity, that's fine; otherwise, it doesn't make
-much sense to remove and then restore it.
+> ---
+>  include/linux/mm.h  |   10 ++++++++++
+>  mm/page_alloc.c     |   11 +++++++----
+>  mm/page_isolation.c |    2 +-
+>  3 files changed, 18 insertions(+), 5 deletions(-)
+> 
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> index 5c76634..86d61d6 100644
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -249,6 +249,16 @@ struct inode;
+>  #define page_private(page)		((page)->private)
+>  #define set_page_private(page, v)	((page)->private = (v))
+>  
+> +static inline void set_page_migratetype(struct page *page, int migratetype)
+> +{
+> +	set_page_private(page, migratetype);
+> +}
+> +
+> +static inline int get_page_migratetype(struct page *page)
+> +{
+> +	return page_private(page);
+> +}
+> +
+>  /*
+>   * FIXME: take this include out, include page-flags.h in
+>   * files which need it (119 of them)
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 710d91c..103ba66 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -671,8 +671,10 @@ static void free_pcppages_bulk(struct zone *zone, int count,
+>  			/* must delete as __free_one_page list manipulates */
+>  			list_del(&page->lru);
+>  			/* MIGRATE_MOVABLE list may include MIGRATE_RESERVEs */
+> -			__free_one_page(page, zone, 0, page_private(page));
+> -			trace_mm_page_pcpu_drain(page, 0, page_private(page));
+> +			__free_one_page(page, zone, 0,
+> +				get_page_migratetype(page));
+> +			trace_mm_page_pcpu_drain(page, 0,
+> +				get_page_migratetype(page));
+>  		} while (--to_free && --batch_free && !list_empty(list));
+>  	}
+>  	__mod_zone_page_state(zone, NR_FREE_PAGES, count);
+> @@ -731,6 +733,7 @@ static void __free_pages_ok(struct page *page, unsigned int order)
+>  	__count_vm_events(PGFREE, 1 << order);
+>  	free_one_page(page_zone(page), page, order,
+>  					get_pageblock_migratetype(page));
+> +
+>  	local_irq_restore(flags);
+>  }
+>  
 
-Thanks.
+Unnecessary whitespace change.
+
+> @@ -1134,7 +1137,7 @@ static int rmqueue_bulk(struct zone *zone, unsigned int order,
+>  			if (!is_migrate_cma(mt) && mt != MIGRATE_ISOLATE)
+>  				mt = migratetype;
+>  		}
+> -		set_page_private(page, mt);
+> +		set_page_migratetype(page, mt);
+>  		list = &page->lru;
+>  	}
+>  	__mod_zone_page_state(zone, NR_FREE_PAGES, -(i << order));
+> @@ -1301,7 +1304,7 @@ void free_hot_cold_page(struct page *page, int cold)
+>  		return;
+>  
+>  	migratetype = get_pageblock_migratetype(page);
+> -	set_page_private(page, migratetype);
+> +	set_page_migratetype(page, migratetype);
+>  	local_irq_save(flags);
+>  	if (unlikely(wasMlocked))
+>  		free_page_mlock(page);
+> diff --git a/mm/page_isolation.c b/mm/page_isolation.c
+> index 64abb33..acf65a7 100644
+> --- a/mm/page_isolation.c
+> +++ b/mm/page_isolation.c
+> @@ -199,7 +199,7 @@ __test_page_isolated_in_pageblock(unsigned long pfn, unsigned long end_pfn)
+>  		if (PageBuddy(page))
+>  			pfn += 1 << page_order(page);
+>  		else if (page_count(page) == 0 &&
+> -				page_private(page) == MIGRATE_ISOLATE)
+> +				get_page_migratetype(page) == MIGRATE_ISOLATE)
+>  			pfn += 1;
+>  		else
+>  			break;
 
 -- 
-tejun
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
