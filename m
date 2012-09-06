@@ -1,53 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
-	by kanga.kvack.org (Postfix) with SMTP id D61046B0062
-	for <linux-mm@kvack.org>; Thu,  6 Sep 2012 13:15:45 -0400 (EDT)
-Message-ID: <1346951742.1680.38.camel@gandalf.local.home>
-Subject: Re: [PATCH v3 01/17] hashtable: introduce a small and naive
- hashtable
-From: Steven Rostedt <rostedt@goodmis.org>
-Date: Thu, 06 Sep 2012 13:15:42 -0400
-In-Reply-To: <5048CDA2.10300@gmail.com>
-References: <503C95E4.3010000@gmail.com> <20120828101148.GA21683@Krystal>
-	  <503CAB1E.5010408@gmail.com> <20120828115638.GC23818@Krystal>
-	  <20120828230050.GA3337@Krystal>
-	  <1346772948.27919.9.camel@gandalf.local.home>
-	 <50462C99.5000007@redhat.com>  <50462EE8.1090903@redhat.com>
-	 <20120904170138.GB31934@Krystal>  <5048AAF6.5090101@gmail.com>
-	 <20120906145545.GA17332@leaf>  <5048C615.4070204@gmail.com>
-	 <1346947206.1680.36.camel@gandalf.local.home> <5048CDA2.10300@gmail.com>
-Content-Type: text/plain; charset="ISO-8859-15"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
+	by kanga.kvack.org (Postfix) with SMTP id C23A36B005A
+	for <linux-mm@kvack.org>; Thu,  6 Sep 2012 13:16:42 -0400 (EDT)
+MIME-Version: 1.0
+Message-ID: <8d085295-c15d-441c-8463-58cfc7ffc139@default>
+Date: Thu, 6 Sep 2012 10:15:48 -0700 (PDT)
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Subject: RE: [patch] staging: ramster: fix range checks in
+ zcache_autocreate_pool()
+References: <20120906124020.GA28946@elgon.mountain>
+In-Reply-To: <20120906124020.GA28946@elgon.mountain>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <levinsasha928@gmail.com>
-Cc: Josh Triplett <josh@joshtriplett.org>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Pedro Alves <palves@redhat.com>, Tejun Heo <tj@kernel.org>, torvalds@linux-foundation.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, paul.gortmaker@windriver.com, davem@davemloft.net, mingo@elte.hu, ebiederm@xmission.com, aarcange@redhat.com, ericvh@gmail.com, netdev@vger.kernel.org, eric.dumazet@gmail.com, axboe@kernel.dk, agk@redhat.com, dm-devel@redhat.com, neilb@suse.de, ccaulfie@redhat.com, teigland@redhat.com, Trond.Myklebust@netapp.com, bfields@fieldses.org, fweisbec@gmail.com, jesse@nicira.com, venkat.x.venkatsubra@oracle.com, ejt@redhat.com, snitzer@redhat.com, edumazet@google.com, linux-nfs@vger.kernel.org, dev@openvswitch.org, rds-devel@oss.oracle.com, lw@cn.fujitsu.com
+To: Dan Carpenter <dan.carpenter@oracle.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Cc: Konrad Wilk <konrad.wilk@oracle.com>, devel@driverdev.osuosl.org, linux-mm@kvack.org, kernel-janitors@vger.kernel.org
 
-On Thu, 2012-09-06 at 18:21 +0200, Sasha Levin wrote:
-> On 09/06/2012 06:00 PM, Steven Rostedt wrote:
-> >> > I think that that code doesn't make sense. The users of hlist_for_each_* aren't
-> >> > supposed to be changing the loop cursor.
-> > I totally agree. Modifying the 'node' pointer is just asking for issues.
-> > Yes that is error prone, but not due to the double loop. It's due to the
-> > modifying of the node pointer that is used internally by the loop
-> > counter. Don't do that :-)
-> 
-> While we're on this subject, I haven't actually seen hlist_for_each_entry() code
-> that even *touches* 'pos'.
-> 
-> Will people yell at me loudly if I change the prototype of those macros to be:
-> 
-> 	hlist_for_each_entry(tpos, head, member)
-> 
-> (Dropping the 'pos' parameter), and updating anything that calls those macros to
-> drop it as well?
+> From: Dan Carpenter
+> Sent: Thursday, September 06, 2012 6:40 AM
+> To: Greg Kroah-Hartman
+> Cc: Dan Magenheimer; Konrad Rzeszutek Wilk; devel@driverdev.osuosl.org; l=
+inux-mm@kvack.org; kernel-
+> janitors@vger.kernel.org
+> Subject: [patch] staging: ramster: fix range checks in zcache_autocreate_=
+pool()
+>=20
+> If "pool_id" is negative then it leads to a read before the start of the
+> array.  If "cli_id" is out of bounds then it leads to a NULL dereference
+> of "cli".  GCC would have warned about that bug except that we
+> initialized the warning message away.
+>=20
+> Also it's better to put the parameter names into the function
+> declaration in the .h file.  It serves as a kind of documentation.
+>=20
+> Signed-off-by: Dan Carpenter <dan.carpenter@oracle.com>
 
-If 'pos' is no longer used in the macro, I don't see any reason for
-keeping it around.
+Acked-by: Dan Magenheimer <dan.magenheimer@oracle.com>
+Self-flagellated-by: Dan Magenheimer <dan.magenheimer@oracle.com>=20
 
--- Steve
-
+> ---
+> BTW, This file has a ton of GCC warnings.  This function returns -1
+> on error which is a nonsense return code but the return value is not
+> checked anyway.  *Grumble*.
+>=20
+> diff --git a/drivers/staging/ramster/zcache.h b/drivers/staging/ramster/z=
+cache.h
+> index c59666e..81722b3 100644
+> --- a/drivers/staging/ramster/zcache.h
+> +++ b/drivers/staging/ramster/zcache.h
+> @@ -42,7 +42,7 @@ extern void zcache_decompress_to_page(char *, unsigned =
+int, struct page *);
+>  #ifdef CONFIG_RAMSTER
+>  extern void *zcache_pampd_create(char *, unsigned int, bool, int,
+>  =09=09=09=09struct tmem_handle *);
+> -extern int zcache_autocreate_pool(int, int, bool);
+> +int zcache_autocreate_pool(unsigned int cli_id, unsigned int pool_id, bo=
+ol eph);
+>  #endif
+>=20
+>  #define MAX_POOLS_PER_CLIENT 16
+> diff --git a/drivers/staging/ramster/zcache-main.c b/drivers/staging/rams=
+ter/zcache-main.c
+> index 24b3d4a..86e19d6 100644
+> --- a/drivers/staging/ramster/zcache-main.c
+> +++ b/drivers/staging/ramster/zcache-main.c
+> @@ -1338,10 +1338,10 @@ static int zcache_local_new_pool(uint32_t flags)
+>  =09return zcache_new_pool(LOCAL_CLIENT, flags);
+>  }
+>=20
+> -int zcache_autocreate_pool(int cli_id, int pool_id, bool eph)
+> +int zcache_autocreate_pool(unsigned int cli_id, unsigned int pool_id, bo=
+ol eph)
+>  {
+>  =09struct tmem_pool *pool;
+> -=09struct zcache_client *cli =3D NULL;
+> +=09struct zcache_client *cli;
+>  =09uint32_t flags =3D eph ? 0 : TMEM_POOL_PERSIST;
+>  =09int ret =3D -1;
+>=20
+> @@ -1350,8 +1350,10 @@ int zcache_autocreate_pool(int cli_id, int pool_id=
+, bool eph)
+>  =09=09goto out;
+>  =09if (pool_id >=3D MAX_POOLS_PER_CLIENT)
+>  =09=09goto out;
+> -=09else if ((unsigned int)cli_id < MAX_CLIENTS)
+> -=09=09cli =3D &zcache_clients[cli_id];
+> +=09if (cli_id >=3D MAX_CLIENTS)
+> +=09=09goto out;
+> +
+> +=09cli =3D &zcache_clients[cli_id];
+>  =09if ((eph && disable_cleancache) || (!eph && disable_frontswap)) {
+>  =09=09pr_err("zcache_autocreate_pool: pool type disabled\n");
+>  =09=09goto out;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
