@@ -1,9 +1,9 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx151.postini.com [74.125.245.151])
-	by kanga.kvack.org (Postfix) with SMTP id 7C6486B005A
-	for <linux-mm@kvack.org>; Thu,  6 Sep 2012 04:55:44 -0400 (EDT)
-Message-ID: <5048657A.7060004@cn.fujitsu.com>
-Date: Thu, 06 Sep 2012 16:57:30 +0800
+Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
+	by kanga.kvack.org (Postfix) with SMTP id AFEB86B005A
+	for <linux-mm@kvack.org>; Thu,  6 Sep 2012 04:59:25 -0400 (EDT)
+Message-ID: <50486658.5000305@cn.fujitsu.com>
+Date: Thu, 06 Sep 2012 17:01:12 +0800
 From: Lai Jiangshan <laijs@cn.fujitsu.com>
 MIME-Version: 1.0
 Subject: Re: [RFC v2] memory-hotplug: remove MIGRATE_ISOLATE from free_area->free_list
@@ -102,8 +102,13 @@ On 09/06/2012 04:18 PM, Minchan Kim wrote:
 
 this test is wrong.
 
+use this:
+
 if ((pfn <= start_pfn) && (start_pfn < pfn + (1UL << page_order(page))))
 	goto found;
+
+if (pfn > start_pfn)
+	return false;
 
 
 >>> +	}
