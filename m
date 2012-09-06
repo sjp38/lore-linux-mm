@@ -1,92 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
-	by kanga.kvack.org (Postfix) with SMTP id 3BCB66B005A
-	for <linux-mm@kvack.org>; Thu,  6 Sep 2012 08:56:56 -0400 (EDT)
-Received: by weys10 with SMTP id s10so1354265wey.14
-        for <linux-mm@kvack.org>; Thu, 06 Sep 2012 05:56:54 -0700 (PDT)
-From: Michal Nazarewicz <mina86@mina86.com>
-Subject: Re: [RFC v2] memory-hotplug: remove MIGRATE_ISOLATE from free_area->free_list
-In-Reply-To: <50486658.5000305@cn.fujitsu.com>
-References: <1346900018-14759-1-git-send-email-minchan@kernel.org> <50485B7B.3030201@cn.fujitsu.com> <20120906081818.GC16231@bbox> <50486658.5000305@cn.fujitsu.com>
-Date: Thu, 06 Sep 2012 14:56:45 +0200
-Message-ID: <xa1tmx139unm.fsf@mina86.com>
+Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
+	by kanga.kvack.org (Postfix) with SMTP id B313E6B005A
+	for <linux-mm@kvack.org>; Thu,  6 Sep 2012 08:57:54 -0400 (EDT)
+Received: by pbbro12 with SMTP id ro12so2732865pbb.14
+        for <linux-mm@kvack.org>; Thu, 06 Sep 2012 05:57:54 -0700 (PDT)
+Date: Thu, 6 Sep 2012 20:57:41 +0800
+From: Shaohua Li <shli@kernel.org>
+Subject: Re: [patch 2/2]compaction: check lock contention first before taking
+ lock
+Message-ID: <20120906125741.GB1025@kernel.org>
+References: <20120906104429.GB12718@kernel.org>
+ <20120906122449.GR11266@suse.de>
 MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="=-=-="
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120906122449.GR11266@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Lai Jiangshan <laijs@cn.fujitsu.com>, Minchan Kim <minchan@kernel.org>
-Cc: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Wen Congyang <wency@cn.fujitsu.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+To: Mel Gorman <mgorman@suse.de>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, aarcange@redhat.com
 
---=-=-=
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
+On Thu, Sep 06, 2012 at 01:24:49PM +0100, Mel Gorman wrote:
+> On Thu, Sep 06, 2012 at 06:44:29PM +0800, Shaohua Li wrote:
+> > isolate_migratepages_range will take zone->lru_lock first and check if the lock
+> > is contented, if yes, it will release the lock. This isn't efficient. If the
+> > lock is truly contented, a lock/unlock pair will increase the lock contention.
+> > We'd better check if the lock is contended first. compact_trylock_irqsave
+> > perfectly meets the requirement.
+> > 
+> > Signed-off-by: Shaohua Li <shli@fusionio.com>
+> > ---
+> >  mm/compaction.c |    7 ++++---
+> >  1 file changed, 4 insertions(+), 3 deletions(-)
+> > 
+> > Index: linux/mm/compaction.c
+> > ===================================================================
+> > --- linux.orig/mm/compaction.c	2012-09-06 14:46:13.923144263 +0800
+> > +++ linux/mm/compaction.c	2012-09-06 14:46:58.118588574 +0800
+> > @@ -295,9 +295,9 @@ isolate_migratepages_range(struct zone *
+> >  	}
+> >  
+> >  	/* Time to isolate some pages for migration */
+> > -	cond_resched();
+> 
+> Why did you remove the cond_resched()? I expect it's because
+> compact_checklock_irqsave() does a need_resched() check and if it is true
+> will either call cond_resched() or abort compaction. If it is aborting it
+> will not call cond_resched() but there is a reasonable expectation that
+> the caller will schedule soon. If this is the reasoning then it should be
+> included in the changelog. If it's an accident then leave the cond_resched()
+> where it is.
 
->> +		pfn =3D page_to_pfn(page);
->> +		if (pfn >=3D end_pfn)
->> +			return false;
->> +		if (pfn >=3D start_pfn)
->> +			goto found;
+Ok, looks I overlooked at it, will change it in next post.
 
-On Thu, Sep 06 2012, Lai Jiangshan wrote:
-> this test is wrong.
->
-> use this:
->
-> if ((pfn <=3D start_pfn) && (start_pfn < pfn + (1UL << page_order(page))))
-> 	goto found;
->
-> if (pfn > start_pfn)
-> 	return false;
+> > -	spin_lock_irqsave(&zone->lru_lock, flags);
+> > -	locked = true;
+> > +	locked = compact_trylock_irqsave(&zone->lru_lock, &flags, cc);
+> > +	if (!locked)
+> > +		goto skip;
+> 
+> There is no need for the goto. No useful work has taken place at this
+> point and there is no need to even trigger the tracepoint. Just return
+> 0.
 
-	if (pfn > start_pfn)
-		return false;
-	if (pfn + (1UL << page_order(page)) > start_pfn)
-		goto found;
-
->> +	}
->> +	return false;
->> +
->> +	list_for_each_entry_continue(page, &isolated_pages, lru) {
->> +		if (page_to_pfn(page) !=3D next_pfn)
->> +			return false;
-
---=20
-Best regards,                                         _     _
-.o. | Liege of Serenely Enlightened Majesty of      o' \,=3D./ `o
-..o | Computer Science,  Micha=C5=82 =E2=80=9Cmina86=E2=80=9D Nazarewicz   =
- (o o)
-ooo +----<email/xmpp: mpn@google.com>--------------ooO--(_)--Ooo--
---=-=-=
-Content-Type: multipart/signed; boundary="==-=-=";
-	micalg=pgp-sha1; protocol="application/pgp-signature"
-
---==-=-=
-Content-Type: text/plain
-
-
---==-=-=
-Content-Type: application/pgp-signature
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.10 (GNU/Linux)
-
-iQIcBAEBAgAGBQJQSJ2NAAoJECBgQBJQdR/0+1QQAIR5P9SLVdGeUtCVULOZJe5e
-DSIL9hJ9CG5AQoANFaLvoe+EF1jiKsk8AyXnmOSX4yNi4M5cFVfc3Zr6i6t4cpLE
-wbUxVjIFsZ41thzgFCwJrxK9daLAMs5Mxk8NnjJZLBzrLfbQTwzQgyeJhdufRnC4
-+JPTeEmrtR621U/v1fyiBS3BFI+FhnChaApwytBdmgQFylVz2OFLCvYxVgr2RS+V
-JCT0olf/EMo5GZasGzjAvCM2FLtV6r64lpTV2KtjLVX4NILtcpOYjd9rzqMabbR5
-LLzG15eHVjBf28yONUJQNHjpUX1hYYkonyqdYVVSX3KFlSb+1mCyXD+n5U8hmk0S
-oil8igzQQvX/JtuMl7RMgh92Up0GtbflcxU6tGU+WVqLMSvCP1pcdIWUr4GRf0dN
-PgB8ZbZlYzZo6tPnFTr1ioFDl7vJ+LQXHGyzdQ7tTUg/xKCwDPddjWev1AfYNmma
-zBgbgkjyMaJhX7TAEwE+MimADcHFEJntOmnwab1KOE81sX678B0v1zVQAkYP/+bf
-1Gfcw3iRGXhJiZChILJRhSjM7MuJ6rfJs9SqxJ+hNXcwxfyHIN7iT7WxD+yMlvNY
-PKA2enUkLVe83CMYcaisIUA/O5VAaP00jJv2W/RKGVMt3O3lVZ1XSrmW+Ljaxnb2
-rn7FVmVzQTk26k7Sg/U0
-=+qAP
------END PGP SIGNATURE-----
---==-=-=--
-
---=-=-=--
+Just want to print out something in trace, but that's fine, I'll fix this.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
