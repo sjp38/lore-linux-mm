@@ -1,135 +1,138 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
-	by kanga.kvack.org (Postfix) with SMTP id 5506A6B00AA
-	for <linux-mm@kvack.org>; Wed,  5 Sep 2012 22:27:16 -0400 (EDT)
-Date: Thu, 6 Sep 2012 11:28:50 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH 2/3] mm: remain migratetype in freed page
-Message-ID: <20120906022850.GD31615@bbox>
-References: <1346829962-31989-1-git-send-email-minchan@kernel.org>
- <1346829962-31989-3-git-send-email-minchan@kernel.org>
- <20120905092534.GE11266@suse.de>
+Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
+	by kanga.kvack.org (Postfix) with SMTP id 4FF6B6B00AD
+	for <linux-mm@kvack.org>; Wed,  5 Sep 2012 22:35:52 -0400 (EDT)
+Received: by pbbro12 with SMTP id ro12so2034690pbb.14
+        for <linux-mm@kvack.org>; Wed, 05 Sep 2012 19:35:51 -0700 (PDT)
+Message-ID: <50480BFB.8050501@gmail.com>
+Date: Thu, 06 Sep 2012 10:35:39 +0800
+From: qiuxishi <qiuxishi@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120905092534.GE11266@suse.de>
+Subject: Re: [PATCH 3/3] memory-hotplug: bug fix race between isolation and
+ allocation
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Xishi Qiu <qiuxishi@huawei.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: mgorman@suse.de
+Cc: Minchan Kim <minchan@kernel.org>, akpm@linux-foundation.org, kamezawa.hiroyu@jp.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, qiuxishi@huawei.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, Sep 05, 2012 at 10:25:34AM +0100, Mel Gorman wrote:
-> On Wed, Sep 05, 2012 at 04:26:01PM +0900, Minchan Kim wrote:
-> > Page allocator doesn't keep migratetype information to page
-> > when the page is freed. This patch remains the information
-> > to freed page's index field which isn't used by free/alloc
-> > preparing so it shouldn't change any behavir except below one.
-> > 
-> 
-> This explanation could have been a *LOT* more helpful.
-> 
-> The page allocator caches the pageblock information in page->private while
-> it is in the PCP freelists but this is overwritten with the order of the
-> page when freed to the buddy allocator. This patch stores the migratetype
-> of the page in the page->index field so that it is available at all times.
+On 2012/9/5 17:40, Mel Gorman wrote:
 
-I will add your comment in my description.
+> On Wed, Sep 05, 2012 at 04:26:02PM +0900, Minchan Kim wrote:
+>> Like below, memory-hotplug makes race between page-isolation
+>> and page-allocation so it can hit BUG_ON in __offline_isolated_pages.
+>>
+>> 	CPU A					CPU B
+>>
+>> start_isolate_page_range
+>> set_migratetype_isolate
+>> spin_lock_irqsave(zone->lock)
+>>
+>> 				free_hot_cold_page(Page A)
+>> 				/* without zone->lock */
+>> 				migratetype = get_pageblock_migratetype(Page A);
+>> 				/*
+>> 				 * Page could be moved into MIGRATE_MOVABLE
+>> 				 * of per_cpu_pages
+>> 				 */
+>> 				list_add_tail(&page->lru, &pcp->lists[migratetype]);
+>>
+>> set_pageblock_isolate
+>> move_freepages_block
+>> drain_all_pages
 
-> 
-> > This patch adds a new call site in __free_pages_ok so it might be
-> > overhead a bit but it's for high order allocation.
-> > So I believe damage isn't hurt.
-> > 
-> 
-> The additional call to set_page_migratetype() is not heavy. If you were
-> adding a new call to get_pageblock_migratetype() or something equally
-> expensive I would be more concerned.
+I think here is the problem you want to fix, it is not sure that pcp will be moved
+into MIGRATE_ISOLATE list. They may be moved into MIGRATE_MOVABLE list because
+page_private() maybe 2, it uses page_private() not get_pageblock_migratetype()
 
-I'm lucky to avoid your keen eye. ;)
+So when finish migrating pages, the free pages from pcp may be allocated again, and
+failed in check_pages_isolated().
 
-> 
-> > Signed-off-by: Minchan Kim <minchan@kernel.org>
-> 
-> The information you store in the page->index becomes stale if the page
-> gets moved to another free list by move_freepages(). Not sure if that is
-> a problem for you or not but it is possible that
-> get_page_migratetype(page) != get_pageblock_migratetype(page)
+drain_all_pages()
+	drain_local_pages()
+		drain_pages()
+			free_pcppages_bulk()
+				__free_one_page(page, zone, 0, page_private(page))
 
-Thanks for the spot. I have to fix it.
+I reported this problem too. http://marc.info/?l=linux-mm&m=134555113706068&w=2
+How about this change:
+	free_pcppages_bulk()
+		__free_one_page(page, zone, 0, get_pageblock_migratetype(page))
 
-> 
-> > ---
-> >  include/linux/mm.h |    6 ++++--
-> >  mm/page_alloc.c    |    7 ++++---
-> >  2 files changed, 8 insertions(+), 5 deletions(-)
-> > 
-> > diff --git a/include/linux/mm.h b/include/linux/mm.h
-> > index 86d61d6..8fd32da 100644
-> > --- a/include/linux/mm.h
-> > +++ b/include/linux/mm.h
-> > @@ -251,12 +251,14 @@ struct inode;
-> >  
-> >  static inline void set_page_migratetype(struct page *page, int migratetype)
-> >  {
-> > -	set_page_private(page, migratetype);
-> > +	VM_BUG_ON((unsigned int)migratetype >= MIGRATE_TYPES);
-> 
-> This additional bug check is not mentioned in the changelog. Not clear
-> if it's necessary.
+Thanks
+Xishi Qiu
 
-I'm not strong so if anyone think it's not necessary, I will drop.
+>>
+>> 				/* Page A could be in MIGRATE_MOVABLE of free_list. */
+>>
+>> check_pages_isolated
+>> __test_page_isolated_in_pageblock
+>> /*
+>>  * We can't catch freed page which
+>>  * is free_list[MIGRATE_MOVABLE]
+>>  */
+>> if (PageBuddy(page A))
+>> 	pfn += 1 << page_order(page A);
+>>
+>> 				/* So, Page A could be allocated */
+>>
+>> __offline_isolated_pages
+>> /*
+>>  * BUG_ON hit or offline page
+>>  * which is used by someone
+>>  */
+>> BUG_ON(!PageBuddy(page A));
+>>
+>
+> offline_page calling BUG_ON because someone allocated the page is
+> ridiculous. I did not spot where that check is but it should be changed. The
+> correct action is to retry the isolation.
+>
+>> Signed-off-by: Minchan Kim <minchan@kernel.org>
+>
+> At no point in the changelog do you actually say what he patch does :/
+>
+>> ---
+>>  mm/page_isolation.c |    5 ++++-
+>>  1 file changed, 4 insertions(+), 1 deletion(-)
+>>
+>> diff --git a/mm/page_isolation.c b/mm/page_isolation.c
+>> index acf65a7..4699d1f 100644
+>> --- a/mm/page_isolation.c
+>> +++ b/mm/page_isolation.c
+>> @@ -196,8 +196,11 @@ __test_page_isolated_in_pageblock(unsigned long pfn, unsigned long end_pfn)
+>>  			continue;
+>>  		}
+>>  		page = pfn_to_page(pfn);
+>> -		if (PageBuddy(page))
+>> +		if (PageBuddy(page)) {
+>> +			if (get_page_migratetype(page) != MIGRATE_ISOLATE)
+>> +				break;
+>>  			pfn += 1 << page_order(page);
+>> +		}
+>
+> It is possible the page is moved to the MIGRATE_ISOLATE list between when
+> the page was freed to the buddy allocator and this check was made. The
+> page->index information is stale and the impact is that the hotplug
+> operation fails when it could have succeeded. That said, I think it is a
+> very unlikely race that will never happen in practice.
+>
+> More importantly, the effect of this path is that EBUSY gets bubbled all
+> the way up and the hotplug operations fails. This is fine but as the page
+> is free at the time this problem is detected you also have the option
+> of moving the PageBuddy page to the MIGRATE_ISOLATE list at this time
+> if you take the zone lock. This will mean you need to change the name of
+> test_pages_isolated() of course.
+>
+>>  		else if (page_count(page) == 0 &&
+>>  				get_page_migratetype(page) == MIGRATE_ISOLATE)
+>>  			pfn += 1;
+>> --
+>> 1.7.9.5
+>>
+>
 
-> 
-> > +	page->index = migratetype;
-> >  }
-> >  
-> >  static inline int get_page_migratetype(struct page *page)
-> >  {
-> > -	return page_private(page);
-> > +	VM_BUG_ON((unsigned int)page->index >= MIGRATE_TYPES);
-> > +	return page->index;
-> >  }
-> >  
-> >  /*
-> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> > index 103ba66..32985dd 100644
-> > --- a/mm/page_alloc.c
-> > +++ b/mm/page_alloc.c
-> > @@ -723,6 +723,7 @@ static void __free_pages_ok(struct page *page, unsigned int order)
-> >  {
-> >  	unsigned long flags;
-> >  	int wasMlocked = __TestClearPageMlocked(page);
-> > +	int migratetype;
-> >  
-> >  	if (!free_pages_prepare(page, order))
-> >  		return;
-> > @@ -731,9 +732,9 @@ static void __free_pages_ok(struct page *page, unsigned int order)
-> >  	if (unlikely(wasMlocked))
-> >  		free_page_mlock(page);
-> >  	__count_vm_events(PGFREE, 1 << order);
-> > -	free_one_page(page_zone(page), page, order,
-> > -					get_pageblock_migratetype(page));
-> > -
-> > +	migratetype = get_pageblock_migratetype(page);
-> > +	set_page_migratetype(page, migratetype);
-> > +	free_one_page(page_zone(page), page, order, migratetype);
-> >  	local_irq_restore(flags);
-> >  }
-> >  
-> 
-> -- 
-> Mel Gorman
-> SUSE Labs
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-
--- 
-Kind regards,
-Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
