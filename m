@@ -1,29 +1,30 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx207.postini.com [74.125.245.207])
-	by kanga.kvack.org (Postfix) with SMTP id 122186B00C3
-	for <linux-mm@kvack.org>; Thu,  6 Sep 2012 02:13:38 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 850853EE0BC
-	for <linux-mm@kvack.org>; Thu,  6 Sep 2012 15:13:36 +0900 (JST)
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 6D8A245DE3E
-	for <linux-mm@kvack.org>; Thu,  6 Sep 2012 15:13:36 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 2FA3C45DE56
-	for <linux-mm@kvack.org>; Thu,  6 Sep 2012 15:13:36 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 1E2061DB8053
-	for <linux-mm@kvack.org>; Thu,  6 Sep 2012 15:13:36 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id BB60A1DB8050
-	for <linux-mm@kvack.org>; Thu,  6 Sep 2012 15:13:35 +0900 (JST)
-Message-ID: <50483EF4.6010909@jp.fujitsu.com>
-Date: Thu, 06 Sep 2012 15:13:08 +0900
+Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
+	by kanga.kvack.org (Postfix) with SMTP id 380816B00C5
+	for <linux-mm@kvack.org>; Thu,  6 Sep 2012 02:19:02 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id B7DD53EE0BD
+	for <linux-mm@kvack.org>; Thu,  6 Sep 2012 15:19:00 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 77F4245DEBA
+	for <linux-mm@kvack.org>; Thu,  6 Sep 2012 15:19:00 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 4ED9645DEB2
+	for <linux-mm@kvack.org>; Thu,  6 Sep 2012 15:19:00 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 27043E08005
+	for <linux-mm@kvack.org>; Thu,  6 Sep 2012 15:19:00 +0900 (JST)
+Received: from m1001.s.css.fujitsu.com (m1001.s.css.fujitsu.com [10.240.81.139])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id BC1EF1DB8044
+	for <linux-mm@kvack.org>; Thu,  6 Sep 2012 15:18:59 +0900 (JST)
+Message-ID: <50484044.1060308@jp.fujitsu.com>
+Date: Thu, 06 Sep 2012 15:18:44 +0900
 From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2 2/3] mm: remain migratetype in freed page
-References: <1346908619-16056-1-git-send-email-minchan@kernel.org> <1346908619-16056-3-git-send-email-minchan@kernel.org>
-In-Reply-To: <1346908619-16056-3-git-send-email-minchan@kernel.org>
+Subject: Re: [PATCH v2 3/3] memory-hotplug: bug fix race between isolation
+ and allocation
+References: <1346908619-16056-1-git-send-email-minchan@kernel.org> <1346908619-16056-4-git-send-email-minchan@kernel.org>
+In-Reply-To: <1346908619-16056-4-git-send-email-minchan@kernel.org>
 Content-Type: text/plain; charset=ISO-2022-JP
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -32,87 +33,82 @@ To: Minchan Kim <minchan@kernel.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Xishi Qiu <qiuxishi@huawei.com>, Wen Congyang <wency@cn.fujitsu.com>
 
 (2012/09/06 14:16), Minchan Kim wrote:
-> The page allocator caches the pageblock information in page->private while
-> it is in the PCP freelists but this is overwritten with the order of the
-> page when freed to the buddy allocator. This patch stores the migratetype
-> of the page in the page->index field so that it is available at all times
-> when the page remain in free_list.
+> Like below, memory-hotplug makes race between page-isolation
+> and page-allocation so it can hit BUG_ON in __offline_isolated_pages.
 > 
-sounds reasonable.
-
-> This patch adds a new call site in __free_pages_ok so it might be
-> overhead a bit but it's for high order allocation.
-> So I believe damage isn't hurt.
+> 	CPU A					CPU B
 > 
-> * from v1
->    * Fix move_freepages's migratetype - Mel
->    * Add more kind explanation in description - Mel
+> start_isolate_page_range
+> set_migratetype_isolate
+> spin_lock_irqsave(zone->lock)
+> 
+> 				free_hot_cold_page(Page A)
+> 				/* without zone->lock */
+> 				migratetype = get_pageblock_migratetype(Page A);
+> 				/*
+> 				 * Page could be moved into MIGRATE_MOVABLE
+> 				 * of per_cpu_pages
+> 				 */
+> 				list_add_tail(&page->lru, &pcp->lists[migratetype]);
+> 
+> set_pageblock_isolate
+> move_freepages_block
+> drain_all_pages
+> 
+> 				/* Page A could be in MIGRATE_MOVABLE of free_list. */
+> 
+> check_pages_isolated
+> __test_page_isolated_in_pageblock
+> /*
+>   * We can't catch freed page which
+>   * is free_list[MIGRATE_MOVABLE]
+>   */
+> if (PageBuddy(page A))
+> 	pfn += 1 << page_order(page A);
+> 
+> 				/* So, Page A could be allocated */
+> 
+> __offline_isolated_pages
+> /*
+>   * BUG_ON hit or offline page
+>   * which is used by someone
+>   */
+> BUG_ON(!PageBuddy(page A));
+> 
+> This patch checks page's migratetype in freelist in __test_page_isolated_in_pageblock.
+> So now __test_page_isolated_in_pageblock can check the page caused by above race and
+> can fail of memory offlining.
 > 
 > Signed-off-by: Minchan Kim <minchan@kernel.org>
 
-Hmm, page->index is valid only when the page is the head of buddy chunk ?
+I agree this fix.
 
-Anyway,
+Maybe we (fujitsu) should revisit these logics around and make it cleaner....
 
+Anyway, thank you!
 Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
 > ---
->   include/linux/mm.h |    4 ++--
->   mm/page_alloc.c    |    7 +++++--
->   2 files changed, 7 insertions(+), 4 deletions(-)
+>   mm/page_isolation.c |    5 ++++-
+>   1 file changed, 4 insertions(+), 1 deletion(-)
 > 
-> diff --git a/include/linux/mm.h b/include/linux/mm.h
-> index 84d1663f..68f9e8d 100644
-> --- a/include/linux/mm.h
-> +++ b/include/linux/mm.h
-> @@ -240,13 +240,13 @@ struct inode;
->   /* It's valid only if the page is free path or free_list */
->   static inline void set_freepage_migratetype(struct page *page, int migratetype)
->   {
-> -	set_page_private(page, migratetype);
-> +	page->index = migratetype;
->   }
->   
->   /* It's valid only if the page is free path or free_list */
->   static inline int get_freepage_migratetype(struct page *page)
->   {
-> -	return page_private(page);
-> +	return page->index;
->   }
->   
->   /*
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index f5ba236..8531fa3 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -723,6 +723,7 @@ static void __free_pages_ok(struct page *page, unsigned int order)
->   {
->   	unsigned long flags;
->   	int wasMlocked = __TestClearPageMlocked(page);
-> +	int migratetype;
->   
->   	if (!free_pages_prepare(page, order))
->   		return;
-> @@ -731,8 +732,9 @@ static void __free_pages_ok(struct page *page, unsigned int order)
->   	if (unlikely(wasMlocked))
->   		free_page_mlock(page);
->   	__count_vm_events(PGFREE, 1 << order);
-> -	free_one_page(page_zone(page), page, order,
-> -					get_pageblock_migratetype(page));
-> +	migratetype = get_pageblock_migratetype(page);
-> +	set_freepage_migratetype(page, migratetype);
-> +	free_one_page(page_zone(page), page, order, migratetype);
->   	local_irq_restore(flags);
->   }
->   
-> @@ -952,6 +954,7 @@ static int move_freepages(struct zone *zone,
->   		order = page_order(page);
->   		list_move(&page->lru,
->   			  &zone->free_area[order].free_list[migratetype]);
-> +		set_freepage_migratetype(page, migratetype);
->   		page += 1 << order;
->   		pages_moved += 1 << order;
->   	}
+> diff --git a/mm/page_isolation.c b/mm/page_isolation.c
+> index 87a7929..7ba7405 100644
+> --- a/mm/page_isolation.c
+> +++ b/mm/page_isolation.c
+> @@ -193,8 +193,11 @@ __test_page_isolated_in_pageblock(unsigned long pfn, unsigned long end_pfn)
+>   			continue;
+>   		}
+>   		page = pfn_to_page(pfn);
+> -		if (PageBuddy(page))
+> +		if (PageBuddy(page)) {
+> +			if (get_freepage_migratetype(page) != MIGRATE_ISOLATE)
+> +				break;
+>   			pfn += 1 << page_order(page);
+> +		}
+>   		else if (page_count(page) == 0 &&
+>   			get_freepage_migratetype(page) == MIGRATE_ISOLATE)
+>   			pfn += 1;
 > 
 
 
