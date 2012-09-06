@@ -1,76 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
-	by kanga.kvack.org (Postfix) with SMTP id 1903E6B005A
-	for <linux-mm@kvack.org>; Thu,  6 Sep 2012 10:33:23 -0400 (EDT)
-Date: Thu, 6 Sep 2012 10:33:20 -0400
-From: Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
-Subject: Re: [PATCH v3 01/17] hashtable: introduce a small and naive
-	hashtable
-Message-ID: <20120906143320.GA4513@Krystal>
-References: <503C95E4.3010000@gmail.com> <20120828101148.GA21683@Krystal> <503CAB1E.5010408@gmail.com> <20120828115638.GC23818@Krystal> <20120828230050.GA3337@Krystal> <1346772948.27919.9.camel@gandalf.local.home> <50462C99.5000007@redhat.com> <50462EE8.1090903@redhat.com> <20120904170138.GB31934@Krystal> <5048AAF6.5090101@gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <5048AAF6.5090101@gmail.com>
+Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
+	by kanga.kvack.org (Postfix) with SMTP id 872E86B005A
+	for <linux-mm@kvack.org>; Thu,  6 Sep 2012 10:35:40 -0400 (EDT)
+From: Haggai Eran <haggaie@mellanox.com>
+Subject: [PATCH V2 0/2] Enable clients to schedule in mmu_notifier methods
+Date: Thu,  6 Sep 2012 17:34:53 +0300
+Message-Id: <1346942095-23927-1-git-send-email-haggaie@mellanox.com>
+In-Reply-To: <20120904150737.a6774600.akpm@linux-foundation.org>
+References: <20120904150737.a6774600.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <levinsasha928@gmail.com>
-Cc: Pedro Alves <palves@redhat.com>, Steven Rostedt <rostedt@goodmis.org>, Tejun Heo <tj@kernel.org>, torvalds@linux-foundation.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, paul.gortmaker@windriver.com, davem@davemloft.net, mingo@elte.hu, ebiederm@xmission.com, aarcange@redhat.com, ericvh@gmail.com, netdev@vger.kernel.org, josh@joshtriplett.org, eric.dumazet@gmail.com, axboe@kernel.dk, agk@redhat.com, dm-devel@redhat.com, neilb@suse.de, ccaulfie@redhat.com, teigland@redhat.com, Trond.Myklebust@netapp.com, bfields@fieldses.org, fweisbec@gmail.com, jesse@nicira.com, venkat.x.venkatsubra@oracle.com, ejt@redhat.com, snitzer@redhat.com, edumazet@google.com, linux-nfs@vger.kernel.org, dev@openvswitch.org, rds-devel@oss.oracle.com, lw@cn.fujitsu.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>, Or Gerlitz <ogerlitz@mellanox.com>, Sagi Grimberg <sagig@mellanox.com>, Haggai Eran <haggaie@mellanox.com>, Shachar Raindel <raindel@mellanox.com>, Liran Liss <liranl@mellanox.com>
 
-* Sasha Levin (levinsasha928@gmail.com) wrote:
-> On 09/04/2012 07:01 PM, Mathieu Desnoyers wrote:
-> >> #define do_for_each_ftrace_rec(pg, rec)                                          \
-> >> >         for (pg = ftrace_pages_start, rec = &pg->records[pg->index];             \
-> >> >              pg && rec == &pg->records[pg->index];                               \
-> >> >              pg = pg->next)                                                      \
-> >> >           for (rec = pg->records; rec < &pg->records[pg->index]; rec++)
-> > Maybe in some cases there might be ways to combine the two loops into
-> > one ? I'm not seeing exactly how to do it for this one, but it should
-> > not be impossible. If the inner loop condition can be moved to the outer
-> > loop, and if we use (blah ? loop1_conf : loop2_cond) to test for
-> > different conditions depending on the context, and do the same for the
-> > 3rd argument of the for() loop. The details elude me for now though, so
-> > maybe it's complete non-sense ;)
-> > 
-> > It might not be that useful for do_for_each_ftrace_rec, but if we can do
-> > it for the hash table iterator, it might be worth it.
-> 
-> So I think that for the hash iterator it might actually be simpler.
-> 
-> My solution to making 'break' work in the iterator is:
-> 
-> 	for (bkt = 0, node = NULL; bkt < HASH_SIZE(name) && node == NULL; bkt++)
-> 		hlist_for_each_entry(obj, node, &name[bkt], member)
-> 
-> We initialize our node loop cursor with NULL in the external loop, and the
-> external loop will have a new condition to loop while that cursor is NULL.
-> 
-> My logic is that we can only 'break' when we are iterating over an object in the
-> internal loop. If we're iterating over an object in that loop then 'node != NULL'.
-> 
-> This way, if we broke from within the internal loop, the external loop will see
-> node as not NULL, and so it will stop looping itself. On the other hand, if the
-> internal loop has actually ended, then node will be NULL, and the outer loop
-> will keep running.
-> 
-> Is there anything I've missed?
+> The following short patch series completes the support for allowing clients to
+> sleep in mmu notifiers (specifically in invalidate_page and
+> invalidate_range_start/end), adding on the work done by Andrea Arcangeli and
+> Sagi Grimberg in http://marc.info/?l=linux-mm&m=133113297028676&w=3
+>
+> This patchset is a preliminary step towards on-demand paging design to be
+> added to the Infiniband stack. Our goal is to avoid pinning pages in
+> memory regions registered for IB communication, so we need to get
+> notifications for invalidations on such memory regions, and stop the hardware
+> from continuing its access to the invalidated pages. The hardware operation
+> that flushes the page tables can block, so we need to sleep until the hardware
+> is guaranteed not to access these pages anymore.
+>
+> The first patch moves the mentioned notifier functions out of the PTL, and the
+> second patch changes the change_pte notification to stop calling
+> invalidate_page as a default.
 
-This sounds good. Unless I'm missing something too.
+On Wed, 5 Sep 2012 01:07:42 +0300, Andrew Morton wrote:
+> On Tue,  4 Sep 2012 11:41:20 +0300
+> Haggai Eran <haggaie@mellanox.com> wrote:
+>> @@ -1405,6 +1414,9 @@ static int try_to_unmap_cluster(unsigned long cursor, unsigned int *mapcount,
+>>  	if (!pmd_present(*pmd))
+>>  		return ret;
+>>  
+>> +	start = address;
+>> +	mmu_notifier_invalidate_range_start(mm, start, end);
+> `end' is used uninitialised in this function.
 
-Thanks!
+I don't think it is. You might think so because the patch didn't initialize it
+itself - it was already defined in this function. Anyway, to make it more clear
+I've used your suggested convention with mmun_start/end in this function as
+well as the others.
 
-Mathieu
+> I'm surprised that it didn't generate a warning(?) and I worry about
+> the testing coverage?
 
-> 
-> 
-> Thanks,
-> Sasha
+I tried to test these patches by writing a small module that registered as an
+mmu notifiers client. The module used might_sleep() in each notifier to verify
+that it was called from a sleepable context. I then used a set of user space
+tests that attempted to invoke various mmu notifiers. I had tests for:
+* munmap
+* fork and copy-on-write breaking (either with regular pages or huge pages)
+* swapping out regular pages
+* swapping out a nonlinear vma
+* madvise with MADV_DONTNEED and with MADV_REMOVE
+* KSM
+* mremap
+* mprotect
+* transparent huge pages
+
+The module exported the notifications to the user space programs, and it
+checked that range invalidations came in matching pairs of begin and end,
+but only after you wrote about the bug in V1 I noticed that I didn't have a
+test for transparent huge pages COW breaking where the new huge page allocation
+fails (do_huge_pmd_wp_page_fallback). Before sending V2 I've added a new test
+for that, using fail_page_alloc.
+
+Changes from V1:
+- Add the motivation for on-demand paging in patch 1 changelog.
+
+- Fix issues in patch 1 where invalidate_range_begin and invalidate_range_end
+  are called with different arguments.
+
+- Used the convention Andrew suggested in both patches to make it a little
+  harder for such bugs to be introduced in the future.
+
+- Dropped changes in patch 1 that moved calls to ptep_clear_flush_young_notify
+  out of the PTL. The patch doesn't intend to make clear_flush_young
+  notification sleepable, only invalidate_range_begin/end and invalidate_page.
+
+Changes from V0:
+- Fixed a bug in patch 1 that prevented compilation without MMU notifiers.
+- Dropped the patches 2 and 3 that were moving tlb_gather_mmu calls.
+- Added a patch to handle invalidate_page being called from change_pte.
+
+Haggai Eran (1):
+  mm: Wrap calls to set_pte_at_notify with invalidate_range_start and
+    invalidate_range_end
+
+Sagi Grimberg (1):
+  mm: Move all mmu notifier invocations to be done outside the PT lock
+
+ include/linux/mmu_notifier.h | 47 --------------------------------------------
+ kernel/events/uprobes.c      |  5 +++++
+ mm/filemap_xip.c             |  4 +++-
+ mm/huge_memory.c             | 42 +++++++++++++++++++++++++++++++++------
+ mm/hugetlb.c                 | 21 ++++++++++++--------
+ mm/ksm.c                     | 21 ++++++++++++++++++--
+ mm/memory.c                  | 25 ++++++++++++++++++-----
+ mm/mmu_notifier.c            |  6 ------
+ mm/mremap.c                  |  8 ++++++--
+ mm/rmap.c                    | 18 ++++++++++++++---
+ 10 files changed, 117 insertions(+), 80 deletions(-)
 
 -- 
-Mathieu Desnoyers
-Operating System Efficiency R&D Consultant
-EfficiOS Inc.
-http://www.efficios.com
+1.7.11.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
