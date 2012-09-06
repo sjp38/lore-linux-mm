@@ -1,163 +1,129 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
-	by kanga.kvack.org (Postfix) with SMTP id 9AE246B005A
-	for <linux-mm@kvack.org>; Thu,  6 Sep 2012 18:36:20 -0400 (EDT)
-Date: Thu, 6 Sep 2012 15:36:19 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 6/7] mm: vmscan: Scale number of pages reclaimed by
- reclaim/compaction based on failures
-Message-Id: <20120906153619.b0df4bd8.akpm@linux-foundation.org>
-In-Reply-To: <1345212873-22447-7-git-send-email-mgorman@suse.de>
-References: <1345212873-22447-1-git-send-email-mgorman@suse.de>
-	<1345212873-22447-7-git-send-email-mgorman@suse.de>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
+	by kanga.kvack.org (Postfix) with SMTP id 186856B005A
+	for <linux-mm@kvack.org>; Thu,  6 Sep 2012 18:40:00 -0400 (EDT)
+Message-ID: <50492574.6030308@parallels.com>
+Date: Fri, 7 Sep 2012 02:36:36 +0400
+From: Glauber Costa <glommer@parallels.com>
+MIME-Version: 1.0
+Subject: Re: [RFC 0/5] forced comounts for cgroups.
+References: <20120904214602.GA9092@dhcp-172-17-108-109.mtv.corp.google.com> <5047074D.1030104@parallels.com> <20120905081439.GC3195@dhcp-172-17-108-109.mtv.corp.google.com> <50470A87.1040701@parallels.com> <20120905082947.GD3195@dhcp-172-17-108-109.mtv.corp.google.com> <50470EBF.9070109@parallels.com> <20120905084740.GE3195@dhcp-172-17-108-109.mtv.corp.google.com> <1346835993.2600.9.camel@twins> <20120905093204.GL3195@dhcp-172-17-108-109.mtv.corp.google.com> <1346839487.2600.24.camel@twins> <20120906204642.GN29092@google.com> <CAPM31RKVYpkc0oTJKjsdsvqBfif=Bovi3a6TE8qdOOpEYOC0Lw@mail.gmail.com>
+In-Reply-To: <CAPM31RKVYpkc0oTJKjsdsvqBfif=Bovi3a6TE8qdOOpEYOC0Lw@mail.gmail.com>
+Content-Type: text/plain; charset="ISO-8859-1"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Rik van Riel <riel@redhat.com>, Minchan Kim <minchan@kernel.org>, Jim Schutt <jaschut@sandia.gov>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Paul Turner <pjt@google.com>
+Cc: Tejun Heo <tj@kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org, davej@redhat.com, ben@decadent.org.uk, lennart@poettering.net, kay.sievers@vrfy.org, Dhaval Giani <dhaval.giani@gmail.com>, Frederic Weisbecker <fweisbec@gmail.com>
 
-On Fri, 17 Aug 2012 15:14:32 +0100
-Mel Gorman <mgorman@suse.de> wrote:
+On 09/07/2012 01:11 AM, Paul Turner wrote:
+> On Thu, Sep 6, 2012 at 1:46 PM, Tejun Heo <tj@kernel.org> wrote:
+>> Hello,
+>>
+>> cc'ing Dhaval and Frederic.  They were interested in the subject
+>> before and Dhaval was pretty vocal about cpuacct having a separate
+>> hierarchy (or at least granularity).
+> 
+> Really?  Time just has _not_ borne out this use-case.  I'll let Dhaval
+> make a case for this but he should expect violent objection.
+> 
 
-> If allocation fails after compaction then compaction may be deferred for
-> a number of allocation attempts. If there are subsequent failures,
-> compact_defer_shift is increased to defer for longer periods. This patch
-> uses that information to scale the number of pages reclaimed with
-> compact_defer_shift until allocations succeed again. The rationale is
-> that reclaiming the normal number of pages still allowed compaction to
-> fail and its success depends on the number of pages. If it's failing,
-> reclaim more pages until it succeeds again.
+I strongly advise against physical violence. In case it is really
+necessary, please break his legs only.
+
+>> On Wed, Sep 05, 2012 at 12:04:47PM +0200, Peter Zijlstra wrote:
+>>>> cpuacct is rather unique tho.  I think it's gonna be silly whether the
+>>>> hierarchy is unified or not.
+>>>>
+>>>> 1. If they always can live on the exact same hierarchy, there's no
+>>>>    point in having the two separate.  Just merge them.
+>>>>
+>>>> 2. If they need differing levels of granularity, they either need to
+>>>>    do it completely separately as they do now or have some form of
+>>>>    dynamic optimization if absolutely necesary.
+>>>>
+>>>> So, I think that choice is rather separate from other issues.  If
+>>>> cpuacct is gonna be kept, I'd just keep it separate and warn that it
+>>>> incurs extra overhead for the current users if for nothing else.
+>>>> Otherwise, kill it or merge it into cpu.
+>>>
+>>> Quite, hence my 'proposal' to remove cpuacct.
+>>>
+>>> There was some whining last time Glauber proposed this, but the one
+>>> whining never convinced and has gone away from Linux, so lets just do
+>>> this.
+>>>
+>>> Lets make cpuacct print a deprecated msg to dmesg for a few releases and
+>>> make cpu do all this.
+>>
+>> I like it.  Currently cpuacct is the only problematic one in this
+>> regard (cpuset to a much lesser extent) and it would be great to make
+>> it go away.
+>>
+>> Dhaval, Frederic, Paul, if you guys object, please voice your
+>> opinions.
+>>
+>>> The co-mounting stuff would have been nice for cpusets as well, knowing
+>>> all your tasks are affine to a subset of cpus allows for a few
+>>> optimizations (smaller cpumask iterations), but I guess we'll have to do
+>>> that dynamically, we'll just have to see how ugly that is.
+>>
+>> Forced co-mounting sounds rather silly to me.  If the two are always
+>> gonna be co-mounted, why not just merge them and switch the
+>> functionality depending on configuration?  I'm fairly sure the code
+>> would be simpler that way.
 > 
-> Note that this is not implying that VM reclaim is not reclaiming enough
-> pages or that its logic is broken. try_to_free_pages() always asks for
-> SWAP_CLUSTER_MAX pages to be reclaimed regardless of order and that is
-> what it does. Direct reclaim stops normally with this check.
+> It would be simpler but the problem is we'd break any userspace that
+> was just doing mount cpuacct?
 > 
-> 	if (sc->nr_reclaimed >= sc->nr_to_reclaim)
-> 		goto out;
+> Further, even if it were mounting both, userspace code still has to be
+> changed to read from "cpu.export" instead of "cpuacct.export".
 > 
-> should_continue_reclaim delays when that check is made until a minimum number
-> of pages for reclaim/compaction are reclaimed. It is possible that this patch
-> could instead set nr_to_reclaim in try_to_free_pages() and drive it from
-> there but that's behaves differently and not necessarily for the better. If
-> driven from do_try_to_free_pages(), it is also possible that priorities
-> will rise. When they reach DEF_PRIORITY-2, it will also start stalling
-> and setting pages for immediate reclaim which is more disruptive than not
-> desirable in this case. That is a more wide-reaching change that could
-> cause another regression related to THP requests causing interactive jitter.
+
+Only if we remove cpuacct. What we can do, and I thought about doing, is
+just merging cpuacct functionality into cpu. Then we move cpuacct to
+default no. It will be there for userspace if they absolutely want to
+use it.
+
+> I think a sane path on this front is:
 > 
-> ...
+> Immediately:
+> Don't allow cpuacct and cpu to be co-mounted on separate hierarchies
+> simultaneously.
+> 
+that is precisely what my patch does, except it is a bit more generic.
+
+> That is:
+> mount none /dev/cgroup/cpuacct -t cgroupfs -o cpuacct : still works
+> mount none /dev/cgroup/cpu -t cgroupfs -o cpu : still works
+> mount none /dev/cgroup/cpux -t cgroupfs -o cpuacct,cpu : still works
+> 
+> But the combination:
+> mount none /dev/cgroup/cpu -t cgroupfs -o cpu : still works
+> mount none /dev/cgroup/cpuacct -t cgroupfs -o cpu : EINVAL [or vice versa].
+> 
+> Also:
+> WARN_ON when mounting cpuacct without cpu, strongly explaining that
+> ANY such configuration is deprecated.
+> 
+> Glauber's patchset goes most of the way towards enabling this.
 >
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -1743,6 +1743,7 @@ static inline bool should_continue_reclaim(struct lruvec *lruvec,
->  {
->  	unsigned long pages_for_compaction;
->  	unsigned long inactive_lru_pages;
-> +	struct zone *zone;
->  
->  	/* If not in reclaim/compaction mode, stop */
->  	if (!in_reclaim_compaction(sc))
-> @@ -1776,6 +1777,15 @@ static inline bool should_continue_reclaim(struct lruvec *lruvec,
->  	 * inactive lists are large enough, continue reclaiming
->  	 */
->  	pages_for_compaction = (2UL << sc->order);
-> +
-> +	/*
-> +	 * If compaction is deferred for sc->order then scale the number of
-> +	 * pages reclaimed based on the number of consecutive allocation
-> +	 * failures
-> +	 */
-> +	zone = lruvec_zone(lruvec);
-> +	if (zone->compact_order_failed <= sc->order)
-> +		pages_for_compaction <<= zone->compact_defer_shift;
->  	inactive_lru_pages = get_lru_size(lruvec, LRU_INACTIVE_FILE);
->  	if (nr_swap_pages > 0)
->  		inactive_lru_pages += get_lru_size(lruvec, LRU_INACTIVE_ANON);
+yes.
 
-y'know, allnoconfig builds are really fast.
+> In a release or two:
+> Make the restriction strict; don't allow individual mounting of
+> cpuacct, force it to be mounted ONLY with cpu.
+> 
+> Glauber's patchset gives us this.
+> 
+> Finally:
+> Mirror the interfaces to cpu, print nasty syslog messages about ANY
+> mounts of cpuacct
+> Follow that up by eventually removing cpuacct completely
+>
+Why don't start with mirroring? It gives more time for people to start
+switching to it.
 
-mm/vmscan.c: In function 'should_continue_reclaim':
-mm/vmscan.c:1787: error: 'struct zone' has no member named 'compact_order_failed'
-mm/vmscan.c:1788: error: 'struct zone' has no member named 'compact_defer_shift'
-
-This fix seems a rather overly ornate way of avoiding an ifdef :(
-
-
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: mm-vmscan-scale-number-of-pages-reclaimed-by-reclaim-compaction-based-on-failures-fix
-
-fix build
-
-Cc: Mel Gorman <mgorman@suse.de>
-Cc: Minchan Kim <minchan@kernel.org>
-Cc: Rik van Riel <riel@redhat.com>
-Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
----
-
- mm/vmscan.c |   33 ++++++++++++++++++++++++---------
- 1 file changed, 24 insertions(+), 9 deletions(-)
-
-diff -puN mm/vmscan.c~mm-vmscan-scale-number-of-pages-reclaimed-by-reclaim-compaction-based-on-failures-fix mm/vmscan.c
---- a/mm/vmscan.c~mm-vmscan-scale-number-of-pages-reclaimed-by-reclaim-compaction-based-on-failures-fix
-+++ a/mm/vmscan.c
-@@ -1729,6 +1729,28 @@ static bool in_reclaim_compaction(struct
- 	return false;
- }
- 
-+#ifdef CONFIG_COMPACTION
-+/*
-+ * If compaction is deferred for sc->order then scale the number of pages
-+ * reclaimed based on the number of consecutive allocation failures
-+ */
-+static unsigned long scale_for_compaction(unsigned long pages_for_compaction,
-+			struct lruvec *lruvec, struct scan_control *sc)
-+{
-+	struct zone *zone = lruvec_zone(lruvec);
-+
-+	if (zone->compact_order_failed <= sc->order)
-+		pages_for_compaction <<= zone->compact_defer_shift;
-+	return pages_for_compaction;
-+}
-+#else
-+static unsigned long scale_for_compaction(unsigned long pages_for_compaction,
-+			struct lruvec *lruvec, struct scan_control *sc)
-+{
-+	return pages_for_compaction;
-+}
-+#endif
-+
- /*
-  * Reclaim/compaction is used for high-order allocation requests. It reclaims
-  * order-0 pages before compacting the zone. should_continue_reclaim() returns
-@@ -1743,7 +1765,6 @@ static inline bool should_continue_recla
- {
- 	unsigned long pages_for_compaction;
- 	unsigned long inactive_lru_pages;
--	struct zone *zone;
- 
- 	/* If not in reclaim/compaction mode, stop */
- 	if (!in_reclaim_compaction(sc))
-@@ -1778,14 +1799,8 @@ static inline bool should_continue_recla
- 	 */
- 	pages_for_compaction = (2UL << sc->order);
- 
--	/*
--	 * If compaction is deferred for sc->order then scale the number of
--	 * pages reclaimed based on the number of consecutive allocation
--	 * failures
--	 */
--	zone = lruvec_zone(lruvec);
--	if (zone->compact_order_failed <= sc->order)
--		pages_for_compaction <<= zone->compact_defer_shift;
-+	pages_for_compaction = scale_for_compaction(pages_for_compaction,
-+						    lruvec, sc);
- 	inactive_lru_pages = get_lru_size(lruvec, LRU_INACTIVE_FILE);
- 	if (nr_swap_pages > 0)
- 		inactive_lru_pages += get_lru_size(lruvec, LRU_INACTIVE_ANON);
-_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
