@@ -1,15 +1,16 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx135.postini.com [74.125.245.135])
-	by kanga.kvack.org (Postfix) with SMTP id 7D38D6B0099
-	for <linux-mm@kvack.org>; Wed,  5 Sep 2012 20:57:07 -0400 (EDT)
-Received: by pbbro12 with SMTP id ro12so1952995pbb.14
-        for <linux-mm@kvack.org>; Wed, 05 Sep 2012 17:57:06 -0700 (PDT)
-Date: Wed, 5 Sep 2012 17:57:04 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
+	by kanga.kvack.org (Postfix) with SMTP id BEF4E6B009B
+	for <linux-mm@kvack.org>; Wed,  5 Sep 2012 20:59:32 -0400 (EDT)
+Received: by dadi14 with SMTP id i14so786503dad.14
+        for <linux-mm@kvack.org>; Wed, 05 Sep 2012 17:59:32 -0700 (PDT)
+Date: Wed, 5 Sep 2012 17:59:29 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 2/5] mm, slob: Add support for kmalloc_track_caller()
-In-Reply-To: <1346885323-15689-2-git-send-email-elezegarcia@gmail.com>
-Message-ID: <alpine.DEB.2.00.1209051756270.7625@chino.kir.corp.google.com>
-References: <1346885323-15689-1-git-send-email-elezegarcia@gmail.com> <1346885323-15689-2-git-send-email-elezegarcia@gmail.com>
+Subject: Re: [PATCH 3/5] mm, util: Do strndup_user allocation directly,
+ instead of through memdup_user
+In-Reply-To: <1346885323-15689-3-git-send-email-elezegarcia@gmail.com>
+Message-ID: <alpine.DEB.2.00.1209051757250.7625@chino.kir.corp.google.com>
+References: <1346885323-15689-1-git-send-email-elezegarcia@gmail.com> <1346885323-15689-3-git-send-email-elezegarcia@gmail.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -19,46 +20,17 @@ Cc: linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, Christoph Lameter <cl
 
 On Wed, 5 Sep 2012, Ezequiel Garcia wrote:
 
-> @@ -454,15 +455,35 @@ void *__kmalloc_node(size_t size, gfp_t gfp, int node)
->  			gfp |= __GFP_COMP;
->  		ret = slob_new_pages(gfp, order, node);
->  
-> -		trace_kmalloc_node(_RET_IP_, ret,
-> +		trace_kmalloc_node(caller, ret,
->  				   size, PAGE_SIZE << order, gfp, node);
->  	}
->  
->  	kmemleak_alloc(ret, size, 1, gfp);
->  	return ret;
->  }
-> +
-> +void *__kmalloc_node(size_t size, gfp_t gfp, int node)
-> +{
-> +	return __do_kmalloc_node(size, gfp, node, _RET_IP_);
-> +}
->  EXPORT_SYMBOL(__kmalloc_node);
->  
-> +#ifdef CONFIG_TRACING
-> +void *__kmalloc_track_caller(size_t size, gfp_t gfp, unsigned long caller)
-> +{
-> +	return __do_kmalloc_node(size, gfp, -1, caller);
+> I'm not sure this is the best solution,
+> but creating another function to reuse between strndup_user
+> and memdup_user seemed like an overkill.
+> 
 
-NUMA_NO_NODE.
+It's not, so you'd need to do two things to fix this:
 
-> +}
-> +
-> +#ifdef CONFIG_NUMA
-> +void *__kmalloc_node_track_caller(size_t size, gfp_t gfpflags,
-> +					int node, unsigned long caller)
-> +{
-> +	return __do_kmalloc_node(size, gfp, node, caller);
-> +}
-> +#endif
-> +#endif
-> +
->  void kfree(const void *block)
->  {
->  	struct page *sp;
+ - provide a reason why strndup_user() is special compared to other 
+   common library functions that also allocate memory, and
+
+ - provide a __stndup_user() to pass the _RET_IP_.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
