@@ -1,98 +1,139 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
-	by kanga.kvack.org (Postfix) with SMTP id C23A36B005A
-	for <linux-mm@kvack.org>; Thu,  6 Sep 2012 13:16:42 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
+	by kanga.kvack.org (Postfix) with SMTP id 8BA936B005A
+	for <linux-mm@kvack.org>; Thu,  6 Sep 2012 13:57:40 -0400 (EDT)
+Received: by obhx4 with SMTP id x4so3743710obh.14
+        for <linux-mm@kvack.org>; Thu, 06 Sep 2012 10:57:39 -0700 (PDT)
 MIME-Version: 1.0
-Message-ID: <8d085295-c15d-441c-8463-58cfc7ffc139@default>
-Date: Thu, 6 Sep 2012 10:15:48 -0700 (PDT)
-From: Dan Magenheimer <dan.magenheimer@oracle.com>
-Subject: RE: [patch] staging: ramster: fix range checks in
- zcache_autocreate_pool()
-References: <20120906124020.GA28946@elgon.mountain>
-In-Reply-To: <20120906124020.GA28946@elgon.mountain>
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: quoted-printable
+In-Reply-To: <1346779479-1097-2-git-send-email-mgorman@suse.de>
+References: <1346779479-1097-1-git-send-email-mgorman@suse.de>
+	<1346779479-1097-2-git-send-email-mgorman@suse.de>
+Date: Fri, 7 Sep 2012 02:57:39 +0900
+Message-ID: <CAAmzW4M_3hVBfjqFLG=7iydkXeQPdCXRbRmkqUJD4vwo0eWVWQ@mail.gmail.com>
+Subject: Re: [PATCH 1/4] slab: do ClearSlabPfmemalloc() for all pages of slab
+From: JoonSoo Kim <js1304@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Carpenter <dan.carpenter@oracle.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Cc: Konrad Wilk <konrad.wilk@oracle.com>, devel@driverdev.osuosl.org, linux-mm@kvack.org, kernel-janitors@vger.kernel.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Linux-Netdev <netdev@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, David Miller <davem@davemloft.net>, Chuck Lever <chuck.lever@oracle.com>, Pekka@suse.de, "Enberg <penberg"@kernel.org, David Rientjes <rientjes@google.com>, Christoph Lameter <cl@linux.com>
 
-> From: Dan Carpenter
-> Sent: Thursday, September 06, 2012 6:40 AM
-> To: Greg Kroah-Hartman
-> Cc: Dan Magenheimer; Konrad Rzeszutek Wilk; devel@driverdev.osuosl.org; l=
-inux-mm@kvack.org; kernel-
-> janitors@vger.kernel.org
-> Subject: [patch] staging: ramster: fix range checks in zcache_autocreate_=
-pool()
->=20
-> If "pool_id" is negative then it leads to a read before the start of the
-> array.  If "cli_id" is out of bounds then it leads to a NULL dereference
-> of "cli".  GCC would have warned about that bug except that we
-> initialized the warning message away.
->=20
-> Also it's better to put the parameter names into the function
-> declaration in the .h file.  It serves as a kind of documentation.
->=20
-> Signed-off-by: Dan Carpenter <dan.carpenter@oracle.com>
+Add "Cc" to "Christoph Lameter" <cl@linux.com>
 
-Acked-by: Dan Magenheimer <dan.magenheimer@oracle.com>
-Self-flagellated-by: Dan Magenheimer <dan.magenheimer@oracle.com>=20
-
+2012/9/5 Mel Gorman <mgorman@suse.de>:
+> Right now, we call ClearSlabPfmemalloc() for first page of slab when we
+> clear SlabPfmemalloc flag. This is fine for most swap-over-network use
+> cases as it is expected that order-0 pages are in use. Unfortunately it
+> is possible that that __ac_put_obj() checks SlabPfmemalloc on a tail page
+> and while this is harmless, it is sloppy. This patch ensures that the head
+> page is always used.
+>
+> This problem was originally identified by Joonsoo Kim.
+>
+> [js1304@gmail.com: Original implementation and problem identification]
+> Signed-off-by: Mel Gorman <mgorman@suse.de>
 > ---
-> BTW, This file has a ton of GCC warnings.  This function returns -1
-> on error which is a nonsense return code but the return value is not
-> checked anyway.  *Grumble*.
->=20
-> diff --git a/drivers/staging/ramster/zcache.h b/drivers/staging/ramster/z=
-cache.h
-> index c59666e..81722b3 100644
-> --- a/drivers/staging/ramster/zcache.h
-> +++ b/drivers/staging/ramster/zcache.h
-> @@ -42,7 +42,7 @@ extern void zcache_decompress_to_page(char *, unsigned =
-int, struct page *);
->  #ifdef CONFIG_RAMSTER
->  extern void *zcache_pampd_create(char *, unsigned int, bool, int,
->  =09=09=09=09struct tmem_handle *);
-> -extern int zcache_autocreate_pool(int, int, bool);
-> +int zcache_autocreate_pool(unsigned int cli_id, unsigned int pool_id, bo=
-ol eph);
->  #endif
->=20
->  #define MAX_POOLS_PER_CLIENT 16
-> diff --git a/drivers/staging/ramster/zcache-main.c b/drivers/staging/rams=
-ter/zcache-main.c
-> index 24b3d4a..86e19d6 100644
-> --- a/drivers/staging/ramster/zcache-main.c
-> +++ b/drivers/staging/ramster/zcache-main.c
-> @@ -1338,10 +1338,10 @@ static int zcache_local_new_pool(uint32_t flags)
->  =09return zcache_new_pool(LOCAL_CLIENT, flags);
->  }
->=20
-> -int zcache_autocreate_pool(int cli_id, int pool_id, bool eph)
-> +int zcache_autocreate_pool(unsigned int cli_id, unsigned int pool_id, bo=
-ol eph)
+>  mm/slab.c |    4 ++--
+>  1 file changed, 2 insertions(+), 2 deletions(-)
+>
+> diff --git a/mm/slab.c b/mm/slab.c
+> index 811af03..d34a903 100644
+> --- a/mm/slab.c
+> +++ b/mm/slab.c
+> @@ -1000,7 +1000,7 @@ static void *__ac_get_obj(struct kmem_cache *cachep, struct array_cache *ac,
+>                 l3 = cachep->nodelists[numa_mem_id()];
+>                 if (!list_empty(&l3->slabs_free) && force_refill) {
+>                         struct slab *slabp = virt_to_slab(objp);
+> -                       ClearPageSlabPfmemalloc(virt_to_page(slabp->s_mem));
+> +                       ClearPageSlabPfmemalloc(virt_to_head_page(slabp->s_mem));
+>                         clear_obj_pfmemalloc(&objp);
+>                         recheck_pfmemalloc_active(cachep, ac);
+>                         return objp;
+
+We assume that slabp->s_mem's address is always in head page, so
+"virt_to_head_page" is not needed.
+
+> @@ -1032,7 +1032,7 @@ static void *__ac_put_obj(struct kmem_cache *cachep, struct array_cache *ac,
 >  {
->  =09struct tmem_pool *pool;
-> -=09struct zcache_client *cli =3D NULL;
-> +=09struct zcache_client *cli;
->  =09uint32_t flags =3D eph ? 0 : TMEM_POOL_PERSIST;
->  =09int ret =3D -1;
->=20
-> @@ -1350,8 +1350,10 @@ int zcache_autocreate_pool(int cli_id, int pool_id=
-, bool eph)
->  =09=09goto out;
->  =09if (pool_id >=3D MAX_POOLS_PER_CLIENT)
->  =09=09goto out;
-> -=09else if ((unsigned int)cli_id < MAX_CLIENTS)
-> -=09=09cli =3D &zcache_clients[cli_id];
-> +=09if (cli_id >=3D MAX_CLIENTS)
-> +=09=09goto out;
-> +
-> +=09cli =3D &zcache_clients[cli_id];
->  =09if ((eph && disable_cleancache) || (!eph && disable_frontswap)) {
->  =09=09pr_err("zcache_autocreate_pool: pool type disabled\n");
->  =09=09goto out;
+>         if (unlikely(pfmemalloc_active)) {
+>                 /* Some pfmemalloc slabs exist, check if this is one */
+> -               struct page *page = virt_to_page(objp);
+> +               struct page *page = virt_to_head_page(objp);
+>                 if (PageSlabPfmemalloc(page))
+>                         set_obj_pfmemalloc(&objp);
+>         }
+> --
+> 1.7.9.2
+>
+
+If we always use head page, following suggestion is more good to me.
+How about you?
+
+diff --git a/mm/slab.c b/mm/slab.c
+index f8b0d53..ce70989 100644
+--- a/mm/slab.c
++++ b/mm/slab.c
+@@ -1032,7 +1032,7 @@ static void *__ac_put_obj(struct kmem_cache
+*cachep, struct array_cache *ac,
+ {
+        if (unlikely(pfmemalloc_active)) {
+                /* Some pfmemalloc slabs exist, check if this is one */
+-               struct page *page = virt_to_page(objp);
++               struct page *page = virt_to_head_page(objp);
+                if (PageSlabPfmemalloc(page))
+                        set_obj_pfmemalloc(&objp);
+        }
+@@ -1921,10 +1921,9 @@ static void *kmem_getpages(struct kmem_cache
+*cachep, gfp_t flags, int nodeid)
+                        NR_SLAB_UNRECLAIMABLE, nr_pages);
+        for (i = 0; i < nr_pages; i++) {
+                __SetPageSlab(page + i);
+-
+-               if (page->pfmemalloc)
+-                       SetPageSlabPfmemalloc(page + i);
+        }
++       if (page->pfmemalloc)
++               SetPageSlabPfmemalloc(page);
+
+        if (kmemcheck_enabled && !(cachep->flags & SLAB_NOTRACK)) {
+                kmemcheck_alloc_shadow(page, cachep->gfporder, flags, nodeid);
+@@ -1943,26 +1942,26 @@ static void *kmem_getpages(struct kmem_cache
+*cachep, gfp_t flags, int nodeid)
+  */
+ static void kmem_freepages(struct kmem_cache *cachep, void *addr)
+ {
+-       unsigned long i = (1 << cachep->gfporder);
++       int nr_pages = (1 << cachep->gfporder);
++       int i;
+        struct page *page = virt_to_page(addr);
+-       const unsigned long nr_freed = i;
+
+        kmemcheck_free_shadow(page, cachep->gfporder);
+
+        if (cachep->flags & SLAB_RECLAIM_ACCOUNT)
+                sub_zone_page_state(page_zone(page),
+-                               NR_SLAB_RECLAIMABLE, nr_freed);
++                               NR_SLAB_RECLAIMABLE, nr_pages);
+        else
+                sub_zone_page_state(page_zone(page),
+-                               NR_SLAB_UNRECLAIMABLE, nr_freed);
+-       while (i--) {
+-               BUG_ON(!PageSlab(page));
+-               __ClearPageSlabPfmemalloc(page);
+-               __ClearPageSlab(page);
+-               page++;
++                               NR_SLAB_UNRECLAIMABLE, nr_pages);
++       for (i = 0; i < nr_pages; i++) {
++               BUG_ON(!PageSlab(page + i));
++               __ClearPageSlab(page + i);
+        }
++       __ClearPageSlabPfmemalloc(page);
++
+        if (current->reclaim_state)
+-               current->reclaim_state->reclaimed_slab += nr_freed;
++               current->reclaim_state->reclaimed_slab += nr_pages;
+        free_pages((unsigned long)addr, cachep->gfporder);
+ }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
