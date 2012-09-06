@@ -1,83 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
-	by kanga.kvack.org (Postfix) with SMTP id BE0266B005A
-	for <linux-mm@kvack.org>; Thu,  6 Sep 2012 09:00:04 -0400 (EDT)
-Received: by wgbdq12 with SMTP id dq12so1322219wgb.26
-        for <linux-mm@kvack.org>; Thu, 06 Sep 2012 06:00:03 -0700 (PDT)
-From: Michal Nazarewicz <mina86@mina86.com>
-Subject: Re: [RFC] memory-hotplug: remove MIGRATE_ISOLATE from free_area->free_list
-In-Reply-To: <20120906020850.GA31615@bbox>
-References: <1346830033-32069-1-git-send-email-minchan@kernel.org> <xa1t1uigpefc.fsf@mina86.com> <20120906020850.GA31615@bbox>
-Date: Thu, 06 Sep 2012 14:59:53 +0200
-Message-ID: <xa1tipbr9uie.fsf@mina86.com>
+Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
+	by kanga.kvack.org (Postfix) with SMTP id E14666B005A
+	for <linux-mm@kvack.org>; Thu,  6 Sep 2012 09:25:56 -0400 (EDT)
+Date: Thu, 6 Sep 2012 14:25:51 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [patch 1/2]compaction: check migrated page number
+Message-ID: <20120906132551.GS11266@suse.de>
+References: <20120906104404.GA12718@kernel.org>
+ <20120906121725.GQ11266@suse.de>
+ <20120906125526.GA1025@kernel.org>
 MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="=-=-="
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20120906125526.GA1025@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mel@csn.ul.ie>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+To: Shaohua Li <shli@kernel.org>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, aarcange@redhat.com
 
---=-=-=
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
+On Thu, Sep 06, 2012 at 08:55:26PM +0800, Shaohua Li wrote:
+> On Thu, Sep 06, 2012 at 01:17:25PM +0100, Mel Gorman wrote:
+> > On Thu, Sep 06, 2012 at 06:44:04PM +0800, Shaohua Li wrote:
+> > > 
+> > > isolate_migratepages_range() might isolate none pages, for example, when
+> > > zone->lru_lock is contended and compaction is async. In this case, we should
+> > > abort compaction, otherwise, compact_zone will run a useless loop and make
+> > > zone->lru_lock is even contended.
+> > > 
+> > 
+> > It might also isolate no pages because the range was 100% allocated and
+> > there were no free pages to isolate. This is perfectly normal and I suspect
+> > this patch effectively disables compaction. What problem did you observe
+> > that this patch is aimed at?
+> 
+> I'm running a random swapin/out workload. When memory is fragmented enough, I
+> saw 100% cpu usage. perf shows zone->lru_lock is heavily contended in
+> isolate_migratepages_range. I'm using slub(I didn't see the problem with slab),
+> the allocation is for radix_tree_node slab, which needs 4 pages.
 
-> On Wed, Sep 05, 2012 at 07:28:23PM +0200, Michal Nazarewicz wrote:
->> If you ask me, I'm not convinced that this improves anything.
+Ok, the fragmentaiton is due to high-order unmovable kernel allocations from
+SLUB which will have diminishing returns over time.  One option to address
+this is to check if it's a high-order kernel allocation that can fail and
+not compact in that case. SLUB will fall back to using order-0 instead.
 
-On Thu, Sep 06 2012, Minchan Kim wrote:
-> At least, it removes MIGRATE_ISOLATE type in free_area->free_list
-> which is very irony type as I mentioned. I really don't like such
-> type in free_area. What's the benefit if we remain code as it is?
-> It could make more problem in future.
+> Even If I just
+> apply the second patch, the system is still in 100% cpu usage. The
+> spin_is_contended check can't cure the problem completely.
 
-I don't really see current situation as making more problems in the
-future compared to this code.
+Are you sure it's really contention in that case and not just a lot of
+time is spent in compaction trying to satisfy the radix_tree_node
+allocation requests?
 
-You are introducing a new state for a page (ie. it's not in buddy, but
-in some new limbo state) and add a bunch of new code and thus bunch of
-new  bugs.  I don't see how this improves things over having generic
-code that handles moving pages between free lists.
+> Trace shows
+> compact_zone will run a useless loop and each loop contend the lru_lock. With
+> this patch, the cpu usage becomes normal (about 20% utilization).
 
-PS.  free_list does exactly what it says on the tin -> the pages are
-free, ie. unallocated.  It does not say that they can be allocated. ;)
+I suspect the reason why this patch has an effect is because compaction is
+no longer running. It finds a 100% full pageblock quickly and then aborts and
+that is not the right fix. Can you try something like this instead please?
 
---=20
-Best regards,                                         _     _
-.o. | Liege of Serenely Enlightened Majesty of      o' \,=3D./ `o
-..o | Computer Science,  Micha=C5=82 =E2=80=9Cmina86=E2=80=9D Nazarewicz   =
- (o o)
-ooo +----<email/xmpp: mpn@google.com>--------------ooO--(_)--Ooo--
---=-=-=
-Content-Type: multipart/signed; boundary="==-=-=";
-	micalg=pgp-sha1; protocol="application/pgp-signature"
-
---==-=-=
-Content-Type: text/plain
-
-
---==-=-=
-Content-Type: application/pgp-signature
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.10 (GNU/Linux)
-
-iQIcBAEBAgAGBQJQSJ5JAAoJECBgQBJQdR/0dbsP/1dKXsqBtAKfu9S+jlmbio6O
-LlYrEC70r/wcKgsKhAqN8itfFLNrIKDxNhv/sz1aXuKrCTq8QkeQT6kZswgWb/Mp
-8/E2L0Z6XXmSjqJnmiDwPmoGDGUCQivE2XIXVkVeafhcqg9Z0HnvWsvVflJu56S4
-dmuFsaliqp9iEGQEA+HkYI8VnaXK3sHYhOcOiL2G/4yYVyIlJoH2Pp4AZopeQvKZ
-vpCspAutB+HjTSpE6tJg/4LqhmWK6OwCFjBDAuBLmRVnUCqv1hyIMxz7c2bOObdT
-1V9NHoMp0Gorzdky1J2rSH29EpugDavrx8f0kOrqzD6BqZhIno86RVHgTWEgCy8e
-zbRfecvUoABz+T78M57FjedIghB9yK/CmtvWqGg9apRUuMk6J6znb1Rtbp1bRKmn
-tKHkCjpBAW9faLT1EerHLvCEQmnvskV13phu3gDqEf5BWiDmASDz9Vso5zT4N1c9
-SKqBpX4XLDL/evEELXM9qMgIHWG7mRJz+AHHaYDFFVheiIiyr0oGwtCFKpJDGkHh
-Sf8hvc6ehGYuBCjyH79mkuznIPPDIaWR9yioEXEAq52GsVXt6Xxlgz+oIR8ZYUqC
-GffYet3kmnbtX0wX6Z871YWbpk9lQTbaqDVg8OHkSwBM5x8PMVBUeSWNlE177QLd
-f5UNFmstTAGmOYE4wqdT
-=n5Wc
------END PGP SIGNATURE-----
---==-=-=--
-
---=-=-=--
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 8f6eea3..bd5bd6d 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -2114,6 +2114,10 @@ __alloc_pages_direct_compact(gfp_t gfp_mask, unsigned int order,
+ 		return NULL;
+ 	}
+ 
++	/* Do not compact for high-order kernel allocations that can fail */
++	if ((gfp_mask & (__GFP_NORETRY | __GFP_MOVABLE)) == __GFP_NORETRY)
++		return NULL;
++
+ 	current->flags |= PF_MEMALLOC;
+ 	*did_some_progress = try_to_compact_pages(zonelist, order, gfp_mask,
+ 						nodemask, sync_migration,
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
