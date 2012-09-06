@@ -1,80 +1,132 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
-	by kanga.kvack.org (Postfix) with SMTP id D0CD66B0062
-	for <linux-mm@kvack.org>; Thu,  6 Sep 2012 13:02:38 -0400 (EDT)
-Date: Thu, 6 Sep 2012 13:02:36 -0400
-From: Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
-Subject: Re: [PATCH v3 01/17] hashtable: introduce a small and naive
-	hashtable
-Message-ID: <20120906170236.GA7846@Krystal>
-References: <50462C99.5000007@redhat.com> <50462EE8.1090903@redhat.com> <20120904170138.GB31934@Krystal> <5048AAF6.5090101@gmail.com> <20120906145545.GA17332@leaf> <5048C615.4070204@gmail.com> <1346947206.1680.36.camel@gandalf.local.home> <5048CDA2.10300@gmail.com> <20120906165055.GC7385@Krystal> <5048D6DE.8090805@gmail.com>
+Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
+	by kanga.kvack.org (Postfix) with SMTP id BBE9B6B0068
+	for <linux-mm@kvack.org>; Thu,  6 Sep 2012 13:04:16 -0400 (EDT)
+Date: Thu, 6 Sep 2012 13:04:11 -0400 (EDT)
+From: =?ISO-8859-15?Q?Luk=E1=A8_Czerner?= <lczerner@redhat.com>
+Subject: Re: [PATCH 00/21] drop vmtruncate
+In-Reply-To: <5040C11C.4060505@gmail.com>
+Message-ID: <alpine.LFD.2.00.1209061255530.509@new-host-2>
+References: <5040C11C.4060505@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <5048D6DE.8090805@gmail.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <levinsasha928@gmail.com>
-Cc: Steven Rostedt <rostedt@goodmis.org>, Josh Triplett <josh@joshtriplett.org>, Pedro Alves <palves@redhat.com>, Tejun Heo <tj@kernel.org>, torvalds@linux-foundation.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, paul.gortmaker@windriver.com, davem@davemloft.net, mingo@elte.hu, ebiederm@xmission.com, aarcange@redhat.com, ericvh@gmail.com, netdev@vger.kernel.org, eric.dumazet@gmail.com, axboe@kernel.dk, agk@redhat.com, dm-devel@redhat.com, neilb@suse.de, ccaulfie@redhat.com, teigland@redhat.com, Trond.Myklebust@netapp.com, bfields@fieldses.org, fweisbec@gmail.com, jesse@nicira.com, venkat.x.venkatsubra@oracle.com, ejt@redhat.com, snitzer@redhat.com, edumazet@google.com, linux-nfs@vger.kernel.org, dev@openvswitch.org, rds-devel@oss.oracle.com, lw@cn.fujitsu.com
+To: Marco Stornelli <marco.stornelli@gmail.com>
+Cc: Linux FS Devel <linux-fsdevel@vger.kernel.org>, linux-mm@kvack.org, Linux Kernel <linux-kernel@vger.kernel.org>
 
-* Sasha Levin (levinsasha928@gmail.com) wrote:
-> On 09/06/2012 06:50 PM, Mathieu Desnoyers wrote:
-> > * Sasha Levin (levinsasha928@gmail.com) wrote:
-> >> On 09/06/2012 06:00 PM, Steven Rostedt wrote:
-> >>>>> I think that that code doesn't make sense. The users of hlist_for_each_* aren't
-> >>>>> supposed to be changing the loop cursor.
-> >>> I totally agree. Modifying the 'node' pointer is just asking for issues.
-> >>> Yes that is error prone, but not due to the double loop. It's due to the
-> >>> modifying of the node pointer that is used internally by the loop
-> >>> counter. Don't do that :-)
-> >>
-> >> While we're on this subject, I haven't actually seen hlist_for_each_entry() code
-> >> that even *touches* 'pos'.
-> >>
-> >> Will people yell at me loudly if I change the prototype of those macros to be:
-> >>
-> >> 	hlist_for_each_entry(tpos, head, member)
-> >>
-> >> (Dropping the 'pos' parameter), and updating anything that calls those macros to
-> >> drop it as well?
-> > 
-> > I think the intent there is to keep hlist macros and list macros
-> > slightly in sync. Given those are vastly used, I'm not sure you want to
-> > touch them. But hey, that's just my 2 cents.
-> 
-> Actually, the corresponding list macro looks like this:
-> 
-> 	list_for_each_entry(pos, head, member)
-> 
-> With 'pos' being the equivalent of 'tpos' in the hlist macros (the type *).
-> Changing hlist macro will make them both look as follows:
-> 
-> 	hlist_for_each_entry(pos, head, member)
-> 	list_for_each_entry(pos, head, member)
-> 
-> So following this suggesting will actually bring them back to sync...
-> 
-> The only issue I can see is that as you've said, they're used almost everywhere,
-> so doing something to change that will require some coordination.
+On Fri, 31 Aug 2012, Marco Stornelli wrote:
 
-if this brings hlist and list in sync, then it looks like an
-improvement. It might be good to propose this change as a separate
-patchset.
+> Date: Fri, 31 Aug 2012 15:50:20 +0200
+> From: Marco Stornelli <marco.stornelli@gmail.com>
+> To: Linux FS Devel <linux-fsdevel@vger.kernel.org>, linux-mm@kvack.org
+> Cc: Linux Kernel <linux-kernel@vger.kernel.org>
+> Subject: [PATCH 00/21] drop vmtruncate
+> 
+> Hi all,
+> 
+> with this patch series I try to clean the vmtruncate code. The theory of
+> operation:
+> 
+> old               new
+> vmtruncate() =>   inode_newsize_ok+truncate_setsize+fs truncate
+> 
+> Where vmtruncate was used without any error check, the code now is:
+> 
+> if (inode_newsize_ok() == 0) {
+> 	truncate_setsize();
+> 	fs truncate();
+> }
+> 
+> So, performance and semantic nothing change at all. I think that maybe in some
+> point we can skip inode_newsize_ok (where the error check of vmtruncate wasn't
+> used) but since there is a swap check in case of no-extension, maybe it's
+> better to avoid regressions. After this clean, of course, each fs can clean in
+> a deeply way.
+> 
+> With these patches even the inode truncate callback is deleted.
+> 
+> Any comments/feedback/bugs are welcome.
 
-Thanks,
+Could you explain the reason behind this change a little bit more ?
+This does not make any sense to me since you're replacing
+vmtruncate() which does basically 
 
-Mathieu
+if (inode_newsize_ok() == 0) {
+	truncate_setsize();
+	fs truncate();
+}
+
+as you mentioned above by exactly the same thing but doing it within
+the file system. It does not seem like an improvement to me ... how
+is this a clean up ?
+
+Thanks!
+-Lukas
 
 > 
+> Marco Stornelli (21):
+>   ufs: drop vmtruncate
+>   sysv: drop vmtruncate
+>   reiserfs: drop vmtruncate
+>   procfs: drop vmtruncate
+>   omfs: drop vmtruncate
+>   ocfs2: drop vmtruncate
+>   adfs: drop vmtruncate
+>   affs: drop vmtruncate
+>   bfs: drop vmtruncate
+>   hfs: drop vmtruncate
+>   hpfs: drop vmtruncate
+>   jfs: drop vmtruncate
+>   hfsplus: drop vmtruncate
+>   hostfs: drop vmtruncate
+>   logfs: drop vmtruncate
+>   minix: drop vmtruncate
+>   ncpfs: drop vmtruncate
+>   nilfs2: drop vmtruncate
+>   ntfs: drop vmtruncate
+>   vfs: drop vmtruncate
+>   mm: drop vmtruncate
 > 
-> Thanks,
-> Sasha
-
--- 
-Mathieu Desnoyers
-Operating System Efficiency R&D Consultant
-EfficiOS Inc.
-http://www.efficios.com
+>  fs/adfs/inode.c         |    5 +++--
+>  fs/affs/file.c          |    8 +++++---
+>  fs/affs/inode.c         |    5 ++++-
+>  fs/bfs/file.c           |    5 +++--
+>  fs/hfs/inode.c          |   19 +++++++++++++------
+>  fs/hfsplus/inode.c      |   19 +++++++++++++------
+>  fs/hostfs/hostfs_kern.c |    8 +++++---
+>  fs/hpfs/file.c          |    8 +++++---
+>  fs/hpfs/inode.c         |    5 ++++-
+>  fs/jfs/file.c           |    6 ++++--
+>  fs/jfs/inode.c          |   13 +++++++++----
+>  fs/libfs.c              |    2 --
+>  fs/logfs/readwrite.c    |   10 ++++++++--
+>  fs/minix/file.c         |    6 ++++--
+>  fs/minix/inode.c        |    7 +++++--
+>  fs/ncpfs/inode.c        |    4 +++-
+>  fs/nilfs2/file.c        |    1 -
+>  fs/nilfs2/inode.c       |   18 +++++++++++++-----
+>  fs/nilfs2/recovery.c    |    7 +++++--
+>  fs/ntfs/file.c          |    8 +++++---
+>  fs/ntfs/inode.c         |   11 +++++++++--
+>  fs/ntfs/inode.h         |    4 ++++
+>  fs/ocfs2/file.c         |    3 ++-
+>  fs/omfs/file.c          |   12 ++++++++----
+>  fs/proc/base.c          |    3 ++-
+>  fs/proc/generic.c       |    3 ++-
+>  fs/proc/proc_sysctl.c   |    3 ++-
+>  fs/reiserfs/file.c      |    3 +--
+>  fs/reiserfs/inode.c     |   15 +++++++++++----
+>  fs/reiserfs/reiserfs.h  |    1 +
+>  fs/sysv/file.c          |    5 +++--
+>  fs/sysv/itree.c         |    7 +++++--
+>  fs/ufs/inode.c          |    5 +++--
+>  include/linux/fs.h      |    1 -
+>  include/linux/mm.h      |    1 -
+>  mm/truncate.c           |   23 -----------------------
+>  36 files changed, 164 insertions(+), 100 deletions(-)
+> 
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
