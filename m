@@ -1,71 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
-	by kanga.kvack.org (Postfix) with SMTP id 284896B005A
-	for <linux-mm@kvack.org>; Thu,  6 Sep 2012 08:18:45 -0400 (EDT)
-Date: Thu, 6 Sep 2012 14:18:42 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH v2] memcg: first step towards hierarchical controller
-Message-ID: <20120906121842.GG22426@dhcp22.suse.cz>
-References: <20120904143552.GB15683@dhcp22.suse.cz>
- <50461241.5010300@parallels.com>
- <20120904145414.GC15683@dhcp22.suse.cz>
- <50461610.30305@parallels.com>
- <20120904162501.GE15683@dhcp22.suse.cz>
- <504709D4.2010800@parallels.com>
- <20120905144942.GH5388@dhcp22.suse.cz>
- <20120905201238.GE13737@google.com>
- <20120906120623.GE22426@dhcp22.suse.cz>
- <50489270.7060108@parallels.com>
+Received: from psmtp.com (na3sys010amx202.postini.com [74.125.245.202])
+	by kanga.kvack.org (Postfix) with SMTP id 959476B005A
+	for <linux-mm@kvack.org>; Thu,  6 Sep 2012 08:24:53 -0400 (EDT)
+Date: Thu, 6 Sep 2012 13:24:49 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [patch 2/2]compaction: check lock contention first before taking
+ lock
+Message-ID: <20120906122449.GR11266@suse.de>
+References: <20120906104429.GB12718@kernel.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <50489270.7060108@parallels.com>
+In-Reply-To: <20120906104429.GB12718@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: Tejun Heo <tj@kernel.org>, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org, Dave Jones <davej@redhat.com>, Ben Hutchings <ben@decadent.org.uk>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Paul Turner <pjt@google.com>, Lennart Poettering <lennart@poettering.net>, Kay Sievers <kay.sievers@vrfy.org>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>
+To: Shaohua Li <shli@kernel.org>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, aarcange@redhat.com
 
-On Thu 06-09-12 16:09:20, Glauber Costa wrote:
-> On 09/06/2012 04:06 PM, Michal Hocko wrote:
-> > On Wed 05-09-12 13:12:38, Tejun Heo wrote:
-> >> Hello, Michal.
-> >>
-> >> On Wed, Sep 05, 2012 at 04:49:42PM +0200, Michal Hocko wrote:
-> >>> Can we settle on the following 3 steps?
-> >>> 1) warn about "flat" hierarchies (give it X releases) - I will push it
-> >>>    to as many Suse code streams as possible (hope other distributions
-> >>>    could do the same)
-> >>
-> >> I think I'm just gonna trigger WARN from cgroup core if anyone tries
-> >> to create hierarchy with a controller which doesn't support full
-> >> hierarchy.  WARN_ON_ONCE() at first and then WARN_ON() on each
-> >> creation later on.
-> > 
-> > How do you find out that a controller is not fully hierarchical? Memory
-> > controller can be both.
-> > 
-> >>> 2) flip the default on the root cgroup & warn when somebody tries to
-> >>>    change it to 0 (give it another X releases) that the knob will be
-> >>>    removed
-> >>> 3) remove the knob and the whole nonsese
-> >>> 4) revert 3 if somebody really objects
-> >>
-> >> If we can get to 3, I don't think 4 would be a problem.
-> > 
-> > Agreed.
-> > 
-> Just so I understand it:
+On Thu, Sep 06, 2012 at 06:44:29PM +0800, Shaohua Li wrote:
+> isolate_migratepages_range will take zone->lru_lock first and check if the lock
+> is contented, if yes, it will release the lock. This isn't efficient. If the
+> lock is truly contented, a lock/unlock pair will increase the lock contention.
+> We'd better check if the lock is contended first. compact_trylock_irqsave
+> perfectly meets the requirement.
 > 
-> Michal clearly objected before folding his patch with my Kconfig patch.
-> But is there still opposition to merge both?
+> Signed-off-by: Shaohua Li <shli@fusionio.com>
+> ---
+>  mm/compaction.c |    7 ++++---
+>  1 file changed, 4 insertions(+), 3 deletions(-)
+> 
+> Index: linux/mm/compaction.c
+> ===================================================================
+> --- linux.orig/mm/compaction.c	2012-09-06 14:46:13.923144263 +0800
+> +++ linux/mm/compaction.c	2012-09-06 14:46:58.118588574 +0800
+> @@ -295,9 +295,9 @@ isolate_migratepages_range(struct zone *
+>  	}
+>  
+>  	/* Time to isolate some pages for migration */
+> -	cond_resched();
 
-I do not find the config option very much useful but if others feel it
-really is I won't block it.
+Why did you remove the cond_resched()? I expect it's because
+compact_checklock_irqsave() does a need_resched() check and if it is true
+will either call cond_resched() or abort compaction. If it is aborting it
+will not call cond_resched() but there is a reasonable expectation that
+the caller will schedule soon. If this is the reasoning then it should be
+included in the changelog. If it's an accident then leave the cond_resched()
+where it is.
 
-> By having it default-n, only people that are either sure that this is
-> safe for them, or have more clearly defined lifecycles could set it.
+> -	spin_lock_irqsave(&zone->lru_lock, flags);
+> -	locked = true;
+> +	locked = compact_trylock_irqsave(&zone->lru_lock, &flags, cc);
+> +	if (!locked)
+> +		goto skip;
+
+There is no need for the goto. No useful work has taken place at this
+point and there is no need to even trigger the tracepoint. Just return
+0.
+
+>  	for (; low_pfn < end_pfn; low_pfn++) {
+>  		struct page *page;
+>  
+> @@ -400,6 +400,7 @@ isolate_migratepages_range(struct zone *
+>  	if (locked)
+>  		spin_unlock_irqrestore(&zone->lru_lock, flags);
+>  
+> +skip:
+>  	trace_mm_compaction_isolate_migratepages(nr_scanned, nr_isolated);
+>  
+>  	if (!nr_isolated)
+
 -- 
-Michal Hocko
+Mel Gorman
 SUSE Labs
 
 --
