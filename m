@@ -1,108 +1,142 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
-	by kanga.kvack.org (Postfix) with SMTP id 5DF376B006C
-	for <linux-mm@kvack.org>; Thu,  6 Sep 2012 12:34:53 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
+	by kanga.kvack.org (Postfix) with SMTP id 91DB96B0071
+	for <linux-mm@kvack.org>; Thu,  6 Sep 2012 12:41:33 -0400 (EDT)
 Received: from epcpsbgm2.samsung.com (epcpsbgm2 [203.254.230.27])
- by mailout4.samsung.com
+ by mailout2.samsung.com
  (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
- 17 2011)) with ESMTP id <0M9X00KSBSQ3N030@mailout4.samsung.com> for
- linux-mm@kvack.org; Fri, 07 Sep 2012 01:34:51 +0900 (KST)
+ 17 2011)) with ESMTP id <0M9X00GO7T187C60@mailout2.samsung.com> for
+ linux-mm@kvack.org; Fri, 07 Sep 2012 01:41:32 +0900 (KST)
 Received: from amdc1032.localnet ([106.116.147.136])
  by mmp2.samsung.com (Oracle Communications Messaging Server 7u4-24.01
  (7.0.4.24.0) 64bit (built Nov 17 2011))
- with ESMTPA id <0M9X001LCSQ1H730@mmp2.samsung.com> for linux-mm@kvack.org;
- Fri, 07 Sep 2012 01:34:51 +0900 (KST)
+ with ESMTPA id <0M9X00152T169S70@mmp2.samsung.com> for linux-mm@kvack.org;
+ Fri, 07 Sep 2012 01:41:32 +0900 (KST)
 From: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
-Subject: Re: [RFC v2] memory-hotplug: remove MIGRATE_ISOLATE from
- free_area->free_list
-Date: Thu, 06 Sep 2012 18:34:35 +0200
-References: <1346900018-14759-1-git-send-email-minchan@kernel.org>
-In-reply-to: <1346900018-14759-1-git-send-email-minchan@kernel.org>
+Subject: Re: [PATCH v3 2/5] cma: fix counting of isolated pages
+Date: Thu, 06 Sep 2012 18:41:12 +0200
+References: <1346765185-30977-1-git-send-email-b.zolnierkie@samsung.com>
+ <1346765185-30977-3-git-send-email-b.zolnierkie@samsung.com>
+ <20120905110847.GK11266@suse.de>
+In-reply-to: <20120905110847.GK11266@suse.de>
 MIME-version: 1.0
-Message-id: <201209061834.35473.b.zolnierkie@samsung.com>
+Message-id: <201209061841.12923.b.zolnierkie@samsung.com>
 Content-type: Text/Plain; charset=us-ascii
 Content-transfer-encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Michal Nazarewicz <mina86@mina86.com>, Mel Gorman <mel@csn.ul.ie>, Wen Congyang <wency@cn.fujitsu.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+To: Mel Gorman <mgorman@suse.de>
+Cc: linux-mm@kvack.org, m.szyprowski@samsung.com, mina86@mina86.com, minchan@kernel.org, hughd@google.com, kyungmin.park@samsung.com
 
-
-Hi,
-
-On Thursday 06 September 2012 04:53:38 Minchan Kim wrote:
-> Normally, MIGRATE_ISOLATE type is used for memory-hotplug.
-> But it's irony type because the pages isolated would exist
-> as free page in free_area->free_list[MIGRATE_ISOLATE] so people
-> can think of it as allocatable pages but it is *never* allocatable.
-> It ends up confusing NR_FREE_PAGES vmstat so it would be
-> totally not accurate so some of place which depend on such vmstat
-> could reach wrong decision by the context.
+On Wednesday 05 September 2012 13:08:47 Mel Gorman wrote:
+> On Tue, Sep 04, 2012 at 03:26:22PM +0200, Bartlomiej Zolnierkiewicz wrote:
+> > Isolated free pages shouldn't be accounted to NR_FREE_PAGES counter.
+> > Fix it by properly decreasing/increasing NR_FREE_PAGES counter in
+> > set_migratetype_isolate()/unset_migratetype_isolate() and removing
+> > counter adjustment for isolated pages from free_one_page() and
+> > split_free_page().
+> > 
+> > Cc: Marek Szyprowski <m.szyprowski@samsung.com>
+> > Cc: Michal Nazarewicz <mina86@mina86.com>
+> > Cc: Minchan Kim <minchan@kernel.org>
+> > Cc: Mel Gorman <mgorman@suse.de>
+> > Cc: Hugh Dickins <hughd@google.com>
+> > Signed-off-by: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
+> > Signed-off-by: Kyungmin Park <kyungmin.park@samsung.com>
+> > ---
+> >  mm/page_alloc.c     |  7 +++++--
+> >  mm/page_isolation.c | 13 ++++++++++---
+> >  2 files changed, 15 insertions(+), 5 deletions(-)
+> > 
+> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> > index e9da55c..3acdf0f 100644
+> > --- a/mm/page_alloc.c
+> > +++ b/mm/page_alloc.c
+> > @@ -691,7 +691,8 @@ static void free_one_page(struct zone *zone, struct page *page, int order,
+> >  	zone->pages_scanned = 0;
+> >  
+> >  	__free_one_page(page, zone, order, migratetype);
+> > -	__mod_zone_page_state(zone, NR_FREE_PAGES, 1 << order);
+> > +	if (migratetype != MIGRATE_ISOLATE)
+> > +		__mod_zone_page_state(zone, NR_FREE_PAGES, 1 << order);
+> >  	spin_unlock(&zone->lock);
+> >  }
+> >  
+> > @@ -1414,7 +1415,9 @@ int split_free_page(struct page *page, bool check_wmark)
+> >  	list_del(&page->lru);
+> >  	zone->free_area[order].nr_free--;
+> >  	rmv_page_order(page);
+> > -	__mod_zone_page_state(zone, NR_FREE_PAGES, -(1UL << order));
+> > +
+> > +	if (get_pageblock_migratetype(page) != MIGRATE_ISOLATE)
+> > +		__mod_zone_page_state(zone, NR_FREE_PAGES, -(1UL << order));
+> >  
 > 
-> There were already report about it.[1]
-> [1] 702d1a6e, memory-hotplug: fix kswapd looping forever problem
-> 
-> Then, there was other report which is other problem.[2]
-> [2] http://www.spinics.net/lists/linux-mm/msg41251.html
-> 
-> I believe it can make problems in future, too.
-> So I hope removing such irony type by another design.
-> 
-> I hope this patch solves it and let's revert [1] and doesn't need [2].
-> 
-> * Changelog v1
->  * Fix from Michal's many suggestion
-> 
-> Cc: Michal Nazarewicz <mina86@mina86.com>
-> Cc: Mel Gorman <mel@csn.ul.ie>
-> Cc: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> Cc: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-> Cc: Wen Congyang <wency@cn.fujitsu.com>
-> Cc: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-> Signed-off-by: Minchan Kim <minchan@kernel.org>
-> ---
-> It's very early version which show the concept so I still marked it with RFC.
-> I just tested it with simple test and works.
-> This patch is needed indepth review from memory-hotplug guys from fujitsu
-> because I saw there are lots of patches recenlty they sent to about
-> memory-hotplug change. Please take a look at this patch.
+> Are you *sure* about this part? The page is already free so the
+> NR_FREE_PAGES counters should already be correct. It feels to me that it
 
-[...]
+The isolated page is not counted as free so the counter shouldn't be
+adjusted here (IOW we shouldn't decrease the counter as it was already
+decreased in set_migratetype_isolate() earlier).
 
-> @@ -948,8 +954,13 @@ static int move_freepages(struct zone *zone,
->  		}
->  
->  		order = page_order(page);
-> -		list_move(&page->lru,
-> -			  &zone->free_area[order].free_list[migratetype]);
-> +		if (migratetype != MIGRATE_ISOLATE) {
-> +			list_move(&page->lru,
-> +				&zone->free_area[order].free_list[migratetype]);
-> +		} else {
-> +			list_del(&page->lru);
-> +			isolate_free_page(page, order);
-> +		}
->  		page += 1 << order;
->  		pages_moved += 1 << order;
->  	}
+> should be the caller that fixes up NR_FREE_PAGES if necessary.
 
-Shouldn't NR_FREE_PAGES counter be decreased somewhere above?
+split_free_page() is only called from isolate_freepages_block() so
+the fixup for MIGRATE_ISOLATE case can be added there if needed..
 
-[ I can see that it is not modified in __free_pages_ok() and
-  free_hot_cold_page() because page is still counted as non-free one but
-  here situation is different AFAICS. ]
+> Have you tested this with THP? I have a suspicion that the free page
+> accounting gets broken when page migration is used there.
 
-I tested the patch locally here with CONFIG_CMA=y and it causes some
-major problems for CMA (multiple errors from dma_alloc_from_contiguous()
-about memory ranges being busy and allocation failures).
-
-[ I'm sorry that I don't know more details yet but the issue should be
-  easily reproducible. ]
+No I haven't tested it with THP but I don't see how it could break
+because of this patch (please explain the potential failure scenario
+a bit more).
 
 Best regards,
 --
 Bartlomiej Zolnierkiewicz
 Samsung Poland R&D Center
+
+> >  	/* Split into individual pages */
+> >  	set_page_refcounted(page);
+> > diff --git a/mm/page_isolation.c b/mm/page_isolation.c
+> > index 247d1f1..d210cc8 100644
+> > --- a/mm/page_isolation.c
+> > +++ b/mm/page_isolation.c
+> > @@ -76,8 +76,12 @@ int set_migratetype_isolate(struct page *page)
+> >  
+> >  out:
+> >  	if (!ret) {
+> > +		unsigned long nr_pages;
+> > +
+> >  		set_pageblock_isolate(page);
+> > -		move_freepages_block(zone, page, MIGRATE_ISOLATE);
+> > +		nr_pages = move_freepages_block(zone, page, MIGRATE_ISOLATE);
+> > +
+> > +		__mod_zone_page_state(zone, NR_FREE_PAGES, -nr_pages);
+> >  	}
+> >  
+> >  	spin_unlock_irqrestore(&zone->lock, flags);
+> > @@ -89,12 +93,15 @@ out:
+> >  void unset_migratetype_isolate(struct page *page, unsigned migratetype)
+> >  {
+> >  	struct zone *zone;
+> > -	unsigned long flags;
+> > +	unsigned long flags, nr_pages;
+> > +
+> >  	zone = page_zone(page);
+> > +
+> 
+> unnecessary whitespace change.
+> 
+> >  	spin_lock_irqsave(&zone->lock, flags);
+> >  	if (get_pageblock_migratetype(page) != MIGRATE_ISOLATE)
+> >  		goto out;
+> > -	move_freepages_block(zone, page, migratetype);
+> > +	nr_pages = move_freepages_block(zone, page, migratetype);
+> > +	__mod_zone_page_state(zone, NR_FREE_PAGES, nr_pages);
+> >  	restore_pageblock_isolate(page, migratetype);
+> >  out:
+> >  	spin_unlock_irqrestore(&zone->lock, flags);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
