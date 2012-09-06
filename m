@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx177.postini.com [74.125.245.177])
-	by kanga.kvack.org (Postfix) with SMTP id AFEB66B0096
-	for <linux-mm@kvack.org>; Wed,  5 Sep 2012 20:54:45 -0400 (EDT)
-Received: by dadi14 with SMTP id i14so784343dad.14
-        for <linux-mm@kvack.org>; Wed, 05 Sep 2012 17:54:45 -0700 (PDT)
-Date: Wed, 5 Sep 2012 17:54:41 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx135.postini.com [74.125.245.135])
+	by kanga.kvack.org (Postfix) with SMTP id 7D38D6B0099
+	for <linux-mm@kvack.org>; Wed,  5 Sep 2012 20:57:07 -0400 (EDT)
+Received: by pbbro12 with SMTP id ro12so1952995pbb.14
+        for <linux-mm@kvack.org>; Wed, 05 Sep 2012 17:57:06 -0700 (PDT)
+Date: Wed, 5 Sep 2012 17:57:04 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 1/5] mm, slab: Remove silly function slab_buffer_size()
-In-Reply-To: <1346885323-15689-1-git-send-email-elezegarcia@gmail.com>
-Message-ID: <alpine.DEB.2.00.1209051752060.7625@chino.kir.corp.google.com>
-References: <1346885323-15689-1-git-send-email-elezegarcia@gmail.com>
+Subject: Re: [PATCH 2/5] mm, slob: Add support for kmalloc_track_caller()
+In-Reply-To: <1346885323-15689-2-git-send-email-elezegarcia@gmail.com>
+Message-ID: <alpine.DEB.2.00.1209051756270.7625@chino.kir.corp.google.com>
+References: <1346885323-15689-1-git-send-email-elezegarcia@gmail.com> <1346885323-15689-2-git-send-email-elezegarcia@gmail.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -19,10 +19,46 @@ Cc: linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, Christoph Lameter <cl
 
 On Wed, 5 Sep 2012, Ezequiel Garcia wrote:
 
-> This function is seldom used, and can be simply replaced with cachep->size.
-> 
+> @@ -454,15 +455,35 @@ void *__kmalloc_node(size_t size, gfp_t gfp, int node)
+>  			gfp |= __GFP_COMP;
+>  		ret = slob_new_pages(gfp, order, node);
+>  
+> -		trace_kmalloc_node(_RET_IP_, ret,
+> +		trace_kmalloc_node(caller, ret,
+>  				   size, PAGE_SIZE << order, gfp, node);
+>  	}
+>  
+>  	kmemleak_alloc(ret, size, 1, gfp);
+>  	return ret;
+>  }
+> +
+> +void *__kmalloc_node(size_t size, gfp_t gfp, int node)
+> +{
+> +	return __do_kmalloc_node(size, gfp, node, _RET_IP_);
+> +}
+>  EXPORT_SYMBOL(__kmalloc_node);
+>  
+> +#ifdef CONFIG_TRACING
+> +void *__kmalloc_track_caller(size_t size, gfp_t gfp, unsigned long caller)
+> +{
+> +	return __do_kmalloc_node(size, gfp, -1, caller);
 
-You didn't remove the declaration of this function in the header file.
+NUMA_NO_NODE.
+
+> +}
+> +
+> +#ifdef CONFIG_NUMA
+> +void *__kmalloc_node_track_caller(size_t size, gfp_t gfpflags,
+> +					int node, unsigned long caller)
+> +{
+> +	return __do_kmalloc_node(size, gfp, node, caller);
+> +}
+> +#endif
+> +#endif
+> +
+>  void kfree(const void *block)
+>  {
+>  	struct page *sp;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
