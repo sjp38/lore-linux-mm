@@ -1,142 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
-	by kanga.kvack.org (Postfix) with SMTP id 91DB96B0071
-	for <linux-mm@kvack.org>; Thu,  6 Sep 2012 12:41:33 -0400 (EDT)
-Received: from epcpsbgm2.samsung.com (epcpsbgm2 [203.254.230.27])
- by mailout2.samsung.com
- (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
- 17 2011)) with ESMTP id <0M9X00GO7T187C60@mailout2.samsung.com> for
- linux-mm@kvack.org; Fri, 07 Sep 2012 01:41:32 +0900 (KST)
-Received: from amdc1032.localnet ([106.116.147.136])
- by mmp2.samsung.com (Oracle Communications Messaging Server 7u4-24.01
- (7.0.4.24.0) 64bit (built Nov 17 2011))
- with ESMTPA id <0M9X00152T169S70@mmp2.samsung.com> for linux-mm@kvack.org;
- Fri, 07 Sep 2012 01:41:32 +0900 (KST)
-From: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
-Subject: Re: [PATCH v3 2/5] cma: fix counting of isolated pages
-Date: Thu, 06 Sep 2012 18:41:12 +0200
-References: <1346765185-30977-1-git-send-email-b.zolnierkie@samsung.com>
- <1346765185-30977-3-git-send-email-b.zolnierkie@samsung.com>
- <20120905110847.GK11266@suse.de>
-In-reply-to: <20120905110847.GK11266@suse.de>
-MIME-version: 1.0
-Message-id: <201209061841.12923.b.zolnierkie@samsung.com>
-Content-type: Text/Plain; charset=us-ascii
-Content-transfer-encoding: 7bit
+Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
+	by kanga.kvack.org (Postfix) with SMTP id CC6076B0070
+	for <linux-mm@kvack.org>; Thu,  6 Sep 2012 12:50:57 -0400 (EDT)
+Date: Thu, 6 Sep 2012 12:50:55 -0400
+From: Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
+Subject: Re: [PATCH v3 01/17] hashtable: introduce a small and naive
+	hashtable
+Message-ID: <20120906165055.GC7385@Krystal>
+References: <20120828230050.GA3337@Krystal> <1346772948.27919.9.camel@gandalf.local.home> <50462C99.5000007@redhat.com> <50462EE8.1090903@redhat.com> <20120904170138.GB31934@Krystal> <5048AAF6.5090101@gmail.com> <20120906145545.GA17332@leaf> <5048C615.4070204@gmail.com> <1346947206.1680.36.camel@gandalf.local.home> <5048CDA2.10300@gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <5048CDA2.10300@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: linux-mm@kvack.org, m.szyprowski@samsung.com, mina86@mina86.com, minchan@kernel.org, hughd@google.com, kyungmin.park@samsung.com
+To: Sasha Levin <levinsasha928@gmail.com>
+Cc: Steven Rostedt <rostedt@goodmis.org>, Josh Triplett <josh@joshtriplett.org>, Pedro Alves <palves@redhat.com>, Tejun Heo <tj@kernel.org>, torvalds@linux-foundation.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, paul.gortmaker@windriver.com, davem@davemloft.net, mingo@elte.hu, ebiederm@xmission.com, aarcange@redhat.com, ericvh@gmail.com, netdev@vger.kernel.org, eric.dumazet@gmail.com, axboe@kernel.dk, agk@redhat.com, dm-devel@redhat.com, neilb@suse.de, ccaulfie@redhat.com, teigland@redhat.com, Trond.Myklebust@netapp.com, bfields@fieldses.org, fweisbec@gmail.com, jesse@nicira.com, venkat.x.venkatsubra@oracle.com, ejt@redhat.com, snitzer@redhat.com, edumazet@google.com, linux-nfs@vger.kernel.org, dev@openvswitch.org, rds-devel@oss.oracle.com, lw@cn.fujitsu.com
 
-On Wednesday 05 September 2012 13:08:47 Mel Gorman wrote:
-> On Tue, Sep 04, 2012 at 03:26:22PM +0200, Bartlomiej Zolnierkiewicz wrote:
-> > Isolated free pages shouldn't be accounted to NR_FREE_PAGES counter.
-> > Fix it by properly decreasing/increasing NR_FREE_PAGES counter in
-> > set_migratetype_isolate()/unset_migratetype_isolate() and removing
-> > counter adjustment for isolated pages from free_one_page() and
-> > split_free_page().
-> > 
-> > Cc: Marek Szyprowski <m.szyprowski@samsung.com>
-> > Cc: Michal Nazarewicz <mina86@mina86.com>
-> > Cc: Minchan Kim <minchan@kernel.org>
-> > Cc: Mel Gorman <mgorman@suse.de>
-> > Cc: Hugh Dickins <hughd@google.com>
-> > Signed-off-by: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
-> > Signed-off-by: Kyungmin Park <kyungmin.park@samsung.com>
-> > ---
-> >  mm/page_alloc.c     |  7 +++++--
-> >  mm/page_isolation.c | 13 ++++++++++---
-> >  2 files changed, 15 insertions(+), 5 deletions(-)
-> > 
-> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> > index e9da55c..3acdf0f 100644
-> > --- a/mm/page_alloc.c
-> > +++ b/mm/page_alloc.c
-> > @@ -691,7 +691,8 @@ static void free_one_page(struct zone *zone, struct page *page, int order,
-> >  	zone->pages_scanned = 0;
-> >  
-> >  	__free_one_page(page, zone, order, migratetype);
-> > -	__mod_zone_page_state(zone, NR_FREE_PAGES, 1 << order);
-> > +	if (migratetype != MIGRATE_ISOLATE)
-> > +		__mod_zone_page_state(zone, NR_FREE_PAGES, 1 << order);
-> >  	spin_unlock(&zone->lock);
-> >  }
-> >  
-> > @@ -1414,7 +1415,9 @@ int split_free_page(struct page *page, bool check_wmark)
-> >  	list_del(&page->lru);
-> >  	zone->free_area[order].nr_free--;
-> >  	rmv_page_order(page);
-> > -	__mod_zone_page_state(zone, NR_FREE_PAGES, -(1UL << order));
-> > +
-> > +	if (get_pageblock_migratetype(page) != MIGRATE_ISOLATE)
-> > +		__mod_zone_page_state(zone, NR_FREE_PAGES, -(1UL << order));
-> >  
+* Sasha Levin (levinsasha928@gmail.com) wrote:
+> On 09/06/2012 06:00 PM, Steven Rostedt wrote:
+> >> > I think that that code doesn't make sense. The users of hlist_for_each_* aren't
+> >> > supposed to be changing the loop cursor.
+> > I totally agree. Modifying the 'node' pointer is just asking for issues.
+> > Yes that is error prone, but not due to the double loop. It's due to the
+> > modifying of the node pointer that is used internally by the loop
+> > counter. Don't do that :-)
 > 
-> Are you *sure* about this part? The page is already free so the
-> NR_FREE_PAGES counters should already be correct. It feels to me that it
-
-The isolated page is not counted as free so the counter shouldn't be
-adjusted here (IOW we shouldn't decrease the counter as it was already
-decreased in set_migratetype_isolate() earlier).
-
-> should be the caller that fixes up NR_FREE_PAGES if necessary.
-
-split_free_page() is only called from isolate_freepages_block() so
-the fixup for MIGRATE_ISOLATE case can be added there if needed..
-
-> Have you tested this with THP? I have a suspicion that the free page
-> accounting gets broken when page migration is used there.
-
-No I haven't tested it with THP but I don't see how it could break
-because of this patch (please explain the potential failure scenario
-a bit more).
-
-Best regards,
---
-Bartlomiej Zolnierkiewicz
-Samsung Poland R&D Center
-
-> >  	/* Split into individual pages */
-> >  	set_page_refcounted(page);
-> > diff --git a/mm/page_isolation.c b/mm/page_isolation.c
-> > index 247d1f1..d210cc8 100644
-> > --- a/mm/page_isolation.c
-> > +++ b/mm/page_isolation.c
-> > @@ -76,8 +76,12 @@ int set_migratetype_isolate(struct page *page)
-> >  
-> >  out:
-> >  	if (!ret) {
-> > +		unsigned long nr_pages;
-> > +
-> >  		set_pageblock_isolate(page);
-> > -		move_freepages_block(zone, page, MIGRATE_ISOLATE);
-> > +		nr_pages = move_freepages_block(zone, page, MIGRATE_ISOLATE);
-> > +
-> > +		__mod_zone_page_state(zone, NR_FREE_PAGES, -nr_pages);
-> >  	}
-> >  
-> >  	spin_unlock_irqrestore(&zone->lock, flags);
-> > @@ -89,12 +93,15 @@ out:
-> >  void unset_migratetype_isolate(struct page *page, unsigned migratetype)
-> >  {
-> >  	struct zone *zone;
-> > -	unsigned long flags;
-> > +	unsigned long flags, nr_pages;
-> > +
-> >  	zone = page_zone(page);
-> > +
+> While we're on this subject, I haven't actually seen hlist_for_each_entry() code
+> that even *touches* 'pos'.
 > 
-> unnecessary whitespace change.
+> Will people yell at me loudly if I change the prototype of those macros to be:
 > 
-> >  	spin_lock_irqsave(&zone->lock, flags);
-> >  	if (get_pageblock_migratetype(page) != MIGRATE_ISOLATE)
-> >  		goto out;
-> > -	move_freepages_block(zone, page, migratetype);
-> > +	nr_pages = move_freepages_block(zone, page, migratetype);
-> > +	__mod_zone_page_state(zone, NR_FREE_PAGES, nr_pages);
-> >  	restore_pageblock_isolate(page, migratetype);
-> >  out:
-> >  	spin_unlock_irqrestore(&zone->lock, flags);
+> 	hlist_for_each_entry(tpos, head, member)
+> 
+> (Dropping the 'pos' parameter), and updating anything that calls those macros to
+> drop it as well?
+
+I think the intent there is to keep hlist macros and list macros
+slightly in sync. Given those are vastly used, I'm not sure you want to
+touch them. But hey, that's just my 2 cents.
+
+Thanks,
+
+Mathieu
+
+> 
+> 
+> Thanks,
+> Sasha
+
+-- 
+Mathieu Desnoyers
+Operating System Efficiency R&D Consultant
+EfficiOS Inc.
+http://www.efficios.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
