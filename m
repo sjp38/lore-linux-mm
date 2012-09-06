@@ -1,82 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
-	by kanga.kvack.org (Postfix) with SMTP id D29086B005A
-	for <linux-mm@kvack.org>; Thu,  6 Sep 2012 10:55:59 -0400 (EDT)
-Date: Thu, 6 Sep 2012 07:55:46 -0700
-From: Josh Triplett <josh@joshtriplett.org>
-Subject: Re: [PATCH v3 01/17] hashtable: introduce a small and naive hashtable
-Message-ID: <20120906145545.GA17332@leaf>
-References: <503C95E4.3010000@gmail.com>
- <20120828101148.GA21683@Krystal>
- <503CAB1E.5010408@gmail.com>
- <20120828115638.GC23818@Krystal>
- <20120828230050.GA3337@Krystal>
- <1346772948.27919.9.camel@gandalf.local.home>
- <50462C99.5000007@redhat.com>
- <50462EE8.1090903@redhat.com>
- <20120904170138.GB31934@Krystal>
- <5048AAF6.5090101@gmail.com>
+Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
+	by kanga.kvack.org (Postfix) with SMTP id 894CF6B005A
+	for <linux-mm@kvack.org>; Thu,  6 Sep 2012 11:04:26 -0400 (EDT)
+Received: by iagk10 with SMTP id k10so2652848iag.14
+        for <linux-mm@kvack.org>; Thu, 06 Sep 2012 08:04:25 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <5048AAF6.5090101@gmail.com>
+In-Reply-To: <000001399bf23209-1d91226b-87ea-43cf-b482-100ee4d032b1-000000@email.amazonses.com>
+References: <1346885323-15689-1-git-send-email-elezegarcia@gmail.com>
+	<1346885323-15689-4-git-send-email-elezegarcia@gmail.com>
+	<000001399bf23209-1d91226b-87ea-43cf-b482-100ee4d032b1-000000@email.amazonses.com>
+Date: Thu, 6 Sep 2012 12:04:24 -0300
+Message-ID: <CALF0-+VYaHNjjv1Y15Do+0G_MJo2SzUGEyvezib29rmeYopUtw@mail.gmail.com>
+Subject: Re: [PATCH 4/5] mm, slob: Use only 'ret' variable for both slob
+ object and returned pointer
+From: Ezequiel Garcia <elezegarcia@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <levinsasha928@gmail.com>
-Cc: Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Pedro Alves <palves@redhat.com>, Steven Rostedt <rostedt@goodmis.org>, Tejun Heo <tj@kernel.org>, torvalds@linux-foundation.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, paul.gortmaker@windriver.com, davem@davemloft.net, mingo@elte.hu, ebiederm@xmission.com, aarcange@redhat.com, ericvh@gmail.com, netdev@vger.kernel.org, eric.dumazet@gmail.com, axboe@kernel.dk, agk@redhat.com, dm-devel@redhat.com, neilb@suse.de, ccaulfie@redhat.com, teigland@redhat.com, Trond.Myklebust@netapp.com, bfields@fieldses.org, fweisbec@gmail.com, jesse@nicira.com, venkat.x.venkatsubra@oracle.com, ejt@redhat.com, snitzer@redhat.com, edumazet@google.com, linux-nfs@vger.kernel.org, dev@openvswitch.org, rds-devel@oss.oracle.com, lw@cn.fujitsu.com
+To: Christoph Lameter <cl@linux.com>
+Cc: linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>
 
-On Thu, Sep 06, 2012 at 03:53:58PM +0200, Sasha Levin wrote:
-> On 09/04/2012 07:01 PM, Mathieu Desnoyers wrote:
-> >> #define do_for_each_ftrace_rec(pg, rec)                                          \
-> >> >         for (pg = ftrace_pages_start, rec = &pg->records[pg->index];             \
-> >> >              pg && rec == &pg->records[pg->index];                               \
-> >> >              pg = pg->next)                                                      \
-> >> >           for (rec = pg->records; rec < &pg->records[pg->index]; rec++)
-> > Maybe in some cases there might be ways to combine the two loops into
-> > one ? I'm not seeing exactly how to do it for this one, but it should
-> > not be impossible. If the inner loop condition can be moved to the outer
-> > loop, and if we use (blah ? loop1_conf : loop2_cond) to test for
-> > different conditions depending on the context, and do the same for the
-> > 3rd argument of the for() loop. The details elude me for now though, so
-> > maybe it's complete non-sense ;)
-> > 
-> > It might not be that useful for do_for_each_ftrace_rec, but if we can do
-> > it for the hash table iterator, it might be worth it.
-> 
-> So I think that for the hash iterator it might actually be simpler.
-> 
-> My solution to making 'break' work in the iterator is:
-> 
-> 	for (bkt = 0, node = NULL; bkt < HASH_SIZE(name) && node == NULL; bkt++)
-> 		hlist_for_each_entry(obj, node, &name[bkt], member)
-> 
-> We initialize our node loop cursor with NULL in the external loop, and the
-> external loop will have a new condition to loop while that cursor is NULL.
-> 
-> My logic is that we can only 'break' when we are iterating over an object in the
-> internal loop. If we're iterating over an object in that loop then 'node != NULL'.
-> 
-> This way, if we broke from within the internal loop, the external loop will see
-> node as not NULL, and so it will stop looping itself. On the other hand, if the
-> internal loop has actually ended, then node will be NULL, and the outer loop
-> will keep running.
-> 
-> Is there anything I've missed?
+Hi Christoph,
 
-Looks reasonable.  However, it would break (or rather, not break) on
-code like this:
+On Thu, Sep 6, 2012 at 11:18 AM, Christoph Lameter <cl@linux.com> wrote:
+> On Wed, 5 Sep 2012, Ezequiel Garcia wrote:
+>
+>> There's no need to use two variables, 'ret' and 'm'.
+>> This is a minor cleanup patch, but it will allow next patch to clean
+>> the way tracing is done.
+>
+> The compiler will fold those variables into one if possible. No need to
+> worry about having multiple declarations.
+>
 
-	hash_for_each_entry(...) {
-		if (...) {
-			foo(node);
-			node = NULL;
-			break;
-		}
-	}
+I wasn't worried about size or anything, it's a just a clean-n-prepare patch,
+necesarry for the next patch:
 
-Hiding the double loop still seems error-prone.
+"mm, slob: Trace allocation failures consistently"
 
-- Josh Triplett
+Could you take a look at it?
+
+Thanks,
+Ezequiel.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
