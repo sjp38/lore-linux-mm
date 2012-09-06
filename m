@@ -1,62 +1,164 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx207.postini.com [74.125.245.207])
-	by kanga.kvack.org (Postfix) with SMTP id 23A096B00B3
-	for <linux-mm@kvack.org>; Wed,  5 Sep 2012 23:05:22 -0400 (EDT)
-Received: from /spool/local
-	by e23smtp08.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <wangyun@linux.vnet.ibm.com>;
-	Thu, 6 Sep 2012 13:04:51 +1000
-Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q8635E3P28836022
-	for <linux-mm@kvack.org>; Thu, 6 Sep 2012 13:05:14 +1000
-Received: from d23av01.au.ibm.com (loopback [127.0.0.1])
-	by d23av01.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q8635Dsa009069
-	for <linux-mm@kvack.org>; Thu, 6 Sep 2012 13:05:13 +1000
-Message-ID: <504812E7.3000700@linux.vnet.ibm.com>
-Date: Thu, 06 Sep 2012 11:05:11 +0800
-From: Michael Wang <wangyun@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
+	by kanga.kvack.org (Postfix) with SMTP id 07D146B00B5
+	for <linux-mm@kvack.org>; Thu,  6 Sep 2012 00:47:29 -0400 (EDT)
+Date: Thu, 6 Sep 2012 13:49:03 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH 3/3] memory-hotplug: bug fix race between isolation and
+ allocation
+Message-ID: <20120906044903.GA16150@bbox>
+References: <1346829962-31989-1-git-send-email-minchan@kernel.org>
+ <1346829962-31989-4-git-send-email-minchan@kernel.org>
+ <20120905094041.GF11266@suse.de>
 MIME-Version: 1.0
-Subject: Re: [PATCH] slab: fix the DEADLOCK issue on l3 alien lock
-References: <5044692D.7080608@linux.vnet.ibm.com> <5046B9EE.7000804@linux.vnet.ibm.com> <0000013996b6f21d-d45be653-3111-4aef-b079-31dc673e6fd8-000000@email.amazonses.com>
-In-Reply-To: <0000013996b6f21d-d45be653-3111-4aef-b079-31dc673e6fd8-000000@email.amazonses.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120905094041.GF11266@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Matt Mackall <mpm@selenic.com>, Pekka Enberg <penberg@kernel.org>, "paulmck@linux.vnet.ibm.com" <paulmck@linux.vnet.ibm.com>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Xishi Qiu <qiuxishi@huawei.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 09/05/2012 09:55 PM, Christoph Lameter wrote:
-> On Wed, 5 Sep 2012, Michael Wang wrote:
+On Wed, Sep 05, 2012 at 10:40:41AM +0100, Mel Gorman wrote:
+> On Wed, Sep 05, 2012 at 04:26:02PM +0900, Minchan Kim wrote:
+> > Like below, memory-hotplug makes race between page-isolation
+> > and page-allocation so it can hit BUG_ON in __offline_isolated_pages.
+> > 
+> > 	CPU A					CPU B
+> > 
+> > start_isolate_page_range
+> > set_migratetype_isolate
+> > spin_lock_irqsave(zone->lock)
+> > 
+> > 				free_hot_cold_page(Page A)
+> > 				/* without zone->lock */
+> > 				migratetype = get_pageblock_migratetype(Page A);
+> > 				/*
+> > 				 * Page could be moved into MIGRATE_MOVABLE
+> > 				 * of per_cpu_pages
+> > 				 */
+> > 				list_add_tail(&page->lru, &pcp->lists[migratetype]);
+> > 
+> > set_pageblock_isolate
+> > move_freepages_block
+> > drain_all_pages
+> > 
+> > 				/* Page A could be in MIGRATE_MOVABLE of free_list. */
+> > 
+> > check_pages_isolated
+> > __test_page_isolated_in_pageblock
+> > /*
+> >  * We can't catch freed page which
+> >  * is free_list[MIGRATE_MOVABLE]
+> >  */
+> > if (PageBuddy(page A))
+> > 	pfn += 1 << page_order(page A);
+> > 
+> > 				/* So, Page A could be allocated */
+> > 
+> > __offline_isolated_pages
+> > /*
+> >  * BUG_ON hit or offline page
+> >  * which is used by someone
+> >  */
+> > BUG_ON(!PageBuddy(page A));
+> > 
 > 
->> Since the cachep and cachep->slabp_cache's l3 alien are in the same lock class,
->> fake report generated.
-> 
-> Ahh... That is a key insight into why this occurs.
-> 
->> This should not happen since we already have init_lock_keys() which will
->> reassign the lock class for both l3 list and l3 alien.
-> 
-> Right. I was wondering why we still get intermitted reports on this.
-> 
->> This patch will invoke init_lock_keys() after we done enable_cpucache()
->> instead of before to avoid the fake DEADLOCK report.
-> 
-> Acked-by: Christoph Lameter <cl@linux.com>
+> offline_page calling BUG_ON because someone allocated the page is
+> ridiculous. I did not spot where that check is but it should be changed. The
+> correct action is to retry the isolation.
 
-Thanks for your review.
+It is where __offline_isolated_pges.
 
-And add Paul to the cc list(my skills on mailing is really poor...).
+..
+        while (pfn < end_pfn) {
+                if (!pfn_valid(pfn)) {
+                        pfn++;
+                        continue;
+                }    
+                page = pfn_to_page(pfn);
+                BUG_ON(page_count(page));
+                BUG_ON(!PageBuddy(page)); <---- HERE
+                order = page_order(page);
+...
 
-Regards,
-Michael Wang
+Comment of offline_isolated_pages says following as.
 
+        We cannot do rollback at this point
+
+So if the comment is true, BUG_ON does make sense to me.
+But I don't see why we can't retry it as I look thorugh code.
+Anyway, It's another story which isn't related to this patch.
+
+> 
+> > Signed-off-by: Minchan Kim <minchan@kernel.org>
+> 
+> At no point in the changelog do you actually say what he patch does :/
+
+Argh, I will do.
+
+> 
+> > ---
+> >  mm/page_isolation.c |    5 ++++-
+> >  1 file changed, 4 insertions(+), 1 deletion(-)
+> > 
+> > diff --git a/mm/page_isolation.c b/mm/page_isolation.c
+> > index acf65a7..4699d1f 100644
+> > --- a/mm/page_isolation.c
+> > +++ b/mm/page_isolation.c
+> > @@ -196,8 +196,11 @@ __test_page_isolated_in_pageblock(unsigned long pfn, unsigned long end_pfn)
+> >  			continue;
+> >  		}
+> >  		page = pfn_to_page(pfn);
+> > -		if (PageBuddy(page))
+> > +		if (PageBuddy(page)) {
+> > +			if (get_page_migratetype(page) != MIGRATE_ISOLATE)
+> > +				break;
+> >  			pfn += 1 << page_order(page);
+> > +		}
+> 
+> It is possible the page is moved to the MIGRATE_ISOLATE list between when
+> the page was freed to the buddy allocator and this check was made. The
+> page->index information is stale and the impact is that the hotplug
+> operation fails when it could have succeeded. That said, I think it is a
+> very unlikely race that will never happen in practice.
+
+I understand you mean move_freepages which I have missed. Right?
+Then, I will fix it, too.
+
+> 
+> More importantly, the effect of this path is that EBUSY gets bubbled all
+> the way up and the hotplug operations fails. This is fine but as the page
+> is free at the time this problem is detected you also have the option
+> of moving the PageBuddy page to the MIGRATE_ISOLATE list at this time
+> if you take the zone lock. This will mean you need to change the name of
+> test_pages_isolated() of course.
+
+Sorry, I can't get your point. Could you elaborate it more?
+Is it related to this patch?
+
+
+> 
+> >  		else if (page_count(page) == 0 &&
+> >  				get_page_migratetype(page) == MIGRATE_ISOLATE)
+> >  			pfn += 1;
+> > -- 
+> > 1.7.9.5
+> > 
+> 
+> -- 
+> Mel Gorman
+> SUSE Labs
+> 
 > --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
-> 
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
