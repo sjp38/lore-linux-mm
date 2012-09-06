@@ -1,88 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
-	by kanga.kvack.org (Postfix) with SMTP id 237AC6B00BD
-	for <linux-mm@kvack.org>; Thu,  6 Sep 2012 01:15:29 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
+	by kanga.kvack.org (Postfix) with SMTP id 3B1846B00BE
+	for <linux-mm@kvack.org>; Thu,  6 Sep 2012 01:29:38 -0400 (EDT)
+Date: Thu, 6 Sep 2012 14:31:12 +0900
 From: Minchan Kim <minchan@kernel.org>
-Subject: [PATCH v2 3/3] memory-hotplug: bug fix race between isolation and allocation
-Date: Thu,  6 Sep 2012 14:16:59 +0900
-Message-Id: <1346908619-16056-4-git-send-email-minchan@kernel.org>
-In-Reply-To: <1346908619-16056-1-git-send-email-minchan@kernel.org>
-References: <1346908619-16056-1-git-send-email-minchan@kernel.org>
+Subject: Re: [PATCH 2/2] mm: support MIGRATE_DISCARD
+Message-ID: <20120906053112.GA16231@bbox>
+References: <1346832673-12512-1-git-send-email-minchan@kernel.org>
+ <1346832673-12512-2-git-send-email-minchan@kernel.org>
+ <20120905105611.GI11266@suse.de>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120905105611.GI11266@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Xishi Qiu <qiuxishi@huawei.com>, Wen Congyang <wency@cn.fujitsu.com>, Minchan Kim <minchan@kernel.org>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, Rik van Riel <riel@redhat.com>
 
-Like below, memory-hotplug makes race between page-isolation
-and page-allocation so it can hit BUG_ON in __offline_isolated_pages.
+Hi Mel,
 
-	CPU A					CPU B
+On Wed, Sep 05, 2012 at 11:56:11AM +0100, Mel Gorman wrote:
+> On Wed, Sep 05, 2012 at 05:11:13PM +0900, Minchan Kim wrote:
+> > This patch introudes MIGRATE_DISCARD mode in migration.
+> > It drops *clean cache pages* instead of migration so that
+> > migration latency could be reduced by avoiding (memcpy + page remapping).
+> > It's useful for CMA because latency of migration is very important rather
+> > than eviction of background processes's workingset. In addition, it needs
+> > less free pages for migration targets so it could avoid memory reclaiming
+> > to get free pages, which is another factor increase latency.
+> > 
+> 
+> Bah, this was released while I was reviewing the older version. I did
+> not read this one as closely but I see the enum problems have gone away
+> at least. I'd still prefer if CMA had an additional helper to discard
+> some pages with shrink_page_list() and migrate the remaining pages with
+> migrate_pages(). That would remove the need to add a MIGRATE_DISCARD
+> migrate mode at all.
 
-start_isolate_page_range
-set_migratetype_isolate
-spin_lock_irqsave(zone->lock)
+I am not convinced with your point. What's the benefit on separating
+reclaim and migration? For just removing MIGRATE_DISCARD mode?
+I don't think it's not bad because my implementation is very simple(maybe
+it's much simpler than separating reclaim and migration) and
+could be used by others like memory-hotplug in future.
+If you're not strong against with me, I would like to insist on my implementation.
 
-				free_hot_cold_page(Page A)
-				/* without zone->lock */
-				migratetype = get_pageblock_migratetype(Page A);
-				/*
-				 * Page could be moved into MIGRATE_MOVABLE
-				 * of per_cpu_pages
-				 */
-				list_add_tail(&page->lru, &pcp->lists[migratetype]);
+> 
+> -- 
+> Mel Gorman
+> SUSE Labs
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
-set_pageblock_isolate
-move_freepages_block
-drain_all_pages
-
-				/* Page A could be in MIGRATE_MOVABLE of free_list. */
-
-check_pages_isolated
-__test_page_isolated_in_pageblock
-/*
- * We can't catch freed page which
- * is free_list[MIGRATE_MOVABLE]
- */
-if (PageBuddy(page A))
-	pfn += 1 << page_order(page A);
-
-				/* So, Page A could be allocated */
-
-__offline_isolated_pages
-/*
- * BUG_ON hit or offline page
- * which is used by someone
- */
-BUG_ON(!PageBuddy(page A));
-
-This patch checks page's migratetype in freelist in __test_page_isolated_in_pageblock.
-So now __test_page_isolated_in_pageblock can check the page caused by above race and
-can fail of memory offlining.
-
-Signed-off-by: Minchan Kim <minchan@kernel.org>
----
- mm/page_isolation.c |    5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
-
-diff --git a/mm/page_isolation.c b/mm/page_isolation.c
-index 87a7929..7ba7405 100644
---- a/mm/page_isolation.c
-+++ b/mm/page_isolation.c
-@@ -193,8 +193,11 @@ __test_page_isolated_in_pageblock(unsigned long pfn, unsigned long end_pfn)
- 			continue;
- 		}
- 		page = pfn_to_page(pfn);
--		if (PageBuddy(page))
-+		if (PageBuddy(page)) {
-+			if (get_freepage_migratetype(page) != MIGRATE_ISOLATE)
-+				break;
- 			pfn += 1 << page_order(page);
-+		}
- 		else if (page_count(page) == 0 &&
- 			get_freepage_migratetype(page) == MIGRATE_ISOLATE)
- 			pfn += 1;
 -- 
-1.7.9.5
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
