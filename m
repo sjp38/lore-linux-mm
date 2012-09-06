@@ -1,22 +1,26 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
-	by kanga.kvack.org (Postfix) with SMTP id 8BA936B005A
-	for <linux-mm@kvack.org>; Thu,  6 Sep 2012 13:57:40 -0400 (EDT)
-Received: by obhx4 with SMTP id x4so3743710obh.14
-        for <linux-mm@kvack.org>; Thu, 06 Sep 2012 10:57:39 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
+	by kanga.kvack.org (Postfix) with SMTP id 04D946B005A
+	for <linux-mm@kvack.org>; Thu,  6 Sep 2012 14:05:39 -0400 (EDT)
+Received: by obhx4 with SMTP id x4so3764719obh.14
+        for <linux-mm@kvack.org>; Thu, 06 Sep 2012 11:05:39 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <1346779479-1097-2-git-send-email-mgorman@suse.de>
+In-Reply-To: <CAAmzW4M_3hVBfjqFLG=7iydkXeQPdCXRbRmkqUJD4vwo0eWVWQ@mail.gmail.com>
 References: <1346779479-1097-1-git-send-email-mgorman@suse.de>
 	<1346779479-1097-2-git-send-email-mgorman@suse.de>
-Date: Fri, 7 Sep 2012 02:57:39 +0900
-Message-ID: <CAAmzW4M_3hVBfjqFLG=7iydkXeQPdCXRbRmkqUJD4vwo0eWVWQ@mail.gmail.com>
+	<CAAmzW4M_3hVBfjqFLG=7iydkXeQPdCXRbRmkqUJD4vwo0eWVWQ@mail.gmail.com>
+Date: Fri, 7 Sep 2012 03:05:39 +0900
+Message-ID: <CAAmzW4MfFUH1Mi447sQvPNeae_BShEmbECUaK9eoX-8ughEdJw@mail.gmail.com>
 Subject: Re: [PATCH 1/4] slab: do ClearSlabPfmemalloc() for all pages of slab
 From: JoonSoo Kim <js1304@gmail.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Mel Gorman <mgorman@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Linux-Netdev <netdev@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, David Miller <davem@davemloft.net>, Chuck Lever <chuck.lever@oracle.com>, Pekka@suse.de, "Enberg <penberg"@kernel.org, David Rientjes <rientjes@google.com>, Christoph Lameter <cl@linux.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Linux-Netdev <netdev@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, David Miller <davem@davemloft.net>, Chuck Lever <chuck.lever@oracle.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Christoph Lameter <cl@linux.com>
+
+Correct Pekka's mail address and resend.
+Sorry.
 
 Add "Cc" to "Christoph Lameter" <cl@linux.com>
 
