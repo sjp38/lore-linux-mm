@@ -1,130 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
-	by kanga.kvack.org (Postfix) with SMTP id CF9256B005A
-	for <linux-mm@kvack.org>; Thu,  6 Sep 2012 05:24:31 -0400 (EDT)
-Date: Thu, 6 Sep 2012 10:24:24 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 3/3] memory-hotplug: bug fix race between isolation and
- allocation
-Message-ID: <20120906092424.GP11266@suse.de>
-References: <1346829962-31989-1-git-send-email-minchan@kernel.org>
- <1346829962-31989-4-git-send-email-minchan@kernel.org>
- <20120905094041.GF11266@suse.de>
- <20120906044903.GA16150@bbox>
+Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
+	by kanga.kvack.org (Postfix) with SMTP id 529596B005A
+	for <linux-mm@kvack.org>; Thu,  6 Sep 2012 06:44:13 -0400 (EDT)
+Received: by pbbro12 with SMTP id ro12so2565204pbb.14
+        for <linux-mm@kvack.org>; Thu, 06 Sep 2012 03:44:12 -0700 (PDT)
+Date: Thu, 6 Sep 2012 18:44:04 +0800
+From: Shaohua Li <shli@kernel.org>
+Subject: [patch 1/2]compaction: check migrated page number
+Message-ID: <20120906104404.GA12718@kernel.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20120906044903.GA16150@bbox>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Xishi Qiu <qiuxishi@huawei.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org
+Cc: akpm@linux-foundation.org, mgorman@suse.de, aarcange@redhat.com
 
-On Thu, Sep 06, 2012 at 01:49:03PM +0900, Minchan Kim wrote:
-> > > __offline_isolated_pages
-> > > /*
-> > >  * BUG_ON hit or offline page
-> > >  * which is used by someone
-> > >  */
-> > > BUG_ON(!PageBuddy(page A));
-> > > 
-> > 
-> > offline_page calling BUG_ON because someone allocated the page is
-> > ridiculous. I did not spot where that check is but it should be changed. The
-> > correct action is to retry the isolation.
-> 
-> It is where __offline_isolated_pges.
-> 
-> ..
->         while (pfn < end_pfn) {
->                 if (!pfn_valid(pfn)) {
->                         pfn++;
->                         continue;
->                 }    
->                 page = pfn_to_page(pfn);
->                 BUG_ON(page_count(page));
->                 BUG_ON(!PageBuddy(page)); <---- HERE
->                 order = page_order(page);
-> ...
-> 
-> Comment of offline_isolated_pages says following as.
-> 
->         We cannot do rollback at this point
-> 
-> So if the comment is true, BUG_ON does make sense to me.
 
-It's massive overkill. I see no reason why it cannot return EBUSY all the
-way back up to offline_pages() and retry with the migration step.  It would
-both remove that BUG_ON and improve reliability of memory hot-remove.
+isolate_migratepages_range() might isolate none pages, for example, when
+zone->lru_lock is contended and compaction is async. In this case, we should
+abort compaction, otherwise, compact_zone will run a useless loop and make
+zone->lru_lock is even contended.
 
-> But I don't see why we can't retry it as I look thorugh code.
-> Anyway, It's another story which isn't related to this patch.
-> 
+Signed-off-by: Shaohua Li <shli@fusionio.com>
+---
+ mm/compaction.c |    2 ++
+ 1 file changed, 2 insertions(+)
 
-True.
-
-> > 
-> > > Signed-off-by: Minchan Kim <minchan@kernel.org>
-> > 
-> > At no point in the changelog do you actually say what he patch does :/
-> 
-> Argh, I will do.
-> 
-> > 
-> > > ---
-> > >  mm/page_isolation.c |    5 ++++-
-> > >  1 file changed, 4 insertions(+), 1 deletion(-)
-> > > 
-> > > diff --git a/mm/page_isolation.c b/mm/page_isolation.c
-> > > index acf65a7..4699d1f 100644
-> > > --- a/mm/page_isolation.c
-> > > +++ b/mm/page_isolation.c
-> > > @@ -196,8 +196,11 @@ __test_page_isolated_in_pageblock(unsigned long pfn, unsigned long end_pfn)
-> > >  			continue;
-> > >  		}
-> > >  		page = pfn_to_page(pfn);
-> > > -		if (PageBuddy(page))
-> > > +		if (PageBuddy(page)) {
-> > > +			if (get_page_migratetype(page) != MIGRATE_ISOLATE)
-> > > +				break;
-> > >  			pfn += 1 << page_order(page);
-> > > +		}
-> > 
-> > It is possible the page is moved to the MIGRATE_ISOLATE list between when
-> > the page was freed to the buddy allocator and this check was made. The
-> > page->index information is stale and the impact is that the hotplug
-> > operation fails when it could have succeeded. That said, I think it is a
-> > very unlikely race that will never happen in practice.
-> 
-> I understand you mean move_freepages which I have missed. Right?
-
-Yes.
-
-> Then, I will fix it, too.
-> 
-> > 
-> > More importantly, the effect of this path is that EBUSY gets bubbled all
-> > the way up and the hotplug operations fails. This is fine but as the page
-> > is free at the time this problem is detected you also have the option
-> > of moving the PageBuddy page to the MIGRATE_ISOLATE list at this time
-> > if you take the zone lock. This will mean you need to change the name of
-> > test_pages_isolated() of course.
-> 
-> Sorry, I can't get your point. Could you elaborate it more?
-
-You detect a PageBuddy page but it's on the wrong list. Instead of returning
-and failing memory-hotremove, move the free page to the correct list at
-the time it is detected.
-
-> Is it related to this patch?
-
-No, it's not important and was a suggestion on how it could be made
-better. However, retrying hot-remove would be even better again. I'm not
-suggesting it be done as part of this series.
-
--- 
-Mel Gorman
-SUSE Labs
+Index: linux/mm/compaction.c
+===================================================================
+--- linux.orig/mm/compaction.c	2012-08-22 09:51:39.295322268 +0800
++++ linux/mm/compaction.c	2012-09-06 14:46:13.923144263 +0800
+@@ -402,6 +402,8 @@ isolate_migratepages_range(struct zone *
+ 
+ 	trace_mm_compaction_isolate_migratepages(nr_scanned, nr_isolated);
+ 
++	if (!nr_isolated)
++		return 0;
+ 	return low_pfn;
+ }
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
