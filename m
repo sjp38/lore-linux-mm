@@ -1,33 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
-	by kanga.kvack.org (Postfix) with SMTP id 8EDA56B005A
-	for <linux-mm@kvack.org>; Thu,  6 Sep 2012 03:17:43 -0400 (EDT)
-Received: by lbon3 with SMTP id n3so1168782lbo.14
-        for <linux-mm@kvack.org>; Thu, 06 Sep 2012 00:17:41 -0700 (PDT)
-Date: Thu, 6 Sep 2012 10:17:39 +0300 (EEST)
-From: Pekka Enberg <penberg@kernel.org>
-Subject: Re: [PATCH 2/5] mm, slob: Add support for kmalloc_track_caller()
-In-Reply-To: <CALF0-+UB6Wm0XLHk-+vQYdFsQqa9HM0n+ps5ST+ZZpL+NXRHiQ@mail.gmail.com>
-Message-ID: <alpine.LFD.2.02.1209061017300.2210@tux.localdomain>
-References: <1346885323-15689-1-git-send-email-elezegarcia@gmail.com> <1346885323-15689-2-git-send-email-elezegarcia@gmail.com> <alpine.DEB.2.00.1209051756270.7625@chino.kir.corp.google.com>
- <CALF0-+UB6Wm0XLHk-+vQYdFsQqa9HM0n+ps5ST+ZZpL+NXRHiQ@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
+	by kanga.kvack.org (Postfix) with SMTP id 62D3B6B0082
+	for <linux-mm@kvack.org>; Thu,  6 Sep 2012 03:18:09 -0400 (EDT)
+Received: by pbbro12 with SMTP id ro12so2305215pbb.14
+        for <linux-mm@kvack.org>; Thu, 06 Sep 2012 00:18:08 -0700 (PDT)
+Message-ID: <50484E2C.1060107@gmail.com>
+Date: Thu, 06 Sep 2012 15:18:04 +0800
+From: wujianguo <wujianguo106@gmail.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: [PATCH RESEND]mm/ia64: fix a node distance bug
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ezequiel Garcia <elezegarcia@gmail.com>
-Cc: David Rientjes <rientjes@google.com>, linux-mm@kvack.org, Christoph Lameter <cl@linux.com>
+To: tony.luck@intel.com, akpm@linux-foundation.org, fenghua.yu@intel.com
+Cc: linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jiang.liu@huawei.com, guohanjun@huawei.com, qiuxishi@huawei.com, wujianguo@huawei.com, wency@cn.fujitsu.com
 
-On Wed, 5 Sep 2012, Ezequiel Garcia wrote:
-> Mmm, you bring an interesting issue. If you look at mm/slob.c and
-> include/linux/slob_def.h
-> there are lots of places with -1 instead of NUMA_NO_NODE.
-> 
-> Do you think it's worth to prepare a patch fixing all of those?
+From: Jianguo Wu <wujianguo@huawei.com>
 
-Yes.
+In arch ia64, has following definition:
+extern u8 numa_slit[MAX_NUMNODES * MAX_NUMNODES];
+#define node_distance(from,to) (numa_slit[(from) * num_online_nodes() + (to)])
 
-			Pekka
+num_online_nodes() is a variable value, it can be changed after hot-remove/add
+a node.
+
+I my practice, I found node distance is wrong after offline
+a node in IA64 platform. For example system has 4 nodes:
+node distances:
+node   0   1   2   3
+  0:  10  21  21  32
+  1:  21  10  32  21
+  2:  21  32  10  21
+  3:  32  21  21  10
+
+linux-drf:/sys/devices/system/node/node0 # cat distance
+10  21  21  32
+linux-drf:/sys/devices/system/node/node1 # cat distance
+21  10  32  21
+
+After offline node2:
+linux-drf:/sys/devices/system/node/node0 # cat distance
+10 21 32
+linux-drf:/sys/devices/system/node/node1 # cat distance
+32 21 32	--------->expected value is: 21  10  21
+
+
+Signed-off-by: Jianguo Wu <wujianguo@huawei.com>
+Signed-off-by: Jiang Liu <jiang.liu@huawei.com>
+---
+ arch/ia64/include/asm/numa.h |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
+
+diff --git a/arch/ia64/include/asm/numa.h b/arch/ia64/include/asm/numa.h
+index 6a8a27c..2e27ef1 100644
+--- a/arch/ia64/include/asm/numa.h
++++ b/arch/ia64/include/asm/numa.h
+@@ -59,7 +59,7 @@ extern struct node_cpuid_s node_cpuid[NR_CPUS];
+  */
+
+ extern u8 numa_slit[MAX_NUMNODES * MAX_NUMNODES];
+-#define node_distance(from,to) (numa_slit[(from) * num_online_nodes() + (to)])
++#define node_distance(from,to) (numa_slit[(from) * MAX_NUMNODES + (to)])
+
+ extern int paddr_to_nid(unsigned long paddr);
+
+-- 1.7.6.1 .
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
