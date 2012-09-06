@@ -1,80 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
-	by kanga.kvack.org (Postfix) with SMTP id C45C86B0062
-	for <linux-mm@kvack.org>; Thu,  6 Sep 2012 08:51:47 -0400 (EDT)
-Received: by wgbdq12 with SMTP id dq12so1316843wgb.26
-        for <linux-mm@kvack.org>; Thu, 06 Sep 2012 05:51:46 -0700 (PDT)
-From: Michal Nazarewicz <mina86@mina86.com>
-Subject: Re: [RFC v2] memory-hotplug: remove MIGRATE_ISOLATE from free_area->free_list
-In-Reply-To: <5048657A.7060004@cn.fujitsu.com>
-References: <1346900018-14759-1-git-send-email-minchan@kernel.org> <50485B7B.3030201@cn.fujitsu.com> <20120906081818.GC16231@bbox> <5048657A.7060004@cn.fujitsu.com>
-Date: Thu, 06 Sep 2012 14:51:39 +0200
-Message-ID: <xa1tpq5z9uw4.fsf@mina86.com>
+Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
+	by kanga.kvack.org (Postfix) with SMTP id 53D076B005A
+	for <linux-mm@kvack.org>; Thu,  6 Sep 2012 08:55:40 -0400 (EDT)
+Received: by dadi14 with SMTP id i14so1182271dad.14
+        for <linux-mm@kvack.org>; Thu, 06 Sep 2012 05:55:39 -0700 (PDT)
+Date: Thu, 6 Sep 2012 20:55:26 +0800
+From: Shaohua Li <shli@kernel.org>
+Subject: Re: [patch 1/2]compaction: check migrated page number
+Message-ID: <20120906125526.GA1025@kernel.org>
+References: <20120906104404.GA12718@kernel.org>
+ <20120906121725.GQ11266@suse.de>
 MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="=-=-="
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120906121725.GQ11266@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Lai Jiangshan <laijs@cn.fujitsu.com>, Minchan Kim <minchan@kernel.org>
-Cc: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Wen Congyang <wency@cn.fujitsu.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+To: Mel Gorman <mgorman@suse.de>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, aarcange@redhat.com
 
---=-=-=
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
+On Thu, Sep 06, 2012 at 01:17:25PM +0100, Mel Gorman wrote:
+> On Thu, Sep 06, 2012 at 06:44:04PM +0800, Shaohua Li wrote:
+> > 
+> > isolate_migratepages_range() might isolate none pages, for example, when
+> > zone->lru_lock is contended and compaction is async. In this case, we should
+> > abort compaction, otherwise, compact_zone will run a useless loop and make
+> > zone->lru_lock is even contended.
+> > 
+> 
+> It might also isolate no pages because the range was 100% allocated and
+> there were no free pages to isolate. This is perfectly normal and I suspect
+> this patch effectively disables compaction. What problem did you observe
+> that this patch is aimed at?
 
-On Thu, Sep 06 2012, Lai Jiangshan wrote:
-> +found:
-> +	next_pfn =3D page_to_pfn(page);
-> +	list_for_each_entry_from(page, &isolated_pages, lru) {
-> +		if (page_to_pfn(page) !=3D next_pfn)
-> +			return false;
-> +		pfn =3D page_to_pfn(page);
-
-+		pfn =3D page_to_pfn(page);
-+		if (pfn !=3D next_pfn)
-+			return false;
-
-> +		next_pfn =3D pfn + (1UL << page_order(page));
-> +		if (next_pfn >=3D end_pfn)
-> +			return true;
->  	}
-
---=20
-Best regards,                                         _     _
-.o. | Liege of Serenely Enlightened Majesty of      o' \,=3D./ `o
-..o | Computer Science,  Micha=C5=82 =E2=80=9Cmina86=E2=80=9D Nazarewicz   =
- (o o)
-ooo +----<email/xmpp: mpn@google.com>--------------ooO--(_)--Ooo--
---=-=-=
-Content-Type: multipart/signed; boundary="==-=-=";
-	micalg=pgp-sha1; protocol="application/pgp-signature"
-
---==-=-=
-Content-Type: text/plain
-
-
---==-=-=
-Content-Type: application/pgp-signature
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.10 (GNU/Linux)
-
-iQIcBAEBAgAGBQJQSJxbAAoJECBgQBJQdR/00ygP/RHyhsLlUo9J3kmSwe3GC/Yl
-kxh0/b+BGnl5QZMU0FXYDJd9bw18zlM95SkXBGb9rqanr+/aqVrH5bU0Dkt6Yk4S
-LmA6Rb8dk0VXGHsesQW3kIKJq1AB4yMUML6618pLYgnPRF4k0D+FmhjdITHfLJoN
-husP95zV8xtLtnUXTx3SkcZ5Ae5dA92d6bXOmul6/gA6qB/JZ2xShD474UO0+Dbs
-RF2NEYGzMuxEKEMKd4+UTLhgVwkDeTYUEQOyXl3DYvJyJjOACBZ6I4ZwK2xDwK8+
-mkS/Y50wxmkS0HwiCdoNcP4Rwpdixy6Mqjj9GBwXZAdMwFZE/hhtvekwquE9UByv
-mNz0bfXDVH6kUtzpDfY61cOM+ANEeaoKhnu/ap9g9DR2qAeAmLQgv3YwgaOXwoxT
-lnqSMPJVXqpfMFa16VszvS6z501hpW/up+AW6CBRO51cIcYPw13BJ4LF+uDKkttJ
-1g4e6NfQ4+LZrNOtNRMUB4AQs8GVli0zSntPAdAyiYanf9ZjdEImq8PTnrKapBAL
-RIr1AiX+uJHBSh3yEBs+YAzokwOkWkHKBAQt5PGs1XyWD/IWm3UO9TqquVIxnrMx
-f20N6mauE5NERt6dXg8PSoOAol8RBJD0b6jB1iAtoJbXzpwSQF1A+8h+O+xqWK97
-JWVHFdiFcojygJw7rzzc
-=D1YQ
------END PGP SIGNATURE-----
---==-=-=--
-
---=-=-=--
+I'm running a random swapin/out workload. When memory is fragmented enough, I
+saw 100% cpu usage. perf shows zone->lru_lock is heavily contended in
+isolate_migratepages_range. I'm using slub(I didn't see the problem with slab),
+the allocation is for radix_tree_node slab, which needs 4 pages. Even If I just
+apply the second patch, the system is still in 100% cpu usage. The
+spin_is_contended check can't cure the problem completely. Trace shows
+compact_zone will run a useless loop and each loop contend the lru_lock. With
+this patch, the cpu usage becomes normal (about 20% utilization).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
