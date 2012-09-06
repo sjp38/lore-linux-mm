@@ -1,132 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
-	by kanga.kvack.org (Postfix) with SMTP id BBE9B6B0068
-	for <linux-mm@kvack.org>; Thu,  6 Sep 2012 13:04:16 -0400 (EDT)
-Date: Thu, 6 Sep 2012 13:04:11 -0400 (EDT)
-From: =?ISO-8859-15?Q?Luk=E1=A8_Czerner?= <lczerner@redhat.com>
-Subject: Re: [PATCH 00/21] drop vmtruncate
-In-Reply-To: <5040C11C.4060505@gmail.com>
-Message-ID: <alpine.LFD.2.00.1209061255530.509@new-host-2>
-References: <5040C11C.4060505@gmail.com>
+Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
+	by kanga.kvack.org (Postfix) with SMTP id B9F306B005A
+	for <linux-mm@kvack.org>; Thu,  6 Sep 2012 13:14:47 -0400 (EDT)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Message-ID: <592e2b8c-d610-49e1-b9b7-71ab6ef680aa@default>
+Date: Thu, 6 Sep 2012 10:13:58 -0700 (PDT)
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Subject: RE: [patch] staging: ramster: fix range checks in
+ zcache_autocreate_pool()
+References: <20120906124020.GA28946@elgon.mountain>
+ <20120906162515.GA423@kroah.com>
+ <a8f8ff87-ca0e-4a16-adc5-a9af8cbb5026@default>
+In-Reply-To: <a8f8ff87-ca0e-4a16-adc5-a9af8cbb5026@default>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Marco Stornelli <marco.stornelli@gmail.com>
-Cc: Linux FS Devel <linux-fsdevel@vger.kernel.org>, linux-mm@kvack.org, Linux Kernel <linux-kernel@vger.kernel.org>
+To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Dan Carpenter <dan.carpenter@oracle.com>
+Cc: devel@driverdev.osuosl.org, linux-mm@kvack.org, kernel-janitors@vger.kernel.org, Konrad Wilk <konrad.wilk@oracle.com>
 
-On Fri, 31 Aug 2012, Marco Stornelli wrote:
+> From: Dan Magenheimer
+> Subject: RE: [patch] staging: ramster: fix range checks in zcache_autocre=
+ate_pool()
+>=20
+> > From: Greg Kroah-Hartman [mailto:gregkh@linuxfoundation.org]
+> > Subject: Re: [patch] staging: ramster: fix range checks in zcache_autoc=
+reate_pool()
+> >
+> > On Thu, Sep 06, 2012 at 03:40:20PM +0300, Dan Carpenter wrote:
+> > > If "pool_id" is negative then it leads to a read before the start of =
+the
+> > > array.  If "cli_id" is out of bounds then it leads to a NULL derefere=
+nce
+> > > of "cli".  GCC would have warned about that bug except that we
+> > > initialized the warning message away.
+> > >
+> > > Also it's better to put the parameter names into the function
+> > > declaration in the .h file.  It serves as a kind of documentation.
+> > >
+> > > Signed-off-by: Dan Carpenter <dan.carpenter@oracle.com>
+> > > ---
+> > > BTW, This file has a ton of GCC warnings.  This function returns -1
+> > > on error which is a nonsense return code but the return value is not
+> > > checked anyway.  *Grumble*.
+> >
+> > I agree, it's very messy.  Dan Magenheimer should have known better, an=
+d
+> > he better be sending me a patch soon to remove these warnings (hint...)
+>=20
+> On its way soon.
 
-> Date: Fri, 31 Aug 2012 15:50:20 +0200
-> From: Marco Stornelli <marco.stornelli@gmail.com>
-> To: Linux FS Devel <linux-fsdevel@vger.kernel.org>, linux-mm@kvack.org
-> Cc: Linux Kernel <linux-kernel@vger.kernel.org>
-> Subject: [PATCH 00/21] drop vmtruncate
-> 
-> Hi all,
-> 
-> with this patch series I try to clean the vmtruncate code. The theory of
-> operation:
-> 
-> old               new
-> vmtruncate() =>   inode_newsize_ok+truncate_setsize+fs truncate
-> 
-> Where vmtruncate was used without any error check, the code now is:
-> 
-> if (inode_newsize_ok() == 0) {
-> 	truncate_setsize();
-> 	fs truncate();
-> }
-> 
-> So, performance and semantic nothing change at all. I think that maybe in some
-> point we can skip inode_newsize_ok (where the error check of vmtruncate wasn't
-> used) but since there is a swap check in case of no-extension, maybe it's
-> better to avoid regressions. After this clean, of course, each fs can clean in
-> a deeply way.
-> 
-> With these patches even the inode truncate callback is deleted.
-> 
-> Any comments/feedback/bugs are welcome.
+> > > BTW, This file has a ton of GCC warnings.
 
-Could you explain the reason behind this change a little bit more ?
-This does not make any sense to me since you're replacing
-vmtruncate() which does basically 
+Submitted (with typo in kernel-janitors address)... but I also just
+realized from previous feedback on a much earlier thread...
 
-if (inode_newsize_ok() == 0) {
-	truncate_setsize();
-	fs truncate();
-}
+I use a stable RHEL6-ish system for devel/test with gcc-4.4.5,
+and newer gcc's may report more warnings than I see or have fixed.
 
-as you mentioned above by exactly the same thing but doing it within
-the file system. It does not seem like an improvement to me ... how
-is this a clean up ?
+If there is now a required newer gcc version for patch submittals,
+please let me know.
 
-Thanks!
--Lukas
-
-> 
-> Marco Stornelli (21):
->   ufs: drop vmtruncate
->   sysv: drop vmtruncate
->   reiserfs: drop vmtruncate
->   procfs: drop vmtruncate
->   omfs: drop vmtruncate
->   ocfs2: drop vmtruncate
->   adfs: drop vmtruncate
->   affs: drop vmtruncate
->   bfs: drop vmtruncate
->   hfs: drop vmtruncate
->   hpfs: drop vmtruncate
->   jfs: drop vmtruncate
->   hfsplus: drop vmtruncate
->   hostfs: drop vmtruncate
->   logfs: drop vmtruncate
->   minix: drop vmtruncate
->   ncpfs: drop vmtruncate
->   nilfs2: drop vmtruncate
->   ntfs: drop vmtruncate
->   vfs: drop vmtruncate
->   mm: drop vmtruncate
-> 
->  fs/adfs/inode.c         |    5 +++--
->  fs/affs/file.c          |    8 +++++---
->  fs/affs/inode.c         |    5 ++++-
->  fs/bfs/file.c           |    5 +++--
->  fs/hfs/inode.c          |   19 +++++++++++++------
->  fs/hfsplus/inode.c      |   19 +++++++++++++------
->  fs/hostfs/hostfs_kern.c |    8 +++++---
->  fs/hpfs/file.c          |    8 +++++---
->  fs/hpfs/inode.c         |    5 ++++-
->  fs/jfs/file.c           |    6 ++++--
->  fs/jfs/inode.c          |   13 +++++++++----
->  fs/libfs.c              |    2 --
->  fs/logfs/readwrite.c    |   10 ++++++++--
->  fs/minix/file.c         |    6 ++++--
->  fs/minix/inode.c        |    7 +++++--
->  fs/ncpfs/inode.c        |    4 +++-
->  fs/nilfs2/file.c        |    1 -
->  fs/nilfs2/inode.c       |   18 +++++++++++++-----
->  fs/nilfs2/recovery.c    |    7 +++++--
->  fs/ntfs/file.c          |    8 +++++---
->  fs/ntfs/inode.c         |   11 +++++++++--
->  fs/ntfs/inode.h         |    4 ++++
->  fs/ocfs2/file.c         |    3 ++-
->  fs/omfs/file.c          |   12 ++++++++----
->  fs/proc/base.c          |    3 ++-
->  fs/proc/generic.c       |    3 ++-
->  fs/proc/proc_sysctl.c   |    3 ++-
->  fs/reiserfs/file.c      |    3 +--
->  fs/reiserfs/inode.c     |   15 +++++++++++----
->  fs/reiserfs/reiserfs.h  |    1 +
->  fs/sysv/file.c          |    5 +++--
->  fs/sysv/itree.c         |    7 +++++--
->  fs/ufs/inode.c          |    5 +++--
->  include/linux/fs.h      |    1 -
->  include/linux/mm.h      |    1 -
->  mm/truncate.c           |   23 -----------------------
->  36 files changed, 164 insertions(+), 100 deletions(-)
-> 
-> 
+(However, I will be away from email for a few days, so apologies in
+advance if I can't respond immediately.)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
