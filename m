@@ -1,62 +1,163 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx127.postini.com [74.125.245.127])
-	by kanga.kvack.org (Postfix) with SMTP id 113AB6B005A
-	for <linux-mm@kvack.org>; Thu,  6 Sep 2012 18:29:40 -0400 (EDT)
-Received: from /spool/local
-	by e39.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
-	Thu, 6 Sep 2012 16:29:39 -0600
-Received: from d03relay03.boulder.ibm.com (d03relay03.boulder.ibm.com [9.17.195.228])
-	by d03dlp03.boulder.ibm.com (Postfix) with ESMTP id 3F4FE19D8043
-	for <linux-mm@kvack.org>; Thu,  6 Sep 2012 16:29:35 -0600 (MDT)
-Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
-	by d03relay03.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q86MTYdX241348
-	for <linux-mm@kvack.org>; Thu, 6 Sep 2012 16:29:34 -0600
-Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av01.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q86MTY6L006717
-	for <linux-mm@kvack.org>; Thu, 6 Sep 2012 16:29:34 -0600
-Date: Thu, 6 Sep 2012 15:29:33 -0700
-From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Subject: Re: [PATCH] slab: fix the DEADLOCK issue on l3 alien lock
-Message-ID: <20120906222933.GR2448@linux.vnet.ibm.com>
-Reply-To: paulmck@linux.vnet.ibm.com
-References: <5044692D.7080608@linux.vnet.ibm.com>
- <5046B9EE.7000804@linux.vnet.ibm.com>
- <0000013996b6f21d-d45be653-3111-4aef-b079-31dc673e6fd8-000000@email.amazonses.com>
- <504812E7.3000700@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <504812E7.3000700@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
+	by kanga.kvack.org (Postfix) with SMTP id 9AE246B005A
+	for <linux-mm@kvack.org>; Thu,  6 Sep 2012 18:36:20 -0400 (EDT)
+Date: Thu, 6 Sep 2012 15:36:19 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 6/7] mm: vmscan: Scale number of pages reclaimed by
+ reclaim/compaction based on failures
+Message-Id: <20120906153619.b0df4bd8.akpm@linux-foundation.org>
+In-Reply-To: <1345212873-22447-7-git-send-email-mgorman@suse.de>
+References: <1345212873-22447-1-git-send-email-mgorman@suse.de>
+	<1345212873-22447-7-git-send-email-mgorman@suse.de>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michael Wang <wangyun@linux.vnet.ibm.com>
-Cc: Christoph Lameter <cl@linux.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Matt Mackall <mpm@selenic.com>, Pekka Enberg <penberg@kernel.org>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Rik van Riel <riel@redhat.com>, Minchan Kim <minchan@kernel.org>, Jim Schutt <jaschut@sandia.gov>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Thu, Sep 06, 2012 at 11:05:11AM +0800, Michael Wang wrote:
-> On 09/05/2012 09:55 PM, Christoph Lameter wrote:
-> > On Wed, 5 Sep 2012, Michael Wang wrote:
-> > 
-> >> Since the cachep and cachep->slabp_cache's l3 alien are in the same lock class,
-> >> fake report generated.
-> > 
-> > Ahh... That is a key insight into why this occurs.
-> > 
-> >> This should not happen since we already have init_lock_keys() which will
-> >> reassign the lock class for both l3 list and l3 alien.
-> > 
-> > Right. I was wondering why we still get intermitted reports on this.
-> > 
-> >> This patch will invoke init_lock_keys() after we done enable_cpucache()
-> >> instead of before to avoid the fake DEADLOCK report.
-> > 
-> > Acked-by: Christoph Lameter <cl@linux.com>
-> 
-> Thanks for your review.
-> 
-> And add Paul to the cc list(my skills on mailing is really poor...).
+On Fri, 17 Aug 2012 15:14:32 +0100
+Mel Gorman <mgorman@suse.de> wrote:
 
-Tested-by: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
+> If allocation fails after compaction then compaction may be deferred for
+> a number of allocation attempts. If there are subsequent failures,
+> compact_defer_shift is increased to defer for longer periods. This patch
+> uses that information to scale the number of pages reclaimed with
+> compact_defer_shift until allocations succeed again. The rationale is
+> that reclaiming the normal number of pages still allowed compaction to
+> fail and its success depends on the number of pages. If it's failing,
+> reclaim more pages until it succeeds again.
+> 
+> Note that this is not implying that VM reclaim is not reclaiming enough
+> pages or that its logic is broken. try_to_free_pages() always asks for
+> SWAP_CLUSTER_MAX pages to be reclaimed regardless of order and that is
+> what it does. Direct reclaim stops normally with this check.
+> 
+> 	if (sc->nr_reclaimed >= sc->nr_to_reclaim)
+> 		goto out;
+> 
+> should_continue_reclaim delays when that check is made until a minimum number
+> of pages for reclaim/compaction are reclaimed. It is possible that this patch
+> could instead set nr_to_reclaim in try_to_free_pages() and drive it from
+> there but that's behaves differently and not necessarily for the better. If
+> driven from do_try_to_free_pages(), it is also possible that priorities
+> will rise. When they reach DEF_PRIORITY-2, it will also start stalling
+> and setting pages for immediate reclaim which is more disruptive than not
+> desirable in this case. That is a more wide-reaching change that could
+> cause another regression related to THP requests causing interactive jitter.
+> 
+> ...
+>
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -1743,6 +1743,7 @@ static inline bool should_continue_reclaim(struct lruvec *lruvec,
+>  {
+>  	unsigned long pages_for_compaction;
+>  	unsigned long inactive_lru_pages;
+> +	struct zone *zone;
+>  
+>  	/* If not in reclaim/compaction mode, stop */
+>  	if (!in_reclaim_compaction(sc))
+> @@ -1776,6 +1777,15 @@ static inline bool should_continue_reclaim(struct lruvec *lruvec,
+>  	 * inactive lists are large enough, continue reclaiming
+>  	 */
+>  	pages_for_compaction = (2UL << sc->order);
+> +
+> +	/*
+> +	 * If compaction is deferred for sc->order then scale the number of
+> +	 * pages reclaimed based on the number of consecutive allocation
+> +	 * failures
+> +	 */
+> +	zone = lruvec_zone(lruvec);
+> +	if (zone->compact_order_failed <= sc->order)
+> +		pages_for_compaction <<= zone->compact_defer_shift;
+>  	inactive_lru_pages = get_lru_size(lruvec, LRU_INACTIVE_FILE);
+>  	if (nr_swap_pages > 0)
+>  		inactive_lru_pages += get_lru_size(lruvec, LRU_INACTIVE_ANON);
+
+y'know, allnoconfig builds are really fast.
+
+mm/vmscan.c: In function 'should_continue_reclaim':
+mm/vmscan.c:1787: error: 'struct zone' has no member named 'compact_order_failed'
+mm/vmscan.c:1788: error: 'struct zone' has no member named 'compact_defer_shift'
+
+This fix seems a rather overly ornate way of avoiding an ifdef :(
+
+
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: mm-vmscan-scale-number-of-pages-reclaimed-by-reclaim-compaction-based-on-failures-fix
+
+fix build
+
+Cc: Mel Gorman <mgorman@suse.de>
+Cc: Minchan Kim <minchan@kernel.org>
+Cc: Rik van Riel <riel@redhat.com>
+Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+---
+
+ mm/vmscan.c |   33 ++++++++++++++++++++++++---------
+ 1 file changed, 24 insertions(+), 9 deletions(-)
+
+diff -puN mm/vmscan.c~mm-vmscan-scale-number-of-pages-reclaimed-by-reclaim-compaction-based-on-failures-fix mm/vmscan.c
+--- a/mm/vmscan.c~mm-vmscan-scale-number-of-pages-reclaimed-by-reclaim-compaction-based-on-failures-fix
++++ a/mm/vmscan.c
+@@ -1729,6 +1729,28 @@ static bool in_reclaim_compaction(struct
+ 	return false;
+ }
+ 
++#ifdef CONFIG_COMPACTION
++/*
++ * If compaction is deferred for sc->order then scale the number of pages
++ * reclaimed based on the number of consecutive allocation failures
++ */
++static unsigned long scale_for_compaction(unsigned long pages_for_compaction,
++			struct lruvec *lruvec, struct scan_control *sc)
++{
++	struct zone *zone = lruvec_zone(lruvec);
++
++	if (zone->compact_order_failed <= sc->order)
++		pages_for_compaction <<= zone->compact_defer_shift;
++	return pages_for_compaction;
++}
++#else
++static unsigned long scale_for_compaction(unsigned long pages_for_compaction,
++			struct lruvec *lruvec, struct scan_control *sc)
++{
++	return pages_for_compaction;
++}
++#endif
++
+ /*
+  * Reclaim/compaction is used for high-order allocation requests. It reclaims
+  * order-0 pages before compacting the zone. should_continue_reclaim() returns
+@@ -1743,7 +1765,6 @@ static inline bool should_continue_recla
+ {
+ 	unsigned long pages_for_compaction;
+ 	unsigned long inactive_lru_pages;
+-	struct zone *zone;
+ 
+ 	/* If not in reclaim/compaction mode, stop */
+ 	if (!in_reclaim_compaction(sc))
+@@ -1778,14 +1799,8 @@ static inline bool should_continue_recla
+ 	 */
+ 	pages_for_compaction = (2UL << sc->order);
+ 
+-	/*
+-	 * If compaction is deferred for sc->order then scale the number of
+-	 * pages reclaimed based on the number of consecutive allocation
+-	 * failures
+-	 */
+-	zone = lruvec_zone(lruvec);
+-	if (zone->compact_order_failed <= sc->order)
+-		pages_for_compaction <<= zone->compact_defer_shift;
++	pages_for_compaction = scale_for_compaction(pages_for_compaction,
++						    lruvec, sc);
+ 	inactive_lru_pages = get_lru_size(lruvec, LRU_INACTIVE_FILE);
+ 	if (nr_swap_pages > 0)
+ 		inactive_lru_pages += get_lru_size(lruvec, LRU_INACTIVE_ANON);
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
