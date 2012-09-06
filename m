@@ -1,56 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
-	by kanga.kvack.org (Postfix) with SMTP id 54C0B6B005A
-	for <linux-mm@kvack.org>; Thu,  6 Sep 2012 15:09:30 -0400 (EDT)
-Received: by obhx4 with SMTP id x4so3916199obh.14
-        for <linux-mm@kvack.org>; Thu, 06 Sep 2012 12:09:29 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
+	by kanga.kvack.org (Postfix) with SMTP id 0FE106B005A
+	for <linux-mm@kvack.org>; Thu,  6 Sep 2012 15:27:57 -0400 (EDT)
+Received: by obhx4 with SMTP id x4so3956897obh.14
+        for <linux-mm@kvack.org>; Thu, 06 Sep 2012 12:27:56 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <1346885323-15689-5-git-send-email-elezegarcia@gmail.com>
+In-Reply-To: <CALF0-+WgAicBOv6beNdfkFFS-DuAZMQfH9r9iYG5tkfFNSzRZg@mail.gmail.com>
 References: <1346885323-15689-1-git-send-email-elezegarcia@gmail.com>
-	<1346885323-15689-5-git-send-email-elezegarcia@gmail.com>
-Date: Fri, 7 Sep 2012 04:09:29 +0900
-Message-ID: <CAAmzW4P7=8P3h8-nCUB+iK+RSnVrcJBKUbV5hN+TpR53Xt7eGw@mail.gmail.com>
-Subject: Re: [PATCH 5/5] mm, slob: Trace allocation failures consistently
+	<1346885323-15689-3-git-send-email-elezegarcia@gmail.com>
+	<alpine.DEB.2.00.1209051757250.7625@chino.kir.corp.google.com>
+	<CALF0-+WgAicBOv6beNdfkFFS-DuAZMQfH9r9iYG5tkfFNSzRZg@mail.gmail.com>
+Date: Fri, 7 Sep 2012 04:27:56 +0900
+Message-ID: <CAAmzW4NOMyZ8GPb7NcJBvcRD55JTFRhVxG7yyo29YcRWKm3mwA@mail.gmail.com>
+Subject: Re: [PATCH 3/5] mm, util: Do strndup_user allocation directly,
+ instead of through memdup_user
 From: JoonSoo Kim <js1304@gmail.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Ezequiel Garcia <elezegarcia@gmail.com>
-Cc: linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, Christoph Lameter <cl@linux.com>
+Cc: David Rientjes <rientjes@google.com>, linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, Christoph Lameter <cl@linux.com>
 
 2012/9/6 Ezequiel Garcia <elezegarcia@gmail.com>:
-> This patch cleans how we trace kmalloc and kmem_cache_alloc.
-> In particular, it fixes out-of-memory tracing: now every failed
-> allocation will trace reporting non-zero requested bytes, zero obtained bytes.
-
-Other SLAB allocators(slab, slub) doesn't consider zero obtained bytes
-in tracing.
-These just return "addr = 0, obtained size = cache size"
-Why does the slob print a different output?
-
-> @@ -573,20 +576,23 @@ void *kmem_cache_alloc_node(struct kmem_cache *c, gfp_t flags, int node)
+> Hi David,
 >
->         if (c->size < PAGE_SIZE) {
->                 b = slob_alloc(c->size, flags, c->align, node);
-> -               trace_kmem_cache_alloc_node(_RET_IP_, b, c->size,
-> -                                           SLOB_UNITS(c->size) * SLOB_UNIT,
-> -                                           flags, node);
-> +               if (!b)
-> +                       goto trace_out;
-> +               alloc_size = SLOB_UNITS(c->size) * SLOB_UNIT;
->         } else {
->                 b = slob_new_pages(flags, get_order(c->size), node);
-> -               trace_kmem_cache_alloc_node(_RET_IP_, b, c->size,
-> -                                           PAGE_SIZE << get_order(c->size),
-> -                                           flags, node);
-> +               if (!b)
-> +                       goto trace_out;
-> +               alloc_size = PAGE_SIZE << get_order(c->size);
->         }
->         if (c->ctor)
->                 c->ctor(b);
+> On Wed, Sep 5, 2012 at 9:59 PM, David Rientjes <rientjes@google.com> wrote:
+>> On Wed, 5 Sep 2012, Ezequiel Garcia wrote:
+>>
+>>> I'm not sure this is the best solution,
+>>> but creating another function to reuse between strndup_user
+>>> and memdup_user seemed like an overkill.
+>>>
+>>
+>> It's not, so you'd need to do two things to fix this:
+>>
+>>  - provide a reason why strndup_user() is special compared to other
+>>    common library functions that also allocate memory, and
+>>
+>
+> Sorry, I don't understand what you mean.
+> strndup_user is *not* special than any other function, simply if you use
+> memdup_user for the allocation you will get traces with strndup_user
+> as the caller,
+> and that's not desirable.
 
-Regardless of tracing, "if (!b)" test is needed for skip "c->ctor".
+I'm not sure that this changed should be needed.
+But, if you want to fix this properly, why don't change __krealloc() ?
+It is called by krealloc(), and may return krealloc()'s address.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
