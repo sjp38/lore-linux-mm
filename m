@@ -1,89 +1,137 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
-	by kanga.kvack.org (Postfix) with SMTP id 121A36B005A
-	for <linux-mm@kvack.org>; Thu,  6 Sep 2012 04:36:23 -0400 (EDT)
-Message-ID: <504861D5.201@cn.fujitsu.com>
-Date: Thu, 06 Sep 2012 16:41:57 +0800
-From: Wen Congyang <wency@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx151.postini.com [74.125.245.151])
+	by kanga.kvack.org (Postfix) with SMTP id 7C6486B005A
+	for <linux-mm@kvack.org>; Thu,  6 Sep 2012 04:55:44 -0400 (EDT)
+Message-ID: <5048657A.7060004@cn.fujitsu.com>
+Date: Thu, 06 Sep 2012 16:57:30 +0800
+From: Lai Jiangshan <laijs@cn.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [RFC v9 PATCH 20/21] memory-hotplug: clear hwpoisoned flag when
- onlining pages
-References: <1346837155-534-1-git-send-email-wency@cn.fujitsu.com>	<1346837155-534-21-git-send-email-wency@cn.fujitsu.com> <CA+quRcZtQCmFa4=1fq1iainQROy3NgtAXjLFF9cixs6KVXoMDA@mail.gmail.com>
-In-Reply-To: <CA+quRcZtQCmFa4=1fq1iainQROy3NgtAXjLFF9cixs6KVXoMDA@mail.gmail.com>
+Subject: Re: [RFC v2] memory-hotplug: remove MIGRATE_ISOLATE from free_area->free_list
+References: <1346900018-14759-1-git-send-email-minchan@kernel.org> <50485B7B.3030201@cn.fujitsu.com> <20120906081818.GC16231@bbox>
+In-Reply-To: <20120906081818.GC16231@bbox>
+Content-Transfer-Encoding: 7bit
 Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: =?UTF-8?B?YW5keXd1MTA25bu65Zu9?= <wujianguo106@gmail.com>
-Cc: x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-ia64@vger.kernel.org, cmetcalf@tilera.com, sparclinux@vger.kernel.org, rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com
+To: Minchan Kim <minchan@kernel.org>
+Cc: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Michal Nazarewicz <mina86@mina86.com>, Mel Gorman <mel@csn.ul.ie>, Wen Congyang <wency@cn.fujitsu.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
 
-At 09/06/2012 03:27 PM, andywu106=E5=BB=BA=E5=9B=BD Wrote:
-> 2012/9/5 <wency@cn.fujitsu.com>
+On 09/06/2012 04:18 PM, Minchan Kim wrote:
+> Hello Lai,
+> 
+> On Thu, Sep 06, 2012 at 04:14:51PM +0800, Lai Jiangshan wrote:
+>> On 09/06/2012 10:53 AM, Minchan Kim wrote:
+>>> Normally, MIGRATE_ISOLATE type is used for memory-hotplug.
+>>> But it's irony type because the pages isolated would exist
+>>> as free page in free_area->free_list[MIGRATE_ISOLATE] so people
+>>> can think of it as allocatable pages but it is *never* allocatable.
+>>> It ends up confusing NR_FREE_PAGES vmstat so it would be
+>>> totally not accurate so some of place which depend on such vmstat
+>>> could reach wrong decision by the context.
+>>>
+>>> There were already report about it.[1]
+>>> [1] 702d1a6e, memory-hotplug: fix kswapd looping forever problem
+>>>
+>>> Then, there was other report which is other problem.[2]
+>>> [2] http://www.spinics.net/lists/linux-mm/msg41251.html
+>>>
+>>> I believe it can make problems in future, too.
+>>> So I hope removing such irony type by another design.
+>>>
+>>> I hope this patch solves it and let's revert [1] and doesn't need [2].
+>>>
+>>> * Changelog v1
+>>>  * Fix from Michal's many suggestion
+>>>
+>>> Cc: Michal Nazarewicz <mina86@mina86.com>
+>>> Cc: Mel Gorman <mel@csn.ul.ie>
+>>> Cc: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+>>> Cc: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+>>> Cc: Wen Congyang <wency@cn.fujitsu.com>
+>>> Cc: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+>>> Signed-off-by: Minchan Kim <minchan@kernel.org>
+>>> ---
 >>
->> From: Wen Congyang <wency@cn.fujitsu.com>
+>>> @@ -180,30 +287,35 @@ int undo_isolate_page_range(unsigned long start_pfn, unsigned long end_pfn,
+>>>   * all pages in [start_pfn...end_pfn) must be in the same zone.
+>>>   * zone->lock must be held before call this.
+>>>   *
+>>> - * Returns 1 if all pages in the range are isolated.
+>>> + * Returns true if all pages in the range are isolated.
+>>>   */
+>>> -static int
+>>> -__test_page_isolated_in_pageblock(unsigned long pfn, unsigned long end_pfn)
+>>> +static bool
+>>> +__test_page_isolated_in_pageblock(unsigned long start_pfn, unsigned long end_pfn)
+>>>  {
+>>> +	unsigned long pfn, next_pfn;
+>>>  	struct page *page;
+>>>  
+>>> -	while (pfn < end_pfn) {
+>>> -		if (!pfn_valid_within(pfn)) {
+>>> -			pfn++;
+>>> -			continue;
+>>> -		}
+>>> -		page = pfn_to_page(pfn);
+>>> -		if (PageBuddy(page))
+>>> -			pfn += 1 << page_order(page);
+>>> -		else if (page_count(page) == 0 &&
+>>> -				page_private(page) == MIGRATE_ISOLATE)
+>>> -			pfn += 1;
+>>> -		else
+>>> -			break;
+>>> +	list_for_each_entry(page, &isolated_pages, lru) {
 >>
->> hwpoisoned may set when we offline a page by the sysfs interface
->> /sys/devices/system/memory/soft=5Foffline=5Fpage or
->> /sys/devices/system/memory/hard=5Foffline=5Fpage. If we don't clear
->> this flag when onlining pages, this page can't be freed, and will
->> not in free list. So we can't offline these pages again. So we
->> should clear this flag when onlining pages.
+>>> +		if (&page->lru == &isolated_pages)
+>>> +			return false;
 >>
->> CC: David Rientjes <rientjes@google.com>
->> CC: Jiang Liu <liuj97@gmail.com>
->> CC: Len Brown <len.brown@intel.com>
->> CC: Benjamin Herrenschmidt <benh@kernel.crashing.org>
->> CC: Paul Mackerras <paulus@samba.org>
->> CC: Christoph Lameter <cl@linux.com>
->> Cc: Minchan Kim <minchan.kim@gmail.com>
->> CC: Andrew Morton <akpm@linux-foundation.org>
->> CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
->> CC: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
->> Signed-off-by: Wen Congyang <wency@cn.fujitsu.com>
->> ---
->>  mm/memory=5Fhotplug.c |    5 +++++
->>  1 files changed, 5 insertions(+), 0 deletions(-)
+>> what's the mean of this line?
+> 
+> I just copied it from Michal's code but It seem to be not needed.
+> I will remove it in next spin.
+> 
 >>
->> diff --git a/mm/memory=5Fhotplug.c b/mm/memory=5Fhotplug.c
->> index 270c249..140c080 100644
->> --- a/mm/memory=5Fhotplug.c
->> +++ b/mm/memory=5Fhotplug.c
->> @@ -661,6 +661,11 @@ EXPORT=5FSYMBOL=5FGPL(=5F=5Fonline=5Fpage=5Fincreme=
-nt=5Fcounters);
->>
->>  void =5F=5Fonline=5Fpage=5Ffree(struct page *page)
->>  {
->> +#ifdef CONFIG=5FMEMORY=5FFAILURE
->> +       /* The page may be marked HWPoisoned by soft/hard offline page */
->> +       ClearPageHWPoison(page);
->=20
-> Hi Congyang,
-> I think you should decrease mce=5Fbad=5Fpages counter her
-> atomic=5Flong=5Fsub(1, &mce=5Fbad=5Fpages);
+>>> +		pfn = page_to_pfn(page);
+>>> +		if (pfn >= end_pfn)
+>>> +			return false;
 
-Yes, thanks for pointing it out.
 
-Thanks
-Wen Congyang
 
->=20
+>>> +		if (pfn >= start_pfn)
+>>> +			goto found;
+
+this test is wrong.
+
+if ((pfn <= start_pfn) && (start_pfn < pfn + (1UL << page_order(page))))
+	goto found;
+
+
+>>> +	}
+>>> +	return false;
+>>> +
+>>> +	list_for_each_entry_continue(page, &isolated_pages, lru) {
+>>> +		if (page_to_pfn(page) != next_pfn)
+>>> +			return false;
 >>
->> +#endif
->> +
->>         ClearPageReserved(page);
->>         init=5Fpage=5Fcount(page);
->>         =5F=5Ffree=5Fpage(page);
->> --
->> 1.7.1
->>
->> --
->> To unsubscribe, send a message with 'unsubscribe linux-mm' in
->> the body to majordomo@kvack.org.  For more info on Linux MM,
->> see: http://www.linux-mm.org/ .
->> Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>
->=20
+>> where is next_pfn init-ed? 
+> 
+> by "goto found"
 
-=
+don't goto inner label.
+
+move the found label up:
+
++
++found:
++	next_pfn = page_to_pfn(page);
++	list_for_each_entry_from(page, &isolated_pages, lru) {
++		if (page_to_pfn(page) != next_pfn)
++			return false;
++		pfn = page_to_pfn(page);
++		next_pfn = pfn + (1UL << page_order(page));
++		if (next_pfn >= end_pfn)
++			return true;
+ 	}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
