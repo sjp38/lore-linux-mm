@@ -1,67 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
-	by kanga.kvack.org (Postfix) with SMTP id A84026B005A
-	for <linux-mm@kvack.org>; Thu,  6 Sep 2012 04:29:41 -0400 (EDT)
-Date: Thu, 6 Sep 2012 09:29:35 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 2/2] mm: support MIGRATE_DISCARD
-Message-ID: <20120906082935.GN11266@suse.de>
-References: <1346832673-12512-1-git-send-email-minchan@kernel.org>
- <1346832673-12512-2-git-send-email-minchan@kernel.org>
- <20120905105611.GI11266@suse.de>
- <20120906053112.GA16231@bbox>
+	by kanga.kvack.org (Postfix) with SMTP id 121A36B005A
+	for <linux-mm@kvack.org>; Thu,  6 Sep 2012 04:36:23 -0400 (EDT)
+Message-ID: <504861D5.201@cn.fujitsu.com>
+Date: Thu, 06 Sep 2012 16:41:57 +0800
+From: Wen Congyang <wency@cn.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20120906053112.GA16231@bbox>
+Subject: Re: [RFC v9 PATCH 20/21] memory-hotplug: clear hwpoisoned flag when
+ onlining pages
+References: <1346837155-534-1-git-send-email-wency@cn.fujitsu.com>	<1346837155-534-21-git-send-email-wency@cn.fujitsu.com> <CA+quRcZtQCmFa4=1fq1iainQROy3NgtAXjLFF9cixs6KVXoMDA@mail.gmail.com>
+In-Reply-To: <CA+quRcZtQCmFa4=1fq1iainQROy3NgtAXjLFF9cixs6KVXoMDA@mail.gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, Rik van Riel <riel@redhat.com>
+To: =?UTF-8?B?YW5keXd1MTA25bu65Zu9?= <wujianguo106@gmail.com>
+Cc: x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-ia64@vger.kernel.org, cmetcalf@tilera.com, sparclinux@vger.kernel.org, rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com
 
-On Thu, Sep 06, 2012 at 02:31:12PM +0900, Minchan Kim wrote:
-> Hi Mel,
-> 
-> On Wed, Sep 05, 2012 at 11:56:11AM +0100, Mel Gorman wrote:
-> > On Wed, Sep 05, 2012 at 05:11:13PM +0900, Minchan Kim wrote:
-> > > This patch introudes MIGRATE_DISCARD mode in migration.
-> > > It drops *clean cache pages* instead of migration so that
-> > > migration latency could be reduced by avoiding (memcpy + page remapping).
-> > > It's useful for CMA because latency of migration is very important rather
-> > > than eviction of background processes's workingset. In addition, it needs
-> > > less free pages for migration targets so it could avoid memory reclaiming
-> > > to get free pages, which is another factor increase latency.
-> > > 
-> > 
-> > Bah, this was released while I was reviewing the older version. I did
-> > not read this one as closely but I see the enum problems have gone away
-> > at least. I'd still prefer if CMA had an additional helper to discard
-> > some pages with shrink_page_list() and migrate the remaining pages with
-> > migrate_pages(). That would remove the need to add a MIGRATE_DISCARD
-> > migrate mode at all.
-> 
-> I am not convinced with your point. What's the benefit on separating
-> reclaim and migration? For just removing MIGRATE_DISCARD mode?
+At 09/06/2012 03:27 PM, andywu106=E5=BB=BA=E5=9B=BD Wrote:
+> 2012/9/5 <wency@cn.fujitsu.com>
+>>
+>> From: Wen Congyang <wency@cn.fujitsu.com>
+>>
+>> hwpoisoned may set when we offline a page by the sysfs interface
+>> /sys/devices/system/memory/soft=5Foffline=5Fpage or
+>> /sys/devices/system/memory/hard=5Foffline=5Fpage. If we don't clear
+>> this flag when onlining pages, this page can't be freed, and will
+>> not in free list. So we can't offline these pages again. So we
+>> should clear this flag when onlining pages.
+>>
+>> CC: David Rientjes <rientjes@google.com>
+>> CC: Jiang Liu <liuj97@gmail.com>
+>> CC: Len Brown <len.brown@intel.com>
+>> CC: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+>> CC: Paul Mackerras <paulus@samba.org>
+>> CC: Christoph Lameter <cl@linux.com>
+>> Cc: Minchan Kim <minchan.kim@gmail.com>
+>> CC: Andrew Morton <akpm@linux-foundation.org>
+>> CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+>> CC: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+>> Signed-off-by: Wen Congyang <wency@cn.fujitsu.com>
+>> ---
+>>  mm/memory=5Fhotplug.c |    5 +++++
+>>  1 files changed, 5 insertions(+), 0 deletions(-)
+>>
+>> diff --git a/mm/memory=5Fhotplug.c b/mm/memory=5Fhotplug.c
+>> index 270c249..140c080 100644
+>> --- a/mm/memory=5Fhotplug.c
+>> +++ b/mm/memory=5Fhotplug.c
+>> @@ -661,6 +661,11 @@ EXPORT=5FSYMBOL=5FGPL(=5F=5Fonline=5Fpage=5Fincreme=
+nt=5Fcounters);
+>>
+>>  void =5F=5Fonline=5Fpage=5Ffree(struct page *page)
+>>  {
+>> +#ifdef CONFIG=5FMEMORY=5FFAILURE
+>> +       /* The page may be marked HWPoisoned by soft/hard offline page */
+>> +       ClearPageHWPoison(page);
+>=20
+> Hi Congyang,
+> I think you should decrease mce=5Fbad=5Fpages counter her
+> atomic=5Flong=5Fsub(1, &mce=5Fbad=5Fpages);
 
-Maintainability. There are reclaim functions and there are migration
-functions. Your patch takes migrate_pages() and makes it partially a
-reclaim function mixing up the responsibilities of migrate.c and vmscan.c.
+Yes, thanks for pointing it out.
 
-> I don't think it's not bad because my implementation is very simple(maybe
-> it's much simpler than separating reclaim and migration) and
-> could be used by others like memory-hotplug in future.
+Thanks
+Wen Congyang
 
-They could also have used the helper function from CMA that takes a list
-of pages, reclaims some and migrates other.
+>=20
+>>
+>> +#endif
+>> +
+>>         ClearPageReserved(page);
+>>         init=5Fpage=5Fcount(page);
+>>         =5F=5Ffree=5Fpage(page);
+>> --
+>> 1.7.1
+>>
+>> --
+>> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>> the body to majordomo@kvack.org.  For more info on Linux MM,
+>> see: http://www.linux-mm.org/ .
+>> Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>
+>=20
 
-> If you're not strong against with me, I would like to insist on my implementation.
-> 
-
-I'm not very strongly against it but I'm also very unhappy.
-
--- 
-Mel Gorman
-SUSE Labs
+=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
