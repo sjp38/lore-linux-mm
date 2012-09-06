@@ -1,52 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
-	by kanga.kvack.org (Postfix) with SMTP id 547416B005A
-	for <linux-mm@kvack.org>; Thu,  6 Sep 2012 08:40:22 -0400 (EDT)
-Received: by vbkv13 with SMTP id v13so1700282vbk.14
-        for <linux-mm@kvack.org>; Thu, 06 Sep 2012 05:40:21 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
+	by kanga.kvack.org (Postfix) with SMTP id AA4916B0062
+	for <linux-mm@kvack.org>; Thu,  6 Sep 2012 08:40:34 -0400 (EDT)
+Date: Thu, 6 Sep 2012 15:40:20 +0300
+From: Dan Carpenter <dan.carpenter@oracle.com>
+Subject: [patch] staging: ramster: fix range checks in
+ zcache_autocreate_pool()
+Message-ID: <20120906124020.GA28946@elgon.mountain>
 MIME-Version: 1.0
-In-Reply-To: <20120821072901.GD1657@suse.de>
-References: <1345480594-27032-1-git-send-email-mgorman@suse.de>
-	<20120821072901.GD1657@suse.de>
-Date: Thu, 6 Sep 2012 08:40:21 -0400
-Message-ID: <CA+5PVA7KLmrZGDdaA0zc8nXf3sidwN2VUjWC_k6AjVwHq0dcvg@mail.gmail.com>
-Subject: Re: [PATCH 0/5] Memory policy corruption fixes V2
-From: Josh Boyer <jwboyer@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Dave Jones <davej@redhat.com>, Christoph Lameter <cl@linux.com>, Ben Hutchings <ben@decadent.org.uk>, Andi Kleen <ak@linux.intel.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
+To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Cc: Dan Magenheimer <dan.magenheimer@oracle.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, devel@driverdev.osuosl.org, linux-mm@kvack.org, kernel-janitors@vger.kernel.org
 
-On Tue, Aug 21, 2012 at 3:29 AM, Mel Gorman <mgorman@suse.de> wrote:
-> On Mon, Aug 20, 2012 at 05:36:29PM +0100, Mel Gorman wrote:
->> This is a rebase with some small changes to Kosaki's "mempolicy memory
->> corruption fixlet" series. I had expected that Kosaki would have revised
->> the series by now but it's been waiting a long time.
->>
->> Changelog since V1
->> o Rebase to 3.6-rc2
->> o Editted some of the changelogs
->> o Converted sp->lock to sp->mutex to close a race in shared_policy_replace()
->> o Reworked the refcount imbalance fix slightly
->> o Do not call mpol_put in shmem_alloc_page.
->>
->> I tested this with trinity with CONFIG_DEBUG_SLAB enabled and it passed. I
->> did not test LTP such as Josh reported a problem with or with a database that
->> used shared policies like Andi tested. The series is almost all Kosaki's
->> work of course. If he has a revised series that simply got delayed in
->> posting it should take precedence.
->
-> I meant to add Josh to the cc, adding him now.
+If "pool_id" is negative then it leads to a read before the start of the
+array.  If "cli_id" is out of bounds then it leads to a NULL dereference
+of "cli".  GCC would have warned about that bug except that we
+initialized the warning message away.
 
-Thank you.
+Also it's better to put the parameter names into the function
+declaration in the .h file.  It serves as a kind of documentation.
 
-I see Andi has done some testing and Acked this patchset.  Christoph
-appears to have Acked it as well.  Is there anything else needed for
-it to get in mainline?  Just want to make sure this doesn't get dropped
-because we all forgot about it after KS/Plumbers.
+Signed-off-by: Dan Carpenter <dan.carpenter@oracle.com>
+---
+BTW, This file has a ton of GCC warnings.  This function returns -1
+on error which is a nonsense return code but the return value is not
+checked anyway.  *Grumble*.
 
-josh
+diff --git a/drivers/staging/ramster/zcache.h b/drivers/staging/ramster/zcache.h
+index c59666e..81722b3 100644
+--- a/drivers/staging/ramster/zcache.h
++++ b/drivers/staging/ramster/zcache.h
+@@ -42,7 +42,7 @@ extern void zcache_decompress_to_page(char *, unsigned int, struct page *);
+ #ifdef CONFIG_RAMSTER
+ extern void *zcache_pampd_create(char *, unsigned int, bool, int,
+ 				struct tmem_handle *);
+-extern int zcache_autocreate_pool(int, int, bool);
++int zcache_autocreate_pool(unsigned int cli_id, unsigned int pool_id, bool eph);
+ #endif
+ 
+ #define MAX_POOLS_PER_CLIENT 16
+diff --git a/drivers/staging/ramster/zcache-main.c b/drivers/staging/ramster/zcache-main.c
+index 24b3d4a..86e19d6 100644
+--- a/drivers/staging/ramster/zcache-main.c
++++ b/drivers/staging/ramster/zcache-main.c
+@@ -1338,10 +1338,10 @@ static int zcache_local_new_pool(uint32_t flags)
+ 	return zcache_new_pool(LOCAL_CLIENT, flags);
+ }
+ 
+-int zcache_autocreate_pool(int cli_id, int pool_id, bool eph)
++int zcache_autocreate_pool(unsigned int cli_id, unsigned int pool_id, bool eph)
+ {
+ 	struct tmem_pool *pool;
+-	struct zcache_client *cli = NULL;
++	struct zcache_client *cli;
+ 	uint32_t flags = eph ? 0 : TMEM_POOL_PERSIST;
+ 	int ret = -1;
+ 
+@@ -1350,8 +1350,10 @@ int zcache_autocreate_pool(int cli_id, int pool_id, bool eph)
+ 		goto out;
+ 	if (pool_id >= MAX_POOLS_PER_CLIENT)
+ 		goto out;
+-	else if ((unsigned int)cli_id < MAX_CLIENTS)
+-		cli = &zcache_clients[cli_id];
++	if (cli_id >= MAX_CLIENTS)
++		goto out;
++
++	cli = &zcache_clients[cli_id];
+ 	if ((eph && disable_cleancache) || (!eph && disable_frontswap)) {
+ 		pr_err("zcache_autocreate_pool: pool type disabled\n");
+ 		goto out;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
