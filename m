@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
-	by kanga.kvack.org (Postfix) with SMTP id CC9096B006C
-	for <linux-mm@kvack.org>; Thu,  6 Sep 2012 20:38:05 -0400 (EDT)
+	by kanga.kvack.org (Postfix) with SMTP id DCB106B0070
+	for <linux-mm@kvack.org>; Thu,  6 Sep 2012 20:38:07 -0400 (EDT)
 From: Minchan Kim <minchan@kernel.org>
-Subject: [PATCH v3 3/4] memory-hotplug: bug fix race between isolation and allocation
-Date: Fri,  7 Sep 2012 09:39:31 +0900
-Message-Id: <1346978372-17903-4-git-send-email-minchan@kernel.org>
+Subject: [PATCH v3 4/4] memory-hotplug: fix pages missed by race rather than failng
+Date: Fri,  7 Sep 2012 09:39:32 +0900
+Message-Id: <1346978372-17903-5-git-send-email-minchan@kernel.org>
 In-Reply-To: <1346978372-17903-1-git-send-email-minchan@kernel.org>
 References: <1346978372-17903-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
@@ -13,78 +13,81 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Xishi Qiu <qiuxishi@huawei.com>, Wen Congyang <wency@cn.fujitsu.com>, Minchan Kim <minchan@kernel.org>
 
-Like below, memory-hotplug makes race between page-isolation
-and page-allocation so it can hit BUG_ON in __offline_isolated_pages.
+If race between allocation and isolation in memory-hotplug offline
+happens, some pages could be in MIGRATE_MOVABLE of free_list although
+the pageblock's migratetype of the page is MIGRATE_ISOLATE.
 
-	CPU A					CPU B
+The race could be detected by get_freepage_migratetype
+in __test_page_isolated_in_pageblock. If it is detected, now EBUSY
+gets bubbled all the way up and the hotplug operations fails.
 
-start_isolate_page_range
-set_migratetype_isolate
-spin_lock_irqsave(zone->lock)
+But better idea is instead of returning and failing memory-hotremove,
+move the free page to the correct list at the time it is detected.
+It could enhance memory-hotremove operation success ratio although
+the race is really rare.
 
-				free_hot_cold_page(Page A)
-				/* without zone->lock */
-				migratetype = get_pageblock_migratetype(Page A);
-				/*
-				 * Page could be moved into MIGRATE_MOVABLE
-				 * of per_cpu_pages
-				 */
-				list_add_tail(&page->lru, &pcp->lists[migratetype]);
-
-set_pageblock_isolate
-move_freepages_block
-drain_all_pages
-
-				/* Page A could be in MIGRATE_MOVABLE of free_list. */
-
-check_pages_isolated
-__test_page_isolated_in_pageblock
-/*
- * We can't catch freed page which
- * is free_list[MIGRATE_MOVABLE]
- */
-if (PageBuddy(page A))
-	pfn += 1 << page_order(page A);
-
-				/* So, Page A could be allocated */
-
-__offline_isolated_pages
-/*
- * BUG_ON hit or offline page
- * which is used by someone
- */
-BUG_ON(!PageBuddy(page A));
-
-This patch checks page's migratetype in freelist in __test_page_isolated_in_pageblock.
-So now __test_page_isolated_in_pageblock can check the page caused by above race and
-can fail of memory offlining.
-
-* from v2
-  * Add Acked-by of Kame
-
-Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Suggested-by: Mel Gorman <mgorman@suse.de>
 Signed-off-by: Minchan Kim <minchan@kernel.org>
 ---
- mm/page_isolation.c |    5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ include/linux/page-isolation.h |    4 ++++
+ mm/page_alloc.c                |    2 +-
+ mm/page_isolation.c            |   15 +++++++++++++--
+ 3 files changed, 18 insertions(+), 3 deletions(-)
 
+diff --git a/include/linux/page-isolation.h b/include/linux/page-isolation.h
+index 105077a..fca8c0a 100644
+--- a/include/linux/page-isolation.h
++++ b/include/linux/page-isolation.h
+@@ -6,6 +6,10 @@ bool has_unmovable_pages(struct zone *zone, struct page *page, int count);
+ void set_pageblock_migratetype(struct page *page, int migratetype);
+ int move_freepages_block(struct zone *zone, struct page *page,
+ 				int migratetype);
++int move_freepages(struct zone *zone,
++			  struct page *start_page, struct page *end_page,
++			  int migratetype);
++
+ /*
+  * Changes migrate type in [start_pfn, end_pfn) to be MIGRATE_ISOLATE.
+  * If specified range includes migrate types other than MOVABLE or CMA,
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 8531fa3..5a4c4d8 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -918,7 +918,7 @@ static int fallbacks[MIGRATE_TYPES][4] = {
+  * Note that start_page and end_pages are not aligned on a pageblock
+  * boundary. If alignment is required, use move_freepages_block()
+  */
+-static int move_freepages(struct zone *zone,
++int move_freepages(struct zone *zone,
+ 			  struct page *start_page, struct page *end_page,
+ 			  int migratetype)
+ {
 diff --git a/mm/page_isolation.c b/mm/page_isolation.c
-index 87a7929..7ba7405 100644
+index 7ba7405..a42fa8d 100644
 --- a/mm/page_isolation.c
 +++ b/mm/page_isolation.c
-@@ -193,8 +193,11 @@ __test_page_isolated_in_pageblock(unsigned long pfn, unsigned long end_pfn)
- 			continue;
+@@ -194,8 +194,19 @@ __test_page_isolated_in_pageblock(unsigned long pfn, unsigned long end_pfn)
  		}
  		page = pfn_to_page(pfn);
--		if (PageBuddy(page))
-+		if (PageBuddy(page)) {
-+			if (get_freepage_migratetype(page) != MIGRATE_ISOLATE)
-+				break;
+ 		if (PageBuddy(page)) {
+-			if (get_freepage_migratetype(page) != MIGRATE_ISOLATE)
+-				break;
++			/*
++			 * If race between isolatation and allocation happens,
++			 * some free pages could be in MIGRATE_MOVABLE list
++			 * although pageblock's migratation type of the page
++			 * is MIGRATE_ISOLATE. Catch it and move the page into
++			 * MIGRATE_ISOLATE list.
++			 */
++			if (get_freepage_migratetype(page) != MIGRATE_ISOLATE) {
++				struct page *end_page = page +
++						(1 << page_order(page)) - 1;
++				move_freepages(page_zone(page), page, end_page,
++						MIGRATE_ISOLATE);
++			}
  			pfn += 1 << page_order(page);
-+		}
+ 		}
  		else if (page_count(page) == 0 &&
- 			get_freepage_migratetype(page) == MIGRATE_ISOLATE)
- 			pfn += 1;
 -- 
 1.7.9.5
 
