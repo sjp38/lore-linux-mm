@@ -1,72 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
-	by kanga.kvack.org (Postfix) with SMTP id 933FE6B002B
-	for <linux-mm@kvack.org>; Fri,  7 Sep 2012 19:06:56 -0400 (EDT)
-Message-ID: <504A7E11.2010700@jp.fujitsu.com>
-Date: Fri, 07 Sep 2012 19:06:57 -0400
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
+	by kanga.kvack.org (Postfix) with SMTP id B106B6B002B
+	for <linux-mm@kvack.org>; Fri,  7 Sep 2012 19:10:21 -0400 (EDT)
+Received: by weys10 with SMTP id s10so68252wey.14
+        for <linux-mm@kvack.org>; Fri, 07 Sep 2012 16:10:20 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [PATCH 5/5] mempolicy: fix a memory corruption by refcount imbalance
- in alloc_pages_vma()
-References: <1345480594-27032-1-git-send-email-mgorman@suse.de> <1345480594-27032-6-git-send-email-mgorman@suse.de> <000001394596bd69-2c16d7fb-71b5-4009-95cc-7068103b2bfd-000000@email.amazonses.com> <20120821072611.GC1657@suse.de>
-In-Reply-To: <20120821072611.GC1657@suse.de>
-Content-Type: text/plain; charset=ISO-8859-15
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <1347057778.26695.68.camel@sbsiddha-desk.sc.intel.com>
+References: <1340959739.2936.28.camel@lappy> <CA+1xoqdgKV_sEWvUbuxagL9JEc39ZFa6X9-acP7j-M7wvW6qbQ@mail.gmail.com>
+ <CA+55aFzJCLxVP+WYJM-gq=aXx5gmdgwC7=_Gr2Tooj8q+Dz4dw@mail.gmail.com> <1347057778.26695.68.camel@sbsiddha-desk.sc.intel.com>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Fri, 7 Sep 2012 16:09:59 -0700
+Message-ID: <CA+55aFwW9Q+DM2gZy7r3JQJbrbMNR6sN+jewc2CY0i1wD_X=Tw@mail.gmail.com>
+Subject: Re: mtd: kernel BUG at arch/x86/mm/pat.c:279!
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mgorman@suse.de
-Cc: cl@linux.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, davej@redhat.com, ben@decadent.org.uk, ak@linux.intel.com, hughd@google.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Suresh Siddha <suresh.b.siddha@intel.com>
+Cc: Sasha Levin <levinsasha928@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, dwmw2@infradead.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mtd@lists.infradead.org, linux-mm <linux-mm@kvack.org>, Dave Jones <davej@redhat.com>
 
-> mempolicy: fix a memory corruption by refcount imbalance in alloc_pages_vma()
-> 
-> [cc9a6c87: cpuset: mm: reduce large amounts of memory barrier related damage
-> v3] introduced a potential memory corruption. shmem_alloc_page() uses a
-> pseudo vma and it has one significant unique combination, vma->vm_ops=NULL
-> and vma->policy->flags & MPOL_F_SHARED.
-> 
-> get_vma_policy() does NOT increase a policy ref when vma->vm_ops=NULL and
-> mpol_cond_put() DOES decrease a policy ref when a policy has MPOL_F_SHARED.
-> Therefore, when a cpuset update race occurs, alloc_pages_vma() falls in 'goto
-> retry_cpuset' path, decrements the reference count and frees the policy
-> prematurely.
-> 
-> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> Signed-off-by: Mel Gorman <mgorman@suse.de>
-> ---
->  mm/mempolicy.c |   12 +++++++++++-
->  1 files changed, 11 insertions(+), 1 deletions(-)
-> 
-> diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-> index 45f9825..9842ef5 100644
-> --- a/mm/mempolicy.c
-> +++ b/mm/mempolicy.c
-> @@ -1552,8 +1552,18 @@ struct mempolicy *get_vma_policy(struct task_struct *task,
->  									addr);
->  			if (vpol)
->  				pol = vpol;
-> -		} else if (vma->vm_policy)
-> +		} else if (vma->vm_policy) {
->  			pol = vma->vm_policy;
-> +
-> +			/*
-> +			 * shmem_alloc_page() passes MPOL_F_SHARED policy with
-> +			 * a pseudo vma whose vma->vm_ops=NULL. Take a reference
-> +			 * count on these policies which will be dropped by
-> +			 * mpol_cond_put() later
-> +			 */
-> +			if (mpol_needs_cond_ref(pol))
-> +				mpol_get(pol);
-> +		}
+On Fri, Sep 7, 2012 at 3:42 PM, Suresh Siddha <suresh.b.siddha@intel.com> wrote:
+> -       unsigned long start;
+> -       unsigned long off;
+> -       u32 len;
+> +       resource_size_t start, off;
+> +       unsigned long len;
 
-Ok, looks sene change. thank you.
+So since the oops is on x86-64, I don't think it's the "unsigned long"
+-> "resource_size_t" part (which can be an issue on 32-bit
+architectures, though).
 
+The "u32 len" -> "unsigned long len" thing *might* make a difference, though.
 
-Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+I also think your patch is incomplete even on 32-bit, because this:
 
->  	}
->  	if (!pol)
->  		pol = &default_policy;
-> 
+>         if (mtd->type == MTD_RAM || mtd->type == MTD_ROM) {
+>                 off = vma->vm_pgoff << PAGE_SHIFT;
+
+is still wrong. It probably should be
+
+    off = vma->vm_pgoff;
+    off <<= PAGE_SHIFT;
+
+because vm_pgoff may be a 32-bit type, while "resource_size_t" may be
+64-bit. Shifting the 32-bit type without a cast (implicit or explicit)
+isn't going to help.
+
+That said, we have absolutely *tons* of bugs with this particular
+pattern. Just do
+
+    git grep 'vm_pgoff.*<<.*PAGE_SHIFT'
+
+and there are distressingly few casts in there (there's a few, mainly
+in fs/proc).
+
+Now, I suspect many of them are fine just because most users probably
+are size-limited anyway, but it's a bit distressing stuff. And I
+suspect it means we might want to introduce a helper function like
+
+    static inline u64 vm_offset(struct vm_area_struct *vma)
+    {
+        return (u64)vma->vm_pgoff << PAGE_SHIFT;
+    }
+
+or something. Maybe add the "vm_length()" helper while at it too,
+since the whole "vma->vm_end - vma->vm_start" thing is so common.
+
+Anyway, since Sasha's oops is clearly not 32-bit, the above issues
+don't matter, and it would be interesting to hear if it's the 32-bit
+'len' thing that triggers this problem. Still, I can't see how it
+would - as far as I can tell, a truncated 'len' would at most result
+in spurious early "return -EINVAL", not any real problem.
+
+What are we missing?
+
+Sasha, since you can apparently reproduce it, can you replace the
+"BUG_ON()" with just a
+
+ if (start >= end) {
+    printf("bogus range %llx - %llx\n", start, end);
+    return -EINVAL;
+  }
+
+or something.
+
+I'm starting to suspect that maybe it's actually that the length is
+*zero*, and start == end, and that we should just return zero for that
+case. But let's see what Sasha finds..
+
+              Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
