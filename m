@@ -1,17 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
-	by kanga.kvack.org (Postfix) with SMTP id EE8FA6B005D
-	for <linux-mm@kvack.org>; Fri,  7 Sep 2012 17:23:34 -0400 (EDT)
-Received: by obhx4 with SMTP id x4so70582obh.14
-        for <linux-mm@kvack.org>; Fri, 07 Sep 2012 14:23:34 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
+	by kanga.kvack.org (Postfix) with SMTP id C583A6B0044
+	for <linux-mm@kvack.org>; Fri,  7 Sep 2012 17:50:22 -0400 (EDT)
+Received: by oagj6 with SMTP id j6so10011oag.14
+        for <linux-mm@kvack.org>; Fri, 07 Sep 2012 14:50:22 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <CALF0-+XJh4hDM0e=zhJkWqmL+0ykp2aWfKt4f4g5jSWRwNW3Yw@mail.gmail.com>
+In-Reply-To: <1346885323-15689-5-git-send-email-elezegarcia@gmail.com>
 References: <1346885323-15689-1-git-send-email-elezegarcia@gmail.com>
 	<1346885323-15689-5-git-send-email-elezegarcia@gmail.com>
-	<CAAmzW4P7=8P3h8-nCUB+iK+RSnVrcJBKUbV5hN+TpR53Xt7eGw@mail.gmail.com>
-	<CALF0-+XJh4hDM0e=zhJkWqmL+0ykp2aWfKt4f4g5jSWRwNW3Yw@mail.gmail.com>
-Date: Sat, 8 Sep 2012 06:23:34 +0900
-Message-ID: <CAAmzW4N8fR_+ko6oAM_SVdOkwf-eZ1x_u2vkY6pjO+cOk0jg2Q@mail.gmail.com>
+Date: Sat, 8 Sep 2012 06:50:21 +0900
+Message-ID: <CAAmzW4N8gqywrB1deA+Uv3oiO8L7DvCY1YdVNbZrsz+n6g9ThA@mail.gmail.com>
 Subject: Re: [PATCH 5/5] mm, slob: Trace allocation failures consistently
 From: JoonSoo Kim <js1304@gmail.com>
 Content-Type: text/plain; charset=ISO-8859-1
@@ -20,30 +18,110 @@ List-ID: <linux-mm.kvack.org>
 To: Ezequiel Garcia <elezegarcia@gmail.com>
 Cc: linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, Christoph Lameter <cl@linux.com>
 
-Hi, Ezequiel.
-
-2012/9/7 Ezequiel Garcia <elezegarcia@gmail.com>:
-> Hi Joonso,
+2012/9/6 Ezequiel Garcia <elezegarcia@gmail.com>:
+> This patch cleans how we trace kmalloc and kmem_cache_alloc.
+> In particular, it fixes out-of-memory tracing: now every failed
+> allocation will trace reporting non-zero requested bytes, zero obtained bytes.
 >
-> On Thu, Sep 6, 2012 at 4:09 PM, JoonSoo Kim <js1304@gmail.com> wrote:
->> 2012/9/6 Ezequiel Garcia <elezegarcia@gmail.com>:
->>> This patch cleans how we trace kmalloc and kmem_cache_alloc.
->>> In particular, it fixes out-of-memory tracing: now every failed
->>> allocation will trace reporting non-zero requested bytes, zero obtained bytes.
->>
->> Other SLAB allocators(slab, slub) doesn't consider zero obtained bytes
->> in tracing.
->> These just return "addr = 0, obtained size = cache size"
->> Why does the slob print a different output?
->>
+> Cc: Pekka Enberg <penberg@kernel.org>
+> Cc: Christoph Lameter <cl@linux.com>
+> Signed-off-by: Ezequiel Garcia <elezegarcia@gmail.com>
+> ---
+>  mm/slob.c |   30 ++++++++++++++++++------------
+>  1 files changed, 18 insertions(+), 12 deletions(-)
 >
-> I plan to fix slab, slub in a future patchset. I think it would be nice to have
-> a trace event reporting this event. But, perhaps it's not worth it.
+> diff --git a/mm/slob.c b/mm/slob.c
+> index 3f4dc9a..73f16ca 100644
+> --- a/mm/slob.c
+> +++ b/mm/slob.c
+> @@ -428,6 +428,7 @@ static __always_inline void *
+>  __do_kmalloc_node(size_t size, gfp_t gfp, int node, unsigned long caller)
+>  {
+>         int align = max(ARCH_KMALLOC_MINALIGN, ARCH_SLAB_MINALIGN);
+> +       size_t alloc_size = 0;
+>         void *ret;
+>
+>         gfp &= gfp_allowed_mask;
+> @@ -441,24 +442,25 @@ __do_kmalloc_node(size_t size, gfp_t gfp, int node, unsigned long caller)
+>                 ret = slob_alloc(size + align, gfp, align, node);
+>
+>                 if (!ret)
+> -                       return NULL;
+> +                       goto trace_out;
+>                 *(unsigned int *)ret = size;
+>                 ret += align;
+> -
+> -               trace_kmalloc_node(caller, ret,
+> -                                  size, size + align, gfp, node);
+> +               alloc_size = size + align;
+>         } else {
+>                 unsigned int order = get_order(size);
+>
+>                 if (likely(order))
+>                         gfp |= __GFP_COMP;
+>                 ret = slob_new_pages(gfp, order, node);
+> +               if (!ret)
+> +                       goto trace_out;
+>
+> -               trace_kmalloc_node(caller, ret,
+> -                                  size, PAGE_SIZE << order, gfp, node);
+> +               alloc_size = PAGE_SIZE << order;
+>         }
+>
+>         kmemleak_alloc(ret, size, 1, gfp);
+> +trace_out:
+> +       trace_kmalloc_node(caller, ret, size, alloc_size, gfp, node);
+>         return ret;
+>  }
+>
+> @@ -565,6 +567,7 @@ EXPORT_SYMBOL(kmem_cache_destroy);
+>
+>  void *kmem_cache_alloc_node(struct kmem_cache *c, gfp_t flags, int node)
+>  {
+> +       size_t alloc_size = 0;
+>         void *b;
+>
+>         flags &= gfp_allowed_mask;
+> @@ -573,20 +576,23 @@ void *kmem_cache_alloc_node(struct kmem_cache *c, gfp_t flags, int node)
+>
+>         if (c->size < PAGE_SIZE) {
+>                 b = slob_alloc(c->size, flags, c->align, node);
+> -               trace_kmem_cache_alloc_node(_RET_IP_, b, c->size,
+> -                                           SLOB_UNITS(c->size) * SLOB_UNIT,
+> -                                           flags, node);
+> +               if (!b)
+> +                       goto trace_out;
+> +               alloc_size = SLOB_UNITS(c->size) * SLOB_UNIT;
+>         } else {
+>                 b = slob_new_pages(flags, get_order(c->size), node);
+> -               trace_kmem_cache_alloc_node(_RET_IP_, b, c->size,
+> -                                           PAGE_SIZE << get_order(c->size),
+> -                                           flags, node);
+> +               if (!b)
+> +                       goto trace_out;
+> +               alloc_size = PAGE_SIZE << get_order(c->size);
+>         }
+>
+>         if (c->ctor)
+>                 c->ctor(b);
+>
+>         kmemleak_alloc_recursive(b, c->size, 1, c->flags, flags);
+> +trace_out:
+> +       trace_kmem_cache_alloc_node(_RET_IP_, b, c->size, alloc_size,
+> +                                   flags, node);
+>         return b;
+>  }
+>  EXPORT_SYMBOL(kmem_cache_alloc_node);
+> --
+> 1.7.8.6
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
-I think that output "addr =  0" is sufficient to trace out-of-memory situation.
-Why do we need a output "addr = 0, obtained size = 0"?
-
-Thanks.
+If we don't enable tracing, "unused variable warning" may occurs.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
