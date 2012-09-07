@@ -1,172 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
-	by kanga.kvack.org (Postfix) with SMTP id 6716C6B0044
-	for <linux-mm@kvack.org>; Fri,  7 Sep 2012 13:31:43 -0400 (EDT)
-Received: from /spool/local
-	by e39.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
-	Fri, 7 Sep 2012 11:31:42 -0600
-Received: from d03relay03.boulder.ibm.com (d03relay03.boulder.ibm.com [9.17.195.228])
-	by d03dlp01.boulder.ibm.com (Postfix) with ESMTP id D9BE0C40002
-	for <linux-mm@kvack.org>; Fri,  7 Sep 2012 11:31:23 -0600 (MDT)
-Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
-	by d03relay03.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q87HVJNS086122
-	for <linux-mm@kvack.org>; Fri, 7 Sep 2012 11:31:22 -0600
-Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av01.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q87HVJMw014247
-	for <linux-mm@kvack.org>; Fri, 7 Sep 2012 11:31:19 -0600
-Message-ID: <504A2F64.10006@linux.vnet.ibm.com>
-Date: Fri, 07 Sep 2012 12:31:16 -0500
-From: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
+	by kanga.kvack.org (Postfix) with SMTP id 0908B6B0044
+	for <linux-mm@kvack.org>; Fri,  7 Sep 2012 14:14:22 -0400 (EDT)
+Received: by wibhq4 with SMTP id hq4so49587wib.8
+        for <linux-mm@kvack.org>; Fri, 07 Sep 2012 11:14:21 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [RFC] mm: add support for zsmalloc and zcache
-References: <<1346794486-12107-1-git-send-email-sjenning@linux.vnet.ibm.com>> <e33a2c0e-3b51-4d89-a2b2-c1ed9c8f862c@default>
-In-Reply-To: <e33a2c0e-3b51-4d89-a2b2-c1ed9c8f862c@default>
+In-Reply-To: <CA+1xoqdgKV_sEWvUbuxagL9JEc39ZFa6X9-acP7j-M7wvW6qbQ@mail.gmail.com>
+References: <1340959739.2936.28.camel@lappy> <CA+1xoqdgKV_sEWvUbuxagL9JEc39ZFa6X9-acP7j-M7wvW6qbQ@mail.gmail.com>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Fri, 7 Sep 2012 11:14:00 -0700
+Message-ID: <CA+55aFzJCLxVP+WYJM-gq=aXx5gmdgwC7=_Gr2Tooj8q+Dz4dw@mail.gmail.com>
+Subject: Re: mtd: kernel BUG at arch/x86/mm/pat.c:279!
 Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Magenheimer <dan.magenheimer@oracle.com>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Nitin Gupta <ngupta@vflare.org>, Minchan Kim <minchan@kernel.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org
+To: Sasha Levin <levinsasha928@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, dwmw2@infradead.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mtd@lists.infradead.org, linux-mm <linux-mm@kvack.org>, Dave Jones <davej@redhat.com>
 
-On 09/06/2012 03:37 PM, Dan Magenheimer wrote:
-> In response to this RFC for zcache promotion, I've been asked to summarize
-> the concerns and objections which led me to NACK the previous zcache
-> promotion request.  While I see great potential in zcache, I think some
-> significant design challenges exist, many of which are already resolved in
-> the new codebase ("zcache2").  These design issues include:
-> 
-> A) Andrea Arcangeli pointed out and, after some deep thinking, I came
->    to agree that zcache _must_ have some "backdoor exit" for frontswap
->    pages [2], else bad things will eventually happen in many workloads.
->    This requires some kind of reaper of frontswap'ed zpages[1] which "evicts"
->    the data to the actual swap disk.  This reaper must ensure it can reclaim
->    _full_ pageframes (not just zpages) or it has little value.  Further the
->    reaper should determine which pageframes to reap based on an LRU-ish
->    (not random) approach.
+Guys, this looks like a MTD and/or io_remap_pfn_range() bug, and it's
+not getting any traction.
 
-This is a limitation of the design, I admit.  However, in
-the case that frontswap/zcache is able to capture all pages
-submitted to it and there is no overflow to the swap device,
-it doesn't make a difference.
+What the f*ck is mtd_mmap() doing, and why? The problem seems to be an
+overflow condition, because reserve_pfn_range() does
 
-In the case that zcache is not able to allocate memory for
-the persistent compressed memory pool (frontswap's pool) or
-in the case the memory pool is as large as it is allowed to
-be, this makes a difference, since it will overflow more
-recently used pages into the swap device.
+    reserve_memtype(paddr, paddr + size, want_flags, &flags);
 
-Keep in mind though that the "difference" is that frontswap
-may not offer as much benefit, not that frontswap will
-degrade performance relative to the case with only the swap
-device.
+and then the BUG_ON() in reserve_memtype is
 
-This is a feature-add that keeps coming up so I'll add it to
-the TODO.
+    BUG_ON(start >= end);
 
-I am interested to know from the mm maintainers, would the
-absence of this feature be an obstacle for promotion or not?
- The reason I ask is it would be pretty complex and invasive
-to implement.
+so it very much looks like a paddr+size overflow. However, that makes
+little sense too, since we're working in "u64", so I suspect the
+overflow has happened somewhere earlier.
 
-> B) Zsmalloc has potentially far superior density vs zbud because zsmalloc can
->    pack more zpages into each pageframe and allows for zpages that cross pageframe
->    boundaries.  But, (i) this is very data dependent... the average compression
->    for LZO is about 2x.  The frontswap'ed pages in the kernel compile benchmark
->    compress to about 4x, which is impressive but probably not representative of
->    a wide range of zpages and workloads.
+I really don't see where, though. Could somebody please take a look?
+The mtdchar_mmap() types seem insane (why "u32" for len, for example?
+And that whole
 
-"the average compression for LZO is about 2x". "...probably
-not representative of a wide range of zpages and workloads".
- Evidence?
+  off = vma->vm_pgoff << PAGE_SHIFT;
 
->    And (ii) there are many historical
->    discussions going back to Knuth and mainframes about tight packing of data...
->    high density has some advantages but also brings many disadvantages related to
->    fragmentation and compaction.  Zbud is much less aggressive (max two zpages
->    per pageframe) but has a similar density on average data, without the
->    disadvantages of high density.
+thing looks like it would overflow, since the whole point of pgoff is
+that if you shift it up by PAGE_SHIFT you need to also extend to
+64-bit etc.
 
-What is "average data"?  The context seems to define it in
-terms of the desired outcome, i.e. 50% LZO compressibility
-with little zbud fragmentation.
+So I would *guess* that it's the mtdchar_mmap() stuff that overflows
+due to bad types, but maybe it does deeper than that?
 
->    So zsmalloc may blow zbud away on a kernel compile benchmark but, if both were
->    runners, zsmalloc is a sprinter and zbud is a marathoner.  Perhaps the best
->    solution is to offer both?
+                         Linus
 
-Since frontswap pages are not reclaimable, density matters a
-lot and reclaimability doesn't matter at all.  In what case,
-would zbud work better that zsmalloc in this code?
-
-> C) Zcache uses zbud(v1) for cleancache pages and includes a shrinker which
->    reclaims pairs of zpages to release whole pageframes, but there is
->    no attempt to shrink/reclaim cleanache pageframes in LRU order.
->    It would also be nice if single-cleancache-pageframe reclaim could
->    be implemented.
-
-zbud does try to reclaim pages in an LRU-ish order.
-
-There are three lists: the unused list, the unbuddied list,
-and the buddied list.  The reclaim is done in density order
-first (unused -> unbuddied -> buddied) to maximize the
-number of compressed pages zbud can keep around.  But each
-list is in LRU-ish order since new zpages are added at the
-tail and reclaim starts from the head.  I say LRU-ish order
-because the zpages can move between the unbuddied and
-buddied lists as single buddies are added or removed which
-causes them to lose their LRU order in the lists.  So it's
-not purely LRU, but it's not random either.
-
-Not sure what you mean by "single-cleancache-pageframe
-reclaim".  Is that zbud_evict_pages(1)?
-
-> D) Ramster is built on top of zcache, but required a handful of changes
->    (on the order of 100 lines).  Due to various circumstances, ramster was
->    submitted as a fork of zcache with the intent to unfork as soon as
->    possible.  The proposal to promote the older zcache perpetuates that fork,
-
-It doesn't perpetuate the fork.  It encourages incremental
-change to zcache to accommodate new features, namely
-Ramster, as opposed to a unilateral rewrite of zcache.
-
->    requiring fixes in multiple places, whereas the new codebase supports
->    ramster and provides clearly defined boundaries between the two.
-> 
-> The new codebase (zcache) just submitted as part of drivers/staging/ramster
-> resolves these problems (though (A) is admittedly still a work in progress).
-> Before other key mm maintainers read and comment on zcache
-
-I have no information on the acceptability of this code in
-the mm community.  I'm _really_ hoping for the discussion to
-expand beyond Dan and me.
-
-> I think
-> it would be most wise to move to a codebase which resolves the known design
-> problems or, at least to thoroughly discuss and debunk the design issues
-> described above.  OR... it may be possible to identify and pursue some
-> compromise plan.
-
-I'd be happy to discuss a compromise.  However, you
-expressed that you were not willing to break down your
-ramster + zcache rewrite into functionally separate patches:
-
-https://lkml.org/lkml/2012/8/16/617
-
-For example, I would like to measure if the changes made in
-zbud improve cleancache performance, but I can't do that
-because there isn't a patch(set) that makes only those changes.
-
-Can we agree that any changes would have to be in
-functionally separate patches?
-
-> In any case, I believe the promotion proposal is premature.
-
-This isn't a promotion patch anymore, it's an RFC.  I'm just
-wanting comments on the code in order to create a TODO.
-
---
-Seth
+On Fri, Sep 7, 2012 at 9:55 AM, Sasha Levin <levinsasha928@gmail.com> wrote:
+> Ping? Still seeing this with latest master...
+>
+> On Fri, Jun 29, 2012 at 10:48 AM, Sasha Levin <levinsasha928@gmail.com> wrote:
+>> Hi all,
+>>
+>> I've stumbled on the following while fuzzing with trinity in a KVM tools guest using latest linux-next:
+>>
+>> [ 3299.675163] ------------[ cut here ]------------
+>> [ 3299.676027] kernel BUG at arch/x86/mm/pat.c:279!
+>> [ 3299.676027] invalid opcode: 0000 [#1] PREEMPT SMP DEBUG_PAGEALLOC
+>> [ 3299.678596] CPU 2
+>> [ 3299.678596] Pid: 21541, comm: trinity-child6 Tainted: G        W    3.5.0-rc4-next-20120628-sasha-00005-g9f23eb7 #479
+>> [ 3299.678596] RIP: 0010:[<ffffffff810a8b62>]  [<ffffffff810a8b62>] reserve_memtype+0x22/0x3d0
+>> [ 3299.678596] RSP: 0018:ffff88000ad61bc8  EFLAGS: 00010286
+>> [ 3299.678596] RAX: 0000000000000000 RBX: fffffffffffff000 RCX: ffff88000ad61c50
+>> [ 3299.678596] RDX: 0000000000000010 RSI: 0000000000000000 RDI: fffffffffffff000
+>> [ 3299.696632] RBP: ffff88000ad61c08 R08: 0000000000000010 R09: ffff88002617d5a8
+>> [ 3299.696632] R10: ffff88003111edc8 R11: 0000000000000001 R12: ffff88000ad61c50
+>> [ 3299.696632] R13: fffffffffffff000 R14: 0000000000000000 R15: ffff88000ad61d18
+>> [ 3299.696632] FS:  00007f3ffc3aa700(0000) GS:ffff880029800000(0000) knlGS:0000000000000000
+>> [ 3299.696632] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+>> [ 3299.696632] CR2: 0000000000f73ffc CR3: 000000000ad6e000 CR4: 00000000000406e0
+>> [ 3299.696632] DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
+>> [ 3299.696632] DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
+>> [ 3299.696632] Process trinity-child6 (pid: 21541, threadinfo ffff88000ad60000, task ffff88000a390000)
+>> [ 3299.696632] Stack:
+>> [ 3299.696632]  ffff88000ad61c18 ffffffff81161bc6 ffff88000ad61c18 fffffffffffff000
+>> [ 3299.696632]  0000000000000010 0000000000000000 0000000000001000 ffff88000ad61d18
+>> [ 3299.696632]  ffff88000ad61c88 ffffffff810a8fe2 ffff88000ad61c38 0000000000000086
+>> [ 3299.696632] Call Trace:
+>> [ 3299.696632]  [<ffffffff81161bc6>] ? mark_held_locks+0xf6/0x120
+>> [ 3299.696632]  [<ffffffff810a8fe2>] reserve_pfn_range+0xd2/0x1e0
+>> [ 3299.696632]  [<ffffffff810a912d>] track_pfn_vma_new+0x3d/0x80
+>> [ 3299.696632]  [<ffffffff8120c4bc>] remap_pfn_range+0xac/0x380
+>> [ 3299.696632]  [<ffffffff8220e016>] mtdchar_mmap+0xe6/0x100
+>> [ 3299.696632]  [<ffffffff812145ae>] mmap_region+0x35e/0x5f0
+>> [ 3299.696632]  [<ffffffff81214af9>] do_mmap_pgoff+0x2b9/0x350
+>> [ 3299.696632]  [<ffffffff811ff46c>] ? vm_mmap_pgoff+0x6c/0xb0
+>> [ 3299.696632]  [<ffffffff811ff484>] vm_mmap_pgoff+0x84/0xb0
+>> [ 3299.696632]  [<ffffffff8124fd80>] ? fget_raw+0x260/0x260
+>> [ 3299.696632]  [<ffffffff81211fde>] sys_mmap_pgoff+0x15e/0x190
+>> [ 3299.696632]  [<ffffffff81985ede>] ? trace_hardirqs_on_thunk+0x3a/0x3f
+>> [ 3299.696632]  [<ffffffff8106d4dd>] sys_mmap+0x1d/0x20
+>> [ 3299.696632]  [<ffffffff8372a539>] system_call_fastpath+0x16/0x1b
+>> [ 3299.696632] Code: 28 5b c9 c3 0f 1f 44 00 00 55 49 89 d0 48 89 e5 41 57 41 56 49 89 f6 41 55 49 89 fd 41 54 49 89 cc 53 48 83 ec 18 48 39 f7 72 0e <0f> 0b 0f 1f 40 00 eb fe 66 0f 1f 44 00 00 8b 3d 1a 5b e3 03 85
+>> [ 3299.696632] RIP  [<ffffffff810a8b62>] reserve_memtype+0x22/0x3d0
+>> [ 3299.696632]  RSP <ffff88000ad61bc8>
+>>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
