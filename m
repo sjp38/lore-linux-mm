@@ -1,78 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx110.postini.com [74.125.245.110])
-	by kanga.kvack.org (Postfix) with SMTP id 1E3116B005A
-	for <linux-mm@kvack.org>; Fri,  7 Sep 2012 18:29:37 -0400 (EDT)
-Received: by iagk10 with SMTP id k10so70313iag.14
-        for <linux-mm@kvack.org>; Fri, 07 Sep 2012 15:29:36 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
+	by kanga.kvack.org (Postfix) with SMTP id CE6306B005A
+	for <linux-mm@kvack.org>; Fri,  7 Sep 2012 18:38:27 -0400 (EDT)
+Received: by ghrr18 with SMTP id r18so83356ghr.14
+        for <linux-mm@kvack.org>; Fri, 07 Sep 2012 15:38:26 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20120907151341.79cb5638.akpm@linux-foundation.org>
-References: <1346750457-12385-1-git-send-email-walken@google.com>
-	<1346750457-12385-2-git-send-email-walken@google.com>
-	<20120907151341.79cb5638.akpm@linux-foundation.org>
-Date: Fri, 7 Sep 2012 15:29:36 -0700
-Message-ID: <CANN689HMxteeUT9q5BgKutEnNQF6sKv2n9ze11Z=wkOoC+XGqw@mail.gmail.com>
-Subject: Re: [PATCH 1/7] mm: interval tree updates
-From: Michel Lespinasse <walken@google.com>
+In-Reply-To: <1346750580-11352-1-git-send-email-gaowanlong@cn.fujitsu.com>
+References: <1346750580-11352-1-git-send-email-gaowanlong@cn.fujitsu.com>
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Date: Fri, 7 Sep 2012 18:38:06 -0400
+Message-ID: <CAHGf_=o8VzFSF3kGK92bKgeWPJ4qOQ_NhCzXO-J_Ge22M7M20g@mail.gmail.com>
+Subject: Re: [PATCH] mm: fix mmap overflow checking
 Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, riel@redhat.com, peterz@infradead.org, aarcange@redhat.com, hughd@google.com, daniel.santos@pobox.com, linux-kernel@vger.kernel.org
+To: Wanlong Gao <gaowanlong@cn.fujitsu.com>
+Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>
 
-On Fri, Sep 7, 2012 at 3:13 PM, Andrew Morton <akpm@linux-foundation.org> wrote:
-> On Tue,  4 Sep 2012 02:20:51 -0700
-> Michel Lespinasse <walken@google.com> wrote:
+On Tue, Sep 4, 2012 at 5:23 AM, Wanlong Gao <gaowanlong@cn.fujitsu.com> wrote:
+> POSIX said that if the file is a regular file and the value of "off"
+> plus "len" exceeds the offset maximum established in the open file
+> description associated with fildes, mmap should return EOVERFLOW.
 >
->> This commit updates the generic interval tree code that was
->> introduced in "mm: replace vma prio_tree with an interval tree".
->>
->> Changes:
->>
->> - fixed 'endpoing' typo noticed by Andrew Morton
->>
->> - replaced include/linux/interval_tree_tmpl.h, which was used as a
->>   template (including it automatically defined the interval tree
->>   functions) with include/linux/interval_tree_generic.h, which only
->>   defines a preprocessor macro INTERVAL_TREE_DEFINE(), which itself
->>   defines the interval tree functions when invoked. Now that is a very
->>   long macro which is unfortunate, but it does make the usage sites
->>   (lib/interval_tree.c and mm/interval_tree.c) a bit nicer than previously.
->>
->> - make use of RB_DECLARE_CALLBACKS() in the INTERVAL_TREE_DEFINE() macro,
->>   instead of duplicating that code in the interval tree template.
->>
->> - replaced vma_interval_tree_add(), which was actually handling the
->>   nonlinear and interval tree cases, with vma_interval_tree_insert_after()
->>   which handles only the interval tree case and has an API that is more
->>   consistent with the other interval tree handling functions.
->>   The nonlinear case is now handled explicitly in kernel/fork.c dup_mmap().
->>
->> Signed-off-by: Michel Lespinasse <walken@google.com>
->> ---
->>  include/linux/interval_tree_generic.h |  191 ++++++++++++++++++++++++++++
->>  include/linux/interval_tree_tmpl.h    |  219 ---------------------------------
+> The following test from LTP can reproduce this bug.
 >
-> Well that's a mess.  We create interval_tree_generic.h then four
-> commits later it vanishes, never to return.  And I can't fold
-> mm-interval-tree-updates.patch into
-> mm-replace-vma-prio_tree-with-an-interval-tree.patch because
-> rbtree-move-augmented-rbtree-functionality-to-rbtree_augmentedh.patch
-> mucks with interval_tree_generic.h within those four commits.
+>         char tmpfname[256];
+>         void *pa = NULL;
+>         void *addr = NULL;
+>         size_t len;
+>         int flag;
+>         int fd;
+>         off_t off = 0;
+>         int prot;
 >
-> Ho hum.  I don't think I can be bothered untangling all this.
+>         long page_size = sysconf(_SC_PAGE_SIZE);
+>
+>         snprintf(tmpfname, sizeof(tmpfname), "/tmp/mmap_test_%d", getpid());
+>         unlink(tmpfname);
+>         fd = open(tmpfname, O_CREAT | O_RDWR | O_EXCL, S_IRUSR | S_IWUSR);
+>         if (fd == -1) {
+>                 printf(" Error at open(): %s\n", strerror(errno));
+>                 return 1;
+>         }
+>         unlink(tmpfname);
+>
+>         flag = MAP_SHARED;
+>         prot = PROT_READ | PROT_WRITE;
+>
+>         /* len + off > maximum offset */
+>
+>         len = ULONG_MAX;
+>         if (len % page_size) {
+>                 /* Lower boundary */
+>                 len &= ~(page_size - 1);
+>         }
+>
+>         off = ULONG_MAX;
+>         if (off % page_size) {
+>                 /* Lower boundary */
+>                 off &= ~(page_size - 1);
+>         }
+>
+>         printf("off: %lx, len: %lx\n", (unsigned long)off, (unsigned long)len);
+>         pa = mmap(addr, len, prot, flag, fd, off);
+>         if (pa == MAP_FAILED && errno == EOVERFLOW) {
+>                 printf("Test Pass: Error at mmap: %s\n", strerror(errno));
+>                 return 0;
+>         }
+>
+>         if (pa == MAP_FAILED)
+>                 perror("Test FAIL: expect EOVERFLOW but get other error");
+>         else
+>                 printf("Test FAIL : Expect EOVERFLOW but got no error\n");
+>
+>         close(fd);
+>         munmap(pa, len);
+>         return 1;
+>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> Cc: linux-mm@kvack.org (open list:MEMORY MANAGEMENT)
+> Signed-off-by: Wanlong Gao <gaowanlong@cn.fujitsu.com>
+> ---
+>  mm/mmap.c | 5 +++--
+>  1 file changed, 3 insertions(+), 2 deletions(-)
+>
+> diff --git a/mm/mmap.c b/mm/mmap.c
+> index ae18a48..5380764 100644
+> --- a/mm/mmap.c
+> +++ b/mm/mmap.c
+> @@ -980,6 +980,7 @@ unsigned long do_mmap_pgoff(struct file *file, unsigned long addr,
+>         struct mm_struct * mm = current->mm;
+>         struct inode *inode;
+>         vm_flags_t vm_flags;
+> +       off_t off = pgoff << PAGE_SHIFT;
 
-I don't think you should have to do it yourself either.
+I've seen the exactly same patch from another fujitsu guys several
+month ago. and as I pointed
+out at that time, this line don't work when 32bit kernel + mmap2 syscall case.
 
-But, if you're willing to take it, I can send you replacement patches for
-(mm-replace-vma-prio_tree-with-an-interval-tree.patch +
-mm-interval-tree-updates.patch) collapsed into one, and
-rbtree-move-augmented-rbtree-functionality-to-rbtree_augmentedh.patch
-fixed so that it'd apply after the collapsed patch (and get to the
-same end state).
-
--- 
-Michel "Walken" Lespinasse
-A program is never fully debugged until the last user dies.
+Please don't think do_mmap_pgoff() is for mmap(2) specific and read a
+past thread before resend
+a patch.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
