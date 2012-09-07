@@ -1,239 +1,216 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
-	by kanga.kvack.org (Postfix) with SMTP id A06366B005A
-	for <linux-mm@kvack.org>; Fri,  7 Sep 2012 08:42:36 -0400 (EDT)
-Date: Fri, 7 Sep 2012 13:42:32 +0100
+Received: from psmtp.com (na3sys010amx174.postini.com [74.125.245.174])
+	by kanga.kvack.org (Postfix) with SMTP id 9B17D6B0068
+	for <linux-mm@kvack.org>; Fri,  7 Sep 2012 08:55:26 -0400 (EDT)
+Date: Fri, 7 Sep 2012 13:55:19 +0100
 From: Mel Gorman <mgorman@suse.de>
-Subject: MMTests 0.05
-Message-ID: <20120907124232.GA11266@suse.de>
+Subject: Re: [PATCH 1/4] slab: do ClearSlabPfmemalloc() for all pages of slab
+Message-ID: <20120907125519.GB11266@suse.de>
+References: <1346779479-1097-1-git-send-email-mgorman@suse.de>
+ <1346779479-1097-2-git-send-email-mgorman@suse.de>
+ <CAAmzW4M_3hVBfjqFLG=7iydkXeQPdCXRbRmkqUJD4vwo0eWVWQ@mail.gmail.com>
+ <CAAmzW4MfFUH1Mi447sQvPNeae_BShEmbECUaK9eoX-8ughEdJw@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
+In-Reply-To: <CAAmzW4MfFUH1Mi447sQvPNeae_BShEmbECUaK9eoX-8ughEdJw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linux-MM <linux-mm@kvack.org>
-Cc: LKML <linux-kernel@vger.kernel.org>
+To: JoonSoo Kim <js1304@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Linux-Netdev <netdev@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, David Miller <davem@davemloft.net>, Chuck Lever <chuck.lever@oracle.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Christoph Lameter <cl@linux.com>
 
-MMTests 0.05 is a configurable test suite that runs a number of common
-workloads of interest to MM developers. The biggest addition this time
-around is separate extraction, compare and reporting scripts. This may
-help people run their own analysis in another tool if they wish.
+On Fri, Sep 07, 2012 at 03:05:39AM +0900, JoonSoo Kim wrote:
+> Correct Pekka's mail address and resend.
+> Sorry.
+> 
+> Add "Cc" to "Christoph Lameter" <cl@linux.com>
+> 
+> 2012/9/5 Mel Gorman <mgorman@suse.de>:
+> > Right now, we call ClearSlabPfmemalloc() for first page of slab when we
+> > clear SlabPfmemalloc flag. This is fine for most swap-over-network use
+> > cases as it is expected that order-0 pages are in use. Unfortunately it
+> > is possible that that __ac_put_obj() checks SlabPfmemalloc on a tail page
+> > and while this is harmless, it is sloppy. This patch ensures that the head
+> > page is always used.
+> >
+> > This problem was originally identified by Joonsoo Kim.
+> >
+> > [js1304@gmail.com: Original implementation and problem identification]
+> > Signed-off-by: Mel Gorman <mgorman@suse.de>
+> > ---
+> >  mm/slab.c |    4 ++--
+> >  1 file changed, 2 insertions(+), 2 deletions(-)
+> >
+> > diff --git a/mm/slab.c b/mm/slab.c
+> > index 811af03..d34a903 100644
+> > --- a/mm/slab.c
+> > +++ b/mm/slab.c
+> > @@ -1000,7 +1000,7 @@ static void *__ac_get_obj(struct kmem_cache *cachep, struct array_cache *ac,
+> >                 l3 = cachep->nodelists[numa_mem_id()];
+> >                 if (!list_empty(&l3->slabs_free) && force_refill) {
+> >                         struct slab *slabp = virt_to_slab(objp);
+> > -                       ClearPageSlabPfmemalloc(virt_to_page(slabp->s_mem));
+> > +                       ClearPageSlabPfmemalloc(virt_to_head_page(slabp->s_mem));
+> >                         clear_obj_pfmemalloc(&objp);
+> >                         recheck_pfmemalloc_active(cachep, ac);
+> >                         return objp;
+> 
+> We assume that slabp->s_mem's address is always in head page, so
+> "virt_to_head_page" is not needed.
+> 
 
-Changelog since V0.04
-o Move driver and config scripts into their own directory
-o Add bin/extract-mmtests.pl and bin/compare-mmtests.pl
-o Remove references to Irish kernel.org mirror
-o Small tidy up
+Fair point. I thought it would be more "obvious" later that we really
+always intended to use the head page but it is unnecessary.
 
-At LSF/MM at some point a request was made that a series of tests
-be identified that were of interest to MM developers and that could be
-used for testing the Linux memory management subsystem. There is renewed
-interest in some sort of general testing framework during discussions for
-Kernel Summit 2012 so here is what I use.
+> > @@ -1032,7 +1032,7 @@ static void *__ac_put_obj(struct kmem_cache *cachep, struct array_cache *ac,
+> >  {
+> >         if (unlikely(pfmemalloc_active)) {
+> >                 /* Some pfmemalloc slabs exist, check if this is one */
+> > -               struct page *page = virt_to_page(objp);
+> > +               struct page *page = virt_to_head_page(objp);
+> >                 if (PageSlabPfmemalloc(page))
+> >                         set_obj_pfmemalloc(&objp);
+> >         }
+> > --
+> > 1.7.9.2
+> >
+> 
+> If we always use head page, following suggestion is more good to me.
+> How about you?
+> 
+> diff --git a/mm/slab.c b/mm/slab.c
+> index f8b0d53..ce70989 100644
+> --- a/mm/slab.c
+> +++ b/mm/slab.c
+> @@ -1032,7 +1032,7 @@ static void *__ac_put_obj(struct kmem_cache
+> *cachep, struct array_cache *ac,
+>  {
+>         if (unlikely(pfmemalloc_active)) {
+>                 /* Some pfmemalloc slabs exist, check if this is one */
+> -               struct page *page = virt_to_page(objp);
+> +               struct page *page = virt_to_head_page(objp);
+>                 if (PageSlabPfmemalloc(page))
+>                         set_obj_pfmemalloc(&objp);
+>         }
 
-http://www.csn.ul.ie/~mel/projects/mmtests/
-http://www.csn.ul.ie/~mel/projects/mmtests/mmtests-0.05-mmtests-0.01.tar.gz
+ok.
 
-There are a number of stock configurations stored in configs/.  For example
-config-global-dhp__pagealloc-performance runs a number of tests that
-may be able to identify performance regressions or gains in the page
-allocator. Similarly there network and scheduler configs. There are also
-more complex options. config-global-dhp__parallelio-memcachetest will run
-memcachetest in the foreground while doing IO of different sizes in the
-background to measure how much unrelated IO affects the throughput of an
-in-memory database.
+> @@ -1921,10 +1921,9 @@ static void *kmem_getpages(struct kmem_cache
+> *cachep, gfp_t flags, int nodeid)
+>                         NR_SLAB_UNRECLAIMABLE, nr_pages);
+>         for (i = 0; i < nr_pages; i++) {
+>                 __SetPageSlab(page + i);
+> -
+> -               if (page->pfmemalloc)
+> -                       SetPageSlabPfmemalloc(page + i);
+>         }
+> +       if (page->pfmemalloc)
+> +               SetPageSlabPfmemalloc(page);
+> 
+>         if (kmemcheck_enabled && !(cachep->flags & SLAB_NOTRACK)) {
+>                 kmemcheck_alloc_shadow(page, cachep->gfporder, flags, nodeid);
 
-This release is also a little rough and the extraction scripts could
-have been tidier but they were mostly written in an airport and for the
-most part they work as advertised. I'll fix bugs as according as they are
-brought to my attention.
+ok.
 
-The stats reporting still needs work because while some tests know how
-to make a better estimate of mean by filtering outliers it is not being
-handled consistently and the methodology needs work. I know filtering
-statistics like this is a major flaw in the methodology but the decision
-was made in this case in the interest of the benchmarks with unstable
-results completing in a reasonable time.
+> @@ -1943,26 +1942,26 @@ static void *kmem_getpages(struct kmem_cache
+> *cachep, gfp_t flags, int nodeid)
+>   */
+>  static void kmem_freepages(struct kmem_cache *cachep, void *addr)
+>  {
+> -       unsigned long i = (1 << cachep->gfporder);
+> +       int nr_pages = (1 << cachep->gfporder);
+> +       int i;
+>         struct page *page = virt_to_page(addr);
+> -       const unsigned long nr_freed = i;
+> 
+>         kmemcheck_free_shadow(page, cachep->gfporder);
+> 
+>         if (cachep->flags & SLAB_RECLAIM_ACCOUNT)
+>                 sub_zone_page_state(page_zone(page),
+> -                               NR_SLAB_RECLAIMABLE, nr_freed);
+> +                               NR_SLAB_RECLAIMABLE, nr_pages);
+>         else
+>                 sub_zone_page_state(page_zone(page),
+> -                               NR_SLAB_UNRECLAIMABLE, nr_freed);
+> -       while (i--) {
+> -               BUG_ON(!PageSlab(page));
+> -               __ClearPageSlabPfmemalloc(page);
+> -               __ClearPageSlab(page);
+> -               page++;
+> +                               NR_SLAB_UNRECLAIMABLE, nr_pages);
+> +       for (i = 0; i < nr_pages; i++) {
+> +               BUG_ON(!PageSlab(page + i));
+> +               __ClearPageSlab(page + i);
+>         }
+> +       __ClearPageSlabPfmemalloc(page);
+> +
+>         if (current->reclaim_state)
+> -               current->reclaim_state->reclaimed_slab += nr_freed;
+> +               current->reclaim_state->reclaimed_slab += nr_pages;
+>         free_pages((unsigned long)addr, cachep->gfporder);
+>  }
 
-Out of the box it should now do something useful so here is a demo of the
-page fault microbenchmark. At the most recent memcg meeting I used this
-benchmark to demonstrate how memory control groups have between 6% and 15%
-overhead even when not in use. If someone is interested in reproducing
-that I'll send on a patch that configures profiling so you can reproduce it.
+This churns code a lot more than is necessary. How about this as a
+replacement patch?
 
-# Download and "install"
-mel@machina:~ > wget -q http://www.csn.ul.ie/~mel/projects/mmtests/mmtests-0.05-mmtests-0.01.tar.gz
-mel@machina:~ > tar -xf mmtests-0.05-mmtests-0.01.tar.gz 
-mel@machina:~ > cd mmtests-0.05-mmtests-0.01/
+---8<---
+From: Joonsoo Kim <js1304@gmail.com>
+Subject: [PATCH] slab: do ClearSlabPfmemalloc() for all pages of slab
 
-# Run with the default "config" file. It runs a a page fault microbenchmark.
-# There are some warnings displayed about root, some tests require root but
-# this is not one of them specifically. It also wars about libnuma.h not
-# being available but on this machine it doesn't matter
-mel@machina:~/mmtests-0.05-mmtests-0.01 > ./run-mmtests.sh test-run-1
-Tuning the system for run: test-run-1 monitor: yes
-Using default swap configuration
-Swap configuration
-Filename				Type		Size	Used	Priority
-Configuring ftrace
-mount: only root can do that
-Skipping warmup run
+Right now, we call ClearSlabPfmemalloc() for first page of slab when we
+clear SlabPfmemalloc flag. This is fine for most swap-over-network use
+cases as it is expected that order-0 pages are in use. Unfortunately it
+is possible that that __ac_put_obj() checks SlabPfmemalloc on a tail page
+and while this is harmless, it is sloppy. This patch ensures that the head
+page is always used.
 
-/home/mel/mmtests-0.05-mmtests-0.01/shellpacks/common.sh: line 144: /sys/kernel/mm/transparent_hugepage/enabled: Permission denied
-Starting monitors
-Started monitor proc-vmstat gzip pid 8595,8597
-Started monitor top gzip pid 8653,8655
-Started monitor slabinfo gzip pid 8706,8708
-Started monitor vmstat latency pid 6146 6149 8759 8762,8760
-Started monitor iostat latency pid 8801,8802
-Starting test pft
-cat: /proc/sys/kernel/stack_tracer_enabled: No such file or directory
-/home/mel/mmtests-0.05-mmtests-0.01/shellpacks/common.sh: line 137:
-/sys/kernel/mm/transparent_hugepage/enabled: Permission denied
-pft-install: Fetching from mirror http://mcp/~gormanm/pft/pft-0.12x.tar.gz/pft-0.12x.tar.gz
-pft-install: Fetching from internet http://free.linux.hp.com/~lts/Tools/pft-0.12x.tar.gz
-~/mmtests-0.05-mmtests-0.01/work/testdisk/sources/pft-0.12x-installed
-~/mmtests-0.05-mmtests-0.01/work/testdisk/sources ~/mmtests-0.05-mmtests-0.01/work/log/pft
-WARNING: PFT REQUIRES NUMA.H AND IT IS NOT AVAILABLE
-WORKING AROUND, BUT MAY NOT BEHAVE AS EXPECTED
-patching file Makefile
-patching file numa_stubs.h
-patching file pft.c
-cc -std=gnu99 -pthread -O3  -D_GNU_SOURCE -DUSE_RUSAGE_THREAD -UUSE_NOCLEAR     -c -o pft.o pft.c
-cc -o pft -std=gnu99   pft.o  -lpthread -lrt
-pft installed successfully
-   1    1   1     0.07s     0.59s     0.65s  622936.989 620037.781
-   1    1   1     0.08s     0.50s     0.58s  699060.613 695857.289
-   1    1   1     0.06s     0.52s     0.58s  701475.702 697679.908
-   1    1   1     0.07s     0.51s     0.58s  702689.514 699572.271
-   1    1   1     0.04s     0.51s     0.55s  737121.449 733980.458
-[ ..... test run continues ......]
+[mgorman@suse.de: Easier implementation, changelog cleanup]
+Signed-off-by: Joonsoo Kim <js1304@gmail.com>
+Signed-off-by: Mel Gorman <mgorman@suse.de>
+---
+ mm/slab.c |   12 +++++-------
+ 1 file changed, 5 insertions(+), 7 deletions(-)
 
-# In a normal situation you would probably install a different kernel as
-# part of some comparison and run the test again. Here we'll just run
-# it a second time.
-mel@machina:~/mmtests-0.05-mmtests-0.01 > ./run-mmtests.sh test-run-2
-[ ..... test runs a second time .....]
-
-# Extract the raw results from the test
-mel@machina:~/mmtests-0.05-mmtests-0.01 > ./bin/extract-mmtests.pl -d work/log -b pft -n test-run-1 --print-header
-Clients User        System      Elapsed     Faults/cpu  Faults/sec  
-1           0.07        0.59        0.65        622936.989  620037.781  
-1           0.08        0.50        0.58        699060.613  695857.289  
-1           0.06        0.52        0.58        701475.702  697679.908  
-1           0.07        0.51        0.58        702689.514  699572.271  
-1           0.04        0.51        0.55        737121.449  733980.458  
-[ .... raw results for each sample taken is displayed .... ]
-
-# Print a summary of the results. For this test, a summary shows the
-# mean of each sample taken. Other tests summarise differently
-mel@machina:~/mmtests-0.05-mmtests-0.01 > ./bin/extract-mmtests.pl -d work/log -b pft -n test-run-1 --print-header --print-summary
-Clients User        System      Elapsed     Faults/cpu  Faults/sec  
-1       0.06        0.52        0.58        705602.805  702256.189  
-2       0.08        0.70        0.40        524681.533  1028256.231 
-3       0.09        0.91        0.36        404728.859  1137961.182 
-4       0.10        0.97        0.30        382681.532  1371008.438 
-5       0.10        1.01        0.25        367927.082  1649637.507 
-6       0.10        1.10        0.22        337179.610  1832504.839 
-7       0.11        1.25        0.21        299583.769  1966789.329 
-8       0.11        1.37        0.21        273358.740  1956777.078 
-
-# Compare test-run-1 and test-run-2. The results are unstable because this
-# is running on my laptop which was also doing other work at the time.
-mel@machina:~/mmtests-0.05-mmtests-0.01 > ./bin/compare-mmtests.pl -d work/log/ -b pft -n test-run-1,test-run-2
-                              test                  test
-                             run-1                 run-2
-User       1      0.0610 (  0.00%)      0.0600 (  1.64%)
-User       2      0.0785 (  0.00%)      0.0645 ( 17.83%)
-User       3      0.0920 (  0.00%)      0.0830 (  9.78%)
-User       4      0.0960 (  0.00%)      0.0930 (  3.12%)
-User       5      0.0975 (  0.00%)      0.0955 (  2.05%)
-User       6      0.0995 (  0.00%)      0.1040 ( -4.52%)
-User       7      0.1050 (  0.00%)      0.1095 ( -4.29%)
-User       8      0.1100 (  0.00%)      0.1130 ( -2.73%)
-System     1      0.5160 (  0.00%)      0.4780 (  7.36%)
-System     2      0.7000 (  0.00%)      0.5985 ( 14.50%)
-System     3      0.9125 (  0.00%)      0.7345 ( 19.51%)
-System     4      0.9660 (  0.00%)      0.8525 ( 11.75%)
-System     5      1.0085 (  0.00%)      0.9680 (  4.02%)
-System     6      1.1030 (  0.00%)      1.1125 ( -0.86%)
-System     7      1.2500 (  0.00%)      1.2460 (  0.32%)
-System     8      1.3745 (  0.00%)      1.3645 (  0.73%)
-Elapsed    1      0.5815 (  0.00%)      0.5395 (  7.22%)
-Elapsed    2      0.3990 (  0.00%)      0.3355 ( 15.91%)
-Elapsed    3      0.3585 (  0.00%)      0.2740 ( 23.57%)
-Elapsed    4      0.2975 (  0.00%)      0.2470 ( 16.97%)
-Elapsed    5      0.2455 (  0.00%)      0.2410 (  1.83%)
-Elapsed    6      0.2215 (  0.00%)      0.2225 ( -0.45%)
-Elapsed    7      0.2065 (  0.00%)      0.2060 (  0.24%)
-Elapsed    8      0.2075 (  0.00%)      0.2105 ( -1.45%)
-Faults/cpu 1 705602.8052 (  0.00%) 756530.8582 (  7.22%)
-Faults/cpu 2 524681.5331 (  0.00%) 612777.6817 ( 16.79%)
-Faults/cpu 3 404728.8590 (  0.00%) 495572.8665 ( 22.45%)
-Faults/cpu 4 382681.5322 (  0.00%) 429694.5717 ( 12.29%)
-Faults/cpu 5 367927.0821 (  0.00%) 381027.2533 (  3.56%)
-Faults/cpu 6 337179.6097 (  0.00%) 333885.0524 ( -0.98%)
-Faults/cpu 7 299583.7693 (  0.00%) 299253.1277 ( -0.11%)
-Faults/cpu 8 273358.7403 (  0.00%) 274967.2918 (  0.59%)
-Faults/sec 1 702256.1889 (  0.00%) 752642.3956 (  7.17%)
-Faults/sec 21028256.2315 (  0.00%)1213980.6263 ( 18.06%)
-Faults/sec 31137961.1816 (  0.00%)1471511.1024 ( 29.31%)
-Faults/sec 41371008.4380 (  0.00%)1651793.2132 ( 20.48%)
-Faults/sec 51649637.5069 (  0.00%)1685023.2429 (  2.15%)
-Faults/sec 61832504.8389 (  0.00%)1828275.9043 ( -0.23%)
-Faults/sec 71966789.3289 (  0.00%)1970410.1478 (  0.18%)
-Faults/sec 81956777.0777 (  0.00%)1930608.9724 ( -1.34%)
-
-# Compare the running times
-mel@machina:~/mmtests-0.05-mmtests-0.01 > ./bin/compare-mmtests.pl -d work/log/ -b pft -n test-run-1,test-run-2 --print-monitor duration
-                test        test
-               run-1       run-2
-User           15.52       14.83
-System        196.24      184.81
-Elapsed        69.88       61.51
-
-# Compare vmstat information
-mel@machina:~/mmtests-0.05-mmtests-0.01 > ./bin/compare-mmtests.pl -d work/log/ -b pft -n test-run-1,test-run-2 --print-monitor vmstat
-                               test        test
-                              run-1       run-2
-Page Ins                       4440           0
-Page Outs                     34876        4440
-Swap Ins                          0           0
-Swap Outs                         0           0
-Direct pages scanned              0           0
-Kswapd pages scanned         199986           0
-Kswapd pages reclaimed       199981           0
-Direct pages reclaimed            0           0
-Kswapd efficiency               99%        100%
-Kswapd velocity            2861.849       0.000
-Direct efficiency              100%        100%
-Direct velocity               0.000       0.000
-Percentage direct scans          0%          0%
-Page writes by reclaim            0           0
-Page writes file                  0           0
-Page writes anon                  0           0
-Page reclaim immediate            0           0
-Page rescued immediate            0           0
-Slabs scanned                145408           0
-Direct inode steals               0           0
-Kswapd inode steals           33392           0
-Kswapd skipped wait               0           0
-THP fault alloc                   0           0
-THP collapse alloc                0           0
-THP splits                        0           0
-THP fault fallback                0           0
-THP collapse fail                 0           0
-Compaction stalls                 0           0
-Compaction success                0           0
-Compaction failures               0           0
-Compaction pages moved            0           0
-Compaction move failure           0           0
-
-Feedback welcome.
-
--- 
-Mel Gorman
-SUSE Labs
+diff --git a/mm/slab.c b/mm/slab.c
+index 811af03..590d52a 100644
+--- a/mm/slab.c
++++ b/mm/slab.c
+@@ -1032,7 +1032,7 @@ static void *__ac_put_obj(struct kmem_cache *cachep, struct array_cache *ac,
+ {
+ 	if (unlikely(pfmemalloc_active)) {
+ 		/* Some pfmemalloc slabs exist, check if this is one */
+-		struct page *page = virt_to_page(objp);
++		struct page *page = virt_to_head_page(objp);
+ 		if (PageSlabPfmemalloc(page))
+ 			set_obj_pfmemalloc(&objp);
+ 	}
+@@ -1919,12 +1919,10 @@ static void *kmem_getpages(struct kmem_cache *cachep, gfp_t flags, int nodeid)
+ 	else
+ 		add_zone_page_state(page_zone(page),
+ 			NR_SLAB_UNRECLAIMABLE, nr_pages);
+-	for (i = 0; i < nr_pages; i++) {
++	for (i = 0; i < nr_pages; i++)
+ 		__SetPageSlab(page + i);
+-
+-		if (page->pfmemalloc)
+-			SetPageSlabPfmemalloc(page + i);
+-	}
++	if (page->pfmemalloc)
++		SetPageSlabPfmemalloc(page);
+ 
+ 	if (kmemcheck_enabled && !(cachep->flags & SLAB_NOTRACK)) {
+ 		kmemcheck_alloc_shadow(page, cachep->gfporder, flags, nodeid);
+@@ -1955,9 +1953,9 @@ static void kmem_freepages(struct kmem_cache *cachep, void *addr)
+ 	else
+ 		sub_zone_page_state(page_zone(page),
+ 				NR_SLAB_UNRECLAIMABLE, nr_freed);
++	__ClearPageSlabPfmemalloc(page);
+ 	while (i--) {
+ 		BUG_ON(!PageSlab(page));
+-		__ClearPageSlabPfmemalloc(page);
+ 		__ClearPageSlab(page);
+ 		page++;
+ 	}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
