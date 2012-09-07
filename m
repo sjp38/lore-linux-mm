@@ -1,57 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
-	by kanga.kvack.org (Postfix) with SMTP id 140E86B005A
-	for <linux-mm@kvack.org>; Thu,  6 Sep 2012 20:06:50 -0400 (EDT)
-Date: Fri, 7 Sep 2012 09:08:27 +0900
+Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
+	by kanga.kvack.org (Postfix) with SMTP id 798A06B005A
+	for <linux-mm@kvack.org>; Thu,  6 Sep 2012 20:37:59 -0400 (EDT)
 From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH v2 2/3] mm: remain migratetype in freed page
-Message-ID: <20120907000827.GF16231@bbox>
-References: <1346908619-16056-1-git-send-email-minchan@kernel.org>
- <1346908619-16056-3-git-send-email-minchan@kernel.org>
- <50483EF4.6010909@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <50483EF4.6010909@jp.fujitsu.com>
+Subject: [PATCH v3 0/4] memory-hotplug: handle page race between allocation and isolation
+Date: Fri,  7 Sep 2012 09:39:28 +0900
+Message-Id: <1346978372-17903-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Xishi Qiu <qiuxishi@huawei.com>, Wen Congyang <wency@cn.fujitsu.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Xishi Qiu <qiuxishi@huawei.com>, Wen Congyang <wency@cn.fujitsu.com>, Minchan Kim <minchan@kernel.org>
 
-On Thu, Sep 06, 2012 at 03:13:08PM +0900, Kamezawa Hiroyuki wrote:
-> (2012/09/06 14:16), Minchan Kim wrote:
-> > The page allocator caches the pageblock information in page->private while
-> > it is in the PCP freelists but this is overwritten with the order of the
-> > page when freed to the buddy allocator. This patch stores the migratetype
-> > of the page in the page->index field so that it is available at all times
-> > when the page remain in free_list.
-> > 
-> sounds reasonable.
-> 
-> > This patch adds a new call site in __free_pages_ok so it might be
-> > overhead a bit but it's for high order allocation.
-> > So I believe damage isn't hurt.
-> > 
-> > * from v1
-> >    * Fix move_freepages's migratetype - Mel
-> >    * Add more kind explanation in description - Mel
-> > 
-> > Signed-off-by: Minchan Kim <minchan@kernel.org>
-> 
-> Hmm, page->index is valid only when the page is the head of buddy chunk ?
+Memory hotplug has a subtle race problem so this patchset fixes the problem
+(Look at [3/3] for detail and please confirm the problem before review
+other patches in this series.)
 
-Yes.
+ [1/4] is just clean up and help for [2/4].
+ [2/4] keeps the migratetype information to freed page's index field
+       and [3/4] uses the information.
+ [3/4] fixes the race problem with [2/4]'s information.
+ [4/4] enhance memory-hotremove operation success ratio
 
-> 
-> Anyway,
-> 
-> Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+After applying [2/4], migratetype argument in __free_one_page
+and free_one_page is redundant so we can remove it but I decide
+to not touch them because it increases code size about 50 byte.
 
-Thanks, Kame!
+This patchset is based on mmotm-2012-09-06-16-46
+
+Minchan Kim (4):
+  use get_page_migratetype instead of page_private
+  mm: remain migratetype in freed page
+  memory-hotplug: bug fix race between isolation and allocation
+  memory-hotplug: fix pages missed by race rather than failing
+
+ include/linux/mm.h             |   12 ++++++++++++
+ include/linux/page-isolation.h |    4 ++++
+ mm/page_alloc.c                |   19 ++++++++++++-------
+ mm/page_isolation.c            |   18 ++++++++++++++++--
+ 4 files changed, 44 insertions(+), 9 deletions(-)
 
 -- 
-Kind regards,
-Minchan Kim
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
