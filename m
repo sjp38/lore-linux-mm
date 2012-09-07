@@ -1,128 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
-	by kanga.kvack.org (Postfix) with SMTP id 63E946B0068
-	for <linux-mm@kvack.org>; Fri,  7 Sep 2012 11:52:47 -0400 (EDT)
-Date: Fri, 7 Sep 2012 17:52:43 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [patch 1/2]compaction: check migrated page number
-Message-ID: <20120907155243.GA21894@redhat.com>
-References: <20120906104404.GA12718@kernel.org>
- <20120906121725.GQ11266@suse.de>
- <20120906125526.GA1025@kernel.org>
- <20120906132551.GS11266@suse.de>
- <20120907041212.GA31391@kernel.org>
+Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
+	by kanga.kvack.org (Postfix) with SMTP id 0A2116B0044
+	for <linux-mm@kvack.org>; Fri,  7 Sep 2012 12:55:44 -0400 (EDT)
+Received: by iagk10 with SMTP id k10so4203472iag.14
+        for <linux-mm@kvack.org>; Fri, 07 Sep 2012 09:55:44 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120907041212.GA31391@kernel.org>
+In-Reply-To: <1340959739.2936.28.camel@lappy>
+References: <1340959739.2936.28.camel@lappy>
+From: Sasha Levin <levinsasha928@gmail.com>
+Date: Fri, 7 Sep 2012 18:55:23 +0200
+Message-ID: <CA+1xoqdgKV_sEWvUbuxagL9JEc39ZFa6X9-acP7j-M7wvW6qbQ@mail.gmail.com>
+Subject: Re: mtd: kernel BUG at arch/x86/mm/pat.c:279!
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shaohua Li <shli@kernel.org>
-Cc: Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, akpm@linux-foundation.org
+To: Andrew Morton <akpm@linux-foundation.org>, dwmw2@infradead.org
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mtd@lists.infradead.org, linux-mm <linux-mm@kvack.org>, Dave Jones <davej@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>
 
-On Fri, Sep 07, 2012 at 12:12:12PM +0800, Shaohua Li wrote:
-> Subject: compaction: check migrated page number
-> 
-> isolate_migratepages_range() might isolate none pages, for example, when
-> zone->lru_lock is contended and compaction is async. In this case, we should
-> abort compaction, otherwise, compact_zone will run a useless loop and make
-> zone->lru_lock is even contended.
-> 
-> Signed-off-by: Shaohua Li <shli@fusionio.com>
-> ---
->  mm/compaction.c |    5 +++--
->  1 file changed, 3 insertions(+), 2 deletions(-)
-> 
-> Index: linux/mm/compaction.c
-> ===================================================================
-> --- linux.orig/mm/compaction.c	2012-09-06 18:37:52.636413761 +0800
-> +++ linux/mm/compaction.c	2012-09-07 10:51:16.734081959 +0800
-> @@ -618,7 +618,7 @@ typedef enum {
->  static isolate_migrate_t isolate_migratepages(struct zone *zone,
->  					struct compact_control *cc)
->  {
-> -	unsigned long low_pfn, end_pfn;
-> +	unsigned long low_pfn, end_pfn, old_low_pfn;
->  
->  	/* Do not scan outside zone boundaries */
->  	low_pfn = max(cc->migrate_pfn, zone->zone_start_pfn);
-> @@ -633,8 +633,9 @@ static isolate_migrate_t isolate_migrate
->  	}
->  
->  	/* Perform the isolation */
-> +	old_low_pfn = low_pfn;
->  	low_pfn = isolate_migratepages_range(zone, cc, low_pfn, end_pfn);
-> -	if (!low_pfn)
-> +	if (!low_pfn || old_low_pfn == low_pfn)
->  		return ISOLATE_ABORT;
->  
->  	cc->migrate_pfn = low_pfn;
+Ping? Still seeing this with latest master...
 
-Looks good to me.
-
-This other below approach should also work:
-
-diff --git a/mm/compaction.c b/mm/compaction.c
-index 7fcd3a5..aefb712 100644
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -70,8 +70,7 @@ static bool compact_checklock_irqsave(spinlock_t *lock, unsigned long *flags,
- 
- 		/* async aborts if taking too long or contended */
- 		if (!cc->sync) {
--			if (cc->contended)
--				*cc->contended = true;
-+			cc->contended = true;
- 			return false;
- 		}
- 
-@@ -634,7 +633,7 @@ static isolate_migrate_t isolate_migratepages(struct zone *zone,
- 
- 	/* Perform the isolation */
- 	low_pfn = isolate_migratepages_range(zone, cc, low_pfn, end_pfn);
--	if (!low_pfn)
-+	if (!low_pfn || cc->contended)
- 		return ISOLATE_ABORT;
- 
- 	cc->migrate_pfn = low_pfn;
-@@ -831,6 +830,7 @@ static unsigned long compact_zone_order(struct zone *zone,
- 				 int order, gfp_t gfp_mask,
- 				 bool sync, bool *contended)
- {
-+	unsigned long ret;
- 	struct compact_control cc = {
- 		.nr_freepages = 0,
- 		.nr_migratepages = 0,
-@@ -838,12 +838,14 @@ static unsigned long compact_zone_order(struct zone *zone,
- 		.migratetype = allocflags_to_migratetype(gfp_mask),
- 		.zone = zone,
- 		.sync = sync,
--		.contended = contended,
- 	};
- 	INIT_LIST_HEAD(&cc.freepages);
- 	INIT_LIST_HEAD(&cc.migratepages);
- 
--	return compact_zone(zone, &cc);
-+	ret = compact_zone(zone, &cc);
-+	if (contended)
-+		*contended = cc.contended;
-+	return ret;
- }
- 
- int sysctl_extfrag_threshold = 500;
-diff --git a/mm/internal.h b/mm/internal.h
-index 53418cd..dbb32ff 100644
---- a/mm/internal.h
-+++ b/mm/internal.h
-@@ -130,7 +130,7 @@ struct compact_control {
- 	int order;			/* order a direct compactor needs */
- 	int migratetype;		/* MOVABLE, RECLAIMABLE etc */
- 	struct zone *zone;
--	bool *contended;		/* True if a lock was contended */
-+	bool contended;			/* True if a lock was contended */
- };
- 
- unsigned long
+On Fri, Jun 29, 2012 at 10:48 AM, Sasha Levin <levinsasha928@gmail.com> wrote:
+> Hi all,
+>
+> I've stumbled on the following while fuzzing with trinity in a KVM tools guest using latest linux-next:
+>
+> [ 3299.675163] ------------[ cut here ]------------
+> [ 3299.676027] kernel BUG at arch/x86/mm/pat.c:279!
+> [ 3299.676027] invalid opcode: 0000 [#1] PREEMPT SMP DEBUG_PAGEALLOC
+> [ 3299.678596] CPU 2
+> [ 3299.678596] Pid: 21541, comm: trinity-child6 Tainted: G        W    3.5.0-rc4-next-20120628-sasha-00005-g9f23eb7 #479
+> [ 3299.678596] RIP: 0010:[<ffffffff810a8b62>]  [<ffffffff810a8b62>] reserve_memtype+0x22/0x3d0
+> [ 3299.678596] RSP: 0018:ffff88000ad61bc8  EFLAGS: 00010286
+> [ 3299.678596] RAX: 0000000000000000 RBX: fffffffffffff000 RCX: ffff88000ad61c50
+> [ 3299.678596] RDX: 0000000000000010 RSI: 0000000000000000 RDI: fffffffffffff000
+> [ 3299.696632] RBP: ffff88000ad61c08 R08: 0000000000000010 R09: ffff88002617d5a8
+> [ 3299.696632] R10: ffff88003111edc8 R11: 0000000000000001 R12: ffff88000ad61c50
+> [ 3299.696632] R13: fffffffffffff000 R14: 0000000000000000 R15: ffff88000ad61d18
+> [ 3299.696632] FS:  00007f3ffc3aa700(0000) GS:ffff880029800000(0000) knlGS:0000000000000000
+> [ 3299.696632] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+> [ 3299.696632] CR2: 0000000000f73ffc CR3: 000000000ad6e000 CR4: 00000000000406e0
+> [ 3299.696632] DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
+> [ 3299.696632] DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
+> [ 3299.696632] Process trinity-child6 (pid: 21541, threadinfo ffff88000ad60000, task ffff88000a390000)
+> [ 3299.696632] Stack:
+> [ 3299.696632]  ffff88000ad61c18 ffffffff81161bc6 ffff88000ad61c18 fffffffffffff000
+> [ 3299.696632]  0000000000000010 0000000000000000 0000000000001000 ffff88000ad61d18
+> [ 3299.696632]  ffff88000ad61c88 ffffffff810a8fe2 ffff88000ad61c38 0000000000000086
+> [ 3299.696632] Call Trace:
+> [ 3299.696632]  [<ffffffff81161bc6>] ? mark_held_locks+0xf6/0x120
+> [ 3299.696632]  [<ffffffff810a8fe2>] reserve_pfn_range+0xd2/0x1e0
+> [ 3299.696632]  [<ffffffff810a912d>] track_pfn_vma_new+0x3d/0x80
+> [ 3299.696632]  [<ffffffff8120c4bc>] remap_pfn_range+0xac/0x380
+> [ 3299.696632]  [<ffffffff8220e016>] mtdchar_mmap+0xe6/0x100
+> [ 3299.696632]  [<ffffffff812145ae>] mmap_region+0x35e/0x5f0
+> [ 3299.696632]  [<ffffffff81214af9>] do_mmap_pgoff+0x2b9/0x350
+> [ 3299.696632]  [<ffffffff811ff46c>] ? vm_mmap_pgoff+0x6c/0xb0
+> [ 3299.696632]  [<ffffffff811ff484>] vm_mmap_pgoff+0x84/0xb0
+> [ 3299.696632]  [<ffffffff8124fd80>] ? fget_raw+0x260/0x260
+> [ 3299.696632]  [<ffffffff81211fde>] sys_mmap_pgoff+0x15e/0x190
+> [ 3299.696632]  [<ffffffff81985ede>] ? trace_hardirqs_on_thunk+0x3a/0x3f
+> [ 3299.696632]  [<ffffffff8106d4dd>] sys_mmap+0x1d/0x20
+> [ 3299.696632]  [<ffffffff8372a539>] system_call_fastpath+0x16/0x1b
+> [ 3299.696632] Code: 28 5b c9 c3 0f 1f 44 00 00 55 49 89 d0 48 89 e5 41 57 41 56 49 89 f6 41 55 49 89 fd 41 54 49 89 cc 53 48 83 ec 18 48 39 f7 72 0e <0f> 0b 0f 1f 40 00 eb fe 66 0f 1f 44 00 00 8b 3d 1a 5b e3 03 85
+> [ 3299.696632] RIP  [<ffffffff810a8b62>] reserve_memtype+0x22/0x3d0
+> [ 3299.696632]  RSP <ffff88000ad61bc8>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
