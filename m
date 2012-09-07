@@ -1,50 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx133.postini.com [74.125.245.133])
-	by kanga.kvack.org (Postfix) with SMTP id 0F2876B0044
-	for <linux-mm@kvack.org>; Fri,  7 Sep 2012 14:27:48 -0400 (EDT)
-Date: Fri, 7 Sep 2012 11:27:15 -0700
-From: Larry Bassel <lbassel@codeaurora.org>
-Subject: steering allocations to particular parts of memory
-Message-ID: <20120907182715.GB4018@labbmf01-linux.qualcomm.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Received: from psmtp.com (na3sys010amx104.postini.com [74.125.245.104])
+	by kanga.kvack.org (Postfix) with SMTP id 607606B0044
+	for <linux-mm@kvack.org>; Fri,  7 Sep 2012 16:06:07 -0400 (EDT)
+Date: Fri, 7 Sep 2012 13:06:05 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm: Fix compile warning of mmotm-2012-09-06-16-46
+Message-Id: <20120907130605.be86f2a9.akpm@linux-foundation.org>
+In-Reply-To: <1346979430-23110-1-git-send-email-minchan@kernel.org>
+References: <1346979430-23110-1-git-send-email-minchan@kernel.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mgorman@suse.de
-Cc: dan.magenheimer@oracle.com, linux-mm@kvack.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: linux-mm@kvack.org, Sagi Grimberg <sagig@mellanox.com>, Haggai Eran <haggaie@mellanox.com>
 
-I am looking for a way to steer allocations (these may be
-by either userspace or the kernel) to or away from particular
-ranges of memory. The reason for this is that some parts of
-memory are different from others (i.e. some memory may be
-faster/slower). For instance there may be 500M of "fast"
-memory and 1500M of "slower" memory on a 2G platform.
+On Fri,  7 Sep 2012 09:57:10 +0900
+Minchan Kim <minchan@kernel.org> wrote:
 
-At the memory mini-summit last week, it was mentioned
-that the Super-H architecture was using NUMA for this
-purpose, which was considered to be an very bad thing
-to do -- we have ported NUMA to ARM here (as an experiment)
-and agree that NUMA doesn't work well for solving this problem.
+> When I compiled today, I met following warning.
+> Correct it.
+> 
+> mm/memory.c: In function ___copy_page_range___:
+> include/linux/mmu_notifier.h:235:38: warning: ___mmun_end___ may be used uninitialized in this function [-Wuninitialized]
+> mm/memory.c:1043:16: note: ___mmun_end___ was declared here
+> include/linux/mmu_notifier.h:235:38: warning: ___mmun_start___ may be used uninitialized in this function [-Wuninitialized]
+> mm/memory.c:1042:16: note: ___mmun_start___ was declared here
+>   LD      mm/built-in.o
+> 
+> Cc: Sagi Grimberg <sagig@mellanox.com>
+> Cc: Haggai Eran <haggaie@mellanox.com>
+> Signed-off-by: Minchan Kim <minchan@kernel.org>
+> ---
+>  mm/memory.c |    4 ++--
+>  1 file changed, 2 insertions(+), 2 deletions(-)
+> 
+> diff --git a/mm/memory.c b/mm/memory.c
+> index 10e9b38..d000449 100644
+> --- a/mm/memory.c
+> +++ b/mm/memory.c
+> @@ -1039,8 +1039,8 @@ int copy_page_range(struct mm_struct *dst_mm, struct mm_struct *src_mm,
+>  	unsigned long next;
+>  	unsigned long addr = vma->vm_start;
+>  	unsigned long end = vma->vm_end;
+> -	unsigned long mmun_start;	/* For mmu_notifiers */
+> -	unsigned long mmun_end;		/* For mmu_notifiers */
+> +	unsigned long uninitialized_var(mmun_start);	/* For mmu_notifiers */
+> +	unsigned long uninitialized_var(mmun_end);	/* For mmu_notifiers */
+>  	int ret;
+>  
 
-After the NUMA discussion, I spoke briefly to you and asked
-you what a good approach would be. You thought that something
-based on transcendent memory (which I am somewhat familiar
-with, having built something based upon it which can be used either
-as contiguous memory or as clean cache) might work, but
-you didn't supply any details.
+Well yes, but a) uninitialized_var is a bit ugly and has some potential
+to hide real bugs and b) it's not completely obvious that
+is_cow_mapping() is stable across those two calls.
 
-At the time, you asked me to email you about this and copy
-Dan and the linux-mm mailing list, where hopefully you or Dan
-might be able to explain how this would work.
+I think a better approach is this:
 
-Thanks.
+--- a/mm/memory.c~mm-move-all-mmu-notifier-invocations-to-be-done-outside-the-pt-lock-fix-fix
++++ a/mm/memory.c
+@@ -1041,6 +1041,7 @@ int copy_page_range(struct mm_struct *ds
+ 	unsigned long end = vma->vm_end;
+ 	unsigned long mmun_start;	/* For mmu_notifiers */
+ 	unsigned long mmun_end;		/* For mmu_notifiers */
++	bool is_cow;
+ 	int ret;
+ 
+ 	/*
+@@ -1074,7 +1075,8 @@ int copy_page_range(struct mm_struct *ds
+ 	 * parent mm. And a permission downgrade will only happen if
+ 	 * is_cow_mapping() returns true.
+ 	 */
+-	if (is_cow_mapping(vma->vm_flags)) {
++	is_cow = is_cow_mapping(vma->vm_flags);
++	if (is_cow) {
+ 		mmun_start = addr;
+ 		mmun_end   = end;
+ 		mmu_notifier_invalidate_range_start(src_mm, mmun_start,
+@@ -1095,7 +1097,7 @@ int copy_page_range(struct mm_struct *ds
+ 		}
+ 	} while (dst_pgd++, src_pgd++, addr = next, addr != end);
+ 
+-	if (is_cow_mapping(vma->vm_flags))
++	if (is_cow)
+ 		mmu_notifier_invalidate_range_end(src_mm, mmun_start, mmun_end);
+ 	return ret;
+ }
 
-Larry Bassel
+Unfortunately, my (old) versions of gcc are so stupid that they *still*
+generate the warning even when the code is as obviously correct as this :(
 
--- 
-The Qualcomm Innovation Center, Inc. is a member of Code Aurora Forum,
-hosted by The Linux Foundation
+Can you please test it with your compiler?
+
+We should use this patch anyway - it makes memory.o text 13 bytes smaller.
+
+is_cow_mapping() should return bool.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
