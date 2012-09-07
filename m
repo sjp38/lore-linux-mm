@@ -1,578 +1,403 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
-	by kanga.kvack.org (Postfix) with SMTP id B943D6B005A
-	for <linux-mm@kvack.org>; Fri,  7 Sep 2012 03:22:44 -0400 (EDT)
-Message-ID: <5049A216.3010307@cn.fujitsu.com>
-Date: Fri, 07 Sep 2012 15:28:22 +0800
-From: Wen Congyang <wency@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
+	by kanga.kvack.org (Postfix) with SMTP id 3424F6B0062
+	for <linux-mm@kvack.org>; Fri,  7 Sep 2012 03:31:19 -0400 (EDT)
+Received: by wibhq4 with SMTP id hq4so1891958wib.8
+        for <linux-mm@kvack.org>; Fri, 07 Sep 2012 00:31:17 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [RFC v2] memory-hotplug: remove MIGRATE_ISOLATE from free_area->free_list
-References: <1346900018-14759-1-git-send-email-minchan@kernel.org>
-In-Reply-To: <1346900018-14759-1-git-send-email-minchan@kernel.org>
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <CAH9JG2VOoA30q+3sjC4UbNFNv2Vn9KnPNNXRb+kYMKWXKHbPew@mail.gmail.com>
+References: <1346832673-12512-1-git-send-email-minchan@kernel.org>
+	<1346832673-12512-2-git-send-email-minchan@kernel.org>
+	<20120905105611.GI11266@suse.de>
+	<20120906053112.GA16231@bbox>
+	<20120906082935.GN11266@suse.de>
+	<20120906090325.GO11266@suse.de>
+	<20120907022434.GG16231@bbox>
+	<CAH9JG2VOoA30q+3sjC4UbNFNv2Vn9KnPNNXRb+kYMKWXKHbPew@mail.gmail.com>
+Date: Fri, 7 Sep 2012 16:31:17 +0900
+Message-ID: <CAH9JG2XozEBOah1BsaowbU=j3SE35wZVXkDjZhK7GLUzcTbfEA@mail.gmail.com>
+Subject: Re: [PATCH 2/2] mm: support MIGRATE_DISCARD
+From: Kyungmin Park <kmpark@infradead.org>
 Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Minchan Kim <minchan@kernel.org>
-Cc: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Michal Nazarewicz <mina86@mina86.com>, Mel Gorman <mel@csn.ul.ie>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+Cc: Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, Rik van Riel <riel@redhat.com>
 
-At 09/06/2012 10:53 AM, Minchan Kim Wrote:
-> Normally, MIGRATE_ISOLATE type is used for memory-hotplug.
-> But it's irony type because the pages isolated would exist
-> as free page in free_area->free_list[MIGRATE_ISOLATE] so people
-> can think of it as allocatable pages but it is *never* allocatable.
-> It ends up confusing NR_FREE_PAGES vmstat so it would be
-> totally not accurate so some of place which depend on such vmstat
-> could reach wrong decision by the context.
-> 
-> There were already report about it.[1]
-> [1] 702d1a6e, memory-hotplug: fix kswapd looping forever problem
-> 
-> Then, there was other report which is other problem.[2]
-> [2] http://www.spinics.net/lists/linux-mm/msg41251.html
-> 
-> I believe it can make problems in future, too.
-> So I hope removing such irony type by another design.
-> 
-> I hope this patch solves it and let's revert [1] and doesn't need [2].
-> 
-> * Changelog v1
->  * Fix from Michal's many suggestion
-> 
-> Cc: Michal Nazarewicz <mina86@mina86.com>
-> Cc: Mel Gorman <mel@csn.ul.ie>
-> Cc: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> Cc: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-> Cc: Wen Congyang <wency@cn.fujitsu.com>
-> Cc: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-> Signed-off-by: Minchan Kim <minchan@kernel.org>
-> ---
-> It's very early version which show the concept so I still marked it with RFC.
-> I just tested it with simple test and works.
-> This patch is needed indepth review from memory-hotplug guys from fujitsu
-> because I saw there are lots of patches recenlty they sent to about
-> memory-hotplug change. Please take a look at this patch.
-> 
->  drivers/xen/balloon.c          |    2 +
->  include/linux/mmzone.h         |    4 +-
->  include/linux/page-isolation.h |   11 ++-
->  mm/internal.h                  |    3 +
->  mm/memory_hotplug.c            |   38 ++++++----
->  mm/page_alloc.c                |   33 ++++----
->  mm/page_isolation.c            |  162 +++++++++++++++++++++++++++++++++-------
->  mm/vmstat.c                    |    1 -
->  8 files changed, 193 insertions(+), 61 deletions(-)
-> 
-> diff --git a/drivers/xen/balloon.c b/drivers/xen/balloon.c
-> index 31ab82f..df0f5f3 100644
-> --- a/drivers/xen/balloon.c
-> +++ b/drivers/xen/balloon.c
-> @@ -50,6 +50,7 @@
->  #include <linux/notifier.h>
->  #include <linux/memory.h>
->  #include <linux/memory_hotplug.h>
-> +#include <linux/page-isolation.h>
->  
->  #include <asm/page.h>
->  #include <asm/pgalloc.h>
-> @@ -268,6 +269,7 @@ static void xen_online_page(struct page *page)
->  	else
->  		--balloon_stats.balloon_hotplug;
->  
-> +	delete_from_isolated_list(page);
->  	mutex_unlock(&balloon_mutex);
->  }
->  
-> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-> index 2daa54f..438bab8 100644
-> --- a/include/linux/mmzone.h
-> +++ b/include/linux/mmzone.h
-> @@ -57,8 +57,8 @@ enum {
->  	 */
->  	MIGRATE_CMA,
->  #endif
-> -	MIGRATE_ISOLATE,	/* can't allocate from here */
-> -	MIGRATE_TYPES
-> +	MIGRATE_TYPES,
-> +	MIGRATE_ISOLATE
->  };
->  
->  #ifdef CONFIG_CMA
-> diff --git a/include/linux/page-isolation.h b/include/linux/page-isolation.h
-> index 105077a..1ae2cd6 100644
-> --- a/include/linux/page-isolation.h
-> +++ b/include/linux/page-isolation.h
-> @@ -1,11 +1,16 @@
->  #ifndef __LINUX_PAGEISOLATION_H
->  #define __LINUX_PAGEISOLATION_H
->  
-> +extern struct list_head isolated_pages;
->  
->  bool has_unmovable_pages(struct zone *zone, struct page *page, int count);
->  void set_pageblock_migratetype(struct page *page, int migratetype);
->  int move_freepages_block(struct zone *zone, struct page *page,
->  				int migratetype);
-> +
-> +void isolate_free_page(struct page *page, unsigned int order);
-> +void delete_from_isolated_list(struct page *page);
-> +
->  /*
->   * Changes migrate type in [start_pfn, end_pfn) to be MIGRATE_ISOLATE.
->   * If specified range includes migrate types other than MOVABLE or CMA,
-> @@ -20,9 +25,13 @@ start_isolate_page_range(unsigned long start_pfn, unsigned long end_pfn,
->  			 unsigned migratetype);
->  
->  /*
-> - * Changes MIGRATE_ISOLATE to MIGRATE_MOVABLE.
-> + * Changes MIGRATE_ISOLATE to @migratetype.
->   * target range is [start_pfn, end_pfn)
->   */
-> +void
-> +undo_isolate_pageblocks(unsigned long start_pfn, unsigned long end_pfn,
-> +			unsigned migratetype);
-> +
->  int
->  undo_isolate_page_range(unsigned long start_pfn, unsigned long end_pfn,
->  			unsigned migratetype);
-> diff --git a/mm/internal.h b/mm/internal.h
-> index 3314f79..393197e 100644
-> --- a/mm/internal.h
-> +++ b/mm/internal.h
-> @@ -144,6 +144,9 @@ isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
->   * function for dealing with page's order in buddy system.
->   * zone->lock is already acquired when we use these.
->   * So, we don't need atomic page->flags operations here.
-> + *
-> + * Page order should be put on page->private because
-> + * memory-hotplug depends on it. Look mm/page_isolation.c.
->   */
->  static inline unsigned long page_order(struct page *page)
->  {
-> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-> index 3ad25f9..30c36d5 100644
-> --- a/mm/memory_hotplug.c
-> +++ b/mm/memory_hotplug.c
-> @@ -410,26 +410,29 @@ void __online_page_set_limits(struct page *page)
->  	unsigned long pfn = page_to_pfn(page);
->  
->  	if (pfn >= num_physpages)
-> -		num_physpages = pfn + 1;
-> +		num_physpages = pfn + (1 << page_order(page));
->  }
->  EXPORT_SYMBOL_GPL(__online_page_set_limits);
->  
->  void __online_page_increment_counters(struct page *page)
->  {
-> -	totalram_pages++;
-> +	totalram_pages += (1 << page_order(page));
->  
->  #ifdef CONFIG_HIGHMEM
->  	if (PageHighMem(page))
-> -		totalhigh_pages++;
-> +		totalhigh_pages += (1 << page_order(page));
->  #endif
->  }
->  EXPORT_SYMBOL_GPL(__online_page_increment_counters);
->  
->  void __online_page_free(struct page *page)
->  {
-> -	ClearPageReserved(page);
-> -	init_page_count(page);
-> -	__free_page(page);
-> +	int i;
-> +	unsigned long order = page_order(page);
-> +	for (i = 0; i < (1 << order); i++)
-> +		ClearPageReserved(page + i);
-> +	set_page_private(page, 0);
-> +	__free_pages(page, order);
->  }
->  EXPORT_SYMBOL_GPL(__online_page_free);
->  
-> @@ -437,26 +440,29 @@ static void generic_online_page(struct page *page)
->  {
->  	__online_page_set_limits(page);
->  	__online_page_increment_counters(page);
-> +	delete_from_isolated_list(page);
->  	__online_page_free(page);
->  }
->  
->  static int online_pages_range(unsigned long start_pfn, unsigned long nr_pages,
->  			void *arg)
->  {
-> -	unsigned long i;
-> +	unsigned long pfn;
-> +	unsigned long end_pfn = start_pfn + nr_pages;
->  	unsigned long onlined_pages = *(unsigned long *)arg;
-> -	struct page *page;
-> -	if (PageReserved(pfn_to_page(start_pfn)))
-> -		for (i = 0; i < nr_pages; i++) {
-> -			page = pfn_to_page(start_pfn + i);
-> -			(*online_page_callback)(page);
-> -			onlined_pages++;
-> +	struct page *cursor, *tmp;
-> +	list_for_each_entry_safe(cursor, tmp, &isolated_pages, lru) {
-> +		pfn = page_to_pfn(cursor);
-> +		if (pfn >= start_pfn && pfn < end_pfn) {
-> +			(*online_page_callback)(cursor);
-> +			onlined_pages += (1 << page_order(cursor));
->  		}
-> +	}
-> +
-
-If the memory is hotpluged, the pages are not in isolated_pages, and they
-can't be onlined.
-
->  	*(unsigned long *)arg = onlined_pages;
->  	return 0;
->  }
->  
-> -
->  int __ref online_pages(unsigned long pfn, unsigned long nr_pages)
->  {
->  	unsigned long onlined_pages = 0;
-> @@ -954,11 +960,11 @@ repeat:
->  		goto failed_removal;
->  	}
->  	printk(KERN_INFO "Offlined Pages %ld\n", offlined_pages);
-> -	/* Ok, all of our target is islaoted.
-> +	/* Ok, all of our target is isolated.
->  	   We cannot do rollback at this point. */
->  	offline_isolated_pages(start_pfn, end_pfn);
->  	/* reset pagetype flags and makes migrate type to be MOVABLE */
-> -	undo_isolate_page_range(start_pfn, end_pfn, MIGRATE_MOVABLE);
-> +	undo_isolate_pageblocks(start_pfn, end_pfn, MIGRATE_MOVABLE);
->  	/* removal success */
->  	zone->present_pages -= offlined_pages;
->  	zone->zone_pgdat->node_present_pages -= offlined_pages;
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index ba3100a..3e516c5 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -721,6 +721,7 @@ static void __free_pages_ok(struct page *page, unsigned int order)
->  {
->  	unsigned long flags;
->  	int wasMlocked = __TestClearPageMlocked(page);
-> +	int migratetype;
->  
->  	if (!free_pages_prepare(page, order))
->  		return;
-> @@ -729,8 +730,14 @@ static void __free_pages_ok(struct page *page, unsigned int order)
->  	if (unlikely(wasMlocked))
->  		free_page_mlock(page);
->  	__count_vm_events(PGFREE, 1 << order);
-> -	free_one_page(page_zone(page), page, order,
-> -					get_pageblock_migratetype(page));
-> +
-> +	migratetype = get_pageblock_migratetype(page);
-> +	if (likely(migratetype != MIGRATE_ISOLATE))
-> +		free_one_page(page_zone(page), page, order,
-> +				migratetype);
-> +	else
-> +		isolate_free_page(page, order);
-> +
->  	local_irq_restore(flags);
->  }
->  
-> @@ -906,7 +913,6 @@ static int fallbacks[MIGRATE_TYPES][4] = {
->  	[MIGRATE_MOVABLE]     = { MIGRATE_RECLAIMABLE, MIGRATE_UNMOVABLE,   MIGRATE_RESERVE },
->  #endif
->  	[MIGRATE_RESERVE]     = { MIGRATE_RESERVE }, /* Never used */
-> -	[MIGRATE_ISOLATE]     = { MIGRATE_RESERVE }, /* Never used */
->  };
->  
->  /*
-> @@ -948,8 +954,13 @@ static int move_freepages(struct zone *zone,
->  		}
->  
->  		order = page_order(page);
-> -		list_move(&page->lru,
-> -			  &zone->free_area[order].free_list[migratetype]);
-> +		if (migratetype != MIGRATE_ISOLATE) {
-> +			list_move(&page->lru,
-> +				&zone->free_area[order].free_list[migratetype]);
-> +		} else {
-> +			list_del(&page->lru);
-> +			isolate_free_page(page, order);
-> +		}
->  		page += 1 << order;
->  		pages_moved += 1 << order;
->  	}
-> @@ -1316,7 +1327,7 @@ void free_hot_cold_page(struct page *page, int cold)
->  	 */
->  	if (migratetype >= MIGRATE_PCPTYPES) {
->  		if (unlikely(migratetype == MIGRATE_ISOLATE)) {
-> -			free_one_page(zone, page, 0, migratetype);
-> +			isolate_free_page(page, 0);
->  			goto out;
->  		}
->  		migratetype = MIGRATE_MOVABLE;
-> @@ -5908,7 +5919,6 @@ __offline_isolated_pages(unsigned long start_pfn, unsigned long end_pfn)
->  	struct zone *zone;
->  	int order, i;
->  	unsigned long pfn;
-> -	unsigned long flags;
->  	/* find the first valid pfn */
->  	for (pfn = start_pfn; pfn < end_pfn; pfn++)
->  		if (pfn_valid(pfn))
-> @@ -5916,7 +5926,6 @@ __offline_isolated_pages(unsigned long start_pfn, unsigned long end_pfn)
->  	if (pfn == end_pfn)
->  		return;
->  	zone = page_zone(pfn_to_page(pfn));
-> -	spin_lock_irqsave(&zone->lock, flags);
->  	pfn = start_pfn;
->  	while (pfn < end_pfn) {
->  		if (!pfn_valid(pfn)) {
-> @@ -5924,23 +5933,15 @@ __offline_isolated_pages(unsigned long start_pfn, unsigned long end_pfn)
->  			continue;
->  		}
->  		page = pfn_to_page(pfn);
-> -		BUG_ON(page_count(page));
-> -		BUG_ON(!PageBuddy(page));
->  		order = page_order(page);
->  #ifdef CONFIG_DEBUG_VM
->  		printk(KERN_INFO "remove from free list %lx %d %lx\n",
->  		       pfn, 1 << order, end_pfn);
->  #endif
-> -		list_del(&page->lru);
-> -		rmv_page_order(page);
-> -		zone->free_area[order].nr_free--;
-> -		__mod_zone_page_state(zone, NR_FREE_PAGES,
-> -				      - (1UL << order));
->  		for (i = 0; i < (1 << order); i++)
->  			SetPageReserved((page+i));
->  		pfn += (1 << order);
->  	}
-> -	spin_unlock_irqrestore(&zone->lock, flags);
->  }
->  #endif
->  
-> diff --git a/mm/page_isolation.c b/mm/page_isolation.c
-> index 247d1f1..27cf59e 100644
-> --- a/mm/page_isolation.c
-> +++ b/mm/page_isolation.c
-> @@ -8,6 +8,90 @@
->  #include <linux/memory.h>
->  #include "internal.h"
->  
-> +LIST_HEAD(isolated_pages);
-> +static DEFINE_SPINLOCK(lock);
-> +
-> +/*
-> + * Add the page into isolated_pages which is sort of pfn ascending list.
-> + */
-> +static void __add_isolated_page(struct page *page)
-> +{
-> +	struct page *cursor;
-> +	unsigned long pfn;
-> +	unsigned long new_pfn = page_to_pfn(page);
-> +
-> +	list_for_each_entry_reverse(cursor, &isolated_pages, lru) {
-> +		pfn = page_to_pfn(cursor);
-> +		if (pfn < new_pfn)
-> +			break;
-> +	}
-> +
-> +	list_add(&page->lru, &cursor->lru);
-> +}
-> +
-> +/*
-> + * Isolate free page. It is used by memory-hotplug for stealing
-> + * free page from free_area or freeing path of allocator.
-> + */
-> +void isolate_free_page(struct page *page, unsigned int order)
-> +{
-> +	unsigned long flags;
-> +
-> +	/*
-> +	 * We increase refcount for further freeing when online_pages
-> +	 * happens and record order into @page->private so that
-> +	 * online_pages can know what order page freeing.
-> +	 */
-> +	set_page_refcounted(page);
-> +	set_page_private(page, order);
-> +
-> +	/* move_freepages is alredy hold zone->lock */
-> +	if (PageBuddy(page))
-> +		__ClearPageBuddy(page);
-> +
-> +	spin_lock_irqsave(&lock, flags);
-> +	__add_isolated_page(page);
-> +	spin_unlock_irqrestore(&lock, flags);
-> +}
-> +
-> +void delete_from_isolated_list(struct page *page)
-> +{
-> +	unsigned long flags;
-> +
-> +	spin_lock_irqsave(&lock, flags);
-> +	list_del(&page->lru);
-> +	spin_unlock_irqrestore(&lock, flags);
-> +}
-> +
-> +/* free pages in the pageblock which include @page */
-> +static void free_isolated_pageblock(struct page *page)
-> +{
-> +	struct page *cursor, *tmp;
-> +	unsigned long start_pfn, end_pfn, pfn;
-> +	unsigned long flags;
-> +	LIST_HEAD(pages);
-> +
-> +	start_pfn = page_to_pfn(page);
-> +	start_pfn = start_pfn & ~(pageblock_nr_pages-1);
-> +	end_pfn = start_pfn + pageblock_nr_pages;
-> +
-> +	spin_lock_irqsave(&lock, flags);
-> +	list_for_each_entry_safe(cursor, tmp, &isolated_pages, lru) {
-> +		pfn = page_to_pfn(cursor);
-> +		if (pfn >= end_pfn)
-> +			break;
-> +		if (pfn >= start_pfn)
-> +			list_move(&cursor->lru, &pages);
-> +	}
-> +	spin_unlock_irqrestore(&lock, flags);
-> +
-> +	list_for_each_entry_safe(cursor, tmp, &pages, lru) {
-> +		int order = page_order(cursor);
-> +		list_del(&cursor->lru);
-> +		__free_pages(cursor, order);
-> +	}
-> +}
-> +
->  /* called while holding zone->lock */
->  static void set_pageblock_isolate(struct page *page)
->  {
-> @@ -91,13 +175,12 @@ void unset_migratetype_isolate(struct page *page, unsigned migratetype)
->  	struct zone *zone;
->  	unsigned long flags;
->  	zone = page_zone(page);
-> +
->  	spin_lock_irqsave(&zone->lock, flags);
-> -	if (get_pageblock_migratetype(page) != MIGRATE_ISOLATE)
-> -		goto out;
-> -	move_freepages_block(zone, page, migratetype);
-> -	restore_pageblock_isolate(page, migratetype);
-> -out:
-> +	if (get_pageblock_migratetype(page) == MIGRATE_ISOLATE)
-> +		restore_pageblock_isolate(page, migratetype);
->  	spin_unlock_irqrestore(&zone->lock, flags);
-> +	free_isolated_pageblock(page);
->  }
->  
->  static inline struct page *
-> @@ -155,6 +238,30 @@ undo:
->  	return -EBUSY;
->  }
->  
-> +void undo_isolate_pageblocks(unsigned long start_pfn, unsigned long end_pfn,
-> +		unsigned migratetype)
-> +{
-> +	unsigned long pfn;
-> +	struct page *page;
-> +	struct zone *zone;
-> +	unsigned long flags;
-> +
-> +	BUG_ON(start_pfn & (pageblock_nr_pages - 1));
-> +	BUG_ON(end_pfn & (pageblock_nr_pages - 1));
-> +
-> +	for (pfn = start_pfn;
-> +			pfn < end_pfn;
-> +			pfn += pageblock_nr_pages) {
-> +		page = __first_valid_page(pfn, pageblock_nr_pages);
-> +		if (!page || get_pageblock_migratetype(page) != MIGRATE_ISOLATE)
-> +			continue;
-> +		zone = page_zone(page);
-> +		spin_lock_irqsave(&zone->lock, flags);
-> +		restore_pageblock_isolate(page, migratetype);
-> +		spin_unlock_irqrestore(&zone->lock, flags);
-> +	}
-> +}
-> +
->  /*
->   * Make isolated pages available again.
->   */
-> @@ -180,30 +287,35 @@ int undo_isolate_page_range(unsigned long start_pfn, unsigned long end_pfn,
->   * all pages in [start_pfn...end_pfn) must be in the same zone.
->   * zone->lock must be held before call this.
->   *
-> - * Returns 1 if all pages in the range are isolated.
-> + * Returns true if all pages in the range are isolated.
->   */
-> -static int
-> -__test_page_isolated_in_pageblock(unsigned long pfn, unsigned long end_pfn)
-> +static bool
-> +__test_page_isolated_in_pageblock(unsigned long start_pfn, unsigned long end_pfn)
-
-This function fails and the pages can't be offlined in my test. I will investigate
-it if I have time.
-
-Thanks
-Wen Congyang
-
->  {
-> +	unsigned long pfn, next_pfn;
->  	struct page *page;
->  
-> -	while (pfn < end_pfn) {
-> -		if (!pfn_valid_within(pfn)) {
-> -			pfn++;
-> -			continue;
-> -		}
-> -		page = pfn_to_page(pfn);
-> -		if (PageBuddy(page))
-> -			pfn += 1 << page_order(page);
-> -		else if (page_count(page) == 0 &&
-> -				page_private(page) == MIGRATE_ISOLATE)
-> -			pfn += 1;
-> -		else
-> -			break;
-> +	list_for_each_entry(page, &isolated_pages, lru) {
-> +		if (&page->lru == &isolated_pages)
-> +			return false;
-> +		pfn = page_to_pfn(page);
-> +		if (pfn >= end_pfn)
-> +			return false;
-> +		if (pfn >= start_pfn)
-> +			goto found;
-> +	}
-> +	return false;
-> +
-> +	list_for_each_entry_continue(page, &isolated_pages, lru) {
-> +		if (page_to_pfn(page) != next_pfn)
-> +			return false;
-> +found:
-> +		pfn = page_to_pfn(page);
-> +		next_pfn = pfn + (1UL << page_order(page));
-> +		if (next_pfn >= end_pfn)
-> +			return true;
->  	}
-> -	if (pfn < end_pfn)
-> -		return 0;
-> -	return 1;
-> +	return false;
->  }
->  
->  int test_pages_isolated(unsigned long start_pfn, unsigned long end_pfn)
-> @@ -211,7 +323,7 @@ int test_pages_isolated(unsigned long start_pfn, unsigned long end_pfn)
->  	unsigned long pfn, flags;
->  	struct page *page;
->  	struct zone *zone;
-> -	int ret;
-> +	bool ret;
->  
->  	/*
->  	 * Note: pageblock_nr_page != MAX_ORDER. Then, chunks of free page
-> diff --git a/mm/vmstat.c b/mm/vmstat.c
-> index df7a674..bb59ff7 100644
-> --- a/mm/vmstat.c
-> +++ b/mm/vmstat.c
-> @@ -616,7 +616,6 @@ static char * const migratetype_names[MIGRATE_TYPES] = {
->  #ifdef CONFIG_CMA
->  	"CMA",
->  #endif
-> -	"Isolate",
->  };
->  
->  static void *frag_start(struct seq_file *m, loff_t *pos)
+On 9/7/12, Kyungmin Park <kmpark@infradead.org> wrote:
+> Hi Minchan,
+>
+> I tested Mel patch again with ClearPageActive(page). but after some
+> testing, it's stall and can't return from
+> reclaim_clean_pages_from_list(&cc.migratepages).
+>
+> Maybe it's related with unmap feature from yours?
+> stall is not happened from your codes until now.
+>
+> I'll test it more and report any issue if happened.
+Updated. it's hang also. there are other issues.
+>
+> Thank you,
+> Kyungmin Park
+>
+> On 9/7/12, Minchan Kim <minchan@kernel.org> wrote:
+>> On Thu, Sep 06, 2012 at 10:03:25AM +0100, Mel Gorman wrote:
+>>> On Thu, Sep 06, 2012 at 09:29:35AM +0100, Mel Gorman wrote:
+>>> > On Thu, Sep 06, 2012 at 02:31:12PM +0900, Minchan Kim wrote:
+>>> > > Hi Mel,
+>>> > >
+>>> > > On Wed, Sep 05, 2012 at 11:56:11AM +0100, Mel Gorman wrote:
+>>> > > > On Wed, Sep 05, 2012 at 05:11:13PM +0900, Minchan Kim wrote:
+>>> > > > > This patch introudes MIGRATE_DISCARD mode in migration.
+>>> > > > > It drops *clean cache pages* instead of migration so that
+>>> > > > > migration latency could be reduced by avoiding (memcpy + page
+>>> > > > > remapping).
+>>> > > > > It's useful for CMA because latency of migration is very
+>>> > > > > important
+>>> > > > > rather
+>>> > > > > than eviction of background processes's workingset. In addition,
+>>> > > > > it needs
+>>> > > > > less free pages for migration targets so it could avoid memory
+>>> > > > > reclaiming
+>>> > > > > to get free pages, which is another factor increase latency.
+>>> > > > >
+>>> > > >
+>>> > > > Bah, this was released while I was reviewing the older version. I
+>>> > > > did
+>>> > > > not read this one as closely but I see the enum problems have gone
+>>> > > > away
+>>> > > > at least. I'd still prefer if CMA had an additional helper to
+>>> > > > discard
+>>> > > > some pages with shrink_page_list() and migrate the remaining pages
+>>> > > > with
+>>> > > > migrate_pages(). That would remove the need to add a
+>>> > > > MIGRATE_DISCARD
+>>> > > > migrate mode at all.
+>>> > >
+>>> > > I am not convinced with your point. What's the benefit on separating
+>>> > > reclaim and migration? For just removing MIGRATE_DISCARD mode?
+>>> >
+>>> > Maintainability. There are reclaim functions and there are migration
+>>> > functions. Your patch takes migrate_pages() and makes it partially a
+>>> > reclaim function mixing up the responsibilities of migrate.c and
+>>> > vmscan.c.
+>>> >
+>>> > > I don't think it's not bad because my implementation is very
+>>> > > simple(maybe
+>>> > > it's much simpler than separating reclaim and migration) and
+>>> > > could be used by others like memory-hotplug in future.
+>>> >
+>>> > They could also have used the helper function from CMA that takes a
+>>> > list
+>>> > of pages, reclaims some and migrates other.
+>>> >
+>>>
+>>> I also do not accept that your approach is inherently simpler than what
+>>> I
+>>> proposed to you. This is not tested at all but it should be functionally
+>>> similar to both your patches except that it keeps the responsibility for
+>>> reclaim in vmscan.c
+>>>
+>>> Your diffstats are
+>>>
+>>> 8 files changed, 39 insertions(+), 36 deletions(-)
+>>> 3 files changed, 46 insertions(+), 4 deletions(-)
+>>>
+>>> Mine is
+>>>
+>>>  3 files changed, 32 insertions(+), 5 deletions(-)
+>>>
+>>> Fewer files changed and fewer lines inserted.
+>>>
+>>> ---8<---
+>>> mm: cma: Discard clean pages during contiguous allocation instead of
+>>> migration
+>>>
+>>> This patch drops clean cache pages instead of migration during
+>>> alloc_contig_range() to minimise allocation latency by reducing the
+>>> amount
+>>> of migration is necessary. It's useful for CMA because latency of
+>>> migration
+>>> is more important than evicting the background processes working set.
+>>>
+>>> Prototype-not-signed-off-but-feel-free-to-pick-up-and-test
+>>> ---
+>>>  mm/internal.h   |    1 +
+>>>  mm/page_alloc.c |    2 ++
+>>>  mm/vmscan.c     |   34 +++++++++++++++++++++++++++++-----
+>>>  3 files changed, 32 insertions(+), 5 deletions(-)
+>>>
+>>> diff --git a/mm/internal.h b/mm/internal.h
+>>> index b8c91b3..6d4bdf9 100644
+>>> --- a/mm/internal.h
+>>> +++ b/mm/internal.h
+>>> @@ -356,3 +356,4 @@ extern unsigned long vm_mmap_pgoff(struct file *,
+>>> unsigned long,
+>>>          unsigned long, unsigned long);
+>>>
+>>>  extern void set_pageblock_order(void);
+>>> +unsigned long reclaim_clean_pages_from_list(struct list_head
+>>> *page_list);
+>>> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+>>> index c66fb87..977bdb2 100644
+>>> --- a/mm/page_alloc.c
+>>> +++ b/mm/page_alloc.c
+>>> @@ -5670,6 +5670,8 @@ static int __alloc_contig_migrate_range(unsigned
+>>> long start, unsigned long end)
+>>>  			break;
+>>>  		}
+>>>
+>>> +		reclaim_clean_pages_from_list(&cc.migratepages);
+>>> +
+>>>  		ret = migrate_pages(&cc.migratepages,
+>>>  				    __alloc_contig_migrate_alloc,
+>>>  				    0, false, MIGRATE_SYNC);
+>>> diff --git a/mm/vmscan.c b/mm/vmscan.c
+>>> index 8d01243..ccf7bc2 100644
+>>> --- a/mm/vmscan.c
+>>> +++ b/mm/vmscan.c
+>>> @@ -703,7 +703,7 @@ static unsigned long shrink_page_list(struct
+>>> list_head
+>>> *page_list,
+>>>  			goto keep;
+>>>
+>>>  		VM_BUG_ON(PageActive(page));
+>>> -		VM_BUG_ON(page_zone(page) != zone);
+>>> +		VM_BUG_ON(zone && page_zone(page) != zone);
+>>>
+>>>  		sc->nr_scanned++;
+>>>
+>>> @@ -817,7 +817,9 @@ static unsigned long shrink_page_list(struct
+>>> list_head
+>>> *page_list,
+>>>  				 * except we already have the page isolated
+>>>  				 * and know it's dirty
+>>>  				 */
+>>> -				inc_zone_page_state(page, NR_VMSCAN_IMMEDIATE);
+>>> +				if (zone)
+>>> +					inc_zone_page_state(page,
+>>> +							NR_VMSCAN_IMMEDIATE);
+>>>  				SetPageReclaim(page);
+>>>
+>>>  				goto keep_locked;
+>>> @@ -947,7 +949,7 @@ keep:
+>>>  	 * back off and wait for congestion to clear because further reclaim
+>>>  	 * will encounter the same problem
+>>>  	 */
+>>> -	if (nr_dirty && nr_dirty == nr_congested && global_reclaim(sc))
+>>> +	if (zone && nr_dirty && nr_dirty == nr_congested &&
+>>> global_reclaim(sc))
+>>>  		zone_set_flag(zone, ZONE_CONGESTED);
+>>>
+>>>  	free_hot_cold_page_list(&free_pages, 1);
+>>> @@ -955,11 +957,33 @@ keep:
+>>>  	list_splice(&ret_pages, page_list);
+>>>  	count_vm_events(PGACTIVATE, pgactivate);
+>>>  	mem_cgroup_uncharge_end();
+>>> -	*ret_nr_dirty += nr_dirty;
+>>> -	*ret_nr_writeback += nr_writeback;
+>>> +	if (ret_nr_dirty)
+>>> +		*ret_nr_dirty += nr_dirty;
+>>> +	if (ret_nr_writeback)
+>>> +		*ret_nr_writeback += nr_writeback;
+>>>  	return nr_reclaimed;
+>>>  }
+>>>
+>>> +unsigned long reclaim_clean_pages_from_list(struct list_head
+>>> *page_list)
+>>> +{
+>>> +	struct scan_control sc = {
+>>> +		.gfp_mask = GFP_KERNEL,
+>>> +		.priority = DEF_PRIORITY,
+>>> +	};
+>>> +	unsigned long ret;
+>>> +	struct page *page, *next;
+>>> +	LIST_HEAD(clean_pages);
+>>> +
+>>> +	list_for_each_entry_safe(page, next, page_list, lru) {
+>>> +		if (page_is_file_cache(page) && !PageDirty(page))
+>>> +			list_move(&page->lru, &clean_pages);
+>>> +	}
+>>> +
+>>> +	ret = shrink_page_list(&clean_pages, NULL, &sc, NULL, NULL);
+>>> +	list_splice(&clean_pages, page_list);
+>>> +	return ret;
+>>> +}
+>>> +
+>>
+>> It's different with my point.
+>> My intention is to free mapped clean pages as well as not-mapped's one.
+>>
+>> How about this?
+>>
+>> From 0f6986e943e55929b4d7b0220a1c24a6bae1a24d Mon Sep 17 00:00:00 2001
+>> From: Minchan Kim <minchan@kernel.org>
+>> Date: Fri, 7 Sep 2012 11:20:48 +0900
+>> Subject: [PATCH] mm: cma: Discard clean pages during contiguous
+>> allocation
+>>  instead of migration
+>>
+>> This patch introudes MIGRATE_DISCARD mode in migration.
+>> It drops *clean cache pages* instead of migration so that
+>> migration latency could be reduced by avoiding (memcpy + page remapping).
+>> It's useful for CMA because latency of migration is very important rather
+>> than eviction of background processes's workingset. In addition, it needs
+>> less free pages for migration targets so it could avoid memory reclaiming
+>> to get free pages, which is another factor increase latency.
+>>
+>> Cc: Marek Szyprowski <m.szyprowski@samsung.com>
+>> Cc: Michal Nazarewicz <mina86@mina86.com>
+>> Cc: Rik van Riel <riel@redhat.com>
+>> Signed-off-by: Mel Gorman <mgorman@suse.de>
+>> Signed-off-by: Minchan Kim <minchan@kernel.org>
+>> ---
+>>  mm/internal.h   |    2 ++
+>>  mm/page_alloc.c |    2 ++
+>>  mm/vmscan.c     |   42 ++++++++++++++++++++++++++++++++++++------
+>>  3 files changed, 40 insertions(+), 6 deletions(-)
+>>
+>> diff --git a/mm/internal.h b/mm/internal.h
+>> index 3314f79..be09a7e 100644
+>> --- a/mm/internal.h
+>> +++ b/mm/internal.h
+>> @@ -355,3 +355,5 @@ extern unsigned long vm_mmap_pgoff(struct file *,
+>> unsigned long,
+>>          unsigned long, unsigned long);
+>>
+>>  extern void set_pageblock_order(void);
+>> +unsigned long reclaim_clean_pages_from_list(struct zone *zone,
+>> +				struct list_head *page_list);
+>> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+>> index ba3100a..bf35e59 100644
+>> --- a/mm/page_alloc.c
+>> +++ b/mm/page_alloc.c
+>> @@ -5668,6 +5668,8 @@ static int __alloc_contig_migrate_range(unsigned
+>> long
+>> start, unsigned long end)
+>>  			break;
+>>  		}
+>>
+>> +		reclaim_clean_pages_from_list(&cc.migratepages, cc.zone);
+>> +
+>>  		ret = migrate_pages(&cc.migratepages,
+>>  				    __alloc_contig_migrate_alloc,
+>>  				    0, false, MIGRATE_SYNC);
+>> diff --git a/mm/vmscan.c b/mm/vmscan.c
+>> index 8d01243..525355e 100644
+>> --- a/mm/vmscan.c
+>> +++ b/mm/vmscan.c
+>> @@ -674,8 +674,10 @@ static enum page_references
+>> page_check_references(struct page *page,
+>>  static unsigned long shrink_page_list(struct list_head *page_list,
+>>  				      struct zone *zone,
+>>  				      struct scan_control *sc,
+>> +				      enum ttu_flags ttu_flags,
+>>  				      unsigned long *ret_nr_dirty,
+>> -				      unsigned long *ret_nr_writeback)
+>> +				      unsigned long *ret_nr_writeback,
+>> +				      bool force_reclaim)
+>>  {
+>>  	LIST_HEAD(ret_pages);
+>>  	LIST_HEAD(free_pages);
+>> @@ -689,10 +691,10 @@ static unsigned long shrink_page_list(struct
+>> list_head
+>> *page_list,
+>>
+>>  	mem_cgroup_uncharge_start();
+>>  	while (!list_empty(page_list)) {
+>> -		enum page_references references;
+>>  		struct address_space *mapping;
+>>  		struct page *page;
+>>  		int may_enter_fs;
+>> +		enum page_references references = PAGEREF_RECLAIM;
+>>
+>>  		cond_resched();
+>>
+>> @@ -758,7 +760,9 @@ static unsigned long shrink_page_list(struct
+>> list_head
+>> *page_list,
+>>  			wait_on_page_writeback(page);
+>>  		}
+>>
+>> -		references = page_check_references(page, sc);
+>> +		if (!force_reclaim)
+>> +			references = page_check_references(page, sc);
+>> +
+>>  		switch (references) {
+>>  		case PAGEREF_ACTIVATE:
+>>  			goto activate_locked;
+>> @@ -788,7 +792,7 @@ static unsigned long shrink_page_list(struct
+>> list_head
+>> *page_list,
+>>  		 * processes. Try to unmap it here.
+>>  		 */
+>>  		if (page_mapped(page) && mapping) {
+>> -			switch (try_to_unmap(page, TTU_UNMAP)) {
+>> +			switch (try_to_unmap(page, ttu_flags)) {
+>>  			case SWAP_FAIL:
+>>  				goto activate_locked;
+>>  			case SWAP_AGAIN:
+>> @@ -960,6 +964,32 @@ keep:
+>>  	return nr_reclaimed;
+>>  }
+>>
+>> +unsigned long reclaim_clean_pages_from_list(struct zone *zone,
+>> +					struct list_head *page_list)
+>> +{
+>> +	struct scan_control sc = {
+>> +		.gfp_mask = GFP_KERNEL,
+>> +		.priority = DEF_PRIORITY,
+>> +		.may_unmap = 1,
+>> +	};
+>> +	unsigned long ret, dummy1, dummy2;
+>> +	struct page *page, *next;
+>> +	LIST_HEAD(clean_pages);
+>> +
+>> +	list_for_each_entry_safe(page, next, page_list, lru) {
+>> +		if (page_is_file_cache(page) && !PageDirty(page)) {
+>> +			ClearPageActive(page);
+>> +			list_move(&page->lru, &clean_pages);
+>> +		}
+>> +	}
+>> +
+>> +	ret = shrink_page_list(&clean_pages, zone, &sc,
+>> +				TTU_UNMAP|TTU_IGNORE_ACCESS,
+>> +				&dummy1, &dummy2, true);
+>> +	list_splice(&clean_pages, page_list);
+>> +	return ret;
+>> +}
+>> +
+>>  /*
+>>   * Attempt to remove the specified page from its LRU.  Only take this
+>> page
+>>   * if it is of the appropriate PageActive status.  Pages which are being
+>> @@ -1278,8 +1308,8 @@ shrink_inactive_list(unsigned long nr_to_scan,
+>> struct
+>> lruvec *lruvec,
+>>  	if (nr_taken == 0)
+>>  		return 0;
+>>
+>> -	nr_reclaimed = shrink_page_list(&page_list, zone, sc,
+>> -						&nr_dirty, &nr_writeback);
+>> +	nr_reclaimed = shrink_page_list(&page_list, zone, sc, TTU_UNMAP,
+>> +					&nr_dirty, &nr_writeback, false);
+>>
+>>  	spin_lock_irq(&zone->lru_lock);
+>>
+>> --
+>> 1.7.9.5
+>>
+>> --
+>> Kind regards,
+>> Minchan Kim
+>>
+>> --
+>> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>> the body to majordomo@kvack.org.  For more info on Linux MM,
+>> see: http://www.linux-mm.org/ .
+>> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
