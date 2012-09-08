@@ -1,55 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx159.postini.com [74.125.245.159])
-	by kanga.kvack.org (Postfix) with SMTP id 642826B0096
-	for <linux-mm@kvack.org>; Sat,  8 Sep 2012 09:26:06 -0400 (EDT)
-Received: by iec9 with SMTP id 9so817231iec.14
-        for <linux-mm@kvack.org>; Sat, 08 Sep 2012 06:26:05 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
+	by kanga.kvack.org (Postfix) with SMTP id 8AEBD6B0099
+	for <linux-mm@kvack.org>; Sat,  8 Sep 2012 09:36:30 -0400 (EDT)
+Received: by dadi14 with SMTP id i14so432889dad.14
+        for <linux-mm@kvack.org>; Sat, 08 Sep 2012 06:36:29 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <CAAmzW4N8fR_+ko6oAM_SVdOkwf-eZ1x_u2vkY6pjO+cOk0jg2Q@mail.gmail.com>
-References: <1346885323-15689-1-git-send-email-elezegarcia@gmail.com>
-	<1346885323-15689-5-git-send-email-elezegarcia@gmail.com>
-	<CAAmzW4P7=8P3h8-nCUB+iK+RSnVrcJBKUbV5hN+TpR53Xt7eGw@mail.gmail.com>
-	<CALF0-+XJh4hDM0e=zhJkWqmL+0ykp2aWfKt4f4g5jSWRwNW3Yw@mail.gmail.com>
-	<CAAmzW4N8fR_+ko6oAM_SVdOkwf-eZ1x_u2vkY6pjO+cOk0jg2Q@mail.gmail.com>
-Date: Sat, 8 Sep 2012 10:26:04 -0300
-Message-ID: <CALF0-+XBDXdzpKV-AyNDJpedt63_9yNroE8+exzmuff8GuYUjQ@mail.gmail.com>
-Subject: Re: [PATCH 5/5] mm, slob: Trace allocation failures consistently
-From: Ezequiel Garcia <elezegarcia@gmail.com>
+In-Reply-To: <CAPM31RKVYpkc0oTJKjsdsvqBfif=Bovi3a6TE8qdOOpEYOC0Lw@mail.gmail.com>
+References: <20120904214602.GA9092@dhcp-172-17-108-109.mtv.corp.google.com>
+	<5047074D.1030104@parallels.com>
+	<20120905081439.GC3195@dhcp-172-17-108-109.mtv.corp.google.com>
+	<50470A87.1040701@parallels.com>
+	<20120905082947.GD3195@dhcp-172-17-108-109.mtv.corp.google.com>
+	<50470EBF.9070109@parallels.com>
+	<20120905084740.GE3195@dhcp-172-17-108-109.mtv.corp.google.com>
+	<1346835993.2600.9.camel@twins>
+	<20120905093204.GL3195@dhcp-172-17-108-109.mtv.corp.google.com>
+	<1346839487.2600.24.camel@twins>
+	<20120906204642.GN29092@google.com>
+	<CAPM31RKVYpkc0oTJKjsdsvqBfif=Bovi3a6TE8qdOOpEYOC0Lw@mail.gmail.com>
+Date: Sat, 8 Sep 2012 09:36:29 -0400
+Message-ID: <CAPhKKr8f6q=6m4T=-6PA8za-nMQMKy1HykAX-2NRaL9AZoPSjw@mail.gmail.com>
+Subject: Re: [RFC 0/5] forced comounts for cgroups.
+From: Dhaval Giani <dhaval.giani@gmail.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: JoonSoo Kim <js1304@gmail.com>
-Cc: linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, Christoph Lameter <cl@linux.com>
+To: Paul Turner <pjt@google.com>
+Cc: Tejun Heo <tj@kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Glauber Costa <glommer@parallels.com>, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org, davej@redhat.com, ben@decadent.org.uk, lennart@poettering.net, kay.sievers@vrfy.org, Frederic Weisbecker <fweisbec@gmail.com>, Balbir Singh <bsingharora@gmail.com>, Bharata B Rao <bharata@linux.vnet.ibm.com>
 
-On Fri, Sep 7, 2012 at 6:23 PM, JoonSoo Kim <js1304@gmail.com> wrote:
-> Hi, Ezequiel.
->
-> 2012/9/7 Ezequiel Garcia <elezegarcia@gmail.com>:
->> Hi Joonso,
+On Thu, Sep 6, 2012 at 5:11 PM, Paul Turner <pjt@google.com> wrote:
+> On Thu, Sep 6, 2012 at 1:46 PM, Tejun Heo <tj@kernel.org> wrote:
+>> Hello,
 >>
->> On Thu, Sep 6, 2012 at 4:09 PM, JoonSoo Kim <js1304@gmail.com> wrote:
->>> 2012/9/6 Ezequiel Garcia <elezegarcia@gmail.com>:
->>>> This patch cleans how we trace kmalloc and kmem_cache_alloc.
->>>> In particular, it fixes out-of-memory tracing: now every failed
->>>> allocation will trace reporting non-zero requested bytes, zero obtained bytes.
->>>
->>> Other SLAB allocators(slab, slub) doesn't consider zero obtained bytes
->>> in tracing.
->>> These just return "addr = 0, obtained size = cache size"
->>> Why does the slob print a different output?
->>>
->>
->> I plan to fix slab, slub in a future patchset. I think it would be nice to have
->> a trace event reporting this event. But, perhaps it's not worth it.
+>> cc'ing Dhaval and Frederic.  They were interested in the subject
+>> before and Dhaval was pretty vocal about cpuacct having a separate
+>> hierarchy (or at least granularity).
 >
-> I think that output "addr =  0" is sufficient to trace out-of-memory situation.
-> Why do we need a output "addr = 0, obtained size = 0"?
+> Really?  Time just has _not_ borne out this use-case.  I'll let Dhaval
+> make a case for this but he should expect violent objection.
 >
 
-You're absolutely right.
+I am not objecting directly! I am aware of a few users who are (or at
+least were) using cpu and cpuacct separately because they want to be
+able to account without control. Having said that, there are tons of
+flaws in the current approach, because the accounting without control
+is just plain wrong. I have copied a few other folks who might be able
+to shed light on those users and if we should still consider them.
 
-Thanks,
-Ezequiel.
+[And the lesser number of controllers, the better it is!]
+
+Thanks!
+Dhaval
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
