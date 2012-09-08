@@ -1,57 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
-	by kanga.kvack.org (Postfix) with SMTP id AEA256B0070
-	for <linux-mm@kvack.org>; Fri,  7 Sep 2012 20:16:53 -0400 (EDT)
-Received: by dadi14 with SMTP id i14so98156dad.14
-        for <linux-mm@kvack.org>; Fri, 07 Sep 2012 17:16:53 -0700 (PDT)
-Date: Sat, 8 Sep 2012 09:16:43 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH 2/2] mm: support MIGRATE_DISCARD
-Message-ID: <20120908001643.GA2538@barrios>
-References: <1346832673-12512-1-git-send-email-minchan@kernel.org>
- <1346832673-12512-2-git-send-email-minchan@kernel.org>
- <20120905105611.GI11266@suse.de>
- <20120906053112.GA16231@bbox>
- <20120906082935.GN11266@suse.de>
- <20120906090325.GO11266@suse.de>
- <20120907022434.GG16231@bbox>
- <20120907082145.GV11266@suse.de>
- <20120907093203.GX11266@suse.de>
+Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
+	by kanga.kvack.org (Postfix) with SMTP id 790376B0072
+	for <linux-mm@kvack.org>; Fri,  7 Sep 2012 21:26:50 -0400 (EDT)
+Date: Fri, 7 Sep 2012 22:26:41 -0300
+From: Arnaldo Carvalho de Melo <acme@redhat.com>
+Subject: Re: [PATCH v2 07/12] rbtree: adjust root color in rb_insert_color()
+ only when necessary
+Message-ID: <20120908012641.GA2177@infradead.org>
+References: <1342139517-3451-1-git-send-email-walken@google.com>
+ <1342139517-3451-8-git-send-email-walken@google.com>
+ <50406F60.5040707@intel.com>
+ <CANN689EBA6yPk3pS-yXZ1-ticG7eU3mY1mWMWp2S3xhJ73ODFA@mail.gmail.com>
+ <20120831011541.ddf8ed78.akpm@linux-foundation.org>
+ <5040775C.3070205@intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20120907093203.GX11266@suse.de>
+In-Reply-To: <5040775C.3070205@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, Rik van Riel <riel@redhat.com>
+To: Adrian Hunter <adrian.hunter@intel.com>
+Cc: "Shishkin, Alexander" <alexander.shishkin@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Michel Lespinasse <walken@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, Sep 07, 2012 at 10:32:03AM +0100, Mel Gorman wrote:
-> On Fri, Sep 07, 2012 at 09:21:45AM +0100, Mel Gorman wrote:
-> > 
-> > So other than the mix up of order parameters I think this should work.
-> > 
+Em Fri, Aug 31, 2012 at 11:35:40AM +0300, Adrian Hunter escreveu:
+> AFAICS tools/perf/util/include/linux is for fixing up the
+> differences between kernel headers and exported kernel headers.
+> Hence my change:
 > 
-> But I'd be wrong, isolated page accounting is not fixed up so it will
-> eventually hang on too_many_isolated. It turns out it is necessary
+> diff --git a/tools/perf/util/include/linux/rbtree.h b/tools/perf/util/include/linux/rbtree.h
+> index 7a243a1..2a030c5 100644
+> --- a/tools/perf/util/include/linux/rbtree.h
+> +++ b/tools/perf/util/include/linux/rbtree.h
+> @@ -1 +1,2 @@
+> +#include <stdbool.h>
+>  #include "../../../../include/linux/rbtree.h"
 
-Good spot.
+I applied this one now, thanks,
 
-> to pass in zone after all. The following patch passed a high order
-> allocation stress test. To actually exercise the path I had compaction
-> call reclaim_clean_pages_from_list() in a separate debugging patch.
-> 
-> Minchan, can you test your CMA allocation latency test with this patch?
-> If the figures are satisfactory could you add them to the changelog and
-> consider replacing the MIGRATE_DISCARD pair of patches with this version
-> please?
-
-Of course, I will do next week.
-Thanks!
-
---
-Kind Regards,
-Minchan Kim
+- Arnaldo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
