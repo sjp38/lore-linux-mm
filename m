@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx127.postini.com [74.125.245.127])
-	by kanga.kvack.org (Postfix) with SMTP id B38A16B009F
-	for <linux-mm@kvack.org>; Sat,  8 Sep 2012 16:50:02 -0400 (EDT)
+	by kanga.kvack.org (Postfix) with SMTP id 2B98F6B00A0
+	for <linux-mm@kvack.org>; Sat,  8 Sep 2012 16:50:05 -0400 (EDT)
 Received: by mail-yx0-f169.google.com with SMTP id l1so249834yen.14
-        for <linux-mm@kvack.org>; Sat, 08 Sep 2012 13:50:02 -0700 (PDT)
+        for <linux-mm@kvack.org>; Sat, 08 Sep 2012 13:50:04 -0700 (PDT)
 From: Ezequiel Garcia <elezegarcia@gmail.com>
-Subject: [PATCH 02/10] mm, slob: Use NUMA_NO_NODE instead of -1
-Date: Sat,  8 Sep 2012 17:47:51 -0300
-Message-Id: <1347137279-17568-2-git-send-email-elezegarcia@gmail.com>
+Subject: [PATCH 03/10] mm, slab: Remove silly function slab_buffer_size()
+Date: Sat,  8 Sep 2012 17:47:52 -0300
+Message-Id: <1347137279-17568-3-git-send-email-elezegarcia@gmail.com>
 In-Reply-To: <1347137279-17568-1-git-send-email-elezegarcia@gmail.com>
 References: <1347137279-17568-1-git-send-email-elezegarcia@gmail.com>
 Sender: owner-linux-mm@kvack.org
@@ -15,73 +15,74 @@ List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 Cc: Ezequiel Garcia <elezegarcia@gmail.com>, Pekka Enberg <penberg@kernel.org>
 
+This function is seldom used, and can be simply replaced with cachep->size.
+
 Cc: Pekka Enberg <penberg@kernel.org>
 Signed-off-by: Ezequiel Garcia <elezegarcia@gmail.com>
 ---
- include/linux/slob_def.h |    6 ++++--
- mm/slob.c                |    6 +++---
- 2 files changed, 7 insertions(+), 5 deletions(-)
+ include/linux/slab_def.h |    5 -----
+ mm/slab.c                |   12 ++----------
+ 2 files changed, 2 insertions(+), 15 deletions(-)
 
-diff --git a/include/linux/slob_def.h b/include/linux/slob_def.h
-index 0ec00b3..f28e14a 100644
---- a/include/linux/slob_def.h
-+++ b/include/linux/slob_def.h
-@@ -1,12 +1,14 @@
- #ifndef __LINUX_SLOB_DEF_H
- #define __LINUX_SLOB_DEF_H
- 
-+#include <linux/numa.h>
-+
- void *kmem_cache_alloc_node(struct kmem_cache *, gfp_t flags, int node);
- 
- static __always_inline void *kmem_cache_alloc(struct kmem_cache *cachep,
- 					      gfp_t flags)
+diff --git a/include/linux/slab_def.h b/include/linux/slab_def.h
+index 36d7031..604ebc8 100644
+--- a/include/linux/slab_def.h
++++ b/include/linux/slab_def.h
+@@ -113,17 +113,12 @@ void *__kmalloc(size_t size, gfp_t flags);
+ #ifdef CONFIG_TRACING
+ extern void *kmem_cache_alloc_trace(size_t size,
+ 				    struct kmem_cache *cachep, gfp_t flags);
+-extern size_t slab_buffer_size(struct kmem_cache *cachep);
+ #else
+ static __always_inline void *
+ kmem_cache_alloc_trace(size_t size, struct kmem_cache *cachep, gfp_t flags)
  {
--	return kmem_cache_alloc_node(cachep, flags, -1);
-+	return kmem_cache_alloc_node(cachep, flags, NUMA_NO_NODE);
+ 	return kmem_cache_alloc(cachep, flags);
  }
+-static inline size_t slab_buffer_size(struct kmem_cache *cachep)
+-{
+-	return 0;
+-}
+ #endif
  
- void *__kmalloc_node(size_t size, gfp_t flags, int node);
-@@ -26,7 +28,7 @@ static __always_inline void *kmalloc_node(size_t size, gfp_t flags, int node)
-  */
  static __always_inline void *kmalloc(size_t size, gfp_t flags)
- {
--	return __kmalloc_node(size, flags, -1);
-+	return __kmalloc_node(size, flags, NUMA_NO_NODE);
+diff --git a/mm/slab.c b/mm/slab.c
+index 3b4587b..53e41de 100644
+--- a/mm/slab.c
++++ b/mm/slab.c
+@@ -498,14 +498,6 @@ static void **dbg_userword(struct kmem_cache *cachep, void *objp)
+ 
+ #endif
+ 
+-#ifdef CONFIG_TRACING
+-size_t slab_buffer_size(struct kmem_cache *cachep)
+-{
+-	return cachep->size;
+-}
+-EXPORT_SYMBOL(slab_buffer_size);
+-#endif
+-
+ /*
+  * Do not go above this order unless 0 objects fit into the slab or
+  * overridden on the command line.
+@@ -3849,7 +3841,7 @@ kmem_cache_alloc_trace(size_t size, struct kmem_cache *cachep, gfp_t flags)
+ 	ret = __cache_alloc(cachep, flags, __builtin_return_address(0));
+ 
+ 	trace_kmalloc(_RET_IP_, ret,
+-		      size, slab_buffer_size(cachep), flags);
++		      size, cachep->size, flags);
+ 	return ret;
  }
- 
- static __always_inline void *__kmalloc(size_t size, gfp_t flags)
-diff --git a/mm/slob.c b/mm/slob.c
-index ae46edc..c0c1a93 100644
---- a/mm/slob.c
-+++ b/mm/slob.c
-@@ -193,7 +193,7 @@ static void *slob_new_pages(gfp_t gfp, int order, int node)
- 	void *page;
- 
- #ifdef CONFIG_NUMA
--	if (node != -1)
-+	if (node != NUMA_NO_NODE)
- 		page = alloc_pages_exact_node(node, gfp, order);
- 	else
- #endif
-@@ -289,7 +289,7 @@ static void *slob_alloc(size_t size, gfp_t gfp, int align, int node)
- 		 * If there's a node specification, search for a partial
- 		 * page with a matching node id in the freelist.
- 		 */
--		if (node != -1 && page_to_nid(sp) != node)
-+		if (node != NUMA_NO_NODE && page_to_nid(sp) != node)
- 			continue;
- #endif
- 		/* Enough room on this page? */
-@@ -510,7 +510,7 @@ struct kmem_cache *__kmem_cache_create(const char *name, size_t size,
- 	struct kmem_cache *c;
- 
- 	c = slob_alloc(sizeof(struct kmem_cache),
--		GFP_KERNEL, ARCH_KMALLOC_MINALIGN, -1);
-+		GFP_KERNEL, ARCH_KMALLOC_MINALIGN, NUMA_NO_NODE);
- 
- 	if (c) {
- 		c->name = name;
+ EXPORT_SYMBOL(kmem_cache_alloc_trace);
+@@ -3880,7 +3872,7 @@ void *kmem_cache_alloc_node_trace(size_t size,
+ 	ret = __cache_alloc_node(cachep, flags, nodeid,
+ 				  __builtin_return_address(0));
+ 	trace_kmalloc_node(_RET_IP_, ret,
+-			   size, slab_buffer_size(cachep),
++			   size, cachep->size,
+ 			   flags, nodeid);
+ 	return ret;
+ }
 -- 
 1.7.8.6
 
