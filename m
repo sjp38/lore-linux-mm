@@ -1,109 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
-	by kanga.kvack.org (Postfix) with SMTP id 9909B6B0093
-	for <linux-mm@kvack.org>; Sat,  8 Sep 2012 07:28:28 -0400 (EDT)
-Received: by wibhq4 with SMTP id hq4so305133wib.8
-        for <linux-mm@kvack.org>; Sat, 08 Sep 2012 04:28:26 -0700 (PDT)
-Date: Sat, 8 Sep 2012 13:28:14 +0200
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [GIT PULL 00/13] perf/core improvements and fixes
-Message-ID: <20120908112814.GA21851@gmail.com>
-References: <1347070032-4161-1-git-send-email-acme@infradead.org>
+Received: from psmtp.com (na3sys010amx159.postini.com [74.125.245.159])
+	by kanga.kvack.org (Postfix) with SMTP id 642826B0096
+	for <linux-mm@kvack.org>; Sat,  8 Sep 2012 09:26:06 -0400 (EDT)
+Received: by iec9 with SMTP id 9so817231iec.14
+        for <linux-mm@kvack.org>; Sat, 08 Sep 2012 06:26:05 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1347070032-4161-1-git-send-email-acme@infradead.org>
+In-Reply-To: <CAAmzW4N8fR_+ko6oAM_SVdOkwf-eZ1x_u2vkY6pjO+cOk0jg2Q@mail.gmail.com>
+References: <1346885323-15689-1-git-send-email-elezegarcia@gmail.com>
+	<1346885323-15689-5-git-send-email-elezegarcia@gmail.com>
+	<CAAmzW4P7=8P3h8-nCUB+iK+RSnVrcJBKUbV5hN+TpR53Xt7eGw@mail.gmail.com>
+	<CALF0-+XJh4hDM0e=zhJkWqmL+0ykp2aWfKt4f4g5jSWRwNW3Yw@mail.gmail.com>
+	<CAAmzW4N8fR_+ko6oAM_SVdOkwf-eZ1x_u2vkY6pjO+cOk0jg2Q@mail.gmail.com>
+Date: Sat, 8 Sep 2012 10:26:04 -0300
+Message-ID: <CALF0-+XBDXdzpKV-AyNDJpedt63_9yNroE8+exzmuff8GuYUjQ@mail.gmail.com>
+Subject: Re: [PATCH 5/5] mm, slob: Trace allocation failures consistently
+From: Ezequiel Garcia <elezegarcia@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Arnaldo Carvalho de Melo <acme@infradead.org>
-Cc: linux-kernel@vger.kernel.org, Adrian Hunter <adrian.hunter@intel.com>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Corey Ashford <cjashfor@linux.vnet.ibm.com>, David Ahern <dsahern@gmail.com>, Frederic Weisbecker <fweisbec@gmail.com>, Irina Tirdea <irina.tirdea@intel.com>, Jiri Olsa <jolsa@redhat.com>, linux-mm@kvack.org, Michel Lespinasse <walken@google.com>, Namhyung Kim <namhyung@kernel.org>, Namhyung Kim <namhyung.kim@lge.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Paul Mackerras <paulus@samba.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Steven Rostedt <rostedt@goodmis.org>, Arnaldo Carvalho de Melo <acme@redhat.com>
+To: JoonSoo Kim <js1304@gmail.com>
+Cc: linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, Christoph Lameter <cl@linux.com>
 
+On Fri, Sep 7, 2012 at 6:23 PM, JoonSoo Kim <js1304@gmail.com> wrote:
+> Hi, Ezequiel.
+>
+> 2012/9/7 Ezequiel Garcia <elezegarcia@gmail.com>:
+>> Hi Joonso,
+>>
+>> On Thu, Sep 6, 2012 at 4:09 PM, JoonSoo Kim <js1304@gmail.com> wrote:
+>>> 2012/9/6 Ezequiel Garcia <elezegarcia@gmail.com>:
+>>>> This patch cleans how we trace kmalloc and kmem_cache_alloc.
+>>>> In particular, it fixes out-of-memory tracing: now every failed
+>>>> allocation will trace reporting non-zero requested bytes, zero obtained bytes.
+>>>
+>>> Other SLAB allocators(slab, slub) doesn't consider zero obtained bytes
+>>> in tracing.
+>>> These just return "addr = 0, obtained size = cache size"
+>>> Why does the slob print a different output?
+>>>
+>>
+>> I plan to fix slab, slub in a future patchset. I think it would be nice to have
+>> a trace event reporting this event. But, perhaps it's not worth it.
+>
+> I think that output "addr =  0" is sufficient to trace out-of-memory situation.
+> Why do we need a output "addr = 0, obtained size = 0"?
+>
 
-* Arnaldo Carvalho de Melo <acme@infradead.org> wrote:
+You're absolutely right.
 
-> Hi Ingo,
-> 
-> 	Please consider pulling,
-> 
-> - Arnaldo
-> 
-> The following changes since commit 479d875835a49e849683743ec50c30b6a429696b:
-> 
->   Merge tag 'perf-core-for-mingo' of git://git.kernel.org/pub/scm/linux/kernel/git/acme/linux into perf/core (2012-09-07 07:36:59 +0200)
-> 
-> are available in the git repository at:
-> 
-> 
->   git://git.kernel.org/pub/scm/linux/kernel/git/acme/linux tags/perf-core-for-mingo
-> 
-> for you to fetch changes up to b155a09015135cf59ada8d48109ccbd9891c1b42:
-> 
->   perf tools: Fix build for another rbtree.c change (2012-09-07 22:21:59 -0300)
-> 
-> ----------------------------------------------------------------
-> perf/core improvements and fixes
-> 
->  . Fix build for another rbtree.c change, from Adrian Hunter.
-> 
->  . Fixes for perf to build on Android, from Irina Tirdea.
-> 
->  . Make 'perf diff' command work with evsel hists, from Jiri Olsa.
-> 
->  . Use the only field_sep var that is set up: symbol_conf.field_sep,
->    fix from Jiri Olsa.
-> 
->  . .gitignore compiled python binaries, from Namhyung Kim.
-> 
->  . Get rid of die() in more libtraceevent places, from Namhyung Kim.
-> 
-> Signed-off-by: Arnaldo Carvalho de Melo <acme@redhat.com>
-> 
-> ----------------------------------------------------------------
-> Adrian Hunter (1):
->       perf tools: Fix build for another rbtree.c change
-> 
-> Irina Tirdea (6):
->       perf tools: include basename for non-glibc systems
->       perf tools: fix missing winsize definition
->       perf tools: include missing pthread.h header
->       perf tools: replace mkostemp with mkstemp
->       tools lib traceevent: replace mempcpy with memcpy
->       perf tools: add NO_BACKTRACE for application self-debugging
-> 
-> Jiri Olsa (2):
->       perf diff: Make diff command work with evsel hists
->       perf tools: Replace sort's standalone field_sep with symbol_conf.field_sep
-> 
-> Namhyung Kim (4):
->       perf tools: Ignore compiled python binaries
->       tools lib traceevent: Get rid of die() from pretty_print()
->       tools lib traceevent: Get rid of die() from pevent_register_event_handler
->       tools lib traceevent: Get rid of die() from pevent_register_print_function
-> 
->  tools/lib/traceevent/event-parse.c     |   86 +++++++++++++++++++++--------
->  tools/lib/traceevent/event-parse.h     |    3 +-
->  tools/perf/.gitignore                  |    2 +
->  tools/perf/Documentation/perf-diff.txt |    3 ++
->  tools/perf/Makefile                    |    8 +++
->  tools/perf/builtin-diff.c              |   93 +++++++++++++++++++++-----------
->  tools/perf/config/feature-tests.mak    |   14 +++++
->  tools/perf/perf.c                      |    1 +
->  tools/perf/util/annotate.h             |    1 +
->  tools/perf/util/dso-test-data.c        |    2 +-
->  tools/perf/util/evsel.h                |    7 +++
->  tools/perf/util/help.c                 |    1 +
->  tools/perf/util/include/linux/rbtree.h |    1 +
->  tools/perf/util/session.h              |    4 +-
->  tools/perf/util/sort.c                 |    6 +--
->  tools/perf/util/sort.h                 |    1 -
->  tools/perf/util/symbol.h               |    3 ++
->  tools/perf/util/top.h                  |    1 +
->  tools/perf/util/util.c                 |    6 +++
->  19 files changed, 180 insertions(+), 63 deletions(-)
-
-Pulled, thanks a lot Arnaldo!
-
-	Ingo
+Thanks,
+Ezequiel.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
