@@ -1,32 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx174.postini.com [74.125.245.174])
-	by kanga.kvack.org (Postfix) with SMTP id E92F26B0075
-	for <linux-mm@kvack.org>; Fri,  7 Sep 2012 21:59:16 -0400 (EDT)
-MIME-Version: 1.0
-In-Reply-To: <504AA2F9.5060502@cn.fujitsu.com>
-References: <1346750580-11352-1-git-send-email-gaowanlong@cn.fujitsu.com>
- <CAHGf_=o8VzFSF3kGK92bKgeWPJ4qOQ_NhCzXO-J_Ge22M7M20g@mail.gmail.com> <504AA2F9.5060502@cn.fujitsu.com>
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Date: Fri, 7 Sep 2012 21:58:55 -0400
-Message-ID: <CAHGf_=rPYAU6X2eXqyBxHV=PtguBceK=n_C89dTDbUk54-+6ww@mail.gmail.com>
-Subject: Re: [PATCH] mm: fix mmap overflow checking
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
+	by kanga.kvack.org (Postfix) with SMTP id 5985F6B007D
+	for <linux-mm@kvack.org>; Fri,  7 Sep 2012 22:07:27 -0400 (EDT)
+From: Arnaldo Carvalho de Melo <acme@infradead.org>
+Subject: [PATCH 13/13] perf tools: Fix build for another rbtree.c change
+Date: Fri,  7 Sep 2012 23:07:12 -0300
+Message-Id: <1347070032-4161-14-git-send-email-acme@infradead.org>
+In-Reply-To: <1347070032-4161-1-git-send-email-acme@infradead.org>
+References: <1347070032-4161-1-git-send-email-acme@infradead.org>
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: gaowanlong@cn.fujitsu.com
-Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, open@kvack.org, "list@kvack.org:MEMORY MANAGEMENT" <linux-mm@kvack.org>
+To: Ingo Molnar <mingo@kernel.org>
+Cc: linux-kernel@vger.kernel.org, Adrian Hunter <adrian.hunter@intel.com>, Michel Lespinasse <walken@google.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Arnaldo Carvalho de Melo <acme@redhat.com>
 
->> I've seen the exactly same patch from another fujitsu guys several
->> month ago. and as I pointed
->> out at that time, this line don't work when 32bit kernel + mmap2 syscall case.
->>
->> Please don't think do_mmap_pgoff() is for mmap(2) specific and read a
->> past thread before resend
->> a patch.
->
-> So, what's your opinion about this bug? How to fix it in your mind?
+From: Adrian Hunter <adrian.hunter@intel.com>
 
-Fix glibc instead of kernel.
+Fixes:
+
+../../lib/rbtree.c: In function 'rb_insert_color':
+../../lib/rbtree.c:95:9: error: 'true' undeclared (first use in this function)
+../../lib/rbtree.c:95:9: note: each undeclared identifier is reported only once for each function it appears in
+../../lib/rbtree.c: In function '__rb_erase_color':
+../../lib/rbtree.c:216:9: error: 'true' undeclared (first use in this function)
+../../lib/rbtree.c: In function 'rb_erase':
+../../lib/rbtree.c:368:2: error: unknown type name 'bool'
+make: *** [util/rbtree.o] Error 1
+
+Signed-off-by: Adrian Hunter <adrian.hunter@intel.com>
+Cc: Michel Lespinasse <walken@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org
+Link: http://lkml.kernel.org/r/50406F60.5040707@intel.com
+Signed-off-by: Arnaldo Carvalho de Melo <acme@redhat.com>
+---
+ tools/perf/util/include/linux/rbtree.h |    1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/tools/perf/util/include/linux/rbtree.h b/tools/perf/util/include/linux/rbtree.h
+index 7a243a1..2a030c5 100644
+--- a/tools/perf/util/include/linux/rbtree.h
++++ b/tools/perf/util/include/linux/rbtree.h
+@@ -1 +1,2 @@
++#include <stdbool.h>
+ #include "../../../../include/linux/rbtree.h"
+-- 
+1.7.9.2.358.g22243
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
