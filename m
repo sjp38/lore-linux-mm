@@ -1,55 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
-	by kanga.kvack.org (Postfix) with SMTP id 7AB2F6B008C
-	for <linux-mm@kvack.org>; Sat,  8 Sep 2012 04:39:16 -0400 (EDT)
-Received: by wgbdq12 with SMTP id dq12so279212wgb.26
-        for <linux-mm@kvack.org>; Sat, 08 Sep 2012 01:39:14 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
+	by kanga.kvack.org (Postfix) with SMTP id 9909B6B0093
+	for <linux-mm@kvack.org>; Sat,  8 Sep 2012 07:28:28 -0400 (EDT)
+Received: by wibhq4 with SMTP id hq4so305133wib.8
+        for <linux-mm@kvack.org>; Sat, 08 Sep 2012 04:28:26 -0700 (PDT)
+Date: Sat, 8 Sep 2012 13:28:14 +0200
+From: Ingo Molnar <mingo@kernel.org>
+Subject: Re: [GIT PULL 00/13] perf/core improvements and fixes
+Message-ID: <20120908112814.GA21851@gmail.com>
+References: <1347070032-4161-1-git-send-email-acme@infradead.org>
 MIME-Version: 1.0
-In-Reply-To: <20120906222933.GR2448@linux.vnet.ibm.com>
-References: <5044692D.7080608@linux.vnet.ibm.com>
-	<5046B9EE.7000804@linux.vnet.ibm.com>
-	<0000013996b6f21d-d45be653-3111-4aef-b079-31dc673e6fd8-000000@email.amazonses.com>
-	<504812E7.3000700@linux.vnet.ibm.com>
-	<20120906222933.GR2448@linux.vnet.ibm.com>
-Date: Sat, 8 Sep 2012 11:39:14 +0300
-Message-ID: <CAOJsxLFA1sk4KZkRuPL_giktSkFK_g7w-mGi_OEQ9fVXF2UVzw@mail.gmail.com>
-Subject: Re: [PATCH] slab: fix the DEADLOCK issue on l3 alien lock
-From: Pekka Enberg <penberg@kernel.org>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1347070032-4161-1-git-send-email-acme@infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: paulmck@linux.vnet.ibm.com
-Cc: Michael Wang <wangyun@linux.vnet.ibm.com>, Christoph Lameter <cl@linux.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Matt Mackall <mpm@selenic.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Arnaldo Carvalho de Melo <acme@infradead.org>
+Cc: linux-kernel@vger.kernel.org, Adrian Hunter <adrian.hunter@intel.com>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Corey Ashford <cjashfor@linux.vnet.ibm.com>, David Ahern <dsahern@gmail.com>, Frederic Weisbecker <fweisbec@gmail.com>, Irina Tirdea <irina.tirdea@intel.com>, Jiri Olsa <jolsa@redhat.com>, linux-mm@kvack.org, Michel Lespinasse <walken@google.com>, Namhyung Kim <namhyung@kernel.org>, Namhyung Kim <namhyung.kim@lge.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Paul Mackerras <paulus@samba.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Steven Rostedt <rostedt@goodmis.org>, Arnaldo Carvalho de Melo <acme@redhat.com>
 
-On Fri, Sep 7, 2012 at 1:29 AM, Paul E. McKenney
-<paulmck@linux.vnet.ibm.com> wrote:
-> On Thu, Sep 06, 2012 at 11:05:11AM +0800, Michael Wang wrote:
->> On 09/05/2012 09:55 PM, Christoph Lameter wrote:
->> > On Wed, 5 Sep 2012, Michael Wang wrote:
->> >
->> >> Since the cachep and cachep->slabp_cache's l3 alien are in the same lock class,
->> >> fake report generated.
->> >
->> > Ahh... That is a key insight into why this occurs.
->> >
->> >> This should not happen since we already have init_lock_keys() which will
->> >> reassign the lock class for both l3 list and l3 alien.
->> >
->> > Right. I was wondering why we still get intermitted reports on this.
->> >
->> >> This patch will invoke init_lock_keys() after we done enable_cpucache()
->> >> instead of before to avoid the fake DEADLOCK report.
->> >
->> > Acked-by: Christoph Lameter <cl@linux.com>
->>
->> Thanks for your review.
->>
->> And add Paul to the cc list(my skills on mailing is really poor...).
->
-> Tested-by: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
 
-I'd also like to tag this for the stable tree to avoid bogus lockdep
-reports. How far back in release history should we queue this?
+* Arnaldo Carvalho de Melo <acme@infradead.org> wrote:
+
+> Hi Ingo,
+> 
+> 	Please consider pulling,
+> 
+> - Arnaldo
+> 
+> The following changes since commit 479d875835a49e849683743ec50c30b6a429696b:
+> 
+>   Merge tag 'perf-core-for-mingo' of git://git.kernel.org/pub/scm/linux/kernel/git/acme/linux into perf/core (2012-09-07 07:36:59 +0200)
+> 
+> are available in the git repository at:
+> 
+> 
+>   git://git.kernel.org/pub/scm/linux/kernel/git/acme/linux tags/perf-core-for-mingo
+> 
+> for you to fetch changes up to b155a09015135cf59ada8d48109ccbd9891c1b42:
+> 
+>   perf tools: Fix build for another rbtree.c change (2012-09-07 22:21:59 -0300)
+> 
+> ----------------------------------------------------------------
+> perf/core improvements and fixes
+> 
+>  . Fix build for another rbtree.c change, from Adrian Hunter.
+> 
+>  . Fixes for perf to build on Android, from Irina Tirdea.
+> 
+>  . Make 'perf diff' command work with evsel hists, from Jiri Olsa.
+> 
+>  . Use the only field_sep var that is set up: symbol_conf.field_sep,
+>    fix from Jiri Olsa.
+> 
+>  . .gitignore compiled python binaries, from Namhyung Kim.
+> 
+>  . Get rid of die() in more libtraceevent places, from Namhyung Kim.
+> 
+> Signed-off-by: Arnaldo Carvalho de Melo <acme@redhat.com>
+> 
+> ----------------------------------------------------------------
+> Adrian Hunter (1):
+>       perf tools: Fix build for another rbtree.c change
+> 
+> Irina Tirdea (6):
+>       perf tools: include basename for non-glibc systems
+>       perf tools: fix missing winsize definition
+>       perf tools: include missing pthread.h header
+>       perf tools: replace mkostemp with mkstemp
+>       tools lib traceevent: replace mempcpy with memcpy
+>       perf tools: add NO_BACKTRACE for application self-debugging
+> 
+> Jiri Olsa (2):
+>       perf diff: Make diff command work with evsel hists
+>       perf tools: Replace sort's standalone field_sep with symbol_conf.field_sep
+> 
+> Namhyung Kim (4):
+>       perf tools: Ignore compiled python binaries
+>       tools lib traceevent: Get rid of die() from pretty_print()
+>       tools lib traceevent: Get rid of die() from pevent_register_event_handler
+>       tools lib traceevent: Get rid of die() from pevent_register_print_function
+> 
+>  tools/lib/traceevent/event-parse.c     |   86 +++++++++++++++++++++--------
+>  tools/lib/traceevent/event-parse.h     |    3 +-
+>  tools/perf/.gitignore                  |    2 +
+>  tools/perf/Documentation/perf-diff.txt |    3 ++
+>  tools/perf/Makefile                    |    8 +++
+>  tools/perf/builtin-diff.c              |   93 +++++++++++++++++++++-----------
+>  tools/perf/config/feature-tests.mak    |   14 +++++
+>  tools/perf/perf.c                      |    1 +
+>  tools/perf/util/annotate.h             |    1 +
+>  tools/perf/util/dso-test-data.c        |    2 +-
+>  tools/perf/util/evsel.h                |    7 +++
+>  tools/perf/util/help.c                 |    1 +
+>  tools/perf/util/include/linux/rbtree.h |    1 +
+>  tools/perf/util/session.h              |    4 +-
+>  tools/perf/util/sort.c                 |    6 +--
+>  tools/perf/util/sort.h                 |    1 -
+>  tools/perf/util/symbol.h               |    3 ++
+>  tools/perf/util/top.h                  |    1 +
+>  tools/perf/util/util.c                 |    6 +++
+>  19 files changed, 180 insertions(+), 63 deletions(-)
+
+Pulled, thanks a lot Arnaldo!
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
