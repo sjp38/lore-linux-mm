@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx127.postini.com [74.125.245.127])
-	by kanga.kvack.org (Postfix) with SMTP id 2B98F6B00A0
-	for <linux-mm@kvack.org>; Sat,  8 Sep 2012 16:50:05 -0400 (EDT)
-Received: by mail-yx0-f169.google.com with SMTP id l1so249834yen.14
-        for <linux-mm@kvack.org>; Sat, 08 Sep 2012 13:50:04 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
+	by kanga.kvack.org (Postfix) with SMTP id 0F0826B00A2
+	for <linux-mm@kvack.org>; Sat,  8 Sep 2012 16:50:08 -0400 (EDT)
+Received: by ggnf4 with SMTP id f4so237315ggn.14
+        for <linux-mm@kvack.org>; Sat, 08 Sep 2012 13:50:07 -0700 (PDT)
 From: Ezequiel Garcia <elezegarcia@gmail.com>
-Subject: [PATCH 03/10] mm, slab: Remove silly function slab_buffer_size()
-Date: Sat,  8 Sep 2012 17:47:52 -0300
-Message-Id: <1347137279-17568-3-git-send-email-elezegarcia@gmail.com>
+Subject: [PATCH 04/10] mm, slob: Add support for kmalloc_track_caller()
+Date: Sat,  8 Sep 2012 17:47:53 -0300
+Message-Id: <1347137279-17568-4-git-send-email-elezegarcia@gmail.com>
 In-Reply-To: <1347137279-17568-1-git-send-email-elezegarcia@gmail.com>
 References: <1347137279-17568-1-git-send-email-elezegarcia@gmail.com>
 Sender: owner-linux-mm@kvack.org
@@ -15,74 +15,104 @@ List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 Cc: Ezequiel Garcia <elezegarcia@gmail.com>, Pekka Enberg <penberg@kernel.org>
 
-This function is seldom used, and can be simply replaced with cachep->size.
+Currently slob falls back to regular kmalloc for this case.
+With this patch kmalloc_track_caller() is correctly implemented,
+thus tracing the specified caller.
+
+This is important to trace accurately allocations performed by
+krealloc, kstrdup, kmemdup, etc.
 
 Cc: Pekka Enberg <penberg@kernel.org>
 Signed-off-by: Ezequiel Garcia <elezegarcia@gmail.com>
 ---
- include/linux/slab_def.h |    5 -----
- mm/slab.c                |   12 ++----------
- 2 files changed, 2 insertions(+), 15 deletions(-)
+ include/linux/slab.h |    6 ++++--
+ mm/slob.c            |   27 ++++++++++++++++++++++++---
+ 2 files changed, 28 insertions(+), 5 deletions(-)
 
-diff --git a/include/linux/slab_def.h b/include/linux/slab_def.h
-index 36d7031..604ebc8 100644
---- a/include/linux/slab_def.h
-+++ b/include/linux/slab_def.h
-@@ -113,17 +113,12 @@ void *__kmalloc(size_t size, gfp_t flags);
- #ifdef CONFIG_TRACING
- extern void *kmem_cache_alloc_trace(size_t size,
- 				    struct kmem_cache *cachep, gfp_t flags);
--extern size_t slab_buffer_size(struct kmem_cache *cachep);
- #else
- static __always_inline void *
- kmem_cache_alloc_trace(size_t size, struct kmem_cache *cachep, gfp_t flags)
+diff --git a/include/linux/slab.h b/include/linux/slab.h
+index 0dd2dfa..83d1a14 100644
+--- a/include/linux/slab.h
++++ b/include/linux/slab.h
+@@ -321,7 +321,8 @@ static inline void *kmem_cache_alloc_node(struct kmem_cache *cachep,
+  * request comes from.
+  */
+ #if defined(CONFIG_DEBUG_SLAB) || defined(CONFIG_SLUB) || \
+-	(defined(CONFIG_SLAB) && defined(CONFIG_TRACING))
++	(defined(CONFIG_SLAB) && defined(CONFIG_TRACING)) || \
++	(defined(CONFIG_SLOB) && defined(CONFIG_TRACING))
+ extern void *__kmalloc_track_caller(size_t, gfp_t, unsigned long);
+ #define kmalloc_track_caller(size, flags) \
+ 	__kmalloc_track_caller(size, flags, _RET_IP_)
+@@ -340,7 +341,8 @@ extern void *__kmalloc_track_caller(size_t, gfp_t, unsigned long);
+  * allocation request comes from.
+  */
+ #if defined(CONFIG_DEBUG_SLAB) || defined(CONFIG_SLUB) || \
+-	(defined(CONFIG_SLAB) && defined(CONFIG_TRACING))
++	(defined(CONFIG_SLAB) && defined(CONFIG_TRACING)) || \
++	(defined(CONFIG_SLOB) && defined(CONFIG_TRACING))
+ extern void *__kmalloc_node_track_caller(size_t, gfp_t, int, unsigned long);
+ #define kmalloc_node_track_caller(size, flags, node) \
+ 	__kmalloc_node_track_caller(size, flags, node, \
+diff --git a/mm/slob.c b/mm/slob.c
+index c0c1a93..984c42a 100644
+--- a/mm/slob.c
++++ b/mm/slob.c
+@@ -424,7 +424,8 @@ out:
+  * End of slob allocator proper. Begin kmem_cache_alloc and kmalloc frontend.
+  */
+ 
+-void *__kmalloc_node(size_t size, gfp_t gfp, int node)
++static __always_inline void *
++__do_kmalloc_node(size_t size, gfp_t gfp, int node, unsigned long caller)
  {
- 	return kmem_cache_alloc(cachep, flags);
- }
--static inline size_t slab_buffer_size(struct kmem_cache *cachep)
--{
--	return 0;
--}
- #endif
+ 	unsigned int *m;
+ 	int align = max(ARCH_KMALLOC_MINALIGN, ARCH_SLAB_MINALIGN);
+@@ -445,7 +446,7 @@ void *__kmalloc_node(size_t size, gfp_t gfp, int node)
+ 		*m = size;
+ 		ret = (void *)m + align;
  
- static __always_inline void *kmalloc(size_t size, gfp_t flags)
-diff --git a/mm/slab.c b/mm/slab.c
-index 3b4587b..53e41de 100644
---- a/mm/slab.c
-+++ b/mm/slab.c
-@@ -498,14 +498,6 @@ static void **dbg_userword(struct kmem_cache *cachep, void *objp)
+-		trace_kmalloc_node(_RET_IP_, ret,
++		trace_kmalloc_node(caller, ret,
+ 				   size, size + align, gfp, node);
+ 	} else {
+ 		unsigned int order = get_order(size);
+@@ -454,15 +455,35 @@ void *__kmalloc_node(size_t size, gfp_t gfp, int node)
+ 			gfp |= __GFP_COMP;
+ 		ret = slob_new_pages(gfp, order, node);
  
- #endif
+-		trace_kmalloc_node(_RET_IP_, ret,
++		trace_kmalloc_node(caller, ret,
+ 				   size, PAGE_SIZE << order, gfp, node);
+ 	}
  
--#ifdef CONFIG_TRACING
--size_t slab_buffer_size(struct kmem_cache *cachep)
--{
--	return cachep->size;
--}
--EXPORT_SYMBOL(slab_buffer_size);
--#endif
--
- /*
-  * Do not go above this order unless 0 objects fit into the slab or
-  * overridden on the command line.
-@@ -3849,7 +3841,7 @@ kmem_cache_alloc_trace(size_t size, struct kmem_cache *cachep, gfp_t flags)
- 	ret = __cache_alloc(cachep, flags, __builtin_return_address(0));
- 
- 	trace_kmalloc(_RET_IP_, ret,
--		      size, slab_buffer_size(cachep), flags);
-+		      size, cachep->size, flags);
+ 	kmemleak_alloc(ret, size, 1, gfp);
  	return ret;
  }
- EXPORT_SYMBOL(kmem_cache_alloc_trace);
-@@ -3880,7 +3872,7 @@ void *kmem_cache_alloc_node_trace(size_t size,
- 	ret = __cache_alloc_node(cachep, flags, nodeid,
- 				  __builtin_return_address(0));
- 	trace_kmalloc_node(_RET_IP_, ret,
--			   size, slab_buffer_size(cachep),
-+			   size, cachep->size,
- 			   flags, nodeid);
- 	return ret;
- }
++
++void *__kmalloc_node(size_t size, gfp_t gfp, int node)
++{
++	return __do_kmalloc_node(size, gfp, node, _RET_IP_);
++}
+ EXPORT_SYMBOL(__kmalloc_node);
+ 
++#ifdef CONFIG_TRACING
++void *__kmalloc_track_caller(size_t size, gfp_t gfp, unsigned long caller)
++{
++	return __do_kmalloc_node(size, gfp, NUMA_NO_NODE, caller);
++}
++
++#ifdef CONFIG_NUMA
++void *__kmalloc_node_track_caller(size_t size, gfp_t gfpflags,
++					int node, unsigned long caller)
++{
++	return __do_kmalloc_node(size, gfp, node, caller);
++}
++#endif
++#endif
++
+ void kfree(const void *block)
+ {
+ 	struct page *sp;
 -- 
 1.7.8.6
 
