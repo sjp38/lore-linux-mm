@@ -1,75 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
-	by kanga.kvack.org (Postfix) with SMTP id 24D006B009D
-	for <linux-mm@kvack.org>; Sat,  8 Sep 2012 16:49:48 -0400 (EDT)
-Received: by iec9 with SMTP id 9so1203629iec.14
-        for <linux-mm@kvack.org>; Sat, 08 Sep 2012 13:49:47 -0700 (PDT)
-MIME-Version: 1.0
-Date: Sat, 8 Sep 2012 17:49:47 -0300
-Message-ID: <CALF0-+VMtUPuLHg3CwDxFm-TjbN1=YavGO79Oo3GuymOLvikeA@mail.gmail.com>
-Subject: [PATCH v2 0/10] mm: SLxB cleaning and trace accuracy improvement
+Received: from psmtp.com (na3sys010amx127.postini.com [74.125.245.127])
+	by kanga.kvack.org (Postfix) with SMTP id B72F16B009E
+	for <linux-mm@kvack.org>; Sat,  8 Sep 2012 16:50:00 -0400 (EDT)
+Received: by yenl1 with SMTP id l1so249834yen.14
+        for <linux-mm@kvack.org>; Sat, 08 Sep 2012 13:49:59 -0700 (PDT)
 From: Ezequiel Garcia <elezegarcia@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: [PATCH 01/10] Makefile: Add option CONFIG_DISABLE_GCC_AUTOMATIC_INLINING
+Date: Sat,  8 Sep 2012 17:47:50 -0300
+Message-Id: <1347137279-17568-1-git-send-email-elezegarcia@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: JoonSoo Kim <js1304@gmail.com>, Tim Bird <tim.bird@am.sony.com>, Steven Rostedt <rostedt@goodmis.org>, David Rientjes <rientjes@google.com>, Christoph Lameter <cl@linux.com>, Glauber Costa <glommer@parallels.com>
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Ezequiel Garcia <elezegarcia@gmail.com>, Michal Marek <mmarek@suse.cz>
 
-Hi everyone,
+As its name suggest this option prevents gcc from auto inlining
+small functions. This is very important if one wants to obtain
+traces with accurate call sites.
 
-This is the second spin of my patchset to clean SLxB and improve kmem
-trace events accuracy.
+Without this option, gcc will collapse some small functions,
+even when not marked as 'inline' thus making impossible to
+correlate the trace caller address to the real function it belongs.
 
-For this v2, the most relevant stuff is:
+Of course, the resultant kernel is slower and slightly smaller,
+but that's not an issue if the focus is on tracing accuracy.
 
-I've dropped two patches that were not very well received:
-Namely this two are now gone:
-  mm, slob: Use only 'ret' variable for both slob object and returned pointer
-  mm, slob: Trace allocation failures consistently
-I believe consistency is important but perhaps this is just me being paranoid.
+Cc: Michal Marek <mmarek@suse.cz>
+Signed-off-by: Ezequiel Garcia <elezegarcia@gmail.com>
+---
+ Makefile          |    4 ++++
+ lib/Kconfig.debug |   11 +++++++++++
+ 2 files changed, 15 insertions(+), 0 deletions(-)
 
-There's a lot of dumb movement and renaming. This might seem stupid
-(and maybe it is) but it's necessary to create some common code between SLAB
-and SLUB, and then factor it out.
-
-Also, there's a patch to add a new option to disable gcc auto-inlining.
-I know we hate to add new options, but this is necessary to get
-accurate call site
-traces. Plus, the option is in "Kernel Hacking", so it's for kernel
-developers only.
-
-This work is part of CELF Workgroup Project:
-"Kernel_dynamic_memory_allocation_tracking_and_reduction" [1]
-
-Feedback, comments, suggestions are very welcome.
-
-Ezequiel Garcia (10):
- mm: Factor SLAB and SLUB common code
- mm, slub: Rename slab_alloc() -> slab_alloc_node() to match SLAB
- mm, slab: Rename __cache_alloc() -> slab_alloc()
- mm, slab: Match SLAB and SLUB kmem_cache_alloc_xxx_trace() prototype
- mm, slab: Replace 'caller' type, void* -> unsigned long
- mm, util: Use dup_user to duplicate user memory
- mm, slob: Add support for kmalloc_track_caller()
- mm, slab: Remove silly function slab_buffer_size()
- mm, slob: Use NUMA_NO_NODE instead of -1
- Makefile: Add option CONFIG_DISABLE_GCC_AUTOMATIC_INLINING
-
- Makefile                 |    4 ++
- include/linux/slab.h     |    6 ++-
- include/linux/slab_def.h |   14 ++---
- include/linux/slob_def.h |    6 ++-
- include/linux/slub_def.h |    2 +
- lib/Kconfig.debug        |   11 ++++
- mm/slab.c                |  122 +++++++++-------------------------------------
- mm/slab_common.c         |   57 +++++++++++++++++++++
- mm/slob.c                |   33 ++++++++++--
- mm/slub.c                |   55 +++------------------
- mm/util.c                |   11 +++-
- 11 files changed, 154 insertions(+), 167 deletions(-)
-
-Thanks!
-Ezequiel.
+diff --git a/Makefile b/Makefile
+index ddf5be9..df6045a 100644
+--- a/Makefile
++++ b/Makefile
+@@ -561,6 +561,10 @@ else
+ KBUILD_CFLAGS	+= -O2
+ endif
+ 
++ifdef CONFIG_DISABLE_GCC_AUTOMATIC_INLINING
++KBUILD_CFLAGS	+= -fno-inline-small-functions
++endif
++
+ include $(srctree)/arch/$(SRCARCH)/Makefile
+ 
+ ifdef CONFIG_READABLE_ASM
+diff --git a/lib/Kconfig.debug b/lib/Kconfig.debug
+index 2403a63..c8fd50f 100644
+--- a/lib/Kconfig.debug
++++ b/lib/Kconfig.debug
+@@ -1265,6 +1265,17 @@ config LATENCYTOP
+ source mm/Kconfig.debug
+ source kernel/trace/Kconfig
+ 
++config DISABLE_GCC_AUTOMATIC_INLINING
++	bool "Disable gcc automatic inlining"
++	depends on TRACING
++	help
++	  This option tells gcc he's not allowed to inline functions automatically,
++	  when they are not marked as 'inline'.
++	  In turn, this enables to trace an event with an accurate call site.
++	  Of course, the resultant kernel is slower and slightly smaller.
++
++	  Select this option only if you want to trace call sites accurately.
++
+ config PROVIDE_OHCI1394_DMA_INIT
+ 	bool "Remote debugging over FireWire early on boot"
+ 	depends on PCI && X86
+-- 
+1.7.8.6
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
