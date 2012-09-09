@@ -1,25 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
-	by kanga.kvack.org (Postfix) with SMTP id 47B1A6B0072
-	for <linux-mm@kvack.org>; Sat,  8 Sep 2012 19:28:56 -0400 (EDT)
-References: <CALF0-+VMtUPuLHg3CwDxFm-TjbN1=YavGO79Oo3GuymOLvikeA@mail.gmail.com> <00000139a801aba3-4616277c-d845-4b62-83ec-1a1950b05751-000000@email.amazonses.com> <CALF0-+U=sFgynE__V-XTN1SAgJHV_3VigRrdxuXFinbiWPg2oQ@mail.gmail.com>
-In-Reply-To: <CALF0-+U=sFgynE__V-XTN1SAgJHV_3VigRrdxuXFinbiWPg2oQ@mail.gmail.com>
-Mime-Version: 1.0 (1.0)
-Content-Transfer-Encoding: quoted-printable
-Content-Type: text/plain;
-	charset=us-ascii
-Message-Id: <00000139a836e973-852a1b8d-cab0-4404-bf63-9164ec34cbe4-000000@email.amazonses.com>
-From: Christoph <cl@linux.com>
-Subject: Re: [PATCH v2 0/10] mm: SLxB cleaning and trace accuracy improvement
-Date: Sat, 8 Sep 2012 23:28:55 +0000
+Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
+	by kanga.kvack.org (Postfix) with SMTP id BD8B86B0044
+	for <linux-mm@kvack.org>; Sat,  8 Sep 2012 23:42:40 -0400 (EDT)
+Received: by iagk10 with SMTP id k10so1014997iag.14
+        for <linux-mm@kvack.org>; Sat, 08 Sep 2012 20:42:40 -0700 (PDT)
+Date: Sat, 8 Sep 2012 20:42:03 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: [PATCH mmotm] slub: zero page to fix boot crashes
+Message-ID: <alpine.LSU.2.00.1209082032100.2213@eggly.anvils>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ezequiel Garcia <elezegarcia@gmail.com>
-Cc: Pekka Enberg <penberg@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, JoonSoo Kim <js1304@gmail.com>, Tim Bird <tim.bird@am.sony.com>, Steven Rostedt <rostedt@goodmis.org>, David Rientjes <rientjes@google.com>, Glauber Costa <glommer@parallels.com>
+To: Pekka Enberg <penberg@kernel.org>
+Cc: Christoph Lameter <cl@linux.com>, Glauber Costa <glommer@parallels.com>, Andrew Morton <akpm@linux-foundation.org>, mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org
 
-Please pull from pekkas tree on github or use next (check if the back and fo=
-rth with patchset in and out has been resolved first).
+Latest mmotm rarely boots if SLUB is enabled: earlyprintk=vga shows
+it crashing with various backtraces.  The memset has now been removed
+from kmem_cache_open(), so kmem_cache_init() needs to zero its page.
+This gets SLUB booting reliably again.
 
+Signed-off-by: Hugh Dickins <hughd@google.com>
+---
+
+ mm/slub.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+--- mmotm/mm/slub.c	2012-09-07 12:39:38.136019730 -0700
++++ fixed/mm/slub.c	2012-09-08 19:37:38.608993123 -0700
+@@ -3712,7 +3712,7 @@ void __init kmem_cache_init(void)
+ 	/* Allocate two kmem_caches from the page allocator */
+ 	kmalloc_size = ALIGN(kmem_size, cache_line_size());
+ 	order = get_order(2 * kmalloc_size);
+-	kmem_cache = (void *)__get_free_pages(GFP_NOWAIT, order);
++	kmem_cache = (void *)__get_free_pages(GFP_NOWAIT | __GFP_ZERO, order);
+ 
+ 	/*
+ 	 * Must first have the slab cache available for the allocations of the
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
