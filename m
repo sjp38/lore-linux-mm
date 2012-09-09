@@ -1,75 +1,31 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
-	by kanga.kvack.org (Postfix) with SMTP id A64DD6B005D
-	for <linux-mm@kvack.org>; Sun,  9 Sep 2012 17:25:47 -0400 (EDT)
-Received: by pbbro12 with SMTP id ro12so1696373pbb.14
-        for <linux-mm@kvack.org>; Sun, 09 Sep 2012 14:25:46 -0700 (PDT)
-Date: Sun, 9 Sep 2012 14:25:44 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
+	by kanga.kvack.org (Postfix) with SMTP id 94C3F6B0062
+	for <linux-mm@kvack.org>; Sun,  9 Sep 2012 17:27:59 -0400 (EDT)
+Received: by pbbro12 with SMTP id ro12so1697789pbb.14
+        for <linux-mm@kvack.org>; Sun, 09 Sep 2012 14:27:58 -0700 (PDT)
+Date: Sun, 9 Sep 2012 14:27:55 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 01/10] Makefile: Add option
- CONFIG_DISABLE_GCC_AUTOMATIC_INLINING
-In-Reply-To: <1347137279-17568-1-git-send-email-elezegarcia@gmail.com>
-Message-ID: <alpine.DEB.2.00.1209091424580.13346@chino.kir.corp.google.com>
-References: <1347137279-17568-1-git-send-email-elezegarcia@gmail.com>
+Subject: Re: [PATCH 02/10] mm, slob: Use NUMA_NO_NODE instead of -1
+In-Reply-To: <1347137279-17568-2-git-send-email-elezegarcia@gmail.com>
+Message-ID: <alpine.DEB.2.00.1209091427160.13346@chino.kir.corp.google.com>
+References: <1347137279-17568-1-git-send-email-elezegarcia@gmail.com> <1347137279-17568-2-git-send-email-elezegarcia@gmail.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Ezequiel Garcia <elezegarcia@gmail.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michal Marek <mmarek@suse.cz>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>
 
 On Sat, 8 Sep 2012, Ezequiel Garcia wrote:
 
-> diff --git a/Makefile b/Makefile
-> index ddf5be9..df6045a 100644
-> --- a/Makefile
-> +++ b/Makefile
-> @@ -561,6 +561,10 @@ else
->  KBUILD_CFLAGS	+= -O2
->  endif
->  
-> +ifdef CONFIG_DISABLE_GCC_AUTOMATIC_INLINING
-> +KBUILD_CFLAGS	+= -fno-inline-small-functions
+> Cc: Pekka Enberg <penberg@kernel.org>
+> Signed-off-by: Ezequiel Garcia <elezegarcia@gmail.com>
 
-This isn't the only option that controls automatic inlining of functions, 
-see indirect-inlining, inline-functions, and inline-functions-called-once.
+Acked-by: David Rientjes <rientjes@google.com>
 
-> +endif
-> +
->  include $(srctree)/arch/$(SRCARCH)/Makefile
->  
->  ifdef CONFIG_READABLE_ASM
-> diff --git a/lib/Kconfig.debug b/lib/Kconfig.debug
-> index 2403a63..c8fd50f 100644
-> --- a/lib/Kconfig.debug
-> +++ b/lib/Kconfig.debug
-> @@ -1265,6 +1265,17 @@ config LATENCYTOP
->  source mm/Kconfig.debug
->  source kernel/trace/Kconfig
->  
-> +config DISABLE_GCC_AUTOMATIC_INLINING
-> +	bool "Disable gcc automatic inlining"
-> +	depends on TRACING
-> +	help
-> +	  This option tells gcc he's not allowed to inline functions automatically,
-> +	  when they are not marked as 'inline'.
-> +	  In turn, this enables to trace an event with an accurate call site.
-> +	  Of course, the resultant kernel is slower and slightly smaller.
-> +
-> +	  Select this option only if you want to trace call sites accurately.
-> +
->  config PROVIDE_OHCI1394_DMA_INIT
->  	bool "Remote debugging over FireWire early on boot"
->  	depends on PCI && X86
-> -- 
-> 1.7.8.6
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
+Please cc Matt Mackall <mpm@selenic.com> on all slob patches in the 
+future.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
