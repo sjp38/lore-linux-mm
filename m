@@ -1,50 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx104.postini.com [74.125.245.104])
-	by kanga.kvack.org (Postfix) with SMTP id 8D70F6B0044
-	for <linux-mm@kvack.org>; Sun,  9 Sep 2012 02:21:11 -0400 (EDT)
-References: <alpine.LSU.2.00.1209082032100.2213@eggly.anvils>
-In-Reply-To: <alpine.LSU.2.00.1209082032100.2213@eggly.anvils>
-Mime-Version: 1.0 (1.0)
+Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
+	by kanga.kvack.org (Postfix) with SMTP id 9F70F6B0044
+	for <linux-mm@kvack.org>; Sun,  9 Sep 2012 02:59:37 -0400 (EDT)
+Message-ID: <504C3DCF.9090702@mellanox.com>
+Date: Sun, 9 Sep 2012 09:57:19 +0300
+From: Haggai Eran <haggaie@mellanox.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH] mm: Fix compile warning of mmotm-2012-09-06-16-46
+References: <1346979430-23110-1-git-send-email-minchan@kernel.org> <20120907130605.be86f2a9.akpm@linux-foundation.org>
+In-Reply-To: <20120907130605.be86f2a9.akpm@linux-foundation.org>
+Content-Type: text/plain; charset="ISO-8859-1"
 Content-Transfer-Encoding: 7bit
-Content-Type: text/plain;
-	charset=us-ascii
-Message-Id: <00000139a9b058c0-db3f25c9-0800-4a8e-b6d7-32e299e8c897-000000@email.amazonses.com>
-From: Christoph <cl@linux.com>
-Subject: Re: [PATCH mmotm] slub: zero page to fix boot crashes
-Date: Sun, 9 Sep 2012 06:21:10 +0000
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Pekka Enberg <penberg@kernel.org>, Glauber Costa <glommer@parallels.com>, Andrew Morton <akpm@linux-foundation.org>, "mm-commits@vger.kernel.org" <mm-commits@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-next@vger.kernel.org" <linux-next@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, Sagi Grimberg <sagig@mellanox.com>
 
-Yes that fix was already sent by me.
-
-
-
-On Sep 8, 2012, at 22:42, Hugh Dickins <hughd@google.com> wrote:
-
-> Latest mmotm rarely boots if SLUB is enabled: earlyprintk=vga shows
-> it crashing with various backtraces.  The memset has now been removed
-> from kmem_cache_open(), so kmem_cache_init() needs to zero its page.
-> This gets SLUB booting reliably again.
+On Sep 7 2012 23:06, Andrew Morton wrote:
+> On Fri,  7 Sep 2012 09:57:10 +0900
+> Minchan Kim <minchan@kernel.org> wrote:
 > 
-> Signed-off-by: Hugh Dickins <hughd@google.com>
-> ---
+>> When I compiled today, I met following warning.
+>> Correct it.
+>>
+>> mm/memory.c: In function ___copy_page_range___:
+>> include/linux/mmu_notifier.h:235:38: warning: ___mmun_end___ may be used uninitialized in this function [-Wuninitialized]
+>> mm/memory.c:1043:16: note: ___mmun_end___ was declared here
+>> include/linux/mmu_notifier.h:235:38: warning: ___mmun_start___ may be used uninitialized in this function [-Wuninitialized]
+>> mm/memory.c:1042:16: note: ___mmun_start___ was declared here
+>>   LD      mm/built-in.o
+>>
+>> Cc: Sagi Grimberg <sagig@mellanox.com>
+>> Cc: Haggai Eran <haggaie@mellanox.com>
+>> Signed-off-by: Minchan Kim <minchan@kernel.org>
+>> ---
+>>  mm/memory.c |    4 ++--
+>>  1 file changed, 2 insertions(+), 2 deletions(-)
+>>
+>> diff --git a/mm/memory.c b/mm/memory.c
+>> index 10e9b38..d000449 100644
+>> --- a/mm/memory.c
+>> +++ b/mm/memory.c
+>> @@ -1039,8 +1039,8 @@ int copy_page_range(struct mm_struct *dst_mm, struct mm_struct *src_mm,
+>>  	unsigned long next;
+>>  	unsigned long addr = vma->vm_start;
+>>  	unsigned long end = vma->vm_end;
+>> -	unsigned long mmun_start;	/* For mmu_notifiers */
+>> -	unsigned long mmun_end;		/* For mmu_notifiers */
+>> +	unsigned long uninitialized_var(mmun_start);	/* For mmu_notifiers */
+>> +	unsigned long uninitialized_var(mmun_end);	/* For mmu_notifiers */
+>>  	int ret;
+>>  
 > 
-> mm/slub.c |    2 +-
-> 1 file changed, 1 insertion(+), 1 deletion(-)
+> Well yes, but a) uninitialized_var is a bit ugly and has some potential
+> to hide real bugs and b) it's not completely obvious that
+> is_cow_mapping() is stable across those two calls.
+I thought that code that changed the vm_flags would need mmap_sem locked
+exclusively, and copy_page_range is also called with the mmap_sem
+locked, so that would prevent is_cow_mapping() from changing, wouldn't it?
+
 > 
-> --- mmotm/mm/slub.c    2012-09-07 12:39:38.136019730 -0700
-> +++ fixed/mm/slub.c    2012-09-08 19:37:38.608993123 -0700
-> @@ -3712,7 +3712,7 @@ void __init kmem_cache_init(void)
->    /* Allocate two kmem_caches from the page allocator */
->    kmalloc_size = ALIGN(kmem_size, cache_line_size());
->    order = get_order(2 * kmalloc_size);
-> -    kmem_cache = (void *)__get_free_pages(GFP_NOWAIT, order);
-> +    kmem_cache = (void *)__get_free_pages(GFP_NOWAIT | __GFP_ZERO, order);
+> I think a better approach is this:
 > 
->    /*
->     * Must first have the slab cache available for the allocations of the
+> --- a/mm/memory.c~mm-move-all-mmu-notifier-invocations-to-be-done-outside-the-pt-lock-fix-fix
+> +++ a/mm/memory.c
+> @@ -1041,6 +1041,7 @@ int copy_page_range(struct mm_struct *ds
+>  	unsigned long end = vma->vm_end;
+>  	unsigned long mmun_start;	/* For mmu_notifiers */
+>  	unsigned long mmun_end;		/* For mmu_notifiers */
+> +	bool is_cow;
+>  	int ret;
+>  
+>  	/*
+> @@ -1074,7 +1075,8 @@ int copy_page_range(struct mm_struct *ds
+>  	 * parent mm. And a permission downgrade will only happen if
+>  	 * is_cow_mapping() returns true.
+>  	 */
+> -	if (is_cow_mapping(vma->vm_flags)) {
+> +	is_cow = is_cow_mapping(vma->vm_flags);
+> +	if (is_cow) {
+>  		mmun_start = addr;
+>  		mmun_end   = end;
+>  		mmu_notifier_invalidate_range_start(src_mm, mmun_start,
+> @@ -1095,7 +1097,7 @@ int copy_page_range(struct mm_struct *ds
+>  		}
+>  	} while (dst_pgd++, src_pgd++, addr = next, addr != end);
+>  
+> -	if (is_cow_mapping(vma->vm_flags))
+> +	if (is_cow)
+>  		mmu_notifier_invalidate_range_end(src_mm, mmun_start, mmun_end);
+>  	return ret;
+>  }
+> 
+> Unfortunately, my (old) versions of gcc are so stupid that they *still*
+> generate the warning even when the code is as obviously correct as this :(
+> 
+> Can you please test it with your compiler?
+With GCC 4.4.4 I still get these warnings, even with the is_cow
+variable. Sorry I haven't noticed that before. Perhaps I can move the
+initialization of mmun_start/end before the if.
+
+By the way, with GCC 4.4.4 I don't get the warning in do_wp_page.
+
+Regards,
+Haggai
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
