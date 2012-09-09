@@ -1,43 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
-	by kanga.kvack.org (Postfix) with SMTP id EC78C6B005D
-	for <linux-mm@kvack.org>; Sun,  9 Sep 2012 16:33:46 -0400 (EDT)
-Message-ID: <504CFD22.3050300@zytor.com>
-Date: Sun, 09 Sep 2012 13:33:38 -0700
-From: "H. Peter Anvin" <hpa@zytor.com>
-MIME-Version: 1.0
-Subject: Re: mtd: kernel BUG at arch/x86/mm/pat.c:279!
-References: <1340959739.2936.28.camel@lappy>  <CA+1xoqdgKV_sEWvUbuxagL9JEc39ZFa6X9-acP7j-M7wvW6qbQ@mail.gmail.com>  <CA+55aFzJCLxVP+WYJM-gq=aXx5gmdgwC7=_Gr2Tooj8q+Dz4dw@mail.gmail.com>  <1347057778.26695.68.camel@sbsiddha-desk.sc.intel.com>  <CA+55aFwW9Q+DM2gZy7r3JQJbrbMNR6sN+jewc2CY0i1wD_X=Tw@mail.gmail.com>  <1347062045.26695.82.camel@sbsiddha-desk.sc.intel.com>  <CA+55aFzeKcV5hROLJE31dNi3SEs+s6o0LL=96Kh8QGHPx=aZnA@mail.gmail.com>  <504CCA31.2000003@zytor.com> <1347217472.2068.35.camel@shinybook.infradead.org>
-In-Reply-To: <1347217472.2068.35.camel@shinybook.infradead.org>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
+	by kanga.kvack.org (Postfix) with SMTP id C9C2D6B0062
+	for <linux-mm@kvack.org>; Sun,  9 Sep 2012 16:34:17 -0400 (EDT)
+Date: Sun, 9 Sep 2012 22:34:11 +0200
+From: Willy Tarreau <w@1wt.eu>
+Subject: Re: Consider for longterm kernels: mm: avoid swapping out with swappiness==0
+Message-ID: <20120909203411.GC13847@1wt.eu>
+References: <5038E7AA.5030107@gmail.com> <1347209830.7709.39.camel@deadeye.wl.decadent.org.uk> <504CCECF.9020104@redhat.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <504CCECF.9020104@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Woodhouse <dwmw2@infradead.org>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Suresh Siddha <suresh.b.siddha@intel.com>, Sasha Levin <levinsasha928@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mtd@lists.infradead.org, linux-mm <linux-mm@kvack.org>, Dave Jones <davej@redhat.com>
+To: Rik van Riel <riel@redhat.com>
+Cc: Ben Hutchings <ben@decadent.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, stable@vger.kernel.org, Zdenek Kaspar <zkaspar82@gmail.com>, linux-mm@kvack.org
 
-On 09/09/2012 12:04 PM, David Woodhouse wrote:
-> On Sun, 2012-09-09 at 09:56 -0700, H. Peter Anvin wrote:
->>
->>> So it should either be start=0xfffffffffffff000 end=0xffffffffffffffff
->>> or it should be start=0xfffffffffffff000 len=0x1000.
->>
->> I would strongly object to the former; that kind of inclusive ranges
->> breed a whole class of bugs by themselves.
->
-> Another alternative that avoids overflow issues is to use a PFN rather
-> than a byte address.
->
+On Sun, Sep 09, 2012 at 01:15:59PM -0400, Rik van Riel wrote:
+> >>http://git.kernel.org/?p=linux/kernel/git/torvalds/linux.git;a=commit;h=fe35004fbf9eaf67482b074a2e032abb9c89b1dd
+> >>
+> >>In short: this patch seems beneficial for users trying to avoid memory
+> >>swapping at all costs but they want to keep swap for emergency reasons.
+> >>
+> >>More details: https://lkml.org/lkml/2012/3/2/320
+> >>
+> >>Its included in 3.5, so could this be considered for -longterm kernels ?
+> >
+> >Andrew, Rik, does this seem appropriate for longterm?
+> 
+> Yes, absolutely.  Default behaviour is not changed at all, and
+> the patch makes swappiness=0 do what people seem to expect it
+> to do.
 
-Except as a result of that logic have a bunch of places which either 
-have rounding errors in how they calculate PFNs, or they think they can 
-stick PFNs into 32-bit numbers.  :(
+Just for the record, in 3.0 and below we don't have vmscan_swappiness(),
+so if the match makes sense there, that function will need to be backported,
+in which mem_cgroup_swappiness() will have to be replaced by get_swappiness().
 
-	-hpa
-
--- 
-H. Peter Anvin, Intel Open Source Technology Center
-I work for Intel.  I don't speak on their behalf.
+Regards,
+Willy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
