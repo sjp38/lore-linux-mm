@@ -1,68 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
-	by kanga.kvack.org (Postfix) with SMTP id 3073E6B005D
-	for <linux-mm@kvack.org>; Mon, 10 Sep 2012 10:02:45 -0400 (EDT)
-Received: by eeke49 with SMTP id e49so1347880eek.14
-        for <linux-mm@kvack.org>; Mon, 10 Sep 2012 07:02:43 -0700 (PDT)
-Subject: Re: [PATCH v2 10/10] thp: implement refcounting for huge zero page
-From: Eric Dumazet <eric.dumazet@gmail.com>
-In-Reply-To: <1347282813-21935-11-git-send-email-kirill.shutemov@linux.intel.com>
-References: 
-	 <1347282813-21935-1-git-send-email-kirill.shutemov@linux.intel.com>
-	 <1347282813-21935-11-git-send-email-kirill.shutemov@linux.intel.com>
-Content-Type: text/plain; charset="UTF-8"
-Date: Mon, 10 Sep 2012 16:02:39 +0200
-Message-ID: <1347285759.1234.1645.camel@edumazet-glaptop>
-Mime-Version: 1.0
+Received: from psmtp.com (na3sys010amx103.postini.com [74.125.245.103])
+	by kanga.kvack.org (Postfix) with SMTP id 36AB36B0062
+	for <linux-mm@kvack.org>; Mon, 10 Sep 2012 10:05:49 -0400 (EDT)
+Message-ID: <504DF2FA.2020200@parallels.com>
+Date: Mon, 10 Sep 2012 18:02:34 +0400
+From: Glauber Costa <glommer@parallels.com>
+MIME-Version: 1.0
+Subject: Re: [glommer-memcg:kmemcg-slab 57/62] drivers/video/riva/fbdev.c:281:9:
+ sparse: preprocessor token MAX_LEVEL redefined
+References: <20120910111638.GC9660@localhost> <20120910125759.GA11808@localhost> <504DE3DA.7000802@parallels.com> <20120910130617.GA11963@localhost>
+In-Reply-To: <20120910130617.GA11963@localhost>
+Content-Type: text/plain; charset="ISO-8859-1"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, "H. Peter Anvin" <hpa@linux.intel.com>, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill@shutemov.name>
+To: Fengguang Wu <fengguang.wu@intel.com>
+Cc: kernel-janitors@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>
 
-On Mon, 2012-09-10 at 16:13 +0300, Kirill A. Shutemov wrote:
-> From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+On 09/10/2012 05:06 PM, Fengguang Wu wrote:
+> On Mon, Sep 10, 2012 at 04:58:02PM +0400, Glauber Costa wrote:
+>> On 09/10/2012 04:57 PM, Fengguang Wu wrote:
+>>> Glauber,
+>>>
+>>> The patch entitled
+>>>
+>>>  sl[au]b: Allocate objects from memcg cache
+>>>
+>>> changes
+>>>
+>>>  include/linux/slub_def.h |   15 ++++++++++-----
+>>>
+>>> which triggers this warning:
+>>>
+>>> drivers/video/riva/fbdev.c:281:9: sparse: preprocessor token MAX_LEVEL redefined
+>>>
+>>> It's the MAX_LEVEL that is defined in include/linux/idr.h.
+>>>
+>>> MAX_LEVEL is obviously too generic. Better adding some prefix to it?
+>>>
+>>
+>> I don't see any MAX_LEVEL definition in this patch. You say it is
+>> defined in include/linux/idr.h, and as the diffstat shows, I am not
+>> touching this file.
 > 
-> H. Peter Anvin doesn't like huge zero page which sticks in memory forever
-> after the first allocation. Here's implementation of lockless refcounting
-> for huge zero page.
+> It's a rather *unexpected* side effect. You changed slub_def.h to
+> include memcontrol.h/cgroup.h which in turn includes idr.h.
 > 
-...
+Indeed.
+>> I think this needs patching independently.
+> 
+> Yes, sure. And perhaps send it for quick inclusion before your patches?
+> 
 
-> +static unsigned long get_huge_zero_page(void)
-> +{
-> +	struct page *zero_page;
-> +retry:
-> +	if (likely(atomic_inc_not_zero(&huge_zero_refcount)))
-> +		return ACCESS_ONCE(huge_zero_pfn);
-> +
-> +	zero_page = alloc_pages(GFP_TRANSHUGE | __GFP_ZERO, HPAGE_PMD_ORDER);
-> +	if (!zero_page)
-> +		return 0;
-> +	if (cmpxchg(&huge_zero_pfn, 0, page_to_pfn(zero_page))) {
-> +		__free_page(zero_page);
-> +		goto retry;
-> +	}
-
-This might break if preemption can happen here ?
-
-The second thread might loop forever because huge_zero_refcount is 0,
-and huge_zero_pfn not zero.
-
-If preemption already disabled, a comment would be nice.
-
-
-> +
-> +	/* We take additional reference here. It will be put back by shinker */
-
-typo : shrinker
-
-> +	atomic_set(&huge_zero_refcount, 2);
-> +	return ACCESS_ONCE(huge_zero_pfn);
-> +}
-> +
-
-
+I agree.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
