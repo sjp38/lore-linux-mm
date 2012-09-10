@@ -1,113 +1,148 @@
-Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
-	by kanga.kvack.org (Postfix) with SMTP id C37976B0068
-	for <linux-mm@kvack.org>; Sun, 30 Sep 2012 23:03:53 -0400 (EDT)
-Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id D5E673EE0B6
-	for <linux-mm@kvack.org>; Mon,  1 Oct 2012 12:03:50 +0900 (JST)
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id B920245DE55
-	for <linux-mm@kvack.org>; Mon,  1 Oct 2012 12:03:50 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 9640B45DE53
-	for <linux-mm@kvack.org>; Mon,  1 Oct 2012 12:03:50 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 7611C1DB8042
-	for <linux-mm@kvack.org>; Mon,  1 Oct 2012 12:03:50 +0900 (JST)
-Received: from g01jpexchyt08.g01.fujitsu.local (g01jpexchyt08.g01.fujitsu.local [10.128.194.47])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 1CADD1DB803B
-	for <linux-mm@kvack.org>; Mon,  1 Oct 2012 12:03:50 +0900 (JST)
-Message-ID: <506907E5.2080609@jp.fujitsu.com>
-Date: Mon, 1 Oct 2012 12:03:01 +0900
-From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-MIME-Version: 1.0
-Subject: Re: [RFC v9 PATCH 13/21] memory-hotplug: check page type in get_page_bootmem
-References: <1346837155-534-1-git-send-email-wency@cn.fujitsu.com> <1346837155-534-14-git-send-email-wency@cn.fujitsu.com> <506659D7.9080904@gmail.com>
-In-Reply-To: <506659D7.9080904@gmail.com>
-Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
-Content-Transfer-Encoding: 7bit
+From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Subject: Re: + mm-memblock-reduce-overhead-in-binary-search.patch added to
+ -mm tree
+Date: Mon, 10 Sep 2012 17:46:04 +0800
+Message-ID: <39478.2339259565$1347270392@news.gmane.org>
+References: <20120907235058.A33F75C0219@hpza9.eem.corp.google.com>
+ <20120910082035.GA13035@dhcp22.suse.cz>
+Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Return-path: <owner-linux-mm@kvack.org>
+Received: from kanga.kvack.org ([205.233.56.17])
+	by plane.gmane.org with esmtp (Exim 4.69)
+	(envelope-from <owner-linux-mm@kvack.org>)
+	id 1TB0ZW-0004bX-MV
+	for glkm-linux-mm-2@m.gmane.org; Mon, 10 Sep 2012 11:46:26 +0200
+Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
+	by kanga.kvack.org (Postfix) with SMTP id B2C1F6B005D
+	for <linux-mm@kvack.org>; Mon, 10 Sep 2012 05:46:17 -0400 (EDT)
+Received: from /spool/local
+	by e23smtp07.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
+	Mon, 10 Sep 2012 19:44:24 +1000
+Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q8A9k7nq19333182
+	for <linux-mm@kvack.org>; Mon, 10 Sep 2012 19:46:07 +1000
+Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
+	by d23av04.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q8A9k6HE020654
+	for <linux-mm@kvack.org>; Mon, 10 Sep 2012 19:46:07 +1000
+Content-Disposition: inline
+In-Reply-To: <20120910082035.GA13035@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ni zhan Chen <nizhan.chen@gmail.com>
-Cc: x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-ia64@vger.kernel.org, cmetcalf@tilera.com, sparclinux@vger.kernel.org, rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, Wen Congyang <wency@cn.fujitsu.com>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: akpm@linux-foundation.org, liwanp@linux.vnet.ibm.com, kamezawa.hiroyu@jp.fujitsu.com, minchan@kernel.org, shangw@linux.vnet.ibm.com, yinghai@kernel.org, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-Hi Chen,
+On Mon, Sep 10, 2012 at 10:22:39AM +0200, Michal Hocko wrote:
+>[Sorry for the late reply]
+>
+>On Fri 07-09-12 16:50:57, Andrew Morton wrote:
+>> 
+>> The patch titled
+>>      Subject: mm/memblock: reduce overhead in binary search
+>> has been added to the -mm tree.  Its filename is
+>>      mm-memblock-reduce-overhead-in-binary-search.patch
+>> 
+>> Before you just go and hit "reply", please:
+>>    a) Consider who else should be cc'ed
+>>    b) Prefer to cc a suitable mailing list as well
+>>    c) Ideally: find the original patch on the mailing list and do a
+>>       reply-to-all to that, adding suitable additional cc's
+>> 
+>> *** Remember to use Documentation/SubmitChecklist when testing your code ***
+>> 
+>> The -mm tree is included into linux-next and is updated
+>> there every 3-4 working days
+>> 
+>> ------------------------------------------------------
+>> From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+>> Subject: mm/memblock: reduce overhead in binary search
+>> 
+>> When checking that the indicated address belongs to the memory region, the
+>> memory regions are checked one by one through a binary search, which will
+>> be time consuming.
+>
+>How many blocks do you have that O(long) is that time consuming?
+>
+>> If the indicated address isn't in the memory region, then we needn't do
+>> the time-consuming search.  
+>
+>How often does this happen?
+>
+>> Add a check on the indicated address for that purpose.
+>
+>We have 2 users of this function. One is exynos_sysmmu_enable and the
+>other pfn_valid for unicore32. The first one doesn't seem to be used
+>anywhere (as per git grep). The other one could benefit from it but it
+>would be nice to hear about how much it really helps becuase if the
+>address is (almost) never outside of start,end DRAM bounds then you just
+>add a pointless check.
+>Besides that, if this kind of optimization is really worth, why don't we
+>do the same thing for memblock_is_reserved and memblock_is_region_memory
+>as well?
 
-2012/09/29 11:15, Ni zhan Chen wrote:
-> On 09/05/2012 05:25 PM, wency@cn.fujitsu.com wrote:
->> From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
->>
->> The function get_page_bootmem() may be called more than one time to the same
->> page. There is no need to set page's type, private if the function is not
->> the first time called to the page.
->>
->> Note: the patch is just optimization and does not fix any problem.
->
-> Hi Yasuaki,
->
-> this patch is reasonable to me. I have another question associated to get_page_bootmem(), the question is from another fujitsu guy's patch changelog [commit : 04753278769f3], the changelog said  that:
->
->   1) When the memmap of removing section is allocated on other
->       section by bootmem, it should/can be free.
->   2) When the memmap of removing section is allocated on the
->       same section, it shouldn't be freed. Because the section has to be
->       logical memory offlined already and all pages must be isolated against
->       page allocater. If it is freed, page allocator may use it which will
->       be removed physically soon.
->
-> but I don't see his patch guarantee 2), it means that his patch doesn't guarantee the memmap of removing section which is allocated on other section by bootmem doesn't be freed. Hopefully get your explaination in details, thanks in advance. :-)
+As Yinghai said,
 
-In my understanding, the patch does not guarantee it.
-Please see [commit : 0c0a4a517a31e]. free_map_bootmem() in the commit
-guarantees it.
+BIOS could have reserved some ranges, and those ranges are not overlapped by 
+RAM. and so those range will not be in memory and reserved array.
 
-Thanks,
-Yasuaki Ishimatsu
+later kernel will probe some range, and reserved those range, so those
+range get inserted into reserved array. reserved and memory array is
+different.
 
 >
->>
->> CC: David Rientjes <rientjes@google.com>
->> CC: Jiang Liu <liuj97@gmail.com>
->> CC: Len Brown <len.brown@intel.com>
->> CC: Benjamin Herrenschmidt <benh@kernel.crashing.org>
->> CC: Paul Mackerras <paulus@samba.org>
->> CC: Christoph Lameter <cl@linux.com>
->> Cc: Minchan Kim <minchan.kim@gmail.com>
->> CC: Andrew Morton <akpm@linux-foundation.org>
->> CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
->> CC: Wen Congyang <wency@cn.fujitsu.com>
->> Signed-off-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+>So, while the patch seems correct, I do not see how much it helps while
+>it definitely adds a code to maintain.
+>
+>> Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+>> Cc: Michal Hocko <mhocko@suse.cz>
+>> Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+>> Cc: Minchan Kim <minchan@kernel.org>
+>> Cc: Gavin Shan <shangw@linux.vnet.ibm.com>
+>> Cc: Yinghai Lu <yinghai@kernel.org>
+>> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
 >> ---
->>   mm/memory_hotplug.c |   15 +++++++++++----
->>   1 files changed, 11 insertions(+), 4 deletions(-)
->>
->> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
->> index d736df3..26a5012 100644
->> --- a/mm/memory_hotplug.c
->> +++ b/mm/memory_hotplug.c
->> @@ -95,10 +95,17 @@ static void release_memory_resource(struct resource *res)
->>   static void get_page_bootmem(unsigned long info,  struct page *page,
->>                    unsigned long type)
->>   {
->> -    page->lru.next = (struct list_head *) type;
->> -    SetPagePrivate(page);
->> -    set_page_private(page, info);
->> -    atomic_inc(&page->_count);
->> +    unsigned long page_type;
+>> 
+>>  mm/memblock.c |    5 +++++
+>>  1 file changed, 5 insertions(+)
+>> 
+>> diff -puN mm/memblock.c~mm-memblock-reduce-overhead-in-binary-search mm/memblock.c
+>> --- a/mm/memblock.c~mm-memblock-reduce-overhead-in-binary-search
+>> +++ a/mm/memblock.c
+>> @@ -888,6 +888,11 @@ int __init memblock_is_reserved(phys_add
+>>  
+>>  int __init_memblock memblock_is_memory(phys_addr_t addr)
+>>  {
 >> +
->> +    page_type = (unsigned long)page->lru.next;
->> +    if (page_type < MEMORY_HOTPLUG_MIN_BOOTMEM_TYPE ||
->> +        page_type > MEMORY_HOTPLUG_MAX_BOOTMEM_TYPE){
->> +        page->lru.next = (struct list_head *)type;
->> +        SetPagePrivate(page);
->> +        set_page_private(page, info);
->> +        atomic_inc(&page->_count);
->> +    } else
->> +        atomic_inc(&page->_count);
->>   }
->>   /* reference to __meminit __free_pages_bootmem is valid
+>> +	if (unlikely(addr < memblock_start_of_DRAM() ||
+>> +		addr >= memblock_end_of_DRAM()))
+>> +		return 0;
+>> +
+>>  	return memblock_search(&memblock.memory, addr) != -1;
+>>  }
+>>  
+>> _
+>> 
+>> Patches currently in -mm which might be from liwanp@linux.vnet.ibm.com are
+>> 
+>> mm-mmu_notifier-init-notifier-if-necessary.patch
+>> mm-vmscan-fix-error-number-for-failed-kthread.patch
+>> mm-memblock-reduce-overhead-in-binary-search.patch
+>> mm-memblock-rename-get_allocated_memblock_reserved_regions_info.patch
+>> mm-memblock-use-existing-interface-to-set-nid.patch
+>> mm-memblock-cleanup-early_node_map-related-comments.patch
+>> 
 >
-
+>-- 
+>Michal Hocko
+>SUSE Labs
+>
+>--
+>To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>the body to majordomo@kvack.org.  For more info on Linux MM,
+>see: http://www.linux-mm.org/ .
+>Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
