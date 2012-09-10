@@ -1,58 +1,29 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx103.postini.com [74.125.245.103])
-	by kanga.kvack.org (Postfix) with SMTP id 36AB36B0062
-	for <linux-mm@kvack.org>; Mon, 10 Sep 2012 10:05:49 -0400 (EDT)
-Message-ID: <504DF2FA.2020200@parallels.com>
-Date: Mon, 10 Sep 2012 18:02:34 +0400
+Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
+	by kanga.kvack.org (Postfix) with SMTP id 76BFA6B005D
+	for <linux-mm@kvack.org>; Mon, 10 Sep 2012 10:10:57 -0400 (EDT)
+Message-ID: <504DF42F.2050504@parallels.com>
+Date: Mon, 10 Sep 2012 18:07:43 +0400
 From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Subject: Re: [glommer-memcg:kmemcg-slab 57/62] drivers/video/riva/fbdev.c:281:9:
- sparse: preprocessor token MAX_LEVEL redefined
-References: <20120910111638.GC9660@localhost> <20120910125759.GA11808@localhost> <504DE3DA.7000802@parallels.com> <20120910130617.GA11963@localhost>
-In-Reply-To: <20120910130617.GA11963@localhost>
+Subject: Re: [PATCH] idr: Rename MAX_LEVEL to MAX_ID_LEVEL
+References: <20120910131426.GA12431@localhost>
+In-Reply-To: <20120910131426.GA12431@localhost>
 Content-Type: text/plain; charset="ISO-8859-1"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Fengguang Wu <fengguang.wu@intel.com>
-Cc: kernel-janitors@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, kernel-janitors@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>
 
-On 09/10/2012 05:06 PM, Fengguang Wu wrote:
-> On Mon, Sep 10, 2012 at 04:58:02PM +0400, Glauber Costa wrote:
->> On 09/10/2012 04:57 PM, Fengguang Wu wrote:
->>> Glauber,
->>>
->>> The patch entitled
->>>
->>>  sl[au]b: Allocate objects from memcg cache
->>>
->>> changes
->>>
->>>  include/linux/slub_def.h |   15 ++++++++++-----
->>>
->>> which triggers this warning:
->>>
->>> drivers/video/riva/fbdev.c:281:9: sparse: preprocessor token MAX_LEVEL redefined
->>>
->>> It's the MAX_LEVEL that is defined in include/linux/idr.h.
->>>
->>> MAX_LEVEL is obviously too generic. Better adding some prefix to it?
->>>
->>
->> I don't see any MAX_LEVEL definition in this patch. You say it is
->> defined in include/linux/idr.h, and as the diffstat shows, I am not
->> touching this file.
+On 09/10/2012 05:14 PM, Fengguang Wu wrote:
+> To avoid name conflicts:
 > 
-> It's a rather *unexpected* side effect. You changed slub_def.h to
-> include memcontrol.h/cgroup.h which in turn includes idr.h.
+> drivers/video/riva/fbdev.c:281:9: sparse: preprocessor token MAX_LEVEL redefined
 > 
-Indeed.
->> I think this needs patching independently.
-> 
-> Yes, sure. And perhaps send it for quick inclusion before your patches?
-> 
+> Signed-off-by: Fengguang Wu <fengguang.wu@intel.com>
 
-I agree.
+Acked-by: Glauber Costa <glommer@parallels.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
