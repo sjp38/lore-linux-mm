@@ -1,59 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
-	by kanga.kvack.org (Postfix) with SMTP id 556C46B0069
-	for <linux-mm@kvack.org>; Mon, 10 Sep 2012 09:06:23 -0400 (EDT)
-Date: Mon, 10 Sep 2012 21:06:17 +0800
-From: Fengguang Wu <fengguang.wu@intel.com>
-Subject: Re: [glommer-memcg:kmemcg-slab 57/62]
- drivers/video/riva/fbdev.c:281:9: sparse: preprocessor token MAX_LEVEL
- redefined
-Message-ID: <20120910130617.GA11963@localhost>
-References: <20120910111638.GC9660@localhost>
- <20120910125759.GA11808@localhost>
- <504DE3DA.7000802@parallels.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <504DE3DA.7000802@parallels.com>
+Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
+	by kanga.kvack.org (Postfix) with SMTP id EFED86B0068
+	for <linux-mm@kvack.org>; Mon, 10 Sep 2012 09:13:20 -0400 (EDT)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: [PATCH v2 00/10] Introduce huge zero page
+Date: Mon, 10 Sep 2012 16:13:23 +0300
+Message-Id: <1347282813-21935-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: kernel-janitors@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org
+Cc: Andi Kleen <ak@linux.intel.com>, "H. Peter Anvin" <hpa@linux.intel.com>, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill@shutemov.name>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On Mon, Sep 10, 2012 at 04:58:02PM +0400, Glauber Costa wrote:
-> On 09/10/2012 04:57 PM, Fengguang Wu wrote:
-> > Glauber,
-> > 
-> > The patch entitled
-> > 
-> >  sl[au]b: Allocate objects from memcg cache
-> > 
-> > changes
-> > 
-> >  include/linux/slub_def.h |   15 ++++++++++-----
-> > 
-> > which triggers this warning:
-> > 
-> > drivers/video/riva/fbdev.c:281:9: sparse: preprocessor token MAX_LEVEL redefined
-> > 
-> > It's the MAX_LEVEL that is defined in include/linux/idr.h.
-> > 
-> > MAX_LEVEL is obviously too generic. Better adding some prefix to it?
-> > 
-> 
-> I don't see any MAX_LEVEL definition in this patch. You say it is
-> defined in include/linux/idr.h, and as the diffstat shows, I am not
-> touching this file.
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-It's a rather *unexpected* side effect. You changed slub_def.h to
-include memcontrol.h/cgroup.h which in turn includes idr.h.
+During testing I noticed big (up to 2.5 times) memory consumption overhead
+on some workloads (e.g. ft.A from NPB) if THP is enabled.
 
-> I think this needs patching independently.
+The main reason for that big difference is lacking zero page in THP case.
+We have to allocate a real page on read page fault.
 
-Yes, sure. And perhaps send it for quick inclusion before your patches?
+A program to demonstrate the issue:
+#include <assert.h>
+#include <stdlib.h>
+#include <unistd.h>
 
-Thanks,
-Fengguang
+#define MB 1024*1024
+
+int main(int argc, char **argv)
+{
+        char *p;
+        int i;
+
+        posix_memalign((void **)&p, 2 * MB, 200 * MB);
+        for (i = 0; i < 200 * MB; i+= 4096)
+                assert(p[i] == 0);
+        pause();
+        return 0;
+}
+
+With thp-never RSS is about 400k, but with thp-always it's 200M.
+After the patcheset thp-always RSS is 400k too.
+
+v2:
+ - Avoid find_vma() if we've already had vma on stack.
+   Suggested by Andrea Arcangeli.
+ - Implement refcounting for huge zero page.
+
+Kirill A. Shutemov (10):
+  thp: huge zero page: basic preparation
+  thp: zap_huge_pmd(): zap huge zero pmd
+  thp: copy_huge_pmd(): copy huge zero page
+  thp: do_huge_pmd_wp_page(): handle huge zero page
+  thp: change_huge_pmd(): keep huge zero page write-protected
+  thp: change split_huge_page_pmd() interface
+  thp: implement splitting pmd for huge zero page
+  thp: setup huge zero page on non-write page fault
+  thp: lazy huge zero page allocation
+  thp: implement refcounting for huge zero page
+
+ Documentation/vm/transhuge.txt |    4 +-
+ arch/x86/kernel/vm86_32.c      |    2 +-
+ fs/proc/task_mmu.c             |    2 +-
+ include/linux/huge_mm.h        |   14 ++-
+ include/linux/mm.h             |    8 +
+ mm/huge_memory.c               |  303 ++++++++++++++++++++++++++++++++++++----
+ mm/memory.c                    |   11 +--
+ mm/mempolicy.c                 |    2 +-
+ mm/mprotect.c                  |    2 +-
+ mm/mremap.c                    |    2 +-
+ mm/pagewalk.c                  |    2 +-
+ 11 files changed, 301 insertions(+), 51 deletions(-)
+
+-- 
+1.7.7.6
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
