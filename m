@@ -1,48 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
-	by kanga.kvack.org (Postfix) with SMTP id 3A00B6B0071
-	for <linux-mm@kvack.org>; Mon, 10 Sep 2012 09:14:32 -0400 (EDT)
-Date: Mon, 10 Sep 2012 21:14:26 +0800
-From: Fengguang Wu <fengguang.wu@intel.com>
-Subject: [PATCH] idr: Rename MAX_LEVEL to MAX_ID_LEVEL
-Message-ID: <20120910131426.GA12431@localhost>
-MIME-Version: 1.0
+Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
+	by kanga.kvack.org (Postfix) with SMTP id 008846B006C
+	for <linux-mm@kvack.org>; Mon, 10 Sep 2012 09:36:38 -0400 (EDT)
+Received: from list by plane.gmane.org with local (Exim 4.69)
+	(envelope-from <glkm-linux-mm-2@m.gmane.org>)
+	id 1TB4AJ-0000I7-SU
+	for linux-mm@kvack.org; Mon, 10 Sep 2012 15:36:39 +0200
+Received: from 112.132.200.126 ([112.132.200.126])
+        by main.gmane.org with esmtp (Gmexim 0.1 (Debian))
+        id 1AlnuQ-0007hv-00
+        for <linux-mm@kvack.org>; Mon, 10 Sep 2012 15:36:39 +0200
+Received: from xiyou.wangcong by 112.132.200.126 with local (Gmexim 0.1 (Debian))
+        id 1AlnuQ-0007hv-00
+        for <linux-mm@kvack.org>; Mon, 10 Sep 2012 15:36:39 +0200
+From: Cong Wang <xiyou.wangcong@gmail.com>
+Subject: Re: Consider for longterm kernels: mm: avoid swapping out with
+ swappiness==0
+Date: Mon, 10 Sep 2012 13:36:25 +0000 (UTC)
+Message-ID: <k2kqcp$a12$1@ger.gmane.org>
+References: <5038E7AA.5030107@gmail.com>
+ <1347209830.7709.39.camel@deadeye.wl.decadent.org.uk>
+ <504CCECF.9020104@redhat.com>
+ <CAGDaZ_pLTR3FZy4-txF7ZhMy60xp_BB=-JORd8OhcGcJOG6YCw@mail.gmail.com>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Glauber Costa <glommer@parallels.com>, kernel-janitors@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>
+To: linux-mm@kvack.org
+Cc: stable@vger.kernel.org
 
-To avoid name conflicts:
-
-drivers/video/riva/fbdev.c:281:9: sparse: preprocessor token MAX_LEVEL redefined
-
-Signed-off-by: Fengguang Wu <fengguang.wu@intel.com>
----
-
-Andrew: the conflict happens in Glauber's kmemcg-slab tree.  So it's
-better to quickly push this pre-fix to upstream before Glauber's patches.
+On Sun, 09 Sep 2012 at 18:03 GMT, Shentino <shentino@gmail.com> wrote:
+>
+> Just curious, but what theoretically would happen if someone were to
+> want to set swappiness to 200 or something?
+>
+> Should it be sorta like vfs_cache_pressure?
+>
 
 
- include/linux/idr.h |    4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+How could it be set to 200? As 0~100 is valid:
 
---- linux.orig/include/linux/idr.h	2012-09-10 21:08:51.177452944 +0800
-+++ linux/include/linux/idr.h	2012-09-10 21:08:57.729452732 +0800
-@@ -43,10 +43,10 @@
- #define MAX_ID_MASK (MAX_ID_BIT - 1)
- 
- /* Leave the possibility of an incomplete final layer */
--#define MAX_LEVEL (MAX_ID_SHIFT + IDR_BITS - 1) / IDR_BITS
-+#define MAX_ID_LEVEL (MAX_ID_SHIFT + IDR_BITS - 1) / IDR_BITS
- 
- /* Number of id_layer structs to leave in free list */
--#define IDR_FREE_MAX MAX_LEVEL + MAX_LEVEL
-+#define IDR_FREE_MAX MAX_ID_LEVEL + MAX_ID_LEVEL
- 
- struct idr_layer {
- 	unsigned long		 bitmap; /* A zero bit means "space here" */
+        {
+	                .procname       = "swappiness",
+		        .data           = &vm_swappiness,
+		        .maxlen         = sizeof(vm_swappiness),
+			.mode           = 0644,
+		        .proc_handler   = proc_dointvec_minmax,
+			.extra1         = &zero,
+			.extra2         = &one_hundred,
+        },
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
