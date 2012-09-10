@@ -1,123 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
-	by kanga.kvack.org (Postfix) with SMTP id 39FBE6B0062
-	for <linux-mm@kvack.org>; Mon, 10 Sep 2012 08:00:55 -0400 (EDT)
-Received: by vbkv13 with SMTP id v13so2129033vbk.14
-        for <linux-mm@kvack.org>; Mon, 10 Sep 2012 05:00:54 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx127.postini.com [74.125.245.127])
+	by kanga.kvack.org (Postfix) with SMTP id 0A1E86B0068
+	for <linux-mm@kvack.org>; Mon, 10 Sep 2012 08:58:04 -0400 (EDT)
+Date: Mon, 10 Sep 2012 20:57:59 +0800
+From: Fengguang Wu <fengguang.wu@intel.com>
+Subject: [glommer-memcg:kmemcg-slab 57/62] drivers/video/riva/fbdev.c:281:9:
+ sparse: preprocessor token MAX_LEVEL redefined
+Message-ID: <20120910125759.GA11808@localhost>
+References: <20120910111638.GC9660@localhost>
 MIME-Version: 1.0
-In-Reply-To: <1346451711-1931-8-git-send-email-lczerner@redhat.com>
-References: <1346451711-1931-1-git-send-email-lczerner@redhat.com>
-	<1346451711-1931-8-git-send-email-lczerner@redhat.com>
-Date: Mon, 10 Sep 2012 17:30:53 +0530
-Message-ID: <CAOiN93kKVxYeS5f0_nR3RpdX7sv+EJNA-T4jq7amFS5LQGqfnw@mail.gmail.com>
-Subject: Re: [PATCH 07/15 v2] ext4: Take i_mutex before punching hole
-From: Ashish Sangwan <ashishsangwan2@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120910111638.GC9660@localhost>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Lukas Czerner <lczerner@redhat.com>
-Cc: linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org, tytso@mit.edu, hughd@google.com, linux-mm@kvack.org
+To: Glauber Costa <glommer@parallels.com>
+Cc: kernel-janitors@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>
 
-On Sat, Sep 1, 2012 at 3:51 AM, Lukas Czerner <lczerner@redhat.com> wrote:
-> Currently the allocation might happen in the punched range after the
-> truncation and before the releasing the space of the range. This would
-> lead to blocks being unallocated under the mapped buffer heads resulting
-> in nasty bugs.
->
-> With this commit we take i_mutex before going to do anything in the
-> ext4_ext_punch_hole() preventing any write to happen while the hole
-> punching is in progress. This will also allow us to ditch the writeout
-> of dirty pages withing the range.
->
-> This commit was based on code provided by Zheng Liu, thanks!
->
-> Signed-off-by: Lukas Czerner <lczerner@redhat.com>
-> ---
->  fs/ext4/extents.c |   26 ++++++++++----------------
->  1 files changed, 10 insertions(+), 16 deletions(-)
->
-> diff --git a/fs/ext4/extents.c b/fs/ext4/extents.c
-> index aabbb3f..f920383 100644
-> --- a/fs/ext4/extents.c
-> +++ b/fs/ext4/extents.c
-> @@ -4769,9 +4769,11 @@ int ext4_ext_punch_hole(struct file *file, loff_t offset, loff_t length)
->         loff_t first_page_offset, last_page_offset;
->         int credits, err = 0;
->
-> +       mutex_lock(&inode->i_mutex);
-> +
->         /* No need to punch hole beyond i_size */
->         if (offset >= inode->i_size)
-> -               return 0;
-> +               goto out1;
->
->         /*
->          * If the hole extends beyond i_size, set the hole
-> @@ -4789,18 +4791,6 @@ int ext4_ext_punch_hole(struct file *file, loff_t offset, loff_t length)
->         first_page_offset = first_page << PAGE_CACHE_SHIFT;
->         last_page_offset = last_page << PAGE_CACHE_SHIFT;
->
-> -       /*
-> -        * Write out all dirty pages to avoid race conditions
-> -        * Then release them.
-> -        */
-> -       if (mapping->nrpages && mapping_tagged(mapping, PAGECACHE_TAG_DIRTY)) {
-> -               err = filemap_write_and_wait_range(mapping,
-> -                       offset, offset + length - 1);
-> -
-> -               if (err)
-> -                       return err;
-> -       }
-> -
+Glauber,
 
-Removing above code will cause a problem in case the file has all its
-data in memory and nothing has been committed on disk. If punch hole
-is issued for such a file, as there are no extents present, EIO would
-be returned from ext4_ext_rm_leaf. So, even though blocks would be
-removed from memory, the end result will be error EIO.
+The patch entitled
 
->         /* Now release the pages */
->         if (last_page_offset > first_page_offset) {
->                 truncate_pagecache_range(inode, first_page_offset,
+ sl[au]b: Allocate objects from memcg cache
 
-To avoid this, you can add a check after the call to truncate_pagecache_range.
-if(!inode->i_blocks)
-  return 0;
+changes
 
-> @@ -4812,12 +4802,14 @@ int ext4_ext_punch_hole(struct file *file, loff_t offset, loff_t length)
->
->         credits = ext4_writepage_trans_blocks(inode);
->         handle = ext4_journal_start(inode, credits);
-> -       if (IS_ERR(handle))
-> -               return PTR_ERR(handle);
-> +       if (IS_ERR(handle)) {
-> +               err = PTR_ERR(handle);
-> +               goto out1;
-> +       }
->
->         err = ext4_orphan_add(handle, inode);
->         if (err)
-> -               goto out;
-> +               goto out1;
->
->         /*
->          * Now we need to zero out the non-page-aligned data in the
-> @@ -4907,6 +4899,8 @@ out:
->         inode->i_mtime = inode->i_ctime = ext4_current_time(inode);
->         ext4_mark_inode_dirty(handle, inode);
->         ext4_journal_stop(handle);
-> +out1:
-> +       mutex_unlock(&inode->i_mutex);
->         return err;
->  }
->  int ext4_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
-> --
-> 1.7.7.6
->
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-ext4" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+ include/linux/slub_def.h |   15 ++++++++++-----
+
+which triggers this warning:
+
+drivers/video/riva/fbdev.c:281:9: sparse: preprocessor token MAX_LEVEL redefined
+
+It's the MAX_LEVEL that is defined in include/linux/idr.h.
+
+MAX_LEVEL is obviously too generic. Better adding some prefix to it?
+
+Thanks,
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
