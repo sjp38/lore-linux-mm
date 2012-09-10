@@ -1,53 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
-	by kanga.kvack.org (Postfix) with SMTP id B2FEC6B0069
-	for <linux-mm@kvack.org>; Mon, 10 Sep 2012 11:07:15 -0400 (EDT)
-Date: Mon, 10 Sep 2012 18:07:47 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH v2 10/10] thp: implement refcounting for huge zero page
-Message-ID: <20120910150747.GA23556@shutemov.name>
-References: <1347282813-21935-1-git-send-email-kirill.shutemov@linux.intel.com>
- <1347282813-21935-11-git-send-email-kirill.shutemov@linux.intel.com>
- <1347285759.1234.1645.camel@edumazet-glaptop>
- <20120910144438.GA31697@otc-wbsnb-06>
- <1347289079.1234.1706.camel@edumazet-glaptop>
+Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
+	by kanga.kvack.org (Postfix) with SMTP id 8DAB36B0062
+	for <linux-mm@kvack.org>; Mon, 10 Sep 2012 12:12:52 -0400 (EDT)
+Message-ID: <504E1182.7080300@bfs.de>
+Date: Mon, 10 Sep 2012 18:12:50 +0200
+From: walter harms <wharms@bfs.de>
+Reply-To: wharms@bfs.de
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1347289079.1234.1706.camel@edumazet-glaptop>
+Subject: Re: [PATCH] idr: Rename MAX_LEVEL to MAX_ID_LEVEL
+References: <20120910131426.GA12431@localhost>
+In-Reply-To: <20120910131426.GA12431@localhost>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Eric Dumazet <eric.dumazet@gmail.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, "H. Peter Anvin" <hpa@linux.intel.com>, linux-kernel@vger.kernel.org
+To: Fengguang Wu <fengguang.wu@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Glauber Costa <glommer@parallels.com>, kernel-janitors@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>
 
-On Mon, Sep 10, 2012 at 04:57:59PM +0200, Eric Dumazet wrote:
-> On Mon, 2012-09-10 at 17:44 +0300, Kirill A. Shutemov wrote:
-> 
-> 
-> > Yes, disabling preemption before alloc_pages() and enabling after
-> > atomic_set() looks reasonable. Thanks.
-> 
-> In fact, as alloc_pages(GFP_TRANSHUGE | __GFP_ZERO, HPAGE_PMD_ORDER);
-> might sleep, it would be better to disable preemption after calling it :
 
-Yeah, I've alread thought about that. :)
 
-> zero_page = alloc_pages(GFP_TRANSHUGE | __GFP_ZERO, HPAGE_PMD_ORDER);
-> if (!zero_page)
-> 	return 0;
-> preempt_disable();
-> if (cmpxchg(&huge_zero_pfn, 0, page_to_pfn(zero_page))) {
-> 	preempt_enable();
-> 	__free_page(zero_page);
-> 	goto retry;
-> }
-> atomic_set(&huge_zero_refcount, 2);
-> preempt_enable();
+Am 10.09.2012 15:14, schrieb Fengguang Wu:
+> To avoid name conflicts:
+> 
+> drivers/video/riva/fbdev.c:281:9: sparse: preprocessor token MAX_LEVEL redefined
+> 
+> Signed-off-by: Fengguang Wu <fengguang.wu@intel.com>
+> ---
+> 
+> Andrew: the conflict happens in Glauber's kmemcg-slab tree.  So it's
+> better to quickly push this pre-fix to upstream before Glauber's patches.
 > 
 > 
+>  include/linux/idr.h |    4 ++--
+>  1 file changed, 2 insertions(+), 2 deletions(-)
+> 
+> --- linux.orig/include/linux/idr.h	2012-09-10 21:08:51.177452944 +0800
+> +++ linux/include/linux/idr.h	2012-09-10 21:08:57.729452732 +0800
+> @@ -43,10 +43,10 @@
+>  #define MAX_ID_MASK (MAX_ID_BIT - 1)
+>  
+>  /* Leave the possibility of an incomplete final layer */
+> -#define MAX_LEVEL (MAX_ID_SHIFT + IDR_BITS - 1) / IDR_BITS
+> +#define MAX_ID_LEVEL (MAX_ID_SHIFT + IDR_BITS - 1) / IDR_BITS
+>  
+>  /* Number of id_layer structs to leave in free list */
+> -#define IDR_FREE_MAX MAX_LEVEL + MAX_LEVEL
+> +#define IDR_FREE_MAX MAX_ID_LEVEL + MAX_ID_LEVEL
+>  
 
--- 
- Kirill A. Shutemov
+To be fair, i am a bit confused by the naming.
+There is MAX_id_LEVEL but idr_BITS are these different things ?
+If not i would argue to give both the same names either ID or IDR.
+
+re,
+ wh
+
+
+>  struct idr_layer {
+>  	unsigned long		 bitmap; /* A zero bit means "space here" */
+> --
+> To unsubscribe from this list: send the line "unsubscribe kernel-janitors" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> 
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
