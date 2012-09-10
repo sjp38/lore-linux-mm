@@ -1,66 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx141.postini.com [74.125.245.141])
-	by kanga.kvack.org (Postfix) with SMTP id 9869C6B005D
-	for <linux-mm@kvack.org>; Mon, 10 Sep 2012 09:52:19 -0400 (EDT)
-Received: by eeke49 with SMTP id e49so1335834eek.14
-        for <linux-mm@kvack.org>; Mon, 10 Sep 2012 06:52:17 -0700 (PDT)
-Date: Mon, 10 Sep 2012 15:52:13 +0200
-From: Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>
-Subject: Re: [RFC v8 PATCH 00/20] memory-hotplug: hot-remove physical memory
-Message-ID: <20120910135213.GA1550@dhcp-192-168-178-175.profitbricks.localdomain>
-References: <1346148027-24468-1-git-send-email-wency@cn.fujitsu.com>
- <20120831134956.fec0f681.akpm@linux-foundation.org>
- <504D467D.2080201@jp.fujitsu.com>
- <504D4A08.7090602@cn.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <504D4A08.7090602@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
+	by kanga.kvack.org (Postfix) with SMTP id 3073E6B005D
+	for <linux-mm@kvack.org>; Mon, 10 Sep 2012 10:02:45 -0400 (EDT)
+Received: by eeke49 with SMTP id e49so1347880eek.14
+        for <linux-mm@kvack.org>; Mon, 10 Sep 2012 07:02:43 -0700 (PDT)
+Subject: Re: [PATCH v2 10/10] thp: implement refcounting for huge zero page
+From: Eric Dumazet <eric.dumazet@gmail.com>
+In-Reply-To: <1347282813-21935-11-git-send-email-kirill.shutemov@linux.intel.com>
+References: 
+	 <1347282813-21935-1-git-send-email-kirill.shutemov@linux.intel.com>
+	 <1347282813-21935-11-git-send-email-kirill.shutemov@linux.intel.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Mon, 10 Sep 2012 16:02:39 +0200
+Message-ID: <1347285759.1234.1645.camel@edumazet-glaptop>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wen Congyang <wency@cn.fujitsu.com>
-Cc: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-ia64@vger.kernel.org, cmetcalf@tilera.com, sparclinux@vger.kernel.org, rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, kosaki.motohiro@jp.fujitsu.com
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, "H. Peter Anvin" <hpa@linux.intel.com>, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill@shutemov.name>
 
-Hi,
-
-On Mon, Sep 10, 2012 at 10:01:44AM +0800, Wen Congyang wrote:
-> At 09/10/2012 09:46 AM, Yasuaki Ishimatsu Wrote:
-> > Hi Wen,
-> > 
-> > 2012/09/01 5:49, Andrew Morton wrote:
-> >> On Tue, 28 Aug 2012 18:00:07 +0800
-> >> wency@cn.fujitsu.com wrote:
-> >>
-> >>> This patch series aims to support physical memory hot-remove.
-> >>
-> >> I doubt if many people have hardware which permits physical memory
-> >> removal?  How would you suggest that people with regular hardware can
-> >> test these chagnes?
-> > 
-> > How do you test the patch? As Andrew says, for hot-removing memory,
-> > we need a particular hardware. I think so too. So many people may want
-> > to know how to test the patch.
-> > If we apply following patch to kvm guest, can we hot-remove memory on
-> > kvm guest?
-> > 
-> > http://lists.gnu.org/archive/html/qemu-devel/2012-07/msg01389.html
+On Mon, 2012-09-10 at 16:13 +0300, Kirill A. Shutemov wrote:
+> From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 > 
-> Yes, if we apply this patchset, we can test hot-remove memory on kvm guest.
-> But that patchset doesn't implement _PS3, so there is some restriction.
+> H. Peter Anvin doesn't like huge zero page which sticks in memory forever
+> after the first allocation. Here's implementation of lockless refcounting
+> for huge zero page.
+> 
+...
 
-the following repos contain the patchset above, plus 2 more patches that add
-PS3 support to the dimm devices in qemu/seabios:
+> +static unsigned long get_huge_zero_page(void)
+> +{
+> +	struct page *zero_page;
+> +retry:
+> +	if (likely(atomic_inc_not_zero(&huge_zero_refcount)))
+> +		return ACCESS_ONCE(huge_zero_pfn);
+> +
+> +	zero_page = alloc_pages(GFP_TRANSHUGE | __GFP_ZERO, HPAGE_PMD_ORDER);
+> +	if (!zero_page)
+> +		return 0;
+> +	if (cmpxchg(&huge_zero_pfn, 0, page_to_pfn(zero_page))) {
+> +		__free_page(zero_page);
+> +		goto retry;
+> +	}
 
-https://github.com/vliaskov/seabios/commits/memhp-v2
-https://github.com/vliaskov/qemu-kvm/commits/memhp-v2
+This might break if preemption can happen here ?
 
-I have not posted the PS3 patches yet in the qemu list, but will post them
-soon for v3 of the memory hotplug series. If you have issues testing, let me
-know.
+The second thread might loop forever because huge_zero_refcount is 0,
+and huge_zero_pfn not zero.
 
-thanks,
+If preemption already disabled, a comment would be nice.
 
-- Vasilis
+
+> +
+> +	/* We take additional reference here. It will be put back by shinker */
+
+typo : shrinker
+
+> +	atomic_set(&huge_zero_refcount, 2);
+> +	return ACCESS_ONCE(huge_zero_pfn);
+> +}
+> +
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
