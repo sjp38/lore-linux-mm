@@ -1,205 +1,168 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
-	by kanga.kvack.org (Postfix) with SMTP id AC1016B0062
-	for <linux-mm@kvack.org>; Mon, 10 Sep 2012 20:27:41 -0400 (EDT)
-Received: by obhx4 with SMTP id x4so4907738obh.14
-        for <linux-mm@kvack.org>; Mon, 10 Sep 2012 17:27:40 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20120910135213.GA1550@dhcp-192-168-178-175.profitbricks.localdomain>
-References: <1346148027-24468-1-git-send-email-wency@cn.fujitsu.com>
-	<20120831134956.fec0f681.akpm@linux-foundation.org>
-	<504D467D.2080201@jp.fujitsu.com>
-	<504D4A08.7090602@cn.fujitsu.com>
-	<20120910135213.GA1550@dhcp-192-168-178-175.profitbricks.localdomain>
-Date: Tue, 11 Sep 2012 08:27:40 +0800
-Message-ID: <CAAV+Mu7YWRWnxt78F4ZDMrrUsWB=n-_qkYOcQT7WQ2HwP89Obw@mail.gmail.com>
-Subject: Re: [RFC v8 PATCH 00/20] memory-hotplug: hot-remove physical memory
-From: Jerry <uulinux@gmail.com>
-Content-Type: multipart/alternative; boundary=f46d044481d959ad8304c96224d8
+Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
+	by kanga.kvack.org (Postfix) with SMTP id BE53C6B0069
+	for <linux-mm@kvack.org>; Mon, 10 Sep 2012 20:39:59 -0400 (EDT)
+From: Minchan Kim <minchan@kernel.org>
+Subject: [PATCH] mm: cma: Discard clean pages during contiguous allocation instead of migration
+Date: Tue, 11 Sep 2012 09:41:52 +0900
+Message-Id: <1347324112-14134-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wen Congyang <wency@cn.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-ia64@vger.kernel.org, cmetcalf@tilera.com, sparclinux@vger.kernel.org, rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, kosaki.motohiro@jp.fujitsu.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Kyungmin Park <kmpark@infradead.org>, Minchan Kim <minchan@kernel.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>
 
---f46d044481d959ad8304c96224d8
-Content-Type: text/plain; charset=ISO-8859-1
+This patch drops clean cache pages instead of migration during
+alloc_contig_range() to minimise allocation latency by reducing the amount
+of migration is necessary. It's useful for CMA because latency of migration
+is more important than evicting the background processes working set.
+In addition, as pages are reclaimed then fewer free pages for migration
+targets are required so it avoids memory reclaiming to get free pages,
+which is a contributory factor to increased latency.
 
-Hi Wen,
+* from v1
+  * drop migrate_mode_t
+  * add reclaim_clean_pages_from_list instad of MIGRATE_DISCARD support - Mel
 
-I have been arranged a job related memory hotplug on ARM architecture.
-Maybe I know some new issues about memory hotplug on ARM architecture. I
-just enabled it on ARM, and it works well in my Android tablet now.
-However, I have not send out my patches. The real reason is that I don't
-know how to do it. Maybe I need to read "Documentation/SubmittingPatches".
+I measured elapsed time of __alloc_contig_migrate_range which migrates
+10M in 40M movable zone in QEMU machine.
 
-Hi Andrew,
-This is my first time to send you a e-mail. I am so nervous about if I have
-some mistakes or not.
+Before - 146ms, After - 7ms
 
-Some peoples maybe think memory hotplug need to be supported by special
-hardware. Maybe it means memory physical hotplug. Some times, we just need
-to use memory logical hotplug, doesn't remove the memory in physical. It is
-also usefully for power saving in my platform. Because I doesn't want
-the offline memory is in *self-refresh* state.
+Cc: Marek Szyprowski <m.szyprowski@samsung.com>
+Cc: Michal Nazarewicz <mina86@mina86.com>
+Cc: Rik van Riel <riel@redhat.com>
+Signed-off-by: Mel Gorman <mgorman@suse.de>
+Signed-off-by: Minchan Kim <minchan@kernel.org>
+---
+Andrew, this patch is based on (mmotm-2012-09-06-16-46 -
+drop mm-support-migrate_discard.patch removed from -mm tree +
+drop mm-support-migrate_discard.patch removed from -mm tree)
 
-Any comments are appreciated.
+ mm/internal.h   |    3 ++-
+ mm/page_alloc.c |    2 ++
+ mm/vmscan.c     |   43 +++++++++++++++++++++++++++++++++++++------
+ 3 files changed, 41 insertions(+), 7 deletions(-)
 
-Thanks,
-Jerry
-
-2012/9/10 Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>
-
-> Hi,
->
-> On Mon, Sep 10, 2012 at 10:01:44AM +0800, Wen Congyang wrote:
-> > At 09/10/2012 09:46 AM, Yasuaki Ishimatsu Wrote:
-> > > Hi Wen,
-> > >
-> > > 2012/09/01 5:49, Andrew Morton wrote:
-> > >> On Tue, 28 Aug 2012 18:00:07 +0800
-> > >> wency@cn.fujitsu.com wrote:
-> > >>
-> > >>> This patch series aims to support physical memory hot-remove.
-> > >>
-> > >> I doubt if many people have hardware which permits physical memory
-> > >> removal?  How would you suggest that people with regular hardware can
-> > >> test these chagnes?
-> > >
-> > > How do you test the patch? As Andrew says, for hot-removing memory,
-> > > we need a particular hardware. I think so too. So many people may want
-> > > to know how to test the patch.
-> > > If we apply following patch to kvm guest, can we hot-remove memory on
-> > > kvm guest?
-> > >
-> > > http://lists.gnu.org/archive/html/qemu-devel/2012-07/msg01389.html
-> >
-> > Yes, if we apply this patchset, we can test hot-remove memory on kvm
-> guest.
-> > But that patchset doesn't implement _PS3, so there is some restriction.
->
-> the following repos contain the patchset above, plus 2 more patches that
-> add
-> PS3 support to the dimm devices in qemu/seabios:
->
-> https://github.com/vliaskov/seabios/commits/memhp-v2
-> https://github.com/vliaskov/qemu-kvm/commits/memhp-v2
->
-> I have not posted the PS3 patches yet in the qemu list, but will post them
-> soon for v3 of the memory hotplug series. If you have issues testing, let
-> me
-> know.
->
-> thanks,
->
-> - Vasilis
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
->
-
-
-
+diff --git a/mm/internal.h b/mm/internal.h
+index bbd7b34..8312d4f 100644
+--- a/mm/internal.h
++++ b/mm/internal.h
+@@ -356,5 +356,6 @@ extern unsigned long vm_mmap_pgoff(struct file *, unsigned long,
+         unsigned long, unsigned long);
+ 
+ extern void set_pageblock_order(void);
+-
++unsigned long reclaim_clean_pages_from_list(struct zone *zone,
++					    struct list_head *page_list);
+ #endif	/* __MM_INTERNAL_H */
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 941b6ac..48b63d9 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -5705,6 +5705,8 @@ static int __alloc_contig_migrate_range(unsigned long start, unsigned long end)
+ 			break;
+ 		}
+ 
++		reclaim_clean_pages_from_list(cc.zone, &cc.migratepages);
++
+ 		ret = migrate_pages(&cc.migratepages,
+ 				    __alloc_contig_migrate_alloc,
+ 				    0, false, MIGRATE_SYNC);
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index d16bf5a..f8f56f8 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -674,8 +674,10 @@ static enum page_references page_check_references(struct page *page,
+ static unsigned long shrink_page_list(struct list_head *page_list,
+ 				      struct zone *zone,
+ 				      struct scan_control *sc,
++				      enum ttu_flags ttu_flags,
+ 				      unsigned long *ret_nr_dirty,
+-				      unsigned long *ret_nr_writeback)
++				      unsigned long *ret_nr_writeback,
++				      bool force_reclaim)
+ {
+ 	LIST_HEAD(ret_pages);
+ 	LIST_HEAD(free_pages);
+@@ -689,10 +691,10 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+ 
+ 	mem_cgroup_uncharge_start();
+ 	while (!list_empty(page_list)) {
+-		enum page_references references;
+ 		struct address_space *mapping;
+ 		struct page *page;
+ 		int may_enter_fs;
++		enum page_references references = PAGEREF_RECLAIM;
+ 
+ 		cond_resched();
+ 
+@@ -758,7 +760,9 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+ 			wait_on_page_writeback(page);
+ 		}
+ 
+-		references = page_check_references(page, sc);
++		if (!force_reclaim)
++			references = page_check_references(page, sc);
++
+ 		switch (references) {
+ 		case PAGEREF_ACTIVATE:
+ 			goto activate_locked;
+@@ -788,7 +792,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+ 		 * processes. Try to unmap it here.
+ 		 */
+ 		if (page_mapped(page) && mapping) {
+-			switch (try_to_unmap(page, TTU_UNMAP)) {
++			switch (try_to_unmap(page, ttu_flags)) {
+ 			case SWAP_FAIL:
+ 				goto activate_locked;
+ 			case SWAP_AGAIN:
+@@ -960,6 +964,33 @@ keep:
+ 	return nr_reclaimed;
+ }
+ 
++unsigned long reclaim_clean_pages_from_list(struct zone *zone,
++					    struct list_head *page_list)
++{
++	struct scan_control sc = {
++		.gfp_mask = GFP_KERNEL,
++		.priority = DEF_PRIORITY,
++		.may_unmap = 1,
++	};
++	unsigned long ret, dummy1, dummy2;
++	struct page *page, *next;
++	LIST_HEAD(clean_pages);
++
++	list_for_each_entry_safe(page, next, page_list, lru) {
++		if (page_is_file_cache(page) && !PageDirty(page)) {
++			ClearPageActive(page);
++			list_move(&page->lru, &clean_pages);
++		}
++	}
++
++	ret = shrink_page_list(&clean_pages, zone, &sc,
++				TTU_UNMAP|TTU_IGNORE_ACCESS,
++				&dummy1, &dummy2, true);
++	list_splice(&clean_pages, page_list);
++	__mod_zone_page_state(zone, NR_ISOLATED_FILE, -ret);
++	return ret;
++}
++
+ /*
+  * Attempt to remove the specified page from its LRU.  Only take this page
+  * if it is of the appropriate PageActive status.  Pages which are being
+@@ -1278,8 +1309,8 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
+ 	if (nr_taken == 0)
+ 		return 0;
+ 
+-	nr_reclaimed = shrink_page_list(&page_list, zone, sc,
+-						&nr_dirty, &nr_writeback);
++	nr_reclaimed = shrink_page_list(&page_list, zone, sc, TTU_UNMAP,
++					&nr_dirty, &nr_writeback, false);
+ 
+ 	spin_lock_irq(&zone->lru_lock);
+ 
 -- 
-I love linux!!!
-
---f46d044481d959ad8304c96224d8
-Content-Type: text/html; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
-
-Hi Wen,<div><br></div><div>I have been arranged a job related memory hotplu=
-g on ARM architecture. Maybe I know some new issues about memory hotplug on=
- ARM architecture. I just enabled it on ARM, and it works well in my Androi=
-d tablet now. However, I have not send out my patches. The real reason is t=
-hat I don&#39;t know how to do it. Maybe I need to read &quot;Documentation=
-/SubmittingPatches&quot;.</div>
-<div><br></div><div>Hi Andrew,</div><div>This is my first time to send you =
-a e-mail. I am so=A0nervous about if I have some mistakes or not.</div><div=
-><br></div><div>Some peoples maybe think memory hotplug need to be supporte=
-d by=A0special hardware. Maybe it means memory physical hotplug. Some times=
-, we just need to use memory logical hotplug, doesn&#39;t remove the memory=
- in physical. It is also usefully for power saving in my platform. Because =
-I doesn&#39;t want the=A0offline=A0memory is in=A0<b>self-refresh</b>=A0sta=
-te.</div>
-<div><br></div><div>Any=A0comments are=A0appreciated.=A0</div><div><br></di=
-v><div>Thanks,</div><div>Jerry</div><div><br><div class=3D"gmail_quote">201=
-2/9/10 Vasilis Liaskovitis <span dir=3D"ltr">&lt;<a href=3D"mailto:vasilis.=
-liaskovitis@profitbricks.com" target=3D"_blank">vasilis.liaskovitis@profitb=
-ricks.com</a>&gt;</span><br>
-<blockquote class=3D"gmail_quote" style=3D"margin:0 0 0 .8ex;border-left:1p=
-x #ccc solid;padding-left:1ex">Hi,<br>
-<div class=3D"im"><br>
-On Mon, Sep 10, 2012 at 10:01:44AM +0800, Wen Congyang wrote:<br>
-&gt; At 09/10/2012 09:46 AM, Yasuaki Ishimatsu Wrote:<br>
-&gt; &gt; Hi Wen,<br>
-&gt; &gt;<br>
-&gt; &gt; 2012/09/01 5:49, Andrew Morton wrote:<br>
-&gt; &gt;&gt; On Tue, 28 Aug 2012 18:00:07 +0800<br>
-&gt; &gt;&gt; <a href=3D"mailto:wency@cn.fujitsu.com">wency@cn.fujitsu.com<=
-/a> wrote:<br>
-&gt; &gt;&gt;<br>
-&gt; &gt;&gt;&gt; This patch series aims to support physical memory hot-rem=
-ove.<br>
-&gt; &gt;&gt;<br>
-</div><div class=3D"im">&gt; &gt;&gt; I doubt if many people have hardware =
-which permits physical memory<br>
-&gt; &gt;&gt; removal? =A0How would you suggest that people with regular ha=
-rdware can<br>
-&gt; &gt;&gt; test these chagnes?<br>
-&gt; &gt;<br>
-&gt; &gt; How do you test the patch? As Andrew says, for hot-removing memor=
-y,<br>
-&gt; &gt; we need a particular hardware. I think so too. So many people may=
- want<br>
-&gt; &gt; to know how to test the patch.<br>
-&gt; &gt; If we apply following patch to kvm guest, can we hot-remove memor=
-y on<br>
-&gt; &gt; kvm guest?<br>
-&gt; &gt;<br>
-&gt; &gt; <a href=3D"http://lists.gnu.org/archive/html/qemu-devel/2012-07/m=
-sg01389.html" target=3D"_blank">http://lists.gnu.org/archive/html/qemu-deve=
-l/2012-07/msg01389.html</a><br>
-&gt;<br>
-&gt; Yes, if we apply this patchset, we can test hot-remove memory on kvm g=
-uest.<br>
-&gt; But that patchset doesn&#39;t implement _PS3, so there is some restric=
-tion.<br>
-<br>
-</div>the following repos contain the patchset above, plus 2 more patches t=
-hat add<br>
-PS3 support to the dimm devices in qemu/seabios:<br>
-<br>
-<a href=3D"https://github.com/vliaskov/seabios/commits/memhp-v2" target=3D"=
-_blank">https://github.com/vliaskov/seabios/commits/memhp-v2</a><br>
-<a href=3D"https://github.com/vliaskov/qemu-kvm/commits/memhp-v2" target=3D=
-"_blank">https://github.com/vliaskov/qemu-kvm/commits/memhp-v2</a><br>
-<br>
-I have not posted the PS3 patches yet in the qemu list, but will post them<=
-br>
-soon for v3 of the memory hotplug series. If you have issues testing, let m=
-e<br>
-know.<br>
-<br>
-thanks,<br>
-<br>
-- Vasilis<br>
-<div class=3D"HOEnZb"><div class=3D"h5"><br>
---<br>
-To unsubscribe, send a message with &#39;unsubscribe linux-mm&#39; in<br>
-the body to <a href=3D"mailto:majordomo@kvack.org">majordomo@kvack.org</a>.=
- =A0For more info on Linux MM,<br>
-see: <a href=3D"http://www.linux-mm.org/" target=3D"_blank">http://www.linu=
-x-mm.org/</a> .<br>
-Don&#39;t email: &lt;a href=3Dmailto:&quot;<a href=3D"mailto:dont@kvack.org=
-">dont@kvack.org</a>&quot;&gt; <a href=3D"mailto:email@kvack.org">email@kva=
-ck.org</a> &lt;/a&gt;<br>
-</div></div></blockquote></div><br><br clear=3D"all"><div><br></div>-- <br>=
-I love linux!!!<br>
-</div>
-
---f46d044481d959ad8304c96224d8--
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
