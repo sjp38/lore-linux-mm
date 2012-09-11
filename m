@@ -1,147 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
-	by kanga.kvack.org (Postfix) with SMTP id 81CB86B00BE
-	for <linux-mm@kvack.org>; Tue, 11 Sep 2012 07:10:46 -0400 (EDT)
-Received: from csmailer.cs.nctu.edu.tw (localhost [127.0.0.1])
-	by csmailer.cs.nctu.edu.tw (Postfix) with ESMTP id 510399BE
-	for <linux-mm@kvack.org>; Tue, 11 Sep 2012 19:10:45 +0800 (CST)
-Received: from alumni.cs.nctu.edu.tw (alumni.cs.nctu.edu.tw [140.113.235.116])
-	by csmailer.cs.nctu.edu.tw (Postfix) with ESMTP id 84AEA9BD
-	for <linux-mm@kvack.org>; Tue, 11 Sep 2012 19:10:29 +0800 (CST)
-Received: (from chenwj@localhost)
-	by alumni.cs.nctu.edu.tw (8.14.4/8.14.4/Submit) id q8BB9dQY050143
-	for linux-mm@kvack.org; Tue, 11 Sep 2012 19:09:39 +0800 (CST)
-	(envelope-from chenwj)
-Date: Tue, 11 Sep 2012 19:09:39 +0800
-From: =?utf-8?B?6Zmz6Z+L5Lu7IChXZWktUmVuIENoZW4p?= <chenwj@iis.sinica.edu.tw>
-Subject: What else need to be done if we allocate phys page manually?
-Message-ID: <20120911110939.GA49608@cs.nctu.edu.tw>
+Received: from psmtp.com (na3sys010amx176.postini.com [74.125.245.176])
+	by kanga.kvack.org (Postfix) with SMTP id 484BA6B00C1
+	for <linux-mm@kvack.org>; Tue, 11 Sep 2012 07:16:05 -0400 (EDT)
+Received: by weys10 with SMTP id s10so293955wey.14
+        for <linux-mm@kvack.org>; Tue, 11 Sep 2012 04:16:03 -0700 (PDT)
+From: Michal Nazarewicz <mina86@mina86.com>
+Subject: Re: [PATCH] mm: cma: Discard clean pages during contiguous allocation instead of migration
+In-Reply-To: <1347324112-14134-1-git-send-email-minchan@kernel.org>
+References: <1347324112-14134-1-git-send-email-minchan@kernel.org>
+Date: Tue, 11 Sep 2012 13:15:56 +0200
+Message-ID: <xa1tehm8yfmb.fsf@mina86.com>
 MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="IJpNTDwzlM2Ie8A6"
-Content-Disposition: inline
-Content-Transfer-Encoding: 7bit
+Content-Type: multipart/mixed; boundary="=-=-="
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
+To: Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Kyungmin Park <kmpark@infradead.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>
 
-
---IJpNTDwzlM2Ie8A6
+--=-=-=
 Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
 Content-Transfer-Encoding: quoted-printable
 
-Hi all,
 
-  Please let me explain what I am trying to do first. First, I compile
-a 64 bit binary so that it'll be loaded above 4G virtual space, so the
-virtual space below 4G is empty. I want to make a virtual address below
-4G share the same phys page with another virtual address above 4G, so
-that read/write vadd1 just like vaddr2.=20
+On Tue, Sep 11 2012, Minchan Kim wrote:
+> This patch drops clean cache pages instead of migration during
+> alloc_contig_range() to minimise allocation latency by reducing the amount
+> of migration is necessary. It's useful for CMA because latency of migrati=
+on
+> is more important than evicting the background processes working set.
+> In addition, as pages are reclaimed then fewer free pages for migration
+> targets are required so it avoids memory reclaiming to get free pages,
+> which is a contributory factor to increased latency.
+>
+> * from v1
+>   * drop migrate_mode_t
+>   * add reclaim_clean_pages_from_list instad of MIGRATE_DISCARD support -=
+ Mel
+>
+> I measured elapsed time of __alloc_contig_migrate_range which migrates
+> 10M in 40M movable zone in QEMU machine.
+>
+> Before - 146ms, After - 7ms
+>
+> Cc: Marek Szyprowski <m.szyprowski@samsung.com>
+> Cc: Michal Nazarewicz <mina86@mina86.com>
 
+Acked-by: Michal Nazarewicz <mina86@mina86.com>
 
-               PGD/PUD/PMD       Page Table
-                                 ----------             Phys Page 2
-                                |          |             --------
-                                |----------|            |        |
-                     vaddr2     |   pte 2  | ---------> |        |
-                                |----------|            |        |
-                                |          |             --------
-                                |          |                ^
-  4G above                      |          |                |
- ---------------------------------------------              |
-                                |          |                |
-                                |          |                |
-                                |----------|                |
-                     vaddr1     |   pte 1  | ---------------
-                                |----------|           =20
-                                |          |           =20
-                                |__________|
-
-
-Currently, I choose to manually create PUD/PMD/PT associated with vaddr1
-, and set pte1 to point to phys page 2 (you can see the attach example
-syscall, vadd1 is fixed to 0x10000000 for simplicity). However, the page
-I create for PMD in the example will cause memory leak (see below). What
-is the proper way to do so that kernel can free the page I allocated
-automatically when the application calling the syscall is terminated?
-
-    pmd =3D pmd_offset(pud, vaddr);
-    if(pmd_none(*pmd)) {
-        page =3D pte_alloc_one(current->mm, vaddr);
-        pmd_n =3D mk_pmd(page, pgprot);
-        set_pmd(pmd, pmd_n);
-    }
-=20
-  Thanks!
-
-Regards,
-chenwj
+Thanks!
 
 --=20
-Wei-Ren Chen (=E9=99=B3=E9=9F=8B=E4=BB=BB)
-Computer Systems Lab, Institute of Information Science,
-Academia Sinica, Taiwan (R.O.C.)
-Tel:886-2-2788-3799 #1667
-Homepage: http://people.cs.nctu.edu.tw/~chenwj
+Best regards,                                         _     _
+.o. | Liege of Serenely Enlightened Majesty of      o' \,=3D./ `o
+..o | Computer Science,  Micha=C5=82 =E2=80=9Cmina86=E2=80=9D Nazarewicz   =
+ (o o)
+ooo +----<email/xmpp: mpn@google.com>--------------ooO--(_)--Ooo--
+--=-=-=
+Content-Type: multipart/signed; boundary="==-=-=";
+	micalg=pgp-sha1; protocol="application/pgp-signature"
 
---IJpNTDwzlM2Ie8A6
-Content-Type: text/x-csrc; charset=utf-8
-Content-Disposition: attachment; filename="syscall.c"
+--==-=-=
+Content-Type: text/plain
 
-#include <linux/mm.h>
-#include <linux/mm_types.h>
-#include <linux/sched.h>
-#include <asm/pgalloc.h>
-#include <asm/tlbflush.h>
 
-// vaddr_h: vaddr above 4G
-long sys_set_pte(unsigned long vaddr_h)
-{
-    unsigned long vaddr = 0x10000000 | (vaddr_h & 0xfff); // make vaddr's pte point to vaddr_h's phys page
-    // vaddr and vaddr_h shares the same pgd and pud, need to creat pmd and page table
-    pgd_t *pgd;
-    pud_t *pud;
-    pmd_t *pmd, pmd_n; // pmd_n is for vaddr
-    pte_t *pte, *pte_h;
-    struct page *page;
-    pgprot_t pgprot;
-    
-    // get vaddr_h's physical page
-    pgd = pgd_offset(current->mm, vaddr_h);
-    pud = pud_offset(pgd, vaddr_h);
-    pmd = pmd_offset(pud, vaddr_h);
-    pgprot = __pgprot(pmd_val(*pmd) & 0xfff); // we copy vaddr_h's pmd permission to vaddr's pmd
-    pte_h = pte_offset_map(pmd, vaddr_h);
-    
-    // mapping vaddr_h above 4G to vaddr below 4G alloc page entry
-    pgd = pgd_offset(current->mm, vaddr);
-    if (pgd_none(*pgd)) {
-        printk("pgd entry not found, alloc new pud and set pgd entry\n");
-        pgd = pgd_alloc(current->mm);
-    }
+--==-=-=
+Content-Type: application/pgp-signature
 
-    pud = pud_offset(pgd, vaddr);
-    if(pud_none(*pud)) {
-        printk("pud entry not found, alloc new pmd and set pud entry\n");
-        pud = pud_alloc(current->mm, pgd, vaddr);
-    }
-    
-    pmd = pmd_offset(pud, vaddr);
-    if(pmd_none(*pmd)) {
-        printk("pmd entry not found, alloc new pte and set pmd entry\n");
-        page = pte_alloc_one(current->mm, vaddr); // allocate pte, i.e., page table
-        pmd_n = mk_pmd(page, pgprot); // make a new pmd entry which ponits to page with pgprot permission
-        set_pmd(pmd, pmd_n); // replace old pmd entry (pmd) with a new one (pmd_n)
-    }
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.10 (GNU/Linux)
 
-    // pte = page table entry
-    pte = pte_offset_map(pmd, vaddr);
+iQIcBAEBAgAGBQJQTx1sAAoJECBgQBJQdR/0rcAP/34tPp7PJzehiwRqe7xBd/7W
+dmjRpYfGP08EvaxUgxPRdC/EAZTpgBy/jsVoa1vEXc1rAM3pCwKR3L5cTFd8xc4o
+/mKYzWAQy3N9zF/VrZiicZqLoguZJs9jqQoyqY9sO8qaMYqzQ92ETof1gsIGAv7J
+tx4UlECDu1tQrp9cDSMcP97Z1JnMh3hJ2V1cLrouW4nuQBCcImF3eR5NdEM84pEC
+rhBCmonm2X7SwPWkmc7tWXOEiqT3h9O7WGOl8Qc2JFDINVYXsGJFCwUC1LRIHqOt
+zFjwOmOeOdrqog6Wf2hRY7LpCzSjWsmz6MP747dJOZxlv+cdocIF6ibj6ZgoHjJj
+Ced0baWmH7fi963o9czgwO6JGeQ5swS06b+etFTwurQaRqNYc7nXhMoMZppaFuRq
+kEEfTbf2fkRONVoaWhUI7smSt7HH4zAjKlfN1YTXCy/fey2B37X7tBhQZsrGGwvm
+xn1zPXnxcrffu6L8afiPHqswFZCLX+Ta8KdPQvQP2ir23WPZ3P5f9VBt9e77uYng
+gu+2u8+zIalS9OPfZiUI2VB/xfR5TdR1HJZQHU4Xl/KzcWiQyjrKWamjnh3nxRfg
+G7BfNuwhZVnM+vDzjc+DHr56uJnxEAf9NMnKv6a9gXZRQHdI4QiImkAnZfhNtjSl
+/zy9TV9nwTkRcYhbKOHq
+=C9Mk
+-----END PGP SIGNATURE-----
+--==-=-=--
 
-    // replace vaddr page table entry (pte) with vaddr_h's one (*pte_h)
-    set_pte(pte, *pte_h);
-}
-
---IJpNTDwzlM2Ie8A6--
+--=-=-=--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
