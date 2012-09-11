@@ -1,168 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
-	by kanga.kvack.org (Postfix) with SMTP id BE53C6B0069
-	for <linux-mm@kvack.org>; Mon, 10 Sep 2012 20:39:59 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
+	by kanga.kvack.org (Postfix) with SMTP id AE9F66B006E
+	for <linux-mm@kvack.org>; Mon, 10 Sep 2012 20:47:52 -0400 (EDT)
+Date: Tue, 11 Sep 2012 09:49:48 +0900
 From: Minchan Kim <minchan@kernel.org>
-Subject: [PATCH] mm: cma: Discard clean pages during contiguous allocation instead of migration
-Date: Tue, 11 Sep 2012 09:41:52 +0900
-Message-Id: <1347324112-14134-1-git-send-email-minchan@kernel.org>
+Subject: Re: [RFC v2] memory-hotplug: remove MIGRATE_ISOLATE from
+ free_area->free_list
+Message-ID: <20120911004948.GA14205@bbox>
+References: <1346900018-14759-1-git-send-email-minchan@kernel.org>
+ <201209061834.35473.b.zolnierkie@samsung.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <201209061834.35473.b.zolnierkie@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Kyungmin Park <kmpark@infradead.org>, Minchan Kim <minchan@kernel.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>
+To: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
+Cc: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Michal Nazarewicz <mina86@mina86.com>, Mel Gorman <mel@csn.ul.ie>, Wen Congyang <wency@cn.fujitsu.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
 
-This patch drops clean cache pages instead of migration during
-alloc_contig_range() to minimise allocation latency by reducing the amount
-of migration is necessary. It's useful for CMA because latency of migration
-is more important than evicting the background processes working set.
-In addition, as pages are reclaimed then fewer free pages for migration
-targets are required so it avoids memory reclaiming to get free pages,
-which is a contributory factor to increased latency.
+Hi Bart,
 
-* from v1
-  * drop migrate_mode_t
-  * add reclaim_clean_pages_from_list instad of MIGRATE_DISCARD support - Mel
+On Thu, Sep 06, 2012 at 06:34:35PM +0200, Bartlomiej Zolnierkiewicz wrote:
+> 
+> Hi,
+> 
+> On Thursday 06 September 2012 04:53:38 Minchan Kim wrote:
+> > Normally, MIGRATE_ISOLATE type is used for memory-hotplug.
+> > But it's irony type because the pages isolated would exist
+> > as free page in free_area->free_list[MIGRATE_ISOLATE] so people
+> > can think of it as allocatable pages but it is *never* allocatable.
+> > It ends up confusing NR_FREE_PAGES vmstat so it would be
+> > totally not accurate so some of place which depend on such vmstat
+> > could reach wrong decision by the context.
+> > 
+> > There were already report about it.[1]
+> > [1] 702d1a6e, memory-hotplug: fix kswapd looping forever problem
+> > 
+> > Then, there was other report which is other problem.[2]
+> > [2] http://www.spinics.net/lists/linux-mm/msg41251.html
+> > 
+> > I believe it can make problems in future, too.
+> > So I hope removing such irony type by another design.
+> > 
+> > I hope this patch solves it and let's revert [1] and doesn't need [2].
+> > 
+> > * Changelog v1
+> >  * Fix from Michal's many suggestion
+> > 
+> > Cc: Michal Nazarewicz <mina86@mina86.com>
+> > Cc: Mel Gorman <mel@csn.ul.ie>
+> > Cc: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> > Cc: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+> > Cc: Wen Congyang <wency@cn.fujitsu.com>
+> > Cc: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+> > Signed-off-by: Minchan Kim <minchan@kernel.org>
+> > ---
+> > It's very early version which show the concept so I still marked it with RFC.
+> > I just tested it with simple test and works.
+> > This patch is needed indepth review from memory-hotplug guys from fujitsu
+> > because I saw there are lots of patches recenlty they sent to about
+> > memory-hotplug change. Please take a look at this patch.
+> 
+> [...]
+> 
+> > @@ -948,8 +954,13 @@ static int move_freepages(struct zone *zone,
+> >  		}
+> >  
+> >  		order = page_order(page);
+> > -		list_move(&page->lru,
+> > -			  &zone->free_area[order].free_list[migratetype]);
+> > +		if (migratetype != MIGRATE_ISOLATE) {
+> > +			list_move(&page->lru,
+> > +				&zone->free_area[order].free_list[migratetype]);
+> > +		} else {
+> > +			list_del(&page->lru);
+> > +			isolate_free_page(page, order);
+> > +		}
+> >  		page += 1 << order;
+> >  		pages_moved += 1 << order;
+> >  	}
+> 
+> Shouldn't NR_FREE_PAGES counter be decreased somewhere above?
+> 
+> [ I can see that it is not modified in __free_pages_ok() and
+>   free_hot_cold_page() because page is still counted as non-free one but
+>   here situation is different AFAICS. ]
+> 
+> I tested the patch locally here with CONFIG_CMA=y and it causes some
+> major problems for CMA (multiple errors from dma_alloc_from_contiguous()
+> about memory ranges being busy and allocation failures).
+> 
+> [ I'm sorry that I don't know more details yet but the issue should be
+>   easily reproducible. ]
 
-I measured elapsed time of __alloc_contig_migrate_range which migrates
-10M in 40M movable zone in QEMU machine.
+At the moment, I don't have a time to look into that so I will revisit
+in near future. 
+Thanks for the review and test!
 
-Before - 146ms, After - 7ms
+> 
+> Best regards,
+> --
+> Bartlomiej Zolnierkiewicz
+> Samsung Poland R&D Center
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
-Cc: Marek Szyprowski <m.szyprowski@samsung.com>
-Cc: Michal Nazarewicz <mina86@mina86.com>
-Cc: Rik van Riel <riel@redhat.com>
-Signed-off-by: Mel Gorman <mgorman@suse.de>
-Signed-off-by: Minchan Kim <minchan@kernel.org>
----
-Andrew, this patch is based on (mmotm-2012-09-06-16-46 -
-drop mm-support-migrate_discard.patch removed from -mm tree +
-drop mm-support-migrate_discard.patch removed from -mm tree)
-
- mm/internal.h   |    3 ++-
- mm/page_alloc.c |    2 ++
- mm/vmscan.c     |   43 +++++++++++++++++++++++++++++++++++++------
- 3 files changed, 41 insertions(+), 7 deletions(-)
-
-diff --git a/mm/internal.h b/mm/internal.h
-index bbd7b34..8312d4f 100644
---- a/mm/internal.h
-+++ b/mm/internal.h
-@@ -356,5 +356,6 @@ extern unsigned long vm_mmap_pgoff(struct file *, unsigned long,
-         unsigned long, unsigned long);
- 
- extern void set_pageblock_order(void);
--
-+unsigned long reclaim_clean_pages_from_list(struct zone *zone,
-+					    struct list_head *page_list);
- #endif	/* __MM_INTERNAL_H */
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 941b6ac..48b63d9 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -5705,6 +5705,8 @@ static int __alloc_contig_migrate_range(unsigned long start, unsigned long end)
- 			break;
- 		}
- 
-+		reclaim_clean_pages_from_list(cc.zone, &cc.migratepages);
-+
- 		ret = migrate_pages(&cc.migratepages,
- 				    __alloc_contig_migrate_alloc,
- 				    0, false, MIGRATE_SYNC);
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index d16bf5a..f8f56f8 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -674,8 +674,10 @@ static enum page_references page_check_references(struct page *page,
- static unsigned long shrink_page_list(struct list_head *page_list,
- 				      struct zone *zone,
- 				      struct scan_control *sc,
-+				      enum ttu_flags ttu_flags,
- 				      unsigned long *ret_nr_dirty,
--				      unsigned long *ret_nr_writeback)
-+				      unsigned long *ret_nr_writeback,
-+				      bool force_reclaim)
- {
- 	LIST_HEAD(ret_pages);
- 	LIST_HEAD(free_pages);
-@@ -689,10 +691,10 @@ static unsigned long shrink_page_list(struct list_head *page_list,
- 
- 	mem_cgroup_uncharge_start();
- 	while (!list_empty(page_list)) {
--		enum page_references references;
- 		struct address_space *mapping;
- 		struct page *page;
- 		int may_enter_fs;
-+		enum page_references references = PAGEREF_RECLAIM;
- 
- 		cond_resched();
- 
-@@ -758,7 +760,9 @@ static unsigned long shrink_page_list(struct list_head *page_list,
- 			wait_on_page_writeback(page);
- 		}
- 
--		references = page_check_references(page, sc);
-+		if (!force_reclaim)
-+			references = page_check_references(page, sc);
-+
- 		switch (references) {
- 		case PAGEREF_ACTIVATE:
- 			goto activate_locked;
-@@ -788,7 +792,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
- 		 * processes. Try to unmap it here.
- 		 */
- 		if (page_mapped(page) && mapping) {
--			switch (try_to_unmap(page, TTU_UNMAP)) {
-+			switch (try_to_unmap(page, ttu_flags)) {
- 			case SWAP_FAIL:
- 				goto activate_locked;
- 			case SWAP_AGAIN:
-@@ -960,6 +964,33 @@ keep:
- 	return nr_reclaimed;
- }
- 
-+unsigned long reclaim_clean_pages_from_list(struct zone *zone,
-+					    struct list_head *page_list)
-+{
-+	struct scan_control sc = {
-+		.gfp_mask = GFP_KERNEL,
-+		.priority = DEF_PRIORITY,
-+		.may_unmap = 1,
-+	};
-+	unsigned long ret, dummy1, dummy2;
-+	struct page *page, *next;
-+	LIST_HEAD(clean_pages);
-+
-+	list_for_each_entry_safe(page, next, page_list, lru) {
-+		if (page_is_file_cache(page) && !PageDirty(page)) {
-+			ClearPageActive(page);
-+			list_move(&page->lru, &clean_pages);
-+		}
-+	}
-+
-+	ret = shrink_page_list(&clean_pages, zone, &sc,
-+				TTU_UNMAP|TTU_IGNORE_ACCESS,
-+				&dummy1, &dummy2, true);
-+	list_splice(&clean_pages, page_list);
-+	__mod_zone_page_state(zone, NR_ISOLATED_FILE, -ret);
-+	return ret;
-+}
-+
- /*
-  * Attempt to remove the specified page from its LRU.  Only take this page
-  * if it is of the appropriate PageActive status.  Pages which are being
-@@ -1278,8 +1309,8 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
- 	if (nr_taken == 0)
- 		return 0;
- 
--	nr_reclaimed = shrink_page_list(&page_list, zone, sc,
--						&nr_dirty, &nr_writeback);
-+	nr_reclaimed = shrink_page_list(&page_list, zone, sc, TTU_UNMAP,
-+					&nr_dirty, &nr_writeback, false);
- 
- 	spin_lock_irq(&zone->lru_lock);
- 
 -- 
-1.7.9.5
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
