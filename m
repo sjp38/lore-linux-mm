@@ -1,56 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
-	by kanga.kvack.org (Postfix) with SMTP id DB2096B0078
-	for <linux-mm@kvack.org>; Tue, 11 Sep 2012 19:25:37 -0400 (EDT)
-Date: Tue, 11 Sep 2012 16:25:36 -0700
+Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
+	by kanga.kvack.org (Postfix) with SMTP id A34466B007D
+	for <linux-mm@kvack.org>; Tue, 11 Sep 2012 19:34:56 -0400 (EDT)
+Date: Tue, 11 Sep 2012 16:34:55 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: iwl3945: order 5 allocation during ifconfig up; vm problem?
-Message-Id: <20120911162536.bd5171a1.akpm@linux-foundation.org>
-In-Reply-To: <20120910111113.GA25159@elf.ucw.cz>
-References: <20120909213228.GA5538@elf.ucw.cz>
-	<alpine.DEB.2.00.1209091539530.16930@chino.kir.corp.google.com>
-	<20120910111113.GA25159@elf.ucw.cz>
+Subject: Re: [patch 1/2 v2]compaction: abort compaction loop if lock is
+ contended or run too long
+Message-Id: <20120911163455.bb249a3c.akpm@linux-foundation.org>
+In-Reply-To: <20120910011830.GC3715@kernel.org>
+References: <20120910011830.GC3715@kernel.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pavel Machek <pavel@ucw.cz>
-Cc: David Rientjes <rientjes@google.com>, sgruszka@redhat.com, linux-wireless@vger.kernel.org, johannes.berg@intel.com, wey-yi.w.guy@intel.com, ilw@linux.intel.com, Andrew Morton <akpm@osdl.org>, Mel Gorman <mgorman@suse.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Shaohua Li <shli@kernel.org>
+Cc: linux-mm@kvack.org, mgorman@suse.de, aarcange@redhat.com
 
-On Mon, 10 Sep 2012 13:11:13 +0200
-Pavel Machek <pavel@ucw.cz> wrote:
+On Mon, 10 Sep 2012 09:18:30 +0800
+Shaohua Li <shli@kernel.org> wrote:
 
-> On Sun 2012-09-09 15:40:55, David Rientjes wrote:
-> > On Sun, 9 Sep 2012, Pavel Machek wrote:
-> > 
-> > > On 3.6.0-rc2+, I tried to turn on the wireless, but got
-> > > 
-> > > root@amd:~# ifconfig wlan0 10.0.0.6 up
-> > > SIOCSIFFLAGS: Cannot allocate memory
-> > > SIOCSIFFLAGS: Cannot allocate memory
-> > > root@amd:~# 
-> > > 
-> > > It looks like it uses "a bit too big" allocations to allocate
-> > > firmware...? Order five allocation....
-> > > 
-> > > Hmm... then I did "echo 3  > /proc/sys/vm/drop_caches" and now the
-> > > network works. Is it VM problem that it failed to allocate memory when
-> > > it was freeable?
-> > > 
-> > 
-> > Do you have CONFIG_COMPACTION enabled?
+> isolate_migratepages_range() might isolate none pages, for example, when
+> zone->lru_lock is contended and compaction is async. In this case, we should
+> abort compaction, otherwise, compact_zone will run a useless loop and make
+> zone->lru_lock is even contended.
 > 
-> Yes:
-> 
-> pavel@amd:/data/l/linux-good$ zgrep CONFIG_COMPACTION /proc/config.gz 
-> CONFIG_COMPACTION=y
+> ...
+>
+> @@ -838,12 +838,14 @@ static unsigned long compact_zone_order(
+>  		.migratetype = allocflags_to_migratetype(gfp_mask),
+>  		.zone = zone,
+>  		.sync = sync,
+> -		.contended = contended,
+>  	};
+>  	INIT_LIST_HEAD(&cc.freepages);
+>  	INIT_LIST_HEAD(&cc.migratepages);
+>  
+> -	return compact_zone(zone, &cc);
+> +	ret = compact_zone(zone, &cc);
+> +	if (contended)
+> +		*contended = cc.contended;
+> +	return ret;
+>  }
+>  
 
-Asking for a 256k allocation is pretty crazy - this is an operating
-system kernel, not a userspace application.
+>From a quick read, `contended' is never NULL here.  And defining the
+interface so that `contended' must be a valid pointer is a good change,
+IMO - it results in simpler and faster code.
 
-I'm wondering if this is due to a recent change, but I'm having trouble
-working out where the allocation call site is.
+Alas, try_to_compact_pages()'s kerneldoc altogether forgets to describe
+this argument.  Mel's
+mm-compaction-capture-a-suitable-high-order-page-immediately-when-it-is-made-available.patch
+adds a `pages' arg and forgets to document that as well.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
