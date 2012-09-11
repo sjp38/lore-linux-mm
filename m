@@ -1,107 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
-	by kanga.kvack.org (Postfix) with SMTP id 78A2B6B0093
-	for <linux-mm@kvack.org>; Mon, 10 Sep 2012 22:45:32 -0400 (EDT)
-Message-ID: <504E9EBE.1040403@cn.fujitsu.com>
-Date: Tue, 11 Sep 2012 10:15:26 +0800
-From: Wen Congyang <wency@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
+	by kanga.kvack.org (Postfix) with SMTP id DF4956B0098
+	for <linux-mm@kvack.org>; Mon, 10 Sep 2012 22:50:49 -0400 (EDT)
+Received: from /spool/local
+	by e28smtp05.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <wangyun@linux.vnet.ibm.com>;
+	Tue, 11 Sep 2012 08:20:46 +0530
+Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
+	by d28relay01.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q8B2oeYS39911536
+	for <linux-mm@kvack.org>; Tue, 11 Sep 2012 08:20:40 +0530
+Received: from d28av05.in.ibm.com (loopback [127.0.0.1])
+	by d28av05.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q8B2oeJd026326
+	for <linux-mm@kvack.org>; Tue, 11 Sep 2012 12:50:40 +1000
+Message-ID: <504EA6FE.7070405@linux.vnet.ibm.com>
+Date: Tue, 11 Sep 2012 10:50:38 +0800
+From: Michael Wang <wangyun@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Subject: Re: [RFC v9 PATCH 05/21] memory-hotplug: check whether memory is
- present or not
-References: <1346837155-534-1-git-send-email-wency@cn.fujitsu.com> <1346837155-534-6-git-send-email-wency@cn.fujitsu.com>
-In-Reply-To: <1346837155-534-6-git-send-email-wency@cn.fujitsu.com>
-Content-Transfer-Encoding: 7bit
+Subject: Re: [PATCH] slab: fix the DEADLOCK issue on l3 alien lock
+References: <5044692D.7080608@linux.vnet.ibm.com> <5046B9EE.7000804@linux.vnet.ibm.com> <0000013996b6f21d-d45be653-3111-4aef-b079-31dc673e6fd8-000000@email.amazonses.com>	<504812E7.3000700@linux.vnet.ibm.com>	<20120906222933.GR2448@linux.vnet.ibm.com> <CAOJsxLFA1sk4KZkRuPL_giktSkFK_g7w-mGi_OEQ9fVXF2UVzw@mail.gmail.com>
+In-Reply-To: <CAOJsxLFA1sk4KZkRuPL_giktSkFK_g7w-mGi_OEQ9fVXF2UVzw@mail.gmail.com>
 Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: isimatu.yasuaki@jp.fujitsu.com
-Cc: wency@cn.fujitsu.com, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-ia64@vger.kernel.org, cmetcalf@tilera.com, sparclinux@vger.kernel.org, rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com
+To: Pekka Enberg <penberg@kernel.org>
+Cc: paulmck@linux.vnet.ibm.com, Christoph Lameter <cl@linux.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Matt Mackall <mpm@selenic.com>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>
 
-Hi, ishimatsu
-
-At 09/05/2012 05:25 PM, wency@cn.fujitsu.com Wrote:
-> From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+On 09/08/2012 04:39 PM, Pekka Enberg wrote:
+> On Fri, Sep 7, 2012 at 1:29 AM, Paul E. McKenney
+> <paulmck@linux.vnet.ibm.com> wrote:
+>> On Thu, Sep 06, 2012 at 11:05:11AM +0800, Michael Wang wrote:
+>>> On 09/05/2012 09:55 PM, Christoph Lameter wrote:
+>>>> On Wed, 5 Sep 2012, Michael Wang wrote:
+>>>>
+>>>>> Since the cachep and cachep->slabp_cache's l3 alien are in the same lock class,
+>>>>> fake report generated.
+>>>>
+>>>> Ahh... That is a key insight into why this occurs.
+>>>>
+>>>>> This should not happen since we already have init_lock_keys() which will
+>>>>> reassign the lock class for both l3 list and l3 alien.
+>>>>
+>>>> Right. I was wondering why we still get intermitted reports on this.
+>>>>
+>>>>> This patch will invoke init_lock_keys() after we done enable_cpucache()
+>>>>> instead of before to avoid the fake DEADLOCK report.
+>>>>
+>>>> Acked-by: Christoph Lameter <cl@linux.com>
+>>>
+>>> Thanks for your review.
+>>>
+>>> And add Paul to the cc list(my skills on mailing is really poor...).
+>>
+>> Tested-by: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
 > 
-> If system supports memory hot-remove, online_pages() may online removed pages.
-> So online_pages() need to check whether onlining pages are present or not.
+> I'd also like to tag this for the stable tree to avoid bogus lockdep
+> reports. How far back in release history should we queue this?
+Hi, Pekka
 
-Because we use memory_block_change_state() to hotremoving memory, I think
-this patch can be removed. What do you think?
+Sorry for the delayed reply, I try to find out the reason for commit
+30765b92 but not get it yet, so I add Peter to the cc list.
 
-Thanks
-Wen Congyang
+The below patch for release 3.0.0 is the one to cause the bogus report.
+
+commit 30765b92ada267c5395fc788623cb15233276f5c
+Author: Peter Zijlstra <peterz@infradead.org>
+Date:   Thu Jul 28 23:22:56 2011 +0200
+
+    slab, lockdep: Annotate the locks before using them
+
+    Fernando found we hit the regular OFF_SLAB 'recursion' before we
+    annotate the locks, cure this.
+
+    The relevant portion of the stack-trace:
+
+    > [    0.000000]  [<c085e24f>] rt_spin_lock+0x50/0x56
+    > [    0.000000]  [<c04fb406>] __cache_free+0x43/0xc3
+    > [    0.000000]  [<c04fb23f>] kmem_cache_free+0x6c/0xdc
+    > [    0.000000]  [<c04fb2fe>] slab_destroy+0x4f/0x53
+    > [    0.000000]  [<c04fb396>] free_block+0x94/0xc1
+    > [    0.000000]  [<c04fc551>] do_tune_cpucache+0x10b/0x2bb
+    > [    0.000000]  [<c04fc8dc>] enable_cpucache+0x7b/0xa7
+    > [    0.000000]  [<c0bd9d3c>] kmem_cache_init_late+0x1f/0x61
+    > [    0.000000]  [<c0bba687>] start_kernel+0x24c/0x363
+    > [    0.000000]  [<c0bba0ba>] i386_start_kernel+0xa9/0xaf
+
+    Reported-by: Fernando Lopez-Lezcano <nando@ccrma.Stanford.EDU>
+    Acked-by: Pekka Enberg <penberg@kernel.org>
+    Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+    Link: http://lkml.kernel.org/r/1311888176.2617.379.camel@laptop
+    Signed-off-by: Ingo Molnar <mingo@elte.hu>
+
+It moved init_lock_keys() before we build up the alien, so we failed to
+reclass it.
+
+Regards,
+Michael Wang
 
 > 
-> CC: David Rientjes <rientjes@google.com>
-> CC: Jiang Liu <liuj97@gmail.com>
-> CC: Len Brown <len.brown@intel.com>
-> CC: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-> CC: Paul Mackerras <paulus@samba.org>
-> CC: Christoph Lameter <cl@linux.com>
-> Cc: Minchan Kim <minchan.kim@gmail.com>
-> CC: Andrew Morton <akpm@linux-foundation.org>
-> CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> CC: Wen Congyang <wency@cn.fujitsu.com>
-> Signed-off-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-> ---
->  include/linux/mmzone.h |   19 +++++++++++++++++++
->  mm/memory_hotplug.c    |   13 +++++++++++++
->  2 files changed, 32 insertions(+), 0 deletions(-)
-> 
-> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-> index 2daa54f..ac3ae30 100644
-> --- a/include/linux/mmzone.h
-> +++ b/include/linux/mmzone.h
-> @@ -1180,6 +1180,25 @@ void sparse_init(void);
->  #define sparse_index_init(_sec, _nid)  do {} while (0)
->  #endif /* CONFIG_SPARSEMEM */
->  
-> +#ifdef CONFIG_SPARSEMEM
-> +static inline int pfns_present(unsigned long pfn, unsigned long nr_pages)
-> +{
-> +	int i;
-> +	for (i = 0; i < nr_pages; i++) {
-> +		if (pfn_present(pfn + i))
-> +			continue;
-> +		else
-> +			return -EINVAL;
-> +	}
-> +	return 0;
-> +}
-> +#else
-> +static inline int pfns_present(unsigned long pfn, unsigned long nr_pages)
-> +{
-> +	return 0;
-> +}
-> +#endif /* CONFIG_SPARSEMEM*/
-> +
->  #ifdef CONFIG_NODES_SPAN_OTHER_NODES
->  bool early_pfn_in_nid(unsigned long pfn, int nid);
->  #else
-> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-> index 49f7747..299747d 100644
-> --- a/mm/memory_hotplug.c
-> +++ b/mm/memory_hotplug.c
-> @@ -467,6 +467,19 @@ int __ref online_pages(unsigned long pfn, unsigned long nr_pages)
->  	struct memory_notify arg;
->  
->  	lock_memory_hotplug();
-> +	/*
-> +	 * If system supports memory hot-remove, the memory may have been
-> +	 * removed. So we check whether the memory has been removed or not.
-> +	 *
-> +	 * Note: When CONFIG_SPARSEMEM is defined, pfns_present() become
-> +	 *       effective. If CONFIG_SPARSEMEM is not defined, pfns_present()
-> +	 *       always returns 0.
-> +	 */
-> +	ret = pfns_present(pfn, nr_pages);
-> +	if (ret) {
-> +		unlock_memory_hotplug();
-> +		return ret;
-> +	}
->  	arg.start_pfn = pfn;
->  	arg.nr_pages = nr_pages;
->  	arg.status_change_nid = -1;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
