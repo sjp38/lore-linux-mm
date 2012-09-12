@@ -1,79 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
-	by kanga.kvack.org (Postfix) with SMTP id 25C1A6B00A2
-	for <linux-mm@kvack.org>; Wed, 12 Sep 2012 01:47:09 -0400 (EDT)
-Message-ID: <50501B9C.7000200@cn.fujitsu.com>
-Date: Wed, 12 Sep 2012 13:20:28 +0800
-From: Wen Congyang <wency@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
+	by kanga.kvack.org (Postfix) with SMTP id 70CCE6B00A3
+	for <linux-mm@kvack.org>; Wed, 12 Sep 2012 01:57:28 -0400 (EDT)
+Date: Tue, 11 Sep 2012 22:57:12 -0700
+From: Marc MERLIN <marc@merlins.org>
+Subject: Re: iwl3945: order 5 allocation during ifconfig up; vm problem?
+Message-ID: <20120912055712.GE11613@merlins.org>
+References: <20120909213228.GA5538@elf.ucw.cz> <alpine.DEB.2.00.1209091539530.16930@chino.kir.corp.google.com> <20120910111113.GA25159@elf.ucw.cz> <20120911162536.bd5171a1.akpm@linux-foundation.org> <1347426988.13103.684.camel@edumazet-glaptop>
 MIME-Version: 1.0
-Subject: Re: [RFC v8 PATCH 00/20] memory-hotplug: hot-remove physical memory
-References: <1346148027-24468-1-git-send-email-wency@cn.fujitsu.com> <20120831134956.fec0f681.akpm@linux-foundation.org> <504D467D.2080201@jp.fujitsu.com> <504D4A08.7090602@cn.fujitsu.com> <20120910135213.GA1550@dhcp-192-168-178-175.profitbricks.localdomain>
-In-Reply-To: <20120910135213.GA1550@dhcp-192-168-178-175.profitbricks.localdomain>
-Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1347426988.13103.684.camel@edumazet-glaptop>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>
-Cc: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-ia64@vger.kernel.org, cmetcalf@tilera.com, sparclinux@vger.kernel.org, rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, kosaki.motohiro@jp.fujitsu.com
+To: Eric Dumazet <eric.dumazet@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Pavel Machek <pavel@ucw.cz>, David Rientjes <rientjes@google.com>, sgruszka@redhat.com, linux-wireless@vger.kernel.org, johannes.berg@intel.com, wey-yi.w.guy@intel.com, ilw@linux.intel.com, Andrew Morton <akpm@osdl.org>, Mel Gorman <mgorman@suse.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-At 09/10/2012 09:52 PM, Vasilis Liaskovitis Wrote:
-> Hi,
+On Wed, Sep 12, 2012 at 07:16:28AM +0200, Eric Dumazet wrote:
+> On Tue, 2012-09-11 at 16:25 -0700, Andrew Morton wrote:
 > 
-> On Mon, Sep 10, 2012 at 10:01:44AM +0800, Wen Congyang wrote:
->> At 09/10/2012 09:46 AM, Yasuaki Ishimatsu Wrote:
->>> Hi Wen,
->>>
->>> 2012/09/01 5:49, Andrew Morton wrote:
->>>> On Tue, 28 Aug 2012 18:00:07 +0800
->>>> wency@cn.fujitsu.com wrote:
->>>>
->>>>> This patch series aims to support physical memory hot-remove.
->>>>
->>>> I doubt if many people have hardware which permits physical memory
->>>> removal?  How would you suggest that people with regular hardware can
->>>> test these chagnes?
->>>
->>> How do you test the patch? As Andrew says, for hot-removing memory,
->>> we need a particular hardware. I think so too. So many people may want
->>> to know how to test the patch.
->>> If we apply following patch to kvm guest, can we hot-remove memory on
->>> kvm guest?
->>>
->>> http://lists.gnu.org/archive/html/qemu-devel/2012-07/msg01389.html
->>
->> Yes, if we apply this patchset, we can test hot-remove memory on kvm guest.
->> But that patchset doesn't implement _PS3, so there is some restriction.
+> > Asking for a 256k allocation is pretty crazy - this is an operating
+> > system kernel, not a userspace application.
+> > 
+> > I'm wondering if this is due to a recent change, but I'm having trouble
+> > working out where the allocation call site is.
+> > --
 > 
-> the following repos contain the patchset above, plus 2 more patches that add
-> PS3 support to the dimm devices in qemu/seabios:
+> (Adding Marc Merlin to CC, since he reported same problem)
 > 
-> https://github.com/vliaskov/seabios/commits/memhp-v2
-> https://github.com/vliaskov/qemu-kvm/commits/memhp-v2
+> Thats the firmware loading in iwlwifi driver. Not sure if it can use SG.
 > 
-> I have not posted the PS3 patches yet in the qemu list, but will post them
-> soon for v3 of the memory hotplug series. If you have issues testing, let me
-> know.
+> drivers/net/wireless/iwlwifi/iwl-drv.c
+> 
+> iwl_alloc_ucode() -> iwl_alloc_fw_desc() -> dma_alloc_coherent()
+> 
+> It seems some sections of /lib/firmware/iwlwifi*.ucode files are above
+> 128 Kbytes, so dma_alloc_coherent() try order-5 allocations
 
-Hmm, seabios doesn't support ACPI table SLIT. We can specify node it for dimm
-device, so I think we should support SLIT in seabios. Otherwise we may meet
-the following kernel messages:
-[  325.016769] init_memory_mapping: [mem 0x40000000-0x5fffffff]
-[  325.018060]  [mem 0x40000000-0x5fffffff] page 2M
-[  325.019168] [ffffea0001000000-ffffea00011fffff] potential offnode page_structs
-[  325.024172] [ffffea0001200000-ffffea00013fffff] potential offnode page_structs
-[  325.028596]  [ffffea0001400000-ffffea00017fffff] PMD -> [ffff880035000000-ffff8800353fffff] on node 1
-[  325.031775] [ffffea0001600000-ffffea00017fffff] potential offnode page_structs
+Thanks for looping me in, yes, this looks very familiar to me :)
 
-Do you have plan to do it?
+In the other thread, Johannes Berg gave me this patch which is supposed to
+help: http://p.sipsolutions.net/11ea33b376a5bac5.txt
 
-Thanks
-Wen Congyang
+Unfortunately due to very long work days, I haven't had the time to try it
+out yet, but I will soon.
 
-> 
-> thanks,
-> 
-> - Vasilis
-> 
+Would that help in this case too?
+
+And to answer David Rientjes, I also have compaction on:
+gandalfthegreat:~# zgrep CONFIG_COMPACTION /proc/config.gz 
+CONFIG_COMPACTION=y
+
+Full config:
+http://marc.merlins.org/tmp/config-3.5.2-amd64-preempt-noide-20120731
+
+If that helps for comparison, my thread is here:
+http://www.spinics.net/lists/linux-wireless/msg96438.html
+
+Thanks,
+Marc
+-- 
+"A mouse is a device used to point at the xterm you want to type in" - A.S.R.
+Microsoft is to operating systems ....
+                                      .... what McDonalds is to gourmet cooking
+Home page: http://marc.merlins.org/  
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
