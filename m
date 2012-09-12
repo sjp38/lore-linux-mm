@@ -1,97 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
-	by kanga.kvack.org (Postfix) with SMTP id EB4556B00FB
-	for <linux-mm@kvack.org>; Wed, 12 Sep 2012 17:20:20 -0400 (EDT)
-Date: Wed, 12 Sep 2012 14:20:19 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [patch 1/2 v2]compaction: abort compaction loop if lock is
- contended or run too long
-Message-Id: <20120912142019.0e06bf52.akpm@linux-foundation.org>
-In-Reply-To: <20120912004840.GI27078@redhat.com>
-References: <20120910011830.GC3715@kernel.org>
-	<20120911163455.bb249a3c.akpm@linux-foundation.org>
-	<20120912004840.GI27078@redhat.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx167.postini.com [74.125.245.167])
+	by kanga.kvack.org (Postfix) with SMTP id AFF8F6B00FD
+	for <linux-mm@kvack.org>; Wed, 12 Sep 2012 17:28:31 -0400 (EDT)
+Date: Wed, 12 Sep 2012 14:28:29 -0700
+From: Larry Bassel <lbassel@codeaurora.org>
+Subject: Re: steering allocations to particular parts of memory
+Message-ID: <20120912212829.GC4018@labbmf01-linux.qualcomm.com>
+References: <20120907182715.GB4018@labbmf01-linux.qualcomm.com>
+ <20120911093407.GH11266@suse.de>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120911093407.GH11266@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Shaohua Li <shli@kernel.org>, linux-mm@kvack.org, mgorman@suse.de
+To: Mel Gorman <mgorman@suse.de>
+Cc: Larry Bassel <lbassel@codeaurora.org>, dan.magenheimer@oracle.com, linux-mm@kvack.org
 
-On Wed, 12 Sep 2012 02:48:40 +0200
-Andrea Arcangeli <aarcange@redhat.com> wrote:
-
-> On Tue, Sep 11, 2012 at 04:34:55PM -0700, Andrew Morton wrote:
-> > On Mon, 10 Sep 2012 09:18:30 +0800
-> > Shaohua Li <shli@kernel.org> wrote:
+On 11 Sep 12 10:34, Mel Gorman wrote:
+> On Fri, Sep 07, 2012 at 11:27:15AM -0700, Larry Bassel wrote:
+> > I am looking for a way to steer allocations (these may be
+> > by either userspace or the kernel) to or away from particular
+> > ranges of memory. The reason for this is that some parts of
+> > memory are different from others (i.e. some memory may be
+> > faster/slower). For instance there may be 500M of "fast"
+> > memory and 1500M of "slower" memory on a 2G platform.
 > > 
-> > > isolate_migratepages_range() might isolate none pages, for example, when
-> > > zone->lru_lock is contended and compaction is async. In this case, we should
-> > > abort compaction, otherwise, compact_zone will run a useless loop and make
-> > > zone->lru_lock is even contended.
-> > > 
-> > > ...
-> > >
-> > > @@ -838,12 +838,14 @@ static unsigned long compact_zone_order(
-> > >  		.migratetype = allocflags_to_migratetype(gfp_mask),
-> > >  		.zone = zone,
-> > >  		.sync = sync,
-> > > -		.contended = contended,
-> > >  	};
-> > >  	INIT_LIST_HEAD(&cc.freepages);
-> > >  	INIT_LIST_HEAD(&cc.migratepages);
-> > >  
-> > > -	return compact_zone(zone, &cc);
-> > > +	ret = compact_zone(zone, &cc);
-> > > +	if (contended)
-> > > +		*contended = cc.contended;
-> > > +	return ret;
-> > >  }
-> > >  
+> 
+> Hi Larry,
+> 
+> > At the memory mini-summit last week, it was mentioned
+> > that the Super-H architecture was using NUMA for this
+> > purpose, which was considered to be an very bad thing
+> > to do -- we have ported NUMA to ARM here (as an experiment)
+> > and agree that NUMA doesn't work well for solving this problem.
 > > 
-> > From a quick read, `contended' is never NULL here.  And defining the
 > 
-> "contended" pointer can be null with some caller so the if is
-> needed. The inner code was checking it before. This is also why we
-> couldn't use *contended for the loop break bugfix, because contended
-> could have been null at times.
-
-Confused.  I can see only two call sites:
-__alloc_pages_slowpath
-->__alloc_pages_direct_compact
-  ->try_to_compact_pages
-    ->compact_zone_order
-and in both cases, `contended' points at valid storage.
-
-> Now cc.contended is always available so
-> we can use that to fix the bug and it's self documenting as well.
+> Yes, I remember the discussion and regret it had to be cut short.
 > 
-> > interface so that `contended' must be a valid pointer is a good change,
-> > IMO - it results in simpler and faster code.
+> NUMA is almost always considered to be the first solution to this type
+> of problem but as you say it's considered to be a "very bad thing to do".
+> It's convenient in one sense because you get data structures that track all
+> the pages for you and create the management structures. It's bad because
+> page allocation uses these slow nodes when the fast nodes are full which
+> is a very poor placement policy. Similarly pages from the slow node are
+> reclaimed based on memory pressure. It comes down to luck whether the
+> optimal pages are in the slow node or not. You can try wedging your own
+> placement policy on the side but it won't be pretty.
+
+It appears that I was too vague about this. Both userspace and
+kernel (drivers mostly) need to be able to specify either explicitly
+or implicitly (using defaults if no explicit memory type is mentioned)
+what sort of memory is desired and what to do if this type is not
+available (either due to actual lack of such memory or because
+a low watermark would be violated, etc.) such as fall back to
+another type of memory or get an out-of-memory error
+(More sophisticated alternatives would be to trigger
+some sort of migration or even eviction in these cases).
+This seems similar to a simplified version of memory policies,
+unless I'm missing something.
+
+Admittedly, most drivers and user processes will not explicitly ask
+for a certain type of memory.
+
+We also would like to be able to create lowmem or highmem
+from any type of memory.
+
+The above makes me wonder if something that keeps nodes and zones
+and some sort of simple memory policy and throws out the rest of NUMA such
+as bindings of memory to CPUs, cpusets, etc. might be useful
+(though after the memory mini-summit I have doubts about this as well)
+as node-aware allocators already exist.
+
+[snip]
+
+> Hope this clarifies my position a little but people like Dan who have
+> focused on this problem in the past may have a much better idea.
+
+Thanks.
+
 > 
-> Agreed.
+> -- 
+> Mel Gorman
+> SUSE Labs
 
-OK, I'll slip this in there:
+Larry
 
---- a/mm/compaction.c~mm-compaction-abort-compaction-loop-if-lock-is-contended-or-run-too-long-fix
-+++ a/mm/compaction.c
-@@ -909,8 +909,7 @@ static unsigned long compact_zone_order(
- 	INIT_LIST_HEAD(&cc.migratepages);
- 
- 	ret = compact_zone(zone, &cc);
--	if (contended)
--		*contended = cc.contended;
-+	*contended = cc.contended;
- 	return ret;
- }
- 
-> > Alas, try_to_compact_pages()'s kerneldoc altogether forgets to describe
-> > this argument.  Mel's
-> > mm-compaction-capture-a-suitable-high-order-page-immediately-when-it-is-made-available.patch
-> > adds a `pages' arg and forgets to document that as well.
-
-poke poke
+-- 
+The Qualcomm Innovation Center, Inc. is a member of Code Aurora Forum,
+hosted by The Linux Foundation
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
