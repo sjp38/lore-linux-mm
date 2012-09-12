@@ -1,73 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx190.postini.com [74.125.245.190])
-	by kanga.kvack.org (Postfix) with SMTP id 6040E6B00AB
-	for <linux-mm@kvack.org>; Wed, 12 Sep 2012 18:18:46 -0400 (EDT)
-Date: Wed, 12 Sep 2012 15:18:44 -0700
+Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
+	by kanga.kvack.org (Postfix) with SMTP id B09B66B0105
+	for <linux-mm@kvack.org>; Wed, 12 Sep 2012 19:03:03 -0400 (EDT)
+Date: Wed, 12 Sep 2012 16:03:02 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 2/3] thp: move release mmap_sem lock out of
- khugepaged_alloc_page
-Message-Id: <20120912151844.a2f17f98.akpm@linux-foundation.org>
-In-Reply-To: <50508689.50904@linux.vnet.ibm.com>
-References: <50508632.9090003@linux.vnet.ibm.com>
-	<50508689.50904@linux.vnet.ibm.com>
+Subject: Re: [PATCH] idr: Rename MAX_LEVEL to MAX_ID_LEVEL
+Message-Id: <20120912160302.ae257eb4.akpm@linux-foundation.org>
+In-Reply-To: <20120911094823.GA29568@localhost>
+References: <20120910131426.GA12431@localhost>
+	<504E1182.7080300@bfs.de>
+	<20120911094823.GA29568@localhost>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>
-Cc: Hugh Dickins <hughd@google.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Fengguang Wu <fengguang.wu@intel.com>
+Cc: walter harms <wharms@bfs.de>, Glauber Costa <glommer@parallels.com>, kernel-janitors@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>
 
-On Wed, 12 Sep 2012 20:56:41 +0800
-Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com> wrote:
+On Tue, 11 Sep 2012 17:48:23 +0800
+Fengguang Wu <fengguang.wu@intel.com> wrote:
 
-> To make the code more clear, move release the lock out of khugepaged_alloc_page
+> idr: Rename MAX_LEVEL to MAX_IDR_LEVEL
 > 
-> ...
->
-> --- a/mm/huge_memory.c
-> +++ b/mm/huge_memory.c
-> @@ -1854,11 +1854,6 @@ static struct page
->  	*hpage  = alloc_hugepage_vma(khugepaged_defrag(), vma, address,
->  				      node, __GFP_OTHER_NODE);
+> To avoid name conflicts:
 > 
-> -	/*
-> -	 * After allocating the hugepage, release the mmap_sem read lock in
-> -	 * preparation for taking it in write mode.
-> -	 */
-> -	up_read(&mm->mmap_sem);
->  	if (unlikely(!*hpage)) {
->  		count_vm_event(THP_COLLAPSE_ALLOC_FAILED);
->  		*hpage = ERR_PTR(-ENOMEM);
-> @@ -1905,7 +1900,6 @@ static struct page
->  		       struct vm_area_struct *vma, unsigned long address,
->  		       int node)
->  {
-> -	up_read(&mm->mmap_sem);
->  	VM_BUG_ON(!*hpage);
->  	return  *hpage;
->  }
-> @@ -1931,8 +1925,14 @@ static void collapse_huge_page(struct mm_struct *mm,
+> drivers/video/riva/fbdev.c:281:9: sparse: preprocessor token MAX_LEVEL redefined
 > 
->  	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
-> 
-> -	/* release the mmap_sem read lock. */
->  	new_page = khugepaged_alloc_page(hpage, mm, vma, address, node);
-> +
-> +	/*
-> +	 * After allocating the hugepage, release the mmap_sem read lock in
-> +	 * preparation for taking it in write mode.
-> +	 */
-> +	up_read(&mm->mmap_sem);
-> +
->  	if (!new_page)
->  		return;
+> While at it, also make the other names more consistent and
+> add parentheses.
 
-Well that's a pretty minor improvement: one still has to go off on a
-big hunt to locate the matching down_read().
+That was a rather modest effort :(
 
-And the patch will increase mmap_sem hold times by a teeny amount.  Do
-we really want to do this?
+ drivers/i2c/i2c-core.c        |    2 +-
+ drivers/infiniband/core/cm.c  |    2 +-
+ drivers/pps/pps.c             |    2 +-
+ drivers/thermal/thermal_sys.c |    2 +-
+ fs/super.c                    |    2 +-
+ 5 files changed, 5 insertions(+), 5 deletions(-)
+
+diff -puN drivers/i2c/i2c-core.c~idr-rename-max_level-to-max_idr_level-fix drivers/i2c/i2c-core.c
+--- a/drivers/i2c/i2c-core.c~idr-rename-max_level-to-max_idr_level-fix
++++ a/drivers/i2c/i2c-core.c
+@@ -982,7 +982,7 @@ int i2c_add_numbered_adapter(struct i2c_
+ 
+ 	if (adap->nr == -1) /* -1 means dynamically assign bus id */
+ 		return i2c_add_adapter(adap);
+-	if (adap->nr & ~MAX_ID_MASK)
++	if (adap->nr & ~MAX_IDR_MASK)
+ 		return -EINVAL;
+ 
+ retry:
+diff -puN drivers/infiniband/core/cm.c~idr-rename-max_level-to-max_idr_level-fix drivers/infiniband/core/cm.c
+--- a/drivers/infiniband/core/cm.c~idr-rename-max_level-to-max_idr_level-fix
++++ a/drivers/infiniband/core/cm.c
+@@ -390,7 +390,7 @@ static int cm_alloc_id(struct cm_id_priv
+ 		ret = idr_get_new_above(&cm.local_id_table, cm_id_priv,
+ 					next_id, &id);
+ 		if (!ret)
+-			next_id = ((unsigned) id + 1) & MAX_ID_MASK;
++			next_id = ((unsigned) id + 1) & MAX_IDR_MASK;
+ 		spin_unlock_irqrestore(&cm.lock, flags);
+ 	} while( (ret == -EAGAIN) && idr_pre_get(&cm.local_id_table, GFP_KERNEL) );
+ 
+diff -puN drivers/pps/pps.c~idr-rename-max_level-to-max_idr_level-fix drivers/pps/pps.c
+--- a/drivers/pps/pps.c~idr-rename-max_level-to-max_idr_level-fix
++++ a/drivers/pps/pps.c
+@@ -306,7 +306,7 @@ int pps_register_cdev(struct pps_device 
+ 	if (err < 0)
+ 		return err;
+ 
+-	pps->id &= MAX_ID_MASK;
++	pps->id &= MAX_IDR_MASK;
+ 	if (pps->id >= PPS_MAX_SOURCES) {
+ 		pr_err("%s: too many PPS sources in the system\n",
+ 					pps->info.name);
+diff -puN drivers/thermal/thermal_sys.c~idr-rename-max_level-to-max_idr_level-fix drivers/thermal/thermal_sys.c
+--- a/drivers/thermal/thermal_sys.c~idr-rename-max_level-to-max_idr_level-fix
++++ a/drivers/thermal/thermal_sys.c
+@@ -78,7 +78,7 @@ again:
+ 	else if (unlikely(err))
+ 		return err;
+ 
+-	*id = *id & MAX_ID_MASK;
++	*id = *id & MAX_IDR_MASK;
+ 	return 0;
+ }
+ 
+diff -puN fs/super.c~idr-rename-max_level-to-max_idr_level-fix fs/super.c
+--- a/fs/super.c~idr-rename-max_level-to-max_idr_level-fix
++++ a/fs/super.c
+@@ -871,7 +871,7 @@ int get_anon_bdev(dev_t *p)
+ 	else if (error)
+ 		return -EAGAIN;
+ 
+-	if ((dev & MAX_ID_MASK) == (1 << MINORBITS)) {
++	if ((dev & MAX_IDR_MASK) == (1 << MINORBITS)) {
+ 		spin_lock(&unnamed_dev_lock);
+ 		ida_remove(&unnamed_dev_ida, dev);
+ 		if (unnamed_dev_start > dev)
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
