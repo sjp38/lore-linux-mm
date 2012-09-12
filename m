@@ -1,102 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
-	by kanga.kvack.org (Postfix) with SMTP id D80366B009C
-	for <linux-mm@kvack.org>; Tue, 11 Sep 2012 23:39:50 -0400 (EDT)
-Received: by vcbfl13 with SMTP id fl13so1920057vcb.14
-        for <linux-mm@kvack.org>; Tue, 11 Sep 2012 20:39:49 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20120911095200.GB8058@dhcp22.suse.cz>
-References: <1347350934-17712-1-git-send-email-sachin.kamat@linaro.org>
-	<20120911095200.GB8058@dhcp22.suse.cz>
-Date: Wed, 12 Sep 2012 09:09:49 +0530
-Message-ID: <CAK9yfHzy3LyNa93aieSSWn_B8ycvr0VsBZ=yjuHwj2qEJ8_fCw@mail.gmail.com>
-Subject: Re: [PATCH] mm/memcontrol.c: Remove duplicate inclusion of sock.h file
-From: Sachin Kamat <sachin.kamat@linaro.org>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
+	by kanga.kvack.org (Postfix) with SMTP id 0F9F16B009E
+	for <linux-mm@kvack.org>; Wed, 12 Sep 2012 01:16:36 -0400 (EDT)
+Received: by wgbdq12 with SMTP id dq12so970131wgb.26
+        for <linux-mm@kvack.org>; Tue, 11 Sep 2012 22:16:34 -0700 (PDT)
+Subject: Re: iwl3945: order 5 allocation during ifconfig up; vm problem?
+From: Eric Dumazet <eric.dumazet@gmail.com>
+In-Reply-To: <20120911162536.bd5171a1.akpm@linux-foundation.org>
+References: <20120909213228.GA5538@elf.ucw.cz>
+	 <alpine.DEB.2.00.1209091539530.16930@chino.kir.corp.google.com>
+	 <20120910111113.GA25159@elf.ucw.cz>
+	 <20120911162536.bd5171a1.akpm@linux-foundation.org>
+Content-Type: text/plain; charset="UTF-8"
+Date: Wed, 12 Sep 2012 07:16:28 +0200
+Message-ID: <1347426988.13103.684.camel@edumazet-glaptop>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Balbir Singh <bsingharora@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Andrew Morton <akpm@linux-foundation.org>, Marc MERLIN <marc@merlins.org>
+Cc: Pavel Machek <pavel@ucw.cz>, David Rientjes <rientjes@google.com>, sgruszka@redhat.com, linux-wireless@vger.kernel.org, johannes.berg@intel.com, wey-yi.w.guy@intel.com, ilw@linux.intel.com, Andrew Morton <akpm@osdl.org>, Mel Gorman <mgorman@suse.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 11 September 2012 15:22, Michal Hocko <mhocko@suse.cz> wrote:
-> On Tue 11-09-12 13:38:54, Sachin Kamat wrote:
->> net/sock.h is included unconditionally at the beginning of the file.
->> Hence, another conditional include is not required.
->
-> I guess we can do little bit better. What do you think about the
-> following?  I have compile tested this with:
-> - CONFIG_INET=y && CONFIG_MEMCG_KMEM=n
-> - CONFIG_MEMCG_KMEM=y
+On Tue, 2012-09-11 at 16:25 -0700, Andrew Morton wrote:
 
-Since you have compile tested this with different config options, your
-method looks better.
-Thanks.
-
-> ---
-> From 83c5a97e893b5379b7e93cfdc933d5e37756e70a Mon Sep 17 00:00:00 2001
-> From: Michal Hocko <mhocko@suse.cz>
-> Date: Tue, 11 Sep 2012 10:38:42 +0200
-> Subject: [PATCH] memcg: clean up networking headers file inclusion
->
-> Memory controller doesn't need anything from the networking stack unless
-> CONFIG_MEMCG_KMEM is selected.
-> Now we are including net/sock.h and net/tcp_memcontrol.h unconditionally
-> which is not necessary. Moreover struct mem_cgroup contains tcp_mem even
-> if CONFIG_MEMCG_KMEM is not selected which is not necessary.
->
-> Signed-off-by: Sachin Kamat <sachin.kamat@linaro.org>
-> Signed-off-by: Michal Hocko <mhocko@suse.cz>
-> ---
->  mm/memcontrol.c |    8 +++++---
->  1 file changed, 5 insertions(+), 3 deletions(-)
->
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 795e525..85ec9ff 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -50,8 +50,12 @@
->  #include <linux/cpu.h>
->  #include <linux/oom.h>
->  #include "internal.h"
-> +
-> +#ifdef CONFIG_MEMCG_KMEM
->  #include <net/sock.h>
-> +#include <net/ip.h>
->  #include <net/tcp_memcontrol.h>
-> +#endif
->
->  #include <asm/uaccess.h>
->
-> @@ -326,7 +330,7 @@ struct mem_cgroup {
->         struct mem_cgroup_stat_cpu nocpu_base;
->         spinlock_t pcp_counter_lock;
->
-> -#ifdef CONFIG_INET
-> +#ifdef CONFIG_MEMCG_KMEM
->         struct tcp_memcontrol tcp_mem;
->  #endif
->  };
-> @@ -413,8 +417,6 @@ struct mem_cgroup *mem_cgroup_from_css(struct cgroup_subsys_state *s)
->
->  /* Writing them here to avoid exposing memcg's inner layout */
->  #ifdef CONFIG_MEMCG_KMEM
-> -#include <net/sock.h>
-> -#include <net/ip.h>
->
->  static bool mem_cgroup_is_root(struct mem_cgroup *memcg);
->  void sock_update_memcg(struct sock *sk)
+> Asking for a 256k allocation is pretty crazy - this is an operating
+> system kernel, not a userspace application.
+> 
+> I'm wondering if this is due to a recent change, but I'm having trouble
+> working out where the allocation call site is.
 > --
-> 1.7.10.4
->
-> --
-> Michal Hocko
-> SUSE Labs
+
+(Adding Marc Merlin to CC, since he reported same problem)
+
+Thats the firmware loading in iwlwifi driver. Not sure if it can use SG.
+
+drivers/net/wireless/iwlwifi/iwl-drv.c
+
+iwl_alloc_ucode() -> iwl_alloc_fw_desc() -> dma_alloc_coherent()
+
+It seems some sections of /lib/firmware/iwlwifi*.ucode files are above
+128 Kbytes, so dma_alloc_coherent() try order-5 allocations
 
 
+# ls -l /lib/firmware/iwlwifi*.ucode
+-rw-r--r-- 1 root root 335056 2012-01-23 18:20 /lib/firmware/iwlwifi-1000-3.ucode
+-rw-r--r-- 1 root root 337520 2012-01-23 18:20 /lib/firmware/iwlwifi-1000-5.ucode
+-rw-r--r-- 1 root root 689680 2012-01-24 19:18 /lib/firmware/iwlwifi-105-6.ucode
+-rw-r--r-- 1 root root 701228 2012-01-24 19:18 /lib/firmware/iwlwifi-135-6.ucode
+-rw-r--r-- 1 root root 695876 2012-01-24 19:19 /lib/firmware/iwlwifi-2000-6.ucode
+-rw-r--r-- 1 root root 707392 2012-01-24 19:19 /lib/firmware/iwlwifi-2030-6.ucode
+-rw-r--r-- 1 root root 150100 2012-01-23 18:20 /lib/firmware/iwlwifi-3945-2.ucode
+-rw-r--r-- 1 root root 187972 2012-01-23 18:20 /lib/firmware/iwlwifi-4965-2.ucode
+-rw-r--r-- 1 root root 345008 2012-01-23 18:20 /lib/firmware/iwlwifi-5000-1.ucode
+-rw-r--r-- 1 root root 353240 2012-01-23 18:20 /lib/firmware/iwlwifi-5000-2.ucode
+-rw-r--r-- 1 root root 340696 2012-01-23 18:21 /lib/firmware/iwlwifi-5000-5.ucode
+-rw-r--r-- 1 root root 337400 2012-01-23 18:20 /lib/firmware/iwlwifi-5150-2.ucode
+-rw-r--r-- 1 root root 462280 2012-01-24 19:20 /lib/firmware/iwlwifi-6000-4.ucode
+-rw-r--r-- 1 root root 444128 2012-01-24 19:20 /lib/firmware/iwlwifi-6000g2a-5.ucode
+-rw-r--r-- 1 root root 460912 2012-01-24 19:20 /lib/firmware/iwlwifi-6000g2b-5.ucode
+-rw-r--r-- 1 root root 679436 2012-01-24 19:19 /lib/firmware/iwlwifi-6000g2b-6.ucode
+-rw-r--r-- 1 root root 463692 2012-01-23 18:20 /lib/firmware/iwlwifi-6050-4.ucode
+-rw-r--r-- 1 root root 469780 2012-01-23 18:20 /lib/firmware/iwlwifi-6050-5.ucode
 
--- 
-With warm regards,
-Sachin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
