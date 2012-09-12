@@ -1,94 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx167.postini.com [74.125.245.167])
-	by kanga.kvack.org (Postfix) with SMTP id AFF8F6B00FD
-	for <linux-mm@kvack.org>; Wed, 12 Sep 2012 17:28:31 -0400 (EDT)
-Date: Wed, 12 Sep 2012 14:28:29 -0700
-From: Larry Bassel <lbassel@codeaurora.org>
-Subject: Re: steering allocations to particular parts of memory
-Message-ID: <20120912212829.GC4018@labbmf01-linux.qualcomm.com>
-References: <20120907182715.GB4018@labbmf01-linux.qualcomm.com>
- <20120911093407.GH11266@suse.de>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120911093407.GH11266@suse.de>
+Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
+	by kanga.kvack.org (Postfix) with SMTP id 21E156B00FF
+	for <linux-mm@kvack.org>; Wed, 12 Sep 2012 17:32:41 -0400 (EDT)
+Date: Wed, 12 Sep 2012 14:32:39 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 2/2] memory-hotplug: don't replace lowmem pages with
+ highmem
+Message-Id: <20120912143239.65fa8b58.akpm@linux-foundation.org>
+In-Reply-To: <1347414231-31451-2-git-send-email-minchan@kernel.org>
+References: <1347414231-31451-1-git-send-email-minchan@kernel.org>
+	<1347414231-31451-2-git-send-email-minchan@kernel.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Larry Bassel <lbassel@codeaurora.org>, dan.magenheimer@oracle.com, linux-mm@kvack.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Michal Nazarewicz <mina86@mina86.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Wen Congyang <wency@cn.fujitsu.com>
 
-On 11 Sep 12 10:34, Mel Gorman wrote:
-> On Fri, Sep 07, 2012 at 11:27:15AM -0700, Larry Bassel wrote:
-> > I am looking for a way to steer allocations (these may be
-> > by either userspace or the kernel) to or away from particular
-> > ranges of memory. The reason for this is that some parts of
-> > memory are different from others (i.e. some memory may be
-> > faster/slower). For instance there may be 500M of "fast"
-> > memory and 1500M of "slower" memory on a 2G platform.
-> > 
+On Wed, 12 Sep 2012 10:43:51 +0900
+Minchan Kim <minchan@kernel.org> wrote:
+
+> [1] reporeted that lowmem pages could be replaced by
+> highmem pages during migration of CMA and fixed.
 > 
-> Hi Larry,
+> Quote from [1]'s description
+> "
+>     The filesystem layer expects pages in the block device's mapping to not
+>     be in highmem (the mapping's gfp mask is set in bdget()), but CMA can
+>     currently replace lowmem pages with highmem pages, leading to crashes in
+>     filesystem code such as the one below:
 > 
-> > At the memory mini-summit last week, it was mentioned
-> > that the Super-H architecture was using NUMA for this
-> > purpose, which was considered to be an very bad thing
-> > to do -- we have ported NUMA to ARM here (as an experiment)
-> > and agree that NUMA doesn't work well for solving this problem.
-> > 
+>       Unable to handle kernel NULL pointer dereference at virtual address 00000400
+>       pgd = c0c98000
+>       [00000400] *pgd=00c91831, *pte=00000000, *ppte=00000000
+>       Internal error: Oops: 817 [#1] PREEMPT SMP ARM
+>       CPU: 0    Not tainted  (3.5.0-rc5+ #80)
+>       PC is at __memzero+0x24/0x80
+>       ...
+>       Process fsstress (pid: 323, stack limit = 0xc0cbc2f0)
+>       Backtrace:
+>       [<c010e3f0>] (ext4_getblk+0x0/0x180) from [<c010e58c>] (ext4_bread+0x1c/0x98)
+>       [<c010e570>] (ext4_bread+0x0/0x98) from [<c0117944>] (ext4_mkdir+0x160/0x3bc)
+>        r4:c15337f0
+>       [<c01177e4>] (ext4_mkdir+0x0/0x3bc) from [<c00c29e0>] (vfs_mkdir+0x8c/0x98)
+>       [<c00c2954>] (vfs_mkdir+0x0/0x98) from [<c00c2a60>] (sys_mkdirat+0x74/0xac)
+>        r6:00000000 r5:c152eb40 r4:000001ff r3:c14b43f0
+>       [<c00c29ec>] (sys_mkdirat+0x0/0xac) from [<c00c2ab8>] (sys_mkdir+0x20/0x24)
+>        r6:beccdcf0 r5:00074000 r4:beccdbbc
+>       [<c00c2a98>] (sys_mkdir+0x0/0x24) from [<c000e3c0>] (ret_fast_syscall+0x0/0x30)
+> "
 > 
-> Yes, I remember the discussion and regret it had to be cut short.
+> Memory-hotplug has same problem with CMA so [1]'s fix could be applied
+> with memory-hotplug, too.
 > 
-> NUMA is almost always considered to be the first solution to this type
-> of problem but as you say it's considered to be a "very bad thing to do".
-> It's convenient in one sense because you get data structures that track all
-> the pages for you and create the management structures. It's bad because
-> page allocation uses these slow nodes when the fast nodes are full which
-> is a very poor placement policy. Similarly pages from the slow node are
-> reclaimed based on memory pressure. It comes down to luck whether the
-> optimal pages are in the slow node or not. You can try wedging your own
-> placement policy on the side but it won't be pretty.
+> Fix it by reusing.
 
-It appears that I was too vague about this. Both userspace and
-kernel (drivers mostly) need to be able to specify either explicitly
-or implicitly (using defaults if no explicit memory type is mentioned)
-what sort of memory is desired and what to do if this type is not
-available (either due to actual lack of such memory or because
-a low watermark would be violated, etc.) such as fall back to
-another type of memory or get an out-of-memory error
-(More sophisticated alternatives would be to trigger
-some sort of migration or even eviction in these cases).
-This seems similar to a simplified version of memory policies,
-unless I'm missing something.
+Do we think this issue should be fixed in 3.6?  Earlier?
 
-Admittedly, most drivers and user processes will not explicitly ask
-for a certain type of memory.
+> @@ -809,8 +802,12 @@ do_migrate_range(unsigned long start_pfn, unsigned long end_pfn)
+>  			putback_lru_pages(&source);
+>  			goto out;
+>  		}
+> -		/* this function returns # of failed pages */
+> -		ret = migrate_pages(&source, hotremove_migrate_alloc, 0,
+> +
+> +		/*
+> +		 * alloc_migrate_target should be improooooved!!
 
-We also would like to be able to create lowmem or highmem
-from any type of memory.
+Not a helpful comment!  If you've identified some improvement then
+please do provide all the details.
 
-The above makes me wonder if something that keeps nodes and zones
-and some sort of simple memory policy and throws out the rest of NUMA such
-as bindings of memory to CPUs, cpusets, etc. might be useful
-(though after the memory mini-summit I have doubts about this as well)
-as node-aware allocators already exist.
-
-[snip]
-
-> Hope this clarifies my position a little but people like Dan who have
-> focused on this problem in the past may have a much better idea.
-
-Thanks.
-
-> 
-> -- 
-> Mel Gorman
-> SUSE Labs
-
-Larry
-
--- 
-The Qualcomm Innovation Center, Inc. is a member of Code Aurora Forum,
-hosted by The Linux Foundation
+> +		 * migrate_pages returns # of failed pages.
+> +		 */
+> +		ret = migrate_pages(&source, alloc_migrate_target, 0,
+>  							true, MIGRATE_SYNC);
+>  		if (ret)
+>  			putback_lru_pages(&source);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
