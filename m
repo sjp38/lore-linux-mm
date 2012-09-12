@@ -1,94 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
-	by kanga.kvack.org (Postfix) with SMTP id 249A76B00A0
-	for <linux-mm@kvack.org>; Wed, 12 Sep 2012 01:33:32 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 43CBF3EE0C3
-	for <linux-mm@kvack.org>; Wed, 12 Sep 2012 14:33:30 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 2A06D45DEBA
-	for <linux-mm@kvack.org>; Wed, 12 Sep 2012 14:33:30 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 0A1DB45DEB5
-	for <linux-mm@kvack.org>; Wed, 12 Sep 2012 14:33:30 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id E124D1DB8041
-	for <linux-mm@kvack.org>; Wed, 12 Sep 2012 14:33:29 +0900 (JST)
-Received: from g01jpexchkw10.g01.fujitsu.local (g01jpexchkw10.g01.fujitsu.local [10.0.194.49])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 95D411DB803C
-	for <linux-mm@kvack.org>; Wed, 12 Sep 2012 14:33:29 +0900 (JST)
-Message-ID: <50501E97.2020200@jp.fujitsu.com>
-Date: Wed, 12 Sep 2012 14:33:11 +0900
-From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
+	by kanga.kvack.org (Postfix) with SMTP id 25C1A6B00A2
+	for <linux-mm@kvack.org>; Wed, 12 Sep 2012 01:47:09 -0400 (EDT)
+Message-ID: <50501B9C.7000200@cn.fujitsu.com>
+Date: Wed, 12 Sep 2012 13:20:28 +0800
+From: Wen Congyang <wency@cn.fujitsu.com>
 MIME-Version: 1.0
-Subject: hot-added cpu is not asiggned to the correct node
-Content-Type: text/plain; charset="ISO-2022-JP"
+Subject: Re: [RFC v8 PATCH 00/20] memory-hotplug: hot-remove physical memory
+References: <1346148027-24468-1-git-send-email-wency@cn.fujitsu.com> <20120831134956.fec0f681.akpm@linux-foundation.org> <504D467D.2080201@jp.fujitsu.com> <504D4A08.7090602@cn.fujitsu.com> <20120910135213.GA1550@dhcp-192-168-178-175.profitbricks.localdomain>
+In-Reply-To: <20120910135213.GA1550@dhcp-192-168-178-175.profitbricks.localdomain>
 Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>
+Cc: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-ia64@vger.kernel.org, cmetcalf@tilera.com, sparclinux@vger.kernel.org, rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, kosaki.motohiro@jp.fujitsu.com
 
-When I hot-added CPUs and memories simultaneously using container driver,
-all the hot-added CPUs were mistakenly assigned to node0.
+At 09/10/2012 09:52 PM, Vasilis Liaskovitis Wrote:
+> Hi,
+> 
+> On Mon, Sep 10, 2012 at 10:01:44AM +0800, Wen Congyang wrote:
+>> At 09/10/2012 09:46 AM, Yasuaki Ishimatsu Wrote:
+>>> Hi Wen,
+>>>
+>>> 2012/09/01 5:49, Andrew Morton wrote:
+>>>> On Tue, 28 Aug 2012 18:00:07 +0800
+>>>> wency@cn.fujitsu.com wrote:
+>>>>
+>>>>> This patch series aims to support physical memory hot-remove.
+>>>>
+>>>> I doubt if many people have hardware which permits physical memory
+>>>> removal?  How would you suggest that people with regular hardware can
+>>>> test these chagnes?
+>>>
+>>> How do you test the patch? As Andrew says, for hot-removing memory,
+>>> we need a particular hardware. I think so too. So many people may want
+>>> to know how to test the patch.
+>>> If we apply following patch to kvm guest, can we hot-remove memory on
+>>> kvm guest?
+>>>
+>>> http://lists.gnu.org/archive/html/qemu-devel/2012-07/msg01389.html
+>>
+>> Yes, if we apply this patchset, we can test hot-remove memory on kvm guest.
+>> But that patchset doesn't implement _PS3, so there is some restriction.
+> 
+> the following repos contain the patchset above, plus 2 more patches that add
+> PS3 support to the dimm devices in qemu/seabios:
+> 
+> https://github.com/vliaskov/seabios/commits/memhp-v2
+> https://github.com/vliaskov/qemu-kvm/commits/memhp-v2
+> 
+> I have not posted the PS3 patches yet in the qemu list, but will post them
+> soon for v3 of the memory hotplug series. If you have issues testing, let me
+> know.
 
-Accoding to my DSDT, hot-added CPUs and memorys have PXM#1. So in my system,
-these devices should be assigned to node1 as follows:
+Hmm, seabios doesn't support ACPI table SLIT. We can specify node it for dimm
+device, so I think we should support SLIT in seabios. Otherwise we may meet
+the following kernel messages:
+[  325.016769] init_memory_mapping: [mem 0x40000000-0x5fffffff]
+[  325.018060]  [mem 0x40000000-0x5fffffff] page 2M
+[  325.019168] [ffffea0001000000-ffffea00011fffff] potential offnode page_structs
+[  325.024172] [ffffea0001200000-ffffea00013fffff] potential offnode page_structs
+[  325.028596]  [ffffea0001400000-ffffea00017fffff] PMD -> [ffff880035000000-ffff8800353fffff] on node 1
+[  325.031775] [ffffea0001600000-ffffea00017fffff] potential offnode page_structs
 
---- Expected result
-ls /sys/devices/system/node/node1/:
-cpu16 cpu17 cpu18 cpu19 cpu20 cpu21 cpu22 cpu23 cpu24 cpu25 cpu26 cpu27
-cpu28 cpu29 cpu30 cpu31 cpulist ... memory512 memory513 - 767 meminfo ...
+Do you have plan to do it?
 
-=> hot-added CPUs and memorys are assigned to same node.
----
+Thanks
+Wen Congyang
 
-But in actuality, the CPUs were assigned to node0 and the memorys were assigned
-to node1 as follows:
-
---- Actual result
-ls /sys/devices/system/node/node0/:
-cpu0 cpu1 cpu2 cpu3 cpu4 cpu5 cpu6 cpu7 cpu8 cpu9 cpu10 cpu11 cpu12 cpu13
-cpu14 cpu15 cpu16 cpu17 cpu18 cpu19 cpu20 cpu21 cpu22 cpu23 cpu24 cpu25 cpu26
-cpu27 cpu28 cpu29 cpu30 cpu31 cpulist ... memory1 memory2 - 255 meminfo ...
-
-ls /sys/devices/system/node/node1/:
-cpulist memory512 memory513 - 767 meminfo ...
-
-=> hot-added CPUs are assinged to node0 and hot-added memorys are assigned to
-   node1. CPUs and memorys has same PXM#. But assigned node is different.
----
-
-In my investigation, "acpi_map_cpu2node()" causes the problem.
-
----
-#arch/x86/kernel/acpi/boot.c"
-static void __cpuinit acpi_map_cpu2node(acpi_handle handle, int cpu, int physid)
- {
- #ifdef CONFIG_ACPI_NUMA
-   int nid;
-
-   nid = acpi_get_node(handle);
-   if (nid == -1 || !node_online(nid))
-           return;
-   set_apicid_to_node(physid, nid);
-   numa_set_node(cpu, nid);
- #endif
- }
----
-
-In my DSDT, CPUs were written ahead of memories, so CPUs were hot-added
-before memories. Thus the system has memory-less-node temporarily .
-In this case, "node_online()" fails. So the CPU is assigned to node 0.
-
-When I wrote memories ahead of CPUs in DSDT, the CPUs were assigned to the
-correct node. In current Linux, the CPUs were assigned to the correct node
-or not depends on the order of hot-added resources in DSDT.
-
-ACPI specification doesn't define the order of hot-added resources. So I think
-the kernel should properly handle any DSDT conformable to its specification.
-
-I'm thinking a solution about the problem, but I don't have any good idea...
-Does anyone has opinion how we should treat it?
+> 
+> thanks,
+> 
+> - Vasilis
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
