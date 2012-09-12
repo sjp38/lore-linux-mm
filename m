@@ -1,63 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
-	by kanga.kvack.org (Postfix) with SMTP id 1C0CA6B00DA
-	for <linux-mm@kvack.org>; Wed, 12 Sep 2012 09:09:39 -0400 (EDT)
-Date: Wed, 12 Sep 2012 15:09:35 +0200
+Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
+	by kanga.kvack.org (Postfix) with SMTP id 4D9DC6B00DD
+	for <linux-mm@kvack.org>; Wed, 12 Sep 2012 11:28:02 -0400 (EDT)
+Date: Wed, 12 Sep 2012 17:27:59 +0200
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH] mm/memcontrol.c: Remove duplicate inclusion of sock.h
- file
-Message-ID: <20120912130935.GJ21579@dhcp22.suse.cz>
-References: <1347350934-17712-1-git-send-email-sachin.kamat@linaro.org>
- <20120911095200.GB8058@dhcp22.suse.cz>
- <20120912072520.GB17516@dhcp22.suse.cz>
- <50504CE1.8030509@parallels.com>
- <20120912125647.GH21579@dhcp22.suse.cz>
+Subject: Re: [PATCH 0/3] Minor changes to common hugetlb code for ARM
+Message-ID: <20120912152759.GR21579@dhcp22.suse.cz>
+References: <1347382036-18455-1-git-send-email-will.deacon@arm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20120912125647.GH21579@dhcp22.suse.cz>
+In-Reply-To: <1347382036-18455-1-git-send-email-will.deacon@arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: Sachin Kamat <sachin.kamat@linaro.org>, cgroups@vger.kernel.org, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Balbir Singh <bsingharora@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Will Deacon <will.deacon@arm.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, akpm@linux-foundation.org, Andrea Arcangeli <aarcange@redhat.com>
 
-On Wed 12-09-12 14:56:47, Michal Hocko wrote:
-> On Wed 12-09-12 12:50:41, Glauber Costa wrote:
-> [...]
-> > >> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> > >> index 795e525..85ec9ff 100644
-> > >> --- a/mm/memcontrol.c
-> > >> +++ b/mm/memcontrol.c
-> > >> @@ -50,8 +50,12 @@
-> > >>  #include <linux/cpu.h>
-> > >>  #include <linux/oom.h>
-> > >>  #include "internal.h"
-> > >> +
-> > >> +#ifdef CONFIG_MEMCG_KMEM
-> > >>  #include <net/sock.h>
-> > >> +#include <net/ip.h>
-> > >>  #include <net/tcp_memcontrol.h>
-> > >> +#endif
-> > >>  
-> > >>  #include <asm/uaccess.h>
-> > >>  
-> > >> @@ -326,7 +330,7 @@ struct mem_cgroup {
-> > >>  	struct mem_cgroup_stat_cpu nocpu_base;
-> > >>  	spinlock_t pcp_counter_lock;
-> > >>  
-> > >> -#ifdef CONFIG_INET
-> > >> +#ifdef CONFIG_MEMCG_KMEM
-> > >>  	struct tcp_memcontrol tcp_mem;
-> > >>  #endif
-> > >>  };
-> > 
-> > If you are changing this, why not test for both? This field will be
-> > useless with inet disabled. I usually don't like conditional in
-> > structures (note that the "kmem" res counter in my patchsets is not
-> > conditional to KMEM!!), but since the decision was made to make this one
-> > conditional, I think INET is a much better test. I am fine with both though.
->  
->  You are right of course. Updated patch bellow:
+On Tue 11-09-12 17:47:13, Will Deacon wrote:
+> Hello,
 
-Bahh. And I managed to send a different patch than I tested...
----
+Hi,
+
+> A few changes are required to common hugetlb code before the ARM support
+> can be merged. I posted the main one previously, which has been picked up
+> by akpm:
+> 
+>   http://marc.info/?l=linux-mm&m=134573987631394&w=2
+> 
+> The remaining three patches (included here) are all fairly minor but do
+> affect other architectures.
+
+I am quite confused. Why THP changes are required for hugetlb code for
+ARM?
+
+Besides that I would suggest adding Andrea to the CC (added now the
+whole series can be found here http://lkml.org/lkml/2012/9/11/322) list
+for all THP changes.
+
+> 
+> All comments welcome,
+> 
+> Will
+> 
+> Catalin Marinas (2):
+>   mm: thp: Fix the pmd_clear() arguments in pmdp_get_and_clear()
+>   mm: thp: Fix the update_mmu_cache() last argument passing in
+>     mm/huge_memory.c
+> 
+> Steve Capper (1):
+>   mm: Introduce HAVE_ARCH_TRANSPARENT_HUGEPAGE
+> 
+>  arch/x86/Kconfig              |    4 ++++
+>  include/asm-generic/pgtable.h |    2 +-
+>  mm/Kconfig                    |    2 +-
+>  mm/huge_memory.c              |    6 +++---
+>  4 files changed, 9 insertions(+), 5 deletions(-)
+> 
+> -- 
+> 1.7.4.1
+> 
+
+-- 
+Michal Hocko
+SUSE Labs
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
