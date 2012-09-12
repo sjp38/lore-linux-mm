@@ -1,88 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
-	by kanga.kvack.org (Postfix) with SMTP id 94D486B00AC
-	for <linux-mm@kvack.org>; Wed, 12 Sep 2012 04:54:04 -0400 (EDT)
-Message-ID: <50504CE1.8030509@parallels.com>
-Date: Wed, 12 Sep 2012 12:50:41 +0400
-From: Glauber Costa <glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
+	by kanga.kvack.org (Postfix) with SMTP id 307FF6B00AE
+	for <linux-mm@kvack.org>; Wed, 12 Sep 2012 05:22:03 -0400 (EDT)
+Date: Wed, 12 Sep 2012 11:22:12 +0200
+From: Stanislaw Gruszka <sgruszka@redhat.com>
+Subject: Re: iwl3945: order 5 allocation during ifconfig up; vm problem?
+Message-ID: <20120912092211.GA3146@redhat.com>
+References: <20120909213228.GA5538@elf.ucw.cz>
+ <alpine.DEB.2.00.1209091539530.16930@chino.kir.corp.google.com>
+ <20120910111113.GA25159@elf.ucw.cz>
+ <20120911162536.bd5171a1.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm/memcontrol.c: Remove duplicate inclusion of sock.h
- file
-References: <1347350934-17712-1-git-send-email-sachin.kamat@linaro.org> <20120911095200.GB8058@dhcp22.suse.cz> <20120912072520.GB17516@dhcp22.suse.cz>
-In-Reply-To: <20120912072520.GB17516@dhcp22.suse.cz>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120911162536.bd5171a1.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Sachin Kamat <sachin.kamat@linaro.org>, cgroups@vger.kernel.org, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Balbir Singh <bsingharora@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Pavel Machek <pavel@ucw.cz>, David Rientjes <rientjes@google.com>, linux-wireless@vger.kernel.org, johannes.berg@intel.com, wey-yi.w.guy@intel.com, ilw@linux.intel.com, Andrew Morton <akpm@osdl.org>, Mel Gorman <mgorman@suse.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 09/12/2012 11:25 AM, Michal Hocko wrote:
-> Just realized that Glauber is not in the CC list. Glauber, could you
-> have a look? The thread started here:
-> http://www.spinics.net/lists/linux-mm/msg41725.html
+On Tue, Sep 11, 2012 at 04:25:36PM -0700, Andrew Morton wrote:
+> On Mon, 10 Sep 2012 13:11:13 +0200
+> Pavel Machek <pavel@ucw.cz> wrote:
 > 
-> Thanks!
+> > On Sun 2012-09-09 15:40:55, David Rientjes wrote:
+> > > On Sun, 9 Sep 2012, Pavel Machek wrote:
+> > > 
+> > > > On 3.6.0-rc2+, I tried to turn on the wireless, but got
+> > > > 
+> > > > root@amd:~# ifconfig wlan0 10.0.0.6 up
+> > > > SIOCSIFFLAGS: Cannot allocate memory
+> > > > SIOCSIFFLAGS: Cannot allocate memory
+> > > > root@amd:~# 
+> > > > 
+> > > > It looks like it uses "a bit too big" allocations to allocate
+> > > > firmware...? Order five allocation....
+> > > > 
+> > > > Hmm... then I did "echo 3  > /proc/sys/vm/drop_caches" and now the
+> > > > network works. Is it VM problem that it failed to allocate memory when
+> > > > it was freeable?
+> > > > 
+> > > 
+> > > Do you have CONFIG_COMPACTION enabled?
+> > 
+> > Yes:
+> > 
+> > pavel@amd:/data/l/linux-good$ zgrep CONFIG_COMPACTION /proc/config.gz 
+> > CONFIG_COMPACTION=y
 > 
-> On Tue 11-09-12 11:52:00, Michal Hocko wrote:
->> On Tue 11-09-12 13:38:54, Sachin Kamat wrote:
->>> net/sock.h is included unconditionally at the beginning of the file.
->>> Hence, another conditional include is not required.
->>
->> I guess we can do little bit better. What do you think about the
->> following?  I have compile tested this with:
->> - CONFIG_INET=y && CONFIG_MEMCG_KMEM=n
->> - CONFIG_MEMCG_KMEM=y
->> ---
->> From 83c5a97e893b5379b7e93cfdc933d5e37756e70a Mon Sep 17 00:00:00 2001
->> From: Michal Hocko <mhocko@suse.cz>
->> Date: Tue, 11 Sep 2012 10:38:42 +0200
->> Subject: [PATCH] memcg: clean up networking headers file inclusion
->>
->> Memory controller doesn't need anything from the networking stack unless
->> CONFIG_MEMCG_KMEM is selected.
->> Now we are including net/sock.h and net/tcp_memcontrol.h unconditionally
->> which is not necessary. Moreover struct mem_cgroup contains tcp_mem even
->> if CONFIG_MEMCG_KMEM is not selected which is not necessary.
->>
->> Signed-off-by: Sachin Kamat <sachin.kamat@linaro.org>
->> Signed-off-by: Michal Hocko <mhocko@suse.cz>
->> ---
->>  mm/memcontrol.c |    8 +++++---
->>  1 file changed, 5 insertions(+), 3 deletions(-)
->>
->> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
->> index 795e525..85ec9ff 100644
->> --- a/mm/memcontrol.c
->> +++ b/mm/memcontrol.c
->> @@ -50,8 +50,12 @@
->>  #include <linux/cpu.h>
->>  #include <linux/oom.h>
->>  #include "internal.h"
->> +
->> +#ifdef CONFIG_MEMCG_KMEM
->>  #include <net/sock.h>
->> +#include <net/ip.h>
->>  #include <net/tcp_memcontrol.h>
->> +#endif
->>  
->>  #include <asm/uaccess.h>
->>  
->> @@ -326,7 +330,7 @@ struct mem_cgroup {
->>  	struct mem_cgroup_stat_cpu nocpu_base;
->>  	spinlock_t pcp_counter_lock;
->>  
->> -#ifdef CONFIG_INET
->> +#ifdef CONFIG_MEMCG_KMEM
->>  	struct tcp_memcontrol tcp_mem;
->>  #endif
->>  };
+> Asking for a 256k allocation is pretty crazy - this is an operating
+> system kernel, not a userspace application.
+> 
+> I'm wondering if this is due to a recent change, but I'm having trouble
+> working out where the allocation call site is.
 
-If you are changing this, why not test for both? This field will be
-useless with inet disabled. I usually don't like conditional in
-structures (note that the "kmem" res counter in my patchsets is not
-conditional to KMEM!!), but since the decision was made to make this one
-conditional, I think INET is a much better test. I am fine with both though.
+iwlwifi/iwlegacy do such kind of allocation for ages, since iwlwifi driver
+inclusion in 2.6.24 (however firmware was smaller then).
+
+I can fix that in iwlegacy similar as Johannes did it in iwlwifi, but this
+actually seems to be allocator regression. We use GFP_KERNEL allocation,
+kernel can wait for free memory and/or swap out pages, I do not understand
+why this fail.
+
+Stanislaw
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
