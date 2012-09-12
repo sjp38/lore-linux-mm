@@ -1,67 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
-	by kanga.kvack.org (Postfix) with SMTP id 0F9F16B009E
-	for <linux-mm@kvack.org>; Wed, 12 Sep 2012 01:16:36 -0400 (EDT)
-Received: by wgbdq12 with SMTP id dq12so970131wgb.26
-        for <linux-mm@kvack.org>; Tue, 11 Sep 2012 22:16:34 -0700 (PDT)
-Subject: Re: iwl3945: order 5 allocation during ifconfig up; vm problem?
-From: Eric Dumazet <eric.dumazet@gmail.com>
-In-Reply-To: <20120911162536.bd5171a1.akpm@linux-foundation.org>
-References: <20120909213228.GA5538@elf.ucw.cz>
-	 <alpine.DEB.2.00.1209091539530.16930@chino.kir.corp.google.com>
-	 <20120910111113.GA25159@elf.ucw.cz>
-	 <20120911162536.bd5171a1.akpm@linux-foundation.org>
-Content-Type: text/plain; charset="UTF-8"
-Date: Wed, 12 Sep 2012 07:16:28 +0200
-Message-ID: <1347426988.13103.684.camel@edumazet-glaptop>
-Mime-Version: 1.0
+Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
+	by kanga.kvack.org (Postfix) with SMTP id 249A76B00A0
+	for <linux-mm@kvack.org>; Wed, 12 Sep 2012 01:33:32 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 43CBF3EE0C3
+	for <linux-mm@kvack.org>; Wed, 12 Sep 2012 14:33:30 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 2A06D45DEBA
+	for <linux-mm@kvack.org>; Wed, 12 Sep 2012 14:33:30 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 0A1DB45DEB5
+	for <linux-mm@kvack.org>; Wed, 12 Sep 2012 14:33:30 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id E124D1DB8041
+	for <linux-mm@kvack.org>; Wed, 12 Sep 2012 14:33:29 +0900 (JST)
+Received: from g01jpexchkw10.g01.fujitsu.local (g01jpexchkw10.g01.fujitsu.local [10.0.194.49])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 95D411DB803C
+	for <linux-mm@kvack.org>; Wed, 12 Sep 2012 14:33:29 +0900 (JST)
+Message-ID: <50501E97.2020200@jp.fujitsu.com>
+Date: Wed, 12 Sep 2012 14:33:11 +0900
+From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+MIME-Version: 1.0
+Subject: hot-added cpu is not asiggned to the correct node
+Content-Type: text/plain; charset="ISO-2022-JP"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Marc MERLIN <marc@merlins.org>
-Cc: Pavel Machek <pavel@ucw.cz>, David Rientjes <rientjes@google.com>, sgruszka@redhat.com, linux-wireless@vger.kernel.org, johannes.berg@intel.com, wey-yi.w.guy@intel.com, ilw@linux.intel.com, Andrew Morton <akpm@osdl.org>, Mel Gorman <mgorman@suse.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, 2012-09-11 at 16:25 -0700, Andrew Morton wrote:
+When I hot-added CPUs and memories simultaneously using container driver,
+all the hot-added CPUs were mistakenly assigned to node0.
 
-> Asking for a 256k allocation is pretty crazy - this is an operating
-> system kernel, not a userspace application.
-> 
-> I'm wondering if this is due to a recent change, but I'm having trouble
-> working out where the allocation call site is.
-> --
+Accoding to my DSDT, hot-added CPUs and memorys have PXM#1. So in my system,
+these devices should be assigned to node1 as follows:
 
-(Adding Marc Merlin to CC, since he reported same problem)
+--- Expected result
+ls /sys/devices/system/node/node1/:
+cpu16 cpu17 cpu18 cpu19 cpu20 cpu21 cpu22 cpu23 cpu24 cpu25 cpu26 cpu27
+cpu28 cpu29 cpu30 cpu31 cpulist ... memory512 memory513 - 767 meminfo ...
 
-Thats the firmware loading in iwlwifi driver. Not sure if it can use SG.
+=> hot-added CPUs and memorys are assigned to same node.
+---
 
-drivers/net/wireless/iwlwifi/iwl-drv.c
+But in actuality, the CPUs were assigned to node0 and the memorys were assigned
+to node1 as follows:
 
-iwl_alloc_ucode() -> iwl_alloc_fw_desc() -> dma_alloc_coherent()
+--- Actual result
+ls /sys/devices/system/node/node0/:
+cpu0 cpu1 cpu2 cpu3 cpu4 cpu5 cpu6 cpu7 cpu8 cpu9 cpu10 cpu11 cpu12 cpu13
+cpu14 cpu15 cpu16 cpu17 cpu18 cpu19 cpu20 cpu21 cpu22 cpu23 cpu24 cpu25 cpu26
+cpu27 cpu28 cpu29 cpu30 cpu31 cpulist ... memory1 memory2 - 255 meminfo ...
 
-It seems some sections of /lib/firmware/iwlwifi*.ucode files are above
-128 Kbytes, so dma_alloc_coherent() try order-5 allocations
+ls /sys/devices/system/node/node1/:
+cpulist memory512 memory513 - 767 meminfo ...
 
+=> hot-added CPUs are assinged to node0 and hot-added memorys are assigned to
+   node1. CPUs and memorys has same PXM#. But assigned node is different.
+---
 
-# ls -l /lib/firmware/iwlwifi*.ucode
--rw-r--r-- 1 root root 335056 2012-01-23 18:20 /lib/firmware/iwlwifi-1000-3.ucode
--rw-r--r-- 1 root root 337520 2012-01-23 18:20 /lib/firmware/iwlwifi-1000-5.ucode
--rw-r--r-- 1 root root 689680 2012-01-24 19:18 /lib/firmware/iwlwifi-105-6.ucode
--rw-r--r-- 1 root root 701228 2012-01-24 19:18 /lib/firmware/iwlwifi-135-6.ucode
--rw-r--r-- 1 root root 695876 2012-01-24 19:19 /lib/firmware/iwlwifi-2000-6.ucode
--rw-r--r-- 1 root root 707392 2012-01-24 19:19 /lib/firmware/iwlwifi-2030-6.ucode
--rw-r--r-- 1 root root 150100 2012-01-23 18:20 /lib/firmware/iwlwifi-3945-2.ucode
--rw-r--r-- 1 root root 187972 2012-01-23 18:20 /lib/firmware/iwlwifi-4965-2.ucode
--rw-r--r-- 1 root root 345008 2012-01-23 18:20 /lib/firmware/iwlwifi-5000-1.ucode
--rw-r--r-- 1 root root 353240 2012-01-23 18:20 /lib/firmware/iwlwifi-5000-2.ucode
--rw-r--r-- 1 root root 340696 2012-01-23 18:21 /lib/firmware/iwlwifi-5000-5.ucode
--rw-r--r-- 1 root root 337400 2012-01-23 18:20 /lib/firmware/iwlwifi-5150-2.ucode
--rw-r--r-- 1 root root 462280 2012-01-24 19:20 /lib/firmware/iwlwifi-6000-4.ucode
--rw-r--r-- 1 root root 444128 2012-01-24 19:20 /lib/firmware/iwlwifi-6000g2a-5.ucode
--rw-r--r-- 1 root root 460912 2012-01-24 19:20 /lib/firmware/iwlwifi-6000g2b-5.ucode
--rw-r--r-- 1 root root 679436 2012-01-24 19:19 /lib/firmware/iwlwifi-6000g2b-6.ucode
--rw-r--r-- 1 root root 463692 2012-01-23 18:20 /lib/firmware/iwlwifi-6050-4.ucode
--rw-r--r-- 1 root root 469780 2012-01-23 18:20 /lib/firmware/iwlwifi-6050-5.ucode
+In my investigation, "acpi_map_cpu2node()" causes the problem.
 
+---
+#arch/x86/kernel/acpi/boot.c"
+static void __cpuinit acpi_map_cpu2node(acpi_handle handle, int cpu, int physid)
+ {
+ #ifdef CONFIG_ACPI_NUMA
+   int nid;
+
+   nid = acpi_get_node(handle);
+   if (nid == -1 || !node_online(nid))
+           return;
+   set_apicid_to_node(physid, nid);
+   numa_set_node(cpu, nid);
+ #endif
+ }
+---
+
+In my DSDT, CPUs were written ahead of memories, so CPUs were hot-added
+before memories. Thus the system has memory-less-node temporarily .
+In this case, "node_online()" fails. So the CPU is assigned to node 0.
+
+When I wrote memories ahead of CPUs in DSDT, the CPUs were assigned to the
+correct node. In current Linux, the CPUs were assigned to the correct node
+or not depends on the order of hot-added resources in DSDT.
+
+ACPI specification doesn't define the order of hot-added resources. So I think
+the kernel should properly handle any DSDT conformable to its specification.
+
+I'm thinking a solution about the problem, but I don't have any good idea...
+Does anyone has opinion how we should treat it?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
