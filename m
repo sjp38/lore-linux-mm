@@ -1,61 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
-	by kanga.kvack.org (Postfix) with SMTP id CF0366B0081
-	for <linux-mm@kvack.org>; Tue, 11 Sep 2012 19:43:31 -0400 (EDT)
-Date: Tue, 11 Sep 2012 16:43:30 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [patch 2/2 v2]compaction: check lock contention first before
- taking lock
-Message-Id: <20120911164330.4fffee4f.akpm@linux-foundation.org>
-In-Reply-To: <20120910011850.GD3715@kernel.org>
-References: <20120910011850.GD3715@kernel.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
+	by kanga.kvack.org (Postfix) with SMTP id E4B5B6B0083
+	for <linux-mm@kvack.org>; Tue, 11 Sep 2012 20:48:43 -0400 (EDT)
+Date: Wed, 12 Sep 2012 02:48:40 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [patch 1/2 v2]compaction: abort compaction loop if lock is
+ contended or run too long
+Message-ID: <20120912004840.GI27078@redhat.com>
+References: <20120910011830.GC3715@kernel.org>
+ <20120911163455.bb249a3c.akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120911163455.bb249a3c.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shaohua Li <shli@kernel.org>
-Cc: linux-mm@kvack.org, mgorman@suse.de, aarcange@redhat.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Shaohua Li <shli@kernel.org>, linux-mm@kvack.org, mgorman@suse.de
 
-On Mon, 10 Sep 2012 09:18:50 +0800
-Shaohua Li <shli@kernel.org> wrote:
-
-> isolate_migratepages_range will take zone->lru_lock first and check if the lock
-> is contented, if yes, it will release the lock. This isn't efficient. If the
-> lock is truly contented, a lock/unlock pair will increase the lock contention.
-> We'd better check if the lock is contended first. compact_trylock_irqsave
-> perfectly meets the requirement.
+On Tue, Sep 11, 2012 at 04:34:55PM -0700, Andrew Morton wrote:
+> On Mon, 10 Sep 2012 09:18:30 +0800
+> Shaohua Li <shli@kernel.org> wrote:
 > 
-> V2:
-> leave cond_resched() pointed out by Mel.
+> > isolate_migratepages_range() might isolate none pages, for example, when
+> > zone->lru_lock is contended and compaction is async. In this case, we should
+> > abort compaction, otherwise, compact_zone will run a useless loop and make
+> > zone->lru_lock is even contended.
+> > 
+> > ...
+> >
+> > @@ -838,12 +838,14 @@ static unsigned long compact_zone_order(
+> >  		.migratetype = allocflags_to_migratetype(gfp_mask),
+> >  		.zone = zone,
+> >  		.sync = sync,
+> > -		.contended = contended,
+> >  	};
+> >  	INIT_LIST_HEAD(&cc.freepages);
+> >  	INIT_LIST_HEAD(&cc.migratepages);
+> >  
+> > -	return compact_zone(zone, &cc);
+> > +	ret = compact_zone(zone, &cc);
+> > +	if (contended)
+> > +		*contended = cc.contended;
+> > +	return ret;
+> >  }
+> >  
 > 
-> Signed-off-by: Shaohua Li <shli@fusionio.com>
-> ---
->  mm/compaction.c |    5 +++--
->  1 file changed, 3 insertions(+), 2 deletions(-)
+> From a quick read, `contended' is never NULL here.  And defining the
+
+"contended" pointer can be null with some caller so the if is
+needed. The inner code was checking it before. This is also why we
+couldn't use *contended for the loop break bugfix, because contended
+could have been null at times. Now cc.contended is always available so
+we can use that to fix the bug and it's self documenting as well.
+
+> interface so that `contended' must be a valid pointer is a good change,
+> IMO - it results in simpler and faster code.
+
+Agreed.
+
+> Alas, try_to_compact_pages()'s kerneldoc altogether forgets to describe
+> this argument.  Mel's
+> mm-compaction-capture-a-suitable-high-order-page-immediately-when-it-is-made-available.patch
+> adds a `pages' arg and forgets to document that as well.
 > 
-> Index: linux/mm/compaction.c
-> ===================================================================
-> --- linux.orig/mm/compaction.c	2012-09-10 08:49:40.377869710 +0800
-> +++ linux/mm/compaction.c	2012-09-10 08:53:10.295230575 +0800
-> @@ -295,8 +295,9 @@ isolate_migratepages_range(struct zone *
->  
->  	/* Time to isolate some pages for migration */
->  	cond_resched();
-> -	spin_lock_irqsave(&zone->lru_lock, flags);
-> -	locked = true;
-> +	locked = compact_trylock_irqsave(&zone->lru_lock, &flags, cc);
-> +	if (!locked)
-> +		return 0;
->  	for (; low_pfn < end_pfn; low_pfn++) {
->  		struct page *page;
-
-Geeze that compact_checklock_irqsave stuff is naaaasty.
-
-What happens if a process has need_resched set?  It cannot perform
-compaction?  There is no relationship between the concepts "user
-pressed ^C" and "this device driver or subsystem wants a high-order
-allocation".
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
