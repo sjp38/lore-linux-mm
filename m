@@ -1,78 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
-	by kanga.kvack.org (Postfix) with SMTP id 539416B0099
-	for <linux-mm@kvack.org>; Tue, 11 Sep 2012 23:37:17 -0400 (EDT)
-Received: from /spool/local
-	by e28smtp03.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <xiaoguangrong@linux.vnet.ibm.com>;
-	Wed, 12 Sep 2012 09:07:13 +0530
-Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
-	by d28relay05.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q8C3b9Q86619424
-	for <linux-mm@kvack.org>; Wed, 12 Sep 2012 09:07:10 +0530
-Received: from d28av01.in.ibm.com (loopback [127.0.0.1])
-	by d28av01.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q8C96jwt017428
-	for <linux-mm@kvack.org>; Wed, 12 Sep 2012 14:36:45 +0530
-Message-ID: <50500360.5020700@linux.vnet.ibm.com>
-Date: Wed, 12 Sep 2012 11:37:04 +0800
-From: Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
+	by kanga.kvack.org (Postfix) with SMTP id D80366B009C
+	for <linux-mm@kvack.org>; Tue, 11 Sep 2012 23:39:50 -0400 (EDT)
+Received: by vcbfl13 with SMTP id fl13so1920057vcb.14
+        for <linux-mm@kvack.org>; Tue, 11 Sep 2012 20:39:49 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [PATCH 09/12] thp: introduce khugepaged_prealloc_page and khugepaged_alloc_page
-References: <5028E12C.70101@linux.vnet.ibm.com> <5028E20C.3080607@linux.vnet.ibm.com> <alpine.LSU.2.00.1209111807030.21798@eggly.anvils>
-In-Reply-To: <alpine.LSU.2.00.1209111807030.21798@eggly.anvils>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20120911095200.GB8058@dhcp22.suse.cz>
+References: <1347350934-17712-1-git-send-email-sachin.kamat@linaro.org>
+	<20120911095200.GB8058@dhcp22.suse.cz>
+Date: Wed, 12 Sep 2012 09:09:49 +0530
+Message-ID: <CAK9yfHzy3LyNa93aieSSWn_B8ycvr0VsBZ=yjuHwj2qEJ8_fCw@mail.gmail.com>
+Subject: Re: [PATCH] mm/memcontrol.c: Remove duplicate inclusion of sock.h file
+From: Sachin Kamat <sachin.kamat@linaro.org>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Michel Lespinasse <walken@google.com>, David Rientjes <rientjes@google.com>, LKML <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Balbir Singh <bsingharora@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>
 
-On 09/12/2012 10:03 AM, Hugh Dickins wrote:
+On 11 September 2012 15:22, Michal Hocko <mhocko@suse.cz> wrote:
+> On Tue 11-09-12 13:38:54, Sachin Kamat wrote:
+>> net/sock.h is included unconditionally at the beginning of the file.
+>> Hence, another conditional include is not required.
+>
+> I guess we can do little bit better. What do you think about the
+> following?  I have compile tested this with:
+> - CONFIG_INET=y && CONFIG_MEMCG_KMEM=n
+> - CONFIG_MEMCG_KMEM=y
 
-> What brought me to look at it was hitting "BUG at mm/huge_memory.c:1842!"
-> running tmpfs kbuild swapping load (with memcg's memory.limit_in_bytes
-> forcing out to swap), while I happened to have CONFIG_NUMA=y.
-> 
-> That's the VM_BUG_ON(*hpage) on entry to khugepaged_alloc_page().
+Since you have compile tested this with different config options, your
+method looks better.
+Thanks.
 
-> 
-> So maybe 9/12 is just obscuring what was already a BUG, either earlier
-> in your series or elsewhere in mmotm (I've never seen it on 3.6-rc or
-> earlier releases, nor without CONFIG_NUMA).  I've not spent any time
-> looking for it, maybe it's obvious - can you spot and fix it?
+> ---
+> From 83c5a97e893b5379b7e93cfdc933d5e37756e70a Mon Sep 17 00:00:00 2001
+> From: Michal Hocko <mhocko@suse.cz>
+> Date: Tue, 11 Sep 2012 10:38:42 +0200
+> Subject: [PATCH] memcg: clean up networking headers file inclusion
+>
+> Memory controller doesn't need anything from the networking stack unless
+> CONFIG_MEMCG_KMEM is selected.
+> Now we are including net/sock.h and net/tcp_memcontrol.h unconditionally
+> which is not necessary. Moreover struct mem_cgroup contains tcp_mem even
+> if CONFIG_MEMCG_KMEM is not selected which is not necessary.
+>
+> Signed-off-by: Sachin Kamat <sachin.kamat@linaro.org>
+> Signed-off-by: Michal Hocko <mhocko@suse.cz>
+> ---
+>  mm/memcontrol.c |    8 +++++---
+>  1 file changed, 5 insertions(+), 3 deletions(-)
+>
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 795e525..85ec9ff 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -50,8 +50,12 @@
+>  #include <linux/cpu.h>
+>  #include <linux/oom.h>
+>  #include "internal.h"
+> +
+> +#ifdef CONFIG_MEMCG_KMEM
+>  #include <net/sock.h>
+> +#include <net/ip.h>
+>  #include <net/tcp_memcontrol.h>
+> +#endif
+>
+>  #include <asm/uaccess.h>
+>
+> @@ -326,7 +330,7 @@ struct mem_cgroup {
+>         struct mem_cgroup_stat_cpu nocpu_base;
+>         spinlock_t pcp_counter_lock;
+>
+> -#ifdef CONFIG_INET
+> +#ifdef CONFIG_MEMCG_KMEM
+>         struct tcp_memcontrol tcp_mem;
+>  #endif
+>  };
+> @@ -413,8 +417,6 @@ struct mem_cgroup *mem_cgroup_from_css(struct cgroup_subsys_state *s)
+>
+>  /* Writing them here to avoid exposing memcg's inner layout */
+>  #ifdef CONFIG_MEMCG_KMEM
+> -#include <net/sock.h>
+> -#include <net/ip.h>
+>
+>  static bool mem_cgroup_is_root(struct mem_cgroup *memcg);
+>  void sock_update_memcg(struct sock *sk)
+> --
+> 1.7.10.4
+>
+> --
+> Michal Hocko
+> SUSE Labs
 
-Hugh,
-
-I think i have already found the reason, if i am correct, the bug was existing
-before my patch.
-
-Could you please try below patch? And, could please allow me to fix the bug first,
-then post another patch to improve the things you dislike?
 
 
-Subject: [PATCH] thp: fix forgetting to reset the page alloc indicator
-
-If NUMA is enabled, the indicator is not reset if the previous page
-request is failed, then it will trigger the BUG_ON in khugepaged_alloc_page
-
-Signed-off-by: Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>
----
- mm/huge_memory.c |    1 +
- 1 files changed, 1 insertions(+), 0 deletions(-)
-
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index e366ca5..66d2bc6 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -1825,6 +1825,7 @@ static bool khugepaged_prealloc_page(struct page **hpage, bool *wait)
- 			return false;
-
- 		*wait = false;
-+		*hpage = NULL;
- 		khugepaged_alloc_sleep();
- 	} else if (*hpage) {
- 		put_page(*hpage);
 -- 
-1.7.7.6
+With warm regards,
+Sachin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
