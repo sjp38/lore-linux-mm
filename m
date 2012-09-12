@@ -1,82 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
-	by kanga.kvack.org (Postfix) with SMTP id 21E156B00FF
-	for <linux-mm@kvack.org>; Wed, 12 Sep 2012 17:32:41 -0400 (EDT)
-Date: Wed, 12 Sep 2012 14:32:39 -0700
+Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
+	by kanga.kvack.org (Postfix) with SMTP id 9203D6B0100
+	for <linux-mm@kvack.org>; Wed, 12 Sep 2012 17:59:03 -0400 (EDT)
+Date: Wed, 12 Sep 2012 14:59:02 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 2/2] memory-hotplug: don't replace lowmem pages with
- highmem
-Message-Id: <20120912143239.65fa8b58.akpm@linux-foundation.org>
-In-Reply-To: <1347414231-31451-2-git-send-email-minchan@kernel.org>
-References: <1347414231-31451-1-git-send-email-minchan@kernel.org>
-	<1347414231-31451-2-git-send-email-minchan@kernel.org>
+Subject: Re: [patch 2/2 v2]compaction: check lock contention first before
+ taking lock
+Message-Id: <20120912145902.96c26c25.akpm@linux-foundation.org>
+In-Reply-To: <20120912105535.GM11266@suse.de>
+References: <20120910011850.GD3715@kernel.org>
+	<20120911164330.4fffee4f.akpm@linux-foundation.org>
+	<20120912105535.GM11266@suse.de>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Michal Nazarewicz <mina86@mina86.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Wen Congyang <wency@cn.fujitsu.com>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Shaohua Li <shli@kernel.org>, linux-mm@kvack.org, aarcange@redhat.com
 
-On Wed, 12 Sep 2012 10:43:51 +0900
-Minchan Kim <minchan@kernel.org> wrote:
+On Wed, 12 Sep 2012 11:55:35 +0100
+Mel Gorman <mgorman@suse.de> wrote:
 
-> [1] reporeted that lowmem pages could be replaced by
-> highmem pages during migration of CMA and fixed.
+> On Tue, Sep 11, 2012 at 04:43:30PM -0700, Andrew Morton wrote:
+> > On Mon, 10 Sep 2012 09:18:50 +0800
+> > Shaohua Li <shli@kernel.org> wrote:
+> > 
+> > > isolate_migratepages_range will take zone->lru_lock first and check if the lock
+> > > is contented, if yes, it will release the lock. This isn't efficient. If the
+> > > lock is truly contented, a lock/unlock pair will increase the lock contention.
+> > > We'd better check if the lock is contended first. compact_trylock_irqsave
+> > > perfectly meets the requirement.
+> > > 
+> > > V2:
+> > > leave cond_resched() pointed out by Mel.
+> > > 
+> > > Signed-off-by: Shaohua Li <shli@fusionio.com>
+> > > ---
+> > >  mm/compaction.c |    5 +++--
+> > >  1 file changed, 3 insertions(+), 2 deletions(-)
+> > > 
+> > > Index: linux/mm/compaction.c
+> > > ===================================================================
+> > > --- linux.orig/mm/compaction.c	2012-09-10 08:49:40.377869710 +0800
+> > > +++ linux/mm/compaction.c	2012-09-10 08:53:10.295230575 +0800
+> > > @@ -295,8 +295,9 @@ isolate_migratepages_range(struct zone *
+> > >  
+> > >  	/* Time to isolate some pages for migration */
+> > >  	cond_resched();
+> > > -	spin_lock_irqsave(&zone->lru_lock, flags);
+> > > -	locked = true;
+> > > +	locked = compact_trylock_irqsave(&zone->lru_lock, &flags, cc);
+> > > +	if (!locked)
+> > > +		return 0;
+> > >  	for (; low_pfn < end_pfn; low_pfn++) {
+> > >  		struct page *page;
+> > 
+> > Geeze that compact_checklock_irqsave stuff is naaaasty.
+> > 
 > 
-> Quote from [1]'s description
-> "
->     The filesystem layer expects pages in the block device's mapping to not
->     be in highmem (the mapping's gfp mask is set in bdget()), but CMA can
->     currently replace lowmem pages with highmem pages, leading to crashes in
->     filesystem code such as the one below:
+> The intention is to avoid THP allocations getting stuck in compaction.c
+> for ages due to spinlock contention. It's always better for those to
+> fail quickly. If compact_trylock_irqsave is improved it must still be
+> able to do this.
+
+So there's an implicit two-level prioritization here.  But between what
+and what?
+
+It all sounds a bit hack/bandaidy?
+
 > 
->       Unable to handle kernel NULL pointer dereference at virtual address 00000400
->       pgd = c0c98000
->       [00000400] *pgd=00c91831, *pte=00000000, *ppte=00000000
->       Internal error: Oops: 817 [#1] PREEMPT SMP ARM
->       CPU: 0    Not tainted  (3.5.0-rc5+ #80)
->       PC is at __memzero+0x24/0x80
->       ...
->       Process fsstress (pid: 323, stack limit = 0xc0cbc2f0)
->       Backtrace:
->       [<c010e3f0>] (ext4_getblk+0x0/0x180) from [<c010e58c>] (ext4_bread+0x1c/0x98)
->       [<c010e570>] (ext4_bread+0x0/0x98) from [<c0117944>] (ext4_mkdir+0x160/0x3bc)
->        r4:c15337f0
->       [<c01177e4>] (ext4_mkdir+0x0/0x3bc) from [<c00c29e0>] (vfs_mkdir+0x8c/0x98)
->       [<c00c2954>] (vfs_mkdir+0x0/0x98) from [<c00c2a60>] (sys_mkdirat+0x74/0xac)
->        r6:00000000 r5:c152eb40 r4:000001ff r3:c14b43f0
->       [<c00c29ec>] (sys_mkdirat+0x0/0xac) from [<c00c2ab8>] (sys_mkdir+0x20/0x24)
->        r6:beccdcf0 r5:00074000 r4:beccdbbc
->       [<c00c2a98>] (sys_mkdir+0x0/0x24) from [<c000e3c0>] (ret_fast_syscall+0x0/0x30)
-> "
+> > There is no relationship between the concepts "user
+> > pressed ^C" and "this device driver or subsystem wants a high-order
+> > allocation".
+> > 
 > 
-> Memory-hotplug has same problem with CMA so [1]'s fix could be applied
-> with memory-hotplug, too.
-> 
-> Fix it by reusing.
+> hmm, I see your point. The fatal signal check is "hidden" but this was to
+> preseve the existing behaviour prior to commit [c67fe375: mm: compaction:
+> Abort async compaction if locks are contended or taking too long]. The
+> fatal_signal_check could be deleted from compact_trylock_irqsave() but
+> then it should be checked in the isolate_migratepages_range() at the
+> very least. How about this?
 
-Do we think this issue should be fixed in 3.6?  Earlier?
-
-> @@ -809,8 +802,12 @@ do_migrate_range(unsigned long start_pfn, unsigned long end_pfn)
->  			putback_lru_pages(&source);
->  			goto out;
->  		}
-> -		/* this function returns # of failed pages */
-> -		ret = migrate_pages(&source, hotremove_migrate_alloc, 0,
-> +
-> +		/*
-> +		 * alloc_migrate_target should be improooooved!!
-
-Not a helpful comment!  If you've identified some improvement then
-please do provide all the details.
-
-> +		 * migrate_pages returns # of failed pages.
-> +		 */
-> +		ret = migrate_pages(&source, alloc_migrate_target, 0,
->  							true, MIGRATE_SYNC);
->  		if (ret)
->  			putback_lru_pages(&source);
+hm, well, actually, I chose ^C as an example of something which might
+set need_resched().  How about `There is no relationship between the
+concepts "this process exceeded its timeslice" and "this device driver
+or subsystem wants a high-order allocation"'.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
