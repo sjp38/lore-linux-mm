@@ -1,66 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
-	by kanga.kvack.org (Postfix) with SMTP id 2723C6B00A6
-	for <linux-mm@kvack.org>; Wed, 12 Sep 2012 02:15:45 -0400 (EDT)
-Date: Wed, 12 Sep 2012 15:17:47 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [RFC v8 PATCH 00/20] memory-hotplug: hot-remove physical memory
-Message-ID: <20120912061747.GA31798@bbox>
-References: <1346148027-24468-1-git-send-email-wency@cn.fujitsu.com>
- <20120831134956.fec0f681.akpm@linux-foundation.org>
- <504D467D.2080201@jp.fujitsu.com>
- <504D4A08.7090602@cn.fujitsu.com>
- <20120910135213.GA1550@dhcp-192-168-178-175.profitbricks.localdomain>
- <CAAV+Mu7YWRWnxt78F4ZDMrrUsWB=n-_qkYOcQT7WQ2HwP89Obw@mail.gmail.com>
- <20120911012345.GD14205@bbox>
- <CAAV+Mu4hb0qbW2Ry6w5FAGUM06puDH0v_H-jr584-G9CzJqSGw@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAAV+Mu4hb0qbW2Ry6w5FAGUM06puDH0v_H-jr584-G9CzJqSGw@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
+	by kanga.kvack.org (Postfix) with SMTP id F387C6B00A8
+	for <linux-mm@kvack.org>; Wed, 12 Sep 2012 02:53:50 -0400 (EDT)
+Message-ID: <1347432846.4293.0.camel@jlt4.sipsolutions.net>
+Subject: Re: iwl3945: order 5 allocation during ifconfig up; vm problem?
+From: Johannes Berg <johannes@sipsolutions.net>
+Date: Wed, 12 Sep 2012 08:54:06 +0200
+In-Reply-To: <20120912055712.GE11613@merlins.org> (sfid-20120912_075811_640589_74AB6505)
+References: <20120909213228.GA5538@elf.ucw.cz>
+	 <alpine.DEB.2.00.1209091539530.16930@chino.kir.corp.google.com>
+	 <20120910111113.GA25159@elf.ucw.cz>
+	 <20120911162536.bd5171a1.akpm@linux-foundation.org>
+	 <1347426988.13103.684.camel@edumazet-glaptop>
+	 <20120912055712.GE11613@merlins.org> (sfid-20120912_075811_640589_74AB6505)
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jerry <uulinux@gmail.com>
-Cc: Wen Congyang <wency@cn.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-ia64@vger.kernel.org, cmetcalf@tilera.com, sparclinux@vger.kernel.org, rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, kosaki.motohiro@jp.fujitsu.com
+To: Marc MERLIN <marc@merlins.org>
+Cc: Eric Dumazet <eric.dumazet@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Pavel Machek <pavel@ucw.cz>, David Rientjes <rientjes@google.com>, sgruszka@redhat.com, linux-wireless@vger.kernel.org, wey-yi.w.guy@intel.com, ilw@linux.intel.com, Andrew Morton <akpm@osdl.org>, Mel Gorman <mgorman@suse.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Tue, Sep 11, 2012 at 01:18:24PM +0800, Jerry wrote:
-> Hi Kim,
+On Tue, 2012-09-11 at 22:57 -0700, Marc MERLIN wrote:
+> On Wed, Sep 12, 2012 at 07:16:28AM +0200, Eric Dumazet wrote:
+> > On Tue, 2012-09-11 at 16:25 -0700, Andrew Morton wrote:
+> > 
+> > > Asking for a 256k allocation is pretty crazy - this is an operating
+> > > system kernel, not a userspace application.
+> > > 
+> > > I'm wondering if this is due to a recent change, but I'm having trouble
+> > > working out where the allocation call site is.
+> > > --
+> > 
+> > (Adding Marc Merlin to CC, since he reported same problem)
+> > 
+> > Thats the firmware loading in iwlwifi driver. Not sure if it can use SG.
+> > 
+> > drivers/net/wireless/iwlwifi/iwl-drv.c
+> > 
+> > iwl_alloc_ucode() -> iwl_alloc_fw_desc() -> dma_alloc_coherent()
+> > 
+> > It seems some sections of /lib/firmware/iwlwifi*.ucode files are above
+> > 128 Kbytes, so dma_alloc_coherent() try order-5 allocations
 > 
-> Thank you for your kindness. Let me clarify this:
+> Thanks for looping me in, yes, this looks very familiar to me :)
 > 
-> On ARM architecture, there are 32 bits physical addresses space. However,
-> the addresses space is divided into 8 banks normally. Each bank
-> disabled/enabled by a chip selector signal. In my platform, bank0 connects
-> a DDR chip, and bank1 also connects another DDR chip. And each DDR chip
-> whose capability is 512MB is integrated into the main board. So, it could
-> not be removed by hand. We can disable/enable each bank by peripheral
-> device controller registers.
-> 
-> When system enter suspend state, if all the pages allocated could be
-> migrated to one bank, there are no valid data in the another bank. In this
-> time, I could disable the free bank. It isn't necessary to provided power
-> to this chip in the suspend state. When system resume, I just need to
-> enable it again.
-> 
+> In the other thread, Johannes Berg gave me this patch which is supposed to
+> help: http://p.sipsolutions.net/11ea33b376a5bac5.txt
 
-Yes. I already know it and other trials for that a few years ago[1].
-A few years ago, I investigated the benefit between power consumption
-benefit during suspend VS start-up latency of resume and
-power consumption cost of migration(page migration and IO write for
-migration) and concluded normally the gain is not big. :)
-The situation could be changed these days as workload are changing
-but I'm skeptical about that approach, still.
+Yes, but that patch won't apply to iwlegacy as is. However, I'm pretty
+sure that it should be possible to solve the issue in the same way in
+iwlegacy.
 
-Anyway, it's my private thought so you don't need to care about that.
-If you are ready to submit the patchset, please send out.
-
-1. http://lwn.net/Articles/478049/
-
-Thanks.
-
-- 
-Kind regards,
-Minchan Kim
+johannes
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
