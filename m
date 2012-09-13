@@ -1,58 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
-	by kanga.kvack.org (Postfix) with SMTP id 04B2F6B017E
-	for <linux-mm@kvack.org>; Thu, 13 Sep 2012 17:26:17 -0400 (EDT)
-Date: Thu, 13 Sep 2012 22:26:13 +0100
-From: Will Deacon <will.deacon@arm.com>
+Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
+	by kanga.kvack.org (Postfix) with SMTP id 257746B0181
+	for <linux-mm@kvack.org>; Thu, 13 Sep 2012 17:27:45 -0400 (EDT)
+Date: Fri, 14 Sep 2012 07:27:32 +1000
+From: Stephen Rothwell <sfr@canb.auug.org.au>
 Subject: Re: [PATCH 3/3] mm: Introduce HAVE_ARCH_TRANSPARENT_HUGEPAGE
-Message-ID: <20120913212613.GA11399@mudshark.cambridge.arm.com>
-References: <1347382036-18455-1-git-send-email-will.deacon@arm.com>
- <1347382036-18455-4-git-send-email-will.deacon@arm.com>
- <20120913120514.135d2c38.akpm@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Message-Id: <20120914072732.637f4225c32565468f468305@canb.auug.org.au>
 In-Reply-To: <20120913120514.135d2c38.akpm@linux-foundation.org>
+References: <1347382036-18455-1-git-send-email-will.deacon@arm.com>
+	<1347382036-18455-4-git-send-email-will.deacon@arm.com>
+	<20120913120514.135d2c38.akpm@linux-foundation.org>
+Mime-Version: 1.0
+Content-Type: multipart/signed; protocol="application/pgp-signature";
+ micalg="PGP-SHA256";
+ boundary="Signature=_Fri__14_Sep_2012_07_27_32_+1000_pgH6OJmezGaynvnj"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "mhocko@suse.cz" <mhocko@suse.cz>, Steve Capper <Steve.Capper@arm.com>, Gerald Schaefer <gerald.schaefer@de.ibm.com>
+Cc: Will Deacon <will.deacon@arm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, mhocko@suse.cz, Steve Capper <steve.capper@arm.com>, Gerald Schaefer <gerald.schaefer@de.ibm.com>
+
+--Signature=_Fri__14_Sep_2012_07_27_32_+1000_pgH6OJmezGaynvnj
+Content-Type: text/plain; charset=US-ASCII
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
 Hi Andrew,
 
-On Thu, Sep 13, 2012 at 08:05:14PM +0100, Andrew Morton wrote:
-> On Tue, 11 Sep 2012 17:47:16 +0100
-> Will Deacon <will.deacon@arm.com> wrote:
-> > diff --git a/mm/Kconfig b/mm/Kconfig
-> > index d5c8019..3322342 100644
-> > --- a/mm/Kconfig
-> > +++ b/mm/Kconfig
-> > @@ -318,7 +318,7 @@ config NOMMU_INITIAL_TRIM_EXCESS
-> >  
-> >  config TRANSPARENT_HUGEPAGE
-> >  	bool "Transparent Hugepage Support"
-> > -	depends on X86 && MMU
-> > +	depends on HAVE_ARCH_TRANSPARENT_HUGEPAGE
-> >  	select COMPACTION
-> >  	help
-> >  	  Transparent Hugepages allows the kernel to use huge pages and
-> 
-> We need to talk with Gerald concerning
-> http://ozlabs.org/~akpm/mmotm/broken-out/thp-x86-introduce-have_arch_transparent_hugepage.patch
-> 
-> 
-> I did this.  Please check.
+On Thu, 13 Sep 2012 12:05:14 -0700 Andrew Morton <akpm@linux-foundation.org=
+> wrote:
+>
+> diff -puN arch/x86/Kconfig~mm-introduce-have_arch_transparent_hugepage ar=
+ch/x86/Kconfig
+> --- a/arch/x86/Kconfig~mm-introduce-have_arch_transparent_hugepage
+> +++ a/arch/x86/Kconfig
+> @@ -83,7 +83,6 @@ config X86
+>  	select IRQ_FORCED_THREADING
+>  	select USE_GENERIC_SMP_HELPERS if SMP
+>  	select HAVE_BPF_JIT if X86_64
+> -	select HAVE_ARCH_TRANSPARENT_HUGEPAGE
 
-[...]
+Why not
+	select HAVE_ARCH_TRANSPARENT_HUGEPAGE if MMU
 
-We missed Gerald's patch for s390 and, having picked it into our tree, it
-acts as a drop-in replacement for what we came up with. So I think you
-can just drop our patch ("mm: Introduce HAVE_ARCH_TRANSPARENT_HUGEPAGE")
-altogether.
+>  	select CLKEVT_I8253
+>  	select ARCH_HAVE_NMI_SAFE_CMPXCHG
+>  	select GENERIC_IOMAP
+> @@ -1330,6 +1329,10 @@ config ILLEGAL_POINTER_VALUE
+>         default 0 if X86_32
+>         default 0xdead000000000000 if X86_64
+> =20
+> +config HAVE_ARCH_TRANSPARENT_HUGEPAGE
+> +       def_bool y
+> +       depends on MMU
+> +
 
+--=20
 Cheers,
+Stephen Rothwell                    sfr@canb.auug.org.au
+http://www.canb.auug.org.au/~sfr/
 
-Will
+--Signature=_Fri__14_Sep_2012_07_27_32_+1000_pgH6OJmezGaynvnj
+Content-Type: application/pgp-signature
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.12 (GNU/Linux)
+
+iQIcBAEBCAAGBQJQUk/EAAoJEECxmPOUX5FEPhYQAKmhRet965FrG861C8FuoYks
+GP51hrnL0c5SRIzL/QQt+efYxh0tjFkShopokmeJBbiC71ffwY+YTGDeL5SsH4h/
+rSj3qmFgxfb0HUzJeOgp9BuIn3RsKEY4Auj2k9KYR3ryFcXz+ZOeTLCBuNARXKEf
+BKufAnbL56fDoV0c3RDvinTT2Sf42hxmpRQLLF1nQeoxRtF9zYmKH29hEYMFgU7a
+23tAtS+HQd5tfJPi+C1Xc1YNXlXCTSVG8057VC/XdOfggOY5bx2AU4CX3dDiL5zV
+4FczjZStLfPac/GXVlGJ6/D4Et+GSi8VrsUkBsHtgJgmv7w9fjrx2+ZOn3mR6Fny
+oefCKHQF7OVC7EzaGXC1lW2CsiHEJGjd2V7XS0b36W9SCWZlNzsM670VysyS8Uwa
+ykeemA+L+02aCPu3lUopPPzOHymoDxrDXUo5vV3CX9v5LHDIsTY7zgo0Po8nQAf4
+gH+EghqvXWKAp0cia5vDuA1mCDMnx49HljEfErhc5eXxxwzDXTNfUk+zKKJxns8K
+c7SmqhR4eW/FRxMoretS7Usx5us/USeOtKM85bwd0UUJ/8ILX94aozA1lvgmKhO9
+iQ06oEYJ7Pxlmme39Bmnat/qst6f3+BntlMxQaUV62gOog2qgDFsLNHJhDqFtbiW
+Qc5NLVwF52sAdlsi1zS2
+=U84r
+-----END PGP SIGNATURE-----
+
+--Signature=_Fri__14_Sep_2012_07_27_32_+1000_pgH6OJmezGaynvnj--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
