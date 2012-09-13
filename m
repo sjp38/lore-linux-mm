@@ -1,147 +1,178 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
-	by kanga.kvack.org (Postfix) with SMTP id 36D1C6B012B
-	for <linux-mm@kvack.org>; Wed, 12 Sep 2012 22:49:14 -0400 (EDT)
-Received: by pbbro12 with SMTP id ro12so3632508pbb.14
-        for <linux-mm@kvack.org>; Wed, 12 Sep 2012 19:49:13 -0700 (PDT)
-Date: Thu, 13 Sep 2012 10:49:07 +0800
-From: Shaohua Li <shli@kernel.org>
-Subject: Re: [patch 1/2 v2]compaction: abort compaction loop if lock is
- contended or run too long
-Message-ID: <20120913024907.GA1274@kernel.org>
-References: <20120910011830.GC3715@kernel.org>
- <20120911163455.bb249a3c.akpm@linux-foundation.org>
- <20120912004840.GI27078@redhat.com>
- <20120912142019.0e06bf52.akpm@linux-foundation.org>
- <20120912234808.GC3404@redhat.com>
- <20120913004722.GA5085@bbox>
+Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
+	by kanga.kvack.org (Postfix) with SMTP id 57B1E6B012D
+	for <linux-mm@kvack.org>; Thu, 13 Sep 2012 02:19:35 -0400 (EDT)
+Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 4D4C13EE081
+	for <linux-mm@kvack.org>; Thu, 13 Sep 2012 15:19:32 +0900 (JST)
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 37ABA45DE50
+	for <linux-mm@kvack.org>; Thu, 13 Sep 2012 15:19:32 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 221EE45DE4E
+	for <linux-mm@kvack.org>; Thu, 13 Sep 2012 15:19:32 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 13159E08002
+	for <linux-mm@kvack.org>; Thu, 13 Sep 2012 15:19:32 +0900 (JST)
+Received: from g01jpexchyt02.g01.fujitsu.local (g01jpexchyt02.g01.fujitsu.local [10.128.194.41])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id B188D1DB8037
+	for <linux-mm@kvack.org>; Thu, 13 Sep 2012 15:19:31 +0900 (JST)
+Message-ID: <50517ADF.70201@jp.fujitsu.com>
+Date: Thu, 13 Sep 2012 15:19:11 +0900
+From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120913004722.GA5085@bbox>
+Subject: memory-hotplug : possible circular locking dependency detected
+Content-Type: text/plain; charset="ISO-2022-JP"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, mgorman@suse.de
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, kvm@vger.kernel.org
 
-On Thu, Sep 13, 2012 at 09:47:22AM +0900, Minchan Kim wrote:
-> Hi Andrea,
-> 
-> On Thu, Sep 13, 2012 at 01:48:08AM +0200, Andrea Arcangeli wrote:
-> > On Wed, Sep 12, 2012 at 02:20:19PM -0700, Andrew Morton wrote:
-> > > OK, I'll slip this in there:
-> > > 
-> > > --- a/mm/compaction.c~mm-compaction-abort-compaction-loop-if-lock-is-contended-or-run-too-long-fix
-> > > +++ a/mm/compaction.c
-> > > @@ -909,8 +909,7 @@ static unsigned long compact_zone_order(
-> > >  	INIT_LIST_HEAD(&cc.migratepages);
-> > >  
-> > >  	ret = compact_zone(zone, &cc);
-> > > -	if (contended)
-> > > -		*contended = cc.contended;
-> > > +	*contended = cc.contended;
-> > >  	return ret;
-> > >  }
-> > 
-> > Ack the above, thanks.
-> > 
-> > One more thing, today a bug tripped while building cyanogenmod10 (it
-> > swaps despite so much ram) after I added the cc->contended loop break
-> > patch. The original version of the fix from Shaohua didn't have this
-> > problem because it would only abort compaction if the low_pfn didn't
-> > advance and in turn the list would be guaranteed empty.
-> 
-> Nice catch!
-> 
-> > 
-> > Verifying the list is empty before aborting compaction (which takes a
-> > path that ignores the cc->migratelist) should be enough to fix it and
-> > it makes it really equivalent to the previous fix. Both cachelines
-> > should be cache hot so it should be practically zero cost to check it.
-> > 
-> > Only lightly tested so far.
-> > 
-> > ===
-> > >From b2a50e49d65596d3920773316ad9b7dd54e4acaf Mon Sep 17 00:00:00 2001
-> > From: Andrea Arcangeli <aarcange@redhat.com>
-> > Date: Thu, 13 Sep 2012 01:22:03 +0200
-> > Subject: [PATCH] mm: compaction: fix leak in cc->contended loop breaking
-> >  logic
-> > 
-> > We cannot return ISOLATE_ABORT when cc->contended is true, if we have
-> > some pages already successfully isolated in the cc->migratepages
-> > list, or they will be leaked.
-> > 
-> > The bug was highlighted by a nice VM_BUG_ON in the async compaction in
-> > kswapd. So I also added the symmetric VM_BUG_ON to the other caller of
-> > the function considering it looks a worthwhile VM_BUG_ON.
-> 
-> Fair enough.
-> 
-> > 
-> > ------------[ cut here ]------------
-> > kernel BUG at mm/compaction.c:934!
-> > invalid opcode: 0000 [#1] SMP
-> > Modules linked in: tun usbhid kvm_intel xhci_hcd kvm snd_hda_codec_realtek ehci_hcd usbcore snd_hda_intel sn
-> > er crc32c_intel psmouse ghash_clmulni_intel sr_mod snd sg cdrom snd_page_alloc usb_common pcspkr [last unloa
-> > 
-> > CPU 0
-> > Pid: 513, comm: kswapd0 Not tainted 3.6.0-rc4+ #17                  /DH61BE
-> > RIP: 0010:[<ffffffff8111302c>]  [<ffffffff8111302c>] __compact_pgdat+0x1ac/0x1b0
-> > RSP: 0018:ffff880216fa5cb0  EFLAGS: 00010283
-> > RAX: 0000000000000003 RBX: ffff880216fa5d00 RCX: 0000000000000002
-> > RDX: 00000000000008d7 RSI: 0000000000000002 RDI: ffffffff8195b058
-> > RBP: ffffffff8195b000 R08: 0000000000000be4 R09: ffffffff8195a9c0
-> > R10: ffffffff8195b400 R11: ffffffff8195b570 R12: 0000000000000001
-> > R13: 0000000000000001 R14: ffff880216fa5d10 R15: 0000000000000003
-> > FS:  0000000000000000(0000) GS:ffff88021fa00000(0000) knlGS:0000000000000000
-> > CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
-> > CR2: 00007f14d4167000 CR3: 00000000018f1000 CR4: 00000000000407f0
-> > DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
-> > DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
-> > Process kswapd0 (pid: 513, threadinfo ffff880216fa4000, task ffff880216cfef20)
-> > Stack:
-> > ffffffff8195a9c0 ffffffff8195b000 0000000000000320 0000000000000003
-> > ffffffff8195a9c0 ffffffff8195b640 0000000000000002 0000000000000c80
-> > 0000000000000001 ffffffff811132f3 ffff880216fa5d00 ffff880216fa5d00
-> > Call Trace:
-> > [<ffffffff811132f3>] ? compact_pgdat+0x23/0x30
-> > [<ffffffff8110503f>] ? kswapd+0x89f/0xac0
-> > [<ffffffff8106f450>] ? wake_up_bit+0x40/0x40
-> > [<ffffffff811047a0>] ? shrink_lruvec+0x510/0x510
-> > [<ffffffff811047a0>] ? shrink_lruvec+0x510/0x510
-> > [<ffffffff8106ef1e>] ? kthread+0x9e/0xb0
-> > 
-> > Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
-> > ---
-> >  mm/compaction.c |    6 +++++-
-> >  1 files changed, 5 insertions(+), 1 deletions(-)
-> > 
-> > diff --git a/mm/compaction.c b/mm/compaction.c
-> > index 6066a35..0292984 100644
-> > --- a/mm/compaction.c
-> > +++ b/mm/compaction.c
-> > @@ -633,7 +633,7 @@ static isolate_migrate_t isolate_migratepages(struct zone *zone,
-> >  
-> >  	/* Perform the isolation */
-> >  	low_pfn = isolate_migratepages_range(zone, cc, low_pfn, end_pfn);
-> > -	if (!low_pfn || cc->contended)
-> > +	if (!low_pfn || (cc->contended && !cc->nr_migratepages))
-> >  		return ISOLATE_ABORT;
-> 
-> I'm not sure it's best.
-> As you mentioned, it's same with first version of Shaohua.
-> But it could mitigate the goal of the patch if lock contention or
-> need_resched happens in the middle of loop once we isolate a
-> migratable page.
-> 
-> What do you think about this?
+When I offline a memory on linux-3.6-rc5, "possible circular
+locking dependency detected" messages are shown.
+Are the messages known problem?
 
-Thanks for catching this issue. Both looks sane, but I would vote for Andrea's.
-If some pages are isolated, better we use them.
-
-Thanks,
-Shaohua
+[  201.596363] Offlined Pages 32768
+[  201.596373] remove from free list 140000 1024 148000
+[  201.596493] remove from free list 140400 1024 148000
+[  201.596612] remove from free list 140800 1024 148000
+[  201.596730] remove from free list 140c00 1024 148000
+[  201.596849] remove from free list 141000 1024 148000
+[  201.596968] remove from free list 141400 1024 148000
+[  201.597049] remove from free list 141800 1024 148000
+[  201.597049] remove from free list 141c00 1024 148000
+[  201.597049] remove from free list 142000 1024 148000
+[  201.597049] remove from free list 142400 1024 148000
+[  201.597049] remove from free list 142800 1024 148000
+[  201.597049] remove from free list 142c00 1024 148000
+[  201.597049] remove from free list 143000 1024 148000
+[  201.597049] remove from free list 143400 1024 148000
+[  201.597049] remove from free list 143800 1024 148000
+[  201.597049] remove from free list 143c00 1024 148000
+[  201.597049] remove from free list 144000 1024 148000
+[  201.597049] remove from free list 144400 1024 148000
+[  201.597049] remove from free list 144800 1024 148000
+[  201.597049] remove from free list 144c00 1024 148000
+[  201.597049] remove from free list 145000 1024 148000
+[  201.597049] remove from free list 145400 1024 148000
+[  201.597049] remove from free list 145800 1024 148000
+[  201.597049] remove from free list 145c00 1024 148000
+[  201.597049] remove from free list 146000 1024 148000
+[  201.597049] remove from free list 146400 1024 148000
+[  201.597049] remove from free list 146800 1024 148000
+[  201.597049] remove from free list 146c00 1024 148000
+[  201.597049] remove from free list 147000 1024 148000
+[  201.597049] remove from free list 147400 1024 148000
+[  201.597049] remove from free list 147800 1024 148000
+[  201.597049] remove from free list 147c00 1024 148000
+[  201.602143] 
+[  201.602150] ======================================================
+[  201.602153] [ INFO: possible circular locking dependency detected ]
+[  201.602157] 3.6.0-rc5 #1 Not tainted
+[  201.602159] -------------------------------------------------------
+[  201.602162] bash/2789 is trying to acquire lock:
+[  201.602164]  ((memory_chain).rwsem){.+.+.+}, at: [<ffffffff8109fe16>] __blocking_notifier_call_chain+0x66/0xd0
+[  201.602180] 
+[  201.602180] but task is already holding lock:
+[  201.602182]  (ksm_thread_mutex/1){+.+.+.}, at: [<ffffffff811b41fa>] ksm_memory_callback+0x3a/0xc0
+[  201.602194] 
+[  201.602194] which lock already depends on the new lock.
+[  201.602194] 
+[  201.602197] 
+[  201.602197] the existing dependency chain (in reverse order) is:
+[  201.602200] 
+[  201.602200] -> #1 (ksm_thread_mutex/1){+.+.+.}:
+[  201.602208]        [<ffffffff810dbee9>] validate_chain+0x6d9/0x7e0
+[  201.602214]        [<ffffffff810dc2e6>] __lock_acquire+0x2f6/0x4f0
+[  201.602219]        [<ffffffff810dc57d>] lock_acquire+0x9d/0x190
+[  201.602223]        [<ffffffff8166b4fc>] __mutex_lock_common+0x5c/0x420
+[  201.602229]        [<ffffffff8166ba2a>] mutex_lock_nested+0x4a/0x60
+[  201.602234]        [<ffffffff811b41fa>] ksm_memory_callback+0x3a/0xc0
+[  201.602239]        [<ffffffff81673447>] notifier_call_chain+0x67/0x150
+[  201.602244]        [<ffffffff8109fe2b>] __blocking_notifier_call_chain+0x7b/0xd0
+[  201.602250]        [<ffffffff8109fe96>] blocking_notifier_call_chain+0x16/0x20
+[  201.602255]        [<ffffffff8144c53b>] memory_notify+0x1b/0x20
+[  201.602261]        [<ffffffff81653c51>] offline_pages+0x1b1/0x470
+[  201.602267]        [<ffffffff811bfcae>] remove_memory+0x1e/0x20
+[  201.602273]        [<ffffffff8144c661>] memory_block_action+0xa1/0x190
+[  201.602278]        [<ffffffff8144c7c9>] memory_block_change_state+0x79/0xe0
+[  201.602282]        [<ffffffff8144c8f2>] store_mem_state+0xc2/0xd0
+[  201.602287]        [<ffffffff81436980>] dev_attr_store+0x20/0x30
+[  201.602293]        [<ffffffff812498d3>] sysfs_write_file+0xa3/0x100
+[  201.602299]        [<ffffffff811cba80>] vfs_write+0xd0/0x1a0
+[  201.602304]        [<ffffffff811cbc54>] sys_write+0x54/0xa0
+[  201.602309]        [<ffffffff81678529>] system_call_fastpath+0x16/0x1b
+[  201.602315] 
+[  201.602315] -> #0 ((memory_chain).rwsem){.+.+.+}:
+[  201.602322]        [<ffffffff810db7e7>] check_prev_add+0x527/0x550
+[  201.602326]        [<ffffffff810dbee9>] validate_chain+0x6d9/0x7e0
+[  201.602331]        [<ffffffff810dc2e6>] __lock_acquire+0x2f6/0x4f0
+[  201.602335]        [<ffffffff810dc57d>] lock_acquire+0x9d/0x190
+[  201.602340]        [<ffffffff8166c1a1>] down_read+0x51/0xa0
+[  201.602345]        [<ffffffff8109fe16>] __blocking_notifier_call_chain+0x66/0xd0
+[  201.602350]        [<ffffffff8109fe96>] blocking_notifier_call_chain+0x16/0x20
+[  201.602355]        [<ffffffff8144c53b>] memory_notify+0x1b/0x20
+[  201.602360]        [<ffffffff81653e67>] offline_pages+0x3c7/0x470
+[  201.602365]        [<ffffffff811bfcae>] remove_memory+0x1e/0x20
+[  201.602370]        [<ffffffff8144c661>] memory_block_action+0xa1/0x190
+[  201.602375]        [<ffffffff8144c7c9>] memory_block_change_state+0x79/0xe0
+[  201.602379]        [<ffffffff8144c8f2>] store_mem_state+0xc2/0xd0
+[  201.602385]        [<ffffffff81436980>] dev_attr_store+0x20/0x30
+[  201.602389]        [<ffffffff812498d3>] sysfs_write_file+0xa3/0x100
+[  201.602394]        [<ffffffff811cba80>] vfs_write+0xd0/0x1a0
+[  201.602398]        [<ffffffff811cbc54>] sys_write+0x54/0xa0
+[  201.602403]        [<ffffffff81678529>] system_call_fastpath+0x16/0x1b
+[  201.602408] 
+[  201.602408] other info that might help us debug this:
+[  201.602408] 
+[  201.602412]  Possible unsafe locking scenario:
+[  201.602412] 
+[  201.602414]        CPU0                    CPU1
+[  201.602417]        ----                    ----
+[  201.602419]   lock(ksm_thread_mutex/1);
+[  201.602425]                                lock((memory_chain).rwsem);
+[  201.602430]                                lock(ksm_thread_mutex/1);
+[  201.602435]   lock((memory_chain).rwsem);
+[  201.602440] 
+[  201.602440]  *** DEADLOCK ***
+[  201.602440] 
+[  201.602444] 6 locks held by bash/2789:
+[  201.602446]  #0:  (&buffer->mutex){+.+.+.}, at: [<ffffffff81249879>] sysfs_write_file+0x49/0x100
+[  201.602456]  #1:  (s_active#212){.+.+.+}, at: [<ffffffff812498b7>] sysfs_write_file+0x87/0x100
+[  201.602467]  #2:  (&mem->state_mutex){+.+.+.}, at: [<ffffffff8144c78e>] memory_block_change_state+0x3e/0xe0
+[  201.602477]  #3:  (mem_hotplug_mutex){+.+.+.}, at: [<ffffffff811bf867>] lock_memory_hotplug+0x17/0x40
+[  201.602487]  #4:  (pm_mutex){+.+.+.}, at: [<ffffffff811bf885>] lock_memory_hotplug+0x35/0x40
+[  201.602497]  #5:  (ksm_thread_mutex/1){+.+.+.}, at: [<ffffffff811b41fa>] ksm_memory_callback+0x3a/0xc0
+[  201.602508] 
+[  201.602508] stack backtrace:
+[  201.602512] Pid: 2789, comm: bash Not tainted 3.6.0-rc5 #1
+[  201.602515] Call Trace:
+[  201.602522]  [<ffffffff810da119>] print_circular_bug+0x109/0x110
+[  201.602527]  [<ffffffff810db7e7>] check_prev_add+0x527/0x550
+[  201.602532]  [<ffffffff810dbee9>] validate_chain+0x6d9/0x7e0
+[  201.602537]  [<ffffffff810dc2e6>] __lock_acquire+0x2f6/0x4f0
+[  201.602543]  [<ffffffff8101f7c3>] ? native_sched_clock+0x13/0x80
+[  201.602547]  [<ffffffff810dc57d>] lock_acquire+0x9d/0x190
+[  201.602553]  [<ffffffff8109fe16>] ? __blocking_notifier_call_chain+0x66/0xd0
+[  201.602558]  [<ffffffff8166c1a1>] down_read+0x51/0xa0
+[  201.602563]  [<ffffffff8109fe16>] ? __blocking_notifier_call_chain+0x66/0xd0
+[  201.602569]  [<ffffffff8109fe16>] __blocking_notifier_call_chain+0x66/0xd0
+[  201.602574]  [<ffffffff81186dc6>] ? next_online_pgdat+0x26/0x50
+[  201.602580]  [<ffffffff8109fe96>] blocking_notifier_call_chain+0x16/0x20
+[  201.602585]  [<ffffffff8144c53b>] memory_notify+0x1b/0x20
+[  201.602590]  [<ffffffff81653e67>] offline_pages+0x3c7/0x470
+[  201.602596]  [<ffffffff811bfcae>] remove_memory+0x1e/0x20
+[  201.602601]  [<ffffffff8144c661>] memory_block_action+0xa1/0x190
+[  201.602606]  [<ffffffff8166ba2a>] ? mutex_lock_nested+0x4a/0x60
+[  201.602611]  [<ffffffff8144c7c9>] memory_block_change_state+0x79/0xe0
+[  201.602617]  [<ffffffff8118f3ec>] ? might_fault+0x5c/0xb0
+[  201.602622]  [<ffffffff8144c8f2>] store_mem_state+0xc2/0xd0
+[  201.602627]  [<ffffffff812498b7>] ? sysfs_write_file+0x87/0x100
+[  201.602632]  [<ffffffff81436980>] dev_attr_store+0x20/0x30
+[  201.602636]  [<ffffffff812498d3>] sysfs_write_file+0xa3/0x100
+[  201.602641]  [<ffffffff811cba80>] vfs_write+0xd0/0x1a0
+[  201.602646]  [<ffffffff811cbc54>] sys_write+0x54/0xa0
+[  201.602652]  [<ffffffff81678529>] system_call_fastpath+0x16/0x1b
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
