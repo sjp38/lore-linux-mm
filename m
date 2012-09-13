@@ -1,56 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
-	by kanga.kvack.org (Postfix) with SMTP id D33FF6B0110
-	for <linux-mm@kvack.org>; Wed, 12 Sep 2012 20:08:37 -0400 (EDT)
-Message-ID: <505123FE.2090305@ti.com>
-Date: Wed, 12 Sep 2012 20:08:30 -0400
-From: Cyril Chemparathy <cyril@ti.com>
+Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
+	by kanga.kvack.org (Postfix) with SMTP id 647616B0112
+	for <linux-mm@kvack.org>; Wed, 12 Sep 2012 20:13:00 -0400 (EDT)
+Date: Thu, 13 Sep 2012 02:12:55 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH 0/3] Minor changes to common hugetlb code for ARM
+Message-ID: <20120913001255.GD3404@redhat.com>
+References: <1347382036-18455-1-git-send-email-will.deacon@arm.com>
+ <20120912152759.GR21579@dhcp22.suse.cz>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm: bootmem: use phys_addr_t for physical addresses
-References: <1347466008-7231-1-git-send-email-cyril@ti.com> <20120912203920.GU7677@google.com>
-In-Reply-To: <20120912203920.GU7677@google.com>
-Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120912152759.GR21579@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, davem@davemloft.net, eric.dumazet@gmail.com, hannes@cmpxchg.org, shangw@linux.vnet.ibm.com, vitalya@ti.com
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Will Deacon <will.deacon@arm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, akpm@linux-foundation.org
 
-Hi Tejun,
+Hi everyone,
 
-On 9/12/2012 4:39 PM, Tejun Heo wrote:
-> Hello,
->
-> On Wed, Sep 12, 2012 at 12:06:48PM -0400, Cyril Chemparathy wrote:
->>   static void * __init alloc_bootmem_core(unsigned long size,
->>   					unsigned long align,
->> -					unsigned long goal,
->> -					unsigned long limit)
->> +					phys_addr_t goal,
->> +					phys_addr_t limit)
->
-> So, a function which takes phys_addr_t for goal and limit but returns
-> void * doesn't make much sense unless the function creates directly
-> addressable mapping somewhere.
->
+On Wed, Sep 12, 2012 at 05:27:59PM +0200, Michal Hocko wrote:
+> On Tue 11-09-12 17:47:13, Will Deacon wrote:
+> > Hello,
+> 
+> Hi,
+> 
+> > A few changes are required to common hugetlb code before the ARM support
+> > can be merged. I posted the main one previously, which has been picked up
+> > by akpm:
+> > 
+> >   http://marc.info/?l=linux-mm&m=134573987631394&w=2
+> > 
+> > The remaining three patches (included here) are all fairly minor but do
+> > affect other architectures.
+> 
+> I am quite confused. Why THP changes are required for hugetlb code for
+> ARM?
 
-On the 32-bit PAE platform in question, physical memory is located 
-outside the 4GB range.  Therefore phys_to_virt takes a 64-bit physical 
-address and returns a 32-bit kernel mapped lowmem pointer.
+Some functions are just noops on x86 and with no arch other than x86
+building the huge_memory.c file, those x86-noop parts that needed
+minor interface adjustments couldn't be noticed until now.
 
-> The right thing to do would be converting to nobootmem (ie. memblock)
-> and use the memblock interface.  Have no idea at all whether that
-> would be a realistic short-term solution for arm.
->
+Hopefully we got the brainer part right (i.e. the location of the x86
+noop callouts), it's clearly untested.
 
-I must plead ignorance and let wiser souls chime in on ARM architecture 
-plans w.r.t. nobootmem.  As far as I can tell, the only thing that 
-blocks us from using nobootmem at present is the need for sparsemem on 
-some platforms.
+> Besides that I would suggest adding Andrea to the CC (added now the
+> whole series can be found here http://lkml.org/lkml/2012/9/11/322) list
+> for all THP changes.
+> 
+> > 
+> > All comments welcome,
+> > 
+> > Will
+> > 
+> > Catalin Marinas (2):
+> >   mm: thp: Fix the pmd_clear() arguments in pmdp_get_and_clear()
+> >   mm: thp: Fix the update_mmu_cache() last argument passing in
+> >     mm/huge_memory.c
 
--- 
-Thanks
-- Cyril
+Both:
+
+Reviewed-by: Andrea Arcangeli <aarcange@redhat.com>
+
+> > 
+> > Steve Capper (1):
+> >   mm: Introduce HAVE_ARCH_TRANSPARENT_HUGEPAGE
+
+This was already introduced by the s390 THP support which I reviewed a
+few days ago, and it's already included in -mm, so it can be dropped.
+
+Thanks!
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
