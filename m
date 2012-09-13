@@ -1,164 +1,140 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
-	by kanga.kvack.org (Postfix) with SMTP id 3B6D06B0153
-	for <linux-mm@kvack.org>; Thu, 13 Sep 2012 10:22:41 -0400 (EDT)
-Received: from epcpsbgm2.samsung.com (epcpsbgm2 [203.254.230.27])
- by mailout1.samsung.com
- (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
- 17 2011)) with ESMTP id <0MAA00HN9L9R3AO0@mailout1.samsung.com> for
- linux-mm@kvack.org; Thu, 13 Sep 2012 23:22:39 +0900 (KST)
-Received: from amdc1032.localnet ([106.116.147.136])
- by mmp2.samsung.com (Oracle Communications Messaging Server 7u4-24.01
- (7.0.4.24.0) 64bit (built Nov 17 2011))
- with ESMTPA id <0MAA001S3L9P0KC0@mmp2.samsung.com> for linux-mm@kvack.org;
- Thu, 13 Sep 2012 23:22:39 +0900 (KST)
-From: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
-Subject: Re: [RFC v2] memory-hotplug: remove MIGRATE_ISOLATE from
- free_area->free_list
-Date: Thu, 13 Sep 2012 16:21:42 +0200
-References: <1346900018-14759-1-git-send-email-minchan@kernel.org>
- <201209061834.35473.b.zolnierkie@samsung.com>
-In-reply-to: <201209061834.35473.b.zolnierkie@samsung.com>
-MIME-version: 1.0
-Message-id: <201209131621.43074.b.zolnierkie@samsung.com>
-Content-type: Text/Plain; charset=us-ascii
-Content-transfer-encoding: 7bit
+Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
+	by kanga.kvack.org (Postfix) with SMTP id 9CD736B014E
+	for <linux-mm@kvack.org>; Thu, 13 Sep 2012 11:15:08 -0400 (EDT)
+Date: Thu, 13 Sep 2012 11:15:03 -0400 (EDT)
+From: =?ISO-8859-15?Q?Luk=E1=A8_Czerner?= <lczerner@redhat.com>
+Subject: Re: [PATCH 07/15 v2] ext4: Take i_mutex before punching hole
+In-Reply-To: <CAOiN93kKVxYeS5f0_nR3RpdX7sv+EJNA-T4jq7amFS5LQGqfnw@mail.gmail.com>
+Message-ID: <alpine.LFD.2.00.1209131113450.15781@dhcp-196-88.bos.redhat.com>
+References: <1346451711-1931-1-git-send-email-lczerner@redhat.com> <1346451711-1931-8-git-send-email-lczerner@redhat.com> <CAOiN93kKVxYeS5f0_nR3RpdX7sv+EJNA-T4jq7amFS5LQGqfnw@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Michal Nazarewicz <mina86@mina86.com>, Mel Gorman <mel@csn.ul.ie>, Wen Congyang <wency@cn.fujitsu.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Marek Szyprowski <m.szyprowski@samsung.com>
+To: Ashish Sangwan <ashishsangwan2@gmail.com>
+Cc: Lukas Czerner <lczerner@redhat.com>, linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org, tytso@mit.edu, hughd@google.com, linux-mm@kvack.org
 
-On Thursday 06 September 2012 18:34:35 Bartlomiej Zolnierkiewicz wrote:
+On Mon, 10 Sep 2012, Ashish Sangwan wrote:
+
+> Date: Mon, 10 Sep 2012 17:30:53 +0530
+> From: Ashish Sangwan <ashishsangwan2@gmail.com>
+> To: Lukas Czerner <lczerner@redhat.com>
+> Cc: linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org, tytso@mit.edu,
+>     hughd@google.com, linux-mm@kvack.org
+> Subject: Re: [PATCH 07/15 v2] ext4: Take i_mutex before punching hole
 > 
-> Hi,
-> 
-> On Thursday 06 September 2012 04:53:38 Minchan Kim wrote:
-> > Normally, MIGRATE_ISOLATE type is used for memory-hotplug.
-> > But it's irony type because the pages isolated would exist
-> > as free page in free_area->free_list[MIGRATE_ISOLATE] so people
-> > can think of it as allocatable pages but it is *never* allocatable.
-> > It ends up confusing NR_FREE_PAGES vmstat so it would be
-> > totally not accurate so some of place which depend on such vmstat
-> > could reach wrong decision by the context.
-> > 
-> > There were already report about it.[1]
-> > [1] 702d1a6e, memory-hotplug: fix kswapd looping forever problem
-> > 
-> > Then, there was other report which is other problem.[2]
-> > [2] http://www.spinics.net/lists/linux-mm/msg41251.html
-> > 
-> > I believe it can make problems in future, too.
-> > So I hope removing such irony type by another design.
-> > 
-> > I hope this patch solves it and let's revert [1] and doesn't need [2].
-
-For our needs (CMA) patch [2] is much simpler / less intrusive way
-to have correct NR_FREE_PAGES counter than this patch and currently
-I would prefer to have it merged upstream instead of this one.
-
-> > * Changelog v1
-> >  * Fix from Michal's many suggestion
-> > 
-> > Cc: Michal Nazarewicz <mina86@mina86.com>
-> > Cc: Mel Gorman <mel@csn.ul.ie>
-> > Cc: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> > Cc: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-> > Cc: Wen Congyang <wency@cn.fujitsu.com>
-> > Cc: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-> > Signed-off-by: Minchan Kim <minchan@kernel.org>
+> On Sat, Sep 1, 2012 at 3:51 AM, Lukas Czerner <lczerner@redhat.com> wrote:
+> > Currently the allocation might happen in the punched range after the
+> > truncation and before the releasing the space of the range. This would
+> > lead to blocks being unallocated under the mapped buffer heads resulting
+> > in nasty bugs.
+> >
+> > With this commit we take i_mutex before going to do anything in the
+> > ext4_ext_punch_hole() preventing any write to happen while the hole
+> > punching is in progress. This will also allow us to ditch the writeout
+> > of dirty pages withing the range.
+> >
+> > This commit was based on code provided by Zheng Liu, thanks!
+> >
+> > Signed-off-by: Lukas Czerner <lczerner@redhat.com>
 > > ---
-> > It's very early version which show the concept so I still marked it with RFC.
-> > I just tested it with simple test and works.
-> > This patch is needed indepth review from memory-hotplug guys from fujitsu
-> > because I saw there are lots of patches recenlty they sent to about
-> > memory-hotplug change. Please take a look at this patch.
+> >  fs/ext4/extents.c |   26 ++++++++++----------------
+> >  1 files changed, 10 insertions(+), 16 deletions(-)
+> >
+> > diff --git a/fs/ext4/extents.c b/fs/ext4/extents.c
+> > index aabbb3f..f920383 100644
+> > --- a/fs/ext4/extents.c
+> > +++ b/fs/ext4/extents.c
+> > @@ -4769,9 +4769,11 @@ int ext4_ext_punch_hole(struct file *file, loff_t offset, loff_t length)
+> >         loff_t first_page_offset, last_page_offset;
+> >         int credits, err = 0;
+> >
+> > +       mutex_lock(&inode->i_mutex);
+> > +
+> >         /* No need to punch hole beyond i_size */
+> >         if (offset >= inode->i_size)
+> > -               return 0;
+> > +               goto out1;
+> >
+> >         /*
+> >          * If the hole extends beyond i_size, set the hole
+> > @@ -4789,18 +4791,6 @@ int ext4_ext_punch_hole(struct file *file, loff_t offset, loff_t length)
+> >         first_page_offset = first_page << PAGE_CACHE_SHIFT;
+> >         last_page_offset = last_page << PAGE_CACHE_SHIFT;
+> >
+> > -       /*
+> > -        * Write out all dirty pages to avoid race conditions
+> > -        * Then release them.
+> > -        */
+> > -       if (mapping->nrpages && mapping_tagged(mapping, PAGECACHE_TAG_DIRTY)) {
+> > -               err = filemap_write_and_wait_range(mapping,
+> > -                       offset, offset + length - 1);
+> > -
+> > -               if (err)
+> > -                       return err;
+> > -       }
+> > -
 > 
-> [...]
+> Removing above code will cause a problem in case the file has all its
+> data in memory and nothing has been committed on disk. If punch hole
+> is issued for such a file, as there are no extents present, EIO would
+> be returned from ext4_ext_rm_leaf. So, even though blocks would be
+> removed from memory, the end result will be error EIO.
 > 
-> > @@ -948,8 +954,13 @@ static int move_freepages(struct zone *zone,
-> >  		}
-> >  
-> >  		order = page_order(page);
-> > -		list_move(&page->lru,
-> > -			  &zone->free_area[order].free_list[migratetype]);
-> > +		if (migratetype != MIGRATE_ISOLATE) {
-> > +			list_move(&page->lru,
-> > +				&zone->free_area[order].free_list[migratetype]);
-> > +		} else {
-> > +			list_del(&page->lru);
-> > +			isolate_free_page(page, order);
-> > +		}
-> >  		page += 1 << order;
-> >  		pages_moved += 1 << order;
-> >  	}
+> >         /* Now release the pages */
+> >         if (last_page_offset > first_page_offset) {
+> >                 truncate_pagecache_range(inode, first_page_offset,
 > 
-> Shouldn't NR_FREE_PAGES counter be decreased somewhere above?
+> To avoid this, you can add a check after the call to truncate_pagecache_range.
+> if(!inode->i_blocks)
+>   return 0;
+
+Thanks for pointing this out. However Dimitry has better fix for
+this with some additional changes so I am dropping this particular
+patch.
+
+(see "ext4: punch_hole should wait for DIO writers")
+
+Thanks!
+-Lukas
+
 > 
-> [ I can see that it is not modified in __free_pages_ok() and
->   free_hot_cold_page() because page is still counted as non-free one but
->   here situation is different AFAICS. ]
+> > @@ -4812,12 +4802,14 @@ int ext4_ext_punch_hole(struct file *file, loff_t offset, loff_t length)
+> >
+> >         credits = ext4_writepage_trans_blocks(inode);
+> >         handle = ext4_journal_start(inode, credits);
+> > -       if (IS_ERR(handle))
+> > -               return PTR_ERR(handle);
+> > +       if (IS_ERR(handle)) {
+> > +               err = PTR_ERR(handle);
+> > +               goto out1;
+> > +       }
+> >
+> >         err = ext4_orphan_add(handle, inode);
+> >         if (err)
+> > -               goto out;
+> > +               goto out1;
+> >
+> >         /*
+> >          * Now we need to zero out the non-page-aligned data in the
+> > @@ -4907,6 +4899,8 @@ out:
+> >         inode->i_mtime = inode->i_ctime = ext4_current_time(inode);
+> >         ext4_mark_inode_dirty(handle, inode);
+> >         ext4_journal_stop(handle);
+> > +out1:
+> > +       mutex_unlock(&inode->i_mutex);
+> >         return err;
+> >  }
+> >  int ext4_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
+> > --
+> > 1.7.7.6
+> >
+> > --
+> > To unsubscribe from this list: send the line "unsubscribe linux-ext4" in
+> > the body of a message to majordomo@vger.kernel.org
+> > More majordomo info at  http://vger.kernel.org/majordomo-info.html
 > 
-> I tested the patch locally here with CONFIG_CMA=y and it causes some
-> major problems for CMA (multiple errors from dma_alloc_from_contiguous()
-> about memory ranges being busy and allocation failures).
-> 
-> [ I'm sorry that I don't know more details yet but the issue should be
->   easily reproducible. ]
-
-We spent some more time on the issue and it seems that the approach
-taken in the patch (removal of MIGRATE_ISOLATE free_list) is currently
-incompatible with CMA.
-
-In alloc_contig_range() we have:
-
-	order = 0;
-	outer_start = start;
-	while (!PageBuddy(pfn_to_page(outer_start))) {
-		if (++order >= MAX_ORDER) {
-			ret = -EBUSY;
-			goto done;
-		}
-		outer_start &= ~0UL << order;
-	}
-
-for handling cases when the CMA area begins inside the higher order
-page from buddy (that got already isolated).  Unfortunately this code
-no longer works as isolated pages are no longer hold in buddy allocator
-(isolate_free_page() clears buddy bit).
-
-The other part of code that is probably affected by your patch is:
-
-	/* Grab isolated pages from freelists. */
-	outer_end = isolate_freepages_range(outer_start, end);
-	if (!outer_end) {
-		ret = -EBUSY;
-		goto done;
-	}
-
-also in alloc_contig_range().  isolate_freepages_range() calls
-isolate_freepages_block() which assume that free pages (in isolated
-pageblock) are in buddy allocator:
-
-		if (!PageBuddy(page)) {
-			if (strict)
-				return 0;
-			continue;
-		}
-
-(which is no longer true) and also calls split_free_page() that
-attempts to remove page from the free_list & buddy:
-
-	/* Remove page from free list */
-	list_del(&page->lru);
-	zone->free_area[order].nr_free--;
-	rmv_page_order(page);
-
-(the isolated page is on the isolated_pages list instead).
-
-Best regards,
---
-Bartlomiej Zolnierkiewicz
-Samsung Poland R&D Center
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
