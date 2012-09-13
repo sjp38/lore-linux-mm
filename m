@@ -1,101 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx133.postini.com [74.125.245.133])
-	by kanga.kvack.org (Postfix) with SMTP id 286F76B0185
-	for <linux-mm@kvack.org>; Thu, 13 Sep 2012 18:19:24 -0400 (EDT)
-Date: Thu, 13 Sep 2012 15:19:22 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm: cma: Discard clean pages during contiguous
- allocation instead of migration
-Message-Id: <20120913151922.b8893088.akpm@linux-foundation.org>
-In-Reply-To: <CAMuHMdXWZ=Jeggd7cT_LXK0MTnmFAf+cWEhC75B1gCcSd3eWeg@mail.gmail.com>
-References: <1347324112-14134-1-git-send-email-minchan@kernel.org>
-	<CAMuHMdXWZ=Jeggd7cT_LXK0MTnmFAf+cWEhC75B1gCcSd3eWeg@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx207.postini.com [74.125.245.207])
+	by kanga.kvack.org (Postfix) with SMTP id 3B7806B017C
+	for <linux-mm@kvack.org>; Thu, 13 Sep 2012 18:46:31 -0400 (EDT)
+Received: by iec9 with SMTP id 9so7324065iec.14
+        for <linux-mm@kvack.org>; Thu, 13 Sep 2012 15:46:30 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <50522275.7090709@suse.cz>
+References: <50522275.7090709@suse.cz>
+Date: Thu, 13 Sep 2012 15:46:30 -0700
+Message-ID: <CANN689E0SaT9vaBb+snwYrP728GjZhRj7o7T4GoNfQVY7sBr7Q@mail.gmail.com>
+Subject: Re: BUG at mm/huge_memory.c:1428!
+From: Michel Lespinasse <walken@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Geert Uytterhoeven <geert@linux-m68k.org>
-Cc: Minchan Kim <minchan@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Kyungmin Park <kmpark@infradead.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Linux-Next <linux-next@vger.kernel.org>
+To: Jiri Slaby <jslaby@suse.cz>
+Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Jiri Slaby <jirislaby@gmail.com>
 
-On Thu, 13 Sep 2012 21:17:19 +0200
-Geert Uytterhoeven <geert@linux-m68k.org> wrote:
+On Thu, Sep 13, 2012 at 11:14 AM, Jiri Slaby <jslaby@suse.cz> wrote:
+> Hi,
+>
+> I've just get the following BUG with today's -next. It happens every
+> time I try to update packages.
+>
+> kernel BUG at mm/huge_memory.c:1428!
 
-> On Tue, Sep 11, 2012 at 2:41 AM, Minchan Kim <minchan@kernel.org> wrote:
-> > --- a/mm/vmscan.c
-> > +++ b/mm/vmscan.c
-> > @@ -674,8 +674,10 @@ static enum page_references page_check_references(struct page *page,
-> >  static unsigned long shrink_page_list(struct list_head *page_list,
-> >                                       struct zone *zone,
-> >                                       struct scan_control *sc,
-> > +                                     enum ttu_flags ttu_flags,
-> 
-> "enum ttu_flags" is defined on CONFIG_MMU=y only, causing on nommu:
-> 
-> mm/vmscan.c:677:26: error: parameter 4 ('ttu_flags') has incomplete type
-> mm/vmscan.c:987:5: error: 'TTU_UNMAP' undeclared (first use in this function)
-> mm/vmscan.c:987:15: error: 'TTU_IGNORE_ACCESS' undeclared (first use
-> in this function)
-> mm/vmscan.c:1312:56: error: 'TTU_UNMAP' undeclared (first use in this function)
-> 
-> E.g.
-> http://kisskb.ellerman.id.au/kisskb/buildresult/7191694/ (h8300-defconfig)
-> http://kisskb.ellerman.id.au/kisskb/buildresult/7191858/ (sh-allnoconfig)
+That is very likely my bug.
 
-hm, OK, the means by which current mainline avoids build errors is
-either clever or lucky.
+Do you have the message that should be printed right above the bug ?
+(                printk(KERN_ERR "mapcount %d page_mapcount %d\n",
+                       mapcount, page_mapcount(page));
+)
 
-			switch (try_to_unmap(page, TTU_UNMAP)) {
+Do you get any errors if building with CONFIG_DEBUG_VM and CONFIG_DEBUG_VM_RB ?
 
-gets preprocessed into
+Does it go away if you revert "mm: avoid taking rmap locks in
+move_ptes()" (cc0eac2e50f036d4d798b18679ca2ae3c4828105 in the -next
+version I have here) ?
 
-			switch (2) {
-
-so the cmopiler never gets to see the TTU_ symbol at all.  Because it
-happens to be inside the try_to_unmap() call.
-
-
-I guess we can just make ttu_flags visible to NOMMU:
-
-
---- a/include/linux/rmap.h~mm-cma-discard-clean-pages-during-contiguous-allocation-instead-of-migration-fix-fix
-+++ a/include/linux/rmap.h
-@@ -71,6 +71,17 @@ struct anon_vma_chain {
- #endif
- };
- 
-+enum ttu_flags {
-+	TTU_UNMAP = 0,			/* unmap mode */
-+	TTU_MIGRATION = 1,		/* migration mode */
-+	TTU_MUNLOCK = 2,		/* munlock mode */
-+	TTU_ACTION_MASK = 0xff,
-+
-+	TTU_IGNORE_MLOCK = (1 << 8),	/* ignore mlock */
-+	TTU_IGNORE_ACCESS = (1 << 9),	/* don't age */
-+	TTU_IGNORE_HWPOISON = (1 << 10),/* corrupted page is recoverable */
-+};
-+
- #ifdef CONFIG_MMU
- static inline void get_anon_vma(struct anon_vma *anon_vma)
- {
-@@ -164,16 +175,6 @@ int page_referenced(struct page *, int i
- int page_referenced_one(struct page *, struct vm_area_struct *,
- 	unsigned long address, unsigned int *mapcount, unsigned long *vm_flags);
- 
--enum ttu_flags {
--	TTU_UNMAP = 0,			/* unmap mode */
--	TTU_MIGRATION = 1,		/* migration mode */
--	TTU_MUNLOCK = 2,		/* munlock mode */
--	TTU_ACTION_MASK = 0xff,
--
--	TTU_IGNORE_MLOCK = (1 << 8),	/* ignore mlock */
--	TTU_IGNORE_ACCESS = (1 << 9),	/* don't age */
--	TTU_IGNORE_HWPOISON = (1 << 10),/* corrupted page is recoverable */
--};
- #define TTU_ACTION(x) ((x) & TTU_ACTION_MASK)
- 
- int try_to_unmap(struct page *, enum ttu_flags flags);
-_
+-- 
+Michel "Walken" Lespinasse
+A program is never fully debugged until the last user dies.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
