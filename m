@@ -1,76 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
-	by kanga.kvack.org (Postfix) with SMTP id 647616B0112
-	for <linux-mm@kvack.org>; Wed, 12 Sep 2012 20:13:00 -0400 (EDT)
-Date: Thu, 13 Sep 2012 02:12:55 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 0/3] Minor changes to common hugetlb code for ARM
-Message-ID: <20120913001255.GD3404@redhat.com>
-References: <1347382036-18455-1-git-send-email-will.deacon@arm.com>
- <20120912152759.GR21579@dhcp22.suse.cz>
+Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
+	by kanga.kvack.org (Postfix) with SMTP id 55ECE6B0114
+	for <linux-mm@kvack.org>; Wed, 12 Sep 2012 20:28:48 -0400 (EDT)
+Received: by iec9 with SMTP id 9so4965778iec.14
+        for <linux-mm@kvack.org>; Wed, 12 Sep 2012 17:28:47 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120912152759.GR21579@dhcp22.suse.cz>
+In-Reply-To: <CALF0-+VMtUPuLHg3CwDxFm-TjbN1=YavGO79Oo3GuymOLvikeA@mail.gmail.com>
+References: <CALF0-+VMtUPuLHg3CwDxFm-TjbN1=YavGO79Oo3GuymOLvikeA@mail.gmail.com>
+Date: Wed, 12 Sep 2012 21:28:47 -0300
+Message-ID: <CALF0-+W10VNUxm5oT+kmiSUwRqwdZhxgDu5jQjD5ao_w1b7dNA@mail.gmail.com>
+Subject: Re: [PATCH v2 0/10] mm: SLxB cleaning and trace accuracy improvement
+From: Ezequiel Garcia <elezegarcia@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Will Deacon <will.deacon@arm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, akpm@linux-foundation.org
+To: Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: JoonSoo Kim <js1304@gmail.com>, Tim Bird <tim.bird@am.sony.com>, Steven Rostedt <rostedt@goodmis.org>, David Rientjes <rientjes@google.com>, Christoph Lameter <cl@linux.com>, Glauber Costa <glommer@parallels.com>
 
-Hi everyone,
+Hi Pekka,
 
-On Wed, Sep 12, 2012 at 05:27:59PM +0200, Michal Hocko wrote:
-> On Tue 11-09-12 17:47:13, Will Deacon wrote:
-> > Hello,
-> 
-> Hi,
-> 
-> > A few changes are required to common hugetlb code before the ARM support
-> > can be merged. I posted the main one previously, which has been picked up
-> > by akpm:
-> > 
-> >   http://marc.info/?l=linux-mm&m=134573987631394&w=2
-> > 
-> > The remaining three patches (included here) are all fairly minor but do
-> > affect other architectures.
-> 
-> I am quite confused. Why THP changes are required for hugetlb code for
-> ARM?
+On Sat, Sep 8, 2012 at 5:49 PM, Ezequiel Garcia <elezegarcia@gmail.com> wrote:
+> Hi everyone,
+>
+> This is the second spin of my patchset to clean SLxB and improve kmem
+> trace events accuracy.
+>
+> For this v2, the most relevant stuff is:
+>
+> I've dropped two patches that were not very well received:
+> Namely this two are now gone:
+>   mm, slob: Use only 'ret' variable for both slob object and returned pointer
+>   mm, slob: Trace allocation failures consistently
+> I believe consistency is important but perhaps this is just me being paranoid.
+>
+> There's a lot of dumb movement and renaming. This might seem stupid
+> (and maybe it is) but it's necessary to create some common code between SLAB
+> and SLUB, and then factor it out.
+>
+> Also, there's a patch to add a new option to disable gcc auto-inlining.
+> I know we hate to add new options, but this is necessary to get
+> accurate call site
+> traces. Plus, the option is in "Kernel Hacking", so it's for kernel
+> developers only.
+>
+> This work is part of CELF Workgroup Project:
+> "Kernel_dynamic_memory_allocation_tracking_and_reduction" [1]
+>
+> Feedback, comments, suggestions are very welcome.
+>
+> Ezequiel Garcia (10):
+>  mm: Factor SLAB and SLUB common code
+>  mm, slub: Rename slab_alloc() -> slab_alloc_node() to match SLAB
+>  mm, slab: Rename __cache_alloc() -> slab_alloc()
+>  mm, slab: Match SLAB and SLUB kmem_cache_alloc_xxx_trace() prototype
+>  mm, slab: Replace 'caller' type, void* -> unsigned long
+>  mm, util: Use dup_user to duplicate user memory
+>  mm, slob: Add support for kmalloc_track_caller()
+>  mm, slab: Remove silly function slab_buffer_size()
+>  mm, slob: Use NUMA_NO_NODE instead of -1
+>  Makefile: Add option CONFIG_DISABLE_GCC_AUTOMATIC_INLINING
+>
 
-Some functions are just noops on x86 and with no arch other than x86
-building the huge_memory.c file, those x86-noop parts that needed
-minor interface adjustments couldn't be noticed until now.
+Can you pick patches 2, 3, 4, and 5?
+Namely only those related to SLOB and to simple cleanups.
 
-Hopefully we got the brainer part right (i.e. the location of the x86
-noop callouts), it's clearly untested.
+I'll redo SLAB/SLUB commonization, as Christoph requested.
 
-> Besides that I would suggest adding Andrea to the CC (added now the
-> whole series can be found here http://lkml.org/lkml/2012/9/11/322) list
-> for all THP changes.
-> 
-> > 
-> > All comments welcome,
-> > 
-> > Will
-> > 
-> > Catalin Marinas (2):
-> >   mm: thp: Fix the pmd_clear() arguments in pmdp_get_and_clear()
-> >   mm: thp: Fix the update_mmu_cache() last argument passing in
-> >     mm/huge_memory.c
-
-Both:
-
-Reviewed-by: Andrea Arcangeli <aarcange@redhat.com>
-
-> > 
-> > Steve Capper (1):
-> >   mm: Introduce HAVE_ARCH_TRANSPARENT_HUGEPAGE
-
-This was already introduced by the s390 THP support which I reviewed a
-few days ago, and it's already included in -mm, so it can be dropped.
-
-Thanks!
-Andrea
+Thanks,
+Ezequiel.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
