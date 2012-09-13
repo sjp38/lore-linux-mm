@@ -1,79 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
-	by kanga.kvack.org (Postfix) with SMTP id B9E346B0183
-	for <linux-mm@kvack.org>; Thu, 13 Sep 2012 17:40:27 -0400 (EDT)
-Date: Thu, 13 Sep 2012 14:40:25 -0700
+Received: from psmtp.com (na3sys010amx133.postini.com [74.125.245.133])
+	by kanga.kvack.org (Postfix) with SMTP id 286F76B0185
+	for <linux-mm@kvack.org>; Thu, 13 Sep 2012 18:19:24 -0400 (EDT)
+Date: Thu, 13 Sep 2012 15:19:22 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 3/3] mm: Introduce HAVE_ARCH_TRANSPARENT_HUGEPAGE
-Message-Id: <20120913144025.b1760af4.akpm@linux-foundation.org>
-In-Reply-To: <20120914072732.637f4225c32565468f468305@canb.auug.org.au>
-References: <1347382036-18455-1-git-send-email-will.deacon@arm.com>
-	<1347382036-18455-4-git-send-email-will.deacon@arm.com>
-	<20120913120514.135d2c38.akpm@linux-foundation.org>
-	<20120914072732.637f4225c32565468f468305@canb.auug.org.au>
+Subject: Re: [PATCH] mm: cma: Discard clean pages during contiguous
+ allocation instead of migration
+Message-Id: <20120913151922.b8893088.akpm@linux-foundation.org>
+In-Reply-To: <CAMuHMdXWZ=Jeggd7cT_LXK0MTnmFAf+cWEhC75B1gCcSd3eWeg@mail.gmail.com>
+References: <1347324112-14134-1-git-send-email-minchan@kernel.org>
+	<CAMuHMdXWZ=Jeggd7cT_LXK0MTnmFAf+cWEhC75B1gCcSd3eWeg@mail.gmail.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Stephen Rothwell <sfr@canb.auug.org.au>
-Cc: Will Deacon <will.deacon@arm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, mhocko@suse.cz, Steve Capper <steve.capper@arm.com>, Gerald Schaefer <gerald.schaefer@de.ibm.com>
+To: Geert Uytterhoeven <geert@linux-m68k.org>
+Cc: Minchan Kim <minchan@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Kyungmin Park <kmpark@infradead.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Linux-Next <linux-next@vger.kernel.org>
 
-On Fri, 14 Sep 2012 07:27:32 +1000
-Stephen Rothwell <sfr@canb.auug.org.au> wrote:
+On Thu, 13 Sep 2012 21:17:19 +0200
+Geert Uytterhoeven <geert@linux-m68k.org> wrote:
 
-> Hi Andrew,
+> On Tue, Sep 11, 2012 at 2:41 AM, Minchan Kim <minchan@kernel.org> wrote:
+> > --- a/mm/vmscan.c
+> > +++ b/mm/vmscan.c
+> > @@ -674,8 +674,10 @@ static enum page_references page_check_references(struct page *page,
+> >  static unsigned long shrink_page_list(struct list_head *page_list,
+> >                                       struct zone *zone,
+> >                                       struct scan_control *sc,
+> > +                                     enum ttu_flags ttu_flags,
 > 
-> On Thu, 13 Sep 2012 12:05:14 -0700 Andrew Morton <akpm@linux-foundation.org> wrote:
-> >
-> > diff -puN arch/x86/Kconfig~mm-introduce-have_arch_transparent_hugepage arch/x86/Kconfig
-> > --- a/arch/x86/Kconfig~mm-introduce-have_arch_transparent_hugepage
-> > +++ a/arch/x86/Kconfig
-> > @@ -83,7 +83,6 @@ config X86
-> >  	select IRQ_FORCED_THREADING
-> >  	select USE_GENERIC_SMP_HELPERS if SMP
-> >  	select HAVE_BPF_JIT if X86_64
-> > -	select HAVE_ARCH_TRANSPARENT_HUGEPAGE
+> "enum ttu_flags" is defined on CONFIG_MMU=y only, causing on nommu:
 > 
-> Why not
-> 	select HAVE_ARCH_TRANSPARENT_HUGEPAGE if MMU
+> mm/vmscan.c:677:26: error: parameter 4 ('ttu_flags') has incomplete type
+> mm/vmscan.c:987:5: error: 'TTU_UNMAP' undeclared (first use in this function)
+> mm/vmscan.c:987:15: error: 'TTU_IGNORE_ACCESS' undeclared (first use
+> in this function)
+> mm/vmscan.c:1312:56: error: 'TTU_UNMAP' undeclared (first use in this function)
 > 
+> E.g.
+> http://kisskb.ellerman.id.au/kisskb/buildresult/7191694/ (h8300-defconfig)
+> http://kisskb.ellerman.id.au/kisskb/buildresult/7191858/ (sh-allnoconfig)
 
-Well, this is in arch/x86/Kconfig, where MMU is known to always be set.
+hm, OK, the means by which current mainline avoids build errors is
+either clever or lucky.
 
-Yes, I think Gerald's patch will suffice:
+			switch (try_to_unmap(page, TTU_UNMAP)) {
 
---- a/arch/Kconfig~thp-x86-introduce-have_arch_transparent_hugepage
-+++ a/arch/Kconfig
-@@ -326,4 +326,7 @@ config HAVE_RCU_USER_QS
- 	  are already protected inside rcu_irq_enter/rcu_irq_exit() but
- 	  preemption or signal handling on irq exit still need to be protected.
+gets preprocessed into
+
+			switch (2) {
+
+so the cmopiler never gets to see the TTU_ symbol at all.  Because it
+happens to be inside the try_to_unmap() call.
+
+
+I guess we can just make ttu_flags visible to NOMMU:
+
+
+--- a/include/linux/rmap.h~mm-cma-discard-clean-pages-during-contiguous-allocation-instead-of-migration-fix-fix
++++ a/include/linux/rmap.h
+@@ -71,6 +71,17 @@ struct anon_vma_chain {
+ #endif
+ };
  
-+config HAVE_ARCH_TRANSPARENT_HUGEPAGE
-+	bool
++enum ttu_flags {
++	TTU_UNMAP = 0,			/* unmap mode */
++	TTU_MIGRATION = 1,		/* migration mode */
++	TTU_MUNLOCK = 2,		/* munlock mode */
++	TTU_ACTION_MASK = 0xff,
 +
- source "kernel/gcov/Kconfig"
---- a/arch/x86/Kconfig~thp-x86-introduce-have_arch_transparent_hugepage
-+++ a/arch/x86/Kconfig
-@@ -83,6 +83,7 @@ config X86
- 	select IRQ_FORCED_THREADING
- 	select USE_GENERIC_SMP_HELPERS if SMP
- 	select HAVE_BPF_JIT if X86_64
-+	select HAVE_ARCH_TRANSPARENT_HUGEPAGE
- 	select CLKEVT_I8253
- 	select ARCH_HAVE_NMI_SAFE_CMPXCHG
- 	select GENERIC_IOMAP
---- a/mm/Kconfig~thp-x86-introduce-have_arch_transparent_hugepage
-+++ a/mm/Kconfig
-@@ -318,7 +318,7 @@ config NOMMU_INITIAL_TRIM_EXCESS
++	TTU_IGNORE_MLOCK = (1 << 8),	/* ignore mlock */
++	TTU_IGNORE_ACCESS = (1 << 9),	/* don't age */
++	TTU_IGNORE_HWPOISON = (1 << 10),/* corrupted page is recoverable */
++};
++
+ #ifdef CONFIG_MMU
+ static inline void get_anon_vma(struct anon_vma *anon_vma)
+ {
+@@ -164,16 +175,6 @@ int page_referenced(struct page *, int i
+ int page_referenced_one(struct page *, struct vm_area_struct *,
+ 	unsigned long address, unsigned int *mapcount, unsigned long *vm_flags);
  
- config TRANSPARENT_HUGEPAGE
- 	bool "Transparent Hugepage Support"
--	depends on X86 && MMU
-+	depends on HAVE_ARCH_TRANSPARENT_HUGEPAGE
- 	select COMPACTION
- 	help
- 	  Transparent Hugepages allows the kernel to use huge pages and
+-enum ttu_flags {
+-	TTU_UNMAP = 0,			/* unmap mode */
+-	TTU_MIGRATION = 1,		/* migration mode */
+-	TTU_MUNLOCK = 2,		/* munlock mode */
+-	TTU_ACTION_MASK = 0xff,
+-
+-	TTU_IGNORE_MLOCK = (1 << 8),	/* ignore mlock */
+-	TTU_IGNORE_ACCESS = (1 << 9),	/* don't age */
+-	TTU_IGNORE_HWPOISON = (1 << 10),/* corrupted page is recoverable */
+-};
+ #define TTU_ACTION(x) ((x) & TTU_ACTION_MASK)
+ 
+ int try_to_unmap(struct page *, enum ttu_flags flags);
 _
 
 --
