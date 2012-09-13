@@ -1,54 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx135.postini.com [74.125.245.135])
-	by kanga.kvack.org (Postfix) with SMTP id F2BFA6B016A
-	for <linux-mm@kvack.org>; Thu, 13 Sep 2012 15:17:20 -0400 (EDT)
-Received: by vbkv13 with SMTP id v13so4984281vbk.14
-        for <linux-mm@kvack.org>; Thu, 13 Sep 2012 12:17:19 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <1347324112-14134-1-git-send-email-minchan@kernel.org>
-References: <1347324112-14134-1-git-send-email-minchan@kernel.org>
-Date: Thu, 13 Sep 2012 21:17:19 +0200
-Message-ID: <CAMuHMdXWZ=Jeggd7cT_LXK0MTnmFAf+cWEhC75B1gCcSd3eWeg@mail.gmail.com>
-Subject: Re: [PATCH] mm: cma: Discard clean pages during contiguous allocation
- instead of migration
-From: Geert Uytterhoeven <geert@linux-m68k.org>
-Content-Type: text/plain; charset=UTF-8
+Received: from psmtp.com (na3sys010amx202.postini.com [74.125.245.202])
+	by kanga.kvack.org (Postfix) with SMTP id D7C1C6B016D
+	for <linux-mm@kvack.org>; Thu, 13 Sep 2012 15:27:39 -0400 (EDT)
+Date: Thu, 13 Sep 2012 12:27:38 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] nommu: remap_pfn_range: fix addr parameter check
+Message-Id: <20120913122738.04eaceb3.akpm@linux-foundation.org>
+In-Reply-To: <1347504057-5612-1-git-send-email-lliubbo@gmail.com>
+References: <1347504057-5612-1-git-send-email-lliubbo@gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Kyungmin Park <kmpark@infradead.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Linux-Next <linux-next@vger.kernel.org>
+To: Bob Liu <lliubbo@gmail.com>
+Cc: linux-mm@kvack.org, bhupesh.sharma@st.com, laurent.pinchart@ideasonboard.com, uclinux-dist-devel@blackfin.uclinux.org, linux-media@vger.kernel.org, dhowells@redhat.com, geert@linux-m68k.org, gerg@uclinux.org, stable@kernel.org, gregkh@linuxfoundation.org, Hugh Dickins <hughd@google.com>
 
-On Tue, Sep 11, 2012 at 2:41 AM, Minchan Kim <minchan@kernel.org> wrote:
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -674,8 +674,10 @@ static enum page_references page_check_references(struct page *page,
->  static unsigned long shrink_page_list(struct list_head *page_list,
->                                       struct zone *zone,
->                                       struct scan_control *sc,
-> +                                     enum ttu_flags ttu_flags,
+On Thu, 13 Sep 2012 10:40:57 +0800
+Bob Liu <lliubbo@gmail.com> wrote:
 
-"enum ttu_flags" is defined on CONFIG_MMU=y only, causing on nommu:
+> The addr parameter may not page aligned eg. when it's come from
+> vfb_mmap():vma->vm_start in video driver.
+> 
+> This patch fix the check in remap_pfn_range() else some driver like v4l2 will
+> fail in this function while calling mmap() on nommu arch like blackfin and st.
+> 
+> Reported-by: Bhupesh SHARMA <bhupesh.sharma@st.com>
+> Reported-by: Scott Jiang <scott.jiang.linux@gmail.com>
+> Signed-off-by: Bob Liu <lliubbo@gmail.com>
+> ---
+>  mm/nommu.c |    2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+> 
+> diff --git a/mm/nommu.c b/mm/nommu.c
+> index d4b0c10..5d6068b 100644
+> --- a/mm/nommu.c
+> +++ b/mm/nommu.c
+> @@ -1819,7 +1819,7 @@ struct page *follow_page(struct vm_area_struct *vma, unsigned long address,
+>  int remap_pfn_range(struct vm_area_struct *vma, unsigned long addr,
+>  		unsigned long pfn, unsigned long size, pgprot_t prot)
+>  {
+> -	if (addr != (pfn << PAGE_SHIFT))
+> +	if ((addr & PAGE_MASK) != (pfn << PAGE_SHIFT))
+>  		return -EINVAL;
+>  
+>  	vma->vm_flags |= VM_IO | VM_RESERVED | VM_PFNMAP;
 
-mm/vmscan.c:677:26: error: parameter 4 ('ttu_flags') has incomplete type
-mm/vmscan.c:987:5: error: 'TTU_UNMAP' undeclared (first use in this function)
-mm/vmscan.c:987:15: error: 'TTU_IGNORE_ACCESS' undeclared (first use
-in this function)
-mm/vmscan.c:1312:56: error: 'TTU_UNMAP' undeclared (first use in this function)
+hm, what is the right thing to do here?
 
-E.g.
-http://kisskb.ellerman.id.au/kisskb/buildresult/7191694/ (h8300-defconfig)
-http://kisskb.ellerman.id.au/kisskb/buildresult/7191858/ (sh-allnoconfig)
+Yes, the MMU version of remap_pfn_range() does permit non-page-aligned
+`addr' (at least, if the userspace maaping is a non-COW one).  But I
+suspect that was an implementation accident - it is a nonsensical thing
+to do, isn't it?  The MMU cannot map a bunch of kernel pages onto a
+non-page-aligned userspace address.
 
-Gr{oetje,eeting}s,
-
-                        Geert
-
---
-Geert Uytterhoeven -- There's lots of Linux beyond ia32 -- geert@linux-m68k.org
-
-In personal conversations with technical people, I call myself a hacker. But
-when I'm talking to journalists I just say "programmer" or something like that.
-                                -- Linus Torvalds
+So I'm thinking that we should declare ((addr & ~PAGE_MASK) != 0) to be
+a caller bug, and fix up this regrettably unidentified v4l driver?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
