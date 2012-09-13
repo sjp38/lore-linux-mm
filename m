@@ -1,46 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx207.postini.com [74.125.245.207])
-	by kanga.kvack.org (Postfix) with SMTP id 3B7806B017C
-	for <linux-mm@kvack.org>; Thu, 13 Sep 2012 18:46:31 -0400 (EDT)
-Received: by iec9 with SMTP id 9so7324065iec.14
-        for <linux-mm@kvack.org>; Thu, 13 Sep 2012 15:46:30 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <50522275.7090709@suse.cz>
-References: <50522275.7090709@suse.cz>
-Date: Thu, 13 Sep 2012 15:46:30 -0700
-Message-ID: <CANN689E0SaT9vaBb+snwYrP728GjZhRj7o7T4GoNfQVY7sBr7Q@mail.gmail.com>
-Subject: Re: BUG at mm/huge_memory.c:1428!
-From: Michel Lespinasse <walken@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from psmtp.com (na3sys010amx135.postini.com [74.125.245.135])
+	by kanga.kvack.org (Postfix) with SMTP id 5B7F46B0186
+	for <linux-mm@kvack.org>; Thu, 13 Sep 2012 19:05:09 -0400 (EDT)
+Date: Thu, 13 Sep 2012 16:05:06 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v4 0/8] Avoid cache trashing on clearing huge/gigantic
+ page
+Message-Id: <20120913160506.d394392a.akpm@linux-foundation.org>
+In-Reply-To: <1345470757-12005-1-git-send-email-kirill.shutemov@linux.intel.com>
+References: <1345470757-12005-1-git-send-email-kirill.shutemov@linux.intel.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jiri Slaby <jslaby@suse.cz>
-Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Jiri Slaby <jirislaby@gmail.com>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, Andi Kleen <ak@linux.intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, Alex Shi <alex.shu@intel.com>, Jan Beulich <jbeulich@novell.com>, Robert Richter <robert.richter@amd.com>, Andy Lutomirski <luto@amacapital.net>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-mips@linux-mips.org, linux-sh@vger.kernel.org, sparclinux@vger.kernel.org
 
-On Thu, Sep 13, 2012 at 11:14 AM, Jiri Slaby <jslaby@suse.cz> wrote:
-> Hi,
->
-> I've just get the following BUG with today's -next. It happens every
-> time I try to update packages.
->
-> kernel BUG at mm/huge_memory.c:1428!
+On Mon, 20 Aug 2012 16:52:29 +0300
+"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> wrote:
 
-That is very likely my bug.
+> Clearing a 2MB huge page will typically blow away several levels of CPU
+> caches.  To avoid this only cache clear the 4K area around the fault
+> address and use a cache avoiding clears for the rest of the 2MB area.
+> 
+> This patchset implements cache avoiding version of clear_page only for
+> x86. If an architecture wants to provide cache avoiding version of
+> clear_page it should to define ARCH_HAS_USER_NOCACHE to 1 and implement
+> clear_page_nocache() and clear_user_highpage_nocache().
 
-Do you have the message that should be printed right above the bug ?
-(                printk(KERN_ERR "mapcount %d page_mapcount %d\n",
-                       mapcount, page_mapcount(page));
-)
+Patchset looks nice to me, but the changelogs are terribly short of
+performance measurements.  For this sort of change I do think it is
+important that pretty exhaustive testing be performed, and that the
+results (or a readable summary of them) be shown.  And that testing
+should be designed to probe for slowdowns, not just the speedups!
 
-Do you get any errors if building with CONFIG_DEBUG_VM and CONFIG_DEBUG_VM_RB ?
-
-Does it go away if you revert "mm: avoid taking rmap locks in
-move_ptes()" (cc0eac2e50f036d4d798b18679ca2ae3c4828105 in the -next
-version I have here) ?
-
--- 
-Michel "Walken" Lespinasse
-A program is never fully debugged until the last user dies.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
