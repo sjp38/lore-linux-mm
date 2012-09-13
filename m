@@ -1,96 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
-	by kanga.kvack.org (Postfix) with SMTP id 56AB06B010F
-	for <linux-mm@kvack.org>; Wed, 12 Sep 2012 20:03:14 -0400 (EDT)
-Date: Thu, 13 Sep 2012 09:05:19 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH 2/2] memory-hotplug: don't replace lowmem pages with
- highmem
-Message-ID: <20120913000519.GC2766@bbox>
-References: <1347414231-31451-1-git-send-email-minchan@kernel.org>
- <1347414231-31451-2-git-send-email-minchan@kernel.org>
- <20120912143239.65fa8b58.akpm@linux-foundation.org>
+Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
+	by kanga.kvack.org (Postfix) with SMTP id D33FF6B0110
+	for <linux-mm@kvack.org>; Wed, 12 Sep 2012 20:08:37 -0400 (EDT)
+Message-ID: <505123FE.2090305@ti.com>
+Date: Wed, 12 Sep 2012 20:08:30 -0400
+From: Cyril Chemparathy <cyril@ti.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120912143239.65fa8b58.akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm: bootmem: use phys_addr_t for physical addresses
+References: <1347466008-7231-1-git-send-email-cyril@ti.com> <20120912203920.GU7677@google.com>
+In-Reply-To: <20120912203920.GU7677@google.com>
+Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Michal Nazarewicz <mina86@mina86.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Wen Congyang <wency@cn.fujitsu.com>
+To: Tejun Heo <tj@kernel.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, davem@davemloft.net, eric.dumazet@gmail.com, hannes@cmpxchg.org, shangw@linux.vnet.ibm.com, vitalya@ti.com
 
-On Wed, Sep 12, 2012 at 02:32:39PM -0700, Andrew Morton wrote:
-> On Wed, 12 Sep 2012 10:43:51 +0900
-> Minchan Kim <minchan@kernel.org> wrote:
-> 
-> > [1] reporeted that lowmem pages could be replaced by
-> > highmem pages during migration of CMA and fixed.
-> > 
-> > Quote from [1]'s description
-> > "
-> >     The filesystem layer expects pages in the block device's mapping to not
-> >     be in highmem (the mapping's gfp mask is set in bdget()), but CMA can
-> >     currently replace lowmem pages with highmem pages, leading to crashes in
-> >     filesystem code such as the one below:
-> > 
-> >       Unable to handle kernel NULL pointer dereference at virtual address 00000400
-> >       pgd = c0c98000
-> >       [00000400] *pgd=00c91831, *pte=00000000, *ppte=00000000
-> >       Internal error: Oops: 817 [#1] PREEMPT SMP ARM
-> >       CPU: 0    Not tainted  (3.5.0-rc5+ #80)
-> >       PC is at __memzero+0x24/0x80
-> >       ...
-> >       Process fsstress (pid: 323, stack limit = 0xc0cbc2f0)
-> >       Backtrace:
-> >       [<c010e3f0>] (ext4_getblk+0x0/0x180) from [<c010e58c>] (ext4_bread+0x1c/0x98)
-> >       [<c010e570>] (ext4_bread+0x0/0x98) from [<c0117944>] (ext4_mkdir+0x160/0x3bc)
-> >        r4:c15337f0
-> >       [<c01177e4>] (ext4_mkdir+0x0/0x3bc) from [<c00c29e0>] (vfs_mkdir+0x8c/0x98)
-> >       [<c00c2954>] (vfs_mkdir+0x0/0x98) from [<c00c2a60>] (sys_mkdirat+0x74/0xac)
-> >        r6:00000000 r5:c152eb40 r4:000001ff r3:c14b43f0
-> >       [<c00c29ec>] (sys_mkdirat+0x0/0xac) from [<c00c2ab8>] (sys_mkdir+0x20/0x24)
-> >        r6:beccdcf0 r5:00074000 r4:beccdbbc
-> >       [<c00c2a98>] (sys_mkdir+0x0/0x24) from [<c000e3c0>] (ret_fast_syscall+0x0/0x30)
-> > "
-> > 
-> > Memory-hotplug has same problem with CMA so [1]'s fix could be applied
-> > with memory-hotplug, too.
-> > 
-> > Fix it by reusing.
-> 
-> Do we think this issue should be fixed in 3.6?  Earlier?
+Hi Tejun,
 
-I really wanted to Cced stable but didn't due to a below
+On 9/12/2012 4:39 PM, Tejun Heo wrote:
+> Hello,
+>
+> On Wed, Sep 12, 2012 at 12:06:48PM -0400, Cyril Chemparathy wrote:
+>>   static void * __init alloc_bootmem_core(unsigned long size,
+>>   					unsigned long align,
+>> -					unsigned long goal,
+>> -					unsigned long limit)
+>> +					phys_addr_t goal,
+>> +					phys_addr_t limit)
+>
+> So, a function which takes phys_addr_t for goal and limit but returns
+> void * doesn't make much sense unless the function creates directly
+> addressable mapping somewhere.
+>
 
- - It must fix a real bug that bothers people (not a, "This could be a
-   problem..." type thing).
+On the 32-bit PAE platform in question, physical memory is located 
+outside the 4GB range.  Therefore phys_to_virt takes a 64-bit physical 
+address and returns a 32-bit kernel mapped lowmem pointer.
 
-We haven't ever seen at the report of memory-hotplug although it pops up in CMA.
-But I doubt fujitsu guys already saw it.
+> The right thing to do would be converting to nobootmem (ie. memblock)
+> and use the memblock interface.  Have no idea at all whether that
+> would be a realistic short-term solution for arm.
+>
 
-
-> 
-> > @@ -809,8 +802,12 @@ do_migrate_range(unsigned long start_pfn, unsigned long end_pfn)
-> >  			putback_lru_pages(&source);
-> >  			goto out;
-> >  		}
-> > -		/* this function returns # of failed pages */
-> > -		ret = migrate_pages(&source, hotremove_migrate_alloc, 0,
-> > +
-> > +		/*
-> > +		 * alloc_migrate_target should be improooooved!!
-> 
-> Not a helpful comment!  If you've identified some improvement then
-> please do provide all the details.
-
-I have an idea to improve it and hoping send patch soonish.
-I will handle it in my patch.
-
-Thanks Andrew.
+I must plead ignorance and let wiser souls chime in on ARM architecture 
+plans w.r.t. nobootmem.  As far as I can tell, the only thing that 
+blocks us from using nobootmem at present is the need for sparsemem on 
+some platforms.
 
 -- 
-Kind regards,
-Minchan Kim
+Thanks
+- Cyril
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
