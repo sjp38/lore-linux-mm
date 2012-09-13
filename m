@@ -1,61 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx202.postini.com [74.125.245.202])
-	by kanga.kvack.org (Postfix) with SMTP id D7C1C6B016D
-	for <linux-mm@kvack.org>; Thu, 13 Sep 2012 15:27:39 -0400 (EDT)
-Date: Thu, 13 Sep 2012 12:27:38 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] nommu: remap_pfn_range: fix addr parameter check
-Message-Id: <20120913122738.04eaceb3.akpm@linux-foundation.org>
-In-Reply-To: <1347504057-5612-1-git-send-email-lliubbo@gmail.com>
-References: <1347504057-5612-1-git-send-email-lliubbo@gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
+	by kanga.kvack.org (Postfix) with SMTP id 817406B016E
+	for <linux-mm@kvack.org>; Thu, 13 Sep 2012 15:32:14 -0400 (EDT)
+Received: by dadi14 with SMTP id i14so2209639dad.14
+        for <linux-mm@kvack.org>; Thu, 13 Sep 2012 12:32:13 -0700 (PDT)
+Date: Thu, 13 Sep 2012 12:32:09 -0700
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH] mm: bootmem: use phys_addr_t for physical addresses
+Message-ID: <20120913193209.GL7677@google.com>
+References: <1347466008-7231-1-git-send-email-cyril@ti.com>
+ <20120912203920.GU7677@google.com>
+ <505123FE.2090305@ti.com>
+ <20120913003400.GA25889@localhost>
+ <50512B9A.9060905@ti.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <50512B9A.9060905@ti.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Bob Liu <lliubbo@gmail.com>
-Cc: linux-mm@kvack.org, bhupesh.sharma@st.com, laurent.pinchart@ideasonboard.com, uclinux-dist-devel@blackfin.uclinux.org, linux-media@vger.kernel.org, dhowells@redhat.com, geert@linux-m68k.org, gerg@uclinux.org, stable@kernel.org, gregkh@linuxfoundation.org, Hugh Dickins <hughd@google.com>
+To: Cyril Chemparathy <cyril@ti.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, davem@davemloft.net, eric.dumazet@gmail.com, hannes@cmpxchg.org, shangw@linux.vnet.ibm.com, vitalya@ti.com
 
-On Thu, 13 Sep 2012 10:40:57 +0800
-Bob Liu <lliubbo@gmail.com> wrote:
+Hello, Cyril.
 
-> The addr parameter may not page aligned eg. when it's come from
-> vfb_mmap():vma->vm_start in video driver.
+On Wed, Sep 12, 2012 at 08:40:58PM -0400, Cyril Chemparathy wrote:
+> You probably missed the lowmem bit from my response?
 > 
-> This patch fix the check in remap_pfn_range() else some driver like v4l2 will
-> fail in this function while calling mmap() on nommu arch like blackfin and st.
-> 
-> Reported-by: Bhupesh SHARMA <bhupesh.sharma@st.com>
-> Reported-by: Scott Jiang <scott.jiang.linux@gmail.com>
-> Signed-off-by: Bob Liu <lliubbo@gmail.com>
-> ---
->  mm/nommu.c |    2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
-> 
-> diff --git a/mm/nommu.c b/mm/nommu.c
-> index d4b0c10..5d6068b 100644
-> --- a/mm/nommu.c
-> +++ b/mm/nommu.c
-> @@ -1819,7 +1819,7 @@ struct page *follow_page(struct vm_area_struct *vma, unsigned long address,
->  int remap_pfn_range(struct vm_area_struct *vma, unsigned long addr,
->  		unsigned long pfn, unsigned long size, pgprot_t prot)
->  {
-> -	if (addr != (pfn << PAGE_SHIFT))
-> +	if ((addr & PAGE_MASK) != (pfn << PAGE_SHIFT))
->  		return -EINVAL;
->  
->  	vma->vm_flags |= VM_IO | VM_RESERVED | VM_PFNMAP;
+> This system has all of its memory outside the 4GB physical address
+> space.  This includes lowmem, which is permanently mapped into the
+> kernel virtual address space as usual.
 
-hm, what is the right thing to do here?
+Yeah, I understand that and as a short-term solution we maybe can add
+a check to verify that the goal and limits are under lowmem and fail
+with NULL if not, but it still is a broken interface and I'd rather
+not mess with it when memblock is already there.  Converting to
+memblock usually isn't too much work although it expectedly involves
+some subtleties and fallouts for a while.
 
-Yes, the MMU version of remap_pfn_range() does permit non-page-aligned
-`addr' (at least, if the userspace maaping is a non-COW one).  But I
-suspect that was an implementation accident - it is a nonsensical thing
-to do, isn't it?  The MMU cannot map a bunch of kernel pages onto a
-non-page-aligned userspace address.
+Do you recall what the problem was with sparsemem and memblock?  I
+don't think I'll directly work on arm but I'll be happy to help on
+memblock issues.
 
-So I'm thinking that we should declare ((addr & ~PAGE_MASK) != 0) to be
-a caller bug, and fix up this regrettably unidentified v4l driver?
+Thanks.
+
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
