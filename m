@@ -1,72 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
-	by kanga.kvack.org (Postfix) with SMTP id 55ECE6B0114
-	for <linux-mm@kvack.org>; Wed, 12 Sep 2012 20:28:48 -0400 (EDT)
-Received: by iec9 with SMTP id 9so4965778iec.14
-        for <linux-mm@kvack.org>; Wed, 12 Sep 2012 17:28:47 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
+	by kanga.kvack.org (Postfix) with SMTP id 824176B0117
+	for <linux-mm@kvack.org>; Wed, 12 Sep 2012 20:30:56 -0400 (EDT)
+Received: by iec9 with SMTP id 9so4968672iec.14
+        for <linux-mm@kvack.org>; Wed, 12 Sep 2012 17:30:55 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <CALF0-+VMtUPuLHg3CwDxFm-TjbN1=YavGO79Oo3GuymOLvikeA@mail.gmail.com>
-References: <CALF0-+VMtUPuLHg3CwDxFm-TjbN1=YavGO79Oo3GuymOLvikeA@mail.gmail.com>
-Date: Wed, 12 Sep 2012 21:28:47 -0300
-Message-ID: <CALF0-+W10VNUxm5oT+kmiSUwRqwdZhxgDu5jQjD5ao_w1b7dNA@mail.gmail.com>
-Subject: Re: [PATCH v2 0/10] mm: SLxB cleaning and trace accuracy improvement
+In-Reply-To: <alpine.DEB.2.00.1209091424580.13346@chino.kir.corp.google.com>
+References: <1347137279-17568-1-git-send-email-elezegarcia@gmail.com>
+	<alpine.DEB.2.00.1209091424580.13346@chino.kir.corp.google.com>
+Date: Wed, 12 Sep 2012 21:30:55 -0300
+Message-ID: <CALF0-+WiEz40qbVbCskuc3TfRcMQUr7wJA20_FfnQmGctG3FXQ@mail.gmail.com>
+Subject: Re: [PATCH 01/10] Makefile: Add option CONFIG_DISABLE_GCC_AUTOMATIC_INLINING
 From: Ezequiel Garcia <elezegarcia@gmail.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: JoonSoo Kim <js1304@gmail.com>, Tim Bird <tim.bird@am.sony.com>, Steven Rostedt <rostedt@goodmis.org>, David Rientjes <rientjes@google.com>, Christoph Lameter <cl@linux.com>, Glauber Costa <glommer@parallels.com>
+To: David Rientjes <rientjes@google.com>, sam@ravnborg.org
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michal Marek <mmarek@suse.cz>
 
-Hi Pekka,
+Hi,
 
-On Sat, Sep 8, 2012 at 5:49 PM, Ezequiel Garcia <elezegarcia@gmail.com> wrote:
-> Hi everyone,
+On Sun, Sep 9, 2012 at 6:25 PM, David Rientjes <rientjes@google.com> wrote:
+> On Sat, 8 Sep 2012, Ezequiel Garcia wrote:
 >
-> This is the second spin of my patchset to clean SLxB and improve kmem
-> trace events accuracy.
+>> diff --git a/Makefile b/Makefile
+>> index ddf5be9..df6045a 100644
+>> --- a/Makefile
+>> +++ b/Makefile
+>> @@ -561,6 +561,10 @@ else
+>>  KBUILD_CFLAGS        += -O2
+>>  endif
+>>
+>> +ifdef CONFIG_DISABLE_GCC_AUTOMATIC_INLINING
+>> +KBUILD_CFLAGS        += -fno-inline-small-functions
 >
-> For this v2, the most relevant stuff is:
->
-> I've dropped two patches that were not very well received:
-> Namely this two are now gone:
->   mm, slob: Use only 'ret' variable for both slob object and returned pointer
->   mm, slob: Trace allocation failures consistently
-> I believe consistency is important but perhaps this is just me being paranoid.
->
-> There's a lot of dumb movement and renaming. This might seem stupid
-> (and maybe it is) but it's necessary to create some common code between SLAB
-> and SLUB, and then factor it out.
->
-> Also, there's a patch to add a new option to disable gcc auto-inlining.
-> I know we hate to add new options, but this is necessary to get
-> accurate call site
-> traces. Plus, the option is in "Kernel Hacking", so it's for kernel
-> developers only.
->
-> This work is part of CELF Workgroup Project:
-> "Kernel_dynamic_memory_allocation_tracking_and_reduction" [1]
->
-> Feedback, comments, suggestions are very welcome.
->
-> Ezequiel Garcia (10):
->  mm: Factor SLAB and SLUB common code
->  mm, slub: Rename slab_alloc() -> slab_alloc_node() to match SLAB
->  mm, slab: Rename __cache_alloc() -> slab_alloc()
->  mm, slab: Match SLAB and SLUB kmem_cache_alloc_xxx_trace() prototype
->  mm, slab: Replace 'caller' type, void* -> unsigned long
->  mm, util: Use dup_user to duplicate user memory
->  mm, slob: Add support for kmalloc_track_caller()
->  mm, slab: Remove silly function slab_buffer_size()
->  mm, slob: Use NUMA_NO_NODE instead of -1
->  Makefile: Add option CONFIG_DISABLE_GCC_AUTOMATIC_INLINING
+> This isn't the only option that controls automatic inlining of functions,
+> see indirect-inlining, inline-functions, and inline-functions-called-once.
 >
 
-Can you pick patches 2, 3, 4, and 5?
-Namely only those related to SLOB and to simple cleanups.
+I'll check about this gcc options and re-send, renamed as:
+CONFIG_DISABLE_CC_AUTOMATIC_INLINING
 
-I'll redo SLAB/SLUB commonization, as Christoph requested.
-
-Thanks,
+Thanks for both your feedback,
 Ezequiel.
 
 --
