@@ -1,53 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
-	by kanga.kvack.org (Postfix) with SMTP id 6035F6B0159
-	for <linux-mm@kvack.org>; Thu, 13 Sep 2012 12:04:39 -0400 (EDT)
-Date: Thu, 13 Sep 2012 18:04:32 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [patch 1/2 v2]compaction: abort compaction loop if lock is
- contended or run too long
-Message-ID: <20120913160432.GG3388@redhat.com>
-References: <20120910011830.GC3715@kernel.org>
- <20120911163455.bb249a3c.akpm@linux-foundation.org>
- <20120912004840.GI27078@redhat.com>
- <20120912142019.0e06bf52.akpm@linux-foundation.org>
- <20120912234808.GC3404@redhat.com>
- <20120913004722.GA5085@bbox>
- <20120913093826.GT11266@suse.de>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120913093826.GT11266@suse.de>
+Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
+	by kanga.kvack.org (Postfix) with SMTP id 099606B015B
+	for <linux-mm@kvack.org>; Thu, 13 Sep 2012 12:06:11 -0400 (EDT)
+Subject: Re: [PATCH 1/3 v2] mm: Batch unmapping of file mapped pages in
+ shrink_page_list
+From: Tim Chen <tim.c.chen@linux.intel.com>
+In-Reply-To: <20120911110535.GO11157@csn.ul.ie>
+References: <1347293965.9977.71.camel@schen9-DESK>
+	 <20120911110535.GO11157@csn.ul.ie>
+Content-Type: text/plain; charset="UTF-8"
+Date: Thu, 13 Sep 2012 09:06:10 -0700
+Message-ID: <1347552370.9977.99.camel@schen9-DESK>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Shaohua Li <shli@kernel.org>, linux-mm@kvack.org
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>, David Rientjes <rientjes@google.com>, Michal Hocko <mhocko@suse.cz>, Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>, Paul Gortmaker <paul.gortmaker@windriver.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andi Kleen <ak@linux.intel.com>, linux-mm@kvack.org, linux-kernel <linux-kernel@vger.kernel.org>, Alex Shi <alex.shi@intel.com>, Matthew Wilcox <willy@linux.intel.com>, Fengguang Wu <fengguang.wu@intel.com>
 
-On Thu, Sep 13, 2012 at 10:38:26AM +0100, Mel Gorman wrote:
-> I agree with Minchan. Andrea's patch ignores the fact that free page
-> isolation might have aborted due to lock contention. It's not necessarily
-> going to be isolating the pages it needs for migration.
+On Tue, 2012-09-11 at 12:05 +0100, Mel Gorman wrote:
 
-Actually I thought of calling putback_lru_pages first, but then I
-thought it was better to just complete the current slice.
+> 
+> One *massive* change here that is not called out in the changelog is that
+> the reclaim path now holds the page lock on multiple pages at the same
+> time waiting for them to be batch unlocked in __remove_mapping_batch.
+> This is suspicious for two reasons.
+> 
+> The first suspicion is that it is expected that there are filesystems
+> that lock multiple pages in page->index order and page reclaim tries to
+> lock pages in a random order.  You are "ok" because you trylock the pages
+> but there should be a comment explaining the situation and why you're
+> ok.
+> 
+> My *far* greater concern is that the hold time for a locked page is
+> now potentially much longer. You could lock a bunch of filesystem pages
+> and then call pageout() on an swapcache page that takes a long time to
+> write. This potentially causes a filesystem (or flusher threads etc)
+> to stall on lock_page and that could cause all sorts of latency trouble.
+> It will be hard to hit this bug and diagnose it but I believe it's
+> there.
+> 
+> That second risk *really* must be commented upon and ideally reviewed by
+> the filesystem people. However, I very strongly suspect that the outcome
+> of such a review will be a suggestion to unlock the pages and reacquire
+> the lock in __remove_mapping_batch(). Bear in mind that if you take this
+> approach that you *must* use trylock when reacquiring the page lock and
+> handle being unable to lock the page.
+> 
 
-Note that putback_lru_pages can take the lru_lock immediately too when
-the pagevec gets full which won't work any better than if the
-cc->contended was set by the freepages isolation and we do
-migrate_pages.
+Mel,
 
-There's no way to abort lockless from that point, so I think it's
-better to take the last locks to finish the current slice of work and
-then abort if it's still contended (which confirms we're really
-trashing).
+Thanks for your detailed comments and analysis.  If I unlock the pages,
+will flusher threads be the only things that will touch them?  Or do I
+have to worry about potentially other things done to the pages that will
+make it invalid for me to unmap the pages later and put them on free
+list?
 
-Skipping isolated pages without rewinding low_pfn would also reduce
-compaction reliability so that should be evaluated as well. And
-rewinding with the putback_lru_pages would risk livelocks.
-
-I agree Minchan's patch would fix the problem too, and this should be
-a fairly uncommon path so either ways shouldn't make a noticeable
-difference.
+Tim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
