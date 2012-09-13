@@ -1,48 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
-	by kanga.kvack.org (Postfix) with SMTP id 824176B0117
-	for <linux-mm@kvack.org>; Wed, 12 Sep 2012 20:30:56 -0400 (EDT)
-Received: by iec9 with SMTP id 9so4968672iec.14
-        for <linux-mm@kvack.org>; Wed, 12 Sep 2012 17:30:55 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
+	by kanga.kvack.org (Postfix) with SMTP id 744D06B0119
+	for <linux-mm@kvack.org>; Wed, 12 Sep 2012 20:34:07 -0400 (EDT)
+Received: by dadi14 with SMTP id i14so1535646dad.14
+        for <linux-mm@kvack.org>; Wed, 12 Sep 2012 17:34:06 -0700 (PDT)
+Date: Wed, 12 Sep 2012 17:34:00 -0700
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH] mm: bootmem: use phys_addr_t for physical addresses
+Message-ID: <20120913003400.GA25889@localhost>
+References: <1347466008-7231-1-git-send-email-cyril@ti.com>
+ <20120912203920.GU7677@google.com>
+ <505123FE.2090305@ti.com>
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.00.1209091424580.13346@chino.kir.corp.google.com>
-References: <1347137279-17568-1-git-send-email-elezegarcia@gmail.com>
-	<alpine.DEB.2.00.1209091424580.13346@chino.kir.corp.google.com>
-Date: Wed, 12 Sep 2012 21:30:55 -0300
-Message-ID: <CALF0-+WiEz40qbVbCskuc3TfRcMQUr7wJA20_FfnQmGctG3FXQ@mail.gmail.com>
-Subject: Re: [PATCH 01/10] Makefile: Add option CONFIG_DISABLE_GCC_AUTOMATIC_INLINING
-From: Ezequiel Garcia <elezegarcia@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <505123FE.2090305@ti.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>, sam@ravnborg.org
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michal Marek <mmarek@suse.cz>
+To: Cyril Chemparathy <cyril@ti.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, davem@davemloft.net, eric.dumazet@gmail.com, hannes@cmpxchg.org, shangw@linux.vnet.ibm.com, vitalya@ti.com
 
-Hi,
+Hello,
 
-On Sun, Sep 9, 2012 at 6:25 PM, David Rientjes <rientjes@google.com> wrote:
-> On Sat, 8 Sep 2012, Ezequiel Garcia wrote:
->
->> diff --git a/Makefile b/Makefile
->> index ddf5be9..df6045a 100644
->> --- a/Makefile
->> +++ b/Makefile
->> @@ -561,6 +561,10 @@ else
->>  KBUILD_CFLAGS        += -O2
->>  endif
->>
->> +ifdef CONFIG_DISABLE_GCC_AUTOMATIC_INLINING
->> +KBUILD_CFLAGS        += -fno-inline-small-functions
->
-> This isn't the only option that controls automatic inlining of functions,
-> see indirect-inlining, inline-functions, and inline-functions-called-once.
->
+On Wed, Sep 12, 2012 at 08:08:30PM -0400, Cyril Chemparathy wrote:
+> >So, a function which takes phys_addr_t for goal and limit but returns
+> >void * doesn't make much sense unless the function creates directly
+> >addressable mapping somewhere.
+> 
+> On the 32-bit PAE platform in question, physical memory is located
+> outside the 4GB range.  Therefore phys_to_virt takes a 64-bit
+> physical address and returns a 32-bit kernel mapped lowmem pointer.
 
-I'll check about this gcc options and re-send, renamed as:
-CONFIG_DISABLE_CC_AUTOMATIC_INLINING
+Yes but phys_to_virt() can return the vaddr only if the physical
+address is already mapped in the kernel address space; otherwise, you
+need one of the kmap*() calls which may not be online early in the
+boot and consumes either the vmalloc area or fixmaps.  bootmem
+interface can't handle unmapped memory.
 
-Thanks for both your feedback,
-Ezequiel.
+Thanks.
+
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
