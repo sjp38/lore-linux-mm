@@ -1,180 +1,152 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
-	by kanga.kvack.org (Postfix) with SMTP id B16276B0141
-	for <linux-mm@kvack.org>; Thu, 13 Sep 2012 05:38:31 -0400 (EDT)
-Date: Thu, 13 Sep 2012 10:38:26 +0100
+Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
+	by kanga.kvack.org (Postfix) with SMTP id B859E6B0144
+	for <linux-mm@kvack.org>; Thu, 13 Sep 2012 05:50:34 -0400 (EDT)
+Date: Thu, 13 Sep 2012 10:50:28 +0100
 From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [patch 1/2 v2]compaction: abort compaction loop if lock is
- contended or run too long
-Message-ID: <20120913093826.GT11266@suse.de>
-References: <20120910011830.GC3715@kernel.org>
- <20120911163455.bb249a3c.akpm@linux-foundation.org>
- <20120912004840.GI27078@redhat.com>
- <20120912142019.0e06bf52.akpm@linux-foundation.org>
- <20120912234808.GC3404@redhat.com>
- <20120913004722.GA5085@bbox>
+Subject: Re: Windows VM slow boot
+Message-ID: <20120913095028.GU11266@suse.de>
+References: <5034D437.8070106@redhat.com>
+ <20120822144150.GA1400@alpha.arachsys.com>
+ <5034F8F4.3080301@redhat.com>
+ <20120825174550.GA8619@alpha.arachsys.com>
+ <50391564.30401@redhat.com>
+ <20120826105803.GA377@alpha.arachsys.com>
+ <20120906092039.GA19234@alpha.arachsys.com>
+ <20120912105659.GA23818@alpha.arachsys.com>
+ <20120912122541.GO11266@suse.de>
+ <20120912164615.GA14173@alpha.arachsys.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20120913004722.GA5085@bbox>
+In-Reply-To: <20120912164615.GA14173@alpha.arachsys.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Shaohua Li <shli@kernel.org>, linux-mm@kvack.org
+To: Richard Davies <richard@arachsys.com>
+Cc: Rik van Riel <riel@redhat.com>, Avi Kivity <avi@redhat.com>, Shaohua Li <shli@kernel.org>, qemu-devel@nongnu.org, kvm@vger.kernel.org, linux-mm@kvack.org
 
-On Thu, Sep 13, 2012 at 09:47:22AM +0900, Minchan Kim wrote:
-> Hi Andrea,
+On Wed, Sep 12, 2012 at 05:46:15PM +0100, Richard Davies wrote:
+> Hi Mel - thanks for replying to my underhand bcc!
 > 
-> On Thu, Sep 13, 2012 at 01:48:08AM +0200, Andrea Arcangeli wrote:
-> > On Wed, Sep 12, 2012 at 02:20:19PM -0700, Andrew Morton wrote:
-> > > OK, I'll slip this in there:
-> > > 
-> > > --- a/mm/compaction.c~mm-compaction-abort-compaction-loop-if-lock-is-contended-or-run-too-long-fix
-> > > +++ a/mm/compaction.c
-> > > @@ -909,8 +909,7 @@ static unsigned long compact_zone_order(
-> > >  	INIT_LIST_HEAD(&cc.migratepages);
-> > >  
-> > >  	ret = compact_zone(zone, &cc);
-> > > -	if (contended)
-> > > -		*contended = cc.contended;
-> > > +	*contended = cc.contended;
-> > >  	return ret;
-> > >  }
-> > 
-> > Ack the above, thanks.
-> > 
-> > One more thing, today a bug tripped while building cyanogenmod10 (it
-> > swaps despite so much ram) after I added the cc->contended loop break
-> > patch. The original version of the fix from Shaohua didn't have this
-> > problem because it would only abort compaction if the low_pfn didn't
-> > advance and in turn the list would be guaranteed empty.
+> Mel Gorman wrote:
+> > I see that this is an old-ish bug but I did not read the full history.
+> > Is it now booting faster than 3.5.0 was? I'm asking because I'm
+> > interested to see if commit c67fe375 helped your particular case.
 > 
-> Nice catch!
-> 
-> > 
-> > Verifying the list is empty before aborting compaction (which takes a
-> > path that ignores the cc->migratelist) should be enough to fix it and
-> > it makes it really equivalent to the previous fix. Both cachelines
-> > should be cache hot so it should be practically zero cost to check it.
-> > 
-> > Only lightly tested so far.
-> > 
-> > ===
-> > >From b2a50e49d65596d3920773316ad9b7dd54e4acaf Mon Sep 17 00:00:00 2001
-> > From: Andrea Arcangeli <aarcange@redhat.com>
-> > Date: Thu, 13 Sep 2012 01:22:03 +0200
-> > Subject: [PATCH] mm: compaction: fix leak in cc->contended loop breaking
-> >  logic
-> > 
-> > We cannot return ISOLATE_ABORT when cc->contended is true, if we have
-> > some pages already successfully isolated in the cc->migratepages
-> > list, or they will be leaked.
-> > 
-> > The bug was highlighted by a nice VM_BUG_ON in the async compaction in
-> > kswapd. So I also added the symmetric VM_BUG_ON to the other caller of
-> > the function considering it looks a worthwhile VM_BUG_ON.
-> 
-> Fair enough.
-> 
-> > 
-> > ------------[ cut here ]------------
-> > kernel BUG at mm/compaction.c:934!
-> > invalid opcode: 0000 [#1] SMP
-> > Modules linked in: tun usbhid kvm_intel xhci_hcd kvm snd_hda_codec_realtek ehci_hcd usbcore snd_hda_intel sn
-> > er crc32c_intel psmouse ghash_clmulni_intel sr_mod snd sg cdrom snd_page_alloc usb_common pcspkr [last unloa
-> > 
-> > CPU 0
-> > Pid: 513, comm: kswapd0 Not tainted 3.6.0-rc4+ #17                  /DH61BE
-> > RIP: 0010:[<ffffffff8111302c>]  [<ffffffff8111302c>] __compact_pgdat+0x1ac/0x1b0
-> > RSP: 0018:ffff880216fa5cb0  EFLAGS: 00010283
-> > RAX: 0000000000000003 RBX: ffff880216fa5d00 RCX: 0000000000000002
-> > RDX: 00000000000008d7 RSI: 0000000000000002 RDI: ffffffff8195b058
-> > RBP: ffffffff8195b000 R08: 0000000000000be4 R09: ffffffff8195a9c0
-> > R10: ffffffff8195b400 R11: ffffffff8195b570 R12: 0000000000000001
-> > R13: 0000000000000001 R14: ffff880216fa5d10 R15: 0000000000000003
-> > FS:  0000000000000000(0000) GS:ffff88021fa00000(0000) knlGS:0000000000000000
-> > CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
-> > CR2: 00007f14d4167000 CR3: 00000000018f1000 CR4: 00000000000407f0
-> > DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
-> > DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
-> > Process kswapd0 (pid: 513, threadinfo ffff880216fa4000, task ffff880216cfef20)
-> > Stack:
-> > ffffffff8195a9c0 ffffffff8195b000 0000000000000320 0000000000000003
-> > ffffffff8195a9c0 ffffffff8195b640 0000000000000002 0000000000000c80
-> > 0000000000000001 ffffffff811132f3 ffff880216fa5d00 ffff880216fa5d00
-> > Call Trace:
-> > [<ffffffff811132f3>] ? compact_pgdat+0x23/0x30
-> > [<ffffffff8110503f>] ? kswapd+0x89f/0xac0
-> > [<ffffffff8106f450>] ? wake_up_bit+0x40/0x40
-> > [<ffffffff811047a0>] ? shrink_lruvec+0x510/0x510
-> > [<ffffffff811047a0>] ? shrink_lruvec+0x510/0x510
-> > [<ffffffff8106ef1e>] ? kthread+0x9e/0xb0
-> > 
-> > Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
-> > ---
-> >  mm/compaction.c |    6 +++++-
-> >  1 files changed, 5 insertions(+), 1 deletions(-)
-> > 
-> > diff --git a/mm/compaction.c b/mm/compaction.c
-> > index 6066a35..0292984 100644
-> > --- a/mm/compaction.c
-> > +++ b/mm/compaction.c
-> > @@ -633,7 +633,7 @@ static isolate_migrate_t isolate_migratepages(struct zone *zone,
-> >  
-> >  	/* Perform the isolation */
-> >  	low_pfn = isolate_migratepages_range(zone, cc, low_pfn, end_pfn);
-> > -	if (!low_pfn || cc->contended)
-> > +	if (!low_pfn || (cc->contended && !cc->nr_migratepages))
-> >  		return ISOLATE_ABORT;
-> 
-> I'm not sure it's best.
-> As you mentioned, it's same with first version of Shaohua.
-> But it could mitigate the goal of the patch if lock contention or
-> need_resched happens in the middle of loop once we isolate a
-> migratable page.
-> 
-> What do you think about this?
-> 
-> diff --git a/mm/compaction.c b/mm/compaction.c
-> index 0fbc6b7..7a009dd 100644
-> --- a/mm/compaction.c
-> +++ b/mm/compaction.c
-> @@ -848,6 +848,10 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
->                 switch (isolate_migratepages(zone, cc)) {
->                 case ISOLATE_ABORT:
->                         ret = COMPACT_PARTIAL;
-> +                       if (!list_empty(&cc->migratepages)) {
-> +                               putback_lru_pages(&cc->migratepages);
-> +                               cc->nr_migratepages = 0;
-> +                       }
->                         goto out;
->                 case ISOLATE_NONE:
->                         continue;
+> Yes, I think 3.6.0-rc5 is already better than 3.5.x but can still be
+> improved, as discussed.
 > 
 
-I agree with Minchan. Andrea's patch ignores the fact that free page
-isolation might have aborted due to lock contention. It's not necessarily
-going to be isolating the pages it needs for migration.
+What are the boot times for each kernel?
 
+> <PATCH SNIPPED>
 > 
-> >  
-> >  	cc->migrate_pfn = low_pfn;
-> > @@ -843,6 +843,10 @@ static unsigned long compact_zone_order(struct zone *zone,
-> >  	INIT_LIST_HEAD(&cc.migratepages);
-> >  
-> >  	ret = compact_zone(zone, &cc);
-> > +
-> > +	VM_BUG_ON(!list_empty(&cc.freepages));
-> > +	VM_BUG_ON(!list_empty(&cc.migratepages));
-> > +
-> >  	*contended = cc.contended;
-> >  	return ret;
-> >  }
-> > 
+> I have applied and tested again - perf results below.
+> 
+> isolate_migratepages_range is indeed much reduced.
+> 
+> There is now a lot of time in isolate_freepages_block and still quite a lot
+> of lock contention, although in a different place.
+> 
 
--- 
-Mel Gorman
-SUSE Labs
+This on top please.
+
+---8<---
+From: Shaohua Li <shli@fusionio.com>
+compaction: abort compaction loop if lock is contended or run too long
+
+isolate_migratepages_range() might isolate none pages, for example, when
+zone->lru_lock is contended and compaction is async. In this case, we should
+abort compaction, otherwise, compact_zone will run a useless loop and make
+zone->lru_lock is even contended.
+
+V2:
+only abort the compaction if lock is contended or run too long
+Rearranged the code by Andrea Arcangeli.
+
+[minchan@kernel.org: Putback pages isolated for migration if aborting]
+[akpm@linux-foundation.org: Fixup one contended usage site]
+Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+Signed-off-by: Shaohua Li <shli@fusionio.com>
+Signed-off-by: Mel Gorman <mgorman@suse.de>
+---
+ mm/compaction.c |   17 ++++++++++++-----
+ mm/internal.h   |    2 +-
+ 2 files changed, 13 insertions(+), 6 deletions(-)
+
+diff --git a/mm/compaction.c b/mm/compaction.c
+index 7fcd3a5..a8de20d 100644
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -70,8 +70,7 @@ static bool compact_checklock_irqsave(spinlock_t *lock, unsigned long *flags,
+ 
+ 		/* async aborts if taking too long or contended */
+ 		if (!cc->sync) {
+-			if (cc->contended)
+-				*cc->contended = true;
++			cc->contended = true;
+ 			return false;
+ 		}
+ 
+@@ -634,7 +633,7 @@ static isolate_migrate_t isolate_migratepages(struct zone *zone,
+ 
+ 	/* Perform the isolation */
+ 	low_pfn = isolate_migratepages_range(zone, cc, low_pfn, end_pfn);
+-	if (!low_pfn)
++	if (!low_pfn || cc->contended)
+ 		return ISOLATE_ABORT;
+ 
+ 	cc->migrate_pfn = low_pfn;
+@@ -787,6 +786,8 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
+ 		switch (isolate_migratepages(zone, cc)) {
+ 		case ISOLATE_ABORT:
+ 			ret = COMPACT_PARTIAL;
++			putback_lru_pages(&cc->migratepages);
++			cc->nr_migratepages = 0;
+ 			goto out;
+ 		case ISOLATE_NONE:
+ 			continue;
+@@ -831,6 +832,7 @@ static unsigned long compact_zone_order(struct zone *zone,
+ 				 int order, gfp_t gfp_mask,
+ 				 bool sync, bool *contended)
+ {
++	unsigned long ret;
+ 	struct compact_control cc = {
+ 		.nr_freepages = 0,
+ 		.nr_migratepages = 0,
+@@ -838,12 +840,17 @@ static unsigned long compact_zone_order(struct zone *zone,
+ 		.migratetype = allocflags_to_migratetype(gfp_mask),
+ 		.zone = zone,
+ 		.sync = sync,
+-		.contended = contended,
+ 	};
+ 	INIT_LIST_HEAD(&cc.freepages);
+ 	INIT_LIST_HEAD(&cc.migratepages);
+ 
+-	return compact_zone(zone, &cc);
++	ret = compact_zone(zone, &cc);
++
++	VM_BUG_ON(!list_empty(&cc.freepages));
++	VM_BUG_ON(!list_empty(&cc.migratepages));
++
++	*contended = cc.contended;
++	return ret;
+ }
+ 
+ int sysctl_extfrag_threshold = 500;
+diff --git a/mm/internal.h b/mm/internal.h
+index b8c91b3..4bd7c0e 100644
+--- a/mm/internal.h
++++ b/mm/internal.h
+@@ -130,7 +130,7 @@ struct compact_control {
+ 	int order;			/* order a direct compactor needs */
+ 	int migratetype;		/* MOVABLE, RECLAIMABLE etc */
+ 	struct zone *zone;
+-	bool *contended;		/* True if a lock was contended */
++	bool contended;			/* True if a lock was contended */
+ };
+ 
+ unsigned long
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
