@@ -1,51 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
-	by kanga.kvack.org (Postfix) with SMTP id 817406B016E
-	for <linux-mm@kvack.org>; Thu, 13 Sep 2012 15:32:14 -0400 (EDT)
-Received: by dadi14 with SMTP id i14so2209639dad.14
-        for <linux-mm@kvack.org>; Thu, 13 Sep 2012 12:32:13 -0700 (PDT)
-Date: Thu, 13 Sep 2012 12:32:09 -0700
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH] mm: bootmem: use phys_addr_t for physical addresses
-Message-ID: <20120913193209.GL7677@google.com>
-References: <1347466008-7231-1-git-send-email-cyril@ti.com>
- <20120912203920.GU7677@google.com>
- <505123FE.2090305@ti.com>
- <20120913003400.GA25889@localhost>
- <50512B9A.9060905@ti.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <50512B9A.9060905@ti.com>
+Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
+	by kanga.kvack.org (Postfix) with SMTP id 7E2A46B0170
+	for <linux-mm@kvack.org>; Thu, 13 Sep 2012 15:48:27 -0400 (EDT)
+Date: Thu, 13 Sep 2012 15:48:24 -0400
+From: Rik van Riel <riel@redhat.com>
+Subject: [PATCH 2/2] make the compaction "skip ahead" logic robust
+Message-ID: <20120913154824.44cc0e28@cuia.bos.redhat.com>
+In-Reply-To: <20120912164615.GA14173@alpha.arachsys.com>
+References: <20120822124032.GA12647@alpha.arachsys.com>
+	<5034D437.8070106@redhat.com>
+	<20120822144150.GA1400@alpha.arachsys.com>
+	<5034F8F4.3080301@redhat.com>
+	<20120825174550.GA8619@alpha.arachsys.com>
+	<50391564.30401@redhat.com>
+	<20120826105803.GA377@alpha.arachsys.com>
+	<20120906092039.GA19234@alpha.arachsys.com>
+	<20120912105659.GA23818@alpha.arachsys.com>
+	<20120912122541.GO11266@suse.de>
+	<20120912164615.GA14173@alpha.arachsys.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Cyril Chemparathy <cyril@ti.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, davem@davemloft.net, eric.dumazet@gmail.com, hannes@cmpxchg.org, shangw@linux.vnet.ibm.com, vitalya@ti.com
+To: Richard Davies <richard@arachsys.com>
+Cc: Mel Gorman <mgorman@suse.de>, Avi Kivity <avi@redhat.com>, Shaohua Li <shli@kernel.org>, qemu-devel@nongnu.org, kvm@vger.kernel.org, linux-mm@kvack.org
 
-Hello, Cyril.
+Make the "skip ahead" logic in compaction resistant to compaction
+wrapping around to the end of the zone.  This can lead to less
+efficient compaction when one thread has wrapped around to the
+end of the zone, and another simultaneous compactor has not done
+so yet. However, it should ensure that we do not suffer quadratic
+behaviour any more.
 
-On Wed, Sep 12, 2012 at 08:40:58PM -0400, Cyril Chemparathy wrote:
-> You probably missed the lowmem bit from my response?
-> 
-> This system has all of its memory outside the 4GB physical address
-> space.  This includes lowmem, which is permanently mapped into the
-> kernel virtual address space as usual.
+Signed-off-by: Rik van Riel <riel@redhat.com>
+Reported-by: Richard Davies <richard@daviesmail.org>
 
-Yeah, I understand that and as a short-term solution we maybe can add
-a check to verify that the goal and limits are under lowmem and fail
-with NULL if not, but it still is a broken interface and I'd rather
-not mess with it when memblock is already there.  Converting to
-memblock usually isn't too much work although it expectedly involves
-some subtleties and fallouts for a while.
-
-Do you recall what the problem was with sparsemem and memblock?  I
-don't think I'll directly work on arm but I'll be happy to help on
-memblock issues.
-
-Thanks.
-
--- 
-tejun
+diff --git a/mm/compaction.c b/mm/compaction.c
+index 771775d..0656759 100644
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -431,6 +431,24 @@ static bool suitable_migration_target(struct page *page)
+ }
+ 
+ /*
++ * We scan the zone in a circular fashion, starting at
++ * zone->compact_cached_free_pfn. Be careful not to skip if
++ * one compacting thread has just wrapped back to the end of the
++ * zone, but another thread has not.
++ */
++static bool compaction_may_skip(struct zone *zone,
++				struct compact_control *cc)
++{
++	if (!cc->wrapped && zone->compact_free_pfn < cc->start_pfn)
++		return true;
++
++	if (cc->wrapped && zone_compact_free_pfn > cc->start_pfn)
++		return true;
++
++	return false;
++}
++
++/*
+  * Based on information in the current compact_control, find blocks
+  * suitable for isolating free pages from and then isolate them.
+  */
+@@ -471,13 +489,9 @@ static void isolate_freepages(struct zone *zone,
+ 
+ 		/*
+ 		 * Skip ahead if another thread is compacting in the area
+-		 * simultaneously. If we wrapped around, we can only skip
+-		 * ahead if zone->compact_cached_free_pfn also wrapped to
+-		 * above our starting point.
++		 * simultaneously, and has finished with this page block.
+ 		 */
+-		if (cc->order > 0 && (!cc->wrapped ||
+-				      zone->compact_cached_free_pfn >
+-				      cc->start_free_pfn))
++		if (cc->order > 0 && compaction_may_skip(zone, cc))
+ 			pfn = min(pfn, zone->compact_cached_free_pfn);
+ 
+ 		if (!pfn_valid(pfn))
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
