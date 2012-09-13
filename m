@@ -1,97 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
-	by kanga.kvack.org (Postfix) with SMTP id BFE7E6B013C
-	for <linux-mm@kvack.org>; Thu, 13 Sep 2012 05:17:03 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx162.postini.com [74.125.245.162])
+	by kanga.kvack.org (Postfix) with SMTP id A782F6B0130
+	for <linux-mm@kvack.org>; Thu, 13 Sep 2012 05:26:14 -0400 (EDT)
 Received: from /spool/local
-	by e23smtp01.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e28smtp06.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <xiaoguangrong@linux.vnet.ibm.com>;
-	Thu, 13 Sep 2012 19:15:27 +1000
-Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
-	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q8D97i3726083534
-	for <linux-mm@kvack.org>; Thu, 13 Sep 2012 19:07:44 +1000
-Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
-	by d23av02.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q8D9GpsW026009
-	for <linux-mm@kvack.org>; Thu, 13 Sep 2012 19:16:52 +1000
-Message-ID: <5051A481.3090901@linux.vnet.ibm.com>
-Date: Thu, 13 Sep 2012 17:16:49 +0800
+	Thu, 13 Sep 2012 14:56:11 +0530
+Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
+	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q8D9Q98J36110548
+	for <linux-mm@kvack.org>; Thu, 13 Sep 2012 14:56:09 +0530
+Received: from d28av04.in.ibm.com (loopback [127.0.0.1])
+	by d28av04.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q8D9Q814007022
+	for <linux-mm@kvack.org>; Thu, 13 Sep 2012 19:26:08 +1000
+Message-ID: <5051A6AE.4090801@linux.vnet.ibm.com>
+Date: Thu, 13 Sep 2012 17:26:06 +0800
 From: Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 2/3] thp: move release mmap_sem lock out of khugepaged_alloc_page
-References: <50508632.9090003@linux.vnet.ibm.com> <50508689.50904@linux.vnet.ibm.com> <20120912151844.a2f17f98.akpm@linux-foundation.org>
-In-Reply-To: <20120912151844.a2f17f98.akpm@linux-foundation.org>
+Subject: Re: [PATCH 09/12] thp: introduce khugepaged_prealloc_page and khugepaged_alloc_page
+References: <5028E12C.70101@linux.vnet.ibm.com> <5028E20C.3080607@linux.vnet.ibm.com> <alpine.LSU.2.00.1209111807030.21798@eggly.anvils> <50500360.5020700@linux.vnet.ibm.com> <alpine.LSU.2.00.1209122316200.7831@eggly.anvils>
+In-Reply-To: <alpine.LSU.2.00.1209122316200.7831@eggly.anvils>
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Hugh Dickins <hughd@google.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Hugh Dickins <hughd@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Michel Lespinasse <walken@google.com>, David Rientjes <rientjes@google.com>, LKML <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
 
-On 09/13/2012 06:18 AM, Andrew Morton wrote:
-> On Wed, 12 Sep 2012 20:56:41 +0800
-> Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com> wrote:
+On 09/13/2012 02:27 PM, Hugh Dickins wrote:
+> On Wed, 12 Sep 2012, Xiao Guangrong wrote:
+>> On 09/12/2012 10:03 AM, Hugh Dickins wrote:
+>>
+>>> What brought me to look at it was hitting "BUG at mm/huge_memory.c:1842!"
+>>> running tmpfs kbuild swapping load (with memcg's memory.limit_in_bytes
+>>> forcing out to swap), while I happened to have CONFIG_NUMA=y.
+>>>
+>>> That's the VM_BUG_ON(*hpage) on entry to khugepaged_alloc_page().
+>>
+>>>
+>>> So maybe 9/12 is just obscuring what was already a BUG, either earlier
+>>> in your series or elsewhere in mmotm (I've never seen it on 3.6-rc or
+>>> earlier releases, nor without CONFIG_NUMA).  I've not spent any time
+>>> looking for it, maybe it's obvious - can you spot and fix it?
+>>
+>> Hugh,
+>>
+>> I think i have already found the reason,
 > 
->> To make the code more clear, move release the lock out of khugepaged_alloc_page
->>
->> ...
->>
->> --- a/mm/huge_memory.c
->> +++ b/mm/huge_memory.c
->> @@ -1854,11 +1854,6 @@ static struct page
->>  	*hpage  = alloc_hugepage_vma(khugepaged_defrag(), vma, address,
->>  				      node, __GFP_OTHER_NODE);
->>
->> -	/*
->> -	 * After allocating the hugepage, release the mmap_sem read lock in
->> -	 * preparation for taking it in write mode.
->> -	 */
->> -	up_read(&mm->mmap_sem);
->>  	if (unlikely(!*hpage)) {
->>  		count_vm_event(THP_COLLAPSE_ALLOC_FAILED);
->>  		*hpage = ERR_PTR(-ENOMEM);
->> @@ -1905,7 +1900,6 @@ static struct page
->>  		       struct vm_area_struct *vma, unsigned long address,
->>  		       int node)
->>  {
->> -	up_read(&mm->mmap_sem);
->>  	VM_BUG_ON(!*hpage);
->>  	return  *hpage;
->>  }
->> @@ -1931,8 +1925,14 @@ static void collapse_huge_page(struct mm_struct *mm,
->>
->>  	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
->>
->> -	/* release the mmap_sem read lock. */
->>  	new_page = khugepaged_alloc_page(hpage, mm, vma, address, node);
->> +
->> +	/*
->> +	 * After allocating the hugepage, release the mmap_sem read lock in
->> +	 * preparation for taking it in write mode.
->> +	 */
->> +	up_read(&mm->mmap_sem);
->> +
->>  	if (!new_page)
->>  		return;
+> Great, thank you.
 > 
-> Well that's a pretty minor improvement: one still has to go off on a
-> big hunt to locate the matching down_read().
+>> if i am correct, the bug was existing before my patch.
 > 
-> And the patch will increase mmap_sem hold times by a teeny amount.  Do
-> we really want to do this?
+> Before your patchset?  Are you sure of that?
 
-Andrew,
+No. :)
 
-This is why i did in the previous patch (the lock is released in alloc function),
-but as you noticed, this is really teeny overload after this patch - only increase
-the load of count_vm_event() which operates a cpu-local variable. And, before i
-posted this patch, i did kerbench test, no regression was found.
-
-The another approach is, let the function name indicate the lock will be released,
-how about just change the function name to khugepaged_alloc_page_release_lock?
-
-
-
-
-
+I have told Andrew that the fix patch need not back port in
+0/3. Sorry again for my mistake.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
