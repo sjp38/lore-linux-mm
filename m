@@ -1,61 +1,180 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx162.postini.com [74.125.245.162])
-	by kanga.kvack.org (Postfix) with SMTP id A782F6B0130
-	for <linux-mm@kvack.org>; Thu, 13 Sep 2012 05:26:14 -0400 (EDT)
-Received: from /spool/local
-	by e28smtp06.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <xiaoguangrong@linux.vnet.ibm.com>;
-	Thu, 13 Sep 2012 14:56:11 +0530
-Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
-	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q8D9Q98J36110548
-	for <linux-mm@kvack.org>; Thu, 13 Sep 2012 14:56:09 +0530
-Received: from d28av04.in.ibm.com (loopback [127.0.0.1])
-	by d28av04.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q8D9Q814007022
-	for <linux-mm@kvack.org>; Thu, 13 Sep 2012 19:26:08 +1000
-Message-ID: <5051A6AE.4090801@linux.vnet.ibm.com>
-Date: Thu, 13 Sep 2012 17:26:06 +0800
-From: Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
+	by kanga.kvack.org (Postfix) with SMTP id B16276B0141
+	for <linux-mm@kvack.org>; Thu, 13 Sep 2012 05:38:31 -0400 (EDT)
+Date: Thu, 13 Sep 2012 10:38:26 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [patch 1/2 v2]compaction: abort compaction loop if lock is
+ contended or run too long
+Message-ID: <20120913093826.GT11266@suse.de>
+References: <20120910011830.GC3715@kernel.org>
+ <20120911163455.bb249a3c.akpm@linux-foundation.org>
+ <20120912004840.GI27078@redhat.com>
+ <20120912142019.0e06bf52.akpm@linux-foundation.org>
+ <20120912234808.GC3404@redhat.com>
+ <20120913004722.GA5085@bbox>
 MIME-Version: 1.0
-Subject: Re: [PATCH 09/12] thp: introduce khugepaged_prealloc_page and khugepaged_alloc_page
-References: <5028E12C.70101@linux.vnet.ibm.com> <5028E20C.3080607@linux.vnet.ibm.com> <alpine.LSU.2.00.1209111807030.21798@eggly.anvils> <50500360.5020700@linux.vnet.ibm.com> <alpine.LSU.2.00.1209122316200.7831@eggly.anvils>
-In-Reply-To: <alpine.LSU.2.00.1209122316200.7831@eggly.anvils>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20120913004722.GA5085@bbox>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Michel Lespinasse <walken@google.com>, David Rientjes <rientjes@google.com>, LKML <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Shaohua Li <shli@kernel.org>, linux-mm@kvack.org
 
-On 09/13/2012 02:27 PM, Hugh Dickins wrote:
-> On Wed, 12 Sep 2012, Xiao Guangrong wrote:
->> On 09/12/2012 10:03 AM, Hugh Dickins wrote:
->>
->>> What brought me to look at it was hitting "BUG at mm/huge_memory.c:1842!"
->>> running tmpfs kbuild swapping load (with memcg's memory.limit_in_bytes
->>> forcing out to swap), while I happened to have CONFIG_NUMA=y.
->>>
->>> That's the VM_BUG_ON(*hpage) on entry to khugepaged_alloc_page().
->>
->>>
->>> So maybe 9/12 is just obscuring what was already a BUG, either earlier
->>> in your series or elsewhere in mmotm (I've never seen it on 3.6-rc or
->>> earlier releases, nor without CONFIG_NUMA).  I've not spent any time
->>> looking for it, maybe it's obvious - can you spot and fix it?
->>
->> Hugh,
->>
->> I think i have already found the reason,
+On Thu, Sep 13, 2012 at 09:47:22AM +0900, Minchan Kim wrote:
+> Hi Andrea,
 > 
-> Great, thank you.
+> On Thu, Sep 13, 2012 at 01:48:08AM +0200, Andrea Arcangeli wrote:
+> > On Wed, Sep 12, 2012 at 02:20:19PM -0700, Andrew Morton wrote:
+> > > OK, I'll slip this in there:
+> > > 
+> > > --- a/mm/compaction.c~mm-compaction-abort-compaction-loop-if-lock-is-contended-or-run-too-long-fix
+> > > +++ a/mm/compaction.c
+> > > @@ -909,8 +909,7 @@ static unsigned long compact_zone_order(
+> > >  	INIT_LIST_HEAD(&cc.migratepages);
+> > >  
+> > >  	ret = compact_zone(zone, &cc);
+> > > -	if (contended)
+> > > -		*contended = cc.contended;
+> > > +	*contended = cc.contended;
+> > >  	return ret;
+> > >  }
+> > 
+> > Ack the above, thanks.
+> > 
+> > One more thing, today a bug tripped while building cyanogenmod10 (it
+> > swaps despite so much ram) after I added the cc->contended loop break
+> > patch. The original version of the fix from Shaohua didn't have this
+> > problem because it would only abort compaction if the low_pfn didn't
+> > advance and in turn the list would be guaranteed empty.
 > 
->> if i am correct, the bug was existing before my patch.
+> Nice catch!
 > 
-> Before your patchset?  Are you sure of that?
+> > 
+> > Verifying the list is empty before aborting compaction (which takes a
+> > path that ignores the cc->migratelist) should be enough to fix it and
+> > it makes it really equivalent to the previous fix. Both cachelines
+> > should be cache hot so it should be practically zero cost to check it.
+> > 
+> > Only lightly tested so far.
+> > 
+> > ===
+> > >From b2a50e49d65596d3920773316ad9b7dd54e4acaf Mon Sep 17 00:00:00 2001
+> > From: Andrea Arcangeli <aarcange@redhat.com>
+> > Date: Thu, 13 Sep 2012 01:22:03 +0200
+> > Subject: [PATCH] mm: compaction: fix leak in cc->contended loop breaking
+> >  logic
+> > 
+> > We cannot return ISOLATE_ABORT when cc->contended is true, if we have
+> > some pages already successfully isolated in the cc->migratepages
+> > list, or they will be leaked.
+> > 
+> > The bug was highlighted by a nice VM_BUG_ON in the async compaction in
+> > kswapd. So I also added the symmetric VM_BUG_ON to the other caller of
+> > the function considering it looks a worthwhile VM_BUG_ON.
+> 
+> Fair enough.
+> 
+> > 
+> > ------------[ cut here ]------------
+> > kernel BUG at mm/compaction.c:934!
+> > invalid opcode: 0000 [#1] SMP
+> > Modules linked in: tun usbhid kvm_intel xhci_hcd kvm snd_hda_codec_realtek ehci_hcd usbcore snd_hda_intel sn
+> > er crc32c_intel psmouse ghash_clmulni_intel sr_mod snd sg cdrom snd_page_alloc usb_common pcspkr [last unloa
+> > 
+> > CPU 0
+> > Pid: 513, comm: kswapd0 Not tainted 3.6.0-rc4+ #17                  /DH61BE
+> > RIP: 0010:[<ffffffff8111302c>]  [<ffffffff8111302c>] __compact_pgdat+0x1ac/0x1b0
+> > RSP: 0018:ffff880216fa5cb0  EFLAGS: 00010283
+> > RAX: 0000000000000003 RBX: ffff880216fa5d00 RCX: 0000000000000002
+> > RDX: 00000000000008d7 RSI: 0000000000000002 RDI: ffffffff8195b058
+> > RBP: ffffffff8195b000 R08: 0000000000000be4 R09: ffffffff8195a9c0
+> > R10: ffffffff8195b400 R11: ffffffff8195b570 R12: 0000000000000001
+> > R13: 0000000000000001 R14: ffff880216fa5d10 R15: 0000000000000003
+> > FS:  0000000000000000(0000) GS:ffff88021fa00000(0000) knlGS:0000000000000000
+> > CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
+> > CR2: 00007f14d4167000 CR3: 00000000018f1000 CR4: 00000000000407f0
+> > DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
+> > DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
+> > Process kswapd0 (pid: 513, threadinfo ffff880216fa4000, task ffff880216cfef20)
+> > Stack:
+> > ffffffff8195a9c0 ffffffff8195b000 0000000000000320 0000000000000003
+> > ffffffff8195a9c0 ffffffff8195b640 0000000000000002 0000000000000c80
+> > 0000000000000001 ffffffff811132f3 ffff880216fa5d00 ffff880216fa5d00
+> > Call Trace:
+> > [<ffffffff811132f3>] ? compact_pgdat+0x23/0x30
+> > [<ffffffff8110503f>] ? kswapd+0x89f/0xac0
+> > [<ffffffff8106f450>] ? wake_up_bit+0x40/0x40
+> > [<ffffffff811047a0>] ? shrink_lruvec+0x510/0x510
+> > [<ffffffff811047a0>] ? shrink_lruvec+0x510/0x510
+> > [<ffffffff8106ef1e>] ? kthread+0x9e/0xb0
+> > 
+> > Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+> > ---
+> >  mm/compaction.c |    6 +++++-
+> >  1 files changed, 5 insertions(+), 1 deletions(-)
+> > 
+> > diff --git a/mm/compaction.c b/mm/compaction.c
+> > index 6066a35..0292984 100644
+> > --- a/mm/compaction.c
+> > +++ b/mm/compaction.c
+> > @@ -633,7 +633,7 @@ static isolate_migrate_t isolate_migratepages(struct zone *zone,
+> >  
+> >  	/* Perform the isolation */
+> >  	low_pfn = isolate_migratepages_range(zone, cc, low_pfn, end_pfn);
+> > -	if (!low_pfn || cc->contended)
+> > +	if (!low_pfn || (cc->contended && !cc->nr_migratepages))
+> >  		return ISOLATE_ABORT;
+> 
+> I'm not sure it's best.
+> As you mentioned, it's same with first version of Shaohua.
+> But it could mitigate the goal of the patch if lock contention or
+> need_resched happens in the middle of loop once we isolate a
+> migratable page.
+> 
+> What do you think about this?
+> 
+> diff --git a/mm/compaction.c b/mm/compaction.c
+> index 0fbc6b7..7a009dd 100644
+> --- a/mm/compaction.c
+> +++ b/mm/compaction.c
+> @@ -848,6 +848,10 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
+>                 switch (isolate_migratepages(zone, cc)) {
+>                 case ISOLATE_ABORT:
+>                         ret = COMPACT_PARTIAL;
+> +                       if (!list_empty(&cc->migratepages)) {
+> +                               putback_lru_pages(&cc->migratepages);
+> +                               cc->nr_migratepages = 0;
+> +                       }
+>                         goto out;
+>                 case ISOLATE_NONE:
+>                         continue;
+> 
 
-No. :)
+I agree with Minchan. Andrea's patch ignores the fact that free page
+isolation might have aborted due to lock contention. It's not necessarily
+going to be isolating the pages it needs for migration.
 
-I have told Andrew that the fix patch need not back port in
-0/3. Sorry again for my mistake.
+> 
+> >  
+> >  	cc->migrate_pfn = low_pfn;
+> > @@ -843,6 +843,10 @@ static unsigned long compact_zone_order(struct zone *zone,
+> >  	INIT_LIST_HEAD(&cc.migratepages);
+> >  
+> >  	ret = compact_zone(zone, &cc);
+> > +
+> > +	VM_BUG_ON(!list_empty(&cc.freepages));
+> > +	VM_BUG_ON(!list_empty(&cc.migratepages));
+> > +
+> >  	*contended = cc.contended;
+> >  	return ret;
+> >  }
+> > 
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
