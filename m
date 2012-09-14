@@ -1,141 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx104.postini.com [74.125.245.104])
-	by kanga.kvack.org (Postfix) with SMTP id 29F1A6B01F0
-	for <linux-mm@kvack.org>; Fri, 14 Sep 2012 04:36:08 -0400 (EDT)
-Message-ID: <5052EBAD.6060202@parallels.com>
-Date: Fri, 14 Sep 2012 12:32:45 +0400
-From: Glauber Costa <glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
+	by kanga.kvack.org (Postfix) with SMTP id A5A556B01F2
+	for <linux-mm@kvack.org>; Fri, 14 Sep 2012 04:56:38 -0400 (EDT)
+Date: Fri, 14 Sep 2012 09:56:34 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 1/3 v2] mm: Batch unmapping of file mapped pages in
+ shrink_page_list
+Message-ID: <20120914085634.GM11157@csn.ul.ie>
+References: <1347293965.9977.71.camel@schen9-DESK>
+ <20120911110535.GO11157@csn.ul.ie>
+ <1347552370.9977.99.camel@schen9-DESK>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm/memcontrol.c: Remove duplicate inclusion of sock.h
- file
-References: <1347350934-17712-1-git-send-email-sachin.kamat@linaro.org> <20120911095200.GB8058@dhcp22.suse.cz> <20120912072520.GB17516@dhcp22.suse.cz> <50504CE1.8030509@parallels.com> <20120912125647.GH21579@dhcp22.suse.cz> <20120912130935.GJ21579@dhcp22.suse.cz> <CAK9yfHwMnC65BvY3RG7duf_Cmt5hf1VLV=vZRag4Mm6nHdQ-GA@mail.gmail.com> <20120914082741.GC28039@dhcp22.suse.cz>
-In-Reply-To: <20120914082741.GC28039@dhcp22.suse.cz>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <1347552370.9977.99.camel@schen9-DESK>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Sachin Kamat <sachin.kamat@linaro.org>, cgroups@vger.kernel.org, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Balbir Singh <bsingharora@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Tim Chen <tim.c.chen@linux.intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>, David Rientjes <rientjes@google.com>, Michal Hocko <mhocko@suse.cz>, Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>, Paul Gortmaker <paul.gortmaker@windriver.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andi Kleen <ak@linux.intel.com>, linux-mm@kvack.org, linux-kernel <linux-kernel@vger.kernel.org>, Alex Shi <alex.shi@intel.com>, Matthew Wilcox <willy@linux.intel.com>, Fengguang Wu <fengguang.wu@intel.com>
 
-On 09/14/2012 12:27 PM, Michal Hocko wrote:
-> On Fri 14-09-12 13:28:07, Sachin Kamat wrote:
->> Hi Michal,
->>
->> Has this patch been accepted?
+On Thu, Sep 13, 2012 at 09:06:10AM -0700, Tim Chen wrote:
+> On Tue, 2012-09-11 at 12:05 +0100, Mel Gorman wrote:
 > 
-> Not yet. I am waiting for Glauber to ack it.
+> > 
+> > One *massive* change here that is not called out in the changelog is that
+> > the reclaim path now holds the page lock on multiple pages at the same
+> > time waiting for them to be batch unlocked in __remove_mapping_batch.
+> > This is suspicious for two reasons.
+> > 
+> > The first suspicion is that it is expected that there are filesystems
+> > that lock multiple pages in page->index order and page reclaim tries to
+> > lock pages in a random order.  You are "ok" because you trylock the pages
+> > but there should be a comment explaining the situation and why you're
+> > ok.
+> > 
+> > My *far* greater concern is that the hold time for a locked page is
+> > now potentially much longer. You could lock a bunch of filesystem pages
+> > and then call pageout() on an swapcache page that takes a long time to
+> > write. This potentially causes a filesystem (or flusher threads etc)
+> > to stall on lock_page and that could cause all sorts of latency trouble.
+> > It will be hard to hit this bug and diagnose it but I believe it's
+> > there.
+> > 
+> > That second risk *really* must be commented upon and ideally reviewed by
+> > the filesystem people. However, I very strongly suspect that the outcome
+> > of such a review will be a suggestion to unlock the pages and reacquire
+> > the lock in __remove_mapping_batch(). Bear in mind that if you take this
+> > approach that you *must* use trylock when reacquiring the page lock and
+> > handle being unable to lock the page.
+> > 
+> 
+> Mel,
+> 
+> Thanks for your detailed comments and analysis.  If I unlock the pages,
+> will flusher threads be the only things that will touch them? 
+
+I don't think so. The pages are still in the mappings radix tree so
+potentially can be still read()/write() to and recreate empty buffers
+potentially. Something like;
+
+writepage handler
+-> block_write_full_page
+  -> block_write_full_page_endio
+    -> __block_write_full_page
+      -> create_empty_buffers
+
+Offhand I would also expect it's possible to fault the page again once
+the page lock is released.
+
+> Or do I
+> have to worry about potentially other things done to the pages that will
+> make it invalid for me to unmap the pages later and put them on free
+> list?
 > 
 
-I am fine with the change, assuming you tested it, after you made the
-change I requested.
+I expect that you'll have to double check that the page is still eligible
+to be removed from the mapping and added to the free list.  This could get
+complex because you then have to retry reclaim with those pages without
+any batching and it may offset the advantage you are measuring.
 
->>
->> On 12 September 2012 18:39, Michal Hocko <mhocko@suse.cz> wrote:
->>> On Wed 12-09-12 14:56:47, Michal Hocko wrote:
->>>> On Wed 12-09-12 12:50:41, Glauber Costa wrote:
->>>> [...]
->>>>>>> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
->>>>>>> index 795e525..85ec9ff 100644
->>>>>>> --- a/mm/memcontrol.c
->>>>>>> +++ b/mm/memcontrol.c
->>>>>>> @@ -50,8 +50,12 @@
->>>>>>>  #include <linux/cpu.h>
->>>>>>>  #include <linux/oom.h>
->>>>>>>  #include "internal.h"
->>>>>>> +
->>>>>>> +#ifdef CONFIG_MEMCG_KMEM
->>>>>>>  #include <net/sock.h>
->>>>>>> +#include <net/ip.h>
->>>>>>>  #include <net/tcp_memcontrol.h>
->>>>>>> +#endif
->>>>>>>
->>>>>>>  #include <asm/uaccess.h>
->>>>>>>
->>>>>>> @@ -326,7 +330,7 @@ struct mem_cgroup {
->>>>>>>          struct mem_cgroup_stat_cpu nocpu_base;
->>>>>>>          spinlock_t pcp_counter_lock;
->>>>>>>
->>>>>>> -#ifdef CONFIG_INET
->>>>>>> +#ifdef CONFIG_MEMCG_KMEM
->>>>>>>          struct tcp_memcontrol tcp_mem;
->>>>>>>  #endif
->>>>>>>  };
->>>>>
->>>>> If you are changing this, why not test for both? This field will be
->>>>> useless with inet disabled. I usually don't like conditional in
->>>>> structures (note that the "kmem" res counter in my patchsets is not
->>>>> conditional to KMEM!!), but since the decision was made to make this one
->>>>> conditional, I think INET is a much better test. I am fine with both though.
->>>>
->>>>  You are right of course. Updated patch bellow:
->>>
->>> Bahh. And I managed to send a different patch than I tested...
->>> ---
->>> From 0617ff7114bdf424160a8f1533784c837d426ec2 Mon Sep 17 00:00:00 2001
->>> From: Michal Hocko <mhocko@suse.cz>
->>> Date: Tue, 11 Sep 2012 10:38:42 +0200
->>> Subject: [PATCH] memcg: clean up networking headers file inclusion
->>>
->>> Memory controller doesn't need anything from the networking stack unless
->>> CONFIG_MEMCG_KMEM is selected.
->>> Now we are including net/sock.h and net/tcp_memcontrol.h unconditionally
->>> which is not necessary. Moreover struct mem_cgroup contains tcp_mem even
->>> if CONFIG_MEMCG_KMEM is not selected which is not necessary.
->>>
->>> Signed-off-by: Sachin Kamat <sachin.kamat@linaro.org>
->>> Signed-off-by: Michal Hocko <mhocko@suse.cz>
->>> ---
->>>  mm/memcontrol.c |    8 +++++---
->>>  1 file changed, 5 insertions(+), 3 deletions(-)
->>>
->>> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
->>> index 795e525..1a217b4 100644
->>> --- a/mm/memcontrol.c
->>> +++ b/mm/memcontrol.c
->>> @@ -50,8 +50,12 @@
->>>  #include <linux/cpu.h>
->>>  #include <linux/oom.h>
->>>  #include "internal.h"
->>> +
->>> +#if defined(CONFIG_MEMCG_KMEM) && defined(CONFIG_INET)
->>>  #include <net/sock.h>
->>> +#include <net/ip.h>
->>>  #include <net/tcp_memcontrol.h>
->>> +#endif
->>>
->>>  #include <asm/uaccess.h>
->>>
->>> @@ -326,7 +330,7 @@ struct mem_cgroup {
->>>         struct mem_cgroup_stat_cpu nocpu_base;
->>>         spinlock_t pcp_counter_lock;
->>>
->>> -#ifdef CONFIG_INET
->>> +#if defined(CONFIG_MEMCG_KMEM) && defined(CONFIG_INET)
->>>         struct tcp_memcontrol tcp_mem;
->>>  #endif
->>>  };
->>> @@ -413,8 +417,6 @@ struct mem_cgroup *mem_cgroup_from_css(struct cgroup_subsys_state *s)
->>>
->>>  /* Writing them here to avoid exposing memcg's inner layout */
->>>  #ifdef CONFIG_MEMCG_KMEM
->>> -#include <net/sock.h>
->>> -#include <net/ip.h>
->>>
->>>  static bool mem_cgroup_is_root(struct mem_cgroup *memcg);
->>>  void sock_update_memcg(struct sock *sk)
->>> --
->>> 1.7.10.4
->>>
->>> --
->>> Michal Hocko
->>> SUSE Labs
->>
->>
->>
->> -- 
->> With warm regards,
->> Sachin
-> 
+You have potentially another option as well that you should consider. I
+was complaining about holding multiple locks because of the potentially
+unbounded length of time you hold those locks.  It now occurs to me that
+you could hold these locks but call __remove_mapping_batch() and drain
+the list before calling long-lived operations like pageout(). That might
+be easier to implement.
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
