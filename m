@@ -1,204 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx103.postini.com [74.125.245.103])
-	by kanga.kvack.org (Postfix) with SMTP id 57E366B01FA
-	for <linux-mm@kvack.org>; Fri, 14 Sep 2012 06:39:34 -0400 (EDT)
-From: Bhupesh SHARMA <bhupesh.sharma@st.com>
-Date: Fri, 14 Sep 2012 18:39:13 +0800
-Subject: RE: [PATCH] nommu: remap_pfn_range: fix addr parameter check
-Message-ID: <D5ECB3C7A6F99444980976A8C6D896384FB1E69774@EAPEX1MAIL1.st.com>
-References: <1347504057-5612-1-git-send-email-lliubbo@gmail.com>
-	<20120913122738.04eaceb3.akpm@linux-foundation.org>
- <CAHG8p1CJ7YizySrocYvQeCye4_63TkAimsAGU1KC5+Fn0wqF8w@mail.gmail.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
+	by kanga.kvack.org (Postfix) with SMTP id DC54F6B01FB
+	for <linux-mm@kvack.org>; Fri, 14 Sep 2012 07:00:49 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id EA6FD3EE0C3
+	for <linux-mm@kvack.org>; Fri, 14 Sep 2012 20:00:47 +0900 (JST)
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id CF9F445DE5B
+	for <linux-mm@kvack.org>; Fri, 14 Sep 2012 20:00:47 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id A1CC045DE59
+	for <linux-mm@kvack.org>; Fri, 14 Sep 2012 20:00:47 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 945C8E08004
+	for <linux-mm@kvack.org>; Fri, 14 Sep 2012 20:00:47 +0900 (JST)
+Received: from g01jpexchkw29.g01.fujitsu.local (g01jpexchkw29.g01.fujitsu.local [10.0.193.112])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 46D7C1DB8051
+	for <linux-mm@kvack.org>; Fri, 14 Sep 2012 20:00:47 +0900 (JST)
+Message-ID: <50530E39.5020100@jp.fujitsu.com>
+Date: Fri, 14 Sep 2012 20:00:09 +0900
+From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 MIME-Version: 1.0
+Subject: Re: [PATCH RESEND] memory hotplug: fix a double register section
+ info bug
+References: <5052A7DF.4050301@gmail.com>
+In-Reply-To: <5052A7DF.4050301@gmail.com>
+Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Scott Jiang <scott.jiang.linux@gmail.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Bob Liu <lliubbo@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "laurent.pinchart@ideasonboard.com" <laurent.pinchart@ideasonboard.com>, "uclinux-dist-devel@blackfin.uclinux.org" <uclinux-dist-devel@blackfin.uclinux.org>, "linux-media@vger.kernel.org" <linux-media@vger.kernel.org>, "dhowells@redhat.com" <dhowells@redhat.com>, "geert@linux-m68k.org" <geert@linux-m68k.org>, "gerg@uclinux.org" <gerg@uclinux.org>, "stable@kernel.org" <stable@kernel.org>, "gregkh@linuxfoundation.org" <gregkh@linuxfoundation.org>, Hugh Dickins <hughd@google.com>
+To: qiuxishi <qiuxishi@gmail.com>
+Cc: akpm@linux-foundation.org, mgorman@suse.de, tony.luck@intel.com, Jiang Liu <jiang.liu@huawei.com>, qiuxishi@huawei.com, bessel.wang@huawei.com, wujianguo@huawei.com, paul.gortmaker@windriver.com, kamezawa.hiroyu@jp.fujitsu.com, kosaki.motohiro@jp.fujitsu.com, rientjes@google.com, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wen Congyang <wency@cn.fujitsu.com>
 
-> -----Original Message-----
-> From: Bhupesh SHARMA
-> Sent: Friday, September 14, 2012 3:45 PM
-> To: 'Scott Jiang'; Andrew Morton
-> Cc: Bob Liu; linux-mm@kvack.org; laurent.pinchart@ideasonboard.com;
-> uclinux-dist-devel@blackfin.uclinux.org; linux-media@vger.kernel.org;
-> dhowells@redhat.com; geert@linux-m68k.org; gerg@uclinux.org;
-> stable@kernel.org; gregkh@linuxfoundation.org; Hugh Dickins
-> Subject: RE: [PATCH] nommu: remap_pfn_range: fix addr parameter check
->=20
-> > -----Original Message-----
-> > From: Scott Jiang [mailto:scott.jiang.linux@gmail.com]
-> > Sent: Friday, September 14, 2012 2:53 PM
-> > To: Andrew Morton
-> > Cc: Bob Liu; linux-mm@kvack.org; Bhupesh SHARMA;
-> > laurent.pinchart@ideasonboard.com; uclinux-dist-
-> > devel@blackfin.uclinux.org; linux-media@vger.kernel.org;
-> > dhowells@redhat.com; geert@linux-m68k.org; gerg@uclinux.org;
-> > stable@kernel.org; gregkh@linuxfoundation.org; Hugh Dickins
-> > Subject: Re: [PATCH] nommu: remap_pfn_range: fix addr parameter check
-> >
-> > > Yes, the MMU version of remap_pfn_range() does permit non-page-
-> > aligned
-> > > `addr' (at least, if the userspace maaping is a non-COW one).  But I
-> > > suspect that was an implementation accident - it is a nonsensical
-> > > thing to do, isn't it?  The MMU cannot map a bunch of kernel pages
-> > > onto a non-page-aligned userspace address.
-> > >
-> > > So I'm thinking that we should declare ((addr & ~PAGE_MASK) !=3D 0) t=
-o
-> > > be a caller bug, and fix up this regrettably unidentified v4l driver?
-> >
-> > I agree. This should be fixed in videobuf.
-> >
-> > Hi sharma, what's your kernel version? It seems videobuf2 already
-> > fixed this bug in 3.5.
->=20
+HiXishi,
 
-[snip..]
+2012/09/14 12:43, qiuxishi wrote:
+> There may be a bug when registering section info. For example, on
+> my Itanium platform, the pfn range of node0 includes the other nodes,
+> so other nodes' section info will be double registered, and memmap's
+> page count will equal to 3.
+>
+> node0: start_pfn=0x100,    spanned_pfn=0x20fb00, present_pfn=0x7f8a3, => 0x000100-0x20fc00
+> node1: start_pfn=0x80000,  spanned_pfn=0x80000,  present_pfn=0x80000, => 0x080000-0x100000
+> node2: start_pfn=0x100000, spanned_pfn=0x80000,  present_pfn=0x80000, => 0x100000-0x180000
+> node3: start_pfn=0x180000, spanned_pfn=0x80000,  present_pfn=0x80000, => 0x180000-0x200000
+>
+> free_all_bootmem_node()
+> 	register_page_bootmem_info_node()
+> 		register_page_bootmem_info_section()
+>
+> When hot remove memory, we can't free the memmap's page because
+> page_count() is 2 after put_page_bootmem().
+>
+> sparse_remove_one_section()
+> 	free_section_usemap()
+> 		free_map_bootmem()
+> 			put_page_bootmem()
+>
+> Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
+> Signed-off-by: Jiang Liu <jiang.liu@huawei.com>
+> ---
+>   mm/memory_hotplug.c |   10 ++++------
+>   1 files changed, 4 insertions(+), 6 deletions(-)
+>
+> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+> index 2adbcac..cf493c7 100644
+> --- a/mm/memory_hotplug.c
+> +++ b/mm/memory_hotplug.c
+> @@ -126,9 +126,6 @@ static void register_page_bootmem_info_section(unsigned long start_pfn)
+>   	struct mem_section *ms;
+>   	struct page *page, *memmap;
+>
+> -	if (!pfn_valid(start_pfn))
+> -		return;
+> -
+>   	section_nr = pfn_to_section_nr(start_pfn);
+>   	ms = __nr_to_section(section_nr);
+>
+> @@ -187,9 +184,10 @@ void register_page_bootmem_info_node(struct pglist_data *pgdat)
+>   	end_pfn = pfn + pgdat->node_spanned_pages;
+>
+>   	/* register_section info */
+> -	for (; pfn < end_pfn; pfn += PAGES_PER_SECTION)
+> -		register_page_bootmem_info_section(pfn);
+> -
+> +	for (; pfn < end_pfn; pfn += PAGES_PER_SECTION) {
+> +		if (pfn_valid(pfn) && (pfn_to_nid(pfn) == node))
 
->=20
-> I was using 3.3 linux kernel. I will again check if videobuf2 in 3.5 has =
-already
-> fixed this issue.
+I cannot judge whether your configuration is correct or not.
+Thus if it is correct, I want a comment of why the node check is
+needed. In usual configuration, a node does not span the other one.
+So it is natural that "pfn_to_nid(pfn) is same as "pgdat->node_id".
+Thus we may remove the node check in the future.
 
-[snip..]
+Thanks,
+Yasuaki Ishimatsu
 
-Ok I just checked the vb2_dma_contig allocator and it has no major changes =
-from my version,
-http://lxr.linux.no/linux+v3.5.3/drivers/media/video/videobuf2-dma-contig.c=
-#L37
+> +			register_page_bootmem_info_section(pfn);
+> +	}
+>   }
+>   #endif /* !CONFIG_SPARSEMEM_VMEMMAP */
+>
 
-So, I am not sure if this issue has been fixed in the videobuf2 (or if any =
-patch is in the pipeline
-which fixes the issue).
-
-BTW I paste my original mail on the subject below to help everyone understa=
-nd the complete setup
-and the issue I faced.
-
-Regards,
-Bhupesh
-
----------------------
-Hi,
-
-I have been trying recently to make a usb-based-webcam device to work with =
-Linux. The entire scheme is a bit complex:
-
-UVC gadget <--User Pointer--> User-Space Daemon <-- MMAP --> V4L2 capture d=
-evice.
-
-The UVC gadget is internally a v4l2 based device supporting VB2_VMALLOC ope=
-rations, whereas the V4L2 capture device supports VB2_DMA_CONTIG operations=
-.
-
-The application (user-space daemon), is responsible for getting memory allo=
-cated from the V4L2 capture device via REQBUF calls. The V4L2 capture side =
-exposes a
- MMAP IO method, whereas the UVC gadget can get a USERPTR to the buffer fil=
-led with video data from the V4L2 capture device and then send the same on =
-a USB bus.
-
-This scheme works absolutely fine on an architecture having a MMU, but when=
- I try the same on a NOMMU arch, I see MMAP calls from the user-space daemo=
-n failing.
-
-I have implemented a .get_unmapped_area callback in my V4L2 capture driver =
-using the blackfin video capture driver as a reference (see [1]).
-
-I make a MMAP call from the user-space application in a sequence like this =
-(pretty similar to the standard capture.c example, see[2]):
-
-static void init_mmap (void)
-{
-	struct v4l2_requestbuffers req;
-
-	CLEAR (req);
-
-	req.count               =3D 4;
-	req.type                =3D V4L2_BUF_TYPE_VIDEO_CAPTURE;
-	req.memory              =3D V4L2_MEMORY_MMAP;
-
-	if (-1 =3D=3D xioctl (fd, VIDIOC_REQBUFS, &req))=20
-	{
-		if (EINVAL =3D=3D errno)=20
-		{
-			fprintf (stderr, "%s does not support memory mapping\n", dev_name);
-			exit (EXIT_FAILURE);
-		}=20
-		else=20
-		{
-			errno_exit ("VIDIOC_REQBUFS");
-		}
-	}
-
-	if (req.count < 2)=20
-	{
-		fprintf (stderr, "Insufficient buffer memory on %s\n",dev_name);
-		exit (EXIT_FAILURE);
-	}
-
-	buffers =3D (buffer*) calloc (req.count, sizeof (*buffers));
-
-	if (!buffers)=20
-	{
-		fprintf (stderr, "Out of memory\n");
-		exit (EXIT_FAILURE);
-	}
-
-	for (n_buffers =3D 0; n_buffers < req.count; ++n_buffers)=20
-	{
-		struct v4l2_buffer buf;
-
-		CLEAR (buf);
-
-		buf.type        =3D V4L2_BUF_TYPE_VIDEO_CAPTURE;
-		buf.memory      =3D V4L2_MEMORY_MMAP;
-		buf.index       =3D n_buffers;
-
-		if (-1 =3D=3D xioctl (fd, VIDIOC_QUERYBUF, &buf))
-			errno_exit ("VIDIOC_QUERYBUF");
-
-		buffers[n_buffers].length =3D buf.length;
-		buffers[n_buffers].start =3D
-				mmap (NULL /* start anywhere */,
-					buf.length,
-					PROT_READ | PROT_WRITE /* required */,
-					MAP_SHARED /* recommended */,
-					fd, buf.m.offset);
-
-		if (MAP_FAILED =3D=3D buffers[n_buffers].start)
-			errno_exit ("mmap");
-	}
-}
-
-Now, I see that the requested videobuffers are correctly allocated via 'vb2=
-_dma_contig_alloc'
-call (see [3] for reference). But the MMAP call fails in 'vb2_dma_contig_al=
-loc' function in mm/nommu.c (see [4] for reference) when it tries to make t=
-he following check:
-=09
-	if (addr !=3D (pfn << PAGE_SHIFT))
-		return -EINVAL;
-
-I address Scott also, as I see that he has worked on the Blackfin v4l2 capt=
-ure driver using DMA contiguous method and may have seen this issue (on a N=
-OMMU system)
-with a v4l2 application performing a MMAP operation.
-
-Any comments on what I could be doing wrong here?
-
-References:
-
-[1] Blackfin capture driver, http://lxr.linux.no/linux+v3.5.3/drivers/media=
-/video/blackfin/bfin_capture.c#L243
-[2] capture.c, http://linuxtv.org/downloads/v4l-dvb-apis/capture-example.ht=
-ml
-[3] vb2_dma_contig_alloc, http://lxr.linux.no/linux+v3.5.3/drivers/media/vi=
-deo/videobuf2-dma-contig.c#L37
-[4] remap_pfn_range, http://lxr.linux.no/linux+v3.5.3/mm/nommu.c#L1819
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
