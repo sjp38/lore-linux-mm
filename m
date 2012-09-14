@@ -1,68 +1,163 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
-	by kanga.kvack.org (Postfix) with SMTP id 7FC8E6B018C
-	for <linux-mm@kvack.org>; Thu, 13 Sep 2012 20:08:21 -0400 (EDT)
-Date: Fri, 14 Sep 2012 09:10:32 +0900
+Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
+	by kanga.kvack.org (Postfix) with SMTP id 81C2C6B018F
+	for <linux-mm@kvack.org>; Thu, 13 Sep 2012 21:13:40 -0400 (EDT)
+Date: Fri, 14 Sep 2012 10:15:50 +0900
 From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH] mm: cma: Discard clean pages during contiguous
- allocation instead of migration
-Message-ID: <20120914001032.GD5085@bbox>
-References: <1347324112-14134-1-git-send-email-minchan@kernel.org>
- <CAMuHMdXWZ=Jeggd7cT_LXK0MTnmFAf+cWEhC75B1gCcSd3eWeg@mail.gmail.com>
- <20120913151922.b8893088.akpm@linux-foundation.org>
+Subject: Re: [RFC v2] memory-hotplug: remove MIGRATE_ISOLATE from
+ free_area->free_list
+Message-ID: <20120914011550.GE5085@bbox>
+References: <1346900018-14759-1-git-send-email-minchan@kernel.org>
+ <201209061834.35473.b.zolnierkie@samsung.com>
+ <201209131621.43074.b.zolnierkie@samsung.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20120913151922.b8893088.akpm@linux-foundation.org>
+In-Reply-To: <201209131621.43074.b.zolnierkie@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Geert Uytterhoeven <geert@linux-m68k.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Kyungmin Park <kmpark@infradead.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Linux-Next <linux-next@vger.kernel.org>
+To: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
+Cc: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Michal Nazarewicz <mina86@mina86.com>, Mel Gorman <mel@csn.ul.ie>, Wen Congyang <wency@cn.fujitsu.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Marek Szyprowski <m.szyprowski@samsung.com>
 
-On Thu, Sep 13, 2012 at 03:19:22PM -0700, Andrew Morton wrote:
-> On Thu, 13 Sep 2012 21:17:19 +0200
-> Geert Uytterhoeven <geert@linux-m68k.org> wrote:
-> 
-> > On Tue, Sep 11, 2012 at 2:41 AM, Minchan Kim <minchan@kernel.org> wrote:
-> > > --- a/mm/vmscan.c
-> > > +++ b/mm/vmscan.c
-> > > @@ -674,8 +674,10 @@ static enum page_references page_check_references(struct page *page,
-> > >  static unsigned long shrink_page_list(struct list_head *page_list,
-> > >                                       struct zone *zone,
-> > >                                       struct scan_control *sc,
-> > > +                                     enum ttu_flags ttu_flags,
-> > 
-> > "enum ttu_flags" is defined on CONFIG_MMU=y only, causing on nommu:
-> > 
-> > mm/vmscan.c:677:26: error: parameter 4 ('ttu_flags') has incomplete type
-> > mm/vmscan.c:987:5: error: 'TTU_UNMAP' undeclared (first use in this function)
-> > mm/vmscan.c:987:15: error: 'TTU_IGNORE_ACCESS' undeclared (first use
-> > in this function)
-> > mm/vmscan.c:1312:56: error: 'TTU_UNMAP' undeclared (first use in this function)
-> > 
-> > E.g.
-> > http://kisskb.ellerman.id.au/kisskb/buildresult/7191694/ (h8300-defconfig)
-> > http://kisskb.ellerman.id.au/kisskb/buildresult/7191858/ (sh-allnoconfig)
-> 
-> hm, OK, the means by which current mainline avoids build errors is
-> either clever or lucky.
-> 
-> 			switch (try_to_unmap(page, TTU_UNMAP)) {
-> 
-> gets preprocessed into
-> 
-> 			switch (2) {
-> 
-> so the cmopiler never gets to see the TTU_ symbol at all.  Because it
-> happens to be inside the try_to_unmap() call.
-> 
-> 
-> I guess we can just make ttu_flags visible to NOMMU:
+Hi Bart,
 
-I agree.
+On Thu, Sep 13, 2012 at 04:21:42PM +0200, Bartlomiej Zolnierkiewicz wrote:
+> On Thursday 06 September 2012 18:34:35 Bartlomiej Zolnierkiewicz wrote:
+> > 
+> > Hi,
+> > 
+> > On Thursday 06 September 2012 04:53:38 Minchan Kim wrote:
+> > > Normally, MIGRATE_ISOLATE type is used for memory-hotplug.
+> > > But it's irony type because the pages isolated would exist
+> > > as free page in free_area->free_list[MIGRATE_ISOLATE] so people
+> > > can think of it as allocatable pages but it is *never* allocatable.
+> > > It ends up confusing NR_FREE_PAGES vmstat so it would be
+> > > totally not accurate so some of place which depend on such vmstat
+> > > could reach wrong decision by the context.
+> > > 
+> > > There were already report about it.[1]
+> > > [1] 702d1a6e, memory-hotplug: fix kswapd looping forever problem
+> > > 
+> > > Then, there was other report which is other problem.[2]
+> > > [2] http://www.spinics.net/lists/linux-mm/msg41251.html
+> > > 
+> > > I believe it can make problems in future, too.
+> > > So I hope removing such irony type by another design.
+> > > 
+> > > I hope this patch solves it and let's revert [1] and doesn't need [2].
+> 
+> For our needs (CMA) patch [2] is much simpler / less intrusive way
+> to have correct NR_FREE_PAGES counter than this patch and currently
+> I would prefer to have it merged upstream instead of this one.
 
-Geert, Andrew
-Thanks for the reporting and quick fix!
+I agree my patch could be somewhat big change so I will take things easy.
+Of course, it shouldn't prevent your patch merge if yours make sense.
+Afterward, if this patch solves all issues and better than other band-aid,
+then, we can revert.
+Shortly, I will review yours.
+
+> 
+> > > * Changelog v1
+> > >  * Fix from Michal's many suggestion
+> > > 
+> > > Cc: Michal Nazarewicz <mina86@mina86.com>
+> > > Cc: Mel Gorman <mel@csn.ul.ie>
+> > > Cc: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> > > Cc: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+> > > Cc: Wen Congyang <wency@cn.fujitsu.com>
+> > > Cc: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+> > > Signed-off-by: Minchan Kim <minchan@kernel.org>
+> > > ---
+> > > It's very early version which show the concept so I still marked it with RFC.
+> > > I just tested it with simple test and works.
+> > > This patch is needed indepth review from memory-hotplug guys from fujitsu
+> > > because I saw there are lots of patches recenlty they sent to about
+> > > memory-hotplug change. Please take a look at this patch.
+> > 
+> > [...]
+> > 
+> > > @@ -948,8 +954,13 @@ static int move_freepages(struct zone *zone,
+> > >  		}
+> > >  
+> > >  		order = page_order(page);
+> > > -		list_move(&page->lru,
+> > > -			  &zone->free_area[order].free_list[migratetype]);
+> > > +		if (migratetype != MIGRATE_ISOLATE) {
+> > > +			list_move(&page->lru,
+> > > +				&zone->free_area[order].free_list[migratetype]);
+> > > +		} else {
+> > > +			list_del(&page->lru);
+> > > +			isolate_free_page(page, order);
+> > > +		}
+> > >  		page += 1 << order;
+> > >  		pages_moved += 1 << order;
+> > >  	}
+> > 
+> > Shouldn't NR_FREE_PAGES counter be decreased somewhere above?
+> > 
+> > [ I can see that it is not modified in __free_pages_ok() and
+> >   free_hot_cold_page() because page is still counted as non-free one but
+> >   here situation is different AFAICS. ]
+> > 
+> > I tested the patch locally here with CONFIG_CMA=y and it causes some
+> > major problems for CMA (multiple errors from dma_alloc_from_contiguous()
+> > about memory ranges being busy and allocation failures).
+> > 
+> > [ I'm sorry that I don't know more details yet but the issue should be
+> >   easily reproducible. ]
+> 
+> We spent some more time on the issue and it seems that the approach
+> taken in the patch (removal of MIGRATE_ISOLATE free_list) is currently
+> incompatible with CMA.
+> 
+> In alloc_contig_range() we have:
+> 
+> 	order = 0;
+> 	outer_start = start;
+> 	while (!PageBuddy(pfn_to_page(outer_start))) {
+> 		if (++order >= MAX_ORDER) {
+> 			ret = -EBUSY;
+> 			goto done;
+> 		}
+> 		outer_start &= ~0UL << order;
+> 	}
+> 
+> for handling cases when the CMA area begins inside the higher order
+> page from buddy (that got already isolated).  Unfortunately this code
+> no longer works as isolated pages are no longer hold in buddy allocator
+> (isolate_free_page() clears buddy bit).
+> 
+> The other part of code that is probably affected by your patch is:
+> 
+> 	/* Grab isolated pages from freelists. */
+> 	outer_end = isolate_freepages_range(outer_start, end);
+> 	if (!outer_end) {
+> 		ret = -EBUSY;
+> 		goto done;
+> 	}
+> 
+> also in alloc_contig_range().  isolate_freepages_range() calls
+> isolate_freepages_block() which assume that free pages (in isolated
+> pageblock) are in buddy allocator:
+> 
+> 		if (!PageBuddy(page)) {
+> 			if (strict)
+> 				return 0;
+> 			continue;
+> 		}
+> 
+> (which is no longer true) and also calls split_free_page() that
+> attempts to remove page from the free_list & buddy:
+> 
+> 	/* Remove page from free list */
+> 	list_del(&page->lru);
+> 	zone->free_area[order].nr_free--;
+> 	rmv_page_order(page);
+> 
+> (the isolated page is on the isolated_pages list instead).
+
+Thanks for detailed pointing out, Bart!
+I will revisit this issues after I will fisnish other jobs.
 
 -- 
 Kind regards,
