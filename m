@@ -1,112 +1,136 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
-	by kanga.kvack.org (Postfix) with SMTP id 744936B01A9
-	for <linux-mm@kvack.org>; Fri, 14 Sep 2012 02:45:27 -0400 (EDT)
-Message-ID: <5052CF76.3070402@cn.fujitsu.com>
-Date: Fri, 14 Sep 2012 14:32:22 +0800
-From: Wen Congyang <wency@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
+	by kanga.kvack.org (Postfix) with SMTP id 097326B01AB
+	for <linux-mm@kvack.org>; Fri, 14 Sep 2012 03:58:08 -0400 (EDT)
+Received: by vcbfl17 with SMTP id fl17so2098927vcb.14
+        for <linux-mm@kvack.org>; Fri, 14 Sep 2012 00:58:08 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/2] mm: refactor out __alloc_contig_migrate_alloc
-References: <1347414231-31451-1-git-send-email-minchan@kernel.org>
-In-Reply-To: <1347414231-31451-1-git-send-email-minchan@kernel.org>
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20120912130935.GJ21579@dhcp22.suse.cz>
+References: <1347350934-17712-1-git-send-email-sachin.kamat@linaro.org>
+	<20120911095200.GB8058@dhcp22.suse.cz>
+	<20120912072520.GB17516@dhcp22.suse.cz>
+	<50504CE1.8030509@parallels.com>
+	<20120912125647.GH21579@dhcp22.suse.cz>
+	<20120912130935.GJ21579@dhcp22.suse.cz>
+Date: Fri, 14 Sep 2012 13:28:07 +0530
+Message-ID: <CAK9yfHwMnC65BvY3RG7duf_Cmt5hf1VLV=vZRag4Mm6nHdQ-GA@mail.gmail.com>
+Subject: Re: [PATCH] mm/memcontrol.c: Remove duplicate inclusion of sock.h file
+From: Sachin Kamat <sachin.kamat@linaro.org>
 Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Michal Nazarewicz <mina86@mina86.com>, Marek Szyprowski <m.szyprowski@samsung.com>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Glauber Costa <glommer@parallels.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Balbir Singh <bsingharora@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>
 
-At 09/12/2012 09:43 AM, Minchan Kim Wrote:
-> __alloc_contig_migrate_alloc can be used by memory-hotplug so
-> refactor out(move + rename as a common name) it into
-> page_isolation.c.
-> 
-> Cc: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> Cc: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-> Cc: Michal Nazarewicz <mina86@mina86.com>
-> Cc: Marek Szyprowski <m.szyprowski@samsung.com>
-> Cc: Wen Congyang <wency@cn.fujitsu.com>
-> Signed-off-by: Minchan Kim <minchan@kernel.org>
+Hi Michal,
+
+Has this patch been accepted?
+
+On 12 September 2012 18:39, Michal Hocko <mhocko@suse.cz> wrote:
+> On Wed 12-09-12 14:56:47, Michal Hocko wrote:
+>> On Wed 12-09-12 12:50:41, Glauber Costa wrote:
+>> [...]
+>> > >> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+>> > >> index 795e525..85ec9ff 100644
+>> > >> --- a/mm/memcontrol.c
+>> > >> +++ b/mm/memcontrol.c
+>> > >> @@ -50,8 +50,12 @@
+>> > >>  #include <linux/cpu.h>
+>> > >>  #include <linux/oom.h>
+>> > >>  #include "internal.h"
+>> > >> +
+>> > >> +#ifdef CONFIG_MEMCG_KMEM
+>> > >>  #include <net/sock.h>
+>> > >> +#include <net/ip.h>
+>> > >>  #include <net/tcp_memcontrol.h>
+>> > >> +#endif
+>> > >>
+>> > >>  #include <asm/uaccess.h>
+>> > >>
+>> > >> @@ -326,7 +330,7 @@ struct mem_cgroup {
+>> > >>          struct mem_cgroup_stat_cpu nocpu_base;
+>> > >>          spinlock_t pcp_counter_lock;
+>> > >>
+>> > >> -#ifdef CONFIG_INET
+>> > >> +#ifdef CONFIG_MEMCG_KMEM
+>> > >>          struct tcp_memcontrol tcp_mem;
+>> > >>  #endif
+>> > >>  };
+>> >
+>> > If you are changing this, why not test for both? This field will be
+>> > useless with inet disabled. I usually don't like conditional in
+>> > structures (note that the "kmem" res counter in my patchsets is not
+>> > conditional to KMEM!!), but since the decision was made to make this one
+>> > conditional, I think INET is a much better test. I am fine with both though.
+>>
+>>  You are right of course. Updated patch bellow:
+>
+> Bahh. And I managed to send a different patch than I tested...
 > ---
-> 
-> This patch is intended for preparing next bug fix patch.
-> 
->  include/linux/page-isolation.h |    3 ++-
->  mm/page_alloc.c                |   14 +-------------
->  mm/page_isolation.c            |   11 +++++++++++
->  3 files changed, 14 insertions(+), 14 deletions(-)
-> 
-> diff --git a/include/linux/page-isolation.h b/include/linux/page-isolation.h
-> index 105077a..1c82261 100644
-> --- a/include/linux/page-isolation.h
-> +++ b/include/linux/page-isolation.h
-> @@ -37,6 +37,7 @@ int test_pages_isolated(unsigned long start_pfn, unsigned long end_pfn);
->   */
->  int set_migratetype_isolate(struct page *page);
->  void unset_migratetype_isolate(struct page *page, unsigned migratetype);
-> -
-> +struct page *alloc_migrate_target(struct page *page, unsigned long private,
-> +				int **resultp);
->  
+> From 0617ff7114bdf424160a8f1533784c837d426ec2 Mon Sep 17 00:00:00 2001
+> From: Michal Hocko <mhocko@suse.cz>
+> Date: Tue, 11 Sep 2012 10:38:42 +0200
+> Subject: [PATCH] memcg: clean up networking headers file inclusion
+>
+> Memory controller doesn't need anything from the networking stack unless
+> CONFIG_MEMCG_KMEM is selected.
+> Now we are including net/sock.h and net/tcp_memcontrol.h unconditionally
+> which is not necessary. Moreover struct mem_cgroup contains tcp_mem even
+> if CONFIG_MEMCG_KMEM is not selected which is not necessary.
+>
+> Signed-off-by: Sachin Kamat <sachin.kamat@linaro.org>
+> Signed-off-by: Michal Hocko <mhocko@suse.cz>
+> ---
+>  mm/memcontrol.c |    8 +++++---
+>  1 file changed, 5 insertions(+), 3 deletions(-)
+>
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 795e525..1a217b4 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -50,8 +50,12 @@
+>  #include <linux/cpu.h>
+>  #include <linux/oom.h>
+>  #include "internal.h"
+> +
+> +#if defined(CONFIG_MEMCG_KMEM) && defined(CONFIG_INET)
+>  #include <net/sock.h>
+> +#include <net/ip.h>
+>  #include <net/tcp_memcontrol.h>
+> +#endif
+>
+>  #include <asm/uaccess.h>
+>
+> @@ -326,7 +330,7 @@ struct mem_cgroup {
+>         struct mem_cgroup_stat_cpu nocpu_base;
+>         spinlock_t pcp_counter_lock;
+>
+> -#ifdef CONFIG_INET
+> +#if defined(CONFIG_MEMCG_KMEM) && defined(CONFIG_INET)
+>         struct tcp_memcontrol tcp_mem;
 >  #endif
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index a4ff74e..6716023 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -5648,18 +5648,6 @@ static unsigned long pfn_max_align_up(unsigned long pfn)
->  				pageblock_nr_pages));
->  }
->  
-> -static struct page *
-> -__alloc_contig_migrate_alloc(struct page *page, unsigned long private,
-> -			     int **resultp)
-> -{
-> -	gfp_t gfp_mask = GFP_USER | __GFP_MOVABLE;
-> -
-> -	if (PageHighMem(page))
-> -		gfp_mask |= __GFP_HIGHMEM;
-> -
-> -	return alloc_page(gfp_mask);
-> -}
-> -
->  /* [start, end) must belong to a single zone. */
->  static int __alloc_contig_migrate_range(unsigned long start, unsigned long end)
->  {
-> @@ -5700,7 +5688,7 @@ static int __alloc_contig_migrate_range(unsigned long start, unsigned long end)
->  		}
->  
->  		ret = migrate_pages(&cc.migratepages,
-> -				    __alloc_contig_migrate_alloc,
-> +				    alloc_migrate_target,
->  				    0, false, MIGRATE_SYNC);
->  	}
->  
-> diff --git a/mm/page_isolation.c b/mm/page_isolation.c
-> index 247d1f1..6936545 100644
-> --- a/mm/page_isolation.c
-> +++ b/mm/page_isolation.c
-> @@ -233,3 +233,14 @@ int test_pages_isolated(unsigned long start_pfn, unsigned long end_pfn)
->  	spin_unlock_irqrestore(&zone->lock, flags);
->  	return ret ? 0 : -EBUSY;
->  }
-> +
-> +struct page *alloc_migrate_target(struct page *page, unsigned long private,
-> +                             int **resultp)
-> +{
-> +        gfp_t gfp_mask = GFP_USER | __GFP_MOVABLE;
-> +
-> +        if (PageHighMem(page))
-> +                gfp_mask |= __GFP_HIGHMEM;
-> +
-> +        return alloc_page(gfp_mask);
+>  };
+> @@ -413,8 +417,6 @@ struct mem_cgroup *mem_cgroup_from_css(struct cgroup_subsys_state *s)
+>
+>  /* Writing them here to avoid exposing memcg's inner layout */
+>  #ifdef CONFIG_MEMCG_KMEM
+> -#include <net/sock.h>
+> -#include <net/ip.h>
+>
+>  static bool mem_cgroup_is_root(struct mem_cgroup *memcg);
+>  void sock_update_memcg(struct sock *sk)
+> --
+> 1.7.10.4
+>
+> --
+> Michal Hocko
+> SUSE Labs
 
-alloc_page() will use current task's memory policy. If we offline memory like this:
-numactl -m n echo offline >/sys/devices/system/memory/memoryX/state # n is page's nid
 
-It may trigger OOM event.
 
-Thanks
-Wen Congyang
+-- 
+With warm regards,
+Sachin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
