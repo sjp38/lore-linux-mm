@@ -1,47 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
-	by kanga.kvack.org (Postfix) with SMTP id 9CB2E6B024F
-	for <linux-mm@kvack.org>; Fri, 14 Sep 2012 08:41:28 -0400 (EDT)
-Date: Fri, 14 Sep 2012 20:41:24 +0800
-From: Fengguang Wu <fengguang.wu@intel.com>
-Subject: Re: [PATCH v3] memcg: clean up networking headers file inclusion
-Message-ID: <20120914124124.GC21038@localhost>
-References: <20120914112118.GG28039@dhcp22.suse.cz>
- <50531339.1000805@parallels.com>
- <20120914113400.GI28039@dhcp22.suse.cz>
- <50531696.1080708@parallels.com>
- <20120914120849.GL28039@dhcp22.suse.cz>
- <5052E766.9070304@parallels.com>
- <20120914122413.GO28039@dhcp22.suse.cz>
+Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
+	by kanga.kvack.org (Postfix) with SMTP id 8098C6B0250
+	for <linux-mm@kvack.org>; Fri, 14 Sep 2012 08:44:43 -0400 (EDT)
+Date: Fri, 14 Sep 2012 22:45:04 +1000
+From: Paul Mackerras <paulus@samba.org>
+Subject: Re: [PATCH 0/3] KVM: PPC: Book3S HV: More flexible allocator for
+ linear memory
+Message-ID: <20120914124504.GF15028@bloggs.ozlabs.ibm.com>
+References: <20120912003427.GH32642@bloggs.ozlabs.ibm.com>
+ <9650229C-2512-4684-98EC-6E252E47C4A9@suse.de>
+ <20120914081140.GC15028@bloggs.ozlabs.ibm.com>
+ <F7ED8384-5B23-478C-B2B7-927A3A755E98@suse.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20120914122413.GO28039@dhcp22.suse.cz>
+In-Reply-To: <F7ED8384-5B23-478C-B2B7-927A3A755E98@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Glauber Costa <glommer@parallels.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Sachin Kamat <sachin.kamat@linaro.org>
+To: Alexander Graf <agraf@suse.de>
+Cc: kvm-ppc@vger.kernel.org, KVM list <kvm@vger.kernel.org>, linux-mm@kvack.org, m.nazarewicz@samsung.com
 
-> > Seems safe now. Since the config matrix can get tricky, and we have no
-> > pressing time issues with this, I would advise to give it a day in
-> > Fengguang's magic system before merging it. Just put it in a temp branch
-> > in korg and let it do the job.
+On Fri, Sep 14, 2012 at 02:13:37PM +0200, Alexander Graf wrote:
+
+> So do you think it makes more sense to reimplement a large page allocator in KVM, as this patch set does, or improve CMA to get us really big chunks of linear memory?
 > 
-> OK done. It is cleanups/memcg-sock-include.
-> 
-> Fengguang, do you think we can (ab)use your build test coverity to test
-> git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git cleanups/memcg-sock-include
-> 
-> Thanks a lot!
+> Let's ask the Linux mm guys too :). Maybe they have an idea.
 
-Feel free to take advantage of it to your heart's content!  Actually
-one of my biggest joy of working (hard) is to see users being able to
-make utmost use of the resulted system or feature :)
+I asked the authors of CMA, and apparently it's not limited to
+MAX_ORDER as I feared.  It has the advantage that the memory can be
+used for other things such as page cache when it's not needed, but not
+for immovable allocations such as kmalloc.  I'm going to try it out.
+It will need a patch to increase the maximum alignment it allows.
 
-The tests will auto start shortly after you push the branch.
-
-Thanks,
-Fengguang
+Paul.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
