@@ -1,104 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
-	by kanga.kvack.org (Postfix) with SMTP id E017D6B019D
-	for <linux-mm@kvack.org>; Thu, 13 Sep 2012 23:41:24 -0400 (EDT)
-Date: Fri, 14 Sep 2012 12:43:36 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH v3 4/5] mm: add accounting for CMA pages and use them for
- watermark calculation
-Message-ID: <20120914034336.GI5085@bbox>
-References: <1346765185-30977-1-git-send-email-b.zolnierkie@samsung.com>
- <1346765185-30977-5-git-send-email-b.zolnierkie@samsung.com>
+Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
+	by kanga.kvack.org (Postfix) with SMTP id 475B16B019F
+	for <linux-mm@kvack.org>; Thu, 13 Sep 2012 23:42:54 -0400 (EDT)
+Received: by iec9 with SMTP id 9so7677081iec.14
+        for <linux-mm@kvack.org>; Thu, 13 Sep 2012 20:42:53 -0700 (PDT)
+Message-ID: <5052A7DF.4050301@gmail.com>
+Date: Fri, 14 Sep 2012 11:43:27 +0800
+From: qiuxishi <qiuxishi@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1346765185-30977-5-git-send-email-b.zolnierkie@samsung.com>
+Subject: [PATCH RESEND] memory hotplug: fix a double register section info
+ bug
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
-Cc: linux-mm@kvack.org, m.szyprowski@samsung.com, mina86@mina86.com, mgorman@suse.de, hughd@google.com, kyungmin.park@samsung.com
+To: akpm@linux-foundation.org, mgorman@suse.de, tony.luck@intel.com, Jiang Liu <jiang.liu@huawei.com>
+Cc: qiuxishi@huawei.com, bessel.wang@huawei.com, wujianguo@huawei.com, paul.gortmaker@windriver.com, kamezawa.hiroyu@jp.fujitsu.com, kosaki.motohiro@jp.fujitsu.com, rientjes@google.com, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wen Congyang <wency@cn.fujitsu.com>
 
-On Tue, Sep 04, 2012 at 03:26:24PM +0200, Bartlomiej Zolnierkiewicz wrote:
-> From: Marek Szyprowski <m.szyprowski@samsung.com>
-> 
-> During watermark check we need to decrease available free pages number
-> by free CMA pages number because unmovable allocations cannot use pages
-> from CMA areas.
+There may be a bug when registering section info. For example, on
+my Itanium platform, the pfn range of node0 includes the other nodes,
+so other nodes' section info will be double registered, and memmap's
+page count will equal to 3.
 
-This patch could be fold into 5/5.
+node0: start_pfn=0x100,    spanned_pfn=0x20fb00, present_pfn=0x7f8a3, => 0x000100-0x20fc00
+node1: start_pfn=0x80000,  spanned_pfn=0x80000,  present_pfn=0x80000, => 0x080000-0x100000
+node2: start_pfn=0x100000, spanned_pfn=0x80000,  present_pfn=0x80000, => 0x100000-0x180000
+node3: start_pfn=0x180000, spanned_pfn=0x80000,  present_pfn=0x80000, => 0x180000-0x200000
 
-> 
-> Signed-off-by: Marek Szyprowski <m.szyprowski@samsung.com>
-> Cc: Michal Nazarewicz <mina86@mina86.com>
-> Cc: Minchan Kim <minchan@kernel.org>
-> Cc: Mel Gorman <mgorman@suse.de>
-> Cc: Hugh Dickins <hughd@google.com>
-> Signed-off-by: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
-> Signed-off-by: Kyungmin Park <kyungmin.park@samsung.com>
-> ---
->  mm/page_alloc.c | 10 ++++++----
->  1 file changed, 6 insertions(+), 4 deletions(-)
-> 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 5bb0cda..2166774 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -1628,7 +1628,7 @@ static inline bool should_fail_alloc_page(gfp_t gfp_mask, unsigned int order)
->   * of the allocation.
->   */
->  static bool __zone_watermark_ok(struct zone *z, int order, unsigned long mark,
-> -		      int classzone_idx, int alloc_flags, long free_pages)
-> +		      int classzone_idx, int alloc_flags, long free_pages, long free_cma_pages)
->  {
->  	/* free_pages my go negative - that's OK */
->  	long min = mark;
-> @@ -1641,7 +1641,7 @@ static bool __zone_watermark_ok(struct zone *z, int order, unsigned long mark,
->  	if (alloc_flags & ALLOC_HARDER)
->  		min -= min / 4;
->  
-> -	if (free_pages <= min + lowmem_reserve)
-> +	if (free_pages - free_cma_pages <= min + lowmem_reserve)
->  		return false;
->  	for (o = 0; o < order; o++) {
->  		/* At the next order, this order's pages become unavailable */
-> @@ -1674,13 +1674,15 @@ bool zone_watermark_ok(struct zone *z, int order, unsigned long mark,
->  		      int classzone_idx, int alloc_flags)
->  {
->  	return __zone_watermark_ok(z, order, mark, classzone_idx, alloc_flags,
-> -					zone_page_state(z, NR_FREE_PAGES));
-> +					zone_page_state(z, NR_FREE_PAGES),
-> +					zone_page_state(z, NR_FREE_CMA_PAGES));
->  }
->  
->  bool zone_watermark_ok_safe(struct zone *z, int order, unsigned long mark,
->  		      int classzone_idx, int alloc_flags)
->  {
->  	long free_pages = zone_page_state(z, NR_FREE_PAGES);
-> +	long free_cma_pages = zone_page_state(z, NR_FREE_CMA_PAGES);
->  
->  	if (z->percpu_drift_mark && free_pages < z->percpu_drift_mark)
->  		free_pages = zone_page_state_snapshot(z, NR_FREE_PAGES);
-> @@ -1694,7 +1696,7 @@ bool zone_watermark_ok_safe(struct zone *z, int order, unsigned long mark,
->  	 */
->  	free_pages -= nr_zone_isolate_freepages(z);
->  	return __zone_watermark_ok(z, order, mark, classzone_idx, alloc_flags,
-> -								free_pages);
-> +					free_pages, free_cma_pages);
->  }
->  
->  #ifdef CONFIG_NUMA
-> -- 
-> 1.7.11.3
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+free_all_bootmem_node()
+	register_page_bootmem_info_node()
+		register_page_bootmem_info_section()
+
+When hot remove memory, we can't free the memmap's page because
+page_count() is 2 after put_page_bootmem().
+
+sparse_remove_one_section()
+	free_section_usemap()
+		free_map_bootmem()
+			put_page_bootmem()
+
+Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
+Signed-off-by: Jiang Liu <jiang.liu@huawei.com>
+---
+ mm/memory_hotplug.c |   10 ++++------
+ 1 files changed, 4 insertions(+), 6 deletions(-)
+
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index 2adbcac..cf493c7 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -126,9 +126,6 @@ static void register_page_bootmem_info_section(unsigned long start_pfn)
+ 	struct mem_section *ms;
+ 	struct page *page, *memmap;
+
+-	if (!pfn_valid(start_pfn))
+-		return;
+-
+ 	section_nr = pfn_to_section_nr(start_pfn);
+ 	ms = __nr_to_section(section_nr);
+
+@@ -187,9 +184,10 @@ void register_page_bootmem_info_node(struct pglist_data *pgdat)
+ 	end_pfn = pfn + pgdat->node_spanned_pages;
+
+ 	/* register_section info */
+-	for (; pfn < end_pfn; pfn += PAGES_PER_SECTION)
+-		register_page_bootmem_info_section(pfn);
+-
++	for (; pfn < end_pfn; pfn += PAGES_PER_SECTION) {
++		if (pfn_valid(pfn) && (pfn_to_nid(pfn) == node))
++			register_page_bootmem_info_section(pfn);
++	}
+ }
+ #endif /* !CONFIG_SPARSEMEM_VMEMMAP */
 
 -- 
-Kind regards,
-Minchan Kim
+1.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
