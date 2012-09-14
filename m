@@ -1,98 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
-	by kanga.kvack.org (Postfix) with SMTP id 781336B002B
-	for <linux-mm@kvack.org>; Fri, 14 Sep 2012 11:46:43 -0400 (EDT)
-Date: Fri, 14 Sep 2012 11:46:25 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH] memory cgroup: update root memory cgroup when node is
- onlined
-Message-ID: <20120914154625.GN1560@cmpxchg.org>
-References: <505187D4.7070404@cn.fujitsu.com>
- <20120913205935.GK1560@cmpxchg.org>
- <alpine.LSU.2.00.1209131816070.1908@eggly.anvils>
+Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
+	by kanga.kvack.org (Postfix) with SMTP id 6246A6B005A
+	for <linux-mm@kvack.org>; Fri, 14 Sep 2012 12:24:34 -0400 (EDT)
+From: "Luck, Tony" <tony.luck@intel.com>
+Subject: RE: [PATCH RESEND] memory hotplug: fix a double register section
+ info bug
+Date: Fri, 14 Sep 2012 16:24:32 +0000
+Message-ID: <3908561D78D1C84285E8C5FCA982C28F19D40E81@ORSMSX108.amr.corp.intel.com>
+References: <5052A7DF.4050301@gmail.com> <20120914095230.GE11266@suse.de>
+In-Reply-To: <20120914095230.GE11266@suse.de>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.LSU.2.00.1209131816070.1908@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Wen Congyang <wency@cn.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, cgroups@vger.kernel.org, linux-mm@kvack.org, Jiang Liu <liuj97@gmail.com>, mhocko@suse.cz, bsingharora@gmail.com, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Konstantin Khlebnikov <khlebnikov@openvz.org>, paul.gortmaker@windriver.com
+To: Mel Gorman <mgorman@suse.de>, qiuxishi <qiuxishi@gmail.com>
+Cc: "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Jiang Liu <jiang.liu@huawei.com>, "qiuxishi@huawei.com" <qiuxishi@huawei.com>, "bessel.wang@huawei.com" <bessel.wang@huawei.com>, "wujianguo@huawei.com" <wujianguo@huawei.com>, "paul.gortmaker@windriver.com" <paul.gortmaker@windriver.com>, "kamezawa.hiroyu@jp.fujitsu.com" <kamezawa.hiroyu@jp.fujitsu.com>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>, "rientjes@google.com" <rientjes@google.com>, Minchan Kim <minchan@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Wen Congyang <wency@cn.fujitsu.com>
 
-On Thu, Sep 13, 2012 at 06:36:34PM -0700, Hugh Dickins wrote:
-> On Thu, 13 Sep 2012, Johannes Weiner wrote:
-> > On Thu, Sep 13, 2012 at 03:14:28PM +0800, Wen Congyang wrote:
-> > > root_mem_cgroup->info.nodeinfo is initialized when the system boots.
-> > > But NODE_DATA(nid) is null if the node is not onlined, so
-> > > root_mem_cgroup->info.nodeinfo[nid]->zoneinfo[zone].lruvec.zone contains
-> > > an invalid pointer. If we use numactl to bind a program to the node
-> > > after onlining the node and its memory, it will cause the kernel
-> > > panicked:
-> > 
-> > Is there any chance we could get rid of the zone backpointer in lruvec
-> > again instead?
-> 
-> It could be done, but it would make me sad :(
+> This is an unusual configuration but it's not unheard of. PPC64 in rare
+> (and usually broken) configurations can have one node span another. Tony
+> should know if such a configuration is normally allowed on Itanium or if
+> this should be considered a platform bug. Tony?
 
-We would not want that!
+We definitely have platforms where the physical memory on node 0
+that we skipped to leave physical address space for PCI mem mapped
+devices gets tagged back at the very top of memory, after other nodes.
 
-> > But can't
-> > we just go back to passing the zone along with the lruvec down
-> > vmscan.c paths?  I agree it's ugly to pass both, given their
-> > relationship.  But I don't think the backpointer is any cleaner but in
-> > addition less robust.
-> 
-> It's like how we use vma->mm: we could change everywhere to pass mm with
-> vma, but it looks cleaner and cuts down on long arglists to have mm in vma.
-> >From past experience, one of the things I worried about was adding extra
-> args to the reclaim stack.
+E.g. A 2-node system with 8G on each might look like this:
 
-Ok, you certainly have a point.
+0-2G RAM on node 0
+2G-4G  PCI map space
+4G-8G RAM on node 0
+8G-16GRAM on node 1
+16G-18G RAM on node 0
 
-> > That being said, the crashing code in particular makes me wonder:
-> > 
-> > static __always_inline void add_page_to_lru_list(struct page *page,
-> > 				struct lruvec *lruvec, enum lru_list lru)
-> > {
-> > 	int nr_pages = hpage_nr_pages(page);
-> > 	mem_cgroup_update_lru_size(lruvec, lru, nr_pages);
-> > 	list_add(&page->lru, &lruvec->lists[lru]);
-> > 	__mod_zone_page_state(lruvec_zone(lruvec), NR_LRU_BASE + lru, nr_pages);
-> > }
-> > 
-> > Why did we ever pass zone in here and then felt the need to replace it
-> > with lruvec->zone in fa9add6 "mm/memcg: apply add/del_page to lruvec"?
-> > A page does not roam between zones, its zone is a static property that
-> > can be retrieved with page_zone().
-> 
-> Just as in vmscan.c, we have the lruvec to hand, and that's what we
-> mainly want to operate upon, but there is also some need for zone.
-> 
-> (Both Konstantin and I were looking towards the day when we move the
-> lru_lock into the lruvec, removing more dependence on "zone".  Pretty
-> much the only reason that hasn't happened yet, is that we have not found
-> time to make a performance case convincingly - but that's another topic.)
-> 
-> Yes, page_zone(page) is a static property of the page, but it's not
-> necessarily cheap to evaluate: depends on how complex the memory model
-> and the spare page flags space, doesn't it?  We both preferred to
-> derive zone from lruvec where convenient.
-> 
-> How do you feel about this patch, and does it work for you guys?
-> 
-> You'd be right if you guessed that I started out without the
-> mem_cgroup_zone_lruvec part of it, but oops in get_scan_count
-> told me that's needed too.
-> 
-> Description to be filled in later: would it be needed for -stable,
-> or is onlining already broken in other ways that you're now fixing up?
-> 
-> Reported-by: Tang Chen <tangchen@cn.fujitsu.com>
-> Signed-off-by: Hugh Dickins <hughd@google.com>
+Is this the situation that we are talking about? Or something different?
 
-This looks good to me, thanks.
-
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+-Tony
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
