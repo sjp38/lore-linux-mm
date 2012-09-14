@@ -1,180 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
-	by kanga.kvack.org (Postfix) with SMTP id 209766B026A
-	for <linux-mm@kvack.org>; Fri, 14 Sep 2012 10:30:02 -0400 (EDT)
-Received: from epcpsbgm1.samsung.com (epcpsbgm1 [203.254.230.26])
- by mailout1.samsung.com
- (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
- 17 2011)) with ESMTP id <0MAC00ISUG9ML0C0@mailout1.samsung.com> for
- linux-mm@kvack.org; Fri, 14 Sep 2012 23:30:00 +0900 (KST)
-Received: from mcdsrvbld02.digital.local ([106.116.37.23])
- by mmp2.samsung.com (Oracle Communications Messaging Server 7u4-24.01
- (7.0.4.24.0) 64bit (built Nov 17 2011))
- with ESMTPA id <0MAC00M85G9E5EA0@mmp2.samsung.com> for linux-mm@kvack.org;
- Fri, 14 Sep 2012 23:30:00 +0900 (KST)
-From: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
-Subject: [PATCH v4 4/4] cma: fix watermark checking
-Date: Fri, 14 Sep 2012 16:29:34 +0200
-Message-id: <1347632974-20465-5-git-send-email-b.zolnierkie@samsung.com>
-In-reply-to: <1347632974-20465-1-git-send-email-b.zolnierkie@samsung.com>
-References: <1347632974-20465-1-git-send-email-b.zolnierkie@samsung.com>
+Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
+	by kanga.kvack.org (Postfix) with SMTP id 781336B002B
+	for <linux-mm@kvack.org>; Fri, 14 Sep 2012 11:46:43 -0400 (EDT)
+Date: Fri, 14 Sep 2012 11:46:25 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH] memory cgroup: update root memory cgroup when node is
+ onlined
+Message-ID: <20120914154625.GN1560@cmpxchg.org>
+References: <505187D4.7070404@cn.fujitsu.com>
+ <20120913205935.GK1560@cmpxchg.org>
+ <alpine.LSU.2.00.1209131816070.1908@eggly.anvils>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LSU.2.00.1209131816070.1908@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: m.szyprowski@samsung.com, mina86@mina86.com, minchan@kernel.org, mgorman@suse.de, hughd@google.com, kyungmin.park@samsung.com, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
+To: Hugh Dickins <hughd@google.com>
+Cc: Wen Congyang <wency@cn.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, cgroups@vger.kernel.org, linux-mm@kvack.org, Jiang Liu <liuj97@gmail.com>, mhocko@suse.cz, bsingharora@gmail.com, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Konstantin Khlebnikov <khlebnikov@openvz.org>, paul.gortmaker@windriver.com
 
-* Add ALLOC_CMA alloc flag and pass it to [__]zone_watermark_ok()
-  (from Minchan Kim).
+On Thu, Sep 13, 2012 at 06:36:34PM -0700, Hugh Dickins wrote:
+> On Thu, 13 Sep 2012, Johannes Weiner wrote:
+> > On Thu, Sep 13, 2012 at 03:14:28PM +0800, Wen Congyang wrote:
+> > > root_mem_cgroup->info.nodeinfo is initialized when the system boots.
+> > > But NODE_DATA(nid) is null if the node is not onlined, so
+> > > root_mem_cgroup->info.nodeinfo[nid]->zoneinfo[zone].lruvec.zone contains
+> > > an invalid pointer. If we use numactl to bind a program to the node
+> > > after onlining the node and its memory, it will cause the kernel
+> > > panicked:
+> > 
+> > Is there any chance we could get rid of the zone backpointer in lruvec
+> > again instead?
+> 
+> It could be done, but it would make me sad :(
 
-* During watermark check decrease available free pages number by
-  free CMA pages number if necessary (unmovable allocations cannot
-  use pages from CMA areas).
+We would not want that!
 
-Cc: Marek Szyprowski <m.szyprowski@samsung.com>
-Cc: Michal Nazarewicz <mina86@mina86.com>
-Cc: Minchan Kim <minchan@kernel.org>
-Cc: Mel Gorman <mgorman@suse.de>
-Cc: Hugh Dickins <hughd@google.com>
-Signed-off-by: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
-Signed-off-by: Kyungmin Park <kyungmin.park@samsung.com>
----
- include/linux/mmzone.h | 15 +++++++++++++++
- mm/compaction.c        |  8 +++++++-
- mm/page_alloc.c        | 30 ++++++++++++++----------------
- 3 files changed, 36 insertions(+), 17 deletions(-)
+> > But can't
+> > we just go back to passing the zone along with the lruvec down
+> > vmscan.c paths?  I agree it's ugly to pass both, given their
+> > relationship.  But I don't think the backpointer is any cleaner but in
+> > addition less robust.
+> 
+> It's like how we use vma->mm: we could change everywhere to pass mm with
+> vma, but it looks cleaner and cuts down on long arglists to have mm in vma.
+> >From past experience, one of the things I worried about was adding extra
+> args to the reclaim stack.
 
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index 904889d..be8abdb 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -231,6 +231,21 @@ enum zone_watermarks {
- #define low_wmark_pages(z) (z->watermark[WMARK_LOW])
- #define high_wmark_pages(z) (z->watermark[WMARK_HIGH])
- 
-+/* The ALLOC_WMARK bits are used as an index to zone->watermark */
-+#define ALLOC_WMARK_MIN		WMARK_MIN
-+#define ALLOC_WMARK_LOW		WMARK_LOW
-+#define ALLOC_WMARK_HIGH	WMARK_HIGH
-+#define ALLOC_NO_WATERMARKS	0x04 /* don't check watermarks at all */
-+
-+/* Mask to get the watermark bits */
-+#define ALLOC_WMARK_MASK	(ALLOC_NO_WATERMARKS-1)
-+
-+#define ALLOC_HARDER		0x10 /* try to alloc harder */
-+#define ALLOC_HIGH		0x20 /* __GFP_HIGH set */
-+#define ALLOC_CPUSET		0x40 /* check for correct cpuset */
-+
-+#define ALLOC_CMA		0x80
-+
- struct per_cpu_pages {
- 	int count;		/* number of pages in the list */
- 	int high;		/* high watermark, emptying needed */
-diff --git a/mm/compaction.c b/mm/compaction.c
-index 4b902aa..36d79ea 100644
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -868,6 +868,7 @@ unsigned long try_to_compact_pages(struct zonelist *zonelist,
- 	struct zoneref *z;
- 	struct zone *zone;
- 	int rc = COMPACT_SKIPPED;
-+	int alloc_flags = 0;
- 
- 	/*
- 	 * Check whether it is worth even starting compaction. The order check is
-@@ -879,6 +880,10 @@ unsigned long try_to_compact_pages(struct zonelist *zonelist,
- 
- 	count_vm_event(COMPACTSTALL);
- 
-+#ifdef CONFIG_CMA
-+	if (allocflags_to_migratetype(gfp_mask) == MIGRATE_MOVABLE)
-+		alloc_flags |= ALLOC_CMA;
-+#endif
- 	/* Compact each zone in the list */
- 	for_each_zone_zonelist_nodemask(zone, z, zonelist, high_zoneidx,
- 								nodemask) {
-@@ -889,7 +894,8 @@ unsigned long try_to_compact_pages(struct zonelist *zonelist,
- 		rc = max(status, rc);
- 
- 		/* If a normal allocation would succeed, stop compacting */
--		if (zone_watermark_ok(zone, order, low_wmark_pages(zone), 0, 0))
-+		if (zone_watermark_ok(zone, order, low_wmark_pages(zone), 0,
-+				      alloc_flags))
- 			break;
- 	}
- 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 287f79d..5985cbf 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -1519,19 +1519,6 @@ failed:
- 	return NULL;
- }
- 
--/* The ALLOC_WMARK bits are used as an index to zone->watermark */
--#define ALLOC_WMARK_MIN		WMARK_MIN
--#define ALLOC_WMARK_LOW		WMARK_LOW
--#define ALLOC_WMARK_HIGH	WMARK_HIGH
--#define ALLOC_NO_WATERMARKS	0x04 /* don't check watermarks at all */
--
--/* Mask to get the watermark bits */
--#define ALLOC_WMARK_MASK	(ALLOC_NO_WATERMARKS-1)
--
--#define ALLOC_HARDER		0x10 /* try to alloc harder */
--#define ALLOC_HIGH		0x20 /* __GFP_HIGH set */
--#define ALLOC_CPUSET		0x40 /* check for correct cpuset */
--
- #ifdef CONFIG_FAIL_PAGE_ALLOC
- 
- static struct {
-@@ -1626,7 +1613,10 @@ static bool __zone_watermark_ok(struct zone *z, int order, unsigned long mark,
- 		min -= min / 2;
- 	if (alloc_flags & ALLOC_HARDER)
- 		min -= min / 4;
--
-+#ifdef CONFIG_CMA
-+	if (!(alloc_flags & ALLOC_CMA))
-+		free_pages -= zone_page_state(z, NR_FREE_CMA_PAGES);
-+#endif
- 	if (free_pages <= min + lowmem_reserve)
- 		return false;
- 	for (o = 0; o < order; o++) {
-@@ -2333,7 +2323,10 @@ gfp_to_alloc_flags(gfp_t gfp_mask)
- 				 unlikely(test_thread_flag(TIF_MEMDIE))))
- 			alloc_flags |= ALLOC_NO_WATERMARKS;
- 	}
--
-+#ifdef CONFIG_CMA
-+	if (allocflags_to_migratetype(gfp_mask) == MIGRATE_MOVABLE)
-+		alloc_flags |= ALLOC_CMA;
-+#endif
- 	return alloc_flags;
- }
- 
-@@ -2559,6 +2552,7 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
- 	struct page *page = NULL;
- 	int migratetype = allocflags_to_migratetype(gfp_mask);
- 	unsigned int cpuset_mems_cookie;
-+	int alloc_flags = ALLOC_WMARK_LOW|ALLOC_CPUSET;
- 
- 	gfp_mask &= gfp_allowed_mask;
- 
-@@ -2587,9 +2581,13 @@ retry_cpuset:
- 	if (!preferred_zone)
- 		goto out;
- 
-+#ifdef CONFIG_CMA
-+	if (allocflags_to_migratetype(gfp_mask) == MIGRATE_MOVABLE)
-+		alloc_flags |= ALLOC_CMA;
-+#endif
- 	/* First allocation attempt */
- 	page = get_page_from_freelist(gfp_mask|__GFP_HARDWALL, nodemask, order,
--			zonelist, high_zoneidx, ALLOC_WMARK_LOW|ALLOC_CPUSET,
-+			zonelist, high_zoneidx, alloc_flags,
- 			preferred_zone, migratetype);
- 	if (unlikely(!page))
- 		page = __alloc_pages_slowpath(gfp_mask, order,
--- 
-1.7.11.3
+Ok, you certainly have a point.
+
+> > That being said, the crashing code in particular makes me wonder:
+> > 
+> > static __always_inline void add_page_to_lru_list(struct page *page,
+> > 				struct lruvec *lruvec, enum lru_list lru)
+> > {
+> > 	int nr_pages = hpage_nr_pages(page);
+> > 	mem_cgroup_update_lru_size(lruvec, lru, nr_pages);
+> > 	list_add(&page->lru, &lruvec->lists[lru]);
+> > 	__mod_zone_page_state(lruvec_zone(lruvec), NR_LRU_BASE + lru, nr_pages);
+> > }
+> > 
+> > Why did we ever pass zone in here and then felt the need to replace it
+> > with lruvec->zone in fa9add6 "mm/memcg: apply add/del_page to lruvec"?
+> > A page does not roam between zones, its zone is a static property that
+> > can be retrieved with page_zone().
+> 
+> Just as in vmscan.c, we have the lruvec to hand, and that's what we
+> mainly want to operate upon, but there is also some need for zone.
+> 
+> (Both Konstantin and I were looking towards the day when we move the
+> lru_lock into the lruvec, removing more dependence on "zone".  Pretty
+> much the only reason that hasn't happened yet, is that we have not found
+> time to make a performance case convincingly - but that's another topic.)
+> 
+> Yes, page_zone(page) is a static property of the page, but it's not
+> necessarily cheap to evaluate: depends on how complex the memory model
+> and the spare page flags space, doesn't it?  We both preferred to
+> derive zone from lruvec where convenient.
+> 
+> How do you feel about this patch, and does it work for you guys?
+> 
+> You'd be right if you guessed that I started out without the
+> mem_cgroup_zone_lruvec part of it, but oops in get_scan_count
+> told me that's needed too.
+> 
+> Description to be filled in later: would it be needed for -stable,
+> or is onlining already broken in other ways that you're now fixing up?
+> 
+> Reported-by: Tang Chen <tangchen@cn.fujitsu.com>
+> Signed-off-by: Hugh Dickins <hughd@google.com>
+
+This looks good to me, thanks.
+
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
