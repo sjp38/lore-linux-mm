@@ -1,63 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
-	by kanga.kvack.org (Postfix) with SMTP id 3E8806B0213
-	for <linux-mm@kvack.org>; Fri, 14 Sep 2012 08:13:45 -0400 (EDT)
-Subject: Re: [PATCH 0/3] KVM: PPC: Book3S HV: More flexible allocator for linear memory
-Mime-Version: 1.0 (Apple Message framework v1278)
-Content-Type: text/plain; charset=us-ascii
-From: Alexander Graf <agraf@suse.de>
-In-Reply-To: <20120914081140.GC15028@bloggs.ozlabs.ibm.com>
-Date: Fri, 14 Sep 2012 14:13:37 +0200
-Content-Transfer-Encoding: quoted-printable
-Message-Id: <F7ED8384-5B23-478C-B2B7-927A3A755E98@suse.de>
-References: <20120912003427.GH32642@bloggs.ozlabs.ibm.com> <9650229C-2512-4684-98EC-6E252E47C4A9@suse.de> <20120914081140.GC15028@bloggs.ozlabs.ibm.com>
+Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
+	by kanga.kvack.org (Postfix) with SMTP id CDF726B0248
+	for <linux-mm@kvack.org>; Fri, 14 Sep 2012 08:17:48 -0400 (EDT)
+Message-ID: <5052E766.9070304@parallels.com>
+Date: Fri, 14 Sep 2012 12:14:30 +0400
+From: Glauber Costa <glommer@parallels.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH v3] memcg: clean up networking headers file inclusion
+References: <20120914112118.GG28039@dhcp22.suse.cz> <50531339.1000805@parallels.com> <20120914113400.GI28039@dhcp22.suse.cz> <50531696.1080708@parallels.com> <20120914120849.GL28039@dhcp22.suse.cz>
+In-Reply-To: <20120914120849.GL28039@dhcp22.suse.cz>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Paul Mackerras <paulus@samba.org>
-Cc: kvm-ppc@vger.kernel.org, KVM list <kvm@vger.kernel.org>, linux-mm@kvack.org, m.nazarewicz@samsung.com
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Sachin
+ Kamat <sachin.kamat@linaro.org>
 
+On 09/14/2012 04:08 PM, Michal Hocko wrote:
+> On Fri 14-09-12 15:35:50, Glauber Costa wrote:
+> [...]
+>> So, *right now* this code is used only for inet code, so I won't oppose
+>> your patch on this basis. I'll reuse it for kmem, but I am happy to just
+>> rebase it.
+> 
+> Hmm, I guess I was too strict after all. memcg_init_kmem doesn't need
+> CONFIG_INET gueard as both mem_cgroup_sockets_{init,destroy} are defined
+> empty for !CONFIG_INET. All other functions guarded in INET&&KMEM combo
+> seem to be networking specific.
+> Updated patch bellow:
+> ---
+> From 4dca5e135b4dcc08464bbd70761d094f99ed83b1 Mon Sep 17 00:00:00 2001
+> From: Michal Hocko <mhocko@suse.cz>
+> Date: Tue, 11 Sep 2012 10:38:42 +0200
+> Subject: [PATCH] memcg: clean up networking headers file inclusion
+> 
+> Memory controller doesn't need anything from the networking stack unless
+> CONFIG_MEMCG_KMEM is selected.
+> Now we are including net/sock.h and net/tcp_memcontrol.h unconditionally
+> which is not necessary. Moreover struct mem_cgroup contains tcp_mem
+> even if CONFIG_MEMCG_KMEM and CONFIG_INET are not selected which is not
+> necessary.
+> While we are at it, let's clean up KMEM sock code ifdefs to require both
+> CONFIG_KMEM and CONFIG_INET as it doesn't make much sense to compile
+> this code if there is no possible user for it.
+> 
+> Tested with
+> - CONFIG_INET && CONFIG_MEMCG_KMEM
+> - !CONFIG_INET && CONFIG_MEMCG_KMEM
+> - CONFIG_INET && !CONFIG_MEMCG_KMEM
+> - !CONFIG_INET && !CONFIG_MEMCG_KMEM
+> 
+> Changes since V2:
+> - memcg_init_kmem and kmem_cgroup_destroy don't need CONFIG_INET
+> 
+> Changes since V1:
+> - depend on both CONFIG_INET and CONFIG_MEMCG_KMEM for both
+>   mem_cgroup->tcp_mem and the sock specific code
+> 
+> Signed-off-by: Sachin Kamat <sachin.kamat@linaro.org>
+> Signed-off-by: Michal Hocko <mhocko@suse.cz>
 
-On 14.09.2012, at 10:11, Paul Mackerras wrote:
-
-> On Fri, Sep 14, 2012 at 01:32:23AM +0200, Alexander Graf wrote:
->>=20
->> On 12.09.2012, at 02:34, Paul Mackerras wrote:
->>=20
->>> This series of 3 patches makes it possible for guests to allocate
->>> whatever size of HPT they need from linear memory preallocated at
->>> boot, rather than being restricted to a single size of HPT (by
->>> default, 16MB) and having to use the kernel page allocator for
->>> anything else -- which in practice limits them to at most 16MB given
->>> the default value for the maximum page order.  Instead of allocating
->>> many individual pieces of memory, this allocates a single contiguous
->>> area and uses a simple bitmap-based allocator to hand out pieces of =
-it
->>> as required.
->>=20
->> Have you tried to play with CMA for this? It sounds like it could buy =
-us exactly what we need.
->=20
-> Interesting, I hadn't noticed that there.  I had a bit of a look at
-> it, and it's certainly in the right general direction, however it
-> would need some changes to do what we need.  It limits the alignment
-> to at most 512 pages, i.e. 2MB with 4k pages or 32MB with 64k pages,
-> but we need RMAs of 64MB to 256MB for PPC970 and they have to be
-> aligned on their size, as do the HPTs for PPC970.
->=20
-> Secondly, it has a link with the page allocator that I don't fully
-> understand, but it seems from the comments in alloc_contig_range()
-> (mm/page_alloc.c) that you can allocate at most MAX_ORDER_NR_PAGES
-> pages at once, and that defaults to 16MB for ppc64, which isn't nearly
-> enough.  If that's true then it would make it unusable for this.
-
-So do you think it makes more sense to reimplement a large page =
-allocator in KVM, as this patch set does, or improve CMA to get us =
-really big chunks of linear memory?
-
-Let's ask the Linux mm guys too :). Maybe they have an idea.
-
-
-Alex
+Seems safe now. Since the config matrix can get tricky, and we have no
+pressing time issues with this, I would advise to give it a day in
+Fengguang's magic system before merging it. Just put it in a temp branch
+in korg and let it do the job.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
