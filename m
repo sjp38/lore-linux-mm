@@ -1,310 +1,1049 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx165.postini.com [74.125.245.165])
-	by kanga.kvack.org (Postfix) with SMTP id 4F6226B005D
-	for <linux-mm@kvack.org>; Sat, 15 Sep 2012 10:01:49 -0400 (EDT)
-Received: by eaaf11 with SMTP id f11so2233212eaa.14
-        for <linux-mm@kvack.org>; Sat, 15 Sep 2012 07:01:47 -0700 (PDT)
-Message-ID: <50548A62.5000005@gmail.com>
-Date: Sat, 15 Sep 2012 16:02:10 +0200
-From: Sasha Levin <levinsasha928@gmail.com>
+Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
+	by kanga.kvack.org (Postfix) with SMTP id 721546B005D
+	for <linux-mm@kvack.org>; Sat, 15 Sep 2012 11:55:36 -0400 (EDT)
+Date: Sat, 15 Sep 2012 16:55:24 +0100
+From: Richard Davies <richard@arachsys.com>
+Subject: Re: [PATCH -v2 2/2] make the compaction "skip ahead" logic robust
+Message-ID: <20120915155524.GA24182@alpha.arachsys.com>
+References: <5034F8F4.3080301@redhat.com>
+ <20120825174550.GA8619@alpha.arachsys.com>
+ <50391564.30401@redhat.com>
+ <20120826105803.GA377@alpha.arachsys.com>
+ <20120906092039.GA19234@alpha.arachsys.com>
+ <20120912105659.GA23818@alpha.arachsys.com>
+ <20120912122541.GO11266@suse.de>
+ <20120912164615.GA14173@alpha.arachsys.com>
+ <20120913154824.44cc0e28@cuia.bos.redhat.com>
+ <20120913155450.7634148f@cuia.bos.redhat.com>
 MIME-Version: 1.0
-Subject: Re: blk, mm: lockdep irq lock inversion in linux-next
-References: <5054878F.1030908@gmail.com>
-In-Reply-To: <5054878F.1030908@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120913155450.7634148f@cuia.bos.redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: axboe@kernel.dk, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Dave Jones <davej@redhat.com>
+To: Rik van Riel <riel@redhat.com>
+Cc: Mel Gorman <mgorman@suse.de>, Avi Kivity <avi@redhat.com>, Shaohua Li <shli@kernel.org>, qemu-devel@nongnu.org, kvm@vger.kernel.org, linux-mm@kvack.org
 
-On 09/15/2012 03:50 PM, Sasha Levin wrote:
-> Hi all,
-> 
-> While fuzzing with trinity within a KVM tools guest on a linux-next kernel, I
-> got the lockdep warning at the bottom of this mail.
-> 
-> I've tried figuring out where it was introduced, but haven't found any sign that
-> any of the code in that area changed recently, so I'm probably missing something...
-> 
-> 
-> [ 157.966399] =========================================================
-> [ 157.968523] [ INFO: possible irq lock inversion dependency detected ]
-> [ 157.970029] 3.6.0-rc5-next-20120914-sasha-00001-g802bf6c-dirty #340 Tainted: G W
-> [ 157.970029] ---------------------------------------------------------
-> [ 157.970029] trinity-child38/6642 just changed the state of lock:
-> [ 157.970029] (&(&mapping->tree_lock)->rlock){+.+...}, at: [<ffffffff8120cafc>]
-> invalidate_inode_pages2_range+0x20c/0x3c0
-> [ 157.970029] but this lock was taken by another, SOFTIRQ-safe lock in the past:
-> [ 157.970029] (&(&new->queue_lock)->rlock){..-...}
-> 
-> and interrupts could create inverse lock ordering between them.
-> 
-> [ 157.970029]
-> [ 157.970029] other info that might help us debug this:
-> [ 157.970029] Possible interrupt unsafe locking scenario:
-> [ 157.970029]
-> [ 157.970029] CPU0 CPU1
-> [ 157.970029] ---- ----
-> [ 157.970029] lock(&(&mapping->tree_lock)->rlock);
-> [ 157.970029] local_irq_disable();
-> [ 157.970029] lock(&(&new->queue_lock)->rlock);
-> [ 157.970029] lock(&(&mapping->tree_lock)->rlock);
-> [ 157.970029] <Interrupt>
-> [ 157.970029] lock(&(&new->queue_lock)->rlock);
-> [ 157.970029]
-> [ 157.970029] *** DEADLOCK ***
-> [ 157.970029]
-> [ 157.970029] 1 lock held by trinity-child38/6642:
-> [ 157.970029] #0: (&(&mapping->tree_lock)->rlock){+.+...}, at:
-> [<ffffffff8120cafc>] invalidate_inode_pages2_range+0x20c/0x3c0
-> [ 157.970029]
-> [ 157.970029] the shortest dependencies between 2nd lock and 1st lock:
-> [ 157.970029] -> (&(&new->queue_lock)->rlock){..-...} ops: 4790 {
-> [ 157.970029] IN-SOFTIRQ-W at:
-> [ 157.970029] [<ffffffff8117bf2a>] __lock_acquire+0x87a/0x1bd0
-> [ 157.970029] [<ffffffff8117f87a>] lock_acquire+0x1aa/0x240
-> [ 157.970029] [<ffffffff8375f6cc>] _raw_spin_lock_irqsave+0x7c/0xc0
-> [ 157.970029] [<ffffffff819b7239>] cfq_idle_slice_timer+0x19/0xd0
-> [ 157.970029] [<ffffffff81119f66>] call_timer_fn+0x166/0x380
-> [ 157.970029] [<ffffffff8111a46c>] run_timer_softirq+0x2ec/0x380
-> [ 157.970029] [<ffffffff81110b27>] __do_softirq+0x1c7/0x440
-> [ 157.970029] [<ffffffff8376256c>] call_softirq+0x1c/0x30
-> [ 157.970029] [<ffffffff8106f51d>] do_softirq+0x6d/0x100
-> [ 157.970029] [<ffffffff81110f1a>] irq_exit+0x5a/0xd0
-> [ 157.970029] [<ffffffff8109674a>] smp_apic_timer_interrupt+0x8a/0xa0
-> [ 157.970029] [<ffffffff83761e6f>] apic_timer_interrupt+0x6f/0x80
-> [ 157.970029] [<ffffffff810775b5>] default_idle+0x235/0x5b0
-> [ 157.970029] [<ffffffff810785e8>] cpu_idle+0x138/0x160
-> [ 157.970029] [<ffffffff836fbed7>] start_secondary+0x26e/0x276
-> [ 157.970029] INITIAL USE at:
-> [ 157.970029] [<ffffffff8117c07f>] __lock_acquire+0x9cf/0x1bd0
-> [ 157.970029] [<ffffffff8117f87a>] lock_acquire+0x1aa/0x240
-> [ 157.970029] [<ffffffff8375f767>] _raw_spin_lock_irq+0x57/0x90
-> [ 157.970029] [<ffffffff819954e6>] blk_queue_bypass_start+0x16/0xa0
-> [ 157.970029] [<ffffffff819af017>] blkcg_activate_policy+0x67/0x370
-> [ 157.970029] [<ffffffff819b3d09>] cfq_init_queue+0x79/0x380
-> [ 157.970029] [<ffffffff8198eeb3>] elevator_init+0xd3/0x140
-> [ 157.970029] [<ffffffff81995ca2>] blk_init_allocated_queue+0xa2/0xd0
-> [ 157.970029] [<ffffffff81995d0c>] blk_init_queue_node+0x3c/0x70
-> [ 157.970029] [<ffffffff81995d4e>] blk_init_queue+0xe/0x10
-> [ 157.970029] [<ffffffff8222a99f>] add_mtd_blktrans_dev+0x28f/0x410
-> [ 157.970029] [<ffffffff8222b6d1>] mtdblock_add_mtd+0x81/0xa0
-> [ 157.970029] [<ffffffff82229ea1>] blktrans_notify_add+0x31/0x50
-> [ 157.970029] [<ffffffff82224047>] add_mtd_device+0x237/0x2e0
-> [ 157.970029] [<ffffffff8222418c>] mtd_device_parse_register+0x9c/0xc0
-> [ 157.970029] [<ffffffff8226ac04>] mtdram_init_device+0x114/0x120
-> [ 157.970029] [<ffffffff85662443>] init_mtdram+0x81/0xfa
-> [ 157.970029] [<ffffffff85600c9f>] do_one_initcall+0x7a/0x135
-> [ 157.970029] [<ffffffff85600eb7>] kernel_init+0x15d/0x1e1
-> [ 157.970029] [<ffffffff83762504>] kernel_thread_helper+0x4/0x10
-> [ 157.970029] }
-> [ 157.970029] ... key at: [<ffffffff865d3fac>] __key.29440+0x0/0x8
-> [ 157.970029] ... acquired at:
-> [ 157.970029] [<ffffffff8117f87a>] lock_acquire+0x1aa/0x240
-> [ 157.970029] [<ffffffff8375f6cc>] _raw_spin_lock_irqsave+0x7c/0xc0
-> [ 157.970029] [<ffffffff812095be>] test_clear_page_writeback+0x6e/0x1b0
-> [ 157.970029] [<ffffffff811fbdc4>] end_page_writeback+0x24/0x50
-> [ 157.970029] [<ffffffff812a4372>] end_buffer_async_write+0x222/0x2f0
-> [ 157.970029] [<ffffffff812a36cd>] end_bio_bh_io_sync+0x3d/0x50
-> [ 157.970029] [<ffffffff812a8dfd>] bio_endio+0x2d/0x30
-> [ 157.970029] [<ffffffff819921f5>] req_bio_endio.isra.36+0xb5/0xd0
-> [ 157.970029] [<ffffffff819976ac>] blk_update_request+0x33c/0x600
-> [ 157.970029] [<ffffffff81997992>] blk_update_bidi_request+0x22/0x90
-> [ 157.970029] [<ffffffff81997abb>] __blk_end_bidi_request+0x1b/0x40
-> [ 157.970029] [<ffffffff81997bcb>] __blk_end_request+0xb/0x10
-> [ 157.970029] [<ffffffff81997fbd>] __blk_end_request_cur+0x3d/0x40
-> [ 157.970029] [<ffffffff8222a234>] mtd_blktrans_thread+0x2c4/0x340
-> [ 157.970029] [<ffffffff81135e13>] kthread+0xe3/0xf0
-> [ 157.970029] [<ffffffff83762504>] kernel_thread_helper+0x4/0x10
-> [ 157.970029]
-> [ 157.970029] -> (&(&mapping->tree_lock)->rlock){+.+...} ops: 63737 {
-> [ 157.970029] HARDIRQ-ON-W at:
-> [ 157.970029] [<ffffffff8117a353>] mark_held_locks+0x113/0x130
-> [ 157.970029] [<ffffffff8117a567>] trace_hardirqs_on_caller+0x1f7/0x230
-> [ 157.970029] [<ffffffff8117a5ad>] trace_hardirqs_on+0xd/0x10
-> [ 157.970029] [<ffffffff8375f95b>] _raw_spin_unlock_irq+0x2b/0x80
-> [ 157.970029] [<ffffffff8121076d>] isolate_lru_page+0x15d/0x180
-> [ 157.970029] [<ffffffff8122d39a>] __clear_page_mlock+0x3a/0x70
-> [ 157.970029] [<ffffffff8120cb35>] invalidate_inode_pages2_range+0x245/0x3c0
-> [ 157.970029] [<ffffffff811fe1f7>] generic_file_direct_write+0xc7/0x180
-> [ 157.970029] [<ffffffff811fe8c9>] __generic_file_aio_write+0x249/0x3a0
-> [ 157.970029] [<ffffffff812aabc1>] blkdev_aio_write+0x51/0xb0
-> [ 157.970029] [<ffffffff81270468>] do_sync_write+0x98/0xf0
-> [ 157.970029] [<ffffffff81270570>] vfs_write+0xb0/0x180
-> [ 157.970029] [<ffffffff81270718>] sys_write+0x48/0x90
-> [ 157.970029] [<ffffffff83761368>] tracesys+0xe1/0xe6
-> [ 157.970029] SOFTIRQ-ON-W at:
-> [ 157.970029] [<ffffffff8117a353>] mark_held_locks+0x113/0x130
-> [ 157.970029] [<ffffffff8117a4d5>] trace_hardirqs_on_caller+0x165/0x230
-> [ 157.970029] [<ffffffff8117a5ad>] trace_hardirqs_on+0xd/0x10
-> [ 157.970029] [<ffffffff8375f95b>] _raw_spin_unlock_irq+0x2b/0x80
-> [ 157.970029] [<ffffffff8121076d>] isolate_lru_page+0x15d/0x180
-> [ 157.970029] [<ffffffff8122d39a>] __clear_page_mlock+0x3a/0x70
-> [ 157.970029] [<ffffffff8120cb35>] invalidate_inode_pages2_range+0x245/0x3c0
-> [ 157.970029] [<ffffffff811fe1f7>] generic_file_direct_write+0xc7/0x180
-> [ 157.970029] [<ffffffff811fe8c9>] __generic_file_aio_write+0x249/0x3a0
-> [ 157.970029] [<ffffffff812aabc1>] blkdev_aio_write+0x51/0xb0
-> [ 157.970029] [<ffffffff81270468>] do_sync_write+0x98/0xf0
-> [ 157.970029] [<ffffffff81270570>] vfs_write+0xb0/0x180
-> [ 157.970029] [<ffffffff81270718>] sys_write+0x48/0x90
-> [ 157.970029] [<ffffffff83761368>] tracesys+0xe1/0xe6
-> [ 157.970029] INITIAL USE at:
-> [ 157.970029] [<ffffffff8117c07f>] __lock_acquire+0x9cf/0x1bd0
-> [ 157.970029] [<ffffffff8117f87a>] lock_acquire+0x1aa/0x240
-> [ 157.970029] [<ffffffff8375f767>] _raw_spin_lock_irq+0x57/0x90
-> [ 157.970029] [<ffffffff8128c06c>] clear_inode+0x2c/0x90
-> [ 157.970029] [<ffffffff81219629>] shmem_evict_inode+0x129/0x140
-> [ 157.970029] [<ffffffff8128c179>] evict+0xa9/0x170
-> [ 157.970029] [<ffffffff8128d04f>] iput+0x1cf/0x1f0
-> [ 157.970029] [<ffffffff81289da0>] d_delete+0x150/0x1b0
-> [ 157.970029] [<ffffffff812804c1>] vfs_unlink+0xe1/0x120
-> [ 157.970029] [<ffffffff81e08814>] handle_remove+0x244/0x270
-> [ 157.970029] [<ffffffff81e08b65>] devtmpfsd+0x125/0x170
-> [ 157.970029] [<ffffffff81135e13>] kthread+0xe3/0xf0
-> [ 157.970029] [<ffffffff83762504>] kernel_thread_helper+0x4/0x10
-> [ 157.970029] }
-> [ 157.970029] ... key at: [<ffffffff86226a60>] __key.30203+0x0/0x8
-> [ 157.970029] ... acquired at:
-> [ 157.970029] [<ffffffff811796be>] check_usage_backwards+0xce/0xe0
-> [ 157.970029] [<ffffffff8117a0ad>] mark_lock+0x15d/0x2f0
-> [ 157.970029] [<ffffffff8117a353>] mark_held_locks+0x113/0x130
-> [ 157.970029] [<ffffffff8117a4d5>] trace_hardirqs_on_caller+0x165/0x230
-> [ 157.970029] [<ffffffff8117a5ad>] trace_hardirqs_on+0xd/0x10
-> [ 157.970029] [<ffffffff8375f95b>] _raw_spin_unlock_irq+0x2b/0x80
-> [ 157.970029] [<ffffffff8121076d>] isolate_lru_page+0x15d/0x180
-> [ 157.970029] [<ffffffff8122d39a>] __clear_page_mlock+0x3a/0x70
-> [ 157.970029] [<ffffffff8120cb35>] invalidate_inode_pages2_range+0x245/0x3c0
-> [ 157.970029] [<ffffffff811fe1f7>] generic_file_direct_write+0xc7/0x180
-> [ 157.970029] [<ffffffff811fe8c9>] __generic_file_aio_write+0x249/0x3a0
-> [ 157.970029] [<ffffffff812aabc1>] blkdev_aio_write+0x51/0xb0
-> [ 157.970029] [<ffffffff81270468>] do_sync_write+0x98/0xf0
-> [ 157.970029] [<ffffffff81270570>] vfs_write+0xb0/0x180
-> [ 157.970029] [<ffffffff81270718>] sys_write+0x48/0x90
-> [ 157.970029] [<ffffffff83761368>] tracesys+0xe1/0xe6
-> [ 157.970029]
-> [ 157.970029]
-> [ 157.970029] stack backtrace:
-> [ 157.970029] Pid: 6642, comm: trinity-child38 Tainted: G W
-> 3.6.0-rc5-next-20120914-sasha-00001-g802bf6c-dirty #340
-> [ 157.970029] Call Trace:
-> [ 157.970029] [<ffffffff811794e1>] print_irq_inversion_bug+0x201/0x220
-> [ 157.970029] [<ffffffff811796be>] check_usage_backwards+0xce/0xe0
-> [ 157.970029] [<ffffffff811795f0>] ? check_usage_forwards+0xf0/0xf0
-> [ 157.970029] [<ffffffff8117a0ad>] mark_lock+0x15d/0x2f0
-> [ 157.970029] [<ffffffff8117a353>] mark_held_locks+0x113/0x130
-> [ 157.970029] [<ffffffff81177a9e>] ? put_lock_stats.isra.16+0xe/0x40
-> [ 157.970029] [<ffffffff8375f95b>] ? _raw_spin_unlock_irq+0x2b/0x80
-> [ 157.970029] [<ffffffff8117a4d5>] trace_hardirqs_on_caller+0x165/0x230
-> [ 157.970029] [<ffffffff8117a5ad>] trace_hardirqs_on+0xd/0x10
-> [ 157.970029] [<ffffffff8375f95b>] _raw_spin_unlock_irq+0x2b/0x80
-> [ 157.970029] [<ffffffff8121076d>] isolate_lru_page+0x15d/0x180
-> [ 157.970029] [<ffffffff8122d39a>] __clear_page_mlock+0x3a/0x70
-> [ 157.970029] [<ffffffff8120cb35>] invalidate_inode_pages2_range+0x245/0x3c0
-> [ 157.970029] [<ffffffff8120951c>] ? do_writepages+0x1c/0x50
-> [ 157.970029] [<ffffffff811fb4c9>] ? __filemap_fdatawrite_range+0x49/0x50
-> [ 157.970029] [<ffffffff811fe1f7>] generic_file_direct_write+0xc7/0x180
-> [ 157.970029] [<ffffffff811fe8c9>] __generic_file_aio_write+0x249/0x3a0
-> [ 157.970029] [<ffffffff81177a12>] ? get_lock_stats+0x22/0x70
-> [ 157.970029] [<ffffffff812aabc1>] blkdev_aio_write+0x51/0xb0
-> [ 157.970029] [<ffffffff8111b603>] ? del_timer+0x63/0x80
-> [ 157.970029] [<ffffffff81270468>] do_sync_write+0x98/0xf0
-> [ 157.970029] [<ffffffff81270570>] vfs_write+0xb0/0x180
-> [ 157.970029] [<ffffffff81270718>] sys_write+0x48/0x90
-> [ 157.970029] [<ffffffff83761368>] tracesys+0xe1/0xe6
-> 
+Hi Rik, Mel and Shaohua,
 
-Just got another related warning:
+Thank you for your latest patches. I attach my latest perf report for a slow
+boot with all of these applied.
 
-[ 197.827054] =================================
-[ 197.828667] [ INFO: inconsistent lock state ]
-[ 197.830035] 3.6.0-rc5-next-20120914-sasha-00001-g802bf6c-dirty #340 Tainted: G W
-[ 197.830035] ---------------------------------
-[ 197.830035] inconsistent {IN-SOFTIRQ-W} -> {SOFTIRQ-ON-W} usage.
-[ 197.830035] trinity-child18/8192 [HC0[0]:SC0[0]:HE1:SE1] takes:
-[ 197.830035] (&(&mapping->tree_lock)->rlock){+.?...}, at: [<ffffffff8120cafc>]
-invalidate_inode_pages2_range+0x20c/0x3c0
-[ 197.830035] {IN-SOFTIRQ-W} state was registered at:
-[ 197.830035] [<ffffffff8117bf2a>] __lock_acquire+0x87a/0x1bd0
-[ 197.830035] [<ffffffff8117f87a>] lock_acquire+0x1aa/0x240
-[ 197.830035] [<ffffffff8375f6cc>] _raw_spin_lock_irqsave+0x7c/0xc0
-[ 197.830035] [<ffffffff812095be>] test_clear_page_writeback+0x6e/0x1b0
-[ 197.830035] [<ffffffff811fbdc4>] end_page_writeback+0x24/0x50
-[ 197.830035] [<ffffffff812a4372>] end_buffer_async_write+0x222/0x2f0
-[ 197.830035] [<ffffffff812a36cd>] end_bio_bh_io_sync+0x3d/0x50
-[ 197.830035] [<ffffffff812a8dfd>] bio_endio+0x2d/0x30
-[ 197.830035] [<ffffffff819921f5>] req_bio_endio.isra.36+0xb5/0xd0
-[ 197.830035] [<ffffffff819976ac>] blk_update_request+0x33c/0x600
-[ 197.830035] [<ffffffff81997992>] blk_update_bidi_request+0x22/0x90
-[ 197.830035] [<ffffffff81997a27>] blk_end_bidi_request+0x27/0x70
-[ 197.830035] [<ffffffff81997aeb>] blk_end_request+0xb/0x10
-[ 197.830035] [<ffffffff81ede493>] scsi_io_completion+0x263/0x6b0
-[ 197.830035] [<ffffffff81ed7168>] scsi_finish_command+0x118/0x130
-[ 197.830035] [<ffffffff81ede145>] scsi_softirq_done+0x135/0x150
-[ 197.830035] [<ffffffff8199dd60>] blk_done_softirq+0xb0/0xd0
-[ 197.830035] [<ffffffff81110b27>] __do_softirq+0x1c7/0x440
-[ 197.830035] [<ffffffff8376256c>] call_softirq+0x1c/0x30
-[ 197.830035] [<ffffffff8106f51d>] do_softirq+0x6d/0x100
-[ 197.830035] [<ffffffff81110f1a>] irq_exit+0x5a/0xd0
-[ 197.830035] [<ffffffff8109674a>] smp_apic_timer_interrupt+0x8a/0xa0
-[ 197.830035] [<ffffffff83761e6f>] apic_timer_interrupt+0x6f/0x80
-[ 197.830035] [<ffffffff810775b5>] default_idle+0x235/0x5b0
-[ 197.830035] [<ffffffff810785e8>] cpu_idle+0x138/0x160
-[ 197.830035] [<ffffffff836fbed7>] start_secondary+0x26e/0x276
-[ 197.830035] irq event stamp: 178348
-[ 197.830035] hardirqs last enabled at (178347): [<ffffffff8375f8dd>]
-_raw_spin_unlock_irqrestore+0x5d/0xb0
-[ 197.830035] hardirqs last disabled at (178348): [<ffffffff8375f73a>]
-_raw_spin_lock_irq+0x2a/0x90
-[ 197.830035] softirqs last enabled at (168698): [<ffffffff81110cd2>]
-__do_softirq+0x372/0x440
-[ 197.830035] softirqs last disabled at (168687): [<ffffffff8376256c>]
-call_softirq+0x1c/0x30
-[ 197.830035]
-[ 197.830035] other info that might help us debug this:
-[ 197.830035] Possible unsafe locking scenario:
-[ 197.830035]
-[ 197.830035] CPU0
-[ 197.830035] ----
-[ 197.830035] lock(&(&mapping->tree_lock)->rlock);
-[ 197.830035] <Interrupt>
-[ 197.830035] lock(&(&mapping->tree_lock)->rlock);
-[ 197.830035]
-[ 197.830035] *** DEADLOCK ***
-[ 197.830035]
-[ 197.830035] 1 lock held by trinity-child18/8192:
-[ 197.830035] #0: (&(&mapping->tree_lock)->rlock){+.?...}, at:
-[<ffffffff8120cafc>] invalidate_inode_pages2_range+0x20c/0x3c0
-[ 197.830035]
-[ 197.830035] stack backtrace:
-[ 197.830035] Pid: 8192, comm: trinity-child18 Tainted: G W
-3.6.0-rc5-next-20120914-sasha-00001-g802bf6c-dirty #340
-[ 197.830035] Call Trace:
-[ 197.830035] [<ffffffff8370a28a>] print_usage_bug+0x1f7/0x208
-[ 197.830035] [<ffffffff8107d9ba>] ? save_stack_trace+0x2a/0x50
-[ 197.830035] [<ffffffff811795f0>] ? check_usage_forwards+0xf0/0xf0
-[ 197.830035] [<ffffffff8117a0c6>] mark_lock+0x176/0x2f0
-[ 197.830035] [<ffffffff8117a353>] mark_held_locks+0x113/0x130
-[ 197.830035] [<ffffffff81177a9e>] ? put_lock_stats.isra.16+0xe/0x40
-[ 197.830035] [<ffffffff8375f95b>] ? _raw_spin_unlock_irq+0x2b/0x80
-[ 197.830035] [<ffffffff8117a4d5>] trace_hardirqs_on_caller+0x165/0x230
-[ 197.830035] [<ffffffff8117a5ad>] trace_hardirqs_on+0xd/0x10
-[ 197.830035] [<ffffffff8375f95b>] _raw_spin_unlock_irq+0x2b/0x80
-[ 197.830035] [<ffffffff8121076d>] isolate_lru_page+0x15d/0x180
-[ 197.830035] [<ffffffff8122d39a>] __clear_page_mlock+0x3a/0x70
-[ 197.830035] [<ffffffff8120cb35>] invalidate_inode_pages2_range+0x245/0x3c0
-[ 197.830035] [<ffffffff8120951c>] ? do_writepages+0x1c/0x50
-[ 197.830035] [<ffffffff811fb4c9>] ? __filemap_fdatawrite_range+0x49/0x50
-[ 197.830035] [<ffffffff811fe1f7>] generic_file_direct_write+0xc7/0x180
-[ 197.830035] [<ffffffff811fe8c9>] __generic_file_aio_write+0x249/0x3a0
-[ 197.830035] [<ffffffff812aabc1>] blkdev_aio_write+0x51/0xb0
-[ 197.830035] [<ffffffff812aab70>] ? block_llseek+0xc0/0xc0
-[ 197.830035] [<ffffffff8127097c>] do_sync_readv_writev+0x8c/0xe0
-[ 197.830035] [<ffffffff81270c79>] do_readv_writev+0xd9/0x1e0
-[ 197.830035] [<ffffffff811c63d5>] ? rcu_user_exit+0xa5/0xd0
-[ 197.830035] [<ffffffff81270e1a>] vfs_writev+0x3a/0x60
-[ 197.830035] [<ffffffff81270f38>] sys_writev+0x48/0xb0
-[ 197.830035] [<ffffffff83761368>] tracesys+0xe1/0xe6
+Mel asked for timings of the slow boots. It's very hard to give anything
+useful here! A normal boot would be a minute or so, and many are like that,
+but the slowest that I have seen (on 3.5.x) was several hours. Basically, I
+just test many times until I get one which is noticeably slow than normal
+and then run perf record on that one.
+
+The latest perf report for a slow boot is below. For the fast boots, most of
+the time is in clean_page_c in do_huge_pmd_anonymous_page, but for this slow
+one there is a lot of lock contention above that.
+
+Thanks,
+
+Richard.
+
+
+# ========
+# captured on: Sat Sep 15 15:40:54 2012
+# os release : 3.6.0-rc5-elastic+
+# perf version : 3.5.2
+# arch : x86_64
+# nrcpus online : 16
+# nrcpus avail : 16
+# cpudesc : AMD Opteron(tm) Processor 6128
+# cpuid : AuthenticAMD,16,9,1
+# total memory : 131973280 kB
+# cmdline : /home/root/bin/perf record -g -a 
+# event : name = cycles, type = 0, config = 0x0, config1 = 0x0, config2 = 0x0, excl_usr = 0, excl_kern = 0, id = { 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80 }
+# HEADER_CPU_TOPOLOGY info available, use -I to display
+# HEADER_NUMA_TOPOLOGY info available, use -I to display
+# ========
+#
+# Samples: 3M of event 'cycles'
+# Event count (approx.): 1457256240581
+#
+# Overhead          Command         Shared Object                                          Symbol
+# ........  ...............  ....................  ..............................................
+#
+    58.49%         qemu-kvm  [kernel.kallsyms]     [k] _raw_spin_lock_irqsave                    
+                   |
+                   --- _raw_spin_lock_irqsave
+                      |          
+                      |--95.07%-- compact_checklock_irqsave
+                      |          |          
+                      |          |--70.03%-- isolate_migratepages_range
+                      |          |          compact_zone
+                      |          |          compact_zone_order
+                      |          |          try_to_compact_pages
+                      |          |          __alloc_pages_direct_compact
+                      |          |          __alloc_pages_nodemask
+                      |          |          alloc_pages_vma
+                      |          |          do_huge_pmd_anonymous_page
+                      |          |          handle_mm_fault
+                      |          |          __get_user_pages
+                      |          |          get_user_page_nowait
+                      |          |          hva_to_pfn.isra.17
+                      |          |          __gfn_to_pfn
+                      |          |          gfn_to_pfn_async
+                      |          |          try_async_pf
+                      |          |          tdp_page_fault
+                      |          |          kvm_mmu_page_fault
+                      |          |          pf_interception
+                      |          |          handle_exit
+                      |          |          kvm_arch_vcpu_ioctl_run
+                      |          |          kvm_vcpu_ioctl
+                      |          |          do_vfs_ioctl
+                      |          |          sys_ioctl
+                      |          |          system_call_fastpath
+                      |          |          ioctl
+                      |          |          |          
+                      |          |          |--92.76%-- 0x10100000006
+                      |          |          |          
+                      |          |           --7.24%-- 0x10100000002
+                      |          |          
+                      |           --29.97%-- compaction_alloc
+                      |                     migrate_pages
+                      |                     compact_zone
+                      |                     compact_zone_order
+                      |                     try_to_compact_pages
+                      |                     __alloc_pages_direct_compact
+                      |                     __alloc_pages_nodemask
+                      |                     alloc_pages_vma
+                      |                     do_huge_pmd_anonymous_page
+                      |                     handle_mm_fault
+                      |                     __get_user_pages
+                      |                     get_user_page_nowait
+                      |                     hva_to_pfn.isra.17
+                      |                     __gfn_to_pfn
+                      |                     gfn_to_pfn_async
+                      |                     try_async_pf
+                      |                     tdp_page_fault
+                      |                     kvm_mmu_page_fault
+                      |                     pf_interception
+                      |                     handle_exit
+                      |                     kvm_arch_vcpu_ioctl_run
+                      |                     kvm_vcpu_ioctl
+                      |                     do_vfs_ioctl
+                      |                     sys_ioctl
+                      |                     system_call_fastpath
+                      |                     ioctl
+                      |                     |          
+                      |                     |--90.69%-- 0x10100000006
+                      |                     |          
+                      |                      --9.31%-- 0x10100000002
+                      |          
+                      |--4.53%-- isolate_migratepages_range
+                      |          compact_zone
+                      |          compact_zone_order
+                      |          try_to_compact_pages
+                      |          __alloc_pages_direct_compact
+                      |          __alloc_pages_nodemask
+                      |          alloc_pages_vma
+                      |          do_huge_pmd_anonymous_page
+                      |          handle_mm_fault
+                      |          __get_user_pages
+                      |          get_user_page_nowait
+                      |          hva_to_pfn.isra.17
+                      |          __gfn_to_pfn
+                      |          gfn_to_pfn_async
+                      |          try_async_pf
+                      |          tdp_page_fault
+                      |          kvm_mmu_page_fault
+                      |          pf_interception
+                      |          handle_exit
+                      |          kvm_arch_vcpu_ioctl_run
+                      |          kvm_vcpu_ioctl
+                      |          do_vfs_ioctl
+                      |          sys_ioctl
+                      |          system_call_fastpath
+                      |          ioctl
+                      |          |          
+                      |          |--92.22%-- 0x10100000006
+                      |          |          
+                      |           --7.78%-- 0x10100000002
+                       --0.40%-- [...]
+    13.14%         qemu-kvm  [kernel.kallsyms]     [k] clear_page_c                              
+                   |
+                   --- clear_page_c
+                      |          
+                      |--99.38%-- do_huge_pmd_anonymous_page
+                      |          handle_mm_fault
+                      |          __get_user_pages
+                      |          get_user_page_nowait
+                      |          hva_to_pfn.isra.17
+                      |          __gfn_to_pfn
+                      |          gfn_to_pfn_async
+                      |          try_async_pf
+                      |          tdp_page_fault
+                      |          kvm_mmu_page_fault
+                      |          pf_interception
+                      |          handle_exit
+                      |          kvm_arch_vcpu_ioctl_run
+                      |          kvm_vcpu_ioctl
+                      |          do_vfs_ioctl
+                      |          sys_ioctl
+                      |          system_call_fastpath
+                      |          ioctl
+                      |          |          
+                      |          |--51.86%-- 0x10100000006
+                      |          |          
+                      |          |--48.14%-- 0x10100000002
+                      |           --0.01%-- [...]
+                      |          
+                       --0.62%-- __alloc_pages_nodemask
+                                 |          
+                                 |--76.27%-- alloc_pages_vma
+                                 |          handle_pte_fault
+                                 |          |          
+                                 |          |--99.57%-- handle_mm_fault
+                                 |          |          |          
+                                 |          |          |--99.65%-- __get_user_pages
+                                 |          |          |          get_user_page_nowait
+                                 |          |          |          hva_to_pfn.isra.17
+                                 |          |          |          __gfn_to_pfn
+                                 |          |          |          gfn_to_pfn_async
+                                 |          |          |          try_async_pf
+                                 |          |          |          tdp_page_fault
+                                 |          |          |          kvm_mmu_page_fault
+                                 |          |          |          pf_interception
+                                 |          |          |          handle_exit
+                                 |          |          |          kvm_arch_vcpu_ioctl_run
+                                 |          |          |          kvm_vcpu_ioctl
+                                 |          |          |          do_vfs_ioctl
+                                 |          |          |          sys_ioctl
+                                 |          |          |          system_call_fastpath
+                                 |          |          |          ioctl
+                                 |          |          |          |          
+                                 |          |          |          |--91.77%-- 0x10100000006
+                                 |          |          |          |          
+                                 |          |          |           --8.23%-- 0x10100000002
+                                 |          |           --0.35%-- [...]
+                                 |           --0.43%-- [...]
+                                 |          
+                                  --23.73%-- alloc_pages_current
+                                            |          
+                                            |--99.20%-- pte_alloc_one
+                                            |          |          
+                                            |          |--98.68%-- do_huge_pmd_anonymous_page
+                                            |          |          handle_mm_fault
+                                            |          |          __get_user_pages
+                                            |          |          get_user_page_nowait
+                                            |          |          hva_to_pfn.isra.17
+                                            |          |          __gfn_to_pfn
+                                            |          |          gfn_to_pfn_async
+                                            |          |          try_async_pf
+                                            |          |          tdp_page_fault
+                                            |          |          kvm_mmu_page_fault
+                                            |          |          pf_interception
+                                            |          |          handle_exit
+                                            |          |          kvm_arch_vcpu_ioctl_run
+                                            |          |          kvm_vcpu_ioctl
+                                            |          |          do_vfs_ioctl
+                                            |          |          sys_ioctl
+                                            |          |          system_call_fastpath
+                                            |          |          ioctl
+                                            |          |          |          
+                                            |          |          |--58.61%-- 0x10100000002
+                                            |          |          |          
+                                            |          |           --41.39%-- 0x10100000006
+                                            |          |          
+                                            |           --1.32%-- __pte_alloc
+                                            |                     do_huge_pmd_anonymous_page
+                                            |                     handle_mm_fault
+                                            |                     __get_user_pages
+                                            |                     get_user_page_nowait
+                                            |                     hva_to_pfn.isra.17
+                                            |                     __gfn_to_pfn
+                                            |                     gfn_to_pfn_async
+                                            |                     try_async_pf
+                                            |                     tdp_page_fault
+                                            |                     kvm_mmu_page_fault
+                                            |                     pf_interception
+                                            |                     handle_exit
+                                            |                     kvm_arch_vcpu_ioctl_run
+                                            |                     kvm_vcpu_ioctl
+                                            |                     do_vfs_ioctl
+                                            |                     sys_ioctl
+                                            |                     system_call_fastpath
+                                            |                     ioctl
+                                            |                     0x10100000006
+                                            |          
+                                            |--0.69%-- __vmalloc_node_range
+                                            |          __vmalloc_node
+                                            |          vzalloc
+                                            |          __kvm_set_memory_region
+                                            |          kvm_set_memory_region
+                                            |          kvm_vm_ioctl_set_memory_region
+                                            |          kvm_vm_ioctl
+                                            |          do_vfs_ioctl
+                                            |          sys_ioctl
+                                            |          system_call_fastpath
+                                            |          ioctl
+                                             --0.12%-- [...]
+     6.31%         qemu-kvm  [kernel.kallsyms]     [k] isolate_freepages_block                   
+                   |
+                   --- isolate_freepages_block
+                      |          
+                      |--99.98%-- compaction_alloc
+                      |          migrate_pages
+                      |          compact_zone
+                      |          compact_zone_order
+                      |          try_to_compact_pages
+                      |          __alloc_pages_direct_compact
+                      |          __alloc_pages_nodemask
+                      |          alloc_pages_vma
+                      |          do_huge_pmd_anonymous_page
+                      |          handle_mm_fault
+                      |          __get_user_pages
+                      |          get_user_page_nowait
+                      |          hva_to_pfn.isra.17
+                      |          __gfn_to_pfn
+                      |          gfn_to_pfn_async
+                      |          try_async_pf
+                      |          tdp_page_fault
+                      |          kvm_mmu_page_fault
+                      |          pf_interception
+                      |          handle_exit
+                      |          kvm_arch_vcpu_ioctl_run
+                      |          kvm_vcpu_ioctl
+                      |          do_vfs_ioctl
+                      |          sys_ioctl
+                      |          system_call_fastpath
+                      |          ioctl
+                      |          |          
+                      |          |--91.13%-- 0x10100000006
+                      |          |          
+                      |           --8.87%-- 0x10100000002
+                       --0.02%-- [...]
+     1.68%         qemu-kvm  [kernel.kallsyms]     [k] yield_to                                  
+                   |
+                   --- yield_to
+                      |          
+                      |--99.65%-- kvm_vcpu_yield_to
+                      |          kvm_vcpu_on_spin
+                      |          pause_interception
+                      |          handle_exit
+                      |          kvm_arch_vcpu_ioctl_run
+                      |          kvm_vcpu_ioctl
+                      |          do_vfs_ioctl
+                      |          sys_ioctl
+                      |          system_call_fastpath
+                      |          ioctl
+                      |          |          
+                      |          |--88.78%-- 0x10100000006
+                      |          |          
+                      |           --11.22%-- 0x10100000002
+                       --0.35%-- [...]
+     1.24%             ksmd  [kernel.kallsyms]     [k] memcmp                                    
+                       |
+                       --- memcmp
+                          |          
+                          |--99.78%-- memcmp_pages
+                          |          |          
+                          |          |--77.17%-- ksm_scan_thread
+                          |          |          kthread
+                          |          |          kernel_thread_helper
+                          |          |          
+                          |           --22.83%-- try_to_merge_with_ksm_page
+                          |                     ksm_scan_thread
+                          |                     kthread
+                          |                     kernel_thread_helper
+                           --0.22%-- [...]
+     1.09%         qemu-kvm  [kernel.kallsyms]     [k] svm_vcpu_run                              
+                   |
+                   --- svm_vcpu_run
+                      |          
+                      |--99.44%-- kvm_arch_vcpu_ioctl_run
+                      |          kvm_vcpu_ioctl
+                      |          do_vfs_ioctl
+                      |          sys_ioctl
+                      |          system_call_fastpath
+                      |          ioctl
+                      |          |          
+                      |          |--82.15%-- 0x10100000006
+                      |          |          
+                      |          |--17.85%-- 0x10100000002
+                      |           --0.00%-- [...]
+                      |          
+                       --0.56%-- kvm_vcpu_ioctl
+                                 do_vfs_ioctl
+                                 sys_ioctl
+                                 system_call_fastpath
+                                 ioctl
+                                 |          
+                                 |--75.21%-- 0x10100000006
+                                 |          
+                                  --24.79%-- 0x10100000002
+     1.09%          swapper  [kernel.kallsyms]     [k] default_idle                              
+                    |
+                    --- default_idle
+                       |          
+                       |--99.74%-- cpu_idle
+                       |          |          
+                       |          |--76.31%-- start_secondary
+                       |          |          
+                       |           --23.69%-- rest_init
+                       |                     start_kernel
+                       |                     x86_64_start_reservations
+                       |                     x86_64_start_kernel
+                        --0.26%-- [...]
+     1.08%             ksmd  [kernel.kallsyms]     [k] smp_call_function_many                    
+                       |
+                       --- smp_call_function_many
+                          |          
+                          |--99.97%-- native_flush_tlb_others
+                          |          |          
+                          |          |--99.78%-- flush_tlb_page
+                          |          |          ptep_clear_flush
+                          |          |          try_to_merge_with_ksm_page
+                          |          |          ksm_scan_thread
+                          |          |          kthread
+                          |          |          kernel_thread_helper
+                          |           --0.22%-- [...]
+                           --0.03%-- [...]
+     0.77%         qemu-kvm  [kernel.kallsyms]     [k] kvm_vcpu_on_spin                          
+                   |
+                   --- kvm_vcpu_on_spin
+                      |          
+                      |--99.36%-- pause_interception
+                      |          handle_exit
+                      |          kvm_arch_vcpu_ioctl_run
+                      |          kvm_vcpu_ioctl
+                      |          do_vfs_ioctl
+                      |          sys_ioctl
+                      |          system_call_fastpath
+                      |          ioctl
+                      |          |          
+                      |          |--90.08%-- 0x10100000006
+                      |          |          
+                      |          |--9.92%-- 0x10100000002
+                      |           --0.00%-- [...]
+                      |          
+                       --0.64%-- handle_exit
+                                 kvm_arch_vcpu_ioctl_run
+                                 kvm_vcpu_ioctl
+                                 do_vfs_ioctl
+                                 sys_ioctl
+                                 system_call_fastpath
+                                 ioctl
+                                 |          
+                                 |--87.37%-- 0x10100000006
+                                 |          
+                                  --12.63%-- 0x10100000002
+     0.75%         qemu-kvm  [kernel.kallsyms]     [k] compact_zone                              
+                   |
+                   --- compact_zone
+                      |          
+                      |--99.98%-- compact_zone_order
+                      |          try_to_compact_pages
+                      |          __alloc_pages_direct_compact
+                      |          __alloc_pages_nodemask
+                      |          alloc_pages_vma
+                      |          do_huge_pmd_anonymous_page
+                      |          handle_mm_fault
+                      |          __get_user_pages
+                      |          get_user_page_nowait
+                      |          hva_to_pfn.isra.17
+                      |          __gfn_to_pfn
+                      |          gfn_to_pfn_async
+                      |          try_async_pf
+                      |          tdp_page_fault
+                      |          kvm_mmu_page_fault
+                      |          pf_interception
+                      |          handle_exit
+                      |          kvm_arch_vcpu_ioctl_run
+                      |          kvm_vcpu_ioctl
+                      |          do_vfs_ioctl
+                      |          sys_ioctl
+                      |          system_call_fastpath
+                      |          ioctl
+                      |          |          
+                      |          |--91.29%-- 0x10100000006
+                      |          |          
+                      |           --8.71%-- 0x10100000002
+                       --0.02%-- [...]
+     0.68%         qemu-kvm  [kernel.kallsyms]     [k] _raw_spin_lock                            
+                   |
+                   --- _raw_spin_lock
+                      |          
+                      |--39.71%-- yield_to
+                      |          kvm_vcpu_yield_to
+                      |          kvm_vcpu_on_spin
+                      |          pause_interception
+                      |          handle_exit
+                      |          kvm_arch_vcpu_ioctl_run
+                      |          kvm_vcpu_ioctl
+                      |          do_vfs_ioctl
+                      |          sys_ioctl
+                      |          system_call_fastpath
+                      |          ioctl
+                      |          |          
+                      |          |--90.52%-- 0x10100000006
+                      |          |          
+                      |           --9.48%-- 0x10100000002
+                      |          
+                      |--15.63%-- kvm_vcpu_yield_to
+                      |          kvm_vcpu_on_spin
+                      |          pause_interception
+                      |          handle_exit
+                      |          kvm_arch_vcpu_ioctl_run
+                      |          kvm_vcpu_ioctl
+                      |          do_vfs_ioctl
+                      |          sys_ioctl
+                      |          system_call_fastpath
+                      |          ioctl
+                      |          |          
+                      |          |--90.96%-- 0x10100000006
+                      |          |          
+                      |           --9.04%-- 0x10100000002
+                      |          
+                      |--6.55%-- tdp_page_fault
+                      |          kvm_mmu_page_fault
+                      |          pf_interception
+                      |          handle_exit
+                      |          kvm_arch_vcpu_ioctl_run
+                      |          kvm_vcpu_ioctl
+                      |          do_vfs_ioctl
+                      |          sys_ioctl
+                      |          system_call_fastpath
+                      |          ioctl
+                      |          |          
+                      |          |--78.78%-- 0x10100000006
+                      |          |          
+                      |           --21.22%-- 0x10100000002
+                      |          
+                      |--4.87%-- free_pcppages_bulk
+                      |          |          
+                      |          |--51.10%-- free_hot_cold_page
+                      |          |          |          
+                      |          |          |--83.60%-- free_hot_cold_page_list
+                      |          |          |          |          
+                      |          |          |          |--62.17%-- release_pages
+                      |          |          |          |          pagevec_lru_move_fn
+                      |          |          |          |          __pagevec_lru_add
+                      |          |          |          |          |          
+                      |          |          |          |          |--99.22%-- __lru_cache_add
+                      |          |          |          |          |          lru_cache_add_lru
+                      |          |          |          |          |          putback_lru_page
+                      |          |          |          |          |          |          
+                      |          |          |          |          |          |--99.61%-- migrate_pages
+                      |          |          |          |          |          |          compact_zone
+                      |          |          |          |          |          |          compact_zone_order
+                      |          |          |          |          |          |          try_to_compact_pages
+                      |          |          |          |          |          |          __alloc_pages_direct_compact
+                      |          |          |          |          |          |          __alloc_pages_nodemask
+                      |          |          |          |          |          |          alloc_pages_vma
+                      |          |          |          |          |          |          do_huge_pmd_anonymous_page
+                      |          |          |          |          |          |          handle_mm_fault
+                      |          |          |          |          |          |          __get_user_pages
+                      |          |          |          |          |          |          get_user_page_nowait
+                      |          |          |          |          |          |          hva_to_pfn.isra.17
+                      |          |          |          |          |          |          __gfn_to_pfn
+                      |          |          |          |          |          |          gfn_to_pfn_async
+                      |          |          |          |          |          |          try_async_pf
+                      |          |          |          |          |          |          tdp_page_fault
+                      |          |          |          |          |          |          kvm_mmu_page_fault
+                      |          |          |          |          |          |          pf_interception
+                      |          |          |          |          |          |          handle_exit
+                      |          |          |          |          |          |          kvm_arch_vcpu_ioctl_run
+                      |          |          |          |          |          |          kvm_vcpu_ioctl
+                      |          |          |          |          |          |          do_vfs_ioctl
+                      |          |          |          |          |          |          sys_ioctl
+                      |          |          |          |          |          |          system_call_fastpath
+                      |          |          |          |          |          |          ioctl
+                      |          |          |          |          |          |          |          
+                      |          |          |          |          |          |          |--88.98%-- 0x10100000006
+                      |          |          |          |          |          |          |          
+                      |          |          |          |          |          |           --11.02%-- 0x10100000002
+                      |          |          |          |          |           --0.39%-- [...]
+                      |          |          |          |          |          
+                      |          |          |          |           --0.78%-- lru_add_drain_cpu
+                      |          |          |          |                     lru_add_drain
+                      |          |          |          |                     migrate_prep_local
+                      |          |          |          |                     compact_zone
+                      |          |          |          |                     compact_zone_order
+                      |          |          |          |                     try_to_compact_pages
+                      |          |          |          |                     __alloc_pages_direct_compact
+                      |          |          |          |                     __alloc_pages_nodemask
+                      |          |          |          |                     alloc_pages_vma
+                      |          |          |          |                     do_huge_pmd_anonymous_page
+                      |          |          |          |                     handle_mm_fault
+                      |          |          |          |                     __get_user_pages
+                      |          |          |          |                     get_user_page_nowait
+                      |          |          |          |                     hva_to_pfn.isra.17
+                      |          |          |          |                     __gfn_to_pfn
+                      |          |          |          |                     gfn_to_pfn_async
+                      |          |          |          |                     try_async_pf
+                      |          |          |          |                     tdp_page_fault
+                      |          |          |          |                     kvm_mmu_page_fault
+                      |          |          |          |                     pf_interception
+                      |          |          |          |                     handle_exit
+                      |          |          |          |                     kvm_arch_vcpu_ioctl_run
+                      |          |          |          |                     kvm_vcpu_ioctl
+                      |          |          |          |                     do_vfs_ioctl
+                      |          |          |          |                     sys_ioctl
+                      |          |          |          |                     system_call_fastpath
+                      |          |          |          |                     ioctl
+                      |          |          |          |                     0x10100000006
+                      |          |          |          |          
+                      |          |          |           --37.83%-- shrink_page_list
+                      |          |          |                     shrink_inactive_list
+                      |          |          |                     shrink_lruvec
+                      |          |          |                     try_to_free_pages
+                      |          |          |                     __alloc_pages_nodemask
+                      |          |          |                     alloc_pages_vma
+                      |          |          |                     do_huge_pmd_anonymous_page
+                      |          |          |                     handle_mm_fault
+                      |          |          |                     __get_user_pages
+                      |          |          |                     get_user_page_nowait
+                      |          |          |                     hva_to_pfn.isra.17
+                      |          |          |                     __gfn_to_pfn
+                      |          |          |                     gfn_to_pfn_async
+                      |          |          |                     try_async_pf
+                      |          |          |                     tdp_page_fault
+                      |          |          |                     kvm_mmu_page_fault
+                      |          |          |                     pf_interception
+                      |          |          |                     handle_exit
+                      |          |          |                     kvm_arch_vcpu_ioctl_run
+                      |          |          |                     kvm_vcpu_ioctl
+                      |          |          |                     do_vfs_ioctl
+                      |          |          |                     sys_ioctl
+                      |          |          |                     system_call_fastpath
+                      |          |          |                     ioctl
+                      |          |          |                     |          
+                      |          |          |                     |--86.38%-- 0x10100000006
+                      |          |          |                     |          
+                      |          |          |                      --13.62%-- 0x10100000002
+                      |          |          |          
+                      |          |          |--12.96%-- __free_pages
+                      |          |          |          |          
+                      |          |          |          |--98.43%-- release_freepages
+                      |          |          |          |          compact_zone
+                      |          |          |          |          compact_zone_order
+                      |          |          |          |          try_to_compact_pages
+                      |          |          |          |          __alloc_pages_direct_compact
+                      |          |          |          |          __alloc_pages_nodemask
+                      |          |          |          |          alloc_pages_vma
+                      |          |          |          |          do_huge_pmd_anonymous_page
+                      |          |          |          |          handle_mm_fault
+                      |          |          |          |          __get_user_pages
+                      |          |          |          |          get_user_page_nowait
+                      |          |          |          |          hva_to_pfn.isra.17
+                      |          |          |          |          __gfn_to_pfn
+                      |          |          |          |          gfn_to_pfn_async
+                      |          |          |          |          try_async_pf
+                      |          |          |          |          tdp_page_fault
+                      |          |          |          |          kvm_mmu_page_fault
+                      |          |          |          |          pf_interception
+                      |          |          |          |          handle_exit
+                      |          |          |          |          kvm_arch_vcpu_ioctl_run
+                      |          |          |          |          kvm_vcpu_ioctl
+                      |          |          |          |          do_vfs_ioctl
+                      |          |          |          |          sys_ioctl
+                      |          |          |          |          system_call_fastpath
+                      |          |          |          |          ioctl
+                      |          |          |          |          |          
+                      |          |          |          |          |--90.49%-- 0x10100000006
+                      |          |          |          |          |          
+                      |          |          |          |           --9.51%-- 0x10100000002
+                      |          |          |          |          
+                      |          |          |           --1.57%-- __free_slab
+                      |          |          |                     discard_slab
+                      |          |          |                     unfreeze_partials
+                      |          |          |                     put_cpu_partial
+                      |          |          |                     __slab_free
+                      |          |          |                     kmem_cache_free
+                      |          |          |                     free_buffer_head
+                      |          |          |                     try_to_free_buffers
+                      |          |          |                     jbd2_journal_try_to_free_buffers
+                      |          |          |                     bdev_try_to_free_page
+                      |          |          |                     blkdev_releasepage
+                      |          |          |                     try_to_release_page
+                      |          |          |                     move_to_new_page
+                      |          |          |                     migrate_pages
+                      |          |          |                     compact_zone
+                      |          |          |                     compact_zone_order
+                      |          |          |                     try_to_compact_pages
+                      |          |          |                     __alloc_pages_direct_compact
+                      |          |          |                     __alloc_pages_nodemask
+                      |          |          |                     alloc_pages_vma
+                      |          |          |                     do_huge_pmd_anonymous_page
+                      |          |          |                     handle_mm_fault
+                      |          |          |                     __get_user_pages
+                      |          |          |                     get_user_page_nowait
+                      |          |          |                     hva_to_pfn.isra.17
+                      |          |          |                     __gfn_to_pfn
+                      |          |          |                     gfn_to_pfn_async
+                      |          |          |                     try_async_pf
+                      |          |          |                     tdp_page_fault
+                      |          |          |                     kvm_mmu_page_fault
+                      |          |          |                     pf_interception
+                      |          |          |                     handle_exit
+                      |          |          |                     kvm_arch_vcpu_ioctl_run
+                      |          |          |                     kvm_vcpu_ioctl
+                      |          |          |                     do_vfs_ioctl
+                      |          |          |                     sys_ioctl
+                      |          |          |                     system_call_fastpath
+                      |          |          |                     ioctl
+                      |          |          |                     0x10100000006
+                      |          |          |          
+                      |          |           --3.44%-- __put_single_page
+                      |          |                     put_page
+                      |          |                     putback_lru_page
+                      |          |                     migrate_pages
+                      |          |                     compact_zone
+                      |          |                     compact_zone_order
+                      |          |                     try_to_compact_pages
+                      |          |                     __alloc_pages_direct_compact
+                      |          |                     __alloc_pages_nodemask
+                      |          |                     alloc_pages_vma
+                      |          |                     do_huge_pmd_anonymous_page
+                      |          |                     handle_mm_fault
+                      |          |                     __get_user_pages
+                      |          |                     get_user_page_nowait
+                      |          |                     hva_to_pfn.isra.17
+                      |          |                     __gfn_to_pfn
+                      |          |                     gfn_to_pfn_async
+                      |          |                     try_async_pf
+                      |          |                     tdp_page_fault
+                      |          |                     kvm_mmu_page_fault
+                      |          |                     pf_interception
+                      |          |                     handle_exit
+                      |          |                     kvm_arch_vcpu_ioctl_run
+                      |          |                     kvm_vcpu_ioctl
+                      |          |                     do_vfs_ioctl
+                      |          |                     sys_ioctl
+                      |          |                     system_call_fastpath
+                      |          |                     ioctl
+                      |          |                     |          
+                      |          |                     |--88.25%-- 0x10100000006
+                      |          |                     |          
+                      |          |                      --11.75%-- 0x10100000002
+                      |          |          
+                      |           --48.90%-- drain_pages
+                      |                     |          
+                      |                     |--88.65%-- drain_local_pages
+                      |                     |          |          
+                      |                     |          |--96.33%-- generic_smp_call_function_interrupt
+                      |                     |          |          smp_call_function_interrupt
+                      |                     |          |          call_function_interrupt
+                      |                     |          |          |          
+                      |                     |          |          |--23.46%-- __remove_mapping
+                      |                     |          |          |          shrink_page_list
+                      |                     |          |          |          shrink_inactive_list
+                      |                     |          |          |          shrink_lruvec
+                      |                     |          |          |          try_to_free_pages
+                      |                     |          |          |          __alloc_pages_nodemask
+                      |                     |          |          |          alloc_pages_vma
+                      |                     |          |          |          do_huge_pmd_anonymous_page
+                      |                     |          |          |          handle_mm_fault
+                      |                     |          |          |          __get_user_pages
+                      |                     |          |          |          get_user_page_nowait
+                      |                     |          |          |          hva_to_pfn.isra.17
+                      |                     |          |          |          __gfn_to_pfn
+                      |                     |          |          |          gfn_to_pfn_async
+                      |                     |          |          |          try_async_pf
+                      |                     |          |          |          tdp_page_fault
+                      |                     |          |          |          kvm_mmu_page_fault
+                      |                     |          |          |          pf_interception
+                      |                     |          |          |          handle_exit
+                      |                     |          |          |          kvm_arch_vcpu_ioctl_run
+                      |                     |          |          |          kvm_vcpu_ioctl
+                      |                     |          |          |          do_vfs_ioctl
+                      |                     |          |          |          sys_ioctl
+                      |                     |          |          |          system_call_fastpath
+                      |                     |          |          |          ioctl
+                      |                     |          |          |          |          
+                      |                     |          |          |          |--93.81%-- 0x10100000006
+                      |                     |          |          |          |          
+                      |                     |          |          |           --6.19%-- 0x10100000002
+                      |                     |          |          |          
+                      |                     |          |          |--19.93%-- kvm_vcpu_ioctl
+                      |                     |          |          |          do_vfs_ioctl
+                      |                     |          |          |          sys_ioctl
+                      |                     |          |          |          system_call_fastpath
+                      |                     |          |          |          ioctl
+                      |                     |          |          |          |          
+                      |                     |          |          |          |--93.65%-- 0x10100000006
+                      |                     |          |          |          |          
+                      |                     |          |          |           --6.35%-- 0x10100000002
+                      |                     |          |          |          
+                      |                     |          |          |--14.19%-- compaction_alloc
+                      |                     |          |          |          migrate_pages
+                      |                     |          |          |          compact_zone
+                      |                     |          |          |          compact_zone_order
+                      |                     |          |          |          try_to_compact_pages
+                      |                     |          |          |          __alloc_pages_direct_compact
+                      |                     |          |          |          __alloc_pages_nodemask
+                      |                     |          |          |          alloc_pages_vma
+                      |                     |          |          |          do_huge_pmd_anonymous_page
+                      |                     |          |          |          handle_mm_fault
+                      |                     |          |          |          __get_user_pages
+                      |                     |          |          |          get_user_page_nowait
+                      |                     |          |          |          hva_to_pfn.isra.17
+                      |                     |          |          |          __gfn_to_pfn
+                      |                     |          |          |          gfn_to_pfn_async
+                      |                     |          |          |          try_async_pf
+                      |                     |          |          |          tdp_page_fault
+                      |                     |          |          |          kvm_mmu_page_fault
+                      |                     |          |          |          pf_interception
+                      |                     |          |          |          handle_exit
+                      |                     |          |          |          kvm_arch_vcpu_ioctl_run
+                      |                     |          |          |          kvm_vcpu_ioctl
+                      |                     |          |          |          do_vfs_ioctl
+                      |                     |          |          |          sys_ioctl
+                      |                     |          |          |          system_call_fastpath
+                      |                     |          |          |          ioctl
+                      |                     |          |          |          |          
+                      |                     |          |          |          |--89.88%-- 0x10100000006
+                      |                     |          |          |          |          
+                      |                     |          |          |           --10.12%-- 0x10100000002
+                      |                     |          |          |          
+                      |                     |          |          |--8.57%-- isolate_migratepages_range
+                      |                     |          |          |          compact_zone
+                      |                     |          |          |          compact_zone_order
+                      |                     |          |          |          try_to_compact_pages
+                      |                     |          |          |          __alloc_pages_direct_compact
+                      |                     |          |          |          __alloc_pages_nodemask
+                      |                     |          |          |          alloc_pages_vma
+                      |                     |          |          |          do_huge_pmd_anonymous_page
+                      |                     |          |          |          handle_mm_fault
+                      |                     |          |          |          __get_user_pages
+                      |                     |          |          |          get_user_page_nowait
+                      |                     |          |          |          hva_to_pfn.isra.17
+                      |                     |          |          |          __gfn_to_pfn
+                      |                     |          |          |          gfn_to_pfn_async
+                      |                     |          |          |          try_async_pf
+                      |                     |          |          |          tdp_page_fault
+                      |                     |          |          |          kvm_mmu_page_fault
+                      |                     |          |          |          pf_interception
+                      |                     |          |          |          handle_exit
+                      |                     |          |          |          kvm_arch_vcpu_ioctl_run
+                      |                     |          |          |          kvm_vcpu_ioctl
+                      |                     |          |          |          do_vfs_ioctl
+                      |                     |          |          |          sys_ioctl
+                      |                     |          |          |          system_call_fastpath
+                      |                     |          |          |          ioctl
+                      |                     |          |          |          |          
+                      |                     |          |          |          |--92.14%-- 0x10100000006
+                      |                     |          |          |          |          
+                      |                     |          |          |           --7.86%-- 0x10100000002
+                      |                     |          |          |          
+                      |                     |          |          |--5.05%-- do_huge_pmd_anonymous_page
+                      |                     |          |          |          handle_mm_fault
+                      |                     |          |          |          __get_user_pages
+                      |                     |          |          |          get_user_page_nowait
+                      |                     |          |          |          hva_to_pfn.isra.17
+                      |                     |          |          |          __gfn_to_pfn
+                      |                     |          |          |          gfn_to_pfn_async
+                      |                     |          |          |          try_async_pf
+                      |                     |          |          |          tdp_page_fault
+                      |                     |          |          |          kvm_mmu_page_fault
+                      |                     |          |          |          pf_interception
+                      |                     |          |          |          handle_exit
+                      |                     |          |          |          kvm_arch_vcpu_ioctl_run
+                      |                     |          |          |          kvm_vcpu_ioctl
+                      |                     |          |          |          do_vfs_ioctl
+                      |                     |          |          |          sys_ioctl
+                      |                     |          |          |          system_call_fastpath
+                      |                     |          |          |          ioctl
+                      |                     |          |          |          |          
+                      |                     |          |          |          |--92.53%-- 0x10100000006
+                      |                     |          |          |          |          
+                      |                     |          |          |           --7.47%-- 0x10100000002
+                      |                     |          |          |          
+                      |                     |          |          |--4.49%-- shrink_inactive_list
+                      |                     |          |          |          shrink_lruvec
+                      |                     |          |          |          try_to_free_pages
+                      |                     |          |          |          __alloc_pages_nodemask
+                      |                     |          |          |          alloc_pages_vma
+                      |                     |          |          |          do_huge_pmd_anonymous_page
+                      |                     |          |          |          handle_mm_fault
+                      |                     |          |          |          __get_user_pages
+                      |                     |          |          |          get_user_page_nowait
+                      |                     |          |          |          hva_to_pfn.isra.17
+                      |                     |          |          |          __gfn_to_pfn
+                      |                     |          |          |          gfn_to_pfn_async
+                      |                     |          |          |          try_async_pf
+                      |                     |          |          |          tdp_page_fault
+                      |                     |          |          |          kvm_mmu_page_fault
+                      |                     |          |          |          pf_interception
+                      |                     |          |          |          handle_exit
+                      |                     |          |          |          kvm_arch_vcpu_ioctl_run
+                      |                     |          |          |          kvm_vcpu_ioctl
+                      |                     |          |          |          do_vfs_ioctl
+                      |                     |          |          |          sys_ioctl
+                      |                     |          |          |          system_call_fastpath
+                      |                     |          |          |          ioctl
+                      |                     |          |          |          |          
+                      |                     |          |          |          |--94.61%-- 0x10100000006
+                      |                     |          |          |          |          
+                      |                     |          |          |           --5.39%-- 0x10100000002
+                      |                     |          |          |          
+                      |                     |          |          |--2.80%-- free_hot_cold_page_list
+                      |                     |          |          |          shrink_page_list
+                      |                     |          |          |          shrink_inactive_list
+                      |                     |          |          |          shrink_lruvec
+                      |                     |          |          |          try_to_free_pages
+                      |                     |          |          |          __alloc_pages_nodemask
+                      |                     |          |          |          alloc_pages_vma
+                      |                     |          |          |          do_huge_pmd_anonymous_page
+                      |                     |          |          |          handle_mm_fault
+                      |                     |          |          |          __get_user_pages
+                      |                     |          |          |          get_user_page_nowait
+                      |                     |          |          |          hva_to_pfn.isra.17
+                      |                     |          |          |          __gfn_to_pfn
+                      |                     |          |          |          gfn_to_pfn_async
+                      |                     |          |          |          try_async_pf
+                      |                     |          |          |          tdp_page_fault
+                      |                     |          |          |          kvm_mmu_page_fault
+                      |                     |          |          |          pf_interception
+                      |                     |          |          |          handle_exit
+                      |                     |          |          |          kvm_arch_vcpu_ioctl_run
+                      |                     |          |          |          kvm_vcpu_ioctl
+                      |                     |          |          |          do_vfs_ioctl
+                      |                     |          |          |          sys_ioctl
+                      |                     |          |          |          system_call_fastpath
+                      |                     |          |          |          ioctl
+                      |                     |          |          |          |          
+                      |                     |          |          |          |--91.24%-- 0x10100000006
+                      |                     |          |          |          |          
+                      |                     |          |          |           --8.76%-- 0x10100000002
+                      |                     |          |          |          
+                      |                     |          |          |--1.96%-- buffer_migrate_page
+                      |                     |          |          |          move_to_new_page
+                      |                     |          |          |          migrate_pages
+                      |                     |          |          |          compact_zone
+                      |                     |          |          |          compact_zone_order
+                      |                     |          |          |          try_to_compact_pages
+                      |                     |          |          |          __alloc_pages_direct_compact
+                      |                     |          |          |          __alloc_pages_nodemask
+                      |                     |          |          |          alloc_pages_vma
+                      |                     |          |          |          do_huge_pmd_anonymous_page
+                      |                     |          |          |          handle_mm_fault
+                      |                     |          |          |          __get_user_pages
+                      |                     |          |          |          get_user_page_nowait
+                      |                     |          |          |          hva_to_pfn.isra.17
+                      |                     |          |          |          __gfn_to_pfn
+                      |                     |          |          |          gfn_to_pfn_async
+                      |                     |          |          |          try_async_pf
+                      |                     |          |          |          tdp_page_fault
+                      |                     |          |          |          kvm_mmu_page_fault
+                      |                     |          |          |          pf_interception
+                      |                     |          |          |          handle_exit
+                      |                     |          |          |          kvm_arch_vcpu_ioctl_run
+                      |                     |          |          |          kvm_vcpu_ioctl
+                      |                     |          |          |          do_vfs_ioctl
+                      |                     |          |          |          sys_ioctl
+                      |                     |          |          |          system_call_fastpath
+                      |                     |          |          |          ioctl
+                      |                     |          |          |          |          
+                      |                     |          |          |          |--63.14%-- 0x10100000006
+                      |                     |          |          |          |          
+                      |                     |          |          |           --36.86%-- 0x10100000002
+                      |                     |          |          |          
+                      |                     |          |          |--1.62%-- try_to_free_buffers
+                      |                     |          |          |          jbd2_journal_try_to_free_buffers
+                      |                     |          |          |          ext4_releasepage
+                      |                     |          |          |          try_to_release_page
+                      |                     |          |          |          shrink_page_list
+                      |                     |          |          |          shrink_inactive_list
+                      |                     |          |          |          shrink_lruvec
+                      |                     |          |          |          try_to_free_pages
+                      |                     |          |          |          __alloc_pages_nodemask
+                      |                     |          |          |          alloc_pages_vma
+                      |                     |          |          |          do_huge_pmd_anonymous_page
+                      |                     |          |          |          handle_mm_fault
+                      |                     |          |          |          __get_user_pages
+                      |                     |          |          |          get_user_page_nowait
+                      |                     |          |          |          hva_to_pfn.isra.17
+                      |                     |          |          |          __gfn_to_pfn
+                      |                     |          |          |          gfn_to_pfn_async
+                      |                     |          |          |          try_async_pf
+                      |                     |          |          |          tdp_page_fault
+                      |                     |          |          |          kvm_mmu_page_fault
+                      |                     |          |          |          pf_interception
+                      |                     |          |          |          handle_exit
+                      |                     |          |          |          kvm_arch_vcpu_ioctl_run
+                      |                     |          |          |          kvm_vcpu_ioctl
+                      |                     |          |          |          do_vfs_ioctl
+                      |                     |          |          |          sys_ioctl
+                      |                     |          |          |          system_call_fastpath
+                      |                     |          |          |          ioctl
+                      |                     |          |          |          0x10100000006
+                      |                     |          |          |          
+                      |                     |          |          |--1.49%-- compact_checklock_irqsave
+                      |                     |          |          |          isolate_migratepages_range
+                      |                     |          |          |          compact_zone
+                      |                     |          |          |          compact_zone_order
+                      |                     |          |          |          try_to_compact_pages
+                      |                     |          |          |          __alloc_pages_direct_compact
+                      |                     |          |          |          __alloc_pages_nodemask
+                      |                     |          |          |          alloc_pages_vma
+                      |                     |          |          |          do_huge_pmd_anonymous_page
+                      |                     |          |          |          handle_mm_fault
+                      |                     |          |          |          __get_user_pages
+                      |                     |          |          |          get_user_page_nowait
+                      |                     |          |          |          hva_to_pfn.isra.17
+                      |                     |          |          |          __gfn_to_pfn
+                      |                     |          |          |          gfn_to_pfn_async
+                      |                     |          |          |          try_async_pf
+                      |                     |          |          |          tdp_page_fault
+                      |                     |          |          |          kvm_mmu_page_fault
+                      |                     |          |          |          pf_interception
+                      |                     |          |          |          handle_exit
+                      |                     |          |          |          kvm_arch_vcpu_ioctl_run
+                      |                     |          |          |          kvm_vcpu_ioctl
+                      |                     |          |          |          do_vfs_ioctl
+                      |                     |          |          |          sys_ioctl
+                      |                     |          |          |          system_call_fastpath
+                      |                     |          |          |          ioctl
+                      |                     |          |          |          0x10100000006
+                      |                     |          |          |          
+                      |                     |          |          |--1.46%-- __mutex_lock_slowpath
+                      |                     |          |          |          mutex_lock
+                      |                     |          |          |          page_lock_anon_vma
+                      |                     |          |          |          page_referenced
+                      |                     |          |          |          shrink_active_list
+                      |                     |          |          |          shrink_lruvec
+                      |                     |          |          |          try_to_free_pages
+                      |                     |          |          |          __alloc_pages_nodemask
+                      |                     |          |          |          alloc_pages_vma
+                      |                     |          |          |          do_huge_pmd_anonymous_page
+                      |                     |          |          |          handle_mm_fault
+                      |                     |          |          |          __get_user_pages
+                      |                     |          |          |          get_user_page_nowait
+                      |                     |          |          |          hva_to_pfn.isra.17
+                      |                     |          |          |          __gfn_to_pfn
+                      |                     |          |          |          gfn_to_pfn_async
+                      |                     |          |          |          try_async_pf
+                      |                     |          |          |          tdp_page_fault
+                      |                     |          |          |          kvm_mmu_page_fault
+                      |                     |          |          |          pf_interception
+                      |                     |          |          |          handle_exit
+                      |                     |          |          |          kvm_arch_vcpu_ioctl_run
+                      |                     |          |          |          kvm_vcpu_ioctl
+                      |                     |          |          |          do_vfs_ioctl
+                      |                     |          |          |          sys_ioctl
+                      |                     |          |          |          system_call_fastpath
+                      |                     |          |          |          ioctl
+                      |                     |          |          |          0x10100000006
+                      |                     |          |          |          
+                      |                     |          |          |--1.41%-- native_flush_tlb_others
+                      |                     |          |          |          flush_tlb_page
+                      |                     |          |          |          |          
+                      |                     |          |          |          |--67.10%-- ptep_clear_flush
+                      |                     |          |          |          |          try_to_unmap_one
+                      |                     |          |          |          |          try_to_unmap_anon
+                      |                     |          |          |          |          try_to_unmap
+                      |                     |          |          |          |          migrate_pages
+                      |                     |          |          |          |          compact_zone
+                      |                     |          |          |          |          compact_zone_order
+                      |                     |          |          |          |          try_to_compact_pages
+                      |                     |          |          |          |          __alloc_pages_direct_compact
+                      |                     |          |          |          |          __alloc_pages_nodemask
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
