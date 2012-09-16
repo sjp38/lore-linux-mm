@@ -1,168 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx190.postini.com [74.125.245.190])
-	by kanga.kvack.org (Postfix) with SMTP id 7CE986B0069
-	for <linux-mm@kvack.org>; Sun, 16 Sep 2012 06:14:51 -0400 (EDT)
-Received: by qady1 with SMTP id y1so1063241qad.14
-        for <linux-mm@kvack.org>; Sun, 16 Sep 2012 03:14:50 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
+	by kanga.kvack.org (Postfix) with SMTP id 1F1D66B0069
+	for <linux-mm@kvack.org>; Sun, 16 Sep 2012 15:08:18 -0400 (EDT)
+Received: by pbbro12 with SMTP id ro12so9020868pbb.14
+        for <linux-mm@kvack.org>; Sun, 16 Sep 2012 12:08:17 -0700 (PDT)
+Date: Sun, 16 Sep 2012 12:07:40 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH 6/7] mm: add CONFIG_DEBUG_VM_RB build option
+In-Reply-To: <505433A0.3010702@suse.cz>
+Message-ID: <alpine.LSU.2.00.1209161130460.5591@eggly.anvils>
+References: <1346750457-12385-1-git-send-email-walken@google.com> <1346750457-12385-7-git-send-email-walken@google.com> <5053AC2F.3070203@gmail.com> <CANN689Ff3W4z=+3J8aGO-2GrPHGJ=ote_f5q9jzRQRAP+b0T4Q@mail.gmail.com> <20120915000029.GA29426@google.com>
+ <505433A0.3010702@suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <20120914131428.1f530681.akpm@linux-foundation.org>
-References: <5052A7DF.4050301@gmail.com>
-	<50530E39.5020100@jp.fujitsu.com>
-	<20120914131428.1f530681.akpm@linux-foundation.org>
-Date: Sun, 16 Sep 2012 18:14:50 +0800
-Message-ID: <CAPSa4Adgsyekq__EVmiwTZU_2NPY+LxsnFOmEvnkt0XvuWtuKw@mail.gmail.com>
-Subject: Re: [PATCH RESEND] memory hotplug: fix a double register section info bug
-From: xishi qiu <qiuxishi@gmail.com>
-Content-Type: multipart/alternative; boundary=0022158c0d1168e5a904c9ceed34
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, mgorman@suse.de, tony.luck@intel.com, Jiang Liu <jiang.liu@huawei.com>, qiuxishi@huawei.com, bessel.wang@huawei.com, wujianguo@huawei.com, paul.gortmaker@windriver.com, kamezawa.hiroyu@jp.fujitsu.com, kosaki.motohiro@jp.fujitsu.com, rientjes@google.com, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wen Congyang <wency@cn.fujitsu.com>
+To: Jiri Slaby <jslaby@suse.cz>
+Cc: Michel Lespinasse <walken@google.com>, Sasha Levin <levinsasha928@gmail.com>, linux-mm@kvack.org, riel@redhat.com, peterz@infradead.org, aarcange@redhat.com, daniel.santos@pobox.com, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, Dave Jones <davej@redhat.com>
 
---0022158c0d1168e5a904c9ceed34
-Content-Type: text/plain; charset=UTF-8
+On Sat, 15 Sep 2012, Jiri Slaby wrote:
+> On 09/15/2012 02:00 AM, Michel Lespinasse wrote:
+> > All right. Hugh managed to reproduce the issue on his suse laptop, and
+> > I came up with a fix.
+> > 
+> > The problem was that in mremap, the new vma's vm_{start,end,pgoff}
+> > fields need to be updated before calling anon_vma_clone() so that the
+> > new vma will be properly indexed.
+> > 
+> > Patch attached. I expect this should also explain Jiri's reported
+> > failure involving splitting THP pages during mremap(), even though we
+> > did not manage to reproduce that one.
+> 
+> Oh, great. This is BTW also machine with suse.
 
-On Sat, Sep 15, 2012 at 4:14 AM, Andrew Morton <akpm@linux-foundation.org>wrote:
+We guessed that for you it might be :)
+I've not yet moved up from 11.4 by the way, if that makes a difference.
 
-> On Fri, 14 Sep 2012 20:00:09 +0900
-> Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com> wrote:
->
-> > > @@ -187,9 +184,10 @@ void register_page_bootmem_info_node(struct
-> pglist_data *pgdat)
-> > >     end_pfn = pfn + pgdat->node_spanned_pages;
-> > >
-> > >     /* register_section info */
-> > > -   for (; pfn < end_pfn; pfn += PAGES_PER_SECTION)
-> > > -           register_page_bootmem_info_section(pfn);
-> > > -
-> > > +   for (; pfn < end_pfn; pfn += PAGES_PER_SECTION) {
-> > > +           if (pfn_valid(pfn) && (pfn_to_nid(pfn) == node))
-> >
-> > I cannot judge whether your configuration is correct or not.
-> > Thus if it is correct, I want a comment of why the node check is
-> > needed. In usual configuration, a node does not span the other one.
-> > So it is natural that "pfn_to_nid(pfn) is same as "pgdat->node_id".
-> > Thus we may remove the node check in the future.
->
->
+In fact, even before these reports, when Michel was wondering about the
+uses of mremap, I did mention an mremap/THP bug from a year ago, which
+the SuSE update had been good for reproducing.
 
-yup.  How does this look?
->
+> What was the way that
+> Hugh used to reproduce the other issue?
 
-It looks fine to me. Some platforms can have this unusual  configuration,
-not only in IA64.
-And register_page_bootmem_info_section() is only called by
-register_page_bootmem_info_node(),
-so we can delete pfn_valid() check in register_page_bootmem_info_section()
+I've lost track of which issue is "other".
 
-Thanks
-Xishi Qiu
+To reproduce Sasha's interval_tree.c warnings, all I had to do was switch
+on CONFIG_DEBUG_VM_RB (I regret not having done so before) and boot up.
 
+I didn't look to see what was doing the mremap which caused the warning
+until now: surprisingly, it's microcode_ctl.  I've not made much effort
+to get the right set of sources and work out why that would be using
+mremap (a realloc inside a library?).
 
-> ---
-> a/mm/memory_hotplug.c~memory-hotplug-fix-a-double-register-section-info-bug-fix
-> +++ a/mm/memory_hotplug.c
-> @@ -185,6 +185,12 @@ void register_page_bootmem_info_node(str
->
->         /* register_section info */
->         for (; pfn < end_pfn; pfn += PAGES_PER_SECTION) {
-> +               /*
-> +                * Some platforms can assign the same pfn to multiple
-> nodes - on
-> +                * node0 as well as nodeN.  To avoid registering a pfn
-> against
-> +                * multiple nodes we check that this pfn does not already
-> +                * reside in some other node.
-> +                */
->                 if (pfn_valid(pfn) && (pfn_to_nid(pfn) == node))
->                         register_page_bootmem_info_section(pfn);
->         }
-> _
->
->
+I failed to reproduce your BUG in huge_memory.c, but what I was trying
+was SuSE update via yast2, on several machines; but perhaps because
+they were all fairly close to up-to-date, I didn't hit a problem.
+(That was before I turned on DEBUG_VM_RB for Sasha's.)
 
---0022158c0d1168e5a904c9ceed34
-Content-Type: text/html; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Hugh
 
-<br><br><div class=3D"gmail_quote">On Sat, Sep 15, 2012 at 4:14 AM, Andrew =
-Morton <span dir=3D"ltr">&lt;<a href=3D"mailto:akpm@linux-foundation.org" t=
-arget=3D"_blank">akpm@linux-foundation.org</a>&gt;</span> wrote:<br><blockq=
-uote class=3D"gmail_quote" style=3D"margin:0 0 0 .8ex;border-left:1px #ccc =
-solid;padding-left:1ex">
-
-
-
-<div>On Fri, 14 Sep 2012 20:00:09 +0900<br>
-Yasuaki Ishimatsu &lt;<a href=3D"mailto:isimatu.yasuaki@jp.fujitsu.com" tar=
-get=3D"_blank">isimatu.yasuaki@jp.fujitsu.com</a>&gt; wrote:<br>
-<br>
-&gt; &gt; @@ -187,9 +184,10 @@ void register_page_bootmem_info_node(struct =
-pglist_data *pgdat)<br>
-&gt; &gt; =C2=A0 =C2=A0 end_pfn =3D pfn + pgdat-&gt;node_spanned_pages;<br>
-&gt; &gt;<br>
-&gt; &gt; =C2=A0 =C2=A0 /* register_section info */<br>
-&gt; &gt; - =C2=A0 for (; pfn &lt; end_pfn; pfn +=3D PAGES_PER_SECTION)<br>
-&gt; &gt; - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 register_page_bootmem_info_s=
-ection(pfn);<br>
-&gt; &gt; -<br>
-&gt; &gt; + =C2=A0 for (; pfn &lt; end_pfn; pfn +=3D PAGES_PER_SECTION) {<b=
-r>
-&gt; &gt; + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 if (pfn_valid(pfn) &amp;&amp=
-; (pfn_to_nid(pfn) =3D=3D node))<br>
-&gt;<br>
-&gt; I cannot judge whether your configuration is correct or not.<br>
-&gt; Thus if it is correct, I want a comment of why the node check is<br>
-&gt; needed. In usual configuration, a node does not span the other one.<br=
->
-&gt; So it is natural that &quot;pfn_to_nid(pfn) is same as &quot;pgdat-&gt=
-;node_id&quot;.<br>
-&gt; Thus we may remove the node check in the future.<br>
-<br>
-</div>=C2=A0</blockquote><blockquote class=3D"gmail_quote" style=3D"margin:=
-0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">yup. =C2=A0How does=
- this look?<br></blockquote><div><br></div><div>It looks fine to me.=C2=A0S=
-ome platforms can have this unusual=C2=A0 configuration, not only in IA64.<=
-/div>
-
-
-<div>And=C2=A0register_page_bootmem_info_section() is only called by regist=
-er_page_bootmem_info_node(),</div><div>so we can delete pfn_valid() check i=
-n register_page_bootmem_info_section()<br>=C2=A0          =C2=A0<br></div><=
-div>Thanks=C2=A0</div>
-<div>
-Xishi Qiu</div><div><br></div><blockquote class=3D"gmail_quote" style=3D"ma=
-rgin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
-
-<br>
---- a/mm/memory_hotplug.c~memory-hotplug-fix-a-double-register-section-info=
--bug-fix<br>
-+++ a/mm/memory_hotplug.c<br>
-@@ -185,6 +185,12 @@ void register_page_bootmem_info_node(str<br>
-<br>
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 /* register_section info */<br>
-<div>=C2=A0 =C2=A0 =C2=A0 =C2=A0 for (; pfn &lt; end_pfn; pfn +=3D PAGES_PE=
-R_SECTION) {<br>
-</div>+ =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 /*<br>
-+ =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0* Some platforms c=
-an assign the same pfn to multiple nodes - on<br>
-+ =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0* node0 as well as=
- nodeN. =C2=A0To avoid registering a pfn against<br>
-+ =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0* multiple nodes w=
-e check that this pfn does not already<br>
-+ =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0* reside in some o=
-ther node.<br>
-+ =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0*/<br>
-<div>=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 if (pfn_valid(=
-pfn) &amp;&amp; (pfn_to_nid(pfn) =3D=3D node))<br>
-</div>=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0=
- =C2=A0 =C2=A0 register_page_bootmem_info_section(pfn);<br>
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 }<br>
-_<br>
-<br>
-</blockquote></div><br>
-
---0022158c0d1168e5a904c9ceed34--
+> For me it happened twice in a
+> row when using zypper to upgrade packages. But it did not happen any
+> more after that.
+> 
+> thanks,
+> -- 
+> js
+> suse labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
