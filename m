@@ -1,53 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
-	by kanga.kvack.org (Postfix) with SMTP id 087006B0070
-	for <linux-mm@kvack.org>; Mon, 17 Sep 2012 10:21:37 -0400 (EDT)
-Date: Mon, 17 Sep 2012 15:21:30 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH RESEND] memory hotplug: fix a double register section
- info bug
-Message-ID: <20120917142130.GH11266@suse.de>
-References: <5052A7DF.4050301@gmail.com>
- <20120914095230.GE11266@suse.de>
- <3908561D78D1C84285E8C5FCA982C28F19D40E81@ORSMSX108.amr.corp.intel.com>
+Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
+	by kanga.kvack.org (Postfix) with SMTP id A6C436B0062
+	for <linux-mm@kvack.org>; Mon, 17 Sep 2012 11:39:35 -0400 (EDT)
+Received: by bkcjc3 with SMTP id jc3so2719068bkc.14
+        for <linux-mm@kvack.org>; Mon, 17 Sep 2012 08:39:33 -0700 (PDT)
+Message-ID: <50574432.5040005@suse.cz>
+Date: Mon, 17 Sep 2012 17:39:30 +0200
+From: Jiri Slaby <jslaby@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <3908561D78D1C84285E8C5FCA982C28F19D40E81@ORSMSX108.amr.corp.intel.com>
+Subject: Re: BUG at mm/huge_memory.c:1428!
+References: <50522275.7090709@suse.cz> <CANN689E0SaT9vaBb+snwYrP728GjZhRj7o7T4GoNfQVY7sBr7Q@mail.gmail.com> <50538561.8030505@suse.cz>
+In-Reply-To: <50538561.8030505@suse.cz>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Luck, Tony" <tony.luck@intel.com>
-Cc: qiuxishi <qiuxishi@gmail.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Jiang Liu <jiang.liu@huawei.com>, "qiuxishi@huawei.com" <qiuxishi@huawei.com>, "bessel.wang@huawei.com" <bessel.wang@huawei.com>, "wujianguo@huawei.com" <wujianguo@huawei.com>, "paul.gortmaker@windriver.com" <paul.gortmaker@windriver.com>, "kamezawa.hiroyu@jp.fujitsu.com" <kamezawa.hiroyu@jp.fujitsu.com>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>, "rientjes@google.com" <rientjes@google.com>, Minchan Kim <minchan@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Wen Congyang <wency@cn.fujitsu.com>
+To: Michel Lespinasse <walken@google.com>
+Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Jiri Slaby <jirislaby@gmail.com>
 
-On Fri, Sep 14, 2012 at 04:24:32PM +0000, Luck, Tony wrote:
-> > This is an unusual configuration but it's not unheard of. PPC64 in rare
-> > (and usually broken) configurations can have one node span another. Tony
-> > should know if such a configuration is normally allowed on Itanium or if
-> > this should be considered a platform bug. Tony?
+On 09/14/2012 09:28 PM, Jiri Slaby wrote:
+> On 09/14/2012 12:46 AM, Michel Lespinasse wrote:
+>> On Thu, Sep 13, 2012 at 11:14 AM, Jiri Slaby <jslaby@suse.cz> wrote:
+>>> Hi,
+>>>
+>>> I've just get the following BUG with today's -next. It happens every
+>>> time I try to update packages.
+>>>
+>>> kernel BUG at mm/huge_memory.c:1428!
+>>
+>> That is very likely my bug.
+>>
+>> Do you have the message that should be printed right above the bug ?
+>> (                printk(KERN_ERR "mapcount %d page_mapcount %d\n",
+>>                        mapcount, page_mapcount(page));
+>> )
 > 
-> We definitely have platforms where the physical memory on node 0
-> that we skipped to leave physical address space for PCI mem mapped
-> devices gets tagged back at the very top of memory, after other nodes.
-> 
-> E.g. A 2-node system with 8G on each might look like this:
-> 
-> 0-2G RAM on node 0
-> 2G-4G  PCI map space
-> 4G-8G RAM on node 0
-> 8G-16GRAM on node 1
-> 16G-18G RAM on node 0
-> 
-> Is this the situation that we are talking about? Or something different?
-> 
+> Unfortunately no. And I cannot reproduce anymore :(...
 
-This is the type of situation we are talking about. The spanned range of
-node 0 includes node 1. The patch needs another revision with a comment
-explaining the situation included but otherwise the patch should be
-fine.
+FWIW: mapcount 0 page_mapcount 1
 
+It happened today. Now I'm going to apply your patch.
+
+> thanks,
 -- 
-Mel Gorman
-SUSE Labs
+js
+suse labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
