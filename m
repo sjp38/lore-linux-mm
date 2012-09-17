@@ -1,123 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
-	by kanga.kvack.org (Postfix) with SMTP id 0AF626B005A
-	for <linux-mm@kvack.org>; Mon, 17 Sep 2012 15:41:07 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
+	by kanga.kvack.org (Postfix) with SMTP id 23D506B0062
+	for <linux-mm@kvack.org>; Mon, 17 Sep 2012 16:42:42 -0400 (EDT)
 MIME-Version: 1.0
-Message-ID: <9e3b0e01-836d-49d3-8aed-9ed9df6c1cfa@default>
-Date: Mon, 17 Sep 2012 12:40:58 -0700 (PDT)
+Message-ID: <e5d08804-a542-4778-a103-b14b553b0747@default>
+Date: Mon, 17 Sep 2012 13:42:30 -0700 (PDT)
 From: Dan Magenheimer <dan.magenheimer@oracle.com>
-Subject: RE: steering allocations to particular parts of memory
-References: <20120907182715.GB4018@labbmf01-linux.qualcomm.com>
- <20120911093407.GH11266@suse.de>
- <20120912212829.GC4018@labbmf01-linux.qualcomm.com>
- <20120913083443.GS11266@suse.de>
-In-Reply-To: <20120913083443.GS11266@suse.de>
+Subject: RE: [RFC] mm: add support for zsmalloc and zcache
+References: <1346794486-12107-1-git-send-email-sjenning@linux.vnet.ibm.com>
+ <e33a2c0e-3b51-4d89-a2b2-c1ed9c8f862c@default>
+ <20120907143751.GB4670@phenom.dumpdata.com> <504C1100.2050300@vflare.org>
+In-Reply-To: <504C1100.2050300@vflare.org>
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>, Larry Bassel <lbassel@codeaurora.org>
-Cc: linux-mm@kvack.org, Konrad Wilk <konrad.wilk@oracle.com>
+To: Nitin Gupta <ngupta@vflare.org>, Konrad Wilk <konrad.wilk@oracle.com>
+Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan@kernel.org>, Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org
 
-Hi Larry --
-
-Sorry I missed seeing you and missed this discussion at Linuxcon!
-
-> based on transcendent memory (which I am somewhat familiar
-> with, having built something based upon it which can be used either
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-> as contiguous memory or as clean cache) might work, but
-
-That reminds me... I never saw this code posted on linux-mm
-or lkml or anywhere else.  Since this is another interesting
-use of tmem/cleancache/frontswap, it might be good to get
-your work into the kernel or at least into some other public
-tree.  Is your code post-able? (re original thread:
-http://www.spinics.net/lists/linux-mm/msg24785.html )
-
-> At the memory mini-summit last week, it was mentioned
-> that the Super-H architecture was using NUMA for this
-> purpose, which was considered to be an very bad thing
-> to do -- we have ported NUMA to ARM here (as an experiment)
-> and agree that NUMA doesn't work well for solving this problem.
-
-If there are any notes/slides/threads with more detail
-on this discussion (why NUMA doesn't work well), I'd be
-interested in a pointer...
-
-> I am looking for a way to steer allocations (these may be
-> by either userspace or the kernel) to or away from particular
-> ranges of memory. The reason for this is that some parts of
-> memory are different from others (i.e. some memory may be
-> faster/slower). For instance there may be 500M of "fast"
-> memory and 1500M of "slower" memory on a 2G platform.
-
-In the kernel's current uses of tmem (frontswap and cleancache),
-there's no way to proactively steer the allocation.  The
-kernel effectively subdivides pages into two priority
-classes and lower priority pages end up in cleancache
-rather than being reclaimed, and frontswap rather than
-on a swap disk.
-
-A brand new in-kernel interface to tmem code to explicitly
-allocate "slow memory" is certainly possible, though I
-haven't given it much thought.   Depending on how "slow"
-is slow, it may make sense for the memory to only be used
-for tmem pages rather than for user/kernel-directly-accessible
-RAM.
-
-> This pushes responsibility for placement policy out to the edge. While it
-> will work to some extent, it'll depend heavily on the applications gettin=
-g
-> the placement policy right right. If a mistake is made then potentially
-> every one of these applications and drivers will need to be fixed althoug=
-h
-> I would expect that you'd create a new allocator API and hopefully only
-> have to fix it there if the policies were suitably fine-grained. To me
-> this type of solution is less than ideal as the drivers and applications
-> may not really know if the memory is "hot" or not.
-
-I'd have to agree with Mel on this.  There are certainly a number
-of enterprise apps that subvert kernel policies and entirely
-manage their own memory.  I'm not sure there would be much value
-to kernel participation (or using tmem) if this is what you ultimately
-need to do.
-
-> I do not think it's a simplified version of memory policies but it is
-> certainly similar to memory policies.
+> From: Nitin Gupta [mailto:ngupta@vflare.org]
+> Subject: Re: [RFC] mm: add support for zsmalloc and zcache
 >=20
-> > Admittedly, most drivers and user processes will not explicitly ask
-> > for a certain type of memory.
->=20
-> This is what I expect. It means that your solution might work for Super-H
-> but it will not work for any of the other use cases where applications
-> will be expected to work without modification. I guess it would be fine
-> if one was building an applicance where they knew exactly what was going
-> to be running and how it behaved but it's not exactly a general solution.
->=20
-> > We also would like to be able to create lowmem or highmem
-> > from any type of memory.
->=20
-> You may be able to hack something into the architecture layer that abuses
-> the memory model and remaps some pages into lowmem.
->=20
-> > The above makes me wonder if something that keeps nodes and zones
-> > and some sort of simple memory policy and throws out the rest of NUMA s=
-uch
-> > as bindings of memory to CPUs, cpusets, etc. might be useful
-> > (though after the memory mini-summit I have doubts about this as well)
-> > as node-aware allocators already exist.
->=20
-> You can just ignore the cpuset, CPU bindings and all the rest of it
-> already. It is already possible to use memory policies to only allocate
-> from a specific node (although it is not currently possible to restrict
-> allocations to a zone from user space at least).
->=20
-> I just fear that solutions that push responsibility out to drivers and
-> applications will end up being very hacky, rarely used, and be unsuitable
-> for the other use cases where application modification is not an option.
+> The problem is that zbud performs well only when a (compressed) page is
+> either PAGE_SIZE/2 - e or PAGE_SIZE - e, where e is small. So, even if
+> the average compression ratio is 2x (which is hard to believe), a
+> majority of sizes can actually end up in PAGE_SIZE/2 + e bucket and zbud
+> will still give bad performance.  For instance, consider these histograms=
+:
 
-I agree with Mel on all of these comments.
+Whoa whoa whoa.  This is very wrong.  Zbud handles compressed pages
+of any range that fits in a pageframe (same, almost, as zsmalloc).
+Unless there is some horrible bug you found...
+
+Zbud _does_ require the _distribution_ of zsize to be roughly
+centered around PAGE_SIZE/2 (or less).  Is that what you meant?
+If so, the following numbers you posted don't make sense to me.
+Could you be more explicit on what the numbers mean?
+
+Also, as you know, unlike zram, the architecture of tmem/frontswap
+allows zcache to reject any page, so if the distribution of zsize
+exceeds PAGE_SIZE/2, some pages can be rejected (and thus passed
+through to swap).  This safety valve already exists in zcache (and zcache2)
+to avoid situations where zpages would otherwise significantly
+exceed half of total pageframes allocated.  IMHO this is a
+better policy than accepting a large number of poorly-compressed pages,
+i.e. if every data page compresses down from 4096 bytes to 4032
+bytes, zsmalloc stores them all (thus using very nearly one pageframe
+per zpage), whereas zbud avoids the anomalous page sequence altogether.
+=20
+> # Created tar of /usr/lib (2GB) on a fairly loaded Linux system and
+> compressed page-by-page using LZO:
+>=20
+> # first two fields: bin start, end.  Third field: compressed size
+> 32 286 7644
+> :
+> 3842 4096 3482
+>=20
+> The only (approx) sweetspots for zbud are 1810-2064 and 3842-4096 which
+> covers only a small fraction of pages.
+>=20
+> # same page-by-page compression for 220MB ISO from project Gutenberg:
+> 32 286 70
+> :
+> 3842 4096 804
+>=20
+> Again very few pages in zbud favoring bins.
+>=20
+> So, we really need zsmalloc style allocator which handles sizes all over
+> the spectrum. But yes, compaction remains far easier to implement on zbud=
+.
+
+So it remains to be seen if a third choice exists (which might be either
+an enhanced zbud or an enhanced zsmalloc), right?
 
 Dan
 
