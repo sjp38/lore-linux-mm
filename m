@@ -1,98 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
-	by kanga.kvack.org (Postfix) with SMTP id 32FE06B005A
-	for <linux-mm@kvack.org>; Mon, 17 Sep 2012 15:16:27 -0400 (EDT)
-Received: by qcsd16 with SMTP id d16so5945444qcs.14
-        for <linux-mm@kvack.org>; Mon, 17 Sep 2012 12:16:26 -0700 (PDT)
-Date: Mon, 17 Sep 2012 12:15:46 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: Does swap_set_page_dirty() calling ->set_page_dirty() make
- sense?
-In-Reply-To: <20120917163518.GD9150@quack.suse.cz>
-Message-ID: <alpine.LSU.2.00.1209171204100.6720@eggly.anvils>
-References: <20120917163518.GD9150@quack.suse.cz>
+Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
+	by kanga.kvack.org (Postfix) with SMTP id 0AF626B005A
+	for <linux-mm@kvack.org>; Mon, 17 Sep 2012 15:41:07 -0400 (EDT)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Message-ID: <9e3b0e01-836d-49d3-8aed-9ed9df6c1cfa@default>
+Date: Mon, 17 Sep 2012 12:40:58 -0700 (PDT)
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Subject: RE: steering allocations to particular parts of memory
+References: <20120907182715.GB4018@labbmf01-linux.qualcomm.com>
+ <20120911093407.GH11266@suse.de>
+ <20120912212829.GC4018@labbmf01-linux.qualcomm.com>
+ <20120913083443.GS11266@suse.de>
+In-Reply-To: <20120913083443.GS11266@suse.de>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org
+To: Mel Gorman <mgorman@suse.de>, Larry Bassel <lbassel@codeaurora.org>
+Cc: linux-mm@kvack.org, Konrad Wilk <konrad.wilk@oracle.com>
 
-On Mon, 17 Sep 2012, Jan Kara wrote:
-> 
->   I tripped over a crash in reiserfs which happened due to PageSwapCache
-> page being passed to reiserfs_set_page_dirty(). Now it's not that hard to
-> make reiserfs_set_page_dirty() check that case but I really wonder: Does it
-> make sense to call mapping->a_ops->set_page_dirty() for a PageSwapCache
-> page? The page is going to be written via direct IO so from the POV of the
-> filesystem there's no need for any dirtiness tracking. Also there are
-> several ->set_page_dirty() implementations which will spectacularly crash
-> because they do things like page->mapping->host, or call
-> __set_page_dirty_buffers() which expects buffer heads in page->private.
-> Or what is the reason for calling filesystem's set_page_dirty() function?
+Hi Larry --
 
-This is a question for Mel, really: it used not to call the filesystem.
+Sorry I missed seeing you and missed this discussion at Linuxcon!
 
-But my reading of the 3.6 code says that it still will not call the
-filesystem, unless the filesystem (only nfs) provides a swap_activate
-method, which should be the only case in which SWP_FILE gets set.
-And I rather think Mel does want to use the filesystem set_page_dirty
-in that case.  Am I misreading?
+> based on transcendent memory (which I am somewhat familiar
+> with, having built something based upon it which can be used either
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> as contiguous memory or as clean cache) might work, but
 
-Did you see this on a vanilla kernel?  Or is it possible that you have
-a private patch merged in, with something else sharing the SWP_FILE bit
-(defined in include/linux/swap.h) by mistake?
+That reminds me... I never saw this code posted on linux-mm
+or lkml or anywhere else.  Since this is another interesting
+use of tmem/cleancache/frontswap, it might be good to get
+your work into the kernel or at least into some other public
+tree.  Is your code post-able? (re original thread:
+http://www.spinics.net/lists/linux-mm/msg24785.html )
 
-Hugh
+> At the memory mini-summit last week, it was mentioned
+> that the Super-H architecture was using NUMA for this
+> purpose, which was considered to be an very bad thing
+> to do -- we have ported NUMA to ARM here (as an experiment)
+> and agree that NUMA doesn't work well for solving this problem.
 
-> [PATCH] mm: Remove swap_set_page_dirty()
-> 
-> It doesn't make much sense to call filesystem's ->set_page_dirty() method for
-> PageSwapCache page. It will be written through direct IO so filesystem doesn't
-> care about its dirtiness and several filesystems actually don't count with such
-> pages getting into their ->set_page_dirty() functions.
-> 
-> Signed-off-by: Jan Kara <jack@suse.cz>
-> ---
->  mm/page_io.c    |   12 ------------
->  mm/swap_state.c |    2 +-
->  2 files changed, 1 insertions(+), 13 deletions(-)
-> 
-> diff --git a/mm/page_io.c b/mm/page_io.c
-> index 78eee32..8520a4f 100644
-> --- a/mm/page_io.c
-> +++ b/mm/page_io.c
-> @@ -278,15 +278,3 @@ int swap_readpage(struct page *page)
->  out:
->  	return ret;
->  }
-> -
-> -int swap_set_page_dirty(struct page *page)
-> -{
-> -	struct swap_info_struct *sis = page_swap_info(page);
-> -
-> -	if (sis->flags & SWP_FILE) {
-> -		struct address_space *mapping = sis->swap_file->f_mapping;
-> -		return mapping->a_ops->set_page_dirty(page);
-> -	} else {
-> -		return __set_page_dirty_no_writeback(page);
-> -	}
-> -}
-> diff --git a/mm/swap_state.c b/mm/swap_state.c
-> index 0cb36fb..01852cd 100644
-> --- a/mm/swap_state.c
-> +++ b/mm/swap_state.c
-> @@ -27,7 +27,7 @@
->   */
->  static const struct address_space_operations swap_aops = {
->  	.writepage	= swap_writepage,
-> -	.set_page_dirty	= swap_set_page_dirty,
-> +	.set_page_dirty	= set_page_dirty_no_writeback,
->  	.migratepage	= migrate_page,
->  };
->  
-> -- 
-> 1.7.1
+If there are any notes/slides/threads with more detail
+on this discussion (why NUMA doesn't work well), I'd be
+interested in a pointer...
+
+> I am looking for a way to steer allocations (these may be
+> by either userspace or the kernel) to or away from particular
+> ranges of memory. The reason for this is that some parts of
+> memory are different from others (i.e. some memory may be
+> faster/slower). For instance there may be 500M of "fast"
+> memory and 1500M of "slower" memory on a 2G platform.
+
+In the kernel's current uses of tmem (frontswap and cleancache),
+there's no way to proactively steer the allocation.  The
+kernel effectively subdivides pages into two priority
+classes and lower priority pages end up in cleancache
+rather than being reclaimed, and frontswap rather than
+on a swap disk.
+
+A brand new in-kernel interface to tmem code to explicitly
+allocate "slow memory" is certainly possible, though I
+haven't given it much thought.   Depending on how "slow"
+is slow, it may make sense for the memory to only be used
+for tmem pages rather than for user/kernel-directly-accessible
+RAM.
+
+> This pushes responsibility for placement policy out to the edge. While it
+> will work to some extent, it'll depend heavily on the applications gettin=
+g
+> the placement policy right right. If a mistake is made then potentially
+> every one of these applications and drivers will need to be fixed althoug=
+h
+> I would expect that you'd create a new allocator API and hopefully only
+> have to fix it there if the policies were suitably fine-grained. To me
+> this type of solution is less than ideal as the drivers and applications
+> may not really know if the memory is "hot" or not.
+
+I'd have to agree with Mel on this.  There are certainly a number
+of enterprise apps that subvert kernel policies and entirely
+manage their own memory.  I'm not sure there would be much value
+to kernel participation (or using tmem) if this is what you ultimately
+need to do.
+
+> I do not think it's a simplified version of memory policies but it is
+> certainly similar to memory policies.
+>=20
+> > Admittedly, most drivers and user processes will not explicitly ask
+> > for a certain type of memory.
+>=20
+> This is what I expect. It means that your solution might work for Super-H
+> but it will not work for any of the other use cases where applications
+> will be expected to work without modification. I guess it would be fine
+> if one was building an applicance where they knew exactly what was going
+> to be running and how it behaved but it's not exactly a general solution.
+>=20
+> > We also would like to be able to create lowmem or highmem
+> > from any type of memory.
+>=20
+> You may be able to hack something into the architecture layer that abuses
+> the memory model and remaps some pages into lowmem.
+>=20
+> > The above makes me wonder if something that keeps nodes and zones
+> > and some sort of simple memory policy and throws out the rest of NUMA s=
+uch
+> > as bindings of memory to CPUs, cpusets, etc. might be useful
+> > (though after the memory mini-summit I have doubts about this as well)
+> > as node-aware allocators already exist.
+>=20
+> You can just ignore the cpuset, CPU bindings and all the rest of it
+> already. It is already possible to use memory policies to only allocate
+> from a specific node (although it is not currently possible to restrict
+> allocations to a zone from user space at least).
+>=20
+> I just fear that solutions that push responsibility out to drivers and
+> applications will end up being very hacky, rarely used, and be unsuitable
+> for the other use cases where application modification is not an option.
+
+I agree with Mel on all of these comments.
+
+Dan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
