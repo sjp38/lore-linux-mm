@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
-	by kanga.kvack.org (Postfix) with SMTP id 606F76B0062
-	for <linux-mm@kvack.org>; Mon, 17 Sep 2012 18:15:45 -0400 (EDT)
-Date: Mon, 17 Sep 2012 15:15:43 -0700
+Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
+	by kanga.kvack.org (Postfix) with SMTP id E58026B006C
+	for <linux-mm@kvack.org>; Mon, 17 Sep 2012 18:15:53 -0400 (EDT)
+Date: Mon, 17 Sep 2012 15:15:52 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v10 1/5] mm: introduce a common interface for balloon
- pages mobility
-Message-Id: <20120917151543.fd523040.akpm@linux-foundation.org>
-In-Reply-To: <89c9f4096bbad072e155445fcdf1805d47ddf48e.1347897793.git.aquini@redhat.com>
+Subject: Re: [PATCH v10 3/5] virtio_balloon: introduce migration primitives
+ to balloon pages
+Message-Id: <20120917151552.ffbb9293.akpm@linux-foundation.org>
+In-Reply-To: <39738cbd4b596714210e453440833db7cca73172.1347897793.git.aquini@redhat.com>
 References: <cover.1347897793.git.aquini@redhat.com>
-	<89c9f4096bbad072e155445fcdf1805d47ddf48e.1347897793.git.aquini@redhat.com>
+	<39738cbd4b596714210e453440833db7cca73172.1347897793.git.aquini@redhat.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -18,7 +18,7 @@ List-ID: <linux-mm.kvack.org>
 To: Rafael Aquini <aquini@redhat.com>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, Rusty Russell <rusty@rustcorp.com.au>, "Michael S. Tsirkin" <mst@redhat.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Andi Kleen <andi@firstfloor.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Minchan Kim <minchan@kernel.org>, Peter Zijlstra <peterz@infradead.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
 
-On Mon, 17 Sep 2012 13:38:16 -0300
+On Mon, 17 Sep 2012 13:38:18 -0300
 Rafael Aquini <aquini@redhat.com> wrote:
 
 > Memory fragmentation introduced by ballooning might reduce significantly
@@ -26,269 +26,106 @@ Rafael Aquini <aquini@redhat.com> wrote:
 > thus imposing performance penalties associated with the reduced number of
 > transparent huge pages that could be used by the guest workload.
 > 
-> This patch introduces a common interface to help a balloon driver on
-> making its page set movable to compaction, and thus allowing the system
-> to better leverage the compation efforts on memory defragmentation.
+> Besides making balloon pages movable at allocation time and introducing
+> the necessary primitives to perform balloon page migration/compaction,
+> this patch also introduces the following locking scheme, in order to
+> enhance the syncronization methods for accessing elements of struct
+> virtio_balloon, thus providing protection against concurrent access
+> introduced by parallel memory compaction threads.
+> 
+>  - balloon_lock (mutex) : synchronizes the access demand to elements of
+>                           struct virtio_balloon and its queue operations;
+>  - pages_lock (spinlock): special protection to balloon's pages bookmarking
+>                           elements (list and atomic counters) against the
+>                           potential memory compaction concurrency;
 > 
 >
 > ...
 >
-> +#ifndef _LINUX_BALLOON_COMPACTION_H
-> +#define _LINUX_BALLOON_COMPACTION_H
-> +
-> +#include <linux/rcupdate.h>
-> +#include <linux/pagemap.h>
-> +#include <linux/gfp.h>
-> +#include <linux/err.h>
-> +
-> +/* return code to identify when a ballooned page has been migrated */
-> +#define BALLOON_MIGRATION_RETURN	0xba1100
-
-I didn't really spend enough time to work out why this was done this
-way, but I know a hack when I see one!
-
-We forgot to document the a_ops.migratepage() return value.  Perhaps
-it's time to work out what it should be.
-
-> +#ifdef CONFIG_BALLOON_COMPACTION
-> +#define count_balloon_event(e)		count_vm_event(e)
-> +#define free_balloon_mapping(m)		kfree(m)
-
-It would be better to write these in C please.  That way we get
-typechecking, even when CONFIG_BALLOON_COMPACTION=n.
-
-> +extern bool isolate_balloon_page(struct page *);
-> +extern void putback_balloon_page(struct page *);
-> +extern int migrate_balloon_page(struct page *newpage,
-> +				struct page *page, enum migrate_mode mode);
-> +extern struct address_space *alloc_balloon_mapping(void *balloon_device,
-> +				const struct address_space_operations *a_ops);
-
-There's a useful convention that interface identifiers are prefixed by
-their interface's name.  IOW, everything in this file would start with
-"balloon_".  balloon_page_isolate, balloon_page_putback, etc.  I think
-we could follow that convention here?
-
-> +static inline void assign_balloon_mapping(struct page *page,
-> +					  struct address_space *mapping)
-> +{
-> +	page->mapping = mapping;
-> +	smp_wmb();
-> +}
-> +
-> +static inline void clear_balloon_mapping(struct page *page)
-> +{
-> +	page->mapping = NULL;
-> +	smp_wmb();
-> +}
-> +
-> +static inline gfp_t balloon_mapping_gfp_mask(void)
-> +{
-> +	return GFP_HIGHUSER_MOVABLE;
-> +}
-> +
-> +static inline bool __is_movable_balloon_page(struct page *page)
-> +{
-> +	struct address_space *mapping = ACCESS_ONCE(page->mapping);
-> +	smp_read_barrier_depends();
-> +	return mapping_balloon(mapping);
-> +}
-
-hm.  Are these barrier tricks copied from somewhere else, or home-made?
-
-> +/*
-> + * movable_balloon_page - test page->mapping->flags to identify balloon pages
-> + *			  that can be moved by compaction/migration.
-> + *
-> + * This function is used at core compaction's page isolation scheme and so it's
-> + * exposed to several system pages which may, or may not, be part of a memory
-> + * balloon, and thus we cannot afford to hold a page locked to perform tests.
-
-I don't understand this.  What is a "system page"?  If I knew that, I
-migth perhaps understand why we cannot lock such a page.
-
-> + * Therefore, as we might return false positives in the case a balloon page
-> + * is just released under us, the page->mapping->flags need to be retested
-> + * with the proper page lock held, on the functions that will cope with the
-> + * balloon page later.
-> + */
-> +static inline bool movable_balloon_page(struct page *page)
-> +{
-> +	/*
-> +	 * Before dereferencing and testing mapping->flags, lets make sure
-> +	 * this is not a page that uses ->mapping in a different way
-> +	 */
-> +	if (!PageSlab(page) && !PageSwapCache(page) && !PageAnon(page) &&
-> +	    !page_mapped(page))
-> +		return __is_movable_balloon_page(page);
-> +
-> +	return false;
-> +}
-> +
-> +/*
-> + * __page_balloon_device - get the balloon device that owns the given page.
-> + *
-> + * This shall only be used at driver callbacks under proper page lock,
-> + * to get access to the balloon device which @page belongs.
-> + */
-> +static inline void *__page_balloon_device(struct page *page)
-> +{
-> +	struct address_space *mapping = page->mapping;
-> +	if (mapping)
-> +		mapping = mapping->assoc_mapping;
-> +
-> +	return mapping;
-> +}
-
-So you've repurposed address_space.assoc_mapping in new and unexpected
-ways.
-
-I don't immediately see a problem with doing this, but we should do it
-properly.  Something like:
-
-- rename address_space.assoc_mapping to private_data
-- it has type void*
-- document its ownership rules
-- convert fs/buffer.c
-
-all done as a standalone preparatory patch.
-
-Also, your usage of ->private_data should minimise its use of void* -
-use more specific types wherever possible.  So this function should
-return a "struct virtio_balloon *".
-
-It is unobvious why this interface function is prefixed with __.
-
-> +/*
-> + * DEFINE_BALLOON_MAPPING_AOPS - declare and instantiate a callback descriptor
-> + *				 to be used as balloon page->mapping->a_ops.
-> + *
-> + * @label     : declaration identifier (var name)
-> + * @isolatepg : callback symbol name for performing the page isolation step
-> + * @migratepg : callback symbol name for performing the page migration step
-> + * @putbackpg : callback symbol name for performing the page putback step
-> + *
-> + * address_space_operations utilized methods for ballooned pages:
-> + *   .migratepage    - used to perform balloon's page migration (as is)
-> + *   .invalidatepage - used to isolate a page from balloon's page list
-> + *   .freepage       - used to reinsert an isolated page to balloon's page list
-> + */
-> +#define DEFINE_BALLOON_MAPPING_AOPS(label, isolatepg, migratepg, putbackpg) \
-> +	const struct address_space_operations (label) = {		    \
-> +		.migratepage    = (migratepg),				    \
-> +		.invalidatepage = (isolatepg),				    \
-> +		.freepage       = (putbackpg),				    \
-> +	}
-
-erp.  Can we avoid doing this?  afaict it would be pretty simple to
-avoid instantiating virtio_balloon_aops at all if
-CONFIG_BALLOON_COMPACTION=n?
-
-> +#else
-> +#define assign_balloon_mapping(p, m)	do { } while (0)
-> +#define clear_balloon_mapping(p)	do { } while (0)
-> +#define free_balloon_mapping(m)		do { } while (0)
-> +#define count_balloon_event(e)		do { } while (0)
-
-Written in C with proper types if possible, please.
-
-> +#define DEFINE_BALLOON_MAPPING_AOPS(label, isolatepg, migratepg, putbackpg) \
-> +	const struct {} (label) = {}
-> +
-> +static inline bool movable_balloon_page(struct page *page) { return false; }
-> +static inline bool isolate_balloon_page(struct page *page) { return false; }
-> +static inline void putback_balloon_page(struct page *page) { return; }
-> +
-> +static inline int migrate_balloon_page(struct page *newpage,
-> +				struct page *page, enum migrate_mode mode)
-> +{
-> +	return 0;
-> +}
-> +
->
-> ...
->
-> @@ -53,6 +54,23 @@ static inline int mapping_unevictable(struct address_space *mapping)
->  	return !!mapping;
->  }
+>  struct virtio_balloon
+>  {
+> @@ -46,11 +48,24 @@ struct virtio_balloon
+>  	/* The thread servicing the balloon. */
+>  	struct task_struct *thread;
 >  
-> +static inline void mapping_set_balloon(struct address_space *mapping)
-> +{
-> +	set_bit(AS_BALLOON_MAP, &mapping->flags);
-> +}
-> +
-> +static inline void mapping_clear_balloon(struct address_space *mapping)
-> +{
-> +	clear_bit(AS_BALLOON_MAP, &mapping->flags);
-> +}
-> +
-> +static inline int mapping_balloon(struct address_space *mapping)
-> +{
-> +	if (mapping)
-> +		return test_bit(AS_BALLOON_MAP, &mapping->flags);
-> +	return !!mapping;
-
-Why not "return 0"?
-
-Or
-
-	return mapping && test_bit(AS_BALLOON_MAP, &mapping->flags);
-
-> +}
-> +
->
-> ...
->
-> +struct address_space *alloc_balloon_mapping(void *balloon_device,
-> +				const struct address_space_operations *a_ops)
-> +{
+> +	/* balloon special page->mapping */
 > +	struct address_space *mapping;
 > +
-> +	mapping = kmalloc(sizeof(*mapping), GFP_KERNEL);
-> +	if (!mapping)
-> +		return ERR_PTR(-ENOMEM);
+> +	/* Synchronize access/update to this struct virtio_balloon elements */
+> +	struct mutex balloon_lock;
 > +
-> +	/*
-> +	 * Give a clean 'zeroed' status to all elements of this special
-> +	 * balloon page->mapping struct address_space instance.
-> +	 */
-> +	address_space_init_once(mapping);
+>  	/* Waiting for host to ack the pages we released. */
+>  	wait_queue_head_t acked;
+>  
+> +	/* Protect pages list, and pages bookeeping counters */
+> +	spinlock_t pages_lock;
 > +
-> +	/*
-> +	 * Set mapping->flags appropriately, to allow balloon ->mapping
-> +	 * identification, as well as give a proper hint to the balloon
-> +	 * driver on what GFP allocation mask shall be used.
-> +	 */
-> +	mapping_set_balloon(mapping);
-> +	mapping_set_gfp_mask(mapping, balloon_mapping_gfp_mask());
-> +
-> +	/* balloon's page->mapping->a_ops callback descriptor */
-> +	mapping->a_ops = a_ops;
-> +
-> +	/*
-> +	 * balloon special page->mapping overloads ->assoc_mapping
-> +	 * to held a reference back to the balloon device wich 'owns'
-> +	 * a given page. This is the way we can cope with multiple
-> +	 * balloon devices without losing reference of several
-> +	 * ballooned pagesets.
+> +	/* Number of balloon pages isolated from 'pages' list for compaction */
+> +	unsigned int num_isolated_pages;
 
-I don't really understand the final part of this comment.  Can you
-expand more fully on the problem which this code is solving?
+Is it utterly inconceivable that this counter could exceed 4G, ever?
 
-> +	 */
-> +	mapping->assoc_mapping = balloon_device;
+>  	/* Number of balloon pages we've told the Host we're not using. */
+>  	unsigned int num_pages;
 > +
-> +	return mapping;
-> +}
-> +EXPORT_SYMBOL_GPL(alloc_balloon_mapping);
-
-balloon_mapping_alloc() :)
-
-> +static inline void __isolate_balloon_page(struct page *page)
-> +{
-> +	page->mapping->a_ops->invalidatepage(page, 0);
-> +}
+>  	/*
+>  	 * The pages we've told the Host we're not using.
+>  	 * Each page on this list adds VIRTIO_BALLOON_PAGES_PER_PAGE
+> @@ -60,7 +75,7 @@ struct virtio_balloon
+>  
+>  	/* The array of pfns we tell the Host about. */
+>  	unsigned int num_pfns;
+> -	u32 pfns[256];
+> +	u32 pfns[VIRTIO_BALLOON_ARRAY_PFNS_MAX];
+>  
+>  	/* Memory statistics */
+>  	int need_stats_update;
+> @@ -122,13 +137,17 @@ static void set_page_pfns(u32 pfns[], struct page *page)
+>  
+>  static void fill_balloon(struct virtio_balloon *vb, size_t num)
+>  {
+> +	/* Get the proper GFP alloc mask from vb->mapping flags */
+> +	gfp_t vb_gfp_mask = mapping_gfp_mask(vb->mapping);
 > +
+>  	/* We can only do one array worth at a time. */
+>  	num = min(num, ARRAY_SIZE(vb->pfns));
+>  
+> +	mutex_lock(&vb->balloon_lock);
+>  	for (vb->num_pfns = 0; vb->num_pfns < num;
+>  	     vb->num_pfns += VIRTIO_BALLOON_PAGES_PER_PAGE) {
+> -		struct page *page = alloc_page(GFP_HIGHUSER | __GFP_NORETRY |
+> -					__GFP_NOMEMALLOC | __GFP_NOWARN);
+> +		struct page *page = alloc_page(vb_gfp_mask | __GFP_NORETRY |
+> +					       __GFP_NOWARN | __GFP_NOMEMALLOC);
+
+That looks like an allocation which could easily fail.
+
+>  		if (!page) {
+>  			if (printk_ratelimit())
+>  				dev_printk(KERN_INFO, &vb->vdev->dev,
+
+Strangely, we suppressed the core page allocator's warning and
+substituted this less useful one.
+
+Also, it would be nice if someone could get that printk_ratelimit() out
+of there, for reasons described at the printk_ratelimit() definition
+site.
+
+> @@ -139,9 +158,15 @@ static void fill_balloon(struct virtio_balloon *vb, size_t num)
+>  			break;
+>  		}
+>  		set_page_pfns(vb->pfns + vb->num_pfns, page);
+> -		vb->num_pages += VIRTIO_BALLOON_PAGES_PER_PAGE;
+>  		totalram_pages--;
+> +
+> +		BUG_ON(!trylock_page(page));
+> +		spin_lock(&vb->pages_lock);
+>  		list_add(&page->lru, &vb->pages);
+> +		assign_balloon_mapping(page, vb->mapping);
+> +		vb->num_pages += VIRTIO_BALLOON_PAGES_PER_PAGE;
+> +		spin_unlock(&vb->pages_lock);
+> +		unlock_page(page);
+>  	}
 >
 > ...
 >
