@@ -1,13 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
-	by kanga.kvack.org (Postfix) with SMTP id CB68E6B005A
-	for <linux-mm@kvack.org>; Mon, 17 Sep 2012 18:15:33 -0400 (EDT)
-Date: Mon, 17 Sep 2012 15:15:31 -0700
+Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
+	by kanga.kvack.org (Postfix) with SMTP id 606F76B0062
+	for <linux-mm@kvack.org>; Mon, 17 Sep 2012 18:15:45 -0400 (EDT)
+Date: Mon, 17 Sep 2012 15:15:43 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v10 0/5] make balloon pages movable by compaction
-Message-Id: <20120917151531.e9ac59f2.akpm@linux-foundation.org>
-In-Reply-To: <cover.1347897793.git.aquini@redhat.com>
+Subject: Re: [PATCH v10 1/5] mm: introduce a common interface for balloon
+ pages mobility
+Message-Id: <20120917151543.fd523040.akpm@linux-foundation.org>
+In-Reply-To: <89c9f4096bbad072e155445fcdf1805d47ddf48e.1347897793.git.aquini@redhat.com>
 References: <cover.1347897793.git.aquini@redhat.com>
+	<89c9f4096bbad072e155445fcdf1805d47ddf48e.1347897793.git.aquini@redhat.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -16,7 +18,7 @@ List-ID: <linux-mm.kvack.org>
 To: Rafael Aquini <aquini@redhat.com>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, Rusty Russell <rusty@rustcorp.com.au>, "Michael S. Tsirkin" <mst@redhat.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Andi Kleen <andi@firstfloor.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Minchan Kim <minchan@kernel.org>, Peter Zijlstra <peterz@infradead.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
 
-On Mon, 17 Sep 2012 13:38:15 -0300
+On Mon, 17 Sep 2012 13:38:16 -0300
 Rafael Aquini <aquini@redhat.com> wrote:
 
 > Memory fragmentation introduced by ballooning might reduce significantly
@@ -24,37 +26,272 @@ Rafael Aquini <aquini@redhat.com> wrote:
 > thus imposing performance penalties associated with the reduced number of
 > transparent huge pages that could be used by the guest workload.
 > 
-> This patch-set follows the main idea discussed at 2012 LSFMMS session:
-> "Ballooning for transparent huge pages" -- http://lwn.net/Articles/490114/
-> to introduce the required changes to the virtio_balloon driver, as well as
-> the changes to the core compaction & migration bits, in order to make those
-> subsystems aware of ballooned pages and allow memory balloon pages become
-> movable within a guest, thus avoiding the aforementioned fragmentation issue
+> This patch introduces a common interface to help a balloon driver on
+> making its page set movable to compaction, and thus allowing the system
+> to better leverage the compation efforts on memory defragmentation.
 > 
-> Following are numbers that prove this patch benefits on allowing compaction
-> to be more effective at memory ballooned guests.
-> 
-> Results for STRESS-HIGHALLOC benchmark, from Mel Gorman's mmtests suite,
-> running on a 4gB RAM KVM guest which was ballooning 1gB RAM in 256mB chunks,
-> at every minute (inflating/deflating), while test was running:
+>
+> ...
+>
+> +#ifndef _LINUX_BALLOON_COMPACTION_H
+> +#define _LINUX_BALLOON_COMPACTION_H
+> +
+> +#include <linux/rcupdate.h>
+> +#include <linux/pagemap.h>
+> +#include <linux/gfp.h>
+> +#include <linux/err.h>
+> +
+> +/* return code to identify when a ballooned page has been migrated */
+> +#define BALLOON_MIGRATION_RETURN	0xba1100
 
-How can a patchset reach v10 and have zero Reviewed-by's?
+I didn't really spend enough time to work out why this was done this
+way, but I know a hack when I see one!
 
-The patchset looks reasonable to me and your empirical results look
-good.  But I don't feel that I'm in a position to decide on its overall
-desirability, either in a standalone sense or in comparison to any
-alternative schemes which anyone has proposed.
+We forgot to document the a_ops.migratepage() return value.  Perhaps
+it's time to work out what it should be.
 
-IOW, Rusty and KVM folks: please consider thyself poked.
+> +#ifdef CONFIG_BALLOON_COMPACTION
+> +#define count_balloon_event(e)		count_vm_event(e)
+> +#define free_balloon_mapping(m)		kfree(m)
 
-I looked through the code and have some comments which are minor in the
-overall scheme of things.  I'll be more comfortable when a compaction
-expert has had a go over it.  IOW, Mel joins the pokee list ;)
+It would be better to write these in C please.  That way we get
+typechecking, even when CONFIG_BALLOON_COMPACTION=n.
 
-(The question of "overall desirability" is the big one here.  Do we
-actually want to add this to Linux?  The rest is details which we can
-work out).
+> +extern bool isolate_balloon_page(struct page *);
+> +extern void putback_balloon_page(struct page *);
+> +extern int migrate_balloon_page(struct page *newpage,
+> +				struct page *page, enum migrate_mode mode);
+> +extern struct address_space *alloc_balloon_mapping(void *balloon_device,
+> +				const struct address_space_operations *a_ops);
 
+There's a useful convention that interface identifiers are prefixed by
+their interface's name.  IOW, everything in this file would start with
+"balloon_".  balloon_page_isolate, balloon_page_putback, etc.  I think
+we could follow that convention here?
+
+> +static inline void assign_balloon_mapping(struct page *page,
+> +					  struct address_space *mapping)
+> +{
+> +	page->mapping = mapping;
+> +	smp_wmb();
+> +}
+> +
+> +static inline void clear_balloon_mapping(struct page *page)
+> +{
+> +	page->mapping = NULL;
+> +	smp_wmb();
+> +}
+> +
+> +static inline gfp_t balloon_mapping_gfp_mask(void)
+> +{
+> +	return GFP_HIGHUSER_MOVABLE;
+> +}
+> +
+> +static inline bool __is_movable_balloon_page(struct page *page)
+> +{
+> +	struct address_space *mapping = ACCESS_ONCE(page->mapping);
+> +	smp_read_barrier_depends();
+> +	return mapping_balloon(mapping);
+> +}
+
+hm.  Are these barrier tricks copied from somewhere else, or home-made?
+
+> +/*
+> + * movable_balloon_page - test page->mapping->flags to identify balloon pages
+> + *			  that can be moved by compaction/migration.
+> + *
+> + * This function is used at core compaction's page isolation scheme and so it's
+> + * exposed to several system pages which may, or may not, be part of a memory
+> + * balloon, and thus we cannot afford to hold a page locked to perform tests.
+
+I don't understand this.  What is a "system page"?  If I knew that, I
+migth perhaps understand why we cannot lock such a page.
+
+> + * Therefore, as we might return false positives in the case a balloon page
+> + * is just released under us, the page->mapping->flags need to be retested
+> + * with the proper page lock held, on the functions that will cope with the
+> + * balloon page later.
+> + */
+> +static inline bool movable_balloon_page(struct page *page)
+> +{
+> +	/*
+> +	 * Before dereferencing and testing mapping->flags, lets make sure
+> +	 * this is not a page that uses ->mapping in a different way
+> +	 */
+> +	if (!PageSlab(page) && !PageSwapCache(page) && !PageAnon(page) &&
+> +	    !page_mapped(page))
+> +		return __is_movable_balloon_page(page);
+> +
+> +	return false;
+> +}
+> +
+> +/*
+> + * __page_balloon_device - get the balloon device that owns the given page.
+> + *
+> + * This shall only be used at driver callbacks under proper page lock,
+> + * to get access to the balloon device which @page belongs.
+> + */
+> +static inline void *__page_balloon_device(struct page *page)
+> +{
+> +	struct address_space *mapping = page->mapping;
+> +	if (mapping)
+> +		mapping = mapping->assoc_mapping;
+> +
+> +	return mapping;
+> +}
+
+So you've repurposed address_space.assoc_mapping in new and unexpected
+ways.
+
+I don't immediately see a problem with doing this, but we should do it
+properly.  Something like:
+
+- rename address_space.assoc_mapping to private_data
+- it has type void*
+- document its ownership rules
+- convert fs/buffer.c
+
+all done as a standalone preparatory patch.
+
+Also, your usage of ->private_data should minimise its use of void* -
+use more specific types wherever possible.  So this function should
+return a "struct virtio_balloon *".
+
+It is unobvious why this interface function is prefixed with __.
+
+> +/*
+> + * DEFINE_BALLOON_MAPPING_AOPS - declare and instantiate a callback descriptor
+> + *				 to be used as balloon page->mapping->a_ops.
+> + *
+> + * @label     : declaration identifier (var name)
+> + * @isolatepg : callback symbol name for performing the page isolation step
+> + * @migratepg : callback symbol name for performing the page migration step
+> + * @putbackpg : callback symbol name for performing the page putback step
+> + *
+> + * address_space_operations utilized methods for ballooned pages:
+> + *   .migratepage    - used to perform balloon's page migration (as is)
+> + *   .invalidatepage - used to isolate a page from balloon's page list
+> + *   .freepage       - used to reinsert an isolated page to balloon's page list
+> + */
+> +#define DEFINE_BALLOON_MAPPING_AOPS(label, isolatepg, migratepg, putbackpg) \
+> +	const struct address_space_operations (label) = {		    \
+> +		.migratepage    = (migratepg),				    \
+> +		.invalidatepage = (isolatepg),				    \
+> +		.freepage       = (putbackpg),				    \
+> +	}
+
+erp.  Can we avoid doing this?  afaict it would be pretty simple to
+avoid instantiating virtio_balloon_aops at all if
+CONFIG_BALLOON_COMPACTION=n?
+
+> +#else
+> +#define assign_balloon_mapping(p, m)	do { } while (0)
+> +#define clear_balloon_mapping(p)	do { } while (0)
+> +#define free_balloon_mapping(m)		do { } while (0)
+> +#define count_balloon_event(e)		do { } while (0)
+
+Written in C with proper types if possible, please.
+
+> +#define DEFINE_BALLOON_MAPPING_AOPS(label, isolatepg, migratepg, putbackpg) \
+> +	const struct {} (label) = {}
+> +
+> +static inline bool movable_balloon_page(struct page *page) { return false; }
+> +static inline bool isolate_balloon_page(struct page *page) { return false; }
+> +static inline void putback_balloon_page(struct page *page) { return; }
+> +
+> +static inline int migrate_balloon_page(struct page *newpage,
+> +				struct page *page, enum migrate_mode mode)
+> +{
+> +	return 0;
+> +}
+> +
+>
+> ...
+>
+> @@ -53,6 +54,23 @@ static inline int mapping_unevictable(struct address_space *mapping)
+>  	return !!mapping;
+>  }
+>  
+> +static inline void mapping_set_balloon(struct address_space *mapping)
+> +{
+> +	set_bit(AS_BALLOON_MAP, &mapping->flags);
+> +}
+> +
+> +static inline void mapping_clear_balloon(struct address_space *mapping)
+> +{
+> +	clear_bit(AS_BALLOON_MAP, &mapping->flags);
+> +}
+> +
+> +static inline int mapping_balloon(struct address_space *mapping)
+> +{
+> +	if (mapping)
+> +		return test_bit(AS_BALLOON_MAP, &mapping->flags);
+> +	return !!mapping;
+
+Why not "return 0"?
+
+Or
+
+	return mapping && test_bit(AS_BALLOON_MAP, &mapping->flags);
+
+> +}
+> +
+>
+> ...
+>
+> +struct address_space *alloc_balloon_mapping(void *balloon_device,
+> +				const struct address_space_operations *a_ops)
+> +{
+> +	struct address_space *mapping;
+> +
+> +	mapping = kmalloc(sizeof(*mapping), GFP_KERNEL);
+> +	if (!mapping)
+> +		return ERR_PTR(-ENOMEM);
+> +
+> +	/*
+> +	 * Give a clean 'zeroed' status to all elements of this special
+> +	 * balloon page->mapping struct address_space instance.
+> +	 */
+> +	address_space_init_once(mapping);
+> +
+> +	/*
+> +	 * Set mapping->flags appropriately, to allow balloon ->mapping
+> +	 * identification, as well as give a proper hint to the balloon
+> +	 * driver on what GFP allocation mask shall be used.
+> +	 */
+> +	mapping_set_balloon(mapping);
+> +	mapping_set_gfp_mask(mapping, balloon_mapping_gfp_mask());
+> +
+> +	/* balloon's page->mapping->a_ops callback descriptor */
+> +	mapping->a_ops = a_ops;
+> +
+> +	/*
+> +	 * balloon special page->mapping overloads ->assoc_mapping
+> +	 * to held a reference back to the balloon device wich 'owns'
+> +	 * a given page. This is the way we can cope with multiple
+> +	 * balloon devices without losing reference of several
+> +	 * ballooned pagesets.
+
+I don't really understand the final part of this comment.  Can you
+expand more fully on the problem which this code is solving?
+
+> +	 */
+> +	mapping->assoc_mapping = balloon_device;
+> +
+> +	return mapping;
+> +}
+> +EXPORT_SYMBOL_GPL(alloc_balloon_mapping);
+
+balloon_mapping_alloc() :)
+
+> +static inline void __isolate_balloon_page(struct page *page)
+> +{
+> +	page->mapping->a_ops->invalidatepage(page, 0);
+> +}
+> +
+>
+> ...
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
