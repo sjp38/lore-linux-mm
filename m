@@ -1,71 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx174.postini.com [74.125.245.174])
-	by kanga.kvack.org (Postfix) with SMTP id 372676B0062
-	for <linux-mm@kvack.org>; Mon, 17 Sep 2012 12:05:39 -0400 (EDT)
-Received: by vbkv13 with SMTP id v13so9252216vbk.14
-        for <linux-mm@kvack.org>; Mon, 17 Sep 2012 09:05:38 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx144.postini.com [74.125.245.144])
+	by kanga.kvack.org (Postfix) with SMTP id BEC176B005A
+	for <linux-mm@kvack.org>; Mon, 17 Sep 2012 12:35:20 -0400 (EDT)
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	(using TLSv1 with cipher DHE-RSA-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx2.suse.de (Postfix) with ESMTP id E6C69A38EA
+	for <linux-mm@kvack.org>; Mon, 17 Sep 2012 18:35:18 +0200 (CEST)
+Date: Mon, 17 Sep 2012 18:35:18 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Does swap_set_page_dirty() calling ->set_page_dirty() make sense?
+Message-ID: <20120917163518.GD9150@quack.suse.cz>
 MIME-Version: 1.0
-Date: Mon, 17 Sep 2012 20:05:38 +0400
-Message-ID: <CALo0P118RQCNoUOv+WexDz9VLE6r-doFDUDFdZRuA=bOYL4xLQ@mail.gmail.com>
-Subject: [PATCH] Set page active bit in mincore() call.
-From: Roman Guschin <guroan@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: multipart/mixed; boundary="ZGiS0Q5IWpPtfppv"
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 
-Hi all!
 
-It's a very simple patch that allows to see which pages are active and
-which not.
-It's very useful for debugging performance issues in mm.
-I used the vmtouch tool (with a simple modification) to display the results.
+--ZGiS0Q5IWpPtfppv
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 
-R.
+  Hi,
 
----
- mm/mincore.c |   12 +++++++-----
- 1 files changed, 7 insertions(+), 5 deletions(-)
+  I tripped over a crash in reiserfs which happened due to PageSwapCache
+page being passed to reiserfs_set_page_dirty(). Now it's not that hard to
+make reiserfs_set_page_dirty() check that case but I really wonder: Does it
+make sense to call mapping->a_ops->set_page_dirty() for a PageSwapCache
+page? The page is going to be written via direct IO so from the POV of the
+filesystem there's no need for any dirtiness tracking. Also there are
+several ->set_page_dirty() implementations which will spectacularly crash
+because they do things like page->mapping->host, or call
+__set_page_dirty_buffers() which expects buffer heads in page->private.
+Or what is the reason for calling filesystem's set_page_dirty() function?
 
-diff --git a/mm/mincore.c b/mm/mincore.c
-index 7c2874a..31301d2 100644
---- a/mm/mincore.c
-+++ b/mm/mincore.c
-@@ -61,7 +61,7 @@ static void mincore_hugetlb_page_range(struct
-vm_area_struct *vma,
-  */
- static unsigned char mincore_page(struct address_space *mapping, pgoff_t pgoff)
- {
--	unsigned char present = 0;
-+	unsigned char flags = 0;
- 	struct page *page;
+								Honza
+-- 
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
- 	/*
-@@ -79,13 +79,15 @@ static unsigned char mincore_page(struct
-address_space *mapping, pgoff_t pgoff)
- 	}
- #endif
- 	if (page) {
--		present = PageUptodate(page);
--		if (present)
--			present |= (PageReadaheadUnused(page) << 7);
-+		flags = PageUptodate(page);
-+		if (flags) {
-+			flags |= (PageActive(page) << 1);
-+			flags |= (PageReadaheadUnused(page) << 7);
-+		}
- 		page_cache_release(page);
- 	}
+--ZGiS0Q5IWpPtfppv
+Content-Type: text/x-patch; charset=us-ascii
+Content-Disposition: attachment; filename="0001-mm-Remove-swap_set_page_dirty.patch"
 
--	return present;
-+	return flags;
- }
 
- static void mincore_unmapped_range(struct vm_area_struct *vma,
---
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+--ZGiS0Q5IWpPtfppv--
