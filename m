@@ -1,233 +1,231 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
-	by kanga.kvack.org (Postfix) with SMTP id 8F8B96B005A
-	for <linux-mm@kvack.org>; Sun, 16 Sep 2012 15:13:07 -0400 (EDT)
-Date: Sun, 16 Sep 2012 20:12:55 +0100
-From: Richard Davies <richard@arachsys.com>
-Subject: Re: [PATCH -v2 2/2] make the compaction "skip ahead" logic robust
-Message-ID: <20120916191255.GA5184@alpha.arachsys.com>
-References: <20120825174550.GA8619@alpha.arachsys.com>
- <50391564.30401@redhat.com>
- <20120826105803.GA377@alpha.arachsys.com>
- <20120906092039.GA19234@alpha.arachsys.com>
- <20120912105659.GA23818@alpha.arachsys.com>
- <20120912122541.GO11266@suse.de>
- <20120912164615.GA14173@alpha.arachsys.com>
- <20120913154824.44cc0e28@cuia.bos.redhat.com>
- <20120913155450.7634148f@cuia.bos.redhat.com>
- <20120915155524.GA24182@alpha.arachsys.com>
+Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
+	by kanga.kvack.org (Postfix) with SMTP id D26886B0044
+	for <linux-mm@kvack.org>; Mon, 17 Sep 2012 01:45:27 -0400 (EDT)
+Message-ID: <5056BA42.1030604@cn.fujitsu.com>
+Date: Mon, 17 Sep 2012 13:50:58 +0800
+From: Wen Congyang <wency@cn.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120915155524.GA24182@alpha.arachsys.com>
+Subject: Re: [PATCH] memory cgroup: update root memory cgroup when node is
+ onlined
+References: <505187D4.7070404@cn.fujitsu.com> <20120913205935.GK1560@cmpxchg.org> <alpine.LSU.2.00.1209131816070.1908@eggly.anvils>
+In-Reply-To: <alpine.LSU.2.00.1209131816070.1908@eggly.anvils>
+Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Mel Gorman <mgorman@suse.de>, Avi Kivity <avi@redhat.com>, Shaohua Li <shli@kernel.org>, qemu-devel@nongnu.org, kvm@vger.kernel.org, linux-mm@kvack.org
+To: Hugh Dickins <hughd@google.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, cgroups@vger.kernel.org, linux-mm@kvack.org, Jiang Liu <liuj97@gmail.com>, mhocko@suse.cz, bsingharora@gmail.com, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Konstantin Khlebnikov <khlebnikov@openvz.org>, paul.gortmaker@windriver.com
 
-Richard Davies wrote:
-> Thank you for your latest patches. I attach my latest perf report for a slow
-> boot with all of these applied.
+At 09/14/2012 09:36 AM, Hugh Dickins Wrote:
+> On Thu, 13 Sep 2012, Johannes Weiner wrote:
+>> On Thu, Sep 13, 2012 at 03:14:28PM +0800, Wen Congyang wrote:
+>>> root_mem_cgroup->info.nodeinfo is initialized when the system boots.
+>>> But NODE_DATA(nid) is null if the node is not onlined, so
+>>> root_mem_cgroup->info.nodeinfo[nid]->zoneinfo[zone].lruvec.zone contains
+>>> an invalid pointer. If we use numactl to bind a program to the node
+>>> after onlining the node and its memory, it will cause the kernel
+>>> panicked:
+>>
+>> Is there any chance we could get rid of the zone backpointer in lruvec
+>> again instead?
+> 
+> It could be done, but it would make me sad :(
+> 
+>> Adding new nodes is a rare event and so updating every
+>> single memcg in the system might be just borderline crazy.
+> 
+> Not horribly crazy, but rather ugly, yes.
+> 
+>> But can't
+>> we just go back to passing the zone along with the lruvec down
+>> vmscan.c paths?  I agree it's ugly to pass both, given their
+>> relationship.  But I don't think the backpointer is any cleaner but in
+>> addition less robust.
+> 
+> It's like how we use vma->mm: we could change everywhere to pass mm with
+> vma, but it looks cleaner and cuts down on long arglists to have mm in vma.
+>>From past experience, one of the things I worried about was adding extra
+> args to the reclaim stack.
+> 
+>>
+>> That being said, the crashing code in particular makes me wonder:
+>>
+>> static __always_inline void add_page_to_lru_list(struct page *page,
+>> 				struct lruvec *lruvec, enum lru_list lru)
+>> {
+>> 	int nr_pages = hpage_nr_pages(page);
+>> 	mem_cgroup_update_lru_size(lruvec, lru, nr_pages);
+>> 	list_add(&page->lru, &lruvec->lists[lru]);
+>> 	__mod_zone_page_state(lruvec_zone(lruvec), NR_LRU_BASE + lru, nr_pages);
+>> }
+>>
+>> Why did we ever pass zone in here and then felt the need to replace it
+>> with lruvec->zone in fa9add6 "mm/memcg: apply add/del_page to lruvec"?
+>> A page does not roam between zones, its zone is a static property that
+>> can be retrieved with page_zone().
+> 
+> Just as in vmscan.c, we have the lruvec to hand, and that's what we
+> mainly want to operate upon, but there is also some need for zone.
+> 
+> (Both Konstantin and I were looking towards the day when we move the
+> lru_lock into the lruvec, removing more dependence on "zone".  Pretty
+> much the only reason that hasn't happened yet, is that we have not found
+> time to make a performance case convincingly - but that's another topic.)
+> 
+> Yes, page_zone(page) is a static property of the page, but it's not
+> necessarily cheap to evaluate: depends on how complex the memory model
+> and the spare page flags space, doesn't it?  We both preferred to
+> derive zone from lruvec where convenient.
+> 
+> How do you feel about this patch, and does it work for you guys?
+> 
+> You'd be right if you guessed that I started out without the
+> mem_cgroup_zone_lruvec part of it, but oops in get_scan_count
+> told me that's needed too.
+> 
+> Description to be filled in later: would it be needed for -stable,
+> or is onlining already broken in other ways that you're now fixing up?
+> 
+> Reported-by: Tang Chen <tangchen@cn.fujitsu.com>
+> Signed-off-by: Hugh Dickins <hughd@google.com>
+> ---
+> 
+>  include/linux/mmzone.h |    2 -
+>  mm/memcontrol.c        |   40 ++++++++++++++++++++++++++++++++-------
+>  mm/mmzone.c            |    6 -----
+>  mm/page_alloc.c        |    2 -
+>  4 files changed, 36 insertions(+), 14 deletions(-)
+> 
+> --- 3.6-rc5/include/linux/mmzone.h	2012-08-03 08:31:26.892842267 -0700
+> +++ linux/include/linux/mmzone.h	2012-09-13 17:07:51.893772372 -0700
+> @@ -744,7 +744,7 @@ extern int init_currently_empty_zone(str
+>  				     unsigned long size,
+>  				     enum memmap_context context);
+>  
+> -extern void lruvec_init(struct lruvec *lruvec, struct zone *zone);
+> +extern void lruvec_init(struct lruvec *lruvec);
+>  
+>  static inline struct zone *lruvec_zone(struct lruvec *lruvec)
+>  {
+> --- 3.6-rc5/mm/memcontrol.c	2012-08-03 08:31:27.060842270 -0700
+> +++ linux/mm/memcontrol.c	2012-09-13 17:46:36.870804625 -0700
+> @@ -1061,12 +1061,25 @@ struct lruvec *mem_cgroup_zone_lruvec(st
+>  				      struct mem_cgroup *memcg)
+>  {
+>  	struct mem_cgroup_per_zone *mz;
+> +	struct lruvec *lruvec;
+>  
+> -	if (mem_cgroup_disabled())
+> -		return &zone->lruvec;
+> +	if (mem_cgroup_disabled()) {
+> +		lruvec = &zone->lruvec;
+> +		goto out;
+> +	}
+>  
+>  	mz = mem_cgroup_zoneinfo(memcg, zone_to_nid(zone), zone_idx(zone));
+> -	return &mz->lruvec;
+> +	lruvec = &mz->lruvec;
+> +out:
+> +	/*
+> +	 * Since a node can be onlined after the mem_cgroup was created,
+> +	 * we have to be prepared to initialize lruvec->zone here.
+> +	 */
+> +	if (unlikely(lruvec->zone != zone)) {
+> +		VM_BUG_ON(lruvec->zone);
 
-For avoidance of any doubt, there is the combined diff versus 3.6.0-rc5
-which I tested:
+If node is offlined and onlined again, lruvec->zone is not NULL, and not
+equal to zone, this line will cause kernel panicked. 
 
-diff --git a/fs/btrfs/qgroup.c b/fs/btrfs/qgroup.c
-index 38b42e7..090405d 100644
---- a/fs/btrfs/qgroup.c
-+++ b/fs/btrfs/qgroup.c
-@@ -1383,10 +1383,8 @@ int btrfs_qgroup_inherit(struct btrfs_trans_handle *trans,
- 		qgroup_dirty(fs_info, srcgroup);
- 	}
- 
--	if (!inherit) {
--		ret = -EINVAL;
-+	if (!inherit)
- 		goto unlock;
--	}
- 
- 	i_qgroups = (u64 *)(inherit + 1);
- 	for (i = 0; i < inherit->num_qgroups; ++i) {
-diff --git a/mm/compaction.c b/mm/compaction.c
-index 7fcd3a5..92bae88 100644
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -70,8 +70,7 @@ static bool compact_checklock_irqsave(spinlock_t *lock, unsigned long *flags,
- 
- 		/* async aborts if taking too long or contended */
- 		if (!cc->sync) {
--			if (cc->contended)
--				*cc->contended = true;
-+			cc->contended = true;
- 			return false;
- 		}
- 
-@@ -296,8 +295,9 @@ isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
- 
- 	/* Time to isolate some pages for migration */
- 	cond_resched();
--	spin_lock_irqsave(&zone->lru_lock, flags);
--	locked = true;
-+	locked = compact_trylock_irqsave(&zone->lru_lock, &flags, cc);
-+	if (!locked)
-+		return 0;
- 	for (; low_pfn < end_pfn; low_pfn++) {
- 		struct page *page;
- 
-@@ -431,17 +431,21 @@ static bool suitable_migration_target(struct page *page)
- }
- 
- /*
-- * Returns the start pfn of the last page block in a zone.  This is the starting
-- * point for full compaction of a zone.  Compaction searches for free pages from
-- * the end of each zone, while isolate_freepages_block scans forward inside each
-- * page block.
-+ * We scan the zone in a circular fashion, starting at
-+ * zone->compact_cached_free_pfn. Be careful not to skip if
-+ * one compacting thread has just wrapped back to the end of the
-+ * zone, but another thread has not.
-  */
--static unsigned long start_free_pfn(struct zone *zone)
-+static bool compaction_may_skip(struct zone *zone,
-+				struct compact_control *cc)
- {
--	unsigned long free_pfn;
--	free_pfn = zone->zone_start_pfn + zone->spanned_pages;
--	free_pfn &= ~(pageblock_nr_pages-1);
--	return free_pfn;
-+	if (!cc->wrapped && zone->compact_cached_free_pfn < cc->start_free_pfn)
-+		return true;
-+
-+	if (cc->wrapped && zone->compact_cached_free_pfn > cc->start_free_pfn)
-+		return true;
-+
-+	return false;
- }
- 
- /*
-@@ -483,6 +487,13 @@ static void isolate_freepages(struct zone *zone,
- 					pfn -= pageblock_nr_pages) {
- 		unsigned long isolated;
- 
-+		/*
-+		 * Skip ahead if another thread is compacting in the area
-+		 * simultaneously, and has finished with this page block.
-+		 */
-+		if (cc->order > 0 && compaction_may_skip(zone, cc))
-+			pfn = min(pfn, zone->compact_cached_free_pfn);
-+
- 		if (!pfn_valid(pfn))
- 			continue;
- 
-@@ -533,15 +544,7 @@ static void isolate_freepages(struct zone *zone,
- 		 */
- 		if (isolated) {
- 			high_pfn = max(high_pfn, pfn);
--
--			/*
--			 * If the free scanner has wrapped, update
--			 * compact_cached_free_pfn to point to the highest
--			 * pageblock with free pages. This reduces excessive
--			 * scanning of full pageblocks near the end of the
--			 * zone
--			 */
--			if (cc->order > 0 && cc->wrapped)
-+			if (cc->order > 0)
- 				zone->compact_cached_free_pfn = high_pfn;
- 		}
- 	}
-@@ -551,11 +554,6 @@ static void isolate_freepages(struct zone *zone,
- 
- 	cc->free_pfn = high_pfn;
- 	cc->nr_freepages = nr_freepages;
--
--	/* If compact_cached_free_pfn is reset then set it now */
--	if (cc->order > 0 && !cc->wrapped &&
--			zone->compact_cached_free_pfn == start_free_pfn(zone))
--		zone->compact_cached_free_pfn = high_pfn;
- }
- 
- /*
-@@ -634,7 +632,7 @@ static isolate_migrate_t isolate_migratepages(struct zone *zone,
- 
- 	/* Perform the isolation */
- 	low_pfn = isolate_migratepages_range(zone, cc, low_pfn, end_pfn);
--	if (!low_pfn)
-+	if (!low_pfn || cc->contended)
- 		return ISOLATE_ABORT;
- 
- 	cc->migrate_pfn = low_pfn;
-@@ -642,6 +640,20 @@ static isolate_migrate_t isolate_migratepages(struct zone *zone,
- 	return ISOLATE_SUCCESS;
- }
- 
-+/*
-+ * Returns the start pfn of the last page block in a zone.  This is the starting
-+ * point for full compaction of a zone.  Compaction searches for free pages from
-+ * the end of each zone, while isolate_freepages_block scans forward inside each
-+ * page block.
-+ */
-+static unsigned long start_free_pfn(struct zone *zone)
-+{
-+	unsigned long free_pfn;
-+	free_pfn = zone->zone_start_pfn + zone->spanned_pages;
-+	free_pfn &= ~(pageblock_nr_pages-1);
-+	return free_pfn;
-+}
-+
- static int compact_finished(struct zone *zone,
- 			    struct compact_control *cc)
- {
-@@ -787,6 +799,8 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
- 		switch (isolate_migratepages(zone, cc)) {
- 		case ISOLATE_ABORT:
- 			ret = COMPACT_PARTIAL;
-+			putback_lru_pages(&cc->migratepages);
-+			cc->nr_migratepages = 0;
- 			goto out;
- 		case ISOLATE_NONE:
- 			continue;
-@@ -831,6 +845,7 @@ static unsigned long compact_zone_order(struct zone *zone,
- 				 int order, gfp_t gfp_mask,
- 				 bool sync, bool *contended)
- {
-+	unsigned long ret;
- 	struct compact_control cc = {
- 		.nr_freepages = 0,
- 		.nr_migratepages = 0,
-@@ -838,12 +853,17 @@ static unsigned long compact_zone_order(struct zone *zone,
- 		.migratetype = allocflags_to_migratetype(gfp_mask),
- 		.zone = zone,
- 		.sync = sync,
--		.contended = contended,
- 	};
- 	INIT_LIST_HEAD(&cc.freepages);
- 	INIT_LIST_HEAD(&cc.migratepages);
- 
--	return compact_zone(zone, &cc);
-+	ret = compact_zone(zone, &cc);
-+
-+	VM_BUG_ON(!list_empty(&cc.freepages));
-+	VM_BUG_ON(!list_empty(&cc.migratepages));
-+
-+	*contended = cc.contended;
-+	return ret;
- }
- 
- int sysctl_extfrag_threshold = 500;
-diff --git a/mm/internal.h b/mm/internal.h
-index b8c91b3..4bd7c0e 100644
---- a/mm/internal.h
-+++ b/mm/internal.h
-@@ -130,7 +130,7 @@ struct compact_control {
- 	int order;			/* order a direct compactor needs */
- 	int migratetype;		/* MOVABLE, RECLAIMABLE etc */
- 	struct zone *zone;
--	bool *contended;		/* True if a lock was contended */
-+	bool contended;			/* True if a lock was contended */
- };
- 
- unsigned long
+> +		lruvec->zone = zone;
+> +	}
+> +	return lruvec;
+>  }
+>  
+>  /*
+> @@ -1093,9 +1106,12 @@ struct lruvec *mem_cgroup_page_lruvec(st
+>  	struct mem_cgroup_per_zone *mz;
+>  	struct mem_cgroup *memcg;
+>  	struct page_cgroup *pc;
+> +	struct lruvec *lruvec;
+>  
+> -	if (mem_cgroup_disabled())
+> -		return &zone->lruvec;
+> +	if (mem_cgroup_disabled()) {
+> +		lruvec = &zone->lruvec;
+> +		goto out;
+> +	}
+>  
+>  	pc = lookup_page_cgroup(page);
+>  	memcg = pc->mem_cgroup;
+> @@ -1113,7 +1129,17 @@ struct lruvec *mem_cgroup_page_lruvec(st
+>  		pc->mem_cgroup = memcg = root_mem_cgroup;
+>  
+>  	mz = page_cgroup_zoneinfo(memcg, page);
+> -	return &mz->lruvec;
+> +	lruvec = &mz->lruvec;
+> +out:
+> +	/*
+> +	 * Since a node can be onlined after the mem_cgroup was created,
+> +	 * we have to be prepared to initialize lruvec->zone here.
+> +	 */
+> +	if (unlikely(lruvec->zone != zone)) {
+> +		VM_BUG_ON(lruvec->zone);
+
+I apply your patch, and remove VM_BUG_ON(). I don't find any error in my test
+now.
+
+
+Thanks
+Wen Congyang
+
+> +		lruvec->zone = zone;
+> +	}
+> +	return lruvec;
+>  }
+>  
+>  /**
+> @@ -4742,7 +4768,7 @@ static int alloc_mem_cgroup_per_zone_inf
+>  
+>  	for (zone = 0; zone < MAX_NR_ZONES; zone++) {
+>  		mz = &pn->zoneinfo[zone];
+> -		lruvec_init(&mz->lruvec, &NODE_DATA(node)->node_zones[zone]);
+> +		lruvec_init(&mz->lruvec);
+>  		mz->usage_in_excess = 0;
+>  		mz->on_tree = false;
+>  		mz->memcg = memcg;
+> --- 3.6-rc5/mm/mmzone.c	2012-08-03 08:31:27.064842271 -0700
+> +++ linux/mm/mmzone.c	2012-09-13 17:06:28.921766001 -0700
+> @@ -87,7 +87,7 @@ int memmap_valid_within(unsigned long pf
+>  }
+>  #endif /* CONFIG_ARCH_HAS_HOLES_MEMORYMODEL */
+>  
+> -void lruvec_init(struct lruvec *lruvec, struct zone *zone)
+> +void lruvec_init(struct lruvec *lruvec)
+>  {
+>  	enum lru_list lru;
+>  
+> @@ -95,8 +95,4 @@ void lruvec_init(struct lruvec *lruvec,
+>  
+>  	for_each_lru(lru)
+>  		INIT_LIST_HEAD(&lruvec->lists[lru]);
+> -
+> -#ifdef CONFIG_MEMCG
+> -	lruvec->zone = zone;
+> -#endif
+>  }
+> --- 3.6-rc5/mm/page_alloc.c	2012-08-22 14:25:39.508279046 -0700
+> +++ linux/mm/page_alloc.c	2012-09-13 17:06:08.265763526 -0700
+> @@ -4456,7 +4456,7 @@ static void __paginginit free_area_init_
+>  		zone->zone_pgdat = pgdat;
+>  
+>  		zone_pcp_init(zone);
+> -		lruvec_init(&zone->lruvec, zone);
+> +		lruvec_init(&zone->lruvec);
+>  		if (!size)
+>  			continue;
+>  
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
