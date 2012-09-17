@@ -1,50 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
-	by kanga.kvack.org (Postfix) with SMTP id A6C436B0062
-	for <linux-mm@kvack.org>; Mon, 17 Sep 2012 11:39:35 -0400 (EDT)
-Received: by bkcjc3 with SMTP id jc3so2719068bkc.14
-        for <linux-mm@kvack.org>; Mon, 17 Sep 2012 08:39:33 -0700 (PDT)
-Message-ID: <50574432.5040005@suse.cz>
-Date: Mon, 17 Sep 2012 17:39:30 +0200
-From: Jiri Slaby <jslaby@suse.cz>
+Received: from psmtp.com (na3sys010amx174.postini.com [74.125.245.174])
+	by kanga.kvack.org (Postfix) with SMTP id 372676B0062
+	for <linux-mm@kvack.org>; Mon, 17 Sep 2012 12:05:39 -0400 (EDT)
+Received: by vbkv13 with SMTP id v13so9252216vbk.14
+        for <linux-mm@kvack.org>; Mon, 17 Sep 2012 09:05:38 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: BUG at mm/huge_memory.c:1428!
-References: <50522275.7090709@suse.cz> <CANN689E0SaT9vaBb+snwYrP728GjZhRj7o7T4GoNfQVY7sBr7Q@mail.gmail.com> <50538561.8030505@suse.cz>
-In-Reply-To: <50538561.8030505@suse.cz>
+Date: Mon, 17 Sep 2012 20:05:38 +0400
+Message-ID: <CALo0P118RQCNoUOv+WexDz9VLE6r-doFDUDFdZRuA=bOYL4xLQ@mail.gmail.com>
+Subject: [PATCH] Set page active bit in mincore() call.
+From: Roman Guschin <guroan@gmail.com>
 Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michel Lespinasse <walken@google.com>
-Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Jiri Slaby <jirislaby@gmail.com>
+To: linux-mm@kvack.org
 
-On 09/14/2012 09:28 PM, Jiri Slaby wrote:
-> On 09/14/2012 12:46 AM, Michel Lespinasse wrote:
->> On Thu, Sep 13, 2012 at 11:14 AM, Jiri Slaby <jslaby@suse.cz> wrote:
->>> Hi,
->>>
->>> I've just get the following BUG with today's -next. It happens every
->>> time I try to update packages.
->>>
->>> kernel BUG at mm/huge_memory.c:1428!
->>
->> That is very likely my bug.
->>
->> Do you have the message that should be printed right above the bug ?
->> (                printk(KERN_ERR "mapcount %d page_mapcount %d\n",
->>                        mapcount, page_mapcount(page));
->> )
-> 
-> Unfortunately no. And I cannot reproduce anymore :(...
+Hi all!
 
-FWIW: mapcount 0 page_mapcount 1
+It's a very simple patch that allows to see which pages are active and
+which not.
+It's very useful for debugging performance issues in mm.
+I used the vmtouch tool (with a simple modification) to display the results.
 
-It happened today. Now I'm going to apply your patch.
+R.
 
-> thanks,
--- 
-js
-suse labs
+---
+ mm/mincore.c |   12 +++++++-----
+ 1 files changed, 7 insertions(+), 5 deletions(-)
+
+diff --git a/mm/mincore.c b/mm/mincore.c
+index 7c2874a..31301d2 100644
+--- a/mm/mincore.c
++++ b/mm/mincore.c
+@@ -61,7 +61,7 @@ static void mincore_hugetlb_page_range(struct
+vm_area_struct *vma,
+  */
+ static unsigned char mincore_page(struct address_space *mapping, pgoff_t pgoff)
+ {
+-	unsigned char present = 0;
++	unsigned char flags = 0;
+ 	struct page *page;
+
+ 	/*
+@@ -79,13 +79,15 @@ static unsigned char mincore_page(struct
+address_space *mapping, pgoff_t pgoff)
+ 	}
+ #endif
+ 	if (page) {
+-		present = PageUptodate(page);
+-		if (present)
+-			present |= (PageReadaheadUnused(page) << 7);
++		flags = PageUptodate(page);
++		if (flags) {
++			flags |= (PageActive(page) << 1);
++			flags |= (PageReadaheadUnused(page) << 7);
++		}
+ 		page_cache_release(page);
+ 	}
+
+-	return present;
++	return flags;
+ }
+
+ static void mincore_unmapped_range(struct vm_area_struct *vma,
+--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
