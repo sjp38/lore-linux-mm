@@ -1,79 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
-	by kanga.kvack.org (Postfix) with SMTP id 23D506B0062
-	for <linux-mm@kvack.org>; Mon, 17 Sep 2012 16:42:42 -0400 (EDT)
-MIME-Version: 1.0
-Message-ID: <e5d08804-a542-4778-a103-b14b553b0747@default>
-Date: Mon, 17 Sep 2012 13:42:30 -0700 (PDT)
-From: Dan Magenheimer <dan.magenheimer@oracle.com>
-Subject: RE: [RFC] mm: add support for zsmalloc and zcache
-References: <1346794486-12107-1-git-send-email-sjenning@linux.vnet.ibm.com>
- <e33a2c0e-3b51-4d89-a2b2-c1ed9c8f862c@default>
- <20120907143751.GB4670@phenom.dumpdata.com> <504C1100.2050300@vflare.org>
-In-Reply-To: <504C1100.2050300@vflare.org>
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: quoted-printable
+Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
+	by kanga.kvack.org (Postfix) with SMTP id CB68E6B005A
+	for <linux-mm@kvack.org>; Mon, 17 Sep 2012 18:15:33 -0400 (EDT)
+Date: Mon, 17 Sep 2012 15:15:31 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v10 0/5] make balloon pages movable by compaction
+Message-Id: <20120917151531.e9ac59f2.akpm@linux-foundation.org>
+In-Reply-To: <cover.1347897793.git.aquini@redhat.com>
+References: <cover.1347897793.git.aquini@redhat.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nitin Gupta <ngupta@vflare.org>, Konrad Wilk <konrad.wilk@oracle.com>
-Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan@kernel.org>, Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org
+To: Rafael Aquini <aquini@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, Rusty Russell <rusty@rustcorp.com.au>, "Michael S. Tsirkin" <mst@redhat.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Andi Kleen <andi@firstfloor.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Minchan Kim <minchan@kernel.org>, Peter Zijlstra <peterz@infradead.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
 
-> From: Nitin Gupta [mailto:ngupta@vflare.org]
-> Subject: Re: [RFC] mm: add support for zsmalloc and zcache
->=20
-> The problem is that zbud performs well only when a (compressed) page is
-> either PAGE_SIZE/2 - e or PAGE_SIZE - e, where e is small. So, even if
-> the average compression ratio is 2x (which is hard to believe), a
-> majority of sizes can actually end up in PAGE_SIZE/2 + e bucket and zbud
-> will still give bad performance.  For instance, consider these histograms=
-:
+On Mon, 17 Sep 2012 13:38:15 -0300
+Rafael Aquini <aquini@redhat.com> wrote:
 
-Whoa whoa whoa.  This is very wrong.  Zbud handles compressed pages
-of any range that fits in a pageframe (same, almost, as zsmalloc).
-Unless there is some horrible bug you found...
+> Memory fragmentation introduced by ballooning might reduce significantly
+> the number of 2MB contiguous memory blocks that can be used within a guest,
+> thus imposing performance penalties associated with the reduced number of
+> transparent huge pages that could be used by the guest workload.
+> 
+> This patch-set follows the main idea discussed at 2012 LSFMMS session:
+> "Ballooning for transparent huge pages" -- http://lwn.net/Articles/490114/
+> to introduce the required changes to the virtio_balloon driver, as well as
+> the changes to the core compaction & migration bits, in order to make those
+> subsystems aware of ballooned pages and allow memory balloon pages become
+> movable within a guest, thus avoiding the aforementioned fragmentation issue
+> 
+> Following are numbers that prove this patch benefits on allowing compaction
+> to be more effective at memory ballooned guests.
+> 
+> Results for STRESS-HIGHALLOC benchmark, from Mel Gorman's mmtests suite,
+> running on a 4gB RAM KVM guest which was ballooning 1gB RAM in 256mB chunks,
+> at every minute (inflating/deflating), while test was running:
 
-Zbud _does_ require the _distribution_ of zsize to be roughly
-centered around PAGE_SIZE/2 (or less).  Is that what you meant?
-If so, the following numbers you posted don't make sense to me.
-Could you be more explicit on what the numbers mean?
+How can a patchset reach v10 and have zero Reviewed-by's?
 
-Also, as you know, unlike zram, the architecture of tmem/frontswap
-allows zcache to reject any page, so if the distribution of zsize
-exceeds PAGE_SIZE/2, some pages can be rejected (and thus passed
-through to swap).  This safety valve already exists in zcache (and zcache2)
-to avoid situations where zpages would otherwise significantly
-exceed half of total pageframes allocated.  IMHO this is a
-better policy than accepting a large number of poorly-compressed pages,
-i.e. if every data page compresses down from 4096 bytes to 4032
-bytes, zsmalloc stores them all (thus using very nearly one pageframe
-per zpage), whereas zbud avoids the anomalous page sequence altogether.
-=20
-> # Created tar of /usr/lib (2GB) on a fairly loaded Linux system and
-> compressed page-by-page using LZO:
->=20
-> # first two fields: bin start, end.  Third field: compressed size
-> 32 286 7644
-> :
-> 3842 4096 3482
->=20
-> The only (approx) sweetspots for zbud are 1810-2064 and 3842-4096 which
-> covers only a small fraction of pages.
->=20
-> # same page-by-page compression for 220MB ISO from project Gutenberg:
-> 32 286 70
-> :
-> 3842 4096 804
->=20
-> Again very few pages in zbud favoring bins.
->=20
-> So, we really need zsmalloc style allocator which handles sizes all over
-> the spectrum. But yes, compaction remains far easier to implement on zbud=
-.
+The patchset looks reasonable to me and your empirical results look
+good.  But I don't feel that I'm in a position to decide on its overall
+desirability, either in a standalone sense or in comparison to any
+alternative schemes which anyone has proposed.
 
-So it remains to be seen if a third choice exists (which might be either
-an enhanced zbud or an enhanced zsmalloc), right?
+IOW, Rusty and KVM folks: please consider thyself poked.
 
-Dan
+I looked through the code and have some comments which are minor in the
+overall scheme of things.  I'll be more comfortable when a compaction
+expert has had a go over it.  IOW, Mel joins the pokee list ;)
+
+(The question of "overall desirability" is the big one here.  Do we
+actually want to add this to Linux?  The rest is details which we can
+work out).
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
