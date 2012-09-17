@@ -1,11 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
-	by kanga.kvack.org (Postfix) with SMTP id F088B6B005A
-	for <linux-mm@kvack.org>; Mon, 17 Sep 2012 12:38:48 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
+	by kanga.kvack.org (Postfix) with SMTP id C14536B0062
+	for <linux-mm@kvack.org>; Mon, 17 Sep 2012 12:38:50 -0400 (EDT)
 From: Rafael Aquini <aquini@redhat.com>
-Subject: [PATCH v10 0/5] make balloon pages movable by compaction
-Date: Mon, 17 Sep 2012 13:38:15 -0300
-Message-Id: <cover.1347897793.git.aquini@redhat.com>
+Subject: [PATCH v10 1/5] mm: introduce a common interface for balloon pages mobility
+Date: Mon, 17 Sep 2012 13:38:16 -0300
+Message-Id: <89c9f4096bbad072e155445fcdf1805d47ddf48e.1347897793.git.aquini@redhat.com>
+In-Reply-To: <cover.1347897793.git.aquini@redhat.com>
+References: <cover.1347897793.git.aquini@redhat.com>
+In-Reply-To: <cover.1347897793.git.aquini@redhat.com>
+References: <cover.1347897793.git.aquini@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
@@ -16,126 +20,403 @@ the number of 2MB contiguous memory blocks that can be used within a guest,
 thus imposing performance penalties associated with the reduced number of
 transparent huge pages that could be used by the guest workload.
 
-This patch-set follows the main idea discussed at 2012 LSFMMS session:
-"Ballooning for transparent huge pages" -- http://lwn.net/Articles/490114/
-to introduce the required changes to the virtio_balloon driver, as well as
-the changes to the core compaction & migration bits, in order to make those
-subsystems aware of ballooned pages and allow memory balloon pages become
-movable within a guest, thus avoiding the aforementioned fragmentation issue
+This patch introduces a common interface to help a balloon driver on
+making its page set movable to compaction, and thus allowing the system
+to better leverage the compation efforts on memory defragmentation.
 
-Following are numbers that prove this patch benefits on allowing compaction
-to be more effective at memory ballooned guests.
-
-Results for STRESS-HIGHALLOC benchmark, from Mel Gorman's mmtests suite,
-running on a 4gB RAM KVM guest which was ballooning 1gB RAM in 256mB chunks,
-at every minute (inflating/deflating), while test was running:
-
-===BEGIN stress-highalloc
-
-STRESS-HIGHALLOC
-              stress-highalloc   highalloc-3.6.0
-                     3.6.0-rc5         rc5-patch
-Pass 1          47.00 ( 0.00%)    85.00 (38.00%)
-Pass 2          52.00 ( 0.00%)    87.00 (35.00%)
-while Rested    77.00 ( 0.00%)    99.00 (22.00%)
-
-MMTests Statistics: duration
-               3.6.0       3.6.0
-                 rc5   rc5-patch
-User         1566.87     1066.77
-System        948.78      713.19
-Elapsed      2008.95     1650.72
-
-MMTests Statistics: vmstat
-                              3.6.0       3.6.0
-                                rc5   rc5-patch
-Page Ins                    5037962     3458106
-Page Outs                  10779728     8969512
-Swap Ins                      34282        5565
-Swap Outs                     63027       19717
-Direct pages scanned         481017      166920
-Kswapd pages scanned        2083130     1537202
-Kswapd pages reclaimed      1838615     1459932
-Direct pages reclaimed       337487      120613
-Kswapd efficiency               88%         94%
-Kswapd velocity            1036.925     931.231
-Direct efficiency               70%         72%
-Direct velocity             239.437     101.120
-Percentage direct scans         18%          9%
-Page writes by reclaim       157305       19855
-Page writes file              94278         138
-Page writes anon              63027       19717
-Page reclaim immediate       111205       64510
-Page rescued immediate            0           0
-Slabs scanned               3362816     2375680
-Direct inode steals           12411        2022
-Kswapd inode steals          753789      524457
-Kswapd skipped wait             136           7
-THP fault alloc                 688         739
-THP collapse alloc              378         481
-THP splits                      279         317
-THP fault fallback              172          45
-THP collapse fail                12           5
-Compaction stalls              1378         968
-Compaction success              406         595
-Compaction failures             972         373
-Compaction pages moved      3104073     1790932
-Compaction move failure       92713       41252
-
-===END stress-highalloc
-
-Rafael Aquini (5):
-  mm: introduce a common interface for balloon pages mobility
-  mm: introduce compaction and migration for ballooned pages
-  virtio_balloon: introduce migration primitives to balloon pages
-  mm: introduce putback_movable_pages()
-  mm: add vm event counters for balloon pages compaction
-
- drivers/virtio/virtio_balloon.c    | 306 ++++++++++++++++++++++++++++++++++---
- include/linux/balloon_compaction.h | 147 ++++++++++++++++++
- include/linux/migrate.h            |   2 +
- include/linux/pagemap.h            |  18 +++
- include/linux/vm_event_item.h      |   8 +-
- mm/Kconfig                         |  15 ++
+Signed-off-by: Rafael Aquini <aquini@redhat.com>
+---
+ include/linux/balloon_compaction.h | 147 +++++++++++++++++++++++++++++++++++
+ include/linux/pagemap.h            |  18 +++++
+ mm/Kconfig                         |  15 ++++
  mm/Makefile                        |   1 +
- mm/balloon_compaction.c            | 154 +++++++++++++++++++
- mm/compaction.c                    |  51 ++++---
- mm/migrate.c                       |  57 ++++++-
- mm/page_alloc.c                    |   2 +-
- mm/vmstat.c                        |  10 +-
- 12 files changed, 726 insertions(+), 45 deletions(-)
+ mm/balloon_compaction.c            | 152 +++++++++++++++++++++++++++++++++++++
+ 5 files changed, 333 insertions(+)
  create mode 100644 include/linux/balloon_compaction.h
  create mode 100644 mm/balloon_compaction.c
 
-Change log:
-v10:
- * Adjust leak_balloon() wait_event logic to make a clear locking scheme (MST);
- * Drop the RCU protection approach for dereferencing balloon's page->mapping;
- * Minor nitpitcks on code commentaries (MST);
-v9:
- * Adjust rcu_dereference usage to leverage page lock protection  (Paul, Peter);
- * Enhance doc on compaction interface introduced to balloon driver   (Michael);
- * Fix issue with isolated pages breaking leak_balloon() logics       (Michael);
-v8:
- * introduce a common MM interface for balloon driver page compaction (Michael);
- * remove the global state preventing multiple balloon device support (Michael);
- * introduce RCU protection/syncrhonization to balloon page->mapping  (Michael);
-v7:
- * fix a potential page leak case at 'putback_balloon_page'               (Mel);
- * adjust vm-events-counter patch and remove its drop-on-merge message    (Rik);
- * add 'putback_movable_pages' to avoid hacks on 'putback_lru_pages'  (Minchan);
-v6:
- * rename 'is_balloon_page()' to 'movable_balloon_page()' 		  (Rik);
-v5:
- * address Andrew Morton's review comments on the patch series;
- * address a couple extra nitpick suggestions on PATCH 01 	      (Minchan);
-v4: 
- * address Rusty Russel's review comments on PATCH 02;
- * re-base virtio_balloon patch on 9c378abc5c0c6fc8e3acf5968924d274503819b3;
-V3: 
- * address reviewers nitpick suggestions on PATCH 01		 (Mel, Minchan);
-V2: 
- * address Mel Gorman's review comments on PATCH 01;
+diff --git a/include/linux/balloon_compaction.h b/include/linux/balloon_compaction.h
+new file mode 100644
+index 0000000..1c27a93
+--- /dev/null
++++ b/include/linux/balloon_compaction.h
+@@ -0,0 +1,147 @@
++/*
++ * include/linux/balloon_compaction.h
++ *
++ * Common interface definitions for making balloon pages movable to compaction.
++ *
++ * Copyright (C) 2012, Red Hat, Inc.  Rafael Aquini <aquini@redhat.com>
++ */
++#ifndef _LINUX_BALLOON_COMPACTION_H
++#define _LINUX_BALLOON_COMPACTION_H
++
++#include <linux/rcupdate.h>
++#include <linux/pagemap.h>
++#include <linux/gfp.h>
++#include <linux/err.h>
++
++/* return code to identify when a ballooned page has been migrated */
++#define BALLOON_MIGRATION_RETURN	0xba1100
++
++#ifdef CONFIG_BALLOON_COMPACTION
++#define count_balloon_event(e)		count_vm_event(e)
++#define free_balloon_mapping(m)		kfree(m)
++
++extern bool isolate_balloon_page(struct page *);
++extern void putback_balloon_page(struct page *);
++extern int migrate_balloon_page(struct page *newpage,
++				struct page *page, enum migrate_mode mode);
++extern struct address_space *alloc_balloon_mapping(void *balloon_device,
++				const struct address_space_operations *a_ops);
++
++static inline void assign_balloon_mapping(struct page *page,
++					  struct address_space *mapping)
++{
++	page->mapping = mapping;
++	smp_wmb();
++}
++
++static inline void clear_balloon_mapping(struct page *page)
++{
++	page->mapping = NULL;
++	smp_wmb();
++}
++
++static inline gfp_t balloon_mapping_gfp_mask(void)
++{
++	return GFP_HIGHUSER_MOVABLE;
++}
++
++static inline bool __is_movable_balloon_page(struct page *page)
++{
++	struct address_space *mapping = ACCESS_ONCE(page->mapping);
++	smp_read_barrier_depends();
++	return mapping_balloon(mapping);
++}
++
++/*
++ * movable_balloon_page - test page->mapping->flags to identify balloon pages
++ *			  that can be moved by compaction/migration.
++ *
++ * This function is used at core compaction's page isolation scheme and so it's
++ * exposed to several system pages which may, or may not, be part of a memory
++ * balloon, and thus we cannot afford to hold a page locked to perform tests.
++ *
++ * Therefore, as we might return false positives in the case a balloon page
++ * is just released under us, the page->mapping->flags need to be retested
++ * with the proper page lock held, on the functions that will cope with the
++ * balloon page later.
++ */
++static inline bool movable_balloon_page(struct page *page)
++{
++	/*
++	 * Before dereferencing and testing mapping->flags, lets make sure
++	 * this is not a page that uses ->mapping in a different way
++	 */
++	if (!PageSlab(page) && !PageSwapCache(page) && !PageAnon(page) &&
++	    !page_mapped(page))
++		return __is_movable_balloon_page(page);
++
++	return false;
++}
++
++/*
++ * __page_balloon_device - get the balloon device that owns the given page.
++ *
++ * This shall only be used at driver callbacks under proper page lock,
++ * to get access to the balloon device which @page belongs.
++ */
++static inline void *__page_balloon_device(struct page *page)
++{
++	struct address_space *mapping = page->mapping;
++	if (mapping)
++		mapping = mapping->assoc_mapping;
++
++	return mapping;
++}
++
++/*
++ * DEFINE_BALLOON_MAPPING_AOPS - declare and instantiate a callback descriptor
++ *				 to be used as balloon page->mapping->a_ops.
++ *
++ * @label     : declaration identifier (var name)
++ * @isolatepg : callback symbol name for performing the page isolation step
++ * @migratepg : callback symbol name for performing the page migration step
++ * @putbackpg : callback symbol name for performing the page putback step
++ *
++ * address_space_operations utilized methods for ballooned pages:
++ *   .migratepage    - used to perform balloon's page migration (as is)
++ *   .invalidatepage - used to isolate a page from balloon's page list
++ *   .freepage       - used to reinsert an isolated page to balloon's page list
++ */
++#define DEFINE_BALLOON_MAPPING_AOPS(label, isolatepg, migratepg, putbackpg) \
++	const struct address_space_operations (label) = {		    \
++		.migratepage    = (migratepg),				    \
++		.invalidatepage = (isolatepg),				    \
++		.freepage       = (putbackpg),				    \
++	}
++
++#else
++#define assign_balloon_mapping(p, m)	do { } while (0)
++#define clear_balloon_mapping(p)	do { } while (0)
++#define free_balloon_mapping(m)		do { } while (0)
++#define count_balloon_event(e)		do { } while (0)
++#define DEFINE_BALLOON_MAPPING_AOPS(label, isolatepg, migratepg, putbackpg) \
++	const struct {} (label) = {}
++
++static inline bool movable_balloon_page(struct page *page) { return false; }
++static inline bool isolate_balloon_page(struct page *page) { return false; }
++static inline void putback_balloon_page(struct page *page) { return; }
++
++static inline int migrate_balloon_page(struct page *newpage,
++				struct page *page, enum migrate_mode mode)
++{
++	return 0;
++}
++
++static inline gfp_t balloon_mapping_gfp_mask(void)
++{
++	return GFP_HIGHUSER;
++}
++
++static inline void *alloc_balloon_mapping(void *balloon_device,
++				const struct address_space_operations *a_ops)
++{
++	return ERR_PTR(-EOPNOTSUPP);
++}
++#endif /* CONFIG_BALLOON_COMPACTION */
++
++#endif /* _LINUX_BALLOON_COMPACTION_H */
+diff --git a/include/linux/pagemap.h b/include/linux/pagemap.h
+index e42c762..6df0664 100644
+--- a/include/linux/pagemap.h
++++ b/include/linux/pagemap.h
+@@ -24,6 +24,7 @@ enum mapping_flags {
+ 	AS_ENOSPC	= __GFP_BITS_SHIFT + 1,	/* ENOSPC on async write */
+ 	AS_MM_ALL_LOCKS	= __GFP_BITS_SHIFT + 2,	/* under mm_take_all_locks() */
+ 	AS_UNEVICTABLE	= __GFP_BITS_SHIFT + 3,	/* e.g., ramdisk, SHM_LOCK */
++	AS_BALLOON_MAP  = __GFP_BITS_SHIFT + 4, /* balloon page special map */
+ };
+ 
+ static inline void mapping_set_error(struct address_space *mapping, int error)
+@@ -53,6 +54,23 @@ static inline int mapping_unevictable(struct address_space *mapping)
+ 	return !!mapping;
+ }
+ 
++static inline void mapping_set_balloon(struct address_space *mapping)
++{
++	set_bit(AS_BALLOON_MAP, &mapping->flags);
++}
++
++static inline void mapping_clear_balloon(struct address_space *mapping)
++{
++	clear_bit(AS_BALLOON_MAP, &mapping->flags);
++}
++
++static inline int mapping_balloon(struct address_space *mapping)
++{
++	if (mapping)
++		return test_bit(AS_BALLOON_MAP, &mapping->flags);
++	return !!mapping;
++}
++
+ static inline gfp_t mapping_gfp_mask(struct address_space * mapping)
+ {
+ 	return (__force gfp_t)mapping->flags & __GFP_BITS_MASK;
+diff --git a/mm/Kconfig b/mm/Kconfig
+index d5c8019..0bd783b 100644
+--- a/mm/Kconfig
++++ b/mm/Kconfig
+@@ -188,6 +188,21 @@ config SPLIT_PTLOCK_CPUS
+ 	default "4"
+ 
+ #
++# support for memory balloon compaction
++config BALLOON_COMPACTION
++	bool "Allow for balloon memory compaction/migration"
++	select COMPACTION
++	depends on VIRTIO_BALLOON
++	help
++	  Memory fragmentation introduced by ballooning might reduce
++	  significantly the number of 2MB contiguous memory blocks that can be
++	  used within a guest, thus imposing performance penalties associated
++	  with the reduced number of transparent huge pages that could be used
++	  by the guest workload. Allowing the compaction & migration for memory
++	  pages enlisted as being part of memory balloon devices avoids the
++	  scenario aforementioned and helps improving memory defragmentation.
++
++#
+ # support for memory compaction
+ config COMPACTION
+ 	bool "Allow for memory compaction"
+diff --git a/mm/Makefile b/mm/Makefile
+index 92753e2..23e54c5 100644
+--- a/mm/Makefile
++++ b/mm/Makefile
+@@ -57,3 +57,4 @@ obj-$(CONFIG_DEBUG_KMEMLEAK) += kmemleak.o
+ obj-$(CONFIG_DEBUG_KMEMLEAK_TEST) += kmemleak-test.o
+ obj-$(CONFIG_CLEANCACHE) += cleancache.o
+ obj-$(CONFIG_MEMORY_ISOLATION) += page_isolation.o
++obj-$(CONFIG_BALLOON_COMPACTION) += balloon_compaction.o
+diff --git a/mm/balloon_compaction.c b/mm/balloon_compaction.c
+new file mode 100644
+index 0000000..74c09ab
+--- /dev/null
++++ b/mm/balloon_compaction.c
+@@ -0,0 +1,152 @@
++/*
++ * mm/balloon_compaction.c
++ *
++ * Common interface for making balloon pages movable to compaction.
++ *
++ * Copyright (C) 2012, Red Hat, Inc.  Rafael Aquini <aquini@redhat.com>
++ */
++#include <linux/mm.h>
++#include <linux/slab.h>
++#include <linux/export.h>
++#include <linux/balloon_compaction.h>
++
++#ifdef CONFIG_BALLOON_COMPACTION
++/*
++ * alloc_balloon_mapping - allocates a special ->mapping for ballooned pages.
++ * @balloon_device: pointer address that references the balloon device which
++ *                 owns pages bearing this ->mapping.
++ * @a_ops: balloon_mapping address_space_operations descriptor.
++ *
++ * Users must call it to properly allocate and initialize an instance of
++ * struct address_space which will be used as the special page->mapping for
++ * balloon devices enlisted page instances.
++ */
++struct address_space *alloc_balloon_mapping(void *balloon_device,
++				const struct address_space_operations *a_ops)
++{
++	struct address_space *mapping;
++
++	mapping = kmalloc(sizeof(*mapping), GFP_KERNEL);
++	if (!mapping)
++		return ERR_PTR(-ENOMEM);
++
++	/*
++	 * Give a clean 'zeroed' status to all elements of this special
++	 * balloon page->mapping struct address_space instance.
++	 */
++	address_space_init_once(mapping);
++
++	/*
++	 * Set mapping->flags appropriately, to allow balloon ->mapping
++	 * identification, as well as give a proper hint to the balloon
++	 * driver on what GFP allocation mask shall be used.
++	 */
++	mapping_set_balloon(mapping);
++	mapping_set_gfp_mask(mapping, balloon_mapping_gfp_mask());
++
++	/* balloon's page->mapping->a_ops callback descriptor */
++	mapping->a_ops = a_ops;
++
++	/*
++	 * balloon special page->mapping overloads ->assoc_mapping
++	 * to held a reference back to the balloon device wich 'owns'
++	 * a given page. This is the way we can cope with multiple
++	 * balloon devices without losing reference of several
++	 * ballooned pagesets.
++	 */
++	mapping->assoc_mapping = balloon_device;
++
++	return mapping;
++}
++EXPORT_SYMBOL_GPL(alloc_balloon_mapping);
++
++static inline void __isolate_balloon_page(struct page *page)
++{
++	page->mapping->a_ops->invalidatepage(page, 0);
++}
++
++static inline void __putback_balloon_page(struct page *page)
++{
++	page->mapping->a_ops->freepage(page);
++}
++
++static inline int __migrate_balloon_page(struct address_space *mapping,
++		struct page *newpage, struct page *page, enum migrate_mode mode)
++{
++	return page->mapping->a_ops->migratepage(mapping, newpage, page, mode);
++}
++
++/* __isolate_lru_page() counterpart for a ballooned page */
++bool isolate_balloon_page(struct page *page)
++{
++	if (likely(get_page_unless_zero(page))) {
++		/*
++		 * As balloon pages are not isolated from LRU lists, concurrent
++		 * compaction threads can race against page migration functions
++		 * move_to_new_page() & __unmap_and_move().
++		 * In order to avoid having an already isolated balloon page
++		 * being (wrongly) re-isolated while it is under migration,
++		 * lets be sure we have the page lock before proceeding with
++		 * the balloon page isolation steps.
++		 */
++		if (likely(trylock_page(page))) {
++			/*
++			 * A ballooned page, by default, has just one refcount.
++			 * Prevent concurrent compaction threads from isolating
++			 * an already isolated balloon page by refcount check.
++			 */
++			if (__is_movable_balloon_page(page) &&
++			    page_count(page) == 2) {
++				__isolate_balloon_page(page);
++				unlock_page(page);
++				return true;
++			}
++			unlock_page(page);
++		}
++		put_page(page);
++	}
++	return false;
++}
++
++/* putback_lru_page() counterpart for a ballooned page */
++void putback_balloon_page(struct page *page)
++{
++	/*
++	 * 'lock_page()' stabilizes the page and prevents races against
++	 * concurrent isolation threads attempting to re-isolate it.
++	 */
++	lock_page(page);
++
++	if (__is_movable_balloon_page(page)) {
++		__putback_balloon_page(page);
++		put_page(page);
++	} else {
++		__WARN();
++		dump_page(page);
++	}
++	unlock_page(page);
++}
++
++/* move_to_new_page() counterpart for a ballooned page */
++int migrate_balloon_page(struct page *newpage,
++			 struct page *page, enum migrate_mode mode)
++{
++	struct address_space *mapping;
++	int rc = -EAGAIN;
++
++	BUG_ON(!trylock_page(newpage));
++
++	if (WARN_ON(!__is_movable_balloon_page(page))) {
++		dump_page(page);
++		unlock_page(newpage);
++		return rc;
++	}
++
++	mapping = page->mapping;
++	if (mapping)
++		rc = __migrate_balloon_page(mapping, newpage, page, mode);
++
++	unlock_page(newpage);
++	return rc;
++}
++#endif /* CONFIG_BALLOON_COMPACTION */
 -- 
 1.7.11.4
 
