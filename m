@@ -1,80 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx167.postini.com [74.125.245.167])
-	by kanga.kvack.org (Postfix) with SMTP id ACCB76B006C
-	for <linux-mm@kvack.org>; Mon, 17 Sep 2012 10:07:39 -0400 (EDT)
-Date: Mon, 17 Sep 2012 15:07:35 +0100
+Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
+	by kanga.kvack.org (Postfix) with SMTP id 087006B0070
+	for <linux-mm@kvack.org>; Mon, 17 Sep 2012 10:21:37 -0400 (EDT)
+Date: Mon, 17 Sep 2012 15:21:30 +0100
 From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH -v2 2/2] make the compaction "skip ahead" logic robust
-Message-ID: <20120917140735.GG11266@suse.de>
-References: <50391564.30401@redhat.com>
- <20120826105803.GA377@alpha.arachsys.com>
- <20120906092039.GA19234@alpha.arachsys.com>
- <20120912105659.GA23818@alpha.arachsys.com>
- <20120912122541.GO11266@suse.de>
- <20120912164615.GA14173@alpha.arachsys.com>
- <20120913154824.44cc0e28@cuia.bos.redhat.com>
- <20120913155450.7634148f@cuia.bos.redhat.com>
- <20120915155524.GA24182@alpha.arachsys.com>
- <50572A90.1030109@redhat.com>
+Subject: Re: [PATCH RESEND] memory hotplug: fix a double register section
+ info bug
+Message-ID: <20120917142130.GH11266@suse.de>
+References: <5052A7DF.4050301@gmail.com>
+ <20120914095230.GE11266@suse.de>
+ <3908561D78D1C84285E8C5FCA982C28F19D40E81@ORSMSX108.amr.corp.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <50572A90.1030109@redhat.com>
+In-Reply-To: <3908561D78D1C84285E8C5FCA982C28F19D40E81@ORSMSX108.amr.corp.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Richard Davies <richard@arachsys.com>, Avi Kivity <avi@redhat.com>, Shaohua Li <shli@kernel.org>, qemu-devel@nongnu.org, kvm@vger.kernel.org, linux-mm@kvack.org
+To: "Luck, Tony" <tony.luck@intel.com>
+Cc: qiuxishi <qiuxishi@gmail.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Jiang Liu <jiang.liu@huawei.com>, "qiuxishi@huawei.com" <qiuxishi@huawei.com>, "bessel.wang@huawei.com" <bessel.wang@huawei.com>, "wujianguo@huawei.com" <wujianguo@huawei.com>, "paul.gortmaker@windriver.com" <paul.gortmaker@windriver.com>, "kamezawa.hiroyu@jp.fujitsu.com" <kamezawa.hiroyu@jp.fujitsu.com>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>, "rientjes@google.com" <rientjes@google.com>, Minchan Kim <minchan@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Wen Congyang <wency@cn.fujitsu.com>
 
-On Mon, Sep 17, 2012 at 09:50:08AM -0400, Rik van Riel wrote:
-> On 09/15/2012 11:55 AM, Richard Davies wrote:
-> >Hi Rik, Mel and Shaohua,
-> >
-> >Thank you for your latest patches. I attach my latest perf report for a slow
-> >boot with all of these applied.
-> >
-> >Mel asked for timings of the slow boots. It's very hard to give anything
-> >useful here! A normal boot would be a minute or so, and many are like that,
-> >but the slowest that I have seen (on 3.5.x) was several hours. Basically, I
-> >just test many times until I get one which is noticeably slow than normal
-> >and then run perf record on that one.
-> >
-> >The latest perf report for a slow boot is below. For the fast boots, most of
-> >the time is in clean_page_c in do_huge_pmd_anonymous_page, but for this slow
-> >one there is a lot of lock contention above that.
+On Fri, Sep 14, 2012 at 04:24:32PM +0000, Luck, Tony wrote:
+> > This is an unusual configuration but it's not unheard of. PPC64 in rare
+> > (and usually broken) configurations can have one node span another. Tony
+> > should know if such a configuration is normally allowed on Itanium or if
+> > this should be considered a platform bug. Tony?
 > 
-> How often do you run into slow boots, vs. fast ones?
+> We definitely have platforms where the physical memory on node 0
+> that we skipped to leave physical address space for PCI mem mapped
+> devices gets tagged back at the very top of memory, after other nodes.
 > 
-> ># Overhead          Command         Shared Object                                          Symbol
-> ># ........  ...............  ....................  ..............................................
-> >#
-> >     58.49%         qemu-kvm  [kernel.kallsyms]     [k] _raw_spin_lock_irqsave
-> >                    |
-> >                    --- _raw_spin_lock_irqsave
-> >                       |
-> >                       |--95.07%-- compact_checklock_irqsave
-> >                       |          |
-> >                       |          |--70.03%-- isolate_migratepages_range
-> >                       |          |          compact_zone
-> >                       |          |          compact_zone_order
-> >                       |          |          try_to_compact_pages
-> >                       |          |          __alloc_pages_direct_compact
-> >                       |          |          __alloc_pages_nodemask
+> E.g. A 2-node system with 8G on each might look like this:
 > 
-> Looks like it moved from isolate_freepages_block in your last
-> trace, to isolate_migratepages_range?
+> 0-2G RAM on node 0
+> 2G-4G  PCI map space
+> 4G-8G RAM on node 0
+> 8G-16GRAM on node 1
+> 16G-18G RAM on node 0
 > 
-> Mel, I wonder if we have any quadratic complexity problems
-> in this part of the code, too?
+> Is this the situation that we are talking about? Or something different?
 > 
 
-Possibly but right now I'm focusing on the contention even though I recognise
-that reducing the amount of scanning implicitly reduces the amount of
-contention. I'm running a test at the moment with an additional patch
-to record the pageblock being scanned by either the free or migrate page
-scanner. This should be enough to both calculate the scanning efficiency
-and how many useless blocks are scanned to determine if your "skip"
-patches are behaving as expected and from there decide if the migrate
-scanner needs similar logic.
+This is the type of situation we are talking about. The spanned range of
+node 0 includes node 1. The patch needs another revision with a comment
+explaining the situation included but otherwise the patch should be
+fine.
 
 -- 
 Mel Gorman
