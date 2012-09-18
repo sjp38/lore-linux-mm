@@ -1,64 +1,133 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx174.postini.com [74.125.245.174])
-	by kanga.kvack.org (Postfix) with SMTP id E8F9A6B005A
-	for <linux-mm@kvack.org>; Mon, 17 Sep 2012 22:16:29 -0400 (EDT)
-Date: Tue, 18 Sep 2012 04:16:27 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: Does swap_set_page_dirty() calling ->set_page_dirty() make
- sense?
-Message-ID: <20120918021627.GF9150@quack.suse.cz>
-References: <20120917163518.GD9150@quack.suse.cz>
- <alpine.LSU.2.00.1209171204100.6720@eggly.anvils>
+Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
+	by kanga.kvack.org (Postfix) with SMTP id 108966B005A
+	for <linux-mm@kvack.org>; Tue, 18 Sep 2012 03:04:00 -0400 (EDT)
+Received: by pbbro12 with SMTP id ro12so11787312pbb.14
+        for <linux-mm@kvack.org>; Tue, 18 Sep 2012 00:03:59 -0700 (PDT)
+Date: Tue, 18 Sep 2012 00:03:57 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: [patch] mm, numa: reclaim from all nodes within reclaim distance
+Message-ID: <alpine.DEB.2.00.1209180003340.16777@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.LSU.2.00.1209171204100.6720@eggly.anvils>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Mon 17-09-12 12:15:46, Hugh Dickins wrote:
-> On Mon, 17 Sep 2012, Jan Kara wrote:
-> > 
-> >   I tripped over a crash in reiserfs which happened due to PageSwapCache
-> > page being passed to reiserfs_set_page_dirty(). Now it's not that hard to
-> > make reiserfs_set_page_dirty() check that case but I really wonder: Does it
-> > make sense to call mapping->a_ops->set_page_dirty() for a PageSwapCache
-> > page? The page is going to be written via direct IO so from the POV of the
-> > filesystem there's no need for any dirtiness tracking. Also there are
-> > several ->set_page_dirty() implementations which will spectacularly crash
-> > because they do things like page->mapping->host, or call
-> > __set_page_dirty_buffers() which expects buffer heads in page->private.
-> > Or what is the reason for calling filesystem's set_page_dirty() function?
-> 
-> This is a question for Mel, really: it used not to call the filesystem.
-> 
-> But my reading of the 3.6 code says that it still will not call the
-> filesystem, unless the filesystem (only nfs) provides a swap_activate
-> method, which should be the only case in which SWP_FILE gets set.
-> And I rather think Mel does want to use the filesystem set_page_dirty
-> in that case.  Am I misreading?
-> 
-> Did you see this on a vanilla kernel?  Or is it possible that you have
-> a private patch merged in, with something else sharing the SWP_FILE bit
-> (defined in include/linux/swap.h) by mistake?
-  Argh, sorry. It is indeed a SLES specific bug. I missed that SWP_FILE bit
-gets set only when swap_activate() is provided (SLES code works a bit
-differently in this area but I wasn't really looking into that since I was
-focused elsewhere).
+RECLAIM_DISTANCE represents the distance between nodes at which it is
+deemed too costly to allocate from; it's preferred to try to reclaim from
+a local zone before falling back to allocating on a remote node with such
+a distance.
 
-So just one minor nit for Mel. SWP_FILE looks like a bit confusing name for
-a flag that gets set only for some swap files ;) At least I didn't pay
-attention to it because I thought it's set for all of them. Maybe call it
-SWP_FILE_CALL_AOPS or something like that?
+To do this, zone_reclaim_mode is set if the distance between any two
+nodes on the system is greather than this distance.  This, however, ends
+up causing the page allocator to reclaim from every zone regardless of
+its affinity.
 
-Thanks Hugh for having a look.
+What we really want is to reclaim only from zones that are closer than 
+RECLAIM_DISTANCE.  This patch adds a nodemask to each node that
+represents the set of nodes that are within this distance.  During the
+zone iteration, if the bit for a zone's node is set for the local node,
+then reclaim is attempted; otherwise, the zone is skipped.
 
-								Honza
--- 
-Jan Kara <jack@suse.cz>
-SUSE Labs, CR
+Signed-off-by: David Rientjes <rientjes@google.com>
+---
+ include/linux/mmzone.h |    1 +
+ mm/page_alloc.c        |   31 ++++++++++++++++++++-----------
+ 2 files changed, 21 insertions(+), 11 deletions(-)
+
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -704,6 +704,7 @@ typedef struct pglist_data {
+ 	unsigned long node_spanned_pages; /* total size of physical page
+ 					     range, including holes */
+ 	int node_id;
++	nodemask_t reclaim_nodes;	/* Nodes allowed to reclaim from */
+ 	wait_queue_head_t kswapd_wait;
+ 	wait_queue_head_t pfmemalloc_wait;
+ 	struct task_struct *kswapd;	/* Protected by lock_memory_hotplug() */
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -1782,6 +1782,11 @@ static void zlc_clear_zones_full(struct zonelist *zonelist)
+ 	bitmap_zero(zlc->fullzones, MAX_ZONES_PER_ZONELIST);
+ }
+ 
++static bool zone_allows_reclaim(struct zone *local_zone, struct zone *zone)
++{
++	return node_isset(local_zone->node, zone->zone_pgdat->reclaim_nodes);
++}
++
+ #else	/* CONFIG_NUMA */
+ 
+ static nodemask_t *zlc_setup(struct zonelist *zonelist, int alloc_flags)
+@@ -1802,6 +1807,11 @@ static void zlc_mark_zone_full(struct zonelist *zonelist, struct zoneref *z)
+ static void zlc_clear_zones_full(struct zonelist *zonelist)
+ {
+ }
++
++static bool zone_allows_reclaim(struct zone *local_zone, struct zone *zone)
++{
++	return true;
++}
+ #endif	/* CONFIG_NUMA */
+ 
+ /*
+@@ -1886,7 +1896,8 @@ zonelist_scan:
+ 				did_zlc_setup = 1;
+ 			}
+ 
+-			if (zone_reclaim_mode == 0)
++			if (zone_reclaim_mode == 0 ||
++			    !zone_allows_reclaim(preferred_zone, zone))
+ 				goto this_zone_full;
+ 
+ 			/*
+@@ -3328,21 +3339,13 @@ static void build_zonelists(pg_data_t *pgdat)
+ 	j = 0;
+ 
+ 	while ((node = find_next_best_node(local_node, &used_mask)) >= 0) {
+-		int distance = node_distance(local_node, node);
+-
+-		/*
+-		 * If another node is sufficiently far away then it is better
+-		 * to reclaim pages in a zone before going off node.
+-		 */
+-		if (distance > RECLAIM_DISTANCE)
+-			zone_reclaim_mode = 1;
+-
+ 		/*
+ 		 * We don't want to pressure a particular node.
+ 		 * So adding penalty to the first node in same
+ 		 * distance group to make it round-robin.
+ 		 */
+-		if (distance != node_distance(local_node, prev_node))
++		if (node_distance(local_node, node) !=
++		    node_distance(local_node, prev_node))
+ 			node_load[node] = load;
+ 
+ 		prev_node = node;
+@@ -4515,12 +4518,18 @@ void __paginginit free_area_init_node(int nid, unsigned long *zones_size,
+ 		unsigned long node_start_pfn, unsigned long *zholes_size)
+ {
+ 	pg_data_t *pgdat = NODE_DATA(nid);
++	int i;
+ 
+ 	/* pg_data_t should be reset to zero when it's allocated */
+ 	WARN_ON(pgdat->nr_zones || pgdat->classzone_idx);
+ 
+ 	pgdat->node_id = nid;
+ 	pgdat->node_start_pfn = node_start_pfn;
++	for_each_online_node(i)
++		if (node_distance(nid, i) <= RECLAIM_DISTANCE) {
++			node_set(i, pgdat->reclaim_nodes);
++			zone_reclaim_mode = 1;
++		}
+ 	calculate_node_totalpages(pgdat, zones_size, zholes_size);
+ 
+ 	alloc_node_mem_map(pgdat);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
