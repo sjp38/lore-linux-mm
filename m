@@ -1,75 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
-	by kanga.kvack.org (Postfix) with SMTP id 3FD0F6B0073
-	for <linux-mm@kvack.org>; Tue, 18 Sep 2012 10:07:35 -0400 (EDT)
-Date: Tue, 18 Sep 2012 11:07:12 -0300
-From: Rafael Aquini <aquini@redhat.com>
-Subject: Re: [PATCH v10 3/5] virtio_balloon: introduce migration primitives
- to balloon pages
-Message-ID: <20120918140711.GA1645@optiplex.redhat.com>
-References: <cover.1347897793.git.aquini@redhat.com>
- <39738cbd4b596714210e453440833db7cca73172.1347897793.git.aquini@redhat.com>
- <20120917151552.ffbb9293.akpm@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120917151552.ffbb9293.akpm@linux-foundation.org>
+Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
+	by kanga.kvack.org (Postfix) with SMTP id 0BDC06B0092
+	for <linux-mm@kvack.org>; Tue, 18 Sep 2012 10:07:42 -0400 (EDT)
+From: Glauber Costa <glommer@parallels.com>
+Subject: [PATCH v3 02/13] memcg: Reclaim when more than one page needed.
+Date: Tue, 18 Sep 2012 18:03:59 +0400
+Message-Id: <1347977050-29476-3-git-send-email-glommer@parallels.com>
+In-Reply-To: <1347977050-29476-1-git-send-email-glommer@parallels.com>
+References: <1347977050-29476-1-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, Rusty Russell <rusty@rustcorp.com.au>, "Michael S. Tsirkin" <mst@redhat.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Andi Kleen <andi@firstfloor.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Minchan Kim <minchan@kernel.org>, Peter Zijlstra <peterz@infradead.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+To: linux-kernel@vger.kernel.org
+Cc: cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, devel@openvz.org, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, Suleiman Souhlal <suleiman@google.com>, Frederic Weisbecker <fweisbec@gmail.com>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Glauber Costa <glommer@parallels.com>
 
-On Mon, Sep 17, 2012 at 03:15:52PM -0700, Andrew Morton wrote:
-> > +	/* Number of balloon pages isolated from 'pages' list for compaction */
-> > +	unsigned int num_isolated_pages;
-> 
-> Is it utterly inconceivable that this counter could exceed 4G, ever?
-> 
-> >  	/* Number of balloon pages we've told the Host we're not using. */
-> >  	unsigned int num_pages;
+From: Suleiman Souhlal <ssouhlal@FreeBSD.org>
 
-I've just followed the same unit the driver writers had used to keep track of
-how many pages are 'enlisted' to a given balloon device (num_pages). As
-compaction can not isolate more pages than what a balloon device possess, yes,
-num_isolated_pages won't get bigger than 4G pages.
+mem_cgroup_do_charge() was written before kmem accounting, and expects
+three cases: being called for 1 page, being called for a stock of 32
+pages, or being called for a hugepage.  If we call for 2 or 3 pages (and
+both the stack and several slabs used in process creation are such, at
+least with the debug options I had), it assumed it's being called for
+stock and just retried without reclaiming.
 
+Fix that by passing down a minsize argument in addition to the csize.
 
+And what to do about that (csize == PAGE_SIZE && ret) retry?  If it's
+needed at all (and presumably is since it's there, perhaps to handle
+races), then it should be extended to more than PAGE_SIZE, yet how far?
+And should there be a retry count limit, of what?  For now retry up to
+COSTLY_ORDER (as page_alloc.c does) and make sure not to do it if
+__GFP_NORETRY.
 
-> > +	mutex_lock(&vb->balloon_lock);
-> >  	for (vb->num_pfns = 0; vb->num_pfns < num;
-> >  	     vb->num_pfns += VIRTIO_BALLOON_PAGES_PER_PAGE) {
-> > -		struct page *page = alloc_page(GFP_HIGHUSER | __GFP_NORETRY |
-> > -					__GFP_NOMEMALLOC | __GFP_NOWARN);
-> > +		struct page *page = alloc_page(vb_gfp_mask | __GFP_NORETRY |
-> > +					       __GFP_NOWARN | __GFP_NOMEMALLOC);
-> 
-> That looks like an allocation which could easily fail.
->
+[v4: fixed nr pages calculation pointed out by Christoph Lameter ]
 
-That's not a big problem. If we fail that allocation and miss the desired 
-balloon 'inflation' target at this round, the driver will take care of it
-later, as it keeps chasing its targets.
+Signed-off-by: Suleiman Souhlal <suleiman@google.com>
+Signed-off-by: Glauber Costa <glommer@parallels.com>
+Reviewed-by: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Acked-by: Michal Hocko <mhocko@suse.cz>
+---
+ mm/memcontrol.c | 16 +++++++++-------
+ 1 file changed, 9 insertions(+), 7 deletions(-)
 
-
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 9d3bc72..b12121b 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -2232,7 +2232,8 @@ enum {
+ };
  
-> >  		if (!page) {
-> >  			if (printk_ratelimit())
-> >  				dev_printk(KERN_INFO, &vb->vdev->dev,
-> 
-> Strangely, we suppressed the core page allocator's warning and
-> substituted this less useful one.
-> 
-> Also, it would be nice if someone could get that printk_ratelimit() out
-> of there, for reasons described at the printk_ratelimit() definition
-> site.
-> 
-
-Despite I agree 100% with you here, (IMHO) that was a change out of the scope 
-for this patchseries original purposes and so I didn't propose it.
-
-OTOH, I don't mind in introducing the aforementioned surgery by this patch, 
-if the balloon driver folks are OK with it.
-
+ static int mem_cgroup_do_charge(struct mem_cgroup *memcg, gfp_t gfp_mask,
+-				unsigned int nr_pages, bool oom_check)
++				unsigned int nr_pages, unsigned int min_pages,
++				bool oom_check)
+ {
+ 	unsigned long csize = nr_pages * PAGE_SIZE;
+ 	struct mem_cgroup *mem_over_limit;
+@@ -2255,18 +2256,18 @@ static int mem_cgroup_do_charge(struct mem_cgroup *memcg, gfp_t gfp_mask,
+ 	} else
+ 		mem_over_limit = mem_cgroup_from_res_counter(fail_res, res);
+ 	/*
+-	 * nr_pages can be either a huge page (HPAGE_PMD_NR), a batch
+-	 * of regular pages (CHARGE_BATCH), or a single regular page (1).
+-	 *
+ 	 * Never reclaim on behalf of optional batching, retry with a
+ 	 * single page instead.
+ 	 */
+-	if (nr_pages == CHARGE_BATCH)
++	if (nr_pages > min_pages)
+ 		return CHARGE_RETRY;
+ 
+ 	if (!(gfp_mask & __GFP_WAIT))
+ 		return CHARGE_WOULDBLOCK;
+ 
++	if (gfp_mask & __GFP_NORETRY)
++		return CHARGE_NOMEM;
++
+ 	ret = mem_cgroup_reclaim(mem_over_limit, gfp_mask, flags);
+ 	if (mem_cgroup_margin(mem_over_limit) >= nr_pages)
+ 		return CHARGE_RETRY;
+@@ -2279,7 +2280,7 @@ static int mem_cgroup_do_charge(struct mem_cgroup *memcg, gfp_t gfp_mask,
+ 	 * unlikely to succeed so close to the limit, and we fall back
+ 	 * to regular pages anyway in case of failure.
+ 	 */
+-	if (nr_pages == 1 && ret)
++	if (nr_pages <= (1 << PAGE_ALLOC_COSTLY_ORDER) && ret)
+ 		return CHARGE_RETRY;
+ 
+ 	/*
+@@ -2414,7 +2415,8 @@ again:
+ 			nr_oom_retries = MEM_CGROUP_RECLAIM_RETRIES;
+ 		}
+ 
+-		ret = mem_cgroup_do_charge(memcg, gfp_mask, batch, oom_check);
++		ret = mem_cgroup_do_charge(memcg, gfp_mask, batch, nr_pages,
++		    oom_check);
+ 		switch (ret) {
+ 		case CHARGE_OK:
+ 			break;
+-- 
+1.7.11.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
