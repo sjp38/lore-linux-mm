@@ -1,63 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx140.postini.com [74.125.245.140])
-	by kanga.kvack.org (Postfix) with SMTP id 757C66B0078
-	for <linux-mm@kvack.org>; Tue, 18 Sep 2012 05:58:12 -0400 (EDT)
-Date: Tue, 18 Sep 2012 10:58:08 +0100
+Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
+	by kanga.kvack.org (Postfix) with SMTP id 0F5116B0075
+	for <linux-mm@kvack.org>; Tue, 18 Sep 2012 06:02:19 -0400 (EDT)
+Date: Tue, 18 Sep 2012 11:02:15 +0100
 From: Mel Gorman <mgorman@suse.de>
 Subject: Re: Does swap_set_page_dirty() calling ->set_page_dirty() make sense?
-Message-ID: <20120918095808.GJ11266@suse.de>
+Message-ID: <20120918100215.GK11266@suse.de>
 References: <20120917163518.GD9150@quack.suse.cz>
  <alpine.LSU.2.00.1209171204100.6720@eggly.anvils>
+ <20120918021627.GF9150@quack.suse.cz>
+ <201209181051.50541.ptesarik@suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <alpine.LSU.2.00.1209171204100.6720@eggly.anvils>
+In-Reply-To: <201209181051.50541.ptesarik@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Jan Kara <jack@suse.cz>, linux-mm@kvack.org
+To: Petr Tesarik <ptesarik@suse.cz>
+Cc: Jan Kara <jack@suse.cz>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org
 
-On Mon, Sep 17, 2012 at 12:15:46PM -0700, Hugh Dickins wrote:
-> On Mon, 17 Sep 2012, Jan Kara wrote:
+On Tue, Sep 18, 2012 at 10:51:50AM +0200, Petr Tesarik wrote:
+> > <SNIP>
 > > 
-> >   I tripped over a crash in reiserfs which happened due to PageSwapCache
-> > page being passed to reiserfs_set_page_dirty(). Now it's not that hard to
-> > make reiserfs_set_page_dirty() check that case but I really wonder: Does it
-> > make sense to call mapping->a_ops->set_page_dirty() for a PageSwapCache
-> > page? The page is going to be written via direct IO so from the POV of the
-> > filesystem there's no need for any dirtiness tracking. Also there are
-> > several ->set_page_dirty() implementations which will spectacularly crash
-> > because they do things like page->mapping->host, or call
-> > __set_page_dirty_buffers() which expects buffer heads in page->private.
-> > Or what is the reason for calling filesystem's set_page_dirty() function?
-> 
-> This is a question for Mel, really: it used not to call the filesystem.
+> > So just one minor nit for Mel. SWP_FILE looks like a bit confusing name for
+> > a flag that gets set only for some swap files ;) At least I didn't pay
+> > attention to it because I thought it's set for all of them. Maybe call it
+> > SWP_FILE_CALL_AOPS or something like that?
 > 
 
-And now it should only be called if SWP_FILE is set to perform read/write
-of pages through the filesystem. In practice I only expect this to happen
-when a swapfile is activated on NFS.
+I guess it would be a slightly better name all right.
 
-> But my reading of the 3.6 code says that it still will not call the
-> filesystem, unless the filesystem (only nfs) provides a swap_activate
-> method, which should be the only case in which SWP_FILE gets set.
-> And I rather think Mel does want to use the filesystem set_page_dirty
-> in that case.  Am I misreading?
+> Same here. In fact, I believed that other filesystems only work by accident 
+> (because they don't have to access the mapping). I'm not even sure about the 
+> semantics of the swap_activate operation. Is this documented somewhere?
 > 
 
-That was the intention at least.
-
-> Did you see this on a vanilla kernel?  Or is it possible that you have
-> a private patch merged in, with something else sharing the SWP_FILE bit
-> (defined in include/linux/swap.h) by mistake?
-> 
-
-I see that Jan followed up that this was observed on SLES. The
-implementaiton there is based on a much earlier revision of
-swap-over-NFS than what was finally merged to mainline. I'll check it
-out.
-
-Thanks.
+Documentation/filesystems/vfs.txt *briefly* describes what swap_activate()
+does even though now that I read it I see that it's inaccurate. It says
+that it proxies to the address spaces swapin_[out|in] method but it really
+gets proxied to the direct_IO interface for writes and readpage for reads
+(direct_IO could have been used for reads but my recollection was that
+the locking was very awkward).
 
 -- 
 Mel Gorman
