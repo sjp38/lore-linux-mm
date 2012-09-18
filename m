@@ -1,147 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
-	by kanga.kvack.org (Postfix) with SMTP id 926066B0098
+Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
+	by kanga.kvack.org (Postfix) with SMTP id 230376B009A
 	for <linux-mm@kvack.org>; Tue, 18 Sep 2012 10:07:48 -0400 (EDT)
 From: Glauber Costa <glommer@parallels.com>
-Subject: [PATCH v3 12/13] execute the whole memcg freeing in rcu callback
-Date: Tue, 18 Sep 2012 18:04:09 +0400
-Message-Id: <1347977050-29476-13-git-send-email-glommer@parallels.com>
+Subject: [PATCH v3 01/13] memcg: Make it possible to use the stock for more than one page.
+Date: Tue, 18 Sep 2012 18:03:58 +0400
+Message-Id: <1347977050-29476-2-git-send-email-glommer@parallels.com>
 In-Reply-To: <1347977050-29476-1-git-send-email-glommer@parallels.com>
 References: <1347977050-29476-1-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
-Cc: cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, devel@openvz.org, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, Suleiman Souhlal <suleiman@google.com>, Frederic Weisbecker <fweisbec@gmail.com>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Glauber Costa <glommer@parallels.com>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>
+Cc: cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, devel@openvz.org, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, Suleiman Souhlal <suleiman@google.com>, Frederic Weisbecker <fweisbec@gmail.com>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Glauber Costa <glommer@parallels.com>
 
-A lot of the initialization we do in mem_cgroup_create() is done with softirqs
-enabled. This include grabbing a css id, which holds &ss->id_lock->rlock, and
-the per-zone trees, which holds rtpz->lock->rlock. All of those signal to the
-lockdep mechanism that those locks can be used in SOFTIRQ-ON-W context. This
-means that the freeing of memcg structure must happen in a compatible context,
-otherwise we'll get a deadlock.
+From: Suleiman Souhlal <ssouhlal@FreeBSD.org>
 
-The reference counting mechanism we use allows the memcg structure to be freed
-later and outlive the actual memcg destruction from the filesystem. However, we
-have little, if any, means to guarantee in which context the last memcg_put
-will happen. The best we can do is test it and try to make sure no invalid
-context releases are happening. But as we add more code to memcg, the possible
-interactions grow in number and expose more ways to get context conflicts.
+We currently have a percpu stock cache scheme that charges one page at a
+time from memcg->res, the user counter. When the kernel memory
+controller comes into play, we'll need to charge more than that.
 
-We already moved a part of the freeing to a worker thread to be context-safe
-for the static branches disabling. I see no reason not to do it for the whole
-freeing action. I consider this to be the safe choice.
+This is because kernel memory allocations will also draw from the user
+counter, and can be bigger than a single page, as it is the case with
+the stack (usually 2 pages) or some higher order slabs.
 
+[ glommer@parallels.com: added a changelog ]
+
+Signed-off-by: Suleiman Souhlal <suleiman@google.com>
 Signed-off-by: Glauber Costa <glommer@parallels.com>
-Tested-by: Greg Thelen <gthelen@google.com>
-CC: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-CC: Michal Hocko <mhocko@suse.cz>
-CC: Johannes Weiner <hannes@cmpxchg.org>
+Acked-by: David Rientjes <rientjes@google.com>
+Acked-by: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Acked-by: Michal Hocko <mhocko@suse.cz>
 ---
- mm/memcontrol.c | 66 +++++++++++++++++++++++++++++----------------------------
- 1 file changed, 34 insertions(+), 32 deletions(-)
+ mm/memcontrol.c | 28 ++++++++++++++++++----------
+ 1 file changed, 18 insertions(+), 10 deletions(-)
 
 diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index b05ecac..74654f0 100644
+index 795e525..9d3bc72 100644
 --- a/mm/memcontrol.c
 +++ b/mm/memcontrol.c
-@@ -5082,16 +5082,29 @@ out_free:
- }
+@@ -2034,20 +2034,28 @@ struct memcg_stock_pcp {
+ static DEFINE_PER_CPU(struct memcg_stock_pcp, memcg_stock);
+ static DEFINE_MUTEX(percpu_charge_mutex);
  
- /*
-- * Helpers for freeing a kmalloc()ed/vzalloc()ed mem_cgroup by RCU,
-- * but in process context.  The work_freeing structure is overlaid
-- * on the rcu_freeing structure, which itself is overlaid on memsw.
-+ * At destroying mem_cgroup, references from swap_cgroup can remain.
-+ * (scanning all at force_empty is too costly...)
+-/*
+- * Try to consume stocked charge on this cpu. If success, one page is consumed
+- * from local stock and true is returned. If the stock is 0 or charges from a
+- * cgroup which is not current target, returns false. This stock will be
+- * refilled.
++/**
++ * consume_stock: Try to consume stocked charge on this cpu.
++ * @memcg: memcg to consume from.
++ * @nr_pages: how many pages to charge.
 + *
-+ * Instead of clearing all references at force_empty, we remember
-+ * the number of reference from swap_cgroup and free mem_cgroup when
-+ * it goes down to 0.
++ * The charges will only happen if @memcg matches the current cpu's memcg
++ * stock, and at least @nr_pages are available in that stock.  Failure to
++ * service an allocation will refill the stock.
 + *
-+ * Removal of cgroup itself succeeds regardless of refs from swap.
++ * returns true if succesfull, false otherwise.
   */
--static void free_work(struct work_struct *work)
-+
-+static void __mem_cgroup_free(struct mem_cgroup *memcg)
+-static bool consume_stock(struct mem_cgroup *memcg)
++static bool consume_stock(struct mem_cgroup *memcg, int nr_pages)
  {
--	struct mem_cgroup *memcg;
-+	int node;
- 	int size = sizeof(struct mem_cgroup);
+ 	struct memcg_stock_pcp *stock;
+ 	bool ret = true;
  
--	memcg = container_of(work, struct mem_cgroup, work_freeing);
-+	mem_cgroup_remove_from_trees(memcg);
-+	free_css_id(&mem_cgroup_subsys, &memcg->css);
++	if (nr_pages > CHARGE_BATCH)
++		return false;
 +
-+	for_each_node(node)
-+		free_mem_cgroup_per_zone_info(memcg, node);
-+
-+	free_percpu(memcg->stat);
-+
- 	/*
- 	 * We need to make sure that (at least for now), the jump label
- 	 * destruction code runs outside of the cgroup lock. This is because
-@@ -5110,38 +5123,27 @@ static void free_work(struct work_struct *work)
- 		vfree(memcg);
- }
- 
--static void free_rcu(struct rcu_head *rcu_head)
--{
--	struct mem_cgroup *memcg;
--
--	memcg = container_of(rcu_head, struct mem_cgroup, rcu_freeing);
--	INIT_WORK(&memcg->work_freeing, free_work);
--	schedule_work(&memcg->work_freeing);
--}
- 
- /*
-- * At destroying mem_cgroup, references from swap_cgroup can remain.
-- * (scanning all at force_empty is too costly...)
-- *
-- * Instead of clearing all references at force_empty, we remember
-- * the number of reference from swap_cgroup and free mem_cgroup when
-- * it goes down to 0.
-- *
-- * Removal of cgroup itself succeeds regardless of refs from swap.
-+ * Helpers for freeing a kmalloc()ed/vzalloc()ed mem_cgroup by RCU,
-+ * but in process context.  The work_freeing structure is overlaid
-+ * on the rcu_freeing structure, which itself is overlaid on memsw.
-  */
--
--static void __mem_cgroup_free(struct mem_cgroup *memcg)
-+static void free_work(struct work_struct *work)
- {
--	int node;
-+	struct mem_cgroup *memcg;
- 
--	mem_cgroup_remove_from_trees(memcg);
--	free_css_id(&mem_cgroup_subsys, &memcg->css);
-+	memcg = container_of(work, struct mem_cgroup, work_freeing);
-+	__mem_cgroup_free(memcg);
-+}
- 
--	for_each_node(node)
--		free_mem_cgroup_per_zone_info(memcg, node);
-+static void free_rcu(struct rcu_head *rcu_head)
-+{
-+	struct mem_cgroup *memcg;
- 
--	free_percpu(memcg->stat);
--	call_rcu(&memcg->rcu_freeing, free_rcu);
-+	memcg = container_of(rcu_head, struct mem_cgroup, rcu_freeing);
-+	INIT_WORK(&memcg->work_freeing, free_work);
-+	schedule_work(&memcg->work_freeing);
- }
- 
- static void mem_cgroup_get(struct mem_cgroup *memcg)
-@@ -5153,7 +5155,7 @@ static void __mem_cgroup_put(struct mem_cgroup *memcg, int count)
- {
- 	if (atomic_sub_and_test(count, &memcg->refcnt)) {
- 		struct mem_cgroup *parent = parent_mem_cgroup(memcg);
--		__mem_cgroup_free(memcg);
-+		call_rcu(&memcg->rcu_freeing, free_rcu);
- 		if (parent)
- 			mem_cgroup_put(parent);
- 	}
+ 	stock = &get_cpu_var(memcg_stock);
+-	if (memcg == stock->cached && stock->nr_pages)
+-		stock->nr_pages--;
++	if (memcg == stock->cached && stock->nr_pages >= nr_pages)
++		stock->nr_pages -= nr_pages;
+ 	else /* need to call res_counter_charge */
+ 		ret = false;
+ 	put_cpu_var(memcg_stock);
+@@ -2346,7 +2354,7 @@ again:
+ 		VM_BUG_ON(css_is_removed(&memcg->css));
+ 		if (mem_cgroup_is_root(memcg))
+ 			goto done;
+-		if (nr_pages == 1 && consume_stock(memcg))
++		if (consume_stock(memcg, nr_pages))
+ 			goto done;
+ 		css_get(&memcg->css);
+ 	} else {
+@@ -2371,7 +2379,7 @@ again:
+ 			rcu_read_unlock();
+ 			goto done;
+ 		}
+-		if (nr_pages == 1 && consume_stock(memcg)) {
++		if (consume_stock(memcg, nr_pages)) {
+ 			/*
+ 			 * It seems dagerous to access memcg without css_get().
+ 			 * But considering how consume_stok works, it's not
 -- 
 1.7.11.4
 
