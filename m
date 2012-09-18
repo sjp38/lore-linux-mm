@@ -1,85 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx133.postini.com [74.125.245.133])
-	by kanga.kvack.org (Postfix) with SMTP id 14DA46B00AF
-	for <linux-mm@kvack.org>; Tue, 18 Sep 2012 10:08:53 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
+	by kanga.kvack.org (Postfix) with SMTP id 123466B00A9
+	for <linux-mm@kvack.org>; Tue, 18 Sep 2012 10:15:36 -0400 (EDT)
 From: Glauber Costa <glommer@parallels.com>
-Subject: [PATCH v3 13/13] protect architectures where THREAD_SIZE >= PAGE_SIZE against fork bombs
-Date: Tue, 18 Sep 2012 18:04:10 +0400
-Message-Id: <1347977050-29476-14-git-send-email-glommer@parallels.com>
-In-Reply-To: <1347977050-29476-1-git-send-email-glommer@parallels.com>
-References: <1347977050-29476-1-git-send-email-glommer@parallels.com>
+Subject: [PATCH v3 00/16] slab accounting for memcg
+Date: Tue, 18 Sep 2012 18:11:54 +0400
+Message-Id: <1347977530-29755-1-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
-Cc: cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, devel@openvz.org, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, Suleiman Souhlal <suleiman@google.com>, Frederic Weisbecker <fweisbec@gmail.com>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Glauber Costa <glommer@parallels.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>
+Cc: cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, devel@openvz.org, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, Suleiman Souhlal <suleiman@google.com>, Frederic Weisbecker <fweisbec@gmail.com>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>
 
-Because those architectures will draw their stacks directly from the
-page allocator, rather than the slab cache, we can directly pass
-__GFP_KMEMCG flag, and issue the corresponding free_pages.
+This is a followup to the previous kmem series. I divided them logically
+so it gets easier for reviewers. But I believe they are ready to be merged
+together (although we can do a two-pass merge if people would prefer)
 
-This code path is taken when the architecture doesn't define
-CONFIG_ARCH_THREAD_INFO_ALLOCATOR (only ia64 seems to), and has
-THREAD_SIZE >= PAGE_SIZE. Luckily, most - if not all - of the remaining
-architectures fall in this category.
+Throwaway git tree found at:
 
-This will guarantee that every stack page is accounted to the memcg the
-process currently lives on, and will have the allocations to fail if
-they go over limit.
+	git://git.kernel.org/pub/scm/linux/kernel/git/glommer/memcg.git kmemcg-slab
 
-For the time being, I am defining a new variant of THREADINFO_GFP, not
-to mess with the other path. Once the slab is also tracked by memcg, we
-can get rid of that flag.
+There are mostly bugfixes since last submission.
 
-Tested to successfully protect against :(){ :|:& };:
+For a detailed explanation about this series, please refer to my previous post
+(Subj: [PATCH v3 00/13] kmem controller for memcg.)
 
-Signed-off-by: Glauber Costa <glommer@parallels.com>
-Acked-by: Frederic Weisbecker <fweisbec@redhat.com>
-Acked-by: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-CC: Christoph Lameter <cl@linux.com>
-CC: Pekka Enberg <penberg@cs.helsinki.fi>
-CC: Michal Hocko <mhocko@suse.cz>
-CC: Johannes Weiner <hannes@cmpxchg.org>
-CC: Suleiman Souhlal <suleiman@google.com>
----
- include/linux/thread_info.h | 2 ++
- kernel/fork.c               | 4 ++--
- 2 files changed, 4 insertions(+), 2 deletions(-)
 
-diff --git a/include/linux/thread_info.h b/include/linux/thread_info.h
-index ccc1899..e7e0473 100644
---- a/include/linux/thread_info.h
-+++ b/include/linux/thread_info.h
-@@ -61,6 +61,8 @@ extern long do_no_restart_syscall(struct restart_block *parm);
- # define THREADINFO_GFP		(GFP_KERNEL | __GFP_NOTRACK)
- #endif
- 
-+#define THREADINFO_GFP_ACCOUNTED (THREADINFO_GFP | __GFP_KMEMCG)
-+
- /*
-  * flag set/clear/test wrappers
-  * - pass TIF_xxxx constants to these functions
-diff --git a/kernel/fork.c b/kernel/fork.c
-index 0ff2bf7..897e89c 100644
---- a/kernel/fork.c
-+++ b/kernel/fork.c
-@@ -146,7 +146,7 @@ void __weak arch_release_thread_info(struct thread_info *ti)
- static struct thread_info *alloc_thread_info_node(struct task_struct *tsk,
- 						  int node)
- {
--	struct page *page = alloc_pages_node(node, THREADINFO_GFP,
-+	struct page *page = alloc_pages_node(node, THREADINFO_GFP_ACCOUNTED,
- 					     THREAD_SIZE_ORDER);
- 
- 	return page ? page_address(page) : NULL;
-@@ -154,7 +154,7 @@ static struct thread_info *alloc_thread_info_node(struct task_struct *tsk,
- 
- static inline void free_thread_info(struct thread_info *ti)
- {
--	free_pages((unsigned long)ti, THREAD_SIZE_ORDER);
-+	free_accounted_pages((unsigned long)ti, THREAD_SIZE_ORDER);
- }
- # else
- static struct kmem_cache *thread_info_cache;
+Glauber Costa (16):
+  slab/slub: struct memcg_params
+  slub: use free_page instead of put_page for freeing kmalloc
+    allocation
+  slab: Ignore the cflgs bit in cache creation
+  provide a common place for initcall processing in kmem_cache
+  consider a memcg parameter in kmem_create_cache
+  memcg: infrastructure to match an allocation to the right cache
+  memcg: skip memcg kmem allocations in specified code regions
+  slab: allow enable_cpu_cache to use preset values for its tunables
+  sl[au]b: always get the cache from its page in kfree
+  sl[au]b: Allocate objects from memcg cache
+  memcg: destroy memcg caches
+  memcg/sl[au]b Track all the memcg children of a kmem_cache.
+  slab: slab-specific propagation changes.
+  slub: slub-specific propagation changes.
+  memcg/sl[au]b: shrink dead caches
+  Add documentation about the kmem controller
+
+ Documentation/cgroups/memory.txt |  73 ++++++-
+ include/linux/memcontrol.h       |  60 ++++++
+ include/linux/sched.h            |   1 +
+ include/linux/slab.h             |  23 +++
+ include/linux/slab_def.h         |   4 +
+ include/linux/slub_def.h         |  18 +-
+ init/Kconfig                     |   2 +-
+ mm/memcontrol.c                  | 403 +++++++++++++++++++++++++++++++++++++++
+ mm/slab.c                        |  70 ++++++-
+ mm/slab.h                        |  72 ++++++-
+ mm/slab_common.c                 |  85 ++++++++-
+ mm/slob.c                        |   5 +
+ mm/slub.c                        |  54 ++++--
+ 13 files changed, 829 insertions(+), 41 deletions(-)
+
 -- 
 1.7.11.4
 
