@@ -1,73 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
-	by kanga.kvack.org (Postfix) with SMTP id 971156B006C
-	for <linux-mm@kvack.org>; Tue, 18 Sep 2012 04:51:55 -0400 (EDT)
-From: Petr Tesarik <ptesarik@suse.cz>
-Subject: Re: Does swap_set_page_dirty() calling ->set_page_dirty() make sense?
-Date: Tue, 18 Sep 2012 10:51:50 +0200
-References: <20120917163518.GD9150@quack.suse.cz> <alpine.LSU.2.00.1209171204100.6720@eggly.anvils> <20120918021627.GF9150@quack.suse.cz>
-In-Reply-To: <20120918021627.GF9150@quack.suse.cz>
+Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
+	by kanga.kvack.org (Postfix) with SMTP id 43CA46B006E
+	for <linux-mm@kvack.org>; Tue, 18 Sep 2012 05:06:25 -0400 (EDT)
+References: <1347887746.22926.YahooMailNeo@web160105.mail.bf1.yahoo.com>
+Message-ID: <1347959184.19552.YahooMailNeo@web160104.mail.bf1.yahoo.com>
+Date: Tue, 18 Sep 2012 02:06:24 -0700 (PDT)
+From: PINTU KUMAR <pintu_agarwal@yahoo.com>
+Reply-To: PINTU KUMAR <pintu_agarwal@yahoo.com>
+Subject: Re: Info required: Tracking memcpy operation in user/kernel
+In-Reply-To: <1347887746.22926.YahooMailNeo@web160105.mail.bf1.yahoo.com>
 MIME-Version: 1.0
-Content-Type: Text/Plain;
-  charset="utf-8"
+Content-Type: text/plain; charset=iso-8859-1
 Content-Transfer-Encoding: quoted-printable
-Message-Id: <201209181051.50541.ptesarik@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-Dne =C3=9At 18. z=C3=A1=C5=99=C3=AD 2012 04:16:27 Jan Kara napsal(a):
-> On Mon 17-09-12 12:15:46, Hugh Dickins wrote:
-> > On Mon, 17 Sep 2012, Jan Kara wrote:
-> > >   I tripped over a crash in reiserfs which happened due to
-> > >   PageSwapCache
-> > >=20
-> > > page being passed to reiserfs_set_page_dirty(). Now it's not that hard
-> > > to make reiserfs_set_page_dirty() check that case but I really wonder:
-> > > Does it make sense to call mapping->a_ops->set_page_dirty() for a
-> > > PageSwapCache page? The page is going to be written via direct IO so
-> > > from the POV of the filesystem there's no need for any dirtiness
-> > > tracking. Also there are several ->set_page_dirty() implementations
-> > > which will spectacularly crash because they do things like
-> > > page->mapping->host, or call
-> > > __set_page_dirty_buffers() which expects buffer heads in page->privat=
-e.
-> > > Or what is the reason for calling filesystem's set_page_dirty()
-> > > function?
-> >=20
-> > This is a question for Mel, really: it used not to call the filesystem.
-> >=20
-> > But my reading of the 3.6 code says that it still will not call the
-> > filesystem, unless the filesystem (only nfs) provides a swap_activate
-> > method, which should be the only case in which SWP_FILE gets set.
-> > And I rather think Mel does want to use the filesystem set_page_dirty
-> > in that case.  Am I misreading?
-> >=20
-> > Did you see this on a vanilla kernel?  Or is it possible that you have
-> > a private patch merged in, with something else sharing the SWP_FILE bit
-> > (defined in include/linux/swap.h) by mistake?
->=20
->   Argh, sorry. It is indeed a SLES specific bug. I missed that SWP_FILE b=
-it
-> gets set only when swap_activate() is provided (SLES code works a bit
-> differently in this area but I wasn't really looking into that since I was
-> focused elsewhere).
->=20
-> So just one minor nit for Mel. SWP_FILE looks like a bit confusing name f=
-or
-> a flag that gets set only for some swap files ;) At least I didn't pay
-> attention to it because I thought it's set for all of them. Maybe call it
-> SWP_FILE_CALL_AOPS or something like that?
-
-Same here. In fact, I believed that other filesystems only work by accident=
-=20
-(because they don't have to access the mapping). I'm not even sure about th=
-e=20
-semantics of the swap_activate operation. Is this documented somewhere?
-
-Petr Tesarik
-SUSE Linux
+Hi,=0A=0AI wanted to track down memcpy operations of various user applicati=
+ons/lib or kernel modules.=0AIn one of the scenarios there are too many mem=
+cpy operations used in our platform.=0AAnd we wanted to track which appln/l=
+ib and kernel modules doing memcpy and of what size.=0A=0AIf anybody is awa=
+re of any utility please let me know.=0A=0AOr,=0Aplease let me know how to =
+track memcpy from kernel space may be using some kernel module.=0A=0A=0ATha=
+nk You!=0AWith Regards,=0APintu=0A=A0=0A=A0=0A=0A=0A>______________________=
+__________=0A>From: PINTU KUMAR <pintu_agarwal@yahoo.com>=0A>To: "linux-mm@=
+kvack.org" <linux-mm@kvack.org>; "linux-kernel@vger.kernel.org" <linux-kern=
+el@vger.kernel.org> =0A>Sent: Monday, 17 September 2012 6:45 PM=0A>Subject:=
+ Info required: Tracking memcpy operation in user/kernel=0A>=0A>=0A>Hi,=0A>=
+=0A>I wanted to track down memcpy operations of various user applications/l=
+ib or kernel modules.=0A>In one of the scenarios there are too many memcpy =
+operations used in our platform.=0A>And we wanted to track which appln/lib =
+and kernel modules doing memcpy and of what size.=0A>=0A>If anybody is awar=
+e of any utility please let me know.=0A>=0A>Or,=0A>please let me know how t=
+o track memcpy from kernel space may be using some kernel module.=0A>=0A>=
+=0A>Thank You!=0A>With Regards,=0A>Pintu=0A>=A0=0A>=0A>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
