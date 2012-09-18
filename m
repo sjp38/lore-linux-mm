@@ -1,64 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
-	by kanga.kvack.org (Postfix) with SMTP id 123466B00A9
-	for <linux-mm@kvack.org>; Tue, 18 Sep 2012 10:15:36 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
+	by kanga.kvack.org (Postfix) with SMTP id 79B956B00B1
+	for <linux-mm@kvack.org>; Tue, 18 Sep 2012 10:15:46 -0400 (EDT)
 From: Glauber Costa <glommer@parallels.com>
-Subject: [PATCH v3 00/16] slab accounting for memcg
-Date: Tue, 18 Sep 2012 18:11:54 +0400
-Message-Id: <1347977530-29755-1-git-send-email-glommer@parallels.com>
+Subject: [PATCH v3 02/16] slub: use free_page instead of put_page for freeing kmalloc allocation
+Date: Tue, 18 Sep 2012 18:11:56 +0400
+Message-Id: <1347977530-29755-3-git-send-email-glommer@parallels.com>
+In-Reply-To: <1347977530-29755-1-git-send-email-glommer@parallels.com>
+References: <1347977530-29755-1-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
-Cc: cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, devel@openvz.org, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, Suleiman Souhlal <suleiman@google.com>, Frederic Weisbecker <fweisbec@gmail.com>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>
+Cc: cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, devel@openvz.org, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, Suleiman Souhlal <suleiman@google.com>, Frederic Weisbecker <fweisbec@gmail.com>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Glauber Costa <glommer@parallels.com>, Pekka Enberg <penberg@kernel.org>
 
-This is a followup to the previous kmem series. I divided them logically
-so it gets easier for reviewers. But I believe they are ready to be merged
-together (although we can do a two-pass merge if people would prefer)
+When freeing objects, the slub allocator will most of the time free
+empty pages by calling __free_pages(). But high-order kmalloc will be
+diposed by means of put_page() instead. It makes no sense to call
+put_page() in kernel pages that are provided by the object allocators,
+so we shouldn't be doing this ourselves. Aside from the consistency
+change, we don't change the flow too much. put_page()'s would call its
+dtor function, which is __free_pages. We also already do all of the
+Compound page tests ourselves, and the Mlock test we lose don't really
+matter.
 
-Throwaway git tree found at:
+[v2: modified Changelog ]
 
-	git://git.kernel.org/pub/scm/linux/kernel/git/glommer/memcg.git kmemcg-slab
+Signed-off-by: Glauber Costa <glommer@parallels.com>
+Acked-by: Christoph Lameter <cl@linux.com>
+CC: David Rientjes <rientjes@google.com>
+CC: Pekka Enberg <penberg@kernel.org>
+---
+ mm/slub.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-There are mostly bugfixes since last submission.
-
-For a detailed explanation about this series, please refer to my previous post
-(Subj: [PATCH v3 00/13] kmem controller for memcg.)
-
-
-Glauber Costa (16):
-  slab/slub: struct memcg_params
-  slub: use free_page instead of put_page for freeing kmalloc
-    allocation
-  slab: Ignore the cflgs bit in cache creation
-  provide a common place for initcall processing in kmem_cache
-  consider a memcg parameter in kmem_create_cache
-  memcg: infrastructure to match an allocation to the right cache
-  memcg: skip memcg kmem allocations in specified code regions
-  slab: allow enable_cpu_cache to use preset values for its tunables
-  sl[au]b: always get the cache from its page in kfree
-  sl[au]b: Allocate objects from memcg cache
-  memcg: destroy memcg caches
-  memcg/sl[au]b Track all the memcg children of a kmem_cache.
-  slab: slab-specific propagation changes.
-  slub: slub-specific propagation changes.
-  memcg/sl[au]b: shrink dead caches
-  Add documentation about the kmem controller
-
- Documentation/cgroups/memory.txt |  73 ++++++-
- include/linux/memcontrol.h       |  60 ++++++
- include/linux/sched.h            |   1 +
- include/linux/slab.h             |  23 +++
- include/linux/slab_def.h         |   4 +
- include/linux/slub_def.h         |  18 +-
- init/Kconfig                     |   2 +-
- mm/memcontrol.c                  | 403 +++++++++++++++++++++++++++++++++++++++
- mm/slab.c                        |  70 ++++++-
- mm/slab.h                        |  72 ++++++-
- mm/slab_common.c                 |  85 ++++++++-
- mm/slob.c                        |   5 +
- mm/slub.c                        |  54 ++++--
- 13 files changed, 829 insertions(+), 41 deletions(-)
-
+diff --git a/mm/slub.c b/mm/slub.c
+index 9f86353..09a91d0 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -3451,7 +3451,7 @@ void kfree(const void *x)
+ 	if (unlikely(!PageSlab(page))) {
+ 		BUG_ON(!PageCompound(page));
+ 		kmemleak_free(x);
+-		put_page(page);
++		__free_pages(page, compound_order(page));
+ 		return;
+ 	}
+ 	slab_free(page->slab, page, object, _RET_IP_);
 -- 
 1.7.11.4
 
