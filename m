@@ -1,46 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
-	by kanga.kvack.org (Postfix) with SMTP id 69D2A6B007D
-	for <linux-mm@kvack.org>; Tue, 18 Sep 2012 07:41:59 -0400 (EDT)
-From: Rusty Russell <rusty@rustcorp.com.au>
-Subject: Re: [PATCH v10 0/5] make balloon pages movable by compaction
-In-Reply-To: <20120917151531.e9ac59f2.akpm@linux-foundation.org>
-References: <cover.1347897793.git.aquini@redhat.com> <20120917151531.e9ac59f2.akpm@linux-foundation.org>
-Date: Tue, 18 Sep 2012 10:15:59 +0930
-Message-ID: <87boh4qhtk.fsf@rustcorp.com.au>
+Received: from psmtp.com (na3sys010amx202.postini.com [74.125.245.202])
+	by kanga.kvack.org (Postfix) with SMTP id DD8C46B0087
+	for <linux-mm@kvack.org>; Tue, 18 Sep 2012 08:49:37 -0400 (EDT)
+Date: Tue, 18 Sep 2012 14:49:18 +0200
+From: Joerg Roedel <joerg.roedel@amd.com>
+Subject: Re: [RFC 0/5] ARM: dma-mapping: New dma_map_ops to control IOVA more
+ precisely
+Message-ID: <20120918124918.GK2505@amd.com>
+References: <1346223335-31455-1-git-send-email-hdoyu@nvidia.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <1346223335-31455-1-git-send-email-hdoyu@nvidia.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Rafael Aquini <aquini@redhat.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, "Michael S. Tsirkin" <mst@redhat.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Andi Kleen <andi@firstfloor.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Minchan Kim <minchan@kernel.org>, Peter Zijlstra <peterz@infradead.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+To: Hiroshi Doyu <hdoyu@nvidia.com>
+Cc: m.szyprowski@samsung.com, linux@arm.linux.org.uk, arnd@arndb.de, minchan@kernel.org, chunsang.jeong@linaro.org, linux-kernel@vger.kernel.org, subashrp@gmail.com, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, iommu@lists.linux-foundation.org, vdumpa@nvidia.com, linux-tegra@vger.kernel.org, kyungmin.park@samsung.com, pullip.cho@samsung.com, linux-arm-kernel@lists.infradead.org
 
-Andrew Morton <akpm@linux-foundation.org> writes:
-> On Mon, 17 Sep 2012 13:38:15 -0300
-> Rafael Aquini <aquini@redhat.com> wrote:
->> Results for STRESS-HIGHALLOC benchmark, from Mel Gorman's mmtests suite,
->> running on a 4gB RAM KVM guest which was ballooning 1gB RAM in 256mB chunks,
->> at every minute (inflating/deflating), while test was running:
->
-> How can a patchset reach v10 and have zero Reviewed-by's?
+On Wed, Aug 29, 2012 at 09:55:30AM +0300, Hiroshi Doyu wrote:
+> The following APIs are needed for us to support the legacy Tegra
+> memory manager for devices("NvMap") with *DMA mapping API*.
 
-The virtio_balloon changes are fairly trivial compared to the mm parts,
-and Michael Tsirkin provided feedback on the last round.
+Maybe I am not understanding the need completly. Can you elaborate on
+why this is needed for legacy Tegra?
 
-However, the real trick is figuring out what the locking rules are when
-the mm core calls in to ask us about a page.  And that requires someone
-who really knows the mm stuff.
+> New API:
+> 
+>  ->iova_alloc(): To allocate IOVA area.
+>  ->iova_alloc_at(): To allocate IOVA area at specific address.
+>  ->iova_free():  To free IOVA area.
+> 
+>  ->map_page_at(): To map page at specific IOVA.
 
-> The patchset looks reasonable to me and your empirical results look
-> good.  But I don't feel that I'm in a position to decide on its overall
-> desirability, either in a standalone sense or in comparison to any
-> alternative schemes which anyone has proposed.
+This sounds like a layering violation. The situation today is as
+follows:
 
-It's definitely nice to have, though it's far more complicated than I
-would have thought.
+	DMA-API   : Handle DMA-addresses including an address allocator
+	IOMMU-API : Full control over DMA address space, no address
+	            allocator
 
-Cheers,
-Rusty.
+So what you want to do add to the DMA-API is already part of the
+IOMMU-API.
+
+Here is my suggestion what you can do instead of extending the DMA-API.
+You can use the IOMMU-API to initialize the device address space with
+any mappings at the IOVAs you need the mappings. In the end you allocate
+another free range in the device address space and use that to satisfy
+DMA-API allocations. Any reason why that could not work?
+
+
+Regards,
+
+	Joerg
+
+-- 
+AMD Operating System Research Center
+
+Advanced Micro Devices GmbH Einsteinring 24 85609 Dornach
+General Managers: Alberto Bozzo
+Registration: Dornach, Landkr. Muenchen; Registerger. Muenchen, HRB Nr. 43632
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
