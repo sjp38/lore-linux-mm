@@ -1,62 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
-	by kanga.kvack.org (Postfix) with SMTP id CCE546B0072
-	for <linux-mm@kvack.org>; Tue, 18 Sep 2012 15:33:33 -0400 (EDT)
-Date: Tue, 18 Sep 2012 12:33:31 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 2/3] mm: thp: Fix the update_mmu_cache() last argument
- passing in mm/huge_memory.c
-Message-Id: <20120918123331.6ca5833c.akpm@linux-foundation.org>
-In-Reply-To: <20120915133833.GA32398@linux-mips.org>
-References: <1347382036-18455-1-git-send-email-will.deacon@arm.com>
-	<1347382036-18455-3-git-send-email-will.deacon@arm.com>
-	<20120915133833.GA32398@linux-mips.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
+	by kanga.kvack.org (Postfix) with SMTP id 719116B0072
+	for <linux-mm@kvack.org>; Tue, 18 Sep 2012 15:40:36 -0400 (EDT)
+Received: by bkcjc3 with SMTP id jc3so131315bkc.14
+        for <linux-mm@kvack.org>; Tue, 18 Sep 2012 12:40:34 -0700 (PDT)
+Message-ID: <5058CE2F.7030302@suse.cz>
+Date: Tue, 18 Sep 2012 21:40:31 +0200
+From: Jiri Slaby <jslaby@suse.cz>
+MIME-Version: 1.0
+Subject: Re: qemu-kvm loops after kernel udpate
+References: <504F7ED8.1030702@suse.cz> <20120911190303.GA3626@amt.cnet> <504F93F1.2060005@suse.cz> <50504299.2050205@redhat.com> <50504439.3050700@suse.cz> <5050453B.6040702@redhat.com> <5050D048.4010704@suse.cz> <5051AE8B.7090904@redhat.com>
+In-Reply-To: <5051AE8B.7090904@redhat.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ralf Baechle <ralf@linux-mips.org>
-Cc: Will Deacon <will.deacon@arm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, mhocko@suse.cz, Catalin Marinas <catalin.marinas@arm.com>, Steve Capper <steve.capper@arm.com>
+To: Avi Kivity <avi@redhat.com>
+Cc: Jiri Slaby <jirislaby@gmail.com>, Marcelo Tosatti <mtosatti@redhat.com>, kvm@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Haggai Eran <haggaie@mellanox.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 
-On Sat, 15 Sep 2012 15:38:33 +0200
-Ralf Baechle <ralf@linux-mips.org> wrote:
+On 09/13/2012 11:59 AM, Avi Kivity wrote:
+> On 09/12/2012 09:11 PM, Jiri Slaby wrote:
+>> On 09/12/2012 10:18 AM, Avi Kivity wrote:
+>>> On 09/12/2012 11:13 AM, Jiri Slaby wrote:
+>>>>
+>>>>>   Please provide the output of vmxcap
+>>>>> (http://goo.gl/c5lUO),
+>>>>
+>>>>    Unrestricted guest                       no
+>>>
+>>> The big real mode fixes.
+>>>
+>>>
+>>>>
+>>>>> and a snapshot of kvm_stat while the guest is hung.
+>>>>
+>>>> kvm statistics
+>>>>
+>>>>   exits                                      6778198  615942
+>>>>   host_state_reload                             1988     187
+>>>>   irq_exits                                     1523     138
+>>>>   mmu_cache_miss                                   4       0
+>>>>   fpu_reload                                       1       0
+>>>
+>>> Please run this as root so we get the tracepoint based output; and press
+>>> 'x' when it's running so we get more detailed output.
+>>
+>> kvm statistics
+>>
+>>   kvm_exit                                  13798699  330708
+>>   kvm_entry                                 13799110  330708
+>>   kvm_page_fault                            13793650  330604
+>>   kvm_exit(EXCEPTION_NMI)                    6188458  330604
+>>   kvm_exit(EXTERNAL_INTERRUPT)                  2169     105
+>>   kvm_exit(TPR_BELOW_THRESHOLD)                   82       0
+>>   kvm_exit(IO_INSTRUCTION)                         6       0
+>
+> Strange, it's unable to fault in the very first page.
 
-> On Tue, Sep 11, 2012 at 05:47:15PM +0100, Will Deacon wrote:
-> 
-> > The update_mmu_cache() takes a pointer (to pte_t by default) as the last
-> > argument but the huge_memory.c passes a pmd_t value. The patch changes
-> > the argument to the pmd_t * pointer.
-> > 
-> > Signed-off-by: Catalin Marinas <catalin.marinas@arm.com>
-> > Signed-off-by: Steve Capper <steve.capper@arm.com>
-> > Signed-off-by: Will Deacon <will.deacon@arm.com>
-> > ---
-> >  mm/huge_memory.c |    6 +++---
-> >  1 files changed, 3 insertions(+), 3 deletions(-)
-> > 
-> > diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-> > index 57c4b93..4aa6d02 100644
-> > --- a/mm/huge_memory.c
-> > +++ b/mm/huge_memory.c
-> > @@ -934,7 +934,7 @@ int do_huge_pmd_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
-> >  		entry = pmd_mkyoung(orig_pmd);
-> >  		entry = maybe_pmd_mkwrite(pmd_mkdirty(entry), vma);
-> >  		if (pmdp_set_access_flags(vma, haddr, pmd, entry,  1))
-> > -			update_mmu_cache(vma, address, entry);
-> > +			update_mmu_cache(vma, address, pmd);
-> 
-> Documentation/cachetlb.txt will need an update as well.  Currently it says:
-> 
-> 5) void update_mmu_cache(struct vm_area_struct *vma,
->                          unsigned long address, pte_t *ptep)
+I bisected that. Note the bisection log. I have never seen something 
+like that :D:
+git bisect start
+git bisect bad 3de9d1a1500472bc80478bd75e33fa9c1eba1422
+git bisect good fea7a08acb13524b47711625eebea40a0ede69a0
+git bisect good 95a2fe4baa1ad444df5f94bfc9416fc6b4b34cef
+git bisect good f42c0d57a5a60da03c705bdea9fbba381112dd60
+git bisect good 31a2e241a9e37a133278959044960c229acc5714
+git bisect good f15fb01c5593fa1b58cc7a8a9c59913e2625bf2e
+git bisect good 16d21ff46f5d50e311d07406c31f96916e5e8e1a
+git bisect good 0b84592f458b4e8567aa7d803aff382c1d3b64fd
+git bisect bad b955428e7f14cd29fe9d8059efa3ea4be679c83d
+git bisect bad 20c4da4f68fcade05eda9c9b7dbad0a78cc5efe8
+git bisect bad 31b90ed2a90f80fb528ac55ee357a815e1dedc36
+git bisect bad b273fe14ee5b38cecc7bce94f7777f35a0bf9ee4
+git bisect bad de426dbe9a60706b91b40397f69f819a39a06b6b
+git bisect bad 6b998094ec50248e72b9f251d0607b58b18dba38
+git bisect bad cf9b81d47a89f5d404a0cd8013b461617751e520
 
-Yes please.
+=== 8< ===
 
-> I would prefer we introduce something like update_mmu_cache_huge_page(vma,
-> address, pmd) and leave the classic update_mmu_cache() unchanged.
+Reverting cf9b81d47a89 (mm: wrap calls to set_pte_at_notify with 
+invalidate_range_start and invalidate_range_end) on the top of today's 
+-next fixes the issue.
 
-Why?
+thanks,
+-- 
+js
+suse labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
