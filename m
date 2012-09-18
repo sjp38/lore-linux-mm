@@ -1,88 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
-	by kanga.kvack.org (Postfix) with SMTP id 2DD2B6B005A
-	for <linux-mm@kvack.org>; Mon, 17 Sep 2012 20:12:05 -0400 (EDT)
-Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 1A8F93EE0C0
-	for <linux-mm@kvack.org>; Tue, 18 Sep 2012 09:12:03 +0900 (JST)
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id F07C945DE50
-	for <linux-mm@kvack.org>; Tue, 18 Sep 2012 09:12:02 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id AB27B45DE55
-	for <linux-mm@kvack.org>; Tue, 18 Sep 2012 09:12:02 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 99D3B1DB8042
-	for <linux-mm@kvack.org>; Tue, 18 Sep 2012 09:12:02 +0900 (JST)
-Received: from g01jpexchyt04.g01.fujitsu.local (g01jpexchyt04.g01.fujitsu.local [10.128.194.43])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id D25B41DB803F
-	for <linux-mm@kvack.org>; Tue, 18 Sep 2012 09:12:01 +0900 (JST)
-Message-ID: <5057BC2F.3020008@jp.fujitsu.com>
-Date: Tue, 18 Sep 2012 09:11:27 +0900
-From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx174.postini.com [74.125.245.174])
+	by kanga.kvack.org (Postfix) with SMTP id E8F9A6B005A
+	for <linux-mm@kvack.org>; Mon, 17 Sep 2012 22:16:29 -0400 (EDT)
+Date: Tue, 18 Sep 2012 04:16:27 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: Does swap_set_page_dirty() calling ->set_page_dirty() make
+ sense?
+Message-ID: <20120918021627.GF9150@quack.suse.cz>
+References: <20120917163518.GD9150@quack.suse.cz>
+ <alpine.LSU.2.00.1209171204100.6720@eggly.anvils>
 MIME-Version: 1.0
-Subject: Re: [PATCH RESEND] memory hotplug: fix a double register section
- info bug
-References: <5052A7DF.4050301@gmail.com> <50530E39.5020100@jp.fujitsu.com> <20120914131428.1f530681.akpm@linux-foundation.org>
-In-Reply-To: <20120914131428.1f530681.akpm@linux-foundation.org>
-Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LSU.2.00.1209171204100.6720@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: qiuxishi <qiuxishi@gmail.com>, mgorman@suse.de, tony.luck@intel.com, Jiang Liu <jiang.liu@huawei.com>, qiuxishi@huawei.com, bessel.wang@huawei.com, wujianguo@huawei.com, paul.gortmaker@windriver.com, kamezawa.hiroyu@jp.fujitsu.com, kosaki.motohiro@jp.fujitsu.com, rientjes@google.com, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wen Congyang <wency@cn.fujitsu.com>
+To: Hugh Dickins <hughd@google.com>
+Cc: Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org
 
-2012/09/15 5:14, Andrew Morton wrote:
-> On Fri, 14 Sep 2012 20:00:09 +0900
-> Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com> wrote:
->
->>> @@ -187,9 +184,10 @@ void register_page_bootmem_info_node(struct pglist_data *pgdat)
->>>    	end_pfn = pfn + pgdat->node_spanned_pages;
->>>
->>>    	/* register_section info */
->>> -	for (; pfn < end_pfn; pfn += PAGES_PER_SECTION)
->>> -		register_page_bootmem_info_section(pfn);
->>> -
->>> +	for (; pfn < end_pfn; pfn += PAGES_PER_SECTION) {
->>> +		if (pfn_valid(pfn) && (pfn_to_nid(pfn) == node))
->>
->> I cannot judge whether your configuration is correct or not.
->> Thus if it is correct, I want a comment of why the node check is
->> needed. In usual configuration, a node does not span the other one.
->> So it is natural that "pfn_to_nid(pfn) is same as "pgdat->node_id".
->> Thus we may remove the node check in the future.
->
-> yup.  How does this look?
+On Mon 17-09-12 12:15:46, Hugh Dickins wrote:
+> On Mon, 17 Sep 2012, Jan Kara wrote:
+> > 
+> >   I tripped over a crash in reiserfs which happened due to PageSwapCache
+> > page being passed to reiserfs_set_page_dirty(). Now it's not that hard to
+> > make reiserfs_set_page_dirty() check that case but I really wonder: Does it
+> > make sense to call mapping->a_ops->set_page_dirty() for a PageSwapCache
+> > page? The page is going to be written via direct IO so from the POV of the
+> > filesystem there's no need for any dirtiness tracking. Also there are
+> > several ->set_page_dirty() implementations which will spectacularly crash
+> > because they do things like page->mapping->host, or call
+> > __set_page_dirty_buffers() which expects buffer heads in page->private.
+> > Or what is the reason for calling filesystem's set_page_dirty() function?
+> 
+> This is a question for Mel, really: it used not to call the filesystem.
+> 
+> But my reading of the 3.6 code says that it still will not call the
+> filesystem, unless the filesystem (only nfs) provides a swap_activate
+> method, which should be the only case in which SWP_FILE gets set.
+> And I rather think Mel does want to use the filesystem set_page_dirty
+> in that case.  Am I misreading?
+> 
+> Did you see this on a vanilla kernel?  Or is it possible that you have
+> a private patch merged in, with something else sharing the SWP_FILE bit
+> (defined in include/linux/swap.h) by mistake?
+  Argh, sorry. It is indeed a SLES specific bug. I missed that SWP_FILE bit
+gets set only when swap_activate() is provided (SLES code works a bit
+differently in this area but I wasn't really looking into that since I was
+focused elsewhere).
 
-Looks good to me.
+So just one minor nit for Mel. SWP_FILE looks like a bit confusing name for
+a flag that gets set only for some swap files ;) At least I didn't pay
+attention to it because I thought it's set for all of them. Maybe call it
+SWP_FILE_CALL_AOPS or something like that?
 
-Reviewed-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+Thanks Hugh for having a look.
 
->
-> --- a/mm/memory_hotplug.c~memory-hotplug-fix-a-double-register-section-info-bug-fix
-> +++ a/mm/memory_hotplug.c
-> @@ -185,6 +185,12 @@ void register_page_bootmem_info_node(str
->
->   	/* register_section info */
->   	for (; pfn < end_pfn; pfn += PAGES_PER_SECTION) {
-> +		/*
-> +		 * Some platforms can assign the same pfn to multiple nodes - on
-> +		 * node0 as well as nodeN.  To avoid registering a pfn against
-> +		 * multiple nodes we check that this pfn does not already
-> +		 * reside in some other node.
-> +		 */
->   		if (pfn_valid(pfn) && (pfn_to_nid(pfn) == node))
->   			register_page_bootmem_info_section(pfn);
->   	}
-> _
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
->
-
+								Honza
+-- 
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
