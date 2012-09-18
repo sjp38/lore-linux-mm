@@ -1,139 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
-	by kanga.kvack.org (Postfix) with SMTP id 4222C6B005A
-	for <linux-mm@kvack.org>; Mon, 17 Sep 2012 19:59:21 -0400 (EDT)
-Received: by qady1 with SMTP id y1so2460763qad.14
-        for <linux-mm@kvack.org>; Mon, 17 Sep 2012 16:59:20 -0700 (PDT)
-Date: Mon, 17 Sep 2012 16:58:35 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: blk, mm: lockdep irq lock inversion in linux-next
-In-Reply-To: <20120917162248.d998afe3.akpm@linux-foundation.org>
-Message-ID: <alpine.LSU.2.00.1209171634560.6827@eggly.anvils>
-References: <5054878F.1030908@gmail.com> <20120917162248.d998afe3.akpm@linux-foundation.org>
+Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
+	by kanga.kvack.org (Postfix) with SMTP id 2DD2B6B005A
+	for <linux-mm@kvack.org>; Mon, 17 Sep 2012 20:12:05 -0400 (EDT)
+Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 1A8F93EE0C0
+	for <linux-mm@kvack.org>; Tue, 18 Sep 2012 09:12:03 +0900 (JST)
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id F07C945DE50
+	for <linux-mm@kvack.org>; Tue, 18 Sep 2012 09:12:02 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id AB27B45DE55
+	for <linux-mm@kvack.org>; Tue, 18 Sep 2012 09:12:02 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 99D3B1DB8042
+	for <linux-mm@kvack.org>; Tue, 18 Sep 2012 09:12:02 +0900 (JST)
+Received: from g01jpexchyt04.g01.fujitsu.local (g01jpexchyt04.g01.fujitsu.local [10.128.194.43])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id D25B41DB803F
+	for <linux-mm@kvack.org>; Tue, 18 Sep 2012 09:12:01 +0900 (JST)
+Message-ID: <5057BC2F.3020008@jp.fujitsu.com>
+Date: Tue, 18 Sep 2012 09:11:27 +0900
+From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH RESEND] memory hotplug: fix a double register section
+ info bug
+References: <5052A7DF.4050301@gmail.com> <50530E39.5020100@jp.fujitsu.com> <20120914131428.1f530681.akpm@linux-foundation.org>
+In-Reply-To: <20120914131428.1f530681.akpm@linux-foundation.org>
+Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Sasha Levin <levinsasha928@gmail.com>, axboe@kernel.dk, Tejun Heo <tj@kernel.org>, linux-mm <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Dave Jones <davej@redhat.com>
+Cc: qiuxishi <qiuxishi@gmail.com>, mgorman@suse.de, tony.luck@intel.com, Jiang Liu <jiang.liu@huawei.com>, qiuxishi@huawei.com, bessel.wang@huawei.com, wujianguo@huawei.com, paul.gortmaker@windriver.com, kamezawa.hiroyu@jp.fujitsu.com, kosaki.motohiro@jp.fujitsu.com, rientjes@google.com, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wen Congyang <wency@cn.fujitsu.com>
 
-On Mon, 17 Sep 2012, Andrew Morton wrote:
-> On Sat, 15 Sep 2012 15:50:07 +0200
-> Sasha Levin <levinsasha928@gmail.com> wrote:
-> 
-> > Hi all,
-> > 
-> > While fuzzing with trinity within a KVM tools guest on a linux-next kernel, I
-> > got the lockdep warning at the bottom of this mail.
-> > 
-> > I've tried figuring out where it was introduced, but haven't found any sign that
-> > any of the code in that area changed recently, so I'm probably missing something...
-> > 
-> > 
-> > [ 157.966399] =========================================================
-> > [ 157.968523] [ INFO: possible irq lock inversion dependency detected ]
-> > [ 157.970029] 3.6.0-rc5-next-20120914-sasha-00001-g802bf6c-dirty #340 Tainted: G W
-> > [ 157.970029] ---------------------------------------------------------
-> > [ 157.970029] trinity-child38/6642 just changed the state of lock:
-> > [ 157.970029] (&(&mapping->tree_lock)->rlock){+.+...}, at: [<ffffffff8120cafc>]
-> > invalidate_inode_pages2_range+0x20c/0x3c0
-> > [ 157.970029] but this lock was taken by another, SOFTIRQ-safe lock in the past:
-> > [ 157.970029] (&(&new->queue_lock)->rlock){..-...}
-> > 
-> > [snippage]
-> 
-> gack, what a mess.  Thanks for the report.  AFAICT, what has happened is:
-> 
-> invalidate_complete_page2()
-> ->spin_lock_irq(&mapping->tree_lock)
-> ->clear_page_mlock()
->   __clear_page_mlock()
->   ->isolate_lru_page()
->     ->spin_lock_irq(&zone->lru_lock)
->     ->spin_unlock_irq(&zone->lru_lock)
-> 
-> whoops.  isolate_lru_page() just enabled local interrupts while we're
-> holding ->tree_lock, which is supposed to be an irq-save lock.  And in
-> a rather obscure way, lockdep caught it.
+2012/09/15 5:14, Andrew Morton wrote:
+> On Fri, 14 Sep 2012 20:00:09 +0900
+> Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com> wrote:
+>
+>>> @@ -187,9 +184,10 @@ void register_page_bootmem_info_node(struct pglist_data *pgdat)
+>>>    	end_pfn = pfn + pgdat->node_spanned_pages;
+>>>
+>>>    	/* register_section info */
+>>> -	for (; pfn < end_pfn; pfn += PAGES_PER_SECTION)
+>>> -		register_page_bootmem_info_section(pfn);
+>>> -
+>>> +	for (; pfn < end_pfn; pfn += PAGES_PER_SECTION) {
+>>> +		if (pfn_valid(pfn) && (pfn_to_nid(pfn) == node))
+>>
+>> I cannot judge whether your configuration is correct or not.
+>> Thus if it is correct, I want a comment of why the node check is
+>> needed. In usual configuration, a node does not span the other one.
+>> So it is natural that "pfn_to_nid(pfn) is same as "pgdat->node_id".
+>> Thus we may remove the node check in the future.
+>
+> yup.  How does this look?
 
-Congratulations on deciphering the lockdep report, I soon gave up.
+Looks good to me.
 
-But it looks like a bigger problem than your patch addresses:
-both filemap.c and rmap.c document tree_lock as nesting within
-lru_lock; and although it's possible that time has changed that,
-I doubt it.
+Reviewed-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 
-I think invalidate_complete_page2() is simply wrong to be calling
-clear_page_mlock() while holding mapping->tree_lock (other callsites
-avoid doing so).  Maybe it should do a preliminary PageDirty test,
-then clear_page_mlock(), then take mapping->tree_lock, then repeat
-PageDirty test, without worrying about the odd case when it might
-clear mlock but then decide to back off the page.
-
-Oh, hold on, that reminds me: a few months ago I was putting together
-a tidy-up patch near there, and it seemed to me inappropriate to be
-clearing mlock down in truncate/invalidate, that belongs better to
-when unmapping the page, doesn't it?
-
-I'll look that out and try to finish it off.
-
-Hugh
-
-> 
-> Problem is, I cannot find any recent change which might have triggered
-> this.
-> 
-> I don't know how repeatable this is for you (not very at all, I
-> suspect).  This?
-> 
-> 
-> From: Andrew Morton <akpm@linux-foundation.org>
-> Subject: mm: isolate_lru_page(): don't enable local interrupts
-> 
-> isolate_lru_page() is called with local interrupts disabled, via
-> 
-> invalidate_complete_page2()
-> ->spin_lock_irq(&mapping->tree_lock)
-> ->clear_page_mlock()
->   __clear_page_mlock()
->   ->isolate_lru_page()
-> 
-> so it should not unconditionally enable local interrupts.
-> 
-> Sasha hit a lockdep warning when running Trinity as a result of this.
-> 
-> Reported-by: Sasha Levin <levinsasha928@gmail.com>
-> Cc: Mel Gorman <mel@csn.ul.ie>
-> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
-> ---
-> 
->  mm/vmscan.c |    5 +++--
->  1 file changed, 3 insertions(+), 2 deletions(-)
-> 
-> diff -puN mm/vmscan.c~mm-isolate_lru_page-dont-enable-local-interrupts mm/vmscan.c
-> --- a/mm/vmscan.c~mm-isolate_lru_page-dont-enable-local-interrupts
-> +++ a/mm/vmscan.c
-> @@ -1161,8 +1161,9 @@ int isolate_lru_page(struct page *page)
->  	if (PageLRU(page)) {
->  		struct zone *zone = page_zone(page);
->  		struct lruvec *lruvec;
-> +		unsigned long flags;
->  
-> -		spin_lock_irq(&zone->lru_lock);
-> +		spin_lock_irqsave(&zone->lru_lock, flags);
->  		lruvec = mem_cgroup_page_lruvec(page, zone);
->  		if (PageLRU(page)) {
->  			int lru = page_lru(page);
-> @@ -1171,7 +1172,7 @@ int isolate_lru_page(struct page *page)
->  			del_page_from_lru_list(page, lruvec, lru);
->  			ret = 0;
->  		}
-> -		spin_unlock_irq(&zone->lru_lock);
-> +		spin_unlock_irqrestore(&zone->lru_lock, flags);
->  	}
->  	return ret;
->  }
+>
+> --- a/mm/memory_hotplug.c~memory-hotplug-fix-a-double-register-section-info-bug-fix
+> +++ a/mm/memory_hotplug.c
+> @@ -185,6 +185,12 @@ void register_page_bootmem_info_node(str
+>
+>   	/* register_section info */
+>   	for (; pfn < end_pfn; pfn += PAGES_PER_SECTION) {
+> +		/*
+> +		 * Some platforms can assign the same pfn to multiple nodes - on
+> +		 * node0 as well as nodeN.  To avoid registering a pfn against
+> +		 * multiple nodes we check that this pfn does not already
+> +		 * reside in some other node.
+> +		 */
+>   		if (pfn_valid(pfn) && (pfn_to_nid(pfn) == node))
+>   			register_page_bootmem_info_section(pfn);
+>   	}
 > _
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
