@@ -1,140 +1,123 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
-	by kanga.kvack.org (Postfix) with SMTP id EACAE6B0095
-	for <linux-mm@kvack.org>; Tue, 18 Sep 2012 10:07:46 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
+	by kanga.kvack.org (Postfix) with SMTP id 1A9816B0099
+	for <linux-mm@kvack.org>; Tue, 18 Sep 2012 10:07:48 -0400 (EDT)
 From: Glauber Costa <glommer@parallels.com>
-Subject: [PATCH v3 08/13] res_counter: return amount of charges after res_counter_uncharge
-Date: Tue, 18 Sep 2012 18:04:05 +0400
-Message-Id: <1347977050-29476-9-git-send-email-glommer@parallels.com>
-In-Reply-To: <1347977050-29476-1-git-send-email-glommer@parallels.com>
-References: <1347977050-29476-1-git-send-email-glommer@parallels.com>
+Subject: [PATCH v3 00/13] kmem controller for memcg.
+Date: Tue, 18 Sep 2012 18:03:57 +0400
+Message-Id: <1347977050-29476-1-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
-Cc: cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, devel@openvz.org, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, Suleiman Souhlal <suleiman@google.com>, Frederic Weisbecker <fweisbec@gmail.com>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Glauber Costa <glommer@parallels.com>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>
+Cc: cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, devel@openvz.org, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, Suleiman Souhlal <suleiman@google.com>, Frederic Weisbecker <fweisbec@gmail.com>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>
 
-It is useful to know how many charges are still left after a call to
-res_counter_uncharge. While it is possible to issue a res_counter_read
-after uncharge, this is racy. It would be better if uncharge itself
-would tell us what the current status is.
+Hi,
 
-Since the current return value is void, we don't need to worry about
-anything breaking due to this change: nobody relied on that, and only
-users appearing from now on will be checking this value.
+This is the first part of the kernel memory controller for memcg. It has been
+discussed many times, and I consider this stable enough to be on tree. A follow
+up to this series are the patches to also track slab memory. They are not
+included here because I believe we could benefit from merging them separately
+for better testing coverage. If there are any issues preventing this to be
+merged, let me know. I'll be happy to address them.
 
-Signed-off-by: Glauber Costa <glommer@parallels.com>
-CC: Michal Hocko <mhocko@suse.cz>
-CC: Johannes Weiner <hannes@cmpxchg.org>
-CC: Suleiman Souhlal <suleiman@google.com>
-CC: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
----
- Documentation/cgroups/resource_counter.txt |  7 ++++---
- include/linux/res_counter.h                | 12 +++++++-----
- kernel/res_counter.c                       | 20 +++++++++++++-------
- 3 files changed, 24 insertions(+), 15 deletions(-)
+*v3:
+	- Changed function names to match memcg's
+	- avoid doing get/put in charge/uncharge path
+	- revert back to keeping the account enabled after it is first activated
 
-diff --git a/Documentation/cgroups/resource_counter.txt b/Documentation/cgroups/resource_counter.txt
-index 0c4a344..c4d99ed 100644
---- a/Documentation/cgroups/resource_counter.txt
-+++ b/Documentation/cgroups/resource_counter.txt
-@@ -83,16 +83,17 @@ to work with it.
- 	res_counter->lock internally (it must be called with res_counter->lock
- 	held). The force parameter indicates whether we can bypass the limit.
- 
-- e. void res_counter_uncharge[_locked]
-+ e. u64 res_counter_uncharge[_locked]
- 			(struct res_counter *rc, unsigned long val)
- 
- 	When a resource is released (freed) it should be de-accounted
- 	from the resource counter it was accounted to.  This is called
--	"uncharging".
-+	"uncharging". The return value of this function indicate the amount
-+	of charges still present in the counter.
- 
- 	The _locked routines imply that the res_counter->lock is taken.
- 
-- f. void res_counter_uncharge_until
-+ f. u64 res_counter_uncharge_until
- 		(struct res_counter *rc, struct res_counter *top,
- 		 unsinged long val)
- 
-diff --git a/include/linux/res_counter.h b/include/linux/res_counter.h
-index 7d7fbe2..4b173b6 100644
---- a/include/linux/res_counter.h
-+++ b/include/linux/res_counter.h
-@@ -130,14 +130,16 @@ int res_counter_charge_nofail(struct res_counter *counter,
-  *
-  * these calls check for usage underflow and show a warning on the console
-  * _locked call expects the counter->lock to be taken
-+ *
-+ * returns the total charges still present in @counter.
-  */
- 
--void res_counter_uncharge_locked(struct res_counter *counter, unsigned long val);
--void res_counter_uncharge(struct res_counter *counter, unsigned long val);
-+u64 res_counter_uncharge_locked(struct res_counter *counter, unsigned long val);
-+u64 res_counter_uncharge(struct res_counter *counter, unsigned long val);
- 
--void res_counter_uncharge_until(struct res_counter *counter,
--				struct res_counter *top,
--				unsigned long val);
-+u64 res_counter_uncharge_until(struct res_counter *counter,
-+			       struct res_counter *top,
-+			       unsigned long val);
- /**
-  * res_counter_margin - calculate chargeable space of a counter
-  * @cnt: the counter
-diff --git a/kernel/res_counter.c b/kernel/res_counter.c
-index ad581aa..7b3d6dc 100644
---- a/kernel/res_counter.c
-+++ b/kernel/res_counter.c
-@@ -86,33 +86,39 @@ int res_counter_charge_nofail(struct res_counter *counter, unsigned long val,
- 	return __res_counter_charge(counter, val, limit_fail_at, true);
- }
- 
--void res_counter_uncharge_locked(struct res_counter *counter, unsigned long val)
-+u64 res_counter_uncharge_locked(struct res_counter *counter, unsigned long val)
- {
- 	if (WARN_ON(counter->usage < val))
- 		val = counter->usage;
- 
- 	counter->usage -= val;
-+	return counter->usage;
- }
- 
--void res_counter_uncharge_until(struct res_counter *counter,
--				struct res_counter *top,
--				unsigned long val)
-+u64 res_counter_uncharge_until(struct res_counter *counter,
-+			       struct res_counter *top,
-+			       unsigned long val)
- {
- 	unsigned long flags;
- 	struct res_counter *c;
-+	u64 ret = 0;
- 
- 	local_irq_save(flags);
- 	for (c = counter; c != top; c = c->parent) {
-+		u64 r;
- 		spin_lock(&c->lock);
--		res_counter_uncharge_locked(c, val);
-+		r = res_counter_uncharge_locked(c, val);
-+		if (c == counter)
-+			ret = r;
- 		spin_unlock(&c->lock);
- 	}
- 	local_irq_restore(flags);
-+	return ret;
- }
- 
--void res_counter_uncharge(struct res_counter *counter, unsigned long val)
-+u64 res_counter_uncharge(struct res_counter *counter, unsigned long val)
- {
--	res_counter_uncharge_until(counter, NULL, val);
-+	return res_counter_uncharge_until(counter, NULL, val);
- }
- 
- static inline unsigned long long *
+The slab patches are also mature in my self evaluation and could be merged not
+too long after this. For the reference, the last discussion about them happened
+at http://lwn.net/Articles/508087/. Patches for that will be sent shortly, and
+will include the documentation for this.
+
+Numbers can be found at https://lkml.org/lkml/2012/9/13/239
+
+A (throwaway) git tree with them is placed at:
+
+	git://git.kernel.org/pub/scm/linux/kernel/git/glommer/memcg.git kmemcg-stack
+
+A general explanation of what this is all about follows:
+
+The kernel memory limitation mechanism for memcg concerns itself with
+disallowing potentially non-reclaimable allocations to happen in exaggerate
+quantities by a particular set of processes (cgroup). Those allocations could
+create pressure that affects the behavior of a different and unrelated set of
+processes.
+
+Its basic working mechanism is to annotate some allocations with the
+_GFP_KMEMCG flag. When this flag is set, the current process allocating will
+have its memcg identified and charged against. When reaching a specific limit,
+further allocations will be denied.
+
+One example of such problematic pressure that can be prevented by this work is
+a fork bomb conducted in a shell. We prevent it by noting that processes use a
+limited amount of stack pages. Seen this way, a fork bomb is just a special
+case of resource abuse. If the offender is unable to grab more pages for the
+stack, no new processes can be created.
+
+There are also other things the general mechanism protects against. For
+example, using too much of pinned dentry and inode cache, by touching files an
+leaving them in memory forever.
+
+In fact, a simple:
+
+while true; do mkdir x; cd x; done
+
+can halt your system easily because the file system limits are hard to reach
+(big disks), but the kernel memory is not. Those are examples, but the list
+certainly don't stop here.
+
+An important use case for all that, is concerned with people offering hosting
+services through containers. In a physical box we can put a limit to some
+resources, like total number of processes or threads. But in an environment
+where each independent user gets its own piece of the machine, we don't want a
+potentially malicious user to destroy good users' services.
+
+This might be true for systemd as well, that now groups services inside
+cgroups. They generally want to put forward a set of guarantees that limits the
+running service in a variety of ways, so that if they become badly behaved,
+they won't interfere with the rest of the system.
+
+There is, of course, a cost for that. To attempt to mitigate that, static
+branches are used to make sure that even if the feature is compiled in with
+potentially a lot of memory cgroups deployed this code will only be enabled
+after the first user of this service configures any limit. Limits lower than
+the user limit effectively means there is a separate kernel memory limit that
+may be reached independently than the user limit. Values equal or greater than
+the user limit implies only that kernel memory is tracked. This provides a
+unified vision of "maximum memory", be it kernel or user memory. Because this
+is all default-off, existing deployments will see no change in behavior.
+
+
+Glauber Costa (11):
+  memcg: change defines to an enum
+  kmem accounting basic infrastructure
+  Add a __GFP_KMEMCG flag
+  memcg: kmem controller infrastructure
+  mm: Allocate kernel pages to the right memcg
+  res_counter: return amount of charges after res_counter_uncharge
+  memcg: kmem accounting lifecycle management
+  memcg: use static branches when code not in use
+  memcg: allow a memcg with kmem charges to be destructed.
+  execute the whole memcg freeing in rcu callback
+  protect architectures where THREAD_SIZE >= PAGE_SIZE against fork
+    bombs
+
+Suleiman Souhlal (2):
+  memcg: Make it possible to use the stock for more than one page.
+  memcg: Reclaim when more than one page needed.
+
+ Documentation/cgroups/resource_counter.txt |   7 +-
+ include/linux/gfp.h                        |  10 +-
+ include/linux/memcontrol.h                 |  99 ++++++
+ include/linux/res_counter.h                |  12 +-
+ include/linux/thread_info.h                |   2 +
+ kernel/fork.c                              |   4 +-
+ kernel/res_counter.c                       |  20 +-
+ mm/memcontrol.c                            | 519 +++++++++++++++++++++++++----
+ mm/page_alloc.c                            |  35 ++
+ 9 files changed, 628 insertions(+), 80 deletions(-)
+
 -- 
 1.7.11.4
 
