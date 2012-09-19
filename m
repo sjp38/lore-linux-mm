@@ -1,92 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
-	by kanga.kvack.org (Postfix) with SMTP id 986696B005A
-	for <linux-mm@kvack.org>; Wed, 19 Sep 2012 03:07:43 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id AE0E63EE0C1
-	for <linux-mm@kvack.org>; Wed, 19 Sep 2012 16:07:41 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 9793545DEB7
-	for <linux-mm@kvack.org>; Wed, 19 Sep 2012 16:07:41 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 81E3745DEB2
-	for <linux-mm@kvack.org>; Wed, 19 Sep 2012 16:07:41 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 7547CE08003
-	for <linux-mm@kvack.org>; Wed, 19 Sep 2012 16:07:41 +0900 (JST)
-Received: from g01jpexchkw31.g01.fujitsu.local (g01jpexchkw31.g01.fujitsu.local [10.0.193.114])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 3141FE08001
-	for <linux-mm@kvack.org>; Wed, 19 Sep 2012 16:07:41 +0900 (JST)
-Message-ID: <50596F27.4080208@jp.fujitsu.com>
-Date: Wed, 19 Sep 2012 16:07:19 +0900
-From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH v4 1/4] mm: fix tracing in free_pcppages_bulk()
-References: <1347632974-20465-1-git-send-email-b.zolnierkie@samsung.com> <1347632974-20465-2-git-send-email-b.zolnierkie@samsung.com>
-In-Reply-To: <1347632974-20465-2-git-send-email-b.zolnierkie@samsung.com>
-Content-Type: text/plain; charset="ISO-2022-JP"
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
+	by kanga.kvack.org (Postfix) with SMTP id E4EFA6B002B
+	for <linux-mm@kvack.org>; Wed, 19 Sep 2012 03:26:34 -0400 (EDT)
+From: Minchan Kim <minchan@kernel.org>
+Subject: [PATCH] memory-hotplug: fix zone stat mismatch
+Date: Wed, 19 Sep 2012 16:29:08 +0900
+Message-Id: <1348039748-32111-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, minchan@kernel.org
-Cc: linux-mm@kvack.org, m.szyprowski@samsung.com, mina86@mina86.com, mgorman@suse.de, hughd@google.com, kyungmin.park@samsung.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Minchan Kim <minchan@kernel.org>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Wen Congyang <wency@cn.fujitsu.com>, Shaohua Li <shli@fusionio.com>
 
-Hi Bartlomiej,
+During memory-hotplug stress test, I found NR_ISOLATED_[ANON|FILE]
+are increasing so that kernel are hang out.
 
-2012/09/14 23:29, Bartlomiej Zolnierkiewicz wrote:
-> page->private gets re-used in __free_one_page() to store page order
-> (so trace_mm_page_pcpu_drain() may print order instead of migratetype)
-> thus migratetype value must be cached locally.
-> 
-> Fixes regression introduced in a701623 ("mm: fix migratetype bug
-> which slowed swapping").
+The cause is that when we do memory-hotadd after memory-remove,
+__zone_pcp_update clear out zone's ZONE_STAT_ITEMS in setup_pageset
+without draining vm_stat_diff of all CPU.
 
-I think the regression has been alreadly fixed by following Mincahn's patches.
+This patch fixes it.
 
-https://lkml.org/lkml/2012/9/6/635
+Cc: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+Cc: Wen Congyang <wency@cn.fujitsu.com>
+Cc: Shaohua Li <shli@fusionio.com>
+Signed-off-by: Minchan Kim <minchan@kernel.org>
+---
+Andrew, I think it's a candidate of stable but didn't Cced
+stable.
+Please send this patch to stable if reviewer couldn't find
+any fault when you merge.
 
-=> Hi Minchan,
+Thanks.
 
-   Am I wrong?
+ include/linux/vmstat.h |    4 ++++
+ mm/page_alloc.c        |    1 +
+ mm/vmstat.c            |   12 ++++++++++++
+ 3 files changed, 17 insertions(+)
 
-Thanks,
-Yasuaki Ishimatsu
+diff --git a/include/linux/vmstat.h b/include/linux/vmstat.h
+index ad2cfd5..5d31876 100644
+--- a/include/linux/vmstat.h
++++ b/include/linux/vmstat.h
+@@ -198,6 +198,8 @@ extern void __dec_zone_state(struct zone *, enum zone_stat_item);
+ void refresh_cpu_vm_stats(int);
+ void refresh_zone_stat_thresholds(void);
  
-> Cc: Marek Szyprowski <m.szyprowski@samsung.com>
-> Cc: Michal Nazarewicz <mina86@mina86.com>
-> Acked-by: Minchan Kim <minchan@kernel.org>
-> Acked-by: Mel Gorman <mgorman@suse.de>
-> Cc: Hugh Dickins <hughd@google.com>
-> Signed-off-by: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
-> Signed-off-by: Kyungmin Park <kyungmin.park@samsung.com>
-> ---
->   mm/page_alloc.c | 7 +++++--
->   1 file changed, 5 insertions(+), 2 deletions(-)
-> 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 93a3433..e9da55c 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -668,12 +668,15 @@ static void free_pcppages_bulk(struct zone *zone, int count,
->   			batch_free = to_free;
->   
->   		do {
-> +			int mt;
-> +
->   			page = list_entry(list->prev, struct page, lru);
->   			/* must delete as __free_one_page list manipulates */
->   			list_del(&page->lru);
-> +			mt = page_private(page);
->   			/* MIGRATE_MOVABLE list may include MIGRATE_RESERVEs */
-> -			__free_one_page(page, zone, 0, page_private(page));
-> -			trace_mm_page_pcpu_drain(page, 0, page_private(page));
-> +			__free_one_page(page, zone, 0, mt);
-> +			trace_mm_page_pcpu_drain(page, 0, mt);
->   		} while (--to_free && --batch_free && !list_empty(list));
->   	}
->   	__mod_zone_page_state(zone, NR_FREE_PAGES, count);
-> 
-
++void drain_zonestat(struct zone *zone, struct per_cpu_pageset *);
++
+ int calculate_pressure_threshold(struct zone *zone);
+ int calculate_normal_threshold(struct zone *zone);
+ void set_pgdat_percpu_threshold(pg_data_t *pgdat,
+@@ -251,6 +253,8 @@ static inline void __dec_zone_page_state(struct page *page,
+ static inline void refresh_cpu_vm_stats(int cpu) { }
+ static inline void refresh_zone_stat_thresholds(void) { }
+ 
++static inline void drain_zonestat(struct zone *zone,
++			struct per_cpu_pageset *pset) { }
+ #endif		/* CONFIG_SMP */
+ 
+ extern const char * const vmstat_text[];
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index ab58346..5d005c8 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -5904,6 +5904,7 @@ static int __meminit __zone_pcp_update(void *data)
+ 		local_irq_save(flags);
+ 		if (pcp->count > 0)
+ 			free_pcppages_bulk(zone, pcp->count, pcp);
++		drain_zonestat(zone, pset);
+ 		setup_pageset(pset, batch);
+ 		local_irq_restore(flags);
+ 	}
+diff --git a/mm/vmstat.c b/mm/vmstat.c
+index b3e3b9d..d4cc1c2 100644
+--- a/mm/vmstat.c
++++ b/mm/vmstat.c
+@@ -495,6 +495,18 @@ void refresh_cpu_vm_stats(int cpu)
+ 			atomic_long_add(global_diff[i], &vm_stat[i]);
+ }
+ 
++void drain_zonestat(struct zone *zone, struct per_cpu_pageset *pset)
++{
++	int i;
++
++	for (i = 0; i < NR_VM_ZONE_STAT_ITEMS; i++)
++		if (pset->vm_stat_diff[i]) {
++			int v = pset->vm_stat_diff[i];
++			pset->vm_stat_diff[i] = 0;
++			atomic_long_add(v, &zone->vm_stat[i]);
++			atomic_long_add(v, &vm_stat[i]);
++		}
++}
+ #endif
+ 
+ #ifdef CONFIG_NUMA
+-- 
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
