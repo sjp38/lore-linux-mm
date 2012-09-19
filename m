@@ -1,96 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
-	by kanga.kvack.org (Postfix) with SMTP id 9DAD56B0062
-	for <linux-mm@kvack.org>; Wed, 19 Sep 2012 14:28:26 -0400 (EDT)
-Date: Wed, 19 Sep 2012 14:28:10 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH] mm: fix NR_ISOLATED_[ANON|FILE] mismatch
-Message-ID: <20120919182810.GB1569@cmpxchg.org>
-References: <1348040735-3897-1-git-send-email-minchan@kernel.org>
- <CAHGf_=rY-1R+68BWqW4653r_=AYkgE1CfM7wvSyvdSXRwjraUA@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
+	by kanga.kvack.org (Postfix) with SMTP id E0D906B0062
+	for <linux-mm@kvack.org>; Wed, 19 Sep 2012 14:56:05 -0400 (EDT)
+From: Antigen_SEAXCH01@emc.com
+Subject: Antigen forwarded attachment
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAHGf_=rY-1R+68BWqW4653r_=AYkgE1CfM7wvSyvdSXRwjraUA@mail.gmail.com>
+Content-Type: multipart/mixed;
+	boundary="ANTIGEN-14567-7910-5732-23082-23554-19246"
+Message-ID: <SEAXCH01Ln5U9T3TGJ2003f6eaf@seaxch01.isilon.com>
+Date: Wed, 19 Sep 2012 11:51:19 -0700
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Christoph Lameter <cl@linux.com>
+To: kosaki.motohiro@jp.fujitsu.com
+Cc: minchan@kernel.org, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mgorman@suse.de
 
-On Wed, Sep 19, 2012 at 01:04:56PM -0400, KOSAKI Motohiro wrote:
-> On Wed, Sep 19, 2012 at 3:45 AM, Minchan Kim <minchan@kernel.org> wrote:
-> > When I looked at zone stat mismatch problem, I found
-> > migrate_to_node doesn't decrease NR_ISOLATED_[ANON|FILE]
-> > if check_range fails.
+--ANTIGEN-14567-7910-5732-23082-23554-19246
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 
-This is a bit misleading.  It's not that the stats would be
-inaccurate, it's that the pages would be leaked from the LRU, no?
+The body from the message "Re: [PATCH] mm: fix NR_ISOLATED_[ANON|FILE] mism=
+atch", originally sent to you by linux-kernel-owner@vger.kernel.org (linux-=
+kernel-owner@vger.kernel.org), has been forwarded to you from the Antigen Q=
+uarantine area.=0A=
+This message body may have been re-scanned by Antigen and handled according=
+ to the appropriate scan job's settings.=0A=
+=0A=
+=0A=
 
-> > It can make system hang out.
+<<Body of Message>>
 
-Did you spot this by code review only or did you actually run into
-this?  Because...
+--ANTIGEN-14567-7910-5732-23082-23554-19246
+Content-Type: application/octet-stream
+Content-Transfer-Encoding: base64
+Content-Disposition: attachment; filename="Body of Message"
 
-> > Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> > Cc: Mel Gorman <mgorman@suse.de>
-> > Cc: Christoph Lameter <cl@linux.com>
-> > Signed-off-by: Minchan Kim <minchan@kernel.org>
-> > ---
-> >  mm/mempolicy.c |   16 ++++++++--------
-> >  1 file changed, 8 insertions(+), 8 deletions(-)
-> >
-> > diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-> > index 3d64b36..6bf0860 100644
-> > --- a/mm/mempolicy.c
-> > +++ b/mm/mempolicy.c
-> > @@ -953,16 +953,16 @@ static int migrate_to_node(struct mm_struct *mm, int source, int dest,
-> >
-> >         vma = check_range(mm, mm->mmap->vm_start, mm->task_size, &nmask,
-> >                         flags | MPOL_MF_DISCONTIG_OK, &pagelist);
-> > -       if (IS_ERR(vma))
-> > -               return PTR_ERR(vma);
-> > -
-> > -       if (!list_empty(&pagelist)) {
-> > +       if (IS_ERR(vma)) {
-> > +               err = PTR_ERR(vma);
-> > +               goto out;
-> > +       }
-> > +       if (!list_empty(&pagelist))
-> >                 err = migrate_pages(&pagelist, new_node_page, dest,
-> >                                                         false, MIGRATE_SYNC);
-> > -               if (err)
-> > -                       putback_lru_pages(&pagelist);
-> > -       }
-> > -
-> > +out:
-> > +       if (err)
-> > +               putback_lru_pages(&pagelist);
-> 
-> Good catch!
-> This is a regression since following commit. So, I doubt we need
-> all or nothing semantics. Can we revert it instead? (and probably
-> we need more kind comment for preventing an accident)
+T24gV2VkLCBTZXAgMTksIDIwMTIgYXQgMDE6MDQ6NTZQTSAtMDQwMCwgS09TQUtJIE1vdG9oaXJv
+IHdyb3RlOg0KPiBPbiBXZWQsIFNlcCAxOSwgMjAxMiBhdCAzOjQ1IEFNLCBNaW5jaGFuIEtpbSA8
+bWluY2hhbkBrZXJuZWwub3JnPiB3cm90ZToNCj4gPiBXaGVuIEkgbG9va2VkIGF0IHpvbmUgc3Rh
+dCBtaXNtYXRjaCBwcm9ibGVtLCBJIGZvdW5kDQo+ID4gbWlncmF0ZV90b19ub2RlIGRvZXNuJ3Qg
+ZGVjcmVhc2UgTlJfSVNPTEFURURfW0FOT058RklMRV0NCj4gPiBpZiBjaGVja19yYW5nZSBmYWls
+cy4NCg0KVGhpcyBpcyBhIGJpdCBtaXNsZWFkaW5nLiAgSXQncyBub3QgdGhhdCB0aGUgc3RhdHMg
+d291bGQgYmUNCmluYWNjdXJhdGUsIGl0J3MgdGhhdCB0aGUgcGFnZXMgd291bGQgYmUgbGVha2Vk
+IGZyb20gdGhlIExSVSwgbm8/DQoNCj4gPiBJdCBjYW4gbWFrZSBzeXN0ZW0gaGFuZyBvdXQuDQoN
+CkRpZCB5b3Ugc3BvdCB0aGlzIGJ5IGNvZGUgcmV2aWV3IG9ubHkgb3IgZGlkIHlvdSBhY3R1YWxs
+eSBydW4gaW50bw0KdGhpcz8gIEJlY2F1c2UuLi4NCg0KPiA+IENjOiBLT1NBS0kgTW90b2hpcm8g
+PGtvc2FraS5tb3RvaGlyb0BqcC5mdWppdHN1LmNvbT4NCj4gPiBDYzogTWVsIEdvcm1hbiA8bWdv
+cm1hbkBzdXNlLmRlPg0KPiA+IENjOiBDaHJpc3RvcGggTGFtZXRlciA8Y2xAbGludXguY29tPg0K
+PiA+IFNpZ25lZC1vZmYtYnk6IE1pbmNoYW4gS2ltIDxtaW5jaGFuQGtlcm5lbC5vcmc+DQo+ID4g
+LS0tDQo+ID4gIG1tL21lbXBvbGljeS5jIHwgICAxNiArKysrKysrKy0tLS0tLS0tDQo+ID4gIDEg
+ZmlsZSBjaGFuZ2VkLCA4IGluc2VydGlvbnMoKyksIDggZGVsZXRpb25zKC0pDQo+ID4NCj4gPiBk
+aWZmIC0tZ2l0IGEvbW0vbWVtcG9saWN5LmMgYi9tbS9tZW1wb2xpY3kuYw0KPiA+IGluZGV4IDNk
+NjRiMzYuLjZiZjA4NjAgMTAwNjQ0DQo+ID4gLS0tIGEvbW0vbWVtcG9saWN5LmMNCj4gPiArKysg
+Yi9tbS9tZW1wb2xpY3kuYw0KPiA+IEBAIC05NTMsMTYgKzk1MywxNiBAQCBzdGF0aWMgaW50IG1p
+Z3JhdGVfdG9fbm9kZShzdHJ1Y3QgbW1fc3RydWN0ICptbSwgaW50IHNvdXJjZSwgaW50IGRlc3Qs
+DQo+ID4NCj4gPiAgICAgICAgIHZtYSA9IGNoZWNrX3JhbmdlKG1tLCBtbS0+bW1hcC0+dm1fc3Rh
+cnQsIG1tLT50YXNrX3NpemUsICZubWFzaywNCj4gPiAgICAgICAgICAgICAgICAgICAgICAgICBm
+bGFncyB8IE1QT0xfTUZfRElTQ09OVElHX09LLCAmcGFnZWxpc3QpOw0KPiA+IC0gICAgICAgaWYg
+KElTX0VSUih2bWEpKQ0KPiA+IC0gICAgICAgICAgICAgICByZXR1cm4gUFRSX0VSUih2bWEpOw0K
+PiA+IC0NCj4gPiAtICAgICAgIGlmICghbGlzdF9lbXB0eSgmcGFnZWxpc3QpKSB7DQo+ID4gKyAg
+ICAgICBpZiAoSVNfRVJSKHZtYSkpIHsNCj4gPiArICAgICAgICAgICAgICAgZXJyID0gUFRSX0VS
+Uih2bWEpOw0KPiA+ICsgICAgICAgICAgICAgICBnb3RvIG91dDsNCj4gPiArICAgICAgIH0NCj4g
+PiArICAgICAgIGlmICghbGlzdF9lbXB0eSgmcGFnZWxpc3QpKQ0KPiA+ICAgICAgICAgICAgICAg
+ICBlcnIgPSBtaWdyYXRlX3BhZ2VzKCZwYWdlbGlzdCwgbmV3X25vZGVfcGFnZSwgZGVzdCwNCj4g
+PiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg
+IGZhbHNlLCBNSUdSQVRFX1NZTkMpOw0KPiA+IC0gICAgICAgICAgICAgICBpZiAoZXJyKQ0KPiA+
+IC0gICAgICAgICAgICAgICAgICAgICAgIHB1dGJhY2tfbHJ1X3BhZ2VzKCZwYWdlbGlzdCk7DQo+
+ID4gLSAgICAgICB9DQo+ID4gLQ0KPiA+ICtvdXQ6DQo+ID4gKyAgICAgICBpZiAoZXJyKQ0KPiA+
+ICsgICAgICAgICAgICAgICBwdXRiYWNrX2xydV9wYWdlcygmcGFnZWxpc3QpOw0KPiANCj4gR29v
+ZCBjYXRjaCENCj4gVGhpcyBpcyBhIHJlZ3Jlc3Npb24gc2luY2UgZm9sbG93aW5nIGNvbW1pdC4g
+U28sIEkgZG91YnQgd2UgbmVlZA0KPiBhbGwgb3Igbm90aGluZyBzZW1hbnRpY3MuIENhbiB3ZSBy
+ZXZlcnQgaXQgaW5zdGVhZD8gKGFuZCBwcm9iYWJseQ0KPiB3ZSBuZWVkIG1vcmUga2luZCBjb21t
+ZW50IGZvciBwcmV2ZW50aW5nIGFuIGFjY2lkZW50KQ0KDQpJIHRoaW5rIGl0IG1ha2VzIHNlbnNl
+IHRvIHJldmVydC4gIE5vdCBiZWNhdXNlIG9mIHRoZSBzZW1hbnRpY3MsIGJ1dCBJDQpqdXN0IGRv
+bid0IHNlZSBob3cgY2hlY2tfcmFuZ2UoKSBjb3VsZCBldmVuIGZhaWwgZm9yIHRoaXMgY2FsbHNp
+dGU6DQoNCjEuIHdlIHBhc3MgbW0tPm1tYXAtPnZtX3N0YXJ0IGluIHRoZXJlLCBzbyB3ZSBzaG91
+bGQgbm90IGZhaWwgZHVlIHRvDQogICBmaW5kX3ZtYSgpDQoNCjIuIHdlIHBhc3MgTVBPTF9NRl9E
+SVNDT05USUdfT0ssIHNvIHRoZSBkaXNjb250aWcgY2hlY2tzIGRvIG5vdCBhcHBseQ0KICAgYW5k
+IHNvIGNhbiBub3QgZmFpbA0KDQozLiB3ZSBwYXNzIE1QT0xfTUZfTU9WRSB8IE1QT0xfTUZfTU9W
+RV9BTEwsIHRoZSBwYWdlIHRhYmxlIGxvb3BzIHdpbGwNCiAgIGNvbnRpbnVlIHVudGlsIGFkZHIg
+PT0gZW5kLCBzbyB3ZSBuZXZlciBmYWlsIHdpdGggLUVJTw0KDQo+IGNvbW1pdCAwZGVmMDhlM2Fj
+YzJjOWM5MzRlNDY3MTQ4NzAyOWFlZDUyMjAyZDQyDQo+IEF1dGhvcjogVmFzaWxpeSBLdWxpa292
+IDxzZWdvb29uQGdtYWlsLmNvbT4NCj4gRGF0ZTogICBUdWUgT2N0IDI2IDE0OjIxOjMyIDIwMTAg
+LTA3MDANCj4gDQo+ICAgICBtbS9tZW1wb2xpY3kuYzogY2hlY2sgcmV0dXJuIGNvZGUgb2YgY2hl
+Y2tfcmFuZ2UNCg0KV2UgZG9uJ3QgdXNlIHRoaXMgY29kZSB0byAiY2hlY2siIHRoZSByYW5nZSwg
+d2UgdXNlIGl0IHRvIGNvbGxlY3QNCm1pZ3JhdGUgcGFnZXMuICBUaGVyZSBpcyBubyBmYWlsdXJl
+IGNhc2UuDQotLQ0KVG8gdW5zdWJzY3JpYmUgZnJvbSB0aGlzIGxpc3Q6IHNlbmQgdGhlIGxpbmUg
+InVuc3Vic2NyaWJlIGxpbnV4LWtlcm5lbCIgaW4NCnRoZSBib2R5IG9mIGEgbWVzc2FnZSB0byBt
+YWpvcmRvbW9Admdlci5rZXJuZWwub3JnDQpNb3JlIG1ham9yZG9tbyBpbmZvIGF0ICBodHRwOi8v
+dmdlci5rZXJuZWwub3JnL21ham9yZG9tby1pbmZvLmh0bWwNClBsZWFzZSByZWFkIHRoZSBGQVEg
+YXQgIGh0dHA6Ly93d3cudHV4Lm9yZy9sa21sLw0KDQo=
 
-I think it makes sense to revert.  Not because of the semantics, but I
-just don't see how check_range() could even fail for this callsite:
-
-1. we pass mm->mmap->vm_start in there, so we should not fail due to
-   find_vma()
-
-2. we pass MPOL_MF_DISCONTIG_OK, so the discontig checks do not apply
-   and so can not fail
-
-3. we pass MPOL_MF_MOVE | MPOL_MF_MOVE_ALL, the page table loops will
-   continue until addr == end, so we never fail with -EIO
-
-> commit 0def08e3acc2c9c934e4671487029aed52202d42
-> Author: Vasiliy Kulikov <segooon@gmail.com>
-> Date:   Tue Oct 26 14:21:32 2010 -0700
-> 
->     mm/mempolicy.c: check return code of check_range
-
-We don't use this code to "check" the range, we use it to collect
-migrate pages.  There is no failure case.
+--ANTIGEN-14567-7910-5732-23082-23554-19246--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
