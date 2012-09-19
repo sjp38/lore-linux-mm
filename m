@@ -1,50 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
-	by kanga.kvack.org (Postfix) with SMTP id 58F776B002B
-	for <linux-mm@kvack.org>; Wed, 19 Sep 2012 03:30:09 -0400 (EDT)
-Date: Wed, 19 Sep 2012 16:32:45 +0900
+Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
+	by kanga.kvack.org (Postfix) with SMTP id 20FA66B002B
+	for <linux-mm@kvack.org>; Wed, 19 Sep 2012 03:43:00 -0400 (EDT)
 From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH v4 1/4] mm: fix tracing in free_pcppages_bulk()
-Message-ID: <20120919073245.GA13234@bbox>
-References: <1347632974-20465-1-git-send-email-b.zolnierkie@samsung.com>
- <1347632974-20465-2-git-send-email-b.zolnierkie@samsung.com>
- <50596F27.4080208@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <50596F27.4080208@jp.fujitsu.com>
+Subject: [PATCH] mm: fix NR_ISOLATED_[ANON|FILE] mismatch
+Date: Wed, 19 Sep 2012 16:45:35 +0900
+Message-Id: <1348040735-3897-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-Cc: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, linux-mm@kvack.org, m.szyprowski@samsung.com, mina86@mina86.com, mgorman@suse.de, hughd@google.com, kyungmin.park@samsung.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Minchan Kim <minchan@kernel.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Christoph Lameter <cl@linux.com>
 
-Hi Yasuaki,
+When I looked at zone stat mismatch problem, I found
+migrate_to_node doesn't decrease NR_ISOLATED_[ANON|FILE]
+if check_range fails.
 
-On Wed, Sep 19, 2012 at 04:07:19PM +0900, Yasuaki Ishimatsu wrote:
-> Hi Bartlomiej,
-> 
-> 2012/09/14 23:29, Bartlomiej Zolnierkiewicz wrote:
-> > page->private gets re-used in __free_one_page() to store page order
-> > (so trace_mm_page_pcpu_drain() may print order instead of migratetype)
-> > thus migratetype value must be cached locally.
-> > 
-> > Fixes regression introduced in a701623 ("mm: fix migratetype bug
-> > which slowed swapping").
-> 
-> I think the regression has been alreadly fixed by following Mincahn's patches.
-> 
-> https://lkml.org/lkml/2012/9/6/635
-> 
-> => Hi Minchan,
-> 
->    Am I wrong?
+It can make system hang out.
 
-This patch isn't related to mine.
-In addition, this patch don't need to be a part of this series.
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Mel Gorman <mgorman@suse.de>
+Cc: Christoph Lameter <cl@linux.com>
+Signed-off-by: Minchan Kim <minchan@kernel.org>
+---
+ mm/mempolicy.c |   16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)
 
+diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+index 3d64b36..6bf0860 100644
+--- a/mm/mempolicy.c
++++ b/mm/mempolicy.c
+@@ -953,16 +953,16 @@ static int migrate_to_node(struct mm_struct *mm, int source, int dest,
+ 
+ 	vma = check_range(mm, mm->mmap->vm_start, mm->task_size, &nmask,
+ 			flags | MPOL_MF_DISCONTIG_OK, &pagelist);
+-	if (IS_ERR(vma))
+-		return PTR_ERR(vma);
+-
+-	if (!list_empty(&pagelist)) {
++	if (IS_ERR(vma)) {
++		err = PTR_ERR(vma);
++		goto out;
++	}
++	if (!list_empty(&pagelist))
+ 		err = migrate_pages(&pagelist, new_node_page, dest,
+ 							false, MIGRATE_SYNC);
+-		if (err)
+-			putback_lru_pages(&pagelist);
+-	}
+-
++out:
++	if (err)
++		putback_lru_pages(&pagelist);
+ 	return err;
+ }
+ 
 -- 
-Kind regards,
-Minchan Kim
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
