@@ -1,76 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx165.postini.com [74.125.245.165])
-	by kanga.kvack.org (Postfix) with SMTP id 6D4D36B005A
-	for <linux-mm@kvack.org>; Wed, 19 Sep 2012 02:59:05 -0400 (EDT)
-Date: Wed, 19 Sep 2012 09:58:43 +0300
-From: Hiroshi Doyu <hdoyu@nvidia.com>
-Subject: Re: [RFC 0/5] ARM: dma-mapping: New dma_map_ops to control IOVA
- more precisely
-Message-ID: <20120919095843.d1db155e0f085f4fcf64ea32@nvidia.com>
-In-Reply-To: <20120918124918.GK2505@amd.com>
-References: <1346223335-31455-1-git-send-email-hdoyu@nvidia.com>
-	<20120918124918.GK2505@amd.com>
+Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
+	by kanga.kvack.org (Postfix) with SMTP id 986696B005A
+	for <linux-mm@kvack.org>; Wed, 19 Sep 2012 03:07:43 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id AE0E63EE0C1
+	for <linux-mm@kvack.org>; Wed, 19 Sep 2012 16:07:41 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 9793545DEB7
+	for <linux-mm@kvack.org>; Wed, 19 Sep 2012 16:07:41 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 81E3745DEB2
+	for <linux-mm@kvack.org>; Wed, 19 Sep 2012 16:07:41 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 7547CE08003
+	for <linux-mm@kvack.org>; Wed, 19 Sep 2012 16:07:41 +0900 (JST)
+Received: from g01jpexchkw31.g01.fujitsu.local (g01jpexchkw31.g01.fujitsu.local [10.0.193.114])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 3141FE08001
+	for <linux-mm@kvack.org>; Wed, 19 Sep 2012 16:07:41 +0900 (JST)
+Message-ID: <50596F27.4080208@jp.fujitsu.com>
+Date: Wed, 19 Sep 2012 16:07:19 +0900
+From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Subject: Re: [PATCH v4 1/4] mm: fix tracing in free_pcppages_bulk()
+References: <1347632974-20465-1-git-send-email-b.zolnierkie@samsung.com> <1347632974-20465-2-git-send-email-b.zolnierkie@samsung.com>
+In-Reply-To: <1347632974-20465-2-git-send-email-b.zolnierkie@samsung.com>
+Content-Type: text/plain; charset="ISO-2022-JP"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joerg Roedel <joerg.roedel@amd.com>
-Cc: "m.szyprowski@samsung.com" <m.szyprowski@samsung.com>, "linux@arm.linux.org.uk" <linux@arm.linux.org.uk>, "arnd@arndb.de" <arnd@arndb.de>, "minchan@kernel.org" <minchan@kernel.org>, "chunsang.jeong@linaro.org" <chunsang.jeong@linaro.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "subashrp@gmail.com" <subashrp@gmail.com>, "linaro-mm-sig@lists.linaro.org" <linaro-mm-sig@lists.linaro.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "iommu@lists.linux-foundation.org" <iommu@lists.linux-foundation.org>, Krishna Reddy <vdumpa@nvidia.com>, "linux-tegra@vger.kernel.org" <linux-tegra@vger.kernel.org>, "kyungmin.park@samsung.com" <kyungmin.park@samsung.com>, "pullip.cho@samsung.com" <pullip.cho@samsung.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>
+To: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, minchan@kernel.org
+Cc: linux-mm@kvack.org, m.szyprowski@samsung.com, mina86@mina86.com, mgorman@suse.de, hughd@google.com, kyungmin.park@samsung.com
 
-Hi Joerg,
+Hi Bartlomiej,
 
-On Tue, 18 Sep 2012 14:49:18 +0200
-Joerg Roedel <joerg.roedel@amd.com> wrote:
-
-> On Wed, Aug 29, 2012 at 09:55:30AM +0300, Hiroshi Doyu wrote:
-> > The following APIs are needed for us to support the legacy Tegra
-> > memory manager for devices("NvMap") with *DMA mapping API*.
+2012/09/14 23:29, Bartlomiej Zolnierkiewicz wrote:
+> page->private gets re-used in __free_one_page() to store page order
+> (so trace_mm_page_pcpu_drain() may print order instead of migratetype)
+> thus migratetype value must be cached locally.
 > 
-> Maybe I am not understanding the need completly. Can you elaborate on
-> why this is needed for legacy Tegra?
+> Fixes regression introduced in a701623 ("mm: fix migratetype bug
+> which slowed swapping").
 
-Actually not for legacy but it's necessary to replace homebrewed
-in-kernel API(not upstreamed) with the standard ones. The homebrewed
-in-kernel API has been used for the abvoe nvmap as its backend. The
-homebrewed ones are being replaced with the standard ones, IOMMU-API,
-DMA-API and dma-buf, mainly for transition purpose. I found that some
-missing features in DMA-API for that. I posted since other SoCs may
-have the similiar requirements, (1) To specify IOVA address at
-allocation, and (2) To have IOVA allocation and mapping separately.
+I think the regression has been alreadly fixed by following Mincahn's patches.
 
-> > New API:
-> > 
-> >  ->iova_alloc(): To allocate IOVA area.
-> >  ->iova_alloc_at(): To allocate IOVA area at specific address.
-> >  ->iova_free():  To free IOVA area.
-> > 
-> >  ->map_page_at(): To map page at specific IOVA.
+https://lkml.org/lkml/2012/9/6/635
+
+=> Hi Minchan,
+
+   Am I wrong?
+
+Thanks,
+Yasuaki Ishimatsu
+ 
+> Cc: Marek Szyprowski <m.szyprowski@samsung.com>
+> Cc: Michal Nazarewicz <mina86@mina86.com>
+> Acked-by: Minchan Kim <minchan@kernel.org>
+> Acked-by: Mel Gorman <mgorman@suse.de>
+> Cc: Hugh Dickins <hughd@google.com>
+> Signed-off-by: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
+> Signed-off-by: Kyungmin Park <kyungmin.park@samsung.com>
+> ---
+>   mm/page_alloc.c | 7 +++++--
+>   1 file changed, 5 insertions(+), 2 deletions(-)
 > 
-> This sounds like a layering violation. The situation today is as
-> follows:
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 93a3433..e9da55c 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -668,12 +668,15 @@ static void free_pcppages_bulk(struct zone *zone, int count,
+>   			batch_free = to_free;
+>   
+>   		do {
+> +			int mt;
+> +
+>   			page = list_entry(list->prev, struct page, lru);
+>   			/* must delete as __free_one_page list manipulates */
+>   			list_del(&page->lru);
+> +			mt = page_private(page);
+>   			/* MIGRATE_MOVABLE list may include MIGRATE_RESERVEs */
+> -			__free_one_page(page, zone, 0, page_private(page));
+> -			trace_mm_page_pcpu_drain(page, 0, page_private(page));
+> +			__free_one_page(page, zone, 0, mt);
+> +			trace_mm_page_pcpu_drain(page, 0, mt);
+>   		} while (--to_free && --batch_free && !list_empty(list));
+>   	}
+>   	__mod_zone_page_state(zone, NR_FREE_PAGES, count);
 > 
-> 	DMA-API   : Handle DMA-addresses including an address allocator
-> 	IOMMU-API : Full control over DMA address space, no address
-> 	            allocator
-> 
-> So what you want to do add to the DMA-API is already part of the
-> IOMMU-API.
->
-> Here is my suggestion what you can do instead of extending the DMA-API.
-> You can use the IOMMU-API to initialize the device address space with
-> any mappings at the IOVAs you need the mappings. In the end you allocate
-> another free range in the device address space and use that to satisfy
-> DMA-API allocations. Any reason why that could not work?
 
-I guess that it would work. Originally I thought that using DMA-API
-and IOMMU-API together in driver might be kind of layering violation
-since IOMMU-API itself is used in DMA-API. Only DMA-API used in driver
-might be cleaner. Considering that DMA API traditionally handling
-*anonymous* {bus,iova} address only, introducing the concept of
-specific address in DMA API may not be so encouraged, though.
-
-It would be nice to listen how other SoCs have solved similar needs.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
