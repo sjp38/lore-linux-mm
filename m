@@ -1,100 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx165.postini.com [74.125.245.165])
-	by kanga.kvack.org (Postfix) with SMTP id 4282C6B005A
-	for <linux-mm@kvack.org>; Tue, 18 Sep 2012 21:36:52 -0400 (EDT)
-Date: Wed, 19 Sep 2012 11:36:40 +1000
-From: Stephen Rothwell <sfr@canb.auug.org.au>
-Subject: Re: qemu-kvm loops after kernel udpate
-Message-Id: <20120919113640.376b4061d3169d296b68ab92@canb.auug.org.au>
-In-Reply-To: <20120918172029.b5425a40.akpm@linux-foundation.org>
-References: <504F7ED8.1030702@suse.cz>
-	<20120911190303.GA3626@amt.cnet>
-	<504F93F1.2060005@suse.cz>
-	<50504299.2050205@redhat.com>
-	<50504439.3050700@suse.cz>
-	<5050453B.6040702@redhat.com>
-	<5050D048.4010704@suse.cz>
-	<5051AE8B.7090904@redhat.com>
-	<5058CE2F.7030302@suse.cz>
-	<20120918124646.02aaee4f.akpm@linux-foundation.org>
-	<20120919100034.ceaee306e24e00cdf6f1e92e@canb.auug.org.au>
-	<20120918172029.b5425a40.akpm@linux-foundation.org>
-Mime-Version: 1.0
-Content-Type: multipart/signed; protocol="application/pgp-signature";
- micalg="PGP-SHA256";
- boundary="Signature=_Wed__19_Sep_2012_11_36_40_+1000_ke6.Te4Vl9z3KMfT"
+Received: from psmtp.com (na3sys010amx140.postini.com [74.125.245.140])
+	by kanga.kvack.org (Postfix) with SMTP id 8DA766B005A
+	for <linux-mm@kvack.org>; Tue, 18 Sep 2012 23:46:00 -0400 (EDT)
+Received: by qcsd16 with SMTP id d16so545707qcs.14
+        for <linux-mm@kvack.org>; Tue, 18 Sep 2012 20:45:59 -0700 (PDT)
+Date: Tue, 18 Sep 2012 20:45:21 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: blk, mm: lockdep irq lock inversion in linux-next
+In-Reply-To: <alpine.LSU.2.00.1209171634560.6827@eggly.anvils>
+Message-ID: <alpine.LSU.2.00.1209182027280.11632@eggly.anvils>
+References: <5054878F.1030908@gmail.com> <20120917162248.d998afe3.akpm@linux-foundation.org> <alpine.LSU.2.00.1209171634560.6827@eggly.anvils>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Jiri Slaby <jslaby@suse.cz>, Avi Kivity <avi@redhat.com>, Jiri Slaby <jirislaby@gmail.com>, Marcelo Tosatti <mtosatti@redhat.com>, kvm@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Haggai Eran <haggaie@mellanox.com>, linux-mm@kvack.org, Sagi Grimberg <sagig@mellanox.com>, Shachar Raindel <raindel@mellanox.com>, Liran Liss <liranl@mellanox.com>
+Cc: Sasha Levin <levinsasha928@gmail.com>, Jens Axboe <axboe@kernel.dk>, Tejun Heo <tj@kernel.org>, Dave Jones <davej@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Michel Lespinasse <walken@google.com>, Ying Han <yinghan@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
---Signature=_Wed__19_Sep_2012_11_36_40_+1000_ke6.Te4Vl9z3KMfT
-Content-Type: text/plain; charset=US-ASCII
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+On Mon, 17 Sep 2012, Hugh Dickins wrote:
+> On Mon, 17 Sep 2012, Andrew Morton wrote:
+> > On Sat, 15 Sep 2012 15:50:07 +0200
+> > Sasha Levin <levinsasha928@gmail.com> wrote:
+> > 
+> > > Hi all,
+> > > 
+> > > While fuzzing with trinity within a KVM tools guest on a linux-next kernel, I
+> > > got the lockdep warning at the bottom of this mail.
+> > > 
+> > > I've tried figuring out where it was introduced, but haven't found any sign that
+> > > any of the code in that area changed recently, so I'm probably missing something...
+> > > 
+> > > 
+> > > [ 157.966399] =========================================================
+> > > [ 157.968523] [ INFO: possible irq lock inversion dependency detected ]
+> > > [ 157.970029] 3.6.0-rc5-next-20120914-sasha-00001-g802bf6c-dirty #340 Tainted: G W
+> > > [ 157.970029] ---------------------------------------------------------
+> > > [ 157.970029] trinity-child38/6642 just changed the state of lock:
+> > > [ 157.970029] (&(&mapping->tree_lock)->rlock){+.+...}, at: [<ffffffff8120cafc>]
+> > > invalidate_inode_pages2_range+0x20c/0x3c0
+> > > [ 157.970029] but this lock was taken by another, SOFTIRQ-safe lock in the past:
+> > > [ 157.970029] (&(&new->queue_lock)->rlock){..-...}
+> > > 
+> > > [snippage]
+> > 
+> > gack, what a mess.  Thanks for the report.  AFAICT, what has happened is:
+> > 
+> > invalidate_complete_page2()
+> > ->spin_lock_irq(&mapping->tree_lock)
+> > ->clear_page_mlock()
+> >   __clear_page_mlock()
+> >   ->isolate_lru_page()
+> >     ->spin_lock_irq(&zone->lru_lock)
+> >     ->spin_unlock_irq(&zone->lru_lock)
+> > 
+> > whoops.  isolate_lru_page() just enabled local interrupts while we're
+> > holding ->tree_lock, which is supposed to be an irq-save lock.  And in
+> > a rather obscure way, lockdep caught it.
+> 
+> Congratulations on deciphering the lockdep report, I soon gave up.
+> 
+> But it looks like a bigger problem than your patch addresses:
+> both filemap.c and rmap.c document tree_lock as nesting within
+> lru_lock; and although it's possible that time has changed that,
+> I doubt it.
+> 
+> I think invalidate_complete_page2() is simply wrong to be calling
+> clear_page_mlock() while holding mapping->tree_lock (other callsites
+> avoid doing so).  Maybe it should do a preliminary PageDirty test,
+> then clear_page_mlock(), then take mapping->tree_lock, then repeat
+> PageDirty test, without worrying about the odd case when it might
+> clear mlock but then decide to back off the page.
+> 
+> Oh, hold on, that reminds me: a few months ago I was putting together
+> a tidy-up patch near there, and it seemed to me inappropriate to be
+> clearing mlock down in truncate/invalidate, that belongs better to
+> when unmapping the page, doesn't it?
+> 
+> I'll look that out and try to finish it off.
 
-Hi Andrew,
+I've completed that now, will send you a patchset of 4 in a moment.
 
-On Tue, 18 Sep 2012 17:20:29 -0700 Andrew Morton <akpm@linux-foundation.org=
-> wrote:
->
-> On Wed, 19 Sep 2012 10:00:34 +1000 Stephen Rothwell <sfr@canb.auug.org.au=
-> wrote:
->=20
-> > On Tue, 18 Sep 2012 12:46:46 -0700 Andrew Morton <akpm@linux-foundation=
-.org> wrote:
-> > >
-> > > hm, thanks.  This will probably take some time to resolve so I think
-> > > I'll drop
-> > >=20
-> > > mm-move-all-mmu-notifier-invocations-to-be-done-outside-the-pt-lock.p=
-atch
-> > > mm-move-all-mmu-notifier-invocations-to-be-done-outside-the-pt-lock-f=
-ix.patch
-> > > mm-move-all-mmu-notifier-invocations-to-be-done-outside-the-pt-lock-f=
-ix-fix.patch
-> > > mm-wrap-calls-to-set_pte_at_notify-with-invalidate_range_start-and-in=
-validate_range_end.patch
-> >=20
-> > Should I attempt to remove these from the akpm tree in linux-next today?
->=20
-> That would be best - there's no point in having people test (and debug)
-> dead stuff.
+The tidy-ups went rather beyond what we'd want to put in 3.6 or Cc stable
+for this, so 1/4 is a one-liner to move up the offending clear_page_mlock(),
+(which I think should replace your "mm: isolate_lru_page(): don't enable
+local interrupts"), then the rest go on to make more sense of it.
+Against 3.6-rc6: just the last gives a trivial reject on mmotm.
 
-OK, I removed them.
+[PATCH 1/4] mm: fix invalidate_complete_page2 lock ordering
+[PATCH 2/4] mm: remove vma arg from page_evictable
+[PATCH 3/4] mm: clear_page_mlock in page_remove_rmap
+[PATCH 4/4] mm: remove free_page_mlock
 
-> > Or should I just wait for a new mmotm?
->=20
-> You could be brave and test http://ozlabs.org/~akpm/mmots/ for me :)
+ Documentation/vm/unevictable-lru.txt |   10 ++-------
+ include/linux/swap.h                 |    2 -
+ include/linux/vm_event_item.h        |    2 -
+ mm/internal.h                        |   12 ++---------
+ mm/ksm.c                             |    2 -
+ mm/memory.c                          |   10 ++++-----
+ mm/mlock.c                           |   16 ++------------
+ mm/page_alloc.c                      |   17 ---------------
+ mm/rmap.c                            |    6 ++++-
+ mm/swap.c                            |    2 -
+ mm/truncate.c                        |    3 --
+ mm/vmscan.c                          |   27 ++++++++-----------------
+ mm/vmstat.c                          |    2 -
+ 13 files changed, 33 insertions(+), 78 deletions(-)
 
-Brave? maybe.  Stupid? no :-)
-
---=20
-Cheers,
-Stephen Rothwell                    sfr@canb.auug.org.au
-
---Signature=_Wed__19_Sep_2012_11_36_40_+1000_ke6.Te4Vl9z3KMfT
-Content-Type: application/pgp-signature
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.12 (GNU/Linux)
-
-iQIcBAEBCAAGBQJQWSGoAAoJEECxmPOUX5FE6cIQAJVkJuS1VpdQs4CuEtAwiuZF
-2i4LhIRSnH2srOR/aL9LoJARUelCe2Bcnj/HkuhFuEH/k6rCbP5xW3ulZvCFZl3S
-2YWQn8UXcZwHExnZf8mPosiZQhn016JDo1OVRqtglrR2CJxAmKfvcJXKiiTdx78a
-JkU2LhdmnsffFh2+/6YbIcV13qiCnl+ioTNbDGsjkoi5zZY+zjgGrh8nWi+6Og2a
-vaBE2DzUWx8vWrbJvlLK3+mjQCbk/0H6IIoV1CSoxPdVwXw4lnbcuqGTPhDSaab9
-MD8HGoWlD7TS2RcIv/WnaTj/8n3A5zV6tB+hfUWaLugEQwW2qK+onbs1LzAl2v9x
-pvrfWMgfJBDyGE0+t3mFPnF09/4mq0oN9ibepcu7Z36rhpfjZed9a6/NTTDTawnO
-Xa7LnYNmZsafyHNSLCInL1cGMz1iep5a9j6grAf1aUjfW1AngS+G9rju5AH79QGd
-qePXL3oZMmXrCUaxzQbt8y/xNt+glazAa1BklxkSu8ywQIqvjLr0M54helM4InY8
-PKKj73lJQVMmlYeB7BvQi/669SgAWVP1olXMh2pdHj0yBsrSnxCkbE+p1cIzePbh
-ic8FXz9FxskQyhGncfwAgUqLH31Cp93ll48nUL1F/ELKOqAD0nj3PQsS6EKtygGf
-DUGWn37CDD67wQ4e5dON
-=IU+z
------END PGP SIGNATURE-----
-
---Signature=_Wed__19_Sep_2012_11_36_40_+1000_ke6.Te4Vl9z3KMfT--
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
