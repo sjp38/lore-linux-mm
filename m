@@ -1,14 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
-	by kanga.kvack.org (Postfix) with SMTP id A8B846B002B
-	for <linux-mm@kvack.org>; Wed, 19 Sep 2012 03:44:31 -0400 (EDT)
-Message-ID: <505976EA.6070104@parallels.com>
-Date: Wed, 19 Sep 2012 11:40:26 +0400
+Received: from psmtp.com (na3sys010amx151.postini.com [74.125.245.151])
+	by kanga.kvack.org (Postfix) with SMTP id 56B316B002B
+	for <linux-mm@kvack.org>; Wed, 19 Sep 2012 03:45:00 -0400 (EDT)
+Message-ID: <5059772A.8020402@parallels.com>
+Date: Wed, 19 Sep 2012 11:41:30 +0400
 From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v3 15/16] memcg/sl[au]b: shrink dead caches
-References: <1347977530-29755-1-git-send-email-glommer@parallels.com> <1347977530-29755-16-git-send-email-glommer@parallels.com> <00000139da54937f-8f4add94-b203-4a6c-b99a-adc81d443b71-000000@email.amazonses.com>
-In-Reply-To: <00000139da54937f-8f4add94-b203-4a6c-b99a-adc81d443b71-000000@email.amazonses.com>
+Subject: Re: [PATCH v3 13/16] slab: slab-specific propagation changes.
+References: <1347977530-29755-1-git-send-email-glommer@parallels.com> <1347977530-29755-14-git-send-email-glommer@parallels.com> <00000139da52bc21-06113921-5cf5-42b6-94e3-fe9763e909bc-000000@email.amazonses.com>
+In-Reply-To: <00000139da52bc21-06113921-5cf5-42b6-94e3-fe9763e909bc-000000@email.amazonses.com>
 Content-Type: text/plain; charset="ISO-8859-1"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -16,18 +16,23 @@ List-ID: <linux-mm.kvack.org>
 To: Christoph Lameter <cl@linux.com>
 Cc: linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, devel@openvz.org, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, Suleiman Souhlal <suleiman@google.com>, Frederic Weisbecker <fweisbec@gmail.com>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>
 
-On 09/18/2012 09:02 PM, Christoph Lameter wrote:
-> Why doesnt slab need that too? It keeps a number of free pages on the per
-> node lists until shrink is called.
+On 09/18/2012 09:00 PM, Christoph Lameter wrote:
+> On Tue, 18 Sep 2012, Glauber Costa wrote:
 > 
-You have already given me this feedback, and I forgot to include it
-here. I am sorry for this slip. It was my intention to this for the slab
-as well.
+>> When a parent cache does tune_cpucache, we need to propagate that to the
+>> children as well. For that, we unfortunately need to tap into the slab core.
+> 
+> One of the todo list items for the common stuff is to have actually a
+> common kmem_cache structure. If we add a common callback then we could put
+> that also into the core.
+> 
 
-Thanks for the eyes!
+At this point, I'd like to keep it this way if possible. I agree that it
+would be a lot better living in a common location, and I commit to
+helping you to move in that direction.
 
-
-
+But I see no reason to have this commonization to happen first, as a
+pre-requisite for this.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
