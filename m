@@ -1,101 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx144.postini.com [74.125.245.144])
-	by kanga.kvack.org (Postfix) with SMTP id 30A9B6B0069
-	for <linux-mm@kvack.org>; Tue, 18 Sep 2012 18:09:36 -0400 (EDT)
-Date: Tue, 18 Sep 2012 15:09:33 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v10 1/5] mm: introduce a common interface for balloon
- pages mobility
-Message-Id: <20120918150933.cab895b8.akpm@linux-foundation.org>
-In-Reply-To: <20120918162420.GB1645@optiplex.redhat.com>
-References: <cover.1347897793.git.aquini@redhat.com>
-	<89c9f4096bbad072e155445fcdf1805d47ddf48e.1347897793.git.aquini@redhat.com>
-	<20120917151543.fd523040.akpm@linux-foundation.org>
-	<20120918162420.GB1645@optiplex.redhat.com>
+Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
+	by kanga.kvack.org (Postfix) with SMTP id EB1966B005A
+	for <linux-mm@kvack.org>; Tue, 18 Sep 2012 20:00:49 -0400 (EDT)
+Date: Wed, 19 Sep 2012 10:00:34 +1000
+From: Stephen Rothwell <sfr@canb.auug.org.au>
+Subject: Re: qemu-kvm loops after kernel udpate
+Message-Id: <20120919100034.ceaee306e24e00cdf6f1e92e@canb.auug.org.au>
+In-Reply-To: <20120918124646.02aaee4f.akpm@linux-foundation.org>
+References: <504F7ED8.1030702@suse.cz>
+	<20120911190303.GA3626@amt.cnet>
+	<504F93F1.2060005@suse.cz>
+	<50504299.2050205@redhat.com>
+	<50504439.3050700@suse.cz>
+	<5050453B.6040702@redhat.com>
+	<5050D048.4010704@suse.cz>
+	<5051AE8B.7090904@redhat.com>
+	<5058CE2F.7030302@suse.cz>
+	<20120918124646.02aaee4f.akpm@linux-foundation.org>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: multipart/signed; protocol="application/pgp-signature";
+ micalg="PGP-SHA256";
+ boundary="Signature=_Wed__19_Sep_2012_10_00_34_+1000_uc+_0H1uZfS_.Vln"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rafael Aquini <aquini@redhat.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, Rusty Russell <rusty@rustcorp.com.au>, "Michael S. Tsirkin" <mst@redhat.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Andi Kleen <andi@firstfloor.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Minchan Kim <minchan@kernel.org>, Peter Zijlstra <peterz@infradead.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Jiri Slaby <jslaby@suse.cz>, Avi Kivity <avi@redhat.com>, Jiri Slaby <jirislaby@gmail.com>, Marcelo Tosatti <mtosatti@redhat.com>, kvm@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Haggai Eran <haggaie@mellanox.com>, linux-mm@kvack.org, Sagi Grimberg <sagig@mellanox.com>, Shachar Raindel <raindel@mellanox.com>, Liran Liss <liranl@mellanox.com>
 
-On Tue, 18 Sep 2012 13:24:21 -0300
-Rafael Aquini <aquini@redhat.com> wrote:
+--Signature=_Wed__19_Sep_2012_10_00_34_+1000_uc+_0H1uZfS_.Vln
+Content-Type: text/plain; charset=US-ASCII
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-> On Mon, Sep 17, 2012 at 03:15:43PM -0700, Andrew Morton wrote:
-> > > +/* return code to identify when a ballooned page has been migrated */
-> > > +#define BALLOON_MIGRATION_RETURN	0xba1100
-> > 
-> > I didn't really spend enough time to work out why this was done this
-> > way, but I know a hack when I see one!
-> >
-> Yes, I'm afraid it's a hack, but, unfortunately, it's a necessary one (IMHO).
-> 
-> This 'distinct' return code is used to flag a sucessful balloon page migration
-> at the following unmap_and_move() snippet (patch 2).
-> If by any reason we fail to identify a sucessfull balloon page migration, we
-> will cause a page leak, as the old 'page' won't be properly released.
-> .....
->         rc = __unmap_and_move(page, newpage, force, offlining, mode);
-> +
-> +        if (unlikely(rc == BALLOON_MIGRATION_RETURN)) {
-> +                /*
-> +                 * A ballooned page has been migrated already.
-> +                 * Now, it's the time to remove the old page from the isolated
-> +                 * pageset list and handle it back to Buddy, wrap-up counters
-> +                 * and return.
-> +                 */
-> ......
-> 
-> By reaching that point in code, we cannot rely on testing page->mapping flags
-> anymore for both 'page' and 'newpage' because:
-> a) migration has already finished and 'page'->mapping is wiped out;
-> b) balloon might have started to deflate, and 'newpage' might be released
->    already;
-> 
-> If the return code approach is unnaceptable, we might defer the 'page'->mapping
-> wipe-out step to that point in code for the balloon page case.
-> That, however, tends to be a little bit heavier, IMHO, as it will require us to
-> acquire the page lock once more to proceed the mapping wipe out, thus
-> potentially introducing overhead by lock contention (specially when several
-> parallel compaction threads are scanning pages for isolation)
+Hi Andrew,
 
-I think the return code approach _is_ acceptable, but the
-implementation could be improved.
+On Tue, 18 Sep 2012 12:46:46 -0700 Andrew Morton <akpm@linux-foundation.org=
+> wrote:
+>
+> hm, thanks.  This will probably take some time to resolve so I think
+> I'll drop
+>=20
+> mm-move-all-mmu-notifier-invocations-to-be-done-outside-the-pt-lock.patch
+> mm-move-all-mmu-notifier-invocations-to-be-done-outside-the-pt-lock-fix.p=
+atch
+> mm-move-all-mmu-notifier-invocations-to-be-done-outside-the-pt-lock-fix-f=
+ix.patch
+> mm-wrap-calls-to-set_pte_at_notify-with-invalidate_range_start-and-invali=
+date_range_end.patch
 
-As it stands, a naive caller could be expecting either 0 (success) or a
-negative errno.  A large positive return value could trigger havoc.  We
-can defend against such programming mistakes with code commentary, but
-a better approach would be to enumerate the return values.  Along the
-lines of
+Should I attempt to remove these from the akpm tree in linux-next today?
+Or should I just wait for a new mmotm?
 
-/*
- * Return values from addresss_space_operations.migratepage().  Returns a
- * negative errno on failure.
- */
-#define MIGRATEPAGE_SUCCESS		0
-#define MIGRATEPAGE_BALLOON_THINGY	1	/* nice comment goes here */
+--=20
+Cheers,
+Stephen Rothwell                    sfr@canb.auug.org.au
 
-and convert all callers to explicitly check for MIGRATEPAGE_SUCCESS,
-not literal zero.  We should be particularly careful to look for
-codesites which are unprepared for positive return values, such as
+--Signature=_Wed__19_Sep_2012_10_00_34_+1000_uc+_0H1uZfS_.Vln
+Content-Type: application/pgp-signature
 
-	ret = migratepage();
-	if (ret < 0)
-		return ret;
-	...
-	return ret;		/* success!! */
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.12 (GNU/Linux)
 
+iQIcBAEBCAAGBQJQWQsiAAoJEECxmPOUX5FEFVcP/iYZ7jzsrAtWazgRuu17ijeo
+Sgnwd/Cn3zPirVmMSV/j8hWZ4vSxZ5LTRG5N3bs9Qzjl4eH5/ZvjEYP/ymFTBBss
+6EVACwRLc8FEiiDk882LUwvthJnuc69KyJgGPhiX5kiUp/WiVwtMy+NFUFXLsS6f
+19rm+WThxcm/27KmNiQOLqUO8O8DdFbItuCtA5PXxZGy8r1bjMsLgqgKPNYDTFu1
+NnqI69zENZywOo4JqKGIDJGraoO3w4KPoDTYvbNgxACJ5wZ9ocRV6xMXuuhiXc4Q
+TsXwXi4n4HxBwpHoBLag3VZ4ftlNI6rejcfpksz7jzHZndWJ3TxzRmOAiz/EBFye
+4lYBZX1m6mDG5EtIQ918lf1StQySyhFSTS1+YHumtFGwf/TnKrEMveIzUgRfkvB4
+IYZtbrUHYyep27+1VqDVDIFUZUCIjtwaerQmFYgfoOfRqFoIr4KTVTtlYHs84sh1
+zB23Xtn67pKwdlB377nOmKU+Iog3XHRLN3SekBTBcaJ/Q9D4EEiSY5ubikcB3pB3
+nu3NjzFmbgJB/y3uuE4EciD8wVDUB8R++phYXO/ZJ+O4L8oYuy6FeklZO7ZT5qsf
+zAOMppLhVpmKSnSZh/utIeyqB6hcz4OY/In5Uf8vOEsjQqdYSZERcVlfG+nhGUYw
+yrNJyursnYet7pMzNz6B
+=xfy/
+-----END PGP SIGNATURE-----
 
-
-If we wanted to be really vigilant about this, we could do
-
-#define MIGRATEPAGE_SUCCESS		1
-#define MIGRATEPAGE_BALLOON_THINGY	2
-
-so any naive code which tests for literal zero will nicely explode early
-in testing.
+--Signature=_Wed__19_Sep_2012_10_00_34_+1000_uc+_0H1uZfS_.Vln--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
