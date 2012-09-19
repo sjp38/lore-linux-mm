@@ -1,30 +1,26 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
-	by kanga.kvack.org (Postfix) with SMTP id 30D626B005A
-	for <linux-mm@kvack.org>; Wed, 19 Sep 2012 07:42:01 -0400 (EDT)
-Date: Wed, 19 Sep 2012 14:41:37 +0300
-From: Hiroshi Doyu <hdoyu@nvidia.com>
-Subject: Re: [RFC 0/5] ARM: dma-mapping: New dma_map_ops to control IOVA
- more precisely
-Message-ID: <20120919144137.384ef624c6aec331bd39a278@nvidia.com>
-In-Reply-To: <201209190759.46174.arnd@arndb.de>
+Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
+	by kanga.kvack.org (Postfix) with SMTP id 58AB26B0062
+	for <linux-mm@kvack.org>; Wed, 19 Sep 2012 08:50:28 -0400 (EDT)
+Date: Wed, 19 Sep 2012 14:50:20 +0200
+From: Joerg Roedel <joerg.roedel@amd.com>
+Subject: Re: [RFC 0/5] ARM: dma-mapping: New dma_map_ops to control IOVA more
+ precisely
+Message-ID: <20120919125020.GQ2505@amd.com>
 References: <1346223335-31455-1-git-send-email-hdoyu@nvidia.com>
-	<20120918124918.GK2505@amd.com>
-	<20120919095843.d1db155e0f085f4fcf64ea32@nvidia.com>
-	<201209190759.46174.arnd@arndb.de>
+ <20120918124918.GK2505@amd.com>
+ <20120919095843.d1db155e0f085f4fcf64ea32@nvidia.com>
+ <201209190759.46174.arnd@arndb.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <201209190759.46174.arnd@arndb.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Arnd Bergmann <arnd@arndb.de>
-Cc: Joerg Roedel <joerg.roedel@amd.com>, "m.szyprowski@samsung.com" <m.szyprowski@samsung.com>, "linux@arm.linux.org.uk" <linux@arm.linux.org.uk>, "minchan@kernel.org" <minchan@kernel.org>, "chunsang.jeong@linaro.org" <chunsang.jeong@linaro.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "subashrp@gmail.com" <subashrp@gmail.com>, "linaro-mm-sig@lists.linaro.org" <linaro-mm-sig@lists.linaro.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "iommu@lists.linux-foundation.org" <iommu@lists.linux-foundation.org>, Krishna Reddy <vdumpa@nvidia.com>, "linux-tegra@vger.kernel.org" <linux-tegra@vger.kernel.org>, "kyungmin.park@samsung.com" <kyungmin.park@samsung.com>, "pullip.cho@samsung.com" <pullip.cho@samsung.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>
+Cc: Hiroshi Doyu <hdoyu@nvidia.com>, "m.szyprowski@samsung.com" <m.szyprowski@samsung.com>, "linux@arm.linux.org.uk" <linux@arm.linux.org.uk>, "minchan@kernel.org" <minchan@kernel.org>, "chunsang.jeong@linaro.org" <chunsang.jeong@linaro.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "subashrp@gmail.com" <subashrp@gmail.com>, "linaro-mm-sig@lists.linaro.org" <linaro-mm-sig@lists.linaro.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "iommu@lists.linux-foundation.org" <iommu@lists.linux-foundation.org>, Krishna Reddy <vdumpa@nvidia.com>, "linux-tegra@vger.kernel.org" <linux-tegra@vger.kernel.org>, "kyungmin.park@samsung.com" <kyungmin.park@samsung.com>, "pullip.cho@samsung.com" <pullip.cho@samsung.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>
 
-Hi Arnd,
-
-On Wed, 19 Sep 2012 09:59:45 +0200
-Arnd Bergmann <arnd@arndb.de> wrote:
-
+On Wed, Sep 19, 2012 at 07:59:45AM +0000, Arnd Bergmann wrote:
 > On Wednesday 19 September 2012, Hiroshi Doyu wrote:
 > > I guess that it would work. Originally I thought that using DMA-API
 > > and IOMMU-API together in driver might be kind of layering violation
@@ -45,23 +41,27 @@ Arnd Bergmann <arnd@arndb.de> wrote:
 > Can you explain what devices you see that don't fit in one of those two
 > categories?
 
-I think that the above fis, but I'll continue to explain our case a little
-bit more below:
+Well, I don't think that a driver should limit to one of these 2 APIs. A
+driver can very well use the IOMMU-API during initialization (for
+example to map the firmware to an address the device expects it to be)
+and use the DMA-API later during normal operation to exchange data with
+the device.
 
-In Tegra, there's a few dozen of IOMMU'able devices. Each of them can
-be configured to enable/disable IOMMU. Also some IOMMU Address Space
-IDs(ASID) can be assigned to each device respectively. Some of devices
-are just traditional ones to use traditional dma-mapping API only,
-like normal SD/MMC. Some of devices require some specific IOVA address
-for reset vector and MMIO. For example, Tegra has another ARM(ARM7) as
-such. For traditional devices, dma mapping API is so nice that driver
-doesn't have to be aware of IOMMU. The same dma mapping API works
-with/without IOMMU.
+When a device driver would only use the IOMMU-API and needs small
+DMA-able areas it has to re-implement something like the DMA-API
+(basically an address allocator) for that. So I don't see a reason why
+both can't be used in a device driver.
 
-If both devices are attached to the same mapping, IOMMU-API and
-dma-mapping API would be used together from different
-devices. Technically this can be avoided to assign different maps to
-each device, though.
+Regards,
+
+	Joerg
+
+-- 
+AMD Operating System Research Center
+
+Advanced Micro Devices GmbH Einsteinring 24 85609 Dornach
+General Managers: Alberto Bozzo
+Registration: Dornach, Landkr. Muenchen; Registerger. Muenchen, HRB Nr. 43632
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
