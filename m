@@ -1,150 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
-	by kanga.kvack.org (Postfix) with SMTP id C2C586B0062
-	for <linux-mm@kvack.org>; Wed, 19 Sep 2012 15:51:03 -0400 (EDT)
-Date: Wed, 19 Sep 2012 12:51:02 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v4 4/4] cma: fix watermark checking
-Message-Id: <20120919125102.4a45e27c.akpm@linux-foundation.org>
-In-Reply-To: <1347632974-20465-5-git-send-email-b.zolnierkie@samsung.com>
-References: <1347632974-20465-1-git-send-email-b.zolnierkie@samsung.com>
-	<1347632974-20465-5-git-send-email-b.zolnierkie@samsung.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
+	by kanga.kvack.org (Postfix) with SMTP id F3F416B002B
+	for <linux-mm@kvack.org>; Wed, 19 Sep 2012 16:17:47 -0400 (EDT)
+Received: by pbbro12 with SMTP id ro12so3612378pbb.14
+        for <linux-mm@kvack.org>; Wed, 19 Sep 2012 13:17:47 -0700 (PDT)
+Date: Thu, 20 Sep 2012 05:17:38 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH] memory-hotplug: fix zone stat mismatch
+Message-ID: <20120919201738.GA2425@barrios>
+References: <1348039748-32111-1-git-send-email-minchan@kernel.org>
+ <CAHGf_=oSSsJEeh7eN+R6P3n0vq2h5+3DPmogpXqDiu1jJyKmpg@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAHGf_=oSSsJEeh7eN+R6P3n0vq2h5+3DPmogpXqDiu1jJyKmpg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
-Cc: linux-mm@kvack.org, m.szyprowski@samsung.com, mina86@mina86.com, minchan@kernel.org, mgorman@suse.de, hughd@google.com, kyungmin.park@samsung.com
+To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Wen Congyang <wency@cn.fujitsu.com>, Shaohua Li <shli@fusionio.com>
 
-On Fri, 14 Sep 2012 16:29:34 +0200
-Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com> wrote:
+Hi KOSAKI,
 
-> * Add ALLOC_CMA alloc flag and pass it to [__]zone_watermark_ok()
->   (from Minchan Kim).
-
-What is its meaning and why was it added.
-
-> * During watermark check decrease available free pages number by
->   free CMA pages number if necessary (unmovable allocations cannot
->   use pages from CMA areas).
+On Wed, Sep 19, 2012 at 02:05:20PM -0400, KOSAKI Motohiro wrote:
+> On Wed, Sep 19, 2012 at 3:29 AM, Minchan Kim <minchan@kernel.org> wrote:
+> > During memory-hotplug stress test, I found NR_ISOLATED_[ANON|FILE]
+> > are increasing so that kernel are hang out.
+> >
+> > The cause is that when we do memory-hotadd after memory-remove,
+> > __zone_pcp_update clear out zone's ZONE_STAT_ITEMS in setup_pageset
+> > without draining vm_stat_diff of all CPU.
+> >
+> > This patch fixes it.
 > 
-> ...
->
-> --- a/include/linux/mmzone.h
-> +++ b/include/linux/mmzone.h
-> @@ -231,6 +231,21 @@ enum zone_watermarks {
->  #define low_wmark_pages(z) (z->watermark[WMARK_LOW])
->  #define high_wmark_pages(z) (z->watermark[WMARK_HIGH])
->  
-> +/* The ALLOC_WMARK bits are used as an index to zone->watermark */
-> +#define ALLOC_WMARK_MIN		WMARK_MIN
-> +#define ALLOC_WMARK_LOW		WMARK_LOW
-> +#define ALLOC_WMARK_HIGH	WMARK_HIGH
-> +#define ALLOC_NO_WATERMARKS	0x04 /* don't check watermarks at all */
-> +
-> +/* Mask to get the watermark bits */
-> +#define ALLOC_WMARK_MASK	(ALLOC_NO_WATERMARKS-1)
-> +
-> +#define ALLOC_HARDER		0x10 /* try to alloc harder */
-> +#define ALLOC_HIGH		0x20 /* __GFP_HIGH set */
-> +#define ALLOC_CPUSET		0x40 /* check for correct cpuset */
-> +
+> zone_pcp_update() is called from online pages path. but IMHO,
+> the statistics should be drained offline path. isn't it?
 
-Unneeded newline.
+It isn't necessary because statistics is right until we reset it to zero
+in online path.
+Do you have something on your mind that we have to drain it in offline path?
 
-> +#define ALLOC_CMA		0x80
+> 
+> thanks.
 
-All the other enumerations were documented.  ALLOC_CMA was left
-undocumented, despite sorely needing documentation.
-
->  struct per_cpu_pages {
->  	int count;		/* number of pages in the list */
->  	int high;		/* high watermark, emptying needed */
-> diff --git a/mm/compaction.c b/mm/compaction.c
-> index 4b902aa..36d79ea 100644
-> --- a/mm/compaction.c
-> +++ b/mm/compaction.c
-> @@ -868,6 +868,7 @@ unsigned long try_to_compact_pages(struct zonelist *zonelist,
->  	struct zoneref *z;
->  	struct zone *zone;
->  	int rc = COMPACT_SKIPPED;
-> +	int alloc_flags = 0;
->  
->  	/*
->  	 * Check whether it is worth even starting compaction. The order check is
-> @@ -879,6 +880,10 @@ unsigned long try_to_compact_pages(struct zonelist *zonelist,
->  
->  	count_vm_event(COMPACTSTALL);
->  
-> +#ifdef CONFIG_CMA
-> +	if (allocflags_to_migratetype(gfp_mask) == MIGRATE_MOVABLE)
-> +		alloc_flags |= ALLOC_CMA;
-
-I find this rather obscure.  What is the significance of
-MIGRATE_MOVABLE here?  If it had been 
-
-:	if (allocflags_to_migratetype(gfp_mask) == MIGRATE_CMA)
-:		alloc_flags |= ALLOC_CMA;
-
-then I'd have read straight past it.  But it's unclear what's happening
-here.  If we didn't have to resort to telepathy to understand the
-meaning of ALLOC_CMA, this wouldn't be so hard.
-
-> +#endif
->  	/* Compact each zone in the list */
->  	for_each_zone_zonelist_nodemask(zone, z, zonelist, high_zoneidx,
->  								nodemask) {
-> @@ -889,7 +894,8 @@ unsigned long try_to_compact_pages(struct zonelist *zonelist,
->  		rc = max(status, rc);
->  
->  		/* If a normal allocation would succeed, stop compacting */
-> -		if (zone_watermark_ok(zone, order, low_wmark_pages(zone), 0, 0))
-> +		if (zone_watermark_ok(zone, order, low_wmark_pages(zone), 0,
-> +				      alloc_flags))
->  			break;
->  	}
->  
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 287f79d..5985cbf 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -1519,19 +1519,6 @@ failed:
->  	return NULL;
->  }
->  
-> -/* The ALLOC_WMARK bits are used as an index to zone->watermark */
-> -#define ALLOC_WMARK_MIN		WMARK_MIN
-> -#define ALLOC_WMARK_LOW		WMARK_LOW
-> -#define ALLOC_WMARK_HIGH	WMARK_HIGH
-> -#define ALLOC_NO_WATERMARKS	0x04 /* don't check watermarks at all */
-> -
-> -/* Mask to get the watermark bits */
-> -#define ALLOC_WMARK_MASK	(ALLOC_NO_WATERMARKS-1)
-> -
-> -#define ALLOC_HARDER		0x10 /* try to alloc harder */
-> -#define ALLOC_HIGH		0x20 /* __GFP_HIGH set */
-> -#define ALLOC_CPUSET		0x40 /* check for correct cpuset */
-
-Perhaps mm/internal.h wouild have been a better place to move these.
-
->  #ifdef CONFIG_FAIL_PAGE_ALLOC
->  
->  static struct {
-> @@ -1626,7 +1613,10 @@ static bool __zone_watermark_ok(struct zone *z, int order, unsigned long mark,
->  		min -= min / 2;
->  	if (alloc_flags & ALLOC_HARDER)
->  		min -= min / 4;
-> -
-> +#ifdef CONFIG_CMA
-> +	if (!(alloc_flags & ALLOC_CMA))
-> +		free_pages -= zone_page_state(z, NR_FREE_CMA_PAGES);
-
-Again, the negated test looks weird or just wrong.
-
-
-
-Please do something to make this code more understandable.
+-- 
+Kind Regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
