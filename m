@@ -1,95 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx101.postini.com [74.125.245.101])
-	by kanga.kvack.org (Postfix) with SMTP id B242B6B0062
-	for <linux-mm@kvack.org>; Wed, 19 Sep 2012 15:11:04 -0400 (EDT)
-From: Antigen_SEAXCH01@emc.com
-Subject: Antigen forwarded attachment
-MIME-Version: 1.0
-Content-Type: multipart/mixed;
-	boundary="ANTIGEN-17879-27818-32066-11122-29541-3254"
-Message-ID: <SEAXCH01zu23LiC1h1j004021a3@seaxch01.isilon.com>
-Date: Wed, 19 Sep 2012 12:08:13 -0700
+Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
+	by kanga.kvack.org (Postfix) with SMTP id DED5F6B0062
+	for <linux-mm@kvack.org>; Wed, 19 Sep 2012 15:28:02 -0400 (EDT)
+Date: Wed, 19 Sep 2012 12:28:01 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v4 1/4] mm: fix tracing in free_pcppages_bulk()
+Message-Id: <20120919122801.ec1aa1df.akpm@linux-foundation.org>
+In-Reply-To: <1347632974-20465-2-git-send-email-b.zolnierkie@samsung.com>
+References: <1347632974-20465-1-git-send-email-b.zolnierkie@samsung.com>
+	<1347632974-20465-2-git-send-email-b.zolnierkie@samsung.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, minchan@kernel.org, kamezawa.hiroyu@jp.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, wency@cn.fujitsu.com, shli@fusionio.com
+To: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
+Cc: linux-mm@kvack.org, m.szyprowski@samsung.com, mina86@mina86.com, minchan@kernel.org, mgorman@suse.de, hughd@google.com, kyungmin.park@samsung.com
 
---ANTIGEN-17879-27818-32066-11122-29541-3254
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+On Fri, 14 Sep 2012 16:29:31 +0200
+Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com> wrote:
 
-The body from the message "[PATCH] memory-hotplug: fix zone stat mismatch",=
- originally sent to you by linux-kernel-owner@vger.kernel.org (linux-kernel=
--owner@vger.kernel.org), has been forwarded to you from the Antigen Quarant=
-ine area.=0A=
-This message body may have been re-scanned by Antigen and handled according=
- to the appropriate scan job's settings.=0A=
-=0A=
-=0A=
+> page->private gets re-used in __free_one_page() to store page order
+> (so trace_mm_page_pcpu_drain() may print order instead of migratetype)
+> thus migratetype value must be cached locally.
+> 
+> Fixes regression introduced in a701623 ("mm: fix migratetype bug
+> which slowed swapping").
 
-<<Body of Message>>
+Grumble.  Please describe a bug when fixing it!  I've added here the
+text "This caused incorrect data to be attached to the
+mm_page_pcpu_drain trace event", which is hopefully correct enough.
 
---ANTIGEN-17879-27818-32066-11122-29541-3254
-Content-Type: application/octet-stream
-Content-Transfer-Encoding: base64
-Content-Disposition: attachment; filename="Body of Message"
+As it's been this way for 2.5 years, I assume that this can wait for
+3.7.
 
-RHVyaW5nIG1lbW9yeS1ob3RwbHVnIHN0cmVzcyB0ZXN0LCBJIGZvdW5kIE5SX0lTT0xBVEVEX1tB
-Tk9OfEZJTEVdDQphcmUgaW5jcmVhc2luZyBzbyB0aGF0IGtlcm5lbCBhcmUgaGFuZyBvdXQuDQoN
-ClRoZSBjYXVzZSBpcyB0aGF0IHdoZW4gd2UgZG8gbWVtb3J5LWhvdGFkZCBhZnRlciBtZW1vcnkt
-cmVtb3ZlLA0KX196b25lX3BjcF91cGRhdGUgY2xlYXIgb3V0IHpvbmUncyBaT05FX1NUQVRfSVRF
-TVMgaW4gc2V0dXBfcGFnZXNldA0Kd2l0aG91dCBkcmFpbmluZyB2bV9zdGF0X2RpZmYgb2YgYWxs
-IENQVS4NCg0KVGhpcyBwYXRjaCBmaXhlcyBpdC4NCg0KQ2M6IEthbWV6YXdhIEhpcm95dWtpIDxr
-YW1lemF3YS5oaXJveXVAanAuZnVqaXRzdS5jb20+DQpDYzogWWFzdWFraSBJc2hpbWF0c3UgPGlz
-aW1hdHUueWFzdWFraUBqcC5mdWppdHN1LmNvbT4NCkNjOiBXZW4gQ29uZ3lhbmcgPHdlbmN5QGNu
-LmZ1aml0c3UuY29tPg0KQ2M6IFNoYW9odWEgTGkgPHNobGlAZnVzaW9uaW8uY29tPg0KU2lnbmVk
-LW9mZi1ieTogTWluY2hhbiBLaW0gPG1pbmNoYW5Aa2VybmVsLm9yZz4NCi0tLQ0KQW5kcmV3LCBJ
-IHRoaW5rIGl0J3MgYSBjYW5kaWRhdGUgb2Ygc3RhYmxlIGJ1dCBkaWRuJ3QgQ2NlZA0Kc3RhYmxl
-Lg0KUGxlYXNlIHNlbmQgdGhpcyBwYXRjaCB0byBzdGFibGUgaWYgcmV2aWV3ZXIgY291bGRuJ3Qg
-ZmluZA0KYW55IGZhdWx0IHdoZW4geW91IG1lcmdlLg0KDQpUaGFua3MuDQoNCiBpbmNsdWRlL2xp
-bnV4L3Ztc3RhdC5oIHwgICAgNCArKysrDQogbW0vcGFnZV9hbGxvYy5jICAgICAgICB8ICAgIDEg
-Kw0KIG1tL3Ztc3RhdC5jICAgICAgICAgICAgfCAgIDEyICsrKysrKysrKysrKw0KIDMgZmlsZXMg
-Y2hhbmdlZCwgMTcgaW5zZXJ0aW9ucygrKQ0KDQpkaWZmIC0tZ2l0IGEvaW5jbHVkZS9saW51eC92
-bXN0YXQuaCBiL2luY2x1ZGUvbGludXgvdm1zdGF0LmgNCmluZGV4IGFkMmNmZDUuLjVkMzE4NzYg
-MTAwNjQ0DQotLS0gYS9pbmNsdWRlL2xpbnV4L3Ztc3RhdC5oDQorKysgYi9pbmNsdWRlL2xpbnV4
-L3Ztc3RhdC5oDQpAQCAtMTk4LDYgKzE5OCw4IEBAIGV4dGVybiB2b2lkIF9fZGVjX3pvbmVfc3Rh
-dGUoc3RydWN0IHpvbmUgKiwgZW51bSB6b25lX3N0YXRfaXRlbSk7DQogdm9pZCByZWZyZXNoX2Nw
-dV92bV9zdGF0cyhpbnQpOw0KIHZvaWQgcmVmcmVzaF96b25lX3N0YXRfdGhyZXNob2xkcyh2b2lk
-KTsNCiANCit2b2lkIGRyYWluX3pvbmVzdGF0KHN0cnVjdCB6b25lICp6b25lLCBzdHJ1Y3QgcGVy
-X2NwdV9wYWdlc2V0ICopOw0KKw0KIGludCBjYWxjdWxhdGVfcHJlc3N1cmVfdGhyZXNob2xkKHN0
-cnVjdCB6b25lICp6b25lKTsNCiBpbnQgY2FsY3VsYXRlX25vcm1hbF90aHJlc2hvbGQoc3RydWN0
-IHpvbmUgKnpvbmUpOw0KIHZvaWQgc2V0X3BnZGF0X3BlcmNwdV90aHJlc2hvbGQocGdfZGF0YV90
-ICpwZ2RhdCwNCkBAIC0yNTEsNiArMjUzLDggQEAgc3RhdGljIGlubGluZSB2b2lkIF9fZGVjX3pv
-bmVfcGFnZV9zdGF0ZShzdHJ1Y3QgcGFnZSAqcGFnZSwNCiBzdGF0aWMgaW5saW5lIHZvaWQgcmVm
-cmVzaF9jcHVfdm1fc3RhdHMoaW50IGNwdSkgeyB9DQogc3RhdGljIGlubGluZSB2b2lkIHJlZnJl
-c2hfem9uZV9zdGF0X3RocmVzaG9sZHModm9pZCkgeyB9DQogDQorc3RhdGljIGlubGluZSB2b2lk
-IGRyYWluX3pvbmVzdGF0KHN0cnVjdCB6b25lICp6b25lLA0KKwkJCXN0cnVjdCBwZXJfY3B1X3Bh
-Z2VzZXQgKnBzZXQpIHsgfQ0KICNlbmRpZgkJLyogQ09ORklHX1NNUCAqLw0KIA0KIGV4dGVybiBj
-b25zdCBjaGFyICogY29uc3Qgdm1zdGF0X3RleHRbXTsNCmRpZmYgLS1naXQgYS9tbS9wYWdlX2Fs
-bG9jLmMgYi9tbS9wYWdlX2FsbG9jLmMNCmluZGV4IGFiNTgzNDYuLjVkMDA1YzggMTAwNjQ0DQot
-LS0gYS9tbS9wYWdlX2FsbG9jLmMNCisrKyBiL21tL3BhZ2VfYWxsb2MuYw0KQEAgLTU5MDQsNiAr
-NTkwNCw3IEBAIHN0YXRpYyBpbnQgX19tZW1pbml0IF9fem9uZV9wY3BfdXBkYXRlKHZvaWQgKmRh
-dGEpDQogCQlsb2NhbF9pcnFfc2F2ZShmbGFncyk7DQogCQlpZiAocGNwLT5jb3VudCA+IDApDQog
-CQkJZnJlZV9wY3BwYWdlc19idWxrKHpvbmUsIHBjcC0+Y291bnQsIHBjcCk7DQorCQlkcmFpbl96
-b25lc3RhdCh6b25lLCBwc2V0KTsNCiAJCXNldHVwX3BhZ2VzZXQocHNldCwgYmF0Y2gpOw0KIAkJ
-bG9jYWxfaXJxX3Jlc3RvcmUoZmxhZ3MpOw0KIAl9DQpkaWZmIC0tZ2l0IGEvbW0vdm1zdGF0LmMg
-Yi9tbS92bXN0YXQuYw0KaW5kZXggYjNlM2I5ZC4uZDRjYzFjMiAxMDA2NDQNCi0tLSBhL21tL3Zt
-c3RhdC5jDQorKysgYi9tbS92bXN0YXQuYw0KQEAgLTQ5NSw2ICs0OTUsMTggQEAgdm9pZCByZWZy
-ZXNoX2NwdV92bV9zdGF0cyhpbnQgY3B1KQ0KIAkJCWF0b21pY19sb25nX2FkZChnbG9iYWxfZGlm
-ZltpXSwgJnZtX3N0YXRbaV0pOw0KIH0NCiANCit2b2lkIGRyYWluX3pvbmVzdGF0KHN0cnVjdCB6
-b25lICp6b25lLCBzdHJ1Y3QgcGVyX2NwdV9wYWdlc2V0ICpwc2V0KQ0KK3sNCisJaW50IGk7DQor
-DQorCWZvciAoaSA9IDA7IGkgPCBOUl9WTV9aT05FX1NUQVRfSVRFTVM7IGkrKykNCisJCWlmIChw
-c2V0LT52bV9zdGF0X2RpZmZbaV0pIHsNCisJCQlpbnQgdiA9IHBzZXQtPnZtX3N0YXRfZGlmZltp
-XTsNCisJCQlwc2V0LT52bV9zdGF0X2RpZmZbaV0gPSAwOw0KKwkJCWF0b21pY19sb25nX2FkZCh2
-LCAmem9uZS0+dm1fc3RhdFtpXSk7DQorCQkJYXRvbWljX2xvbmdfYWRkKHYsICZ2bV9zdGF0W2ld
-KTsNCisJCX0NCit9DQogI2VuZGlmDQogDQogI2lmZGVmIENPTkZJR19OVU1BDQotLSANCjEuNy45
-LjUNCg0KLS0NClRvIHVuc3Vic2NyaWJlIGZyb20gdGhpcyBsaXN0OiBzZW5kIHRoZSBsaW5lICJ1
-bnN1YnNjcmliZSBsaW51eC1rZXJuZWwiIGluDQp0aGUgYm9keSBvZiBhIG1lc3NhZ2UgdG8gbWFq
-b3Jkb21vQHZnZXIua2VybmVsLm9yZw0KTW9yZSBtYWpvcmRvbW8gaW5mbyBhdCAgaHR0cDovL3Zn
-ZXIua2VybmVsLm9yZy9tYWpvcmRvbW8taW5mby5odG1sDQpQbGVhc2UgcmVhZCB0aGUgRkFRIGF0
-ICBodHRwOi8vd3d3LnR1eC5vcmcvbGttbC8NCg0K
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -668,12 +668,15 @@ static void free_pcppages_bulk(struct zone *zone, int count,
+>  			batch_free = to_free;
+>  
+>  		do {
+> +			int mt;
+> +
+>  			page = list_entry(list->prev, struct page, lru);
+>  			/* must delete as __free_one_page list manipulates */
+>  			list_del(&page->lru);
+> +			mt = page_private(page);
+>  			/* MIGRATE_MOVABLE list may include MIGRATE_RESERVEs */
+> -			__free_one_page(page, zone, 0, page_private(page));
+> -			trace_mm_page_pcpu_drain(page, 0, page_private(page));
+> +			__free_one_page(page, zone, 0, mt);
+> +			trace_mm_page_pcpu_drain(page, 0, mt);
+>  		} while (--to_free && --batch_free && !list_empty(list));
+>  	}
+>  	__mod_zone_page_state(zone, NR_FREE_PAGES, count);
 
---ANTIGEN-17879-27818-32066-11122-29541-3254--
+More grumble.  Look:
+
+akpm:/usr/src/25> grep migratetype mm/page_alloc.c | wc -l
+115
+
+We should respect the established naming conventions.  But reusing
+local var `maigratetype' here is not good practice, so how about
+
+--- a/mm/page_alloc.c~mm-fix-tracing-in-free_pcppages_bulk-fix
++++ a/mm/page_alloc.c
+@@ -668,7 +668,7 @@ static void free_pcppages_bulk(struct zo
+ 			batch_free = to_free;
+ 
+ 		do {
+-			int mt;
++			int mt;	/* migratetype of the to-be-freed page */
+ 
+ 			page = list_entry(list->prev, struct page, lru);
+ 			/* must delete as __free_one_page list manipulates */
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
