@@ -1,74 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
-	by kanga.kvack.org (Postfix) with SMTP id E6A836B002B
-	for <linux-mm@kvack.org>; Wed, 19 Sep 2012 03:46:06 -0400 (EDT)
-Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id AC48D3EE0C0
-	for <linux-mm@kvack.org>; Wed, 19 Sep 2012 16:46:04 +0900 (JST)
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 916E045DE51
-	for <linux-mm@kvack.org>; Wed, 19 Sep 2012 16:46:04 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 78E0445DE50
-	for <linux-mm@kvack.org>; Wed, 19 Sep 2012 16:46:04 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 6B09C1DB8040
-	for <linux-mm@kvack.org>; Wed, 19 Sep 2012 16:46:04 +0900 (JST)
-Received: from G01JPEXCHKW21.g01.fujitsu.local (G01JPEXCHKW21.g01.fujitsu.local [10.0.193.104])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 200411DB8037
-	for <linux-mm@kvack.org>; Wed, 19 Sep 2012 16:46:04 +0900 (JST)
-Message-ID: <50597829.9010801@jp.fujitsu.com>
-Date: Wed, 19 Sep 2012 16:45:45 +0900
-From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
+	by kanga.kvack.org (Postfix) with SMTP id 566A06B0069
+	for <linux-mm@kvack.org>; Wed, 19 Sep 2012 03:49:16 -0400 (EDT)
+Message-ID: <5059777E.8060906@parallels.com>
+Date: Wed, 19 Sep 2012 11:42:54 +0400
+From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v4 1/4] mm: fix tracing in free_pcppages_bulk()
-References: <1347632974-20465-1-git-send-email-b.zolnierkie@samsung.com> <1347632974-20465-2-git-send-email-b.zolnierkie@samsung.com> <50596F27.4080208@jp.fujitsu.com> <20120919073245.GA13234@bbox>
-In-Reply-To: <20120919073245.GA13234@bbox>
-Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
+Subject: Re: [PATCH v3 09/16] sl[au]b: always get the cache from its page
+ in kfree
+References: <1347977530-29755-1-git-send-email-glommer@parallels.com> <1347977530-29755-10-git-send-email-glommer@parallels.com> <00000139d9fe8595-8905906d-18ed-4d41-afdb-f4c632c2d50a-000000@email.amazonses.com>
+In-Reply-To: <00000139d9fe8595-8905906d-18ed-4d41-afdb-f4c632c2d50a-000000@email.amazonses.com>
+Content-Type: text/plain; charset="ISO-8859-1"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, linux-mm@kvack.org, m.szyprowski@samsung.com, mina86@mina86.com, mgorman@suse.de, hughd@google.com, kyungmin.park@samsung.com
+To: Christoph Lameter <cl@linux.com>
+Cc: linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, devel@openvz.org, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, Suleiman Souhlal <suleiman@google.com>, Frederic Weisbecker <fweisbec@gmail.com>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@cs.helsinki.fi>
 
-Hi Minchan,
-
-2012/09/19 16:32, Minchan Kim wrote:
-> Hi Yasuaki,
->
-> On Wed, Sep 19, 2012 at 04:07:19PM +0900, Yasuaki Ishimatsu wrote:
->> Hi Bartlomiej,
+On 09/18/2012 07:28 PM, Christoph Lameter wrote:
+> On Tue, 18 Sep 2012, Glauber Costa wrote:
+> 
+>> index f2d760c..18de3f6 100644
+>> --- a/mm/slab.c
+>> +++ b/mm/slab.c
+>> @@ -3938,9 +3938,12 @@ EXPORT_SYMBOL(__kmalloc);
+>>   * Free an object which was previously allocated from this
+>>   * cache.
+>>   */
+>> -void kmem_cache_free(struct kmem_cache *cachep, void *objp)
+>> +void kmem_cache_free(struct kmem_cache *s, void *objp)
+>>  {
+>>  	unsigned long flags;
+>> +	struct kmem_cache *cachep = virt_to_cache(objp);
+>> +
+>> +	VM_BUG_ON(!slab_equal_or_parent(cachep, s));
 >>
->> 2012/09/14 23:29, Bartlomiej Zolnierkiewicz wrote:
->>> page->private gets re-used in __free_one_page() to store page order
->>> (so trace_mm_page_pcpu_drain() may print order instead of migratetype)
->>> thus migratetype value must be cached locally.
->>>
->>> Fixes regression introduced in a701623 ("mm: fix migratetype bug
->>> which slowed swapping").
+> 
+> This is an extremely hot path of the kernel and you are adding significant
+> processing. Check how the benchmarks are influenced by this change.
+> virt_to_cache can be a bit expensive.
+> 
+
+Would it be enough for you to have a separate code path for
+!CONFIG_MEMCG_KMEM?
+
+I don't really see another way to do it, aside from deriving the cache
+from the object in our case. I am open to suggestions if you do.
+
+>> diff --git a/mm/slub.c b/mm/slub.c
+>> index 4778548..a045dfc 100644
+>> --- a/mm/slub.c
+>> +++ b/mm/slub.c
+>> @@ -2604,7 +2604,9 @@ void kmem_cache_free(struct kmem_cache *s, void *x)
 >>
->> I think the regression has been alreadly fixed by following Mincahn's patches.
+>>  	page = virt_to_head_page(x);
 >>
->> https://lkml.org/lkml/2012/9/6/635
+>> -	slab_free(s, page, x, _RET_IP_);
+>> +	VM_BUG_ON(!slab_equal_or_parent(page->slab, s));
+>> +
+>> +	slab_free(page->slab, page, x, _RET_IP_);
 >>
->> => Hi Minchan,
->>
->>     Am I wrong?
->
-> This patch isn't related to mine.
-
-According to the description, the regression occurs by clearing migratetype
-info from page->private at __free_one_page(). If we apply your patches,
-migratetype info is stored into page->index. So the migratetype info is not
-cleared. Thus we do not need to cache the info locally.
-
-Thanks,
-Yasuaki Ishimatsu
-
-> In addition, this patch don't need to be a part of this series.
->
-
-
+> 
+> Less of a problem here but you are eroding one advantage that slab has had
+> in the past over slub in terms of freeing objects.
+> 
+likewise.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
