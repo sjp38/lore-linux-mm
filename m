@@ -1,168 +1,62 @@
-From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: Re: + mm-memblock-reduce-overhead-in-binary-search.patch added to
- -mm tree
-Date: Mon, 10 Sep 2012 19:30:51 +0800
-Message-ID: <15810.6890543879$1347276686@news.gmane.org>
-References: <20120907235058.A33F75C0219@hpza9.eem.corp.google.com>
- <20120910082035.GA13035@dhcp22.suse.cz>
- <20120910094604.GA7365@hacker.(null)>
- <20120910110550.GA17437@dhcp22.suse.cz>
-Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+From: =?utf-8?B?5q+P5aSp5LuFMTDlhYM=?= <admin@soontest.com>
+Subject: =?utf-8?B?MjAxMuaYpeWtozExMeWxiuW5v+S6pOS8muS5sOWutu+8jEIyQuivog==?=
+	=?utf-8?B?55uY5Lmw5a6244CBdGhvbWFzbmV0IOmHh+i0reWVhizmtbflhbM=?=
+	=?utf-8?B?5pWw5o2uLOe+pOWPkei9r+S7tu+8jOWxleS8muS5sOWutiDku4UzMDDlhYMh?=
+Date: Wed, 19 Sep 2012 07:21:38 +0000 (UTC)
+Message-ID: <20240919150759536837@soontest.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Return-path: <owner-linux-mm@kvack.org>
-Received: from kanga.kvack.org ([205.233.56.17])
-	by plane.gmane.org with esmtp (Exim 4.69)
-	(envelope-from <owner-linux-mm@kvack.org>)
-	id 1TB2Cx-0005GH-LQ
-	for glkm-linux-mm-2@m.gmane.org; Mon, 10 Sep 2012 13:31:16 +0200
-Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
-	by kanga.kvack.org (Postfix) with SMTP id 200B36B0068
-	for <linux-mm@kvack.org>; Mon, 10 Sep 2012 07:31:09 -0400 (EDT)
-Received: from /spool/local
-	by e28smtp02.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Mon, 10 Sep 2012 17:01:03 +0530
-Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
-	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q8ABUx3244433458
-	for <linux-mm@kvack.org>; Mon, 10 Sep 2012 17:00:59 +0530
-Received: from d28av01.in.ibm.com (loopback [127.0.0.1])
-	by d28av01.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q8AH0ZZs020632
-	for <linux-mm@kvack.org>; Mon, 10 Sep 2012 22:30:35 +0530
-Content-Disposition: inline
-In-Reply-To: <20120910110550.GA17437@dhcp22.suse.cz>
-Sender: owner-linux-mm@kvack.org
-List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: akpm@linux-foundation.org, kamezawa.hiroyu@jp.fujitsu.com, minchan@kernel.org, shangw@linux.vnet.ibm.com, yinghai@kernel.org, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+Content-Type: text/plain;
+	charset="utf-8"
+Content-Transfer-Encoding: base64
+Return-path: <linux-raid-owner@vger.kernel.org>
+Date: Thu, 19 Sep 2024 15:07:50 +0800
+Sender: linux-raid-owner@vger.kernel.org
+To: linuschicago@yahoo.com, lucan@ac.tut.fi, linux-dell-laptops-owner@yahoogroups.com, lucas.city@mailcity.com, lucas.lin2000@gmail.com, linux-mm@kvack.org, linux-raid@vger.kernel.org, lucas@host153.190-31-17.telecom.net.ar, linv5800@comcast.net, linvon602404129@qq.com
+List-Id: linux-mm.kvack.org
 
-On Mon, Sep 10, 2012 at 01:05:50PM +0200, Michal Hocko wrote:
->On Mon 10-09-12 17:46:04, Wanpeng Li wrote:
->> On Mon, Sep 10, 2012 at 10:22:39AM +0200, Michal Hocko wrote:
->> >[Sorry for the late reply]
->> >
->> >On Fri 07-09-12 16:50:57, Andrew Morton wrote:
->> >> 
->> >> The patch titled
->> >>      Subject: mm/memblock: reduce overhead in binary search
->> >> has been added to the -mm tree.  Its filename is
->> >>      mm-memblock-reduce-overhead-in-binary-search.patch
->> >> 
->> >> Before you just go and hit "reply", please:
->> >>    a) Consider who else should be cc'ed
->> >>    b) Prefer to cc a suitable mailing list as well
->> >>    c) Ideally: find the original patch on the mailing list and do a
->> >>       reply-to-all to that, adding suitable additional cc's
->> >> 
->> >> *** Remember to use Documentation/SubmitChecklist when testing your code ***
->> >> 
->> >> The -mm tree is included into linux-next and is updated
->> >> there every 3-4 working days
->> >> 
->> >> ------------------------------------------------------
->> >> From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
->> >> Subject: mm/memblock: reduce overhead in binary search
->> >> 
->> >> When checking that the indicated address belongs to the memory region, the
->> >> memory regions are checked one by one through a binary search, which will
->> >> be time consuming.
->> >
->> >How many blocks do you have that O(long) is that time consuming?
->> >
->> >> If the indicated address isn't in the memory region, then we needn't do
->> >> the time-consuming search.  
->> >
->> >How often does this happen?
->> >
->> >> Add a check on the indicated address for that purpose.
->> >
->> >We have 2 users of this function. One is exynos_sysmmu_enable and the
->> >other pfn_valid for unicore32. The first one doesn't seem to be used
->> >anywhere (as per git grep). The other one could benefit from it but it
->> >would be nice to hear about how much it really helps becuase if the
->> >address is (almost) never outside of start,end DRAM bounds then you just
->> >add a pointless check.
->> >Besides that, if this kind of optimization is really worth, why don't we
->> >do the same thing for memblock_is_reserved and memblock_is_region_memory
->> >as well?
->> 
->> As Yinghai said,
->> 
->> BIOS could have reserved some ranges, and those ranges are not overlapped by 
->> RAM. and so those range will not be in memory and reserved array.
->> 
->> later kernel will probe some range, and reserved those range, so those
->> range get inserted into reserved array. reserved and memory array is
->> different.
->
->OK. Thanks for the clarification. The main question remains, though. Is
->this worth for memblock_is_memory?
+MjAxMuaYpeWtozExMeWxiuW5v+S6pOS8muS5sOWutu+8jOa1t+WFs+aVsOaNruaPkOWNlXBpZXJz
+54mI77yMMjAwOC0yMDEy5bm0OeWxiuW5v+S6pOS8muaVsOaNruOAgg0KDQrkuIDlhbExMOS4quWM
+hSjmlbDmja7mmK/lhajooYzkuJrnmoTvvIzlj6/ku6XmjInnhaflhbPplK7or43mj5Dlj5blh7rm
+naXnmoQp77yaIA0KMe+8jDIwMTLmmKXlraMxMTHlsYrlub/kuqTkvJrkubDlrrbnjrDlnLror6Ln
+m5jmlbDmja7lupPmlrDpspzlh7rngonvvIzotoXnuqfmlrDpspzkubDlrrbvvIzmlrDpspzmlbDm
+ja7vvIzlrrnmmJPmiJDljZXvvIEgDQoy77yM6LSt5Lmw5ZCO5Y+v5Lul5YWN6LS55pu05pawMjAx
+Mueni+Wto+W5v+S6pOS8muS5sOWutuaVsOaNruOAguWkqui2heWAvOS6huOAgg0KM++8jDIwMTLm
+nIDmlrDlhajnkIPlsZXkvJrnjrDlnLrkubDlrrblupMo5LiO6LS45Y+R5ZCM5q2lKSzlhbE0NuS4
+h+adoeaVsOaNruOAgiAo5oyJ54Wn6KGM5Lia5YiG57G7KQ0KNO+8jDIwMTEsMjAxMOW5tCwyMDA5
+5bm0LDIwMDjlubQg5pil5a2jK+eni+Wto+W5v+S6pOS8muS5sOWutuWQjeW9le+8jDEwMyAxMDQg
+MTA1IDEwNiAxMDcgMTA4LDEwOSwxMTAg5YWx5YWt5bGKIOWFsTEyMC425LiH5pWw5o2u44CCDQo1
+77yMNDguNjjkuIfmnaHmnIDmlrDkubDlrrbor6Lnm5jvvIzpg73luKbmnIlFbWFpbO+8jOacgOac
+ieS7t+WAvOeahOivouebmOOAgg0KNu+8jDIwMTHmnIDmlrAgQjJCIOiLseaWh+WbvemZheermTYw
+5LiH5bim6IGU57uc5pa55byP6K+i55uYIOacgOacieS7t+WAvOivouebmOS5i+S4gC4NCjfvvIwy
+MDEw5rW35YWz5o+Q5Y2VcGllcnPniYgxMDAw5LiH5pWw5o2uLg0KOO+8jDIwMTHlubTliLDpppnm
+uK/ph4fotK3nmoTlm73lpJblrqLkurrlkI3lvZUo6aaZ5riv6LS45Y+R5bGA5o+Q5L6bKe+8jOi2
+hee6p+mHjeimgeeahOS5sOWutuOAgg0KOe+8jDIwMTHlubTmlrDlop7liqDnmoQt576O5Zu9QjJC
+IHRob21hc25ldCDph4fotK3llYblkI3ljZXjgIINCjEw77yM576k5Y+R6L2v5Lu25a6J6KOF5LiO
+6YOo572y5pyN5Yqh44CCDQoNCui/meS6m+WFqOacie+8jOWFsTEyODDkuIcg5pWw5o2u44CCDQoN
+CiANCuimgeeahOaKk+e0p+iBlOezu1FROiA0NjAxMjI2NDEg5oiW6ICF56uL5Y2z5Zue5aSN6YKu
+566xOiA0NjAxMjI2NDFAcXEuY29tDQropoHnmoTmipPntKfogZTns7tRUTogNDYwMTIyNjQxIOaI
+luiAheeri+WNs+WbnuWkjemCrueusTogNDYwMTIyNjQxQHFxLmNvbQ0K6KaB55qE5oqT57Sn6IGU
+57O7UVE6IDQ2MDEyMjY0MSDmiJbogIXnq4vljbPlm57lpI3pgq7nrrE6IDQ2MDEyMjY0MUBxcS5j
+b20NCg0K6K+a5L+h5Li65pys77yM5aaC5p6c5LiN5L+h5Lu75pys5Lq6LOWPr+S7pei1sOa3mOWu
+neS6pOaYkyzmlLbliLDmlbDmja7pqozor4Ez5aSp5ZCO5YaN5LuY5qy+LOi/meaYr+WvueaCqOac
+gOWlveeahOS/nemanOS6huOAgiANCg0KDQoNCuWwj+aKgOW3p++8miANCuaKijUwMOS4h+S5sOWu
+tue+pOWPkeS7peS4gOmBje+8jOWdh+S8muacieaVsOWNg+S4quWbnuWkjeeahO+8jOi/meS6m+Ww
+seaYr+mdnuW4uOmrmOi0qOmHj+eahOS5sOWutuOAgiANCuS9v+eUqOaIkeS7rOmAgeeahOe+pOWP
+kei9r+S7tu+8jDEtMuWRqOWwseWPr+WujOWFqOWPkeWujOOAgg0KDQoNCg0KDQoNCuW5v+S6pOS8
+muS5sOWutuaMieS6p+WTgeexu+WIq+WIhuexu++8jOWIhuS4uuS7peS4i+WHoOexu++8mg0KMSDl
+ip7lhazorr7lpIcNCjIg57yW57uH5Y+K6Jek6ZOB5bel6Im65ZOBDQozIOeOu+eSgw0KNCDppJDl
+jqjnlKjlhbcNCjUg6L2m6L6GDQo2IOWkp+Wei+acuuaisOWPiuiuvuWkhw0KNyDnlLXlrZDnlLXm
+sJQNCjgg55S15a2Q5raI6LS55ZOBDQo5IOe6uue7hw0KMTAg5pyN6KOFDQoxMSDkuKrkurrmiqTn
+kIYNCjEyIOW3peeoi+acuuaisA0KMTMg5bel5YW3DQoxNCDljJblt6UNCjE1IOiuoeeul+acuuWP
+iumAmuiurw0KMTYg5a625bGF55So5ZOBDQoxNyDlrrblsYXoo4XppbANCjE4IOWutuWFtw0KMTkg
+5a6255So55S15ZmoDQoyMCDlu7rnrZHlj4roo4XppbDmnZDmlpkNCjIxIOiKguaXpeeUqOWTgQ0K
+MjIg56S85ZOB5Y+K6LWg5ZOBDQoyMyDmkanmiZjovaYNCjI0IOaxvei9pumFjeS7tg0KMjUg6aOf
+5ZOBDQoyNiDpmbbnk7cNCjI3IOmTgeefsw0KMjgg546p5YW3DQoyOSDljavmtbQNCjMwIOS6lOmH
+kQ0KMzEg5bCP5Z6L5py65qKwDQozMiDpnosNCjMzIOS8kemXsueUqOWTgQ0KMzQg5Yy755aXDQoz
+NSDmtbTlrqTkuqflk4ENCjM2IOWbreaelw0KMzcg54Wn5piO5Lqn5ZOBDQozOCDpkp/ooajnnLzp
+lZwNCjM5IOiHquihjOi9pg0KNDAg5YyFDQoNCg0K5paw6bKc5pWw5o2uLeaIkOWNleeOh+aegemr
+mA0K5paw6bKc5pWw5o2uLeaIkOWNleeOh+aegemrmA0K5paw6bKc5pWw5o2uLeaIkOWNleeOh+ae
+gemrmA0K5paw6bKc5pWw5o2uLeaIkOWNleeOh+aegemrmA0K5paw6bKc5pWw5o2uLeaIkOWNleeO
+h+aegemrmA0K
 
-There are many call sites need to call pfn_valid, how can you guarantee all
-the addrs are between memblock_start_of_DRAM() and memblock_end_of_DRAM(), 
-if not can this reduce possible overhead ? I add unlikely which means that 
-this will not happen frequently.  :-)
 
->
->> >So, while the patch seems correct, I do not see how much it helps while
->> >it definitely adds a code to maintain.
->> >
->> >> Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
->> >> Cc: Michal Hocko <mhocko@suse.cz>
->> >> Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
->> >> Cc: Minchan Kim <minchan@kernel.org>
->> >> Cc: Gavin Shan <shangw@linux.vnet.ibm.com>
->> >> Cc: Yinghai Lu <yinghai@kernel.org>
->> >> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
->> >> ---
->> >> 
->> >>  mm/memblock.c |    5 +++++
->> >>  1 file changed, 5 insertions(+)
->> >> 
->> >> diff -puN mm/memblock.c~mm-memblock-reduce-overhead-in-binary-search mm/memblock.c
->> >> --- a/mm/memblock.c~mm-memblock-reduce-overhead-in-binary-search
->> >> +++ a/mm/memblock.c
->> >> @@ -888,6 +888,11 @@ int __init memblock_is_reserved(phys_add
->> >>  
->> >>  int __init_memblock memblock_is_memory(phys_addr_t addr)
->> >>  {
->> >> +
->> >> +	if (unlikely(addr < memblock_start_of_DRAM() ||
->> >> +		addr >= memblock_end_of_DRAM()))
->> >> +		return 0;
->> >> +
->> >>  	return memblock_search(&memblock.memory, addr) != -1;
->> >>  }
->> >>  
->> >> _
->> >> 
->> >> Patches currently in -mm which might be from liwanp@linux.vnet.ibm.com are
->> >> 
->> >> mm-mmu_notifier-init-notifier-if-necessary.patch
->> >> mm-vmscan-fix-error-number-for-failed-kthread.patch
->> >> mm-memblock-reduce-overhead-in-binary-search.patch
->> >> mm-memblock-rename-get_allocated_memblock_reserved_regions_info.patch
->> >> mm-memblock-use-existing-interface-to-set-nid.patch
->> >> mm-memblock-cleanup-early_node_map-related-comments.patch
->> >> 
->> >
->> >-- 
->> >Michal Hocko
->> >SUSE Labs
->> >
->> >--
->> >To unsubscribe, send a message with 'unsubscribe linux-mm' in
->> >the body to majordomo@kvack.org.  For more info on Linux MM,
->> >see: http://www.linux-mm.org/ .
->> >Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
->> 
->
->-- 
->Michal Hocko
->SUSE Labs
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
