@@ -1,50 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx177.postini.com [74.125.245.177])
-	by kanga.kvack.org (Postfix) with SMTP id 974A16B005A
-	for <linux-mm@kvack.org>; Wed, 19 Sep 2012 10:15:05 -0400 (EDT)
-Message-ID: <5059D367.7020801@redhat.com>
-Date: Wed, 19 Sep 2012 10:15:03 -0400
-From: Rik van Riel <riel@redhat.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH] mm: thp: fix pmd_present for split_huge_page and PROT_NONE
- with THP
-References: <1348005959-4869-1-git-send-email-aarcange@redhat.com>
-In-Reply-To: <1348005959-4869-1-git-send-email-aarcange@redhat.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
+	by kanga.kvack.org (Postfix) with SMTP id 192066B005A
+	for <linux-mm@kvack.org>; Wed, 19 Sep 2012 10:19:00 -0400 (EDT)
+From: Haggai Eran <haggaie@mellanox.com>
+Subject: [PATCH] mm: call invalidate_range_end in do_wp_page even for zero pages
+Date: Wed, 19 Sep 2012 17:18:37 +0300
+Message-Id: <1348064317-9943-1-git-send-email-haggaie@mellanox.com>
+In-Reply-To: <5058CE2F.7030302@suse.cz>
+References: <5058CE2F.7030302@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Johannes Weiner <jweiner@redhat.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>
+To: Jiri Slaby <jslaby@suse.cz>
+Cc: linux-kernel@vger.kernel.org, kvm@vger.kernel.org, linux-mm@kvack.org, Shachar Raindel <raindel@mellanox.com>, Haggai Eran <haggaie@mellanox.com>, Avi Kivity <avi@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
 
-On 09/18/2012 06:05 PM, Andrea Arcangeli wrote:
-> In many places !pmd_present has been converted to pmd_none. For pmds
-> that's equivalent and pmd_none is quicker so using pmd_none is
-> better.
->
-> However (unless we delete pmd_present) we should provide an accurate
-> pmd_present too. This will avoid the risk of code thinking the pmd is
-> non present because it's under __split_huge_page_map, see the
-> pmd_mknotpresent there and the comment above it.
->
-> If the page has been mprotected as PROT_NONE, it would also lead to a
-> pmd_present false negative in the same way as the race with
-> split_huge_page.
->
-> Because the PSE bit stays on at all times (both during split_huge_page
-> and when the _PAGE_PROTNONE bit get set), we could only check for the
-> PSE bit, but checking the PROTNONE bit too is still good to remember
-> pmd_present must always keep PROT_NONE into account.
- >
-> This explains a not reproducible BUG_ON that was seldom reported on
-> the lists.
->
-> The same issue is in pmd_large, it would go wrong with both PROT_NONE
-> and if it races with split_huge_page.
->
-> Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+The previous patch "mm: wrap calls to set_pte_at_notify with
+invalidate_range_start and invalidate_range_end" only called the
+invalidate_range_end mmu notifier function in do_wp_page when the new_page
+variable wasn't NULL. This was done in order to only call invalidate_range_end
+after invalidate_range_start was called. Unfortunately, there are situations
+where new_page is NULL and invalidate_range_start is called. This caused
+invalidate_range_start to be called without a matching invalidate_range_end,
+causing kvm to loop indefinitely on the first page fault.
 
-Acked-by: Rik van Riel <riel@redhat.com>
+This patch adds a flag variable to do_wp_page that marks whether the
+invalidate_range_start notifier was called. invalidate_range_end is then
+called if the flag is true.
+
+Reported-by: Jiri Slaby <jslaby@suse.cz>
+Cc: Avi Kivity <avi@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Signed-off-by: Haggai Eran <haggaie@mellanox.com>
+---
+I tested this patch against yesterday's linux-next (next-20120918), and it
+seems to solve the problem with kvm. I used the same command line you reported:
+
+  qemu-kvm -k en-us -usbdevice tablet -balloon virtio -hda IMAGE -smp 2 \
+  -m 1000M -net user -net nic,model=e1000 -usb -serial pty
+
+I was hoping you could also test it yourself, and see that it also works for
+you, if you don't mind.
+
+ mm/memory.c | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/mm/memory.c b/mm/memory.c
+index 1a92d87..76ec199 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -2529,6 +2529,7 @@ static int do_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ 	struct page *dirty_page = NULL;
+ 	unsigned long mmun_start;	/* For mmu_notifiers */
+ 	unsigned long mmun_end;		/* For mmu_notifiers */
++	bool mmun_called = false;	/* For mmu_notifiers */
+ 
+ 	old_page = vm_normal_page(vma, address, orig_pte);
+ 	if (!old_page) {
+@@ -2706,8 +2707,9 @@ gotten:
+ 	if (mem_cgroup_newpage_charge(new_page, mm, GFP_KERNEL))
+ 		goto oom_free_new;
+ 
+-	mmun_start = address & PAGE_MASK;
+-	mmun_end   = (address & PAGE_MASK) + PAGE_SIZE;
++	mmun_start  = address & PAGE_MASK;
++	mmun_end    = (address & PAGE_MASK) + PAGE_SIZE;
++	mmun_called = true;
+ 	mmu_notifier_invalidate_range_start(mm, mmun_start, mmun_end);
+ 
+ 	/*
+@@ -2776,8 +2778,7 @@ gotten:
+ 		page_cache_release(new_page);
+ unlock:
+ 	pte_unmap_unlock(page_table, ptl);
+-	if (new_page)
+-		/* Only call the end notifier if the begin was called. */
++	if (mmun_called)
+ 		mmu_notifier_invalidate_range_end(mm, mmun_start, mmun_end);
+ 	if (old_page) {
+ 		/*
+-- 
+1.7.11.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
