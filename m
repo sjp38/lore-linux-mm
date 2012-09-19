@@ -1,112 +1,219 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
-	by kanga.kvack.org (Postfix) with SMTP id A936E6B002B
-	for <linux-mm@kvack.org>; Wed, 19 Sep 2012 16:38:30 -0400 (EDT)
-Received: by pbbro12 with SMTP id ro12so3651243pbb.14
-        for <linux-mm@kvack.org>; Wed, 19 Sep 2012 13:38:30 -0700 (PDT)
-Date: Thu, 20 Sep 2012 05:38:21 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH] mm: fix NR_ISOLATED_[ANON|FILE] mismatch
-Message-ID: <20120919203821.GB2425@barrios>
-References: <1348040735-3897-1-git-send-email-minchan@kernel.org>
- <CAHGf_=rY-1R+68BWqW4653r_=AYkgE1CfM7wvSyvdSXRwjraUA@mail.gmail.com>
- <20120919182810.GB1569@cmpxchg.org>
+Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
+	by kanga.kvack.org (Postfix) with SMTP id 675616B0044
+	for <linux-mm@kvack.org>; Wed, 19 Sep 2012 17:53:33 -0400 (EDT)
+Received: by qcsd16 with SMTP id d16so1455910qcs.14
+        for <linux-mm@kvack.org>; Wed, 19 Sep 2012 14:53:32 -0700 (PDT)
+Date: Wed, 19 Sep 2012 14:52:53 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH 3/4] mm: clear_page_mlock in page_remove_rmap
+In-Reply-To: <20120919171811.GR1560@cmpxchg.org>
+Message-ID: <alpine.LSU.2.00.1209191347360.28400@eggly.anvils>
+References: <alpine.LSU.2.00.1209182045370.11632@eggly.anvils> <alpine.LSU.2.00.1209182053520.11632@eggly.anvils> <20120919171811.GR1560@cmpxchg.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120919182810.GB1569@cmpxchg.org>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Christoph Lameter <cl@linux.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, Michel Lespinasse <walken@google.com>, Ying Han <yinghan@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Hi Hannes,
-
-On Wed, Sep 19, 2012 at 02:28:10PM -0400, Johannes Weiner wrote:
-> On Wed, Sep 19, 2012 at 01:04:56PM -0400, KOSAKI Motohiro wrote:
-> > On Wed, Sep 19, 2012 at 3:45 AM, Minchan Kim <minchan@kernel.org> wrote:
-> > > When I looked at zone stat mismatch problem, I found
-> > > migrate_to_node doesn't decrease NR_ISOLATED_[ANON|FILE]
-> > > if check_range fails.
-> 
-> This is a bit misleading.  It's not that the stats would be
-> inaccurate, it's that the pages would be leaked from the LRU, no?
-> 
-> > > It can make system hang out.
-> 
-> Did you spot this by code review only or did you actually run into
-> this?  Because...
-
-Just by code review during the bug of memory-hotplug.
-
-> 
-> > > Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> > > Cc: Mel Gorman <mgorman@suse.de>
-> > > Cc: Christoph Lameter <cl@linux.com>
-> > > Signed-off-by: Minchan Kim <minchan@kernel.org>
-> > > ---
-> > >  mm/mempolicy.c |   16 ++++++++--------
-> > >  1 file changed, 8 insertions(+), 8 deletions(-)
-> > >
-> > > diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-> > > index 3d64b36..6bf0860 100644
-> > > --- a/mm/mempolicy.c
-> > > +++ b/mm/mempolicy.c
-> > > @@ -953,16 +953,16 @@ static int migrate_to_node(struct mm_struct *mm, int source, int dest,
-> > >
-> > >         vma = check_range(mm, mm->mmap->vm_start, mm->task_size, &nmask,
-> > >                         flags | MPOL_MF_DISCONTIG_OK, &pagelist);
-> > > -       if (IS_ERR(vma))
-> > > -               return PTR_ERR(vma);
-> > > -
-> > > -       if (!list_empty(&pagelist)) {
-> > > +       if (IS_ERR(vma)) {
-> > > +               err = PTR_ERR(vma);
-> > > +               goto out;
-> > > +       }
-> > > +       if (!list_empty(&pagelist))
-> > >                 err = migrate_pages(&pagelist, new_node_page, dest,
-> > >                                                         false, MIGRATE_SYNC);
-> > > -               if (err)
-> > > -                       putback_lru_pages(&pagelist);
-> > > -       }
-> > > -
-> > > +out:
-> > > +       if (err)
-> > > +               putback_lru_pages(&pagelist);
+On Wed, 19 Sep 2012, Johannes Weiner wrote:
+> On Tue, Sep 18, 2012 at 08:55:21PM -0700, Hugh Dickins wrote:
+> > We had thought that pages could no longer get freed while still marked
+> > as mlocked; but Johannes Weiner posted this program to demonstrate that
+> > truncating an mlocked private file mapping containing COWed pages is
+> > still mishandled:
 > > 
-> > Good catch!
-> > This is a regression since following commit. So, I doubt we need
-> > all or nothing semantics. Can we revert it instead? (and probably
-> > we need more kind comment for preventing an accident)
-> 
-> I think it makes sense to revert.  Not because of the semantics, but I
-> just don't see how check_range() could even fail for this callsite:
-> 
-> 1. we pass mm->mmap->vm_start in there, so we should not fail due to
->    find_vma()
-> 
-> 2. we pass MPOL_MF_DISCONTIG_OK, so the discontig checks do not apply
->    and so can not fail
-> 
-> 3. we pass MPOL_MF_MOVE | MPOL_MF_MOVE_ALL, the page table loops will
->    continue until addr == end, so we never fail with -EIO
-> 
-> > commit 0def08e3acc2c9c934e4671487029aed52202d42
-> > Author: Vasiliy Kulikov <segooon@gmail.com>
-> > Date:   Tue Oct 26 14:21:32 2010 -0700
+> > #include <sys/types.h>
+> > #include <sys/mman.h>
+> > #include <sys/stat.h>
+> > #include <stdlib.h>
+> > #include <unistd.h>
+> > #include <fcntl.h>
+> > #include <stdio.h>
 > > 
-> >     mm/mempolicy.c: check return code of check_range
+> > int main(void)
+> > {
+> > 	char *map;
+> > 	int fd;
+> > 
+> > 	system("grep mlockfreed /proc/vmstat");
+> > 	fd = open("chigurh", O_CREAT|O_EXCL|O_RDWR);
+> > 	unlink("chigurh");
+> > 	ftruncate(fd, 4096);
+> > 	map = mmap(NULL, 4096, PROT_WRITE, MAP_PRIVATE, fd, 0);
+> > 	map[0] = 11;
+> > 	mlock(map, sizeof(fd));
+> > 	ftruncate(fd, 0);
+> > 	close(fd);
+> > 	munlock(map, sizeof(fd));
+> > 	munmap(map, 4096);
+> > 	system("grep mlockfreed /proc/vmstat");
+> > 	return 0;
+> > }
+> > 
+> > The anon COWed pages are not caught by truncation's clear_page_mlock()
+> > of the pagecache pages; but unmap_mapping_range() unmaps them, so we
+> > ought to look out for them there in page_remove_rmap().  Indeed, why
+> > should truncation or invalidation be doing the clear_page_mlock() when
+> > removing from pagecache?  mlock is a property of mapping in userspace,
+> > not a propertly of pagecache: an mlocked unmapped page is nonsensical.
 > 
-> We don't use this code to "check" the range, we use it to collect
-> migrate pages.  There is no failure case.
+> property?
 
-Right. I will send revert patch when I go to office.
-Thanks for the pointing out.
+Indeed :) thanks.  I'll not post a v2 just for this, I'll have a peep
+when/if it goes into akpm's tree, in the hope that he might turn out
+to have magically corrected it on the way (thank you, Andrew).
 
--- 
-Kind Regards,
-Minchan Kim
+> 
+> > --- 3.6-rc6.orig/mm/memory.c	2012-09-18 15:38:08.000000000 -0700
+> > +++ 3.6-rc6/mm/memory.c	2012-09-18 17:51:02.871288773 -0700
+> > @@ -1576,12 +1576,12 @@ split_fallthrough:
+> >  		if (page->mapping && trylock_page(page)) {
+> >  			lru_add_drain();  /* push cached pages to LRU */
+> >  			/*
+> > -			 * Because we lock page here and migration is
+> > -			 * blocked by the pte's page reference, we need
+> > -			 * only check for file-cache page truncation.
+> > +			 * Because we lock page here, and migration is
+> > +			 * blocked by the pte's page reference, and we
+> > +			 * know the page is still mapped, we don't even
+> > +			 * need to check for file-cache page truncation.
+> >  			 */
+> > -			if (page->mapping)
+> > -				mlock_vma_page(page);
+> > +			mlock_vma_page(page);
+> >  			unlock_page(page);
+> 
+> So I don't see a reason for checking for truncation in current code,
+> but I also had a hard time figuring out from git history and list
+> archives when this was ever "needed" (flu brain does not help).
+
+Thanks a lot for looking through all these.
+
+But my unflued brain curses your flued brain for asking hard questions
+that mine has such difficulty answering.  So, please get well soon!
+
+I do believe you're right that it was unnecessary even before my patch.
+
+I came to look at it (and spent a long time pondering this very block)
+because I had already removed the page->mapping checks from the
+munlocking cases.  Without giving any thought as to whether the NULL
+case could actually occur in those, it was clearly wrong to skip
+munlocking if NULL did occur (after my other changes anyway:
+I didn't stop to work out if they were right before or not).
+
+A more interesting question, I think, is whether that mlocking block
+actually needs the trylock_page and unlock_page: holding the pte
+lock there in follow_page gives a lot of security.  I did not decide
+one way or another (just as I simply updated the comment to reflect
+the change being made, without rethinking it all): it simply needed
+more time and thought than I had to give it, could be done separately
+later, and would have delayed getting these patches out.
+
+> 
+> My conclusion is that it started out as a fix for when an early draft
+> of putback_lru_page dropped the page lock on truncated pages, but at
+
+I don't recall the history of putback_lru_page at all, that sounds an
+odd thing for it to have done.  Your question prompted me to look back
+at old 2008 saved mail (though I've not looked at marc.info), but I
+didn't find the crucial stage where the page->mapping check got added
+(but there is a comment that Kosaki-san had fixed a truncate race).
+
+I believe it used to be necessary (or at least advisable) because
+there was a get_user_pages to pin the pages to be mlocked, quite
+separate from the loop down those pages to mlock them: it was a
+real possibility that the pages could be truncated between those.
+
+> the time b291f00 "mlock: mlocked pages are unevictable" went into the
+> tree it was merely an optimization anymore to avoid moving pages
+> between lists when they are to be freed soon anyway.
+
+I doubt it was ever intended as an optimization: too rare a case to
+optimize for.  I think it just got carried over when the mlocking moved
+inside the get_user_pages, because removing it would have required more
+thought - in just the same way as I'm leaving the trylock_page.
+
+> 
+> Is this correct?
+> 
+> > --- 3.6-rc6.orig/mm/mlock.c	2012-09-18 15:38:08.000000000 -0700
+> > +++ 3.6-rc6/mm/mlock.c	2012-09-18 17:51:02.871288773 -0700
+> > @@ -51,13 +51,10 @@ EXPORT_SYMBOL(can_do_mlock);
+> >  /*
+> >   *  LRU accounting for clear_page_mlock()
+> >   */
+> > -void __clear_page_mlock(struct page *page)
+> > +void clear_page_mlock(struct page *page)
+> >  {
+> > -	VM_BUG_ON(!PageLocked(page));
+> > -
+> > -	if (!page->mapping) {	/* truncated ? */
+> > +	if (!TestClearPageMlocked(page))
+> >  		return;
+> > -	}
+> >  
+> >  	dec_zone_page_state(page, NR_MLOCK);
+> >  	count_vm_event(UNEVICTABLE_PGCLEARED);
+> > @@ -290,14 +287,7 @@ void munlock_vma_pages_range(struct vm_a
+> >  		page = follow_page(vma, addr, FOLL_GET | FOLL_DUMP);
+> >  		if (page && !IS_ERR(page)) {
+> >  			lock_page(page);
+> > -			/*
+> > -			 * Like in __mlock_vma_pages_range(),
+> > -			 * because we lock page here and migration is
+> > -			 * blocked by the elevated reference, we need
+> > -			 * only check for file-cache page truncation.
+> > -			 */
+> > -			if (page->mapping)
+> > -				munlock_vma_page(page);
+> > +			munlock_vma_page(page);
+> >  			unlock_page(page);
+> >  			put_page(page);
+> >  		}
+> > --- 3.6-rc6.orig/mm/rmap.c	2012-09-18 16:39:50.000000000 -0700
+> > +++ 3.6-rc6/mm/rmap.c	2012-09-18 17:51:02.871288773 -0700
+> > @@ -1203,7 +1203,10 @@ void page_remove_rmap(struct page *page)
+> >  	} else {
+> >  		__dec_zone_page_state(page, NR_FILE_MAPPED);
+> >  		mem_cgroup_dec_page_stat(page, MEMCG_NR_FILE_MAPPED);
+> > +		mem_cgroup_end_update_page_stat(page, &locked, &flags);
+> >  	}
+> > +	if (unlikely(PageMlocked(page)))
+> > +		clear_page_mlock(page);
+> >  	/*
+> >  	 * It would be tidy to reset the PageAnon mapping here,
+> >  	 * but that might overwrite a racing page_add_anon_rmap
+> > @@ -1213,6 +1216,7 @@ void page_remove_rmap(struct page *page)
+> >  	 * Leaving it set also helps swapoff to reinstate ptes
+> >  	 * faster for those pages still in swapcache.
+> >  	 */
+> > +	return;
+> >  out:
+> >  	if (!anon)
+> >  		mem_cgroup_end_update_page_stat(page, &locked, &flags);
+> 
+> Would it be cleaner to fold this into the only goto site left?  One
+> certain upside of that would be the fantastic comment about leaving
+> page->mapping intact being the last operation in this function again :-)
+
+Yes and no: I wanted to do that, but look again and you'll see
+that there are actually two "goto out"s there.
+
+I dislike the way page_remove_rmap() looks these days, and have
+contemplated splitting it into anon and file subfunctions; but
+not been satisfied with the result of that either.  And I admit
+that this latest patch does not make it prettier.
+
+I find the (very necessary) mem_cgroup_begin/end_update_page_stat()
+particularly constricting, and some things depend upon how those are
+implemented (what locks might get taken).  I do have a patch to make
+them somewhat easier to work with (I never find time to review its
+memory barriers, and it doesn't seem urgent), but page_remove_rmap()
+remains just as ugly even with that change.
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
