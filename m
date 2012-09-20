@@ -1,9 +1,9 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx104.postini.com [74.125.245.104])
-	by kanga.kvack.org (Postfix) with SMTP id 3BA4E6B005A
-	for <linux-mm@kvack.org>; Thu, 20 Sep 2012 01:17:18 -0400 (EDT)
-Message-ID: <505AA82A.2070908@cn.fujitsu.com>
-Date: Thu, 20 Sep 2012 13:22:50 +0800
+Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
+	by kanga.kvack.org (Postfix) with SMTP id 666C56B0044
+	for <linux-mm@kvack.org>; Thu, 20 Sep 2012 01:27:23 -0400 (EDT)
+Message-ID: <505AAA8B.4020005@cn.fujitsu.com>
+Date: Thu, 20 Sep 2012 13:32:59 +0800
 From: Wen Congyang <wency@cn.fujitsu.com>
 MIME-Version: 1.0
 Subject: Re: [PATCH] memory-hotplug: fix zone stat mismatch
@@ -67,9 +67,6 @@ At 09/20/2012 01:16 PM, Minchan Kim Wrote:
 > although it makes code rather complicated.
 > 
 > Anyway, it's another story with this patch because it's not merged yet.
-
-Yes, it is another story.
-
 > 
 >>
 >>>
@@ -95,12 +92,6 @@ Yes, it is another story.
 > 
 > Good point.
 > How about this?
-
-It looks fine to me now.
-
-Thanks
-Wen Congyang
-
 > 
 >>From e92bf3e96720c89cb18ec32c5db095a27ad4133c Mon Sep 17 00:00:00 2001
 > From: Minchan Kim <minchan@kernel.org>
@@ -178,6 +169,13 @@ Wen Congyang
 >  	local_irq_save(flags);
 >  	if (zone->pageset != &boot_pageset) {
 > +		for_each_online_cpu(cpu) {
+
+A cpu can be offlined before the pages in the zone are offlined. So
+I think you should drain it on all possible cpu, not online cpu.
+
+Thanks
+Wen Congyang
+
 > +			pset = per_cpu_ptr(zone->pageset, cpu);
 > +			drain_zonestat(zone, pset);
 > +		}
