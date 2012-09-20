@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
-	by kanga.kvack.org (Postfix) with SMTP id 9F66D6B0069
-	for <linux-mm@kvack.org>; Thu, 20 Sep 2012 14:55:27 -0400 (EDT)
-Message-ID: <505B669A.1000306@redhat.com>
-Date: Thu, 20 Sep 2012 14:55:22 -0400
+Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
+	by kanga.kvack.org (Postfix) with SMTP id 4B2496B006E
+	for <linux-mm@kvack.org>; Thu, 20 Sep 2012 14:57:15 -0400 (EDT)
+Message-ID: <505B6706.1000104@redhat.com>
+Date: Thu, 20 Sep 2012 14:57:10 -0400
 From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 5/6] mm: compaction: Cache if a pageblock was scanned
- and no pages were isolated
-References: <1348149875-29678-1-git-send-email-mgorman@suse.de> <1348149875-29678-6-git-send-email-mgorman@suse.de>
-In-Reply-To: <1348149875-29678-6-git-send-email-mgorman@suse.de>
+Subject: Re: [PATCH 6/6] mm: compaction: Restart compaction from near where
+ it left off
+References: <1348149875-29678-1-git-send-email-mgorman@suse.de> <1348149875-29678-7-git-send-email-mgorman@suse.de>
+In-Reply-To: <1348149875-29678-7-git-send-email-mgorman@suse.de>
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -18,25 +18,41 @@ To: Mel Gorman <mgorman@suse.de>
 Cc: Richard Davies <richard@arachsys.com>, Shaohua Li <shli@kernel.org>, Avi Kivity <avi@redhat.com>, QEMU-devel <qemu-devel@nongnu.org>, KVM <kvm@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
 On 09/20/2012 10:04 AM, Mel Gorman wrote:
-> When compaction was implemented it was known that scanning could potentially
-> be excessive. The ideal was that a counter be maintained for each pageblock
-> but maintaining this information would incur a severe penalty due to a
-> shared writable cache line. It has reached the point where the scanning
-> costs are an serious problem, particularly on long-lived systems where a
-> large process starts and allocates a large number of THPs at the same time.
+> This is almost entirely based on Rik's previous patches and discussions
+> with him about how this might be implemented.
 >
-> Instead of using a shared counter, this patch adds another bit to the
-> pageblock flags called PG_migrate_skip. If a pageblock is scanned by
-> either migrate or free scanner and 0 pages were isolated, the pageblock
-> is marked to be skipped in the future. When scanning, this bit is checked
-> before any scanning takes place and the block skipped if set.
+> Order > 0 compaction stops when enough free pages of the correct page
+> order have been coalesced.  When doing subsequent higher order allocations,
+> it is possible for compaction to be invoked many times.
 >
-> The main difficulty with a patch like this is "when to ignore the cached
-> information?" If it's ignored too often, the scanning rates will still
-> be excessive. If the information is too stale then allocations will fail
-> that might have otherwise succeeded. In this patch
+> However, the compaction code always starts out looking for things to compact
+> at the start of the zone, and for free pages to compact things to at the
+> end of the zone.
+>
+> This can cause quadratic behaviour, with isolate_freepages starting at
+> the end of the zone each time, even though previous invocations of the
+> compaction code already filled up all free memory on that end of the zone.
+> This can cause isolate_freepages to take enormous amounts of CPU with
+> certain workloads on larger memory systems.
+>
+> This patch caches where the migration and free scanner should start from on
+> subsequent compaction invocations using the pageblock-skip information. When
+> compaction starts it begins from the cached restart points and will
+> update the cached restart points until a page is isolated or a pageblock
+> is skipped that would have been scanned by synchronous compaction.
+>
+> Signed-off-by: Mel Gorman <mgorman@suse.de>
 
-Big hammer, but I guess it is effective...
+Together with patch 5/6, this has the effect of
+skipping compaction in a zone if the free and
+isolate markers have met, and it has been less
+than 5 seconds since the "skip" information was
+reset.
+
+Compaction on zones where we cycle through more
+slowly can continue, even when this particular
+zone is experiencing problems, so I guess this
+is desired behaviour...
 
 Acked-by: Rik van Riel <riel@redhat.com>
 
