@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
-	by kanga.kvack.org (Postfix) with SMTP id CF6726B0068
-	for <linux-mm@kvack.org>; Thu, 20 Sep 2012 14:54:07 -0400 (EDT)
-Message-ID: <505B6647.1080005@redhat.com>
-Date: Thu, 20 Sep 2012 14:53:59 -0400
+Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
+	by kanga.kvack.org (Postfix) with SMTP id 086886B006C
+	for <linux-mm@kvack.org>; Thu, 20 Sep 2012 14:54:24 -0400 (EDT)
+Message-ID: <505B6658.1080706@redhat.com>
+Date: Thu, 20 Sep 2012 14:54:16 -0400
 From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/6] mm: compaction: Abort compaction loop if lock is
- contended or run too long
-References: <1348149875-29678-1-git-send-email-mgorman@suse.de> <1348149875-29678-2-git-send-email-mgorman@suse.de>
-In-Reply-To: <1348149875-29678-2-git-send-email-mgorman@suse.de>
+Subject: Re: [PATCH 2/6] mm: compaction: Acquire the zone->lru_lock as late
+ as possible
+References: <1348149875-29678-1-git-send-email-mgorman@suse.de> <1348149875-29678-3-git-send-email-mgorman@suse.de>
+In-Reply-To: <1348149875-29678-3-git-send-email-mgorman@suse.de>
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -18,25 +18,22 @@ To: Mel Gorman <mgorman@suse.de>
 Cc: Richard Davies <richard@arachsys.com>, Shaohua Li <shli@kernel.org>, Avi Kivity <avi@redhat.com>, QEMU-devel <qemu-devel@nongnu.org>, KVM <kvm@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
 On 09/20/2012 10:04 AM, Mel Gorman wrote:
-> From: Shaohua Li <shli@fusionio.com>
+> Compactions migrate scanner acquires the zone->lru_lock when scanning a range
+> of pages looking for LRU pages to acquire. It does this even if there are
+> no LRU pages in the range. If multiple processes are compacting then this
+> can cause severe locking contention. To make matters worse commit b2eef8c0
+> (mm: compaction: minimise the time IRQs are disabled while isolating pages
+> for migration) releases the lru_lock every SWAP_CLUSTER_MAX pages that are
+> scanned.
 >
-> Changelog since V2
-> o Fix BUG_ON triggered due to pages left on cc.migratepages
-> o Make compact_zone_order() require non-NULL arg `contended'
+> This patch makes two changes to how the migrate scanner acquires the LRU
+> lock. First, it only releases the LRU lock every SWAP_CLUSTER_MAX pages if
+> the lock is contended. This reduces the number of times it unnecessarily
+> disables and re-enables IRQs. The second is that it defers acquiring the
+> LRU lock for as long as possible. If there are no LRU pages or the only
+> LRU pages are transhuge then the LRU lock will not be acquired at all
+> which reduces contention on zone->lru_lock.
 >
-> Changelog since V1
-> o only abort the compaction if lock is contended or run too long
-> o Rearranged the code by Andrea Arcangeli.
->
-> isolate_migratepages_range() might isolate no pages if for example when
-> zone->lru_lock is contended and running asynchronous compaction. In this
-> case, we should abort compaction, otherwise, compact_zone will run a
-> useless loop and make zone->lru_lock is even contended.
->
-> [minchan@kernel.org: Putback pages isolated for migration if aborting]
-> [akpm@linux-foundation.org: compact_zone_order requires non-NULL arg contended]
-> Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
-> Signed-off-by: Shaohua Li <shli@fusionio.com>
 > Signed-off-by: Mel Gorman <mgorman@suse.de>
 
 Acked-by: Rik van Riel <riel@redhat.com>
