@@ -1,109 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
-	by kanga.kvack.org (Postfix) with SMTP id 43EBA6B0068
-	for <linux-mm@kvack.org>; Thu, 20 Sep 2012 11:41:26 -0400 (EDT)
-Date: Thu, 20 Sep 2012 11:41:11 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH] mm: fix NR_ISOLATED_[ANON|FILE] mismatch
-Message-ID: <20120920154111.GT1560@cmpxchg.org>
-References: <20120919235156.GC13234@bbox>
+Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
+	by kanga.kvack.org (Postfix) with SMTP id 66D766B005A
+	for <linux-mm@kvack.org>; Thu, 20 Sep 2012 12:05:48 -0400 (EDT)
+Received: by obhx4 with SMTP id x4so2835914obh.14
+        for <linux-mm@kvack.org>; Thu, 20 Sep 2012 09:05:47 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120919235156.GC13234@bbox>
+In-Reply-To: <1347977050-29476-7-git-send-email-glommer@parallels.com>
+References: <1347977050-29476-1-git-send-email-glommer@parallels.com>
+	<1347977050-29476-7-git-send-email-glommer@parallels.com>
+Date: Fri, 21 Sep 2012 01:05:47 +0900
+Message-ID: <CAAmzW4ONnc7n3kZbYnE6n2Cg0ZyPXW0QU2NMr0uRkyTxnGpNqQ@mail.gmail.com>
+Subject: Re: [PATCH v3 06/13] memcg: kmem controller infrastructure
+From: JoonSoo Kim <js1304@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Vasiliy Kulikov <segooon@gmail.com>
+To: Glauber Costa <glommer@parallels.com>
+Cc: linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, devel@openvz.org, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, Suleiman Souhlal <suleiman@google.com>, Frederic Weisbecker <fweisbec@gmail.com>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>
 
-On Thu, Sep 20, 2012 at 08:51:56AM +0900, Minchan Kim wrote:
-> From: Minchan Kim <minchan@kernel.org>
-> Date: Thu, 20 Sep 2012 08:39:52 +0900
-> Subject: [PATCH] mm: revert 0def08e3, mm/mempolicy.c: check return code of
->  check_range
-> 
-> This patch reverts 0def08e3 because check_range can't fail in
-> migrate_to_node with considering current usecases.
-> 
-> Quote from Johannes
-> "
-> I think it makes sense to revert.  Not because of the semantics, but I
-> just don't see how check_range() could even fail for this callsite:
-> 
-> 1. we pass mm->mmap->vm_start in there, so we should not fail due to
->    find_vma()
-> 
-> 2. we pass MPOL_MF_DISCONTIG_OK, so the discontig checks do not apply
->    and so can not fail
-> 
-> 3. we pass MPOL_MF_MOVE | MPOL_MF_MOVE_ALL, the page table loops will
->    continue until addr == end, so we never fail with -EIO
-> "
-> 
-> And I add new VM_BUG_ON for checking migrate_to_node's future usecase
-> which might pass to MPOL_MF_STRICT.
-> 
-> Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> Cc: Mel Gorman <mgorman@suse.de>
-> Cc: Christoph Lameter <cl@linux.com>
-> Cc: David Rientjes <rientjes@google.com>
-> Cc: Vasiliy Kulikov <segooon@gmail.com>
-> Suggested-by: Johannes Weiner <hannes@cmpxchg.org>
-> Signed-off-by: Minchan Kim <minchan@kernel.org>
-> ---
->  mm/mempolicy.c |    9 +++++----
->  1 file changed, 5 insertions(+), 4 deletions(-)
-> 
-> diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-> index 3d64b36..9ec87bd 100644
-> --- a/mm/mempolicy.c
-> +++ b/mm/mempolicy.c
-> @@ -946,15 +946,16 @@ static int migrate_to_node(struct mm_struct *mm, int source, int dest,
->  	nodemask_t nmask;
->  	LIST_HEAD(pagelist);
->  	int err = 0;
-> -	struct vm_area_struct *vma;
->  
->  	nodes_clear(nmask);
->  	node_set(source, nmask);
->  
-> -	vma = check_range(mm, mm->mmap->vm_start, mm->task_size, &nmask,
-> +	/*
-> +	 * Collect migrate pages and it shoudn't be failed.
-> +	 */
-> +	VM_BUG_ON(flags & MPOL_MF_STRICT);
+Hi, Glauber.
 
-Adding a check and a comment is a good idea, but I'm not a big fan of
-checking for MPOL_MF_STRICT in particular because it's one of the
-invalid inputs, and so you need to extend this check when somebody
-extends the spectrum of invalid inputs.  I would much prefer checking
-directly for !(flags & (MPOL_MF_MOVE | MPOL_MF_MOVE_ALL)) instead, which
-would also make the possible inputs apparent without having to chase
-up the call chain to find out what is usually passed in.
+2012/9/18 Glauber Costa <glommer@parallels.com>:
+> +/*
+> + * We need to verify if the allocation against current->mm->owner's memcg is
+> + * possible for the given order. But the page is not allocated yet, so we'll
+> + * need a further commit step to do the final arrangements.
+> + *
+> + * It is possible for the task to switch cgroups in this mean time, so at
+> + * commit time, we can't rely on task conversion any longer.  We'll then use
+> + * the handle argument to return to the caller which cgroup we should commit
+> + * against. We could also return the memcg directly and avoid the pointer
+> + * passing, but a boolean return value gives better semantics considering
+> + * the compiled-out case as well.
+> + *
+> + * Returning true means the allocation is possible.
+> + */
+> +bool
+> +__memcg_kmem_newpage_charge(gfp_t gfp, struct mem_cgroup **_memcg, int order)
+> +{
+> +       struct mem_cgroup *memcg;
+> +       bool ret;
+> +       struct task_struct *p;
+> +
+> +       *_memcg = NULL;
+> +       rcu_read_lock();
+> +       p = rcu_dereference(current->mm->owner);
+> +       memcg = mem_cgroup_from_task(p);
+> +       rcu_read_unlock();
+> +
+> +       if (!memcg_can_account_kmem(memcg))
+> +               return true;
+> +
+> +       mem_cgroup_get(memcg);
+> +
+> +       ret = memcg_charge_kmem(memcg, gfp, PAGE_SIZE << order) == 0;
+> +       if (ret)
+> +               *_memcg = memcg;
+> +       else
+> +               mem_cgroup_put(memcg);
+> +
+> +       return ret;
+> +}
 
-And how about
+"*_memcg = memcg" should be executed when "memcg_charge_kmem" is success.
+"memcg_charge_kmem" return 0 if success in charging.
+Therefore, I think this code is wrong.
+If I am right, it is a serious bug that affect behavior of all the patchset.
 
-/*
- * This does not "check" the range but isolates all pages that
- * need migration.  Between passing in the full user address
- * space range and MPOL_MF_DISCONTIG_OK, this call can not fail.
- */
+> +void __memcg_kmem_commit_charge(struct page *page, struct mem_cgroup *memcg,
+> +                             int order)
+> +{
+> +       struct page_cgroup *pc;
+> +
+> +       WARN_ON(mem_cgroup_is_root(memcg));
+> +
+> +       /* The page allocation failed. Revert */
+> +       if (!page) {
+> +               memcg_uncharge_kmem(memcg, PAGE_SIZE << order);
+> +               return;
+> +       }
 
-?
+In case of "!page ", mem_cgroup_put(memcg) is needed,
+because we already call "mem_cgroup_get(memcg)" in
+__memcg_kmem_newpage_charge().
+I know that mem_cgroup_put()/get() will be removed in later patch, but
+it is important that every patch works fine.
 
-> +	check_range(mm, mm->mmap->vm_start, mm->task_size, &nmask,
->  			flags | MPOL_MF_DISCONTIG_OK, &pagelist);
-> -	if (IS_ERR(vma))
-> -		return PTR_ERR(vma);
->  
->  	if (!list_empty(&pagelist)) {
->  		err = migrate_pages(&pagelist, new_node_page, dest,
-> -- 
-> 1.7.9.5
-> 
-> -- 
-> Kind regards,
-> Minchan Kim
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
