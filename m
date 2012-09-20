@@ -1,44 +1,193 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
-	by kanga.kvack.org (Postfix) with SMTP id 9E3906B005A
-	for <linux-mm@kvack.org>; Thu, 20 Sep 2012 11:27:57 -0400 (EDT)
-Message-ID: <505B35F7.2080201@wwwdotorg.org>
-Date: Thu, 20 Sep 2012 09:27:51 -0600
-From: Stephen Warren <swarren@wwwdotorg.org>
+Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
+	by kanga.kvack.org (Postfix) with SMTP id B7A4B6B005A
+	for <linux-mm@kvack.org>; Thu, 20 Sep 2012 11:37:10 -0400 (EDT)
+Date: Thu, 20 Sep 2012 16:37:05 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: MMTests 0.05
+Message-ID: <20120920153705.GQ11266@suse.de>
+References: <20120907124232.GA11266@suse.de>
+ <505AF81C.1080404@parallels.com>
 MIME-Version: 1.0
-Subject: Re: [RFC 0/5] ARM: dma-mapping: New dma_map_ops to control IOVA more
- precisely
-References: <1346223335-31455-1-git-send-email-hdoyu@nvidia.com> <20120918124918.GK2505@amd.com> <20120919095843.d1db155e0f085f4fcf64ea32@nvidia.com> <201209190759.46174.arnd@arndb.de> <20120919125020.GQ2505@amd.com> <401E54CE964CD94BAE1EB4A729C7087E379FDC1EEB@HQMAIL04.nvidia.com> <505A7DB4.4090902@wwwdotorg.org> <401E54CE964CD94BAE1EB4A729C7087E379FDC1F2D@HQMAIL04.nvidia.com>
-In-Reply-To: <401E54CE964CD94BAE1EB4A729C7087E379FDC1F2D@HQMAIL04.nvidia.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <505AF81C.1080404@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Krishna Reddy <vdumpa@nvidia.com>
-Cc: Joerg Roedel <joerg.roedel@amd.com>, Arnd Bergmann <arnd@arndb.de>, Hiroshi Doyu <hdoyu@nvidia.com>, "m.szyprowski@samsung.com" <m.szyprowski@samsung.com>, "linux@arm.linux.org.uk" <linux@arm.linux.org.uk>, "minchan@kernel.org" <minchan@kernel.org>, "chunsang.jeong@linaro.org" <chunsang.jeong@linaro.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "subashrp@gmail.com" <subashrp@gmail.com>, "linaro-mm-sig@lists.linaro.org" <linaro-mm-sig@lists.linaro.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "iommu@lists.linux-foundation.org" <iommu@lists.linux-foundation.org>, "linux-tegra@vger.kernel.org" <linux-tegra@vger.kernel.org>, "kyungmin.park@samsung.com" <kyungmin.park@samsung.com>, "pullip.cho@samsung.com" <pullip.cho@samsung.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>
+To: Glauber Costa <glommer@parallels.com>
+Cc: Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On 09/20/2012 12:40 AM, Krishna Reddy wrote:
->>> On Tegra, the following use cases need specific IOVA mapping.
->>> 1. Few MMIO blocks need IOVA=PA mapping setup.
->>
->> In that case, why would we enable the IOMMU for that one device; IOMMU
->> disabled means VA==PA, right? Perhaps isolation of the device so it can only
->> access certain PA ranges for security?
+On Thu, Sep 20, 2012 at 03:03:56PM +0400, Glauber Costa wrote:
+> On 09/07/2012 04:42 PM, Mel Gorman wrote:
+> > ./run-mmtests.sh test-run-1
 > 
-> The device(H/W controller) need to access few special memory blocks(IOVA==PA)
-> and DRAM as well.
+> Mel, would you share with us the command line and config tweaks you had
+> in place to run the memcg tests you presented in the memcg summit?
+> 
 
-OK, so only /some/ of the VA space is VA==PA, and some is remapped;
-that's a little different that what you originally implied above.
+Apply the following patch to mmtests 0.05 and then from within the
+mmtests directory do
 
-BTW, which HW module is this; AVP/COP or something else. This sounds
-like an odd requirement.
+./run-mmtests.sh testrun
 
-> There is also a case where frame buffer memory is passed from BootLoader to Kernel and
-> display H/W  continues to access it with IOMMU enabled. To support this, the one to one
-> mapping has to be setup before enabling IOMMU.
+At the very least you should have oprofile installed. Optionally install
+libnuma-devel but the test will cope if it's not available. Automatic package
+installation will be in 0.06 for opensuse at least but other distros can
+be easily supported if I know the names of the equivalent packages.
 
-Yes, that makes sense.
+The above command will run both with and without profiling. The profiles
+will be in work/log/pft-testrun/fine-profile-timer/base/ and an annotated
+profile will be included in the file. If you have "recode" installed the
+annotated profile will be compressed and can be extracted with something like
+
+grep -A 9999999 "=== annotate ===" oprofile-compressed.report | grep -v annotate | recode /b64..char | gunzip -c
+
+Each of the memcg functions will be small but when all the functions that
+are in mm/memcontrol.c are added together it becomes a big problem.  What I
+actually showed at the meeting was based on piping the oprofile report
+through another quick and dirty script to match functions to filenames.
+
+The bulk of this patch is renaming  profile-disabled-hooks-a.sh to
+profile-hooks-a.sh. Let me know if you run into problems.
+
+---8<--
+mmtests: Configure for PFT profile
+
+Signed-off-by: Mel Gorman <mgorman@suse.de>
+
+diff --git a/config b/config
+index 184864f..e1afb2a 100644
+--- a/config
++++ b/config
+@@ -9,9 +9,9 @@ export SKIP_WARMUP=yes
+ 
+ # Profiling parameters
+ export SKIP_NOPROFILE=no
+-export SKIP_FINEPROFILE=yes
++export SKIP_FINEPROFILE=no
+ export SKIP_COARSEPROFILE=yes
+-export OPROFILE_REPORT_ANNOTATE=no
++export OPROFILE_REPORT_ANNOTATE=yes
+ 
+ # Fixups
+ if [ "`which check-confidence.pl 2> /dev/null`" = "" ]; then
+@@ -57,7 +57,7 @@ export SWAP_NBD_PORT=100`ifconfig eth0 | sed -n 2p | cut -d ":" -f2 | cut -d " "
+ #export TESTDISK_NBD_PORT=100`ifconfig eth0 | sed -n 2p | cut -d ":" -f2 | cut -d " " -f1 | cut -d "." -f4`
+ 
+ # List of monitors
+-export RUN_MONITOR=yes
++export RUN_MONITOR=no
+ export MONITORS_ALWAYS=
+ export MONITORS_PLAIN=
+ export MONITORS_GZIP="proc-vmstat top slabinfo"
+diff --git a/profile-disabled-hooks-a.sh b/profile-disabled-hooks-a.sh
+deleted file mode 100644
+index c953dff..0000000
+--- a/profile-disabled-hooks-a.sh
++++ /dev/null
+@@ -1,48 +0,0 @@
+-if [ "$SAMPLE_CYCLE_FACTOR" = "" ]; then
+-	SAMPLE_CYCLE_FACTOR=1
+-fi
+-
+-CALLGRAPH=0
+-if [ "$OPROFILE_REPORT_CALLGRAPH" != "" ]; then
+-	CALLGRAPH=$OPROFILE_REPORT_CALLGRAPH
+-	if [ $SAMPLE_CYCLE_FACTOR -lt 15 ]; then
+-		SAMPLE_CYCLE_FACTOR=15
+-	fi
+-fi
+-
+-# Create profiling hooks
+-PROFILE_TITLE="timer"
+-
+-echo "#!/bin/bash" > monitor-pre-hook
+-case `uname -m` in
+-	i?86)
+-		echo "oprofile_start.sh --callgraph $CALLGRAPH --sample-cycle-factor $SAMPLE_CYCLE_FACTOR --event timer" >> monitor-pre-hook
+-		export PROFILE_EVENTS=timer
+-		;;
+-	x86_64)
+-		echo "oprofile_start.sh --callgraph $CALLGRAPH --sample-cycle-factor $SAMPLE_CYCLE_FACTOR --event timer" >> monitor-pre-hook
+-		export PROFILE_EVENTS=timer
+-		;;
+-	ppc64)
+-		echo "oprofile_start.sh --callgraph $CALLGRAPH --sample-cycle-factor $SAMPLE_CYCLE_FACTOR --event timer" >> monitor-pre-hook
+-		export PROFILE_EVENTS=timer
+-		;;
+-	*)
+-		echo Unrecognised architecture
+-		exit -1
+-		;;
+-esac
+-
+-echo "#!/bin/bash" > monitor-post-hook
+-echo "opcontrol --dump" >> monitor-post-hook
+-echo "opcontrol --stop" >> monitor-post-hook
+-echo "oprofile_report.sh > \$1/oprofile-\$2-report-$PROFILE_TITLE.txt" >> monitor-post-hook
+-
+-echo "#!/bin/bash" > monitor-cleanup-hook
+-echo "rm \$1/oprofile-\$2-report-$PROFILE_TITLE.txt" >> monitor-cleanup-hook
+-
+-echo "#!/bin/bash" > monitor-reset
+-echo "opcontrol --stop   > /dev/null 2> /dev/null" >> monitor-reset
+-echo "opcontrol --deinit > /dev/null 2> /dev/null" >> monitor-reset
+-
+-chmod u+x monitor-*
+diff --git a/profile-hooks-a.sh b/profile-hooks-a.sh
+new file mode 100644
+index 0000000..c953dff
+--- /dev/null
++++ b/profile-hooks-a.sh
+@@ -0,0 +1,48 @@
++if [ "$SAMPLE_CYCLE_FACTOR" = "" ]; then
++	SAMPLE_CYCLE_FACTOR=1
++fi
++
++CALLGRAPH=0
++if [ "$OPROFILE_REPORT_CALLGRAPH" != "" ]; then
++	CALLGRAPH=$OPROFILE_REPORT_CALLGRAPH
++	if [ $SAMPLE_CYCLE_FACTOR -lt 15 ]; then
++		SAMPLE_CYCLE_FACTOR=15
++	fi
++fi
++
++# Create profiling hooks
++PROFILE_TITLE="timer"
++
++echo "#!/bin/bash" > monitor-pre-hook
++case `uname -m` in
++	i?86)
++		echo "oprofile_start.sh --callgraph $CALLGRAPH --sample-cycle-factor $SAMPLE_CYCLE_FACTOR --event timer" >> monitor-pre-hook
++		export PROFILE_EVENTS=timer
++		;;
++	x86_64)
++		echo "oprofile_start.sh --callgraph $CALLGRAPH --sample-cycle-factor $SAMPLE_CYCLE_FACTOR --event timer" >> monitor-pre-hook
++		export PROFILE_EVENTS=timer
++		;;
++	ppc64)
++		echo "oprofile_start.sh --callgraph $CALLGRAPH --sample-cycle-factor $SAMPLE_CYCLE_FACTOR --event timer" >> monitor-pre-hook
++		export PROFILE_EVENTS=timer
++		;;
++	*)
++		echo Unrecognised architecture
++		exit -1
++		;;
++esac
++
++echo "#!/bin/bash" > monitor-post-hook
++echo "opcontrol --dump" >> monitor-post-hook
++echo "opcontrol --stop" >> monitor-post-hook
++echo "oprofile_report.sh > \$1/oprofile-\$2-report-$PROFILE_TITLE.txt" >> monitor-post-hook
++
++echo "#!/bin/bash" > monitor-cleanup-hook
++echo "rm \$1/oprofile-\$2-report-$PROFILE_TITLE.txt" >> monitor-cleanup-hook
++
++echo "#!/bin/bash" > monitor-reset
++echo "opcontrol --stop   > /dev/null 2> /dev/null" >> monitor-reset
++echo "opcontrol --deinit > /dev/null 2> /dev/null" >> monitor-reset
++
++chmod u+x monitor-*
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
