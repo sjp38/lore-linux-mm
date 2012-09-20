@@ -1,193 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
-	by kanga.kvack.org (Postfix) with SMTP id B7A4B6B005A
-	for <linux-mm@kvack.org>; Thu, 20 Sep 2012 11:37:10 -0400 (EDT)
-Date: Thu, 20 Sep 2012 16:37:05 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: MMTests 0.05
-Message-ID: <20120920153705.GQ11266@suse.de>
-References: <20120907124232.GA11266@suse.de>
- <505AF81C.1080404@parallels.com>
+Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
+	by kanga.kvack.org (Postfix) with SMTP id 43EBA6B0068
+	for <linux-mm@kvack.org>; Thu, 20 Sep 2012 11:41:26 -0400 (EDT)
+Date: Thu, 20 Sep 2012 11:41:11 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH] mm: fix NR_ISOLATED_[ANON|FILE] mismatch
+Message-ID: <20120920154111.GT1560@cmpxchg.org>
+References: <20120919235156.GC13234@bbox>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <505AF81C.1080404@parallels.com>
+In-Reply-To: <20120919235156.GC13234@bbox>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Vasiliy Kulikov <segooon@gmail.com>
 
-On Thu, Sep 20, 2012 at 03:03:56PM +0400, Glauber Costa wrote:
-> On 09/07/2012 04:42 PM, Mel Gorman wrote:
-> > ./run-mmtests.sh test-run-1
+On Thu, Sep 20, 2012 at 08:51:56AM +0900, Minchan Kim wrote:
+> From: Minchan Kim <minchan@kernel.org>
+> Date: Thu, 20 Sep 2012 08:39:52 +0900
+> Subject: [PATCH] mm: revert 0def08e3, mm/mempolicy.c: check return code of
+>  check_range
 > 
-> Mel, would you share with us the command line and config tweaks you had
-> in place to run the memcg tests you presented in the memcg summit?
+> This patch reverts 0def08e3 because check_range can't fail in
+> migrate_to_node with considering current usecases.
 > 
+> Quote from Johannes
+> "
+> I think it makes sense to revert.  Not because of the semantics, but I
+> just don't see how check_range() could even fail for this callsite:
+> 
+> 1. we pass mm->mmap->vm_start in there, so we should not fail due to
+>    find_vma()
+> 
+> 2. we pass MPOL_MF_DISCONTIG_OK, so the discontig checks do not apply
+>    and so can not fail
+> 
+> 3. we pass MPOL_MF_MOVE | MPOL_MF_MOVE_ALL, the page table loops will
+>    continue until addr == end, so we never fail with -EIO
+> "
+> 
+> And I add new VM_BUG_ON for checking migrate_to_node's future usecase
+> which might pass to MPOL_MF_STRICT.
+> 
+> Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> Cc: Mel Gorman <mgorman@suse.de>
+> Cc: Christoph Lameter <cl@linux.com>
+> Cc: David Rientjes <rientjes@google.com>
+> Cc: Vasiliy Kulikov <segooon@gmail.com>
+> Suggested-by: Johannes Weiner <hannes@cmpxchg.org>
+> Signed-off-by: Minchan Kim <minchan@kernel.org>
+> ---
+>  mm/mempolicy.c |    9 +++++----
+>  1 file changed, 5 insertions(+), 4 deletions(-)
+> 
+> diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+> index 3d64b36..9ec87bd 100644
+> --- a/mm/mempolicy.c
+> +++ b/mm/mempolicy.c
+> @@ -946,15 +946,16 @@ static int migrate_to_node(struct mm_struct *mm, int source, int dest,
+>  	nodemask_t nmask;
+>  	LIST_HEAD(pagelist);
+>  	int err = 0;
+> -	struct vm_area_struct *vma;
+>  
+>  	nodes_clear(nmask);
+>  	node_set(source, nmask);
+>  
+> -	vma = check_range(mm, mm->mmap->vm_start, mm->task_size, &nmask,
+> +	/*
+> +	 * Collect migrate pages and it shoudn't be failed.
+> +	 */
+> +	VM_BUG_ON(flags & MPOL_MF_STRICT);
 
-Apply the following patch to mmtests 0.05 and then from within the
-mmtests directory do
+Adding a check and a comment is a good idea, but I'm not a big fan of
+checking for MPOL_MF_STRICT in particular because it's one of the
+invalid inputs, and so you need to extend this check when somebody
+extends the spectrum of invalid inputs.  I would much prefer checking
+directly for !(flags & (MPOL_MF_MOVE | MPOL_MF_MOVE_ALL)) instead, which
+would also make the possible inputs apparent without having to chase
+up the call chain to find out what is usually passed in.
 
-./run-mmtests.sh testrun
+And how about
 
-At the very least you should have oprofile installed. Optionally install
-libnuma-devel but the test will cope if it's not available. Automatic package
-installation will be in 0.06 for opensuse at least but other distros can
-be easily supported if I know the names of the equivalent packages.
+/*
+ * This does not "check" the range but isolates all pages that
+ * need migration.  Between passing in the full user address
+ * space range and MPOL_MF_DISCONTIG_OK, this call can not fail.
+ */
 
-The above command will run both with and without profiling. The profiles
-will be in work/log/pft-testrun/fine-profile-timer/base/ and an annotated
-profile will be included in the file. If you have "recode" installed the
-annotated profile will be compressed and can be extracted with something like
+?
 
-grep -A 9999999 "=== annotate ===" oprofile-compressed.report | grep -v annotate | recode /b64..char | gunzip -c
-
-Each of the memcg functions will be small but when all the functions that
-are in mm/memcontrol.c are added together it becomes a big problem.  What I
-actually showed at the meeting was based on piping the oprofile report
-through another quick and dirty script to match functions to filenames.
-
-The bulk of this patch is renaming  profile-disabled-hooks-a.sh to
-profile-hooks-a.sh. Let me know if you run into problems.
-
----8<--
-mmtests: Configure for PFT profile
-
-Signed-off-by: Mel Gorman <mgorman@suse.de>
-
-diff --git a/config b/config
-index 184864f..e1afb2a 100644
---- a/config
-+++ b/config
-@@ -9,9 +9,9 @@ export SKIP_WARMUP=yes
- 
- # Profiling parameters
- export SKIP_NOPROFILE=no
--export SKIP_FINEPROFILE=yes
-+export SKIP_FINEPROFILE=no
- export SKIP_COARSEPROFILE=yes
--export OPROFILE_REPORT_ANNOTATE=no
-+export OPROFILE_REPORT_ANNOTATE=yes
- 
- # Fixups
- if [ "`which check-confidence.pl 2> /dev/null`" = "" ]; then
-@@ -57,7 +57,7 @@ export SWAP_NBD_PORT=100`ifconfig eth0 | sed -n 2p | cut -d ":" -f2 | cut -d " "
- #export TESTDISK_NBD_PORT=100`ifconfig eth0 | sed -n 2p | cut -d ":" -f2 | cut -d " " -f1 | cut -d "." -f4`
- 
- # List of monitors
--export RUN_MONITOR=yes
-+export RUN_MONITOR=no
- export MONITORS_ALWAYS=
- export MONITORS_PLAIN=
- export MONITORS_GZIP="proc-vmstat top slabinfo"
-diff --git a/profile-disabled-hooks-a.sh b/profile-disabled-hooks-a.sh
-deleted file mode 100644
-index c953dff..0000000
---- a/profile-disabled-hooks-a.sh
-+++ /dev/null
-@@ -1,48 +0,0 @@
--if [ "$SAMPLE_CYCLE_FACTOR" = "" ]; then
--	SAMPLE_CYCLE_FACTOR=1
--fi
--
--CALLGRAPH=0
--if [ "$OPROFILE_REPORT_CALLGRAPH" != "" ]; then
--	CALLGRAPH=$OPROFILE_REPORT_CALLGRAPH
--	if [ $SAMPLE_CYCLE_FACTOR -lt 15 ]; then
--		SAMPLE_CYCLE_FACTOR=15
--	fi
--fi
--
--# Create profiling hooks
--PROFILE_TITLE="timer"
--
--echo "#!/bin/bash" > monitor-pre-hook
--case `uname -m` in
--	i?86)
--		echo "oprofile_start.sh --callgraph $CALLGRAPH --sample-cycle-factor $SAMPLE_CYCLE_FACTOR --event timer" >> monitor-pre-hook
--		export PROFILE_EVENTS=timer
--		;;
--	x86_64)
--		echo "oprofile_start.sh --callgraph $CALLGRAPH --sample-cycle-factor $SAMPLE_CYCLE_FACTOR --event timer" >> monitor-pre-hook
--		export PROFILE_EVENTS=timer
--		;;
--	ppc64)
--		echo "oprofile_start.sh --callgraph $CALLGRAPH --sample-cycle-factor $SAMPLE_CYCLE_FACTOR --event timer" >> monitor-pre-hook
--		export PROFILE_EVENTS=timer
--		;;
--	*)
--		echo Unrecognised architecture
--		exit -1
--		;;
--esac
--
--echo "#!/bin/bash" > monitor-post-hook
--echo "opcontrol --dump" >> monitor-post-hook
--echo "opcontrol --stop" >> monitor-post-hook
--echo "oprofile_report.sh > \$1/oprofile-\$2-report-$PROFILE_TITLE.txt" >> monitor-post-hook
--
--echo "#!/bin/bash" > monitor-cleanup-hook
--echo "rm \$1/oprofile-\$2-report-$PROFILE_TITLE.txt" >> monitor-cleanup-hook
--
--echo "#!/bin/bash" > monitor-reset
--echo "opcontrol --stop   > /dev/null 2> /dev/null" >> monitor-reset
--echo "opcontrol --deinit > /dev/null 2> /dev/null" >> monitor-reset
--
--chmod u+x monitor-*
-diff --git a/profile-hooks-a.sh b/profile-hooks-a.sh
-new file mode 100644
-index 0000000..c953dff
---- /dev/null
-+++ b/profile-hooks-a.sh
-@@ -0,0 +1,48 @@
-+if [ "$SAMPLE_CYCLE_FACTOR" = "" ]; then
-+	SAMPLE_CYCLE_FACTOR=1
-+fi
-+
-+CALLGRAPH=0
-+if [ "$OPROFILE_REPORT_CALLGRAPH" != "" ]; then
-+	CALLGRAPH=$OPROFILE_REPORT_CALLGRAPH
-+	if [ $SAMPLE_CYCLE_FACTOR -lt 15 ]; then
-+		SAMPLE_CYCLE_FACTOR=15
-+	fi
-+fi
-+
-+# Create profiling hooks
-+PROFILE_TITLE="timer"
-+
-+echo "#!/bin/bash" > monitor-pre-hook
-+case `uname -m` in
-+	i?86)
-+		echo "oprofile_start.sh --callgraph $CALLGRAPH --sample-cycle-factor $SAMPLE_CYCLE_FACTOR --event timer" >> monitor-pre-hook
-+		export PROFILE_EVENTS=timer
-+		;;
-+	x86_64)
-+		echo "oprofile_start.sh --callgraph $CALLGRAPH --sample-cycle-factor $SAMPLE_CYCLE_FACTOR --event timer" >> monitor-pre-hook
-+		export PROFILE_EVENTS=timer
-+		;;
-+	ppc64)
-+		echo "oprofile_start.sh --callgraph $CALLGRAPH --sample-cycle-factor $SAMPLE_CYCLE_FACTOR --event timer" >> monitor-pre-hook
-+		export PROFILE_EVENTS=timer
-+		;;
-+	*)
-+		echo Unrecognised architecture
-+		exit -1
-+		;;
-+esac
-+
-+echo "#!/bin/bash" > monitor-post-hook
-+echo "opcontrol --dump" >> monitor-post-hook
-+echo "opcontrol --stop" >> monitor-post-hook
-+echo "oprofile_report.sh > \$1/oprofile-\$2-report-$PROFILE_TITLE.txt" >> monitor-post-hook
-+
-+echo "#!/bin/bash" > monitor-cleanup-hook
-+echo "rm \$1/oprofile-\$2-report-$PROFILE_TITLE.txt" >> monitor-cleanup-hook
-+
-+echo "#!/bin/bash" > monitor-reset
-+echo "opcontrol --stop   > /dev/null 2> /dev/null" >> monitor-reset
-+echo "opcontrol --deinit > /dev/null 2> /dev/null" >> monitor-reset
-+
-+chmod u+x monitor-*
+> +	check_range(mm, mm->mmap->vm_start, mm->task_size, &nmask,
+>  			flags | MPOL_MF_DISCONTIG_OK, &pagelist);
+> -	if (IS_ERR(vma))
+> -		return PTR_ERR(vma);
+>  
+>  	if (!list_empty(&pagelist)) {
+>  		err = migrate_pages(&pagelist, new_node_page, dest,
+> -- 
+> 1.7.9.5
+> 
+> -- 
+> Kind regards,
+> Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
