@@ -1,136 +1,136 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
-	by kanga.kvack.org (Postfix) with SMTP id 1BA576B0062
-	for <linux-mm@kvack.org>; Wed, 19 Sep 2012 21:19:31 -0400 (EDT)
-Received: by padhz10 with SMTP id hz10so85800pad.14
-        for <linux-mm@kvack.org>; Wed, 19 Sep 2012 18:19:30 -0700 (PDT)
-Date: Wed, 19 Sep 2012 18:19:27 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: [patch for-3.6] mm, thp: fix mapped pages avoiding unevictable list
- on mlock
-Message-ID: <alpine.DEB.2.00.1209191818490.7879@chino.kir.corp.google.com>
+Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
+	by kanga.kvack.org (Postfix) with SMTP id D17396B006C
+	for <linux-mm@kvack.org>; Wed, 19 Sep 2012 21:45:00 -0400 (EDT)
+From: Krishna Reddy <vdumpa@nvidia.com>
+Date: Wed, 19 Sep 2012 18:44:25 -0700
+Subject: RE: [RFC 0/5] ARM: dma-mapping: New dma_map_ops to control IOVA
+ more precisely
+Message-ID: <401E54CE964CD94BAE1EB4A729C7087E379FDC1EEB@HQMAIL04.nvidia.com>
+References: <1346223335-31455-1-git-send-email-hdoyu@nvidia.com>
+ <20120918124918.GK2505@amd.com>
+ <20120919095843.d1db155e0f085f4fcf64ea32@nvidia.com>
+ <201209190759.46174.arnd@arndb.de> <20120919125020.GQ2505@amd.com>
+In-Reply-To: <20120919125020.GQ2505@amd.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, stable@vger.kernel.org
+To: Joerg Roedel <joerg.roedel@amd.com>, Arnd Bergmann <arnd@arndb.de>
+Cc: Hiroshi Doyu <hdoyu@nvidia.com>, "m.szyprowski@samsung.com" <m.szyprowski@samsung.com>, "linux@arm.linux.org.uk" <linux@arm.linux.org.uk>, "minchan@kernel.org" <minchan@kernel.org>, "chunsang.jeong@linaro.org" <chunsang.jeong@linaro.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "subashrp@gmail.com" <subashrp@gmail.com>, "linaro-mm-sig@lists.linaro.org" <linaro-mm-sig@lists.linaro.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "iommu@lists.linux-foundation.org" <iommu@lists.linux-foundation.org>, "linux-tegra@vger.kernel.org" <linux-tegra@vger.kernel.org>, "kyungmin.park@samsung.com" <kyungmin.park@samsung.com>, "pullip.cho@samsung.com" <pullip.cho@samsung.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>
 
-When a transparent hugepage is mapped and it is included in an mlock()
-range, follow_page() incorrectly avoids setting the page's mlock bit and
-moving it to the unevictable lru.
+> When a device driver would only use the IOMMU-API and needs small DMA-
+> able areas it has to re-implement something like the DMA-API (basically a=
+n
+> address allocator) for that. So I don't see a reason why both can't be us=
+ed in a
+> device driver.
 
-This is evident if you try to mlock(), munlock(), and then mlock() a 
-range again.  Currently:
+On Tegra, the following use cases need specific IOVA mapping.
+1. Few MMIO blocks need IOVA=3DPA mapping setup.
+2. CPU side loads the firmware into physical memory, which has to be
+mapped to a specific IOVA address, as  firmware is statically linked based
+ on specific IOVA address.=20
 
-	#define MAP_SIZE	(4 << 30)	/* 4GB */
+DMA api's allow specifying only one address space per platform device.
 
-	void *ptr = mmap(NULL, MAP_SIZE, PROT_READ | PROT_WRITE,
-			 MAP_PRIVATE | MAP_ANONYMOUS, 0, 0);
-	mlock(ptr, MAP_SIZE);
+For #1, DMA API can't be used as it doesn't allow mapping specific IOVA to =
+PA.
+IOMMU API can be used for mapping specific IOVA to PA. But, in order to use
+ IOMMU API, the driver has to  dereference the dev pointer, get domain ptr,
+ take lock, and allocate memory from dma_iommu_mapping.  This breaks
+ the abstraction for struct device. Each device driver that need IOVA=3DPA =
+has to
+ do this, which is redundant.
 
-		$ grep -E "Unevictable|Inactive\(anon" /proc/meminfo
-		Inactive(anon):     6304 kB
-		Unevictable:     4213924 kB
+For #2, physical memory allocations alone can be done through DMA as it als=
+o=20
+allocates IOVA space Implicitly. Even after allocating physical memory thro=
+ugh
+DMA API's, it would have same problem as #1 for IOVA to PA mapping.
 
-	munlock(ptr, MAP_SIZE);
+If a fake device is expected to be created for specific IOVA allocation, th=
+en it
+may  lead to creating multiple fake devices per specific IOVA and per=20
+ASID(unique IOVA address space).  As domain init would be done based on
+device name, the fake device should have the same name as of original platf=
+orm
+device.
 
-		Inactive(anon):  4186252 kB
-		Unevictable:       19652 kB
+If DMA API allows allocating specific IOVA address and mapping IOVA to spec=
+ific PA,
+ device driver don't need to know any details of struct device and specifyi=
+ng
+ one mapping per device is enough and no  need for fake devices.
 
-	mlock(ptr, MAP_SIZE);
+Comments are much appreciated.
 
-		Inactive(anon):  4198556 kB
-		Unevictable:       21684 kB
+-KR
 
-Notice that less than 2MB was added to the unevictable list; this is
-because these pages in the range are not transparent hugepages since the
-4GB range was allocated with mmap() and has no specific alignment.  If
-posix_memalign() were used instead, unevictable would not have grown at
-all on the second mlock().
 
-The fix is to call mlock_vma_page() so that the mlock bit is set and the
-page is added to the unevictable list.  With this patch:
-
-	mlock(ptr, MAP_SIZE);
-
-		Inactive(anon):     4056 kB
-		Unevictable:     4213940 kB
-
-	munlock(ptr, MAP_SIZE);
-
-		Inactive(anon):  4198268 kB
-		Unevictable:       19636 kB
-
-	mlock(ptr, MAP_SIZE);
-
-		Inactive(anon):     4008 kB
-		Unevictable:     4213940 kB
-
-Cc: stable@vger.kernel.org [v2.6.38+]
-Signed-off-by: David Rientjes <rientjes@google.com>
----
- include/linux/huge_mm.h |    2 +-
- mm/huge_memory.c        |   11 ++++++++++-
- mm/memory.c             |    2 +-
- 3 files changed, 12 insertions(+), 3 deletions(-)
-
-diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
---- a/include/linux/huge_mm.h
-+++ b/include/linux/huge_mm.h
-@@ -12,7 +12,7 @@ extern int do_huge_pmd_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 			       unsigned long address, pmd_t *pmd,
- 			       pmd_t orig_pmd);
- extern pgtable_t get_pmd_huge_pte(struct mm_struct *mm);
--extern struct page *follow_trans_huge_pmd(struct mm_struct *mm,
-+extern struct page *follow_trans_huge_pmd(struct vm_area_struct *vma,
- 					  unsigned long addr,
- 					  pmd_t *pmd,
- 					  unsigned int flags);
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -997,11 +997,12 @@ out:
- 	return ret;
- }
- 
--struct page *follow_trans_huge_pmd(struct mm_struct *mm,
-+struct page *follow_trans_huge_pmd(struct vm_area_struct *vma,
- 				   unsigned long addr,
- 				   pmd_t *pmd,
- 				   unsigned int flags)
- {
-+	struct mm_struct *mm = vma->vm_mm;
- 	struct page *page = NULL;
- 
- 	assert_spin_locked(&mm->page_table_lock);
-@@ -1024,6 +1025,14 @@ struct page *follow_trans_huge_pmd(struct mm_struct *mm,
- 		_pmd = pmd_mkyoung(pmd_mkdirty(*pmd));
- 		set_pmd_at(mm, addr & HPAGE_PMD_MASK, pmd, _pmd);
- 	}
-+	if ((flags & FOLL_MLOCK) && (vma->vm_flags & VM_LOCKED)) {
-+		if (page->mapping && trylock_page(page)) {
-+			lru_add_drain();
-+			if (page->mapping)
-+				mlock_vma_page(page);
-+			unlock_page(page);
-+		}
-+	}
- 	page += (addr & ~HPAGE_PMD_MASK) >> PAGE_SHIFT;
- 	VM_BUG_ON(!PageCompound(page));
- 	if (flags & FOLL_GET)
-diff --git a/mm/memory.c b/mm/memory.c
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -1521,7 +1521,7 @@ struct page *follow_page(struct vm_area_struct *vma, unsigned long address,
- 				spin_unlock(&mm->page_table_lock);
- 				wait_split_huge_page(vma->anon_vma, pmd);
- 			} else {
--				page = follow_trans_huge_pmd(mm, address,
-+				page = follow_trans_huge_pmd(vma, address,
- 							     pmd, flags);
- 				spin_unlock(&mm->page_table_lock);
- 				goto out;
+> -----Original Message-----
+> From: Joerg Roedel [mailto:joerg.roedel@amd.com]
+> Sent: Wednesday, September 19, 2012 5:50 AM
+> To: Arnd Bergmann
+> Cc: Hiroshi Doyu; m.szyprowski@samsung.com; linux@arm.linux.org.uk;
+> minchan@kernel.org; chunsang.jeong@linaro.org; linux-
+> kernel@vger.kernel.org; subashrp@gmail.com; linaro-mm-sig@lists.linaro.or=
+g;
+> linux-mm@kvack.org; iommu@lists.linux-foundation.org; Krishna Reddy; linu=
+x-
+> tegra@vger.kernel.org; kyungmin.park@samsung.com;
+> pullip.cho@samsung.com; linux-arm-kernel@lists.infradead.org
+> Subject: Re: [RFC 0/5] ARM: dma-mapping: New dma_map_ops to control IOVA
+> more precisely
+>=20
+> On Wed, Sep 19, 2012 at 07:59:45AM +0000, Arnd Bergmann wrote:
+> > On Wednesday 19 September 2012, Hiroshi Doyu wrote:
+> > > I guess that it would work. Originally I thought that using DMA-API
+> > > and IOMMU-API together in driver might be kind of layering violation
+> > > since IOMMU-API itself is used in DMA-API. Only DMA-API used in
+> > > driver might be cleaner. Considering that DMA API traditionally
+> > > handling anonymous {bus,iova} address only, introducing the concept
+> > > of specific address in DMA API may not be so encouraged, though.
+> > >
+> > > It would be nice to listen how other SoCs have solved similar needs.
+> >
+> > In general, I would recommend using only the IOMMU API when you have a
+> > device driver that needs to control the bus virtual address space and
+> > that manages a device that resides in its own IOMMU context. I would
+> > recommend using only the dma-mapping API when you have a device that
+> > lives in a shared bus virtual address space with other devices, and
+> > then never ask for a specific bus virtual address.
+> >
+> > Can you explain what devices you see that don't fit in one of those
+> > two categories?
+>=20
+> Well, I don't think that a driver should limit to one of these 2 APIs. A =
+driver can
+> very well use the IOMMU-API during initialization (for example to map the
+> firmware to an address the device expects it to be) and use the DMA-API l=
+ater
+> during normal operation to exchange data with the device.
+>=20
+> When a device driver would only use the IOMMU-API and needs small DMA-
+> able areas it has to re-implement something like the DMA-API (basically a=
+n
+> address allocator) for that. So I don't see a reason why both can't be us=
+ed in a
+> device driver.
+>=20
+> Regards,
+>=20
+> 	Joerg
+>=20
+> --
+> AMD Operating System Research Center
+>=20
+> Advanced Micro Devices GmbH Einsteinring 24 85609 Dornach General
+> Managers: Alberto Bozzo
+> Registration: Dornach, Landkr. Muenchen; Registerger. Muenchen, HRB Nr.
+> 43632
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
