@@ -1,53 +1,136 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
-	by kanga.kvack.org (Postfix) with SMTP id 649396B0044
-	for <linux-mm@kvack.org>; Wed, 19 Sep 2012 21:12:08 -0400 (EDT)
-Message-ID: <505A6EB7.5070305@cn.fujitsu.com>
-Date: Thu, 20 Sep 2012 09:17:43 +0800
-From: Wen Congyang <wency@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
+	by kanga.kvack.org (Postfix) with SMTP id 1BA576B0062
+	for <linux-mm@kvack.org>; Wed, 19 Sep 2012 21:19:31 -0400 (EDT)
+Received: by padhz10 with SMTP id hz10so85800pad.14
+        for <linux-mm@kvack.org>; Wed, 19 Sep 2012 18:19:30 -0700 (PDT)
+Date: Wed, 19 Sep 2012 18:19:27 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: [patch for-3.6] mm, thp: fix mapped pages avoiding unevictable list
+ on mlock
+Message-ID: <alpine.DEB.2.00.1209191818490.7879@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] memory-hotplug: fix zone stat mismatch
-References: <1348039748-32111-1-git-send-email-minchan@kernel.org> <CAHGf_=oSSsJEeh7eN+R6P3n0vq2h5+3DPmogpXqDiu1jJyKmpg@mail.gmail.com> <20120919201738.GA2425@barrios>
-In-Reply-To: <20120919201738.GA2425@barrios>
-Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Shaohua Li <shli@fusionio.com>
+To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, stable@vger.kernel.org
 
-At 09/20/2012 04:17 AM, Minchan Kim Wrote:
-> Hi KOSAKI,
-> 
-> On Wed, Sep 19, 2012 at 02:05:20PM -0400, KOSAKI Motohiro wrote:
->> On Wed, Sep 19, 2012 at 3:29 AM, Minchan Kim <minchan@kernel.org> wrote:
->>> During memory-hotplug stress test, I found NR_ISOLATED_[ANON|FILE]
->>> are increasing so that kernel are hang out.
->>>
->>> The cause is that when we do memory-hotadd after memory-remove,
->>> __zone_pcp_update clear out zone's ZONE_STAT_ITEMS in setup_pageset
->>> without draining vm_stat_diff of all CPU.
->>>
->>> This patch fixes it.
->>
->> zone_pcp_update() is called from online pages path. but IMHO,
->> the statistics should be drained offline path. isn't it?
-> 
-> It isn't necessary because statistics is right until we reset it to zero
-> in online path.
-> Do you have something on your mind that we have to drain it in offline path?
+When a transparent hugepage is mapped and it is included in an mlock()
+range, follow_page() incorrectly avoids setting the page's mlock bit and
+moving it to the unevictable lru.
 
-When a node is offlined and onlined again. We create node_data[i] in the
-function hotadd_new_pgdat(), and we will lost the statistics stored in
-zone->pageset. So we should drain it in offline path.
+This is evident if you try to mlock(), munlock(), and then mlock() a 
+range again.  Currently:
 
-Thanks
-Wen Congyang
+	#define MAP_SIZE	(4 << 30)	/* 4GB */
 
-> 
->>
->> thanks.
-> 
+	void *ptr = mmap(NULL, MAP_SIZE, PROT_READ | PROT_WRITE,
+			 MAP_PRIVATE | MAP_ANONYMOUS, 0, 0);
+	mlock(ptr, MAP_SIZE);
+
+		$ grep -E "Unevictable|Inactive\(anon" /proc/meminfo
+		Inactive(anon):     6304 kB
+		Unevictable:     4213924 kB
+
+	munlock(ptr, MAP_SIZE);
+
+		Inactive(anon):  4186252 kB
+		Unevictable:       19652 kB
+
+	mlock(ptr, MAP_SIZE);
+
+		Inactive(anon):  4198556 kB
+		Unevictable:       21684 kB
+
+Notice that less than 2MB was added to the unevictable list; this is
+because these pages in the range are not transparent hugepages since the
+4GB range was allocated with mmap() and has no specific alignment.  If
+posix_memalign() were used instead, unevictable would not have grown at
+all on the second mlock().
+
+The fix is to call mlock_vma_page() so that the mlock bit is set and the
+page is added to the unevictable list.  With this patch:
+
+	mlock(ptr, MAP_SIZE);
+
+		Inactive(anon):     4056 kB
+		Unevictable:     4213940 kB
+
+	munlock(ptr, MAP_SIZE);
+
+		Inactive(anon):  4198268 kB
+		Unevictable:       19636 kB
+
+	mlock(ptr, MAP_SIZE);
+
+		Inactive(anon):     4008 kB
+		Unevictable:     4213940 kB
+
+Cc: stable@vger.kernel.org [v2.6.38+]
+Signed-off-by: David Rientjes <rientjes@google.com>
+---
+ include/linux/huge_mm.h |    2 +-
+ mm/huge_memory.c        |   11 ++++++++++-
+ mm/memory.c             |    2 +-
+ 3 files changed, 12 insertions(+), 3 deletions(-)
+
+diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
+--- a/include/linux/huge_mm.h
++++ b/include/linux/huge_mm.h
+@@ -12,7 +12,7 @@ extern int do_huge_pmd_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ 			       unsigned long address, pmd_t *pmd,
+ 			       pmd_t orig_pmd);
+ extern pgtable_t get_pmd_huge_pte(struct mm_struct *mm);
+-extern struct page *follow_trans_huge_pmd(struct mm_struct *mm,
++extern struct page *follow_trans_huge_pmd(struct vm_area_struct *vma,
+ 					  unsigned long addr,
+ 					  pmd_t *pmd,
+ 					  unsigned int flags);
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -997,11 +997,12 @@ out:
+ 	return ret;
+ }
+ 
+-struct page *follow_trans_huge_pmd(struct mm_struct *mm,
++struct page *follow_trans_huge_pmd(struct vm_area_struct *vma,
+ 				   unsigned long addr,
+ 				   pmd_t *pmd,
+ 				   unsigned int flags)
+ {
++	struct mm_struct *mm = vma->vm_mm;
+ 	struct page *page = NULL;
+ 
+ 	assert_spin_locked(&mm->page_table_lock);
+@@ -1024,6 +1025,14 @@ struct page *follow_trans_huge_pmd(struct mm_struct *mm,
+ 		_pmd = pmd_mkyoung(pmd_mkdirty(*pmd));
+ 		set_pmd_at(mm, addr & HPAGE_PMD_MASK, pmd, _pmd);
+ 	}
++	if ((flags & FOLL_MLOCK) && (vma->vm_flags & VM_LOCKED)) {
++		if (page->mapping && trylock_page(page)) {
++			lru_add_drain();
++			if (page->mapping)
++				mlock_vma_page(page);
++			unlock_page(page);
++		}
++	}
+ 	page += (addr & ~HPAGE_PMD_MASK) >> PAGE_SHIFT;
+ 	VM_BUG_ON(!PageCompound(page));
+ 	if (flags & FOLL_GET)
+diff --git a/mm/memory.c b/mm/memory.c
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -1521,7 +1521,7 @@ struct page *follow_page(struct vm_area_struct *vma, unsigned long address,
+ 				spin_unlock(&mm->page_table_lock);
+ 				wait_split_huge_page(vma->anon_vma, pmd);
+ 			} else {
+-				page = follow_trans_huge_pmd(mm, address,
++				page = follow_trans_huge_pmd(vma, address,
+ 							     pmd, flags);
+ 				spin_unlock(&mm->page_table_lock);
+ 				goto out;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
