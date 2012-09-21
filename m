@@ -1,69 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
-	by kanga.kvack.org (Postfix) with SMTP id 8BD306B002B
-	for <linux-mm@kvack.org>; Fri, 21 Sep 2012 05:19:52 -0400 (EDT)
-Message-ID: <505C306F.2000601@parallels.com>
-Date: Fri, 21 Sep 2012 13:16:31 +0400
-From: Glauber Costa <glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
+	by kanga.kvack.org (Postfix) with SMTP id AB7D36B0069
+	for <linux-mm@kvack.org>; Fri, 21 Sep 2012 05:28:03 -0400 (EDT)
+Received: by pbbro12 with SMTP id ro12so7797273pbb.14
+        for <linux-mm@kvack.org>; Fri, 21 Sep 2012 02:28:03 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: MMTests 0.05
-References: <20120907124232.GA11266@suse.de> <505AF81C.1080404@parallels.com> <20120920153705.GQ11266@suse.de>
-In-Reply-To: <20120920153705.GQ11266@suse.de>
-Content-Type: text/plain; charset="ISO-8859-15"
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <505C27E4.90509@parallels.com>
+References: <1347977530-29755-1-git-send-email-glommer@parallels.com>
+	<1347977530-29755-16-git-send-email-glommer@parallels.com>
+	<CAAmzW4NyK6gqqXHttUE35=-=h0Eve-smiYJCj3i+mHFFysQE4A@mail.gmail.com>
+	<505C27E4.90509@parallels.com>
+Date: Fri, 21 Sep 2012 18:28:02 +0900
+Message-ID: <CAAmzW4PRPBgySUpNsj=RP6VR3KLcVWv3G7rRtX=r+wiWUTDchw@mail.gmail.com>
+Subject: Re: [PATCH v3 15/16] memcg/sl[au]b: shrink dead caches
+From: JoonSoo Kim <js1304@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Glauber Costa <glommer@parallels.com>
+Cc: linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, devel@openvz.org, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, Suleiman Souhlal <suleiman@google.com>, Frederic Weisbecker <fweisbec@gmail.com>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>
 
-On 09/20/2012 07:37 PM, Mel Gorman wrote:
-> On Thu, Sep 20, 2012 at 03:03:56PM +0400, Glauber Costa wrote:
->> On 09/07/2012 04:42 PM, Mel Gorman wrote:
->>> ./run-mmtests.sh test-run-1
+Hi, Glauber.
+
+>> 2012/9/18 Glauber Costa <glommer@parallels.com>:
+>>> diff --git a/mm/slub.c b/mm/slub.c
+>>> index 0b68d15..9d79216 100644
+>>> --- a/mm/slub.c
+>>> +++ b/mm/slub.c
+>>> @@ -2602,6 +2602,7 @@ redo:
+>>>         } else
+>>>                 __slab_free(s, page, x, addr);
+>>>
+>>> +       kmem_cache_verify_dead(s);
+>>>  }
 >>
->> Mel, would you share with us the command line and config tweaks you had
->> in place to run the memcg tests you presented in the memcg summit?
+>> As far as u know, I am not a expert and don't know anything about memcg.
+>> IMHO, this implementation may hurt system performance in some case.
 >>
-> 
-> Apply the following patch to mmtests 0.05 and then from within the
-> mmtests directory do
-> 
-> ./run-mmtests.sh testrun
-> 
-> At the very least you should have oprofile installed. Optionally install
-> libnuma-devel but the test will cope if it's not available. Automatic package
-> installation will be in 0.06 for opensuse at least but other distros can
-> be easily supported if I know the names of the equivalent packages.
-> 
-> The above command will run both with and without profiling. The profiles
-> will be in work/log/pft-testrun/fine-profile-timer/base/ and an annotated
-> profile will be included in the file. If you have "recode" installed the
-> annotated profile will be compressed and can be extracted with something like
-> 
-> grep -A 9999999 "=== annotate ===" oprofile-compressed.report | grep -v annotate | recode /b64..char | gunzip -c
-> 
-> Each of the memcg functions will be small but when all the functions that
-> are in mm/memcontrol.c are added together it becomes a big problem.  What I
-> actually showed at the meeting was based on piping the oprofile report
-> through another quick and dirty script to match functions to filenames.
-> 
-> The bulk of this patch is renaming  profile-disabled-hooks-a.sh to
-> profile-hooks-a.sh. Let me know if you run into problems.
+>> In case of memcg is destoried, remained kmem_cache is marked "dead".
+>> After it is marked,
+>> every free operation to this "dead" kmem_cache call
+>> kmem_cache_verify_dead() and finally call kmem_cache_shrink().
+>
+> As long as it is restricted to that cache, this is a non issue.
+> dead caches are exactly what they name imply: dead.
+>
+> Means that we actively want them to go away, and just don't kill them
+> right away because they have some inflight objects - which we expect not
+> to be too much.
 
-FYI: I get this:
+Hmm.. I don't think so.
+We can destroy memcg whenever we want, is it right?
+If it is right, there is many inflight objects when we destory memcg.
+If there is so many inflight objects, performance of these processes
+can be hurt too much.
 
-Can't locate TLBC/Report.pm in @INC (@INC contains:
-/home/glauber/mmtests-0.05-mmtests-0.01/vmr/bin /usr/local/lib64/perl5
-/usr/local/share/perl5 /usr/lib64/perl5/vendor_perl
-/usr/share/perl5/vendor_perl /usr/lib64/perl5 /usr/share/perl5 .) at
-/home/glauber/mmtests-0.05-mmtests-0.01/vmr/bin/oprofile_map_events.pl
-line 11.
+>> And, I found one case that destroying memcg's kmem_cache don't works properly.
+>> If we destroy memcg after all object is freed, current implementation
+>> doesn't destroy kmem_cache.
+>> kmem_cache_destroy_work_func() check "cachep->memcg_params.nr_pages == 0",
+>> but in this case, it return false, because kmem_cache may have
+>> cpu_slab, and cpu_partials_slabs.
+>> As we already free all objects, kmem_cache_verify_dead() is not invoked forever.
+>> I think that we need another kmem_cache_shrink() in
+>> kmem_cache_destroy_work_func().
+>
+> I'll take a look here. What you describe makes sense, and can
+> potentially happen. I tried to handle this case with care in
+> destroy_all_caches, but I may have always made a mistake...
+>
+> Did you see this actively happening, or are you just assuming this can
+> happen from your read of the code?
 
-Investigating, it seems that hugetlbfs packages in fedora doesn't
-install any perl scripts, unlike SuSE.
+Just read of the code.
 
-I downloaded the library manually, and pointed perl path to it, and it
-seems to work.
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
