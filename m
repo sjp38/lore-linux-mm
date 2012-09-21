@@ -1,54 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
-	by kanga.kvack.org (Postfix) with SMTP id 13E246B0044
-	for <linux-mm@kvack.org>; Fri, 21 Sep 2012 13:33:58 -0400 (EDT)
-Received: by pbbro12 with SMTP id ro12so8783749pbb.14
-        for <linux-mm@kvack.org>; Fri, 21 Sep 2012 10:33:57 -0700 (PDT)
-Date: Fri, 21 Sep 2012 10:33:52 -0700
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH v3 03/16] slab: Ignore the cflgs bit in cache creation
-Message-ID: <20120921173352.GE7264@google.com>
-References: <1347977530-29755-1-git-send-email-glommer@parallels.com>
- <1347977530-29755-4-git-send-email-glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
+	by kanga.kvack.org (Postfix) with SMTP id E7BEC6B0044
+	for <linux-mm@kvack.org>; Fri, 21 Sep 2012 13:44:20 -0400 (EDT)
+Date: Fri, 21 Sep 2012 10:44:19 -0700
+From: Larry Bassel <lbassel@codeaurora.org>
+Subject: Re: steering allocations to particular parts of memory
+Message-ID: <20120921174418.GD4018@labbmf01-linux.qualcomm.com>
+References: <20120907182715.GB4018@labbmf01-linux.qualcomm.com>
+ <20120911093407.GH11266@suse.de>
+ <20120912212829.GC4018@labbmf01-linux.qualcomm.com>
+ <20120913083443.GS11266@suse.de>
+ <9e3b0e01-836d-49d3-8aed-9ed9df6c1cfa@default>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1347977530-29755-4-git-send-email-glommer@parallels.com>
+In-Reply-To: <9e3b0e01-836d-49d3-8aed-9ed9df6c1cfa@default>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, devel@openvz.org, linux-mm@kvack.org, Suleiman Souhlal <suleiman@google.com>, Frederic Weisbecker <fweisbec@gmail.com>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@cs.helsinki.fi>
+To: Dan Magenheimer <dan.magenheimer@oracle.com>
+Cc: Mel Gorman <mgorman@suse.de>, Larry Bassel <lbassel@codeaurora.org>, linux-mm@kvack.org, Konrad Wilk <konrad.wilk@oracle.com>
 
-On Tue, Sep 18, 2012 at 06:11:57PM +0400, Glauber Costa wrote:
-> No cache should ever pass that as a creation flag, since this bit is
-> used to mark an internal decision of the slab about object placement. We
-> can just ignore this bit if it happens to be passed (such as when
-> duplicating a cache in the kmem memcg patches)
+On 17 Sep 12 12:40, Dan Magenheimer wrote:
+> Hi Larry --
 > 
-> Signed-off-by: Glauber Costa <glommer@parallels.com>
-> CC: Christoph Lameter <cl@linux.com>
-> CC: Pekka Enberg <penberg@cs.helsinki.fi>
-> CC: David Rientjes <rientjes@google.com>
-> ---
->  mm/slab.c | 1 +
->  1 file changed, 1 insertion(+)
+> Sorry I missed seeing you and missed this discussion at Linuxcon!
 > 
-> diff --git a/mm/slab.c b/mm/slab.c
-> index a7ed60f..ccf496c 100644
-> --- a/mm/slab.c
-> +++ b/mm/slab.c
-> @@ -2373,6 +2373,7 @@ __kmem_cache_create (struct kmem_cache *cachep, unsigned long flags)
->  	int err;
->  	size_t size = cachep->size;
->  
-> +	flags &= ~CFLGS_OFF_SLAB;
+> > based on transcendent memory (which I am somewhat familiar
+> > with, having built something based upon it which can be used either
+>         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> > as contiguous memory or as clean cache) might work, but
+> 
+> That reminds me... I never saw this code posted on linux-mm
+> or lkml or anywhere else.  Since this is another interesting
+> use of tmem/cleancache/frontswap, it might be good to get
+> your work into the kernel or at least into some other public
+> tree.  Is your code post-able? (re original thread:
+> http://www.spinics.net/lists/linux-mm/msg24785.html )
 
-A comment explaining why this is necessary wouldn't hurt.
+This was done on a 3.0 base (the tmem/zcache was from 3.1) a while back.
 
-Thanks.
+Due to the fact that 1) although some benchmarks improved,
+very large file system writes suffered performance degradation
+(measured with lmdd), 2) it appeared that supporting FAT
+(or other filesystems where blocksize != pagesize) would be
+difficult and 3) in many use cases we couldn't fill the carved
+out FMEM regions with enough cleancache (so memory was still
+being "wasted") as well as the fact that there was some functionality
+we hadn't yet implemented (mainly supporting non-compressed FMEM) and
+that the code would need to be ported forward to our 3.4 source
+base, management decided to put this project on the back burner.
+
+Therefore I don't believe I have any relevant code to post
+(unless the project is revived and ported to a current source base).
+
+Larry
 
 -- 
-tejun
+The Qualcomm Innovation Center, Inc. is a member of Code Aurora Forum,
+hosted by The Linux Foundation
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
