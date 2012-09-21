@@ -1,137 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
-	by kanga.kvack.org (Postfix) with SMTP id 68AFB6B002B
-	for <linux-mm@kvack.org>; Fri, 21 Sep 2012 05:55:53 -0400 (EDT)
-Date: Fri, 21 Sep 2012 10:55:48 +0100
+Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
+	by kanga.kvack.org (Postfix) with SMTP id 32F9E6B005A
+	for <linux-mm@kvack.org>; Fri, 21 Sep 2012 05:57:52 -0400 (EDT)
+Date: Fri, 21 Sep 2012 10:57:47 +0100
 From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 0/6] Reduce compaction scanning and lock contention
-Message-ID: <20120921095548.GT11266@suse.de>
-References: <1348149875-29678-1-git-send-email-mgorman@suse.de>
- <20120921091333.GA32081@alpha.arachsys.com>
- <20120921091701.GC32081@alpha.arachsys.com>
+Subject: Re: MMTests 0.05
+Message-ID: <20120921095747.GU11266@suse.de>
+References: <20120907124232.GA11266@suse.de>
+ <505AF81C.1080404@parallels.com>
+ <20120920153705.GQ11266@suse.de>
+ <505C306F.2000601@parallels.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20120921091701.GC32081@alpha.arachsys.com>
+In-Reply-To: <505C306F.2000601@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Richard Davies <richard@arachsys.com>
-Cc: Shaohua Li <shli@kernel.org>, Rik van Riel <riel@redhat.com>, Avi Kivity <avi@redhat.com>, QEMU-devel <qemu-devel@nongnu.org>, KVM <kvm@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Glauber Costa <glommer@parallels.com>
+Cc: Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Fri, Sep 21, 2012 at 10:17:01AM +0100, Richard Davies wrote:
-> Richard Davies wrote:
-> > I did manage to get a couple which were slightly worse, but nothing like as
-> > bad as before. Here are the results:
+On Fri, Sep 21, 2012 at 01:16:31PM +0400, Glauber Costa wrote:
+> On 09/20/2012 07:37 PM, Mel Gorman wrote:
+> > On Thu, Sep 20, 2012 at 03:03:56PM +0400, Glauber Costa wrote:
+> >> On 09/07/2012 04:42 PM, Mel Gorman wrote:
+> >>> ./run-mmtests.sh test-run-1
+> >>
+> >> Mel, would you share with us the command line and config tweaks you had
+> >> in place to run the memcg tests you presented in the memcg summit?
+> >>
 > > 
-> > # grep -F '[k]' report | head -8
-> >     45.60%       qemu-kvm  [kernel.kallsyms]     [k] clear_page_c
-> >     11.26%       qemu-kvm  [kernel.kallsyms]     [k] isolate_freepages_block
-> >      3.21%       qemu-kvm  [kernel.kallsyms]     [k] _raw_spin_lock
-> >      2.27%           ksmd  [kernel.kallsyms]     [k] memcmp
-> >      2.02%        swapper  [kernel.kallsyms]     [k] default_idle
-> >      1.58%       qemu-kvm  [kernel.kallsyms]     [k] svm_vcpu_run
-> >      1.30%       qemu-kvm  [kernel.kallsyms]     [k] _raw_spin_lock_irqsave
-> >      1.09%       qemu-kvm  [kernel.kallsyms]     [k] get_page_from_freelist
+> > Apply the following patch to mmtests 0.05 and then from within the
+> > mmtests directory do
+> > 
+> > ./run-mmtests.sh testrun
+> > 
+> > At the very least you should have oprofile installed. Optionally install
+> > libnuma-devel but the test will cope if it's not available. Automatic package
+> > installation will be in 0.06 for opensuse at least but other distros can
+> > be easily supported if I know the names of the equivalent packages.
+> > 
+> > The above command will run both with and without profiling. The profiles
+> > will be in work/log/pft-testrun/fine-profile-timer/base/ and an annotated
+> > profile will be included in the file. If you have "recode" installed the
+> > annotated profile will be compressed and can be extracted with something like
+> > 
+> > grep -A 9999999 "=== annotate ===" oprofile-compressed.report | grep -v annotate | recode /b64..char | gunzip -c
+> > 
+> > Each of the memcg functions will be small but when all the functions that
+> > are in mm/memcontrol.c are added together it becomes a big problem.  What I
+> > actually showed at the meeting was based on piping the oprofile report
+> > through another quick and dirty script to match functions to filenames.
+> > 
+> > The bulk of this patch is renaming  profile-disabled-hooks-a.sh to
+> > profile-hooks-a.sh. Let me know if you run into problems.
 > 
-> # ========
-> # captured on: Fri Sep 21 08:17:52 2012
-> # os release : 3.6.0-rc5-elastic+
-> # perf version : 3.5.2
-> # arch : x86_64
-> # nrcpus online : 16
-> # nrcpus avail : 16
-> # cpudesc : AMD Opteron(tm) Processor 6128
-> # cpuid : AuthenticAMD,16,9,1
-> # total memory : 131973276 kB
-> # cmdline : /home/root/bin/perf record -g -a 
-> # event : name = cycles, type = 0, config = 0x0, config1 = 0x0, config2 = 0x0, excl_usr = 0, excl_kern = 0, id = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }
-> # HEADER_CPU_TOPOLOGY info available, use -I to display
-> # HEADER_NUMA_TOPOLOGY info available, use -I to display
-> # ========
-> #
-> # Samples: 283K of event 'cycles'
-> # Event count (approx.): 109057976176
-> #
-> # Overhead        Command         Shared Object                                          Symbol
-> # ........  .............  ....................  ..............................................
-> #
->     45.60%       qemu-kvm  [kernel.kallsyms]     [k] clear_page_c                              
->                  |
->                  --- clear_page_c
->                     |          
->                     |--93.35%-- do_huge_pmd_anonymous_page
+> FYI: I get this:
+> 
+> Can't locate TLBC/Report.pm in @INC (@INC contains:
+> /home/glauber/mmtests-0.05-mmtests-0.01/vmr/bin /usr/local/lib64/perl5
+> /usr/local/share/perl5 /usr/lib64/perl5/vendor_perl
+> /usr/share/perl5/vendor_perl /usr/lib64/perl5 /usr/share/perl5 .) at
+> /home/glauber/mmtests-0.05-mmtests-0.01/vmr/bin/oprofile_map_events.pl
+> line 11.
+> 
+> Investigating, it seems that hugetlbfs packages in fedora doesn't
+> install any perl scripts, unlike SuSE.
+> 
 
-This is unavoidable. If THP was disabled, the cost would still be
-incurred, just on base pages instead of huge pages.
+That is unexpected but thanks for pointing it out. I'll pull in the
+necessary support files into mmtests itself to avoid the problem in the
+future.
 
-> <SNIP>
->     11.26%       qemu-kvm  [kernel.kallsyms]     [k] isolate_freepages_block                   
->                  |
->                  --- isolate_freepages_block
->                      compaction_alloc
->                      migrate_pages
->                      compact_zone
->                      compact_zone_order
->                      try_to_compact_pages
->                      __alloc_pages_direct_compact
->                      __alloc_pages_nodemask
->                      alloc_pages_vma
->                      do_huge_pmd_anonymous_page
+> I downloaded the library manually, and pointed perl path to it, and it
+> seems to work.
+> 
 
-And this is showing that we're still spending a lot of time scanning
-for free pages to isolate. I do not have a great idea on how this can be
-reduced further without interfering with the page allocator.
-
-One ok idea I considered in the past was using the buddy lists to find
-free pages quickly but there is first the problem that the buddy lists
-themselves may need to be searched and now that the zone lock is not held
-during the scan it would be particularly difficult. The harder problem is
-deciding when compaction "finishes". I'll put more thought into it over
-the weekend and see if something falls out but I'm not going to hold up
-this series waiting for inspiration.
-
->      3.21%       qemu-kvm  [kernel.kallsyms]     [k] _raw_spin_lock                            
->                  |
->                  --- _raw_spin_lock
->                     |          
->                     |--39.96%-- tdp_page_fault
-
-Nothing very interesting here until...
-
->                     |--1.69%-- free_pcppages_bulk
->                     |          |          
->                     |          |--77.53%-- drain_pages
->                     |          |          |          
->                     |          |          |--95.77%-- drain_local_pages
->                     |          |          |          |          
->                     |          |          |          |--97.90%-- generic_smp_call_function_interrupt
->                     |          |          |          |          smp_call_function_interrupt
->                     |          |          |          |          call_function_interrupt
->                     |          |          |          |          |          
->                     |          |          |          |          |--23.37%-- kvm_vcpu_ioctl
->                     |          |          |          |          |          do_vfs_ioctl
->                     |          |          |          |          |          sys_ioctl
->                     |          |          |          |          |          system_call_fastpath
->                     |          |          |          |          |          ioctl
->                     |          |          |          |          |          |          
->                     |          |          |          |          |          |--97.22%-- 0x10100000006
->                     |          |          |          |          |          |          
->                     |          |          |          |          |           --2.78%-- 0x10100000002
->                     |          |          |          |          |          
->                     |          |          |          |          |--17.80%-- __remove_mapping
->                     |          |          |          |          |          shrink_page_list
->                     |          |          |          |          |          shrink_inactive_list
->                     |          |          |          |          |          shrink_lruvec
->                     |          |          |          |          |          try_to_free_pages
->                     |          |          |          |          |          __alloc_pages_nodemask
->                     |          |          |          |          |          alloc_pages_vma
->                     |          |          |          |          |          do_huge_pmd_anonymous_page
-
-This whole section is interesting simply because it shows the per-cpu
-draining cost. It's low enough that I'm not going to put much thought
-into it but it's not often the per-cpu allocator sticks out like this.
-
-Thanks Richard.
+Good news, thanks.
 
 -- 
 Mel Gorman
