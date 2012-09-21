@@ -1,53 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
-	by kanga.kvack.org (Postfix) with SMTP id 68F7E6B005A
-	for <linux-mm@kvack.org>; Thu, 20 Sep 2012 23:28:44 -0400 (EDT)
-Message-ID: <505BDF34.3080905@oracle.com>
-Date: Fri, 21 Sep 2012 11:29:56 +0800
-From: Zhenzhong Duan <zhenzhong.duan@oracle.com>
-Reply-To: zhenzhong.duan@oracle.com
+Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
+	by kanga.kvack.org (Postfix) with SMTP id 805EE6B002B
+	for <linux-mm@kvack.org>; Fri, 21 Sep 2012 00:48:31 -0400 (EDT)
+Received: by obhx4 with SMTP id x4so3537126obh.14
+        for <linux-mm@kvack.org>; Thu, 20 Sep 2012 21:48:30 -0700 (PDT)
 MIME-Version: 1.0
-Subject: mm: frontswap: fix a wrong if condition in frontswap_shrink
-Content-Type: text/plain; charset=GB2312
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <1347977530-29755-16-git-send-email-glommer@parallels.com>
+References: <1347977530-29755-1-git-send-email-glommer@parallels.com>
+	<1347977530-29755-16-git-send-email-glommer@parallels.com>
+Date: Fri, 21 Sep 2012 13:48:30 +0900
+Message-ID: <CAAmzW4NyK6gqqXHttUE35=-=h0Eve-smiYJCj3i+mHFFysQE4A@mail.gmail.com>
+Subject: Re: [PATCH v3 15/16] memcg/sl[au]b: shrink dead caches
+From: JoonSoo Kim <js1304@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
-Cc: Dan Magenheimer <dan.magenheimer@oracle.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, levinsasha928@gmail.com, Feng Jin <joe.jin@oracle.com>
+To: Glauber Costa <glommer@parallels.com>
+Cc: linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, devel@openvz.org, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, Suleiman Souhlal <suleiman@google.com>, Frederic Weisbecker <fweisbec@gmail.com>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>
 
-pages_to_unuse is set to 0 to unuse all frontswap pages
-But that doesn't happen since a wrong condition in frontswap_shrink
-cancels it.
+Hi Glauber.
 
-Signed-off-by: Zhenzhong Duan <zhenzhong.duan@oracle.com>
----
- mm/frontswap.c |    4 ++--
- 1 files changed, 2 insertions(+), 2 deletions(-)
+2012/9/18 Glauber Costa <glommer@parallels.com>:
+> diff --git a/mm/slub.c b/mm/slub.c
+> index 0b68d15..9d79216 100644
+> --- a/mm/slub.c
+> +++ b/mm/slub.c
+> @@ -2602,6 +2602,7 @@ redo:
+>         } else
+>                 __slab_free(s, page, x, addr);
+>
+> +       kmem_cache_verify_dead(s);
+>  }
 
-diff --git a/mm/frontswap.c b/mm/frontswap.c
-index 6b3e71a..db2a86f 100644
---- a/mm/frontswap.c
-+++ b/mm/frontswap.c
-@@ -275,7 +275,7 @@ static int __frontswap_shrink(unsigned long target_pages,
- 	if (total_pages <= target_pages) {
- 		/* Nothing to do */
- 		*pages_to_unuse = 0;
--		return 0;
-+		return 1;
- 	}
- 	total_pages_to_unuse = total_pages - target_pages;
- 	return __frontswap_unuse_pages(total_pages_to_unuse, pages_to_unuse, type);
-@@ -302,7 +302,7 @@ void frontswap_shrink(unsigned long target_pages)
- 	spin_lock(&swap_lock);
- 	ret = __frontswap_shrink(target_pages, &pages_to_unuse, &type);
- 	spin_unlock(&swap_lock);
--	if (ret == 0 && pages_to_unuse)
-+	if (ret == 0)
- 		try_to_unuse(type, true, pages_to_unuse);
- 	return;
- }
--- 
-1.7.3
+As far as u know, I am not a expert and don't know anything about memcg.
+IMHO, this implementation may hurt system performance in some case.
+
+In case of memcg is destoried, remained kmem_cache is marked "dead".
+After it is marked,
+every free operation to this "dead" kmem_cache call
+kmem_cache_verify_dead() and finally call kmem_cache_shrink().
+kmem_cache_shrink() do invoking kmalloc and flush_all() and taking a
+lock for online node and invoking kfree.
+Especially, flush_all() may hurt performance largely, because it call
+has_cpu_slab() against all the cpus.
+
+And I know some other case it can hurt system performance.
+But, I don't mention it, because above case is sufficient to worry.
+
+And, I found one case that destroying memcg's kmem_cache don't works properly.
+If we destroy memcg after all object is freed, current implementation
+doesn't destroy kmem_cache.
+kmem_cache_destroy_work_func() check "cachep->memcg_params.nr_pages == 0",
+but in this case, it return false, because kmem_cache may have
+cpu_slab, and cpu_partials_slabs.
+As we already free all objects, kmem_cache_verify_dead() is not invoked forever.
+I think that we need another kmem_cache_shrink() in
+kmem_cache_destroy_work_func().
+
+I don't convince that I am right, so think carefully my humble opinion.
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
