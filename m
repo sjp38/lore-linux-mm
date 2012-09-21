@@ -1,60 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
-	by kanga.kvack.org (Postfix) with SMTP id EFFE26B005A
-	for <linux-mm@kvack.org>; Fri, 21 Sep 2012 15:16:30 -0400 (EDT)
-Received: from /spool/local
-	by e4.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
-	Fri, 21 Sep 2012 15:16:29 -0400
-Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by d01relay01.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q8LJGQ9Q143398
-	for <linux-mm@kvack.org>; Fri, 21 Sep 2012 15:16:26 -0400
-Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
-	by d01av04.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q8LJGPDH026001
-	for <linux-mm@kvack.org>; Fri, 21 Sep 2012 15:16:25 -0400
-Message-ID: <505CBD05.8080005@linux.vnet.ibm.com>
-Date: Fri, 21 Sep 2012 14:16:21 -0500
-From: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
+	by kanga.kvack.org (Postfix) with SMTP id 91E2F6B0044
+	for <linux-mm@kvack.org>; Fri, 21 Sep 2012 15:59:34 -0400 (EDT)
+Received: by pbbro12 with SMTP id ro12so9034481pbb.14
+        for <linux-mm@kvack.org>; Fri, 21 Sep 2012 12:59:33 -0700 (PDT)
+Date: Fri, 21 Sep 2012 12:59:29 -0700
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH v3 07/16] memcg: skip memcg kmem allocations in
+ specified code regions
+Message-ID: <20120921195929.GL7264@google.com>
+References: <1347977530-29755-1-git-send-email-glommer@parallels.com>
+ <1347977530-29755-8-git-send-email-glommer@parallels.com>
 MIME-Version: 1.0
-Subject: Re: [RFC] mm: add support for zsmalloc and zcache
-References: <1346794486-12107-1-git-send-email-sjenning@linux.vnet.ibm.com> <20120921161252.GV11266@suse.de>
-In-Reply-To: <20120921161252.GV11266@suse.de>
-Content-Type: text/plain; charset=ISO-8859-15
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1347977530-29755-8-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Nitin Gupta <ngupta@vflare.org>, Minchan Kim <minchan@kernel.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org
+To: Glauber Costa <glommer@parallels.com>
+Cc: linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, devel@openvz.org, linux-mm@kvack.org, Suleiman Souhlal <suleiman@google.com>, Frederic Weisbecker <fweisbec@gmail.com>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>
 
-On 09/21/2012 11:12 AM, Mel Gorman wrote:
-> That said, my initial feeling still stands. I think that this needs to move
-> out of staging because it's in limbo where it is but Andrew may disagree
-> because of the reservations. If my reservations are accurate then they
-> should at least be *clearly* documented with a note saying that using
-> this in production is ill-advised for now. If zcache is activated via the
-> kernel parameter, it should print a big dirty warning that the feature is
-> still experiemental and leave that warning there until all the issues are
-> addressed. Right now I'm not convinced this is production ready but that
-> the  issues could be fixed incrementally.
+Hello,
 
-Thank you _so_ much for the review!  Your comments have
-provided one of the few glimpses I've had into any other
-thoughts on the code save Dan and my own.
+On Tue, Sep 18, 2012 at 06:12:01PM +0400, Glauber Costa wrote:
+> +static void memcg_stop_kmem_account(void)
+> +{
+> +	if (!current->mm)
+> +		return;
+> +
+> +	current->memcg_kmem_skip_account++;
+> +}
+> +
+> +static void memcg_resume_kmem_account(void)
+> +{
+> +	if (!current->mm)
+> +		return;
+> +
+> +	current->memcg_kmem_skip_account--;
+> +}
 
-I'm in the process of going through the comments you provided.
+I can't say I'm a big fan of this approach.  If there are enough
+users, maybe but can't we just annotate the affected allocations
+explicitly?  Is this gonna have many more users?
 
-I am _very_ glad to hear you believe that zcache should be
-promoted out of the staging limbo where it currently
-resides.  I am fine with providing a warning against use in
-production environments until we can address everyone's
-concerns.
+Also, in general, can we please add some comments?  I know memcg code
+is dearth of comments but let's please not keep it that way.
 
-Once zcache is promoted, I think it will give the code more
-opportunity to be used/improved/extended in an incremental
-and stable way.
+Thanks.
 
---
-Seth
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
