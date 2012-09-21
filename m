@@ -1,68 +1,34 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
-	by kanga.kvack.org (Postfix) with SMTP id 56E7F6B002B
-	for <linux-mm@kvack.org>; Fri, 21 Sep 2012 05:13:48 -0400 (EDT)
-Date: Fri, 21 Sep 2012 10:13:33 +0100
-From: Richard Davies <richard@arachsys.com>
-Subject: Re: [PATCH 0/6] Reduce compaction scanning and lock contention
-Message-ID: <20120921091333.GA32081@alpha.arachsys.com>
-References: <1348149875-29678-1-git-send-email-mgorman@suse.de>
+Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
+	by kanga.kvack.org (Postfix) with SMTP id 9478F6B0062
+	for <linux-mm@kvack.org>; Fri, 21 Sep 2012 05:14:11 -0400 (EDT)
+Received: by padhz10 with SMTP id hz10so455371pad.14
+        for <linux-mm@kvack.org>; Fri, 21 Sep 2012 02:14:10 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1348149875-29678-1-git-send-email-mgorman@suse.de>
+In-Reply-To: <505C2856.70900@parallels.com>
+References: <1347977050-29476-1-git-send-email-glommer@parallels.com>
+	<1347977050-29476-7-git-send-email-glommer@parallels.com>
+	<CAAmzW4ONnc7n3kZbYnE6n2Cg0ZyPXW0QU2NMr0uRkyTxnGpNqQ@mail.gmail.com>
+	<505C2856.70900@parallels.com>
+Date: Fri, 21 Sep 2012 18:14:10 +0900
+Message-ID: <CAAmzW4MbqMevvxk1ibcogr2ED74kR2_46MRX=VO5dLLa4CZkAA@mail.gmail.com>
+Subject: Re: [PATCH v3 06/13] memcg: kmem controller infrastructure
+From: JoonSoo Kim <js1304@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Shaohua Li <shli@kernel.org>, Rik van Riel <riel@redhat.com>, Avi Kivity <avi@redhat.com>, QEMU-devel <qemu-devel@nongnu.org>, KVM <kvm@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Glauber Costa <glommer@parallels.com>
+Cc: linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, devel@openvz.org, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, Suleiman Souhlal <suleiman@google.com>, Frederic Weisbecker <fweisbec@gmail.com>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>
 
-Hi Mel,
+>> "*_memcg = memcg" should be executed when "memcg_charge_kmem" is success.
+>> "memcg_charge_kmem" return 0 if success in charging.
+>> Therefore, I think this code is wrong.
+>> If I am right, it is a serious bug that affect behavior of all the patchset.
+>
+> Which is precisely what it does. ret is a boolean, that will be true
+> when charge succeeded (== 0 test)
 
-Thank you for this series. I have applied on clean 3.6-rc5 and tested, and
-it works well for me - the lock contention is (still) gone and
-isolate_freepages_block is much reduced.
-
-Here is a typical test with these patches:
-
-# grep -F '[k]' report | head -8
-    65.20%         qemu-kvm  [kernel.kallsyms]     [k] clear_page_c
-     2.18%         qemu-kvm  [kernel.kallsyms]     [k] isolate_freepages_block
-     1.56%         qemu-kvm  [kernel.kallsyms]     [k] _raw_spin_lock
-     1.40%         qemu-kvm  [kernel.kallsyms]     [k] svm_vcpu_run
-     1.38%          swapper  [kernel.kallsyms]     [k] default_idle
-     1.35%         qemu-kvm  [kernel.kallsyms]     [k] get_page_from_freelist
-     0.74%             ksmd  [kernel.kallsyms]     [k] memcmp
-     0.72%         qemu-kvm  [kernel.kallsyms]     [k] free_pages_prepare
-
-
-I did manage to get a couple which were slightly worse, but nothing like as
-bad as before. Here are the results:
-
-# grep -F '[k]' report | head -8
-    45.60%       qemu-kvm  [kernel.kallsyms]     [k] clear_page_c
-    11.26%       qemu-kvm  [kernel.kallsyms]     [k] isolate_freepages_block
-     3.21%       qemu-kvm  [kernel.kallsyms]     [k] _raw_spin_lock
-     2.27%           ksmd  [kernel.kallsyms]     [k] memcmp
-     2.02%        swapper  [kernel.kallsyms]     [k] default_idle
-     1.58%       qemu-kvm  [kernel.kallsyms]     [k] svm_vcpu_run
-     1.30%       qemu-kvm  [kernel.kallsyms]     [k] _raw_spin_lock_irqsave
-     1.09%       qemu-kvm  [kernel.kallsyms]     [k] get_page_from_freelist
-
-# grep -F '[k]' report | head -8
-    61.29%       qemu-kvm  [kernel.kallsyms]     [k] clear_page_c
-     4.52%       qemu-kvm  [kernel.kallsyms]     [k] _raw_spin_lock_irqsave
-     2.64%       qemu-kvm  [kernel.kallsyms]     [k] copy_page_c
-     1.61%        swapper  [kernel.kallsyms]     [k] default_idle
-     1.57%       qemu-kvm  [kernel.kallsyms]     [k] _raw_spin_lock
-     1.18%       qemu-kvm  [kernel.kallsyms]     [k] get_page_from_freelist
-     1.18%       qemu-kvm  [kernel.kallsyms]     [k] isolate_freepages_block
-     1.11%       qemu-kvm  [kernel.kallsyms]     [k] svm_vcpu_run
-
-I will follow up with the detailed traces for these three tests.
-
-Thank you!
-
-Richard.
+Ahh...Okay! I didn't see (== 0 test)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
