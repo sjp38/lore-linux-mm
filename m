@@ -1,91 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
-	by kanga.kvack.org (Postfix) with SMTP id 1D0B86B006E
-	for <linux-mm@kvack.org>; Fri, 21 Sep 2012 05:35:36 -0400 (EDT)
-Date: Fri, 21 Sep 2012 10:35:30 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 0/6] Reduce compaction scanning and lock contention
-Message-ID: <20120921093530.GS11266@suse.de>
-References: <1348149875-29678-1-git-send-email-mgorman@suse.de>
- <20120921091333.GA32081@alpha.arachsys.com>
+Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
+	by kanga.kvack.org (Postfix) with SMTP id 2A9F06B006C
+	for <linux-mm@kvack.org>; Fri, 21 Sep 2012 05:40:17 -0400 (EDT)
+Received: by weyu3 with SMTP id u3so273399wey.14
+        for <linux-mm@kvack.org>; Fri, 21 Sep 2012 02:40:15 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20120921091333.GA32081@alpha.arachsys.com>
+In-Reply-To: <1347977530-29755-1-git-send-email-glommer@parallels.com>
+References: <1347977530-29755-1-git-send-email-glommer@parallels.com>
+Date: Fri, 21 Sep 2012 12:40:15 +0300
+Message-ID: <CAOJsxLFVMYUxoVOcaCAtvwZmyMHS9mB3msP8gHn0a6NqzneLqQ@mail.gmail.com>
+Subject: Re: [PATCH v3 00/16] slab accounting for memcg
+From: Pekka Enberg <penberg@kernel.org>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Richard Davies <richard@arachsys.com>
-Cc: Shaohua Li <shli@kernel.org>, Rik van Riel <riel@redhat.com>, Avi Kivity <avi@redhat.com>, QEMU-devel <qemu-devel@nongnu.org>, KVM <kvm@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Glauber Costa <glommer@parallels.com>
+Cc: linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, devel@openvz.org, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, Suleiman Souhlal <suleiman@google.com>, Frederic Weisbecker <fweisbec@gmail.com>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>
 
-On Fri, Sep 21, 2012 at 10:13:33AM +0100, Richard Davies wrote:
-> Hi Mel,
-> 
-> Thank you for this series. I have applied on clean 3.6-rc5 and tested, and
-> it works well for me - the lock contention is (still) gone and
-> isolate_freepages_block is much reduced.
-> 
+Hi Glauber,
 
-Excellent!
+On Tue, Sep 18, 2012 at 5:11 PM, Glauber Costa <glommer@parallels.com> wrote:
+> This is a followup to the previous kmem series. I divided them logically
+> so it gets easier for reviewers. But I believe they are ready to be merged
+> together (although we can do a two-pass merge if people would prefer)
+>
+> Throwaway git tree found at:
+>
+>         git://git.kernel.org/pub/scm/linux/kernel/git/glommer/memcg.git kmemcg-slab
+>
+> There are mostly bugfixes since last submission.
 
-> Here is a typical test with these patches:
-> 
-> # grep -F '[k]' report | head -8
->     65.20%         qemu-kvm  [kernel.kallsyms]     [k] clear_page_c
->      2.18%         qemu-kvm  [kernel.kallsyms]     [k] isolate_freepages_block
->      1.56%         qemu-kvm  [kernel.kallsyms]     [k] _raw_spin_lock
->      1.40%         qemu-kvm  [kernel.kallsyms]     [k] svm_vcpu_run
->      1.38%          swapper  [kernel.kallsyms]     [k] default_idle
->      1.35%         qemu-kvm  [kernel.kallsyms]     [k] get_page_from_freelist
->      0.74%             ksmd  [kernel.kallsyms]     [k] memcmp
->      0.72%         qemu-kvm  [kernel.kallsyms]     [k] free_pages_prepare
-> 
+Overall, I like this series a lot. However, I don't really see this as a
+v3.7 material because we already have largeish pending updates to the
+slab allocators. I also haven't seen any performance numbers for this
+which is a problem.
 
-Ok, so that is more or less acceptable. I would like to reduce the scanning
-even further but I'll take this as a start -- largely because I do not have
-any new good ideas on how it could be reduced further without incurring
-a large cost in the page allocator :)
+So what I'd really like to see is this series being merged early in the
+v3.8 development cycle to maximize the number of people eyeballing the
+code and looking at performance impact.
 
-> I did manage to get a couple which were slightly worse, but nothing like as
-> bad as before. Here are the results:
-> 
-> # grep -F '[k]' report | head -8
->     45.60%       qemu-kvm  [kernel.kallsyms]     [k] clear_page_c
->     11.26%       qemu-kvm  [kernel.kallsyms]     [k] isolate_freepages_block
->      3.21%       qemu-kvm  [kernel.kallsyms]     [k] _raw_spin_lock
->      2.27%           ksmd  [kernel.kallsyms]     [k] memcmp
->      2.02%        swapper  [kernel.kallsyms]     [k] default_idle
->      1.58%       qemu-kvm  [kernel.kallsyms]     [k] svm_vcpu_run
->      1.30%       qemu-kvm  [kernel.kallsyms]     [k] _raw_spin_lock_irqsave
->      1.09%       qemu-kvm  [kernel.kallsyms]     [k] get_page_from_freelist
-> 
-> # grep -F '[k]' report | head -8
->     61.29%       qemu-kvm  [kernel.kallsyms]     [k] clear_page_c
->      4.52%       qemu-kvm  [kernel.kallsyms]     [k] _raw_spin_lock_irqsave
->      2.64%       qemu-kvm  [kernel.kallsyms]     [k] copy_page_c
->      1.61%        swapper  [kernel.kallsyms]     [k] default_idle
->      1.57%       qemu-kvm  [kernel.kallsyms]     [k] _raw_spin_lock
->      1.18%       qemu-kvm  [kernel.kallsyms]     [k] get_page_from_freelist
->      1.18%       qemu-kvm  [kernel.kallsyms]     [k] isolate_freepages_block
->      1.11%       qemu-kvm  [kernel.kallsyms]     [k] svm_vcpu_run
-> 
-> 
+Does this sound reasonable to you Glauber?
 
-Were the boot times acceptable even when these slightly worse figures
-were recorded?
-
-> I will follow up with the detailed traces for these three tests.
-> 
-> Thank you!
-> 
-
-Thank you for the detailed reporting and the testing, it's much
-appreciated. I've already rebased the patches to Andrew's tree and tested
-them overnight and the figures look good on my side. I'll update the
-changelog and push them shortly.
-
--- 
-Mel Gorman
-SUSE Labs
+                        Pekka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
