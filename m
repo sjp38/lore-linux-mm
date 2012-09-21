@@ -1,63 +1,31 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
-	by kanga.kvack.org (Postfix) with SMTP id E7BEC6B0044
-	for <linux-mm@kvack.org>; Fri, 21 Sep 2012 13:44:20 -0400 (EDT)
-Date: Fri, 21 Sep 2012 10:44:19 -0700
-From: Larry Bassel <lbassel@codeaurora.org>
-Subject: Re: steering allocations to particular parts of memory
-Message-ID: <20120921174418.GD4018@labbmf01-linux.qualcomm.com>
-References: <20120907182715.GB4018@labbmf01-linux.qualcomm.com>
- <20120911093407.GH11266@suse.de>
- <20120912212829.GC4018@labbmf01-linux.qualcomm.com>
- <20120913083443.GS11266@suse.de>
- <9e3b0e01-836d-49d3-8aed-9ed9df6c1cfa@default>
+Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
+	by kanga.kvack.org (Postfix) with SMTP id 5FBB36B005A
+	for <linux-mm@kvack.org>; Fri, 21 Sep 2012 13:46:41 -0400 (EDT)
+Date: Fri, 21 Sep 2012 14:46:28 -0300
+From: Rafael Aquini <aquini@redhat.com>
+Subject: Re: [PATCH 1/9] Revert "mm: compaction: check lock contention first
+ before taking lock"
+Message-ID: <20120921174627.GA6665@optiplex.redhat.com>
+References: <1348224383-1499-1-git-send-email-mgorman@suse.de>
+ <1348224383-1499-2-git-send-email-mgorman@suse.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <9e3b0e01-836d-49d3-8aed-9ed9df6c1cfa@default>
+In-Reply-To: <1348224383-1499-2-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Magenheimer <dan.magenheimer@oracle.com>
-Cc: Mel Gorman <mgorman@suse.de>, Larry Bassel <lbassel@codeaurora.org>, linux-mm@kvack.org, Konrad Wilk <konrad.wilk@oracle.com>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Richard Davies <richard@arachsys.com>, Shaohua Li <shli@kernel.org>, Rik van Riel <riel@redhat.com>, Avi Kivity <avi@redhat.com>, QEMU-devel <qemu-devel@nongnu.org>, KVM <kvm@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On 17 Sep 12 12:40, Dan Magenheimer wrote:
-> Hi Larry --
+On Fri, Sep 21, 2012 at 11:46:15AM +0100, Mel Gorman wrote:
+> This reverts
+> mm-compaction-check-lock-contention-first-before-taking-lock.patch as it
+> is replaced by a later patch in the series.
 > 
-> Sorry I missed seeing you and missed this discussion at Linuxcon!
-> 
-> > based on transcendent memory (which I am somewhat familiar
-> > with, having built something based upon it which can be used either
->         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-> > as contiguous memory or as clean cache) might work, but
-> 
-> That reminds me... I never saw this code posted on linux-mm
-> or lkml or anywhere else.  Since this is another interesting
-> use of tmem/cleancache/frontswap, it might be good to get
-> your work into the kernel or at least into some other public
-> tree.  Is your code post-able? (re original thread:
-> http://www.spinics.net/lists/linux-mm/msg24785.html )
+> Signed-off-by: Mel Gorman <mgorman@suse.de>
 
-This was done on a 3.0 base (the tmem/zcache was from 3.1) a while back.
-
-Due to the fact that 1) although some benchmarks improved,
-very large file system writes suffered performance degradation
-(measured with lmdd), 2) it appeared that supporting FAT
-(or other filesystems where blocksize != pagesize) would be
-difficult and 3) in many use cases we couldn't fill the carved
-out FMEM regions with enough cleancache (so memory was still
-being "wasted") as well as the fact that there was some functionality
-we hadn't yet implemented (mainly supporting non-compressed FMEM) and
-that the code would need to be ported forward to our 3.4 source
-base, management decided to put this project on the back burner.
-
-Therefore I don't believe I have any relevant code to post
-(unless the project is revived and ported to a current source base).
-
-Larry
-
--- 
-The Qualcomm Innovation Center, Inc. is a member of Code Aurora Forum,
-hosted by The Linux Foundation
+Acked-by: Rafael Aquini <aquini@redhat.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
