@@ -1,85 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
-	by kanga.kvack.org (Postfix) with SMTP id 32F9E6B005A
-	for <linux-mm@kvack.org>; Fri, 21 Sep 2012 05:57:52 -0400 (EDT)
-Date: Fri, 21 Sep 2012 10:57:47 +0100
+Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
+	by kanga.kvack.org (Postfix) with SMTP id D24DE6B002B
+	for <linux-mm@kvack.org>; Fri, 21 Sep 2012 06:46:28 -0400 (EDT)
 From: Mel Gorman <mgorman@suse.de>
-Subject: Re: MMTests 0.05
-Message-ID: <20120921095747.GU11266@suse.de>
-References: <20120907124232.GA11266@suse.de>
- <505AF81C.1080404@parallels.com>
- <20120920153705.GQ11266@suse.de>
- <505C306F.2000601@parallels.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <505C306F.2000601@parallels.com>
+Subject: [PATCH 0/9] Reduce compaction scanning and lock contention
+Date: Fri, 21 Sep 2012 11:46:14 +0100
+Message-Id: <1348224383-1499-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Richard Davies <richard@arachsys.com>, Shaohua Li <shli@kernel.org>, Rik van Riel <riel@redhat.com>, Avi Kivity <avi@redhat.com>, QEMU-devel <qemu-devel@nongnu.org>, KVM <kvm@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
 
-On Fri, Sep 21, 2012 at 01:16:31PM +0400, Glauber Costa wrote:
-> On 09/20/2012 07:37 PM, Mel Gorman wrote:
-> > On Thu, Sep 20, 2012 at 03:03:56PM +0400, Glauber Costa wrote:
-> >> On 09/07/2012 04:42 PM, Mel Gorman wrote:
-> >>> ./run-mmtests.sh test-run-1
-> >>
-> >> Mel, would you share with us the command line and config tweaks you had
-> >> in place to run the memcg tests you presented in the memcg summit?
-> >>
-> > 
-> > Apply the following patch to mmtests 0.05 and then from within the
-> > mmtests directory do
-> > 
-> > ./run-mmtests.sh testrun
-> > 
-> > At the very least you should have oprofile installed. Optionally install
-> > libnuma-devel but the test will cope if it's not available. Automatic package
-> > installation will be in 0.06 for opensuse at least but other distros can
-> > be easily supported if I know the names of the equivalent packages.
-> > 
-> > The above command will run both with and without profiling. The profiles
-> > will be in work/log/pft-testrun/fine-profile-timer/base/ and an annotated
-> > profile will be included in the file. If you have "recode" installed the
-> > annotated profile will be compressed and can be extracted with something like
-> > 
-> > grep -A 9999999 "=== annotate ===" oprofile-compressed.report | grep -v annotate | recode /b64..char | gunzip -c
-> > 
-> > Each of the memcg functions will be small but when all the functions that
-> > are in mm/memcontrol.c are added together it becomes a big problem.  What I
-> > actually showed at the meeting was based on piping the oprofile report
-> > through another quick and dirty script to match functions to filenames.
-> > 
-> > The bulk of this patch is renaming  profile-disabled-hooks-a.sh to
-> > profile-hooks-a.sh. Let me know if you run into problems.
-> 
-> FYI: I get this:
-> 
-> Can't locate TLBC/Report.pm in @INC (@INC contains:
-> /home/glauber/mmtests-0.05-mmtests-0.01/vmr/bin /usr/local/lib64/perl5
-> /usr/local/share/perl5 /usr/lib64/perl5/vendor_perl
-> /usr/share/perl5/vendor_perl /usr/lib64/perl5 /usr/share/perl5 .) at
-> /home/glauber/mmtests-0.05-mmtests-0.01/vmr/bin/oprofile_map_events.pl
-> line 11.
-> 
-> Investigating, it seems that hugetlbfs packages in fedora doesn't
-> install any perl scripts, unlike SuSE.
-> 
+Hi Andrew,
 
-That is unexpected but thanks for pointing it out. I'll pull in the
-necessary support files into mmtests itself to avoid the problem in the
-future.
+Richard Davies and Shaohua Li have both reported lock contention
+problems in compaction on the zone and LRU locks as well as
+significant amounts of time being spent in compaction. This series
+aims to reduce lock contention and scanning rates to reduce that CPU
+usage. Richard reported at https://lkml.org/lkml/2012/9/21/91 that
+this series made a big different to a problem he reported in August
+(http://marc.info/?l=kvm&m=134511507015614&w=2).
 
-> I downloaded the library manually, and pointed perl path to it, and it
-> seems to work.
-> 
+Patches 1-3 reverts existing patches in Andrew's tree that get replaced
+	later in the series.
 
-Good news, thanks.
+Patch 4 is a fix for c67fe375 (mm: compaction: Abort async compaction if
+	locks are contended or taking too long) to properly abort in all
+	cases when contention is detected.
+
+Patch 5 defers acquiring the zone->lru_lock as long as possible.
+
+Patch 6 defers acquiring the zone->lock as lock as possible.
+
+Patch 7 reverts Rik's "skip-free" patches as the core concept gets
+	reimplemented later and the remaining patches are easier to
+	understand if this is reverted first.
+
+Patch 8 adds a pageblock-skip bit to the pageblock flags to cache what
+	pageblocks should be skipped by the migrate and free scanners.
+	This drastically reduces the amount of scanning compaction has
+	to do.
+
+Patch 9 reimplements something similar to Rik's idea except it uses the
+	pageblock-skip information to decide where the scanners should
+	restart from and does not need to wrap around.
+
+I tested this on 3.6-rc6 + linux-next/akpm. Kernels tested were
+
+akpm-20120920	3.6-rc6 + linux-next/akpm as of Septeber 20th, 2012
+lesslock	Patches 1-6
+revert		Patches 1-7
+cachefail	Patches 1-8
+skipuseless	Patches 1-9
+
+Stress high-order allocation tests looked ok. Success rates are more or
+less the same with the full series applied but there is an expectation that
+there is less opportunity to race with other allocation requests if there is
+less scanning. The time to complete the tests did not vary that much and are
+uninteresting as were the vmstat statistics so I will not present them here.
+
+Using ftrace I recorded how much scanning was done by compaction and got this
+
+                            3.6.0-rc6     3.6.0-rc6   3.6.0-rc6  3.6.0-rc6 3.6.0-rc6
+                            akpm-20120920 lockless  revert-v2r2  cachefail skipuseless
+
+Total   free    scanned         360753976  515414028  565479007   17103281   18916589 
+Total   free    isolated          2852429    3597369    4048601     670493     727840 
+Total   free    efficiency        0.0079%    0.0070%    0.0072%    0.0392%    0.0385% 
+Total   migrate scanned         247728664  822729112 1004645830   17946827   14118903 
+Total   migrate isolated          2555324    3245937    3437501     616359     658616 
+Total   migrate efficiency        0.0103%    0.0039%    0.0034%    0.0343%    0.0466% 
+
+The efficiency is worthless because of the nature of the test and the
+number of failures.  The really interesting point as far as this patch
+series is concerned is the number of pages scanned. Note that reverting
+Rik's patches massively increases the number of pages scanned indicating
+that those patches really did make a difference to CPU usage.
+
+However, caching what pageblocks should be skipped has a much higher
+impact. With patches 1-8 applied, free page and migrate page scanning are
+both reduced by 95% in comparison to the akpm kernel.  If the basic concept
+of Rik's patches are implemened on top then scanning then the free scanner
+barely changed but migrate scanning was further reduced. That said, tests
+on 3.6-rc5 indicated that the last patch had greater impact than what was
+measured here so it is a bit variable.
+
+One way or the other, this series has a large impact on the amount of
+scanning compaction does when there is a storm of THP allocations.
+
+ include/linux/mmzone.h          |    5 +-
+ include/linux/pageblock-flags.h |   19 +-
+ mm/compaction.c                 |  397 +++++++++++++++++++++++++--------------
+ mm/internal.h                   |   11 +-
+ mm/page_alloc.c                 |    6 +-
+ 5 files changed, 280 insertions(+), 158 deletions(-)
 
 -- 
-Mel Gorman
-SUSE Labs
+1.7.9.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
