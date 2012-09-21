@@ -1,47 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
-	by kanga.kvack.org (Postfix) with SMTP id 314096B005A
-	for <linux-mm@kvack.org>; Thu, 20 Sep 2012 22:14:02 -0400 (EDT)
-Date: Thu, 20 Sep 2012 22:13:48 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH] mm: fix NR_ISOLATED_[ANON|FILE] mismatch
-Message-ID: <20120921021201.GA12851@cmpxchg.org>
-References: <20120920232408.GI13234@bbox>
+Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
+	by kanga.kvack.org (Postfix) with SMTP id 68F7E6B005A
+	for <linux-mm@kvack.org>; Thu, 20 Sep 2012 23:28:44 -0400 (EDT)
+Message-ID: <505BDF34.3080905@oracle.com>
+Date: Fri, 21 Sep 2012 11:29:56 +0800
+From: Zhenzhong Duan <zhenzhong.duan@oracle.com>
+Reply-To: zhenzhong.duan@oracle.com
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120920232408.GI13234@bbox>
+Subject: mm: frontswap: fix a wrong if condition in frontswap_shrink
+Content-Type: text/plain; charset=GB2312
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Vasiliy Kulikov <segooon@gmail.com>
+To: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+Cc: Dan Magenheimer <dan.magenheimer@oracle.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, levinsasha928@gmail.com, Feng Jin <joe.jin@oracle.com>
 
-On Fri, Sep 21, 2012 at 08:24:08AM +0900, Minchan Kim wrote:
-> On Thu, Sep 20, 2012 at 11:41:11AM -0400, Johannes Weiner wrote:
-> > On Thu, Sep 20, 2012 at 08:51:56AM +0900, Minchan Kim wrote:
-> > > From: Minchan Kim <minchan@kernel.org>
-> > > Date: Thu, 20 Sep 2012 08:39:52 +0900
-> > > Subject: [PATCH] mm: revert 0def08e3, mm/mempolicy.c: check return code of
-> > >  check_range
+pages_to_unuse is set to 0 to unuse all frontswap pages
+But that doesn't happen since a wrong condition in frontswap_shrink
+cancels it.
 
-[...]
+Signed-off-by: Zhenzhong Duan <zhenzhong.duan@oracle.com>
+---
+ mm/frontswap.c |    4 ++--
+ 1 files changed, 2 insertions(+), 2 deletions(-)
 
-> From: Minchan Kim <minchan@kernel.org>
-> Date: Fri, 21 Sep 2012 08:17:37 +0900
-> Subject: [PATCH] mm: enhance comment and bug check
-> 
-> This patch updates comment and bug check.
-> It can be fold into [1].
-> 
-> [1] mm-revert-0def08e3-mm-mempolicyc-check-return-code-of-check_range.patch
-> 
-> Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> Suggested-by: Johannes Weiner <hannes@cmpxchg.org>
-> Signed-off-by: Minchan Kim <minchan@kernel.org>
-
-Thanks!  To the patch and this update:
-
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+diff --git a/mm/frontswap.c b/mm/frontswap.c
+index 6b3e71a..db2a86f 100644
+--- a/mm/frontswap.c
++++ b/mm/frontswap.c
+@@ -275,7 +275,7 @@ static int __frontswap_shrink(unsigned long target_pages,
+ 	if (total_pages <= target_pages) {
+ 		/* Nothing to do */
+ 		*pages_to_unuse = 0;
+-		return 0;
++		return 1;
+ 	}
+ 	total_pages_to_unuse = total_pages - target_pages;
+ 	return __frontswap_unuse_pages(total_pages_to_unuse, pages_to_unuse, type);
+@@ -302,7 +302,7 @@ void frontswap_shrink(unsigned long target_pages)
+ 	spin_lock(&swap_lock);
+ 	ret = __frontswap_shrink(target_pages, &pages_to_unuse, &type);
+ 	spin_unlock(&swap_lock);
+-	if (ret == 0 && pages_to_unuse)
++	if (ret == 0)
+ 		try_to_unuse(type, true, pages_to_unuse);
+ 	return;
+ }
+-- 
+1.7.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
