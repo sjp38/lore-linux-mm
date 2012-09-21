@@ -1,97 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
-	by kanga.kvack.org (Postfix) with SMTP id 197EA6B006C
-	for <linux-mm@kvack.org>; Fri, 21 Sep 2012 05:35:25 -0400 (EDT)
-Message-ID: <505C340B.4020009@parallels.com>
-Date: Fri, 21 Sep 2012 13:31:55 +0400
-From: Glauber Costa <glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
+	by kanga.kvack.org (Postfix) with SMTP id 1D0B86B006E
+	for <linux-mm@kvack.org>; Fri, 21 Sep 2012 05:35:36 -0400 (EDT)
+Date: Fri, 21 Sep 2012 10:35:30 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 0/6] Reduce compaction scanning and lock contention
+Message-ID: <20120921093530.GS11266@suse.de>
+References: <1348149875-29678-1-git-send-email-mgorman@suse.de>
+ <20120921091333.GA32081@alpha.arachsys.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v3 15/16] memcg/sl[au]b: shrink dead caches
-References: <1347977530-29755-1-git-send-email-glommer@parallels.com> <1347977530-29755-16-git-send-email-glommer@parallels.com> <CAAmzW4NyK6gqqXHttUE35=-=h0Eve-smiYJCj3i+mHFFysQE4A@mail.gmail.com> <505C27E4.90509@parallels.com> <CAAmzW4PRPBgySUpNsj=RP6VR3KLcVWv3G7rRtX=r+wiWUTDchw@mail.gmail.com>
-In-Reply-To: <CAAmzW4PRPBgySUpNsj=RP6VR3KLcVWv3G7rRtX=r+wiWUTDchw@mail.gmail.com>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20120921091333.GA32081@alpha.arachsys.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: JoonSoo Kim <js1304@gmail.com>
-Cc: linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, devel@openvz.org, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, Suleiman Souhlal <suleiman@google.com>, Frederic Weisbecker <fweisbec@gmail.com>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>
+To: Richard Davies <richard@arachsys.com>
+Cc: Shaohua Li <shli@kernel.org>, Rik van Riel <riel@redhat.com>, Avi Kivity <avi@redhat.com>, QEMU-devel <qemu-devel@nongnu.org>, KVM <kvm@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On 09/21/2012 01:28 PM, JoonSoo Kim wrote:
-> Hi, Glauber.
+On Fri, Sep 21, 2012 at 10:13:33AM +0100, Richard Davies wrote:
+> Hi Mel,
 > 
->>> 2012/9/18 Glauber Costa <glommer@parallels.com>:
->>>> diff --git a/mm/slub.c b/mm/slub.c
->>>> index 0b68d15..9d79216 100644
->>>> --- a/mm/slub.c
->>>> +++ b/mm/slub.c
->>>> @@ -2602,6 +2602,7 @@ redo:
->>>>         } else
->>>>                 __slab_free(s, page, x, addr);
->>>>
->>>> +       kmem_cache_verify_dead(s);
->>>>  }
->>>
->>> As far as u know, I am not a expert and don't know anything about memcg.
->>> IMHO, this implementation may hurt system performance in some case.
->>>
->>> In case of memcg is destoried, remained kmem_cache is marked "dead".
->>> After it is marked,
->>> every free operation to this "dead" kmem_cache call
->>> kmem_cache_verify_dead() and finally call kmem_cache_shrink().
->>
->> As long as it is restricted to that cache, this is a non issue.
->> dead caches are exactly what they name imply: dead.
->>
->> Means that we actively want them to go away, and just don't kill them
->> right away because they have some inflight objects - which we expect not
->> to be too much.
-> 
-> Hmm.. I don't think so.
-> We can destroy memcg whenever we want, is it right?
-
-wrong.
-
-it is impossible to track objects to a task, so when tasks are moved,
-objects stay. Which means that some objects are still referenced by the
-cache.
-> If it is right, there is many inflight objects when we destory memcg.
-> If there is so many inflight objects, performance of these processes
-> can be hurt too much.
-> 
-There are in-flight objects. It is not expected to have "many inflight
-objects", which is a different statement.
-
-We are assuming all the time that the workloads that goes into a cgroup
-are mostly nature. When it goes away, most of the objects that were
-referenced are expected to go away. Because we can't guarantee all of
-them will, the references stay.
-
-When we are able to call shrink_slab() directly on a memcg slab, which
-is WIP, we'll be able make those objects even rarer.
-
->>> And, I found one case that destroying memcg's kmem_cache don't works properly.
->>> If we destroy memcg after all object is freed, current implementation
->>> doesn't destroy kmem_cache.
->>> kmem_cache_destroy_work_func() check "cachep->memcg_params.nr_pages == 0",
->>> but in this case, it return false, because kmem_cache may have
->>> cpu_slab, and cpu_partials_slabs.
->>> As we already free all objects, kmem_cache_verify_dead() is not invoked forever.
->>> I think that we need another kmem_cache_shrink() in
->>> kmem_cache_destroy_work_func().
->>
->> I'll take a look here. What you describe makes sense, and can
->> potentially happen. I tried to handle this case with care in
->> destroy_all_caches, but I may have always made a mistake...
->>
->> Did you see this actively happening, or are you just assuming this can
->> happen from your read of the code?
-> 
-> Just read of the code.
+> Thank you for this series. I have applied on clean 3.6-rc5 and tested, and
+> it works well for me - the lock contention is (still) gone and
+> isolate_freepages_block is much reduced.
 > 
 
-I will go through it again, just in case. This is indeed subtle and it
-is in my best interest to sort out those issues early.
+Excellent!
 
+> Here is a typical test with these patches:
+> 
+> # grep -F '[k]' report | head -8
+>     65.20%         qemu-kvm  [kernel.kallsyms]     [k] clear_page_c
+>      2.18%         qemu-kvm  [kernel.kallsyms]     [k] isolate_freepages_block
+>      1.56%         qemu-kvm  [kernel.kallsyms]     [k] _raw_spin_lock
+>      1.40%         qemu-kvm  [kernel.kallsyms]     [k] svm_vcpu_run
+>      1.38%          swapper  [kernel.kallsyms]     [k] default_idle
+>      1.35%         qemu-kvm  [kernel.kallsyms]     [k] get_page_from_freelist
+>      0.74%             ksmd  [kernel.kallsyms]     [k] memcmp
+>      0.72%         qemu-kvm  [kernel.kallsyms]     [k] free_pages_prepare
+> 
+
+Ok, so that is more or less acceptable. I would like to reduce the scanning
+even further but I'll take this as a start -- largely because I do not have
+any new good ideas on how it could be reduced further without incurring
+a large cost in the page allocator :)
+
+> I did manage to get a couple which were slightly worse, but nothing like as
+> bad as before. Here are the results:
+> 
+> # grep -F '[k]' report | head -8
+>     45.60%       qemu-kvm  [kernel.kallsyms]     [k] clear_page_c
+>     11.26%       qemu-kvm  [kernel.kallsyms]     [k] isolate_freepages_block
+>      3.21%       qemu-kvm  [kernel.kallsyms]     [k] _raw_spin_lock
+>      2.27%           ksmd  [kernel.kallsyms]     [k] memcmp
+>      2.02%        swapper  [kernel.kallsyms]     [k] default_idle
+>      1.58%       qemu-kvm  [kernel.kallsyms]     [k] svm_vcpu_run
+>      1.30%       qemu-kvm  [kernel.kallsyms]     [k] _raw_spin_lock_irqsave
+>      1.09%       qemu-kvm  [kernel.kallsyms]     [k] get_page_from_freelist
+> 
+> # grep -F '[k]' report | head -8
+>     61.29%       qemu-kvm  [kernel.kallsyms]     [k] clear_page_c
+>      4.52%       qemu-kvm  [kernel.kallsyms]     [k] _raw_spin_lock_irqsave
+>      2.64%       qemu-kvm  [kernel.kallsyms]     [k] copy_page_c
+>      1.61%        swapper  [kernel.kallsyms]     [k] default_idle
+>      1.57%       qemu-kvm  [kernel.kallsyms]     [k] _raw_spin_lock
+>      1.18%       qemu-kvm  [kernel.kallsyms]     [k] get_page_from_freelist
+>      1.18%       qemu-kvm  [kernel.kallsyms]     [k] isolate_freepages_block
+>      1.11%       qemu-kvm  [kernel.kallsyms]     [k] svm_vcpu_run
+> 
+> 
+
+Were the boot times acceptable even when these slightly worse figures
+were recorded?
+
+> I will follow up with the detailed traces for these three tests.
+> 
+> Thank you!
+> 
+
+Thank you for the detailed reporting and the testing, it's much
+appreciated. I've already rebased the patches to Andrew's tree and tested
+them overnight and the figures look good on my side. I'll update the
+changelog and push them shortly.
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
