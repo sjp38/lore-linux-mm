@@ -1,208 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
-	by kanga.kvack.org (Postfix) with SMTP id E76286B0074
-	for <linux-mm@kvack.org>; Fri, 21 Sep 2012 06:46:39 -0400 (EDT)
-From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 9/9] mm: compaction: Restart compaction from near where it left off
-Date: Fri, 21 Sep 2012 11:46:23 +0100
-Message-Id: <1348224383-1499-10-git-send-email-mgorman@suse.de>
-In-Reply-To: <1348224383-1499-1-git-send-email-mgorman@suse.de>
-References: <1348224383-1499-1-git-send-email-mgorman@suse.de>
+Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
+	by kanga.kvack.org (Postfix) with SMTP id 61CAF6B002B
+	for <linux-mm@kvack.org>; Fri, 21 Sep 2012 08:26:32 -0400 (EDT)
+Date: Fri, 21 Sep 2012 13:26:28 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 1/4] mm: fix invalidate_complete_page2 lock ordering
+Message-ID: <20120921122628.GB11157@csn.ul.ie>
+References: <alpine.LSU.2.00.1209182045370.11632@eggly.anvils>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <alpine.LSU.2.00.1209182045370.11632@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Richard Davies <richard@arachsys.com>, Shaohua Li <shli@kernel.org>, Rik van Riel <riel@redhat.com>, Avi Kivity <avi@redhat.com>, QEMU-devel <qemu-devel@nongnu.org>, KVM <kvm@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
+To: Hugh Dickins <hughd@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Sasha Levin <levinsasha928@gmail.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Michel Lespinasse <walken@google.com>, Ying Han <yinghan@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-This is almost entirely based on Rik's previous patches and discussions
-with him about how this might be implemented.
+On Tue, Sep 18, 2012 at 08:51:47PM -0700, Hugh Dickins wrote:
+> In fuzzing with trinity, lockdep protested "possible irq lock inversion
+> dependency detected" when isolate_lru_page() reenabled interrupts while
+> still holding the supposedly irq-safe tree_lock:
+> 
+> invalidate_inode_pages2
+>   invalidate_complete_page2
+>     spin_lock_irq(&mapping->tree_lock)
+>     clear_page_mlock
+>       isolate_lru_page
+>         spin_unlock_irq(&zone->lru_lock)
+> 
+> isolate_lru_page() is correct to enable interrupts unconditionally:
+> invalidate_complete_page2() is incorrect to call clear_page_mlock()
+> while holding tree_lock, which is supposed to nest inside lru_lock.
+> 
+> Both truncate_complete_page() and invalidate_complete_page() call
+> clear_page_mlock() before taking tree_lock to remove page from
+> radix_tree.  I guess invalidate_complete_page2() preferred to test
+> PageDirty (again) under tree_lock before committing to the munlock;
+> but since the page has already been unmapped, its state is already
+> somewhat inconsistent, and no worse if clear_page_mlock() moved up.
+> 
+> Reported-by: Sasha Levin <levinsasha928@gmail.com>
+> Deciphered-by: Andrew Morton <akpm@linux-foundation.org>
+> Signed-off-by: Hugh Dickins <hughd@google.com>
+> Cc: Mel Gorman <mel@csn.ul.ie>
+> Cc: Rik van Riel <riel@redhat.com>
+> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> Cc: Michel Lespinasse <walken@google.com>
+> Cc: Ying Han <yinghan@google.com>
+> Cc: stable@vger.kernel.org
 
-Order > 0 compaction stops when enough free pages of the correct page
-order have been coalesced.  When doing subsequent higher order allocations,
-it is possible for compaction to be invoked many times.
+Acked-by: Mel Gorman <mel@csn.ul.ie>
 
-However, the compaction code always starts out looking for things to compact
-at the start of the zone, and for free pages to compact things to at the
-end of the zone.
-
-This can cause quadratic behaviour, with isolate_freepages starting at
-the end of the zone each time, even though previous invocations of the
-compaction code already filled up all free memory on that end of the zone.
-This can cause isolate_freepages to take enormous amounts of CPU with
-certain workloads on larger memory systems.
-
-This patch caches where the migration and free scanner should start from on
-subsequent compaction invocations using the pageblock-skip information. When
-compaction starts it begins from the cached restart points and will
-update the cached restart points until a page is isolated or a pageblock
-is skipped that would have been scanned by synchronous compaction.
-
-Signed-off-by: Mel Gorman <mgorman@suse.de>
-Acked-by: Rik van Riel <riel@redhat.com>
----
- include/linux/mmzone.h |    4 ++++
- mm/compaction.c        |   54 ++++++++++++++++++++++++++++++++++++++++--------
- mm/internal.h          |    4 ++++
- 3 files changed, 53 insertions(+), 9 deletions(-)
-
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index a456361..e7792a3 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -370,6 +370,10 @@ struct zone {
- 	int                     all_unreclaimable; /* All pages pinned */
- #if defined CONFIG_COMPACTION || defined CONFIG_CMA
- 	unsigned long		compact_blockskip_expire;
-+
-+	/* pfns where compaction scanners should start */
-+	unsigned long		compact_cached_free_pfn;
-+	unsigned long		compact_cached_migrate_pfn;
- #endif
- #ifdef CONFIG_MEMORY_HOTPLUG
- 	/* see spanned/present_pages for more description */
-diff --git a/mm/compaction.c b/mm/compaction.c
-index 9276bc8..4bd96f3 100644
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -79,6 +79,9 @@ static void reset_isolation_suitable(struct zone *zone)
- 	 */
- 	if (time_before(jiffies, zone->compact_blockskip_expire))
- 		return;
-+
-+	zone->compact_cached_migrate_pfn = start_pfn;
-+	zone->compact_cached_free_pfn = end_pfn;
- 	zone->compact_blockskip_expire = jiffies + (HZ * 5);
- 
- 	/* Walk the zone and mark every pageblock as suitable for isolation */
-@@ -99,13 +102,29 @@ static void reset_isolation_suitable(struct zone *zone)
-  * If no pages were isolated then mark this pageblock to be skipped in the
-  * future. The information is later cleared by reset_isolation_suitable().
-  */
--static void update_pageblock_skip(struct page *page, unsigned long nr_isolated)
-+static void update_pageblock_skip(struct compact_control *cc,
-+			struct page *page, unsigned long nr_isolated,
-+			bool migrate_scanner)
- {
-+	struct zone *zone = cc->zone;
- 	if (!page)
- 		return;
- 
--	if (!nr_isolated)
-+	if (!nr_isolated) {
-+		unsigned long pfn = page_to_pfn(page);
- 		set_pageblock_skip(page);
-+
-+		/* Update where compaction should restart */
-+		if (migrate_scanner) {
-+			if (!cc->finished_update_migrate &&
-+			    pfn > zone->compact_cached_migrate_pfn)
-+				zone->compact_cached_migrate_pfn = pfn;
-+		} else {
-+			if (!cc->finished_update_free &&
-+			    pfn < zone->compact_cached_free_pfn)
-+				zone->compact_cached_free_pfn = pfn;
-+		}
-+	}
- }
- 
- static inline bool should_release_lock(spinlock_t *lock)
-@@ -315,7 +334,7 @@ out:
- 
- 	/* Update the pageblock-skip if the whole pageblock was scanned */
- 	if (blockpfn == end_pfn)
--		update_pageblock_skip(valid_page, total_isolated);
-+		update_pageblock_skip(cc, valid_page, total_isolated, false);
- 
- 	return total_isolated;
- }
-@@ -530,6 +549,7 @@ isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
- 		 */
- 		if (!cc->sync && last_pageblock_nr != pageblock_nr &&
- 		    !migrate_async_suitable(get_pageblock_migratetype(page))) {
-+			cc->finished_update_migrate = true;
- 			goto next_pageblock;
- 		}
- 
-@@ -578,6 +598,7 @@ isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
- 		VM_BUG_ON(PageTransCompound(page));
- 
- 		/* Successfully isolated */
-+		cc->finished_update_migrate = true;
- 		del_page_from_lru_list(page, lruvec, page_lru(page));
- 		list_add(&page->lru, migratelist);
- 		cc->nr_migratepages++;
-@@ -604,7 +625,7 @@ next_pageblock:
- 
- 	/* Update the pageblock-skip if the whole pageblock was scanned */
- 	if (low_pfn == end_pfn)
--		update_pageblock_skip(valid_page, nr_isolated);
-+		update_pageblock_skip(cc, valid_page, nr_isolated, true);
- 
- 	trace_mm_compaction_isolate_migratepages(nr_scanned, nr_isolated);
- 
-@@ -685,8 +706,10 @@ static void isolate_freepages(struct zone *zone,
- 		 * looking for free pages, the search will restart here as
- 		 * page migration may have returned some pages to the allocator
- 		 */
--		if (isolated)
-+		if (isolated) {
-+			cc->finished_update_free = true;
- 			high_pfn = max(high_pfn, pfn);
-+		}
- 	}
- 
- 	/* split_free_page does not map the pages */
-@@ -883,6 +906,8 @@ unsigned long compaction_suitable(struct zone *zone, int order)
- static int compact_zone(struct zone *zone, struct compact_control *cc)
- {
- 	int ret;
-+	unsigned long start_pfn = zone->zone_start_pfn;
-+	unsigned long end_pfn = zone->zone_start_pfn + zone->spanned_pages;
- 
- 	ret = compaction_suitable(zone, cc->order);
- 	switch (ret) {
-@@ -895,10 +920,21 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
- 		;
- 	}
- 
--	/* Setup to move all movable pages to the end of the zone */
--	cc->migrate_pfn = zone->zone_start_pfn;
--	cc->free_pfn = cc->migrate_pfn + zone->spanned_pages;
--	cc->free_pfn &= ~(pageblock_nr_pages-1);
-+	/*
-+	 * Setup to move all movable pages to the end of the zone. Used cached
-+	 * information on where the scanners should start but check that it
-+	 * is initialised by ensuring the values are within zone boundaries.
-+	 */
-+	cc->migrate_pfn = zone->compact_cached_migrate_pfn;
-+	cc->free_pfn = zone->compact_cached_free_pfn;
-+	if (cc->free_pfn < start_pfn || cc->free_pfn > end_pfn) {
-+		cc->free_pfn = end_pfn & ~(pageblock_nr_pages-1);
-+		zone->compact_cached_free_pfn = cc->free_pfn;
-+	}
-+	if (cc->migrate_pfn < start_pfn || cc->migrate_pfn > end_pfn) {
-+		cc->migrate_pfn = start_pfn;
-+		zone->compact_cached_migrate_pfn = cc->migrate_pfn;
-+	}
- 
- 	/* Clear pageblock skip if there are numerous alloc failures */
- 	if (zone->compact_defer_shift == COMPACT_MAX_DEFER_SHIFT)
-diff --git a/mm/internal.h b/mm/internal.h
-index fbf5ddc..7052289 100644
---- a/mm/internal.h
-+++ b/mm/internal.h
-@@ -122,6 +122,10 @@ struct compact_control {
- 	unsigned long migrate_pfn;	/* isolate_migratepages search base */
- 	bool sync;			/* Synchronous migration */
- 	bool ignore_skip_hint;		/* Scan blocks even if marked skip */
-+	bool finished_update_free;	/* True when the zone cached pfns are
-+					 * no longer being updated
-+					 */
-+	bool finished_update_migrate;
- 
- 	int order;			/* order a direct compactor needs */
- 	int migratetype;		/* MOVABLE, RECLAIMABLE etc */
 -- 
-1.7.9.2
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
