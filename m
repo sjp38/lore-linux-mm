@@ -1,52 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
-	by kanga.kvack.org (Postfix) with SMTP id 03EB36B0070
-	for <linux-mm@kvack.org>; Fri, 21 Sep 2012 13:54:33 -0400 (EDT)
-Date: Fri, 21 Sep 2012 14:54:24 -0300
-From: Rafael Aquini <aquini@redhat.com>
-Subject: Re: [PATCH 9/9] mm: compaction: Restart compaction from near where
- it left off
-Message-ID: <20120921175424.GI6665@optiplex.redhat.com>
-References: <1348224383-1499-1-git-send-email-mgorman@suse.de>
- <1348224383-1499-10-git-send-email-mgorman@suse.de>
+Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
+	by kanga.kvack.org (Postfix) with SMTP id 921946B0072
+	for <linux-mm@kvack.org>; Fri, 21 Sep 2012 14:13:39 -0400 (EDT)
+Date: Fri, 21 Sep 2012 14:02:22 -0400
+From: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+Subject: Re: [RFC] mm: add support for zsmalloc and zcache
+Message-ID: <20120921180222.GA7220@phenom.dumpdata.com>
+References: <1346794486-12107-1-git-send-email-sjenning@linux.vnet.ibm.com>
+ <20120921161252.GV11266@suse.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1348224383-1499-10-git-send-email-mgorman@suse.de>
+In-Reply-To: <20120921161252.GV11266@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Mel Gorman <mgorman@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Richard Davies <richard@arachsys.com>, Shaohua Li <shli@kernel.org>, Rik van Riel <riel@redhat.com>, Avi Kivity <avi@redhat.com>, QEMU-devel <qemu-devel@nongnu.org>, KVM <kvm@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Nitin Gupta <ngupta@vflare.org>, Minchan Kim <minchan@kernel.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org
 
-On Fri, Sep 21, 2012 at 11:46:23AM +0100, Mel Gorman wrote:
-> This is almost entirely based on Rik's previous patches and discussions
-> with him about how this might be implemented.
+On Fri, Sep 21, 2012 at 05:12:52PM +0100, Mel Gorman wrote:
+> On Tue, Sep 04, 2012 at 04:34:46PM -0500, Seth Jennings wrote:
+> > zcache is the remaining piece of code required to support in-kernel
+> > memory compression.  The other two features, cleancache and frontswap,
+> > have been promoted to mainline in 3.0 and 3.5 respectively.  This
+> > patchset promotes zcache from the staging tree to mainline.
+> > 
 > 
-> Order > 0 compaction stops when enough free pages of the correct page
-> order have been coalesced.  When doing subsequent higher order allocations,
-> it is possible for compaction to be invoked many times.
-> 
-> However, the compaction code always starts out looking for things to compact
-> at the start of the zone, and for free pages to compact things to at the
-> end of the zone.
-> 
-> This can cause quadratic behaviour, with isolate_freepages starting at
-> the end of the zone each time, even though previous invocations of the
-> compaction code already filled up all free memory on that end of the zone.
-> This can cause isolate_freepages to take enormous amounts of CPU with
-> certain workloads on larger memory systems.
-> 
-> This patch caches where the migration and free scanner should start from on
-> subsequent compaction invocations using the pageblock-skip information. When
-> compaction starts it begins from the cached restart points and will
-> update the cached restart points until a page is isolated or a pageblock
-> is skipped that would have been scanned by synchronous compaction.
-> 
-> Signed-off-by: Mel Gorman <mgorman@suse.de>
-> Acked-by: Rik van Riel <riel@redhat.com>
-> ---
+> This is a very rough review of the code simply because I was asked to
+> look at it. I'm barely aware of the history and I'm not a user of this
+> code myself so take all of this with a grain of salt.
 
-Acked-by: Rafael Aquini <aquini@redhat.com>
+Ah fresh set of eyes! Yeey!
+> 
+> Very broadly speaking my initial reaction before I reviewed anything was
+> that *some* sort of usable backend for cleancache or frontswap should exist
+> at this point. My understanding is that Xen is the primary user of both
+> those frontends and ramster, while interesting, is not something that a
+> typical user will benefit from.
+
+Right, the majority of users do not use virtualization. Thought embedded
+wise .. well, there are a lot of Android users - thought I am not 100%
+sure they are using it right now (I recall seeing changelogs for the clones
+of Android mentioning zcache).
+> 
+> That said, I worry that this has bounced around a lot and as Dan (the
+> original author) has a rewrite. I'm wary of spending too much time on this
+> at all. Is Dan's new code going to replace this or what? It'd be nice to
+> find a definitive answer on that.
+
+The idea is to take parts of zcache2 as seperate patches and stick it
+in the code you just reviewed (those that make sense as part of unstaging).
+The end result will be that zcache1 == zcache2 in functionality. Right
+now we are assembling a list of TODOs for zcache that should be done as part
+of 'unstaging'.
+
+> 
+> Anyway, here goes
+
+.. and your responses will fill the TODO with many extra line-items.
+
+Its going to take a bit of time to mull over your questions, so it will
+take me some time. Also Dan will probably beat me in providing the answers.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
