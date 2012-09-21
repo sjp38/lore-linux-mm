@@ -1,48 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
-	by kanga.kvack.org (Postfix) with SMTP id 9A2C66B002B
-	for <linux-mm@kvack.org>; Fri, 21 Sep 2012 08:47:18 -0400 (EDT)
-Date: Fri, 21 Sep 2012 13:47:15 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 4/4] mm: remove free_page_mlock
-Message-ID: <20120921124715.GD11157@csn.ul.ie>
-References: <alpine.LSU.2.00.1209182045370.11632@eggly.anvils>
- <alpine.LSU.2.00.1209182055290.11632@eggly.anvils>
+Received: from psmtp.com (na3sys010amx104.postini.com [74.125.245.104])
+	by kanga.kvack.org (Postfix) with SMTP id D186D6B002B
+	for <linux-mm@kvack.org>; Fri, 21 Sep 2012 09:51:14 -0400 (EDT)
+Message-ID: <505C70C8.5010406@redhat.com>
+Date: Fri, 21 Sep 2012 09:51:04 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <alpine.LSU.2.00.1209182055290.11632@eggly.anvils>
+Subject: Re: [PATCH 0/9] Reduce compaction scanning and lock contention
+References: <1348224383-1499-1-git-send-email-mgorman@suse.de>
+In-Reply-To: <1348224383-1499-1-git-send-email-mgorman@suse.de>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Michel Lespinasse <walken@google.com>, Ying Han <yinghan@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Richard Davies <richard@arachsys.com>, Shaohua Li <shli@kernel.org>, Avi Kivity <avi@redhat.com>, QEMU-devel <qemu-devel@nongnu.org>, KVM <kvm@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Tue, Sep 18, 2012 at 08:57:27PM -0700, Hugh Dickins wrote:
-> We should not be seeing non-0 unevictable_pgs_mlockfreed any longer.
-> So remove free_page_mlock() from the page freeing paths: __PG_MLOCKED
-> is already in PAGE_FLAGS_CHECK_AT_FREE, so free_pages_check() will now
-> be checking it, reporting "BUG: Bad page state" if it's ever found set.
-> Comment UNEVICTABLE_MLOCKFREED and unevictable_pgs_mlockfreed always 0.
-> 
-> Signed-off-by: Hugh Dickins <hughd@google.com>
-> Cc: Mel Gorman <mel@csn.ul.ie>
-> Cc: Rik van Riel <riel@redhat.com>
-> Cc: Johannes Weiner <hannes@cmpxchg.org>
-> Cc: Michel Lespinasse <walken@google.com>
-> Cc: Ying Han <yinghan@google.com>
+On 09/21/2012 06:46 AM, Mel Gorman wrote:
+> Hi Andrew,
+>
+> Richard Davies and Shaohua Li have both reported lock contention
+> problems in compaction on the zone and LRU locks as well as
+> significant amounts of time being spent in compaction. This series
+> aims to reduce lock contention and scanning rates to reduce that CPU
+> usage. Richard reported at https://lkml.org/lkml/2012/9/21/91 that
+> this series made a big different to a problem he reported in August
+> (http://marc.info/?l=kvm&m=134511507015614&w=2).
 
-Like Johannes I think you should just drop the counter. I find it very
-unlikely that there is a tool that depends on it existing because it's
-very hard to draw any useful conclusions from its value unlikes like say
-pgscan* or pgfault.
+> One way or the other, this series has a large impact on the amount of
+> scanning compaction does when there is a storm of THP allocations.
 
-Acked-by: Mel Gorman <mel@csn.ul.ie>
+Andrew,
 
-Thanks Hugh.
+Mel and I have discussed the stuff in this series quite a bit,
+and I am convinced this is the way forward with compaction.
 
 -- 
-Mel Gorman
-SUSE Labs
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
