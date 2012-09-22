@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
-	by kanga.kvack.org (Postfix) with SMTP id 093DF6B005D
-	for <linux-mm@kvack.org>; Sat, 22 Sep 2012 06:33:41 -0400 (EDT)
+	by kanga.kvack.org (Postfix) with SMTP id C662B6B0062
+	for <linux-mm@kvack.org>; Sat, 22 Sep 2012 06:33:47 -0400 (EDT)
 Received: by mail-pb0-f41.google.com with SMTP id ro12so10081941pbb.14
-        for <linux-mm@kvack.org>; Sat, 22 Sep 2012 03:33:41 -0700 (PDT)
+        for <linux-mm@kvack.org>; Sat, 22 Sep 2012 03:33:47 -0700 (PDT)
 From: raghu.prabhu13@gmail.com
-Subject: [PATCH 2/5] mm/readahead: Change the condition for SetPageReadahead
-Date: Sat, 22 Sep 2012 16:03:11 +0530
-Message-Id: <82b88a97e1b86b718fe8e4616820d224f6abbc52.1348309711.git.rprabhu@wnohang.net>
+Subject: [PATCH 3/5] Remove file_ra_state from arguments of count_history_pages.
+Date: Sat, 22 Sep 2012 16:03:12 +0530
+Message-Id: <e7275bef84867156b343ea3d558c4f669d1bc8b9.1348309711.git.rprabhu@wnohang.net>
 In-Reply-To: <cover.1348290849.git.rprabhu@wnohang.net>
 References: <cover.1348290849.git.rprabhu@wnohang.net>
 In-Reply-To: <cover.1348309711.git.rprabhu@wnohang.net>
@@ -19,31 +19,34 @@ Cc: fengguang.wu@intel.com, viro@zeniv.linux.org.uk, akpm@linux-foundation.org, 
 
 From: Raghavendra D Prabhu <rprabhu@wnohang.net>
 
-If page lookup from radix_tree_lookup is successful and its index page_idx ==
-nr_to_read - lookahead_size, then SetPageReadahead never gets called, so this
-fixes that.
+count_history_pages doesn't require readahead state to calculate the offset from history.
 
 Signed-off-by: Raghavendra D Prabhu <rprabhu@wnohang.net>
 ---
- mm/readahead.c | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ mm/readahead.c | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
 
 diff --git a/mm/readahead.c b/mm/readahead.c
-index 461fcc0..fec726c 100644
+index fec726c..3977455 100644
 --- a/mm/readahead.c
 +++ b/mm/readahead.c
-@@ -189,8 +189,10 @@ __do_page_cache_readahead(struct address_space *mapping, struct file *filp,
- 			break;
- 		page->index = page_offset;
- 		list_add(&page->lru, &page_pool);
--		if (page_idx == nr_to_read - lookahead_size)
-+		if (page_idx >= nr_to_read - lookahead_size) {
- 			SetPageReadahead(page);
-+			lookahead_size = 0;
-+		}
- 		ret++;
- 	}
+@@ -349,7 +349,6 @@ static unsigned long get_next_ra_size(struct file_ra_state *ra,
+  * 	- thrashing threshold in memory tight systems
+  */
+ static pgoff_t count_history_pages(struct address_space *mapping,
+-				   struct file_ra_state *ra,
+ 				   pgoff_t offset, unsigned long max)
+ {
+ 	pgoff_t head;
+@@ -372,7 +371,7 @@ static int try_context_readahead(struct address_space *mapping,
+ {
+ 	pgoff_t size;
  
+-	size = count_history_pages(mapping, ra, offset, max);
++	size = count_history_pages(mapping, offset, max);
+ 
+ 	/*
+ 	 * no history pages:
 -- 
 1.7.12.1
 
