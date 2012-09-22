@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
-	by kanga.kvack.org (Postfix) with SMTP id C33C36B005A
-	for <linux-mm@kvack.org>; Sat, 22 Sep 2012 06:33:35 -0400 (EDT)
+	by kanga.kvack.org (Postfix) with SMTP id 093DF6B005D
+	for <linux-mm@kvack.org>; Sat, 22 Sep 2012 06:33:41 -0400 (EDT)
 Received: by mail-pb0-f41.google.com with SMTP id ro12so10081941pbb.14
-        for <linux-mm@kvack.org>; Sat, 22 Sep 2012 03:33:35 -0700 (PDT)
+        for <linux-mm@kvack.org>; Sat, 22 Sep 2012 03:33:41 -0700 (PDT)
 From: raghu.prabhu13@gmail.com
-Subject: [PATCH 1/5] mm/readahead: Check return value of read_pages
-Date: Sat, 22 Sep 2012 16:03:10 +0530
-Message-Id: <dcdfd8620ae632321a28112f5074cc3c78d05bde.1348309711.git.rprabhu@wnohang.net>
+Subject: [PATCH 2/5] mm/readahead: Change the condition for SetPageReadahead
+Date: Sat, 22 Sep 2012 16:03:11 +0530
+Message-Id: <82b88a97e1b86b718fe8e4616820d224f6abbc52.1348309711.git.rprabhu@wnohang.net>
 In-Reply-To: <cover.1348290849.git.rprabhu@wnohang.net>
 References: <cover.1348290849.git.rprabhu@wnohang.net>
 In-Reply-To: <cover.1348309711.git.rprabhu@wnohang.net>
@@ -19,63 +19,31 @@ Cc: fengguang.wu@intel.com, viro@zeniv.linux.org.uk, akpm@linux-foundation.org, 
 
 From: Raghavendra D Prabhu <rprabhu@wnohang.net>
 
-Return value of a_ops->readpage will be propagated to return value of read_pages
-and __do_page_cache_readahead.
+If page lookup from radix_tree_lookup is successful and its index page_idx ==
+nr_to_read - lookahead_size, then SetPageReadahead never gets called, so this
+fixes that.
 
 Signed-off-by: Raghavendra D Prabhu <rprabhu@wnohang.net>
 ---
- mm/readahead.c | 12 +++++++-----
- 1 file changed, 7 insertions(+), 5 deletions(-)
+ mm/readahead.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
 
 diff --git a/mm/readahead.c b/mm/readahead.c
-index ea8f8fa..461fcc0 100644
+index 461fcc0..fec726c 100644
 --- a/mm/readahead.c
 +++ b/mm/readahead.c
-@@ -113,7 +113,7 @@ static int read_pages(struct address_space *mapping, struct file *filp,
- {
- 	struct blk_plug plug;
- 	unsigned page_idx;
--	int ret;
-+	int ret = 0;
- 
- 	blk_start_plug(&plug);
- 
-@@ -129,11 +129,12 @@ static int read_pages(struct address_space *mapping, struct file *filp,
- 		list_del(&page->lru);
- 		if (!add_to_page_cache_lru(page, mapping,
- 					page->index, GFP_KERNEL)) {
--			mapping->a_ops->readpage(filp, page);
-+			ret = mapping->a_ops->readpage(filp, page);
-+			if (ret < 0)
-+				break;
- 		}
- 		page_cache_release(page);
+@@ -189,8 +189,10 @@ __do_page_cache_readahead(struct address_space *mapping, struct file *filp,
+ 			break;
+ 		page->index = page_offset;
+ 		list_add(&page->lru, &page_pool);
+-		if (page_idx == nr_to_read - lookahead_size)
++		if (page_idx >= nr_to_read - lookahead_size) {
+ 			SetPageReadahead(page);
++			lookahead_size = 0;
++		}
+ 		ret++;
  	}
--	ret = 0;
  
- out:
- 	blk_finish_plug(&plug);
-@@ -160,6 +161,7 @@ __do_page_cache_readahead(struct address_space *mapping, struct file *filp,
- 	LIST_HEAD(page_pool);
- 	int page_idx;
- 	int ret = 0;
-+	int ret_read = 0;
- 	loff_t isize = i_size_read(inode);
- 
- 	if (isize == 0)
-@@ -198,10 +200,10 @@ __do_page_cache_readahead(struct address_space *mapping, struct file *filp,
- 	 * will then handle the error.
- 	 */
- 	if (ret)
--		read_pages(mapping, filp, &page_pool, ret);
-+		ret_read = read_pages(mapping, filp, &page_pool, ret);
- 	BUG_ON(!list_empty(&page_pool));
- out:
--	return ret;
-+	return (ret_read < 0 ? ret_read : ret);
- }
- 
- /*
 -- 
 1.7.12.1
 
