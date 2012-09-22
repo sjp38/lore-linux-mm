@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
-	by kanga.kvack.org (Postfix) with SMTP id C662B6B0062
-	for <linux-mm@kvack.org>; Sat, 22 Sep 2012 06:33:47 -0400 (EDT)
+	by kanga.kvack.org (Postfix) with SMTP id B9D786B0068
+	for <linux-mm@kvack.org>; Sat, 22 Sep 2012 06:33:53 -0400 (EDT)
 Received: by mail-pb0-f41.google.com with SMTP id ro12so10081941pbb.14
-        for <linux-mm@kvack.org>; Sat, 22 Sep 2012 03:33:47 -0700 (PDT)
+        for <linux-mm@kvack.org>; Sat, 22 Sep 2012 03:33:53 -0700 (PDT)
 From: raghu.prabhu13@gmail.com
-Subject: [PATCH 3/5] Remove file_ra_state from arguments of count_history_pages.
-Date: Sat, 22 Sep 2012 16:03:12 +0530
-Message-Id: <e7275bef84867156b343ea3d558c4f669d1bc8b9.1348309711.git.rprabhu@wnohang.net>
+Subject: [PATCH 4/5] Move the check for ra_pages after VM_SequentialReadHint()
+Date: Sat, 22 Sep 2012 16:03:13 +0530
+Message-Id: <b3c8b02fb273826f864f64d4588b36758fde2b5d.1348309711.git.rprabhu@wnohang.net>
 In-Reply-To: <cover.1348290849.git.rprabhu@wnohang.net>
 References: <cover.1348290849.git.rprabhu@wnohang.net>
 In-Reply-To: <cover.1348309711.git.rprabhu@wnohang.net>
@@ -19,34 +19,37 @@ Cc: fengguang.wu@intel.com, viro@zeniv.linux.org.uk, akpm@linux-foundation.org, 
 
 From: Raghavendra D Prabhu <rprabhu@wnohang.net>
 
-count_history_pages doesn't require readahead state to calculate the offset from history.
+page_cache_sync_readahead checks for ra->ra_pages again, so moving the check
+after VM_SequentialReadHint.
 
 Signed-off-by: Raghavendra D Prabhu <rprabhu@wnohang.net>
 ---
- mm/readahead.c | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ mm/filemap.c | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
 
-diff --git a/mm/readahead.c b/mm/readahead.c
-index fec726c..3977455 100644
---- a/mm/readahead.c
-+++ b/mm/readahead.c
-@@ -349,7 +349,6 @@ static unsigned long get_next_ra_size(struct file_ra_state *ra,
-  * 	- thrashing threshold in memory tight systems
-  */
- static pgoff_t count_history_pages(struct address_space *mapping,
--				   struct file_ra_state *ra,
- 				   pgoff_t offset, unsigned long max)
- {
- 	pgoff_t head;
-@@ -372,7 +371,7 @@ static int try_context_readahead(struct address_space *mapping,
- {
- 	pgoff_t size;
+diff --git a/mm/filemap.c b/mm/filemap.c
+index 3843445..606a648 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -1523,8 +1523,6 @@ static void do_sync_mmap_readahead(struct vm_area_struct *vma,
+ 	/* If we don't want any read-ahead, don't bother */
+ 	if (VM_RandomReadHint(vma))
+ 		return;
+-	if (!ra->ra_pages)
+-		return;
  
--	size = count_history_pages(mapping, ra, offset, max);
-+	size = count_history_pages(mapping, offset, max);
+ 	if (VM_SequentialReadHint(vma)) {
+ 		page_cache_sync_readahead(mapping, ra, file, offset,
+@@ -1532,6 +1530,9 @@ static void do_sync_mmap_readahead(struct vm_area_struct *vma,
+ 		return;
+ 	}
  
- 	/*
- 	 * no history pages:
++	if (!ra->ra_pages)
++		return;
++
+ 	/* Avoid banging the cache line if not needed */
+ 	if (ra->mmap_miss < MMAP_LOTSAMISS * 10)
+ 		ra->mmap_miss++;
 -- 
 1.7.12.1
 
