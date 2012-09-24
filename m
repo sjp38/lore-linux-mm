@@ -1,80 +1,161 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
-	by kanga.kvack.org (Postfix) with SMTP id 2A0EA6B002B
-	for <linux-mm@kvack.org>; Mon, 24 Sep 2012 05:45:20 -0400 (EDT)
-Date: Mon, 24 Sep 2012 12:44:52 +0300
-From: Hiroshi Doyu <hdoyu@nvidia.com>
-Subject: Re: How to specify IOMMU'able devices in DT (was: [RFC 0/5] ARM:
- dma-mapping: New dma_map_ops to control IOVA more precisely)
-Message-ID: <20120924124452.41070ed2ee9944d930cffffc@nvidia.com>
-In-Reply-To: <1348478881.2467.27.camel@dabdike>
-References: <1346223335-31455-1-git-send-email-hdoyu@nvidia.com>
-	<20120918124918.GK2505@amd.com>
-	<20120919095843.d1db155e0f085f4fcf64ea32@nvidia.com>
-	<201209190759.46174.arnd@arndb.de>
-	<20120919125020.GQ2505@amd.com>
-	<401E54CE964CD94BAE1EB4A729C7087E379FDC1EEB@HQMAIL04.nvidia.com>
-	<505A7DB4.4090902@wwwdotorg.org>
-	<401E54CE964CD94BAE1EB4A729C7087E379FDC1F2D@HQMAIL04.nvidia.com>
-	<505B35F7.2080201@wwwdotorg.org>
-	<401E54CE964CD94BAE1EB4A729C7087E379FDC2372@HQMAIL04.nvidia.com>
-	<20120924120415.8e6929a34c422185a98d3f82@nvidia.com>
-	<1348478881.2467.27.camel@dabdike>
+Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
+	by kanga.kvack.org (Postfix) with SMTP id F09946B002B
+	for <linux-mm@kvack.org>; Mon, 24 Sep 2012 06:23:31 -0400 (EDT)
+Date: Mon, 24 Sep 2012 12:23:24 +0200
+From: Borislav Petkov <bp@amd64.org>
+Subject: divide error: bdi_dirty_limit+0x5a/0x9e
+Message-ID: <20120924102324.GA22303@aftab.osrc.amd.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: James Bottomley <James.Bottomley@HansenPartnership.com>
-Cc: Stephen Warren <swarren@wwwdotorg.org>, Joerg Roedel <joerg.roedel@amd.com>, Arnd Bergmann <arnd@arndb.de>, "m.szyprowski@samsung.com" <m.szyprowski@samsung.com>, Krishna Reddy <vdumpa@nvidia.com>, "linux@arm.linux.org.uk" <linux@arm.linux.org.uk>, "minchan@kernel.org" <minchan@kernel.org>, "chunsang.jeong@linaro.org" <chunsang.jeong@linaro.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "subashrp@gmail.com" <subashrp@gmail.com>, "linaro-mm-sig@lists.linaro.org" <linaro-mm-sig@lists.linaro.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "iommu@lists.linux-foundation.org" <iommu@lists.linux-foundation.org>, "linux-tegra@vger.kernel.org" <linux-tegra@vger.kernel.org>, "kyungmin.park@samsung.com" <kyungmin.park@samsung.com>, "pullip.cho@samsung.com" <pullip.cho@samsung.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Fengguang Wu <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <jweiner@redhat.com>, Conny Seidel <conny.seidel@amd.com>
 
-Hi James,
+Hi all,
 
-On Mon, 24 Sep 2012 11:28:01 +0200
-James Bottomley <James.Bottomley@HansenPartnership.com> wrote:
+we're able to trigger the oops below when doing CPU hotplug tests.
 
-> On Mon, 2012-09-24 at 12:04 +0300, Hiroshi Doyu wrote:
-> > diff --git a/drivers/base/platform.c b/drivers/base/platform.c
-> > index a1a7225..9eae3be 100644
-> > --- a/drivers/base/platform.c
-> > +++ b/drivers/base/platform.c
-> > @@ -21,6 +21,8 @@
-> >  #include <linux/slab.h>
-> >  #include <linux/pm_runtime.h>
-> > 
-> > +#include <asm/dma-iommu.h>
-> > +
-> >  #include "base.h"
-> > 
-> >  #define to_platform_driver(drv)        (container_of((drv), struct
-> > platform_driver, \
-> > @@ -305,8 +307,19 @@ int platform_device_add(struct platform_device
-> > *pdev)
-> >                  dev_name(&pdev->dev), dev_name(pdev->dev.parent));
-> > 
-> >         ret = device_add(&pdev->dev);
-> > -       if (ret == 0)
-> > -               return ret;
-> > +       if (ret)
-> > +               goto failed;
-> > +
-> > +#ifdef CONFIG_PLATFORM_ENABLE_IOMMU
-> > +       if (platform_bus_type.map && !pdev->dev.archdata.mapping) {
-> > +               ret = arm_iommu_attach_device(&pdev->dev,
-> > +                                             platform_bus_type.map);
-> > +               if (ret)
-> > +                       goto failed;
-> 
-> This is horrible ... you're adding an architecture specific callback
-> into our generic code; that's really a no-no.  If the concept of
-> CONFIG_PLATFORM_ENABE_IOMMU is useful to more than just arm, then this
-> could become a generic callback.
+Disassembling the code section of the oops gives
 
-As mentioned in the original, this is a heck to explain what is
-needed. I am looking for some generic solution for how to specify
-IOMMU info for each platform devices. I'm guessing that some other SoC
-may have the similar requirements on the above. As you mentioned, this
-solution should be a generic, not arch specific.
+   0:   1a 00                   sbb    (%rax),%al
+   2:   b8 64 00 00 00          mov    $0x64,%eax
+   7:   2b 05 5c a4 28 01       sub    0x128a45c(%rip),%eax        # 0x128a469
+   d:   be 64 00 00 00          mov    $0x64,%esi
+  12:   31 d2                   xor    %edx,%edx
+  14:   8b 7d e0                mov    -0x20(%rbp),%edi
+  17:   48 0f af c3             imul   %rbx,%rax
+  1b:   48 f7 f6                div    %rsi
+  1e:   31 d2                   xor    %edx,%edx
+  20:   48 89 c1                mov    %rax,%rcx
+  23:   48 0f af 4d e8          imul   -0x18(%rbp),%rcx
+  28:   48 89 c8                mov    %rcx,%rax
+  2b:*  48 f7 f7                div    %rdi     <-- trapping instruction
+  2e:   31 d2                   xor    %edx,%edx
+  30:   48 89 c1                mov    %rax,%rcx
+  33:   41 8b 84 24 4c 01 00    mov    0x14c(%r12),%eax
+  3a:   00 
+  3b:   48 0f af c3             imul   %rbx,%rax
+  3f:   48                      rex.W
+
+in bdi_dirty_limit. The .s file contains then (annotations mine):
+
+.globl bdi_dirty_limit
+        .type   bdi_dirty_limit, @function
+bdi_dirty_limit:
+        pushq   %rbp    #
+        movq    %rsp, %rbp      #,
+        pushq   %r12    #
+        pushq   %rbx    #
+        subq    $48, %rsp       #,
+        call    mcount
+        movq    %rsi, %rbx      # dirty, dirty
+        leaq    -32(%rbp), %rcx #, tmp65
+        leaq    -24(%rbp), %rdx #, tmp66
+        leaq    280(%rdi), %rsi #, tmp67
+        movq    %rdi, %r12      # bdi, bdi
+        movq    $writeout_completions, %rdi     #,
+        call    fprop_fraction_percpu   #
+        movl    $100, %eax      #, tmp69
+        subl    bdi_min_ratio(%rip), %eax       # bdi_min_ratio, tmp70
+        movl    $100, %esi      #, tmp75
+        xorl    %edx, %edx      #
+        mov     -32(%rbp), %edi # denominator, denominator
+        imulq   %rbx, %rax      # dirty, tmp71
+        divq    %rsi    # tmp75
+        xorl    %edx, %edx      #			# most-significant part of bdi_dirty is already zeroed here
+        movq    %rax, %rcx      # tmp71, tmp73
+        imulq   -24(%rbp), %rcx # numerator, tmp73	# bdi_dirty *= numerator
+        movq    %rcx, %rax      # tmp73,		# move bdi_dirty in place for next insn
+        divq    %rdi		# denominator		<--- TRAP
+        xorl    %edx, %edx      #
+        movq    %rax, %rcx      #, tmp78
+	...
+
+and from looking at the register dump below, the dividend, which should
+be in %rdx:%rax is 0 and the divisor (denominator) we've got from
+bdi_writeout_fraction and is in %rdi is also 0. Which is strange because
+fprop_fraction_percpu guards for division by zero by setting denominator
+to 1 if it were zero but what about the case where den > num? Can that
+even happen?
+
+And also, what happens if num is 0? Which it kinda is by looking at %rcx
+where there's copy of it.
+
+I'll let people more knowledgeable with the code explain what actually
+happens.
+
+unsigned long bdi_dirty_limit(struct backing_dev_info *bdi, unsigned long dirty)
+{
+        u64 bdi_dirty;
+        long numerator, denominator;
+
+        /*
+         * Calculate this BDI's share of the dirty ratio.
+         */
+        bdi_writeout_fraction(bdi, &numerator, &denominator);
+
+        bdi_dirty = (dirty * (100 - bdi_min_ratio)) / 100;
+        bdi_dirty *= numerator;
+        do_div(bdi_dirty, denominator);
+
+        bdi_dirty += (dirty * bdi->min_ratio) / 100;
+        if (bdi_dirty > (dirty * bdi->max_ratio) / 100)
+                bdi_dirty = dirty * bdi->max_ratio / 100;
+
+        return bdi_dirty;
+}
+
+Sep 23 17:41:08 lemure kernel: [ 381.245776] divide error: 0000 [#1] SMP
+Sep 23 17:41:08 lemure kernel: [ 381.249725] Modules linked in: cpufreq_conservative cpufreq_userspace cpufreq_powersave i2c_piix4 tpm_tis rtc_cmos powernow_k8 tpm fam15
+h_power k10temp tpm_bios mperf serio_raw crc32c_intel ghash_clmulni_intel
+Sep 23 17:41:08 lemure kernel: [ 381.268531] CPU 0
+Sep 23 17:41:08 lemure kernel: [ 381.270377] Pid: 6644, comm: flush-8:0 Not tainted 3.6.0-rc6-e5e77cf9-linus+ #1 AMD
+Sep 23 17:41:08 lemure kernel: [ 381.279067] RIP: 0010:[<ffffffff810e8bc2>] [<ffffffff810e8bc2>] bdi_dirty_limit+0x5a/0x9e
+Sep 23 17:41:08 lemure kernel: [ 381.287330] RSP: 0018:ffff88041ad03d40 EFLAGS: 00010246
+Sep 23 17:41:08 lemure kernel: [ 381.292631] RAX: 0000000000000000 RBX: 00000000000621c3 RCX: 0000000000000000
+Sep 23 17:41:08 lemure kernel: [ 381.299751] RDX: 0000000000000000 RSI: 0000000000000064 RDI: 0000000000000000
+Sep 23 17:41:08 lemure kernel: [ 381.306870] RBP: ffff88041ad03d80 R08: 0000000000000008 R09: ffffffff8211e520
+Sep 23 17:41:08 lemure kernel: [ 381.313989] R10: ffff88041ad03d10 R11: ffff88041ad03d10 R12: ffff88041a2d0158
+Sep 23 17:41:08 lemure kernel: [ 381.321109] R13: ffff88041a2d0158 R14: ffff88041a2d02b0 R15: 0000000000000000
+Sep 23 17:41:08 lemure kernel: [ 381.328228] FS: 00007f3db8ea7700(0000) GS:ffff88042ec00000(0000) knlGS:0000000000000000
+Sep 23 17:41:08 lemure kernel: [ 381.336298] CS: 0010 DS: 0000 ES: 0000 CR0: 000000008005003b
+Sep 23 17:41:08 lemure kernel: [ 381.342034] CR2: 0000000000d84270 CR3: 0000000418ce4000 CR4: 00000000000407f0
+Sep 23 17:41:08 lemure kernel: [ 381.349151] DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
+Sep 23 17:41:08 lemure kernel: [ 381.356263] DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
+Sep 23 17:41:08 lemure kernel: [ 381.363384] Process flush-8:0 (pid: 6644, threadinfo ffff88041ad02000, task ffff8804198826c0)
+Sep 23 17:41:08 lemure kernel: [ 381.371884] Stack:
+Sep 23 17:41:08 lemure kernel: [ 381.373890] ffff88041ad03d80 ffffffff810e8e7a 0000000100013eb3 0000000000000000
+Sep 23 17:41:08 lemure kernel: [ 381.381330] 2000000000000000 0000000000000000 fffffffffffffff7 0000000000000000
+Sep 23 17:41:08 lemure kernel: [ 381.388769] ffff88041ad03dc0 ffffffff8114f9bd 000000010000c983 00000000000c4386
+Sep 23 17:41:08 lemure kernel: [ 381.396208] Call Trace:
+Sep 23 17:41:09 lemure kernel: [ 381.398654] [<ffffffff810e8e7a>] ? global_dirty_limits+0x3c/0x130
+Sep 23 17:41:09 lemure kernel: [ 381.404823] [<ffffffff8114f9bd>] over_bground_thresh+0x5c/0x76
+Sep 23 17:41:09 lemure kernel: [ 381.410729] [<ffffffff811503aa>] wb_do_writeback+0x193/0x1e9
+Sep 23 17:41:09 lemure kernel: [ 381.416464] [<ffffffff811504ca>] bdi_writeback_thread+0xca/0x1ec
+Sep 23 17:41:09 lemure kernel: [ 381.422545] [<ffffffff81150400>] ? wb_do_writeback+0x1e9/0x1e9
+Sep 23 17:41:09 lemure kernel: [ 381.428455] [<ffffffff8105e75b>] kthread+0x8d/0x95
+Sep 23 17:41:09 lemure kernel: [ 381.433323] [<ffffffff81940474>] kernel_thread_helper+0x4/0x10
+Sep 23 17:41:09 lemure kernel: [ 381.439231] [<ffffffff8105e6ce>] ? kthread_freezable_should_stop+0x62/0x62
+Sep 23 17:41:09 lemure kernel: [ 381.446178] [<ffffffff81940470>] ? gs_change+0xb/0xb
+Sep 23 17:41:09 lemure kernel: [ 381.451217] Code: 1a 00 b8 64 00 00 00 2b 05 5c a4 28 01 be 64 00 00 00 31 d2 8b 7d e0 48 0f af c3 48 f7 f6 31 d2 48 89 c1 48 0f af 4d e8 48 89 c8 <48> f7 f7 31 d2 48 89 c1 41 8b 84 24 4c 01 00 00 48 0f af c3 48
+Sep 23 17:41:10 lemure kernel: [ 381.471131] RIP [<ffffffff810e8bc2>] bdi_dirty_limit+0x5a/0x9e
+Sep 23 17:41:10 lemure kernel: [ 381.477057] RSP <ffff88041ad03d40>
+Sep 23 17:41:10 lemure kernel: [ 381.480604] ---[ end trace 703f173ed75f76a9 ]---
+
+Thanks.
+
+-- 
+Regards/Gruss,
+Boris.
+
+Advanced Micro Devices GmbH
+Einsteinring 24, 85609 Dornach
+GM: Alberto Bozzo
+Reg: Dornach, Landkreis Muenchen
+HRB Nr. 43632 WEEE Registernr: 129 19551
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
