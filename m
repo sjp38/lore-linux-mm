@@ -1,37 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx141.postini.com [74.125.245.141])
-	by kanga.kvack.org (Postfix) with SMTP id A514E6B002B
-	for <linux-mm@kvack.org>; Mon, 24 Sep 2012 17:21:02 -0400 (EDT)
-Date: Mon, 24 Sep 2012 14:21:00 -0700
+Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
+	by kanga.kvack.org (Postfix) with SMTP id 47FBE6B002B
+	for <linux-mm@kvack.org>; Mon, 24 Sep 2012 17:26:46 -0400 (EDT)
+Date: Mon, 24 Sep 2012 14:26:44 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: divide error: bdi_dirty_limit+0x5a/0x9e
-Message-Id: <20120924142100.52a1e7b7.akpm@linux-foundation.org>
-In-Reply-To: <20120924201726.GB30997@quack.suse.cz>
-References: <20120924102324.GA22303@aftab.osrc.amd.com>
-	<20120924142305.GD12264@quack.suse.cz>
-	<20120924143609.GH22303@aftab.osrc.amd.com>
-	<20120924201650.6574af64.conny.seidel@amd.com>
-	<20120924181927.GA25762@aftab.osrc.amd.com>
-	<5060AB0E.3070809@linux.vnet.ibm.com>
-	<20120924193135.GB25762@aftab.osrc.amd.com>
-	<20120924200737.GA30997@quack.suse.cz>
-	<20120924201726.GB30997@quack.suse.cz>
+Subject: Re: [PATCH 8/9] mm: compaction: Cache if a pageblock was scanned
+ and no pages were isolated
+Message-Id: <20120924142644.06c38b80.akpm@linux-foundation.org>
+In-Reply-To: <20120924093938.GZ11266@suse.de>
+References: <1348224383-1499-1-git-send-email-mgorman@suse.de>
+	<1348224383-1499-9-git-send-email-mgorman@suse.de>
+	<20120921143656.60a9a6cd.akpm@linux-foundation.org>
+	<20120924093938.GZ11266@suse.de>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Borislav Petkov <bp@amd64.org>, "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>, Conny Seidel <conny.seidel@amd.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Fengguang Wu <fengguang.wu@intel.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Johannes Weiner <jweiner@redhat.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Richard Davies <richard@arachsys.com>, Shaohua Li <shli@kernel.org>, Rik van Riel <riel@redhat.com>, Avi Kivity <avi@redhat.com>, QEMU-devel <qemu-devel@nongnu.org>, KVM <kvm@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Mon, 24 Sep 2012 22:17:26 +0200
-Jan Kara <jack@suse.cz> wrote:
+On Mon, 24 Sep 2012 10:39:38 +0100
+Mel Gorman <mgorman@suse.de> wrote:
 
->   In the attachment is a fix. Fengguang, can you please merge it? Thanks!
+> On Fri, Sep 21, 2012 at 02:36:56PM -0700, Andrew Morton wrote:
+> 
+> > Also, what has to be done to avoid the polling altogether?  eg/ie, zap
+> > a pageblock's PB_migrate_skip synchronously, when something was done to
+> > that pageblock which justifies repolling it?
+> > 
+> 
+> The "something" event you are looking for is pages being freed or
+> allocated in the page allocator. A movable page being allocated in block
+> or a page being freed should clear the PB_migrate_skip bit if it's set.
+> Unfortunately this would impact the fast path of the alloc and free paths
+> of the page allocator. I felt that that was too high a price to pay.
 
-I grabbed it.  I also added the (missing, important) text "This bug causes
-a divide-by-zero oops in bdi_dirty_limit() in Borislav's 3.6.0-rc6
-based kernel." And I stuck a cc:stable onto it.
+We already do a similar thing in the page allocator: clearing of
+->all_unreclaimable and ->pages_scanned.  But that isn't on the "fast
+path" really - it happens once per pcp unload.  Can we do something
+like that?  Drop some hint into the zone without having to visit each
+page?
+
+> > >
+> > > ...
+> > >
+> > > +static void reset_isolation_suitable(struct zone *zone)
+> > > +{
+> > > +	unsigned long start_pfn = zone->zone_start_pfn;
+> > > +	unsigned long end_pfn = zone->zone_start_pfn + zone->spanned_pages;
+> > > +	unsigned long pfn;
+> > > +
+> > > +	/*
+> > > +	 * Do not reset more than once every five seconds. If allocations are
+> > > +	 * failing sufficiently quickly to allow this to happen then continually
+> > > +	 * scanning for compaction is not going to help. The choice of five
+> > > +	 * seconds is arbitrary but will mitigate excessive scanning.
+> > > +	 */
+> > > +	if (time_before(jiffies, zone->compact_blockskip_expire))
+> > > +		return;
+> > > +	zone->compact_blockskip_expire = jiffies + (HZ * 5);
+> > > +
+> > > +	/* Walk the zone and mark every pageblock as suitable for isolation */
+> > > +	for (pfn = start_pfn; pfn < end_pfn; pfn += pageblock_nr_pages) {
+> > > +		struct page *page;
+> > > +		if (!pfn_valid(pfn))
+> > > +			continue;
+> > > +
+> > > +		page = pfn_to_page(pfn);
+> > > +		if (zone != page_zone(page))
+> > > +			continue;
+> > > +
+> > > +		clear_pageblock_skip(page);
+> > > +	}
+> > 
+> > What's the worst-case loop count here?
+> > 
+> 
+> zone->spanned_pages >> pageblock_order
+
+What's the worst-case value of (zone->spanned_pages >> pageblock_order) :)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
