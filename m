@@ -1,54 +1,33 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
-	by kanga.kvack.org (Postfix) with SMTP id 34FF86B002B
-	for <linux-mm@kvack.org>; Mon, 24 Sep 2012 08:29:44 -0400 (EDT)
-Date: Mon, 24 Sep 2012 20:29:00 +0800
-From: Fengguang Wu <fengguang.wu@intel.com>
-Subject: Re: divide error: bdi_dirty_limit+0x5a/0x9e
-Message-ID: <20120924122900.GA28627@localhost>
-References: <20120924102324.GA22303@aftab.osrc.amd.com>
- <50603829.9050904@linux.vnet.ibm.com>
- <20120924110554.GC22303@aftab.osrc.amd.com>
- <50604047.7000908@linux.vnet.ibm.com>
- <20120924113447.GA25182@localhost>
- <20120924122053.GD22303@aftab.osrc.amd.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120924122053.GD22303@aftab.osrc.amd.com>
+Received: from psmtp.com (na3sys010amx167.postini.com [74.125.245.167])
+	by kanga.kvack.org (Postfix) with SMTP id 7FF976B002B
+	for <linux-mm@kvack.org>; Mon, 24 Sep 2012 08:41:30 -0400 (EDT)
+References: <1347977530-29755-1-git-send-email-glommer@parallels.com> <1347977530-29755-6-git-send-email-glommer@parallels.com> <20120921181458.GG7264@google.com> <506015E7.8030900@parallels.com>
+Mime-Version: 1.0 (1.0)
+In-Reply-To: <506015E7.8030900@parallels.com>
+Content-Type: text/plain;
+	charset=us-ascii
+Content-Transfer-Encoding: quoted-printable
+Message-Id: <00000139f84bdedc-aae672a6-2908-4cb8-8ed3-8fedf67a21af-000000@email.amazonses.com>
+From: Christoph <cl@linux.com>
+Subject: Re: [PATCH v3 05/16] consider a memcg parameter in kmem_create_cache
+Date: Mon, 24 Sep 2012 12:41:26 +0000
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Borislav Petkov <bp@amd64.org>
-Cc: "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Jan Kara <jack@suse.cz>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <jweiner@redhat.com>, Conny Seidel <conny.seidel@amd.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+To: Glauber Costa <glommer@parallels.com>
+Cc: Tejun Heo <tj@kernel.org>, "<linux-kernel@vger.kernel.org>" <linux-kernel@vger.kernel.org>, "<cgroups@vger.kernel.org>" <cgroups@vger.kernel.org>, "<kamezawa.hiroyu@jp.fujitsu.com>" <kamezawa.hiroyu@jp.fujitsu.com>, "<devel@openvz.org>" <devel@openvz.org>, "<linux-mm@kvack.org>" <linux-mm@kvack.org>, Suleiman Souhlal <suleiman@google.com>, Frederic Weisbecker <fweisbec@gmail.com>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>
 
-On Mon, Sep 24, 2012 at 02:20:53PM +0200, Borislav Petkov wrote:
-> On Mon, Sep 24, 2012 at 07:34:47PM +0800, Fengguang Wu wrote:
-> > Will you test such a line? At least the generic do_div() only uses the
-> > lower 32bits for division.
-> > 
-> >         WARN_ON(!(den & 0xffffffff));
-> 
-> But, but, the asm output says:
-> 
->   28:   48 89 c8                mov    %rcx,%rax
->   2b:*  48 f7 f7                div    %rdi     <-- trapping instruction
->   2e:   31 d2                   xor    %edx,%edx
-> 
-> and this version of DIV does an unsigned division of RDX:RAX by the
-> contents of a *64-bit register* ... in our case %rdi.
-> 
-> Srivatsa's oops  shows the same:
-> 
->   28:   48 89 f0                mov    %rsi,%rax
->   2b:*  48 f7 f7                div    %rdi     <-- trapping instruction
->   2e:   41 8b 94 24 74 02 00    mov    0x274(%r12),%edx
-> 
-> Right?
 
-Right, that's why I said "at least". As for x86, I'm as clueless as you..
+On Sep 24, 2012, at 3:12, Glauber Costa <glommer@parallels.com> wrote:
 
-Thanks,
-Fengguang
+> On 09/21/2012 10:14 PM, Tejun Heo wrote:
+>=20
+> The new caches will appear under /proc/slabinfo with the rest, with a
+> string appended that identifies the group.
+
+There are f.e. meminfo files in the per node directories in sysfs. It would m=
+ake sense to have a slabinfo file there (if you want to keep that around). T=
+hen the format would be the same.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
