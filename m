@@ -1,79 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
-	by kanga.kvack.org (Postfix) with SMTP id C95CC6B002B
-	for <linux-mm@kvack.org>; Mon, 24 Sep 2012 15:31:42 -0400 (EDT)
-Date: Mon, 24 Sep 2012 21:31:35 +0200
-From: Borislav Petkov <bp@amd64.org>
-Subject: Re: divide error: bdi_dirty_limit+0x5a/0x9e
-Message-ID: <20120924193135.GB25762@aftab.osrc.amd.com>
-References: <20120924102324.GA22303@aftab.osrc.amd.com>
- <20120924142305.GD12264@quack.suse.cz>
- <20120924143609.GH22303@aftab.osrc.amd.com>
- <20120924201650.6574af64.conny.seidel@amd.com>
- <20120924181927.GA25762@aftab.osrc.amd.com>
- <5060AB0E.3070809@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
+	by kanga.kvack.org (Postfix) with SMTP id 95B056B002B
+	for <linux-mm@kvack.org>; Mon, 24 Sep 2012 16:06:20 -0400 (EDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <5060AB0E.3070809@linux.vnet.ibm.com>
+Message-ID: <97b535f9-6dc3-44c4-a401-8ad0035234fa@default>
+Date: Mon, 24 Sep 2012 13:05:52 -0700 (PDT)
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Subject: RE: [RFC] mm: add support for zsmalloc and zcache
+References: <1346794486-12107-1-git-send-email-sjenning@linux.vnet.ibm.com>
+ <20120921161252.GV11266@suse.de> <20120921180222.GA7220@phenom.dumpdata.com>
+ <505CB9BC.8040905@linux.vnet.ibm.com>
+ <42d62a30-bd6c-4bd7-97d1-bec2f237756b@default>
+ <20120922010733.GX11266@suse.de>
+ <1348385675.2549.19.camel@dabdike.int.hansenpartnership.com>
+In-Reply-To: <1348385675.2549.19.camel@dabdike.int.hansenpartnership.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>
-Cc: Conny Seidel <conny.seidel@amd.com>, Jan Kara <jack@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Fengguang Wu <fengguang.wu@intel.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <jweiner@redhat.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+To: James Bottomley <James.Bottomley@HansenPartnership.com>, Mel Gorman <mgorman@suse.de>
+Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>, Konrad Wilk <konrad.wilk@oracle.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Nitin Gupta <ngupta@vflare.org>, Minchan Kim <minchan@kernel.org>, Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org
 
-On Tue, Sep 25, 2012 at 12:18:46AM +0530, Srivatsa S. Bhat wrote:
-> >> Sure thing.
-> >> Out of ~25 runs I only triggered it once, without the patch the
-> >> trigger-rate is higher.
-> >>
-> >> [   55.098249] Broke affinity for irq 81
-> >> [   55.105108] smpboot: CPU 1 is now offline
-> >> [   55.311216] smpboot: Booting Node 0 Processor 1 APIC 0x11
-> >> [   55.333022] LVT offset 0 assigned for vector 0x400
-> >> [   55.545877] smpboot: CPU 2 is now offline
-> >> [   55.753050] smpboot: Booting Node 0 Processor 2 APIC 0x12
-> >> [   55.775582] LVT offset 0 assigned for vector 0x400
-> >> [   55.986747] smpboot: CPU 3 is now offline
-> >> [   56.193839] smpboot: Booting Node 0 Processor 3 APIC 0x13
-> >> [   56.212643] LVT offset 0 assigned for vector 0x400
-> >> [   56.423201] Got negative events: -25
-> > 
-> > I see it:
-> > 
-> > __percpu_counter_sum does for_each_online_cpu without doing
-> > get/put_online_cpus().
-> > 
-> 
-> Maybe I'm missing something, but that doesn't immediately tell me
-> what's the exact source of the bug.. Note that there is a hotplug
-> callback percpu_counter_hotcpu_callback() that takes the same
-> fbc->lock before updating/resetting the percpu counters of offline
-> CPU. So, though the synchronization is a bit weird, I don't
-> immediately see a problematic race condition there.
+> From: James Bottomley [mailto:James.Bottomley@HansenPartnership.com]
+> Subject: Re: [RFC] mm: add support for zsmalloc and zcache
 
-Well, those oopses both happen when a cpu comes online.
+> On Sat, 2012-09-22 at 02:07 +0100, Mel Gorman wrote:
+> > > The two proposals:
+> > > A) Recreate all the work done for zcache2 as a proper sequence of
+> > >    independent patches and apply them to zcache1. (Seth/Konrad)
+> > > B) Add zsmalloc back in to zcache2 as an alternative allocator
+> > >    for frontswap pages. (Dan)
+> >
+> > Throwing it out there but ....
+> >
+> > C) Merge both, but freeze zcache1 except for critical fixes. Only
+> > allow
+> >    future work on zcache2. Document limitations of zcache1 and
+> >    workarounds until zcache2 is fully production ready.
+> >
+> Actually, there is a fourth option, which is the one we'd have usually
+> used when staging wasn't around:  Throw the old code out as a successful
+> prototype which showed the author how to do it better (i.e. flush it
+> from staging) and start again from the new code which has all the
+> benefits learned from the old code.
+>=20
+> Staging isn't supposed to be some magical set of history that we have to
+> adhere to no matter what (unlike the rest of the tree). It's supposed to
+> be an accelerator to get stuff into the kernel and not become a
+> hindrance to it.
+>=20
+> There also seem to be a couple of process issues here that could do with
+> sorting:  Firstly that rewrites on better reflection, while not common,
+> are also not unusual so we need a mechanism for coping with them.  This
+> is actually a serious process problem: everyone becomes so attached to
+> the code they helped clean up that they're hugely unwilling to
+> countenance a rewrite which would in their (probably correct) opinion
+> have the cleanups start from ground zero again. Secondly, we've got a
+> set of use cases and add ons which grew up around code in staging that
+> act as a bit of a barrier to ABI/API evolution, even as they help to
+> demonstrate the problems.
+>=20
+> I think the first process issue really crystallises the problem we're
+> having in staging:  we need to get the design approximately right before
+> we start on the code cleanups.  What I think this means is that we start
+> on the list where the people who understand the design issues reside
+> then, when they're happy with the design, we can begin cleaning it up
+> afterwards if necessary.  I don't think this is hard and fast: there is,
+> of course, code so bad that even the experts can't penetrate it to see
+> the design without having their eyes bleed but we should at least always
+> try to begin with design.
 
-According to when percpu_counter_hotcpu_callback is run (at CPU_DEAD)
-then those percpu variables should have correctly updated values.
 
-So there has to be some other case where we read garbage which is a
-negative value - otherwise we wouldn't be seeing the debug output.
+Hi James --
 
-For example, look at the log output above: we bring down cpu 3 just to
-bring it right back online. So there has to be something fishy along
-that codepath...
+I think you've hit the nail on the head, generalizing this interminable
+debate into a process problem that needs to be solved more generally.
+Thanks for your insight!
 
-Hmm.
-
--- 
-Regards/Gruss,
-Boris.
-
-Advanced Micro Devices GmbH
-Einsteinring 24, 85609 Dornach
-GM: Alberto Bozzo
-Reg: Dornach, Landkreis Muenchen
-HRB Nr. 43632 WEEE Registernr: 129 19551
+Dan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
