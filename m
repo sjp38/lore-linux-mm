@@ -1,62 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
-	by kanga.kvack.org (Postfix) with SMTP id 9698A6B002B
-	for <linux-mm@kvack.org>; Mon, 24 Sep 2012 07:13:53 -0400 (EDT)
-Received: from /spool/local
-	by e28smtp05.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <srivatsa.bhat@linux.vnet.ibm.com>;
-	Mon, 24 Sep 2012 16:43:50 +0530
-Received: from d28av02.in.ibm.com (d28av02.in.ibm.com [9.184.220.64])
-	by d28relay03.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q8OBDiN038207592
-	for <linux-mm@kvack.org>; Mon, 24 Sep 2012 16:43:44 +0530
-Received: from d28av02.in.ibm.com (loopback [127.0.0.1])
-	by d28av02.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q8OBDhcq022508
-	for <linux-mm@kvack.org>; Mon, 24 Sep 2012 21:13:44 +1000
-Message-ID: <50604047.7000908@linux.vnet.ibm.com>
-Date: Mon, 24 Sep 2012 16:43:11 +0530
-From: "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Subject: Re: divide error: bdi_dirty_limit+0x5a/0x9e
-References: <20120924102324.GA22303@aftab.osrc.amd.com> <50603829.9050904@linux.vnet.ibm.com> <20120924110554.GC22303@aftab.osrc.amd.com>
-In-Reply-To: <20120924110554.GC22303@aftab.osrc.amd.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
+	by kanga.kvack.org (Postfix) with SMTP id 8CF336B002B
+	for <linux-mm@kvack.org>; Mon, 24 Sep 2012 07:15:21 -0400 (EDT)
+Received: from epcpsbgm2.samsung.com (epcpsbgm2 [203.254.230.27])
+ by mailout1.samsung.com
+ (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
+ 17 2011)) with ESMTP id <0MAU00K65PWQVD50@mailout1.samsung.com> for
+ linux-mm@kvack.org; Mon, 24 Sep 2012 20:15:20 +0900 (KST)
+Received: from AMDC159 ([106.116.147.30])
+ by mmp2.samsung.com (Oracle Communications Messaging Server 7u4-24.01
+ (7.0.4.24.0) 64bit (built Nov 17 2011))
+ with ESMTPA id <0MAU006S7PWSLQ80@mmp2.samsung.com> for linux-mm@kvack.org;
+ Mon, 24 Sep 2012 20:15:19 +0900 (KST)
+From: Marek Szyprowski <m.szyprowski@samsung.com>
+References: <1346223335-31455-1-git-send-email-hdoyu@nvidia.com>
+ <20120918124918.GK2505@amd.com>
+ <20120919095843.d1db155e0f085f4fcf64ea32@nvidia.com>
+ <201209190759.46174.arnd@arndb.de> <20120919125020.GQ2505@amd.com>
+ <401E54CE964CD94BAE1EB4A729C7087E379FDC1EEB@HQMAIL04.nvidia.com>
+ <505A7DB4.4090902@wwwdotorg.org>
+ <401E54CE964CD94BAE1EB4A729C7087E379FDC1F2D@HQMAIL04.nvidia.com>
+ <505B35F7.2080201@wwwdotorg.org>
+ <401E54CE964CD94BAE1EB4A729C7087E379FDC2372@HQMAIL04.nvidia.com>
+ <20120924120415.8e6929a34c422185a98d3f82@nvidia.com>
+ <1348478881.2467.27.camel@dabdike>
+ <20120924124452.41070ed2ee9944d930cffffc@nvidia.com>
+In-reply-to: <20120924124452.41070ed2ee9944d930cffffc@nvidia.com>
+Subject: RE: How to specify IOMMU'able devices in DT (was: [RFC 0/5] ARM:
+ dma-mapping: New dma_map_ops to control IOVA more precisely)
+Date: Mon, 24 Sep 2012 13:14:51 +0200
+Message-id: <054901cd9a45$db1a7ea0$914f7be0$%szyprowski@samsung.com>
+MIME-version: 1.0
+Content-type: text/plain; charset=us-ascii
+Content-transfer-encoding: 7bit
+Content-language: pl
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Borislav Petkov <bp@amd64.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Fengguang Wu <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <jweiner@redhat.com>, Conny Seidel <conny.seidel@amd.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+To: 'Hiroshi Doyu' <hdoyu@nvidia.com>, 'James Bottomley' <James.Bottomley@HansenPartnership.com>
+Cc: 'Stephen Warren' <swarren@wwwdotorg.org>, 'Joerg Roedel' <joerg.roedel@amd.com>, 'Arnd Bergmann' <arnd@arndb.de>, 'Krishna Reddy' <vdumpa@nvidia.com>, linux@arm.linux.org.uk, minchan@kernel.org, chunsang.jeong@linaro.org, linux-kernel@vger.kernel.org, subashrp@gmail.com, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, iommu@lists.linux-foundation.org, linux-tegra@vger.kernel.org, kyungmin.park@samsung.com, pullip.cho@samsung.com, linux-arm-kernel@lists.infradead.org
 
-On 09/24/2012 04:35 PM, Borislav Petkov wrote:
-> On Mon, Sep 24, 2012 at 04:08:33PM +0530, Srivatsa S. Bhat wrote:
->> On 09/24/2012 03:53 PM, Borislav Petkov wrote:
->>> Hi all,
->>>
->>> we're able to trigger the oops below when doing CPU hotplug tests.
->>>
->>
->> I hit this problem as well, which I reported here, a few days ago:
->> https://lkml.org/lkml/2012/9/13/222
-> 
-> Ok, your case shows even more info:
-> 
-> [  526.024180] divide error: 0000 [#1] SMP 
-> [  526.028144] Modules linked in: ipv6 cpufreq_conservative cpufreq_userspace cpufreq_powersave acpi_cpufreq mperf fuse loop dm_mod iTCO_wdt iTCO_vendor_support coretemp kvm_intel kvm cdc_ether pcspkr usbnet shpchp pci_hotplug i2c_i801 i2c_core ioatdma mii crc32c_intel serio_raw microcode lpc_ich mfd_core i7core_edac bnx2 dca edac_core tpm_tis tpm sg tpm_bios rtc_cmos button uhci_hcd ehci_hcd usbcore usb_common sd_mod crc_t10dif edd ext3 mbcache jbd fan processor mptsas mptscsih mptbase scsi_transport_sas scsi_mod thermal thermal_sys hwmon
-> [  526.028145] CPU 9 
-> [  526.028145] Pid: 2235, comm: flush-8:0 Not tainted 3.6.0-rc1-tglx-hotplug-0.0.0.28.36b5ec9-default #1 IBM IBM System x -[7870C4Q]-/68Y8033 
-> [  526.028145] RIP: 0010:[<ffffffff811276f6>]  [<ffffffff811276f6>] bdi_dirty_limit+0x66/0xc0
-> [  526.028145] RSP: 0018:ffff8811530bfcc0  EFLAGS: 00010206
-> [  526.028145] RAX: 0000000000b9877e RBX: 00000000001a8112 RCX: 28f5c28f5c28f5c3
-> [  526.028145] RDX: 0000000000000000 RSI: 0000000000b9877e RDI: 0000000000000000
-> 
-> %rax contains something != 0 but %rdi definitely is 0.
-> 
+Hello,
 
-Yep.. So I tried putting a BUG_ON(!den) in fprop_fraction_percpu() to
-catch if we really got the code wrong somehow.. but unfortunately, with
-that added, I haven't been successful in reproducing the bug :(
+On Monday, September 24, 2012 11:45 AM Hiroshi Doyu wrote:
 
-Regards,
-Srivatsa S. Bhat
+> On Mon, 24 Sep 2012 11:28:01 +0200
+> James Bottomley <James.Bottomley@HansenPartnership.com> wrote:
+> 
+> > On Mon, 2012-09-24 at 12:04 +0300, Hiroshi Doyu wrote:
+> > > diff --git a/drivers/base/platform.c b/drivers/base/platform.c
+> > > index a1a7225..9eae3be 100644
+> > > --- a/drivers/base/platform.c
+> > > +++ b/drivers/base/platform.c
+> > > @@ -21,6 +21,8 @@
+> > >  #include <linux/slab.h>
+> > >  #include <linux/pm_runtime.h>
+> > >
+> > > +#include <asm/dma-iommu.h>
+> > > +
+> > >  #include "base.h"
+> > >
+> > >  #define to_platform_driver(drv)        (container_of((drv), struct
+> > > platform_driver, \
+> > > @@ -305,8 +307,19 @@ int platform_device_add(struct platform_device
+> > > *pdev)
+> > >                  dev_name(&pdev->dev), dev_name(pdev->dev.parent));
+> > >
+> > >         ret = device_add(&pdev->dev);
+> > > -       if (ret == 0)
+> > > -               return ret;
+> > > +       if (ret)
+> > > +               goto failed;
+> > > +
+> > > +#ifdef CONFIG_PLATFORM_ENABLE_IOMMU
+> > > +       if (platform_bus_type.map && !pdev->dev.archdata.mapping) {
+> > > +               ret = arm_iommu_attach_device(&pdev->dev,
+> > > +                                             platform_bus_type.map);
+> > > +               if (ret)
+> > > +                       goto failed;
+> >
+> > This is horrible ... you're adding an architecture specific callback
+> > into our generic code; that's really a no-no.  If the concept of
+> > CONFIG_PLATFORM_ENABE_IOMMU is useful to more than just arm, then this
+> > could become a generic callback.
+> 
+> As mentioned in the original, this is a heck to explain what is
+> needed. I am looking for some generic solution for how to specify
+> IOMMU info for each platform devices. I'm guessing that some other SoC
+> may have the similar requirements on the above. As you mentioned, this
+> solution should be a generic, not arch specific.
+
+Please read more about bus notifiers. IMHO a good example is provided in 
+the following thread:
+http://www.mail-archive.com/linux-samsung-soc@vger.kernel.org/msg12238.html
+
+Best regards
+-- 
+Marek Szyprowski
+Samsung Poland R&D Center
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
