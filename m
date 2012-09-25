@@ -1,73 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
-	by kanga.kvack.org (Postfix) with SMTP id 0E7396B002B
-	for <linux-mm@kvack.org>; Tue, 25 Sep 2012 15:22:33 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
+	by kanga.kvack.org (Postfix) with SMTP id 57CEF6B002B
+	for <linux-mm@kvack.org>; Tue, 25 Sep 2012 15:34:13 -0400 (EDT)
+Date: Tue, 25 Sep 2012 21:33:57 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH v4 0/8] Avoid cache trashing on clearing huge/gigantic
+ page
+Message-ID: <20120925193356.GX7620@redhat.com>
+References: <1345470757-12005-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <20120913160506.d394392a.akpm@linux-foundation.org>
+ <20120914055210.GC9043@gmail.com>
+ <20120925142703.GA1598@otc-wbsnb-06>
 MIME-Version: 1.0
-Message-ID: <d2355756-7b4d-4b23-89ce-602c3451ac68@default>
-Date: Tue, 25 Sep 2012 12:22:14 -0700 (PDT)
-From: Dan Magenheimer <dan.magenheimer@oracle.com>
-Subject: RE: [RFC] mm: add support for zsmalloc and zcache
-References: <1346794486-12107-1-git-send-email-sjenning@linux.vnet.ibm.com>
- <20120921161252.GV11266@suse.de>
- <15c1d12a-0e29-478f-97e0-ee4063e2cba5@default> <505DBDC5.3010503@gmail.com>
- <505DBF72.3000208@gmail.com>
-In-Reply-To: <505DBF72.3000208@gmail.com>
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: quoted-printable
+Content-Disposition: inline
+In-Reply-To: <20120925142703.GA1598@otc-wbsnb-06>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <levinsasha928@gmail.com>
-Cc: Mel Gorman <mgorman@suse.de>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Nitin Gupta <ngupta@vflare.org>, Minchan Kim <minchan@kernel.org>, Konrad Wilk <konrad.wilk@oracle.com>, Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Ingo Molnar <mingo@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, Andi Kleen <ak@linux.intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, Alex Shi <alex.shu@intel.com>, Jan Beulich <jbeulich@novell.com>, Robert Richter <robert.richter@amd.com>, Andy Lutomirski <luto@amacapital.net>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-mips@linux-mips.org, linux-sh@vger.kernel.org, sparclinux@vger.kernel.org
 
-> From: Sasha Levin [mailto:levinsasha928@gmail.com]
-> Subject: Re: [RFC] mm: add support for zsmalloc and zcache
+Hi Kirill,
 
-Sorry for delayed response!
-=20
-> On 09/22/2012 03:31 PM, Sasha Levin wrote:
-> > On 09/21/2012 09:14 PM, Dan Magenheimer wrote:
-> >>>> +#define MAX_CLIENTS 16
-> >>>>
-> >>>> Seems a bit arbitrary. Why 16?
-> >> Sasha Levin posted a patch to fix this but it was tied in to
-> >> the proposed KVM implementation, so was never merged.
-> >>
-> >
-> > My patch changed the max pools per client, not the maximum amount of cl=
-ients.
-> > That patch has already found it's way in.
-> >
-> > (MAX_CLIENTS does look like an arbitrary number though).
->=20
-> btw, while we're on the subject of KVM, the implementation of tmem/kvm wa=
-s
-> blocked due to insufficient performance caused by the lack of multi-page
-> ops/batching.
+On Tue, Sep 25, 2012 at 05:27:03PM +0300, Kirill A. Shutemov wrote:
+> On Fri, Sep 14, 2012 at 07:52:10AM +0200, Ingo Molnar wrote:
+> > Without repeatable hard numbers such code just gets into the 
+> > kernel and bitrots there as new CPU generations come in - a few 
+> > years down the line the original decisions often degrade to pure 
+> > noise. We've been there, we've done that, we don't want to 
+> > repeat it.
+> 
+> <sorry, for late answer..>
+> 
+> Hard numbers are hard.
+> I've checked some workloads: Mosbench, NPB, specjvm2008. Most of time the
+> patchset doesn't show any difference (within run-to-run deviation).
+> On NPB it recovers THP regression, but it's probably not enough to make
+> decision.
+> 
+> It would be nice if somebody test the patchset on other system or
+> workload. Especially, if the configuration shows regression with
+> THP enabled.
 
-Hmmm... I recall that was an unproven assertion.  The tmem/kvm
-implementation was not exposed to any wide range of workloads
-IIRC?  Also, the WasActive patch is intended to reduce the problem
-that multi-guest high volume reads would provoke, so any testing
-without that patch may be moot.
-=20
-> Are there any plans to make it better in the future?
+If the only workload that gets a benefit is NPB then we've the proof
+this is too hardware dependend to be a conclusive result.
 
-If it indeed proves to be a problem, the ramster-merged zcache
-(aka zcache2) should be capable of managing a "split" zcache
-implementation, i.e. zcache executing in the guest and "overflowing"
-page cache pages to the zcache in the host, which should at least
-ameliorate most of Avi's concern.  I personally have no plans
-to implement that, but would be willing to assist if others
-attempt to implement it.
+It may have been slower by an accident, things like cache
+associativity off by one bit, combined with the implicit coloring
+provided to the lowest 512 colors could hurts more if the cache
+associativity is low.
 
-The other main concern expressed by the KVM community, by
-Andrea, was zcache's lack of ability to "overflow" frontswap
-pages in the host to a real swap device.  The foundation
-for that was one of the objectives of the zcache2 redesign;
-I am working on a "yet-to-be-posted" patch built on top of zcache2
-that will require some insight and review from MM experts.
+I'm saying this because NPB on a thinkpad (Intel CPU I assume) is the
+benchmark that shows the most benefit among all benchmarks run on that
+hardware.
 
-Dan
+http://www.phoronix.com/scan.php?page=article&item=linux_transparent_hugepages&num=2
+
+I've once seen certain computations that run much slower with perfect
+cache coloring but most others runs much faster with the page
+coloring. Doesn't mean page coloring is bad per se. So the NPB on that
+specific hardware may have been the exception and not the interesting
+case. Especially considering the effect of cache-copying is opposite
+on slightly different hw.
+
+I think the the static_key should be off by default whenever the CPU
+L2 cache size is >= the size of the copy (2*HPAGE_PMD_SIZE). Now the
+cache does random replacement so maybe we could also allow cache
+copies for twice the size of the copy (L2size >=
+4*HPAGE_PMD_SIZE). Current CPUs have caches much larger than 2*2MB...
+
+It would make a whole lot more sense for hugetlbfs giga pages than for
+THP (unlike for THP, cache trashing with giga pages is guaranteed),
+but even with giga pages, it's not like they're allocated frequently
+(maybe once per OS reboot) so that's also sure totally lost in the
+noise as it only saves a few accesses after the cache copy is
+finished.
+
+It's good to have tested it though.
+
+Thanks,
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
