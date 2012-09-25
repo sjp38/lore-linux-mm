@@ -1,59 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx112.postini.com [74.125.245.112])
-	by kanga.kvack.org (Postfix) with SMTP id 015E56B0062
-	for <linux-mm@kvack.org>; Tue, 25 Sep 2012 07:07:27 -0400 (EDT)
-Received: by mail-gh0-f169.google.com with SMTP id r1so2172314ghr.14
-        for <linux-mm@kvack.org>; Tue, 25 Sep 2012 04:07:27 -0700 (PDT)
-From: Ezequiel Garcia <elezegarcia@gmail.com>
-Subject: [PATCH] mm/slab: Fix kmem_cache_alloc_node_trace() declaration
-Date: Tue, 25 Sep 2012 08:07:09 -0300
-Message-Id: <1348571229-844-2-git-send-email-elezegarcia@gmail.com>
-In-Reply-To: <1348571229-844-1-git-send-email-elezegarcia@gmail.com>
-References: <1348571229-844-1-git-send-email-elezegarcia@gmail.com>
+Received: from psmtp.com (na3sys010amx207.postini.com [74.125.245.207])
+	by kanga.kvack.org (Postfix) with SMTP id 64DEF6B002B
+	for <linux-mm@kvack.org>; Tue, 25 Sep 2012 07:21:13 -0400 (EDT)
+From: Glauber Costa <glommer@parallels.com>
+Subject: [PATCH] slab: Ignore internal flags in cache creation
+Date: Tue, 25 Sep 2012 15:17:46 +0400
+Message-Id: <1348571866-31738-1-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kernel-janitors@vger.kernel.org, linux-mm@kvack.org
-Cc: fengguang.wu@intel.com, Ezequiel Garcia <elezegarcia@gmail.com>, Pekka Enberg <penberg@kernel.org>
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, Michal Hocko <mhocko@suse.cz>, Glauber Costa <glommer@parallels.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@cs.helsinki.fi>, David Rientjes <rientjes@google.com>
 
-The bug was introduced in commit 4052147c0afa
-"mm, slab: Match SLAB and SLUB kmem_cache_alloc_xxx_trace() prototype".
+Some flags are used internally by the allocators for management
+purposes. One example of that is the CFLGS_OFF_SLAB flag that slab uses
+to mark that the metadata for that cache is stored outside of the slab.
 
-Cc: Pekka Enberg <penberg@kernel.org>
-Reported-by: Fengguang Wu <fengguang.wu@intel.com>
-Signed-off-by: Ezequiel Garcia <elezegarcia@gmail.com>
+No cache should ever pass those as a creation flags. We can just ignore
+this bit if it happens to be passed (such as when duplicating a cache in
+the kmem memcg patches)
+
+Signed-off-by: Glauber Costa <glommer@parallels.com>
+CC: Christoph Lameter <cl@linux.com>
+CC: Pekka Enberg <penberg@cs.helsinki.fi>
+CC: David Rientjes <rientjes@google.com>
 ---
- mm/slab.c |    8 ++++----
- 1 files changed, 4 insertions(+), 4 deletions(-)
+ include/linux/slab.h | 4 ++++
+ mm/slab_common.c     | 5 +++++
+ 2 files changed, 9 insertions(+)
 
-diff --git a/mm/slab.c b/mm/slab.c
-index ca3849f..3409ead 100644
---- a/mm/slab.c
-+++ b/mm/slab.c
-@@ -3862,10 +3862,10 @@ void *kmem_cache_alloc_node(struct kmem_cache *cachep, gfp_t flags, int nodeid)
- EXPORT_SYMBOL(kmem_cache_alloc_node);
+diff --git a/include/linux/slab.h b/include/linux/slab.h
+index 0dd2dfa..437c07e 100644
+--- a/include/linux/slab.h
++++ b/include/linux/slab.h
+@@ -79,6 +79,10 @@
+ /* The following flags affect the page allocator grouping pages by mobility */
+ #define SLAB_RECLAIM_ACCOUNT	0x00020000UL		/* Objects are reclaimable */
+ #define SLAB_TEMPORARY		SLAB_RECLAIM_ACCOUNT	/* Objects are short-lived */
++
++/* The last flags are reserved for specific internal flags of the allocators */
++#define SLAB_INTERNAL 0xF0000000UL
++
+ /*
+  * ZERO_SIZE_PTR will be returned for zero sized kmalloc requests.
+  *
+diff --git a/mm/slab_common.c b/mm/slab_common.c
+index 9c21725..359ef36 100644
+--- a/mm/slab_common.c
++++ b/mm/slab_common.c
+@@ -107,6 +107,11 @@ struct kmem_cache *kmem_cache_create(const char *name, size_t size, size_t align
+ 	if (!kmem_cache_sanity_check(name, size) == 0)
+ 		goto out_locked;
  
- #ifdef CONFIG_TRACING
--void *kmem_cache_alloc_node_trace(struct kmem_cache *cachep,
-+void *kmem_cache_alloc_node_trace(size_t size,
-+				  struct kmem_cache *cachep,
- 				  gfp_t flags,
--				  int nodeid,
--				  size_t size)
-+				  int nodeid)
- {
- 	void *ret;
++	/*
++	 * Clean any possible internal flags the caller may have passed.
++	 * We'll make those decisions ourselves.
++	 */
++	flags &= ~SLAB_INTERNAL;
  
-@@ -3887,7 +3887,7 @@ __do_kmalloc_node(size_t size, gfp_t flags, int node, unsigned long caller)
- 	cachep = kmem_find_general_cachep(size, flags);
- 	if (unlikely(ZERO_OR_NULL_PTR(cachep)))
- 		return cachep;
--	return kmem_cache_alloc_node_trace(cachep, flags, node, size);
-+	return kmem_cache_alloc_node_trace(size, cachep, flags, node);
- }
- 
- #if defined(CONFIG_DEBUG_SLAB) || defined(CONFIG_TRACING)
+ 	s = __kmem_cache_alias(name, size, align, flags, ctor);
+ 	if (s)
 -- 
-1.7.8.6
+1.7.11.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
