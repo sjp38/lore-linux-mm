@@ -1,43 +1,32 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx177.postini.com [74.125.245.177])
-	by kanga.kvack.org (Postfix) with SMTP id 6F5336B002B
-	for <linux-mm@kvack.org>; Tue, 25 Sep 2012 03:31:52 -0400 (EDT)
-Date: Tue, 25 Sep 2012 16:34:57 +0900
+Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
+	by kanga.kvack.org (Postfix) with SMTP id AEF806B002B
+	for <linux-mm@kvack.org>; Tue, 25 Sep 2012 03:32:52 -0400 (EDT)
+Date: Tue, 25 Sep 2012 16:35:57 +0900
 From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH 4/9] mm: compaction: Abort compaction loop if lock is
- contended or run too long
-Message-ID: <20120925073456.GL13234@bbox>
+Subject: Re: [PATCH 6/9] mm: compaction: Acquire the zone->lock as late as
+ possible
+Message-ID: <20120925073557.GM13234@bbox>
 References: <1348224383-1499-1-git-send-email-mgorman@suse.de>
- <1348224383-1499-5-git-send-email-mgorman@suse.de>
+ <1348224383-1499-7-git-send-email-mgorman@suse.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1348224383-1499-5-git-send-email-mgorman@suse.de>
+In-Reply-To: <1348224383-1499-7-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Mel Gorman <mgorman@suse.de>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Richard Davies <richard@arachsys.com>, Shaohua Li <shli@kernel.org>, Rik van Riel <riel@redhat.com>, Avi Kivity <avi@redhat.com>, QEMU-devel <qemu-devel@nongnu.org>, KVM <kvm@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Fri, Sep 21, 2012 at 11:46:18AM +0100, Mel Gorman wrote:
-> From: Shaohua Li <shli@fusionio.com>
+On Fri, Sep 21, 2012 at 11:46:20AM +0100, Mel Gorman wrote:
+> Compactions free scanner acquires the zone->lock when checking for PageBuddy
+> pages and isolating them. It does this even if there are no PageBuddy pages
+> in the range.
 > 
-> Changelog since V2
-> o Fix BUG_ON triggered due to pages left on cc.migratepages
-> o Make compact_zone_order() require non-NULL arg `contended'
+> This patch defers acquiring the zone lock for as long as possible. In the
+> event there are no free pages in the pageblock then the lock will not be
+> acquired at all which reduces contention on zone->lock.
 > 
-> Changelog since V1
-> o only abort the compaction if lock is contended or run too long
-> o Rearranged the code by Andrea Arcangeli.
-> 
-> isolate_migratepages_range() might isolate no pages if for example when
-> zone->lru_lock is contended and running asynchronous compaction. In this
-> case, we should abort compaction, otherwise, compact_zone will run a
-> useless loop and make zone->lru_lock is even contended.
-> 
-> [minchan@kernel.org: Putback pages isolated for migration if aborting]
-> [akpm@linux-foundation.org: compact_zone_order requires non-NULL arg contended]
-> Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
-> Signed-off-by: Shaohua Li <shli@fusionio.com>
 > Signed-off-by: Mel Gorman <mgorman@suse.de>
 > Acked-by: Rik van Riel <riel@redhat.com>
 Acked-by: Minchan Kim <minchan@kernel.org>
