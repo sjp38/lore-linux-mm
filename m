@@ -1,41 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
-	by kanga.kvack.org (Postfix) with SMTP id DFE996B0044
-	for <linux-mm@kvack.org>; Tue, 25 Sep 2012 12:28:12 -0400 (EDT)
-Date: Tue, 25 Sep 2012 16:28:11 +0000
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH v3 06/16] memcg: infrastructure to match an allocation
- to the right cache
-In-Reply-To: <5061B852.7070902@parallels.com>
-Message-ID: <00000139fe41d6c9-f647ef17-8c06-4332-91b8-13c18a0b19ea-000000@email.amazonses.com>
-References: <1347977530-29755-1-git-send-email-glommer@parallels.com> <1347977530-29755-7-git-send-email-glommer@parallels.com> <20120921183217.GH7264@google.com> <50601DEB.10705@parallels.com> <20120924175619.GD7694@google.com>
- <5061B852.7070902@parallels.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
+	by kanga.kvack.org (Postfix) with SMTP id 91BFD6B002B
+	for <linux-mm@kvack.org>; Tue, 25 Sep 2012 13:05:29 -0400 (EDT)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH] pagemap: fix wrong KPF_THP on slab pages
+Date: Tue, 25 Sep 2012 13:05:15 -0400
+Message-Id: <1348592715-31006-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <CAHGf_=rbyk1UFGwyQ0BSN3qM_K+5J3Q-Aj=xjNDZFrTrZ6a3dw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: Tejun Heo <tj@kernel.org>, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, devel@openvz.org, linux-mm@kvack.org, Suleiman Souhlal <suleiman@google.com>, Frederic Weisbecker <fweisbec@gmail.com>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Wu Fengguang <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi.kleen@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, 25 Sep 2012, Glauber Costa wrote:
+On Tue, Sep 25, 2012 at 11:59:51AM -0400, KOSAKI Motohiro wrote:
+> On Tue, Sep 25, 2012 at 9:56 AM, Naoya Horiguchi
+> <n-horiguchi@ah.jp.nec.com> wrote:
+> > KPF_THP can be set on non-huge compound pages like slab pages, because
+> > PageTransCompound only sees PG_head and PG_tail. Obviously this is a bug
+> > and breaks user space applications which look for thp via /proc/kpageflags.
+> > Currently thp is constructed only on anonymous pages, so this patch makes
+> > KPF_THP be set when both of PageAnon and PageTransCompound are true.
+> 
+> Indeed. Please add some comment too.
 
-> >> 1) Do like the events mechanism and allocate this in a separate
-> >> structure. Add a pointer chase in the access, and I don't think it helps
-> >> much because it gets allocated anyway. But we could at least
-> >> defer it to the time when we limit the cache.
-> >
-> > Start at some reasonable size and then double it as usage grows?  How
-> > many kmem_caches do we typically end up using?
-> >
->
-> So my Fedora box here, recently booted on a Fedora kernel, will have 111
-> caches. How would 150 sound to you?
+Sure. I send revised one.
 
-Some drivers/subsystems can dynamically create slabs as needed for new
-devices or instances of metadata. You cannot use a fixed size
-array and cannot establish an upper boundary for the number of slabs on
-the system.
+Thanks,
+Naoya
+---
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Date: Mon, 24 Sep 2012 16:28:30 -0400
+Subject: [PATCH v2] pagemap: fix wrong KPF_THP on slab pages
 
+KPF_THP can be set on non-huge compound pages like slab pages, because
+PageTransCompound only sees PG_head and PG_tail. Obviously this is a bug
+and breaks user space applications which look for thp via /proc/kpageflags.
+Currently thp is constructed only on anonymous pages, so this patch makes
+KPF_THP be set when both of PageAnon and PageTransCompound are true.
+
+Changelog in v2:
+  - add a comment in code
+
+Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+---
+ fs/proc/page.c | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/fs/proc/page.c b/fs/proc/page.c
+index 7fcd0d6..f7cd2f6c 100644
+--- a/fs/proc/page.c
++++ b/fs/proc/page.c
+@@ -115,7 +115,12 @@ u64 stable_page_flags(struct page *page)
+ 		u |= 1 << KPF_COMPOUND_TAIL;
+ 	if (PageHuge(page))
+ 		u |= 1 << KPF_HUGE;
+-	else if (PageTransCompound(page))
++	/*
++	 * Since THP is relevant only for anonymous pages so far, we check it
++	 * explicitly with PageAnon. Otherwise thp is confounded with non-huge
++	 * compound pages like slab pages.
++	 */
++	else if (PageTransCompound(page) && PageAnon(page))
+ 		u |= 1 << KPF_THP;
+ 
+ 	/*
+-- 
+1.7.11.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
