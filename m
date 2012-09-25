@@ -1,95 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx103.postini.com [74.125.245.103])
-	by kanga.kvack.org (Postfix) with SMTP id BECD66B002B
-	for <linux-mm@kvack.org>; Tue, 25 Sep 2012 15:55:56 -0400 (EDT)
-Received: by ied10 with SMTP id 10so18623680ied.14
-        for <linux-mm@kvack.org>; Tue, 25 Sep 2012 12:55:56 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.00.1209251250520.31518@chino.kir.corp.google.com>
-References: <1347137279-17568-1-git-send-email-elezegarcia@gmail.com>
-	<1347137279-17568-4-git-send-email-elezegarcia@gmail.com>
-	<alpine.DEB.2.00.1209251250520.31518@chino.kir.corp.google.com>
-Date: Tue, 25 Sep 2012 16:55:55 -0300
-Message-ID: <CALF0-+X4ALEyucqfxC53qZiNH6URMM_qv-ku9M0kcAoKGJsAEA@mail.gmail.com>
-Subject: Re: [patch slab/next] mm, slob: fix build breakage in __kmalloc_node_track_caller
-From: Ezequiel Garcia <elezegarcia@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from psmtp.com (na3sys010amx104.postini.com [74.125.245.104])
+	by kanga.kvack.org (Postfix) with SMTP id A8F536B002B
+	for <linux-mm@kvack.org>; Tue, 25 Sep 2012 16:03:54 -0400 (EDT)
+Date: Tue, 25 Sep 2012 13:03:52 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 8/9] mm: compaction: Cache if a pageblock was scanned
+ and no pages were isolated
+Message-Id: <20120925130352.0d60957a.akpm@linux-foundation.org>
+In-Reply-To: <20120925091207.GD11266@suse.de>
+References: <1348224383-1499-1-git-send-email-mgorman@suse.de>
+	<1348224383-1499-9-git-send-email-mgorman@suse.de>
+	<20120921143656.60a9a6cd.akpm@linux-foundation.org>
+	<20120924093938.GZ11266@suse.de>
+	<20120924142644.06c38b80.akpm@linux-foundation.org>
+	<20120925091207.GD11266@suse.de>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Pekka Enberg <penberg@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: Richard Davies <richard@arachsys.com>, Shaohua Li <shli@kernel.org>, Rik van Riel <riel@redhat.com>, Avi Kivity <avi@redhat.com>, QEMU-devel <qemu-devel@nongnu.org>, KVM <kvm@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Tue, Sep 25, 2012 at 4:53 PM, David Rientjes <rientjes@google.com> wrote:
-> On Sat, 8 Sep 2012, Ezequiel Garcia wrote:
->
->> @@ -454,15 +455,35 @@ void *__kmalloc_node(size_t size, gfp_t gfp, int node)
->>                       gfp |= __GFP_COMP;
->>               ret = slob_new_pages(gfp, order, node);
->>
->> -             trace_kmalloc_node(_RET_IP_, ret,
->> +             trace_kmalloc_node(caller, ret,
->>                                  size, PAGE_SIZE << order, gfp, node);
->>       }
->>
->>       kmemleak_alloc(ret, size, 1, gfp);
->>       return ret;
->>  }
->> +
->> +void *__kmalloc_node(size_t size, gfp_t gfp, int node)
->> +{
->> +     return __do_kmalloc_node(size, gfp, node, _RET_IP_);
->> +}
->>  EXPORT_SYMBOL(__kmalloc_node);
->>
->> +#ifdef CONFIG_TRACING
->> +void *__kmalloc_track_caller(size_t size, gfp_t gfp, unsigned long caller)
->> +{
->> +     return __do_kmalloc_node(size, gfp, NUMA_NO_NODE, caller);
->> +}
->> +
->> +#ifdef CONFIG_NUMA
->> +void *__kmalloc_node_track_caller(size_t size, gfp_t gfpflags,
->> +                                     int node, unsigned long caller)
->> +{
->> +     return __do_kmalloc_node(size, gfp, node, caller);
->> +}
->> +#endif
->
-> This breaks Pekka's slab/next tree with this:
->
-> mm/slob.c: In function '__kmalloc_node_track_caller':
-> mm/slob.c:488: error: 'gfp' undeclared (first use in this function)
-> mm/slob.c:488: error: (Each undeclared identifier is reported only once
-> mm/slob.c:488: error: for each function it appears in.)
->
->
-> mm, slob: fix build breakage in __kmalloc_node_track_caller
->
-> "mm, slob: Add support for kmalloc_track_caller()" breaks the build
-> because gfp is undeclared.  Fix it.
->
-> Signed-off-by: David Rientjes <rientjes@google.com>
-> ---
->  mm/slob.c |    2 +-
->  1 files changed, 1 insertions(+), 1 deletions(-)
->
-> diff --git a/mm/slob.c b/mm/slob.c
-> --- a/mm/slob.c
-> +++ b/mm/slob.c
-> @@ -482,7 +482,7 @@ void *__kmalloc_track_caller(size_t size, gfp_t gfp, unsigned long caller)
->  }
->
->  #ifdef CONFIG_NUMA
-> -void *__kmalloc_node_track_caller(size_t size, gfp_t gfpflags,
-> +void *__kmalloc_node_track_caller(size_t size, gfp_t gfp,
->                                         int node, unsigned long caller)
->  {
->         return __do_kmalloc_node(size, gfp, node, caller);
+On Tue, 25 Sep 2012 10:12:07 +0100
+Mel Gorman <mgorman@suse.de> wrote:
 
-Acked-by: Ezequiel Garcia <elezegarcia@gmail.com>
+> First, we'd introduce a variant of get_pageblock_migratetype() that returns
+> all the bits for the pageblock flags and then helpers to extract either the
+> migratetype or the PG_migrate_skip. We already are incurring the cost of
+> get_pageblock_migratetype() so it will not be much more expensive than what
+> is already there. If there is an allocation or free within a pageblock that
+> as the PG_migrate_skip bit set then we increment a counter. When the counter
+> reaches some to-be-decided "threshold" then compaction may clear all the
+> bits. This would match the criteria of the clearing being based on activity.
+> 
+> There are four potential problems with this
+> 
+> 1. The logic to retrieve all the bits and split them up will be a little
+>    convulated but maybe it would not be that bad.
+> 
+> 2. The counter is a shared-writable cache line but obviously it could
+>    be moved to vmstat and incremented with inc_zone_page_state to offset
+>    the cost a little.
+> 
+> 3. The biggested weakness is that there is not way to know if the
+>    counter is incremented based on activity in a small subset of blocks.
+> 
+> 4. What should the threshold be?
+> 
+> The first problem is minor but the other three are potentially a mess.
+> Adding another vmstat counter is bad enough in itself but if the counter
+> is incremented based on a small subsets of pageblocks, the hint becomes
+> is potentially useless.
+> 
+> However, does this match what you have in mind or am I over-complicating
+> things?
 
-Thanks,
-Ezequiel.
+Sounds complicated.
+
+Using wall time really does suck.  Are you sure you can't think of
+something more logical?
+
+How would we demonstrate the suckage?  What would be the observeable downside of
+switching that 5 seconds to 5 hours?
+
+> > > > > +	for (pfn = start_pfn; pfn < end_pfn; pfn += pageblock_nr_pages) {
+> > > > > +		struct page *page;
+> > > > > +		if (!pfn_valid(pfn))
+> > > > > +			continue;
+> > > > > +
+> > > > > +		page = pfn_to_page(pfn);
+> > > > > +		if (zone != page_zone(page))
+> > > > > +			continue;
+> > > > > +
+> > > > > +		clear_pageblock_skip(page);
+> > > > > +	}
+> > > > 
+> > > > What's the worst-case loop count here?
+> > > > 
+> > > 
+> > > zone->spanned_pages >> pageblock_order
+> > 
+> > What's the worst-case value of (zone->spanned_pages >> pageblock_order) :)
+> 
+> Lets take an unlikely case - 128G single-node machine. That loop count
+> on x86-64 would be 65536. It'll be fast enough, particularly in this
+> path.
+
+That could easily exceed a millisecond.  Can/should we stick a
+cond_resched() in there?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
