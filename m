@@ -1,53 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
-	by kanga.kvack.org (Postfix) with SMTP id 861A96B005D
-	for <linux-mm@kvack.org>; Tue, 25 Sep 2012 04:56:35 -0400 (EDT)
-From: Glauber Costa <glommer@parallels.com>
-Subject: [RFC 4/4] memcg: do not walk all the way to the root for memcg
-Date: Tue, 25 Sep 2012 12:52:53 +0400
-Message-Id: <1348563173-8952-5-git-send-email-glommer@parallels.com>
-In-Reply-To: <1348563173-8952-1-git-send-email-glommer@parallels.com>
-References: <1348563173-8952-1-git-send-email-glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
+	by kanga.kvack.org (Postfix) with SMTP id 70C566B002B
+	for <linux-mm@kvack.org>; Tue, 25 Sep 2012 04:57:18 -0400 (EDT)
+Date: Tue, 25 Sep 2012 10:57:09 +0200
+From: Conny Seidel <conny.seidel@amd.com>
+Subject: Re: divide error: bdi_dirty_limit+0x5a/0x9e
+Message-ID: <20120925085707.GB30042@marah.osrc.amd.com>
+References: <20120924102324.GA22303@aftab.osrc.amd.com>
+ <20120924142305.GD12264@quack.suse.cz>
+ <20120924143609.GH22303@aftab.osrc.amd.com>
+ <20120924201650.6574af64.conny.seidel@amd.com>
+ <20120924181927.GA25762@aftab.osrc.amd.com>
+ <5060AB0E.3070809@linux.vnet.ibm.com>
+ <20120924193135.GB25762@aftab.osrc.amd.com>
+ <20120924200737.GA30997@quack.suse.cz>
+ <20120924201726.GB30997@quack.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <20120924201726.GB30997@quack.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, devel@openvz.org, Peter Zijlstra <a.p.zijlstra@chello.nl>, Glauber Costa <glommer@parallels.com>, Michal Hocko <mhocko@suse.cz>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>
+To: Jan Kara <jack@suse.cz>
+Cc: Borislav Petkov <bp@amd64.org>, "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>, Conny Seidel <conny.seidel@amd.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Fengguang Wu <fengguang.wu@intel.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <jweiner@redhat.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
 
-Since the root is special anyway, and we always get its figures from
-global counters anyway, there is no make all cgroups its descendants,
-wrt res_counters. The sad effect of doing that is that we need to lock
-the root for all allocations, since it is a common ancestor of
-everybody.
+* Jan Kara <jack@suse.cz>:
+>  [...]
 
-Not having the root as a common ancestor should lead to better
-scalability for not-uncommon case of tasks in the cgroup being
-node-bound to different nodes in NUMA systems.
+The patch works for me. Tested it a couple of times on several machines
+without triggering the issue.
 
-Signed-off-by: Glauber Costa <glommer@parallels.com>
-CC: Michal Hocko <mhocko@suse.cz>
-CC: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-CC: Johannes Weiner <hannes@cmpxchg.org>
-CC: Mel Gorman <mgorman@suse.de>
-CC: Andrew Morton <akpm@linux-foundation.org>
----
- mm/memcontrol.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+Thanks for the fix.
 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index f8115f0..829ea9e 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -5720,7 +5720,7 @@ mem_cgroup_create(struct cgroup *cont)
- 		static_key_slow_inc(&memcg_in_use_key);
- 	}
- 
--	if (parent && parent->use_hierarchy) {
-+	if (parent && !mem_cgroup_is_root(parent) && parent->use_hierarchy) {
- 		struct mem_cgroup __maybe_unused *p;
- 
- 		res_counter_init(&memcg->res, &parent->res);
--- 
-1.7.11.4
+> From 1fd707552a67adf869958e479910d2f70452351b Mon Sep 17 00:00:00 2001
+> From: Jan Kara <jack@suse.cz>
+> Date: Mon, 24 Sep 2012 16:17:16 +0200
+> Subject: [PATCH] lib: Fix corruption of denominator in flexible proportions
+>
+> When racing with CPU hotplug, percpu_counter_sum() can return negative
+> values for the number of observed events. This confuses fprop_new_period(),
+> which uses unsigned type and as a result number of events is set to big
+> *positive* number. From that moment on, things go pear shaped and can result
+> e.g. in division by zero as denominator is later truncated to 32-bits.
+>
+> Fix the issue by using a signed type in fprop_new_period(). That makes us
+> bail out from the function without doing anything (mistakenly) thinking
+> there are no events to age. That makes aging somewhat inaccurate but getting
+> accurate data would be rather hard.
+>
+> Reported-by: Borislav Petkov <bp@amd64.org>
+> Reported-by: Srivatsa S. Bhat <srivatsa.bhat@linux.vnet.ibm.com>
+> Signed-off-by: Jan Kara <jack@suse.cz>
+Tested-by: Conny Seidel <conny.seidel@amd.com>
+> ---
+>  lib/flex_proportions.c |    2 +-
+>  1 files changed, 1 insertions(+), 1 deletions(-)
+>
+> diff --git a/lib/flex_proportions.c b/lib/flex_proportions.c
+> index c785554..ebf3bac 100644
+> --- a/lib/flex_proportions.c
+> +++ b/lib/flex_proportions.c
+> @@ -62,7 +62,7 @@ void fprop_global_destroy(struct fprop_global *p)
+>   */
+>  bool fprop_new_period(struct fprop_global *p, int periods)
+>  {
+> -	u64 events;
+> +	s64 events;
+>  	unsigned long flags;
+>
+>  	local_irq_save(flags);
+> --
+> 1.7.1
+>
+
+
+--
+Kind regards.
+
+Conny Seidel
+
+##################################################################
+# Email : conny.seidel@amd.com            GnuPG-Key : 0xA6AB055D #
+# Fingerprint: 17C4 5DB2 7C4C C1C7 1452 8148 F139 7C09 A6AB 055D #
+##################################################################
+# Advanced Micro Devices GmbH Einsteinring 24 85609 Dornach      #
+# General Managers: Alberto Bozzo                                #
+# Registration: Dornach, Landkr. Muenchen; Registerger. Muenchen #
+#               HRB Nr. 43632                                    #
+##################################################################
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
