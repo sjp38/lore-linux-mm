@@ -1,71 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
-	by kanga.kvack.org (Postfix) with SMTP id 448316B005D
-	for <linux-mm@kvack.org>; Tue, 25 Sep 2012 14:11:25 -0400 (EDT)
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: [PATCH] thp: avoid VM_BUG_ON page_count(page) false positives in __collapse_huge_page_copy
-Date: Tue, 25 Sep 2012 20:11:18 +0200
-Message-Id: <1348596678-2768-2-git-send-email-aarcange@redhat.com>
-In-Reply-To: <1348596678-2768-1-git-send-email-aarcange@redhat.com>
-References: <1348596678-2768-1-git-send-email-aarcange@redhat.com>
+Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
+	by kanga.kvack.org (Postfix) with SMTP id 7AC9E6B002B
+	for <linux-mm@kvack.org>; Tue, 25 Sep 2012 15:04:02 -0400 (EDT)
+Received: by oagk14 with SMTP id k14so5031729oag.14
+        for <linux-mm@kvack.org>; Tue, 25 Sep 2012 12:04:01 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <1348592715-31006-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+References: <CAHGf_=rbyk1UFGwyQ0BSN3qM_K+5J3Q-Aj=xjNDZFrTrZ6a3dw@mail.gmail.com>
+ <1348592715-31006-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Date: Tue, 25 Sep 2012 15:03:41 -0400
+Message-ID: <CAHGf_=oOUc++B-wZ3b21aeTdSQEBvEO=PpfL0amnqmZhNun61w@mail.gmail.com>
+Subject: Re: [PATCH] pagemap: fix wrong KPF_THP on slab pages
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Johannes Weiner <jweiner@redhat.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Petr Holasek <pholasek@redhat.com>
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Wu Fengguang <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi.kleen@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Use page_freeze_refs to prevent speculative pagecache lookups to
-trigger the false positives, so we're still able to check the
-page_count to be exact.
+On Tue, Sep 25, 2012 at 1:05 PM, Naoya Horiguchi
+<n-horiguchi@ah.jp.nec.com> wrote:
+> On Tue, Sep 25, 2012 at 11:59:51AM -0400, KOSAKI Motohiro wrote:
+>> On Tue, Sep 25, 2012 at 9:56 AM, Naoya Horiguchi
+>> <n-horiguchi@ah.jp.nec.com> wrote:
+>> > KPF_THP can be set on non-huge compound pages like slab pages, because
+>> > PageTransCompound only sees PG_head and PG_tail. Obviously this is a bug
+>> > and breaks user space applications which look for thp via /proc/kpageflags.
+>> > Currently thp is constructed only on anonymous pages, so this patch makes
+>> > KPF_THP be set when both of PageAnon and PageTransCompound are true.
+>>
+>> Indeed. Please add some comment too.
+>
+> Sure. I send revised one.
+>
+> Thanks,
+> Naoya
+> ---
+> From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> Date: Mon, 24 Sep 2012 16:28:30 -0400
+> Subject: [PATCH v2] pagemap: fix wrong KPF_THP on slab pages
+>
+> KPF_THP can be set on non-huge compound pages like slab pages, because
+> PageTransCompound only sees PG_head and PG_tail. Obviously this is a bug
+> and breaks user space applications which look for thp via /proc/kpageflags.
+> Currently thp is constructed only on anonymous pages, so this patch makes
+> KPF_THP be set when both of PageAnon and PageTransCompound are true.
+>
+> Changelog in v2:
+>   - add a comment in code
+>
+> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> ---
+>  fs/proc/page.c | 7 ++++++-
+>  1 file changed, 6 insertions(+), 1 deletion(-)
+>
+> diff --git a/fs/proc/page.c b/fs/proc/page.c
+> index 7fcd0d6..f7cd2f6c 100644
+> --- a/fs/proc/page.c
+> +++ b/fs/proc/page.c
+> @@ -115,7 +115,12 @@ u64 stable_page_flags(struct page *page)
+>                 u |= 1 << KPF_COMPOUND_TAIL;
+>         if (PageHuge(page))
+>                 u |= 1 << KPF_HUGE;
+> -       else if (PageTransCompound(page))
+> +       /*
+> +        * Since THP is relevant only for anonymous pages so far, we check it
+> +        * explicitly with PageAnon. Otherwise thp is confounded with non-huge
+> +        * compound pages like slab pages.
+> +        */
+> +       else if (PageTransCompound(page) && PageAnon(page))
+>                 u |= 1 << KPF_THP;
 
-Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
----
- mm/huge_memory.c |   19 ++++++++++++++++++-
- 1 files changed, 18 insertions(+), 1 deletions(-)
+Looks good to me.
 
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 1598708..7eca652 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -1704,6 +1704,9 @@ void __khugepaged_exit(struct mm_struct *mm)
- 
- static void release_pte_page(struct page *page)
- {
-+#ifdef CONFIG_DEBUG_VM
-+	page_unfreeze_refs(page, 2);
-+#endif
- 	/* 0 stands for page_is_file_cache(page) == false */
- 	dec_zone_page_state(page, NR_ISOLATED_ANON + 0);
- 	unlock_page(page);
-@@ -1784,6 +1787,20 @@ static int __collapse_huge_page_isolate(struct vm_area_struct *vma,
- 		VM_BUG_ON(!PageLocked(page));
- 		VM_BUG_ON(PageLRU(page));
- 
-+#ifdef CONFIG_DEBUG_VM
-+		/*
-+		 * For the VM_BUG_ON check on page_count(page) in
-+		 * __collapse_huge_page_copy not to trigger false
-+		 * positives we've to prevent the speculative
-+		 * pagecache lookups too with page_freeze_refs. We
-+		 * could check for >= 2 instead but this provides for
-+		 * a more strict debugging behavior.
-+		 */
-+		if (!page_freeze_refs(page, 2)) {
-+			release_pte_pages(pte, _pte+1);
-+			goto out;
-+		}
-+#endif
- 		/* If there is no mapped pte young don't collapse the page */
- 		if (pte_young(pteval) || PageReferenced(page) ||
- 		    mmu_notifier_test_young(vma->vm_mm, address))
-@@ -1814,7 +1831,7 @@ static void __collapse_huge_page_copy(pte_t *pte, struct page *page,
- 			src_page = pte_page(pteval);
- 			copy_user_highpage(page, src_page, address, vma);
- 			VM_BUG_ON(page_mapcount(src_page) != 1);
--			VM_BUG_ON(page_count(src_page) != 2);
-+			VM_BUG_ON(page_count(src_page) != 0);
- 			release_pte_page(src_page);
- 			/*
- 			 * ptl mostly unnecessary, but preempt has to
+Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
