@@ -1,37 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
-	by kanga.kvack.org (Postfix) with SMTP id F339B6B002B
-	for <linux-mm@kvack.org>; Tue, 25 Sep 2012 19:28:23 -0400 (EDT)
-Received: by padfa10 with SMTP id fa10so2176294pad.14
-        for <linux-mm@kvack.org>; Tue, 25 Sep 2012 16:28:23 -0700 (PDT)
-Date: Tue, 25 Sep 2012 16:28:14 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: mmotm 2012-09-20-17-25 uploaded (fs/bimfmt_elf on uml)
-In-Reply-To: <20120926074827.32c7187adef6327c74c75564@canb.auug.org.au>
-Message-ID: <alpine.DEB.2.00.1209251627220.6503@chino.kir.corp.google.com>
-References: <20120921002638.7859F100047@wpzn3.hot.corp.google.com> <505C865D.5090802@xenotime.net> <20120922115606.5ca9f599cd88514ddda4831d@canb.auug.org.au> <alpine.DEB.2.00.1209251243320.31518@chino.kir.corp.google.com>
- <20120926074827.32c7187adef6327c74c75564@canb.auug.org.au>
+Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
+	by kanga.kvack.org (Postfix) with SMTP id A15046B002B
+	for <linux-mm@kvack.org>; Tue, 25 Sep 2012 19:31:21 -0400 (EDT)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Message-ID: <30a570e8-8157-47e1-867a-4960a7c1173d@default>
+Date: Tue, 25 Sep 2012 16:31:01 -0700 (PDT)
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Subject: [RFC/PATCH] zcache2 on PPC64 (Was: [RFC] mm: add support for zsmalloc
+ and zcache)
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Stephen Rothwell <sfr@canb.auug.org.au>
-Cc: Randy Dunlap <rdunlap@xenotime.net>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org, Richard Weinberger <richard@nod.at>
+To: Seth Jennings <sjenning@linux.vnet.ibm.com>, Konrad Wilk <konrad.wilk@oracle.com>, Robert Jennings <rcj@linux.vnet.ibm.com>
+Cc: Mel Gorman <mgorman@suse.de>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Nitin Gupta <ngupta@vflare.org>, Minchan Kim <minchan@kernel.org>, Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org, James Bottomley <James.Bottomley@HansenPartnership.com>
 
-On Wed, 26 Sep 2012, Stephen Rothwell wrote:
+Attached patch applies to staging-next and I _think_ should
+fix the reported problem where zbud in zcache2 does not
+work on a PPC64 with PAGE_SIZE!=3D12.  I do not have a machine
+to test this so testing by others would be appreciated.
 
-> > This still happens on x86_64 for linux-next as of today's tree.
-> 
-> Are you sure?  next-20120925?
-> 
-> $ grep -n vmalloc fs/binfmt_elf.c
-> 30:#include <linux/vmalloc.h>
-> 1421:	data = vmalloc(size);
-> 
+Ideally there should also be a BUILD_BUG_ON to ensure
+PAGE_SHIFT * 2 + 2 doesn't exceed BITS_PER_LONG, but
+let's see if this fixes the problem first.
 
-Ok, it looks like it's fixed by 1bb6a4c9514e in today's linux-next tree; 
-that wasn't present when I pulled it at 2am PDT, so it must be a time zone 
-difference.  Thanks.
+Apologies if there are line breaks... I can't send this from
+a linux mailer right now.  If it is broken, let me know,
+and I will re-post tomorrow... though it should be easy
+to apply manually for test purposes.
+
+Signed-off-by: Dan Magenheimer <dan.magenheimer@oracle.com>
+
+diff --git a/drivers/staging/ramster/zbud.c b/drivers/staging/ramster/zbud.=
+c
+index a7c4361..6921af3 100644
+--- a/drivers/staging/ramster/zbud.c
++++ b/drivers/staging/ramster/zbud.c
+@@ -103,8 +103,8 @@ struct zbudpage {
+ =09=09struct {
+ =09=09=09unsigned long space_for_flags;
+ =09=09=09struct {
+-=09=09=09=09unsigned zbud0_size:12;
+-=09=09=09=09unsigned zbud1_size:12;
++=09=09=09=09unsigned zbud0_size:PAGE_SHIFT;
++=09=09=09=09unsigned zbud1_size:PAGE_SHIFT;
+ =09=09=09=09unsigned unevictable:2;
+ =09=09=09};
+ =09=09=09struct list_head budlist;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
