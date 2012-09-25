@@ -1,238 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
-	by kanga.kvack.org (Postfix) with SMTP id C2EAE6B002B
-	for <linux-mm@kvack.org>; Tue, 25 Sep 2012 06:20:13 -0400 (EDT)
-Date: Tue, 25 Sep 2012 11:20:05 +0100
-From: Mel Gorman <mgorman@suse.de>
+Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
+	by kanga.kvack.org (Postfix) with SMTP id 8DB0B6B002B
+	for <linux-mm@kvack.org>; Tue, 25 Sep 2012 06:33:08 -0400 (EDT)
+Message-ID: <1348569181.2457.26.camel@dabdike>
 Subject: Re: [RFC] mm: add support for zsmalloc and zcache
-Message-ID: <20120925102005.GE11266@suse.de>
+From: James Bottomley <James.Bottomley@HansenPartnership.com>
+Date: Tue, 25 Sep 2012 14:33:01 +0400
+In-Reply-To: <50609794.8030508@linux.vnet.ibm.com>
 References: <1346794486-12107-1-git-send-email-sjenning@linux.vnet.ibm.com>
- <20120921161252.GV11266@suse.de>
- <20120921180222.GA7220@phenom.dumpdata.com>
- <505CB9BC.8040905@linux.vnet.ibm.com>
- <42d62a30-bd6c-4bd7-97d1-bec2f237756b@default>
- <20120922010733.GX11266@suse.de>
- <589fd823-40f1-418c-81ad-ca8daa3f064d@default>
- <20120924103150.GA11266@suse.de>
- <f0890e7c-9f9f-4110-8da9-05d0fdf7f91c@default>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <f0890e7c-9f9f-4110-8da9-05d0fdf7f91c@default>
+	 <20120921161252.GV11266@suse.de>
+	 <20120921180222.GA7220@phenom.dumpdata.com>
+	 <505CB9BC.8040905@linux.vnet.ibm.com>
+	 <42d62a30-bd6c-4bd7-97d1-bec2f237756b@default>
+	 <50609794.8030508@linux.vnet.ibm.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Magenheimer <dan.magenheimer@oracle.com>
-Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>, Konrad Wilk <konrad.wilk@oracle.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Nitin Gupta <ngupta@vflare.org>, Minchan Kim <minchan@kernel.org>, Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org
+To: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Cc: Dan Magenheimer <dan.magenheimer@oracle.com>, Konrad Wilk <konrad.wilk@oracle.com>, Mel Gorman <mgorman@suse.de>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Nitin Gupta <ngupta@vflare.org>, Minchan Kim <minchan@kernel.org>, Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org
 
-On Mon, Sep 24, 2012 at 01:36:48PM -0700, Dan Magenheimer wrote:
-> > From: Mel Gorman [mailto:mgorman@suse.de]
-> > Subject: Re: [RFC] mm: add support for zsmalloc and zcache
-> > 
-> > On Sat, Sep 22, 2012 at 02:18:44PM -0700, Dan Magenheimer wrote:
-> > > > From: Mel Gorman [mailto:mgorman@suse.de]
-> > > > Subject: Re: [RFC] mm: add support for zsmalloc and zcache
-> > > >
-> > > > On Fri, Sep 21, 2012 at 01:35:15PM -0700, Dan Magenheimer wrote:
-> > > > > > From: Seth Jennings [mailto:sjenning@linux.vnet.ibm.com]
-> > > > > > Subject: Re: [RFC] mm: add support for zsmalloc and zcache
-> > > > > The two proposals:
-> > > > > A) Recreate all the work done for zcache2 as a proper sequence of
-> > > > >    independent patches and apply them to zcache1. (Seth/Konrad)
-> > > > > B) Add zsmalloc back in to zcache2 as an alternative allocator
-> > > > >    for frontswap pages. (Dan)
-> > > >
-> > > > Throwing it out there but ....
-> > > >
-> > > > C) Merge both, but freeze zcache1 except for critical fixes. Only allow
-> > > >    future work on zcache2. Document limitations of zcache1 and
-> > > >    workarounds until zcache2 is fully production ready.
-> > >
-> > What would the impact be if zcache2 and zcache1 were mutually exclusive
-> > in Kconfig and the naming was as follows?
-> > 
-> > CONFIG_ZCACHE_DEPRECATED	(zcache1)
-> > CONFIG_ZCACHE			(zcache2)
-> > 
-> > That would make it absolutely clear to distributions which one they should
-> > be enabling and also make it clear that all future development happen
-> > on zcache2.
-> > 
-> > I know it looks insane to promote something that is instantly deprecated
-> > but none of the other alternatives seem to be gaining traction either.
-> > This would at least allow the people who are currently heavily behind
-> > zcache1 to continue supporting it and applying critical fixes until they
-> > move to zcache2.
-> 
-> Just wondering... how, in your opinion, is this different from
-> leaving zcache1 (or even both) in staging? 
+On Mon, 2012-09-24 at 12:25 -0500, Seth Jennings wrote:
+> In summary, I really don't understand the objection to
+> promoting zcache and integrating zcache2 improvements and
+> features incrementally.  It seems very natural and
+> straightforward to me.  Rewrites can even happen in
+> mainline, as James pointed out.  Adoption in mainline just
+> provides a more stable environment for more people to use
+> and contribute to zcache.
 
-Because leaving it in staging implies it is not supported. What I'm
-suggesting is that zcache1 be promoted but marked deprecated. Seth and the
-embedded people that use it should continue to support it as it currently
-stands and fix any critical bugs that are reported but avoid writing new
-features for it. The limitations of it should be documented.
+This is slightly disingenuous.  Acceptance into mainline commits us to
+the interface.  Promotion from staging with simultaneous deprecation
+seems like a reasonable (if inelegant) compromise, but the problem is
+it's not necessarily a workable solution: as long as we have users of
+the interface in mainline, we can't really deprecate stuff however many
+feature deprecation files we fill in (I've had a deprecated SCSI ioctl
+set that's been deprecated for ten years and counting).  What worries me
+looking at this fight is that since there's a use case for the old
+interface it will never really get removed.
 
-> "Tainting" occurs
-> either way, it's just a matter of whether or not there is a message
-> logged by the kernel that it is officially tainted, right?
-> 
+Conversely, rewrites do tend to vastly increase the acceptance cycle
+mainly because of reviewer fatigue (and reviews are our most precious
+commodity in the kernel).  I'm saying rewrites should be possible in
+staging because it was always possible on plain patch submissions; I'm
+not saying they're desirable.  Every time I've seen a rewrite done, it
+has added ~6mo-1yr to the acceptance cycle.  I sense that the fatigue
+factor with transcendent memory is particularly high, so we're probably
+looking at the outside edge of the estimate, so the author needs
+seriously to consider if the rewrite is worth this.
 
-Using a deprecated interface does not necessarily taint the kernel.
+Oh, and while this spat goes on, the stalemate is basically assured and
+external goodwill eroding.  So, for god's sake find a mutually
+acceptable compromise, because we're not going to find one for you.
 
-> However, it _is_ another attempt at compromise and, if this
-> is the only solution that allows the debate to end, and it
-> is agreed on by whatever maintainer is committed to pull
-> both (be it you, or Andrew, or Konrad, or Linux), I would
-> agree to your "C-prime" proposal.
->  
+James
 
-And bear in mind that I do not any sort of say in what happens
-ultimately. I'm just suggesting alternatives here that may potentially
-keep everyone happy (or at least stop it going in circles).
-
-> > > I use the terms "zcache1" and "zcache2" only to clarify which
-> > > codebase, not because they are dramatically different. I estimate
-> > > that 85%-90% of the code in zcache1 and zcache2 is identical, not
-> > > counting the allocator or comments/whitespace/janitorial!
-> > 
-> > If 85-90% of the code is identicial then they really should be sharing
-> > the code rather than making copies. That will result in some monolithic
-> > patches but it's unavoidable. I expect it would end up looking like
-> > 
-> > Patch 1		promote zcache1
-> > Patch 2		promote zcache2
-> > Patch 3		move shared code for zcache1,zcache2 to common files
-> > 
-> > If the shared code is really shared and not copied it may reduce some of
-> > the friction between the camps.
-> 
-> This part I would object to... at least I would object to signing
-> up to do Patch 3 myself.  Seems like a lot of busywork if zcache1
-> is truly deprecated.
-> 
-
-It'd help the path to truly deprecating it.
-
-1. Fixes in common code only have to be applied once. This avoids a
-   situation where zcache1 gets a fix and zcache2 misses it and vice-versa.
-   In a related note it makes it a bit more obvious is a new feature is
-   attempted to be merged to zcache1
-
-2. It forces the zcache2 and zcache1 people to keep more or less in sync
-   with each other and limit API breakage between components.
-
-3. It makes it absolutely clear what the differences between zcache1 and
-   zcache2 are at any given time.
-
-My expectation is that the zcache1-specific components would shrink over
-time with zcache2 taking over responsibility. Ideally the end result
-would be that zcache1 is just an alias for the zcache2 code.
-
-I recognise that this is a lot of busy work and time-consuming but it's
-at least *a* path that allows zcache1 to migrate to zcache2. Of course
-if the zcache1 people do not support the idea in principal then it goes
-back to square one.
-
-> > zcache1 does appear to have a few snarls that would make me wary of having
-> > to support it. I don't know if zcache2 suffers the same problems or not
-> > as I have not read it.
-> > 
-> > Unfortunately, I'm not going to get the chance to review [zcache2] in the
-> > short-term. However, if zcache1 and zcache2 shared code in common files
-> > it would at least reduce the amount of new code I have to read :)
-> 
-> Understood, which re-emphasizes my point about how the presence
-> of both reduces the (to date, very limited) MM developer time available
-> for either.
-> 
-
-While that may be true, it's not looking like that one side will accept the
-complete deletion of zcache1 on day 1. On the flip-side, they have a point
-that zcache1 has been tested by more people even if there are some serious
-limitations in the code.
-
-> > > Seth (and IBM) seems to have a bee in his bonnet that the existing
-> > > zcache1 code _must_ be promoted _soon_ with as little change as possible.
-> > > Other than the fact that he didn't like my patching approach [1],
-> > > the only technical objection Seth has raised to zcache2 is that he
-> > > thinks zsmalloc is the best choice of allocator [2] for his limited
-> > > benchmarking [3].
-> > 
-> > FWIW, I would fear that kernbench is not that interesting a benchmark for
-> > something like zcache. From an MM perspective, I would be wary that the
-> > data compresses too well and fits too neatly in the different buckets and
-> > make zsmalloc appear to behave much better than it would for a more general
-> > workload.  Of greater concern is that the allocations for zcache would be
-> > too short lived to measure if external fragmentation was a real problem
-> > or not. This is pure guesswork as I didn't read zsmalloc but this is the
-> > sort of problem I'd be looking out for if I did review it. In practice,
-> > I would probably prefer to depend on zbud because it avoids the external
-> > fragmentation problem even if it wasted memory but that's just me being
-> > cautious.
-> 
-> Your well-honed intuition is IMHO exactly right.
-> 
-> But my compromise proposal would allow the allocator decision to be delayed
-> until a broader set of workloads are brought to bear.
-> 
-
-If the API to the underlying allocator is fixed it should be at least
-possible to load either. It does not feel like an issue that should
-completely hold up everything.
-
-It may be the case that on day 1 that zcache2 cannot use zsmalloc but then
-I'd expect that at least the zsmalloc allocator would be the first block
-of code shared by both zcache1 and zcache2.
-
-> > > I've offered to put zsmalloc back in to zcache2 as an optional
-> > > (even default) allocator, but that doesn't seem to be good enough
-> > > for Seth.  Any other technical objections to zcache2, or explanation
-> > > for his urgent desire to promote zcache1, Seth (and IBM) is keeping
-> > > close to his vest, which I find to be a bit disingenuous.
-> > 
-> > I can only guess what the reasons might be for this and none of the
-> > guesses will help resolve this problem.
-> 
-> Me too.  Given the amount of time already spent on this discussion
-> (and your time reviewing, IMHO, old code), I sure hope the reasons
-> are compelling.
-> 
-> It's awfully hard to determine a compromise when one side
-> refuses to budge for unspecified reasons.   And the difference
-> between deprecated and in-staging seems minor enough that
-> it's hard to believe your modified proposal will make that
-> side happy... but we are both shooting in the dark.
-> 
-
-This is why I think the compromise is going to be promoting both,
-marking deprecated and then share as much code as possible. Without the
-sharing the split may remain permanent and just cause more problems in
-the future.
-
-> > > So, I'd like to challenge Seth with a simple question:
-> > >
-> > > If zcache2 offers zsmalloc as an alternative (even default) allocator,
-> > > what remaining _technical_ objections do you (Seth) have to merging
-> > > zcache2 _instead_ of zcache1?
-> > >
-> > > If Mel agrees that your objections are worth the costs of bifurcating
-> > > zcache and will still endorse merging both into core mm, I agree to move
-> > > forward with Mel's alternative (C) (and will then repost
-> > > https://lkml.org/lkml/2012/7/31/573).
-> > 
-> > If you go with C), please also add another patch on top *if possible*
-> > that actually shares any common code between zcache1 and zcache2.
-> 
-> Let's hear Seth's technical objections first, and discuss post-merge
-> followon steps later?
-> 
-
-Sure, but bear in mind I do not have the final say in this, I'm just making
-suggestions on how this logjam could potentially be cleared.
-
--- 
-Mel Gorman
-SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
