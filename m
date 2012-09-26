@@ -1,71 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx112.postini.com [74.125.245.112])
-	by kanga.kvack.org (Postfix) with SMTP id 5EA226B0044
-	for <linux-mm@kvack.org>; Wed, 26 Sep 2012 18:42:41 -0400 (EDT)
-Received: by pbbrq2 with SMTP id rq2so2912734pbb.14
-        for <linux-mm@kvack.org>; Wed, 26 Sep 2012 15:42:40 -0700 (PDT)
-Date: Wed, 26 Sep 2012 15:42:35 -0700
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH v3 04/13] kmem accounting basic infrastructure
-Message-ID: <20120926224235.GB10453@mtj.dyndns.org>
-References: <20120926180124.GA12544@google.com>
- <50634FC9.4090609@parallels.com>
- <20120926193417.GJ12544@google.com>
- <50635B9D.8020205@parallels.com>
- <20120926195648.GA20342@google.com>
- <50635F46.7000700@parallels.com>
- <20120926201629.GB20342@google.com>
- <50637298.2090904@parallels.com>
- <20120926221046.GA10453@mtj.dyndns.org>
- <506381B2.2060806@parallels.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <506381B2.2060806@parallels.com>
+Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
+	by kanga.kvack.org (Postfix) with SMTP id EBFE06B0044
+	for <linux-mm@kvack.org>; Wed, 26 Sep 2012 18:43:46 -0400 (EDT)
+Date: Wed, 26 Sep 2012 15:43:45 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v3 2/9] rbtree: add __rb_change_child() helper function
+Message-Id: <20120926154345.52cb9f33.akpm@linux-foundation.org>
+In-Reply-To: <506382E3.3020102@att.net>
+References: <1345500331-10546-1-git-send-email-walken@google.com>
+	<1345500331-10546-3-git-send-email-walken@google.com>
+	<20120820151710.eeed9bcf.akpm@linux-foundation.org>
+	<506382E3.3020102@att.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: Michal Hocko <mhocko@suse.cz>, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, devel@openvz.org, linux-mm@kvack.org, Suleiman Souhlal <suleiman@google.com>, Frederic Weisbecker <fweisbec@gmail.com>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>
+To: Daniel Santos <daniel.santos@pobox.com>
+Cc: Daniel Santos <danielfsantos@att.net>, Michel Lespinasse <walken@google.com>, riel@redhat.com, peterz@infradead.org, aarcange@redhat.com, dwmw2@infradead.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, torvalds@linux-foundation.org
 
-Hello, Glauber.
+On Wed, 26 Sep 2012 17:34:11 -0500
+Daniel Santos <danielfsantos@att.net> wrote:
 
-On Thu, Sep 27, 2012 at 02:29:06AM +0400, Glauber Costa wrote:
-> And then what? If you want a different behavior you need to go kill all
-> your services that are using memcg so you can get the behavior you want?
-> And if they happen to be making a specific flag choice by design, you
-> just say "you really can't run A + B together" ?
+> Sorry to resurrect the dead here, but I'm playing catch-up and this
+> looks important.
 > 
-> I myself think global switches are an unnecessary complication. And let
-> us not talk about use_hierarchy, please. If it becomes global, it is
-> going to be as part of a phase out plan anyway. The problem with that is
-> not that it is global, is that it shouldn't even exist.
-
-I would consider it more of a compatibility thing which is set during
-boot and configurable by sysadmin.  Let the newer systems enable it by
-default on boot and old configs / special ones disable it as
-necessary.
-
-> > Backward compatibility is covered with single switch and I really
-> > don't think "you can enable limits for kernel memory anytime but we
-> > don't keep track of whatever happened before it was flipped the first
-> > time because the first time is always special" is a sane thing to
-> > expose to userland.  Or am I misunderstanding the proposed behavior
-> > again?
+> On 08/20/2012 05:17 PM, Andrew Morton wrote:
+> > I'm inclined to agree with Peter here - "inline" is now a vague,
+> > pathetic and useless thing.  The problem is that the reader just
+> > doesn't *know* whether or not the writer really wanted it to be
+> > inlined.
+> >
+> > If we have carefully made a decision to inline a function, we should
+> > (now) use __always_inline.
+> Are we all aware here that __always_inline (a.k.a.
+> "__attribute__((always_inline))") just means "inline even when not
+> optimizing"?  This appears to be a very common misunderstanding (unless
+> the gcc docs are wrong, see
+> http://gcc.gnu.org/onlinedocs/gcc/Function-Attributes.html#index-g_t_0040code_007bflatten_007d-function-attribute-2512).
 > 
-> You do keep track. Before you switch it for the first time, it all
-> belongs to the root memcg.
+> If you want to *force* gcc to inline a function (when inlining is
+> enabled), you can currently only do it from the calling function by
+> adding the |flatten attribute to it, which I have proposed adding here:
+> https://lkml.org/lkml/2012/9/25/643.
+> 
+> Thus, all of the __always_inline markings we have in the kernel only
+> affect unoptimized builds (and maybe -O1?).  If we need this feature
+> (and I think it would be darned handy!) we'll have to work on gcc to get it.
 
-Well, that's really playing with words.  Limit is per cgroup and
-before the limit is set for the first time, everything is accounted to
-something else.  How is that keeping track?
+When I replace the four __always_inline's in fs/namei.c with "inline",
+namei.o's .text shrinks 2kbytes (gcc-4.4.4), so __always_inline does
+allear to be doing what we think it does?
 
-The proposed behavior seems really crazy to me.  Do people really
-think this is a good idea?
-
-Thanks.
-
--- 
-tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
