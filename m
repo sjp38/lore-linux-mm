@@ -1,29 +1,29 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
-	by kanga.kvack.org (Postfix) with SMTP id AA3116B002B
-	for <linux-mm@kvack.org>; Tue, 25 Sep 2012 21:29:06 -0400 (EDT)
-Received: by dadi14 with SMTP id i14so17379dad.14
-        for <linux-mm@kvack.org>; Tue, 25 Sep 2012 18:29:05 -0700 (PDT)
-Date: Wed, 26 Sep 2012 06:59:00 +0530
+Received: from psmtp.com (na3sys010amx167.postini.com [74.125.245.167])
+	by kanga.kvack.org (Postfix) with SMTP id 1467D6B002B
+	for <linux-mm@kvack.org>; Tue, 25 Sep 2012 21:39:23 -0400 (EDT)
+Received: by padfa10 with SMTP id fa10so55954pad.14
+        for <linux-mm@kvack.org>; Tue, 25 Sep 2012 18:39:22 -0700 (PDT)
+Date: Wed, 26 Sep 2012 07:09:17 +0530
 From: Raghavendra D Prabhu <raghu.prabhu13@gmail.com>
-Subject: Re:  Re: [PATCH 2/5] mm/readahead: Change the condition for
- SetPageReadahead
-Message-ID: <20120926012900.GA36532@Archie>
+Subject: Re:  Re: [PATCH 4/5] Move the check for ra_pages after
+ VM_SequentialReadHint()
+Message-ID: <20120926013917.GB36532@Archie>
 References: <cover.1348309711.git.rprabhu@wnohang.net>
- <82b88a97e1b86b718fe8e4616820d224f6abbc52.1348309711.git.rprabhu@wnohang.net>
- <20120922124920.GB17562@localhost>
+ <b3c8b02fb273826f864f64d4588b36758fde2b5d.1348309711.git.rprabhu@wnohang.net>
+ <20120922124250.GB15962@localhost>
 MIME-Version: 1.0
 Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="9amGYk9869ThD9tj"
+	protocol="application/pgp-signature"; boundary="z6Eq5LdranGa6ru8"
 Content-Disposition: inline
-In-Reply-To: <20120922124920.GB17562@localhost>
+In-Reply-To: <20120922124250.GB15962@localhost>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Fengguang Wu <fengguang.wu@intel.com>
 Cc: linux-mm@kvack.org, viro@zeniv.linux.org.uk, akpm@linux-foundation.org
 
 
---9amGYk9869ThD9tj
+--z6Eq5LdranGa6ru8
 Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Disposition: inline
 Content-Transfer-Encoding: quoted-printable
@@ -31,57 +31,66 @@ Content-Transfer-Encoding: quoted-printable
 Hi,
 
 
-* On Sat, Sep 22, 2012 at 08:49:20PM +0800, Fengguang Wu <fengguang.wu@inte=
+* On Sat, Sep 22, 2012 at 08:42:50PM +0800, Fengguang Wu <fengguang.wu@inte=
 l.com> wrote:
->On Sat, Sep 22, 2012 at 04:03:11PM +0530, raghu.prabhu13@gmail.com wrote:
+>On Sat, Sep 22, 2012 at 04:03:13PM +0530, raghu.prabhu13@gmail.com wrote:
 >> From: Raghavendra D Prabhu <rprabhu@wnohang.net>
 >>
->> If page lookup from radix_tree_lookup is successful and its index page_i=
-dx =3D=3D
->> nr_to_read - lookahead_size, then SetPageReadahead never gets called, so=
- this
->> fixes that.
+>> page_cache_sync_readahead checks for ra->ra_pages again, so moving the c=
+heck
+>> after VM_SequentialReadHint.
 >
->NAK. Sorry. It's actually an intentional behavior, so that for the
->common cases of many cached files that are accessed frequently, no
->PG_readahead will be set at all to pointlessly trap into the readahead
->routines once and again.
+>Well it depends on what case you are optimizing for. I suspect there
+>are much more tmpfs users than VM_SequentialReadHint users. So this
+>change is actually not desirable wrt the more widely used cases.
 
-ACK, thanks for explaining that. However, regarding this, I would=20
-like to know if the implications of the patch=20
-51daa88ebd8e0d437289f589af29d4b39379ea76 will still apply if=20
-PG_readahead is not set.
+Yes, that is true. However, it was meant to eliminate duplicate=20
+checking of the same condition in two places. But you are right,=20
+it may impose overhead for majority of the cases (assuming=20
+POSIX_FADVISE is used less than tmpfs).
 
->
->Perhaps we need a patch for commenting that case. :)
 >
 >Thanks,
 >Fengguang
 >
 >> Signed-off-by: Raghavendra D Prabhu <rprabhu@wnohang.net>
 >> ---
->>  mm/readahead.c | 4 +++-
->>  1 file changed, 3 insertions(+), 1 deletion(-)
+>>  mm/filemap.c | 5 +++--
+>>  1 file changed, 3 insertions(+), 2 deletions(-)
 >>
->> diff --git a/mm/readahead.c b/mm/readahead.c
->> index 461fcc0..fec726c 100644
->> --- a/mm/readahead.c
->> +++ b/mm/readahead.c
->> @@ -189,8 +189,10 @@ __do_page_cache_readahead(struct address_space *map=
-ping, struct file *filp,
->>  			break;
->>  		page->index =3D page_offset;
->>  		list_add(&page->lru, &page_pool);
->> -		if (page_idx =3D=3D nr_to_read - lookahead_size)
->> +		if (page_idx >=3D nr_to_read - lookahead_size) {
->>  			SetPageReadahead(page);
->> +			lookahead_size =3D 0;
->> +		}
->>  		ret++;
+>> diff --git a/mm/filemap.c b/mm/filemap.c
+>> index 3843445..606a648 100644
+>> --- a/mm/filemap.c
+>> +++ b/mm/filemap.c
+>> @@ -1523,8 +1523,6 @@ static void do_sync_mmap_readahead(struct vm_area_=
+struct *vma,
+>>  	/* If we don't want any read-ahead, don't bother */
+>>  	if (VM_RandomReadHint(vma))
+>>  		return;
+>> -	if (!ra->ra_pages)
+>> -		return;
+>>
+>>  	if (VM_SequentialReadHint(vma)) {
+>>  		page_cache_sync_readahead(mapping, ra, file, offset,
+>> @@ -1532,6 +1530,9 @@ static void do_sync_mmap_readahead(struct vm_area_=
+struct *vma,
+>>  		return;
 >>  	}
 >>
+>> +	if (!ra->ra_pages)
+>> +		return;
+>> +
+>>  	/* Avoid banging the cache line if not needed */
+>>  	if (ra->mmap_miss < MMAP_LOTSAMISS * 10)
+>>  		ra->mmap_miss++;
 >> --
 >> 1.7.12.1
+>>
+>> --
+>> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>> the body to majordomo@kvack.org.  For more info on Linux MM,
+>> see: http://www.linux-mm.org/ .
+>> Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>
 >
 
 
@@ -94,22 +103,22 @@ GPG Id : 0xD72BE977
 Fingerprint: B93F EBCB 8E05 7039 CD3C A4B8 A616 DCA1 D72B E977
 www: wnohang.net
 
---9amGYk9869ThD9tj
+--z6Eq5LdranGa6ru8
 Content-Type: application/pgp-signature
 
 -----BEGIN PGP SIGNATURE-----
 Version: GnuPG v2.0.19 (GNU/Linux)
 
-iQEcBAEBAgAGBQJQYlpcAAoJEKYW3KHXK+l3uawH/2MqtofboTsqzui/XgjdoIEv
-RgeWU3Y1w7eOIajtCm28F0m7KG/LM4smwOWXk3VqqxNoGkiQ8CaYrj2f2uM7VIHA
-BM5Pmz+LuJr/PpN3gFukWzDEA2w4b4q/cqqodVuD3f3BjcQYLVzrjGWOTC7UncER
-2wYPH3VvAjQHEN/IQYEBQrbezuzcBKWxS/9c4x4y2sX173QY4NkKlsEYbJLFseZ6
-N0NDuEVdPv4sxmyh1WFh1Ozht8No+vttsS+P+NCTxfde4bMG0Ikp6Rwekjv+nLzX
-h+i+Y/5Htzm+nEswjKqwdPglRviQY9+7mXiND/bXWwW+ZDm+sbJRZhTXO/cConE=
-=5Qp4
+iQEcBAEBAgAGBQJQYlzFAAoJEKYW3KHXK+l3NLUH/12jBNt23w9n8ALfYc6cPMYv
+85FXbAHayqS/Q+ezZoLHaQrM1oLOBWWnhO64JE8si+2DXisQImpKnUk8atWmF0Jw
+DpWFBCn9Pr6ldwiX47c2up7Mv6jc53hE/2FPaRTvXA64l2IE/jFowaZQJV6PJshT
+n6EjlFrwlFLWKrml6bvsGKyiXYcOV2L5F42UJc4ejHmE/1IhZnDw0KY+2VfIrRqu
++O+/dzvCwCWNzgDfPkZek+mWfi3fPU36p+g55g3jgyOz6v31kg7Zpv8jZUwc8b7Y
+52lI+2XfdSdfViCzFRAFYSTlatPsFSoETgtAw0Ktx1/246ST5Mf3F3GGzm0mKr0=
+=lFwN
 -----END PGP SIGNATURE-----
 
---9amGYk9869ThD9tj--
+--z6Eq5LdranGa6ru8--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
