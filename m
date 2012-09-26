@@ -1,37 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
-	by kanga.kvack.org (Postfix) with SMTP id 6AEF46B002B
-	for <linux-mm@kvack.org>; Tue, 25 Sep 2012 20:47:00 -0400 (EDT)
-Received: by pbbrq2 with SMTP id rq2so1117146pbb.14
-        for <linux-mm@kvack.org>; Tue, 25 Sep 2012 17:46:59 -0700 (PDT)
-Date: Tue, 25 Sep 2012 17:46:57 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] slab: Ignore internal flags in cache creation
-In-Reply-To: <00000139fe408877-40bc98e3-322c-4ba2-be72-e298ff28e694-000000@email.amazonses.com>
-Message-ID: <alpine.DEB.2.00.1209251744580.22521@chino.kir.corp.google.com>
-References: <1348571866-31738-1-git-send-email-glommer@parallels.com> <00000139fe408877-40bc98e3-322c-4ba2-be72-e298ff28e694-000000@email.amazonses.com>
+Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
+	by kanga.kvack.org (Postfix) with SMTP id 54F546B002B
+	for <linux-mm@kvack.org>; Tue, 25 Sep 2012 21:15:39 -0400 (EDT)
+Received: by ied10 with SMTP id 10so177582ied.14
+        for <linux-mm@kvack.org>; Tue, 25 Sep 2012 18:15:38 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <20120925142948.6b062cb6.akpm@linux-foundation.org>
+References: <1347137279-17568-1-git-send-email-elezegarcia@gmail.com>
+	<1347137279-17568-5-git-send-email-elezegarcia@gmail.com>
+	<20120925142948.6b062cb6.akpm@linux-foundation.org>
+Date: Tue, 25 Sep 2012 22:15:38 -0300
+Message-ID: <CALF0-+WcXLR_akn8mL8u-QigHU9Bk5RotA3tbodZ8rhZsxpFLg@mail.gmail.com>
+Subject: Re: [PATCH 05/10] mm, util: Use dup_user to duplicate user memory
+From: Ezequiel Garcia <elezegarcia@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Glauber Costa <glommer@parallels.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michal Hocko <mhocko@suse.cz>, Pekka Enberg <penberg@cs.helsinki.fi>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>
 
-On Tue, 25 Sep 2012, Christoph Lameter wrote:
+Hi Andrew,
 
-> > No cache should ever pass those as a creation flags. We can just ignore
-> > this bit if it happens to be passed (such as when duplicating a cache in
-> > the kmem memcg patches)
-> 
-> Acked-by: Christoph Lameter <cl@linux.com>
-> 
+On Tue, Sep 25, 2012 at 6:29 PM, Andrew Morton
+<akpm@linux-foundation.org> wrote:
+> On Sat,  8 Sep 2012 17:47:54 -0300
+> Ezequiel Garcia <elezegarcia@gmail.com> wrote:
+>
+>> Previously the strndup_user allocation was being done through memdup_user,
+>> and the caller was wrongly traced as being strndup_user
+>> (the correct trace must report the caller of strndup_user).
+>>
+>> This is a common problem: in order to get accurate callsite tracing,
+>> a utils function can't allocate through another utils function,
+>> but instead do the allocation himself (or inlined).
+>>
+>> Here we fix this by creating an always inlined dup_user() function to
+>> performed the real allocation and to be used by memdup_user and strndup_user.
+>
+> This patch increases util.o's text size by 238 bytes.  A larger kernel
+> with a worsened cache footprint.
+>
+> And we did this to get marginally improved tracing output?  This sounds
+> like a bad tradeoff to me.
+>
 
-Nack, this is already handled by CREATE_MASK in the mm/slab.c allocator; 
-the flag extensions beyond those defined in the generic slab.h header are 
-implementation defined.  It may be true that SLAB uses a bit only 
-internally (and already protects it with a BUG_ON() in 
-__kmem_cache_create()) but that doesn't mean other implementations can't 
-use such a flag that would be a no-op on another allocator.
+Mmm, that's bad tradeoff indeed.
+It's certainly odd since the patch shouldn't increase the text size
+*that* much.
+Is it too much to ask that you send your kernel config and gcc version.
+
+My compilation (x86 kernel in gcc 4.7.1) shows a kernel less bloated:
+
+$ readelf -s util-dup-user.o | grep dup_user
+   161: 00001c10   108 FUNC    GLOBAL DEFAULT    1 memdup_user
+   169: 00001df0   159 FUNC    GLOBAL DEFAULT    1 strndup_user
+$ readelf -s util.o | grep dup_user
+   161: 00001c10   108 FUNC    GLOBAL DEFAULT    1 memdup_user
+   169: 00001df0    98 FUNC    GLOBAL DEFAULT    1 strndup_user
+
+$ size util.o
+   text	   data	    bss	    dec	    hex	filename
+  18319	   2077	      0	  20396	   4fac	util.o
+$ size util-dup-user.o
+   text	   data	    bss	    dec	    hex	filename
+  18367	   2077	      0	  20444	   4fdc	util-dup-user.o
+
+Am I doing anything wrong?
+If you still feel this is unnecessary bloatness, perhaps I could think of
+something depending on CONFIG_TRACING (though I know
+we all hate those nasty ifdefs).
+
+Anyway, thanks for the review,
+Ezequiel.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
