@@ -1,77 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
-	by kanga.kvack.org (Postfix) with SMTP id E9BDC6B005D
-	for <linux-mm@kvack.org>; Wed, 26 Sep 2012 05:04:26 -0400 (EDT)
-Date: Wed, 26 Sep 2012 10:03:43 +0100
-From: "Daniel P. Berrange" <berrange@redhat.com>
-Subject: Re: [RFC 2/4] memcg: make it suck faster
-Message-ID: <20120926090343.GB31968@redhat.com>
-Reply-To: "Daniel P. Berrange" <berrange@redhat.com>
-References: <1348563173-8952-1-git-send-email-glommer@parallels.com>
- <1348563173-8952-3-git-send-email-glommer@parallels.com>
- <20120925140236.b0b089e7.akpm@linux-foundation.org>
- <5062C281.4080805@parallels.com>
+Received: from psmtp.com (na3sys010amx110.postini.com [74.125.245.110])
+	by kanga.kvack.org (Postfix) with SMTP id 9C1996B002B
+	for <linux-mm@kvack.org>; Wed, 26 Sep 2012 05:44:03 -0400 (EDT)
+Message-ID: <5062CE1E.3010203@cn.fujitsu.com>
+Date: Wed, 26 Sep 2012 17:42:54 +0800
+From: Wanlong Gao <gaowanlong@cn.fujitsu.com>
+Reply-To: gaowanlong@cn.fujitsu.com
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <5062C281.4080805@parallels.com>
+Subject: Re: [PATCH 1/3] zsmalloc: promote to lib/
+References: <1348649419-16494-1-git-send-email-minchan@kernel.org> <1348649419-16494-2-git-send-email-minchan@kernel.org>
+In-Reply-To: <1348649419-16494-2-git-send-email-minchan@kernel.org>
+Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org, devel@openvz.org, Peter Zijlstra <a.p.zijlstra@chello.nl>, Michal Hocko <mhocko@suse.cz>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Jens Axboe <axboe@kernel.dk>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Nitin Gupta <ngupta@vflare.org>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, Sep 26, 2012 at 12:53:21PM +0400, Glauber Costa wrote:
-> On 09/26/2012 01:02 AM, Andrew Morton wrote:
-> >> nomemcg  : memcg compile disabled.
-> >> > base     : memcg enabled, patch not applied.
-> >> > bypassed : memcg enabled, with patch applied.
-> >> > 
-> >> >                 base    bypassed
-> >> > User          109.12      105.64
-> >> > System       1646.84     1597.98
-> >> > Elapsed       229.56      215.76
-> >> > 
-> >> >              nomemcg    bypassed
-> >> > User          104.35      105.64
-> >> > System       1578.19     1597.98
-> >> > Elapsed       212.33      215.76
-> >> > 
-> >> > So as one can see, the difference between base and nomemcg in terms
-> >> > of both system time and elapsed time is quite drastic, and consistent
-> >> > with the figures shown by Mel Gorman in the Kernel summit. This is a
-> >> > ~ 7 % drop in performance, just by having memcg enabled. memcg functions
-> >> > appear heavily in the profiles, even if all tasks lives in the root
-> >> > memcg.
-> >> > 
-> >> > With bypassed kernel, we drop this down to 1.5 %, which starts to fall
-> >> > in the acceptable range. More investigation is needed to see if we can
-> >> > claim that last percent back, but I believe at last part of it should
-> >> > be.
-> > Well that's encouraging.  I wonder how many users will actually benefit
-> > from this - did I hear that major distros are now using memcg in some
-> > system-infrastructure-style code?
-> > 
+On 09/26/2012 04:50 PM, Minchan Kim wrote:
+> This patch promotes the slab-based zsmalloc memory allocator
+> from the staging tree to lib/
 > 
-> If they do, they actually be come "users of memcg". This here is aimed
-> at non-users of memcg, which given all the whining about it, it seems to
-> be plenty.
+> zcache/zram depends on this allocator for storing compressed RAM pages
+> in an efficient way under system wide memory pressure where
+> high-order (greater than 0) page allocation are very likely to
+> fail.
 > 
-> Also, I noticed, for instance, that libvirt is now creating memcg
-> hierarchies for lxc and qemu as placeholders, before you actually create
-> any vm or container.
+> For more information on zsmalloc and its internals, read the
+> documentation at the top of the zsmalloc.c file.
+> 
+> Signed-off-by: Minchan Kim <minchan@kernel.org>
+> ---
+>  drivers/staging/Kconfig                  |    2 -
+>  drivers/staging/Makefile                 |    1 -
+>  drivers/staging/zcache/zcache-main.c     |    4 +-
+>  drivers/staging/zram/zram_drv.h          |    3 +-
+>  drivers/staging/zsmalloc/Kconfig         |   10 -
+>  drivers/staging/zsmalloc/Makefile        |    3 -
+>  drivers/staging/zsmalloc/zsmalloc-main.c | 1064 ------------------------------
+>  drivers/staging/zsmalloc/zsmalloc.h      |   43 --
+>  include/linux/zsmalloc.h                 |   43 ++
+>  lib/Kconfig                              |    2 +
+>  lib/Makefile                             |    1 +
+>  lib/zsmalloc/Kconfig                     |   18 +
+>  lib/zsmalloc/Makefile                    |    1 +
+>  lib/zsmalloc/zsmalloc.c                  | 1064 ++++++++++++++++++++++++++++++
+>  14 files changed, 1132 insertions(+), 1127 deletions(-)
+>  delete mode 100644 drivers/staging/zsmalloc/Kconfig
+>  delete mode 100644 drivers/staging/zsmalloc/Makefile
+>  delete mode 100644 drivers/staging/zsmalloc/zsmalloc-main.c
+>  delete mode 100644 drivers/staging/zsmalloc/zsmalloc.h
+>  create mode 100644 include/linux/zsmalloc.h
+>  create mode 100644 lib/zsmalloc/Kconfig
+>  create mode 100644 lib/zsmalloc/Makefile
+>  create mode 100644 lib/zsmalloc/zsmalloc.c
 
-This is mostly just lazyness on our part. There's no technical reason
-why we can't delay creating our intermediate cgroups until we actually
-have a VM ready to start, it was just simpler to create them when we
-started the main daemon.
+Since there's just one file here, why not just move to lib flatly without creating a new directory?
 
-
-Daniel
--- 
-|: http://berrange.com      -o-    http://www.flickr.com/photos/dberrange/ :|
-|: http://libvirt.org              -o-             http://virt-manager.org :|
-|: http://autobuild.org       -o-         http://search.cpan.org/~danberr/ :|
-|: http://entangle-photo.org       -o-       http://live.gnome.org/gtk-vnc :|
+Thanks,
+Wanlong Gao
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
