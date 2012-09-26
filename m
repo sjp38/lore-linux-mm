@@ -1,81 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
-	by kanga.kvack.org (Postfix) with SMTP id DB3AE6B005D
-	for <linux-mm@kvack.org>; Wed, 26 Sep 2012 10:43:00 -0400 (EDT)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH] pagemap: fix wrong KPF_THP on slab pages
-Date: Wed, 26 Sep 2012 10:42:43 -0400
-Message-Id: <1348670563-7755-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <20120926073841.GA26028@localhost>
+Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
+	by kanga.kvack.org (Postfix) with SMTP id 51BC66B005D
+	for <linux-mm@kvack.org>; Wed, 26 Sep 2012 10:57:23 -0400 (EDT)
+Date: Wed, 26 Sep 2012 14:57:21 +0000
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH] slab: Ignore internal flags in cache creation
+In-Reply-To: <alpine.DEB.2.00.1209251744580.22521@chino.kir.corp.google.com>
+Message-ID: <0000013a03150b18-b7c1bfbe-967f-4c33-86e0-f3ca344706cd-000000@email.amazonses.com>
+References: <1348571866-31738-1-git-send-email-glommer@parallels.com> <00000139fe408877-40bc98e3-322c-4ba2-be72-e298ff28e694-000000@email.amazonses.com> <alpine.DEB.2.00.1209251744580.22521@chino.kir.corp.google.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi.kleen@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: David Rientjes <rientjes@google.com>
+Cc: Glauber Costa <glommer@parallels.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michal Hocko <mhocko@suse.cz>, Pekka Enberg <penberg@cs.helsinki.fi>
 
-On Wed, Sep 26, 2012 at 03:38:41PM +0800, Fengguang Wu wrote:
-> On Wed, Sep 26, 2012 at 02:06:08AM -0400, Naoya Horiguchi wrote:
-> > On Wed, Sep 26, 2012 at 12:02:34AM -0400, Naoya Horiguchi wrote:
-> > ...
-> > > > > +	 * page is a thp, not a non-huge compound page.
-> > > > > +	 */
-> > > > > +	else if (PageTransCompound(page) && !PageSlab(page))
-> > > > >  		u |= 1 << KPF_THP;
-> > > > 
-> > > > Good catch!
-> > > > 
-> > > > Will this report THP for the various drivers that do __GFP_COMP
-> > > > page allocations?
-> > > 
-> > > I'm afraid it will. I think of checking PageLRU as an alternative,
-> > > but it needs compound_head() to report tail pages correctly.
-> > > In this context, pages are not pinned or locked, so it's unsafe to
-> > > use compound_head() because it can return a dangling pointer.
-> > > Maybe it's a thp's/hugetlbfs's (not kpageflags specific) problem,
-> > > so going forward with compound_head() expecting that it will be
-> > > fixed in the future work can be an option.
-> > 
-> > It seems that compound_trans_head() solves this problem, so I'll
-> > simply use it.
-> 
-> Naoya, in fact I didn't quite catch your concerns. Why not just test
-> 
->         PageTransCompound(page) && PageLRU(page)
+On Tue, 25 Sep 2012, David Rientjes wrote:
 
-If we simply check PageLRU, tail pages in thp only show KPF_COMPOUND_TAIL
-and we can't distinguish them from tail pages in non-huge compound pages.
+> Nack, this is already handled by CREATE_MASK in the mm/slab.c allocator;
 
-Moreover this behavior is not consistent with that of hugetlbfs tail
-pages where tail pages also have KPF_HUGE and are distinct from non-huge
-compound pages. I show the output of page-types:
+CREATE_MASK defines legal flags that can be specified. Other flags cause
+and error. This is about flags that are internal that should be ignored
+when specified.
 
-  offset  len     flags
-  ...
-  2d400   1       ___U_lA____Ma_bH______t____________ (thp head)
-  2d401   1ff     ________________T__________________ (thp tail) # no KPF_THP
-  ...
-  77000   1       ___U_______Ma__H_G_________________ (hugetlbfs head)
-  77001   1ff     ________________TG_________________ (hugetlbfs tail)
-  ...
-  11fb50  1       _______________H___________________ (compound head)
-  11fb51  3       ________________T__________________ (compound tail)
-  ...
-  11fb58  1       _______S_______H___________________ (slab head)
-  11fb59  7       ________________T__________________ (slab tail)
+I think it makes sense to reserve some top flags for internal purposes.
 
-    H: KPF_COMPOUND_HEAD   T: KPF_COMPOUND_TAIL
-    G: KPF_HUGE            t: KPF_THP
+> the flag extensions beyond those defined in the generic slab.h header are
+> implementation defined.  It may be true that SLAB uses a bit only
+> internally (and already protects it with a BUG_ON() in
+> __kmem_cache_create()) but that doesn't mean other implementations can't
+> use such a flag that would be a no-op on another allocator.
 
-So I think it's better to set KPF_THP on thp tail pages.
-  
-> The whole page flag report thing is inherently racy and it's fine to
-> report wrong values due to races. The "__GFP_COMP reported as THP",
-> however, should be avoided because it will make consistent wrong
-> reporting of page flags.
+Other implementations such as SLUB also use the bits in that high range.
 
-Yes, I agree with this point.
-
-Thanks,
-Naoya
+Simply ignoring the internal bits on cache creation if they are set is
+IMHO not a bit issue and simplifies Glaubers task.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
