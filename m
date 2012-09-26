@@ -1,95 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
-	by kanga.kvack.org (Postfix) with SMTP id 123426B002B
-	for <linux-mm@kvack.org>; Tue, 25 Sep 2012 20:20:00 -0400 (EDT)
-Date: Wed, 26 Sep 2012 09:23:06 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH 5/9] mm: compaction: Acquire the zone->lru_lock as late
- as possible
-Message-ID: <20120926002306.GB7759@bbox>
-References: <1348224383-1499-1-git-send-email-mgorman@suse.de>
- <1348224383-1499-6-git-send-email-mgorman@suse.de>
- <20120925070517.GK13234@bbox>
- <20120925075105.GC11266@suse.de>
- <20120925081327.GA7759@bbox>
- <20120925143931.f404ca22.akpm@linux-foundation.org>
+Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
+	by kanga.kvack.org (Postfix) with SMTP id 4697B6B002B
+	for <linux-mm@kvack.org>; Tue, 25 Sep 2012 20:20:53 -0400 (EDT)
+Received: by pbbrq2 with SMTP id rq2so1088671pbb.14
+        for <linux-mm@kvack.org>; Tue, 25 Sep 2012 17:20:52 -0700 (PDT)
+Date: Tue, 25 Sep 2012 17:20:48 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH] pagemap: fix wrong KPF_THP on slab pages
+In-Reply-To: <1348592715-31006-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+Message-ID: <alpine.DEB.2.00.1209251719400.21751@chino.kir.corp.google.com>
+References: <1348592715-31006-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120925143931.f404ca22.akpm@linux-foundation.org>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mgorman@suse.de>, Richard Davies <richard@arachsys.com>, Shaohua Li <shli@kernel.org>, Rik van Riel <riel@redhat.com>, Avi Kivity <avi@redhat.com>, QEMU-devel <qemu-devel@nongnu.org>, KVM <kvm@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Wu Fengguang <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi.kleen@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, Sep 25, 2012 at 02:39:31PM -0700, Andrew Morton wrote:
-> On Tue, 25 Sep 2012 17:13:27 +0900
-> Minchan Kim <minchan@kernel.org> wrote:
-> 
-> > I see. To me, your saying is better than current comment.
-> > I hope comment could be more explicit.
-> > 
-> > diff --git a/mm/compaction.c b/mm/compaction.c
-> > index df01b4e..f1d2cc7 100644
-> > --- a/mm/compaction.c
-> > +++ b/mm/compaction.c
-> > @@ -542,8 +542,9 @@ isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
-> >                  * splitting and collapsing (collapsing has already happened
-> >                  * if PageLRU is set) but the lock is not necessarily taken
-> >                  * here and it is wasteful to take it just to check transhuge.
-> > -                * Check transhuge without lock and skip if it's either a
-> > -                * transhuge or hugetlbfs page.
-> > +                * Check transhuge without lock and *skip* if it's either a
-> > +                * transhuge or hugetlbfs page because it's not safe to call
-> > +                * compound_order.
-> >                  */
-> >                 if (PageTransHuge(page)) {
-> >                         if (!locked)
-> 
-> Going a bit further:
-> 
-> --- a/mm/compaction.c~mm-compaction-acquire-the-zone-lru_lock-as-late-as-possible-fix
-> +++ a/mm/compaction.c
-> @@ -415,7 +415,8 @@ isolate_migratepages_range(struct zone *
->  		 * if PageLRU is set) but the lock is not necessarily taken
->  		 * here and it is wasteful to take it just to check transhuge.
->  		 * Check transhuge without lock and skip if it's either a
-> -		 * transhuge or hugetlbfs page.
-> +		 * transhuge or hugetlbfs page because calling compound_order()
-> +		 * requires lru_lock to exclude isolation and splitting.
->  		 */
->  		if (PageTransHuge(page)) {
->  			if (!locked)
-> _
-> 
-> 
-> but...  the requirement to hold lru_lock for compound_order() is news
-> to me.  It doesn't seem to be written down or explained anywhere, and
-> one wonders why the cheerily undocumented compound_lock() doesn't have
-> this effect.  What's going on here??
+On Tue, 25 Sep 2012, Naoya Horiguchi wrote:
 
-First of all, I don't know why we should mention hugetlbfs in comment.
-I don't know hugetlbfs well so I had a time to look through code but
-can't find a place setting PG_lru so I'm not sure hugetlbfs page can
-reach on this code. Please correct me if I was wrong.
-
-On THP, I think compound_lock you mentioned is okay, too but I think
-it's sort of optimization because we don't need both lru_lock and
-compound_lock. If we hold lru_lock, we can't prevent race with
-__split_huge_page_refcount so that the page couldn't be freed.
-
-Namely, it's safe to call compound_order.
-
+> KPF_THP can be set on non-huge compound pages like slab pages, because
+> PageTransCompound only sees PG_head and PG_tail. Obviously this is a bug
+> and breaks user space applications which look for thp via /proc/kpageflags.
+> Currently thp is constructed only on anonymous pages, so this patch makes
+> KPF_THP be set when both of PageAnon and PageTransCompound are true.
 > 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> Changelog in v2:
+>   - add a comment in code
+> 
+> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 
--- 
-Kind regards,
-Minchan Kim
+Wouldn't PageTransCompound(page) && !PageHuge(page) && !PageSlab(page) be 
+better for a future extension of thp support?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
