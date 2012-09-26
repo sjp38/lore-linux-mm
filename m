@@ -1,58 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
-	by kanga.kvack.org (Postfix) with SMTP id 478F56B002B
-	for <linux-mm@kvack.org>; Wed, 26 Sep 2012 02:47:04 -0400 (EDT)
-From: Minchan Kim <minchan@kernel.org>
-Subject: [PATCH] CMA: decrease cc.nr_migratepages after reclaiming pagelist
-Date: Wed, 26 Sep 2012 15:50:12 +0900
-Message-Id: <1348642212-29394-1-git-send-email-minchan@kernel.org>
+Received: from psmtp.com (na3sys010amx135.postini.com [74.125.245.135])
+	by kanga.kvack.org (Postfix) with SMTP id 4A3F26B0044
+	for <linux-mm@kvack.org>; Wed, 26 Sep 2012 03:38:48 -0400 (EDT)
+Date: Wed, 26 Sep 2012 15:38:41 +0800
+From: Fengguang Wu <fengguang.wu@intel.com>
+Subject: Re: [PATCH] pagemap: fix wrong KPF_THP on slab pages
+Message-ID: <20120926073841.GA26028@localhost>
+References: <1348632154-31508-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <1348639568-10648-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1348639568-10648-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, Michal Nazarewicz <mina86@mina86.com>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Marek Szyprowski <m.szyprowski@samsung.com>
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi.kleen@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-The reclaim_clean_pages_from_list reclaims clean pages before
-migration so cc.nr_migratepages should be updated.
-Currently, there is no problem but it can be wrong if we
-try to use the vaule in future.
+On Wed, Sep 26, 2012 at 02:06:08AM -0400, Naoya Horiguchi wrote:
+> On Wed, Sep 26, 2012 at 12:02:34AM -0400, Naoya Horiguchi wrote:
+> ...
+> > > > +	 * page is a thp, not a non-huge compound page.
+> > > > +	 */
+> > > > +	else if (PageTransCompound(page) && !PageSlab(page))
+> > > >  		u |= 1 << KPF_THP;
+> > > 
+> > > Good catch!
+> > > 
+> > > Will this report THP for the various drivers that do __GFP_COMP
+> > > page allocations?
+> > 
+> > I'm afraid it will. I think of checking PageLRU as an alternative,
+> > but it needs compound_head() to report tail pages correctly.
+> > In this context, pages are not pinned or locked, so it's unsafe to
+> > use compound_head() because it can return a dangling pointer.
+> > Maybe it's a thp's/hugetlbfs's (not kpageflags specific) problem,
+> > so going forward with compound_head() expecting that it will be
+> > fixed in the future work can be an option.
+> 
+> It seems that compound_trans_head() solves this problem, so I'll
+> simply use it.
 
-Cc: Mel Gorman <mgorman@suse.de>
-Cc: Michal Nazarewicz <mina86@mina86.com>
-Cc: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
-Cc: Marek Szyprowski <m.szyprowski@samsung.com>
-Signed-off-by: Minchan Kim <minchan@kernel.org>
----
-I found this problem during I develop new feature. :(
+Naoya, in fact I didn't quite catch your concerns. Why not just test
 
- mm/page_alloc.c |    6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+        PageTransCompound(page) && PageLRU(page)
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 296bea9..4b7dced 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -5669,7 +5669,7 @@ static unsigned long pfn_max_align_up(unsigned long pfn)
- static int __alloc_contig_migrate_range(unsigned long start, unsigned long end)
- {
- 	/* This function is based on compact_zone() from compaction.c. */
--
-+	unsigned long nr_reclaimed;
- 	unsigned long pfn = start;
- 	unsigned int tries = 0;
- 	int ret = 0;
-@@ -5705,7 +5705,9 @@ static int __alloc_contig_migrate_range(unsigned long start, unsigned long end)
- 			break;
- 		}
- 
--		reclaim_clean_pages_from_list(cc.zone, &cc.migratepages);
-+		nr_reclaimed = reclaim_clean_pages_from_list(cc.zone,
-+							&cc.migratepages);
-+		cc.nr_migratepages -= nr_reclaimed;
- 
- 		ret = migrate_pages(&cc.migratepages,
- 				    alloc_migrate_target,
--- 
-1.7.9.5
+The whole page flag report thing is inherently racy and it's fine to
+report wrong values due to races. The "__GFP_COMP reported as THP",
+however, should be avoided because it will make consistent wrong
+reporting of page flags.
+
+Thanks,
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
