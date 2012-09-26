@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
-	by kanga.kvack.org (Postfix) with SMTP id 451CA6B0062
-	for <linux-mm@kvack.org>; Wed, 26 Sep 2012 04:47:13 -0400 (EDT)
+	by kanga.kvack.org (Postfix) with SMTP id D91996B006C
+	for <linux-mm@kvack.org>; Wed, 26 Sep 2012 04:47:15 -0400 (EDT)
 From: Minchan Kim <minchan@kernel.org>
-Subject: [PATCH 1/3] zsmalloc: promote to lib/
-Date: Wed, 26 Sep 2012 17:50:17 +0900
-Message-Id: <1348649419-16494-2-git-send-email-minchan@kernel.org>
+Subject: [PATCH 2/3] zram: promote zram from staging
+Date: Wed, 26 Sep 2012 17:50:18 +0900
+Message-Id: <1348649419-16494-3-git-send-email-minchan@kernel.org>
 In-Reply-To: <1348649419-16494-1-git-send-email-minchan@kernel.org>
 References: <1348649419-16494-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
@@ -13,2417 +13,2634 @@ List-ID: <linux-mm.kvack.org>
 To: Jens Axboe <axboe@kernel.dk>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 Cc: Nitin Gupta <ngupta@vflare.org>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Minchan Kim <minchan@kernel.org>
 
-This patch promotes the slab-based zsmalloc memory allocator
-from the staging tree to lib/
+It's time to promote zram from staging because zram is in staging
+for a long time and is improved by many contributors so code is
+very clean. Most important issue, zram's dependency with x86 is
+solved by making zsmalloc portable. In addition, many embedded
+product uses zram in real practive so I think there is no reason
+to prevent promotion now.
 
-zcache/zram depends on this allocator for storing compressed RAM pages
-in an efficient way under system wide memory pressure where
-high-order (greater than 0) page allocation are very likely to
-fail.
-
-For more information on zsmalloc and its internals, read the
-documentation at the top of the zsmalloc.c file.
-
+Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Cc: Nitin Gupta <ngupta@vflare.org>
 Signed-off-by: Minchan Kim <minchan@kernel.org>
 ---
- drivers/staging/Kconfig                  |    2 -
- drivers/staging/Makefile                 |    1 -
- drivers/staging/zcache/zcache-main.c     |    4 +-
- drivers/staging/zram/zram_drv.h          |    3 +-
- drivers/staging/zsmalloc/Kconfig         |   10 -
- drivers/staging/zsmalloc/Makefile        |    3 -
- drivers/staging/zsmalloc/zsmalloc-main.c | 1064 ------------------------------
- drivers/staging/zsmalloc/zsmalloc.h      |   43 --
- include/linux/zsmalloc.h                 |   43 ++
- lib/Kconfig                              |    2 +
- lib/Makefile                             |    1 +
- lib/zsmalloc/Kconfig                     |   18 +
- lib/zsmalloc/Makefile                    |    1 +
- lib/zsmalloc/zsmalloc.c                  | 1064 ++++++++++++++++++++++++++++++
- 14 files changed, 1132 insertions(+), 1127 deletions(-)
- delete mode 100644 drivers/staging/zsmalloc/Kconfig
- delete mode 100644 drivers/staging/zsmalloc/Makefile
- delete mode 100644 drivers/staging/zsmalloc/zsmalloc-main.c
- delete mode 100644 drivers/staging/zsmalloc/zsmalloc.h
- create mode 100644 include/linux/zsmalloc.h
- create mode 100644 lib/zsmalloc/Kconfig
- create mode 100644 lib/zsmalloc/Makefile
- create mode 100644 lib/zsmalloc/zsmalloc.c
+ drivers/block/Kconfig             |    1 +
+ drivers/block/Makefile            |    1 +
+ drivers/block/zram/Kconfig        |   25 ++
+ drivers/block/zram/Makefile       |    3 +
+ drivers/block/zram/zram.txt       |   76 ++++
+ drivers/block/zram/zram_drv.c     |  785 +++++++++++++++++++++++++++++++++++++
+ drivers/block/zram/zram_drv.h     |  119 ++++++
+ drivers/block/zram/zram_sysfs.c   |  225 +++++++++++
+ drivers/staging/Kconfig           |    2 -
+ drivers/staging/Makefile          |    1 -
+ drivers/staging/zram/Kconfig      |   25 --
+ drivers/staging/zram/Makefile     |    3 -
+ drivers/staging/zram/zram.txt     |   76 ----
+ drivers/staging/zram/zram_drv.c   |  785 -------------------------------------
+ drivers/staging/zram/zram_drv.h   |  119 ------
+ drivers/staging/zram/zram_sysfs.c |  225 -----------
+ 16 files changed, 1235 insertions(+), 1236 deletions(-)
+ create mode 100644 drivers/block/zram/Kconfig
+ create mode 100644 drivers/block/zram/Makefile
+ create mode 100644 drivers/block/zram/zram.txt
+ create mode 100644 drivers/block/zram/zram_drv.c
+ create mode 100644 drivers/block/zram/zram_drv.h
+ create mode 100644 drivers/block/zram/zram_sysfs.c
+ delete mode 100644 drivers/staging/zram/Kconfig
+ delete mode 100644 drivers/staging/zram/Makefile
+ delete mode 100644 drivers/staging/zram/zram.txt
+ delete mode 100644 drivers/staging/zram/zram_drv.c
+ delete mode 100644 drivers/staging/zram/zram_drv.h
+ delete mode 100644 drivers/staging/zram/zram_sysfs.c
 
-diff --git a/drivers/staging/Kconfig b/drivers/staging/Kconfig
-index 449f04a..4316ef5 100644
---- a/drivers/staging/Kconfig
-+++ b/drivers/staging/Kconfig
-@@ -78,8 +78,6 @@ source "drivers/staging/zram/Kconfig"
+diff --git a/drivers/block/Kconfig b/drivers/block/Kconfig
+index f7de322..3e3087e 100644
+--- a/drivers/block/Kconfig
++++ b/drivers/block/Kconfig
+@@ -290,6 +290,7 @@ config BLK_DEV_CRYPTOLOOP
+ 	  cryptoloop device.
  
- source "drivers/staging/zcache/Kconfig"
+ source "drivers/block/drbd/Kconfig"
++source "drivers/block/zram/Kconfig"
  
--source "drivers/staging/zsmalloc/Kconfig"
--
- source "drivers/staging/wlags49_h2/Kconfig"
+ config BLK_DEV_NBD
+ 	tristate "Network block device support"
+diff --git a/drivers/block/Makefile b/drivers/block/Makefile
+index 17e82df..0751c43 100644
+--- a/drivers/block/Makefile
++++ b/drivers/block/Makefile
+@@ -30,6 +30,7 @@ obj-$(CONFIG_BLK_DEV_UMEM)	+= umem.o
+ obj-$(CONFIG_BLK_DEV_NBD)	+= nbd.o
+ obj-$(CONFIG_BLK_DEV_CRYPTOLOOP) += cryptoloop.o
+ obj-$(CONFIG_VIRTIO_BLK)	+= virtio_blk.o
++obj-$(CONFIG_ZRAM)	+= zram/
  
- source "drivers/staging/wlags49_h25/Kconfig"
-diff --git a/drivers/staging/Makefile b/drivers/staging/Makefile
-index a19abe5..db18726 100644
---- a/drivers/staging/Makefile
-+++ b/drivers/staging/Makefile
-@@ -34,7 +34,6 @@ obj-$(CONFIG_DX_SEP)            += sep/
- obj-$(CONFIG_IIO)		+= iio/
- obj-$(CONFIG_ZRAM)		+= zram/
- obj-$(CONFIG_ZCACHE)		+= zcache/
--obj-$(CONFIG_ZSMALLOC)		+= zsmalloc/
- obj-$(CONFIG_WLAGS49_H2)	+= wlags49_h2/
- obj-$(CONFIG_WLAGS49_H25)	+= wlags49_h25/
- obj-$(CONFIG_FB_SM7XX)		+= sm7xxfb/
-diff --git a/drivers/staging/zcache/zcache-main.c b/drivers/staging/zcache/zcache-main.c
-index 52b43b7..34b2c5c 100644
---- a/drivers/staging/zcache/zcache-main.c
-+++ b/drivers/staging/zcache/zcache-main.c
-@@ -32,9 +32,9 @@
- #include <linux/crypto.h>
- #include <linux/string.h>
- #include <linux/idr.h>
--#include "tmem.h"
-+#include <linux/zsmalloc.h>
- 
--#include "../zsmalloc/zsmalloc.h"
-+#include "tmem.h"
- 
- #ifdef CONFIG_CLEANCACHE
- #include <linux/cleancache.h>
-diff --git a/drivers/staging/zram/zram_drv.h b/drivers/staging/zram/zram_drv.h
-index 572c0b1..f6d0925 100644
---- a/drivers/staging/zram/zram_drv.h
-+++ b/drivers/staging/zram/zram_drv.h
-@@ -17,8 +17,7 @@
- 
- #include <linux/spinlock.h>
- #include <linux/mutex.h>
--
--#include "../zsmalloc/zsmalloc.h"
-+#include <linux/zsmalloc.h>
- 
- /*
-  * Some arbitrary value. This is just to catch
-diff --git a/drivers/staging/zsmalloc/Kconfig b/drivers/staging/zsmalloc/Kconfig
-deleted file mode 100644
-index 9084565..0000000
---- a/drivers/staging/zsmalloc/Kconfig
-+++ /dev/null
-@@ -1,10 +0,0 @@
--config ZSMALLOC
--	tristate "Memory allocator for compressed pages"
--	default n
--	help
--	  zsmalloc is a slab-based memory allocator designed to store
--	  compressed RAM pages.  zsmalloc uses virtual memory mapping
--	  in order to reduce fragmentation.  However, this results in a
--	  non-standard allocator interface where a handle, not a pointer, is
--	  returned by an alloc().  This handle must be mapped in order to
--	  access the allocated space.
-diff --git a/drivers/staging/zsmalloc/Makefile b/drivers/staging/zsmalloc/Makefile
-deleted file mode 100644
-index b134848..0000000
---- a/drivers/staging/zsmalloc/Makefile
-+++ /dev/null
-@@ -1,3 +0,0 @@
--zsmalloc-y 		:= zsmalloc-main.o
--
--obj-$(CONFIG_ZSMALLOC)	+= zsmalloc.o
-diff --git a/drivers/staging/zsmalloc/zsmalloc-main.c b/drivers/staging/zsmalloc/zsmalloc-main.c
-deleted file mode 100644
-index 09a9d35..0000000
---- a/drivers/staging/zsmalloc/zsmalloc-main.c
-+++ /dev/null
-@@ -1,1064 +0,0 @@
--/*
-- * zsmalloc memory allocator
-- *
-- * Copyright (C) 2011  Nitin Gupta
-- *
-- * This code is released using a dual license strategy: BSD/GPL
-- * You can choose the license that better fits your requirements.
-- *
-- * Released under the terms of 3-clause BSD License
-- * Released under the terms of GNU General Public License Version 2.0
-- */
--
--
--/*
-- * This allocator is designed for use with zcache and zram. Thus, the
-- * allocator is supposed to work well under low memory conditions. In
-- * particular, it never attempts higher order page allocation which is
-- * very likely to fail under memory pressure. On the other hand, if we
-- * just use single (0-order) pages, it would suffer from very high
-- * fragmentation -- any object of size PAGE_SIZE/2 or larger would occupy
-- * an entire page. This was one of the major issues with its predecessor
-- * (xvmalloc).
-- *
-- * To overcome these issues, zsmalloc allocates a bunch of 0-order pages
-- * and links them together using various 'struct page' fields. These linked
-- * pages act as a single higher-order page i.e. an object can span 0-order
-- * page boundaries. The code refers to these linked pages as a single entity
-- * called zspage.
-- *
-- * Following is how we use various fields and flags of underlying
-- * struct page(s) to form a zspage.
-- *
-- * Usage of struct page fields:
-- *	page->first_page: points to the first component (0-order) page
-- *	page->index (union with page->freelist): offset of the first object
-- *		starting in this page. For the first page, this is
-- *		always 0, so we use this field (aka freelist) to point
-- *		to the first free object in zspage.
-- *	page->lru: links together all component pages (except the first page)
-- *		of a zspage
-- *
-- *	For _first_ page only:
-- *
-- *	page->private (union with page->first_page): refers to the
-- *		component page after the first page
-- *	page->freelist: points to the first free object in zspage.
-- *		Free objects are linked together using in-place
-- *		metadata.
-- *	page->objects: maximum number of objects we can store in this
-- *		zspage (class->zspage_order * PAGE_SIZE / class->size)
-- *	page->lru: links together first pages of various zspages.
-- *		Basically forming list of zspages in a fullness group.
-- *	page->mapping: class index and fullness group of the zspage
-- *
-- * Usage of struct page flags:
-- *	PG_private: identifies the first component page
-- *	PG_private2: identifies the last component page
-- *
-- */
--
--#ifdef CONFIG_ZSMALLOC_DEBUG
--#define DEBUG
--#endif
--
--#include <linux/module.h>
--#include <linux/kernel.h>
--#include <linux/bitops.h>
--#include <linux/errno.h>
--#include <linux/highmem.h>
--#include <linux/init.h>
--#include <linux/string.h>
--#include <linux/slab.h>
--#include <asm/tlbflush.h>
--#include <asm/pgtable.h>
--#include <linux/cpumask.h>
--#include <linux/cpu.h>
--#include <linux/vmalloc.h>
--#include <linux/hardirq.h>
--#include <linux/spinlock.h>
--#include <linux/types.h>
--
--#include "zsmalloc.h"
--
--/*
-- * This must be power of 2 and greater than of equal to sizeof(link_free).
-- * These two conditions ensure that any 'struct link_free' itself doesn't
-- * span more than 1 page which avoids complex case of mapping 2 pages simply
-- * to restore link_free pointer values.
-- */
--#define ZS_ALIGN		8
--
--/*
-- * A single 'zspage' is composed of up to 2^N discontiguous 0-order (single)
-- * pages. ZS_MAX_ZSPAGE_ORDER defines upper limit on N.
-- */
--#define ZS_MAX_ZSPAGE_ORDER 2
--#define ZS_MAX_PAGES_PER_ZSPAGE (_AC(1, UL) << ZS_MAX_ZSPAGE_ORDER)
--
--/*
-- * Object location (<PFN>, <obj_idx>) is encoded as
-- * as single (void *) handle value.
-- *
-- * Note that object index <obj_idx> is relative to system
-- * page <PFN> it is stored in, so for each sub-page belonging
-- * to a zspage, obj_idx starts with 0.
-- *
-- * This is made more complicated by various memory models and PAE.
-- */
--
--#ifndef MAX_PHYSMEM_BITS
--#ifdef CONFIG_HIGHMEM64G
--#define MAX_PHYSMEM_BITS 36
--#else /* !CONFIG_HIGHMEM64G */
--/*
-- * If this definition of MAX_PHYSMEM_BITS is used, OBJ_INDEX_BITS will just
-- * be PAGE_SHIFT
-- */
--#define MAX_PHYSMEM_BITS BITS_PER_LONG
--#endif
--#endif
--#define _PFN_BITS		(MAX_PHYSMEM_BITS - PAGE_SHIFT)
--#define OBJ_INDEX_BITS	(BITS_PER_LONG - _PFN_BITS)
--#define OBJ_INDEX_MASK	((_AC(1, UL) << OBJ_INDEX_BITS) - 1)
--
--#define MAX(a, b) ((a) >= (b) ? (a) : (b))
--/* ZS_MIN_ALLOC_SIZE must be multiple of ZS_ALIGN */
--#define ZS_MIN_ALLOC_SIZE \
--	MAX(32, (ZS_MAX_PAGES_PER_ZSPAGE << PAGE_SHIFT >> OBJ_INDEX_BITS))
--#define ZS_MAX_ALLOC_SIZE	PAGE_SIZE
--
--/*
-- * On systems with 4K page size, this gives 254 size classes! There is a
-- * trader-off here:
-- *  - Large number of size classes is potentially wasteful as free page are
-- *    spread across these classes
-- *  - Small number of size classes causes large internal fragmentation
-- *  - Probably its better to use specific size classes (empirically
-- *    determined). NOTE: all those class sizes must be set as multiple of
-- *    ZS_ALIGN to make sure link_free itself never has to span 2 pages.
-- *
-- *  ZS_MIN_ALLOC_SIZE and ZS_SIZE_CLASS_DELTA must be multiple of ZS_ALIGN
-- *  (reason above)
-- */
--#define ZS_SIZE_CLASS_DELTA	16
--#define ZS_SIZE_CLASSES		((ZS_MAX_ALLOC_SIZE - ZS_MIN_ALLOC_SIZE) / \
--					ZS_SIZE_CLASS_DELTA + 1)
--
--/*
-- * We do not maintain any list for completely empty or full pages
-- */
--enum fullness_group {
--	ZS_ALMOST_FULL,
--	ZS_ALMOST_EMPTY,
--	_ZS_NR_FULLNESS_GROUPS,
--
--	ZS_EMPTY,
--	ZS_FULL
--};
--
--/*
-- * We assign a page to ZS_ALMOST_EMPTY fullness group when:
-- *	n <= N / f, where
-- * n = number of allocated objects
-- * N = total number of objects zspage can store
-- * f = 1/fullness_threshold_frac
-- *
-- * Similarly, we assign zspage to:
-- *	ZS_ALMOST_FULL	when n > N / f
-- *	ZS_EMPTY	when n == 0
-- *	ZS_FULL		when n == N
-- *
-- * (see: fix_fullness_group())
-- */
--static const int fullness_threshold_frac = 4;
--
--struct size_class {
--	/*
--	 * Size of objects stored in this class. Must be multiple
--	 * of ZS_ALIGN.
--	 */
--	int size;
--	unsigned int index;
--
--	/* Number of PAGE_SIZE sized pages to combine to form a 'zspage' */
--	int pages_per_zspage;
--
--	spinlock_t lock;
--
--	/* stats */
--	u64 pages_allocated;
--
--	struct page *fullness_list[_ZS_NR_FULLNESS_GROUPS];
--};
--
--/*
-- * Placed within free objects to form a singly linked list.
-- * For every zspage, first_page->freelist gives head of this list.
-- *
-- * This must be power of 2 and less than or equal to ZS_ALIGN
-- */
--struct link_free {
--	/* Handle of next free chunk (encodes <PFN, obj_idx>) */
--	void *next;
--};
--
--struct zs_pool {
--	struct size_class size_class[ZS_SIZE_CLASSES];
--
--	gfp_t flags;	/* allocation flags used when growing pool */
--	const char *name;
--};
--
--/*
-- * A zspage's class index and fullness group
-- * are encoded in its (first)page->mapping
-- */
--#define CLASS_IDX_BITS	28
--#define FULLNESS_BITS	4
--#define CLASS_IDX_MASK	((1 << CLASS_IDX_BITS) - 1)
--#define FULLNESS_MASK	((1 << FULLNESS_BITS) - 1)
--
--/*
-- * By default, zsmalloc uses a copy-based object mapping method to access
-- * allocations that span two pages. However, if a particular architecture
-- * 1) Implements local_flush_tlb_kernel_range() and 2) Performs VM mapping
-- * faster than copying, then it should be added here so that
-- * USE_PGTABLE_MAPPING is defined. This causes zsmalloc to use page table
-- * mapping rather than copying
-- * for object mapping.
--*/
--#if defined(CONFIG_ARM)
--#define USE_PGTABLE_MAPPING
--#endif
--
--struct mapping_area {
--#ifdef USE_PGTABLE_MAPPING
--	struct vm_struct *vm; /* vm area for mapping object that span pages */
--#else
--	char *vm_buf; /* copy buffer for objects that span pages */
--#endif
--	char *vm_addr; /* address of kmap_atomic()'ed pages */
--	enum zs_mapmode vm_mm; /* mapping mode */
--};
--
--
--/* per-cpu VM mapping areas for zspage accesses that cross page boundaries */
--static DEFINE_PER_CPU(struct mapping_area, zs_map_area);
--
--static int is_first_page(struct page *page)
--{
--	return PagePrivate(page);
--}
--
--static int is_last_page(struct page *page)
--{
--	return PagePrivate2(page);
--}
--
--static void get_zspage_mapping(struct page *page, unsigned int *class_idx,
--				enum fullness_group *fullness)
--{
--	unsigned long m;
--	BUG_ON(!is_first_page(page));
--
--	m = (unsigned long)page->mapping;
--	*fullness = m & FULLNESS_MASK;
--	*class_idx = (m >> FULLNESS_BITS) & CLASS_IDX_MASK;
--}
--
--static void set_zspage_mapping(struct page *page, unsigned int class_idx,
--				enum fullness_group fullness)
--{
--	unsigned long m;
--	BUG_ON(!is_first_page(page));
--
--	m = ((class_idx & CLASS_IDX_MASK) << FULLNESS_BITS) |
--			(fullness & FULLNESS_MASK);
--	page->mapping = (struct address_space *)m;
--}
--
--static int get_size_class_index(int size)
--{
--	int idx = 0;
--
--	if (likely(size > ZS_MIN_ALLOC_SIZE))
--		idx = DIV_ROUND_UP(size - ZS_MIN_ALLOC_SIZE,
--				ZS_SIZE_CLASS_DELTA);
--
--	return idx;
--}
--
--static enum fullness_group get_fullness_group(struct page *page)
--{
--	int inuse, max_objects;
--	enum fullness_group fg;
--	BUG_ON(!is_first_page(page));
--
--	inuse = page->inuse;
--	max_objects = page->objects;
--
--	if (inuse == 0)
--		fg = ZS_EMPTY;
--	else if (inuse == max_objects)
--		fg = ZS_FULL;
--	else if (inuse <= max_objects / fullness_threshold_frac)
--		fg = ZS_ALMOST_EMPTY;
--	else
--		fg = ZS_ALMOST_FULL;
--
--	return fg;
--}
--
--static void insert_zspage(struct page *page, struct size_class *class,
--				enum fullness_group fullness)
--{
--	struct page **head;
--
--	BUG_ON(!is_first_page(page));
--
--	if (fullness >= _ZS_NR_FULLNESS_GROUPS)
--		return;
--
--	head = &class->fullness_list[fullness];
--	if (*head)
--		list_add_tail(&page->lru, &(*head)->lru);
--
--	*head = page;
--}
--
--static void remove_zspage(struct page *page, struct size_class *class,
--				enum fullness_group fullness)
--{
--	struct page **head;
--
--	BUG_ON(!is_first_page(page));
--
--	if (fullness >= _ZS_NR_FULLNESS_GROUPS)
--		return;
--
--	head = &class->fullness_list[fullness];
--	BUG_ON(!*head);
--	if (list_empty(&(*head)->lru))
--		*head = NULL;
--	else if (*head == page)
--		*head = (struct page *)list_entry((*head)->lru.next,
--					struct page, lru);
--
--	list_del_init(&page->lru);
--}
--
--static enum fullness_group fix_fullness_group(struct zs_pool *pool,
--						struct page *page)
--{
--	int class_idx;
--	struct size_class *class;
--	enum fullness_group currfg, newfg;
--
--	BUG_ON(!is_first_page(page));
--
--	get_zspage_mapping(page, &class_idx, &currfg);
--	newfg = get_fullness_group(page);
--	if (newfg == currfg)
--		goto out;
--
--	class = &pool->size_class[class_idx];
--	remove_zspage(page, class, currfg);
--	insert_zspage(page, class, newfg);
--	set_zspage_mapping(page, class_idx, newfg);
--
--out:
--	return newfg;
--}
--
--/*
-- * We have to decide on how many pages to link together
-- * to form a zspage for each size class. This is important
-- * to reduce wastage due to unusable space left at end of
-- * each zspage which is given as:
-- *	wastage = Zp - Zp % size_class
-- * where Zp = zspage size = k * PAGE_SIZE where k = 1, 2, ...
-- *
-- * For example, for size class of 3/8 * PAGE_SIZE, we should
-- * link together 3 PAGE_SIZE sized pages to form a zspage
-- * since then we can perfectly fit in 8 such objects.
-- */
--static int get_pages_per_zspage(int class_size)
--{
--	int i, max_usedpc = 0;
--	/* zspage order which gives maximum used size per KB */
--	int max_usedpc_order = 1;
--
--	for (i = 1; i <= ZS_MAX_PAGES_PER_ZSPAGE; i++) {
--		int zspage_size;
--		int waste, usedpc;
--
--		zspage_size = i * PAGE_SIZE;
--		waste = zspage_size % class_size;
--		usedpc = (zspage_size - waste) * 100 / zspage_size;
--
--		if (usedpc > max_usedpc) {
--			max_usedpc = usedpc;
--			max_usedpc_order = i;
--		}
--	}
--
--	return max_usedpc_order;
--}
--
--/*
-- * A single 'zspage' is composed of many system pages which are
-- * linked together using fields in struct page. This function finds
-- * the first/head page, given any component page of a zspage.
-- */
--static struct page *get_first_page(struct page *page)
--{
--	if (is_first_page(page))
--		return page;
--	else
--		return page->first_page;
--}
--
--static struct page *get_next_page(struct page *page)
--{
--	struct page *next;
--
--	if (is_last_page(page))
--		next = NULL;
--	else if (is_first_page(page))
--		next = (struct page *)page->private;
--	else
--		next = list_entry(page->lru.next, struct page, lru);
--
--	return next;
--}
--
--/* Encode <page, obj_idx> as a single handle value */
--static void *obj_location_to_handle(struct page *page, unsigned long obj_idx)
--{
--	unsigned long handle;
--
--	if (!page) {
--		BUG_ON(obj_idx);
--		return NULL;
--	}
--
--	handle = page_to_pfn(page) << OBJ_INDEX_BITS;
--	handle |= (obj_idx & OBJ_INDEX_MASK);
--
--	return (void *)handle;
--}
--
--/* Decode <page, obj_idx> pair from the given object handle */
--static void obj_handle_to_location(unsigned long handle, struct page **page,
--				unsigned long *obj_idx)
--{
--	*page = pfn_to_page(handle >> OBJ_INDEX_BITS);
--	*obj_idx = handle & OBJ_INDEX_MASK;
--}
--
--static unsigned long obj_idx_to_offset(struct page *page,
--				unsigned long obj_idx, int class_size)
--{
--	unsigned long off = 0;
--
--	if (!is_first_page(page))
--		off = page->index;
--
--	return off + obj_idx * class_size;
--}
--
--static void reset_page(struct page *page)
--{
--	clear_bit(PG_private, &page->flags);
--	clear_bit(PG_private_2, &page->flags);
--	set_page_private(page, 0);
--	page->mapping = NULL;
--	page->freelist = NULL;
--	reset_page_mapcount(page);
--}
--
--static void free_zspage(struct page *first_page)
--{
--	struct page *nextp, *tmp, *head_extra;
--
--	BUG_ON(!is_first_page(first_page));
--	BUG_ON(first_page->inuse);
--
--	head_extra = (struct page *)page_private(first_page);
--
--	reset_page(first_page);
--	__free_page(first_page);
--
--	/* zspage with only 1 system page */
--	if (!head_extra)
--		return;
--
--	list_for_each_entry_safe(nextp, tmp, &head_extra->lru, lru) {
--		list_del(&nextp->lru);
--		reset_page(nextp);
--		__free_page(nextp);
--	}
--	reset_page(head_extra);
--	__free_page(head_extra);
--}
--
--/* Initialize a newly allocated zspage */
--static void init_zspage(struct page *first_page, struct size_class *class)
--{
--	unsigned long off = 0;
--	struct page *page = first_page;
--
--	BUG_ON(!is_first_page(first_page));
--	while (page) {
--		struct page *next_page;
--		struct link_free *link;
--		unsigned int i, objs_on_page;
--
--		/*
--		 * page->index stores offset of first object starting
--		 * in the page. For the first page, this is always 0,
--		 * so we use first_page->index (aka ->freelist) to store
--		 * head of corresponding zspage's freelist.
--		 */
--		if (page != first_page)
--			page->index = off;
--
--		link = (struct link_free *)kmap_atomic(page) +
--						off / sizeof(*link);
--		objs_on_page = (PAGE_SIZE - off) / class->size;
--
--		for (i = 1; i <= objs_on_page; i++) {
--			off += class->size;
--			if (off < PAGE_SIZE) {
--				link->next = obj_location_to_handle(page, i);
--				link += class->size / sizeof(*link);
--			}
--		}
--
--		/*
--		 * We now come to the last (full or partial) object on this
--		 * page, which must point to the first object on the next
--		 * page (if present)
--		 */
--		next_page = get_next_page(page);
--		link->next = obj_location_to_handle(next_page, 0);
--		kunmap_atomic(link);
--		page = next_page;
--		off = (off + class->size) % PAGE_SIZE;
--	}
--}
--
--/*
-- * Allocate a zspage for the given size class
-- */
--static struct page *alloc_zspage(struct size_class *class, gfp_t flags)
--{
--	int i, error;
--	struct page *first_page = NULL, *uninitialized_var(prev_page);
--
--	/*
--	 * Allocate individual pages and link them together as:
--	 * 1. first page->private = first sub-page
--	 * 2. all sub-pages are linked together using page->lru
--	 * 3. each sub-page is linked to the first page using page->first_page
--	 *
--	 * For each size class, First/Head pages are linked together using
--	 * page->lru. Also, we set PG_private to identify the first page
--	 * (i.e. no other sub-page has this flag set) and PG_private_2 to
--	 * identify the last page.
--	 */
--	error = -ENOMEM;
--	for (i = 0; i < class->pages_per_zspage; i++) {
--		struct page *page;
--
--		page = alloc_page(flags);
--		if (!page)
--			goto cleanup;
--
--		INIT_LIST_HEAD(&page->lru);
--		if (i == 0) {	/* first page */
--			SetPagePrivate(page);
--			set_page_private(page, 0);
--			first_page = page;
--			first_page->inuse = 0;
--		}
--		if (i == 1)
--			first_page->private = (unsigned long)page;
--		if (i >= 1)
--			page->first_page = first_page;
--		if (i >= 2)
--			list_add(&page->lru, &prev_page->lru);
--		if (i == class->pages_per_zspage - 1)	/* last page */
--			SetPagePrivate2(page);
--		prev_page = page;
--	}
--
--	init_zspage(first_page, class);
--
--	first_page->freelist = obj_location_to_handle(first_page, 0);
--	/* Maximum number of objects we can store in this zspage */
--	first_page->objects = class->pages_per_zspage * PAGE_SIZE / class->size;
--
--	error = 0; /* Success */
--
--cleanup:
--	if (unlikely(error) && first_page) {
--		free_zspage(first_page);
--		first_page = NULL;
--	}
--
--	return first_page;
--}
--
--static struct page *find_get_zspage(struct size_class *class)
--{
--	int i;
--	struct page *page;
--
--	for (i = 0; i < _ZS_NR_FULLNESS_GROUPS; i++) {
--		page = class->fullness_list[i];
--		if (page)
--			break;
--	}
--
--	return page;
--}
--
--#ifdef USE_PGTABLE_MAPPING
--static inline int __zs_cpu_up(struct mapping_area *area)
--{
--	/*
--	 * Make sure we don't leak memory if a cpu UP notification
--	 * and zs_init() race and both call zs_cpu_up() on the same cpu
--	 */
--	if (area->vm)
--		return 0;
--	area->vm = alloc_vm_area(PAGE_SIZE * 2, NULL);
--	if (!area->vm)
--		return -ENOMEM;
--	return 0;
--}
--
--static inline void __zs_cpu_down(struct mapping_area *area)
--{
--	if (area->vm)
--		free_vm_area(area->vm);
--	area->vm = NULL;
--}
--
--static inline void *__zs_map_object(struct mapping_area *area,
--				struct page *pages[2], int off, int size)
--{
--	BUG_ON(map_vm_area(area->vm, PAGE_KERNEL, &pages));
--	area->vm_addr = area->vm->addr;
--	return area->vm_addr + off;
--}
--
--static inline void __zs_unmap_object(struct mapping_area *area,
--				struct page *pages[2], int off, int size)
--{
--	unsigned long addr = (unsigned long)area->vm_addr;
--	unsigned long end = addr + (PAGE_SIZE * 2);
--
--	flush_cache_vunmap(addr, end);
--	unmap_kernel_range_noflush(addr, PAGE_SIZE * 2);
--	local_flush_tlb_kernel_range(addr, end);
--}
--
--#else /* USE_PGTABLE_MAPPING */
--
--static inline int __zs_cpu_up(struct mapping_area *area)
--{
--	/*
--	 * Make sure we don't leak memory if a cpu UP notification
--	 * and zs_init() race and both call zs_cpu_up() on the same cpu
--	 */
--	if (area->vm_buf)
--		return 0;
--	area->vm_buf = (char *)__get_free_page(GFP_KERNEL);
--	if (!area->vm_buf)
--		return -ENOMEM;
--	return 0;
--}
--
--static inline void __zs_cpu_down(struct mapping_area *area)
--{
--	if (area->vm_buf)
--		free_page((unsigned long)area->vm_buf);
--	area->vm_buf = NULL;
--}
--
--static void *__zs_map_object(struct mapping_area *area,
--			struct page *pages[2], int off, int size)
--{
--	int sizes[2];
--	void *addr;
--	char *buf = area->vm_buf;
--
--	/* disable page faults to match kmap_atomic() return conditions */
--	pagefault_disable();
--
--	/* no read fastpath */
--	if (area->vm_mm == ZS_MM_WO)
--		goto out;
--
--	sizes[0] = PAGE_SIZE - off;
--	sizes[1] = size - sizes[0];
--
--	/* copy object to per-cpu buffer */
--	addr = kmap_atomic(pages[0]);
--	memcpy(buf, addr + off, sizes[0]);
--	kunmap_atomic(addr);
--	addr = kmap_atomic(pages[1]);
--	memcpy(buf + sizes[0], addr, sizes[1]);
--	kunmap_atomic(addr);
--out:
--	return area->vm_buf;
--}
--
--static void __zs_unmap_object(struct mapping_area *area,
--			struct page *pages[2], int off, int size)
--{
--	int sizes[2];
--	void *addr;
--	char *buf = area->vm_buf;
--
--	/* no write fastpath */
--	if (area->vm_mm == ZS_MM_RO)
--		goto out;
--
--	sizes[0] = PAGE_SIZE - off;
--	sizes[1] = size - sizes[0];
--
--	/* copy per-cpu buffer to object */
--	addr = kmap_atomic(pages[0]);
--	memcpy(addr + off, buf, sizes[0]);
--	kunmap_atomic(addr);
--	addr = kmap_atomic(pages[1]);
--	memcpy(addr, buf + sizes[0], sizes[1]);
--	kunmap_atomic(addr);
--
--out:
--	/* enable page faults to match kunmap_atomic() return conditions */
--	pagefault_enable();
--}
--
--#endif /* USE_PGTABLE_MAPPING */
--
--static int zs_cpu_notifier(struct notifier_block *nb, unsigned long action,
--				void *pcpu)
--{
--	int ret, cpu = (long)pcpu;
--	struct mapping_area *area;
--
--	switch (action) {
--	case CPU_UP_PREPARE:
--		area = &per_cpu(zs_map_area, cpu);
--		ret = __zs_cpu_up(area);
--		if (ret)
--			return notifier_from_errno(ret);
--		break;
--	case CPU_DEAD:
--	case CPU_UP_CANCELED:
--		area = &per_cpu(zs_map_area, cpu);
--		__zs_cpu_down(area);
--		break;
--	}
--
--	return NOTIFY_OK;
--}
--
--static struct notifier_block zs_cpu_nb = {
--	.notifier_call = zs_cpu_notifier
--};
--
--static void zs_exit(void)
--{
--	int cpu;
--
--	for_each_online_cpu(cpu)
--		zs_cpu_notifier(NULL, CPU_DEAD, (void *)(long)cpu);
--	unregister_cpu_notifier(&zs_cpu_nb);
--}
--
--static int zs_init(void)
--{
--	int cpu, ret;
--
--	register_cpu_notifier(&zs_cpu_nb);
--	for_each_online_cpu(cpu) {
--		ret = zs_cpu_notifier(NULL, CPU_UP_PREPARE, (void *)(long)cpu);
--		if (notifier_to_errno(ret))
--			goto fail;
--	}
--	return 0;
--fail:
--	zs_exit();
--	return notifier_to_errno(ret);
--}
--
--struct zs_pool *zs_create_pool(const char *name, gfp_t flags)
--{
--	int i, ovhd_size;
--	struct zs_pool *pool;
--
--	if (!name)
--		return NULL;
--
--	ovhd_size = roundup(sizeof(*pool), PAGE_SIZE);
--	pool = kzalloc(ovhd_size, GFP_KERNEL);
--	if (!pool)
--		return NULL;
--
--	for (i = 0; i < ZS_SIZE_CLASSES; i++) {
--		int size;
--		struct size_class *class;
--
--		size = ZS_MIN_ALLOC_SIZE + i * ZS_SIZE_CLASS_DELTA;
--		if (size > ZS_MAX_ALLOC_SIZE)
--			size = ZS_MAX_ALLOC_SIZE;
--
--		class = &pool->size_class[i];
--		class->size = size;
--		class->index = i;
--		spin_lock_init(&class->lock);
--		class->pages_per_zspage = get_pages_per_zspage(size);
--
--	}
--
--	pool->flags = flags;
--	pool->name = name;
--
--	return pool;
--}
--EXPORT_SYMBOL_GPL(zs_create_pool);
--
--void zs_destroy_pool(struct zs_pool *pool)
--{
--	int i;
--
--	for (i = 0; i < ZS_SIZE_CLASSES; i++) {
--		int fg;
--		struct size_class *class = &pool->size_class[i];
--
--		for (fg = 0; fg < _ZS_NR_FULLNESS_GROUPS; fg++) {
--			if (class->fullness_list[fg]) {
--				pr_info("Freeing non-empty class with size "
--					"%db, fullness group %d\n",
--					class->size, fg);
--			}
--		}
--	}
--	kfree(pool);
--}
--EXPORT_SYMBOL_GPL(zs_destroy_pool);
--
--/**
-- * zs_malloc - Allocate block of given size from pool.
-- * @pool: pool to allocate from
-- * @size: size of block to allocate
-- *
-- * On success, handle to the allocated object is returned,
-- * otherwise 0.
-- * Allocation requests with size > ZS_MAX_ALLOC_SIZE will fail.
-- */
--unsigned long zs_malloc(struct zs_pool *pool, size_t size)
--{
--	unsigned long obj;
--	struct link_free *link;
--	int class_idx;
--	struct size_class *class;
--
--	struct page *first_page, *m_page;
--	unsigned long m_objidx, m_offset;
--
--	if (unlikely(!size || size > ZS_MAX_ALLOC_SIZE))
--		return 0;
--
--	class_idx = get_size_class_index(size);
--	class = &pool->size_class[class_idx];
--	BUG_ON(class_idx != class->index);
--
--	spin_lock(&class->lock);
--	first_page = find_get_zspage(class);
--
--	if (!first_page) {
--		spin_unlock(&class->lock);
--		first_page = alloc_zspage(class, pool->flags);
--		if (unlikely(!first_page))
--			return 0;
--
--		set_zspage_mapping(first_page, class->index, ZS_EMPTY);
--		spin_lock(&class->lock);
--		class->pages_allocated += class->pages_per_zspage;
--	}
--
--	obj = (unsigned long)first_page->freelist;
--	obj_handle_to_location(obj, &m_page, &m_objidx);
--	m_offset = obj_idx_to_offset(m_page, m_objidx, class->size);
--
--	link = (struct link_free *)kmap_atomic(m_page) +
--					m_offset / sizeof(*link);
--	first_page->freelist = link->next;
--	memset(link, POISON_INUSE, sizeof(*link));
--	kunmap_atomic(link);
--
--	first_page->inuse++;
--	/* Now move the zspage to another fullness group, if required */
--	fix_fullness_group(pool, first_page);
--	spin_unlock(&class->lock);
--
--	return obj;
--}
--EXPORT_SYMBOL_GPL(zs_malloc);
--
--void zs_free(struct zs_pool *pool, unsigned long obj)
--{
--	struct link_free *link;
--	struct page *first_page, *f_page;
--	unsigned long f_objidx, f_offset;
--
--	int class_idx;
--	struct size_class *class;
--	enum fullness_group fullness;
--
--	if (unlikely(!obj))
--		return;
--
--	obj_handle_to_location(obj, &f_page, &f_objidx);
--	first_page = get_first_page(f_page);
--
--	get_zspage_mapping(first_page, &class_idx, &fullness);
--	class = &pool->size_class[class_idx];
--	f_offset = obj_idx_to_offset(f_page, f_objidx, class->size);
--
--	spin_lock(&class->lock);
--
--	/* Insert this object in containing zspage's freelist */
--	link = (struct link_free *)((unsigned char *)kmap_atomic(f_page)
--							+ f_offset);
--	link->next = first_page->freelist;
--	kunmap_atomic(link);
--	first_page->freelist = (void *)obj;
--
--	first_page->inuse--;
--	fullness = fix_fullness_group(pool, first_page);
--
--	if (fullness == ZS_EMPTY)
--		class->pages_allocated -= class->pages_per_zspage;
--
--	spin_unlock(&class->lock);
--
--	if (fullness == ZS_EMPTY)
--		free_zspage(first_page);
--}
--EXPORT_SYMBOL_GPL(zs_free);
--
--/**
-- * zs_map_object - get address of allocated object from handle.
-- * @pool: pool from which the object was allocated
-- * @handle: handle returned from zs_malloc
-- *
-- * Before using an object allocated from zs_malloc, it must be mapped using
-- * this function. When done with the object, it must be unmapped using
-- * zs_unmap_object.
-- *
-- * Only one object can be mapped per cpu at a time. There is no protection
-- * against nested mappings.
-- *
-- * This function returns with preemption and page faults disabled.
--*/
--void *zs_map_object(struct zs_pool *pool, unsigned long handle,
--			enum zs_mapmode mm)
--{
--	struct page *page;
--	unsigned long obj_idx, off;
--
--	unsigned int class_idx;
--	enum fullness_group fg;
--	struct size_class *class;
--	struct mapping_area *area;
--	struct page *pages[2];
--
--	BUG_ON(!handle);
--
--	/*
--	 * Because we use per-cpu mapping areas shared among the
--	 * pools/users, we can't allow mapping in interrupt context
--	 * because it can corrupt another users mappings.
--	 */
--	BUG_ON(in_interrupt());
--
--	obj_handle_to_location(handle, &page, &obj_idx);
--	get_zspage_mapping(get_first_page(page), &class_idx, &fg);
--	class = &pool->size_class[class_idx];
--	off = obj_idx_to_offset(page, obj_idx, class->size);
--
--	area = &get_cpu_var(zs_map_area);
--	area->vm_mm = mm;
--	if (off + class->size <= PAGE_SIZE) {
--		/* this object is contained entirely within a page */
--		area->vm_addr = kmap_atomic(page);
--		return area->vm_addr + off;
--	}
--
--	/* this object spans two pages */
--	pages[0] = page;
--	pages[1] = get_next_page(page);
--	BUG_ON(!pages[1]);
--
--	return __zs_map_object(area, pages, off, class->size);
--}
--EXPORT_SYMBOL_GPL(zs_map_object);
--
--void zs_unmap_object(struct zs_pool *pool, unsigned long handle)
--{
--	struct page *page;
--	unsigned long obj_idx, off;
--
--	unsigned int class_idx;
--	enum fullness_group fg;
--	struct size_class *class;
--	struct mapping_area *area;
--
--	BUG_ON(!handle);
--
--	obj_handle_to_location(handle, &page, &obj_idx);
--	get_zspage_mapping(get_first_page(page), &class_idx, &fg);
--	class = &pool->size_class[class_idx];
--	off = obj_idx_to_offset(page, obj_idx, class->size);
--
--	area = &__get_cpu_var(zs_map_area);
--	if (off + class->size <= PAGE_SIZE)
--		kunmap_atomic(area->vm_addr);
--	else {
--		struct page *pages[2];
--
--		pages[0] = page;
--		pages[1] = get_next_page(page);
--		BUG_ON(!pages[1]);
--
--		__zs_unmap_object(area, pages, off, class->size);
--	}
--	put_cpu_var(zs_map_area);
--}
--EXPORT_SYMBOL_GPL(zs_unmap_object);
--
--u64 zs_get_total_size_bytes(struct zs_pool *pool)
--{
--	int i;
--	u64 npages = 0;
--
--	for (i = 0; i < ZS_SIZE_CLASSES; i++)
--		npages += pool->size_class[i].pages_allocated;
--
--	return npages << PAGE_SHIFT;
--}
--EXPORT_SYMBOL_GPL(zs_get_total_size_bytes);
--
--module_init(zs_init);
--module_exit(zs_exit);
--
--MODULE_LICENSE("Dual BSD/GPL");
--MODULE_AUTHOR("Nitin Gupta <ngupta@vflare.org>");
-diff --git a/drivers/staging/zsmalloc/zsmalloc.h b/drivers/staging/zsmalloc/zsmalloc.h
-deleted file mode 100644
-index de2e8bf..0000000
---- a/drivers/staging/zsmalloc/zsmalloc.h
-+++ /dev/null
-@@ -1,43 +0,0 @@
--/*
-- * zsmalloc memory allocator
-- *
-- * Copyright (C) 2011  Nitin Gupta
-- *
-- * This code is released using a dual license strategy: BSD/GPL
-- * You can choose the license that better fits your requirements.
-- *
-- * Released under the terms of 3-clause BSD License
-- * Released under the terms of GNU General Public License Version 2.0
-- */
--
--#ifndef _ZS_MALLOC_H_
--#define _ZS_MALLOC_H_
--
--#include <linux/types.h>
--
--/*
-- * zsmalloc mapping modes
-- *
-- * NOTE: These only make a difference when a mapped object spans pages
--*/
--enum zs_mapmode {
--	ZS_MM_RW, /* normal read-write mapping */
--	ZS_MM_RO, /* read-only (no copy-out at unmap time) */
--	ZS_MM_WO /* write-only (no copy-in at map time) */
--};
--
--struct zs_pool;
--
--struct zs_pool *zs_create_pool(const char *name, gfp_t flags);
--void zs_destroy_pool(struct zs_pool *pool);
--
--unsigned long zs_malloc(struct zs_pool *pool, size_t size);
--void zs_free(struct zs_pool *pool, unsigned long obj);
--
--void *zs_map_object(struct zs_pool *pool, unsigned long handle,
--			enum zs_mapmode mm);
--void zs_unmap_object(struct zs_pool *pool, unsigned long handle);
--
--u64 zs_get_total_size_bytes(struct zs_pool *pool);
--
--#endif
-diff --git a/include/linux/zsmalloc.h b/include/linux/zsmalloc.h
+ obj-$(CONFIG_VIODASD)		+= viodasd.o
+ obj-$(CONFIG_BLK_DEV_SX8)	+= sx8.o
+diff --git a/drivers/block/zram/Kconfig b/drivers/block/zram/Kconfig
 new file mode 100644
-index 0000000..de2e8bf
+index 0000000..be5abe8
 --- /dev/null
-+++ b/include/linux/zsmalloc.h
-@@ -0,0 +1,43 @@
++++ b/drivers/block/zram/Kconfig
+@@ -0,0 +1,25 @@
++config ZRAM
++	tristate "Compressed RAM block device support"
++	depends on BLOCK && SYSFS && ZSMALLOC
++	select LZO_COMPRESS
++	select LZO_DECOMPRESS
++	default n
++	help
++	  Creates virtual block devices called /dev/zramX (X = 0, 1, ...).
++	  Pages written to these disks are compressed and stored in memory
++	  itself. These disks allow very fast I/O and compression provides
++	  good amounts of memory savings.
++
++	  It has several use cases, for example: /tmp storage, use as swap
++	  disks and maybe many more.
++
++	  See zram.txt for more information.
++	  Project home: http://compcache.googlecode.com/
++
++config ZRAM_DEBUG
++	bool "Compressed RAM block device debug support"
++	depends on ZRAM
++	default n
++	help
++	  This option adds additional debugging code to the compressed
++	  RAM block device driver.
+diff --git a/drivers/block/zram/Makefile b/drivers/block/zram/Makefile
+new file mode 100644
+index 0000000..7f4a301
+--- /dev/null
++++ b/drivers/block/zram/Makefile
+@@ -0,0 +1,3 @@
++zram-y	:=	zram_drv.o zram_sysfs.o
++
++obj-$(CONFIG_ZRAM)	+=	zram.o
+diff --git a/drivers/block/zram/zram.txt b/drivers/block/zram/zram.txt
+new file mode 100644
+index 0000000..5f75d29
+--- /dev/null
++++ b/drivers/block/zram/zram.txt
+@@ -0,0 +1,76 @@
++zram: Compressed RAM based block devices
++----------------------------------------
++
++Project home: http://compcache.googlecode.com/
++
++* Introduction
++
++The zram module creates RAM based block devices named /dev/zram<id>
++(<id> = 0, 1, ...). Pages written to these disks are compressed and stored
++in memory itself. These disks allow very fast I/O and compression provides
++good amounts of memory savings. Some of the usecases include /tmp storage,
++use as swap disks, various caches under /var and maybe many more :)
++
++Statistics for individual zram devices are exported through sysfs nodes at
++/sys/block/zram<id>/
++
++* Usage
++
++Following shows a typical sequence of steps for using zram.
++
++1) Load Module:
++	modprobe zram num_devices=4
++	This creates 4 devices: /dev/zram{0,1,2,3}
++	(num_devices parameter is optional. Default: 1)
++
++2) Set Disksize (Optional):
++	Set disk size by writing the value to sysfs node 'disksize'
++	(in bytes). If disksize is not given, default value of 25%
++	of RAM is used.
++
++	# Initialize /dev/zram0 with 50MB disksize
++	echo $((50*1024*1024)) > /sys/block/zram0/disksize
++
++	NOTE: disksize cannot be changed if the disk contains any
++	data. So, for such a disk, you need to issue 'reset' (see below)
++	before you can change its disksize.
++
++3) Activate:
++	mkswap /dev/zram0
++	swapon /dev/zram0
++
++	mkfs.ext4 /dev/zram1
++	mount /dev/zram1 /tmp
++
++4) Stats:
++	Per-device statistics are exported as various nodes under
++	/sys/block/zram<id>/
++		disksize
++		num_reads
++		num_writes
++		invalid_io
++		notify_free
++		discard
++		zero_pages
++		orig_data_size
++		compr_data_size
++		mem_used_total
++
++5) Deactivate:
++	swapoff /dev/zram0
++	umount /dev/zram1
++
++6) Reset:
++	Write any positive value to 'reset' sysfs node
++	echo 1 > /sys/block/zram0/reset
++	echo 1 > /sys/block/zram1/reset
++
++	(This frees all the memory allocated for the given device).
++
++
++Please report any problems at:
++ - Mailing list: linux-mm-cc at laptop dot org
++ - Issue tracker: http://code.google.com/p/compcache/issues/list
++
++Nitin Gupta
++ngupta@vflare.org
+diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
+new file mode 100644
+index 0000000..653b074
+--- /dev/null
++++ b/drivers/block/zram/zram_drv.c
+@@ -0,0 +1,785 @@
 +/*
-+ * zsmalloc memory allocator
++ * Compressed RAM block device
 + *
-+ * Copyright (C) 2011  Nitin Gupta
++ * Copyright (C) 2008, 2009, 2010  Nitin Gupta
 + *
 + * This code is released using a dual license strategy: BSD/GPL
-+ * You can choose the license that better fits your requirements.
++ * You can choose the licence that better fits your requirements.
 + *
 + * Released under the terms of 3-clause BSD License
 + * Released under the terms of GNU General Public License Version 2.0
++ *
++ * Project home: http://compcache.googlecode.com
 + */
 +
-+#ifndef _ZS_MALLOC_H_
-+#define _ZS_MALLOC_H_
++#define KMSG_COMPONENT "zram"
++#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 +
-+#include <linux/types.h>
-+
-+/*
-+ * zsmalloc mapping modes
-+ *
-+ * NOTE: These only make a difference when a mapped object spans pages
-+*/
-+enum zs_mapmode {
-+	ZS_MM_RW, /* normal read-write mapping */
-+	ZS_MM_RO, /* read-only (no copy-out at unmap time) */
-+	ZS_MM_WO /* write-only (no copy-in at map time) */
-+};
-+
-+struct zs_pool;
-+
-+struct zs_pool *zs_create_pool(const char *name, gfp_t flags);
-+void zs_destroy_pool(struct zs_pool *pool);
-+
-+unsigned long zs_malloc(struct zs_pool *pool, size_t size);
-+void zs_free(struct zs_pool *pool, unsigned long obj);
-+
-+void *zs_map_object(struct zs_pool *pool, unsigned long handle,
-+			enum zs_mapmode mm);
-+void zs_unmap_object(struct zs_pool *pool, unsigned long handle);
-+
-+u64 zs_get_total_size_bytes(struct zs_pool *pool);
-+
-+#endif
-diff --git a/lib/Kconfig b/lib/Kconfig
-index bb94c1b..d95da41 100644
---- a/lib/Kconfig
-+++ b/lib/Kconfig
-@@ -216,6 +216,8 @@ config DECOMPRESS_LZO
- config GENERIC_ALLOCATOR
- 	boolean
- 
-+source "lib/zsmalloc/Kconfig"
-+
- #
- # reed solomon support is select'ed if needed
- #
-diff --git a/lib/Makefile b/lib/Makefile
-index 3128e35..dd26077 100644
---- a/lib/Makefile
-+++ b/lib/Makefile
-@@ -64,6 +64,7 @@ obj-$(CONFIG_CRC7)	+= crc7.o
- obj-$(CONFIG_LIBCRC32C)	+= libcrc32c.o
- obj-$(CONFIG_CRC8)	+= crc8.o
- obj-$(CONFIG_GENERIC_ALLOCATOR) += genalloc.o
-+obj-$(CONFIG_ZSMALLOC) += zsmalloc/
- 
- obj-$(CONFIG_ZLIB_INFLATE) += zlib_inflate/
- obj-$(CONFIG_ZLIB_DEFLATE) += zlib_deflate/
-diff --git a/lib/zsmalloc/Kconfig b/lib/zsmalloc/Kconfig
-new file mode 100644
-index 0000000..b6abd31
---- /dev/null
-+++ b/lib/zsmalloc/Kconfig
-@@ -0,0 +1,18 @@
-+config ZSMALLOC
-+       tristate "Memory allocator for compressed pages"
-+       default n
-+       help
-+         zsmalloc is a slab-based memory allocator designed to store
-+         compressed RAM pages.  zsmalloc uses a memory pool that combines
-+         single pages into higher order pages by linking them together
-+         using the fields of the struct page. Allocations are then
-+         mapped through copy buffers or VM mapping, in order to reduce
-+         memory pool fragmentation and increase allocation success rate under
-+         memory pressure.
-+
-+         This results in a non-standard allocator interface where
-+         a handle, not a pointer, is returned by the allocation function.
-+         This handle must be mapped in order to access the allocated space.
-+
-+         If unsure, say N.
-+
-diff --git a/lib/zsmalloc/Makefile b/lib/zsmalloc/Makefile
-new file mode 100644
-index 0000000..d02d3a5
---- /dev/null
-+++ b/lib/zsmalloc/Makefile
-@@ -0,0 +1 @@
-+obj-$(CONFIG_ZSMALLOC) += zsmalloc.o
-diff --git a/lib/zsmalloc/zsmalloc.c b/lib/zsmalloc/zsmalloc.c
-new file mode 100644
-index 0000000..2cde21e
---- /dev/null
-+++ b/lib/zsmalloc/zsmalloc.c
-@@ -0,0 +1,1064 @@
-+/*
-+ * zsmalloc memory allocator
-+ *
-+ * Copyright (C) 2011  Nitin Gupta
-+ *
-+ * This code is released using a dual license strategy: BSD/GPL
-+ * You can choose the license that better fits your requirements.
-+ *
-+ * Released under the terms of 3-clause BSD License
-+ * Released under the terms of GNU General Public License Version 2.0
-+ */
-+
-+
-+/*
-+ * This allocator is designed for use with zcache and zram. Thus, the
-+ * allocator is supposed to work well under low memory conditions. In
-+ * particular, it never attempts higher order page allocation which is
-+ * very likely to fail under memory pressure. On the other hand, if we
-+ * just use single (0-order) pages, it would suffer from very high
-+ * fragmentation -- any object of size PAGE_SIZE/2 or larger would occupy
-+ * an entire page. This was one of the major issues with its predecessor
-+ * (xvmalloc).
-+ *
-+ * To overcome these issues, zsmalloc allocates a bunch of 0-order pages
-+ * and links them together using various 'struct page' fields. These linked
-+ * pages act as a single higher-order page i.e. an object can span 0-order
-+ * page boundaries. The code refers to these linked pages as a single entity
-+ * called zspage.
-+ *
-+ * Following is how we use various fields and flags of underlying
-+ * struct page(s) to form a zspage.
-+ *
-+ * Usage of struct page fields:
-+ *	page->first_page: points to the first component (0-order) page
-+ *	page->index (union with page->freelist): offset of the first object
-+ *		starting in this page. For the first page, this is
-+ *		always 0, so we use this field (aka freelist) to point
-+ *		to the first free object in zspage.
-+ *	page->lru: links together all component pages (except the first page)
-+ *		of a zspage
-+ *
-+ *	For _first_ page only:
-+ *
-+ *	page->private (union with page->first_page): refers to the
-+ *		component page after the first page
-+ *	page->freelist: points to the first free object in zspage.
-+ *		Free objects are linked together using in-place
-+ *		metadata.
-+ *	page->objects: maximum number of objects we can store in this
-+ *		zspage (class->zspage_order * PAGE_SIZE / class->size)
-+ *	page->lru: links together first pages of various zspages.
-+ *		Basically forming list of zspages in a fullness group.
-+ *	page->mapping: class index and fullness group of the zspage
-+ *
-+ * Usage of struct page flags:
-+ *	PG_private: identifies the first component page
-+ *	PG_private2: identifies the last component page
-+ *
-+ */
-+
-+#ifdef CONFIG_ZSMALLOC_DEBUG
++#ifdef CONFIG_ZRAM_DEBUG
 +#define DEBUG
 +#endif
 +
 +#include <linux/module.h>
 +#include <linux/kernel.h>
++#include <linux/bio.h>
 +#include <linux/bitops.h>
-+#include <linux/errno.h>
++#include <linux/blkdev.h>
++#include <linux/buffer_head.h>
++#include <linux/device.h>
++#include <linux/genhd.h>
 +#include <linux/highmem.h>
-+#include <linux/init.h>
-+#include <linux/string.h>
 +#include <linux/slab.h>
-+#include <asm/tlbflush.h>
-+#include <asm/pgtable.h>
-+#include <linux/cpumask.h>
-+#include <linux/cpu.h>
++#include <linux/lzo.h>
++#include <linux/string.h>
 +#include <linux/vmalloc.h>
-+#include <linux/hardirq.h>
-+#include <linux/spinlock.h>
-+#include <linux/types.h>
 +
-+#include <linux/zsmalloc.h>
++#include "zram_drv.h"
 +
-+/*
-+ * This must be power of 2 and greater than of equal to sizeof(link_free).
-+ * These two conditions ensure that any 'struct link_free' itself doesn't
-+ * span more than 1 page which avoids complex case of mapping 2 pages simply
-+ * to restore link_free pointer values.
-+ */
-+#define ZS_ALIGN		8
++/* Globals */
++static int zram_major;
++struct zram *zram_devices;
 +
-+/*
-+ * A single 'zspage' is composed of up to 2^N discontiguous 0-order (single)
-+ * pages. ZS_MAX_ZSPAGE_ORDER defines upper limit on N.
-+ */
-+#define ZS_MAX_ZSPAGE_ORDER 2
-+#define ZS_MAX_PAGES_PER_ZSPAGE (_AC(1, UL) << ZS_MAX_ZSPAGE_ORDER)
++/* Module params (documentation at end) */
++static unsigned int num_devices;
 +
-+/*
-+ * Object location (<PFN>, <obj_idx>) is encoded as
-+ * as single (void *) handle value.
-+ *
-+ * Note that object index <obj_idx> is relative to system
-+ * page <PFN> it is stored in, so for each sub-page belonging
-+ * to a zspage, obj_idx starts with 0.
-+ *
-+ * This is made more complicated by various memory models and PAE.
-+ */
-+
-+#ifndef MAX_PHYSMEM_BITS
-+#ifdef CONFIG_HIGHMEM64G
-+#define MAX_PHYSMEM_BITS 36
-+#else /* !CONFIG_HIGHMEM64G */
-+/*
-+ * If this definition of MAX_PHYSMEM_BITS is used, OBJ_INDEX_BITS will just
-+ * be PAGE_SHIFT
-+ */
-+#define MAX_PHYSMEM_BITS BITS_PER_LONG
-+#endif
-+#endif
-+#define _PFN_BITS		(MAX_PHYSMEM_BITS - PAGE_SHIFT)
-+#define OBJ_INDEX_BITS	(BITS_PER_LONG - _PFN_BITS)
-+#define OBJ_INDEX_MASK	((_AC(1, UL) << OBJ_INDEX_BITS) - 1)
-+
-+#define MAX(a, b) ((a) >= (b) ? (a) : (b))
-+/* ZS_MIN_ALLOC_SIZE must be multiple of ZS_ALIGN */
-+#define ZS_MIN_ALLOC_SIZE \
-+	MAX(32, (ZS_MAX_PAGES_PER_ZSPAGE << PAGE_SHIFT >> OBJ_INDEX_BITS))
-+#define ZS_MAX_ALLOC_SIZE	PAGE_SIZE
-+
-+/*
-+ * On systems with 4K page size, this gives 254 size classes! There is a
-+ * trader-off here:
-+ *  - Large number of size classes is potentially wasteful as free page are
-+ *    spread across these classes
-+ *  - Small number of size classes causes large internal fragmentation
-+ *  - Probably its better to use specific size classes (empirically
-+ *    determined). NOTE: all those class sizes must be set as multiple of
-+ *    ZS_ALIGN to make sure link_free itself never has to span 2 pages.
-+ *
-+ *  ZS_MIN_ALLOC_SIZE and ZS_SIZE_CLASS_DELTA must be multiple of ZS_ALIGN
-+ *  (reason above)
-+ */
-+#define ZS_SIZE_CLASS_DELTA	16
-+#define ZS_SIZE_CLASSES		((ZS_MAX_ALLOC_SIZE - ZS_MIN_ALLOC_SIZE) / \
-+					ZS_SIZE_CLASS_DELTA + 1)
-+
-+/*
-+ * We do not maintain any list for completely empty or full pages
-+ */
-+enum fullness_group {
-+	ZS_ALMOST_FULL,
-+	ZS_ALMOST_EMPTY,
-+	_ZS_NR_FULLNESS_GROUPS,
-+
-+	ZS_EMPTY,
-+	ZS_FULL
-+};
-+
-+/*
-+ * We assign a page to ZS_ALMOST_EMPTY fullness group when:
-+ *	n <= N / f, where
-+ * n = number of allocated objects
-+ * N = total number of objects zspage can store
-+ * f = 1/fullness_threshold_frac
-+ *
-+ * Similarly, we assign zspage to:
-+ *	ZS_ALMOST_FULL	when n > N / f
-+ *	ZS_EMPTY	when n == 0
-+ *	ZS_FULL		when n == N
-+ *
-+ * (see: fix_fullness_group())
-+ */
-+static const int fullness_threshold_frac = 4;
-+
-+struct size_class {
-+	/*
-+	 * Size of objects stored in this class. Must be multiple
-+	 * of ZS_ALIGN.
-+	 */
-+	int size;
-+	unsigned int index;
-+
-+	/* Number of PAGE_SIZE sized pages to combine to form a 'zspage' */
-+	int pages_per_zspage;
-+
-+	spinlock_t lock;
-+
-+	/* stats */
-+	u64 pages_allocated;
-+
-+	struct page *fullness_list[_ZS_NR_FULLNESS_GROUPS];
-+};
-+
-+/*
-+ * Placed within free objects to form a singly linked list.
-+ * For every zspage, first_page->freelist gives head of this list.
-+ *
-+ * This must be power of 2 and less than or equal to ZS_ALIGN
-+ */
-+struct link_free {
-+	/* Handle of next free chunk (encodes <PFN, obj_idx>) */
-+	void *next;
-+};
-+
-+struct zs_pool {
-+	struct size_class size_class[ZS_SIZE_CLASSES];
-+
-+	gfp_t flags;	/* allocation flags used when growing pool */
-+	const char *name;
-+};
-+
-+/*
-+ * A zspage's class index and fullness group
-+ * are encoded in its (first)page->mapping
-+ */
-+#define CLASS_IDX_BITS	28
-+#define FULLNESS_BITS	4
-+#define CLASS_IDX_MASK	((1 << CLASS_IDX_BITS) - 1)
-+#define FULLNESS_MASK	((1 << FULLNESS_BITS) - 1)
-+
-+/*
-+ * By default, zsmalloc uses a copy-based object mapping method to access
-+ * allocations that span two pages. However, if a particular architecture
-+ * 1) Implements local_flush_tlb_kernel_range() and 2) Performs VM mapping
-+ * faster than copying, then it should be added here so that
-+ * USE_PGTABLE_MAPPING is defined. This causes zsmalloc to use page table
-+ * mapping rather than copying
-+ * for object mapping.
-+*/
-+#if defined(CONFIG_ARM)
-+#define USE_PGTABLE_MAPPING
-+#endif
-+
-+struct mapping_area {
-+#ifdef USE_PGTABLE_MAPPING
-+	struct vm_struct *vm; /* vm area for mapping object that span pages */
-+#else
-+	char *vm_buf; /* copy buffer for objects that span pages */
-+#endif
-+	char *vm_addr; /* address of kmap_atomic()'ed pages */
-+	enum zs_mapmode vm_mm; /* mapping mode */
-+};
-+
-+
-+/* per-cpu VM mapping areas for zspage accesses that cross page boundaries */
-+static DEFINE_PER_CPU(struct mapping_area, zs_map_area);
-+
-+static int is_first_page(struct page *page)
++static void zram_stat_inc(u32 *v)
 +{
-+	return PagePrivate(page);
++	*v = *v + 1;
 +}
 +
-+static int is_last_page(struct page *page)
++static void zram_stat_dec(u32 *v)
 +{
-+	return PagePrivate2(page);
++	*v = *v - 1;
 +}
 +
-+static void get_zspage_mapping(struct page *page, unsigned int *class_idx,
-+				enum fullness_group *fullness)
++static void zram_stat64_add(struct zram *zram, u64 *v, u64 inc)
 +{
-+	unsigned long m;
-+	BUG_ON(!is_first_page(page));
-+
-+	m = (unsigned long)page->mapping;
-+	*fullness = m & FULLNESS_MASK;
-+	*class_idx = (m >> FULLNESS_BITS) & CLASS_IDX_MASK;
++	spin_lock(&zram->stat64_lock);
++	*v = *v + inc;
++	spin_unlock(&zram->stat64_lock);
 +}
 +
-+static void set_zspage_mapping(struct page *page, unsigned int class_idx,
-+				enum fullness_group fullness)
++static void zram_stat64_sub(struct zram *zram, u64 *v, u64 dec)
 +{
-+	unsigned long m;
-+	BUG_ON(!is_first_page(page));
-+
-+	m = ((class_idx & CLASS_IDX_MASK) << FULLNESS_BITS) |
-+			(fullness & FULLNESS_MASK);
-+	page->mapping = (struct address_space *)m;
++	spin_lock(&zram->stat64_lock);
++	*v = *v - dec;
++	spin_unlock(&zram->stat64_lock);
 +}
 +
-+static int get_size_class_index(int size)
++static void zram_stat64_inc(struct zram *zram, u64 *v)
 +{
-+	int idx = 0;
-+
-+	if (likely(size > ZS_MIN_ALLOC_SIZE))
-+		idx = DIV_ROUND_UP(size - ZS_MIN_ALLOC_SIZE,
-+				ZS_SIZE_CLASS_DELTA);
-+
-+	return idx;
++	zram_stat64_add(zram, v, 1);
 +}
 +
-+static enum fullness_group get_fullness_group(struct page *page)
++static int zram_test_flag(struct zram *zram, u32 index,
++			enum zram_pageflags flag)
 +{
-+	int inuse, max_objects;
-+	enum fullness_group fg;
-+	BUG_ON(!is_first_page(page));
-+
-+	inuse = page->inuse;
-+	max_objects = page->objects;
-+
-+	if (inuse == 0)
-+		fg = ZS_EMPTY;
-+	else if (inuse == max_objects)
-+		fg = ZS_FULL;
-+	else if (inuse <= max_objects / fullness_threshold_frac)
-+		fg = ZS_ALMOST_EMPTY;
-+	else
-+		fg = ZS_ALMOST_FULL;
-+
-+	return fg;
++	return zram->table[index].flags & BIT(flag);
 +}
 +
-+static void insert_zspage(struct page *page, struct size_class *class,
-+				enum fullness_group fullness)
++static void zram_set_flag(struct zram *zram, u32 index,
++			enum zram_pageflags flag)
 +{
-+	struct page **head;
-+
-+	BUG_ON(!is_first_page(page));
-+
-+	if (fullness >= _ZS_NR_FULLNESS_GROUPS)
-+		return;
-+
-+	head = &class->fullness_list[fullness];
-+	if (*head)
-+		list_add_tail(&page->lru, &(*head)->lru);
-+
-+	*head = page;
++	zram->table[index].flags |= BIT(flag);
 +}
 +
-+static void remove_zspage(struct page *page, struct size_class *class,
-+				enum fullness_group fullness)
++static void zram_clear_flag(struct zram *zram, u32 index,
++			enum zram_pageflags flag)
 +{
-+	struct page **head;
-+
-+	BUG_ON(!is_first_page(page));
-+
-+	if (fullness >= _ZS_NR_FULLNESS_GROUPS)
-+		return;
-+
-+	head = &class->fullness_list[fullness];
-+	BUG_ON(!*head);
-+	if (list_empty(&(*head)->lru))
-+		*head = NULL;
-+	else if (*head == page)
-+		*head = (struct page *)list_entry((*head)->lru.next,
-+					struct page, lru);
-+
-+	list_del_init(&page->lru);
++	zram->table[index].flags &= ~BIT(flag);
 +}
 +
-+static enum fullness_group fix_fullness_group(struct zs_pool *pool,
-+						struct page *page)
++static int page_zero_filled(void *ptr)
 +{
-+	int class_idx;
-+	struct size_class *class;
-+	enum fullness_group currfg, newfg;
++	unsigned int pos;
++	unsigned long *page;
 +
-+	BUG_ON(!is_first_page(page));
++	page = (unsigned long *)ptr;
 +
-+	get_zspage_mapping(page, &class_idx, &currfg);
-+	newfg = get_fullness_group(page);
-+	if (newfg == currfg)
-+		goto out;
-+
-+	class = &pool->size_class[class_idx];
-+	remove_zspage(page, class, currfg);
-+	insert_zspage(page, class, newfg);
-+	set_zspage_mapping(page, class_idx, newfg);
-+
-+out:
-+	return newfg;
-+}
-+
-+/*
-+ * We have to decide on how many pages to link together
-+ * to form a zspage for each size class. This is important
-+ * to reduce wastage due to unusable space left at end of
-+ * each zspage which is given as:
-+ *	wastage = Zp - Zp % size_class
-+ * where Zp = zspage size = k * PAGE_SIZE where k = 1, 2, ...
-+ *
-+ * For example, for size class of 3/8 * PAGE_SIZE, we should
-+ * link together 3 PAGE_SIZE sized pages to form a zspage
-+ * since then we can perfectly fit in 8 such objects.
-+ */
-+static int get_pages_per_zspage(int class_size)
-+{
-+	int i, max_usedpc = 0;
-+	/* zspage order which gives maximum used size per KB */
-+	int max_usedpc_order = 1;
-+
-+	for (i = 1; i <= ZS_MAX_PAGES_PER_ZSPAGE; i++) {
-+		int zspage_size;
-+		int waste, usedpc;
-+
-+		zspage_size = i * PAGE_SIZE;
-+		waste = zspage_size % class_size;
-+		usedpc = (zspage_size - waste) * 100 / zspage_size;
-+
-+		if (usedpc > max_usedpc) {
-+			max_usedpc = usedpc;
-+			max_usedpc_order = i;
-+		}
-+	}
-+
-+	return max_usedpc_order;
-+}
-+
-+/*
-+ * A single 'zspage' is composed of many system pages which are
-+ * linked together using fields in struct page. This function finds
-+ * the first/head page, given any component page of a zspage.
-+ */
-+static struct page *get_first_page(struct page *page)
-+{
-+	if (is_first_page(page))
-+		return page;
-+	else
-+		return page->first_page;
-+}
-+
-+static struct page *get_next_page(struct page *page)
-+{
-+	struct page *next;
-+
-+	if (is_last_page(page))
-+		next = NULL;
-+	else if (is_first_page(page))
-+		next = (struct page *)page->private;
-+	else
-+		next = list_entry(page->lru.next, struct page, lru);
-+
-+	return next;
-+}
-+
-+/* Encode <page, obj_idx> as a single handle value */
-+static void *obj_location_to_handle(struct page *page, unsigned long obj_idx)
-+{
-+	unsigned long handle;
-+
-+	if (!page) {
-+		BUG_ON(obj_idx);
-+		return NULL;
-+	}
-+
-+	handle = page_to_pfn(page) << OBJ_INDEX_BITS;
-+	handle |= (obj_idx & OBJ_INDEX_MASK);
-+
-+	return (void *)handle;
-+}
-+
-+/* Decode <page, obj_idx> pair from the given object handle */
-+static void obj_handle_to_location(unsigned long handle, struct page **page,
-+				unsigned long *obj_idx)
-+{
-+	*page = pfn_to_page(handle >> OBJ_INDEX_BITS);
-+	*obj_idx = handle & OBJ_INDEX_MASK;
-+}
-+
-+static unsigned long obj_idx_to_offset(struct page *page,
-+				unsigned long obj_idx, int class_size)
-+{
-+	unsigned long off = 0;
-+
-+	if (!is_first_page(page))
-+		off = page->index;
-+
-+	return off + obj_idx * class_size;
-+}
-+
-+static void reset_page(struct page *page)
-+{
-+	clear_bit(PG_private, &page->flags);
-+	clear_bit(PG_private_2, &page->flags);
-+	set_page_private(page, 0);
-+	page->mapping = NULL;
-+	page->freelist = NULL;
-+	reset_page_mapcount(page);
-+}
-+
-+static void free_zspage(struct page *first_page)
-+{
-+	struct page *nextp, *tmp, *head_extra;
-+
-+	BUG_ON(!is_first_page(first_page));
-+	BUG_ON(first_page->inuse);
-+
-+	head_extra = (struct page *)page_private(first_page);
-+
-+	reset_page(first_page);
-+	__free_page(first_page);
-+
-+	/* zspage with only 1 system page */
-+	if (!head_extra)
-+		return;
-+
-+	list_for_each_entry_safe(nextp, tmp, &head_extra->lru, lru) {
-+		list_del(&nextp->lru);
-+		reset_page(nextp);
-+		__free_page(nextp);
-+	}
-+	reset_page(head_extra);
-+	__free_page(head_extra);
-+}
-+
-+/* Initialize a newly allocated zspage */
-+static void init_zspage(struct page *first_page, struct size_class *class)
-+{
-+	unsigned long off = 0;
-+	struct page *page = first_page;
-+
-+	BUG_ON(!is_first_page(first_page));
-+	while (page) {
-+		struct page *next_page;
-+		struct link_free *link;
-+		unsigned int i, objs_on_page;
-+
-+		/*
-+		 * page->index stores offset of first object starting
-+		 * in the page. For the first page, this is always 0,
-+		 * so we use first_page->index (aka ->freelist) to store
-+		 * head of corresponding zspage's freelist.
-+		 */
-+		if (page != first_page)
-+			page->index = off;
-+
-+		link = (struct link_free *)kmap_atomic(page) +
-+						off / sizeof(*link);
-+		objs_on_page = (PAGE_SIZE - off) / class->size;
-+
-+		for (i = 1; i <= objs_on_page; i++) {
-+			off += class->size;
-+			if (off < PAGE_SIZE) {
-+				link->next = obj_location_to_handle(page, i);
-+				link += class->size / sizeof(*link);
-+			}
-+		}
-+
-+		/*
-+		 * We now come to the last (full or partial) object on this
-+		 * page, which must point to the first object on the next
-+		 * page (if present)
-+		 */
-+		next_page = get_next_page(page);
-+		link->next = obj_location_to_handle(next_page, 0);
-+		kunmap_atomic(link);
-+		page = next_page;
-+		off = (off + class->size) % PAGE_SIZE;
-+	}
-+}
-+
-+/*
-+ * Allocate a zspage for the given size class
-+ */
-+static struct page *alloc_zspage(struct size_class *class, gfp_t flags)
-+{
-+	int i, error;
-+	struct page *first_page = NULL, *uninitialized_var(prev_page);
-+
-+	/*
-+	 * Allocate individual pages and link them together as:
-+	 * 1. first page->private = first sub-page
-+	 * 2. all sub-pages are linked together using page->lru
-+	 * 3. each sub-page is linked to the first page using page->first_page
-+	 *
-+	 * For each size class, First/Head pages are linked together using
-+	 * page->lru. Also, we set PG_private to identify the first page
-+	 * (i.e. no other sub-page has this flag set) and PG_private_2 to
-+	 * identify the last page.
-+	 */
-+	error = -ENOMEM;
-+	for (i = 0; i < class->pages_per_zspage; i++) {
-+		struct page *page;
-+
-+		page = alloc_page(flags);
-+		if (!page)
-+			goto cleanup;
-+
-+		INIT_LIST_HEAD(&page->lru);
-+		if (i == 0) {	/* first page */
-+			SetPagePrivate(page);
-+			set_page_private(page, 0);
-+			first_page = page;
-+			first_page->inuse = 0;
-+		}
-+		if (i == 1)
-+			first_page->private = (unsigned long)page;
-+		if (i >= 1)
-+			page->first_page = first_page;
-+		if (i >= 2)
-+			list_add(&page->lru, &prev_page->lru);
-+		if (i == class->pages_per_zspage - 1)	/* last page */
-+			SetPagePrivate2(page);
-+		prev_page = page;
-+	}
-+
-+	init_zspage(first_page, class);
-+
-+	first_page->freelist = obj_location_to_handle(first_page, 0);
-+	/* Maximum number of objects we can store in this zspage */
-+	first_page->objects = class->pages_per_zspage * PAGE_SIZE / class->size;
-+
-+	error = 0; /* Success */
-+
-+cleanup:
-+	if (unlikely(error) && first_page) {
-+		free_zspage(first_page);
-+		first_page = NULL;
-+	}
-+
-+	return first_page;
-+}
-+
-+static struct page *find_get_zspage(struct size_class *class)
-+{
-+	int i;
-+	struct page *page;
-+
-+	for (i = 0; i < _ZS_NR_FULLNESS_GROUPS; i++) {
-+		page = class->fullness_list[i];
-+		if (page)
-+			break;
-+	}
-+
-+	return page;
-+}
-+
-+#ifdef USE_PGTABLE_MAPPING
-+static inline int __zs_cpu_up(struct mapping_area *area)
-+{
-+	/*
-+	 * Make sure we don't leak memory if a cpu UP notification
-+	 * and zs_init() race and both call zs_cpu_up() on the same cpu
-+	 */
-+	if (area->vm)
-+		return 0;
-+	area->vm = alloc_vm_area(PAGE_SIZE * 2, NULL);
-+	if (!area->vm)
-+		return -ENOMEM;
-+	return 0;
-+}
-+
-+static inline void __zs_cpu_down(struct mapping_area *area)
-+{
-+	if (area->vm)
-+		free_vm_area(area->vm);
-+	area->vm = NULL;
-+}
-+
-+static inline void *__zs_map_object(struct mapping_area *area,
-+				struct page *pages[2], int off, int size)
-+{
-+	BUG_ON(map_vm_area(area->vm, PAGE_KERNEL, &pages));
-+	area->vm_addr = area->vm->addr;
-+	return area->vm_addr + off;
-+}
-+
-+static inline void __zs_unmap_object(struct mapping_area *area,
-+				struct page *pages[2], int off, int size)
-+{
-+	unsigned long addr = (unsigned long)area->vm_addr;
-+	unsigned long end = addr + (PAGE_SIZE * 2);
-+
-+	flush_cache_vunmap(addr, end);
-+	unmap_kernel_range_noflush(addr, PAGE_SIZE * 2);
-+	local_flush_tlb_kernel_range(addr, end);
-+}
-+
-+#else /* USE_PGTABLE_MAPPING */
-+
-+static inline int __zs_cpu_up(struct mapping_area *area)
-+{
-+	/*
-+	 * Make sure we don't leak memory if a cpu UP notification
-+	 * and zs_init() race and both call zs_cpu_up() on the same cpu
-+	 */
-+	if (area->vm_buf)
-+		return 0;
-+	area->vm_buf = (char *)__get_free_page(GFP_KERNEL);
-+	if (!area->vm_buf)
-+		return -ENOMEM;
-+	return 0;
-+}
-+
-+static inline void __zs_cpu_down(struct mapping_area *area)
-+{
-+	if (area->vm_buf)
-+		free_page((unsigned long)area->vm_buf);
-+	area->vm_buf = NULL;
-+}
-+
-+static void *__zs_map_object(struct mapping_area *area,
-+			struct page *pages[2], int off, int size)
-+{
-+	int sizes[2];
-+	void *addr;
-+	char *buf = area->vm_buf;
-+
-+	/* disable page faults to match kmap_atomic() return conditions */
-+	pagefault_disable();
-+
-+	/* no read fastpath */
-+	if (area->vm_mm == ZS_MM_WO)
-+		goto out;
-+
-+	sizes[0] = PAGE_SIZE - off;
-+	sizes[1] = size - sizes[0];
-+
-+	/* copy object to per-cpu buffer */
-+	addr = kmap_atomic(pages[0]);
-+	memcpy(buf, addr + off, sizes[0]);
-+	kunmap_atomic(addr);
-+	addr = kmap_atomic(pages[1]);
-+	memcpy(buf + sizes[0], addr, sizes[1]);
-+	kunmap_atomic(addr);
-+out:
-+	return area->vm_buf;
-+}
-+
-+static void __zs_unmap_object(struct mapping_area *area,
-+			struct page *pages[2], int off, int size)
-+{
-+	int sizes[2];
-+	void *addr;
-+	char *buf = area->vm_buf;
-+
-+	/* no write fastpath */
-+	if (area->vm_mm == ZS_MM_RO)
-+		goto out;
-+
-+	sizes[0] = PAGE_SIZE - off;
-+	sizes[1] = size - sizes[0];
-+
-+	/* copy per-cpu buffer to object */
-+	addr = kmap_atomic(pages[0]);
-+	memcpy(addr + off, buf, sizes[0]);
-+	kunmap_atomic(addr);
-+	addr = kmap_atomic(pages[1]);
-+	memcpy(addr, buf + sizes[0], sizes[1]);
-+	kunmap_atomic(addr);
-+
-+out:
-+	/* enable page faults to match kunmap_atomic() return conditions */
-+	pagefault_enable();
-+}
-+
-+#endif /* USE_PGTABLE_MAPPING */
-+
-+static int zs_cpu_notifier(struct notifier_block *nb, unsigned long action,
-+				void *pcpu)
-+{
-+	int ret, cpu = (long)pcpu;
-+	struct mapping_area *area;
-+
-+	switch (action) {
-+	case CPU_UP_PREPARE:
-+		area = &per_cpu(zs_map_area, cpu);
-+		ret = __zs_cpu_up(area);
-+		if (ret)
-+			return notifier_from_errno(ret);
-+		break;
-+	case CPU_DEAD:
-+	case CPU_UP_CANCELED:
-+		area = &per_cpu(zs_map_area, cpu);
-+		__zs_cpu_down(area);
-+		break;
-+	}
-+
-+	return NOTIFY_OK;
-+}
-+
-+static struct notifier_block zs_cpu_nb = {
-+	.notifier_call = zs_cpu_notifier
-+};
-+
-+static void zs_exit(void)
-+{
-+	int cpu;
-+
-+	for_each_online_cpu(cpu)
-+		zs_cpu_notifier(NULL, CPU_DEAD, (void *)(long)cpu);
-+	unregister_cpu_notifier(&zs_cpu_nb);
-+}
-+
-+static int zs_init(void)
-+{
-+	int cpu, ret;
-+
-+	register_cpu_notifier(&zs_cpu_nb);
-+	for_each_online_cpu(cpu) {
-+		ret = zs_cpu_notifier(NULL, CPU_UP_PREPARE, (void *)(long)cpu);
-+		if (notifier_to_errno(ret))
-+			goto fail;
-+	}
-+	return 0;
-+fail:
-+	zs_exit();
-+	return notifier_to_errno(ret);
-+}
-+
-+struct zs_pool *zs_create_pool(const char *name, gfp_t flags)
-+{
-+	int i, ovhd_size;
-+	struct zs_pool *pool;
-+
-+	if (!name)
-+		return NULL;
-+
-+	ovhd_size = roundup(sizeof(*pool), PAGE_SIZE);
-+	pool = kzalloc(ovhd_size, GFP_KERNEL);
-+	if (!pool)
-+		return NULL;
-+
-+	for (i = 0; i < ZS_SIZE_CLASSES; i++) {
-+		int size;
-+		struct size_class *class;
-+
-+		size = ZS_MIN_ALLOC_SIZE + i * ZS_SIZE_CLASS_DELTA;
-+		if (size > ZS_MAX_ALLOC_SIZE)
-+			size = ZS_MAX_ALLOC_SIZE;
-+
-+		class = &pool->size_class[i];
-+		class->size = size;
-+		class->index = i;
-+		spin_lock_init(&class->lock);
-+		class->pages_per_zspage = get_pages_per_zspage(size);
-+
-+	}
-+
-+	pool->flags = flags;
-+	pool->name = name;
-+
-+	return pool;
-+}
-+EXPORT_SYMBOL_GPL(zs_create_pool);
-+
-+void zs_destroy_pool(struct zs_pool *pool)
-+{
-+	int i;
-+
-+	for (i = 0; i < ZS_SIZE_CLASSES; i++) {
-+		int fg;
-+		struct size_class *class = &pool->size_class[i];
-+
-+		for (fg = 0; fg < _ZS_NR_FULLNESS_GROUPS; fg++) {
-+			if (class->fullness_list[fg]) {
-+				pr_info("Freeing non-empty class with size "
-+					"%db, fullness group %d\n",
-+					class->size, fg);
-+			}
-+		}
-+	}
-+	kfree(pool);
-+}
-+EXPORT_SYMBOL_GPL(zs_destroy_pool);
-+
-+/**
-+ * zs_malloc - Allocate block of given size from pool.
-+ * @pool: pool to allocate from
-+ * @size: size of block to allocate
-+ *
-+ * On success, handle to the allocated object is returned,
-+ * otherwise 0.
-+ * Allocation requests with size > ZS_MAX_ALLOC_SIZE will fail.
-+ */
-+unsigned long zs_malloc(struct zs_pool *pool, size_t size)
-+{
-+	unsigned long obj;
-+	struct link_free *link;
-+	int class_idx;
-+	struct size_class *class;
-+
-+	struct page *first_page, *m_page;
-+	unsigned long m_objidx, m_offset;
-+
-+	if (unlikely(!size || size > ZS_MAX_ALLOC_SIZE))
-+		return 0;
-+
-+	class_idx = get_size_class_index(size);
-+	class = &pool->size_class[class_idx];
-+	BUG_ON(class_idx != class->index);
-+
-+	spin_lock(&class->lock);
-+	first_page = find_get_zspage(class);
-+
-+	if (!first_page) {
-+		spin_unlock(&class->lock);
-+		first_page = alloc_zspage(class, pool->flags);
-+		if (unlikely(!first_page))
++	for (pos = 0; pos != PAGE_SIZE / sizeof(*page); pos++) {
++		if (page[pos])
 +			return 0;
-+
-+		set_zspage_mapping(first_page, class->index, ZS_EMPTY);
-+		spin_lock(&class->lock);
-+		class->pages_allocated += class->pages_per_zspage;
 +	}
 +
-+	obj = (unsigned long)first_page->freelist;
-+	obj_handle_to_location(obj, &m_page, &m_objidx);
-+	m_offset = obj_idx_to_offset(m_page, m_objidx, class->size);
-+
-+	link = (struct link_free *)kmap_atomic(m_page) +
-+					m_offset / sizeof(*link);
-+	first_page->freelist = link->next;
-+	memset(link, POISON_INUSE, sizeof(*link));
-+	kunmap_atomic(link);
-+
-+	first_page->inuse++;
-+	/* Now move the zspage to another fullness group, if required */
-+	fix_fullness_group(pool, first_page);
-+	spin_unlock(&class->lock);
-+
-+	return obj;
++	return 1;
 +}
-+EXPORT_SYMBOL_GPL(zs_malloc);
 +
-+void zs_free(struct zs_pool *pool, unsigned long obj)
++static void zram_set_disksize(struct zram *zram, size_t totalram_bytes)
 +{
-+	struct link_free *link;
-+	struct page *first_page, *f_page;
-+	unsigned long f_objidx, f_offset;
++	if (!zram->disksize) {
++		pr_info(
++		"disk size not provided. You can use disksize_kb module "
++		"param to specify size.\nUsing default: (%u%% of RAM).\n",
++		default_disksize_perc_ram
++		);
++		zram->disksize = default_disksize_perc_ram *
++					(totalram_bytes / 100);
++	}
 +
-+	int class_idx;
-+	struct size_class *class;
-+	enum fullness_group fullness;
++	if (zram->disksize > 2 * (totalram_bytes)) {
++		pr_info(
++		"There is little point creating a zram of greater than "
++		"twice the size of memory since we expect a 2:1 compression "
++		"ratio. Note that zram uses about 0.1%% of the size of "
++		"the disk when not in use so a huge zram is "
++		"wasteful.\n"
++		"\tMemory Size: %zu kB\n"
++		"\tSize you selected: %llu kB\n"
++		"Continuing anyway ...\n",
++		totalram_bytes >> 10, zram->disksize
++		);
++	}
 +
-+	if (unlikely(!obj))
++	zram->disksize &= PAGE_MASK;
++}
++
++static void zram_free_page(struct zram *zram, size_t index)
++{
++	unsigned long handle = zram->table[index].handle;
++	u16 size = zram->table[index].size;
++
++	if (unlikely(!handle)) {
++		/*
++		 * No memory is allocated for zero filled pages.
++		 * Simply clear zero page flag.
++		 */
++		if (zram_test_flag(zram, index, ZRAM_ZERO)) {
++			zram_clear_flag(zram, index, ZRAM_ZERO);
++			zram_stat_dec(&zram->stats.pages_zero);
++		}
 +		return;
++	}
 +
-+	obj_handle_to_location(obj, &f_page, &f_objidx);
-+	first_page = get_first_page(f_page);
++	if (unlikely(size > max_zpage_size))
++		zram_stat_dec(&zram->stats.bad_compress);
 +
-+	get_zspage_mapping(first_page, &class_idx, &fullness);
-+	class = &pool->size_class[class_idx];
-+	f_offset = obj_idx_to_offset(f_page, f_objidx, class->size);
++	zs_free(zram->mem_pool, handle);
 +
-+	spin_lock(&class->lock);
++	if (size <= PAGE_SIZE / 2)
++		zram_stat_dec(&zram->stats.good_compress);
 +
-+	/* Insert this object in containing zspage's freelist */
-+	link = (struct link_free *)((unsigned char *)kmap_atomic(f_page)
-+							+ f_offset);
-+	link->next = first_page->freelist;
-+	kunmap_atomic(link);
-+	first_page->freelist = (void *)obj;
++	zram_stat64_sub(zram, &zram->stats.compr_size,
++			zram->table[index].size);
++	zram_stat_dec(&zram->stats.pages_stored);
 +
-+	first_page->inuse--;
-+	fullness = fix_fullness_group(pool, first_page);
-+
-+	if (fullness == ZS_EMPTY)
-+		class->pages_allocated -= class->pages_per_zspage;
-+
-+	spin_unlock(&class->lock);
-+
-+	if (fullness == ZS_EMPTY)
-+		free_zspage(first_page);
++	zram->table[index].handle = 0;
++	zram->table[index].size = 0;
 +}
-+EXPORT_SYMBOL_GPL(zs_free);
 +
-+/**
-+ * zs_map_object - get address of allocated object from handle.
-+ * @pool: pool from which the object was allocated
-+ * @handle: handle returned from zs_malloc
-+ *
-+ * Before using an object allocated from zs_malloc, it must be mapped using
-+ * this function. When done with the object, it must be unmapped using
-+ * zs_unmap_object.
-+ *
-+ * Only one object can be mapped per cpu at a time. There is no protection
-+ * against nested mappings.
-+ *
-+ * This function returns with preemption and page faults disabled.
-+*/
-+void *zs_map_object(struct zs_pool *pool, unsigned long handle,
-+			enum zs_mapmode mm)
++static void handle_zero_page(struct bio_vec *bvec)
 +{
++	struct page *page = bvec->bv_page;
++	void *user_mem;
++
++	user_mem = kmap_atomic(page);
++	memset(user_mem + bvec->bv_offset, 0, bvec->bv_len);
++	kunmap_atomic(user_mem);
++
++	flush_dcache_page(page);
++}
++
++static inline int is_partial_io(struct bio_vec *bvec)
++{
++	return bvec->bv_len != PAGE_SIZE;
++}
++
++static int zram_bvec_read(struct zram *zram, struct bio_vec *bvec,
++			  u32 index, int offset, struct bio *bio)
++{
++	int ret;
++	size_t clen;
 +	struct page *page;
-+	unsigned long obj_idx, off;
++	unsigned char *user_mem, *cmem, *uncmem = NULL;
 +
-+	unsigned int class_idx;
-+	enum fullness_group fg;
-+	struct size_class *class;
-+	struct mapping_area *area;
-+	struct page *pages[2];
++	page = bvec->bv_page;
 +
-+	BUG_ON(!handle);
++	if (zram_test_flag(zram, index, ZRAM_ZERO)) {
++		handle_zero_page(bvec);
++		return 0;
++	}
++
++	/* Requested page is not present in compressed area */
++	if (unlikely(!zram->table[index].handle)) {
++		pr_debug("Read before write: sector=%lu, size=%u",
++			 (ulong)(bio->bi_sector), bio->bi_size);
++		handle_zero_page(bvec);
++		return 0;
++	}
++
++	if (is_partial_io(bvec)) {
++		/* Use  a temporary buffer to decompress the page */
++		uncmem = kmalloc(PAGE_SIZE, GFP_KERNEL);
++		if (!uncmem) {
++			pr_info("Error allocating temp memory!\n");
++			return -ENOMEM;
++		}
++	}
++
++	user_mem = kmap_atomic(page);
++	if (!is_partial_io(bvec))
++		uncmem = user_mem;
++	clen = PAGE_SIZE;
++
++	cmem = zs_map_object(zram->mem_pool, zram->table[index].handle,
++				ZS_MM_RO);
++
++	ret = lzo1x_decompress_safe(cmem, zram->table[index].size,
++				    uncmem, &clen);
++
++	if (is_partial_io(bvec)) {
++		memcpy(user_mem + bvec->bv_offset, uncmem + offset,
++		       bvec->bv_len);
++		kfree(uncmem);
++	}
++
++	zs_unmap_object(zram->mem_pool, zram->table[index].handle);
++	kunmap_atomic(user_mem);
++
++	/* Should NEVER happen. Return bio error if it does. */
++	if (unlikely(ret != LZO_E_OK)) {
++		pr_err("Decompression failed! err=%d, page=%u\n", ret, index);
++		zram_stat64_inc(zram, &zram->stats.failed_reads);
++		return ret;
++	}
++
++	flush_dcache_page(page);
++
++	return 0;
++}
++
++static int zram_read_before_write(struct zram *zram, char *mem, u32 index)
++{
++	int ret;
++	size_t clen = PAGE_SIZE;
++	unsigned char *cmem;
++	unsigned long handle = zram->table[index].handle;
++
++	if (zram_test_flag(zram, index, ZRAM_ZERO) || !handle) {
++		memset(mem, 0, PAGE_SIZE);
++		return 0;
++	}
++
++	cmem = zs_map_object(zram->mem_pool, handle, ZS_MM_RO);
++	ret = lzo1x_decompress_safe(cmem, zram->table[index].size,
++				    mem, &clen);
++	zs_unmap_object(zram->mem_pool, handle);
++
++	/* Should NEVER happen. Return bio error if it does. */
++	if (unlikely(ret != LZO_E_OK)) {
++		pr_err("Decompression failed! err=%d, page=%u\n", ret, index);
++		zram_stat64_inc(zram, &zram->stats.failed_reads);
++		return ret;
++	}
++
++	return 0;
++}
++
++static int zram_bvec_write(struct zram *zram, struct bio_vec *bvec, u32 index,
++			   int offset)
++{
++	int ret;
++	size_t clen;
++	unsigned long handle;
++	struct page *page;
++	unsigned char *user_mem, *cmem, *src, *uncmem = NULL;
++
++	page = bvec->bv_page;
++	src = zram->compress_buffer;
++
++	if (is_partial_io(bvec)) {
++		/*
++		 * This is a partial IO. We need to read the full page
++		 * before to write the changes.
++		 */
++		uncmem = kmalloc(PAGE_SIZE, GFP_KERNEL);
++		if (!uncmem) {
++			pr_info("Error allocating temp memory!\n");
++			ret = -ENOMEM;
++			goto out;
++		}
++		ret = zram_read_before_write(zram, uncmem, index);
++		if (ret) {
++			kfree(uncmem);
++			goto out;
++		}
++	}
 +
 +	/*
-+	 * Because we use per-cpu mapping areas shared among the
-+	 * pools/users, we can't allow mapping in interrupt context
-+	 * because it can corrupt another users mappings.
++	 * System overwrites unused sectors. Free memory associated
++	 * with this sector now.
 +	 */
-+	BUG_ON(in_interrupt());
++	if (zram->table[index].handle ||
++	    zram_test_flag(zram, index, ZRAM_ZERO))
++		zram_free_page(zram, index);
 +
-+	obj_handle_to_location(handle, &page, &obj_idx);
-+	get_zspage_mapping(get_first_page(page), &class_idx, &fg);
-+	class = &pool->size_class[class_idx];
-+	off = obj_idx_to_offset(page, obj_idx, class->size);
++	user_mem = kmap_atomic(page);
 +
-+	area = &get_cpu_var(zs_map_area);
-+	area->vm_mm = mm;
-+	if (off + class->size <= PAGE_SIZE) {
-+		/* this object is contained entirely within a page */
-+		area->vm_addr = kmap_atomic(page);
-+		return area->vm_addr + off;
++	if (is_partial_io(bvec))
++		memcpy(uncmem + offset, user_mem + bvec->bv_offset,
++		       bvec->bv_len);
++	else
++		uncmem = user_mem;
++
++	if (page_zero_filled(uncmem)) {
++		kunmap_atomic(user_mem);
++		if (is_partial_io(bvec))
++			kfree(uncmem);
++		zram_stat_inc(&zram->stats.pages_zero);
++		zram_set_flag(zram, index, ZRAM_ZERO);
++		ret = 0;
++		goto out;
 +	}
 +
-+	/* this object spans two pages */
-+	pages[0] = page;
-+	pages[1] = get_next_page(page);
-+	BUG_ON(!pages[1]);
++	ret = lzo1x_1_compress(uncmem, PAGE_SIZE, src, &clen,
++			       zram->compress_workmem);
 +
-+	return __zs_map_object(area, pages, off, class->size);
++	kunmap_atomic(user_mem);
++	if (is_partial_io(bvec))
++			kfree(uncmem);
++
++	if (unlikely(ret != LZO_E_OK)) {
++		pr_err("Compression failed! err=%d\n", ret);
++		goto out;
++	}
++
++	if (unlikely(clen > max_zpage_size))
++		zram_stat_inc(&zram->stats.bad_compress);
++
++	handle = zs_malloc(zram->mem_pool, clen);
++	if (!handle) {
++		pr_info("Error allocating memory for compressed "
++			"page: %u, size=%zu\n", index, clen);
++		ret = -ENOMEM;
++		goto out;
++	}
++	cmem = zs_map_object(zram->mem_pool, handle, ZS_MM_WO);
++
++	memcpy(cmem, src, clen);
++
++	zs_unmap_object(zram->mem_pool, handle);
++
++	zram->table[index].handle = handle;
++	zram->table[index].size = clen;
++
++	/* Update stats */
++	zram_stat64_add(zram, &zram->stats.compr_size, clen);
++	zram_stat_inc(&zram->stats.pages_stored);
++	if (clen <= PAGE_SIZE / 2)
++		zram_stat_inc(&zram->stats.good_compress);
++
++	return 0;
++
++out:
++	if (ret)
++		zram_stat64_inc(zram, &zram->stats.failed_writes);
++	return ret;
 +}
-+EXPORT_SYMBOL_GPL(zs_map_object);
 +
-+void zs_unmap_object(struct zs_pool *pool, unsigned long handle)
++static int zram_bvec_rw(struct zram *zram, struct bio_vec *bvec, u32 index,
++			int offset, struct bio *bio, int rw)
 +{
-+	struct page *page;
-+	unsigned long obj_idx, off;
++	int ret;
 +
-+	unsigned int class_idx;
-+	enum fullness_group fg;
-+	struct size_class *class;
-+	struct mapping_area *area;
-+
-+	BUG_ON(!handle);
-+
-+	obj_handle_to_location(handle, &page, &obj_idx);
-+	get_zspage_mapping(get_first_page(page), &class_idx, &fg);
-+	class = &pool->size_class[class_idx];
-+	off = obj_idx_to_offset(page, obj_idx, class->size);
-+
-+	area = &__get_cpu_var(zs_map_area);
-+	if (off + class->size <= PAGE_SIZE)
-+		kunmap_atomic(area->vm_addr);
-+	else {
-+		struct page *pages[2];
-+
-+		pages[0] = page;
-+		pages[1] = get_next_page(page);
-+		BUG_ON(!pages[1]);
-+
-+		__zs_unmap_object(area, pages, off, class->size);
++	if (rw == READ) {
++		down_read(&zram->lock);
++		ret = zram_bvec_read(zram, bvec, index, offset, bio);
++		up_read(&zram->lock);
++	} else {
++		down_write(&zram->lock);
++		ret = zram_bvec_write(zram, bvec, index, offset);
++		up_write(&zram->lock);
 +	}
-+	put_cpu_var(zs_map_area);
-+}
-+EXPORT_SYMBOL_GPL(zs_unmap_object);
 +
-+u64 zs_get_total_size_bytes(struct zs_pool *pool)
++	return ret;
++}
++
++static void update_position(u32 *index, int *offset, struct bio_vec *bvec)
++{
++	if (*offset + bvec->bv_len >= PAGE_SIZE)
++		(*index)++;
++	*offset = (*offset + bvec->bv_len) % PAGE_SIZE;
++}
++
++static void __zram_make_request(struct zram *zram, struct bio *bio, int rw)
++{
++	int i, offset;
++	u32 index;
++	struct bio_vec *bvec;
++
++	switch (rw) {
++	case READ:
++		zram_stat64_inc(zram, &zram->stats.num_reads);
++		break;
++	case WRITE:
++		zram_stat64_inc(zram, &zram->stats.num_writes);
++		break;
++	}
++
++	index = bio->bi_sector >> SECTORS_PER_PAGE_SHIFT;
++	offset = (bio->bi_sector & (SECTORS_PER_PAGE - 1)) << SECTOR_SHIFT;
++
++	bio_for_each_segment(bvec, bio, i) {
++		int max_transfer_size = PAGE_SIZE - offset;
++
++		if (bvec->bv_len > max_transfer_size) {
++			/*
++			 * zram_bvec_rw() can only make operation on a single
++			 * zram page. Split the bio vector.
++			 */
++			struct bio_vec bv;
++
++			bv.bv_page = bvec->bv_page;
++			bv.bv_len = max_transfer_size;
++			bv.bv_offset = bvec->bv_offset;
++
++			if (zram_bvec_rw(zram, &bv, index, offset, bio, rw) < 0)
++				goto out;
++
++			bv.bv_len = bvec->bv_len - max_transfer_size;
++			bv.bv_offset += max_transfer_size;
++			if (zram_bvec_rw(zram, &bv, index+1, 0, bio, rw) < 0)
++				goto out;
++		} else
++			if (zram_bvec_rw(zram, bvec, index, offset, bio, rw)
++			    < 0)
++				goto out;
++
++		update_position(&index, &offset, bvec);
++	}
++
++	set_bit(BIO_UPTODATE, &bio->bi_flags);
++	bio_endio(bio, 0);
++	return;
++
++out:
++	bio_io_error(bio);
++}
++
++/*
++ * Check if request is within bounds and aligned on zram logical blocks.
++ */
++static inline int valid_io_request(struct zram *zram, struct bio *bio)
++{
++	if (unlikely(
++		(bio->bi_sector >= (zram->disksize >> SECTOR_SHIFT)) ||
++		(bio->bi_sector & (ZRAM_SECTOR_PER_LOGICAL_BLOCK - 1)) ||
++		(bio->bi_size & (ZRAM_LOGICAL_BLOCK_SIZE - 1)))) {
++
++		return 0;
++	}
++
++	/* I/O request is valid */
++	return 1;
++}
++
++/*
++ * Handler function for all zram I/O requests.
++ */
++static void zram_make_request(struct request_queue *queue, struct bio *bio)
++{
++	struct zram *zram = queue->queuedata;
++
++	if (unlikely(!zram->init_done) && zram_init_device(zram))
++		goto error;
++
++	down_read(&zram->init_lock);
++	if (unlikely(!zram->init_done))
++		goto error_unlock;
++
++	if (!valid_io_request(zram, bio)) {
++		zram_stat64_inc(zram, &zram->stats.invalid_io);
++		goto error_unlock;
++	}
++
++	__zram_make_request(zram, bio, bio_data_dir(bio));
++	up_read(&zram->init_lock);
++
++	return;
++
++error_unlock:
++	up_read(&zram->init_lock);
++error:
++	bio_io_error(bio);
++}
++
++void __zram_reset_device(struct zram *zram)
++{
++	size_t index;
++
++	zram->init_done = 0;
++
++	/* Free various per-device buffers */
++	kfree(zram->compress_workmem);
++	free_pages((unsigned long)zram->compress_buffer, 1);
++
++	zram->compress_workmem = NULL;
++	zram->compress_buffer = NULL;
++
++	/* Free all pages that are still in this zram device */
++	for (index = 0; index < zram->disksize >> PAGE_SHIFT; index++) {
++		unsigned long handle = zram->table[index].handle;
++		if (!handle)
++			continue;
++
++		zs_free(zram->mem_pool, handle);
++	}
++
++	vfree(zram->table);
++	zram->table = NULL;
++
++	zs_destroy_pool(zram->mem_pool);
++	zram->mem_pool = NULL;
++
++	/* Reset stats */
++	memset(&zram->stats, 0, sizeof(zram->stats));
++
++	zram->disksize = 0;
++}
++
++void zram_reset_device(struct zram *zram)
++{
++	down_write(&zram->init_lock);
++	__zram_reset_device(zram);
++	up_write(&zram->init_lock);
++}
++
++int zram_init_device(struct zram *zram)
++{
++	int ret;
++	size_t num_pages;
++
++	down_write(&zram->init_lock);
++
++	if (zram->init_done) {
++		up_write(&zram->init_lock);
++		return 0;
++	}
++
++	zram_set_disksize(zram, totalram_pages << PAGE_SHIFT);
++
++	zram->compress_workmem = kzalloc(LZO1X_MEM_COMPRESS, GFP_KERNEL);
++	if (!zram->compress_workmem) {
++		pr_err("Error allocating compressor working memory!\n");
++		ret = -ENOMEM;
++		goto fail_no_table;
++	}
++
++	zram->compress_buffer =
++		(void *)__get_free_pages(GFP_KERNEL | __GFP_ZERO, 1);
++	if (!zram->compress_buffer) {
++		pr_err("Error allocating compressor buffer space\n");
++		ret = -ENOMEM;
++		goto fail_no_table;
++	}
++
++	num_pages = zram->disksize >> PAGE_SHIFT;
++	zram->table = vzalloc(num_pages * sizeof(*zram->table));
++	if (!zram->table) {
++		pr_err("Error allocating zram address table\n");
++		ret = -ENOMEM;
++		goto fail_no_table;
++	}
++
++	set_capacity(zram->disk, zram->disksize >> SECTOR_SHIFT);
++
++	/* zram devices sort of resembles non-rotational disks */
++	queue_flag_set_unlocked(QUEUE_FLAG_NONROT, zram->disk->queue);
++
++	zram->mem_pool = zs_create_pool("zram", GFP_NOIO | __GFP_HIGHMEM);
++	if (!zram->mem_pool) {
++		pr_err("Error creating memory pool\n");
++		ret = -ENOMEM;
++		goto fail;
++	}
++
++	zram->init_done = 1;
++	up_write(&zram->init_lock);
++
++	pr_debug("Initialization done!\n");
++	return 0;
++
++fail_no_table:
++	/* To prevent accessing table entries during cleanup */
++	zram->disksize = 0;
++fail:
++	__zram_reset_device(zram);
++	up_write(&zram->init_lock);
++	pr_err("Initialization failed: err=%d\n", ret);
++	return ret;
++}
++
++static void zram_slot_free_notify(struct block_device *bdev,
++				unsigned long index)
++{
++	struct zram *zram;
++
++	zram = bdev->bd_disk->private_data;
++	zram_free_page(zram, index);
++	zram_stat64_inc(zram, &zram->stats.notify_free);
++}
++
++static const struct block_device_operations zram_devops = {
++	.swap_slot_free_notify = zram_slot_free_notify,
++	.owner = THIS_MODULE
++};
++
++static int create_device(struct zram *zram, int device_id)
++{
++	int ret = 0;
++
++	init_rwsem(&zram->lock);
++	init_rwsem(&zram->init_lock);
++	spin_lock_init(&zram->stat64_lock);
++
++	zram->queue = blk_alloc_queue(GFP_KERNEL);
++	if (!zram->queue) {
++		pr_err("Error allocating disk queue for device %d\n",
++			device_id);
++		ret = -ENOMEM;
++		goto out;
++	}
++
++	blk_queue_make_request(zram->queue, zram_make_request);
++	zram->queue->queuedata = zram;
++
++	 /* gendisk structure */
++	zram->disk = alloc_disk(1);
++	if (!zram->disk) {
++		blk_cleanup_queue(zram->queue);
++		pr_warn("Error allocating disk structure for device %d\n",
++			device_id);
++		ret = -ENOMEM;
++		goto out;
++	}
++
++	zram->disk->major = zram_major;
++	zram->disk->first_minor = device_id;
++	zram->disk->fops = &zram_devops;
++	zram->disk->queue = zram->queue;
++	zram->disk->private_data = zram;
++	snprintf(zram->disk->disk_name, 16, "zram%d", device_id);
++
++	/* Actual capacity set using syfs (/sys/block/zram<id>/disksize */
++	set_capacity(zram->disk, 0);
++
++	/*
++	 * To ensure that we always get PAGE_SIZE aligned
++	 * and n*PAGE_SIZED sized I/O requests.
++	 */
++	blk_queue_physical_block_size(zram->disk->queue, PAGE_SIZE);
++	blk_queue_logical_block_size(zram->disk->queue,
++					ZRAM_LOGICAL_BLOCK_SIZE);
++	blk_queue_io_min(zram->disk->queue, PAGE_SIZE);
++	blk_queue_io_opt(zram->disk->queue, PAGE_SIZE);
++
++	add_disk(zram->disk);
++
++	ret = sysfs_create_group(&disk_to_dev(zram->disk)->kobj,
++				&zram_disk_attr_group);
++	if (ret < 0) {
++		pr_warn("Error creating sysfs group");
++		goto out;
++	}
++
++	zram->init_done = 0;
++
++out:
++	return ret;
++}
++
++static void destroy_device(struct zram *zram)
++{
++	sysfs_remove_group(&disk_to_dev(zram->disk)->kobj,
++			&zram_disk_attr_group);
++
++	if (zram->disk) {
++		del_gendisk(zram->disk);
++		put_disk(zram->disk);
++	}
++
++	if (zram->queue)
++		blk_cleanup_queue(zram->queue);
++}
++
++unsigned int zram_get_num_devices(void)
++{
++	return num_devices;
++}
++
++static int __init zram_init(void)
++{
++	int ret, dev_id;
++
++	if (num_devices > max_num_devices) {
++		pr_warn("Invalid value for num_devices: %u\n",
++				num_devices);
++		ret = -EINVAL;
++		goto out;
++	}
++
++	zram_major = register_blkdev(0, "zram");
++	if (zram_major <= 0) {
++		pr_warn("Unable to get major number\n");
++		ret = -EBUSY;
++		goto out;
++	}
++
++	if (!num_devices) {
++		pr_info("num_devices not specified. Using default: 1\n");
++		num_devices = 1;
++	}
++
++	/* Allocate the device array and initialize each one */
++	pr_info("Creating %u devices ...\n", num_devices);
++	zram_devices = kzalloc(num_devices * sizeof(struct zram), GFP_KERNEL);
++	if (!zram_devices) {
++		ret = -ENOMEM;
++		goto unregister;
++	}
++
++	for (dev_id = 0; dev_id < num_devices; dev_id++) {
++		ret = create_device(&zram_devices[dev_id], dev_id);
++		if (ret)
++			goto free_devices;
++	}
++
++	return 0;
++
++free_devices:
++	while (dev_id)
++		destroy_device(&zram_devices[--dev_id]);
++	kfree(zram_devices);
++unregister:
++	unregister_blkdev(zram_major, "zram");
++out:
++	return ret;
++}
++
++static void __exit zram_exit(void)
 +{
 +	int i;
-+	u64 npages = 0;
++	struct zram *zram;
 +
-+	for (i = 0; i < ZS_SIZE_CLASSES; i++)
-+		npages += pool->size_class[i].pages_allocated;
++	for (i = 0; i < num_devices; i++) {
++		zram = &zram_devices[i];
 +
-+	return npages << PAGE_SHIFT;
++		destroy_device(zram);
++		if (zram->init_done)
++			zram_reset_device(zram);
++	}
++
++	unregister_blkdev(zram_major, "zram");
++
++	kfree(zram_devices);
++	pr_debug("Cleanup done!\n");
 +}
-+EXPORT_SYMBOL_GPL(zs_get_total_size_bytes);
 +
-+module_init(zs_init);
-+module_exit(zs_exit);
++module_param(num_devices, uint, 0);
++MODULE_PARM_DESC(num_devices, "Number of zram devices");
++
++module_init(zram_init);
++module_exit(zram_exit);
 +
 +MODULE_LICENSE("Dual BSD/GPL");
 +MODULE_AUTHOR("Nitin Gupta <ngupta@vflare.org>");
++MODULE_DESCRIPTION("Compressed RAM Block Device");
+diff --git a/drivers/block/zram/zram_drv.h b/drivers/block/zram/zram_drv.h
+new file mode 100644
+index 0000000..f6d0925
+--- /dev/null
++++ b/drivers/block/zram/zram_drv.h
+@@ -0,0 +1,119 @@
++/*
++ * Compressed RAM block device
++ *
++ * Copyright (C) 2008, 2009, 2010  Nitin Gupta
++ *
++ * This code is released using a dual license strategy: BSD/GPL
++ * You can choose the licence that better fits your requirements.
++ *
++ * Released under the terms of 3-clause BSD License
++ * Released under the terms of GNU General Public License Version 2.0
++ *
++ * Project home: http://compcache.googlecode.com
++ */
++
++#ifndef _ZRAM_DRV_H_
++#define _ZRAM_DRV_H_
++
++#include <linux/spinlock.h>
++#include <linux/mutex.h>
++#include <linux/zsmalloc.h>
++
++/*
++ * Some arbitrary value. This is just to catch
++ * invalid value for num_devices module parameter.
++ */
++static const unsigned max_num_devices = 32;
++
++/*-- Configurable parameters */
++
++/* Default zram disk size: 25% of total RAM */
++static const unsigned default_disksize_perc_ram = 25;
++
++/*
++ * Pages that compress to size greater than this are stored
++ * uncompressed in memory.
++ */
++static const size_t max_zpage_size = PAGE_SIZE / 4 * 3;
++
++/*
++ * NOTE: max_zpage_size must be less than or equal to:
++ *   ZS_MAX_ALLOC_SIZE - sizeof(struct zobj_header)
++ * otherwise, xv_malloc() would always return failure.
++ */
++
++/*-- End of configurable params */
++
++#define SECTOR_SHIFT		9
++#define SECTOR_SIZE		(1 << SECTOR_SHIFT)
++#define SECTORS_PER_PAGE_SHIFT	(PAGE_SHIFT - SECTOR_SHIFT)
++#define SECTORS_PER_PAGE	(1 << SECTORS_PER_PAGE_SHIFT)
++#define ZRAM_LOGICAL_BLOCK_SHIFT 12
++#define ZRAM_LOGICAL_BLOCK_SIZE	(1 << ZRAM_LOGICAL_BLOCK_SHIFT)
++#define ZRAM_SECTOR_PER_LOGICAL_BLOCK	\
++	(1 << (ZRAM_LOGICAL_BLOCK_SHIFT - SECTOR_SHIFT))
++
++/* Flags for zram pages (table[page_no].flags) */
++enum zram_pageflags {
++	/* Page consists entirely of zeros */
++	ZRAM_ZERO,
++
++	__NR_ZRAM_PAGEFLAGS,
++};
++
++/*-- Data structures */
++
++/* Allocated for each disk page */
++struct table {
++	unsigned long handle;
++	u16 size;	/* object size (excluding header) */
++	u8 count;	/* object ref count (not yet used) */
++	u8 flags;
++} __aligned(4);
++
++struct zram_stats {
++	u64 compr_size;		/* compressed size of pages stored */
++	u64 num_reads;		/* failed + successful */
++	u64 num_writes;		/* --do-- */
++	u64 failed_reads;	/* should NEVER! happen */
++	u64 failed_writes;	/* can happen when memory is too low */
++	u64 invalid_io;		/* non-page-aligned I/O requests */
++	u64 notify_free;	/* no. of swap slot free notifications */
++	u32 pages_zero;		/* no. of zero filled pages */
++	u32 pages_stored;	/* no. of pages currently stored */
++	u32 good_compress;	/* % of pages with compression ratio<=50% */
++	u32 bad_compress;	/* % of pages with compression ratio>=75% */
++};
++
++struct zram {
++	struct zs_pool *mem_pool;
++	void *compress_workmem;
++	void *compress_buffer;
++	struct table *table;
++	spinlock_t stat64_lock;	/* protect 64-bit stats */
++	struct rw_semaphore lock; /* protect compression buffers and table
++				   * against concurrent read and writes */
++	struct request_queue *queue;
++	struct gendisk *disk;
++	int init_done;
++	/* Prevent concurrent execution of device init, reset and R/W request */
++	struct rw_semaphore init_lock;
++	/*
++	 * This is the limit on amount of *uncompressed* worth of data
++	 * we can store in a disk.
++	 */
++	u64 disksize;	/* bytes */
++
++	struct zram_stats stats;
++};
++
++extern struct zram *zram_devices;
++unsigned int zram_get_num_devices(void);
++#ifdef CONFIG_SYSFS
++extern struct attribute_group zram_disk_attr_group;
++#endif
++
++extern int zram_init_device(struct zram *zram);
++extern void __zram_reset_device(struct zram *zram);
++
++#endif
+diff --git a/drivers/block/zram/zram_sysfs.c b/drivers/block/zram/zram_sysfs.c
+new file mode 100644
+index 0000000..edb0ed4
+--- /dev/null
++++ b/drivers/block/zram/zram_sysfs.c
+@@ -0,0 +1,225 @@
++/*
++ * Compressed RAM block device
++ *
++ * Copyright (C) 2008, 2009, 2010  Nitin Gupta
++ *
++ * This code is released using a dual license strategy: BSD/GPL
++ * You can choose the licence that better fits your requirements.
++ *
++ * Released under the terms of 3-clause BSD License
++ * Released under the terms of GNU General Public License Version 2.0
++ *
++ * Project home: http://compcache.googlecode.com/
++ */
++
++#include <linux/device.h>
++#include <linux/genhd.h>
++#include <linux/mm.h>
++
++#include "zram_drv.h"
++
++static u64 zram_stat64_read(struct zram *zram, u64 *v)
++{
++	u64 val;
++
++	spin_lock(&zram->stat64_lock);
++	val = *v;
++	spin_unlock(&zram->stat64_lock);
++
++	return val;
++}
++
++static struct zram *dev_to_zram(struct device *dev)
++{
++	int i;
++	struct zram *zram = NULL;
++
++	for (i = 0; i < zram_get_num_devices(); i++) {
++		zram = &zram_devices[i];
++		if (disk_to_dev(zram->disk) == dev)
++			break;
++	}
++
++	return zram;
++}
++
++static ssize_t disksize_show(struct device *dev,
++		struct device_attribute *attr, char *buf)
++{
++	struct zram *zram = dev_to_zram(dev);
++
++	return sprintf(buf, "%llu\n", zram->disksize);
++}
++
++static ssize_t disksize_store(struct device *dev,
++		struct device_attribute *attr, const char *buf, size_t len)
++{
++	int ret;
++	u64 disksize;
++	struct zram *zram = dev_to_zram(dev);
++
++	ret = kstrtoull(buf, 10, &disksize);
++	if (ret)
++		return ret;
++
++	down_write(&zram->init_lock);
++	if (zram->init_done) {
++		up_write(&zram->init_lock);
++		pr_info("Cannot change disksize for initialized device\n");
++		return -EBUSY;
++	}
++
++	zram->disksize = PAGE_ALIGN(disksize);
++	set_capacity(zram->disk, zram->disksize >> SECTOR_SHIFT);
++	up_write(&zram->init_lock);
++
++	return len;
++}
++
++static ssize_t initstate_show(struct device *dev,
++		struct device_attribute *attr, char *buf)
++{
++	struct zram *zram = dev_to_zram(dev);
++
++	return sprintf(buf, "%u\n", zram->init_done);
++}
++
++static ssize_t reset_store(struct device *dev,
++		struct device_attribute *attr, const char *buf, size_t len)
++{
++	int ret;
++	unsigned short do_reset;
++	struct zram *zram;
++	struct block_device *bdev;
++
++	zram = dev_to_zram(dev);
++	bdev = bdget_disk(zram->disk, 0);
++
++	/* Do not reset an active device! */
++	if (bdev->bd_holders)
++		return -EBUSY;
++
++	ret = kstrtou16(buf, 10, &do_reset);
++	if (ret)
++		return ret;
++
++	if (!do_reset)
++		return -EINVAL;
++
++	/* Make sure all pending I/O is finished */
++	if (bdev)
++		fsync_bdev(bdev);
++
++	down_write(&zram->init_lock);
++	if (zram->init_done)
++		__zram_reset_device(zram);
++	up_write(&zram->init_lock);
++
++	return len;
++}
++
++static ssize_t num_reads_show(struct device *dev,
++		struct device_attribute *attr, char *buf)
++{
++	struct zram *zram = dev_to_zram(dev);
++
++	return sprintf(buf, "%llu\n",
++		zram_stat64_read(zram, &zram->stats.num_reads));
++}
++
++static ssize_t num_writes_show(struct device *dev,
++		struct device_attribute *attr, char *buf)
++{
++	struct zram *zram = dev_to_zram(dev);
++
++	return sprintf(buf, "%llu\n",
++		zram_stat64_read(zram, &zram->stats.num_writes));
++}
++
++static ssize_t invalid_io_show(struct device *dev,
++		struct device_attribute *attr, char *buf)
++{
++	struct zram *zram = dev_to_zram(dev);
++
++	return sprintf(buf, "%llu\n",
++		zram_stat64_read(zram, &zram->stats.invalid_io));
++}
++
++static ssize_t notify_free_show(struct device *dev,
++		struct device_attribute *attr, char *buf)
++{
++	struct zram *zram = dev_to_zram(dev);
++
++	return sprintf(buf, "%llu\n",
++		zram_stat64_read(zram, &zram->stats.notify_free));
++}
++
++static ssize_t zero_pages_show(struct device *dev,
++		struct device_attribute *attr, char *buf)
++{
++	struct zram *zram = dev_to_zram(dev);
++
++	return sprintf(buf, "%u\n", zram->stats.pages_zero);
++}
++
++static ssize_t orig_data_size_show(struct device *dev,
++		struct device_attribute *attr, char *buf)
++{
++	struct zram *zram = dev_to_zram(dev);
++
++	return sprintf(buf, "%llu\n",
++		(u64)(zram->stats.pages_stored) << PAGE_SHIFT);
++}
++
++static ssize_t compr_data_size_show(struct device *dev,
++		struct device_attribute *attr, char *buf)
++{
++	struct zram *zram = dev_to_zram(dev);
++
++	return sprintf(buf, "%llu\n",
++		zram_stat64_read(zram, &zram->stats.compr_size));
++}
++
++static ssize_t mem_used_total_show(struct device *dev,
++		struct device_attribute *attr, char *buf)
++{
++	u64 val = 0;
++	struct zram *zram = dev_to_zram(dev);
++
++	if (zram->init_done)
++		val = zs_get_total_size_bytes(zram->mem_pool);
++
++	return sprintf(buf, "%llu\n", val);
++}
++
++static DEVICE_ATTR(disksize, S_IRUGO | S_IWUSR,
++		disksize_show, disksize_store);
++static DEVICE_ATTR(initstate, S_IRUGO, initstate_show, NULL);
++static DEVICE_ATTR(reset, S_IWUSR, NULL, reset_store);
++static DEVICE_ATTR(num_reads, S_IRUGO, num_reads_show, NULL);
++static DEVICE_ATTR(num_writes, S_IRUGO, num_writes_show, NULL);
++static DEVICE_ATTR(invalid_io, S_IRUGO, invalid_io_show, NULL);
++static DEVICE_ATTR(notify_free, S_IRUGO, notify_free_show, NULL);
++static DEVICE_ATTR(zero_pages, S_IRUGO, zero_pages_show, NULL);
++static DEVICE_ATTR(orig_data_size, S_IRUGO, orig_data_size_show, NULL);
++static DEVICE_ATTR(compr_data_size, S_IRUGO, compr_data_size_show, NULL);
++static DEVICE_ATTR(mem_used_total, S_IRUGO, mem_used_total_show, NULL);
++
++static struct attribute *zram_disk_attrs[] = {
++	&dev_attr_disksize.attr,
++	&dev_attr_initstate.attr,
++	&dev_attr_reset.attr,
++	&dev_attr_num_reads.attr,
++	&dev_attr_num_writes.attr,
++	&dev_attr_invalid_io.attr,
++	&dev_attr_notify_free.attr,
++	&dev_attr_zero_pages.attr,
++	&dev_attr_orig_data_size.attr,
++	&dev_attr_compr_data_size.attr,
++	&dev_attr_mem_used_total.attr,
++	NULL,
++};
++
++struct attribute_group zram_disk_attr_group = {
++	.attrs = zram_disk_attrs,
++};
+diff --git a/drivers/staging/Kconfig b/drivers/staging/Kconfig
+index 4316ef5..9fc23d9 100644
+--- a/drivers/staging/Kconfig
++++ b/drivers/staging/Kconfig
+@@ -74,8 +74,6 @@ source "drivers/staging/sep/Kconfig"
+ 
+ source "drivers/staging/iio/Kconfig"
+ 
+-source "drivers/staging/zram/Kconfig"
+-
+ source "drivers/staging/zcache/Kconfig"
+ 
+ source "drivers/staging/wlags49_h2/Kconfig"
+diff --git a/drivers/staging/Makefile b/drivers/staging/Makefile
+index db18726..3aee49a 100644
+--- a/drivers/staging/Makefile
++++ b/drivers/staging/Makefile
+@@ -32,7 +32,6 @@ obj-$(CONFIG_VME_BUS)		+= vme/
+ obj-$(CONFIG_IPACK_BUS)		+= ipack/
+ obj-$(CONFIG_DX_SEP)            += sep/
+ obj-$(CONFIG_IIO)		+= iio/
+-obj-$(CONFIG_ZRAM)		+= zram/
+ obj-$(CONFIG_ZCACHE)		+= zcache/
+ obj-$(CONFIG_WLAGS49_H2)	+= wlags49_h2/
+ obj-$(CONFIG_WLAGS49_H25)	+= wlags49_h25/
+diff --git a/drivers/staging/zram/Kconfig b/drivers/staging/zram/Kconfig
+deleted file mode 100644
+index be5abe8..0000000
+--- a/drivers/staging/zram/Kconfig
++++ /dev/null
+@@ -1,25 +0,0 @@
+-config ZRAM
+-	tristate "Compressed RAM block device support"
+-	depends on BLOCK && SYSFS && ZSMALLOC
+-	select LZO_COMPRESS
+-	select LZO_DECOMPRESS
+-	default n
+-	help
+-	  Creates virtual block devices called /dev/zramX (X = 0, 1, ...).
+-	  Pages written to these disks are compressed and stored in memory
+-	  itself. These disks allow very fast I/O and compression provides
+-	  good amounts of memory savings.
+-
+-	  It has several use cases, for example: /tmp storage, use as swap
+-	  disks and maybe many more.
+-
+-	  See zram.txt for more information.
+-	  Project home: http://compcache.googlecode.com/
+-
+-config ZRAM_DEBUG
+-	bool "Compressed RAM block device debug support"
+-	depends on ZRAM
+-	default n
+-	help
+-	  This option adds additional debugging code to the compressed
+-	  RAM block device driver.
+diff --git a/drivers/staging/zram/Makefile b/drivers/staging/zram/Makefile
+deleted file mode 100644
+index 7f4a301..0000000
+--- a/drivers/staging/zram/Makefile
++++ /dev/null
+@@ -1,3 +0,0 @@
+-zram-y	:=	zram_drv.o zram_sysfs.o
+-
+-obj-$(CONFIG_ZRAM)	+=	zram.o
+diff --git a/drivers/staging/zram/zram.txt b/drivers/staging/zram/zram.txt
+deleted file mode 100644
+index 5f75d29..0000000
+--- a/drivers/staging/zram/zram.txt
++++ /dev/null
+@@ -1,76 +0,0 @@
+-zram: Compressed RAM based block devices
+-----------------------------------------
+-
+-Project home: http://compcache.googlecode.com/
+-
+-* Introduction
+-
+-The zram module creates RAM based block devices named /dev/zram<id>
+-(<id> = 0, 1, ...). Pages written to these disks are compressed and stored
+-in memory itself. These disks allow very fast I/O and compression provides
+-good amounts of memory savings. Some of the usecases include /tmp storage,
+-use as swap disks, various caches under /var and maybe many more :)
+-
+-Statistics for individual zram devices are exported through sysfs nodes at
+-/sys/block/zram<id>/
+-
+-* Usage
+-
+-Following shows a typical sequence of steps for using zram.
+-
+-1) Load Module:
+-	modprobe zram num_devices=4
+-	This creates 4 devices: /dev/zram{0,1,2,3}
+-	(num_devices parameter is optional. Default: 1)
+-
+-2) Set Disksize (Optional):
+-	Set disk size by writing the value to sysfs node 'disksize'
+-	(in bytes). If disksize is not given, default value of 25%
+-	of RAM is used.
+-
+-	# Initialize /dev/zram0 with 50MB disksize
+-	echo $((50*1024*1024)) > /sys/block/zram0/disksize
+-
+-	NOTE: disksize cannot be changed if the disk contains any
+-	data. So, for such a disk, you need to issue 'reset' (see below)
+-	before you can change its disksize.
+-
+-3) Activate:
+-	mkswap /dev/zram0
+-	swapon /dev/zram0
+-
+-	mkfs.ext4 /dev/zram1
+-	mount /dev/zram1 /tmp
+-
+-4) Stats:
+-	Per-device statistics are exported as various nodes under
+-	/sys/block/zram<id>/
+-		disksize
+-		num_reads
+-		num_writes
+-		invalid_io
+-		notify_free
+-		discard
+-		zero_pages
+-		orig_data_size
+-		compr_data_size
+-		mem_used_total
+-
+-5) Deactivate:
+-	swapoff /dev/zram0
+-	umount /dev/zram1
+-
+-6) Reset:
+-	Write any positive value to 'reset' sysfs node
+-	echo 1 > /sys/block/zram0/reset
+-	echo 1 > /sys/block/zram1/reset
+-
+-	(This frees all the memory allocated for the given device).
+-
+-
+-Please report any problems at:
+- - Mailing list: linux-mm-cc at laptop dot org
+- - Issue tracker: http://code.google.com/p/compcache/issues/list
+-
+-Nitin Gupta
+-ngupta@vflare.org
+diff --git a/drivers/staging/zram/zram_drv.c b/drivers/staging/zram/zram_drv.c
+deleted file mode 100644
+index 653b074..0000000
+--- a/drivers/staging/zram/zram_drv.c
++++ /dev/null
+@@ -1,785 +0,0 @@
+-/*
+- * Compressed RAM block device
+- *
+- * Copyright (C) 2008, 2009, 2010  Nitin Gupta
+- *
+- * This code is released using a dual license strategy: BSD/GPL
+- * You can choose the licence that better fits your requirements.
+- *
+- * Released under the terms of 3-clause BSD License
+- * Released under the terms of GNU General Public License Version 2.0
+- *
+- * Project home: http://compcache.googlecode.com
+- */
+-
+-#define KMSG_COMPONENT "zram"
+-#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+-
+-#ifdef CONFIG_ZRAM_DEBUG
+-#define DEBUG
+-#endif
+-
+-#include <linux/module.h>
+-#include <linux/kernel.h>
+-#include <linux/bio.h>
+-#include <linux/bitops.h>
+-#include <linux/blkdev.h>
+-#include <linux/buffer_head.h>
+-#include <linux/device.h>
+-#include <linux/genhd.h>
+-#include <linux/highmem.h>
+-#include <linux/slab.h>
+-#include <linux/lzo.h>
+-#include <linux/string.h>
+-#include <linux/vmalloc.h>
+-
+-#include "zram_drv.h"
+-
+-/* Globals */
+-static int zram_major;
+-struct zram *zram_devices;
+-
+-/* Module params (documentation at end) */
+-static unsigned int num_devices;
+-
+-static void zram_stat_inc(u32 *v)
+-{
+-	*v = *v + 1;
+-}
+-
+-static void zram_stat_dec(u32 *v)
+-{
+-	*v = *v - 1;
+-}
+-
+-static void zram_stat64_add(struct zram *zram, u64 *v, u64 inc)
+-{
+-	spin_lock(&zram->stat64_lock);
+-	*v = *v + inc;
+-	spin_unlock(&zram->stat64_lock);
+-}
+-
+-static void zram_stat64_sub(struct zram *zram, u64 *v, u64 dec)
+-{
+-	spin_lock(&zram->stat64_lock);
+-	*v = *v - dec;
+-	spin_unlock(&zram->stat64_lock);
+-}
+-
+-static void zram_stat64_inc(struct zram *zram, u64 *v)
+-{
+-	zram_stat64_add(zram, v, 1);
+-}
+-
+-static int zram_test_flag(struct zram *zram, u32 index,
+-			enum zram_pageflags flag)
+-{
+-	return zram->table[index].flags & BIT(flag);
+-}
+-
+-static void zram_set_flag(struct zram *zram, u32 index,
+-			enum zram_pageflags flag)
+-{
+-	zram->table[index].flags |= BIT(flag);
+-}
+-
+-static void zram_clear_flag(struct zram *zram, u32 index,
+-			enum zram_pageflags flag)
+-{
+-	zram->table[index].flags &= ~BIT(flag);
+-}
+-
+-static int page_zero_filled(void *ptr)
+-{
+-	unsigned int pos;
+-	unsigned long *page;
+-
+-	page = (unsigned long *)ptr;
+-
+-	for (pos = 0; pos != PAGE_SIZE / sizeof(*page); pos++) {
+-		if (page[pos])
+-			return 0;
+-	}
+-
+-	return 1;
+-}
+-
+-static void zram_set_disksize(struct zram *zram, size_t totalram_bytes)
+-{
+-	if (!zram->disksize) {
+-		pr_info(
+-		"disk size not provided. You can use disksize_kb module "
+-		"param to specify size.\nUsing default: (%u%% of RAM).\n",
+-		default_disksize_perc_ram
+-		);
+-		zram->disksize = default_disksize_perc_ram *
+-					(totalram_bytes / 100);
+-	}
+-
+-	if (zram->disksize > 2 * (totalram_bytes)) {
+-		pr_info(
+-		"There is little point creating a zram of greater than "
+-		"twice the size of memory since we expect a 2:1 compression "
+-		"ratio. Note that zram uses about 0.1%% of the size of "
+-		"the disk when not in use so a huge zram is "
+-		"wasteful.\n"
+-		"\tMemory Size: %zu kB\n"
+-		"\tSize you selected: %llu kB\n"
+-		"Continuing anyway ...\n",
+-		totalram_bytes >> 10, zram->disksize
+-		);
+-	}
+-
+-	zram->disksize &= PAGE_MASK;
+-}
+-
+-static void zram_free_page(struct zram *zram, size_t index)
+-{
+-	unsigned long handle = zram->table[index].handle;
+-	u16 size = zram->table[index].size;
+-
+-	if (unlikely(!handle)) {
+-		/*
+-		 * No memory is allocated for zero filled pages.
+-		 * Simply clear zero page flag.
+-		 */
+-		if (zram_test_flag(zram, index, ZRAM_ZERO)) {
+-			zram_clear_flag(zram, index, ZRAM_ZERO);
+-			zram_stat_dec(&zram->stats.pages_zero);
+-		}
+-		return;
+-	}
+-
+-	if (unlikely(size > max_zpage_size))
+-		zram_stat_dec(&zram->stats.bad_compress);
+-
+-	zs_free(zram->mem_pool, handle);
+-
+-	if (size <= PAGE_SIZE / 2)
+-		zram_stat_dec(&zram->stats.good_compress);
+-
+-	zram_stat64_sub(zram, &zram->stats.compr_size,
+-			zram->table[index].size);
+-	zram_stat_dec(&zram->stats.pages_stored);
+-
+-	zram->table[index].handle = 0;
+-	zram->table[index].size = 0;
+-}
+-
+-static void handle_zero_page(struct bio_vec *bvec)
+-{
+-	struct page *page = bvec->bv_page;
+-	void *user_mem;
+-
+-	user_mem = kmap_atomic(page);
+-	memset(user_mem + bvec->bv_offset, 0, bvec->bv_len);
+-	kunmap_atomic(user_mem);
+-
+-	flush_dcache_page(page);
+-}
+-
+-static inline int is_partial_io(struct bio_vec *bvec)
+-{
+-	return bvec->bv_len != PAGE_SIZE;
+-}
+-
+-static int zram_bvec_read(struct zram *zram, struct bio_vec *bvec,
+-			  u32 index, int offset, struct bio *bio)
+-{
+-	int ret;
+-	size_t clen;
+-	struct page *page;
+-	unsigned char *user_mem, *cmem, *uncmem = NULL;
+-
+-	page = bvec->bv_page;
+-
+-	if (zram_test_flag(zram, index, ZRAM_ZERO)) {
+-		handle_zero_page(bvec);
+-		return 0;
+-	}
+-
+-	/* Requested page is not present in compressed area */
+-	if (unlikely(!zram->table[index].handle)) {
+-		pr_debug("Read before write: sector=%lu, size=%u",
+-			 (ulong)(bio->bi_sector), bio->bi_size);
+-		handle_zero_page(bvec);
+-		return 0;
+-	}
+-
+-	if (is_partial_io(bvec)) {
+-		/* Use  a temporary buffer to decompress the page */
+-		uncmem = kmalloc(PAGE_SIZE, GFP_KERNEL);
+-		if (!uncmem) {
+-			pr_info("Error allocating temp memory!\n");
+-			return -ENOMEM;
+-		}
+-	}
+-
+-	user_mem = kmap_atomic(page);
+-	if (!is_partial_io(bvec))
+-		uncmem = user_mem;
+-	clen = PAGE_SIZE;
+-
+-	cmem = zs_map_object(zram->mem_pool, zram->table[index].handle,
+-				ZS_MM_RO);
+-
+-	ret = lzo1x_decompress_safe(cmem, zram->table[index].size,
+-				    uncmem, &clen);
+-
+-	if (is_partial_io(bvec)) {
+-		memcpy(user_mem + bvec->bv_offset, uncmem + offset,
+-		       bvec->bv_len);
+-		kfree(uncmem);
+-	}
+-
+-	zs_unmap_object(zram->mem_pool, zram->table[index].handle);
+-	kunmap_atomic(user_mem);
+-
+-	/* Should NEVER happen. Return bio error if it does. */
+-	if (unlikely(ret != LZO_E_OK)) {
+-		pr_err("Decompression failed! err=%d, page=%u\n", ret, index);
+-		zram_stat64_inc(zram, &zram->stats.failed_reads);
+-		return ret;
+-	}
+-
+-	flush_dcache_page(page);
+-
+-	return 0;
+-}
+-
+-static int zram_read_before_write(struct zram *zram, char *mem, u32 index)
+-{
+-	int ret;
+-	size_t clen = PAGE_SIZE;
+-	unsigned char *cmem;
+-	unsigned long handle = zram->table[index].handle;
+-
+-	if (zram_test_flag(zram, index, ZRAM_ZERO) || !handle) {
+-		memset(mem, 0, PAGE_SIZE);
+-		return 0;
+-	}
+-
+-	cmem = zs_map_object(zram->mem_pool, handle, ZS_MM_RO);
+-	ret = lzo1x_decompress_safe(cmem, zram->table[index].size,
+-				    mem, &clen);
+-	zs_unmap_object(zram->mem_pool, handle);
+-
+-	/* Should NEVER happen. Return bio error if it does. */
+-	if (unlikely(ret != LZO_E_OK)) {
+-		pr_err("Decompression failed! err=%d, page=%u\n", ret, index);
+-		zram_stat64_inc(zram, &zram->stats.failed_reads);
+-		return ret;
+-	}
+-
+-	return 0;
+-}
+-
+-static int zram_bvec_write(struct zram *zram, struct bio_vec *bvec, u32 index,
+-			   int offset)
+-{
+-	int ret;
+-	size_t clen;
+-	unsigned long handle;
+-	struct page *page;
+-	unsigned char *user_mem, *cmem, *src, *uncmem = NULL;
+-
+-	page = bvec->bv_page;
+-	src = zram->compress_buffer;
+-
+-	if (is_partial_io(bvec)) {
+-		/*
+-		 * This is a partial IO. We need to read the full page
+-		 * before to write the changes.
+-		 */
+-		uncmem = kmalloc(PAGE_SIZE, GFP_KERNEL);
+-		if (!uncmem) {
+-			pr_info("Error allocating temp memory!\n");
+-			ret = -ENOMEM;
+-			goto out;
+-		}
+-		ret = zram_read_before_write(zram, uncmem, index);
+-		if (ret) {
+-			kfree(uncmem);
+-			goto out;
+-		}
+-	}
+-
+-	/*
+-	 * System overwrites unused sectors. Free memory associated
+-	 * with this sector now.
+-	 */
+-	if (zram->table[index].handle ||
+-	    zram_test_flag(zram, index, ZRAM_ZERO))
+-		zram_free_page(zram, index);
+-
+-	user_mem = kmap_atomic(page);
+-
+-	if (is_partial_io(bvec))
+-		memcpy(uncmem + offset, user_mem + bvec->bv_offset,
+-		       bvec->bv_len);
+-	else
+-		uncmem = user_mem;
+-
+-	if (page_zero_filled(uncmem)) {
+-		kunmap_atomic(user_mem);
+-		if (is_partial_io(bvec))
+-			kfree(uncmem);
+-		zram_stat_inc(&zram->stats.pages_zero);
+-		zram_set_flag(zram, index, ZRAM_ZERO);
+-		ret = 0;
+-		goto out;
+-	}
+-
+-	ret = lzo1x_1_compress(uncmem, PAGE_SIZE, src, &clen,
+-			       zram->compress_workmem);
+-
+-	kunmap_atomic(user_mem);
+-	if (is_partial_io(bvec))
+-			kfree(uncmem);
+-
+-	if (unlikely(ret != LZO_E_OK)) {
+-		pr_err("Compression failed! err=%d\n", ret);
+-		goto out;
+-	}
+-
+-	if (unlikely(clen > max_zpage_size))
+-		zram_stat_inc(&zram->stats.bad_compress);
+-
+-	handle = zs_malloc(zram->mem_pool, clen);
+-	if (!handle) {
+-		pr_info("Error allocating memory for compressed "
+-			"page: %u, size=%zu\n", index, clen);
+-		ret = -ENOMEM;
+-		goto out;
+-	}
+-	cmem = zs_map_object(zram->mem_pool, handle, ZS_MM_WO);
+-
+-	memcpy(cmem, src, clen);
+-
+-	zs_unmap_object(zram->mem_pool, handle);
+-
+-	zram->table[index].handle = handle;
+-	zram->table[index].size = clen;
+-
+-	/* Update stats */
+-	zram_stat64_add(zram, &zram->stats.compr_size, clen);
+-	zram_stat_inc(&zram->stats.pages_stored);
+-	if (clen <= PAGE_SIZE / 2)
+-		zram_stat_inc(&zram->stats.good_compress);
+-
+-	return 0;
+-
+-out:
+-	if (ret)
+-		zram_stat64_inc(zram, &zram->stats.failed_writes);
+-	return ret;
+-}
+-
+-static int zram_bvec_rw(struct zram *zram, struct bio_vec *bvec, u32 index,
+-			int offset, struct bio *bio, int rw)
+-{
+-	int ret;
+-
+-	if (rw == READ) {
+-		down_read(&zram->lock);
+-		ret = zram_bvec_read(zram, bvec, index, offset, bio);
+-		up_read(&zram->lock);
+-	} else {
+-		down_write(&zram->lock);
+-		ret = zram_bvec_write(zram, bvec, index, offset);
+-		up_write(&zram->lock);
+-	}
+-
+-	return ret;
+-}
+-
+-static void update_position(u32 *index, int *offset, struct bio_vec *bvec)
+-{
+-	if (*offset + bvec->bv_len >= PAGE_SIZE)
+-		(*index)++;
+-	*offset = (*offset + bvec->bv_len) % PAGE_SIZE;
+-}
+-
+-static void __zram_make_request(struct zram *zram, struct bio *bio, int rw)
+-{
+-	int i, offset;
+-	u32 index;
+-	struct bio_vec *bvec;
+-
+-	switch (rw) {
+-	case READ:
+-		zram_stat64_inc(zram, &zram->stats.num_reads);
+-		break;
+-	case WRITE:
+-		zram_stat64_inc(zram, &zram->stats.num_writes);
+-		break;
+-	}
+-
+-	index = bio->bi_sector >> SECTORS_PER_PAGE_SHIFT;
+-	offset = (bio->bi_sector & (SECTORS_PER_PAGE - 1)) << SECTOR_SHIFT;
+-
+-	bio_for_each_segment(bvec, bio, i) {
+-		int max_transfer_size = PAGE_SIZE - offset;
+-
+-		if (bvec->bv_len > max_transfer_size) {
+-			/*
+-			 * zram_bvec_rw() can only make operation on a single
+-			 * zram page. Split the bio vector.
+-			 */
+-			struct bio_vec bv;
+-
+-			bv.bv_page = bvec->bv_page;
+-			bv.bv_len = max_transfer_size;
+-			bv.bv_offset = bvec->bv_offset;
+-
+-			if (zram_bvec_rw(zram, &bv, index, offset, bio, rw) < 0)
+-				goto out;
+-
+-			bv.bv_len = bvec->bv_len - max_transfer_size;
+-			bv.bv_offset += max_transfer_size;
+-			if (zram_bvec_rw(zram, &bv, index+1, 0, bio, rw) < 0)
+-				goto out;
+-		} else
+-			if (zram_bvec_rw(zram, bvec, index, offset, bio, rw)
+-			    < 0)
+-				goto out;
+-
+-		update_position(&index, &offset, bvec);
+-	}
+-
+-	set_bit(BIO_UPTODATE, &bio->bi_flags);
+-	bio_endio(bio, 0);
+-	return;
+-
+-out:
+-	bio_io_error(bio);
+-}
+-
+-/*
+- * Check if request is within bounds and aligned on zram logical blocks.
+- */
+-static inline int valid_io_request(struct zram *zram, struct bio *bio)
+-{
+-	if (unlikely(
+-		(bio->bi_sector >= (zram->disksize >> SECTOR_SHIFT)) ||
+-		(bio->bi_sector & (ZRAM_SECTOR_PER_LOGICAL_BLOCK - 1)) ||
+-		(bio->bi_size & (ZRAM_LOGICAL_BLOCK_SIZE - 1)))) {
+-
+-		return 0;
+-	}
+-
+-	/* I/O request is valid */
+-	return 1;
+-}
+-
+-/*
+- * Handler function for all zram I/O requests.
+- */
+-static void zram_make_request(struct request_queue *queue, struct bio *bio)
+-{
+-	struct zram *zram = queue->queuedata;
+-
+-	if (unlikely(!zram->init_done) && zram_init_device(zram))
+-		goto error;
+-
+-	down_read(&zram->init_lock);
+-	if (unlikely(!zram->init_done))
+-		goto error_unlock;
+-
+-	if (!valid_io_request(zram, bio)) {
+-		zram_stat64_inc(zram, &zram->stats.invalid_io);
+-		goto error_unlock;
+-	}
+-
+-	__zram_make_request(zram, bio, bio_data_dir(bio));
+-	up_read(&zram->init_lock);
+-
+-	return;
+-
+-error_unlock:
+-	up_read(&zram->init_lock);
+-error:
+-	bio_io_error(bio);
+-}
+-
+-void __zram_reset_device(struct zram *zram)
+-{
+-	size_t index;
+-
+-	zram->init_done = 0;
+-
+-	/* Free various per-device buffers */
+-	kfree(zram->compress_workmem);
+-	free_pages((unsigned long)zram->compress_buffer, 1);
+-
+-	zram->compress_workmem = NULL;
+-	zram->compress_buffer = NULL;
+-
+-	/* Free all pages that are still in this zram device */
+-	for (index = 0; index < zram->disksize >> PAGE_SHIFT; index++) {
+-		unsigned long handle = zram->table[index].handle;
+-		if (!handle)
+-			continue;
+-
+-		zs_free(zram->mem_pool, handle);
+-	}
+-
+-	vfree(zram->table);
+-	zram->table = NULL;
+-
+-	zs_destroy_pool(zram->mem_pool);
+-	zram->mem_pool = NULL;
+-
+-	/* Reset stats */
+-	memset(&zram->stats, 0, sizeof(zram->stats));
+-
+-	zram->disksize = 0;
+-}
+-
+-void zram_reset_device(struct zram *zram)
+-{
+-	down_write(&zram->init_lock);
+-	__zram_reset_device(zram);
+-	up_write(&zram->init_lock);
+-}
+-
+-int zram_init_device(struct zram *zram)
+-{
+-	int ret;
+-	size_t num_pages;
+-
+-	down_write(&zram->init_lock);
+-
+-	if (zram->init_done) {
+-		up_write(&zram->init_lock);
+-		return 0;
+-	}
+-
+-	zram_set_disksize(zram, totalram_pages << PAGE_SHIFT);
+-
+-	zram->compress_workmem = kzalloc(LZO1X_MEM_COMPRESS, GFP_KERNEL);
+-	if (!zram->compress_workmem) {
+-		pr_err("Error allocating compressor working memory!\n");
+-		ret = -ENOMEM;
+-		goto fail_no_table;
+-	}
+-
+-	zram->compress_buffer =
+-		(void *)__get_free_pages(GFP_KERNEL | __GFP_ZERO, 1);
+-	if (!zram->compress_buffer) {
+-		pr_err("Error allocating compressor buffer space\n");
+-		ret = -ENOMEM;
+-		goto fail_no_table;
+-	}
+-
+-	num_pages = zram->disksize >> PAGE_SHIFT;
+-	zram->table = vzalloc(num_pages * sizeof(*zram->table));
+-	if (!zram->table) {
+-		pr_err("Error allocating zram address table\n");
+-		ret = -ENOMEM;
+-		goto fail_no_table;
+-	}
+-
+-	set_capacity(zram->disk, zram->disksize >> SECTOR_SHIFT);
+-
+-	/* zram devices sort of resembles non-rotational disks */
+-	queue_flag_set_unlocked(QUEUE_FLAG_NONROT, zram->disk->queue);
+-
+-	zram->mem_pool = zs_create_pool("zram", GFP_NOIO | __GFP_HIGHMEM);
+-	if (!zram->mem_pool) {
+-		pr_err("Error creating memory pool\n");
+-		ret = -ENOMEM;
+-		goto fail;
+-	}
+-
+-	zram->init_done = 1;
+-	up_write(&zram->init_lock);
+-
+-	pr_debug("Initialization done!\n");
+-	return 0;
+-
+-fail_no_table:
+-	/* To prevent accessing table entries during cleanup */
+-	zram->disksize = 0;
+-fail:
+-	__zram_reset_device(zram);
+-	up_write(&zram->init_lock);
+-	pr_err("Initialization failed: err=%d\n", ret);
+-	return ret;
+-}
+-
+-static void zram_slot_free_notify(struct block_device *bdev,
+-				unsigned long index)
+-{
+-	struct zram *zram;
+-
+-	zram = bdev->bd_disk->private_data;
+-	zram_free_page(zram, index);
+-	zram_stat64_inc(zram, &zram->stats.notify_free);
+-}
+-
+-static const struct block_device_operations zram_devops = {
+-	.swap_slot_free_notify = zram_slot_free_notify,
+-	.owner = THIS_MODULE
+-};
+-
+-static int create_device(struct zram *zram, int device_id)
+-{
+-	int ret = 0;
+-
+-	init_rwsem(&zram->lock);
+-	init_rwsem(&zram->init_lock);
+-	spin_lock_init(&zram->stat64_lock);
+-
+-	zram->queue = blk_alloc_queue(GFP_KERNEL);
+-	if (!zram->queue) {
+-		pr_err("Error allocating disk queue for device %d\n",
+-			device_id);
+-		ret = -ENOMEM;
+-		goto out;
+-	}
+-
+-	blk_queue_make_request(zram->queue, zram_make_request);
+-	zram->queue->queuedata = zram;
+-
+-	 /* gendisk structure */
+-	zram->disk = alloc_disk(1);
+-	if (!zram->disk) {
+-		blk_cleanup_queue(zram->queue);
+-		pr_warn("Error allocating disk structure for device %d\n",
+-			device_id);
+-		ret = -ENOMEM;
+-		goto out;
+-	}
+-
+-	zram->disk->major = zram_major;
+-	zram->disk->first_minor = device_id;
+-	zram->disk->fops = &zram_devops;
+-	zram->disk->queue = zram->queue;
+-	zram->disk->private_data = zram;
+-	snprintf(zram->disk->disk_name, 16, "zram%d", device_id);
+-
+-	/* Actual capacity set using syfs (/sys/block/zram<id>/disksize */
+-	set_capacity(zram->disk, 0);
+-
+-	/*
+-	 * To ensure that we always get PAGE_SIZE aligned
+-	 * and n*PAGE_SIZED sized I/O requests.
+-	 */
+-	blk_queue_physical_block_size(zram->disk->queue, PAGE_SIZE);
+-	blk_queue_logical_block_size(zram->disk->queue,
+-					ZRAM_LOGICAL_BLOCK_SIZE);
+-	blk_queue_io_min(zram->disk->queue, PAGE_SIZE);
+-	blk_queue_io_opt(zram->disk->queue, PAGE_SIZE);
+-
+-	add_disk(zram->disk);
+-
+-	ret = sysfs_create_group(&disk_to_dev(zram->disk)->kobj,
+-				&zram_disk_attr_group);
+-	if (ret < 0) {
+-		pr_warn("Error creating sysfs group");
+-		goto out;
+-	}
+-
+-	zram->init_done = 0;
+-
+-out:
+-	return ret;
+-}
+-
+-static void destroy_device(struct zram *zram)
+-{
+-	sysfs_remove_group(&disk_to_dev(zram->disk)->kobj,
+-			&zram_disk_attr_group);
+-
+-	if (zram->disk) {
+-		del_gendisk(zram->disk);
+-		put_disk(zram->disk);
+-	}
+-
+-	if (zram->queue)
+-		blk_cleanup_queue(zram->queue);
+-}
+-
+-unsigned int zram_get_num_devices(void)
+-{
+-	return num_devices;
+-}
+-
+-static int __init zram_init(void)
+-{
+-	int ret, dev_id;
+-
+-	if (num_devices > max_num_devices) {
+-		pr_warn("Invalid value for num_devices: %u\n",
+-				num_devices);
+-		ret = -EINVAL;
+-		goto out;
+-	}
+-
+-	zram_major = register_blkdev(0, "zram");
+-	if (zram_major <= 0) {
+-		pr_warn("Unable to get major number\n");
+-		ret = -EBUSY;
+-		goto out;
+-	}
+-
+-	if (!num_devices) {
+-		pr_info("num_devices not specified. Using default: 1\n");
+-		num_devices = 1;
+-	}
+-
+-	/* Allocate the device array and initialize each one */
+-	pr_info("Creating %u devices ...\n", num_devices);
+-	zram_devices = kzalloc(num_devices * sizeof(struct zram), GFP_KERNEL);
+-	if (!zram_devices) {
+-		ret = -ENOMEM;
+-		goto unregister;
+-	}
+-
+-	for (dev_id = 0; dev_id < num_devices; dev_id++) {
+-		ret = create_device(&zram_devices[dev_id], dev_id);
+-		if (ret)
+-			goto free_devices;
+-	}
+-
+-	return 0;
+-
+-free_devices:
+-	while (dev_id)
+-		destroy_device(&zram_devices[--dev_id]);
+-	kfree(zram_devices);
+-unregister:
+-	unregister_blkdev(zram_major, "zram");
+-out:
+-	return ret;
+-}
+-
+-static void __exit zram_exit(void)
+-{
+-	int i;
+-	struct zram *zram;
+-
+-	for (i = 0; i < num_devices; i++) {
+-		zram = &zram_devices[i];
+-
+-		destroy_device(zram);
+-		if (zram->init_done)
+-			zram_reset_device(zram);
+-	}
+-
+-	unregister_blkdev(zram_major, "zram");
+-
+-	kfree(zram_devices);
+-	pr_debug("Cleanup done!\n");
+-}
+-
+-module_param(num_devices, uint, 0);
+-MODULE_PARM_DESC(num_devices, "Number of zram devices");
+-
+-module_init(zram_init);
+-module_exit(zram_exit);
+-
+-MODULE_LICENSE("Dual BSD/GPL");
+-MODULE_AUTHOR("Nitin Gupta <ngupta@vflare.org>");
+-MODULE_DESCRIPTION("Compressed RAM Block Device");
+diff --git a/drivers/staging/zram/zram_drv.h b/drivers/staging/zram/zram_drv.h
+deleted file mode 100644
+index f6d0925..0000000
+--- a/drivers/staging/zram/zram_drv.h
++++ /dev/null
+@@ -1,119 +0,0 @@
+-/*
+- * Compressed RAM block device
+- *
+- * Copyright (C) 2008, 2009, 2010  Nitin Gupta
+- *
+- * This code is released using a dual license strategy: BSD/GPL
+- * You can choose the licence that better fits your requirements.
+- *
+- * Released under the terms of 3-clause BSD License
+- * Released under the terms of GNU General Public License Version 2.0
+- *
+- * Project home: http://compcache.googlecode.com
+- */
+-
+-#ifndef _ZRAM_DRV_H_
+-#define _ZRAM_DRV_H_
+-
+-#include <linux/spinlock.h>
+-#include <linux/mutex.h>
+-#include <linux/zsmalloc.h>
+-
+-/*
+- * Some arbitrary value. This is just to catch
+- * invalid value for num_devices module parameter.
+- */
+-static const unsigned max_num_devices = 32;
+-
+-/*-- Configurable parameters */
+-
+-/* Default zram disk size: 25% of total RAM */
+-static const unsigned default_disksize_perc_ram = 25;
+-
+-/*
+- * Pages that compress to size greater than this are stored
+- * uncompressed in memory.
+- */
+-static const size_t max_zpage_size = PAGE_SIZE / 4 * 3;
+-
+-/*
+- * NOTE: max_zpage_size must be less than or equal to:
+- *   ZS_MAX_ALLOC_SIZE - sizeof(struct zobj_header)
+- * otherwise, xv_malloc() would always return failure.
+- */
+-
+-/*-- End of configurable params */
+-
+-#define SECTOR_SHIFT		9
+-#define SECTOR_SIZE		(1 << SECTOR_SHIFT)
+-#define SECTORS_PER_PAGE_SHIFT	(PAGE_SHIFT - SECTOR_SHIFT)
+-#define SECTORS_PER_PAGE	(1 << SECTORS_PER_PAGE_SHIFT)
+-#define ZRAM_LOGICAL_BLOCK_SHIFT 12
+-#define ZRAM_LOGICAL_BLOCK_SIZE	(1 << ZRAM_LOGICAL_BLOCK_SHIFT)
+-#define ZRAM_SECTOR_PER_LOGICAL_BLOCK	\
+-	(1 << (ZRAM_LOGICAL_BLOCK_SHIFT - SECTOR_SHIFT))
+-
+-/* Flags for zram pages (table[page_no].flags) */
+-enum zram_pageflags {
+-	/* Page consists entirely of zeros */
+-	ZRAM_ZERO,
+-
+-	__NR_ZRAM_PAGEFLAGS,
+-};
+-
+-/*-- Data structures */
+-
+-/* Allocated for each disk page */
+-struct table {
+-	unsigned long handle;
+-	u16 size;	/* object size (excluding header) */
+-	u8 count;	/* object ref count (not yet used) */
+-	u8 flags;
+-} __aligned(4);
+-
+-struct zram_stats {
+-	u64 compr_size;		/* compressed size of pages stored */
+-	u64 num_reads;		/* failed + successful */
+-	u64 num_writes;		/* --do-- */
+-	u64 failed_reads;	/* should NEVER! happen */
+-	u64 failed_writes;	/* can happen when memory is too low */
+-	u64 invalid_io;		/* non-page-aligned I/O requests */
+-	u64 notify_free;	/* no. of swap slot free notifications */
+-	u32 pages_zero;		/* no. of zero filled pages */
+-	u32 pages_stored;	/* no. of pages currently stored */
+-	u32 good_compress;	/* % of pages with compression ratio<=50% */
+-	u32 bad_compress;	/* % of pages with compression ratio>=75% */
+-};
+-
+-struct zram {
+-	struct zs_pool *mem_pool;
+-	void *compress_workmem;
+-	void *compress_buffer;
+-	struct table *table;
+-	spinlock_t stat64_lock;	/* protect 64-bit stats */
+-	struct rw_semaphore lock; /* protect compression buffers and table
+-				   * against concurrent read and writes */
+-	struct request_queue *queue;
+-	struct gendisk *disk;
+-	int init_done;
+-	/* Prevent concurrent execution of device init, reset and R/W request */
+-	struct rw_semaphore init_lock;
+-	/*
+-	 * This is the limit on amount of *uncompressed* worth of data
+-	 * we can store in a disk.
+-	 */
+-	u64 disksize;	/* bytes */
+-
+-	struct zram_stats stats;
+-};
+-
+-extern struct zram *zram_devices;
+-unsigned int zram_get_num_devices(void);
+-#ifdef CONFIG_SYSFS
+-extern struct attribute_group zram_disk_attr_group;
+-#endif
+-
+-extern int zram_init_device(struct zram *zram);
+-extern void __zram_reset_device(struct zram *zram);
+-
+-#endif
+diff --git a/drivers/staging/zram/zram_sysfs.c b/drivers/staging/zram/zram_sysfs.c
+deleted file mode 100644
+index edb0ed4..0000000
+--- a/drivers/staging/zram/zram_sysfs.c
++++ /dev/null
+@@ -1,225 +0,0 @@
+-/*
+- * Compressed RAM block device
+- *
+- * Copyright (C) 2008, 2009, 2010  Nitin Gupta
+- *
+- * This code is released using a dual license strategy: BSD/GPL
+- * You can choose the licence that better fits your requirements.
+- *
+- * Released under the terms of 3-clause BSD License
+- * Released under the terms of GNU General Public License Version 2.0
+- *
+- * Project home: http://compcache.googlecode.com/
+- */
+-
+-#include <linux/device.h>
+-#include <linux/genhd.h>
+-#include <linux/mm.h>
+-
+-#include "zram_drv.h"
+-
+-static u64 zram_stat64_read(struct zram *zram, u64 *v)
+-{
+-	u64 val;
+-
+-	spin_lock(&zram->stat64_lock);
+-	val = *v;
+-	spin_unlock(&zram->stat64_lock);
+-
+-	return val;
+-}
+-
+-static struct zram *dev_to_zram(struct device *dev)
+-{
+-	int i;
+-	struct zram *zram = NULL;
+-
+-	for (i = 0; i < zram_get_num_devices(); i++) {
+-		zram = &zram_devices[i];
+-		if (disk_to_dev(zram->disk) == dev)
+-			break;
+-	}
+-
+-	return zram;
+-}
+-
+-static ssize_t disksize_show(struct device *dev,
+-		struct device_attribute *attr, char *buf)
+-{
+-	struct zram *zram = dev_to_zram(dev);
+-
+-	return sprintf(buf, "%llu\n", zram->disksize);
+-}
+-
+-static ssize_t disksize_store(struct device *dev,
+-		struct device_attribute *attr, const char *buf, size_t len)
+-{
+-	int ret;
+-	u64 disksize;
+-	struct zram *zram = dev_to_zram(dev);
+-
+-	ret = kstrtoull(buf, 10, &disksize);
+-	if (ret)
+-		return ret;
+-
+-	down_write(&zram->init_lock);
+-	if (zram->init_done) {
+-		up_write(&zram->init_lock);
+-		pr_info("Cannot change disksize for initialized device\n");
+-		return -EBUSY;
+-	}
+-
+-	zram->disksize = PAGE_ALIGN(disksize);
+-	set_capacity(zram->disk, zram->disksize >> SECTOR_SHIFT);
+-	up_write(&zram->init_lock);
+-
+-	return len;
+-}
+-
+-static ssize_t initstate_show(struct device *dev,
+-		struct device_attribute *attr, char *buf)
+-{
+-	struct zram *zram = dev_to_zram(dev);
+-
+-	return sprintf(buf, "%u\n", zram->init_done);
+-}
+-
+-static ssize_t reset_store(struct device *dev,
+-		struct device_attribute *attr, const char *buf, size_t len)
+-{
+-	int ret;
+-	unsigned short do_reset;
+-	struct zram *zram;
+-	struct block_device *bdev;
+-
+-	zram = dev_to_zram(dev);
+-	bdev = bdget_disk(zram->disk, 0);
+-
+-	/* Do not reset an active device! */
+-	if (bdev->bd_holders)
+-		return -EBUSY;
+-
+-	ret = kstrtou16(buf, 10, &do_reset);
+-	if (ret)
+-		return ret;
+-
+-	if (!do_reset)
+-		return -EINVAL;
+-
+-	/* Make sure all pending I/O is finished */
+-	if (bdev)
+-		fsync_bdev(bdev);
+-
+-	down_write(&zram->init_lock);
+-	if (zram->init_done)
+-		__zram_reset_device(zram);
+-	up_write(&zram->init_lock);
+-
+-	return len;
+-}
+-
+-static ssize_t num_reads_show(struct device *dev,
+-		struct device_attribute *attr, char *buf)
+-{
+-	struct zram *zram = dev_to_zram(dev);
+-
+-	return sprintf(buf, "%llu\n",
+-		zram_stat64_read(zram, &zram->stats.num_reads));
+-}
+-
+-static ssize_t num_writes_show(struct device *dev,
+-		struct device_attribute *attr, char *buf)
+-{
+-	struct zram *zram = dev_to_zram(dev);
+-
+-	return sprintf(buf, "%llu\n",
+-		zram_stat64_read(zram, &zram->stats.num_writes));
+-}
+-
+-static ssize_t invalid_io_show(struct device *dev,
+-		struct device_attribute *attr, char *buf)
+-{
+-	struct zram *zram = dev_to_zram(dev);
+-
+-	return sprintf(buf, "%llu\n",
+-		zram_stat64_read(zram, &zram->stats.invalid_io));
+-}
+-
+-static ssize_t notify_free_show(struct device *dev,
+-		struct device_attribute *attr, char *buf)
+-{
+-	struct zram *zram = dev_to_zram(dev);
+-
+-	return sprintf(buf, "%llu\n",
+-		zram_stat64_read(zram, &zram->stats.notify_free));
+-}
+-
+-static ssize_t zero_pages_show(struct device *dev,
+-		struct device_attribute *attr, char *buf)
+-{
+-	struct zram *zram = dev_to_zram(dev);
+-
+-	return sprintf(buf, "%u\n", zram->stats.pages_zero);
+-}
+-
+-static ssize_t orig_data_size_show(struct device *dev,
+-		struct device_attribute *attr, char *buf)
+-{
+-	struct zram *zram = dev_to_zram(dev);
+-
+-	return sprintf(buf, "%llu\n",
+-		(u64)(zram->stats.pages_stored) << PAGE_SHIFT);
+-}
+-
+-static ssize_t compr_data_size_show(struct device *dev,
+-		struct device_attribute *attr, char *buf)
+-{
+-	struct zram *zram = dev_to_zram(dev);
+-
+-	return sprintf(buf, "%llu\n",
+-		zram_stat64_read(zram, &zram->stats.compr_size));
+-}
+-
+-static ssize_t mem_used_total_show(struct device *dev,
+-		struct device_attribute *attr, char *buf)
+-{
+-	u64 val = 0;
+-	struct zram *zram = dev_to_zram(dev);
+-
+-	if (zram->init_done)
+-		val = zs_get_total_size_bytes(zram->mem_pool);
+-
+-	return sprintf(buf, "%llu\n", val);
+-}
+-
+-static DEVICE_ATTR(disksize, S_IRUGO | S_IWUSR,
+-		disksize_show, disksize_store);
+-static DEVICE_ATTR(initstate, S_IRUGO, initstate_show, NULL);
+-static DEVICE_ATTR(reset, S_IWUSR, NULL, reset_store);
+-static DEVICE_ATTR(num_reads, S_IRUGO, num_reads_show, NULL);
+-static DEVICE_ATTR(num_writes, S_IRUGO, num_writes_show, NULL);
+-static DEVICE_ATTR(invalid_io, S_IRUGO, invalid_io_show, NULL);
+-static DEVICE_ATTR(notify_free, S_IRUGO, notify_free_show, NULL);
+-static DEVICE_ATTR(zero_pages, S_IRUGO, zero_pages_show, NULL);
+-static DEVICE_ATTR(orig_data_size, S_IRUGO, orig_data_size_show, NULL);
+-static DEVICE_ATTR(compr_data_size, S_IRUGO, compr_data_size_show, NULL);
+-static DEVICE_ATTR(mem_used_total, S_IRUGO, mem_used_total_show, NULL);
+-
+-static struct attribute *zram_disk_attrs[] = {
+-	&dev_attr_disksize.attr,
+-	&dev_attr_initstate.attr,
+-	&dev_attr_reset.attr,
+-	&dev_attr_num_reads.attr,
+-	&dev_attr_num_writes.attr,
+-	&dev_attr_invalid_io.attr,
+-	&dev_attr_notify_free.attr,
+-	&dev_attr_zero_pages.attr,
+-	&dev_attr_orig_data_size.attr,
+-	&dev_attr_compr_data_size.attr,
+-	&dev_attr_mem_used_total.attr,
+-	NULL,
+-};
+-
+-struct attribute_group zram_disk_attr_group = {
+-	.attrs = zram_disk_attrs,
+-};
 -- 
 1.7.9.5
 
