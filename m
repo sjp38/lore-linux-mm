@@ -1,41 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx140.postini.com [74.125.245.140])
-	by kanga.kvack.org (Postfix) with SMTP id F1AC56B005D
-	for <linux-mm@kvack.org>; Wed, 26 Sep 2012 13:06:13 -0400 (EDT)
-Received: by vcbfl17 with SMTP id fl17so1227022vcb.14
-        for <linux-mm@kvack.org>; Wed, 26 Sep 2012 10:06:13 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
+	by kanga.kvack.org (Postfix) with SMTP id 0F0716B002B
+	for <linux-mm@kvack.org>; Wed, 26 Sep 2012 13:37:34 -0400 (EDT)
+Message-ID: <50633C88.1030300@parallels.com>
+Date: Wed, 26 Sep 2012 21:34:00 +0400
+From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-In-Reply-To: <CAOJsxLGjp5PAgPe3KSvMfqJEyVC4YHeP+FW3AmnCorpHqnfang@mail.gmail.com>
-References: <1348649419-16494-1-git-send-email-minchan@kernel.org>
-	<1348649419-16494-2-git-send-email-minchan@kernel.org>
-	<CAOJsxLGjp5PAgPe3KSvMfqJEyVC4YHeP+FW3AmnCorpHqnfang@mail.gmail.com>
-Date: Wed, 26 Sep 2012 10:06:12 -0700
-Message-ID: <CAPkvG_eB84ELG_r_dVGvS+G7i21+8wqXon8a1Hfgctqsf4=BKw@mail.gmail.com>
-Subject: Re: [PATCH 1/3] zsmalloc: promote to lib/
-From: Nitin Gupta <ngupta@vflare.org>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [PATCH v3 04/13] kmem accounting basic infrastructure
+References: <1347977050-29476-1-git-send-email-glommer@parallels.com> <1347977050-29476-5-git-send-email-glommer@parallels.com> <20120926140347.GD15801@dhcp22.suse.cz> <50631226.9050304@parallels.com> <20120926160126.GF15801@dhcp22.suse.cz>
+In-Reply-To: <20120926160126.GF15801@dhcp22.suse.cz>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pekka Enberg <penberg@kernel.org>
-Cc: Minchan Kim <minchan@kernel.org>, Jens Axboe <axboe@kernel.dk>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, devel@openvz.org, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, Suleiman Souhlal <suleiman@google.com>, Frederic Weisbecker <fweisbec@gmail.com>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>
 
-2012/9/26 Pekka Enberg <penberg@kernel.org>:
-> On Wed, Sep 26, 2012 at 11:50 AM, Minchan Kim <minchan@kernel.org> wrote:
->>  lib/Kconfig                              |    2 +
->>  lib/Makefile                             |    1 +
->>  lib/zsmalloc/Kconfig                     |   18 +
->>  lib/zsmalloc/Makefile                    |    1 +
->>  lib/zsmalloc/zsmalloc.c                  | 1064 ++++++++++++++++++++++++++++++
->
-> What's wrong with mm/zsmalloc.c?
+On 09/26/2012 08:01 PM, Michal Hocko wrote:
+> On Wed 26-09-12 18:33:10, Glauber Costa wrote:
+>> On 09/26/2012 06:03 PM, Michal Hocko wrote:
+>>> On Tue 18-09-12 18:04:01, Glauber Costa wrote:
+> [...]
+>>>> @@ -4961,6 +5015,12 @@ mem_cgroup_create(struct cgroup *cont)
+>>>>  		int cpu;
+>>>>  		enable_swap_cgroup();
+>>>>  		parent = NULL;
+>>>> +
+>>>> +#ifdef CONFIG_MEMCG_KMEM
+>>>> +		WARN_ON(cgroup_add_cftypes(&mem_cgroup_subsys,
+>>>> +					   kmem_cgroup_files));
+>>>> +#endif
+>>>> +
+>>>>  		if (mem_cgroup_soft_limit_tree_init())
+>>>>  			goto free_out;
+>>>>  		root_mem_cgroup = memcg;
+>>>> @@ -4979,6 +5039,7 @@ mem_cgroup_create(struct cgroup *cont)
+>>>>  	if (parent && parent->use_hierarchy) {
+>>>>  		res_counter_init(&memcg->res, &parent->res);
+>>>>  		res_counter_init(&memcg->memsw, &parent->memsw);
+>>>> +		res_counter_init(&memcg->kmem, &parent->kmem);
+>>>
+>>> Haven't we already discussed that a new memcg should inherit kmem_accounted
+>>> from its parent for use_hierarchy?
+>>> Say we have
+>>> root
+>>> |
+>>> A (kmem_accounted = 1, use_hierachy = 1)
+>>>  \
+>>>   B (kmem_accounted = 0)
+>>>    \
+>>>     C (kmem_accounted = 1)
+>>>
+>>> B find's itself in an awkward situation becuase it doesn't want to
+>>> account u+k but it ends up doing so becuase C.
+>>>
+>>
+>> Ok, I haven't updated it here. But that should be taken care of in the
+>> lifecycle patch.
+> 
+> I am not sure which patch you are thinking about but I would prefer to
+> have it here because it is safe wrt. races and it is more obvious as
+> well.
+> 
 
-I think mm/ directory should only contain the code which is intended
-for global use such as the slab allocator, page reclaim code etc.
-zsmalloc is used by only one (or possibly two) drivers, so lib/ seems
-to be the right place.
+The patch where I make kmem_accounted into a bitfield. So any code here
+will eventually disappear.
 
-Thanks,
-Nitin
+But BTW, I am not saying I won't update the patch - I like that all
+patches work and make sense in their own, I am just saying that I forgot
+to update this patch, because I added the code in its final version to
+the end and then squashed it.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
