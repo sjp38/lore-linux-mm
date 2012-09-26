@@ -1,41 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx112.postini.com [74.125.245.112])
-	by kanga.kvack.org (Postfix) with SMTP id 0AC136B002B
-	for <linux-mm@kvack.org>; Wed, 26 Sep 2012 02:34:49 -0400 (EDT)
-Date: Wed, 26 Sep 2012 09:34:37 +0300
-From: Dan Carpenter <dan.carpenter@oracle.com>
-Subject: Re: [PATCH] mm/slab: Fix kmem_cache_alloc_node_trace() declaration
-Message-ID: <20120926063437.GZ4587@mwanda>
-References: <1348571229-844-1-git-send-email-elezegarcia@gmail.com>
- <1348571229-844-2-git-send-email-elezegarcia@gmail.com>
- <alpine.DEB.2.00.1209252115000.28360@chino.kir.corp.google.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1209252115000.28360@chino.kir.corp.google.com>
+Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
+	by kanga.kvack.org (Postfix) with SMTP id 478F56B002B
+	for <linux-mm@kvack.org>; Wed, 26 Sep 2012 02:47:04 -0400 (EDT)
+From: Minchan Kim <minchan@kernel.org>
+Subject: [PATCH] CMA: decrease cc.nr_migratepages after reclaiming pagelist
+Date: Wed, 26 Sep 2012 15:50:12 +0900
+Message-Id: <1348642212-29394-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Ezequiel Garcia <elezegarcia@gmail.com>, kernel-janitors@vger.kernel.org, linux-mm@kvack.org, fengguang.wu@intel.com, Pekka Enberg <penberg@kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, Michal Nazarewicz <mina86@mina86.com>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Marek Szyprowski <m.szyprowski@samsung.com>
 
-On Tue, Sep 25, 2012 at 09:18:02PM -0700, David Rientjes wrote:
-> On Tue, 25 Sep 2012, Ezequiel Garcia wrote:
-> 
-> > The bug was introduced in commit 4052147c0afa
-> > "mm, slab: Match SLAB and SLUB kmem_cache_alloc_xxx_trace() prototype".
-> > 
-> 
-> This isn't a candidate for kernel-janitors@vger.kernel.org, these are 
-> patches that are one of Pekka's branches and would never make it to Linus' 
-> tree in this form.
+The reclaim_clean_pages_from_list reclaims clean pages before
+migration so cc.nr_migratepages should be updated.
+Currently, there is no problem but it can be wrong if we
+try to use the vaule in future.
 
-kernel-janitors got CC'd because it was a compile problem.  It stops
-us from sending duplicate messages to people.  It's surprising how
-annoyed people get about duplicates instead of just ignoring the
-second messages like sane individuals would.
+Cc: Mel Gorman <mgorman@suse.de>
+Cc: Michal Nazarewicz <mina86@mina86.com>
+Cc: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
+Cc: Marek Szyprowski <m.szyprowski@samsung.com>
+Signed-off-by: Minchan Kim <minchan@kernel.org>
+---
+I found this problem during I develop new feature. :(
 
-regards,
-dan carpenter
+ mm/page_alloc.c |    6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 296bea9..4b7dced 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -5669,7 +5669,7 @@ static unsigned long pfn_max_align_up(unsigned long pfn)
+ static int __alloc_contig_migrate_range(unsigned long start, unsigned long end)
+ {
+ 	/* This function is based on compact_zone() from compaction.c. */
+-
++	unsigned long nr_reclaimed;
+ 	unsigned long pfn = start;
+ 	unsigned int tries = 0;
+ 	int ret = 0;
+@@ -5705,7 +5705,9 @@ static int __alloc_contig_migrate_range(unsigned long start, unsigned long end)
+ 			break;
+ 		}
+ 
+-		reclaim_clean_pages_from_list(cc.zone, &cc.migratepages);
++		nr_reclaimed = reclaim_clean_pages_from_list(cc.zone,
++							&cc.migratepages);
++		cc.nr_migratepages -= nr_reclaimed;
+ 
+ 		ret = migrate_pages(&cc.migratepages,
+ 				    alloc_migrate_target,
+-- 
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
