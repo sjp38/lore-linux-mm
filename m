@@ -1,42 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx127.postini.com [74.125.245.127])
-	by kanga.kvack.org (Postfix) with SMTP id 7960E6B0044
-	for <linux-mm@kvack.org>; Wed, 26 Sep 2012 16:56:31 -0400 (EDT)
-Date: Wed, 26 Sep 2012 16:56:17 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH] hugetlb: do not use vma_hugecache_offset for
- vma_prio_tree_foreach
-Message-ID: <20120926205617.GA2667@cmpxchg.org>
-References: <1344866141-27906-1-git-send-email-mhocko@suse.cz>
+Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
+	by kanga.kvack.org (Postfix) with SMTP id 7B2326B0044
+	for <linux-mm@kvack.org>; Wed, 26 Sep 2012 17:28:08 -0400 (EDT)
+Message-ID: <50637298.2090904@parallels.com>
+Date: Thu, 27 Sep 2012 01:24:40 +0400
+From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1344866141-27906-1-git-send-email-mhocko@suse.cz>
+Subject: Re: [PATCH v3 04/13] kmem accounting basic infrastructure
+References: <20120926163648.GO16296@google.com> <50633D24.6020002@parallels.com> <CAOS58YNj-L4ocwn-c27ho4WPW41MKOeJbnLZ8N8r4eUkoxC7GA@mail.gmail.com> <50634105.8060302@parallels.com> <20120926180124.GA12544@google.com> <50634FC9.4090609@parallels.com> <20120926193417.GJ12544@google.com> <50635B9D.8020205@parallels.com> <20120926195648.GA20342@google.com> <50635F46.7000700@parallels.com> <20120926201629.GB20342@google.com>
+In-Reply-To: <20120926201629.GB20342@google.com>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hillf Danton <dhillf@gmail.com>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>, David Rientjes <rientjes@google.com>
+To: Tejun Heo <tj@kernel.org>
+Cc: Michal Hocko <mhocko@suse.cz>, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, devel@openvz.org, linux-mm@kvack.org, Suleiman Souhlal <suleiman@google.com>, Frederic Weisbecker <fweisbec@gmail.com>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>
 
-On Mon, Aug 13, 2012 at 03:55:41PM +0200, Michal Hocko wrote:
-> 0c176d5 (mm: hugetlb: fix pgoff computation when unmapping page
-> from vma) fixed pgoff calculation but it has replaced it by
-> vma_hugecache_offset which is not approapriate for offsets used for
-> vma_prio_tree_foreach because that one expects index in page units
-> rather than in huge_page_shift.
-> Using vma_hugecache_offset is not incorrect because the pgoff will fit
-> into the same vmas but it is confusing so the standard PAGE_SHIFT based
-> index calculation is used instead.
+On 09/27/2012 12:16 AM, Tejun Heo wrote:
+> On Thu, Sep 27, 2012 at 12:02:14AM +0400, Glauber Costa wrote:
+>> But think in terms of functionality: This thing here is a lot more
+>> similar to swap than use_hierarchy. Would you argue that memsw should be
+>> per-root ?
+> 
+> I'm fairly sure you can make about the same argument about
+> use_hierarchy.  There is a choice to make here and one is simpler than
+> the other.  I want the additional complexity justified by actual use
+> cases which isn't too much to ask for especially when the complexity
+> is something visible to userland.
+> 
+> So let's please stop arguing semantics.  If this is definitely
+> necessary for some use cases, sure let's have it.  If not, let's
+> consider it later.  I'll stop responding on "inherent differences."  I
+> don't think we'll get anywhere with that.
+> 
 
-I do think it's incorrect.  The resulting index may not be too big,
-but it can be too small: assume hpage size of 2M and the address to
-unmap to be 0x200000.  This is regular page index 512 and hpage index
-1.  If you have a VMA that maps the file only starting at the second
-huge page, that VMAs vm_pgoff will be 512 but you ask for offset 1 and
-miss it even though it does map the page of interest.  hugetlb_cow()
-will try to unmap, miss the vma, and retry the cow until the
-allocation succeeds or the skipped vma(s) go away.
+If you stop responding, we are for sure not getting anywhere. I agree
+with you here.
 
-Unless I missed something, this should not be deferred as a cleanup.
+Let me point out one issue that you seem to be missing, and you respond
+or not, your call.
+
+"kmem_accounted" is not a switch. It is an internal representation only.
+The semantics, that we discussed exhaustively in San Diego, is that a
+group that is not limited is not accounted. This is simple and consistent.
+
+Since the limits are still per-cgroup, you are actually proposing more
+user-visible complexity than me, since you are adding yet another file,
+with its own semantics.
+
+About use cases, I've already responded: my containers use case is kmem
+limited. There are people like Michal that specifically asked for
+user-only semantics to be preserved. So your question for global vs
+local switch (that again, doesn't exist; only a local *limit* exists)
+should really be posed in the following way:
+"Can two different use cases with different needs be hosted in the same
+box?"
+
+
+
+> Michal, Johannes, Kamezawa, what are your thoughts?
+>
+waiting! =)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
