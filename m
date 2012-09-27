@@ -1,33 +1,22 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
-	by kanga.kvack.org (Postfix) with SMTP id 022A76B0044
-	for <linux-mm@kvack.org>; Wed, 26 Sep 2012 21:17:41 -0400 (EDT)
-Received: by padfa10 with SMTP id fa10so1020966pad.14
-        for <linux-mm@kvack.org>; Wed, 26 Sep 2012 18:17:41 -0700 (PDT)
-Date: Wed, 26 Sep 2012 18:17:39 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
+Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
+	by kanga.kvack.org (Postfix) with SMTP id 2DA276B0044
+	for <linux-mm@kvack.org>; Wed, 26 Sep 2012 21:21:03 -0400 (EDT)
+Date: Thu, 27 Sep 2012 09:20:57 +0800
+From: Fengguang Wu <fengguang.wu@intel.com>
 Subject: Re: [PATCH v4] kpageflags: fix wrong KPF_THP on non-huge compound
  pages
-In-Reply-To: <1348691234-31729-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-Message-ID: <alpine.DEB.2.00.1209261817200.7072@chino.kir.corp.google.com>
+Message-ID: <20120927012057.GE7205@localhost>
 References: <1348691234-31729-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1348691234-31729-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Wu Fengguang <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andi Kleen <andi.kleen@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, Andi Kleen <andi.kleen@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, 26 Sep 2012, Naoya Horiguchi wrote:
-
-> diff --git v3.6-rc6.orig/fs/proc/page.c v3.6-rc6/fs/proc/page.c
-> index 7fcd0d6..b8730d9 100644
-> --- v3.6-rc6.orig/fs/proc/page.c
-> +++ v3.6-rc6/fs/proc/page.c
-> @@ -115,7 +115,13 @@ u64 stable_page_flags(struct page *page)
->  		u |= 1 << KPF_COMPOUND_TAIL;
->  	if (PageHuge(page))
->  		u |= 1 << KPF_HUGE;
 > -	else if (PageTransCompound(page))
 > +	/*
 > +	 * PageTransCompound can be true for non-huge compound pages (slab
@@ -37,10 +26,10 @@ On Wed, 26 Sep 2012, Naoya Horiguchi wrote:
 > +	 */
 > +	else if (PageTransCompound(page) && PageLRU(compound_trans_head(page)))
 >  		u |= 1 << KPF_THP;
->  
->  	/*
 
-Yes, that looks good.  Nice catch by Fengguang.
+Reviewed-by: Fengguang Wu <fengguang.wu@intel.com>
+
+Thanks!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
