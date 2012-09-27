@@ -1,150 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
-	by kanga.kvack.org (Postfix) with SMTP id 2AA2D6B005A
-	for <linux-mm@kvack.org>; Thu, 27 Sep 2012 09:28:51 -0400 (EDT)
-Message-ID: <506453C6.2050206@parallels.com>
-Date: Thu, 27 Sep 2012 17:25:26 +0400
-From: Glauber Costa <glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
+	by kanga.kvack.org (Postfix) with SMTP id 3C5D36B0044
+	for <linux-mm@kvack.org>; Thu, 27 Sep 2012 09:34:45 -0400 (EDT)
+Date: Thu, 27 Sep 2012 14:34:35 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH v3 05/13] Add a __GFP_KMEMCG flag
+Message-ID: <20120927133435.GE3429@suse.de>
+References: <1347977050-29476-1-git-send-email-glommer@parallels.com>
+ <1347977050-29476-6-git-send-email-glommer@parallels.com>
 MIME-Version: 1.0
-Subject: Re: CK1 [03/13] slub: Use a statically allocated kmem_cache boot
- structure for bootstrap
-References: <20120926200005.911809821@linux.com> <0000013a043cda28-b1405dff-7a18-49fc-93bf-4d418fbdd918-000000@email.amazonses.com>
-In-Reply-To: <0000013a043cda28-b1405dff-7a18-49fc-93bf-4d418fbdd918-000000@email.amazonses.com>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <1347977050-29476-6-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <js1304@gmail.com>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>
+To: Glauber Costa <glommer@parallels.com>
+Cc: linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, devel@openvz.org, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, Suleiman Souhlal <suleiman@google.com>, Frederic Weisbecker <fweisbec@gmail.com>, David Rientjes <rientjes@google.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>
 
-On 09/27/2012 12:20 AM, Christoph Lameter wrote:
-> Simplify bootstrap by statically allocated two kmem_cache structures. These are
-> freed after bootup is complete. Allows us to no longer worry about calculations
-> of sizes of kmem_cache structures during bootstrap.
+On Tue, Sep 18, 2012 at 06:04:02PM +0400, Glauber Costa wrote:
+> This flag is used to indicate to the callees that this allocation is a
+> kernel allocation in process context, and should be accounted to
+> current's memcg. It takes numerical place of the of the recently removed
+> __GFP_NO_KSWAPD.
 > 
-> V1->V2: Do not unlock mutexes that are not taken during early boot.
-> 
-This V1->V2 change makes sense, btw.
+> Signed-off-by: Glauber Costa <glommer@parallels.com>
+> CC: Christoph Lameter <cl@linux.com>
+> CC: Pekka Enberg <penberg@cs.helsinki.fi>
+> CC: Michal Hocko <mhocko@suse.cz>
+> CC: Johannes Weiner <hannes@cmpxchg.org>
+> CC: Suleiman Souhlal <suleiman@google.com>
+> CC: Rik van Riel <riel@redhat.com>
+> CC: Mel Gorman <mel@csn.ul.ie>
+> Acked-by: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-> Reviewed-by: Glauber Costa <glommer@parallels.com>
-> Signed-off-by: Christoph Lameter <cl@linux.com>
-> ---
->  mm/slub.c |   41 +++++++++++------------------------------
->  1 file changed, 11 insertions(+), 30 deletions(-)
-> 
-> Index: linux/mm/slub.c
-> ===================================================================
-> --- linux.orig/mm/slub.c	2012-09-19 09:21:14.422971030 -0500
-> +++ linux/mm/slub.c	2012-09-19 09:21:18.403053765 -0500
-> @@ -3649,9 +3649,6 @@ static void __init kmem_cache_bootstrap_
->  {
->  	int node;
->  
-> -	list_add(&s->list, &slab_caches);
-> -	s->refcount = -1;
-> -
->  	for_each_node_state(node, N_NORMAL_MEMORY) {
->  		struct kmem_cache_node *n = get_node(s, node);
->  		struct page *p;
-> @@ -3668,14 +3665,13 @@ static void __init kmem_cache_bootstrap_
->  	}
->  }
->  
-> +static __initdata struct kmem_cache boot_kmem_cache,
-> +			boot_kmem_cache_node;
-> +
->  void __init kmem_cache_init(void)
->  {
->  	int i;
-> -	int caches = 0;
-> -	struct kmem_cache *temp_kmem_cache;
-> -	int order;
-> -	struct kmem_cache *temp_kmem_cache_node;
-> -	unsigned long kmalloc_size;
-> +	int caches = 2;
->  
->  	if (debug_guardpage_minorder())
->  		slub_max_order = 0;
-> @@ -3683,53 +3679,32 @@ void __init kmem_cache_init(void)
->  	kmem_size = offsetof(struct kmem_cache, node) +
->  			nr_node_ids * sizeof(struct kmem_cache_node *);
->  
-> -	/* Allocate two kmem_caches from the page allocator */
-> -	kmalloc_size = ALIGN(kmem_size, cache_line_size());
-> -	order = get_order(2 * kmalloc_size);
-> -	kmem_cache = (void *)__get_free_pages(GFP_NOWAIT | __GFP_ZERO, order);
-> -
-> -	/*
-> -	 * Must first have the slab cache available for the allocations of the
-> -	 * struct kmem_cache_node's. There is special bootstrap code in
-> -	 * kmem_cache_open for slab_state == DOWN.
-> -	 */
-> -	kmem_cache_node = (void *)kmem_cache + kmalloc_size;
-> +	kmem_cache_node = &boot_kmem_cache_node;
->  
-> -	kmem_cache_node->name = "kmem_cache_node";
-> -	kmem_cache_node->size = kmem_cache_node->object_size =
-> -		sizeof(struct kmem_cache_node);
-> -	kmem_cache_open(kmem_cache_node, SLAB_HWCACHE_ALIGN | SLAB_PANIC);
-> +	create_boot_cache(kmem_cache_node, "kmem_cache_node",
-> +		sizeof(struct kmem_cache_node), SLAB_HWCACHE_ALIGN);
->  
->  	hotplug_memory_notifier(slab_memory_callback, SLAB_CALLBACK_PRI);
->  
->  	/* Able to allocate the per node structures */
->  	slab_state = PARTIAL;
->  
-> -	temp_kmem_cache = kmem_cache;
-> -	kmem_cache->name = "kmem_cache";
-> -	kmem_cache->size = kmem_cache->object_size = kmem_size;
-> -	kmem_cache_open(kmem_cache, SLAB_HWCACHE_ALIGN | SLAB_PANIC);
-> +	create_boot_cache(&boot_kmem_cache, "kmem_cache", kmem_size,
-> +		       SLAB_HWCACHE_ALIGN);
->  
-> -	kmem_cache = kmem_cache_alloc(kmem_cache, GFP_NOWAIT);
-> -	memcpy(kmem_cache, temp_kmem_cache, kmem_size);
-> +	kmem_cache = kmem_cache_alloc(&boot_kmem_cache, GFP_NOWAIT);
-> +	memcpy(kmem_cache, &boot_kmem_cache, kmem_size);
->  
->  	/*
->  	 * Allocate kmem_cache_node properly from the kmem_cache slab.
->  	 * kmem_cache_node is separately allocated so no need to
->  	 * update any list pointers.
->  	 */
-> -	temp_kmem_cache_node = kmem_cache_node;
-> -
->  	kmem_cache_node = kmem_cache_alloc(kmem_cache, GFP_NOWAIT);
-> -	memcpy(kmem_cache_node, temp_kmem_cache_node, kmem_size);
-> +	memcpy(kmem_cache_node, &boot_kmem_cache_node, kmem_size);
->  
->  	kmem_cache_bootstrap_fixup(kmem_cache_node);
-> -
-> -	caches++;
->  	kmem_cache_bootstrap_fixup(kmem_cache);
-> -	caches++;
-> -	/* Free temporary boot structure */
-> -	free_pages((unsigned long)temp_kmem_cache, order);
->  
->  	/* Now we can use the kmem_cache to allocate kmalloc slabs */
->  
-> @@ -3930,6 +3905,10 @@ int __kmem_cache_create(struct kmem_cach
->  	if (err)
->  		return err;
->  
-> +	/* Mutex is not taken during early boot */
-> +	if (slab_state <= UP)
-> +		return 0;
-> +
->  	mutex_unlock(&slab_mutex);
->  	err = sysfs_slab_add(s);
->  	mutex_lock(&slab_mutex);
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
+I agree with Christophs recommendation that this flag always exist instead
+of being 0 in the !MEMCG_KMEM case. If __GFP_KMEMCG ever is used in another
+part of the VM (which would be unexpected but still) then the behaviour
+might differ too much between MEMCG_KMEM and !MEMCG_KMEM cases. As unlikely
+as the case is, it's not impossible.
+
+For tracing __GFP_KMEMCG should have an entry in
+include/trace/events/gfpflags.h
+
+Get rid of the CONFIG_MEMCG_KMEM check and update
+include/trace/events/gfpflags.h and then feel free to stick my Acked-by
+on it.
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
