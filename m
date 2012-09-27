@@ -1,67 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
-	by kanga.kvack.org (Postfix) with SMTP id 235BC6B0044
-	for <linux-mm@kvack.org>; Thu, 27 Sep 2012 08:44:23 -0400 (EDT)
-Received: by oagk14 with SMTP id k14so2208483oag.14
-        for <linux-mm@kvack.org>; Thu, 27 Sep 2012 05:44:22 -0700 (PDT)
-Message-ID: <50644A1B.3070108@gmail.com>
-Date: Thu, 27 Sep 2012 20:44:11 +0800
-From: Ni zhan Chen <nizhan.chen@gmail.com>
+Received: from psmtp.com (na3sys010amx133.postini.com [74.125.245.133])
+	by kanga.kvack.org (Postfix) with SMTP id 3815D6B005A
+	for <linux-mm@kvack.org>; Thu, 27 Sep 2012 08:54:18 -0400 (EDT)
+Date: Thu, 27 Sep 2012 14:54:15 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH v3 04/13] kmem accounting basic infrastructure
+Message-ID: <20120927125415.GD29104@dhcp22.suse.cz>
+References: <506381B2.2060806@parallels.com>
+ <20120926224235.GB10453@mtj.dyndns.org>
+ <50638793.7060806@parallels.com>
+ <20120926230807.GC10453@mtj.dyndns.org>
+ <50638DBB.4000002@parallels.com>
+ <20120926233334.GD10453@mtj.dyndns.org>
+ <20120927121558.GB29104@dhcp22.suse.cz>
+ <506444A7.5060303@parallels.com>
+ <20120927124031.GC29104@dhcp22.suse.cz>
+ <50644923.2060008@parallels.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 4/4] memory-hotplug: auto offline page_cgroup when onlining
- memory block failed
-References: <1348724705-23779-1-git-send-email-wency@cn.fujitsu.com> <1348724705-23779-5-git-send-email-wency@cn.fujitsu.com>
-In-Reply-To: <1348724705-23779-5-git-send-email-wency@cn.fujitsu.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <50644923.2060008@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: wency@cn.fujitsu.com
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, minchan.kim@gmail.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com
+To: Glauber Costa <glommer@parallels.com>
+Cc: Tejun Heo <tj@kernel.org>, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, devel@openvz.org, linux-mm@kvack.org, Suleiman Souhlal <suleiman@google.com>, Frederic Weisbecker <fweisbec@gmail.com>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>
 
-On 09/27/2012 01:45 PM, wency@cn.fujitsu.com wrote:
-> From: Wen Congyang <wency@cn.fujitsu.com>
->
-> When a memory block is onlined, we will try allocate memory on that node
-> to store page_cgroup. If onlining the memory block failed, we don't
-> offline the page cgroup, and we have no chance to offline this page cgroup
-> unless the memory block is onlined successfully again. It will cause
-> that we can't hot-remove the memory device on that node, because some
-> memory is used to store page cgroup. If onlining the memory block
-> is failed, there is no need to stort page cgroup for this memory. So
-> auto offline page_cgroup when onlining memory block failed.
+On Thu 27-09-12 16:40:03, Glauber Costa wrote:
+> On 09/27/2012 04:40 PM, Michal Hocko wrote:
+> > On Thu 27-09-12 16:20:55, Glauber Costa wrote:
+> >> On 09/27/2012 04:15 PM, Michal Hocko wrote:
+> >>> On Wed 26-09-12 16:33:34, Tejun Heo wrote:
+> >>> [...]
+> >>>>>> So, this seems properly crazy to me at the similar level of
+> >>>>>> use_hierarchy fiasco.  I'm gonna NACK on this.
+> >>>>>
+> >>>>> As I said: all use cases I particularly care about are covered by a
+> >>>>> global switch.
+> >>>>>
+> >>>>> I am laying down my views because I really believe they make more sense.
+> >>>>> But at some point, of course, I'll shut up if I believe I am a lone voice.
+> >>>>>
+> >>>>> I believe it should still be good to hear from mhocko and kame, but from
+> >>>>> your point of view, would all the rest, plus the introduction of a
+> >>>>> global switch make it acceptable to you?
+> >>>>
+> >>>> The only thing I'm whining about is per-node switch + silently
+> >>>> ignoring past accounting, so if those two are solved, I think I'm
+> >>>> pretty happy with the rest.
+> >>>
+> >>> I think that per-group "switch" is not nice as well but if we make it
+> >>> hierarchy specific (which I am proposing for quite some time) and do not
+> >>> let enable accounting for a group with tasks then we get both
+> >>> flexibility and reasonable semantic. A global switch sounds too coars to
+> >>> me and it really not necessary.
+> >>>
+> >>> Would this work with you?
+> >>>
+> >>
+> >> How exactly would that work? AFAIK, we have a single memcg root, we
+> >> can't have multiple memcg hierarchies in a system. Am I missing something?
+> > 
+> > Well root is so different that we could consider the first level as the
+> > real roots for hierarchies.
+> > 
+> So let's favor clarity: What you are proposing is that the first level
+> can have a switch for that, and the first level only. Is that right ?
 
-looks reasonable to me. thanks.
-
->
-> CC: David Rientjes <rientjes@google.com>
-> CC: Jiang Liu <liuj97@gmail.com>
-> CC: Len Brown <len.brown@intel.com>
-> CC: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-> CC: Paul Mackerras <paulus@samba.org>
-> Cc: Minchan Kim <minchan.kim@gmail.com>
-> CC: Andrew Morton <akpm@linux-foundation.org>
-> CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> CC: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-> Signed-off-by: Wen Congyang <wency@cn.fujitsu.com>
-> ---
->   mm/page_cgroup.c |    3 +++
->   1 files changed, 3 insertions(+), 0 deletions(-)
->
-> diff --git a/mm/page_cgroup.c b/mm/page_cgroup.c
-> index 5ddad0c..44db00e 100644
-> --- a/mm/page_cgroup.c
-> +++ b/mm/page_cgroup.c
-> @@ -251,6 +251,9 @@ static int __meminit page_cgroup_callback(struct notifier_block *self,
->   				mn->nr_pages, mn->status_change_nid);
->   		break;
->   	case MEM_CANCEL_ONLINE:
-> +		offline_page_cgroup(mn->start_pfn,
-> +				mn->nr_pages, mn->status_change_nid);
-> +		break;
->   	case MEM_GOING_OFFLINE:
->   		break;
->   	case MEM_ONLINE:
+I do not want any more switches. I am fine with your "set the limit and
+start accounting apprach" and then inherit the _internal_ flag down the
+hierarchy.
+If you are in a child and want to set the limit then you can do that
+only if your parent is accounted already (so that you can have your own
+limit). We will need the same thing for oom_controll and swappinness.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
