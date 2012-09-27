@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
-	by kanga.kvack.org (Postfix) with SMTP id F0C906B005A
-	for <linux-mm@kvack.org>; Thu, 27 Sep 2012 01:39:27 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
+	by kanga.kvack.org (Postfix) with SMTP id D46E96B0062
+	for <linux-mm@kvack.org>; Thu, 27 Sep 2012 01:39:28 -0400 (EDT)
 From: wency@cn.fujitsu.com
-Subject: [PATCH 2/4] memory-hotplug: add node_device_release
-Date: Thu, 27 Sep 2012 13:45:03 +0800
-Message-Id: <1348724705-23779-3-git-send-email-wency@cn.fujitsu.com>
+Subject: [PATCH 1/4] memory-hotplug: add memory_block_release
+Date: Thu, 27 Sep 2012 13:45:02 +0800
+Message-Id: <1348724705-23779-2-git-send-email-wency@cn.fujitsu.com>
 In-Reply-To: <1348724705-23779-1-git-send-email-wency@cn.fujitsu.com>
 References: <1348724705-23779-1-git-send-email-wency@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
@@ -15,13 +15,14 @@ Cc: rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.cras
 
 From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 
-When calling unregister_node(), the function shows following message at
+When calling remove_memory_block(), the function shows following message at
 device_release().
 
-Device 'node2' does not have a release() function, it is broken and must be
-fixed.
+Device 'memory528' does not have a release() function, it is broken and must
+be fixed.
 
-So the patch implements node_device_release()
+remove_memory_block() calls kfree(mem). I think it shouled be called from
+device_release(). So the patch implements memory_block_release()
 
 CC: David Rientjes <rientjes@google.com>
 CC: Jiang Liu <liuj97@gmail.com>
@@ -31,41 +32,46 @@ CC: Paul Mackerras <paulus@samba.org>
 Cc: Minchan Kim <minchan.kim@gmail.com>
 CC: Andrew Morton <akpm@linux-foundation.org>
 CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+CC: Wen Congyang <wency@cn.fujitsu.com>
 Signed-off-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-Signed-off-by: Wen Congyang <wency@cn.fujitsu.com>
 ---
- drivers/base/node.c |   11 +++++++++++
- 1 files changed, 11 insertions(+), 0 deletions(-)
+ drivers/base/memory.c |    9 ++++++++-
+ 1 files changed, 8 insertions(+), 1 deletions(-)
 
-diff --git a/drivers/base/node.c b/drivers/base/node.c
-index af1a177..07523fb 100644
---- a/drivers/base/node.c
-+++ b/drivers/base/node.c
-@@ -252,6 +252,16 @@ static inline void hugetlb_register_node(struct node *node) {}
- static inline void hugetlb_unregister_node(struct node *node) {}
- #endif
+diff --git a/drivers/base/memory.c b/drivers/base/memory.c
+index 7dda4f7..da457e5 100644
+--- a/drivers/base/memory.c
++++ b/drivers/base/memory.c
+@@ -70,6 +70,13 @@ void unregister_memory_isolate_notifier(struct notifier_block *nb)
+ }
+ EXPORT_SYMBOL(unregister_memory_isolate_notifier);
  
-+static void node_device_release(struct device *dev)
++static void release_memory_block(struct device *dev)
 +{
-+	struct node *node_dev = to_node(dev);
++	struct memory_block *mem = container_of(dev, struct memory_block, dev);
 +
-+#if defined(CONFIG_MEMORY_HOTPLUG_SPARSE) && defined(CONFIG_HUGETLBFS)
-+	flush_work(&node_dev->node_work);
-+#endif
-+
-+	memset(node_dev, 0, sizeof(struct node));
++	kfree(mem);
 +}
- 
++
  /*
-  * register_node - Setup a sysfs device for a node.
-@@ -265,6 +275,7 @@ int register_node(struct node *node, int num, struct node *parent)
+  * register_memory - Setup a sysfs device for a memory block
+  */
+@@ -80,6 +87,7 @@ int register_memory(struct memory_block *memory)
  
- 	node->dev.id = num;
- 	node->dev.bus = &node_subsys;
-+	node->dev.release = node_device_release;
- 	error = device_register(&node->dev);
+ 	memory->dev.bus = &memory_subsys;
+ 	memory->dev.id = memory->start_section_nr / sections_per_block;
++	memory->dev.release = release_memory_block;
  
- 	if (!error){
+ 	error = device_register(&memory->dev);
+ 	return error;
+@@ -630,7 +638,6 @@ int remove_memory_block(unsigned long node_id, struct mem_section *section,
+ 		mem_remove_simple_file(mem, phys_device);
+ 		mem_remove_simple_file(mem, removable);
+ 		unregister_memory(mem);
+-		kfree(mem);
+ 	} else
+ 		kobject_put(&mem->dev.kobj);
+ 
 -- 
 1.7.1
 
