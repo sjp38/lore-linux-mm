@@ -1,42 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
-	by kanga.kvack.org (Postfix) with SMTP id EB4396B0044
-	for <linux-mm@kvack.org>; Thu, 27 Sep 2012 11:45:26 -0400 (EDT)
-Message-ID: <5064748A.4020509@redhat.com>
-Date: Thu, 27 Sep 2012 11:45:14 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
+	by kanga.kvack.org (Postfix) with SMTP id 6B4426B005D
+	for <linux-mm@kvack.org>; Thu, 27 Sep 2012 12:41:51 -0400 (EDT)
+Message-ID: <506480FB.40802@parallels.com>
+Date: Thu, 27 Sep 2012 20:38:19 +0400
+From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v4] KSM: numa awareness sysfs knob
-References: <1348448166-1995-1-git-send-email-pholasek@redhat.com>
-In-Reply-To: <1348448166-1995-1-git-send-email-pholasek@redhat.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Subject: Re: [PATCH 4/4] sl[au]b: process slabinfo_show in common code
+References: <1348756660-16929-1-git-send-email-glommer@parallels.com> <1348756660-16929-5-git-send-email-glommer@parallels.com> <0000013a08443b02-5715bfe6-9c47-49c5-a951-8a48cc432e42-000000@email.amazonses.com>
+In-Reply-To: <0000013a08443b02-5715bfe6-9c47-49c5-a951-8a48cc432e42-000000@email.amazonses.com>
+Content-Type: text/plain; charset="ISO-8859-1"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Petr Holasek <pholasek@redhat.com>
-Cc: Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, Izik Eidus <izik.eidus@ravellosystems.com>, David Rientjes <rientjes@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Anton Arapov <anton@redhat.com>
+To: Christoph Lameter <cl@linux.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@cs.helsinki.fi>
 
-On 09/23/2012 08:56 PM, Petr Holasek wrote:
-> Introduces new sysfs boolean knob /sys/kernel/mm/ksm/merge_across_nodes
-> which control merging pages across different numa nodes.
-> When it is set to zero only pages from the same node are merged,
-> otherwise pages from all nodes can be merged together (default behavior).
->
-> Typical use-case could be a lot of KVM guests on NUMA machine
-> and cpus from more distant nodes would have significant increase
-> of access latency to the merged ksm page. Sysfs knob was choosen
-> for higher variability when some users still prefers higher amount
-> of saved physical memory regardless of access latency.
->
-> Every numa node has its own stable & unstable trees because of faster
-> searching and inserting. Changing of merge_nodes value is possible only
-> when there are not any ksm shared pages in system.
->
-> I've tested this patch on numa machines with 2, 4 and 8 nodes and
-> measured speed of memory access inside of KVM guests with memory pinned
-> to one of nodes with this benchmark:
+On 09/27/2012 07:07 PM, Christoph Lameter wrote:
+> On Thu, 27 Sep 2012, Glauber Costa wrote:
+> 
+>> --- a/mm/slab_common.c
+>> +++ b/mm/slab_common.c
+>> @@ -239,7 +239,23 @@ static void s_stop(struct seq_file *m, void *p)
+>>
+>>  static int s_show(struct seq_file *m, void *p)
+>>  {
+>> -	return slabinfo_show(m, p);
+>> +	struct kmem_cache *s = list_entry(p, struct kmem_cache, list);
+>> +	struct slabinfo sinfo;
+>> +
+>> +	memset(&sinfo, 0, sizeof(sinfo));
+>> +	get_slabinfo(s, &sinfo);
+> 
+> Could get_slabinfo() also set the objects per slab etc in some additional
+> field in struct slabinfo? Then we can avoid the exporting of the oo_
+> functions and we do not need the cache_order() etc functions.
+> 
+Yes. As a matter of fact, I first implemented it this way, and later
+switched. I was anticipating that people would be likely to point out
+that those properties are directly derivable from the caches, and it
+would be better to just get them from there.
 
-Acked-by: Rik van Riel <riel@redhat.com>
+I am more than happy to stick them in the slabinfo struct.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
