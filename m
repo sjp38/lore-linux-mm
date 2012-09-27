@@ -1,9 +1,9 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
-	by kanga.kvack.org (Postfix) with SMTP id 0B0FA6B0044
-	for <linux-mm@kvack.org>; Thu, 27 Sep 2012 04:48:17 -0400 (EDT)
-Message-ID: <50641427.3040103@cn.fujitsu.com>
-Date: Thu, 27 Sep 2012 16:53:59 +0800
+Received: from psmtp.com (na3sys010amx104.postini.com [74.125.245.104])
+	by kanga.kvack.org (Postfix) with SMTP id 22DC26B0044
+	for <linux-mm@kvack.org>; Thu, 27 Sep 2012 06:00:48 -0400 (EDT)
+Message-ID: <50642526.4070603@cn.fujitsu.com>
+Date: Thu, 27 Sep 2012 18:06:30 +0800
 From: Wen Congyang <wency@cn.fujitsu.com>
 MIME-Version: 1.0
 Subject: Re: [RFC v9 PATCH 00/21] memory-hotplug: hot-remove physical memory
@@ -28,12 +28,6 @@ At 09/27/2012 12:58 AM, Vasilis Liaskovitis Wrote:
 > 
 > When the pages are re-onlined on hot-readd, I get a bad_page state for many
 > pages e.g.
-
-I have reproduced this problem, and I investigate it now.
-
-Thanks
-Wen Congyang
-
 > 
 > [   59.611278] init_memory_mapping: [mem 0x80000000-0x9fffffff]
 > [   59.637836] Built 2 zonelists in Node order, mobility grouping on.  Total pages: 547617
@@ -62,26 +56,5 @@ Wen Congyang
 > 
 > Patch 20/21 deals with a similar scenario, but only for __PG_HWPOISON flag.
 > Did i miss any other patch for this?
-> 
-> thanks,
-> 
-> - Vasilis
-> 
-> [1] https://lkml.org/lkml/2012/9/6/635
-> [2] https://lkml.org/lkml/2012/9/11/542
-> [3] https://lkml.org/lkml/2012/9/20/37
-> [4] http://permalink.gmane.org/gmane.comp.emulators.kvm.devel/98691
-> 
-> 
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
-> 
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Please try the following patch:
