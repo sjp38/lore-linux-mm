@@ -1,43 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
-	by kanga.kvack.org (Postfix) with SMTP id 313796B0044
-	for <linux-mm@kvack.org>; Wed, 26 Sep 2012 21:16:15 -0400 (EDT)
-Received: by pbbrq2 with SMTP id rq2so3072320pbb.14
-        for <linux-mm@kvack.org>; Wed, 26 Sep 2012 18:16:14 -0700 (PDT)
-Date: Wed, 26 Sep 2012 18:16:11 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
+	by kanga.kvack.org (Postfix) with SMTP id 022A76B0044
+	for <linux-mm@kvack.org>; Wed, 26 Sep 2012 21:17:41 -0400 (EDT)
+Received: by padfa10 with SMTP id fa10so1020966pad.14
+        for <linux-mm@kvack.org>; Wed, 26 Sep 2012 18:17:41 -0700 (PDT)
+Date: Wed, 26 Sep 2012 18:17:39 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] slab: Ignore internal flags in cache creation
-In-Reply-To: <5062C029.308@parallels.com>
-Message-ID: <alpine.DEB.2.00.1209261813300.7072@chino.kir.corp.google.com>
-References: <1348571866-31738-1-git-send-email-glommer@parallels.com> <00000139fe408877-40bc98e3-322c-4ba2-be72-e298ff28e694-000000@email.amazonses.com> <alpine.DEB.2.00.1209251744580.22521@chino.kir.corp.google.com> <5062C029.308@parallels.com>
+Subject: Re: [PATCH v4] kpageflags: fix wrong KPF_THP on non-huge compound
+ pages
+In-Reply-To: <1348691234-31729-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+Message-ID: <alpine.DEB.2.00.1209261817200.7072@chino.kir.corp.google.com>
+References: <1348691234-31729-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: Christoph Lameter <cl@linux.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michal Hocko <mhocko@suse.cz>, Pekka Enberg <penberg@cs.helsinki.fi>
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Wu Fengguang <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andi Kleen <andi.kleen@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, 26 Sep 2012, Glauber Costa wrote:
+On Wed, 26 Sep 2012, Naoya Horiguchi wrote:
 
-> So the problem I am facing here is that when I am creating caches from
-> memcg, I would very much like to reuse their flags fields. They are
-> stored in the cache itself, so this is not a problem. But slab also
-> stores that flag, leading to the precise BUG_ON() on CREATE_MASK that
-> you quoted.
-> 
-> In this context, passing this flag becomes completely valid, I just need
-> that to be explicitly masked out.
-> 
-> What is your suggestion to handle this ?
-> 
+> diff --git v3.6-rc6.orig/fs/proc/page.c v3.6-rc6/fs/proc/page.c
+> index 7fcd0d6..b8730d9 100644
+> --- v3.6-rc6.orig/fs/proc/page.c
+> +++ v3.6-rc6/fs/proc/page.c
+> @@ -115,7 +115,13 @@ u64 stable_page_flags(struct page *page)
+>  		u |= 1 << KPF_COMPOUND_TAIL;
+>  	if (PageHuge(page))
+>  		u |= 1 << KPF_HUGE;
+> -	else if (PageTransCompound(page))
+> +	/*
+> +	 * PageTransCompound can be true for non-huge compound pages (slab
+> +	 * pages or pages allocated by drivers with __GFP_COMP) because it
+> +	 * just checks PG_head/PG_tail, so we need to check PageLRU to make
+> +	 * sure a given page is a thp, not a non-huge compound page.
+> +	 */
+> +	else if (PageTransCompound(page) && PageLRU(compound_trans_head(page)))
+>  		u |= 1 << KPF_THP;
+>  
+>  	/*
 
-I would suggest cachep->flags being used solely for the flags passed to 
-kmem_cache_create() and seperating out all "internal flags" based on the 
-individual slab allocator's implementation into a different field.  There 
-should be no problem with moving CFLGS_OFF_SLAB elsewhere, in fact, I just 
-removed a "dflags" field from mm/slab.c's kmem_cache that turned out never 
-to be used.  You could simply reintroduce a new "internal_flags" field and 
-use it at your discretion.
+Yes, that looks good.  Nice catch by Fengguang.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
