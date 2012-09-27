@@ -1,16 +1,16 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
-	by kanga.kvack.org (Postfix) with SMTP id AAD776B0068
-	for <linux-mm@kvack.org>; Thu, 27 Sep 2012 16:12:13 -0400 (EDT)
-Received: by obcva7 with SMTP id va7so2794292obc.14
-        for <linux-mm@kvack.org>; Thu, 27 Sep 2012 13:12:12 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
+	by kanga.kvack.org (Postfix) with SMTP id 1AD7D6B006C
+	for <linux-mm@kvack.org>; Thu, 27 Sep 2012 16:13:29 -0400 (EDT)
+Received: by obcva7 with SMTP id va7so2795858obc.14
+        for <linux-mm@kvack.org>; Thu, 27 Sep 2012 13:13:28 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <1348724705-23779-2-git-send-email-wency@cn.fujitsu.com>
-References: <1348724705-23779-1-git-send-email-wency@cn.fujitsu.com> <1348724705-23779-2-git-send-email-wency@cn.fujitsu.com>
+In-Reply-To: <1348724705-23779-3-git-send-email-wency@cn.fujitsu.com>
+References: <1348724705-23779-1-git-send-email-wency@cn.fujitsu.com> <1348724705-23779-3-git-send-email-wency@cn.fujitsu.com>
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Date: Thu, 27 Sep 2012 16:11:52 -0400
-Message-ID: <CAHGf_=pdoYkKEFAxudE-A9KZMMPeVxqHw7+NNXrpX_VHVx2GCA@mail.gmail.com>
-Subject: Re: [PATCH 1/4] memory-hotplug: add memory_block_release
+Date: Thu, 27 Sep 2012 16:13:08 -0400
+Message-ID: <CAHGf_=rLMsmAxR5hrDVXjkHAxmupVrmtqE3iq2qu=O9Prp4nSg@mail.gmail.com>
+Subject: Re: [PATCH 2/4] memory-hotplug: add node_device_release
 Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
@@ -20,79 +20,17 @@ Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, rientjes@google.com, liuj9
 On Thu, Sep 27, 2012 at 1:45 AM,  <wency@cn.fujitsu.com> wrote:
 > From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 >
-> When calling remove_memory_block(), the function shows following message at
+> When calling unregister_node(), the function shows following message at
 > device_release().
->
-> Device 'memory528' does not have a release() function, it is broken and must
-> be fixed.
->
-> remove_memory_block() calls kfree(mem). I think it shouled be called from
-> device_release(). So the patch implements memory_block_release()
 
-Why do you think so? This is terribly bad change log. it has almost
-zero information.
-We can't review it.
+This description doesn't have the "following message".
 
 
-
-
+> Device 'node2' does not have a release() function, it is broken and must be
+> fixed.
 >
-> CC: David Rientjes <rientjes@google.com>
-> CC: Jiang Liu <liuj97@gmail.com>
-> CC: Len Brown <len.brown@intel.com>
-> CC: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-> CC: Paul Mackerras <paulus@samba.org>
-> Cc: Minchan Kim <minchan.kim@gmail.com>
-> CC: Andrew Morton <akpm@linux-foundation.org>
-> CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> CC: Wen Congyang <wency@cn.fujitsu.com>
-> Signed-off-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-> ---
->  drivers/base/memory.c |    9 ++++++++-
->  1 files changed, 8 insertions(+), 1 deletions(-)
+> So the patch implements node_device_release()
 >
-> diff --git a/drivers/base/memory.c b/drivers/base/memory.c
-> index 7dda4f7..da457e5 100644
-> --- a/drivers/base/memory.c
-> +++ b/drivers/base/memory.c
-> @@ -70,6 +70,13 @@ void unregister_memory_isolate_notifier(struct notifier_block *nb)
->  }
->  EXPORT_SYMBOL(unregister_memory_isolate_notifier);
->
-> +static void release_memory_block(struct device *dev)
-> +{
-> +       struct memory_block *mem = container_of(dev, struct memory_block, dev);
-> +
-> +       kfree(mem);
-> +}
-> +
->  /*
->   * register_memory - Setup a sysfs device for a memory block
->   */
-> @@ -80,6 +87,7 @@ int register_memory(struct memory_block *memory)
->
->         memory->dev.bus = &memory_subsys;
->         memory->dev.id = memory->start_section_nr / sections_per_block;
-> +       memory->dev.release = release_memory_block;
->
->         error = device_register(&memory->dev);
->         return error;
-> @@ -630,7 +638,6 @@ int remove_memory_block(unsigned long node_id, struct mem_section *section,
->                 mem_remove_simple_file(mem, phys_device);
->                 mem_remove_simple_file(mem, removable);
->                 unregister_memory(mem);
-> -               kfree(mem);
->         } else
->                 kobject_put(&mem->dev.kobj);
->
-> --
-> 1.7.1
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
