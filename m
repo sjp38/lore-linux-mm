@@ -1,236 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
-	by kanga.kvack.org (Postfix) with SMTP id 6F5126B005A
-	for <linux-mm@kvack.org>; Thu, 27 Sep 2012 10:32:38 -0400 (EDT)
-Received: by pbbrq2 with SMTP id rq2so4146164pbb.14
-        for <linux-mm@kvack.org>; Thu, 27 Sep 2012 07:32:37 -0700 (PDT)
-Message-ID: <50646360.5040005@gmail.com>
-Date: Thu, 27 Sep 2012 22:32:00 +0800
-From: Ni zhan Chen <nizhan.chen@gmail.com>
+	by kanga.kvack.org (Postfix) with SMTP id C5FCF6B005A
+	for <linux-mm@kvack.org>; Thu, 27 Sep 2012 10:33:05 -0400 (EDT)
+Received: by mail-pb0-f41.google.com with SMTP id rq2so4146164pbb.14
+        for <linux-mm@kvack.org>; Thu, 27 Sep 2012 07:33:05 -0700 (PDT)
+Date: Thu, 27 Sep 2012 07:33:00 -0700
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH v3 04/13] kmem accounting basic infrastructure
+Message-ID: <20120927143300.GA4251@mtj.dyndns.org>
+References: <50634105.8060302@parallels.com>
+ <20120926180124.GA12544@google.com>
+ <50634FC9.4090609@parallels.com>
+ <20120926193417.GJ12544@google.com>
+ <50635B9D.8020205@parallels.com>
+ <20120926195648.GA20342@google.com>
+ <50635F46.7000700@parallels.com>
+ <20120926201629.GB20342@google.com>
+ <50637298.2090904@parallels.com>
+ <20120927120806.GA29104@dhcp22.suse.cz>
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/3] memory_hotplug: fix stale node_states[N_NORMAL_MEMORY]
-References: <1348728470-5580-1-git-send-email-laijs@cn.fujitsu.com> <1348728470-5580-2-git-send-email-laijs@cn.fujitsu.com>
-In-Reply-To: <1348728470-5580-2-git-send-email-laijs@cn.fujitsu.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120927120806.GA29104@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Lai Jiangshan <laijs@cn.fujitsu.com>
-Cc: linux-kernel@vger.kernel.org, Rob Landley <rob@landley.net>, Andrew Morton <akpm@linux-foundation.org>, Jiang Liu <jiang.liu@huawei.com>, Jianguo Wu <wujianguo@huawei.com>, Kay Sievers <kay.sievers@vrfy.org>, Greg Kroah-Hartman <gregkh@suse.de>, Xishi Qiu <qiuxishi@huawei.com>, Mel Gorman <mgorman@suse.de>, linux-doc@vger.kernel.org, linux-mm@kvack.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Glauber Costa <glommer@parallels.com>, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, devel@openvz.org, linux-mm@kvack.org, Suleiman Souhlal <suleiman@google.com>, Frederic Weisbecker <fweisbec@gmail.com>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>
 
-On 09/27/2012 02:47 PM, Lai Jiangshan wrote:
-> Currently memory_hotplug only manages the node_states[N_HIGH_MEMORY],
-> it forgets to manage node_states[N_NORMAL_MEMORY]. it causes
-> node_states[N_NORMAL_MEMORY] becomes stale.
->
-> We add check_nodemasks_changes_online() and check_nodemasks_changes_offline()
-> to detect whether node_states[N_HIGH_MEMORY] and node_states[N_NORMAL_MEMORY]
-> are changed while hotpluging.
->
-> Also add @status_change_nid_normal to struct memory_notify, thus
-> the memory hotplug callbacks know whether the node_states[N_NORMAL_MEMORY]
-> are changed.
+Hello, Michal.
 
-I still don't understand why need care N_NORMAL_MEMORY here, could you 
-explain
-in details?
+On Thu, Sep 27, 2012 at 02:08:06PM +0200, Michal Hocko wrote:
+> Yes, because we have many users (basically almost all) who care only
+> about the user memory because that's what occupies the vast majority of
+> the memory. They usually want to isolate workload which would disrupt
+> the global memory otherwise (e.g. backup process vs. database). You
+> really do not want to pay an additional overhead for kmem accounting
+> here.
 
->
-> Signed-off-by: Lai Jiangshan <laijs@cn.fujitsu.com>
-> ---
->   Documentation/memory-hotplug.txt |    5 ++-
->   include/linux/memory.h           |    1 +
->   mm/memory_hotplug.c              |   94 +++++++++++++++++++++++++++++++------
->   3 files changed, 83 insertions(+), 17 deletions(-)
->
-> diff --git a/Documentation/memory-hotplug.txt b/Documentation/memory-hotplug.txt
-> index 6d0c251..6e6cbc7 100644
-> --- a/Documentation/memory-hotplug.txt
-> +++ b/Documentation/memory-hotplug.txt
-> @@ -377,15 +377,18 @@ The third argument is passed by pointer of struct memory_notify.
->   struct memory_notify {
->          unsigned long start_pfn;
->          unsigned long nr_pages;
-> +       int status_change_nid_normal;
->          int status_change_nid;
->   }
->   
->   start_pfn is start_pfn of online/offline memory.
->   nr_pages is # of pages of online/offline memory.
-> +status_change_nid_normal is set node id when N_NORMAL_MEMORY of nodemask
-> +is (will be) set/clear, if this is -1, then nodemask status is not changed.
->   status_change_nid is set node id when N_HIGH_MEMORY of nodemask is (will be)
->   set/clear. It means a new(memoryless) node gets new memory by online and a
->   node loses all memory. If this is -1, then nodemask status is not changed.
-> -If status_changed_nid >= 0, callback should create/discard structures for the
-> +If status_changed_nid* >= 0, callback should create/discard structures for the
->   node if necessary.
->   
->   --------------
-> diff --git a/include/linux/memory.h b/include/linux/memory.h
-> index ff9a9f8..a09216d 100644
-> --- a/include/linux/memory.h
-> +++ b/include/linux/memory.h
-> @@ -53,6 +53,7 @@ int arch_get_memory_phys_device(unsigned long start_pfn);
->   struct memory_notify {
->   	unsigned long start_pfn;
->   	unsigned long nr_pages;
-> +	int status_change_nid_normal;
->   	int status_change_nid;
->   };
->   
-> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-> index 6a5b90d..b62d429b 100644
-> --- a/mm/memory_hotplug.c
-> +++ b/mm/memory_hotplug.c
-> @@ -460,6 +460,34 @@ static int online_pages_range(unsigned long start_pfn, unsigned long nr_pages,
->   	return 0;
->   }
->   
-> +static void check_nodemasks_changes_online(unsigned long nr_pages,
-> +	struct zone *zone, struct memory_notify *arg)
-> +{
-> +	int nid = zone_to_nid(zone);
-> +	enum zone_type zone_last = ZONE_NORMAL;
-> +
-> +	if (N_HIGH_MEMORY == N_NORMAL_MEMORY)
-> +		zone_last = ZONE_MOVABLE;
-> +
-> +	if (zone_idx(zone) <= zone_last && !node_state(nid, N_NORMAL_MEMORY))
-> +		arg->status_change_nid_normal = nid;
-> +	else
-> +		arg->status_change_nid_normal = -1;
-> +
-> +	if (!node_state(nid, N_HIGH_MEMORY))
-> +		arg->status_change_nid = nid;
-> +	else
-> +		arg->status_change_nid = -1;
-> +}
-> +
-> +static void set_nodemasks(int node, struct memory_notify *arg)
-> +{
-> +	if (arg->status_change_nid_normal >= 0)
-> +		node_set_state(node, N_NORMAL_MEMORY);
-> +
-> +	node_set_state(node, N_HIGH_MEMORY);
-> +}
-> +
->   
->   int __ref online_pages(unsigned long pfn, unsigned long nr_pages)
->   {
-> @@ -471,13 +499,18 @@ int __ref online_pages(unsigned long pfn, unsigned long nr_pages)
->   	struct memory_notify arg;
->   
->   	lock_memory_hotplug();
-> +	/*
-> +	 * This doesn't need a lock to do pfn_to_page().
-> +	 * The section can't be removed here because of the
-> +	 * memory_block->state_mutex.
-> +	 */
-> +	zone = page_zone(pfn_to_page(pfn));
-> +
->   	arg.start_pfn = pfn;
->   	arg.nr_pages = nr_pages;
-> -	arg.status_change_nid = -1;
-> +	check_nodemasks_changes_online(nr_pages, zone, &arg);
->   
->   	nid = page_to_nid(pfn_to_page(pfn));
-> -	if (node_present_pages(nid) == 0)
-> -		arg.status_change_nid = nid;
->   
->   	ret = memory_notify(MEM_GOING_ONLINE, &arg);
->   	ret = notifier_to_errno(ret);
-> @@ -487,12 +520,6 @@ int __ref online_pages(unsigned long pfn, unsigned long nr_pages)
->   		return ret;
->   	}
->   	/*
-> -	 * This doesn't need a lock to do pfn_to_page().
-> -	 * The section can't be removed here because of the
-> -	 * memory_block->state_mutex.
-> -	 */
-> -	zone = page_zone(pfn_to_page(pfn));
-> -	/*
->   	 * If this zone is not populated, then it is not in zonelist.
->   	 * This means the page allocator ignores this zone.
->   	 * So, zonelist must be updated after online.
-> @@ -517,7 +544,7 @@ int __ref online_pages(unsigned long pfn, unsigned long nr_pages)
->   	zone->present_pages += onlined_pages;
->   	zone->zone_pgdat->node_present_pages += onlined_pages;
->   	if (onlined_pages) {
-> -		node_set_state(zone_to_nid(zone), N_HIGH_MEMORY);
-> +		set_nodemasks(zone_to_nid(zone), &arg);
->   		if (need_zonelists_rebuild)
->   			build_all_zonelists(NULL, zone);
->   		else
-> @@ -870,6 +897,44 @@ check_pages_isolated(unsigned long start_pfn, unsigned long end_pfn)
->   	return offlined;
->   }
->   
-> +static void check_nodemasks_changes_offline(unsigned long nr_pages,
-> +		struct zone *zone, struct memory_notify *arg)
-> +{
-> +	struct pglist_data *pgdat = zone->zone_pgdat;
-> +	unsigned long present_pages = 0;
-> +	enum zone_type zt, zone_last = ZONE_NORMAL;
-> +
-> +	if (N_HIGH_MEMORY == N_NORMAL_MEMORY)
-> +		zone_last = ZONE_MOVABLE;
-> +
-> +	for (zt = 0; zt <= zone_last; zt++)
-> +		present_pages += pgdat->node_zones[zt].present_pages;
-> +	if (zone_idx(zone) <= zone_last && nr_pages >= present_pages)
-> +		arg->status_change_nid_normal = zone_to_nid(zone);
-> +	else
-> +		arg->status_change_nid_normal = -1;
-> +
-> +	zone_last = ZONE_MOVABLE;
-> +	for (; zt <= zone_last; zt++)
-> +		present_pages += pgdat->node_zones[zt].present_pages;
-> +	if (nr_pages >= present_pages)
-> +		arg->status_change_nid = zone_to_nid(zone);
-> +	else
-> +		arg->status_change_nid = -1;
-> +}
-> +
-> +static void clear_nodemasks(int node, struct memory_notify *arg)
-> +{
-> +	if (arg->status_change_nid_normal >= 0)
-> +		node_clear_state(node, N_NORMAL_MEMORY);
-> +
-> +	if (N_HIGH_MEMORY == N_NORMAL_MEMORY)
-> +		return;
-> +
-> +	if (arg->status_change_nid >= 0)
-> +		node_clear_state(node, N_HIGH_MEMORY);
-> +}
-> +
->   static int __ref offline_pages(unsigned long start_pfn,
->   		  unsigned long end_pfn, unsigned long timeout)
->   {
-> @@ -903,9 +968,7 @@ static int __ref offline_pages(unsigned long start_pfn,
->   
->   	arg.start_pfn = start_pfn;
->   	arg.nr_pages = nr_pages;
-> -	arg.status_change_nid = -1;
-> -	if (nr_pages >= node_present_pages(node))
-> -		arg.status_change_nid = node;
-> +	check_nodemasks_changes_offline(nr_pages, zone, &arg);
->   
->   	ret = memory_notify(MEM_GOING_OFFLINE, &arg);
->   	ret = notifier_to_errno(ret);
-> @@ -973,10 +1036,9 @@ repeat:
->   	if (!populated_zone(zone))
->   		zone_pcp_reset(zone);
->   
-> -	if (!node_present_pages(node)) {
-> -		node_clear_state(node, N_HIGH_MEMORY);
-> +	clear_nodemasks(node, &arg);
-> +	if (arg.status_change_nid >= 0)
->   		kswapd_stop(node);
-> -	}
->   
->   	vm_total_pages = nr_free_pagecache_pages();
->   	writeback_set_ratelimit();
+I'm not too convinced.  First of all, the overhead added by kmemcg
+isn't big.  The hot path overhead is quite minimal - it doesn't do
+much more than indirecting one more time.  In terms of memory usage,
+it sure could lead to a bit more fragmentation but even if it gets to
+several megs per cgroup, I don't think that's something excessive.
+So, there is overhead but I don't believe it to be prohibitive.
+
+> > So your question for global vs local switch (that again, doesn't
+> > exist; only a local *limit* exists) should really be posed in the
+> > following way:  "Can two different use cases with different needs be
+> > hosted in the same box?"
+> 
+> I think this is a good and a relevant question. I think this boils down
+> to whether you want to have trusted and untrusted workloads at the same
+> machine.
+> Trusted loads usually only need user memory accounting because kmem
+> consumption should be really negligible (unless kernel is doing
+> something really stupid and no kmem limit will help here). 
+> On the other hand, untrusted workloads can do nasty things that
+> administrator has hard time to mitigate and setting a kmem limit can
+> help significantly.
+> 
+> IMHO such a different loads exist on a single machine quite often (Web
+> server and a back up process as the most simplistic one). The per
+> hierarchy accounting, therefore, sounds like a good idea without too
+> much added complexity (actually the only added complexity is in the
+> proper kmem.limit_in_bytes handling which is a single place).
+
+The distinction between "trusted" and "untrusted" is something
+artificially created due to the assumed deficiency of kmemcg
+implementation.  Making things like this visible to userland is a bad
+idea because it locks us into a place where we can't or don't need to
+improve the said deficiencies and end up pushing the difficult
+problems to somewhere else where it will likely be implemented in a
+shabbier way.  There sure are cases when such approach simply cannot
+be avoided, but I really don't think that's the case here - the
+overhead already seems to be at an acceptable level and we're not
+taking away the escape switch.
+
+This is userland visible API.  We better err on the side of being
+conservative than going overboard with flexibility.  Even if we
+eventually need to make this switching fullly hierarchical, we really
+should be doing,
+
+1. Implement simple global switching and look for problem cases.
+
+2. Analyze them and see whether the problem case can't be solved in a
+   better, more intelligent way.
+
+3. If the problem is something structurally inherent or reasonably too
+   difficult to solve any other way, consider dumping the problem as
+   config parameters to userland.
+
+We can always expand the flexibility.  Let's do the simple thing
+first.  As an added bonus, it would enable using static_keys for
+accounting branches too.
+
+Thanks.
+
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
