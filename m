@@ -1,60 +1,215 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx104.postini.com [74.125.245.104])
-	by kanga.kvack.org (Postfix) with SMTP id 22DC26B0044
-	for <linux-mm@kvack.org>; Thu, 27 Sep 2012 06:00:48 -0400 (EDT)
-Message-ID: <50642526.4070603@cn.fujitsu.com>
-Date: Thu, 27 Sep 2012 18:06:30 +0800
-From: Wen Congyang <wency@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
+	by kanga.kvack.org (Postfix) with SMTP id 1F1F86B0044
+	for <linux-mm@kvack.org>; Thu, 27 Sep 2012 06:20:15 -0400 (EDT)
+Received: by qadc11 with SMTP id c11so2172737qad.14
+        for <linux-mm@kvack.org>; Thu, 27 Sep 2012 03:20:14 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [RFC v9 PATCH 00/21] memory-hotplug: hot-remove physical memory
-References: <1346837155-534-1-git-send-email-wency@cn.fujitsu.com> <20120926165820.GB7559@dhcp-192-168-178-175.profitbricks.localdomain>
-In-Reply-To: <20120926165820.GB7559@dhcp-192-168-178-175.profitbricks.localdomain>
-Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset=ISO-8859-1
+In-Reply-To: <1348724705-23779-2-git-send-email-wency@cn.fujitsu.com>
+References: <1348724705-23779-1-git-send-email-wency@cn.fujitsu.com>
+	<1348724705-23779-2-git-send-email-wency@cn.fujitsu.com>
+Date: Thu, 27 Sep 2012 18:20:13 +0800
+Message-ID: <CAEkdkmVW5wwG4_cy0yHFNVmk2bzAqzo2adRsMn1yHOW9Ex98_g@mail.gmail.com>
+Subject: Re: [PATCH 1/4] memory-hotplug: add memory_block_release
+From: Ni zhan Chen <nizhan.chen@gmail.com>
+Content-Type: multipart/alternative; boundary=20cf300fae61f28a9304caac48e5
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>
-Cc: x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-ia64@vger.kernel.org, cmetcalf@tilera.com, sparclinux@vger.kernel.org, rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com
+To: wency@cn.fujitsu.com
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, minchan.kim@gmail.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com
 
-At 09/27/2012 12:58 AM, Vasilis Liaskovitis Wrote:
-> Testing 3.6.0-rc7 with this v9 patchset plus more recent fixes [1],[2],[3]
-> Running in a guest (qemu+seabios from [4]). 
-> CONFIG_SLAB=y
-> CONFIG_DEBUG_SLAB=y
-> 
-> - succesfull hot-add and online
-> - succesfull hot-remove with SCI (qemu) eject
-> - attempt to hot-readd same memory
-> 
-> When the pages are re-onlined on hot-readd, I get a bad_page state for many
-> pages e.g.
-> 
-> [   59.611278] init_memory_mapping: [mem 0x80000000-0x9fffffff]
-> [   59.637836] Built 2 zonelists in Node order, mobility grouping on.  Total pages: 547617
-> [   59.638739] Policy zone: Normal
-> [   59.650840] BUG: Bad page state in process bash  pfn:9b6dc
-> [   59.651124] page:ffffea0002200020 count:0 mapcount:0 mapping:          (null) index:0xfdfdfdfdfdfdfdfd
-> [   59.651494] page flags: 0x2fdfdfdfd5df9fd(locked|referenced|uptodate|dirty|lru|active|slab|owner_priv_1|private|private_2|writeback|head|tail|swapcache|reclaim|swapbacked|unevictable|uncached|compound_lock)
-> [   59.653604] Modules linked in: netconsole acpiphp pci_hotplug acpi_memhotplug loop kvm_amd kvm microcode tpm_tis tpm tpm_bios evdev psmouse serio_raw i2c_piix4 i2c_core parport_pc parport processor button thermal_sys ext3 jbd mbcache sg sr_mod cdrom ata_generic virtio_net ata_piix virtio_blk libata virtio_pci virtio_ring virtio scsi_mod
-> [   59.656998] Pid: 988, comm: bash Not tainted 3.6.0-rc7-guest #12
-> [   59.657172] Call Trace:
-> [   59.657275]  [<ffffffff810e9b30>] ? bad_page+0xb0/0x100
-> [   59.657434]  [<ffffffff810ea4c3>] ? free_pages_prepare+0xb3/0x100
-> [   59.657610]  [<ffffffff810ea668>] ? free_hot_cold_page+0x48/0x1a0
-> [   59.657787]  [<ffffffff8112cc08>] ? online_pages_range+0x68/0xa0
-> [   59.657961]  [<ffffffff8112cba0>] ? __online_page_increment_counters+0x10/0x10
-> [   59.658162]  [<ffffffff81045561>] ? walk_system_ram_range+0x101/0x110
-> [   59.658346]  [<ffffffff814c4f95>] ? online_pages+0x1a5/0x2b0
-> [   59.658515]  [<ffffffff8135663d>] ? __memory_block_change_state+0x20d/0x270
-> [   59.658710]  [<ffffffff81356756>] ? store_mem_state+0xb6/0xf0
-> [   59.658878]  [<ffffffff8119e482>] ? sysfs_write_file+0xd2/0x160
-> [   59.659052]  [<ffffffff8113769a>] ? vfs_write+0xaa/0x160
-> [   59.659212]  [<ffffffff81137977>] ? sys_write+0x47/0x90
-> [   59.659371]  [<ffffffff814e2f25>] ? async_page_fault+0x25/0x30
-> [   59.659543]  [<ffffffff814ea239>] ? system_call_fastpath+0x16/0x1b
-> [   59.659720] Disabling lock debugging due to kernel taint
-> 
-> Patch 20/21 deals with a similar scenario, but only for __PG_HWPOISON flag.
-> Did i miss any other patch for this?
+--20cf300fae61f28a9304caac48e5
+Content-Type: text/plain; charset=ISO-8859-1
 
-Please try the following patch:
+Hi Congyang,
+
+2012/9/27 <wency@cn.fujitsu.com>
+
+> From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+>
+> When calling remove_memory_block(), the function shows following message at
+> device_release().
+>
+> Device 'memory528' does not have a release() function, it is broken and
+> must
+> be fixed.
+>
+
+What's the difference between the patch and original implemetation?
+
+
+> remove_memory_block() calls kfree(mem). I think it shouled be called from
+> device_release(). So the patch implements memory_block_release()
+>
+> CC: David Rientjes <rientjes@google.com>
+> CC: Jiang Liu <liuj97@gmail.com>
+> CC: Len Brown <len.brown@intel.com>
+> CC: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+> CC: Paul Mackerras <paulus@samba.org>
+> Cc: Minchan Kim <minchan.kim@gmail.com>
+> CC: Andrew Morton <akpm@linux-foundation.org>
+> CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> CC: Wen Congyang <wency@cn.fujitsu.com>
+> Signed-off-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+> ---
+>  drivers/base/memory.c |    9 ++++++++-
+>  1 files changed, 8 insertions(+), 1 deletions(-)
+>
+> diff --git a/drivers/base/memory.c b/drivers/base/memory.c
+> index 7dda4f7..da457e5 100644
+> --- a/drivers/base/memory.c
+> +++ b/drivers/base/memory.c
+> @@ -70,6 +70,13 @@ void unregister_memory_isolate_notifier(struct
+> notifier_block *nb)
+>  }
+>  EXPORT_SYMBOL(unregister_memory_isolate_notifier);
+>
+> +static void release_memory_block(struct device *dev)
+> +{
+> +       struct memory_block *mem = container_of(dev, struct memory_block,
+> dev);
+> +
+> +       kfree(mem);
+> +}
+> +
+>  /*
+>   * register_memory - Setup a sysfs device for a memory block
+>   */
+> @@ -80,6 +87,7 @@ int register_memory(struct memory_block *memory)
+>
+>         memory->dev.bus = &memory_subsys;
+>         memory->dev.id = memory->start_section_nr / sections_per_block;
+> +       memory->dev.release = release_memory_block;
+>
+>         error = device_register(&memory->dev);
+>         return error;
+> @@ -630,7 +638,6 @@ int remove_memory_block(unsigned long node_id, struct
+> mem_section *section,
+>                 mem_remove_simple_file(mem, phys_device);
+>                 mem_remove_simple_file(mem, removable);
+>                 unregister_memory(mem);
+> -               kfree(mem);
+>         } else
+>                 kobject_put(&mem->dev.kobj);
+>
+> --
+> 1.7.1
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>
+
+--20cf300fae61f28a9304caac48e5
+Content-Type: text/html; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
+
+Hi=A0Congyang,<br><br><div class=3D"gmail_quote">2012/9/27  <span dir=3D"lt=
+r">&lt;<a href=3D"mailto:wency@cn.fujitsu.com" target=3D"_blank">wency@cn.f=
+ujitsu.com</a>&gt;</span><br><blockquote class=3D"gmail_quote" style=3D"mar=
+gin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+From: Yasuaki Ishimatsu &lt;<a href=3D"mailto:isimatu.yasuaki@jp.fujitsu.co=
+m">isimatu.yasuaki@jp.fujitsu.com</a>&gt;<br>
+<br>
+When calling remove_memory_block(), the function shows following message at=
+<br>
+device_release().<br>
+<br>
+Device &#39;memory528&#39; does not have a release() function, it is broken=
+ and must<br>
+be fixed.<br></blockquote><div><br></div><div>What&#39;s the difference bet=
+ween the patch and original implemetation? =A0</div><div><br></div><blockqu=
+ote class=3D"gmail_quote" style=3D"margin:0 0 0 .8ex;border-left:1px #ccc s=
+olid;padding-left:1ex">
+
+<br>
+remove_memory_block() calls kfree(mem). I think it shouled be called from<b=
+r>
+device_release(). So the patch implements memory_block_release()<br>
+<br>
+CC: David Rientjes &lt;<a href=3D"mailto:rientjes@google.com">rientjes@goog=
+le.com</a>&gt;<br>
+CC: Jiang Liu &lt;<a href=3D"mailto:liuj97@gmail.com">liuj97@gmail.com</a>&=
+gt;<br>
+CC: Len Brown &lt;<a href=3D"mailto:len.brown@intel.com">len.brown@intel.co=
+m</a>&gt;<br>
+CC: Benjamin Herrenschmidt &lt;<a href=3D"mailto:benh@kernel.crashing.org">=
+benh@kernel.crashing.org</a>&gt;<br>
+CC: Paul Mackerras &lt;<a href=3D"mailto:paulus@samba.org">paulus@samba.org=
+</a>&gt;<br>
+Cc: Minchan Kim &lt;<a href=3D"mailto:minchan.kim@gmail.com">minchan.kim@gm=
+ail.com</a>&gt;<br>
+CC: Andrew Morton &lt;<a href=3D"mailto:akpm@linux-foundation.org">akpm@lin=
+ux-foundation.org</a>&gt;<br>
+CC: KOSAKI Motohiro &lt;<a href=3D"mailto:kosaki.motohiro@jp.fujitsu.com">k=
+osaki.motohiro@jp.fujitsu.com</a>&gt;<br>
+CC: Wen Congyang &lt;<a href=3D"mailto:wency@cn.fujitsu.com">wency@cn.fujit=
+su.com</a>&gt;<br>
+Signed-off-by: Yasuaki Ishimatsu &lt;<a href=3D"mailto:isimatu.yasuaki@jp.f=
+ujitsu.com">isimatu.yasuaki@jp.fujitsu.com</a>&gt;<br>
+---<br>
+=A0drivers/base/memory.c | =A0 =A09 ++++++++-<br>
+=A01 files changed, 8 insertions(+), 1 deletions(-)<br>
+<br>
+diff --git a/drivers/base/memory.c b/drivers/base/memory.c<br>
+index 7dda4f7..da457e5 100644<br>
+--- a/drivers/base/memory.c<br>
++++ b/drivers/base/memory.c<br>
+@@ -70,6 +70,13 @@ void unregister_memory_isolate_notifier(struct notifier_=
+block *nb)<br>
+=A0}<br>
+=A0EXPORT_SYMBOL(unregister_memory_isolate_notifier);<br>
+<br>
++static void release_memory_block(struct device *dev)<br>
++{<br>
++ =A0 =A0 =A0 struct memory_block *mem =3D container_of(dev, struct memory_=
+block, dev);<br>
++<br>
++ =A0 =A0 =A0 kfree(mem);<br>
++}<br>
++<br>
+=A0/*<br>
+=A0 * register_memory - Setup a sysfs device for a memory block<br>
+=A0 */<br>
+@@ -80,6 +87,7 @@ int register_memory(struct memory_block *memory)<br>
+<br>
+=A0 =A0 =A0 =A0 memory-&gt;dev.bus =3D &amp;memory_subsys;<br>
+=A0 =A0 =A0 =A0 memory-&gt;<a href=3D"http://dev.id" target=3D"_blank">dev.=
+id</a> =3D memory-&gt;start_section_nr / sections_per_block;<br>
++ =A0 =A0 =A0 memory-&gt;dev.release =3D release_memory_block;<br>
+<br>
+=A0 =A0 =A0 =A0 error =3D device_register(&amp;memory-&gt;dev);<br>
+=A0 =A0 =A0 =A0 return error;<br>
+@@ -630,7 +638,6 @@ int remove_memory_block(unsigned long node_id, struct m=
+em_section *section,<br>
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 mem_remove_simple_file(mem, phys_device);<b=
+r>
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 mem_remove_simple_file(mem, removable);<br>
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 unregister_memory(mem);<br>
+- =A0 =A0 =A0 =A0 =A0 =A0 =A0 kfree(mem);<br>
+=A0 =A0 =A0 =A0 } else<br>
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 kobject_put(&amp;mem-&gt;dev.kobj);<br>
+<span class=3D"HOEnZb"><font color=3D"#888888"><br>
+--<br>
+1.7.1<br>
+<br>
+--<br>
+To unsubscribe, send a message with &#39;unsubscribe linux-mm&#39; in<br>
+the body to <a href=3D"mailto:majordomo@kvack.org">majordomo@kvack.org</a>.=
+ =A0For more info on Linux MM,<br>
+see: <a href=3D"http://www.linux-mm.org/" target=3D"_blank">http://www.linu=
+x-mm.org/</a> .<br>
+Don&#39;t email: &lt;a href=3Dmailto:&quot;<a href=3D"mailto:dont@kvack.org=
+">dont@kvack.org</a>&quot;&gt; <a href=3D"mailto:email@kvack.org">email@kva=
+ck.org</a> &lt;/a&gt;<br>
+</font></span></blockquote></div><br>
+
+--20cf300fae61f28a9304caac48e5--
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
