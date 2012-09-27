@@ -1,16 +1,16 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
-	by kanga.kvack.org (Postfix) with SMTP id B9C926B0068
-	for <linux-mm@kvack.org>; Thu, 27 Sep 2012 18:51:02 -0400 (EDT)
-Received: by pbbrq2 with SMTP id rq2so4776435pbb.14
-        for <linux-mm@kvack.org>; Thu, 27 Sep 2012 15:51:02 -0700 (PDT)
-Date: Thu, 27 Sep 2012 15:50:58 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
+	by kanga.kvack.org (Postfix) with SMTP id 1D5AE6B0069
+	for <linux-mm@kvack.org>; Thu, 27 Sep 2012 18:52:13 -0400 (EDT)
+Received: by padfa10 with SMTP id fa10so2005695pad.14
+        for <linux-mm@kvack.org>; Thu, 27 Sep 2012 15:52:12 -0700 (PDT)
+Date: Thu, 27 Sep 2012 15:52:10 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
 Subject: Re: [PATCH] slab: Ignore internal flags in cache creation
-In-Reply-To: <0000013a08020b4d-ecc22fc9-75e4-4f1d-8a76-5496a98d1df9-000000@email.amazonses.com>
-Message-ID: <alpine.DEB.2.00.1209271546460.13360@chino.kir.corp.google.com>
-References: <1348571866-31738-1-git-send-email-glommer@parallels.com> <00000139fe408877-40bc98e3-322c-4ba2-be72-e298ff28e694-000000@email.amazonses.com> <alpine.DEB.2.00.1209251744580.22521@chino.kir.corp.google.com> <5062C029.308@parallels.com>
- <alpine.DEB.2.00.1209261813300.7072@chino.kir.corp.google.com> <0000013a08020b4d-ecc22fc9-75e4-4f1d-8a76-5496a98d1df9-000000@email.amazonses.com>
+In-Reply-To: <0000013a0804637a-82ca7649-bc6c-42ef-9a2c-e79b63f47a23-000000@email.amazonses.com>
+Message-ID: <alpine.DEB.2.00.1209271551220.13360@chino.kir.corp.google.com>
+References: <1348571866-31738-1-git-send-email-glommer@parallels.com> <00000139fe408877-40bc98e3-322c-4ba2-be72-e298ff28e694-000000@email.amazonses.com> <alpine.DEB.2.00.1209251744580.22521@chino.kir.corp.google.com>
+ <0000013a03150b18-b7c1bfbe-967f-4c33-86e0-f3ca344706cd-000000@email.amazonses.com> <alpine.DEB.2.00.1209261810180.7072@chino.kir.corp.google.com> <0000013a0804637a-82ca7649-bc6c-42ef-9a2c-e79b63f47a23-000000@email.amazonses.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -20,21 +20,28 @@ Cc: Glauber Costa <glommer@parallels.com>, linux-mm@kvack.org, linux-kernel@vger
 
 On Thu, 27 Sep 2012, Christoph Lameter wrote:
 
-> > I would suggest cachep->flags being used solely for the flags passed to
-> > kmem_cache_create() and seperating out all "internal flags" based on the
-> > individual slab allocator's implementation into a different field.  There
-> > should be no problem with moving CFLGS_OFF_SLAB elsewhere, in fact, I just
-> > removed a "dflags" field from mm/slab.c's kmem_cache that turned out never
-> > to be used.  You could simply reintroduce a new "internal_flags" field and
-> > use it at your discretion.
+> > > > Nack, this is already handled by CREATE_MASK in the mm/slab.c allocator;
+> > >
+> > > CREATE_MASK defines legal flags that can be specified. Other flags cause
+> > > and error. This is about flags that are internal that should be ignored
+> > > when specified.
+> > >
+> >
+> > That should be ignored for the mm/slab.c allocator, yes.
 > 
-> This means touching another field from critical paths of the allocators.
-> It would increase the cache footprint and therefore reduce performance.
+> Then you are ok with the patch as is?
 > 
 
-To clarify your statement, you're referring to the mm/slab.c allocation of 
-new slab pages and when debugging is enabled as "critical paths", correct?  
-We would disagree on that point.
+No, it's implementation defined so it shouldn't be in kmem_cache_create(), 
+it should be in __kmem_cache_create().
+
+> There *are* multiple slab allocators using those bits! And this works for
+> them. There is nothing too restrictive here. The internal flags are
+> standardized by this patch to be in the highest nibble.
+> 
+
+I'm referring to additional slab allocators that will be proposed for 
+inclusion shortly.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
