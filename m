@@ -1,264 +1,163 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
-	by kanga.kvack.org (Postfix) with SMTP id 990F96B005A
-	for <linux-mm@kvack.org>; Thu, 27 Sep 2012 07:35:41 -0400 (EDT)
-Message-ID: <5064392D.5040707@parallels.com>
-Date: Thu, 27 Sep 2012 15:31:57 +0400
-From: Glauber Costa <glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx144.postini.com [74.125.245.144])
+	by kanga.kvack.org (Postfix) with SMTP id EEE766B0044
+	for <linux-mm@kvack.org>; Thu, 27 Sep 2012 07:52:23 -0400 (EDT)
+Date: Thu, 27 Sep 2012 13:52:19 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH v3 1/2] writeback: add dirty_background_centisecs per
+ bdi variable
+Message-ID: <20120927115219.GB28126@quack.suse.cz>
+References: <1347798342-2830-1-git-send-email-linkinjeon@gmail.com>
+ <20120920084422.GA5697@localhost>
+ <20120924222306.GC30997@quack.suse.cz>
+ <20120926165602.GA24672@localhost>
+ <20120926202247.GA20920@quack.suse.cz>
+ <CAKYAXd_=TkHM4s8hyyEZpkJCv3N7HOeXKxoEOpwigFYfR9+ReA@mail.gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v3 06/13] memcg: kmem controller infrastructure
-References: <1347977050-29476-1-git-send-email-glommer@parallels.com> <1347977050-29476-7-git-send-email-glommer@parallels.com> <20120926155108.GE15801@dhcp22.suse.cz>
-In-Reply-To: <20120926155108.GE15801@dhcp22.suse.cz>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAKYAXd_=TkHM4s8hyyEZpkJCv3N7HOeXKxoEOpwigFYfR9+ReA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, devel@openvz.org, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, Suleiman Souhlal <suleiman@google.com>, Frederic Weisbecker <fweisbec@gmail.com>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Johannes Weiner <hannes@cmpxchg.org>
+To: Namjae Jeon <linkinjeon@gmail.com>
+Cc: Jan Kara <jack@suse.cz>, Fengguang Wu <fengguang.wu@intel.com>, Dave Chinner <david@fromorbit.com>, linux-kernel@vger.kernel.org, Namjae Jeon <namjae.jeon@samsung.com>, Vivek Trivedi <t.vivek@samsung.com>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org
 
-On 09/26/2012 07:51 PM, Michal Hocko wrote:
-> On Tue 18-09-12 18:04:03, Glauber Costa wrote:
->> This patch introduces infrastructure for tracking kernel memory pages to
->> a given memcg. This will happen whenever the caller includes the flag
->> __GFP_KMEMCG flag, and the task belong to a memcg other than the root.
->>
->> In memcontrol.h those functions are wrapped in inline acessors.  The
->> idea is to later on, patch those with static branches, so we don't incur
->> any overhead when no mem cgroups with limited kmem are being used.
-> 
-> Could you describe the API a bit here, please? I guess the
-> kernel user is supposed to call memcg_kmem_newpage_charge and
-> memcg_kmem_commit_charge resp. memcg_kmem_uncharge_page.
-> All other kmem functions here are just helpers, right?
-Yes, sir.
+On Thu 27-09-12 15:00:18, Namjae Jeon wrote:
+> 2012/9/27, Jan Kara <jack@suse.cz>:
+> > On Thu 27-09-12 00:56:02, Wu Fengguang wrote:
+> >> On Tue, Sep 25, 2012 at 12:23:06AM +0200, Jan Kara wrote:
+> >> > On Thu 20-09-12 16:44:22, Wu Fengguang wrote:
+> >> > > On Sun, Sep 16, 2012 at 08:25:42AM -0400, Namjae Jeon wrote:
+> >> > > > From: Namjae Jeon <namjae.jeon@samsung.com>
+> >> > > >
+> >> > > > This patch is based on suggestion by Wu Fengguang:
+> >> > > > https://lkml.org/lkml/2011/8/19/19
+> >> > > >
+> >> > > > kernel has mechanism to do writeback as per dirty_ratio and
+> >> > > > dirty_background
+> >> > > > ratio. It also maintains per task dirty rate limit to keep balance
+> >> > > > of
+> >> > > > dirty pages at any given instance by doing bdi bandwidth
+> >> > > > estimation.
+> >> > > >
+> >> > > > Kernel also has max_ratio/min_ratio tunables to specify percentage
+> >> > > > of
+> >> > > > writecache to control per bdi dirty limits and task throttling.
+> >> > > >
+> >> > > > However, there might be a usecase where user wants a per bdi
+> >> > > > writeback tuning
+> >> > > > parameter to flush dirty data once per bdi dirty data reach a
+> >> > > > threshold
+> >> > > > especially at NFS server.
+> >> > > >
+> >> > > > dirty_background_centisecs provides an interface where user can
+> >> > > > tune
+> >> > > > background writeback start threshold using
+> >> > > > /sys/block/sda/bdi/dirty_background_centisecs
+> >> > > >
+> >> > > > dirty_background_centisecs is used alongwith average bdi write
+> >> > > > bandwidth
+> >> > > > estimation to start background writeback.
+> >> >   The functionality you describe, i.e. start flushing bdi when there's
+> >> > reasonable amount of dirty data on it, looks sensible and useful.
+> >> > However
+> >> > I'm not so sure whether the interface you propose is the right one.
+> >> > Traditionally, we allow user to set amount of dirty data (either in
+> >> > bytes
+> >> > or percentage of memory) when background writeback should start. You
+> >> > propose setting the amount of data in centisecs-to-write. Why that
+> >> > difference? Also this interface ties our throughput estimation code
+> >> > (which
+> >> > is an implementation detail of current dirty throttling) with the
+> >> > userspace
+> >> > API. So we'd have to maintain the estimation code forever, possibly
+> >> > also
+> >> > face problems when we change the estimation code (and thus estimates in
+> >> > some cases) and users will complain that the values they set originally
+> >> > no
+> >> > longer work as they used to.
+> >>
+> >> Yes, that bandwidth estimation is not all that (and in theory cannot
+> >> be made) reliable which may be a surprise to the user. Which make the
+> >> interface flaky.
+> >>
+> >> > Also, as with each knob, there's a problem how to properly set its
+> >> > value?
+> >> > Most admins won't know about the knob and so won't touch it. Others
+> >> > might
+> >> > know about the knob but will have hard time figuring out what value
+> >> > should
+> >> > they set. So if there's a new knob, it should have a sensible initial
+> >> > value. And since this feature looks like a useful one, it shouldn't be
+> >> > zero.
+> >>
+> >> Agreed in principle. There seems be no reasonable defaults for the
+> >> centisecs-to-write interface, mainly due to its inaccurate nature,
+> >> especially the initial value may be wildly wrong on fresh system
+> >> bootup. This is also true for your proposed interfaces, see below.
+> >>
+> >> > So my personal preference would be to have bdi->dirty_background_ratio
+> >> > and
+> >> > bdi->dirty_background_bytes and start background writeback whenever
+> >> > one of global background limit and per-bdi background limit is exceeded.
+> >> > I
+> >> > think this interface will do the job as well and it's easier to maintain
+> >> > in
+> >> > future.
+> >>
+> >> bdi->dirty_background_ratio, if I understand its semantics right, is
+> >> unfortunately flaky in the same principle as centisecs-to-write,
+> >> because it relies on the (implicitly estimation of) writeout
+> >> proportions. The writeout proportions for each bdi starts with 0,
+> >> which is even worse than the 100MB/s initial value for
+> >> bdi->write_bandwidth and will trigger background writeback on the
+> >> first write.
+> >   Well, I meant bdi->dirty_backround_ratio wouldn't use writeout proportion
+> > estimates at all. Limit would be
+> >   dirtiable_memory * bdi->dirty_backround_ratio.
+> >
+> > After all we want to start writeout to bdi when we have enough pages to
+> > reasonably load the device for a while which has nothing to do with how
+> > much is written to this device as compared to other devices.
+> >
+> > OTOH I'm not particularly attached to this interface. Especially since on a
+> > lot of today's machines, 1% is rather big so people might often end up
+> > using dirty_background_bytes anyway.
+> >
+> >> bdi->dirty_background_bytes is, however, reliable, and gives users
+> >> total control. If we export this interface alone, I'd imagine users
+> >> who want to control centisecs-to-write could run a simple script to
+> >> periodically get the write bandwith value out of the existing bdi
+> >> interface and echo it into bdi->dirty_background_bytes. Which makes
+> >> simple yet good enough centisecs-to-write controlling.
+> >>
+> >> So what do you think about exporting a really dumb
+> >> bdi->dirty_background_bytes, which will effectively give smart users
+> >> the freedom to do smart control over per-bdi background writeback
+> >> threshold? The users are offered the freedom to do his own bandwidth
+> >> estimation and choose not to rely on the kernel estimation, which will
+> >> free us from the burden of maintaining a flaky interface as well. :)
+> >   That's fine with me. Just it would be nice if we gave
+> > bdi->dirty_background_bytes some useful initial value. Maybe like
+> > dirtiable_memory * dirty_background_ratio?
+> Global dirty_background_bytes default value is zero that means
+> flushing is started based on dirty_background_ratio and dirtiable
+> memory.
+> Is it correct to set per bdi default dirty threshold
+> (bdi->dirty_background_bytes) equal to global dirty threshold  -
+> dirtiable_memory * dirty_background_ratio ?
+  Right, the default setting I proposed doesn't make a difference. And it's
+not obvious how to create one which is more meaningful. Pity.
 
->>
->> [ v2: improved comments and standardized function names ]
->> [ v3: handle no longer opaque, functions not exported,
->>   even more comments ]
->> [ v4: reworked Used bit handling and surroundings for more clarity ]
->>
->> Signed-off-by: Glauber Costa <glommer@parallels.com>
->> CC: Christoph Lameter <cl@linux.com>
->> CC: Pekka Enberg <penberg@cs.helsinki.fi>
->> CC: Michal Hocko <mhocko@suse.cz>
->> CC: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
->> CC: Johannes Weiner <hannes@cmpxchg.org>
->> ---
->>  include/linux/memcontrol.h |  97 +++++++++++++++++++++++++
->>  mm/memcontrol.c            | 177 +++++++++++++++++++++++++++++++++++++++++++++
->>  2 files changed, 274 insertions(+)
->>
->> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
->> index 8d9489f..82ede9a 100644
->> --- a/include/linux/memcontrol.h
->> +++ b/include/linux/memcontrol.h
->> @@ -21,6 +21,7 @@
->>  #define _LINUX_MEMCONTROL_H
->>  #include <linux/cgroup.h>
->>  #include <linux/vm_event_item.h>
->> +#include <linux/hardirq.h>
->>
->>  struct mem_cgroup;
->>  struct page_cgroup;
->> @@ -399,6 +400,17 @@ struct sock;
->>  #ifdef CONFIG_MEMCG_KMEM
->>  void sock_update_memcg(struct sock *sk);
->>  void sock_release_memcg(struct sock *sk);
->> +
->> +static inline bool memcg_kmem_enabled(void)
->> +{
->> +	return true;
->> +}
->> +
->> +extern bool __memcg_kmem_newpage_charge(gfp_t gfp, struct mem_cgroup **memcg,
->> +					int order);
->> +extern void __memcg_kmem_commit_charge(struct page *page,
->> +				       struct mem_cgroup *memcg, int order);
->> +extern void __memcg_kmem_uncharge_page(struct page *page, int order);
->>  #else
->>  static inline void sock_update_memcg(struct sock *sk)
->>  {
->> @@ -406,6 +418,91 @@ static inline void sock_update_memcg(struct sock *sk)
->>  static inline void sock_release_memcg(struct sock *sk)
->>  {
->>  }
->> +
->> +static inline bool memcg_kmem_enabled(void)
->> +{
->> +	return false;
->> +}
->> +
->> +static inline bool
->> +__memcg_kmem_newpage_charge(gfp_t gfp, struct mem_cgroup **memcg, int order)
->> +{
->> +	return false;
->> +}
->> +
->> +static inline void  __memcg_kmem_uncharge_page(struct page *page, int order)
->> +{
->> +}
->> +
->> +static inline void
->> +__memcg_kmem_commit_charge(struct page *page, struct mem_cgroup *memcg, int order)
->> +{
->> +}
-> 
-> I think we shouldn't care about these for !MEMCG_KMEM. It should be
-> sufficient to define the main three functions bellow as return true
-> resp. NOOP. This would reduce the code churn a bit and also make it
-> better maintainable.
-> 
+> In my opinion, default setting for per bdi-> dirty_background_bytes
+> should be zero to avoid any confusion and any change in default
+> writeback behaviour.
+  OK, fine with me.
 
-Ok.
-
->> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
->> index f3fd354..0f36a01 100644
->> --- a/mm/memcontrol.c
->> +++ b/mm/memcontrol.c
->> @@ -10,6 +10,10 @@
->>   * Copyright (C) 2009 Nokia Corporation
->>   * Author: Kirill A. Shutemov
->>   *
->> + * Kernel Memory Controller
->> + * Copyright (C) 2012 Parallels Inc. and Google Inc.
->> + * Authors: Glauber Costa and Suleiman Souhlal
->> + *
->>   * This program is free software; you can redistribute it and/or modify
->>   * it under the terms of the GNU General Public License as published by
->>   * the Free Software Foundation; either version 2 of the License, or
->> @@ -426,6 +430,9 @@ struct mem_cgroup *mem_cgroup_from_css(struct cgroup_subsys_state *s)
->>  #include <net/ip.h>
->>  
->>  static bool mem_cgroup_is_root(struct mem_cgroup *memcg);
->> +static int memcg_charge_kmem(struct mem_cgroup *memcg, gfp_t gfp, u64 size);
->> +static void memcg_uncharge_kmem(struct mem_cgroup *memcg, u64 size);
->> +
-> 
-> Why the forward declarations here? We can simply move definitions up
-> before they are used for the first time, can't we? Besides that they are
-> never used/defined from outside of KMEM_MEMCG.
->
-I see your point, given the recent patch about gcc complaining about
-those things. Will change.
-
->> +
->> +	*_memcg = NULL;
->> +	rcu_read_lock();
->> +	p = rcu_dereference(current->mm->owner);
->> +	memcg = mem_cgroup_from_task(p);
-> 
-> mem_cgroup_from_task says it can return NULL. Do we care here? If not
-> then please put VM_BUG_ON(!memcg) here.
-> 
->> +	rcu_read_unlock();
->> +
->> +	if (!memcg_can_account_kmem(memcg))
->> +		return true;
->> +
->> +	mem_cgroup_get(memcg);
-> 
-> I am confused. Why do we take a reference to memcg rather than css_get
-> here? Ahh it is because we keep the reference while the page is
-> allocated, right? Comment please.
-ok.
-
-> 
-> I am still not sure whether we need css_get here as well. How do you
-> know that the current is not moved in parallel and it is a last task in
-> a group which then can go away?
-
-the reference count aquired by mem_cgroup_get will still prevent the
-memcg from going away, no?
-
->> +
->> +	/* The page allocation failed. Revert */
->> +	if (!page) {
->> +		memcg_uncharge_kmem(memcg, PAGE_SIZE << order);
->> +		return;
->> +	}
->> +
->> +	pc = lookup_page_cgroup(page);
->> +	lock_page_cgroup(pc);
->> +	pc->mem_cgroup = memcg;
->> +	SetPageCgroupUsed(pc);
->> +	unlock_page_cgroup(pc);
->> +}
->> +
->> +void __memcg_kmem_uncharge_page(struct page *page, int order)
->> +{
->> +	struct mem_cgroup *memcg = NULL;
->> +	struct page_cgroup *pc;
->> +
->> +
->> +	pc = lookup_page_cgroup(page);
->> +	/*
->> +	 * Fast unlocked return. Theoretically might have changed, have to
->> +	 * check again after locking.
->> +	 */
->> +	if (!PageCgroupUsed(pc))
->> +		return;
->> +
->> +	lock_page_cgroup(pc);
->> +	if (PageCgroupUsed(pc)) {
->> +		memcg = pc->mem_cgroup;
->> +		ClearPageCgroupUsed(pc);
->> +	}
->> +	unlock_page_cgroup(pc);
->> +
->> +	/*
->> +	 * Checking if kmem accounted is enabled won't work for uncharge, since
->> +	 * it is possible that the user enabled kmem tracking, allocated, and
->> +	 * then disabled it again.
-> 
-> disabling cannot happen, right?
-> 
-not anymore, right. I can update the comment, but I still believe it is
-a lot saner to trust information in page_cgroup.
-
->> +#ifdef CONFIG_MEMCG_KMEM
->> +int memcg_charge_kmem(struct mem_cgroup *memcg, gfp_t gfp, u64 size)
->> +{
->> +	struct res_counter *fail_res;
->> +	struct mem_cgroup *_memcg;
->> +	int ret;
->> +	bool may_oom;
->> +	bool nofail = false;
->> +
->> +	may_oom = (gfp & __GFP_WAIT) && (gfp & __GFP_FS) &&
->> +	    !(gfp & __GFP_NORETRY);
-> 
-> A comment please? Why __GFP_IO is not considered for example?
-> 
-> 
-
-Actually, I believe testing for GFP_WAIT and !GFP_NORETRY would be enough.
-
-The rationale here is, of course, under which circumstance would it be
-valid to call the oom killer? Which is, if the allocation can wait, and
-can retry.
-
-> 
-> You could save few lines and get rid of the strange nofail by:
-> [...]
-> +		res_counter_charge_nofail(&memcg->res, size, &fail_res);
-> +		if (do_swap_account)
-> +			res_counter_charge_nofail(&memcg->memsw, size,
-> +						  &fail_res);
-> +		res_counter_charge_nofail(&memcg->kmem, size, &fail_res);
-> +		return 0;
-> +	} else if (ret == -ENOMEM)
-> +		return ret;
-> +	else
-> +		ret = res_counter_charge(&memcg->kmem, size, &fail_res);
-> +
-> +	if (ret) {
-> +		res_counter_uncharge(&memcg->res, size);
-> +		if (do_swap_account)
-> +			res_counter_uncharge(&memcg->memsw, size);
-> +	}
-> 
-indeed.
+								Honza
+-- 
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
