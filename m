@@ -1,148 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
-	by kanga.kvack.org (Postfix) with SMTP id E6C896B0070
-	for <linux-mm@kvack.org>; Fri, 28 Sep 2012 09:25:24 -0400 (EDT)
-Date: Fri, 28 Sep 2012 14:25:12 +0100
+Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
+	by kanga.kvack.org (Postfix) with SMTP id CA0206B0073
+	for <linux-mm@kvack.org>; Fri, 28 Sep 2012 09:28:57 -0400 (EDT)
+Date: Fri, 28 Sep 2012 14:28:39 +0100
 From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH] CMA: migrate mlocked page
-Message-ID: <20120928132512.GF29125@suse.de>
-References: <1348641165-29108-1-git-send-email-minchan@kernel.org>
+Subject: Re: [PATCH v3 07/13] mm: Allocate kernel pages to the right memcg
+Message-ID: <20120928132839.GG29125@suse.de>
+References: <1347977050-29476-1-git-send-email-glommer@parallels.com>
+ <1347977050-29476-8-git-send-email-glommer@parallels.com>
+ <20120927135053.GF3429@suse.de>
+ <50657153.8010101@parallels.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <1348641165-29108-1-git-send-email-minchan@kernel.org>
+In-Reply-To: <50657153.8010101@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Michal Nazarewicz <mina86@mina86.com>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Marek Szyprowski <m.szyprowski@samsung.com>
+To: Glauber Costa <glommer@parallels.com>
+Cc: linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, devel@openvz.org, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, Suleiman Souhlal <suleiman@google.com>, Frederic Weisbecker <fweisbec@gmail.com>, David Rientjes <rientjes@google.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>
 
-On Wed, Sep 26, 2012 at 03:32:45PM +0900, Minchan Kim wrote:
-> Now CMA can't migrate mlocked page so it ends up fail to allocate
-> contiguous memory space. It's not good for CMA.
-> This patch makes mlocked page be migrated out.
-> Of course, it can affect realtime processes but in CMA usecase,
-> contiguos memory allocation failing is far worse than access latency
-> to an mlcoked page being vairable while CMA is running.
-> If someone want to make the system realtime, he shouldn't enable
-> CMA because stall happens in random time.
+On Fri, Sep 28, 2012 at 01:43:47PM +0400, Glauber Costa wrote:
+> On 09/27/2012 05:50 PM, Mel Gorman wrote:
+> >> +void __free_accounted_pages(struct page *page, unsigned int order)
+> >> > +{
+> >> > +	memcg_kmem_uncharge_page(page, order);
+> >> > +	__free_pages(page, order);
+> >> > +}
+> >> > +
+> >> > +void free_accounted_pages(unsigned long addr, unsigned int order)
+> >> > +{
+> >> > +	if (addr != 0) {
+> >> > +		VM_BUG_ON(!virt_addr_valid((void *)addr));
+> > This is probably overkill. If it's invalid, the next line is likely to
+> > blow up anyway. It's no biggie.
+> > 
 > 
-> Cc: Mel Gorman <mgorman@suse.de>
-> Cc: Michal Nazarewicz <mina86@mina86.com>
-> Cc: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
-> Cc: Marek Szyprowski <m.szyprowski@samsung.com>
-> Signed-off-by: Minchan Kim <minchan@kernel.org>
-
-Mindlessly petty nit below.
-
-> ---
->  include/linux/mmzone.h |    2 ++
->  mm/compaction.c        |    8 ++++++--
->  mm/internal.h          |    2 +-
->  mm/page_alloc.c        |    2 +-
->  mm/vmscan.c            |    4 ++--
->  5 files changed, 12 insertions(+), 6 deletions(-)
+> So this is here because it is in free_pages() as well. If it blows, at
+> least we know precisely why (if debugging), and VM_BUG_ON() is only
+> compiled in when CONFIG_DEBUG_VM.
 > 
-> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-> index 10aa549..2c9348a 100644
-> --- a/include/linux/mmzone.h
-> +++ b/include/linux/mmzone.h
-> @@ -218,6 +218,8 @@ struct lruvec {
->  #define ISOLATE_UNMAPPED	((__force isolate_mode_t)0x2)
->  /* Isolate for asynchronous migration */
->  #define ISOLATE_ASYNC_MIGRATE	((__force isolate_mode_t)0x4)
-> +/* Isolate unevictable pages */
-> +#define ISOLATE_UNEVICTABLE	((__force isolate_mode_t)0x8)
->  
->  /* LRU Isolation modes. */
->  typedef unsigned __bitwise__ isolate_mode_t;
-> diff --git a/mm/compaction.c b/mm/compaction.c
-> index 5037399..891637d 100644
-> --- a/mm/compaction.c
-> +++ b/mm/compaction.c
-> @@ -445,6 +445,7 @@ static bool too_many_isolated(struct zone *zone)
->   * @cc:		Compaction control structure.
->   * @low_pfn:	The first PFN of the range.
->   * @end_pfn:	The one-past-the-last PFN of the range.
-> + * @unevictable: true if it allows to isolate unevictable pages
->   *
->   * Isolate all pages that can be migrated from the range specified by
->   * [low_pfn, end_pfn).  Returns zero if there is a fatal signal
-> @@ -460,7 +461,7 @@ static bool too_many_isolated(struct zone *zone)
->   */
->  unsigned long
->  isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
-> -			   unsigned long low_pfn, unsigned long end_pfn)
-> +		unsigned long low_pfn, unsigned long end_pfn, bool unevictable)
->  {
->  	unsigned long last_pageblock_nr = 0, pageblock_nr;
->  	unsigned long nr_scanned = 0, nr_isolated = 0;
-> @@ -585,6 +586,9 @@ isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
->  		if (!cc->sync)
->  			mode |= ISOLATE_ASYNC_MIGRATE;
->  
-> +		if (unevictable)
-> +			mode |= ISOLATE_UNEVICTABLE;
-> +
->  		lruvec = mem_cgroup_page_lruvec(page, zone);
->  
->  		/* Try isolate the page */
-> @@ -790,7 +794,7 @@ static isolate_migrate_t isolate_migratepages(struct zone *zone,
->  	}
->  
->  	/* Perform the isolation */
-> -	low_pfn = isolate_migratepages_range(zone, cc, low_pfn, end_pfn);
-> +	low_pfn = isolate_migratepages_range(zone, cc, low_pfn, end_pfn, false);
->  	if (!low_pfn || cc->contended)
->  		return ISOLATE_ABORT;
->  
-> diff --git a/mm/internal.h b/mm/internal.h
-> index d1e84fd..9d5d276 100644
-> --- a/mm/internal.h
-> +++ b/mm/internal.h
-> @@ -138,7 +138,7 @@ unsigned long
->  isolate_freepages_range(unsigned long start_pfn, unsigned long end_pfn);
->  unsigned long
->  isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
-> -			   unsigned long low_pfn, unsigned long end_pfn);
-> +	unsigned long low_pfn, unsigned long end_pfn, bool unevictable);
->  
->  #endif
->  
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 1a69094..296bea9 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -5694,7 +5694,7 @@ static int __alloc_contig_migrate_range(unsigned long start, unsigned long end)
->  		if (list_empty(&cc.migratepages)) {
->  			cc.nr_migratepages = 0;
->  			pfn = isolate_migratepages_range(cc.zone, &cc,
-> -							 pfn, end);
-> +							 pfn, end, true);
->  			if (!pfn) {
->  				ret = -EINTR;
->  				break;
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index b5e45f4..1df51f4 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -1009,8 +1009,8 @@ int __isolate_lru_page(struct page *page, isolate_mode_t mode)
->  	if (!PageLRU(page))
->  		return ret;
->  
-> -	/* Do not give back unevictable pages for compaction */
-> -	if (PageUnevictable(page))
-> +	/* Compaction can't handle unevictable pages but CMA can do */
-> +	if (PageUnevictable(page) && !(mode & ISOLATE_UNEVICTABLE))
->  		return ret;
 
-"can't" implies that it is technically incapable of it. "should not"
-would be better than "cannot". Do not republish the patch for just this
-reason :)
+Ah, I see.
 
-Otherwise I think it's ok as migration should correctly handle mlocked
-pages and preserve the bits in mlock_migrate_page().
+> But I'm fine with either.
+> Should it stay or should it go ?
+> 
 
-Acked-by: Mel Gorman <mgorman@suse.de>
+It can stay. It makes sense that it look similar to free_pages() and as
+you say, it makes debugging marginally easier.
+
 
 -- 
 Mel Gorman
