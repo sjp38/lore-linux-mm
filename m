@@ -1,41 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
-	by kanga.kvack.org (Postfix) with SMTP id C89EF6B005D
-	for <linux-mm@kvack.org>; Fri, 28 Sep 2012 10:32:28 -0400 (EDT)
-Message-ID: <5065B42F.5010007@parallels.com>
-Date: Fri, 28 Sep 2012 18:29:03 +0400
-From: Glauber Costa <glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
+	by kanga.kvack.org (Postfix) with SMTP id 3FE456B005D
+	for <linux-mm@kvack.org>; Fri, 28 Sep 2012 10:45:59 -0400 (EDT)
+Date: Fri, 28 Sep 2012 14:45:57 +0000
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: CK1 [09/13] slab: rename nodelists to node
+In-Reply-To: <506562F9.6010707@parallels.com>
+Message-ID: <0000013a0d575212-87f28683-92a4-438a-a0f4-5d3b96c4b26d-000000@email.amazonses.com>
+References: <20120926200005.911809821@linux.com> <0000013a0430a882-06cc02cd-4623-41f6-b4c9-702e0c37acb2-000000@email.amazonses.com> <506562F9.6010707@parallels.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] make GFP_NOTRACK flag unconditional
-References: <1348826194-21781-1-git-send-email-glommer@parallels.com> <0000013a0d475174-343e3b17-6755-42c1-9dae-a9287ad7d403-000000@email.amazonses.com>
-In-Reply-To: <0000013a0d475174-343e3b17-6755-42c1-9dae-a9287ad7d403-000000@email.amazonses.com>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>
+To: Glauber Costa <glommer@parallels.com>
+Cc: Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <js1304@gmail.com>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>
 
-On 09/28/2012 06:28 PM, Christoph Lameter wrote:
-> On Fri, 28 Sep 2012, Glauber Costa wrote:
-> 
->> There was a general sentiment in a recent discussion (See
->> https://lkml.org/lkml/2012/9/18/258) that the __GFP flags should be
->> defined unconditionally. Currently, the only offender is GFP_NOTRACK,
->> which is conditional to KMEMCHECK.
->>
->> This simple patch makes it unconditional.
-> 
-> __GFP_NOTRACK is only used in context where CONFIG_KMEMCHECK is defined?
-> 
-> If that is not the case then you need to define GFP_NOTRACK and substitute
-> it where necessary.
-> 
+On Fri, 28 Sep 2012, Glauber Costa wrote:
 
-The flag is passed around extensively, but I was imagining the whole
-point of that is that having the flag itself is harmless, and will be
-ignored by the page allocator ?
+> >
+> > -extern struct kmem_cache *cs_cachep[PAGE_SHIFT + MAX_ORDER];
+> > -extern struct kmem_cache *cs_dmacachep[PAGE_SHIFT + MAX_ORDER];
+> > -
+> >
+> >  void *kmem_cache_alloc(struct kmem_cache *, gfp_t);
+> >  void *__kmalloc(size_t size, gfp_t flags);
+> >
+> > @@ -132,10 +129,10 @@ static __always_inline void *kmalloc(siz
+> >
+> >  #ifdef CONFIG_ZONE_DMA
+> >  		if (flags & GFP_DMA)
+> > -			cachep = cs_dmacachep[i];
+> > +			cachep = kmalloc_dma_caches[i];
+> >  		else
+> You had just changed this to those new names in patch 7. Why don't you
+> change it directly to kmalloc_{,dma}_caches ?
 
+Right. This is also not really related to what this patch ought to do.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
