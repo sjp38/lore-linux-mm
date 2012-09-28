@@ -1,121 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
-	by kanga.kvack.org (Postfix) with SMTP id 8A2C56B0068
-	for <linux-mm@kvack.org>; Fri, 28 Sep 2012 03:43:14 -0400 (EDT)
-Received: by oagk14 with SMTP id k14so3394867oag.14
-        for <linux-mm@kvack.org>; Fri, 28 Sep 2012 00:43:13 -0700 (PDT)
-Message-ID: <50655558.5010500@ti.com>
-Date: Fri, 28 Sep 2012 10:44:24 +0300
-From: Peter Ujfalusi <peter.ujfalusi@ti.com>
+Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
+	by kanga.kvack.org (Postfix) with SMTP id 0F0536B0068
+	for <linux-mm@kvack.org>; Fri, 28 Sep 2012 03:46:26 -0400 (EDT)
+Message-ID: <50654F6E.7090000@cn.fujitsu.com>
+Date: Fri, 28 Sep 2012 15:19:10 +0800
+From: Lai Jiangshan <laijs@cn.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: CMA broken in next-20120926
-References: <20120927112911.GA25959@avionic-0098.mockup.avionic-design.de> <20120927151159.4427fc8f.akpm@linux-foundation.org> <20120928054330.GA27594@bbox>
-In-Reply-To: <20120928054330.GA27594@bbox>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 8bit
+Subject: Re: [PATCH 2/3] slub, hotplug: ignore unrelated node's hot-adding
+ and hot-removing
+References: <1348728470-5580-1-git-send-email-laijs@cn.fujitsu.com> <1348728470-5580-3-git-send-email-laijs@cn.fujitsu.com> <5064CD7F.1040507@gmail.com> <0000013a09dec004-497e7afa-8c0f-46ff-bf8e-056f7df1ed0b-000000@email.amazonses.com>
+In-Reply-To: <0000013a09dec004-497e7afa-8c0f-46ff-bf8e-056f7df1ed0b-000000@email.amazonses.com>
+Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Thierry Reding <thierry.reding@avionic-design.de>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>, Mark Brown <broonie@opensource.wolfsonmicro.com>, Mel Gorman <mgorman@suse.de>
+To: Christoph <cl@linux.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On 09/28/2012 08:43 AM, Minchan Kim wrote:
-> From 24a547855fa2bd4212a779cc73997837148310b3 Mon Sep 17 00:00:00 2001
-> From: Minchan Kim <minchan@kernel.org>
-> Date: Fri, 28 Sep 2012 14:28:32 +0900
-> Subject: [PATCH] revert mm: compaction: iron out isolate_freepages_block()
->  and isolate_freepages_range()
+HI, Christoph, KOSAKI
+
+SLAB always allocates kmem_list3 for all nodes(N_HIGH_MEMORY), also node bug/bad things happens.
+SLUB always requires kmem_cache_node on the correct node, so these fix is needed.
+
+SLAB uses for_each_online_node() to travel nodes and do maintain,
+and it tolerates kmem_list3 on alien nodes.
+SLUB uses for_each_node_state(node, N_NORMAL_MEMORY) to travel nodes and do maintain,
+and it does not tolerate kmem_cache_node on alien nodes.
+
+Maybe we need to change SLAB future and let it use
+for_each_node_state(node, N_NORMAL_MEMORY), But I don't want to change SLAB
+until I find something bad in SLAB.
+
+Thanks,
+Lai
+
+On 09/28/2012 06:35 AM, Christoph wrote:
+> While you are at it: Could you move the code into slab_common.c so that there is only one version to maintain?
 > 
-> [1] made bug on CMA.
-> The nr_scanned should be never equal to total_isolated for successful CMA.
-> This patch reverts part of the patch.
+> On Sep 27, 2012, at 17:04, KOSAKI Motohiro <kosaki.motohiro@gmail.com> wrote:
 > 
-> [1] mm: compaction: iron out isolate_freepages_block() and isolate_freepages_range()
-
-With this patch applied on top of today's linux-next CMA enabled kernel works
-fine on OMAP platforms (without the patch audio was not working because
-dma_alloc_writecombine() was failing, probably other things were broken as well).
-Thank you for the quick fix!
-
-Tested-by: Peter Ujfalusi <peter.ujfalusi@ti.com>
-
+>> (9/27/12 2:47 AM), Lai Jiangshan wrote:
+>>> SLUB only fucus on the nodes which has normal memory, so ignore the other
+>>> node's hot-adding and hot-removing.
+>>>
+>>> Aka: if some memroy of a node(which has no onlined memory) is online,
+>>> but this new memory onlined is not normal memory(HIGH memory example),
+>>> we should not allocate kmem_cache_node for SLUB.
+>>>
+>>> And if the last normal memory is offlined, but the node still has memroy,
+>>> we should remove kmem_cache_node for that node.(current code delay it when
+>>> all of the memory is offlined)
+>>>
+>>> so we only do something when marg->status_change_nid_normal > 0.
+>>> marg->status_change_nid is not suitable here.
+>>>
+>>> Signed-off-by: Lai Jiangshan <laijs@cn.fujitsu.com>
+>>> ---
+>>> mm/slub.c |    4 ++--
+>>> 1 files changed, 2 insertions(+), 2 deletions(-)
+>>>
+>>> diff --git a/mm/slub.c b/mm/slub.c
+>>> index 2fdd96f..2d78639 100644
+>>> --- a/mm/slub.c
+>>> +++ b/mm/slub.c
+>>> @@ -3577,7 +3577,7 @@ static void slab_mem_offline_callback(void *arg)
+>>>    struct memory_notify *marg = arg;
+>>>    int offline_node;
+>>>
+>>> -    offline_node = marg->status_change_nid;
+>>> +    offline_node = marg->status_change_nid_normal;
+>>>
+>>>    /*
+>>>     * If the node still has available memory. we need kmem_cache_node
+>>> @@ -3610,7 +3610,7 @@ static int slab_mem_going_online_callback(void *arg)
+>>>    struct kmem_cache_node *n;
+>>>    struct kmem_cache *s;
+>>>    struct memory_notify *marg = arg;
+>>> -    int nid = marg->status_change_nid;
+>>> +    int nid = marg->status_change_nid_normal;
+>>>    int ret = 0;
+>>
+>> Looks reasonable. I think slab need similar fix too.
+>>
+>>
+>>
 > 
-> Cc: Mel Gorman <mgorman@suse.de>
-> Signed-off-by: Minchan Kim <minchan@kernel.org>
-> ---
->  mm/compaction.c |   29 ++++++++++++++++-------------
->  1 file changed, 16 insertions(+), 13 deletions(-)
-> 
-> diff --git a/mm/compaction.c b/mm/compaction.c
-> index 5037399..7721197 100644
-> --- a/mm/compaction.c
-> +++ b/mm/compaction.c
-> @@ -269,13 +269,14 @@ static unsigned long isolate_freepages_block(struct compact_control *cc,
->  		int isolated, i;
->  		struct page *page = cursor;
->  
-> -		nr_scanned++;
->  		if (!pfn_valid_within(blockpfn))
-> -			continue;
-> +			goto strict_check;
-> +		nr_scanned++;
-> +
->  		if (!valid_page)
->  			valid_page = page;
->  		if (!PageBuddy(page))
-> -			continue;
-> +			goto strict_check;
->  
->  		/*
->  		 * The zone lock must be held to isolate freepages.
-> @@ -296,12 +297,12 @@ static unsigned long isolate_freepages_block(struct compact_control *cc,
->  
->  		/* Recheck this is a buddy page under lock */
->  		if (!PageBuddy(page))
-> -			continue;
-> +			goto strict_check;
->  
->  		/* Found a free page, break it into order-0 pages */
->  		isolated = split_free_page(page);
->  		if (!isolated && strict)
-> -			break;
-> +			goto strict_check;
->  		total_isolated += isolated;
->  		for (i = 0; i < isolated; i++) {
->  			list_add(&page->lru, freelist);
-> @@ -313,18 +314,20 @@ static unsigned long isolate_freepages_block(struct compact_control *cc,
->  			blockpfn += isolated - 1;
->  			cursor += isolated - 1;
->  		}
-> +
-> +		continue;
-> +
-> +strict_check:
-> +		/* Abort isolation if the caller requested strict isolation */
-> +		if (strict) {
-> +			total_isolated = 0;
-> +			goto out;
-> +		}
->  	}
->  
->  	trace_mm_compaction_isolate_freepages(nr_scanned, total_isolated);
->  
-> -	/*
-> -	 * If strict isolation is requested by CMA then check that all the
-> -	 * pages scanned were isolated. If there were any failures, 0 is
-> -	 * returned and CMA will fail.
-> -	 */
-> -	if (strict && nr_scanned != total_isolated)
-> -		total_isolated = 0;
-> -
-> +out:
->  	if (locked)
->  		spin_unlock_irqrestore(&cc->zone->lock, flags);
->  
-> 
-
-
--- 
-Peter
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
