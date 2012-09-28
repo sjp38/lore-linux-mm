@@ -1,52 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
-	by kanga.kvack.org (Postfix) with SMTP id E28C66B0068
-	for <linux-mm@kvack.org>; Fri, 28 Sep 2012 07:16:53 -0400 (EDT)
-Received: by pbbrq2 with SMTP id rq2so5591848pbb.14
-        for <linux-mm@kvack.org>; Fri, 28 Sep 2012 04:16:53 -0700 (PDT)
-From: raghu.prabhu13@gmail.com
-Subject: [PATCH] mm: Avoid section mismatch warning for memblock_type_name.
-Date: Fri, 28 Sep 2012 16:46:44 +0530
-Message-Id: <be1027442539398a9cdce6284d1e2534a27644ae.1348829645.git.rprabhu@wnohang.net>
+Received: from psmtp.com (na3sys010amx127.postini.com [74.125.245.127])
+	by kanga.kvack.org (Postfix) with SMTP id DC1196B0068
+	for <linux-mm@kvack.org>; Fri, 28 Sep 2012 07:26:52 -0400 (EDT)
+Date: Fri, 28 Sep 2012 13:26:45 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH v4] KSM: numa awareness sysfs knob
+Message-ID: <20120928112645.GX19474@redhat.com>
+References: <1348448166-1995-1-git-send-email-pholasek@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1348448166-1995-1-git-send-email-pholasek@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: tj@kernel.org, benh@kernel.crashing.org, akpm@linux-foundation.org, Raghavendra D Prabhu <rprabhu@wnohang.net>
+To: Petr Holasek <pholasek@redhat.com>
+Cc: Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, Izik Eidus <izik.eidus@ravellosystems.com>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Anton Arapov <anton@redhat.com>
 
-From: Raghavendra D Prabhu <rprabhu@wnohang.net>
+Hi everyone,
 
-Following section mismatch warning is thrown during build;
+On Mon, Sep 24, 2012 at 02:56:06AM +0200, Petr Holasek wrote:
+> +static struct rb_root root_unstable_tree[MAX_NUMNODES] = { RB_ROOT, };
 
-    WARNING: vmlinux.o(.text+0x32408f): Section mismatch in reference from the function memblock_type_name() to the variable .meminit.data:memblock
-    The function memblock_type_name() references
-    the variable __meminitdata memblock.
-    This is often because memblock_type_name lacks a __meminitdata
-    annotation or the annotation of memblock is wrong.
+not initializing is better so we don't waste .data and it goes in the
+.bss, initializing only the first entry is useless anyway, that's
+getting initialized later (maybe safer to initialize it once more in
+some init routine too along with the below one for a peace of mind,
+not at the first scan instance).
 
-This is because memblock_type_name makes reference to memblock variable with
-attribute __meminitdata. Hence, the warning (even if the function is inline).
+> +static struct rb_root root_stable_tree[MAX_NUMNODES] = { RB_ROOT, };
 
-Signed-off-by: Raghavendra D Prabhu <rprabhu@wnohang.net>
----
- mm/memblock.c | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+uninitialized root_stable_tree [1..]
 
-diff --git a/mm/memblock.c b/mm/memblock.c
-index 82aa349..8e7fb1f 100644
---- a/mm/memblock.c
-+++ b/mm/memblock.c
-@@ -41,7 +41,8 @@ static int memblock_memory_in_slab __initdata_memblock = 0;
- static int memblock_reserved_in_slab __initdata_memblock = 0;
- 
- /* inline so we don't get a warning when pr_debug is compiled out */
--static inline const char *memblock_type_name(struct memblock_type *type)
-+static inline __init_memblock
-+		const char *memblock_type_name(struct memblock_type *type)
- {
- 	if (type == &memblock.memory)
- 		return "memory";
--- 
-1.7.12.1
+> @@ -1300,7 +1341,8 @@ static struct rmap_item *scan_get_next_rmap_item(struct page **page)
+>  		 */
+>  		lru_add_drain_all();
+>  
+> -		root_unstable_tree = RB_ROOT;
+> +		for (i = 0; i < MAX_NUMNODES; i++)
+> +			root_unstable_tree[i] = RB_ROOT;
+
+s/MAX_NUMNODES/nr_node_ids/
+
+> @@ -1758,7 +1800,12 @@ void ksm_migrate_page(struct page *newpage, struct page *oldpage)
+>  	stable_node = page_stable_node(newpage);
+>  	if (stable_node) {
+>  		VM_BUG_ON(stable_node->kpfn != page_to_pfn(oldpage));
+> -		stable_node->kpfn = page_to_pfn(newpage);
+> +
+> +		if (ksm_merge_across_nodes ||
+> +				page_to_nid(oldpage) == page_to_nid(newpage))
+> +			stable_node->kpfn = page_to_pfn(newpage);
+> +		else
+> +			remove_node_from_stable_tree(stable_node);
+>  	}
+>  }
+
+This will result in memory corruption because the ksm page still
+points to the stable_node that has been freed (that is copied by the
+migrate code when the newpage->mapping = oldpage->mapping).
+
+What should happen is that the ksm page of src_node is merged with
+the pre-existing ksm page in the dst_node of the migration. That's the
+complex case, the easy case is if there's no pre-existing page and
+that just requires an insert of the stable node in a different rbtree
+I think (without actual pagetable mangling).
+
+It may be simpler to break cow across migrate and require the ksm
+scanner to re-merge it however.
+
+Basically the above would remove the ability to rmap the ksm page
+(i.e. rmap crashes on a dangling pointer), but we need rmap to be
+functional at all times on all ksm pages.
+
+Hugh what's your views on this ksm_migrate_page NUMA aware that is
+giving trouble? What would you prefer? Merge two ksm pages together
+(something that has never happened before), break_cow (so we don't
+have to merge two ksm pages together in the first place and we
+fallback in the regular paths) etc...
+
+All the rest looks very good, great work Petr!
+
+Thanks,
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
