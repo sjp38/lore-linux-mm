@@ -1,61 +1,137 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
-	by kanga.kvack.org (Postfix) with SMTP id 8C8176B0068
-	for <linux-mm@kvack.org>; Fri, 28 Sep 2012 01:40:12 -0400 (EDT)
-Date: Fri, 28 Sep 2012 14:43:30 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: CMA broken in next-20120926
-Message-ID: <20120928054330.GA27594@bbox>
-References: <20120927112911.GA25959@avionic-0098.mockup.avionic-design.de>
- <20120927151159.4427fc8f.akpm@linux-foundation.org>
+Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
+	by kanga.kvack.org (Postfix) with SMTP id 034EB6B0068
+	for <linux-mm@kvack.org>; Fri, 28 Sep 2012 02:04:38 -0400 (EDT)
+Received: by obcva7 with SMTP id va7so3247181obc.14
+        for <linux-mm@kvack.org>; Thu, 27 Sep 2012 23:04:38 -0700 (PDT)
+Message-ID: <50653DE7.70702@gmail.com>
+Date: Fri, 28 Sep 2012 14:04:23 +0800
+From: Ni zhan Chen <nizhan.chen@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120927151159.4427fc8f.akpm@linux-foundation.org>
+Subject: Re: [PATCH 1/4] memory-hotplug: add memory_block_release
+References: <1348724705-23779-1-git-send-email-wency@cn.fujitsu.com> <1348724705-23779-2-git-send-email-wency@cn.fujitsu.com> <CAEkdkmVW5wwG4_cy0yHFNVmk2bzAqzo2adRsMn1yHOW9Ex98_g@mail.gmail.com> <5064EE3F.3080606@jp.fujitsu.com> <CAHGf_=pDn852sRadnXQMWx3rOTxGLy7876pxk1Ww4oJtkBAZbQ@mail.gmail.com> <50651D65.5080400@jp.fujitsu.com>
+In-Reply-To: <50651D65.5080400@jp.fujitsu.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Thierry Reding <thierry.reding@avionic-design.de>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>, Mark Brown <broonie@opensource.wolfsonmicro.com>, Peter Ujfalusi <peter.ujfalusi@ti.com>, Mel Gorman <mgorman@suse.de>
+To: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, wency@cn.fujitsu.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, minchan.kim@gmail.com, akpm@linux-foundation.org
 
-On Thu, Sep 27, 2012 at 03:11:59PM -0700, Andrew Morton wrote:
-> On Thu, 27 Sep 2012 13:29:11 +0200
-> Thierry Reding <thierry.reding@avionic-design.de> wrote:
-> 
-> > Hi Marek,
-> > 
-> > any idea why CMA might be broken in next-20120926. I see that there
-> > haven't been any major changes to CMA itself, but there's been quite a
-> > bit of restructuring of various memory allocation bits lately. I wasn't
-> > able to track the problem down, though.
-> > 
-> > What I see is this during boot (with CMA_DEBUG enabled):
-> > 
-> > [    0.266904] cma: dma_alloc_from_contiguous(cma db474f80, count 64, align 6)
-> > [    0.284469] cma: dma_alloc_from_contiguous(): memory range at c09d7000 is busy, retrying
-> > [    0.293648] cma: dma_alloc_from_contiguous(): memory range at c09d7800 is busy, retrying
-> > ...
-> > [    2.648619] DMA: failed to allocate 256 KiB pool for atomic coherent allocation
-> > ...
-> > [    4.196193] WARNING: at /home/thierry.reding/src/kernel/linux-ipmp.git/arch/arm/mm/dma-mapping.c:485 __alloc_from_pool+0xdc/0x110()
-> > [    4.207988] coherent pool not initialised!
-> > 
-> > So the pool isn't getting initialized properly because CMA can't get at
-> > the memory. Do you have any hints as to what might be going on? If it's
-> > any help, I started seeing this with next-20120926 and it is in today's
-> > next as well.
-> > 
-> 
-> Bart and Minchan have made recent changes to CMA.  Let us cc them.
+On 09/28/2012 11:45 AM, Yasuaki Ishimatsu wrote:
+> Hi Kosaki-san,
+>
+> 2012/09/28 10:35, KOSAKI Motohiro wrote:
+>> On Thu, Sep 27, 2012 at 8:24 PM, Yasuaki Ishimatsu
+>> <isimatu.yasuaki@jp.fujitsu.com> wrote:
+>>> Hi Chen,
+>>>
+>>>
+>>> 2012/09/27 19:20, Ni zhan Chen wrote:
+>>>>
+>>>> Hi Congyang,
+>>>>
+>>>> 2012/9/27 <wency@cn.fujitsu.com>
+>>>>
+>>>>> From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+>>>>>
+>>>>> When calling remove_memory_block(), the function shows following 
+>>>>> message
+>>>>> at
+>>>>> device_release().
+>>>>>
+>>>>> Device 'memory528' does not have a release() function, it is 
+>>>>> broken and
+>>>>> must
+>>>>> be fixed.
+>>>>>
+>>>>
+>>>> What's the difference between the patch and original implemetation?
+>>>
+>>>
+>>> The implementation is for removing a memory_block. So the purpose is
+>>> same as original one. But original code is bad manner. 
+>>> kobject_cleanup()
+>>> is called by remove_memory_block() at last. But release function for
+>>> releasing memory_block is not registered. As a result, the kernel 
+>>> message
+>>> is shown. IMHO, memory_block should be release by the releae function.
+>>
+>> but your patch introduced use after free bug, if i understand correctly.
+>> See unregister_memory() function. After your patch, kobject_put() call
+>> release_memory_block() and kfree(). and then device_unregister() will
+>> touch freed memory.
+>
 
-Hi all,
+this patch is similiar to [RFC v9 PATCH 10/21] memory-hotplug: add 
+memory_block_release, they handle the same issue, can these two patches 
+be fold to one?
 
-I have no time now so I look over the problem during short time
-so I mighte be wrong. Even I should leave the office soon and
-Korea will have long vacation from now on so I will be off by next week.
-So it's hard to reach on me.
+> It is not correct. The kobject_put() is prepared against 
+> find_memory_block()
+> in remove_memory_block() since kobject->kref is incremented in it.
+> So release_memory_block() is called by device_unregister() correctly 
+> as follows:
+>
+> [ 1014.589008] Pid: 126, comm: kworker/0:2 Not tainted 
+> 3.6.0-rc3-enable-memory-hotremove-and-root-bridge #3
+> [ 1014.702437] Call Trace:
+> [ 1014.731684]  [<ffffffff8144d096>] release_memory_block+0x16/0x30
+> [ 1014.803581]  [<ffffffff81438587>] device_release+0x27/0xa0
+> [ 1014.869312]  [<ffffffff8133e962>] kobject_cleanup+0x82/0x1b0
+> [ 1014.937062]  [<ffffffff8133ea9d>] kobject_release+0xd/0x10
+> [ 1015.002718]  [<ffffffff8133e7ec>] kobject_put+0x2c/0x60
+> [ 1015.065271]  [<ffffffff81438107>] put_device+0x17/0x20
+> [ 1015.126794]  [<ffffffff8143918a>] device_unregister+0x2a/0x60
+> [ 1015.195578]  [<ffffffff8144d55b>] remove_memory_block+0xbb/0xf0
+> [ 1015.266434]  [<ffffffff8144d5af>] unregister_memory_section+0x1f/0x30
+> [ 1015.343532]  [<ffffffff811c0a58>] __remove_section+0x68/0x110
+> [ 1015.412318]  [<ffffffff811c0be7>] __remove_pages+0xe7/0x120
+> [ 1015.479021]  [<ffffffff81653d8c>] arch_remove_memory+0x2c/0x80
+> [ 1015.548845]  [<ffffffff8165497b>] remove_memory+0x6b/0xd0
+> [ 1015.613474]  [<ffffffff813d946c>] 
+> acpi_memory_device_remove_memory+0x48/0x73
+> [ 1015.697834]  [<ffffffff813d94c2>] acpi_memory_device_remove+0x2b/0x44
+> [ 1015.774922]  [<ffffffff813a61e4>] acpi_device_remove+0x90/0xb2
+> [ 1015.844796]  [<ffffffff8143c2fc>] __device_release_driver+0x7c/0xf0
+> [ 1015.919814]  [<ffffffff8143c47f>] device_release_driver+0x2f/0x50
+> [ 1015.992753]  [<ffffffff813a70dc>] acpi_bus_remove+0x32/0x6d
+> [ 1016.059462]  [<ffffffff813a71a8>] acpi_bus_trim+0x91/0x102
+> [ 1016.125128]  [<ffffffff813a72a1>] 
+> acpi_bus_hot_remove_device+0x88/0x16b
+> [ 1016.204295]  [<ffffffff813a2e57>] acpi_os_execute_deferred+0x27/0x34
+> [ 1016.280350]  [<ffffffff81090599>] process_one_work+0x219/0x680
+> [ 1016.350173]  [<ffffffff81090538>] ? process_one_work+0x1b8/0x680
+> [ 1016.422072]  [<ffffffff813a2e30>] ? 
+> acpi_os_wait_events_complete+0x23/0x23
+> [ 1016.504357]  [<ffffffff810923ce>] worker_thread+0x12e/0x320
+> [ 1016.571064]  [<ffffffff810922a0>] ? manage_workers+0x110/0x110
+> [ 1016.640886]  [<ffffffff810983a6>] kthread+0xc6/0xd0
+> [ 1016.699290]  [<ffffffff8167b144>] kernel_thread_helper+0x4/0x10
+> [ 1016.770149]  [<ffffffff81670bb0>] ? retint_restore_args+0x13/0x13
+> [ 1016.843165]  [<ffffffff810982e0>] ? __init_kthread_worker+0x70/0x70
+> [ 1016.918200]  [<ffffffff8167b140>] ? gs_change+0x13/0x13
+>
+> Thanks,
+> Yasuaki Ishimatsu
+>
+>>
+>> static void
+>> unregister_memory(struct memory_block *memory)
+>> {
+>>     BUG_ON(memory->dev.bus != &memory_subsys);
+>>
+>>     /* drop the ref. we got in remove_memory_block() */
+>>     kobject_put(&memory->dev.kobj);
+>>     device_unregister(&memory->dev);
+>> }
+>>
+>
+>
+>
 
-I hope this patch fixes the bug. If this patch fixes the problem
-but has some problem about description or someone has better idea,
-feel free to modify and resend to akpm, Please.
-
-Thierry, Could you test below patch?
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
