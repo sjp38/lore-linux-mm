@@ -1,51 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx110.postini.com [74.125.245.110])
-	by kanga.kvack.org (Postfix) with SMTP id 76B646B006C
-	for <linux-mm@kvack.org>; Fri, 28 Sep 2012 07:56:29 -0400 (EDT)
-Date: Fri, 28 Sep 2012 19:56:23 +0800
-From: Fengguang Wu <fengguang.wu@intel.com>
-Subject: Re: Re: [PATCH 2/5] mm/readahead: Change the condition for
- SetPageReadahead
-Message-ID: <20120928115623.GB1525@localhost>
-References: <cover.1348309711.git.rprabhu@wnohang.net>
- <82b88a97e1b86b718fe8e4616820d224f6abbc52.1348309711.git.rprabhu@wnohang.net>
- <20120922124920.GB17562@localhost>
- <20120926012900.GA36532@Archie>
+Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
+	by kanga.kvack.org (Postfix) with SMTP id F377C6B0070
+	for <linux-mm@kvack.org>; Fri, 28 Sep 2012 08:07:25 -0400 (EDT)
+Date: Fri, 28 Sep 2012 14:07:18 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [patch 1/1] thp: avoid VM_BUG_ON page_count(page) false
+ positives in __collapse_huge_page_copy
+Message-ID: <20120928120718.GY19474@redhat.com>
+References: <20120927215147.A3F935C0050@hpza9.eem.corp.google.com>
+ <CA+55aFw069v_jCcF7rC-1bkOPYsg3f9wPiWEhNOXEq5D71Lx=g@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20120926012900.GA36532@Archie>
+In-Reply-To: <CA+55aFw069v_jCcF7rC-1bkOPYsg3f9wPiWEhNOXEq5D71Lx=g@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Raghavendra D Prabhu <raghu.prabhu13@gmail.com>
-Cc: linux-mm@kvack.org, viro@zeniv.linux.org.uk, akpm@linux-foundation.org
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: akpm@linux-foundation.org, hughd@google.com, jweiner@redhat.com, mgorman@suse.de, pholasek@redhat.com, riel@redhat.com, David Rientjes <rientjes@google.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm <linux-mm@kvack.org>
 
-On Wed, Sep 26, 2012 at 06:59:00AM +0530, Raghavendra D Prabhu wrote:
-> Hi,
-> 
-> 
-> * On Sat, Sep 22, 2012 at 08:49:20PM +0800, Fengguang Wu <fengguang.wu@intel.com> wrote:
-> >On Sat, Sep 22, 2012 at 04:03:11PM +0530, raghu.prabhu13@gmail.com wrote:
-> >>From: Raghavendra D Prabhu <rprabhu@wnohang.net>
-> >>
-> >>If page lookup from radix_tree_lookup is successful and its index page_idx ==
-> >>nr_to_read - lookahead_size, then SetPageReadahead never gets called, so this
-> >>fixes that.
+Hi Linus,
+
+On Thu, Sep 27, 2012 at 04:40:13PM -0700, Linus Torvalds wrote:
+> On Thu, Sep 27, 2012 at 2:51 PM,  <akpm@linux-foundation.org> wrote:
+> > From: Andrea Arcangeli <aarcange@redhat.com>
+> > Subject: thp: avoid VM_BUG_ON page_count(page) false positives in __collapse_huge_page_copy
 > >
-> >NAK. Sorry. It's actually an intentional behavior, so that for the
-> >common cases of many cached files that are accessed frequently, no
-> >PG_readahead will be set at all to pointlessly trap into the readahead
-> >routines once and again.
+> > Some time ago Petr once reproduced a false positive VM_BUG_ON in
+> > khugepaged while running the autonuma-benchmark on a large 8 node system.
+> > All production kernels out there have DEBUG_VM=n so it was only noticeable
+> > on self built kernels.  It's not easily reproducible even on the 8 nodes
+> > system.
+> >
+> > Use page_freeze_refs to prevent speculative pagecache lookups to
+> > trigger the false positives, so we're still able to check the
+> > page_count to be exact.
 > 
-> ACK, thanks for explaining that. However, regarding this, I would
-> like to know if the implications of the patch
-> 51daa88ebd8e0d437289f589af29d4b39379ea76 will still apply if
-> PG_readahead is not set.
+> This is too ugly to live. It also fundamentally changes semantics and
+> actually makes CONFIG_DEBUG_VM result in totally different behavior.
+> 
+> I really don't think it's a good feature to make CONFIG_DEBUG_VM
+> actually seriously change serialization.
+> 
+> Either do the page_freeze_refs thing *unconditionally*, presumably
+> replacing the current code that does
+> 
+>                 ...
+>                 /* cannot use mapcount: can't collapse if there's a gup pin */
+>                 if (page_count(page) != 1) {
+> 
+> instead, or then just relax the potentially racy VM_BUG_ON() to just
+> check >= 2. Because debug stuff that changes semantics really is
+> horribly horribly bad.
 
-Would you elaborate the implication and the possible problematic case?
+Agreed. I think we can simply drop that VM_BUG_ON: there's a
+putback_lru_page that does a put_page, and then another that does
+page_cache_release just after the VM_BUG_ON, so if the count is < 2
+we'll notice when the count underflows in free_page_and_swap_cache
+(we've a VM_BUG_ON in put_page_testzero for that).
 
-Thanks,
-Fengguang
+The reason for too ugly to live patch, is that I wanted to take the
+opportunity of a workload on a 128 CPU 8 node system that could
+reproduce it to verify that it really was the speculative lookup and
+not something else (and something else wouldn't have been good :). But
+I fully agree with you that after successfully verifying that, it's
+good to go with a non-ugly version. Thanks for checking this!
+
+I'll send an updated patch.
+
+> Btw, there are two other thp patches (relating to mlock) floating
+> around. They look much more reasonable than this one, but I was hoping
+> to see more ack's for them.
+
+Ok! I'll review them too. I read them and they looked all right but I
+didn't spend enough time on it yet to be sure and send an ack sorry.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
