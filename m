@@ -1,34 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
-	by kanga.kvack.org (Postfix) with SMTP id BDB676B0072
-	for <linux-mm@kvack.org>; Fri, 28 Sep 2012 09:31:36 -0400 (EDT)
-Date: Fri, 28 Sep 2012 14:31:21 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [RFC/PATCH] zcache2 on PPC64 (Was: [RFC] mm: add support for
- zsmalloc and zcache)
-Message-ID: <20120928133121.GH29125@suse.de>
-References: <30a570e8-8157-47e1-867a-4960a7c1173d@default>
+Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
+	by kanga.kvack.org (Postfix) with SMTP id 580AB6B006E
+	for <linux-mm@kvack.org>; Fri, 28 Sep 2012 09:51:27 -0400 (EDT)
+Date: Fri, 28 Sep 2012 15:51:14 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [patch] mm, thp: fix mlock statistics
+Message-ID: <20120928135114.GB19474@redhat.com>
+References: <alpine.DEB.2.00.1209191818490.7879@chino.kir.corp.google.com>
+ <alpine.LSU.2.00.1209192021270.28543@eggly.anvils>
+ <alpine.DEB.2.00.1209261821380.7745@chino.kir.corp.google.com>
+ <alpine.DEB.2.00.1209261929270.8567@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <30a570e8-8157-47e1-867a-4960a7c1173d@default>
+In-Reply-To: <alpine.DEB.2.00.1209261929270.8567@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Magenheimer <dan.magenheimer@oracle.com>
-Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>, Konrad Wilk <konrad.wilk@oracle.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Nitin Gupta <ngupta@vflare.org>, Minchan Kim <minchan@kernel.org>, Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org, James Bottomley <James.Bottomley@HansenPartnership.com>
+To: David Rientjes <rientjes@google.com>
+Cc: Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Michel Lespinasse <walken@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, stable@vger.kernel.org
 
-On Tue, Sep 25, 2012 at 04:31:01PM -0700, Dan Magenheimer wrote:
-> Attached patch applies to staging-next and I _think_ should
-> fix the reported problem where zbud in zcache2 does not
-> work on a PPC64 with PAGE_SIZE!=12.  I do not have a machine
-> to test this so testing by others would be appreciated.
-> 
+On Wed, Sep 26, 2012 at 07:29:58PM -0700, David Rientjes wrote:
+> NR_MLOCK is only accounted in single page units: there's no logic to
+> handle transparent hugepages.  This patch checks the appropriate number
+> of pages to adjust the statistics by so that the correct amount of memory
+> is reflected.
 
-Seth, can you verify?
+*snip*
 
--- 
-Mel Gorman
-SUSE Labs
+> Reported-by: Hugh Dickens <hughd@google.com>
+> Signed-off-by: David Rientjes <rientjes@google.com>
+> ---
+>  mm/internal.h   |    3 ++-
+>  mm/mlock.c      |    6 ++++--
+>  mm/page_alloc.c |    2 +-
+>  3 files changed, 7 insertions(+), 4 deletions(-)
+
+Reviewed-by: Andrea Arcangeli <aarcange@redhat.com>
+
+Thanks!
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
