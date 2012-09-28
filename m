@@ -1,85 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
-	by kanga.kvack.org (Postfix) with SMTP id 9F5C46B0068
-	for <linux-mm@kvack.org>; Fri, 28 Sep 2012 04:47:13 -0400 (EDT)
-Received: by obcva7 with SMTP id va7so3387489obc.14
-        for <linux-mm@kvack.org>; Fri, 28 Sep 2012 01:47:12 -0700 (PDT)
-Message-ID: <50656459.70309@ti.com>
-Date: Fri, 28 Sep 2012 11:48:25 +0300
-From: Peter Ujfalusi <peter.ujfalusi@ti.com>
+Received: from psmtp.com (na3sys010amx202.postini.com [74.125.245.202])
+	by kanga.kvack.org (Postfix) with SMTP id 9B0996B0069
+	for <linux-mm@kvack.org>; Fri, 28 Sep 2012 04:48:01 -0400 (EDT)
+Message-ID: <50656374.8080600@parallels.com>
+Date: Fri, 28 Sep 2012 12:44:36 +0400
+From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Subject: Re: CMA broken in next-20120926
-References: <20120927112911.GA25959@avionic-0098.mockup.avionic-design.de> <20120927151159.4427fc8f.akpm@linux-foundation.org> <20120928054330.GA27594@bbox> <20120928083722.GM3429@suse.de>
-In-Reply-To: <20120928083722.GM3429@suse.de>
-Content-Type: text/plain; charset=ISO-8859-15
-Content-Transfer-Encoding: 8bit
+Subject: Re: CK1 [10/13] Do not define KMALLOC array definitions for SLOB
+References: <20120926200005.911809821@linux.com> <0000013a043aca17-be81d17b-47c7-4511-9a52-853a493a0437-000000@email.amazonses.com>
+In-Reply-To: <0000013a043aca17-be81d17b-47c7-4511-9a52-853a493a0437-000000@email.amazonses.com>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Thierry Reding <thierry.reding@avionic-design.de>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>, Mark Brown <broonie@opensource.wolfsonmicro.com>
+To: Christoph Lameter <cl@linux.com>
+Cc: Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <js1304@gmail.com>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>
 
-Hi,
+On 09/27/2012 12:18 AM, Christoph Lameter wrote:
+> SLOB has no support for an array of kmalloc caches. Create a section
+> in include/linux/slab.h that is dedicated to the kmalloc cache
+> definition but disabled if SLOB is selected.
+> 
+> slab_common.c also has functions that are not needed for slob.
+> Disable those as well.
+> 
+> Signed-off-by: Christoph Lameter <cl@linux.com>
+> 
 
-On 09/28/2012 11:37 AM, Mel Gorman wrote:
->> I hope this patch fixes the bug. If this patch fixes the problem
->> but has some problem about description or someone has better idea,
->> feel free to modify and resend to akpm, Please.
->>
-> 
-> A full revert is overkill. Can the following patch be tested as a
-> potential replacement please?
-> 
-> ---8<---
-> mm: compaction: Iron out isolate_freepages_block() and isolate_freepages_range() -fix1
-> 
-> CMA is reported to be broken in next-20120926. Minchan Kim pointed out
-> that this was due to nr_scanned != total_isolated in the case of CMA
-> because PageBuddy pages are one scan but many isolations in CMA. This
-> patch should address the problem.
-> 
-> This patch is a fix for
-> mm-compaction-acquire-the-zone-lock-as-late-as-possible-fix-2.patch
-> 
-> Signed-off-by: Mel Gorman <mgorman@suse.de>
 
-linux-next + this patch alone also works for me.
-
-Tested-by: Peter Ujfalusi <peter.ujfalusi@ti.com>
-
-> ---
->  mm/compaction.c |    5 +++--
->  1 file changed, 3 insertions(+), 2 deletions(-)
-> 
-> diff --git a/mm/compaction.c b/mm/compaction.c
-> index 8250b69..d6e260a 100644
-> --- a/mm/compaction.c
-> +++ b/mm/compaction.c
-> @@ -282,6 +282,7 @@ static unsigned long isolate_freepages_block(struct compact_control *cc,
->  {
->  	int nr_scanned = 0, total_isolated = 0;
->  	struct page *cursor, *valid_page = NULL;
-> +	unsigned long nr_strict_required = end_pfn - blockpfn;
->  	unsigned long flags;
->  	bool locked = false;
+> Index: linux/mm/slab_common.c
+> ===================================================================
+> --- linux.orig/mm/slab_common.c	2012-09-18 12:13:16.230754925 -0500
+> +++ linux/mm/slab_common.c	2012-09-18 12:16:28.354706953 -0500
+> @@ -218,6 +218,8 @@ int slab_is_available(void)
+>  	return slab_state >= UP;
+>  }
 >  
-> @@ -343,10 +344,10 @@ static unsigned long isolate_freepages_block(struct compact_control *cc,
->  
->  	/*
->  	 * If strict isolation is requested by CMA then check that all the
-> -	 * pages scanned were isolated. If there were any failures, 0 is
-> +	 * pages requested were isolated. If there were any failures, 0 is
->  	 * returned and CMA will fail.
->  	 */
-> -	if (strict && nr_scanned != total_isolated)
-> +	if (strict && nr_strict_required != total_isolated)
->  		total_isolated = 0;
->  
->  	if (locked)
+> +#ifndef CONFIG_SLOB
+> +
+>  /* Create a cache during boot when no slab services are available yet */
+>  void __init create_boot_cache(struct kmem_cache *s, const char *name, size_t size,
+>  		unsigned long flags)
+I don't see why you can't fold this directly in the patch where those
+things are created.
+
+> @@ -249,3 +251,5 @@ struct kmem_cache *__init create_kmalloc
+>  	s->refcount = 1;
+>  	return s;
+>  }
+> +
+> +#endif /* !CONFIG_SLOB */
 > 
-
-
--- 
-Peter
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
