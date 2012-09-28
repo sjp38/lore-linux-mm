@@ -1,180 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
-	by kanga.kvack.org (Postfix) with SMTP id 1CDE96B0068
-	for <linux-mm@kvack.org>; Thu, 27 Sep 2012 21:59:46 -0400 (EDT)
-Received: by mail-wg0-f41.google.com with SMTP id ds1so66438wgb.2
-        for <linux-mm@kvack.org>; Thu, 27 Sep 2012 18:59:44 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
+	by kanga.kvack.org (Postfix) with SMTP id E28476B0068
+	for <linux-mm@kvack.org>; Thu, 27 Sep 2012 22:00:31 -0400 (EDT)
+Message-ID: <5065005A.4020907@cn.fujitsu.com>
+Date: Fri, 28 Sep 2012 09:41:46 +0800
+From: Wen Congyang <wency@cn.fujitsu.com>
 MIME-Version: 1.0
-In-Reply-To: <20120927115219.GB28126@quack.suse.cz>
-References: <1347798342-2830-1-git-send-email-linkinjeon@gmail.com>
-	<20120920084422.GA5697@localhost>
-	<20120924222306.GC30997@quack.suse.cz>
-	<20120926165602.GA24672@localhost>
-	<20120926202247.GA20920@quack.suse.cz>
-	<CAKYAXd_=TkHM4s8hyyEZpkJCv3N7HOeXKxoEOpwigFYfR9+ReA@mail.gmail.com>
-	<20120927115219.GB28126@quack.suse.cz>
-Date: Fri, 28 Sep 2012 10:59:44 +0900
-Message-ID: <CAKYAXd-1di4QioqvaAEoshqX9068id4BBBdWz7pJRZH60Gny1Q@mail.gmail.com>
-Subject: Re: [PATCH v3 1/2] writeback: add dirty_background_centisecs per bdi variable
-From: Namjae Jeon <linkinjeon@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Subject: Re: [RFC v9 PATCH 00/21] memory-hotplug: hot-remove physical memory
+References: <1346837155-534-1-git-send-email-wency@cn.fujitsu.com> <20120926164649.GA7559@dhcp-192-168-178-175.profitbricks.localdomain> <5063F41A.3010600@cn.fujitsu.com> <20120927103557.GA30772@dhcp-192-168-178-175.profitbricks.localdomain>
+In-Reply-To: <20120927103557.GA30772@dhcp-192-168-178-175.profitbricks.localdomain>
+Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>, Fengguang Wu <fengguang.wu@intel.com>
-Cc: Dave Chinner <david@fromorbit.com>, linux-kernel@vger.kernel.org, Namjae Jeon <namjae.jeon@samsung.com>, Vivek Trivedi <t.vivek@samsung.com>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org
+To: Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>
+Cc: x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-ia64@vger.kernel.org, cmetcalf@tilera.com, sparclinux@vger.kernel.org, rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com
 
-2012/9/27, Jan Kara <jack@suse.cz>:
-> On Thu 27-09-12 15:00:18, Namjae Jeon wrote:
->> 2012/9/27, Jan Kara <jack@suse.cz>:
->> > On Thu 27-09-12 00:56:02, Wu Fengguang wrote:
->> >> On Tue, Sep 25, 2012 at 12:23:06AM +0200, Jan Kara wrote:
->> >> > On Thu 20-09-12 16:44:22, Wu Fengguang wrote:
->> >> > > On Sun, Sep 16, 2012 at 08:25:42AM -0400, Namjae Jeon wrote:
->> >> > > > From: Namjae Jeon <namjae.jeon@samsung.com>
->> >> > > >
->> >> > > > This patch is based on suggestion by Wu Fengguang:
->> >> > > > https://lkml.org/lkml/2011/8/19/19
->> >> > > >
->> >> > > > kernel has mechanism to do writeback as per dirty_ratio and
->> >> > > > dirty_background
->> >> > > > ratio. It also maintains per task dirty rate limit to keep
->> >> > > > balance
->> >> > > > of
->> >> > > > dirty pages at any given instance by doing bdi bandwidth
->> >> > > > estimation.
->> >> > > >
->> >> > > > Kernel also has max_ratio/min_ratio tunables to specify
->> >> > > > percentage
->> >> > > > of
->> >> > > > writecache to control per bdi dirty limits and task throttling.
->> >> > > >
->> >> > > > However, there might be a usecase where user wants a per bdi
->> >> > > > writeback tuning
->> >> > > > parameter to flush dirty data once per bdi dirty data reach a
->> >> > > > threshold
->> >> > > > especially at NFS server.
->> >> > > >
->> >> > > > dirty_background_centisecs provides an interface where user can
->> >> > > > tune
->> >> > > > background writeback start threshold using
->> >> > > > /sys/block/sda/bdi/dirty_background_centisecs
->> >> > > >
->> >> > > > dirty_background_centisecs is used alongwith average bdi write
->> >> > > > bandwidth
->> >> > > > estimation to start background writeback.
->> >> >   The functionality you describe, i.e. start flushing bdi when
->> >> > there's
->> >> > reasonable amount of dirty data on it, looks sensible and useful.
->> >> > However
->> >> > I'm not so sure whether the interface you propose is the right one.
->> >> > Traditionally, we allow user to set amount of dirty data (either in
->> >> > bytes
->> >> > or percentage of memory) when background writeback should start. You
->> >> > propose setting the amount of data in centisecs-to-write. Why that
->> >> > difference? Also this interface ties our throughput estimation code
->> >> > (which
->> >> > is an implementation detail of current dirty throttling) with the
->> >> > userspace
->> >> > API. So we'd have to maintain the estimation code forever, possibly
->> >> > also
->> >> > face problems when we change the estimation code (and thus estimates
->> >> > in
->> >> > some cases) and users will complain that the values they set
->> >> > originally
->> >> > no
->> >> > longer work as they used to.
->> >>
->> >> Yes, that bandwidth estimation is not all that (and in theory cannot
->> >> be made) reliable which may be a surprise to the user. Which make the
->> >> interface flaky.
->> >>
->> >> > Also, as with each knob, there's a problem how to properly set its
->> >> > value?
->> >> > Most admins won't know about the knob and so won't touch it. Others
->> >> > might
->> >> > know about the knob but will have hard time figuring out what value
->> >> > should
->> >> > they set. So if there's a new knob, it should have a sensible
->> >> > initial
->> >> > value. And since this feature looks like a useful one, it shouldn't
->> >> > be
->> >> > zero.
->> >>
->> >> Agreed in principle. There seems be no reasonable defaults for the
->> >> centisecs-to-write interface, mainly due to its inaccurate nature,
->> >> especially the initial value may be wildly wrong on fresh system
->> >> bootup. This is also true for your proposed interfaces, see below.
->> >>
->> >> > So my personal preference would be to have
->> >> > bdi->dirty_background_ratio
->> >> > and
->> >> > bdi->dirty_background_bytes and start background writeback whenever
->> >> > one of global background limit and per-bdi background limit is
->> >> > exceeded.
->> >> > I
->> >> > think this interface will do the job as well and it's easier to
->> >> > maintain
->> >> > in
->> >> > future.
->> >>
->> >> bdi->dirty_background_ratio, if I understand its semantics right, is
->> >> unfortunately flaky in the same principle as centisecs-to-write,
->> >> because it relies on the (implicitly estimation of) writeout
->> >> proportions. The writeout proportions for each bdi starts with 0,
->> >> which is even worse than the 100MB/s initial value for
->> >> bdi->write_bandwidth and will trigger background writeback on the
->> >> first write.
->> >   Well, I meant bdi->dirty_backround_ratio wouldn't use writeout
->> > proportion
->> > estimates at all. Limit would be
->> >   dirtiable_memory * bdi->dirty_backround_ratio.
->> >
->> > After all we want to start writeout to bdi when we have enough pages to
->> > reasonably load the device for a while which has nothing to do with how
->> > much is written to this device as compared to other devices.
->> >
->> > OTOH I'm not particularly attached to this interface. Especially since
->> > on a
->> > lot of today's machines, 1% is rather big so people might often end up
->> > using dirty_background_bytes anyway.
->> >
->> >> bdi->dirty_background_bytes is, however, reliable, and gives users
->> >> total control. If we export this interface alone, I'd imagine users
->> >> who want to control centisecs-to-write could run a simple script to
->> >> periodically get the write bandwith value out of the existing bdi
->> >> interface and echo it into bdi->dirty_background_bytes. Which makes
->> >> simple yet good enough centisecs-to-write controlling.
->> >>
->> >> So what do you think about exporting a really dumb
->> >> bdi->dirty_background_bytes, which will effectively give smart users
->> >> the freedom to do smart control over per-bdi background writeback
->> >> threshold? The users are offered the freedom to do his own bandwidth
->> >> estimation and choose not to rely on the kernel estimation, which will
->> >> free us from the burden of maintaining a flaky interface as well. :)
->> >   That's fine with me. Just it would be nice if we gave
->> > bdi->dirty_background_bytes some useful initial value. Maybe like
->> > dirtiable_memory * dirty_background_ratio?
->> Global dirty_background_bytes default value is zero that means
->> flushing is started based on dirty_background_ratio and dirtiable
->> memory.
->> Is it correct to set per bdi default dirty threshold
->> (bdi->dirty_background_bytes) equal to global dirty threshold  -
->> dirtiable_memory * dirty_background_ratio ?
->   Right, the default setting I proposed doesn't make a difference. And it's
-> not obvious how to create one which is more meaningful. Pity.
->
->> In my opinion, default setting for per bdi-> dirty_background_bytes
->> should be zero to avoid any confusion and any change in default
->> writeback behaviour.
->   OK, fine with me.
-Okay, I will make the patches as your opinion again.
-Thanks Jan and Wu !
->
-> 								Honza
-> --
-> Jan Kara <jack@suse.cz>
-> SUSE Labs, CR
->
+At 09/27/2012 06:35 PM, Vasilis Liaskovitis Wrote:
+> On Thu, Sep 27, 2012 at 02:37:14PM +0800, Wen Congyang wrote:
+>> Hi Vasilis Liaskovitis
+>>
+>> At 09/27/2012 12:46 AM, Vasilis Liaskovitis Wrote:
+>>> Hi,
+>>>
+>>> I am testing 3.6.0-rc7 with this v9 patchset plus more recent fixes [1],[2],[3]
+>>> Running in a guest (qemu+seabios from [4]). 
+>>> CONFIG_SLAB=y
+>>> CONFIG_DEBUG_SLAB=y
+>>>
+>>> After succesfull hot-add and online, I am doing a hot-remove with "echo 1 > /sys/bus/acpi/devices/PNP/eject"
+>>> When I do the OSPM-eject, I often get slab corruption in "acpi-state" cache, or in other caches
+>>
+>> I can't reproduce this problem. Can you provide the following information:
+>> 1. config file
+>> 2. qemu's command line
+>>
+>> You said you did OSPM-eject. Do you mean write 1 to /sys/bus/acpi/devices/PNP0C80:XX/eject?
+> yes.
+> 
+> example qemu command line with one dimm:
+> 
+> "/opt/qemu-kvm-memhp/bin/qemu-system-x86_64 -bios
+> /opt/extra/vliaskov/devel/seabios-upstream/out/bios.bin -enable-kvm -M pc -smp
+> 4,maxcpus=8 -cpu host -m 2048 -drive file=/opt/extra/debian-template.raw,if=none,id=drive-virtio-disk0,format=raw
+> -device virtio-blk-pci,bus=pci.0,drive=drive-virtio-disk0,id=virtio-disk0,bootindex=1
+> -vga cirrus -netdev type=tap,id=guest0,vhost=on -device virtio-net-pci,netdev=guest0
+> -monitor unix:/tmp/qemu.monitor11,server,nowait -chardev stdio,id=seabios  -device
+> isa-debugcon,iobase=0x402,chardev=seabios
+> -dimm id=n0,size=512M,node=0"
+> 
+> or last line with 2 numa nodes:
+> "-dimm id=n0,size=512M,node=0 -dimm id=n1,size=512M,node=1 -numa node,nodeid=0 -numa node,nodeid=1"
+
+I have reproduced this problem. It only can be reproduced when the dimm's memory is on node 0.
+I investigate it now.
+
+Thanks
+Wen Congyang
+
+> 
+> attached config. Tree is at:
+> https://github.com/vliaskov/linux/commits/memhp-fujitsu
+> 
+> thanks,
+> - Vasilis
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
