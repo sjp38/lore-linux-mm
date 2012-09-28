@@ -1,133 +1,146 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
-	by kanga.kvack.org (Postfix) with SMTP id AB1826B0068
-	for <linux-mm@kvack.org>; Fri, 28 Sep 2012 02:11:11 -0400 (EDT)
-Date: Fri, 28 Sep 2012 08:10:56 +0200
-From: Thierry Reding <thierry.reding@avionic-design.de>
-Subject: Re: CMA broken in next-20120926
-Message-ID: <20120928061056.GA13458@avionic-0098.mockup.avionic-design.de>
-References: <20120927112911.GA25959@avionic-0098.mockup.avionic-design.de>
- <20120927151159.4427fc8f.akpm@linux-foundation.org>
- <20120928054330.GA27594@bbox>
+Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
+	by kanga.kvack.org (Postfix) with SMTP id E472A6B0068
+	for <linux-mm@kvack.org>; Fri, 28 Sep 2012 02:12:06 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 38BD33EE0BD
+	for <linux-mm@kvack.org>; Fri, 28 Sep 2012 15:12:05 +0900 (JST)
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 1783245DE5D
+	for <linux-mm@kvack.org>; Fri, 28 Sep 2012 15:12:05 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id ED37945DE56
+	for <linux-mm@kvack.org>; Fri, 28 Sep 2012 15:12:04 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id D62D61DB804E
+	for <linux-mm@kvack.org>; Fri, 28 Sep 2012 15:12:04 +0900 (JST)
+Received: from g01jpexchyt10.g01.fujitsu.local (g01jpexchyt10.g01.fujitsu.local [10.128.194.49])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 76F701DB8049
+	for <linux-mm@kvack.org>; Fri, 28 Sep 2012 15:12:04 +0900 (JST)
+Message-ID: <50653F9A.10201@jp.fujitsu.com>
+Date: Fri, 28 Sep 2012 15:11:38 +0900
+From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="RnlQjJ0d97Da+TV1"
-Content-Disposition: inline
-In-Reply-To: <20120928054330.GA27594@bbox>
+Subject: Re: [PATCH 1/4] memory-hotplug: add memory_block_release
+References: <1348724705-23779-1-git-send-email-wency@cn.fujitsu.com> <1348724705-23779-2-git-send-email-wency@cn.fujitsu.com> <CAEkdkmVW5wwG4_cy0yHFNVmk2bzAqzo2adRsMn1yHOW9Ex98_g@mail.gmail.com> <5064EE3F.3080606@jp.fujitsu.com> <CAHGf_=pDn852sRadnXQMWx3rOTxGLy7876pxk1Ww4oJtkBAZbQ@mail.gmail.com> <50651D65.5080400@jp.fujitsu.com> <50653DE7.70702@gmail.com>
+In-Reply-To: <50653DE7.70702@gmail.com>
+Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>, Mark Brown <broonie@opensource.wolfsonmicro.com>, Peter Ujfalusi <peter.ujfalusi@ti.com>, Mel Gorman <mgorman@suse.de>
+To: Ni zhan Chen <nizhan.chen@gmail.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, wency@cn.fujitsu.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, minchan.kim@gmail.com, akpm@linux-foundation.org
 
+Hi Chen,
 
---RnlQjJ0d97Da+TV1
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+2012/09/28 15:04, Ni zhan Chen wrote:
+> On 09/28/2012 11:45 AM, Yasuaki Ishimatsu wrote:
+>> Hi Kosaki-san,
+>>
+>> 2012/09/28 10:35, KOSAKI Motohiro wrote:
+>>> On Thu, Sep 27, 2012 at 8:24 PM, Yasuaki Ishimatsu
+>>> <isimatu.yasuaki@jp.fujitsu.com> wrote:
+>>>> Hi Chen,
+>>>>
+>>>>
+>>>> 2012/09/27 19:20, Ni zhan Chen wrote:
+>>>>>
+>>>>> Hi Congyang,
+>>>>>
+>>>>> 2012/9/27 <wency@cn.fujitsu.com>
+>>>>>
+>>>>>> From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+>>>>>>
+>>>>>> When calling remove_memory_block(), the function shows following message
+>>>>>> at
+>>>>>> device_release().
+>>>>>>
+>>>>>> Device 'memory528' does not have a release() function, it is broken and
+>>>>>> must
+>>>>>> be fixed.
+>>>>>>
+>>>>>
+>>>>> What's the difference between the patch and original implemetation?
+>>>>
+>>>>
+>>>> The implementation is for removing a memory_block. So the purpose is
+>>>> same as original one. But original code is bad manner. kobject_cleanup()
+>>>> is called by remove_memory_block() at last. But release function for
+>>>> releasing memory_block is not registered. As a result, the kernel message
+>>>> is shown. IMHO, memory_block should be release by the releae function.
+>>>
+>>> but your patch introduced use after free bug, if i understand correctly.
+>>> See unregister_memory() function. After your patch, kobject_put() call
+>>> release_memory_block() and kfree(). and then device_unregister() will
+>>> touch freed memory.
+>>
+>
+> this patch is similiar to [RFC v9 PATCH 10/21] memory-hotplug: add memory_block_release, they handle the same issue, can these two patches be fold to one?
 
-On Fri, Sep 28, 2012 at 02:43:30PM +0900, Minchan Kim wrote:
-> On Thu, Sep 27, 2012 at 03:11:59PM -0700, Andrew Morton wrote:
-> > On Thu, 27 Sep 2012 13:29:11 +0200
-> > Thierry Reding <thierry.reding@avionic-design.de> wrote:
-> >=20
-> > > Hi Marek,
-> > >=20
-> > > any idea why CMA might be broken in next-20120926. I see that there
-> > > haven't been any major changes to CMA itself, but there's been quite a
-> > > bit of restructuring of various memory allocation bits lately. I wasn=
-'t
-> > > able to track the problem down, though.
-> > >=20
-> > > What I see is this during boot (with CMA_DEBUG enabled):
-> > >=20
-> > > [    0.266904] cma: dma_alloc_from_contiguous(cma db474f80, count 64,=
- align 6)
-> > > [    0.284469] cma: dma_alloc_from_contiguous(): memory range at c09d=
-7000 is busy, retrying
-> > > [    0.293648] cma: dma_alloc_from_contiguous(): memory range at c09d=
-7800 is busy, retrying
-> > > ...
-> > > [    2.648619] DMA: failed to allocate 256 KiB pool for atomic cohere=
-nt allocation
-> > > ...
-> > > [    4.196193] WARNING: at /home/thierry.reding/src/kernel/linux-ipmp=
-=2Egit/arch/arm/mm/dma-mapping.c:485 __alloc_from_pool+0xdc/0x110()
-> > > [    4.207988] coherent pool not initialised!
-> > >=20
-> > > So the pool isn't getting initialized properly because CMA can't get =
-at
-> > > the memory. Do you have any hints as to what might be going on? If it=
-'s
-> > > any help, I started seeing this with next-20120926 and it is in today=
-'s
-> > > next as well.
-> > >=20
-> >=20
-> > Bart and Minchan have made recent changes to CMA.  Let us cc them.
->=20
-> Hi all,
->=20
-> I have no time now so I look over the problem during short time
-> so I mighte be wrong. Even I should leave the office soon and
-> Korea will have long vacation from now on so I will be off by next week.
-> So it's hard to reach on me.
->=20
-> I hope this patch fixes the bug. If this patch fixes the problem
-> but has some problem about description or someone has better idea,
-> feel free to modify and resend to akpm, Please.
->=20
-> Thierry, Could you test below patch?
->=20
-> >From 24a547855fa2bd4212a779cc73997837148310b3 Mon Sep 17 00:00:00 2001
-> From: Minchan Kim <minchan@kernel.org>
-> Date: Fri, 28 Sep 2012 14:28:32 +0900
-> Subject: [PATCH] revert mm: compaction: iron out isolate_freepages_block()
->  and isolate_freepages_range()
->=20
-> [1] made bug on CMA.
-> The nr_scanned should be never equal to total_isolated for successful CMA.
-> This patch reverts part of the patch.
->=20
-> [1] mm: compaction: iron out isolate_freepages_block() and isolate_freepa=
-ges_range()
->=20
-> Cc: Mel Gorman <mgorman@suse.de>
-> Signed-off-by: Minchan Kim <minchan@kernel.org>
-> ---
->  mm/compaction.c |   29 ++++++++++++++++-------------
->  1 file changed, 16 insertions(+), 13 deletions(-)
+You're right. The patch is same as [RFC v9 PATCH 10/21].
+The patch is a bug fix. So we separated it from memory-hotplug patch-set.
 
-With that patch applied I see this now:
+Thanks,
+Yasuaki Ishimatsu
 
-[    0.255177] DMA: preallocated 256 KiB pool for atomic coherent allocatio=
-ns
+>> It is not correct. The kobject_put() is prepared against find_memory_block()
+>> in remove_memory_block() since kobject->kref is incremented in it.
+>> So release_memory_block() is called by device_unregister() correctly as follows:
+>>
+>> [ 1014.589008] Pid: 126, comm: kworker/0:2 Not tainted 3.6.0-rc3-enable-memory-hotremove-and-root-bridge #3
+>> [ 1014.702437] Call Trace:
+>> [ 1014.731684]  [<ffffffff8144d096>] release_memory_block+0x16/0x30
+>> [ 1014.803581]  [<ffffffff81438587>] device_release+0x27/0xa0
+>> [ 1014.869312]  [<ffffffff8133e962>] kobject_cleanup+0x82/0x1b0
+>> [ 1014.937062]  [<ffffffff8133ea9d>] kobject_release+0xd/0x10
+>> [ 1015.002718]  [<ffffffff8133e7ec>] kobject_put+0x2c/0x60
+>> [ 1015.065271]  [<ffffffff81438107>] put_device+0x17/0x20
+>> [ 1015.126794]  [<ffffffff8143918a>] device_unregister+0x2a/0x60
+>> [ 1015.195578]  [<ffffffff8144d55b>] remove_memory_block+0xbb/0xf0
+>> [ 1015.266434]  [<ffffffff8144d5af>] unregister_memory_section+0x1f/0x30
+>> [ 1015.343532]  [<ffffffff811c0a58>] __remove_section+0x68/0x110
+>> [ 1015.412318]  [<ffffffff811c0be7>] __remove_pages+0xe7/0x120
+>> [ 1015.479021]  [<ffffffff81653d8c>] arch_remove_memory+0x2c/0x80
+>> [ 1015.548845]  [<ffffffff8165497b>] remove_memory+0x6b/0xd0
+>> [ 1015.613474]  [<ffffffff813d946c>] acpi_memory_device_remove_memory+0x48/0x73
+>> [ 1015.697834]  [<ffffffff813d94c2>] acpi_memory_device_remove+0x2b/0x44
+>> [ 1015.774922]  [<ffffffff813a61e4>] acpi_device_remove+0x90/0xb2
+>> [ 1015.844796]  [<ffffffff8143c2fc>] __device_release_driver+0x7c/0xf0
+>> [ 1015.919814]  [<ffffffff8143c47f>] device_release_driver+0x2f/0x50
+>> [ 1015.992753]  [<ffffffff813a70dc>] acpi_bus_remove+0x32/0x6d
+>> [ 1016.059462]  [<ffffffff813a71a8>] acpi_bus_trim+0x91/0x102
+>> [ 1016.125128]  [<ffffffff813a72a1>] acpi_bus_hot_remove_device+0x88/0x16b
+>> [ 1016.204295]  [<ffffffff813a2e57>] acpi_os_execute_deferred+0x27/0x34
+>> [ 1016.280350]  [<ffffffff81090599>] process_one_work+0x219/0x680
+>> [ 1016.350173]  [<ffffffff81090538>] ? process_one_work+0x1b8/0x680
+>> [ 1016.422072]  [<ffffffff813a2e30>] ? acpi_os_wait_events_complete+0x23/0x23
+>> [ 1016.504357]  [<ffffffff810923ce>] worker_thread+0x12e/0x320
+>> [ 1016.571064]  [<ffffffff810922a0>] ? manage_workers+0x110/0x110
+>> [ 1016.640886]  [<ffffffff810983a6>] kthread+0xc6/0xd0
+>> [ 1016.699290]  [<ffffffff8167b144>] kernel_thread_helper+0x4/0x10
+>> [ 1016.770149]  [<ffffffff81670bb0>] ? retint_restore_args+0x13/0x13
+>> [ 1016.843165]  [<ffffffff810982e0>] ? __init_kthread_worker+0x70/0x70
+>> [ 1016.918200]  [<ffffffff8167b140>] ? gs_change+0x13/0x13
+>>
+>> Thanks,
+>> Yasuaki Ishimatsu
+>>
+>>>
+>>> static void
+>>> unregister_memory(struct memory_block *memory)
+>>> {
+>>>     BUG_ON(memory->dev.bus != &memory_subsys);
+>>>
+>>>     /* drop the ref. we got in remove_memory_block() */
+>>>     kobject_put(&memory->dev.kobj);
+>>>     device_unregister(&memory->dev);
+>>> }
+>>>
+>>
+>>
+>>
+>
 
-so this fixes the bug for me.
-
-Tested-by: Thierry Reding <thierry.reding@avionic-design.de>
-
---RnlQjJ0d97Da+TV1
-Content-Type: application/pgp-signature
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v2.0.19 (GNU/Linux)
-
-iQIcBAEBAgAGBQJQZT9wAAoJEN0jrNd/PrOhZs0P/R88ms+xrV16gEOjEshUz2Jn
-A1apn4OJxuQ7PzaFObQn4p0FgXmfCNP/Yd8c7hVotL4ciVjXuUtaeK8OnzNpWz5m
-2MGbSCIzitvYijnNn0ph1cS5vbTDU2sBJY8RlqYjG8H1+lM/ISRV+5cWXh0R7wsd
-mb1k/snsehVZ9xDxkrAz7o+KD8Gm6y7Yn0R060UfQH+5XmjdUM5/KIP3shg4IVKR
-Gg9b9mAc2wNWmE6Anu+jRM6ktQ1HXz4IkMgstf1NSZ25XtwqPDoBeH+vl0l80mrr
-3LMe0YyRbscgD3hmprWZ5nzRCkbPGxZApbNO3h2kZS625vW0exYwzR+yIXEb9GpK
-vR3pBineuAHE1Qzydl8oH83qWYXlEupvqF5Gs10aTdq1YIemWJ6n9ldEACyVqCsZ
-lfSPO23D8e72ozzQOnM0m48+om+ntNBKQMaedSbRgpMjkQ7Yd2g0mB1SgJy9fMlZ
-ynqIxCoWvojr76BxlWdZE1I6tqBWdgJSmSuscI35XrGCe/Tw3RgdOT1b+OphbvuJ
-u+JZu7F9EIdvLmQT3At+brvLao3lsVlvdETQBJExQiyKwmIjSB1q5L/wmBKSLwo8
-xK2dBXV0rq6EA6UWVrHklxFpcZQDmPnLZUA1H/lQWzekiDw300ghXo5pNjcw1GzR
-pEePJwXuUppkT90NWHme
-=bgcT
------END PGP SIGNATURE-----
-
---RnlQjJ0d97Da+TV1--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
