@@ -1,48 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
-	by kanga.kvack.org (Postfix) with SMTP id 5CC606B0068
-	for <linux-mm@kvack.org>; Fri, 28 Sep 2012 05:00:22 -0400 (EDT)
-Received: by bkcjm1 with SMTP id jm1so3547386bkc.14
-        for <linux-mm@kvack.org>; Fri, 28 Sep 2012 02:00:20 -0700 (PDT)
-Message-ID: <50656733.3040609@gmail.com>
-Date: Fri, 28 Sep 2012 11:00:35 +0200
-From: Sasha Levin <levinsasha928@gmail.com>
+Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
+	by kanga.kvack.org (Postfix) with SMTP id 71AF26B0069
+	for <linux-mm@kvack.org>; Fri, 28 Sep 2012 05:03:32 -0400 (EDT)
+Message-ID: <50656715.1020303@parallels.com>
+Date: Fri, 28 Sep 2012 13:00:05 +0400
+From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Subject: Re: mtd: kernel BUG at arch/x86/mm/pat.c:279!
-References: <1340959739.2936.28.camel@lappy>  <CA+1xoqdgKV_sEWvUbuxagL9JEc39ZFa6X9-acP7j-M7wvW6qbQ@mail.gmail.com>  <CA+55aFzJCLxVP+WYJM-gq=aXx5gmdgwC7=_Gr2Tooj8q+Dz4dw@mail.gmail.com>  <1347057778.26695.68.camel@sbsiddha-desk.sc.intel.com>  <CA+55aFwW9Q+DM2gZy7r3JQJbrbMNR6sN+jewc2CY0i1wD_X=Tw@mail.gmail.com>  <1347062045.26695.82.camel@sbsiddha-desk.sc.intel.com>  <CA+55aFzeKcV5hROLJE31dNi3SEs+s6o0LL=96Kh8QGHPx=aZnA@mail.gmail.com> <1347202600.5876.7.camel@sbsiddha-ivb> <505068F4.4080309@gmail.com> <50506A6C.30109@gmail.com>
-In-Reply-To: <50506A6C.30109@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Subject: Re: CK1 [00/13] [RFC] Sl[auo]b: Common kmalloc caches V1
+References: <0000013a03fe75d9-fa42a2fe-0742-47bd-99ee-5d2886e30436-000000@email.amazonses.com>
+In-Reply-To: <0000013a03fe75d9-fa42a2fe-0742-47bd-99ee-5d2886e30436-000000@email.amazonses.com>
+Content-Type: text/plain; charset="ISO-8859-1"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: suresh.b.siddha@intel.com
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, dwmw2@infradead.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mtd@lists.infradead.org, linux-mm <linux-mm@kvack.org>, Dave Jones <davej@redhat.com>
+To: Christoph Lameter <cl@linux.com>
+Cc: Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <js1304@gmail.com>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Fengguang Wu <fengguang.wu@intel.com>
 
-On 09/12/2012 12:56 PM, Sasha Levin wrote:
-> On 09/12/2012 12:50 PM, Sasha Levin wrote:
->> On 09/09/2012 04:56 PM, Suresh Siddha wrote:
->>> On Sat, 2012-09-08 at 12:57 -0700, Linus Torvalds wrote:
->>>>> Whatever. Something like this (TOTALLY UNTESTED) attached patch should
->>>>> get the mtdchar overflows to go away, 
->>> It looks good to me. Acked-by: Suresh Siddha <suresh.b.siddha@intel.com>
->>>
->>> Sasha, can you please give this a try?
->>
->> Sorry for the delay. It looks good here.
->>
->>
->> Thanks,
->> Sasha
->>
+On 09/26/2012 11:12 PM, Christoph Lameter wrote:
+> This patchset cleans up the bootstrap of the allocators
+> and creates a common function to set up the
+> kmalloc array. The results are more common
+> data structures that will simplify further work
+> on having common functions for all allocators.
 > 
-> Uh... sorry again, I obviously tested the second patch sent by Linus but
-> mistakingly replied to the wrong mail in the thread.
 
-Is anyone planning on picking up Linus' patch? This is still not in -next even.
+The patchset looks good in general, and the few things that need to be
+fixed that I could spot in this review I've sent already.
 
+It seems to touch less bug-prone things than your last round, which is
+good. Still, given all the small problems we had, I would insist this
+should get a round of build & boot testing to make sure they don't
+happen again.
 
-Thanks,
-Sasha
+Thankfully, we now have Fengguang's marvelous 0-day test system that
+should be able to find all that.
+
+For simplicity, I've uploaded your series to my "slab-common/kmalloc"
+branch at:
+
+git://git.kernel.org/pub/scm/linux/kernel/git/glommer/memcg.git
+
+I'll let you know if it spills anything, and you can then fold together
+with my comments in v2.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
