@@ -1,136 +1,234 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
-	by kanga.kvack.org (Postfix) with SMTP id 86B316B006C
-	for <linux-mm@kvack.org>; Fri, 28 Sep 2012 02:15:09 -0400 (EDT)
-Received: by ied10 with SMTP id 10so8035929ied.14
-        for <linux-mm@kvack.org>; Thu, 27 Sep 2012 23:15:09 -0700 (PDT)
-Message-ID: <50654061.1060801@gmail.com>
-Date: Fri, 28 Sep 2012 14:14:57 +0800
-From: Ni zhan Chen <nizhan.chen@gmail.com>
+Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
+	by kanga.kvack.org (Postfix) with SMTP id 8A5E46B0068
+	for <linux-mm@kvack.org>; Fri, 28 Sep 2012 03:30:08 -0400 (EDT)
+Message-ID: <50655283.9030006@cn.fujitsu.com>
+Date: Fri, 28 Sep 2012 15:32:19 +0800
+From: Lai Jiangshan <laijs@cn.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/4] memory-hotplug: add memory_block_release
-References: <1348724705-23779-1-git-send-email-wency@cn.fujitsu.com> <1348724705-23779-2-git-send-email-wency@cn.fujitsu.com> <CAEkdkmVW5wwG4_cy0yHFNVmk2bzAqzo2adRsMn1yHOW9Ex98_g@mail.gmail.com> <5064EE3F.3080606@jp.fujitsu.com> <CAHGf_=pDn852sRadnXQMWx3rOTxGLy7876pxk1Ww4oJtkBAZbQ@mail.gmail.com> <50651D65.5080400@jp.fujitsu.com>
-In-Reply-To: <50651D65.5080400@jp.fujitsu.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Subject: Re: [PATCH 1/3] memory_hotplug: fix stale node_states[N_NORMAL_MEMORY]
+References: <1348728470-5580-1-git-send-email-laijs@cn.fujitsu.com> <1348728470-5580-2-git-send-email-laijs@cn.fujitsu.com> <50646360.5040005@gmail.com>
+In-Reply-To: <50646360.5040005@gmail.com>
 Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, wency@cn.fujitsu.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, minchan.kim@gmail.com, akpm@linux-foundation.org
+To: Ni zhan Chen <nizhan.chen@gmail.com>
+Cc: linux-kernel@vger.kernel.org, Rob Landley <rob@landley.net>, Andrew Morton <akpm@linux-foundation.org>, Jiang Liu <jiang.liu@huawei.com>, Jianguo Wu <wujianguo@huawei.com>, Kay Sievers <kay.sievers@vrfy.org>, Greg Kroah-Hartman <gregkh@suse.de>, Xishi Qiu <qiuxishi@huawei.com>, Mel Gorman <mgorman@suse.de>, linux-doc@vger.kernel.org, linux-mm@kvack.org
 
-On 09/28/2012 11:45 AM, Yasuaki Ishimatsu wrote:
-> Hi Kosaki-san,
->
-> 2012/09/28 10:35, KOSAKI Motohiro wrote:
->> On Thu, Sep 27, 2012 at 8:24 PM, Yasuaki Ishimatsu
->> <isimatu.yasuaki@jp.fujitsu.com> wrote:
->>> Hi Chen,
->>>
->>>
->>> 2012/09/27 19:20, Ni zhan Chen wrote:
->>>>
->>>> Hi Congyang,
->>>>
->>>> 2012/9/27 <wency@cn.fujitsu.com>
->>>>
->>>>> From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
->>>>>
->>>>> When calling remove_memory_block(), the function shows following 
->>>>> message
->>>>> at
->>>>> device_release().
->>>>>
->>>>> Device 'memory528' does not have a release() function, it is 
->>>>> broken and
->>>>> must
->>>>> be fixed.
->>>>>
->>>>
->>>> What's the difference between the patch and original implemetation?
->>>
->>>
->>> The implementation is for removing a memory_block. So the purpose is
->>> same as original one. But original code is bad manner. 
->>> kobject_cleanup()
->>> is called by remove_memory_block() at last. But release function for
->>> releasing memory_block is not registered. As a result, the kernel 
->>> message
->>> is shown. IMHO, memory_block should be release by the releae function.
+On 09/27/2012 10:32 PM, Ni zhan Chen wrote:
+> On 09/27/2012 02:47 PM, Lai Jiangshan wrote:
+>> Currently memory_hotplug only manages the node_states[N_HIGH_MEMORY],
+>> it forgets to manage node_states[N_NORMAL_MEMORY]. it causes
+>> node_states[N_NORMAL_MEMORY] becomes stale.
 >>
->> but your patch introduced use after free bug, if i understand correctly.
->> See unregister_memory() function. After your patch, kobject_put() call
->> release_memory_block() and kfree(). and then device_unregister() will
->> touch freed memory.
->
-> It is not correct. The kobject_put() is prepared against 
-> find_memory_block()
-> in remove_memory_block() since kobject->kref is incremented in it.
-> So release_memory_block() is called by device_unregister() correctly 
-> as follows:
+>> We add check_nodemasks_changes_online() and check_nodemasks_changes_offline()
+>> to detect whether node_states[N_HIGH_MEMORY] and node_states[N_NORMAL_MEMORY]
+>> are changed while hotpluging.
+>>
+>> Also add @status_change_nid_normal to struct memory_notify, thus
+>> the memory hotplug callbacks know whether the node_states[N_NORMAL_MEMORY]
+>> are changed.
+> 
+> I still don't understand why need care N_NORMAL_MEMORY here, could you explain
+> in details?
 
-Another issue is memory hotplug which is not associated to this patch 
-report to you:
-IIUC, function register_mem_sect_under_node should be renamed to 
-register_mem_block_under_node,
-since this function is register memory block instead of memory section.
+Hi, Chen
 
->
-> [ 1014.589008] Pid: 126, comm: kworker/0:2 Not tainted 
-> 3.6.0-rc3-enable-memory-hotremove-and-root-bridge #3
-> [ 1014.702437] Call Trace:
-> [ 1014.731684]  [<ffffffff8144d096>] release_memory_block+0x16/0x30
-> [ 1014.803581]  [<ffffffff81438587>] device_release+0x27/0xa0
-> [ 1014.869312]  [<ffffffff8133e962>] kobject_cleanup+0x82/0x1b0
-> [ 1014.937062]  [<ffffffff8133ea9d>] kobject_release+0xd/0x10
-> [ 1015.002718]  [<ffffffff8133e7ec>] kobject_put+0x2c/0x60
-> [ 1015.065271]  [<ffffffff81438107>] put_device+0x17/0x20
-> [ 1015.126794]  [<ffffffff8143918a>] device_unregister+0x2a/0x60
-> [ 1015.195578]  [<ffffffff8144d55b>] remove_memory_block+0xbb/0xf0
-> [ 1015.266434]  [<ffffffff8144d5af>] unregister_memory_section+0x1f/0x30
-> [ 1015.343532]  [<ffffffff811c0a58>] __remove_section+0x68/0x110
-> [ 1015.412318]  [<ffffffff811c0be7>] __remove_pages+0xe7/0x120
-> [ 1015.479021]  [<ffffffff81653d8c>] arch_remove_memory+0x2c/0x80
-> [ 1015.548845]  [<ffffffff8165497b>] remove_memory+0x6b/0xd0
-> [ 1015.613474]  [<ffffffff813d946c>] 
-> acpi_memory_device_remove_memory+0x48/0x73
-> [ 1015.697834]  [<ffffffff813d94c2>] acpi_memory_device_remove+0x2b/0x44
-> [ 1015.774922]  [<ffffffff813a61e4>] acpi_device_remove+0x90/0xb2
-> [ 1015.844796]  [<ffffffff8143c2fc>] __device_release_driver+0x7c/0xf0
-> [ 1015.919814]  [<ffffffff8143c47f>] device_release_driver+0x2f/0x50
-> [ 1015.992753]  [<ffffffff813a70dc>] acpi_bus_remove+0x32/0x6d
-> [ 1016.059462]  [<ffffffff813a71a8>] acpi_bus_trim+0x91/0x102
-> [ 1016.125128]  [<ffffffff813a72a1>] 
-> acpi_bus_hot_remove_device+0x88/0x16b
-> [ 1016.204295]  [<ffffffff813a2e57>] acpi_os_execute_deferred+0x27/0x34
-> [ 1016.280350]  [<ffffffff81090599>] process_one_work+0x219/0x680
-> [ 1016.350173]  [<ffffffff81090538>] ? process_one_work+0x1b8/0x680
-> [ 1016.422072]  [<ffffffff813a2e30>] ? 
-> acpi_os_wait_events_complete+0x23/0x23
-> [ 1016.504357]  [<ffffffff810923ce>] worker_thread+0x12e/0x320
-> [ 1016.571064]  [<ffffffff810922a0>] ? manage_workers+0x110/0x110
-> [ 1016.640886]  [<ffffffff810983a6>] kthread+0xc6/0xd0
-> [ 1016.699290]  [<ffffffff8167b144>] kernel_thread_helper+0x4/0x10
-> [ 1016.770149]  [<ffffffff81670bb0>] ? retint_restore_args+0x13/0x13
-> [ 1016.843165]  [<ffffffff810982e0>] ? __init_kthread_worker+0x70/0x70
-> [ 1016.918200]  [<ffffffff8167b140>] ? gs_change+0x13/0x13
->
-> Thanks,
-> Yasuaki Ishimatsu
->
+In short node_states[N_NORMAL_MEMORY] will become wrong in some situation.
+many memory management code access to this node_states[N_NORMAL_MEMORY].
+
+I will add more detail in the changelog in next round.
+
+Thanks,
+Lai
+
+> 
 >>
->> static void
->> unregister_memory(struct memory_block *memory)
->> {
->>     BUG_ON(memory->dev.bus != &memory_subsys);
+>> Signed-off-by: Lai Jiangshan <laijs@cn.fujitsu.com>
+>> ---
+>>   Documentation/memory-hotplug.txt |    5 ++-
+>>   include/linux/memory.h           |    1 +
+>>   mm/memory_hotplug.c              |   94 +++++++++++++++++++++++++++++++------
+>>   3 files changed, 83 insertions(+), 17 deletions(-)
 >>
->>     /* drop the ref. we got in remove_memory_block() */
->>     kobject_put(&memory->dev.kobj);
->>     device_unregister(&memory->dev);
->> }
->>
->
->
->
+>> diff --git a/Documentation/memory-hotplug.txt b/Documentation/memory-hotplug.txt
+>> index 6d0c251..6e6cbc7 100644
+>> --- a/Documentation/memory-hotplug.txt
+>> +++ b/Documentation/memory-hotplug.txt
+>> @@ -377,15 +377,18 @@ The third argument is passed by pointer of struct memory_notify.
+>>   struct memory_notify {
+>>          unsigned long start_pfn;
+>>          unsigned long nr_pages;
+>> +       int status_change_nid_normal;
+>>          int status_change_nid;
+>>   }
+>>     start_pfn is start_pfn of online/offline memory.
+>>   nr_pages is # of pages of online/offline memory.
+>> +status_change_nid_normal is set node id when N_NORMAL_MEMORY of nodemask
+>> +is (will be) set/clear, if this is -1, then nodemask status is not changed.
+>>   status_change_nid is set node id when N_HIGH_MEMORY of nodemask is (will be)
+>>   set/clear. It means a new(memoryless) node gets new memory by online and a
+>>   node loses all memory. If this is -1, then nodemask status is not changed.
+>> -If status_changed_nid >= 0, callback should create/discard structures for the
+>> +If status_changed_nid* >= 0, callback should create/discard structures for the
+>>   node if necessary.
+>>     --------------
+>> diff --git a/include/linux/memory.h b/include/linux/memory.h
+>> index ff9a9f8..a09216d 100644
+>> --- a/include/linux/memory.h
+>> +++ b/include/linux/memory.h
+>> @@ -53,6 +53,7 @@ int arch_get_memory_phys_device(unsigned long start_pfn);
+>>   struct memory_notify {
+>>       unsigned long start_pfn;
+>>       unsigned long nr_pages;
+>> +    int status_change_nid_normal;
+>>       int status_change_nid;
+>>   };
+>>   diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+>> index 6a5b90d..b62d429b 100644
+>> --- a/mm/memory_hotplug.c
+>> +++ b/mm/memory_hotplug.c
+>> @@ -460,6 +460,34 @@ static int online_pages_range(unsigned long start_pfn, unsigned long nr_pages,
+>>       return 0;
+>>   }
+>>   +static void check_nodemasks_changes_online(unsigned long nr_pages,
+>> +    struct zone *zone, struct memory_notify *arg)
+>> +{
+>> +    int nid = zone_to_nid(zone);
+>> +    enum zone_type zone_last = ZONE_NORMAL;
+>> +
+>> +    if (N_HIGH_MEMORY == N_NORMAL_MEMORY)
+>> +        zone_last = ZONE_MOVABLE;
+>> +
+>> +    if (zone_idx(zone) <= zone_last && !node_state(nid, N_NORMAL_MEMORY))
+>> +        arg->status_change_nid_normal = nid;
+>> +    else
+>> +        arg->status_change_nid_normal = -1;
+>> +
+>> +    if (!node_state(nid, N_HIGH_MEMORY))
+>> +        arg->status_change_nid = nid;
+>> +    else
+>> +        arg->status_change_nid = -1;
+>> +}
+>> +
+>> +static void set_nodemasks(int node, struct memory_notify *arg)
+>> +{
+>> +    if (arg->status_change_nid_normal >= 0)
+>> +        node_set_state(node, N_NORMAL_MEMORY);
+>> +
+>> +    node_set_state(node, N_HIGH_MEMORY);
+>> +}
+>> +
+>>     int __ref online_pages(unsigned long pfn, unsigned long nr_pages)
+>>   {
+>> @@ -471,13 +499,18 @@ int __ref online_pages(unsigned long pfn, unsigned long nr_pages)
+>>       struct memory_notify arg;
+>>         lock_memory_hotplug();
+>> +    /*
+>> +     * This doesn't need a lock to do pfn_to_page().
+>> +     * The section can't be removed here because of the
+>> +     * memory_block->state_mutex.
+>> +     */
+>> +    zone = page_zone(pfn_to_page(pfn));
+>> +
+>>       arg.start_pfn = pfn;
+>>       arg.nr_pages = nr_pages;
+>> -    arg.status_change_nid = -1;
+>> +    check_nodemasks_changes_online(nr_pages, zone, &arg);
+>>         nid = page_to_nid(pfn_to_page(pfn));
+>> -    if (node_present_pages(nid) == 0)
+>> -        arg.status_change_nid = nid;
+>>         ret = memory_notify(MEM_GOING_ONLINE, &arg);
+>>       ret = notifier_to_errno(ret);
+>> @@ -487,12 +520,6 @@ int __ref online_pages(unsigned long pfn, unsigned long nr_pages)
+>>           return ret;
+>>       }
+>>       /*
+>> -     * This doesn't need a lock to do pfn_to_page().
+>> -     * The section can't be removed here because of the
+>> -     * memory_block->state_mutex.
+>> -     */
+>> -    zone = page_zone(pfn_to_page(pfn));
+>> -    /*
+>>        * If this zone is not populated, then it is not in zonelist.
+>>        * This means the page allocator ignores this zone.
+>>        * So, zonelist must be updated after online.
+>> @@ -517,7 +544,7 @@ int __ref online_pages(unsigned long pfn, unsigned long nr_pages)
+>>       zone->present_pages += onlined_pages;
+>>       zone->zone_pgdat->node_present_pages += onlined_pages;
+>>       if (onlined_pages) {
+>> -        node_set_state(zone_to_nid(zone), N_HIGH_MEMORY);
+>> +        set_nodemasks(zone_to_nid(zone), &arg);
+>>           if (need_zonelists_rebuild)
+>>               build_all_zonelists(NULL, zone);
+>>           else
+>> @@ -870,6 +897,44 @@ check_pages_isolated(unsigned long start_pfn, unsigned long end_pfn)
+>>       return offlined;
+>>   }
+>>   +static void check_nodemasks_changes_offline(unsigned long nr_pages,
+>> +        struct zone *zone, struct memory_notify *arg)
+>> +{
+>> +    struct pglist_data *pgdat = zone->zone_pgdat;
+>> +    unsigned long present_pages = 0;
+>> +    enum zone_type zt, zone_last = ZONE_NORMAL;
+>> +
+>> +    if (N_HIGH_MEMORY == N_NORMAL_MEMORY)
+>> +        zone_last = ZONE_MOVABLE;
+>> +
+>> +    for (zt = 0; zt <= zone_last; zt++)
+>> +        present_pages += pgdat->node_zones[zt].present_pages;
+>> +    if (zone_idx(zone) <= zone_last && nr_pages >= present_pages)
+>> +        arg->status_change_nid_normal = zone_to_nid(zone);
+>> +    else
+>> +        arg->status_change_nid_normal = -1;
+>> +
+>> +    zone_last = ZONE_MOVABLE;
+>> +    for (; zt <= zone_last; zt++)
+>> +        present_pages += pgdat->node_zones[zt].present_pages;
+>> +    if (nr_pages >= present_pages)
+>> +        arg->status_change_nid = zone_to_nid(zone);
+>> +    else
+>> +        arg->status_change_nid = -1;
+>> +}
+>> +
+>> +static void clear_nodemasks(int node, struct memory_notify *arg)
+>> +{
+>> +    if (arg->status_change_nid_normal >= 0)
+>> +        node_clear_state(node, N_NORMAL_MEMORY);
+>> +
+>> +    if (N_HIGH_MEMORY == N_NORMAL_MEMORY)
+>> +        return;
+>> +
+>> +    if (arg->status_change_nid >= 0)
+>> +        node_clear_state(node, N_HIGH_MEMORY);
+>> +}
+>> +
+>>   static int __ref offline_pages(unsigned long start_pfn,
+>>             unsigned long end_pfn, unsigned long timeout)
+>>   {
+>> @@ -903,9 +968,7 @@ static int __ref offline_pages(unsigned long start_pfn,
+>>         arg.start_pfn = start_pfn;
+>>       arg.nr_pages = nr_pages;
+>> -    arg.status_change_nid = -1;
+>> -    if (nr_pages >= node_present_pages(node))
+>> -        arg.status_change_nid = node;
+>> +    check_nodemasks_changes_offline(nr_pages, zone, &arg);
+>>         ret = memory_notify(MEM_GOING_OFFLINE, &arg);
+>>       ret = notifier_to_errno(ret);
+>> @@ -973,10 +1036,9 @@ repeat:
+>>       if (!populated_zone(zone))
+>>           zone_pcp_reset(zone);
+>>   -    if (!node_present_pages(node)) {
+>> -        node_clear_state(node, N_HIGH_MEMORY);
+>> +    clear_nodemasks(node, &arg);
+>> +    if (arg.status_change_nid >= 0)
+>>           kswapd_stop(node);
+>> -    }
+>>         vm_total_pages = nr_free_pagecache_pages();
+>>       writeback_set_ratelimit();
+> 
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
