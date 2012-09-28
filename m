@@ -1,72 +1,142 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
-	by kanga.kvack.org (Postfix) with SMTP id 875946B005D
-	for <linux-mm@kvack.org>; Thu, 27 Sep 2012 23:21:49 -0400 (EDT)
-Received: by obcva7 with SMTP id va7so3141774obc.14
-        for <linux-mm@kvack.org>; Thu, 27 Sep 2012 20:21:48 -0700 (PDT)
-Message-ID: <506517C1.7050909@gmail.com>
-Date: Fri, 28 Sep 2012 11:21:37 +0800
+Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
+	by kanga.kvack.org (Postfix) with SMTP id 9EFE06B005D
+	for <linux-mm@kvack.org>; Thu, 27 Sep 2012 23:37:38 -0400 (EDT)
+Received: by obcva7 with SMTP id va7so3151754obc.14
+        for <linux-mm@kvack.org>; Thu, 27 Sep 2012 20:37:37 -0700 (PDT)
+Message-ID: <50651B77.1070809@gmail.com>
+Date: Fri, 28 Sep 2012 11:37:27 +0800
 From: Ni zhan Chen <nizhan.chen@gmail.com>
 MIME-Version: 1.0
-Subject: Re: [RFC v9 PATCH 03/21] memory-hotplug: store the node id in acpi_memory_device
-References: <1346837155-534-1-git-send-email-wency@cn.fujitsu.com> <1346837155-534-4-git-send-email-wency@cn.fujitsu.com>
-In-Reply-To: <1346837155-534-4-git-send-email-wency@cn.fujitsu.com>
+Subject: Re: [RFC v9 PATCH 05/21] memory-hotplug: check whether memory is
+ present or not
+References: <1346837155-534-1-git-send-email-wency@cn.fujitsu.com> <1346837155-534-6-git-send-email-wency@cn.fujitsu.com> <504E9EBE.1040403@cn.fujitsu.com> <504EA0F7.5090805@jp.fujitsu.com>
+In-Reply-To: <504EA0F7.5090805@jp.fujitsu.com>
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: wency@cn.fujitsu.com
-Cc: x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-ia64@vger.kernel.org, cmetcalf@tilera.com, sparclinux@vger.kernel.org, rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com
+To: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+Cc: Wen Congyang <wency@cn.fujitsu.com>, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-ia64@vger.kernel.org, cmetcalf@tilera.com, sparclinux@vger.kernel.org, rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com
 
-On 09/05/2012 05:25 PM, wency@cn.fujitsu.com wrote:
-> From: Wen Congyang <wency@cn.fujitsu.com>
+On 09/11/2012 10:24 AM, Yasuaki Ishimatsu wrote:
+> Hi Wen,
 >
-> The memory device has only one node id. Store the node id when
-> enable the memory device, and we can reuse it when removing the
-> memory device.
+> 2012/09/11 11:15, Wen Congyang wrote:
+>> Hi, ishimatsu
+>>
+>> At 09/05/2012 05:25 PM, wency@cn.fujitsu.com Wrote:
+>>> From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+>>>
+>>> If system supports memory hot-remove, online_pages() may online 
+>>> removed pages.
+>>> So online_pages() need to check whether onlining pages are present 
+>>> or not.
+>>
+>> Because we use memory_block_change_state() to hotremoving memory, I 
+>> think
+>> this patch can be removed. What do you think?
+>
+> Pleae teach me detals a little more. If we use 
+> memory_block_change_state(),
+> does the conflict never occur? Why?
 
-one question:
-if use numa emulation, memory device will associated to one node or ...?
+since memory hot-add or hot-remove is based on memblock, if check in 
+memory_block_change_state()
+can guarantee conflict never occur?
 
 >
-> CC: David Rientjes <rientjes@google.com>
-> CC: Jiang Liu <liuj97@gmail.com>
-> CC: Len Brown <len.brown@intel.com>
-> CC: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-> CC: Paul Mackerras <paulus@samba.org>
-> CC: Christoph Lameter <cl@linux.com>
-> Cc: Minchan Kim <minchan.kim@gmail.com>
-> CC: Andrew Morton <akpm@linux-foundation.org>
-> CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> CC: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-> Signed-off-by: Wen Congyang <wency@cn.fujitsu.com>
-> Reviewed-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-> ---
->   drivers/acpi/acpi_memhotplug.c |    4 ++++
->   1 files changed, 4 insertions(+), 0 deletions(-)
+> Thansk,
+> Yasuaki Ishimatsu
 >
-> diff --git a/drivers/acpi/acpi_memhotplug.c b/drivers/acpi/acpi_memhotplug.c
-> index 2a7beac..7873832 100644
-> --- a/drivers/acpi/acpi_memhotplug.c
-> +++ b/drivers/acpi/acpi_memhotplug.c
-> @@ -83,6 +83,7 @@ struct acpi_memory_info {
->   struct acpi_memory_device {
->   	struct acpi_device * device;
->   	unsigned int state;	/* State of the memory device */
-> +	int nid;
->   	struct list_head res_list;
->   };
->   
-> @@ -256,6 +257,9 @@ static int acpi_memory_enable_device(struct acpi_memory_device *mem_device)
->   		info->enabled = 1;
->   		num_enabled++;
->   	}
-> +
-> +	mem_device->nid = node;
-> +
->   	if (!num_enabled) {
->   		printk(KERN_ERR PREFIX "add_memory failed\n");
->   		mem_device->state = MEMORY_INVALID_STATE;
+>> Thanks
+>> Wen Congyang
+>>
+>>>
+>>> CC: David Rientjes <rientjes@google.com>
+>>> CC: Jiang Liu <liuj97@gmail.com>
+>>> CC: Len Brown <len.brown@intel.com>
+>>> CC: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+>>> CC: Paul Mackerras <paulus@samba.org>
+>>> CC: Christoph Lameter <cl@linux.com>
+>>> Cc: Minchan Kim <minchan.kim@gmail.com>
+>>> CC: Andrew Morton <akpm@linux-foundation.org>
+>>> CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+>>> CC: Wen Congyang <wency@cn.fujitsu.com>
+>>> Signed-off-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+>>> ---
+>>>   include/linux/mmzone.h |   19 +++++++++++++++++++
+>>>   mm/memory_hotplug.c    |   13 +++++++++++++
+>>>   2 files changed, 32 insertions(+), 0 deletions(-)
+>>>
+>>> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+>>> index 2daa54f..ac3ae30 100644
+>>> --- a/include/linux/mmzone.h
+>>> +++ b/include/linux/mmzone.h
+>>> @@ -1180,6 +1180,25 @@ void sparse_init(void);
+>>>   #define sparse_index_init(_sec, _nid)  do {} while (0)
+>>>   #endif /* CONFIG_SPARSEMEM */
+>>>
+>>> +#ifdef CONFIG_SPARSEMEM
+>>> +static inline int pfns_present(unsigned long pfn, unsigned long 
+>>> nr_pages)
+>>> +{
+>>> +    int i;
+>>> +    for (i = 0; i < nr_pages; i++) {
+>>> +        if (pfn_present(pfn + i))
+>>> +            continue;
+>>> +        else
+>>> +            return -EINVAL;
+>>> +    }
+>>> +    return 0;
+>>> +}
+>>> +#else
+>>> +static inline int pfns_present(unsigned long pfn, unsigned long 
+>>> nr_pages)
+>>> +{
+>>> +    return 0;
+>>> +}
+>>> +#endif /* CONFIG_SPARSEMEM*/
+>>> +
+>>>   #ifdef CONFIG_NODES_SPAN_OTHER_NODES
+>>>   bool early_pfn_in_nid(unsigned long pfn, int nid);
+>>>   #else
+>>> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+>>> index 49f7747..299747d 100644
+>>> --- a/mm/memory_hotplug.c
+>>> +++ b/mm/memory_hotplug.c
+>>> @@ -467,6 +467,19 @@ int __ref online_pages(unsigned long pfn, 
+>>> unsigned long nr_pages)
+>>>       struct memory_notify arg;
+>>>
+>>>       lock_memory_hotplug();
+>>> +    /*
+>>> +     * If system supports memory hot-remove, the memory may have been
+>>> +     * removed. So we check whether the memory has been removed or 
+>>> not.
+>>> +     *
+>>> +     * Note: When CONFIG_SPARSEMEM is defined, pfns_present() become
+>>> +     *       effective. If CONFIG_SPARSEMEM is not defined, 
+>>> pfns_present()
+>>> +     *       always returns 0.
+>>> +     */
+>>> +    ret = pfns_present(pfn, nr_pages);
+>>> +    if (ret) {
+>>> +        unlock_memory_hotplug();
+>>> +        return ret;
+>>> +    }
+>>>       arg.start_pfn = pfn;
+>>>       arg.nr_pages = nr_pages;
+>>>       arg.status_change_nid = -1;
+>>
+>
+>
+> -- 
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
