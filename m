@@ -1,123 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
-	by kanga.kvack.org (Postfix) with SMTP id 8CFCB6B0068
-	for <linux-mm@kvack.org>; Fri, 28 Sep 2012 03:37:17 -0400 (EDT)
-Message-ID: <50655433.7000108@cn.fujitsu.com>
-Date: Fri, 28 Sep 2012 15:39:31 +0800
-From: Lai Jiangshan <laijs@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
+	by kanga.kvack.org (Postfix) with SMTP id 8A2C56B0068
+	for <linux-mm@kvack.org>; Fri, 28 Sep 2012 03:43:14 -0400 (EDT)
+Received: by oagk14 with SMTP id k14so3394867oag.14
+        for <linux-mm@kvack.org>; Fri, 28 Sep 2012 00:43:13 -0700 (PDT)
+Message-ID: <50655558.5010500@ti.com>
+Date: Fri, 28 Sep 2012 10:44:24 +0300
+From: Peter Ujfalusi <peter.ujfalusi@ti.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 3/3] memory_hotplug: Don't modify the zone_start_pfn outside
- of zone_span_writelock()
-References: <1348728470-5580-1-git-send-email-laijs@cn.fujitsu.com> <1348728470-5580-4-git-send-email-laijs@cn.fujitsu.com> <5064D391.5080102@gmail.com>
-In-Reply-To: <5064D391.5080102@gmail.com>
-Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset=UTF-8
+Subject: Re: CMA broken in next-20120926
+References: <20120927112911.GA25959@avionic-0098.mockup.avionic-design.de> <20120927151159.4427fc8f.akpm@linux-foundation.org> <20120928054330.GA27594@bbox>
+In-Reply-To: <20120928054330.GA27594@bbox>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-Cc: linux-kernel@vger.kernel.org, Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, Jiang Liu <jiang.liu@huawei.com>, Xishi Qiu <qiuxishi@huawei.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Thierry Reding <thierry.reding@avionic-design.de>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>, Mark Brown <broonie@opensource.wolfsonmicro.com>, Mel Gorman <mgorman@suse.de>
 
-Hi, KOSAKI
-
-On 09/28/2012 06:30 AM, KOSAKI Motohiro wrote:
-> (9/27/12 2:47 AM), Lai Jiangshan wrote:
->> The __add_zone() maybe call sleep-able init_currently_empty_zone()
->> to init wait_table,
+On 09/28/2012 08:43 AM, Minchan Kim wrote:
+> From 24a547855fa2bd4212a779cc73997837148310b3 Mon Sep 17 00:00:00 2001
+> From: Minchan Kim <minchan@kernel.org>
+> Date: Fri, 28 Sep 2012 14:28:32 +0900
+> Subject: [PATCH] revert mm: compaction: iron out isolate_freepages_block()
+>  and isolate_freepages_range()
 > 
-> This doesn't explain why sleepable is critical important. I think sleepable
-> is jsut unrelated. The fact is only: to write zone->zone_start_pfn require
-> zone_span_writelock, but init_currently_empty_zone() doesn't take it.
+> [1] made bug on CMA.
+> The nr_scanned should be never equal to total_isolated for successful CMA.
+> This patch reverts part of the patch.
+> 
+> [1] mm: compaction: iron out isolate_freepages_block() and isolate_freepages_range()
 
-You are right, sleepable is not critical important, but the lock is critical.
+With this patch applied on top of today's linux-next CMA enabled kernel works
+fine on OMAP platforms (without the patch audio was not working because
+dma_alloc_writecombine() was failing, probably other things were broken as well).
+Thank you for the quick fix!
 
-I am Sorry that I added "sleep-able" and misled guys.
-
-Actually I want to say:
-
-1) to write zone->zone_start_pfn require zone_span_writelock
-2) init_currently_empty_zone() is sleepable, so we can't use zone_span_writelock()
-   protect the whole init_currently_empty_zone().
-3) so we have to move the modification code out of init_currently_empty_zone()
-   as this patch does.
+Tested-by: Peter Ujfalusi <peter.ujfalusi@ti.com>
 
 > 
+> Cc: Mel Gorman <mgorman@suse.de>
+> Signed-off-by: Minchan Kim <minchan@kernel.org>
+> ---
+>  mm/compaction.c |   29 ++++++++++++++++-------------
+>  1 file changed, 16 insertions(+), 13 deletions(-)
 > 
->>
->> But this function also modifies the zone_start_pfn without any lock.
->> It is bugy.
+> diff --git a/mm/compaction.c b/mm/compaction.c
+> index 5037399..7721197 100644
+> --- a/mm/compaction.c
+> +++ b/mm/compaction.c
+> @@ -269,13 +269,14 @@ static unsigned long isolate_freepages_block(struct compact_control *cc,
+>  		int isolated, i;
+>  		struct page *page = cursor;
+>  
+> -		nr_scanned++;
+>  		if (!pfn_valid_within(blockpfn))
+> -			continue;
+> +			goto strict_check;
+> +		nr_scanned++;
+> +
+>  		if (!valid_page)
+>  			valid_page = page;
+>  		if (!PageBuddy(page))
+> -			continue;
+> +			goto strict_check;
+>  
+>  		/*
+>  		 * The zone lock must be held to isolate freepages.
+> @@ -296,12 +297,12 @@ static unsigned long isolate_freepages_block(struct compact_control *cc,
+>  
+>  		/* Recheck this is a buddy page under lock */
+>  		if (!PageBuddy(page))
+> -			continue;
+> +			goto strict_check;
+>  
+>  		/* Found a free page, break it into order-0 pages */
+>  		isolated = split_free_page(page);
+>  		if (!isolated && strict)
+> -			break;
+> +			goto strict_check;
+>  		total_isolated += isolated;
+>  		for (i = 0; i < isolated; i++) {
+>  			list_add(&page->lru, freelist);
+> @@ -313,18 +314,20 @@ static unsigned long isolate_freepages_block(struct compact_control *cc,
+>  			blockpfn += isolated - 1;
+>  			cursor += isolated - 1;
+>  		}
+> +
+> +		continue;
+> +
+> +strict_check:
+> +		/* Abort isolation if the caller requested strict isolation */
+> +		if (strict) {
+> +			total_isolated = 0;
+> +			goto out;
+> +		}
+>  	}
+>  
+>  	trace_mm_compaction_isolate_freepages(nr_scanned, total_isolated);
+>  
+> -	/*
+> -	 * If strict isolation is requested by CMA then check that all the
+> -	 * pages scanned were isolated. If there were any failures, 0 is
+> -	 * returned and CMA will fail.
+> -	 */
+> -	if (strict && nr_scanned != total_isolated)
+> -		total_isolated = 0;
+> -
+> +out:
+>  	if (locked)
+>  		spin_unlock_irqrestore(&cc->zone->lock, flags);
+>  
 > 
-> buggy?
-> 
-> 
->> So we move this modification out, and we ensure the modification
->> of zone_start_pfn is only done with zone_span_writelock() held or in booting.
->>
->> Since zone_start_pfn is not modified by init_currently_empty_zone()
->> grow_zone_span() needs to check zone_start_pfn before update it.
->>
->> CC: Mel Gorman <mel@csn.ul.ie>
->> Signed-off-by: Lai Jiangshan <laijs@cn.fujitsu.com>
->> Reported-by: Yasuaki ISIMATU <isimatu.yasuaki@jp.fujitsu.com>
->> Tested-by: Wen Congyang <wency@cn.fujitsu.com>
->> ---
->>  mm/memory_hotplug.c |    2 +-
->>  mm/page_alloc.c     |    3 +--
->>  2 files changed, 2 insertions(+), 3 deletions(-)
->>
->> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
->> index b62d429b..790561f 100644
->> --- a/mm/memory_hotplug.c
->> +++ b/mm/memory_hotplug.c
->> @@ -205,7 +205,7 @@ static void grow_zone_span(struct zone *zone, unsigned long start_pfn,
->>  	zone_span_writelock(zone);
->>  
->>  	old_zone_end_pfn = zone->zone_start_pfn + zone->spanned_pages;
->> -	if (start_pfn < zone->zone_start_pfn)
->> +	if (!zone->zone_start_pfn || start_pfn < zone->zone_start_pfn)
->>  		zone->zone_start_pfn = start_pfn;
-> 
-> Wrong. zone->zone_start_pfn==0 may be valid pfn. You shouldn't assume it is uninitialized
-> value.
 
-Good catch, I will use zone->spanned_pages instead.
 
-
-Thanks,
-Lai
-
-> 
-> 
->>  
->>  	zone->spanned_pages = max(old_zone_end_pfn, end_pfn) -
->> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
->> index c13ea75..2545013 100644
->> --- a/mm/page_alloc.c
->> +++ b/mm/page_alloc.c
->> @@ -3997,8 +3997,6 @@ int __meminit init_currently_empty_zone(struct zone *zone,
->>  		return ret;
->>  	pgdat->nr_zones = zone_idx(zone) + 1;
->>  
->> -	zone->zone_start_pfn = zone_start_pfn;
->> -
->>  	mminit_dprintk(MMINIT_TRACE, "memmap_init",
->>  			"Initialising map node %d zone %lu pfns %lu -> %lu\n",
->>  			pgdat->node_id,
->> @@ -4465,6 +4463,7 @@ static void __paginginit free_area_init_core(struct pglist_data *pgdat,
->>  		ret = init_currently_empty_zone(zone, zone_start_pfn,
->>  						size, MEMMAP_EARLY);
->>  		BUG_ON(ret);
->> +		zone->zone_start_pfn = zone_start_pfn;
->>  		memmap_init(size, nid, j, zone_start_pfn);
->>  		zone_start_pfn += size;
->>  	}
->>
-> 
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
-> 
+-- 
+Peter
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
