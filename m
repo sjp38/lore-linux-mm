@@ -1,46 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
-	by kanga.kvack.org (Postfix) with SMTP id A6BC96B0068
-	for <linux-mm@kvack.org>; Fri, 28 Sep 2012 04:34:10 -0400 (EDT)
-Date: Fri, 28 Sep 2012 16:34:05 +0800
-From: Fengguang Wu <fengguang.wu@intel.com>
-Subject: [PATCH] slub: init_kmem_cache_cpus() and put_cpu_partial() can be
- static
-Message-ID: <20120928083405.GA23740@localhost>
+Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
+	by kanga.kvack.org (Postfix) with SMTP id 7C1746B0068
+	for <linux-mm@kvack.org>; Fri, 28 Sep 2012 04:37:29 -0400 (EDT)
+Date: Fri, 28 Sep 2012 09:37:22 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: CMA broken in next-20120926
+Message-ID: <20120928083722.GM3429@suse.de>
+References: <20120927112911.GA25959@avionic-0098.mockup.avionic-design.de>
+ <20120927151159.4427fc8f.akpm@linux-foundation.org>
+ <20120928054330.GA27594@bbox>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
+In-Reply-To: <20120928054330.GA27594@bbox>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pekka Enberg <penberg@kernel.org>
-Cc: Christoph Lameter <cl@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Glauber Costa <glommer@parallels.com>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Thierry Reding <thierry.reding@avionic-design.de>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>, Mark Brown <broonie@opensource.wolfsonmicro.com>, Peter Ujfalusi <peter.ujfalusi@ti.com>
 
-Acked-by: Glauber Costa <glommer@parallels.com>
-Signed-off-by: Fengguang Wu <fengguang.wu@intel.com>
+> I hope this patch fixes the bug. If this patch fixes the problem
+> but has some problem about description or someone has better idea,
+> feel free to modify and resend to akpm, Please.
+> 
+
+A full revert is overkill. Can the following patch be tested as a
+potential replacement please?
+
+---8<---
+mm: compaction: Iron out isolate_freepages_block() and isolate_freepages_range() -fix1
+
+CMA is reported to be broken in next-20120926. Minchan Kim pointed out
+that this was due to nr_scanned != total_isolated in the case of CMA
+because PageBuddy pages are one scan but many isolations in CMA. This
+patch should address the problem.
+
+This patch is a fix for
+mm-compaction-acquire-the-zone-lock-as-late-as-possible-fix-2.patch
+
+Signed-off-by: Mel Gorman <mgorman@suse.de>
 ---
- mm/slub.c |    4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ mm/compaction.c |    5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
 
---- linux.orig/mm/slub.c	2012-09-24 10:22:11.000000000 +0800
-+++ linux/mm/slub.c	2012-09-28 16:31:31.987092387 +0800
-@@ -1709,7 +1709,7 @@ static inline void note_cmpxchg_failure(
- 	stat(s, CMPXCHG_DOUBLE_CPU_FAIL);
- }
- 
--void init_kmem_cache_cpus(struct kmem_cache *s)
-+static void init_kmem_cache_cpus(struct kmem_cache *s)
+diff --git a/mm/compaction.c b/mm/compaction.c
+index 8250b69..d6e260a 100644
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -282,6 +282,7 @@ static unsigned long isolate_freepages_block(struct compact_control *cc,
  {
- 	int cpu;
+ 	int nr_scanned = 0, total_isolated = 0;
+ 	struct page *cursor, *valid_page = NULL;
++	unsigned long nr_strict_required = end_pfn - blockpfn;
+ 	unsigned long flags;
+ 	bool locked = false;
  
-@@ -1934,7 +1934,7 @@ static void unfreeze_partials(struct kme
-  * If we did not find a slot then simply move all the partials to the
-  * per node partial list.
-  */
--int put_cpu_partial(struct kmem_cache *s, struct page *page, int drain)
-+static int put_cpu_partial(struct kmem_cache *s, struct page *page, int drain)
- {
- 	struct page *oldpage;
- 	int pages;
+@@ -343,10 +344,10 @@ static unsigned long isolate_freepages_block(struct compact_control *cc,
+ 
+ 	/*
+ 	 * If strict isolation is requested by CMA then check that all the
+-	 * pages scanned were isolated. If there were any failures, 0 is
++	 * pages requested were isolated. If there were any failures, 0 is
+ 	 * returned and CMA will fail.
+ 	 */
+-	if (strict && nr_scanned != total_isolated)
++	if (strict && nr_strict_required != total_isolated)
+ 		total_isolated = 0;
+ 
+ 	if (locked)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
