@@ -1,34 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx127.postini.com [74.125.245.127])
-	by kanga.kvack.org (Postfix) with SMTP id 45D6C6B006C
-	for <linux-mm@kvack.org>; Fri, 28 Sep 2012 17:20:31 -0400 (EDT)
-Date: Fri, 28 Sep 2012 21:20:30 +0000
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH] slab: Ignore internal flags in cache creation
-In-Reply-To: <alpine.DEB.2.00.1209281336380.21335@chino.kir.corp.google.com>
-Message-ID: <0000013a0ec088ee-69089a7c-125f-4e80-9881-e66ab96ab59d-000000@email.amazonses.com>
-References: <1348571866-31738-1-git-send-email-glommer@parallels.com> <00000139fe408877-40bc98e3-322c-4ba2-be72-e298ff28e694-000000@email.amazonses.com> <alpine.DEB.2.00.1209251744580.22521@chino.kir.corp.google.com> <5062C029.308@parallels.com>
- <alpine.DEB.2.00.1209261813300.7072@chino.kir.corp.google.com> <5063F94C.4090600@parallels.com> <alpine.DEB.2.00.1209271552350.13360@chino.kir.corp.google.com> <0000013a0d390e11-03bf6f97-a8b7-4229-9f69-84aa85795b7e-000000@email.amazonses.com>
- <alpine.DEB.2.00.1209281336380.21335@chino.kir.corp.google.com>
+Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
+	by kanga.kvack.org (Postfix) with SMTP id 4BA4F6B006C
+	for <linux-mm@kvack.org>; Fri, 28 Sep 2012 18:19:59 -0400 (EDT)
+Received: by vbkv13 with SMTP id v13so4620297vbk.14
+        for <linux-mm@kvack.org>; Fri, 28 Sep 2012 15:19:58 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <5065740A.2000502@jp.fujitsu.com>
+References: <1348724705-23779-1-git-send-email-wency@cn.fujitsu.com>
+ <1348724705-23779-3-git-send-email-wency@cn.fujitsu.com> <CAHGf_=rLMsmAxR5hrDVXjkHAxmupVrmtqE3iq2qu=O9Prp4nSg@mail.gmail.com>
+ <5064EA5A.3080905@jp.fujitsu.com> <CAHGf_=qbBGjTL9oBHz7AM8BAosbzvn_WAGdAzJ8np-nDPN_KFQ@mail.gmail.com>
+ <5064FDCA.1020504@jp.fujitsu.com> <CAHGf_=r+oz0GS137e81EySbN-3KVmQisF8sySiCUYUas1RZLtQ@mail.gmail.com>
+ <5065740A.2000502@jp.fujitsu.com>
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Date: Fri, 28 Sep 2012 18:19:36 -0400
+Message-ID: <CAHGf_=o_FLsEULK3s1+zD-A0FL5QvKnX542Lz4vCwVVV2fYNRw@mail.gmail.com>
+Subject: Re: [PATCH 2/4] memory-hotplug: add node_device_release
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Glauber Costa <glommer@parallels.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michal Hocko <mhocko@suse.cz>, Pekka Enberg <penberg@cs.helsinki.fi>
+To: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+Cc: wency@cn.fujitsu.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, minchan.kim@gmail.com, akpm@linux-foundation.org
 
-On Fri, 28 Sep 2012, David Rientjes wrote:
+>>> I don't understand it. How can we get rid of the warning?
+>>
+>> See cpu_device_release() for example.
+>
+> If we implement a function like cpu_device_release(), the warning
+> disappears. But the comment says in the function "Never copy this way...".
+> So I think it is illegal way.
 
-> The first prototype, SLAM XP1, will be posted in October.  I'd simply like
-> to avoid reverting this patch down the road and having all of us
-> reconsider the topic again when clear alternatives exist that, in my
-> opinion, make the code cleaner.
+What does "illegal" mean?
+You still haven't explain any benefit of your code. If there is zero
+benefit, just kill it.
+I believe everybody think so.
 
-If you want to make changes to the kernel then you need to justify that at
-the time when we can consider your patches and the approach taken.
-
+Again, Which benefit do you have?
 
 
+>>>> Why do we need this node_device_release() implementation?
+>>>
+>>> I think that this is a manner of releasing object related kobject.
+>>
+>> No.  Usually we never call memset() from release callback.
+>
+> What we want to release is a part of array, not a pointer.
+> Therefore, there is only this way instead of kfree().
+
+Why? Before your patch, we don't have memset() and did work it.
+I can't understand what mean "only way".
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
