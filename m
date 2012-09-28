@@ -1,50 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx165.postini.com [74.125.245.165])
-	by kanga.kvack.org (Postfix) with SMTP id C9EC96B0068
-	for <linux-mm@kvack.org>; Fri, 28 Sep 2012 12:40:03 -0400 (EDT)
-Date: Fri, 28 Sep 2012 16:40:02 +0000
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH] make GFP_NOTRACK flag unconditional
-In-Reply-To: <5065B42F.5010007@parallels.com>
-Message-ID: <0000013a0dbfc498-6debffd5-cd68-404c-92a4-4f88d40cf41b-000000@email.amazonses.com>
-References: <1348826194-21781-1-git-send-email-glommer@parallels.com> <0000013a0d475174-343e3b17-6755-42c1-9dae-a9287ad7d403-000000@email.amazonses.com> <5065B42F.5010007@parallels.com>
+Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
+	by kanga.kvack.org (Postfix) with SMTP id A3C2B6B0068
+	for <linux-mm@kvack.org>; Fri, 28 Sep 2012 12:45:13 -0400 (EDT)
+Received: by oagk14 with SMTP id k14so4033600oag.14
+        for <linux-mm@kvack.org>; Fri, 28 Sep 2012 09:45:12 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <50656733.3040609@gmail.com>
+References: <1340959739.2936.28.camel@lappy> <CA+1xoqdgKV_sEWvUbuxagL9JEc39ZFa6X9-acP7j-M7wvW6qbQ@mail.gmail.com>
+ <CA+55aFzJCLxVP+WYJM-gq=aXx5gmdgwC7=_Gr2Tooj8q+Dz4dw@mail.gmail.com>
+ <1347057778.26695.68.camel@sbsiddha-desk.sc.intel.com> <CA+55aFwW9Q+DM2gZy7r3JQJbrbMNR6sN+jewc2CY0i1wD_X=Tw@mail.gmail.com>
+ <1347062045.26695.82.camel@sbsiddha-desk.sc.intel.com> <CA+55aFzeKcV5hROLJE31dNi3SEs+s6o0LL=96Kh8QGHPx=aZnA@mail.gmail.com>
+ <1347202600.5876.7.camel@sbsiddha-ivb> <505068F4.4080309@gmail.com>
+ <50506A6C.30109@gmail.com> <50656733.3040609@gmail.com>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Fri, 28 Sep 2012 09:44:51 -0700
+Message-ID: <CA+55aFyWdxD4Qb9PuPKKx_Ww_khYkWg1s-3QWVUwsTSXSUMG5w@mail.gmail.com>
+Subject: Re: mtd: kernel BUG at arch/x86/mm/pat.c:279!
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>
+To: Sasha Levin <levinsasha928@gmail.com>
+Cc: suresh.b.siddha@intel.com, Andrew Morton <akpm@linux-foundation.org>, dwmw2@infradead.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mtd@lists.infradead.org, linux-mm <linux-mm@kvack.org>, Dave Jones <davej@redhat.com>
 
-On Fri, 28 Sep 2012, Glauber Costa wrote:
-
-> On 09/28/2012 06:28 PM, Christoph Lameter wrote:
-> > On Fri, 28 Sep 2012, Glauber Costa wrote:
-> >
-> >> There was a general sentiment in a recent discussion (See
-> >> https://lkml.org/lkml/2012/9/18/258) that the __GFP flags should be
-> >> defined unconditionally. Currently, the only offender is GFP_NOTRACK,
-> >> which is conditional to KMEMCHECK.
-> >>
-> >> This simple patch makes it unconditional.
-> >
-> > __GFP_NOTRACK is only used in context where CONFIG_KMEMCHECK is defined?
-> >
-> > If that is not the case then you need to define GFP_NOTRACK and substitute
-> > it where necessary.
-> >
+On Fri, Sep 28, 2012 at 2:00 AM, Sasha Levin <levinsasha928@gmail.com> wrote:
 >
-> The flag is passed around extensively, but I was imagining the whole
-> point of that is that having the flag itself is harmless, and will be
-> ignored by the page allocator ?
+> Is anyone planning on picking up Linus' patch? This is still not in -next even.
 
-Looking through it shows almost nothing that is affected.
+I was really hoping it would go through the regular channels and come
+back to me that way, since I can't really test it, and it's bigger
+than the trivial obvious one-liners that I'm happy to commit.
 
-One thing though is that defining __GFP_NOTRACK to 0 eliminates an "or"
-operation in alloc_slab_page().
+Hmm.
 
-That is already on the slob path so I guess that is minimal
-
-Acked-by: Christoph Lameter <cl@linux.com>
+           Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
