@@ -1,69 +1,166 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
-	by kanga.kvack.org (Postfix) with SMTP id E28476B0068
-	for <linux-mm@kvack.org>; Thu, 27 Sep 2012 22:00:31 -0400 (EDT)
-Message-ID: <5065005A.4020907@cn.fujitsu.com>
-Date: Fri, 28 Sep 2012 09:41:46 +0800
-From: Wen Congyang <wency@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
+	by kanga.kvack.org (Postfix) with SMTP id E1E6B6B0068
+	for <linux-mm@kvack.org>; Thu, 27 Sep 2012 22:22:40 -0400 (EDT)
+Received: by ied10 with SMTP id 10so7645390ied.14
+        for <linux-mm@kvack.org>; Thu, 27 Sep 2012 19:22:40 -0700 (PDT)
+Message-ID: <506509E4.1090000@gmail.com>
+Date: Fri, 28 Sep 2012 10:22:28 +0800
+From: Ni zhan Chen <nizhan.chen@gmail.com>
 MIME-Version: 1.0
-Subject: Re: [RFC v9 PATCH 00/21] memory-hotplug: hot-remove physical memory
-References: <1346837155-534-1-git-send-email-wency@cn.fujitsu.com> <20120926164649.GA7559@dhcp-192-168-178-175.profitbricks.localdomain> <5063F41A.3010600@cn.fujitsu.com> <20120927103557.GA30772@dhcp-192-168-178-175.profitbricks.localdomain>
-In-Reply-To: <20120927103557.GA30772@dhcp-192-168-178-175.profitbricks.localdomain>
+Subject: Re: [RFC v9 PATCH 01/21] memory-hotplug: rename remove_memory() to
+ offline_memory()/offline_pages()
+References: <1346837155-534-1-git-send-email-wency@cn.fujitsu.com> <1346837155-534-2-git-send-email-wency@cn.fujitsu.com>
+In-Reply-To: <1346837155-534-2-git-send-email-wency@cn.fujitsu.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>
+To: wency@cn.fujitsu.com
 Cc: x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-ia64@vger.kernel.org, cmetcalf@tilera.com, sparclinux@vger.kernel.org, rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com
 
-At 09/27/2012 06:35 PM, Vasilis Liaskovitis Wrote:
-> On Thu, Sep 27, 2012 at 02:37:14PM +0800, Wen Congyang wrote:
->> Hi Vasilis Liaskovitis
->>
->> At 09/27/2012 12:46 AM, Vasilis Liaskovitis Wrote:
->>> Hi,
->>>
->>> I am testing 3.6.0-rc7 with this v9 patchset plus more recent fixes [1],[2],[3]
->>> Running in a guest (qemu+seabios from [4]). 
->>> CONFIG_SLAB=y
->>> CONFIG_DEBUG_SLAB=y
->>>
->>> After succesfull hot-add and online, I am doing a hot-remove with "echo 1 > /sys/bus/acpi/devices/PNP/eject"
->>> When I do the OSPM-eject, I often get slab corruption in "acpi-state" cache, or in other caches
->>
->> I can't reproduce this problem. Can you provide the following information:
->> 1. config file
->> 2. qemu's command line
->>
->> You said you did OSPM-eject. Do you mean write 1 to /sys/bus/acpi/devices/PNP0C80:XX/eject?
-> yes.
-> 
-> example qemu command line with one dimm:
-> 
-> "/opt/qemu-kvm-memhp/bin/qemu-system-x86_64 -bios
-> /opt/extra/vliaskov/devel/seabios-upstream/out/bios.bin -enable-kvm -M pc -smp
-> 4,maxcpus=8 -cpu host -m 2048 -drive file=/opt/extra/debian-template.raw,if=none,id=drive-virtio-disk0,format=raw
-> -device virtio-blk-pci,bus=pci.0,drive=drive-virtio-disk0,id=virtio-disk0,bootindex=1
-> -vga cirrus -netdev type=tap,id=guest0,vhost=on -device virtio-net-pci,netdev=guest0
-> -monitor unix:/tmp/qemu.monitor11,server,nowait -chardev stdio,id=seabios  -device
-> isa-debugcon,iobase=0x402,chardev=seabios
-> -dimm id=n0,size=512M,node=0"
-> 
-> or last line with 2 numa nodes:
-> "-dimm id=n0,size=512M,node=0 -dimm id=n1,size=512M,node=1 -numa node,nodeid=0 -numa node,nodeid=1"
+On 09/05/2012 05:25 PM, wency@cn.fujitsu.com wrote:
+> From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+>
+> remove_memory() only try to offline pages. It is called in two cases:
+> 1. hot remove a memory device
+> 2. echo offline >/sys/devices/system/memory/memoryXX/state
+>
+> In the 1st case, we should also change memory block's state, and notify
+> the userspace that the memory block's state is changed after offlining
+> pages.
+>
+> So rename remove_memory() to offline_memory()/offline_pages(). And in
+> the 1st case, offline_memory() will be used. The function offline_memory()
+> is not implemented. In the 2nd case, offline_pages() will be used.
 
-I have reproduced this problem. It only can be reproduced when the dimm's memory is on node 0.
-I investigate it now.
+But this time there is not a function associated with add_memory.
 
-Thanks
-Wen Congyang
-
-> 
-> attached config. Tree is at:
-> https://github.com/vliaskov/linux/commits/memhp-fujitsu
-> 
-> thanks,
-> - Vasilis
+>
+> CC: David Rientjes <rientjes@google.com>
+> CC: Jiang Liu <liuj97@gmail.com>
+> CC: Len Brown <len.brown@intel.com>
+> CC: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+> CC: Paul Mackerras <paulus@samba.org>
+> CC: Christoph Lameter <cl@linux.com>
+> Cc: Minchan Kim <minchan.kim@gmail.com>
+> CC: Andrew Morton <akpm@linux-foundation.org>
+> CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> Signed-off-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+> Signed-off-by: Wen Congyang <wency@cn.fujitsu.com>
+> ---
+>   drivers/acpi/acpi_memhotplug.c |    2 +-
+>   drivers/base/memory.c          |    9 +++------
+>   include/linux/memory_hotplug.h |    3 ++-
+>   mm/memory_hotplug.c            |   22 ++++++++++++++--------
+>   4 files changed, 20 insertions(+), 16 deletions(-)
+>
+> diff --git a/drivers/acpi/acpi_memhotplug.c b/drivers/acpi/acpi_memhotplug.c
+> index 24c807f..2a7beac 100644
+> --- a/drivers/acpi/acpi_memhotplug.c
+> +++ b/drivers/acpi/acpi_memhotplug.c
+> @@ -318,7 +318,7 @@ static int acpi_memory_disable_device(struct acpi_memory_device *mem_device)
+>   	 */
+>   	list_for_each_entry_safe(info, n, &mem_device->res_list, list) {
+>   		if (info->enabled) {
+> -			result = remove_memory(info->start_addr, info->length);
+> +			result = offline_memory(info->start_addr, info->length);
+>   			if (result)
+>   				return result;
+>   		}
+> diff --git a/drivers/base/memory.c b/drivers/base/memory.c
+> index 7dda4f7..44e7de6 100644
+> --- a/drivers/base/memory.c
+> +++ b/drivers/base/memory.c
+> @@ -248,26 +248,23 @@ static bool pages_correctly_reserved(unsigned long start_pfn,
+>   static int
+>   memory_block_action(unsigned long phys_index, unsigned long action)
+>   {
+> -	unsigned long start_pfn, start_paddr;
+> +	unsigned long start_pfn;
+>   	unsigned long nr_pages = PAGES_PER_SECTION * sections_per_block;
+>   	struct page *first_page;
+>   	int ret;
+>   
+>   	first_page = pfn_to_page(phys_index << PFN_SECTION_SHIFT);
+> +	start_pfn = page_to_pfn(first_page);
+>   
+>   	switch (action) {
+>   		case MEM_ONLINE:
+> -			start_pfn = page_to_pfn(first_page);
+> -
+>   			if (!pages_correctly_reserved(start_pfn, nr_pages))
+>   				return -EBUSY;
+>   
+>   			ret = online_pages(start_pfn, nr_pages);
+>   			break;
+>   		case MEM_OFFLINE:
+> -			start_paddr = page_to_pfn(first_page) << PAGE_SHIFT;
+> -			ret = remove_memory(start_paddr,
+> -					    nr_pages << PAGE_SHIFT);
+> +			ret = offline_pages(start_pfn, nr_pages);
+>   			break;
+>   		default:
+>   			WARN(1, KERN_WARNING "%s(%ld, %ld) unknown action: "
+> diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
+> index 910550f..c183f39 100644
+> --- a/include/linux/memory_hotplug.h
+> +++ b/include/linux/memory_hotplug.h
+> @@ -233,7 +233,8 @@ static inline int is_mem_section_removable(unsigned long pfn,
+>   extern int mem_online_node(int nid);
+>   extern int add_memory(int nid, u64 start, u64 size);
+>   extern int arch_add_memory(int nid, u64 start, u64 size);
+> -extern int remove_memory(u64 start, u64 size);
+> +extern int offline_pages(unsigned long start_pfn, unsigned long nr_pages);
+> +extern int offline_memory(u64 start, u64 size);
+>   extern int sparse_add_one_section(struct zone *zone, unsigned long start_pfn,
+>   								int nr_pages);
+>   extern void sparse_remove_one_section(struct zone *zone, struct mem_section *ms);
+> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+> index 3ad25f9..bb42316 100644
+> --- a/mm/memory_hotplug.c
+> +++ b/mm/memory_hotplug.c
+> @@ -866,7 +866,7 @@ check_pages_isolated(unsigned long start_pfn, unsigned long end_pfn)
+>   	return offlined;
+>   }
+>   
+> -static int __ref offline_pages(unsigned long start_pfn,
+> +static int __ref __offline_pages(unsigned long start_pfn,
+>   		  unsigned long end_pfn, unsigned long timeout)
+>   {
+>   	unsigned long pfn, nr_pages, expire;
+> @@ -994,18 +994,24 @@ out:
+>   	return ret;
+>   }
+>   
+> -int remove_memory(u64 start, u64 size)
+> +int offline_pages(unsigned long start_pfn, unsigned long nr_pages)
+>   {
+> -	unsigned long start_pfn, end_pfn;
+> +	return __offline_pages(start_pfn, start_pfn + nr_pages, 120 * HZ);
+> +}
+>   
+> -	start_pfn = PFN_DOWN(start);
+> -	end_pfn = start_pfn + PFN_DOWN(size);
+> -	return offline_pages(start_pfn, end_pfn, 120 * HZ);
+> +int offline_memory(u64 start, u64 size)
+> +{
+> +	return -EINVAL;
+>   }
+>   #else
+> -int remove_memory(u64 start, u64 size)
+> +int offline_pages(unsigned long start, unsigned long size)
+> +{
+> +	return -EINVAL;
+> +}
+> +
+> +int offline_memory(u64 start, u64 size)
+>   {
+>   	return -EINVAL;
+>   }
+>   #endif /* CONFIG_MEMORY_HOTREMOVE */
+> -EXPORT_SYMBOL_GPL(remove_memory);
+> +EXPORT_SYMBOL_GPL(offline_memory);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
