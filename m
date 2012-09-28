@@ -1,28 +1,33 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx104.postini.com [74.125.245.104])
-	by kanga.kvack.org (Postfix) with SMTP id 6EC1B6B006C
-	for <linux-mm@kvack.org>; Fri, 28 Sep 2012 10:21:14 -0400 (EDT)
-Date: Fri, 28 Sep 2012 14:21:13 +0000
+Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
+	by kanga.kvack.org (Postfix) with SMTP id 06FF96B005D
+	for <linux-mm@kvack.org>; Fri, 28 Sep 2012 10:28:30 -0400 (EDT)
+Date: Fri, 28 Sep 2012 14:28:29 +0000
 From: Christoph Lameter <cl@linux.com>
-Subject: Re: CK1 [08/13] slab: Common name for the per node structures
-In-Reply-To: <5065620F.1090308@parallels.com>
-Message-ID: <0000013a0d40a7f5-94bb97c9-c2f4-4374-ae4b-34fa89517cbf-000000@email.amazonses.com>
-References: <20120926200005.911809821@linux.com> <0000013a04311d83-99c74d36-cec0-45c5-beee-05e351b56efd-000000@email.amazonses.com> <5065620F.1090308@parallels.com>
+Subject: Re: [PATCH] make GFP_NOTRACK flag unconditional
+In-Reply-To: <1348826194-21781-1-git-send-email-glommer@parallels.com>
+Message-ID: <0000013a0d475174-343e3b17-6755-42c1-9dae-a9287ad7d403-000000@email.amazonses.com>
+References: <1348826194-21781-1-git-send-email-glommer@parallels.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Glauber Costa <glommer@parallels.com>
-Cc: Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <js1304@gmail.com>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>
 
 On Fri, 28 Sep 2012, Glauber Costa wrote:
 
-> I suggest this to be applied separately.
+> There was a general sentiment in a recent discussion (See
+> https://lkml.org/lkml/2012/9/18/258) that the __GFP flags should be
+> defined unconditionally. Currently, the only offender is GFP_NOTRACK,
+> which is conditional to KMEMCHECK.
 >
-> Patch itself looks fine, it is quite mechanical, and the name change
-> makes sense.
+> This simple patch makes it unconditional.
 
-Ok I can put this patch first?
+__GFP_NOTRACK is only used in context where CONFIG_KMEMCHECK is defined?
+
+If that is not the case then you need to define GFP_NOTRACK and substitute
+it where necessary.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
