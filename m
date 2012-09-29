@@ -1,12 +1,12 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
-	by kanga.kvack.org (Postfix) with SMTP id 55F786B006C
-	for <linux-mm@kvack.org>; Sat, 29 Sep 2012 12:11:30 -0400 (EDT)
-Message-ID: <1348935073.2036.147.camel@shinybook.infradead.org>
+Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
+	by kanga.kvack.org (Postfix) with SMTP id F1C9D6B0070
+	for <linux-mm@kvack.org>; Sat, 29 Sep 2012 12:34:26 -0400 (EDT)
+Message-ID: <1348936450.2036.158.camel@shinybook.infradead.org>
 Subject: Re: mtd: kernel BUG at arch/x86/mm/pat.c:279!
 From: David Woodhouse <dwmw2@infradead.org>
-Date: Sat, 29 Sep 2012 17:11:13 +0100
-In-Reply-To: <1348859054.2036.122.camel@shinybook.infradead.org>
+Date: Sat, 29 Sep 2012 17:34:10 +0100
+In-Reply-To: <1348935073.2036.147.camel@shinybook.infradead.org>
 References: <1340959739.2936.28.camel@lappy>
 	 <CA+1xoqdgKV_sEWvUbuxagL9JEc39ZFa6X9-acP7j-M7wvW6qbQ@mail.gmail.com>
 	 <CA+55aFzJCLxVP+WYJM-gq=aXx5gmdgwC7=_Gr2Tooj8q+Dz4dw@mail.gmail.com>
@@ -18,65 +18,55 @@ References: <1340959739.2936.28.camel@lappy>
 	 <50506A6C.30109@gmail.com> <50656733.3040609@gmail.com>
 	 <CA+55aFyWdxD4Qb9PuPKKx_Ww_khYkWg1s-3QWVUwsTSXSUMG5w@mail.gmail.com>
 	 <1348859054.2036.122.camel@shinybook.infradead.org>
+	 <1348935073.2036.147.camel@shinybook.infradead.org>
 Content-Type: multipart/signed; micalg="sha1"; protocol="application/x-pkcs7-signature";
-	boundary="=-ZUFMkltaGO7PLuvszoxk"
+	boundary="=-eQsHGtY50TS3nHUvduAs"
 Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>, Anatolij Gustschin <agust@denx.de>, dhowells@redhat.com
-Cc: Sasha Levin <levinsasha928@gmail.com>, suresh.b.siddha@intel.com, Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mtd@lists.infradead.org, linux-mm <linux-mm@kvack.org>, Dave Jones <davej@redhat.com>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Anatolij Gustschin <agust@denx.de>, dhowells@redhat.com, Sasha Levin <levinsasha928@gmail.com>, suresh.b.siddha@intel.com, Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mtd@lists.infradead.org, linux-mm <linux-mm@kvack.org>, Dave Jones <davej@redhat.com>
 
 
---=-ZUFMkltaGO7PLuvszoxk
+--=-eQsHGtY50TS3nHUvduAs
 Content-Type: text/plain; charset="UTF-8"
 Content-Transfer-Encoding: quoted-printable
 
-On Fri, 2012-09-28 at 20:04 +0100, David Woodhouse wrote:
-> > I was really hoping it would go through the regular channels and come
-> > back to me that way, since I can't really test it, and it's bigger
-> > than the trivial obvious one-liners that I'm happy to commit.
+On Sat, 2012-09-29 at 17:11 +0100, David Woodhouse wrote:
 >=20
-> I can't test it on real hardware here either, but I can pull it through
-> my tree.=20
+> That check seems to have been missing from David's commit 402d3265 in
+> which he introduced the mtd_mmap() operation, and wasn't fixed in commit
+> dd02b67d5 where Anatolij fixed things to actually *work* in the MMU code
+> path. This should fix it:
 
-Hmm... I don't have access to real hardware with mmapable flash right
-now (I haven't finished setting up the machine room since moving house
-last month). But you're seeing this in a case where you *don't* have
-mmapable flash either. If the value of map->phys is NO_XIP (-1UL), that
-should be taken to mean that you can't directly mmap it at all.
+> +               if (map->phys =3D=3D NO_XIP)
+> +                       return -EINVAL;=20
 
-That check seems to have been missing from David's commit 402d3265 in
-which he introduced the mtd_mmap() operation, and wasn't fixed in commit
-dd02b67d5 where Anatolij fixed things to actually *work* in the MMU code
-path. This should fix it:
+Hm, but there's another problem. That 'map' variable is pulled from
+mtd->priv but there's a clue in the name 'priv'.... it isn't guaranteed
+to *be* a device that goes through the map abstraction.
 
-diff --git a/drivers/mtd/mtdchar.c b/drivers/mtd/mtdchar.c
-index f2f482b..27c2f57 100644
---- a/drivers/mtd/mtdchar.c
-+++ b/drivers/mtd/mtdchar.c
-@@ -1137,8 +1137,10 @@ static int mtdchar_mmap(struct file *file, struct
-vm_area_struct *vma)
- 	u32 len;
-=20
- 	if (mtd->type =3D=3D MTD_RAM || mtd->type =3D=3D MTD_ROM) {
--		off =3D vma->vm_pgoff << PAGE_SHIFT;
- 		start =3D map->phys;
-+		if (map->phys =3D=3D NO_XIP)
-+			return -EINVAL;
-+		off =3D vma->vm_pgoff << PAGE_SHIFT;
- 		len =3D PAGE_ALIGN((start & ~PAGE_MASK) + map->size);
- 		start &=3D PAGE_MASK;
- 		if ((vma->vm_end - vma->vm_start + off) > len)
+Anatolij? Your patch dd02b67d5 might have worked on your test case, but
+it fails disgracefully in any of the cases where it *isn't* expected to
+work.
 
-Now, we should ideally *also* handle the case where there genuinely *is*
-a mappable ROM device at the very top of physical memory, and not suffer
-from overflow. But that's a more esoteric case, and the patch above
-seems to be the one that we want to get merged into -stable.
+I think it needs to use mtd_unmapped_area() on the device in question
+just like the !CONFIG_MMU code path does, and avoid grubbing around in
+things that it shouldn't be looking at directly.
+
+David, you made mtd_unmapped_area() return the *virtual* address... but
+there's no reason that couldn't have been the physical address, right?
+You were only using it in the !CONFIG_MMU case anyway, where they're
+equal.
+
+In the meantime, I think the quick fix is just to disable mtdchar_mmap
+in the CONFIG_MMU case. It was broken from the moment David introduced
+it, and Anatolij's fix was insufficient. I'll do that.
 
 --=20
 dwmw2
 
---=-ZUFMkltaGO7PLuvszoxk
+--=-eQsHGtY50TS3nHUvduAs
 Content-Type: application/x-pkcs7-signature; name="smime.p7s"
 Content-Disposition: attachment; filename="smime.p7s"
 Content-Transfer-Encoding: base64
@@ -177,22 +167,22 @@ kSIc5N4d9Lk3ypCnrYMvvqLspXcWeymdD7qC0KwcuOuRKEC6LBExggNvMIIDawIBATCBlDCBjDEL
 MAkGA1UEBhMCSUwxFjAUBgNVBAoTDVN0YXJ0Q29tIEx0ZC4xKzApBgNVBAsTIlNlY3VyZSBEaWdp
 dGFsIENlcnRpZmljYXRlIFNpZ25pbmcxODA2BgNVBAMTL1N0YXJ0Q29tIENsYXNzIDEgUHJpbWFy
 eSBJbnRlcm1lZGlhdGUgQ2xpZW50IENBAgMEJnowCQYFKw4DAhoFAKCCAa8wGAYJKoZIhvcNAQkD
-MQsGCSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMTIwOTI5MTYxMTEzWjAjBgkqhkiG9w0BCQQx
-FgQUHm3+TQqYp34OiXb7nRA3vsVom/owgaUGCSsGAQQBgjcQBDGBlzCBlDCBjDELMAkGA1UEBhMC
+MQsGCSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMTIwOTI5MTYzNDEwWjAjBgkqhkiG9w0BCQQx
+FgQUq1Mr54xM1gzgUn2TvgoHKsFXmIswgaUGCSsGAQQBgjcQBDGBlzCBlDCBjDELMAkGA1UEBhMC
 SUwxFjAUBgNVBAoTDVN0YXJ0Q29tIEx0ZC4xKzApBgNVBAsTIlNlY3VyZSBEaWdpdGFsIENlcnRp
 ZmljYXRlIFNpZ25pbmcxODA2BgNVBAMTL1N0YXJ0Q29tIENsYXNzIDEgUHJpbWFyeSBJbnRlcm1l
 ZGlhdGUgQ2xpZW50IENBAgMEJnowgacGCyqGSIb3DQEJEAILMYGXoIGUMIGMMQswCQYDVQQGEwJJ
 TDEWMBQGA1UEChMNU3RhcnRDb20gTHRkLjErMCkGA1UECxMiU2VjdXJlIERpZ2l0YWwgQ2VydGlm
 aWNhdGUgU2lnbmluZzE4MDYGA1UEAxMvU3RhcnRDb20gQ2xhc3MgMSBQcmltYXJ5IEludGVybWVk
-aWF0ZSBDbGllbnQgQ0ECAwQmejANBgkqhkiG9w0BAQEFAASCAQB2xDdt+n+Ag6wAw4kmIz1bkECW
-bB6QPnRlgGVQqWxE2mIkBVBw6A7WFlv/6hDvD21FqLXtFuBXRkZdtfOR9sRqf3c+Lt26aduNsite
-Fq2IIBHEtX8yJeKoQ6s1ouS7WVvm1JcXMAmEZwqGrGlkQ2Esf87FmTuG0eKrC8OWP60YlTycHFce
-mJlJuxadf/83V5GY0pUOcMoN2OXr1ggrZ13PER2CO9YkQTNRT+0o7MLqEuvpT0j4k8T8fbiNqYLX
-1FUN7f1YF/mszVpp71BMMuqqIlPEr5iVUHmBuaqvWux12BTRXfZVuhIzAiQe4uDv1znq/p5XaKs6
-G25u6RYqWbdaAAAAAAAA
+aWF0ZSBDbGllbnQgQ0ECAwQmejANBgkqhkiG9w0BAQEFAASCAQCoKX+OZdy9UqeADM17y/RjNrPZ
+cct+vrEHSDJgD/N7AIg3ouzWHHoMP14ekiVj/rmW1obRTtoMZNj2aEBGMEyKJCo+w3Izl0aNtdYf
+MI/aL/Z696fIlEkZSEAYYQbr8rCGRnLt/tUYkca/ADXASi9QxhIyKz24Co9uddrFfhh2fYkwp2xE
+p2y9dz9Sd5hN98skJ11y7g+WmQwlApjoD79ALkEZJhF0DJBsYnorz3zDkFSd46KsN32BgwIpBF1I
+OgD86zZ043jYPEPqHpDNOUV4Qxgd8e3bhwLhm4kMRvwarf02wmkRp7/3JpXeceexG4tOthoW8T3F
+YY16MIdKawGwAAAAAAAA
 
 
---=-ZUFMkltaGO7PLuvszoxk--
+--=-eQsHGtY50TS3nHUvduAs--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
