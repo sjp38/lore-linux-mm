@@ -1,48 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx101.postini.com [74.125.245.101])
-	by kanga.kvack.org (Postfix) with SMTP id D99306B006C
-	for <linux-mm@kvack.org>; Sat, 29 Sep 2012 04:41:59 -0400 (EDT)
-Message-ID: <1348908118.1553.23.camel@x61.thuisdomein>
-Subject: Re: [PATCH -v2] mm: frontswap: fix a wrong if condition in
- frontswap_shrink
-From: Paul Bolle <pebolle@tiscali.nl>
-Date: Sat, 29 Sep 2012 10:41:58 +0200
-In-Reply-To: <506662DD.4030309@oracle.com>
-References: <505C27FE.5080205@oracle.com>
-	  <1348745730.1512.19.camel@x61.thuisdomein> <50651CF5.5030903@oracle.com>
-	 <1348844071.1553.14.camel@x61.thuisdomein> <506662DD.4030309@oracle.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
+	by kanga.kvack.org (Postfix) with SMTP id 5A7AC6B006C
+	for <linux-mm@kvack.org>; Sat, 29 Sep 2012 09:48:20 -0400 (EDT)
+Date: Sat, 29 Sep 2012 15:48:11 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH 0/3] Virtual huge zero page
+Message-ID: <20120929134811.GC26989@redhat.com>
+References: <1348875441-19561-1-git-send-email-kirill.shutemov@linux.intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1348875441-19561-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: zhenzhong.duan@oracle.com
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Dan Magenheimer <dan.magenheimer@oracle.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, levinsasha928@gmail.com, Feng Jin <joe.jin@oracle.com>, dan.carpenter@oracle.com
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, "H. Peter Anvin" <hpa@linux.intel.com>, Andi Kleen <ak@linux.intel.com>, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill@shutemov.name>, Arnd Bergmann <arnd@arndb.de>, Ingo Molnar <mingo@kernel.org>, linux-arch@vger.kernel.org
 
-On Sat, 2012-09-29 at 10:54 +0800, Zhenzhong Duan wrote:
-> On 2012-09-28 22:54, Paul Bolle wrote:
-> > Not even before applying your patch? Anyhow, after applying your patch
-> > the warnings gone here too.
-> I tested both cases, no warning, also didn't see -Wmaybe-uninitialized 
-> when make.
-> My env is el5. gcc version 4.1.2 20080704 (Red Hat 4.1.2-52)
-> Maybe your gcc built in/implicit spec use that option?
+On Sat, Sep 29, 2012 at 02:37:18AM +0300, Kirill A. Shutemov wrote:
+> Cons:
+>  - increases TLB pressure;
 
-I simply use what (was and) is shipped by Fedora 17:
-    $ sudo grep -w gcc /var/log/yum.log 
-    Sep 12 11:45:54 Installed: gcc-4.7.0-5.fc17.x86_64
-    Sep 27 13:54:24 Updated: gcc-4.7.2-2.fc17.x86_64
+I generally don't like using 4k tlb entries ever. This only has the
+advantage of saving 2MB-4KB RAM (globally), and a chpxchg at the first
+system-wide zero page fault. I like apps to only use 2M TLB entries
+whenever possible (that is going to payoff big as the number of 2M TLB
+entries is going to increase over time).
 
-So I did my patch with a version of GCC's release 4.7.0, and tested your
-patch with a version of GCC's 4.7.2 release.
+I did some research with tricks using 4k ptes up to half the pmd was
+filled before converting it to a THP (to save some memory and cache),
+and it didn't look good, so my rule of thumb was "THP sometime costs,
+even the switch from half pte filled to transhuge pmd still costs, so
+to diminish the risk of slowdowns we should use 2M TLB entries
+immediately, whenever possible".
 
-I don't think I tweaked any settings. Unless there are strong reasons to
-do otherwise, I try to use the tools shipped by Fedora in their default
-settings. (I'm not even sure there's a way to set one's GCC settings
-locally.)
+Now the rule of thumb doesn't fully apply here, 1) there's no
+compaction costs to offset, 2) chances are the zero page isn't very
+performance critical anyway... only some weird apps uses it (but
+sometime they have a legitimate reason for using it, this is why we
+support it).
 
+There would be a small cache benefit here... but even then some first
+level caches are virtually indexed IIRC (always physically tagged to
+avoid the software to notice) and virtually indexed ones won't get any
+benefit.
 
-Paul Bolle
+It wouldn't provide even the memory saving tradeoff by dropping the
+zero pmd at the first fault (not at the last). And it's better to
+replace it at the first fault then the last (that matches the current
+design).
+
+Another point is that the previous patch is easier to port to other
+archs by not requiring arch features to track the zero pmd.
+
+I guess it won't make a whole lot of difference but my preference is
+for the previous implementation that always guaranteed huge TLB
+entries whenever possible. Said that I'm fine either ways so if
+somebody has strong reasons for wanting this one, I'd like to hear
+about it.
+
+Thanks!
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
