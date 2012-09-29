@@ -1,41 +1,389 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
-	by kanga.kvack.org (Postfix) with SMTP id 48B046B0070
-	for <linux-mm@kvack.org>; Fri, 28 Sep 2012 23:16:58 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
+	by kanga.kvack.org (Postfix) with SMTP id 1A19F6B0071
+	for <linux-mm@kvack.org>; Fri, 28 Sep 2012 23:17:25 -0400 (EDT)
 Received: from /spool/local
-	by e6.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e38.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <john.stultz@linaro.org>;
-	Fri, 28 Sep 2012 23:16:57 -0400
+	Fri, 28 Sep 2012 21:17:23 -0600
+Received: from d03relay01.boulder.ibm.com (d03relay01.boulder.ibm.com [9.17.195.226])
+	by d03dlp01.boulder.ibm.com (Postfix) with ESMTP id 885301FF003C
+	for <linux-mm@kvack.org>; Fri, 28 Sep 2012 21:16:41 -0600 (MDT)
 Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
-	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q8T3GrtA160902
-	for <linux-mm@kvack.org>; Fri, 28 Sep 2012 23:16:54 -0400
+	by d03relay01.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q8T3Gjqo222792
+	for <linux-mm@kvack.org>; Fri, 28 Sep 2012 21:16:45 -0600
 Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av01.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q8T3Gp23021124
-	for <linux-mm@kvack.org>; Fri, 28 Sep 2012 21:16:53 -0600
+	by d03av01.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q8T3Gi1X020836
+	for <linux-mm@kvack.org>; Fri, 28 Sep 2012 21:16:45 -0600
 From: John Stultz <john.stultz@linaro.org>
-Subject: [PATCH 3/3] [RFC] ashmem: Convert ashmem to use volatile ranges
-Date: Fri, 28 Sep 2012 23:16:33 -0400
-Message-Id: <1348888593-23047-4-git-send-email-john.stultz@linaro.org>
-In-Reply-To: <1348888593-23047-1-git-send-email-john.stultz@linaro.org>
-References: <1348888593-23047-1-git-send-email-john.stultz@linaro.org>
+Subject: [PATCH 0/3] Volatile Ranges (v7) & Lots of words
+Date: Fri, 28 Sep 2012 23:16:30 -0400
+Message-Id: <1348888593-23047-1-git-send-email-john.stultz@linaro.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: LKML <linux-kernel@vger.kernel.org>
 Cc: John Stultz <john.stultz@linaro.org>, Andrew Morton <akpm@linux-foundation.org>, Android Kernel Team <kernel-team@android.com>, Robert Love <rlove@google.com>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Dmitry Adamushko <dmitry.adamushko@gmail.com>, Dave Chinner <david@fromorbit.com>, Neil Brown <neilb@suse.de>, Andrea Righi <andrea@betterlinux.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Michel Lespinasse <walken@google.com>, Minchan Kim <minchan@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-Rework of my first pass attempt at getting ashmem to utilize
-the volatile range code, now using the fallocate interface.
 
-In this implementation GET_PIN_STATUS is unimplemented, due to
-the fact that adding a ISVOLATILE check wasn't considered
-terribly useful in earlier reviews. It would be trivial to
-re-add that functionality, but I wanted to check w/ the
-Android developers to see how often GET_PIN_STATUS is actually
-used?
+After Kernel Summit and Plumbers, I wanted to consider all the various
+side-discussions and try to summarize my current thoughts here along
+with sending out my current implementation for review.
 
-Similarly the ashmem PURGE_ALL_CACHES ioctl does not function,
-as the volatile range purging is no longer directly under its
-control.
+Also: I'm going on four weeks of paternity leave in the very near
+(but non-deterministic) future. So while I hope I still have time
+for some discussion, I may have to deal with fussier complaints
+then yours. :)  In any case, you'll have more time to chew on
+the idea and come up with amazing suggestions. :)
+
+
+General Interface semantics:
+----------------------------------------------
+
+The high level interface I've been pushing has so far stayed fairly
+consistent:
+
+Application marks a range of data as volatile. Volatile data may
+be purged at any time. Accessing volatile data is undefined, so
+applications should not do so. If the application wants to access
+data in a volatile range, it should mark it as non-volatile. If any
+of the pages in the range being marked non-volatile had been purged,
+the kernel will return an error, notifying the application that the
+data was lost.
+
+But one interesting new tweak on this design, suggested by the Taras
+Glek and others at Mozilla, is as follows:
+
+Instead of leaving volatile data access as being undefined , when
+accessing volatile data, either the data expected will be returned
+if it has not been purged, or the application will get a SIGBUS when
+it accesses volatile data that has been purged.
+
+Everything else remains the same (error on marking non-volatile
+if data was purged, etc). This model allows applications to avoid
+having to unmark volatile data when it wants to access it, then
+immediately re-mark it as volatile when its done. It is in effect
+"lazy" with its marking, allowing the kernel to hit it with a signal
+when it gets unlucky and touches purged data. From the signal handler,
+the application can note the address it faulted on, unmark the range,
+and regenerate the needed data before returning to execution.
+
+Since this approach avoids the more explicit unmark/access/mark
+pattern, it avoids the extra overhead required to ensure data is
+non-volatile before being accessed.
+
+However, If applications don't want to deal with handling the
+sigbus, they can use the more straightforward (but more costly)
+unmark/access/mark pattern in the same way as my earlier proposals.
+
+This allows folks to balance the cost vs complexity in their
+application appropriately.
+
+So that's a general overview of how the idea I'm proposing could
+be used.
+
+
+
+Specific Interface semantics:
+---------------------------------------------
+
+Here are some of the open question about how the user interface
+should look:
+
+fadvise vs fallocate:
+
+	So while originally I used fadvise, currently my
+	implementation uses fallocate(fd, FALLOC_FL_MARK_VOLATILE,
+	start, len) to mark a range as volatile and fallocate(fd,
+	FALLOC_FL_UNMARK_VOLATILE, start, len) to unmark ranges.
+
+	During kernel summit, the question was brought up if fallocate
+	was really the right interface to be using, and if fadvise
+	would be better. To me fadvise makes a little more sense,
+	but earlier it was pointed out that marking data ranges as
+	volatile could also be seen as a type of cancellable and lazy
+	hole-punching, so from that perspective fallocate might make
+	more sense.  This is still an open question and I'd appreciate
+	further input here.
+
+
+tmpfs vs non-shmem filesystems:
+	Android's ashmem primarily provides a way to get unlinked
+	tmpfs fds that can be shared between applications. Its
+	just an additional feature that those pages can "unpinned"
+	or marked volatile in my terminology. Thus in implementing
+	volatile ranges, I've focused on getting it to work on tmpfs
+	file descriptors.  However, there has been some interest in
+	using volatile ranges with more traditional filesystems. The
+	semantics for how volatile range purging would work on a
+	real filesystem are not well established, and I can't say I
+	understand the utility quite yet, but there may be a case for
+	having data that you know won't be committed to disk until it
+	is marked as non-volatile.  However, returning an EINVAL on
+	non-tmpfs filesystems until such a use is established should
+	be fine.
+
+fd based interfaces vs madvise:
+	In talking with Taras Glek, he pointed out that for his
+	needs, the fd based interface is a little annoying, as it
+	requires having to get access to tmpfs file and mmap it in,
+	then instead of just referencing a pointer to the data he
+	wants to mark volatile, he has to calculate the offset from
+	start of the mmap and pass those file offsets to the interface.
+	Instead he mentioned that using something like madvise would be
+	much nicer, since they could just pass a pointer to the object
+	in memory they want to make volatile and avoid the extra work.
+
+	I'm not opposed to adding an madvise interface for this as
+	well, but since we have a existing use case with Android's
+	ashmem, I want to make sure we support this existing behavior.
+	Specifically as with ashmem  applications can be sharing
+	these tmpfs fds, and so file-relative volatile ranges make
+	more sense if you need to coordinate what data is volatile
+	between two applications.
+
+	Also, while I agree that having an madvise interface for
+	volatile ranges would be nice, it does open up some more
+	complex implementation issues, since with files, there is a
+	fixed relationship between pages and the files' address_space
+	mapping, where you can't have pages shared between different
+	mappings. This makes it easy to hang the volatile-range tree
+	off of the mapping (well, indirectly via a hash table). With
+	general anonymous memory, pages can be shared between multiple
+	processes, and as far as I understand, don't have any grouping
+	structure we could use to determine if the page is in a
+	volatile range or not. We would also need to determine more
+	complex questions like: What are the semantics of volatility
+	with copy-on-write pages?  I'm hoping to investigate this
+	idea more deeply soon so I can be sure whatever is pushed has
+	a clear plan of how to address this idea. Further thoughts
+	here would be appreciated.
+
+
+It would really be great to get any thoughts on these issues, as they
+are higher-priority to me then diving into the details of how we
+implement this internally, which can shift over time.
+
+
+
+Implementation Considerations:
+---------------------------------------------
+
+How best to manage volatile ranges internally in the kernel is still
+an open question.
+
+With this patch set, I'm really wanting to provide a proof of concept
+of the general interface semantics above. This allows applications to
+play with the idea and validate that it would work for them. Allowing
+further discussion to continue on how to best implement or best allow
+the implementation to evolve in the kernel.
+
+Even so, I'm very interested in any discussion about how to manage
+volatile ranges optimally.
+
+Before describing the different management approaches I've tried,
+there are some abstract properties and considerations that need to
+be kept in mind:
+
+* Range-granular Purging:
+	Since volatile ranges can be reclaimed at any time, the
+	question of how the kernel should reclaim volatile data
+	needs to be addressed.	When a large data range  is marked
+	as volatile, if any single page in that range is purged,
+	the application will get an error when it marks the range
+	as non-volatile.  Thus when any single page in a range
+	is purged, the "value" of the entire range is destroyed.
+	Because of this property, it makes most sense to purge the
+	entire range together.
+
+
+* Coalescing of adjacent volatile ranges:
+	With volatile ranges, any overlapping ranges are always
+	coalesced. However, there is an open question of what to
+	do with neighboring ranges. With Android's approach, any
+	neighboring ranges were coalesced into one range.  I've since
+	tweaked this so that adjacent ranges are coalesced only if
+	both have not yet been purged (or both are already purged).
+	This avoids throwing away fine data just because its next
+	to data that has already been tossed.  Not coalescing
+	non-overlapping ranges is also an option I've considered,
+	as it better follows the applications wishes, since as
+	the application is providing these non-overlapping ranges
+	separately, we should probably also purge them separately.
+	The one complication here is that for userlands-sake, we
+	manage volatile ranges at a byte level. So if an application
+	marks one an a half pages of data as volatile, we only purge
+	pages that are entirely volatile. This avoids accidentally
+	purging non-volatile data on the rest of the page.  However,
+	if an array of sub-page sized data is marked volatile one by
+	one, coalescing the ranges allows us to purge a page that
+	consists entirely of multiple volatile ranges.	So for now
+	I'm still coalescing assuming the neighbors are both unpurged,
+	but this behavior is open to being tweaked.
+
+
+* Purging order between volatile ranges:
+	Again, since it makes sense to purge all the complete
+	pages in a range at the same time, we need to consider the
+	subtle difference between the least-recently-used pages vs
+	least-recently-used ranges. A single range could contain very
+	frequently accessed data, as well as rarely accessed data.
+	One must also consider that the act of marking a range as
+	volatile may not actually touch the underlying pages. Thus
+	purging ranges based on a least-recently-used page may also
+	result in purging the most-recently used page.
+
+	Android addressed the purging order question by purging ranges
+	in the order they were marked volatile. Thus the oldest
+	volatile range is the first range to be purged. This works
+	well in the Android  model, as applications aren't supposed
+	to access volatile data, so the least-recently-marked-volatile
+	order maps well to the least-recently-used-range.
+
+	However, this assumption doesn't hold with the lazy SIGBUS
+	notification method, as pages in a volatile range may continue
+	to be accessed after the range is marked volatile.  So the
+	question as to what is the best order of purging volatile
+	ranges is definitely open.
+
+	Abstractly the ideal solution might be to evaluate the
+	most-recently used page in each range, and to purge the range
+	with the oldest recently-used-page, but I suspect this is
+	not something that could be calculated efficiently.
+
+	Additionally, in my conversations with Taras, he pointed out
+	that if we are using a one-application-at-a-time UI model,
+	it would be ideal to discourage purging volatile data used by
+	the current application, instead prioritizing volatile ranges
+	from applications that aren't active. However, I'm not sure
+	what mechanism could be used to prioritize range purging in
+	this fashion, especially considering volatile ranges can be
+	on data that is shared between applications.
+
+
+* Volatile range purging order relative to non-volatile pages:
+	Initially I had proposed that since applications had offered
+	data up as unused, volatile ranges should be purged before we
+	try to free any other pages in the system.  At Plumbers, Andrea
+	pointed out that this doesn't make much sense, as there may be
+	inactive file pages from some streaming file data which are not
+	going to be used any time soon, and would be a better candidate
+	to free then an application's volatile pages. This sounded
+	quite reasonable, so its likely we need to balance volatile
+	purging with freeing other pages in the system. However, I do
+	think it is advantageous to purge volatile pages before we
+	free any dirty pages that must be laundered, as part of the
+	goal of volatile pages is to avoid extra io. Although from
+	my reading of shrink_page_list in vmscan.c I'm not sure I see
+	if/how we prioritize freeing clean pages prior to dirty ones.
+
+
+So with that background covered, on to discussing actual
+implementations.
+
+Implementation Details:
+---------------------------------------------
+
+There is two rough approaches that I have tried so far
+
+1) Managing volatile range objects, in a tree or list, which are then
+purged using a shrinker
+
+2) Page based management, where pages marked volatile are moved to
+a new LRU list and are purged from there.
+
+
+
+1) This patchset is of the the shrinker-based approach. In many ways it
+is simpler, but it does have a few drawbacks.  Basically when marking a
+range as volatile, we create a range object, and add it to an rbtree.
+This allows us to be able to quickly find ranges, given an address in
+the file.  We also add each range object to the tail of a  filesystem
+global linked list, which acts as an LRU allowing us to quickly find
+the least recently created volatile range. We then use a shrinker
+callback to trigger purging, where we'll select the range on the head
+of the LRU list, purge the data, mark the range object as purged,
+and remove it from the lru list.
+
+This allows fairly efficient behavior, as marking and unmarking
+a range are both O(logn) operation with respect to the number of
+ranges, to insert and remove from the tree.  Purging the range is
+also O(1) to select the range, and we purge the entire range in
+least-recently-marked-volatile order.
+
+The drawbacks with this approach is that it uses a shrinker, thus it is
+numa un-aware. We track the virtual address of the pages in the file,
+so we don't have a sense of what physical pages we're using, nor on
+which node those pages may be on. So its possible on a multi-node
+system that when one node was under pressure, we'd purge volatile
+ranges that are all on a different node, in effect throwing data away
+without helping anything. This is clearly non-ideal for numa systems.
+
+One idea I discussed with Michel Lespinasse is that this might be
+something we could improve by providing the shrinker some node context,
+then keep track in the range  what node their first page is on. That
+way we would be sure to at least free up one page on the node under
+pressure when purging that range.
+
+
+2) The second approach, which was more page based, was also tried. In
+this case when we marked a range as volatile, the pages in that range
+were moved to a new  lru list LRU _VOLATILE in vmscan.c.  This provided
+a page lru list that could be used to free pages before looking at
+the LRU_INACTIVE_FILE/ANONYMOUS lists.
+
+This integrates the feature deeper in the mm code, which is nice,
+especially as we have an LRU_VOLATILE list for each numa node. Thus
+under pressure we won't purge ranges that are entirely on a different
+node, as is possible with the other approach.
+
+However, this approach is more costly.	When marking a range
+as volatile, we have to migrate every page in that range to the
+LRU_VOLATILE list, and similarly on unmarking we have to move each
+page back. This ends up being O(n) with respect to the number of
+pages in the range we're marking or unmarking. Similarly when purging,
+we let the scanning code select a page off the lru, then we have to
+map it back to the volatile range so we can purge the entire range,
+making it a more expensive O(logn),  with respect to the number of
+ranges, operation.
+
+This is a particular concern as applications that want to mark and
+unmark data as volatile with fine granularity will likely be calling
+these operations frequently, adding quite a bit of overhead. This
+makes it less likely that applications will choose to volunteer data
+as volatile to the system.
+
+However, with the new lazy SIGBUS notification, applications using
+the SIGBUS method would avoid having to mark and unmark data when
+accessing it, so this overhead may be less of a concern. However, for
+cases where applications don't want to deal with the SIGBUS and would
+rather have the more deterministic behavior of the unmark/access/mark
+pattern, the performance is a concern.
+
+Additionally, there may be ways to defer and batch the page migration
+so that applications don't suffer the extra cost, but this solution
+may be limited or could  cause some strange behavior, as we can't
+defer the unmark method, as we don't want pages to be purged after
+the application thinks they were unmarked.
+
+
+Whew, that was long...
+
+Anyway, if you got this far and are still interested, I'd be greatly
+appreciate  hearing of any other suggested implementations, or ways
+around the drawbacks of the already tried approaches.
+
+thanks
+-john
+
+
+For this v7 patchset revision the changes are as follows:
+* Dropped the LRU_VOLATILE approach for now so we can focus on
+  getting the general interface semantics agreed upon
+* Converted to using byte ranges rather then page ranges to make
+  userland's life easier.	
+* Add SIGBUS on purged page access behavior, allowing for access
+  of volatile data without having to unmark it.
+
 
 Cc: Andrew Morton <akpm@linux-foundation.org>
 Cc: Android Kernel Team <kernel-team@android.com>
@@ -56,440 +404,24 @@ Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
 Cc: Michel Lespinasse <walken@google.com>
 Cc: Minchan Kim <minchan@kernel.org>
 Cc: linux-mm@kvack.org <linux-mm@kvack.org>
-Signed-off-by: John Stultz <john.stultz@linaro.org>
----
- drivers/staging/android/ashmem.c |  335 ++------------------------------------
- 1 file changed, 10 insertions(+), 325 deletions(-)
 
-diff --git a/drivers/staging/android/ashmem.c b/drivers/staging/android/ashmem.c
-index 69cf2db..9f9654c 100644
---- a/drivers/staging/android/ashmem.c
-+++ b/drivers/staging/android/ashmem.c
-@@ -52,26 +52,6 @@ struct ashmem_area {
- };
- 
- /*
-- * ashmem_range - represents an interval of unpinned (evictable) pages
-- * Lifecycle: From unpin to pin
-- * Locking: Protected by `ashmem_mutex'
-- */
--struct ashmem_range {
--	struct list_head lru;		/* entry in LRU list */
--	struct list_head unpinned;	/* entry in its area's unpinned list */
--	struct ashmem_area *asma;	/* associated area */
--	size_t pgstart;			/* starting page, inclusive */
--	size_t pgend;			/* ending page, inclusive */
--	unsigned int purged;		/* ASHMEM_NOT or ASHMEM_WAS_PURGED */
--};
--
--/* LRU list of unpinned pages, protected by ashmem_mutex */
--static LIST_HEAD(ashmem_lru_list);
--
--/* Count of pages on our LRU list, protected by ashmem_mutex */
--static unsigned long lru_count;
--
--/*
-  * ashmem_mutex - protects the list of and each individual ashmem_area
-  *
-  * Lock Ordering: ashmex_mutex -> i_mutex -> i_alloc_sem
-@@ -79,102 +59,9 @@ static unsigned long lru_count;
- static DEFINE_MUTEX(ashmem_mutex);
- 
- static struct kmem_cache *ashmem_area_cachep __read_mostly;
--static struct kmem_cache *ashmem_range_cachep __read_mostly;
--
--#define range_size(range) \
--	((range)->pgend - (range)->pgstart + 1)
--
--#define range_on_lru(range) \
--	((range)->purged == ASHMEM_NOT_PURGED)
--
--#define page_range_subsumes_range(range, start, end) \
--	(((range)->pgstart >= (start)) && ((range)->pgend <= (end)))
--
--#define page_range_subsumed_by_range(range, start, end) \
--	(((range)->pgstart <= (start)) && ((range)->pgend >= (end)))
--
--#define page_in_range(range, page) \
--	(((range)->pgstart <= (page)) && ((range)->pgend >= (page)))
--
--#define page_range_in_range(range, start, end) \
--	(page_in_range(range, start) || page_in_range(range, end) || \
--		page_range_subsumes_range(range, start, end))
--
--#define range_before_page(range, page) \
--	((range)->pgend < (page))
- 
- #define PROT_MASK		(PROT_EXEC | PROT_READ | PROT_WRITE)
- 
--static inline void lru_add(struct ashmem_range *range)
--{
--	list_add_tail(&range->lru, &ashmem_lru_list);
--	lru_count += range_size(range);
--}
--
--static inline void lru_del(struct ashmem_range *range)
--{
--	list_del(&range->lru);
--	lru_count -= range_size(range);
--}
--
--/*
-- * range_alloc - allocate and initialize a new ashmem_range structure
-- *
-- * 'asma' - associated ashmem_area
-- * 'prev_range' - the previous ashmem_range in the sorted asma->unpinned list
-- * 'purged' - initial purge value (ASMEM_NOT_PURGED or ASHMEM_WAS_PURGED)
-- * 'start' - starting page, inclusive
-- * 'end' - ending page, inclusive
-- *
-- * Caller must hold ashmem_mutex.
-- */
--static int range_alloc(struct ashmem_area *asma,
--		       struct ashmem_range *prev_range, unsigned int purged,
--		       size_t start, size_t end)
--{
--	struct ashmem_range *range;
--
--	range = kmem_cache_zalloc(ashmem_range_cachep, GFP_KERNEL);
--	if (unlikely(!range))
--		return -ENOMEM;
--
--	range->asma = asma;
--	range->pgstart = start;
--	range->pgend = end;
--	range->purged = purged;
--
--	list_add_tail(&range->unpinned, &prev_range->unpinned);
--
--	if (range_on_lru(range))
--		lru_add(range);
--
--	return 0;
--}
--
--static void range_del(struct ashmem_range *range)
--{
--	list_del(&range->unpinned);
--	if (range_on_lru(range))
--		lru_del(range);
--	kmem_cache_free(ashmem_range_cachep, range);
--}
--
--/*
-- * range_shrink - shrinks a range
-- *
-- * Caller must hold ashmem_mutex.
-- */
--static inline void range_shrink(struct ashmem_range *range,
--				size_t start, size_t end)
--{
--	size_t pre = range_size(range);
--
--	range->pgstart = start;
--	range->pgend = end;
--
--	if (range_on_lru(range))
--		lru_count -= pre - range_size(range);
--}
- 
- static int ashmem_open(struct inode *inode, struct file *file)
- {
-@@ -200,12 +87,6 @@ static int ashmem_open(struct inode *inode, struct file *file)
- static int ashmem_release(struct inode *ignored, struct file *file)
- {
- 	struct ashmem_area *asma = file->private_data;
--	struct ashmem_range *range, *next;
--
--	mutex_lock(&ashmem_mutex);
--	list_for_each_entry_safe(range, next, &asma->unpinned_list, unpinned)
--		range_del(range);
--	mutex_unlock(&ashmem_mutex);
- 
- 	if (asma->file)
- 		fput(asma->file);
-@@ -339,56 +220,6 @@ out:
- 	return ret;
- }
- 
--/*
-- * ashmem_shrink - our cache shrinker, called from mm/vmscan.c :: shrink_slab
-- *
-- * 'nr_to_scan' is the number of objects (pages) to prune, or 0 to query how
-- * many objects (pages) we have in total.
-- *
-- * 'gfp_mask' is the mask of the allocation that got us into this mess.
-- *
-- * Return value is the number of objects (pages) remaining, or -1 if we cannot
-- * proceed without risk of deadlock (due to gfp_mask).
-- *
-- * We approximate LRU via least-recently-unpinned, jettisoning unpinned partial
-- * chunks of ashmem regions LRU-wise one-at-a-time until we hit 'nr_to_scan'
-- * pages freed.
-- */
--static int ashmem_shrink(struct shrinker *s, struct shrink_control *sc)
--{
--	struct ashmem_range *range, *next;
--
--	/* We might recurse into filesystem code, so bail out if necessary */
--	if (sc->nr_to_scan && !(sc->gfp_mask & __GFP_FS))
--		return -1;
--	if (!sc->nr_to_scan)
--		return lru_count;
--
--	mutex_lock(&ashmem_mutex);
--	list_for_each_entry_safe(range, next, &ashmem_lru_list, lru) {
--		loff_t start = range->pgstart * PAGE_SIZE;
--		loff_t end = (range->pgend + 1) * PAGE_SIZE;
--
--		do_fallocate(range->asma->file,
--				FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE,
--				start, end - start);
--		range->purged = ASHMEM_WAS_PURGED;
--		lru_del(range);
--
--		sc->nr_to_scan -= range_size(range);
--		if (sc->nr_to_scan <= 0)
--			break;
--	}
--	mutex_unlock(&ashmem_mutex);
--
--	return lru_count;
--}
--
--static struct shrinker ashmem_shrinker = {
--	.shrink = ashmem_shrink,
--	.seeks = DEFAULT_SEEKS * 4,
--};
--
- static int set_prot_mask(struct ashmem_area *asma, unsigned long prot)
- {
- 	int ret = 0;
-@@ -461,136 +292,10 @@ static int get_name(struct ashmem_area *asma, void __user *name)
- 	return ret;
- }
- 
--/*
-- * ashmem_pin - pin the given ashmem region, returning whether it was
-- * previously purged (ASHMEM_WAS_PURGED) or not (ASHMEM_NOT_PURGED).
-- *
-- * Caller must hold ashmem_mutex.
-- */
--static int ashmem_pin(struct ashmem_area *asma, size_t pgstart, size_t pgend)
--{
--	struct ashmem_range *range, *next;
--	int ret = ASHMEM_NOT_PURGED;
--
--	list_for_each_entry_safe(range, next, &asma->unpinned_list, unpinned) {
--		/* moved past last applicable page; we can short circuit */
--		if (range_before_page(range, pgstart))
--			break;
--
--		/*
--		 * The user can ask us to pin pages that span multiple ranges,
--		 * or to pin pages that aren't even unpinned, so this is messy.
--		 *
--		 * Four cases:
--		 * 1. The requested range subsumes an existing range, so we
--		 *    just remove the entire matching range.
--		 * 2. The requested range overlaps the start of an existing
--		 *    range, so we just update that range.
--		 * 3. The requested range overlaps the end of an existing
--		 *    range, so we just update that range.
--		 * 4. The requested range punches a hole in an existing range,
--		 *    so we have to update one side of the range and then
--		 *    create a new range for the other side.
--		 */
--		if (page_range_in_range(range, pgstart, pgend)) {
--			ret |= range->purged;
--
--			/* Case #1: Easy. Just nuke the whole thing. */
--			if (page_range_subsumes_range(range, pgstart, pgend)) {
--				range_del(range);
--				continue;
--			}
--
--			/* Case #2: We overlap from the start, so adjust it */
--			if (range->pgstart >= pgstart) {
--				range_shrink(range, pgend + 1, range->pgend);
--				continue;
--			}
--
--			/* Case #3: We overlap from the rear, so adjust it */
--			if (range->pgend <= pgend) {
--				range_shrink(range, range->pgstart, pgstart-1);
--				continue;
--			}
--
--			/*
--			 * Case #4: We eat a chunk out of the middle. A bit
--			 * more complicated, we allocate a new range for the
--			 * second half and adjust the first chunk's endpoint.
--			 */
--			range_alloc(asma, range, range->purged,
--				    pgend + 1, range->pgend);
--			range_shrink(range, range->pgstart, pgstart - 1);
--			break;
--		}
--	}
--
--	return ret;
--}
--
--/*
-- * ashmem_unpin - unpin the given range of pages. Returns zero on success.
-- *
-- * Caller must hold ashmem_mutex.
-- */
--static int ashmem_unpin(struct ashmem_area *asma, size_t pgstart, size_t pgend)
--{
--	struct ashmem_range *range, *next;
--	unsigned int purged = ASHMEM_NOT_PURGED;
--
--restart:
--	list_for_each_entry_safe(range, next, &asma->unpinned_list, unpinned) {
--		/* short circuit: this is our insertion point */
--		if (range_before_page(range, pgstart))
--			break;
--
--		/*
--		 * The user can ask us to unpin pages that are already entirely
--		 * or partially pinned. We handle those two cases here.
--		 */
--		if (page_range_subsumed_by_range(range, pgstart, pgend))
--			return 0;
--		if (page_range_in_range(range, pgstart, pgend)) {
--			pgstart = min_t(size_t, range->pgstart, pgstart),
--			pgend = max_t(size_t, range->pgend, pgend);
--			purged |= range->purged;
--			range_del(range);
--			goto restart;
--		}
--	}
--
--	return range_alloc(asma, range, purged, pgstart, pgend);
--}
--
--/*
-- * ashmem_get_pin_status - Returns ASHMEM_IS_UNPINNED if _any_ pages in the
-- * given interval are unpinned and ASHMEM_IS_PINNED otherwise.
-- *
-- * Caller must hold ashmem_mutex.
-- */
--static int ashmem_get_pin_status(struct ashmem_area *asma, size_t pgstart,
--				 size_t pgend)
--{
--	struct ashmem_range *range;
--	int ret = ASHMEM_IS_PINNED;
--
--	list_for_each_entry(range, &asma->unpinned_list, unpinned) {
--		if (range_before_page(range, pgstart))
--			break;
--		if (page_range_in_range(range, pgstart, pgend)) {
--			ret = ASHMEM_IS_UNPINNED;
--			break;
--		}
--	}
--
--	return ret;
--}
--
- static int ashmem_pin_unpin(struct ashmem_area *asma, unsigned long cmd,
- 			    void __user *p)
- {
- 	struct ashmem_pin pin;
--	size_t pgstart, pgend;
- 	int ret = -EINVAL;
- 
- 	if (unlikely(!asma->file))
-@@ -612,25 +317,25 @@ static int ashmem_pin_unpin(struct ashmem_area *asma, unsigned long cmd,
- 	if (unlikely(PAGE_ALIGN(asma->size) < pin.offset + pin.len))
- 		return -EINVAL;
- 
--	pgstart = pin.offset / PAGE_SIZE;
--	pgend = pgstart + (pin.len / PAGE_SIZE) - 1;
--
--	mutex_lock(&ashmem_mutex);
- 
- 	switch (cmd) {
- 	case ASHMEM_PIN:
--		ret = ashmem_pin(asma, pgstart, pgend);
-+		ret = do_fallocate(asma->file, FALLOC_FL_MARK_VOLATILE,
-+					pin.offset, pin.len);
- 		break;
- 	case ASHMEM_UNPIN:
--		ret = ashmem_unpin(asma, pgstart, pgend);
-+		ret = do_fallocate(asma->file, FALLOC_FL_UNMARK_VOLATILE,
-+					pin.offset, pin.len);
- 		break;
- 	case ASHMEM_GET_PIN_STATUS:
--		ret = ashmem_get_pin_status(asma, pgstart, pgend);
-+		/*
-+		 * XXX - volatile ranges currently don't provide status,
-+		 * due to questionable utility
-+		 */
-+		ret = -EINVAL;
- 		break;
- 	}
- 
--	mutex_unlock(&ashmem_mutex);
--
- 	return ret;
- }
- 
-@@ -669,15 +374,6 @@ static long ashmem_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
- 		break;
- 	case ASHMEM_PURGE_ALL_CACHES:
- 		ret = -EPERM;
--		if (capable(CAP_SYS_ADMIN)) {
--			struct shrink_control sc = {
--				.gfp_mask = GFP_KERNEL,
--				.nr_to_scan = 0,
--			};
--			ret = ashmem_shrink(&ashmem_shrinker, &sc);
--			sc.nr_to_scan = ret;
--			ashmem_shrink(&ashmem_shrinker, &sc);
--		}
- 		break;
- 	}
- 
-@@ -713,21 +409,13 @@ static int __init ashmem_init(void)
- 		return -ENOMEM;
- 	}
- 
--	ashmem_range_cachep = kmem_cache_create("ashmem_range_cache",
--					  sizeof(struct ashmem_range),
--					  0, 0, NULL);
--	if (unlikely(!ashmem_range_cachep)) {
--		pr_err("failed to create slab cache\n");
--		return -ENOMEM;
--	}
--
- 	ret = misc_register(&ashmem_misc);
- 	if (unlikely(ret)) {
- 		pr_err("failed to register misc device!\n");
- 		return ret;
- 	}
- 
--	register_shrinker(&ashmem_shrinker);
-+
- 
- 	pr_info("initialized\n");
- 
-@@ -738,13 +426,10 @@ static void __exit ashmem_exit(void)
- {
- 	int ret;
- 
--	unregister_shrinker(&ashmem_shrinker);
--
- 	ret = misc_deregister(&ashmem_misc);
- 	if (unlikely(ret))
- 		pr_err("failed to unregister misc device!\n");
- 
--	kmem_cache_destroy(ashmem_range_cachep);
- 	kmem_cache_destroy(ashmem_area_cachep);
- 
- 	pr_info("unloaded\n");
+
+John Stultz (3):
+  [RFC] Add volatile range management code
+  [RFC] tmpfs: Add FALLOC_FL_MARK_VOLATILE/UNMARK_VOLATILE handlers
+  [RFC] ashmem: Convert ashmem to use volatile ranges
+
+ drivers/staging/android/ashmem.c |  335 +---------------------
+ fs/open.c                        |    3 +-
+ include/linux/falloc.h           |    7 +-
+ include/linux/volatile.h         |   46 +++
+ mm/Makefile                      |    2 +-
+ mm/shmem.c                       |  120 ++++++++
+ mm/volatile.c                    |  580 ++++++++++++++++++++++++++++++++++++++
+ 7 files changed, 763 insertions(+), 330 deletions(-)
+ create mode 100644 include/linux/volatile.h
+ create mode 100644 mm/volatile.c
+
 -- 
 1.7.9.5
 
