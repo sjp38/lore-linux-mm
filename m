@@ -1,429 +1,262 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
-	by kanga.kvack.org (Postfix) with SMTP id 1A19F6B0071
-	for <linux-mm@kvack.org>; Fri, 28 Sep 2012 23:17:25 -0400 (EDT)
-Received: from /spool/local
-	by e38.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <john.stultz@linaro.org>;
-	Fri, 28 Sep 2012 21:17:23 -0600
-Received: from d03relay01.boulder.ibm.com (d03relay01.boulder.ibm.com [9.17.195.226])
-	by d03dlp01.boulder.ibm.com (Postfix) with ESMTP id 885301FF003C
-	for <linux-mm@kvack.org>; Fri, 28 Sep 2012 21:16:41 -0600 (MDT)
-Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
-	by d03relay01.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q8T3Gjqo222792
-	for <linux-mm@kvack.org>; Fri, 28 Sep 2012 21:16:45 -0600
-Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av01.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q8T3Gi1X020836
-	for <linux-mm@kvack.org>; Fri, 28 Sep 2012 21:16:45 -0600
-From: John Stultz <john.stultz@linaro.org>
-Subject: [PATCH 0/3] Volatile Ranges (v7) & Lots of words
-Date: Fri, 28 Sep 2012 23:16:30 -0400
-Message-Id: <1348888593-23047-1-git-send-email-john.stultz@linaro.org>
+Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
+	by kanga.kvack.org (Postfix) with SMTP id 5548F6B006C
+	for <linux-mm@kvack.org>; Fri, 28 Sep 2012 23:45:38 -0400 (EDT)
+Received: by pbbrq2 with SMTP id rq2so6598141pbb.14
+        for <linux-mm@kvack.org>; Fri, 28 Sep 2012 20:45:37 -0700 (PDT)
+Message-ID: <50666ED4.2010406@gmail.com>
+Date: Sat, 29 Sep 2012 11:45:24 +0800
+From: Ni zhan Chen <nizhan.chen@gmail.com>
+MIME-Version: 1.0
+Subject: Re: [RFC v9 PATCH 00/21] memory-hotplug: hot-remove physical memory
+References: <1346837155-534-1-git-send-email-wency@cn.fujitsu.com>
+In-Reply-To: <1346837155-534-1-git-send-email-wency@cn.fujitsu.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: LKML <linux-kernel@vger.kernel.org>
-Cc: John Stultz <john.stultz@linaro.org>, Andrew Morton <akpm@linux-foundation.org>, Android Kernel Team <kernel-team@android.com>, Robert Love <rlove@google.com>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Dmitry Adamushko <dmitry.adamushko@gmail.com>, Dave Chinner <david@fromorbit.com>, Neil Brown <neilb@suse.de>, Andrea Righi <andrea@betterlinux.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Michel Lespinasse <walken@google.com>, Minchan Kim <minchan@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
-
-
-After Kernel Summit and Plumbers, I wanted to consider all the various
-side-discussions and try to summarize my current thoughts here along
-with sending out my current implementation for review.
-
-Also: I'm going on four weeks of paternity leave in the very near
-(but non-deterministic) future. So while I hope I still have time
-for some discussion, I may have to deal with fussier complaints
-then yours. :)  In any case, you'll have more time to chew on
-the idea and come up with amazing suggestions. :)
-
-
-General Interface semantics:
-----------------------------------------------
-
-The high level interface I've been pushing has so far stayed fairly
-consistent:
-
-Application marks a range of data as volatile. Volatile data may
-be purged at any time. Accessing volatile data is undefined, so
-applications should not do so. If the application wants to access
-data in a volatile range, it should mark it as non-volatile. If any
-of the pages in the range being marked non-volatile had been purged,
-the kernel will return an error, notifying the application that the
-data was lost.
-
-But one interesting new tweak on this design, suggested by the Taras
-Glek and others at Mozilla, is as follows:
-
-Instead of leaving volatile data access as being undefined , when
-accessing volatile data, either the data expected will be returned
-if it has not been purged, or the application will get a SIGBUS when
-it accesses volatile data that has been purged.
-
-Everything else remains the same (error on marking non-volatile
-if data was purged, etc). This model allows applications to avoid
-having to unmark volatile data when it wants to access it, then
-immediately re-mark it as volatile when its done. It is in effect
-"lazy" with its marking, allowing the kernel to hit it with a signal
-when it gets unlucky and touches purged data. From the signal handler,
-the application can note the address it faulted on, unmark the range,
-and regenerate the needed data before returning to execution.
-
-Since this approach avoids the more explicit unmark/access/mark
-pattern, it avoids the extra overhead required to ensure data is
-non-volatile before being accessed.
-
-However, If applications don't want to deal with handling the
-sigbus, they can use the more straightforward (but more costly)
-unmark/access/mark pattern in the same way as my earlier proposals.
-
-This allows folks to balance the cost vs complexity in their
-application appropriately.
-
-So that's a general overview of how the idea I'm proposing could
-be used.
-
-
-
-Specific Interface semantics:
----------------------------------------------
-
-Here are some of the open question about how the user interface
-should look:
-
-fadvise vs fallocate:
-
-	So while originally I used fadvise, currently my
-	implementation uses fallocate(fd, FALLOC_FL_MARK_VOLATILE,
-	start, len) to mark a range as volatile and fallocate(fd,
-	FALLOC_FL_UNMARK_VOLATILE, start, len) to unmark ranges.
-
-	During kernel summit, the question was brought up if fallocate
-	was really the right interface to be using, and if fadvise
-	would be better. To me fadvise makes a little more sense,
-	but earlier it was pointed out that marking data ranges as
-	volatile could also be seen as a type of cancellable and lazy
-	hole-punching, so from that perspective fallocate might make
-	more sense.  This is still an open question and I'd appreciate
-	further input here.
-
-
-tmpfs vs non-shmem filesystems:
-	Android's ashmem primarily provides a way to get unlinked
-	tmpfs fds that can be shared between applications. Its
-	just an additional feature that those pages can "unpinned"
-	or marked volatile in my terminology. Thus in implementing
-	volatile ranges, I've focused on getting it to work on tmpfs
-	file descriptors.  However, there has been some interest in
-	using volatile ranges with more traditional filesystems. The
-	semantics for how volatile range purging would work on a
-	real filesystem are not well established, and I can't say I
-	understand the utility quite yet, but there may be a case for
-	having data that you know won't be committed to disk until it
-	is marked as non-volatile.  However, returning an EINVAL on
-	non-tmpfs filesystems until such a use is established should
-	be fine.
-
-fd based interfaces vs madvise:
-	In talking with Taras Glek, he pointed out that for his
-	needs, the fd based interface is a little annoying, as it
-	requires having to get access to tmpfs file and mmap it in,
-	then instead of just referencing a pointer to the data he
-	wants to mark volatile, he has to calculate the offset from
-	start of the mmap and pass those file offsets to the interface.
-	Instead he mentioned that using something like madvise would be
-	much nicer, since they could just pass a pointer to the object
-	in memory they want to make volatile and avoid the extra work.
-
-	I'm not opposed to adding an madvise interface for this as
-	well, but since we have a existing use case with Android's
-	ashmem, I want to make sure we support this existing behavior.
-	Specifically as with ashmem  applications can be sharing
-	these tmpfs fds, and so file-relative volatile ranges make
-	more sense if you need to coordinate what data is volatile
-	between two applications.
-
-	Also, while I agree that having an madvise interface for
-	volatile ranges would be nice, it does open up some more
-	complex implementation issues, since with files, there is a
-	fixed relationship between pages and the files' address_space
-	mapping, where you can't have pages shared between different
-	mappings. This makes it easy to hang the volatile-range tree
-	off of the mapping (well, indirectly via a hash table). With
-	general anonymous memory, pages can be shared between multiple
-	processes, and as far as I understand, don't have any grouping
-	structure we could use to determine if the page is in a
-	volatile range or not. We would also need to determine more
-	complex questions like: What are the semantics of volatility
-	with copy-on-write pages?  I'm hoping to investigate this
-	idea more deeply soon so I can be sure whatever is pushed has
-	a clear plan of how to address this idea. Further thoughts
-	here would be appreciated.
-
-
-It would really be great to get any thoughts on these issues, as they
-are higher-priority to me then diving into the details of how we
-implement this internally, which can shift over time.
-
-
-
-Implementation Considerations:
----------------------------------------------
-
-How best to manage volatile ranges internally in the kernel is still
-an open question.
-
-With this patch set, I'm really wanting to provide a proof of concept
-of the general interface semantics above. This allows applications to
-play with the idea and validate that it would work for them. Allowing
-further discussion to continue on how to best implement or best allow
-the implementation to evolve in the kernel.
-
-Even so, I'm very interested in any discussion about how to manage
-volatile ranges optimally.
-
-Before describing the different management approaches I've tried,
-there are some abstract properties and considerations that need to
-be kept in mind:
-
-* Range-granular Purging:
-	Since volatile ranges can be reclaimed at any time, the
-	question of how the kernel should reclaim volatile data
-	needs to be addressed.	When a large data range  is marked
-	as volatile, if any single page in that range is purged,
-	the application will get an error when it marks the range
-	as non-volatile.  Thus when any single page in a range
-	is purged, the "value" of the entire range is destroyed.
-	Because of this property, it makes most sense to purge the
-	entire range together.
-
-
-* Coalescing of adjacent volatile ranges:
-	With volatile ranges, any overlapping ranges are always
-	coalesced. However, there is an open question of what to
-	do with neighboring ranges. With Android's approach, any
-	neighboring ranges were coalesced into one range.  I've since
-	tweaked this so that adjacent ranges are coalesced only if
-	both have not yet been purged (or both are already purged).
-	This avoids throwing away fine data just because its next
-	to data that has already been tossed.  Not coalescing
-	non-overlapping ranges is also an option I've considered,
-	as it better follows the applications wishes, since as
-	the application is providing these non-overlapping ranges
-	separately, we should probably also purge them separately.
-	The one complication here is that for userlands-sake, we
-	manage volatile ranges at a byte level. So if an application
-	marks one an a half pages of data as volatile, we only purge
-	pages that are entirely volatile. This avoids accidentally
-	purging non-volatile data on the rest of the page.  However,
-	if an array of sub-page sized data is marked volatile one by
-	one, coalescing the ranges allows us to purge a page that
-	consists entirely of multiple volatile ranges.	So for now
-	I'm still coalescing assuming the neighbors are both unpurged,
-	but this behavior is open to being tweaked.
-
-
-* Purging order between volatile ranges:
-	Again, since it makes sense to purge all the complete
-	pages in a range at the same time, we need to consider the
-	subtle difference between the least-recently-used pages vs
-	least-recently-used ranges. A single range could contain very
-	frequently accessed data, as well as rarely accessed data.
-	One must also consider that the act of marking a range as
-	volatile may not actually touch the underlying pages. Thus
-	purging ranges based on a least-recently-used page may also
-	result in purging the most-recently used page.
-
-	Android addressed the purging order question by purging ranges
-	in the order they were marked volatile. Thus the oldest
-	volatile range is the first range to be purged. This works
-	well in the Android  model, as applications aren't supposed
-	to access volatile data, so the least-recently-marked-volatile
-	order maps well to the least-recently-used-range.
-
-	However, this assumption doesn't hold with the lazy SIGBUS
-	notification method, as pages in a volatile range may continue
-	to be accessed after the range is marked volatile.  So the
-	question as to what is the best order of purging volatile
-	ranges is definitely open.
-
-	Abstractly the ideal solution might be to evaluate the
-	most-recently used page in each range, and to purge the range
-	with the oldest recently-used-page, but I suspect this is
-	not something that could be calculated efficiently.
-
-	Additionally, in my conversations with Taras, he pointed out
-	that if we are using a one-application-at-a-time UI model,
-	it would be ideal to discourage purging volatile data used by
-	the current application, instead prioritizing volatile ranges
-	from applications that aren't active. However, I'm not sure
-	what mechanism could be used to prioritize range purging in
-	this fashion, especially considering volatile ranges can be
-	on data that is shared between applications.
-
-
-* Volatile range purging order relative to non-volatile pages:
-	Initially I had proposed that since applications had offered
-	data up as unused, volatile ranges should be purged before we
-	try to free any other pages in the system.  At Plumbers, Andrea
-	pointed out that this doesn't make much sense, as there may be
-	inactive file pages from some streaming file data which are not
-	going to be used any time soon, and would be a better candidate
-	to free then an application's volatile pages. This sounded
-	quite reasonable, so its likely we need to balance volatile
-	purging with freeing other pages in the system. However, I do
-	think it is advantageous to purge volatile pages before we
-	free any dirty pages that must be laundered, as part of the
-	goal of volatile pages is to avoid extra io. Although from
-	my reading of shrink_page_list in vmscan.c I'm not sure I see
-	if/how we prioritize freeing clean pages prior to dirty ones.
-
-
-So with that background covered, on to discussing actual
-implementations.
-
-Implementation Details:
----------------------------------------------
-
-There is two rough approaches that I have tried so far
-
-1) Managing volatile range objects, in a tree or list, which are then
-purged using a shrinker
-
-2) Page based management, where pages marked volatile are moved to
-a new LRU list and are purged from there.
-
-
-
-1) This patchset is of the the shrinker-based approach. In many ways it
-is simpler, but it does have a few drawbacks.  Basically when marking a
-range as volatile, we create a range object, and add it to an rbtree.
-This allows us to be able to quickly find ranges, given an address in
-the file.  We also add each range object to the tail of a  filesystem
-global linked list, which acts as an LRU allowing us to quickly find
-the least recently created volatile range. We then use a shrinker
-callback to trigger purging, where we'll select the range on the head
-of the LRU list, purge the data, mark the range object as purged,
-and remove it from the lru list.
-
-This allows fairly efficient behavior, as marking and unmarking
-a range are both O(logn) operation with respect to the number of
-ranges, to insert and remove from the tree.  Purging the range is
-also O(1) to select the range, and we purge the entire range in
-least-recently-marked-volatile order.
-
-The drawbacks with this approach is that it uses a shrinker, thus it is
-numa un-aware. We track the virtual address of the pages in the file,
-so we don't have a sense of what physical pages we're using, nor on
-which node those pages may be on. So its possible on a multi-node
-system that when one node was under pressure, we'd purge volatile
-ranges that are all on a different node, in effect throwing data away
-without helping anything. This is clearly non-ideal for numa systems.
-
-One idea I discussed with Michel Lespinasse is that this might be
-something we could improve by providing the shrinker some node context,
-then keep track in the range  what node their first page is on. That
-way we would be sure to at least free up one page on the node under
-pressure when purging that range.
-
-
-2) The second approach, which was more page based, was also tried. In
-this case when we marked a range as volatile, the pages in that range
-were moved to a new  lru list LRU _VOLATILE in vmscan.c.  This provided
-a page lru list that could be used to free pages before looking at
-the LRU_INACTIVE_FILE/ANONYMOUS lists.
-
-This integrates the feature deeper in the mm code, which is nice,
-especially as we have an LRU_VOLATILE list for each numa node. Thus
-under pressure we won't purge ranges that are entirely on a different
-node, as is possible with the other approach.
-
-However, this approach is more costly.	When marking a range
-as volatile, we have to migrate every page in that range to the
-LRU_VOLATILE list, and similarly on unmarking we have to move each
-page back. This ends up being O(n) with respect to the number of
-pages in the range we're marking or unmarking. Similarly when purging,
-we let the scanning code select a page off the lru, then we have to
-map it back to the volatile range so we can purge the entire range,
-making it a more expensive O(logn),  with respect to the number of
-ranges, operation.
-
-This is a particular concern as applications that want to mark and
-unmark data as volatile with fine granularity will likely be calling
-these operations frequently, adding quite a bit of overhead. This
-makes it less likely that applications will choose to volunteer data
-as volatile to the system.
-
-However, with the new lazy SIGBUS notification, applications using
-the SIGBUS method would avoid having to mark and unmark data when
-accessing it, so this overhead may be less of a concern. However, for
-cases where applications don't want to deal with the SIGBUS and would
-rather have the more deterministic behavior of the unmark/access/mark
-pattern, the performance is a concern.
-
-Additionally, there may be ways to defer and batch the page migration
-so that applications don't suffer the extra cost, but this solution
-may be limited or could  cause some strange behavior, as we can't
-defer the unmark method, as we don't want pages to be purged after
-the application thinks they were unmarked.
-
-
-Whew, that was long...
-
-Anyway, if you got this far and are still interested, I'd be greatly
-appreciate  hearing of any other suggested implementations, or ways
-around the drawbacks of the already tried approaches.
-
-thanks
--john
-
-
-For this v7 patchset revision the changes are as follows:
-* Dropped the LRU_VOLATILE approach for now so we can focus on
-  getting the general interface semantics agreed upon
-* Converted to using byte ranges rather then page ranges to make
-  userland's life easier.	
-* Add SIGBUS on purged page access behavior, allowing for access
-  of volatile data without having to unmark it.
-
-
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Android Kernel Team <kernel-team@android.com>
-Cc: Robert Love <rlove@google.com>
-Cc: Mel Gorman <mel@csn.ul.ie>
-Cc: Hugh Dickins <hughd@google.com>
-Cc: Dave Hansen <dave@linux.vnet.ibm.com>
-Cc: Rik van Riel <riel@redhat.com>
-Cc: Dmitry Adamushko <dmitry.adamushko@gmail.com>
-Cc: Dave Chinner <david@fromorbit.com>
-Cc: Neil Brown <neilb@suse.de>
-Cc: Andrea Righi <andrea@betterlinux.com>
-Cc: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
-Cc: Mike Hommey <mh@glandium.org>
-Cc: Taras Glek <tglek@mozilla.com>
-Cc: Jan Kara <jack@suse.cz>
-Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-Cc: Michel Lespinasse <walken@google.com>
-Cc: Minchan Kim <minchan@kernel.org>
-Cc: linux-mm@kvack.org <linux-mm@kvack.org>
-
-
-John Stultz (3):
-  [RFC] Add volatile range management code
-  [RFC] tmpfs: Add FALLOC_FL_MARK_VOLATILE/UNMARK_VOLATILE handlers
-  [RFC] ashmem: Convert ashmem to use volatile ranges
-
- drivers/staging/android/ashmem.c |  335 +---------------------
- fs/open.c                        |    3 +-
- include/linux/falloc.h           |    7 +-
- include/linux/volatile.h         |   46 +++
- mm/Makefile                      |    2 +-
- mm/shmem.c                       |  120 ++++++++
- mm/volatile.c                    |  580 ++++++++++++++++++++++++++++++++++++++
- 7 files changed, 763 insertions(+), 330 deletions(-)
- create mode 100644 include/linux/volatile.h
- create mode 100644 mm/volatile.c
-
--- 
-1.7.9.5
+To: wency@cn.fujitsu.com
+Cc: x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-ia64@vger.kernel.org, cmetcalf@tilera.com, sparclinux@vger.kernel.org, rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com
+
+On 09/05/2012 05:25 PM, wency@cn.fujitsu.com wrote:
+> From: Wen Congyang <wency@cn.fujitsu.com>
+>
+> This patch series aims to support physical memory hot-remove.
+>
+> The patches can free/remove the following things:
+>
+>    - acpi_memory_info                          : [RFC PATCH 4/19]
+>    - /sys/firmware/memmap/X/{end, start, type} : [RFC PATCH 8/19]
+>    - iomem_resource                            : [RFC PATCH 9/19]
+>    - mem_section and related sysfs files       : [RFC PATCH 10-11, 13-16/19]
+>    - page table of removed memory              : [RFC PATCH 12/19]
+>    - node and related sysfs files              : [RFC PATCH 18-19/19]
+>
+> If you find lack of function for physical memory hot-remove, please let me
+> know.
+
+Since patchset is too big, could you add more patchset changelog to 
+describe how this patchset works? in order that it is easier to review.
+
+>
+> How to test this patchset?
+> 1. apply this patchset and build the kernel. MEMORY_HOTPLUG, MEMORY_HOTREMOVE,
+>     ACPI_HOTPLUG_MEMORY must be selected.
+> 2. load the module acpi_memhotplug
+> 3. hotplug the memory device(it depends on your hardware)
+>     You will see the memory device under the directory /sys/bus/acpi/devices/.
+>     Its name is PNP0C80:XX.
+> 4. online/offline pages provided by this memory device
+>     You can write online/offline to /sys/devices/system/memory/memoryX/state to
+>     online/offline pages provided by this memory device
+> 5. hotremove the memory device
+>     You can hotremove the memory device by the hardware, or writing 1 to
+>     /sys/bus/acpi/devices/PNP0C80:XX/eject.
+>
+> Note: if the memory provided by the memory device is used by the kernel, it
+> can't be offlined. It is not a bug.
+>
+> Known problems:
+> 1. memory can't be offlined when CONFIG_MEMCG is selected.
+>     For example: there is a memory device on node 1. The address range
+>     is [1G, 1.5G). You will find 4 new directories memory8, memory9, memory10,
+>     and memory11 under the directory /sys/devices/system/memory/.
+>     If CONFIG_MEMCG is selected, we will allocate memory to store page cgroup
+>     when we online pages. When we online memory8, the memory stored page cgroup
+>     is not provided by this memory device. But when we online memory9, the memory
+>     stored page cgroup may be provided by memory8. So we can't offline memory8
+>     now. We should offline the memory in the reversed order.
+>     When the memory device is hotremoved, we will auto offline memory provided
+>     by this memory device. But we don't know which memory is onlined first, so
+>     offlining memory may fail. In such case, you should offline the memory by
+>     hand before hotremoving the memory device.
+> 2. hotremoving memory device may cause kernel panicked
+>     This bug will be fixed by Liu Jiang's patch:
+>     https://lkml.org/lkml/2012/7/3/1
+>
+> change log of v9:
+>   [RFC PATCH v9 8/21]
+>     * add a lock to protect the list map_entries
+>     * add an indicator to firmware_map_entry to remember whether the memory
+>       is allocated from bootmem
+>   [RFC PATCH v9 10/21]
+>     * change the macro to inline function
+>   [RFC PATCH v9 19/21]
+>     * don't offline the node if the cpu on the node is onlined
+>   [RFC PATCH v9 21/21]
+>     * create new patch: auto offline page_cgroup when onlining memory block
+>       failed
+>
+> change log of v8:
+>   [RFC PATCH v8 17/20]
+>     * Fix problems when one node's range include the other nodes
+>   [RFC PATCH v8 18/20]
+>     * fix building error when CONFIG_MEMORY_HOTPLUG_SPARSE or CONFIG_HUGETLBFS
+>       is not defined.
+>   [RFC PATCH v8 19/20]
+>     * don't offline node when some memory sections are not removed
+>   [RFC PATCH v8 20/20]
+>     * create new patch: clear hwpoisoned flag when onlining pages
+>
+> change log of v7:
+>   [RFC PATCH v7 4/19]
+>     * do not continue if acpi_memory_device_remove_memory() fails.
+>   [RFC PATCH v7 15/19]
+>     * handle usemap in register_page_bootmem_info_section() too.
+>
+> change log of v6:
+>   [RFC PATCH v6 12/19]
+>     * fix building error on other archtitectures than x86
+>
+>   [RFC PATCH v6 15-16/19]
+>     * fix building error on other archtitectures than x86
+>
+> change log of v5:
+>   * merge the patchset to clear page table and the patchset to hot remove
+>     memory(from ishimatsu) to one big patchset.
+>
+>   [RFC PATCH v5 1/19]
+>     * rename remove_memory() to offline_memory()/offline_pages()
+>
+>   [RFC PATCH v5 2/19]
+>     * new patch: implement offline_memory(). This function offlines pages,
+>       update memory block's state, and notify the userspace that the memory
+>       block's state is changed.
+>
+>   [RFC PATCH v5 4/19]
+>     * offline and remove memory in acpi_memory_disable_device() too.
+>
+>   [RFC PATCH v5 17/19]
+>     * new patch: add a new function __remove_zone() to revert the things done
+>       in the function __add_zone().
+>
+>   [RFC PATCH v5 18/19]
+>     * flush work befor reseting node device.
+>
+> change log of v4:
+>   * remove "memory-hotplug : unify argument of firmware_map_add_early/hotplug"
+>     from the patch series, since the patch is a bugfix. It is being disccussed
+>     on other thread. But for testing the patch series, the patch is needed.
+>     So I added the patch as [PATCH 0/13].
+>
+>   [RFC PATCH v4 2/13]
+>     * check memory is online or not at remove_memory()
+>     * add memory_add_physaddr_to_nid() to acpi_memory_device_remove() for
+>       getting node id
+>   
+>   [RFC PATCH v4 3/13]
+>     * create new patch : check memory is online or not at online_pages()
+>
+>   [RFC PATCH v4 4/13]
+>     * add __ref section to remove_memory()
+>     * call firmware_map_remove_entry() before remove_sysfs_fw_map_entry()
+>
+>   [RFC PATCH v4 11/13]
+>     * rewrite register_page_bootmem_memmap() for removing page used as PT/PMD
+>
+> change log of v3:
+>   * rebase to 3.5.0-rc6
+>
+>   [RFC PATCH v2 2/13]
+>     * remove extra kobject_put()
+>
+>     * The patch was commented by Wen. Wen's comment is
+>       "acpi_memory_device_remove() should ignore a return value of
+>       remove_memory() since caller does not care the return value".
+>       But I did not change it since I think caller should care the
+>       return value. And I am trying to fix it as follow:
+>
+>       https://lkml.org/lkml/2012/7/5/624
+>
+>   [RFC PATCH v2 4/13]
+>     * remove a firmware_memmap_entry allocated by kzmalloc()
+>
+> change log of v2:
+>   [RFC PATCH v2 2/13]
+>     * check whether memory block is offline or not before calling offline_memory()
+>     * check whether section is valid or not in is_memblk_offline()
+>     * call kobject_put() for each memory_block in is_memblk_offline()
+>
+>   [RFC PATCH v2 3/13]
+>     * unify the end argument of firmware_map_add_early/hotplug
+>
+>   [RFC PATCH v2 4/13]
+>     * add release_firmware_map_entry() for freeing firmware_map_entry
+>
+>   [RFC PATCH v2 6/13]
+>    * add release_memory_block() for freeing memory_block
+>
+>   [RFC PATCH v2 11/13]
+>    * fix wrong arguments of free_pages()
+>
+>
+> Wen Congyang (8):
+>    memory-hotplug: implement offline_memory()
+>    memory-hotplug: store the node id in acpi_memory_device
+>    memory-hotplug: export the function acpi_bus_remove()
+>    memory-hotplug: call acpi_bus_remove() to remove memory device
+>    memory-hotplug: introduce new function arch_remove_memory()
+>    memory-hotplug: remove sysfs file of node
+>    memory-hotplug: clear hwpoisoned flag when onlining pages
+>    memory-hotplug: auto offline page_cgroup when onlining memory block
+>      failed
+>
+> Yasuaki Ishimatsu (13):
+>    memory-hotplug: rename remove_memory() to
+>      offline_memory()/offline_pages()
+>    memory-hotplug: offline and remove memory when removing the memory
+>      device
+>    memory-hotplug: check whether memory is present or not
+>    memory-hotplug: remove /sys/firmware/memmap/X sysfs
+>    memory-hotplug: does not release memory region in PAGES_PER_SECTION
+>      chunks
+>    memory-hotplug: add memory_block_release
+>    memory-hotplug: remove_memory calls __remove_pages
+>    memory-hotplug: check page type in get_page_bootmem
+>    memory-hotplug: move register_page_bootmem_info_node and
+>      put_page_bootmem for sparse-vmemmap
+>    memory-hotplug: implement register_page_bootmem_info_section of
+>      sparse-vmemmap
+>    memory-hotplug: free memmap of sparse-vmemmap
+>    memory_hotplug: clear zone when the memory is removed
+>    memory-hotplug: add node_device_release
+>
+>   arch/ia64/mm/discontig.c                        |   14 +
+>   arch/ia64/mm/init.c                             |   16 +
+>   arch/powerpc/mm/init_64.c                       |   14 +
+>   arch/powerpc/mm/mem.c                           |   14 +
+>   arch/powerpc/platforms/pseries/hotplug-memory.c |   16 +-
+>   arch/s390/mm/init.c                             |   12 +
+>   arch/s390/mm/vmem.c                             |   14 +
+>   arch/sh/mm/init.c                               |   15 +
+>   arch/sparc/mm/init_64.c                         |   14 +
+>   arch/tile/mm/init.c                             |    8 +
+>   arch/x86/include/asm/pgtable_types.h            |    1 +
+>   arch/x86/mm/init_32.c                           |   10 +
+>   arch/x86/mm/init_64.c                           |  331 ++++++++++++++++++
+>   arch/x86/mm/pageattr.c                          |   47 ++--
+>   drivers/acpi/acpi_memhotplug.c                  |   54 +++-
+>   drivers/acpi/scan.c                             |    3 +-
+>   drivers/base/memory.c                           |   88 ++++-
+>   drivers/base/node.c                             |   11 +
+>   drivers/firmware/memmap.c                       |   98 +++++-
+>   include/acpi/acpi_bus.h                         |    1 +
+>   include/linux/firmware-map.h                    |    6 +
+>   include/linux/memory.h                          |    5 +
+>   include/linux/memory_hotplug.h                  |   25 +-
+>   include/linux/mm.h                              |    5 +-
+>   include/linux/mmzone.h                          |   19 +
+>   mm/memory_hotplug.c                             |  424 +++++++++++++++++++++--
+>   mm/page_cgroup.c                                |    3 +
+>   mm/sparse.c                                     |    5 +-
+>   28 files changed, 1181 insertions(+), 92 deletions(-)
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
