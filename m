@@ -1,70 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
-	by kanga.kvack.org (Postfix) with SMTP id EFEEB6B0068
-	for <linux-mm@kvack.org>; Mon,  1 Oct 2012 04:46:51 -0400 (EDT)
-Message-ID: <506957AC.5070206@parallels.com>
-Date: Mon, 1 Oct 2012 12:43:24 +0400
+Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
+	by kanga.kvack.org (Postfix) with SMTP id 2EBAA6B0068
+	for <linux-mm@kvack.org>; Mon,  1 Oct 2012 04:48:38 -0400 (EDT)
+Message-ID: <50695817.2030201@parallels.com>
+Date: Mon, 1 Oct 2012 12:45:11 +0400
 From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
 Subject: Re: [PATCH v3 04/13] kmem accounting basic infrastructure
-References: <20120927142822.GG3429@suse.de> <20120927144942.GB4251@mtj.dyndns.org> <50646977.40300@parallels.com> <20120927174605.GA2713@localhost> <50649EAD.2050306@parallels.com> <20120930075700.GE10383@mtj.dyndns.org> <20120930080249.GF10383@mtj.dyndns.org> <1348995388.2458.8.camel@dabdike.int.hansenpartnership.com> <20120930103732.GK10383@mtj.dyndns.org> <1349004352.2458.34.camel@dabdike.int.hansenpartnership.com> <20121001005717.GM10383@mtj.dyndns.org>
-In-Reply-To: <20121001005717.GM10383@mtj.dyndns.org>
+References: <50635B9D.8020205@parallels.com> <20120926195648.GA20342@google.com> <50635F46.7000700@parallels.com> <20120926201629.GB20342@google.com> <50637298.2090904@parallels.com> <20120927120806.GA29104@dhcp22.suse.cz> <20120927143300.GA4251@mtj.dyndns.org> <20120927144307.GH3429@suse.de> <20120927145802.GC4251@mtj.dyndns.org> <50649B4C.8000208@parallels.com> <20120930082358.GG10383@mtj.dyndns.org>
+In-Reply-To: <20120930082358.GG10383@mtj.dyndns.org>
 Content-Type: text/plain; charset="ISO-8859-1"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Tejun Heo <tj@kernel.org>
-Cc: James Bottomley <James.Bottomley@HansenPartnership.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, devel@openvz.org, linux-mm@kvack.org, Suleiman Souhlal <suleiman@google.com>, Frederic Weisbecker <fweisbec@gmail.com>, David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Greg Thelen <gthelen@google.com>
+Cc: Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, devel@openvz.org, linux-mm@kvack.org, Suleiman Souhlal <suleiman@google.com>, Frederic Weisbecker <fweisbec@gmail.com>, David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>
 
-On 10/01/2012 04:57 AM, Tejun Heo wrote:
-> Hello, James.
+On 09/30/2012 12:23 PM, Tejun Heo wrote:
+> Hello, Glauber.
 > 
-> On Sun, Sep 30, 2012 at 12:25:52PM +0100, James Bottomley wrote:
->> But you've got to ask yourself who cares about accurate accounting per
->> container of dentry and inode objects? They're not objects that any
->> administrator is used to limiting.  What we at parallels care about
->> isn't accurately accounting them, it's that one container can't DoS
->> another by exhausting system resources.  That's achieved equally well by
->> first charge slab accounting, so we don't really have an interest in
->> pushing object accounting code for which there's no use case.
-> 
-> Isn't it more because the use cases you have on mind don't share
-> dentries/inodes too much?  Wildly incorrect accounting definitely
-> degrades container isolation and can lead to unexpected behaviors.
-> 
->> All we need kernel memory accounting and limiting for is DoS prevention.
->> There aren't really any system administrators who care about Kernel
->> Memory accounting (at least until the system goes oom) because there are
->> no absolute knobs for it (all there is are a set of weird and wonderful
->> heuristics, like dirty limit ratio and drop caches).  Kernel memory
-> 
-> I think that's because the mechanism currently doesn't exist.  If one
-> wants to control how memory is distributed across different cgroups,
-> it's logical to control kernel memory too.  The resource in question
-> is the actual memory after all.  I think at least google would be
-> interested in it, so, no, I don't agree that nobody wants it.  If that
-> is the case, we're working towards the wrong direction.
-> 
->> usage has a whole set of regulatory infrastructure for trying to make it
->> transparent to the user.
+> On Thu, Sep 27, 2012 at 10:30:36PM +0400, Glauber Costa wrote:
+>>> But that happens only when pages enter and leave slab and if it still
+>>> is significant, we can try to further optimize charging.  Given that
+>>> this is only for cases where memcg is already in use and we provide a
+>>> switch to disable it globally, I really don't think this warrants
+>>> implementing fully hierarchy configuration.
 >>
->> Don't get me wrong: if there were some easy way to get proper memory
->> accounting for free, we'd be happy but, because it has no practical
->> application for any of our customers, there's a limited price we're
->> willing to pay to get it.
+>> Not totally true. We still have to match every allocation to the right
+>> cache, and that is actually our heaviest hit, responsible for the 2, 3 %
+>> we're seeing when this is enabled. It is the kind of path so hot that
+>> people frown upon branches being added, so I don't think we'll ever get
+>> this close to being free.
 > 
-> Even on purely technical ground, it could be that first-use is the
-> right trade off if other more accurate approaches are too difficult
-> and most workloads are happy with such approach.  I'm still a bit
-> weary to base userland interface decisions on that tho.
+> Sure, depening on workload, any addition to alloc/free could be
+> noticeable.  I don't know.  I'll write more about it when replying to
+> Michal's message.  BTW, __memcg_kmem_get_cache() does seem a bit
+> heavy.  I wonder whether indexing from cache side would make it
+> cheaper?  e.g. something like the following.
+> 
+> 	kmem_cache *__memcg_kmem_get_cache(cachep, gfp)
+> 	{
+> 		struct kmem_cache *c;
+> 
+> 		c = cachep->memcg_params->caches[percpu_read(kmemcg_slab_idx)];
+> 		if (likely(c))
+> 			return c;
+> 		/* try to create and then fall back to cachep */
+> 	}
+> 
+> where kmemcg_slab_idx is updated from sched notifier (or maybe add and
+> use current->kmemcg_slab_idx?).  You would still need __GFP_* and
+> in_interrupt() tests but current->mm and PF_KTHREAD tests can be
+> rolled into index selection.
 > 
 
-For the record, user memory also suffers a bit from being always
-constrained to first-touch accounting. Greg Thelen is working on
-alternative solutions to make first-accounting the default in a
-configurable environment, as he explained in the kernel summit.
-
-When that happens, kernel memory can take advantage of it for free.
+How big would this array be? there can be a lot more kmem_caches than
+there are memcgs. That is why it is done from memcg side.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
