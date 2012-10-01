@@ -1,133 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
-	by kanga.kvack.org (Postfix) with SMTP id 2B4BC6B0068
-	for <linux-mm@kvack.org>; Sun, 30 Sep 2012 20:37:14 -0400 (EDT)
-Received: by padfa10 with SMTP id fa10so4347933pad.14
-        for <linux-mm@kvack.org>; Sun, 30 Sep 2012 17:37:13 -0700 (PDT)
-Date: Sun, 30 Sep 2012 17:36:33 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH v4] KSM: numa awareness sysfs knob
-In-Reply-To: <20120928112645.GX19474@redhat.com>
-Message-ID: <alpine.LSU.2.00.1209301639240.6304@eggly.anvils>
-References: <1348448166-1995-1-git-send-email-pholasek@redhat.com> <20120928112645.GX19474@redhat.com>
+Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
+	by kanga.kvack.org (Postfix) with SMTP id 1B5806B0068
+	for <linux-mm@kvack.org>; Sun, 30 Sep 2012 20:57:27 -0400 (EDT)
+Received: by padfa10 with SMTP id fa10so4358114pad.14
+        for <linux-mm@kvack.org>; Sun, 30 Sep 2012 17:57:26 -0700 (PDT)
+Date: Mon, 1 Oct 2012 09:57:17 +0900
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH v3 04/13] kmem accounting basic infrastructure
+Message-ID: <20121001005717.GM10383@mtj.dyndns.org>
+References: <20120927142822.GG3429@suse.de>
+ <20120927144942.GB4251@mtj.dyndns.org>
+ <50646977.40300@parallels.com>
+ <20120927174605.GA2713@localhost>
+ <50649EAD.2050306@parallels.com>
+ <20120930075700.GE10383@mtj.dyndns.org>
+ <20120930080249.GF10383@mtj.dyndns.org>
+ <1348995388.2458.8.camel@dabdike.int.hansenpartnership.com>
+ <20120930103732.GK10383@mtj.dyndns.org>
+ <1349004352.2458.34.camel@dabdike.int.hansenpartnership.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1349004352.2458.34.camel@dabdike.int.hansenpartnership.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Petr Holasek <pholasek@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, Izik Eidus <izik.eidus@ravellosystems.com>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Anton Arapov <anton@redhat.com>
+To: James Bottomley <James.Bottomley@HansenPartnership.com>
+Cc: Glauber Costa <glommer@parallels.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, devel@openvz.org, linux-mm@kvack.org, Suleiman Souhlal <suleiman@google.com>, Frederic Weisbecker <fweisbec@gmail.com>, David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>
 
-Sorry for taking so long to look at Petr's nice work: it's more than
-what I can think through in odd stolen moments; but yesterday at last
-I managed to get down to remembering KSM and giving this some time.
+Hello, James.
 
-On Fri, 28 Sep 2012, Andrea Arcangeli wrote:
-> On Mon, Sep 24, 2012 at 02:56:06AM +0200, Petr Holasek wrote:
-> > @@ -1758,7 +1800,12 @@ void ksm_migrate_page(struct page *newpage, struct page *oldpage)
-> >  	stable_node = page_stable_node(newpage);
-> >  	if (stable_node) {
-> >  		VM_BUG_ON(stable_node->kpfn != page_to_pfn(oldpage));
-> > -		stable_node->kpfn = page_to_pfn(newpage);
-> > +
-> > +		if (ksm_merge_across_nodes ||
-> > +				page_to_nid(oldpage) == page_to_nid(newpage))
-> > +			stable_node->kpfn = page_to_pfn(newpage);
-> > +		else
-> > +			remove_node_from_stable_tree(stable_node);
-> >  	}
-> >  }
+On Sun, Sep 30, 2012 at 12:25:52PM +0100, James Bottomley wrote:
+> But you've got to ask yourself who cares about accurate accounting per
+> container of dentry and inode objects? They're not objects that any
+> administrator is used to limiting.  What we at parallels care about
+> isn't accurately accounting them, it's that one container can't DoS
+> another by exhausting system resources.  That's achieved equally well by
+> first charge slab accounting, so we don't really have an interest in
+> pushing object accounting code for which there's no use case.
+
+Isn't it more because the use cases you have on mind don't share
+dentries/inodes too much?  Wildly incorrect accounting definitely
+degrades container isolation and can lead to unexpected behaviors.
+
+> All we need kernel memory accounting and limiting for is DoS prevention.
+> There aren't really any system administrators who care about Kernel
+> Memory accounting (at least until the system goes oom) because there are
+> no absolute knobs for it (all there is are a set of weird and wonderful
+> heuristics, like dirty limit ratio and drop caches).  Kernel memory
+
+I think that's because the mechanism currently doesn't exist.  If one
+wants to control how memory is distributed across different cgroups,
+it's logical to control kernel memory too.  The resource in question
+is the actual memory after all.  I think at least google would be
+interested in it, so, no, I don't agree that nobody wants it.  If that
+is the case, we're working towards the wrong direction.
+
+> usage has a whole set of regulatory infrastructure for trying to make it
+> transparent to the user.
 > 
-> This will result in memory corruption because the ksm page still
-> points to the stable_node that has been freed (that is copied by the
-> migrate code when the newpage->mapping = oldpage->mapping).
+> Don't get me wrong: if there were some easy way to get proper memory
+> accounting for free, we'd be happy but, because it has no practical
+> application for any of our customers, there's a limited price we're
+> willing to pay to get it.
 
-That is a very acute observation!  (And there was I searching for
-where we copy over the PageKsm ;) which of course is in ->mapping.)
+Even on purely technical ground, it could be that first-use is the
+right trade off if other more accurate approaches are too difficult
+and most workloads are happy with such approach.  I'm still a bit
+weary to base userland interface decisions on that tho.
 
-> 
-> What should happen is that the ksm page of src_node is merged with
-> the pre-existing ksm page in the dst_node of the migration. That's the
-> complex case, the easy case is if there's no pre-existing page and
-> that just requires an insert of the stable node in a different rbtree
-> I think (without actual pagetable mangling).
+Thanks.
 
-I believe it's not as bad as "pagetable mangling" suggests.
-
-> 
-> It may be simpler to break cow across migrate and require the ksm
-> scanner to re-merge it however.
-
-I'm all for the simplest solution, but here in ksm_migrate_page()
-is not a good place for COW breaking - we don't want to get into
-an indefinite number of page allocations, and the risk of failure.
-
-I was toying with the idea of leaving the new page in the old NUMAnode's
-stable tree temporarily, until ksmd comes around again, and let that
-clean it up.  Which would imply less reliance on get_kpfn_nid(),
-and not skipping PageKsm in ksm_do_scan(), and...
-
-But it's not all that simple, and I think we can do better.
-
-> 
-> Basically the above would remove the ability to rmap the ksm page
-> (i.e. rmap crashes on a dangling pointer), but we need rmap to be
-> functional at all times on all ksm pages.
-
-Yes.
-
-> 
-> Hugh what's your views on this ksm_migrate_page NUMA aware that is
-> giving trouble? What would you prefer? Merge two ksm pages together
-> (something that has never happened before), break_cow (so we don't
-> have to merge two ksm pages together in the first place and we
-> fallback in the regular paths) etc...
-
-It's only just fully dawned on me that ksm_migrate_page() is actually
-a very convenient place: no pagetable mangling required, because we
-know that neither old nor new page is at this instant mapped into
-userspace at all - don't we?  Instead there are swap-like migration
-entries plugging all ptes until we're ready to put in the new page.
-
-So I think what we really want to do is change the ksm_migrate_page()
-interface a little, and probably the precise position it's called from,
-to allow it to update mm/migrate.c's newpage - in the collision case
-when the new NUMAnode already has a stable copy of this page.  But when
-it doesn't, just move KSMnode from old NUMAnode's stable tree to new.
-
-How well the existing ksm.c primitives are suited to this, I've not
-checked.  Probably not too well, but shouldn't be hard to add what's
-needed.
-
-What do you think?  Does that sound reasonable, Petr?
-
-By the way, this is probably a good occasion to remind ourselves,
-that page migration is still usually disabled on PageKsm pages:
-ksm_migrate_page() is only being called for memory hotremove.  I had
-been about to complain that calling remove_node_from_stable_tree()
-from ksm_migrate_page() is also unsafe from a locking point of view;
-until I remembered that MEM_GOING_OFFLINE has previously acquired
-ksm_thread_mutex.
-
-But page migration is much more important now than three years ago,
-with compaction relying upon it, CMA and THP relying upon compaction,
-and lumpy reclaim gone.
-
-Whilst it should not be mixed up in the NUMA patch itself, I think we
-need now to relax that restriction.  I found re-reading my 62b61f611e
-"ksm: memory hotremove migration only" was helpful.  Petr, is that
-something you could take on also?  I _think_ it's just a matter of
-protecting the stable tree(s) with an additional mutex (which ought
-not to be contended, since ksm_thread_mutex is normally held above
-it, except in migration); then removing a number of PageKsm refusals
-(and the offlining arg to unmap_and_move() etc).  But perhaps there's
-more to it, I haven't gone over it properly.
-
-> 
-> All the rest looks very good, great work Petr!
-
-Yes, I agree; but a few more comments I'll make against the v4 post.
-
-Hugh
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
