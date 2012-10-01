@@ -1,54 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
-	by kanga.kvack.org (Postfix) with SMTP id CCB106B006E
-	for <linux-mm@kvack.org>; Mon,  1 Oct 2012 12:22:31 -0400 (EDT)
-Date: Mon, 1 Oct 2012 18:22:26 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH] hugetlb: do not use vma_hugecache_offset for
- vma_prio_tree_foreach
-Message-ID: <20121001162226.GA24860@dhcp22.suse.cz>
-References: <1344866141-27906-1-git-send-email-mhocko@suse.cz>
- <20120926205617.GA2667@cmpxchg.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120926205617.GA2667@cmpxchg.org>
+Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
+	by kanga.kvack.org (Postfix) with SMTP id BA8A86B0068
+	for <linux-mm@kvack.org>; Mon,  1 Oct 2012 12:26:43 -0400 (EDT)
+From: Jan Kara <jack@suse.cz>
+Subject: [PATCH] mm: Fix XFS oops due to dirty pages without buffers on s390
+Date: Mon,  1 Oct 2012 18:26:36 +0200
+Message-Id: <1349108796-32161-1-git-send-email-jack@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hillf Danton <dhillf@gmail.com>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>, David Rientjes <rientjes@google.com>
+To: linux-mm@kvack.org
+Cc: LKML <linux-kernel@vger.kernel.org>, xfs@oss.sgi.com, Jan Kara <jack@suse.cz>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Mel Gorman <mgorman@suse.de>, linux-s390@vger.kernel.org
 
-On Wed 26-09-12 16:56:17, Johannes Weiner wrote:
-> On Mon, Aug 13, 2012 at 03:55:41PM +0200, Michal Hocko wrote:
-> > 0c176d5 (mm: hugetlb: fix pgoff computation when unmapping page
-> > from vma) fixed pgoff calculation but it has replaced it by
-> > vma_hugecache_offset which is not approapriate for offsets used for
-> > vma_prio_tree_foreach because that one expects index in page units
-> > rather than in huge_page_shift.
-> > Using vma_hugecache_offset is not incorrect because the pgoff will fit
-> > into the same vmas but it is confusing so the standard PAGE_SHIFT based
-> > index calculation is used instead.
-> 
-> I do think it's incorrect.  The resulting index may not be too big,
-> but it can be too small: assume hpage size of 2M and the address to
-> unmap to be 0x200000.  This is regular page index 512 and hpage index
-> 1.  If you have a VMA that maps the file only starting at the second
-> huge page, that VMAs vm_pgoff will be 512 but you ask for offset 1 and
-> miss it even though it does map the page of interest.  hugetlb_cow()
-> will try to unmap, miss the vma, and retry the cow until the
-> allocation succeeds or the skipped vma(s) go away.
-> 
-> Unless I missed something, this should not be deferred as a cleanup.
+On s390 any write to a page (even from kernel itself) sets architecture
+specific page dirty bit. Thus when a page is written to via standard write, HW
+dirty bit gets set and when we later map and unmap the page, page_remove_rmap()
+finds the dirty bit and calls set_page_dirty().
 
-You are right and I have totally missed this because I focused on the
-other boundary too much :/ This vma_hugecache_offset is really
-confusing.
-Andrew has already updated the changelog so we will not get even more
-confusion into the Linus tree.
-Thanks for spotting this Johannes!
+Dirtying of a page which shouldn't be dirty can cause all sorts of problems to
+filesystems. The bug we observed in practice is that buffers from the page get
+freed, so when the page gets later marked as dirty and writeback writes it, XFS
+crashes due to an assertion BUG_ON(!PagePrivate(page)) in page_buffers() called
+from xfs_count_page_state().
+
+Similar problem can also happen when zero_user_segment() call from
+xfs_vm_writepage() (or block_write_full_page() for that matter) set the
+hardware dirty bit during writeback, later buffers get freed, and then page
+unmapped.
+
+Fix the issue by ignoring s390 HW dirty bit for page cache pages in
+page_mkclean() and page_remove_rmap(). This is safe because when a page gets
+marked as writeable in PTE it is also marked dirty in do_wp_page() or
+do_page_fault(). When the dirty bit is cleared by clear_page_dirty_for_io(),
+the page gets writeprotected in page_mkclean(). So pagecache page is writeable
+if and only if it is dirty.
+
+CC: Martin Schwidefsky <schwidefsky@de.ibm.com>
+CC: Mel Gorman <mgorman@suse.de>
+CC: linux-s390@vger.kernel.org
+Signed-off-by: Jan Kara <jack@suse.cz>
+---
+ mm/rmap.c |   16 ++++++++++++++--
+ 1 files changed, 14 insertions(+), 2 deletions(-)
+
+diff --git a/mm/rmap.c b/mm/rmap.c
+index 0f3b7cd..6ce8ddb 100644
+--- a/mm/rmap.c
++++ b/mm/rmap.c
+@@ -973,7 +973,15 @@ int page_mkclean(struct page *page)
+ 		struct address_space *mapping = page_mapping(page);
+ 		if (mapping) {
+ 			ret = page_mkclean_file(mapping, page);
+-			if (page_test_and_clear_dirty(page_to_pfn(page), 1))
++			/*
++			 * We ignore dirty bit for pagecache pages. It is safe
++			 * as page is marked dirty iff it is writeable (page is
++			 * marked as dirty when it is made writeable and
++			 * clear_page_dirty_for_io() writeprotects the page
++			 * again).
++			 */
++			if (PageSwapCache(page) &&
++			    page_test_and_clear_dirty(page_to_pfn(page), 1))
+ 				ret = 1;
+ 		}
+ 	}
+@@ -1183,8 +1191,12 @@ void page_remove_rmap(struct page *page)
+ 	 * this if the page is anon, so about to be freed; but perhaps
+ 	 * not if it's in swapcache - there might be another pte slot
+ 	 * containing the swap entry, but page not yet written to swap.
++	 * For pagecache pages, we don't care about dirty bit in storage
++	 * key because the page is writeable iff it is dirty (page is marked
++	 * as dirty when it is made writeable and clear_page_dirty_for_io()
++	 * writeprotects the page again).
+ 	 */
+-	if ((!anon || PageSwapCache(page)) &&
++	if (PageSwapCache(page) &&
+ 	    page_test_and_clear_dirty(page_to_pfn(page), 1))
+ 		set_page_dirty(page);
+ 	/*
 -- 
-Michal Hocko
-SUSE Labs
+1.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
