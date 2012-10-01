@@ -1,56 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
-	by kanga.kvack.org (Postfix) with SMTP id 65FFC6B009B
-	for <linux-mm@kvack.org>; Mon,  1 Oct 2012 14:29:21 -0400 (EDT)
-Date: Mon, 1 Oct 2012 20:29:09 +0200
+Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
+	by kanga.kvack.org (Postfix) with SMTP id 8B0FE6B009C
+	for <linux-mm@kvack.org>; Mon,  1 Oct 2012 14:48:27 -0400 (EDT)
+Date: Mon, 1 Oct 2012 14:48:12 -0400
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH] hugetlb: do not use vma_hugecache_offset for
- vma_prio_tree_foreach
-Message-ID: <20121001182909.GE29854@cmpxchg.org>
-References: <1344866141-27906-1-git-send-email-mhocko@suse.cz>
- <20120926205617.GA2667@cmpxchg.org>
- <20121001162226.GA24860@dhcp22.suse.cz>
+Subject: Re: [PATCH v3 01/13] memcg: Make it possible to use the stock for
+ more than one page.
+Message-ID: <20121001184812.GB23734@cmpxchg.org>
+References: <1347977050-29476-1-git-send-email-glommer@parallels.com>
+ <1347977050-29476-2-git-send-email-glommer@parallels.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20121001162226.GA24860@dhcp22.suse.cz>
+In-Reply-To: <1347977050-29476-2-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hillf Danton <dhillf@gmail.com>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>, David Rientjes <rientjes@google.com>
+To: Glauber Costa <glommer@parallels.com>
+Cc: linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, devel@openvz.org, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, Suleiman Souhlal <suleiman@google.com>, Frederic Weisbecker <fweisbec@gmail.com>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>
 
-On Mon, Oct 01, 2012 at 06:22:26PM +0200, Michal Hocko wrote:
-> On Wed 26-09-12 16:56:17, Johannes Weiner wrote:
-> > On Mon, Aug 13, 2012 at 03:55:41PM +0200, Michal Hocko wrote:
-> > > 0c176d5 (mm: hugetlb: fix pgoff computation when unmapping page
-> > > from vma) fixed pgoff calculation but it has replaced it by
-> > > vma_hugecache_offset which is not approapriate for offsets used for
-> > > vma_prio_tree_foreach because that one expects index in page units
-> > > rather than in huge_page_shift.
-> > > Using vma_hugecache_offset is not incorrect because the pgoff will fit
-> > > into the same vmas but it is confusing so the standard PAGE_SHIFT based
-> > > index calculation is used instead.
-> > 
-> > I do think it's incorrect.  The resulting index may not be too big,
-> > but it can be too small: assume hpage size of 2M and the address to
-> > unmap to be 0x200000.  This is regular page index 512 and hpage index
-> > 1.  If you have a VMA that maps the file only starting at the second
-> > huge page, that VMAs vm_pgoff will be 512 but you ask for offset 1 and
-> > miss it even though it does map the page of interest.  hugetlb_cow()
-> > will try to unmap, miss the vma, and retry the cow until the
-> > allocation succeeds or the skipped vma(s) go away.
-> > 
-> > Unless I missed something, this should not be deferred as a cleanup.
+On Tue, Sep 18, 2012 at 06:03:58PM +0400, Glauber Costa wrote:
+> From: Suleiman Souhlal <ssouhlal@FreeBSD.org>
 > 
-> You are right and I have totally missed this because I focused on the
-> other boundary too much :/ This vma_hugecache_offset is really
-> confusing.
-> Andrew has already updated the changelog so we will not get even more
-> confusion into the Linus tree.
-> Thanks for spotting this Johannes!
+> We currently have a percpu stock cache scheme that charges one page at a
+> time from memcg->res, the user counter. When the kernel memory
+> controller comes into play, we'll need to charge more than that.
+> 
+> This is because kernel memory allocations will also draw from the user
+> counter, and can be bigger than a single page, as it is the case with
+> the stack (usually 2 pages) or some higher order slabs.
+> 
+> [ glommer@parallels.com: added a changelog ]
+> 
+> Signed-off-by: Suleiman Souhlal <suleiman@google.com>
+> Signed-off-by: Glauber Costa <glommer@parallels.com>
+> Acked-by: David Rientjes <rientjes@google.com>
+> Acked-by: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> Acked-by: Michal Hocko <mhocko@suse.cz>
 
-Just saw the update on ozlabs, thanks guys.  Andrew, could you please
-also add:
+Independent of how the per-subtree enable-through-setting-limit
+discussion pans out, we're going to need the charge cache, so:
 
 Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 
