@@ -1,47 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
-	by kanga.kvack.org (Postfix) with SMTP id 970A86B005D
-	for <linux-mm@kvack.org>; Mon,  1 Oct 2012 04:02:19 -0400 (EDT)
-Message-ID: <50694D3C.8000603@parallels.com>
-Date: Mon, 1 Oct 2012 11:58:52 +0400
-From: Glauber Costa <glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
+	by kanga.kvack.org (Postfix) with SMTP id C64BE6B005D
+	for <linux-mm@kvack.org>; Mon,  1 Oct 2012 04:15:06 -0400 (EDT)
+Received: by pbbrq2 with SMTP id rq2so8418885pbb.14
+        for <linux-mm@kvack.org>; Mon, 01 Oct 2012 01:15:06 -0700 (PDT)
+Date: Mon, 1 Oct 2012 01:14:25 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH v4] KSM: numa awareness sysfs knob
+In-Reply-To: <alpine.LSU.2.00.1209301736560.6304@eggly.anvils>
+Message-ID: <alpine.LSU.2.00.1210010053380.6539@eggly.anvils>
+References: <1348448166-1995-1-git-send-email-pholasek@redhat.com> <alpine.LSU.2.00.1209301736560.6304@eggly.anvils>
 MIME-Version: 1.0
-Subject: Re: [PATCH] slab: Ignore internal flags in cache creation
-References: <1348571866-31738-1-git-send-email-glommer@parallels.com> <00000139fe408877-40bc98e3-322c-4ba2-be72-e298ff28e694-000000@email.amazonses.com> <alpine.DEB.2.00.1209251744580.22521@chino.kir.corp.google.com> <5062C029.308@parallels.com> <alpine.DEB.2.00.1209261813300.7072@chino.kir.corp.google.com> <5063F94C.4090600@parallels.com> <alpine.DEB.2.00.1209271552350.13360@chino.kir.corp.google.com> <0000013a0d390e11-03bf6f97-a8b7-4229-9f69-84aa85795b7e-000000@email.amazonses.com> <alpine.DEB.2.00.1209281336380.21335@chino.kir.corp.google.com> <CAOJsxLFYSKqq-JexK1Q7NEtQmxtJnWB-WwbNyp9tk9mpAh6vGg@mail.gmail.com>
-In-Reply-To: <CAOJsxLFYSKqq-JexK1Q7NEtQmxtJnWB-WwbNyp9tk9mpAh6vGg@mail.gmail.com>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pekka Enberg <penberg@kernel.org>
-Cc: David Rientjes <rientjes@google.com>, Christoph Lameter <cl@linux.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michal Hocko <mhocko@suse.cz>
+To: Petr Holasek <pholasek@redhat.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, Izik Eidus <izik.eidus@ravellosystems.com>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Anton Arapov <anton@redhat.com>
 
-On 10/01/2012 11:28 AM, Pekka Enberg wrote:
-> Hello,
-> 
-> [ Found this in my @cs.helsinki.fi inbox, grmbl. ]
-> 
-> On Fri, Sep 28, 2012 at 11:39 PM, David Rientjes <rientjes@google.com> wrote:
->> The first prototype, SLAM XP1, will be posted in October.  I'd simply like
->> to avoid reverting this patch down the road and having all of us
->> reconsider the topic again when clear alternatives exist that, in my
->> opinion, make the code cleaner.
-> 
-> David, I'm sure you know we don't work speculatively against
-> out-of-tree code that may or may not be include in the future...
-> 
-> That said, I don't like Glauber's patch because it leaves CREATE_MASK
-> in mm/slab.c. And I'm not totally convinced a generic SLAB_INTERNAL is
-> going to cut it either. Hmm.
-> 
->                         Pekka
-> 
+On Sun, 30 Sep 2012, Hugh Dickins wrote:
+> Andrea's point about ksm_migrate_page() is an important one, and I've
+> answered that against his mail, but here's some other easier points.
 
-How about we require allocators to define their own CREATE_MASK, and
-then in slab_common.c we mask out any flags outside that mask?
+There's another point that I completely forgot to make once I got down
+to the details of your patch.
 
-This way we can achieve masking in common code while still leaving the
-decision to the allocators.
+Somewhere, I didn't decide exactly where, perhaps near the memcmp_pages()
+call in unstable_tree_search_insert(), you do need to check that the page
+"in" the unstable tree still belongs to the NUMAnode of the page we're
+comparing with.
+
+While that is, of course, the NUMAnode of the unstable tree we're
+searching, the unstable tree places no hold on the pages "in" it (it's
+actually a tree of rmap_items, not of pages), so they could get migrated
+to a different NUMAnode (or faulted out and then faulted back in on a
+different NUMAnode) since the rmap_item was placed in that tree.
+
+This is little different from the other instabilities of the unstable
+tree, it's not a big deal, and gets corrected (usually) next time around;
+but you do want to check, to avoid promoting such a mismatch into the
+stable tree.
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
