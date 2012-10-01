@@ -1,41 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
-	by kanga.kvack.org (Postfix) with SMTP id 096D36B00A4
-	for <linux-mm@kvack.org>; Mon,  1 Oct 2012 15:09:20 -0400 (EDT)
-Date: Mon, 1 Oct 2012 15:09:05 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH v3 05/13] Add a __GFP_KMEMCG flag
-Message-ID: <20121001190905.GE23734@cmpxchg.org>
-References: <1347977050-29476-1-git-send-email-glommer@parallels.com>
- <1347977050-29476-6-git-send-email-glommer@parallels.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1347977050-29476-6-git-send-email-glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
+	by kanga.kvack.org (Postfix) with SMTP id 0AD546B00A8
+	for <linux-mm@kvack.org>; Mon,  1 Oct 2012 16:08:16 -0400 (EDT)
+Date: Mon, 1 Oct 2012 13:08:15 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm: Avoid section mismatch warning for
+ memblock_type_name.
+Message-Id: <20121001130815.d7602ff5.akpm@linux-foundation.org>
+In-Reply-To: <be1027442539398a9cdce6284d1e2534a27644ae.1348829645.git.rprabhu@wnohang.net>
+References: <be1027442539398a9cdce6284d1e2534a27644ae.1348829645.git.rprabhu@wnohang.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, devel@openvz.org, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, Suleiman Souhlal <suleiman@google.com>, Frederic Weisbecker <fweisbec@gmail.com>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Michal Hocko <mhocko@suse.cz>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>
+To: raghu.prabhu13@gmail.com
+Cc: linux-mm@kvack.org, tj@kernel.org, benh@kernel.crashing.org, Raghavendra D Prabhu <rprabhu@wnohang.net>
 
-On Tue, Sep 18, 2012 at 06:04:02PM +0400, Glauber Costa wrote:
-> This flag is used to indicate to the callees that this allocation is a
-> kernel allocation in process context, and should be accounted to
-> current's memcg. It takes numerical place of the of the recently removed
-> __GFP_NO_KSWAPD.
+On Fri, 28 Sep 2012 16:46:44 +0530
+raghu.prabhu13@gmail.com wrote:
+
+> From: Raghavendra D Prabhu <rprabhu@wnohang.net>
 > 
-> Signed-off-by: Glauber Costa <glommer@parallels.com>
-> CC: Christoph Lameter <cl@linux.com>
-> CC: Pekka Enberg <penberg@cs.helsinki.fi>
-> CC: Michal Hocko <mhocko@suse.cz>
-> CC: Johannes Weiner <hannes@cmpxchg.org>
-> CC: Suleiman Souhlal <suleiman@google.com>
-> CC: Rik van Riel <riel@redhat.com>
-> CC: Mel Gorman <mel@csn.ul.ie>
-> Acked-by: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> Following section mismatch warning is thrown during build;
+> 
+>     WARNING: vmlinux.o(.text+0x32408f): Section mismatch in reference from the function memblock_type_name() to the variable .meminit.data:memblock
+>     The function memblock_type_name() references
+>     the variable __meminitdata memblock.
+>     This is often because memblock_type_name lacks a __meminitdata
+>     annotation or the annotation of memblock is wrong.
+> 
+> This is because memblock_type_name makes reference to memblock variable with
+> attribute __meminitdata. Hence, the warning (even if the function is inline).
+> 
+> Signed-off-by: Raghavendra D Prabhu <rprabhu@wnohang.net>
+> ---
+>  mm/memblock.c | 3 ++-
+>  1 file changed, 2 insertions(+), 1 deletion(-)
+> 
+> diff --git a/mm/memblock.c b/mm/memblock.c
+> index 82aa349..8e7fb1f 100644
+> --- a/mm/memblock.c
+> +++ b/mm/memblock.c
+> @@ -41,7 +41,8 @@ static int memblock_memory_in_slab __initdata_memblock = 0;
+>  static int memblock_reserved_in_slab __initdata_memblock = 0;
+>  
+>  /* inline so we don't get a warning when pr_debug is compiled out */
+> -static inline const char *memblock_type_name(struct memblock_type *type)
+> +static inline __init_memblock
+> +		const char *memblock_type_name(struct memblock_type *type)
+>  {
+>  	if (type == &memblock.memory)
+>  		return "memory";
 
-With the feedback from Christoph and Mel incorporated:
+huh.  If your compiler inlines that function, you won't get the
+warning.  Another reason why inline-considered-harmful nowadays.  Let's
+just nuke it.
 
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+Also, please note the code layout issue.  There are two ways we'll
+typically handle a definition like that:
+
+static inline __init_memblock const char *memblock_type_name(struct memblock_type *type)
+
+or
+
+static inline __init_memblock const char *
+memblock_type_name(struct memblock_type *type)
+
+
+You chose neither ;)
+
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: mm-avoid-section-mismatch-warning-for-memblock_type_name-fix
+
+remove inline
+
+Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Cc: Raghavendra D Prabhu <rprabhu@wnohang.net>
+Cc: Tejun Heo <tj@kernel.org>
+Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+---
+
+ mm/memblock.c |    4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff -puN mm/memblock.c~mm-avoid-section-mismatch-warning-for-memblock_type_name-fix mm/memblock.c
+--- a/mm/memblock.c~mm-avoid-section-mismatch-warning-for-memblock_type_name-fix
++++ a/mm/memblock.c
+@@ -41,8 +41,8 @@ static int memblock_memory_in_slab __ini
+ static int memblock_reserved_in_slab __initdata_memblock = 0;
+ 
+ /* inline so we don't get a warning when pr_debug is compiled out */
+-static inline __init_memblock
+-		const char *memblock_type_name(struct memblock_type *type)
++static __init_memblock const char *
++memblock_type_name(struct memblock_type *type)
+ {
+ 	if (type == &memblock.memory)
+ 		return "memory";
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
