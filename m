@@ -1,46 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
-	by kanga.kvack.org (Postfix) with SMTP id B188C6B0072
-	for <linux-mm@kvack.org>; Mon,  1 Oct 2012 14:55:37 -0400 (EDT)
-Date: Mon, 1 Oct 2012 21:56:11 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH 0/3] Virtual huge zero page
-Message-ID: <20121001185611.GA23132@shutemov.name>
-References: <20120929134811.GC26989@redhat.com>
- <5069B804.6040902@linux.intel.com>
- <20121001163118.GC18051@redhat.com>
- <5069CCF9.7040309@linux.intel.com>
- <20121001172624.GD18051@redhat.com>
- <5069D3D8.9070805@linux.intel.com>
- <20121001173604.GC20915@shutemov.name>
- <5069D4D3.1040003@linux.intel.com>
- <20121001174420.GA21490@shutemov.name>
- <5069D846.6000104@linux.intel.com>
+Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
+	by kanga.kvack.org (Postfix) with SMTP id 7B7CF6B00A0
+	for <linux-mm@kvack.org>; Mon,  1 Oct 2012 15:01:03 -0400 (EDT)
+Date: Mon, 1 Oct 2012 15:00:48 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH v3 02/13] memcg: Reclaim when more than one page needed.
+Message-ID: <20121001190048.GC23734@cmpxchg.org>
+References: <1347977050-29476-1-git-send-email-glommer@parallels.com>
+ <1347977050-29476-3-git-send-email-glommer@parallels.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <5069D846.6000104@linux.intel.com>
+In-Reply-To: <1347977050-29476-3-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "H. Peter Anvin" <hpa@linux.intel.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, linux-kernel@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>, Ingo Molnar <mingo@kernel.org>, linux-arch@vger.kernel.org
+To: Glauber Costa <glommer@parallels.com>
+Cc: linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, devel@openvz.org, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, Suleiman Souhlal <suleiman@google.com>, Frederic Weisbecker <fweisbec@gmail.com>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>
 
-On Mon, Oct 01, 2012 at 10:52:06AM -0700, H. Peter Anvin wrote:
-> On 10/01/2012 10:44 AM, Kirill A. Shutemov wrote:
-> > On Mon, Oct 01, 2012 at 10:37:23AM -0700, H. Peter Anvin wrote:
-> >> One can otherwise argue that if hzp doesn't matter for except in a small
-> >> number of cases that we shouldn't use it at all.
-> > 
-> > These small number of cases can easily trigger OOM if THP is enabled. :)
-> > 
+On Tue, Sep 18, 2012 at 06:03:59PM +0400, Glauber Costa wrote:
+> From: Suleiman Souhlal <ssouhlal@FreeBSD.org>
 > 
-> And that doesn't happen in any conditions that *aren't* helped by hzp?
+> mem_cgroup_do_charge() was written before kmem accounting, and expects
+> three cases: being called for 1 page, being called for a stock of 32
+> pages, or being called for a hugepage.  If we call for 2 or 3 pages (and
+> both the stack and several slabs used in process creation are such, at
+> least with the debug options I had), it assumed it's being called for
+> stock and just retried without reclaiming.
+> 
+> Fix that by passing down a minsize argument in addition to the csize.
+> 
+> And what to do about that (csize == PAGE_SIZE && ret) retry?  If it's
 
-Sure, OOM still can happen.
-But if we can eliminate a class of problem why not to do so?
+Wow, that patch set has been around for a while.  It's been nr_pages
+== 1 for a while now :-)
 
--- 
- Kirill A. Shutemov
+> needed at all (and presumably is since it's there, perhaps to handle
+> races), then it should be extended to more than PAGE_SIZE, yet how far?
+> And should there be a retry count limit, of what?  For now retry up to
+> COSTLY_ORDER (as page_alloc.c does) and make sure not to do it if
+> __GFP_NORETRY.
+>
+> [v4: fixed nr pages calculation pointed out by Christoph Lameter ]
+> 
+> Signed-off-by: Suleiman Souhlal <suleiman@google.com>
+> Signed-off-by: Glauber Costa <glommer@parallels.com>
+> Reviewed-by: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> Acked-by: Michal Hocko <mhocko@suse.cz>
+> ---
+>  mm/memcontrol.c | 16 +++++++++-------
+>  1 file changed, 9 insertions(+), 7 deletions(-)
+> 
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 9d3bc72..b12121b 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -2232,7 +2232,8 @@ enum {
+>  };
+>  
+>  static int mem_cgroup_do_charge(struct mem_cgroup *memcg, gfp_t gfp_mask,
+> -				unsigned int nr_pages, bool oom_check)
+> +				unsigned int nr_pages, unsigned int min_pages,
+> +				bool oom_check)
+
+I'm not a big fan of the parameter names.  Can we make this function
+officially aware of batching and name the parameters like the
+arguments that are passed in?  I.e. @batch and @nr_pages?
+
+>  {
+>  	unsigned long csize = nr_pages * PAGE_SIZE;
+>  	struct mem_cgroup *mem_over_limit;
+> @@ -2255,18 +2256,18 @@ static int mem_cgroup_do_charge(struct mem_cgroup *memcg, gfp_t gfp_mask,
+>  	} else
+>  		mem_over_limit = mem_cgroup_from_res_counter(fail_res, res);
+>  	/*
+> -	 * nr_pages can be either a huge page (HPAGE_PMD_NR), a batch
+> -	 * of regular pages (CHARGE_BATCH), or a single regular page (1).
+> -	 *
+>  	 * Never reclaim on behalf of optional batching, retry with a
+>  	 * single page instead.
+
+"[...] with the amount of actually required pages instead."
+
+>  	 */
+> -	if (nr_pages == CHARGE_BATCH)
+> +	if (nr_pages > min_pages)
+>  		return CHARGE_RETRY;
+
+	if (batch > nr_pages)
+		return CHARGE_RETRY;
+
+But that is all just nitpicking.  Functionally, it looks sane, so:
+
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
