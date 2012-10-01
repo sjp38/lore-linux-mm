@@ -1,61 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
-	by kanga.kvack.org (Postfix) with SMTP id 2EBAA6B0068
-	for <linux-mm@kvack.org>; Mon,  1 Oct 2012 04:48:38 -0400 (EDT)
-Message-ID: <50695817.2030201@parallels.com>
-Date: Mon, 1 Oct 2012 12:45:11 +0400
+Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
+	by kanga.kvack.org (Postfix) with SMTP id C39F26B006E
+	for <linux-mm@kvack.org>; Mon,  1 Oct 2012 04:49:29 -0400 (EDT)
+Message-ID: <5069584A.8090809@parallels.com>
+Date: Mon, 1 Oct 2012 12:46:02 +0400
 From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
 Subject: Re: [PATCH v3 04/13] kmem accounting basic infrastructure
-References: <50635B9D.8020205@parallels.com> <20120926195648.GA20342@google.com> <50635F46.7000700@parallels.com> <20120926201629.GB20342@google.com> <50637298.2090904@parallels.com> <20120927120806.GA29104@dhcp22.suse.cz> <20120927143300.GA4251@mtj.dyndns.org> <20120927144307.GH3429@suse.de> <20120927145802.GC4251@mtj.dyndns.org> <50649B4C.8000208@parallels.com> <20120930082358.GG10383@mtj.dyndns.org>
-In-Reply-To: <20120930082358.GG10383@mtj.dyndns.org>
+References: <50638793.7060806@parallels.com> <20120926230807.GC10453@mtj.dyndns.org> <20120927142822.GG3429@suse.de> <20120927144942.GB4251@mtj.dyndns.org> <50646977.40300@parallels.com> <20120927174605.GA2713@localhost> <50649EAD.2050306@parallels.com> <20120930075700.GE10383@mtj.dyndns.org> <20120930080249.GF10383@mtj.dyndns.org> <1348995388.2458.8.camel@dabdike.int.hansenpartnership.com> <20120930103732.GK10383@mtj.dyndns.org>
+In-Reply-To: <20120930103732.GK10383@mtj.dyndns.org>
 Content-Type: text/plain; charset="ISO-8859-1"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Tejun Heo <tj@kernel.org>
-Cc: Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, devel@openvz.org, linux-mm@kvack.org, Suleiman Souhlal <suleiman@google.com>, Frederic Weisbecker <fweisbec@gmail.com>, David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>
+Cc: James Bottomley <James.Bottomley@HansenPartnership.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, devel@openvz.org, linux-mm@kvack.org, Suleiman Souhlal <suleiman@google.com>, Frederic Weisbecker <fweisbec@gmail.com>, David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>
 
-On 09/30/2012 12:23 PM, Tejun Heo wrote:
-> Hello, Glauber.
+On 09/30/2012 02:37 PM, Tejun Heo wrote:
+> Hello, James.
 > 
-> On Thu, Sep 27, 2012 at 10:30:36PM +0400, Glauber Costa wrote:
->>> But that happens only when pages enter and leave slab and if it still
->>> is significant, we can try to further optimize charging.  Given that
->>> this is only for cases where memcg is already in use and we provide a
->>> switch to disable it globally, I really don't think this warrants
->>> implementing fully hierarchy configuration.
->>
->> Not totally true. We still have to match every allocation to the right
->> cache, and that is actually our heaviest hit, responsible for the 2, 3 %
->> we're seeing when this is enabled. It is the kind of path so hot that
->> people frown upon branches being added, so I don't think we'll ever get
->> this close to being free.
+> On Sun, Sep 30, 2012 at 09:56:28AM +0100, James Bottomley wrote:
+>> The beancounter approach originally used by OpenVZ does exactly this.
+>> There are two specific problems, though, firstly you can't count
+>> references in generic code, so now you have to extend the cgroup
+>> tentacles into every object, an invasiveness which people didn't really
+>> like.
 > 
-> Sure, depening on workload, any addition to alloc/free could be
-> noticeable.  I don't know.  I'll write more about it when replying to
-> Michal's message.  BTW, __memcg_kmem_get_cache() does seem a bit
-> heavy.  I wonder whether indexing from cache side would make it
-> cheaper?  e.g. something like the following.
-> 
-> 	kmem_cache *__memcg_kmem_get_cache(cachep, gfp)
-> 	{
-> 		struct kmem_cache *c;
-> 
-> 		c = cachep->memcg_params->caches[percpu_read(kmemcg_slab_idx)];
-> 		if (likely(c))
-> 			return c;
-> 		/* try to create and then fall back to cachep */
-> 	}
-> 
-> where kmemcg_slab_idx is updated from sched notifier (or maybe add and
-> use current->kmemcg_slab_idx?).  You would still need __GFP_* and
-> in_interrupt() tests but current->mm and PF_KTHREAD tests can be
-> rolled into index selection.
+> Yeah, it will need some hooks.  For dentry and inode, I think it would
+> be pretty well isolated tho.  Wasn't it?
 > 
 
-How big would this array be? there can be a lot more kmem_caches than
-there are memcgs. That is why it is done from memcg side.
+We would still need something for the stack. For open files, and for
+everything that becomes a potential problem. We then end up with 35
+different knobs instead of one. One of the perceived advantages of this
+approach, is that it condenses as much data as a single knob as
+possible, reducing complexity and over flexibility.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
