@@ -1,40 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
-	by kanga.kvack.org (Postfix) with SMTP id 6896D6B0070
-	for <linux-mm@kvack.org>; Mon,  1 Oct 2012 13:33:13 -0400 (EDT)
-Message-ID: <5069D3D8.9070805@linux.intel.com>
-Date: Mon, 01 Oct 2012 10:33:12 -0700
-From: "H. Peter Anvin" <hpa@linux.intel.com>
-MIME-Version: 1.0
+Received: from psmtp.com (na3sys010amx202.postini.com [74.125.245.202])
+	by kanga.kvack.org (Postfix) with SMTP id AB4156B0078
+	for <linux-mm@kvack.org>; Mon,  1 Oct 2012 13:35:30 -0400 (EDT)
+Date: Mon, 1 Oct 2012 20:36:04 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
 Subject: Re: [PATCH 0/3] Virtual huge zero page
-References: <1348875441-19561-1-git-send-email-kirill.shutemov@linux.intel.com> <20120929134811.GC26989@redhat.com> <5069B804.6040902@linux.intel.com> <20121001163118.GC18051@redhat.com> <5069CCF9.7040309@linux.intel.com> <20121001172624.GD18051@redhat.com>
-In-Reply-To: <20121001172624.GD18051@redhat.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Message-ID: <20121001173604.GC20915@shutemov.name>
+References: <1348875441-19561-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <20120929134811.GC26989@redhat.com>
+ <5069B804.6040902@linux.intel.com>
+ <20121001163118.GC18051@redhat.com>
+ <5069CCF9.7040309@linux.intel.com>
+ <20121001172624.GD18051@redhat.com>
+ <5069D3D8.9070805@linux.intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <5069D3D8.9070805@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill@shutemov.name>, Arnd Bergmann <arnd@arndb.de>, Ingo Molnar <mingo@kernel.org>, linux-arch@vger.kernel.org
+To: "H. Peter Anvin" <hpa@linux.intel.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, linux-kernel@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>, Ingo Molnar <mingo@kernel.org>, linux-arch@vger.kernel.org
 
-On 10/01/2012 10:26 AM, Andrea Arcangeli wrote:
-> 
->> It is well known that microbenchmarks can be horribly misleading.  What
->> led to Kirill investigating huge zero page in the first place was the
->> fact that some applications/macrobenchmarks benefit, and I think those
->> are the right thing to look at.
-> 
-> The whole point of the two microbenchmarks was to measure the worst
-> cases for both scenarios and I think that was useful. Real life using
-> zero pages are going to be somewhere in that range.
-> 
+On Mon, Oct 01, 2012 at 10:33:12AM -0700, H. Peter Anvin wrote:
+> Overall, I'm okay with either as long as we don't lock down 2 MB when
+> there isn't a huge zero page in use.
 
-... and I think it would be worthwhile to know which effect dominates
-(or neither, in which case it doesn't matter).
+Is shinker-reclaimable huge zero page okay for you?
 
-Overall, I'm okay with either as long as we don't lock down 2 MB when
-there isn't a huge zero page in use.
-
-	-hpa
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
