@@ -1,90 +1,138 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
-	by kanga.kvack.org (Postfix) with SMTP id DBBBD6B0068
-	for <linux-mm@kvack.org>; Mon,  1 Oct 2012 12:32:58 -0400 (EDT)
-Date: Mon, 1 Oct 2012 17:32:50 +0100
-From: Will Deacon <will.deacon@arm.com>
-Subject: Re: [PATCH] mm: thp: Set the accessed flag for old pages on access
- fault.
-Message-ID: <20121001163250.GO20812@mudshark.cambridge.arm.com>
-References: <1349099505-5581-1-git-send-email-will.deacon@arm.com>
- <20121001145944.GA18051@redhat.com>
+Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
+	by kanga.kvack.org (Postfix) with SMTP id 498F46B0068
+	for <linux-mm@kvack.org>; Mon,  1 Oct 2012 13:00:50 -0400 (EDT)
+Date: Mon, 1 Oct 2012 19:00:46 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [RFC 1/4] memcg: provide root figures from system totals
+Message-ID: <20121001170046.GC24860@dhcp22.suse.cz>
+References: <1348563173-8952-1-git-send-email-glommer@parallels.com>
+ <1348563173-8952-2-git-send-email-glommer@parallels.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20121001145944.GA18051@redhat.com>
+In-Reply-To: <1348563173-8952-2-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "mhocko@suse.cz" <mhocko@suse.cz>, Steve Capper <Steve.Capper@arm.com>, Chris Metcalf <cmetcalf@tilera.com>
+To: Glauber Costa <glommer@parallels.com>
+Cc: linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org, devel@openvz.org, Peter Zijlstra <a.p.zijlstra@chello.nl>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>
 
-On Mon, Oct 01, 2012 at 03:59:44PM +0100, Andrea Arcangeli wrote:
-> Hi Will,
+On Tue 25-09-12 12:52:50, Glauber Costa wrote:
+> For the root memcg, there is no need to rely on the res_counters.
 
-Hi Andrea, Kirill,
+This is true only if there are no children groups but once there is at
+least one we have to move global statistics into root res_counter and
+start using it since then. This is a tricky part because it has to be
+done atomically so that we do not miss anything.
 
-Thanks for the comments.
-
-> On Mon, Oct 01, 2012 at 02:51:45PM +0100, Will Deacon wrote:
-> > +void huge_pmd_set_accessed(struct mm_struct *mm, struct vm_area_struct *vma,
-> > +			   unsigned long address, pmd_t *pmd, pmd_t orig_pmd)
-> > +{
-> > +	pmd_t entry;
-> > +
-> > +	spin_lock(&mm->page_table_lock);
-> > +	entry = pmd_mkyoung(orig_pmd);
-> > +	if (pmdp_set_access_flags(vma, address & HPAGE_PMD_MASK, pmd, entry, 0))
-> > +		update_mmu_cache(vma, address, pmd);
+> The sum of all mem cgroups plus the tasks in root itself, is necessarily
+> the amount of memory used for the whole system. Since those figures are
+> already kept somewhere anyway, we can just return them here, without too
+> much hassle.
 > 
-> If the pmd is being splitted, this may not be a trasnhuge pmd anymore
-> by the time you obtained the lock. (orig_pmd could be stale, and it
-> wasn't verified with pmd_same either)
-> 
-> The lock should be obtained through pmd_trans_huge_lock.
-> 
->   if (pmd_trans_huge_lock(orig_pmd, vma) == 1)
->   {
-> 	set young bit
-> 	spin_unlock(&mm->page_table_lock);
->   }
+> The limit can't be set for the root cgroup, so it is left at 0. 
 
-I didn't notice that -- thanks. I'll move the locking outside of the
-_set_accessed function and direct it via that function instead.
+You meant RESOURCE_MAX, didn't you?
 
-> On x86:
+> Same is
+> true for failcnt, because its actual meaning is how many times we failed
+> allocations due to the limit being hit. We will fail allocations in the
+> root cgroup, but the limit will never the reason.
 > 
-> int pmdp_set_access_flags(struct vm_area_struct *vma,
-> 			  unsigned long address, pmd_t *pmdp,
-> 			  pmd_t entry, int dirty)
-> {
-> 	int changed = !pmd_same(*pmdp, entry);
+> TODO includes figuring out what to do with the soft limit and max_usage.
+> Comments and suggestions appreciated.
 > 
-> 	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
+> Signed-off-by: Glauber Costa <glommer@parallels.com>
+> CC: Michal Hocko <mhocko@suse.cz>
+> CC: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> CC: Johannes Weiner <hannes@cmpxchg.org>
+> CC: Mel Gorman <mgorman@suse.de>
+> CC: Andrew Morton <akpm@linux-foundation.org>
+> ---
+>  mm/memcontrol.c | 45 +++++++++++++++++++++++++++++++++++++++++++++
+>  1 file changed, 45 insertions(+)
 > 
-> 	if (changed && dirty) {
-> 		*pmdp = entry;
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 82c5b8f..bac398b 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -4506,6 +4506,45 @@ static inline u64 mem_cgroup_usage(struct mem_cgroup *memcg, bool swap)
+>  	return val << PAGE_SHIFT;
+>  }
+>  
+> +static u64 mem_cgroup_read_root(struct mem_cgroup *memcg, enum res_type type, int name)
+> +{
+> +	struct sysinfo i;
+> +        unsigned long pages[NR_LRU_LISTS];
+> +        int lru;
+> +
+> +	si_meminfo(&i);
+> +	si_swapinfo(&i);
+> +
+> +	if (name == RES_LIMIT)
+> +		return RESOURCE_MAX;
+> +	if (name == RES_SOFT_LIMIT)
+> +		return 0;
+> +	if (name == RES_FAILCNT)
+> +		return 0;
+> +	if (name == RES_MAX_USAGE)
+> +		return 0;
+> +
+> +	if (WARN_ON_ONCE(name != RES_USAGE))
+> +		return 0;
+> +
+> +	for (lru = LRU_BASE; lru < NR_LRU_LISTS; lru++)
+> +		pages[lru] = global_page_state(NR_LRU_BASE + lru);
+> +
+> +	switch (type) {
+> +	case _MEM:
+> +                return pages[LRU_ACTIVE_ANON]   + pages[LRU_ACTIVE_FILE] +
+> +			pages[LRU_INACTIVE_ANON] + pages[LRU_INACTIVE_FILE];
+> +	case _MEMSWAP:
+> +                return pages[LRU_ACTIVE_ANON]   + pages[LRU_ACTIVE_FILE] +
+> +			pages[LRU_INACTIVE_ANON] + pages[LRU_INACTIVE_FILE] +
+> +			i.totalswap - i.freeswap;
+> +	case _KMEM:
+> +		return 0;
+> +	default:
+> +		BUG();
+> +	};
+> +}
+> +
+>  static ssize_t mem_cgroup_read(struct cgroup *cont, struct cftype *cft,
+>  			       struct file *file, char __user *buf,
+>  			       size_t nbytes, loff_t *ppos)
+> @@ -4522,6 +4561,11 @@ static ssize_t mem_cgroup_read(struct cgroup *cont, struct cftype *cft,
+>  	if (!do_swap_account && type == _MEMSWAP)
+>  		return -EOPNOTSUPP;
+>  
+> +	if (mem_cgroup_is_root(memcg)) {
+> +		val = mem_cgroup_read_root(memcg, type, name);
+> +		goto root_bypass;
+> +	}
+> +
+>  	switch (type) {
+>  	case _MEM:
+>  		if (name == RES_USAGE)
+> @@ -4542,6 +4586,7 @@ static ssize_t mem_cgroup_read(struct cgroup *cont, struct cftype *cft,
+>  		BUG();
+>  	}
+>  
+> +root_bypass:
+>  	len = scnprintf(str, sizeof(str), "%llu\n", (unsigned long long)val);
+>  	return simple_read_from_buffer(buf, nbytes, ppos, str, len);
+>  }
+> -- 
+> 1.7.11.4
 > 
-> with dirty == 0 it looks like it won't make any difference, but I
-> guess your arm pmdp_set_access_flag is different.
+> --
+> To unsubscribe from this list: send the line "unsubscribe cgroups" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
 
-We use the generic code, which ignores the dirty argument. Still, we should
-pass the correct value through anyway, so I'll fix that too.
-
-> However it seems "dirty" means write access and so the invocation
-> would better match the pte case:
-> 
-> 	if (pmdp_set_access_flags(vma, address & HPAGE_PMD_MASK, pmd, entry,
-> 	    flags & FAULT_FLAG_WRITE))
-> 
-> 
-> But note, you still have to update it even when "dirty" == 0, or it'll
-> still infinite loop for read accesses.
-
-Yup. v2 to follow once we've re-run our testing.
-
-Cheers,
-
-Will
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
