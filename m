@@ -1,138 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
-	by kanga.kvack.org (Postfix) with SMTP id 498F46B0068
-	for <linux-mm@kvack.org>; Mon,  1 Oct 2012 13:00:50 -0400 (EDT)
-Date: Mon, 1 Oct 2012 19:00:46 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [RFC 1/4] memcg: provide root figures from system totals
-Message-ID: <20121001170046.GC24860@dhcp22.suse.cz>
-References: <1348563173-8952-1-git-send-email-glommer@parallels.com>
- <1348563173-8952-2-git-send-email-glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx162.postini.com [74.125.245.162])
+	by kanga.kvack.org (Postfix) with SMTP id C5A206B006E
+	for <linux-mm@kvack.org>; Mon,  1 Oct 2012 13:03:55 -0400 (EDT)
+Message-ID: <5069CCF9.7040309@linux.intel.com>
+Date: Mon, 01 Oct 2012 10:03:53 -0700
+From: "H. Peter Anvin" <hpa@linux.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1348563173-8952-2-git-send-email-glommer@parallels.com>
+Subject: Re: [PATCH 0/3] Virtual huge zero page
+References: <1348875441-19561-1-git-send-email-kirill.shutemov@linux.intel.com> <20120929134811.GC26989@redhat.com> <5069B804.6040902@linux.intel.com> <20121001163118.GC18051@redhat.com>
+In-Reply-To: <20121001163118.GC18051@redhat.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org, devel@openvz.org, Peter Zijlstra <a.p.zijlstra@chello.nl>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill@shutemov.name>, Arnd Bergmann <arnd@arndb.de>, Ingo Molnar <mingo@kernel.org>, linux-arch@vger.kernel.org
 
-On Tue 25-09-12 12:52:50, Glauber Costa wrote:
-> For the root memcg, there is no need to rely on the res_counters.
-
-This is true only if there are no children groups but once there is at
-least one we have to move global statistics into root res_counter and
-start using it since then. This is a tricky part because it has to be
-done atomically so that we do not miss anything.
-
-> The sum of all mem cgroups plus the tasks in root itself, is necessarily
-> the amount of memory used for the whole system. Since those figures are
-> already kept somewhere anyway, we can just return them here, without too
-> much hassle.
+On 10/01/2012 09:31 AM, Andrea Arcangeli wrote:
+> On Mon, Oct 01, 2012 at 08:34:28AM -0700, H. Peter Anvin wrote:
+>> On 09/29/2012 06:48 AM, Andrea Arcangeli wrote:
+>>>
+>>> There would be a small cache benefit here... but even then some first
+>>> level caches are virtually indexed IIRC (always physically tagged to
+>>> avoid the software to notice) and virtually indexed ones won't get any
+>>> benefit.
+>>>
+>>
+>> Not quite.  The virtual indexing is limited to a few bits (e.g. three
+>> bits on K8); the right way to deal with that is to color the zeropage,
+>> both the regular one and the virtual one (the virtual one would circle
+>> through all the colors repeatedly.)
+>>
+>> The cache difference, therefore, is *huge*.
 > 
-> The limit can't be set for the root cgroup, so it is left at 0. 
+> Kirill measured the cache benefit and it provided a 6% gain, not very
+> huge but certainly significant.
+> 
+>> It's a performance tradeoff, and it can, and should, be measured.
+> 
+> I now measured the other side of the trade, by touching only one
+> character every 4k page in the range to simulate a very seeking load,
+> and doing so the physical huge zero page wins with a 600% margin, so
+> if the cache benefit is huge for the virtual zero page, the TLB
+> benefit is massive for the physical zero page.
+> 
+> Overall I think picking the solution that risks to regress the least
+> (also compared to current status of no zero page) is the safest.
+> 
 
-You meant RESOURCE_MAX, didn't you?
+Something isn't quite right about that.  If you look at your numbers:
 
-> Same is
-> true for failcnt, because its actual meaning is how many times we failed
-> allocations due to the limit being hit. We will fail allocations in the
-> root cgroup, but the limit will never the reason.
-> 
-> TODO includes figuring out what to do with the soft limit and max_usage.
-> Comments and suggestions appreciated.
-> 
-> Signed-off-by: Glauber Costa <glommer@parallels.com>
-> CC: Michal Hocko <mhocko@suse.cz>
-> CC: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> CC: Johannes Weiner <hannes@cmpxchg.org>
-> CC: Mel Gorman <mgorman@suse.de>
-> CC: Andrew Morton <akpm@linux-foundation.org>
-> ---
->  mm/memcontrol.c | 45 +++++++++++++++++++++++++++++++++++++++++++++
->  1 file changed, 45 insertions(+)
-> 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 82c5b8f..bac398b 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -4506,6 +4506,45 @@ static inline u64 mem_cgroup_usage(struct mem_cgroup *memcg, bool swap)
->  	return val << PAGE_SHIFT;
->  }
->  
-> +static u64 mem_cgroup_read_root(struct mem_cgroup *memcg, enum res_type type, int name)
-> +{
-> +	struct sysinfo i;
-> +        unsigned long pages[NR_LRU_LISTS];
-> +        int lru;
-> +
-> +	si_meminfo(&i);
-> +	si_swapinfo(&i);
-> +
-> +	if (name == RES_LIMIT)
-> +		return RESOURCE_MAX;
-> +	if (name == RES_SOFT_LIMIT)
-> +		return 0;
-> +	if (name == RES_FAILCNT)
-> +		return 0;
-> +	if (name == RES_MAX_USAGE)
-> +		return 0;
-> +
-> +	if (WARN_ON_ONCE(name != RES_USAGE))
-> +		return 0;
-> +
-> +	for (lru = LRU_BASE; lru < NR_LRU_LISTS; lru++)
-> +		pages[lru] = global_page_state(NR_LRU_BASE + lru);
-> +
-> +	switch (type) {
-> +	case _MEM:
-> +                return pages[LRU_ACTIVE_ANON]   + pages[LRU_ACTIVE_FILE] +
-> +			pages[LRU_INACTIVE_ANON] + pages[LRU_INACTIVE_FILE];
-> +	case _MEMSWAP:
-> +                return pages[LRU_ACTIVE_ANON]   + pages[LRU_ACTIVE_FILE] +
-> +			pages[LRU_INACTIVE_ANON] + pages[LRU_INACTIVE_FILE] +
-> +			i.totalswap - i.freeswap;
-> +	case _KMEM:
-> +		return 0;
-> +	default:
-> +		BUG();
-> +	};
-> +}
-> +
->  static ssize_t mem_cgroup_read(struct cgroup *cont, struct cftype *cft,
->  			       struct file *file, char __user *buf,
->  			       size_t nbytes, loff_t *ppos)
-> @@ -4522,6 +4561,11 @@ static ssize_t mem_cgroup_read(struct cgroup *cont, struct cftype *cft,
->  	if (!do_swap_account && type == _MEMSWAP)
->  		return -EOPNOTSUPP;
->  
-> +	if (mem_cgroup_is_root(memcg)) {
-> +		val = mem_cgroup_read_root(memcg, type, name);
-> +		goto root_bypass;
-> +	}
-> +
->  	switch (type) {
->  	case _MEM:
->  		if (name == RES_USAGE)
-> @@ -4542,6 +4586,7 @@ static ssize_t mem_cgroup_read(struct cgroup *cont, struct cftype *cft,
->  		BUG();
->  	}
->  
-> +root_bypass:
->  	len = scnprintf(str, sizeof(str), "%llu\n", (unsigned long long)val);
->  	return simple_read_from_buffer(buf, nbytes, ppos, str, len);
->  }
-> -- 
-> 1.7.11.4
-> 
-> --
-> To unsubscribe from this list: send the line "unsubscribe cgroups" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+1,049,134,961 LLC-loads
+        6,222 LLC-load-misses
 
--- 
-Michal Hocko
-SUSE Labs
+This is another way of saying in your benchmark the huge zero page is
+parked in your LLC - using up 2 MB of your LLC, typically a significant
+portion of said cache.  In a real-life application that will squeeze out
+real data, but in your benchmark the system is artificially quiescent.
+
+It is well known that microbenchmarks can be horribly misleading.  What
+led to Kirill investigating huge zero page in the first place was the
+fact that some applications/macrobenchmarks benefit, and I think those
+are the right thing to look at.
+
+	-hpa
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
