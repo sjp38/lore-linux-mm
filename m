@@ -1,171 +1,147 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
-	by kanga.kvack.org (Postfix) with SMTP id 3246E6B0070
-	for <linux-mm@kvack.org>; Mon,  1 Oct 2012 09:27:14 -0400 (EDT)
-Date: Mon, 1 Oct 2012 15:27:11 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH v3 12/13] execute the whole memcg freeing in rcu callback
-Message-ID: <20121001132711.GL8622@dhcp22.suse.cz>
-References: <1347977050-29476-1-git-send-email-glommer@parallels.com>
- <1347977050-29476-13-git-send-email-glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
+	by kanga.kvack.org (Postfix) with SMTP id 173216B0072
+	for <linux-mm@kvack.org>; Mon,  1 Oct 2012 09:49:18 -0400 (EDT)
+Date: Mon, 1 Oct 2012 16:49:48 +0300
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: Re: [PATCH 0/3] Virtual huge zero page
+Message-ID: <20121001134948.GA5812@otc-wbsnb-06>
+References: <1348875441-19561-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <20120929134811.GC26989@redhat.com>
+ <20120929143006.GC4110@tassilo.jf.intel.com>
+ <20120929143737.GF26989@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: multipart/signed; micalg=pgp-sha1;
+	protocol="application/pgp-signature"; boundary="Kj7319i9nmIyA2yE"
 Content-Disposition: inline
-In-Reply-To: <1347977050-29476-13-git-send-email-glommer@parallels.com>
+In-Reply-To: <20120929143737.GF26989@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, devel@openvz.org, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, Suleiman Souhlal <suleiman@google.com>, Frederic Weisbecker <fweisbec@gmail.com>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>
-
-On Tue 18-09-12 18:04:09, Glauber Costa wrote:
-> A lot of the initialization we do in mem_cgroup_create() is done with softirqs
-> enabled. This include grabbing a css id, which holds &ss->id_lock->rlock, and
-> the per-zone trees, which holds rtpz->lock->rlock. All of those signal to the
-> lockdep mechanism that those locks can be used in SOFTIRQ-ON-W context. This
-> means that the freeing of memcg structure must happen in a compatible context,
-> otherwise we'll get a deadlock.
-
-Maybe I am missing something obvious but why cannot we simply disble
-(soft)irqs in mem_cgroup_create rather than make the free path much more
-complicated. It really feels strange to defer everything (e.g. soft
-reclaim tree cleanup which should be a no-op at the time because there
-shouldn't be any user pages in the group).
-
-> The reference counting mechanism we use allows the memcg structure to be freed
-> later and outlive the actual memcg destruction from the filesystem. However, we
-> have little, if any, means to guarantee in which context the last memcg_put
-> will happen. The best we can do is test it and try to make sure no invalid
-> context releases are happening. But as we add more code to memcg, the possible
-> interactions grow in number and expose more ways to get context conflicts.
-> 
-> We already moved a part of the freeing to a worker thread to be context-safe
-> for the static branches disabling. I see no reason not to do it for the whole
-> freeing action. I consider this to be the safe choice.
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Andi Kleen <ak@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, "H. Peter Anvin" <hpa@linux.intel.com>, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill@shutemov.name>, Arnd Bergmann <arnd@arndb.de>, Ingo Molnar <mingo@kernel.org>, linux-arch@vger.kernel.org
 
 
-> 
-> Signed-off-by: Glauber Costa <glommer@parallels.com>
-> Tested-by: Greg Thelen <gthelen@google.com>
-> CC: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> CC: Michal Hocko <mhocko@suse.cz>
-> CC: Johannes Weiner <hannes@cmpxchg.org>
-> ---
->  mm/memcontrol.c | 66 +++++++++++++++++++++++++++++----------------------------
->  1 file changed, 34 insertions(+), 32 deletions(-)
-> 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index b05ecac..74654f0 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -5082,16 +5082,29 @@ out_free:
->  }
->  
->  /*
-> - * Helpers for freeing a kmalloc()ed/vzalloc()ed mem_cgroup by RCU,
-> - * but in process context.  The work_freeing structure is overlaid
-> - * on the rcu_freeing structure, which itself is overlaid on memsw.
-> + * At destroying mem_cgroup, references from swap_cgroup can remain.
-> + * (scanning all at force_empty is too costly...)
-> + *
-> + * Instead of clearing all references at force_empty, we remember
-> + * the number of reference from swap_cgroup and free mem_cgroup when
-> + * it goes down to 0.
-> + *
-> + * Removal of cgroup itself succeeds regardless of refs from swap.
->   */
-> -static void free_work(struct work_struct *work)
-> +
-> +static void __mem_cgroup_free(struct mem_cgroup *memcg)
->  {
-> -	struct mem_cgroup *memcg;
-> +	int node;
->  	int size = sizeof(struct mem_cgroup);
->  
-> -	memcg = container_of(work, struct mem_cgroup, work_freeing);
-> +	mem_cgroup_remove_from_trees(memcg);
-> +	free_css_id(&mem_cgroup_subsys, &memcg->css);
-> +
-> +	for_each_node(node)
-> +		free_mem_cgroup_per_zone_info(memcg, node);
-> +
-> +	free_percpu(memcg->stat);
-> +
->  	/*
->  	 * We need to make sure that (at least for now), the jump label
->  	 * destruction code runs outside of the cgroup lock. This is because
-> @@ -5110,38 +5123,27 @@ static void free_work(struct work_struct *work)
->  		vfree(memcg);
->  }
->  
-> -static void free_rcu(struct rcu_head *rcu_head)
-> -{
-> -	struct mem_cgroup *memcg;
-> -
-> -	memcg = container_of(rcu_head, struct mem_cgroup, rcu_freeing);
-> -	INIT_WORK(&memcg->work_freeing, free_work);
-> -	schedule_work(&memcg->work_freeing);
-> -}
->  
->  /*
-> - * At destroying mem_cgroup, references from swap_cgroup can remain.
-> - * (scanning all at force_empty is too costly...)
-> - *
-> - * Instead of clearing all references at force_empty, we remember
-> - * the number of reference from swap_cgroup and free mem_cgroup when
-> - * it goes down to 0.
-> - *
-> - * Removal of cgroup itself succeeds regardless of refs from swap.
-> + * Helpers for freeing a kmalloc()ed/vzalloc()ed mem_cgroup by RCU,
-> + * but in process context.  The work_freeing structure is overlaid
-> + * on the rcu_freeing structure, which itself is overlaid on memsw.
->   */
-> -
-> -static void __mem_cgroup_free(struct mem_cgroup *memcg)
-> +static void free_work(struct work_struct *work)
->  {
-> -	int node;
-> +	struct mem_cgroup *memcg;
->  
-> -	mem_cgroup_remove_from_trees(memcg);
-> -	free_css_id(&mem_cgroup_subsys, &memcg->css);
-> +	memcg = container_of(work, struct mem_cgroup, work_freeing);
-> +	__mem_cgroup_free(memcg);
-> +}
->  
-> -	for_each_node(node)
-> -		free_mem_cgroup_per_zone_info(memcg, node);
-> +static void free_rcu(struct rcu_head *rcu_head)
-> +{
-> +	struct mem_cgroup *memcg;
->  
-> -	free_percpu(memcg->stat);
-> -	call_rcu(&memcg->rcu_freeing, free_rcu);
-> +	memcg = container_of(rcu_head, struct mem_cgroup, rcu_freeing);
-> +	INIT_WORK(&memcg->work_freeing, free_work);
-> +	schedule_work(&memcg->work_freeing);
->  }
->  
->  static void mem_cgroup_get(struct mem_cgroup *memcg)
-> @@ -5153,7 +5155,7 @@ static void __mem_cgroup_put(struct mem_cgroup *memcg, int count)
->  {
->  	if (atomic_sub_and_test(count, &memcg->refcnt)) {
->  		struct mem_cgroup *parent = parent_mem_cgroup(memcg);
-> -		__mem_cgroup_free(memcg);
-> +		call_rcu(&memcg->rcu_freeing, free_rcu);
->  		if (parent)
->  			mem_cgroup_put(parent);
->  	}
-> -- 
-> 1.7.11.4
-> 
-> --
-> To unsubscribe from this list: send the line "unsubscribe cgroups" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+--Kj7319i9nmIyA2yE
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
--- 
-Michal Hocko
-SUSE Labs
+On Sat, Sep 29, 2012 at 04:37:37PM +0200, Andrea Arcangeli wrote:
+> But I agree we need to verify it before taking a decision, and that
+> the numbers are better than theory, or to rephrase it "let's check the
+> theory is right" :)
+
+Okay, microbenchmark:
+
+% cat test_memcmp.c=20
+#include <assert.h>
+#include <stdlib.h>
+#include <string.h>
+
+#define MB (1024ul * 1024ul)
+#define GB (1024ul * MB)
+
+int main(int argc, char **argv)
+{
+        char *p;
+        int i;
+
+        posix_memalign((void **)&p, 2 * MB, 8 * GB);
+        for (i =3D 0; i < 100; i++) {
+                assert(memcmp(p, p + 4*GB, 4*GB) =3D=3D 0);
+                asm volatile ("": : :"memory");
+        }
+        return 0;
+}
+
+huge zero page (initial implementation):
+
+ Performance counter stats for './test_memcmp' (5 runs):
+
+      32356.272845 task-clock                #    0.998 CPUs utilized      =
+      ( +-  0.13% )
+                40 context-switches          #    0.001 K/sec              =
+      ( +-  0.94% )
+                 0 CPU-migrations            #    0.000 K/sec              =
+   =20
+             4,218 page-faults               #    0.130 K/sec              =
+      ( +-  0.00% )
+    76,712,481,765 cycles                    #    2.371 GHz                =
+      ( +-  0.13% ) [83.31%]
+    36,279,577,636 stalled-cycles-frontend   #   47.29% frontend cycles idl=
+e     ( +-  0.28% ) [83.35%]
+     1,684,049,110 stalled-cycles-backend    #    2.20% backend  cycles idl=
+e     ( +-  2.96% ) [66.67%]
+   134,355,715,816 instructions              #    1.75  insns per cycle    =
+   =20
+                                             #    0.27  stalled cycles per =
+insn  ( +-  0.10% ) [83.35%]
+    13,526,169,702 branches                  #  418.039 M/sec              =
+      ( +-  0.10% ) [83.31%]
+         1,058,230 branch-misses             #    0.01% of all branches    =
+      ( +-  0.91% ) [83.36%]
+
+      32.413866442 seconds time elapsed                                    =
+      ( +-  0.13% )
+
+virtual huge zero page (the second implementation):
+
+ Performance counter stats for './test_memcmp' (5 runs):
+
+      30327.183829 task-clock                #    0.998 CPUs utilized      =
+      ( +-  0.13% )
+                38 context-switches          #    0.001 K/sec              =
+      ( +-  1.53% )
+                 0 CPU-migrations            #    0.000 K/sec              =
+   =20
+             4,218 page-faults               #    0.139 K/sec              =
+      ( +-  0.01% )
+    71,964,773,660 cycles                    #    2.373 GHz                =
+      ( +-  0.13% ) [83.35%]
+    31,191,284,231 stalled-cycles-frontend   #   43.34% frontend cycles idl=
+e     ( +-  0.40% ) [83.32%]
+       773,484,474 stalled-cycles-backend    #    1.07% backend  cycles idl=
+e     ( +-  6.61% ) [66.67%]
+   134,982,215,437 instructions              #    1.88  insns per cycle    =
+   =20
+                                             #    0.23  stalled cycles per =
+insn  ( +-  0.11% ) [83.32%]
+    13,509,150,683 branches                  #  445.447 M/sec              =
+      ( +-  0.11% ) [83.34%]
+         1,017,667 branch-misses             #    0.01% of all branches    =
+      ( +-  1.07% ) [83.32%]
+
+      30.381324695 seconds time elapsed                                    =
+      ( +-  0.13% )
+
+On Westmere-EX virtual huge zero page is ~6.7% faster.
+
+--=20
+ Kirill A. Shutemov
+
+--Kj7319i9nmIyA2yE
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: Digital signature
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.12 (GNU/Linux)
+
+iQIcBAEBAgAGBQJQaZ97AAoJEAd+omnVudOMGcYP/2ZKAhHb+Eu0CMOfLbW+VfFt
+DYGypl4EgPEOd7Ufnkv8sviQS9qwCkF7FO5jcwwjanjraCOeT3gpGie/DkmMD9xi
+Zoo6a7u6jENWSK/G6iN4l4dG3Ur5Swn0O8m7VadeGYgzhfaHTQAbYWXcOWYLzk37
+79B+gd8cnnvPiT8wThoQ6SY/Fp2MT8ueMqozPSzBqozbN86I+sxbloy38iDl7C3f
+CCcmblizQPrtfBEAgq6WywDu1p/fEUqYG+nK1FPcgiFO3pu8qxKjiPrirgU05Sxl
+qLoh34C5ugG00xwoSnyoGy4YZU7o4Wz7CxDmtoUa6HjRY1CgQm3huSt8XpyI8sN7
+m+n59hqkH5slInPmPTtTm2hnNfe08jpe41+oGrIyK2FBFZjyh7S7i3n2shQKF+eg
+9VYO48uEyYpV62JI7jDsO8TutLyX4lN37BJOdT86qtC+zgDc0lVhC95VZ/SHUMGr
+l3aSZ2WilTdhuFwF0g090sOO7acpcrKGZcEL2kTBUFCFt1XUbueJcetjSdPCQcZg
+LcXKJTsg2p3bXvGmCVLQ/wdLzsDxIaqLBidNIQX8WRPSHqXMYq/DcgWilYmr/UZt
+6YSTwxrlkWtHScivU3MIcbLEziXphazGXLmEeOTSET1QzzzkJ2uKVlFW7PI0kFxA
+9eGY9d0v3YMizHT2leCX
+=i9LO
+-----END PGP SIGNATURE-----
+
+--Kj7319i9nmIyA2yE--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
