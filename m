@@ -1,120 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx112.postini.com [74.125.245.112])
-	by kanga.kvack.org (Postfix) with SMTP id 95EC66B005D
-	for <linux-mm@kvack.org>; Mon,  1 Oct 2012 07:53:15 -0400 (EDT)
-Date: Mon, 1 Oct 2012 13:53:09 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH v4] KSM: numa awareness sysfs knob
-Message-ID: <20121001115309.GE20924@redhat.com>
-References: <1348448166-1995-1-git-send-email-pholasek@redhat.com>
- <20120928112645.GX19474@redhat.com>
- <alpine.LSU.2.00.1209301639240.6304@eggly.anvils>
+Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
+	by kanga.kvack.org (Postfix) with SMTP id F1E966B006E
+	for <linux-mm@kvack.org>; Mon,  1 Oct 2012 07:54:57 -0400 (EDT)
+Message-ID: <506983B8.8010805@parallels.com>
+Date: Mon, 1 Oct 2012 15:51:20 +0400
+From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.LSU.2.00.1209301639240.6304@eggly.anvils>
+Subject: Re: [PATCH v3 06/13] memcg: kmem controller infrastructure
+References: <1347977050-29476-1-git-send-email-glommer@parallels.com> <1347977050-29476-7-git-send-email-glommer@parallels.com> <20120926155108.GE15801@dhcp22.suse.cz> <5064392D.5040707@parallels.com> <20120927134432.GE29104@dhcp22.suse.cz> <50658B3B.9020303@parallels.com> <20121001094846.GC8622@dhcp22.suse.cz> <50696BC5.8040808@parallels.com> <20121001115157.GE8622@dhcp22.suse.cz>
+In-Reply-To: <20121001115157.GE8622@dhcp22.suse.cz>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Petr Holasek <pholasek@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, Izik Eidus <izik.eidus@ravellosystems.com>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Anton Arapov <anton@redhat.com>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, devel@openvz.org, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, Suleiman Souhlal <suleiman@google.com>, Frederic Weisbecker <fweisbec@gmail.com>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Johannes Weiner <hannes@cmpxchg.org>
 
-Hi Hugh,
-
-On Sun, Sep 30, 2012 at 05:36:33PM -0700, Hugh Dickins wrote:
-> I'm all for the simplest solution, but here in ksm_migrate_page()
-> is not a good place for COW breaking - we don't want to get into
-> an indefinite number of page allocations, and the risk of failure.
-
-Agreed, not a good place to break_cow.
-
-> I was toying with the idea of leaving the new page in the old NUMAnode's
-> stable tree temporarily, until ksmd comes around again, and let that
-> clean it up.  Which would imply less reliance on get_kpfn_nid(),
-> and not skipping PageKsm in ksm_do_scan(), and...
-
-There a break_cow could more easily run to cleanup the errors in the
-stable tree. It'd be one way to avoid altering migrate.
-
-> But it's not all that simple, and I think we can do better.
-
-Agreed.
-
-> It's only just fully dawned on me that ksm_migrate_page() is actually
-> a very convenient place: no pagetable mangling required, because we
-> know that neither old nor new page is at this instant mapped into
-> userspace at all - don't we?  Instead there are swap-like migration
-> entries plugging all ptes until we're ready to put in the new page.
-
-Yes.
-
-> So I think what we really want to do is change the ksm_migrate_page()
-> interface a little, and probably the precise position it's called from,
-> to allow it to update mm/migrate.c's newpage - in the collision case
-
-I agree your proposed modification to the ->migratepage protocol
-should be able to deal with that. We should notify the caller the
-"newpage" has been freed and we transferred all ownership to an
-"alternate_newpage". So then migrate will restore the ptes pointing to
-the alternate_newpage (not the allocated newpage). It should be also
-possible to get an hold on the alternate_newpage, before having to
-allocate newpage.
-
-> when the new NUMAnode already has a stable copy of this page.  But when
-> it doesn't, just move KSMnode from old NUMAnode's stable tree to new.
-
-Agreed, that is the easy case and doesn't require interface changes.
-
-> How well the existing ksm.c primitives are suited to this, I've not
-> checked.  Probably not too well, but shouldn't be hard to add what's
-> needed.
+On 10/01/2012 03:51 PM, Michal Hocko wrote:
+> On Mon 01-10-12 14:09:09, Glauber Costa wrote:
+>> On 10/01/2012 01:48 PM, Michal Hocko wrote:
+>>> On Fri 28-09-12 15:34:19, Glauber Costa wrote:
+>>>> On 09/27/2012 05:44 PM, Michal Hocko wrote:
+>>>>>>> the reference count aquired by mem_cgroup_get will still prevent the
+>>>>>>> memcg from going away, no?
+>>>>> Yes but you are outside of the rcu now and we usually do css_get before
+>>>>> we rcu_unlock. mem_cgroup_get just makes sure the group doesn't get
+>>>>> deallocated but it could be gone before you call it. Or I am just
+>>>>> confused - these 2 levels of ref counting is really not nice.
+>>>>>
+>>>>> Anyway, I have just noticed that __mem_cgroup_try_charge does
+>>>>> VM_BUG_ON(css_is_removed(&memcg->css)) on a given memcg so you should
+>>>>> keep css ref count up as well.
+>>>>>
+>>>>
+>>>> IIRC, css_get will prevent the cgroup directory from being removed.
+>>>> Because some allocations are expected to outlive the cgroup, we
+>>>> specifically don't want that.
+>>>
+>>> Yes, but how do you guarantee that the above VM_BUG_ON doesn't trigger?
+>>> Task could have been moved to another group between mem_cgroup_from_task
+>>> and mem_cgroup_get, no?
+>>>
+>>
+>> Ok, after reading this again (and again), you seem to be right. It
+>> concerns me, however, that simply getting the css would lead us to a
+>> double get/put pair, since try_charge will have to do it anyway.
 > 
-> What do you think?  Does that sound reasonable, Petr?
-
-Sounds like a plan, I agree the modification to migrate is the best
-way to go here. Only cons: it's not the simplest solution.
-
-> By the way, this is probably a good occasion to remind ourselves,
-> that page migration is still usually disabled on PageKsm pages:
-> ksm_migrate_page() is only being called for memory hotremove.  I had
-> been about to complain that calling remove_node_from_stable_tree()
-> from ksm_migrate_page() is also unsafe from a locking point of view;
-> until I remembered that MEM_GOING_OFFLINE has previously acquired
-> ksm_thread_mutex.
+> That happens only for !*ptr case and you provide a memcg here, don't
+> you.
 > 
-> But page migration is much more important now than three years ago,
-> with compaction relying upon it, CMA and THP relying upon compaction,
-> and lumpy reclaim gone.
 
-Agreed. AutoNUMA needs it too: AutoNUMA migrates all types of memory,
-not just anonymous memory, as long as the mapcount == 1.
+        if (*ptr) { /* css should be a valid one */
+                memcg = *ptr;
+                VM_BUG_ON(css_is_removed(&memcg->css));
+                if (mem_cgroup_is_root(memcg))
+                        goto done;
+                if (consume_stock(memcg, nr_pages))
+                        goto done;
+                css_get(&memcg->css);
 
-If all users break_cow except one, then the KSM page can move around
-if it has left just one user, we don't need to wait this last user to
-break_cow (which may never happen) before can move it.
 
-> Whilst it should not be mixed up in the NUMA patch itself, I think we
-> need now to relax that restriction.  I found re-reading my 62b61f611e
-> "ksm: memory hotremove migration only" was helpful.  Petr, is that
-> something you could take on also?  I _think_ it's just a matter of
-> protecting the stable tree(s) with an additional mutex (which ought
-> not to be contended, since ksm_thread_mutex is normally held above
-> it, except in migration); then removing a number of PageKsm refusals
-> (and the offlining arg to unmap_and_move() etc).  But perhaps there's
-> more to it, I haven't gone over it properly.
+The way I read this, this will still issue a css_get here, unless
+consume_stock suceeds (assuming non-root)
 
-Removing the restriction sounds good. In addition to
-compaction/AutoNUMA etc.. KSM pages are marked MOVABLE so it's likely
-not good for the anti frag pageblock types.
-
-So if I understand this correctly, there would be no way to trigger
-the stable tree corruption in current v4, without memory hotremove.
-
-> Yes, I agree; but a few more comments I'll make against the v4 post.
-
-Cool.
-
-Thanks for the help!
-Andrea
+So we'd still have to have a wrapping get/put pair outside the charge.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
