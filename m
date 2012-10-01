@@ -1,39 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx159.postini.com [74.125.245.159])
-	by kanga.kvack.org (Postfix) with SMTP id B71226B0068
-	for <linux-mm@kvack.org>; Mon,  1 Oct 2012 11:22:57 -0400 (EDT)
-Received: by weyu3 with SMTP id u3so3718916wey.14
-        for <linux-mm@kvack.org>; Mon, 01 Oct 2012 08:22:56 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
+	by kanga.kvack.org (Postfix) with SMTP id 105BF6B0068
+	for <linux-mm@kvack.org>; Mon,  1 Oct 2012 11:34:30 -0400 (EDT)
+Message-ID: <5069B804.6040902@linux.intel.com>
+Date: Mon, 01 Oct 2012 08:34:28 -0700
+From: "H. Peter Anvin" <hpa@linux.intel.com>
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.00.1209261821380.7745@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.1209191818490.7879@chino.kir.corp.google.com>
- <alpine.LSU.2.00.1209192021270.28543@eggly.anvils> <alpine.DEB.2.00.1209261821380.7745@chino.kir.corp.google.com>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Mon, 1 Oct 2012 08:22:35 -0700
-Message-ID: <CA+55aFymzvPgw5O=MmHsedOmheNMYXXmy3munR6XDt5tQYEESA@mail.gmail.com>
-Subject: Re: [patch for-3.6] mm, thp: fix mapped pages avoiding unevictable
- list on mlock
+Subject: Re: [PATCH 0/3] Virtual huge zero page
+References: <1348875441-19561-1-git-send-email-kirill.shutemov@linux.intel.com> <20120929134811.GC26989@redhat.com>
+In-Reply-To: <20120929134811.GC26989@redhat.com>
 Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Michel Lespinasse <walken@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, stable@vger.kernel.org
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill@shutemov.name>, Arnd Bergmann <arnd@arndb.de>, Ingo Molnar <mingo@kernel.org>, linux-arch@vger.kernel.org
 
-On Wed, Sep 26, 2012 at 6:40 PM, David Rientjes <rientjes@google.com> wrote:
->
-> Ok, sounds good.  If there's no objection, I'd like to ask Andrew to apply
-> this to -mm and remove the cc to stable@vger.kernel.org since the
-> mlock_vma_page() problem above is separate and doesn't conflict with this
-> code, so I'll send a followup patch to address that.
+On 09/29/2012 06:48 AM, Andrea Arcangeli wrote:
+> 
+> There would be a small cache benefit here... but even then some first
+> level caches are virtually indexed IIRC (always physically tagged to
+> avoid the software to notice) and virtually indexed ones won't get any
+> benefit.
+> 
 
-So I deferred this (and the "mm, thp: fix mlock statistics" one) to
-after 3.6, because Andrea indicated that they aren't critical. Now I'd
-be ready to take them, but I suspect they are already in Andrew's
-queue and I can forget about them.
+Not quite.  The virtual indexing is limited to a few bits (e.g. three
+bits on K8); the right way to deal with that is to color the zeropage,
+both the regular one and the virtual one (the virtual one would circle
+through all the colors repeatedly.)
 
-Please holler if I need to take the two thp patches directly..
+The cache difference, therefore, is *huge*.
 
-              Linus
+> I guess it won't make a whole lot of difference but my preference is
+> for the previous implementation that always guaranteed huge TLB
+> entries whenever possible. Said that I'm fine either ways so if
+> somebody has strong reasons for wanting this one, I'd like to hear
+> about it.
+
+It's a performance tradeoff, and it can, and should, be measured.
+
+	-hpa
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
