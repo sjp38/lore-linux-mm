@@ -1,133 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx165.postini.com [74.125.245.165])
-	by kanga.kvack.org (Postfix) with SMTP id 0460F6B002B
-	for <linux-mm@kvack.org>; Mon,  1 Oct 2012 06:52:15 -0400 (EDT)
-From: Glauber Costa <glommer@parallels.com>
-Subject: [PATCH v2] slab: Ignore internal flags in cache creation
-Date: Mon,  1 Oct 2012 14:47:38 +0400
-Message-Id: <1349088458-3940-1-git-send-email-glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
+	by kanga.kvack.org (Postfix) with SMTP id 75BDF6B005D
+	for <linux-mm@kvack.org>; Mon,  1 Oct 2012 07:52:02 -0400 (EDT)
+Date: Mon, 1 Oct 2012 13:51:57 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH v3 06/13] memcg: kmem controller infrastructure
+Message-ID: <20121001115157.GE8622@dhcp22.suse.cz>
+References: <1347977050-29476-1-git-send-email-glommer@parallels.com>
+ <1347977050-29476-7-git-send-email-glommer@parallels.com>
+ <20120926155108.GE15801@dhcp22.suse.cz>
+ <5064392D.5040707@parallels.com>
+ <20120927134432.GE29104@dhcp22.suse.cz>
+ <50658B3B.9020303@parallels.com>
+ <20121001094846.GC8622@dhcp22.suse.cz>
+ <50696BC5.8040808@parallels.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <50696BC5.8040808@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pekka Enberg <penberg@kernel.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Glauber Costa <glommer@parallels.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@cs.helsinki.fi>, David Rientjes <rientjes@google.com>
+To: Glauber Costa <glommer@parallels.com>
+Cc: linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, devel@openvz.org, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, Suleiman Souhlal <suleiman@google.com>, Frederic Weisbecker <fweisbec@gmail.com>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Johannes Weiner <hannes@cmpxchg.org>
 
-Some flags are used internally by the allocators for management
-purposes. One example of that is the CFLGS_OFF_SLAB flag that slab uses
-to mark that the metadata for that cache is stored outside of the slab.
+On Mon 01-10-12 14:09:09, Glauber Costa wrote:
+> On 10/01/2012 01:48 PM, Michal Hocko wrote:
+> > On Fri 28-09-12 15:34:19, Glauber Costa wrote:
+> >> On 09/27/2012 05:44 PM, Michal Hocko wrote:
+> >>>>> the reference count aquired by mem_cgroup_get will still prevent the
+> >>>>> memcg from going away, no?
+> >>> Yes but you are outside of the rcu now and we usually do css_get before
+> >>> we rcu_unlock. mem_cgroup_get just makes sure the group doesn't get
+> >>> deallocated but it could be gone before you call it. Or I am just
+> >>> confused - these 2 levels of ref counting is really not nice.
+> >>>
+> >>> Anyway, I have just noticed that __mem_cgroup_try_charge does
+> >>> VM_BUG_ON(css_is_removed(&memcg->css)) on a given memcg so you should
+> >>> keep css ref count up as well.
+> >>>
+> >>
+> >> IIRC, css_get will prevent the cgroup directory from being removed.
+> >> Because some allocations are expected to outlive the cgroup, we
+> >> specifically don't want that.
+> > 
+> > Yes, but how do you guarantee that the above VM_BUG_ON doesn't trigger?
+> > Task could have been moved to another group between mem_cgroup_from_task
+> > and mem_cgroup_get, no?
+> > 
+> 
+> Ok, after reading this again (and again), you seem to be right. It
+> concerns me, however, that simply getting the css would lead us to a
+> double get/put pair, since try_charge will have to do it anyway.
 
-No cache should ever pass those as a creation flags. We can just ignore
-this bit if it happens to be passed (such as when duplicating a cache in
-the kmem memcg patches).
+That happens only for !*ptr case and you provide a memcg here, don't
+you.
 
-Because such flags can vary from allocator to allocator, we allow them
-to make their own decisions on that. Those who want it, can define
-CACHE_CREATE_MASK, with all flags that are valid at creation time.
-Common code will mask out all flags not belonging to that set.
+> I considered just letting try_charge selecting the memcg, but that is
+> not really what we want, since if that memcg will fail kmem allocations,
+> we simply won't issue try charge, but return early.
+> 
+> Any immediate suggestions on how to handle this ?
 
-[ v2: leave the mask out decision up to the allocators ]
+I would do the same thing __mem_cgroup_try_charge does.
+retry:
+	rcu_read_lock();
+	p = rcu_dereference(mm->owner);
+	if (!css_tryget(&memcg->css)) {
+		rcu_read_unlock();
+		goto retry;
+	}
+	rcu_read_unlock();
 
-Signed-off-by: Glauber Costa <glommer@parallels.com>
-CC: Christoph Lameter <cl@linux.com>
-CC: Pekka Enberg <penberg@cs.helsinki.fi>
-CC: David Rientjes <rientjes@google.com>
----
- include/linux/slab_def.h | 19 +++++++++++++++++++
- mm/slab.c                | 22 ----------------------
- mm/slab_common.c         |  9 +++++++++
- 3 files changed, 28 insertions(+), 22 deletions(-)
-
-diff --git a/include/linux/slab_def.h b/include/linux/slab_def.h
-index 36d7031..f7ec03d 100644
---- a/include/linux/slab_def.h
-+++ b/include/linux/slab_def.h
-@@ -15,6 +15,25 @@
- #include <asm/cache.h>		/* kmalloc_sizes.h needs L1_CACHE_BYTES */
- #include <linux/compiler.h>
- 
-+/* Legal flag mask for kmem_cache_create(). */
-+#ifdef CONFIG_DEBUG_SLAB 
-+#define CACHE_CREATE_MASK (SLAB_RED_ZONE | 				\
-+			SLAB_POISON | SLAB_HWCACHE_ALIGN | 		\
-+			SLAB_CACHE_DMA | 				\
-+			SLAB_STORE_USER | 				\
-+			SLAB_RECLAIM_ACCOUNT | SLAB_PANIC | 		\
-+			SLAB_DESTROY_BY_RCU | SLAB_MEM_SPREAD | 	\
-+			SLAB_DEBUG_OBJECTS | SLAB_NOLEAKTRACE |	\
-+			SLAB_NOTRACK)
-+#else
-+#define CACHE_CREATE_MASK (SLAB_HWCACHE_ALIGN | 			\
-+			SLAB_CACHE_DMA | 				\
-+			SLAB_RECLAIM_ACCOUNT | SLAB_PANIC | 		\
-+			SLAB_DESTROY_BY_RCU | SLAB_MEM_SPREAD | 	\
-+			SLAB_DEBUG_OBJECTS | SLAB_NOLEAKTRACE | 	\
-+			SLAB_NOTRACK)
-+#endif
-+
- /*
-  * struct kmem_cache
-  *
-diff --git a/mm/slab.c b/mm/slab.c
-index 8524923..8c1d447 100644
---- a/mm/slab.c
-+++ b/mm/slab.c
-@@ -162,23 +162,6 @@
-  */
- static bool pfmemalloc_active __read_mostly;
- 
--/* Legal flag mask for kmem_cache_create(). */
--#if DEBUG
--# define CREATE_MASK	(SLAB_RED_ZONE | \
--			 SLAB_POISON | SLAB_HWCACHE_ALIGN | \
--			 SLAB_CACHE_DMA | \
--			 SLAB_STORE_USER | \
--			 SLAB_RECLAIM_ACCOUNT | SLAB_PANIC | \
--			 SLAB_DESTROY_BY_RCU | SLAB_MEM_SPREAD | \
--			 SLAB_DEBUG_OBJECTS | SLAB_NOLEAKTRACE | SLAB_NOTRACK)
--#else
--# define CREATE_MASK	(SLAB_HWCACHE_ALIGN | \
--			 SLAB_CACHE_DMA | \
--			 SLAB_RECLAIM_ACCOUNT | SLAB_PANIC | \
--			 SLAB_DESTROY_BY_RCU | SLAB_MEM_SPREAD | \
--			 SLAB_DEBUG_OBJECTS | SLAB_NOLEAKTRACE | SLAB_NOTRACK)
--#endif
--
- /*
-  * kmem_bufctl_t:
-  *
-@@ -2385,11 +2368,6 @@ __kmem_cache_create (struct kmem_cache *cachep, unsigned long flags)
- 	if (flags & SLAB_DESTROY_BY_RCU)
- 		BUG_ON(flags & SLAB_POISON);
- #endif
--	/*
--	 * Always checks flags, a caller might be expecting debug support which
--	 * isn't available.
--	 */
--	BUG_ON(flags & ~CREATE_MASK);
- 
- 	/*
- 	 * Check that size is in terms of words.  This is needed to avoid
-diff --git a/mm/slab_common.c b/mm/slab_common.c
-index 9c21725..f2682ee 100644
---- a/mm/slab_common.c
-+++ b/mm/slab_common.c
-@@ -107,6 +107,15 @@ struct kmem_cache *kmem_cache_create(const char *name, size_t size, size_t align
- 	if (!kmem_cache_sanity_check(name, size) == 0)
- 		goto out_locked;
- 
-+	/*
-+	 * Some allocators will constraint the set of valid flags to a subset
-+	 * of all flags. We expect them to define CACHE_CREATE_MASK in this
-+	 * case, and we'll just provide them with a sanitized version of the
-+	 * passed flags.
-+	 */
-+#ifdef CACHE_CREATE_MASK
-+	flags &= ~CACHE_CREATE_MASK;
-+#endif
- 
- 	s = __kmem_cache_alias(name, size, align, flags, ctor);
- 	if (s)
 -- 
-1.7.11.4
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
