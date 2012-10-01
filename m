@@ -1,26 +1,31 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
-	by kanga.kvack.org (Postfix) with SMTP id 68F5D6B0088
-	for <linux-mm@kvack.org>; Mon,  1 Oct 2012 13:56:44 -0400 (EDT)
-Date: Mon, 1 Oct 2012 17:56:43 +0000
+Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
+	by kanga.kvack.org (Postfix) with SMTP id 3A9A76B008C
+	for <linux-mm@kvack.org>; Mon,  1 Oct 2012 14:00:24 -0400 (EDT)
+Date: Mon, 1 Oct 2012 18:00:22 +0000
 From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH linux-next-20120928] slab: Fix build failure.
-In-Reply-To: <201209301736.HDH56776.tJVFLFQOHOOMSF@I-love.SAKURA.ne.jp>
-Message-ID: <0000013a1d790c63-77f1e62b-f565-4949-8cd4-f98c3f543e89-000000@email.amazonses.com>
-References: <201209301736.HDH56776.tJVFLFQOHOOMSF@I-love.SAKURA.ne.jp>
+Subject: Re: [PATCH v2] slab: Ignore internal flags in cache creation
+In-Reply-To: <1349088458-3940-1-git-send-email-glommer@parallels.com>
+Message-ID: <0000013a1d7c65d7-e63e5171-d5ea-4464-a5ea-c345d6804c07-000000@email.amazonses.com>
+References: <1349088458-3940-1-git-send-email-glommer@parallels.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: penberg@kernel.org, linux-mm@kvack.org
+To: Glauber Costa <glommer@parallels.com>
+Cc: Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Pekka Enberg <penberg@cs.helsinki.fi>, David Rientjes <rientjes@google.com>
 
-On Sun, 30 Sep 2012, Tetsuo Handa wrote:
+On Mon, 1 Oct 2012, Glauber Costa wrote:
 
-> Fix build failure with CONFIG_DEBUG_SLAB=y && CONFIG_DEBUG_PAGEALLOC=y caused
-> by commit 8a13a4cc "mm/sl[aou]b: Shrink __kmem_cache_create() parameter lists".
+> [ v2: leave the mask out decision up to the allocators ]
 
 Acked-by: Christoph Lameter <cl@linux.com>
+
+I would prefer that this mask be named appropriately and be defined in all
+sl*_def.h files for all allocators.
+
+Name could be SLAB_AVAILABLE_FLAGS or some name that makes more
+sense than CACHE_CREATE_MASK.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
