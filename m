@@ -1,66 +1,33 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
-	by kanga.kvack.org (Postfix) with SMTP id C7B0E6B006C
-	for <linux-mm@kvack.org>; Tue,  2 Oct 2012 13:07:24 -0400 (EDT)
-Received: by vcbfl17 with SMTP id fl17so9009668vcb.14
-        for <linux-mm@kvack.org>; Tue, 02 Oct 2012 10:07:23 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx162.postini.com [74.125.245.162])
+	by kanga.kvack.org (Postfix) with SMTP id AD1DA6B006C
+	for <linux-mm@kvack.org>; Tue,  2 Oct 2012 13:28:45 -0400 (EDT)
+Received: by oagk14 with SMTP id k14so8180538oag.14
+        for <linux-mm@kvack.org>; Tue, 02 Oct 2012 10:28:44 -0700 (PDT)
 MIME-Version: 1.0
-From: Israel Jacquez <mrkotfw@gmail.com>
-Date: Tue, 2 Oct 2012 10:07:03 -0700
-Message-ID: <CAJdDbRBOf=GYuM90+8TSPYNNdHpNfUbT_G0QiZi-+TnVbudkJg@mail.gmail.com>
-Subject: Some confusion with how the SLOB allocator works
-Content-Type: multipart/alternative; boundary=20cf307c9b3e469a2804cb168eac
+In-Reply-To: <506A36A1.6030709@gmail.com>
+References: <1346837155-534-1-git-send-email-wency@cn.fujitsu.com>
+ <1346837155-534-7-git-send-email-wency@cn.fujitsu.com> <506A36A1.6030709@gmail.com>
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Date: Tue, 2 Oct 2012 13:28:24 -0400
+Message-ID: <CAHGf_=rX-OHFkBCKzdOi-ydF3VY+Sv_J1osDzZ_MiYEoop145A@mail.gmail.com>
+Subject: Re: [RFC v9 PATCH 06/21] memory-hotplug: export the function acpi_bus_remove()
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
+To: Ni zhan Chen <nizhan.chen@gmail.com>
+Cc: wency@cn.fujitsu.com, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-ia64@vger.kernel.org, cmetcalf@tilera.com, sparclinux@vger.kernel.org, rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, akpm@linux-foundation.org, isimatu.yasuaki@jp.fujitsu.com
 
---20cf307c9b3e469a2804cb168eac
-Content-Type: text/plain; charset=UTF-8
+On Mon, Oct 1, 2012 at 8:34 PM, Ni zhan Chen <nizhan.chen@gmail.com> wrote:
+> On 09/05/2012 05:25 PM, wency@cn.fujitsu.com wrote:
+>>
+>> From: Wen Congyang <wency@cn.fujitsu.com>
+>>
+>> The function acpi_bus_remove() can remove a acpi device from acpi device.
+>
+> IIUC, s/acpi device/acpi bus
 
-Hello everyone,
-
-I'm studying the SLOB allocator and I'm having a bit of a hard time
-understanding how slob_page_alloc() works. Particularly, what I don't
-understand is the structure of a "cleared" linked slob_page. For example,
-the first slob_page is dedicated for allocations (0, 256B]. Let's assume
-that no allocations have been done. Then if a single slob_page is 4KiB (2 ^
-12) and each "block" is 2B (2 ^ 2) then are there 2 ^ 10 blocks in that
-slob_page?
-
-What is also confusing is what the metadata in each free/allocated block
-represents. If there is allocation request of 64B, that would go into the
-list of slob_page(s) dedicated to allocations within (0,256B]. The next
-pointer is pointing to the very first block of the slob_page. What value
-(in units) does that block have?
-
---20cf307c9b3e469a2804cb168eac
-Content-Type: text/html; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
-
-<div>Hello everyone,</div><div><br></div><div>I&#39;m studying the SLOB all=
-ocator and I&#39;m having a bit of a hard time understanding how slob_page_=
-alloc() works. Particularly, what I don&#39;t understand is the structure o=
-f a &quot;cleared&quot; linked slob_page.=C2=A0For example, the first slob_=
-page is dedicated for allocations (0, 256B]. Let&#39;s assume that no alloc=
-ations have=C2=A0been done. Then if a single slob_page is 4KiB (2 ^ 12) and=
- each &quot;block&quot; is 2B (2 ^ 2) then are there 2 ^ 10 blocks in=C2=A0=
-that slob_page?</div>
-
-
-
-
-<div><br></div><div>What is also confusing is what the metadata in each fre=
-e/allocated block represents.=C2=A0If there is allocation request of 64B, t=
-hat would go into the list of slob_page(s) dedicated to allocations=C2=A0wi=
-thin (0,256B]. The next pointer is pointing to the very first block of the =
-slob_page. What value (in units)=C2=A0does that block have?</div>
-
-
-
-
-<div><br></div>
-
---20cf307c9b3e469a2804cb168eac--
+IIUC, acpi_bus_remove() mean "remove the device from a bus".
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
