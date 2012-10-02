@@ -1,10 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
-	by kanga.kvack.org (Postfix) with SMTP id 7BDB66B0074
-	for <linux-mm@kvack.org>; Tue,  2 Oct 2012 18:26:57 -0400 (EDT)
-Date: Tue, 02 Oct 2012 18:26:55 -0400 (EDT)
-Message-Id: <20121002.182655.1230531655546341426.davem@davemloft.net>
-Subject: [PATCH 4/8] sparc64: Document PGD and PMD layout.
+Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
+	by kanga.kvack.org (Postfix) with SMTP id 0E5046B0078
+	for <linux-mm@kvack.org>; Tue,  2 Oct 2012 18:27:07 -0400 (EDT)
+Date: Tue, 02 Oct 2012 18:27:04 -0400 (EDT)
+Message-Id: <20121002.182704.2007474245835123971.davem@davemloft.net>
+Subject: [PATCH 5/8] mm: Add and use update_mmu_cache_pmd() in transparent
+ huge page code.
 From: David Miller <davem@davemloft.net>
 Mime-Version: 1.0
 Content-Type: Text/Plain; charset=us-ascii
@@ -15,89 +16,78 @@ To: linux-mm@kvack.org
 Cc: sparclinux@vger.kernel.org, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, akpm@linux-foundation.org, aarcange@redhat.com, hannes@cmpxchg.org
 
 
-We're going to be messing around with the PMD interpretation and
-layout for the sake of transparent huge pages, so we better clearly
-document what we're starting with.
+The transparent huge page code passes a PMD in as the third
+argument of update_mmu_cache(), which expects a PTE pointer.
+
+This never got noticed because X86 implements update_mmu_cache() as a
+macro and thus we don't get any type checking, and X86 is the only
+architecture which supports transparent huge pages currently.
+
+Before oter architectures can support transparent huge pages properly
+we need to add a new interface which will take a PMD as the third
+argument rather than a PTE pointer.
 
 Signed-off-by: David S. Miller <davem@davemloft.net>
 ---
- arch/sparc/include/asm/pgtable_64.h |   16 ++++++++++++----
- arch/sparc/include/asm/tsb.h        |    8 ++++----
- 2 files changed, 16 insertions(+), 8 deletions(-)
+ arch/x86/include/asm/pgtable_32.h |    1 +
+ arch/x86/include/asm/pgtable_64.h |    1 +
+ mm/huge_memory.c                  |    6 +++---
+ 3 files changed, 5 insertions(+), 3 deletions(-)
 
-diff --git a/arch/sparc/include/asm/pgtable_64.h b/arch/sparc/include/asm/pgtable_64.h
-index 27293a3..e77f363 100644
---- a/arch/sparc/include/asm/pgtable_64.h
-+++ b/arch/sparc/include/asm/pgtable_64.h
-@@ -63,6 +63,14 @@
- #error Page table parameters do not cover virtual address space properly.
- #endif
+diff --git a/arch/x86/include/asm/pgtable_32.h b/arch/x86/include/asm/pgtable_32.h
+index 0c92113..8faa215 100644
+--- a/arch/x86/include/asm/pgtable_32.h
++++ b/arch/x86/include/asm/pgtable_32.h
+@@ -71,6 +71,7 @@ do {						\
+  * tables contain all the necessary information.
+  */
+ #define update_mmu_cache(vma, address, ptep) do { } while (0)
++#define update_mmu_cache_pmd(vma, address, pmd) do { } while (0)
  
-+/* PMDs point to PTE tables which are 4K aligned.  */
-+#define PMD_PADDR	_AC(0xfffffffe,UL)
-+#define PMD_PADDR_SHIFT	_AC(11,UL)
-+
-+/* PGDs point to PMD tables which are 8K aligned.  */
-+#define PGD_PADDR	_AC(0xfffffffc,UL)
-+#define PGD_PADDR_SHIFT	_AC(11,UL)
-+
- #ifndef __ASSEMBLY__
+ #endif /* !__ASSEMBLY__ */
  
- #include <linux/sched.h>
-@@ -601,14 +609,14 @@ static inline unsigned long pte_special(pte_t pte)
- }
+diff --git a/arch/x86/include/asm/pgtable_64.h b/arch/x86/include/asm/pgtable_64.h
+index 8251be0..47356f9 100644
+--- a/arch/x86/include/asm/pgtable_64.h
++++ b/arch/x86/include/asm/pgtable_64.h
+@@ -143,6 +143,7 @@ static inline int pgd_large(pgd_t pgd) { return 0; }
+ #define pte_unmap(pte) ((void)(pte))/* NOP */
  
- #define pmd_set(pmdp, ptep)	\
--	(pmd_val(*(pmdp)) = (__pa((unsigned long) (ptep)) >> 11UL))
-+	(pmd_val(*(pmdp)) = (__pa((unsigned long) (ptep)) >> PMD_PADDR_SHIFT))
- #define pud_set(pudp, pmdp)	\
--	(pud_val(*(pudp)) = (__pa((unsigned long) (pmdp)) >> 11UL))
-+	(pud_val(*(pudp)) = (__pa((unsigned long) (pmdp)) >> PGD_PADDR_SHIFT))
- #define __pmd_page(pmd)		\
--	((unsigned long) __va((((unsigned long)pmd_val(pmd))<<11UL)))
-+	((unsigned long) __va((((unsigned long)pmd_val(pmd))<<PMD_PADDR_SHIFT)))
- #define pmd_page(pmd) 			virt_to_page((void *)__pmd_page(pmd))
- #define pud_page_vaddr(pud)		\
--	((unsigned long) __va((((unsigned long)pud_val(pud))<<11UL)))
-+	((unsigned long) __va((((unsigned long)pud_val(pud))<<PGD_PADDR_SHIFT)))
- #define pud_page(pud) 			virt_to_page((void *)pud_page_vaddr(pud))
- #define pmd_none(pmd)			(!pmd_val(pmd))
- #define pmd_bad(pmd)			(0)
-diff --git a/arch/sparc/include/asm/tsb.h b/arch/sparc/include/asm/tsb.h
-index 6435924..ef8cd1a 100644
---- a/arch/sparc/include/asm/tsb.h
-+++ b/arch/sparc/include/asm/tsb.h
-@@ -147,13 +147,13 @@ extern struct tsb_phys_patch_entry __tsb_phys_patch, __tsb_phys_patch_end;
- 	brz,pn		REG1, FAIL_LABEL; \
- 	 sllx		VADDR, 64 - (PMD_SHIFT + PMD_BITS), REG2; \
- 	srlx		REG2, 64 - PAGE_SHIFT, REG2; \
--	sllx		REG1, 11, REG1; \
-+	sllx		REG1, PGD_PADDR_SHIFT, REG1; \
- 	andn		REG2, 0x3, REG2; \
- 	lduwa		[REG1 + REG2] ASI_PHYS_USE_EC, REG1; \
- 	brz,pn		REG1, FAIL_LABEL; \
- 	 sllx		VADDR, 64 - PMD_SHIFT, REG2; \
- 	srlx		REG2, 64 - (PAGE_SHIFT - 1), REG2; \
--	sllx		REG1, 11, REG1; \
-+	sllx		REG1, PMD_PADDR_SHIFT, REG1; \
- 	andn		REG2, 0x7, REG2; \
- 	add		REG1, REG2, REG1;
+ #define update_mmu_cache(vma, address, ptep) do { } while (0)
++#define update_mmu_cache_pmd(vma, address, pmd) do { } while (0)
  
-@@ -172,13 +172,13 @@ extern struct tsb_phys_patch_entry __tsb_phys_patch, __tsb_phys_patch_end;
- 	brz,pn		REG1, FAIL_LABEL; \
- 	 sllx		VADDR, 64 - (PMD_SHIFT + PMD_BITS), REG2; \
- 	srlx		REG2, 64 - PAGE_SHIFT, REG2; \
--	sllx		REG1, 11, REG1; \
-+	sllx		REG1, PGD_PADDR_SHIFT, REG1; \
- 	andn		REG2, 0x3, REG2; \
- 	lduwa		[REG1 + REG2] ASI_PHYS_USE_EC, REG1; \
- 	brz,pn		REG1, FAIL_LABEL; \
- 	 sllx		VADDR, 64 - PMD_SHIFT, REG2; \
- 	srlx		REG2, 64 - (PAGE_SHIFT - 1), REG2; \
--	sllx		REG1, 11, REG1; \
-+	sllx		REG1, PMD_PADDR_SHIFT, REG1; \
- 	andn		REG2, 0x7, REG2; \
- 	add		REG1, REG2, REG1;
+ /* Encode and de-code a swap entry */
+ #if _PAGE_BIT_FILE < _PAGE_BIT_PROTNONE
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 57c4b93..29414c1 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -934,7 +934,7 @@ int do_huge_pmd_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ 		entry = pmd_mkyoung(orig_pmd);
+ 		entry = maybe_pmd_mkwrite(pmd_mkdirty(entry), vma);
+ 		if (pmdp_set_access_flags(vma, haddr, pmd, entry,  1))
+-			update_mmu_cache(vma, address, entry);
++			update_mmu_cache_pmd(vma, address, entry);
+ 		ret |= VM_FAULT_WRITE;
+ 		goto out_unlock;
+ 	}
+@@ -986,7 +986,7 @@ int do_huge_pmd_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ 		pmdp_clear_flush_notify(vma, haddr, pmd);
+ 		page_add_new_anon_rmap(new_page, vma, haddr);
+ 		set_pmd_at(mm, haddr, pmd, entry);
+-		update_mmu_cache(vma, address, entry);
++		update_mmu_cache_pmd(vma, address, entry);
+ 		page_remove_rmap(page);
+ 		put_page(page);
+ 		ret |= VM_FAULT_WRITE;
+@@ -1989,7 +1989,7 @@ static void collapse_huge_page(struct mm_struct *mm,
+ 	BUG_ON(!pmd_none(*pmd));
+ 	page_add_new_anon_rmap(new_page, vma, address);
+ 	set_pmd_at(mm, address, pmd, _pmd);
+-	update_mmu_cache(vma, address, _pmd);
++	update_mmu_cache_pmd(vma, address, _pmd);
+ 	prepare_pmd_huge_pte(pgtable, mm);
+ 	spin_unlock(&mm->page_table_lock);
  
 -- 
 1.7.10.4
