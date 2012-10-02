@@ -1,49 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
-	by kanga.kvack.org (Postfix) with SMTP id 4A1C56B005D
-	for <linux-mm@kvack.org>; Tue,  2 Oct 2012 17:42:13 -0400 (EDT)
-Date: Tue, 2 Oct 2012 14:42:11 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 0/2] memory-hotplug : notification of memoty block's
- state
-Message-Id: <20121002144211.b60881a8.akpm@linux-foundation.org>
-In-Reply-To: <506AA4E2.7070302@jp.fujitsu.com>
-References: <506AA4E2.7070302@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
+	by kanga.kvack.org (Postfix) with SMTP id C35036B0070
+	for <linux-mm@kvack.org>; Tue,  2 Oct 2012 17:50:25 -0400 (EDT)
+Message-ID: <506B6191.6080605@zytor.com>
+Date: Tue, 02 Oct 2012 14:50:09 -0700
+From: "H. Peter Anvin" <hpa@zytor.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH] Fix devmem_is_allowed for below 1MB accesses for an efi
+ machine
+References: <1349213536-3436-1-git-send-email-tmac@hp.com>
+In-Reply-To: <1349213536-3436-1-git-send-email-tmac@hp.com>
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-Cc: x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-acpi@vger.kernel.org, rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, cl@linux.com, minchan.kim@gmail.com, kosaki.motohiro@jp.fujitsu.com, wency@cn.fujitsu.com
+To: T Makphaibulchoke <tmac@hp.com>
+Cc: tglx@linutronix.de, mingo@redhat.com, x86@kernel.org, akpm@linux-foundation.org, yinghai@kernel.org, tiwai@suse.de, viro@zeniv.linux.org.uk, aarcange@redhat.com, tony.luck@intel.com, mgorman@suse.de, weiyang@linux.vnet.ibm.com, octavian.purdila@intel.com, paul.gortmaker@windriver.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Tue, 2 Oct 2012 17:25:06 +0900
-Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com> wrote:
+On 10/02/2012 02:32 PM, T Makphaibulchoke wrote:
+> Changing devmem_is_allowed so that on an EFI machine, access to physical
+> address below 1 MB is allowed only to physical pages that are valid in
+> the EFI memory map.  This prevents the possibility of an MCE due to
+> accessing an invalid physical address.
 
-> remove_memory() offlines memory. And it is called by following two cases:
-> 
-> 1. echo offline >/sys/devices/system/memory/memoryXX/state
-> 2. hot remove a memory device
-> 
-> In the 1st case, the memory block's state is changed and the notification
-> that memory block's state changed is sent to userland after calling
-> offline_memory(). So user can notice memory block is changed.
-> 
-> But in the 2nd case, the memory block's state is not changed and the
-> notification is not also sent to userspcae even if calling offline_memory().
-> So user cannot notice memory block is changed.
-> 
-> We should also notify to userspace at 2nd case.
+What?
 
-These two little patches look reasonable to me.
+That sounds like exactly the opposite of normal /dev/mem behavior... we
+allow access to non-memory resources (which really could do anything if
+misused), but not memory.
 
-There's a lot of recent activity with memory hotplug!  We're in the 3.7
-merge window now so it is not a good time to be merging new material. 
-Also there appear to be two teams working on it and it's unclear to me
-how well coordinated this work is?
+You seem like you're flipping it on its head.
 
-However these two patches are pretty simple and do fix a problem, so I
-added them to the 3.7 MM queue.
+	-hpa
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
