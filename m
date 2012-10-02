@@ -1,83 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
-	by kanga.kvack.org (Postfix) with SMTP id 9CE6F6B00B1
-	for <linux-mm@kvack.org>; Mon,  1 Oct 2012 20:34:52 -0400 (EDT)
-Received: by padfa10 with SMTP id fa10so5532005pad.14
-        for <linux-mm@kvack.org>; Mon, 01 Oct 2012 17:34:51 -0700 (PDT)
-Message-ID: <506A36A1.6030709@gmail.com>
-Date: Tue, 02 Oct 2012 08:34:41 +0800
-From: Ni zhan Chen <nizhan.chen@gmail.com>
+	by kanga.kvack.org (Postfix) with SMTP id B95A06B00B3
+	for <linux-mm@kvack.org>; Mon,  1 Oct 2012 21:19:39 -0400 (EDT)
+Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 167863EE0B6
+	for <linux-mm@kvack.org>; Tue,  2 Oct 2012 10:19:38 +0900 (JST)
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id E05B945DE61
+	for <linux-mm@kvack.org>; Tue,  2 Oct 2012 10:19:37 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 8538A45DE65
+	for <linux-mm@kvack.org>; Tue,  2 Oct 2012 10:19:37 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 7706B1DB8040
+	for <linux-mm@kvack.org>; Tue,  2 Oct 2012 10:19:37 +0900 (JST)
+Received: from g01jpexchyt23.g01.fujitsu.local (g01jpexchyt23.g01.fujitsu.local [10.128.193.106])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 109201DB8048
+	for <linux-mm@kvack.org>; Tue,  2 Oct 2012 10:19:37 +0900 (JST)
+Message-ID: <506A4100.7070305@jp.fujitsu.com>
+Date: Tue, 2 Oct 2012 10:18:56 +0900
+From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [RFC v9 PATCH 06/21] memory-hotplug: export the function acpi_bus_remove()
-References: <1346837155-534-1-git-send-email-wency@cn.fujitsu.com> <1346837155-534-7-git-send-email-wency@cn.fujitsu.com>
-In-Reply-To: <1346837155-534-7-git-send-email-wency@cn.fujitsu.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Subject: Re: [RFC v9 PATCH 01/21] memory-hotplug: rename remove_memory() to
+ offline_memory()/offline_pages()
+References: <1346837155-534-1-git-send-email-wency@cn.fujitsu.com> <1346837155-534-2-git-send-email-wency@cn.fujitsu.com> <506509E4.1090000@gmail.com> <50651E68.3040208@jp.fujitsu.com> <CAHGf_=oJ_Jmjqcdr4cPJghf7PX+vfmZe=CV2sdQQhS5agzG15w@mail.gmail.com>
+In-Reply-To: <CAHGf_=oJ_Jmjqcdr4cPJghf7PX+vfmZe=CV2sdQQhS5agzG15w@mail.gmail.com>
+Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: wency@cn.fujitsu.com
-Cc: x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-ia64@vger.kernel.org, cmetcalf@tilera.com, sparclinux@vger.kernel.org, rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Ni zhan Chen <nizhan.chen@gmail.com>, wency@cn.fujitsu.com, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-ia64@vger.kernel.org, cmetcalf@tilera.com, sparclinux@vger.kernel.org, rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, akpm@linux-foundation.org
 
-On 09/05/2012 05:25 PM, wency@cn.fujitsu.com wrote:
-> From: Wen Congyang <wency@cn.fujitsu.com>
->
-> The function acpi_bus_remove() can remove a acpi device from acpi device.
+Hi Kosaki-san,
 
-IIUC, s/acpi device/acpi bus
+2012/09/29 7:15, KOSAKI Motohiro wrote:
+> On Thu, Sep 27, 2012 at 11:50 PM, Yasuaki Ishimatsu
+> <isimatu.yasuaki@jp.fujitsu.com> wrote:
+>> Hi Chen,
+>>
+>>
+>> 2012/09/28 11:22, Ni zhan Chen wrote:
+>>>
+>>> On 09/05/2012 05:25 PM, wency@cn.fujitsu.com wrote:
+>>>>
+>>>> From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+>>>>
+>>>> remove_memory() only try to offline pages. It is called in two cases:
+>>>> 1. hot remove a memory device
+>>>> 2. echo offline >/sys/devices/system/memory/memoryXX/state
+>>>>
+>>>> In the 1st case, we should also change memory block's state, and notify
+>>>> the userspace that the memory block's state is changed after offlining
+>>>> pages.
+>>>>
+>>>> So rename remove_memory() to offline_memory()/offline_pages(). And in
+>>>> the 1st case, offline_memory() will be used. The function
+>>>> offline_memory()
+>>>> is not implemented. In the 2nd case, offline_pages() will be used.
+>>>
+>>>
+>>> But this time there is not a function associated with add_memory.
+>>
+>>
+>> To associate with add_memory() later, we renamed it.
+>
+> Then, you introduced bisect breakage. It is definitely unacceptable.
 
->   
-> When a acpi device is removed, we need to call this function to remove
-> the acpi device from acpi bus. So export this function.
+What is "bisect breakage" meaning?
+
+Thanks,
+Yasuaki Ishimatsu
+
 >
-> CC: David Rientjes <rientjes@google.com>
-> CC: Jiang Liu <liuj97@gmail.com>
-> CC: Len Brown <len.brown@intel.com>
-> CC: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-> CC: Paul Mackerras <paulus@samba.org>
-> CC: Christoph Lameter <cl@linux.com>
-> Cc: Minchan Kim <minchan.kim@gmail.com>
-> CC: Andrew Morton <akpm@linux-foundation.org>
-> CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> CC: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-> Signed-off-by: Wen Congyang <wency@cn.fujitsu.com>
-> ---
->   drivers/acpi/scan.c     |    3 ++-
->   include/acpi/acpi_bus.h |    1 +
->   2 files changed, 3 insertions(+), 1 deletions(-)
+> NAK.
 >
-> diff --git a/drivers/acpi/scan.c b/drivers/acpi/scan.c
-> index d1ecca2..1cefc34 100644
-> --- a/drivers/acpi/scan.c
-> +++ b/drivers/acpi/scan.c
-> @@ -1224,7 +1224,7 @@ static int acpi_device_set_context(struct acpi_device *device)
->   	return -ENODEV;
->   }
->   
-> -static int acpi_bus_remove(struct acpi_device *dev, int rmdevice)
-> +int acpi_bus_remove(struct acpi_device *dev, int rmdevice)
->   {
->   	if (!dev)
->   		return -EINVAL;
-> @@ -1246,6 +1246,7 @@ static int acpi_bus_remove(struct acpi_device *dev, int rmdevice)
->   
->   	return 0;
->   }
-> +EXPORT_SYMBOL(acpi_bus_remove);
->   
->   static int acpi_add_single_object(struct acpi_device **child,
->   				  acpi_handle handle, int type,
-> diff --git a/include/acpi/acpi_bus.h b/include/acpi/acpi_bus.h
-> index bde976e..2ccf109 100644
-> --- a/include/acpi/acpi_bus.h
-> +++ b/include/acpi/acpi_bus.h
-> @@ -360,6 +360,7 @@ bool acpi_bus_power_manageable(acpi_handle handle);
->   bool acpi_bus_can_wakeup(acpi_handle handle);
->   int acpi_power_resource_register_device(struct device *dev, acpi_handle handle);
->   void acpi_power_resource_unregister_device(struct device *dev, acpi_handle handle);
-> +int acpi_bus_remove(struct acpi_device *dev, int rmdevice);
->   #ifdef CONFIG_ACPI_PROC_EVENT
->   int acpi_bus_generate_proc_event(struct acpi_device *device, u8 type, int data);
->   int acpi_bus_generate_proc_event4(const char *class, const char *bid, u8 type, int data);
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
