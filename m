@@ -1,10 +1,10 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
-	by kanga.kvack.org (Postfix) with SMTP id 43C736B006E
-	for <linux-mm@kvack.org>; Tue,  2 Oct 2012 18:26:18 -0400 (EDT)
-Date: Tue, 02 Oct 2012 18:26:15 -0400 (EDT)
-Message-Id: <20121002.182615.926279426545688173.davem@davemloft.net>
-Subject: [PATCH 1/8] sparc64: Only support 4MB huge pages.
+Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
+	by kanga.kvack.org (Postfix) with SMTP id 607FD6B0070
+	for <linux-mm@kvack.org>; Tue,  2 Oct 2012 18:26:32 -0400 (EDT)
+Date: Tue, 02 Oct 2012 18:26:30 -0400 (EDT)
+Message-Id: <20121002.182630.2161021394486461561.davem@davemloft.net>
+Subject: [PATCH 2/8] sparc64: Halve the size of PTE tables.
 From: David Miller <davem@davemloft.net>
 Mime-Version: 1.0
 Content-Type: Text/Plain; charset=us-ascii
@@ -15,132 +15,104 @@ To: linux-mm@kvack.org
 Cc: sparclinux@vger.kernel.org, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, akpm@linux-foundation.org, aarcange@redhat.com, hannes@cmpxchg.org
 
 
-Narrowing the scope of huge page support will make the transparent
-hugepage changes much simpler.
+The reason we want to do this is to facilitate transparent huge page
+support.
 
-In the end what we really want to do is have the kernel support
-multiple huge page sizes and use whatever is appropriate as the
-context dictactes.
+Right now PMD's cover 8MB of address space, and our huge page size is
+4MB.  The current transparent hugepage support is not able to handle
+HPAGE_SIZE != PMD_SIZE.
+
+So make PTE tables be sized to half of a page instead of a full page.
+
+We can still map properly the whole supported virtual address range
+which on sparc64 requires 44 bits.  Add a compile time CPP test which
+ensures that this requirement is always met.
+
+There is a minor inefficiency added by this change.  We only use half
+of the page for PTE tables.  It's not trivial to use only half of the
+page yet still get all of the pgtable_page_{ctor,dtor}() stuff working
+properly.  It is doable, and that will come in a subsequent change.
 
 Signed-off-by: David S. Miller <davem@davemloft.net>
 ---
- arch/sparc/Kconfig                  |   17 -----------------
- arch/sparc/include/asm/mmu_64.h     |    9 +--------
- arch/sparc/include/asm/page_64.h    |    6 ------
- arch/sparc/include/asm/pgtable_64.h |    8 --------
- arch/sparc/mm/tsb.c                 |   10 ----------
- 5 files changed, 1 insertion(+), 49 deletions(-)
+ arch/sparc/include/asm/pgtable_64.h |   24 +++++++-----------------
+ arch/sparc/include/asm/tsb.h        |    4 ++--
+ 2 files changed, 9 insertions(+), 19 deletions(-)
 
-diff --git a/arch/sparc/Kconfig b/arch/sparc/Kconfig
-index 67f1f6f..8bd3b12 100644
---- a/arch/sparc/Kconfig
-+++ b/arch/sparc/Kconfig
-@@ -316,23 +316,6 @@ config GENERIC_LOCKBREAK
- 	default y
- 	depends on SPARC64 && SMP && PREEMPT
- 
--choice
--	prompt "SPARC64 Huge TLB Page Size"
--	depends on SPARC64 && HUGETLB_PAGE
--	default HUGETLB_PAGE_SIZE_4MB
--
--config HUGETLB_PAGE_SIZE_4MB
--	bool "4MB"
--
--config HUGETLB_PAGE_SIZE_512K
--	bool "512K"
--
--config HUGETLB_PAGE_SIZE_64K
--	depends on !SPARC64_PAGE_SIZE_64KB
--	bool "64K"
--
--endchoice
--
- config NUMA
- 	bool "NUMA support"
- 	depends on SPARC64 && SMP
-diff --git a/arch/sparc/include/asm/mmu_64.h b/arch/sparc/include/asm/mmu_64.h
-index 9067dc5..b4d685d 100644
---- a/arch/sparc/include/asm/mmu_64.h
-+++ b/arch/sparc/include/asm/mmu_64.h
-@@ -38,14 +38,7 @@
- #error No page size specified in kernel configuration
- #endif
- 
--#if defined(CONFIG_HUGETLB_PAGE_SIZE_4MB)
--#define CTX_PGSZ_HUGE		CTX_PGSZ_4MB
--#elif defined(CONFIG_HUGETLB_PAGE_SIZE_512K)
--#define CTX_PGSZ_HUGE		CTX_PGSZ_512KB
--#elif defined(CONFIG_HUGETLB_PAGE_SIZE_64K)
--#define CTX_PGSZ_HUGE		CTX_PGSZ_64KB
--#endif
--
-+#define CTX_PGSZ_HUGE	CTX_PGSZ_4MB
- #define CTX_PGSZ_KERN	CTX_PGSZ_4MB
- 
- /* Thus, when running on UltraSPARC-III+ and later, we use the following
-diff --git a/arch/sparc/include/asm/page_64.h b/arch/sparc/include/asm/page_64.h
-index f0d09b4..08bb5f7 100644
---- a/arch/sparc/include/asm/page_64.h
-+++ b/arch/sparc/include/asm/page_64.h
-@@ -21,13 +21,7 @@
- #define DCACHE_ALIASING_POSSIBLE
- #endif
- 
--#if defined(CONFIG_HUGETLB_PAGE_SIZE_4MB)
- #define HPAGE_SHIFT		22
--#elif defined(CONFIG_HUGETLB_PAGE_SIZE_512K)
--#define HPAGE_SHIFT		19
--#elif defined(CONFIG_HUGETLB_PAGE_SIZE_64K)
--#define HPAGE_SHIFT		16
--#endif
- 
- #ifdef CONFIG_HUGETLB_PAGE
- #define HPAGE_SIZE		(_AC(1,UL) << HPAGE_SHIFT)
 diff --git a/arch/sparc/include/asm/pgtable_64.h b/arch/sparc/include/asm/pgtable_64.h
-index 61210db..51be4a1 100644
+index 51be4a1..27293a3 100644
 --- a/arch/sparc/include/asm/pgtable_64.h
 +++ b/arch/sparc/include/asm/pgtable_64.h
-@@ -170,16 +170,8 @@
- #error Wrong PAGE_SHIFT specified
- #endif
+@@ -45,40 +45,30 @@
  
--#if defined(CONFIG_HUGETLB_PAGE_SIZE_4MB)
- #define _PAGE_SZHUGE_4U	_PAGE_SZ4MB_4U
- #define _PAGE_SZHUGE_4V	_PAGE_SZ4MB_4V
--#elif defined(CONFIG_HUGETLB_PAGE_SIZE_512K)
--#define _PAGE_SZHUGE_4U	_PAGE_SZ512K_4U
--#define _PAGE_SZHUGE_4V	_PAGE_SZ512K_4V
--#elif defined(CONFIG_HUGETLB_PAGE_SIZE_64K)
--#define _PAGE_SZHUGE_4U	_PAGE_SZ64K_4U
--#define _PAGE_SZHUGE_4V	_PAGE_SZ64K_4V
--#endif
+ #define vmemmap			((struct page *)VMEMMAP_BASE)
  
- /* These are actually filled in at boot time by sun4{u,v}_pgprot_init() */
- #define __P000	__pgprot(0)
-diff --git a/arch/sparc/mm/tsb.c b/arch/sparc/mm/tsb.c
-index c52add7..e6b04a4 100644
---- a/arch/sparc/mm/tsb.c
-+++ b/arch/sparc/mm/tsb.c
-@@ -101,18 +101,8 @@ void flush_tsb_user(struct tlb_batch *tb)
- #endif
+-/* XXX All of this needs to be rethought so we can take advantage
+- * XXX cheetah's full 64-bit virtual address space, ie. no more hole
+- * XXX in the middle like on spitfire. -DaveM
+- */
+-/*
+- * Given a virtual address, the lowest PAGE_SHIFT bits determine offset
+- * into the page; the next higher PAGE_SHIFT-3 bits determine the pte#
+- * in the proper pagetable (the -3 is from the 8 byte ptes, and each page
+- * table is a single page long). The next higher PMD_BITS determine pmd#
+- * in the proper pmdtable (where we must have PMD_BITS <= (PAGE_SHIFT-2)
+- * since the pmd entries are 4 bytes, and each pmd page is a single page
+- * long). Finally, the higher few bits determine pgde#.
+- */
+-
+ /* PMD_SHIFT determines the size of the area a second-level page
+  * table can map
+  */
+-#define PMD_SHIFT	(PAGE_SHIFT + (PAGE_SHIFT-3))
++#define PMD_SHIFT	(PAGE_SHIFT + (PAGE_SHIFT-4))
+ #define PMD_SIZE	(_AC(1,UL) << PMD_SHIFT)
+ #define PMD_MASK	(~(PMD_SIZE-1))
+ #define PMD_BITS	(PAGE_SHIFT - 2)
  
- #ifdef CONFIG_HUGETLB_PAGE
--#if defined(CONFIG_HUGETLB_PAGE_SIZE_64K)
--#define HV_PGSZ_IDX_HUGE	HV_PGSZ_IDX_64K
--#define HV_PGSZ_MASK_HUGE	HV_PGSZ_MASK_64K
--#elif defined(CONFIG_HUGETLB_PAGE_SIZE_512K)
--#define HV_PGSZ_IDX_HUGE	HV_PGSZ_IDX_512K
--#define HV_PGSZ_MASK_HUGE	HV_PGSZ_MASK_512K
--#elif defined(CONFIG_HUGETLB_PAGE_SIZE_4MB)
- #define HV_PGSZ_IDX_HUGE	HV_PGSZ_IDX_4MB
- #define HV_PGSZ_MASK_HUGE	HV_PGSZ_MASK_4MB
--#else
--#error Broken huge page size setting...
--#endif
- #endif
+ /* PGDIR_SHIFT determines what a third-level page table entry can map */
+-#define PGDIR_SHIFT	(PAGE_SHIFT + (PAGE_SHIFT-3) + PMD_BITS)
++#define PGDIR_SHIFT	(PAGE_SHIFT + (PAGE_SHIFT-4) + PMD_BITS)
+ #define PGDIR_SIZE	(_AC(1,UL) << PGDIR_SHIFT)
+ #define PGDIR_MASK	(~(PGDIR_SIZE-1))
+ #define PGDIR_BITS	(PAGE_SHIFT - 2)
  
- static void setup_tsb_params(struct mm_struct *mm, unsigned long tsb_idx, unsigned long tsb_bytes)
++#if (PGDIR_SHIFT + PGDIR_BITS) != 44
++#error Page table parameters do not cover virtual address space properly.
++#endif
++
+ #ifndef __ASSEMBLY__
+ 
+ #include <linux/sched.h>
+ 
+ /* Entries per page directory level. */
+-#define PTRS_PER_PTE	(1UL << (PAGE_SHIFT-3))
++#define PTRS_PER_PTE	(1UL << (PAGE_SHIFT-4))
+ #define PTRS_PER_PMD	(1UL << PMD_BITS)
+ #define PTRS_PER_PGD	(1UL << PGDIR_BITS)
+ 
+diff --git a/arch/sparc/include/asm/tsb.h b/arch/sparc/include/asm/tsb.h
+index 1a8afd1..6435924 100644
+--- a/arch/sparc/include/asm/tsb.h
++++ b/arch/sparc/include/asm/tsb.h
+@@ -152,7 +152,7 @@ extern struct tsb_phys_patch_entry __tsb_phys_patch, __tsb_phys_patch_end;
+ 	lduwa		[REG1 + REG2] ASI_PHYS_USE_EC, REG1; \
+ 	brz,pn		REG1, FAIL_LABEL; \
+ 	 sllx		VADDR, 64 - PMD_SHIFT, REG2; \
+-	srlx		REG2, 64 - PAGE_SHIFT, REG2; \
++	srlx		REG2, 64 - (PAGE_SHIFT - 1), REG2; \
+ 	sllx		REG1, 11, REG1; \
+ 	andn		REG2, 0x7, REG2; \
+ 	add		REG1, REG2, REG1;
+@@ -177,7 +177,7 @@ extern struct tsb_phys_patch_entry __tsb_phys_patch, __tsb_phys_patch_end;
+ 	lduwa		[REG1 + REG2] ASI_PHYS_USE_EC, REG1; \
+ 	brz,pn		REG1, FAIL_LABEL; \
+ 	 sllx		VADDR, 64 - PMD_SHIFT, REG2; \
+-	srlx		REG2, 64 - PAGE_SHIFT, REG2; \
++	srlx		REG2, 64 - (PAGE_SHIFT - 1), REG2; \
+ 	sllx		REG1, 11, REG1; \
+ 	andn		REG2, 0x7, REG2; \
+ 	add		REG1, REG2, REG1;
 -- 
 1.7.10.4
 
