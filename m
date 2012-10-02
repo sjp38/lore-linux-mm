@@ -1,52 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
-	by kanga.kvack.org (Postfix) with SMTP id 270546B0070
-	for <linux-mm@kvack.org>; Tue,  2 Oct 2012 18:55:46 -0400 (EDT)
-Date: Tue, 2 Oct 2012 15:55:44 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 0/8] THP support for Sparc64
-Message-Id: <20121002155544.2c67b1e8.akpm@linux-foundation.org>
-In-Reply-To: <20121002.182601.845433592794197720.davem@davemloft.net>
-References: <20121002.182601.845433592794197720.davem@davemloft.net>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
+	by kanga.kvack.org (Postfix) with SMTP id 67A356B0070
+	for <linux-mm@kvack.org>; Tue,  2 Oct 2012 18:58:08 -0400 (EDT)
+Date: Wed, 3 Oct 2012 00:58:03 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH 7/8] mm: thp: Use more portable PMD clearing sequenece in
+ zap_huge_pmd().
+Message-ID: <20121002225803.GT4763@redhat.com>
+References: <20121002.182741.650740858374403508.davem@davemloft.net>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20121002.182741.650740858374403508.davem@davemloft.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: David Miller <davem@davemloft.net>
-Cc: linux-mm@kvack.org, sparclinux@vger.kernel.org, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, aarcange@redhat.com, hannes@cmpxchg.org, Gerald Schaefer <gerald.schaefer@de.ibm.com>
+Cc: linux-mm@kvack.org, sparclinux@vger.kernel.org, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, akpm@linux-foundation.org, hannes@cmpxchg.org
 
-On Tue, 02 Oct 2012 18:26:01 -0400 (EDT)
-David Miller <davem@davemloft.net> wrote:
+On Tue, Oct 02, 2012 at 06:27:41PM -0400, David Miller wrote:
+> 
+> Invalidation sequences are handled in various ways on various
+> architectures.
+> 
+> One way, which sparc64 uses, is to let the set_*_at() functions
+> accumulate pending flushes into a per-cpu array.  Then the
+> flush_tlb_range() et al. calls process the pending TLB flushes.
+> 
+> In this regime, the __tlb_remove_*tlb_entry() implementations are
+> essentially NOPs.
+> 
+> The canonical PTE zap in mm/memory.c is:
+> 
+> 			ptent = ptep_get_and_clear_full(mm, addr, pte,
+> 							tlb->fullmm);
+> 			tlb_remove_tlb_entry(tlb, pte, addr);
+> 
+> With a subsequent tlb_flush_mmu() if needed.
+> 
+> Mirror this in the THP PMD zapping using:
+> 
+> 		orig_pmd = pmdp_get_and_clear(tlb->mm, addr, pmd);
+> 		page = pmd_page(orig_pmd);
+> 		tlb_remove_pmd_tlb_entry(tlb, pmd, addr);
+> 
+> And we properly accomodate TLB flush mechanims like the one described
+> above.
 
-> Here is a set of patches that add THP support for sparc64.
-> 
-> A few of them are relatively minor portability issues I ran into.
-> Like the MIPS guys I hit the update_mmu_cache() typing issue so I have
-> a patch for that here.
-> 
-> It is very likely that I need the ACCESSED bit handling fix the
-> ARM folks have been posting recently as well.
-> 
-> On the sparc64 side the biggest issue was moving to only supporting
-> 4MB pages and then realigning the page tables so that the PMDs map 4MB
-> (instead of 8MB as they do now).
-> 
-> The rest was just trial and error, running tests, and fixing bugs.
-> 
-> A familiar test case that makes 5 million random accesses to a 1GB
-> memory area goes from 20 seconds down to 0.43 seconds with THP enabled
-> on my SPARC T4-2 box.
+Thanks for the explanation.
 
-Hardly worth bothering about ;)
-
-I had a shot at integrating all this onto the pending stuff in linux-next. 
-"mm: Add and use update_mmu_cache_pmd() in transparent huge page code."
-needed minor massaging in huge_memory.c.  But as Andrea mentioned, we
-ran aground on Gerald's
-http://ozlabs.org/~akpm/mmotm/broken-out/thp-remove-assumptions-on-pgtable_t-type.patch,
-part of the thp-for-s390 work.
-
+Reviewed-by: Andrea Arcangeli <aarcange@redhat.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
