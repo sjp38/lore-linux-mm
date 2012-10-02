@@ -1,345 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
-	by kanga.kvack.org (Postfix) with SMTP id 404716B00B7
-	for <linux-mm@kvack.org>; Tue,  2 Oct 2012 00:22:06 -0400 (EDT)
-Received: by ied10 with SMTP id 10so17365908ied.14
-        for <linux-mm@kvack.org>; Mon, 01 Oct 2012 21:22:05 -0700 (PDT)
-Message-ID: <506A6BDC.3010400@gmail.com>
-Date: Tue, 02 Oct 2012 12:21:48 +0800
-From: Ni zhan Chen <nizhan.chen@gmail.com>
-MIME-Version: 1.0
-Subject: Re: [RFC v9 PATCH 16/21] memory-hotplug: free memmap of sparse-vmemmap
-References: <1346837155-534-1-git-send-email-wency@cn.fujitsu.com> <1346837155-534-17-git-send-email-wency@cn.fujitsu.com>
-In-Reply-To: <1346837155-534-17-git-send-email-wency@cn.fujitsu.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
+	by kanga.kvack.org (Postfix) with SMTP id B7EB76B00B9
+	for <linux-mm@kvack.org>; Tue,  2 Oct 2012 03:39:45 -0400 (EDT)
+Date: Tue, 2 Oct 2012 17:39:28 +1000
+From: NeilBrown <neilb@suse.de>
+Subject: Re: [PATCH 0/3] Volatile Ranges (v7) & Lots of words
+Message-ID: <20121002173928.2062004e@notabene.brown>
+In-Reply-To: <1348888593-23047-1-git-send-email-john.stultz@linaro.org>
+References: <1348888593-23047-1-git-send-email-john.stultz@linaro.org>
+Mime-Version: 1.0
+Content-Type: multipart/signed; micalg=PGP-SHA1;
+ boundary="Sig_/hk9CXA/NFkYmH0Yl2ERrvbE"; protocol="application/pgp-signature"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: isimatu.yasuaki@jp.fujitsu.com
-Cc: x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-ia64@vger.kernel.org, cmetcalf@tilera.com, sparclinux@vger.kernel.org, rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, Wen Congyang <wency@cn.fujitsu.com>
+To: John Stultz <john.stultz@linaro.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Android Kernel Team <kernel-team@android.com>, Robert Love <rlove@google.com>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Dmitry Adamushko <dmitry.adamushko@gmail.com>, Dave Chinner <david@fromorbit.com>, Andrea Righi <andrea@betterlinux.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Michel Lespinasse <walken@google.com>, Minchan Kim <minchan@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On 09/05/2012 05:25 PM, wency@cn.fujitsu.com wrote:
-> From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
->
-> All pages of virtual mapping in removed memory cannot be freed, since some pages
-> used as PGD/PUD includes not only removed memory but also other memory. So the
-> patch checks whether page can be freed or not.
->
-> How to check whether page can be freed or not?
->   1. When removing memory, the page structs of the revmoved memory are filled
->      with 0FD.
->   2. All page structs are filled with 0xFD on PT/PMD, PT/PMD can be cleared.
->      In this case, the page used as PT/PMD can be freed.
->
-> Applying patch, __remove_section() of CONFIG_SPARSEMEM_VMEMMAP is integrated
-> into one. So __remove_section() of CONFIG_SPARSEMEM_VMEMMAP is deleted.
->
-> Note:  vmemmap_kfree() and vmemmap_free_bootmem() are not implemented for ia64,
-> ppc, s390, and sparc.
->
-> CC: David Rientjes <rientjes@google.com>
-> CC: Jiang Liu <liuj97@gmail.com>
-> CC: Len Brown <len.brown@intel.com>
-> CC: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-> CC: Paul Mackerras <paulus@samba.org>
-> CC: Christoph Lameter <cl@linux.com>
-> Cc: Minchan Kim <minchan.kim@gmail.com>
-> CC: Andrew Morton <akpm@linux-foundation.org>
-> CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> CC: Wen Congyang <wency@cn.fujitsu.com>
-> Signed-off-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-> ---
->   arch/ia64/mm/discontig.c  |    8 +++
->   arch/powerpc/mm/init_64.c |    8 +++
->   arch/s390/mm/vmem.c       |    8 +++
->   arch/sparc/mm/init_64.c   |    8 +++
->   arch/x86/mm/init_64.c     |  119 +++++++++++++++++++++++++++++++++++++++++++++
->   include/linux/mm.h        |    2 +
->   mm/memory_hotplug.c       |   17 +------
->   mm/sparse.c               |    5 +-
->   8 files changed, 158 insertions(+), 17 deletions(-)
->
-> diff --git a/arch/ia64/mm/discontig.c b/arch/ia64/mm/discontig.c
-> index 33943db..0d23b69 100644
-> --- a/arch/ia64/mm/discontig.c
-> +++ b/arch/ia64/mm/discontig.c
-> @@ -823,6 +823,14 @@ int __meminit vmemmap_populate(struct page *start_page,
->   	return vmemmap_populate_basepages(start_page, size, node);
->   }
->   
-> +void vmemmap_kfree(struct page *memmap, unsigned long nr_pages)
-> +{
-> +}
-> +
-> +void vmemmap_free_bootmem(struct page *memmap, unsigned long nr_pages)
-> +{
-> +}
-> +
->   void register_page_bootmem_memmap(unsigned long section_nr,
->   				  struct page *start_page, unsigned long size)
->   {
-> diff --git a/arch/powerpc/mm/init_64.c b/arch/powerpc/mm/init_64.c
-> index 3690c44..835a2b3 100644
-> --- a/arch/powerpc/mm/init_64.c
-> +++ b/arch/powerpc/mm/init_64.c
-> @@ -299,6 +299,14 @@ int __meminit vmemmap_populate(struct page *start_page,
->   	return 0;
->   }
->   
-> +void vmemmap_kfree(struct page *memmap, unsigned long nr_pages)
-> +{
-> +}
-> +
-> +void vmemmap_free_bootmem(struct page *memmap, unsigned long nr_pages)
-> +{
-> +}
-> +
->   void register_page_bootmem_memmap(unsigned long section_nr,
->   				  struct page *start_page, unsigned long size)
->   {
-> diff --git a/arch/s390/mm/vmem.c b/arch/s390/mm/vmem.c
-> index eda55cd..4b42b0b 100644
-> --- a/arch/s390/mm/vmem.c
-> +++ b/arch/s390/mm/vmem.c
-> @@ -227,6 +227,14 @@ out:
->   	return ret;
->   }
->   
-> +void vmemmap_kfree(struct page *memmap, unsigned long nr_pages)
-> +{
-> +}
-> +
-> +void vmemmap_free_bootmem(struct page *memmap, unsigned long nr_pages)
-> +{
-> +}
-> +
->   void register_page_bootmem_memmap(unsigned long section_nr,
->   				  struct page *start_page, unsigned long size)
->   {
-> diff --git a/arch/sparc/mm/init_64.c b/arch/sparc/mm/init_64.c
-> index add1cc7..1384826 100644
-> --- a/arch/sparc/mm/init_64.c
-> +++ b/arch/sparc/mm/init_64.c
-> @@ -2078,6 +2078,14 @@ void __meminit vmemmap_populate_print_last(void)
->   	}
->   }
->   
-> +void vmemmap_kfree(struct page *memmap, unsigned long nr_pages)
-> +{
-> +}
-> +
-> +void vmemmap_free_bootmem(struct page *memmap, unsigned long nr_pages)
-> +{
-> +}
-> +
->   void register_page_bootmem_memmap(unsigned long section_nr,
->   				  struct page *start_page, unsigned long size)
->   {
-> diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
-> index 0075592..4e8f8a4 100644
-> --- a/arch/x86/mm/init_64.c
-> +++ b/arch/x86/mm/init_64.c
-> @@ -1138,6 +1138,125 @@ vmemmap_populate(struct page *start_page, unsigned long size, int node)
->   	return 0;
->   }
->   
-> +#define PAGE_INUSE 0xFD
-> +
-> +unsigned long find_and_clear_pte_page(unsigned long addr, unsigned long end,
-> +			    struct page **pp, int *page_size)
-> +{
-> +	pgd_t *pgd;
-> +	pud_t *pud;
-> +	pmd_t *pmd;
-> +	pte_t *pte;
-> +	void *page_addr;
-> +	unsigned long next;
-> +
-> +	*pp = NULL;
-> +
-> +	pgd = pgd_offset_k(addr);
-> +	if (pgd_none(*pgd))
-> +		return pgd_addr_end(addr, end);
-> +
-> +	pud = pud_offset(pgd, addr);
-> +	if (pud_none(*pud))
-> +		return pud_addr_end(addr, end);
-> +
-> +	if (!cpu_has_pse) {
-> +		next = (addr + PAGE_SIZE) & PAGE_MASK;
-> +		pmd = pmd_offset(pud, addr);
-> +		if (pmd_none(*pmd))
-> +			return next;
-> +
-> +		pte = pte_offset_kernel(pmd, addr);
-> +		if (pte_none(*pte))
-> +			return next;
-> +
-> +		*page_size = PAGE_SIZE;
-> +		*pp = pte_page(*pte);
-> +	} else {
-> +		next = pmd_addr_end(addr, end);
-> +
-> +		pmd = pmd_offset(pud, addr);
-> +		if (pmd_none(*pmd))
-> +			return next;
-> +
-> +		*page_size = PMD_SIZE;
-> +		*pp = pmd_page(*pmd);
-> +	}
-> +
-> +	/*
-> +	 * Removed page structs are filled with 0xFD.
-> +	 */
-> +	memset((void *)addr, PAGE_INUSE, next - addr);
-> +
-> +	page_addr = page_address(*pp);
-> +
-> +	/*
-> +	 * Check the page is filled with 0xFD or not.
-> +	 * memchr_inv() returns the address. In this case, we cannot
-> +	 * clear PTE/PUD entry, since the page is used by other.
-> +	 * So we cannot also free the page.
-> +	 *
-> +	 * memchr_inv() returns NULL. In this case, we can clear
-> +	 * PTE/PUD entry, since the page is not used by other.
-> +	 * So we can also free the page.
-> +	 */
-> +	if (memchr_inv(page_addr, PAGE_INUSE, *page_size)) {
-> +		*pp = NULL;
-> +		return next;
-> +	}
-> +
+--Sig_/hk9CXA/NFkYmH0Yl2ERrvbE
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: quoted-printable
 
-Hi Yasuaki,
+On Fri, 28 Sep 2012 23:16:30 -0400 John Stultz <john.stultz@linaro.org> wro=
+te:
 
-why call memchr_inv check after memset, this time the page can always be 
-filled with 0xFD.
+>=20
+> After Kernel Summit and Plumbers, I wanted to consider all the various
+> side-discussions and try to summarize my current thoughts here along
+> with sending out my current implementation for review.
+>=20
+> Also: I'm going on four weeks of paternity leave in the very near
+> (but non-deterministic) future. So while I hope I still have time
+> for some discussion, I may have to deal with fussier complaints
+> then yours. :)  In any case, you'll have more time to chew on
+> the idea and come up with amazing suggestions. :)
 
-> +	if (!cpu_has_pse)
-> +		pte_clear(&init_mm, addr, pte);
-> +	else
-> +		pmd_clear(pmd);
-> +
-> +	return next;
-> +}
-> +
-> +void vmemmap_kfree(struct page *memmap, unsigned long nr_pages)
-> +{
-> +	unsigned long addr = (unsigned long)memmap;
-> +	unsigned long end = (unsigned long)(memmap + nr_pages);
-> +	unsigned long next;
-> +	struct page *page;
-> +	int page_size;
-> +
-> +	for (; addr < end; addr = next) {
-> +		page = NULL;
-> +		page_size = 0;
-> +		next = find_and_clear_pte_page(addr, end, &page, &page_size);
-> +		if (!page)
-> +			continue;
-> +
-> +		free_pages((unsigned long)page_address(page),
-> +			    get_order(page_size));
-> +		__flush_tlb_one(addr);
-> +	}
-> +}
-> +
-> +void vmemmap_free_bootmem(struct page *memmap, unsigned long nr_pages)
-> +{
-> +	unsigned long addr = (unsigned long)memmap;
-> +	unsigned long end = (unsigned long)(memmap + nr_pages);
-> +	unsigned long next;
-> +	struct page *page;
-> +	int page_size;
-> +	unsigned long magic;
-> +
-> +	for (; addr < end; addr = next) {
-> +		page = NULL;
-> +		page_size = 0;
-> +		next = find_and_clear_pte_page(addr, end, &page, &page_size);
-> +		if (!page)
-> +			continue;
-> +
-> +		magic = (unsigned long) page->lru.next;
-> +		if (magic == SECTION_INFO)
-> +			put_page_bootmem(page);
-> +		flush_tlb_kernel_range(addr, end);
-> +	}
-> +}
-> +
->   void register_page_bootmem_memmap(unsigned long section_nr,
->   				  struct page *start_page, unsigned long size)
->   {
-> diff --git a/include/linux/mm.h b/include/linux/mm.h
-> index c607913..fb0d1fc 100644
-> --- a/include/linux/mm.h
-> +++ b/include/linux/mm.h
-> @@ -1620,6 +1620,8 @@ int vmemmap_populate(struct page *start_page, unsigned long pages, int node);
->   void vmemmap_populate_print_last(void);
->   void register_page_bootmem_memmap(unsigned long section_nr, struct page *map,
->   				  unsigned long size);
-> +void vmemmap_kfree(struct page *memmpa, unsigned long nr_pages);
-> +void vmemmap_free_bootmem(struct page *memmpa, unsigned long nr_pages);
->   
->   enum mf_flags {
->   	MF_COUNT_INCREASED = 1 << 0,
-> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-> index 647a7f2..c54922c 100644
-> --- a/mm/memory_hotplug.c
-> +++ b/mm/memory_hotplug.c
-> @@ -308,19 +308,6 @@ static int __meminit __add_section(int nid, struct zone *zone,
->   	return register_new_memory(nid, __pfn_to_section(phys_start_pfn));
->   }
->   
-> -#ifdef CONFIG_SPARSEMEM_VMEMMAP
-> -static int __remove_section(struct zone *zone, struct mem_section *ms)
-> -{
-> -	int ret = -EINVAL;
-> -
-> -	if (!valid_section(ms))
-> -		return ret;
-> -
-> -	ret = unregister_memory_section(ms);
-> -
-> -	return ret;
-> -}
-> -#else
->   static int __remove_section(struct zone *zone, struct mem_section *ms)
->   {
->   	unsigned long flags;
-> @@ -337,9 +324,9 @@ static int __remove_section(struct zone *zone, struct mem_section *ms)
->   	pgdat_resize_lock(pgdat, &flags);
->   	sparse_remove_one_section(zone, ms);
->   	pgdat_resize_unlock(pgdat, &flags);
-> -	return 0;
-> +
-> +	return ret;
->   }
-> -#endif
->   
->   /*
->    * Reasonably generic function for adding memory.  It is
-> diff --git a/mm/sparse.c b/mm/sparse.c
-> index fac95f2..ab9d755 100644
-> --- a/mm/sparse.c
-> +++ b/mm/sparse.c
-> @@ -613,12 +613,13 @@ static inline struct page *kmalloc_section_memmap(unsigned long pnum, int nid,
->   	/* This will make the necessary allocations eventually. */
->   	return sparse_mem_map_populate(pnum, nid);
->   }
-> -static void __kfree_section_memmap(struct page *memmap, unsigned long nr_pages)
-> +static void __kfree_section_memmap(struct page *page, unsigned long nr_pages)
->   {
-> -	return; /* XXX: Not implemented yet */
-> +	vmemmap_kfree(page, nr_pages);
->   }
->   static void free_map_bootmem(struct page *page, unsigned long nr_pages)
->   {
-> +	vmemmap_free_bootmem(page, nr_pages);
->   }
->   #else
->   static struct page *__kmalloc_section_memmap(unsigned long nr_pages)
+Hi John,
+
+ I wonder if you are trying to please everyone and risking pleasing no-one?
+ Well, maybe not quite that extreme, but you can't please all the people all
+ the time.
+
+ For example, allowing sub-page volatile region seems to be above and beyond
+ the call of duty.  You cannot mmap sub-pages, so why should they be volati=
+le?
+
+ Similarly the suggestion of using madvise - while tempting - is probably a
+ minority interest and can probably be managed with library code.  I'm glad
+ you haven't pursued it.
+
+ I think discarding whole ranges at a time is very sensible, and so merging
+ adjacent ranges is best avoided.  If you require page-aligned ranges this
+ becomes trivial - is that right?
+
+ I wonder if the oldest page/oldest range issue can be defined way by
+ requiring apps the touch the first page in a range when they touch the ran=
+ge.
+ Then the age of a range is the age of the first page.  Non-initial pages
+ could even be kept off the free list .... though that might confuse NUMA
+ page reclaim if a range had pages from different nodes.
+
+
+ Application to non-tmpfs files seems very unclear and so probably best
+ avoided.
+ If I understand you correctly, then you have suggested both that a volatile
+ range would be a "lazy hole punch" and a "don't let this get written to di=
+sk
+ yet" flag.  It cannot really be both.  The former sounds like fallocate,
+ the latter like fadvise.
+ I think the later sounds more like the general purpose of volatile ranges,
+ but I also suspect that some journalling filesystems might be uncomfortable
+ providing a guarantee like that.  So I would suggest firmly stating that it
+ is a tmpfs-only feature.  If someone wants something vaguely similar for
+ other filesystems, let them implement it separately.
+
+
+ The SIGBUS interface could have some merit if it really reduces overhead. =
+ I
+ worry about app bugs that could result from the non-deterministic
+ behaviour.   A range could get unmapped while it is in use and testing for
+ the case of "get a SIGBUS half way though accessing something" would not
+ be straight forward (SIGBUS on first step of access should be easy).
+ I guess that is up to the app writer, but I have never liked anything about
+ the signal interface and encouraging further use doesn't feel wise.
+
+ That's my 2c worth for now.  Keep up the good work,
+
+NeilBrown
+
+
+--Sig_/hk9CXA/NFkYmH0Yl2ERrvbE
+Content-Type: application/pgp-signature; name=signature.asc
+Content-Disposition: attachment; filename=signature.asc
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v2.0.18 (GNU/Linux)
+
+iQIVAwUBUGqaMDnsnt1WYoG5AQKIgQ//bj4bJrK+vrhnPB66LJQK0zxKa84GsSD7
+svXgIJc/r89cfL4h/B3KwLv3F/CheSe9UIO1+S7RcU9nOBsyUUPmbgwzs1AG6CZb
+bculntNvEImqi5W/nEpzMaPZBu8VZKl5JZNvB3zN+lZV2ZMgMjXC5CS65kzE9KqI
+wUvW1r/DZNrF3h5hiNc7DelVWr1H30eFFUdpDDUL25N5KsttZ7Uj9dbndD2V1QBP
+6FrXzgLAqc+akXF3/kmu8DSDGDtpQMS/kzaNAR9Y4e3jZNwqEfE/0Pi6hwxL5F5J
+ov7k707vqqjAmvfs/Gp+dEdzcvJwTvROEKmgEhUifEahpUosUYPVsb1d05SPWLFX
++ifMHKi71uSrb+cIBlK7uNm/MJ0qnHHRzjJ6rDXaRSZ6DYg4d91iC8eOEq0GVt8p
+nh+CN+VxlE9HCzGZShdxQJmkw8BtSTLOs+gE13ZR63k2vrpbOOr6XDmXf7CheNox
+u+OVai6+eqg5NURrP7lOKlQzIFZc+eLfm7nXpKZGX+ae4QudkK3UFTIBz/TsnPOp
+FkRkO+lfR8jqE/lwpDyzRdFhn9CcDGyTDpun9+W2gm2boEqNu/r6B3B10hHFIMK7
+qPmHB1L9N9g6U/Xt65m1EVz677M8gI7qEdblyIOt1tjU4lu+SO51eQgY2e1pyDUl
+f1e/pwv9iuA=
+=6Daf
+-----END PGP SIGNATURE-----
+
+--Sig_/hk9CXA/NFkYmH0Yl2ERrvbE--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
