@@ -1,75 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
-	by kanga.kvack.org (Postfix) with SMTP id B51896B0068
-	for <linux-mm@kvack.org>; Tue,  2 Oct 2012 12:13:32 -0400 (EDT)
-Date: Tue, 2 Oct 2012 18:13:30 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH v3 00/10] Introduce huge zero page
-Message-ID: <20121002161330.GG4763@redhat.com>
-References: <1349191172-28855-1-git-send-email-kirill.shutemov@linux.intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1349191172-28855-1-git-send-email-kirill.shutemov@linux.intel.com>
+Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
+	by kanga.kvack.org (Postfix) with SMTP id 9C1BF6B006C
+	for <linux-mm@kvack.org>; Tue,  2 Oct 2012 12:59:56 -0400 (EDT)
+From: Will Deacon <will.deacon@arm.com>
+Subject: [PATCH v2] mm: thp: Set the accessed flag for old pages on access fault.
+Date: Tue,  2 Oct 2012 17:59:11 +0100
+Message-Id: <1349197151-19645-1-git-send-email-will.deacon@arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, "H. Peter Anvin" <hpa@linux.intel.com>, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill@shutemov.name>
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, akpm@linux-foundation.org, mhocko@suse.cz, kirill@shutemov.name, Will Deacon <will.deacon@arm.com>, Andrea Arcangeli <aarcange@redhat.com>, Chris Metcalf <cmetcalf@tilera.com>, Steve Capper <steve.capper@arm.com>
 
-On Tue, Oct 02, 2012 at 06:19:22PM +0300, Kirill A. Shutemov wrote:
-> From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-> 
-> During testing I noticed big (up to 2.5 times) memory consumption overhead
-> on some workloads (e.g. ft.A from NPB) if THP is enabled.
-> 
-> The main reason for that big difference is lacking zero page in THP case.
-> We have to allocate a real page on read page fault.
-> 
-> A program to demonstrate the issue:
-> #include <assert.h>
-> #include <stdlib.h>
-> #include <unistd.h>
-> 
-> #define MB 1024*1024
-> 
-> int main(int argc, char **argv)
-> {
->         char *p;
->         int i;
-> 
->         posix_memalign((void **)&p, 2 * MB, 200 * MB);
->         for (i = 0; i < 200 * MB; i+= 4096)
->                 assert(p[i] == 0);
->         pause();
->         return 0;
-> }
-> 
-> With thp-never RSS is about 400k, but with thp-always it's 200M.
-> After the patcheset thp-always RSS is 400k too.
-> 
-> v3:
->  - fix potential deadlock in refcounting code on preemptive kernel.
->  - do not mark huge zero page as movable.
->  - fix typo in comment.
->  - Reviewed-by tag from Andrea Arcangeli.
-> v2:
->  - Avoid find_vma() if we've already had vma on stack.
->    Suggested by Andrea Arcangeli.
->  - Implement refcounting for huge zero page.
-> 
-> Kirill A. Shutemov (10):
->   thp: huge zero page: basic preparation
->   thp: zap_huge_pmd(): zap huge zero pmd
->   thp: copy_huge_pmd(): copy huge zero page
->   thp: do_huge_pmd_wp_page(): handle huge zero page
->   thp: change_huge_pmd(): keep huge zero page write-protected
->   thp: change split_huge_page_pmd() interface
->   thp: implement splitting pmd for huge zero page
->   thp: setup huge zero page on non-write page fault
->   thp: lazy huge zero page allocation
->   thp: implement refcounting for huge zero page
+On x86 memory accesses to pages without the ACCESSED flag set result in the
+ACCESSED flag being set automatically. With the ARM architecture a page access
+fault is raised instead (and it will continue to be raised until the ACCESSED
+flag is set for the appropriate PTE/PMD).
 
-Reviewed-by: Andrea Arcangeli <aarcange@redhat.com>
+For normal memory pages, handle_pte_fault will call pte_mkyoung (effectively
+setting the ACCESSED flag). For transparent huge pages, pmd_mkyoung will only
+be called for a write fault.
+
+This patch ensures that faults on transparent hugepages which do not result
+in a CoW update the access flags for the faulting pmd.
+
+Cc: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Chris Metcalf <cmetcalf@tilera.com>
+Signed-off-by: Steve Capper <steve.capper@arm.com>
+Signed-off-by: Will Deacon <will.deacon@arm.com>
+---
+
+v2: - Use pmd_trans_huge_lock to guard against splitting pmds
+    - Propogate dirty (write) flag to low-level pmd modifier
+
+ include/linux/huge_mm.h |    2 ++
+ mm/huge_memory.c        |    8 ++++++++
+ mm/memory.c             |    9 ++++++++-
+ 3 files changed, 18 insertions(+), 1 deletions(-)
+
+diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
+index 4c59b11..5eb9b06 100644
+--- a/include/linux/huge_mm.h
++++ b/include/linux/huge_mm.h
+@@ -8,6 +8,8 @@ extern int do_huge_pmd_anonymous_page(struct mm_struct *mm,
+ extern int copy_huge_pmd(struct mm_struct *dst_mm, struct mm_struct *src_mm,
+ 			 pmd_t *dst_pmd, pmd_t *src_pmd, unsigned long addr,
+ 			 struct vm_area_struct *vma);
++extern void huge_pmd_set_accessed(struct vm_area_struct *vma,
++				  unsigned long address, pmd_t *pmd, int dirty);
+ extern int do_huge_pmd_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ 			       unsigned long address, pmd_t *pmd,
+ 			       pmd_t orig_pmd);
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index d684934..1de3f9b 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -914,6 +914,14 @@ out_free_pages:
+ 	goto out;
+ }
+ 
++void huge_pmd_set_accessed(struct vm_area_struct *vma, unsigned long address,
++			   pmd_t *pmd, int dirty)
++{
++	pmd_t entry = pmd_mkyoung(*pmd);
++	if (pmdp_set_access_flags(vma, address & HPAGE_PMD_MASK, pmd, entry, dirty))
++		update_mmu_cache(vma, address, pmd);
++}
++
+ int do_huge_pmd_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ 			unsigned long address, pmd_t *pmd, pmd_t orig_pmd)
+ {
+diff --git a/mm/memory.c b/mm/memory.c
+index 5736170..f12f859 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -3524,7 +3524,8 @@ retry:
+ 
+ 		barrier();
+ 		if (pmd_trans_huge(orig_pmd)) {
+-			if (flags & FAULT_FLAG_WRITE &&
++			int dirty = flags & FAULT_FLAG_WRITE;
++			if (dirty &&
+ 			    !pmd_write(orig_pmd) &&
+ 			    !pmd_trans_splitting(orig_pmd)) {
+ 				ret = do_huge_pmd_wp_page(mm, vma, address, pmd,
+@@ -3537,7 +3538,13 @@ retry:
+ 				if (unlikely(ret & VM_FAULT_OOM))
+ 					goto retry;
+ 				return ret;
++			} else if (pmd_trans_huge_lock(pmd, vma) == 1) {
++				if (likely(pmd_same(*pmd, orig_pmd)))
++					huge_pmd_set_accessed(vma, address, pmd,
++							      dirty);
++				spin_unlock(&mm->page_table_lock);
+ 			}
++
+ 			return 0;
+ 		}
+ 	}
+-- 
+1.7.4.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
