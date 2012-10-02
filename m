@@ -1,53 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
-	by kanga.kvack.org (Postfix) with SMTP id B547A6B0072
-	for <linux-mm@kvack.org>; Tue,  2 Oct 2012 18:01:06 -0400 (EDT)
-Date: Tue, 2 Oct 2012 15:01:04 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v2] mm: thp: Set the accessed flag for old pages on
- access fault.
-Message-Id: <20121002150104.da57fa94.akpm@linux-foundation.org>
-In-Reply-To: <1349197151-19645-1-git-send-email-will.deacon@arm.com>
-References: <1349197151-19645-1-git-send-email-will.deacon@arm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
+	by kanga.kvack.org (Postfix) with SMTP id 37C146B005D
+	for <linux-mm@kvack.org>; Tue,  2 Oct 2012 18:10:58 -0400 (EDT)
+Received: by ied10 with SMTP id 10so19922315ied.14
+        for <linux-mm@kvack.org>; Tue, 02 Oct 2012 15:10:57 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <CAKFga-fB2JSAscSVi+YUOnFS4Lq4yzH5MHRwxDQBQYZfKAgB6A@mail.gmail.com>
+References: <E1T1N2q-0001xm-5X@morero.ard.nu>
+	<20120820180037.GV4232@outflux.net>
+	<CAKFga-dDRyRwxUu4Sv7QLcoyY5T3xxhw48LP2goWs=avGW0d_A@mail.gmail.com>
+	<CAGXu5jJCqABZcMHuQNAaAcUKCEsSqOTn5=DHdwFdJ70zVLsmSQ@mail.gmail.com>
+	<CAKFga-fB2JSAscSVi+YUOnFS4Lq4yzH5MHRwxDQBQYZfKAgB6A@mail.gmail.com>
+Date: Tue, 2 Oct 2012 15:10:56 -0700
+Message-ID: <CAGXu5jLj6qm+Rv3v2pmJqfEmhZBkKJsMUe0aRqxSa=s=w4wbDw@mail.gmail.com>
+Subject: Re: [PATCH] hardening: add PROT_FINAL prot flag to mmap/mprotect
+From: Kees Cook <keescook@chromium.org>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Will Deacon <will.deacon@arm.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, mhocko@suse.cz, kirill@shutemov.name, Andrea Arcangeli <aarcange@redhat.com>, Chris Metcalf <cmetcalf@tilera.com>, Steve Capper <steve.capper@arm.com>
+To: Ard Biesheuvel <ard.biesheuvel@gmail.com>
+Cc: linux-kernel@vger.kernel.org, Al Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, James Morris <jmorris@namei.org>, Konstantin Khlebnikov <khlebnikov@openvz.org>, linux-mm@kvack.org
 
-On Tue,  2 Oct 2012 17:59:11 +0100
-Will Deacon <will.deacon@arm.com> wrote:
+On Tue, Oct 2, 2012 at 2:41 PM, Ard Biesheuvel <ard.biesheuvel@gmail.com> wrote:
+> 2012/10/2 Kees Cook <keescook@chromium.org>:
+>>> If desired, additional restrictions can be imposed by using the
+>>> security framework, e.g,, disallow non-final r-x mappings.
+>>
+>> Interesting; what kind of interface did you have in mind?
+>
+> The 'interface' we use is a LSM .ko which registers handlers for
+> mmap() and mprotect() that fail the respective invocations if the
+> passed arguments do not adhere to the policy.
 
-> On x86 memory accesses to pages without the ACCESSED flag set result in the
-> ACCESSED flag being set automatically. With the ARM architecture a page access
-> fault is raised instead (and it will continue to be raised until the ACCESSED
-> flag is set for the appropriate PTE/PMD).
-> 
-> For normal memory pages, handle_pte_fault will call pte_mkyoung (effectively
-> setting the ACCESSED flag). For transparent huge pages, pmd_mkyoung will only
-> be called for a write fault.
-> 
-> This patch ensures that faults on transparent hugepages which do not result
-> in a CoW update the access flags for the faulting pmd.
+Seems reasonable.
 
-Alas, the code you're altering has changed so much in linux-next that I
-am reluctant to force this fix in there myself.  Can you please
-redo/retest/resend?  You can do that on 3.7-rc1 if you like, then we
-can feed this into -rc2.
+>>>> It seems like there needs to be a sensible way to detect that this flag is
+>>>> available, though.
+>>>
+>>> I am open for suggestions to address this. Our particular
+>>> implementation of the loader (on an embedded system) tries to set it
+>>> on the first mmap invocation, and stops trying if it fails. Not the
+>>> most elegant approach, I know ...
+>>
+>> Actually, that seems easiest.
+>>
+>> Has there been any more progress on this patch over-all?
+>
+> No progress.
 
-> --- a/mm/memory.c
-> +++ b/mm/memory.c
-> @@ -3524,7 +3524,8 @@ retry:
->  
->  		barrier();
->  		if (pmd_trans_huge(orig_pmd)) {
-> -			if (flags & FAULT_FLAG_WRITE &&
-> +			int dirty = flags & FAULT_FLAG_WRITE;
+Al, Andrew, anyone? Thoughts on this?
+(First email is https://lkml.org/lkml/2012/8/14/448)
 
-`flags' is `unsigned int', so making `dirty' match that is nicer.
+-Kees
 
+-- 
+Kees Cook
+Chrome OS Security
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
