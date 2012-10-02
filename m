@@ -1,42 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx144.postini.com [74.125.245.144])
-	by kanga.kvack.org (Postfix) with SMTP id B6AD96B0068
-	for <linux-mm@kvack.org>; Tue,  2 Oct 2012 10:43:57 -0400 (EDT)
-Date: Tue, 2 Oct 2012 14:43:56 +0000
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: slab vs. slub kmem cache name inconsistency
-In-Reply-To: <1349170840.10698.14.camel@jlt4.sipsolutions.net>
-Message-ID: <0000013a21eee926-56d34b55-4a2f-45cb-a6d8-0dc6b826c867-000000@email.amazonses.com>
-References: <1349170840.10698.14.camel@jlt4.sipsolutions.net>
+Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
+	by kanga.kvack.org (Postfix) with SMTP id 90D056B0068
+	for <linux-mm@kvack.org>; Tue,  2 Oct 2012 10:46:15 -0400 (EDT)
+Date: Tue, 2 Oct 2012 16:46:10 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH v3 05/16] consider a memcg parameter in kmem_create_cache
+Message-ID: <20121002144610.GA4662@dhcp22.suse.cz>
+References: <1347977530-29755-1-git-send-email-glommer@parallels.com>
+ <1347977530-29755-6-git-send-email-glommer@parallels.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1347977530-29755-6-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Berg <johannes@sipsolutions.net>
-Cc: Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org
+To: Glauber Costa <glommer@parallels.com>
+Cc: linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, devel@openvz.org, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, Suleiman Souhlal <suleiman@google.com>, Frederic Weisbecker <fweisbec@gmail.com>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Johannes Weiner <hannes@cmpxchg.org>
 
-This should be fixed the merge window for 3.7. All allocators will do a
-kstrdup then.
+On Tue 18-09-12 18:11:59, Glauber Costa wrote:
+> Allow a memcg parameter to be passed during cache creation.
+> When the slub allocator is being used, it will only merge
+> caches that belong to the same memcg.
+> 
+> Default function is created as a wrapper, passing NULL
+> to the memcg version. We only merge caches that belong
+> to the same memcg.
+> 
+> From the memcontrol.c side, 3 helper functions are created:
+> 
+> 1) memcg_css_id: because slub needs a unique cache name
+>    for sysfs. Since this is visible, but not the canonical
+>    location for slab data, the cache name is not used, the
+>    css_id should suffice.
+> 
+> 2) mem_cgroup_register_cache: is responsible for assigning
+>     a unique index to each cache, and other general purpose
+>     setup. The index is only assigned for the root caches. All
+>     others are assigned index == -1.
 
-On Tue, 2 Oct 2012, Johannes Berg wrote:
+It would be nice to describe what is memcg_params.id intended for. There
+is no usage in this patch (except for create_unique_id in slub).
+I guess that by root caches you mean all default caches with
+memcg==NULL, right?
 
-> Hi,
->
-> I just noticed that slub's kmem_cache_create() will kstrdup() the name,
-> while slab doesn't. That's a little confusing, since when you look at
-> slub you can easily get away with passing a string you built on the
-> stack, while that will then lead to very strange results (and possibly
-> crashes?) with slab. The slab kernel-doc string always says this:
->
->  * @name must be valid until the cache is destroyed. This implies that
->  * the module calling this has to destroy the cache before getting unloaded.
->
-> Is there any reason for this difference, or should slab also kstrdup(),
-> or should slub not do it? Or maybe slub should have a "oops, name is on
-> stack" warning/check?
->
-> johannes
->
+[...]
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
