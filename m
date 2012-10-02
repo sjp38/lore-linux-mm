@@ -1,37 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
-	by kanga.kvack.org (Postfix) with SMTP id C35036B0070
-	for <linux-mm@kvack.org>; Tue,  2 Oct 2012 17:50:25 -0400 (EDT)
-Message-ID: <506B6191.6080605@zytor.com>
-Date: Tue, 02 Oct 2012 14:50:09 -0700
-From: "H. Peter Anvin" <hpa@zytor.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH] Fix devmem_is_allowed for below 1MB accesses for an efi
- machine
-References: <1349213536-3436-1-git-send-email-tmac@hp.com>
-In-Reply-To: <1349213536-3436-1-git-send-email-tmac@hp.com>
-Content-Type: text/plain; charset=UTF-8
+Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
+	by kanga.kvack.org (Postfix) with SMTP id B547A6B0072
+	for <linux-mm@kvack.org>; Tue,  2 Oct 2012 18:01:06 -0400 (EDT)
+Date: Tue, 2 Oct 2012 15:01:04 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v2] mm: thp: Set the accessed flag for old pages on
+ access fault.
+Message-Id: <20121002150104.da57fa94.akpm@linux-foundation.org>
+In-Reply-To: <1349197151-19645-1-git-send-email-will.deacon@arm.com>
+References: <1349197151-19645-1-git-send-email-will.deacon@arm.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: T Makphaibulchoke <tmac@hp.com>
-Cc: tglx@linutronix.de, mingo@redhat.com, x86@kernel.org, akpm@linux-foundation.org, yinghai@kernel.org, tiwai@suse.de, viro@zeniv.linux.org.uk, aarcange@redhat.com, tony.luck@intel.com, mgorman@suse.de, weiyang@linux.vnet.ibm.com, octavian.purdila@intel.com, paul.gortmaker@windriver.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Will Deacon <will.deacon@arm.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, mhocko@suse.cz, kirill@shutemov.name, Andrea Arcangeli <aarcange@redhat.com>, Chris Metcalf <cmetcalf@tilera.com>, Steve Capper <steve.capper@arm.com>
 
-On 10/02/2012 02:32 PM, T Makphaibulchoke wrote:
-> Changing devmem_is_allowed so that on an EFI machine, access to physical
-> address below 1 MB is allowed only to physical pages that are valid in
-> the EFI memory map.  This prevents the possibility of an MCE due to
-> accessing an invalid physical address.
+On Tue,  2 Oct 2012 17:59:11 +0100
+Will Deacon <will.deacon@arm.com> wrote:
 
-What?
+> On x86 memory accesses to pages without the ACCESSED flag set result in the
+> ACCESSED flag being set automatically. With the ARM architecture a page access
+> fault is raised instead (and it will continue to be raised until the ACCESSED
+> flag is set for the appropriate PTE/PMD).
+> 
+> For normal memory pages, handle_pte_fault will call pte_mkyoung (effectively
+> setting the ACCESSED flag). For transparent huge pages, pmd_mkyoung will only
+> be called for a write fault.
+> 
+> This patch ensures that faults on transparent hugepages which do not result
+> in a CoW update the access flags for the faulting pmd.
 
-That sounds like exactly the opposite of normal /dev/mem behavior... we
-allow access to non-memory resources (which really could do anything if
-misused), but not memory.
+Alas, the code you're altering has changed so much in linux-next that I
+am reluctant to force this fix in there myself.  Can you please
+redo/retest/resend?  You can do that on 3.7-rc1 if you like, then we
+can feed this into -rc2.
 
-You seem like you're flipping it on its head.
+> --- a/mm/memory.c
+> +++ b/mm/memory.c
+> @@ -3524,7 +3524,8 @@ retry:
+>  
+>  		barrier();
+>  		if (pmd_trans_huge(orig_pmd)) {
+> -			if (flags & FAULT_FLAG_WRITE &&
+> +			int dirty = flags & FAULT_FLAG_WRITE;
 
-	-hpa
+`flags' is `unsigned int', so making `dirty' match that is nicer.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
