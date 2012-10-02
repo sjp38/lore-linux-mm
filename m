@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
-	by kanga.kvack.org (Postfix) with SMTP id 8D8DF6B0070
-	for <linux-mm@kvack.org>; Tue,  2 Oct 2012 11:18:59 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
+	by kanga.kvack.org (Postfix) with SMTP id D8F816B0080
+	for <linux-mm@kvack.org>; Tue,  2 Oct 2012 11:19:01 -0400 (EDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH v3 03/10] thp: copy_huge_pmd(): copy huge zero page
-Date: Tue,  2 Oct 2012 18:19:25 +0300
-Message-Id: <1349191172-28855-4-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCH v3 09/10] thp: lazy huge zero page allocation
+Date: Tue,  2 Oct 2012 18:19:31 +0300
+Message-Id: <1349191172-28855-10-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1349191172-28855-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1349191172-28855-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -15,52 +15,81 @@ Cc: Andrea Arcangeli <aarcange@redhat.com>, Andi Kleen <ak@linux.intel.com>, "H.
 
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-It's easy to copy huge zero page. Just set destination pmd to huge zero
-page.
+Instead of allocating huge zero page on hugepage_init() we can postpone it
+until first huge zero page map. It saves memory if THP is not in use.
 
-It's safe to copy huge zero page since we have none yet :-p
+cmpxchg() is used to avoid race on huge_zero_pfn initialization.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 Reviewed-by: Andrea Arcangeli <aarcange@redhat.com>
 ---
- mm/huge_memory.c |   17 +++++++++++++++++
- 1 files changed, 17 insertions(+), 0 deletions(-)
+ mm/huge_memory.c |   20 ++++++++++----------
+ 1 files changed, 10 insertions(+), 10 deletions(-)
 
 diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 140d858..c8b157d 100644
+index a5b9282..3fdf1b4 100644
 --- a/mm/huge_memory.c
 +++ b/mm/huge_memory.c
-@@ -726,6 +726,18 @@ static inline struct page *alloc_hugepage(int defrag)
+@@ -168,22 +168,24 @@ out:
+ 	return err;
  }
- #endif
  
-+static void set_huge_zero_page(pgtable_t pgtable, struct mm_struct *mm,
-+		struct vm_area_struct *vma, unsigned long haddr, pmd_t *pmd)
-+{
-+	pmd_t entry;
-+	entry = pfn_pmd(huge_zero_pfn, vma->vm_page_prot);
-+	entry = pmd_wrprotect(entry);
-+	entry = pmd_mkhuge(entry);
-+	set_pmd_at(mm, haddr, pmd, entry);
-+	prepare_pmd_huge_pte(pgtable, mm);
-+	mm->nr_ptes++;
-+}
-+
- int do_huge_pmd_anonymous_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 			       unsigned long address, pmd_t *pmd,
- 			       unsigned int flags)
-@@ -803,6 +815,11 @@ int copy_huge_pmd(struct mm_struct *dst_mm, struct mm_struct *src_mm,
- 		pte_free(dst_mm, pgtable);
- 		goto out_unlock;
- 	}
-+	if (is_huge_zero_pmd(pmd)) {
-+		set_huge_zero_page(pgtable, dst_mm, vma, addr, dst_pmd);
-+		ret = 0;
-+		goto out_unlock;
-+	}
- 	if (unlikely(pmd_trans_splitting(pmd))) {
- 		/* split huge page running from under us */
- 		spin_unlock(&src_mm->page_table_lock);
+-static int init_huge_zero_page(void)
++static int init_huge_zero_pfn(void)
+ {
+ 	struct page *hpage;
++	unsigned long pfn;
+ 
+ 	hpage = alloc_pages((GFP_TRANSHUGE | __GFP_ZERO) & ~__GFP_MOVABLE,
+ 			HPAGE_PMD_ORDER);
+ 	if (!hpage)
+ 		return -ENOMEM;
+-
+-	huge_zero_pfn = page_to_pfn(hpage);
++	pfn = page_to_pfn(hpage);
++	if (cmpxchg(&huge_zero_pfn, 0, pfn))
++		__free_page(hpage);
+ 	return 0;
+ }
+ 
+ static inline bool is_huge_zero_pfn(unsigned long pfn)
+ {
+-	return pfn == huge_zero_pfn;
++	return huge_zero_pfn && pfn == huge_zero_pfn;
+ }
+ 
+ static inline bool is_huge_zero_pmd(pmd_t pmd)
+@@ -574,10 +576,6 @@ static int __init hugepage_init(void)
+ 	if (err)
+ 		return err;
+ 
+-	err = init_huge_zero_page();
+-	if (err)
+-		goto out;
+-
+ 	err = khugepaged_slab_init();
+ 	if (err)
+ 		goto out;
+@@ -602,8 +600,6 @@ static int __init hugepage_init(void)
+ 
+ 	return 0;
+ out:
+-	if (huge_zero_pfn)
+-		__free_page(pfn_to_page(huge_zero_pfn));
+ 	hugepage_exit_sysfs(hugepage_kobj);
+ 	return err;
+ }
+@@ -753,6 +749,10 @@ int do_huge_pmd_anonymous_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ 			return VM_FAULT_OOM;
+ 		if (!(flags & FAULT_FLAG_WRITE)) {
+ 			pgtable_t pgtable;
++			if (unlikely(!huge_zero_pfn && init_huge_zero_pfn())) {
++				count_vm_event(THP_FAULT_FALLBACK);
++				goto out;
++			}
+ 			pgtable = pte_alloc_one(mm, haddr);
+ 			if (unlikely(!pgtable))
+ 				goto out;
 -- 
 1.7.7.6
 
