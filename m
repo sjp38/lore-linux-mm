@@ -1,122 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
-	by kanga.kvack.org (Postfix) with SMTP id 978DC6B006E
-	for <linux-mm@kvack.org>; Wed,  3 Oct 2012 10:56:52 -0400 (EDT)
-From: Mike Yoknis <mike.yoknis@hp.com>
-Subject: [PATCH] mm: memmap_init_zone() performance improvement
-Date: Wed,  3 Oct 2012 08:56:14 -0600
-Message-Id: <1349276174-8398-1-git-send-email-mike.yoknis@hp.com>
+Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
+	by kanga.kvack.org (Postfix) with SMTP id C174F6B005A
+	for <linux-mm@kvack.org>; Wed,  3 Oct 2012 11:01:00 -0400 (EDT)
+Received: from /spool/local
+	by e23smtp04.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <srivatsa.bhat@linux.vnet.ibm.com>;
+	Thu, 4 Oct 2012 00:57:43 +1000
+Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
+	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q93EpBbr64618688
+	for <linux-mm@kvack.org>; Thu, 4 Oct 2012 00:51:12 +1000
+Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
+	by d23av03.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q93F0rXO028735
+	for <linux-mm@kvack.org>; Thu, 4 Oct 2012 01:00:53 +1000
+Message-ID: <506C52FC.4040305@linux.vnet.ibm.com>
+Date: Wed, 03 Oct 2012 20:30:12 +0530
+From: "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH v3] mm, slab: release slab_mutex earlier in kmem_cache_destroy()
+References: <alpine.LNX.2.00.1210021810350.23544@pobox.suse.cz> <20121002170149.GC2465@linux.vnet.ibm.com> <alpine.LNX.2.00.1210022324050.23544@pobox.suse.cz> <alpine.LNX.2.00.1210022331130.23544@pobox.suse.cz> <alpine.LNX.2.00.1210022356370.23544@pobox.suse.cz> <20121002233138.GD2465@linux.vnet.ibm.com> <alpine.LNX.2.00.1210030142570.23544@pobox.suse.cz> <20121003001530.GF2465@linux.vnet.ibm.com> <alpine.LNX.2.00.1210030227430.23544@pobox.suse.cz> <0000013a26fb253a-fb5df733-ad41-47c1-af1d-3d6739e417de-000000@email.amazonses.com> <alpine.LNX.2.00.1210031631150.23544@pobox.suse.cz>
+In-Reply-To: <alpine.LNX.2.00.1210031631150.23544@pobox.suse.cz>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mgorman@suse.de, mingo@redhat.com, akpm@linux-foundation.org, linux-arch@vger.kernel.org
-Cc: mmarek@suse.cz, tglx@linutronix.de, hpa@zytor.com, arnd@arndb.de, sam@ravnborg.org, minchan@kernel.org, kamezawa.hiroyu@jp.fujitsu.com, mhocko@suse.cz, linux-kbuild@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mike Yoknis <mike.yoknis@hp.com>
+To: Jiri Kosina <jkosina@suse.cz>
+Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, "Paul E. McKenney" <paul.mckenney@linaro.org>, Josh Triplett <josh@joshtriplett.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-memmap_init_zone() loops through every Page Frame Number (pfn),
-including pfn values that are within the gaps between existing
-memory sections.  The unneeded looping will become a boot
-performance issue when machines configure larger memory ranges
-that will contain larger and more numerous gaps.
+On 10/03/2012 08:04 PM, Jiri Kosina wrote:
+> On Wed, 3 Oct 2012, Christoph Lameter wrote:
+> 
+>>> How about the patch below? Pekka, Christoph, please?
+>>
+>> Looks fine for -stable. For upstream there is going to be a move to
+>> slab_common coming in this merge period. We would need a fix against -next
+>> or Pekka's tree too.
+> 
+> Thanks Christoph. Patch against Pekka's slab/for-linus branch below.
+> 
+> I have kept the Acked-by/Reviewed-by from the version of the patch against 
+> current Linus' tree, if anyone object, please shout loudly. Ideally should 
+> go in during this merge window to keep lockdep happy.
+> 
+> 
+> 
+> 
+> 
+> From: Jiri Kosina <jkosina@suse.cz>
+> Subject: [PATCH] mm, slab: release slab_mutex earlier in kmem_cache_destroy()
+> 
+> Commit 1331e7a1bbe1 ("rcu: Remove _rcu_barrier() dependency on
+> __stop_machine()") introduced slab_mutex -> cpu_hotplug.lock
+> dependency through kmem_cache_destroy() -> rcu_barrier() ->
+> _rcu_barrier() -> get_online_cpus().
+> 
+> Lockdep thinks that this might actually result in ABBA deadlock,
+> and reports it as below:
+> 
+[...] 
+> Reviewed-by: Srivatsa S. Bhat <srivatsa.bhat@linux.vnet.ibm.com>
+> Reviewed-by: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
+> Acked-by: Christoph Lameter <cl@linux.com>
+> Signed-off-by: Jiri Kosina <jkosina@suse.cz>
+> ---
+>  mm/slab_common.c |    4 +++-
+>  1 files changed, 3 insertions(+), 1 deletions(-)
+> 
+> diff --git a/mm/slab_common.c b/mm/slab_common.c
+> index 9c21725..90c3053 100644
+> --- a/mm/slab_common.c
+> +++ b/mm/slab_common.c
+> @@ -166,6 +166,7 @@ void kmem_cache_destroy(struct kmem_cache *s)
+>  	s->refcount--;
+>  	if (!s->refcount) {
+>  		list_del(&s->list);
+> +		mutex_unlock(&slab_mutex);
+> 
+>  		if (!__kmem_cache_shutdown(s)) {
 
-The code will skip across invalid sections to reduce the
-number of loops executed.
+__kmem_cache_shutdown() calls __cache_shrink(). And __cache_shrink() has this
+comment over it:
+/* Called with slab_mutex held to protect against cpu hotplug */
 
-Signed-off-by: Mike Yoknis <mike.yoknis@hp.com>
----
- arch/x86/include/asm/mmzone_32.h     |    2 ++
- arch/x86/include/asm/page_32.h       |    1 +
- arch/x86/include/asm/page_64_types.h |    3 ++-
- include/asm-generic/page.h           |    1 +
- include/linux/mmzone.h               |    6 ++++++
- mm/page_alloc.c                      |    5 ++++-
- 6 files changed, 16 insertions(+), 2 deletions(-)
+So, I guess the question is whether to modify your patch to hold the slab_mutex
+while calling this function, or to update the comment on top of this function
+saying that we are OK to call this function (even without slab_mutex) when we
+are inside a get/put_online_cpus() section.
 
-diff --git a/arch/x86/include/asm/mmzone_32.h b/arch/x86/include/asm/mmzone_32.h
-index eb05fb3..73c5c74 100644
---- a/arch/x86/include/asm/mmzone_32.h
-+++ b/arch/x86/include/asm/mmzone_32.h
-@@ -48,6 +48,8 @@ static inline int pfn_to_nid(unsigned long pfn)
- #endif
- }
- 
-+#define next_pfn_try(pfn)	((pfn)+1)
-+
- static inline int pfn_valid(int pfn)
- {
- 	int nid = pfn_to_nid(pfn);
-diff --git a/arch/x86/include/asm/page_32.h b/arch/x86/include/asm/page_32.h
-index da4e762..e2c4cfc 100644
---- a/arch/x86/include/asm/page_32.h
-+++ b/arch/x86/include/asm/page_32.h
-@@ -19,6 +19,7 @@ extern unsigned long __phys_addr(unsigned long);
- 
- #ifdef CONFIG_FLATMEM
- #define pfn_valid(pfn)		((pfn) < max_mapnr)
-+#define next_pfn_try(pfn)	((pfn)+1)
- #endif /* CONFIG_FLATMEM */
- 
- #ifdef CONFIG_X86_USE_3DNOW
-diff --git a/arch/x86/include/asm/page_64_types.h b/arch/x86/include/asm/page_64_types.h
-index 320f7bb..02d82e5 100644
---- a/arch/x86/include/asm/page_64_types.h
-+++ b/arch/x86/include/asm/page_64_types.h
-@@ -69,7 +69,8 @@ extern void init_extra_mapping_wb(unsigned long phys, unsigned long size);
- #endif	/* !__ASSEMBLY__ */
- 
- #ifdef CONFIG_FLATMEM
--#define pfn_valid(pfn)          ((pfn) < max_pfn)
-+#define pfn_valid(pfn)		((pfn) < max_pfn)
-+#define next_pfn_try(pfn)	((pfn)+1)
- #endif
- 
- #endif /* _ASM_X86_PAGE_64_DEFS_H */
-diff --git a/include/asm-generic/page.h b/include/asm-generic/page.h
-index 37d1fe2..316200d 100644
---- a/include/asm-generic/page.h
-+++ b/include/asm-generic/page.h
-@@ -91,6 +91,7 @@ extern unsigned long memory_end;
- #endif
- 
- #define pfn_valid(pfn)		((pfn) >= ARCH_PFN_OFFSET && ((pfn) - ARCH_PFN_OFFSET) < max_mapnr)
-+#define next_pfn_try(pfn)	((pfn)+1)
- 
- #define	virt_addr_valid(kaddr)	(((void *)(kaddr) >= (void *)PAGE_OFFSET) && \
- 				((void *)(kaddr) < (void *)memory_end))
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index f7d88ba..04d3c39 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -1166,6 +1166,12 @@ static inline int pfn_valid(unsigned long pfn)
- 		return 0;
- 	return valid_section(__nr_to_section(pfn_to_section_nr(pfn)));
- }
-+
-+static inline unsigned long next_pfn_try(unsigned long pfn)
-+{
-+	/* Skip entire section, because all of it is invalid. */
-+	return section_nr_to_pfn(pfn_to_section_nr(pfn) + 1);
-+}
- #endif
- 
- static inline int pfn_present(unsigned long pfn)
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 5b6b6b1..dd2af8b 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -3798,8 +3798,11 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
- 		 * exist on hotplugged memory.
- 		 */
- 		if (context == MEMMAP_EARLY) {
--			if (!early_pfn_valid(pfn))
-+			if (!early_pfn_valid(pfn)) {
-+				pfn = next_pfn_try(pfn);
-+				pfn--;
- 				continue;
-+			}
- 			if (!early_pfn_in_nid(pfn, nid))
- 				continue;
- 		}
--- 
-1.7.1
+>  			if (s->flags & SLAB_DESTROY_BY_RCU)
+> @@ -179,8 +180,9 @@ void kmem_cache_destroy(struct kmem_cache *s)
+>  				s->name);
+>  			dump_stack();
+
+There is a list_add() before this dump_stack(). I assume we need to hold the
+slab_mutex while calling it.
+
+>  		}
+> +	} else {
+> +		mutex_unlock(&slab_mutex);
+>  	}
+> -	mutex_unlock(&slab_mutex);
+>  	put_online_cpus();
+>  }
+>  EXPORT_SYMBOL(kmem_cache_destroy);
+> 
+
+Regards,
+Srivatsa S. Bhat
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
