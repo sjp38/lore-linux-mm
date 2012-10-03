@@ -1,86 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx190.postini.com [74.125.245.190])
-	by kanga.kvack.org (Postfix) with SMTP id DE3D46B0044
-	for <linux-mm@kvack.org>; Wed,  3 Oct 2012 08:53:59 -0400 (EDT)
-Received: from /spool/local
-	by e23smtp03.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <srivatsa.bhat@linux.vnet.ibm.com>;
-	Wed, 3 Oct 2012 22:51:49 +1000
-Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
-	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q93CiIaL26673370
-	for <linux-mm@kvack.org>; Wed, 3 Oct 2012 22:44:19 +1000
-Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
-	by d23av03.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q93CroAK021056
-	for <linux-mm@kvack.org>; Wed, 3 Oct 2012 22:53:51 +1000
-Message-ID: <506C3535.3070401@linux.vnet.ibm.com>
-Date: Wed, 03 Oct 2012 18:23:09 +0530
-From: "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
+	by kanga.kvack.org (Postfix) with SMTP id C87CD6B005A
+	for <linux-mm@kvack.org>; Wed,  3 Oct 2012 09:30:18 -0400 (EDT)
+Received: by padfa10 with SMTP id fa10so7422779pad.14
+        for <linux-mm@kvack.org>; Wed, 03 Oct 2012 06:30:17 -0700 (PDT)
 MIME-Version: 1.0
-Subject: [PATCH] CPU hotplug, debug: Detect imbalance between get_online_cpus()
- and put_online_cpus()
-References: <alpine.LNX.2.00.1210021810350.23544@pobox.suse.cz> <20121002170149.GC2465@linux.vnet.ibm.com> <alpine.LNX.2.00.1210022324050.23544@pobox.suse.cz> <alpine.LNX.2.00.1210022331130.23544@pobox.suse.cz> <alpine.LNX.2.00.1210022356370.23544@pobox.suse.cz> <20121002233138.GD2465@linux.vnet.ibm.com> <alpine.LNX.2.00.1210030142570.23544@pobox.suse.cz> <20121003001530.GF2465@linux.vnet.ibm.com> <alpine.LNX.2.00.1210030227430.23544@pobox.suse.cz> <alpine.LNX.2.00.1210031143260.23544@pobox.suse.cz> <506C2E02.9080804@linux.vnet.ibm.com>
-In-Reply-To: <506C2E02.9080804@linux.vnet.ibm.com>
+In-Reply-To: <CAA25o9TmsnR3T+CLk5LeRmXv3s8b719KrSU6C919cAu0YMKPkA@mail.gmail.com>
+References: <CAA25o9TmsnR3T+CLk5LeRmXv3s8b719KrSU6C919cAu0YMKPkA@mail.gmail.com>
+Date: Wed, 3 Oct 2012 09:30:17 -0400
+Message-ID: <CACJDEmphUupZK7y5EMqpsi91hzSexUCvxh8k2LwG0pLeCzCVKg@mail.gmail.com>
+Subject: Re: zram OOM behavior
+From: Konrad Rzeszutek Wilk <konrad@kernel.org>
 Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jiri Kosina <jkosina@suse.cz>, Thomas Gleixner <tglx@linutronix.de>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <peterz@infradead.org>
-Cc: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, "Paul E. McKenney" <paul.mckenney@linaro.org>, Josh Triplett <josh@joshtriplett.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Luigi Semenzato <semenzato@google.com>
+Cc: linux-mm@kvack.org
 
-On 10/03/2012 05:52 PM, Srivatsa S. Bhat wrote:
-> On 10/03/2012 03:16 PM, Jiri Kosina wrote:
->> On Wed, 3 Oct 2012, Jiri Kosina wrote:
->>
->>> Good question. I believe it should be safe to drop slab_mutex earlier, as 
->>> cachep has already been unlinked. I am adding slab people and linux-mm to 
->>> CC (the whole thread on LKML can be found at 
->>> https://lkml.org/lkml/2012/10/2/296 for reference).
->>>
-[...]
-> 
-> But, I'm also quite surprised that the put_online_cpus() code as it stands today
-> doesn't have any checks for the refcount going negative. I believe that such a
-> check would be valuable to help catch cases where we might end up inadvertently
-> causing an imbalance between get_online_cpus() and put_online_cpus(). I'll post
-> that as a separate patch.
-> 
+On Fri, Sep 28, 2012 at 1:32 PM, Luigi Semenzato <semenzato@google.com> wrote:
+> Greetings,
+>
+> We are experimenting with zram in Chrome OS.  It works quite well
+> until the system runs out of memory, at which point it seems to hang,
+> but we suspect it is thrashing.
 
+Or spinning in some sad loop. Does the kernel have the CONFIG_DETECT_*
+options to figure out what is happening? Can you invoke the Alt-SysRQ
+when it is hung?
+>
+> Before the (apparent) hang, the OOM killer gets rid of a few
+> processes, but then the other processes gradually stop responding,
+> until the entire system becomes unresponsive.
 
------------------------------------
+Does the OOM give you an idea what the memory state is? Can you
+actually provide the dmesg?
 
-
-From: Srivatsa S. Bhat <srivatsa.bhat@linux.vnet.ibm.com>
-Subject: [PATCH] CPU hotplug, debug: Detect imbalance between get_online_cpus() and put_online_cpus()
-
-The synchronization between CPU hotplug readers and writers is achieved by
-means of refcounting, safe-guarded by the cpu_hotplug.lock.
-
-get_online_cpus() increments the refcount, whereas put_online_cpus() decrements
-it. If we ever hit an imbalance between the two, we end up compromising the
-guarantees of the hotplug synchronization i.e, for example, an extra call to
-put_online_cpus() can end up allowing a hotplug reader to execute concurrently with
-a hotplug writer. So, add a BUG_ON() in put_online_cpus() to detect such cases
-where the refcount can go negative.
-
-Signed-off-by: Srivatsa S. Bhat <srivatsa.bhat@linux.vnet.ibm.com>
----
-
- kernel/cpu.c |    1 +
- 1 file changed, 1 insertion(+)
-
-diff --git a/kernel/cpu.c b/kernel/cpu.c
-index f560598..00d29bc 100644
---- a/kernel/cpu.c
-+++ b/kernel/cpu.c
-@@ -80,6 +80,7 @@ void put_online_cpus(void)
- 	if (cpu_hotplug.active_writer == current)
- 		return;
- 	mutex_lock(&cpu_hotplug.lock);
-+	BUG_ON(cpu_hotplug.refcount == 0);
- 	if (!--cpu_hotplug.refcount && unlikely(cpu_hotplug.active_writer))
- 		wake_up_process(cpu_hotplug.active_writer);
- 	mutex_unlock(&cpu_hotplug.lock);
-
+>
+> I am wondering if anybody has run into this.  Thanks!
+>
+> Luigi
+>
+> P.S.  For those who wish to know more:
+>
+> 1. We use the min_filelist_kbytes patch
+> (http://lwn.net/Articles/412313/)  (I am not sure if it made it into
+> the standard kernel) and set min_filelist_kbytes to 50Mb.  (This may
+> not matter, as it's unlikely to make things worse.)
+>
+> 2. We swap only to compressed ram.  The setup is very simple:
+>
+>  echo ${ZRAM_SIZE_KB}000 >/sys/block/zram0/disksize ||
+>       logger -t "$UPSTART_JOB" "failed to set zram size"
+>   mkswap /dev/zram0 || logger -t "$UPSTART_JOB" "mkswap /dev/zram0 failed"
+>   swapon /dev/zram0 || logger -t "$UPSTART_JOB" "swapon /dev/zram0 failed"
+>
+> For ZRAM_SIZE_KB, we typically use 1.5 the size of RAM (which is 2 or
+> 4 Gb).  The compression factor is about 3:1.  The hangs happen for
+> quite a wide range of zram sizes.
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
