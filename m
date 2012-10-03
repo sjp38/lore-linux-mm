@@ -1,69 +1,30 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
-	by kanga.kvack.org (Postfix) with SMTP id C87CD6B005A
-	for <linux-mm@kvack.org>; Wed,  3 Oct 2012 09:30:18 -0400 (EDT)
-Received: by padfa10 with SMTP id fa10so7422779pad.14
-        for <linux-mm@kvack.org>; Wed, 03 Oct 2012 06:30:17 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
+	by kanga.kvack.org (Postfix) with SMTP id F121B6B005A
+	for <linux-mm@kvack.org>; Wed,  3 Oct 2012 10:15:25 -0400 (EDT)
+Date: Wed, 3 Oct 2012 14:15:24 +0000
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH] mm, slab: release slab_mutex earlier in kmem_cache_destroy()
+ (was Re: Lockdep complains about commit 1331e7a1bb ("rcu: Remove _rcu_barrier()
+ dependency on __stop_machine()"))
+In-Reply-To: <alpine.LNX.2.00.1210030227430.23544@pobox.suse.cz>
+Message-ID: <0000013a26fb253a-fb5df733-ad41-47c1-af1d-3d6739e417de-000000@email.amazonses.com>
+References: <alpine.LNX.2.00.1210021810350.23544@pobox.suse.cz> <20121002170149.GC2465@linux.vnet.ibm.com> <alpine.LNX.2.00.1210022324050.23544@pobox.suse.cz> <alpine.LNX.2.00.1210022331130.23544@pobox.suse.cz> <alpine.LNX.2.00.1210022356370.23544@pobox.suse.cz>
+ <20121002233138.GD2465@linux.vnet.ibm.com> <alpine.LNX.2.00.1210030142570.23544@pobox.suse.cz> <20121003001530.GF2465@linux.vnet.ibm.com> <alpine.LNX.2.00.1210030227430.23544@pobox.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <CAA25o9TmsnR3T+CLk5LeRmXv3s8b719KrSU6C919cAu0YMKPkA@mail.gmail.com>
-References: <CAA25o9TmsnR3T+CLk5LeRmXv3s8b719KrSU6C919cAu0YMKPkA@mail.gmail.com>
-Date: Wed, 3 Oct 2012 09:30:17 -0400
-Message-ID: <CACJDEmphUupZK7y5EMqpsi91hzSexUCvxh8k2LwG0pLeCzCVKg@mail.gmail.com>
-Subject: Re: zram OOM behavior
-From: Konrad Rzeszutek Wilk <konrad@kernel.org>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Luigi Semenzato <semenzato@google.com>
-Cc: linux-mm@kvack.org
+To: Jiri Kosina <jkosina@suse.cz>
+Cc: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Pekka Enberg <penberg@kernel.org>, "Paul E. McKenney" <paul.mckenney@linaro.org>, Josh Triplett <josh@joshtriplett.org>, linux-kernel@vger.kernel.org, "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>, linux-mm@kvack.org
 
-On Fri, Sep 28, 2012 at 1:32 PM, Luigi Semenzato <semenzato@google.com> wrote:
-> Greetings,
->
-> We are experimenting with zram in Chrome OS.  It works quite well
-> until the system runs out of memory, at which point it seems to hang,
-> but we suspect it is thrashing.
+On Wed, 3 Oct 2012, Jiri Kosina wrote:
 
-Or spinning in some sad loop. Does the kernel have the CONFIG_DETECT_*
-options to figure out what is happening? Can you invoke the Alt-SysRQ
-when it is hung?
->
-> Before the (apparent) hang, the OOM killer gets rid of a few
-> processes, but then the other processes gradually stop responding,
-> until the entire system becomes unresponsive.
+> How about the patch below? Pekka, Christoph, please?
 
-Does the OOM give you an idea what the memory state is? Can you
-actually provide the dmesg?
-
->
-> I am wondering if anybody has run into this.  Thanks!
->
-> Luigi
->
-> P.S.  For those who wish to know more:
->
-> 1. We use the min_filelist_kbytes patch
-> (http://lwn.net/Articles/412313/)  (I am not sure if it made it into
-> the standard kernel) and set min_filelist_kbytes to 50Mb.  (This may
-> not matter, as it's unlikely to make things worse.)
->
-> 2. We swap only to compressed ram.  The setup is very simple:
->
->  echo ${ZRAM_SIZE_KB}000 >/sys/block/zram0/disksize ||
->       logger -t "$UPSTART_JOB" "failed to set zram size"
->   mkswap /dev/zram0 || logger -t "$UPSTART_JOB" "mkswap /dev/zram0 failed"
->   swapon /dev/zram0 || logger -t "$UPSTART_JOB" "swapon /dev/zram0 failed"
->
-> For ZRAM_SIZE_KB, we typically use 1.5 the size of RAM (which is 2 or
-> 4 Gb).  The compression factor is about 3:1.  The hangs happen for
-> quite a wide range of zram sizes.
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
->
+Looks fine for -stable. For upstream there is going to be a move to
+slab_common coming in this merge period. We would need a fix against -next
+or Pekka's tree too.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
