@@ -1,46 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
-	by kanga.kvack.org (Postfix) with SMTP id 130926B005D
-	for <linux-mm@kvack.org>; Tue,  2 Oct 2012 20:43:26 -0400 (EDT)
-Received: by obcva7 with SMTP id va7so8401866obc.14
-        for <linux-mm@kvack.org>; Tue, 02 Oct 2012 17:43:25 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
+	by kanga.kvack.org (Postfix) with SMTP id 3E3D96B006E
+	for <linux-mm@kvack.org>; Tue,  2 Oct 2012 20:44:04 -0400 (EDT)
+Received: by ied10 with SMTP id 10so20187566ied.14
+        for <linux-mm@kvack.org>; Tue, 02 Oct 2012 17:44:03 -0700 (PDT)
+Date: Tue, 2 Oct 2012 17:43:20 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH] hardening: add PROT_FINAL prot flag to mmap/mprotect
+In-Reply-To: <20121002153841.a03ad73b.akpm@linux-foundation.org>
+Message-ID: <alpine.LSU.2.00.1210021733580.1343@eggly.anvils>
+References: <E1T1N2q-0001xm-5X@morero.ard.nu> <20120820180037.GV4232@outflux.net> <CAKFga-dDRyRwxUu4Sv7QLcoyY5T3xxhw48LP2goWs=avGW0d_A@mail.gmail.com> <CAGXu5jJCqABZcMHuQNAaAcUKCEsSqOTn5=DHdwFdJ70zVLsmSQ@mail.gmail.com> <CAKFga-fB2JSAscSVi+YUOnFS4Lq4yzH5MHRwxDQBQYZfKAgB6A@mail.gmail.com>
+ <CAGXu5jLj6qm+Rv3v2pmJqfEmhZBkKJsMUe0aRqxSa=s=w4wbDw@mail.gmail.com> <20121002153841.a03ad73b.akpm@linux-foundation.org>
 MIME-Version: 1.0
-In-Reply-To: <20121002234934.GA9194@www.outflux.net>
-References: <20121002234934.GA9194@www.outflux.net>
-From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-Date: Tue, 2 Oct 2012 20:43:04 -0400
-Message-ID: <CAHGf_=q3_EBCx+=ZL1cY7Q3=rQOiEhK3F7X-0fHd3A5_S+GUSg@mail.gmail.com>
-Subject: Re: [PATCH] mm: use %pK for /proc/vmallocinfo
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kees Cook <keescook@chromium.org>
-Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Minchan Kim <minchan@kernel.org>, Joe Perches <joe@perches.com>, Kautuk Consul <consul.kautuk@gmail.com>, linux-mm@kvack.org, Brad Spengler <spender@grsecurity.net>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Kees Cook <keescook@chromium.org>, Ard Biesheuvel <ard.biesheuvel@gmail.com>, linux-kernel@vger.kernel.org, Al Viro <viro@zeniv.linux.org.uk>, Ingo Molnar <mingo@kernel.org>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, James Morris <jmorris@namei.org>, Konstantin Khlebnikov <khlebnikov@openvz.org>, linux-mm@kvack.org
 
-On Tue, Oct 2, 2012 at 7:49 PM, Kees Cook <keescook@chromium.org> wrote:
-> In the paranoid case of sysctl kernel.kptr_restrict=2, mask the kernel
-> virtual addresses in /proc/vmallocinfo too.
->
-> Reported-by: Brad Spengler <spender@grsecurity.net>
-> Signed-off-by: Kees Cook <keescook@chromium.org>
-> ---
->  mm/vmalloc.c |    2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
->
-> diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-> index 2bb90b1..9c871db 100644
-> --- a/mm/vmalloc.c
-> +++ b/mm/vmalloc.c
-> @@ -2572,7 +2572,7 @@ static int s_show(struct seq_file *m, void *p)
->  {
->         struct vm_struct *v = p;
->
-> -       seq_printf(m, "0x%p-0x%p %7ld",
-> +       seq_printf(m, "0x%pK-0x%pK %7ld",
->                 v->addr, v->addr + v->size, v->size);
+On Tue, 2 Oct 2012, Andrew Morton wrote:
+> On Tue, 2 Oct 2012 15:10:56 -0700
+> Kees Cook <keescook@chromium.org> wrote:
+> 
+> > >> Has there been any more progress on this patch over-all?
+> > >
+> > > No progress.
+> > 
+> > Al, Andrew, anyone? Thoughts on this?
+> > (First email is https://lkml.org/lkml/2012/8/14/448)
+> 
+> Wasn't cc'ed, missed it.
+> 
+> The patch looks straightforward enough.  Have the maintainers of the
+> runtime linker (I guess that's glibc) provided any feedback on the
+> proposal?
 
-Looks good.
-Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+It looks reasonable to me too.  I checked through VM_MAYflag handling
+and don't expect surprises (a few places already turn off VM_MAYWRITE
+in much the same way that this does, I hadn't realized).
+
+I'm disappointed to find that our mmap() is lax about checking its
+PROT and MAP args, so old kernels will accept PROT_FINAL but do
+nothing with it.  Luckily mprotect() is stricter, so that can be
+used to check for whether it's supported.
+
+The patch does need to be slightly extended though: alpha, mips,
+parisc and xtensa have their own include/asm/mman.h, which does
+not include asm-generic/mman-common.h at all.
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
