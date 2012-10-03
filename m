@@ -1,72 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx127.postini.com [74.125.245.127])
-	by kanga.kvack.org (Postfix) with SMTP id 1E4A26B0078
-	for <linux-mm@kvack.org>; Wed,  3 Oct 2012 17:29:58 -0400 (EDT)
-Received: by iakh37 with SMTP id h37so1591385iak.14
-        for <linux-mm@kvack.org>; Wed, 03 Oct 2012 14:29:57 -0700 (PDT)
-Date: Wed, 3 Oct 2012 14:29:14 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
+	by kanga.kvack.org (Postfix) with SMTP id 25E706B007D
+	for <linux-mm@kvack.org>; Wed,  3 Oct 2012 17:47:43 -0400 (EDT)
+Received: by iakh37 with SMTP id h37so1598331iak.14
+        for <linux-mm@kvack.org>; Wed, 03 Oct 2012 14:47:42 -0700 (PDT)
+Date: Wed, 3 Oct 2012 14:46:59 -0700 (PDT)
 From: Hugh Dickins <hughd@google.com>
 Subject: Re: [patch -mm] mm, thp: fix mlock statistics fix
-In-Reply-To: <alpine.DEB.2.00.1210031403270.4352@chino.kir.corp.google.com>
-Message-ID: <alpine.LSU.2.00.1210031418410.14458@eggly.anvils>
+In-Reply-To: <20121003142519.93375e01.akpm@linux-foundation.org>
+Message-ID: <alpine.LSU.2.00.1210031430190.14479@eggly.anvils>
 References: <alpine.DEB.2.00.1209191818490.7879@chino.kir.corp.google.com> <alpine.LSU.2.00.1209192021270.28543@eggly.anvils> <alpine.DEB.2.00.1209261821380.7745@chino.kir.corp.google.com> <alpine.DEB.2.00.1209261929270.8567@chino.kir.corp.google.com>
- <alpine.LSU.2.00.1209271814340.2107@eggly.anvils> <20121003131012.f88b0d66.akpm@linux-foundation.org> <alpine.DEB.2.00.1210031403270.4352@chino.kir.corp.google.com>
+ <alpine.LSU.2.00.1209271814340.2107@eggly.anvils> <20121003131012.f88b0d66.akpm@linux-foundation.org> <alpine.DEB.2.00.1210031403270.4352@chino.kir.corp.google.com> <20121003142519.93375e01.akpm@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Michel Lespinasse <walken@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: David Rientjes <rientjes@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Michel Lespinasse <walken@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, 3 Oct 2012, David Rientjes wrote:
-> On Wed, 3 Oct 2012, Andrew Morton wrote:
+On Wed, 3 Oct 2012, Andrew Morton wrote:
+> On Wed, 3 Oct 2012 14:10:41 -0700 (PDT)
+> David Rientjes <rientjes@google.com> wrote:
 > 
-> > The free_page_mlock() hunk gets dropped because free_page_mlock() is
-> > removed.  And clear_page_mlock() doesn't need this treatment.  But
-> > please check my handiwork.
+> > > The free_page_mlock() hunk gets dropped because free_page_mlock() is
+> > > removed.  And clear_page_mlock() doesn't need this treatment.  But
+> > > please check my handiwork.
+> > > 
 > > 
+> > I reviewed what was merged into -mm and clear_page_mlock() does need this 
+> > fix as well.
 > 
-> I reviewed what was merged into -mm and clear_page_mlock() does need this 
-> fix as well.  It's an easy fix, there's no need to pass "anon" into 
-> clear_page_mlock() since PageHuge() is already checked in its only caller.
-> 
-> 
-> mm, thp: fix mlock statistics fix
-> 
-> Signed-off-by: David Rientjes <rientjes@google.com>
+> argh, it got me *again*.  grr.
 
-Acked-by: Hugh Dickins <hughd@google.com>
+I've no objection to more documentation on PageHuge, but neither you nor
+it were to blame for that "oversight".  It's simply that David's original
+patch clearly did not need such a change in clear_page_mlock(), because
+it could never be necessary from where it was then called; but I changed
+where it's called, whereupon it becomes evident that the extra is needed.
 
-Thanks for providing that, David, I was just on the point of building
-and working out a test, suspecting that what you've added is necessary.
-
-Probably some equivalent always was missing, but between the THP Mlock
-counting issue that you're fixing, and the Mlock counting issue that
-I'm fixing by moving the clear_page_mlock, it's hard to say just where.
-
-While clear_page_mlock was being called from truncate.c, we knew that
-it couldn't happen on a THP.  But now that it's from page_remove_rmap,
-yes, we do want to add in this additional fix.
+"evident" puts it rather too strongly.  Most munlocking happens through
+munlock_vma_page() instead, but the clear_page_mlock() path covers
+truncation.  THPages cannot be file pages at present, but perhaps they
+could be anonymous pages COWed from file pages (I've not checked the
+exact criteria THP applies)?  In which case, subject to truncation too.
 
 Hugh
 
-> ---
->  mm/mlock.c |    3 ++-
->  1 files changed, 2 insertions(+), 1 deletions(-)
 > 
-> diff --git a/mm/mlock.c b/mm/mlock.c
-> --- a/mm/mlock.c
-> +++ b/mm/mlock.c
-> @@ -56,7 +56,8 @@ void clear_page_mlock(struct page *page)
->  	if (!TestClearPageMlocked(page))
->  		return;
+> From: Andrew Morton <akpm@linux-foundation.org>
+> Subject: mm: document PageHuge somewhat
+> 
+> Cc: David Rientjes <rientjes@google.com>
+> Cc: Mel Gorman <mel@csn.ul.ie>
+> Cc: Andrea Arcangeli <aarcange@redhat.com>
+> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+> ---
+> 
+>  mm/hugetlb.c |    5 +++++
+>  1 file changed, 5 insertions(+)
+> 
+> diff -puN mm/hugetlb.c~mm-document-pagehuge-somewhat mm/hugetlb.c
+> --- a/mm/hugetlb.c~mm-document-pagehuge-somewhat
+> +++ a/mm/hugetlb.c
+> @@ -671,6 +671,11 @@ static void prep_compound_gigantic_page(
+>  	}
+>  }
 >  
-> -	dec_zone_page_state(page, NR_MLOCK);
-> +	mod_zone_page_state(page_zone(page), NR_MLOCK,
-> +			    -hpage_nr_pages(page));
->  	count_vm_event(UNEVICTABLE_PGCLEARED);
->  	if (!isolate_lru_page(page)) {
->  		putback_lru_page(page);
+> +/*
+> + * PageHuge() only returns true for hugetlbfs pages, but not for normal or
+> + * transparent huge pages.  See the PageTransHuge() documentation for more
+> + * details.
+> + */
+>  int PageHuge(struct page *page)
+>  {
+>  	compound_page_dtor *dtor;
+> _
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
