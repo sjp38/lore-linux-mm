@@ -1,44 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
-	by kanga.kvack.org (Postfix) with SMTP id 003FD6B005A
-	for <linux-mm@kvack.org>; Wed,  3 Oct 2012 14:02:10 -0400 (EDT)
-Received: by pbbrq2 with SMTP id rq2so11578537pbb.14
-        for <linux-mm@kvack.org>; Wed, 03 Oct 2012 11:02:10 -0700 (PDT)
-Date: Wed, 3 Oct 2012 11:02:07 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx103.postini.com [74.125.245.103])
+	by kanga.kvack.org (Postfix) with SMTP id AF2B96B005A
+	for <linux-mm@kvack.org>; Wed,  3 Oct 2012 14:07:15 -0400 (EDT)
+Received: by padfa10 with SMTP id fa10so7726485pad.14
+        for <linux-mm@kvack.org>; Wed, 03 Oct 2012 11:07:15 -0700 (PDT)
+Date: Wed, 3 Oct 2012 11:07:13 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] mm: use %pK for /proc/vmallocinfo
-In-Reply-To: <CAGXu5jL4Dd3jCusr+Du4q7tOhcsKaSQbW6u_ZN8ZSBry2AQARg@mail.gmail.com>
-Message-ID: <alpine.DEB.2.00.1210031051150.29765@chino.kir.corp.google.com>
-References: <20121002234934.GA9194@www.outflux.net> <alpine.DEB.2.00.1210022209070.9523@chino.kir.corp.google.com> <CAGXu5j+ZU_wrqeEYE7GCE6ArFo8z4AO=OW7mOSn0-fp1E9B6+Q@mail.gmail.com> <alpine.DEB.2.00.1210022236370.10573@chino.kir.corp.google.com>
- <CAGXu5jL4Dd3jCusr+Du4q7tOhcsKaSQbW6u_ZN8ZSBry2AQARg@mail.gmail.com>
+Subject: Re: iwl3945: order 5 allocation during ifconfig up; vm problem?
+In-Reply-To: <20121003113659.GD2259@redhat.com>
+Message-ID: <alpine.DEB.2.00.1210031104120.29765@chino.kir.corp.google.com>
+References: <20120909213228.GA5538@elf.ucw.cz> <alpine.DEB.2.00.1209091539530.16930@chino.kir.corp.google.com> <20120910111113.GA25159@elf.ucw.cz> <20120911162536.bd5171a1.akpm@linux-foundation.org> <20120912101826.GL11266@suse.de>
+ <20121003113659.GD2259@redhat.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kees Cook <keescook@chromium.org>
-Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan@kernel.org>, Joe Perches <joe@perches.com>, Kautuk Consul <consul.kautuk@gmail.com>, linux-mm@kvack.org, Brad Spengler <spender@grsecurity.net>
+To: Stanislaw Gruszka <sgruszka@redhat.com>
+Cc: Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Pavel Machek <pavel@ucw.cz>, linux-wireless@vger.kernel.org, johannes.berg@intel.com, wey-yi.w.guy@intel.com, ilw@linux.intel.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, 3 Oct 2012, Kees Cook wrote:
+On Wed, 3 Oct 2012, Stanislaw Gruszka wrote:
 
-> > So root does echo 0 > /proc/sys/kernel/kptr_restrict first.  Again: what
-> > are you trying to protect?
+> So, can this problem be solved like on below patch, or I should rather
+> split firmware loading into chunks similar like was already iwlwifi did?
 > 
-> Only CAP_SYS_ADMIN can change the setting. This is, for example, for
-> containers, or other situations where a uid 0 process lacking
-> CAP_SYS_ADMIN cannot see virtual addresses. It's a very paranoid case,
-> yes, but it's part of how this feature was designed. Think of it as
-> supporting the recent uid 0 vs ring 0 boundary. :)
-> 
+> diff --git a/drivers/net/wireless/iwlegacy/common.h b/drivers/net/wireless/iwlegacy/common.h
+> index 5f50177..1b58222 100644
+> --- a/drivers/net/wireless/iwlegacy/common.h
+> +++ b/drivers/net/wireless/iwlegacy/common.h
+> @@ -2247,7 +2247,7 @@ il_alloc_fw_desc(struct pci_dev *pci_dev, struct fw_desc *desc)
+>  
+>  	desc->v_addr =
+>  	    dma_alloc_coherent(&pci_dev->dev, desc->len, &desc->p_addr,
+> -			       GFP_KERNEL);
+> +			       GFP_KERNEL | __GFP_REPEAT);
+>  	return (desc->v_addr != NULL) ? 0 : -ENOMEM;
+>  }
+>  
 
-The intention of /proc/vmallocinfo being S_IRUSR is obviously to only 
-allow root to read this information to begin with, so if root lacks 
-CAP_SYS_ADMIN then it seems the best fix would be to return an empty file 
-on read()?  Or give permission to everybody to read it but only return a 
-positive count when they have CAP_SYS_ADMIN?
-
-There's no need to make this so convoluted that you need to have the right 
-combination of uid, kptr_restrict, CAP_SYS_ADMIN, and CAP_SYSLOG to get 
-anything valuable out of this file, though.
+I think this will certainly make memory compaction more aggressive by 
+avoiding the logic to defer calling compaction in the page allocator, but 
+because we lack lumpy reclaim this still has a higher probability of 
+failing than it had in the past because it will fail if 128KB of memory is 
+reclaimed that may not happen to be contiguous for an order-5 allocation 
+to succeed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
