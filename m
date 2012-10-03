@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
-	by kanga.kvack.org (Postfix) with SMTP id F0B2C6B00A1
-	for <linux-mm@kvack.org>; Wed,  3 Oct 2012 19:51:46 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
+	by kanga.kvack.org (Postfix) with SMTP id 102B96B00B0
+	for <linux-mm@kvack.org>; Wed,  3 Oct 2012 19:51:47 -0400 (EDT)
 From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: [PATCH 13/33] autonuma: autonuma_enter/exit
-Date: Thu,  4 Oct 2012 01:50:55 +0200
-Message-Id: <1349308275-2174-14-git-send-email-aarcange@redhat.com>
+Subject: [PATCH 14/33] autonuma: call autonuma_setup_new_exec()
+Date: Thu,  4 Oct 2012 01:50:56 +0200
+Message-Id: <1349308275-2174-15-git-send-email-aarcange@redhat.com>
 In-Reply-To: <1349308275-2174-1-git-send-email-aarcange@redhat.com>
 References: <1349308275-2174-1-git-send-email-aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,50 +13,64 @@ List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <pzijlstr@redhat.com>, Ingo Molnar <mingo@elte.hu>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hillf Danton <dhillf@gmail.com>, Andrew Jones <drjones@redhat.com>, Dan Smith <danms@us.ibm.com>, Thomas Gleixner <tglx@linutronix.de>, Paul Turner <pjt@google.com>, Christoph Lameter <cl@linux.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Srivatsa Vaddagiri <vatsa@linux.vnet.ibm.com>, Alex Shi <alex.shi@intel.com>, Mauricio Faria de Oliveira <mauricfo@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Don Morris <don.morris@hp.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
 
-This is where we register (and unregister) an "mm" structure into
-AutoNUMA for knuma_scand to scan them.
-
-knuma_scand is the first gear in the whole AutoNUMA algorithm.
-knuma_scand is the daemon that scans the "mm" structures in the list
-and sets pmd_numa and pte_numa to allow the NUMA hinting page faults
-to start. All other actions follow after that. If knuma_scand doesn't
-run, AutoNUMA is fully bypassed. If knuma_scand is stopped, soon all
-other AutoNUMA gears will settle down too.
+This resets all per-thread and per-process statistics across exec
+syscalls or after kernel threads detach from the mm. The past
+statistical NUMA information is unlikely to be relevant for the future
+in these cases.
 
 Acked-by: Rik van Riel <riel@redhat.com>
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 ---
- kernel/fork.c |    3 +++
- 1 files changed, 3 insertions(+), 0 deletions(-)
+ fs/exec.c        |    7 +++++++
+ mm/mmu_context.c |    3 +++
+ 2 files changed, 10 insertions(+), 0 deletions(-)
 
-diff --git a/kernel/fork.c b/kernel/fork.c
-index ec0495b..14d68d3 100644
---- a/kernel/fork.c
-+++ b/kernel/fork.c
-@@ -70,6 +70,7 @@
- #include <linux/khugepaged.h>
- #include <linux/signalfd.h>
- #include <linux/uprobes.h>
+diff --git a/fs/exec.c b/fs/exec.c
+index 574cf4d..1d55077 100644
+--- a/fs/exec.c
++++ b/fs/exec.c
+@@ -55,6 +55,7 @@
+ #include <linux/pipe_fs_i.h>
+ #include <linux/oom.h>
+ #include <linux/compat.h>
 +#include <linux/autonuma.h>
  
- #include <asm/pgtable.h>
- #include <asm/pgalloc.h>
-@@ -541,6 +542,7 @@ static struct mm_struct *mm_init(struct mm_struct *mm, struct task_struct *p)
- 	if (likely(!mm_alloc_pgd(mm))) {
- 		mm->def_flags = 0;
- 		mmu_notifier_mm_init(mm);
-+		autonuma_enter(mm);
- 		return mm;
- 	}
+ #include <asm/uaccess.h>
+ #include <asm/mmu_context.h>
+@@ -1172,6 +1173,12 @@ void setup_new_exec(struct linux_binprm * bprm)
+ 			
+ 	flush_signal_handlers(current, 0);
+ 	flush_old_files(current->files);
++
++	/*
++	 * Reset autonuma counters, as past NUMA information
++	 * is unlikely to be relevant for the future.
++	 */
++	autonuma_setup_new_exec(current);
+ }
+ EXPORT_SYMBOL(setup_new_exec);
  
-@@ -609,6 +611,7 @@ void mmput(struct mm_struct *mm)
- 		exit_aio(mm);
- 		ksm_exit(mm);
- 		khugepaged_exit(mm); /* must run before exit_mmap */
-+		autonuma_exit(mm); /* must run before exit_mmap */
- 		exit_mmap(mm);
- 		set_mm_exe_file(mm, NULL);
- 		if (!list_empty(&mm->mmlist)) {
+diff --git a/mm/mmu_context.c b/mm/mmu_context.c
+index 3dcfaf4..e6fff1c 100644
+--- a/mm/mmu_context.c
++++ b/mm/mmu_context.c
+@@ -7,6 +7,7 @@
+ #include <linux/mmu_context.h>
+ #include <linux/export.h>
+ #include <linux/sched.h>
++#include <linux/autonuma.h>
+ 
+ #include <asm/mmu_context.h>
+ 
+@@ -52,6 +53,8 @@ void unuse_mm(struct mm_struct *mm)
+ {
+ 	struct task_struct *tsk = current;
+ 
++	autonuma_setup_new_exec(tsk);
++
+ 	task_lock(tsk);
+ 	sync_mm_rss(mm);
+ 	tsk->mm = NULL;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
