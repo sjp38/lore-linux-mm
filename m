@@ -1,10 +1,10 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
-	by kanga.kvack.org (Postfix) with SMTP id 83BF26B005D
-	for <linux-mm@kvack.org>; Wed,  3 Oct 2012 01:20:36 -0400 (EDT)
-Message-ID: <506BC96D.10507@hp.com>
-Date: Tue, 02 Oct 2012 23:13:17 -0600
-From: Thavatchai Makphaibulchoke <thavatchai.makpahibulchoke@hp.com>
+Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
+	by kanga.kvack.org (Postfix) with SMTP id 869DD6B005D
+	for <linux-mm@kvack.org>; Wed,  3 Oct 2012 01:27:33 -0400 (EDT)
+Message-ID: <506BCCAE.5030203@zytor.com>
+Date: Tue, 02 Oct 2012 22:27:10 -0700
+From: "H. Peter Anvin" <hpa@zytor.com>
 MIME-Version: 1.0
 Subject: Re: [PATCH] Fix devmem_is_allowed for below 1MB accesses for an efi
  machine
@@ -15,20 +15,9 @@ Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Matthew Garrett <mjg@redhat.com>
-Cc: "H. Peter Anvin" <hpa@zytor.com>, T Makphaibulchoke <tmac@hp.com>, tglx@linutronix.de, mingo@redhat.com, x86@kernel.org, akpm@linux-foundation.org, yinghai@kernel.org, tiwai@suse.de, viro@zeniv.linux.org.uk, aarcange@redhat.com, tony.luck@intel.com, mgorman@suse.de, weiyang@linux.vnet.ibm.com, octavian.purdila@intel.com, paul.gortmaker@windriver.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: T Makphaibulchoke <tmac@hp.com>, tglx@linutronix.de, mingo@redhat.com, x86@kernel.org, akpm@linux-foundation.org, yinghai@kernel.org, tiwai@suse.de, viro@zeniv.linux.org.uk, aarcange@redhat.com, tony.luck@intel.com, mgorman@suse.de, weiyang@linux.vnet.ibm.com, octavian.purdila@intel.com, paul.gortmaker@windriver.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Thank you both for the comments.
-
-Sounds like a better solution is to allow accesses to only I/O regions 
-presented in the EFI memory map for physical addresses below 1 MB.
-
-Do we need to worry about the X checksum in the first MB on an EFI system?
-
-Thanks,
-Mak.
-
-
-On 10/02/2012 11:15 PM, Matthew Garrett wrote:
+On 10/02/2012 10:15 PM, Matthew Garrett wrote:
 > On Tue, Oct 02, 2012 at 09:44:16PM -0700, H. Peter Anvin wrote:
 > 
 >> We *always* expose the I/O regions to /dev/mem.  That is what /dev/mem
@@ -43,6 +32,13 @@ On 10/02/2012 11:15 PM, Matthew Garrett wrote:
 > to tell us the difference between unusable regions and io regions, and 
 > we could avoid access to the unusable ones.
 > 
+
+Well, we have the same in BIOS space with "reserved" regions.  The
+problem is that they are actually I/O regions as far as programs like X,
+dmidecode and so on.
+
+	-hpa
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
