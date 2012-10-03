@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx165.postini.com [74.125.245.165])
-	by kanga.kvack.org (Postfix) with SMTP id 153E16B00A1
+Received: from psmtp.com (na3sys010amx103.postini.com [74.125.245.103])
+	by kanga.kvack.org (Postfix) with SMTP id 1F4A46B00A4
 	for <linux-mm@kvack.org>; Wed,  3 Oct 2012 19:51:46 -0400 (EDT)
 From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: [PATCH 05/33] autonuma: pte_numa() and pmd_numa()
-Date: Thu,  4 Oct 2012 01:50:47 +0200
-Message-Id: <1349308275-2174-6-git-send-email-aarcange@redhat.com>
+Subject: [PATCH 09/33] autonuma: core autonuma.h header
+Date: Thu,  4 Oct 2012 01:50:51 +0200
+Message-Id: <1349308275-2174-10-git-send-email-aarcange@redhat.com>
 In-Reply-To: <1349308275-2174-1-git-send-email-aarcange@redhat.com>
 References: <1349308275-2174-1-git-send-email-aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,155 +13,58 @@ List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <pzijlstr@redhat.com>, Ingo Molnar <mingo@elte.hu>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hillf Danton <dhillf@gmail.com>, Andrew Jones <drjones@redhat.com>, Dan Smith <danms@us.ibm.com>, Thomas Gleixner <tglx@linutronix.de>, Paul Turner <pjt@google.com>, Christoph Lameter <cl@linux.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Srivatsa Vaddagiri <vatsa@linux.vnet.ibm.com>, Alex Shi <alex.shi@intel.com>, Mauricio Faria de Oliveira <mauricfo@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Don Morris <don.morris@hp.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
 
-Implement pte_numa and pmd_numa.
+Header that defines the generic AutoNUMA specific functions.
 
-We must atomically set the numa bit and clear the present bit to
-define a pte_numa or pmd_numa.
+All functions are defined unconditionally, but are only linked into
+the kernel if CONFIG_AUTONUMA=y. When CONFIG_AUTONUMA=n, their call
+sites are optimized away at build time (or the kernel wouldn't link).
 
-Once a pte or pmd has been set as pte_numa or pmd_numa, the next time
-a thread touches a virtual address in the corresponding virtual range,
-a NUMA hinting page fault will trigger. The NUMA hinting page fault
-will clear the NUMA bit and set the present bit again to resolve the
-page fault.
-
-NUMA hinting page faults are used:
-
-1) to fill in the per-thread NUMA statistic stored for each thread in
-   a current->task_autonuma data structure
-
-2) to track the per-node last_nid information in the page structure to
-   detect false sharing
-
-3) to migrate the page with Migrate On Fault if there have been enough
-   NUMA hinting page faults on the page coming from remote CPUs
-   (autonuma_last_nid heuristic)
-
-NUMA hinting page faults collect information and possibly add pages to
-migrate queues. They are extremely quick, and they try to be
-non-blocking also when Migrate On Fault is invoked as result.
-
-The generic implementation is used when CONFIG_AUTONUMA=n.
-
-Acked-by: Rik van Riel <riel@redhat.com>
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 ---
- arch/x86/include/asm/pgtable.h |   65 ++++++++++++++++++++++++++++++++++++++-
- include/asm-generic/pgtable.h  |   12 +++++++
- 2 files changed, 75 insertions(+), 2 deletions(-)
+ include/linux/autonuma.h |   34 ++++++++++++++++++++++++++++++++++
+ 1 files changed, 34 insertions(+), 0 deletions(-)
+ create mode 100644 include/linux/autonuma.h
 
-diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
-index c3520d7..6c14b40 100644
---- a/arch/x86/include/asm/pgtable.h
-+++ b/arch/x86/include/asm/pgtable.h
-@@ -404,7 +404,8 @@ static inline int pte_same(pte_t a, pte_t b)
- 
- static inline int pte_present(pte_t a)
- {
--	return pte_flags(a) & (_PAGE_PRESENT | _PAGE_PROTNONE);
-+	return pte_flags(a) & (_PAGE_PRESENT | _PAGE_PROTNONE |
-+			       _PAGE_NUMA);
- }
- 
- static inline int pte_hidden(pte_t pte)
-@@ -420,7 +421,63 @@ static inline int pmd_present(pmd_t pmd)
- 	 * the _PAGE_PSE flag will remain set at all times while the
- 	 * _PAGE_PRESENT bit is clear).
- 	 */
--	return pmd_flags(pmd) & (_PAGE_PRESENT | _PAGE_PROTNONE | _PAGE_PSE);
-+	return pmd_flags(pmd) & (_PAGE_PRESENT | _PAGE_PROTNONE | _PAGE_PSE |
-+				 _PAGE_NUMA);
-+}
+diff --git a/include/linux/autonuma.h b/include/linux/autonuma.h
+new file mode 100644
+index 0000000..02d4875
+--- /dev/null
++++ b/include/linux/autonuma.h
+@@ -0,0 +1,34 @@
++#ifndef _LINUX_AUTONUMA_H
++#define _LINUX_AUTONUMA_H
++
++#include <linux/autonuma_flags.h>
 +
 +#ifdef CONFIG_AUTONUMA
-+/*
-+ * _PAGE_NUMA works identical to _PAGE_PROTNONE (it's actually the
-+ * same bit too). It's set only when _PAGE_PRESET is not set and it's
-+ * never set if _PAGE_PRESENT is set.
-+ *
-+ * pte/pmd_present() returns true if pte/pmd_numa returns true. Page
-+ * fault triggers on those regions if pte/pmd_numa returns true
-+ * (because _PAGE_PRESENT is not set).
-+ */
-+static inline int pte_numa(pte_t pte)
-+{
-+	return (pte_flags(pte) &
-+		(_PAGE_NUMA|_PAGE_PRESENT)) == _PAGE_NUMA;
-+}
 +
-+static inline int pmd_numa(pmd_t pmd)
-+{
-+	return (pmd_flags(pmd) &
-+		(_PAGE_NUMA|_PAGE_PRESENT)) == _PAGE_NUMA;
-+}
-+#endif
++extern void autonuma_enter(struct mm_struct *mm);
++extern void autonuma_exit(struct mm_struct *mm);
++extern void autonuma_migrate_split_huge_page(struct page *page,
++					     struct page *page_tail);
++extern void autonuma_setup_new_exec(struct task_struct *p);
 +
-+/*
-+ * pte/pmd_mknuma sets the _PAGE_ACCESSED bitflag automatically
-+ * because they're called by the NUMA hinting minor page fault. If we
-+ * wouldn't set the _PAGE_ACCESSED bitflag here, the TLB miss handler
-+ * would be forced to set it later while filling the TLB after we
-+ * return to userland. That would trigger a second write to memory
-+ * that we optimize away by setting _PAGE_ACCESSED here.
-+ */
-+static inline pte_t pte_mknonnuma(pte_t pte)
-+{
-+	pte = pte_clear_flags(pte, _PAGE_NUMA);
-+	return pte_set_flags(pte, _PAGE_PRESENT|_PAGE_ACCESSED);
-+}
++#define autonuma_printk(format, args...) \
++	if (autonuma_debug()) printk(format, ##args)
 +
-+static inline pmd_t pmd_mknonnuma(pmd_t pmd)
-+{
-+	pmd = pmd_clear_flags(pmd, _PAGE_NUMA);
-+	return pmd_set_flags(pmd, _PAGE_PRESENT|_PAGE_ACCESSED);
-+}
++#else /* CONFIG_AUTONUMA */
 +
-+static inline pte_t pte_mknuma(pte_t pte)
-+{
-+	pte = pte_set_flags(pte, _PAGE_NUMA);
-+	return pte_clear_flags(pte, _PAGE_PRESENT);
-+}
++static inline void autonuma_enter(struct mm_struct *mm) {}
++static inline void autonuma_exit(struct mm_struct *mm) {}
++static inline void autonuma_migrate_split_huge_page(struct page *page,
++						    struct page *page_tail) {}
++static inline void autonuma_setup_new_exec(struct task_struct *p) {}
 +
-+static inline pmd_t pmd_mknuma(pmd_t pmd)
-+{
-+	pmd = pmd_set_flags(pmd, _PAGE_NUMA);
-+	return pmd_clear_flags(pmd, _PAGE_PRESENT);
- }
- 
- static inline int pmd_none(pmd_t pmd)
-@@ -479,6 +536,10 @@ static inline pte_t *pte_offset_kernel(pmd_t *pmd, unsigned long address)
- 
- static inline int pmd_bad(pmd_t pmd)
- {
-+#ifdef CONFIG_AUTONUMA
-+	if (pmd_numa(pmd))
-+		return 0;
-+#endif
- 	return (pmd_flags(pmd) & ~_PAGE_USER) != _KERNPG_TABLE;
- }
- 
-diff --git a/include/asm-generic/pgtable.h b/include/asm-generic/pgtable.h
-index ff4947b..0ff87ec 100644
---- a/include/asm-generic/pgtable.h
-+++ b/include/asm-generic/pgtable.h
-@@ -530,6 +530,18 @@ static inline int pmd_trans_unstable(pmd_t *pmd)
- #endif
- }
- 
-+#ifndef CONFIG_AUTONUMA
-+static inline int pte_numa(pte_t pte)
-+{
-+	return 0;
-+}
-+
-+static inline int pmd_numa(pmd_t pmd)
-+{
-+	return 0;
-+}
 +#endif /* CONFIG_AUTONUMA */
 +
- #endif /* CONFIG_MMU */
- 
- #endif /* !__ASSEMBLY__ */
++extern int pte_numa_fixup(struct mm_struct *mm, struct vm_area_struct *vma,
++			  unsigned long addr, pte_t pte, pte_t *ptep,
++			  pmd_t *pmd);
++extern int pmd_numa_fixup(struct mm_struct *mm, unsigned long addr,
++			  pmd_t *pmd);
++extern bool numa_hinting_fault(struct page *page, int numpages);
++
++#endif /* _LINUX_AUTONUMA_H */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
