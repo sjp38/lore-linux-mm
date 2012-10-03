@@ -1,108 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx103.postini.com [74.125.245.103])
-	by kanga.kvack.org (Postfix) with SMTP id 7E2896B0088
-	for <linux-mm@kvack.org>; Wed,  3 Oct 2012 18:43:26 -0400 (EDT)
-Received: by padfa10 with SMTP id fa10so7966534pad.14
-        for <linux-mm@kvack.org>; Wed, 03 Oct 2012 15:43:25 -0700 (PDT)
-Date: Thu, 4 Oct 2012 07:43:16 +0900
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH v3 04/13] kmem accounting basic infrastructure
-Message-ID: <20121003224316.GD19248@localhost>
-References: <50635B9D.8020205@parallels.com>
- <20120926195648.GA20342@google.com>
- <50635F46.7000700@parallels.com>
- <20120926201629.GB20342@google.com>
- <50637298.2090904@parallels.com>
- <20120927120806.GA29104@dhcp22.suse.cz>
- <20120927143300.GA4251@mtj.dyndns.org>
- <20120927150950.GG29104@dhcp22.suse.cz>
- <20120930084750.GI10383@mtj.dyndns.org>
- <20121001092756.GA8622@dhcp22.suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20121001092756.GA8622@dhcp22.suse.cz>
+Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
+	by kanga.kvack.org (Postfix) with SMTP id D9ADF6B008C
+	for <linux-mm@kvack.org>; Wed,  3 Oct 2012 18:44:03 -0400 (EDT)
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Subject: [RFC/PATCH 1/3] swap: allow adding of pages to tail of anonymous inactive queue
+Date: Wed,  3 Oct 2012 15:43:52 -0700
+Message-Id: <1349304234-19273-2-git-send-email-dan.magenheimer@oracle.com>
+In-Reply-To: <1349304234-19273-1-git-send-email-dan.magenheimer@oracle.com>
+References: <1349304234-19273-1-git-send-email-dan.magenheimer@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Glauber Costa <glommer@parallels.com>, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, devel@openvz.org, linux-mm@kvack.org, Suleiman Souhlal <suleiman@google.com>, Frederic Weisbecker <fweisbec@gmail.com>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, ngupta@vflare.org, konrad.wilk@oracle.com, sjenning@linux.vnet.ibm.com, minchan@kernel.org, hughd@google.com, akpm@linux-foundation.org, riel@redhat.com, hannes@cmpxchg.org, dan.magenheimer@oracle.com, aarcange@redhat.com, mgorman@suse.de, gregkh@linuxfoundation.org
 
-Hey, Michal.
+When moving a page of anonymous data out of zcache and back
+into swap cache, such pages are VERY inactive, and we want
+them to be swapped to disk ASAP.  So we need to add them
+at the tail of the proper queue.
 
-On Mon, Oct 01, 2012 at 11:27:56AM +0200, Michal Hocko wrote:
-> > Yeah but, if we can get it down to, say, around 1% under most
-> > workloads for memcg users, it is quite questionable to introduce full
-> > hierarchical configuration to allow avoiding that, isn't it?
-> 
-> Remember that the kmem memory is still accounted to u+k if it is enabled
-> which could be a no-go because some workloads (I have provided an
-> example that those which are trusted are generally safe to ignore kernel
-> memory overhead) simply don't want to consider additional memory which
-> is mostly invisible for them.
+Signed-off-by: Dan Magenheimer <dan.magenheimer@oracle.com>
+---
+ include/linux/swap.h |   10 ++++++++++
+ mm/swap.c            |   16 ++++++++++++++++
+ 2 files changed, 26 insertions(+), 0 deletions(-)
 
-Maybe it's because my exposure to cgroup usage is different from yours
-but the argument that not accounting kernel memory is something
-inherently beneficial is lost on me.  For compatibility, overhead
-and/or implementation complexity issues, yeah, sure, we can't always
-(well more like usually) have all we want but I don't get how not
-accounting kernel memory is something inherently necessary or
-beneficial.  This is all about provisioning physical memory to
-different groups of users and memory is memory (that's why u+k makes
-sense, right?).  Without kmemcg enabled, we not only lack a way to
-control kernel memory usage but also a way to even watch per-group
-usages.
-
-> > But you can apply the same "do I need/want it at all" question to the
-> > configuration parameter too.  
-> 
-> Yes but, as I've said, the global configuration parameter is too
-> coarse. You can have a mix of trusted and untrusted workloads at the
-> same machine (e.g. web server which is inherently untrusted) and trusted
-> (local batch jobs which just needs a special LRU aging).
-
-This too stems from the same difference stated above.  You think
-there's inherent distinction between trusted and untrusted workloads
-and they need different features from the kernel while I think why
-trust anyone if you can untrust everyone and consider the knob as a
-compatibility thing.
-
-> I think that comparing kmem accounting with use_hierarchy is not fair.
-> Glauber tried to explain why already so I will not repeat it here.
-> I will just mention one thing. use_hierarchy has been introduces becuase
-> hierarchies were expensive at the time. kmem accounting is about should
-> we do u or u+k accounting. So there is a crucial difference.
-
-It may be less crazy but I think there are enough commonalities to at
-least make a comparison.  Mel seems to think it's mostly about
-performance overhead.  You think that not accounting kmem is something
-inherently necessary.
-
-> That is right but I think that the current discussion shows that a mixed
-> (kmem disabled and kmem enabled hierarchies) workloads are far from
-> being theoretical and a global knob is just too coarse. I am afraid we
-
-I'm not sure there's much evidence in this thread.  The strongest upto
-this point seems to be performance overhead / difficulty of general
-enough implementation.  As for "trusted" workload, what are the
-inherent benefits of trusting if you don't have to?
-
-> will see "we want that per hierarchy" requests shortly and that would
-> just add a new confusion where global knob would complicate it
-> considerably (do we really want on/off/per_hierarchy global knob?).
-
-Hmmm?  The global knob is just the same per_hierarchy knob at the
-root.  It's hierarchical after all.
-
-Anyways, as long as the "we silently ignore what happened before being
-enabled" is gone, I won't fight this anymore.  It isn't broken after
-all.  But, please think about making things simpler in general, cgroup
-is riddled with mis-designed complexities and memcg seems to be
-leading the charge at times.
-
-Thanks.
-
+diff --git a/include/linux/swap.h b/include/linux/swap.h
+index 388e706..d3c7281 100644
+--- a/include/linux/swap.h
++++ b/include/linux/swap.h
+@@ -225,6 +225,7 @@ extern unsigned int nr_free_pagecache_pages(void);
+ 
+ /* linux/mm/swap.c */
+ extern void __lru_cache_add(struct page *, enum lru_list lru);
++extern void __lru_cache_add_tail(struct page *, enum lru_list lru);
+ extern void lru_cache_add_lru(struct page *, enum lru_list lru);
+ extern void lru_add_page_tail(struct page *page, struct page *page_tail,
+ 			      struct lruvec *lruvec);
+@@ -247,6 +248,15 @@ static inline void lru_cache_add_anon(struct page *page)
+ {
+ 	__lru_cache_add(page, LRU_INACTIVE_ANON);
+ }
++ 
++/**
++ * lru_cache_add_tail: add a page to the tail of the page lists
++ * @page: the page to add
++ */
++static inline void lru_cache_add_anon_tail(struct page *page)
++{
++	__lru_cache_add_tail(page, LRU_INACTIVE_ANON);
++}
+ 
+ static inline void lru_cache_add_file(struct page *page)
+ {
+diff --git a/mm/swap.c b/mm/swap.c
+index 7782588..67216d8 100644
+--- a/mm/swap.c
++++ b/mm/swap.c
+@@ -456,6 +456,22 @@ void __lru_cache_add(struct page *page, enum lru_list lru)
+ 	put_cpu_var(lru_add_pvecs);
+ }
+ EXPORT_SYMBOL(__lru_cache_add);
++ 
++void __lru_cache_add_tail(struct page *page, enum lru_list lru)
++{
++	struct pagevec *pvec = &get_cpu_var(lru_add_pvecs)[lru];
++	unsigned long flags;
++
++	page_cache_get(page);
++	if (!pagevec_add(pvec, page)) {
++		__pagevec_lru_add(pvec, lru);
++		local_irq_save(flags);
++		pagevec_move_tail(pvec);
++		local_irq_restore(flags);
++	}
++	put_cpu_var(lru_add_pvecs);
++}
++EXPORT_SYMBOL(__lru_cache_add_tail);
+ 
+ /**
+  * lru_cache_add_lru - add a page to a page list
 -- 
-tejun
+1.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
