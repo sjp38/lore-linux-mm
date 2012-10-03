@@ -1,277 +1,141 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
-	by kanga.kvack.org (Postfix) with SMTP id DC4526B0092
-	for <linux-mm@kvack.org>; Wed,  3 Oct 2012 18:44:03 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
+	by kanga.kvack.org (Postfix) with SMTP id 9E7476B0092
+	for <linux-mm@kvack.org>; Wed,  3 Oct 2012 18:44:05 -0400 (EDT)
 From: Dan Magenheimer <dan.magenheimer@oracle.com>
-Subject: [RFC/PATCH 3/3] frontswap/swap: allow frontswap "unuse" and add metadata for tracking it
-Date: Wed,  3 Oct 2012 15:43:54 -0700
-Message-Id: <1349304234-19273-4-git-send-email-dan.magenheimer@oracle.com>
+Subject: [RFC/PATCH 2/3] swap: add read_frontswap_async to move a page from frontswap to swapcache
+Date: Wed,  3 Oct 2012 15:43:53 -0700
+Message-Id: <1349304234-19273-3-git-send-email-dan.magenheimer@oracle.com>
 In-Reply-To: <1349304234-19273-1-git-send-email-dan.magenheimer@oracle.com>
 References: <1349304234-19273-1-git-send-email-dan.magenheimer@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, ngupta@vflare.org, konrad.wilk@oracle.com, sjenning@linux.vnet.ibm.com, minchan@kernel.org, hughd@google.com, akpm@linux-foundation.org, riel@redhat.com, hannes@cmpxchg.org, dan.magenheimer@oracle.com, aarcange@redhat.com, mgorman@suse.de, gregkh@linuxfoundation.org
 
-We wish for transcendent memory backends to be able to push
-frontswap pages back into the swap cache and need to ensure
-that such a page, once pushed back, doesn't get immediately
-recaptured by frontswap.  We add frontswap_unuse to do the
-pushing via the recently added read_frontswap_async.  We
-also add metadata to track when a page has been pushed and
-code to manage (and count with debugfs) this metadata.
-
-The initialization/destruction code for the metadata (aka
-frontswap_denial_map) is a bit clunky in swapfile.c but
-cleanup can be addressed when all the unuse code is working.
+We would like to move a "swap page" identified by swaptype/offset
+out of frontswap and into swap cache.  Add read_frontswap_async
+that, given an unused new page and a gfp_mask (for necessary radix
+tree work), attempts to do that and communicates success, failure,
+or the fact that a (possibly dirty) copy already exists in swap cache.
+This new routine will be called from zcache (via frontswap) to
+allow pages to be swapped to a true swap device when zcache gets "full".
 
 Signed-off-by: Dan Magenheimer <dan.magenheimer@oracle.com>
 ---
- include/linux/frontswap.h |   57 +++++++++++++++++++++++++++++++++++++++++++++
- include/linux/swap.h      |    1 +
- mm/frontswap.c            |   29 +++++++++++++++++++++++
- mm/swapfile.c             |   18 ++++++++++----
- 4 files changed, 100 insertions(+), 5 deletions(-)
+ include/linux/swap.h |    1 +
+ mm/swap_state.c      |   80 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 81 insertions(+), 0 deletions(-)
 
-diff --git a/include/linux/frontswap.h b/include/linux/frontswap.h
-index 3044254..f48bb34 100644
---- a/include/linux/frontswap.h
-+++ b/include/linux/frontswap.h
-@@ -21,6 +21,8 @@ extern unsigned long frontswap_curr_pages(void);
- extern void frontswap_writethrough(bool);
- #define FRONTSWAP_HAS_EXCLUSIVE_GETS
- extern void frontswap_tmem_exclusive_gets(bool);
-+#define FRONTSWAP_HAS_UNUSE
-+extern int frontswap_unuse(int, pgoff_t, struct page *, gfp_t);
- 
- extern void __frontswap_init(unsigned type);
- extern int __frontswap_store(struct page *page);
-@@ -61,6 +63,38 @@ static inline unsigned long *frontswap_map_get(struct swap_info_struct *p)
- {
- 	return p->frontswap_map;
- }
-+
-+static inline int frontswap_test_denial(struct swap_info_struct *sis, pgoff_t offset)
-+{
-+	int ret = 0;
-+
-+	if (frontswap_enabled && sis->frontswap_denial_map)
-+		ret = test_bit(offset, sis->frontswap_denial_map);
-+	return ret;
-+}
-+
-+static inline void frontswap_set_denial(struct swap_info_struct *sis, pgoff_t offset)
-+{
-+	if (frontswap_enabled && sis->frontswap_denial_map)
-+		set_bit(offset, sis->frontswap_denial_map);
-+}
-+
-+static inline void frontswap_clear_denial(struct swap_info_struct *sis, pgoff_t offset)
-+{
-+	if (frontswap_enabled && sis->frontswap_denial_map)
-+		clear_bit(offset, sis->frontswap_denial_map);
-+}
-+
-+static inline void frontswap_denial_map_set(struct swap_info_struct *p,
-+				     unsigned long *map)
-+{
-+	p->frontswap_denial_map = map;
-+}
-+
-+static inline unsigned long *frontswap_denial_map_get(struct swap_info_struct *p)
-+{
-+	return p->frontswap_denial_map;
-+}
- #else
- /* all inline routines become no-ops and all externs are ignored */
- 
-@@ -88,6 +122,29 @@ static inline unsigned long *frontswap_map_get(struct swap_info_struct *p)
- {
- 	return NULL;
- }
-+
-+static inline int frontswap_test_denial(struct swap_info_struct *sis, pgoff_t offset)
-+{
-+	return 0;
-+}
-+
-+static inline void frontswap_set_denial(struct swap_info_struct *sis, pgoff_t offset)
-+{
-+}
-+
-+static inline void frontswap_clear_denial(struct swap_info_struct *sis, pgoff_t offset)
-+{
-+}
-+
-+static inline void frontswap_map_set_denial(struct swap_info_struct *p,
-+				     unsigned long *map)
-+{
-+}
-+
-+static inline unsigned long *frontswap_map_get_denial(struct swap_info_struct *p)
-+{
-+	return NULL;
-+}
- #endif
- 
- static inline int frontswap_store(struct page *page)
 diff --git a/include/linux/swap.h b/include/linux/swap.h
-index 8a59ddb..aef02bc 100644
+index d3c7281..8a59ddb 100644
 --- a/include/linux/swap.h
 +++ b/include/linux/swap.h
-@@ -200,6 +200,7 @@ struct swap_info_struct {
- 	unsigned int old_block_size;	/* seldom referenced */
- #ifdef CONFIG_FRONTSWAP
- 	unsigned long *frontswap_map;	/* frontswap in-use, one bit per page */
-+	unsigned long *frontswap_denial_map;	/* deny frontswap, 1bit/page */
- 	atomic_t frontswap_pages;	/* frontswap pages in-use counter */
- #endif
- };
-diff --git a/mm/frontswap.c b/mm/frontswap.c
-index 2890e67..1af07d1 100644
---- a/mm/frontswap.c
-+++ b/mm/frontswap.c
-@@ -61,6 +61,8 @@ static u64 frontswap_loads;
- static u64 frontswap_succ_stores;
- static u64 frontswap_failed_stores;
- static u64 frontswap_invalidates;
-+static u64 frontswap_unuses;
-+static u64 frontswap_denials;
+@@ -352,6 +352,7 @@ extern void free_pages_and_swap_cache(struct page **, int);
+ extern struct page *lookup_swap_cache(swp_entry_t);
+ extern struct page *read_swap_cache_async(swp_entry_t, gfp_t,
+ 			struct vm_area_struct *vma, unsigned long addr);
++extern int read_frontswap_async(int, pgoff_t, struct page *, gfp_t);
+ extern struct page *swapin_readahead(swp_entry_t, gfp_t,
+ 			struct vm_area_struct *vma, unsigned long addr);
  
- static inline void inc_frontswap_loads(void) {
- 	frontswap_loads++;
-@@ -151,6 +153,11 @@ int __frontswap_store(struct page *page)
- 	BUG_ON(sis == NULL);
- 	if (frontswap_test(sis, offset))
- 		dup = 1;
-+	if (frontswap_test_denial(sis, offset) && (dup == 0)) {
-+		frontswap_clear_denial(sis, offset);
-+		frontswap_denials++;
-+		goto out;
-+	}
- 	ret = frontswap_ops.store(type, offset, page);
- 	if (ret == 0) {
- 		frontswap_set(sis, offset);
-@@ -169,6 +176,7 @@ int __frontswap_store(struct page *page)
- 	if (frontswap_writethrough_enabled)
- 		/* report failure so swap also writes to swap device */
- 		ret = -1;
-+out:
- 	return ret;
- }
- EXPORT_SYMBOL(__frontswap_store);
-@@ -213,6 +221,7 @@ void __frontswap_invalidate_page(unsigned type, pgoff_t offset)
- 	if (frontswap_test(sis, offset)) {
- 		frontswap_ops.invalidate_page(type, offset);
- 		__frontswap_clear(sis, offset);
-+		frontswap_clear_denial(sis, offset);
- 		inc_frontswap_invalidates();
- 	}
- }
-@@ -351,6 +360,24 @@ unsigned long frontswap_curr_pages(void)
- }
- EXPORT_SYMBOL(frontswap_curr_pages);
+diff --git a/mm/swap_state.c b/mm/swap_state.c
+index 0cb36fb..ad790bf 100644
+--- a/mm/swap_state.c
++++ b/mm/swap_state.c
+@@ -18,6 +18,7 @@
+ #include <linux/pagevec.h>
+ #include <linux/migrate.h>
+ #include <linux/page_cgroup.h>
++#include <linux/frontswap.h>
  
-+int frontswap_unuse(int type, pgoff_t offset,
-+			struct page *newpage, gfp_t gfp_mask)
+ #include <asm/pgtable.h>
+ 
+@@ -351,6 +352,85 @@ struct page *read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
+ 	return found_page;
+ }
+ 
++/*
++ * Similar to read_swap_cache_async except we know the page is in frontswap
++ * and we are trying to place it in swapcache so we can remove it from
++ * frontswap. Success means the data in frontswap can be thrown away,
++ * ENOMEM means it cannot, and -EEXIST means a (possibly dirty) copy
++ * already exists in the swapcache.
++ */
++int read_frontswap_async(int type, pgoff_t offset, struct page *new_page,
++				gfp_t gfp_mask)
 +{
-+	struct swap_info_struct *sis = swap_info[type];
++	struct page *found_page;
++	swp_entry_t entry;
 +	int ret = 0;
 +
-+	frontswap_set_denial(sis, offset);
-+	ret = read_frontswap_async(type, offset, newpage, gfp_mask);
-+	if (ret == 0 || ret == -EEXIST) {
-+		(*frontswap_ops.invalidate_page)(type, offset);
-+		atomic_dec(&sis->frontswap_pages);
-+		frontswap_clear(sis, offset);
-+		frontswap_unuses++;
-+	}
++	entry = swp_entry(type, offset);
++	do {
++		/*
++		 * First check the swap cache.  Since this is normally
++		 * called after lookup_swap_cache() failed, re-calling
++		 * that would confuse statistics.
++		 */
++		found_page = find_get_page(&swapper_space, entry.val);
++		if (found_page) {
++			/* its already in the swap cache */
++			ret = -EEXIST;
++			break;
++		}
++
++
++		/*
++		 * call radix_tree_preload() while we can wait.
++		 */
++		ret = radix_tree_preload(gfp_mask);
++		if (ret)
++			break;
++
++		/*
++		 * Swap entry may have been freed since our caller observed it.
++		 */
++		ret = swapcache_prepare(entry);
++		if (ret == -EEXIST) {	/* seems racy */
++			radix_tree_preload_end();
++			continue;
++		}
++		if (ret) {		/* swp entry is obsolete ? */
++			radix_tree_preload_end();
++			break;
++		}
++
++		/* May fail (-ENOMEM) if radix-tree node allocation failed. */
++		__set_page_locked(new_page);
++		SetPageSwapBacked(new_page);
++		ret = __add_to_swap_cache(new_page, entry);
++		if (likely(!ret)) {
++			radix_tree_preload_end();
++			/* FIXME: how do I add this at tail of lru? */
++			SetPageDirty(new_page);
++			lru_cache_add_anon_tail(new_page);
++			/* Get page (from frontswap) and return */
++			if (frontswap_load(new_page) == 0)
++				SetPageUptodate(new_page);
++			unlock_page(new_page);
++			ret = 0;
++			goto out;
++		}
++		radix_tree_preload_end();
++		ClearPageSwapBacked(new_page);
++		__clear_page_locked(new_page);
++		/*
++		 * add_to_swap_cache() doesn't return -EEXIST, so we can safely
++		 * clear SWAP_HAS_CACHE flag.
++		 */
++		swapcache_free(entry, NULL);
++	} while (ret != -ENOMEM);
++
++out:
 +	return ret;
 +}
-+EXPORT_SYMBOL(frontswap_unuse);
 +
- static int __init init_frontswap(void)
- {
- #ifdef CONFIG_DEBUG_FS
-@@ -363,6 +390,8 @@ static int __init init_frontswap(void)
- 				&frontswap_failed_stores);
- 	debugfs_create_u64("invalidates", S_IRUGO,
- 				root, &frontswap_invalidates);
-+	debugfs_create_u64("unuses", S_IRUGO, root, &frontswap_unuses);
-+	debugfs_create_u64("denials", S_IRUGO, root, &frontswap_denials);
- #endif
- 	return 0;
- }
-diff --git a/mm/swapfile.c b/mm/swapfile.c
-index 14e254c..b3d6266 100644
---- a/mm/swapfile.c
-+++ b/mm/swapfile.c
-@@ -1445,7 +1445,8 @@ static int setup_swap_extents(struct swap_info_struct *sis, sector_t *span)
- 
- static void enable_swap_info(struct swap_info_struct *p, int prio,
- 				unsigned char *swap_map,
--				unsigned long *frontswap_map)
-+				unsigned long *frontswap_map,
-+				unsigned long *frontswap_denial_map)
- {
- 	int i, prev;
- 
-@@ -1456,6 +1457,7 @@ static void enable_swap_info(struct swap_info_struct *p, int prio,
- 		p->prio = --least_priority;
- 	p->swap_map = swap_map;
- 	frontswap_map_set(p, frontswap_map);
-+	frontswap_denial_map_set(p, frontswap_denial_map);
- 	p->flags |= SWP_WRITEOK;
- 	nr_swap_pages += p->pages;
- 	total_swap_pages += p->pages;
-@@ -1557,7 +1559,8 @@ SYSCALL_DEFINE1(swapoff, const char __user *, specialfile)
- 		 * sys_swapoff for this swap_info_struct at this point.
- 		 */
- 		/* re-insert swap space back into swap_list */
--		enable_swap_info(p, p->prio, p->swap_map, frontswap_map_get(p));
-+		enable_swap_info(p, p->prio, p->swap_map,
-+			frontswap_map_get(p), frontswap_denial_map_get(p));
- 		goto out_dput;
- 	}
- 
-@@ -1588,6 +1591,7 @@ SYSCALL_DEFINE1(swapoff, const char __user *, specialfile)
- 	mutex_unlock(&swapon_mutex);
- 	vfree(swap_map);
- 	vfree(frontswap_map_get(p));
-+	vfree(frontswap_denial_map_get(p));
- 	/* Destroy swap account informatin */
- 	swap_cgroup_swapoff(type);
- 
-@@ -1948,6 +1952,7 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
- 	unsigned long maxpages;
- 	unsigned char *swap_map = NULL;
- 	unsigned long *frontswap_map = NULL;
-+	unsigned long *frontswap_denial_map = NULL;
- 	struct page *page = NULL;
- 	struct inode *inode = NULL;
- 
-@@ -2032,8 +2037,10 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
- 		goto bad_swap;
- 	}
- 	/* frontswap enabled? set up bit-per-page map for frontswap */
--	if (frontswap_enabled)
--		frontswap_map = vzalloc(maxpages / sizeof(long));
-+	if (frontswap_enabled) {
-+ 		frontswap_map = vzalloc(maxpages / sizeof(long));
-+		frontswap_denial_map = vzalloc(maxpages / sizeof(long));
-+	}
- 
- 	if (p->bdev) {
- 		if (blk_queue_nonrot(bdev_get_queue(p->bdev))) {
-@@ -2049,7 +2056,8 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
- 	if (swap_flags & SWAP_FLAG_PREFER)
- 		prio =
- 		  (swap_flags & SWAP_FLAG_PRIO_MASK) >> SWAP_FLAG_PRIO_SHIFT;
--	enable_swap_info(p, prio, swap_map, frontswap_map);
-+	enable_swap_info(p, prio, swap_map,
-+				frontswap_map, frontswap_denial_map);
- 
- 	printk(KERN_INFO "Adding %uk swap on %s.  "
- 			"Priority:%d extents:%d across:%lluk %s%s%s\n",
+ /**
+  * swapin_readahead - swap in pages in hope we need them soon
+  * @entry: swap entry of this memory
 -- 
 1.7.1
 
