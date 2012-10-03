@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
-	by kanga.kvack.org (Postfix) with SMTP id 2A77C6B00A7
+Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
+	by kanga.kvack.org (Postfix) with SMTP id 8E5786B00A9
 	for <linux-mm@kvack.org>; Wed,  3 Oct 2012 19:51:46 -0400 (EDT)
 From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: [PATCH 03/33] autonuma: export is_vma_temporary_stack() even if CONFIG_TRANSPARENT_HUGEPAGE=n
-Date: Thu,  4 Oct 2012 01:50:45 +0200
-Message-Id: <1349308275-2174-4-git-send-email-aarcange@redhat.com>
+Subject: [PATCH 31/33] autonuma: boost khugepaged scanning rate
+Date: Thu,  4 Oct 2012 01:51:13 +0200
+Message-Id: <1349308275-2174-32-git-send-email-aarcange@redhat.com>
 In-Reply-To: <1349308275-2174-1-git-send-email-aarcange@redhat.com>
 References: <1349308275-2174-1-git-send-email-aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,36 +13,33 @@ List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <pzijlstr@redhat.com>, Ingo Molnar <mingo@elte.hu>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hillf Danton <dhillf@gmail.com>, Andrew Jones <drjones@redhat.com>, Dan Smith <danms@us.ibm.com>, Thomas Gleixner <tglx@linutronix.de>, Paul Turner <pjt@google.com>, Christoph Lameter <cl@linux.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Srivatsa Vaddagiri <vatsa@linux.vnet.ibm.com>, Alex Shi <alex.shi@intel.com>, Mauricio Faria de Oliveira <mauricfo@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Don Morris <don.morris@hp.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
 
-is_vma_temporary_stack() is needed by mm/autonuma.c too, and without
-this the build breaks with CONFIG_TRANSPARENT_HUGEPAGE=n.
+Until THP native migration is implemented it's safer to boost
+khugepaged scanning rate because all memory migration are splitting
+the hugepages. So the regular rate of scanning becomes too low when
+lots of memory is migrated.
 
-Reported-by: Petr Holasek <pholasek@redhat.com>
-Acked-by: Rik van Riel <riel@redhat.com>
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 ---
- include/linux/huge_mm.h |    4 ++--
- 1 files changed, 2 insertions(+), 2 deletions(-)
+ mm/huge_memory.c |    6 ++++++
+ 1 files changed, 6 insertions(+), 0 deletions(-)
 
-diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
-index 4c59b11..ad4e2e0 100644
---- a/include/linux/huge_mm.h
-+++ b/include/linux/huge_mm.h
-@@ -54,13 +54,13 @@ extern pmd_t *page_check_address_pmd(struct page *page,
- #define HPAGE_PMD_ORDER (HPAGE_PMD_SHIFT-PAGE_SHIFT)
- #define HPAGE_PMD_NR (1<<HPAGE_PMD_ORDER)
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 86db742..6856468 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -573,6 +573,12 @@ static int __init hugepage_init(void)
  
-+extern bool is_vma_temporary_stack(struct vm_area_struct *vma);
+ 	set_recommended_min_free_kbytes();
+ 
++	/* Hack, remove after THP native migration */
++	if (autonuma_possible()) {
++		khugepaged_scan_sleep_millisecs = 100;
++		khugepaged_alloc_sleep_millisecs = 10000;
++	}
 +
- #ifdef CONFIG_TRANSPARENT_HUGEPAGE
- #define HPAGE_PMD_SHIFT HPAGE_SHIFT
- #define HPAGE_PMD_MASK HPAGE_MASK
- #define HPAGE_PMD_SIZE HPAGE_SIZE
- 
--extern bool is_vma_temporary_stack(struct vm_area_struct *vma);
--
- #define transparent_hugepage_enabled(__vma)				\
- 	((transparent_hugepage_flags &					\
- 	  (1<<TRANSPARENT_HUGEPAGE_FLAG) ||				\
+ 	return 0;
+ out:
+ 	hugepage_exit_sysfs(hugepage_kobj);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
