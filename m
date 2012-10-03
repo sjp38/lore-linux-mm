@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
-	by kanga.kvack.org (Postfix) with SMTP id 1417E6B00C2
+Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
+	by kanga.kvack.org (Postfix) with SMTP id AE47D6B00BE
 	for <linux-mm@kvack.org>; Wed,  3 Oct 2012 19:51:55 -0400 (EDT)
 From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: [PATCH 28/33] autonuma: add CONFIG_AUTONUMA and CONFIG_AUTONUMA_DEFAULT_ENABLED
-Date: Thu,  4 Oct 2012 01:51:10 +0200
-Message-Id: <1349308275-2174-29-git-send-email-aarcange@redhat.com>
+Subject: [PATCH 15/33] autonuma: alloc/free/init task_autonuma
+Date: Thu,  4 Oct 2012 01:50:57 +0200
+Message-Id: <1349308275-2174-16-git-send-email-aarcange@redhat.com>
 In-Reply-To: <1349308275-2174-1-git-send-email-aarcange@redhat.com>
 References: <1349308275-2174-1-git-send-email-aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,71 +13,64 @@ List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <pzijlstr@redhat.com>, Ingo Molnar <mingo@elte.hu>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hillf Danton <dhillf@gmail.com>, Andrew Jones <drjones@redhat.com>, Dan Smith <danms@us.ibm.com>, Thomas Gleixner <tglx@linutronix.de>, Paul Turner <pjt@google.com>, Christoph Lameter <cl@linux.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Srivatsa Vaddagiri <vatsa@linux.vnet.ibm.com>, Alex Shi <alex.shi@intel.com>, Mauricio Faria de Oliveira <mauricfo@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Don Morris <don.morris@hp.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
 
-Add the config options to allow building the kernel with AutoNUMA.
+This is where the dynamically allocated task_autonuma structure is
+being handled.
 
-If CONFIG_AUTONUMA_DEFAULT_ENABLED is "=y", then
-/sys/kernel/mm/autonuma/enabled will be equal to 1, and AutoNUMA will
-be enabled automatically at boot.
+This is the structure holding the per-thread NUMA statistics generated
+by the NUMA hinting page faults. This per-thread NUMA statistical
+information is needed by sched_autonuma_balance to make optimal NUMA
+balancing decisions.
+
+It also contains the task_selected_nid which hints the stock CPU
+scheduler on the best NUMA node to schedule this thread on (as decided
+by sched_autonuma_balance).
+
+The reason for keeping this outside of the task_struct besides not
+using too much kernel stack, is to only allocate it on NUMA
+hardware. So the non NUMA hardware only pays the memory of a pointer
+in the kernel stack (which remains NULL at all times in that case).
+
+If the kernel is compiled with CONFIG_AUTONUMA=n, not even the pointer
+is allocated on the kernel stack of course.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 ---
- arch/Kconfig     |    3 +++
- arch/x86/Kconfig |    1 +
- mm/Kconfig       |   17 +++++++++++++++++
- 3 files changed, 21 insertions(+), 0 deletions(-)
+ kernel/fork.c |    8 ++++++++
+ 1 files changed, 8 insertions(+), 0 deletions(-)
 
-diff --git a/arch/Kconfig b/arch/Kconfig
-index 72f2fa1..ee3ed89 100644
---- a/arch/Kconfig
-+++ b/arch/Kconfig
-@@ -281,4 +281,7 @@ config SECCOMP_FILTER
+diff --git a/kernel/fork.c b/kernel/fork.c
+index 14d68d3..1d8a7e8 100644
+--- a/kernel/fork.c
++++ b/kernel/fork.c
+@@ -209,6 +209,7 @@ void free_task(struct task_struct *tsk)
+ {
+ 	account_kernel_stack(tsk->stack, -1);
+ 	arch_release_thread_info(tsk->stack);
++	free_task_autonuma(tsk);
+ 	free_thread_info(tsk->stack);
+ 	rt_mutex_debug_task_free(tsk);
+ 	ftrace_graph_exit_task(tsk);
+@@ -264,6 +265,9 @@ void __init fork_init(unsigned long mempages)
+ 	/* do the arch specific task caches init */
+ 	arch_task_cache_init();
  
- 	  See Documentation/prctl/seccomp_filter.txt for details.
- 
-+config HAVE_ARCH_AUTONUMA
-+	bool
++	/* prepare task_autonuma for alloc_task_autonuma/free_task_autonuma */
++	task_autonuma_init();
 +
- source "kernel/gcov/Kconfig"
-diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
-index 50a1d1f..06575bc 100644
---- a/arch/x86/Kconfig
-+++ b/arch/x86/Kconfig
-@@ -97,6 +97,7 @@ config X86
- 	select KTIME_SCALAR if X86_32
- 	select GENERIC_STRNCPY_FROM_USER
- 	select GENERIC_STRNLEN_USER
-+	select HAVE_ARCH_AUTONUMA
+ 	/*
+ 	 * The default maximum number of threads is set to a safe
+ 	 * value: the thread structures can take up at most half
+@@ -310,6 +314,10 @@ static struct task_struct *dup_task_struct(struct task_struct *orig)
+ 	if (err)
+ 		goto free_ti;
  
- config INSTRUCTION_DECODER
- 	def_bool (KPROBES || PERF_EVENTS || UPROBES)
-diff --git a/mm/Kconfig b/mm/Kconfig
-index d5c8019..f00a0cd 100644
---- a/mm/Kconfig
-+++ b/mm/Kconfig
-@@ -211,6 +211,23 @@ config MIGRATION
- 	  pages as migration can relocate pages to satisfy a huge page
- 	  allocation instead of reclaiming.
++	if (unlikely(alloc_task_autonuma(tsk, orig, node)))
++		/* free_thread_info() undoes arch_dup_task_struct() too */
++		goto free_ti;
++
+ 	tsk->stack = ti;
  
-+config AUTONUMA
-+	bool "AutoNUMA"
-+	select MIGRATION
-+	depends on NUMA && HAVE_ARCH_AUTONUMA
-+	help
-+	  Automatic NUMA CPU scheduling and memory migration.
-+
-+	  Avoids the administrator to manually setup hard NUMA
-+	  bindings in order to achieve optimal performance on NUMA
-+	  hardware.
-+
-+config AUTONUMA_DEFAULT_ENABLED
-+	bool "Auto NUMA default enabled"
-+	depends on AUTONUMA
-+	help
-+	  Automatic NUMA CPU scheduling and memory migration enabled at boot.
-+
- config PHYS_ADDR_T_64BIT
- 	def_bool 64BIT || ARCH_PHYS_ADDR_T_64BIT
- 
+ 	setup_thread_stack(tsk, orig);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
