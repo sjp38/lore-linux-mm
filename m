@@ -1,80 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
-	by kanga.kvack.org (Postfix) with SMTP id 25E706B007D
-	for <linux-mm@kvack.org>; Wed,  3 Oct 2012 17:47:43 -0400 (EDT)
-Received: by iakh37 with SMTP id h37so1598331iak.14
-        for <linux-mm@kvack.org>; Wed, 03 Oct 2012 14:47:42 -0700 (PDT)
-Date: Wed, 3 Oct 2012 14:46:59 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [patch -mm] mm, thp: fix mlock statistics fix
-In-Reply-To: <20121003142519.93375e01.akpm@linux-foundation.org>
-Message-ID: <alpine.LSU.2.00.1210031430190.14479@eggly.anvils>
-References: <alpine.DEB.2.00.1209191818490.7879@chino.kir.corp.google.com> <alpine.LSU.2.00.1209192021270.28543@eggly.anvils> <alpine.DEB.2.00.1209261821380.7745@chino.kir.corp.google.com> <alpine.DEB.2.00.1209261929270.8567@chino.kir.corp.google.com>
- <alpine.LSU.2.00.1209271814340.2107@eggly.anvils> <20121003131012.f88b0d66.akpm@linux-foundation.org> <alpine.DEB.2.00.1210031403270.4352@chino.kir.corp.google.com> <20121003142519.93375e01.akpm@linux-foundation.org>
+Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
+	by kanga.kvack.org (Postfix) with SMTP id 9AFC86B0081
+	for <linux-mm@kvack.org>; Wed,  3 Oct 2012 18:12:01 -0400 (EDT)
+Received: by padfa10 with SMTP id fa10so7943403pad.14
+        for <linux-mm@kvack.org>; Wed, 03 Oct 2012 15:12:00 -0700 (PDT)
+Date: Thu, 4 Oct 2012 07:11:51 +0900
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH v3 06/13] memcg: kmem controller infrastructure
+Message-ID: <20121003221151.GC19248@localhost>
+References: <1347977050-29476-1-git-send-email-glommer@parallels.com>
+ <1347977050-29476-7-git-send-email-glommer@parallels.com>
+ <20120926155108.GE15801@dhcp22.suse.cz>
+ <5064392D.5040707@parallels.com>
+ <20120927134432.GE29104@dhcp22.suse.cz>
+ <50658B3B.9020303@parallels.com>
+ <20120930082542.GH10383@mtj.dyndns.org>
+ <5069542C.2020103@parallels.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <5069542C.2020103@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: David Rientjes <rientjes@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Michel Lespinasse <walken@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Glauber Costa <glommer@parallels.com>
+Cc: Michal Hocko <mhocko@suse.cz>, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, devel@openvz.org, linux-mm@kvack.org, Suleiman Souhlal <suleiman@google.com>, Frederic Weisbecker <fweisbec@gmail.com>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Johannes Weiner <hannes@cmpxchg.org>
 
-On Wed, 3 Oct 2012, Andrew Morton wrote:
-> On Wed, 3 Oct 2012 14:10:41 -0700 (PDT)
-> David Rientjes <rientjes@google.com> wrote:
-> 
-> > > The free_page_mlock() hunk gets dropped because free_page_mlock() is
-> > > removed.  And clear_page_mlock() doesn't need this treatment.  But
-> > > please check my handiwork.
-> > > 
-> > 
-> > I reviewed what was merged into -mm and clear_page_mlock() does need this 
-> > fix as well.
-> 
-> argh, it got me *again*.  grr.
+Hello, Glauber.
 
-I've no objection to more documentation on PageHuge, but neither you nor
-it were to blame for that "oversight".  It's simply that David's original
-patch clearly did not need such a change in clear_page_mlock(), because
-it could never be necessary from where it was then called; but I changed
-where it's called, whereupon it becomes evident that the extra is needed.
+Sorry about late replies.  I'be been traveling for the Korean
+thanksgiving holidays.
 
-"evident" puts it rather too strongly.  Most munlocking happens through
-munlock_vma_page() instead, but the clear_page_mlock() path covers
-truncation.  THPages cannot be file pages at present, but perhaps they
-could be anonymous pages COWed from file pages (I've not checked the
-exact criteria THP applies)?  In which case, subject to truncation too.
+On Mon, Oct 01, 2012 at 12:28:28PM +0400, Glauber Costa wrote:
+> > That synchronous ref draining is going away.  Maybe we can do that
+> > before kmemcg?  Michal, do you have some timeframe on mind?
+> 
+> Since you said yourself in other points in this thread that you are fine
+> with some page references outliving the cgroup in the case of slab, this
+> is a situation that comes with the code, not a situation that was
+> incidentally there, and we're making use of.
 
-Hugh
+Hmmm?  Not sure what you're trying to say but I wanted to say that
+this should be okay once the scheduled memcg pre_destroy change
+happens and nudge Michal once more.
 
-> 
-> From: Andrew Morton <akpm@linux-foundation.org>
-> Subject: mm: document PageHuge somewhat
-> 
-> Cc: David Rientjes <rientjes@google.com>
-> Cc: Mel Gorman <mel@csn.ul.ie>
-> Cc: Andrea Arcangeli <aarcange@redhat.com>
-> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
-> ---
-> 
->  mm/hugetlb.c |    5 +++++
->  1 file changed, 5 insertions(+)
-> 
-> diff -puN mm/hugetlb.c~mm-document-pagehuge-somewhat mm/hugetlb.c
-> --- a/mm/hugetlb.c~mm-document-pagehuge-somewhat
-> +++ a/mm/hugetlb.c
-> @@ -671,6 +671,11 @@ static void prep_compound_gigantic_page(
->  	}
->  }
->  
-> +/*
-> + * PageHuge() only returns true for hugetlbfs pages, but not for normal or
-> + * transparent huge pages.  See the PageTransHuge() documentation for more
-> + * details.
-> + */
->  int PageHuge(struct page *page)
->  {
->  	compound_page_dtor *dtor;
-> _
+Thanks.
+
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
