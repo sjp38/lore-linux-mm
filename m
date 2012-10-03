@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
-	by kanga.kvack.org (Postfix) with SMTP id 115C06B00DB
-	for <linux-mm@kvack.org>; Wed,  3 Oct 2012 19:52:23 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
+	by kanga.kvack.org (Postfix) with SMTP id 6AB986B00DD
+	for <linux-mm@kvack.org>; Wed,  3 Oct 2012 19:52:24 -0400 (EDT)
 From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: [PATCH 16/33] autonuma: alloc/free/init mm_autonuma
-Date: Thu,  4 Oct 2012 01:50:58 +0200
-Message-Id: <1349308275-2174-17-git-send-email-aarcange@redhat.com>
+Subject: [PATCH 26/33] autonuma: reset autonuma page data when pages are freed
+Date: Thu,  4 Oct 2012 01:51:08 +0200
+Message-Id: <1349308275-2174-27-git-send-email-aarcange@redhat.com>
 In-Reply-To: <1349308275-2174-1-git-send-email-aarcange@redhat.com>
 References: <1349308275-2174-1-git-send-email-aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,75 +13,29 @@ List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <pzijlstr@redhat.com>, Ingo Molnar <mingo@elte.hu>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hillf Danton <dhillf@gmail.com>, Andrew Jones <drjones@redhat.com>, Dan Smith <danms@us.ibm.com>, Thomas Gleixner <tglx@linutronix.de>, Paul Turner <pjt@google.com>, Christoph Lameter <cl@linux.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Srivatsa Vaddagiri <vatsa@linux.vnet.ibm.com>, Alex Shi <alex.shi@intel.com>, Mauricio Faria de Oliveira <mauricfo@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Don Morris <don.morris@hp.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
 
-This is where the mm_autonuma structure is being handled.
-
-mm_autonuma holds the link for knuma_scand's list of mm structures to
-scan and a pointer to the associated mm structure for knuma_scand's
-convenience.
-
-It also contains the per-mm NUMA statistics collected by knuma_scand
-daemon. The per-mm NUMA statistics are needed by
-sched_autonuma_balance to take appropriate NUMA balancing decision
-when balancing threads belonging to different processes.
-
-Just like task_autonuma, this is only allocated at runtime if the
-hardware the kernel is running on has been detected as NUMA. On not
-NUMA hardware the memory cost is reduced to one pointer per mm.
-
-To get rid of the pointer in the each mm, the kernel can be compiled
-with CONFIG_AUTONUMA=n.
+This initializes the last_nid data at page freeing time, so when pages
+are allocated later we can identify the first NUMA hinting page fault
+happening on them.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 ---
- kernel/fork.c |    7 +++++++
- 1 files changed, 7 insertions(+), 0 deletions(-)
+ mm/page_alloc.c |    3 +++
+ 1 files changed, 3 insertions(+), 0 deletions(-)
 
-diff --git a/kernel/fork.c b/kernel/fork.c
-index 1d8a7e8..697dc2f 100644
---- a/kernel/fork.c
-+++ b/kernel/fork.c
-@@ -532,6 +532,8 @@ static void mm_init_aio(struct mm_struct *mm)
- 
- static struct mm_struct *mm_init(struct mm_struct *mm, struct task_struct *p)
- {
-+	if (unlikely(alloc_mm_autonuma(mm)))
-+		goto out_free_mm;
- 	atomic_set(&mm->mm_users, 1);
- 	atomic_set(&mm->mm_count, 1);
- 	init_rwsem(&mm->mmap_sem);
-@@ -554,6 +556,8 @@ static struct mm_struct *mm_init(struct mm_struct *mm, struct task_struct *p)
- 		return mm;
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index ef69743..e096742 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -619,6 +619,9 @@ static inline int free_pages_check(struct page *page)
+ 		bad_page(page);
+ 		return 1;
  	}
- 
-+	free_mm_autonuma(mm);
-+out_free_mm:
- 	free_mm(mm);
- 	return NULL;
- }
-@@ -603,6 +607,7 @@ void __mmdrop(struct mm_struct *mm)
- 	destroy_context(mm);
- 	mmu_notifier_mm_destroy(mm);
- 	check_mm(mm);
-+	free_mm_autonuma(mm);
- 	free_mm(mm);
- }
- EXPORT_SYMBOL_GPL(__mmdrop);
-@@ -885,6 +890,7 @@ fail_nocontext:
- 	 * If init_new_context() failed, we cannot use mmput() to free the mm
- 	 * because it calls destroy_context()
- 	 */
-+	free_mm_autonuma(mm);
- 	mm_free_pgd(mm);
- 	free_mm(mm);
- 	return NULL;
-@@ -1707,6 +1713,7 @@ void __init proc_caches_init(void)
- 	mm_cachep = kmem_cache_create("mm_struct",
- 			sizeof(struct mm_struct), ARCH_MIN_MMSTRUCT_ALIGN,
- 			SLAB_HWCACHE_ALIGN|SLAB_PANIC|SLAB_NOTRACK, NULL);
-+	mm_autonuma_init();
- 	vm_area_cachep = KMEM_CACHE(vm_area_struct, SLAB_PANIC);
- 	mmap_init();
- 	nsproxy_cache_init();
++#ifdef CONFIG_AUTONUMA
++	page->autonuma_last_nid = -1;
++#endif
+ 	if (page->flags & PAGE_FLAGS_CHECK_AT_PREP)
+ 		page->flags &= ~PAGE_FLAGS_CHECK_AT_PREP;
+ 	return 0;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
