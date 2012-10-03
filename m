@@ -1,101 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
-	by kanga.kvack.org (Postfix) with SMTP id 068D86B0070
-	for <linux-mm@kvack.org>; Wed,  3 Oct 2012 06:11:55 -0400 (EDT)
-Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 8D4EA3EE0BC
-	for <linux-mm@kvack.org>; Wed,  3 Oct 2012 19:11:54 +0900 (JST)
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 757EE45DE4E
-	for <linux-mm@kvack.org>; Wed,  3 Oct 2012 19:11:54 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 5FFC345DE4D
-	for <linux-mm@kvack.org>; Wed,  3 Oct 2012 19:11:54 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 4FEF21DB8037
-	for <linux-mm@kvack.org>; Wed,  3 Oct 2012 19:11:54 +0900 (JST)
-Received: from g01jpexchkw04.g01.fujitsu.local (g01jpexchkw04.g01.fujitsu.local [10.0.194.43])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 0CD951DB802F
-	for <linux-mm@kvack.org>; Wed,  3 Oct 2012 19:11:54 +0900 (JST)
-Message-ID: <506C0F53.5030500@jp.fujitsu.com>
-Date: Wed, 3 Oct 2012 19:11:31 +0900
-From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
+	by kanga.kvack.org (Postfix) with SMTP id 47FC36B005D
+	for <linux-mm@kvack.org>; Wed,  3 Oct 2012 07:37:53 -0400 (EDT)
+Date: Wed, 3 Oct 2012 13:37:00 +0200
+From: Stanislaw Gruszka <sgruszka@redhat.com>
+Subject: Re: iwl3945: order 5 allocation during ifconfig up; vm problem?
+Message-ID: <20121003113659.GD2259@redhat.com>
+References: <20120909213228.GA5538@elf.ucw.cz>
+ <alpine.DEB.2.00.1209091539530.16930@chino.kir.corp.google.com>
+ <20120910111113.GA25159@elf.ucw.cz>
+ <20120911162536.bd5171a1.akpm@linux-foundation.org>
+ <20120912101826.GL11266@suse.de>
 MIME-Version: 1.0
-Subject: [PATCH 4/4] acpi,memory-hotplug : store the node id in acpi_memory_device
-References: <506C0AE8.40702@jp.fujitsu.com>
-In-Reply-To: <506C0AE8.40702@jp.fujitsu.com>
-Content-Type: text/plain; charset="ISO-2022-JP"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120912101826.GL11266@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-acpi@vger.kernel.org
-Cc: rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, cl@linux.com, minchan.kim@gmail.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, wency@cn.fujitsu.com
+To: Mel Gorman <mgorman@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Pavel Machek <pavel@ucw.cz>, David Rientjes <rientjes@google.com>, linux-wireless@vger.kernel.org, johannes.berg@intel.com, wey-yi.w.guy@intel.com, ilw@linux.intel.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-From: Wen Congyang <wency@cn.fujitsu.com>
+On Wed, Sep 12, 2012 at 11:18:26AM +0100, Mel Gorman wrote:
+> On Tue, Sep 11, 2012 at 04:25:36PM -0700, Andrew Morton wrote:
+> > On Mon, 10 Sep 2012 13:11:13 +0200
+> > Pavel Machek <pavel@ucw.cz> wrote:
+> > 
+> > > On Sun 2012-09-09 15:40:55, David Rientjes wrote:
+> > > > On Sun, 9 Sep 2012, Pavel Machek wrote:
+> > > > 
+> > > > > On 3.6.0-rc2+, I tried to turn on the wireless, but got
+> > > > > 
+> > > > > root@amd:~# ifconfig wlan0 10.0.0.6 up
+> > > > > SIOCSIFFLAGS: Cannot allocate memory
+> > > > > SIOCSIFFLAGS: Cannot allocate memory
+> > > > > root@amd:~# 
+> > > > > 
+> > > > > It looks like it uses "a bit too big" allocations to allocate
+> > > > > firmware...? Order five allocation....
+> > > > > 
+> > > > > Hmm... then I did "echo 3  > /proc/sys/vm/drop_caches" and now the
+> > > > > network works. Is it VM problem that it failed to allocate memory when
+> > > > > it was freeable?
+> > > > > 
+> > > > 
+> > > > Do you have CONFIG_COMPACTION enabled?
+> > > 
+> > > Yes:
+> > > 
+> > > pavel@amd:/data/l/linux-good$ zgrep CONFIG_COMPACTION /proc/config.gz 
+> > > CONFIG_COMPACTION=y
+> > 
+> > Asking for a 256k allocation is pretty crazy - this is an operating
+> > system kernel, not a userspace application.
+> > 
+> > I'm wondering if this is due to a recent change, but I'm having trouble
+> > working out where the allocation call site is.
+> 
+> It may be indirectly due to a recent change and this was somewhat
+> deliberate. Order-5 is larger than PAGE_ALLOC_COSTLY_ORDER and I doubt
+> __GFP_REPEAT was set so it is treated as something that can fail in
+> preference to aggressively reclaiming pages to satisfy the allocation. In
+> older kernels with lumpy reclaim and an aggressive kswapd it would have
+> probably succeeded but now it errs on the side of failing early instead
+> assuming that the caller can recover. Drivers that depend on order-5
+> allocations to succeed for correct operation are somewhat frowned upon.
 
-The memory device has only one node id. Store the node id when
-enable the memory device, and we can reuse it when removing the
-memory device.
+So, can this problem be solved like on below patch, or I should rather
+split firmware loading into chunks similar like was already iwlwifi did?
 
-CC: David Rientjes <rientjes@google.com>
-CC: Jiang Liu <liuj97@gmail.com>
-CC: Len Brown <len.brown@intel.com>
-CC: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-CC: Paul Mackerras <paulus@samba.org>
-CC: Christoph Lameter <cl@linux.com>
-Cc: Minchan Kim <minchan.kim@gmail.com>
-CC: Andrew Morton <akpm@linux-foundation.org>
-CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-CC: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-Signed-off-by: Wen Congyang <wency@cn.fujitsu.com>
-Signed-off-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
----
- drivers/acpi/acpi_memhotplug.c |   11 +++++------
- 1 file changed, 5 insertions(+), 6 deletions(-)
-
-Index: linux-3.6/drivers/acpi/acpi_memhotplug.c
-===================================================================
---- linux-3.6.orig/drivers/acpi/acpi_memhotplug.c	2012-10-03 19:03:26.818401966 +0900
-+++ linux-3.6/drivers/acpi/acpi_memhotplug.c	2012-10-03 19:08:38.804604700 +0900
-@@ -83,6 +83,7 @@ struct acpi_memory_info {
- struct acpi_memory_device {
- 	struct acpi_device * device;
- 	unsigned int state;	/* State of the memory device */
-+	int nid;
- 	struct list_head res_list;
- };
+diff --git a/drivers/net/wireless/iwlegacy/common.h b/drivers/net/wireless/iwlegacy/common.h
+index 5f50177..1b58222 100644
+--- a/drivers/net/wireless/iwlegacy/common.h
++++ b/drivers/net/wireless/iwlegacy/common.h
+@@ -2247,7 +2247,7 @@ il_alloc_fw_desc(struct pci_dev *pci_dev, struct fw_desc *desc)
  
-@@ -256,6 +257,9 @@ static int acpi_memory_enable_device(str
- 		info->enabled = 1;
- 		num_enabled++;
- 	}
-+
-+	mem_device->nid = node;
-+
- 	if (!num_enabled) {
- 		printk(KERN_ERR PREFIX "add_memory failed\n");
- 		mem_device->state = MEMORY_INVALID_STATE;
-@@ -310,9 +314,7 @@ static int acpi_memory_remove_memory(str
- {
- 	int result;
- 	struct acpi_memory_info *info, *n;
--	int node;
--
--	node = acpi_get_node(mem_device->device->handle);
-+	int node = mem_device->nid;
+ 	desc->v_addr =
+ 	    dma_alloc_coherent(&pci_dev->dev, desc->len, &desc->p_addr,
+-			       GFP_KERNEL);
++			       GFP_KERNEL | __GFP_REPEAT);
+ 	return (desc->v_addr != NULL) ? 0 : -ENOMEM;
+ }
  
- 	list_for_each_entry_safe(info, n, &mem_device->res_list, list) {
- 		if (!info->enabled)
-@@ -322,9 +324,6 @@ static int acpi_memory_remove_memory(str
- 		if (result)
- 			return result;
- 
--		if (node < 0)
--			node = memory_add_physaddr_to_nid(info->start_addr);
--
- 		result = remove_memory(node, info->start_addr, info->length);
- 		if (result)
- 			return result;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
