@@ -1,39 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
-	by kanga.kvack.org (Postfix) with SMTP id 07DED6B005D
-	for <linux-mm@kvack.org>; Wed,  3 Oct 2012 01:36:00 -0400 (EDT)
-Message-ID: <506BCEAB.4090204@zytor.com>
-Date: Tue, 02 Oct 2012 22:35:39 -0700
-From: "H. Peter Anvin" <hpa@zytor.com>
+Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
+	by kanga.kvack.org (Postfix) with SMTP id 197E86B006E
+	for <linux-mm@kvack.org>; Wed,  3 Oct 2012 01:37:48 -0400 (EDT)
+Received: by padfa10 with SMTP id fa10so6960830pad.14
+        for <linux-mm@kvack.org>; Tue, 02 Oct 2012 22:37:47 -0700 (PDT)
+Date: Tue, 2 Oct 2012 22:37:45 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH] mm: use %pK for /proc/vmallocinfo
+In-Reply-To: <CAGXu5j+ZU_wrqeEYE7GCE6ArFo8z4AO=OW7mOSn0-fp1E9B6+Q@mail.gmail.com>
+Message-ID: <alpine.DEB.2.00.1210022236370.10573@chino.kir.corp.google.com>
+References: <20121002234934.GA9194@www.outflux.net> <alpine.DEB.2.00.1210022209070.9523@chino.kir.corp.google.com> <CAGXu5j+ZU_wrqeEYE7GCE6ArFo8z4AO=OW7mOSn0-fp1E9B6+Q@mail.gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] Fix devmem_is_allowed for below 1MB accesses for an efi
- machine
-References: <1349213536-3436-1-git-send-email-tmac@hp.com> <506B6191.6080605@zytor.com> <20121003043116.GA26241@srcf.ucam.org> <506BC2A0.8060500@zytor.com> <20121003051522.GA27113@srcf.ucam.org> <506BC96D.10507@hp.com> <20121003052803.GA27464@srcf.ucam.org>
-In-Reply-To: <20121003052803.GA27464@srcf.ucam.org>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Garrett <mjg@redhat.com>
-Cc: Thavatchai Makphaibulchoke <thavatchai.makpahibulchoke@hp.com>, T Makphaibulchoke <tmac@hp.com>, tglx@linutronix.de, mingo@redhat.com, x86@kernel.org, akpm@linux-foundation.org, yinghai@kernel.org, tiwai@suse.de, viro@zeniv.linux.org.uk, aarcange@redhat.com, tony.luck@intel.com, mgorman@suse.de, weiyang@linux.vnet.ibm.com, octavian.purdila@intel.com, paul.gortmaker@windriver.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Kees Cook <keescook@chromium.org>
+Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan@kernel.org>, Joe Perches <joe@perches.com>, Kautuk Consul <consul.kautuk@gmail.com>, linux-mm@kvack.org, Brad Spengler <spender@grsecurity.net>
 
-On 10/02/2012 10:28 PM, Matthew Garrett wrote:
-> On Tue, Oct 02, 2012 at 11:13:17PM -0600, Thavatchai Makphaibulchoke wrote:
+On Tue, 2 Oct 2012, Kees Cook wrote:
+
+> >> In the paranoid case of sysctl kernel.kptr_restrict=2, mask the kernel
+> >> virtual addresses in /proc/vmallocinfo too.
+> >>
+> >> Reported-by: Brad Spengler <spender@grsecurity.net>
+> >> Signed-off-by: Kees Cook <keescook@chromium.org>
+> >
+> > /proc/vmallocinfo is S_IRUSR, not S_IRUGO, so exactly what are you trying
+> > to protect?
 > 
->> Sounds like a better solution is to allow accesses to only I/O regions 
->> presented in the EFI memory map for physical addresses below 1 MB.
+> Trying to block the root user from seeing virtual memory addresses
+> (mode 2 of kptr_restrict).
 > 
-> That won't work - unfortunately we do still need the low region to be 
-> available for X because some platforms expect us to use int10 even on 
-> EFI (yes, yes, I know). Do you have a copy of the EFI memory map for a 
-> system that's broken with the current code?
+> Documentation/sysctl/kernel.txt:
+> "This toggle indicates whether restrictions are placed on
+> exposing kernel addresses via /proc and other interfaces.  When
+> kptr_restrict is set to (0), there are no restrictions.  When
+> kptr_restrict is set to (1), the default, kernel pointers
+> printed using the %pK format specifier will be replaced with 0's
+> unless the user has CAP_SYSLOG.  When kptr_restrict is set to
+> (2), kernel pointers printed using %pK will be replaced with 0's
+> regardless of privileges."
+> 
+> Even though it's S_IRUSR, it still needs %pK for the paranoid case.
 > 
 
-I honestly think this calls for a quirk, or more likely, no action at
-all ("don't do that, then.")
-
-	-hpa
-
+So root does echo 0 > /proc/sys/kernel/kptr_restrict first.  Again: what 
+are you trying to protect?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
