@@ -1,34 +1,24 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx140.postini.com [74.125.245.140])
-	by kanga.kvack.org (Postfix) with SMTP id 7BB046B005D
-	for <linux-mm@kvack.org>; Wed,  3 Oct 2012 10:16:26 -0400 (EDT)
-Date: Wed, 3 Oct 2012 14:16:25 +0000
+Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
+	by kanga.kvack.org (Postfix) with SMTP id 0C4DA6B005A
+	for <linux-mm@kvack.org>; Wed,  3 Oct 2012 10:17:49 -0400 (EDT)
+Date: Wed, 3 Oct 2012 14:17:48 +0000
 From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH] slub: init_kmem_cache_cpus() and put_cpu_partial() can
- be static
-In-Reply-To: <alpine.DEB.2.00.1210022154520.8723@chino.kir.corp.google.com>
-Message-ID: <0000013a26fc13cf-2a85d946-fe2b-4180-a5a0-fbe6781a2934-000000@email.amazonses.com>
-References: <20120928083405.GA23740@localhost> <alpine.DEB.2.00.1210022154520.8723@chino.kir.corp.google.com>
+Subject: Re: [PATCH v2] [RFC] mm, slab: release slab_mutex earlier in
+ kmem_cache_destroy()
+In-Reply-To: <alpine.LNX.2.00.1210031143260.23544@pobox.suse.cz>
+Message-ID: <0000013a26fd59e5-1f226b01-0e73-4a02-b4a0-fe697b34457e-000000@email.amazonses.com>
+References: <alpine.LNX.2.00.1210021810350.23544@pobox.suse.cz> <20121002170149.GC2465@linux.vnet.ibm.com> <alpine.LNX.2.00.1210022324050.23544@pobox.suse.cz> <alpine.LNX.2.00.1210022331130.23544@pobox.suse.cz> <alpine.LNX.2.00.1210022356370.23544@pobox.suse.cz>
+ <20121002233138.GD2465@linux.vnet.ibm.com> <alpine.LNX.2.00.1210030142570.23544@pobox.suse.cz> <20121003001530.GF2465@linux.vnet.ibm.com> <alpine.LNX.2.00.1210030227430.23544@pobox.suse.cz> <alpine.LNX.2.00.1210031143260.23544@pobox.suse.cz>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Fengguang Wu <fengguang.wu@intel.com>, Pekka Enberg <penberg@kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Glauber Costa <glommer@parallels.com>
+To: Jiri Kosina <jkosina@suse.cz>
+Cc: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Pekka Enberg <penberg@kernel.org>, "Paul E. McKenney" <paul.mckenney@linaro.org>, Josh Triplett <josh@joshtriplett.org>, linux-kernel@vger.kernel.org, "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>, linux-mm@kvack.org
 
-On Tue, 2 Oct 2012, David Rientjes wrote:
 
-> On Fri, 28 Sep 2012, Fengguang Wu wrote:
->
-> > Acked-by: Glauber Costa <glommer@parallels.com>
-> > Signed-off-by: Fengguang Wu <fengguang.wu@intel.com>
->
-> Acked-by: David Rientjes <rientjes@google.com>
->
-> I think init_kmem_cache_cpus() would also benefit from just being inlined
-> into alloc_kmem_cache_cpus().
-
-The compiler will do that if it is advantageous.
+Acked-by: Christoph Lameter <cl@linux.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
