@@ -1,27 +1,28 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx133.postini.com [74.125.245.133])
-	by kanga.kvack.org (Postfix) with SMTP id 303656B0070
-	for <linux-mm@kvack.org>; Wed,  3 Oct 2012 06:03:12 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
+	by kanga.kvack.org (Postfix) with SMTP id AEEE86B0070
+	for <linux-mm@kvack.org>; Wed,  3 Oct 2012 06:09:52 -0400 (EDT)
 Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 3DDC03EE081
-	for <linux-mm@kvack.org>; Wed,  3 Oct 2012 19:03:10 +0900 (JST)
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 0F6293EE0B5
+	for <linux-mm@kvack.org>; Wed,  3 Oct 2012 19:09:51 +0900 (JST)
 Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 2204C45DE56
-	for <linux-mm@kvack.org>; Wed,  3 Oct 2012 19:03:10 +0900 (JST)
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id EAAF145DE5B
+	for <linux-mm@kvack.org>; Wed,  3 Oct 2012 19:09:50 +0900 (JST)
 Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 03ACB45DE55
-	for <linux-mm@kvack.org>; Wed,  3 Oct 2012 19:03:10 +0900 (JST)
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id B684B45DE55
+	for <linux-mm@kvack.org>; Wed,  3 Oct 2012 19:09:50 +0900 (JST)
 Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id E9AC6E08002
-	for <linux-mm@kvack.org>; Wed,  3 Oct 2012 19:03:09 +0900 (JST)
-Received: from g01jpexchkw11.g01.fujitsu.local (g01jpexchkw11.g01.fujitsu.local [10.0.194.50])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id A17111DB8040
-	for <linux-mm@kvack.org>; Wed,  3 Oct 2012 19:03:09 +0900 (JST)
-Message-ID: <506C0D45.3050909@jp.fujitsu.com>
-Date: Wed, 3 Oct 2012 19:02:45 +0900
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id A63B01DB8052
+	for <linux-mm@kvack.org>; Wed,  3 Oct 2012 19:09:50 +0900 (JST)
+Received: from g01jpexchkw07.g01.fujitsu.local (g01jpexchkw07.g01.fujitsu.local [10.0.194.46])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 59DA61DB8047
+	for <linux-mm@kvack.org>; Wed,  3 Oct 2012 19:09:50 +0900 (JST)
+Message-ID: <506C0EC6.9000503@jp.fujitsu.com>
+Date: Wed, 3 Oct 2012 19:09:10 +0900
 From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: [PATCH 2/4] acpi,memory-hotplug : rename remove_memory() to offline_memory()
+Subject: [PATCH 3/6] acpi,memory-hotplug : add physical memory hotplug code
+ to acpi_memhotplug.c
 References: <506C0AE8.40702@jp.fujitsu.com>
 In-Reply-To: <506C0AE8.40702@jp.fujitsu.com>
 Content-Type: text/plain; charset="ISO-2022-JP"
@@ -33,12 +34,9 @@ Cc: rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, cl@linux.com, mi
 
 From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 
-add_memory() hot adds a physical memory. But remove_memory does not
-hot remove a phsical memory. It only offlines memory. The name
-confuse us.
-
-So the patch renames remove_memory() to offline_memory(). We will
-use rename_memory() for hot removing memory.
+For hot removing physical memory, the patch adds remove_memory() into
+acpi_memory_remove_memory(). But we cannot support physical memory
+hot remove. So remove_memory() do nothinig.
 
 CC: David Rientjes <rientjes@google.com>
 CC: Jiang Liu <liuj97@gmail.com>
@@ -50,62 +48,80 @@ CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 Signed-off-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 Signed-off-by: Wen Congyang <wency@cn.fujitsu.com>
 ---
- drivers/acpi/acpi_memhotplug.c |    2 +-
- include/linux/memory_hotplug.h |    2 +-
- mm/memory_hotplug.c            |    6 +++---
- 3 files changed, 5 insertions(+), 5 deletions(-)
+ drivers/acpi/acpi_memhotplug.c |   10 ++++++++++
+ include/linux/memory_hotplug.h |    5 +++++
+ mm/memory_hotplug.c            |    7 +++++++
+ 3 files changed, 22 insertions(+)
 
 Index: linux-3.6/drivers/acpi/acpi_memhotplug.c
 ===================================================================
---- linux-3.6.orig/drivers/acpi/acpi_memhotplug.c	2012-10-03 18:17:29.291244669 +0900
-+++ linux-3.6/drivers/acpi/acpi_memhotplug.c	2012-10-03 18:17:41.494247869 +0900
-@@ -316,7 +316,7 @@ acpi_memory_remove_memory(struct acpi_me
- 		if (!info->enabled)
- 			return -EBUSY;
+--- linux-3.6.orig/drivers/acpi/acpi_memhotplug.c	2012-10-03 19:03:10.960400793 +0900
++++ linux-3.6/drivers/acpi/acpi_memhotplug.c	2012-10-03 19:03:26.818401966 +0900
+@@ -310,6 +310,9 @@ static int acpi_memory_remove_memory(str
+ {
+ 	int result;
+ 	struct acpi_memory_info *info, *n;
++	int node;
++
++	node = acpi_get_node(mem_device->device->handle);
  
--		result = remove_memory(info->start_addr, info->length);
-+		result = offline_memory(info->start_addr, info->length);
+ 	list_for_each_entry_safe(info, n, &mem_device->res_list, list) {
+ 		if (!info->enabled)
+@@ -319,6 +322,13 @@ static int acpi_memory_remove_memory(str
  		if (result)
  			return result;
  
++		if (node < 0)
++			node = memory_add_physaddr_to_nid(info->start_addr);
++
++		result = remove_memory(node, info->start_addr, info->length);
++		if (result)
++			return result;
++
+ 		list_del(&info->list);
+ 		kfree(info);
+ 	}
 Index: linux-3.6/include/linux/memory_hotplug.h
 ===================================================================
---- linux-3.6.orig/include/linux/memory_hotplug.h	2012-10-03 18:17:01.863247694 +0900
-+++ linux-3.6/include/linux/memory_hotplug.h	2012-10-03 18:17:41.496247872 +0900
-@@ -236,7 +236,7 @@ extern int add_memory(int nid, u64 start
- extern int arch_add_memory(int nid, u64 start, u64 size);
- extern int offline_pages(unsigned long start_pfn, unsigned long nr_pages);
- extern int offline_memory_block(struct memory_block *mem);
--extern int remove_memory(u64 start, u64 size);
-+extern int offline_memory(u64 start, u64 size);
- extern int sparse_add_one_section(struct zone *zone, unsigned long start_pfn,
- 								int nr_pages);
- extern void sparse_remove_one_section(struct zone *zone, struct mem_section *ms);
+--- linux-3.6.orig/include/linux/memory_hotplug.h	2012-10-03 19:03:10.963400796 +0900
++++ linux-3.6/include/linux/memory_hotplug.h	2012-10-03 19:03:26.820401968 +0900
+@@ -222,6 +222,7 @@ static inline void unlock_memory_hotplug
+ #ifdef CONFIG_MEMORY_HOTREMOVE
+ 
+ extern int is_mem_section_removable(unsigned long pfn, unsigned long nr_pages);
++extern int remove_memory(int nid, u64 start, u64 size);
+ 
+ #else
+ static inline int is_mem_section_removable(unsigned long pfn,
+@@ -229,6 +230,10 @@ static inline int is_mem_section_removab
+ {
+ 	return 0;
+ }
++static inline int remove_memory(int nid, u64 start, u64 size)
++{
++	return -EBUSY;
++}
+ #endif /* CONFIG_MEMORY_HOTREMOVE */
+ 
+ extern int mem_online_node(int nid);
 Index: linux-3.6/mm/memory_hotplug.c
 ===================================================================
---- linux-3.6.orig/mm/memory_hotplug.c	2012-10-03 18:17:01.861247692 +0900
-+++ linux-3.6/mm/memory_hotplug.c	2012-10-03 18:17:41.503247876 +0900
-@@ -1003,7 +1003,7 @@ int offline_pages(unsigned long start_pf
- 	return __offline_pages(start_pfn, start_pfn + nr_pages, 120 * HZ);
- }
+--- linux-3.6.orig/mm/memory_hotplug.c	2012-10-03 19:03:10.962400795 +0900
++++ linux-3.6/mm/memory_hotplug.c	2012-10-03 19:04:15.493404911 +0900
+@@ -1042,6 +1042,13 @@ int offline_memory(u64 start, u64 size)
  
--int remove_memory(u64 start, u64 size)
-+int offline_memory(u64 start, u64 size)
- {
- 	struct memory_block *mem = NULL;
- 	struct mem_section *section;
-@@ -1047,9 +1047,9 @@ int offline_pages(unsigned long start_pf
- {
- 	return -EINVAL;
+ 	return 0;
  }
--int remove_memory(u64 start, u64 size)
-+int offline_memory(u64 start, u64 size)
++
++int remove_memory(int nid, u64 start, u64 size)
++{
++	/* It is not implemented yet*/
++	return 0;
++}
++EXPORT_SYMBOL_GPL(remove_memory);
+ #else
+ int offline_pages(unsigned long start_pfn, unsigned long nr_pages)
  {
- 	return -EINVAL;
- }
- #endif /* CONFIG_MEMORY_HOTREMOVE */
--EXPORT_SYMBOL_GPL(remove_memory);
-+EXPORT_SYMBOL_GPL(offline_memory);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
