@@ -1,56 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx202.postini.com [74.125.245.202])
-	by kanga.kvack.org (Postfix) with SMTP id D4F006B009D
-	for <linux-mm@kvack.org>; Wed,  3 Oct 2012 18:59:39 -0400 (EDT)
-Received: by pbbrq2 with SMTP id rq2so11833749pbb.14
-        for <linux-mm@kvack.org>; Wed, 03 Oct 2012 15:59:39 -0700 (PDT)
-Date: Thu, 4 Oct 2012 07:59:30 +0900
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH v3 04/13] kmem accounting basic infrastructure
-Message-ID: <20121003225930.GF19248@localhost>
-References: <20120927142822.GG3429@suse.de>
- <20120927144942.GB4251@mtj.dyndns.org>
- <50646977.40300@parallels.com>
- <20120927174605.GA2713@localhost>
- <50649EAD.2050306@parallels.com>
- <20120930075700.GE10383@mtj.dyndns.org>
- <20120930080249.GF10383@mtj.dyndns.org>
- <1348995388.2458.8.camel@dabdike.int.hansenpartnership.com>
- <20120930103732.GK10383@mtj.dyndns.org>
- <5069584A.8090809@parallels.com>
+Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
+	by kanga.kvack.org (Postfix) with SMTP id 6F1FD6B009F
+	for <linux-mm@kvack.org>; Wed,  3 Oct 2012 19:11:13 -0400 (EDT)
+Received: by padfa10 with SMTP id fa10so7986895pad.14
+        for <linux-mm@kvack.org>; Wed, 03 Oct 2012 16:11:12 -0700 (PDT)
+Message-ID: <506CC607.8060703@gmail.com>
+Date: Thu, 04 Oct 2012 07:11:03 +0800
+From: Ni zhan Chen <nizhan.chen@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <5069584A.8090809@parallels.com>
+Subject: Re: [PATCH] CPU hotplug, writeback: Don't call writeback_set_ratelimit()
+ too often during hotplug
+References: <20120924102324.GA22303@aftab.osrc.amd.com> <20120924142305.GD12264@quack.suse.cz> <20120924143609.GH22303@aftab.osrc.amd.com> <20120924201650.6574af64.conny.seidel@amd.com> <20120924181927.GA25762@aftab.osrc.amd.com> <5060AB0E.3070809@linux.vnet.ibm.com> <5060C714.8030606@linux.vnet.ibm.com> <20120928122719.GA3067@localhost>
+In-Reply-To: <20120928122719.GA3067@localhost>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: James Bottomley <James.Bottomley@HansenPartnership.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, devel@openvz.org, linux-mm@kvack.org, Suleiman Souhlal <suleiman@google.com>, Frederic Weisbecker <fweisbec@gmail.com>, David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>
+To: Fengguang Wu <fengguang.wu@intel.com>
+Cc: "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>, Borislav Petkov <bp@amd64.org>, Conny Seidel <conny.seidel@amd.com>, Jan Kara <jack@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <jweiner@redhat.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Thomas Gleixner <tglx@linutronix.de>
 
-Hello, Glauber.
+On 09/28/2012 08:27 PM, Fengguang Wu wrote:
+> On Tue, Sep 25, 2012 at 02:18:20AM +0530, Srivatsa S. Bhat wrote:
+>> From: Srivatsa S. Bhat <srivatsa.bhat@linux.vnet.ibm.com>
+>>
+>> The CPU hotplug callback related to writeback calls writeback_set_ratelimit()
+>> during every state change in the hotplug sequence. This is unnecessary
+>> since num_online_cpus() changes only once during the entire hotplug operation.
+>>
+>> So invoke the function only once per hotplug, thereby avoiding the
+>> unnecessary repetition of those costly calculations.
+>>
+>> Signed-off-by: Srivatsa S. Bhat <srivatsa.bhat@linux.vnet.ibm.com>
+>> ---
+> Looks good to me. I'll include it in the writeback tree.
 
-On Mon, Oct 01, 2012 at 12:46:02PM +0400, Glauber Costa wrote:
-> > Yeah, it will need some hooks.  For dentry and inode, I think it would
-> > be pretty well isolated tho.  Wasn't it?
-> 
-> We would still need something for the stack. For open files, and for
-> everything that becomes a potential problem. We then end up with 35
-> different knobs instead of one. One of the perceived advantages of this
-> approach, is that it condenses as much data as a single knob as
-> possible, reducing complexity and over flexibility.
+Hi Fengguang,
 
-Oh, I didn't mean to use object-specific counting for all of them.
-Most resources don't have such common misaccounting problem.  I mean,
-for stack, it doesn't exist by definition (other than cgroup
-migration).  There's no reason to use anything other than first-use
-kmem based accounting for them.  My point was that for particularly
-problematic ones like dentry/inode, it might be better to treat them
-differently.
+Could you tell me when  inode->i_state & I_DIRTY will be set? thanks.
 
-Thanks.
+Regards,
+Chen
 
--- 
-tejun
+>
+> Thanks,
+> Fengguang
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
