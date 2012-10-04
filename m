@@ -1,30 +1,157 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
-	by kanga.kvack.org (Postfix) with SMTP id 2FBBA6B0103
-	for <linux-mm@kvack.org>; Thu,  4 Oct 2012 07:27:16 -0400 (EDT)
-Date: Thu, 4 Oct 2012 13:27:12 +0200
+Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
+	by kanga.kvack.org (Postfix) with SMTP id A24C06B0104
+	for <linux-mm@kvack.org>; Thu,  4 Oct 2012 07:34:31 -0400 (EDT)
+Date: Thu, 4 Oct 2012 13:34:29 +0200
 From: Michal Hocko <mhocko@suse.cz>
-Subject: -mm git tree updated for 3.6 major release
-Message-ID: <20121004112712.GC27536@dhcp22.suse.cz>
+Subject: [mmotm] get rid of the remaining VM_RESERVED usage
+Message-ID: <20121004113428.GD27536@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Konstantin Khlebnikov <khlebnikov@openvz.org>, linux-mm@kvack.org
 
-Hi,
-JFYI a new branch since-3.6 has been created for -mm tree at
-git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git
-It is based on v3.6 with the current 2012-10-03-16-21 mmots tree.
-I will regurarly merge:
-- for-3.7-hierarchy branch from git://git.kernel.org/pub/scm/linux/kernel/git/tj/cgroup.git
-- slab/common-for-cgroup branch from git://git.kernel.org/pub/scm/linux/kernel/git/penberg/linux.git
+Hi Andrew, Konstantin,
+it seems that these slipped through when VM_RESERVED was removed by
+broken-out/mm-kill-vma-flag-vm_reserved-and-mm-reserved_vm-counter.patch
 
->From now on I am deprecating the original github tree
-(https://github.com/mstsxfx/memcg-devel.git) and won't update it unless
-there is something wrong with the korg.
+I hope I didn't screw anything... Please merge it with the original
+patch if it looks correctly.
+---
+ drivers/media/video/meye.c                      |    2 +-
+ drivers/media/video/omap/omap_vout.c            |    2 +-
+ drivers/media/video/sn9c102/sn9c102_core.c      |    1 -
+ drivers/media/video/usbvision/usbvision-video.c |    2 --
+ drivers/media/video/videobuf-dma-sg.c           |    2 +-
+ drivers/media/video/videobuf-vmalloc.c          |    2 +-
+ drivers/media/video/videobuf2-memops.c          |    2 +-
+ drivers/media/video/vino.c                      |    2 +-
+ drivers/staging/media/easycap/easycap_main.c    |    2 +-
+ 9 files changed, 7 insertions(+), 10 deletions(-)
+
+diff --git a/drivers/media/video/meye.c b/drivers/media/video/meye.c
+index 7bc7752..e5a76da 100644
+--- a/drivers/media/video/meye.c
++++ b/drivers/media/video/meye.c
+@@ -1647,7 +1647,7 @@ static int meye_mmap(struct file *file, struct vm_area_struct *vma)
+ 
+ 	vma->vm_ops = &meye_vm_ops;
+ 	vma->vm_flags &= ~VM_IO;	/* not I/O memory */
+-	vma->vm_flags |= VM_RESERVED;	/* avoid to swap out this VMA */
++	vma->vm_flags |= VM_DONTEXPAND | VM_DONTDUMP;
+ 	vma->vm_private_data = (void *) (offset / gbufsize);
+ 	meye_vm_open(vma);
+ 
+diff --git a/drivers/media/video/omap/omap_vout.c b/drivers/media/video/omap/omap_vout.c
+index 88cf9d9..45797aa 100644
+--- a/drivers/media/video/omap/omap_vout.c
++++ b/drivers/media/video/omap/omap_vout.c
+@@ -910,7 +910,7 @@ static int omap_vout_mmap(struct file *file, struct vm_area_struct *vma)
+ 
+ 	q->bufs[i]->baddr = vma->vm_start;
+ 
+-	vma->vm_flags |= VM_RESERVED;
++	vma->vm_flags |= VM_DONTEXPAND | VM_DONTDUMP;
+ 	vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
+ 	vma->vm_ops = &omap_vout_vm_ops;
+ 	vma->vm_private_data = (void *) vout;
+diff --git a/drivers/media/video/sn9c102/sn9c102_core.c b/drivers/media/video/sn9c102/sn9c102_core.c
+index 19ea780..c28b75b 100644
+--- a/drivers/media/video/sn9c102/sn9c102_core.c
++++ b/drivers/media/video/sn9c102/sn9c102_core.c
+@@ -2127,7 +2127,6 @@ static int sn9c102_mmap(struct file* filp, struct vm_area_struct *vma)
+ 	}
+ 
+ 	vma->vm_flags |= VM_IO;
+-	vma->vm_flags |= VM_RESERVED;
+ 
+ 	pos = cam->frame[i].bufmem;
+ 	while (size > 0) { /* size is page-aligned */
+diff --git a/drivers/media/video/usbvision/usbvision-video.c b/drivers/media/video/usbvision/usbvision-video.c
+index 9bd8f08..e776a6c 100644
+--- a/drivers/media/video/usbvision/usbvision-video.c
++++ b/drivers/media/video/usbvision/usbvision-video.c
+@@ -1089,9 +1089,7 @@ static int usbvision_v4l2_mmap(struct file *file, struct vm_area_struct *vma)
+ 		return -EINVAL;
+ 	}
+ 
+-	/* VM_IO is eventually going to replace PageReserved altogether */
+ 	vma->vm_flags |= VM_IO;
+-	vma->vm_flags |= VM_RESERVED;	/* avoid to swap out this VMA */
+ 
+ 	pos = usbvision->frame[i].data;
+ 	while (size > 0) {
+diff --git a/drivers/media/video/videobuf-dma-sg.c b/drivers/media/video/videobuf-dma-sg.c
+index f300dea..828e7c1 100644
+--- a/drivers/media/video/videobuf-dma-sg.c
++++ b/drivers/media/video/videobuf-dma-sg.c
+@@ -582,7 +582,7 @@ static int __videobuf_mmap_mapper(struct videobuf_queue *q,
+ 	map->count    = 1;
+ 	map->q        = q;
+ 	vma->vm_ops   = &videobuf_vm_ops;
+-	vma->vm_flags |= VM_DONTEXPAND | VM_RESERVED;
++	vma->vm_flags |= VM_DONTEXPAND | VM_DONTDUMP;
+ 	vma->vm_flags &= ~VM_IO; /* using shared anonymous pages */
+ 	vma->vm_private_data = map;
+ 	dprintk(1, "mmap %p: q=%p %08lx-%08lx pgoff %08lx bufs %d-%d\n",
+diff --git a/drivers/media/video/videobuf-vmalloc.c b/drivers/media/video/videobuf-vmalloc.c
+index df14258..2ff7fcc 100644
+--- a/drivers/media/video/videobuf-vmalloc.c
++++ b/drivers/media/video/videobuf-vmalloc.c
+@@ -270,7 +270,7 @@ static int __videobuf_mmap_mapper(struct videobuf_queue *q,
+ 	}
+ 
+ 	vma->vm_ops          = &videobuf_vm_ops;
+-	vma->vm_flags       |= VM_DONTEXPAND | VM_RESERVED;
++	vma->vm_flags       |= VM_DONTEXPAND | VM_DONTDUMP;
+ 	vma->vm_private_data = map;
+ 
+ 	dprintk(1, "mmap %p: q=%p %08lx-%08lx (%lx) pgoff %08lx buf %d\n",
+diff --git a/drivers/media/video/videobuf2-memops.c b/drivers/media/video/videobuf2-memops.c
+index 504cd4c..051ea35 100644
+--- a/drivers/media/video/videobuf2-memops.c
++++ b/drivers/media/video/videobuf2-memops.c
+@@ -163,7 +163,7 @@ int vb2_mmap_pfn_range(struct vm_area_struct *vma, unsigned long paddr,
+ 		return ret;
+ 	}
+ 
+-	vma->vm_flags		|= VM_DONTEXPAND | VM_RESERVED;
++	vma->vm_flags		|= VM_DONTEXPAND | VM_DONTDUMP;
+ 	vma->vm_private_data	= priv;
+ 	vma->vm_ops		= vm_ops;
+ 
+diff --git a/drivers/media/video/vino.c b/drivers/media/video/vino.c
+index aae1720..cc9110c 100644
+--- a/drivers/media/video/vino.c
++++ b/drivers/media/video/vino.c
+@@ -3950,7 +3950,7 @@ found:
+ 
+ 	fb->map_count = 1;
+ 
+-	vma->vm_flags |= VM_DONTEXPAND | VM_RESERVED;
++	vma->vm_flags |= VM_DONTEXPAND | VM_DONTDUMP;
+ 	vma->vm_flags &= ~VM_IO;
+ 	vma->vm_private_data = fb;
+ 	vma->vm_file = file;
+diff --git a/drivers/staging/media/easycap/easycap_main.c b/drivers/staging/media/easycap/easycap_main.c
+index 8269c77..4afa93d 100644
+--- a/drivers/staging/media/easycap/easycap_main.c
++++ b/drivers/staging/media/easycap/easycap_main.c
+@@ -2246,7 +2246,7 @@ static int easycap_mmap(struct file *file, struct vm_area_struct *pvma)
+ 	JOT(8, "\n");
+ 
+ 	pvma->vm_ops = &easycap_vm_ops;
+-	pvma->vm_flags |= VM_RESERVED;
++	pvma->vm_flags |= VM_DONTEXPAND | VM_DONTDUMP;
+ 	if (file)
+ 		pvma->vm_private_data = file->private_data;
+ 	easycap_vma_open(pvma);
+-- 
+1.7.10.4
+
 -- 
 Michal Hocko
 SUSE Labs
