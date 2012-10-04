@@ -1,95 +1,169 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx162.postini.com [74.125.245.162])
-	by kanga.kvack.org (Postfix) with SMTP id 33FD26B010E
-	for <linux-mm@kvack.org>; Thu,  4 Oct 2012 09:01:22 -0400 (EDT)
-Date: Thu, 4 Oct 2012 15:01:19 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: Repeatable ext4 oops with 3.6.0 (regression)
-Message-ID: <20121004130119.GH4641@quack.suse.cz>
-References: <pan.2012.10.02.11.19.55.793436@googlemail.com>
- <20121002133642.GD22777@quack.suse.cz>
- <pan.2012.10.02.14.31.57.530230@googlemail.com>
+Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
+	by kanga.kvack.org (Postfix) with SMTP id E8DD06B0110
+	for <linux-mm@kvack.org>; Thu,  4 Oct 2012 09:07:26 -0400 (EDT)
+Date: Thu, 4 Oct 2012 15:07:24 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [mmotm] get rid of the remaining VM_RESERVED usage
+Message-ID: <20121004130724.GF27536@dhcp22.suse.cz>
+References: <20121004113428.GD27536@dhcp22.suse.cz>
+ <506D8547.3060505@openvz.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <pan.2012.10.02.14.31.57.530230@googlemail.com>
+In-Reply-To: <506D8547.3060505@openvz.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Holger Hoffstaette <holger.hoffstaette@googlemail.com>
-Cc: linux-ext4@vger.kernel.org, linux-mm@kvack.org
+To: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Tue 02-10-12 16:31:57, Holger Hoffstaette wrote:
-> On Tue, 02 Oct 2012 15:36:42 +0200, Jan Kara wrote:
+On Thu 04-10-12 16:47:03, Konstantin Khlebnikov wrote:
+> All right.
+> VM_RESERVED can be replaced with (VM_DONTEXPAND | VM_DONTDUMP) or VM_IO
+
+Thanks for double checking, Konstantin.
+
+> Michal Hocko wrote:
+> >Hi Andrew, Konstantin,
+> >it seems that these slipped through when VM_RESERVED was removed by
+> >broken-out/mm-kill-vma-flag-vm_reserved-and-mm-reserved_vm-counter.patch
+> >
+> >I hope I didn't screw anything... Please merge it with the original
+> >patch if it looks correctly.
+> >---
+> >  drivers/media/video/meye.c                      |    2 +-
+> >  drivers/media/video/omap/omap_vout.c            |    2 +-
+> >  drivers/media/video/sn9c102/sn9c102_core.c      |    1 -
+> >  drivers/media/video/usbvision/usbvision-video.c |    2 --
+> >  drivers/media/video/videobuf-dma-sg.c           |    2 +-
+> >  drivers/media/video/videobuf-vmalloc.c          |    2 +-
+> >  drivers/media/video/videobuf2-memops.c          |    2 +-
+> >  drivers/media/video/vino.c                      |    2 +-
+> >  drivers/staging/media/easycap/easycap_main.c    |    2 +-
+> >  9 files changed, 7 insertions(+), 10 deletions(-)
+> >
+> >diff --git a/drivers/media/video/meye.c b/drivers/media/video/meye.c
+> >index 7bc7752..e5a76da 100644
+> >--- a/drivers/media/video/meye.c
+> >+++ b/drivers/media/video/meye.c
+> >@@ -1647,7 +1647,7 @@ static int meye_mmap(struct file *file, struct vm_area_struct *vma)
+> >
+> >  	vma->vm_ops =&meye_vm_ops;
+> >  	vma->vm_flags&= ~VM_IO;	/* not I/O memory */
+> >-	vma->vm_flags |= VM_RESERVED;	/* avoid to swap out this VMA */
+> >+	vma->vm_flags |= VM_DONTEXPAND | VM_DONTDUMP;
+> >  	vma->vm_private_data = (void *) (offset / gbufsize);
+> >  	meye_vm_open(vma);
+> >
+> >diff --git a/drivers/media/video/omap/omap_vout.c b/drivers/media/video/omap/omap_vout.c
+> >index 88cf9d9..45797aa 100644
+> >--- a/drivers/media/video/omap/omap_vout.c
+> >+++ b/drivers/media/video/omap/omap_vout.c
+> >@@ -910,7 +910,7 @@ static int omap_vout_mmap(struct file *file, struct vm_area_struct *vma)
+> >
+> >  	q->bufs[i]->baddr = vma->vm_start;
+> >
+> >-	vma->vm_flags |= VM_RESERVED;
+> >+	vma->vm_flags |= VM_DONTEXPAND | VM_DONTDUMP;
+> >  	vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
+> >  	vma->vm_ops =&omap_vout_vm_ops;
+> >  	vma->vm_private_data = (void *) vout;
+> >diff --git a/drivers/media/video/sn9c102/sn9c102_core.c b/drivers/media/video/sn9c102/sn9c102_core.c
+> >index 19ea780..c28b75b 100644
+> >--- a/drivers/media/video/sn9c102/sn9c102_core.c
+> >+++ b/drivers/media/video/sn9c102/sn9c102_core.c
+> >@@ -2127,7 +2127,6 @@ static int sn9c102_mmap(struct file* filp, struct vm_area_struct *vma)
+> >  	}
+> >
+> >  	vma->vm_flags |= VM_IO;
+> >-	vma->vm_flags |= VM_RESERVED;
+> >
+> >  	pos = cam->frame[i].bufmem;
+> >  	while (size>  0) { /* size is page-aligned */
+> >diff --git a/drivers/media/video/usbvision/usbvision-video.c b/drivers/media/video/usbvision/usbvision-video.c
+> >index 9bd8f08..e776a6c 100644
+> >--- a/drivers/media/video/usbvision/usbvision-video.c
+> >+++ b/drivers/media/video/usbvision/usbvision-video.c
+> >@@ -1089,9 +1089,7 @@ static int usbvision_v4l2_mmap(struct file *file, struct vm_area_struct *vma)
+> >  		return -EINVAL;
+> >  	}
+> >
+> >-	/* VM_IO is eventually going to replace PageReserved altogether */
+> >  	vma->vm_flags |= VM_IO;
+> >-	vma->vm_flags |= VM_RESERVED;	/* avoid to swap out this VMA */
+> >
+> >  	pos = usbvision->frame[i].data;
+> >  	while (size>  0) {
+> >diff --git a/drivers/media/video/videobuf-dma-sg.c b/drivers/media/video/videobuf-dma-sg.c
+> >index f300dea..828e7c1 100644
+> >--- a/drivers/media/video/videobuf-dma-sg.c
+> >+++ b/drivers/media/video/videobuf-dma-sg.c
+> >@@ -582,7 +582,7 @@ static int __videobuf_mmap_mapper(struct videobuf_queue *q,
+> >  	map->count    = 1;
+> >  	map->q        = q;
+> >  	vma->vm_ops   =&videobuf_vm_ops;
+> >-	vma->vm_flags |= VM_DONTEXPAND | VM_RESERVED;
+> >+	vma->vm_flags |= VM_DONTEXPAND | VM_DONTDUMP;
+> >  	vma->vm_flags&= ~VM_IO; /* using shared anonymous pages */
+> >  	vma->vm_private_data = map;
+> >  	dprintk(1, "mmap %p: q=%p %08lx-%08lx pgoff %08lx bufs %d-%d\n",
+> >diff --git a/drivers/media/video/videobuf-vmalloc.c b/drivers/media/video/videobuf-vmalloc.c
+> >index df14258..2ff7fcc 100644
+> >--- a/drivers/media/video/videobuf-vmalloc.c
+> >+++ b/drivers/media/video/videobuf-vmalloc.c
+> >@@ -270,7 +270,7 @@ static int __videobuf_mmap_mapper(struct videobuf_queue *q,
+> >  	}
+> >
+> >  	vma->vm_ops          =&videobuf_vm_ops;
+> >-	vma->vm_flags       |= VM_DONTEXPAND | VM_RESERVED;
+> >+	vma->vm_flags       |= VM_DONTEXPAND | VM_DONTDUMP;
+> >  	vma->vm_private_data = map;
+> >
+> >  	dprintk(1, "mmap %p: q=%p %08lx-%08lx (%lx) pgoff %08lx buf %d\n",
+> >diff --git a/drivers/media/video/videobuf2-memops.c b/drivers/media/video/videobuf2-memops.c
+> >index 504cd4c..051ea35 100644
+> >--- a/drivers/media/video/videobuf2-memops.c
+> >+++ b/drivers/media/video/videobuf2-memops.c
+> >@@ -163,7 +163,7 @@ int vb2_mmap_pfn_range(struct vm_area_struct *vma, unsigned long paddr,
+> >  		return ret;
+> >  	}
+> >
+> >-	vma->vm_flags		|= VM_DONTEXPAND | VM_RESERVED;
+> >+	vma->vm_flags		|= VM_DONTEXPAND | VM_DONTDUMP;
+> >  	vma->vm_private_data	= priv;
+> >  	vma->vm_ops		= vm_ops;
+> >
+> >diff --git a/drivers/media/video/vino.c b/drivers/media/video/vino.c
+> >index aae1720..cc9110c 100644
+> >--- a/drivers/media/video/vino.c
+> >+++ b/drivers/media/video/vino.c
+> >@@ -3950,7 +3950,7 @@ found:
+> >
+> >  	fb->map_count = 1;
+> >
+> >-	vma->vm_flags |= VM_DONTEXPAND | VM_RESERVED;
+> >+	vma->vm_flags |= VM_DONTEXPAND | VM_DONTDUMP;
+> >  	vma->vm_flags&= ~VM_IO;
+> >  	vma->vm_private_data = fb;
+> >  	vma->vm_file = file;
+> >diff --git a/drivers/staging/media/easycap/easycap_main.c b/drivers/staging/media/easycap/easycap_main.c
+> >index 8269c77..4afa93d 100644
+> >--- a/drivers/staging/media/easycap/easycap_main.c
+> >+++ b/drivers/staging/media/easycap/easycap_main.c
+> >@@ -2246,7 +2246,7 @@ static int easycap_mmap(struct file *file, struct vm_area_struct *pvma)
+> >  	JOT(8, "\n");
+> >
+> >  	pvma->vm_ops =&easycap_vm_ops;
+> >-	pvma->vm_flags |= VM_RESERVED;
+> >+	pvma->vm_flags |= VM_DONTEXPAND | VM_DONTDUMP;
+> >  	if (file)
+> >  		pvma->vm_private_data = file->private_data;
+> >  	easycap_vma_open(pvma);
 > 
-> >   Thanks for report! Can you please attach here full dmesg after the oops
-> > happens - the output from syslog seems to be partially filtered which
-> > makes things unnecessarily hard... Thanks!
-  Please use reply-to-all next time. It makes me less likely to miss the
-email in the list traffic. Thanks.
 
-> The output was cut from /var/log/messages since the machine hung and that file
-> was intact.
-  I see.
-
-> Following are dmesg from the reboot after the crash and after
-> that is the full messages file from the crash I just reproduced; this time
-> gthumb "properly" segfaulted (15:49:32), but the kernel still started to
-> tumble and hung a few seconds later. Produced even more fireworks this
-> time. :)
-> 
-> (..after several posting attempts..)
-> 
-> I'm reading this through gmane and the files are apparently too big for
-> posting, so I put them here: http://hoho.dyndns.org/~holger/ext4-oops-3.6.0/
-  dmesg after boot doesn't help us. It is a dump of a kernel internal
-buffer of messages so it is cleared after reboot. I had hoped the machine
-is usable after a crash but apparently it's not. Could you reconfigure your
-syslog to put all messages in one file (because now part of the oops
-message apparently ends in /var/log/warn or something like that)? Or setup
-something like netconsole (see Documentation/networking/netconsole.txt) to
-grab the oops. Thanks!
-
-Looking into your messages file, the oops now is:
-
-segfault at 138 ip b7033ee0 sp ad6fee2c error 4 in libgio-2.0.so.0.3200.4[b7010000+156000]
-*pde = 00000000 
-Oops: 0000 [#1] SMP 
-Modules linked in: nfsv4 auth_rpcgss radeon
-drm_kms_helper ttm drm i2c_algo_bit nfs lockd sunrpc dm_mod 
-snd_hda_codec_analog coretemp kvm_intel kvm ehci_hcd i2c_i801 i2c_core
-uhci_hcd sr_mod snd_hda_intel cdrom usbcore e1000e snd_hda_codec 
-usb_common snd_pcm snd_page_alloc snd_timer thinkpad_acpi snd video
-Pid: 2934, comm: nscd Not tainted 3.6.0 #1 LENOVO 20087JG/20087JG
-EIP: 0060:[<c01bfcfd>] EFLAGS: 00010206 CPU: 0
-EIP is at kmem_cache_alloc+0x4d/0xd0
-EAX: 00000000 EBX: 09000000 ECX: 0000e6bd EDX: 0000e6bc
-ESI: f5802380 EDI: 09000000 EBP: f1599ecc ESP: f1599ea0
- DS: 007b ES: 007b FS: 00d8 GS: 0033 SS: 0068
-CR0: 8005003b CR2: 09000000 CR3: 358fe000 CR4: 000007d0
-DR0: 00000000 DR1: 00000000 DR2: 00000000 DR3: 00000000
-DR6: ffff0ff0 DR7: 00000400
- c02c5d91 09000000 0000e6bc f1599ec8 0000e6bd bfc24000 c01440b9 000000d0
- 01200011 00000000 00000000 f1599f08 c01440b9 f14c4038 c05c2d20 f4acf64c
- f4acf650 f4acf630 f4acf63c f14c4380 00000022 01200011 f158fff8 01200011
- [<c02c5d91>] ? cpumask_any_but+0x21/0x40
- [<c01440b9>] ? alloc_pid+0x19/0x350
- [<c01440b9>] alloc_pid+0x19/0x350
- [<c012b983>] copy_process+0xa93/0x10a0
- [<c012c04c>] do_fork+0x9c/0x2a0
- [<c013c86e>] ? __set_current_blocked+0x2e/0x50
- [<c01094ef>] sys_clone+0x2f/0x40
- [<c04a8c9d>] ptregs_clone+0x15/0x38
- [<c04a8bd0>] ? sysenter_do_call+0x12/0x26
-CR2: 0000000009000000
----[ end trace 8447e05159f57aa8 ]---
-
-So this time there's nothing about filesystems in the trace. Maybe this is
-a generic mm bug - adding mm list to CC.
-
-								Honza
 -- 
-Jan Kara <jack@suse.cz>
-SUSE Labs, CR
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
