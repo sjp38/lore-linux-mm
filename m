@@ -1,58 +1,30 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
-	by kanga.kvack.org (Postfix) with SMTP id D62AF6B012E
-	for <linux-mm@kvack.org>; Thu,  4 Oct 2012 14:11:41 -0400 (EDT)
-Date: Thu, 04 Oct 2012 14:11:36 -0400 (EDT)
-Message-Id: <20121004.141136.1763670567147718953.davem@davemloft.net>
-Subject: Re: [PATCH 0/8] THP support for Sparc64
-From: David Miller <davem@davemloft.net>
-In-Reply-To: <20121004103548.GB6793@redhat.com>
-References: <20121002155544.2c67b1e8.akpm@linux-foundation.org>
-	<20121003.220027.1636081487098835868.davem@davemloft.net>
-	<20121004103548.GB6793@redhat.com>
-Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
+	by kanga.kvack.org (Postfix) with SMTP id 9D5F46B0130
+	for <linux-mm@kvack.org>; Thu,  4 Oct 2012 14:17:39 -0400 (EDT)
+Date: Thu, 4 Oct 2012 18:17:37 +0000
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: your mail
+In-Reply-To: <20121004165008.GF25675@redhat.com>
+Message-ID: <0000013a2cff3c3d-76e00716-2869-4dc8-8717-82f0136018d0-000000@email.amazonses.com>
+References: <20121004165008.GF25675@redhat.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: aarcange@redhat.com
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, sparclinux@vger.kernel.org, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, hannes@cmpxchg.org, gerald.schaefer@de.ibm.com
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <pzijlstr@redhat.com>, Ingo Molnar <mingo@elte.hu>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hillf Danton <dhillf@gmail.com>, Andrew Jones <drjones@redhat.com>, Dan Smith <danms@us.ibm.com>, Thomas Gleixner <tglx@linutronix.de>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
 
-From: Andrea Arcangeli <aarcange@redhat.com>
-Date: Thu, 4 Oct 2012 12:35:48 +0200
+On Thu, 4 Oct 2012, Andrea Arcangeli wrote:
 
-> Hi Dave,
-> 
-> On Wed, Oct 03, 2012 at 10:00:27PM -0400, David Miller wrote:
->> From: Andrew Morton <akpm@linux-foundation.org>
->> Date: Tue, 2 Oct 2012 15:55:44 -0700
->> 
->> > I had a shot at integrating all this onto the pending stuff in linux-next. 
->> > "mm: Add and use update_mmu_cache_pmd() in transparent huge page code."
->> > needed minor massaging in huge_memory.c.  But as Andrea mentioned, we
->> > ran aground on Gerald's
->> > http://ozlabs.org/~akpm/mmotm/broken-out/thp-remove-assumptions-on-pgtable_t-type.patch,
->> > part of the thp-for-s390 work.
->> 
->> While working on a rebase relative to this work, I noticed that the
->> s390 patches don't even compile.
->> 
->> It's because of that pmd_pgprot() change from Peter Z. which arrives
->> asynchonously via the linux-next tree.  It makes THP start using
->> pmd_pgprot() (a new interface) which the s390 patches don't provide.
-> 
-> My suggestion would be to ignore linux-next and port it to -mm only
-> and re-send to Andrew. schednuma is by mistake in linux-next, and
-> it's not going to get merged as far as I can tell.
+> So we could drop page_autonuma by creating a CONFIG_SLUB=y dependency
+> (AUTONUMA wouldn't be available in the kernel config if SLAB=y, and it
+> also wouldn't be available on 32bit archs but the latter isn't a
+> problem).
 
-Sorry Andrea, that simply is impractical.
-
-The first thing Andrew's patch series does is include linux-next,
-therefore every THP and MM patch in his series is against linux-next.
-
-So there are already dependencies in there on the pmd_pgprot() bits
-and I already did the implementation for sparc64 so that's what I'm
-submitting against.
+Nope it should depend on page struct alignment. Other kernel subsystems
+may be depeding on page struct alignment in the future (and some other
+arches may already have that requirement)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
