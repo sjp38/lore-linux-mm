@@ -1,160 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
-	by kanga.kvack.org (Postfix) with SMTP id A24C06B0104
-	for <linux-mm@kvack.org>; Thu,  4 Oct 2012 07:34:31 -0400 (EDT)
-Date: Thu, 4 Oct 2012 13:34:29 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: [mmotm] get rid of the remaining VM_RESERVED usage
-Message-ID: <20121004113428.GD27536@dhcp22.suse.cz>
+Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
+	by kanga.kvack.org (Postfix) with SMTP id D27F56B0106
+	for <linux-mm@kvack.org>; Thu,  4 Oct 2012 07:58:46 -0400 (EDT)
+Message-ID: <506D7922.1050108@parallels.com>
+Date: Thu, 4 Oct 2012 15:55:14 +0400
+From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Subject: Re: [PATCH v3 04/13] kmem accounting basic infrastructure
+References: <50635F46.7000700@parallels.com> <20120926201629.GB20342@google.com> <50637298.2090904@parallels.com> <20120927120806.GA29104@dhcp22.suse.cz> <20120927143300.GA4251@mtj.dyndns.org> <20120927144307.GH3429@suse.de> <20120927145802.GC4251@mtj.dyndns.org> <50649B4C.8000208@parallels.com> <20120930082358.GG10383@mtj.dyndns.org> <50695817.2030201@parallels.com> <20121003225458.GE19248@localhost>
+In-Reply-To: <20121003225458.GE19248@localhost>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Konstantin Khlebnikov <khlebnikov@openvz.org>, linux-mm@kvack.org
+To: Tejun Heo <tj@kernel.org>
+Cc: Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, devel@openvz.org, linux-mm@kvack.org, Suleiman Souhlal <suleiman@google.com>, Frederic Weisbecker <fweisbec@gmail.com>, David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>
 
-Hi Andrew, Konstantin,
-it seems that these slipped through when VM_RESERVED was removed by
-broken-out/mm-kill-vma-flag-vm_reserved-and-mm-reserved_vm-counter.patch
+On 10/04/2012 02:54 AM, Tejun Heo wrote:
+> Hello, Glauber.
+> 
+> On Mon, Oct 01, 2012 at 12:45:11PM +0400, Glauber Costa wrote:
+>>> where kmemcg_slab_idx is updated from sched notifier (or maybe add and
+>>> use current->kmemcg_slab_idx?).  You would still need __GFP_* and
+>>> in_interrupt() tests but current->mm and PF_KTHREAD tests can be
+>>> rolled into index selection.
+>>
+>> How big would this array be? there can be a lot more kmem_caches than
+>> there are memcgs. That is why it is done from memcg side.
+> 
+> The total number of memcgs are pretty limited due to the ID thing,
+> right?  And kmemcg is only applied to subset of caches.  I don't think
+> the array size would be a problem in terms of memory overhead, would
+> it?  If so, RCU synchronize and dynamically grow them?
+> 
+> Thanks.
+> 
 
-I hope I didn't screw anything... Please merge it with the original
-patch if it looks correctly.
----
- drivers/media/video/meye.c                      |    2 +-
- drivers/media/video/omap/omap_vout.c            |    2 +-
- drivers/media/video/sn9c102/sn9c102_core.c      |    1 -
- drivers/media/video/usbvision/usbvision-video.c |    2 --
- drivers/media/video/videobuf-dma-sg.c           |    2 +-
- drivers/media/video/videobuf-vmalloc.c          |    2 +-
- drivers/media/video/videobuf2-memops.c          |    2 +-
- drivers/media/video/vino.c                      |    2 +-
- drivers/staging/media/easycap/easycap_main.c    |    2 +-
- 9 files changed, 7 insertions(+), 10 deletions(-)
+I don't want to assume the number of memcgs will always be that limited.
+Sure, the ID limitation sounds pretty much a big one, but people doing
+VMs usually want to stack as many VMs as they possibly can in an
+environment, and the less things preventing that from happening, the better.
 
-diff --git a/drivers/media/video/meye.c b/drivers/media/video/meye.c
-index 7bc7752..e5a76da 100644
---- a/drivers/media/video/meye.c
-+++ b/drivers/media/video/meye.c
-@@ -1647,7 +1647,7 @@ static int meye_mmap(struct file *file, struct vm_area_struct *vma)
- 
- 	vma->vm_ops = &meye_vm_ops;
- 	vma->vm_flags &= ~VM_IO;	/* not I/O memory */
--	vma->vm_flags |= VM_RESERVED;	/* avoid to swap out this VMA */
-+	vma->vm_flags |= VM_DONTEXPAND | VM_DONTDUMP;
- 	vma->vm_private_data = (void *) (offset / gbufsize);
- 	meye_vm_open(vma);
- 
-diff --git a/drivers/media/video/omap/omap_vout.c b/drivers/media/video/omap/omap_vout.c
-index 88cf9d9..45797aa 100644
---- a/drivers/media/video/omap/omap_vout.c
-+++ b/drivers/media/video/omap/omap_vout.c
-@@ -910,7 +910,7 @@ static int omap_vout_mmap(struct file *file, struct vm_area_struct *vma)
- 
- 	q->bufs[i]->baddr = vma->vm_start;
- 
--	vma->vm_flags |= VM_RESERVED;
-+	vma->vm_flags |= VM_DONTEXPAND | VM_DONTDUMP;
- 	vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
- 	vma->vm_ops = &omap_vout_vm_ops;
- 	vma->vm_private_data = (void *) vout;
-diff --git a/drivers/media/video/sn9c102/sn9c102_core.c b/drivers/media/video/sn9c102/sn9c102_core.c
-index 19ea780..c28b75b 100644
---- a/drivers/media/video/sn9c102/sn9c102_core.c
-+++ b/drivers/media/video/sn9c102/sn9c102_core.c
-@@ -2127,7 +2127,6 @@ static int sn9c102_mmap(struct file* filp, struct vm_area_struct *vma)
- 	}
- 
- 	vma->vm_flags |= VM_IO;
--	vma->vm_flags |= VM_RESERVED;
- 
- 	pos = cam->frame[i].bufmem;
- 	while (size > 0) { /* size is page-aligned */
-diff --git a/drivers/media/video/usbvision/usbvision-video.c b/drivers/media/video/usbvision/usbvision-video.c
-index 9bd8f08..e776a6c 100644
---- a/drivers/media/video/usbvision/usbvision-video.c
-+++ b/drivers/media/video/usbvision/usbvision-video.c
-@@ -1089,9 +1089,7 @@ static int usbvision_v4l2_mmap(struct file *file, struct vm_area_struct *vma)
- 		return -EINVAL;
- 	}
- 
--	/* VM_IO is eventually going to replace PageReserved altogether */
- 	vma->vm_flags |= VM_IO;
--	vma->vm_flags |= VM_RESERVED;	/* avoid to swap out this VMA */
- 
- 	pos = usbvision->frame[i].data;
- 	while (size > 0) {
-diff --git a/drivers/media/video/videobuf-dma-sg.c b/drivers/media/video/videobuf-dma-sg.c
-index f300dea..828e7c1 100644
---- a/drivers/media/video/videobuf-dma-sg.c
-+++ b/drivers/media/video/videobuf-dma-sg.c
-@@ -582,7 +582,7 @@ static int __videobuf_mmap_mapper(struct videobuf_queue *q,
- 	map->count    = 1;
- 	map->q        = q;
- 	vma->vm_ops   = &videobuf_vm_ops;
--	vma->vm_flags |= VM_DONTEXPAND | VM_RESERVED;
-+	vma->vm_flags |= VM_DONTEXPAND | VM_DONTDUMP;
- 	vma->vm_flags &= ~VM_IO; /* using shared anonymous pages */
- 	vma->vm_private_data = map;
- 	dprintk(1, "mmap %p: q=%p %08lx-%08lx pgoff %08lx bufs %d-%d\n",
-diff --git a/drivers/media/video/videobuf-vmalloc.c b/drivers/media/video/videobuf-vmalloc.c
-index df14258..2ff7fcc 100644
---- a/drivers/media/video/videobuf-vmalloc.c
-+++ b/drivers/media/video/videobuf-vmalloc.c
-@@ -270,7 +270,7 @@ static int __videobuf_mmap_mapper(struct videobuf_queue *q,
- 	}
- 
- 	vma->vm_ops          = &videobuf_vm_ops;
--	vma->vm_flags       |= VM_DONTEXPAND | VM_RESERVED;
-+	vma->vm_flags       |= VM_DONTEXPAND | VM_DONTDUMP;
- 	vma->vm_private_data = map;
- 
- 	dprintk(1, "mmap %p: q=%p %08lx-%08lx (%lx) pgoff %08lx buf %d\n",
-diff --git a/drivers/media/video/videobuf2-memops.c b/drivers/media/video/videobuf2-memops.c
-index 504cd4c..051ea35 100644
---- a/drivers/media/video/videobuf2-memops.c
-+++ b/drivers/media/video/videobuf2-memops.c
-@@ -163,7 +163,7 @@ int vb2_mmap_pfn_range(struct vm_area_struct *vma, unsigned long paddr,
- 		return ret;
- 	}
- 
--	vma->vm_flags		|= VM_DONTEXPAND | VM_RESERVED;
-+	vma->vm_flags		|= VM_DONTEXPAND | VM_DONTDUMP;
- 	vma->vm_private_data	= priv;
- 	vma->vm_ops		= vm_ops;
- 
-diff --git a/drivers/media/video/vino.c b/drivers/media/video/vino.c
-index aae1720..cc9110c 100644
---- a/drivers/media/video/vino.c
-+++ b/drivers/media/video/vino.c
-@@ -3950,7 +3950,7 @@ found:
- 
- 	fb->map_count = 1;
- 
--	vma->vm_flags |= VM_DONTEXPAND | VM_RESERVED;
-+	vma->vm_flags |= VM_DONTEXPAND | VM_DONTDUMP;
- 	vma->vm_flags &= ~VM_IO;
- 	vma->vm_private_data = fb;
- 	vma->vm_file = file;
-diff --git a/drivers/staging/media/easycap/easycap_main.c b/drivers/staging/media/easycap/easycap_main.c
-index 8269c77..4afa93d 100644
---- a/drivers/staging/media/easycap/easycap_main.c
-+++ b/drivers/staging/media/easycap/easycap_main.c
-@@ -2246,7 +2246,7 @@ static int easycap_mmap(struct file *file, struct vm_area_struct *pvma)
- 	JOT(8, "\n");
- 
- 	pvma->vm_ops = &easycap_vm_ops;
--	pvma->vm_flags |= VM_RESERVED;
-+	pvma->vm_flags |= VM_DONTEXPAND | VM_DONTDUMP;
- 	if (file)
- 		pvma->vm_private_data = file->private_data;
- 	easycap_vma_open(pvma);
--- 
-1.7.10.4
+That said, now that I've experimented with this a bit, indexing from the
+cache may have some advantages: it can get too complicated to propagate
+new caches appearing to all memcgs that already in-flight. We don't have
+this problem from the cache side, because instances of it are guaranteed
+not to exist at this point by definition.
 
--- 
-Michal Hocko
-SUSE Labs
+I don't want to bloat unrelated kmem_cache structures, so I can't embed
+a memcg array in there: I would have to have a pointer to a memcg array
+that gets assigned at first use. But if we don't want to have a static
+number, as you and christoph already frowned upon heavily, we may have
+to do that memcg side as well.
+
+The array gets bigger, though, because it pretty much has to be enough
+to accomodate all css_ids. Even now, they are more than the 400 I used
+in this patchset. Not allocating all of them at once will lead to more
+complication and pointer chasing in here.
+
+I'll take a look at the alternatives today and tomorrow.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
