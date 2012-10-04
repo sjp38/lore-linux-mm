@@ -1,168 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
-	by kanga.kvack.org (Postfix) with SMTP id 2D5DE6B0154
-	for <linux-mm@kvack.org>; Thu,  4 Oct 2012 16:53:41 -0400 (EDT)
-Received: by mail-oa0-f41.google.com with SMTP id k14so1241047oag.14
-        for <linux-mm@kvack.org>; Thu, 04 Oct 2012 13:53:40 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
+	by kanga.kvack.org (Postfix) with SMTP id F064B6B00CE
+	for <linux-mm@kvack.org>; Thu,  4 Oct 2012 17:11:26 -0400 (EDT)
+Message-ID: <506DFB79.1040307@googlemail.com>
+Date: Thu, 04 Oct 2012 23:11:21 +0200
+From: =?ISO-8859-1?Q?Holger_Hoffst=E4tte?=
+ <holger.hoffstaette@googlemail.com>
 MIME-Version: 1.0
-In-Reply-To: <506C0C53.60205@jp.fujitsu.com>
-References: <506C0AE8.40702@jp.fujitsu.com> <506C0C53.60205@jp.fujitsu.com>
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Date: Thu, 4 Oct 2012 16:53:17 -0400
-Message-ID: <CAHGf_=p7PaQs-kpnyB8uC1MntHQfL-CXhhq4QQP54mYiqOswqQ@mail.gmail.com>
-Subject: Re: [PATCH 1/4] acpi,memory-hotplug : add memory offline code to acpi_memory_device_remove()
+Subject: Re: Repeatable ext4 oops with 3.6.0 (regression)
+References: <pan.2012.10.02.11.19.55.793436@googlemail.com> <20121002133642.GD22777@quack.suse.cz> <pan.2012.10.02.14.31.57.530230@googlemail.com> <20121004130119.GH4641@quack.suse.cz> <506DABDD.7090105@googlemail.com> <20121004173425.GA15405@thunk.org>
+In-Reply-To: <20121004173425.GA15405@thunk.org>
 Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-Cc: x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-acpi@vger.kernel.org, rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, cl@linux.com, minchan.kim@gmail.com, akpm@linux-foundation.org, wency@cn.fujitsu.com
+To: Theodore Ts'o <tytso@mit.edu>
+Cc: Jan Kara <jack@suse.cz>, linux-ext4@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, Oct 3, 2012 at 5:58 AM, Yasuaki Ishimatsu
-<isimatu.yasuaki@jp.fujitsu.com> wrote:
-> From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
->
-> The memory device can be removed by 2 ways:
-> 1. send eject request by SCI
-> 2. echo 1 >/sys/bus/pci/devices/PNP0C80:XX/eject
->
-> In the 1st case, acpi_memory_disable_device() will be called.
-> In the 2nd case, acpi_memory_device_remove() will be called.
-> acpi_memory_device_remove() will also be called when we unbind the
-> memory device from the driver acpi_memhotplug.
->
-> acpi_memory_disable_device() has already implemented a code which
-> offlines memory and releases acpi_memory_info struct . But
-> acpi_memory_device_remove() has not implemented it yet.
->
-> So the patch implements acpi_memory_remove_memory() for offlining
-> memory and releasing acpi_memory_info struct. And it is used by both
-> acpi_memory_device_remove() and acpi_memory_disable_device().
->
-> Additionally, if the type is ACPI_BUS_REMOVAL_EJECT in
-> acpi_memory_device_remove() , it means that the user wants to eject
-> the memory device. In this case, acpi_memory_device_remove() calls
-> acpi_memory_remove_memory().
->
-> CC: David Rientjes <rientjes@google.com>
-> CC: Jiang Liu <liuj97@gmail.com>
-> CC: Len Brown <len.brown@intel.com>
-> CC: Christoph Lameter <cl@linux.com>
-> Cc: Minchan Kim <minchan.kim@gmail.com>
-> CC: Andrew Morton <akpm@linux-foundation.org>
-> CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> Signed-off-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-> Signed-off-by: Wen Congyang <wency@cn.fujitsu.com>
-> ---
->  drivers/acpi/acpi_memhotplug.c |   44 +++++++++++++++++++++++++++++++----------
->  1 file changed, 34 insertions(+), 10 deletions(-)
->
-> Index: linux-3.6/drivers/acpi/acpi_memhotplug.c
-> ===================================================================
-> --- linux-3.6.orig/drivers/acpi/acpi_memhotplug.c       2012-10-03 18:55:33.386378909 +0900
-> +++ linux-3.6/drivers/acpi/acpi_memhotplug.c    2012-10-03 18:55:58.624380688 +0900
-> @@ -306,24 +306,37 @@ static int acpi_memory_powerdown_device(
->         return 0;
->  }
->
-> -static int acpi_memory_disable_device(struct acpi_memory_device *mem_device)
-> +static int acpi_memory_remove_memory(struct acpi_memory_device *mem_device)
->  {
->         int result;
->         struct acpi_memory_info *info, *n;
->
-> +       list_for_each_entry_safe(info, n, &mem_device->res_list, list) {
+(dear -mm: please see
+http://thread.gmane.org/gmane.comp.file-systems.ext4/34665 for the
+origins of this oops)
 
-Which lock protect this loop?
+On 10/04/12 19:34, Theodore Ts'o wrote:
+> On Thu, Oct 04, 2012 at 05:31:41PM +0200, Holger Hoffstatte wrote:
+> 
+>> So armed with multiple running shells I finally managed to save the dmesg
+>> to NFS. It doesn't get any more complete than this and again shows the
+>> ext4 stacktrace from before. So maybe it really is generic kmem corruption
+>> and ext4 looking at symlinks/inodes is just the victim.
+> 
+> That certainly seems to be the case.  As near as I can tell from the
 
+Good to know. Unfortunately I'm still at a loss why apparently only
+gthumb can trigger this; I had not noticed any other problems with 3.6.0
+before that (ran it for half a day, desktop use).
 
-> +               if (!info->enabled)
-> +                       return -EBUSY;
-> +
-> +               result = remove_memory(info->start_addr, info->length);
-> +               if (result)
-> +                       return result;
+> So it's very likely that the crash in __kmalloc() is probably caused
+> by the internal slab/slub data structures getting scrambled.
 
-I suspect you need to implement rollback code instead of just return.
+For giggles I rebuilt with SLAB instead of SLUB, but no luck; same
+segfault and delayed oopsie. I also collected an strace, but I cannot
+really see anything out of the ordinary - it starts, loads things,
+traverses directories and then segfaults.
 
+I've put the earlier full dmesg and the strace into
+http://hoho.dyndns.org/~holger/ext4-oops-3.6.0/ - maybe it helps someone
+else.
 
-> +
-> +               list_del(&info->list);
-> +               kfree(info);
-> +       }
-> +
-> +       return 0;
-> +}
-> +
-> +static int acpi_memory_disable_device(struct acpi_memory_device *mem_device)
-> +{
-> +       int result;
->
->         /*
->          * Ask the VM to offline this memory range.
->          * Note: Assume that this function returns zero on success
->          */
+Any suggestions for memory debugging? I saw several options in the
+kernel config (under "Kernel Hacking") but was not sure what to enable.
 
-Write function comment instead of this silly comment.
-
-> -       list_for_each_entry_safe(info, n, &mem_device->res_list, list) {
-> -               if (info->enabled) {
-> -                       result = remove_memory(info->start_addr, info->length);
-> -                       if (result)
-> -                               return result;
-> -               }
-> -               kfree(info);
-> -       }
-> +       result = acpi_memory_remove_memory(mem_device);
-> +       if (result)
-> +               return result;
->
->         /* Power-off and eject the device */
->         result = acpi_memory_powerdown_device(mem_device);
-
-This patch move acpi_memory_powerdown_device() from ACPI_NOTIFY_EJECT_REQUEST
-to release callback, but don't explain why.
-
-
-
-
-
-> @@ -473,12 +486,23 @@ static int acpi_memory_device_add(struct
->  static int acpi_memory_device_remove(struct acpi_device *device, int type)
->  {
->         struct acpi_memory_device *mem_device = NULL;
-> -
-> +       int result;
->
->         if (!device || !acpi_driver_data(device))
->                 return -EINVAL;
->
->         mem_device = acpi_driver_data(device);
-> +
-> +       if (type == ACPI_BUS_REMOVAL_EJECT) {
-> +               /*
-> +                * offline and remove memory only when the memory device is
-> +                * ejected.
-> +                */
-
-This comment explain nothing. A comment should describe _why_ should we do.
-e.g. Why REMOVAL_NORMAL and REMOVEL_EJECT should be ignored. Why
-we need remove memory here instead of ACPI_NOTIFY_EJECT_REQUEST.
-
-
-> +               result = acpi_memory_remove_memory(mem_device);
-> +               if (result)
-> +                       return result;
-> +       }
-> +
->         kfree(mem_device);
->
->         return 0;
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Holger
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
