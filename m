@@ -1,49 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
-	by kanga.kvack.org (Postfix) with SMTP id E5ED56B014E
-	for <linux-mm@kvack.org>; Thu,  4 Oct 2012 16:09:37 -0400 (EDT)
-Received: by mail-qc0-f169.google.com with SMTP id t2so825256qcq.14
-        for <linux-mm@kvack.org>; Thu, 04 Oct 2012 13:09:37 -0700 (PDT)
-Message-ID: <506DED04.6090706@gmail.com>
-Date: Thu, 04 Oct 2012 16:09:40 -0400
-From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
+	by kanga.kvack.org (Postfix) with SMTP id 8BFDD6B0150
+	for <linux-mm@kvack.org>; Thu,  4 Oct 2012 16:19:18 -0400 (EDT)
+Date: Thu, 4 Oct 2012 16:19:08 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [patch 1/2] mm: memcontrol: handle potential crash when rmap
+ races with task exit
+Message-ID: <20121004201908.GA2625@cmpxchg.org>
+References: <1349374157-20604-1-git-send-email-hannes@cmpxchg.org>
+ <1349374157-20604-2-git-send-email-hannes@cmpxchg.org>
+ <20121004184958.GG27536@dhcp22.suse.cz>
 MIME-Version: 1.0
-Subject: Re: [PATCH 29/33] autonuma: page_autonuma
-References: <1349308275-2174-1-git-send-email-aarcange@redhat.com> <1349308275-2174-30-git-send-email-aarcange@redhat.com>
-In-Reply-To: <1349308275-2174-30-git-send-email-aarcange@redhat.com>
-Content-Type: text/plain; charset=ISO-2022-JP
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20121004184958.GG27536@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <pzijlstr@redhat.com>, Ingo Molnar <mingo@elte.hu>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hillf Danton <dhillf@gmail.com>, Andrew Jones <drjones@redhat.com>, Dan Smith <danms@us.ibm.com>, Thomas Gleixner <tglx@linutronix.de>, Paul Turner <pjt@google.com>, Christoph Lameter <cl@linux.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Srivatsa Vaddagiri <vatsa@linux.vnet.ibm.com>, Alex Shi <alex.shi@intel.com>, Mauricio Faria de Oliveira <mauricfo@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Don Morris <don.morris@hp.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, kosaki.motohiro@gmail.com
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Konstantin Khlebnikov <khlebnikov@openvz.org>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-> +struct page_autonuma *lookup_page_autonuma(struct page *page)
-> +{
-> +	unsigned long pfn = page_to_pfn(page);
-> +	unsigned long offset;
-> +	struct page_autonuma *base;
-> +
-> +	base = NODE_DATA(page_to_nid(page))->node_page_autonuma;
-> +#ifdef CONFIG_DEBUG_VM
-> +	/*
-> +	 * The sanity checks the page allocator does upon freeing a
-> +	 * page can reach here before the page_autonuma arrays are
-> +	 * allocated when feeding a range of pages to the allocator
-> +	 * for the first time during bootup or memory hotplug.
-> +	 */
-> +	if (unlikely(!base))
-> +		return NULL;
-> +#endif
+On Thu, Oct 04, 2012 at 08:49:58PM +0200, Michal Hocko wrote:
+> On Thu 04-10-12 14:09:16, Johannes Weiner wrote:
+> > page_referenced() counts only references of mm's that are associated
+> > with the memcg hierarchy that is being reclaimed.  However, if it
+> > races with the owner of the mm exiting, mm->owner may be NULL.  Don't
+> > crash, just ignore the reference.
+> 
+> This seems to be fixed by Hugh's patch 3a981f48 "memcg: fix use_hierarchy
+> css_is_ancestor oops regression" which seems to be merged already.
 
-When using CONFIG_DEBUG_VM, please just use BUG_ON instead of additional
-sanity check. Otherwise only MM people might fault to find a real bug.
-
-
-And I have additional question here. What's happen if memory hotplug occur
-and several autonuma_last_nid will point to invalid node id? My quick skimming
-didn't find hotplug callback code.
-
+And look who acked the patch.  I'll show myself out...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
