@@ -1,31 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx112.postini.com [74.125.245.112])
-	by kanga.kvack.org (Postfix) with SMTP id 2582C6B013A
-	for <linux-mm@kvack.org>; Thu,  4 Oct 2012 15:11:53 -0400 (EDT)
-Date: Thu, 4 Oct 2012 19:11:51 +0000
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH 29/33] autonuma: page_autonuma
-In-Reply-To: <20121004183819.GM25675@redhat.com>
-Message-ID: <0000013a2d30ebf2-1a2bb821-92a0-464b-9db0-f960b2fd074d-000000@email.amazonses.com>
-References: <20121004165008.GF25675@redhat.com> <0000013a2cff3c3d-76e00716-2869-4dc8-8717-82f0136018d0-000000@email.amazonses.com> <20121004183819.GM25675@redhat.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from psmtp.com (na3sys010amx159.postini.com [74.125.245.159])
+	by kanga.kvack.org (Postfix) with SMTP id 0D2286B013D
+	for <linux-mm@kvack.org>; Thu,  4 Oct 2012 15:46:29 -0400 (EDT)
+Date: Thu, 04 Oct 2012 15:46:24 -0400 (EDT)
+Message-Id: <20121004.154624.923241475790311926.davem@davemloft.net>
+Subject: [PATCH v2 0/8] THP support for Sparc64
+From: David Miller <davem@davemloft.net>
+Mime-Version: 1.0
+Content-Type: Text/Plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <pzijlstr@redhat.com>, Ingo Molnar <mingo@elte.hu>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hillf Danton <dhillf@gmail.com>, Andrew Jones <drjones@redhat.com>, Dan Smith <danms@us.ibm.com>, Thomas Gleixner <tglx@linutronix.de>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+To: linux-mm@kvack.org
+Cc: sparclinux@vger.kernel.org, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, akpm@linux-foundation.org, aarcange@redhat.com, hannes@cmpxchg.org
 
-On Thu, 4 Oct 2012, Andrea Arcangeli wrote:
 
-> If you mean CONFIG_AUTONUMA=y should select (not depend) on
-> CONFIG_HAVE_ALIGNED_STRUCT_PAGE, that would allow to enable it in all
-> .configs but it would have a worse cons: losing 8bytes per page
-> unconditionally (even when booting on non-NUMA hardware).
+Changes since V1:
 
-I did not say anything like that. Still not convinced that autonuma is
-worth doing and that it is beneficial given the complexity it adds to the
-kernel. Just wanted to point out that there is a case to be made for
-adding another word to the page struct.
+1) Respun against mmotm
+
+2) Bug fix for pgtable allocation, need real locking instead of
+   just preemption disabling.
+
+Andrew, you can probably take patch #5 in this series and combine
+it into:
+
+mm-thp-fix-the-update_mmu_cache-last-argument-passing-in-mm-huge_memoryc.patch
+
+in your batch.  And finally add a NOP implementation for S390
+and any other huge page supporting architectures.
+
+Signed-off-by: David S. Miller <davem@davemloft.net>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
