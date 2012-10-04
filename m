@@ -1,56 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
-	by kanga.kvack.org (Postfix) with SMTP id F064B6B00CE
-	for <linux-mm@kvack.org>; Thu,  4 Oct 2012 17:11:26 -0400 (EDT)
-Message-ID: <506DFB79.1040307@googlemail.com>
-Date: Thu, 04 Oct 2012 23:11:21 +0200
-From: =?ISO-8859-1?Q?Holger_Hoffst=E4tte?=
- <holger.hoffstaette@googlemail.com>
+	by kanga.kvack.org (Postfix) with SMTP id 3BBE06B0159
+	for <linux-mm@kvack.org>; Thu,  4 Oct 2012 17:37:30 -0400 (EDT)
+Received: by mail-oa0-f41.google.com with SMTP id k14so1292215oag.14
+        for <linux-mm@kvack.org>; Thu, 04 Oct 2012 14:37:29 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: Repeatable ext4 oops with 3.6.0 (regression)
-References: <pan.2012.10.02.11.19.55.793436@googlemail.com> <20121002133642.GD22777@quack.suse.cz> <pan.2012.10.02.14.31.57.530230@googlemail.com> <20121004130119.GH4641@quack.suse.cz> <506DABDD.7090105@googlemail.com> <20121004173425.GA15405@thunk.org>
-In-Reply-To: <20121004173425.GA15405@thunk.org>
+In-Reply-To: <506C0D45.3050909@jp.fujitsu.com>
+References: <506C0AE8.40702@jp.fujitsu.com> <506C0D45.3050909@jp.fujitsu.com>
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Date: Thu, 4 Oct 2012 17:31:26 -0400
+Message-ID: <CAHGf_=pdVLEkGDvbMC7vjd0F8Y_YFdKX85YcLwR+gCQ8Tf2Mcw@mail.gmail.com>
+Subject: Re: [PATCH 2/4] acpi,memory-hotplug : rename remove_memory() to offline_memory()
 Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Theodore Ts'o <tytso@mit.edu>
-Cc: Jan Kara <jack@suse.cz>, linux-ext4@vger.kernel.org, linux-mm@kvack.org
+To: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+Cc: x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-acpi@vger.kernel.org, rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, cl@linux.com, minchan.kim@gmail.com, akpm@linux-foundation.org, wency@cn.fujitsu.com
 
-(dear -mm: please see
-http://thread.gmane.org/gmane.comp.file-systems.ext4/34665 for the
-origins of this oops)
+On Wed, Oct 3, 2012 at 6:02 AM, Yasuaki Ishimatsu
+<isimatu.yasuaki@jp.fujitsu.com> wrote:
+> From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+>
+> add_memory() hot adds a physical memory. But remove_memory does not
+> hot remove a phsical memory. It only offlines memory. The name
+> confuse us.
+>
+> So the patch renames remove_memory() to offline_memory(). We will
+> use rename_memory() for hot removing memory.
+>
+> CC: David Rientjes <rientjes@google.com>
+> CC: Jiang Liu <liuj97@gmail.com>
+> CC: Len Brown <len.brown@intel.com>
+> CC: Christoph Lameter <cl@linux.com>
+> Cc: Minchan Kim <minchan.kim@gmail.com>
+> CC: Andrew Morton <akpm@linux-foundation.org>
+> CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> Signed-off-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+> Signed-off-by: Wen Congyang <wency@cn.fujitsu.com>
+> ---
+>  drivers/acpi/acpi_memhotplug.c |    2 +-
+>  include/linux/memory_hotplug.h |    2 +-
+>  mm/memory_hotplug.c            |    6 +++---
+>  3 files changed, 5 insertions(+), 5 deletions(-)
 
-On 10/04/12 19:34, Theodore Ts'o wrote:
-> On Thu, Oct 04, 2012 at 05:31:41PM +0200, Holger Hoffstatte wrote:
-> 
->> So armed with multiple running shells I finally managed to save the dmesg
->> to NFS. It doesn't get any more complete than this and again shows the
->> ext4 stacktrace from before. So maybe it really is generic kmem corruption
->> and ext4 looking at symlinks/inodes is just the victim.
-> 
-> That certainly seems to be the case.  As near as I can tell from the
+Probably, the better way is to just remove remove_memory() and use
+offline_pages().
 
-Good to know. Unfortunately I'm still at a loss why apparently only
-gthumb can trigger this; I had not noticed any other problems with 3.6.0
-before that (ran it for half a day, desktop use).
+btw, current remove_memory() pfn calculation is just buggy.
 
-> So it's very likely that the crash in __kmalloc() is probably caused
-> by the internal slab/slub data structures getting scrambled.
 
-For giggles I rebuilt with SLAB instead of SLUB, but no luck; same
-segfault and delayed oopsie. I also collected an strace, but I cannot
-really see anything out of the ordinary - it starts, loads things,
-traverses directories and then segfaults.
+> int remove_memory(u64 start, u64 size)
+> {
+>	unsigned long start_pfn, end_pfn;
+>
+>	start_pfn = PFN_DOWN(start);
+>	end_pfn = start_pfn + PFN_DOWN(size);
 
-I've put the earlier full dmesg and the strace into
-http://hoho.dyndns.org/~holger/ext4-oops-3.6.0/ - maybe it helps someone
-else.
+It should be:
 
-Any suggestions for memory debugging? I saw several options in the
-kernel config (under "Kernel Hacking") but was not sure what to enable.
+	start_pfn = PFN_DOWN(start);
+	end_pfn = PFN_UP(start + size)
 
-Holger
+or
+
+	start_pfn = PFN_UP(start);
+	end_pfn = PFN_DOWN(start + size)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
