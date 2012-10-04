@@ -1,10 +1,10 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
-	by kanga.kvack.org (Postfix) with SMTP id E35556B0140
-	for <linux-mm@kvack.org>; Thu,  4 Oct 2012 15:46:51 -0400 (EDT)
-Date: Thu, 04 Oct 2012 15:46:49 -0400 (EDT)
-Message-Id: <20121004.154649.2206336946126738090.davem@davemloft.net>
-Subject: [PATCH v2 2/7] sparc64: Halve the size of PTE tables.
+Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
+	by kanga.kvack.org (Postfix) with SMTP id C13796B0142
+	for <linux-mm@kvack.org>; Thu,  4 Oct 2012 15:47:09 -0400 (EDT)
+Date: Thu, 04 Oct 2012 15:47:00 -0400 (EDT)
+Message-Id: <20121004.154700.403187278233940887.davem@davemloft.net>
+Subject: [PATCH 3/7] sparc64: Eliminate PTE table memory wastage.
 From: David Miller <davem@davemloft.net>
 Mime-Version: 1.0
 Content-Type: Text/Plain; charset=us-ascii
@@ -15,104 +15,279 @@ To: linux-mm@kvack.org
 Cc: sparclinux@vger.kernel.org, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, akpm@linux-foundation.org, aarcange@redhat.com, hannes@cmpxchg.org
 
 
-The reason we want to do this is to facilitate transparent huge page
-support.
+We've split up the PTE tables so that they take up half a page instead
+of a full page.  This is in order to facilitate transparent huge page
+support, which works much better if our PMDs cover 4MB instead of 8MB.
 
-Right now PMD's cover 8MB of address space, and our huge page size is
-4MB.  The current transparent hugepage support is not able to handle
-HPAGE_SIZE != PMD_SIZE.
+What we do is have a one-behind cache for PTE table allocations in the
+mm struct.
 
-So make PTE tables be sized to half of a page instead of a full page.
+This logic triggers only on allocations.  For example, we don't try to
+keep track of free'd up page table blocks in the style that the s390
+port does.
 
-We can still map properly the whole supported virtual address range
-which on sparc64 requires 44 bits.  Add a compile time CPP test which
-ensures that this requirement is always met.
+There were only two slightly annoying aspects to this change:
 
-There is a minor inefficiency added by this change.  We only use half
-of the page for PTE tables.  It's not trivial to use only half of the
-page yet still get all of the pgtable_page_{ctor,dtor}() stuff working
-properly.  It is doable, and that will come in a subsequent change.
+1) Changing pgtable_t to be a "pte_t *".  There's all of this special
+   logic in the TLB free paths that needed adjustments, as did the
+   PMD populate interfaces.
+
+2) init_new_context() needs to zap the pointer, since the mm struct
+   just gets copied from the parent on fork.
 
 Signed-off-by: David S. Miller <davem@davemloft.net>
 ---
- arch/sparc/include/asm/pgtable_64.h |   24 +++++++-----------------
- arch/sparc/include/asm/tsb.h        |    4 ++--
- 2 files changed, 9 insertions(+), 19 deletions(-)
+ arch/sparc/include/asm/mmu_64.h     |    1 +
+ arch/sparc/include/asm/page_64.h    |    2 +-
+ arch/sparc/include/asm/pgalloc_64.h |   54 ++++---------------
+ arch/sparc/mm/init_64.c             |  101 +++++++++++++++++++++++++++++++++++
+ arch/sparc/mm/tsb.c                 |    9 ++++
+ 5 files changed, 123 insertions(+), 44 deletions(-)
 
-diff --git a/arch/sparc/include/asm/pgtable_64.h b/arch/sparc/include/asm/pgtable_64.h
-index 387d484..a7b5091 100644
---- a/arch/sparc/include/asm/pgtable_64.h
-+++ b/arch/sparc/include/asm/pgtable_64.h
-@@ -45,40 +45,30 @@
+diff --git a/arch/sparc/include/asm/mmu_64.h b/arch/sparc/include/asm/mmu_64.h
+index 5fb97e1..31977c8 100644
+--- a/arch/sparc/include/asm/mmu_64.h
++++ b/arch/sparc/include/asm/mmu_64.h
+@@ -93,6 +93,7 @@ typedef struct {
+ 	spinlock_t		lock;
+ 	unsigned long		sparc64_ctx_val;
+ 	unsigned long		huge_pte_count;
++	struct page		*pgtable_page;
+ 	struct tsb_config	tsb_block[MM_NUM_TSBS];
+ 	struct hv_tsb_descr	tsb_descr[MM_NUM_TSBS];
+ } mm_context_t;
+diff --git a/arch/sparc/include/asm/page_64.h b/arch/sparc/include/asm/page_64.h
+index b2df9b8..087a5c5 100644
+--- a/arch/sparc/include/asm/page_64.h
++++ b/arch/sparc/include/asm/page_64.h
+@@ -86,7 +86,7 @@ typedef unsigned long pgprot_t;
  
- #define vmemmap			((struct page *)VMEMMAP_BASE)
+ #endif /* (STRICT_MM_TYPECHECKS) */
  
--/* XXX All of this needs to be rethought so we can take advantage
-- * XXX cheetah's full 64-bit virtual address space, ie. no more hole
-- * XXX in the middle like on spitfire. -DaveM
-- */
--/*
-- * Given a virtual address, the lowest PAGE_SHIFT bits determine offset
-- * into the page; the next higher PAGE_SHIFT-3 bits determine the pte#
-- * in the proper pagetable (the -3 is from the 8 byte ptes, and each page
-- * table is a single page long). The next higher PMD_BITS determine pmd#
-- * in the proper pmdtable (where we must have PMD_BITS <= (PAGE_SHIFT-2)
-- * since the pmd entries are 4 bytes, and each pmd page is a single page
-- * long). Finally, the higher few bits determine pgde#.
-- */
+-typedef struct page *pgtable_t;
++typedef pte_t *pgtable_t;
+ 
+ #define TASK_UNMAPPED_BASE	(test_thread_flag(TIF_32BIT) ? \
+ 				 (_AC(0x0000000070000000,UL)) : \
+diff --git a/arch/sparc/include/asm/pgalloc_64.h b/arch/sparc/include/asm/pgalloc_64.h
+index 40b2d7a..0ebca93 100644
+--- a/arch/sparc/include/asm/pgalloc_64.h
++++ b/arch/sparc/include/asm/pgalloc_64.h
+@@ -38,51 +38,20 @@ static inline void pmd_free(struct mm_struct *mm, pmd_t *pmd)
+ 	kmem_cache_free(pgtable_cache, pmd);
+ }
+ 
+-static inline pte_t *pte_alloc_one_kernel(struct mm_struct *mm,
+-					  unsigned long address)
+-{
+-	return (pte_t *)__get_free_page(GFP_KERNEL | __GFP_REPEAT | __GFP_ZERO);
+-}
 -
- /* PMD_SHIFT determines the size of the area a second-level page
-  * table can map
-  */
--#define PMD_SHIFT	(PAGE_SHIFT + (PAGE_SHIFT-3))
-+#define PMD_SHIFT	(PAGE_SHIFT + (PAGE_SHIFT-4))
- #define PMD_SIZE	(_AC(1,UL) << PMD_SHIFT)
- #define PMD_MASK	(~(PMD_SIZE-1))
- #define PMD_BITS	(PAGE_SHIFT - 2)
+-static inline pgtable_t pte_alloc_one(struct mm_struct *mm,
+-					unsigned long address)
+-{
+-	struct page *page;
+-	pte_t *pte;
+-
+-	pte = pte_alloc_one_kernel(mm, address);
+-	if (!pte)
+-		return NULL;
+-	page = virt_to_page(pte);
+-	pgtable_page_ctor(page);
+-	return page;
+-}
+-
+-static inline void pte_free_kernel(struct mm_struct *mm, pte_t *pte)
+-{
+-	free_page((unsigned long)pte);
+-}
+-
+-static inline void pte_free(struct mm_struct *mm, pgtable_t ptepage)
+-{
+-	pgtable_page_dtor(ptepage);
+-	__free_page(ptepage);
+-}
++extern pte_t *pte_alloc_one_kernel(struct mm_struct *mm,
++				   unsigned long address);
++extern pgtable_t pte_alloc_one(struct mm_struct *mm,
++			       unsigned long address);
++extern void pte_free_kernel(struct mm_struct *mm, pte_t *pte);
++extern void pte_free(struct mm_struct *mm, pgtable_t ptepage);
  
- /* PGDIR_SHIFT determines what a third-level page table entry can map */
--#define PGDIR_SHIFT	(PAGE_SHIFT + (PAGE_SHIFT-3) + PMD_BITS)
-+#define PGDIR_SHIFT	(PAGE_SHIFT + (PAGE_SHIFT-4) + PMD_BITS)
- #define PGDIR_SIZE	(_AC(1,UL) << PGDIR_SHIFT)
- #define PGDIR_MASK	(~(PGDIR_SIZE-1))
- #define PGDIR_BITS	(PAGE_SHIFT - 2)
+ #define pmd_populate_kernel(MM, PMD, PTE)	pmd_set(PMD, PTE)
+-#define pmd_populate(MM,PMD,PTE_PAGE)		\
+-	pmd_populate_kernel(MM,PMD,page_address(PTE_PAGE))
+-#define pmd_pgtable(pmd) pmd_page(pmd)
++#define pmd_populate(MM, PMD, PTE)		pmd_set(PMD, PTE)
++#define pmd_pgtable(PMD)			((pte_t *)__pmd_page(PMD))
  
-+#if (PGDIR_SHIFT + PGDIR_BITS) != 44
-+#error Page table parameters do not cover virtual address space properly.
-+#endif
+ #define check_pgt_cache()	do { } while (0)
+ 
+-static inline void pgtable_free(void *table, bool is_page)
+-{
+-	if (is_page)
+-		free_page((unsigned long)table);
+-	else
+-		kmem_cache_free(pgtable_cache, table);
+-}
++extern void pgtable_free(void *table, bool is_page);
+ 
+ #ifdef CONFIG_SMP
+ 
+@@ -113,11 +82,10 @@ static inline void pgtable_free_tlb(struct mmu_gather *tlb, void *table, bool is
+ }
+ #endif /* !CONFIG_SMP */
+ 
+-static inline void __pte_free_tlb(struct mmu_gather *tlb, struct page *ptepage,
++static inline void __pte_free_tlb(struct mmu_gather *tlb, pte_t *pte,
+ 				  unsigned long address)
+ {
+-	pgtable_page_dtor(ptepage);
+-	pgtable_free_tlb(tlb, page_address(ptepage), true);
++	pgtable_free_tlb(tlb, pte, true);
+ }
+ 
+ #define __pmd_free_tlb(tlb, pmd, addr)		      \
+diff --git a/arch/sparc/mm/init_64.c b/arch/sparc/mm/init_64.c
+index 809eecf..12ef4ea 100644
+--- a/arch/sparc/mm/init_64.c
++++ b/arch/sparc/mm/init_64.c
+@@ -2467,3 +2467,104 @@ void __flush_tlb_all(void)
+ 	__asm__ __volatile__("wrpr	%0, 0, %%pstate"
+ 			     : : "r" (pstate));
+ }
 +
- #ifndef __ASSEMBLY__
++static pte_t *get_from_cache(struct mm_struct *mm)
++{
++	struct page *page;
++	pte_t *ret;
++
++	spin_lock(&mm->page_table_lock);
++	page = mm->context.pgtable_page;
++	ret = NULL;
++	if (page) {
++		void *p = page_address(page);
++
++		mm->context.pgtable_page = NULL;
++
++		ret = (pte_t *) (p + (PAGE_SIZE / 2));
++	}
++	spin_unlock(&mm->page_table_lock);
++
++	return ret;
++}
++
++static struct page *__alloc_for_cache(struct mm_struct *mm)
++{
++	struct page *page = alloc_page(GFP_KERNEL | __GFP_NOTRACK |
++				       __GFP_REPEAT | __GFP_ZERO);
++
++	if (page) {
++		spin_lock(&mm->page_table_lock);
++		if (!mm->context.pgtable_page) {
++			atomic_set(&page->_count, 2);
++			mm->context.pgtable_page = page;
++		}
++		spin_unlock(&mm->page_table_lock);
++	}
++	return page;
++}
++
++pte_t *pte_alloc_one_kernel(struct mm_struct *mm,
++			    unsigned long address)
++{
++	struct page *page;
++	pte_t *pte;
++
++	pte = get_from_cache(mm);
++	if (pte)
++		return pte;
++
++	page = __alloc_for_cache(mm);
++	if (page)
++		pte = (pte_t *) page_address(page);
++
++	return pte;
++}
++
++pgtable_t pte_alloc_one(struct mm_struct *mm,
++			unsigned long address)
++{
++	struct page *page;
++	pte_t *pte;
++
++	pte = get_from_cache(mm);
++	if (pte)
++		return pte;
++
++	page = __alloc_for_cache(mm);
++	if (page) {
++		pgtable_page_ctor(page);
++		pte = (pte_t *) page_address(page);
++	}
++
++	return pte;
++}
++
++void pte_free_kernel(struct mm_struct *mm, pte_t *pte)
++{
++	struct page *page = virt_to_page(pte);
++	if (put_page_testzero(page))
++		free_hot_cold_page(page, 0);
++}
++
++static void __pte_free(pgtable_t pte)
++{
++	struct page *page = virt_to_page(pte);
++	if (put_page_testzero(page)) {
++		pgtable_page_dtor(page);
++		free_hot_cold_page(page, 0);
++	}
++}
++
++void pte_free(struct mm_struct *mm, pgtable_t pte)
++{
++	__pte_free(pte);
++}
++
++void pgtable_free(void *table, bool is_page)
++{
++	if (is_page)
++		__pte_free(table);
++	else
++		kmem_cache_free(pgtable_cache, table);
++}
+diff --git a/arch/sparc/mm/tsb.c b/arch/sparc/mm/tsb.c
+index 70e50ea..a35ee83 100644
+--- a/arch/sparc/mm/tsb.c
++++ b/arch/sparc/mm/tsb.c
+@@ -445,6 +445,8 @@ int init_new_context(struct task_struct *tsk, struct mm_struct *mm)
+ 	mm->context.huge_pte_count = 0;
+ #endif
  
- #include <linux/sched.h>
++	mm->context.pgtable_page = NULL;
++
+ 	/* copy_mm() copies over the parent's mm_struct before calling
+ 	 * us, so we need to zero out the TSB pointer or else tsb_grow()
+ 	 * will be confused and think there is an older TSB to free up.
+@@ -483,10 +485,17 @@ static void tsb_destroy_one(struct tsb_config *tp)
+ void destroy_context(struct mm_struct *mm)
+ {
+ 	unsigned long flags, i;
++	struct page *page;
  
- /* Entries per page directory level. */
--#define PTRS_PER_PTE	(1UL << (PAGE_SHIFT-3))
-+#define PTRS_PER_PTE	(1UL << (PAGE_SHIFT-4))
- #define PTRS_PER_PMD	(1UL << PMD_BITS)
- #define PTRS_PER_PGD	(1UL << PGDIR_BITS)
+ 	for (i = 0; i < MM_NUM_TSBS; i++)
+ 		tsb_destroy_one(&mm->context.tsb_block[i]);
  
-diff --git a/arch/sparc/include/asm/tsb.h b/arch/sparc/include/asm/tsb.h
-index 1a8afd1..6435924 100644
---- a/arch/sparc/include/asm/tsb.h
-+++ b/arch/sparc/include/asm/tsb.h
-@@ -152,7 +152,7 @@ extern struct tsb_phys_patch_entry __tsb_phys_patch, __tsb_phys_patch_end;
- 	lduwa		[REG1 + REG2] ASI_PHYS_USE_EC, REG1; \
- 	brz,pn		REG1, FAIL_LABEL; \
- 	 sllx		VADDR, 64 - PMD_SHIFT, REG2; \
--	srlx		REG2, 64 - PAGE_SHIFT, REG2; \
-+	srlx		REG2, 64 - (PAGE_SHIFT - 1), REG2; \
- 	sllx		REG1, 11, REG1; \
- 	andn		REG2, 0x7, REG2; \
- 	add		REG1, REG2, REG1;
-@@ -177,7 +177,7 @@ extern struct tsb_phys_patch_entry __tsb_phys_patch, __tsb_phys_patch_end;
- 	lduwa		[REG1 + REG2] ASI_PHYS_USE_EC, REG1; \
- 	brz,pn		REG1, FAIL_LABEL; \
- 	 sllx		VADDR, 64 - PMD_SHIFT, REG2; \
--	srlx		REG2, 64 - PAGE_SHIFT, REG2; \
-+	srlx		REG2, 64 - (PAGE_SHIFT - 1), REG2; \
- 	sllx		REG1, 11, REG1; \
- 	andn		REG2, 0x7, REG2; \
- 	add		REG1, REG2, REG1;
++	page = mm->context.pgtable_page;
++	if (page && put_page_testzero(page)) {
++		pgtable_page_dtor(page);
++		free_hot_cold_page(page, 0);
++	}
++
+ 	spin_lock_irqsave(&ctx_alloc_lock, flags);
+ 
+ 	if (CTX_VALID(mm->context)) {
 -- 
 1.7.10.4
 
