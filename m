@@ -1,113 +1,145 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx127.postini.com [74.125.245.127])
-	by kanga.kvack.org (Postfix) with SMTP id 91D4F6B00EF
-	for <linux-mm@kvack.org>; Thu,  4 Oct 2012 01:31:43 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 986003EE0C0
-	for <linux-mm@kvack.org>; Thu,  4 Oct 2012 14:31:41 +0900 (JST)
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 788D645DE5D
-	for <linux-mm@kvack.org>; Thu,  4 Oct 2012 14:31:41 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 507C145DE63
-	for <linux-mm@kvack.org>; Thu,  4 Oct 2012 14:31:41 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 40A041DB804B
-	for <linux-mm@kvack.org>; Thu,  4 Oct 2012 14:31:41 +0900 (JST)
-Received: from G01JPEXCHKW23.g01.fujitsu.local (G01JPEXCHKW23.g01.fujitsu.local [10.0.193.106])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id EB007E08004
-	for <linux-mm@kvack.org>; Thu,  4 Oct 2012 14:31:40 +0900 (JST)
-Message-ID: <506D1F1D.9000301@jp.fujitsu.com>
-Date: Thu, 4 Oct 2012 14:31:09 +0900
-From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
+	by kanga.kvack.org (Postfix) with SMTP id B43626B00F1
+	for <linux-mm@kvack.org>; Thu,  4 Oct 2012 02:16:52 -0400 (EDT)
+Received: from /spool/local
+	by e28smtp08.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <srivatsa.bhat@linux.vnet.ibm.com>;
+	Thu, 4 Oct 2012 11:46:49 +0530
+Received: from d28av02.in.ibm.com (d28av02.in.ibm.com [9.184.220.64])
+	by d28relay01.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q946GlGu30933170
+	for <linux-mm@kvack.org>; Thu, 4 Oct 2012 11:46:47 +0530
+Received: from d28av02.in.ibm.com (loopback [127.0.0.1])
+	by d28av02.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q94Bjs8W020592
+	for <linux-mm@kvack.org>; Thu, 4 Oct 2012 21:45:55 +1000
+Message-ID: <506D29A7.1000805@linux.vnet.ibm.com>
+Date: Thu, 04 Oct 2012 11:46:07 +0530
+From: "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Subject: memory-hotplug : suppres "Trying to free nonexistent resource <XXXXXXXXXXXXXXXX-YYYYYYYYYYYYYYYY>"
- warning
-Content-Type: text/plain; charset="ISO-2022-JP"
+Subject: Re: [PATCH] CPU hotplug, debug: Detect imbalance between get_online_cpus()
+ and put_online_cpus()
+References: <alpine.LNX.2.00.1210021810350.23544@pobox.suse.cz> <20121002170149.GC2465@linux.vnet.ibm.com> <alpine.LNX.2.00.1210022324050.23544@pobox.suse.cz> <alpine.LNX.2.00.1210022331130.23544@pobox.suse.cz> <alpine.LNX.2.00.1210022356370.23544@pobox.suse.cz> <20121002233138.GD2465@linux.vnet.ibm.com> <alpine.LNX.2.00.1210030142570.23544@pobox.suse.cz> <20121003001530.GF2465@linux.vnet.ibm.com> <alpine.LNX.2.00.1210030227430.23544@pobox.suse.cz> <alpine.LNX.2.00.1210031143260.23544@pobox.suse.cz> <506C2E02.9080804@linux.vnet.ibm.com>	<506C3535.3070401@linux.vnet.ibm.com> <20121003141311.09fb3ffc.akpm@linux-foundation.org>
+In-Reply-To: <20121003141311.09fb3ffc.akpm@linux-foundation.org>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org
-Cc: rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, wency@cn.fujitsu.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Jiri Kosina <jkosina@suse.cz>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <peterz@infradead.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, "Paul E. McKenney" <paul.mckenney@linaro.org>, Josh Triplett <josh@joshtriplett.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-When our x86 box calls __remove_pages(), release_mem_region() shows
-many warnings. And x86 box cannot unregister iomem_resource.
+On 10/04/2012 02:43 AM, Andrew Morton wrote:
+> On Wed, 03 Oct 2012 18:23:09 +0530
+> "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com> wrote:
+> 
+>> The synchronization between CPU hotplug readers and writers is achieved by
+>> means of refcounting, safe-guarded by the cpu_hotplug.lock.
+>>
+>> get_online_cpus() increments the refcount, whereas put_online_cpus() decrements
+>> it. If we ever hit an imbalance between the two, we end up compromising the
+>> guarantees of the hotplug synchronization i.e, for example, an extra call to
+>> put_online_cpus() can end up allowing a hotplug reader to execute concurrently with
+>> a hotplug writer. So, add a BUG_ON() in put_online_cpus() to detect such cases
+>> where the refcount can go negative.
+>>
+>> Signed-off-by: Srivatsa S. Bhat <srivatsa.bhat@linux.vnet.ibm.com>
+>> ---
+>>
+>>  kernel/cpu.c |    1 +
+>>  1 file changed, 1 insertion(+)
+>>
+>> diff --git a/kernel/cpu.c b/kernel/cpu.c
+>> index f560598..00d29bc 100644
+>> --- a/kernel/cpu.c
+>> +++ b/kernel/cpu.c
+>> @@ -80,6 +80,7 @@ void put_online_cpus(void)
+>>  	if (cpu_hotplug.active_writer == current)
+>>  		return;
+>>  	mutex_lock(&cpu_hotplug.lock);
+>> +	BUG_ON(cpu_hotplug.refcount == 0);
+>>  	if (!--cpu_hotplug.refcount && unlikely(cpu_hotplug.active_writer))
+>>  		wake_up_process(cpu_hotplug.active_writer);
+>>  	mutex_unlock(&cpu_hotplug.lock);
+> 
+> I think calling BUG() here is a bit harsh.  We should only do that if
+> there's a risk to proceeding: a risk of data loss, a reduced ability to
+> analyse the underlying bug, etc.
+> 
+> But a cpu-hotplug locking imbalance is a really really really minor
+> problem!  So how about we emit a warning then try to fix things up? 
 
-"Trying to free nonexistent resource <XXXXXXXXXXXXXXXX-YYYYYYYYYYYYYYYY>"
+That would be better indeed, thanks!
 
-release_mem_region() has been changed as called in each PAGES_PER_SECTION
-chunk since applying a patch(de7f0cba96786c). Because powerpc registers
-iomem_resource in each PAGES_PER_SECTION chunk. But when I hot add memory
-on x86 box, iomem_resource is register in each _CRS not PAGES_PER_SECTION
-chunk. So x86 box unregisters iomem_resource.
+> This should increase the chance that the machine will keep running and
+> so will increase the chance that a user will be able to report the bug
+> to us.
+>
 
-The patch fixes the problem.
+Yep, sounds good.
+ 
+> 
+> --- a/kernel/cpu.c~cpu-hotplug-debug-detect-imbalance-between-get_online_cpus-and-put_online_cpus-fix
+> +++ a/kernel/cpu.c
+> @@ -80,9 +80,12 @@ void put_online_cpus(void)
+>  	if (cpu_hotplug.active_writer == current)
+>  		return;
+>  	mutex_lock(&cpu_hotplug.lock);
+> -	BUG_ON(cpu_hotplug.refcount == 0);
+> -	if (!--cpu_hotplug.refcount && unlikely(cpu_hotplug.active_writer))
+> -		wake_up_process(cpu_hotplug.active_writer);
+> +	if (!--cpu_hotplug.refcount) {
 
-CC: David Rientjes <rientjes@google.com>
-CC: Jiang Liu <liuj97@gmail.com>
-CC: Len Brown <len.brown@intel.com>
-CC: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-CC: Paul Mackerras <paulus@samba.org>
-CC: Christoph Lameter <cl@linux.com>
-Cc: Minchan Kim <minchan.kim@gmail.com>
-CC: Andrew Morton <akpm@linux-foundation.org>
-CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-CC: Wen Congyang <wency@cn.fujitsu.com>
-Signed-off-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+This won't catch it. We'll enter this 'if' condition only when cpu_hotplug.refcount was
+decremented to zero. We'll miss out the case when it went negative (which we intended to detect).
+
+> +		if (WARN_ON(cpu_hotplug.refcount == -1))
+> +			cpu_hotplug.refcount++;	/* try to fix things up */
+> +		if (unlikely(cpu_hotplug.active_writer))
+> +			wake_up_process(cpu_hotplug.active_writer);
+> +	}
+>  	mutex_unlock(&cpu_hotplug.lock);
+> 
+>  }
+
+So how about something like below:
+
+------------------------------------------------------>
+
+From: Srivatsa S. Bhat <srivatsa.bhat@linux.vnet.ibm.com>
+Subject: [PATCH] CPU hotplug, debug: Detect imbalance between get_online_cpus() and put_online_cpus()
+
+The synchronization between CPU hotplug readers and writers is achieved by
+means of refcounting, safe-guarded by the cpu_hotplug.lock.
+
+get_online_cpus() increments the refcount, whereas put_online_cpus() decrements
+it. If we ever hit an imbalance between the two, we end up compromising the
+guarantees of the hotplug synchronization i.e, for example, an extra call to
+put_online_cpus() can end up allowing a hotplug reader to execute concurrently with
+a hotplug writer. So, add a WARN_ON() in put_online_cpus() to detect such cases
+where the refcount can go negative, and also attempt to fix it up, so that we can
+continue to run.
+
+Signed-off-by: Srivatsa S. Bhat <srivatsa.bhat@linux.vnet.ibm.com>
 ---
- arch/powerpc/platforms/pseries/hotplug-memory.c |   13 +++++++++----
- mm/memory_hotplug.c                             |    4 ++--
- 2 files changed, 11 insertions(+), 6 deletions(-)
 
-Index: linux-3.6/arch/powerpc/platforms/pseries/hotplug-memory.c
-===================================================================
---- linux-3.6.orig/arch/powerpc/platforms/pseries/hotplug-memory.c	2012-10-04 14:22:59.833520792 +0900
-+++ linux-3.6/arch/powerpc/platforms/pseries/hotplug-memory.c	2012-10-04 14:23:05.150521411 +0900
-@@ -77,7 +77,8 @@ static int pseries_remove_memblock(unsig
- {
- 	unsigned long start, start_pfn;
- 	struct zone *zone;
--	int ret;
-+	int i, ret;
-+	int sections_to_remove;
- 
- 	start_pfn = base >> PAGE_SHIFT;
- 
-@@ -97,9 +98,13 @@ static int pseries_remove_memblock(unsig
- 	 * to sysfs "state" file and we can't remove sysfs entries
- 	 * while writing to it. So we have to defer it to here.
- 	 */
--	ret = __remove_pages(zone, start_pfn, memblock_size >> PAGE_SHIFT);
--	if (ret)
--		return ret;
-+	sections_to_remove = (memblock_size >> PAGE_SHIFT) / PAGES_PER_SECTION;
-+	for (i = 0; i < sections_to_remove; i++) {
-+		unsigned long pfn = start_pfn + i * PAGES_PER_SECTION;
-+		ret = __remove_pages(zone, start_pfn,  PAGES_PER_SECTION);
-+		if (ret)
-+			return ret;
-+	}
- 
- 	/*
- 	 * Update memory regions for memory remove
-Index: linux-3.6/mm/memory_hotplug.c
-===================================================================
---- linux-3.6.orig/mm/memory_hotplug.c	2012-10-04 14:22:59.829520788 +0900
-+++ linux-3.6/mm/memory_hotplug.c	2012-10-04 14:23:25.860527278 +0900
-@@ -362,11 +362,11 @@ int __remove_pages(struct zone *zone, un
- 	BUG_ON(phys_start_pfn & ~PAGE_SECTION_MASK);
- 	BUG_ON(nr_pages % PAGES_PER_SECTION);
- 
-+	release_mem_region(phys_start_pfn << PAGE_SHIFT, nr_pages * PAGE_SIZE);
+ kernel/cpu.c |    4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/kernel/cpu.c b/kernel/cpu.c
+index f560598..42bd331 100644
+--- a/kernel/cpu.c
++++ b/kernel/cpu.c
+@@ -80,6 +80,10 @@ void put_online_cpus(void)
+ 	if (cpu_hotplug.active_writer == current)
+ 		return;
+ 	mutex_lock(&cpu_hotplug.lock);
 +
- 	sections_to_remove = nr_pages / PAGES_PER_SECTION;
- 	for (i = 0; i < sections_to_remove; i++) {
- 		unsigned long pfn = phys_start_pfn + i*PAGES_PER_SECTION;
--		release_mem_region(pfn << PAGE_SHIFT,
--				   PAGES_PER_SECTION << PAGE_SHIFT);
- 		ret = __remove_section(zone, __pfn_to_section(pfn));
- 		if (ret)
- 			break;
++	if (WARN_ON(!cpu_hotplug.refcount))
++		cpu_hotplug.refcount++; /* try to fix things up */
++
+ 	if (!--cpu_hotplug.refcount && unlikely(cpu_hotplug.active_writer))
+ 		wake_up_process(cpu_hotplug.active_writer);
+ 	mutex_unlock(&cpu_hotplug.lock);
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
