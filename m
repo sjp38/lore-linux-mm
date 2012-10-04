@@ -1,51 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
-	by kanga.kvack.org (Postfix) with SMTP id CA32D6B00E3
-	for <linux-mm@kvack.org>; Wed,  3 Oct 2012 19:52:35 -0400 (EDT)
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: [PATCH 17/33] autonuma: prevent select_task_rq_fair to return -1
-Date: Thu,  4 Oct 2012 01:50:59 +0200
-Message-Id: <1349308275-2174-18-git-send-email-aarcange@redhat.com>
-In-Reply-To: <1349308275-2174-1-git-send-email-aarcange@redhat.com>
-References: <1349308275-2174-1-git-send-email-aarcange@redhat.com>
+Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
+	by kanga.kvack.org (Postfix) with SMTP id A96A66B00E5
+	for <linux-mm@kvack.org>; Wed,  3 Oct 2012 21:44:47 -0400 (EDT)
+Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id C3AF53EE0BC
+	for <linux-mm@kvack.org>; Thu,  4 Oct 2012 10:44:45 +0900 (JST)
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id AA63345DE56
+	for <linux-mm@kvack.org>; Thu,  4 Oct 2012 10:44:45 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 949CC45DE50
+	for <linux-mm@kvack.org>; Thu,  4 Oct 2012 10:44:45 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 778C81DB8041
+	for <linux-mm@kvack.org>; Thu,  4 Oct 2012 10:44:45 +0900 (JST)
+Received: from g01jpexchyt30.g01.fujitsu.local (g01jpexchyt30.g01.fujitsu.local [10.128.193.113])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 16FF01DB8037
+	for <linux-mm@kvack.org>; Thu,  4 Oct 2012 10:44:45 +0900 (JST)
+Message-ID: <506CE9F5.8020809@jp.fujitsu.com>
+Date: Thu, 4 Oct 2012 10:44:21 +0900
+From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+MIME-Version: 1.0
+Subject: [PATCH 0/2] acpi,memory-hotplug : remove memory device by acpi_bus_remove()
+Content-Type: text/plain; charset="ISO-2022-JP"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <pzijlstr@redhat.com>, Ingo Molnar <mingo@elte.hu>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hillf Danton <dhillf@gmail.com>, Andrew Jones <drjones@redhat.com>, Dan Smith <danms@us.ibm.com>, Thomas Gleixner <tglx@linutronix.de>, Paul Turner <pjt@google.com>, Christoph Lameter <cl@linux.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Srivatsa Vaddagiri <vatsa@linux.vnet.ibm.com>, Alex Shi <alex.shi@intel.com>, Mauricio Faria de Oliveira <mauricfo@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Don Morris <don.morris@hp.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
+To: linux-acpi@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: len.brown@intel.com, wency@cn.fujitsu.com
 
-find_idlest_cpu when run up on all domain levels shouldn't normally
-return -1. With the introduction of the NUMA affinity check that
-should be still true most of the time, but it's not guaranteed if the
-NUMA affinity of the task changes very fast. So better not to depend
-on timings.
+The patch-set was divided from following thread's patch-set.
 
-Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
----
- kernel/sched/fair.c |   11 +++++++++++
- 1 files changed, 11 insertions(+), 0 deletions(-)
+https://lkml.org/lkml/2012/9/5/201
 
-diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
-index 877f077..0c6bedd 100644
---- a/kernel/sched/fair.c
-+++ b/kernel/sched/fair.c
-@@ -2808,6 +2808,17 @@ select_task_rq_fair(struct task_struct *p, int sd_flag, int wake_flags)
- unlock:
- 	rcu_read_unlock();
- 
-+#ifdef CONFIG_AUTONUMA
-+	if (new_cpu < 0)
-+		/*
-+		 * find_idlest_cpu() may return -1 if
-+		 * task_autonuma_cpu() changes all the time, it's very
-+		 * unlikely, but we must handle it if it ever happens.
-+		 */
-+		new_cpu = prev_cpu;
-+#endif
-+	BUG_ON(new_cpu < 0);
-+
- 	return new_cpu;
- }
- #endif /* CONFIG_SMP */
+If you want to know the reason, please read following thread.
+
+https://lkml.org/lkml/2012/10/2/83
+
+The patch exports "acpi_bus_remove()" for removing a acpi device from a
+acpi bus at memory hot plug.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
