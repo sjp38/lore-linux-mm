@@ -1,36 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
-	by kanga.kvack.org (Postfix) with SMTP id 282FA6B00F5
-	for <linux-mm@kvack.org>; Thu,  4 Oct 2012 06:23:01 -0400 (EDT)
-Received: by mail-pb0-f41.google.com with SMTP id rq2so524482pbb.14
-        for <linux-mm@kvack.org>; Thu, 04 Oct 2012 03:23:00 -0700 (PDT)
-Date: Thu, 4 Oct 2012 03:20:13 -0700
+Received: from psmtp.com (na3sys010amx162.postini.com [74.125.245.162])
+	by kanga.kvack.org (Postfix) with SMTP id 964BC6B00F7
+	for <linux-mm@kvack.org>; Thu,  4 Oct 2012 06:24:14 -0400 (EDT)
+Received: by mail-pa0-f41.google.com with SMTP id fa10so428226pad.14
+        for <linux-mm@kvack.org>; Thu, 04 Oct 2012 03:24:13 -0700 (PDT)
 From: Anton Vorontsov <anton.vorontsov@linaro.org>
-Subject: [PATCH 0/3] A few cleanups and refactorings, sync w/ upstream
-Message-ID: <20121004102013.GA23284@lizard>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
+Subject: [PATCH 1/3] vmevent: Remove unused code
+Date: Thu,  4 Oct 2012 03:21:16 -0700
+Message-Id: <1349346078-24874-1-git-send-email-anton.vorontsov@linaro.org>
+In-Reply-To: <20121004102013.GA23284@lizard>
+References: <20121004102013.GA23284@lizard>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Pekka Enberg <penberg@kernel.org>
 Cc: John Stultz <john.stultz@linaro.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org
 
-Hello Pekka,
+struct vmevent_watch_event and a few definitions are not used anywhere, so
+let's remove them.
 
-Just a few updates to vmevents:
+Signed-off-by: Anton Vorontsov <anton.vorontsov@linaro.org>
+---
+ mm/vmevent.c | 10 ----------
+ 1 file changed, 10 deletions(-)
 
-- Some cleanups and refactorings -- needed for easier integration of
-  'memory pressure' work;
-- Forward to newer Linus' tree, fix conflicts.
-
-For convenience, the merge commit and all the patches can be pulled from
-this repo:
-
-	git://git.infradead.org/users/cbou/linux-vmevent.git tags/vmevent-updates
-
-Thanks,
-Anton.
+diff --git a/mm/vmevent.c b/mm/vmevent.c
+index a7f1042..39ef786 100644
+--- a/mm/vmevent.c
++++ b/mm/vmevent.c
+@@ -11,16 +11,6 @@
+ #include <linux/swap.h>
+ #undef nr_swap_pages /* This is defined to a constant for SWAP=n case */
+ 
+-#define VMEVENT_MAX_FREE_THRESHOD	100
+-
+-#define VMEVENT_MAX_EATTR_ATTRS	64
+-
+-struct vmevent_watch_event {
+-	u64				nr_avail_pages;
+-	u64				nr_free_pages;
+-	u64				nr_swap_pages;
+-};
+-
+ struct vmevent_watch {
+ 	struct vmevent_config		config;
+ 
+-- 
+1.7.12.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
