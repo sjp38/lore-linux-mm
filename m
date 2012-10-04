@@ -1,53 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
-	by kanga.kvack.org (Postfix) with SMTP id EB7B36B0124
-	for <linux-mm@kvack.org>; Thu,  4 Oct 2012 12:50:41 -0400 (EDT)
-Date: Thu, 4 Oct 2012 18:50:08 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Message-ID: <20121004165008.GF25675@redhat.com>
+Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
+	by kanga.kvack.org (Postfix) with SMTP id A33406B0127
+	for <linux-mm@kvack.org>; Thu,  4 Oct 2012 13:34:29 -0400 (EDT)
+Date: Thu, 4 Oct 2012 13:34:25 -0400
+From: Theodore Ts'o <tytso@mit.edu>
+Subject: Re: Repeatable ext4 oops with 3.6.0 (regression)
+Message-ID: <20121004173425.GA15405@thunk.org>
+References: <pan.2012.10.02.11.19.55.793436@googlemail.com>
+ <20121002133642.GD22777@quack.suse.cz>
+ <pan.2012.10.02.14.31.57.530230@googlemail.com>
+ <20121004130119.GH4641@quack.suse.cz>
+ <506DABDD.7090105@googlemail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
+In-Reply-To: <506DABDD.7090105@googlemail.com>
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <pzijlstr@redhat.com>, Ingo Molnar <mingo@elte.hu>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hillf Danton <dhillf@gmail.com>, Andrew Jones <drjones@redhat.com>, Dan Smith <danms@us.ibm.com>, Thomas Gleixner <tglx@linutronix.de>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+To: Holger =?iso-8859-1?Q?Hoffst=E4tte?= <holger.hoffstaette@googlemail.com>
+Cc: Jan Kara <jack@suse.cz>, linux-ext4@vger.kernel.org, linux-mm@kvack.org
 
-Subject: Re: [PATCH 29/33] autonuma: page_autonuma
-Reply-To: 
-In-Reply-To: <0000013a2c223da2-632aa43e-21f8-4abd-a0ba-2e1b49881e3a-000000@email.amazonses.com>
+On Thu, Oct 04, 2012 at 05:31:41PM +0200, Holger Hoffst=E4tte wrote:
 
-Hi Christoph,
+> So armed with multiple running shells I finally managed to save the dme=
+sg
+> to NFS. It doesn't get any more complete than this and again shows the
+> ext4 stacktrace from before. So maybe it really is generic kmem corrupt=
+ion
+> and ext4 looking at symlinks/inodes is just the victim.
 
-On Thu, Oct 04, 2012 at 02:16:14PM +0000, Christoph Lameter wrote:
-> On Thu, 4 Oct 2012, Andrea Arcangeli wrote:
-> 
-> > Move the autonuma_last_nid from the "struct page" to a separate
-> > page_autonuma data structure allocated in the memsection (with
-> > sparsemem) or in the pgdat (with flatmem).
-> 
-> Note that there is a available word in struct page before the autonuma
-> patches on x86_64 with CONFIG_HAVE_ALIGNED_STRUCT_PAGE.
-> 
-> In fact the page_autonuma fills up the structure to nicely fit in one 64
-> byte cacheline.
+That certainly seems to be the case.  As near as I can tell from the
+stack trace, you're doing a readdir(), and the crash is happening in
+ext4_htree_store_dirent() --- the stack address to ext4_follow_link()
+makes no sense given the rest of the strack trace, and anyway,
+ext4_follow_link() doesn't do any memory allocation.
 
-Good point indeed.
+So that means this:
+> [  106.643048]  [<c0236ed9>] ext4_htree_store_dirent+0x29/0x110
 
-So we could drop page_autonuma by creating a CONFIG_SLUB=y dependency
-(AUTONUMA wouldn't be available in the kernel config if SLAB=y, and it
-also wouldn't be available on 32bit archs but the latter isn't a
-problem).
+Almost certainly corresponds to the following call to kzalloc:
 
-I think it's a reasonable alternative to page_autonuma. Certainly it
-looks more appealing than taking over 16 precious bits from
-page->flags. There are still pros and cons. I'm neutral on it so more
-comments would be welcome ;).
+	/* Create and allocate the fname structure */
+	len =3D sizeof(struct fname) + dirent->name_len + 1;
+	new_fn =3D kzalloc(len, GFP_KERNEL);
 
-Andrea
+dirent->name_len is a unsigned char, and struct fname is around 48
+bytes or so.  So len is never going to be larger than 300 bytes, and
+never smaller than 48 bytes, which is certainly valid input as far as
+kzalloc() is concerned.
 
-PS. randomly moved some in Cc over to Bcc as I overflowed the max
-header allowed on linux-kernel oops!
+So it's very likely that the crash in __kmalloc() is probably caused
+by the internal slab/slub data structures getting scrambled.
+
+Regards,
+
+					- Ted
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
