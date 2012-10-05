@@ -1,49 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
-	by kanga.kvack.org (Postfix) with SMTP id E256B6B005A
-	for <linux-mm@kvack.org>; Fri,  5 Oct 2012 17:28:36 -0400 (EDT)
-Date: Fri, 5 Oct 2012 14:28:35 -0700
+Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
+	by kanga.kvack.org (Postfix) with SMTP id 96BB96B005A
+	for <linux-mm@kvack.org>; Fri,  5 Oct 2012 17:36:46 -0400 (EDT)
+Date: Fri, 5 Oct 2012 14:36:44 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [mmotm] get rid of the remaining VM_RESERVED usage
-Message-Id: <20121005142835.254b9809.akpm@linux-foundation.org>
-In-Reply-To: <20121004123639.GE27536@dhcp22.suse.cz>
-References: <20121004113428.GD27536@dhcp22.suse.cz>
-	<20121004123639.GE27536@dhcp22.suse.cz>
+Subject: Re: [PATCH v2 0/8] THP support for Sparc64
+Message-Id: <20121005143644.abb14c2b.akpm@linux-foundation.org>
+In-Reply-To: <20121004.154624.923241475790311926.davem@davemloft.net>
+References: <20121004.154624.923241475790311926.davem@davemloft.net>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Konstantin Khlebnikov <khlebnikov@openvz.org>, linux-mm@kvack.org
+To: David Miller <davem@davemloft.net>
+Cc: linux-mm@kvack.org, sparclinux@vger.kernel.org, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, aarcange@redhat.com, hannes@cmpxchg.org, Ingo Molnar <mingo@elte.hu>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Linus Torvalds <torvalds@linux-foundation.org>
 
-On Thu, 4 Oct 2012 14:36:40 +0200
-Michal Hocko <mhocko@suse.cz> wrote:
+On Thu, 04 Oct 2012 15:46:24 -0400 (EDT)
+David Miller <davem@davemloft.net> wrote:
 
-> On Thu 04-10-12 13:34:28, Michal Hocko wrote:
-> > Hi Andrew, Konstantin,
-> > it seems that these slipped through when VM_RESERVED was removed by
-> > broken-out/mm-kill-vma-flag-vm_reserved-and-mm-reserved_vm-counter.patch
-> > 
-> > I hope I didn't screw anything... Please merge it with the original
-> > patch if it looks correctly.
-> > ---
-> >  drivers/media/video/meye.c                      |    2 +-
-> >  drivers/media/video/omap/omap_vout.c            |    2 +-
-> >  drivers/media/video/sn9c102/sn9c102_core.c      |    1 -
-> >  drivers/media/video/usbvision/usbvision-video.c |    2 --
-> >  drivers/media/video/videobuf-dma-sg.c           |    2 +-
-> >  drivers/media/video/videobuf-vmalloc.c          |    2 +-
-> >  drivers/media/video/videobuf2-memops.c          |    2 +-
-> >  drivers/media/video/vino.c                      |    2 +-
-> >  drivers/staging/media/easycap/easycap_main.c    |    2 +-
 > 
-> Hmm, those files are in Linus tree but they are removed from mmotm by
-> broken-out/linux-next.patch. Strange.
+> Changes since V1:
+> 
+> 1) Respun against mmotm
+> 
+> 2) Bug fix for pgtable allocation, need real locking instead of
+>    just preemption disabling.
+> 
+> Andrew, you can probably take patch #5 in this series and combine
+> it into:
+> 
+> mm-thp-fix-the-update_mmu_cache-last-argument-passing-in-mm-huge_memoryc.patch
+> 
+> in your batch.  And finally add a NOP implementation for S390
+> and any other huge page supporting architectures.
+> 
 
-yeah, drivers/media has been spinning like a top lately.  I think I saw
-a pull request go past today so I'll try to remember to do a tree-wide
-grep for VM_RESERVED on Monday to check for leftovers.
+David, I don't know what to do until there's some clarity on the
+numa/sched changes.  Andrea has a new autonuma patchset, Peter's code
+is in -next and I don't know if it's planned for 3.7 merging.  And I
+suspect (hope) that it won't be merged if that is indeed planned.
+
+Two days I asked what's going on and didn't get told.  I put the entire
+MM merge on hold yesterday and went off to do other things.  At present
+I plan to restage MM against mainline and send it all along to Linus on
+Monday.  If that happens and if you wish that the sparc changes be
+merged for 3.7, I suggest that you rebase and retest on Tuesday and ask
+Linus to pull it, with my ack.
+
+Sorry.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
