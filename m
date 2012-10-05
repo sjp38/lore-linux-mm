@@ -1,135 +1,163 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
-	by kanga.kvack.org (Postfix) with SMTP id D94D76B00A4
-	for <linux-mm@kvack.org>; Thu,  4 Oct 2012 22:38:51 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 689F73EE0BD
-	for <linux-mm@kvack.org>; Fri,  5 Oct 2012 11:38:50 +0900 (JST)
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 4893945DE50
-	for <linux-mm@kvack.org>; Fri,  5 Oct 2012 11:38:50 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 22CD345DE4D
-	for <linux-mm@kvack.org>; Fri,  5 Oct 2012 11:38:50 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 06E6C1DB803C
-	for <linux-mm@kvack.org>; Fri,  5 Oct 2012 11:38:50 +0900 (JST)
-Received: from g01jpexchyt01.g01.fujitsu.local (g01jpexchyt01.g01.fujitsu.local [10.128.194.40])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id A2FA61DB803A
-	for <linux-mm@kvack.org>; Fri,  5 Oct 2012 11:38:49 +0900 (JST)
-Message-ID: <506E481C.8050804@jp.fujitsu.com>
-Date: Fri, 5 Oct 2012 11:38:20 +0900
+Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
+	by kanga.kvack.org (Postfix) with SMTP id 8F5866B00A6
+	for <linux-mm@kvack.org>; Thu,  4 Oct 2012 23:25:01 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id DC9873EE0BC
+	for <linux-mm@kvack.org>; Fri,  5 Oct 2012 12:24:59 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id BE43E45DEBA
+	for <linux-mm@kvack.org>; Fri,  5 Oct 2012 12:24:59 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id A51FA45DEB7
+	for <linux-mm@kvack.org>; Fri,  5 Oct 2012 12:24:59 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 997C81DB803E
+	for <linux-mm@kvack.org>; Fri,  5 Oct 2012 12:24:59 +0900 (JST)
+Received: from g01jpexchyt09.g01.fujitsu.local (g01jpexchyt09.g01.fujitsu.local [10.128.194.48])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 43BE61DB8038
+	for <linux-mm@kvack.org>; Fri,  5 Oct 2012 12:24:59 +0900 (JST)
+Message-ID: <506E52E1.3090609@jp.fujitsu.com>
+Date: Fri, 5 Oct 2012 12:24:17 +0900
 From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: [PATCH 10/10] memory-hotplug : remove sysfs file of node
-References: <506E43E0.70507@jp.fujitsu.com>
-In-Reply-To: <506E43E0.70507@jp.fujitsu.com>
-Content-Type: text/plain; charset="ISO-2022-JP"
+Subject: Re: [PATCH] CPU hotplug, debug: Detect imbalance between get_online_cpus()
+ and put_online_cpus()
+References: <alpine.LNX.2.00.1210021810350.23544@pobox.suse.cz> <20121002170149.GC2465@linux.vnet.ibm.com> <alpine.LNX.2.00.1210022324050.23544@pobox.suse.cz> <alpine.LNX.2.00.1210022331130.23544@pobox.suse.cz> <alpine.LNX.2.00.1210022356370.23544@pobox.suse.cz> <20121002233138.GD2465@linux.vnet.ibm.com> <alpine.LNX.2.00.1210030142570.23544@pobox.suse.cz> <20121003001530.GF2465@linux.vnet.ibm.com> <alpine.LNX.2.00.1210030227430.23544@pobox.suse.cz> <alpine.LNX.2.00.1210031143260.23544@pobox.suse.cz> <506C2E02.9080804@linux.vnet.ibm.com>	<506C3535.3070401@linux.vnet.ibm.com> <20121003141311.09fb3ffc.akpm@linux-foundation.org> <506D29A7.1000805@linux.vnet.ibm.com>
+In-Reply-To: <506D29A7.1000805@linux.vnet.ibm.com>
+Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-ia64@vger.kernel.org, cmetcalf@tilera.com, sparclinux@vger.kernel.org
-Cc: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, cl@linux.com, minchan.kim@gmail.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, wency@cn.fujitsu.com
+To: "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Jiri Kosina <jkosina@suse.cz>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <peterz@infradead.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, "Paul E. McKenney" <paul.mckenney@linaro.org>, Josh Triplett <josh@joshtriplett.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-From: Wen Congyang <wency@cn.fujitsu.com>
+2012/10/04 15:16, Srivatsa S. Bhat wrote:
+> On 10/04/2012 02:43 AM, Andrew Morton wrote:
+>> On Wed, 03 Oct 2012 18:23:09 +0530
+>> "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com> wrote:
+>>
+>>> The synchronization between CPU hotplug readers and writers is achieved by
+>>> means of refcounting, safe-guarded by the cpu_hotplug.lock.
+>>>
+>>> get_online_cpus() increments the refcount, whereas put_online_cpus() decrements
+>>> it. If we ever hit an imbalance between the two, we end up compromising the
+>>> guarantees of the hotplug synchronization i.e, for example, an extra call to
+>>> put_online_cpus() can end up allowing a hotplug reader to execute concurrently with
+>>> a hotplug writer. So, add a BUG_ON() in put_online_cpus() to detect such cases
+>>> where the refcount can go negative.
+>>>
+>>> Signed-off-by: Srivatsa S. Bhat <srivatsa.bhat@linux.vnet.ibm.com>
+>>> ---
+>>>
+>>>   kernel/cpu.c |    1 +
+>>>   1 file changed, 1 insertion(+)
+>>>
+>>> diff --git a/kernel/cpu.c b/kernel/cpu.c
+>>> index f560598..00d29bc 100644
+>>> --- a/kernel/cpu.c
+>>> +++ b/kernel/cpu.c
+>>> @@ -80,6 +80,7 @@ void put_online_cpus(void)
+>>>   	if (cpu_hotplug.active_writer == current)
+>>>   		return;
+>>>   	mutex_lock(&cpu_hotplug.lock);
+>>> +	BUG_ON(cpu_hotplug.refcount == 0);
+>>>   	if (!--cpu_hotplug.refcount && unlikely(cpu_hotplug.active_writer))
+>>>   		wake_up_process(cpu_hotplug.active_writer);
+>>>   	mutex_unlock(&cpu_hotplug.lock);
+>>
+>> I think calling BUG() here is a bit harsh.  We should only do that if
+>> there's a risk to proceeding: a risk of data loss, a reduced ability to
+>> analyse the underlying bug, etc.
+>>
+>> But a cpu-hotplug locking imbalance is a really really really minor
+>> problem!  So how about we emit a warning then try to fix things up?
+>
+> That would be better indeed, thanks!
+>
+>> This should increase the chance that the machine will keep running and
+>> so will increase the chance that a user will be able to report the bug
+>> to us.
+>>
+>
+> Yep, sounds good.
+>
+>>
+>> --- a/kernel/cpu.c~cpu-hotplug-debug-detect-imbalance-between-get_online_cpus-and-put_online_cpus-fix
+>> +++ a/kernel/cpu.c
+>> @@ -80,9 +80,12 @@ void put_online_cpus(void)
+>>   	if (cpu_hotplug.active_writer == current)
+>>   		return;
+>>   	mutex_lock(&cpu_hotplug.lock);
+>> -	BUG_ON(cpu_hotplug.refcount == 0);
+>> -	if (!--cpu_hotplug.refcount && unlikely(cpu_hotplug.active_writer))
+>> -		wake_up_process(cpu_hotplug.active_writer);
+>> +	if (!--cpu_hotplug.refcount) {
+>
+> This won't catch it. We'll enter this 'if' condition only when cpu_hotplug.refcount was
+> decremented to zero. We'll miss out the case when it went negative (which we intended to detect).
+>
+>> +		if (WARN_ON(cpu_hotplug.refcount == -1))
+>> +			cpu_hotplug.refcount++;	/* try to fix things up */
+>> +		if (unlikely(cpu_hotplug.active_writer))
+>> +			wake_up_process(cpu_hotplug.active_writer);
+>> +	}
+>>   	mutex_unlock(&cpu_hotplug.lock);
+>>
+>>   }
+>
+> So how about something like below:
+>
+> ------------------------------------------------------>
+>
+> From: Srivatsa S. Bhat <srivatsa.bhat@linux.vnet.ibm.com>
+> Subject: [PATCH] CPU hotplug, debug: Detect imbalance between get_online_cpus() and put_online_cpus()
+>
+> The synchronization between CPU hotplug readers and writers is achieved by
+> means of refcounting, safe-guarded by the cpu_hotplug.lock.
+>
+> get_online_cpus() increments the refcount, whereas put_online_cpus() decrements
+> it. If we ever hit an imbalance between the two, we end up compromising the
+> guarantees of the hotplug synchronization i.e, for example, an extra call to
+> put_online_cpus() can end up allowing a hotplug reader to execute concurrently with
+> a hotplug writer. So, add a WARN_ON() in put_online_cpus() to detect such cases
+> where the refcount can go negative, and also attempt to fix it up, so that we can
+> continue to run.
+>
+> Signed-off-by: Srivatsa S. Bhat <srivatsa.bhat@linux.vnet.ibm.com>
+> ---
 
-This patch introduces a new function try_offline_node() to
-remove sysfs file of node when all memory sections of this
-node are removed. If some memory sections of this node are
-not removed, this function does nothing.
+Looks good to me.
+Reviewed-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 
-CC: David Rientjes <rientjes@google.com>
-CC: Jiang Liu <liuj97@gmail.com>
-CC: Len Brown <len.brown@intel.com>
-CC: Christoph Lameter <cl@linux.com>
-Cc: Minchan Kim <minchan.kim@gmail.com>
-CC: Andrew Morton <akpm@linux-foundation.org>
-CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-CC: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-Signed-off-by: Wen Congyang <wency@cn.fujitsu.com>
----
- mm/memory_hotplug.c |   54 ++++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 54 insertions(+)
+>
+>   kernel/cpu.c |    4 ++++
+>   1 file changed, 4 insertions(+)
+>
+> diff --git a/kernel/cpu.c b/kernel/cpu.c
+> index f560598..42bd331 100644
+> --- a/kernel/cpu.c
+> +++ b/kernel/cpu.c
+> @@ -80,6 +80,10 @@ void put_online_cpus(void)
+>   	if (cpu_hotplug.active_writer == current)
+>   		return;
+>   	mutex_lock(&cpu_hotplug.lock);
+> +
+> +	if (WARN_ON(!cpu_hotplug.refcount))
+> +		cpu_hotplug.refcount++; /* try to fix things up */
+> +
+>   	if (!--cpu_hotplug.refcount && unlikely(cpu_hotplug.active_writer))
+>   		wake_up_process(cpu_hotplug.active_writer);
+>   	mutex_unlock(&cpu_hotplug.lock);
+>
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>
 
-Index: linux-3.6/mm/memory_hotplug.c
-===================================================================
---- linux-3.6.orig/mm/memory_hotplug.c	2012-10-04 18:30:31.767709165 +0900
-+++ linux-3.6/mm/memory_hotplug.c	2012-10-04 18:32:46.907842637 +0900
-@@ -29,6 +29,7 @@
- #include <linux/suspend.h>
- #include <linux/mm_inline.h>
- #include <linux/firmware-map.h>
-+#include <linux/stop_machine.h>
- 
- #include <asm/tlbflush.h>
- 
-@@ -1276,6 +1277,57 @@ int offline_memory(u64 start, u64 size)
- 	return 0;
- }
- 
-+static int check_cpu_on_node(void *data)
-+{
-+	struct pglist_data *pgdat = data;
-+	int cpu;
-+
-+	for_each_online_cpu(cpu) {
-+		if (cpu_to_node(cpu) == pgdat->node_id)
-+			/*
-+			 * the cpu on this node is onlined, and we can't
-+			 * offline this node.
-+			 */
-+			return -EBUSY;
-+	}
-+
-+	return 0;
-+}
-+
-+/* offline the node if all memory sections of this node are removed */
-+static void try_offline_node(int nid)
-+{
-+	unsigned long start_pfn = NODE_DATA(nid)->node_start_pfn;
-+	unsigned long end_pfn = start_pfn + NODE_DATA(nid)->node_spanned_pages;
-+	unsigned long pfn;
-+
-+	for (pfn = start_pfn; pfn < end_pfn; pfn += PAGES_PER_SECTION) {
-+		unsigned long section_nr = pfn_to_section_nr(pfn);
-+
-+		if (!present_section_nr(section_nr))
-+			continue;
-+
-+		if (pfn_to_nid(pfn) != nid)
-+			continue;
-+
-+		/*
-+		 * some memory sections of this node are not removed, and we
-+		 * can't offline node now.
-+		 */
-+		return;
-+	}
-+
-+	if (stop_machine(check_cpu_on_node, NODE_DATA(nid), NULL))
-+		return;
-+
-+	/*
-+	 * all memory sections of this node are removed, we can offline this
-+	 * node now.
-+	 */
-+	node_set_offline(nid);
-+	unregister_one_node(nid);
-+}
-+
- int __ref remove_memory(int nid, u64 start, u64 size)
- {
- 	int ret = 0;
-@@ -1296,6 +1348,8 @@ int __ref remove_memory(int nid, u64 sta
- 	firmware_map_remove(start, start + size, "System RAM");
- 
- 	arch_remove_memory(start, size);
-+
-+	try_offline_node(nid);
- out:
- 	unlock_memory_hotplug();
- 	return ret;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
