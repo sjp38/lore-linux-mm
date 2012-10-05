@@ -1,27 +1,28 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx178.postini.com [74.125.245.178])
-	by kanga.kvack.org (Postfix) with SMTP id BE97E6B009F
-	for <linux-mm@kvack.org>; Thu,  4 Oct 2012 22:36:41 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 5D2F43EE0C0
-	for <linux-mm@kvack.org>; Fri,  5 Oct 2012 11:36:40 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 44BD345DEB5
-	for <linux-mm@kvack.org>; Fri,  5 Oct 2012 11:36:40 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 2EDED45DEB2
-	for <linux-mm@kvack.org>; Fri,  5 Oct 2012 11:36:40 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 1B1981DB803C
-	for <linux-mm@kvack.org>; Fri,  5 Oct 2012 11:36:40 +0900 (JST)
-Received: from g01jpexchyt10.g01.fujitsu.local (g01jpexchyt10.g01.fujitsu.local [10.128.194.49])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 6184F1DB803B
-	for <linux-mm@kvack.org>; Fri,  5 Oct 2012 11:36:39 +0900 (JST)
-Message-ID: <506E4799.30407@jp.fujitsu.com>
-Date: Fri, 5 Oct 2012 11:36:09 +0900
+Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
+	by kanga.kvack.org (Postfix) with SMTP id EF7F06B00A2
+	for <linux-mm@kvack.org>; Thu,  4 Oct 2012 22:37:50 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 7BD853EE0BC
+	for <linux-mm@kvack.org>; Fri,  5 Oct 2012 11:37:49 +0900 (JST)
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 5575A45DE55
+	for <linux-mm@kvack.org>; Fri,  5 Oct 2012 11:37:49 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 2DF4F45DE58
+	for <linux-mm@kvack.org>; Fri,  5 Oct 2012 11:37:49 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 1EFB91DB8058
+	for <linux-mm@kvack.org>; Fri,  5 Oct 2012 11:37:49 +0900 (JST)
+Received: from g01jpexchyt05.g01.fujitsu.local (g01jpexchyt05.g01.fujitsu.local [10.128.194.44])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id B5C4E1DB8050
+	for <linux-mm@kvack.org>; Fri,  5 Oct 2012 11:37:48 +0900 (JST)
+Message-ID: <506E47DA.7040404@jp.fujitsu.com>
+Date: Fri, 5 Oct 2012 11:37:14 +0900
 From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: [PATCH 8/10] memory-hotplug : remove page table of x86_64 architecture
+Subject: [PATCH 9/10] memory-hotplug : memory_hotplug: clear zone when removing
+ the memory
 References: <506E43E0.70507@jp.fujitsu.com>
 In-Reply-To: <506E43E0.70507@jp.fujitsu.com>
 Content-Type: text/plain; charset="ISO-2022-JP"
@@ -31,11 +32,11 @@ List-ID: <linux-mm.kvack.org>
 To: x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-ia64@vger.kernel.org, cmetcalf@tilera.com, sparclinux@vger.kernel.org
 Cc: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, cl@linux.com, minchan.kim@gmail.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, wency@cn.fujitsu.com
 
-From: Wen Congyang <wency@cn.fujitsu.com>
+When a memory is added, we update zone's and pgdat's start_pfn and
+spanned_pages in the function __add_zone(). So we should revert them
+when the memory is removed.
 
-For hot removing memory, we sholud remove page table about the memory.
-So the patch searches a page table about the removed memory, and clear
-page table.
+The patch adds a new function __remove_zone() to do this.
 
 CC: David Rientjes <rientjes@google.com>
 CC: Jiang Liu <liuj97@gmail.com>
@@ -44,271 +45,241 @@ CC: Christoph Lameter <cl@linux.com>
 Cc: Minchan Kim <minchan.kim@gmail.com>
 CC: Andrew Morton <akpm@linux-foundation.org>
 CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-CC: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+Signed-off-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 Signed-off-by: Wen Congyang <wency@cn.fujitsu.com>
 ---
- arch/x86/include/asm/pgtable_types.h |    1 
- arch/x86/mm/init_64.c                |  147 +++++++++++++++++++++++++++++++++++
- arch/x86/mm/pageattr.c               |   47 +++++------
- 3 files changed, 173 insertions(+), 22 deletions(-)
+ mm/memory_hotplug.c |  207 ++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 207 insertions(+)
 
-Index: linux-3.6/arch/x86/mm/init_64.c
+Index: linux-3.6/mm/memory_hotplug.c
 ===================================================================
---- linux-3.6.orig/arch/x86/mm/init_64.c	2012-10-04 18:30:21.171698416 +0900
-+++ linux-3.6/arch/x86/mm/init_64.c	2012-10-04 18:30:27.317704652 +0900
-@@ -675,6 +675,151 @@ int arch_add_memory(int nid, u64 start, 
- }
- EXPORT_SYMBOL_GPL(arch_add_memory);
- 
-+static void __meminit
-+phys_pte_remove(pte_t *pte_page, unsigned long addr, unsigned long end)
-+{
-+	unsigned pages = 0;
-+	int i = pte_index(addr);
-+
-+	pte_t *pte = pte_page + pte_index(addr);
-+
-+	for (; i < PTRS_PER_PTE; i++, addr += PAGE_SIZE, pte++) {
-+
-+		if (addr >= end)
-+			break;
-+
-+		if (!pte_present(*pte))
-+			continue;
-+
-+		pages++;
-+		set_pte(pte, __pte(0));
-+	}
-+
-+	update_page_count(PG_LEVEL_4K, -pages);
-+}
-+
-+static void __meminit
-+phys_pmd_remove(pmd_t *pmd_page, unsigned long addr, unsigned long end)
-+{
-+	unsigned long pages = 0, next;
-+	int i = pmd_index(addr);
-+
-+	for (; i < PTRS_PER_PMD; i++, addr = next) {
-+		unsigned long pte_phys;
-+		pmd_t *pmd = pmd_page + pmd_index(addr);
-+		pte_t *pte;
-+
-+		if (addr >= end)
-+			break;
-+
-+		next = (addr & PMD_MASK) + PMD_SIZE;
-+
-+		if (!pmd_present(*pmd))
-+			continue;
-+
-+		if (pmd_large(*pmd)) {
-+			if ((addr & ~PMD_MASK) == 0 && next <= end) {
-+				set_pmd(pmd, __pmd(0));
-+				pages++;
-+				continue;
-+			}
-+
-+			/*
-+			 * We use 2M page, but we need to remove part of them,
-+			 * so split 2M page to 4K page.
-+			 */
-+			pte = alloc_low_page(&pte_phys);
-+			__split_large_page((pte_t *)pmd, addr, pte);
-+
-+			spin_lock(&init_mm.page_table_lock);
-+			pmd_populate_kernel(&init_mm, pmd, __va(pte_phys));
-+			spin_unlock(&init_mm.page_table_lock);
-+		}
-+
-+		spin_lock(&init_mm.page_table_lock);
-+		pte = map_low_page((pte_t *)pmd_page_vaddr(*pmd));
-+		phys_pte_remove(pte, addr, end);
-+		unmap_low_page(pte);
-+		spin_unlock(&init_mm.page_table_lock);
-+	}
-+	update_page_count(PG_LEVEL_2M, -pages);
-+}
-+
-+static void __meminit
-+phys_pud_remove(pud_t *pud_page, unsigned long addr, unsigned long end)
-+{
-+	unsigned long pages = 0, next;
-+	int i = pud_index(addr);
-+
-+	for (; i < PTRS_PER_PUD; i++, addr = next) {
-+		unsigned long pmd_phys;
-+		pud_t *pud = pud_page + pud_index(addr);
-+		pmd_t *pmd;
-+
-+		if (addr >= end)
-+			break;
-+
-+		next = (addr & PUD_MASK) + PUD_SIZE;
-+
-+		if (!pud_present(*pud))
-+			continue;
-+
-+		if (pud_large(*pud)) {
-+			if ((addr & ~PUD_MASK) == 0 && next <= end) {
-+				set_pud(pud, __pud(0));
-+				pages++;
-+				continue;
-+			}
-+
-+			/*
-+			 * We use 1G page, but we need to remove part of them,
-+			 * so split 1G page to 2M page.
-+			 */
-+			pmd = alloc_low_page(&pmd_phys);
-+			__split_large_page((pte_t *)pud, addr, (pte_t *)pmd);
-+
-+			spin_lock(&init_mm.page_table_lock);
-+			pud_populate(&init_mm, pud, __va(pmd_phys));
-+			spin_unlock(&init_mm.page_table_lock);
-+		}
-+
-+		pmd = map_low_page(pmd_offset(pud, 0));
-+		phys_pmd_remove(pmd, addr, end);
-+		unmap_low_page(pmd);
-+		__flush_tlb_all();
-+	}
-+	__flush_tlb_all();
-+
-+	update_page_count(PG_LEVEL_1G, -pages);
-+}
-+
-+void __meminit
-+kernel_physical_mapping_remove(unsigned long start, unsigned long end)
-+{
-+	unsigned long next;
-+
-+	start = (unsigned long)__va(start);
-+	end = (unsigned long)__va(end);
-+
-+	for (; start < end; start = next) {
-+		pgd_t *pgd = pgd_offset_k(start);
-+		pud_t *pud;
-+
-+		next = (start + PGDIR_SIZE) & PGDIR_MASK;
-+		if (next > end)
-+			next = end;
-+
-+		if (!pgd_present(*pgd))
-+			continue;
-+
-+		pud = map_low_page((pud_t *)pgd_page_vaddr(*pgd));
-+		phys_pud_remove(pud, __pa(start), __pa(end));
-+		unmap_low_page(pud);
-+	}
-+
-+	__flush_tlb_all();
-+}
-+
- #ifdef CONFIG_MEMORY_HOTREMOVE
- int __ref arch_remove_memory(u64 start, u64 size)
- {
-@@ -687,6 +832,8 @@ int __ref arch_remove_memory(u64 start, 
- 	ret = __remove_pages(zone, start_pfn, nr_pages);
- 	WARN_ON_ONCE(ret);
- 
-+	kernel_physical_mapping_remove(start, start + size);
-+
- 	return ret;
- }
- #endif
-Index: linux-3.6/arch/x86/include/asm/pgtable_types.h
-===================================================================
---- linux-3.6.orig/arch/x86/include/asm/pgtable_types.h	2012-10-04 18:26:51.925486954 +0900
-+++ linux-3.6/arch/x86/include/asm/pgtable_types.h	2012-10-04 18:30:27.322704656 +0900
-@@ -334,6 +334,7 @@ static inline void update_page_count(int
-  * as a pte too.
-  */
- extern pte_t *lookup_address(unsigned long address, unsigned int *level);
-+extern int __split_large_page(pte_t *kpte, unsigned long address, pte_t *pbase);
- 
- #endif	/* !__ASSEMBLY__ */
- 
-Index: linux-3.6/arch/x86/mm/pageattr.c
-===================================================================
---- linux-3.6.orig/arch/x86/mm/pageattr.c	2012-10-04 18:26:51.923486952 +0900
-+++ linux-3.6/arch/x86/mm/pageattr.c	2012-10-04 18:30:27.328704662 +0900
-@@ -501,21 +501,13 @@ out_unlock:
- 	return do_split;
+--- linux-3.6.orig/mm/memory_hotplug.c	2012-10-04 18:30:21.182698427 +0900
++++ linux-3.6/mm/memory_hotplug.c	2012-10-04 18:30:31.767709165 +0900
+@@ -312,10 +312,213 @@ static int __meminit __add_section(int n
+ 	return register_new_memory(nid, __pfn_to_section(phys_start_pfn));
  }
  
--static int split_large_page(pte_t *kpte, unsigned long address)
-+int __split_large_page(pte_t *kpte, unsigned long address, pte_t *pbase)
- {
- 	unsigned long pfn, pfninc = 1;
- 	unsigned int i, level;
--	pte_t *pbase, *tmp;
-+	pte_t *tmp;
- 	pgprot_t ref_prot;
--	struct page *base;
--
--	if (!debug_pagealloc)
--		spin_unlock(&cpa_lock);
--	base = alloc_pages(GFP_KERNEL | __GFP_NOTRACK, 0);
--	if (!debug_pagealloc)
--		spin_lock(&cpa_lock);
--	if (!base)
--		return -ENOMEM;
-+	struct page *base = virt_to_page(pbase);
- 
- 	spin_lock(&pgd_lock);
- 	/*
-@@ -523,10 +515,11 @@ static int split_large_page(pte_t *kpte,
- 	 * up for us already:
- 	 */
- 	tmp = lookup_address(address, &level);
--	if (tmp != kpte)
--		goto out_unlock;
-+	if (tmp != kpte) {
-+		spin_unlock(&pgd_lock);
-+		return 1;
++/* find the smallest valid pfn in the range [start_pfn, end_pfn) */
++static int find_smallest_section_pfn(int nid, struct zone *zone,
++				     unsigned long start_pfn,
++				     unsigned long end_pfn)
++{
++	struct mem_section *ms;
++
++	for (; start_pfn < end_pfn; start_pfn += PAGES_PER_SECTION) {
++		ms = __pfn_to_section(start_pfn);
++
++		if (unlikely(!valid_section(ms)))
++			continue;
++
++		if (unlikely(pfn_to_nid(start_pfn)) != nid)
++			continue;
++
++		if (zone && zone != page_zone(pfn_to_page(start_pfn)))
++			continue;
++
++		return start_pfn;
 +	}
- 
--	pbase = (pte_t *)page_address(base);
- 	paravirt_alloc_pte(&init_mm, page_to_pfn(base));
- 	ref_prot = pte_pgprot(pte_clrhuge(*kpte));
- 	/*
-@@ -579,17 +572,27 @@ static int split_large_page(pte_t *kpte,
- 	 * going on.
- 	 */
- 	__flush_tlb_all();
-+	spin_unlock(&pgd_lock);
- 
--	base = NULL;
++
 +	return 0;
 +}
- 
--out_unlock:
--	/*
--	 * If we dropped out via the lookup_address check under
--	 * pgd_lock then stick the page back into the pool:
--	 */
--	if (base)
-+static int split_large_page(pte_t *kpte, unsigned long address)
++
++/* find the biggest valid pfn in the range [start_pfn, end_pfn). */
++static int find_biggest_section_pfn(int nid, struct zone *zone,
++				    unsigned long start_pfn,
++				    unsigned long end_pfn)
 +{
-+	pte_t *pbase;
-+	struct page *base;
++	struct mem_section *ms;
++	unsigned long pfn;
 +
-+	if (!debug_pagealloc)
-+		spin_unlock(&cpa_lock);
-+	base = alloc_pages(GFP_KERNEL | __GFP_NOTRACK, 0);
-+	if (!debug_pagealloc)
-+		spin_lock(&cpa_lock);
-+	if (!base)
-+		return -ENOMEM;
++	/* pfn is the end pfn of a memory section. */
++	pfn = end_pfn - 1;
++	for (; pfn >= start_pfn; pfn -= PAGES_PER_SECTION) {
++		ms = __pfn_to_section(pfn);
 +
-+	pbase = (pte_t *)page_address(base);
-+	if (__split_large_page(kpte, address, pbase))
- 		__free_page(base);
--	spin_unlock(&pgd_lock);
++		if (unlikely(!valid_section(ms)))
++			continue;
++
++		if (unlikely(pfn_to_nid(pfn)) != nid)
++			continue;
++
++		if (zone && zone != page_zone(pfn_to_page(pfn)))
++			continue;
++
++		return pfn;
++	}
++
++	return 0;
++}
++
++static void shrink_zone_span(struct zone *zone, unsigned long start_pfn,
++			     unsigned long end_pfn)
++{
++	unsigned long zone_start_pfn =  zone->zone_start_pfn;
++	unsigned long zone_end_pfn = zone->zone_start_pfn + zone->spanned_pages;
++	unsigned long pfn;
++	struct mem_section *ms;
++	int nid = zone_to_nid(zone);
++
++	zone_span_writelock(zone);
++	if (zone_start_pfn == start_pfn) {
++		/*
++		 * If the section is smallest section in the zone, it need
++		 * shrink zone->zone_start_pfn and zone->zone_spanned_pages.
++		 * In this case, we find second smallest valid mem_section
++		 * for shrinking zone.
++		 */
++		pfn = find_smallest_section_pfn(nid, zone, end_pfn,
++						zone_end_pfn);
++		if (pfn) {
++			zone->zone_start_pfn = pfn;
++			zone->spanned_pages = zone_end_pfn - pfn;
++		}
++	} else if (zone_end_pfn == end_pfn) {
++		/*
++		 * If the section is biggest section in the zone, it need
++		 * shrink zone->spanned_pages.
++		 * In this case, we find second biggest valid mem_section for
++		 * shrinking zone.
++		 */
++		pfn = find_biggest_section_pfn(nid, zone, zone_start_pfn,
++					       start_pfn);
++		if (pfn)
++			zone->spanned_pages = pfn - zone_start_pfn + 1;
++	}
++
++	/*
++	 * The section is not biggest or smallest mem_section in the zone, it
++	 * only creates a hole in the zone. So in this case, we need not
++	 * change the zone. But perhaps, the zone has only hole data. Thus
++	 * it check the zone has only hole or not.
++	 */
++	pfn = zone_start_pfn;
++	for (; pfn < zone_end_pfn; pfn += PAGES_PER_SECTION) {
++		ms = __pfn_to_section(pfn);
++
++		if (unlikely(!valid_section(ms)))
++			continue;
++
++		if (page_zone(pfn_to_page(pfn)) != zone)
++			continue;
++
++		 /* If the section is current section, it continues the loop */
++		if (start_pfn == pfn)
++			continue;
++
++		/* If we find valid section, we have nothing to do */
++		zone_span_writeunlock(zone);
++		return;
++	}
++
++	/* The zone has no valid section */
++	zone->zone_start_pfn = 0;
++	zone->spanned_pages = 0;
++	zone_span_writeunlock(zone);
++}
++
++static void shrink_pgdat_span(struct pglist_data *pgdat,
++			      unsigned long start_pfn, unsigned long end_pfn)
++{
++	unsigned long pgdat_start_pfn =  pgdat->node_start_pfn;
++	unsigned long pgdat_end_pfn =
++		pgdat->node_start_pfn + pgdat->node_spanned_pages;
++	unsigned long pfn;
++	struct mem_section *ms;
++	int nid = pgdat->node_id;
++
++	if (pgdat_start_pfn == start_pfn) {
++		/*
++		 * If the section is smallest section in the pgdat, it need
++		 * shrink pgdat->node_start_pfn and pgdat->node_spanned_pages.
++		 * In this case, we find second smallest valid mem_section
++		 * for shrinking zone.
++		 */
++		pfn = find_smallest_section_pfn(nid, NULL, end_pfn,
++						pgdat_end_pfn);
++		if (pfn) {
++			pgdat->node_start_pfn = pfn;
++			pgdat->node_spanned_pages = pgdat_end_pfn - pfn;
++		}
++	} else if (pgdat_end_pfn == end_pfn) {
++		/*
++		 * If the section is biggest section in the pgdat, it need
++		 * shrink pgdat->node_spanned_pages.
++		 * In this case, we find second biggest valid mem_section for
++		 * shrinking zone.
++		 */
++		pfn = find_biggest_section_pfn(nid, NULL, pgdat_start_pfn,
++					       start_pfn);
++		if (pfn)
++			pgdat->node_spanned_pages = pfn - pgdat_start_pfn + 1;
++	}
++
++	/*
++	 * If the section is not biggest or smallest mem_section in the pgdat,
++	 * it only creates a hole in the pgdat. So in this case, we need not
++	 * change the pgdat.
++	 * But perhaps, the pgdat has only hole data. Thus it check the pgdat
++	 * has only hole or not.
++	 */
++	pfn = pgdat_start_pfn;
++	for (; pfn < pgdat_end_pfn; pfn += PAGES_PER_SECTION) {
++		ms = __pfn_to_section(pfn);
++
++		if (unlikely(!valid_section(ms)))
++			continue;
++
++		if (pfn_to_nid(pfn) != nid)
++			continue;
++
++		 /* If the section is current section, it continues the loop */
++		if (start_pfn == pfn)
++			continue;
++
++		/* If we find valid section, we have nothing to do */
++		return;
++	}
++
++	/* The pgdat has no valid section */
++	pgdat->node_start_pfn = 0;
++	pgdat->node_spanned_pages = 0;
++}
++
++static void __remove_zone(struct zone *zone, unsigned long start_pfn)
++{
++	struct pglist_data *pgdat = zone->zone_pgdat;
++	int nr_pages = PAGES_PER_SECTION;
++	int zone_type;
++	unsigned long flags;
++
++	zone_type = zone - pgdat->node_zones;
++
++	pgdat_resize_lock(zone->zone_pgdat, &flags);
++	shrink_zone_span(zone, start_pfn, start_pfn + nr_pages);
++	shrink_pgdat_span(pgdat, start_pfn, start_pfn + nr_pages);
++	pgdat_resize_unlock(zone->zone_pgdat, &flags);
++}
++
+ static int __remove_section(struct zone *zone, struct mem_section *ms)
+ {
+ 	unsigned long flags;
+ 	struct pglist_data *pgdat = zone->zone_pgdat;
++	unsigned long start_pfn;
++	int scn_nr;
+ 	int ret = -EINVAL;
  
- 	return 0;
- }
+ 	if (!valid_section(ms))
+@@ -325,6 +528,10 @@ static int __remove_section(struct zone 
+ 	if (ret)
+ 		return ret;
+ 
++	scn_nr = __section_nr(ms);
++	start_pfn = section_nr_to_pfn(scn_nr);
++	__remove_zone(zone, start_pfn);
++
+ 	pgdat_resize_lock(pgdat, &flags);
+ 	sparse_remove_one_section(zone, ms);
+ 	pgdat_resize_unlock(pgdat, &flags);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
