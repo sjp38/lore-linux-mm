@@ -1,156 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
-	by kanga.kvack.org (Postfix) with SMTP id 3F3196B0044
-	for <linux-mm@kvack.org>; Fri,  5 Oct 2012 06:50:27 -0400 (EDT)
-From: Glauber Costa <glommer@parallels.com>
-Subject: [PATCH v4] slab: Ignore internal flags in cache creation
-Date: Fri,  5 Oct 2012 14:49:14 +0400
-Message-Id: <1349434154-8000-1-git-send-email-glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
+	by kanga.kvack.org (Postfix) with SMTP id BE8B66B0044
+	for <linux-mm@kvack.org>; Fri,  5 Oct 2012 07:12:01 -0400 (EDT)
+Date: Fri, 5 Oct 2012 13:11:40 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH 29/33] autonuma: page_autonuma
+Message-ID: <20121005111140.GE6793@redhat.com>
+References: <20121004165008.GF25675@redhat.com>
+ <0000013a2cff3c3d-76e00716-2869-4dc8-8717-82f0136018d0-000000@email.amazonses.com>
+ <20121004183819.GM25675@redhat.com>
+ <0000013a2d30ebf2-1a2bb821-92a0-464b-9db0-f960b2fd074d-000000@email.amazonses.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <0000013a2d30ebf2-1a2bb821-92a0-464b-9db0-f960b2fd074d-000000@email.amazonses.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, Glauber Costa <glommer@parallels.com>, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@cs.helsinki.fi>
+To: Christoph Lameter <cl@linux.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <pzijlstr@redhat.com>, Ingo Molnar <mingo@elte.hu>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hillf Danton <dhillf@gmail.com>, Andrew Jones <drjones@redhat.com>, Dan Smith <danms@us.ibm.com>, Thomas Gleixner <tglx@linutronix.de>, Paul Turner <pjt@google.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
 
-Some flags are used internally by the allocators for management
-purposes. One example of that is the CFLGS_OFF_SLAB flag that slab uses
-to mark that the metadata for that cache is stored outside of the slab.
+Hi Christoph,
 
-No cache should ever pass those as a creation flags. We can just ignore
-this bit if it happens to be passed (such as when duplicating a cache in
-the kmem memcg patches).
+On Thu, Oct 04, 2012 at 07:11:51PM +0000, Christoph Lameter wrote:
+> I did not say anything like that. Still not convinced that autonuma is
+> worth doing and that it is beneficial given the complexity it adds to the
+> kernel. Just wanted to point out that there is a case to be made for
+> adding another word to the page struct.
 
-Because such flags can vary from allocator to allocator, we allow them
-to make their own decisions on that, defining SLAB_AVAILABLE_FLAGS with
-all flags that are valid at creation time.  Allocators that doesn't have
-any specific flag requirement should define that to mean all flags.
+You've seen the benchmarks, no other solution that exists today solves
+all those cases and never showed a regression compared to
+upstream. Running that much faster is very beneficial in my
+view.
 
-Common code will mask out all flags not belonging to that set.
+Expecting the admin of a 2 socket system to use hard bindings manually
+is unrealistic, even for a 4 socket is unrealistic.
 
-[ v2: leave the mask out decision up to the allocators ]
-[ v3: define flags for all allocators ]
-[ v4: move all definitions to slab.h ]
+If you've 512 node system well then you can afford to setup everything
+manually and boot with noautonuma, no argument about that.
 
-Signed-off-by: Glauber Costa <glommer@parallels.com>
-CC: Christoph Lameter <cl@linux.com>
-CC: David Rientjes <rientjes@google.com>
-CC: Pekka Enberg <penberg@cs.helsinki.fi>
----
- mm/slab.c        | 22 ----------------------
- mm/slab.h        | 25 +++++++++++++++++++++++++
- mm/slab_common.c |  7 +++++++
- mm/slub.c        |  3 ---
- 4 files changed, 32 insertions(+), 25 deletions(-)
+About the complexity, well there's no simple solution to an hard
+problem. The proof comes from the schednuma crowd that is currently
+copying the AutoNUMA scheduler cpu-follow-memory design at full force
+as we speak.
 
-diff --git a/mm/slab.c b/mm/slab.c
-index 87569af..eafef58 100644
---- a/mm/slab.c
-+++ b/mm/slab.c
-@@ -162,23 +162,6 @@
-  */
- static bool pfmemalloc_active __read_mostly;
- 
--/* Legal flag mask for kmem_cache_create(). */
--#if DEBUG
--# define CREATE_MASK	(SLAB_RED_ZONE | \
--			 SLAB_POISON | SLAB_HWCACHE_ALIGN | \
--			 SLAB_CACHE_DMA | \
--			 SLAB_STORE_USER | \
--			 SLAB_RECLAIM_ACCOUNT | SLAB_PANIC | \
--			 SLAB_DESTROY_BY_RCU | SLAB_MEM_SPREAD | \
--			 SLAB_DEBUG_OBJECTS | SLAB_NOLEAKTRACE | SLAB_NOTRACK)
--#else
--# define CREATE_MASK	(SLAB_HWCACHE_ALIGN | \
--			 SLAB_CACHE_DMA | \
--			 SLAB_RECLAIM_ACCOUNT | SLAB_PANIC | \
--			 SLAB_DESTROY_BY_RCU | SLAB_MEM_SPREAD | \
--			 SLAB_DEBUG_OBJECTS | SLAB_NOLEAKTRACE | SLAB_NOTRACK)
--#endif
--
- /*
-  * kmem_bufctl_t:
-  *
-@@ -2385,11 +2368,6 @@ __kmem_cache_create (struct kmem_cache *cachep, unsigned long flags)
- 	if (flags & SLAB_DESTROY_BY_RCU)
- 		BUG_ON(flags & SLAB_POISON);
- #endif
--	/*
--	 * Always checks flags, a caller might be expecting debug support which
--	 * isn't available.
--	 */
--	BUG_ON(flags & ~CREATE_MASK);
- 
- 	/*
- 	 * Check that size is in terms of words.  This is needed to avoid
-diff --git a/mm/slab.h b/mm/slab.h
-index 7deeb44..4c35c17 100644
---- a/mm/slab.h
-+++ b/mm/slab.h
-@@ -45,6 +45,31 @@ static inline struct kmem_cache *__kmem_cache_alias(const char *name, size_t siz
- #endif
- 
- 
-+/* Legal flag mask for kmem_cache_create(), for various configurations */
-+#define SLAB_CORE_FLAGS (SLAB_HWCACHE_ALIGN | SLAB_CACHE_DMA | SLAB_PANIC | \
-+			 SLAB_DESTROY_BY_RCU | SLAB_DEBUG_OBJECTS )
-+
-+#if defined(CONFIG_DEBUG_SLAB)
-+#define SLAB_DEBUG_FLAGS (SLAB_RED_ZONE | SLAB_POISON | SLAB_STORE_USER)
-+#elif defined(CONFIG_SLUB_DEBUG)
-+#define SLAB_DEBUG_FLAGS (SLAB_RED_ZONE | SLAB_POISON | SLAB_STORE_USER | \
-+			  SLAB_TRACE | SLAB_DEBUG_FREE)
-+#else
-+#define SLAB_DEBUG_FLAGS (0)
-+#endif
-+
-+#if defined(CONFIG_SLAB)
-+#define SLAB_CACHE_FLAGS (SLAB_MEMSPREAD | SLAB_NOLEAKTRACE | \
-+			  SLAB_RECLAIM_ACCOUNT | SLAB_TEMPORARY | SLAB_NOTRACK)
-+#elif defined(CONFIG_SLUB)
-+#define SLAB_CACHE_FLAGS (SLAB_NOLEAKTRACE | SLAB_RECLAIM_ACCOUNT | \
-+			  SLAB_TEMPORARY | SLAB_NOTRACK)
-+#else
-+#define SLAB_CACHE_FLAGS (0)
-+#endif
-+
-+#define CACHE_CREATE_MASK (SLAB_CORE_FLAGS | SLAB_DEBUG_FLAGS | SLAB_CACHE_FLAGS)
-+
- int __kmem_cache_shutdown(struct kmem_cache *);
- 
- #endif
-diff --git a/mm/slab_common.c b/mm/slab_common.c
-index 9c21725..0e2b8e3 100644
---- a/mm/slab_common.c
-+++ b/mm/slab_common.c
-@@ -107,6 +107,13 @@ struct kmem_cache *kmem_cache_create(const char *name, size_t size, size_t align
- 	if (!kmem_cache_sanity_check(name, size) == 0)
- 		goto out_locked;
- 
-+	/*
-+	 * Some allocators will constraint the set of valid flags to a subset
-+	 * of all flags. We expect them to define CACHE_CREATE_MASK in this
-+	 * case, and we'll just provide them with a sanitized version of the
-+	 * passed flags.
-+	 */
-+	flags &= CACHE_CREATE_MASK;
- 
- 	s = __kmem_cache_alias(name, size, align, flags, ctor);
- 	if (s)
-diff --git a/mm/slub.c b/mm/slub.c
-index 628a261..f50c5b2 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -112,9 +112,6 @@
-  * 			the fast path and disables lockless freelists.
-  */
- 
--#define SLAB_DEBUG_FLAGS (SLAB_RED_ZONE | SLAB_POISON | SLAB_STORE_USER | \
--		SLAB_TRACE | SLAB_DEBUG_FREE)
--
- static inline int kmem_cache_debug(struct kmem_cache *s)
- {
- #ifdef CONFIG_SLUB_DEBUG
--- 
-1.7.11.4
+Thanks,
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
