@@ -1,31 +1,25 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
-	by kanga.kvack.org (Postfix) with SMTP id DFC256B005A
-	for <linux-mm@kvack.org>; Fri,  5 Oct 2012 14:57:16 -0400 (EDT)
-Received: by mail-oa0-f41.google.com with SMTP id k14so2509097oag.14
-        for <linux-mm@kvack.org>; Fri, 05 Oct 2012 11:57:16 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
+	by kanga.kvack.org (Postfix) with SMTP id C18806B005A
+	for <linux-mm@kvack.org>; Fri,  5 Oct 2012 15:00:09 -0400 (EDT)
+Date: Fri, 5 Oct 2012 19:00:08 +0000
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH v4] slab: Ignore internal flags in cache creation
+In-Reply-To: <1349434154-8000-1-git-send-email-glommer@parallels.com>
+Message-ID: <0000013a324c8c9a-26b4f363-3799-40a9-843a-66dc79770170-000000@email.amazonses.com>
+References: <1349434154-8000-1-git-send-email-glommer@parallels.com>
 MIME-Version: 1.0
-In-Reply-To: <506C0F53.5030500@jp.fujitsu.com>
-References: <506C0AE8.40702@jp.fujitsu.com> <506C0F53.5030500@jp.fujitsu.com>
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Date: Fri, 5 Oct 2012 14:56:55 -0400
-Message-ID: <CAHGf_=o6K71u4+OVsLvfCSRmOTk12TpsgKwsJO6bGdd_6dYnyA@mail.gmail.com>
-Subject: Re: [PATCH 4/4] acpi,memory-hotplug : store the node id in acpi_memory_device
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-Cc: x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-acpi@vger.kernel.org, rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, cl@linux.com, minchan.kim@gmail.com, akpm@linux-foundation.org, wency@cn.fujitsu.com
+To: Glauber Costa <glommer@parallels.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@cs.helsinki.fi>
 
-On Wed, Oct 3, 2012 at 6:11 AM, Yasuaki Ishimatsu
-<isimatu.yasuaki@jp.fujitsu.com> wrote:
-> From: Wen Congyang <wency@cn.fujitsu.com>
->
-> The memory device has only one node id. Store the node id when
-> enable the memory device, and we can reuse it when removing the
-> memory device.
+On Fri, 5 Oct 2012, Glauber Costa wrote:
 
-You don't explain why we need this. Then nobody can review nor ack.
+> Common code will mask out all flags not belonging to that set.
+
+Acked-by: Christoph Lameter <cl@linux.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
