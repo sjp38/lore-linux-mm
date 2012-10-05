@@ -1,77 +1,163 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx101.postini.com [74.125.245.101])
-	by kanga.kvack.org (Postfix) with SMTP id 4DEF36B0070
-	for <linux-mm@kvack.org>; Fri,  5 Oct 2012 09:47:28 -0400 (EDT)
-Date: Fri, 5 Oct 2012 15:47:23 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH v3 04/13] kmem accounting basic infrastructure
-Message-ID: <20121005134723.GD27757@dhcp22.suse.cz>
-References: <20120926195648.GA20342@google.com>
- <50635F46.7000700@parallels.com>
- <20120926201629.GB20342@google.com>
- <50637298.2090904@parallels.com>
- <20120927120806.GA29104@dhcp22.suse.cz>
- <20120927143300.GA4251@mtj.dyndns.org>
- <20120927150950.GG29104@dhcp22.suse.cz>
- <20120930084750.GI10383@mtj.dyndns.org>
- <20121001092756.GA8622@dhcp22.suse.cz>
- <20121003224316.GD19248@localhost>
+Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
+	by kanga.kvack.org (Postfix) with SMTP id 457B26B0069
+	for <linux-mm@kvack.org>; Fri,  5 Oct 2012 11:31:22 -0400 (EDT)
+Date: Fri, 5 Oct 2012 11:31:00 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH v3 12/13] execute the whole memcg freeing in rcu callback
+Message-ID: <20121005153100.GB2625@cmpxchg.org>
+References: <1347977050-29476-1-git-send-email-glommer@parallels.com>
+ <1347977050-29476-13-git-send-email-glommer@parallels.com>
+ <20121001132711.GL8622@dhcp22.suse.cz>
+ <506D6A99.7070800@parallels.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20121003224316.GD19248@localhost>
+In-Reply-To: <506D6A99.7070800@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Glauber Costa <glommer@parallels.com>, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, devel@openvz.org, linux-mm@kvack.org, Suleiman Souhlal <suleiman@google.com>, Frederic Weisbecker <fweisbec@gmail.com>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>
+To: Glauber Costa <glommer@parallels.com>
+Cc: Michal Hocko <mhocko@suse.cz>, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, devel@openvz.org, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, Suleiman Souhlal <suleiman@google.com>, Frederic Weisbecker <fweisbec@gmail.com>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>
 
-On Thu 04-10-12 07:43:16, Tejun Heo wrote:
-[...]
-> > That is right but I think that the current discussion shows that a mixed
-> > (kmem disabled and kmem enabled hierarchies) workloads are far from
-> > being theoretical and a global knob is just too coarse. I am afraid we
+On Thu, Oct 04, 2012 at 02:53:13PM +0400, Glauber Costa wrote:
+> On 10/01/2012 05:27 PM, Michal Hocko wrote:
+> > On Tue 18-09-12 18:04:09, Glauber Costa wrote:
+> >> A lot of the initialization we do in mem_cgroup_create() is done with softirqs
+> >> enabled. This include grabbing a css id, which holds &ss->id_lock->rlock, and
+> >> the per-zone trees, which holds rtpz->lock->rlock. All of those signal to the
+> >> lockdep mechanism that those locks can be used in SOFTIRQ-ON-W context. This
+> >> means that the freeing of memcg structure must happen in a compatible context,
+> >> otherwise we'll get a deadlock.
+> > 
+> > Maybe I am missing something obvious but why cannot we simply disble
+> > (soft)irqs in mem_cgroup_create rather than make the free path much more
+> > complicated. It really feels strange to defer everything (e.g. soft
+> > reclaim tree cleanup which should be a no-op at the time because there
+> > shouldn't be any user pages in the group).
+> > 
 > 
-> I'm not sure there's much evidence in this thread.  The strongest upto
-> this point seems to be performance overhead / difficulty of general
-> enough implementation.  As for "trusted" workload, what are the
-> inherent benefits of trusting if you don't have to?
-
-One advantage is that you do _not have_ to consider kernel memory
-allocations (which are inherently bound to the kernel version) so the
-sizing is much easier and version independent. If you set a limit to XY
-because you know what you are doing you certainly do not want to regress
-(e.g. because of unnecessary reclaim) just because a certain kernel
-allocation got bigger, right?
-
-> > will see "we want that per hierarchy" requests shortly and that would
-> > just add a new confusion where global knob would complicate it
-> > considerably (do we really want on/off/per_hierarchy global knob?).
+> Ok.
 > 
-> Hmmm?  The global knob is just the same per_hierarchy knob at the
-> root.  It's hierarchical after all.
-
-When you said global knob I imagined mount or boot option. If you want
-to have yet another memory.enable_kmem then IMHO it is much easier to
-use set-accounted semantic (which is hierarchical as well).
-
-> Anyways, as long as the "we silently ignore what happened before being
-> enabled" is gone, I won't fight this anymore.  It isn't broken after
-> all.  
-
-OK, it is good that we settled this.
-
-> But, please think about making things simpler in general, cgroup
-> is riddled with mis-designed complexities and memcg seems to be
-> leading the charge at times.
-
-Yes this is an evolution and it seems that we are slowly getting there.
-
+> I was just able to come back to this today - I was mostly working on the
+> slab feedback over the past few days. I will answer yours and Tejun's
+> concerns at once:
 > 
-> Thanks.
+> Here is the situation: the backtrace I get is this one:
+> 
+> [  124.956725] =================================
+> [  124.957217] [ INFO: inconsistent lock state ]
+> [  124.957217] 3.5.0+ #99 Not tainted
+> [  124.957217] ---------------------------------
+> [  124.957217] inconsistent {SOFTIRQ-ON-W} -> {IN-SOFTIRQ-W} usage.
+> [  124.957217] ksoftirqd/0/3 [HC0[0]:SC1[1]:HE1:SE0] takes:
+> [  124.957217]  (&(&ss->id_lock)->rlock){+.?...}, at:
+> [<ffffffff810aa7b2>] spin_lock+0x9/0xb
+> [  124.957217] {SOFTIRQ-ON-W} state was registered at:
+> [  124.957217]   [<ffffffff810996ed>] __lock_acquire+0x31f/0xd68
+> [  124.957217]   [<ffffffff8109a660>] lock_acquire+0x108/0x15c
+> [  124.957217]   [<ffffffff81534ec4>] _raw_spin_lock+0x40/0x4f
+> [  124.957217]   [<ffffffff810aa7b2>] spin_lock+0x9/0xb
+> [  124.957217]   [<ffffffff810ad00e>] get_new_cssid+0x69/0xf3
+> [  124.957217]   [<ffffffff810ad0da>] cgroup_init_idr+0x42/0x60
+> [  124.957217]   [<ffffffff81b20e04>] cgroup_init+0x50/0x100
+> [  124.957217]   [<ffffffff81b05b9b>] start_kernel+0x3b9/0x3ee
+> [  124.957217]   [<ffffffff81b052d6>] x86_64_start_reservations+0xb1/0xb5
+> [  124.957217]   [<ffffffff81b053d8>] x86_64_start_kernel+0xfe/0x10b
+> 
+> 
+> So what we learn from it, is: we are acquiring a specific lock (the css
+> id one) from softirq context. It was previously taken in a
+> softirq-enabled context, that seems to be coming directly from
+> get_new_cssid.
+> 
+> Tejun correctly pointed out that we should never acquire that lock from
+> a softirq context, in which he is right.
+> 
+> But the situation changes slightly with kmem. Now, the following excerpt
+> of a backtrace is possible:
+> 
+> [   48.602775]  [<ffffffff81103095>] free_accounted_pages+0x47/0x4c
+> [   48.602775]  [<ffffffff81047f90>] free_task+0x31/0x5c
+> [   48.602775]  [<ffffffff8104807d>] __put_task_struct+0xc2/0xdb
+> [   48.602775]  [<ffffffff8104dfc7>] put_task_struct+0x1e/0x22
+> [   48.602775]  [<ffffffff8104e144>] delayed_put_task_struct+0x7a/0x98
+> [   48.602775]  [<ffffffff810cf0e5>] __rcu_process_callbacks+0x269/0x3df
+> [   48.602775]  [<ffffffff810cf28c>] rcu_process_callbacks+0x31/0x5b
+> [   48.602775]  [<ffffffff8105266d>] __do_softirq+0x122/0x277
+> 
+> So as you can see, free_accounted_pages (that will trigger a memcg_put()
+> -> mem_cgroup_free()) can now be called from softirq context, which is,
+> an rcu callback (and I just realized I wrote the exact opposite in the
+> subj line: man, I really suck at that!!)
+> As a matter of fact, we could not move to our rcu callback as well:
+> 
+> we need to move it to a worker thread with the rest.
+> 
+> We already have a worker thread: he reason we have it is not
+> static_branches: The reason is vfree(), that will BUG_ON(in_interrupt())
+> and could not be called from rcu callback as well. We moved static
+> branches in there as well for a similar problem, but haven't introduced it.
+> 
+> Could we move just part of it to the worker thread? Absolutely yes.
+> Moving just free_css_id() is enough to make it work. But since it is not
+> the first context related problem we had, I thought: "to hell with that,
+> let's move everything and be safe".
+> 
+> I am fine moving free_css_id() only if you would prefer.
+> 
+> Can we disable softirqs when we initialize css_id? Maybe. My machine
+> seems to boot fine and survive the simple workload that would trigger
+> that bug if I use irqsave spinlocks instead of normal spinlocks. But
+> this has to be done from cgroup core: We have no control over css
+> creation in memcg.
+> 
+> How would you guys like me to handle this ?
 
--- 
-Michal Hocko
-SUSE Labs
+Without the vfree callback, I would have preferred just making the
+id_lock softirq safe.  But since we have to defer (parts of) freeing
+anyway, I like your approach of just deferring the rest as well
+better.
+
+But please add comments why the stuff in there is actually deferred.
+Just simple notes like:
+
+"this can be called from atomic contexts, <examples>",
+
+"vfree must run from process context" and "css_id locking is not soft
+irq safe",
+
+"to hell with that, let's just do everything from the workqueue and be
+safe and simple".
+
+(And this may be personal preference, but why have free_work call
+__mem_cgroup_free()?  Does anyone else need to call that code?  There
+are too many layers already, why not just keep it all in free_work()
+and have one less stack frame on your mind? :))
+
+As for the changelog, here is my attempt:
+
+---
+
+mm: memcg: defer whole memcg tear-down to workqueue
+
+The final memcg put can already happen in atomic context and so the
+freeing is deferred to a workqueue because it needs to use vfree().
+
+Kmem tracking will add freeing from softirq context, but the id_lock
+acquired when destroying the cgroup object is not softirq safe, e.g.:
+
+> [   48.602775]  [<ffffffff81103095>] free_accounted_pages+0x47/0x4c
+> [   48.602775]  [<ffffffff81047f90>] free_task+0x31/0x5c
+> [   48.602775]  [<ffffffff8104807d>] __put_task_struct+0xc2/0xdb
+> [   48.602775]  [<ffffffff8104dfc7>] put_task_struct+0x1e/0x22
+> [   48.602775]  [<ffffffff8104e144>] delayed_put_task_struct+0x7a/0x98
+> [   48.602775]  [<ffffffff810cf0e5>] __rcu_process_callbacks+0x269/0x3df
+> [   48.602775]  [<ffffffff810cf28c>] rcu_process_callbacks+0x31/0x5b
+> [   48.602775]  [<ffffffff8105266d>] __do_softirq+0x122/0x277
+
+To avoid making tear-down too complicated - making locks soft irq
+safe, having half the cleanup in one function on the other half
+somewhere else - just defer everything to the workqueue.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
