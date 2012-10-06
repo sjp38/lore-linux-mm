@@ -1,142 +1,387 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
-	by kanga.kvack.org (Postfix) with SMTP id D4EB56B005A
-	for <linux-mm@kvack.org>; Sat,  6 Oct 2012 08:35:12 -0400 (EDT)
-Date: Sat, 6 Oct 2012 14:34:32 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 18/33] autonuma: teach CFS about autonuma affinity
-Message-ID: <20121006123432.GS6793@redhat.com>
-References: <1349308275-2174-1-git-send-email-aarcange@redhat.com>
- <1349308275-2174-19-git-send-email-aarcange@redhat.com>
- <1349419285.6984.98.camel@marge.simpson.net>
- <20121005115455.GH6793@redhat.com>
- <1349491194.6984.175.camel@marge.simpson.net>
+Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
+	by kanga.kvack.org (Postfix) with SMTP id 25D566B005A
+	for <linux-mm@kvack.org>; Sat,  6 Oct 2012 10:18:41 -0400 (EDT)
+Received: by mail-pb0-f41.google.com with SMTP id rq2so3124784pbb.14
+        for <linux-mm@kvack.org>; Sat, 06 Oct 2012 07:18:40 -0700 (PDT)
+Message-ID: <50703DAA.20407@gmail.com>
+Date: Sat, 06 Oct 2012 22:18:18 +0800
+From: Ni zhan Chen <nizhan.chen@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1349491194.6984.175.camel@marge.simpson.net>
+Subject: Re: [RFC v9 PATCH 16/21] memory-hotplug: free memmap of sparse-vmemmap
+References: <1346837155-534-1-git-send-email-wency@cn.fujitsu.com> <1346837155-534-17-git-send-email-wency@cn.fujitsu.com> <506A6BDC.3010400@gmail.com> <506D2C1C.5060706@jp.fujitsu.com>
+In-Reply-To: <506D2C1C.5060706@jp.fujitsu.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Galbraith <efault@gmx.de>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <pzijlstr@redhat.com>, Ingo Molnar <mingo@elte.hu>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hillf Danton <dhillf@gmail.com>, Andrew Jones <drjones@redhat.com>, Dan Smith <danms@us.ibm.com>, Thomas Gleixner <tglx@linutronix.de>, Paul Turner <pjt@google.com>, Christoph Lameter <cl@linux.com>, Suresh Siddha <suresh.b.siddha@intel.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Srivatsa Vaddagiri <vatsa@linux.vnet.ibm.com>, Alex Shi <alex.shi@intel.com>, Mauricio Faria de Oliveira <mauricfo@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Don Morris <don.morris@hp.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
+To: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+Cc: x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-ia64@vger.kernel.org, cmetcalf@tilera.com, sparclinux@vger.kernel.org, rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, Wen Congyang <wency@cn.fujitsu.com>
 
-Hi Mike,
+On 10/04/2012 02:26 PM, Yasuaki Ishimatsu wrote:
+> Hi Chen,
+>
+> Sorry for late reply.
+>
+> 2012/10/02 13:21, Ni zhan Chen wrote:
+>> On 09/05/2012 05:25 PM, wency@cn.fujitsu.com wrote:
+>>> From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+>>>
+>>> All pages of virtual mapping in removed memory cannot be freed, 
+>>> since some pages
+>>> used as PGD/PUD includes not only removed memory but also other 
+>>> memory. So the
+>>> patch checks whether page can be freed or not.
+>>>
+>>> How to check whether page can be freed or not?
+>>>   1. When removing memory, the page structs of the revmoved memory 
+>>> are filled
+>>>      with 0FD.
+>>>   2. All page structs are filled with 0xFD on PT/PMD, PT/PMD can be 
+>>> cleared.
+>>>      In this case, the page used as PT/PMD can be freed.
+>>>
+>>> Applying patch, __remove_section() of CONFIG_SPARSEMEM_VMEMMAP is 
+>>> integrated
+>>> into one. So __remove_section() of CONFIG_SPARSEMEM_VMEMMAP is deleted.
+>>>
+>>> Note:  vmemmap_kfree() and vmemmap_free_bootmem() are not 
+>>> implemented for ia64,
+>>> ppc, s390, and sparc.
+>>>
+>>> CC: David Rientjes <rientjes@google.com>
+>>> CC: Jiang Liu <liuj97@gmail.com>
+>>> CC: Len Brown <len.brown@intel.com>
+>>> CC: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+>>> CC: Paul Mackerras <paulus@samba.org>
+>>> CC: Christoph Lameter <cl@linux.com>
+>>> Cc: Minchan Kim <minchan.kim@gmail.com>
+>>> CC: Andrew Morton <akpm@linux-foundation.org>
+>>> CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+>>> CC: Wen Congyang <wency@cn.fujitsu.com>
+>>> Signed-off-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+>>> ---
+>>>   arch/ia64/mm/discontig.c  |    8 +++
+>>>   arch/powerpc/mm/init_64.c |    8 +++
+>>>   arch/s390/mm/vmem.c       |    8 +++
+>>>   arch/sparc/mm/init_64.c   |    8 +++
+>>>   arch/x86/mm/init_64.c     |  119 
+>>> +++++++++++++++++++++++++++++++++++++++++++++
+>>>   include/linux/mm.h        |    2 +
+>>>   mm/memory_hotplug.c       |   17 +------
+>>>   mm/sparse.c               |    5 +-
+>>>   8 files changed, 158 insertions(+), 17 deletions(-)
+>>>
+>>> diff --git a/arch/ia64/mm/discontig.c b/arch/ia64/mm/discontig.c
+>>> index 33943db..0d23b69 100644
+>>> --- a/arch/ia64/mm/discontig.c
+>>> +++ b/arch/ia64/mm/discontig.c
+>>> @@ -823,6 +823,14 @@ int __meminit vmemmap_populate(struct page 
+>>> *start_page,
+>>>       return vmemmap_populate_basepages(start_page, size, node);
+>>>   }
+>>> +void vmemmap_kfree(struct page *memmap, unsigned long nr_pages)
+>>> +{
+>>> +}
+>>> +
+>>> +void vmemmap_free_bootmem(struct page *memmap, unsigned long nr_pages)
+>>> +{
+>>> +}
+>>> +
+>>>   void register_page_bootmem_memmap(unsigned long section_nr,
+>>>                     struct page *start_page, unsigned long size)
+>>>   {
+>>> diff --git a/arch/powerpc/mm/init_64.c b/arch/powerpc/mm/init_64.c
+>>> index 3690c44..835a2b3 100644
+>>> --- a/arch/powerpc/mm/init_64.c
+>>> +++ b/arch/powerpc/mm/init_64.c
+>>> @@ -299,6 +299,14 @@ int __meminit vmemmap_populate(struct page 
+>>> *start_page,
+>>>       return 0;
+>>>   }
+>>> +void vmemmap_kfree(struct page *memmap, unsigned long nr_pages)
+>>> +{
+>>> +}
+>>> +
+>>> +void vmemmap_free_bootmem(struct page *memmap, unsigned long nr_pages)
+>>> +{
+>>> +}
+>>> +
+>>>   void register_page_bootmem_memmap(unsigned long section_nr,
+>>>                     struct page *start_page, unsigned long size)
+>>>   {
+>>> diff --git a/arch/s390/mm/vmem.c b/arch/s390/mm/vmem.c
+>>> index eda55cd..4b42b0b 100644
+>>> --- a/arch/s390/mm/vmem.c
+>>> +++ b/arch/s390/mm/vmem.c
+>>> @@ -227,6 +227,14 @@ out:
+>>>       return ret;
+>>>   }
+>>> +void vmemmap_kfree(struct page *memmap, unsigned long nr_pages)
+>>> +{
+>>> +}
+>>> +
+>>> +void vmemmap_free_bootmem(struct page *memmap, unsigned long nr_pages)
+>>> +{
+>>> +}
+>>> +
+>>>   void register_page_bootmem_memmap(unsigned long section_nr,
+>>>                     struct page *start_page, unsigned long size)
+>>>   {
+>>> diff --git a/arch/sparc/mm/init_64.c b/arch/sparc/mm/init_64.c
+>>> index add1cc7..1384826 100644
+>>> --- a/arch/sparc/mm/init_64.c
+>>> +++ b/arch/sparc/mm/init_64.c
+>>> @@ -2078,6 +2078,14 @@ void __meminit vmemmap_populate_print_last(void)
+>>>       }
+>>>   }
+>>> +void vmemmap_kfree(struct page *memmap, unsigned long nr_pages)
+>>> +{
+>>> +}
+>>> +
+>>> +void vmemmap_free_bootmem(struct page *memmap, unsigned long nr_pages)
+>>> +{
+>>> +}
+>>> +
+>>>   void register_page_bootmem_memmap(unsigned long section_nr,
+>>>                     struct page *start_page, unsigned long size)
+>>>   {
+>>> diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
+>>> index 0075592..4e8f8a4 100644
+>>> --- a/arch/x86/mm/init_64.c
+>>> +++ b/arch/x86/mm/init_64.c
+>>> @@ -1138,6 +1138,125 @@ vmemmap_populate(struct page *start_page, 
+>>> unsigned long size, int node)
+>>>       return 0;
+>>>   }
+>>> +#define PAGE_INUSE 0xFD
+>>> +
+>>> +unsigned long find_and_clear_pte_page(unsigned long addr, unsigned 
+>>> long end,
+>>> +                struct page **pp, int *page_size)
+>>> +{
+>>> +    pgd_t *pgd;
+>>> +    pud_t *pud;
+>>> +    pmd_t *pmd;
+>>> +    pte_t *pte;
+>>> +    void *page_addr;
+>>> +    unsigned long next;
+>>> +
+>>> +    *pp = NULL;
+>>> +
+>>> +    pgd = pgd_offset_k(addr);
+>>> +    if (pgd_none(*pgd))
+>>> +        return pgd_addr_end(addr, end);
+>>> +
+>>> +    pud = pud_offset(pgd, addr);
+>>> +    if (pud_none(*pud))
+>>> +        return pud_addr_end(addr, end);
+>>> +
+>>> +    if (!cpu_has_pse) {
+>>> +        next = (addr + PAGE_SIZE) & PAGE_MASK;
+>>> +        pmd = pmd_offset(pud, addr);
+>>> +        if (pmd_none(*pmd))
+>>> +            return next;
+>>> +
+>>> +        pte = pte_offset_kernel(pmd, addr);
+>>> +        if (pte_none(*pte))
+>>> +            return next;
+>>> +
+>>> +        *page_size = PAGE_SIZE;
+>>> +        *pp = pte_page(*pte);
+>>> +    } else {
+>>> +        next = pmd_addr_end(addr, end);
+>>> +
+>>> +        pmd = pmd_offset(pud, addr);
+>>> +        if (pmd_none(*pmd))
+>>> +            return next;
+>>> +
+>>> +        *page_size = PMD_SIZE;
+>>> +        *pp = pmd_page(*pmd);
+>>> +    }
+>>> +
+>>> +    /*
+>>> +     * Removed page structs are filled with 0xFD.
+>>> +     */
+>>> +    memset((void *)addr, PAGE_INUSE, next - addr);
+>>> +
+>>> +    page_addr = page_address(*pp);
+>>> +
+>>> +    /*
+>>> +     * Check the page is filled with 0xFD or not.
+>>> +     * memchr_inv() returns the address. In this case, we cannot
+>>> +     * clear PTE/PUD entry, since the page is used by other.
+>>> +     * So we cannot also free the page.
+>>> +     *
+>>> +     * memchr_inv() returns NULL. In this case, we can clear
+>>> +     * PTE/PUD entry, since the page is not used by other.
+>>> +     * So we can also free the page.
+>>> +     */
+>>> +    if (memchr_inv(page_addr, PAGE_INUSE, *page_size)) {
+>>> +        *pp = NULL;
+>>> +        return next;
+>>> +    }
+>>> +
+>>
+>> Hi Yasuaki,
+>>
+>> why call memchr_inv check after memset, this time the page can always 
+>> be filled with 0xFD.
+>
+> The page is not always filled with 0xFD. find_and_clear_pte_page()
+> is calld in each section. So the function fills the page
+> section size/sizeof(page) byte with 0xFD one time. Thus if section 
+> size is
+> small, the page is filled with 0xFD.
 
-On Sat, Oct 06, 2012 at 04:39:54AM +0200, Mike Galbraith wrote:
-> On Fri, 2012-10-05 at 13:54 +0200, Andrea Arcangeli wrote: 
-> > On Fri, Oct 05, 2012 at 08:41:25AM +0200, Mike Galbraith wrote:
-> > > On Thu, 2012-10-04 at 01:51 +0200, Andrea Arcangeli wrote: 
-> > > > The CFS scheduler is still in charge of all scheduling decisions. At
-> > > > times, however, AutoNUMA balancing will override them.
-> > > > 
-> > > > Generally, we'll just rely on the CFS scheduler to keep doing its
-> > > > thing, while preferring the task's AutoNUMA affine node when deciding
-> > > > to move a task to a different runqueue or when waking it up.
-> > > 
-> > > Why does AutoNuma fiddle with wakeup decisions _within_ a node?
-> > > 
-> > > pgbench intensely disliked me recently depriving it of migration routes
-> > > in select_idle_sibling(), so AutoNuma saying NAK seems unlikely to make
-> > > it or ilk any happier.
-> > 
-> > Preferring doesn't mean NAK. It means "search affine first" if there's
-> > not, go the usual route like if autonuma was not there.
-> 
-> I'll rephrase.  We're searching a processor.  What does that have to do
-> with NUMA?  I saw you turning want_affine off (and wonder what that's
-> gonna do to fluctuating vs for more or less static loads), and get that.
+Hi Yasuaki,
 
-I think you just found a mistake.
+But when section size will be small?
 
-So disabling wake_affine if the wakeup CPU was on a remote NODE (only
-in that case it was turned off), meant sd_affine couldn't be turned on
-and for certain wakeups select_idle_sibling wouldn't run (rendering
-pointless some of my logic in select_idle_sibling).
+Regards,
+Chen
 
-So I'm reversing this hunk:
-
-@@ -2708,7 +2722,8 @@ select_task_rq_fair(struct task_struct *p, int sd_flag, int wake_flags)
-                return prev_cpu;
- 
-        if (sd_flag & SD_BALANCE_WAKE) {
--               if (cpumask_test_cpu(cpu, tsk_cpus_allowed(p)))
-+               if (cpumask_test_cpu(cpu, tsk_cpus_allowed(p)) &&
-+                   task_autonuma_cpu(p, cpu))
-                        want_affine = 1;
-                new_cpu = prev_cpu;
-        }
-
-
-Another optimization I noticed is that I should record idle_target =
-true if target == cpu && idle_cpu(cpu) but task_autonuma_cpu fails, so
-we'll pick the target if it was idle, and there's no CPU idle in the
-affine node.
-
-> I measured the 1 in 1:N pgbench very much preferring mobility.  The N,
-> dunno, but I don't imagine a large benefit for making them sticky
-> either.  Hohum, numbers will tell the tale.
-
-Mobility on non-NUMA is an entirely different matter than mobility
-across NUMA nodes. Keep in mind there are tons of CPUs intra-node too
-so the mobility intra node may be enough.  But I don't know exactly
-what the mobiltiy requirements of pgbench are so I can't tell for sure
-and I fully agree we should collect numbers.
-
-The availability of NUMA systems increased a lot lately so hopefully
-more people will be able to test it and provide feedback.
-
-Overall getting wrong the intra-node convergence is more concerning
-than not being optimal in the 1:N load. Getting the former wrong means
-we risk to delay convergence (and having to fixup later with autonuma
-balancing events). The latter is just about maxim out all memory
-channels and all HT idle cores, in a MADV_INTERLEAVE behavior and to
-mitigage the spurious page migrates (which will still happen seldom
-and we need them to keep happening slowly to avoid ending up using a
-single memory channel). But the latter is a less deterministic case,
-it's harder to be faster than upstream unless upstream does all
-allocations in one thread first and then starts the other threads
-computing on the memory later. The 1:N has no perfect solution anyway,
-unless we just detect it and hammer it with MADV_INTERLEAVE. But I
-tried to avoid hard classifications and radical change in behavior and
-I try to do something that always works no matter the load we throw at
-it. So I'm usually more concerned about optimizing for the former case
-which has a perfect solution possible.
-
-> > If there are multiple threads their affinity will vary slighly and the
-> > task_selected_nid will distribute (and if it doesn't distribute the
-> > idle load balancing will still work perfectly as upstream).
-> > 
-> > If there's just one thread, so really 1:N, it doesn't matter in which
-> > CPU of the 4 nodes we put it if it's the memory split is 25/25/25/25.
-> 
-> It should matter when load is not static.  Just as select_idle_sibling()
-> is not a great idea once you're ramped up, retained stickiness should
-> hurt dynamic responsiveness.  But never mind, that's just me pondering
-> the up/down sides of stickiness.
-
-Actually I'm going to test removing the above hunk.
-
-> > In short in those 1:N scenarios, it's usually better to just stick to
-> > the last node it run on, and it does with AutoNUMA. This is why it's
-> > better to have 1 task_selected_nid instead of 4. There may be level 3
-> > caches for the node too and that will preserve them too.
-> 
-> My point was that there is no correct node to prefer, so wondered if
-> AutoNuma could possibly recognize that, and not do what can only be the
-> wrong thing.  It needs to only tag things it is really sure about.
-
-You know sched/fair.c so much better than me, so you decide. AutoNUMA
-is just an ideal hacking base that converges and works well, and we
-can build on that. It's very easy to modify and experiment
-with. All contributions are welcome ;).
-
-I'm adding new ideas to it as I write this in some experimetnal branch
-(just reached new records of convergence vs autonuma27, by accounting
-in real time for the page migrations in mm_autonuma without having to
-boost the numa hinting page fault rate).
-
-Thanks!
-Andrea
+>
+> Thanks,
+> Yasuaki Ishimatsu
+>
+>
+>>> +    if (!cpu_has_pse)
+>>> +        pte_clear(&init_mm, addr, pte);
+>>> +    else
+>>> +        pmd_clear(pmd);
+>>> +
+>>> +    return next;
+>>> +}
+>>> +
+>>> +void vmemmap_kfree(struct page *memmap, unsigned long nr_pages)
+>>> +{
+>>> +    unsigned long addr = (unsigned long)memmap;
+>>> +    unsigned long end = (unsigned long)(memmap + nr_pages);
+>>> +    unsigned long next;
+>>> +    struct page *page;
+>>> +    int page_size;
+>>> +
+>>> +    for (; addr < end; addr = next) {
+>>> +        page = NULL;
+>>> +        page_size = 0;
+>>> +        next = find_and_clear_pte_page(addr, end, &page, &page_size);
+>>> +        if (!page)
+>>> +            continue;
+>>> +
+>>> +        free_pages((unsigned long)page_address(page),
+>>> +                get_order(page_size));
+>>> +        __flush_tlb_one(addr);
+>>> +    }
+>>> +}
+>>> +
+>>> +void vmemmap_free_bootmem(struct page *memmap, unsigned long nr_pages)
+>>> +{
+>>> +    unsigned long addr = (unsigned long)memmap;
+>>> +    unsigned long end = (unsigned long)(memmap + nr_pages);
+>>> +    unsigned long next;
+>>> +    struct page *page;
+>>> +    int page_size;
+>>> +    unsigned long magic;
+>>> +
+>>> +    for (; addr < end; addr = next) {
+>>> +        page = NULL;
+>>> +        page_size = 0;
+>>> +        next = find_and_clear_pte_page(addr, end, &page, &page_size);
+>>> +        if (!page)
+>>> +            continue;
+>>> +
+>>> +        magic = (unsigned long) page->lru.next;
+>>> +        if (magic == SECTION_INFO)
+>>> +            put_page_bootmem(page);
+>>> +        flush_tlb_kernel_range(addr, end);
+>>> +    }
+>>> +}
+>>> +
+>>>   void register_page_bootmem_memmap(unsigned long section_nr,
+>>>                     struct page *start_page, unsigned long size)
+>>>   {
+>>> diff --git a/include/linux/mm.h b/include/linux/mm.h
+>>> index c607913..fb0d1fc 100644
+>>> --- a/include/linux/mm.h
+>>> +++ b/include/linux/mm.h
+>>> @@ -1620,6 +1620,8 @@ int vmemmap_populate(struct page *start_page, 
+>>> unsigned long pages, int node);
+>>>   void vmemmap_populate_print_last(void);
+>>>   void register_page_bootmem_memmap(unsigned long section_nr, struct 
+>>> page *map,
+>>>                     unsigned long size);
+>>> +void vmemmap_kfree(struct page *memmpa, unsigned long nr_pages);
+>>> +void vmemmap_free_bootmem(struct page *memmpa, unsigned long 
+>>> nr_pages);
+>>>   enum mf_flags {
+>>>       MF_COUNT_INCREASED = 1 << 0,
+>>> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+>>> index 647a7f2..c54922c 100644
+>>> --- a/mm/memory_hotplug.c
+>>> +++ b/mm/memory_hotplug.c
+>>> @@ -308,19 +308,6 @@ static int __meminit __add_section(int nid, 
+>>> struct zone *zone,
+>>>       return register_new_memory(nid, 
+>>> __pfn_to_section(phys_start_pfn));
+>>>   }
+>>> -#ifdef CONFIG_SPARSEMEM_VMEMMAP
+>>> -static int __remove_section(struct zone *zone, struct mem_section *ms)
+>>> -{
+>>> -    int ret = -EINVAL;
+>>> -
+>>> -    if (!valid_section(ms))
+>>> -        return ret;
+>>> -
+>>> -    ret = unregister_memory_section(ms);
+>>> -
+>>> -    return ret;
+>>> -}
+>>> -#else
+>>>   static int __remove_section(struct zone *zone, struct mem_section 
+>>> *ms)
+>>>   {
+>>>       unsigned long flags;
+>>> @@ -337,9 +324,9 @@ static int __remove_section(struct zone *zone, 
+>>> struct mem_section *ms)
+>>>       pgdat_resize_lock(pgdat, &flags);
+>>>       sparse_remove_one_section(zone, ms);
+>>>       pgdat_resize_unlock(pgdat, &flags);
+>>> -    return 0;
+>>> +
+>>> +    return ret;
+>>>   }
+>>> -#endif
+>>>   /*
+>>>    * Reasonably generic function for adding memory.  It is
+>>> diff --git a/mm/sparse.c b/mm/sparse.c
+>>> index fac95f2..ab9d755 100644
+>>> --- a/mm/sparse.c
+>>> +++ b/mm/sparse.c
+>>> @@ -613,12 +613,13 @@ static inline struct page 
+>>> *kmalloc_section_memmap(unsigned long pnum, int nid,
+>>>       /* This will make the necessary allocations eventually. */
+>>>       return sparse_mem_map_populate(pnum, nid);
+>>>   }
+>>> -static void __kfree_section_memmap(struct page *memmap, unsigned 
+>>> long nr_pages)
+>>> +static void __kfree_section_memmap(struct page *page, unsigned long 
+>>> nr_pages)
+>>>   {
+>>> -    return; /* XXX: Not implemented yet */
+>>> +    vmemmap_kfree(page, nr_pages);
+>>>   }
+>>>   static void free_map_bootmem(struct page *page, unsigned long 
+>>> nr_pages)
+>>>   {
+>>> +    vmemmap_free_bootmem(page, nr_pages);
+>>>   }
+>>>   #else
+>>>   static struct page *__kmalloc_section_memmap(unsigned long nr_pages)
+>>
+>
+>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
