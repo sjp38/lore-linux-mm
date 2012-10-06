@@ -1,77 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
-	by kanga.kvack.org (Postfix) with SMTP id 49C3E6B005A
-	for <linux-mm@kvack.org>; Sat,  6 Oct 2012 04:45:45 -0400 (EDT)
-Received: by mail-wg0-f45.google.com with SMTP id dq12so1883344wgb.26
-        for <linux-mm@kvack.org>; Sat, 06 Oct 2012 01:45:43 -0700 (PDT)
-Message-ID: <506FEE2A.90002@gmail.com>
-Date: Sat, 06 Oct 2012 10:39:06 +0200
-From: Marco Stornelli <marco.stornelli@gmail.com>
+Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
+	by kanga.kvack.org (Postfix) with SMTP id 956BC6B0062
+	for <linux-mm@kvack.org>; Sat,  6 Oct 2012 08:08:52 -0400 (EDT)
+Date: Sat, 6 Oct 2012 14:08:50 +0200
+From: Pavel Machek <pavel@ucw.cz>
+Subject: Re: iwl3945: order 5 allocation during ifconfig up; vm problem?
+Message-ID: <20121006120850.GB18025@elf.ucw.cz>
+References: <20120909213228.GA5538@elf.ucw.cz>
+ <alpine.DEB.2.00.1209091539530.16930@chino.kir.corp.google.com>
+ <20120910111113.GA25159@elf.ucw.cz>
+ <20120911162536.bd5171a1.akpm@linux-foundation.org>
+ <20120912101826.GL11266@suse.de>
+ <20121003113659.GD2259@redhat.com>
+ <alpine.DEB.2.00.1210031104120.29765@chino.kir.corp.google.com>
+ <20121005083659.GA2819@redhat.com>
 MIME-Version: 1.0
-Subject: [PATCH 21/22] mm: drop vmtruncate
-Content-Type: text/plain; charset=ISO-8859-15
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20121005083659.GA2819@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Al Viro <viro@ZenIV.linux.org.uk>
-Cc: Anton Blanchard <anton@samba.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Linux FS Devel <linux-fsdevel@vger.kernel.org>
+To: Stanislaw Gruszka <sgruszka@redhat.com>
+Cc: David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, linux-wireless@vger.kernel.org, johannes.berg@intel.com, wey-yi.w.guy@intel.com, ilw@linux.intel.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Removed vmtruncate.
+Hi!
+On Fri 2012-10-05 10:37:00, Stanislaw Gruszka wrote:
+> On Wed, Oct 03, 2012 at 11:07:13AM -0700, David Rientjes wrote:
+> > On Wed, 3 Oct 2012, Stanislaw Gruszka wrote:
+> > 
+> > > So, can this problem be solved like on below patch, or I should rather
+> > > split firmware loading into chunks similar like was already iwlwifi did?
+> 
+> Hmm, I looked at iwl3945 code and looks loading firmware in chunks is
+> nothing that can be easily done. 3945 bootstrap code expect that runtime
+> ucode will be placed in physically continue memory, and there are no
+> separate instructions for copy and for execute, just one to perform both
+> those actions. Maybe loading firmware in chunks can be done using
+> undocumented features of the device, but I'm eager to do this.
 
-Signed-off-by: Marco Stornelli <marco.stornelli@gmail.com>
----
- include/linux/mm.h |    1 -
- mm/truncate.c      |   23 -----------------------
- 2 files changed, 0 insertions(+), 24 deletions(-)
+Just allocate memory during boot?
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 311be90..7eebde6 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -975,7 +975,6 @@ static inline void unmap_shared_mapping_range(struct address_space *mapping,
- 
- extern void truncate_pagecache(struct inode *inode, loff_t old, loff_t new);
- extern void truncate_setsize(struct inode *inode, loff_t newsize);
--extern int vmtruncate(struct inode *inode, loff_t offset);
- void truncate_pagecache_range(struct inode *inode, loff_t offset, loff_t end);
- int truncate_inode_page(struct address_space *mapping, struct page *page);
- int generic_error_remove_page(struct address_space *mapping, struct page *page);
-diff --git a/mm/truncate.c b/mm/truncate.c
-index 75801ac..4e96354 100644
---- a/mm/truncate.c
-+++ b/mm/truncate.c
-@@ -580,29 +580,6 @@ void truncate_setsize(struct inode *inode, loff_t newsize)
- EXPORT_SYMBOL(truncate_setsize);
- 
- /**
-- * vmtruncate - unmap mappings "freed" by truncate() syscall
-- * @inode: inode of the file used
-- * @newsize: file offset to start truncating
-- *
-- * This function is deprecated and truncate_setsize or truncate_pagecache
-- * should be used instead, together with filesystem specific block truncation.
-- */
--int vmtruncate(struct inode *inode, loff_t newsize)
--{
--	int error;
--
--	error = inode_newsize_ok(inode, newsize);
--	if (error)
--		return error;
--
--	truncate_setsize(inode, newsize);
--	if (inode->i_op->truncate)
--		inode->i_op->truncate(inode);
--	return 0;
--}
--EXPORT_SYMBOL(vmtruncate);
--
--/**
-  * truncate_pagecache_range - unmap and remove pagecache that is hole-punched
-  * @inode: inode
-  * @lstart: offset of beginning of hole
+> Pavel, do you still can reproduce this problem on released 3.6 ? 
+
+It happened again yesterday on 3.6.0-rc6+. I don't think mm changed
+between -rc6 and final...
+								Pavel
 -- 
-1.7.3.4
+(english) http://www.livejournal.com/~pavelmachek
+(cesky, pictures) http://atrey.karlin.mff.cuni.cz/~pavel/picture/horses/blog.html
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
