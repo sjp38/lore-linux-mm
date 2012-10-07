@@ -1,131 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
-	by kanga.kvack.org (Postfix) with SMTP id 980C16B0062
-	for <linux-mm@kvack.org>; Sat,  6 Oct 2012 20:00:05 -0400 (EDT)
-Received: by mail-oa0-f41.google.com with SMTP id k14so3381617oag.14
-        for <linux-mm@kvack.org>; Sat, 06 Oct 2012 17:00:04 -0700 (PDT)
-Message-ID: <5070C5F7.8030302@gmail.com>
-Date: Sun, 07 Oct 2012 07:59:51 +0800
-From: Ni zhan Chen <nizhan.chen@gmail.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH] mm: memmap_init_zone() performance improvement
-References: <1349276174-8398-1-git-send-email-mike.yoknis@hp.com>
-In-Reply-To: <1349276174-8398-1-git-send-email-mike.yoknis@hp.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
+	by kanga.kvack.org (Postfix) with SMTP id 94F456B005A
+	for <linux-mm@kvack.org>; Sun,  7 Oct 2012 02:07:40 -0400 (EDT)
+Message-ID: <1349590047.6958.88.camel@marge.simpson.net>
+Subject: Re: [PATCH 18/33] autonuma: teach CFS about autonuma affinity
+From: Mike Galbraith <efault@gmx.de>
+Date: Sun, 07 Oct 2012 08:07:27 +0200
+In-Reply-To: <20121006123432.GS6793@redhat.com>
+References: <1349308275-2174-1-git-send-email-aarcange@redhat.com>
+	 <1349308275-2174-19-git-send-email-aarcange@redhat.com>
+	 <1349419285.6984.98.camel@marge.simpson.net>
+	 <20121005115455.GH6793@redhat.com>
+	 <1349491194.6984.175.camel@marge.simpson.net>
+	 <20121006123432.GS6793@redhat.com>
+Content-Type: text/plain; charset="UTF-8"
 Content-Transfer-Encoding: 7bit
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Yoknis <mike.yoknis@hp.com>
-Cc: mgorman@suse.de, mingo@redhat.com, akpm@linux-foundation.org, linux-arch@vger.kernel.org, mmarek@suse.cz, tglx@linutronix.de, hpa@zytor.com, arnd@arndb.de, sam@ravnborg.org, minchan@kernel.org, kamezawa.hiroyu@jp.fujitsu.com, mhocko@suse.cz, linux-kbuild@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <pzijlstr@redhat.com>, Ingo Molnar <mingo@elte.hu>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hillf Danton <dhillf@gmail.com>, Andrew Jones <drjones@redhat.com>, Dan Smith <danms@us.ibm.com>, Thomas Gleixner <tglx@linutronix.de>, Paul Turner <pjt@google.com>, Christoph Lameter <cl@linux.com>, Suresh Siddha <suresh.b.siddha@intel.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Srivatsa Vaddagiri <vatsa@linux.vnet.ibm.com>, Alex Shi <alex.shi@intel.com>, Mauricio Faria de Oliveira <mauricfo@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Don Morris <don.morris@hp.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
 
-On 10/03/2012 10:56 PM, Mike Yoknis wrote:
-> memmap_init_zone() loops through every Page Frame Number (pfn),
-> including pfn values that are within the gaps between existing
-> memory sections.  The unneeded looping will become a boot
-> performance issue when machines configure larger memory ranges
-> that will contain larger and more numerous gaps.
->
-> The code will skip across invalid sections to reduce the
-> number of loops executed.
+On Sat, 2012-10-06 at 14:34 +0200, Andrea Arcangeli wrote: 
+> Hi Mike,
 
-looks reasonable to me.
+Greetings,
 
->
-> Signed-off-by: Mike Yoknis <mike.yoknis@hp.com>
-> ---
->   arch/x86/include/asm/mmzone_32.h     |    2 ++
->   arch/x86/include/asm/page_32.h       |    1 +
->   arch/x86/include/asm/page_64_types.h |    3 ++-
->   include/asm-generic/page.h           |    1 +
->   include/linux/mmzone.h               |    6 ++++++
->   mm/page_alloc.c                      |    5 ++++-
->   6 files changed, 16 insertions(+), 2 deletions(-)
->
-> diff --git a/arch/x86/include/asm/mmzone_32.h b/arch/x86/include/asm/mmzone_32.h
-> index eb05fb3..73c5c74 100644
-> --- a/arch/x86/include/asm/mmzone_32.h
-> +++ b/arch/x86/include/asm/mmzone_32.h
-> @@ -48,6 +48,8 @@ static inline int pfn_to_nid(unsigned long pfn)
->   #endif
->   }
->   
-> +#define next_pfn_try(pfn)	((pfn)+1)
-> +
->   static inline int pfn_valid(int pfn)
->   {
->   	int nid = pfn_to_nid(pfn);
-> diff --git a/arch/x86/include/asm/page_32.h b/arch/x86/include/asm/page_32.h
-> index da4e762..e2c4cfc 100644
-> --- a/arch/x86/include/asm/page_32.h
-> +++ b/arch/x86/include/asm/page_32.h
-> @@ -19,6 +19,7 @@ extern unsigned long __phys_addr(unsigned long);
->   
->   #ifdef CONFIG_FLATMEM
->   #define pfn_valid(pfn)		((pfn) < max_mapnr)
-> +#define next_pfn_try(pfn)	((pfn)+1)
->   #endif /* CONFIG_FLATMEM */
->   
->   #ifdef CONFIG_X86_USE_3DNOW
-> diff --git a/arch/x86/include/asm/page_64_types.h b/arch/x86/include/asm/page_64_types.h
-> index 320f7bb..02d82e5 100644
-> --- a/arch/x86/include/asm/page_64_types.h
-> +++ b/arch/x86/include/asm/page_64_types.h
-> @@ -69,7 +69,8 @@ extern void init_extra_mapping_wb(unsigned long phys, unsigned long size);
->   #endif	/* !__ASSEMBLY__ */
->   
->   #ifdef CONFIG_FLATMEM
-> -#define pfn_valid(pfn)          ((pfn) < max_pfn)
-> +#define pfn_valid(pfn)		((pfn) < max_pfn)
-> +#define next_pfn_try(pfn)	((pfn)+1)
->   #endif
->   
->   #endif /* _ASM_X86_PAGE_64_DEFS_H */
-> diff --git a/include/asm-generic/page.h b/include/asm-generic/page.h
-> index 37d1fe2..316200d 100644
-> --- a/include/asm-generic/page.h
-> +++ b/include/asm-generic/page.h
-> @@ -91,6 +91,7 @@ extern unsigned long memory_end;
->   #endif
->   
->   #define pfn_valid(pfn)		((pfn) >= ARCH_PFN_OFFSET && ((pfn) - ARCH_PFN_OFFSET) < max_mapnr)
-> +#define next_pfn_try(pfn)	((pfn)+1)
->   
->   #define	virt_addr_valid(kaddr)	(((void *)(kaddr) >= (void *)PAGE_OFFSET) && \
->   				((void *)(kaddr) < (void *)memory_end))
-> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-> index f7d88ba..04d3c39 100644
-> --- a/include/linux/mmzone.h
-> +++ b/include/linux/mmzone.h
-> @@ -1166,6 +1166,12 @@ static inline int pfn_valid(unsigned long pfn)
->   		return 0;
->   	return valid_section(__nr_to_section(pfn_to_section_nr(pfn)));
->   }
-> +
-> +static inline unsigned long next_pfn_try(unsigned long pfn)
-> +{
-> +	/* Skip entire section, because all of it is invalid. */
-> +	return section_nr_to_pfn(pfn_to_section_nr(pfn) + 1);
-> +}
->   #endif
->   
->   static inline int pfn_present(unsigned long pfn)
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 5b6b6b1..dd2af8b 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -3798,8 +3798,11 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
->   		 * exist on hotplugged memory.
->   		 */
->   		if (context == MEMMAP_EARLY) {
-> -			if (!early_pfn_valid(pfn))
-> +			if (!early_pfn_valid(pfn)) {
-> +				pfn = next_pfn_try(pfn);
-> +				pfn--;
->   				continue;
-> +			}
->   			if (!early_pfn_in_nid(pfn, nid))
->   				continue;
->   		}
+> On Sat, Oct 06, 2012 at 04:39:54AM +0200, Mike Galbraith wrote:
+
+> I think you just found a mistake.
+> 
+> So disabling wake_affine if the wakeup CPU was on a remote NODE (only
+> in that case it was turned off), meant sd_affine couldn't be turned on
+> and for certain wakeups select_idle_sibling wouldn't run (rendering
+> pointless some of my logic in select_idle_sibling).
+
+Well, it still looks a bit bent to me no matter how I tilt my head.
+
+                /*
+                 * If both cpu and prev_cpu are part of this domain,
+                 * cpu is a valid SD_WAKE_AFFINE target.
+                 */
+                if (want_affine && (tmp->flags & SD_WAKE_AFFINE) &&
+                    cpumask_test_cpu(prev_cpu, sched_domain_span(tmp))) {
+                        affine_sd = tmp;
+                        want_affine = 0;
+                }
+
+Disabling when waker/wakee are cross node makes sense to me as a cycle
+saver.  If you have (SMT), MC and NODE domains, waker/wakee are cross
+node, spans don't intersect, affine_sd remains NULL, the whole traverse
+becomes a waste of cycles.  If WAKE_BALANCE is enabled, we'll do that
+instead (which pgbench and ilk should like methinks).
+
+> > I measured the 1 in 1:N pgbench very much preferring mobility.  The N,
+> > dunno, but I don't imagine a large benefit for making them sticky
+> > either.  Hohum, numbers will tell the tale.
+> 
+> Mobility on non-NUMA is an entirely different matter than mobility
+> across NUMA nodes. Keep in mind there are tons of CPUs intra-node too
+> so the mobility intra node may be enough.  But I don't know exactly
+> what the mobiltiy requirements of pgbench are so I can't tell for sure
+> and I fully agree we should collect numbers.
+
+Yeah, that 1:1 vs 1:N, load meets anti-load thing is kinda interesting.
+Tune for one, you may well annihilate the other.  Numbers required.
+
+I think we need to detect and react accordingly.  If that nasty little 1
+bugger is doing a lot of work, it's very special, so I don't think you
+making him sticky can help any more than me taking away wakeup options..
+both remove latency reducing options from a latency dominated load.
+
+But numbers talk, pondering (may = BS) walks, so I'm outta here :)
+
+-Mike
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
