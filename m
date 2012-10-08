@@ -1,63 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
-	by kanga.kvack.org (Postfix) with SMTP id ABF326B002B
-	for <linux-mm@kvack.org>; Mon,  8 Oct 2012 17:28:39 -0400 (EDT)
-Received: by mail-pa0-f41.google.com with SMTP id fa10so4900440pad.14
-        for <linux-mm@kvack.org>; Mon, 08 Oct 2012 14:28:39 -0700 (PDT)
-Date: Mon, 8 Oct 2012 14:28:37 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH v4] slab: Ignore internal flags in cache creation
-In-Reply-To: <1349434154-8000-1-git-send-email-glommer@parallels.com>
-Message-ID: <alpine.DEB.2.00.1210081424340.22552@chino.kir.corp.google.com>
-References: <1349434154-8000-1-git-send-email-glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
+	by kanga.kvack.org (Postfix) with SMTP id BB2086B002B
+	for <linux-mm@kvack.org>; Mon,  8 Oct 2012 18:10:11 -0400 (EDT)
+Received: by mail-qa0-f41.google.com with SMTP id p27so3022982qat.14
+        for <linux-mm@kvack.org>; Mon, 08 Oct 2012 15:10:10 -0700 (PDT)
+Date: Mon, 8 Oct 2012 15:09:58 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH RFC] mm/swap: automatic tuning for swapin readahead
+In-Reply-To: <506DB816.9090107@openvz.org>
+Message-ID: <alpine.LSU.2.00.1210081451410.1384@eggly.anvils>
+References: <50460CED.6060006@redhat.com> <20120906110836.22423.17638.stgit@zurg> <alpine.LSU.2.00.1210011418270.2940@eggly.anvils> <506AACAC.2010609@openvz.org> <alpine.LSU.2.00.1210031337320.1415@eggly.anvils> <506DB816.9090107@openvz.org>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@cs.helsinki.fi>
+To: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Cc: Shaohua Li <shli@kernel.org>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Fri, 5 Oct 2012, Glauber Costa wrote:
+On Thu, 4 Oct 2012, Konstantin Khlebnikov wrote:
 
-> diff --git a/mm/slab.h b/mm/slab.h
-> index 7deeb44..4c35c17 100644
-> --- a/mm/slab.h
-> +++ b/mm/slab.h
-> @@ -45,6 +45,31 @@ static inline struct kmem_cache *__kmem_cache_alias(const char *name, size_t siz
->  #endif
->  
->  
-> +/* Legal flag mask for kmem_cache_create(), for various configurations */
-> +#define SLAB_CORE_FLAGS (SLAB_HWCACHE_ALIGN | SLAB_CACHE_DMA | SLAB_PANIC | \
-> +			 SLAB_DESTROY_BY_RCU | SLAB_DEBUG_OBJECTS )
-> +
-> +#if defined(CONFIG_DEBUG_SLAB)
-> +#define SLAB_DEBUG_FLAGS (SLAB_RED_ZONE | SLAB_POISON | SLAB_STORE_USER)
-> +#elif defined(CONFIG_SLUB_DEBUG)
-> +#define SLAB_DEBUG_FLAGS (SLAB_RED_ZONE | SLAB_POISON | SLAB_STORE_USER | \
-> +			  SLAB_TRACE | SLAB_DEBUG_FREE)
-> +#else
-> +#define SLAB_DEBUG_FLAGS (0)
-> +#endif
-> +
-> +#if defined(CONFIG_SLAB)
-> +#define SLAB_CACHE_FLAGS (SLAB_MEMSPREAD | SLAB_NOLEAKTRACE | \
+> Here results of my test. Workload isn't very realistic, but at least it
+> threaded: compiling linux-3.6 with defconfig in 16 threads on tmpfs,
+> 512mb ram, dualcore cpu, ordinary hard disk. (test script in attachment)
+> 
+> average results for ten runs:
+> 
+> 		RA=3	RA=0	RA=1	RA=2	RA=4	Hugh	Shaohua
+> real time	500	542	528	519	500	523	522
+> user time	738	737	735	737	739	737	739
+> sys time	93	93	91	92	96	92	93
+> pgmajfault	62918	110533	92454	78221	54342	86601	77229
+> pgpgin	2070372	795228	1034046	1471010	3177192	1154532	1599388
+> pgpgout	2597278	2022037	2110020	2350380	2802670	2286671	2526570
+> pswpin	462747	138873	202148	310969	739431	232710	341320
+> pswpout	646363	502599	524613	584731	697797	568784	628677
+> 
+> So, last two columns shows mostly equal results: +4.6% and +4.4% in
+> comparison to vanilla kernel with RA=3, but your version shows more stable
+> results (std-error 2.7% against 4.8%) (all this numbers in huge table in
+> attachment)
 
-s/SLAB_MEMSPREAD/SLAB_MEM_SPREAD/
+Thanks for doing this, Konstantin, but I'm stuck for anything much to say!
+Shaohua and I are both about 4.5% bad for this particular test, but I'm
+more consistently bad - hurrah!
 
-> +			  SLAB_RECLAIM_ACCOUNT | SLAB_TEMPORARY | SLAB_NOTRACK)
-> +#elif defined(CONFIG_SLUB)
-> +#define SLAB_CACHE_FLAGS (SLAB_NOLEAKTRACE | SLAB_RECLAIM_ACCOUNT | \
-> +			  SLAB_TEMPORARY | SLAB_NOTRACK)
-> +#else
-> +#define SLAB_CACHE_FLAGS (0)
-> +#endif
-> +
-> +#define CACHE_CREATE_MASK (SLAB_CORE_FLAGS | SLAB_DEBUG_FLAGS | SLAB_CACHE_FLAGS)
-> +
->  int __kmem_cache_shutdown(struct kmem_cache *);
->  
->  #endif
+I suspect (not a convincing argument) that if the test were just slightly
+different (a little more or a little less memory, SSD instead of hard
+disk, diskcache instead of tmpfs), then it would come out differently.
+
+Did you draw any conclusions from the numbers you found?
+
+I haven't done any more on this in the last few days, except to verify
+that once an anon_vma is judged random with Shaohua's, then it appears
+to be condemned to no-readahead ever after.
+
+That's probably something that a hack like I had in mine would fix,
+but that addition might change its balance further (and increase vma
+or anon_vma size) - not tried yet.
+
+All I want to do right now, is suggest to Andrew that he hold Shaohua's
+patch back from 3.7 for the moment: I'll send a response to Sep 7th's
+mm-commits mail to suggest that - but no great disaster if he ignores me.
+
+Hugh
+
+> 
+> Numbers from your tests formatted into table for better readability
+> 				
+> HDD		Vanilla	Shaohua	RA=3	RA=0	RA=4
+> SEQ, ANON	73921	76210	75611	121542	77950
+> SEQ, SHMEM	73601	73176	73855	118322	73534
+> RND, ANON	895392	831243	871569	841680	863871
+> RND, SHMEM	1058375	1053486	827935	756489	834804
+> 
+> SDD		Vanilla	Shaohua	RA=3	RA=0	RA=4
+> SEQ, ANON	24634	24198	24673	70018	21125
+> SEQ, SHMEM	24959	24932	25052	69678	21387
+> RND, ANON	43014	26146	28075	25901	28686
+> RND, SHMEM	45349	45215	28249	24332	28226
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
