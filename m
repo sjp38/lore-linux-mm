@@ -1,56 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
-	by kanga.kvack.org (Postfix) with SMTP id 12B3C6B002B
-	for <linux-mm@kvack.org>; Mon,  8 Oct 2012 10:28:28 -0400 (EDT)
-Date: Mon, 8 Oct 2012 15:28:23 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH] mm: Fix XFS oops due to dirty pages without buffers on
- s390
-Message-ID: <20121008142823.GL29125@suse.de>
-References: <1349108796-32161-1-git-send-email-jack@suse.cz>
+Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
+	by kanga.kvack.org (Postfix) with SMTP id 1F9EF6B002B
+	for <linux-mm@kvack.org>; Mon,  8 Oct 2012 11:09:54 -0400 (EDT)
+Date: Mon, 8 Oct 2012 11:09:49 -0400
+From: Dave Jones <davej@redhat.com>
+Subject: mpol_to_str revisited.
+Message-ID: <20121008150949.GA15130@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1349108796-32161-1-git-send-email-jack@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, xfs@oss.sgi.com, Martin Schwidefsky <schwidefsky@de.ibm.com>, linux-s390@vger.kernel.org
+To: Linux Kernel <linux-kernel@vger.kernel.org>
+Cc: bhutchings@solarflare.com, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>
 
-On Mon, Oct 01, 2012 at 06:26:36PM +0200, Jan Kara wrote:
-> On s390 any write to a page (even from kernel itself) sets architecture
-> specific page dirty bit. Thus when a page is written to via standard write, HW
-> dirty bit gets set and when we later map and unmap the page, page_remove_rmap()
-> finds the dirty bit and calls set_page_dirty().
-> 
-> Dirtying of a page which shouldn't be dirty can cause all sorts of problems to
-> filesystems. The bug we observed in practice is that buffers from the page get
-> freed, so when the page gets later marked as dirty and writeback writes it, XFS
-> crashes due to an assertion BUG_ON(!PagePrivate(page)) in page_buffers() called
-> from xfs_count_page_state().
-> 
-> Similar problem can also happen when zero_user_segment() call from
-> xfs_vm_writepage() (or block_write_full_page() for that matter) set the
-> hardware dirty bit during writeback, later buffers get freed, and then page
-> unmapped.
-> 
-> Fix the issue by ignoring s390 HW dirty bit for page cache pages in
-> page_mkclean() and page_remove_rmap(). This is safe because when a page gets
-> marked as writeable in PTE it is also marked dirty in do_wp_page() or
-> do_page_fault(). When the dirty bit is cleared by clear_page_dirty_for_io(),
-> the page gets writeprotected in page_mkclean(). So pagecache page is writeable
-> if and only if it is dirty.
-> 
-> CC: Martin Schwidefsky <schwidefsky@de.ibm.com>
-> CC: Mel Gorman <mgorman@suse.de>
-> CC: linux-s390@vger.kernel.org
-> Signed-off-by: Jan Kara <jack@suse.cz>
+Last month I sent in 80de7c3138ee9fd86a98696fd2cf7ad89b995d0a to remove
+a user triggerable BUG in mempolicy.
 
-Acked-by: Mel Gorman <mgorman@suse.de>
+Ben Hutchings pointed out to me that my change introduced a potential leak
+of stack contents to userspace, because none of the callers check the return value.
 
--- 
-Mel Gorman
-SUSE Labs
+This patch adds the missing return checking, and also clears the buffer beforehand.
+
+Reported-by: Ben Hutchings <bhutchings@solarflare.com>
+Cc: stable@kernel.org
+Signed-off-by: Dave Jones <davej@redhat.com>
+
+--- 
+unanswered question: why are the buffer sizes here different ? which is correct?
+
+
+diff -durpN '--exclude-from=/home/davej/.exclude' src/git-trees/kernel/linux/fs/proc/task_mmu.c linux-dj/fs/proc/task_mmu.c
+--- src/git-trees/kernel/linux/fs/proc/task_mmu.c	2012-05-31 22:32:46.778150675 -0400
++++ linux-dj/fs/proc/task_mmu.c	2012-10-04 19:31:41.269988984 -0400
+@@ -1162,6 +1162,7 @@ static int show_numa_map(struct seq_file
+ 	struct mm_walk walk = {};
+ 	struct mempolicy *pol;
+ 	int n;
++	int ret;
+ 	char buffer[50];
+ 
+ 	if (!mm)
+@@ -1178,7 +1179,11 @@ static int show_numa_map(struct seq_file
+ 	walk.mm = mm;
+ 
+ 	pol = get_vma_policy(proc_priv->task, vma, vma->vm_start);
+-	mpol_to_str(buffer, sizeof(buffer), pol, 0);
++	memset(buffer, 0, sizeof(buffer));
++	ret = mpol_to_str(buffer, sizeof(buffer), pol, 0);
++	if (ret < 0)
++		return 0;
++
+ 	mpol_cond_put(pol);
+ 
+ 	seq_printf(m, "%08lx %s", vma->vm_start, buffer);
+diff -durpN '--exclude-from=/home/davej/.exclude' src/git-trees/kernel/linux/mm/shmem.c linux-dj/mm/shmem.c
+--- src/git-trees/kernel/linux/mm/shmem.c	2012-10-02 15:49:51.977277944 -0400
++++ linux-dj/mm/shmem.c	2012-10-04 19:32:28.862949907 -0400
+@@ -885,13 +885,15 @@ redirty:
+ static void shmem_show_mpol(struct seq_file *seq, struct mempolicy *mpol)
+ {
+ 	char buffer[64];
++	int ret;
+ 
+ 	if (!mpol || mpol->mode == MPOL_DEFAULT)
+ 		return;		/* show nothing */
+ 
+-	mpol_to_str(buffer, sizeof(buffer), mpol, 1);
+-
+-	seq_printf(seq, ",mpol=%s", buffer);
++	memset(buffer, 0, sizeof(buffer));
++	ret = mpol_to_str(buffer, sizeof(buffer), mpol, 1);
++	if (ret > 0)
++		seq_printf(seq, ",mpol=%s", buffer);
+ }
+ 
+ static struct mempolicy *shmem_get_sbmpol(struct shmem_sb_info *sbinfo)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
