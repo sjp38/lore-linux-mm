@@ -1,237 +1,511 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
-	by kanga.kvack.org (Postfix) with SMTP id 2AC796B002B
-	for <linux-mm@kvack.org>; Mon,  8 Oct 2012 04:02:49 -0400 (EDT)
-Date: Mon, 8 Oct 2012 17:06:54 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: CMA broken in next-20120926
-Message-ID: <20121008080654.GD13817@bbox>
-References: <20120928103815.GA15219@avionic-0098.mockup.avionic-design.de>
- <20120928105113.GA18883@avionic-0098.mockup.avionic-design.de>
- <20120928110712.GB29125@suse.de>
- <20120928113924.GA25342@avionic-0098.mockup.avionic-design.de>
- <20120928124332.GC29125@suse.de>
- <20121001142428.GA2798@avionic-0098.mockup.avionic-design.de>
- <20121002124814.GA31316@avionic-0098.mockup.avionic-design.de>
- <20121002144135.GO29125@suse.de>
- <20121002150307.GA1161@avionic-0098.mockup.avionic-design.de>
- <20121002151217.GP29125@suse.de>
+Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
+	by kanga.kvack.org (Postfix) with SMTP id 09E066B002B
+	for <linux-mm@kvack.org>; Mon,  8 Oct 2012 04:43:15 -0400 (EDT)
+From: Bob Liu <lliubbo@gmail.com>
+Subject: [RFC PATCH] Split mm_slot from ksm and huge_memory
+Date: Mon, 8 Oct 2012 16:42:52 +0800
+Message-ID: <1349685772-29359-1-git-send-email-lliubbo@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20121002151217.GP29125@suse.de>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Thierry Reding <thierry.reding@avionic-design.de>, Peter Ujfalusi <peter.ujfalusi@ti.com>, Andrew Morton <akpm@linux-foundation.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>, Mark Brown <broonie@opensource.wolfsonmicro.com>
+To: akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, mhocko@suse.cz, hughd@google.com, kamezawa.hiroyu@jp.fujitsu.com, aarcange@redhat.com, hannes@cmpxchg.org, rientjes@google.com, Bob Liu <lliubbo@gmail.com>
 
-Hi Mel,
+Both ksm and huge_memory do hash lookup from mm to mm_slot, but the
+mm_slot are mostly the same except ksm need a rmap_list.
 
-On Tue, Oct 02, 2012 at 04:12:17PM +0100, Mel Gorman wrote:
-> On Tue, Oct 02, 2012 at 05:03:07PM +0200, Thierry Reding wrote:
-> > On Tue, Oct 02, 2012 at 03:41:35PM +0100, Mel Gorman wrote:
-> > > On Tue, Oct 02, 2012 at 02:48:14PM +0200, Thierry Reding wrote:
-> > > > > So this really isn't all that new, but I just wanted to confirm my
-> > > > > results from last week. We'll see if bisection shows up something
-> > > > > interesting.
-> > > > 
-> > > > I just finished bisecting this and git reports:
-> > > > 
-> > > > 	3750280f8bd0ed01753a72542756a8c82ab27933 is the first bad commit
-> > > > 
-> > > > I'm attaching the complete bisection log and a diff of all the changes
-> > > > applied on top of the bad commit to make it compile and run on my board.
-> > > > Most of the patch is probably not important, though. There are two hunks
-> > > > which have the pageblock changes I already posted an two other hunks
-> > > > with the patch you posted earlier.
-> > > > 
-> > > > I hope this helps. If you want me to run any other tests, please let me
-> > > > know.
-> > > > 
-> > > 
-> > > Can you test with this on top please?
-> > 
-> > That doesn't build on top of the bad commit. Or is it supposed to go on
-> > top of next-20120926?
-> > 
-> 
-> It doesn't build or do you mean it doesn't apply? Assuming the problem
-> was that it didn't apply then try this one. It applies on top of
-> next-20120928 which is the closest tag I have to next-20120926.
-> 
-> ---8<---
-> mm: compaction: Cache if a pageblock was scanned and no pages were isolated -fix3
-> 
-> CMA requires that the PG_migrate_skip hint be skipped but it was only
-> skipping it when isolating pages for migration, not for free. Ensure
-> cc->isolate_skip_hint gets passed in both cases.
-> 
-> This is a fix for
-> mm-compaction-cache-if-a-pageblock-was-scanned-and-no-pages-were-isolated-fix.patch
-> 
-> Signed-off-by: Mel Gorman <mgorman@suse.de>
-Acked-by: Minchan Kim <minchan@kernel.org>
+This patch split some duplicated part of mm_slot from ksm/huge_memory
+to a head file mm_slot.h, it make code cleaner and future work easier
+if someone need to lookup from mm to mm_slot also.
 
-But please resend below compile error fixing.
+To make things simple, they still have their own slab cache and
+mm_slots_hash table.
 
-diff --git a/mm/compaction.c b/mm/compaction.c
-index 136debd..ee461b8 100644
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -372,22 +372,14 @@ static unsigned long isolate_freepages_block(struct compact_control *cc,
-  * a free page).
-  */
- unsigned long
--isolate_freepages_range(unsigned long start_pfn, unsigned long end_pfn)
-+isolate_freepages_range(struct compact_control *cc,
-+			unsigned long start_pfn, unsigned long end_pfn)
- {
- 	unsigned long isolated, pfn, block_end_pfn;
--	struct zone *zone = NULL;
- 	LIST_HEAD(freelist);
+Not well tested, just see whether the way is right firstly.
+
+Signed-off-by: Bob Liu <lliubbo@gmail.com>
+---
+ include/linux/mm_slot.h |   68 ++++++++++++++++++++++++++++++++
+ mm/huge_memory.c        |   98 ++++++++---------------------------------------
+ mm/ksm.c                |   86 +++++++++--------------------------------
+ 3 files changed, 102 insertions(+), 150 deletions(-)
+ create mode 100644 include/linux/mm_slot.h
+
+diff --git a/include/linux/mm_slot.h b/include/linux/mm_slot.h
+new file mode 100644
+index 0000000..e1e3725
+--- /dev/null
++++ b/include/linux/mm_slot.h
+@@ -0,0 +1,68 @@
++#ifndef _LINUX_MM_SLOT_H
++#define _LINUX_MM_SLOT_H
++
++#define MM_SLOTS_HASH_HEADS 1024
++
++/**
++ * struct mm_slot - hash lookup from mm to mm_slot
++ * @hash: hash collision list
++ * @mm_node: khugepaged scan list headed in khugepaged_scan.mm_head
++ * @mm: the mm that this information is valid for
++ * @private: rmaplist for ksm
++ */
++struct mm_slot {
++	struct hlist_node hash;
++	struct list_head mm_list;
++	struct mm_struct *mm;
++	void *private;
++};
++
++static inline struct mm_slot *alloc_mm_slot(struct kmem_cache *mm_slot_cache)
++{
++	if (!mm_slot_cache)	/* initialization failed */
++		return NULL;
++	return kmem_cache_zalloc(mm_slot_cache, GFP_KERNEL);
++}
++
++static inline void free_mm_slot(struct mm_slot *mm_slot,
++			struct kmem_cache *mm_slot_cache)
++{
++	kmem_cache_free(mm_slot_cache, mm_slot);
++}
++
++static int __init mm_slots_hash_init(struct hlist_head **mm_slots_hash)
++{
++	*mm_slots_hash = kzalloc(MM_SLOTS_HASH_HEADS * sizeof(struct hlist_head),
++			GFP_KERNEL);
++	if (!(*mm_slots_hash))
++		return -ENOMEM;
++	return 0;
++}
++
++static struct mm_slot *get_mm_slot(struct mm_struct *mm,
++				struct hlist_head *mm_slots_hash)
++{
++	struct mm_slot *mm_slot;
++	struct hlist_head *bucket;
++	struct hlist_node *node;
++
++	bucket = &mm_slots_hash[((unsigned long)mm / sizeof(struct mm_struct))
++				% MM_SLOTS_HASH_HEADS];
++	hlist_for_each_entry(mm_slot, node, bucket, hash) {
++		if (mm == mm_slot->mm)
++			return mm_slot;
++	}
++	return NULL;
++}
++
++static void insert_to_mm_slots_hash(struct mm_struct *mm,
++		struct mm_slot *mm_slot, struct hlist_head *mm_slots_hash)
++{
++	struct hlist_head *bucket;
++
++	bucket = &mm_slots_hash[((unsigned long)mm / sizeof(struct mm_struct))
++				% MM_SLOTS_HASH_HEADS];
++	mm_slot->mm = mm;
++	hlist_add_head(&mm_slot->hash, bucket);
++}
++#endif
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 141dbb6..8ab58a0 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -17,6 +17,7 @@
+ #include <linux/khugepaged.h>
+ #include <linux/freezer.h>
+ #include <linux/mman.h>
++#include <linux/mm_slot.h>
+ #include <asm/tlb.h>
+ #include <asm/pgalloc.h>
+ #include "internal.h"
+@@ -57,27 +58,13 @@ static DECLARE_WAIT_QUEUE_HEAD(khugepaged_wait);
+ static unsigned int khugepaged_max_ptes_none __read_mostly = HPAGE_PMD_NR-1;
  
--	/* cc needed for isolate_freepages_block to acquire zone->lock */
--	struct compact_control cc = {
--		.sync = true,
--	};
+ static int khugepaged(void *none);
+-static int mm_slots_hash_init(void);
+ static int khugepaged_slab_init(void);
+ static void khugepaged_slab_free(void);
+ 
+-#define MM_SLOTS_HASH_HEADS 1024
+ static struct hlist_head *mm_slots_hash __read_mostly;
+ static struct kmem_cache *mm_slot_cache __read_mostly;
+ 
+ /**
+- * struct mm_slot - hash lookup from mm to mm_slot
+- * @hash: hash collision list
+- * @mm_node: khugepaged scan list headed in khugepaged_scan.mm_head
+- * @mm: the mm that this information is valid for
+- */
+-struct mm_slot {
+-	struct hlist_node hash;
+-	struct list_head mm_node;
+-	struct mm_struct *mm;
+-};
 -
--	if (pfn_valid(start_pfn))
--		cc.zone = zone = page_zone(pfn_to_page(start_pfn));
--
- 	for (pfn = start_pfn; pfn < end_pfn; pfn += isolated) {
--		if (!pfn_valid(pfn) || zone != page_zone(pfn_to_page(pfn)))
-+		if (!pfn_valid(pfn) || cc->zone != page_zone(pfn_to_page(pfn)))
- 			break;
+-/**
+  * struct khugepaged_scan - cursor for scanning
+  * @mm_head: the head of the mm list to scan
+  * @mm_slot: the current mm_slot we are scanning
+@@ -554,7 +541,7 @@ static int __init hugepage_init(void)
+ 	if (err)
+ 		goto out;
  
- 		/*
-@@ -397,7 +389,7 @@ isolate_freepages_range(unsigned long start_pfn, unsigned long end_pfn)
- 		block_end_pfn = ALIGN(pfn + 1, pageblock_nr_pages);
- 		block_end_pfn = min(block_end_pfn, end_pfn);
- 
--		isolated = isolate_freepages_block(&cc, pfn, block_end_pfn,
-+		isolated = isolate_freepages_block(cc, pfn, block_end_pfn,
- 						   &freelist, true);
- 
- 		/*
-diff --git a/mm/internal.h b/mm/internal.h
-index 9d5d276..a3ce781 100644
---- a/mm/internal.h
-+++ b/mm/internal.h
-@@ -135,7 +135,8 @@ struct compact_control {
- };
- 
- unsigned long
--isolate_freepages_range(unsigned long start_pfn, unsigned long end_pfn);
-+isolate_freepages_range(struct compact_control *cc,
-+			unsigned long start_pfn, unsigned long end_pfn);
- unsigned long
- isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
- 	unsigned long low_pfn, unsigned long end_pfn, bool unevictable);
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 8e1be1c..d66efcb 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -5669,7 +5669,8 @@ static unsigned long pfn_max_align_up(unsigned long pfn)
+-	err = mm_slots_hash_init();
++	err = mm_slots_hash_init(&mm_slots_hash);
+ 	if (err) {
+ 		khugepaged_slab_free();
+ 		goto out;
+@@ -1550,61 +1537,6 @@ static void __init khugepaged_slab_free(void)
+ 	mm_slot_cache = NULL;
  }
  
- /* [start, end) must belong to a single zone. */
--static int __alloc_contig_migrate_range(unsigned long start, unsigned long end)
-+static int __alloc_contig_migrate_range(struct compact_control *cc,
-+					unsigned long start, unsigned long end)
- {
- 	/* This function is based on compact_zone() from compaction.c. */
- 	unsigned long nr_reclaimed;
-@@ -5677,26 +5678,17 @@ static int __alloc_contig_migrate_range(unsigned long start, unsigned long end)
- 	unsigned int tries = 0;
- 	int ret = 0;
- 
--	struct compact_control cc = {
--		.nr_migratepages = 0,
--		.order = -1,
--		.zone = page_zone(pfn_to_page(start)),
--		.sync = true,
--		.ignore_skip_hint = true,
--	};
--	INIT_LIST_HEAD(&cc.migratepages);
+-static inline struct mm_slot *alloc_mm_slot(void)
+-{
+-	if (!mm_slot_cache)	/* initialization failed */
+-		return NULL;
+-	return kmem_cache_zalloc(mm_slot_cache, GFP_KERNEL);
+-}
 -
- 	migrate_prep_local();
+-static inline void free_mm_slot(struct mm_slot *mm_slot)
+-{
+-	kmem_cache_free(mm_slot_cache, mm_slot);
+-}
+-
+-static int __init mm_slots_hash_init(void)
+-{
+-	mm_slots_hash = kzalloc(MM_SLOTS_HASH_HEADS * sizeof(struct hlist_head),
+-				GFP_KERNEL);
+-	if (!mm_slots_hash)
+-		return -ENOMEM;
+-	return 0;
+-}
+-
+-#if 0
+-static void __init mm_slots_hash_free(void)
+-{
+-	kfree(mm_slots_hash);
+-	mm_slots_hash = NULL;
+-}
+-#endif
+-
+-static struct mm_slot *get_mm_slot(struct mm_struct *mm)
+-{
+-	struct mm_slot *mm_slot;
+-	struct hlist_head *bucket;
+-	struct hlist_node *node;
+-
+-	bucket = &mm_slots_hash[((unsigned long)mm / sizeof(struct mm_struct))
+-				% MM_SLOTS_HASH_HEADS];
+-	hlist_for_each_entry(mm_slot, node, bucket, hash) {
+-		if (mm == mm_slot->mm)
+-			return mm_slot;
+-	}
+-	return NULL;
+-}
+-
+-static void insert_to_mm_slots_hash(struct mm_struct *mm,
+-				    struct mm_slot *mm_slot)
+-{
+-	struct hlist_head *bucket;
+-
+-	bucket = &mm_slots_hash[((unsigned long)mm / sizeof(struct mm_struct))
+-				% MM_SLOTS_HASH_HEADS];
+-	mm_slot->mm = mm;
+-	hlist_add_head(&mm_slot->hash, bucket);
+-}
+-
+ static inline int khugepaged_test_exit(struct mm_struct *mm)
+ {
+ 	return atomic_read(&mm->mm_users) == 0;
+@@ -1615,25 +1547,25 @@ int __khugepaged_enter(struct mm_struct *mm)
+ 	struct mm_slot *mm_slot;
+ 	int wakeup;
  
--	while (pfn < end || !list_empty(&cc.migratepages)) {
-+	while (pfn < end || !list_empty(&cc->migratepages)) {
- 		if (fatal_signal_pending(current)) {
- 			ret = -EINTR;
- 			break;
- 		}
+-	mm_slot = alloc_mm_slot();
++	mm_slot = alloc_mm_slot(mm_slot_cache);
+ 	if (!mm_slot)
+ 		return -ENOMEM;
  
--		if (list_empty(&cc.migratepages)) {
--			cc.nr_migratepages = 0;
--			pfn = isolate_migratepages_range(cc.zone, &cc,
-+		if (list_empty(&cc->migratepages)) {
-+			cc->nr_migratepages = 0;
-+			pfn = isolate_migratepages_range(cc->zone, cc,
- 							 pfn, end, true);
- 			if (!pfn) {
- 				ret = -EINTR;
-@@ -5708,16 +5700,16 @@ static int __alloc_contig_migrate_range(unsigned long start, unsigned long end)
- 			break;
- 		}
- 
--		nr_reclaimed = reclaim_clean_pages_from_list(cc.zone,
--							&cc.migratepages);
--		cc.nr_migratepages -= nr_reclaimed;
-+		nr_reclaimed = reclaim_clean_pages_from_list(cc->zone,
-+							&cc->migratepages);
-+		cc->nr_migratepages -= nr_reclaimed;
- 
--		ret = migrate_pages(&cc.migratepages,
-+		ret = migrate_pages(&cc->migratepages,
- 				    alloc_migrate_target,
- 				    0, false, MIGRATE_SYNC);
+ 	/* __khugepaged_exit() must not run from under us */
+ 	VM_BUG_ON(khugepaged_test_exit(mm));
+ 	if (unlikely(test_and_set_bit(MMF_VM_HUGEPAGE, &mm->flags))) {
+-		free_mm_slot(mm_slot);
++		free_mm_slot(mm_slot, mm_slot_cache);
+ 		return 0;
  	}
  
--	putback_lru_pages(&cc.migratepages);
-+	putback_lru_pages(&cc->migratepages);
- 	return ret > 0 ? 0 : ret;
+ 	spin_lock(&khugepaged_mm_lock);
+-	insert_to_mm_slots_hash(mm, mm_slot);
++	insert_to_mm_slots_hash(mm, mm_slot, mm_slots_hash);
+ 	/*
+ 	 * Insert just behind the scanning cursor, to let the area settle
+ 	 * down a little.
+ 	 */
+ 	wakeup = list_empty(&khugepaged_scan.mm_head);
+-	list_add_tail(&mm_slot->mm_node, &khugepaged_scan.mm_head);
++	list_add_tail(&mm_slot->mm_list, &khugepaged_scan.mm_head);
+ 	spin_unlock(&khugepaged_mm_lock);
+ 
+ 	atomic_inc(&mm->mm_count);
+@@ -1673,17 +1605,17 @@ void __khugepaged_exit(struct mm_struct *mm)
+ 	int free = 0;
+ 
+ 	spin_lock(&khugepaged_mm_lock);
+-	mm_slot = get_mm_slot(mm);
++	mm_slot = get_mm_slot(mm, mm_slots_hash);
+ 	if (mm_slot && khugepaged_scan.mm_slot != mm_slot) {
+ 		hlist_del(&mm_slot->hash);
+-		list_del(&mm_slot->mm_node);
++		list_del(&mm_slot->mm_list);
+ 		free = 1;
+ 	}
+ 	spin_unlock(&khugepaged_mm_lock);
+ 
+ 	if (free) {
+ 		clear_bit(MMF_VM_HUGEPAGE, &mm->flags);
+-		free_mm_slot(mm_slot);
++		free_mm_slot(mm_slot, mm_slot_cache);
+ 		mmdrop(mm);
+ 	} else if (mm_slot) {
+ 		/*
+@@ -2089,7 +2021,7 @@ static void collect_mm_slot(struct mm_slot *mm_slot)
+ 	if (khugepaged_test_exit(mm)) {
+ 		/* free mm_slot */
+ 		hlist_del(&mm_slot->hash);
+-		list_del(&mm_slot->mm_node);
++		list_del(&mm_slot->mm_list);
+ 
+ 		/*
+ 		 * Not strictly needed because the mm exited already.
+@@ -2098,7 +2030,7 @@ static void collect_mm_slot(struct mm_slot *mm_slot)
+ 		 */
+ 
+ 		/* khugepaged_mm_lock actually not necessary for the below */
+-		free_mm_slot(mm_slot);
++		free_mm_slot(mm_slot, mm_slot_cache);
+ 		mmdrop(mm);
+ 	}
+ }
+@@ -2120,7 +2052,7 @@ static unsigned int khugepaged_scan_mm_slot(unsigned int pages,
+ 		mm_slot = khugepaged_scan.mm_slot;
+ 	else {
+ 		mm_slot = list_entry(khugepaged_scan.mm_head.next,
+-				     struct mm_slot, mm_node);
++				     struct mm_slot, mm_list);
+ 		khugepaged_scan.address = 0;
+ 		khugepaged_scan.mm_slot = mm_slot;
+ 	}
+@@ -2209,10 +2141,10 @@ breakouterloop_mmap_sem:
+ 		 * khugepaged runs here, khugepaged_exit will find
+ 		 * mm_slot not pointing to the exiting mm.
+ 		 */
+-		if (mm_slot->mm_node.next != &khugepaged_scan.mm_head) {
++		if (mm_slot->mm_list.next != &khugepaged_scan.mm_head) {
+ 			khugepaged_scan.mm_slot = list_entry(
+-				mm_slot->mm_node.next,
+-				struct mm_slot, mm_node);
++				mm_slot->mm_list.next,
++				struct mm_slot, mm_list);
+ 			khugepaged_scan.address = 0;
+ 		} else {
+ 			khugepaged_scan.mm_slot = NULL;
+diff --git a/mm/ksm.c b/mm/ksm.c
+index 47c8853..37b73c6 100644
+--- a/mm/ksm.c
++++ b/mm/ksm.c
+@@ -31,6 +31,7 @@
+ #include <linux/rbtree.h>
+ #include <linux/memory.h>
+ #include <linux/mmu_notifier.h>
++#include <linux/mm_slot.h>
+ #include <linux/swap.h>
+ #include <linux/ksm.h>
+ #include <linux/hash.h>
+@@ -79,21 +80,6 @@
+  *    it is secured in the stable tree.  (When we scan a new page, we first
+  *    compare it against the stable tree, and then against the unstable tree.)
+  */
+-
+-/**
+- * struct mm_slot - ksm information per mm that is being scanned
+- * @link: link to the mm_slots hash list
+- * @mm_list: link into the mm_slots list, rooted in ksm_mm_head
+- * @rmap_list: head for this mm_slot's singly-linked list of rmap_items
+- * @mm: the mm that this information is valid for
+- */
+-struct mm_slot {
+-	struct hlist_node link;
+-	struct list_head mm_list;
+-	struct rmap_item *rmap_list;
+-	struct mm_struct *mm;
+-};
+-
+ /**
+  * struct ksm_scan - cursor for scanning
+  * @mm_slot: the current mm_slot we are scanning
+@@ -156,9 +142,7 @@ struct rmap_item {
+ static struct rb_root root_stable_tree = RB_ROOT;
+ static struct rb_root root_unstable_tree = RB_ROOT;
+ 
+-#define MM_SLOTS_HASH_SHIFT 10
+-#define MM_SLOTS_HASH_HEADS (1 << MM_SLOTS_HASH_SHIFT)
+-static struct hlist_head mm_slots_hash[MM_SLOTS_HASH_HEADS];
++static struct hlist_head *mm_slots_hash;
+ 
+ static struct mm_slot ksm_mm_head = {
+ 	.mm_list = LIST_HEAD_INIT(ksm_mm_head.mm_list),
+@@ -261,42 +245,6 @@ static inline void free_stable_node(struct stable_node *stable_node)
+ 	kmem_cache_free(stable_node_cache, stable_node);
  }
  
-@@ -5796,6 +5788,15 @@ int alloc_contig_range(unsigned long start, unsigned long end,
- 	unsigned long outer_start, outer_end;
- 	int ret = 0, order;
+-static inline struct mm_slot *alloc_mm_slot(void)
+-{
+-	if (!mm_slot_cache)	/* initialization failed */
+-		return NULL;
+-	return kmem_cache_zalloc(mm_slot_cache, GFP_KERNEL);
+-}
+-
+-static inline void free_mm_slot(struct mm_slot *mm_slot)
+-{
+-	kmem_cache_free(mm_slot_cache, mm_slot);
+-}
+-
+-static struct mm_slot *get_mm_slot(struct mm_struct *mm)
+-{
+-	struct mm_slot *mm_slot;
+-	struct hlist_head *bucket;
+-	struct hlist_node *node;
+-
+-	bucket = &mm_slots_hash[hash_ptr(mm, MM_SLOTS_HASH_SHIFT)];
+-	hlist_for_each_entry(mm_slot, node, bucket, link) {
+-		if (mm == mm_slot->mm)
+-			return mm_slot;
+-	}
+-	return NULL;
+-}
+-
+-static void insert_to_mm_slots_hash(struct mm_struct *mm,
+-				    struct mm_slot *mm_slot)
+-{
+-	struct hlist_head *bucket;
+-
+-	bucket = &mm_slots_hash[hash_ptr(mm, MM_SLOTS_HASH_SHIFT)];
+-	mm_slot->mm = mm;
+-	hlist_add_head(&mm_slot->link, bucket);
+-}
+-
+ static inline int in_stable_tree(struct rmap_item *rmap_item)
+ {
+ 	return rmap_item->address & STABLE_FLAG;
+@@ -641,17 +589,17 @@ static int unmerge_and_remove_all_rmap_items(void)
+ 				goto error;
+ 		}
  
-+	struct compact_control cc = {
-+		.nr_migratepages = 0,
-+		.order = -1,
-+		.zone = page_zone(pfn_to_page(start)),
-+		.sync = true,
-+		.ignore_skip_hint = true,
-+	};
-+	INIT_LIST_HEAD(&cc.migratepages);
-+
+-		remove_trailing_rmap_items(mm_slot, &mm_slot->rmap_list);
++		remove_trailing_rmap_items(mm_slot, (struct rmap_item **)&mm_slot->private);
+ 
+ 		spin_lock(&ksm_mmlist_lock);
+ 		ksm_scan.mm_slot = list_entry(mm_slot->mm_list.next,
+ 						struct mm_slot, mm_list);
+ 		if (ksm_test_exit(mm)) {
+-			hlist_del(&mm_slot->link);
++			hlist_del(&mm_slot->hash);
+ 			list_del(&mm_slot->mm_list);
+ 			spin_unlock(&ksm_mmlist_lock);
+ 
+-			free_mm_slot(mm_slot);
++			free_mm_slot(mm_slot, mm_slot_cache);
+ 			clear_bit(MMF_VM_MERGEABLE, &mm->flags);
+ 			up_read(&mm->mmap_sem);
+ 			mmdrop(mm);
+@@ -1314,7 +1262,7 @@ static struct rmap_item *scan_get_next_rmap_item(struct page **page)
+ 			return NULL;
+ next_mm:
+ 		ksm_scan.address = 0;
+-		ksm_scan.rmap_list = &slot->rmap_list;
++		ksm_scan.rmap_list = (struct rmap_item **)&slot->private;
+ 	}
+ 
+ 	mm = slot->mm;
+@@ -1364,7 +1312,7 @@ next_mm:
+ 
+ 	if (ksm_test_exit(mm)) {
+ 		ksm_scan.address = 0;
+-		ksm_scan.rmap_list = &slot->rmap_list;
++		ksm_scan.rmap_list = (struct rmap_item **)&slot->private;
+ 	}
  	/*
- 	 * What we do here is we mark all pageblocks in range as
- 	 * MIGRATE_ISOLATE.  Because pageblock and max order pages may
-@@ -5825,7 +5826,7 @@ int alloc_contig_range(unsigned long start, unsigned long end,
- 	if (ret)
- 		goto done;
+ 	 * Nuke all the rmap_items that are above this current rmap:
+@@ -1385,11 +1333,11 @@ next_mm:
+ 		 * or when all VM_MERGEABLE areas have been unmapped (and
+ 		 * mmap_sem then protects against race with MADV_MERGEABLE).
+ 		 */
+-		hlist_del(&slot->link);
++		hlist_del(&slot->hash);
+ 		list_del(&slot->mm_list);
+ 		spin_unlock(&ksm_mmlist_lock);
  
--	ret = __alloc_contig_migrate_range(start, end);
-+	ret = __alloc_contig_migrate_range(&cc, start, end);
- 	if (ret)
- 		goto done;
+-		free_mm_slot(slot);
++		free_mm_slot(slot, mm_slot_cache);
+ 		clear_bit(MMF_VM_MERGEABLE, &mm->flags);
+ 		up_read(&mm->mmap_sem);
+ 		mmdrop(mm);
+@@ -1504,7 +1452,7 @@ int __ksm_enter(struct mm_struct *mm)
+ 	struct mm_slot *mm_slot;
+ 	int needs_wakeup;
  
-@@ -5874,7 +5875,7 @@ int alloc_contig_range(unsigned long start, unsigned long end,
- 	__reclaim_pages(zone, GFP_HIGHUSER_MOVABLE, end-start);
+-	mm_slot = alloc_mm_slot();
++	mm_slot = alloc_mm_slot(mm_slot_cache);
+ 	if (!mm_slot)
+ 		return -ENOMEM;
  
- 	/* Grab isolated pages from freelists. */
--	outer_end = isolate_freepages_range(outer_start, end);
-+	outer_end = isolate_freepages_range(&cc, outer_start, end);
- 	if (!outer_end) {
- 		ret = -EBUSY;
- 		goto done;
-
+@@ -1512,7 +1460,7 @@ int __ksm_enter(struct mm_struct *mm)
+ 	needs_wakeup = list_empty(&ksm_mm_head.mm_list);
+ 
+ 	spin_lock(&ksm_mmlist_lock);
+-	insert_to_mm_slots_hash(mm, mm_slot);
++	insert_to_mm_slots_hash(mm, mm_slot, mm_slots_hash);
+ 	/*
+ 	 * Insert just behind the scanning cursor, to let the area settle
+ 	 * down a little; when fork is followed by immediate exec, we don't
+@@ -1545,10 +1493,10 @@ void __ksm_exit(struct mm_struct *mm)
+ 	 */
+ 
+ 	spin_lock(&ksm_mmlist_lock);
+-	mm_slot = get_mm_slot(mm);
++	mm_slot = get_mm_slot(mm, mm_slots_hash);
+ 	if (mm_slot && ksm_scan.mm_slot != mm_slot) {
+-		if (!mm_slot->rmap_list) {
+-			hlist_del(&mm_slot->link);
++		if (!mm_slot->private) {
++			hlist_del(&mm_slot->hash);
+ 			list_del(&mm_slot->mm_list);
+ 			easy_to_free = 1;
+ 		} else {
+@@ -1559,7 +1507,7 @@ void __ksm_exit(struct mm_struct *mm)
+ 	spin_unlock(&ksm_mmlist_lock);
+ 
+ 	if (easy_to_free) {
+-		free_mm_slot(mm_slot);
++		free_mm_slot(mm_slot, mm_slot_cache);
+ 		clear_bit(MMF_VM_MERGEABLE, &mm->flags);
+ 		mmdrop(mm);
+ 	} else if (mm_slot) {
+@@ -1998,6 +1946,10 @@ static int __init ksm_init(void)
+ 	if (err)
+ 		goto out;
+ 
++	err = mm_slots_hash_init(&mm_slots_hash);
++	if (err)
++		goto out_free;
++
+ 	ksm_thread = kthread_run(ksm_scan_thread, NULL, "ksmd");
+ 	if (IS_ERR(ksm_thread)) {
+ 		printk(KERN_ERR "ksm: creating kthread failed\n");
 -- 
-Kind regards,
-Minchan Kim
+1.7.9.5
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
