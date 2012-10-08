@@ -1,92 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
-	by kanga.kvack.org (Postfix) with SMTP id 5BB4D6B002B
-	for <linux-mm@kvack.org>; Mon,  8 Oct 2012 16:35:15 -0400 (EDT)
-Date: Mon, 8 Oct 2012 16:34:24 -0400
-From: Rik van Riel <riel@redhat.com>
-Subject: Re: [PATCH 00/33] AutoNUMA27
-Message-ID: <20121008163424.335ea7ec@annuminas.surriel.com>
-In-Reply-To: <m24nm8wly3.fsf@firstfloor.org>
-References: <1349308275-2174-1-git-send-email-aarcange@redhat.com>
-	<20121004113943.be7f92a0.akpm@linux-foundation.org>
-	<m24nm8wly3.fsf@firstfloor.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
+	by kanga.kvack.org (Postfix) with SMTP id 3C08B6B0044
+	for <linux-mm@kvack.org>; Mon,  8 Oct 2012 16:35:45 -0400 (EDT)
+Received: by mail-pa0-f41.google.com with SMTP id fa10so4860033pad.14
+        for <linux-mm@kvack.org>; Mon, 08 Oct 2012 13:35:44 -0700 (PDT)
+Date: Mon, 8 Oct 2012 13:35:42 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: mpol_to_str revisited.
+In-Reply-To: <20121008150949.GA15130@redhat.com>
+Message-ID: <alpine.DEB.2.00.1210081330160.18768@chino.kir.corp.google.com>
+References: <20121008150949.GA15130@redhat.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andi Kleen <andi@firstfloor.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <pzijlstr@redhat.com>, Ingo Molnar <mingo@elte.hu>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Hillf Danton <dhillf@gmail.com>, Andrew Jones <drjones@redhat.com>, Dan Smith <danms@us.ibm.com>, Thomas Gleixner <tglx@linutronix.de>, Paul Turner <pjt@google.com>, Christoph Lameter <cl@linux.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Srivatsa Vaddagiri <vatsa@linux.vnet.ibm.com>, Alex Shi <alex.shi@intel.com>, Mauricio Faria de Oliveira <mauricfo@linux.vnet.ibm.com>, Konrad@linux.intel.com, dshaks@redhat.com
+To: Dave Jones <davej@redhat.com>, Linux Kernel <linux-kernel@vger.kernel.org>, bhutchings@solarflare.com, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>
 
-On Fri, 05 Oct 2012 16:14:44 -0700
-Andi Kleen <andi@firstfloor.org> wrote:
+On Mon, 8 Oct 2012, Dave Jones wrote:
 
-> IMHO needs a performance shot-out. Run both on the same 10 workloads
-> and see who wins. Just a lot of of work. Any volunteers?
+> unanswered question: why are the buffer sizes here different ? which is correct?
+> 
 
-Here are some preliminary results from simple benchmarks on a
-4-node, 32 CPU core (4x8 core) Dell PowerEdge R910 system.
+Given the current set of mempolicy modes and flags, it's 34, but this can 
+change if new modes or flags are added with longer names.  I see no reason 
+why shmem shouldn't round up to the nearest power-of-2 of 64 like it 
+already does, but 50 is certainly safe as well in task_mmu.c.
 
-For the simple linpack streams benchmark, both sched/numa and
-autonuma are within the margin of error compared to manual
-tuning of task affinity.  This is a big win, since the current
-upstream scheduler has regressions of 10-20% when the system
-runs 4 through 16 streams processes.
+> diff -durpN '--exclude-from=/home/davej/.exclude' src/git-trees/kernel/linux/fs/proc/task_mmu.c linux-dj/fs/proc/task_mmu.c
+> --- src/git-trees/kernel/linux/fs/proc/task_mmu.c	2012-05-31 22:32:46.778150675 -0400
+> +++ linux-dj/fs/proc/task_mmu.c	2012-10-04 19:31:41.269988984 -0400
+> @@ -1162,6 +1162,7 @@ static int show_numa_map(struct seq_file
+>  	struct mm_walk walk = {};
+>  	struct mempolicy *pol;
+>  	int n;
+> +	int ret;
+>  	char buffer[50];
+>  
+>  	if (!mm)
+> @@ -1178,7 +1179,11 @@ static int show_numa_map(struct seq_file
+>  	walk.mm = mm;
+>  
+>  	pol = get_vma_policy(proc_priv->task, vma, vma->vm_start);
+> -	mpol_to_str(buffer, sizeof(buffer), pol, 0);
+> +	memset(buffer, 0, sizeof(buffer));
+> +	ret = mpol_to_str(buffer, sizeof(buffer), pol, 0);
+> +	if (ret < 0)
+> +		return 0;
 
-For specjbb, the story is more complicated. After fixing the
-obvious bugs in sched/numa, and getting some basic cpu-follows-memory
-code (not yet in -tip AFAIK), Larry, Peter and I, averaged results
-look like this:
+We should need the mpol_cond_put(pol) here before returning.
 
-baseline: 	246019
-manual pinning: 285481 (+16%)
-autonuma:	266626 (+8%)
-sched/numa:	226540 (-8%)
-
-This is with newer sched/numa code than what is in -tip right now.
-Once Peter pushes the fixes by Larry and me into -tip, as well as
-his cpu-follows-memory code, others should be able to run tests
-like this as well.
-
-Now for some other workloads, and tests on 8 node systems, etc...
-
-
-Full results for the specjbb run below:
-
-BASELINE - disabling auto numa (matches RHEL6 within 1%)
-
-[root@perf74 SPECjbb]# cat r7_36_auto27_specjbb4_noauto.txt
-spec1.txt:           throughput =     243639.70 SPECjbb2005 bops
-spec2.txt:           throughput =     249186.20 SPECjbb2005 bops
-spec3.txt:           throughput =     247216.72 SPECjbb2005 bops
-spec4.txt:           throughput =     244035.60 SPECjbb2005 bops
-
-Manual NUMACTL results are:
-
-[root@perf74 SPECjbb]# more r7_36_numactl_specjbb4.txt
-spec1.txt:           throughput =     291430.22 SPECjbb2005 bops
-spec2.txt:           throughput =     283550.85 SPECjbb2005 bops
-spec3.txt:           throughput =     284028.71 SPECjbb2005 bops
-spec4.txt:           throughput =     282919.37 SPECjbb2005 bops
-
-AUTONUMA27 - 3.6.0-0.24.autonuma27.test.x86_64
-[root@perf74 SPECjbb]# more r7_36_auto27_specjbb4.txt
-spec1.txt:           throughput =     261835.01 SPECjbb2005 bops
-spec2.txt:           throughput =     269053.06 SPECjbb2005 bops
-spec3.txt:           throughput =     261230.50 SPECjbb2005 bops
-spec3.txt:           throughput =     274386.81 SPECjbb2005 bops
-
-Tuned SCHED_NUMA from Friday 10/4/2012 with fixes from Peter, Rik and 
-Larry:
-
-[root@perf74 SPECjbb]# more r7_36_schednuma_specjbb4.txt
-spec1.txt:           throughput =     222349.74 SPECjbb2005 bops
-spec2.txt:           throughput =     232988.59 SPECjbb2005 bops
-spec3.txt:           throughput =     223386.03 SPECjbb2005 bops
-spec4.txt:           throughput =     227438.11 SPECjbb2005 bops
-
--- 
-All rights reversed.
+> +
+>  	mpol_cond_put(pol);
+>  
+>  	seq_printf(m, "%08lx %s", vma->vm_start, buffer);
+> diff -durpN '--exclude-from=/home/davej/.exclude' src/git-trees/kernel/linux/mm/shmem.c linux-dj/mm/shmem.c
+> --- src/git-trees/kernel/linux/mm/shmem.c	2012-10-02 15:49:51.977277944 -0400
+> +++ linux-dj/mm/shmem.c	2012-10-04 19:32:28.862949907 -0400
+> @@ -885,13 +885,15 @@ redirty:
+>  static void shmem_show_mpol(struct seq_file *seq, struct mempolicy *mpol)
+>  {
+>  	char buffer[64];
+> +	int ret;
+>  
+>  	if (!mpol || mpol->mode == MPOL_DEFAULT)
+>  		return;		/* show nothing */
+>  
+> -	mpol_to_str(buffer, sizeof(buffer), mpol, 1);
+> -
+> -	seq_printf(seq, ",mpol=%s", buffer);
+> +	memset(buffer, 0, sizeof(buffer));
+> +	ret = mpol_to_str(buffer, sizeof(buffer), mpol, 1);
+> +	if (ret > 0)
+> +		seq_printf(seq, ",mpol=%s", buffer);
+>  }
+>  
+>  static struct mempolicy *shmem_get_sbmpol(struct shmem_sb_info *sbinfo)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
