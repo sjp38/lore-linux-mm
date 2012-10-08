@@ -1,38 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
-	by kanga.kvack.org (Postfix) with SMTP id DE4466B002B
-	for <linux-mm@kvack.org>; Mon,  8 Oct 2012 02:41:51 -0400 (EDT)
-Message-ID: <507276FD.4020808@cn.fujitsu.com>
-Date: Mon, 08 Oct 2012 14:47:25 +0800
-From: Wen Congyang <wency@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
+	by kanga.kvack.org (Postfix) with SMTP id 9F6166B002B
+	for <linux-mm@kvack.org>; Mon,  8 Oct 2012 02:46:29 -0400 (EDT)
+Date: Mon, 8 Oct 2012 15:50:35 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH] mm: compaction: Iron out isolate_freepages_block() and
+ isolate_freepages_range() -fix2
+Message-ID: <20121008065035.GB13817@bbox>
+References: <20120927112911.GA25959@avionic-0098.mockup.avionic-design.de>
+ <20120927151159.4427fc8f.akpm@linux-foundation.org>
+ <20120928054330.GA27594@bbox>
+ <20121004140017.GW29125@suse.de>
+ <20121005095945.GC29125@suse.de>
 MIME-Version: 1.0
-Subject: Re: [PATCH 4/4] acpi,memory-hotplug : store the node id in acpi_memory_device
-References: <506C0AE8.40702@jp.fujitsu.com> <506C0F53.5030500@jp.fujitsu.com> <CAHGf_=o6K71u4+OVsLvfCSRmOTk12TpsgKwsJO6bGdd_6dYnyA@mail.gmail.com>
-In-Reply-To: <CAHGf_=o6K71u4+OVsLvfCSRmOTk12TpsgKwsJO6bGdd_6dYnyA@mail.gmail.com>
-Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20121005095945.GC29125@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-acpi@vger.kernel.org, rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, cl@linux.com, minchan.kim@gmail.com, akpm@linux-foundation.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Thierry Reding <thierry.reding@avionic-design.de>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>, Mark Brown <broonie@opensource.wolfsonmicro.com>, Peter Ujfalusi <peter.ujfalusi@ti.com>
 
-At 10/06/2012 02:56 AM, KOSAKI Motohiro Wrote:
-> On Wed, Oct 3, 2012 at 6:11 AM, Yasuaki Ishimatsu
-> <isimatu.yasuaki@jp.fujitsu.com> wrote:
->> From: Wen Congyang <wency@cn.fujitsu.com>
->>
->> The memory device has only one node id. Store the node id when
->> enable the memory device, and we can reuse it when removing the
->> memory device.
+On Fri, Oct 05, 2012 at 10:59:45AM +0100, Mel Gorman wrote:
+> Thierry reported offline that the strict check "mm: compaction: Iron out
+> isolate_freepages_block() and isolate_freepages_range() -fix1" check is
+> still too strict because it's possible for more pages to be isolated
+> than required. This patch corrects the check.
 > 
-> You don't explain why we need this. Then nobody can review nor ack.
+> There are still CMA-related problems but they are "somewhere else" yet
+> to be determined.
 > 
+> Signed-off-by: Mel Gorman <mgorman@suse.de>
+Acked-by: Minchan Kim <minchan@kernel.org>
 
-This patch doesn't fix any problem. Its purpose is: avoid to calculate
-the node id twice.
-
-Thanks
-Wen Congyang
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
