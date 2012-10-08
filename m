@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
-	by kanga.kvack.org (Postfix) with SMTP id 8997B6B0068
+Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
+	by kanga.kvack.org (Postfix) with SMTP id A34256B0069
 	for <linux-mm@kvack.org>; Mon,  8 Oct 2012 06:06:41 -0400 (EDT)
 From: Glauber Costa <glommer@parallels.com>
-Subject: [PATCH v4 02/14] memcg: Reclaim when more than one page needed.
-Date: Mon,  8 Oct 2012 14:06:08 +0400
-Message-Id: <1349690780-15988-3-git-send-email-glommer@parallels.com>
+Subject: [PATCH v4 12/14] execute the whole memcg freeing in free_worker
+Date: Mon,  8 Oct 2012 14:06:18 +0400
+Message-Id: <1349690780-15988-13-git-send-email-glommer@parallels.com>
 In-Reply-To: <1349690780-15988-1-git-send-email-glommer@parallels.com>
 References: <1349690780-15988-1-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,91 +13,158 @@ List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
 Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Suleiman Souhlal <suleiman@google.com>, Tejun Heo <tj@kernel.org>, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Greg Thelen <gthelen@google.com>, devel@openvz.org, Frederic Weisbecker <fweisbec@gmail.com>, Glauber Costa <glommer@parallels.com>
 
-From: Suleiman Souhlal <ssouhlal@FreeBSD.org>
+A lot of the initialization we do in mem_cgroup_create() is done with
+softirqs enabled. This include grabbing a css id, which holds
+&ss->id_lock->rlock, and the per-zone trees, which holds
+rtpz->lock->rlock. All of those signal to the lockdep mechanism that
+those locks can be used in SOFTIRQ-ON-W context. This means that the
+freeing of memcg structure must happen in a compatible context,
+otherwise we'll get a deadlock, like the one bellow, caught by lockdep:
 
-mem_cgroup_do_charge() was written before kmem accounting, and expects
-three cases: being called for 1 page, being called for a stock of 32
-pages, or being called for a hugepage.  If we call for 2 or 3 pages (and
-both the stack and several slabs used in process creation are such, at
-least with the debug options I had), it assumed it's being called for
-stock and just retried without reclaiming.
+  [<ffffffff81103095>] free_accounted_pages+0x47/0x4c
+  [<ffffffff81047f90>] free_task+0x31/0x5c
+  [<ffffffff8104807d>] __put_task_struct+0xc2/0xdb
+  [<ffffffff8104dfc7>] put_task_struct+0x1e/0x22
+  [<ffffffff8104e144>] delayed_put_task_struct+0x7a/0x98
+  [<ffffffff810cf0e5>] __rcu_process_callbacks+0x269/0x3df
+  [<ffffffff810cf28c>] rcu_process_callbacks+0x31/0x5b
+  [<ffffffff8105266d>] __do_softirq+0x122/0x277
 
-Fix that by passing down a minsize argument in addition to the csize.
+This usage pattern could not be triggered before kmem came into play.
+With the introduction of kmem stack handling, it is possible that we
+call the last mem_cgroup_put() from the task destructor, which is run in
+an rcu callback. Such callbacks are run with softirqs disabled, leading
+to the offensive usage pattern.
 
-And what to do about that (csize == PAGE_SIZE && ret) retry?  If it's
-needed at all (and presumably is since it's there, perhaps to handle
-races), then it should be extended to more than PAGE_SIZE, yet how far?
-And should there be a retry count limit, of what?  For now retry up to
-COSTLY_ORDER (as page_alloc.c does) and make sure not to do it if
-__GFP_NORETRY.
+In general, we have little, if any, means to guarantee in which context
+the last memcg_put will happen. The best we can do is test it and try to
+make sure no invalid context releases are happening. But as we add more
+code to memcg, the possible interactions grow in number and expose more
+ways to get context conflicts. One thing to keep in mind, is that part
+of the freeing process is already deferred to a worker, such as vfree(),
+that can only be called from process context.
 
-[v4: fixed nr pages calculation pointed out by Christoph Lameter ]
+For the moment, the only two functions we really need moved away are:
 
-Signed-off-by: Suleiman Souhlal <suleiman@google.com>
+  * free_css_id(), and
+  * mem_cgroup_remove_from_trees().
+
+But because the later accesses per-zone info,
+free_mem_cgroup_per_zone_info() needs to be moved as well. With that, we
+are left with the per_cpu stats only. Better move it all.
+
 Signed-off-by: Glauber Costa <glommer@parallels.com>
-Reviewed-by: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Acked-by: Michal Hocko <mhocko@suse.cz>
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+Tested-by: Greg Thelen <gthelen@google.com>
+CC: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+CC: Michal Hocko <mhocko@suse.cz>
+CC: Johannes Weiner <hannes@cmpxchg.org>
+CC: Tejun Heo <tj@kernel.org>
 ---
- mm/memcontrol.c | 16 +++++++++-------
- 1 file changed, 9 insertions(+), 7 deletions(-)
+ mm/memcontrol.c | 66 +++++++++++++++++++++++++++++----------------------------
+ 1 file changed, 34 insertions(+), 32 deletions(-)
 
 diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 47cb019..7a9652a 100644
+index 2f92f89..c5215f1 100644
 --- a/mm/memcontrol.c
 +++ b/mm/memcontrol.c
-@@ -2226,7 +2226,8 @@ enum {
- };
+@@ -5205,16 +5205,29 @@ out_free:
+ }
  
- static int mem_cgroup_do_charge(struct mem_cgroup *memcg, gfp_t gfp_mask,
--				unsigned int nr_pages, bool oom_check)
-+				unsigned int nr_pages, unsigned int min_pages,
-+				bool oom_check)
- {
- 	unsigned long csize = nr_pages * PAGE_SIZE;
- 	struct mem_cgroup *mem_over_limit;
-@@ -2249,18 +2250,18 @@ static int mem_cgroup_do_charge(struct mem_cgroup *memcg, gfp_t gfp_mask,
- 	} else
- 		mem_over_limit = mem_cgroup_from_res_counter(fail_res, res);
- 	/*
--	 * nr_pages can be either a huge page (HPAGE_PMD_NR), a batch
--	 * of regular pages (CHARGE_BATCH), or a single regular page (1).
--	 *
- 	 * Never reclaim on behalf of optional batching, retry with a
- 	 * single page instead.
- 	 */
--	if (nr_pages == CHARGE_BATCH)
-+	if (nr_pages > min_pages)
- 		return CHARGE_RETRY;
- 
- 	if (!(gfp_mask & __GFP_WAIT))
- 		return CHARGE_WOULDBLOCK;
- 
-+	if (gfp_mask & __GFP_NORETRY)
-+		return CHARGE_NOMEM;
+ /*
+- * Helpers for freeing a kmalloc()ed/vzalloc()ed mem_cgroup by RCU,
+- * but in process context.  The work_freeing structure is overlaid
+- * on the rcu_freeing structure, which itself is overlaid on memsw.
++ * At destroying mem_cgroup, references from swap_cgroup can remain.
++ * (scanning all at force_empty is too costly...)
++ *
++ * Instead of clearing all references at force_empty, we remember
++ * the number of reference from swap_cgroup and free mem_cgroup when
++ * it goes down to 0.
++ *
++ * Removal of cgroup itself succeeds regardless of refs from swap.
+  */
+-static void free_work(struct work_struct *work)
 +
- 	ret = mem_cgroup_reclaim(mem_over_limit, gfp_mask, flags);
- 	if (mem_cgroup_margin(mem_over_limit) >= nr_pages)
- 		return CHARGE_RETRY;
-@@ -2273,7 +2274,7 @@ static int mem_cgroup_do_charge(struct mem_cgroup *memcg, gfp_t gfp_mask,
- 	 * unlikely to succeed so close to the limit, and we fall back
- 	 * to regular pages anyway in case of failure.
- 	 */
--	if (nr_pages == 1 && ret)
-+	if (nr_pages <= (1 << PAGE_ALLOC_COSTLY_ORDER) && ret)
- 		return CHARGE_RETRY;
++static void __mem_cgroup_free(struct mem_cgroup *memcg)
+ {
+-	struct mem_cgroup *memcg;
++	int node;
+ 	int size = sizeof(struct mem_cgroup);
  
+-	memcg = container_of(work, struct mem_cgroup, work_freeing);
++	mem_cgroup_remove_from_trees(memcg);
++	free_css_id(&mem_cgroup_subsys, &memcg->css);
++
++	for_each_node(node)
++		free_mem_cgroup_per_zone_info(memcg, node);
++
++	free_percpu(memcg->stat);
++
  	/*
-@@ -2408,7 +2409,8 @@ again:
- 			nr_oom_retries = MEM_CGROUP_RECLAIM_RETRIES;
- 		}
+ 	 * We need to make sure that (at least for now), the jump label
+ 	 * destruction code runs outside of the cgroup lock. This is because
+@@ -5233,38 +5246,27 @@ static void free_work(struct work_struct *work)
+ 		vfree(memcg);
+ }
  
--		ret = mem_cgroup_do_charge(memcg, gfp_mask, batch, oom_check);
-+		ret = mem_cgroup_do_charge(memcg, gfp_mask, batch, nr_pages,
-+		    oom_check);
- 		switch (ret) {
- 		case CHARGE_OK:
- 			break;
+-static void free_rcu(struct rcu_head *rcu_head)
+-{
+-	struct mem_cgroup *memcg;
+-
+-	memcg = container_of(rcu_head, struct mem_cgroup, rcu_freeing);
+-	INIT_WORK(&memcg->work_freeing, free_work);
+-	schedule_work(&memcg->work_freeing);
+-}
+ 
+ /*
+- * At destroying mem_cgroup, references from swap_cgroup can remain.
+- * (scanning all at force_empty is too costly...)
+- *
+- * Instead of clearing all references at force_empty, we remember
+- * the number of reference from swap_cgroup and free mem_cgroup when
+- * it goes down to 0.
+- *
+- * Removal of cgroup itself succeeds regardless of refs from swap.
++ * Helpers for freeing a kmalloc()ed/vzalloc()ed mem_cgroup by RCU,
++ * but in process context.  The work_freeing structure is overlaid
++ * on the rcu_freeing structure, which itself is overlaid on memsw.
+  */
+-
+-static void __mem_cgroup_free(struct mem_cgroup *memcg)
++static void free_work(struct work_struct *work)
+ {
+-	int node;
++	struct mem_cgroup *memcg;
+ 
+-	mem_cgroup_remove_from_trees(memcg);
+-	free_css_id(&mem_cgroup_subsys, &memcg->css);
++	memcg = container_of(work, struct mem_cgroup, work_freeing);
++	__mem_cgroup_free(memcg);
++}
+ 
+-	for_each_node(node)
+-		free_mem_cgroup_per_zone_info(memcg, node);
++static void free_rcu(struct rcu_head *rcu_head)
++{
++	struct mem_cgroup *memcg;
+ 
+-	free_percpu(memcg->stat);
+-	call_rcu(&memcg->rcu_freeing, free_rcu);
++	memcg = container_of(rcu_head, struct mem_cgroup, rcu_freeing);
++	INIT_WORK(&memcg->work_freeing, free_work);
++	schedule_work(&memcg->work_freeing);
+ }
+ 
+ static void mem_cgroup_get(struct mem_cgroup *memcg)
+@@ -5276,7 +5278,7 @@ static void __mem_cgroup_put(struct mem_cgroup *memcg, int count)
+ {
+ 	if (atomic_sub_and_test(count, &memcg->refcnt)) {
+ 		struct mem_cgroup *parent = parent_mem_cgroup(memcg);
+-		__mem_cgroup_free(memcg);
++		call_rcu(&memcg->rcu_freeing, free_rcu);
+ 		if (parent)
+ 			mem_cgroup_put(parent);
+ 	}
 -- 
 1.7.11.4
 
