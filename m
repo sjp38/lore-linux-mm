@@ -1,362 +1,128 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
-	by kanga.kvack.org (Postfix) with SMTP id E6A2B6B005A
-	for <linux-mm@kvack.org>; Sun,  7 Oct 2012 04:17:05 -0400 (EDT)
-Received: by mail-pa0-f41.google.com with SMTP id fa10so3476369pad.14
-        for <linux-mm@kvack.org>; Sun, 07 Oct 2012 01:17:05 -0700 (PDT)
-Date: Sun, 7 Oct 2012 01:14:17 -0700
-From: Anton Vorontsov <anton.vorontsov@linaro.org>
-Subject: Re: [RFC] vmevent: Implement pressure attribute
-Message-ID: <20121007081414.GA18047@lizard>
-References: <20121004110524.GA1821@lizard>
- <20121005092912.GA29125@suse.de>
+Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
+	by kanga.kvack.org (Postfix) with SMTP id DA7AA6B0044
+	for <linux-mm@kvack.org>; Sun,  7 Oct 2012 20:13:53 -0400 (EDT)
+Received: by mail-pa0-f41.google.com with SMTP id fa10so3880560pad.14
+        for <linux-mm@kvack.org>; Sun, 07 Oct 2012 17:13:53 -0700 (PDT)
+Date: Sun, 7 Oct 2012 17:13:44 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: PROBLEM: It seems that /usr/bin/time program reports a wrong
+ value for MaxRSS.
+In-Reply-To: <CAKMH-Ygp6mTtpt66cOj_wh5eicTgiH9bK9J=KPQfThTzU7-OLA@mail.gmail.com>
+Message-ID: <alpine.LSU.2.00.1210071641150.8431@eggly.anvils>
+References: <CAKMH-Yhdxfq50fKR3TF8gc6i7JeAowD+Oc+dqpXOYvqiNiw=Vw@mail.gmail.com> <alpine.LSU.2.00.1210061344180.28972@eggly.anvils> <CAKMH-Ygp6mTtpt66cOj_wh5eicTgiH9bK9J=KPQfThTzU7-OLA@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <20121005092912.GA29125@suse.de>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Pekka Enberg <penberg@kernel.org>, Leonid Moiseichuk <leonid.moiseichuk@nokia.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Minchan Kim <minchan@kernel.org>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, John Stultz <john.stultz@linaro.org>, Colin Cross <ccross@android.com>, Arve Hj?nnev?g <arve@android.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org, kernel-team@android.com
+To: Kamran Amini <kamran.amini.eng@gmail.com>
+Cc: Behnam Momeni <s.b.momeni@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Hello Mel,
-
-Thanks for your comments!
-
-On Fri, Oct 05, 2012 at 10:29:12AM +0100, Mel Gorman wrote:
-[...]
-> > The implemented approach can notify userland about two things:
-> > 
-> > - Constantly rising number of scanned pages shows that Linux is busy w/
-> >   rehashing pages in general. The more we scan, the more it's obvious that
-> >   we're out of unused pages, and we're draining caches. By itself it's not
-> >   critical, but for apps that want to maintain caches level (like Android)
-> >   it's quite useful. The notifications are ratelimited by a specified
-> >   amount of scanned pages.
-> > 
+On Sun, 7 Oct 2012, Kamran Amini wrote:
+> On Sun, Oct 7, 2012 at 1:18 AM, Hugh Dickins <hughd@google.com> wrote:
+> > On Thu, 4 Oct 2012, Kamran Amini wrote:
+> >>
+> >> It seems that /usr/bin/time program reports a wrong value for MaxRSS.
+> >> The report shows MaxRSS, about 4 times the
+> >> actual allocated memory by a process and its children. MaxRSS (Maximum
+> >> Resident Set Size) is assumed to be maximum
+> >> allocated memory by a process and its children. This bug report talks
+> >> about this problem. More descriptions are provided in
+> >> time-problem.tar.gz file attached to this mail.
+> >
+> > You are right.
+> >
+> > Well, time-problem.tar.gz goes into more detail than I had time
+> > to read, so I cannot promise that everything you say is right.
+> >
+> > But you're right that /usr/bin/time is reporting MaxRSS 4 times too much
+> > on x86, and many other architectures.  It expects rusage.ru_maxrss to be
+> > a count of pages, so mistakenly uses to ptok() upon it; whereas the Linux
+> > kernel supplies that number already in kilobytes (as "man 2 getrusage"
+> > makes clear).
+> >
+> > I see this was mentioned when 2.6.32's commit 1f10206cf8e9 "getrusage:
+> > fill ru_maxrss value" started putting the number there instead of zero:
+> >
+> >     Make ->ru_maxrss value in struct rusage filled accordingly to rss hiwater
+> >     mark.  This struct is filled as a parameter to getrusage syscall.
+> >     ->ru_maxrss value is set to KBs which is the way it is done in BSD
+> >     systems.  /usr/bin/time (gnu time) application converts ->ru_maxrss to KBs
+> >     which seems to be incorrect behavior.  Maintainer of this util was
+> >     notified by me with the patch which corrects it and cc'ed.
+> >
+> > It looks as if we were naive to expect a change in /usr/bin/time then:
+> > so far as I can see, time has stood still at time-1.7 ever since 1996.
+> > Its README does say:
+> >
+> >     Mail suggestions and bug reports for GNU time to
+> >     bug-gnu-utils@prep.ai.mit.edu.  Please include the version of
+> >     `time', which you can get by running `time --version', and the
+> >     operating system and C compiler you used.
+> >
+> > Please do so, if you have a chance, or let me know if you cannot and
+> > I'll do so: though I suspect the mail address is out-of-date by now,
+> > and that it should say bug-gnu-utils@gnu.org.
+> >
+> > You might also like to raise a bug with the distros you care about:
+> > maybe some already apply their own fix, or will do before time-1.8.
+> >
+> > But it does look as if you're the first in three years to notice and
+> > care!  So don't be surprised if it's not a high priority for anyone.
+> >
+> > And I don't think you need attach a .tar.gz: just explain in a few
+> > lines that Linux 2.6.32 and later fill ru_maxrss, but in kilobytes
+> > not pages: so /usr/bin/time displays 4 times the right number when
+> > it multiplies that up with ptok().  (I don't have a BSD system to
+> > confirm whether it's indeed wrong for BSD too.)
+> >
+> > Thanks,
+> > Hugh
 > 
-> This is tricky but yes, a "constantly rising" increase of scanning can
-> be of note. It's important to remember that a stready-streamer such as
-> video playback can have a constant rate of scanning, but it's not
-> indicative of a problem and it should not necessarily raise an event to
-> userspace.
+> Thanks for the reply.
 > 
-> There should be three distinct stages that we're trying to spot.
+> I'm sorry.
+> I should have mentioned more details in my last email and I should
+
+Please don't drown me in so many words, we don't need more details!
+
+> have changed my subject to "It seems that wait4() system call fills
+> rusage.ru_maxrss with wrong value".
 > 
-> kswapd scanning rate rising, direct reclaim scanning 0
-> kswapd scanning rate rising or levelling off, direct reclaim scanning
-> kswapd scanning rate levelling, direct reclaim levelling, efficiency dropping
+> Actually, we have read time's source code and there is no bug in it.
+
+Not necessarily a bug, but line 395 of time-1.7/time.c says
+	      fprintf (fp, "%lu", ptok ((UL) resp->ru.ru_maxrss));
+and the comment on ptok (pages) has already mentioned that
+   Note: Some machines express getrusage statistics in terms of K,
+   others in terms of pages.  */
+
+> The time uses wait4() system call and  k_getrusage() function in
+> kernel/sys.c, line 1765  makes that 4 coefficient.
 > 
-> Detecting all three is not critical for notification to be useful but
-> it's probably the ideal.
-
-Speaking of which, currently the factor accounts summed kswapd+direct
-scanned/reclaim, i.e. only third case, so far I don't differentiate kswapd
-scanning and direct scanning.
-
-We can surely add monitoring for the first two stages, but naming them
-"kswapd" or "direct reclaim" would kinda expose MM details, which we try
-to avoid exposing in vmevent API. If we can come up with some "generic"
-factor as in the third case, then it would be great indeed.
-
-> Either way, I prefer attempting something like this a lot more than
-> firing a notification because free memory is low!
-
-Absolutely, I like it more as well.
-
-[...]
-> And I like the metric but not the name - mostly because we've used the
-[...]
-> For your current definition how about "Reclaim inefficiency" or "Reclaim
-> wastage"?
+>        r->ru_maxrss = maxrss * (PAGE_SIZE / 1024); /* convert pages to KBs */
 > 
-> "Reclaim inefficiency is the percentage of scans of pages that were not
-> reclaimed"
-> 
-> "Reclaim wastage refers to the time spent by the kernel uselessly
-> scanning pages"
+>     Comment says that this operation will convert the maxrss into KBs.
+>     But we think it has been converted to KBs previously.
 
-Yeah, your words are all more to the point. Thanks for fixing my loosely
-defied terms. :-)
+It has not been converted to KBs previously; but /usr/bin/time
+mistakenly "converts it to KBs" a second time afterwards.
 
-I guess I should put most of your explanations into the documentation.
+The Linux kernel has chosen to report ru_maxrss in KBs, following BSD.
+I have not loaded up a BSD system to check, but I have now checked the
+FreeBSD getrusage(2) manpage online, and indeed that documents ru_maxrss
+as in kilobytes.
 
-[...]
-> > diff --git a/include/linux/vmevent.h b/include/linux/vmevent.h
-> > index b1c4016..1397ade 100644
-> > --- a/include/linux/vmevent.h
-> > +++ b/include/linux/vmevent.h
-> > @@ -10,6 +10,7 @@ enum {
-> >  	VMEVENT_ATTR_NR_AVAIL_PAGES	= 1UL,
-> >  	VMEVENT_ATTR_NR_FREE_PAGES	= 2UL,
-> >  	VMEVENT_ATTR_NR_SWAP_PAGES	= 3UL,
-> > +	VMEVENT_ATTR_PRESSURE		= 4UL,
-> >  
-> >  	VMEVENT_ATTR_MAX		/* non-ABI */
-> >  };
-> 
-> I don't care about this as such but do you think you'll want high pressure
-> and low pressure notifications in the future or is that overkill?
-> 
-> low, shrink cache
-> high, processes consider exiting
-> 
-> or something, dunno really.
+So when Jiri Pirko made Linux kernel 2.6.32 fill ru_maxrss with
+something better than 0, he chose to follow BSD by doing it in KBs
+(a better, more portable, unit than number of pages anyway); and
+simultaneously alerted the time-1.7 maintainer (he doesn't mention
+who, and I didn't actually see the name in his mail's Cc list) that
+the BSD value was already shown wrongly, and the Linux value about
+to be shown wrongly.  He and we thought it easier to keep BSD and
+Linux in synch, but no fix to the time package has appeared.
 
-Currently userland can set their own thresholds, i.e. from 0 to 100, and
-kernel will only send notification once the value crosses the threshold
-(it can be edge-triggered or continuous).
-
-(Down below are just my thoughts, I'm not trying to "convince" you, just
-sharing it so maybe you can see some flaws or misconceptions in my
-thinking.)
-
-The problem with defining low/high in the kernel (instead of 0..100 range)
-is that people will want to tune it anyway. The decision what to consider
-low or high pressure is more like user's preference.
-
-Just an example:
-
-x="I mostly single-task, I don't switch tasks often, and I want to run
-foreground task as smooth as possible: do not care about the rest"
-
-vs.
-
-y="I want to multi-task everything: try to keep everything running, and
-use swap if things do not fit"
-
-The ratio x/y should be the base for setting up the pressure threshold. It
-might be noted that it kind of reminds kernel's 'swappiness' -- how much
-the user is willing to sacrifice of the "[idling] rest" in favour of
-keeping things smooth for "recently used/new" stuff.
-
-And here we just try to let userland to assist, userland can tell "oh,
-don't bother with swapping or draining caches, I can just free some
-memory".
-
-Quite interesting, this also very much resembles volatile mmap ranges
-(i.e. the work that John Stultz is leading in parallel).
-
-And the volatile mmap is one of many techniques for such an assistance.
-The downside of per-app volatile ranges though, is that that each app
-should manage what is volatile and what is not, but the app itself doesn't
-know about the overall system state, and whether the app is "important" at
-this moment or not.
-
-And here comes another approach, which Android also implements: activity
-manager, it tries to predict what user wants, which apps the user uses the
-most, which are running in the background but not necessary needed at the
-moment, etc. The manager marks appropriate process to be "killed*" once we
-are low on memory.
-
-This is not to be confused w/ "which processes/pages are used the most",
-since there's a huge difference between this, and "which apps the user
-uses the most". Kernel can predict the former, but not the latter...
-
-
-* Note that in Android case, all apps, which lowmemory killer is killing,
-  have already saved their app state on disk, so swapping them makes
-  almost no sense: we'll read everything from the disk anyway. (In
-  contrast, if I recall correctly, Windows 8 has a similar function
-  nowadays, but it just forcibly/prematurely swaps the apps, i.e. a
-  combination of swap-prefetch and activity manager. And if so, I think
-  Android is a bit smarter in that regard, it does things a little bit
-  more fine-grained.)
-
-[...]
-> > +static LIST_HEAD(vmevent_pwatchers);
-> > +static DEFINE_SPINLOCK(vmevent_pwatchers_lock);
-> > +
-> 
-> Comment that the lock protects the list of current watchers of pressure
-> and is taken during watcher registration and deregisteration.
-
-Sure, will do.
-
-> > +static uint vmevent_scanned;
-> > +static uint vmevent_reclaimed;
-> > +static uint vmevent_minwin = UINT_MAX; /* Smallest window in the list. */
-> > +static DEFINE_SPINLOCK(vmevent_pressure_lock);
-> > +
-> 
-> It's an RFC so do not consider this a slam but it may need fixing.
-> 
-> The vmevent_pressure_lock protects the vmevent_scanned, vmevent_reclaimed
-> etc from concurrent modification but this happens on every
-> shrink_inactive_list(). On small machines, this will not be a problem
-> but on big machines, this is not going to scale at all. It could in fact
-> force all reclaim to globally synchronise on this lock.
-> 
-> One possibility would be to make these per-cpu and lockless when
-> incrementing the counters. When they reach a threshold, take the lock
-> and update a central counter. It would introduce the problem that you
-> suffer from per-cpu counter drift so it's not perfectly
-> straight-forward.
-> 
-> Another possibility to consider is that you sample the vmstat counters
-> in the zone from vmevent_pressure and measure the difference from the
-> last read. That might be harder to get accurate figures from though.
-
-Yeah, I'll think how to improve it, thanks for the ideas!
-
-[...]
-> > +static void vmevent_match_pressure(struct vmevent_pwatcher *pw)
-> > +{
-> > +	struct vmevent_watch *watch = pw->watch;
-> > +	struct vmevent_attr *attr = pw->attr;
-> > +	ulong val;
-> > +
-> > +	val = vmevent_calc_pressure(pw);
-> > +
-> > +	/* Next round. */
-> > +	pw->scanned = 0;
-> > +	pw->reclaimed = 0;
-> > +
-> > +	if (!vmevent_match_attr(attr, val))
-> > +		return;
-> > +
-> 
-> So, it's not commented on but if there is a brief spike in reclaim
-> inefficiency due to slow storage then this might prematurely fire
-> because there is no attempt to level off spikes.
-> 
-> To deal with this you would need to smooth out these spikes by
-> considering multiple window sizes and only firing when all are hit. This
-> does not necessaarily need to be visible to userspace because you could
-> select the additional window sizes based on the size of the initial
-> window.
-
-Actually, initially I tried to smooth them by root square mean of the
-previously calculated value, but I must admit it didn't make things much
-better, as I would expect. Although I didn't try to use additional window
-sizes, that might work indeed.
-
-But yes, I guess it makes sense to play with it later, as soon as folks
-agree on the idea in general, and there are no "design" issues of using
-the heuristic.
-
-> I also do not think that this problem needs to be fixed in the initial
-> version because I could be wrong about it being a problem. It would be nice
-> if it was documented in the comments though so if bug reports reports show
-> up about caches shrinking too quickly because the event fires prematurely
-> there is an idea in place on how to fix it.
-> 
-> > +	pw->samp->value = val;
-> > +
-> > +	atomic_set(&watch->pending, 1);
-> > +	wake_up(&watch->waitq);
-> > +}
-> > +
-> > +static void vmevent_pressure_tlet_fn(ulong data)
-> > +{
-> > +	struct vmevent_pwatcher *pw;
-> > +	uint s;
-> > +	uint r;
-> > +
-> > +	if (!vmevent_scanned)
-> > +		return;
-> > +
-> > +	spin_lock(&vmevent_pressure_lock);
-> > +	s = vmevent_scanned;
-> > +	r = vmevent_reclaimed;
-> > +	vmevent_scanned = 0;
-> > +	vmevent_reclaimed = 0;
-> > +	spin_unlock(&vmevent_pressure_lock);
-> > +
-> 
-> Same as before, the pressure pool and reclaim contend for the same lock
-> which is less than ideal.
-
-OK
-
-> > +	rcu_read_lock();
-> > +	list_for_each_entry_rcu(pw, &vmevent_pwatchers, node) {
-> > +		pw->scanned += s;
-> > +		pw->reclaimed += r;
-> > +		if (pw->scanned >= pw->window)
-> > +			vmevent_match_pressure(pw);
-> > +	}
-> > +	rcu_read_unlock();
-> 
-> RCU seems overkill here. Protect it with the normal spinlock but use
-> trylock here and abort the poll if the lock cannot be acquired. At worst
-> a few polls will be missed while an event notifier is being registered.
-
-Neat, will do.
-
-> > +}
-> > +static DECLARE_TASKLET(vmevent_pressure_tlet, vmevent_pressure_tlet_fn, 0);
-> > +
-> 
-> Why a tasklet? What fires it? How often?
-
-It is fired from the __vmevent_pressure, here:
-
-> > +void __vmevent_pressure(struct mem_cgroup *memcg,
-> > +			ulong scanned,
-> > +			ulong reclaimed)
-> > +{
-[...]
-> > +	vmevent_scanned += scanned;
-> > +	vmevent_reclaimed += reclaimed;
-> > +
-> > +	if (vmevent_scanned >= vmevent_minwin)
-> > +		tasklet_schedule(&vmevent_pressure_tlet);
-
-I.e. we fire it every time we gathered enough of data for the next round.
-
-We can't calculate the pressure factor here, since userland may setup
-multiple thresholds for the pressure, so updating all the watchers will
-not scale in this very hot path, I guess.
-
-Since we're running outside of interrupt context, tasklet_schedule() would
-just try to wakeup softirqd. I could use work_struct, it's just that it's
-a bit more heavyweight, I think. But using the tasklet is a premature
-"optimization", and I can make it work_struct, if that's desired.
-
-[...]
-> > +++ b/mm/vmscan.c
-> > @@ -20,6 +20,7 @@
-> >  #include <linux/init.h>
-> >  #include <linux/highmem.h>
-> >  #include <linux/vmstat.h>
-> > +#include <linux/vmevent.h>
-> >  #include <linux/file.h>
-> >  #include <linux/writeback.h>
-> >  #include <linux/blkdev.h>
-> > @@ -1334,6 +1335,9 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
-> >  		nr_scanned, nr_reclaimed,
-> >  		sc->priority,
-> >  		trace_shrink_flags(file));
-> > +
-> > +	vmevent_pressure(sc->target_mem_cgroup, nr_scanned, nr_reclaimed);
-> > +
-> >  	return nr_reclaimed;
-> >  }
-> >  
-> 
-> Very broadly speaking I think this will work better in practice than plain
-> "low memory notification" which I expect fires too often. There are some
-> things that need fixing up, some comments and some clarifications but I
-> think they can be addressed. The firing on spikes might be a problem in
-> the future but it can be fixed without changing the user-visible API.
-
-So far I only tested in "low memory notification mode", since it was my
-primary concern. I surely need to perform more use-case/dogfooding tests,
-for example try it on some heavy desktop environment on x86 machine, and
-see how precisely it reflects the pressure. My test would be like this:
-
-1. Start web/pdf browsing, with some video playback in background;
-2. See if the pressure factor can reliably predict sluggish behaviour,
-   i.e. excessive caches draining and swapping/thrashing.
-
-And the prediction part is most important, of course, we should act
-beforehand.
-
-
-Much thanks for the review and ideas!
-
-Anton.
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
