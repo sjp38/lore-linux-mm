@@ -1,174 +1,237 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx174.postini.com [74.125.245.174])
-	by kanga.kvack.org (Postfix) with SMTP id E72A06B002B
-	for <linux-mm@kvack.org>; Mon,  8 Oct 2012 03:26:12 -0400 (EDT)
-Date: Mon, 8 Oct 2012 09:26:01 +0200 (CEST)
-From: Jiri Kosina <jkosina@suse.cz>
-Subject: [PATCH] [RESEND] mm, slab: release slab_mutex earlier in
- kmem_cache_destroy()
-In-Reply-To: <alpine.DEB.2.00.1210031148520.2412@chino.kir.corp.google.com>
-Message-ID: <alpine.LNX.2.00.1210080924310.28357@pobox.suse.cz>
-References: <alpine.LNX.2.00.1210021810350.23544@pobox.suse.cz> <20121002170149.GC2465@linux.vnet.ibm.com> <alpine.LNX.2.00.1210022324050.23544@pobox.suse.cz> <alpine.LNX.2.00.1210022331130.23544@pobox.suse.cz> <alpine.LNX.2.00.1210022356370.23544@pobox.suse.cz>
- <20121002233138.GD2465@linux.vnet.ibm.com> <alpine.LNX.2.00.1210030142570.23544@pobox.suse.cz> <20121003001530.GF2465@linux.vnet.ibm.com> <alpine.LNX.2.00.1210030227430.23544@pobox.suse.cz> <0000013a26fb253a-fb5df733-ad41-47c1-af1d-3d6739e417de-000000@email.amazonses.com>
- <alpine.LNX.2.00.1210031631150.23544@pobox.suse.cz> <506C52FC.4040305@linux.vnet.ibm.com> <alpine.LNX.2.00.1210031703500.23544@pobox.suse.cz> <alpine.DEB.2.00.1210031148520.2412@chino.kir.corp.google.com>
+Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
+	by kanga.kvack.org (Postfix) with SMTP id 2AC796B002B
+	for <linux-mm@kvack.org>; Mon,  8 Oct 2012 04:02:49 -0400 (EDT)
+Date: Mon, 8 Oct 2012 17:06:54 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: CMA broken in next-20120926
+Message-ID: <20121008080654.GD13817@bbox>
+References: <20120928103815.GA15219@avionic-0098.mockup.avionic-design.de>
+ <20120928105113.GA18883@avionic-0098.mockup.avionic-design.de>
+ <20120928110712.GB29125@suse.de>
+ <20120928113924.GA25342@avionic-0098.mockup.avionic-design.de>
+ <20120928124332.GC29125@suse.de>
+ <20121001142428.GA2798@avionic-0098.mockup.avionic-design.de>
+ <20121002124814.GA31316@avionic-0098.mockup.avionic-design.de>
+ <20121002144135.GO29125@suse.de>
+ <20121002150307.GA1161@avionic-0098.mockup.avionic-design.de>
+ <20121002151217.GP29125@suse.de>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20121002151217.GP29125@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pekka Enberg <penberg@kernel.org>
-Cc: "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>, Christoph Lameter <cl@linux.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, "Paul E. McKenney" <paul.mckenney@linaro.org>, Josh Triplett <josh@joshtriplett.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, David Rientjes <rientjes@google.com>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Thierry Reding <thierry.reding@avionic-design.de>, Peter Ujfalusi <peter.ujfalusi@ti.com>, Andrew Morton <akpm@linux-foundation.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>, Mark Brown <broonie@opensource.wolfsonmicro.com>
 
-Commit 1331e7a1bbe1 ("rcu: Remove _rcu_barrier() dependency on 
-__stop_machine()") introduced slab_mutex -> cpu_hotplug.lock dependency 
-through kmem_cache_destroy() -> rcu_barrier() -> _rcu_barrier() -> 
-get_online_cpus().
+Hi Mel,
 
-Lockdep thinks that this might actually result in ABBA deadlock,
-and reports it as below:
+On Tue, Oct 02, 2012 at 04:12:17PM +0100, Mel Gorman wrote:
+> On Tue, Oct 02, 2012 at 05:03:07PM +0200, Thierry Reding wrote:
+> > On Tue, Oct 02, 2012 at 03:41:35PM +0100, Mel Gorman wrote:
+> > > On Tue, Oct 02, 2012 at 02:48:14PM +0200, Thierry Reding wrote:
+> > > > > So this really isn't all that new, but I just wanted to confirm my
+> > > > > results from last week. We'll see if bisection shows up something
+> > > > > interesting.
+> > > > 
+> > > > I just finished bisecting this and git reports:
+> > > > 
+> > > > 	3750280f8bd0ed01753a72542756a8c82ab27933 is the first bad commit
+> > > > 
+> > > > I'm attaching the complete bisection log and a diff of all the changes
+> > > > applied on top of the bad commit to make it compile and run on my board.
+> > > > Most of the patch is probably not important, though. There are two hunks
+> > > > which have the pageblock changes I already posted an two other hunks
+> > > > with the patch you posted earlier.
+> > > > 
+> > > > I hope this helps. If you want me to run any other tests, please let me
+> > > > know.
+> > > > 
+> > > 
+> > > Can you test with this on top please?
+> > 
+> > That doesn't build on top of the bad commit. Or is it supposed to go on
+> > top of next-20120926?
+> > 
+> 
+> It doesn't build or do you mean it doesn't apply? Assuming the problem
+> was that it didn't apply then try this one. It applies on top of
+> next-20120928 which is the closest tag I have to next-20120926.
+> 
+> ---8<---
+> mm: compaction: Cache if a pageblock was scanned and no pages were isolated -fix3
+> 
+> CMA requires that the PG_migrate_skip hint be skipped but it was only
+> skipping it when isolating pages for migration, not for free. Ensure
+> cc->isolate_skip_hint gets passed in both cases.
+> 
+> This is a fix for
+> mm-compaction-cache-if-a-pageblock-was-scanned-and-no-pages-were-isolated-fix.patch
+> 
+> Signed-off-by: Mel Gorman <mgorman@suse.de>
+Acked-by: Minchan Kim <minchan@kernel.org>
 
-=== [ cut here ] ===
- ======================================================
- [ INFO: possible circular locking dependency detected ]
- 3.6.0-rc5-00004-g0d8ee37 #143 Not tainted
- -------------------------------------------------------
- kworker/u:2/40 is trying to acquire lock:
-  (rcu_sched_state.barrier_mutex){+.+...}, at: [<ffffffff810f2126>] _rcu_barrier+0x26/0x1e0
+But please resend below compile error fixing.
 
- but task is already holding lock:
-  (slab_mutex){+.+.+.}, at: [<ffffffff81176e15>] kmem_cache_destroy+0x45/0xe0
-
- which lock already depends on the new lock.
-
- the existing dependency chain (in reverse order) is:
-
- -> #2 (slab_mutex){+.+.+.}:
-        [<ffffffff810ae1e2>] validate_chain+0x632/0x720
-        [<ffffffff810ae5d9>] __lock_acquire+0x309/0x530
-        [<ffffffff810ae921>] lock_acquire+0x121/0x190
-        [<ffffffff8155d4cc>] __mutex_lock_common+0x5c/0x450
-        [<ffffffff8155d9ee>] mutex_lock_nested+0x3e/0x50
-        [<ffffffff81558cb5>] cpuup_callback+0x2f/0xbe
-        [<ffffffff81564b83>] notifier_call_chain+0x93/0x140
-        [<ffffffff81076f89>] __raw_notifier_call_chain+0x9/0x10
-        [<ffffffff8155719d>] _cpu_up+0xba/0x14e
-        [<ffffffff815572ed>] cpu_up+0xbc/0x117
-        [<ffffffff81ae05e3>] smp_init+0x6b/0x9f
-        [<ffffffff81ac47d6>] kernel_init+0x147/0x1dc
-        [<ffffffff8156ab44>] kernel_thread_helper+0x4/0x10
-
- -> #1 (cpu_hotplug.lock){+.+.+.}:
-        [<ffffffff810ae1e2>] validate_chain+0x632/0x720
-        [<ffffffff810ae5d9>] __lock_acquire+0x309/0x530
-        [<ffffffff810ae921>] lock_acquire+0x121/0x190
-        [<ffffffff8155d4cc>] __mutex_lock_common+0x5c/0x450
-        [<ffffffff8155d9ee>] mutex_lock_nested+0x3e/0x50
-        [<ffffffff81049197>] get_online_cpus+0x37/0x50
-        [<ffffffff810f21bb>] _rcu_barrier+0xbb/0x1e0
-        [<ffffffff810f22f0>] rcu_barrier_sched+0x10/0x20
-        [<ffffffff810f2309>] rcu_barrier+0x9/0x10
-        [<ffffffff8118c129>] deactivate_locked_super+0x49/0x90
-        [<ffffffff8118cc01>] deactivate_super+0x61/0x70
-        [<ffffffff811aaaa7>] mntput_no_expire+0x127/0x180
-        [<ffffffff811ab49e>] sys_umount+0x6e/0xd0
-        [<ffffffff81569979>] system_call_fastpath+0x16/0x1b
-
- -> #0 (rcu_sched_state.barrier_mutex){+.+...}:
-        [<ffffffff810adb4e>] check_prev_add+0x3de/0x440
-        [<ffffffff810ae1e2>] validate_chain+0x632/0x720
-        [<ffffffff810ae5d9>] __lock_acquire+0x309/0x530
-        [<ffffffff810ae921>] lock_acquire+0x121/0x190
-        [<ffffffff8155d4cc>] __mutex_lock_common+0x5c/0x450
-        [<ffffffff8155d9ee>] mutex_lock_nested+0x3e/0x50
-        [<ffffffff810f2126>] _rcu_barrier+0x26/0x1e0
-        [<ffffffff810f22f0>] rcu_barrier_sched+0x10/0x20
-        [<ffffffff810f2309>] rcu_barrier+0x9/0x10
-        [<ffffffff81176ea1>] kmem_cache_destroy+0xd1/0xe0
-        [<ffffffffa04c3154>] nf_conntrack_cleanup_net+0xe4/0x110 [nf_conntrack]
-        [<ffffffffa04c31aa>] nf_conntrack_cleanup+0x2a/0x70 [nf_conntrack]
-        [<ffffffffa04c42ce>] nf_conntrack_net_exit+0x5e/0x80 [nf_conntrack]
-        [<ffffffff81454b79>] ops_exit_list+0x39/0x60
-        [<ffffffff814551ab>] cleanup_net+0xfb/0x1b0
-        [<ffffffff8106917b>] process_one_work+0x26b/0x4c0
-        [<ffffffff81069f3e>] worker_thread+0x12e/0x320
-        [<ffffffff8106f73e>] kthread+0x9e/0xb0
-        [<ffffffff8156ab44>] kernel_thread_helper+0x4/0x10
-
- other info that might help us debug this:
-
- Chain exists of:
-   rcu_sched_state.barrier_mutex --> cpu_hotplug.lock --> slab_mutex
-
-  Possible unsafe locking scenario:
-
-        CPU0                    CPU1
-        ----                    ----
-   lock(slab_mutex);
-                                lock(cpu_hotplug.lock);
-                                lock(slab_mutex);
-   lock(rcu_sched_state.barrier_mutex);
-
-  *** DEADLOCK ***
-=== [ cut here ] ===
-
-This is actually a false positive. Lockdep has no way of knowing the fact
-that the ABBA can actually never happen, because of special semantics of
-cpu_hotplug.refcount and its handling in cpu_hotplug_begin(); the mutual
-exclusion there is not achieved through mutex, but through
-cpu_hotplug.refcount.
-
-The "neither cpu_up() nor cpu_down() will proceed past cpu_hotplug_begin()
-until everyone who called get_online_cpus() will call put_online_cpus()"
-semantics is totally invisible to lockdep.
-
-This patch therefore moves the unlock of slab_mutex so that rcu_barrier()
-is being called with it unlocked. It has two advantages:
-
-- it slightly reduces hold time of slab_mutex; as it's used to protect
-  the cachep list, it's not necessary to hold it over kmem_cache_free()
-  call any more
-- it silences the lockdep false positive warning, as it avoids lockdep ever
-  learning about slab_mutex -> cpu_hotplug.lock dependency
-
-Reviewed-by: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
-Reviewed-by: Srivatsa S. Bhat <srivatsa.bhat@linux.vnet.ibm.com>
-Acked-by: David Rientjes <rientjes@google.com>
-Signed-off-by: Jiri Kosina <jkosina@suse.cz>
----
- mm/slab_common.c |    5 ++++-
- 1 files changed, 4 insertions(+), 1 deletions(-)
-
-diff --git a/mm/slab_common.c b/mm/slab_common.c
-index 9c21725..069a24e6 100644
---- a/mm/slab_common.c
-+++ b/mm/slab_common.c
-@@ -168,6 +168,7 @@ void kmem_cache_destroy(struct kmem_cache *s)
- 		list_del(&s->list);
+diff --git a/mm/compaction.c b/mm/compaction.c
+index 136debd..ee461b8 100644
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -372,22 +372,14 @@ static unsigned long isolate_freepages_block(struct compact_control *cc,
+  * a free page).
+  */
+ unsigned long
+-isolate_freepages_range(unsigned long start_pfn, unsigned long end_pfn)
++isolate_freepages_range(struct compact_control *cc,
++			unsigned long start_pfn, unsigned long end_pfn)
+ {
+ 	unsigned long isolated, pfn, block_end_pfn;
+-	struct zone *zone = NULL;
+ 	LIST_HEAD(freelist);
  
- 		if (!__kmem_cache_shutdown(s)) {
-+			mutex_unlock(&slab_mutex);
- 			if (s->flags & SLAB_DESTROY_BY_RCU)
- 				rcu_barrier();
+-	/* cc needed for isolate_freepages_block to acquire zone->lock */
+-	struct compact_control cc = {
+-		.sync = true,
+-	};
+-
+-	if (pfn_valid(start_pfn))
+-		cc.zone = zone = page_zone(pfn_to_page(start_pfn));
+-
+ 	for (pfn = start_pfn; pfn < end_pfn; pfn += isolated) {
+-		if (!pfn_valid(pfn) || zone != page_zone(pfn_to_page(pfn)))
++		if (!pfn_valid(pfn) || cc->zone != page_zone(pfn_to_page(pfn)))
+ 			break;
  
-@@ -175,12 +176,14 @@ void kmem_cache_destroy(struct kmem_cache *s)
- 			kmem_cache_free(kmem_cache, s);
- 		} else {
- 			list_add(&s->list, &slab_caches);
-+			mutex_unlock(&slab_mutex);
- 			printk(KERN_ERR "kmem_cache_destroy %s: Slab cache still has objects\n",
- 				s->name);
- 			dump_stack();
- 		}
-+	} else {
-+		mutex_unlock(&slab_mutex);
- 	}
--	mutex_unlock(&slab_mutex);
- 	put_online_cpus();
+ 		/*
+@@ -397,7 +389,7 @@ isolate_freepages_range(unsigned long start_pfn, unsigned long end_pfn)
+ 		block_end_pfn = ALIGN(pfn + 1, pageblock_nr_pages);
+ 		block_end_pfn = min(block_end_pfn, end_pfn);
+ 
+-		isolated = isolate_freepages_block(&cc, pfn, block_end_pfn,
++		isolated = isolate_freepages_block(cc, pfn, block_end_pfn,
+ 						   &freelist, true);
+ 
+ 		/*
+diff --git a/mm/internal.h b/mm/internal.h
+index 9d5d276..a3ce781 100644
+--- a/mm/internal.h
++++ b/mm/internal.h
+@@ -135,7 +135,8 @@ struct compact_control {
+ };
+ 
+ unsigned long
+-isolate_freepages_range(unsigned long start_pfn, unsigned long end_pfn);
++isolate_freepages_range(struct compact_control *cc,
++			unsigned long start_pfn, unsigned long end_pfn);
+ unsigned long
+ isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
+ 	unsigned long low_pfn, unsigned long end_pfn, bool unevictable);
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 8e1be1c..d66efcb 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -5669,7 +5669,8 @@ static unsigned long pfn_max_align_up(unsigned long pfn)
  }
- EXPORT_SYMBOL(kmem_cache_destroy);
+ 
+ /* [start, end) must belong to a single zone. */
+-static int __alloc_contig_migrate_range(unsigned long start, unsigned long end)
++static int __alloc_contig_migrate_range(struct compact_control *cc,
++					unsigned long start, unsigned long end)
+ {
+ 	/* This function is based on compact_zone() from compaction.c. */
+ 	unsigned long nr_reclaimed;
+@@ -5677,26 +5678,17 @@ static int __alloc_contig_migrate_range(unsigned long start, unsigned long end)
+ 	unsigned int tries = 0;
+ 	int ret = 0;
+ 
+-	struct compact_control cc = {
+-		.nr_migratepages = 0,
+-		.order = -1,
+-		.zone = page_zone(pfn_to_page(start)),
+-		.sync = true,
+-		.ignore_skip_hint = true,
+-	};
+-	INIT_LIST_HEAD(&cc.migratepages);
+-
+ 	migrate_prep_local();
+ 
+-	while (pfn < end || !list_empty(&cc.migratepages)) {
++	while (pfn < end || !list_empty(&cc->migratepages)) {
+ 		if (fatal_signal_pending(current)) {
+ 			ret = -EINTR;
+ 			break;
+ 		}
+ 
+-		if (list_empty(&cc.migratepages)) {
+-			cc.nr_migratepages = 0;
+-			pfn = isolate_migratepages_range(cc.zone, &cc,
++		if (list_empty(&cc->migratepages)) {
++			cc->nr_migratepages = 0;
++			pfn = isolate_migratepages_range(cc->zone, cc,
+ 							 pfn, end, true);
+ 			if (!pfn) {
+ 				ret = -EINTR;
+@@ -5708,16 +5700,16 @@ static int __alloc_contig_migrate_range(unsigned long start, unsigned long end)
+ 			break;
+ 		}
+ 
+-		nr_reclaimed = reclaim_clean_pages_from_list(cc.zone,
+-							&cc.migratepages);
+-		cc.nr_migratepages -= nr_reclaimed;
++		nr_reclaimed = reclaim_clean_pages_from_list(cc->zone,
++							&cc->migratepages);
++		cc->nr_migratepages -= nr_reclaimed;
+ 
+-		ret = migrate_pages(&cc.migratepages,
++		ret = migrate_pages(&cc->migratepages,
+ 				    alloc_migrate_target,
+ 				    0, false, MIGRATE_SYNC);
+ 	}
+ 
+-	putback_lru_pages(&cc.migratepages);
++	putback_lru_pages(&cc->migratepages);
+ 	return ret > 0 ? 0 : ret;
+ }
+ 
+@@ -5796,6 +5788,15 @@ int alloc_contig_range(unsigned long start, unsigned long end,
+ 	unsigned long outer_start, outer_end;
+ 	int ret = 0, order;
+ 
++	struct compact_control cc = {
++		.nr_migratepages = 0,
++		.order = -1,
++		.zone = page_zone(pfn_to_page(start)),
++		.sync = true,
++		.ignore_skip_hint = true,
++	};
++	INIT_LIST_HEAD(&cc.migratepages);
++
+ 	/*
+ 	 * What we do here is we mark all pageblocks in range as
+ 	 * MIGRATE_ISOLATE.  Because pageblock and max order pages may
+@@ -5825,7 +5826,7 @@ int alloc_contig_range(unsigned long start, unsigned long end,
+ 	if (ret)
+ 		goto done;
+ 
+-	ret = __alloc_contig_migrate_range(start, end);
++	ret = __alloc_contig_migrate_range(&cc, start, end);
+ 	if (ret)
+ 		goto done;
+ 
+@@ -5874,7 +5875,7 @@ int alloc_contig_range(unsigned long start, unsigned long end,
+ 	__reclaim_pages(zone, GFP_HIGHUSER_MOVABLE, end-start);
+ 
+ 	/* Grab isolated pages from freelists. */
+-	outer_end = isolate_freepages_range(outer_start, end);
++	outer_end = isolate_freepages_range(&cc, outer_start, end);
+ 	if (!outer_end) {
+ 		ret = -EBUSY;
+ 		goto done;
 
 -- 
-Jiri Kosina
-SUSE Labs
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
