@@ -1,46 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
-	by kanga.kvack.org (Postfix) with SMTP id 29E9C6B0044
-	for <linux-mm@kvack.org>; Mon,  8 Oct 2012 11:15:56 -0400 (EDT)
-Date: Mon, 8 Oct 2012 11:15:52 -0400
-From: Dave Jones <davej@redhat.com>
-Subject: Re: mpol_to_str revisited.
-Message-ID: <20121008151552.GA10881@redhat.com>
-References: <20121008150949.GA15130@redhat.com>
+Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
+	by kanga.kvack.org (Postfix) with SMTP id 7FCF26B002B
+	for <linux-mm@kvack.org>; Mon,  8 Oct 2012 11:17:03 -0400 (EDT)
+Date: Mon, 8 Oct 2012 16:16:56 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH] mm: memmap_init_zone() performance improvement
+Message-ID: <20121008151656.GM29125@suse.de>
+References: <1349276174-8398-1-git-send-email-mike.yoknis@hp.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20121008150949.GA15130@redhat.com>
+In-Reply-To: <1349276174-8398-1-git-send-email-mike.yoknis@hp.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linux Kernel <linux-kernel@vger.kernel.org>, bhutchings@solarflare.com, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Mike Yoknis <mike.yoknis@hp.com>
+Cc: mingo@redhat.com, akpm@linux-foundation.org, linux-arch@vger.kernel.org, mmarek@suse.cz, tglx@linutronix.de, hpa@zytor.com, arnd@arndb.de, sam@ravnborg.org, minchan@kernel.org, kamezawa.hiroyu@jp.fujitsu.com, mhocko@suse.cz, linux-kbuild@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Mon, Oct 08, 2012 at 11:09:49AM -0400, Dave Jones wrote:
- > Last month I sent in 80de7c3138ee9fd86a98696fd2cf7ad89b995d0a to remove
- > a user triggerable BUG in mempolicy.
- > 
- > Ben Hutchings pointed out to me that my change introduced a potential leak
- > of stack contents to userspace, because none of the callers check the return value.
- > 
- > This patch adds the missing return checking, and also clears the buffer beforehand.
- > 
- > Reported-by: Ben Hutchings <bhutchings@solarflare.com>
- > Cc: stable@kernel.org
- > Signed-off-by: Dave Jones <davej@redhat.com>
- > 
- > --- 
- > unanswered question: why are the buffer sizes here different ? which is correct?
+On Wed, Oct 03, 2012 at 08:56:14AM -0600, Mike Yoknis wrote:
+> memmap_init_zone() loops through every Page Frame Number (pfn),
+> including pfn values that are within the gaps between existing
+> memory sections.  The unneeded looping will become a boot
+> performance issue when machines configure larger memory ranges
+> that will contain larger and more numerous gaps.
+> 
+> The code will skip across invalid sections to reduce the
+> number of loops executed.
+> 
+> Signed-off-by: Mike Yoknis <mike.yoknis@hp.com>
 
-A further unanswered question is how the state got so screwed up that we hit that
-default case at all.  Looking at the original report: https://lkml.org/lkml/2012/9/6/356
-What's in RAX looks suspiciously like left-over slab poison.
+This only helps SPARSEMEM and changes more headers than should be
+necessary. It would have been easier to do something simple like
 
-If pol->mode was poisoned, that smells like we have a race where policy is getting freed
-while another process is reading it.
+if (!early_pfn_valid(pfn)) {
+	pfn = ALIGN(pfn + MAX_ORDER_NR_PAGES, MAX_ORDER_NR_PAGES) - 1;
+	continue;
+}
 
-Am I missing something, or is there no locking around that at all ?
+because that would obey the expectation that pages within a
+MAX_ORDER_NR_PAGES-aligned range are all valid or all invalid (ARM is the
+exception that breaks this rule). It would be less efficient on
+SPARSEMEM than what you're trying to merge but I do not see the need for
+the additional complexity unless you can show it makes a big difference
+to boot times.
 
-	Dave
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
