@@ -1,62 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx202.postini.com [74.125.245.202])
-	by kanga.kvack.org (Postfix) with SMTP id E90E66B002B
-	for <linux-mm@kvack.org>; Mon,  8 Oct 2012 16:52:17 -0400 (EDT)
-Date: Mon, 8 Oct 2012 16:52:13 -0400
-From: Dave Jones <davej@redhat.com>
-Subject: Re: mpol_to_str revisited.
-Message-ID: <20121008205213.GA23211@redhat.com>
-References: <20121008150949.GA15130@redhat.com>
- <alpine.DEB.2.00.1210081330160.18768@chino.kir.corp.google.com>
+Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
+	by kanga.kvack.org (Postfix) with SMTP id ABF326B002B
+	for <linux-mm@kvack.org>; Mon,  8 Oct 2012 17:28:39 -0400 (EDT)
+Received: by mail-pa0-f41.google.com with SMTP id fa10so4900440pad.14
+        for <linux-mm@kvack.org>; Mon, 08 Oct 2012 14:28:39 -0700 (PDT)
+Date: Mon, 8 Oct 2012 14:28:37 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH v4] slab: Ignore internal flags in cache creation
+In-Reply-To: <1349434154-8000-1-git-send-email-glommer@parallels.com>
+Message-ID: <alpine.DEB.2.00.1210081424340.22552@chino.kir.corp.google.com>
+References: <1349434154-8000-1-git-send-email-glommer@parallels.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1210081330160.18768@chino.kir.corp.google.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Linux Kernel <linux-kernel@vger.kernel.org>, bhutchings@solarflare.com, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Glauber Costa <glommer@parallels.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@cs.helsinki.fi>
 
-On Mon, Oct 08, 2012 at 01:35:42PM -0700, David Rientjes wrote:
+On Fri, 5 Oct 2012, Glauber Costa wrote:
 
- > > unanswered question: why are the buffer sizes here different ? which is correct?
- > > 
- > Given the current set of mempolicy modes and flags, it's 34, but this can 
- > change if new modes or flags are added with longer names.  I see no reason 
- > why shmem shouldn't round up to the nearest power-of-2 of 64 like it 
- > already does, but 50 is certainly safe as well in task_mmu.c.
+> diff --git a/mm/slab.h b/mm/slab.h
+> index 7deeb44..4c35c17 100644
+> --- a/mm/slab.h
+> +++ b/mm/slab.h
+> @@ -45,6 +45,31 @@ static inline struct kmem_cache *__kmem_cache_alias(const char *name, size_t siz
+>  #endif
+>  
+>  
+> +/* Legal flag mask for kmem_cache_create(), for various configurations */
+> +#define SLAB_CORE_FLAGS (SLAB_HWCACHE_ALIGN | SLAB_CACHE_DMA | SLAB_PANIC | \
+> +			 SLAB_DESTROY_BY_RCU | SLAB_DEBUG_OBJECTS )
+> +
+> +#if defined(CONFIG_DEBUG_SLAB)
+> +#define SLAB_DEBUG_FLAGS (SLAB_RED_ZONE | SLAB_POISON | SLAB_STORE_USER)
+> +#elif defined(CONFIG_SLUB_DEBUG)
+> +#define SLAB_DEBUG_FLAGS (SLAB_RED_ZONE | SLAB_POISON | SLAB_STORE_USER | \
+> +			  SLAB_TRACE | SLAB_DEBUG_FREE)
+> +#else
+> +#define SLAB_DEBUG_FLAGS (0)
+> +#endif
+> +
+> +#if defined(CONFIG_SLAB)
+> +#define SLAB_CACHE_FLAGS (SLAB_MEMSPREAD | SLAB_NOLEAKTRACE | \
 
-Ok. I'll leave that for now.
- 
- > > diff -durpN '--exclude-from=/home/davej/.exclude' src/git-trees/kernel/linux/fs/proc/task_mmu.c linux-dj/fs/proc/task_mmu.c
- > > --- src/git-trees/kernel/linux/fs/proc/task_mmu.c	2012-05-31 22:32:46.778150675 -0400
- > > +++ linux-dj/fs/proc/task_mmu.c	2012-10-04 19:31:41.269988984 -0400
- > > @@ -1162,6 +1162,7 @@ static int show_numa_map(struct seq_file
- > >  	struct mm_walk walk = {};
- > >  	struct mempolicy *pol;
- > >  	int n;
- > > +	int ret;
- > >  	char buffer[50];
- > >  
- > >  	if (!mm)
- > > @@ -1178,7 +1179,11 @@ static int show_numa_map(struct seq_file
- > >  	walk.mm = mm;
- > >  
- > >  	pol = get_vma_policy(proc_priv->task, vma, vma->vm_start);
- > > -	mpol_to_str(buffer, sizeof(buffer), pol, 0);
- > > +	memset(buffer, 0, sizeof(buffer));
- > > +	ret = mpol_to_str(buffer, sizeof(buffer), pol, 0);
- > > +	if (ret < 0)
- > > +		return 0;
- > 
- > We should need the mpol_cond_put(pol) here before returning.
+s/SLAB_MEMSPREAD/SLAB_MEM_SPREAD/
 
-good catch. I'll respin the patch later with this changed.
-
-thanks,
- 
-	Dave
-
+> +			  SLAB_RECLAIM_ACCOUNT | SLAB_TEMPORARY | SLAB_NOTRACK)
+> +#elif defined(CONFIG_SLUB)
+> +#define SLAB_CACHE_FLAGS (SLAB_NOLEAKTRACE | SLAB_RECLAIM_ACCOUNT | \
+> +			  SLAB_TEMPORARY | SLAB_NOTRACK)
+> +#else
+> +#define SLAB_CACHE_FLAGS (0)
+> +#endif
+> +
+> +#define CACHE_CREATE_MASK (SLAB_CORE_FLAGS | SLAB_DEBUG_FLAGS | SLAB_CACHE_FLAGS)
+> +
+>  int __kmem_cache_shutdown(struct kmem_cache *);
+>  
+>  #endif
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
