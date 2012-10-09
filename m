@@ -1,180 +1,123 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx112.postini.com [74.125.245.112])
-	by kanga.kvack.org (Postfix) with SMTP id DEB606B002B
-	for <linux-mm@kvack.org>; Tue,  9 Oct 2012 07:10:12 -0400 (EDT)
-Received: from /spool/local
-	by e06smtp14.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <schwidefsky@de.ibm.com>;
-	Tue, 9 Oct 2012 12:10:10 +0100
-Received: from d06av06.portsmouth.uk.ibm.com (d06av06.portsmouth.uk.ibm.com [9.149.37.217])
-	by b06cxnps4076.portsmouth.uk.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q99BA2B518481214
-	for <linux-mm@kvack.org>; Tue, 9 Oct 2012 11:10:02 GMT
-Received: from d06av06.portsmouth.uk.ibm.com (loopback [127.0.0.1])
-	by d06av06.portsmouth.uk.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q99BA8oN005856
-	for <linux-mm@kvack.org>; Tue, 9 Oct 2012 05:10:09 -0600
-Date: Tue, 9 Oct 2012 10:18:22 +0200
-From: Martin Schwidefsky <schwidefsky@de.ibm.com>
-Subject: Re: [PATCH] mm: Fix XFS oops due to dirty pages without buffers on
- s390
-Message-ID: <20121009101822.79bdcb65@mschwide>
-In-Reply-To: <alpine.LSU.2.00.1210082029190.2237@eggly.anvils>
-References: <1349108796-32161-1-git-send-email-jack@suse.cz>
- <alpine.LSU.2.00.1210082029190.2237@eggly.anvils>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
+	by kanga.kvack.org (Postfix) with SMTP id 5C50F6B0044
+	for <linux-mm@kvack.org>; Tue,  9 Oct 2012 07:10:28 -0400 (EDT)
+Received: from epcpsbgm2.samsung.com (epcpsbgm2 [203.254.230.27])
+ by mailout3.samsung.com
+ (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
+ 17 2011)) with ESMTP id <0MBM00GU2HOSZ480@mailout3.samsung.com> for
+ linux-mm@kvack.org; Tue, 09 Oct 2012 20:10:26 +0900 (KST)
+Received: from amdc1032.localnet ([106.116.147.136])
+ by mmp2.samsung.com (Oracle Communications Messaging Server 7u4-24.01
+ (7.0.4.24.0) 64bit (built Nov 17 2011))
+ with ESMTPA id <0MBM00E2LHPB7T40@mmp2.samsung.com> for linux-mm@kvack.org;
+ Tue, 09 Oct 2012 20:10:26 +0900 (KST)
+From: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
+Subject: Re: CMA broken in next-20120926
+Date: Tue, 09 Oct 2012 13:08:30 +0200
+References: <20120928105113.GA18883@avionic-0098.mockup.avionic-design.de>
+ <201210091040.10811.b.zolnierkie@samsung.com> <20121009101143.GQ29125@suse.de>
+In-reply-to: <20121009101143.GQ29125@suse.de>
+MIME-version: 1.0
+Content-type: Text/Plain; charset=us-ascii
+Content-transfer-encoding: 7bit
+Message-id: <201210091308.30306.b.zolnierkie@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Jan Kara <jack@suse.cz>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, xfs@oss.sgi.com, Mel Gorman <mgorman@suse.de>, linux-s390@vger.kernel.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: Minchan Kim <minchan@kernel.org>, Thierry Reding <thierry.reding@avionic-design.de>, Peter Ujfalusi <peter.ujfalusi@ti.com>, Andrew Morton <akpm@linux-foundation.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Kyungmin Park <kyungmin.park@samsung.com>, Mark Brown <broonie@opensource.wolfsonmicro.com>
 
-On Mon, 8 Oct 2012 21:24:40 -0700 (PDT)
-Hugh Dickins <hughd@google.com> wrote:
-
-> On Mon, 1 Oct 2012, Jan Kara wrote:
-> 
-> > On s390 any write to a page (even from kernel itself) sets architecture
-> > specific page dirty bit. Thus when a page is written to via standard write, HW
-> > dirty bit gets set and when we later map and unmap the page, page_remove_rmap()
-> > finds the dirty bit and calls set_page_dirty().
+On Tuesday 09 October 2012 12:11:43 Mel Gorman wrote:
+> On Tue, Oct 09, 2012 at 10:40:10AM +0200, Bartlomiej Zolnierkiewicz wrote:
+> > I also need following patch to make CONFIG_CMA=y && CONFIG_COMPACTION=y case
+> > work:
 > > 
-> > Dirtying of a page which shouldn't be dirty can cause all sorts of problems to
-> > filesystems. The bug we observed in practice is that buffers from the page get
-> > freed, so when the page gets later marked as dirty and writeback writes it, XFS
-> > crashes due to an assertion BUG_ON(!PagePrivate(page)) in page_buffers() called
-> > from xfs_count_page_state().
-> 
-> What changed recently?  Was XFS hardly used on s390 until now?
-
-One thing that changed is that the zero_user_segment for the remaining bytes between
-i_size and the end of the page has been moved to block_write_full_page_endio, see
-git commit eebd2aa355692afa. That changed the timing of the race window in regard
-to map/unmap of the page by user space. And yes XFS is in use on s390.
- 
+> > From: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
+> > Subject: [PATCH] mm: compaction: cache if a pageblock was scanned and no pages were isolated - cma fix
 > > 
-> > Similar problem can also happen when zero_user_segment() call from
-> > xfs_vm_writepage() (or block_write_full_page() for that matter) set the
-> > hardware dirty bit during writeback, later buffers get freed, and then page
-> > unmapped.
+> > Patch "mm: compaction: cache if a pageblock was scanned and no pages
+> > were isolated" needs a following fix to successfully boot next-20121002
+> > kernel (same with next-20121008) with CONFIG_CMA=y and CONFIG_COMPACTION=y
+> > (with applied -fix1, -fix2, -fix3 patches from Mel Gorman and also with
+> > cmatest module from Thierry Reding compiled in).
 > > 
-> > Fix the issue by ignoring s390 HW dirty bit for page cache pages in
-> > page_mkclean() and page_remove_rmap(). This is safe because when a page gets
-> > marked as writeable in PTE it is also marked dirty in do_wp_page() or
-> > do_page_fault(). When the dirty bit is cleared by clear_page_dirty_for_io(),
-> > the page gets writeprotected in page_mkclean(). So pagecache page is writeable
-> > if and only if it is dirty.
 > 
-> Very interesting patch...
+> Why is it needed to make it boot? CMA should not care about the
 
-Yes, it is an interesting idea. I really like the part that we'll use less storage
-key operations, as these are freaking expensive.
+It boots without Thierry's cmatest module but then fails on CMA
+allocation attempt (I used out-of-tree /dev/cma_test interface to
+generate CMA allocation request from user-space).
 
-> > 
-> > CC: Martin Schwidefsky <schwidefsky@de.ibm.com>
-> 
-> which I'd very much like Martin's opinion on...
+> PG_migrate_skip hint being set because it should always ignore it in
+> alloc_contig_range() due to cc->ignore_skip_hint. It's not obvious to
+> me why this fixes a boot failure and I wonder if it's papering over some
+> underlying problem. Can you provide more details please?
 
-Until you pointed out the short-comings of the patch I really liked it ..
+I just compared CONFIG_COMPACTION=n and =y cases initially, figured
+out the difference and did the change.  However on a closer look it
+seems that {get,clear,set}_pageblock_skip() use incorrect bit ranges
+(please compare to bit ranges used by {get,set}_pageblock_flags()
+used for migration types) and can overwrite pageblock migratetype of
+the next pageblock in the bitmap (I wonder how could this code ever
+worked before?).
 
+> > Signed-off-by: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
+> > Signed-off-by: Kyungmin Park <kyungmin.park@samsung.com>
 > > ---
-> >  mm/rmap.c |   16 ++++++++++++++--
-> >  1 files changed, 14 insertions(+), 2 deletions(-)
+> >  mm/compaction.c |    3 ++-
+> >  1 file changed, 2 insertions(+), 1 deletion(-)
 > > 
-> > diff --git a/mm/rmap.c b/mm/rmap.c
-> > index 0f3b7cd..6ce8ddb 100644
-> > --- a/mm/rmap.c
-> > +++ b/mm/rmap.c
-> > @@ -973,7 +973,15 @@ int page_mkclean(struct page *page)
-> >  		struct address_space *mapping = page_mapping(page);
-> >  		if (mapping) {
-> >  			ret = page_mkclean_file(mapping, page);
-> > -			if (page_test_and_clear_dirty(page_to_pfn(page), 1))
-> > +			/*
-> > +			 * We ignore dirty bit for pagecache pages. It is safe
-> > +			 * as page is marked dirty iff it is writeable (page is
-> > +			 * marked as dirty when it is made writeable and
-> > +			 * clear_page_dirty_for_io() writeprotects the page
-> > +			 * again).
-> > +			 */
-> > +			if (PageSwapCache(page) &&
-> > +			    page_test_and_clear_dirty(page_to_pfn(page), 1))
-> >  				ret = 1;
-> 
-> This part you could cut out: page_mkclean() is not used on SwapCache pages.
-> I believe you are safe to remove the page_test_and_clear_dirty() from here.
+> > Index: b/mm/compaction.c
+> > ===================================================================
+> > --- a/mm/compaction.c	2012-10-08 18:10:53.491679716 +0200
+> > +++ b/mm/compaction.c	2012-10-08 18:11:33.615679713 +0200
+> > @@ -117,7 +117,8 @@ static void update_pageblock_skip(struct
+> >  			bool migrate_scanner)
+> >  {
+> >  	struct zone *zone = cc->zone;
+> > -	if (!page)
+> > +
+> > +	if (!page || cc->ignore_skip_hint)
+> >  		return;
+> >  
+> >  	if (!nr_isolated) {
 
-Hmm, who guarantees that page_mkclean won't be used for SwapCache in the
-future? At least we should add a comment there.
+The patch below also fixes the issue for me:
 
-> >  		}
-> >  	}
-> > @@ -1183,8 +1191,12 @@ void page_remove_rmap(struct page *page)
-> >  	 * this if the page is anon, so about to be freed; but perhaps
-> >  	 * not if it's in swapcache - there might be another pte slot
-> >  	 * containing the swap entry, but page not yet written to swap.
-> > +	 * For pagecache pages, we don't care about dirty bit in storage
-> > +	 * key because the page is writeable iff it is dirty (page is marked
-> > +	 * as dirty when it is made writeable and clear_page_dirty_for_io()
-> > +	 * writeprotects the page again).
-> >  	 */
-> > -	if ((!anon || PageSwapCache(page)) &&
-> > +	if (PageSwapCache(page) &&
-> >  	    page_test_and_clear_dirty(page_to_pfn(page), 1))
-> >  		set_page_dirty(page);
-> 
-> But here's where I think the problem is.  You're assuming that all
-> filesystems go the same mapping_cap_account_writeback_dirty() (yeah,
-> there's no such function, just a confusing maze of three) route as XFS.
-> 
-> But filesystems like tmpfs and ramfs (perhaps they're the only two
-> that matter here) don't participate in that, and wait for an mmap'ed
-> page to be seen modified by the user (usually via pte_dirty, but that's
-> a no-op on s390) before page is marked dirty; and page reclaim throws
-> away undirtied pages.
->
-> So, if I'm understanding right, with this change s390 would be in danger
-> of discarding shm, and mmap'ed tmpfs and ramfs pages - whereas pages
-> written with the write system call would already be PageDirty and secure.
+From: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
+Subject: [PATCH] mm: compaction: fix bit ranges in {get,clear,set}_pageblock_skip() 
 
-The patch relies on the software dirty bit tracking for file backed pages,
-if dirty bit tracking is not done for tmpfs and ramfs we are borked.
+{get,clear,set}_pageblock_skip() use incorrect bit ranges (please compare
+to bit ranges used by {get,set}_pageblock_flags() used for migration types)
+and can overwrite pageblock migratetype of the next pageblock in the bitmap.
+
+Signed-off-by: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
+Signed-off-by: Kyungmin Park <kyungmin.park@samsung.com>
+---
+ include/linux/pageblock-flags.h |    6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+Index: b/include/linux/pageblock-flags.h
+===================================================================
+--- a/include/linux/pageblock-flags.h	2012-10-09 12:50:20.366340001 +0200
++++ b/include/linux/pageblock-flags.h	2012-10-09 12:50:31.794339996 +0200
+@@ -71,13 +71,13 @@ void set_pageblock_flags_group(struct pa
+ #ifdef CONFIG_COMPACTION
+ #define get_pageblock_skip(page) \
+ 			get_pageblock_flags_group(page, PB_migrate_skip,     \
+-							PB_migrate_skip + 1)
++							PB_migrate_skip)
+ #define clear_pageblock_skip(page) \
+ 			set_pageblock_flags_group(page, 0, PB_migrate_skip,  \
+-							PB_migrate_skip + 1)
++							PB_migrate_skip)
+ #define set_pageblock_skip(page) \
+ 			set_pageblock_flags_group(page, 1, PB_migrate_skip,  \
+-							PB_migrate_skip + 1)
++							PB_migrate_skip)
+ #endif /* CONFIG_COMPACTION */
  
-> You mention above that even the kernel writing to the page would mark
-> the s390 storage key dirty.  I think that means that these shm and
-> tmpfs and ramfs pages would all have dirty storage keys just from the
-> clear_highpage() used to prepare them originally, and so would have
-> been found dirty anyway by the existing code here in page_remove_rmap(),
-> even though other architectures would regard them as clean and removable.
-
-No, the clear_highpage() will set the dirty bit in the storage key but
-the SetPageUptodate will clear the complete storage key including the
-dirty bit.
- 
-> If that's the case, then maybe we'd do better just to mark them dirty
-> when faulted in the s390 case.  Then your patch above should (I think)
-> be safe.  Though I'd then be VERY tempted to adjust the SwapCache case
-> too (I've not thought through exactly what that patch would be, just
-> one or two suitably placed SetPageDirtys, I think), and eliminate
-> page_test_and_clear_dirty() altogether - no tears shed by any of us!
-
-I am seriously tempted to switch to pure software dirty bits by using
-page protection for writable but clean pages. The worry is the number of
-additional protection faults we would get. But as we do software dirty
-bit tracking for the most part anyway this might not be as bad as it
-used to be.
-
-> A separate worry came to mind as I thought about your patch: where
-> in page migration is s390's dirty storage key migrated from old page
-> to new?  And if there is a problem there, that too should be fixed
-> by what I propose in the previous paragraph.
-
-That is covered by the SetPageUptodate() in migrate_page_copy().
-
--- 
-blue skies,
-   Martin.
-
-"Reality continues to ruin my life." - Calvin.
+ #define get_pageblock_flags(page) \
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
