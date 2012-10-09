@@ -1,88 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
-	by kanga.kvack.org (Postfix) with SMTP id 5019A6B0062
-	for <linux-mm@kvack.org>; Tue,  9 Oct 2012 12:58:49 -0400 (EDT)
-From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 4/5] mempolicy: fix refcount leak in mpol_set_shared_policy()
-Date: Tue,  9 Oct 2012 17:58:40 +0100
-Message-Id: <1349801921-16598-5-git-send-email-mgorman@suse.de>
-In-Reply-To: <1349801921-16598-1-git-send-email-mgorman@suse.de>
-References: <1349801921-16598-1-git-send-email-mgorman@suse.de>
+Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
+	by kanga.kvack.org (Postfix) with SMTP id A7E806B002B
+	for <linux-mm@kvack.org>; Tue,  9 Oct 2012 16:02:34 -0400 (EDT)
+Message-ID: <507482D7.909@tilera.com>
+Date: Tue, 9 Oct 2012 16:02:31 -0400
+From: Chris Metcalf <cmetcalf@tilera.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH 3/8] sparc64: Eliminate PTE table memory wastage.
+References: <20121002.182642.49574627747120711.davem@davemloft.net>	<87y5jmfbd3.fsf@linux.vnet.ibm.com> <20121004.142003.851528112593506369.davem@davemloft.net>
+In-Reply-To: <20121004.142003.851528112593506369.davem@davemloft.net>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Stable <stable@vger.kernel.org>
-Cc: Andi Kleen <ak@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Dave Jones <davej@redhat.com>, Christoph Lameter <cl@linux.com>, Hugh Dickins <hughd@google.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Mel Gorman <mgorman@suse.de>
+To: David Miller <davem@davemloft.net>
+Cc: aneesh.kumar@linux.vnet.ibm.com, linux-mm@kvack.org, sparclinux@vger.kernel.org, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, akpm@linux-foundation.org, aarcange@redhat.com, hannes@cmpxchg.org
 
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+On 10/4/2012 2:23 PM, David Miller wrote:
+> From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+> Date: Thu, 04 Oct 2012 22:00:48 +0530
+> 
+>> David Miller <davem@davemloft.net> writes:
+>>
+>>> We've split up the PTE tables so that they take up half a page instead
+>>> of a full page.  This is in order to facilitate transparent huge page
+>>> support, which works much better if our PMDs cover 4MB instead of 8MB.
+>>>
+>>> What we do is have a one-behind cache for PTE table allocations in the
+>>> mm struct.
+>>>
+>>> This logic triggers only on allocations.  For example, we don't try to
+>>> keep track of free'd up page table blocks in the style that the s390
+>>> port does.
+>>
+>> I am also implementing a similar change for powerpc. We have a 64K page
+>> size, and want to make sure PMD cover 16MB, which is the huge page size
+>> supported by the hardware. I was looking at using the s390 logic,
+>> considering we have 16 PMDs mapping to same PTE page. Should we look at
+>> generalizing the case so that other architectures can start using the
+>> same code ?
+> 
+> I think until we have multiple cases we won't know what's common or not.
+> 
+> Each arch has different need.  I need to split the page into two pieces
+> so my code is simpler, and juse uses page counting to manage alloc/free.
+> 
+> Whereas s390 uses an bitmask to manage page state, and also reclaims
+> pgtable pages into a per-mm list on free.  I decided not to do that
+> and to just let the page allocator do the work.
+> 
+> So I don't think it's appropriate to think about commonization at this
+> time, as even the only two cases existing are very non-common :-)
 
-commit 63f74ca21f1fad36d075e063f06dcc6d39fe86b2 upstream.
+I'll add arch/tile to the list of architectures that would benefit.
+We currently allocate PTEs using the page allocator, but by default
+we use 64K pages and 16M huge pages, so with 8-byte PTEs that's
+just 2K for the page table, so we could fit 32 of them on a page
+if we wished.  Instead, for the time being, we just waste the space.
 
-When shared_policy_replace() fails to allocate new->policy is not freed
-correctly by mpol_set_shared_policy().  The problem is that shared
-mempolicy code directly call kmem_cache_free() in multiple places where
-it is easy to make a mistake.
-
-This patch creates an sp_free wrapper function and uses it. The bug was
-introduced pre-git age (IOW, before 2.6.12-rc2).
-
-[mgorman@suse.de: Editted changelog]
-Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Signed-off-by: Mel Gorman <mgorman@suse.de>
-Reviewed-by: Christoph Lameter <cl@linux.com>
-Cc: Josh Boyer <jwboyer@gmail.com>
-Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
-Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
-Signed-off-by: Mel Gorman <mgorman@suse.de>
----
- mm/mempolicy.c |   15 +++++++++------
- 1 file changed, 9 insertions(+), 6 deletions(-)
-
-diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-index b2f12ec..1763418 100644
---- a/mm/mempolicy.c
-+++ b/mm/mempolicy.c
-@@ -2157,12 +2157,17 @@ mpol_shared_policy_lookup(struct shared_policy *sp, unsigned long idx)
- 	return pol;
- }
- 
-+static void sp_free(struct sp_node *n)
-+{
-+	mpol_put(n->policy);
-+	kmem_cache_free(sn_cache, n);
-+}
-+
- static void sp_delete(struct shared_policy *sp, struct sp_node *n)
- {
- 	pr_debug("deleting %lx-l%lx\n", n->start, n->end);
- 	rb_erase(&n->nd, &sp->root);
--	mpol_put(n->policy);
--	kmem_cache_free(sn_cache, n);
-+	sp_free(n);
- }
- 
- static struct sp_node *sp_alloc(unsigned long start, unsigned long end,
-@@ -2301,7 +2306,7 @@ int mpol_set_shared_policy(struct shared_policy *info,
- 	}
- 	err = shared_policy_replace(info, vma->vm_pgoff, vma->vm_pgoff+sz, new);
- 	if (err && new)
--		kmem_cache_free(sn_cache, new);
-+		sp_free(new);
- 	return err;
- }
- 
-@@ -2318,9 +2323,7 @@ void mpol_free_shared_policy(struct shared_policy *p)
- 	while (next) {
- 		n = rb_entry(next, struct sp_node, nd);
- 		next = rb_next(&n->nd);
--		rb_erase(&n->nd, &p->root);
--		mpol_put(n->policy);
--		kmem_cache_free(sn_cache, n);
-+		sp_delete(p, n);
- 	}
- 	mutex_unlock(&p->mutex);
- }
 -- 
-1.7.9.2
+Chris Metcalf, Tilera Corp.
+http://www.tilera.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
