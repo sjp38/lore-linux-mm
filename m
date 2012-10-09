@@ -1,35 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
-	by kanga.kvack.org (Postfix) with SMTP id A05DA6B002B
-	for <linux-mm@kvack.org>; Tue,  9 Oct 2012 10:22:10 -0400 (EDT)
-Message-ID: <1349792507.2759.283.camel@ul30vt.home>
-Subject: Re: [PATCH v3 10/10] mm: kill vma flag VM_RESERVED and
- mm->reserved_vm counter
-From: Alex Williamson <alex.williamson@redhat.com>
-Date: Tue, 09 Oct 2012 08:21:47 -0600
-In-Reply-To: <CA+55aFzCCSE3bnPL7pquYq9pW6YLs_2QZR7r9kZEgwxxc7rzYg@mail.gmail.com>
-References: <20120731103724.20515.60334.stgit@zurg>
-	 <20120731104239.20515.702.stgit@zurg>
-	 <1349776921.21172.4091.camel@edumazet-glaptop>
-	 <CA+55aFzCCSE3bnPL7pquYq9pW6YLs_2QZR7r9kZEgwxxc7rzYg@mail.gmail.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
+	by kanga.kvack.org (Postfix) with SMTP id 253F36B002B
+	for <linux-mm@kvack.org>; Tue,  9 Oct 2012 10:51:13 -0400 (EDT)
+Received: by mail-ie0-f169.google.com with SMTP id 10so14067902ied.14
+        for <linux-mm@kvack.org>; Tue, 09 Oct 2012 07:51:12 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <CALF0-+X65HCRurf5gvqd2Y2qWyn8o08qxi+bW9h2J2GsCAwOyQ@mail.gmail.com>
+References: <1346753637-13389-1-git-send-email-elezegarcia@gmail.com>
+	<5045D4B9.9000909@parallels.com>
+	<CALF0-+WZhY5NOYiEdDR2n_JrCKB70jei55pEw=914aSWmeqhNg@mail.gmail.com>
+	<5045E0ED.1000402@parallels.com>
+	<000001399270c7b4-b991895b-5754-4863-8009-c49996628cbb-000000@email.amazonses.com>
+	<CALF0-+WgbNFKx9COpURq5JGgB06yXraTOEE9Yf4ntjvx_tWaGQ@mail.gmail.com>
+	<CALF0-+X65HCRurf5gvqd2Y2qWyn8o08qxi+bW9h2J2GsCAwOyQ@mail.gmail.com>
+Date: Tue, 9 Oct 2012 11:51:11 -0300
+Message-ID: <CALF0-+UkBQfh2ownxPG_9=njxHSK5r_n-MztiVhF_CgfTRCA8g@mail.gmail.com>
+Subject: Re: [PATCH v2] mm, slob: Drop usage of page->private for storing
+ page-sized allocations
+From: Ezequiel Garcia <elezegarcia@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Eric Dumazet <eric.dumazet@gmail.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Nick Piggin <npiggin@kernel.dk>
+To: Pekka Enberg <penberg@kernel.org>
+Cc: Glauber Costa <glommer@parallels.com>, linux-mm@kvack.org, Christoph Lameter <cl@linux.com>, Matt Mackall <mpm@selenic.com>
 
-On Tue, 2012-10-09 at 21:12 +0900, Linus Torvalds wrote:
-> On Tue, Oct 9, 2012 at 7:02 PM, Eric Dumazet <eric.dumazet@gmail.com> wrote:
-> >
-> > It seems drivers/vfio/pci/vfio_pci.c uses VM_RESERVED
-> 
-> Yeah, I just pushed out what I think is the right (trivial) fix.
+Pekka,
 
-Thank you, looks correct to me as well.
+On Mon, Sep 24, 2012 at 2:11 PM, Ezequiel Garcia <elezegarcia@gmail.com> wrote:
+> Pekka,
+>
+> On Wed, Sep 5, 2012 at 11:11 AM, Ezequiel Garcia <elezegarcia@gmail.com> wrote:
+>> On Tue, Sep 4, 2012 at 3:00 PM, Christoph Lameter <cl@linux.com> wrote:
+>>> I thought I acked it before?
+>>>
+>>> Acked-by: Christoph Lameter <cl@linux.com>
+>>>
+>>
+>
+> Will you pick this for v3.7 pull request?
+> Or is there anything wrong with it?
 
-Alex
+I think you've missed this for your pull request.
+
+And I'm a bit puzzled, since it has been acked by Christoph,
+or are we still waiting to matt's ack?
+
+Thanks!
+
+    Ezequiel
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
