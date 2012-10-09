@@ -1,149 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
-	by kanga.kvack.org (Postfix) with SMTP id 34B296B005A
-	for <linux-mm@kvack.org>; Tue,  9 Oct 2012 19:00:39 -0400 (EDT)
-Received: by mail-ie0-f169.google.com with SMTP id 10so15174242ied.14
-        for <linux-mm@kvack.org>; Tue, 09 Oct 2012 16:00:38 -0700 (PDT)
-Date: Tue, 9 Oct 2012 16:00:30 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH] mm: Fix XFS oops due to dirty pages without buffers on
- s390
-In-Reply-To: <20121009093250.GP29125@suse.de>
-Message-ID: <alpine.LSU.2.00.1210091530020.30446@eggly.anvils>
-References: <1349108796-32161-1-git-send-email-jack@suse.cz> <alpine.LSU.2.00.1210082029190.2237@eggly.anvils> <20121009093250.GP29125@suse.de>
+Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
+	by kanga.kvack.org (Postfix) with SMTP id 1F38E6B002B
+	for <linux-mm@kvack.org>; Tue,  9 Oct 2012 19:02:08 -0400 (EDT)
+Received: by mail-qc0-f169.google.com with SMTP id t2so5167585qcq.14
+        for <linux-mm@kvack.org>; Tue, 09 Oct 2012 16:02:07 -0700 (PDT)
+Message-ID: <5074ACDA.2060705@gmail.com>
+Date: Tue, 09 Oct 2012 19:01:46 -0400
+From: Sasha Levin <levinsasha928@gmail.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH v3 06/10] mm: kill vma flag VM_CAN_NONLINEAR
+References: <20120731103724.20515.60334.stgit@zurg> <20120731104221.20515.90791.stgit@zurg>
+In-Reply-To: <20120731104221.20515.90791.stgit@zurg>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Jan Kara <jack@suse.cz>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, xfs@oss.sgi.com, Martin Schwidefsky <schwidefsky@de.ibm.com>, linux-s390@vger.kernel.org
+To: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Ingo Molnar <mingo@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Nick Piggin <npiggin@kernel.dk>, Dave Jones <davej@redhat.com>
 
-On Tue, 9 Oct 2012, Mel Gorman wrote:
-> On Mon, Oct 08, 2012 at 09:24:40PM -0700, Hugh Dickins wrote:
-> > 
-> > So, if I'm understanding right, with this change s390 would be in danger
-> > of discarding shm, and mmap'ed tmpfs and ramfs pages - whereas pages
-> > written with the write system call would already be PageDirty and secure.
-> > 
+On 07/31/2012 06:42 AM, Konstantin Khlebnikov wrote:
+> This patch moves actual ptes filling for non-linear file mappings
+> into special vma operation: ->remap_pages().
 > 
-> In the case of ramfs, what marks the page clean so it could be discarded? It
-> does not participate in dirty accounting so it's not going to clear the
-> dirty flag in clear_page_dirty_for_io(). It doesn't have a writepage
-> handler that would use an end_io handler to clear the page after "IO"
-> completes. I am not seeing how a ramfs page can get discarded at the moment.
-
-But we don't have a page clean bit: we have a page dirty bit, and where
-is that set in the ramfs read-fault case?  I've not experimented to check,
-maybe you're right and ramfs is exempt from the issue.  I thought it was
-__do_fault() which does the set_page_dirty, but only if FAULT_FLAG_WRITE.
-Ah, you quote almost the very place further down.
-
+> File system must implement this method to get non-linear mappings support,
+> if it uses filemap_fault() then generic_file_remap_pages() can be used.
 > 
-> shm and tmpfs are indeed different and I did not take them into account
-> (ba dum tisch) when reviewing. For those pages would it be sufficient to
-> check the following?
+> Now device drivers can implement this method and obtain nonlinear vma support.
 > 
-> PageSwapCache(page) || (page->mapping && !bdi_cap_account_dirty(page->mapping)
+> Signed-off-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
+> Cc: Alexander Viro <viro@zeniv.linux.org.uk>
+> Cc: Nick Piggin <npiggin@kernel.dk>
+> Cc: Ingo Molnar <mingo@redhat.com>
 
-Something like that, yes: I've a possible patch I'll put in reply to Jan.
+I was fuzzing with trinity inside a KVM tools guest, and hit the following NULL deref:
 
-> 
-> The problem the patch dealt with involved buffers associated with the page
-> and that shouldn't be a problem for tmpfs, right?
+[ 1202.209854] BUG: unable to handle kernel NULL pointer dereference at 0000000000000040
+[ 1202.215344] IP: [<ffffffff812290cf>] sys_remap_file_pages+0xcf/0x380
+[ 1202.215904] PGD 24ccc067 PUD 2f693067 PMD 0
+[ 1202.215904] Oops: 0000 [#2] PREEMPT SMP DEBUG_PAGEALLOC
+[ 1202.215904] CPU 3
+[ 1202.224995] Pid: 17953, comm: trinity-child3 Tainted: G      D W    3.6.0-next-20121009-sasha-00001-ge404bae #43
+[ 1202.224995] RIP: 0010:[<ffffffff812290cf>]  [<ffffffff812290cf>] sys_remap_file_pages+0xcf/0x380
+[ 1202.224995] RSP: 0018:ffff880025819f18  EFLAGS: 00010246
+[ 1202.224995] RAX: 00000000050444f9 RBX: 0000000080100000 RCX: 0000000000000001
+[ 1202.224995] RDX: 0000000000000000 RSI: 0000000080100000 RDI: ffff8800255f1000
+[ 1202.279533] RBP: ffff880025819f78 R08: ffff88000c9ea580 R09: 0000000000000000
+[ 1202.279533] R10: 0000000000000001 R11: 0000000000000000 R12: ffff8800255f10a8
+[ 1202.279533] R13: 0000000000000000 R14: ffff8800255f1000 R15: 0000000080700000
+[ 1202.279533] FS:  00007fa063d0e700(0000) GS:ffff880067600000(0000) knlGS:0000000000000000
+[ 1202.279533] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+[ 1202.279533] CR2: 0000000000000040 CR3: 000000002cc81000 CR4: 00000000000406e0
+[ 1202.279533] DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
+[ 1202.279533] DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
+[ 1202.279533] Process trinity-child3 (pid: 17953, threadinfo ffff880025818000, task ffff88003061b000)
+[ 1202.279533] Stack:
+[ 1202.279533]  ffff880025819f48 ffffffff8107dc10 0000000080100000 0000000000000000
+[ 1202.279533]  0000000000600000 000000000aefbf86 00000000000000d8 0000000080100000
+[ 1202.279533]  0000000000000003 00000000000000d8 0000000000600000 00000000000000d8
+[ 1202.279533] Call Trace:
+[ 1202.279533]  [<ffffffff8107dc10>] ? syscall_trace_enter+0x20/0x2e0
+[ 1202.279533]  [<ffffffff83a64738>] tracesys+0xe1/0xe6
+[ 1202.279533] Code: 02 00 00 48 8b 40 30 a8 08 0f 84 6d 02 00 00 49 83 b8 a0 00 00 00 00 74 0b a9 00 00 80 00 0f 84 58 02 00 00
+49 8b 90 88 00 00 00 <48> 83 7a 40 00 0f 84 46 02 00 00 49 8b 50 08 48 39 d3 0f 82 39
+[ 1202.279533] RIP  [<ffffffff812290cf>] sys_remap_file_pages+0xcf/0x380
+[ 1202.279533]  RSP <ffff880025819f18>
+[ 1202.279533] CR2: 0000000000000040
+[ 1202.401144] ---[ end trace fe8a5604834bab83 ]---
 
-Right, though I'm now beginning to wonder what the underlying bug is.
-It seems to me that we have a bug and an optimization on our hands,
-and have rushed into the optimization which would avoid the bug,
-without considering what the actual bug is.  More in reply to Jan.
+It would seem that this patch adds the following check into sys_remap_file_pages():
 
-> I recognise that this
-> might work just because of co-incidence and set off your "Yuck" detector
-> and you'll prefer the proposed solution below.
+        if (!vma->vm_ops->remap_pages)
+                goto out;
 
-No, I was mistaken to think that s390 would have dirty pages where
-others had clean, Martin has now explained that SetPageUptodate cleans.
-I didn't mind continuing an (imagined) inefficiency in s390, but I don't
-want to make it more inefficient.
+But vma->vm_ops itself is NULL.
 
-> 
-> > You mention above that even the kernel writing to the page would mark
-> > the s390 storage key dirty.  I think that means that these shm and
-> > tmpfs and ramfs pages would all have dirty storage keys just from the
-> > clear_highpage() used to prepare them originally, and so would have
-> > been found dirty anyway by the existing code here in page_remove_rmap(),
-> > even though other architectures would regard them as clean and removable.
-> > 
-> > If that's the case, then maybe we'd do better just to mark them dirty
-> > when faulted in the s390 case.  Then your patch above should (I think)
-> > be safe.  Though I'd then be VERY tempted to adjust the SwapCache case
-> > too (I've not thought through exactly what that patch would be, just
-> > one or two suitably placed SetPageDirtys, I think), and eliminate
-> > page_test_and_clear_dirty() altogether - no tears shed by any of us!
 
-So that fantasy was all wrong: appealing, but wrong.
-
-> >  
-> 
-> Do you mean something like this?
-> 
-> diff --git a/mm/memory.c b/mm/memory.c
-> index 5736170..c66166f 100644
-> --- a/mm/memory.c
-> +++ b/mm/memory.c
-> @@ -3316,7 +3316,20 @@ static int __do_fault(struct mm_struct *mm, struct vm_area_struct *vma,
->  		} else {
->  			inc_mm_counter_fast(mm, MM_FILEPAGES);
->  			page_add_file_rmap(page);
-> -			if (flags & FAULT_FLAG_WRITE) {
-> +
-> +			/*
-> +			 * s390 depends on the dirty flag from the storage key
-> +			 * being propagated when the page is unmapped from the
-> +			 * page tables. For dirty-accounted mapping, we instead
-> +			 * depend on the page being marked dirty on writes and
-> +			 * being write-protected on clear_page_dirty_for_io.
-> +			 * The same protection does not apply for tmpfs pages
-> +			 * that do not participate in dirty accounting so mark
-> +			 * them dirty at fault time to avoid the data being
-> +			 * lost
-> +			 */
-> +			if (flags & FAULT_FLAG_WRITE ||
-> +			    !bdi_cap_account_dirty(page->mapping)) {
->  				dirty_page = page;
->  				get_page(dirty_page);
->  			}
-> 
-> Could something like this result in more writes to swap? Lets say there
-> is an unmapped tmpfs file with data on it -- a process maps it, reads the
-> entire mapping and exits. The page is now dirty and potentially will have
-> to be rewritten to swap. That seems bad. Did I miss your point?
-
-My point was that I mistakenly thought s390 must already be behaving
-like that, so wanted it to continue that way, but with cleaner source.
-
-But the CONFIG_S390 in SetPageUptodate makes sure that the zeroed page
-starts out storage-key-clean: so you're exactly right, my suggestion
-would result in more writes to swap for it, which is not acceptable.
-
-(Plus, having insisted that ramfs is also affected, I went on
-to forget that, and was imagining a simple change in mm/shmem.c.)
-
-Hugh
-
-> 
-> > A separate worry came to mind as I thought about your patch: where
-> > in page migration is s390's dirty storage key migrated from old page
-> > to new?  And if there is a problem there, that too should be fixed
-> > by what I propose in the previous paragraph.
-> > 
-> 
-> hmm, very good question. It should have been checked in
-> migrate_page_copy() where it could be done under the page lock before
-> the PageDirty check. Martin?
-> 
-> -- 
-> Mel Gorman
-> SUSE Labs
+Thanks,
+Sasha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
