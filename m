@@ -1,64 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
-	by kanga.kvack.org (Postfix) with SMTP id 063F46B002B
-	for <linux-mm@kvack.org>; Tue,  9 Oct 2012 06:11:50 -0400 (EDT)
-Date: Tue, 9 Oct 2012 11:11:43 +0100
+Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
+	by kanga.kvack.org (Postfix) with SMTP id 669D16B002B
+	for <linux-mm@kvack.org>; Tue,  9 Oct 2012 06:16:24 -0400 (EDT)
+Date: Tue, 9 Oct 2012 11:16:18 +0100
 From: Mel Gorman <mgorman@suse.de>
-Subject: Re: CMA broken in next-20120926
-Message-ID: <20121009101143.GQ29125@suse.de>
-References: <20120928105113.GA18883@avionic-0098.mockup.avionic-design.de>
- <20121008080654.GD13817@bbox>
- <20121008084806.GH29125@suse.de>
- <201210091040.10811.b.zolnierkie@samsung.com>
+Subject: Re: [RFC] vmevent: Implement pressure attribute
+Message-ID: <20121009101618.GR29125@suse.de>
+References: <20121004110524.GA1821@lizard>
+ <20121005092912.GA29125@suse.de>
+ <20121007081414.GA18047@lizard>
+ <20121008094646.GI29125@suse.de>
+ <507380F8.4000401@linaro.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <201210091040.10811.b.zolnierkie@samsung.com>
+In-Reply-To: <507380F8.4000401@linaro.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
-Cc: Minchan Kim <minchan@kernel.org>, Thierry Reding <thierry.reding@avionic-design.de>, Peter Ujfalusi <peter.ujfalusi@ti.com>, Andrew Morton <akpm@linux-foundation.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Kyungmin Park <kyungmin.park@samsung.com>, Mark Brown <broonie@opensource.wolfsonmicro.com>
+To: John Stultz <john.stultz@linaro.org>
+Cc: Anton Vorontsov <anton.vorontsov@linaro.org>, Pekka Enberg <penberg@kernel.org>, Leonid Moiseichuk <leonid.moiseichuk@nokia.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Minchan Kim <minchan@kernel.org>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Colin Cross <ccross@android.com>, Arve Hj?nnev?g <arve@android.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org, kernel-team@android.com
 
-On Tue, Oct 09, 2012 at 10:40:10AM +0200, Bartlomiej Zolnierkiewicz wrote:
-> I also need following patch to make CONFIG_CMA=y && CONFIG_COMPACTION=y case
-> work:
+On Mon, Oct 08, 2012 at 06:42:16PM -0700, John Stultz wrote:
+> On 10/08/2012 02:46 AM, Mel Gorman wrote:
+> >On Sun, Oct 07, 2012 at 01:14:17AM -0700, Anton Vorontsov wrote:
+> >>And here we just try to let userland to assist, userland can tell "oh,
+> >>don't bother with swapping or draining caches, I can just free some
+> >>memory".
+> >>
+> >>Quite interesting, this also very much resembles volatile mmap ranges
+> >>(i.e. the work that John Stultz is leading in parallel).
+> >>
+> >Agreed. I haven't been paying close attention to those patches but it
+> >seems to me that one possiblity is that a listener for a vmevent would
+> >set volatile ranges in response.
 > 
-> From: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
-> Subject: [PATCH] mm: compaction: cache if a pageblock was scanned and no pages were isolated - cma fix
+> I don't have too much to comment on the rest of this mail, but just
+> wanted to pipe in here, as the volatile ranges have caused some
+> confusion.
 > 
-> Patch "mm: compaction: cache if a pageblock was scanned and no pages
-> were isolated" needs a following fix to successfully boot next-20121002
-> kernel (same with next-20121008) with CONFIG_CMA=y and CONFIG_COMPACTION=y
-> (with applied -fix1, -fix2, -fix3 patches from Mel Gorman and also with
-> cmatest module from Thierry Reding compiled in).
+> While your suggestion would be possible, with volatile ranges, I've
+> been promoting a more hands off-approach from the application
+> perspective, where the application always would mark data that could
+> be regenerated as volatile, unmarking it when accessing it.
+> 
+> This way the application doesn't need to be responsive to memory
+> pressure, the kernel just takes what it needs from what the
+> application made available.
+> 
+> Only when the application needs the data again, would it mark it
+> non-volatile (or alternatively with the new SIGBUS semantics, access
+> the purged volatile data and catch a SIGBUS), find the data was
+> purged and regenerate it.
 > 
 
-Why is it needed to make it boot? CMA should not care about the
-PG_migrate_skip hint being set because it should always ignore it in
-alloc_contig_range() due to cc->ignore_skip_hint. It's not obvious to
-me why this fixes a boot failure and I wonder if it's papering over some
-underlying problem. Can you provide more details please?
+Ok understood.
 
-> Signed-off-by: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
-> Signed-off-by: Kyungmin Park <kyungmin.park@samsung.com>
-> ---
->  mm/compaction.c |    3 ++-
->  1 file changed, 2 insertions(+), 1 deletion(-)
+> That said, hybrid approaches like you suggested would be possible,
+> but at a certain point, if we're waiting for a notification to take
+> action, it might be better just to directly free that memory, rather
+> then just setting it as volatile, and leaving it to the kernel then
+> reclaim it for you.
 > 
-> Index: b/mm/compaction.c
-> ===================================================================
-> --- a/mm/compaction.c	2012-10-08 18:10:53.491679716 +0200
-> +++ b/mm/compaction.c	2012-10-08 18:11:33.615679713 +0200
-> @@ -117,7 +117,8 @@ static void update_pageblock_skip(struct
->  			bool migrate_scanner)
->  {
->  	struct zone *zone = cc->zone;
-> -	if (!page)
-> +
-> +	if (!page || cc->ignore_skip_hint)
->  		return;
->  
->  	if (!nr_isolated) {
+
+That's fine. I did not mean to suggest that volatile and vmevents on
+memory pressure should be related or depending on each other in any way.
+
 
 -- 
 Mel Gorman
