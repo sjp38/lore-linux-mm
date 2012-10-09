@@ -1,82 +1,168 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
-	by kanga.kvack.org (Postfix) with SMTP id 1F38E6B002B
-	for <linux-mm@kvack.org>; Tue,  9 Oct 2012 19:02:08 -0400 (EDT)
-Received: by mail-qc0-f169.google.com with SMTP id t2so5167585qcq.14
-        for <linux-mm@kvack.org>; Tue, 09 Oct 2012 16:02:07 -0700 (PDT)
-Message-ID: <5074ACDA.2060705@gmail.com>
-Date: Tue, 09 Oct 2012 19:01:46 -0400
-From: Sasha Levin <levinsasha928@gmail.com>
+Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
+	by kanga.kvack.org (Postfix) with SMTP id A34F16B002B
+	for <linux-mm@kvack.org>; Tue,  9 Oct 2012 19:21:27 -0400 (EDT)
+Received: by mail-ia0-f169.google.com with SMTP id h37so1478684iak.14
+        for <linux-mm@kvack.org>; Tue, 09 Oct 2012 16:21:27 -0700 (PDT)
+Date: Tue, 9 Oct 2012 16:21:24 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH] mm: Fix XFS oops due to dirty pages without buffers on
+ s390
+In-Reply-To: <20121009101822.79bdcb65@mschwide>
+Message-ID: <alpine.LSU.2.00.1210091600450.30446@eggly.anvils>
+References: <1349108796-32161-1-git-send-email-jack@suse.cz> <alpine.LSU.2.00.1210082029190.2237@eggly.anvils> <20121009101822.79bdcb65@mschwide>
 MIME-Version: 1.0
-Subject: Re: [PATCH v3 06/10] mm: kill vma flag VM_CAN_NONLINEAR
-References: <20120731103724.20515.60334.stgit@zurg> <20120731104221.20515.90791.stgit@zurg>
-In-Reply-To: <20120731104221.20515.90791.stgit@zurg>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konstantin Khlebnikov <khlebnikov@openvz.org>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Ingo Molnar <mingo@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Nick Piggin <npiggin@kernel.dk>, Dave Jones <davej@redhat.com>
+To: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Cc: Jan Kara <jack@suse.cz>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, xfs@oss.sgi.com, Mel Gorman <mgorman@suse.de>, linux-s390@vger.kernel.org
 
-On 07/31/2012 06:42 AM, Konstantin Khlebnikov wrote:
-> This patch moves actual ptes filling for non-linear file mappings
-> into special vma operation: ->remap_pages().
+On Tue, 9 Oct 2012, Martin Schwidefsky wrote:
+> On Mon, 8 Oct 2012 21:24:40 -0700 (PDT)
+> Hugh Dickins <hughd@google.com> wrote:
+> > On Mon, 1 Oct 2012, Jan Kara wrote:
+> > 
+> > > On s390 any write to a page (even from kernel itself) sets architecture
+> > > specific page dirty bit. Thus when a page is written to via standard write, HW
+> > > dirty bit gets set and when we later map and unmap the page, page_remove_rmap()
+> > > finds the dirty bit and calls set_page_dirty().
+> > > 
+> > > Dirtying of a page which shouldn't be dirty can cause all sorts of problems to
+> > > filesystems. The bug we observed in practice is that buffers from the page get
+> > > freed, so when the page gets later marked as dirty and writeback writes it, XFS
+> > > crashes due to an assertion BUG_ON(!PagePrivate(page)) in page_buffers() called
+> > > from xfs_count_page_state().
+> > 
+> > What changed recently?  Was XFS hardly used on s390 until now?
 > 
-> File system must implement this method to get non-linear mappings support,
-> if it uses filemap_fault() then generic_file_remap_pages() can be used.
+> One thing that changed is that the zero_user_segment for the remaining bytes between
+> i_size and the end of the page has been moved to block_write_full_page_endio, see
+> git commit eebd2aa355692afa. That changed the timing of the race window in regard
+> to map/unmap of the page by user space. And yes XFS is in use on s390.
+
+February 2008: I think we have different ideas of "recently" ;)
+
+>  
+> > > 
+> > > Similar problem can also happen when zero_user_segment() call from
+> > > xfs_vm_writepage() (or block_write_full_page() for that matter) set the
+> > > hardware dirty bit during writeback, later buffers get freed, and then page
+> > > unmapped.
+> > > 
+> > > Fix the issue by ignoring s390 HW dirty bit for page cache pages in
+> > > page_mkclean() and page_remove_rmap(). This is safe because when a page gets
+> > > marked as writeable in PTE it is also marked dirty in do_wp_page() or
+> > > do_page_fault(). When the dirty bit is cleared by clear_page_dirty_for_io(),
+> > > the page gets writeprotected in page_mkclean(). So pagecache page is writeable
+> > > if and only if it is dirty.
+> > 
+> > Very interesting patch...
 > 
-> Now device drivers can implement this method and obtain nonlinear vma support.
+> Yes, it is an interesting idea. I really like the part that we'll use less storage
+> key operations, as these are freaking expensive.
+
+As I said to Mel and will repeat to Jan, though an optimization would
+be nice, I don't think we should necessarily mix it with the bugfix.
+
 > 
-> Signed-off-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
-> Cc: Alexander Viro <viro@zeniv.linux.org.uk>
-> Cc: Nick Piggin <npiggin@kernel.dk>
-> Cc: Ingo Molnar <mingo@redhat.com>
+> > > 
+> > > CC: Martin Schwidefsky <schwidefsky@de.ibm.com>
+> > 
+> > which I'd very much like Martin's opinion on...
+> 
+> Until you pointed out the short-comings of the patch I really liked it ..
+> 
+> > > ---
+> > >  mm/rmap.c |   16 ++++++++++++++--
+> > >  1 files changed, 14 insertions(+), 2 deletions(-)
+> > > 
+> > > diff --git a/mm/rmap.c b/mm/rmap.c
+> > > index 0f3b7cd..6ce8ddb 100644
+> > > --- a/mm/rmap.c
+> > > +++ b/mm/rmap.c
+> > > @@ -973,7 +973,15 @@ int page_mkclean(struct page *page)
+> > >  		struct address_space *mapping = page_mapping(page);
+> > >  		if (mapping) {
+> > >  			ret = page_mkclean_file(mapping, page);
+> > > -			if (page_test_and_clear_dirty(page_to_pfn(page), 1))
+> > > +			/*
+> > > +			 * We ignore dirty bit for pagecache pages. It is safe
+> > > +			 * as page is marked dirty iff it is writeable (page is
+> > > +			 * marked as dirty when it is made writeable and
+> > > +			 * clear_page_dirty_for_io() writeprotects the page
+> > > +			 * again).
+> > > +			 */
+> > > +			if (PageSwapCache(page) &&
+> > > +			    page_test_and_clear_dirty(page_to_pfn(page), 1))
+> > >  				ret = 1;
+> > 
+> > This part you could cut out: page_mkclean() is not used on SwapCache pages.
+> > I believe you are safe to remove the page_test_and_clear_dirty() from here.
+> 
+> Hmm, who guarantees that page_mkclean won't be used for SwapCache in the
+> future? At least we should add a comment there.
 
-I was fuzzing with trinity inside a KVM tools guest, and hit the following NULL deref:
+I set out to do so, to add a comment there; but honestly, it's a strange
+place for such a comment when there's no longer even the code to comment
+upon.  And page_mkclean_file(), called in the line above, already says
+BUG_ON(PageAnon(page)), so it would soon fire if we ever make a change
+that sends PageSwapCache pages this way.  It is possible that one day we
+shall want to send tmpfs and swapcache down this route, I'm not ruling
+that out; but then we shall have to extend page_mkclean(), yes.
 
-[ 1202.209854] BUG: unable to handle kernel NULL pointer dereference at 0000000000000040
-[ 1202.215344] IP: [<ffffffff812290cf>] sys_remap_file_pages+0xcf/0x380
-[ 1202.215904] PGD 24ccc067 PUD 2f693067 PMD 0
-[ 1202.215904] Oops: 0000 [#2] PREEMPT SMP DEBUG_PAGEALLOC
-[ 1202.215904] CPU 3
-[ 1202.224995] Pid: 17953, comm: trinity-child3 Tainted: G      D W    3.6.0-next-20121009-sasha-00001-ge404bae #43
-[ 1202.224995] RIP: 0010:[<ffffffff812290cf>]  [<ffffffff812290cf>] sys_remap_file_pages+0xcf/0x380
-[ 1202.224995] RSP: 0018:ffff880025819f18  EFLAGS: 00010246
-[ 1202.224995] RAX: 00000000050444f9 RBX: 0000000080100000 RCX: 0000000000000001
-[ 1202.224995] RDX: 0000000000000000 RSI: 0000000080100000 RDI: ffff8800255f1000
-[ 1202.279533] RBP: ffff880025819f78 R08: ffff88000c9ea580 R09: 0000000000000000
-[ 1202.279533] R10: 0000000000000001 R11: 0000000000000000 R12: ffff8800255f10a8
-[ 1202.279533] R13: 0000000000000000 R14: ffff8800255f1000 R15: 0000000080700000
-[ 1202.279533] FS:  00007fa063d0e700(0000) GS:ffff880067600000(0000) knlGS:0000000000000000
-[ 1202.279533] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-[ 1202.279533] CR2: 0000000000000040 CR3: 000000002cc81000 CR4: 00000000000406e0
-[ 1202.279533] DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
-[ 1202.279533] DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
-[ 1202.279533] Process trinity-child3 (pid: 17953, threadinfo ffff880025818000, task ffff88003061b000)
-[ 1202.279533] Stack:
-[ 1202.279533]  ffff880025819f48 ffffffff8107dc10 0000000080100000 0000000000000000
-[ 1202.279533]  0000000000600000 000000000aefbf86 00000000000000d8 0000000080100000
-[ 1202.279533]  0000000000000003 00000000000000d8 0000000000600000 00000000000000d8
-[ 1202.279533] Call Trace:
-[ 1202.279533]  [<ffffffff8107dc10>] ? syscall_trace_enter+0x20/0x2e0
-[ 1202.279533]  [<ffffffff83a64738>] tracesys+0xe1/0xe6
-[ 1202.279533] Code: 02 00 00 48 8b 40 30 a8 08 0f 84 6d 02 00 00 49 83 b8 a0 00 00 00 00 74 0b a9 00 00 80 00 0f 84 58 02 00 00
-49 8b 90 88 00 00 00 <48> 83 7a 40 00 0f 84 46 02 00 00 49 8b 50 08 48 39 d3 0f 82 39
-[ 1202.279533] RIP  [<ffffffff812290cf>] sys_remap_file_pages+0xcf/0x380
-[ 1202.279533]  RSP <ffff880025819f18>
-[ 1202.279533] CR2: 0000000000000040
-[ 1202.401144] ---[ end trace fe8a5604834bab83 ]---
+> 
+> The patch relies on the software dirty bit tracking for file backed pages,
+> if dirty bit tracking is not done for tmpfs and ramfs we are borked.
+>  
+> > You mention above that even the kernel writing to the page would mark
+> > the s390 storage key dirty.  I think that means that these shm and
+> > tmpfs and ramfs pages would all have dirty storage keys just from the
+> > clear_highpage() used to prepare them originally, and so would have
+> > been found dirty anyway by the existing code here in page_remove_rmap(),
+> > even though other architectures would regard them as clean and removable.
+> 
+> No, the clear_highpage() will set the dirty bit in the storage key but
+> the SetPageUptodate will clear the complete storage key including the
+> dirty bit.
 
-It would seem that this patch adds the following check into sys_remap_file_pages():
+Ah, thank you Martin, that clears that up...
 
-        if (!vma->vm_ops->remap_pages)
-                goto out;
+>  
+> > If that's the case, then maybe we'd do better just to mark them dirty
+> > when faulted in the s390 case.  Then your patch above should (I think)
+> > be safe.  Though I'd then be VERY tempted to adjust the SwapCache case
+> > too (I've not thought through exactly what that patch would be, just
+> > one or two suitably placed SetPageDirtys, I think), and eliminate
+> > page_test_and_clear_dirty() altogether - no tears shed by any of us!
 
-But vma->vm_ops itself is NULL.
+... so I should not hurt your performance with a change of that kind.
 
+> 
+> I am seriously tempted to switch to pure software dirty bits by using
+> page protection for writable but clean pages. The worry is the number of
+> additional protection faults we would get. But as we do software dirty
+> bit tracking for the most part anyway this might not be as bad as it
+> used to be.
 
-Thanks,
-Sasha
+That's exactly the same reason why tmpfs opts out of dirty tracking, fear
+of unnecessary extra faults.  Anomalous as s390 is here, tmpfs is being
+anomalous too, and I'd be a hypocrite to push for you to make that change.
+
+> 
+> > A separate worry came to mind as I thought about your patch: where
+> > in page migration is s390's dirty storage key migrated from old page
+> > to new?  And if there is a problem there, that too should be fixed
+> > by what I propose in the previous paragraph.
+> 
+> That is covered by the SetPageUptodate() in migrate_page_copy().,> 
+
+I don't think so: that makes sure that the newpage is not marked
+dirty in storage key just because of the copy_highpage to it; but
+I see nothing to mark the newpage dirty in storage key when the
+old page was dirty there.
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
