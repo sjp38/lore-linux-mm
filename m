@@ -1,88 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
-	by kanga.kvack.org (Postfix) with SMTP id AE11A6B002B
-	for <linux-mm@kvack.org>; Tue,  9 Oct 2012 11:04:10 -0400 (EDT)
-Date: Tue, 9 Oct 2012 17:04:03 +0200
+Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
+	by kanga.kvack.org (Postfix) with SMTP id C1B8E6B005A
+	for <linux-mm@kvack.org>; Tue,  9 Oct 2012 11:08:53 -0400 (EDT)
+Date: Tue, 9 Oct 2012 17:08:45 +0200
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH v4 05/14] Add a __GFP_KMEMCG flag
-Message-ID: <20121009150403.GB7655@dhcp22.suse.cz>
+Subject: Re: [PATCH v4 08/14] res_counter: return amount of charges after
+ res_counter_uncharge
+Message-ID: <20121009150845.GC7655@dhcp22.suse.cz>
 References: <1349690780-15988-1-git-send-email-glommer@parallels.com>
- <1349690780-15988-6-git-send-email-glommer@parallels.com>
+ <1349690780-15988-9-git-send-email-glommer@parallels.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1349690780-15988-6-git-send-email-glommer@parallels.com>
+In-Reply-To: <1349690780-15988-9-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Glauber Costa <glommer@parallels.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Suleiman Souhlal <suleiman@google.com>, Tejun Heo <tj@kernel.org>, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, Johannes Weiner <hannes@cmpxchg.org>, Greg Thelen <gthelen@google.com>, devel@openvz.org, Frederic Weisbecker <fweisbec@gmail.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@cs.helsinki.fi>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Suleiman Souhlal <suleiman@google.com>, Tejun Heo <tj@kernel.org>, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, Johannes Weiner <hannes@cmpxchg.org>, Greg Thelen <gthelen@google.com>, devel@openvz.org, Frederic Weisbecker <fweisbec@gmail.com>
 
-On Mon 08-10-12 14:06:11, Glauber Costa wrote:
-> This flag is used to indicate to the callees that this allocation is a
-> kernel allocation in process context, and should be accounted to
-> current's memcg. It takes numerical place of the of the recently removed
-> __GFP_NO_KSWAPD.
-> 
-> [ v4: make flag unconditional, also declare it in trace code ]
-> 
-> Signed-off-by: Glauber Costa <glommer@parallels.com>
-> CC: Christoph Lameter <cl@linux.com>
-> CC: Pekka Enberg <penberg@cs.helsinki.fi>
-> CC: Michal Hocko <mhocko@suse.cz>
-> CC: Suleiman Souhlal <suleiman@google.com>
-> Acked-by: Johannes Weiner <hannes@cmpxchg.org>
-> Acked-by: Rik van Riel <riel@redhat.com>
-> Acked-by: Mel Gorman <mel@csn.ul.ie>
-> Acked-by: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-
-Acked-by: Michal Hocko <mhocko@suse.cz>
-
-> ---
->  include/linux/gfp.h             | 3 ++-
->  include/trace/events/gfpflags.h | 1 +
->  2 files changed, 3 insertions(+), 1 deletion(-)
-> 
-> diff --git a/include/linux/gfp.h b/include/linux/gfp.h
-> index 02c1c97..9289d46 100644
-> --- a/include/linux/gfp.h
-> +++ b/include/linux/gfp.h
-> @@ -31,6 +31,7 @@ struct vm_area_struct;
->  #define ___GFP_THISNODE		0x40000u
->  #define ___GFP_RECLAIMABLE	0x80000u
->  #define ___GFP_NOTRACK		0x200000u
-> +#define ___GFP_KMEMCG		0x400000u
->  #define ___GFP_OTHER_NODE	0x800000u
->  #define ___GFP_WRITE		0x1000000u
+On Mon 08-10-12 14:06:14, Glauber Costa wrote:
+[...]
+> diff --git a/kernel/res_counter.c b/kernel/res_counter.c
+> index ad581aa..7b3d6dc 100644
+> --- a/kernel/res_counter.c
+> +++ b/kernel/res_counter.c
+> @@ -86,33 +86,39 @@ int res_counter_charge_nofail(struct res_counter *counter, unsigned long val,
+>  	return __res_counter_charge(counter, val, limit_fail_at, true);
+>  }
 >  
-> @@ -87,7 +88,7 @@ struct vm_area_struct;
+> -void res_counter_uncharge_locked(struct res_counter *counter, unsigned long val)
+> +u64 res_counter_uncharge_locked(struct res_counter *counter, unsigned long val)
+>  {
+>  	if (WARN_ON(counter->usage < val))
+>  		val = counter->usage;
 >  
->  #define __GFP_OTHER_NODE ((__force gfp_t)___GFP_OTHER_NODE) /* On behalf of other node */
->  #define __GFP_WRITE	((__force gfp_t)___GFP_WRITE)	/* Allocator intends to dirty page */
-> -
-> +#define __GFP_KMEMCG	((__force gfp_t)___GFP_KMEMCG) /* Allocation comes from a memcg-accounted resource */
->  /*
->   * This may seem redundant, but it's a way of annotating false positives vs.
->   * allocations that simply cannot be supported (e.g. page tables).
-> diff --git a/include/trace/events/gfpflags.h b/include/trace/events/gfpflags.h
-> index 9391706..730df12 100644
-> --- a/include/trace/events/gfpflags.h
-> +++ b/include/trace/events/gfpflags.h
-> @@ -36,6 +36,7 @@
->  	{(unsigned long)__GFP_RECLAIMABLE,	"GFP_RECLAIMABLE"},	\
->  	{(unsigned long)__GFP_MOVABLE,		"GFP_MOVABLE"},		\
->  	{(unsigned long)__GFP_NOTRACK,		"GFP_NOTRACK"},		\
-> +	{(unsigned long)__GFP_KMEMCG,		"GFP_KMEMCG"},		\
->  	{(unsigned long)__GFP_OTHER_NODE,	"GFP_OTHER_NODE"}	\
->  	) : "GFP_NOWAIT"
+>  	counter->usage -= val;
+> +	return counter->usage;
+>  }
 >  
-> -- 
-> 1.7.11.4
-> 
-> --
-> To unsubscribe from this list: send the line "unsubscribe cgroups" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> -void res_counter_uncharge_until(struct res_counter *counter,
+> -				struct res_counter *top,
+> -				unsigned long val)
+> +u64 res_counter_uncharge_until(struct res_counter *counter,
+> +			       struct res_counter *top,
+> +			       unsigned long val)
+>  {
+>  	unsigned long flags;
+>  	struct res_counter *c;
+> +	u64 ret = 0;
+>  
+>  	local_irq_save(flags);
+>  	for (c = counter; c != top; c = c->parent) {
+> +		u64 r;
+>  		spin_lock(&c->lock);
+> -		res_counter_uncharge_locked(c, val);
+> +		r = res_counter_uncharge_locked(c, val);
+> +		if (c == counter)
+> +			ret = r;
+>  		spin_unlock(&c->lock);
+>  	}
+>  	local_irq_restore(flags);
+> +	return ret;
 
+As I have already mentioned in my previous feedback this is cetainly not
+atomic as you the lock protects only one group in the hierarchy. How is
+the return value from this function supposed to be used?
 -- 
 Michal Hocko
 SUSE Labs
