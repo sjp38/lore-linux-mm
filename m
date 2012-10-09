@@ -1,53 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
-	by kanga.kvack.org (Postfix) with SMTP id D449D6B0044
-	for <linux-mm@kvack.org>; Tue,  9 Oct 2012 17:30:45 -0400 (EDT)
-Received: from /spool/local
-	by e3.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <john.stultz@linaro.org>;
-	Tue, 9 Oct 2012 17:30:44 -0400
-Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by d01relay01.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q99LUBeG155868
-	for <linux-mm@kvack.org>; Tue, 9 Oct 2012 17:30:11 -0400
-Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
-	by d01av04.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q99LU8up005065
-	for <linux-mm@kvack.org>; Tue, 9 Oct 2012 17:30:10 -0400
-Message-ID: <5074975B.20809@linaro.org>
-Date: Tue, 09 Oct 2012 14:30:03 -0700
-From: John Stultz <john.stultz@linaro.org>
-MIME-Version: 1.0
-Subject: Re: [PATCH 0/3] Volatile Ranges (v7) & Lots of words
-References: <1348888593-23047-1-git-send-email-john.stultz@linaro.org> <20121009080735.GA24375@glandium.org>
-In-Reply-To: <20121009080735.GA24375@glandium.org>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
+	by kanga.kvack.org (Postfix) with SMTP id 445FD6B0062
+	for <linux-mm@kvack.org>; Tue,  9 Oct 2012 17:39:38 -0400 (EDT)
+Date: Tue, 9 Oct 2012 14:39:36 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: memory-hotplug : suppres
+ "Trying to free nonexistent resource <XXXXXXXXXXXXXXXX-YYYYYYYYYYYYYYYY>"
+ warning
+Message-Id: <20121009143936.1f74a7fb.akpm@linux-foundation.org>
+In-Reply-To: <5073913A.3080103@jp.fujitsu.com>
+References: <506D1F1D.9000301@jp.fujitsu.com>
+	<20121005140938.e3e1e196.akpm@linux-foundation.org>
+	<5073913A.3080103@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Hommey <mh@glandium.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Android Kernel Team <kernel-team@android.com>, Robert Love <rlove@google.com>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Dmitry Adamushko <dmitry.adamushko@gmail.com>, Dave Chinner <david@fromorbit.com>, Neil Brown <neilb@suse.de>, Andrea Righi <andrea@betterlinux.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Taras Glek <tglek@mozilla.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Michel Lespinasse <walken@google.com>, Minchan Kim <minchan@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+Cc: x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, kosaki.motohiro@jp.fujitsu.com, wency@cn.fujitsu.com, dave@linux.vnet.ibm.com
 
-On 10/09/2012 01:07 AM, Mike Hommey wrote:
-> Note it doesn't have to be a vs. situation. madvise could be an
-> additional way to interface with volatile ranges on a given fd.
->
-> That is, madvise doesn't have to mean anonymous memory. As a matter of
-> fact, MADV_WILLNEED/MADV_DONTNEED are usually used on mmaped files.
-> Similarly, there could be a way to use madvise to mark volatile ranges,
-> without the application having to track what memory ranges are
-> associated to what part of what file, which the kernel already tracks.
+On Tue, 9 Oct 2012 11:51:38 +0900
+Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com> wrote:
 
-Good point. We could add madvise() interface, but limit it only to 
-mmapped tmpfs files, in parallel with the fallocate() interface.
+> > Anyway, please have a think, and see if we can come up with the best
+> > and most accurate choice of types and identifiers in this code.
+> 
+> Your concern is right. Overflow bug may occur in the future.
+> So I changed type of "i" and "sections_to_remove" to "unsigned long".
+> Please merge it into your tree instead of previous patch.
 
-However, I would like to think through how MADV_MARK_VOLATILE with 
-purely anonymous memory could work, before starting that approach. That 
-and Neil's point that having an identical kernel interface restricted to 
-tmpfs, only as a convenience to userland in switching from virtual 
-address to/from mmapped file offset may be better left to a userland 
-library.
+Too late, the original patch was merged.  So I generated the delta.
 
-thanks
--john
+I remain allergic to the `i' identifier so I renamed it to `section'. 
+That's not 100% accurate, but it is better.
+
+> __remove_pages() also has same concern. So I'll fix it.
+
+Thanks.
+
+
+
+From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+Subject: arch/powerpc/platforms/pseries/hotplug-memory.c: section removal cleanups
+
+Followups to d760afd4d25 ("memory-hotplug: suppress "Trying to free
+nonexistent resource <XXXXXXXXXXXXXXXX-YYYYYYYYYYYYYYYY>" warning").
+
+- use unsigned long type, as overflows are conceivable
+
+- rename `i' to the less-misleading and more informative `section'
+
+Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+---
+
+ arch/powerpc/platforms/pseries/hotplug-memory.c |    9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)
+
+diff -puN arch/powerpc/platforms/pseries/hotplug-memory.c~arch-powerpc-platforms-pseries-hotplug-memoryc-section-removal-cleanups arch/powerpc/platforms/pseries/hotplug-memory.c
+--- a/arch/powerpc/platforms/pseries/hotplug-memory.c~arch-powerpc-platforms-pseries-hotplug-memoryc-section-removal-cleanups
++++ a/arch/powerpc/platforms/pseries/hotplug-memory.c
+@@ -77,8 +77,9 @@ static int pseries_remove_memblock(unsig
+ {
+ 	unsigned long start, start_pfn;
+ 	struct zone *zone;
+-	int i, ret;
+-	int sections_to_remove;
++	int ret;
++	unsigned long section;
++	unsigned long sections_to_remove;
+ 
+ 	start_pfn = base >> PAGE_SHIFT;
+ 
+@@ -99,8 +100,8 @@ static int pseries_remove_memblock(unsig
+ 	 * while writing to it. So we have to defer it to here.
+ 	 */
+ 	sections_to_remove = (memblock_size >> PAGE_SHIFT) / PAGES_PER_SECTION;
+-	for (i = 0; i < sections_to_remove; i++) {
+-		unsigned long pfn = start_pfn + i * PAGES_PER_SECTION;
++	for (section = 0; section < sections_to_remove; section++) {
++		unsigned long pfn = start_pfn + section * PAGES_PER_SECTION;
+ 		ret = __remove_pages(zone, start_pfn,  PAGES_PER_SECTION);
+ 		if (ret)
+ 			return ret;
+diff -puN mm/memory_hotplug.c~arch-powerpc-platforms-pseries-hotplug-memoryc-section-removal-cleanups mm/memory_hotplug.c
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
