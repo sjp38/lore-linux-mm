@@ -1,146 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx104.postini.com [74.125.245.104])
-	by kanga.kvack.org (Postfix) with SMTP id 2FE3B6B0044
-	for <linux-mm@kvack.org>; Tue,  9 Oct 2012 16:48:33 -0400 (EDT)
-Date: Tue, 9 Oct 2012 13:48:31 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [RFC PATCH] Split mm_slot from ksm and huge_memory
-Message-Id: <20121009134831.d9946b9f.akpm@linux-foundation.org>
-In-Reply-To: <1349685772-29359-1-git-send-email-lliubbo@gmail.com>
-References: <1349685772-29359-1-git-send-email-lliubbo@gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
+	by kanga.kvack.org (Postfix) with SMTP id D449D6B0044
+	for <linux-mm@kvack.org>; Tue,  9 Oct 2012 17:30:45 -0400 (EDT)
+Received: from /spool/local
+	by e3.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <john.stultz@linaro.org>;
+	Tue, 9 Oct 2012 17:30:44 -0400
+Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
+	by d01relay01.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q99LUBeG155868
+	for <linux-mm@kvack.org>; Tue, 9 Oct 2012 17:30:11 -0400
+Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
+	by d01av04.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q99LU8up005065
+	for <linux-mm@kvack.org>; Tue, 9 Oct 2012 17:30:10 -0400
+Message-ID: <5074975B.20809@linaro.org>
+Date: Tue, 09 Oct 2012 14:30:03 -0700
+From: John Stultz <john.stultz@linaro.org>
+MIME-Version: 1.0
+Subject: Re: [PATCH 0/3] Volatile Ranges (v7) & Lots of words
+References: <1348888593-23047-1-git-send-email-john.stultz@linaro.org> <20121009080735.GA24375@glandium.org>
+In-Reply-To: <20121009080735.GA24375@glandium.org>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Bob Liu <lliubbo@gmail.com>
-Cc: linux-mm@kvack.org, mhocko@suse.cz, hughd@google.com, kamezawa.hiroyu@jp.fujitsu.com, aarcange@redhat.com, hannes@cmpxchg.org, rientjes@google.com
+To: Mike Hommey <mh@glandium.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Android Kernel Team <kernel-team@android.com>, Robert Love <rlove@google.com>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Dmitry Adamushko <dmitry.adamushko@gmail.com>, Dave Chinner <david@fromorbit.com>, Neil Brown <neilb@suse.de>, Andrea Righi <andrea@betterlinux.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Taras Glek <tglek@mozilla.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Michel Lespinasse <walken@google.com>, Minchan Kim <minchan@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Mon, 8 Oct 2012 16:42:52 +0800
-Bob Liu <lliubbo@gmail.com> wrote:
-
-> Both ksm and huge_memory do hash lookup from mm to mm_slot, but the
-> mm_slot are mostly the same except ksm need a rmap_list.
-> 
-> This patch split some duplicated part of mm_slot from ksm/huge_memory
-> to a head file mm_slot.h, it make code cleaner and future work easier
-> if someone need to lookup from mm to mm_slot also.
-> 
-> To make things simple, they still have their own slab cache and
-> mm_slots_hash table.
-> 
-> Not well tested, just see whether the way is right firstly.
-> 
-
-Yes, this is a good thing to do.
-
-> --- /dev/null
-> +++ b/include/linux/mm_slot.h
-> @@ -0,0 +1,68 @@
-> +#ifndef _LINUX_MM_SLOT_H
-> +#define _LINUX_MM_SLOT_H
-> +
-> +#define MM_SLOTS_HASH_HEADS 1024
-> +
-> +/**
-> + * struct mm_slot - hash lookup from mm to mm_slot
-> + * @hash: hash collision list
-> + * @mm_node: khugepaged scan list headed in khugepaged_scan.mm_head
-> + * @mm: the mm that this information is valid for
-> + * @private: rmaplist for ksm
-> + */
-
-It would be nice to have some overview here.  What is an mm_slot, why
-code would want to use this library, etc.
-
-> +struct mm_slot {
-> +	struct hlist_node hash;
-> +	struct list_head mm_list;
-> +	struct mm_struct *mm;
-> +	void *private;
-> +};
-> +
-> +static inline struct mm_slot *alloc_mm_slot(struct kmem_cache *mm_slot_cache)
-> +{
-> +	if (!mm_slot_cache)	/* initialization failed */
-> +		return NULL;
-
-I suggest this be removed - the caller shouldn't be calling
-alloc_mm_slot() if the caller's slab creation failed.
-
-> +	return kmem_cache_zalloc(mm_slot_cache, GFP_KERNEL);
-
-It's generally poor form for a callee to assume that the caller wanted
-GFP_KERNEL.  Usually we'll require that the caller pass in the gfp
-flags.  As this is an inlined function, that is free so I guess we
-should stick with convention here.
-
-> +}
-> +
-> +static inline void free_mm_slot(struct mm_slot *mm_slot,
-> +			struct kmem_cache *mm_slot_cache)
-> +{
-> +	kmem_cache_free(mm_slot_cache, mm_slot);
-> +}
-> +
-> +static int __init mm_slots_hash_init(struct hlist_head **mm_slots_hash)
-> +{
-> +	*mm_slots_hash = kzalloc(MM_SLOTS_HASH_HEADS * sizeof(struct hlist_head),
-> +			GFP_KERNEL);
-
-Ditto, although it would be a pretty silly caller which calls this
-function from a non-GFP_KERNEL context.
-
-It would be more appropriate to use kcalloc() here.
-
-> +	if (!(*mm_slots_hash))
-> +		return -ENOMEM;
-> +	return 0;
-> +}
+On 10/09/2012 01:07 AM, Mike Hommey wrote:
+> Note it doesn't have to be a vs. situation. madvise could be an
+> additional way to interface with volatile ranges on a given fd.
 >
-> +static struct mm_slot *get_mm_slot(struct mm_struct *mm,
-> +				struct hlist_head *mm_slots_hash)
-> +{
-> +	struct mm_slot *mm_slot;
-> +	struct hlist_head *bucket;
-> +	struct hlist_node *node;
-> +
-> +	bucket = &mm_slots_hash[((unsigned long)mm / sizeof(struct mm_struct))
-> +				% MM_SLOTS_HASH_HEADS];
-> +	hlist_for_each_entry(mm_slot, node, bucket, hash) {
-> +		if (mm == mm_slot->mm)
-> +			return mm_slot;
-> +	}
-> +	return NULL;
-> +}
->
-> +static void insert_to_mm_slots_hash(struct mm_struct *mm,
-> +		struct mm_slot *mm_slot, struct hlist_head *mm_slots_hash)
-> +{
-> +	struct hlist_head *bucket;
-> +
-> +	bucket = &mm_slots_hash[((unsigned long)mm / sizeof(struct mm_struct))
-> +				% MM_SLOTS_HASH_HEADS];
-> +	mm_slot->mm = mm;
-> +	hlist_add_head(&mm_slot->hash, bucket);
-> +}
+> That is, madvise doesn't have to mean anonymous memory. As a matter of
+> fact, MADV_WILLNEED/MADV_DONTNEED are usually used on mmaped files.
+> Similarly, there could be a way to use madvise to mark volatile ranges,
+> without the application having to track what memory ranges are
+> associated to what part of what file, which the kernel already tracks.
 
-These functions require locking (perhaps rw locking), so some
-commentary is needed here describing that.
+Good point. We could add madvise() interface, but limit it only to 
+mmapped tmpfs files, in parallel with the fallocate() interface.
 
-These functions are probably too large to be inlined - perhaps we
-should create a .c file?
+However, I would like to think through how MADV_MARK_VOLATILE with 
+purely anonymous memory could work, before starting that approach. That 
+and Neil's point that having an identical kernel interface restricted to 
+tmpfs, only as a convenience to userland in switching from virtual 
+address to/from mmapped file offset may be better left to a userland 
+library.
 
-A common convention for code like this is to prefix all the
-globally-visible identifiers with the subsystem's name.  So here we
-could use mm_slots_get() and mm_slots_hash_insert() or similar.
-
-The code assumes that the caller manages the kmem cache.  We didn't
-have to do it that way - we could create a single kernel-wide one which
-is created on first use (which will require mm_slots-internal locking)
-and which is probably never destroyed, although it _could_ be destroyed
-if we were to employ refcounting.  Thoughts on this?
-
+thanks
+-john
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
