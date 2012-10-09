@@ -1,52 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
-	by kanga.kvack.org (Postfix) with SMTP id 5D0806B002B
-	for <linux-mm@kvack.org>; Mon,  8 Oct 2012 20:37:20 -0400 (EDT)
-Received: from eusync2.samsung.com (mailout3.w1.samsung.com [210.118.77.13])
- by mailout3.w1.samsung.com
- (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
- 17 2011)) with ESMTP id <0MBL003L1OEZ4E80@mailout3.w1.samsung.com> for
- linux-mm@kvack.org; Tue, 09 Oct 2012 01:37:47 +0100 (BST)
-Received: from [172.16.228.128] ([10.90.7.109])
- by eusync2.samsung.com (Oracle Communications Messaging Server 7u4-23.01
- (7.0.4.23.0) 64bit (built Aug 10 2011))
- with ESMTPA id <0MBL00FMNOE31V80@eusync2.samsung.com> for linux-mm@kvack.org;
- Tue, 09 Oct 2012 01:37:18 +0100 (BST)
-Message-id: <507371DA.9080309@samsung.com>
-Date: Tue, 09 Oct 2012 02:37:46 +0200
-From: Marek Szyprowski <m.szyprowski@samsung.com>
-MIME-version: 1.0
-Subject: Re: CMA and zone watermarks
-References: <CAH+eYFCJTtF+FeqKs_ho5yyX0tkUBoaa-yfsd1rVshcQ5Xxp=A@mail.gmail.com>
-In-reply-to: 
- <CAH+eYFCJTtF+FeqKs_ho5yyX0tkUBoaa-yfsd1rVshcQ5Xxp=A@mail.gmail.com>
-Content-type: text/plain; charset=ISO-8859-1; format=flowed
-Content-transfer-encoding: 7bit
+Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
+	by kanga.kvack.org (Postfix) with SMTP id 021E56B0044
+	for <linux-mm@kvack.org>; Mon,  8 Oct 2012 20:42:25 -0400 (EDT)
+Received: by mail-ob0-f169.google.com with SMTP id va7so5017167obc.14
+        for <linux-mm@kvack.org>; Mon, 08 Oct 2012 17:42:25 -0700 (PDT)
+Message-ID: <507372E8.9090207@gmail.com>
+Date: Tue, 09 Oct 2012 08:42:16 +0800
+From: Ni zhan Chen <nizhan.chen@gmail.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH] mm: memmap_init_zone() performance improvement
+References: <1349276174-8398-1-git-send-email-mike.yoknis@hp.com> <20121008151656.GM29125@suse.de>
+In-Reply-To: <20121008151656.GM29125@suse.de>
+Content-Type: text/plain; charset=ISO-8859-15; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rabin Vincent <rabin@rab.in>
-Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Mike Yoknis <mike.yoknis@hp.com>, mingo@redhat.com, akpm@linux-foundation.org, linux-arch@vger.kernel.org, mmarek@suse.cz, tglx@linutronix.de, hpa@zytor.com, arnd@arndb.de, sam@ravnborg.org, minchan@kernel.org, kamezawa.hiroyu@jp.fujitsu.com, mhocko@suse.cz, linux-kbuild@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Hello,
-
-On 10/8/2012 5:41 PM, Rabin Vincent wrote:
-
-> It appears that when CMA is enabled, the zone watermarks are not properly
-> respected, leading to for example GFP_NOWAIT allocations getting access to the
-> high pools.
+On 10/08/2012 11:16 PM, Mel Gorman wrote:
+> On Wed, Oct 03, 2012 at 08:56:14AM -0600, Mike Yoknis wrote:
+>> memmap_init_zone() loops through every Page Frame Number (pfn),
+>> including pfn values that are within the gaps between existing
+>> memory sections.  The unneeded looping will become a boot
+>> performance issue when machines configure larger memory ranges
+>> that will contain larger and more numerous gaps.
+>>
+>> The code will skip across invalid sections to reduce the
+>> number of loops executed.
+>>
+>> Signed-off-by: Mike Yoknis <mike.yoknis@hp.com>
+> This only helps SPARSEMEM and changes more headers than should be
+> necessary. It would have been easier to do something simple like
 >
-> I ran the following test code which simply allocates pages with GFP_NOWAIT
-> until it fails, and then tries GFP_ATOMIC.  Without CMA, the GFP_ATOMIC
-> allocation succeeds, with CMA, it fails too.
+> if (!early_pfn_valid(pfn)) {
+> 	pfn = ALIGN(pfn + MAX_ORDER_NR_PAGES, MAX_ORDER_NR_PAGES) - 1;
+> 	continue;
+> }
 
-Could You run your test with latest linux-next kernel? There have been 
-some patches merged to akpm tree which should fix accounting for free 
-and free cma pages. I hope it should fix this issue.
+So if present memoy section in sparsemem can have 
+MAX_ORDER_NR_PAGES-aligned range are all invalid?
+If the answer is yes, when this will happen?
 
-Best regards
--- 
-Marek Szyprowski
-Samsung Poland R&D Center
+>
+> because that would obey the expectation that pages within a
+> MAX_ORDER_NR_PAGES-aligned range are all valid or all invalid (ARM is the
+> exception that breaks this rule). It would be less efficient on
+> SPARSEMEM than what you're trying to merge but I do not see the need for
+> the additional complexity unless you can show it makes a big difference
+> to boot times.
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
