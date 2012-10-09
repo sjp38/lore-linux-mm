@@ -1,66 +1,146 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
-	by kanga.kvack.org (Postfix) with SMTP id A7E806B002B
-	for <linux-mm@kvack.org>; Tue,  9 Oct 2012 16:02:34 -0400 (EDT)
-Message-ID: <507482D7.909@tilera.com>
-Date: Tue, 9 Oct 2012 16:02:31 -0400
-From: Chris Metcalf <cmetcalf@tilera.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 3/8] sparc64: Eliminate PTE table memory wastage.
-References: <20121002.182642.49574627747120711.davem@davemloft.net>	<87y5jmfbd3.fsf@linux.vnet.ibm.com> <20121004.142003.851528112593506369.davem@davemloft.net>
-In-Reply-To: <20121004.142003.851528112593506369.davem@davemloft.net>
-Content-Type: text/plain; charset="ISO-8859-1"
+Received: from psmtp.com (na3sys010amx104.postini.com [74.125.245.104])
+	by kanga.kvack.org (Postfix) with SMTP id 2FE3B6B0044
+	for <linux-mm@kvack.org>; Tue,  9 Oct 2012 16:48:33 -0400 (EDT)
+Date: Tue, 9 Oct 2012 13:48:31 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [RFC PATCH] Split mm_slot from ksm and huge_memory
+Message-Id: <20121009134831.d9946b9f.akpm@linux-foundation.org>
+In-Reply-To: <1349685772-29359-1-git-send-email-lliubbo@gmail.com>
+References: <1349685772-29359-1-git-send-email-lliubbo@gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Miller <davem@davemloft.net>
-Cc: aneesh.kumar@linux.vnet.ibm.com, linux-mm@kvack.org, sparclinux@vger.kernel.org, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, akpm@linux-foundation.org, aarcange@redhat.com, hannes@cmpxchg.org
+To: Bob Liu <lliubbo@gmail.com>
+Cc: linux-mm@kvack.org, mhocko@suse.cz, hughd@google.com, kamezawa.hiroyu@jp.fujitsu.com, aarcange@redhat.com, hannes@cmpxchg.org, rientjes@google.com
 
-On 10/4/2012 2:23 PM, David Miller wrote:
-> From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-> Date: Thu, 04 Oct 2012 22:00:48 +0530
-> 
->> David Miller <davem@davemloft.net> writes:
->>
->>> We've split up the PTE tables so that they take up half a page instead
->>> of a full page.  This is in order to facilitate transparent huge page
->>> support, which works much better if our PMDs cover 4MB instead of 8MB.
->>>
->>> What we do is have a one-behind cache for PTE table allocations in the
->>> mm struct.
->>>
->>> This logic triggers only on allocations.  For example, we don't try to
->>> keep track of free'd up page table blocks in the style that the s390
->>> port does.
->>
->> I am also implementing a similar change for powerpc. We have a 64K page
->> size, and want to make sure PMD cover 16MB, which is the huge page size
->> supported by the hardware. I was looking at using the s390 logic,
->> considering we have 16 PMDs mapping to same PTE page. Should we look at
->> generalizing the case so that other architectures can start using the
->> same code ?
-> 
-> I think until we have multiple cases we won't know what's common or not.
-> 
-> Each arch has different need.  I need to split the page into two pieces
-> so my code is simpler, and juse uses page counting to manage alloc/free.
-> 
-> Whereas s390 uses an bitmask to manage page state, and also reclaims
-> pgtable pages into a per-mm list on free.  I decided not to do that
-> and to just let the page allocator do the work.
-> 
-> So I don't think it's appropriate to think about commonization at this
-> time, as even the only two cases existing are very non-common :-)
+On Mon, 8 Oct 2012 16:42:52 +0800
+Bob Liu <lliubbo@gmail.com> wrote:
 
-I'll add arch/tile to the list of architectures that would benefit.
-We currently allocate PTEs using the page allocator, but by default
-we use 64K pages and 16M huge pages, so with 8-byte PTEs that's
-just 2K for the page table, so we could fit 32 of them on a page
-if we wished.  Instead, for the time being, we just waste the space.
+> Both ksm and huge_memory do hash lookup from mm to mm_slot, but the
+> mm_slot are mostly the same except ksm need a rmap_list.
+> 
+> This patch split some duplicated part of mm_slot from ksm/huge_memory
+> to a head file mm_slot.h, it make code cleaner and future work easier
+> if someone need to lookup from mm to mm_slot also.
+> 
+> To make things simple, they still have their own slab cache and
+> mm_slots_hash table.
+> 
+> Not well tested, just see whether the way is right firstly.
+> 
 
--- 
-Chris Metcalf, Tilera Corp.
-http://www.tilera.com
+Yes, this is a good thing to do.
+
+> --- /dev/null
+> +++ b/include/linux/mm_slot.h
+> @@ -0,0 +1,68 @@
+> +#ifndef _LINUX_MM_SLOT_H
+> +#define _LINUX_MM_SLOT_H
+> +
+> +#define MM_SLOTS_HASH_HEADS 1024
+> +
+> +/**
+> + * struct mm_slot - hash lookup from mm to mm_slot
+> + * @hash: hash collision list
+> + * @mm_node: khugepaged scan list headed in khugepaged_scan.mm_head
+> + * @mm: the mm that this information is valid for
+> + * @private: rmaplist for ksm
+> + */
+
+It would be nice to have some overview here.  What is an mm_slot, why
+code would want to use this library, etc.
+
+> +struct mm_slot {
+> +	struct hlist_node hash;
+> +	struct list_head mm_list;
+> +	struct mm_struct *mm;
+> +	void *private;
+> +};
+> +
+> +static inline struct mm_slot *alloc_mm_slot(struct kmem_cache *mm_slot_cache)
+> +{
+> +	if (!mm_slot_cache)	/* initialization failed */
+> +		return NULL;
+
+I suggest this be removed - the caller shouldn't be calling
+alloc_mm_slot() if the caller's slab creation failed.
+
+> +	return kmem_cache_zalloc(mm_slot_cache, GFP_KERNEL);
+
+It's generally poor form for a callee to assume that the caller wanted
+GFP_KERNEL.  Usually we'll require that the caller pass in the gfp
+flags.  As this is an inlined function, that is free so I guess we
+should stick with convention here.
+
+> +}
+> +
+> +static inline void free_mm_slot(struct mm_slot *mm_slot,
+> +			struct kmem_cache *mm_slot_cache)
+> +{
+> +	kmem_cache_free(mm_slot_cache, mm_slot);
+> +}
+> +
+> +static int __init mm_slots_hash_init(struct hlist_head **mm_slots_hash)
+> +{
+> +	*mm_slots_hash = kzalloc(MM_SLOTS_HASH_HEADS * sizeof(struct hlist_head),
+> +			GFP_KERNEL);
+
+Ditto, although it would be a pretty silly caller which calls this
+function from a non-GFP_KERNEL context.
+
+It would be more appropriate to use kcalloc() here.
+
+> +	if (!(*mm_slots_hash))
+> +		return -ENOMEM;
+> +	return 0;
+> +}
+>
+> +static struct mm_slot *get_mm_slot(struct mm_struct *mm,
+> +				struct hlist_head *mm_slots_hash)
+> +{
+> +	struct mm_slot *mm_slot;
+> +	struct hlist_head *bucket;
+> +	struct hlist_node *node;
+> +
+> +	bucket = &mm_slots_hash[((unsigned long)mm / sizeof(struct mm_struct))
+> +				% MM_SLOTS_HASH_HEADS];
+> +	hlist_for_each_entry(mm_slot, node, bucket, hash) {
+> +		if (mm == mm_slot->mm)
+> +			return mm_slot;
+> +	}
+> +	return NULL;
+> +}
+>
+> +static void insert_to_mm_slots_hash(struct mm_struct *mm,
+> +		struct mm_slot *mm_slot, struct hlist_head *mm_slots_hash)
+> +{
+> +	struct hlist_head *bucket;
+> +
+> +	bucket = &mm_slots_hash[((unsigned long)mm / sizeof(struct mm_struct))
+> +				% MM_SLOTS_HASH_HEADS];
+> +	mm_slot->mm = mm;
+> +	hlist_add_head(&mm_slot->hash, bucket);
+> +}
+
+These functions require locking (perhaps rw locking), so some
+commentary is needed here describing that.
+
+These functions are probably too large to be inlined - perhaps we
+should create a .c file?
+
+A common convention for code like this is to prefix all the
+globally-visible identifiers with the subsystem's name.  So here we
+could use mm_slots_get() and mm_slots_hash_insert() or similar.
+
+The code assumes that the caller manages the kmem cache.  We didn't
+have to do it that way - we could create a single kernel-wide one which
+is created on first use (which will require mm_slots-internal locking)
+and which is probably never destroyed, although it _could_ be destroyed
+if we were to employ refcounting.  Thoughts on this?
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
