@@ -1,81 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
-	by kanga.kvack.org (Postfix) with SMTP id EF4026B002B
-	for <linux-mm@kvack.org>; Tue,  9 Oct 2012 10:56:54 -0400 (EDT)
-Message-ID: <1349794597.29752.10.camel@MikesLinux.fc.hp.com>
-Subject: Re: [PATCH] mm: memmap_init_zone() performance improvement
-From: Mike Yoknis <mike.yoknis@hp.com>
-Reply-To: mike.yoknis@hp.com
-Date: Tue, 09 Oct 2012 08:56:37 -0600
-In-Reply-To: <20121008151656.GM29125@suse.de>
-References: <1349276174-8398-1-git-send-email-mike.yoknis@hp.com>
-	 <20121008151656.GM29125@suse.de>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
+	by kanga.kvack.org (Postfix) with SMTP id AE11A6B002B
+	for <linux-mm@kvack.org>; Tue,  9 Oct 2012 11:04:10 -0400 (EDT)
+Date: Tue, 9 Oct 2012 17:04:03 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH v4 05/14] Add a __GFP_KMEMCG flag
+Message-ID: <20121009150403.GB7655@dhcp22.suse.cz>
+References: <1349690780-15988-1-git-send-email-glommer@parallels.com>
+ <1349690780-15988-6-git-send-email-glommer@parallels.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1349690780-15988-6-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: mingo@redhat.com, akpm@linux-foundation.org, linux-arch@vger.kernel.org, mmarek@suse.cz, tglx@linutronix.de, hpa@zytor.com, arnd@arndb.de, sam@ravnborg.org, minchan@kernel.org, kamezawa.hiroyu@jp.fujitsu.com, mhocko@suse.cz, linux-kbuild@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Glauber Costa <glommer@parallels.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Suleiman Souhlal <suleiman@google.com>, Tejun Heo <tj@kernel.org>, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, Johannes Weiner <hannes@cmpxchg.org>, Greg Thelen <gthelen@google.com>, devel@openvz.org, Frederic Weisbecker <fweisbec@gmail.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@cs.helsinki.fi>
 
-On Mon, 2012-10-08 at 16:16 +0100, Mel Gorman wrote:
-> On Wed, Oct 03, 2012 at 08:56:14AM -0600, Mike Yoknis wrote:
-> > memmap_init_zone() loops through every Page Frame Number (pfn),
-> > including pfn values that are within the gaps between existing
-> > memory sections.  The unneeded looping will become a boot
-> > performance issue when machines configure larger memory ranges
-> > that will contain larger and more numerous gaps.
-> > 
-> > The code will skip across invalid sections to reduce the
-> > number of loops executed.
-> > 
-> > Signed-off-by: Mike Yoknis <mike.yoknis@hp.com>
+On Mon 08-10-12 14:06:11, Glauber Costa wrote:
+> This flag is used to indicate to the callees that this allocation is a
+> kernel allocation in process context, and should be accounted to
+> current's memcg. It takes numerical place of the of the recently removed
+> __GFP_NO_KSWAPD.
 > 
-> This only helps SPARSEMEM and changes more headers than should be
-> necessary. It would have been easier to do something simple like
+> [ v4: make flag unconditional, also declare it in trace code ]
 > 
-> if (!early_pfn_valid(pfn)) {
-> 	pfn = ALIGN(pfn + MAX_ORDER_NR_PAGES, MAX_ORDER_NR_PAGES) - 1;
-> 	continue;
-> }
+> Signed-off-by: Glauber Costa <glommer@parallels.com>
+> CC: Christoph Lameter <cl@linux.com>
+> CC: Pekka Enberg <penberg@cs.helsinki.fi>
+> CC: Michal Hocko <mhocko@suse.cz>
+> CC: Suleiman Souhlal <suleiman@google.com>
+> Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+> Acked-by: Rik van Riel <riel@redhat.com>
+> Acked-by: Mel Gorman <mel@csn.ul.ie>
+> Acked-by: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+
+Acked-by: Michal Hocko <mhocko@suse.cz>
+
+> ---
+>  include/linux/gfp.h             | 3 ++-
+>  include/trace/events/gfpflags.h | 1 +
+>  2 files changed, 3 insertions(+), 1 deletion(-)
 > 
-> because that would obey the expectation that pages within a
-> MAX_ORDER_NR_PAGES-aligned range are all valid or all invalid (ARM is the
-> exception that breaks this rule). It would be less efficient on
-> SPARSEMEM than what you're trying to merge but I do not see the need for
-> the additional complexity unless you can show it makes a big difference
-> to boot times.
+> diff --git a/include/linux/gfp.h b/include/linux/gfp.h
+> index 02c1c97..9289d46 100644
+> --- a/include/linux/gfp.h
+> +++ b/include/linux/gfp.h
+> @@ -31,6 +31,7 @@ struct vm_area_struct;
+>  #define ___GFP_THISNODE		0x40000u
+>  #define ___GFP_RECLAIMABLE	0x80000u
+>  #define ___GFP_NOTRACK		0x200000u
+> +#define ___GFP_KMEMCG		0x400000u
+>  #define ___GFP_OTHER_NODE	0x800000u
+>  #define ___GFP_WRITE		0x1000000u
+>  
+> @@ -87,7 +88,7 @@ struct vm_area_struct;
+>  
+>  #define __GFP_OTHER_NODE ((__force gfp_t)___GFP_OTHER_NODE) /* On behalf of other node */
+>  #define __GFP_WRITE	((__force gfp_t)___GFP_WRITE)	/* Allocator intends to dirty page */
+> -
+> +#define __GFP_KMEMCG	((__force gfp_t)___GFP_KMEMCG) /* Allocation comes from a memcg-accounted resource */
+>  /*
+>   * This may seem redundant, but it's a way of annotating false positives vs.
+>   * allocations that simply cannot be supported (e.g. page tables).
+> diff --git a/include/trace/events/gfpflags.h b/include/trace/events/gfpflags.h
+> index 9391706..730df12 100644
+> --- a/include/trace/events/gfpflags.h
+> +++ b/include/trace/events/gfpflags.h
+> @@ -36,6 +36,7 @@
+>  	{(unsigned long)__GFP_RECLAIMABLE,	"GFP_RECLAIMABLE"},	\
+>  	{(unsigned long)__GFP_MOVABLE,		"GFP_MOVABLE"},		\
+>  	{(unsigned long)__GFP_NOTRACK,		"GFP_NOTRACK"},		\
+> +	{(unsigned long)__GFP_KMEMCG,		"GFP_KMEMCG"},		\
+>  	{(unsigned long)__GFP_OTHER_NODE,	"GFP_OTHER_NODE"}	\
+>  	) : "GFP_NOWAIT"
+>  
+> -- 
+> 1.7.11.4
 > 
+> --
+> To unsubscribe from this list: send the line "unsubscribe cgroups" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
 
-Mel,
-I, too, was concerned that pfn_valid() was defined in so many header
-files.  But, I did not feel that it was appropriate for me to try to
-restructure things to consolidate those definitions just to add this one
-new function.  Being a kernel newbie I did not believe that I had a good
-enough understanding of what combinations and permutations of CONFIG and
-architecture may have made all of those different definitions necessary,
-so I left them in.
-
-Yes, indeed, this fix is targeted for systems that have holes in memory.
-That is where we see the problem.  We are creating large computer
-systems and we would like for those machines to perform well, including
-boot times.
-
-Let me pass along the numbers I have.  We have what we call an
-"architectural simulator".  It is a computer program that pretends that
-it is a computer system.  We use it to test the firmware before real
-hardware is available.  We have booted Linux on our simulator.  As you
-would expect it takes longer to boot on the simulator than it does on
-real hardware.
-
-With my patch - boot time 41 minutes
-Without patch - boot time 94 minutes
-
-These numbers do not scale linearly to real hardware.  But indicate to
-me a place where Linux can be improved.
-
-Mike Yoknis
-
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
