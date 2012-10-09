@@ -1,131 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
-	by kanga.kvack.org (Postfix) with SMTP id 48F456B002B
-	for <linux-mm@kvack.org>; Tue,  9 Oct 2012 06:02:07 -0400 (EDT)
-Received: by mail-bk0-f41.google.com with SMTP id jm1so2526675bkc.14
-        for <linux-mm@kvack.org>; Tue, 09 Oct 2012 03:02:05 -0700 (PDT)
-Subject: Re: [PATCH v3 10/10] mm: kill vma flag VM_RESERVED and
- mm->reserved_vm counter
-From: Eric Dumazet <eric.dumazet@gmail.com>
-In-Reply-To: <20120731104239.20515.702.stgit@zurg>
-References: <20120731103724.20515.60334.stgit@zurg>
-	 <20120731104239.20515.702.stgit@zurg>
-Content-Type: text/plain; charset="UTF-8"
-Date: Tue, 09 Oct 2012 12:02:01 +0200
-Message-ID: <1349776921.21172.4091.camel@edumazet-glaptop>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
+	by kanga.kvack.org (Postfix) with SMTP id 063F46B002B
+	for <linux-mm@kvack.org>; Tue,  9 Oct 2012 06:11:50 -0400 (EDT)
+Date: Tue, 9 Oct 2012 11:11:43 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: CMA broken in next-20120926
+Message-ID: <20121009101143.GQ29125@suse.de>
+References: <20120928105113.GA18883@avionic-0098.mockup.avionic-design.de>
+ <20121008080654.GD13817@bbox>
+ <20121008084806.GH29125@suse.de>
+ <201210091040.10811.b.zolnierkie@samsung.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <201210091040.10811.b.zolnierkie@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konstantin Khlebnikov <khlebnikov@openvz.org>, Alex Williamson <alex.williamson@redhat.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, Nick Piggin <npiggin@kernel.dk>
+To: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
+Cc: Minchan Kim <minchan@kernel.org>, Thierry Reding <thierry.reding@avionic-design.de>, Peter Ujfalusi <peter.ujfalusi@ti.com>, Andrew Morton <akpm@linux-foundation.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Kyungmin Park <kyungmin.park@samsung.com>, Mark Brown <broonie@opensource.wolfsonmicro.com>
 
-On Tue, 2012-07-31 at 14:42 +0400, Konstantin Khlebnikov wrote:
-> A long time ago, in v2.4, VM_RESERVED kept swapout process off VMA,
-> currently it lost original meaning but still has some effects:
+On Tue, Oct 09, 2012 at 10:40:10AM +0200, Bartlomiej Zolnierkiewicz wrote:
+> I also need following patch to make CONFIG_CMA=y && CONFIG_COMPACTION=y case
+> work:
 > 
->  | effect                 | alternative flags
-> -+------------------------+---------------------------------------------
-> 1| account as reserved_vm | VM_IO
-> 2| skip in core dump      | VM_IO, VM_DONTDUMP
-> 3| do not merge or expand | VM_IO, VM_DONTEXPAND, VM_HUGETLB, VM_PFNMAP
-> 4| do not mlock           | VM_IO, VM_DONTEXPAND, VM_HUGETLB, VM_PFNMAP
+> From: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
+> Subject: [PATCH] mm: compaction: cache if a pageblock was scanned and no pages were isolated - cma fix
 > 
-> This patch removes reserved_vm counter from mm_struct.
-> Seems like nobody cares about it, it does not exported into userspace directly,
-> it only reduces total_vm showed in proc.
+> Patch "mm: compaction: cache if a pageblock was scanned and no pages
+> were isolated" needs a following fix to successfully boot next-20121002
+> kernel (same with next-20121008) with CONFIG_CMA=y and CONFIG_COMPACTION=y
+> (with applied -fix1, -fix2, -fix3 patches from Mel Gorman and also with
+> cmatest module from Thierry Reding compiled in).
 > 
-> Thus VM_RESERVED can be replaced with VM_IO or pair VM_DONTEXPAND | VM_DONTDUMP.
-> 
-> remap_pfn_range() and io_remap_pfn_range() set VM_IO|VM_DONTEXPAND|VM_DONTDUMP.
-> remap_vmalloc_range() set VM_DONTEXPAND | VM_DONTDUMP.
-> 
-> Signed-off-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
-> Cc: Nick Piggin <npiggin@kernel.dk>
-> Cc: Hugh Dickins <hughd@google.com>
+
+Why is it needed to make it boot? CMA should not care about the
+PG_migrate_skip hint being set because it should always ignore it in
+alloc_contig_range() due to cc->ignore_skip_hint. It's not obvious to
+me why this fixes a boot failure and I wonder if it's papering over some
+underlying problem. Can you provide more details please?
+
+> Signed-off-by: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
+> Signed-off-by: Kyungmin Park <kyungmin.park@samsung.com>
 > ---
->  Documentation/vm/unevictable-lru.txt             |    4 ++--
->  arch/alpha/kernel/pci-sysfs.c                    |    2 +-
->  arch/ia64/kernel/perfmon.c                       |    2 +-
->  arch/ia64/mm/init.c                              |    3 ++-
->  arch/powerpc/kvm/book3s_hv.c                     |    2 +-
->  arch/sparc/kernel/pci.c                          |    2 +-
->  arch/unicore32/kernel/process.c                  |    2 +-
->  arch/x86/xen/mmu.c                               |    3 +--
->  drivers/char/mbcs.c                              |    2 +-
->  drivers/char/mem.c                               |    2 +-
->  drivers/char/mspec.c                             |    2 +-
->  drivers/gpu/drm/drm_gem.c                        |    2 +-
->  drivers/gpu/drm/drm_vm.c                         |   10 ++--------
->  drivers/gpu/drm/exynos/exynos_drm_gem.c          |    2 +-
->  drivers/gpu/drm/gma500/framebuffer.c             |    3 +--
->  drivers/gpu/drm/ttm/ttm_bo_vm.c                  |    4 ++--
->  drivers/gpu/drm/udl/udl_fb.c                     |    2 +-
->  drivers/infiniband/hw/ehca/ehca_uverbs.c         |    4 ++--
->  drivers/infiniband/hw/ipath/ipath_file_ops.c     |    2 +-
->  drivers/infiniband/hw/qib/qib_file_ops.c         |    2 +-
->  drivers/media/video/meye.c                       |    2 +-
->  drivers/media/video/omap/omap_vout.c             |    2 +-
->  drivers/media/video/sn9c102/sn9c102_core.c       |    3 +--
->  drivers/media/video/usbvision/usbvision-video.c  |    3 +--
->  drivers/media/video/videobuf-dma-sg.c            |    2 +-
->  drivers/media/video/videobuf-vmalloc.c           |    2 +-
->  drivers/media/video/videobuf2-memops.c           |    2 +-
->  drivers/media/video/vino.c                       |    2 +-
->  drivers/misc/carma/carma-fpga.c                  |    2 --
->  drivers/misc/sgi-gru/grufile.c                   |    5 ++---
->  drivers/mtd/mtdchar.c                            |    2 +-
->  drivers/scsi/sg.c                                |    2 +-
->  drivers/staging/media/easycap/easycap_main.c     |    2 +-
->  drivers/staging/omapdrm/omap_gem_dmabuf.c        |    2 +-
->  drivers/staging/tidspbridge/rmgr/drv_interface.c |    2 +-
->  drivers/uio/uio.c                                |    4 +---
->  drivers/usb/mon/mon_bin.c                        |    2 +-
->  drivers/video/68328fb.c                          |    2 +-
->  drivers/video/aty/atyfb_base.c                   |    3 +--
->  drivers/video/fb-puv3.c                          |    3 +--
->  drivers/video/fb_defio.c                         |    2 +-
->  drivers/video/fbmem.c                            |    3 +--
->  drivers/video/gbefb.c                            |    2 +-
->  drivers/video/omap2/omapfb/omapfb-main.c         |    2 +-
->  drivers/video/sbuslib.c                          |    5 ++---
->  drivers/video/smscufx.c                          |    1 -
->  drivers/video/udlfb.c                            |    1 -
->  drivers/video/vermilion/vermilion.c              |    1 -
->  drivers/video/vfb.c                              |    1 -
->  drivers/xen/gntalloc.c                           |    2 +-
->  drivers/xen/gntdev.c                             |    2 +-
->  drivers/xen/privcmd.c                            |    3 ++-
->  fs/binfmt_elf.c                                  |    2 +-
->  fs/binfmt_elf_fdpic.c                            |    2 +-
->  fs/hugetlbfs/inode.c                             |    2 +-
->  fs/proc/task_mmu.c                               |    2 +-
->  include/linux/mempolicy.h                        |    2 +-
->  include/linux/mm.h                               |    3 +--
->  include/linux/mm_types.h                         |    1 -
->  kernel/events/core.c                             |    2 +-
->  mm/ksm.c                                         |    3 +--
->  mm/memory.c                                      |   11 +++++------
->  mm/mlock.c                                       |    2 +-
->  mm/mmap.c                                        |    2 --
->  mm/nommu.c                                       |    2 +-
->  mm/vmalloc.c                                     |    3 +--
->  security/selinux/selinuxfs.c                     |    2 +-
->  sound/core/pcm_native.c                          |    6 +++---
->  sound/usb/usx2y/us122l.c                         |    2 +-
->  sound/usb/usx2y/usX2Yhwdep.c                     |    2 +-
->  sound/usb/usx2y/usx2yhwdeppcm.c                  |    2 +-
->  71 files changed, 78 insertions(+), 106 deletions(-)
+>  mm/compaction.c |    3 ++-
+>  1 file changed, 2 insertions(+), 1 deletion(-)
+> 
+> Index: b/mm/compaction.c
+> ===================================================================
+> --- a/mm/compaction.c	2012-10-08 18:10:53.491679716 +0200
+> +++ b/mm/compaction.c	2012-10-08 18:11:33.615679713 +0200
+> @@ -117,7 +117,8 @@ static void update_pageblock_skip(struct
+>  			bool migrate_scanner)
+>  {
+>  	struct zone *zone = cc->zone;
+> -	if (!page)
+> +
+> +	if (!page || cc->ignore_skip_hint)
+>  		return;
+>  
+>  	if (!nr_isolated) {
 
-
-It seems drivers/vfio/pci/vfio_pci.c uses VM_RESERVED
-
-  CC [M]  drivers/watchdog/advantechwdt.o
-drivers/vfio/pci/vfio_pci.c: In function a??vfio_pci_mmapa??:
-drivers/vfio/pci/vfio_pci.c:464:28: erreur: a??VM_RESERVEDa?? undeclared (first use in this function)
-drivers/vfio/pci/vfio_pci.c:464:28: note: each undeclared identifier is reported only once for each function it appears in
-
-
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
