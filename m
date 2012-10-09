@@ -1,76 +1,31 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
-	by kanga.kvack.org (Postfix) with SMTP id CE44D6B002B
-	for <linux-mm@kvack.org>; Tue,  9 Oct 2012 07:46:01 -0400 (EDT)
-Received: from epcpsbgm1.samsung.com (epcpsbgm1 [203.254.230.26])
- by mailout4.samsung.com
- (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
- 17 2011)) with ESMTP id <0MBM00DLQJCBVTO0@mailout4.samsung.com> for
- linux-mm@kvack.org; Tue, 09 Oct 2012 20:46:00 +0900 (KST)
-Received: from amdc1032.localnet ([106.116.147.136])
- by mmp1.samsung.com (Oracle Communications Messaging Server 7u4-24.01
- (7.0.4.24.0) 64bit (built Nov 17 2011))
- with ESMTPA id <0MBM00KDWJCNLK30@mmp1.samsung.com> for linux-mm@kvack.org;
- Tue, 09 Oct 2012 20:46:00 +0900 (KST)
-From: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
-Subject: [PATCH] mm: compaction: fix bit ranges in
- {get,clear,set}_pageblock_skip()
-Date: Tue, 09 Oct 2012 13:43:47 +0200
-MIME-version: 1.0
-Message-id: <201210091343.47857.b.zolnierkie@samsung.com>
-Content-type: Text/Plain; charset=us-ascii
-Content-transfer-encoding: 7bit
+Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
+	by kanga.kvack.org (Postfix) with SMTP id BC3186B002B
+	for <linux-mm@kvack.org>; Tue,  9 Oct 2012 08:13:10 -0400 (EDT)
+Received: by mail-we0-f169.google.com with SMTP id u3so3667278wey.14
+        for <linux-mm@kvack.org>; Tue, 09 Oct 2012 05:13:08 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <1349776921.21172.4091.camel@edumazet-glaptop>
+References: <20120731103724.20515.60334.stgit@zurg> <20120731104239.20515.702.stgit@zurg>
+ <1349776921.21172.4091.camel@edumazet-glaptop>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Tue, 9 Oct 2012 21:12:48 +0900
+Message-ID: <CA+55aFzCCSE3bnPL7pquYq9pW6YLs_2QZR7r9kZEgwxxc7rzYg@mail.gmail.com>
+Subject: Re: [PATCH v3 10/10] mm: kill vma flag VM_RESERVED and
+ mm->reserved_vm counter
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, Thierry Reding <thierry.reding@avionic-design.de>, Peter Ujfalusi <peter.ujfalusi@ti.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, Mark Brown <broonie@opensource.wolfsonmicro.com>, Kyungmin Park <kyungmin.park@samsung.com>, linux-mm@kvack.org
+To: Eric Dumazet <eric.dumazet@gmail.com>
+Cc: Konstantin Khlebnikov <khlebnikov@openvz.org>, Alex Williamson <alex.williamson@redhat.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Nick Piggin <npiggin@kernel.dk>
 
-From: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
-Subject: [PATCH] mm: compaction: fix bit ranges in {get,clear,set}_pageblock_skip() 
+On Tue, Oct 9, 2012 at 7:02 PM, Eric Dumazet <eric.dumazet@gmail.com> wrote:
+>
+> It seems drivers/vfio/pci/vfio_pci.c uses VM_RESERVED
 
-{get,clear,set}_pageblock_skip() use incorrect bit ranges (please compare
-to bit ranges used by {get,set}_pageblock_flags() used for migration types)
-and can overwrite pageblock migratetype of the next pageblock in the bitmap.
+Yeah, I just pushed out what I think is the right (trivial) fix.
 
-This fix is needed for "mm: compaction: cache if a pageblock was scanned and
-no pages were isolated" patch.
-
-Acked-by: Mel Gorman <mgorman@suse.de>
-Tested-by: Thierry Reding <thierry.reding@avionic-design.de>
-Cc: Minchan Kim <minchan@kernel.org>
-Cc: Peter Ujfalusi <peter.ujfalusi@ti.com>
-Cc: Marek Szyprowski <m.szyprowski@samsung.com>
-Cc: Michal Nazarewicz <mina86@mina86.com>
-Cc: Mark Brown <broonie@opensource.wolfsonmicro.com>
-Signed-off-by: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
-Signed-off-by: Kyungmin Park <kyungmin.park@samsung.com>
----
-Andrew, please apply.
-
- include/linux/pageblock-flags.h |    6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
-
-Index: b/include/linux/pageblock-flags.h
-===================================================================
---- a/include/linux/pageblock-flags.h	2012-10-09 12:50:20.366340001 +0200
-+++ b/include/linux/pageblock-flags.h	2012-10-09 12:50:31.794339996 +0200
-@@ -71,13 +71,13 @@ void set_pageblock_flags_group(struct pa
- #ifdef CONFIG_COMPACTION
- #define get_pageblock_skip(page) \
- 			get_pageblock_flags_group(page, PB_migrate_skip,     \
--							PB_migrate_skip + 1)
-+							PB_migrate_skip)
- #define clear_pageblock_skip(page) \
- 			set_pageblock_flags_group(page, 0, PB_migrate_skip,  \
--							PB_migrate_skip + 1)
-+							PB_migrate_skip)
- #define set_pageblock_skip(page) \
- 			set_pageblock_flags_group(page, 1, PB_migrate_skip,  \
--							PB_migrate_skip + 1)
-+							PB_migrate_skip)
- #endif /* CONFIG_COMPACTION */
- 
- #define get_pageblock_flags(page) \
+               Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
