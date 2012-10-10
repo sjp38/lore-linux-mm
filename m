@@ -1,68 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
-	by kanga.kvack.org (Postfix) with SMTP id F0EBD6B002B
-	for <linux-mm@kvack.org>; Wed, 10 Oct 2012 17:57:51 -0400 (EDT)
-Received: by mail-ie0-f169.google.com with SMTP id 10so2279374ied.14
-        for <linux-mm@kvack.org>; Wed, 10 Oct 2012 14:57:50 -0700 (PDT)
-Date: Wed, 10 Oct 2012 14:57:48 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH] mm: Fix XFS oops due to dirty pages without buffers on
- s390
-In-Reply-To: <alpine.LSU.2.00.1210091600450.30446@eggly.anvils>
-Message-ID: <alpine.LSU.2.00.1210101428470.1939@eggly.anvils>
-References: <1349108796-32161-1-git-send-email-jack@suse.cz> <alpine.LSU.2.00.1210082029190.2237@eggly.anvils> <20121009101822.79bdcb65@mschwide> <alpine.LSU.2.00.1210091600450.30446@eggly.anvils>
+Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
+	by kanga.kvack.org (Postfix) with SMTP id 03B4D6B002B
+	for <linux-mm@kvack.org>; Wed, 10 Oct 2012 18:02:44 -0400 (EDT)
+Message-ID: <5075F042.2030206@redhat.com>
+Date: Wed, 10 Oct 2012 18:01:38 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH 19/33] autonuma: memory follows CPU algorithm and task/mm_autonuma
+ stats collection
+References: <1349308275-2174-1-git-send-email-aarcange@redhat.com> <1349308275-2174-20-git-send-email-aarcange@redhat.com>
+In-Reply-To: <1349308275-2174-20-git-send-email-aarcange@redhat.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Martin Schwidefsky <schwidefsky@de.ibm.com>
-Cc: Jan Kara <jack@suse.cz>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, xfs@oss.sgi.com, Mel Gorman <mgorman@suse.de>, linux-s390@vger.kernel.org
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <pzijlstr@redhat.com>, Ingo Molnar <mingo@elte.hu>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Hillf Danton <dhillf@gmail.com>, Andrew Jones <drjones@redhat.com>, Dan Smith <danms@us.ibm.com>, Thomas Gleixner <tglx@linutronix.de>, Paul Turner <pjt@google.com>, Christoph Lameter <cl@linux.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Srivatsa Vaddagiri <vatsa@linux.vnet.ibm.com>, Alex Shi <alex.shi@intel.com>, Mauricio Faria de Oliveira <mauricfo@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Don Morris <don.morris@hp.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
 
-On Tue, 9 Oct 2012, Hugh Dickins wrote:
-> On Tue, 9 Oct 2012, Martin Schwidefsky wrote:
-> > On Mon, 8 Oct 2012 21:24:40 -0700 (PDT)
-> > Hugh Dickins <hughd@google.com> wrote:
-> > 
-> > > A separate worry came to mind as I thought about your patch: where
-> > > in page migration is s390's dirty storage key migrated from old page
-> > > to new?  And if there is a problem there, that too should be fixed
-> > > by what I propose in the previous paragraph.
-> > 
-> > That is covered by the SetPageUptodate() in migrate_page_copy().
-> 
-> I don't think so: that makes sure that the newpage is not marked
-> dirty in storage key just because of the copy_highpage to it; but
-> I see nothing to mark the newpage dirty in storage key when the
-> old page was dirty there.
+On 10/03/2012 07:51 PM, Andrea Arcangeli wrote:
 
-I went to prepare a patch to fix this, and ended up finding no such
-problem to fix - which fits with how no such problem has been reported.
+> +/*
+> + * In this function we build a temporal CPU_node<->page relation by
+> + * using a two-stage autonuma_last_nid filter to remove short/unlikely
+> + * relations.
+> + *
+> + * Using P(p) ~ n_p / n_t as per frequentest probability, we can
+> + * equate a node's CPU usage of a particular page (n_p) per total
+> + * usage of this page (n_t) (in a given time-span) to a probability.
+> + *
+> + * Our periodic faults will then sample this probability and getting
+> + * the same result twice in a row, given these samples are fully
+> + * independent, is then given by P(n)^2, provided our sample period
+> + * is sufficiently short compared to the usage pattern.
+> + *
+> + * This quadric squishes small probabilities, making it less likely
+> + * we act on an unlikely CPU_node<->page relation.
+> + */
+> +static inline bool last_nid_set(struct page *page, int this_nid)
+> +{
 
-Most of it is handled by page migration's unmap_and_move() having to
-unmap the old page first: so the old page will pass through the final
-page_remove_rmap(), which will transfer storage key to page_dirty in
-those cases which it deals with (with the old code, any file or swap
-page; with the new code, any unaccounted file or swap page, now that
-we realize the accounted files don't even need this); and page_dirty
-is already properly migrated to the new page.
+Could be nice to rename this function to should_migrate_page()...
 
-But that does leave one case behind: an anonymous page not yet in
-swapcache, migrated via a swap-like migration entry.  But this case
-is not a problem because PageDirty doesn't actually affect anything
-for an anonymous page not in swapcache.  There are various places
-where we set it, and its life-history is hard to make sense of, but
-in fact it's meaningless in 2.6, where page reclaim adds anon to swap
-(and sets PageDirty) whether the page was marked dirty before or not
-(which makes sense when we use the ZERO_PAGE for anon read faults).
+> +	bool ret = true;
+> +	int autonuma_last_nid = ACCESS_ONCE(page->autonuma_last_nid);
+> +	VM_BUG_ON(this_nid < 0);
+> +	VM_BUG_ON(this_nid >= MAX_NUMNODES);
+> +	if (autonuma_last_nid != this_nid) {
+> +		if (autonuma_last_nid >= 0)
+> +			ret = false;
+> +		ACCESS_ONCE(page->autonuma_last_nid) = this_nid;
+> +	}
+> +	return ret;
+> +}
 
-2.4 did behave differently: it was liable to free anon pages not
-marked dirty, and I think most of our anon SetPageDirtys are just a
-relic of those days - I do have a patch from 18 months ago to remove
-them (adding PG_dirty to the flags which should not be set when a
-page is freed), but there are usually more urgent things to attend
-to than rebase and retest that.
-
-Hugh
+-- 
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
