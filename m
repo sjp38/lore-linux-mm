@@ -1,186 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
-	by kanga.kvack.org (Postfix) with SMTP id 256636B002B
-	for <linux-mm@kvack.org>; Wed, 10 Oct 2012 02:27:49 -0400 (EDT)
-Received: by mail-wg0-f45.google.com with SMTP id dq12so127832wgb.26
-        for <linux-mm@kvack.org>; Tue, 09 Oct 2012 23:27:47 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
+	by kanga.kvack.org (Postfix) with SMTP id 53BC66B002B
+	for <linux-mm@kvack.org>; Wed, 10 Oct 2012 02:32:39 -0400 (EDT)
+Received: by mail-pa0-f41.google.com with SMTP id fa10so287216pad.14
+        for <linux-mm@kvack.org>; Tue, 09 Oct 2012 23:32:38 -0700 (PDT)
+Date: Tue, 9 Oct 2012 23:32:35 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: [patch for-linus] memcg, kmem: fix build error when CONFIG_INET is
+ disabled
+Message-ID: <alpine.DEB.2.00.1210092325500.9528@chino.kir.corp.google.com>
 MIME-Version: 1.0
-In-Reply-To: <alpine.LNX.2.00.1210080924310.28357@pobox.suse.cz>
-References: <alpine.LNX.2.00.1210021810350.23544@pobox.suse.cz>
-	<20121002170149.GC2465@linux.vnet.ibm.com>
-	<alpine.LNX.2.00.1210022324050.23544@pobox.suse.cz>
-	<alpine.LNX.2.00.1210022331130.23544@pobox.suse.cz>
-	<alpine.LNX.2.00.1210022356370.23544@pobox.suse.cz>
-	<20121002233138.GD2465@linux.vnet.ibm.com>
-	<alpine.LNX.2.00.1210030142570.23544@pobox.suse.cz>
-	<20121003001530.GF2465@linux.vnet.ibm.com>
-	<alpine.LNX.2.00.1210030227430.23544@pobox.suse.cz>
-	<0000013a26fb253a-fb5df733-ad41-47c1-af1d-3d6739e417de-000000@email.amazonses.com>
-	<alpine.LNX.2.00.1210031631150.23544@pobox.suse.cz>
-	<506C52FC.4040305@linux.vnet.ibm.com>
-	<alpine.LNX.2.00.1210031703500.23544@pobox.suse.cz>
-	<alpine.DEB.2.00.1210031148520.2412@chino.kir.corp.google.com>
-	<alpine.LNX.2.00.1210080924310.28357@pobox.suse.cz>
-Date: Wed, 10 Oct 2012 09:27:47 +0300
-Message-ID: <CAOJsxLEg5U1VgZfZhW=cKjDAFRHfHTeQjKCjfmipS6dydR78ZA@mail.gmail.com>
-Subject: Re: [PATCH] [RESEND] mm, slab: release slab_mutex earlier in kmem_cache_destroy()
-From: Pekka Enberg <penberg@kernel.org>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jiri Kosina <jkosina@suse.cz>
-Cc: "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>, Christoph Lameter <cl@linux.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, "Paul E. McKenney" <paul.mckenney@linaro.org>, Josh Triplett <josh@joshtriplett.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, David Rientjes <rientjes@google.com>
+To: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Randy Dunlap <rdunlap@xenotime.net>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, "David S. Miller" <davem@davemloft.net>, "Eric W. Biederman" <ebiederm@xmission.com>, Eric Dumazet <eric.dumazet@gmail.com>, Glauber Costa <glommer@parallels.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Mon, Oct 8, 2012 at 10:26 AM, Jiri Kosina <jkosina@suse.cz> wrote:
-> Commit 1331e7a1bbe1 ("rcu: Remove _rcu_barrier() dependency on
-> __stop_machine()") introduced slab_mutex -> cpu_hotplug.lock dependency
-> through kmem_cache_destroy() -> rcu_barrier() -> _rcu_barrier() ->
-> get_online_cpus().
->
-> Lockdep thinks that this might actually result in ABBA deadlock,
-> and reports it as below:
->
-> === [ cut here ] ===
->  ======================================================
->  [ INFO: possible circular locking dependency detected ]
->  3.6.0-rc5-00004-g0d8ee37 #143 Not tainted
->  -------------------------------------------------------
->  kworker/u:2/40 is trying to acquire lock:
->   (rcu_sched_state.barrier_mutex){+.+...}, at: [<ffffffff810f2126>] _rcu_barrier+0x26/0x1e0
->
->  but task is already holding lock:
->   (slab_mutex){+.+.+.}, at: [<ffffffff81176e15>] kmem_cache_destroy+0x45/0xe0
->
->  which lock already depends on the new lock.
->
->  the existing dependency chain (in reverse order) is:
->
->  -> #2 (slab_mutex){+.+.+.}:
->         [<ffffffff810ae1e2>] validate_chain+0x632/0x720
->         [<ffffffff810ae5d9>] __lock_acquire+0x309/0x530
->         [<ffffffff810ae921>] lock_acquire+0x121/0x190
->         [<ffffffff8155d4cc>] __mutex_lock_common+0x5c/0x450
->         [<ffffffff8155d9ee>] mutex_lock_nested+0x3e/0x50
->         [<ffffffff81558cb5>] cpuup_callback+0x2f/0xbe
->         [<ffffffff81564b83>] notifier_call_chain+0x93/0x140
->         [<ffffffff81076f89>] __raw_notifier_call_chain+0x9/0x10
->         [<ffffffff8155719d>] _cpu_up+0xba/0x14e
->         [<ffffffff815572ed>] cpu_up+0xbc/0x117
->         [<ffffffff81ae05e3>] smp_init+0x6b/0x9f
->         [<ffffffff81ac47d6>] kernel_init+0x147/0x1dc
->         [<ffffffff8156ab44>] kernel_thread_helper+0x4/0x10
->
->  -> #1 (cpu_hotplug.lock){+.+.+.}:
->         [<ffffffff810ae1e2>] validate_chain+0x632/0x720
->         [<ffffffff810ae5d9>] __lock_acquire+0x309/0x530
->         [<ffffffff810ae921>] lock_acquire+0x121/0x190
->         [<ffffffff8155d4cc>] __mutex_lock_common+0x5c/0x450
->         [<ffffffff8155d9ee>] mutex_lock_nested+0x3e/0x50
->         [<ffffffff81049197>] get_online_cpus+0x37/0x50
->         [<ffffffff810f21bb>] _rcu_barrier+0xbb/0x1e0
->         [<ffffffff810f22f0>] rcu_barrier_sched+0x10/0x20
->         [<ffffffff810f2309>] rcu_barrier+0x9/0x10
->         [<ffffffff8118c129>] deactivate_locked_super+0x49/0x90
->         [<ffffffff8118cc01>] deactivate_super+0x61/0x70
->         [<ffffffff811aaaa7>] mntput_no_expire+0x127/0x180
->         [<ffffffff811ab49e>] sys_umount+0x6e/0xd0
->         [<ffffffff81569979>] system_call_fastpath+0x16/0x1b
->
->  -> #0 (rcu_sched_state.barrier_mutex){+.+...}:
->         [<ffffffff810adb4e>] check_prev_add+0x3de/0x440
->         [<ffffffff810ae1e2>] validate_chain+0x632/0x720
->         [<ffffffff810ae5d9>] __lock_acquire+0x309/0x530
->         [<ffffffff810ae921>] lock_acquire+0x121/0x190
->         [<ffffffff8155d4cc>] __mutex_lock_common+0x5c/0x450
->         [<ffffffff8155d9ee>] mutex_lock_nested+0x3e/0x50
->         [<ffffffff810f2126>] _rcu_barrier+0x26/0x1e0
->         [<ffffffff810f22f0>] rcu_barrier_sched+0x10/0x20
->         [<ffffffff810f2309>] rcu_barrier+0x9/0x10
->         [<ffffffff81176ea1>] kmem_cache_destroy+0xd1/0xe0
->         [<ffffffffa04c3154>] nf_conntrack_cleanup_net+0xe4/0x110 [nf_conntrack]
->         [<ffffffffa04c31aa>] nf_conntrack_cleanup+0x2a/0x70 [nf_conntrack]
->         [<ffffffffa04c42ce>] nf_conntrack_net_exit+0x5e/0x80 [nf_conntrack]
->         [<ffffffff81454b79>] ops_exit_list+0x39/0x60
->         [<ffffffff814551ab>] cleanup_net+0xfb/0x1b0
->         [<ffffffff8106917b>] process_one_work+0x26b/0x4c0
->         [<ffffffff81069f3e>] worker_thread+0x12e/0x320
->         [<ffffffff8106f73e>] kthread+0x9e/0xb0
->         [<ffffffff8156ab44>] kernel_thread_helper+0x4/0x10
->
->  other info that might help us debug this:
->
->  Chain exists of:
->    rcu_sched_state.barrier_mutex --> cpu_hotplug.lock --> slab_mutex
->
->   Possible unsafe locking scenario:
->
->         CPU0                    CPU1
->         ----                    ----
->    lock(slab_mutex);
->                                 lock(cpu_hotplug.lock);
->                                 lock(slab_mutex);
->    lock(rcu_sched_state.barrier_mutex);
->
->   *** DEADLOCK ***
-> === [ cut here ] ===
->
-> This is actually a false positive. Lockdep has no way of knowing the fact
-> that the ABBA can actually never happen, because of special semantics of
-> cpu_hotplug.refcount and its handling in cpu_hotplug_begin(); the mutual
-> exclusion there is not achieved through mutex, but through
-> cpu_hotplug.refcount.
->
-> The "neither cpu_up() nor cpu_down() will proceed past cpu_hotplug_begin()
-> until everyone who called get_online_cpus() will call put_online_cpus()"
-> semantics is totally invisible to lockdep.
->
-> This patch therefore moves the unlock of slab_mutex so that rcu_barrier()
-> is being called with it unlocked. It has two advantages:
->
-> - it slightly reduces hold time of slab_mutex; as it's used to protect
->   the cachep list, it's not necessary to hold it over kmem_cache_free()
->   call any more
-> - it silences the lockdep false positive warning, as it avoids lockdep ever
->   learning about slab_mutex -> cpu_hotplug.lock dependency
->
-> Reviewed-by: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
-> Reviewed-by: Srivatsa S. Bhat <srivatsa.bhat@linux.vnet.ibm.com>
-> Acked-by: David Rientjes <rientjes@google.com>
-> Signed-off-by: Jiri Kosina <jkosina@suse.cz>
-> ---
->  mm/slab_common.c |    5 ++++-
->  1 files changed, 4 insertions(+), 1 deletions(-)
->
-> diff --git a/mm/slab_common.c b/mm/slab_common.c
-> index 9c21725..069a24e6 100644
-> --- a/mm/slab_common.c
-> +++ b/mm/slab_common.c
-> @@ -168,6 +168,7 @@ void kmem_cache_destroy(struct kmem_cache *s)
->                 list_del(&s->list);
->
->                 if (!__kmem_cache_shutdown(s)) {
-> +                       mutex_unlock(&slab_mutex);
->                         if (s->flags & SLAB_DESTROY_BY_RCU)
->                                 rcu_barrier();
->
-> @@ -175,12 +176,14 @@ void kmem_cache_destroy(struct kmem_cache *s)
->                         kmem_cache_free(kmem_cache, s);
->                 } else {
->                         list_add(&s->list, &slab_caches);
-> +                       mutex_unlock(&slab_mutex);
->                         printk(KERN_ERR "kmem_cache_destroy %s: Slab cache still has objects\n",
->                                 s->name);
->                         dump_stack();
->                 }
-> +       } else {
-> +               mutex_unlock(&slab_mutex);
->         }
-> -       mutex_unlock(&slab_mutex);
->         put_online_cpus();
->  }
->  EXPORT_SYMBOL(kmem_cache_destroy);
+Commit e1aab161e013 ("socket: initial cgroup code.") causes a build error 
+when CONFIG_INET is disabled in Linus' tree:
 
-Applied, thanks!
+net/built-in.o: In function `sk_update_clone':
+net/core/sock.c:1336: undefined reference to `sock_update_memcg'
+
+sock_update_memcg() is only defined when CONFIG_INET is enabled, so fix it 
+by defining the dummy function without this option.
+
+Reported-by: Randy Dunlap <rdunlap@xenotime.net>
+Signed-off-by: David Rientjes <rientjes@google.com>
+---
+ Checking the logs, Randy reported this in an email to LKML on 
+ September 24 and didn't get a response...
+
+ include/linux/memcontrol.h |    4 ++--
+ 1 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+--- a/include/linux/memcontrol.h
++++ b/include/linux/memcontrol.h
+@@ -396,7 +396,7 @@ enum {
+ };
+ 
+ struct sock;
+-#ifdef CONFIG_MEMCG_KMEM
++#if defined(CONFIG_INET) && defined(CONFIG_MEMCG_KMEM)
+ void sock_update_memcg(struct sock *sk);
+ void sock_release_memcg(struct sock *sk);
+ #else
+@@ -406,6 +406,6 @@ static inline void sock_update_memcg(struct sock *sk)
+ static inline void sock_release_memcg(struct sock *sk)
+ {
+ }
+-#endif /* CONFIG_MEMCG_KMEM */
++#endif /* CONFIG_INET && CONFIG_MEMCG_KMEM */
+ #endif /* _LINUX_MEMCONTROL_H */
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
