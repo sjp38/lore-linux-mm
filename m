@@ -1,96 +1,159 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
-	by kanga.kvack.org (Postfix) with SMTP id 458176B002B
-	for <linux-mm@kvack.org>; Wed, 10 Oct 2012 07:24:52 -0400 (EDT)
-Date: Wed, 10 Oct 2012 13:24:47 +0200
+Received: from psmtp.com (na3sys010amx103.postini.com [74.125.245.103])
+	by kanga.kvack.org (Postfix) with SMTP id 27C6F6B002B
+	for <linux-mm@kvack.org>; Wed, 10 Oct 2012 07:25:52 -0400 (EDT)
+Date: Wed, 10 Oct 2012 13:25:49 +0200
 From: Michal Hocko <mhocko@suse.cz>
 Subject: Re: [PATCH v4 08/14] res_counter: return amount of charges after
  res_counter_uncharge
-Message-ID: <20121010112446.GE23011@dhcp22.suse.cz>
+Message-ID: <20121010112549.GF23011@dhcp22.suse.cz>
 References: <1349690780-15988-1-git-send-email-glommer@parallels.com>
  <1349690780-15988-9-git-send-email-glommer@parallels.com>
- <20121009150845.GC7655@dhcp22.suse.cz>
- <50743F71.7090409@parallels.com>
- <20121009153506.GD7655@dhcp22.suse.cz>
- <507539EB.90006@parallels.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <507539EB.90006@parallels.com>
+In-Reply-To: <1349690780-15988-9-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Glauber Costa <glommer@parallels.com>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Suleiman Souhlal <suleiman@google.com>, Tejun Heo <tj@kernel.org>, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, Johannes Weiner <hannes@cmpxchg.org>, Greg Thelen <gthelen@google.com>, devel@openvz.org, Frederic Weisbecker <fweisbec@gmail.com>
 
-On Wed 10-10-12 13:03:39, Glauber Costa wrote:
-> On 10/09/2012 07:35 PM, Michal Hocko wrote:
-> > On Tue 09-10-12 19:14:57, Glauber Costa wrote:
-> >> On 10/09/2012 07:08 PM, Michal Hocko wrote:
-> >>> As I have already mentioned in my previous feedback this is cetainly not
-> >>> atomic as you the lock protects only one group in the hierarchy. How is
-> >>> the return value from this function supposed to be used?
-> >>
-> >> So, I tried to make that clearer in the updated changelog.
-> >>
-> >> Only the value of the base memcg (the one passed to the function) is
-> >> returned, and it is atomic, in the sense that it has the same semantics
-> >> as the atomic variables: If 2 threads uncharge 4k each from a 8 k
-> >> counter, a subsequent read can return 0 for both. The return value here
-> >> will guarantee that only one sees the drop to 0.
-> >>
-> >> This is used in the patch "kmem_accounting lifecycle management" to be
-> >> sure that only one process will call mem_cgroup_put() in the memcg
-> >> structure.
-> > 
-> > Yes, you are using res_counter_uncharge and its semantic makes sense.
-> > I was refering to res_counter_uncharge_until (you removed that context
-> > from my reply) because that one can race resulting that nobody sees 0
-> > even though that parents get down to 0 as a result:
-> > 	 A
-> > 	 |
-> > 	 B
-> > 	/ \
-> >       C(x)  D(y)
-> > 
-> > D and C uncharge everything.
-> > 
-> > CPU0				CPU1
-> > ret += uncharge(D) [0]		ret += uncharge(C) [0]
-> > ret += uncharge(B) [x-from C]
-> > 				ret += uncharge(B) [0]
-> > 				ret += uncharge(A) [y-from D]
-> > ret += uncharge(A) [0]
-> > 
-> > ret == x			ret == y
-> > 
+On Mon 08-10-12 14:06:14, Glauber Costa wrote:
+> It is useful to know how many charges are still left after a call to
+> res_counter_uncharge. While it is possible to issue a res_counter_read
+> after uncharge, this can be racy.
 > 
-> Sorry Michal, I didn't realize you were talking about
-> res_counter_uncharge_until.
-
-I could have been more specific.
-
-> I don't really need res_counter_uncharge_until to return anything, so I
-> can just remove that if you prefer, keeping just the main
-> res_counter_uncharge.
->
-> However, I still can't make sense of your concern.
+> If we need, for instance, to take some action when the counters drop
+> down to 0, only one of the callers should see it. This is the same
+> semantics as the atomic variables in the kernel.
 > 
-> The return value will return the value of the counter passed as a
-> parameter to the function:
+> Since the current return value is void, we don't need to worry about
+> anything breaking due to this change: nobody relied on that, and only
+> users appearing from now on will be checking this value.
 > 
->                 r = res_counter_uncharge_locked(c, val);
->                 if (c == counter)
->                         ret = r;
+> Signed-off-by: Glauber Costa <glommer@parallels.com>
+> CC: Michal Hocko <mhocko@suse.cz>
+> CC: Johannes Weiner <hannes@cmpxchg.org>
+> CC: Suleiman Souhlal <suleiman@google.com>
+> CC: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-Dohh. I have no idea where I took ret += r from. Sorry about the noise.
- 
-> So when you call res_counter_uncharge_until(D, whatever, x), you will
-> see zero here as a result, and when you call
-> res_counter_uncharge_until(D, whatever, y) you will see 0 here as well.
+Reviewed-by: Michal Hocko <mhocko@suse.cz>
+
+> ---
+>  Documentation/cgroups/resource_counter.txt |  7 ++++---
+>  include/linux/res_counter.h                | 12 +++++++-----
+>  kernel/res_counter.c                       | 20 +++++++++++++-------
+>  3 files changed, 24 insertions(+), 15 deletions(-)
 > 
-> A doesn't get involved with that.
-
-You are right.
+> diff --git a/Documentation/cgroups/resource_counter.txt b/Documentation/cgroups/resource_counter.txt
+> index 0c4a344..c4d99ed 100644
+> --- a/Documentation/cgroups/resource_counter.txt
+> +++ b/Documentation/cgroups/resource_counter.txt
+> @@ -83,16 +83,17 @@ to work with it.
+>  	res_counter->lock internally (it must be called with res_counter->lock
+>  	held). The force parameter indicates whether we can bypass the limit.
+>  
+> - e. void res_counter_uncharge[_locked]
+> + e. u64 res_counter_uncharge[_locked]
+>  			(struct res_counter *rc, unsigned long val)
+>  
+>  	When a resource is released (freed) it should be de-accounted
+>  	from the resource counter it was accounted to.  This is called
+> -	"uncharging".
+> +	"uncharging". The return value of this function indicate the amount
+> +	of charges still present in the counter.
+>  
+>  	The _locked routines imply that the res_counter->lock is taken.
+>  
+> - f. void res_counter_uncharge_until
+> + f. u64 res_counter_uncharge_until
+>  		(struct res_counter *rc, struct res_counter *top,
+>  		 unsinged long val)
+>  
+> diff --git a/include/linux/res_counter.h b/include/linux/res_counter.h
+> index 7d7fbe2..4b173b6 100644
+> --- a/include/linux/res_counter.h
+> +++ b/include/linux/res_counter.h
+> @@ -130,14 +130,16 @@ int res_counter_charge_nofail(struct res_counter *counter,
+>   *
+>   * these calls check for usage underflow and show a warning on the console
+>   * _locked call expects the counter->lock to be taken
+> + *
+> + * returns the total charges still present in @counter.
+>   */
+>  
+> -void res_counter_uncharge_locked(struct res_counter *counter, unsigned long val);
+> -void res_counter_uncharge(struct res_counter *counter, unsigned long val);
+> +u64 res_counter_uncharge_locked(struct res_counter *counter, unsigned long val);
+> +u64 res_counter_uncharge(struct res_counter *counter, unsigned long val);
+>  
+> -void res_counter_uncharge_until(struct res_counter *counter,
+> -				struct res_counter *top,
+> -				unsigned long val);
+> +u64 res_counter_uncharge_until(struct res_counter *counter,
+> +			       struct res_counter *top,
+> +			       unsigned long val);
+>  /**
+>   * res_counter_margin - calculate chargeable space of a counter
+>   * @cnt: the counter
+> diff --git a/kernel/res_counter.c b/kernel/res_counter.c
+> index ad581aa..7b3d6dc 100644
+> --- a/kernel/res_counter.c
+> +++ b/kernel/res_counter.c
+> @@ -86,33 +86,39 @@ int res_counter_charge_nofail(struct res_counter *counter, unsigned long val,
+>  	return __res_counter_charge(counter, val, limit_fail_at, true);
+>  }
+>  
+> -void res_counter_uncharge_locked(struct res_counter *counter, unsigned long val)
+> +u64 res_counter_uncharge_locked(struct res_counter *counter, unsigned long val)
+>  {
+>  	if (WARN_ON(counter->usage < val))
+>  		val = counter->usage;
+>  
+>  	counter->usage -= val;
+> +	return counter->usage;
+>  }
+>  
+> -void res_counter_uncharge_until(struct res_counter *counter,
+> -				struct res_counter *top,
+> -				unsigned long val)
+> +u64 res_counter_uncharge_until(struct res_counter *counter,
+> +			       struct res_counter *top,
+> +			       unsigned long val)
+>  {
+>  	unsigned long flags;
+>  	struct res_counter *c;
+> +	u64 ret = 0;
+>  
+>  	local_irq_save(flags);
+>  	for (c = counter; c != top; c = c->parent) {
+> +		u64 r;
+>  		spin_lock(&c->lock);
+> -		res_counter_uncharge_locked(c, val);
+> +		r = res_counter_uncharge_locked(c, val);
+> +		if (c == counter)
+> +			ret = r;
+>  		spin_unlock(&c->lock);
+>  	}
+>  	local_irq_restore(flags);
+> +	return ret;
+>  }
+>  
+> -void res_counter_uncharge(struct res_counter *counter, unsigned long val)
+> +u64 res_counter_uncharge(struct res_counter *counter, unsigned long val)
+>  {
+> -	res_counter_uncharge_until(counter, NULL, val);
+> +	return res_counter_uncharge_until(counter, NULL, val);
+>  }
+>  
+>  static inline unsigned long long *
+> -- 
+> 1.7.11.4
+> 
+> --
+> To unsubscribe from this list: send the line "unsubscribe cgroups" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
 
 -- 
 Michal Hocko
