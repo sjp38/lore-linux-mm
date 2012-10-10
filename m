@@ -1,65 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
-	by kanga.kvack.org (Postfix) with SMTP id 3BA906B002B
-	for <linux-mm@kvack.org>; Wed, 10 Oct 2012 17:56:05 -0400 (EDT)
-Date: Thu, 11 Oct 2012 08:56:00 +1100
-From: Dave Chinner <david@fromorbit.com>
+Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
+	by kanga.kvack.org (Postfix) with SMTP id F0EBD6B002B
+	for <linux-mm@kvack.org>; Wed, 10 Oct 2012 17:57:51 -0400 (EDT)
+Received: by mail-ie0-f169.google.com with SMTP id 10so2279374ied.14
+        for <linux-mm@kvack.org>; Wed, 10 Oct 2012 14:57:50 -0700 (PDT)
+Date: Wed, 10 Oct 2012 14:57:48 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
 Subject: Re: [PATCH] mm: Fix XFS oops due to dirty pages without buffers on
  s390
-Message-ID: <20121010215600.GX23644@dastard>
-References: <1349108796-32161-1-git-send-email-jack@suse.cz>
- <alpine.LSU.2.00.1210082029190.2237@eggly.anvils>
- <20121009162107.GE15790@quack.suse.cz>
- <alpine.LSU.2.00.1210091824390.30802@eggly.anvils>
+In-Reply-To: <alpine.LSU.2.00.1210091600450.30446@eggly.anvils>
+Message-ID: <alpine.LSU.2.00.1210101428470.1939@eggly.anvils>
+References: <1349108796-32161-1-git-send-email-jack@suse.cz> <alpine.LSU.2.00.1210082029190.2237@eggly.anvils> <20121009101822.79bdcb65@mschwide> <alpine.LSU.2.00.1210091600450.30446@eggly.anvils>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.LSU.2.00.1210091824390.30802@eggly.anvils>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Jan Kara <jack@suse.cz>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, xfs@oss.sgi.com, Martin Schwidefsky <schwidefsky@de.ibm.com>, Mel Gorman <mgorman@suse.de>, linux-s390@vger.kernel.org
+To: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Cc: Jan Kara <jack@suse.cz>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, xfs@oss.sgi.com, Mel Gorman <mgorman@suse.de>, linux-s390@vger.kernel.org
 
-On Tue, Oct 09, 2012 at 07:19:09PM -0700, Hugh Dickins wrote:
-> On Tue, 9 Oct 2012, Jan Kara wrote:
-> > On Mon 08-10-12 21:24:40, Hugh Dickins wrote:
-> > > On Mon, 1 Oct 2012, Jan Kara wrote:
-> > > 
-> > > > On s390 any write to a page (even from kernel itself) sets architecture
-> > > > specific page dirty bit. Thus when a page is written to via standard write, HW
-> > > > dirty bit gets set and when we later map and unmap the page, page_remove_rmap()
-> > > > finds the dirty bit and calls set_page_dirty().
-> > > > 
-> > > > Dirtying of a page which shouldn't be dirty can cause all sorts of problems to
-> > > > filesystems. The bug we observed in practice is that buffers from the page get
-> > > > freed, so when the page gets later marked as dirty and writeback writes it, XFS
-> > > > crashes due to an assertion BUG_ON(!PagePrivate(page)) in page_buffers() called
-> > > > from xfs_count_page_state().
-> > > 
-> > > What changed recently?  Was XFS hardly used on s390 until now?
-> >   The problem was originally hit on SLE11-SP2 which is 3.0 based after
-> > migration of our s390 build machines from SLE11-SP1 (2.6.32 based). I think
-> > XFS just started to be more peevish about what pages it gets between these
-> > two releases ;) (e.g. ext3 or ext4 just says "oh, well" and fixes things
-> > up).
+On Tue, 9 Oct 2012, Hugh Dickins wrote:
+> On Tue, 9 Oct 2012, Martin Schwidefsky wrote:
+> > On Mon, 8 Oct 2012 21:24:40 -0700 (PDT)
+> > Hugh Dickins <hughd@google.com> wrote:
+> > 
+> > > A separate worry came to mind as I thought about your patch: where
+> > > in page migration is s390's dirty storage key migrated from old page
+> > > to new?  And if there is a problem there, that too should be fixed
+> > > by what I propose in the previous paragraph.
+> > 
+> > That is covered by the SetPageUptodate() in migrate_page_copy().
 > 
-> Right, in 2.6.32 xfs_vm_writepage() had a !page_has_buffers(page) case,
-> whereas by 3.0 that had become ASSERT(page_has_buffers(page)), with the
-> ASSERT usually compiled out, stumbling later in page_buffers() as you say.
+> I don't think so: that makes sure that the newpage is not marked
+> dirty in storage key just because of the copy_highpage to it; but
+> I see nothing to mark the newpage dirty in storage key when the
+> old page was dirty there.
 
-What that says is that no-one is running xfstests-based QA on s390
-with CONFIG_XFS_DEBUG enabled, otherwise this would have been found.
-I've never tested XFS on s390 before, and I doubt any of the
-upstream developers have, either, because not many peopl ehave s390
-machines in their basement. So this is probably just an oversight
-in the distro QA environment more than anything....
+I went to prepare a patch to fix this, and ended up finding no such
+problem to fix - which fits with how no such problem has been reported.
 
-Cheers,
+Most of it is handled by page migration's unmap_and_move() having to
+unmap the old page first: so the old page will pass through the final
+page_remove_rmap(), which will transfer storage key to page_dirty in
+those cases which it deals with (with the old code, any file or swap
+page; with the new code, any unaccounted file or swap page, now that
+we realize the accounted files don't even need this); and page_dirty
+is already properly migrated to the new page.
 
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+But that does leave one case behind: an anonymous page not yet in
+swapcache, migrated via a swap-like migration entry.  But this case
+is not a problem because PageDirty doesn't actually affect anything
+for an anonymous page not in swapcache.  There are various places
+where we set it, and its life-history is hard to make sense of, but
+in fact it's meaningless in 2.6, where page reclaim adds anon to swap
+(and sets PageDirty) whether the page was marked dirty before or not
+(which makes sense when we use the ZERO_PAGE for anon read faults).
+
+2.4 did behave differently: it was liable to free anon pages not
+marked dirty, and I think most of our anon SetPageDirtys are just a
+relic of those days - I do have a patch from 18 months ago to remove
+them (adding PG_dirty to the flags which should not be set when a
+page is freed), but there are usually more urgent things to attend
+to than rebase and retest that.
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
