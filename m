@@ -1,53 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx177.postini.com [74.125.245.177])
-	by kanga.kvack.org (Postfix) with SMTP id 8F6136B0068
-	for <linux-mm@kvack.org>; Thu, 11 Oct 2012 11:53:06 -0400 (EDT)
-Date: Thu, 11 Oct 2012 16:53:02 +0100
+Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
+	by kanga.kvack.org (Postfix) with SMTP id D0EDC6B006C
+	for <linux-mm@kvack.org>; Thu, 11 Oct 2012 11:57:48 -0400 (EDT)
+Date: Thu, 11 Oct 2012 16:57:43 +0100
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 15/33] autonuma: alloc/free/init task_autonuma
-Message-ID: <20121011155302.GA3317@csn.ul.ie>
+Subject: Re: [PATCH 07/33] autonuma: mm_autonuma and task_autonuma data
+ structures
+Message-ID: <20121011155743.GB3317@csn.ul.ie>
 References: <1349308275-2174-1-git-send-email-aarcange@redhat.com>
- <1349308275-2174-16-git-send-email-aarcange@redhat.com>
+ <1349308275-2174-8-git-send-email-aarcange@redhat.com>
+ <20121011122827.GT3317@csn.ul.ie>
+ <5076E4B2.2040301@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <1349308275-2174-16-git-send-email-aarcange@redhat.com>
+In-Reply-To: <5076E4B2.2040301@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <pzijlstr@redhat.com>, Ingo Molnar <mingo@elte.hu>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hillf Danton <dhillf@gmail.com>, Andrew Jones <drjones@redhat.com>, Dan Smith <danms@us.ibm.com>, Thomas Gleixner <tglx@linutronix.de>, Paul Turner <pjt@google.com>, Christoph Lameter <cl@linux.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Srivatsa Vaddagiri <vatsa@linux.vnet.ibm.com>, Alex Shi <alex.shi@intel.com>, Mauricio Faria de Oliveira <mauricfo@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Don Morris <don.morris@hp.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
+To: Rik van Riel <riel@redhat.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <pzijlstr@redhat.com>, Ingo Molnar <mingo@elte.hu>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Hillf Danton <dhillf@gmail.com>, Andrew Jones <drjones@redhat.com>, Dan Smith <danms@us.ibm.com>, Thomas Gleixner <tglx@linutronix.de>, Paul Turner <pjt@google.com>, Christoph Lameter <cl@linux.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Srivatsa Vaddagiri <vatsa@linux.vnet.ibm.com>, Alex Shi <alex.shi@intel.com>, Mauricio Faria de Oliveira <mauricfo@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Don Morris <don.morris@hp.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
 
-On Thu, Oct 04, 2012 at 01:50:57AM +0200, Andrea Arcangeli wrote:
-> This is where the dynamically allocated task_autonuma structure is
-> being handled.
+On Thu, Oct 11, 2012 at 11:24:34AM -0400, Rik van Riel wrote:
+> On 10/11/2012 08:28 AM, Mel Gorman wrote:
 > 
-> This is the structure holding the per-thread NUMA statistics generated
-> by the NUMA hinting page faults. This per-thread NUMA statistical
-> information is needed by sched_autonuma_balance to make optimal NUMA
-> balancing decisions.
+> >>+	/* link for knuma_scand's list of mm structures to scan */
+> >>+	struct list_head mm_node;
+> >>+	/* Pointer to associated mm structure */
+> >>+	struct mm_struct *mm;
+> >>+
+> >>+	/*
+> >>+	 * Zeroed from here during allocation, check
+> >>+	 * mm_autonuma_reset() if you alter the below.
+> >>+	 */
+> >>+
+> >>+	/*
+> >>+	 * Pass counter for this mm. This exist only to be able to
+> >>+	 * tell when it's time to apply the exponential backoff on the
+> >>+	 * task_autonuma statistics.
+> >>+	 */
+> >>+	unsigned long mm_numa_fault_pass;
+> >>+	/* Total number of pages that will trigger NUMA faults for this mm */
+> >>+	unsigned long mm_numa_fault_tot;
+> >>+	/* Number of pages that will trigger NUMA faults for each [nid] */
+> >>+	unsigned long mm_numa_fault[0];
+> >>+	/* do not add more variables here, the above array size is dynamic */
+> >>+};
+> >
+> >How cache hot is this structure? nodes are sharing counters in the same
+> >cache lines so if updates are frequent this will bounce like a mad yoke.
+> >Profiles will tell for sure but it's possible that some sort of per-cpu
+> >hilarity will be necessary here in the future.
 > 
-> It also contains the task_selected_nid which hints the stock CPU
-> scheduler on the best NUMA node to schedule this thread on (as decided
-> by sched_autonuma_balance).
+> These statistics are updated at page fault time, I
+> believe while holding the page table lock.
 > 
-> The reason for keeping this outside of the task_struct besides not
-> using too much kernel stack, is to only allocate it on NUMA
-> hardware. So the non NUMA hardware only pays the memory of a pointer
-> in the kernel stack (which remains NULL at all times in that case).
+> In other words, they are in code paths where updating
+> the stats should not cause issues.
 > 
-> If the kernel is compiled with CONFIG_AUTONUMA=n, not even the pointer
-> is allocated on the kernel stack of course.
-> 
-> Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 
-There is a possibility that someone will complain about the extra
-kmalloc() during fork that is now necessary for the autonuma structure.
-Microbenchmarks will howl but who cares -- autonuma only makes sense for
-long-lived processes anyway. It may be necessary in the future to defer
-this allocation until the process has consumed a few CPU seconds and
-likely to hang around for a while. Overkill for now though so
+Ordinarily I would agree but in this case the updates are taking place for
+NUMA hinting faults so there is an new source of new page faults and the
+page table lock is going to be hotter than it was in the past.  It may not
+be a problem as it'll be related to how short a knuma_scan cycle is but it's
+something else to keep an eye on. Profiles will tell for sure at the end of
+the day and it can be incrementally improved.
 
-Acked-by: Mel Gorman <mgorman@suse.de>
+> >>+/*
+> >>+ * Per-task (thread) structure that contains the NUMA memory placement
+> >>+ * statistics generated by the knuma scan daemon. This structure is
+> >>+ * dynamically allocated only if AutoNUMA is possible on this
+> >>+ * system. They are linked togehter in a list headed within the
+> >>+ * knumad_scan structure.
+> >>+ */
+> >>+struct task_autonuma {
+> 
+> >>+	unsigned long task_numa_fault[0];
+> >>+	/* do not add more variables here, the above array size is dynamic */
+> >>+};
+> >>+
+> >
+> >Same question about cache hotness.
+> 
 
 -- 
 Mel Gorman
