@@ -1,74 +1,166 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
-	by kanga.kvack.org (Postfix) with SMTP id D44026B002B
-	for <linux-mm@kvack.org>; Thu, 11 Oct 2012 08:22:59 -0400 (EDT)
-Date: Thu, 11 Oct 2012 13:22:55 +0100
+Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
+	by kanga.kvack.org (Postfix) with SMTP id 8415E6B002B
+	for <linux-mm@kvack.org>; Thu, 11 Oct 2012 08:28:32 -0400 (EDT)
+Date: Thu, 11 Oct 2012 13:28:27 +0100
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 06/33] autonuma: teach gup_fast about pmd_numa
-Message-ID: <20121011122255.GS3317@csn.ul.ie>
+Subject: Re: [PATCH 07/33] autonuma: mm_autonuma and task_autonuma data
+ structures
+Message-ID: <20121011122827.GT3317@csn.ul.ie>
 References: <1349308275-2174-1-git-send-email-aarcange@redhat.com>
- <1349308275-2174-7-git-send-email-aarcange@redhat.com>
+ <1349308275-2174-8-git-send-email-aarcange@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <1349308275-2174-7-git-send-email-aarcange@redhat.com>
+In-Reply-To: <1349308275-2174-8-git-send-email-aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrea Arcangeli <aarcange@redhat.com>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <pzijlstr@redhat.com>, Ingo Molnar <mingo@elte.hu>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hillf Danton <dhillf@gmail.com>, Andrew Jones <drjones@redhat.com>, Dan Smith <danms@us.ibm.com>, Thomas Gleixner <tglx@linutronix.de>, Paul Turner <pjt@google.com>, Christoph Lameter <cl@linux.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Srivatsa Vaddagiri <vatsa@linux.vnet.ibm.com>, Alex Shi <alex.shi@intel.com>, Mauricio Faria de Oliveira <mauricfo@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Don Morris <don.morris@hp.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
 
-On Thu, Oct 04, 2012 at 01:50:48AM +0200, Andrea Arcangeli wrote:
-> In the special "pmd" mode of knuma_scand
-> (/sys/kernel/mm/autonuma/knuma_scand/pmd == 1), the pmd may be of numa
-> type (_PAGE_PRESENT not set), however the pte might be
-> present. Therefore, gup_pmd_range() must return 0 in this case to
-> avoid losing a NUMA hinting page fault during gup_fast.
+On Thu, Oct 04, 2012 at 01:50:49AM +0200, Andrea Arcangeli wrote:
+> Define the two data structures that collect the per-process (in the
+> mm) and per-thread (in the task_struct) statistical information that
+> are the input of the CPU follow memory algorithms in the NUMA
+> scheduler.
 > 
-
-So if gup_fast fails, presumably we fall back to taking the mmap_sem and
-calling get_user_pages(). This is a heavier operation and I wonder if the
-cost is justified. i.e. Is the performance loss from using get_user_pages()
-offset by improved NUMA placement? I ask because we always incur the cost of
-taking mmap_sem but only sometimes get it back from improved NUMA placement.
-How bad would it be if gup_fast lost some of the NUMA hinting information?
-
-> Note: gup_fast will skip over non present ptes (like numa types), so
-> no explicit check is needed for the pte_numa case. gup_fast will also
-> skip over THP when the trans huge pmd is non present. So, the pmd_numa
-> case will also be correctly skipped with no additional code changes
-> required.
-> 
-> Acked-by: Rik van Riel <riel@redhat.com>
 > Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 > ---
->  arch/x86/mm/gup.c |   13 ++++++++++++-
->  1 files changed, 12 insertions(+), 1 deletions(-)
+>  include/linux/autonuma_types.h |  107 ++++++++++++++++++++++++++++++++++++++++
+>  1 files changed, 107 insertions(+), 0 deletions(-)
+>  create mode 100644 include/linux/autonuma_types.h
 > 
-> diff --git a/arch/x86/mm/gup.c b/arch/x86/mm/gup.c
-> index 6dc9921..cad7d97 100644
-> --- a/arch/x86/mm/gup.c
-> +++ b/arch/x86/mm/gup.c
-> @@ -169,8 +169,19 @@ static int gup_pmd_range(pud_t pud, unsigned long addr, unsigned long end,
->  		 * can't because it has irq disabled and
->  		 * wait_split_huge_page() would never return as the
->  		 * tlb flush IPI wouldn't run.
-> +		 *
-> +		 * The pmd_numa() check is needed because the code
-> +		 * doesn't check the _PAGE_PRESENT bit of the pmd if
-> +		 * the gup_pte_range() path is taken. NOTE: not all
-> +		 * gup_fast users will will access the page contents
-> +		 * using the CPU through the NUMA memory channels like
-> +		 * KVM does. So we're forced to trigger NUMA hinting
-> +		 * page faults unconditionally for all gup_fast users
-> +		 * even though NUMA hinting page faults aren't useful
-> +		 * to I/O drivers that will access the page with DMA
-> +		 * and not with the CPU.
->  		 */
-> -		if (pmd_none(pmd) || pmd_trans_splitting(pmd))
-> +		if (pmd_none(pmd) || pmd_trans_splitting(pmd) || pmd_numa(pmd))
->  			return 0;
->  		if (unlikely(pmd_large(pmd))) {
->  			if (!gup_huge_pmd(pmd, addr, next, write, pages, nr))
+> diff --git a/include/linux/autonuma_types.h b/include/linux/autonuma_types.h
+> new file mode 100644
+> index 0000000..9673ce8
+> --- /dev/null
+> +++ b/include/linux/autonuma_types.h
+> @@ -0,0 +1,107 @@
+> +#ifndef _LINUX_AUTONUMA_TYPES_H
+> +#define _LINUX_AUTONUMA_TYPES_H
+> +
+> +#ifdef CONFIG_AUTONUMA
+> +
+> +#include <linux/numa.h>
+> +
+> +
+> +/*
+> + * Per-mm (per-process) structure that contains the NUMA memory
+> + * placement statistics generated by the knuma scan daemon. This
+> + * structure is dynamically allocated only if AutoNUMA is possible on
+> + * this system. They are linked togehter in a list headed within the
+
+s/togehter/together/
+
+> + * knumad_scan structure.
+> + */
+> +struct mm_autonuma {
+
+Nit but this is very similar in principle to mm_slot for transparent
+huge pages. It might be worth renaming both to mm_thp_slot and
+mm_autonuma_slot to set the expectation they are very similar in nature.
+Could potentially be made generic but probably overkill.
+
+> +	/* link for knuma_scand's list of mm structures to scan */
+> +	struct list_head mm_node;
+> +	/* Pointer to associated mm structure */
+> +	struct mm_struct *mm;
+> +
+> +	/*
+> +	 * Zeroed from here during allocation, check
+> +	 * mm_autonuma_reset() if you alter the below.
+> +	 */
+> +
+> +	/*
+> +	 * Pass counter for this mm. This exist only to be able to
+> +	 * tell when it's time to apply the exponential backoff on the
+> +	 * task_autonuma statistics.
+> +	 */
+> +	unsigned long mm_numa_fault_pass;
+> +	/* Total number of pages that will trigger NUMA faults for this mm */
+> +	unsigned long mm_numa_fault_tot;
+> +	/* Number of pages that will trigger NUMA faults for each [nid] */
+> +	unsigned long mm_numa_fault[0];
+> +	/* do not add more variables here, the above array size is dynamic */
+> +};
+
+How cache hot is this structure? nodes are sharing counters in the same
+cache lines so if updates are frequent this will bounce like a mad yoke.
+Profiles will tell for sure but it's possible that some sort of per-cpu
+hilarity will be necessary here in the future.
+
+> +
+> +extern int alloc_mm_autonuma(struct mm_struct *mm);
+> +extern void free_mm_autonuma(struct mm_struct *mm);
+> +extern void __init mm_autonuma_init(void);
+> +
+> +/*
+> + * Per-task (thread) structure that contains the NUMA memory placement
+> + * statistics generated by the knuma scan daemon. This structure is
+> + * dynamically allocated only if AutoNUMA is possible on this
+> + * system. They are linked togehter in a list headed within the
+> + * knumad_scan structure.
+> + */
+> +struct task_autonuma {
+> +	/* node id the CPU scheduler should try to stick with (-1 if none) */
+> +	int task_selected_nid;
+> +
+> +	/*
+> +	 * Zeroed from here during allocation, check
+> +	 * mm_autonuma_reset() if you alter the below.
+> +	 */
+> +
+> +	/*
+> +	 * Pass counter for this task. When the pass counter is found
+> +	 * out of sync with the mm_numa_fault_pass we know it's time
+> +	 * to apply the exponential backoff on the task_autonuma
+> +	 * statistics, and then we synchronize it with
+> +	 * mm_numa_fault_pass. This pass counter is needed because in
+> +	 * knuma_scand we work on the mm and we've no visibility on
+> +	 * the task_autonuma. Furthermore it would be detrimental to
+> +	 * apply exponential backoff to all task_autonuma associated
+> +	 * to a certain mm_autonuma (potentially zeroing out the trail
+> +	 * of statistical data in task_autonuma) if the task is idle
+> +	 * for a long period of time (i.e. several knuma_scand passes).
+> +	 */
+> +	unsigned long task_numa_fault_pass;
+> +	/* Total number of eligible pages that triggered NUMA faults */
+> +	unsigned long task_numa_fault_tot;
+> +	/* Number of pages that triggered NUMA faults for each [nid] */
+> +	unsigned long task_numa_fault[0];
+> +	/* do not add more variables here, the above array size is dynamic */
+> +};
+> +
+
+Same question about cache hotness.
+
+> +extern int alloc_task_autonuma(struct task_struct *tsk,
+> +			       struct task_struct *orig,
+> +			       int node);
+> +extern void __init task_autonuma_init(void);
+> +extern void free_task_autonuma(struct task_struct *tsk);
+> +
+> +#else /* CONFIG_AUTONUMA */
+> +
+> +static inline int alloc_mm_autonuma(struct mm_struct *mm)
+> +{
+> +	return 0;
+> +}
+> +static inline void free_mm_autonuma(struct mm_struct *mm) {}
+> +static inline void mm_autonuma_init(void) {}
+> +
+> +static inline int alloc_task_autonuma(struct task_struct *tsk,
+> +				      struct task_struct *orig,
+> +				      int node)
+> +{
+> +	return 0;
+> +}
+> +static inline void task_autonuma_init(void) {}
+> +static inline void free_task_autonuma(struct task_struct *tsk) {}
+> +
+> +#endif /* CONFIG_AUTONUMA */
+> +
+> +#endif /* _LINUX_AUTONUMA_TYPES_H */
 > 
 
 -- 
