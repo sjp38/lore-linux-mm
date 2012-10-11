@@ -1,69 +1,129 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
-	by kanga.kvack.org (Postfix) with SMTP id D07E56B002B
-	for <linux-mm@kvack.org>; Thu, 11 Oct 2012 16:01:13 -0400 (EDT)
-Date: Thu, 11 Oct 2012 21:01:09 +0100
+Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
+	by kanga.kvack.org (Postfix) with SMTP id AE4B26B002B
+	for <linux-mm@kvack.org>; Thu, 11 Oct 2012 16:06:12 -0400 (EDT)
+Date: Thu, 11 Oct 2012 21:06:08 +0100
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 06/33] autonuma: teach gup_fast about pmd_numa
-Message-ID: <20121011200109.GN3317@csn.ul.ie>
+Subject: Re: [PATCH 07/33] autonuma: mm_autonuma and task_autonuma data
+ structures
+Message-ID: <20121011200608.GO3317@csn.ul.ie>
 References: <1349308275-2174-1-git-send-email-aarcange@redhat.com>
- <1349308275-2174-7-git-send-email-aarcange@redhat.com>
- <20121011122255.GS3317@csn.ul.ie>
- <20121011170533.GP1818@redhat.com>
+ <1349308275-2174-8-git-send-email-aarcange@redhat.com>
+ <20121011122827.GT3317@csn.ul.ie>
+ <20121011171519.GQ1818@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20121011170533.GP1818@redhat.com>
+In-Reply-To: <20121011171519.GQ1818@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrea Arcangeli <aarcange@redhat.com>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <pzijlstr@redhat.com>, Ingo Molnar <mingo@elte.hu>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hillf Danton <dhillf@gmail.com>, Andrew Jones <drjones@redhat.com>, Dan Smith <danms@us.ibm.com>, Thomas Gleixner <tglx@linutronix.de>, Paul Turner <pjt@google.com>, Christoph Lameter <cl@linux.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
 
-On Thu, Oct 11, 2012 at 07:05:33PM +0200, Andrea Arcangeli wrote:
-> On Thu, Oct 11, 2012 at 01:22:55PM +0100, Mel Gorman wrote:
-> > On Thu, Oct 04, 2012 at 01:50:48AM +0200, Andrea Arcangeli wrote:
-> > > In the special "pmd" mode of knuma_scand
-> > > (/sys/kernel/mm/autonuma/knuma_scand/pmd == 1), the pmd may be of numa
-> > > type (_PAGE_PRESENT not set), however the pte might be
-> > > present. Therefore, gup_pmd_range() must return 0 in this case to
-> > > avoid losing a NUMA hinting page fault during gup_fast.
-> > > 
+On Thu, Oct 11, 2012 at 07:15:20PM +0200, Andrea Arcangeli wrote:
+> On Thu, Oct 11, 2012 at 01:28:27PM +0100, Mel Gorman wrote:
+> > s/togehter/together/
+> 
+> Fixed.
+> 
 > > 
-> > So if gup_fast fails, presumably we fall back to taking the mmap_sem and
-> > calling get_user_pages(). This is a heavier operation and I wonder if the
-> > cost is justified. i.e. Is the performance loss from using get_user_pages()
-> > offset by improved NUMA placement? I ask because we always incur the cost of
-> > taking mmap_sem but only sometimes get it back from improved NUMA placement.
-> > How bad would it be if gup_fast lost some of the NUMA hinting information?
+> > > + * knumad_scan structure.
+> > > + */
+> > > +struct mm_autonuma {
+> > 
+> > Nit but this is very similar in principle to mm_slot for transparent
+> > huge pages. It might be worth renaming both to mm_thp_slot and
+> > mm_autonuma_slot to set the expectation they are very similar in nature.
+> > Could potentially be made generic but probably overkill.
 > 
-> Good question indeed. Now, I agree it wouldn't be bad to skip NUMA
-> hinting page faults in gup_fast for no-virt usage like
-> O_DIRECT/ptrace, but the only problem is that we'd lose AutoNUMA on
-> the memory touched by the KVM vcpus.
+> Agreed. A plain rename to mm_autonuma_slot would have the only cons of
+> making some code spill over 80 col ;).
 > 
 
-Ok I see, that could be in the changelog because it's not immediately
-obvious. At least, it's not as obvious as the potential downside (more GUP
-fallbacks). In this context there is no way to guess what type of access
-it is. AFAIK, there is no way from here to tell if it's KVM calling gup
-or if it's due to O_DIRECT.
+Fair enough :)
 
-> I've been also asked if the vhost-net kernel thread (KVM in kernel
-> virtio backend) will be controlled by autonuma in between
-> use_mm/unuse_mm and answer is yes, but to do that, it also needs
-> this. (see also the flush to task_autonuma_nid and mm/task statistics in
-> unuse_mm to reset it back to regular kernel thread status,
-> uncontrolled by autonuma)
-
-I can understand why it needs this now. The clearing of the statistics is
-still not clear to me but I asked that question in the thread that adjusts
-unuse_mm already.
-
+> > > +	/* link for knuma_scand's list of mm structures to scan */
+> > > +	struct list_head mm_node;
+> > > +	/* Pointer to associated mm structure */
+> > > +	struct mm_struct *mm;
+> > > +
+> > > +	/*
+> > > +	 * Zeroed from here during allocation, check
+> > > +	 * mm_autonuma_reset() if you alter the below.
+> > > +	 */
+> > > +
+> > > +	/*
+> > > +	 * Pass counter for this mm. This exist only to be able to
+> > > +	 * tell when it's time to apply the exponential backoff on the
+> > > +	 * task_autonuma statistics.
+> > > +	 */
+> > > +	unsigned long mm_numa_fault_pass;
+> > > +	/* Total number of pages that will trigger NUMA faults for this mm */
+> > > +	unsigned long mm_numa_fault_tot;
+> > > +	/* Number of pages that will trigger NUMA faults for each [nid] */
+> > > +	unsigned long mm_numa_fault[0];
+> > > +	/* do not add more variables here, the above array size is dynamic */
+> > > +};
+> > 
+> > How cache hot is this structure? nodes are sharing counters in the same
+> > cache lines so if updates are frequent this will bounce like a mad yoke.
+> > Profiles will tell for sure but it's possible that some sort of per-cpu
+> > hilarity will be necessary here in the future.
 > 
-> $ git grep get_user_pages
-> tcm_vhost.c:            ret = get_user_pages_fast((unsigned long)ptr, 1, write, &page);
-> vhost.c:        r = get_user_pages_fast(log, 1, 1, &page);
+> On autonuma27 this is only written by knuma_scand so it won't risk to
+> bounce.
 > 
+> On autonuma28 however it's updated by the numa hinting page fault
+> locklessy and so your concern is very real, and the cacheline bounces
+> will materialize.
+
+It will be related to the knuma_scan thing though so once every 10
+seconds, we might see a sudden spike in cache conflicts. Is that
+accurate? Something like perf top might detect when this happens but it
+can be inferred using perf probe on the fault handler too.
+
+> It'll cause more interconnect traffic before the
+> workload converges too. I thought about that, but I wanted the
+> mm_autonuma updated in real time as migration happens otherwise it
+> converges more slowly if we have to wait until the next pass to bring
+> mm_autonuma statistical data in sync with the migration
+> activities. Converging more slowly looked worse than paying more
+> cacheline bounces.
+> 
+
+You could argue that slower converging also means more cross-node
+traffic so it costs either way.
+
+> It's a tradeoff. And if it's not a good one, we can go back to
+> autonuma27 mm_autonuma stat gathering method and converge slower but
+> without any cacheline bouncing in the NUMA hinting page faults. At
+> least it's lockless.
+> 
+
+Yep.
+
+> > > +	unsigned long task_numa_fault_pass;
+> > > +	/* Total number of eligible pages that triggered NUMA faults */
+> > > +	unsigned long task_numa_fault_tot;
+> > > +	/* Number of pages that triggered NUMA faults for each [nid] */
+> > > +	unsigned long task_numa_fault[0];
+> > > +	/* do not add more variables here, the above array size is dynamic */
+> > > +};
+> > > +
+> > 
+> > Same question about cache hotness.
+> 
+> Here it's per-thread, so there won't be risk of accesses interleaved
+> by different CPUs.
+> 
+
+Ok thanks. With that clarification
+
+Acked-by: Mel Gorman <mgorman@suse.de>
+
+While I still have concerns about the cache behaviour of this the basic
+intent of the structure will not change no matter how the problem is
+addressed.
 
 -- 
 Mel Gorman
