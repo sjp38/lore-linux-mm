@@ -1,67 +1,140 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
-	by kanga.kvack.org (Postfix) with SMTP id BF2AB6B002B
-	for <linux-mm@kvack.org>; Thu, 11 Oct 2012 04:50:41 -0400 (EDT)
-Date: Thu, 11 Oct 2012 10:50:38 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [RFC PATCH] memcg: oom: fix totalpages calculation for
- swappiness==0
-Message-ID: <20121011085038.GA29295@dhcp22.suse.cz>
-References: <20121010141142.GG23011@dhcp22.suse.cz>
- <alpine.DEB.2.00.1210101346010.31237@chino.kir.corp.google.com>
+Received: from psmtp.com (na3sys010amx178.postini.com [74.125.245.178])
+	by kanga.kvack.org (Postfix) with SMTP id F003F6B002B
+	for <linux-mm@kvack.org>; Thu, 11 Oct 2012 04:52:32 -0400 (EDT)
+Received: by mail-wi0-f179.google.com with SMTP id hq7so1539640wib.8
+        for <linux-mm@kvack.org>; Thu, 11 Oct 2012 01:52:31 -0700 (PDT)
+Message-ID: <507688CC.9000104@suse.cz>
+Date: Thu, 11 Oct 2012 10:52:28 +0200
+From: Jiri Slaby <jslaby@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1210101346010.31237@chino.kir.corp.google.com>
+Subject: kswapd0: wxcessive CPU usage
+Content-Type: text/plain; charset=ISO-8859-2
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: linux-mm@kvack.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>
+To: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Jiri Slaby <jirislaby@gmail.com>
 
-On Wed 10-10-12 13:50:21, David Rientjes wrote:
-> On Wed, 10 Oct 2012, Michal Hocko wrote:
-> 
-> > Hi,
-> > I am sending the patch below as an RFC because I am not entirely happy
-> > about myself and maybe somebody can come up with a different approach
-> > which would be less hackish.
-> 
-> I don't see this as hackish, 
+Hi,
 
-I didn't like how swappiness spreads outside of the LRU scanning code...
+with 3.6.0-next-20121008, kswapd0 is spinning my CPU at 100% for 1
+minute or so. If I try to suspend to RAM, this trace appears:
+kswapd0         R  running task        0   577      2 0x00000000
+ 0000000000000000 00000000000000c0 cccccccccccccccd ffff8801c4146800
+ ffff8801c4b15c88 ffffffff8116ee05 0000000000003e32 ffff8801c3a79000
+ ffff8801c4b15ca8 ffffffff8116fdf8 ffff8801c480f398 ffff8801c3a79000
+Call Trace:
+ [<ffffffff8116ee05>] ? put_super+0x25/0x40
+ [<ffffffff8116fdd4>] ? grab_super_passive+0x24/0xa0
+ [<ffffffff8116ff99>] ? prune_super+0x149/0x1b0
+ [<ffffffff81131531>] ? shrink_slab+0xa1/0x2d0
+ [<ffffffff8113452d>] ? kswapd+0x66d/0xb60
+ [<ffffffff81133ec0>] ? try_to_free_pages+0x180/0x180
+ [<ffffffff810a2770>] ? kthread+0xc0/0xd0
+ [<ffffffff810a26b0>] ? kthread_create_on_node+0x130/0x130
+ [<ffffffff816a6c9c>] ? ret_from_fork+0x7c/0x90
+ [<ffffffff810a26b0>] ? kthread_create_on_node+0x130/0x130
 
-> if memory.swappiness limits access to swap then this shouldn't be
-> factored into the calculation, and that's what your patch fixes.
-> 
-> The reason why the process with the largest rss isn't killed in this case 
-> is because all processes have CAP_SYS_ADMIN so they get a 3% bonus;
+# cat /proc/vmstat
+nr_free_pages 239962
+nr_inactive_anon 89825
+nr_active_anon 711136
+nr_inactive_file 60386
+nr_active_file 46668
+nr_unevictable 0
+nr_mlock 0
+nr_anon_pages 500678
+nr_mapped 41319
+nr_file_pages 319317
+nr_dirty 45
+nr_writeback 0
+nr_slab_reclaimable 21909
+nr_slab_unreclaimable 21598
+nr_page_table_pages 12131
+nr_kernel_stack 491
+nr_unstable 0
+nr_bounce 0
+nr_vmscan_write 1674280
+nr_vmscan_immediate_reclaim 301662
+nr_writeback_temp 0
+nr_isolated_anon 0
+nr_isolated_file 0
+nr_shmem 212263
+nr_dirtied 10620227
+nr_written 9260939
+nr_anon_transparent_hugepages 172
+nr_free_cma 0
+nr_dirty_threshold 31459
+nr_dirty_background_threshold 15729
+pgpgin 31311778
+pgpgout 38987552
+pswpin 0
+pswpout 0
+pgalloc_dma 0
+pgalloc_dma32 245169455
+pgalloc_normal 279685864
+pgalloc_movable 0
+pgfree 537318727
+pgactivate 13126755
+pgdeactivate 2482953
+pgfault 645947575
+pgmajfault 193427
+pgrefill_dma 0
+pgrefill_dma32 1124272
+pgrefill_normal 1998033
+pgrefill_movable 0
+pgsteal_kswapd_dma 0
+pgsteal_kswapd_dma32 2531015
+pgsteal_kswapd_normal 3403006
+pgsteal_kswapd_movable 0
+pgsteal_direct_dma 0
+pgsteal_direct_dma32 362488
+pgsteal_direct_normal 1134511
+pgsteal_direct_movable 0
+pgscan_kswapd_dma 0
+pgscan_kswapd_dma32 2693620
+pgscan_kswapd_normal 5836491
+pgscan_kswapd_movable 0
+pgscan_direct_dma 0
+pgscan_direct_dma32 368374
+pgscan_direct_normal 1658486
+pgscan_direct_movable 0
+pgscan_direct_throttle 0
+pginodesteal 258410
+slabs_scanned 86459392
+kswapd_inodesteal 3907549
+kswapd_low_wmark_hit_quickly 15408
+kswapd_high_wmark_hit_quickly 23113
+kswapd_skip_congestion_wait 10
+pageoutrun 2165627235
+allocstall 11256
+pgrotated 219624
+compact_blocks_moved 4862077
+compact_pages_moved 1970005
+compact_pagemigrate_failed 1726156
+compact_stall 21275
+compact_fail 6589
+compact_success 14686
+htlb_buddy_alloc_success 0
+htlb_buddy_alloc_fail 0
+unevictable_pgs_culled 2799
+unevictable_pgs_scanned 0
+unevictable_pgs_rescued 22563
+unevictable_pgs_mlocked 22563
+unevictable_pgs_munlocked 22563
+unevictable_pgs_cleared 0
+unevictable_pgs_stranded 0
+thp_fault_alloc 18725
+thp_fault_fallback 64868
+thp_collapse_alloc 9216
+thp_collapse_alloc_failed 2031
+thp_split 2146
 
-OK I should have mentioned that I have tested it as root which makes a
-big difference with the current upstream as totalpages are considered
-only if adj!=0. 
-I have originally seen the problem in 3.0 kernel (with fe35004f applied)
-where the calculation is different (missing a7f638f9) and we always
-consider total_pages there so it doesn't depend on root or oom_score_adj.
+Any ideas what it could be?
 
-> when factoring swap into the calculation and subtracting 3% from
-> the score in oom_badness(), they all end up having an internal
-> score of 1 so they are all considered equal.  It appears like the
-> cgroup_iter_next() iteration for memcg ooms does this in reverse
-> order, which is actually helpful so it will select the task that is
-> newer.
-> 
-> The only suggestion I have to make is specify this is for 
-> memory.swappiness in the patch title, otherwise:
-
-OK. I will also update the changelog to mention oom_score_adj and
-CAP_SYS_ADMIN, mark the patch for stable and repost it.
-
-> Acked-by: David Rientjes <rientjes@google.com>
-
-Thanks
 -- 
-Michal Hocko
-SUSE Labs
+js
+suse labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
