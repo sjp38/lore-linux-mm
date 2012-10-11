@@ -1,58 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
-	by kanga.kvack.org (Postfix) with SMTP id BBF226B002B
-	for <linux-mm@kvack.org>; Thu, 11 Oct 2012 17:34:36 -0400 (EDT)
-Date: Thu, 11 Oct 2012 22:34:32 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 00/33] AutoNUMA27
-Message-ID: <20121011213432.GQ3317@csn.ul.ie>
-References: <1349308275-2174-1-git-send-email-aarcange@redhat.com>
+Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
+	by kanga.kvack.org (Postfix) with SMTP id C90DB6B005A
+	for <linux-mm@kvack.org>; Thu, 11 Oct 2012 18:08:17 -0400 (EDT)
+Received: by mail-wi0-f173.google.com with SMTP id hm4so7553804wib.8
+        for <linux-mm@kvack.org>; Thu, 11 Oct 2012 15:08:16 -0700 (PDT)
+Message-ID: <5077434D.7080008@suse.cz>
+Date: Fri, 12 Oct 2012 00:08:13 +0200
+From: Jiri Slaby <jslaby@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <1349308275-2174-1-git-send-email-aarcange@redhat.com>
+Subject: Re: kswapd0: excessive CPU usage
+References: <507688CC.9000104@suse.cz> <106695.1349963080@turing-police.cc.vt.edu> <5076E700.2030909@suse.cz> <118079.1349978211@turing-police.cc.vt.edu>            <50770905.5070904@suse.cz> <119175.1349979570@turing-police.cc.vt.edu>
+In-Reply-To: <119175.1349979570@turing-police.cc.vt.edu>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <pzijlstr@redhat.com>, Ingo Molnar <mingo@elte.hu>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hillf Danton <dhillf@gmail.com>, Andrew Jones <drjones@redhat.com>, Dan Smith <danms@us.ibm.com>, Thomas Gleixner <tglx@linutronix.de>, Paul Turner <pjt@google.com>, Christoph Lameter <cl@linux.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Srivatsa Vaddagiri <vatsa@linux.vnet.ibm.com>, Alex Shi <alex.shi@intel.com>, Mauricio Faria de Oliveira <mauricfo@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Don Morris <don.morris@hp.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
+To: Valdis.Kletnieks@vt.edu
+Cc: Jiri Slaby <jirislaby@gmail.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Thu, Oct 04, 2012 at 01:50:42AM +0200, Andrea Arcangeli wrote:
-> Hello everyone,
+On 10/11/2012 08:19 PM, Valdis.Kletnieks@vt.edu wrote:
+> # zgrep COMPAC /proc/config.gz
+> CONFIG_COMPACTION=y
 > 
-> This is a new AutoNUMA27 release for Linux v3.6.
-> 
+> Hope that tells you something useful.
 
-So after getting through the full review of it, there wasn't anything
-I could not stand. I think it's *very* heavy on some of the paths like
-the idle balancer which I was not keen on and the fault paths are also
-quite heavy.  I think the weight on some of these paths can be reduced
-but not to 0 if the objectives to autonuma are to be met.
+It just supports my another theory. This seems to fix it for me:
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -1830,8 +1830,8 @@ static inline bool should_continue_reclaim(struct
+lruvec *lruvec,
+         */
+        pages_for_compaction = (2UL << sc->order);
 
-I'm not fully convinced that the task exchange is actually necessary or
-beneficial because it somewhat assumes that there is a symmetry between CPU
-and memory balancing that may not be true. The fact that it only considers
-tasks that are currently running feels a bit random but examining all tasks
-that recently ran on the node would be far too expensive to there is no
-good answer. You are caught between a rock and a hard place and either
-direction you go is wrong for different reasons. You need something more
-frequent than scans (because it'll converge too slowly) but doing it from
-the balancer misses some tasks and may run too frequently and it's unclear
-how it effects the current load balancer decisions. I don't have a good
-alternative solution for this but ideally it would be better integrated with
-the existing scheduler when there is more data on what those scheduling
-decisions should be. That will only come from a wide range of testing and
-the inevitable bug reports.
+-       pages_for_compaction = scale_for_compaction(pages_for_compaction,
+-                                                   lruvec, sc);
++/*     pages_for_compaction = scale_for_compaction(pages_for_compaction,
++                                                   lruvec, sc);*/
+        inactive_lru_pages = get_lru_size(lruvec, LRU_INACTIVE_FILE);
+        if (nr_swap_pages > 0)
+                inactive_lru_pages += get_lru_size(lruvec,
+LRU_INACTIVE_ANON);
 
-That said, this is concentrating on the problems without considering the
-situations where it would work very well.  I think it'll come down to HPC
-and anything jitter-sensitive will hate this while workloads like JVM,
-virtualisation or anything that uses a lot of memory without caring about
-placement will love it. It's not perfect but it's better than incurring
-the cost of remote access unconditionally.
+And for you?
 
+(It's an effective revert of "mm: vmscan: scale number of pages
+reclaimed by reclaim/compaction based on failures".)
+
+regards,
 -- 
-Mel Gorman
-SUSE Labs
+js
+suse labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
