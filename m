@@ -1,178 +1,131 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
-	by kanga.kvack.org (Postfix) with SMTP id B6BA06B002B
-	for <linux-mm@kvack.org>; Thu, 11 Oct 2012 06:11:24 -0400 (EDT)
-Date: Thu, 11 Oct 2012 12:11:19 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH v4 04/14] kmem accounting basic infrastructure
-Message-ID: <20121011101119.GB29295@dhcp22.suse.cz>
-References: <1349690780-15988-1-git-send-email-glommer@parallels.com>
- <1349690780-15988-5-git-send-email-glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
+	by kanga.kvack.org (Postfix) with SMTP id 87E176B005D
+	for <linux-mm@kvack.org>; Thu, 11 Oct 2012 06:19:35 -0400 (EDT)
+Date: Thu, 11 Oct 2012 11:19:30 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 00/33] AutoNUMA27
+Message-ID: <20121011101930.GM3317@csn.ul.ie>
+References: <1349308275-2174-1-git-send-email-aarcange@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <1349690780-15988-5-git-send-email-glommer@parallels.com>
+In-Reply-To: <1349308275-2174-1-git-send-email-aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Suleiman Souhlal <suleiman@google.com>, Tejun Heo <tj@kernel.org>, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, Johannes Weiner <hannes@cmpxchg.org>, Greg Thelen <gthelen@google.com>, devel@openvz.org, Frederic Weisbecker <fweisbec@gmail.com>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <pzijlstr@redhat.com>, Ingo Molnar <mingo@elte.hu>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hillf Danton <dhillf@gmail.com>, Andrew Jones <drjones@redhat.com>, Dan Smith <danms@us.ibm.com>, Thomas Gleixner <tglx@linutronix.de>, Paul Turner <pjt@google.com>, Christoph Lameter <cl@linux.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Srivatsa Vaddagiri <vatsa@linux.vnet.ibm.com>, Alex Shi <alex.shi@intel.com>, Mauricio Faria de Oliveira <mauricfo@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Don Morris <don.morris@hp.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
 
-On Mon 08-10-12 14:06:10, Glauber Costa wrote:
-> This patch adds the basic infrastructure for the accounting of the slab
-> caches. To control that, the following files are created:
+On Thu, Oct 04, 2012 at 01:50:42AM +0200, Andrea Arcangeli wrote:
+> Hello everyone,
 > 
->  * memory.kmem.usage_in_bytes
->  * memory.kmem.limit_in_bytes
->  * memory.kmem.failcnt
->  * memory.kmem.max_usage_in_bytes
+> This is a new AutoNUMA27 release for Linux v3.6.
 > 
-> They have the same meaning of their user memory counterparts. They
-> reflect the state of the "kmem" res_counter.
+> I believe that this autonuma version answers all of the review
+> comments I got upstream. This patch set has undergone a huge series of
+> changes that includes changing the page migration implementation to
+> synchronous, reduction of memory overhead to minimum, internal
+> documentation, external documentation and benchmarking. I'm grateful
+> for all the reviews and contributions, that includes Rik, Karen, Avi,
+> Peter, Konrad, Hillf and all others, plus all runtime feedback
+> received (bugreports, KVM benchmarks, etc..).
 > 
-> Per cgroup slab memory accounting is not enabled until a limit is set
-
-s/slab/kmem/ right?
-
-> for the group. Once the limit is set the accounting cannot be disabled
-> for that group.  This means that after the patch is applied, no
-> behavioral changes exists for whoever is still using memcg to control
-> their memory usage, until memory.kmem.limit_in_bytes is set for the
-> first time.
+> The last 4 months were fully dedicated to answer the upstream review.
 > 
-> We always account to both user and kernel resource_counters. This
-> effectively means that an independent kernel limit is in place when the
-> limit is set to a lower value than the user memory. A equal or higher
-> value means that the user limit will always hit first, meaning that kmem
-> is effectively unlimited.
+> Linus, Andrew, please review, as the handful of performance results
+> show we're in excellent shape for inclusion. Further changes such as
+> transparent huge page native migration and more are expected but at
+> this point I would ask you to accept the current series and further
+> changes will be added in traditional gradual steps.
 > 
-> People who want to track kernel memory but not limit it, can set this
-> limit to a very high number (like RESOURCE_MAX - 1page - that no one
-> will ever hit, or equal to the user memory)
+
+As a basic sniff test I added a test to MMtests for the AutoNUMA
+Benchmark on a 4-node machine and the following fell out.
+
+                                     3.6.0                 3.6.0
+                                   vanilla        autonuma-v33r6
+User    SMT             82851.82 (  0.00%)    33084.03 ( 60.07%)
+User    THREAD_ALLOC   142723.90 (  0.00%)    47707.38 ( 66.57%)
+System  SMT               396.68 (  0.00%)      621.46 (-56.67%)
+System  THREAD_ALLOC      675.22 (  0.00%)      836.96 (-23.95%)
+Elapsed SMT              1987.08 (  0.00%)      828.57 ( 58.30%)
+Elapsed THREAD_ALLOC     3222.99 (  0.00%)     1101.31 ( 65.83%)
+CPU     SMT              4189.00 (  0.00%)     4067.00 (  2.91%)
+CPU     THREAD_ALLOC     4449.00 (  0.00%)     4407.00 (  0.94%)
+
+The performance improvements are certainly there for this basic test but
+I note the System CPU usage is very high.
+
+The vmstats showed up this
+
+THP fault alloc               81376       86070
+THP collapse alloc               14       40423
+THP splits                        8       41792
+
+So we're doing a lot of splits and collapses for THP there. There is a
+possibility that khugepaged and the autonuma kernel thread are doing some
+busy work. Not a show-stopped, just interesting.
+
+I've done no analysis at all and this was just to have something to look
+at before looking at the code closer.
+
+> The objective of AutoNUMA is to provide out-of-the-box performance as
+> close as possible to (and potentially faster than) manual NUMA hard
+> bindings.
 > 
-> [ v4: make kmem files part of the main array;
->       do not allow limit to be set for non-empty cgroups ]
+> It is not very intrusive into the kernel core and is well structured
+> into separate source modules.
 > 
-> Signed-off-by: Glauber Costa <glommer@parallels.com>
-> CC: Michal Hocko <mhocko@suse.cz>
-> CC: Johannes Weiner <hannes@cmpxchg.org>
-> Acked-by: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> ---
->  mm/memcontrol.c | 123 +++++++++++++++++++++++++++++++++++++++++++++++++++++++-
->  1 file changed, 122 insertions(+), 1 deletion(-)
+> AutoNUMA was extensively tested against 3.x upstream kernels and other
+> NUMA placement algorithms such as numad (in userland through cpusets)
+> and schednuma (in kernel too) and was found superior in all cases.
 > 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 71d259e..ba855cc 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-[...]
-> @@ -332,6 +337,26 @@ struct mem_cgroup {
->  #endif
->  };
->  
-> +/* internal only representation about the status of kmem accounting. */
-> +enum {
-> +	KMEM_ACCOUNTED_ACTIVE = 0, /* accounted by this cgroup itself */
-> +};
-> +
-> +/* first bit */
-> +#define KMEM_ACCOUNTED_MASK 0x1
-> +
-> +#ifdef CONFIG_MEMCG_KMEM
-> +static void memcg_kmem_set_active(struct mem_cgroup *memcg)
-> +{
-> +	set_bit(KMEM_ACCOUNTED_ACTIVE, &memcg->kmem_accounted);
-> +}
-> +
-> +static bool memcg_kmem_is_accounted(struct mem_cgroup *memcg)
-> +{
-> +	return test_bit(KMEM_ACCOUNTED_ACTIVE, &memcg->kmem_accounted);
-> +}
-> +#endif
+> Most important: not a single benchmark showed a regression yet when
+> compared to vanilla kernels. Not even on the 2 node systems where the
+> NUMA effects are less significant.
+> 
 
-set_active vs. is_accounted. Is there any reason for inconsistency here?
+Ok, I have not run a general regression test and won't get the chance to
+soon but hopefully others will. One thing they might want to watch out
+for is System CPU time. It's possible that your AutoNUMA benchmark
+triggers a worst-case but it's worth keeping an eye on because any cost
+from that has to be offset by gains from better NUMA placements.
 
-> +
->  /* Stuffs for move charges at task migration. */
->  /*
->   * Types of charges to be moved. "move_charge_at_immitgrate" is treated as a
-[...]
-> @@ -3947,6 +3980,58 @@ static ssize_t mem_cgroup_read(struct cgroup *cont, struct cftype *cft,
->  	len = scnprintf(str, sizeof(str), "%llu\n", (unsigned long long)val);
->  	return simple_read_from_buffer(buf, nbytes, ppos, str, len);
->  }
-> +
-> +static int memcg_update_kmem_limit(struct cgroup *cont, u64 val)
-> +{
-> +	int ret = -EINVAL;
-> +#ifdef CONFIG_MEMCG_KMEM
-> +	struct mem_cgroup *memcg = mem_cgroup_from_cont(cont);
-> +	/*
-> +	 * For simplicity, we won't allow this to be disabled.  It also can't
-> +	 * be changed if the cgroup has children already, or if tasks had
-> +	 * already joined.
-> +	 *
-> +	 * If tasks join before we set the limit, a person looking at
-> +	 * kmem.usage_in_bytes will have no way to determine when it took
-> +	 * place, which makes the value quite meaningless.
-> +	 *
-> +	 * After it first became limited, changes in the value of the limit are
-> +	 * of course permitted.
-> +	 *
-> +	 * Taking the cgroup_lock is really offensive, but it is so far the only
-> +	 * way to guarantee that no children will appear. There are plenty of
-> +	 * other offenders, and they should all go away. Fine grained locking
-> +	 * is probably the way to go here. When we are fully hierarchical, we
-> +	 * can also get rid of the use_hierarchy check.
-> +	 */
-> +	cgroup_lock();
-> +	mutex_lock(&set_limit_mutex);
-> +	if (!memcg->kmem_accounted && val != RESOURCE_MAX) {
+> === Some benchmark result ===
+> 
+> <SNIP>
 
-Just a nit but wouldn't memcg_kmem_is_accounted(memcg) be better than
-directly checking kmem_accounted?
-Besides that I am not sure I fully understand RESOURCE_MAX test. Say I
-want to have kmem accounting for monitoring so I do 
-echo -1 > memory.kmem.limit_in_bytes
+Looked good for the most part.
 
-so you set the value but do not activate it. Isn't this just a reminder
-from the time when the accounting could be deactivated?
+> == stream modified to run each instance for ~5min ==
+> 
 
-> +		if (cgroup_task_count(cont) || (memcg->use_hierarchy &&
-> +						!list_empty(&cont->children))) {
-> +			ret = -EBUSY;
-> +			goto out;
-> +		}
-> +		ret = res_counter_set_limit(&memcg->kmem, val);
+Is STREAM really a good benchmark in this case? Unless you also ran it in
+parallel mode, it basically operations against three arrays and not really
+NUMA friendly once the total size is greater than a NUMA node. I guess
+it makes sense to run it just to see does autonuma break it :)
 
-VM_BUG_IN(ret) ?
-There shouldn't be any usage when you enable it or something bad is
-going on.
+> 
+> == iozone ==
+> 
+>                      ALL  INIT   RE             RE   RANDOM RANDOM BACKWD  RECRE STRIDE  F      FRE     F      FRE
+> FILE     TYPE (KB)  IOS  WRITE  WRITE   READ   READ   READ  WRITE   READ  WRITE   READ  WRITE  WRITE   READ   READ
+> ====--------------------------------------------------------------------------------------------------------------
+> noautonuma ALL      2492   1224   1874   2699   3669   3724   2327   2638   4091   3525   1142   1692   2668   3696
+> autonuma   ALL      2531   1221   1886   2732   3757   3760   2380   2650   4192   3599   1150   1731   2712   3825
+> 
+> AutoNUMA can't help much for I/O loads but you can see it seems a
+> small improvement there too. The important thing for I/O loads, is to
+> verify that there is no regression.
+> 
 
-> +		if (ret)
-> +			goto out;
-> +
-> +		memcg_kmem_set_active(memcg);
-> +	} else
-> +		ret = res_counter_set_limit(&memcg->kmem, val);
-> +out:
-> +	mutex_unlock(&set_limit_mutex);
-> +	cgroup_unlock();
-> +#endif
-> +	return ret;
-> +}
-> +
-> +static void memcg_propagate_kmem(struct mem_cgroup *memcg,
-> +				 struct mem_cgroup *parent)
-> +{
-> +	memcg->kmem_accounted = parent->kmem_accounted;
-> +}
-> +
->  /*
->   * The user of this function is...
->   * RES_LIMIT.
-[...]
+It probably is unreasonable to expect autonuma to handle the case where
+a file-based workload has not been tuned for NUMA. In too many cases
+it's going to be read/write based so you're not going to get the
+statistics you need.
+
 -- 
-Michal Hocko
+Mel Gorman
 SUSE Labs
 
 --
