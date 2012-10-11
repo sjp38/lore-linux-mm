@@ -1,55 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
-	by kanga.kvack.org (Postfix) with SMTP id 40EA96B005D
-	for <linux-mm@kvack.org>; Thu, 11 Oct 2012 16:32:01 -0400 (EDT)
-Received: by mail-da0-f41.google.com with SMTP id i14so1085243dad.14
-        for <linux-mm@kvack.org>; Thu, 11 Oct 2012 13:32:00 -0700 (PDT)
-Date: Thu, 11 Oct 2012 13:31:58 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 2/2]suppress "Device nodeX does not have a release()
- function" warning
-In-Reply-To: <50765896.4000300@jp.fujitsu.com>
-Message-ID: <alpine.DEB.2.00.1210111326000.28062@chino.kir.corp.google.com>
-References: <507656D1.5020703@jp.fujitsu.com> <50765896.4000300@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
+	by kanga.kvack.org (Postfix) with SMTP id BBF226B002B
+	for <linux-mm@kvack.org>; Thu, 11 Oct 2012 17:34:36 -0400 (EDT)
+Date: Thu, 11 Oct 2012 22:34:32 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 00/33] AutoNUMA27
+Message-ID: <20121011213432.GQ3317@csn.ul.ie>
+References: <1349308275-2174-1-git-send-email-aarcange@redhat.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <1349308275-2174-1-git-send-email-aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, liuj97@gmail.com, minchan.kim@gmail.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, wency@cn.fujitsu.com
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <pzijlstr@redhat.com>, Ingo Molnar <mingo@elte.hu>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hillf Danton <dhillf@gmail.com>, Andrew Jones <drjones@redhat.com>, Dan Smith <danms@us.ibm.com>, Thomas Gleixner <tglx@linutronix.de>, Paul Turner <pjt@google.com>, Christoph Lameter <cl@linux.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Srivatsa Vaddagiri <vatsa@linux.vnet.ibm.com>, Alex Shi <alex.shi@intel.com>, Mauricio Faria de Oliveira <mauricfo@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Don Morris <don.morris@hp.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
 
-On Thu, 11 Oct 2012, Yasuaki Ishimatsu wrote:
-
-> When calling unregister_node(), the function shows following message at
-> device_release().
+On Thu, Oct 04, 2012 at 01:50:42AM +0200, Andrea Arcangeli wrote:
+> Hello everyone,
 > 
-> "Device 'node2' does not have a release() function, it is broken and must
-> be fixed."
-> 
-> The reason is node's device struct does not have a release() function.
-> 
-> So the patch registers node_device_release() to the device's release()
-> function for suppressing the warning message. Additionally, the patch adds
-> memset() to initialize a node struct into register_node(). Because the node
-> struct is part of node_devices[] array and it cannot be freed by
-> node_device_release(). So if system reuses the node struct, it has a garbage.
+> This is a new AutoNUMA27 release for Linux v3.6.
 > 
 
-Nice catch on reuse of the statically allocated node_devices[] for node 
-hotplug.
+So after getting through the full review of it, there wasn't anything
+I could not stand. I think it's *very* heavy on some of the paths like
+the idle balancer which I was not keen on and the fault paths are also
+quite heavy.  I think the weight on some of these paths can be reduced
+but not to 0 if the objectives to autonuma are to be met.
 
-> CC: David Rientjes <rientjes@google.com>
-> CC: Jiang Liu <liuj97@gmail.com>
-> Cc: Minchan Kim <minchan.kim@gmail.com>
-> CC: Andrew Morton <akpm@linux-foundation.org>
-> CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> Signed-off-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-> Signed-off-by: Wen Congyang <wency@cn.fujitsu.com>
+I'm not fully convinced that the task exchange is actually necessary or
+beneficial because it somewhat assumes that there is a symmetry between CPU
+and memory balancing that may not be true. The fact that it only considers
+tasks that are currently running feels a bit random but examining all tasks
+that recently ran on the node would be far too expensive to there is no
+good answer. You are caught between a rock and a hard place and either
+direction you go is wrong for different reasons. You need something more
+frequent than scans (because it'll converge too slowly) but doing it from
+the balancer misses some tasks and may run too frequently and it's unclear
+how it effects the current load balancer decisions. I don't have a good
+alternative solution for this but ideally it would be better integrated with
+the existing scheduler when there is more data on what those scheduling
+decisions should be. That will only come from a wide range of testing and
+the inevitable bug reports.
 
-Can register_node() be made static in drivers/base/node.c and its 
-declaration removed from linux/node.h?
+That said, this is concentrating on the problems without considering the
+situations where it would work very well.  I think it'll come down to HPC
+and anything jitter-sensitive will hate this while workloads like JVM,
+virtualisation or anything that uses a lot of memory without caring about
+placement will love it. It's not perfect but it's better than incurring
+the cost of remote access unconditionally.
 
-Acked-by: David Rientjes <rientjes@google.com>
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
