@@ -1,102 +1,176 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
-	by kanga.kvack.org (Postfix) with SMTP id 149836B002B
-	for <linux-mm@kvack.org>; Thu, 11 Oct 2012 05:13:36 -0400 (EDT)
-Date: Thu, 11 Oct 2012 11:13:33 +0200
+Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
+	by kanga.kvack.org (Postfix) with SMTP id B6BA06B002B
+	for <linux-mm@kvack.org>; Thu, 11 Oct 2012 06:11:24 -0400 (EDT)
+Date: Thu, 11 Oct 2012 12:11:19 +0200
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH] memcg: oom: fix totalpages calculation for
- memory.swappiness==0
-Message-ID: <20121011091332.GA29301@dhcp22.suse.cz>
-References: <20121011085038.GA29295@dhcp22.suse.cz>
- <1349945859-1350-1-git-send-email-mhocko@suse.cz>
+Subject: Re: [PATCH v4 04/14] kmem accounting basic infrastructure
+Message-ID: <20121011101119.GB29295@dhcp22.suse.cz>
+References: <1349690780-15988-1-git-send-email-glommer@parallels.com>
+ <1349690780-15988-5-git-send-email-glommer@parallels.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1349945859-1350-1-git-send-email-mhocko@suse.cz>
+In-Reply-To: <1349690780-15988-5-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>
+To: Glauber Costa <glommer@parallels.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Suleiman Souhlal <suleiman@google.com>, Tejun Heo <tj@kernel.org>, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, Johannes Weiner <hannes@cmpxchg.org>, Greg Thelen <gthelen@google.com>, devel@openvz.org, Frederic Weisbecker <fweisbec@gmail.com>
 
-On Thu 11-10-12 10:57:39, Michal Hocko wrote:
-> oom_badness takes totalpages argument which says how many pages are
-> available and it uses it as a base for the score calculation. The value
-> is calculated by mem_cgroup_get_limit which considers both limit and
-> total_swap_pages (resp. memsw portion of it).
+On Mon 08-10-12 14:06:10, Glauber Costa wrote:
+> This patch adds the basic infrastructure for the accounting of the slab
+> caches. To control that, the following files are created:
 > 
-> This is usually correct but since fe35004f (mm: avoid swapping out
-> with swappiness==0) we do not swap when swappiness is 0 which means
-> that we cannot really use up all the totalpages pages. This in turn
-> confuses oom score calculation if the memcg limit is much smaller than
-> the available swap because the used memory (capped by the limit) is
-> negligible comparing to totalpages so the resulting score is too small
-> if adj!=0 (typically task with CAP_SYS_ADMIN or non zero oom_score_adj).
-> A wrong process might be selected as result.
+>  * memory.kmem.usage_in_bytes
+>  * memory.kmem.limit_in_bytes
+>  * memory.kmem.failcnt
+>  * memory.kmem.max_usage_in_bytes
 > 
-> The same issue exists for the global oom killer as well but it is not
-> that problematic as the amount of the RAM is usually much bigger than
-> the swap space.
+> They have the same meaning of their user memory counterparts. They
+> reflect the state of the "kmem" res_counter.
 > 
-> The problem can be worked around by checking mem_cgroup_swappiness==0
-> and not considering swap at all in such a case.
-> 
-> Signed-off-by: Michal Hocko <mhocko@suse.cz>
-> Acked-by: David Rientjes <rientjes@google.com>
-> Cc: stable [3.5+]
+> Per cgroup slab memory accounting is not enabled until a limit is set
 
-I have just realized that fe35004f (introduced in 3.5-rc1) has been
-backported to 3.2 and 3.4 stable kernels so this should be [3.2+]
+s/slab/kmem/ right?
 
+> for the group. Once the limit is set the accounting cannot be disabled
+> for that group.  This means that after the patch is applied, no
+> behavioral changes exists for whoever is still using memcg to control
+> their memory usage, until memory.kmem.limit_in_bytes is set for the
+> first time.
+> 
+> We always account to both user and kernel resource_counters. This
+> effectively means that an independent kernel limit is in place when the
+> limit is set to a lower value than the user memory. A equal or higher
+> value means that the user limit will always hit first, meaning that kmem
+> is effectively unlimited.
+> 
+> People who want to track kernel memory but not limit it, can set this
+> limit to a very high number (like RESOURCE_MAX - 1page - that no one
+> will ever hit, or equal to the user memory)
+> 
+> [ v4: make kmem files part of the main array;
+>       do not allow limit to be set for non-empty cgroups ]
+> 
+> Signed-off-by: Glauber Costa <glommer@parallels.com>
+> CC: Michal Hocko <mhocko@suse.cz>
+> CC: Johannes Weiner <hannes@cmpxchg.org>
+> Acked-by: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 > ---
->  mm/memcontrol.c |   21 +++++++++++++++------
->  1 file changed, 15 insertions(+), 6 deletions(-)
+>  mm/memcontrol.c | 123 +++++++++++++++++++++++++++++++++++++++++++++++++++++++-
+>  1 file changed, 122 insertions(+), 1 deletion(-)
 > 
 > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 7acf43b..93a7e36 100644
+> index 71d259e..ba855cc 100644
 > --- a/mm/memcontrol.c
 > +++ b/mm/memcontrol.c
-> @@ -1452,17 +1452,26 @@ static int mem_cgroup_count_children(struct mem_cgroup *memcg)
->  static u64 mem_cgroup_get_limit(struct mem_cgroup *memcg)
->  {
->  	u64 limit;
-> -	u64 memsw;
+[...]
+> @@ -332,6 +337,26 @@ struct mem_cgroup {
+>  #endif
+>  };
 >  
->  	limit = res_counter_read_u64(&memcg->res, RES_LIMIT);
-> -	limit += total_swap_pages << PAGE_SHIFT;
->  
-> -	memsw = res_counter_read_u64(&memcg->memsw, RES_LIMIT);
->  	/*
-> -	 * If memsw is finite and limits the amount of swap space available
-> -	 * to this memcg, return that limit.
-> +	 * Do not consider swap space if we cannot swap due to swappiness
->  	 */
-> -	return min(limit, memsw);
-> +	if (mem_cgroup_swappiness(memcg)) {
-> +		u64 memsw;
+> +/* internal only representation about the status of kmem accounting. */
+> +enum {
+> +	KMEM_ACCOUNTED_ACTIVE = 0, /* accounted by this cgroup itself */
+> +};
 > +
-> +		limit += total_swap_pages << PAGE_SHIFT;
-> +		memsw = res_counter_read_u64(&memcg->memsw, RES_LIMIT);
+> +/* first bit */
+> +#define KMEM_ACCOUNTED_MASK 0x1
 > +
-> +		/*
-> +		 * If memsw is finite and limits the amount of swap space
-> +		 * available to this memcg, return that limit.
-> +		 */
-> +		limit = min(limit, memsw);
-> +	}
+> +#ifdef CONFIG_MEMCG_KMEM
+> +static void memcg_kmem_set_active(struct mem_cgroup *memcg)
+> +{
+> +	set_bit(KMEM_ACCOUNTED_ACTIVE, &memcg->kmem_accounted);
+> +}
 > +
-> +	return limit;
->  }
->  
->  void mem_cgroup_out_of_memory(struct mem_cgroup *memcg, gfp_t gfp_mask,
-> -- 
-> 1.7.10.4
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> +static bool memcg_kmem_is_accounted(struct mem_cgroup *memcg)
+> +{
+> +	return test_bit(KMEM_ACCOUNTED_ACTIVE, &memcg->kmem_accounted);
+> +}
+> +#endif
 
+set_active vs. is_accounted. Is there any reason for inconsistency here?
+
+> +
+>  /* Stuffs for move charges at task migration. */
+>  /*
+>   * Types of charges to be moved. "move_charge_at_immitgrate" is treated as a
+[...]
+> @@ -3947,6 +3980,58 @@ static ssize_t mem_cgroup_read(struct cgroup *cont, struct cftype *cft,
+>  	len = scnprintf(str, sizeof(str), "%llu\n", (unsigned long long)val);
+>  	return simple_read_from_buffer(buf, nbytes, ppos, str, len);
+>  }
+> +
+> +static int memcg_update_kmem_limit(struct cgroup *cont, u64 val)
+> +{
+> +	int ret = -EINVAL;
+> +#ifdef CONFIG_MEMCG_KMEM
+> +	struct mem_cgroup *memcg = mem_cgroup_from_cont(cont);
+> +	/*
+> +	 * For simplicity, we won't allow this to be disabled.  It also can't
+> +	 * be changed if the cgroup has children already, or if tasks had
+> +	 * already joined.
+> +	 *
+> +	 * If tasks join before we set the limit, a person looking at
+> +	 * kmem.usage_in_bytes will have no way to determine when it took
+> +	 * place, which makes the value quite meaningless.
+> +	 *
+> +	 * After it first became limited, changes in the value of the limit are
+> +	 * of course permitted.
+> +	 *
+> +	 * Taking the cgroup_lock is really offensive, but it is so far the only
+> +	 * way to guarantee that no children will appear. There are plenty of
+> +	 * other offenders, and they should all go away. Fine grained locking
+> +	 * is probably the way to go here. When we are fully hierarchical, we
+> +	 * can also get rid of the use_hierarchy check.
+> +	 */
+> +	cgroup_lock();
+> +	mutex_lock(&set_limit_mutex);
+> +	if (!memcg->kmem_accounted && val != RESOURCE_MAX) {
+
+Just a nit but wouldn't memcg_kmem_is_accounted(memcg) be better than
+directly checking kmem_accounted?
+Besides that I am not sure I fully understand RESOURCE_MAX test. Say I
+want to have kmem accounting for monitoring so I do 
+echo -1 > memory.kmem.limit_in_bytes
+
+so you set the value but do not activate it. Isn't this just a reminder
+from the time when the accounting could be deactivated?
+
+> +		if (cgroup_task_count(cont) || (memcg->use_hierarchy &&
+> +						!list_empty(&cont->children))) {
+> +			ret = -EBUSY;
+> +			goto out;
+> +		}
+> +		ret = res_counter_set_limit(&memcg->kmem, val);
+
+VM_BUG_IN(ret) ?
+There shouldn't be any usage when you enable it or something bad is
+going on.
+
+> +		if (ret)
+> +			goto out;
+> +
+> +		memcg_kmem_set_active(memcg);
+> +	} else
+> +		ret = res_counter_set_limit(&memcg->kmem, val);
+> +out:
+> +	mutex_unlock(&set_limit_mutex);
+> +	cgroup_unlock();
+> +#endif
+> +	return ret;
+> +}
+> +
+> +static void memcg_propagate_kmem(struct mem_cgroup *memcg,
+> +				 struct mem_cgroup *parent)
+> +{
+> +	memcg->kmem_accounted = parent->kmem_accounted;
+> +}
+> +
+>  /*
+>   * The user of this function is...
+>   * RES_LIMIT.
+[...]
 -- 
 Michal Hocko
 SUSE Labs
