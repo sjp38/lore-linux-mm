@@ -1,86 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
-	by kanga.kvack.org (Postfix) with SMTP id 17D366B005D
-	for <linux-mm@kvack.org>; Thu, 11 Oct 2012 09:40:32 -0400 (EDT)
-Date: Thu, 11 Oct 2012 15:40:28 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH v4 10/14] memcg: use static branches when code not in use
-Message-ID: <20121011134028.GH29295@dhcp22.suse.cz>
-References: <1349690780-15988-1-git-send-email-glommer@parallels.com>
- <1349690780-15988-11-git-send-email-glommer@parallels.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1349690780-15988-11-git-send-email-glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
+	by kanga.kvack.org (Postfix) with SMTP id 6FC926B005D
+	for <linux-mm@kvack.org>; Thu, 11 Oct 2012 09:45:12 -0400 (EDT)
+Subject: Re: kswapd0: wxcessive CPU usage
+In-Reply-To: Your message of "Thu, 11 Oct 2012 10:52:28 +0200."
+             <507688CC.9000104@suse.cz>
+From: Valdis.Kletnieks@vt.edu
+References: <507688CC.9000104@suse.cz>
+Mime-Version: 1.0
+Content-Type: multipart/signed; boundary="==_Exmh_1349963080_1985P";
+	 micalg=pgp-sha1; protocol="application/pgp-signature"
+Content-Transfer-Encoding: 7bit
+Date: Thu, 11 Oct 2012 09:44:40 -0400
+Message-ID: <106695.1349963080@turing-police.cc.vt.edu>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Suleiman Souhlal <suleiman@google.com>, Tejun Heo <tj@kernel.org>, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, Johannes Weiner <hannes@cmpxchg.org>, Greg Thelen <gthelen@google.com>, devel@openvz.org, Frederic Weisbecker <fweisbec@gmail.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@cs.helsinki.fi>
+To: Jiri Slaby <jslaby@suse.cz>
+Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Jiri Slaby <jirislaby@gmail.com>
 
-On Mon 08-10-12 14:06:16, Glauber Costa wrote:
-> We can use static branches to patch the code in or out when not used.
-> 
-> Because the _ACTIVE bit on kmem_accounted is only set after the
-> increment is done, we guarantee that the root memcg will always be
-> selected for kmem charges until all call sites are patched (see
-> memcg_kmem_enabled).  This guarantees that no mischarges are applied.
-> 
-> static branch decrement happens when the last reference count from the
-> kmem accounting in memcg dies. This will only happen when the charges
-> drop down to 0.
-> 
-> When that happen, we need to disable the static branch only on those
-> memcgs that enabled it. To achieve this, we would be forced to
-> complicate the code by keeping track of which memcgs were the ones
-> that actually enabled limits, and which ones got it from its parents.
-> 
-> It is a lot simpler just to do static_key_slow_inc() on every child
-> that is accounted.
-> 
-> [ v4: adapted this patch to the changes in kmem_accounted ]
-> 
-> Signed-off-by: Glauber Costa <glommer@parallels.com>
-> CC: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> CC: Christoph Lameter <cl@linux.com>
-> CC: Pekka Enberg <penberg@cs.helsinki.fi>
-> CC: Michal Hocko <mhocko@suse.cz>
-> CC: Johannes Weiner <hannes@cmpxchg.org>
-> CC: Suleiman Souhlal <suleiman@google.com>
+--==_Exmh_1349963080_1985P
+Content-Type: text/plain; charset="us-ascii"
+Content-Id: <106687.1349963080.1@turing-police.cc.vt.edu>
 
-Looks reasonable to me
-Acked-by: Michal Hocko <mhocko@suse.cz>
+On Thu, 11 Oct 2012 10:52:28 +0200, Jiri Slaby said:
+> Hi,
+>
+> with 3.6.0-next-20121008, kswapd0 is spinning my CPU at 100% for 1
+> minute or so.
 
-Just a little nit.
 
-[...]
+>  [<ffffffff8116ee05>] ? put_super+0x25/0x40
+>  [<ffffffff8116fdd4>] ? grab_super_passive+0x24/0xa0
+>  [<ffffffff8116ff99>] ? prune_super+0x149/0x1b0
+>  [<ffffffff81131531>] ? shrink_slab+0xa1/0x2d0
+>  [<ffffffff8113452d>] ? kswapd+0x66d/0xb60
+>  [<ffffffff81133ec0>] ? try_to_free_pages+0x180/0x180
+>  [<ffffffff810a2770>] ? kthread+0xc0/0xd0
+>  [<ffffffff810a26b0>] ? kthread_create_on_node+0x130/0x130
+>  [<ffffffff816a6c9c>] ? ret_from_fork+0x7c/0x90
+>  [<ffffffff810a26b0>] ? kthread_create_on_node+0x130/0x130
 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 634c7b5..724a08b 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -344,11 +344,15 @@ struct mem_cgroup {
->  /* internal only representation about the status of kmem accounting. */
->  enum {
->  	KMEM_ACCOUNTED_ACTIVE = 0, /* accounted by this cgroup itself */
-> +	KMEM_ACCOUNTED_ACTIVATED, /* static key enabled. */
->  	KMEM_ACCOUNTED_DEAD, /* dead memcg, pending kmem charges */
->  };
->  
-> -/* first bit */
-> -#define KMEM_ACCOUNTED_MASK 0x1
-> +/*
-> + * first two bits. We account when limit is on, but only after
-> + * call sites are patched
-> + */
-> +#define KMEM_ACCOUNTED_MASK 0x3
+I don't know what it is, I haven't finished bisecting it - but I can confirm that
+I started seeing the same problem 2 or 3 weeks ago.  Note that said call
+trace does *NOT* require a suspend - I don't do suspend on my laptop and
+I'm seeing kswapd burn CPU with similar traces.
 
-The names are long but why not use KMEM_ACCOUNTED_ACTIVE*
-#define KMEM_ACCOUNTED_MASK 1<<KMEM_ACCOUNTED_ACTIVE | 1<<KMEM_ACCOUNTED_ACTIVATED
+# cat /proc/31/stack
+[<ffffffff81110306>] grab_super_passive+0x44/0x76
+[<ffffffff81110372>] prune_super+0x3a/0x13c
+[<ffffffff810dc52a>] shrink_slab+0x95/0x301
+[<ffffffff810defb7>] kswapd+0x5c8/0x902
+[<ffffffff8104eea4>] kthread+0x9d/0xa5
+[<ffffffff815ccfac>] ret_from_fork+0x7c/0x90
+[<ffffffffffffffff>] 0xffffffffffffffff
+# cat /proc/31/stack
+[<ffffffff8110f5af>] put_super+0x29/0x2d
+[<ffffffff8110f637>] drop_super+0x1b/0x20
+[<ffffffff81110462>] prune_super+0x12a/0x13c
+[<ffffffff810dc52a>] shrink_slab+0x95/0x301
+[<ffffffff810defb7>] kswapd+0x5c8/0x902
+[<ffffffff8104eea4>] kthread+0x9d/0xa5
+[<ffffffff815ccfac>] ret_from_fork+0x7c/0x90
+[<ffffffffffffffff>] 0xffffffffffffffff
 
-[...]
--- 
-Michal Hocko
-SUSE Labs
+So at least we know we're not hallucinating. :)
+
+
+
+
+--==_Exmh_1349963080_1985P
+Content-Type: application/pgp-signature
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.12 (GNU/Linux)
+Comment: Exmh version 2.5 07/13/2001
+
+iQIVAwUBUHbNSAdmEQWDXROgAQIYfBAAgeHEAz7FgfpzNDpcV4yZGL2B+VHPHovO
+Y8TjqAVUB4YEVt7NV215wuh2hX+W21ycqdw6yIJZKipP680Qi+MN+8KO9ayie1nQ
+yrE/SDPlGzZjZyKctRLrKKV/GLcw8H9TsVNC46L7s1OyguW9GBS+7KMg2LBIRY6A
+LDoutg1c2WrFp9EmeGOy2tvSmmSjjC08hUvezQwP7POtX7iDdjcTjvuoX9KwZErL
+EoyzU32Kehwh6xjVTipAd1glIsjR/qeR9EsVBY2yNJN+jUEouF6TYIpod0zumujo
+RNTkBYY5KlCd0lJJ924wqP9+YyTM9GoGfgCyvOA8uVQdVwrtYv04PF2szLGqDGSE
+xk8G189iE/K1RsMFXvWOnXkHfylf5H4eveTYSWLvDZXr4c8rvQASosTi/u6Qwaa+
+3hC30YoHe5Jps+fD3eY3vZeevo+KGrULq0p6bfNOOcMBARFkb5lViytI0RHSfEZM
+uBSyBD67vHEQ0FKskyqyugTJPjoh3clFzedJTbsadYY7mi3b52t8TSjcYCJfBDhj
+hwCDf9rSNLbyvWoJviz3P2MmqgvnDHrX7zX5h6z+iBxnJPZHT3FnwfrrokF3Pk50
+HOME2lvw8oz/Je96tALRIWeJ4GzfIeA9F1ZIUGhTIP1fSJqvRuf6QdQrZJ3VM4V+
+8vhVI9NXC+g=
+=bkF7
+-----END PGP SIGNATURE-----
+
+--==_Exmh_1349963080_1985P--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
