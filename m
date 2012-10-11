@@ -1,35 +1,33 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
-	by kanga.kvack.org (Postfix) with SMTP id 9ACEA6B002B
-	for <linux-mm@kvack.org>; Thu, 11 Oct 2012 18:42:39 -0400 (EDT)
-From: Andi Kleen <andi@firstfloor.org>
+Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
+	by kanga.kvack.org (Postfix) with SMTP id E4EBD6B002B
+	for <linux-mm@kvack.org>; Thu, 11 Oct 2012 18:59:21 -0400 (EDT)
+Received: by mail-pb0-f41.google.com with SMTP id rq2so2557580pbb.14
+        for <linux-mm@kvack.org>; Thu, 11 Oct 2012 15:59:21 -0700 (PDT)
+Date: Thu, 11 Oct 2012 15:59:19 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
 Subject: Re: [Q] Default SLAB allocator
-References: <CALF0-+XGn5=QSE0bpa4RTag9CAJ63MKz1kvaYbpw34qUhViaZA@mail.gmail.com>
-Date: Thu, 11 Oct 2012 15:42:38 -0700
-In-Reply-To: <CALF0-+XGn5=QSE0bpa4RTag9CAJ63MKz1kvaYbpw34qUhViaZA@mail.gmail.com>
-	(Ezequiel Garcia's message of "Thu, 11 Oct 2012 11:19:30 -0300")
-Message-ID: <m27gqwtyu9.fsf@firstfloor.org>
+In-Reply-To: <m27gqwtyu9.fsf@firstfloor.org>
+Message-ID: <alpine.DEB.2.00.1210111558290.6409@chino.kir.corp.google.com>
+References: <CALF0-+XGn5=QSE0bpa4RTag9CAJ63MKz1kvaYbpw34qUhViaZA@mail.gmail.com> <m27gqwtyu9.fsf@firstfloor.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ezequiel Garcia <elezegarcia@gmail.com>
-Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Tim Bird <tim.bird@am.sony.com>, celinux-dev@lists.celinuxforum.org
+To: Andi Kleen <andi@firstfloor.org>
+Cc: Ezequiel Garcia <elezegarcia@gmail.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Tim Bird <tim.bird@am.sony.com>, celinux-dev@lists.celinuxforum.org
 
-Ezequiel Garcia <elezegarcia@gmail.com> writes:
+On Thu, 11 Oct 2012, Andi Kleen wrote:
 
-> Hello,
->
-> While I've always thought SLUB was the default and recommended allocator,
-> I'm surprise to find that it's not always the case:
+> > While I've always thought SLUB was the default and recommended allocator,
+> > I'm surprise to find that it's not always the case:
+> 
+> iirc the main performance reasons for slab over slub have mostly
+> disappeared, so in theory slab could be finally deprecated now.
+> 
 
-iirc the main performance reasons for slab over slub have mostly
-disappeared, so in theory slab could be finally deprecated now.
-
--Andi
-
--- 
-ak@linux.intel.com -- Speaking for myself only
+SLUB is a non-starter for us and incurs a >10% performance degradation in 
+netperf TCP_RR.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
