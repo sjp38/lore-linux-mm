@@ -1,32 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
-	by kanga.kvack.org (Postfix) with SMTP id F1E3A6B002B
-	for <linux-mm@kvack.org>; Thu, 11 Oct 2012 18:26:04 -0400 (EDT)
-Received: by mail-we0-f169.google.com with SMTP id u3so1553118wey.14
-        for <linux-mm@kvack.org>; Thu, 11 Oct 2012 15:26:03 -0700 (PDT)
-Message-ID: <50774779.8000005@suse.cz>
-Date: Fri, 12 Oct 2012 00:26:01 +0200
-From: Jiri Slaby <jslaby@suse.cz>
+Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
+	by kanga.kvack.org (Postfix) with SMTP id 30E446B002B
+	for <linux-mm@kvack.org>; Thu, 11 Oct 2012 18:31:11 -0400 (EDT)
+Received: by mail-oa0-f41.google.com with SMTP id k14so2813053oag.14
+        for <linux-mm@kvack.org>; Thu, 11 Oct 2012 15:31:10 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: kswapd0: wxcessive CPU usage
-References: <507688CC.9000104@suse.cz> <20121011151413.3ab58542.akpm@linux-foundation.org>
-In-Reply-To: <20121011151413.3ab58542.akpm@linux-foundation.org>
+In-Reply-To: <50765797.3080709@jp.fujitsu.com>
+References: <507656D1.5020703@jp.fujitsu.com> <50765797.3080709@jp.fujitsu.com>
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Date: Thu, 11 Oct 2012 18:30:50 -0400
+Message-ID: <CAHGf_=ph2RGaZz137Y=_GpH6sFMuHHt3vCq3vfB-Ozfd1Cteiw@mail.gmail.com>
+Subject: Re: [PATCH 1/2]suppress "Device memoryX does not have a release()
+ function" warning
 Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Jiri Slaby <jirislaby@gmail.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, rientjes@google.com, liuj97@gmail.com, minchan.kim@gmail.com, akpm@linux-foundation.org, wency@cn.fujitsu.com
 
-On 10/12/2012 12:14 AM, Andrew Morton wrote:
-> Could you please do a sysrq-T a few times while it's spinning, to
-> confirm that this trace is consistently the culprit?
+On Thu, Oct 11, 2012 at 1:22 AM, Yasuaki Ishimatsu
+<isimatu.yasuaki@jp.fujitsu.com> wrote:
+> When calling remove_memory_block(), the function shows following message at
+> device_release().
+>
+> "Device 'memory528' does not have a release() function, it is broken and must
+> be fixed."
+>
+> The reason is memory_block's device struct does not have a release() function.
+>
+> So the patch registers memory_block_release() to the device's release() function
+> for suppressing the warning message. Additionally, the patch moves kfree(mem)
+> into the release function since the release function is prepared as a means
+> to free a memory_block struct.
+>
+> CC: David Rientjes <rientjes@google.com>
+> CC: Jiang Liu <liuj97@gmail.com>
+> Cc: Minchan Kim <minchan.kim@gmail.com>
+> CC: Andrew Morton <akpm@linux-foundation.org>
+> CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> CC: Wen Congyang <wency@cn.fujitsu.com>
+> Signed-off-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 
-For me yes, shrink_slab is in the most of the traces.
-
--- 
-js
-suse labs
+Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
