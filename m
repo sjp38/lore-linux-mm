@@ -1,51 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
-	by kanga.kvack.org (Postfix) with SMTP id 8C82D6B0068
-	for <linux-mm@kvack.org>; Fri, 12 Oct 2012 08:35:54 -0400 (EDT)
-Date: Fri, 12 Oct 2012 13:35:50 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 23/33] autonuma: retain page last_nid information in
- khugepaged
-Message-ID: <20121012123550.GT3317@csn.ul.ie>
-References: <1349308275-2174-1-git-send-email-aarcange@redhat.com>
- <1349308275-2174-24-git-send-email-aarcange@redhat.com>
- <20121011184453.GG3317@csn.ul.ie>
- <5078010E.8020100@redhat.com>
+Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
+	by kanga.kvack.org (Postfix) with SMTP id E94F36B0068
+	for <linux-mm@kvack.org>; Fri, 12 Oct 2012 08:37:44 -0400 (EDT)
+Received: by mail-we0-f169.google.com with SMTP id u3so1949726wey.14
+        for <linux-mm@kvack.org>; Fri, 12 Oct 2012 05:37:43 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <5078010E.8020100@redhat.com>
+In-Reply-To: <1349346078-24874-2-git-send-email-anton.vorontsov@linaro.org>
+References: <20121004102013.GA23284@lizard>
+	<1349346078-24874-2-git-send-email-anton.vorontsov@linaro.org>
+Date: Fri, 12 Oct 2012 15:37:43 +0300
+Message-ID: <CAOJsxLFW3WbBDdFhuJDwUxvGVfsy_Tg8SpR4pxTWAcfQ+LG0UQ@mail.gmail.com>
+Subject: Re: [PATCH 2/3] vmevent: Factor vmevent_match_attr() out of vmevent_match()
+From: Pekka Enberg <penberg@kernel.org>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <pzijlstr@redhat.com>, Ingo Molnar <mingo@elte.hu>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Hillf Danton <dhillf@gmail.com>, Andrew Jones <drjones@redhat.com>, Dan Smith <danms@us.ibm.com>, Thomas Gleixner <tglx@linutronix.de>, Paul Turner <pjt@google.com>, Christoph Lameter <cl@linux.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Srivatsa Vaddagiri <vatsa@linux.vnet.ibm.com>, Alex Shi <alex.shi@intel.com>, Mauricio Faria de Oliveira <mauricfo@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Don Morris <don.morris@hp.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
+To: Anton Vorontsov <anton.vorontsov@linaro.org>
+Cc: John Stultz <john.stultz@linaro.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org
 
-On Fri, Oct 12, 2012 at 07:37:50AM -0400, Rik van Riel wrote:
-> On 10/11/2012 02:44 PM, Mel Gorman wrote:
-> >On Thu, Oct 04, 2012 at 01:51:05AM +0200, Andrea Arcangeli wrote:
-> >>When pages are collapsed try to keep the last_nid information from one
-> >>of the original pages.
-> >>
-> >
-> >If two pages within a THP disagree on the node, should the collapsing be
-> >aborted? I would expect that the code of a remote access exceeds the
-> >gain from reduced TLB overhead.
-> 
-> Hard to predict.  The gains from THP seem to be on the same
-> order as the gains from NUMA locality, both between 5-15%
-> typically.
-> 
+On Thu, Oct 4, 2012 at 1:21 PM, Anton Vorontsov
+<anton.vorontsov@linaro.org> wrote:
+> Soon we'll use this new function for other code; plus this makes code less
+> indented.
+>
+> Signed-off-by: Anton Vorontsov <anton.vorontsov@linaro.org>
+> ---
+>  mm/vmevent.c | 107 +++++++++++++++++++++++++++++++----------------------------
+>  1 file changed, 57 insertions(+), 50 deletions(-)
+>
+> diff --git a/mm/vmevent.c b/mm/vmevent.c
+> index 39ef786..d434c11 100644
+> --- a/mm/vmevent.c
+> +++ b/mm/vmevent.c
+> @@ -77,6 +77,59 @@ enum {
+>         VMEVENT_ATTR_STATE_VALUE_WAS_GT = (1UL << 31),
+>  };
+>
+> +static bool vmevent_match_attr(struct vmevent_attr *attr, u64 value)
+> +{
+> +       u32 state = attr->state;
+> +       bool attr_lt = state & VMEVENT_ATTR_STATE_VALUE_LT;
+> +       bool attr_gt = state & VMEVENT_ATTR_STATE_VALUE_GT;
+> +       bool attr_eq = state & VMEVENT_ATTR_STATE_VALUE_EQ;
+> +       bool edge = state & VMEVENT_ATTR_STATE_EDGE_TRIGGER;
+> +       u32 was_lt_mask = VMEVENT_ATTR_STATE_VALUE_WAS_LT;
+> +       u32 was_gt_mask = VMEVENT_ATTR_STATE_VALUE_WAS_GT;
+> +       bool lt = value < attr->value;
+> +       bool gt = value > attr->value;
+> +       bool eq = value == attr->value;
+> +       bool was_lt = state & was_lt_mask;
+> +       bool was_gt = state & was_gt_mask;
 
-Usually yes, but in this case you know that at least 50% of those accesses
-are going to be remote and as autonuma will be attempting to get hints on
-the PMD level there is going to be a struggle between THP collapsing the
-page and autonuma splitting it for NUMA migration. It feels to me that
-the best decision in this case is to leave the page split and NUMA
-hinting take place on the PTE level.
+[snip]
 
--- 
-Mel Gorman
-SUSE Labs
+So I merged this patch but vmevent_match_attr() is still too ugly for
+words. It really could use some serious cleanups.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
