@@ -1,47 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
-	by kanga.kvack.org (Postfix) with SMTP id D5D2A6B0044
-	for <linux-mm@kvack.org>; Fri, 12 Oct 2012 06:22:23 -0400 (EDT)
-Received: by mail-pa0-f41.google.com with SMTP id fa10so2997951pad.14
-        for <linux-mm@kvack.org>; Fri, 12 Oct 2012 03:22:23 -0700 (PDT)
-Date: Fri, 12 Oct 2012 03:19:32 -0700
-From: Anton Vorontsov <anton.vorontsov@linaro.org>
-Subject: [PATCH] mm: vmevent: Report number of used swap pages, not total
- amount of swap
-Message-ID: <20121012101932.GA30179@lizard>
+Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
+	by kanga.kvack.org (Postfix) with SMTP id 542406B0044
+	for <linux-mm@kvack.org>; Fri, 12 Oct 2012 07:39:10 -0400 (EDT)
+Message-ID: <5078010E.8020100@redhat.com>
+Date: Fri, 12 Oct 2012 07:37:50 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
+Subject: Re: [PATCH 23/33] autonuma: retain page last_nid information in khugepaged
+References: <1349308275-2174-1-git-send-email-aarcange@redhat.com> <1349308275-2174-24-git-send-email-aarcange@redhat.com> <20121011184453.GG3317@csn.ul.ie>
+In-Reply-To: <20121011184453.GG3317@csn.ul.ie>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pekka Enberg <penberg@kernel.org>
-Cc: Leonid Moiseichuk <leonid.moiseichuk@nokia.com>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, John Stultz <john.stultz@linaro.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org, kernel-team@android.com
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <pzijlstr@redhat.com>, Ingo Molnar <mingo@elte.hu>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Hillf Danton <dhillf@gmail.com>, Andrew Jones <drjones@redhat.com>, Dan Smith <danms@us.ibm.com>, Thomas Gleixner <tglx@linutronix.de>, Paul Turner <pjt@google.com>, Christoph Lameter <cl@linux.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Srivatsa Vaddagiri <vatsa@linux.vnet.ibm.com>, Alex Shi <alex.shi@intel.com>, Mauricio Faria de Oliveira <mauricfo@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Don Morris <don.morris@hp.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
 
-I think the actual intent was to report the number of used swap pages, not
-just total swap size.
+On 10/11/2012 02:44 PM, Mel Gorman wrote:
+> On Thu, Oct 04, 2012 at 01:51:05AM +0200, Andrea Arcangeli wrote:
+>> When pages are collapsed try to keep the last_nid information from one
+>> of the original pages.
+>>
+>
+> If two pages within a THP disagree on the node, should the collapsing be
+> aborted? I would expect that the code of a remote access exceeds the
+> gain from reduced TLB overhead.
 
-This patch fixes the issue.
+Hard to predict.  The gains from THP seem to be on the same
+order as the gains from NUMA locality, both between 5-15%
+typically.
 
-Signed-off-by: Anton Vorontsov <anton.vorontsov@linaro.org>
----
- mm/vmevent.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
-diff --git a/mm/vmevent.c b/mm/vmevent.c
-index 1c2e72e..a059bed 100644
---- a/mm/vmevent.c
-+++ b/mm/vmevent.c
-@@ -46,7 +46,7 @@ static u64 vmevent_attr_swap_pages(struct vmevent_watch *watch,
- 
- 	si_swapinfo(&si);
- 
--	return si.totalswap;
-+	return si.totalswap - si.freeswap;
- #else
- 	return 0;
- #endif
 -- 
-1.7.12.1
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
