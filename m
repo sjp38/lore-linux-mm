@@ -1,58 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
-	by kanga.kvack.org (Postfix) with SMTP id 68C4F6B005A
-	for <linux-mm@kvack.org>; Fri, 12 Oct 2012 09:02:01 -0400 (EDT)
-Date: Fri, 12 Oct 2012 15:01:59 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH] memcg: oom: fix totalpages calculation for
- memory.swappiness==0
-Message-ID: <20121012130159.GB22083@dhcp22.suse.cz>
-References: <20121011085038.GA29295@dhcp22.suse.cz>
- <1349945859-1350-1-git-send-email-mhocko@suse.cz>
- <CAHGf_=oC-kptra69KbSPZzrYi5rbEbhwVZ=We1eLDcSV-=HeBw@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAHGf_=oC-kptra69KbSPZzrYi5rbEbhwVZ=We1eLDcSV-=HeBw@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
+	by kanga.kvack.org (Postfix) with SMTP id DD4786B0044
+	for <linux-mm@kvack.org>; Fri, 12 Oct 2012 09:41:49 -0400 (EDT)
+From: Glauber Costa <glommer@parallels.com>
+Subject: [PATCH v4 00/19] slab accounting for memcg
+Date: Fri, 12 Oct 2012 17:40:54 +0400
+Message-Id: <1350049273-17213-1-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>
+To: linux-mm@kvack.org
+Cc: cgroups@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, kamezawa.hiroyu@jp.fujitsu.com, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, devel@openvz.org
 
-On Thu 11-10-12 18:36:26, KOSAKI Motohiro wrote:
-> On Thu, Oct 11, 2012 at 4:57 AM, Michal Hocko <mhocko@suse.cz> wrote:
-> > oom_badness takes totalpages argument which says how many pages are
-> > available and it uses it as a base for the score calculation. The value
-> > is calculated by mem_cgroup_get_limit which considers both limit and
-> > total_swap_pages (resp. memsw portion of it).
-> >
-> > This is usually correct but since fe35004f (mm: avoid swapping out
-> > with swappiness==0) we do not swap when swappiness is 0 which means
-> > that we cannot really use up all the totalpages pages. This in turn
-> > confuses oom score calculation if the memcg limit is much smaller than
-> > the available swap because the used memory (capped by the limit) is
-> > negligible comparing to totalpages so the resulting score is too small
-> > if adj!=0 (typically task with CAP_SYS_ADMIN or non zero oom_score_adj).
-> > A wrong process might be selected as result.
-> >
-> > The same issue exists for the global oom killer as well but it is not
-> > that problematic as the amount of the RAM is usually much bigger than
-> > the swap space.
-> >
-> > The problem can be worked around by checking mem_cgroup_swappiness==0
-> > and not considering swap at all in such a case.
-> >
-> > Signed-off-by: Michal Hocko <mhocko@suse.cz>
-> > Acked-by: David Rientjes <rientjes@google.com>
-> > Cc: stable [3.5+]
-> 
-> Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+This is a followup to the previous kmem series. I divided them logically
+so it gets easier for reviewers. But I believe they are ready to be merged
+together (although we can do a two-pass merge if people would prefer)
 
-Thanks!
+Throwaway git tree found at:
+
+	git://git.kernel.org/pub/scm/linux/kernel/git/glommer/memcg.git kmemcg-slab
+
+I've bundled the following important changes since last submission:
+* no more messing with the cache name after destruction: aggregated figures
+  are shown in /proc/slabinfo.
+* memory.kmem.slabinfo file with memcg-specific cache information during its
+  lifespan.
+* full slub attribute propagation.
+* reusing the standard workqueue mechanism.
+* cache-side indexing, instead of memcg-side indexing. The memcg css_id serves
+  as an index, and we don't need extra indexes for that.
+* struct memcg_cache_params no longer bundled in struct kmem_cache: We now will
+  have only a pointer in the struct, allowing memory consumption when disable to
+  fall down ever further.
+
+Patches need to be adjusted to cope with those changes, but other than that,
+look the same - just a lot simpler.
+
+I also put quite some effort to overcome my writing disability and get some
+decent changelogs in place.
+
+For a detailed explanation about this whole effort, please refer to my previous
+post (https://lkml.org/lkml/2012/10/8/119)
+
+
+*** BLURB HERE ***
+
+Glauber Costa (19):
+  slab: Ignore internal flags in cache creation
+  move slabinfo processing to slab_common.c
+  move print_slabinfo_header to slab_common.c
+  sl[au]b: process slabinfo_show in common code
+  slab: don't preemptively remove element from list in cache destroy
+  slab/slub: struct memcg_params
+  consider a memcg parameter in kmem_create_cache
+  Allocate memory for memcg caches whenever a new memcg appears
+  memcg: infrastructure to match an allocation to the right cache
+  memcg: skip memcg kmem allocations in specified code regions
+  sl[au]b: always get the cache from its page in kfree
+  sl[au]b: Allocate objects from memcg cache
+  memcg: destroy memcg caches
+  memcg/sl[au]b Track all the memcg children of a kmem_cache.
+  memcg/sl[au]b: shrink dead caches
+  Aggregate memcg cache values in slabinfo
+  slab: propagate tunables values
+  slub: slub-specific propagation changes.
+  Add slab-specific documentation about the kmem controller
+
+ Documentation/cgroups/memory.txt |   7 +
+ include/linux/memcontrol.h       |  88 ++++++
+ include/linux/sched.h            |   1 +
+ include/linux/slab.h             |  47 +++
+ include/linux/slab_def.h         |   3 +
+ include/linux/slub_def.h         |  19 +-
+ init/Kconfig                     |   2 +-
+ mm/memcontrol.c                  | 599 +++++++++++++++++++++++++++++++++++++--
+ mm/slab.c                        | 210 ++++++--------
+ mm/slab.h                        | 157 +++++++++-
+ mm/slab_common.c                 | 224 ++++++++++++++-
+ mm/slub.c                        | 193 ++++++++-----
+ 12 files changed, 1311 insertions(+), 239 deletions(-)
 
 -- 
-Michal Hocko
-SUSE Labs
+1.7.11.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
