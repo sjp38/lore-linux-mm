@@ -1,73 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
-	by kanga.kvack.org (Postfix) with SMTP id 158246B0044
-	for <linux-mm@kvack.org>; Fri, 12 Oct 2012 04:23:18 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 29DFA3EE0BD
-	for <linux-mm@kvack.org>; Fri, 12 Oct 2012 17:23:16 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id D93ED45DEBB
-	for <linux-mm@kvack.org>; Fri, 12 Oct 2012 17:23:14 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 7269545DEC0
-	for <linux-mm@kvack.org>; Fri, 12 Oct 2012 17:23:14 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 66BD11DB8045
-	for <linux-mm@kvack.org>; Fri, 12 Oct 2012 17:23:14 +0900 (JST)
-Received: from g01jpexchyt24.g01.fujitsu.local (g01jpexchyt24.g01.fujitsu.local [10.128.193.107])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id EE10C1DB804A
-	for <linux-mm@kvack.org>; Fri, 12 Oct 2012 17:23:13 +0900 (JST)
-Message-ID: <5077D353.3010708@jp.fujitsu.com>
-Date: Fri, 12 Oct 2012 17:22:43 +0900
-From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
+	by kanga.kvack.org (Postfix) with SMTP id 420FA6B0044
+	for <linux-mm@kvack.org>; Fri, 12 Oct 2012 04:27:33 -0400 (EDT)
+Date: Fri, 12 Oct 2012 10:27:28 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH v4 04/14] kmem accounting basic infrastructure
+Message-ID: <20121012082728.GC10110@dhcp22.suse.cz>
+References: <1349690780-15988-1-git-send-email-glommer@parallels.com>
+ <1349690780-15988-5-git-send-email-glommer@parallels.com>
+ <20121011101119.GB29295@dhcp22.suse.cz>
+ <5077C886.2030609@parallels.com>
 MIME-Version: 1.0
-Subject: [PATCH] mm: cleanup register_node()
-Content-Type: text/plain; charset="ISO-2022-JP"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <5077C886.2030609@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: rientjes@google.com, akpm@linux-foundation.org, isimatu.yasuaki@jp.fujitsu.com
+To: Glauber Costa <glommer@parallels.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Suleiman Souhlal <suleiman@google.com>, Tejun Heo <tj@kernel.org>, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, Johannes Weiner <hannes@cmpxchg.org>, Greg Thelen <gthelen@google.com>, devel@openvz.org, Frederic Weisbecker <fweisbec@gmail.com>
 
-register_node() is defined as extern in include/linux/node.h. But the function
-is only called from register_one_node() in driver/base/node.c.
+On Fri 12-10-12 11:36:38, Glauber Costa wrote:
+> On 10/11/2012 02:11 PM, Michal Hocko wrote:
+> > On Mon 08-10-12 14:06:10, Glauber Costa wrote:
+[...]
+> >> +	if (!memcg->kmem_accounted && val != RESOURCE_MAX) {
+> > 
+> > Just a nit but wouldn't memcg_kmem_is_accounted(memcg) be better than
+> > directly checking kmem_accounted?
+> > Besides that I am not sure I fully understand RESOURCE_MAX test. Say I
+> > want to have kmem accounting for monitoring so I do 
+> > echo -1 > memory.kmem.limit_in_bytes
+> > 
+> > so you set the value but do not activate it. Isn't this just a reminder
+> > from the time when the accounting could be deactivated?
+> > 
+> 
+> No, not at all.
+> 
+> I see you have talked about that in other e-mails, (I was on sick leave
+> yesterday), so let me consolidate it all here:
+> 
+> What we discussed before, regarding to echo -1 > ... was around the
+> disable code, something that we no longer allow. So now, if you will
+> echo -1 to that file *after* it is limited, you get in track only mode.
+> 
+> But for you to start that, you absolutely have to write something
+> different than -1.
+> 
+> Just one example: libcgroup, regardless of how lame we think it is in
+> this regard, will write to all cgroup files by default when a file is
+> updated. If you haven't written anything, it will still write the same
+> value that the file had before.
 
-So the patch defines register_node() as static.
-
-CC: David Rientjes <rientjes@google.com>
-CC: Andrew Morton <akpm@linux-foundation.org>
-Signed-off-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-
----
- drivers/base/node.c  |    2 +-
- include/linux/node.h |    1 -
- 2 files changed, 1 insertion(+), 2 deletions(-)
-
-Index: linux-3.6/drivers/base/node.c
-===================================================================
---- linux-3.6.orig/drivers/base/node.c	2012-10-12 16:35:51.000000000 +0900
-+++ linux-3.6/drivers/base/node.c	2012-10-12 16:52:25.294207322 +0900
-@@ -259,7 +259,7 @@ static inline void hugetlb_unregister_no
-  *
-  * Initialize and register the node device.
-  */
--int register_node(struct node *node, int num, struct node *parent)
-+static int register_node(struct node *node, int num, struct node *parent)
- {
- 	int error;
+Ohh, I wasn't aware of that and it sounds pretty lame.
  
-Index: linux-3.6/include/linux/node.h
-===================================================================
---- linux-3.6.orig/include/linux/node.h	2012-10-01 08:47:46.000000000 +0900
-+++ linux-3.6/include/linux/node.h	2012-10-12 16:52:55.215210433 +0900
-@@ -30,7 +30,6 @@ struct memory_block;
- extern struct node node_devices[];
- typedef  void (*node_registration_func_t)(struct node *);
- 
--extern int register_node(struct node *, int, struct node *);
- extern void unregister_node(struct node *node);
- #ifdef CONFIG_NUMA
- extern int register_one_node(int nid);
+> This means that an already deployed libcg-managed installation will
+> suddenly enable kmem for every cgroup. Sure this can be fixed in
+> userspace, but:
+> 
+> 1) There is no reason to break it, if we can
+
+You are right
+
+> 2) It is perfectly reasonable to expect that if you write to a file the
+> same value that was already there, nothing happens.
+
+Fair enough
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
