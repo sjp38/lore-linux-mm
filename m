@@ -1,37 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
-	by kanga.kvack.org (Postfix) with SMTP id 542406B0044
-	for <linux-mm@kvack.org>; Fri, 12 Oct 2012 07:39:10 -0400 (EDT)
-Message-ID: <5078010E.8020100@redhat.com>
-Date: Fri, 12 Oct 2012 07:37:50 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
+	by kanga.kvack.org (Postfix) with SMTP id 3A93A6B0044
+	for <linux-mm@kvack.org>; Fri, 12 Oct 2012 08:07:05 -0400 (EDT)
+Received: by mail-ie0-f169.google.com with SMTP id 10so5722024ied.14
+        for <linux-mm@kvack.org>; Fri, 12 Oct 2012 05:07:04 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [PATCH 23/33] autonuma: retain page last_nid information in khugepaged
-References: <1349308275-2174-1-git-send-email-aarcange@redhat.com> <1349308275-2174-24-git-send-email-aarcange@redhat.com> <20121011184453.GG3317@csn.ul.ie>
-In-Reply-To: <20121011184453.GG3317@csn.ul.ie>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <m2391ktxjj.fsf@firstfloor.org>
+References: <CALF0-+XGn5=QSE0bpa4RTag9CAJ63MKz1kvaYbpw34qUhViaZA@mail.gmail.com>
+	<m27gqwtyu9.fsf@firstfloor.org>
+	<alpine.DEB.2.00.1210111558290.6409@chino.kir.corp.google.com>
+	<m2391ktxjj.fsf@firstfloor.org>
+Date: Fri, 12 Oct 2012 09:07:04 -0300
+Message-ID: <CALF0-+WLZWtwYY4taYW9D7j-abCJeY90JzcTQ2hGK64ftWsdxw@mail.gmail.com>
+Subject: Re: [Q] Default SLAB allocator
+From: Ezequiel Garcia <elezegarcia@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <pzijlstr@redhat.com>, Ingo Molnar <mingo@elte.hu>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Hillf Danton <dhillf@gmail.com>, Andrew Jones <drjones@redhat.com>, Dan Smith <danms@us.ibm.com>, Thomas Gleixner <tglx@linutronix.de>, Paul Turner <pjt@google.com>, Christoph Lameter <cl@linux.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Bharata B Rao <bharata.rao@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Srivatsa Vaddagiri <vatsa@linux.vnet.ibm.com>, Alex Shi <alex.shi@intel.com>, Mauricio Faria de Oliveira <mauricfo@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Don Morris <don.morris@hp.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
+To: David Rientjes <rientjes@google.com>, Andi Kleen <andi@firstfloor.org>
+Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Tim Bird <tim.bird@am.sony.com>, celinux-dev@lists.celinuxforum.org
 
-On 10/11/2012 02:44 PM, Mel Gorman wrote:
-> On Thu, Oct 04, 2012 at 01:51:05AM +0200, Andrea Arcangeli wrote:
->> When pages are collapsed try to keep the last_nid information from one
->> of the original pages.
->>
+Hi,
+
+On Thu, Oct 11, 2012 at 8:10 PM, Andi Kleen <andi@firstfloor.org> wrote:
+> David Rientjes <rientjes@google.com> writes:
 >
-> If two pages within a THP disagree on the node, should the collapsing be
-> aborted? I would expect that the code of a remote access exceeds the
-> gain from reduced TLB overhead.
+>> On Thu, 11 Oct 2012, Andi Kleen wrote:
+>>
+>>> > While I've always thought SLUB was the default and recommended allocator,
+>>> > I'm surprise to find that it's not always the case:
+>>>
+>>> iirc the main performance reasons for slab over slub have mostly
+>>> disappeared, so in theory slab could be finally deprecated now.
+>>>
+>>
+>> SLUB is a non-starter for us and incurs a >10% performance degradation in
+>> netperf TCP_RR.
+>
 
-Hard to predict.  The gains from THP seem to be on the same
-order as the gains from NUMA locality, both between 5-15%
-typically.
+Where are you seeing that?
 
--- 
-All rights reversed
+Notice that many defconfigs are for embedded devices,
+and many of them say "use SLAB"; I wonder if that's right.
+
+Is there any intention to replace SLAB by SLUB?
+In that case it could make sense to change defconfigs, although
+it wouldn't be based on any actual tests.
+
+    Ezequiel
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
