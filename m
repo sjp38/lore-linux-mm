@@ -1,96 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
-	by kanga.kvack.org (Postfix) with SMTP id C7F506B0044
-	for <linux-mm@kvack.org>; Fri, 12 Oct 2012 05:47:30 -0400 (EDT)
-Date: Fri, 12 Oct 2012 11:47:26 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH v4 06/14] memcg: kmem controller infrastructure
-Message-ID: <20121012094726.GH10110@dhcp22.suse.cz>
-References: <1349690780-15988-1-git-send-email-glommer@parallels.com>
- <1349690780-15988-7-git-send-email-glommer@parallels.com>
- <20121011124212.GC29295@dhcp22.suse.cz>
- <5077CAAA.3090709@parallels.com>
- <20121012083944.GD10110@dhcp22.suse.cz>
- <5077D889.2040100@parallels.com>
- <20121012085740.GG10110@dhcp22.suse.cz>
- <5077DF20.7020200@parallels.com>
+Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
+	by kanga.kvack.org (Postfix) with SMTP id 0242D6B0044
+	for <linux-mm@kvack.org>; Fri, 12 Oct 2012 06:14:07 -0400 (EDT)
+Received: by mail-pa0-f41.google.com with SMTP id fa10so2990731pad.14
+        for <linux-mm@kvack.org>; Fri, 12 Oct 2012 03:14:07 -0700 (PDT)
+Date: Fri, 12 Oct 2012 03:11:15 -0700
+From: Anton Vorontsov <anton.vorontsov@linaro.org>
+Subject: [RFC 0/3] mm: vmevent: Stats accuracy improvements
+Message-ID: <20121012101115.GA11825@lizard>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <5077DF20.7020200@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Suleiman Souhlal <suleiman@google.com>, Tejun Heo <tj@kernel.org>, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, Johannes Weiner <hannes@cmpxchg.org>, Greg Thelen <gthelen@google.com>, devel@openvz.org, Frederic Weisbecker <fweisbec@gmail.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@cs.helsinki.fi>
+To: Pekka Enberg <penberg@kernel.org>
+Cc: Mel Gorman <mgorman@suse.de>, Leonid Moiseichuk <leonid.moiseichuk@nokia.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Minchan Kim <minchan@kernel.org>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, John Stultz <john.stultz@linaro.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org, kernel-team@android.com
 
-On Fri 12-10-12 13:13:04, Glauber Costa wrote:
-[...]
-> Just so we don't ping-pong in another submission:
-> 
-> I changed memcontrol.h's memcg_kmem_newpage_charge to include:
-> 
->         /* If the test is dying, just let it go. */
->         if (unlikely(test_thread_flag(TIF_MEMDIE)
->                      || fatal_signal_pending(current)))
->                 return true;
+Hi all,
 
-OK
+Some time ago KOSAKI Motohiro noticed[1] that vmevent might be very
+inaccurate (up to 2GB inaccuracy on a very large machines) since per CPU
+stats synchronization happens either on time basis or when we hit stat
+thresholds.
 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index c32aaaf..72cf189 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> +static int memcg_charge_kmem(struct mem_cgroup *memcg, gfp_t gfp, u64 size)
-> +{
-> +	struct res_counter *fail_res;
-> +	struct mem_cgroup *_memcg;
-> +	int ret = 0;
-> +	bool may_oom;
-> +
-> +	ret = res_counter_charge(&memcg->kmem, size, &fail_res);
-> +	if (ret)
-> +		return ret;
-> +
-> +	/*
-> +	 * Conditions under which we can wait for the oom_killer.
-> +	 * We have to be able to wait, but also, if we can't retry,
-> +	 * we obviously shouldn't go mess with oom.
-> +	 */
-> +	may_oom = (gfp & __GFP_WAIT) && !(gfp & __GFP_NORETRY);
-> +
-> +	_memcg = memcg;
-> +	ret = __mem_cgroup_try_charge(NULL, gfp, size >> PAGE_SHIFT,
-> +				      &_memcg, may_oom);
-> +
-> +	if (ret == -EINTR)  {
-> +		/*
-> +		 * __mem_cgroup_try_charge() chosed to bypass to root due to
-> +		 * OOM kill or fatal signal.  Since our only options are to
-> +		 * either fail the allocation or charge it to this cgroup, do
-> +		 * it as a temporary condition. But we can't fail. From a
-> +		 * kmem/slab perspective, the cache has already been selected,
-> +		 * by mem_cgroup_get_kmem_cache(), so it is too late to change
-> +		 * our minds. This condition will only trigger if the task
-> +		 * entered memcg_charge_kmem in a sane state, but was
-> +		 * OOM-killed.  during __mem_cgroup_try_charge. Tasks that are
-> +		 * already dying when the allocation triggers should have been
-> +		 * already directed to the root cgroup.
-> +		 */
-> +		res_counter_charge_nofail(&memcg->res, size, &fail_res);
-> +		if (do_swap_account)
-> +			res_counter_charge_nofail(&memcg->memsw, size,
-> +						  &fail_res);
-> +		ret = 0;
-> +	} else if (ret)
-> +		res_counter_uncharge(&memcg->kmem, size);
-> +
-> +	return ret;
-> +}
+KOSAKI also told that perf API might be a good inspirations for further
+improvements, but I must admit I didn't fully get the idea, although I'm
+open to investigate this route too, but I guess it needs a bit more
+explanations.
 
-OK
--- 
-Michal Hocko
-SUSE Labs
+Also note that this is just an RFC, I just show some ideas and wonder how
+you feel about it. Since we now use memory pressure factor bolted into the
+reclaimer code path, we don't desperately need the accurate stats, but
+it's still nice thing to have/fix.
+
+Anyway, here we take two approaches:
+
+- Asynchronously sum vm_stat diffs and global stats. This is very similar
+  to what we already have for per-zone stats, implemented in
+  zone_page_state_snapshot(). The values still could be inaccurate, but
+  overall this makes things better;
+
+- Implement configurable per CPU vmstat thresholds. This is much more
+  powerful tool to get accurate statistics, but it comes with a price: it
+  might cause some performance penalty as we'd update global stats more
+  frequently (in a fast path), so users have to be careful.
+
+The two items are independent, so we might implement one or another, or
+both, or none, if desired. ;-)
+
+Thanks,
+Anton.
+
+p.s. Note that the patches are against my vmevent tree, i.e.:
+
+	git://git.infradead.org/users/cbou/linux-vmevent.git
+
+[1] http://lkml.indiana.edu/hypermail/linux/kernel/1205.1/00062.html
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
