@@ -1,147 +1,196 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx140.postini.com [74.125.245.140])
-	by kanga.kvack.org (Postfix) with SMTP id 16B706B007D
-	for <linux-mm@kvack.org>; Fri, 12 Oct 2012 09:42:54 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
+	by kanga.kvack.org (Postfix) with SMTP id F23E06B0072
+	for <linux-mm@kvack.org>; Fri, 12 Oct 2012 09:42:52 -0400 (EDT)
 From: Glauber Costa <glommer@parallels.com>
-Subject: [PATCH v4 11/19] sl[au]b: always get the cache from its page in kfree
-Date: Fri, 12 Oct 2012 17:41:05 +0400
-Message-Id: <1350049273-17213-12-git-send-email-glommer@parallels.com>
+Subject: [PATCH v4 04/19] sl[au]b: process slabinfo_show in common code
+Date: Fri, 12 Oct 2012 17:40:58 +0400
+Message-Id: <1350049273-17213-5-git-send-email-glommer@parallels.com>
 In-Reply-To: <1350049273-17213-1-git-send-email-glommer@parallels.com>
 References: <1350049273-17213-1-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
-Cc: cgroups@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, kamezawa.hiroyu@jp.fujitsu.com, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, devel@openvz.org, Glauber Costa <glommer@parallels.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Suleiman Souhlal <suleiman@google.com>
+Cc: cgroups@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, kamezawa.hiroyu@jp.fujitsu.com, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, devel@openvz.org, Glauber Costa <glommer@parallels.com>, Pekka Enberg <penberg@cs.helsinki.fi>
 
-struct page already have this information. If we start chaining
-caches, this information will always be more trustworthy than
-whatever is passed into the function
+With all the infrastructure in place, we can now have slabinfo_show
+done from slab_common.c. A cache-specific function is called to grab
+information about the cache itself, since that is still heavily
+dependent on the implementation. But with the values produced by it, all
+the printing and handling is done from common code.
 
-A parent pointer is added to the slub structure, so we can make sure
-the freeing comes from either the right slab, or from its rightful
-parent.
-
-[ v3: added parent testing with VM_BUG_ON ]
-[ v4: make it faster when kmemcg not in use ]
+[ v2: moved objects_per_slab and cache_order to slabinfo ]
 
 Signed-off-by: Glauber Costa <glommer@parallels.com>
 CC: Christoph Lameter <cl@linux.com>
 CC: Pekka Enberg <penberg@cs.helsinki.fi>
-CC: Christoph Lameter <cl@linux.com>
-CC: Pekka Enberg <penberg@cs.helsinki.fi>
-CC: Michal Hocko <mhocko@suse.cz>
-CC: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-CC: Johannes Weiner <hannes@cmpxchg.org>
-CC: Suleiman Souhlal <suleiman@google.com>
-CC: Tejun Heo <tj@kernel.org>
+CC: David Rientjes <rientjes@google.com>
 ---
- include/linux/memcontrol.h |  4 ++++
- mm/slab.c                  | 17 ++++++++++++++++-
- mm/slab.h                  | 13 +++++++++++++
- mm/slub.c                  | 14 ++++++++++++--
- 4 files changed, 45 insertions(+), 3 deletions(-)
+ mm/slab.c        | 26 +++++++++++++++-----------
+ mm/slab.h        | 16 +++++++++++++++-
+ mm/slab_common.c | 18 +++++++++++++++++-
+ mm/slub.c        | 24 ++++++++++--------------
+ 4 files changed, 57 insertions(+), 27 deletions(-)
 
-diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index c7886aa..4c94182 100644
---- a/include/linux/memcontrol.h
-+++ b/include/linux/memcontrol.h
-@@ -536,6 +536,10 @@ static inline void sock_release_memcg(struct sock *sk)
- {
- }
- 
-+static inline bool memcg_kmem_enabled(void)
-+{
-+	return false;
-+}
- static inline bool
- memcg_kmem_newpage_charge(gfp_t gfp, struct mem_cgroup **memcg, int order)
- {
 diff --git a/mm/slab.c b/mm/slab.c
-index 98b3460..6f22067 100644
+index 864a9e9..98b3460 100644
 --- a/mm/slab.c
 +++ b/mm/slab.c
-@@ -3911,9 +3911,24 @@ EXPORT_SYMBOL(__kmalloc);
-  * Free an object which was previously allocated from this
-  * cache.
-  */
--void kmem_cache_free(struct kmem_cache *cachep, void *objp)
-+void kmem_cache_free(struct kmem_cache *s, void *objp)
- {
- 	unsigned long flags;
-+	struct kmem_cache *cachep;
-+
-+	/*
-+	 * When kmemcg is not being used, both assignments should return the
-+	 * same value. but we don't want to pay the assignment price in that
-+	 * case. If it is not compiled in, the compiler should be smart enough
-+	 * to not do even the assignment. In that case, slab_equal_or_root
-+	 * will also be a constant.
-+	 */
-+	if (memcg_kmem_enabled()) {
-+		cachep = virt_to_cache(objp);
-+		VM_BUG_ON(!slab_equal_or_root(cachep, s));
-+	} else
-+		cachep = s;
-+
+@@ -4262,9 +4262,8 @@ out:
+ }
  
- 	local_irq_save(flags);
- 	debug_check_no_locks_freed(objp, cachep->object_size);
+ #ifdef CONFIG_SLABINFO
+-int slabinfo_show(struct seq_file *m, void *p)
++void get_slabinfo(struct kmem_cache *cachep, struct slabinfo *sinfo)
+ {
+-	struct kmem_cache *cachep = list_entry(p, struct kmem_cache, list);
+ 	struct slab *slabp;
+ 	unsigned long active_objs;
+ 	unsigned long num_objs;
+@@ -4319,13 +4318,20 @@ int slabinfo_show(struct seq_file *m, void *p)
+ 	if (error)
+ 		printk(KERN_ERR "slab: cache %s error: %s\n", name, error);
+ 
+-	seq_printf(m, "%-17s %6lu %6lu %6u %4u %4d",
+-		   name, active_objs, num_objs, cachep->size,
+-		   cachep->num, (1 << cachep->gfporder));
+-	seq_printf(m, " : tunables %4u %4u %4u",
+-		   cachep->limit, cachep->batchcount, cachep->shared);
+-	seq_printf(m, " : slabdata %6lu %6lu %6lu",
+-		   active_slabs, num_slabs, shared_avail);
++	sinfo->active_objs = active_objs;
++	sinfo->num_objs = num_objs;
++	sinfo->active_slabs = active_slabs;
++	sinfo->num_slabs = num_slabs;
++	sinfo->shared_avail = shared_avail;
++	sinfo->limit = cachep->limit;
++	sinfo->batchcount = cachep->batchcount;
++	sinfo->shared = cachep->shared;
++	sinfo->objects_per_slab = cachep->num;
++	sinfo->cache_order = cachep->gfporder;
++}
++
++void slabinfo_show_stats(struct seq_file *m, struct kmem_cache *cachep)
++{
+ #if STATS
+ 	{			/* list3 stats */
+ 		unsigned long high = cachep->high_mark;
+@@ -4355,8 +4361,6 @@ int slabinfo_show(struct seq_file *m, void *p)
+ 			   allochit, allocmiss, freehit, freemiss);
+ 	}
+ #endif
+-	seq_putc(m, '\n');
+-	return 0;
+ }
+ 
+ #define MAX_SLABINFO_WRITE 128
 diff --git a/mm/slab.h b/mm/slab.h
-index c35ecce..b9b5f1f 100644
+index e9ba23f..66a62d3 100644
 --- a/mm/slab.h
 +++ b/mm/slab.h
-@@ -108,6 +108,13 @@ static inline bool cache_match_memcg(struct kmem_cache *cachep,
- 	return (is_root_cache(cachep) && !memcg) ||
- 		(cachep->memcg_params->memcg == memcg);
- }
+@@ -74,8 +74,22 @@ int __kmem_cache_shutdown(struct kmem_cache *);
+ 
+ struct seq_file;
+ struct file;
+-int slabinfo_show(struct seq_file *m, void *p);
+ 
++struct slabinfo {
++	unsigned long active_objs;
++	unsigned long num_objs;
++	unsigned long active_slabs;
++	unsigned long num_slabs;
++	unsigned long shared_avail;
++	unsigned int limit;
++	unsigned int batchcount;
++	unsigned int shared;
++	unsigned int objects_per_slab;
++	unsigned int cache_order;
++};
 +
-+static inline bool slab_equal_or_root(struct kmem_cache *s,
-+					struct kmem_cache *p)
-+{
-+	return (p == s) ||
-+		(s->memcg_params && (p == s->memcg_params->root_cache));
-+}
- #else
- static inline bool is_root_cache(struct kmem_cache *s)
++void get_slabinfo(struct kmem_cache *s, struct slabinfo *sinfo);
++void slabinfo_show_stats(struct seq_file *m, struct kmem_cache *s);
+ ssize_t slabinfo_write(struct file *file, const char __user *buffer,
+ 		       size_t count, loff_t *ppos);
+ #endif
+diff --git a/mm/slab_common.c b/mm/slab_common.c
+index bb4d751..1ee1d6f 100644
+--- a/mm/slab_common.c
++++ b/mm/slab_common.c
+@@ -246,7 +246,23 @@ static void s_stop(struct seq_file *m, void *p)
+ 
+ static int s_show(struct seq_file *m, void *p)
  {
-@@ -119,5 +126,11 @@ static inline bool cache_match_memcg(struct kmem_cache *cachep,
- {
- 	return true;
- }
+-	return slabinfo_show(m, p);
++	struct kmem_cache *s = list_entry(p, struct kmem_cache, list);
++	struct slabinfo sinfo;
 +
-+static inline bool slab_equal_or_root(struct kmem_cache *s,
-+					struct kmem_cache *p)
-+{
-+	return true;
-+}
- #endif
- #endif
++	memset(&sinfo, 0, sizeof(sinfo));
++	get_slabinfo(s, &sinfo);
++
++	seq_printf(m, "%-17s %6lu %6lu %6u %4u %4d",
++		   s->name, sinfo.active_objs, sinfo.num_objs, s->size,
++		   sinfo.objects_per_slab, (1 << sinfo.cache_order));
++
++	seq_printf(m, " : tunables %4u %4u %4u",
++		   sinfo.limit, sinfo.batchcount, sinfo.shared);
++	seq_printf(m, " : slabdata %6lu %6lu %6lu",
++		   sinfo.active_slabs, sinfo.num_slabs, sinfo.shared_avail);
++	slabinfo_show_stats(m, s);
++	seq_putc(m, '\n');
++	return 0;
+ }
+ 
+ /*
 diff --git a/mm/slub.c b/mm/slub.c
-index 05aefe2..6e1a90f 100644
+index 91e1f3b..a34548e 100644
 --- a/mm/slub.c
 +++ b/mm/slub.c
-@@ -2609,9 +2609,19 @@ redo:
- 
- void kmem_cache_free(struct kmem_cache *s, void *x)
+@@ -5394,18 +5394,14 @@ __initcall(slab_sysfs_init);
+  * The /proc/slabinfo ABI
+  */
+ #ifdef CONFIG_SLABINFO
+-int slabinfo_show(struct seq_file *m, void *p)
++void get_slabinfo(struct kmem_cache *s, struct slabinfo *sinfo)
  {
--	struct page *page;
-+	struct page *page = virt_to_head_page(x);
+ 	unsigned long nr_partials = 0;
+ 	unsigned long nr_slabs = 0;
+-	unsigned long nr_inuse = 0;
+ 	unsigned long nr_objs = 0;
+ 	unsigned long nr_free = 0;
+-	struct kmem_cache *s;
+ 	int node;
  
--	page = virt_to_head_page(x);
-+	/*
-+	 * When kmemcg is not being used, both assignments should return the
-+	 * same value. but we don't want to pay the assignment price in that
-+	 * case. If it is not compiled in, the compiler should be smart enough
-+	 * to not do even the assignment. In that case, slab_equal_or_root
-+	 * will also be a constant.
-+	 */
-+	if (memcg_kmem_enabled()) {
-+		VM_BUG_ON(!slab_equal_or_root(page->slab, s));
-+		s = page->slab;
-+	}
+-	s = list_entry(p, struct kmem_cache, list);
+-
+ 	for_each_online_node(node) {
+ 		struct kmem_cache_node *n = get_node(s, node);
  
- 	if (kmem_cache_debug(s) && page->slab != s) {
- 		pr_err("kmem_cache_free: Wrong slab cache. %s but object"
+@@ -5418,16 +5414,16 @@ int slabinfo_show(struct seq_file *m, void *p)
+ 		nr_free += count_partial(n, count_free);
+ 	}
+ 
+-	nr_inuse = nr_objs - nr_free;
++	sinfo->active_objs = nr_objs - nr_free;
++	sinfo->num_objs = nr_objs;
++	sinfo->active_slabs = nr_slabs;
++	sinfo->num_slabs = nr_slabs;
++	sinfo->objects_per_slab = oo_objects(s->oo);
++	sinfo->cache_order = oo_order(s->oo);
++}
+ 
+-	seq_printf(m, "%-17s %6lu %6lu %6u %4u %4d", s->name, nr_inuse,
+-		   nr_objs, s->size, oo_objects(s->oo),
+-		   (1 << oo_order(s->oo)));
+-	seq_printf(m, " : tunables %4u %4u %4u", 0, 0, 0);
+-	seq_printf(m, " : slabdata %6lu %6lu %6lu", nr_slabs, nr_slabs,
+-		   0UL);
+-	seq_putc(m, '\n');
+-	return 0;
++void slabinfo_show_stats(struct seq_file *m, struct kmem_cache *s)
++{
+ }
+ 
+ ssize_t slabinfo_write(struct file *file, const char __user *buffer,
 -- 
 1.7.11.4
 
