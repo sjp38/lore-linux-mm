@@ -1,83 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
-	by kanga.kvack.org (Postfix) with SMTP id 79FE46B0044
-	for <linux-mm@kvack.org>; Fri, 12 Oct 2012 15:28:44 -0400 (EDT)
-Received: by mail-ob0-f169.google.com with SMTP id va7so3884305obc.14
-        for <linux-mm@kvack.org>; Fri, 12 Oct 2012 12:28:43 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
+	by kanga.kvack.org (Postfix) with SMTP id B3E056B0044
+	for <linux-mm@kvack.org>; Fri, 12 Oct 2012 18:24:36 -0400 (EDT)
+Received: by mail-pa0-f41.google.com with SMTP id fa10so3582714pad.14
+        for <linux-mm@kvack.org>; Fri, 12 Oct 2012 15:24:36 -0700 (PDT)
+Date: Fri, 12 Oct 2012 15:21:42 -0700
+From: Anton Vorontsov <anton.vorontsov@linaro.org>
+Subject: Re: [PATCH 2/3] vmevent: Factor vmevent_match_attr() out of
+ vmevent_match()
+Message-ID: <20121012222141.GA15629@lizard>
+References: <20121004102013.GA23284@lizard>
+ <1349346078-24874-2-git-send-email-anton.vorontsov@linaro.org>
+ <CAOJsxLFW3WbBDdFhuJDwUxvGVfsy_Tg8SpR4pxTWAcfQ+LG0UQ@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <506E46B6.3060502@jp.fujitsu.com>
-References: <506E43E0.70507@jp.fujitsu.com> <506E46B6.3060502@jp.fujitsu.com>
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Date: Fri, 12 Oct 2012 15:28:23 -0400
-Message-ID: <CAHGf_=raSH5C8ye90F1PLZ8mGQUGggB=J0HYU8UhkKVDTV5JXQ@mail.gmail.com>
-Subject: Re: [PATCH 5/10] memory-hotplug : memory-hotplug: check page type in get_page_bootmem
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <CAOJsxLFW3WbBDdFhuJDwUxvGVfsy_Tg8SpR4pxTWAcfQ+LG0UQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-Cc: x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-ia64@vger.kernel.org, cmetcalf@tilera.com, sparclinux@vger.kernel.org, rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, cl@linux.com, minchan.kim@gmail.com, akpm@linux-foundation.org, wency@cn.fujitsu.com
+To: Pekka Enberg <penberg@kernel.org>
+Cc: John Stultz <john.stultz@linaro.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org
 
-On Thu, Oct 4, 2012 at 10:32 PM, Yasuaki Ishimatsu
-<isimatu.yasuaki@jp.fujitsu.com> wrote:
-> The function get_page_bootmem() may be called more than one time to the same
-> page. There is no need to set page's type, private if the function is not
-> the first time called to the page.
->
-> Note: the patch is just optimization and does not fix any problem.
->
-> CC: David Rientjes <rientjes@google.com>
-> CC: Jiang Liu <liuj97@gmail.com>
-> CC: Len Brown <len.brown@intel.com>
-> CC: Christoph Lameter <cl@linux.com>
-> Cc: Minchan Kim <minchan.kim@gmail.com>
-> CC: Andrew Morton <akpm@linux-foundation.org>
-> CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> CC: Wen Congyang <wency@cn.fujitsu.com>
-> Signed-off-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-> ---
->  mm/memory_hotplug.c |   15 +++++++++++----
->  1 file changed, 11 insertions(+), 4 deletions(-)
->
-> Index: linux-3.6/mm/memory_hotplug.c
-> ===================================================================
-> --- linux-3.6.orig/mm/memory_hotplug.c  2012-10-04 18:29:58.284676075 +0900
-> +++ linux-3.6/mm/memory_hotplug.c       2012-10-04 18:30:03.454680542 +0900
-> @@ -95,10 +95,17 @@ static void release_memory_resource(stru
->  static void get_page_bootmem(unsigned long info,  struct page *page,
->                              unsigned long type)
->  {
-> -       page->lru.next = (struct list_head *) type;
-> -       SetPagePrivate(page);
-> -       set_page_private(page, info);
-> -       atomic_inc(&page->_count);
-> +       unsigned long page_type;
-> +
-> +       page_type = (unsigned long)page->lru.next;
+On Fri, Oct 12, 2012 at 03:37:43PM +0300, Pekka Enberg wrote:
+[...]
+> > +static bool vmevent_match_attr(struct vmevent_attr *attr, u64 value)
+> > +{
+> > +       u32 state = attr->state;
+> > +       bool attr_lt = state & VMEVENT_ATTR_STATE_VALUE_LT;
+> > +       bool attr_gt = state & VMEVENT_ATTR_STATE_VALUE_GT;
+> > +       bool attr_eq = state & VMEVENT_ATTR_STATE_VALUE_EQ;
+> > +       bool edge = state & VMEVENT_ATTR_STATE_EDGE_TRIGGER;
+> > +       u32 was_lt_mask = VMEVENT_ATTR_STATE_VALUE_WAS_LT;
+> > +       u32 was_gt_mask = VMEVENT_ATTR_STATE_VALUE_WAS_GT;
+> > +       bool lt = value < attr->value;
+> > +       bool gt = value > attr->value;
+> > +       bool eq = value == attr->value;
+> > +       bool was_lt = state & was_lt_mask;
+> > +       bool was_gt = state & was_gt_mask;
+> 
+> [snip]
+> 
+> So I merged this patch but vmevent_match_attr() is still too ugly for
+> words. It really could use some serious cleanups.
 
-If I understand correctly, page->lru.next might be uninitialized yet.
+Thanks a lot for merging these cleanups!
 
-Moreover, I have no seen any good effect in this patch. I don't understand
-why we need to increase code complexity.
+Yes, the patch wasn't meant to simplify the matching logic, but just to
+let us use the function in other places.
 
+I once started converting the function into table-based approach, but the
+code started growing, and I abandoned the idea for now. I might resume the
+work just for the fun of it, but the code will be larger than this ad-hoc
+function, althouh surely it will be more generic and understandable.
 
+But let's solve primary problems with the vmevent first. :-)
 
-> +       if (page_type < MEMORY_HOTPLUG_MIN_BOOTMEM_TYPE ||
-> +           page_type > MEMORY_HOTPLUG_MAX_BOOTMEM_TYPE){
-> +               page->lru.next = (struct list_head *)type;
-> +               SetPagePrivate(page);
-> +               set_page_private(page, info);
-> +               atomic_inc(&page->_count);
-> +       } else
-> +               atomic_inc(&page->_count);
->  }
->
->  /* reference to __meminit __free_pages_bootmem is valid
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Thanks,
+Anton.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
