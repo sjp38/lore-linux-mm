@@ -1,93 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
-	by kanga.kvack.org (Postfix) with SMTP id EC4286B002B
-	for <linux-mm@kvack.org>; Thu, 11 Oct 2012 21:46:19 -0400 (EDT)
-Date: Fri, 12 Oct 2012 03:45:53 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 00/33] AutoNUMA27
-Message-ID: <20121012014553.GD1818@redhat.com>
-References: <1349308275-2174-1-git-send-email-aarcange@redhat.com>
- <20121011213432.GQ3317@csn.ul.ie>
+Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
+	by kanga.kvack.org (Postfix) with SMTP id AAF346B0044
+	for <linux-mm@kvack.org>; Thu, 11 Oct 2012 23:23:43 -0400 (EDT)
+Received: by mail-ob0-f169.google.com with SMTP id va7so2959701obc.14
+        for <linux-mm@kvack.org>; Thu, 11 Oct 2012 20:23:42 -0700 (PDT)
+Message-ID: <50778D39.1000102@gmail.com>
+Date: Fri, 12 Oct 2012 11:23:37 +0800
+From: Ni zhan Chen <nizhan.chen@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20121011213432.GQ3317@csn.ul.ie>
+Subject: Re: [PATCH v3 07/10] thp: implement splitting pmd for huge zero page
+References: <1349191172-28855-1-git-send-email-kirill.shutemov@linux.intel.com> <1349191172-28855-8-git-send-email-kirill.shutemov@linux.intel.com>
+In-Reply-To: <1349191172-28855-8-git-send-email-kirill.shutemov@linux.intel.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <pzijlstr@redhat.com>, Ingo Molnar <mingo@elte.hu>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hillf Danton <dhillf@gmail.com>, Andrew Jones <drjones@redhat.com>, Dan Smith <danms@us.ibm.com>, Thomas Gleixner <tglx@linutronix.de>, Paul Turner <pjt@google.com>, Christoph Lameter <cl@linux.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>, Andi Kleen <ak@linux.intel.com>, "H. Peter Anvin" <hpa@linux.intel.com>, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill@shutemov.name>
 
-Hi Mel,
+On 10/02/2012 11:19 PM, Kirill A. Shutemov wrote:
+> From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+>
+> We can't split huge zero page itself, but we can split the pmd which
+> points to it.
+>
+> On splitting the pmd we create a table with all ptes set to normal zero
+> page.
+>
+> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> Reviewed-by: Andrea Arcangeli <aarcange@redhat.com>
+> ---
+>   mm/huge_memory.c |   32 ++++++++++++++++++++++++++++++++
+>   1 files changed, 32 insertions(+), 0 deletions(-)
+>
+> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+> index 95032d3..3f1c59c 100644
+> --- a/mm/huge_memory.c
+> +++ b/mm/huge_memory.c
+> @@ -1600,6 +1600,7 @@ int split_huge_page(struct page *page)
+>   	struct anon_vma *anon_vma;
+>   	int ret = 1;
+>   
+> +	BUG_ON(is_huge_zero_pfn(page_to_pfn(page)));
+>   	BUG_ON(!PageAnon(page));
+>   	anon_vma = page_lock_anon_vma(page);
+>   	if (!anon_vma)
+> @@ -2503,6 +2504,32 @@ static int khugepaged(void *none)
+>   	return 0;
+>   }
+>   
+> +static void __split_huge_zero_page_pmd(struct vm_area_struct *vma,
+> +		unsigned long haddr, pmd_t *pmd)
+> +{
+> +	pgtable_t pgtable;
+> +	pmd_t _pmd;
+> +	int i;
+> +
+> +	pmdp_clear_flush_notify(vma, haddr, pmd);
 
-On Thu, Oct 11, 2012 at 10:34:32PM +0100, Mel Gorman wrote:
-> So after getting through the full review of it, there wasn't anything
-> I could not stand. I think it's *very* heavy on some of the paths like
-> the idle balancer which I was not keen on and the fault paths are also
-> quite heavy.  I think the weight on some of these paths can be reduced
-> but not to 0 if the objectives to autonuma are to be met.
-> 
-> I'm not fully convinced that the task exchange is actually necessary or
-> beneficial because it somewhat assumes that there is a symmetry between CPU
-> and memory balancing that may not be true. The fact that it only considers
+why I can't find function pmdp_clear_flush_notify in kernel source code? 
+Do you mean pmdp_clear_flush_young_notify or something like that?
 
-The problem is that without an active task exchange and no explicit
-call to stop_one_cpu*, there's no way to migrate a currently running
-task and clearly we need that. We can indefinitely wait hoping the
-task goes to sleep and leaves the CPU idle, or that a couple of other
-tasks start and trigger load balance events.
-
-We must move tasks even if all cpus are in a steady rq->nr_running ==
-1 state and there's no other scheduler balance event that could
-possibly attempt to move tasks around in such a steady state.
-
-Of course one could hack the active idle balancing so that it does the
-active NUMA balancing action, but that would be a purely artificial
-complication: it would add unnecessary delay and it would provide no
-benefit whatsoever.
-
-Why don't we dump the active idle balancing too, and we hack the load
-balancing to do the active idle balancing as well? Of course then the
-two will be more integrated. But it'll be a mess and slower and
-there's a good reason why they exist as totally separated pieces of
-code working in parallel.
-
-We can integrate it more, but in my view the result would be worse and
-more complicated. Last but not the least messing the idle balancing
-code to do an active NUMA balancing action (somehow invoking
-stop_one_cpu* in the steady state described above) would force even
-cellphones and UP kernels to deal with NUMA code somehow.
-
-> tasks that are currently running feels a bit random but examining all tasks
-> that recently ran on the node would be far too expensive to there is no
-
-So far this seems a good tradeoff. Nothing will prevent us to scan
-deeper into the runqueues later if find a way to do that efficiently.
-
-> good answer. You are caught between a rock and a hard place and either
-> direction you go is wrong for different reasons. You need something more
-
-I think you described the problem perfectly ;).
-
-> frequent than scans (because it'll converge too slowly) but doing it from
-> the balancer misses some tasks and may run too frequently and it's unclear
-> how it effects the current load balancer decisions. I don't have a good
-> alternative solution for this but ideally it would be better integrated with
-> the existing scheduler when there is more data on what those scheduling
-> decisions should be. That will only come from a wide range of testing and
-> the inevitable bug reports.
-> 
-> That said, this is concentrating on the problems without considering the
-> situations where it would work very well.  I think it'll come down to HPC
-> and anything jitter-sensitive will hate this while workloads like JVM,
-> virtualisation or anything that uses a lot of memory without caring about
-> placement will love it. It's not perfect but it's better than incurring
-> the cost of remote access unconditionally.
-
-Full agreement.
-
-Your detailed full review was very appreciated, thanks!
-
-Andrea
+> +	/* leave pmd empty until pte is filled */
+> +
+> +	pgtable = get_pmd_huge_pte(vma->vm_mm);
+> +	pmd_populate(vma->vm_mm, &_pmd, pgtable);
+> +
+> +	for (i = 0; i < HPAGE_PMD_NR; i++, haddr += PAGE_SIZE) {
+> +		pte_t *pte, entry;
+> +		entry = pfn_pte(my_zero_pfn(haddr), vma->vm_page_prot);
+> +		entry = pte_mkspecial(entry);
+> +		pte = pte_offset_map(&_pmd, haddr);
+> +		VM_BUG_ON(!pte_none(*pte));
+> +		set_pte_at(vma->vm_mm, haddr, pte, entry);
+> +		pte_unmap(pte);
+> +	}
+> +	smp_wmb(); /* make pte visible before pmd */
+> +	pmd_populate(vma->vm_mm, pmd, pgtable);
+> +}
+> +
+>   void __split_huge_page_pmd(struct vm_area_struct *vma, unsigned long address,
+>   		pmd_t *pmd)
+>   {
+> @@ -2516,6 +2543,11 @@ void __split_huge_page_pmd(struct vm_area_struct *vma, unsigned long address,
+>   		spin_unlock(&vma->vm_mm->page_table_lock);
+>   		return;
+>   	}
+> +	if (is_huge_zero_pmd(*pmd)) {
+> +		__split_huge_zero_page_pmd(vma, haddr, pmd);
+> +		spin_unlock(&vma->vm_mm->page_table_lock);
+> +		return;
+> +	}
+>   	page = pmd_page(*pmd);
+>   	VM_BUG_ON(!page_count(page));
+>   	get_page(page);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
