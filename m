@@ -1,79 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
-	by kanga.kvack.org (Postfix) with SMTP id 2566D6B00A5
-	for <linux-mm@kvack.org>; Fri, 12 Oct 2012 10:51:18 -0400 (EDT)
-Date: Fri, 12 Oct 2012 15:51:14 +0100
+Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
+	by kanga.kvack.org (Postfix) with SMTP id B30066B00A6
+	for <linux-mm@kvack.org>; Fri, 12 Oct 2012 10:54:40 -0400 (EDT)
+Date: Fri, 12 Oct 2012 15:54:32 +0100
 From: Mel Gorman <mgorman@suse.de>
-Subject: MMTests 0.06
-Message-ID: <20121012145114.GZ29125@suse.de>
+Subject: Re: [PATCH 00/33] AutoNUMA27
+Message-ID: <20121012145432.GA29125@suse.de>
+References: <1349308275-2174-1-git-send-email-aarcange@redhat.com>
+ <20121011101930.GM3317@csn.ul.ie>
+ <20121011145611.GI1818@redhat.com>
+ <20121011153503.GX3317@csn.ul.ie>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
+In-Reply-To: <20121011153503.GX3317@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linux-MM <linux-mm@kvack.org>
-Cc: LKML <linux-kernel@vger.kernel.org>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <pzijlstr@redhat.com>, Ingo Molnar <mingo@elte.hu>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hillf Danton <dhillf@gmail.com>, Andrew Jones <drjones@redhat.com>, Dan Smith <danms@us.ibm.com>, Thomas Gleixner <tglx@linutronix.de>, Paul Turner <pjt@google.com>, Christoph Lameter <cl@linux.com>, Suresh Siddha <suresh.b.siddha@intel.com>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
 
-MMTests 0.06 is a configurable test suite that runs a number of common
-workloads of interest to MM developers. There are multiple additions
-all but in many respects the most useful will be automatic package
-installation. The package names are based on openSUSE but it's easy to
-create mappings in bin/install-depends where the package names differ. The
-very basics of monitoring NUMA efficiency is there as well and the autonuma
-benchmark has a test. The stats it reports for NUMA need significant
-improvement but for the most part that should be straight forward.
+On Thu, Oct 11, 2012 at 04:35:03PM +0100, Mel Gorman wrote:
+> On Thu, Oct 11, 2012 at 04:56:11PM +0200, Andrea Arcangeli wrote:
+> > Hi Mel,
+> > 
+> > On Thu, Oct 11, 2012 at 11:19:30AM +0100, Mel Gorman wrote:
+> > > As a basic sniff test I added a test to MMtests for the AutoNUMA
+> > > Benchmark on a 4-node machine and the following fell out.
+> > > 
+> > >                                      3.6.0                 3.6.0
+> > >                                    vanilla        autonuma-v33r6
+> > > User    SMT             82851.82 (  0.00%)    33084.03 ( 60.07%)
+> > > User    THREAD_ALLOC   142723.90 (  0.00%)    47707.38 ( 66.57%)
+> > > System  SMT               396.68 (  0.00%)      621.46 (-56.67%)
+> > > System  THREAD_ALLOC      675.22 (  0.00%)      836.96 (-23.95%)
+> > > Elapsed SMT              1987.08 (  0.00%)      828.57 ( 58.30%)
+> > > Elapsed THREAD_ALLOC     3222.99 (  0.00%)     1101.31 ( 65.83%)
+> > > CPU     SMT              4189.00 (  0.00%)     4067.00 (  2.91%)
+> > > CPU     THREAD_ALLOC     4449.00 (  0.00%)     4407.00 (  0.94%)
+> > 
+> > Thanks a lot for the help and for looking into it!
+> > 
+> > Just curious, why are you running only numa02_SMT and
+> > numa01_THREAD_ALLOC? And not numa01 and numa02? (the standard version
+> > without _suffix)
+> > 
+> 
+> Bug in the testing script on my end. Each of them are run separtly and it
 
-Changelog since v0.05
-o Automatically install packages (need name mappings for other distros)
-o Add benchmark for autonumabench
-o Add support for benchmarking NAS with MPI
-o Add pgbench for autonumabench (may need a bit more work)
-o Upgrade postgres version to 9.2.1
-o Upgrade kernel verion used for kernbench to 3.0 for newer toolchains
-o Alter mailserver config to finish in a reasonable time
-o Add monitor for perf sched
-o Add moinitor that gathers ftrace information with trace-cmd
-o Add preliminary monitors for NUMA stats (very basic)
-o Specify ftrace events to monitor from config file
-o Remove the bulk of whats left of VMRegress
-o Convert shellpacks to a template format to auto-generate boilerplate code
-o Collect lock_stat information if enabled
-o Run multiple iterations of aim9
-o Add basic regression tests for Cross Memory Attach
-o Copy with preempt being enabled in highalloc stres tests
-o Have largedd cope with a missing large file to work with
-o Add a monitor-only mode to just capture logs
-o Report receive-side throughput in netperf for results
+Ok, MMTests 0.06 (released a few minutes ago) patches autonumabench so
+it can run the tests individually. I know start_bench.sh can run all the
+tests itself but in time I'll want mmtests to collect additional stats
+that can also be applied to other benchmarks consistently. The revised
+results look like this
 
-At LSF/MM at some point a request was made that a series of tests
-be identified that were of interest to MM developers and that could be
-used for testing the Linux memory management subsystem. There is renewed
-interest in some sort of general testing framework during discussions for
-Kernel Summit 2012 so here is what I use.
+AUTONUMA BENCH
+                                          3.6.0                 3.6.0
+                                        vanilla        autonuma-v33r6
+User    NUMA01               66395.58 (  0.00%)    32000.83 ( 51.80%)
+User    NUMA01_THEADLOCAL    55952.48 (  0.00%)    16950.48 ( 69.71%)
+User    NUMA02                6988.51 (  0.00%)     2150.56 ( 69.23%)
+User    NUMA02_SMT            2914.25 (  0.00%)     1013.11 ( 65.24%)
+System  NUMA01                 319.12 (  0.00%)      483.60 (-51.54%)
+System  NUMA01_THEADLOCAL       40.60 (  0.00%)      184.39 (-354.16%)
+System  NUMA02                   1.62 (  0.00%)       23.92 (-1376.54%)
+System  NUMA02_SMT               0.90 (  0.00%)       16.20 (-1700.00%)
+Elapsed NUMA01                1519.53 (  0.00%)      757.40 ( 50.16%)
+Elapsed NUMA01_THEADLOCAL     1269.49 (  0.00%)      398.63 ( 68.60%)
+Elapsed NUMA02                 181.12 (  0.00%)       57.09 ( 68.48%)
+Elapsed NUMA02_SMT             164.18 (  0.00%)       53.16 ( 67.62%)
+CPU     NUMA01                4390.00 (  0.00%)     4288.00 (  2.32%)
+CPU     NUMA01_THEADLOCAL     4410.00 (  0.00%)     4298.00 (  2.54%)
+CPU     NUMA02                3859.00 (  0.00%)     3808.00 (  1.32%)
+CPU     NUMA02_SMT            1775.00 (  0.00%)     1935.00 ( -9.01%)
 
-http://www.csn.ul.ie/~mel/projects/mmtests/
-http://www.csn.ul.ie/~mel/projects/mmtests/mmtests-0.06-mmtests-0.01.tar.gz
+MMTests Statistics: duration
+               3.6.0       3.6.0
+             vanilla autonuma-v33r6
+User       132257.44    52121.30
+System        362.79      708.62
+Elapsed      3142.66     1275.72
 
-There are a number of stock configurations stored in configs/.  For example
-config-global-dhp__pagealloc-performance runs a number of tests that
-may be able to identify performance regressions or gains in the page
-allocator. Similarly there network and scheduler configs. There are also
-more complex options. config-global-dhp__parallelio-memcachetest will run
-memcachetest in the foreground while doing IO of different sizes in the
-background to measure how much unrelated IO affects the throughput of an
-in-memory database.
+MMTests Statistics: vmstat
+                              3.6.0       3.6.0
+                            vanilla autonuma-v33r6
+THP fault alloc               17660       19927
+THP collapse alloc               10       12399
+THP splits                        4       12637
 
-This release is also a little rough and the extraction scripts could
-have been tidier but they were mostly written in an airport and for the
-most part they work as advertised. I'll fix bugs as according as they are
-brought to my attention.
-
-The stats reporting still needs work because while some tests know how
-to make a better estimate of mean by filtering outliers it is not being
-handled consistently and the methodology needs work. I know filtering
-statistics like this is a major flaw in the methodology but the decision
-was made in this case in the interest of the benchmarks with unstable
-results completing in a reasonable time.
+The System CPU usage is high but is compenstated for with reduced User
+and Elapsed times in this particular case.
 
 -- 
 Mel Gorman
