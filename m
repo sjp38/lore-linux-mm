@@ -1,61 +1,165 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
-	by kanga.kvack.org (Postfix) with SMTP id 0242D6B0044
-	for <linux-mm@kvack.org>; Fri, 12 Oct 2012 06:14:07 -0400 (EDT)
-Received: by mail-pa0-f41.google.com with SMTP id fa10so2990731pad.14
-        for <linux-mm@kvack.org>; Fri, 12 Oct 2012 03:14:07 -0700 (PDT)
-Date: Fri, 12 Oct 2012 03:11:15 -0700
+Received: from psmtp.com (na3sys010amx112.postini.com [74.125.245.112])
+	by kanga.kvack.org (Postfix) with SMTP id 063286B0044
+	for <linux-mm@kvack.org>; Fri, 12 Oct 2012 06:15:02 -0400 (EDT)
+Received: by mail-pa0-f41.google.com with SMTP id fa10so2991499pad.14
+        for <linux-mm@kvack.org>; Fri, 12 Oct 2012 03:15:02 -0700 (PDT)
 From: Anton Vorontsov <anton.vorontsov@linaro.org>
-Subject: [RFC 0/3] mm: vmevent: Stats accuracy improvements
-Message-ID: <20121012101115.GA11825@lizard>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
+Subject: [PATCH 1/3] mm: vmstat: Implement set_zone_stat_thresholds() helper
+Date: Fri, 12 Oct 2012 03:11:57 -0700
+Message-Id: <1350036719-29031-1-git-send-email-anton.vorontsov@linaro.org>
+In-Reply-To: <20121012101115.GA11825@lizard>
+References: <20121012101115.GA11825@lizard>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Pekka Enberg <penberg@kernel.org>
 Cc: Mel Gorman <mgorman@suse.de>, Leonid Moiseichuk <leonid.moiseichuk@nokia.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Minchan Kim <minchan@kernel.org>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, John Stultz <john.stultz@linaro.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org, kernel-team@android.com
 
-Hi all,
+There are two things that affect vmstat accuracy:
 
-Some time ago KOSAKI Motohiro noticed[1] that vmevent might be very
-inaccurate (up to 2GB inaccuracy on a very large machines) since per CPU
-stats synchronization happens either on time basis or when we hit stat
-thresholds.
+- Per CPU pageset stats to global stats synchronization time;
+- Per CPU pageset stats thresholds;
 
-KOSAKI also told that perf API might be a good inspirations for further
-improvements, but I must admit I didn't fully get the idea, although I'm
-open to investigate this route too, but I guess it needs a bit more
-explanations.
+Currently user can only change vmstat update time (via stat_interval
+sysctl, which is 1 second by default).
 
-Also note that this is just an RFC, I just show some ideas and wonder how
-you feel about it. Since we now use memory pressure factor bolted into the
-reclaimer code path, we don't desperately need the accurate stats, but
-it's still nice thing to have/fix.
+As for thresholds, the max threshold is 125 pages, which is per CPU, per
+zone, so the vmstat inaccuracy might be significant. With vmevent API we
+will able to set vmstat thresholds as well -- we will use this small
+helper for this.
 
-Anyway, here we take two approaches:
+Note that since various MM areas depend on the accuracy too, we should be
+very carefully to not downgrade it. User also have to understand that
+lower thresholds puts more pressure on caches, and can somewhat degrade
+performance, especially on very large systems. But that's the price for
+accuracy (if it is needed).
 
-- Asynchronously sum vm_stat diffs and global stats. This is very similar
-  to what we already have for per-zone stats, implemented in
-  zone_page_state_snapshot(). The values still could be inaccurate, but
-  overall this makes things better;
+p.s.
 
-- Implement configurable per CPU vmstat thresholds. This is much more
-  powerful tool to get accurate statistics, but it comes with a price: it
-  might cause some performance penalty as we'd update global stats more
-  frequently (in a fast path), so users have to be careful.
+set_pgdat_percpu_threshold() used for_each_possible_cpu(), and
+refresh_zone_stat_thresholds() used for_each_online_cpu(). I think
+for_each_possible_cpu() is unnecessary, as on CPU hotplug we call
+refresh_zone_stat_thresholds() anyway.
 
-The two items are independent, so we might implement one or another, or
-both, or none, if desired. ;-)
+Signed-off-by: Anton Vorontsov <anton.vorontsov@linaro.org>
+---
+ include/linux/vmstat.h |  6 ++++++
+ mm/vmstat.c            | 52 ++++++++++++++++++++++++++++++++++++++------------
+ 2 files changed, 46 insertions(+), 12 deletions(-)
 
-Thanks,
-Anton.
-
-p.s. Note that the patches are against my vmevent tree, i.e.:
-
-	git://git.infradead.org/users/cbou/linux-vmevent.git
-
-[1] http://lkml.indiana.edu/hypermail/linux/kernel/1205.1/00062.html
+diff --git a/include/linux/vmstat.h b/include/linux/vmstat.h
+index ad2cfd5..590808d 100644
+--- a/include/linux/vmstat.h
++++ b/include/linux/vmstat.h
+@@ -202,6 +202,9 @@ int calculate_pressure_threshold(struct zone *zone);
+ int calculate_normal_threshold(struct zone *zone);
+ void set_pgdat_percpu_threshold(pg_data_t *pgdat,
+ 				int (*calculate_pressure)(struct zone *));
++s8 set_zone_stat_thresholds(struct zone *zone,
++			    int (*calc_thres)(struct zone *zone),
++			    s8 force);
+ #else /* CONFIG_SMP */
+ 
+ /*
+@@ -248,6 +251,9 @@ static inline void __dec_zone_page_state(struct page *page,
+ 
+ #define set_pgdat_percpu_threshold(pgdat, callback) { }
+ 
++static inline s8 set_zone_stat_thresholds(struct zone *zone,
++					  int (*calc_thres)(struct zone *zone),
++					  s8 force) { return 0; }
+ static inline void refresh_cpu_vm_stats(int cpu) { }
+ static inline void refresh_zone_stat_thresholds(void) { }
+ 
+diff --git a/mm/vmstat.c b/mm/vmstat.c
+index df7a674..3609e3e 100644
+--- a/mm/vmstat.c
++++ b/mm/vmstat.c
+@@ -155,22 +155,55 @@ int calculate_normal_threshold(struct zone *zone)
+ }
+ 
+ /*
++ * set_zone_stat_thresholds() - Set zone stat thresholds
++ * @zone:	A zone to set thresholds for
++ * @calc_thres:	An optional callback to calculate thresholds
++ * @force:	An optional threshold value to force thresholds
++ *
++ * This function sets stat thresholds for a desired zone. The thresholds
++ * are either calculated by the optional @calc_thres callback, or set to
++ * the @force value. If @force is greater than current zone's threshold,
++ * the new value is ignored.
++ */
++s8 set_zone_stat_thresholds(struct zone *zone,
++			    int (*calc_thres)(struct zone *zone),
++			    s8 force)
++{
++	static s8 forced_threshold;
++	s8 thres = force;
++	uint cpu;
++
++	if (!calc_thres) {
++		if (!force)
++			calc_thres = calculate_normal_threshold;
++		forced_threshold = force;
++	}
++
++	if (calc_thres) {
++		thres = calc_thres(zone);
++		if (forced_threshold)
++			thres = min(thres, forced_threshold);
++	}
++
++	for_each_online_cpu(cpu)
++		per_cpu_ptr(zone->pageset, cpu)->stat_threshold = thres;
++
++	return thres;
++}
++
++/*
+  * Refresh the thresholds for each zone.
+  */
+ void refresh_zone_stat_thresholds(void)
+ {
+ 	struct zone *zone;
+-	int cpu;
+ 	int threshold;
+ 
+ 	for_each_populated_zone(zone) {
+ 		unsigned long max_drift, tolerate_drift;
+ 
+-		threshold = calculate_normal_threshold(zone);
+-
+-		for_each_online_cpu(cpu)
+-			per_cpu_ptr(zone->pageset, cpu)->stat_threshold
+-							= threshold;
++		threshold = set_zone_stat_thresholds(zone,
++				calculate_normal_threshold, 0);
+ 
+ 		/*
+ 		 * Only set percpu_drift_mark if there is a danger that
+@@ -189,8 +222,6 @@ void set_pgdat_percpu_threshold(pg_data_t *pgdat,
+ 				int (*calculate_pressure)(struct zone *))
+ {
+ 	struct zone *zone;
+-	int cpu;
+-	int threshold;
+ 	int i;
+ 
+ 	for (i = 0; i < pgdat->nr_zones; i++) {
+@@ -198,10 +229,7 @@ void set_pgdat_percpu_threshold(pg_data_t *pgdat,
+ 		if (!zone->percpu_drift_mark)
+ 			continue;
+ 
+-		threshold = (*calculate_pressure)(zone);
+-		for_each_possible_cpu(cpu)
+-			per_cpu_ptr(zone->pageset, cpu)->stat_threshold
+-							= threshold;
++		set_zone_stat_thresholds(zone, calculate_pressure, 0);
+ 	}
+ }
+ 
+-- 
+1.7.12.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
