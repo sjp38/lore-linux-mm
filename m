@@ -1,36 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
-	by kanga.kvack.org (Postfix) with SMTP id 61CBB6B0044
-	for <linux-mm@kvack.org>; Fri, 12 Oct 2012 08:57:12 -0400 (EDT)
-Date: Fri, 12 Oct 2012 14:57:08 +0200
+Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
+	by kanga.kvack.org (Postfix) with SMTP id 3FB916B0044
+	for <linux-mm@kvack.org>; Fri, 12 Oct 2012 09:01:45 -0400 (EDT)
+Date: Fri, 12 Oct 2012 15:01:42 +0200
 From: Michal Hocko <mhocko@suse.cz>
-Subject: [PATCH] add some drop_caches documentation and info messsge
-Message-ID: <20121012125708.GJ10110@dhcp22.suse.cz>
+Subject: Re: [PATCH] memcg: oom: fix totalpages calculation for
+ memory.swappiness==0
+Message-ID: <20121012130141.GA22083@dhcp22.suse.cz>
+References: <20121011085038.GA29295@dhcp22.suse.cz>
+ <1349945859-1350-1-git-send-email-mhocko@suse.cz>
+ <20121011122037.GE31863@cmpxchg.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <20121011122037.GE31863@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Dave Hansen <dave@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>
 
-Hi,
-I would like to resurrect the following Dave's patch. The last time it
-has been posted was here https://lkml.org/lkml/2010/9/16/250 and there
-didn't seem to be any strong opposition. 
-Kosaki was worried about possible excessive logging when somebody drops
-caches too often (but then he claimed he didn't have a strong opinion
-on that) but I would say opposite. If somebody does that then I would
-really like to know that from the log when supporting a system because
-it almost for sure means that there is something fishy going on. It is
-also worth mentioning that only root can write drop caches so this is
-not an flooding attack vector.
-I am bringing that up again because this can be really helpful when
-chasing strange performance issues which (surprise surprise) turn out to
-be related to artificially dropped caches done because the admin thinks
-this would help...
+On Thu 11-10-12 08:20:37, Johannes Weiner wrote:
+> On Thu, Oct 11, 2012 at 10:57:39AM +0200, Michal Hocko wrote:
+> > oom_badness takes totalpages argument which says how many pages are
+> > available and it uses it as a base for the score calculation. The value
+> > is calculated by mem_cgroup_get_limit which considers both limit and
+> > total_swap_pages (resp. memsw portion of it).
+> > 
+> > This is usually correct but since fe35004f (mm: avoid swapping out
+> > with swappiness==0) we do not swap when swappiness is 0 which means
+> > that we cannot really use up all the totalpages pages. This in turn
+> > confuses oom score calculation if the memcg limit is much smaller than
+> > the available swap because the used memory (capped by the limit) is
+> > negligible comparing to totalpages so the resulting score is too small
+> > if adj!=0 (typically task with CAP_SYS_ADMIN or non zero oom_score_adj).
+> > A wrong process might be selected as result.
+> > 
+> > The same issue exists for the global oom killer as well but it is not
+> > that problematic as the amount of the RAM is usually much bigger than
+> > the swap space.
+> > 
+> > The problem can be worked around by checking mem_cgroup_swappiness==0
+> > and not considering swap at all in such a case.
+> > 
+> > Signed-off-by: Michal Hocko <mhocko@suse.cz>
+> > Acked-by: David Rientjes <rientjes@google.com>
+> > Cc: stable [3.5+]
+> 
+> I also don't think it's hackish, the limit depends very much on
+> whether reclaim can swap, so it's natural that swappiness shows up
+> here.
 
-I have just refreshed the original patch on top of the current mm tree
-but I could live with KERN_INFO as well if people think that KERN_NOTICE
-is too hysterical.
----
+OK, maybe I was just a bit over sensitive here. The other reason I
+didn't like it is that swappiness might change over time we some of the
+tasks could be already swapped out. oom_score already considers
+MM_SWAPENTS but this just tells the number of swapped out ptes not the
+pages. So we could still kill something that is resident with much
+smaller memory footprint. But this is a different issue and probably a
+corner case.
+
+> Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+
+Thanks
+-- 
+Michal Hocko
+SUSE Labs
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
