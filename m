@@ -1,23 +1,25 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx140.postini.com [74.125.245.140])
-	by kanga.kvack.org (Postfix) with SMTP id 84A766B007B
+Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
+	by kanga.kvack.org (Postfix) with SMTP id 9345F6B0082
 	for <linux-mm@kvack.org>; Fri, 12 Oct 2012 09:42:55 -0400 (EDT)
 From: Glauber Costa <glommer@parallels.com>
-Subject: [PATCH v4 06/19] slab/slub: struct memcg_params
-Date: Fri, 12 Oct 2012 17:41:00 +0400
-Message-Id: <1350049273-17213-7-git-send-email-glommer@parallels.com>
+Subject: [PATCH v4 14/19] memcg/sl[au]b Track all the memcg children of a kmem_cache.
+Date: Fri, 12 Oct 2012 17:41:08 +0400
+Message-Id: <1350049273-17213-15-git-send-email-glommer@parallels.com>
 In-Reply-To: <1350049273-17213-1-git-send-email-glommer@parallels.com>
 References: <1350049273-17213-1-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
-Cc: cgroups@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, kamezawa.hiroyu@jp.fujitsu.com, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, devel@openvz.org, Glauber Costa <glommer@parallels.com>, Suleiman Souhlal <suleiman@google.com>, Pekka Enberg <penberg@cs.helsinki.fi>
+Cc: cgroups@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, kamezawa.hiroyu@jp.fujitsu.com, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, devel@openvz.org, Suleiman Souhlal <suleiman@google.com>, Glauber Costa <glommer@parallels.com>, Pekka Enberg <penberg@cs.helsinki.fi>
 
-For the kmem slab controller, we need to record some extra
-information in the kmem_cache structure.
+This enables us to remove all the children of a kmem_cache being
+destroyed, if for example the kernel module it's being used in
+gets unloaded. Otherwise, the children will still point to the
+destroyed parent.
 
-Signed-off-by: Glauber Costa <glommer@parallels.com>
 Signed-off-by: Suleiman Souhlal <suleiman@google.com>
+Signed-off-by: Glauber Costa <glommer@parallels.com>
 CC: Christoph Lameter <cl@linux.com>
 CC: Pekka Enberg <penberg@cs.helsinki.fi>
 CC: Michal Hocko <mhocko@suse.cz>
@@ -25,98 +27,106 @@ CC: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 CC: Johannes Weiner <hannes@cmpxchg.org>
 CC: Tejun Heo <tj@kernel.org>
 ---
- include/linux/slab.h     | 25 +++++++++++++++++++++++++
- include/linux/slab_def.h |  3 +++
- include/linux/slub_def.h |  3 +++
- mm/slab.h                | 13 +++++++++++++
- 4 files changed, 44 insertions(+)
+ include/linux/memcontrol.h |  6 ++++++
+ mm/memcontrol.c            | 32 ++++++++++++++++++++++++++++++--
+ mm/slab_common.c           |  3 +++
+ 3 files changed, 39 insertions(+), 2 deletions(-)
 
-diff --git a/include/linux/slab.h b/include/linux/slab.h
-index 0dd2dfa..e4ea48a 100644
---- a/include/linux/slab.h
-+++ b/include/linux/slab.h
-@@ -177,6 +177,31 @@ unsigned int kmem_cache_size(struct kmem_cache *);
- #define ARCH_SLAB_MINALIGN __alignof__(unsigned long long)
- #endif
+diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+index 9ac12cb..6c8156b 100644
+--- a/include/linux/memcontrol.h
++++ b/include/linux/memcontrol.h
+@@ -427,6 +427,7 @@ struct kmem_cache *
+ __memcg_kmem_get_cache(struct kmem_cache *cachep, gfp_t gfp);
  
-+#include <linux/workqueue.h>
-+/*
-+ * This is the main placeholder for memcg-related information in kmem caches.
-+ * struct kmem_cache will hold a pointer to it, so the memory cost while
-+ * disabled is 1 pointer. The runtime cost while enabled, gets bigger than it
-+ * would otherwise be if that would be bundled in kmem_cache: we'll need an
-+ * extra pointer chase. But the trade off clearly lays in favor of not
-+ * penalizing non-users.
-+ *
-+ * Both the root cache and the child caches will have it. For the root cache,
-+ * this will hold a dynamically allocated array large enough to hold
-+ * information about the currently limited memcgs in the system.
-+ *
-+ * Child caches will hold extra metadata needed for its operation. Fields are:
-+ *
-+ * @memcg: pointer to the memcg this cache belongs to
-+ */
-+struct memcg_cache_params {
-+	bool is_root_cache;
-+	union {
-+		struct kmem_cache *memcg_caches[0];
-+		struct mem_cgroup *memcg;
-+	};
-+};
+ void mem_cgroup_destroy_cache(struct kmem_cache *cachep);
++void kmem_cache_destroy_memcg_children(struct kmem_cache *s);
+ 
+ /**
+  * memcg_kmem_newpage_charge: verify if a new kmem allocation is allowed.
+@@ -578,6 +579,11 @@ memcg_kmem_get_cache(struct kmem_cache *cachep, gfp_t gfp)
+ {
+ 	return cachep;
+ }
 +
- /*
-  * Common kmalloc functions provided by all allocators
-  */
-diff --git a/include/linux/slab_def.h b/include/linux/slab_def.h
-index 36d7031..665afa4 100644
---- a/include/linux/slab_def.h
-+++ b/include/linux/slab_def.h
-@@ -81,6 +81,9 @@ struct kmem_cache {
- 	 */
- 	int obj_offset;
- #endif /* CONFIG_DEBUG_SLAB */
-+#ifdef CONFIG_MEMCG_KMEM
-+	struct memcg_cache_params *memcg_params;
-+#endif
- 
- /* 6) per-cpu/per-node data, touched during every alloc/free */
- 	/*
-diff --git a/include/linux/slub_def.h b/include/linux/slub_def.h
-index df448ad..961e72e 100644
---- a/include/linux/slub_def.h
-+++ b/include/linux/slub_def.h
-@@ -101,6 +101,9 @@ struct kmem_cache {
- #ifdef CONFIG_SYSFS
- 	struct kobject kobj;	/* For sysfs */
- #endif
-+#ifdef CONFIG_MEMCG_KMEM
-+	struct memcg_cache_params *memcg_params;
-+#endif
- 
- #ifdef CONFIG_NUMA
- 	/*
-diff --git a/mm/slab.h b/mm/slab.h
-index 66a62d3..5ee1851 100644
---- a/mm/slab.h
-+++ b/mm/slab.h
-@@ -92,4 +92,17 @@ void get_slabinfo(struct kmem_cache *s, struct slabinfo *sinfo);
- void slabinfo_show_stats(struct seq_file *m, struct kmem_cache *s);
- ssize_t slabinfo_write(struct file *file, const char __user *buffer,
- 		       size_t count, loff_t *ppos);
 +
-+#ifdef CONFIG_MEMCG_KMEM
-+static inline bool is_root_cache(struct kmem_cache *s)
++static inline void kmem_cache_destroy_memcg_children(struct kmem_cache *s)
 +{
-+	return !s->memcg_params || s->memcg_params->is_root_cache;
 +}
-+#else
-+static inline bool is_root_cache(struct kmem_cache *s)
+ #endif /* CONFIG_MEMCG_KMEM */
+ #endif /* _LINUX_MEMCONTROL_H */
+ 
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index f744305..8cf8b4d 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -2716,6 +2716,8 @@ static void __mem_cgroup_commit_charge(struct mem_cgroup *memcg,
+ 	memcg_check_events(memcg, page);
+ }
+ 
++static DEFINE_MUTEX(set_limit_mutex);
++
+ #ifdef CONFIG_MEMCG_KMEM
+ static inline bool memcg_can_account_kmem(struct mem_cgroup *memcg)
+ {
+@@ -3093,6 +3095,34 @@ out:
+ 	return new_cachep;
+ }
+ 
++void kmem_cache_destroy_memcg_children(struct kmem_cache *s)
 +{
-+	return true;
++	struct kmem_cache *c;
++	int i;
++
++	if (!s->memcg_params)
++		return;
++	if (!s->memcg_params->is_root_cache)
++		return;
++
++	/*
++	 * If the cache is being destroyed, we trust that there is no one else
++	 * requesting objects from it. Even if there are, the sanity checks in
++	 * kmem_cache_destroy should caught this ill-case.
++	 *
++	 * Still, we don't want anyone else freeing memcg_caches under our
++	 * noses, which can happen if a new memcg comes to life. As usual,
++	 * we'll take the set_limit_mutex to protect ourselves against this.
++	 */
++	mutex_lock(&set_limit_mutex);
++	for (i = 0; i < memcg_limited_groups_array_size; i++) {
++		c = s->memcg_params->memcg_caches[i];
++		if (c)
++			kmem_cache_destroy(c);
++	}
++	mutex_unlock(&set_limit_mutex);
 +}
 +
-+#endif
+ struct create_work {
+ 	struct mem_cgroup *memcg;
+ 	struct kmem_cache *cachep;
+@@ -4189,8 +4219,6 @@ void mem_cgroup_print_bad_page(struct page *page)
+ }
  #endif
+ 
+-static DEFINE_MUTEX(set_limit_mutex);
+-
+ static int mem_cgroup_resize_limit(struct mem_cgroup *memcg,
+ 				unsigned long long val)
+ {
+diff --git a/mm/slab_common.c b/mm/slab_common.c
+index fcf59d7..c02faf5 100644
+--- a/mm/slab_common.c
++++ b/mm/slab_common.c
+@@ -214,6 +214,9 @@ EXPORT_SYMBOL(kmem_cache_create);
+ 
+ void kmem_cache_destroy(struct kmem_cache *s)
+ {
++	/* Destroy all the children caches if we aren't a memcg cache */
++	kmem_cache_destroy_memcg_children(s);
++
+ 	get_online_cpus();
+ 	mutex_lock(&slab_mutex);
+ 	s->refcount--;
 -- 
 1.7.11.4
 
