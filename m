@@ -1,75 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
-	by kanga.kvack.org (Postfix) with SMTP id 24C886B0044
-	for <linux-mm@kvack.org>; Sat, 13 Oct 2012 08:44:02 -0400 (EDT)
-Received: by mail-ie0-f169.google.com with SMTP id 10so7413993ied.14
-        for <linux-mm@kvack.org>; Sat, 13 Oct 2012 05:44:01 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.00.1210130252030.7462@chino.kir.corp.google.com>
-References: <CALF0-+XGn5=QSE0bpa4RTag9CAJ63MKz1kvaYbpw34qUhViaZA@mail.gmail.com>
-	<m27gqwtyu9.fsf@firstfloor.org>
-	<alpine.DEB.2.00.1210111558290.6409@chino.kir.corp.google.com>
-	<m2391ktxjj.fsf@firstfloor.org>
-	<CALF0-+WLZWtwYY4taYW9D7j-abCJeY90JzcTQ2hGK64ftWsdxw@mail.gmail.com>
-	<alpine.DEB.2.00.1210130252030.7462@chino.kir.corp.google.com>
-Date: Sat, 13 Oct 2012 09:44:01 -0300
-Message-ID: <CALF0-+Xp_P_NjZpifzDSWxz=aBzy_fwaTB3poGLEJA8yBPQb_Q@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
+	by kanga.kvack.org (Postfix) with SMTP id C74C56B002B
+	for <linux-mm@kvack.org>; Sat, 13 Oct 2012 11:10:25 -0400 (EDT)
+Received: by mail-wi0-f169.google.com with SMTP id hq4so428786wib.2
+        for <linux-mm@kvack.org>; Sat, 13 Oct 2012 08:10:24 -0700 (PDT)
 Subject: Re: [Q] Default SLAB allocator
-From: Ezequiel Garcia <elezegarcia@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+From: Eric Dumazet <eric.dumazet@gmail.com>
+In-Reply-To: <alpine.DEB.2.00.1210130249070.7462@chino.kir.corp.google.com>
+References: 
+	 <CALF0-+XGn5=QSE0bpa4RTag9CAJ63MKz1kvaYbpw34qUhViaZA@mail.gmail.com>
+	 <m27gqwtyu9.fsf@firstfloor.org>
+	 <alpine.DEB.2.00.1210111558290.6409@chino.kir.corp.google.com>
+	 <m2391ktxjj.fsf@firstfloor.org>
+	 <alpine.DEB.2.00.1210130249070.7462@chino.kir.corp.google.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Sat, 13 Oct 2012 17:10:21 +0200
+Message-ID: <1350141021.21172.14949.camel@edumazet-glaptop>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: David Rientjes <rientjes@google.com>
-Cc: Andi Kleen <andi@firstfloor.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Tim Bird <tim.bird@am.sony.com>, celinux-dev@lists.celinuxforum.org
+Cc: Andi Kleen <andi@firstfloor.org>, Ezequiel Garcia <elezegarcia@gmail.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Tim Bird <tim.bird@am.sony.com>, celinux-dev@lists.celinuxforum.org
 
-Hi David,
+On Sat, 2012-10-13 at 02:51 -0700, David Rientjes wrote:
+> On Thu, 11 Oct 2012, Andi Kleen wrote:
+> 
+> > When did you last test? Our regressions had disappeared a few kernels
+> > ago.
+> > 
+> 
+> This was in August when preparing for LinuxCon, I tested netperf TCP_RR on 
+> two 64GB machines (one client, one server), four nodes each, with thread 
+> counts in multiples of the number of cores.  SLUB does a comparable job, 
+> but once we have the the number of threads equal to three times the number 
+> of cores, it degrades almost linearly.  I'll run it again next week and 
+> get some numbers on 3.6.
 
-On Sat, Oct 13, 2012 at 6:54 AM, David Rientjes <rientjes@google.com> wrote:
-> On Fri, 12 Oct 2012, Ezequiel Garcia wrote:
->
->> >> SLUB is a non-starter for us and incurs a >10% performance degradation in
->> >> netperf TCP_RR.
->> >
->>
->> Where are you seeing that?
->>
->
-> In my benchmarking results.
->
->> Notice that many defconfigs are for embedded devices,
->> and many of them say "use SLAB"; I wonder if that's right.
->>
->
-> If a device doesn't require the smallest memory footprint possible (SLOB)
-> then SLAB is the right choice when there's a limited amount of memory;
-> SLUB requires higher order pages for the best performance (on my desktop
-> system running with CONFIG_SLUB, over 50% of the slab caches default to be
-> high order).
->
+In latest kernels, skb->head no longer use kmalloc()/kfree(), so SLAB vs
+SLUB is less a concern for network loads.
 
-But SLAB suffers from a lot more internal fragmentation than SLUB,
-which I guess is a known fact. So memory-constrained devices
-would waste more memory by using SLAB.
-I must admit a didn't look at page order (but I will now).
+In 3.7, (commit 69b08f62e17) we use fragments of order-3 pages to
+populate skb->head.
 
+SLUB was really bad in the common workload you describe (allocations
+done by one cpu, freeing done by other cpus), because all kfree() hit
+the slow path and cpus contend in __slab_free() in the loop guarded by
+cmpxchg_double_slab(). SLAB has a cache for this, while SLUB directly
+hit the main "struct page" to add the freed object to freelist.
 
->> Is there any intention to replace SLAB by SLUB?
->
-> There may be an intent, but it'll be nacked as long as there's a
-> performance degradation.
->
->> In that case it could make sense to change defconfigs, although
->> it wouldn't be based on any actual tests.
->>
->
-> Um, you can't just go changing defconfigs without doing some due diligence
-> in ensuring it won't be deterimental for those users.
+I played some months ago adding a percpu associative cache to SLUB, then
+just moved on other strategy.
 
-Yeah, it would be very interesting to compare SLABs on at least
-some of those platforms.
+(Idea for this per cpu cache was to build a temporary free list of
+objects to batch accesses to struct page)
 
 
-    Ezequiel
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
