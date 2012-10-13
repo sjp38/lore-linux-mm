@@ -1,55 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
-	by kanga.kvack.org (Postfix) with SMTP id 44B3E6B0044
-	for <linux-mm@kvack.org>; Sat, 13 Oct 2012 05:54:52 -0400 (EDT)
-Received: by mail-da0-f41.google.com with SMTP id i14so2002819dad.14
-        for <linux-mm@kvack.org>; Sat, 13 Oct 2012 02:54:51 -0700 (PDT)
-Date: Sat, 13 Oct 2012 02:54:49 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
+	by kanga.kvack.org (Postfix) with SMTP id 0D7C16B005D
+	for <linux-mm@kvack.org>; Sat, 13 Oct 2012 05:56:02 -0400 (EDT)
+Received: by mail-pb0-f41.google.com with SMTP id rq2so3994582pbb.14
+        for <linux-mm@kvack.org>; Sat, 13 Oct 2012 02:56:02 -0700 (PDT)
+Date: Sat, 13 Oct 2012 02:56:00 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [Q] Default SLAB allocator
-In-Reply-To: <CALF0-+WLZWtwYY4taYW9D7j-abCJeY90JzcTQ2hGK64ftWsdxw@mail.gmail.com>
-Message-ID: <alpine.DEB.2.00.1210130252030.7462@chino.kir.corp.google.com>
-References: <CALF0-+XGn5=QSE0bpa4RTag9CAJ63MKz1kvaYbpw34qUhViaZA@mail.gmail.com> <m27gqwtyu9.fsf@firstfloor.org> <alpine.DEB.2.00.1210111558290.6409@chino.kir.corp.google.com> <m2391ktxjj.fsf@firstfloor.org>
- <CALF0-+WLZWtwYY4taYW9D7j-abCJeY90JzcTQ2hGK64ftWsdxw@mail.gmail.com>
+Subject: Re: [PATCH] mm: cleanup register_node()
+In-Reply-To: <5077D353.3010708@jp.fujitsu.com>
+Message-ID: <alpine.DEB.2.00.1210130255470.7462@chino.kir.corp.google.com>
+References: <5077D353.3010708@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ezequiel Garcia <elezegarcia@gmail.com>
-Cc: Andi Kleen <andi@firstfloor.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Tim Bird <tim.bird@am.sony.com>, celinux-dev@lists.celinuxforum.org
+To: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org
 
-On Fri, 12 Oct 2012, Ezequiel Garcia wrote:
+On Fri, 12 Oct 2012, Yasuaki Ishimatsu wrote:
 
-> >> SLUB is a non-starter for us and incurs a >10% performance degradation in
-> >> netperf TCP_RR.
-> >
+> register_node() is defined as extern in include/linux/node.h. But the function
+> is only called from register_one_node() in driver/base/node.c.
 > 
-> Where are you seeing that?
+> So the patch defines register_node() as static.
 > 
+> CC: David Rientjes <rientjes@google.com>
+> CC: Andrew Morton <akpm@linux-foundation.org>
+> Signed-off-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 
-In my benchmarking results.
+Acked-by: David Rientjes <rientjes@google.com>
 
-> Notice that many defconfigs are for embedded devices,
-> and many of them say "use SLAB"; I wonder if that's right.
-> 
-
-If a device doesn't require the smallest memory footprint possible (SLOB) 
-then SLAB is the right choice when there's a limited amount of memory; 
-SLUB requires higher order pages for the best performance (on my desktop 
-system running with CONFIG_SLUB, over 50% of the slab caches default to be 
-high order).
-
-> Is there any intention to replace SLAB by SLUB?
-
-There may be an intent, but it'll be nacked as long as there's a 
-performance degradation.
-
-> In that case it could make sense to change defconfigs, although
-> it wouldn't be based on any actual tests.
-> 
-
-Um, you can't just go changing defconfigs without doing some due diligence 
-in ensuring it won't be deterimental for those users.
+Thanks!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
