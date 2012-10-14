@@ -1,59 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
-	by kanga.kvack.org (Postfix) with SMTP id 9491D6B0068
-	for <linux-mm@kvack.org>; Sat, 13 Oct 2012 19:46:20 -0400 (EDT)
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [PATCH 0/2] RFC SLUB: increase range of kmalloc slab sizes
-References: <1350145885-6099-1-git-send-email-richard@rsk.demon.co.uk>
-Date: Sat, 13 Oct 2012 16:46:19 -0700
-In-Reply-To: <1350145885-6099-1-git-send-email-richard@rsk.demon.co.uk>
-	(Richard Kennedy's message of "Sat, 13 Oct 2012 17:31:23 +0100")
-Message-ID: <m2y5jarl4k.fsf@firstfloor.org>
+Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
+	by kanga.kvack.org (Postfix) with SMTP id 51A086B006C
+	for <linux-mm@kvack.org>; Sat, 13 Oct 2012 23:20:54 -0400 (EDT)
+Received: by mail-vc0-f169.google.com with SMTP id fl17so5569058vcb.14
+        for <linux-mm@kvack.org>; Sat, 13 Oct 2012 20:20:53 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+In-Reply-To: <1350142693-21954-1-git-send-email-andi@firstfloor.org>
+References: <1350142693-21954-1-git-send-email-andi@firstfloor.org>
+Date: Sun, 14 Oct 2012 11:20:52 +0800
+Message-ID: <CAJd=RBD_yjZ+=MTT8Zj+O4BTOHNd3oCcVFTtqi29znhYqHiJGw@mail.gmail.com>
+Subject: Re: [PATCH] MM: Support more pagesizes for MAP_HUGETLB/SHM_HUGETLB v5
+From: Hillf Danton <dhillf@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Richard Kennedy <richard@rsk.demon.co.uk>
-Cc: Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andi Kleen <andi@firstfloor.org>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, Andi Kleen <ak@linux.intel.com>
 
-Richard Kennedy <richard@rsk.demon.co.uk> writes:
+Hi Andi,
 
-> This patch increases the range of slab sizes available to kmalloc, adding
-> slabs half way between the existing power of two sized ones, so allowing slightly
->  more efficient use of memory.
-> Most of the new slabs already exist as kmem_cache slabs so only the 1.5k,3k & 6k 
-> are entirely new.
+On Sat, Oct 13, 2012 at 11:38 PM, Andi Kleen <andi@firstfloor.org> wrote:
+> v2: Port to new tree. Fix unmount.
+> v3: Ported to latest tree.
+> v4: Ported to latest tree. Minor changes for review feedback. Updated
+> description.
+> v5: Remove unnecessary prototypes to fix merge error (Hillf Dalton)
 
-I'm not sure what order slab/slub use by default these days, but for
-order 0 none of your new sizes sound like a winner:
+s/Dalton/Danton/
 
-4K / 1.5 = 2  = 4K / 2K 
-4K / 3K  = 1  = 4K / 4K
-8K / 6K  = 1  = 8K / 8K
+>  struct file *hugetlb_file_setup(const char *name, unsigned long addr,
+>                                 size_t size, vm_flags_t acctflag,
+> -                               struct user_struct **user, int creat_flags)
+> +                               struct user_struct **user,
+> +                               int creat_flags, int page_size_log)
+>  {
+>         int error = -ENOMEM;
+>         struct file *file;
+> @@ -944,9 +957,14 @@ struct file *hugetlb_file_setup(const char *name, unsigned long addr,
+>         struct qstr quick_string;
+>         struct hstate *hstate;
+>         unsigned long num_pages;
+> +       int hstate_idx;
+> +
+> +       hstate_idx = get_hstate_idx(page_size_log);
+> +       if (hstate_idx < 0)
+> +               return ERR_PTR(-ENODEV);
+>
+>         *user = NULL;
+> -       if (!hugetlbfs_vfsmount)
+> +       if (!hugetlbfs_vfsmount[hstate_idx])
 
-I think you need better data that it actually saves memory with some
-reproducible workloads.
+Maybe
+	if (IS_ERR(hugetlbfs_vfsmount[hstate_idx]))
+since ...
 
-Revisiting the sizes is a good idea -- the original Bonwick slab paper
-explicitely recommended against power of twos -- but I think it needs a
-more data driven process to actually select better ones than what you
-used.
+>  static int __init init_hugetlbfs_fs(void)
+>  {
+> +       struct hstate *h;
+>         int error;
+> -       struct vfsmount *vfsmount;
+> +       int i;
+>
+>         error = bdi_init(&hugetlbfs_backing_dev_info);
+>         if (error)
+> @@ -1029,14 +1048,26 @@ static int __init init_hugetlbfs_fs(void)
+>         if (error)
+>                 goto out;
+>
+> -       vfsmount = kern_mount(&hugetlbfs_fs_type);
+> +       i = 0;
+> +       for_each_hstate (h) {
+> +               char buf[50];
+> +               unsigned ps_kb = 1U << (h->order + PAGE_SHIFT - 10);
+>
+> -       if (!IS_ERR(vfsmount)) {
+> -               hugetlbfs_vfsmount = vfsmount;
+> -               return 0;
+> -       }
+> +               snprintf(buf, sizeof buf, "pagesize=%uK", ps_kb);
+> +               hugetlbfs_vfsmount[i] = kern_mount_data(&hugetlbfs_fs_type,
+> +                                                       buf);
+>
+> -       error = PTR_ERR(vfsmount);
+> +               if (IS_ERR(hugetlbfs_vfsmount[i])) {
+> +                               pr_err(
+> +                       "hugetlb: Cannot mount internal hugetlbfs for page size %uK",
+> +                              ps_kb);
+> +                       error = PTR_ERR(hugetlbfs_vfsmount[i]);
 
-Most likely the best fits are different between 32bit and 64bit
-and also will change occasionally as kernel data structures grow
-(or rarely shrink)
+		...	hugetlbfs_vfsmount[i] is not reset.
 
-In fact I suspect it would be an interesting option for feedback
-control for embedded kernels - measure workload, reboot/recompile with
-slab fitting the workload well.
+> +               }
+> +               i++;
+> +       }
+> +       /* Non default hstates are optional */
+> +       if (hugetlbfs_vfsmount[default_hstate_idx])
 
-So I think before trying any of this you need a good slab profiler
-and a good set of workloads.
+ditto.
 
--Andi
+BTW, resetting looks simpler?
 
--- 
-ak@linux.intel.com -- Speaking for myself only
+> +               return 0;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
