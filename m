@@ -1,106 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
-	by kanga.kvack.org (Postfix) with SMTP id 51A086B006C
-	for <linux-mm@kvack.org>; Sat, 13 Oct 2012 23:20:54 -0400 (EDT)
-Received: by mail-vc0-f169.google.com with SMTP id fl17so5569058vcb.14
-        for <linux-mm@kvack.org>; Sat, 13 Oct 2012 20:20:53 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with SMTP id 04CFD6B0070
+	for <linux-mm@kvack.org>; Sun, 14 Oct 2012 00:57:48 -0400 (EDT)
+Date: Sun, 14 Oct 2012 06:57:16 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH 00/33] AutoNUMA27
+Message-ID: <20121014045716.GE11663@redhat.com>
+References: <1349308275-2174-1-git-send-email-aarcange@redhat.com>
+ <20121013184019.GA3837@linux.vnet.ibm.com>
 MIME-Version: 1.0
-In-Reply-To: <1350142693-21954-1-git-send-email-andi@firstfloor.org>
-References: <1350142693-21954-1-git-send-email-andi@firstfloor.org>
-Date: Sun, 14 Oct 2012 11:20:52 +0800
-Message-ID: <CAJd=RBD_yjZ+=MTT8Zj+O4BTOHNd3oCcVFTtqi29znhYqHiJGw@mail.gmail.com>
-Subject: Re: [PATCH] MM: Support more pagesizes for MAP_HUGETLB/SHM_HUGETLB v5
-From: Hillf Danton <dhillf@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20121013184019.GA3837@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andi Kleen <andi@firstfloor.org>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, Andi Kleen <ak@linux.intel.com>
+To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, torvalds@linux-foundation.org, akpm@linux-foundation.org, pzijlstr@redhat.com, mingo@elte.hu, mel@csn.ul.ie, hughd@google.com, riel@redhat.com, hannes@cmpxchg.org, dhillf@gmail.com, drjones@redhat.com, tglx@linutronix.de, pjt@google.com, cl@linux.com, suresh.b.siddha@intel.com, efault@gmx.de, paulmck@linux.vnet.ibm.com, alex.shi@intel.com, konrad.wilk@oracle.com, benh@kernel.crashing.org
 
-Hi Andi,
+Hi Srikar,
 
-On Sat, Oct 13, 2012 at 11:38 PM, Andi Kleen <andi@firstfloor.org> wrote:
-> v2: Port to new tree. Fix unmount.
-> v3: Ported to latest tree.
-> v4: Ported to latest tree. Minor changes for review feedback. Updated
-> description.
-> v5: Remove unnecessary prototypes to fix merge error (Hillf Dalton)
+On Sun, Oct 14, 2012 at 12:10:19AM +0530, Srikar Dronamraju wrote:
+> * Andrea Arcangeli <aarcange@redhat.com> [2012-10-04 01:50:42]:
+> 
+> > Hello everyone,
+> > 
+> > This is a new AutoNUMA27 release for Linux v3.6.
+> > 
+> 
+> 
+> Here results of autonumabenchmark on a 328GB 64 core with ht disabled
+> comparing v3.6 with autonuma27.
 
-s/Dalton/Danton/
+*snip*
 
->  struct file *hugetlb_file_setup(const char *name, unsigned long addr,
->                                 size_t size, vm_flags_t acctflag,
-> -                               struct user_struct **user, int creat_flags)
-> +                               struct user_struct **user,
-> +                               int creat_flags, int page_size_log)
->  {
->         int error = -ENOMEM;
->         struct file *file;
-> @@ -944,9 +957,14 @@ struct file *hugetlb_file_setup(const char *name, unsigned long addr,
->         struct qstr quick_string;
->         struct hstate *hstate;
->         unsigned long num_pages;
-> +       int hstate_idx;
-> +
-> +       hstate_idx = get_hstate_idx(page_size_log);
-> +       if (hstate_idx < 0)
-> +               return ERR_PTR(-ENODEV);
->
->         *user = NULL;
-> -       if (!hugetlbfs_vfsmount)
-> +       if (!hugetlbfs_vfsmount[hstate_idx])
+>                           numa01: 1805.19  1907.11  1866.39    -3.88%  
 
-Maybe
-	if (IS_ERR(hugetlbfs_vfsmount[hstate_idx]))
-since ...
+Interesting. So numa01 should be improved in autonuma28fast. Not sure
+why the hard binds show any difference, but I'm more concerned in
+optimizing numa01. I get the same results from hard bindings on
+upstream or autonuma, strange.
 
->  static int __init init_hugetlbfs_fs(void)
->  {
-> +       struct hstate *h;
->         int error;
-> -       struct vfsmount *vfsmount;
-> +       int i;
->
->         error = bdi_init(&hugetlbfs_backing_dev_info);
->         if (error)
-> @@ -1029,14 +1048,26 @@ static int __init init_hugetlbfs_fs(void)
->         if (error)
->                 goto out;
->
-> -       vfsmount = kern_mount(&hugetlbfs_fs_type);
-> +       i = 0;
-> +       for_each_hstate (h) {
-> +               char buf[50];
-> +               unsigned ps_kb = 1U << (h->order + PAGE_SHIFT - 10);
->
-> -       if (!IS_ERR(vfsmount)) {
-> -               hugetlbfs_vfsmount = vfsmount;
-> -               return 0;
-> -       }
-> +               snprintf(buf, sizeof buf, "pagesize=%uK", ps_kb);
-> +               hugetlbfs_vfsmount[i] = kern_mount_data(&hugetlbfs_fs_type,
-> +                                                       buf);
->
-> -       error = PTR_ERR(vfsmount);
-> +               if (IS_ERR(hugetlbfs_vfsmount[i])) {
-> +                               pr_err(
-> +                       "hugetlb: Cannot mount internal hugetlbfs for page size %uK",
-> +                              ps_kb);
-> +                       error = PTR_ERR(hugetlbfs_vfsmount[i]);
+Could you repeat only numa01 with the origin/autonuma28fast branch?
+Also if you could post the two pdf convergence chart generated by
+numa01 on autonuma27 and autonuma28fast, I think that would be
+interesting to see the full effect and why it is faster.
 
-		...	hugetlbfs_vfsmount[i] is not reset.
+I only had the time for a quick push after having the idea added in
+autonuma28fast (which is yet improved compared to autonuma28), but
+I've been told already that it's dealing with numa01 on the 8 node
+very well as expected.
 
-> +               }
-> +               i++;
-> +       }
-> +       /* Non default hstates are optional */
-> +       if (hugetlbfs_vfsmount[default_hstate_idx])
+numa01 in the 8 node is a workload without a perfect solution (other
+than MADV_INTERLEAVE). Full convergence preventing cross-node traffic
+is impossible because there are 2 processes spanning over 8 nodes and
+all process memory is touched by all threads constantly. Yet
+autonuma28fast should deal optimally that scenario too.
 
-ditto.
+As a side note: numa01 on the 2 node instead converges fully (2
+processes + 2 nodes = full convergence). numa01 on 2 nodes or >2nodes
+is a very different kind of test.
 
-BTW, resetting looks simpler?
+I'll release an autonuma29 behaving like 28fast if there are no
+surprises. The new algorithm change in 28fast will also save memory
+once I rewrite it properly.
 
-> +               return 0;
+Thanks!
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
