@@ -1,86 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
-	by kanga.kvack.org (Postfix) with SMTP id 8907E6B00AC
-	for <linux-mm@kvack.org>; Mon, 15 Oct 2012 10:45:04 -0400 (EDT)
-Received: by mail-da0-f41.google.com with SMTP id i14so3094040dad.14
-        for <linux-mm@kvack.org>; Mon, 15 Oct 2012 07:45:03 -0700 (PDT)
-Date: Mon, 15 Oct 2012 23:44:12 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: zram OOM behavior
-Message-ID: <20121015144412.GA2173@barrios>
-References: <CAA25o9TmsnR3T+CLk5LeRmXv3s8b719KrSU6C919cAu0YMKPkA@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
+	by kanga.kvack.org (Postfix) with SMTP id 330816B00AE
+	for <linux-mm@kvack.org>; Mon, 15 Oct 2012 10:47:41 -0400 (EDT)
+Date: Mon, 15 Oct 2012 16:47:36 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [RFC PATCH] memcg: oom: fix totalpages calculation for
+ swappiness==0
+Message-ID: <20121015144736.GI29069@dhcp22.suse.cz>
+References: <20121010141142.GG23011@dhcp22.suse.cz>
+ <507BD33C.4030209@jp.fujitsu.com>
+ <20121015094907.GE29069@dhcp22.suse.cz>
+ <CAHGf_=p4d33t7i5++YHTkc0PbAUckca1oBxR5dZ48EzybKYHgw@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAA25o9TmsnR3T+CLk5LeRmXv3s8b719KrSU6C919cAu0YMKPkA@mail.gmail.com>
+In-Reply-To: <CAHGf_=p4d33t7i5++YHTkc0PbAUckca1oBxR5dZ48EzybKYHgw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Luigi Semenzato <semenzato@google.com>
-Cc: linux-mm@kvack.org
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>
 
-Hello,
+On Mon 15-10-12 10:25:14, KOSAKI Motohiro wrote:
+> > diff --git a/Documentation/sysctl/vm.txt b/Documentation/sysctl/vm.txt
+> > index 078701f..308fd77 100644
+> > --- a/Documentation/sysctl/vm.txt
+> > +++ b/Documentation/sysctl/vm.txt
+> > @@ -640,6 +640,9 @@ swappiness
+> >  This control is used to define how aggressive the kernel will swap
+> >  memory pages.  Higher values will increase agressiveness, lower values
+> >  decrease the amount of swap.
+> > +The value can be used from the [0, 100] range, where 0 means no swapping
+> > +at all (even if there is a swap storage enabled) while 100 means that
+> > +anonymous pages are reclaimed in the same rate as file pages.
+> 
+> I think this only correct when memcg. Even if swappiness==0, global reclaim swap
+> out anon pages before oom.
 
-On Fri, Sep 28, 2012 at 10:32:20AM -0700, Luigi Semenzato wrote:
-> Greetings,
-> 
-> We are experimenting with zram in Chrome OS.  It works quite well
-> until the system runs out of memory, at which point it seems to hang,
-> but we suspect it is thrashing.
-> 
-> Before the (apparent) hang, the OOM killer gets rid of a few
-> processes, but then the other processes gradually stop responding,
-> until the entire system becomes unresponsive.
+Right you are (we really do swap when the file pages are really
+low)! Sorry about the confusion. I kind of became if(global_reclaim)
+block blind...
 
-Why do you think it's zram problem? If you use swap device as storage
-instead of zram, does the problem disappear?
-
-Could you do sysrq+t,m several time and post it while hang happens?
-/proc/vmstat could be helpful, too.
-
-> 
-> I am wondering if anybody has run into this.  Thanks!
-> 
-> Luigi
-> 
-> P.S.  For those who wish to know more:
-> 
-> 1. We use the min_filelist_kbytes patch
-> (http://lwn.net/Articles/412313/)  (I am not sure if it made it into
-> the standard kernel) and set min_filelist_kbytes to 50Mb.  (This may
-> not matter, as it's unlikely to make things worse.)
-
-One of the problem I look at this patch is it might prevent
-increasing of zone->pages_scanned when the swap if full or anon pages
-are very small although there are lots of file-backed pages.
-It means OOM can't occur and page allocator could loop forever.
-Please look at zone_reclaimable.
-
-Have you ever test it without above patch?
-
-> 
-> 2. We swap only to compressed ram.  The setup is very simple:
-> 
->  echo ${ZRAM_SIZE_KB}000 >/sys/block/zram0/disksize ||
->       logger -t "$UPSTART_JOB" "failed to set zram size"
->   mkswap /dev/zram0 || logger -t "$UPSTART_JOB" "mkswap /dev/zram0 failed"
->   swapon /dev/zram0 || logger -t "$UPSTART_JOB" "swapon /dev/zram0 failed"
-> 
-> For ZRAM_SIZE_KB, we typically use 1.5 the size of RAM (which is 2 or
-> 4 Gb).  The compression factor is about 3:1.  The hangs happen for
-> quite a wide range of zram sizes.
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-
--- 
-Kind Regards,
-Minchan Kim
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Then this really needs a memcg specific documentation fix. What about
+the following?
+---
